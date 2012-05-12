@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -165,8 +163,7 @@ void batadv_bonding_candidate_add(struct orig_node *orig_node,
 	if (neigh_node->tq_avg < router->tq_avg - BONDING_TQ_THRESHOLD)
 		goto candidate_del;
 
-	/**
-	 * check if we have another candidate with the same mac address or
+	/* check if we have another candidate with the same mac address or
 	 * interface. If we do, we won't select this candidate because of
 	 * possible interference.
 	 */
@@ -177,7 +174,8 @@ void batadv_bonding_candidate_add(struct orig_node *orig_node,
 			continue;
 
 		/* we only care if the other candidate is even
-		* considered as candidate. */
+		 * considered as candidate.
+		 */
 		if (list_empty(&tmp_neigh_node->bonding_list))
 			continue;
 
@@ -398,9 +396,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	int hdr_size = sizeof(struct icmp_packet);
 	int ret = NET_RX_DROP;
 
-	/**
-	 * we truncate all incoming icmp packets if they don't match our size
-	 */
+	/* we truncate all incoming icmp packets if they don't match our size */
 	if (skb->len >= sizeof(struct icmp_packet_rr))
 		hdr_size = sizeof(struct icmp_packet_rr);
 
@@ -474,7 +470,8 @@ out:
  * robin fashion over the remaining interfaces.
  *
  * This method rotates the bonding list and increases the
- * returned router's refcount. */
+ * returned router's refcount.
+ */
 static struct neigh_node *find_bond_router(struct orig_node *primary_orig,
 					   const struct hard_iface *recv_if)
 {
@@ -507,10 +504,12 @@ static struct neigh_node *find_bond_router(struct orig_node *primary_orig,
 		goto out;
 
 	/* selected should point to the next element
-	 * after the current router */
+	 * after the current router
+	 */
 	spin_lock_bh(&primary_orig->neigh_list_lock);
 	/* this is a list_move(), which unfortunately
-	 * does not exist as rcu version */
+	 * does not exist as rcu version
+	 */
 	list_del_rcu(&primary_orig->bond_list);
 	list_add_rcu(&primary_orig->bond_list,
 		     &router->bonding_list);
@@ -525,7 +524,8 @@ out:
  * remaining candidates which are not using
  * this interface.
  *
- * Increases the returned router's refcount */
+ * Increases the returned router's refcount
+ */
 static struct neigh_node *find_ifalter_router(struct orig_node *primary_orig,
 					      const struct hard_iface *recv_if)
 {
@@ -546,11 +546,13 @@ static struct neigh_node *find_ifalter_router(struct orig_node *primary_orig,
 			continue;
 
 		/* if we don't have a router yet
-		 * or this one is better, choose it. */
+		 * or this one is better, choose it.
+		 */
 		if ((!router) ||
 		    (tmp_neigh_node->tq_avg > router->tq_avg)) {
 			/* decrement refcount of
-			 * previously selected router */
+			 * previously selected router
+			 */
 			if (router)
 				batadv_neigh_node_free_ref(router);
 
@@ -602,7 +604,8 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 		batadv_inc_counter(bat_priv, BAT_CNT_TT_REQUEST_RX);
 
 		/* If we cannot provide an answer the tt_request is
-		 * forwarded */
+		 * forwarded
+		 */
 		if (!batadv_send_tt_response(bat_priv, tt_query)) {
 			bat_dbg(DBG_TT, bat_priv,
 				"Routing TT_REQUEST to %pM [%c]\n",
@@ -616,7 +619,8 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 
 		if (batadv_is_my_mac(tt_query->dst)) {
 			/* packet needs to be linearized to access the TT
-			 * changes */
+			 * changes
+			 */
 			if (skb_linearize(skb) < 0)
 				goto out;
 			/* skb_linearize() possibly changed skb->data */
@@ -694,7 +698,8 @@ int batadv_recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	/* Roaming phase starts: I have new information but the ttvn has not
 	 * been incremented yet. This flag will make me check all the incoming
-	 * packets for the correct destination. */
+	 * packets for the correct destination.
+	 */
 	bat_priv->tt_poss_change = true;
 
 	batadv_orig_node_free_ref(orig_node);
@@ -705,7 +710,8 @@ out:
 
 /* find a suitable router for this originator, and use
  * bonding if possible. increases the found neighbors
- * refcount.*/
+ * refcount.
+ */
 struct neigh_node *batadv_find_router(struct bat_priv *bat_priv,
 				      struct orig_node *orig_node,
 				      const struct hard_iface *recv_if)
@@ -724,7 +730,8 @@ struct neigh_node *batadv_find_router(struct bat_priv *bat_priv,
 		goto err;
 
 	/* without bonding, the first node should
-	 * always choose the default router. */
+	 * always choose the default router.
+	 */
 	bonding_enabled = atomic_read(&bat_priv->bonding);
 
 	rcu_read_lock();
@@ -737,13 +744,14 @@ struct neigh_node *batadv_find_router(struct bat_priv *bat_priv,
 		goto return_router;
 
 	/* if we have something in the primary_addr, we can search
-	 * for a potential bonding candidate. */
+	 * for a potential bonding candidate.
+	 */
 	if (compare_eth(router_orig->primary_addr, zero_mac))
 		goto return_router;
 
 	/* find the orig_node which has the primary interface. might
-	 * even be the same as our router_orig in many cases */
-
+	 * even be the same as our router_orig in many cases
+	 */
 	if (compare_eth(router_orig->primary_addr, router_orig->orig)) {
 		primary_orig_node = router_orig;
 	} else {
@@ -756,14 +764,15 @@ struct neigh_node *batadv_find_router(struct bat_priv *bat_priv,
 	}
 
 	/* with less than 2 candidates, we can't do any
-	 * bonding and prefer the original router. */
+	 * bonding and prefer the original router.
+	 */
 	if (atomic_read(&primary_orig_node->bond_candidates) < 2)
 		goto return_router;
 
 	/* all nodes between should choose a candidate which
 	 * is is not on the interface where the packet came
-	 * in. */
-
+	 * in.
+	 */
 	batadv_neigh_node_free_ref(router);
 
 	if (bonding_enabled)
@@ -1089,7 +1098,8 @@ int batadv_recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 		goto spin_unlock;
 
 	/* mark broadcast in flood history, update window position
-	 * if required. */
+	 * if required.
+	 */
 	if (batadv_bit_get_packet(bat_priv, orig_node->bcast_bits, seq_diff, 1))
 		orig_node->last_bcast_seqno = ntohl(bcast_packet->seqno);
 
@@ -1165,6 +1175,7 @@ int batadv_recv_vis_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	}
 
 	/* We take a copy of the data in the packet, so we should
-	   always free the skbuf. */
+	 * always free the skbuf.
+	 */
 	return NET_RX_DROP;
 }

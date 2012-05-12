@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -73,10 +71,6 @@ static int is_valid_iface(const struct net_device *net_dev)
 	/* no batman over batman */
 	if (batadv_softif_is_valid(net_dev))
 		return 0;
-
-	/* Device is being bridged */
-	/* if (net_dev->priv_flags & IFF_BRIDGE_PORT)
-		return 0; */
 
 	return 1;
 }
@@ -185,7 +179,8 @@ int batadv_hardif_min_mtu(struct net_device *soft_iface)
 	const struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	const struct hard_iface *hard_iface;
 	/* allow big frames if all devices are capable to do so
-	 * (have MTU > 1500 + BAT_HEADER_LEN) */
+	 * (have MTU > 1500 + BAT_HEADER_LEN)
+	 */
 	int min_mtu = ETH_DATA_LEN;
 
 	if (atomic_read(&bat_priv->fragmentation))
@@ -231,8 +226,7 @@ static void hardif_activate_interface(struct hard_iface *hard_iface)
 	bat_priv->bat_algo_ops->bat_iface_update_mac(hard_iface);
 	hard_iface->if_status = IF_TO_BE_ACTIVATED;
 
-	/**
-	 * the first active interface becomes our primary interface or
+	/* the first active interface becomes our primary interface or
 	 * the next active interface after the old primary interface was removed
 	 */
 	primary_if = primary_if_get_selected(bat_priv);
@@ -438,8 +432,7 @@ static struct hard_iface *hardif_add_interface(struct net_device *net_dev)
 	check_known_mac_addr(hard_iface->net_dev);
 	list_add_tail_rcu(&hard_iface->list, &batadv_hardif_list);
 
-	/**
-	 * This can't be called via a bat_priv callback because
+	/* This can't be called via a bat_priv callback because
 	 * we have no bat_priv yet.
 	 */
 	atomic_set(&hard_iface->seqno, 1);
@@ -544,7 +537,8 @@ out:
 }
 
 /* This function returns true if the interface represented by ifindex is a
- * 802.11 wireless device */
+ * 802.11 wireless device
+ */
 bool batadv_is_wifi_iface(int ifindex)
 {
 	struct net_device *net_device = NULL;
@@ -559,7 +553,8 @@ bool batadv_is_wifi_iface(int ifindex)
 
 #ifdef CONFIG_WIRELESS_EXT
 	/* pre-cfg80211 drivers have to implement WEXT, so it is possible to
-	 * check for wireless_handlers != NULL */
+	 * check for wireless_handlers != NULL
+	 */
 	if (net_device->wireless_handlers)
 		ret = true;
 	else

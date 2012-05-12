@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -65,8 +63,7 @@ int batadv_skb_head_push(struct sk_buff *skb, unsigned int len)
 {
 	int result;
 
-	/**
-	 * TODO: We must check if we can release all references to non-payload
+	/* TODO: We must check if we can release all references to non-payload
 	 * data using skb_header_release in our skbs to allow skb_cow_header to
 	 * work optimally. This means that those skbs are not allowed to read
 	 * or write any data which is before the current position of skb->data
@@ -180,14 +177,16 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		switch (atomic_read(&bat_priv->gw_mode)) {
 		case GW_MODE_SERVER:
 			/* gateway servers should not send dhcp
-			 * requests into the mesh */
+			 * requests into the mesh
+			 */
 			ret = batadv_gw_is_dhcp_target(skb, &header_len);
 			if (ret)
 				goto dropped;
 			break;
 		case GW_MODE_CLIENT:
 			/* gateway clients should send dhcp requests
-			 * via unicast to their gateway */
+			 * via unicast to their gateway
+			 */
 			ret = batadv_gw_is_dhcp_target(skb, &header_len);
 			if (ret)
 				do_bcast = false;
@@ -215,7 +214,8 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		bcast_packet->header.packet_type = BAT_BCAST;
 
 		/* hw address of first interface is the orig mac because only
-		 * this mac is known throughout the mesh */
+		 * this mac is known throughout the mesh
+		 */
 		memcpy(bcast_packet->orig,
 		       primary_if->net_dev->dev_addr, ETH_ALEN);
 
@@ -226,7 +226,8 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		batadv_add_bcast_packet_to_list(bat_priv, skb, 1);
 
 		/* a copy is stored in the bcast list, therefore removing
-		 * the original skb. */
+		 * the original skb.
+		 */
 		kfree_skb(skb);
 
 	/* unicast packet */
@@ -294,9 +295,10 @@ void batadv_interface_rx(struct net_device *soft_iface,
 
 	/* should not be necessary anymore as we use skb_pull_rcsum()
 	 * TODO: please verify this and remove this TODO
-	 * -- Dec 21st 2009, Simon Wunderlich */
+	 * -- Dec 21st 2009, Simon Wunderlich
+	 */
 
-/*	skb->ip_summed = CHECKSUM_UNNECESSARY;*/
+	/* skb->ip_summed = CHECKSUM_UNNECESSARY; */
 
 	bat_priv->stats.rx_packets++;
 	bat_priv->stats.rx_bytes += skb->len + ETH_HLEN;
@@ -341,8 +343,7 @@ static void interface_setup(struct net_device *dev)
 	dev->destructor = free_netdev;
 	dev->tx_queue_len = 0;
 
-	/**
-	 * can't call min_mtu, because the needed variables
+	/* can't call min_mtu, because the needed variables
 	 * have not been initialized yet
 	 */
 	dev->mtu = ETH_DATA_LEN;

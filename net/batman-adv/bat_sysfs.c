@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -84,7 +82,8 @@ ssize_t show_##_name(struct kobject *kobj,				\
 }									\
 
 /* Use this, if you are going to turn a [name] in the soft-interface
- * (bat_priv) on or off */
+ * (bat_priv) on or off
+ */
 #define BAT_ATTR_SIF_BOOL(_name, _mode, _post_func)			\
 	static BAT_ATTR_SIF_STORE_BOOL(_name, _post_func)		\
 	static BAT_ATTR_SIF_SHOW_BOOL(_name)				\
@@ -110,7 +109,8 @@ ssize_t show_##_name(struct kobject *kobj,				\
 }									\
 
 /* Use this, if you are going to set [name] in the soft-interface
- * (bat_priv) to an unsigned integer value */
+ * (bat_priv) to an unsigned integer value
+ */
 #define BAT_ATTR_SIF_UINT(_name, _mode, _min, _max, _post_func)		\
 	static BAT_ATTR_SIF_STORE_UINT(_name, _min, _max, _post_func)	\
 	static BAT_ATTR_SIF_SHOW_UINT(_name)				\
@@ -155,7 +155,8 @@ ssize_t show_##_name(struct kobject *kobj,				\
 }
 
 /* Use this, if you are going to set [name] in hard_iface to an
- * unsigned integer value*/
+ * unsigned integer value
+ */
 #define BAT_ATTR_HIF_UINT(_name, _mode, _min, _max, _post_func)		\
 	static BAT_ATTR_HIF_STORE_UINT(_name, _min, _max, _post_func)	\
 	static BAT_ATTR_HIF_SHOW_UINT(_name)				\

@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -37,7 +35,8 @@
 
 
 /* List manipulations on hardif_list have to be rtnl_lock()'ed,
- * list traversals just rcu-locked */
+ * list traversals just rcu-locked
+ */
 struct list_head batadv_hardif_list;
 static int (*recv_packet_handler[256])(struct sk_buff *, struct hard_iface *);
 char batadv_routing_algo[20] = "BATMAN_IV";
@@ -59,7 +58,8 @@ static int __init batman_init(void)
 	batadv_iv_init();
 
 	/* the name should not be longer than 10 chars - see
-	 * http://lwn.net/Articles/23634/ */
+	 * http://lwn.net/Articles/23634/
+	 */
 	batadv_event_workqueue = create_singlethread_workqueue("bat_events");
 
 	if (!batadv_event_workqueue)

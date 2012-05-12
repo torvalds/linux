@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -32,7 +30,8 @@
 static void send_outstanding_bcast_packet(struct work_struct *work);
 
 /* send out an already prepared packet to the given address via the
- * specified batman interface */
+ * specified batman interface
+ */
 int batadv_send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 			   const uint8_t *dst_addr)
 {
@@ -69,8 +68,8 @@ int batadv_send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 
 	/* dev_queue_xmit() returns a negative result on error.	 However on
 	 * congestion and traffic shaping, it drops and returns NET_XMIT_DROP
-	 * (which is > 0). This will not be treated as an error. */
-
+	 * (which is > 0). This will not be treated as an error.
+	 */
 	return dev_queue_xmit(skb);
 send_skb_err:
 	kfree_skb(skb);
@@ -85,8 +84,7 @@ void batadv_schedule_bat_ogm(struct hard_iface *hard_iface)
 	    (hard_iface->if_status == IF_TO_BE_REMOVED))
 		return;
 
-	/**
-	 * the interface gets activated here to avoid race conditions between
+	/* the interface gets activated here to avoid race conditions between
 	 * the moment of activating the interface in
 	 * hardif_activate_interface() where the originator mac is set and
 	 * outdated packets (especially uninitialized mac addresses) in the
@@ -132,7 +130,8 @@ static void _add_bcast_packet_to_list(struct bat_priv *bat_priv,
  * errors.
  *
  * The skb is not consumed, so the caller should make sure that the
- * skb is freed. */
+ * skb is freed.
+ */
 int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
 				    const struct sk_buff *skb,
 				    unsigned long delay)
@@ -249,8 +248,7 @@ void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 
 	bat_priv->bat_algo_ops->bat_ogm_emit(forw_packet);
 
-	/**
-	 * we have to have at least one packet in the queue
+	/* we have to have at least one packet in the queue
 	 * to determine the queues wake up time unless we are
 	 * shutting down
 	 */
@@ -285,8 +283,7 @@ void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
 	hlist_for_each_entry_safe(forw_packet, tmp_node, safe_tmp_node,
 				  &bat_priv->forw_bcast_list, list) {
 
-		/**
-		 * if purge_outstanding_packets() was called with an argument
+		/* if purge_outstanding_packets() was called with an argument
 		 * we delete only packets belonging to the given interface
 		 */
 		if ((hard_iface) &&
@@ -295,8 +292,7 @@ void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
 
 		spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
 
-		/**
-		 * send_outstanding_bcast_packet() will lock the list to
+		/* send_outstanding_bcast_packet() will lock the list to
 		 * delete the item from the list
 		 */
 		pending = cancel_delayed_work_sync(&forw_packet->delayed_work);
@@ -314,8 +310,7 @@ void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
 	hlist_for_each_entry_safe(forw_packet, tmp_node, safe_tmp_node,
 				  &bat_priv->forw_bat_list, list) {
 
-		/**
-		 * if purge_outstanding_packets() was called with an argument
+		/* if purge_outstanding_packets() was called with an argument
 		 * we delete only packets belonging to the given interface
 		 */
 		if ((hard_iface) &&
@@ -324,8 +319,7 @@ void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
 
 		spin_unlock_bh(&bat_priv->forw_bat_list_lock);
 
-		/**
-		 * send_outstanding_bat_packet() will lock the list to
+		/* send_outstanding_bat_packet() will lock the list to
 		 * delete the item from the list
 		 */
 		pending = cancel_delayed_work_sync(&forw_packet->delayed_work);

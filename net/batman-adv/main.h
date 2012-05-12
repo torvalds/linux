@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #ifndef _NET_BATMAN_ADV_MAIN_H_
@@ -36,19 +34,21 @@
 #define TQ_MAX_VALUE 255
 #define JITTER 20
 
- /* Time To Live of broadcast messages */
+/* Time To Live of broadcast messages */
 #define TTL 50
 
 /* purge originators after time in seconds if no valid packet comes in
- * -> TODO: check influence on TQ_LOCAL_WINDOW_SIZE */
+ * -> TODO: check influence on TQ_LOCAL_WINDOW_SIZE
+ */
 #define PURGE_TIMEOUT 200000 /* 200 seconds */
 #define TT_LOCAL_TIMEOUT 3600000 /* in miliseconds */
 #define TT_CLIENT_ROAM_TIMEOUT 600000 /* in miliseconds */
 /* sliding packet range of received originator messages in sequence numbers
- * (should be a multiple of our word size) */
+ * (should be a multiple of our word size)
+ */
 #define TQ_LOCAL_WINDOW_SIZE 64
-#define TT_REQUEST_TIMEOUT 3000 /* miliseconds we have to keep
-				 * pending tt_req */
+/* miliseconds we have to keep pending tt_req */
+#define TT_REQUEST_TIMEOUT 3000
 
 #define TQ_GLOBAL_WINDOW_SIZE 5
 #define TQ_LOCAL_BIDRECT_SEND_MINIMUM 1
@@ -57,8 +57,10 @@
 
 #define TT_OGM_APPEND_MAX 3 /* number of OGMs sent with the last tt diff */
 
-#define ROAMING_MAX_TIME 20000 /* Time in which a client can roam at most
-				* ROAMING_MAX_COUNT times in miliseconds*/
+/* Time in which a client can roam at most ROAMING_MAX_COUNT times in
+ * miliseconds
+ */
+#define ROAMING_MAX_TIME 20000
 #define ROAMING_MAX_COUNT 5
 
 #define NO_FLAGS 0
@@ -72,11 +74,13 @@
 #define VIS_INTERVAL 5000	/* 5 seconds */
 
 /* how much worse secondary interfaces may be to be considered as bonding
- * candidates */
+ * candidates
+ */
 #define BONDING_TQ_THRESHOLD	50
 
 /* should not be bigger than 512 bytes or change the size of
- * forw_packet->direct_link_flags */
+ * forw_packet->direct_link_flags
+ */
 #define MAX_AGGREGATION_BYTES 512
 #define MAX_AGGREGATION_MS 100
 
@@ -201,19 +205,16 @@ static inline void bat_dbg(int type __always_unused,
 		pr_err("%s: " fmt, _netdev->name, ## arg);		\
 	} while (0)
 
-/**
- * returns 1 if they are the same ethernet addr
+/* returns 1 if they are the same ethernet addr
  *
  * note: can't use compare_ether_addr() as it requires aligned memory
  */
-
 static inline int compare_eth(const void *data1, const void *data2)
 {
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
 
-/**
- * has_timed_out - compares current time (jiffies) and timestamp + timeout
+/* has_timed_out - compares current time (jiffies) and timestamp + timeout
  * @timestamp:		base value to compare with (in jiffies)
  * @timeout:		added to base value before comparing (in milliseconds)
  *
@@ -237,7 +238,8 @@ static inline bool has_timed_out(unsigned long timestamp, unsigned int timeout)
  *  - when adding nothing - it is neither a predecessor nor a successor
  *  - before adding more than 127 to the starting value - it is a predecessor,
  *  - when adding 128 - it is neither a predecessor nor a successor,
- *  - after adding more than 127 to the starting value - it is a successor */
+ *  - after adding more than 127 to the starting value - it is a successor
+ */
 #define seq_before(x, y) ({typeof(x) _d1 = (x); \
 			  typeof(y) _d2 = (y); \
 			  typeof(x) _dummy = (_d1 - _d2); \

@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #ifndef _NET_BATMAN_ADV_ORIGINATOR_H_
@@ -40,8 +38,9 @@ int batadv_orig_hash_add_if(struct hard_iface *hard_iface, int max_if_num);
 int batadv_orig_hash_del_if(struct hard_iface *hard_iface, int max_if_num);
 
 
-/* hashfunction to choose an entry in a hash table of given size */
-/* hash algorithm from http://en.wikipedia.org/wiki/Hash_table */
+/* hashfunction to choose an entry in a hash table of given size
+ * hash algorithm from http://en.wikipedia.org/wiki/Hash_table
+ */
 static inline uint32_t choose_orig(const void *data, uint32_t size)
 {
 	const unsigned char *key = data;

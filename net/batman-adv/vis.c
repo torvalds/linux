@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2008-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2008-2012 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -64,8 +62,9 @@ static int vis_info_cmp(const struct hlist_node *node, const void *data2)
 	return compare_eth(p1->vis_orig, p2->vis_orig);
 }
 
-/* hash function to choose an entry in a hash table of given size */
-/* hash algorithm from http://en.wikipedia.org/wiki/Hash_table */
+/* hash function to choose an entry in a hash table of given size
+ * hash algorithm from http://en.wikipedia.org/wiki/Hash_table
+ */
 static uint32_t vis_info_choose(const void *data, uint32_t size)
 {
 	const struct vis_info *vis_info = data;
@@ -118,7 +117,8 @@ static struct vis_info *vis_hash_find(struct bat_priv *bat_priv,
 }
 
 /* insert interface to the list of interfaces of one originator, if it
- * does not already exist in the list */
+ * does not already exist in the list
+ */
 static void vis_data_insert_interface(const uint8_t *interface,
 				      struct hlist_head *if_list,
 				      bool primary)
@@ -334,7 +334,8 @@ out:
 }
 
 /* add the info packet to the send list, if it was not
- * already linked in. */
+ * already linked in.
+ */
 static void send_list_add(struct bat_priv *bat_priv, struct vis_info *info)
 {
 	if (list_empty(&info->send_list)) {
@@ -344,7 +345,8 @@ static void send_list_add(struct bat_priv *bat_priv, struct vis_info *info)
 }
 
 /* delete the info packet from the send list, if it was
- * linked in. */
+ * linked in.
+ */
 static void send_list_del(struct vis_info *info)
 {
 	if (!list_empty(&info->send_list)) {
@@ -388,7 +390,8 @@ static int recv_list_is_in(struct bat_priv *bat_priv,
 
 /* try to add the packet to the vis_hash. return NULL if invalid (e.g. too old,
  * broken.. ).	vis hash must be locked outside.  is_new is set when the packet
- * is newer than old entries in the hash. */
+ * is newer than old entries in the hash.
+ */
 static struct vis_info *add_packet(struct bat_priv *bat_priv,
 				   struct vis_packet *vis_packet,
 				   int vis_info_len, int *is_new,
@@ -500,7 +503,8 @@ void batadv_receive_server_sync_packet(struct bat_priv *bat_priv,
 		goto end;
 
 	/* only if we are server ourselves and packet is newer than the one in
-	 * hash.*/
+	 * hash.
+	 */
 	if (vis_server == VIS_TYPE_SERVER_SYNC && is_new)
 		send_list_add(bat_priv, info);
 end:
@@ -554,7 +558,8 @@ end:
 /* Walk the originators and find the VIS server with the best tq. Set the packet
  * address to its address and return the best_tq.
  *
- * Must be called with the originator hash locked */
+ * Must be called with the originator hash locked
+ */
 static int find_best_vis_server(struct bat_priv *bat_priv,
 				struct vis_info *info)
 {
@@ -605,7 +610,8 @@ static bool vis_packet_full(const struct vis_info *info)
 }
 
 /* generates a packet of own vis data,
- * returns 0 on success, -1 if no packet could be generated */
+ * returns 0 on success, -1 if no packet could be generated
+ */
 static int generate_vis_packet(struct bat_priv *bat_priv)
 {
 	struct hashtable_t *hash = bat_priv->orig_hash;
@@ -703,7 +709,8 @@ unlock:
 }
 
 /* free old vis packets. Must be called with this vis_hash_lock
- * held */
+ * held
+ */
 static void purge_vis_packets(struct bat_priv *bat_priv)
 {
 	uint32_t i;
@@ -762,7 +769,8 @@ static void broadcast_vis_packet(struct bat_priv *bat_priv,
 				continue;
 
 			/* don't send it if we already received the packet from
-			 * this node. */
+			 * this node.
+			 */
 			if (recv_list_is_in(bat_priv, &info->recv_list,
 					    orig_node->orig)) {
 				batadv_neigh_node_free_ref(router);
@@ -879,7 +887,8 @@ static void send_vis_packets(struct work_struct *work)
 }
 
 /* init the vis server. this may only be called when if_list is already
- * initialized (e.g. bat0 is initialized, interfaces have been added) */
+ * initialized (e.g. bat0 is initialized, interfaces have been added)
+ */
 int batadv_vis_init(struct bat_priv *bat_priv)
 {
 	struct vis_packet *packet;

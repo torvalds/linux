@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -170,7 +168,8 @@ static void bat_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 				      batman_ogm_packet->tt_num_changes)) {
 
 		/* we might have aggregated direct link packets with an
-		 * ordinary base packet */
+		 * ordinary base packet
+		 */
 		if ((forw_packet->direct_link_flags & (1 << packet_num)) &&
 		    (forw_packet->if_incoming == hard_iface))
 			batman_ogm_packet->flags |= DIRECTLINK;
@@ -237,8 +236,9 @@ static void bat_iv_ogm_emit(struct forw_packet *forw_packet)
 	if (!primary_if)
 		goto out;
 
-	/* multihomed peer assumed */
-	/* non-primary OGMs are only broadcasted on their interface */
+	/* multihomed peer assumed
+	 * non-primary OGMs are only broadcasted on their interface
+	 */
 	if ((directlink && (batman_ogm_packet->header.ttl == 1)) ||
 	    (forw_packet->own && (forw_packet->if_incoming != primary_if))) {
 
@@ -292,41 +292,39 @@ static bool bat_iv_ogm_can_aggregate(const struct batman_ogm_packet
 
 	batman_ogm_packet = (struct batman_ogm_packet *)forw_packet->skb->data;
 
-	/**
-	 * we can aggregate the current packet to this aggregated packet
+	/* we can aggregate the current packet to this aggregated packet
 	 * if:
 	 *
 	 * - the send time is within our MAX_AGGREGATION_MS time
 	 * - the resulting packet wont be bigger than
 	 *   MAX_AGGREGATION_BYTES
 	 */
-
 	if (time_before(send_time, forw_packet->send_time) &&
 	    time_after_eq(send_time + msecs_to_jiffies(MAX_AGGREGATION_MS),
 					forw_packet->send_time) &&
 	    (aggregated_bytes <= MAX_AGGREGATION_BYTES)) {
 
-		/**
-		 * check aggregation compatibility
+		/* check aggregation compatibility
 		 * -> direct link packets are broadcasted on
 		 *    their interface only
 		 * -> aggregate packet if the current packet is
 		 *    a "global" packet as well as the base
 		 *    packet
 		 */
-
 		primary_if = primary_if_get_selected(bat_priv);
 		if (!primary_if)
 			goto out;
 
 		/* packets without direct link flag and high TTL
-		 * are flooded through the net  */
+		 * are flooded through the net
+		 */
 		if ((!directlink) &&
 		    (!(batman_ogm_packet->flags & DIRECTLINK)) &&
 		    (batman_ogm_packet->header.ttl != 1) &&
 
 		    /* own packets originating non-primary
-		     * interfaces leave only that interface */
+		     * interfaces leave only that interface
+		     */
 		    ((!forw_packet->own) ||
 		     (forw_packet->if_incoming == primary_if))) {
 			res = true;
@@ -334,14 +332,16 @@ static bool bat_iv_ogm_can_aggregate(const struct batman_ogm_packet
 		}
 
 		/* if the incoming packet is sent via this one
-		 * interface only - we still can aggregate */
+		 * interface only - we still can aggregate
+		 */
 		if ((directlink) &&
 		    (new_batman_ogm_packet->header.ttl == 1) &&
 		    (forw_packet->if_incoming == if_incoming) &&
 
 		    /* packets from direct neighbors or
 		     * own secondary interface packets
-		     * (= secondary interface packets in general) */
+		     * (= secondary interface packets in general)
+		     */
 		    (batman_ogm_packet->flags & DIRECTLINK ||
 		     (forw_packet->own &&
 		      forw_packet->if_incoming != primary_if))) {
@@ -457,8 +457,7 @@ static void bat_iv_ogm_queue_add(struct bat_priv *bat_priv,
 				 int packet_len, struct hard_iface *if_incoming,
 				 int own_packet, unsigned long send_time)
 {
-	/**
-	 * _aggr -> pointer to the packet we want to aggregate with
+	/* _aggr -> pointer to the packet we want to aggregate with
 	 * _pos -> pointer to the position in the queue
 	 */
 	struct forw_packet *forw_packet_aggr = NULL, *forw_packet_pos = NULL;
@@ -487,13 +486,13 @@ static void bat_iv_ogm_queue_add(struct bat_priv *bat_priv,
 	}
 
 	/* nothing to aggregate with - either aggregation disabled or no
-	 * suitable aggregation packet found */
+	 * suitable aggregation packet found
+	 */
 	if (!forw_packet_aggr) {
 		/* the following section can run without the lock */
 		spin_unlock_bh(&bat_priv->forw_bat_list_lock);
 
-		/**
-		 * if we could not aggregate this packet with one of the others
+		/* if we could not aggregate this packet with one of the others
 		 * we hold it back for a while, so that it might be aggregated
 		 * later on
 		 */
@@ -691,7 +690,8 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 	batadv_bonding_candidate_add(orig_node, neigh_node);
 
 	/* if this neighbor already is our next hop there is nothing
-	 * to change */
+	 * to change
+	 */
 	router = batadv_orig_node_get_router(orig_node);
 	if (router == neigh_node)
 		goto update_tt;
@@ -701,7 +701,8 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 		goto update_tt;
 
 	/* if the TQ is the same and the link not more symmetric we
-	 * won't consider it either */
+	 * won't consider it either
+	 */
 	if (router && (neigh_node->tq_avg == router->tq_avg)) {
 		orig_node_tmp = router->orig_node;
 		spin_lock_bh(&orig_node_tmp->ogm_cnt_lock);
@@ -723,7 +724,8 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 
 update_tt:
 	/* I have to check for transtable changes only if the OGM has been
-	 * sent through a primary interface */
+	 * sent through a primary interface
+	 */
 	if (((batman_ogm_packet->orig != ethhdr->h_source) &&
 	     (batman_ogm_packet->header.ttl > 2)) ||
 	    (batman_ogm_packet->flags & PRIMARIES_FIRST_HOP))
@@ -812,15 +814,17 @@ static int bat_iv_ogm_calc_tq(struct orig_node *orig_node,
 	total_count = (orig_eq_count > neigh_rq_count ?
 		       neigh_rq_count : orig_eq_count);
 
-	/* if we have too few packets (too less data) we set tq_own to zero */
-	/* if we receive too few packets it is not considered bidirectional */
+	/* if we have too few packets (too less data) we set tq_own to zero
+	 * if we receive too few packets it is not considered bidirectional
+	 */
 	if ((total_count < TQ_LOCAL_BIDRECT_SEND_MINIMUM) ||
 	    (neigh_rq_count < TQ_LOCAL_BIDRECT_RECV_MINIMUM))
 		tq_own = 0;
 	else
 		/* neigh_node->real_packet_count is never zero as we
 		 * only purge old information when getting new
-		 * information */
+		 * information
+		 */
 		tq_own = (TQ_MAX_VALUE * total_count) /	neigh_rq_count;
 
 	/* 1 - ((1-x) ** 3), normalized to TQ_MAX_VALUE this does
@@ -846,7 +850,8 @@ static int bat_iv_ogm_calc_tq(struct orig_node *orig_node,
 		neigh_rq_count, tq_own,	tq_asym_penalty, batman_ogm_packet->tq);
 
 	/* if link has the minimum required transmission quality
-	 * consider it bidirectional */
+	 * consider it bidirectional
+	 */
 	if (batman_ogm_packet->tq >= TQ_TOTAL_BIDRECT_LIMIT)
 		ret = 1;
 
@@ -1039,8 +1044,9 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 			return;
 
 		/* neighbor has to indicate direct link and it has to
-		 * come via the corresponding interface */
-		/* save packet seqno for bidirectional check */
+		 * come via the corresponding interface
+		 * save packet seqno for bidirectional check
+		 */
 		if (has_directlink_flag &&
 		    compare_eth(if_incoming->net_dev->dev_addr,
 				batman_ogm_packet->orig)) {
@@ -1117,7 +1123,8 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	}
 
 	/* if sender is a direct neighbor the sender mac equals
-	 * originator mac */
+	 * originator mac
+	 */
 	orig_neigh_node = (is_single_hop_neigh ?
 			   orig_node :
 			   batadv_get_orig_node(bat_priv, ethhdr->h_source));
@@ -1127,7 +1134,8 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	orig_neigh_router = batadv_orig_node_get_router(orig_neigh_node);
 
 	/* drop packet if sender is not a direct neighbor and if we
-	 * don't route towards it */
+	 * don't route towards it
+	 */
 	if (!is_single_hop_neigh && (!orig_neigh_router)) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: OGM via unknown neighbor!\n");
@@ -1141,7 +1149,8 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 				    batman_ogm_packet);
 
 	/* update ranking if it is not a duplicate or has the same
-	 * seqno and similar ttl as the non-duplicate */
+	 * seqno and similar ttl as the non-duplicate
+	 */
 	if (is_bidirectional &&
 	    (!is_duplicate ||
 	     ((orig_node->last_real_seqno == ntohl(batman_ogm_packet->seqno)) &&

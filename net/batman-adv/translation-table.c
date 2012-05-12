@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich, Antonio Quartulli
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -232,7 +230,8 @@ void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 
 	/* The local entry has to be marked as NEW to avoid to send it in
 	 * a full table response going out before the next ttvn increment
-	 * (consistency check) */
+	 * (consistency check)
+	 */
 	tt_local_entry->common.flags |= TT_CLIENT_NEW;
 
 	hash_added = hash_add(bat_priv->tt_local_hash, compare_tt, choose_orig,
@@ -437,7 +436,8 @@ static void tt_local_set_pending(struct bat_priv *bat_priv,
 
 	/* The local client has to be marked as "pending to be removed" but has
 	 * to be kept in the table in order to send it in a full table
-	 * response issued before the net ttvn increment (consistency check) */
+	 * response issued before the net ttvn increment (consistency check)
+	 */
 	tt_local_entry->common.flags |= TT_CLIENT_PENDING;
 
 	bat_dbg(DBG_TT, bat_priv,
@@ -898,8 +898,8 @@ static void tt_global_del(struct bat_priv *bat_priv,
 	 *    If there are other originators left, we directly delete
 	 *    the originator.
 	 * 2) the client roamed to us => we can directly delete
-	 *    the global entry, since it is useless now. */
-
+	 *    the global entry, since it is useless now.
+	 */
 	tt_local_entry = tt_local_hash_find(bat_priv,
 					    tt_global_entry->common.addr);
 	if (tt_local_entry) {
@@ -1072,7 +1072,8 @@ struct orig_node *batadv_transtable_search(struct bat_priv *bat_priv,
 		goto out;
 
 	/* check whether the clients should not communicate due to AP
-	 * isolation */
+	 * isolation
+	 */
 	if (tt_local_entry && _is_ap_isolated(tt_local_entry, tt_global_entry))
 		goto out;
 
@@ -1171,7 +1172,8 @@ static uint16_t batadv_tt_local_crc(struct bat_priv *bat_priv)
 		hlist_for_each_entry_rcu(tt_common_entry, node,
 					 head, hash_entry) {
 			/* not yet committed clients have not to be taken into
-			 * account while computing the CRC */
+			 * account while computing the CRC
+			 */
 			if (tt_common_entry->flags & TT_CLIENT_NEW)
 				continue;
 			total_one = 0;
@@ -1208,7 +1210,8 @@ static void tt_save_orig_buffer(struct bat_priv *bat_priv,
 	uint16_t tt_buff_len = batadv_tt_len(tt_num_changes);
 
 	/* Replace the old buffer only if I received something in the
-	 * last OGM (the OGM could carry no changes) */
+	 * last OGM (the OGM could carry no changes)
+	 */
 	spin_lock_bh(&orig_node->tt_buff_lock);
 	if (tt_buff_len > 0) {
 		kfree(orig_node->tt_buff);
@@ -1237,7 +1240,8 @@ static void tt_req_purge(struct bat_priv *bat_priv)
 }
 
 /* returns the pointer to the new tt_req_node struct if no request
- * has already been issued for this orig_node, NULL otherwise */
+ * has already been issued for this orig_node, NULL otherwise
+ */
 static struct tt_req_node *new_tt_req_node(struct bat_priv *bat_priv,
 					  struct orig_node *orig_node)
 {
@@ -1347,7 +1351,8 @@ static struct sk_buff *tt_response_fill_table(uint16_t tt_len, uint8_t ttvn,
 	rcu_read_unlock();
 
 	/* store in the message the number of entries we have successfully
-	 * copied */
+	 * copied
+	 */
 	tt_response->tt_data = htons(tt_count);
 
 out:
@@ -1370,7 +1375,8 @@ static int send_tt_request(struct bat_priv *bat_priv,
 		goto out;
 
 	/* The new tt_req will be issued only if I'm not waiting for a
-	 * reply from the same orig_node yet */
+	 * reply from the same orig_node yet
+	 */
 	tt_req_node = new_tt_req_node(bat_priv, dst_orig_node);
 	if (!tt_req_node)
 		goto out;
@@ -1478,7 +1484,8 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 		full_table = false;
 
 	/* In this version, fragmentation is not implemented, then
-	 * I'll send only one packet with as much TT entries as I can */
+	 * I'll send only one packet with as much TT entries as I can
+	 */
 	if (!full_table) {
 		spin_lock_bh(&req_dst_orig_node->tt_buff_lock);
 		tt_len = req_dst_orig_node->tt_buff_len;
@@ -1590,7 +1597,8 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 		goto out;
 
 	/* If the full table has been explicitly requested or the gap
-	 * is too big send the whole local translation table */
+	 * is too big send the whole local translation table
+	 */
 	if (tt_request->flags & TT_FULL_TABLE || my_ttvn != req_ttvn ||
 	    !bat_priv->tt_buff)
 		full_table = true;
@@ -1598,7 +1606,8 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 		full_table = false;
 
 	/* In this version, fragmentation is not implemented, then
-	 * I'll send only one packet with as much TT entries as I can */
+	 * I'll send only one packet with as much TT entries as I can
+	 */
 	if (!full_table) {
 		spin_lock_bh(&bat_priv->tt_buff_lock);
 		tt_len = bat_priv->tt_buff_len;
@@ -1766,7 +1775,8 @@ bool batadv_is_my_client(struct bat_priv *bat_priv, const uint8_t *addr)
 	if (!tt_local_entry)
 		goto out;
 	/* Check if the client has been logically deleted (but is kept for
-	 * consistency purpose) */
+	 * consistency purpose)
+	 */
 	if (tt_local_entry->common.flags & TT_CLIENT_PENDING)
 		goto out;
 	ret = true;
@@ -1817,7 +1827,8 @@ void batadv_handle_tt_response(struct bat_priv *bat_priv,
 	/* Recalculate the CRC for this orig_node and store it */
 	orig_node->tt_crc = tt_global_crc(bat_priv, orig_node);
 	/* Roaming phase is over: tables are in sync again. I can
-	 * unset the flag */
+	 * unset the flag
+	 */
 	orig_node->tt_poss_change = false;
 out:
 	if (orig_node)
@@ -1874,7 +1885,8 @@ static void tt_roam_purge(struct bat_priv *bat_priv)
  * maximum number of possible roaming phases. In this case the ROAMING_ADV
  * will not be sent.
  *
- * returns true if the ROAMING_ADV can be sent, false otherwise */
+ * returns true if the ROAMING_ADV can be sent, false otherwise
+ */
 static bool tt_check_roam_count(struct bat_priv *bat_priv,
 				uint8_t *client)
 {
@@ -1883,7 +1895,8 @@ static bool tt_check_roam_count(struct bat_priv *bat_priv,
 
 	spin_lock_bh(&bat_priv->tt_roam_list_lock);
 	/* The new tt_req will be issued only if I'm not waiting for a
-	 * reply from the same orig_node yet */
+	 * reply from the same orig_node yet
+	 */
 	list_for_each_entry(tt_roam_node, &bat_priv->tt_roam_list, list) {
 		if (!compare_eth(tt_roam_node->addr, client))
 			continue;
@@ -1926,7 +1939,8 @@ static void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 	struct hard_iface *primary_if;
 
 	/* before going on we have to check whether the client has
-	 * already roamed to us too many times */
+	 * already roamed to us too many times
+	 */
 	if (!tt_check_roam_count(bat_priv, client))
 		goto out;
 
@@ -2000,7 +2014,8 @@ void batadv_tt_free(struct bat_priv *bat_priv)
 }
 
 /* This function will enable or disable the specified flags for all the entries
- * in the given hash table and returns the number of modified entries */
+ * in the given hash table and returns the number of modified entries
+ */
 static uint16_t tt_set_flags(struct hashtable_t *hash, uint16_t flags,
 			     bool enable)
 {
@@ -2172,12 +2187,14 @@ void batadv_tt_update_orig(struct bat_priv *bat_priv,
 		return;
 
 	/* orig table not initialised AND first diff is in the OGM OR the ttvn
-	 * increased by one -> we can apply the attached changes */
+	 * increased by one -> we can apply the attached changes
+	 */
 	if ((!orig_node->tt_initialised && ttvn == 1) ||
 	    ttvn - orig_ttvn == 1) {
 		/* the OGM could not contain the changes due to their size or
 		 * because they have already been sent TT_OGM_APPEND_MAX times.
-		 * In this case send a tt request */
+		 * In this case send a tt request
+		 */
 		if (!tt_num_changes) {
 			full_table = false;
 			goto request_table;
@@ -2188,7 +2205,8 @@ void batadv_tt_update_orig(struct bat_priv *bat_priv,
 
 		/* Even if we received the precomputed crc with the OGM, we
 		 * prefer to recompute it to spot any possible inconsistency
-		 * in the global table */
+		 * in the global table
+		 */
 		orig_node->tt_crc = tt_global_crc(bat_priv, orig_node);
 
 		/* The ttvn alone is not enough to guarantee consistency
@@ -2198,17 +2216,19 @@ void batadv_tt_update_orig(struct bat_priv *bat_priv,
 		 * consistent or not. E.g. a node could disconnect while its
 		 * ttvn is X and reconnect on ttvn = X + TTVN_MAX: in this case
 		 * checking the CRC value is mandatory to detect the
-		 * inconsistency */
+		 * inconsistency
+		 */
 		if (orig_node->tt_crc != tt_crc)
 			goto request_table;
 
 		/* Roaming phase is over: tables are in sync again. I can
-		 * unset the flag */
+		 * unset the flag
+		 */
 		orig_node->tt_poss_change = false;
 	} else {
 		/* if we missed more than one change or our tables are not
-		 * in sync anymore -> request fresh tt data */
-
+		 * in sync anymore -> request fresh tt data
+		 */
 		if (!orig_node->tt_initialised || ttvn != orig_ttvn ||
 		    orig_node->tt_crc != tt_crc) {
 request_table:

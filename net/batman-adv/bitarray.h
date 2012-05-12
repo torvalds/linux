@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2006-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2006-2012 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -16,14 +15,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #ifndef _NET_BATMAN_ADV_BITARRAY_H_
 #define _NET_BATMAN_ADV_BITARRAY_H_
 
 /* returns true if the corresponding bit in the given seq_bits indicates true
- * and curr_seqno is within range of last_seqno */
+ * and curr_seqno is within range of last_seqno
+ */
 static inline int bat_test_bit(const unsigned long *seq_bits,
 			       uint32_t last_seqno, uint32_t curr_seqno)
 {
@@ -47,7 +46,8 @@ static inline void bat_set_bit(unsigned long *seq_bits, int32_t n)
 }
 
 /* receive and process one packet, returns 1 if received seq_num is considered
- * new, 0 if old  */
+ * new, 0 if old
+ */
 int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 			  int32_t seq_num_diff, int set_mark);
 

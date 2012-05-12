@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
  *
  * Andreas Langer
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -300,12 +298,12 @@ int batadv_unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	}
 
 	/* check for tt host - increases orig_node refcount.
-	 * returns NULL in case of AP isolation */
+	 * returns NULL in case of AP isolation
+	 */
 	orig_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
 					     ethhdr->h_dest);
 find_router:
-	/**
-	 * find_router():
+	/* find_router():
 	 *  - if orig_node is NULL it returns NULL
 	 *  - increases neigh_nodes refcount if found.
 	 */

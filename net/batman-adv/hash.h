@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2006-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2006-2012 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #ifndef _NET_BATMAN_ADV_HASH_H_
@@ -24,15 +22,15 @@
 
 #include <linux/list.h>
 
-/* callback to a compare function.  should
- * compare 2 element datas for their keys,
- * return 0 if same and not 0 if not
- * same */
+/* callback to a compare function.  should compare 2 element datas for their
+ * keys, return 0 if same and not 0 if not same
+ */
 typedef int (*hashdata_compare_cb)(const struct hlist_node *, const void *);
 
 /* the hashfunction, should return an index
  * based on the key in the data of the first
- * argument and the size the second */
+ * argument and the size the second
+ */
 typedef uint32_t (*hashdata_choose_cb)(const void *, uint32_t);
 typedef void (*hashdata_free_cb)(struct hlist_node *, void *);
 
@@ -54,7 +52,8 @@ void batadv_hash_destroy(struct hashtable_t *hash);
 
 /* remove the hash structure. if hashdata_free_cb != NULL, this function will be
  * called to remove the elements inside of the hash.  if you don't remove the
- * elements, memory might be leaked. */
+ * elements, memory might be leaked.
+ */
 static inline void hash_delete(struct hashtable_t *hash,
 			       hashdata_free_cb free_cb, void *arg)
 {
@@ -80,8 +79,7 @@ static inline void hash_delete(struct hashtable_t *hash,
 	batadv_hash_destroy(hash);
 }
 
-/**
- *	hash_add - adds data to the hashtable
+/*	hash_add - adds data to the hashtable
  *	@hash: storage hash table
  *	@compare: callback to determine if 2 hash elements are identical
  *	@choose: callback calculating the hash index
@@ -91,7 +89,6 @@ static inline void hash_delete(struct hashtable_t *hash,
  *	Returns 0 on success, 1 if the element already is in the hash
  *	and -1 on error.
  */
-
 static inline int hash_add(struct hashtable_t *hash,
 			   hashdata_compare_cb compare,
 			   hashdata_choose_cb choose,
@@ -134,7 +131,8 @@ out:
 /* removes data from hash, if found. returns pointer do data on success, so you
  * can remove the used structure yourself, or NULL on error .  data could be the
  * structure you use with just the key filled, we just need the key for
- * comparing. */
+ * comparing.
+ */
 static inline void *hash_remove(struct hashtable_t *hash,
 				hashdata_compare_cb compare,
 				hashdata_choose_cb choose, void *data)

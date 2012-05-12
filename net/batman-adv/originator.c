@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2009-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -188,7 +186,8 @@ void batadv_originator_free(struct bat_priv *bat_priv)
 }
 
 /* this function finds or creates an originator entry for the given
- * address if it does not exits */
+ * address if it does not exits
+ */
 struct orig_node *batadv_get_orig_node(struct bat_priv *bat_priv,
 				       const uint8_t *addr)
 {
@@ -521,7 +520,8 @@ int batadv_orig_hash_add_if(struct hard_iface *hard_iface, int max_if_num)
 	int ret;
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
-	 * if_num */
+	 * if_num
+	 */
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
@@ -604,7 +604,8 @@ int batadv_orig_hash_del_if(struct hard_iface *hard_iface, int max_if_num)
 	int ret;
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
-	 * if_num */
+	 * if_num
+	 */
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
