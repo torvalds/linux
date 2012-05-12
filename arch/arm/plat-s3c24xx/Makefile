@@ -13,7 +13,6 @@ obj-				:=
 # Core files
 
 obj-y				+= irq.o
-obj-y				+= dev-uart.o
 obj-y				+= clock.o
 obj-$(CONFIG_S3C24XX_DCLK)	+= clock-dclk.o
 
