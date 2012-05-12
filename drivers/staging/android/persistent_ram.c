@@ -318,14 +318,14 @@ void persistent_ram_free_old(struct persistent_ram_zone *prz)
 	prz->old_log_size = 0;
 }
 
-static int persistent_ram_buffer_map(phys_addr_t start, phys_addr_t size,
-		struct persistent_ram_zone *prz)
+static void *persistent_ram_vmap(phys_addr_t start, size_t size)
 {
 	struct page **pages;
 	phys_addr_t page_start;
 	unsigned int page_count;
 	pgprot_t prot;
 	unsigned int i;
+	void *vaddr;
 
 	page_start = start - offset_in_page(start);
 	page_count = DIV_ROUND_UP(size + offset_in_page(start), PAGE_SIZE);
@@ -336,17 +336,26 @@ static int persistent_ram_buffer_map(phys_addr_t start, phys_addr_t size,
 	if (!pages) {
 		pr_err("%s: Failed to allocate array for %u pages\n", __func__,
 			page_count);
-		return -ENOMEM;
+		return NULL;
 	}
 
 	for (i = 0; i < page_count; i++) {
 		phys_addr_t addr = page_start + i * PAGE_SIZE;
 		pages[i] = pfn_to_page(addr >> PAGE_SHIFT);
 	}
-	prz->vaddr = vmap(pages, page_count, VM_MAP, prot);
+	vaddr = vmap(pages, page_count, VM_MAP, prot);
 	kfree(pages);
+
+	return vaddr;
+}
+
+static int persistent_ram_buffer_map(phys_addr_t start, phys_addr_t size,
+		struct persistent_ram_zone *prz)
+{
+	prz->vaddr = persistent_ram_vmap(start, size);
 	if (!prz->vaddr) {
-		pr_err("%s: Failed to map %u pages\n", __func__, page_count);
+		pr_err("%s: Failed to map 0x%llx pages at 0x%llx\n", __func__,
+			(unsigned long long)size, (unsigned long long)start);
 		return -ENOMEM;
 	}
 
