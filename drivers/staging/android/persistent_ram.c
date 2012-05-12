@@ -412,6 +412,32 @@ static int __init persistent_ram_post_init(struct persistent_ram_zone *prz, bool
 	return 0;
 }
 
+struct persistent_ram_zone * __init persistent_ram_new(phys_addr_t start,
+						       size_t size,
+						       bool ecc)
+{
+	struct persistent_ram_zone *prz;
+	int ret = -ENOMEM;
+
+	prz = kzalloc(sizeof(struct persistent_ram_zone), GFP_KERNEL);
+	if (!prz) {
+		pr_err("persistent_ram: failed to allocate persistent ram zone\n");
+		goto err;
+	}
+
+	ret = persistent_ram_buffer_map(start, size, prz);
+	if (ret)
+		goto err;
+
+	persistent_ram_post_init(prz, ecc);
+	persistent_ram_update_header_ecc(prz);
+
+	return prz;
+err:
+	kfree(prz);
+	return ERR_PTR(ret);
+}
+
 static  __init
 struct persistent_ram_zone *__persistent_ram_init(struct device *dev, bool ecc)
 {

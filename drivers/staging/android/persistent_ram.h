@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/types.h>
+#include <linux/init.h>
 
 struct persistent_ram_buffer;
 
@@ -62,6 +63,9 @@ struct persistent_ram_zone {
 
 int persistent_ram_early_init(struct persistent_ram *ram);
 
+struct persistent_ram_zone * __init persistent_ram_new(phys_addr_t start,
+						       size_t size,
+						       bool ecc);
 struct persistent_ram_zone *persistent_ram_init_ringbuffer(struct device *dev,
 		bool ecc);
 
