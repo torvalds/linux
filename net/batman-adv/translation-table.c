@@ -1674,7 +1674,7 @@ bool send_tt_response(struct bat_priv *bat_priv,
 {
 	if (is_my_mac(tt_request->dst)) {
 		/* don't answer backbone gws! */
-		if (bla_is_backbone_gw_orig(bat_priv, tt_request->src))
+		if (batadv_bla_is_backbone_gw_orig(bat_priv, tt_request->src))
 			return true;
 
 		return send_my_tt_response(bat_priv, tt_request);
@@ -1786,7 +1786,7 @@ void handle_tt_response(struct bat_priv *bat_priv,
 		(tt_response->flags & TT_FULL_TABLE ? 'F' : '.'));
 
 	/* we should have never asked a backbone gw */
-	if (bla_is_backbone_gw_orig(bat_priv, tt_response->src))
+	if (batadv_bla_is_backbone_gw_orig(bat_priv, tt_response->src))
 		goto out;
 
 	orig_node = orig_hash_find(bat_priv, tt_response->src);
@@ -2163,7 +2163,7 @@ void tt_update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	bool full_table = true;
 
 	/* don't care about a backbone gateways updates. */
-	if (bla_is_backbone_gw_orig(bat_priv, orig_node->orig))
+	if (batadv_bla_is_backbone_gw_orig(bat_priv, orig_node->orig))
 		return;
 
 	/* orig table not initialised AND first diff is in the OGM OR the ttvn

@@ -125,7 +125,7 @@ int mesh_init(struct net_device *soft_iface)
 	if (ret < 0)
 		goto err;
 
-	ret = bla_init(bat_priv);
+	ret = batadv_bla_init(bat_priv);
 	if (ret < 0)
 		goto err;
 
@@ -154,7 +154,7 @@ void mesh_free(struct net_device *soft_iface)
 
 	tt_free(bat_priv);
 
-	bla_free(bat_priv);
+	batadv_bla_free(bat_priv);
 
 	free_percpu(bat_priv->bat_counters);
 

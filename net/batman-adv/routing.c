@@ -676,7 +676,7 @@ int recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 	 * roaming advertisement from it, as it has the same
 	 * entries as we have.
 	 */
-	if (bla_is_backbone_gw_orig(bat_priv, roam_adv_packet->src))
+	if (batadv_bla_is_backbone_gw_orig(bat_priv, roam_adv_packet->src))
 		goto out;
 
 	orig_node = orig_hash_find(bat_priv, roam_adv_packet->src);
@@ -1089,7 +1089,7 @@ int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	spin_unlock_bh(&orig_node->bcast_seqno_lock);
 
 	/* check whether this has been sent by another originator before */
-	if (bla_check_bcast_duplist(bat_priv, bcast_packet, hdr_size))
+	if (batadv_bla_check_bcast_duplist(bat_priv, bcast_packet, hdr_size))
 		goto out;
 
 	/* rebroadcast packet */
@@ -1098,7 +1098,7 @@ int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	/* don't hand the broadcast up if it is from an originator
 	 * from the same backbone.
 	 */
-	if (bla_is_backbone_gw(skb, orig_node, hdr_size))
+	if (batadv_bla_is_backbone_gw(skb, orig_node, hdr_size))
 		goto out;
 
 	/* broadcast for me */

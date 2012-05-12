@@ -162,7 +162,7 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		goto dropped;
 	}
 
-	if (bla_tx(bat_priv, skb, vid))
+	if (batadv_bla_tx(bat_priv, skb, vid))
 		goto dropped;
 
 	/* Register the client MAC in the transtable */
@@ -309,7 +309,7 @@ void interface_rx(struct net_device *soft_iface,
 	/* Let the bridge loop avoidance check the packet. If will
 	 * not handle it, we can safely push it up.
 	 */
-	if (bla_rx(bat_priv, skb, vid))
+	if (batadv_bla_rx(bat_priv, skb, vid))
 		goto out;
 
 	netif_rx(skb);

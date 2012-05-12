@@ -1019,9 +1019,9 @@ purge_now:
  * Update the backbone gateways when the own orig address changes.
  *
  */
-void bla_update_orig_address(struct bat_priv *bat_priv,
-			     struct hard_iface *primary_if,
-			     struct hard_iface *oldif)
+void batadv_bla_update_orig_address(struct bat_priv *bat_priv,
+				    struct hard_iface *primary_if,
+				    struct hard_iface *oldif)
 {
 	struct backbone_gw *backbone_gw;
 	struct hlist_node *node;
@@ -1136,7 +1136,7 @@ static struct lock_class_key claim_hash_lock_class_key;
 static struct lock_class_key backbone_hash_lock_class_key;
 
 /* initialize all bla structures */
-int bla_init(struct bat_priv *bat_priv)
+int batadv_bla_init(struct bat_priv *bat_priv)
 {
 	int i;
 	uint8_t claim_dest[ETH_ALEN] = {0xff, 0x43, 0x05, 0x00, 0x00, 0x00};
@@ -1199,9 +1199,9 @@ int bla_init(struct bat_priv *bat_priv)
  *
  **/
 
-int bla_check_bcast_duplist(struct bat_priv *bat_priv,
-			    struct bcast_packet *bcast_packet,
-			    int hdr_size)
+int batadv_bla_check_bcast_duplist(struct bat_priv *bat_priv,
+				   struct bcast_packet *bcast_packet,
+				   int hdr_size)
 {
 	int i, length, curr;
 	uint8_t *content;
@@ -1260,7 +1260,7 @@ int bla_check_bcast_duplist(struct bat_priv *bat_priv,
  *
  */
 
-int bla_is_backbone_gw_orig(struct bat_priv *bat_priv, uint8_t *orig)
+int batadv_bla_is_backbone_gw_orig(struct bat_priv *bat_priv, uint8_t *orig)
 {
 	struct hashtable_t *hash = bat_priv->backbone_hash;
 	struct hlist_head *head;
@@ -1301,8 +1301,8 @@ int bla_is_backbone_gw_orig(struct bat_priv *bat_priv, uint8_t *orig)
  * returns 0.
  *
  */
-int bla_is_backbone_gw(struct sk_buff *skb,
-		       struct orig_node *orig_node, int hdr_size)
+int batadv_bla_is_backbone_gw(struct sk_buff *skb,
+			      struct orig_node *orig_node, int hdr_size)
 {
 	struct ethhdr *ethhdr;
 	struct vlan_ethhdr *vhdr;
@@ -1339,7 +1339,7 @@ int bla_is_backbone_gw(struct sk_buff *skb,
 }
 
 /* free all bla structures (for softinterface free or module unload) */
-void bla_free(struct bat_priv *bat_priv)
+void batadv_bla_free(struct bat_priv *bat_priv)
 {
 	struct hard_iface *primary_if;
 
@@ -1374,7 +1374,7 @@ void bla_free(struct bat_priv *bat_priv)
  * process the skb.
  *
  */
-int bla_rx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid)
+int batadv_bla_rx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid)
 {
 	struct ethhdr *ethhdr;
 	struct claim search_claim, *claim = NULL;
@@ -1463,7 +1463,7 @@ out:
  * process the skb.
  *
  */
-int bla_tx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid)
+int batadv_bla_tx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid)
 {
 	struct ethhdr *ethhdr;
 	struct claim search_claim, *claim = NULL;
@@ -1537,7 +1537,7 @@ out:
 	return ret;
 }
 
-int bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
+int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);

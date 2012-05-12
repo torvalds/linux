@@ -118,7 +118,7 @@ static void primary_if_update_addr(struct bat_priv *bat_priv,
 	memcpy(vis_packet->sender_orig,
 	       primary_if->net_dev->dev_addr, ETH_ALEN);
 
-	bla_update_orig_address(bat_priv, primary_if, oldif);
+	batadv_bla_update_orig_address(bat_priv, primary_if, oldif);
 out:
 	if (primary_if)
 		hardif_free_ref(primary_if);
