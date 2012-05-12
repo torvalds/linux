@@ -48,7 +48,7 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 	 */
 	if ((seq_num_diff <= 0) && (seq_num_diff > -TQ_LOCAL_WINDOW_SIZE)) {
 		if (set_mark)
-			bat_set_bit(seq_bits, -seq_num_diff);
+			batadv_set_bit(seq_bits, -seq_num_diff);
 		return 0;
 	}
 
@@ -59,7 +59,7 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 		batadv_bitmap_shift_left(seq_bits, seq_num_diff);
 
 		if (set_mark)
-			bat_set_bit(seq_bits, 0);
+			batadv_set_bit(seq_bits, 0);
 		return 1;
 	}
 
@@ -71,7 +71,7 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 			seq_num_diff - 1);
 		bitmap_zero(seq_bits, TQ_LOCAL_WINDOW_SIZE);
 		if (set_mark)
-			bat_set_bit(seq_bits, 0);
+			batadv_set_bit(seq_bits, 0);
 		return 1;
 	}
 
@@ -88,7 +88,7 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 
 		bitmap_zero(seq_bits, TQ_LOCAL_WINDOW_SIZE);
 		if (set_mark)
-			bat_set_bit(seq_bits, 0);
+			batadv_set_bit(seq_bits, 0);
 
 		return 1;
 	}

@@ -1086,8 +1086,8 @@ int batadv_recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	spin_lock_bh(&orig_node->bcast_seqno_lock);
 
 	/* check whether the packet is a duplicate */
-	if (bat_test_bit(orig_node->bcast_bits, orig_node->last_bcast_seqno,
-			 ntohl(bcast_packet->seqno)))
+	if (batadv_test_bit(orig_node->bcast_bits, orig_node->last_bcast_seqno,
+			    ntohl(bcast_packet->seqno)))
 		goto spin_unlock;
 
 	seq_diff = ntohl(bcast_packet->seqno) - orig_node->last_bcast_seqno;
