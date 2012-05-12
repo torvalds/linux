@@ -4,7 +4,7 @@
  *	http://www.simtec.co.uk/products/SWLINUX/
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C24XX CPU Support
+ * Common code for S3C24XX machines
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
