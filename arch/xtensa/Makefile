@@ -21,6 +21,18 @@ variant-$(CONFIG_XTENSA_VARIANT_LINUX_CUSTOM)	:= custom
 VARIANT = $(variant-y)
 export VARIANT
 
+# Test for cross compiling
+
+ifneq ($(VARIANT),)
+  COMPILE_ARCH = $(shell uname -m)
+
+  ifneq ($(COMPILE_ARCH), xtensa)
+    ifndef CROSS_COMPILE
+      CROSS_COMPILE = xtensa_$(VARIANT)-
+    endif
+  endif
+endif
+
 # Platform configuration
 
 platform-$(CONFIG_XTENSA_PLATFORM_XT2000)	:= xt2000
@@ -47,18 +59,6 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(vardirs) $(plfdirs))
 endif
 
 KBUILD_DEFCONFIG := iss_defconfig
-
-# Test for cross compiling
-
-ifneq ($(VARIANT),)
-  COMPILE_ARCH = $(shell uname -m)
-
-  ifneq ($(COMPILE_ARCH), xtensa)
-    ifndef CROSS_COMPILE
-      CROSS_COMPILE = xtensa_$(VARIANT)-
-    endif
-  endif
-endif
 
 # Only build variant and/or platform if it includes a Makefile
 
