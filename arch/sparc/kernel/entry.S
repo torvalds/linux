@@ -125,20 +125,11 @@ floppy_tdone:
 
 	set	sparc_cpu_model, %l5
 	ld	[%l5], %l5
-	subcc   %l5, 1, %g0		/* enum { sun4c = 1 }; */
-	be	1f
-	 ldub	[%l7], %l5
+	ldub	[%l7], %l5
 
 	or	%l5, 0xc2, %l5
 	stb	%l5, [%l7]
 	andn    %l5, 0x02, %l5
-	b	2f
-	 nop
-
-1:
-	or      %l5, 0xf4, %l5
-	stb     %l5, [%l7]
-	andn    %l5, 0x04, %l5
 
 2:
 	/* Kill some time so the bits set */
