@@ -56,30 +56,29 @@ struct vmbus_channel_message_table_entry {
 void vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,
 			       struct icmsg_negotiate *negop, u8 *buf)
 {
-	if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-		icmsghdrp->icmsgsize = 0x10;
+	icmsghdrp->icmsgsize = 0x10;
 
-		negop = (struct icmsg_negotiate *)&buf[
-			sizeof(struct vmbuspipe_hdr) +
-			sizeof(struct icmsg_hdr)];
+	negop = (struct icmsg_negotiate *)&buf[
+		sizeof(struct vmbuspipe_hdr) +
+		sizeof(struct icmsg_hdr)];
 
-		if (negop->icframe_vercnt == 2 &&
-		   negop->icversion_data[1].major == 3) {
-			negop->icversion_data[0].major = 3;
-			negop->icversion_data[0].minor = 0;
-			negop->icversion_data[1].major = 3;
-			negop->icversion_data[1].minor = 0;
-		} else {
-			negop->icversion_data[0].major = 1;
-			negop->icversion_data[0].minor = 0;
-			negop->icversion_data[1].major = 1;
-			negop->icversion_data[1].minor = 0;
-		}
-
-		negop->icframe_vercnt = 1;
-		negop->icmsg_vercnt = 1;
+	if (negop->icframe_vercnt == 2 &&
+	   negop->icversion_data[1].major == 3) {
+		negop->icversion_data[0].major = 3;
+		negop->icversion_data[0].minor = 0;
+		negop->icversion_data[1].major = 3;
+		negop->icversion_data[1].minor = 0;
+	} else {
+		negop->icversion_data[0].major = 1;
+		negop->icversion_data[0].minor = 0;
+		negop->icversion_data[1].major = 1;
+		negop->icversion_data[1].minor = 0;
 	}
+
+	negop->icframe_vercnt = 1;
+	negop->icmsg_vercnt = 1;
 }
+
 EXPORT_SYMBOL_GPL(vmbus_prep_negotiate_resp);
 
 /*
