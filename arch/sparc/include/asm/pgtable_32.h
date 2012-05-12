@@ -32,11 +32,6 @@ extern unsigned long calc_highpages(void);
 #define pmd_ERROR(e)   __builtin_trap()
 #define pgd_ERROR(e)   __builtin_trap()
 
-BTFIXUPDEF_INT(page_none)
-BTFIXUPDEF_INT(page_copy)
-BTFIXUPDEF_INT(page_readonly)
-BTFIXUPDEF_INT(page_kernel)
-
 #define PMD_SHIFT		22
 #define PMD_SIZE        	(1UL << PMD_SHIFT)
 #define PMD_MASK        	(~(PMD_SIZE-1))
@@ -51,18 +46,11 @@ BTFIXUPDEF_INT(page_kernel)
 #define FIRST_USER_ADDRESS	0
 #define PTE_SIZE		(PTRS_PER_PTE*4)
 
-#define PAGE_NONE      __pgprot(BTFIXUP_INT(page_none))
-extern pgprot_t PAGE_SHARED;
-#define PAGE_COPY      __pgprot(BTFIXUP_INT(page_copy))
-#define PAGE_READONLY  __pgprot(BTFIXUP_INT(page_readonly))
-
-extern unsigned long page_kernel;
-
-#ifdef MODULE
-#define PAGE_KERNEL	page_kernel
-#else
-#define PAGE_KERNEL    __pgprot(BTFIXUP_INT(page_kernel))
-#endif
+#define PAGE_NONE	SRMMU_PAGE_NONE
+#define PAGE_SHARED	SRMMU_PAGE_SHARED
+#define PAGE_COPY	SRMMU_PAGE_COPY
+#define PAGE_READONLY	SRMMU_PAGE_RDONLY
+#define PAGE_KERNEL	SRMMU_PAGE_KERNEL
 
 /* Top-level page directory */
 extern pgd_t swapper_pg_dir[1024];
@@ -71,28 +59,24 @@ extern void paging_init(void);
 
 extern unsigned long ptr_in_current_pgd;
 
-/* Here is a trick, since mmap.c need the initializer elements for
- * protection_map[] to be constant at compile time, I set the following
- * to all zeros.  I set it to the real values after I link in the
- * appropriate MMU page table routines at boot time.
- */
-#define __P000  __pgprot(0)
-#define __P001  __pgprot(0)
-#define __P010  __pgprot(0)
-#define __P011  __pgprot(0)
-#define __P100  __pgprot(0)
-#define __P101  __pgprot(0)
-#define __P110  __pgprot(0)
-#define __P111  __pgprot(0)
+/*         xwr */
+#define __P000  PAGE_NONE
+#define __P001  PAGE_READONLY
+#define __P010  PAGE_COPY
+#define __P011  PAGE_COPY
+#define __P100  PAGE_READONLY
+#define __P101  PAGE_READONLY
+#define __P110  PAGE_COPY
+#define __P111  PAGE_COPY
 
-#define __S000	__pgprot(0)
-#define __S001	__pgprot(0)
-#define __S010	__pgprot(0)
-#define __S011	__pgprot(0)
-#define __S100	__pgprot(0)
-#define __S101	__pgprot(0)
-#define __S110	__pgprot(0)
-#define __S111	__pgprot(0)
+#define __S000	PAGE_NONE
+#define __S001	PAGE_READONLY
+#define __S010	PAGE_SHARED
+#define __S011	PAGE_SHARED
+#define __S100	PAGE_READONLY
+#define __S101	PAGE_READONLY
+#define __S110	PAGE_SHARED
+#define __S111	PAGE_SHARED
 
 extern int num_contexts;
 

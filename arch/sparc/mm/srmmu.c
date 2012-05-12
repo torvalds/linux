@@ -59,8 +59,6 @@ extern struct resource sparc_iomap;
 
 extern unsigned long last_valid_pfn;
 
-extern unsigned long page_kernel;
-
 static pgd_t *srmmu_swapper_pg_dir;
 
 #ifdef CONFIG_SMP
@@ -2077,13 +2075,6 @@ void __init ld_mmu_srmmu(void)
 	extern void ld_mmu_iommu(void);
 	extern void ld_mmu_iounit(void);
 	extern void ___xchg32_sun4md(void);
-
-	BTFIXUPSET_INT(page_none, pgprot_val(SRMMU_PAGE_NONE));
-	PAGE_SHARED = pgprot_val(SRMMU_PAGE_SHARED);
-	BTFIXUPSET_INT(page_copy, pgprot_val(SRMMU_PAGE_COPY));
-	BTFIXUPSET_INT(page_readonly, pgprot_val(SRMMU_PAGE_RDONLY));
-	BTFIXUPSET_INT(page_kernel, pgprot_val(SRMMU_PAGE_KERNEL));
-	page_kernel = pgprot_val(SRMMU_PAGE_KERNEL);
 
 	/* Functions */
 #ifndef CONFIG_SMP	

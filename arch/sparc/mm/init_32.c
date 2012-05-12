@@ -44,9 +44,6 @@ EXPORT_SYMBOL(phys_base);
 unsigned long pfn_base;
 EXPORT_SYMBOL(pfn_base);
 
-unsigned long page_kernel;
-EXPORT_SYMBOL(page_kernel);
-
 struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS+1];
 unsigned long sparc_unmapped_base;
 
@@ -293,9 +290,6 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 extern void srmmu_paging_init(void);
 extern void device_scan(void);
 
-pgprot_t PAGE_SHARED __read_mostly;
-EXPORT_SYMBOL(PAGE_SHARED);
-
 void __init paging_init(void)
 {
 	switch(sparc_cpu_model) {
@@ -315,23 +309,6 @@ void __init paging_init(void)
 		prom_halt();
 	}
 
-	/* Initialize the protection map with non-constant, MMU dependent values. */
-	protection_map[0] = PAGE_NONE;
-	protection_map[1] = PAGE_READONLY;
-	protection_map[2] = PAGE_COPY;
-	protection_map[3] = PAGE_COPY;
-	protection_map[4] = PAGE_READONLY;
-	protection_map[5] = PAGE_READONLY;
-	protection_map[6] = PAGE_COPY;
-	protection_map[7] = PAGE_COPY;
-	protection_map[8] = PAGE_NONE;
-	protection_map[9] = PAGE_READONLY;
-	protection_map[10] = PAGE_SHARED;
-	protection_map[11] = PAGE_SHARED;
-	protection_map[12] = PAGE_READONLY;
-	protection_map[13] = PAGE_READONLY;
-	protection_map[14] = PAGE_SHARED;
-	protection_map[15] = PAGE_SHARED;
 	btfixup();
 	prom_build_devicetree();
 	of_fill_in_cpu_data();
