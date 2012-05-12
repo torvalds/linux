@@ -173,7 +173,7 @@ static ssize_t adis16204_read_14bit_signed(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	s16 val = 0;
 	ssize_t ret;
@@ -211,7 +211,7 @@ static ssize_t adis16204_write_reset(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 
 	if (len < 1)
 		return -EINVAL;

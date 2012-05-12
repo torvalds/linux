@@ -241,7 +241,7 @@ error_ret:
 static int sca3000_check_status(struct device *dev)
 {
 	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->lock);
@@ -268,7 +268,7 @@ static ssize_t sca3000_show_rev(struct device *dev,
 				char *buf)
 {
 	int len = 0, ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->lock);
@@ -296,7 +296,7 @@ sca3000_show_available_measurement_modes(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int len = 0;
 
@@ -328,7 +328,7 @@ sca3000_show_measurement_mode(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int len = 0, ret;
 
@@ -379,7 +379,7 @@ sca3000_store_measurement_mode(struct device *dev,
 			       const char *buf,
 			       size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
 	u8 mask = 0x03;
@@ -517,7 +517,7 @@ static ssize_t sca3000_read_av_freq(struct device *dev,
 			     struct device_attribute *attr,
 			     char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int len = 0, ret, val;
 
@@ -588,7 +588,7 @@ static ssize_t sca3000_read_frequency(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret, len = 0, base_freq = 0, val;
 
@@ -630,7 +630,7 @@ static ssize_t sca3000_set_frequency(struct device *dev,
 			      const char *buf,
 			      size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret, base_freq = 0;
 	int ctrlval;
@@ -690,7 +690,7 @@ static ssize_t sca3000_read_temp(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
 	int val;
@@ -911,7 +911,7 @@ static ssize_t sca3000_query_free_fall_mode(struct device *dev,
 					    char *buf)
 {
 	int ret, len;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int val;
 
@@ -939,7 +939,7 @@ static ssize_t sca3000_set_free_fall_mode(struct device *dev,
 					  const char *buf,
 					  size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	long val;
 	int ret;

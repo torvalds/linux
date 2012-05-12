@@ -182,7 +182,7 @@ static ssize_t adis16203_write_reset(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	if (len < 1)
 		return -EINVAL;
 	switch (buf[0]) {

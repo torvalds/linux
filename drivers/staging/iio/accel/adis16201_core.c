@@ -171,7 +171,7 @@ static ssize_t adis16201_write_reset(struct device *dev,
 	ret = strtobool(buf, &res);
 	if (ret || !res)
 		return ret;
-	return adis16201_reset(dev_get_drvdata(dev));
+	return adis16201_reset(dev_to_iio_dev(dev));
 }
 
 int adis16201_set_irq(struct iio_dev *indio_dev, bool enable)

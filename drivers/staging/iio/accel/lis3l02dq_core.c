@@ -297,7 +297,7 @@ static ssize_t lis3l02dq_read_frequency(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	int ret, len = 0;
 	s8 t;
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
@@ -328,7 +328,7 @@ static ssize_t lis3l02dq_write_frequency(struct device *dev,
 					 const char *buf,
 					 size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	unsigned long val;
 	int ret;
 	u8 t;

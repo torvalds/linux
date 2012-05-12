@@ -145,7 +145,7 @@ static ssize_t adis16220_read_16bit(struct device *dev,
 		char *buf)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	ssize_t ret;
 	s16 val = 0;
 
@@ -164,7 +164,7 @@ static ssize_t adis16220_write_16bit(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
 	u16 val;
@@ -208,7 +208,7 @@ static ssize_t adis16220_write_reset(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool val;
 	int ret;
 
@@ -228,7 +228,7 @@ static ssize_t adis16220_write_capture(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool val;
 	int ret;
 
@@ -393,7 +393,7 @@ static ssize_t adis16220_accel_bin_read(struct file *filp, struct kobject *kobj,
 					size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 
 	return adis16220_capture_buffer_read(indio_dev, buf,
 					off, count,
@@ -415,7 +415,7 @@ static ssize_t adis16220_adc1_bin_read(struct file *filp, struct kobject *kobj,
 				size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 
 	return adis16220_capture_buffer_read(indio_dev, buf,
 					off, count,
@@ -437,7 +437,7 @@ static ssize_t adis16220_adc2_bin_read(struct file *filp, struct kobject *kobj,
 				size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 
 	return adis16220_capture_buffer_read(indio_dev, buf,
 					off, count,

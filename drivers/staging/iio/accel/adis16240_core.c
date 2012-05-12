@@ -154,7 +154,7 @@ static ssize_t adis16240_spi_read_signed(struct device *dev,
 		char *buf,
 		unsigned bits)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	int ret;
 	s16 val = 0;
 	unsigned shift = 16 - bits;
@@ -177,7 +177,7 @@ static ssize_t adis16240_read_12bit_signed(struct device *dev,
 		char *buf)
 {
 	ssize_t ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 
 	/* Take the iio_dev status lock */
 	mutex_lock(&indio_dev->mlock);
@@ -203,7 +203,7 @@ static ssize_t adis16240_write_reset(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 
 	if (len < 1)
 		return -EINVAL;
