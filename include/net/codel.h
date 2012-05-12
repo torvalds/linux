@@ -133,12 +133,16 @@ struct codel_params {
 struct codel_vars {
 	u32		count;
 	u32		lastcount;
-	bool		dropping:1;
-	u32		rec_inv_sqrt:31;
+	bool		dropping;
+	u16		rec_inv_sqrt;
 	codel_time_t	first_above_time;
 	codel_time_t	drop_next;
 	codel_time_t	ldelay;
 };
+
+#define REC_INV_SQRT_BITS (8 * sizeof(u16)) /* or sizeof_in_bits(rec_inv_sqrt) */
+/* needed shift to get a Q0.32 number from rec_inv_sqrt */
+#define REC_INV_SQRT_SHIFT (32 - REC_INV_SQRT_BITS)
 
 /**
  * struct codel_stats - contains codel shared variables and stats
@@ -173,17 +177,18 @@ static void codel_stats_init(struct codel_stats *stats)
  * http://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Iterative_methods_for_reciprocal_square_roots
  * new_invsqrt = (invsqrt / 2) * (3 - count * invsqrt^2)
  *
- * Here, invsqrt is a fixed point number (< 1.0), 31bit mantissa)
+ * Here, invsqrt is a fixed point number (< 1.0), 32bit mantissa, aka Q0.32
  */
 static void codel_Newton_step(struct codel_vars *vars)
 {
-	u32 invsqrt = vars->rec_inv_sqrt;
-	u32 invsqrt2 = ((u64)invsqrt * invsqrt) >> 31;
-	u64 val = (3LL << 31) - ((u64)vars->count * invsqrt2);
+	u32 invsqrt = ((u32)vars->rec_inv_sqrt) << REC_INV_SQRT_SHIFT;
+	u32 invsqrt2 = ((u64)invsqrt * invsqrt) >> 32;
+	u64 val = (3LL << 32) - ((u64)vars->count * invsqrt2);
 
-	val = (val * invsqrt) >> 32;
+	val >>= 2; /* avoid overflow in following multiply */
+	val = (val * invsqrt) >> (32 - 2 + 1);
 
-	vars->rec_inv_sqrt = val;
+	vars->rec_inv_sqrt = val >> REC_INV_SQRT_SHIFT;
 }
 
 /*
@@ -195,7 +200,7 @@ static codel_time_t codel_control_law(codel_time_t t,
 				      codel_time_t interval,
 				      u32 rec_inv_sqrt)
 {
-	return t + reciprocal_divide(interval, rec_inv_sqrt << 1);
+	return t + reciprocal_divide(interval, rec_inv_sqrt << REC_INV_SQRT_SHIFT);
 }
 
 
@@ -326,7 +331,7 @@ static struct sk_buff *codel_dequeue(struct Qdisc *sch,
 			codel_Newton_step(vars);
 		} else {
 			vars->count = 1;
-			vars->rec_inv_sqrt = 0x7fffffff;
+			vars->rec_inv_sqrt = ~0U >> REC_INV_SQRT_SHIFT;
 		}
 		vars->lastcount = vars->count;
 		vars->drop_next = codel_control_law(now, params->interval,
