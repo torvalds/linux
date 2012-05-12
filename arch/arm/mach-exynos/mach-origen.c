@@ -609,7 +609,7 @@ static struct s3c_fb_platdata origen_lcd_pdata __initdata = {
 };
 
 /* Bluetooth rfkill gpio platform data */
-struct rfkill_gpio_platform_data origen_bt_pdata = {
+static struct rfkill_gpio_platform_data origen_bt_pdata = {
 	.reset_gpio	= EXYNOS4_GPX2(2),
 	.shutdown_gpio	= -1,
 	.type		= RFKILL_TYPE_BLUETOOTH,
