@@ -5,9 +5,17 @@
  * Zero Drift Bi-Directional Current/Power Monitor with I2C Interface
  * Datasheet: http://www.ti.com/product/ina219
  *
+ * INA220:
+ * Bi-Directional Current/Power Monitor with I2C Interface
+ * Datasheet: http://www.ti.com/product/ina220
+ *
  * INA226:
  * Bi-Directional Current/Power Monitor with I2C Interface
  * Datasheet: http://www.ti.com/product/ina226
+ *
+ * INA230:
+ * Bi-directional Current/Power Monitor with I2C Interface
+ * Datasheet: http://www.ti.com/product/ina230
  *
  * Copyright (C) 2012 Lothar Felten <l-felten@ti.com>
  * Thanks to Jan Volkering
@@ -277,7 +285,9 @@ static int ina2xx_remove(struct i2c_client *client)
 
 static const struct i2c_device_id ina2xx_id[] = {
 	{ "ina219", ina219 },
+	{ "ina220", ina219 },
 	{ "ina226", ina226 },
+	{ "ina230", ina226 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ina2xx_id);
