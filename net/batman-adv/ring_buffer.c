@@ -22,13 +22,14 @@
 #include "main.h"
 #include "ring_buffer.h"
 
-void ring_buffer_set(uint8_t lq_recv[], uint8_t *lq_index, uint8_t value)
+void batadv_ring_buffer_set(uint8_t lq_recv[], uint8_t *lq_index,
+			    uint8_t value)
 {
 	lq_recv[*lq_index] = value;
 	*lq_index = (*lq_index + 1) % TQ_GLOBAL_WINDOW_SIZE;
 }
 
-uint8_t ring_buffer_avg(const uint8_t lq_recv[])
+uint8_t batadv_ring_buffer_avg(const uint8_t lq_recv[])
 {
 	const uint8_t *ptr;
 	uint16_t count = 0, i = 0, sum = 0;
