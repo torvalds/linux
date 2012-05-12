@@ -971,7 +971,7 @@ static void tsl2x7x_prox_cal(struct iio_dev *indio_dev)
 static ssize_t tsl2x7x_power_state_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct tsl2X7X_chip *chip = iio_priv(dev_get_drvdata(dev));
+	struct tsl2X7X_chip *chip = iio_priv(dev_to_iio_dev(dev));
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", chip->tsl2x7x_chip_status);
 }
@@ -979,7 +979,7 @@ static ssize_t tsl2x7x_power_state_show(struct device *dev,
 static ssize_t tsl2x7x_power_state_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool value;
 
 	if (strtobool(buf, &value))
@@ -996,7 +996,7 @@ static ssize_t tsl2x7x_power_state_store(struct device *dev,
 static ssize_t tsl2x7x_gain_available_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct tsl2X7X_chip *chip = iio_priv(dev_get_drvdata(dev));
+	struct tsl2X7X_chip *chip = iio_priv(dev_to_iio_dev(dev));
 
 	switch (chip->id) {
 	case tsl2571:
@@ -1020,7 +1020,7 @@ static ssize_t tsl2x7x_prox_gain_available_show(struct device *dev,
 static ssize_t tsl2x7x_als_time_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct tsl2X7X_chip *chip = iio_priv(dev_get_drvdata(dev));
+	struct tsl2X7X_chip *chip = iio_priv(dev_to_iio_dev(dev));
 	int y, z;
 
 	y = (TSL2X7X_MAX_TIMER_CNT - (u8)chip->tsl2x7x_settings.als_time) + 1;
@@ -1034,8 +1034,8 @@ static ssize_t tsl2x7x_als_time_show(struct device *dev,
 static ssize_t tsl2x7x_als_time_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct tsl2X7X_chip *chip = iio_priv(dev_get_drvdata(dev));
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	struct tsl2x7x_parse_result result;
 
 	result.integer = 0;
@@ -1062,7 +1062,7 @@ static IIO_CONST_ATTR(in_illuminance0_integration_time_available,
 static ssize_t tsl2x7x_als_cal_target_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct tsl2X7X_chip *chip = iio_priv(dev_get_drvdata(dev));
+	struct tsl2X7X_chip *chip = iio_priv(dev_to_iio_dev(dev));
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			chip->tsl2x7x_settings.als_cal_target);
@@ -1071,8 +1071,8 @@ static ssize_t tsl2x7x_als_cal_target_show(struct device *dev,
 static ssize_t tsl2x7x_als_cal_target_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct tsl2X7X_chip *chip = iio_priv(dev_get_drvdata(dev));
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	unsigned long value;
 
 	if (kstrtoul(buf, 0, &value))
@@ -1090,7 +1090,7 @@ static ssize_t tsl2x7x_als_cal_target_store(struct device *dev,
 static ssize_t tsl2x7x_als_persistence_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct tsl2X7X_chip *chip = iio_priv(dev_get_drvdata(dev));
+	struct tsl2X7X_chip *chip = iio_priv(dev_to_iio_dev(dev));
 	int y, z, filter_delay;
 
 	/* Determine integration time */
@@ -1106,8 +1106,8 @@ static ssize_t tsl2x7x_als_persistence_show(struct device *dev,
 static ssize_t tsl2x7x_als_persistence_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct tsl2X7X_chip *chip = iio_priv(dev_get_drvdata(dev));
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	struct tsl2x7x_parse_result result;
 	int y, z, filter_delay;
 
@@ -1136,7 +1136,7 @@ static ssize_t tsl2x7x_als_persistence_store(struct device *dev,
 static ssize_t tsl2x7x_prox_persistence_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct tsl2X7X_chip *chip = iio_priv(dev_get_drvdata(dev));
+	struct tsl2X7X_chip *chip = iio_priv(dev_to_iio_dev(dev));
 	int y, z, filter_delay;
 
 	/* Determine integration time */
@@ -1152,8 +1152,8 @@ static ssize_t tsl2x7x_prox_persistence_show(struct device *dev,
 static ssize_t tsl2x7x_prox_persistence_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct tsl2X7X_chip *chip = iio_priv(dev_get_drvdata(dev));
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	struct tsl2x7x_parse_result result;
 	int y, z, filter_delay;
 
@@ -1182,7 +1182,7 @@ static ssize_t tsl2x7x_prox_persistence_store(struct device *dev,
 static ssize_t tsl2x7x_do_calibrate(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool value;
 
 	if (strtobool(buf, &value))
@@ -1199,7 +1199,7 @@ static ssize_t tsl2x7x_do_calibrate(struct device *dev,
 static ssize_t tsl2x7x_luxtable_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct tsl2X7X_chip *chip = iio_priv(dev_get_drvdata(dev));
+	struct tsl2X7X_chip *chip = iio_priv(dev_to_iio_dev(dev));
 	int i = 0;
 	int offset = 0;
 
@@ -1224,8 +1224,8 @@ static ssize_t tsl2x7x_luxtable_show(struct device *dev,
 static ssize_t tsl2x7x_luxtable_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct tsl2X7X_chip *chip = iio_priv(dev_get_drvdata(dev));
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	int value[ARRAY_SIZE(chip->tsl2x7x_device_lux)*3 + 1];
 	int n;
 
@@ -1263,7 +1263,7 @@ static ssize_t tsl2x7x_luxtable_store(struct device *dev,
 static ssize_t tsl2x7x_do_prox_calibrate(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool value;
 
 	if (strtobool(buf, &value))

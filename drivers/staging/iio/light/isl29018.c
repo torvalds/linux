@@ -214,7 +214,7 @@ static int isl29018_read_proximity_ir(struct isl29018_chip *chip, int scheme,
 static ssize_t show_range(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 
 	return sprintf(buf, "%u\n", chip->range);
@@ -223,7 +223,7 @@ static ssize_t show_range(struct device *dev,
 static ssize_t store_range(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 	int status;
 	unsigned long lval;
@@ -256,7 +256,7 @@ static ssize_t store_range(struct device *dev,
 static ssize_t show_resolution(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 
 	return sprintf(buf, "%u\n", chip->adc_bit);
@@ -265,7 +265,7 @@ static ssize_t show_resolution(struct device *dev,
 static ssize_t store_resolution(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 	int status;
 	unsigned long lval;
@@ -295,7 +295,7 @@ static ssize_t store_resolution(struct device *dev,
 static ssize_t show_prox_infrared_supression(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 
 	/* return the "proximity scheme" i.e. if the chip does on chip
@@ -306,7 +306,7 @@ static ssize_t show_prox_infrared_supression(struct device *dev,
 static ssize_t store_prox_infrared_supression(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 	unsigned long lval;
 
