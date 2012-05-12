@@ -123,8 +123,7 @@ BTFIXUPDEF_CALL(void,  mmu_release_scsi_sgl, struct device *, struct scatterlist
  * Second mapping is for device visible address, or "bus" address.
  * The bus address is returned at '*pba'.
  *
- * These functions seem distinct, but are hard to split. On sun4c,
- * at least for now, 'a' is equal to bus address, and retured in *pba.
+ * These functions seem distinct, but are hard to split.
  * On sun4m, page attributes depend on the CPU type, so we have to
  * know if we are mapping RAM or I/O, so it has to be an additional argument
  * to a separate mapping function for CPU visible mappings.

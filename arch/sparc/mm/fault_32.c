@@ -235,10 +235,6 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
 retry:
 	down_read(&mm->mmap_sem);
 
-	/*
-	 * The kernel referencing a bad kernel pointer can lock up
-	 * a sun4c machine completely, so we must attempt recovery.
-	 */
 	if(!from_user && address >= PAGE_OFFSET)
 		goto bad_area;
 

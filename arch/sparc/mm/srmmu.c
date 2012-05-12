@@ -647,8 +647,7 @@ static void srmmu_unmapiorange(unsigned long virt_addr, unsigned int len)
  * pool.  As a side effect we are putting a little too much pressure
  * on the gfp() subsystem.  This setup also makes the logic of the
  * iommu mapping code a lot easier as we can transparently handle
- * mappings on the kernel stack without any special code as we did
- * need on the sun4c.
+ * mappings on the kernel stack without any special code.
  */
 struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node)
 {

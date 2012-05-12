@@ -19,7 +19,7 @@ struct Sun_Machine_Models {
  * ---------------
  *  7    4 3    0
  *
- * The ARCH field determines the architecture line (sun4, sun4c, etc).
+ * The ARCH field determines the architecture line (sun4m, etc).
  * The MACH field determines the machine make within that architecture.
  */
 

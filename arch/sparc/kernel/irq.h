@@ -78,7 +78,7 @@ void handler_irq(unsigned int pil, struct pt_regs *regs);
 /* Dave Redman (djhr@tadpole.co.uk)
  * changed these to function pointers.. it saves cycles and will allow
  * the irq dependencies to be split into different files at a later date
- * sun4c_irq.c, sun4m_irq.c etc so we could reduce the kernel size.
+ * sun4m_irq.c etc so we could reduce the kernel size.
  * Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  * Changed these to btfixup entities... It saves cycles :)
  */

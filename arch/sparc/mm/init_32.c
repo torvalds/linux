@@ -289,9 +289,8 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
  * check_pgt_cache
  *
  * This is called at the end of unmapping of VMA (zap_page_range),
- * to rescan the page cache for architecture specific things,
- * presumably something like sun4/sun4c PMEGs. Most architectures
- * define check_pgt_cache empty.
+ * to rescan the page cache for architecture specific things.
+ * Most architectures define check_pgt_cache empty.
  *
  * We simply copy the 2.4 implementation for now.
  */

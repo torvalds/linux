@@ -304,8 +304,7 @@ BTFIXUPDEF_CALL(pte_t *, pte_offset_kernel, pmd_t *, unsigned long)
 #define pte_offset_kernel(dir,addr) BTFIXUP_CALL(pte_offset_kernel)(dir,addr)
 
 /*
- * This shortcut works on sun4m (and sun4d) because the nocache area is static,
- * and sun4c is guaranteed to have no highmem anyway.
+ * This shortcut works on sun4m (and sun4d) because the nocache area is static.
  */
 #define pte_offset_map(d, a)		pte_offset_kernel(d,a)
 #define pte_unmap(pte)		do{}while(0)
@@ -367,7 +366,6 @@ static inline pte_t pgoff_to_pte(unsigned long pgoff)
 
 /*
  * This is made a constant because mm/fremap.c required a constant.
- * Note that layout of these bits is different between sun4c.c and srmmu.c.
  */
 #define PTE_FILE_MAX_BITS 24
 
@@ -471,9 +469,7 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 #endif /* !(__ASSEMBLY__) */
 
 #define VMALLOC_START           _AC(0xfe600000,UL)
-/* XXX Alter this when I get around to fixing sun4c - Anton */
 #define VMALLOC_END             _AC(0xffc00000,UL)
-
 
 /* We provide our own get_unmapped_area to cope with VA holes for userland */
 #define HAVE_ARCH_UNMAPPED_AREA
