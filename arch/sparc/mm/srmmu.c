@@ -1248,8 +1248,6 @@ static inline void map_kernel(void)
 	for (i = 0; sp_banks[i].num_bytes != 0; i++) {
 		map_spbank((unsigned long)__va(sp_banks[i].base_addr), i);
 	}
-
-	BTFIXUPSET_SIMM13(user_ptrs_per_pgd, PAGE_OFFSET / SRMMU_PGDIR_SIZE);
 }
 
 /* Paging initialization on the Sparc Reference MMU. */
@@ -2144,13 +2142,6 @@ void __init ld_mmu_srmmu(void)
 	extern void ld_mmu_iommu(void);
 	extern void ld_mmu_iounit(void);
 	extern void ___xchg32_sun4md(void);
-
-	BTFIXUPSET_SIMM13(pgdir_shift, SRMMU_PGDIR_SHIFT);
-	BTFIXUPSET_SETHI(pgdir_size, SRMMU_PGDIR_SIZE);
-	BTFIXUPSET_SETHI(pgdir_mask, SRMMU_PGDIR_MASK);
-
-	BTFIXUPSET_SIMM13(ptrs_per_pmd, SRMMU_PTRS_PER_PMD);
-	BTFIXUPSET_SIMM13(ptrs_per_pgd, SRMMU_PTRS_PER_PGD);
 
 	BTFIXUPSET_INT(page_none, pgprot_val(SRMMU_PAGE_NONE));
 	PAGE_SHARED = pgprot_val(SRMMU_PAGE_SHARED);

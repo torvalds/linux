@@ -28,14 +28,6 @@ struct page;
 extern void load_mmu(void);
 extern unsigned long calc_highpages(void);
 
-BTFIXUPDEF_SIMM13(pgdir_shift)
-BTFIXUPDEF_SETHI(pgdir_size)
-BTFIXUPDEF_SETHI(pgdir_mask)
-
-BTFIXUPDEF_SIMM13(ptrs_per_pmd)
-BTFIXUPDEF_SIMM13(ptrs_per_pgd)
-BTFIXUPDEF_SIMM13(user_ptrs_per_pgd)
-
 #define pte_ERROR(e)   __builtin_trap()
 #define pmd_ERROR(e)   __builtin_trap()
 #define pgd_ERROR(e)   __builtin_trap()
@@ -49,13 +41,13 @@ BTFIXUPDEF_INT(page_kernel)
 #define PMD_SIZE        	(1UL << PMD_SHIFT)
 #define PMD_MASK        	(~(PMD_SIZE-1))
 #define PMD_ALIGN(__addr) 	(((__addr) + ~PMD_MASK) & PMD_MASK)
-#define PGDIR_SHIFT     	BTFIXUP_SIMM13(pgdir_shift)
-#define PGDIR_SIZE      	BTFIXUP_SETHI(pgdir_size)
-#define PGDIR_MASK      	BTFIXUP_SETHI(pgdir_mask)
+#define PGDIR_SHIFT     	SRMMU_PGDIR_SHIFT
+#define PGDIR_SIZE      	SRMMU_PGDIR_SIZE
+#define PGDIR_MASK      	SRMMU_PGDIR_MASK
 #define PTRS_PER_PTE    	1024
-#define PTRS_PER_PMD    	BTFIXUP_SIMM13(ptrs_per_pmd)
-#define PTRS_PER_PGD    	BTFIXUP_SIMM13(ptrs_per_pgd)
-#define USER_PTRS_PER_PGD	BTFIXUP_SIMM13(user_ptrs_per_pgd)
+#define PTRS_PER_PMD    	SRMMU_PTRS_PER_PMD
+#define PTRS_PER_PGD    	SRMMU_PTRS_PER_PGD
+#define USER_PTRS_PER_PGD	PAGE_OFFSET / SRMMU_PGDIR_SIZE
 #define FIRST_USER_ADDRESS	0
 #define PTE_SIZE		(PTRS_PER_PTE*4)
 
