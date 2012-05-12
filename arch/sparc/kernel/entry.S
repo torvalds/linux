@@ -123,8 +123,6 @@ floppy_tdone:
 	set	auxio_register, %l7
 	ld	[%l7], %l7
 
-	set	sparc_cpu_model, %l5
-	ld	[%l5], %l5
 	ldub	[%l7], %l5
 
 	or	%l5, 0xc2, %l5
