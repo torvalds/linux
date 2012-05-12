@@ -116,9 +116,6 @@ static inline unsigned long srmmu_pgd_page(pgd_t pgd)
 static inline int srmmu_pte_none(pte_t pte)
 { return !(pte_val(pte) & 0xFFFFFFF); }
 
-static inline int srmmu_pte_present(pte_t pte)
-{ return ((pte_val(pte) & SRMMU_ET_MASK) == SRMMU_ET_PTE); }
-
 static inline int srmmu_pmd_none(pmd_t pmd)
 { return !(pmd_val(pmd) & 0xFFFFFFF); }
 
@@ -140,25 +137,12 @@ static inline pte_t srmmu_pte_mkdirty(pte_t pte)
 static inline pte_t srmmu_pte_mkyoung(pte_t pte)
 { return __pte(pte_val(pte) | SRMMU_REF);}
 
-/*
- * Conversion functions: convert a page and protection to a page entry,
- * and a page entry and page directory to the page they refer to.
- */
-static pte_t srmmu_mk_pte(struct page *page, pgprot_t pgprot)
-{ return __pte((page_to_pfn(page) << (PAGE_SHIFT-4)) | pgprot_val(pgprot)); }
-
-static pte_t srmmu_mk_pte_phys(unsigned long page, pgprot_t pgprot)
-{ return __pte(((page) >> 4) | pgprot_val(pgprot)); }
-
-static pte_t srmmu_mk_pte_io(unsigned long page, pgprot_t pgprot, int space)
-{ return __pte(((page) >> 4) | (space << 28) | pgprot_val(pgprot)); }
-
 /* XXX should we hyper_flush_whole_icache here - Anton */
 static inline void srmmu_ctxd_set(ctxd_t *ctxp, pgd_t *pgdp)
-{ srmmu_set_pte((pte_t *)ctxp, (SRMMU_ET_PTD | (__nocache_pa((unsigned long) pgdp) >> 4))); }
+{ set_pte((pte_t *)ctxp, (SRMMU_ET_PTD | (__nocache_pa((unsigned long) pgdp) >> 4))); }
 
 static inline void srmmu_pgd_set(pgd_t * pgdp, pmd_t * pmdp)
-{ srmmu_set_pte((pte_t *)pgdp, (SRMMU_ET_PTD | (__nocache_pa((unsigned long) pmdp) >> 4))); }
+{ set_pte((pte_t *)pgdp, (SRMMU_ET_PTD | (__nocache_pa((unsigned long) pmdp) >> 4))); }
 
 static void srmmu_pmd_set(pmd_t *pmdp, pte_t *ptep)
 {
@@ -167,7 +151,7 @@ static void srmmu_pmd_set(pmd_t *pmdp, pte_t *ptep)
 
 	ptp = __nocache_pa((unsigned long) ptep) >> 4;
 	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++) {
-		srmmu_set_pte((pte_t *)&pmdp->pmdv[i], SRMMU_ET_PTD | ptp);
+		set_pte((pte_t *)&pmdp->pmdv[i], SRMMU_ET_PTD | ptp);
 		ptp += (SRMMU_REAL_PTRS_PER_PTE*sizeof(pte_t) >> 4);
 	}
 }
@@ -179,7 +163,7 @@ static void srmmu_pmd_populate(pmd_t *pmdp, struct page *ptep)
 
 	ptp = page_to_pfn(ptep) << (PAGE_SHIFT-4);	/* watch for overflow */
 	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++) {
-		srmmu_set_pte((pte_t *)&pmdp->pmdv[i], SRMMU_ET_PTD | ptp);
+		set_pte((pte_t *)&pmdp->pmdv[i], SRMMU_ET_PTD | ptp);
 		ptp += (SRMMU_REAL_PTRS_PER_PTE*sizeof(pte_t) >> 4);
 	}
 }
@@ -369,7 +353,7 @@ static void __init srmmu_nocache_init(void)
 		if (srmmu_cache_pagetables)
 			pteval |= SRMMU_CACHE;
 
-		srmmu_set_pte(__nocache_fix(pte), __pte(pteval));
+		set_pte(__nocache_fix(pte), __pte(pteval));
 
 		vaddr += PAGE_SIZE;
 		paddr += PAGE_SIZE;
@@ -534,7 +518,7 @@ static inline void srmmu_mapioaddr(unsigned long physaddr,
 	tmp |= (bus_type << 28);
 	tmp |= SRMMU_PRIV;
 	__flush_page_to_ram(virt_addr);
-	srmmu_set_pte(ptep, __pte(tmp));
+	set_pte(ptep, __pte(tmp));
 }
 
 static void srmmu_mapiorange(unsigned int bus, unsigned long xpa,
@@ -2070,15 +2054,8 @@ void __init load_mmu(void)
 	BTFIXUPSET_CALL(___xchg32, ___xchg32_sun4md, BTFIXUPCALL_SWAPG1G2);
 #endif
 
-	BTFIXUPSET_CALL(set_pte, srmmu_set_pte, BTFIXUPCALL_SWAPO0O1);
-
 	BTFIXUPSET_CALL(pgd_page_vaddr, srmmu_pgd_page, BTFIXUPCALL_NORM);
 
-	BTFIXUPSET_CALL(pte_present, srmmu_pte_present, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(mk_pte, srmmu_mk_pte, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mk_pte_phys, srmmu_mk_pte_phys, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mk_pte_io, srmmu_mk_pte_io, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pgd_set, srmmu_pgd_set, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pmd_set, srmmu_pmd_set, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pmd_populate, srmmu_pmd_populate, BTFIXUPCALL_NORM);
