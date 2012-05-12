@@ -699,33 +699,24 @@ execute_in_high_mem:
 		ba continue_boot
 		 nop
 #endif
+
+/* Check to cputype. We may be booted on a sun4u (64 bit box),
+ * and sun4d needs special treatment.
+ */
+
 		set	cputypval, %o2
 		ldub	[%o2 + 0x4], %l1
 
-		cmp	%l1, ' '
-		be	no_sun4c_here
-		 cmp	%l1, 'c'
-		be	no_sun4c_here
-		 cmp	%l1, 'm'
-		be	1f
+		cmp	%l1, 'm'
+		be	sun4m_init
 		 cmp	%l1, 's'
-		be	1f
+		be	sun4m_init
 		 cmp	%l1, 'd'
-		be	1f
+		be	sun4d_init
 		 cmp	%l1, 'e'
 		be	no_sun4e_here		! Could be a sun4e.
 		 nop
 		b	no_sun4u_here		! AIEEE, a V9 sun4u... Get our BIG BROTHER kernel :))
-		 nop
-
-1:		set	cputypval, %l1
-		ldub	[%l1 + 0x4], %l1
-		cmp	%l1, 'd'		! Let us see how the beast will die
-		be	sun4d_init
-		 nop
-
-		/* If not sun4d assume sun4m */
-		b	sun4m_init
 		 nop
 
 /* CPUID in bootbus can be found at PA 0xff0140000 */
@@ -1025,13 +1016,6 @@ continue_boot:
 	
 		/* We should not get here. */
 		call	halt_me
-		 nop
-no_sun4c_here:
-		ld	[%g7 + 0x68], %o1
-		set	sun4c_notsup, %o0
-		call	%o1
-		 nop
-		b	halt_me
 		 nop
 
 no_sun4e_here:
