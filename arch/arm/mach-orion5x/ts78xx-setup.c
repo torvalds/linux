@@ -115,7 +115,7 @@ static struct platform_device ts78xx_ts_rtc_device = {
  * I've used the method TS use in their rtc7800.c example for the detection
  *
  * TODO: track down a guinea pig without an RTC to see if we can work out a
- * 		better RTC detection routine
+ *		better RTC detection routine
  */
 static int ts78xx_ts_rtc_load(void)
 {
