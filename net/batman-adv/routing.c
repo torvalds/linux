@@ -1151,13 +1151,13 @@ int batadv_recv_vis_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	switch (vis_packet->vis_type) {
 	case VIS_TYPE_SERVER_SYNC:
-		receive_server_sync_packet(bat_priv, vis_packet,
-					   skb_headlen(skb));
+		batadv_receive_server_sync_packet(bat_priv, vis_packet,
+						  skb_headlen(skb));
 		break;
 
 	case VIS_TYPE_CLIENT_UPDATE:
-		receive_client_update_packet(bat_priv, vis_packet,
-					     skb_headlen(skb));
+		batadv_receive_client_update_packet(bat_priv, vis_packet,
+						    skb_headlen(skb));
 		break;
 
 	default:	/* ignore unknown packet */

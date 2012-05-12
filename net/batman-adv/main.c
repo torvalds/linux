@@ -121,7 +121,7 @@ int mesh_init(struct net_device *soft_iface)
 
 	batadv_tt_local_add(soft_iface, soft_iface->dev_addr, NULL_IFINDEX);
 
-	ret = vis_init(bat_priv);
+	ret = batadv_vis_init(bat_priv);
 	if (ret < 0)
 		goto err;
 
@@ -147,7 +147,7 @@ void mesh_free(struct net_device *soft_iface)
 
 	batadv_purge_outstanding_packets(bat_priv, NULL);
 
-	vis_quit(bat_priv);
+	batadv_vis_quit(bat_priv);
 
 	batadv_gw_node_purge(bat_priv);
 	batadv_originator_free(bat_priv);
