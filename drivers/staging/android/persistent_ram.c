@@ -407,8 +407,6 @@ struct persistent_ram_zone *__persistent_ram_init(struct device *dev, bool ecc)
 		goto err;
 	}
 
-	INIT_LIST_HEAD(&prz->node);
-
 	ret = persistent_ram_buffer_init(dev_name(dev), prz);
 	if (ret) {
 		pr_err("persistent_ram: failed to initialize buffer\n");

@@ -38,7 +38,6 @@ struct persistent_ram {
 };
 
 struct persistent_ram_zone {
-	struct list_head node;
 	void *vaddr;
 	struct persistent_ram_buffer *buffer;
 	size_t buffer_size;
