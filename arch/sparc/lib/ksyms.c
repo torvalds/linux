@@ -56,8 +56,6 @@ extern int __divdi3(int, int);
 extern void (*__copy_1page)(void *, const void *);
 extern void (*bzero_1page)(void *);
 
-extern int __strncmp(const char *, const char *, __kernel_size_t);
-
 extern void ___rw_read_enter(void);
 extern void ___rw_read_try(void);
 extern void ___rw_read_exit(void);
@@ -80,9 +78,6 @@ EXPORT_SYMBOL(__csum_partial_copy_sparc_generic);
 EXPORT_SYMBOL(__copy_1page);
 EXPORT_SYMBOL(__memmove);
 EXPORT_SYMBOL(bzero_1page);
-
-/* string functions */
-EXPORT_SYMBOL(__strncmp);
 
 /* Moving data to/from/in userspace. */
 EXPORT_SYMBOL(__copy_user);

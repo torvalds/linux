@@ -5,8 +5,7 @@
 
 	.text
 	.align 4
-	.global __strncmp, strncmp
-__strncmp:
+	.global strncmp
 strncmp:
 	mov	%o0, %g3
 	mov	0, %o3
