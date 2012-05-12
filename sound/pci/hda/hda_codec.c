@@ -3842,11 +3842,13 @@ int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 					bps = 20;
 			}
 		}
+#if 0 /* FIXME: CS4206 doesn't work, which is the only codec supporting float */
 		if (streams & AC_SUPFMT_FLOAT32) {
 			formats |= SNDRV_PCM_FMTBIT_FLOAT_LE;
 			if (!bps)
 				bps = 32;
 		}
+#endif
 		if (streams == AC_SUPFMT_AC3) {
 			/* should be exclusive */
 			/* temporary hack: we have still no proper support
