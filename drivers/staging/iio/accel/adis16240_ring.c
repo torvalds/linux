@@ -12,13 +12,12 @@
 
 /**
  * adis16240_read_ring_data() read data registers which will be placed into ring
- * @dev: device associated with child of actual device (iio_dev or iio_trig)
+ * @indio_dev: the IIO device
  * @rx: somewhere to pass back the value read
  **/
-static int adis16240_read_ring_data(struct device *dev, u8 *rx)
+static int adis16240_read_ring_data(struct iio_dev *indio_dev, u8 *rx)
 {
 	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct adis16240_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfers[ADIS16240_OUTPUTS + 1];
 	int ret;
@@ -69,7 +68,7 @@ static irqreturn_t adis16240_trigger_handler(int irq, void *p)
 	}
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength) &&
-	    adis16240_read_ring_data(&indio_dev->dev, st->rx) >= 0)
+	    adis16240_read_ring_data(indio_dev, st->rx) >= 0)
 		for (; i < bitmap_weight(indio_dev->active_scan_mask,
 					 indio_dev->masklength); i++)
 			data[i] = be16_to_cpup((__be16 *)&(st->rx[i*2]));
