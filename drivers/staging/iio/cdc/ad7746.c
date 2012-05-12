@@ -286,7 +286,7 @@ static inline ssize_t ad7746_start_calib(struct device *dev,
 					 size_t len,
 					 u8 regval)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
 	bool doit;
 	int ret, timeout = 10;
@@ -325,7 +325,7 @@ static ssize_t ad7746_start_offset_calib(struct device *dev,
 					 const char *buf,
 					 size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	int ret = ad7746_select_channel(indio_dev,
 			      &ad7746_channels[to_iio_dev_attr(attr)->address]);
 	if (ret < 0)
@@ -340,7 +340,7 @@ static ssize_t ad7746_start_gain_calib(struct device *dev,
 				       const char *buf,
 				       size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	int ret = ad7746_select_channel(indio_dev,
 			      &ad7746_channels[to_iio_dev_attr(attr)->address]);
 	if (ret < 0)
@@ -365,7 +365,7 @@ static ssize_t ad7746_show_cap_filter_rate_setup(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", ad7746_cap_filter_rate_table[
@@ -377,7 +377,7 @@ static ssize_t ad7746_store_cap_filter_rate_setup(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
 	u8 data;
 	int ret, i;
@@ -405,7 +405,7 @@ static ssize_t ad7746_show_vt_filter_rate_setup(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", ad7746_vt_filter_rate_table[
@@ -417,7 +417,7 @@ static ssize_t ad7746_store_vt_filter_rate_setup(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
 	u8 data;
 	int ret, i;

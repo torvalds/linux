@@ -97,7 +97,7 @@ static inline ssize_t ad7152_start_calib(struct device *dev,
 					 size_t len,
 					 u8 regval)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7152_chip_info *chip = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	bool doit;
@@ -169,7 +169,7 @@ static ssize_t ad7152_show_filter_rate_setup(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7152_chip_info *chip = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n",
@@ -181,7 +181,7 @@ static ssize_t ad7152_store_filter_rate_setup(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7152_chip_info *chip = iio_priv(indio_dev);
 	u8 data;
 	int ret, i;
