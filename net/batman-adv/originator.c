@@ -52,7 +52,7 @@ int originator_init(struct bat_priv *bat_priv)
 	if (bat_priv->orig_hash)
 		return 0;
 
-	bat_priv->orig_hash = hash_new(1024);
+	bat_priv->orig_hash = batadv_hash_new(1024);
 
 	if (!bat_priv->orig_hash)
 		goto err;
@@ -184,7 +184,7 @@ void originator_free(struct bat_priv *bat_priv)
 		spin_unlock_bh(list_lock);
 	}
 
-	hash_destroy(hash);
+	batadv_hash_destroy(hash);
 }
 
 /* this function finds or creates an originator entry for the given

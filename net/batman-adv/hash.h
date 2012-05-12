@@ -43,14 +43,14 @@ struct hashtable_t {
 };
 
 /* allocates and clears the hash */
-struct hashtable_t *hash_new(uint32_t size);
+struct hashtable_t *batadv_hash_new(uint32_t size);
 
 /* set class key for all locks */
 void batadv_hash_set_lock_class(struct hashtable_t *hash,
 				struct lock_class_key *key);
 
 /* free only the hashtable and the hash itself. */
-void hash_destroy(struct hashtable_t *hash);
+void batadv_hash_destroy(struct hashtable_t *hash);
 
 /* remove the hash structure. if hashdata_free_cb != NULL, this function will be
  * called to remove the elements inside of the hash.  if you don't remove the
@@ -77,7 +77,7 @@ static inline void hash_delete(struct hashtable_t *hash,
 		spin_unlock_bh(list_lock);
 	}
 
-	hash_destroy(hash);
+	batadv_hash_destroy(hash);
 }
 
 /**

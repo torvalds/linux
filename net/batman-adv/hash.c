@@ -34,7 +34,7 @@ static void hash_init(struct hashtable_t *hash)
 }
 
 /* free only the hashtable and the hash itself. */
-void hash_destroy(struct hashtable_t *hash)
+void batadv_hash_destroy(struct hashtable_t *hash)
 {
 	kfree(hash->list_locks);
 	kfree(hash->table);
@@ -42,7 +42,7 @@ void hash_destroy(struct hashtable_t *hash)
 }
 
 /* allocates and clears the hash */
-struct hashtable_t *hash_new(uint32_t size)
+struct hashtable_t *batadv_hash_new(uint32_t size)
 {
 	struct hashtable_t *hash;
 

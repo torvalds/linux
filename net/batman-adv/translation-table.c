@@ -183,7 +183,7 @@ static int tt_local_init(struct bat_priv *bat_priv)
 	if (bat_priv->tt_local_hash)
 		return 0;
 
-	bat_priv->tt_local_hash = hash_new(1024);
+	bat_priv->tt_local_hash = batadv_hash_new(1024);
 
 	if (!bat_priv->tt_local_hash)
 		return -ENOMEM;
@@ -531,7 +531,7 @@ static void tt_local_table_free(struct bat_priv *bat_priv)
 		spin_unlock_bh(list_lock);
 	}
 
-	hash_destroy(hash);
+	batadv_hash_destroy(hash);
 
 	bat_priv->tt_local_hash = NULL;
 }
@@ -541,7 +541,7 @@ static int tt_global_init(struct bat_priv *bat_priv)
 	if (bat_priv->tt_global_hash)
 		return 0;
 
-	bat_priv->tt_global_hash = hash_new(1024);
+	bat_priv->tt_global_hash = batadv_hash_new(1024);
 
 	if (!bat_priv->tt_global_hash)
 		return -ENOMEM;
@@ -1031,7 +1031,7 @@ static void tt_global_table_free(struct bat_priv *bat_priv)
 		spin_unlock_bh(list_lock);
 	}
 
-	hash_destroy(hash);
+	batadv_hash_destroy(hash);
 
 	bat_priv->tt_global_hash = NULL;
 }

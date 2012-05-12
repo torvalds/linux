@@ -1166,8 +1166,8 @@ int batadv_bla_init(struct bat_priv *bat_priv)
 	if (bat_priv->claim_hash)
 		return 0;
 
-	bat_priv->claim_hash = hash_new(128);
-	bat_priv->backbone_hash = hash_new(32);
+	bat_priv->claim_hash = batadv_hash_new(128);
+	bat_priv->backbone_hash = batadv_hash_new(32);
 
 	if (!bat_priv->claim_hash || !bat_priv->backbone_hash)
 		return -ENOMEM;
@@ -1348,12 +1348,12 @@ void batadv_bla_free(struct bat_priv *bat_priv)
 
 	if (bat_priv->claim_hash) {
 		bla_purge_claims(bat_priv, primary_if, 1);
-		hash_destroy(bat_priv->claim_hash);
+		batadv_hash_destroy(bat_priv->claim_hash);
 		bat_priv->claim_hash = NULL;
 	}
 	if (bat_priv->backbone_hash) {
 		bla_purge_backbone_gw(bat_priv, 1);
-		hash_destroy(bat_priv->backbone_hash);
+		batadv_hash_destroy(bat_priv->backbone_hash);
 		bat_priv->backbone_hash = NULL;
 	}
 	if (primary_if)
