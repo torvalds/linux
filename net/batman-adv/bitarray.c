@@ -25,7 +25,7 @@
 #include <linux/bitops.h>
 
 /* shift the packet array by n places. */
-static void bat_bitmap_shift_left(unsigned long *seq_bits, int32_t n)
+static void batadv_bitmap_shift_left(unsigned long *seq_bits, int32_t n)
 {
 	if (n <= 0 || n >= TQ_LOCAL_WINDOW_SIZE)
 		return;
@@ -40,8 +40,8 @@ static void bat_bitmap_shift_left(unsigned long *seq_bits, int32_t n)
  *  1 if the window was moved (either new or very old)
  *  0 if the window was not moved/shifted.
  */
-int bit_get_packet(void *priv, unsigned long *seq_bits,
-		    int32_t seq_num_diff, int set_mark)
+int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
+			  int32_t seq_num_diff, int set_mark)
 {
 	struct bat_priv *bat_priv = priv;
 
@@ -58,7 +58,7 @@ int bit_get_packet(void *priv, unsigned long *seq_bits,
 	 * set the mark if required */
 
 	if ((seq_num_diff > 0) && (seq_num_diff < TQ_LOCAL_WINDOW_SIZE)) {
-		bat_bitmap_shift_left(seq_bits, seq_num_diff);
+		batadv_bitmap_shift_left(seq_bits, seq_num_diff);
 
 		if (set_mark)
 			bat_set_bit(seq_bits, 0);

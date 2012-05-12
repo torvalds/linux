@@ -903,9 +903,9 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 			set_mark = 0;
 
 		/* if the window moved, set the update flag. */
-		need_update |= bit_get_packet(bat_priv,
-					      tmp_neigh_node->real_bits,
-					      seq_diff, set_mark);
+		need_update |= batadv_bit_get_packet(bat_priv,
+						     tmp_neigh_node->real_bits,
+						     seq_diff, set_mark);
 
 		tmp_neigh_node->real_packet_count =
 			bitmap_weight(tmp_neigh_node->real_bits,

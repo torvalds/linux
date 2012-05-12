@@ -54,7 +54,7 @@ void slide_own_bcast_window(struct hard_iface *hard_iface)
 			word_index = hard_iface->if_num * NUM_WORDS;
 			word = &(orig_node->bcast_own[word_index]);
 
-			bit_get_packet(bat_priv, word, 1, 0);
+			batadv_bit_get_packet(bat_priv, word, 1, 0);
 			orig_node->bcast_own_sum[hard_iface->if_num] =
 				bitmap_weight(word, TQ_LOCAL_WINDOW_SIZE);
 			spin_unlock_bh(&orig_node->ogm_cnt_lock);
@@ -1083,7 +1083,7 @@ int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	/* mark broadcast in flood history, update window position
 	 * if required. */
-	if (bit_get_packet(bat_priv, orig_node->bcast_bits, seq_diff, 1))
+	if (batadv_bit_get_packet(bat_priv, orig_node->bcast_bits, seq_diff, 1))
 		orig_node->last_bcast_seqno = ntohl(bcast_packet->seqno);
 
 	spin_unlock_bh(&orig_node->bcast_seqno_lock);

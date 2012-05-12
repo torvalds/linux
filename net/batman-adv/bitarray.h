@@ -48,7 +48,7 @@ static inline void bat_set_bit(unsigned long *seq_bits, int32_t n)
 
 /* receive and process one packet, returns 1 if received seq_num is considered
  * new, 0 if old  */
-int bit_get_packet(void *priv, unsigned long *seq_bits,
-		   int32_t seq_num_diff, int set_mark);
+int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
+			  int32_t seq_num_diff, int set_mark);
 
 #endif /* _NET_BATMAN_ADV_BITARRAY_H_ */
