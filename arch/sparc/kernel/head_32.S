@@ -675,19 +675,6 @@ execute_in_high_mem:
 		sethi	%hi(linux_dbvec), %g1
 		st	%o1, [%g1 + %lo(linux_dbvec)]
 
-		ld	[%o0 + 0x4], %o3
-		and	%o3, 0x3, %o5			! get the version
-
-		cmp	%o3, 0x2			! a v2 prom?
-		be	found_version
-		 nop
-
-		/* paul@sfe.com.au */
-		cmp	%o3, 0x3			! a v3 prom?
-		be	found_version
-		 nop
-
-found_version:
 /* Get the machine type via the mysterious romvec node operations. */
 
 		add	%g7, 0x1c, %l1		
