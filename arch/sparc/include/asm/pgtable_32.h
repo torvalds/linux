@@ -171,13 +171,20 @@ static inline void pmd_clear(pmd_t *pmdp)
 		srmmu_set_pte((pte_t *)&pmdp->pmdv[i], __pte(0));
 }
 
-BTFIXUPDEF_CALL_CONST(int, pgd_none, pgd_t)
-BTFIXUPDEF_CALL_CONST(int, pgd_bad, pgd_t)
-BTFIXUPDEF_CALL_CONST(int, pgd_present, pgd_t)
+static inline int pgd_none(pgd_t pgd)          
+{
+	return !(pgd_val(pgd) & 0xFFFFFFF);
+}
 
-#define pgd_none(pgd) BTFIXUP_CALL(pgd_none)(pgd)
-#define pgd_bad(pgd) BTFIXUP_CALL(pgd_bad)(pgd)
-#define pgd_present(pgd) BTFIXUP_CALL(pgd_present)(pgd)
+static inline int pgd_bad(pgd_t pgd)
+{
+	return (pgd_val(pgd) & SRMMU_ET_MASK) != SRMMU_ET_PTD;
+}
+
+static inline int pgd_present(pgd_t pgd)
+{
+	return ((pgd_val(pgd) & SRMMU_ET_MASK) == SRMMU_ET_PTD);
+}
 
 static inline void pgd_clear(pgd_t *pgdp)
 {

@@ -124,15 +124,6 @@ static inline int srmmu_pmd_bad(pmd_t pmd)
 static inline int srmmu_pmd_present(pmd_t pmd)
 { return ((pmd_val(pmd) & SRMMU_ET_MASK) == SRMMU_ET_PTD); }
 
-static inline int srmmu_pgd_none(pgd_t pgd)          
-{ return !(pgd_val(pgd) & 0xFFFFFFF); }
-
-static inline int srmmu_pgd_bad(pgd_t pgd)
-{ return (pgd_val(pgd) & SRMMU_ET_MASK) != SRMMU_ET_PTD; }
-
-static inline int srmmu_pgd_present(pgd_t pgd)
-{ return ((pgd_val(pgd) & SRMMU_ET_MASK) == SRMMU_ET_PTD); }
-
 static inline pte_t srmmu_pte_wrprotect(pte_t pte)
 { return __pte(pte_val(pte) & ~SRMMU_WRITE);}
 
@@ -1007,7 +998,7 @@ static void __init srmmu_early_allocate_ptable_skeleton(unsigned long start,
 
 	while(start < end) {
 		pgdp = pgd_offset_k(start);
-		if(srmmu_pgd_none(*(pgd_t *)__nocache_fix(pgdp))) {
+		if (pgd_none(*(pgd_t *)__nocache_fix(pgdp))) {
 			pmdp = (pmd_t *) __srmmu_get_nocache(
 			    SRMMU_PMD_TABLE_SIZE, SRMMU_PMD_TABLE_SIZE);
 			if (pmdp == NULL)
@@ -1038,7 +1029,7 @@ static void __init srmmu_allocate_ptable_skeleton(unsigned long start,
 
 	while(start < end) {
 		pgdp = pgd_offset_k(start);
-		if(srmmu_pgd_none(*pgdp)) {
+		if (pgd_none(*pgdp)) {
 			pmdp = (pmd_t *)__srmmu_get_nocache(SRMMU_PMD_TABLE_SIZE, SRMMU_PMD_TABLE_SIZE);
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
@@ -1104,7 +1095,7 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 			start += SRMMU_PGDIR_SIZE;
 			continue;
 		}
-		if(srmmu_pgd_none(*(pgd_t *)__nocache_fix(pgdp))) {
+		if (pgd_none(*(pgd_t *)__nocache_fix(pgdp))) {
 			pmdp = (pmd_t *)__srmmu_get_nocache(SRMMU_PMD_TABLE_SIZE, SRMMU_PMD_TABLE_SIZE);
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
@@ -2089,10 +2080,6 @@ void __init ld_mmu_srmmu(void)
 
 	BTFIXUPSET_CALL(pmd_bad, srmmu_pmd_bad, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pmd_present, srmmu_pmd_present, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(pgd_none, srmmu_pgd_none, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pgd_bad, srmmu_pgd_bad, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pgd_present, srmmu_pgd_present, BTFIXUPCALL_NORM);
 
 	BTFIXUPSET_CALL(mk_pte, srmmu_mk_pte, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(mk_pte_phys, srmmu_mk_pte_phys, BTFIXUPCALL_NORM);
