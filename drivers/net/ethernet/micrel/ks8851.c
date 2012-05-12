@@ -618,10 +618,8 @@ static void ks8851_irq_work(struct work_struct *work)
 	netif_dbg(ks, intr, ks->netdev,
 		  "%s: status 0x%04x\n", __func__, status);
 
-	if (status & IRQ_LCI) {
-		/* should do something about checking link status */
+	if (status & IRQ_LCI)
 		handled |= IRQ_LCI;
-	}
 
 	if (status & IRQ_LDI) {
 		u16 pmecr = ks8851_rdreg16(ks, KS_PMECR);
@@ -683,6 +681,9 @@ static void ks8851_irq_work(struct work_struct *work)
 	}
 
 	mutex_unlock(&ks->lock);
+
+	if (status & IRQ_LCI)
+		mii_check_link(&ks->mii);
 
 	if (status & IRQ_TXI)
 		netif_wake_queue(ks->netdev);
