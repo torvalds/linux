@@ -42,7 +42,6 @@
 #include <asm/vaddrs.h>
 #include <asm/mbus.h>
 #include <asm/idprom.h>
-#include <asm/machines.h>
 #include <asm/cpudata.h>
 #include <asm/setup.h>
 #include <asm/cacheflush.h>

@@ -12,7 +12,6 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/idprom.h>
-#include <asm/machines.h>
 #include <asm/oplib.h>
 #include <asm/auxio.h>
 #include <asm/irq.h>
@@ -311,9 +310,7 @@ static int sun_floppy_init(void)
 	/* Forget it if we aren't on a machine that could possibly
 	 * ever have a floppy drive.
 	 */
-	if((sparc_cpu_model != sun4c && sparc_cpu_model != sun4m) ||
-	   ((idprom->id_machtype == (SM_SUN4C | SM_4C_SLC)) ||
-	    (idprom->id_machtype == (SM_SUN4C | SM_4C_ELC)))) {
+	if (sparc_cpu_model != sun4m) {
 		/* We certainly don't have a floppy controller. */
 		goto no_sun_fdc;
 	}

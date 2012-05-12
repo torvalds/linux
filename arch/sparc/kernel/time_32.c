@@ -42,7 +42,6 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/idprom.h>
-#include <asm/machines.h>
 #include <asm/page.h>
 #include <asm/pcic.h>
 #include <asm/irq_regs.h>
