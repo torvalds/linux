@@ -232,21 +232,10 @@ static struct platform_device crag6410_gpio_keydev = {
 };
 
 static struct resource crag6410_dm9k_resource[] = {
-	[0] = {
-		.start	= S3C64XX_PA_XM0CSN5,
-		.end	= S3C64XX_PA_XM0CSN5 + 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= S3C64XX_PA_XM0CSN5 + (1 << 8),
-		.end	= S3C64XX_PA_XM0CSN5 + (1 << 8) + 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[2] = {
-		.start	= S3C_EINT(17),
-		.end	= S3C_EINT(17),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	},
+	[0] = DEFINE_RES_MEM(S3C64XX_PA_XM0CSN5, 2),
+	[1] = DEFINE_RES_MEM(S3C64XX_PA_XM0CSN5 + (1 << 8), 2),
+	[2] = DEFINE_RES_NAMED(S3C_EINT(17), 1, NULL, IORESOURCE_IRQ \
+				| IORESOURCE_IRQ_HIGHLEVEL),
 };
 
 static struct dm9000_plat_data mini6410_dm9k_pdata = {
@@ -262,12 +251,7 @@ static struct platform_device crag6410_dm9k_device = {
 };
 
 static struct resource crag6410_mmgpio_resource[] = {
-	[0] = {
-		.name	= "dat",
-		.start	= S3C64XX_PA_XM0CSN4 + 1,
-		.end	= S3C64XX_PA_XM0CSN4 + 1,
-		.flags	= IORESOURCE_MEM,
-	},
+	[0] = DEFINE_RES_MEM_NAMED(S3C64XX_PA_XM0CSN4, 1, "dat"),
 };
 
 static struct platform_device crag6410_mmgpio = {

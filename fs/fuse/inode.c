@@ -947,6 +947,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = FUSE_SUPER_MAGIC;
 	sb->s_op = &fuse_super_operations;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
+	sb->s_time_gran = 1;
 	sb->s_export_op = &fuse_export_operations;
 
 	file = fget(d.fd);

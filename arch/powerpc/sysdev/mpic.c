@@ -604,18 +604,14 @@ static struct mpic *mpic_find(unsigned int irq)
 }
 
 /* Determine if the linux irq is an IPI */
-static unsigned int mpic_is_ipi(struct mpic *mpic, unsigned int irq)
+static unsigned int mpic_is_ipi(struct mpic *mpic, unsigned int src)
 {
-	unsigned int src = virq_to_hw(irq);
-
 	return (src >= mpic->ipi_vecs[0] && src <= mpic->ipi_vecs[3]);
 }
 
 /* Determine if the linux irq is a timer */
-static unsigned int mpic_is_tm(struct mpic *mpic, unsigned int irq)
+static unsigned int mpic_is_tm(struct mpic *mpic, unsigned int src)
 {
-	unsigned int src = virq_to_hw(irq);
-
 	return (src >= mpic->timer_vecs[0] && src <= mpic->timer_vecs[7]);
 }
 
@@ -876,21 +872,45 @@ int mpic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	if (src >= mpic->num_sources)
 		return -EINVAL;
 
-	if (flow_type == IRQ_TYPE_NONE)
-		if (mpic->senses && src < mpic->senses_count)
-			flow_type = mpic->senses[src];
-	if (flow_type == IRQ_TYPE_NONE)
-		flow_type = IRQ_TYPE_LEVEL_LOW;
+	vold = mpic_irq_read(src, MPIC_INFO(IRQ_VECTOR_PRI));
 
+	/* We don't support "none" type */
+	if (flow_type == IRQ_TYPE_NONE)
+		flow_type = IRQ_TYPE_DEFAULT;
+
+	/* Default: read HW settings */
+	if (flow_type == IRQ_TYPE_DEFAULT) {
+		switch(vold & (MPIC_INFO(VECPRI_POLARITY_MASK) |
+			       MPIC_INFO(VECPRI_SENSE_MASK))) {
+			case MPIC_INFO(VECPRI_SENSE_EDGE) |
+			     MPIC_INFO(VECPRI_POLARITY_POSITIVE):
+				flow_type = IRQ_TYPE_EDGE_RISING;
+				break;
+			case MPIC_INFO(VECPRI_SENSE_EDGE) |
+			     MPIC_INFO(VECPRI_POLARITY_NEGATIVE):
+				flow_type = IRQ_TYPE_EDGE_FALLING;
+				break;
+			case MPIC_INFO(VECPRI_SENSE_LEVEL) |
+			     MPIC_INFO(VECPRI_POLARITY_POSITIVE):
+				flow_type = IRQ_TYPE_LEVEL_HIGH;
+				break;
+			case MPIC_INFO(VECPRI_SENSE_LEVEL) |
+			     MPIC_INFO(VECPRI_POLARITY_NEGATIVE):
+				flow_type = IRQ_TYPE_LEVEL_LOW;
+				break;
+		}
+	}
+
+	/* Apply to irq desc */
 	irqd_set_trigger_type(d, flow_type);
 
+	/* Apply to HW */
 	if (mpic_is_ht_interrupt(mpic, src))
 		vecpri = MPIC_VECPRI_POLARITY_POSITIVE |
 			MPIC_VECPRI_SENSE_EDGE;
 	else
 		vecpri = mpic_type_to_vecpri(mpic, flow_type);
 
-	vold = mpic_irq_read(src, MPIC_INFO(IRQ_VECTOR_PRI));
 	vnew = vold & ~(MPIC_INFO(VECPRI_POLARITY_MASK) |
 			MPIC_INFO(VECPRI_SENSE_MASK));
 	vnew |= vecpri;
@@ -1026,7 +1046,7 @@ static int mpic_host_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_and_handler(virq, chip, handle_fasteoi_irq);
 
 	/* Set default irq type */
-	irq_set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_irq_type(virq, IRQ_TYPE_DEFAULT);
 
 	/* If the MPIC was reset, then all vectors have already been
 	 * initialized.  Otherwise, a per source lazy initialization
@@ -1417,12 +1437,6 @@ void __init mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
 		mpic->num_sources = isu_first + mpic->isu_size;
 }
 
-void __init mpic_set_default_senses(struct mpic *mpic, u8 *senses, int count)
-{
-	mpic->senses = senses;
-	mpic->senses_count = count;
-}
-
 void __init mpic_init(struct mpic *mpic)
 {
 	int i, cpu;
@@ -1555,12 +1569,12 @@ void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 		return;
 
 	raw_spin_lock_irqsave(&mpic_lock, flags);
-	if (mpic_is_ipi(mpic, irq)) {
+	if (mpic_is_ipi(mpic, src)) {
 		reg = mpic_ipi_read(src - mpic->ipi_vecs[0]) &
 			~MPIC_VECPRI_PRIORITY_MASK;
 		mpic_ipi_write(src - mpic->ipi_vecs[0],
 			       reg | (pri << MPIC_VECPRI_PRIORITY_SHIFT));
-	} else if (mpic_is_tm(mpic, irq)) {
+	} else if (mpic_is_tm(mpic, src)) {
 		reg = mpic_tm_read(src - mpic->timer_vecs[0]) &
 			~MPIC_VECPRI_PRIORITY_MASK;
 		mpic_tm_write(src - mpic->timer_vecs[0],

@@ -85,21 +85,10 @@ static struct s3c2410_uartcfg mini6410_uartcfgs[] __initdata = {
 /* DM9000AEP 10/100 ethernet controller */
 
 static struct resource mini6410_dm9k_resource[] = {
-	[0] = {
-		.start	= S3C64XX_PA_XM0CSN1,
-		.end	= S3C64XX_PA_XM0CSN1 + 1,
-		.flags	= IORESOURCE_MEM
-	},
-	[1] = {
-		.start	= S3C64XX_PA_XM0CSN1 + 4,
-		.end	= S3C64XX_PA_XM0CSN1 + 5,
-		.flags	= IORESOURCE_MEM
-	},
-	[2] = {
-		.start	= S3C_EINT(7),
-		.end	= S3C_EINT(7),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL
-	}
+	[0] = DEFINE_RES_MEM(S3C64XX_PA_XM0CSN1, 2),
+	[1] = DEFINE_RES_MEM(S3C64XX_PA_XM0CSN1 + 4, 2),
+	[2] = DEFINE_RES_NAMED(S3C_EINT(7), 1, NULL, IORESOURCE_IRQ \
+					| IORESOURCE_IRQ_HIGHLEVEL),
 };
 
 static struct dm9000_plat_data mini6410_dm9k_pdata = {

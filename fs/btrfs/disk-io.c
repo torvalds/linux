@@ -323,13 +323,17 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
  * in the wrong place.
  */
 static int verify_parent_transid(struct extent_io_tree *io_tree,
-				 struct extent_buffer *eb, u64 parent_transid)
+				 struct extent_buffer *eb, u64 parent_transid,
+				 int atomic)
 {
 	struct extent_state *cached_state = NULL;
 	int ret;
 
 	if (!parent_transid || btrfs_header_generation(eb) == parent_transid)
 		return 0;
+
+	if (atomic)
+		return -EAGAIN;
 
 	lock_extent_bits(io_tree, eb->start, eb->start + eb->len - 1,
 			 0, &cached_state);
@@ -372,7 +376,8 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 		ret = read_extent_buffer_pages(io_tree, eb, start,
 					       WAIT_COMPLETE,
 					       btree_get_extent, mirror_num);
-		if (!ret && !verify_parent_transid(io_tree, eb, parent_transid))
+		if (!ret && !verify_parent_transid(io_tree, eb,
+						   parent_transid, 0))
 			break;
 
 		/*
@@ -383,16 +388,15 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 		if (test_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags))
 			break;
 
-		if (!failed_mirror) {
-			failed = 1;
-			printk(KERN_ERR "failed mirror was %d\n", eb->failed_mirror);
-			failed_mirror = eb->failed_mirror;
-		}
-
 		num_copies = btrfs_num_copies(&root->fs_info->mapping_tree,
 					      eb->start, eb->len);
 		if (num_copies == 1)
 			break;
+
+		if (!failed_mirror) {
+			failed = 1;
+			failed_mirror = eb->read_mirror;
+		}
 
 		mirror_num++;
 		if (mirror_num == failed_mirror)
@@ -564,7 +568,7 @@ struct extent_buffer *find_eb_for_page(struct extent_io_tree *tree,
 }
 
 static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
-			       struct extent_state *state)
+			       struct extent_state *state, int mirror)
 {
 	struct extent_io_tree *tree;
 	u64 found_start;
@@ -589,6 +593,7 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	if (!reads_done)
 		goto err;
 
+	eb->read_mirror = mirror;
 	if (test_bit(EXTENT_BUFFER_IOERR, &eb->bflags)) {
 		ret = -EIO;
 		goto err;
@@ -652,7 +657,7 @@ static int btree_io_failed_hook(struct page *page, int failed_mirror)
 
 	eb = (struct extent_buffer *)page->private;
 	set_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
-	eb->failed_mirror = failed_mirror;
+	eb->read_mirror = failed_mirror;
 	if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
 		btree_readahead_hook(root, eb, eb->start, -EIO);
 	return -EIO;	/* we fixed nothing */
@@ -1202,7 +1207,7 @@ static int __must_check find_and_setup_root(struct btrfs_root *tree_root,
 	root->commit_root = NULL;
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
 				     blocksize, generation);
-	if (!root->node || !btrfs_buffer_uptodate(root->node, generation)) {
+	if (!root->node || !btrfs_buffer_uptodate(root->node, generation, 0)) {
 		free_extent_buffer(root->node);
 		root->node = NULL;
 		return -EIO;
@@ -2254,9 +2259,9 @@ int open_ctree(struct super_block *sb,
 		goto fail_sb_buffer;
 	}
 
-	if (sectorsize < PAGE_SIZE) {
-		printk(KERN_WARNING "btrfs: Incompatible sector size "
-		       "found on %s\n", sb->s_id);
+	if (sectorsize != PAGE_SIZE) {
+		printk(KERN_WARNING "btrfs: Incompatible sector size(%lu) "
+		       "found on %s\n", (unsigned long)sectorsize, sb->s_id);
 		goto fail_sb_buffer;
 	}
 
@@ -3143,7 +3148,8 @@ int close_ctree(struct btrfs_root *root)
 	return 0;
 }
 
-int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid)
+int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
+			  int atomic)
 {
 	int ret;
 	struct inode *btree_inode = buf->pages[0]->mapping->host;
@@ -3153,7 +3159,9 @@ int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid)
 		return ret;
 
 	ret = verify_parent_transid(&BTRFS_I(btree_inode)->io_tree, buf,
-				    parent_transid);
+				    parent_transid, atomic);
+	if (ret == -EAGAIN)
+		return ret;
 	return !ret;
 }
 

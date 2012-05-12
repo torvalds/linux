@@ -106,7 +106,7 @@ E1000_PARAM(RxAbsIntDelay, "Receive Absolute Interrupt Delay");
 /*
  * Interrupt Throttle Rate (interrupts/sec)
  *
- * Valid Range: 100-100000 (0=off, 1=dynamic, 3=dynamic conservative)
+ * Valid Range: 100-100000 or one of: 0=off, 1=dynamic, 3=dynamic conservative
  */
 E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
 #define DEFAULT_ITR 3
@@ -344,53 +344,60 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 
 		if (num_InterruptThrottleRate > bd) {
 			adapter->itr = InterruptThrottleRate[bd];
-			switch (adapter->itr) {
-			case 0:
-				e_info("%s turned off\n", opt.name);
-				break;
-			case 1:
-				e_info("%s set to dynamic mode\n", opt.name);
-				adapter->itr_setting = adapter->itr;
-				adapter->itr = 20000;
-				break;
-			case 3:
-				e_info("%s set to dynamic conservative mode\n",
-					opt.name);
-				adapter->itr_setting = adapter->itr;
-				adapter->itr = 20000;
-				break;
-			case 4:
-				e_info("%s set to simplified (2000-8000 ints) "
-				       "mode\n", opt.name);
-				adapter->itr_setting = 4;
-				break;
-			default:
-				/*
-				 * Save the setting, because the dynamic bits
-				 * change itr.
-				 */
-				if (e1000_validate_option(&adapter->itr, &opt,
-							  adapter) &&
-				    (adapter->itr == 3)) {
-					/*
-					 * In case of invalid user value,
-					 * default to conservative mode.
-					 */
-					adapter->itr_setting = adapter->itr;
-					adapter->itr = 20000;
-				} else {
-					/*
-					 * Clear the lower two bits because
-					 * they are used as control.
-					 */
-					adapter->itr_setting =
-						adapter->itr & ~3;
-				}
-				break;
-			}
+
+			/*
+			 * Make sure a message is printed for non-special
+			 * values.  And in case of an invalid option, display
+			 * warning, use default and got through itr/itr_setting
+			 * adjustment logic below
+			 */
+			if ((adapter->itr > 4) &&
+			    e1000_validate_option(&adapter->itr, &opt, adapter))
+				adapter->itr = opt.def;
 		} else {
-			adapter->itr_setting = opt.def;
+			/*
+			 * If no option specified, use default value and go
+			 * through the logic below to adjust itr/itr_setting
+			 */
+			adapter->itr = opt.def;
+
+			/*
+			 * Make sure a message is printed for non-special
+			 * default values
+			 */
+			if (adapter->itr > 40)
+				e_info("%s set to default %d\n", opt.name,
+				       adapter->itr);
+		}
+
+		adapter->itr_setting = adapter->itr;
+		switch (adapter->itr) {
+		case 0:
+			e_info("%s turned off\n", opt.name);
+			break;
+		case 1:
+			e_info("%s set to dynamic mode\n", opt.name);
 			adapter->itr = 20000;
+			break;
+		case 3:
+			e_info("%s set to dynamic conservative mode\n",
+			       opt.name);
+			adapter->itr = 20000;
+			break;
+		case 4:
+			e_info("%s set to simplified (2000-8000 ints) mode\n",
+			       opt.name);
+			break;
+		default:
+			/*
+			 * Save the setting, because the dynamic bits
+			 * change itr.
+			 *
+			 * Clear the lower two bits because
+			 * they are used as control.
+			 */
+			adapter->itr_setting &= ~3;
+			break;
 		}
 	}
 	{ /* Interrupt Mode */
