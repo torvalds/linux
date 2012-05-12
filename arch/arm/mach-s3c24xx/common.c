@@ -41,6 +41,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 #include <plat/regs-serial.h>
 
@@ -52,6 +53,8 @@
 #include <plat/s3c2416.h>
 #include <plat/s3c244x.h>
 #include <plat/s3c2443.h>
+#include <plat/cpu-freq.h>
+#include <plat/pll.h>
 
 /* table of supported CPUs */
 
@@ -307,3 +310,18 @@ struct s3c24xx_uart_resources s3c2410_uart_resources[] __initdata = {
 		.nr_resources	= ARRAY_SIZE(s3c2410_uart3_resource),
 	},
 };
+
+/* initialise all the clocks */
+
+void __init_or_cpufreq s3c24xx_setup_clocks(unsigned long fclk,
+					   unsigned long hclk,
+					   unsigned long pclk)
+{
+	clk_upll.rate = s3c24xx_get_pll(__raw_readl(S3C2410_UPLLCON),
+					clk_xtal.rate);
+
+	clk_mpll.rate = fclk;
+	clk_h.rate = hclk;
+	clk_p.rate = pclk;
+	clk_f.rate = fclk;
+}
