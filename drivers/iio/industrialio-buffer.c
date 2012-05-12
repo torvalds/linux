@@ -105,7 +105,7 @@ static ssize_t iio_scan_el_show(struct device *dev,
 				char *buf)
 {
 	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 
 	ret = test_bit(to_iio_dev_attr(attr)->address,
 		       indio_dev->buffer->scan_mask);
@@ -126,7 +126,7 @@ static ssize_t iio_scan_el_store(struct device *dev,
 {
 	int ret;
 	bool state;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_buffer *buffer = indio_dev->buffer;
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
@@ -162,7 +162,7 @@ static ssize_t iio_scan_el_ts_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	return sprintf(buf, "%d\n", indio_dev->buffer->scan_timestamp);
 }
 
@@ -172,7 +172,7 @@ static ssize_t iio_scan_el_ts_store(struct device *dev,
 				    size_t len)
 {
 	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool state;
 
 	ret = strtobool(buf, &state);
@@ -352,7 +352,7 @@ ssize_t iio_buffer_read_length(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_buffer *buffer = indio_dev->buffer;
 
 	if (buffer->access->get_length)
@@ -370,7 +370,7 @@ ssize_t iio_buffer_write_length(struct device *dev,
 {
 	int ret;
 	ulong val;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_buffer *buffer = indio_dev->buffer;
 
 	ret = strict_strtoul(buf, 10, &val);
@@ -403,7 +403,7 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 	int ret;
 	bool requested_state, current_state;
 	int previous_mode;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_buffer *buffer = indio_dev->buffer;
 
 	mutex_lock(&indio_dev->mlock);
@@ -489,7 +489,7 @@ ssize_t iio_buffer_show_enable(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	return sprintf(buf, "%d\n", iio_buffer_enabled(indio_dev));
 }
 EXPORT_SYMBOL(iio_buffer_show_enable);

@@ -265,7 +265,7 @@ static ssize_t iio_read_channel_ext_info(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	const struct iio_chan_spec_ext_info *ext_info;
 
@@ -279,7 +279,7 @@ static ssize_t iio_write_channel_ext_info(struct device *dev,
 				     const char *buf,
 					 size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	const struct iio_chan_spec_ext_info *ext_info;
 
@@ -293,7 +293,7 @@ static ssize_t iio_read_channel_info(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int val, val2;
 	bool scale_db = false;
@@ -330,7 +330,7 @@ static ssize_t iio_write_channel_info(struct device *dev,
 				      const char *buf,
 				      size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret, integer = 0, fract = 0, fract_mult = 100000;
 	bool integer_part = true, negative = false;
@@ -638,7 +638,7 @@ static ssize_t iio_show_dev_name(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	return sprintf(buf, "%s\n", indio_dev->name);
 }
 
@@ -724,7 +724,7 @@ static void iio_device_unregister_sysfs(struct iio_dev *indio_dev)
 
 static void iio_dev_release(struct device *device)
 {
-	struct iio_dev *indio_dev = container_of(device, struct iio_dev, dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(device);
 	cdev_del(&indio_dev->chrdev);
 	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
 		iio_device_unregister_trigger_consumer(indio_dev);
