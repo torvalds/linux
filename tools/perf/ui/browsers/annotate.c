@@ -16,7 +16,7 @@ struct browser_disasm_line {
 	double		percent;
 	u32		idx;
 	int		idx_asm;
-	bool		jump_target;
+	int		jump_sources;
 };
 
 struct annotate_browser {
@@ -98,7 +98,7 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		if (!ab->use_offset) {
 			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
 		} else {
-			if (bdl->jump_target) {
+			if (bdl->jump_sources) {
 				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ": ",
 						    ab->addr_width, addr);
 			} else {
@@ -707,7 +707,7 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 			continue;
 
 		bdlt = disasm_line__browser(dlt);
-		bdlt->jump_target = true;
+		++bdlt->jump_sources;
 	}
 		
 }
