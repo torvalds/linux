@@ -124,7 +124,7 @@ static struct gw_node *gw_get_best_gw_node(struct bat_priv *bat_priv)
 			continue;
 
 		orig_node = gw_node->orig_node;
-		router = orig_node_get_router(orig_node);
+		router = batadv_orig_node_get_router(orig_node);
 		if (!router)
 			continue;
 
@@ -177,7 +177,7 @@ static struct gw_node *gw_get_best_gw_node(struct bat_priv *bat_priv)
 		gw_node_free_ref(gw_node);
 
 next:
-		neigh_node_free_ref(router);
+		batadv_neigh_node_free_ref(router);
 	}
 	rcu_read_unlock();
 
@@ -212,7 +212,7 @@ void batadv_gw_election(struct bat_priv *bat_priv)
 	if (next_gw) {
 		sprintf(gw_addr, "%pM", next_gw->orig_node->orig);
 
-		router = orig_node_get_router(next_gw->orig_node);
+		router = batadv_orig_node_get_router(next_gw->orig_node);
 		if (!router) {
 			batadv_gw_deselect(bat_priv);
 			goto out;
@@ -245,7 +245,7 @@ out:
 	if (next_gw)
 		gw_node_free_ref(next_gw);
 	if (router)
-		neigh_node_free_ref(router);
+		batadv_neigh_node_free_ref(router);
 }
 
 void batadv_gw_check_election(struct bat_priv *bat_priv,
@@ -259,7 +259,7 @@ void batadv_gw_check_election(struct bat_priv *bat_priv,
 	if (!curr_gw_orig)
 		goto deselect;
 
-	router_gw = orig_node_get_router(curr_gw_orig);
+	router_gw = batadv_orig_node_get_router(curr_gw_orig);
 	if (!router_gw)
 		goto deselect;
 
@@ -267,7 +267,7 @@ void batadv_gw_check_election(struct bat_priv *bat_priv,
 	if (curr_gw_orig == orig_node)
 		goto out;
 
-	router_orig = orig_node_get_router(orig_node);
+	router_orig = batadv_orig_node_get_router(orig_node);
 	if (!router_orig)
 		goto out;
 
@@ -294,11 +294,11 @@ deselect:
 	batadv_gw_deselect(bat_priv);
 out:
 	if (curr_gw_orig)
-		orig_node_free_ref(curr_gw_orig);
+		batadv_orig_node_free_ref(curr_gw_orig);
 	if (router_gw)
-		neigh_node_free_ref(router_gw);
+		batadv_neigh_node_free_ref(router_gw);
 	if (router_orig)
-		neigh_node_free_ref(router_orig);
+		batadv_neigh_node_free_ref(router_orig);
 
 	return;
 }
@@ -438,7 +438,7 @@ static int _write_buffer_text(struct bat_priv *bat_priv, struct seq_file *seq,
 
 	batadv_gw_bandwidth_to_kbit(gw_node->orig_node->gw_flags, &down, &up);
 
-	router = orig_node_get_router(gw_node->orig_node);
+	router = batadv_orig_node_get_router(gw_node->orig_node);
 	if (!router)
 		goto out;
 
@@ -455,7 +455,7 @@ static int _write_buffer_text(struct bat_priv *bat_priv, struct seq_file *seq,
 			 (up > 2048 ? up / 1024 : up),
 			 (up > 2048 ? "MBit" : "KBit"));
 
-	neigh_node_free_ref(router);
+	batadv_neigh_node_free_ref(router);
 	if (curr_gw)
 		gw_node_free_ref(curr_gw);
 out:
@@ -702,12 +702,12 @@ bool batadv_gw_out_of_range(struct bat_priv *bat_priv,
 
 out:
 	if (orig_dst_node)
-		orig_node_free_ref(orig_dst_node);
+		batadv_orig_node_free_ref(orig_dst_node);
 	if (curr_gw)
 		gw_node_free_ref(curr_gw);
 	if (neigh_old)
-		neigh_node_free_ref(neigh_old);
+		batadv_neigh_node_free_ref(neigh_old);
 	if (neigh_curr)
-		neigh_node_free_ref(neigh_curr);
+		batadv_neigh_node_free_ref(neigh_curr);
 	return out_of_range;
 }

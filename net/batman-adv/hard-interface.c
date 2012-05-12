@@ -312,7 +312,7 @@ int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
 	hard_iface->if_num = bat_priv->num_ifaces;
 	bat_priv->num_ifaces++;
 	hard_iface->if_status = IF_INACTIVE;
-	orig_hash_add_if(hard_iface, bat_priv->num_ifaces);
+	batadv_orig_hash_add_if(hard_iface, bat_priv->num_ifaces);
 
 	hard_iface->batman_adv_ptype.type = __constant_htons(ETH_P_BATMAN);
 	hard_iface->batman_adv_ptype.func = batman_skb_recv;
@@ -373,7 +373,7 @@ void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
 	dev_remove_pack(&hard_iface->batman_adv_ptype);
 
 	bat_priv->num_ifaces--;
-	orig_hash_del_if(hard_iface, bat_priv->num_ifaces);
+	batadv_orig_hash_del_if(hard_iface, bat_priv->num_ifaces);
 
 	primary_if = primary_if_get_selected(bat_priv);
 	if (hard_iface == primary_if) {
@@ -390,7 +390,7 @@ void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
 	hard_iface->if_status = IF_NOT_IN_USE;
 
 	/* delete all references to this hard_iface */
-	purge_orig_ref(bat_priv);
+	batadv_purge_orig_ref(bat_priv);
 	purge_outstanding_packets(bat_priv, hard_iface);
 	dev_put(hard_iface->soft_iface);
 

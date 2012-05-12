@@ -111,7 +111,7 @@ int mesh_init(struct net_device *soft_iface)
 	INIT_LIST_HEAD(&bat_priv->tt_req_list);
 	INIT_LIST_HEAD(&bat_priv->tt_roam_list);
 
-	ret = originator_init(bat_priv);
+	ret = batadv_originator_init(bat_priv);
 	if (ret < 0)
 		goto err;
 
@@ -150,7 +150,7 @@ void mesh_free(struct net_device *soft_iface)
 	vis_quit(bat_priv);
 
 	batadv_gw_node_purge(bat_priv);
-	originator_free(bat_priv);
+	batadv_originator_free(bat_priv);
 
 	tt_free(bat_priv);
 

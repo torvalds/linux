@@ -399,7 +399,7 @@ static struct backbone_gw *bla_get_backbone_gw(struct bat_priv *bat_priv,
 	if (orig_node) {
 		tt_global_del_orig(bat_priv, orig_node,
 				   "became a backbone gateway");
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 	}
 	return entry;
 }
@@ -804,7 +804,7 @@ static int check_claim_group(struct bat_priv *bat_priv,
 		bla_dst_own->group = bla_dst->group;
 	}
 
-	orig_node_free_ref(orig_node);
+	batadv_orig_node_free_ref(orig_node);
 
 	return 2;
 }

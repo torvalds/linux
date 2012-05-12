@@ -69,7 +69,7 @@ static void _update_route(struct bat_priv *bat_priv,
 {
 	struct neigh_node *curr_router;
 
-	curr_router = orig_node_get_router(orig_node);
+	curr_router = batadv_orig_node_get_router(orig_node);
 
 	/* route deleted */
 	if ((curr_router) && (!neigh_node)) {
@@ -93,7 +93,7 @@ static void _update_route(struct bat_priv *bat_priv,
 	}
 
 	if (curr_router)
-		neigh_node_free_ref(curr_router);
+		batadv_neigh_node_free_ref(curr_router);
 
 	/* increase refcount of new best neighbor */
 	if (neigh_node && !atomic_inc_not_zero(&neigh_node->refcount))
@@ -105,7 +105,7 @@ static void _update_route(struct bat_priv *bat_priv,
 
 	/* decrease refcount of previous best neighbor */
 	if (curr_router)
-		neigh_node_free_ref(curr_router);
+		batadv_neigh_node_free_ref(curr_router);
 }
 
 void update_route(struct bat_priv *bat_priv, struct orig_node *orig_node,
@@ -116,14 +116,14 @@ void update_route(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	if (!orig_node)
 		goto out;
 
-	router = orig_node_get_router(orig_node);
+	router = batadv_orig_node_get_router(orig_node);
 
 	if (router != neigh_node)
 		_update_route(bat_priv, orig_node, neigh_node);
 
 out:
 	if (router)
-		neigh_node_free_ref(router);
+		batadv_neigh_node_free_ref(router);
 }
 
 /* caller must hold the neigh_list_lock */
@@ -136,7 +136,7 @@ void bonding_candidate_del(struct orig_node *orig_node,
 
 	list_del_rcu(&neigh_node->bonding_list);
 	INIT_LIST_HEAD(&neigh_node->bonding_list);
-	neigh_node_free_ref(neigh_node);
+	batadv_neigh_node_free_ref(neigh_node);
 	atomic_dec(&orig_node->bond_candidates);
 
 out:
@@ -157,7 +157,7 @@ void bonding_candidate_add(struct orig_node *orig_node,
 			 neigh_node->orig_node->primary_addr))
 		goto candidate_del;
 
-	router = orig_node_get_router(orig_node);
+	router = batadv_orig_node_get_router(orig_node);
 	if (!router)
 		goto candidate_del;
 
@@ -210,7 +210,7 @@ out:
 	spin_unlock_bh(&orig_node->neigh_list_lock);
 
 	if (router)
-		neigh_node_free_ref(router);
+		batadv_neigh_node_free_ref(router);
 }
 
 /* copy primary address for bonding */
@@ -303,7 +303,7 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 	if (!orig_node)
 		goto out;
 
-	router = orig_node_get_router(orig_node);
+	router = batadv_orig_node_get_router(orig_node);
 	if (!router)
 		goto out;
 
@@ -325,9 +325,9 @@ out:
 	if (primary_if)
 		hardif_free_ref(primary_if);
 	if (router)
-		neigh_node_free_ref(router);
+		batadv_neigh_node_free_ref(router);
 	if (orig_node)
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 	return ret;
 }
 
@@ -358,7 +358,7 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 	if (!orig_node)
 		goto out;
 
-	router = orig_node_get_router(orig_node);
+	router = batadv_orig_node_get_router(orig_node);
 	if (!router)
 		goto out;
 
@@ -380,9 +380,9 @@ out:
 	if (primary_if)
 		hardif_free_ref(primary_if);
 	if (router)
-		neigh_node_free_ref(router);
+		batadv_neigh_node_free_ref(router);
 	if (orig_node)
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 	return ret;
 }
 
@@ -444,7 +444,7 @@ int recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	if (!orig_node)
 		goto out;
 
-	router = orig_node_get_router(orig_node);
+	router = batadv_orig_node_get_router(orig_node);
 	if (!router)
 		goto out;
 
@@ -463,9 +463,9 @@ int recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 
 out:
 	if (router)
-		neigh_node_free_ref(router);
+		batadv_neigh_node_free_ref(router);
 	if (orig_node)
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 	return ret;
 }
 
@@ -551,13 +551,13 @@ static struct neigh_node *find_ifalter_router(struct orig_node *primary_orig,
 			/* decrement refcount of
 			 * previously selected router */
 			if (router)
-				neigh_node_free_ref(router);
+				batadv_neigh_node_free_ref(router);
 
 			router = tmp_neigh_node;
 			atomic_inc_not_zero(&router->refcount);
 		}
 
-		neigh_node_free_ref(tmp_neigh_node);
+		batadv_neigh_node_free_ref(tmp_neigh_node);
 	}
 
 	/* use the first candidate if nothing was found. */
@@ -695,7 +695,7 @@ int recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 	 * packets for the correct destination. */
 	bat_priv->tt_poss_change = true;
 
-	orig_node_free_ref(orig_node);
+	batadv_orig_node_free_ref(orig_node);
 out:
 	/* returning NET_RX_DROP will make the caller function kfree the skb */
 	return NET_RX_DROP;
@@ -717,7 +717,7 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 	if (!orig_node)
 		return NULL;
 
-	router = orig_node_get_router(orig_node);
+	router = batadv_orig_node_get_router(orig_node);
 	if (!router)
 		goto err;
 
@@ -750,7 +750,7 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 		if (!primary_orig_node)
 			goto return_router;
 
-		orig_node_free_ref(primary_orig_node);
+		batadv_orig_node_free_ref(primary_orig_node);
 	}
 
 	/* with less than 2 candidates, we can't do any
@@ -762,7 +762,7 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 	 * is is not on the interface where the packet came
 	 * in. */
 
-	neigh_node_free_ref(router);
+	batadv_neigh_node_free_ref(router);
 
 	if (bonding_enabled)
 		router = find_bond_router(primary_orig_node, recv_if);
@@ -779,7 +779,7 @@ err_unlock:
 	rcu_read_unlock();
 err:
 	if (router)
-		neigh_node_free_ref(router);
+		batadv_neigh_node_free_ref(router);
 	return NULL;
 }
 
@@ -885,9 +885,9 @@ static int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 
 out:
 	if (neigh_node)
-		neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_free_ref(neigh_node);
 	if (orig_node)
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 	return ret;
 }
 
@@ -917,7 +917,7 @@ static int check_unicast_ttvn(struct bat_priv *bat_priv,
 
 		curr_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
 		tt_poss_change = orig_node->tt_poss_change;
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 	}
 
 	/* Check whether I have to reroute the packet */
@@ -952,7 +952,7 @@ static int check_unicast_ttvn(struct bat_priv *bat_priv,
 			       ETH_ALEN);
 			curr_ttvn = (uint8_t)
 				atomic_read(&orig_node->last_ttvn);
-			orig_node_free_ref(orig_node);
+			batadv_orig_node_free_ref(orig_node);
 		}
 
 		bat_dbg(DBG_ROUTES, bat_priv,
@@ -1110,7 +1110,7 @@ spin_unlock:
 	spin_unlock_bh(&orig_node->bcast_seqno_lock);
 out:
 	if (orig_node)
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 	return ret;
 }
 

@@ -142,7 +142,7 @@ static void tt_orig_list_entry_free_rcu(struct rcu_head *rcu)
 
 	orig_entry = container_of(rcu, struct tt_orig_list_entry, rcu);
 	atomic_dec(&orig_entry->orig_node->tt_size);
-	orig_node_free_ref(orig_entry->orig_node);
+	batadv_orig_node_free_ref(orig_entry->orig_node);
 	kfree(orig_entry);
 }
 
@@ -1080,7 +1080,7 @@ struct orig_node *transtable_search(struct bat_priv *bat_priv,
 	rcu_read_lock();
 	head = &tt_global_entry->orig_list;
 	hlist_for_each_entry_rcu(orig_entry, node, head, list) {
-		router = orig_node_get_router(orig_entry->orig_node);
+		router = batadv_orig_node_get_router(orig_entry->orig_node);
 		if (!router)
 			continue;
 
@@ -1088,7 +1088,7 @@ struct orig_node *transtable_search(struct bat_priv *bat_priv,
 			orig_node = orig_entry->orig_node;
 			best_tq = router->tq_avg;
 		}
-		neigh_node_free_ref(router);
+		batadv_neigh_node_free_ref(router);
 	}
 	/* found anything? */
 	if (orig_node && !atomic_inc_not_zero(&orig_node->refcount))
@@ -1395,7 +1395,7 @@ static int send_tt_request(struct bat_priv *bat_priv,
 	if (full_table)
 		tt_request->flags |= TT_FULL_TABLE;
 
-	neigh_node = orig_node_get_router(dst_orig_node);
+	neigh_node = batadv_orig_node_get_router(dst_orig_node);
 	if (!neigh_node)
 		goto out;
 
@@ -1411,7 +1411,7 @@ static int send_tt_request(struct bat_priv *bat_priv,
 
 out:
 	if (neigh_node)
-		neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_free_ref(neigh_node);
 	if (primary_if)
 		hardif_free_ref(primary_if);
 	if (ret)
@@ -1453,7 +1453,7 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 	if (!res_dst_orig_node)
 		goto out;
 
-	neigh_node = orig_node_get_router(res_dst_orig_node);
+	neigh_node = batadv_orig_node_get_router(res_dst_orig_node);
 	if (!neigh_node)
 		goto out;
 
@@ -1541,11 +1541,11 @@ unlock:
 
 out:
 	if (res_dst_orig_node)
-		orig_node_free_ref(res_dst_orig_node);
+		batadv_orig_node_free_ref(res_dst_orig_node);
 	if (req_dst_orig_node)
-		orig_node_free_ref(req_dst_orig_node);
+		batadv_orig_node_free_ref(req_dst_orig_node);
 	if (neigh_node)
-		neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_free_ref(neigh_node);
 	if (primary_if)
 		hardif_free_ref(primary_if);
 	if (!ret)
@@ -1580,7 +1580,7 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 	if (!orig_node)
 		goto out;
 
-	neigh_node = orig_node_get_router(orig_node);
+	neigh_node = batadv_orig_node_get_router(orig_node);
 	if (!neigh_node)
 		goto out;
 
@@ -1658,9 +1658,9 @@ unlock:
 	spin_unlock_bh(&bat_priv->tt_buff_lock);
 out:
 	if (orig_node)
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 	if (neigh_node)
-		neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_free_ref(neigh_node);
 	if (primary_if)
 		hardif_free_ref(primary_if);
 	if (!ret)
@@ -1738,7 +1738,7 @@ static void tt_fill_gtable(struct bat_priv *bat_priv,
 
 out:
 	if (orig_node)
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 }
 
 static void tt_update_changes(struct bat_priv *bat_priv,
@@ -1818,7 +1818,7 @@ void handle_tt_response(struct bat_priv *bat_priv,
 	orig_node->tt_poss_change = false;
 out:
 	if (orig_node)
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 }
 
 int tt_init(struct bat_priv *bat_priv)
@@ -1947,7 +1947,7 @@ static void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 	memcpy(roam_adv_packet->dst, orig_node->orig, ETH_ALEN);
 	memcpy(roam_adv_packet->client, client, ETH_ALEN);
 
-	neigh_node = orig_node_get_router(orig_node);
+	neigh_node = batadv_orig_node_get_router(orig_node);
 	if (!neigh_node)
 		goto out;
 
@@ -1962,7 +1962,7 @@ static void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 
 out:
 	if (neigh_node)
-		neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_free_ref(neigh_node);
 	if (ret)
 		kfree_skb(skb);
 	return;

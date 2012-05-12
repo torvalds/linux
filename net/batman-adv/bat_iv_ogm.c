@@ -633,7 +633,7 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 		    (tmp_neigh_node->if_incoming == if_incoming) &&
 		     atomic_inc_not_zero(&tmp_neigh_node->refcount)) {
 			if (neigh_node)
-				neigh_node_free_ref(neigh_node);
+				batadv_neigh_node_free_ref(neigh_node);
 			neigh_node = tmp_neigh_node;
 			continue;
 		}
@@ -652,7 +652,7 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 	if (!neigh_node) {
 		struct orig_node *orig_tmp;
 
-		orig_tmp = get_orig_node(bat_priv, ethhdr->h_source);
+		orig_tmp = batadv_get_orig_node(bat_priv, ethhdr->h_source);
 		if (!orig_tmp)
 			goto unlock;
 
@@ -660,7 +660,7 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 						  orig_node, orig_tmp,
 						  batman_ogm_packet->seqno);
 
-		orig_node_free_ref(orig_tmp);
+		batadv_orig_node_free_ref(orig_tmp);
 		if (!neigh_node)
 			goto unlock;
 	} else
@@ -688,7 +688,7 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 
 	/* if this neighbor already is our next hop there is nothing
 	 * to change */
-	router = orig_node_get_router(orig_node);
+	router = batadv_orig_node_get_router(orig_node);
 	if (router == neigh_node)
 		goto update_tt;
 
@@ -746,9 +746,9 @@ unlock:
 	rcu_read_unlock();
 out:
 	if (neigh_node)
-		neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_free_ref(neigh_node);
 	if (router)
-		neigh_node_free_ref(router);
+		batadv_neigh_node_free_ref(router);
 }
 
 static int bat_iv_ogm_calc_tq(struct orig_node *orig_node,
@@ -848,7 +848,7 @@ static int bat_iv_ogm_calc_tq(struct orig_node *orig_node,
 
 out:
 	if (neigh_node)
-		neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_free_ref(neigh_node);
 	return ret;
 }
 
@@ -875,7 +875,7 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	int set_mark, ret = -1;
 	uint32_t seqno = ntohl(batman_ogm_packet->seqno);
 
-	orig_node = get_orig_node(bat_priv, batman_ogm_packet->orig);
+	orig_node = batadv_get_orig_node(bat_priv, batman_ogm_packet->orig);
 	if (!orig_node)
 		return 0;
 
@@ -924,7 +924,7 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 
 out:
 	spin_unlock_bh(&orig_node->ogm_cnt_lock);
-	orig_node_free_ref(orig_node);
+	batadv_orig_node_free_ref(orig_node);
 	return ret;
 }
 
@@ -1029,7 +1029,8 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 		unsigned long *word;
 		int offset;
 
-		orig_neigh_node = get_orig_node(bat_priv, ethhdr->h_source);
+		orig_neigh_node = batadv_get_orig_node(bat_priv,
+						       ethhdr->h_source);
 		if (!orig_neigh_node)
 			return;
 
@@ -1053,7 +1054,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: originator packet from myself (via neighbor)\n");
-		orig_node_free_ref(orig_neigh_node);
+		batadv_orig_node_free_ref(orig_neigh_node);
 		return;
 	}
 
@@ -1071,7 +1072,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 		return;
 	}
 
-	orig_node = get_orig_node(bat_priv, batman_ogm_packet->orig);
+	orig_node = batadv_get_orig_node(bat_priv, batman_ogm_packet->orig);
 	if (!orig_node)
 		return;
 
@@ -1091,9 +1092,9 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 		goto out;
 	}
 
-	router = orig_node_get_router(orig_node);
+	router = batadv_orig_node_get_router(orig_node);
 	if (router)
-		router_router = orig_node_get_router(router->orig_node);
+		router_router = batadv_orig_node_get_router(router->orig_node);
 
 	if ((router && router->tq_avg != 0) &&
 	    (compare_eth(router->addr, ethhdr->h_source)))
@@ -1115,11 +1116,11 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	 * originator mac */
 	orig_neigh_node = (is_single_hop_neigh ?
 			   orig_node :
-			   get_orig_node(bat_priv, ethhdr->h_source));
+			   batadv_get_orig_node(bat_priv, ethhdr->h_source));
 	if (!orig_neigh_node)
 		goto out;
 
-	orig_neigh_router = orig_node_get_router(orig_neigh_node);
+	orig_neigh_router = batadv_orig_node_get_router(orig_neigh_node);
 
 	/* drop packet if sender is not a direct neighbor and if we
 	 * don't route towards it */
@@ -1178,16 +1179,16 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 
 out_neigh:
 	if ((orig_neigh_node) && (!is_single_hop_neigh))
-		orig_node_free_ref(orig_neigh_node);
+		batadv_orig_node_free_ref(orig_neigh_node);
 out:
 	if (router)
-		neigh_node_free_ref(router);
+		batadv_neigh_node_free_ref(router);
 	if (router_router)
-		neigh_node_free_ref(router_router);
+		batadv_neigh_node_free_ref(router_router);
 	if (orig_neigh_router)
-		neigh_node_free_ref(orig_neigh_router);
+		batadv_neigh_node_free_ref(orig_neigh_router);
 
-	orig_node_free_ref(orig_node);
+	batadv_orig_node_free_ref(orig_node);
 }
 
 static int bat_iv_ogm_receive(struct sk_buff *skb,

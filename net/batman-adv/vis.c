@@ -574,7 +574,7 @@ static int find_best_vis_server(struct bat_priv *bat_priv,
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
-			router = orig_node_get_router(orig_node);
+			router = batadv_orig_node_get_router(orig_node);
 			if (!router)
 				continue;
 
@@ -584,7 +584,7 @@ static int find_best_vis_server(struct bat_priv *bat_priv,
 				memcpy(packet->target_orig, orig_node->orig,
 				       ETH_ALEN);
 			}
-			neigh_node_free_ref(router);
+			batadv_neigh_node_free_ref(router);
 		}
 		rcu_read_unlock();
 	}
@@ -641,7 +641,7 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
-			router = orig_node_get_router(orig_node);
+			router = batadv_orig_node_get_router(orig_node);
 			if (!router)
 				continue;
 
@@ -665,7 +665,7 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 			packet->entries++;
 
 next:
-			neigh_node_free_ref(router);
+			batadv_neigh_node_free_ref(router);
 
 			if (vis_packet_full(info))
 				goto unlock;
@@ -757,7 +757,7 @@ static void broadcast_vis_packet(struct bat_priv *bat_priv,
 			if (!(orig_node->flags & VIS_SERVER))
 				continue;
 
-			router = orig_node_get_router(orig_node);
+			router = batadv_orig_node_get_router(orig_node);
 			if (!router)
 				continue;
 
@@ -765,7 +765,7 @@ static void broadcast_vis_packet(struct bat_priv *bat_priv,
 			 * this node. */
 			if (recv_list_is_in(bat_priv, &info->recv_list,
 					    orig_node->orig)) {
-				neigh_node_free_ref(router);
+				batadv_neigh_node_free_ref(router);
 				continue;
 			}
 
@@ -773,7 +773,7 @@ static void broadcast_vis_packet(struct bat_priv *bat_priv,
 			hard_iface = router->if_incoming;
 			memcpy(dstaddr, router->addr, ETH_ALEN);
 
-			neigh_node_free_ref(router);
+			batadv_neigh_node_free_ref(router);
 
 			skb = skb_clone(info->skb_packet, GFP_ATOMIC);
 			if (skb)
@@ -798,7 +798,7 @@ static void unicast_vis_packet(struct bat_priv *bat_priv,
 	if (!orig_node)
 		goto out;
 
-	router = orig_node_get_router(orig_node);
+	router = batadv_orig_node_get_router(orig_node);
 	if (!router)
 		goto out;
 
@@ -808,9 +808,9 @@ static void unicast_vis_packet(struct bat_priv *bat_priv,
 
 out:
 	if (router)
-		neigh_node_free_ref(router);
+		batadv_neigh_node_free_ref(router);
 	if (orig_node)
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 }
 
 /* only send one vis packet. called from send_vis_packets() */
