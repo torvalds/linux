@@ -401,18 +401,9 @@ trapbase_cpu3:
 /* This was the only reasonable way I could think of to properly align
  * these page-table data structures.
  */
-	.globl pg0, pg1, pg2, pg3
-	.globl empty_bad_page
-	.globl empty_bad_page_table
-	.globl empty_zero_page
 	.globl swapper_pg_dir
 swapper_pg_dir:		.skip PAGE_SIZE
-pg0:			.skip PAGE_SIZE
-pg1:			.skip PAGE_SIZE
-pg2:			.skip PAGE_SIZE
-pg3:			.skip PAGE_SIZE
-empty_bad_page:		.skip PAGE_SIZE
-empty_bad_page_table:	.skip PAGE_SIZE
+	.globl empty_zero_page
 empty_zero_page:	.skip PAGE_SIZE
 
 	.global root_flags
