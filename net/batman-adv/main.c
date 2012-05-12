@@ -56,7 +56,7 @@ static int __init batman_init(void)
 
 	recv_handler_init();
 
-	bat_iv_init();
+	batadv_iv_init();
 
 	/* the name should not be longer than 10 chars - see
 	 * http://lwn.net/Articles/23634/ */
