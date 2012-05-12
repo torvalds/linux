@@ -2073,9 +2073,6 @@ void __init load_mmu(void)
 	BTFIXUPSET_CALL(free_pgd_fast, srmmu_free_pgd_fast, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(get_pgd_fast, srmmu_get_pgd_fast, BTFIXUPCALL_NORM);
 
-	BTFIXUPSET_HALF(pte_writei, SRMMU_WRITE);
-	BTFIXUPSET_HALF(pte_dirtyi, SRMMU_DIRTY);
-	BTFIXUPSET_HALF(pte_youngi, SRMMU_REF);
 	BTFIXUPSET_HALF(pte_filei, SRMMU_FILE);
 	BTFIXUPSET_HALF(pte_wrprotecti, SRMMU_WRITE);
 	BTFIXUPSET_HALF(pte_mkcleani, SRMMU_DIRTY);

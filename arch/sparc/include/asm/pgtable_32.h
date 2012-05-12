@@ -207,26 +207,19 @@ static inline void pgd_clear(pgd_t *pgdp)
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-BTFIXUPDEF_HALF(pte_writei)
-BTFIXUPDEF_HALF(pte_dirtyi)
-BTFIXUPDEF_HALF(pte_youngi)
-
-static int pte_write(pte_t pte) __attribute_const__;
 static inline int pte_write(pte_t pte)
 {
-	return pte_val(pte) & BTFIXUP_HALF(pte_writei);
+	return pte_val(pte) & SRMMU_WRITE;
 }
 
-static int pte_dirty(pte_t pte) __attribute_const__;
 static inline int pte_dirty(pte_t pte)
 {
-	return pte_val(pte) & BTFIXUP_HALF(pte_dirtyi);
+	return pte_val(pte) & SRMMU_DIRTY;
 }
 
-static int pte_young(pte_t pte) __attribute_const__;
 static inline int pte_young(pte_t pte)
 {
-	return pte_val(pte) & BTFIXUP_HALF(pte_youngi);
+	return pte_val(pte) & SRMMU_REF;
 }
 
 /*
