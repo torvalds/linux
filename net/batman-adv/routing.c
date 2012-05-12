@@ -982,7 +982,8 @@ int batadv_recv_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	/* packet for me */
 	if (is_my_mac(unicast_packet->dest)) {
-		interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size);
+		batadv_interface_rx(recv_if->soft_iface, skb, recv_if,
+				    hdr_size);
 		return NET_RX_SUCCESS;
 	}
 
@@ -1018,8 +1019,8 @@ int batadv_recv_ucast_frag_packet(struct sk_buff *skb,
 		if (!new_skb)
 			return NET_RX_SUCCESS;
 
-		interface_rx(recv_if->soft_iface, new_skb, recv_if,
-			     sizeof(struct unicast_packet));
+		batadv_interface_rx(recv_if->soft_iface, new_skb, recv_if,
+				    sizeof(struct unicast_packet));
 		return NET_RX_SUCCESS;
 	}
 
@@ -1104,7 +1105,7 @@ int batadv_recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 		goto out;
 
 	/* broadcast for me */
-	interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size);
+	batadv_interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size);
 	ret = NET_RX_SUCCESS;
 	goto out;
 

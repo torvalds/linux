@@ -71,7 +71,7 @@ static int is_valid_iface(const struct net_device *net_dev)
 		return 0;
 
 	/* no batman over batman */
-	if (softif_is_valid(net_dev))
+	if (batadv_softif_is_valid(net_dev))
 		return 0;
 
 	/* Device is being bridged */
@@ -284,7 +284,7 @@ int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
 	soft_iface = dev_get_by_name(&init_net, iface_name);
 
 	if (!soft_iface) {
-		soft_iface = softif_create(iface_name);
+		soft_iface = batadv_softif_create(iface_name);
 
 		if (!soft_iface) {
 			ret = -ENOMEM;
@@ -295,7 +295,7 @@ int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
 		dev_hold(soft_iface);
 	}
 
-	if (!softif_is_valid(soft_iface)) {
+	if (!batadv_softif_is_valid(soft_iface)) {
 		pr_err("Can't create batman mesh interface %s: already exists as regular interface\n",
 		       soft_iface->name);
 		ret = -EINVAL;
@@ -396,7 +396,7 @@ void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
 
 	/* nobody uses this interface anymore */
 	if (!bat_priv->num_ifaces)
-		softif_destroy(hard_iface->soft_iface);
+		batadv_softif_destroy(hard_iface->soft_iface);
 
 	hard_iface->soft_iface = NULL;
 	hardif_free_ref(hard_iface);

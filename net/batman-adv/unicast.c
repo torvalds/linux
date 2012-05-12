@@ -242,8 +242,8 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	memcpy(&tmp_uc, unicast_packet, uc_hdr_len);
 	skb_split(skb, frag_skb, data_len / 2 + uc_hdr_len);
 
-	if (my_skb_head_push(skb, ucf_hdr_len - uc_hdr_len) < 0 ||
-	    my_skb_head_push(frag_skb, ucf_hdr_len) < 0)
+	if (batadv_skb_head_push(skb, ucf_hdr_len - uc_hdr_len) < 0 ||
+	    batadv_skb_head_push(frag_skb, ucf_hdr_len) < 0)
 		goto drop_frag;
 
 	frag1 = (struct unicast_frag_packet *)skb->data;
@@ -314,7 +314,7 @@ find_router:
 	if (!neigh_node)
 		goto out;
 
-	if (my_skb_head_push(skb, sizeof(*unicast_packet)) < 0)
+	if (batadv_skb_head_push(skb, sizeof(*unicast_packet)) < 0)
 		goto out;
 
 	unicast_packet = (struct unicast_packet *)skb->data;
