@@ -26,6 +26,19 @@ config DEBUG_PINCTRL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
+config PINCTRL_IMX
+	bool
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_IMX6Q
+	bool "IMX6Q pinctrl driver"
+	depends on OF
+	depends on SOC_IMX6Q
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx6q pinctrl driver
+
 config PINCTRL_PXA3xx
 	bool
 	select PINMUX
@@ -35,6 +48,21 @@ config PINCTRL_MMP2
 	depends on ARCH_MMP
 	select PINCTRL_PXA3xx
 	select PINCONF
+
+config PINCTRL_MXS
+	bool
+
+config PINCTRL_IMX23
+	bool
+	select PINMUX
+	select PINCONF
+	select PINCTRL_MXS
+
+config PINCTRL_IMX28
+	bool
+	select PINMUX
+	select PINCONF
+	select PINCTRL_MXS
 
 config PINCTRL_PXA168
 	bool "PXA168 pin controller driver"

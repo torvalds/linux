@@ -154,7 +154,7 @@ struct pinctrl_map {
 
 extern int pinctrl_register_mappings(struct pinctrl_map const *map,
 				unsigned num_maps);
-
+extern void pinctrl_provide_dummies(void);
 #else
 
 static inline int pinctrl_register_mappings(struct pinctrl_map const *map,
@@ -163,5 +163,8 @@ static inline int pinctrl_register_mappings(struct pinctrl_map const *map,
 	return 0;
 }
 
-#endif /* !CONFIG_PINMUX */
+static inline void pinctrl_provide_dummies(void)
+{
+}
+#endif /* !CONFIG_PINCTRL */
 #endif

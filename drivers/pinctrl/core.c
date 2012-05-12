@@ -43,6 +43,8 @@ struct pinctrl_maps {
 	unsigned num_maps;
 };
 
+static bool pinctrl_dummy_state;
+
 /* Mutex taken by all entry points */
 DEFINE_MUTEX(pinctrl_mutex);
 
@@ -60,6 +62,19 @@ static LIST_HEAD(pinctrl_maps);
 		for (_i_ = 0, _map_ = &_maps_node_->maps[_i_]; \
 			_i_ < _maps_node_->num_maps; \
 			i++, _map_ = &_maps_node_->maps[_i_])
+
+/**
+ * pinctrl_provide_dummies() - indicate if pinctrl provides dummy state support
+ *
+ * Usually this function is called by platforms without pinctrl driver support
+ * but run with some shared drivers using pinctrl APIs.
+ * After calling this function, the pinctrl core will return successfully
+ * with creating a dummy state for the driver to keep going smoothly.
+ */
+void pinctrl_provide_dummies(void)
+{
+	pinctrl_dummy_state = true;
+}
 
 const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev)
 {
@@ -276,7 +291,8 @@ pinctrl_match_gpio_range(struct pinctrl_dev *pctldev, unsigned gpio)
  *
  * Find the pin controller handling a certain GPIO pin from the pinspace of
  * the GPIO subsystem, return the device and the matching GPIO range. Returns
- * negative if the GPIO range could not be found in any device.
+ * -EPROBE_DEFER if the GPIO range could not be found in any device since it
+ * may still have not been registered.
  */
 static int pinctrl_get_device_gpio_range(unsigned gpio,
 					 struct pinctrl_dev **outdev,
@@ -296,7 +312,7 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 		}
 	}
 
-	return -EINVAL;
+	return -EPROBE_DEFER;
 }
 
 /**
@@ -382,7 +398,7 @@ int pinctrl_request_gpio(unsigned gpio)
 	ret = pinctrl_get_device_gpio_range(gpio, &pctldev, &range);
 	if (ret) {
 		mutex_unlock(&pinctrl_mutex);
-		return -EINVAL;
+		return ret;
 	}
 
 	/* Convert to the pin controllers number space */
@@ -719,8 +735,18 @@ static struct pinctrl_state *pinctrl_lookup_state_locked(struct pinctrl *p,
 	struct pinctrl_state *state;
 
 	state = find_state(p, name);
-	if (!state)
-		return ERR_PTR(-ENODEV);
+	if (!state) {
+		if (pinctrl_dummy_state) {
+			/* create dummy state */
+			dev_dbg(p->dev, "using pinctrl dummy state (%s)\n",
+				name);
+			state = create_state(p, name);
+			if (IS_ERR(state))
+				return state;
+		} else {
+			return ERR_PTR(-ENODEV);
+		}
+	}
 
 	return state;
 }
@@ -911,13 +937,13 @@ int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
 		case PIN_MAP_TYPE_MUX_GROUP:
 			ret = pinmux_validate_map(&maps[i], i);
 			if (ret < 0)
-				return 0;
+				return ret;
 			break;
 		case PIN_MAP_TYPE_CONFIGS_PIN:
 		case PIN_MAP_TYPE_CONFIGS_GROUP:
 			ret = pinconf_validate_map(&maps[i], i);
 			if (ret < 0)
-				return 0;
+				return ret;
 			break;
 		default:
 			pr_err("failed to register map %s (%d): invalid type given\n",
@@ -1391,37 +1417,29 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	/* check core ops for sanity */
 	ret = pinctrl_check_ops(pctldev);
 	if (ret) {
-		pr_err("%s pinctrl ops lacks necessary functions\n",
-			pctldesc->name);
+		dev_err(dev, "pinctrl ops lacks necessary functions\n");
 		goto out_err;
 	}
 
 	/* If we're implementing pinmuxing, check the ops for sanity */
 	if (pctldesc->pmxops) {
 		ret = pinmux_check_ops(pctldev);
-		if (ret) {
-			pr_err("%s pinmux ops lacks necessary functions\n",
-			       pctldesc->name);
+		if (ret)
 			goto out_err;
-		}
 	}
 
 	/* If we're implementing pinconfig, check the ops for sanity */
 	if (pctldesc->confops) {
 		ret = pinconf_check_ops(pctldev);
-		if (ret) {
-			pr_err("%s pin config ops lacks necessary functions\n",
-			       pctldesc->name);
+		if (ret)
 			goto out_err;
-		}
 	}
 
 	/* Register all the pins */
-	pr_debug("try to register %d pins on %s...\n",
-		 pctldesc->npins, pctldesc->name);
+	dev_dbg(dev, "try to register %d pins ...\n",  pctldesc->npins);
 	ret = pinctrl_register_pins(pctldev, pctldesc->pins, pctldesc->npins);
 	if (ret) {
-		pr_err("error during pin registration\n");
+		dev_err(dev, "error during pin registration\n");
 		pinctrl_free_pindescs(pctldev, pctldesc->pins,
 				      pctldesc->npins);
 		goto out_err;
@@ -1436,8 +1454,15 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 		struct pinctrl_state *s =
 			pinctrl_lookup_state_locked(pctldev->p,
 						    PINCTRL_STATE_DEFAULT);
-		if (!IS_ERR(s))
-			pinctrl_select_state_locked(pctldev->p, s);
+		if (IS_ERR(s)) {
+			dev_dbg(dev, "failed to lookup the default state\n");
+		} else {
+			ret = pinctrl_select_state_locked(pctldev->p, s);
+			if (ret) {
+				dev_err(dev,
+					"failed to select default state\n");
+			}
+		}
 	}
 
 	mutex_unlock(&pinctrl_mutex);

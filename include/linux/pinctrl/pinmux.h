@@ -23,7 +23,7 @@ struct pinctrl_dev;
 /**
  * struct pinmux_ops - pinmux operations, to be implemented by pin controller
  * drivers that support pinmuxing
- * @request: called by the core to see if a certain pin can be made available
+ * @request: called by the core to see if a certain pin can be made
  *	available for muxing. This is called by the core to acquire the pins
  *	before selecting any actual mux setting across a function. The driver
  *	is allowed to answer "no" by returning a negative error code

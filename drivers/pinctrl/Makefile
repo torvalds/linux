@@ -9,8 +9,13 @@ ifeq ($(CONFIG_OF),y)
 obj-$(CONFIG_PINCTRL)		+= devicetree.o
 endif
 obj-$(CONFIG_GENERIC_PINCONF)	+= pinconf-generic.o
+obj-$(CONFIG_PINCTRL_IMX)	+= pinctrl-imx.o
+obj-$(CONFIG_PINCTRL_IMX6Q)	+= pinctrl-imx6q.o
 obj-$(CONFIG_PINCTRL_PXA3xx)	+= pinctrl-pxa3xx.o
 obj-$(CONFIG_PINCTRL_MMP2)	+= pinctrl-mmp2.o
+obj-$(CONFIG_PINCTRL_MXS)	+= pinctrl-mxs.o
+obj-$(CONFIG_PINCTRL_IMX23)	+= pinctrl-imx23.o
+obj-$(CONFIG_PINCTRL_IMX28)	+= pinctrl-imx28.o
 obj-$(CONFIG_PINCTRL_PXA168)	+= pinctrl-pxa168.o
 obj-$(CONFIG_PINCTRL_PXA910)	+= pinctrl-pxa910.o
 obj-$(CONFIG_PINCTRL_SIRF)	+= pinctrl-sirf.o

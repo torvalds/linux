@@ -193,6 +193,17 @@ extern struct device_node *of_get_next_child(const struct device_node *node,
 	for (child = of_get_next_child(parent, NULL); child != NULL; \
 	     child = of_get_next_child(parent, child))
 
+static inline int of_get_child_count(const struct device_node *np)
+{
+	struct device_node *child;
+	int num = 0;
+
+	for_each_child_of_node(np, child)
+		num++;
+
+	return num;
+}
+
 extern struct device_node *of_find_node_with_property(
 	struct device_node *from, const char *prop_name);
 #define for_each_node_with_property(dn, prop_name) \
@@ -299,6 +310,11 @@ static inline bool of_have_populated_dt(void)
 
 #define for_each_child_of_node(parent, child) \
 	while (0)
+
+static inline int of_get_child_count(const struct device_node *np)
+{
+	return 0;
+}
 
 static inline int of_device_is_compatible(const struct device_node *device,
 					  const char *name)

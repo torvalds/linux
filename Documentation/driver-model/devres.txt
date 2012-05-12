@@ -277,6 +277,10 @@ REGULATOR
   devm_regulator_put()
   devm_regulator_bulk_get()
 
+CLOCK
+  devm_clk_get()
+  devm_clk_put()
+
 PINCTRL
   devm_pinctrl_get()
   devm_pinctrl_put()
