@@ -122,9 +122,10 @@ ssize_t store_##_name(struct kobject *kobj, struct attribute *attr,	\
 		      char *buff, size_t count)				\
 {									\
 	struct net_device *net_dev = kobj_to_netdev(kobj);		\
-	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);	\
+	struct hard_iface *hard_iface;					\
 	ssize_t length;							\
 									\
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);		\
 	if (!hard_iface)						\
 		return 0;						\
 									\
@@ -140,9 +141,10 @@ ssize_t show_##_name(struct kobject *kobj,				\
 		     struct attribute *attr, char *buff)		\
 {									\
 	struct net_device *net_dev = kobj_to_netdev(kobj);		\
-	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);	\
+	struct hard_iface *hard_iface;					\
 	ssize_t length;							\
 									\
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);		\
 	if (!hard_iface)						\
 		return 0;						\
 									\
@@ -433,7 +435,7 @@ BAT_ATTR_SIF_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
 #ifdef CONFIG_BATMAN_ADV_BLA
 BAT_ATTR_SIF_BOOL(bridge_loop_avoidance, S_IRUGO | S_IWUSR, NULL);
 #endif
-BAT_ATTR_SIF_BOOL(fragmentation, S_IRUGO | S_IWUSR, update_min_mtu);
+BAT_ATTR_SIF_BOOL(fragmentation, S_IRUGO | S_IWUSR, batadv_update_min_mtu);
 BAT_ATTR_SIF_BOOL(ap_isolation, S_IRUGO | S_IWUSR, NULL);
 static BAT_ATTR(vis_mode, S_IRUGO | S_IWUSR, show_vis_mode, store_vis_mode);
 static BAT_ATTR(routing_algo, S_IRUGO, show_bat_algo, NULL);
@@ -523,7 +525,7 @@ static ssize_t show_mesh_iface(struct kobject *kobj, struct attribute *attr,
 			       char *buff)
 {
 	struct net_device *net_dev = kobj_to_netdev(kobj);
-	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
+	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	ssize_t length;
 
 	if (!hard_iface)
@@ -541,7 +543,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 				char *buff, size_t count)
 {
 	struct net_device *net_dev = kobj_to_netdev(kobj);
-	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
+	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	int status_tmp = -1;
 	int ret = count;
 
@@ -576,15 +578,15 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	}
 
 	if (status_tmp == IF_NOT_IN_USE) {
-		hardif_disable_interface(hard_iface);
+		batadv_hardif_disable_interface(hard_iface);
 		goto unlock;
 	}
 
 	/* if the interface already is in use */
 	if (hard_iface->if_status != IF_NOT_IN_USE)
-		hardif_disable_interface(hard_iface);
+		batadv_hardif_disable_interface(hard_iface);
 
-	ret = hardif_enable_interface(hard_iface, buff);
+	ret = batadv_hardif_enable_interface(hard_iface, buff);
 
 unlock:
 	rtnl_unlock();
@@ -597,7 +599,7 @@ static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
 				 char *buff)
 {
 	struct net_device *net_dev = kobj_to_netdev(kobj);
-	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
+	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	ssize_t length;
 
 	if (!hard_iface)

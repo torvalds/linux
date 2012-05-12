@@ -31,23 +31,23 @@ enum hard_if_state {
 	IF_I_WANT_YOU
 };
 
-extern struct notifier_block hard_if_notifier;
+extern struct notifier_block batadv_hard_if_notifier;
 
 struct hard_iface*
-hardif_get_by_netdev(const struct net_device *net_dev);
-int hardif_enable_interface(struct hard_iface *hard_iface,
-			    const char *iface_name);
-void hardif_disable_interface(struct hard_iface *hard_iface);
-void hardif_remove_interfaces(void);
-int hardif_min_mtu(struct net_device *soft_iface);
-void update_min_mtu(struct net_device *soft_iface);
-void hardif_free_rcu(struct rcu_head *rcu);
-bool is_wifi_iface(int ifindex);
+batadv_hardif_get_by_netdev(const struct net_device *net_dev);
+int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
+				   const char *iface_name);
+void batadv_hardif_disable_interface(struct hard_iface *hard_iface);
+void batadv_hardif_remove_interfaces(void);
+int batadv_hardif_min_mtu(struct net_device *soft_iface);
+void batadv_update_min_mtu(struct net_device *soft_iface);
+void batadv_hardif_free_rcu(struct rcu_head *rcu);
+bool batadv_is_wifi_iface(int ifindex);
 
 static inline void hardif_free_ref(struct hard_iface *hard_iface)
 {
 	if (atomic_dec_and_test(&hard_iface->refcount))
-		call_rcu(&hard_iface->rcu, hardif_free_rcu);
+		call_rcu(&hard_iface->rcu, batadv_hardif_free_rcu);
 }
 
 static inline struct hard_iface *primary_if_get_selected(

@@ -221,7 +221,7 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 
 	memcpy(tt_local_entry->common.addr, addr, ETH_ALEN);
 	tt_local_entry->common.flags = NO_FLAGS;
-	if (is_wifi_iface(ifindex))
+	if (batadv_is_wifi_iface(ifindex))
 		tt_local_entry->common.flags |= TT_CLIENT_WIFI;
 	atomic_set(&tt_local_entry->common.refcount, 2);
 	tt_local_entry->last_seen = jiffies;

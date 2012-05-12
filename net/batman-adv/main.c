@@ -68,7 +68,7 @@ static int __init batman_init(void)
 	bat_socket_init();
 	batadv_debugfs_init();
 
-	register_netdevice_notifier(&hard_if_notifier);
+	register_netdevice_notifier(&batadv_hard_if_notifier);
 
 	pr_info("B.A.T.M.A.N. advanced %s (compatibility version %i) loaded\n",
 		SOURCE_VERSION, COMPAT_VERSION);
@@ -79,8 +79,8 @@ static int __init batman_init(void)
 static void __exit batman_exit(void)
 {
 	batadv_debugfs_destroy();
-	unregister_netdevice_notifier(&hard_if_notifier);
-	hardif_remove_interfaces();
+	unregister_netdevice_notifier(&batadv_hard_if_notifier);
+	batadv_hardif_remove_interfaces();
 
 	flush_workqueue(bat_event_workqueue);
 	destroy_workqueue(bat_event_workqueue);

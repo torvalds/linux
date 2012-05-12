@@ -122,7 +122,7 @@ static int interface_set_mac_addr(struct net_device *dev, void *p)
 static int interface_change_mtu(struct net_device *dev, int new_mtu)
 {
 	/* check ranges */
-	if ((new_mtu < 68) || (new_mtu > hardif_min_mtu(dev)))
+	if ((new_mtu < 68) || (new_mtu > batadv_hardif_min_mtu(dev)))
 		return -EINVAL;
 
 	dev->mtu = new_mtu;

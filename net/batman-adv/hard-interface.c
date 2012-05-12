@@ -32,7 +32,7 @@
 
 #include <linux/if_arp.h>
 
-void hardif_free_rcu(struct rcu_head *rcu)
+void batadv_hardif_free_rcu(struct rcu_head *rcu)
 {
 	struct hard_iface *hard_iface;
 
@@ -41,7 +41,7 @@ void hardif_free_rcu(struct rcu_head *rcu)
 	kfree(hard_iface);
 }
 
-struct hard_iface *hardif_get_by_netdev(const struct net_device *net_dev)
+struct hard_iface *batadv_hardif_get_by_netdev(const struct net_device *net_dev)
 {
 	struct hard_iface *hard_iface;
 
@@ -180,7 +180,7 @@ static void check_known_mac_addr(const struct net_device *net_dev)
 	rcu_read_unlock();
 }
 
-int hardif_min_mtu(struct net_device *soft_iface)
+int batadv_hardif_min_mtu(struct net_device *soft_iface)
 {
 	const struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	const struct hard_iface *hard_iface;
@@ -209,11 +209,11 @@ out:
 }
 
 /* adjusts the MTU if a new interface with a smaller MTU appeared. */
-void update_min_mtu(struct net_device *soft_iface)
+void batadv_update_min_mtu(struct net_device *soft_iface)
 {
 	int min_mtu;
 
-	min_mtu = hardif_min_mtu(soft_iface);
+	min_mtu = batadv_hardif_min_mtu(soft_iface);
 	if (soft_iface->mtu != min_mtu)
 		soft_iface->mtu = min_mtu;
 }
@@ -242,7 +242,7 @@ static void hardif_activate_interface(struct hard_iface *hard_iface)
 	bat_info(hard_iface->soft_iface, "Interface activated: %s\n",
 		 hard_iface->net_dev->name);
 
-	update_min_mtu(hard_iface->soft_iface);
+	batadv_update_min_mtu(hard_iface->soft_iface);
 
 out:
 	if (primary_if)
@@ -260,11 +260,11 @@ static void hardif_deactivate_interface(struct hard_iface *hard_iface)
 	bat_info(hard_iface->soft_iface, "Interface deactivated: %s\n",
 		 hard_iface->net_dev->name);
 
-	update_min_mtu(hard_iface->soft_iface);
+	batadv_update_min_mtu(hard_iface->soft_iface);
 }
 
-int hardif_enable_interface(struct hard_iface *hard_iface,
-			    const char *iface_name)
+int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
+				   const char *iface_name)
 {
 	struct bat_priv *bat_priv;
 	struct net_device *soft_iface;
@@ -357,7 +357,7 @@ err:
 	return ret;
 }
 
-void hardif_disable_interface(struct hard_iface *hard_iface)
+void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct hard_iface *primary_if = NULL;
@@ -461,7 +461,7 @@ static void hardif_remove_interface(struct hard_iface *hard_iface)
 
 	/* first deactivate interface */
 	if (hard_iface->if_status != IF_NOT_IN_USE)
-		hardif_disable_interface(hard_iface);
+		batadv_hardif_disable_interface(hard_iface);
 
 	if (hard_iface->if_status != IF_NOT_IN_USE)
 		return;
@@ -471,7 +471,7 @@ static void hardif_remove_interface(struct hard_iface *hard_iface)
 	hardif_free_ref(hard_iface);
 }
 
-void hardif_remove_interfaces(void)
+void batadv_hardif_remove_interfaces(void)
 {
 	struct hard_iface *hard_iface, *hard_iface_tmp;
 
@@ -488,7 +488,7 @@ static int hard_if_event(struct notifier_block *this,
 			 unsigned long event, void *ptr)
 {
 	struct net_device *net_dev = ptr;
-	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
+	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	struct hard_iface *primary_if = NULL;
 	struct bat_priv *bat_priv;
 
@@ -513,7 +513,7 @@ static int hard_if_event(struct notifier_block *this,
 		break;
 	case NETDEV_CHANGEMTU:
 		if (hard_iface->soft_iface)
-			update_min_mtu(hard_iface->soft_iface);
+			batadv_update_min_mtu(hard_iface->soft_iface);
 		break;
 	case NETDEV_CHANGEADDR:
 		if (hard_iface->if_status == IF_NOT_IN_USE)
@@ -545,7 +545,7 @@ out:
 
 /* This function returns true if the interface represented by ifindex is a
  * 802.11 wireless device */
-bool is_wifi_iface(int ifindex)
+bool batadv_is_wifi_iface(int ifindex)
 {
 	struct net_device *net_device = NULL;
 	bool ret = false;
@@ -573,6 +573,6 @@ out:
 	return ret;
 }
 
-struct notifier_block hard_if_notifier = {
+struct notifier_block batadv_hard_if_notifier = {
 	.notifier_call = hard_if_event,
 };
