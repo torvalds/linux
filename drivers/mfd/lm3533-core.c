@@ -359,7 +359,7 @@ static struct attribute *lm3533_attributes[] = {
 #define to_dev_attr(_attr) \
 	container_of(_attr, struct device_attribute, attr)
 
-static mode_t lm3533_attr_is_visible(struct kobject *kobj,
+static umode_t lm3533_attr_is_visible(struct kobject *kobj,
 					     struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
