@@ -36,8 +36,8 @@ extern struct amba_device spear3xx_uart_device;
 extern struct sys_timer spear3xx_timer;
 
 /* Add spear3xx family function declarations here */
-void __init spear3xx_clk_init(void);
 void __init spear_setup_timer(void);
+void __init spear3xx_clk_init(void);
 void __init spear3xx_map_io(void);
 void __init spear3xx_init_irq(void);
 void __init spear3xx_init(void);
@@ -156,7 +156,6 @@ extern struct pmx_dev spear310_pmx_tdm0;
 /* Add spear310 machine function declarations here */
 void __init spear310_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
 		u8 pmx_dev_count);
-
 #endif /* CONFIG_MACH_SPEAR310 */
 
 /* spear320 declarations */

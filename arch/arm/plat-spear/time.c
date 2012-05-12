@@ -219,10 +219,10 @@ void __init spear_setup_timer(void)
 		goto err_iomap;
 	}
 
-	ret = clk_enable(gpt_clk);
+	ret = clk_prepare_enable(gpt_clk);
 	if (ret < 0) {
-		pr_err("%s:couldn't enable gpt clock\n", __func__);
-		goto err_clk;
+		pr_err("%s:couldn't prepare-enable gpt clock\n", __func__);
+		goto err_prepare_enable_clk;
 	}
 
 	spear_clockevent_init();
@@ -230,7 +230,7 @@ void __init spear_setup_timer(void)
 
 	return;
 
-err_clk:
+err_prepare_enable_clk:
 	clk_put(gpt_clk);
 err_iomap:
 	iounmap(gpt_base);
