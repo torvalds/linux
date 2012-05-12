@@ -42,7 +42,7 @@ vpath %.h $(SRCBASE)/$(WLM_DIR)
 CC = gcc
 CXX = g++
 
-C_DEFINES += -Wall -Wextra -Werror
+C_DEFINES += -Wall -Wextra
 ANSI_C90 = -ansi -pedantic
 
 INCLUDES = $(SRCBASE)/$(WLM_DIR) $(SRCBASE)/include
