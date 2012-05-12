@@ -71,6 +71,7 @@ dcb_gpio_parse(struct nouveau_bios *bios, int idx, u8 func, u8 line,
 				.func = (data & 0x07e0) >> 5,
 				.log[0] = (data & 0x1800) >> 11,
 				.log[1] = (data & 0x6000) >> 13,
+				.param = !!(data & 0x8000),
 			};
 		} else
 		if (ver < 0x41) {
@@ -80,6 +81,7 @@ dcb_gpio_parse(struct nouveau_bios *bios, int idx, u8 func, u8 line,
 				.func = (data & 0x0000ff00) >> 8,
 				.log[0] = (data & 0x18000000) >> 27,
 				.log[1] = (data & 0x60000000) >> 29,
+				.param = !!(data & 0x80000000),
 			};
 		} else {
 			u32 data = nv_ro32(bios, entry + 0);
@@ -89,6 +91,7 @@ dcb_gpio_parse(struct nouveau_bios *bios, int idx, u8 func, u8 line,
 				.func = (data & 0x0000ff00) >> 8,
 				.log[0] = (data1 & 0x30) >> 4,
 				.log[1] = (data1 & 0xc0) >> 6,
+				.param = !!(data & 0x80000000),
 			};
 		}
 
