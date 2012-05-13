@@ -659,12 +659,11 @@ int __devinit da9052_device_init(struct da9052 *da9052, u8 chip_id)
 	ret = regmap_add_irq_chip(da9052->regmap, da9052->chip_irq,
 				  IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 				  da9052->irq_base, &da9052_regmap_irq_chip,
-				  NULL);
+				  &da9052->irq_data);
 	if (ret < 0)
 		goto regmap_err;
 
-	desc = irq_to_desc(da9052->chip_irq);
-	da9052->irq_base = regmap_irq_chip_get_base(desc->action->dev_id);
+	da9052->irq_base = regmap_irq_chip_get_base(da9052->irq_data);
 
 	ret = mfd_add_devices(da9052->dev, -1, da9052_subdev_info,
 			      ARRAY_SIZE(da9052_subdev_info), NULL, 0);
@@ -681,8 +680,7 @@ regmap_err:
 
 void da9052_device_exit(struct da9052 *da9052)
 {
-	regmap_del_irq_chip(da9052->chip_irq,
-			    irq_get_irq_data(da9052->irq_base)->chip_data);
+	regmap_del_irq_chip(da9052->chip_irq, da9052->irq_data);
 	mfd_remove_devices(da9052->dev);
 }
 
