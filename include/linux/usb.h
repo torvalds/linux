@@ -790,6 +790,8 @@ extern ssize_t usb_store_new_id(struct usb_dynids *dynids,
 				struct device_driver *driver,
 				const char *buf, size_t count);
 
+extern ssize_t usb_show_dynids(struct usb_dynids *dynids, char *buf);
+
 /**
  * struct usbdrv_wrap - wrapper for driver-model structure
  * @driver: The driver-model core driver structure.

@@ -79,13 +79,12 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 }
 EXPORT_SYMBOL_GPL(usb_store_new_id);
 
-static ssize_t show_dynids(struct device_driver *driver, char *buf)
+ssize_t usb_show_dynids(struct usb_dynids *dynids, char *buf)
 {
 	struct usb_dynid *dynid;
-	struct usb_driver *usb_drv = to_usb_driver(driver);
 	size_t count = 0;
 
-	list_for_each_entry(dynid, &usb_drv->dynids.list, node)
+	list_for_each_entry(dynid, &dynids->list, node)
 		if (dynid->id.bInterfaceClass != 0)
 			count += scnprintf(&buf[count], PAGE_SIZE - count, "%04x %04x %02x\n",
 					   dynid->id.idVendor, dynid->id.idProduct,
@@ -94,6 +93,14 @@ static ssize_t show_dynids(struct device_driver *driver, char *buf)
 			count += scnprintf(&buf[count], PAGE_SIZE - count, "%04x %04x\n",
 					   dynid->id.idVendor, dynid->id.idProduct);
 	return count;
+}
+EXPORT_SYMBOL_GPL(usb_show_dynids);
+
+static ssize_t show_dynids(struct device_driver *driver, char *buf)
+{
+	struct usb_driver *usb_drv = to_usb_driver(driver);
+
+	return usb_show_dynids(&usb_drv->dynids, buf);
 }
 
 static ssize_t store_new_id(struct device_driver *driver,

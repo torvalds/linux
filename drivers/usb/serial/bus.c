@@ -124,8 +124,15 @@ static ssize_t store_new_id(struct device_driver *driver,
 	return retval;
 }
 
+static ssize_t show_dynids(struct device_driver *driver, char *buf)
+{
+	struct usb_serial_driver *usb_drv = to_usb_serial_driver(driver);
+
+	return usb_show_dynids(&usb_drv->dynids, buf);
+}
+
 static struct driver_attribute drv_attrs[] = {
-	__ATTR(new_id, S_IWUSR, NULL, store_new_id),
+	__ATTR(new_id, S_IRUGO | S_IWUSR, show_dynids, store_new_id),
 	__ATTR_NULL,
 };
 
