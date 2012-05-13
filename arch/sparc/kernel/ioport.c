@@ -50,6 +50,8 @@
 #include <asm/io-unit.h>
 #include <asm/leon.h>
 
+const struct sparc32_dma_ops *sparc32_dma_ops;
+
 /* This function must make sure that caches and memory are coherent after DMA
  * On LEON systems without cache snooping it flushes the entire D-CACHE.
  */
@@ -292,13 +294,13 @@ static void *sbus_alloc_coherent(struct device *dev, size_t len,
 		goto err_nova;
 	}
 
-	// XXX The mmu_map_dma_area does this for us below, see comments.
+	// XXX The sbus_map_dma_area does this for us below, see comments.
 	// srmmu_mapiorange(0, virt_to_phys(va), res->start, len_total);
 	/*
 	 * XXX That's where sdev would be used. Currently we load
 	 * all iommu tables with the same translations.
 	 */
-	if (mmu_map_dma_area(dev, dma_addrp, va, res->start, len_total) != 0)
+	if (sbus_map_dma_area(dev, dma_addrp, va, res->start, len_total) != 0)
 		goto err_noiommu;
 
 	res->name = op->dev.of_node->name;
@@ -343,7 +345,7 @@ static void sbus_free_coherent(struct device *dev, size_t n, void *p,
 	kfree(res);
 
 	pgv = virt_to_page(p);
-	mmu_unmap_dma_area(dev, ba, n);
+	sbus_unmap_dma_area(dev, ba, n);
 
 	__free_pages(pgv, get_order(n));
 }

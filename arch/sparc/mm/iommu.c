@@ -426,29 +426,52 @@ static void iommu_unmap_dma_area(struct device *dev, unsigned long busa, int len
 }
 #endif
 
+static const struct sparc32_dma_ops iommu_dma_noflush_ops = {
+	.get_scsi_one		= iommu_get_scsi_one_noflush,
+	.get_scsi_sgl		= iommu_get_scsi_sgl_noflush,
+	.release_scsi_one	= iommu_release_scsi_one,
+	.release_scsi_sgl	= iommu_release_scsi_sgl,
+#ifdef CONFIG_SBUS
+	.map_dma_area		= iommu_map_dma_area,
+	.unmap_dma_area		= iommu_unmap_dma_area,
+#endif
+};
+
+static const struct sparc32_dma_ops iommu_dma_gflush_ops = {
+	.get_scsi_one		= iommu_get_scsi_one_gflush,
+	.get_scsi_sgl		= iommu_get_scsi_sgl_gflush,
+	.release_scsi_one	= iommu_release_scsi_one,
+	.release_scsi_sgl	= iommu_release_scsi_sgl,
+#ifdef CONFIG_SBUS
+	.map_dma_area		= iommu_map_dma_area,
+	.unmap_dma_area		= iommu_unmap_dma_area,
+#endif
+};
+
+static const struct sparc32_dma_ops iommu_dma_pflush_ops = {
+	.get_scsi_one		= iommu_get_scsi_one_pflush,
+	.get_scsi_sgl		= iommu_get_scsi_sgl_pflush,
+	.release_scsi_one	= iommu_release_scsi_one,
+	.release_scsi_sgl	= iommu_release_scsi_sgl,
+#ifdef CONFIG_SBUS
+	.map_dma_area		= iommu_map_dma_area,
+	.unmap_dma_area		= iommu_unmap_dma_area,
+#endif
+};
+
 void __init ld_mmu_iommu(void)
 {
 	viking_flush = (BTFIXUPVAL_CALL(flush_page_for_dma) == (unsigned long)viking_flush_page);
 
 	if (!BTFIXUPVAL_CALL(flush_page_for_dma)) {
 		/* IO coherent chip */
-		BTFIXUPSET_CALL(mmu_get_scsi_one, iommu_get_scsi_one_noflush, BTFIXUPCALL_RETO0);
-		BTFIXUPSET_CALL(mmu_get_scsi_sgl, iommu_get_scsi_sgl_noflush, BTFIXUPCALL_NORM);
+		sparc32_dma_ops = &iommu_dma_noflush_ops;
 	} else if (flush_page_for_dma_global) {
 		/* flush_page_for_dma flushes everything, no matter of what page is it */
-		BTFIXUPSET_CALL(mmu_get_scsi_one, iommu_get_scsi_one_gflush, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(mmu_get_scsi_sgl, iommu_get_scsi_sgl_gflush, BTFIXUPCALL_NORM);
+		sparc32_dma_ops = &iommu_dma_gflush_ops;
 	} else {
-		BTFIXUPSET_CALL(mmu_get_scsi_one, iommu_get_scsi_one_pflush, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(mmu_get_scsi_sgl, iommu_get_scsi_sgl_pflush, BTFIXUPCALL_NORM);
+		sparc32_dma_ops = &iommu_dma_pflush_ops;
 	}
-	BTFIXUPSET_CALL(mmu_release_scsi_one, iommu_release_scsi_one, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mmu_release_scsi_sgl, iommu_release_scsi_sgl, BTFIXUPCALL_NORM);
-
-#ifdef CONFIG_SBUS
-	BTFIXUPSET_CALL(mmu_map_dma_area, iommu_map_dma_area, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mmu_unmap_dma_area, iommu_unmap_dma_area, BTFIXUPCALL_NORM);
-#endif
 
 	if (viking_mxcc_present || srmmu_modtype == HyperSparc) {
 		dvma_prot = __pgprot(SRMMU_CACHE | SRMMU_ET_PTE | SRMMU_PRIV);

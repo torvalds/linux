@@ -92,21 +92,31 @@ extern int isa_dma_bridge_buggy;
 #ifdef CONFIG_SPARC32
 
 /* Routines for data transfer buffers. */
-struct page;
 struct device;
 struct scatterlist;
 
-/* These are implementations for sbus_map_sg/sbus_unmap_sg... collapse later */
-BTFIXUPDEF_CALL(__u32, mmu_get_scsi_one, struct device *, char *, unsigned long)
-BTFIXUPDEF_CALL(void,  mmu_get_scsi_sgl, struct device *, struct scatterlist *, int)
-BTFIXUPDEF_CALL(void,  mmu_release_scsi_one, struct device *, __u32, unsigned long)
-BTFIXUPDEF_CALL(void,  mmu_release_scsi_sgl, struct device *, struct scatterlist *, int)
+struct sparc32_dma_ops {
+	__u32 (*get_scsi_one)(struct device *, char *, unsigned long);
+	void (*get_scsi_sgl)(struct device *, struct scatterlist *, int);
+	void (*release_scsi_one)(struct device *, __u32, unsigned long);
+	void (*release_scsi_sgl)(struct device *, struct scatterlist *,int);
+#ifdef CONFIG_SBUS
+	int (*map_dma_area)(struct device *, dma_addr_t *, unsigned long, unsigned long, int);
+	void (*unmap_dma_area)(struct device *, unsigned long, int);
+#endif
+};
+extern const struct sparc32_dma_ops *sparc32_dma_ops;
 
-#define mmu_get_scsi_one(dev,vaddr,len) BTFIXUP_CALL(mmu_get_scsi_one)(dev,vaddr,len)
-#define mmu_get_scsi_sgl(dev,sg,sz) BTFIXUP_CALL(mmu_get_scsi_sgl)(dev,sg,sz)
-#define mmu_release_scsi_one(dev,vaddr,len) BTFIXUP_CALL(mmu_release_scsi_one)(dev,vaddr,len)
-#define mmu_release_scsi_sgl(dev,sg,sz) BTFIXUP_CALL(mmu_release_scsi_sgl)(dev,sg,sz)
+#define mmu_get_scsi_one(dev,vaddr,len) \
+	sparc32_dma_ops->get_scsi_one(dev, vaddr, len)
+#define mmu_get_scsi_sgl(dev,sg,sz) \
+	sparc32_dma_ops->get_scsi_sgl(dev, sg, sz)
+#define mmu_release_scsi_one(dev,vaddr,len) \
+	sparc32_dma_ops->release_scsi_one(dev, vaddr,len)
+#define mmu_release_scsi_sgl(dev,sg,sz) \
+	sparc32_dma_ops->release_scsi_sgl(dev, sg, sz)
 
+#ifdef CONFIG_SBUS
 /*
  * mmu_map/unmap are provided by iommu/iounit; Invalid to call on IIep.
  *
@@ -122,11 +132,12 @@ BTFIXUPDEF_CALL(void,  mmu_release_scsi_sgl, struct device *, struct scatterlist
  * know if we are mapping RAM or I/O, so it has to be an additional argument
  * to a separate mapping function for CPU visible mappings.
  */
-BTFIXUPDEF_CALL(int, mmu_map_dma_area, struct device *, dma_addr_t *, unsigned long, unsigned long, int len)
-BTFIXUPDEF_CALL(void, mmu_unmap_dma_area, struct device *, unsigned long busa, int len)
+#define sbus_map_dma_area(dev,pba,va,a,len) \
+	sparc32_dma_ops->map_dma_area(dev, pba, va, a, len)
+#define sbus_unmap_dma_area(dev,ba,len) \
+	sparc32_dma_ops->unmap_dma_area(dev, ba, len)
+#endif /* CONFIG_SBUS */
 
-#define mmu_map_dma_area(dev,pba,va,a,len) BTFIXUP_CALL(mmu_map_dma_area)(dev,pba,va,a,len)
-#define mmu_unmap_dma_area(dev,ba,len) BTFIXUP_CALL(mmu_unmap_dma_area)(dev,ba,len)
 #endif
 
 #endif /* !(_ASM_SPARC_DMA_H) */
