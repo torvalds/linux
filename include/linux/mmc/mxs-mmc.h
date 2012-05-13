@@ -6,8 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __MACH_MXS_MMC_H__
-#define __MACH_MXS_MMC_H__
+#ifndef __LINUX_MMC_MXS_MMC_H__
+#define __LINUX_MMC_MXS_MMC_H__
 
 struct mxs_mmc_platform_data {
 	int wp_gpio;	/* write protect pin */
@@ -15,4 +15,5 @@ struct mxs_mmc_platform_data {
 #define SLOTF_4_BIT_CAPABLE	(1 << 0)
 #define SLOTF_8_BIT_CAPABLE	(1 << 1)
 };
-#endif /* __MACH_MXS_MMC_H__ */
+
+#endif /* __LINUX_MMC_MXS_MMC_H__ */

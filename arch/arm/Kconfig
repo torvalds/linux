@@ -468,7 +468,10 @@ config ARCH_MXS
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+	select COMMON_CLK
 	select HAVE_CLK_PREPARE
+	select PINCTRL
+	select USE_OF
 	help
 	  Support for Freescale MXS-based family of processors
 

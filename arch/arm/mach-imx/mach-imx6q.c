@@ -19,6 +19,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/phy.h>
 #include <linux/micrel_phy.h>
 #include <asm/smp_twd.h>
@@ -77,6 +78,12 @@ static int ksz9021rn_phy_fixup(struct phy_device *phydev)
 
 static void __init imx6q_init_machine(void)
 {
+	/*
+	 * This should be removed when all imx6q boards have pinctrl
+	 * states for devices defined in device tree.
+	 */
+	pinctrl_provide_dummies();
+
 	if (of_machine_is_compatible("fsl,imx6q-sabrelite"))
 		phy_register_fixup_for_uid(PHY_ID_KSZ9021, MICREL_PHY_ID_MASK,
 					   ksz9021rn_phy_fixup);
