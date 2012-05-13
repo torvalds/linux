@@ -540,8 +540,8 @@ static const struct wlcore_partition_set wl18xx_ptable[PART_TABLE_LEN] = {
 		.mem3 = { .start = 0x00000000, .size  = 0x00000000 },
 	},
 	[PART_PHY_INIT] = {
-		/* TODO: use the phy_conf struct size here */
-		.mem  = { .start = 0x80926000, .size = 252 },
+		.mem  = { .start = 0x80926000,
+			  .size = sizeof(struct wl18xx_mac_and_phy_params) },
 		.reg  = { .start = 0x00000000, .size = 0x00000000 },
 		.mem2 = { .start = 0x00000000, .size = 0x00000000 },
 		.mem3 = { .start = 0x00000000, .size = 0x00000000 },
