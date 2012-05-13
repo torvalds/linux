@@ -23,9 +23,7 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
  * all the page tables have been flushed.  Our job is to destroy
  * any remaining processor-specific state.
  */
-BTFIXUPDEF_CALL(void, destroy_context, struct mm_struct *)
-
-#define destroy_context(mm) BTFIXUP_CALL(destroy_context)(mm)
+void destroy_context(struct mm_struct *mm);
 
 /* Switch the current MM context. */
 void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm,

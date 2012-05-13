@@ -1222,7 +1222,7 @@ static void srmmu_update_mmu_cache(struct vm_area_struct * vma, unsigned long ad
 {
 }
 
-static void srmmu_destroy_context(struct mm_struct *mm)
+void destroy_context(struct mm_struct *mm)
 {
 
 	if(mm->context != NO_CONTEXT) {
@@ -1988,7 +1988,6 @@ void __init load_mmu(void)
 #endif
 
 	BTFIXUPSET_CALL(update_mmu_cache, srmmu_update_mmu_cache, BTFIXUPCALL_NOP);
-	BTFIXUPSET_CALL(destroy_context, srmmu_destroy_context, BTFIXUPCALL_NORM);
 
 	get_srmmu_type();
 
