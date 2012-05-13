@@ -490,6 +490,10 @@ int intel_setup_gmbus(struct drm_device *dev)
 		/* By default use a conservative clock rate */
 		bus->reg0 = port | GMBUS_RATE_100KHZ;
 
+		/* gmbus seems to be broken on i830 */
+		if (IS_I830(dev))
+			bus->force_bit = true;
+
 		intel_gpio_setup(bus, port);
 	}
 
