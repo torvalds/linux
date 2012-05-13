@@ -1553,8 +1553,10 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 	conf = find_confirmed_client_by_str(dname, strhashval);
 	if (conf) {
 		if (!clp_used_exchangeid(conf)) {
-			status = nfserr_clid_inuse; /* XXX: ? */
-			goto out;
+			if (exid->flags & EXCHGID4_FLAG_UPD_CONFIRMED_REC_A) {
+				status = nfserr_inval; /* buggy client */
+				goto out;
+			}
 		}
 		if (!same_creds(&conf->cl_cred, &rqstp->rq_cred)) {
 			/* 18.35.4 case 9 */
@@ -1573,6 +1575,10 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 			/* Client reboot: destroy old state */
 			expire_client(conf);
 			goto out_new;
+		}
+		if (!clp_used_exchangeid(conf)) {
+			status = nfserr_inval;
+			goto out;
 		}
 		/*
 		 * Set bit when the owner id and verifier map to an already
