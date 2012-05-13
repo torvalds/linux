@@ -1465,7 +1465,7 @@ static void stmmac_set_rx_mode(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	spin_lock(&priv->lock);
-	priv->hw->mac->set_filter(dev);
+	priv->hw->mac->set_filter(dev, priv->synopsys_id);
 	spin_unlock(&priv->lock);
 }
 
@@ -1806,7 +1806,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	priv->hw->ring = &ring_mode_ops;
 
 	/* Get and dump the chip ID */
-	stmmac_get_synopsys_id(priv);
+	priv->synopsys_id = stmmac_get_synopsys_id(priv);
 
 	/* Get the HW capability (new GMAC newer than 3.50a) */
 	priv->hw_cap_support = stmmac_get_hw_features(priv);

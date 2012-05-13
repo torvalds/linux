@@ -280,7 +280,7 @@ struct stmmac_ops {
 	/* Handle extra events on specific interrupts hw dependent */
 	void (*host_irq_status) (void __iomem *ioaddr);
 	/* Multicast filter setting */
-	void (*set_filter) (struct net_device *dev);
+	void (*set_filter) (struct net_device *dev, int id);
 	/* Flow control setting */
 	void (*flow_ctrl) (void __iomem *ioaddr, unsigned int duplex,
 			   unsigned int fc, unsigned int pause_time);

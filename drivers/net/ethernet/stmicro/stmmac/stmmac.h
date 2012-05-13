@@ -85,6 +85,7 @@ struct stmmac_priv {
 	struct clk *stmmac_clk;
 #endif
 	int clk_csr;
+	int synopsys_id;
 };
 
 extern int phyaddr;
