@@ -100,6 +100,7 @@
 		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
 		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
 		power-gpios = <&gpio 155 0>; /* gpio PT3 */
+		bus-width = <4>;
 	};
 
 	sdhci@c8000400 {
@@ -111,5 +112,6 @@
 		wp-gpios = <&gpio 59 0>; /* gpio PH3 */
 		power-gpios = <&gpio 70 0>; /* gpio PI6 */
 		support-8bit;
+		bus-width = <8>;
 	};
 };

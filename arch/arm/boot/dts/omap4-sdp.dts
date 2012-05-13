@@ -94,12 +94,12 @@
 
 &mmc1 {
 	vmmc-supply = <&vmmc>;
-	ti,bus-width = <8>;
+	bus-width = <8>;
 };
 
 &mmc2 {
 	vmmc-supply = <&vaux1>;
-	ti,bus-width = <8>;
+	bus-width = <8>;
 	ti,non-removable;
 };
 
@@ -112,6 +112,6 @@
 };
 
 &mmc5 {
-	ti,bus-width = <4>;
+	bus-width = <4>;
 	ti,non-removable;
 };
