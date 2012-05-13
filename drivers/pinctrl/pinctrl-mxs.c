@@ -70,13 +70,18 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 			      struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct pinctrl_map *new_map;
-	char *group;
-	unsigned new_num;
+	char *group = NULL;
+	unsigned new_num = 1;
 	unsigned long config = 0;
 	unsigned long *pconfig;
 	int length = strlen(np->name) + SUFFIX_LEN;
-	u32 val;
-	int ret;
+	bool purecfg = false;
+	u32 val, reg;
+	int ret, i = 0;
+
+	/* Check for pin config node which has no 'reg' property */
+	if (of_property_read_u32(np, "reg", &reg))
+		purecfg = true;
 
 	ret = of_property_read_u32(np, "fsl,drive-strength", &val);
 	if (!ret)
@@ -88,21 +93,26 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (!ret)
 		config |= val << PULL_SHIFT | PULL_PRESENT;
 
-	new_num = config ? 2 : 1;
+	/* Check for group node which has both mux and config settings */
+	if (!purecfg && config)
+		new_num = 2;
+
 	new_map = kzalloc(sizeof(*new_map) * new_num, GFP_KERNEL);
 	if (!new_map)
 		return -ENOMEM;
 
-	new_map[0].type = PIN_MAP_TYPE_MUX_GROUP;
-	new_map[0].data.mux.function = np->name;
+	if (!purecfg) {
+		new_map[i].type = PIN_MAP_TYPE_MUX_GROUP;
+		new_map[i].data.mux.function = np->name;
 
-	/* Compose group name */
-	group = kzalloc(length, GFP_KERNEL);
-	if (!group)
-		return -ENOMEM;
-	of_property_read_u32(np, "reg", &val);
-	snprintf(group, length, "%s.%d", np->name, val);
-	new_map[0].data.mux.group = group;
+		/* Compose group name */
+		group = kzalloc(length, GFP_KERNEL);
+		if (!group)
+			return -ENOMEM;
+		snprintf(group, length, "%s.%d", np->name, reg);
+		new_map[i].data.mux.group = group;
+		i++;
+	}
 
 	if (config) {
 		pconfig = kmemdup(&config, sizeof(config), GFP_KERNEL);
@@ -111,10 +121,11 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 			goto free;
 		}
 
-		new_map[1].type = PIN_MAP_TYPE_CONFIGS_GROUP;
-		new_map[1].data.configs.group_or_pin = group;
-		new_map[1].data.configs.configs = pconfig;
-		new_map[1].data.configs.num_configs = 1;
+		new_map[i].type = PIN_MAP_TYPE_CONFIGS_GROUP;
+		new_map[i].data.configs.group_or_pin = purecfg ? np->name :
+								 group;
+		new_map[i].data.configs.configs = pconfig;
+		new_map[i].data.configs.num_configs = 1;
 	}
 
 	*map = new_map;
@@ -342,8 +353,10 @@ static int __devinit mxs_pinctrl_parse_group(struct platform_device *pdev,
 	group = devm_kzalloc(&pdev->dev, length, GFP_KERNEL);
 	if (!group)
 		return -ENOMEM;
-	of_property_read_u32(np, "reg", &val);
-	snprintf(group, length, "%s.%d", np->name, val);
+	if (of_property_read_u32(np, "reg", &val))
+		snprintf(group, length, "%s", np->name);
+	else
+		snprintf(group, length, "%s.%d", np->name, val);
 	g->name = group;
 
 	prop = of_find_property(np, propname, &length);
@@ -367,7 +380,8 @@ static int __devinit mxs_pinctrl_parse_group(struct platform_device *pdev,
 		g->pins[i] = MUXID_TO_PINID(g->pins[i]);
 	}
 
-	*out_name = g->name;
+	if (out_name)
+		*out_name = g->name;
 
 	return 0;
 }
@@ -393,6 +407,7 @@ static int __devinit mxs_pinctrl_probe_dt(struct platform_device *pdev,
 	/* Count total functions and groups */
 	fn = fnull;
 	for_each_child_of_node(np, child) {
+		soc->ngroups++;
 		/* Skip pure pinconf node */
 		if (of_property_read_u32(child, "reg", &val))
 			continue;
@@ -400,7 +415,6 @@ static int __devinit mxs_pinctrl_probe_dt(struct platform_device *pdev,
 			fn = child->name;
 			soc->nfunctions++;
 		}
-		soc->ngroups++;
 	}
 
 	soc->functions = devm_kzalloc(&pdev->dev, soc->nfunctions *
@@ -430,8 +444,14 @@ static int __devinit mxs_pinctrl_probe_dt(struct platform_device *pdev,
 	idxf = 0;
 	fn = fnull;
 	for_each_child_of_node(np, child) {
-		if (of_property_read_u32(child, "reg", &val))
+		if (of_property_read_u32(child, "reg", &val)) {
+			ret = mxs_pinctrl_parse_group(pdev, child,
+						      idxg++, NULL);
+			if (ret)
+				return ret;
 			continue;
+		}
+
 		if (strcmp(fn, child->name)) {
 			f = &soc->functions[idxf++];
 			f->groups = devm_kzalloc(&pdev->dev, f->ngroups *
