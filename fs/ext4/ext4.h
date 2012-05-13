@@ -1203,9 +1203,6 @@ struct ext4_sb_info {
 	unsigned long s_ext_blocks;
 	unsigned long s_ext_extents;
 #endif
-	/* ext4 extent cache stats */
-	unsigned long extent_cache_hits;
-	unsigned long extent_cache_misses;
 
 	/* for buddy allocator */
 	struct ext4_group_info ***s_group_info;

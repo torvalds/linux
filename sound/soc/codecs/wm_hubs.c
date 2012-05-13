@@ -1205,7 +1205,7 @@ void wm_hubs_set_bias_level(struct snd_soc_codec *codec,
 			    enum snd_soc_bias_level level)
 {
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
-	int val;
+	int mask, val;
 
 	switch (level) {
 	case SND_SOC_BIAS_STANDBY:
@@ -1217,6 +1217,13 @@ void wm_hubs_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_ON:
 		/* Turn off any unneded single ended outputs */
 		val = 0;
+		mask = 0;
+
+		if (hubs->lineout1_se)
+			mask |= WM8993_LINEOUT1N_ENA | WM8993_LINEOUT1P_ENA;
+
+		if (hubs->lineout2_se)
+			mask |= WM8993_LINEOUT2N_ENA | WM8993_LINEOUT2P_ENA;
 
 		if (hubs->lineout1_se && hubs->lineout1n_ena)
 			val |= WM8993_LINEOUT1N_ENA;
@@ -1231,11 +1238,7 @@ void wm_hubs_set_bias_level(struct snd_soc_codec *codec,
 			val |= WM8993_LINEOUT2P_ENA;
 
 		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_3,
-				    WM8993_LINEOUT1N_ENA |
-				    WM8993_LINEOUT1P_ENA |
-				    WM8993_LINEOUT2N_ENA |
-				    WM8993_LINEOUT2P_ENA,
-				    val);
+				    mask, val);
 
 		/* Remove the input clamps */
 		snd_soc_update_bits(codec, WM8993_INPUTS_CLAMP_REG,

@@ -60,7 +60,7 @@ struct wm8350_jack_data {
 };
 
 struct wm8350_data {
-	struct snd_soc_codec codec;
+	struct wm8350 *wm8350;
 	struct wm8350_output out1;
 	struct wm8350_output out2;
 	struct wm8350_jack_data hpl;
@@ -1270,7 +1270,7 @@ static void wm8350_hp_work(struct wm8350_data *priv,
 			   struct wm8350_jack_data *jack,
 			   u16 mask)
 {
-	struct wm8350 *wm8350 = priv->codec.control_data;
+	struct wm8350 *wm8350 = priv->wm8350;
 	u16 reg;
 	int report;
 
@@ -1303,7 +1303,7 @@ static void wm8350_hpr_work(struct work_struct *work)
 static irqreturn_t wm8350_hp_jack_handler(int irq, void *data)
 {
 	struct wm8350_data *priv = data;
-	struct wm8350 *wm8350 = priv->codec.control_data;
+	struct wm8350 *wm8350 = priv->wm8350;
 	struct wm8350_jack_data *jack = NULL;
 
 	switch (irq - wm8350->irq_base) {
@@ -1388,7 +1388,7 @@ EXPORT_SYMBOL_GPL(wm8350_hp_jack_detect);
 static irqreturn_t wm8350_mic_handler(int irq, void *data)
 {
 	struct wm8350_data *priv = data;
-	struct wm8350 *wm8350 = priv->codec.control_data;
+	struct wm8350 *wm8350 = priv->wm8350;
 	u16 reg;
 	int report = 0;
 
@@ -1496,6 +1496,8 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 		return -ENOMEM;
 	snd_soc_codec_set_drvdata(codec, priv);
 
+	priv->wm8350 = wm8350;
+
 	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
 		priv->supplies[i].supply = supply_names[i];
 
@@ -1504,7 +1506,6 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	if (ret != 0)
 		return ret;
 
-	wm8350->codec.codec = codec;
 	codec->control_data = wm8350;
 
 	/* Put the codec into reset if it wasn't already */

@@ -3125,6 +3125,7 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 		ql_log(ql_log_info, vha, 0x00b7,
 		    "HW State: COLD/RE-INIT.\n");
 		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_COLD);
+		qla82xx_set_rst_ready(ha);
 		if (ql2xmdenable) {
 			if (qla82xx_md_collect(vha))
 				ql_log(ql_log_warn, vha, 0xb02c,

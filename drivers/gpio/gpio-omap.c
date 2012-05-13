@@ -965,18 +965,15 @@ static void omap_gpio_mod_init(struct gpio_bank *bank)
 	}
 
 	_gpio_rmw(base, bank->regs->irqenable, l, bank->regs->irqenable_inv);
-	_gpio_rmw(base, bank->regs->irqstatus, l,
-					bank->regs->irqenable_inv == false);
-	_gpio_rmw(base, bank->regs->irqenable, l, bank->regs->debounce_en != 0);
-	_gpio_rmw(base, bank->regs->irqenable, l, bank->regs->ctrl != 0);
+	_gpio_rmw(base, bank->regs->irqstatus, l, !bank->regs->irqenable_inv);
 	if (bank->regs->debounce_en)
-		_gpio_rmw(base, bank->regs->debounce_en, 0, 1);
+		__raw_writel(0, base + bank->regs->debounce_en);
 
 	/* Save OE default value (0xffffffff) in the context */
 	bank->context.oe = __raw_readl(bank->base + bank->regs->direction);
 	 /* Initialize interface clk ungated, module enabled */
 	if (bank->regs->ctrl)
-		_gpio_rmw(base, bank->regs->ctrl, 0, 1);
+		__raw_writel(0, base + bank->regs->ctrl);
 }
 
 static __devinit void

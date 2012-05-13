@@ -53,7 +53,7 @@ enum {
 	ATA_DNXFER_QUIET	= (1 << 31),
 };
 
-extern unsigned int ata_print_id;
+extern atomic_t ata_print_id;
 extern int atapi_passthru16;
 extern int libata_fua;
 extern int libata_noacpi;

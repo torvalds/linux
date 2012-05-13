@@ -1078,7 +1078,7 @@ struct btrfs_fs_info {
 	 * is required instead of the faster short fsync log commits
 	 */
 	u64 last_trans_log_full_commit;
-	unsigned long mount_opt:21;
+	unsigned long mount_opt;
 	unsigned long compress_type:4;
 	u64 max_inline;
 	u64 alloc_start;
@@ -2166,7 +2166,7 @@ BTRFS_SETGET_STACK_FUNCS(root_last_snapshot, struct btrfs_root_item,
 
 static inline bool btrfs_root_readonly(struct btrfs_root *root)
 {
-	return root->root_item.flags & BTRFS_ROOT_SUBVOL_RDONLY;
+	return (root->root_item.flags & cpu_to_le64(BTRFS_ROOT_SUBVOL_RDONLY)) != 0;
 }
 
 /* struct btrfs_root_backup */

@@ -137,7 +137,7 @@ static struct twl4030_platform_data sdp4430_twldata = {
 
 static void __init omap4_i2c_init(void)
 {
-	omap4_pmic_init("twl6030", &sdp4430_twldata);
+	omap4_pmic_init("twl6030", &sdp4430_twldata, NULL, 0);
 }
 
 static void __init omap4_init(void)
