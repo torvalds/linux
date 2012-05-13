@@ -1403,14 +1403,18 @@ out_unlock:
 static void intel_enable_pch_pll(struct intel_crtc *intel_crtc)
 {
 	struct drm_i915_private *dev_priv = intel_crtc->base.dev->dev_private;
-	struct intel_pch_pll *pll = intel_crtc->pch_pll;
+	struct intel_pch_pll *pll;
 	int reg;
 	u32 val;
 
-	/* PCH only available on ILK+ */
+	/* PCH PLLs only available on ILK, SNB and IVB */
 	BUG_ON(dev_priv->info->gen < 5);
-	BUG_ON(pll == NULL);
-	BUG_ON(pll->refcount == 0);
+	pll = intel_crtc->pch_pll;
+	if (pll == NULL)
+		return;
+
+	if (WARN_ON(pll->refcount == 0))
+		return;
 
 	DRM_DEBUG_KMS("enable PCH PLL %x (active %d, on? %d)for crtc %d\n",
 		      pll->pll_reg, pll->active, pll->on,
@@ -1448,13 +1452,18 @@ static void intel_disable_pch_pll(struct intel_crtc *intel_crtc)
 	if (pll == NULL)
 	       return;
 
-	BUG_ON(pll->refcount == 0);
+	if (WARN_ON(pll->refcount == 0))
+		return;
 
 	DRM_DEBUG_KMS("disable PCH PLL %x (active %d, on? %d) for crtc %d\n",
 		      pll->pll_reg, pll->active, pll->on,
 		      intel_crtc->base.base.id);
 
-	BUG_ON(pll->active == 0);
+	if (WARN_ON(pll->active == 0)) {
+		assert_pch_pll_disabled(dev_priv, intel_crtc);
+		return;
+	}
+
 	if (--pll->active) {
 		assert_pch_pll_enabled(dev_priv, intel_crtc);
 		return;
