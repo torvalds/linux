@@ -6102,7 +6102,10 @@ static void atomic_switch_perf_msrs(struct vcpu_vmx *vmx)
 static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u16 _ds, _es;
 
+	savesegment(ds, _ds);
+	savesegment(es, _es);
 	if (is_guest_mode(vcpu) && !vmx->nested.nested_run_pending) {
 		struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 		if (vmcs12->idt_vectoring_info_field &
@@ -6263,7 +6266,8 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		}
 	}
 
-	asm("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
+	loadsegment(ds, _ds);
+	loadsegment(es, _es);
 	vmx->loaded_vmcs->launched = 1;
 
 	vmx->exit_reason = vmcs_read32(VM_EXIT_REASON);
