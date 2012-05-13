@@ -531,38 +531,6 @@ extern void tsunami_flush_tlb_range(struct vm_area_struct *vma, unsigned long st
 extern void tsunami_flush_tlb_page(struct vm_area_struct *vma, unsigned long page);
 extern void tsunami_setup_blockops(void);
 
-/*
- * Workaround, until we find what's going on with Swift. When low on memory,
- * it sometimes loops in fault/handle_mm_fault incl. flush_tlb_page to find
- * out it is already in page tables/ fault again on the same instruction.
- * I really don't understand it, have checked it and contexts
- * are right, flush_tlb_all is done as well, and it faults again...
- * Strange. -jj
- *
- * The following code is a deadwood that may be necessary when
- * we start to make precise page flushes again. --zaitcev
- */
-static void swift_update_mmu_cache(struct vm_area_struct * vma, unsigned long address, pte_t *ptep)
-{
-#if 0
-	static unsigned long last;
-	unsigned int val;
-	/* unsigned int n; */
-
-	if (address == last) {
-		val = srmmu_hwprobe(address);
-		if (val != 0 && pte_val(*ptep) != val) {
-			printk("swift_update_mmu_cache: "
-			    "addr %lx put %08x probed %08x from %pf\n",
-			    address, pte_val(*ptep), val,
-			    __builtin_return_address(0));
-			srmmu_flush_whole_tlb();
-		}
-	}
-	last = address;
-#endif
-}
-
 /* swift.S */
 extern void swift_flush_cache_all(void);
 extern void swift_flush_cache_mm(struct mm_struct *mm);
@@ -1218,10 +1186,6 @@ void mmu_info(struct seq_file *m)
 		   srmmu_nocache_map.used << SRMMU_NOCACHE_BITMAP_SHIFT);
 }
 
-static void srmmu_update_mmu_cache(struct vm_area_struct * vma, unsigned long address, pte_t pte)
-{
-}
-
 void destroy_context(struct mm_struct *mm)
 {
 
@@ -1521,8 +1485,6 @@ static void __init init_swift(void)
 	BTFIXUPSET_CALL(__flush_page_to_ram, swift_flush_page_to_ram, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_sig_insns, swift_flush_sig_insns, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_page_for_dma, swift_flush_page_for_dma, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(update_mmu_cache, swift_update_mmu_cache, BTFIXUPCALL_NORM);
 
 	flush_page_for_dma_global = 0;
 
@@ -1982,8 +1944,6 @@ void __init load_mmu(void)
 	extern void ld_mmu_iounit(void);
 
 	/* Functions */
-	BTFIXUPSET_CALL(update_mmu_cache, srmmu_update_mmu_cache, BTFIXUPCALL_NOP);
-
 	get_srmmu_type();
 
 #ifdef CONFIG_SMP

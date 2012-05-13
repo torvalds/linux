@@ -356,9 +356,7 @@ void mmu_info(struct seq_file *m);
 #define FAULT_CODE_WRITE    0x2
 #define FAULT_CODE_USER     0x4
 
-BTFIXUPDEF_CALL(void, update_mmu_cache, struct vm_area_struct *, unsigned long, pte_t *)
-
-#define update_mmu_cache(vma,addr,ptep) BTFIXUP_CALL(update_mmu_cache)(vma,addr,ptep)
+#define update_mmu_cache(vma, address, ptep) do { } while (0)
 
 void srmmu_mapiorange(unsigned int bus, unsigned long xpa,
                       unsigned long xva, unsigned int len);
