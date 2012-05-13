@@ -1989,6 +1989,7 @@ int stmmac_suspend(struct net_device *ndev)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	int dis_ic = 0;
+	unsigned long flags;
 
 	if (!ndev || !netif_running(ndev))
 		return 0;
@@ -1996,7 +1997,7 @@ int stmmac_suspend(struct net_device *ndev)
 	if (priv->phydev)
 		phy_stop(priv->phydev);
 
-	spin_lock(&priv->lock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	netif_device_detach(ndev);
 	netif_stop_queue(ndev);
@@ -2024,18 +2025,19 @@ int stmmac_suspend(struct net_device *ndev)
 		/* Disable clock in case of PWM is off */
 		stmmac_clk_disable(priv);
 	}
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
 }
 
 int stmmac_resume(struct net_device *ndev)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
+	unsigned long flags;
 
 	if (!netif_running(ndev))
 		return 0;
 
-	spin_lock(&priv->lock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Power Down bit, into the PM register, is cleared
 	 * automatically as soon as a magic packet or a Wake-up frame
@@ -2063,7 +2065,7 @@ int stmmac_resume(struct net_device *ndev)
 
 	netif_start_queue(ndev);
 
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (priv->phydev)
 		phy_start(priv->phydev);
