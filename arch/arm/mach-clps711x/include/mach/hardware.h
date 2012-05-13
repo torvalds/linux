@@ -61,31 +61,10 @@
 #define CS7_PHYS_BASE		(0x00000000)
 #endif
 
-#if defined (CONFIG_ARCH_EP7211)
-
-#include <asm/hardware/ep7211.h>
-
-#elif defined (CONFIG_ARCH_EP7212)
-
-#include <asm/hardware/ep7212.h>
-
-#endif
-
 #define SYSPLD_VIRT_BASE	0xfe000000
 #define SYSPLD_BASE		SYSPLD_VIRT_BASE
 
-#if  defined (CONFIG_ARCH_AUTCPU12)
-
-#include <asm/hardware/ep7212.h>
-#include <asm/hardware/cs89712.h>
-
-#endif
-
-
 #if defined (CONFIG_ARCH_CDB89712)
-
-#include <asm/hardware/ep7212.h>
-#include <asm/hardware/cs89712.h>
 
 #define ETHER_START      0x20000000
 #define ETHER_SIZE       0x1000
@@ -148,8 +127,6 @@
 
 
 #if defined (CONFIG_ARCH_CEIVA)
-
-#include <asm/hardware/ep7212.h>
 
 /*
  * The two flash banks are wired to chip selects 0 and 1. This is the mapping
