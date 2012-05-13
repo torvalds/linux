@@ -697,6 +697,11 @@ static bool radeon_switcheroo_can_switch(struct pci_dev *pdev)
 	return can_switch;
 }
 
+static const struct vga_switcheroo_client_ops radeon_switcheroo_ops = {
+	.set_gpu_state = radeon_switcheroo_set_state,
+	.reprobe = NULL,
+	.can_switch = radeon_switcheroo_can_switch,
+};
 
 int radeon_device_init(struct radeon_device *rdev,
 		       struct drm_device *ddev,
@@ -809,10 +814,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* this will fail for cards that aren't VGA class devices, just
 	 * ignore it */
 	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
-	vga_switcheroo_register_client(rdev->pdev,
-				       radeon_switcheroo_set_state,
-				       NULL,
-				       radeon_switcheroo_can_switch);
+	vga_switcheroo_register_client(rdev->pdev, &radeon_switcheroo_ops);
 
 	r = radeon_init(rdev);
 	if (r)
