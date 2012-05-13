@@ -1727,8 +1727,7 @@ int bitmap_create(struct mddev *mddev)
 	bitmap->chunkshift = (ffz(~mddev->bitmap_info.chunksize)
 			      - BITMAP_BLOCK_SHIFT);
 
-	/* now that chunksize and chunkshift are set, we can use these macros */
-	chunks = (blocks + bitmap->chunkshift - 1) >>
+	chunks = (blocks + (1 << bitmap->chunkshift) - 1) >>
 			bitmap->chunkshift;
 	pages = (chunks + PAGE_COUNTER_RATIO - 1) / PAGE_COUNTER_RATIO;
 
