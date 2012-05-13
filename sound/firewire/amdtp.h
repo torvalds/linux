@@ -68,6 +68,7 @@ struct amdtp_out_stream {
 
 	unsigned int pcm_buffer_pointer;
 	unsigned int pcm_period_pointer;
+	bool pointer_flush;
 };
 
 int amdtp_out_stream_init(struct amdtp_out_stream *s, struct fw_unit *unit,

@@ -178,6 +178,7 @@ void amdtp_out_stream_pcm_prepare(struct amdtp_out_stream *s)
 	tasklet_kill(&s->period_tasklet);
 	s->pcm_buffer_pointer = 0;
 	s->pcm_period_pointer = 0;
+	s->pointer_flush = true;
 }
 EXPORT_SYMBOL(amdtp_out_stream_pcm_prepare);
 
@@ -393,6 +394,7 @@ static void queue_out_packet(struct amdtp_out_stream *s, unsigned int cycle)
 		s->pcm_period_pointer += data_blocks;
 		if (s->pcm_period_pointer >= pcm->runtime->period_size) {
 			s->pcm_period_pointer -= pcm->runtime->period_size;
+			s->pointer_flush = false;
 			tasklet_hi_schedule(&s->period_tasklet);
 		}
 	}
@@ -539,7 +541,11 @@ EXPORT_SYMBOL(amdtp_out_stream_start);
  */
 unsigned long amdtp_out_stream_pcm_pointer(struct amdtp_out_stream *s)
 {
-	fw_iso_context_flush_completions(s->context);
+	/* this optimization is allowed to be racy */
+	if (s->pointer_flush)
+		fw_iso_context_flush_completions(s->context);
+	else
+		s->pointer_flush = true;
 
 	return ACCESS_ONCE(s->pcm_buffer_pointer);
 }
