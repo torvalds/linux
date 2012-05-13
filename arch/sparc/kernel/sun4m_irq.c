@@ -287,11 +287,6 @@ static void sun4m_send_ipi(int cpu, int level)
 {
 	sbus_writel(SUN4M_SOFT_INT(level), &sun4m_irq_percpu[cpu]->set);
 }
-
-static void sun4m_clear_ipi(int cpu, int level)
-{
-	sbus_writel(SUN4M_SOFT_INT(level), &sun4m_irq_percpu[cpu]->clear);
-}
 #endif
 
 struct sun4m_timer_percpu {
@@ -486,7 +481,6 @@ void __init sun4m_init_IRQ(void)
 
 #ifdef CONFIG_SMP
 	BTFIXUPSET_CALL(set_cpu_int, sun4m_send_ipi, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(clear_cpu_int, sun4m_clear_ipi, BTFIXUPCALL_NORM);
 #endif
 
 	/* Cannot enable interrupts until OBP ticker is disabled. */

@@ -505,13 +505,6 @@ void leon_set_cpu_int(int cpu, int level)
 	LEON3_BYPASS_STORE_PA(&leon3_irqctrl_regs->force[cpu], mask);
 }
 
-static void leon_clear_ipi(int cpu, int level)
-{
-	unsigned long mask;
-	mask = get_irqmask(level);
-	LEON3_BYPASS_STORE_PA(&leon3_irqctrl_regs->force[cpu], mask<<16);
-}
-
 void leon_clear_profile_irq(int cpu)
 {
 }
@@ -541,7 +534,6 @@ void __init leon_init_IRQ(void)
 
 #ifdef CONFIG_SMP
 	BTFIXUPSET_CALL(set_cpu_int, leon_set_cpu_int, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(clear_cpu_int, leon_clear_ipi, BTFIXUPCALL_NORM);
 #endif
 
 }

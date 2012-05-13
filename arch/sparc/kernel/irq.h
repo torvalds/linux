@@ -98,10 +98,8 @@ static inline void load_profile_irq(int cpu, int limit)
 
 #ifdef CONFIG_SMP
 BTFIXUPDEF_CALL(void, set_cpu_int, int, int)
-BTFIXUPDEF_CALL(void, clear_cpu_int, int, int)
 
 #define set_cpu_int(cpu,level) BTFIXUP_CALL(set_cpu_int)(cpu,level)
-#define clear_cpu_int(cpu,level) BTFIXUP_CALL(clear_cpu_int)(cpu,level)
 
 /* All SUN4D IPIs are sent on this IRQ, may be shared with hard IRQs */
 #define SUN4D_IPI_IRQ 13

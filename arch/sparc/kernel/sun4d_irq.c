@@ -248,10 +248,6 @@ static void sun4d_set_cpu_int(int cpu, int level)
 	sun4d_send_ipi(cpu, level);
 }
 
-static void sun4d_clear_ipi(int cpu, int level)
-{
-}
-
 /* Setup IRQ distribution scheme. */
 void __init sun4d_distribute_irqs(void)
 {
@@ -523,7 +519,6 @@ void __init sun4d_init_IRQ(void)
 
 #ifdef CONFIG_SMP
 	BTFIXUPSET_CALL(set_cpu_int, sun4d_set_cpu_int, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(clear_cpu_int, sun4d_clear_ipi, BTFIXUPCALL_NOP);
 #endif
 	/* Cannot enable interrupts until OBP ticker is disabled. */
 }
