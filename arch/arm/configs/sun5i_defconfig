@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.8 Kernel Configuration
+# Linux/arm 3.0.31 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_CHIP_ID=1125
@@ -532,6 +532,7 @@ CONFIG_EXTRA_FIRMWARE=""
 # CONFIG_DEBUG_DRIVER is not set
 # CONFIG_DEBUG_DEVRES is not set
 # CONFIG_SYS_HYPERVISOR is not set
+# CONFIG_SYNC is not set
 CONFIG_CONNECTOR=y
 CONFIG_PROC_EVENTS=y
 # CONFIG_MTD is not set
@@ -1261,7 +1262,12 @@ CONFIG_USB_GADGET=y
 # CONFIG_USB_GADGET_DEBUG_FS is not set
 CONFIG_USB_GADGET_VBUS_DRAW=2
 CONFIG_USB_GADGET_SELECTED=y
+# CONFIG_USB_GADGET_FUSB300 is not set
+# CONFIG_USB_GADGET_R8A66597 is not set
+# CONFIG_USB_GADGET_PXA_U2O is not set
+# CONFIG_USB_GADGET_M66592 is not set
 CONFIG_USB_SW_SUN5I_UDC0=y
+# CONFIG_USB_GADGET_DUMMY_HCD is not set
 CONFIG_USB_GADGET_DUALSPEED=y
 # CONFIG_USB_ZERO is not set
 # CONFIG_USB_AUDIO is not set
