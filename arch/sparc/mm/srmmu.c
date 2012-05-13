@@ -109,10 +109,6 @@ void *srmmu_nocache_pool;
 void *srmmu_nocache_bitmap;
 static struct bit_map srmmu_nocache_map;
 
-static inline unsigned long srmmu_pgd_page(pgd_t pgd)
-{ return srmmu_device_memory(pgd_val(pgd))?~0:(unsigned long)__nocache_va((pgd_val(pgd) & SRMMU_PTD_PMASK) << 4); }
-
-
 static inline int srmmu_pte_none(pte_t pte)
 { return !(pte_val(pte) & 0xFFFFFFF); }
 
@@ -163,38 +159,14 @@ static inline pte_t srmmu_pte_modify(pte_t pte, pgprot_t newprot)
 static inline pgd_t *srmmu_pgd_offset(struct mm_struct * mm, unsigned long address)
 { return mm->pgd + (address >> SRMMU_PGDIR_SHIFT); }
 
-/* Find an entry in the second-level page table.. */
-static inline pmd_t *srmmu_pmd_offset(pgd_t * dir, unsigned long address)
-{
-	return (pmd_t *) srmmu_pgd_page(*dir) +
-	    ((address >> PMD_SHIFT) & (PTRS_PER_PMD - 1));
-}
-
 /* Find an entry in the third-level page table.. */ 
-static inline pte_t *srmmu_pte_offset(pmd_t * dir, unsigned long address)
+pte_t *pte_offset_kernel(pmd_t * dir, unsigned long address)
 {
 	void *pte;
 
 	pte = __nocache_va((dir->pmdv[0] & SRMMU_PTD_PMASK) << 4);
 	return (pte_t *) pte +
 	    ((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1));
-}
-
-static unsigned long srmmu_swp_type(swp_entry_t entry)
-{
-	return (entry.val >> SRMMU_SWP_TYPE_SHIFT) & SRMMU_SWP_TYPE_MASK;
-}
-
-static unsigned long srmmu_swp_offset(swp_entry_t entry)
-{
-	return (entry.val >> SRMMU_SWP_OFF_SHIFT) & SRMMU_SWP_OFF_MASK;
-}
-
-static swp_entry_t srmmu_swp_entry(unsigned long type, unsigned long offset)
-{
-	return (swp_entry_t) {
-		  (type & SRMMU_SWP_TYPE_MASK) << SRMMU_SWP_TYPE_SHIFT
-		| (offset & SRMMU_SWP_OFF_MASK) << SRMMU_SWP_OFF_SHIFT };
 }
 
 /*
@@ -333,8 +305,8 @@ static void __init srmmu_nocache_init(void)
 
 	while (vaddr < srmmu_nocache_end) {
 		pgd = pgd_offset_k(vaddr);
-		pmd = srmmu_pmd_offset(__nocache_fix(pgd), vaddr);
-		pte = srmmu_pte_offset(__nocache_fix(pmd), vaddr);
+		pmd = pmd_offset(__nocache_fix(pgd), vaddr);
+		pte = pte_offset_kernel(__nocache_fix(pmd), vaddr);
 
 		pteval = ((paddr >> 4) | SRMMU_ET_PTE | SRMMU_PRIV);
 
@@ -467,8 +439,8 @@ static inline void srmmu_mapioaddr(unsigned long physaddr,
 
 	physaddr &= PAGE_MASK;
 	pgdp = pgd_offset_k(virt_addr);
-	pmdp = srmmu_pmd_offset(pgdp, virt_addr);
-	ptep = srmmu_pte_offset(pmdp, virt_addr);
+	pmdp = pmd_offset(pgdp, virt_addr);
+	ptep = pte_offset_kernel(pmdp, virt_addr);
 	tmp = (physaddr >> 4) | SRMMU_ET_PTE;
 
 	/*
@@ -482,8 +454,8 @@ static inline void srmmu_mapioaddr(unsigned long physaddr,
 	set_pte(ptep, __pte(tmp));
 }
 
-static void srmmu_mapiorange(unsigned int bus, unsigned long xpa,
-    unsigned long xva, unsigned int len)
+void srmmu_mapiorange(unsigned int bus, unsigned long xpa,
+		      unsigned long xva, unsigned int len)
 {
 	while (len != 0) {
 		len -= PAGE_SIZE;
@@ -501,14 +473,14 @@ static inline void srmmu_unmapioaddr(unsigned long virt_addr)
 	pte_t *ptep;
 
 	pgdp = pgd_offset_k(virt_addr);
-	pmdp = srmmu_pmd_offset(pgdp, virt_addr);
-	ptep = srmmu_pte_offset(pmdp, virt_addr);
+	pmdp = pmd_offset(pgdp, virt_addr);
+	ptep = pte_offset_kernel(pmdp, virt_addr);
 
 	/* No need to flush uncacheable page. */
 	__pte_clear(ptep);
 }
 
-static void srmmu_unmapiorange(unsigned long virt_addr, unsigned int len)
+void srmmu_unmapiorange(unsigned long virt_addr, unsigned int len)
 {
 	while (len != 0) {
 		len -= PAGE_SIZE;
@@ -949,7 +921,7 @@ static void __init srmmu_early_allocate_ptable_skeleton(unsigned long start,
 			memset(__nocache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
 			pgd_set(__nocache_fix(pgdp), pmdp);
 		}
-		pmdp = srmmu_pmd_offset(__nocache_fix(pgdp), start);
+		pmdp = pmd_offset(__nocache_fix(pgdp), start);
 		if(srmmu_pmd_none(*(pmd_t *)__nocache_fix(pmdp))) {
 			ptep = (pte_t *)__srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
 			if (ptep == NULL)
@@ -979,7 +951,7 @@ static void __init srmmu_allocate_ptable_skeleton(unsigned long start,
 			memset(pmdp, 0, SRMMU_PMD_TABLE_SIZE);
 			pgd_set(pgdp, pmdp);
 		}
-		pmdp = srmmu_pmd_offset(pgdp, start);
+		pmdp = pmd_offset(pgdp, start);
 		if(srmmu_pmd_none(*pmdp)) {
 			ptep = (pte_t *) __srmmu_get_nocache(PTE_SIZE,
 							     PTE_SIZE);
@@ -1045,7 +1017,7 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 			memset(__nocache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
 			pgd_set(__nocache_fix(pgdp), pmdp);
 		}
-		pmdp = srmmu_pmd_offset(__nocache_fix(pgdp), start);
+		pmdp = pmd_offset(__nocache_fix(pgdp), start);
 		if(srmmu_pmd_none(*(pmd_t *)__nocache_fix(pmdp))) {
 			ptep = (pte_t *) __srmmu_get_nocache(PTE_SIZE,
 							     PTE_SIZE);
@@ -1066,7 +1038,7 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 			start += SRMMU_REAL_PMD_SIZE;
 			continue;
 		}
-		ptep = srmmu_pte_offset(__nocache_fix(pmdp), start);
+		ptep = pte_offset_kernel(__nocache_fix(pmdp), start);
 		*(pte_t *)__nocache_fix(ptep) = __pte(prompte);
 		start += PAGE_SIZE;
 	}
@@ -1200,8 +1172,8 @@ void __init srmmu_paging_init(void)
 	srmmu_allocate_ptable_skeleton(PKMAP_BASE, PKMAP_END);
 
 	pgd = pgd_offset_k(PKMAP_BASE);
-	pmd = srmmu_pmd_offset(pgd, PKMAP_BASE);
-	pte = srmmu_pte_offset(pmd, PKMAP_BASE);
+	pmd = pmd_offset(pgd, PKMAP_BASE);
+	pte = pte_offset_kernel(pmd, PKMAP_BASE);
 	pkmap_page_table = pte;
 
 	flush_cache_all();
@@ -1233,7 +1205,7 @@ void __init srmmu_paging_init(void)
 	}
 }
 
-static void srmmu_mmu_info(struct seq_file *m)
+void mmu_info(struct seq_file *m)
 {
 	seq_printf(m, 
 		   "MMU type\t: %s\n"
@@ -2015,23 +1987,8 @@ void __init load_mmu(void)
 	BTFIXUPSET_CALL(___xchg32, ___xchg32_sun4md, BTFIXUPCALL_SWAPG1G2);
 #endif
 
-	BTFIXUPSET_CALL(pgd_page_vaddr, srmmu_pgd_page, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_INT(pte_modify_mask, SRMMU_CHG_MASK);
-	BTFIXUPSET_CALL(pmd_offset, srmmu_pmd_offset, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pte_offset_kernel, srmmu_pte_offset, BTFIXUPCALL_NORM);
-
 	BTFIXUPSET_CALL(update_mmu_cache, srmmu_update_mmu_cache, BTFIXUPCALL_NOP);
 	BTFIXUPSET_CALL(destroy_context, srmmu_destroy_context, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(sparc_mapiorange, srmmu_mapiorange, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(sparc_unmapiorange, srmmu_unmapiorange, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(__swp_type, srmmu_swp_type, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(__swp_offset, srmmu_swp_offset, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(__swp_entry, srmmu_swp_entry, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(mmu_info, srmmu_mmu_info, BTFIXUPCALL_NORM);
 
 	get_srmmu_type();
 

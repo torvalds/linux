@@ -229,7 +229,7 @@ _sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz)
 	}
 
 	pa &= PAGE_MASK;
-	sparc_mapiorange(bus, pa, res->start, resource_size(res));
+	srmmu_mapiorange(bus, pa, res->start, resource_size(res));
 
 	return (void __iomem *)(unsigned long)(res->start + offset);
 }
@@ -243,7 +243,7 @@ static void _sparc_free_io(struct resource *res)
 
 	plen = resource_size(res);
 	BUG_ON((plen & (PAGE_SIZE-1)) != 0);
-	sparc_unmapiorange(res->start, plen);
+	srmmu_unmapiorange(res->start, plen);
 	release_resource(res);
 }
 
@@ -293,7 +293,7 @@ static void *sbus_alloc_coherent(struct device *dev, size_t len,
 	}
 
 	// XXX The mmu_map_dma_area does this for us below, see comments.
-	// sparc_mapiorange(0, virt_to_phys(va), res->start, len_total);
+	// srmmu_mapiorange(0, virt_to_phys(va), res->start, len_total);
 	/*
 	 * XXX That's where sdev would be used. Currently we load
 	 * all iommu tables with the same translations.
@@ -464,7 +464,7 @@ static void *pci32_alloc_coherent(struct device *dev, size_t len,
 		printk("pci_alloc_consistent: cannot occupy 0x%lx", len_total);
 		goto err_nova;
 	}
-	sparc_mapiorange(0, virt_to_phys(va), res->start, len_total);
+	srmmu_mapiorange(0, virt_to_phys(va), res->start, len_total);
 
 	*pba = virt_to_phys(va); /* equals virt_to_bus (R.I.P.) for us. */
 	return (void *) res->start;
@@ -509,7 +509,7 @@ static void pci32_free_coherent(struct device *dev, size_t n, void *p,
 	}
 
 	dma_make_coherent(ba, n);
-	sparc_unmapiorange((unsigned long)p, n);
+	srmmu_unmapiorange((unsigned long)p, n);
 
 	release_resource(res);
 	kfree(res);

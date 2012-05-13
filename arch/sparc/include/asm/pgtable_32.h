@@ -17,6 +17,7 @@
 #include <linux/swap.h>
 #include <asm/types.h>
 #include <asm/pgtsrmmu.h>
+#include <asm/vaddrs.h>
 #include <asm/oplib.h>
 #include <asm/btfixup.h>
 #include <asm/cpu_type.h>
@@ -137,9 +138,15 @@ static inline struct page *pmd_page(pmd_t pmd)
 	return pfn_to_page((pmd_val(pmd) & SRMMU_PTD_PMASK) >> (PAGE_SHIFT-4));
 }
 
-BTFIXUPDEF_CALL_CONST(unsigned long, pgd_page_vaddr, pgd_t)
-
-#define pgd_page_vaddr(pgd) BTFIXUP_CALL(pgd_page_vaddr)(pgd)
+static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+{
+	if (srmmu_device_memory(pgd_val(pgd))) {
+		return ~0;
+	} else {
+		unsigned long v = pgd_val(pgd) & SRMMU_PTD_PMASK;
+		return (unsigned long)__nocache_va(v << 4);
+	}
+}
 
 static inline int pte_present(pte_t pte)
 {
@@ -310,12 +317,10 @@ static inline pgprot_t pgprot_noncached(pgprot_t prot)
 	return prot;
 }
 
-BTFIXUPDEF_INT(pte_modify_mask)
-
 static pte_t pte_modify(pte_t pte, pgprot_t newprot) __attribute_const__;
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
-	return __pte((pte_val(pte) & BTFIXUP_INT(pte_modify_mask)) |
+	return __pte((pte_val(pte) & SRMMU_CHG_MASK) |
 		pgprot_val(newprot));
 }
 
@@ -328,12 +333,14 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
 /* Find an entry in the second-level page table.. */
-BTFIXUPDEF_CALL(pmd_t *, pmd_offset, pgd_t *, unsigned long)
-#define pmd_offset(dir,addr) BTFIXUP_CALL(pmd_offset)(dir,addr)
+static inline pmd_t *pmd_offset(pgd_t * dir, unsigned long address)
+{
+	return (pmd_t *) pgd_page_vaddr(*dir) +
+		((address >> PMD_SHIFT) & (PTRS_PER_PMD - 1));
+}
 
 /* Find an entry in the third-level page table.. */
-BTFIXUPDEF_CALL(pte_t *, pte_offset_kernel, pmd_t *, unsigned long)
-#define pte_offset_kernel(dir,addr) BTFIXUP_CALL(pte_offset_kernel)(dir,addr)
+pte_t *pte_offset_kernel(pmd_t * dir, unsigned long address);
 
 /*
  * This shortcut works on sun4m (and sun4d) because the nocache area is static.
@@ -342,9 +349,7 @@ BTFIXUPDEF_CALL(pte_t *, pte_offset_kernel, pmd_t *, unsigned long)
 #define pte_unmap(pte)		do{}while(0)
 
 struct seq_file;
-BTFIXUPDEF_CALL(void, mmu_info, struct seq_file *)
-
-#define mmu_info(p) BTFIXUP_CALL(mmu_info)(p)
+void mmu_info(struct seq_file *m);
 
 /* Fault handler stuff... */
 #define FAULT_CODE_PROT     0x1
@@ -355,22 +360,29 @@ BTFIXUPDEF_CALL(void, update_mmu_cache, struct vm_area_struct *, unsigned long, 
 
 #define update_mmu_cache(vma,addr,ptep) BTFIXUP_CALL(update_mmu_cache)(vma,addr,ptep)
 
-BTFIXUPDEF_CALL(void, sparc_mapiorange, unsigned int, unsigned long,
-    unsigned long, unsigned int)
-BTFIXUPDEF_CALL(void, sparc_unmapiorange, unsigned long, unsigned int)
-#define sparc_mapiorange(bus,pa,va,len) BTFIXUP_CALL(sparc_mapiorange)(bus,pa,va,len)
-#define sparc_unmapiorange(va,len) BTFIXUP_CALL(sparc_unmapiorange)(va,len)
+void srmmu_mapiorange(unsigned int bus, unsigned long xpa,
+                      unsigned long xva, unsigned int len);
+void srmmu_unmapiorange(unsigned long virt_addr, unsigned int len);
 
 extern int invalid_segment;
 
 /* Encode and de-code a swap entry */
-BTFIXUPDEF_CALL(unsigned long, __swp_type, swp_entry_t)
-BTFIXUPDEF_CALL(unsigned long, __swp_offset, swp_entry_t)
-BTFIXUPDEF_CALL(swp_entry_t, __swp_entry, unsigned long, unsigned long)
+static inline unsigned long __swp_type(swp_entry_t entry)
+{
+	return (entry.val >> SRMMU_SWP_TYPE_SHIFT) & SRMMU_SWP_TYPE_MASK;
+}
 
-#define __swp_type(__x)			BTFIXUP_CALL(__swp_type)(__x)
-#define __swp_offset(__x)		BTFIXUP_CALL(__swp_offset)(__x)
-#define __swp_entry(__type,__off)	BTFIXUP_CALL(__swp_entry)(__type,__off)
+static inline unsigned long __swp_offset(swp_entry_t entry)
+{
+	return (entry.val >> SRMMU_SWP_OFF_SHIFT) & SRMMU_SWP_OFF_MASK;
+}
+
+static inline swp_entry_t __swp_entry(unsigned long type, unsigned long offset)
+{
+	return (swp_entry_t) {
+		(type & SRMMU_SWP_TYPE_MASK) << SRMMU_SWP_TYPE_SHIFT
+		| (offset & SRMMU_SWP_OFF_MASK) << SRMMU_SWP_OFF_SHIFT };
+}
 
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
