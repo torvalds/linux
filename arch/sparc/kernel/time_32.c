@@ -68,7 +68,6 @@ static int set_rtc_mmss(unsigned long);
 unsigned long profile_pc(struct pt_regs *regs)
 {
 	extern char __copy_user_begin[], __copy_user_end[];
-	extern char __atomic_begin[], __atomic_end[];
 	extern char __bzero_begin[], __bzero_end[];
 
 	unsigned long pc = regs->pc;
@@ -76,8 +75,6 @@ unsigned long profile_pc(struct pt_regs *regs)
 	if (in_lock_functions(pc) ||
 	    (pc >= (unsigned long) __copy_user_begin &&
 	     pc < (unsigned long) __copy_user_end) ||
-	    (pc >= (unsigned long) __atomic_begin &&
-	     pc < (unsigned long) __atomic_end) ||
 	    (pc >= (unsigned long) __bzero_begin &&
 	     pc < (unsigned long) __bzero_end))
 		pc = regs->u_regs[UREG_RETPC];

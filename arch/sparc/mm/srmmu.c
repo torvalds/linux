@@ -1980,13 +1980,8 @@ void __init load_mmu(void)
 {
 	extern void ld_mmu_iommu(void);
 	extern void ld_mmu_iounit(void);
-	extern void ___xchg32_sun4md(void);
 
 	/* Functions */
-#ifndef CONFIG_SMP	
-	BTFIXUPSET_CALL(___xchg32, ___xchg32_sun4md, BTFIXUPCALL_SWAPG1G2);
-#endif
-
 	BTFIXUPSET_CALL(update_mmu_cache, srmmu_update_mmu_cache, BTFIXUPCALL_NOP);
 
 	get_srmmu_type();

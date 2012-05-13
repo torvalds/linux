@@ -29,9 +29,7 @@ EXPORT_SYMBOL(__ret_efault);
 EXPORT_SYMBOL(empty_zero_page);
 
 /* Defined using magic */
-#ifndef CONFIG_SMP
-EXPORT_SYMBOL(BTFIXUP_CALL(___xchg32));
-#else
+#ifdef CONFIG_SMP
 EXPORT_SYMBOL(BTFIXUP_CALL(__hard_smp_processor_id));
 #endif
 EXPORT_SYMBOL(BTFIXUP_CALL(mmu_unlockarea));
