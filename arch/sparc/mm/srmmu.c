@@ -132,10 +132,7 @@ static inline pte_t srmmu_pte_mkold(pte_t pte)
 static inline void srmmu_ctxd_set(ctxd_t *ctxp, pgd_t *pgdp)
 { set_pte((pte_t *)ctxp, (SRMMU_ET_PTD | (__nocache_pa((unsigned long) pgdp) >> 4))); }
 
-static inline void srmmu_pgd_set(pgd_t * pgdp, pmd_t * pmdp)
-{ set_pte((pte_t *)pgdp, (SRMMU_ET_PTD | (__nocache_pa((unsigned long) pmdp) >> 4))); }
-
-static void srmmu_pmd_set(pmd_t *pmdp, pte_t *ptep)
+void pmd_set(pmd_t *pmdp, pte_t *ptep)
 {
 	unsigned long ptp;	/* Physical address, shifted right by 4 */
 	int i;
@@ -147,7 +144,7 @@ static void srmmu_pmd_set(pmd_t *pmdp, pte_t *ptep)
 	}
 }
 
-static void srmmu_pmd_populate(pmd_t *pmdp, struct page *ptep)
+void pmd_populate(struct mm_struct *mm, pmd_t *pmdp, struct page *ptep)
 {
 	unsigned long ptp;	/* Physical address, shifted right by 4 */
 	int i;
@@ -232,7 +229,7 @@ static unsigned long __srmmu_get_nocache(int size, int align)
 	return (SRMMU_NOCACHE_VADDR + (offset << SRMMU_NOCACHE_BITMAP_SHIFT));
 }
 
-static unsigned long srmmu_get_nocache(int size, int align)
+unsigned long srmmu_get_nocache(int size, int align)
 {
 	unsigned long tmp;
 
@@ -244,7 +241,7 @@ static unsigned long srmmu_get_nocache(int size, int align)
 	return tmp;
 }
 
-static void srmmu_free_nocache(unsigned long vaddr, int size)
+void srmmu_free_nocache(unsigned long vaddr, int size)
 {
 	int offset;
 
@@ -354,7 +351,7 @@ static void __init srmmu_nocache_init(void)
 	flush_tlb_all();
 }
 
-static inline pgd_t *srmmu_get_pgd_fast(void)
+pgd_t *get_pgd_fast(void)
 {
 	pgd_t *pgd = NULL;
 
@@ -369,21 +366,6 @@ static inline pgd_t *srmmu_get_pgd_fast(void)
 	return pgd;
 }
 
-static void srmmu_free_pgd_fast(pgd_t *pgd)
-{
-	srmmu_free_nocache((unsigned long)pgd, SRMMU_PGD_TABLE_SIZE);
-}
-
-static pmd_t *srmmu_pmd_alloc_one(struct mm_struct *mm, unsigned long address)
-{
-	return (pmd_t *)srmmu_get_nocache(SRMMU_PMD_TABLE_SIZE, SRMMU_PMD_TABLE_SIZE);
-}
-
-static void srmmu_pmd_free(pmd_t * pmd)
-{
-	srmmu_free_nocache((unsigned long)pmd, SRMMU_PMD_TABLE_SIZE);
-}
-
 /*
  * Hardware needs alignment to 256 only, but we align to whole page size
  * to reduce fragmentation problems due to the buddy principle.
@@ -392,31 +374,19 @@ static void srmmu_pmd_free(pmd_t * pmd)
  * Alignments up to the page size are the same for physical and virtual
  * addresses of the nocache area.
  */
-static pte_t *
-srmmu_pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
-{
-	return (pte_t *)srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
-}
-
-static pgtable_t
-srmmu_pte_alloc_one(struct mm_struct *mm, unsigned long address)
+pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	unsigned long pte;
 	struct page *page;
 
-	if ((pte = (unsigned long)srmmu_pte_alloc_one_kernel(mm, address)) == 0)
+	if ((pte = (unsigned long)pte_alloc_one_kernel(mm, address)) == 0)
 		return NULL;
 	page = pfn_to_page( __nocache_pa(pte) >> PAGE_SHIFT );
 	pgtable_page_ctor(page);
 	return page;
 }
 
-static void srmmu_free_pte_fast(pte_t *pte)
-{
-	srmmu_free_nocache((unsigned long)pte, PTE_SIZE);
-}
-
-static void srmmu_pte_free(pgtable_t pte)
+void pte_free(struct mm_struct *mm, pgtable_t pte)
 {
 	unsigned long p;
 
@@ -977,7 +947,7 @@ static void __init srmmu_early_allocate_ptable_skeleton(unsigned long start,
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
 			memset(__nocache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
-			srmmu_pgd_set(__nocache_fix(pgdp), pmdp);
+			pgd_set(__nocache_fix(pgdp), pmdp);
 		}
 		pmdp = srmmu_pmd_offset(__nocache_fix(pgdp), start);
 		if(srmmu_pmd_none(*(pmd_t *)__nocache_fix(pmdp))) {
@@ -985,7 +955,7 @@ static void __init srmmu_early_allocate_ptable_skeleton(unsigned long start,
 			if (ptep == NULL)
 				early_pgtable_allocfail("pte");
 			memset(__nocache_fix(ptep), 0, PTE_SIZE);
-			srmmu_pmd_set(__nocache_fix(pmdp), ptep);
+			pmd_set(__nocache_fix(pmdp), ptep);
 		}
 		if (start > (0xffffffffUL - PMD_SIZE))
 			break;
@@ -1007,7 +977,7 @@ static void __init srmmu_allocate_ptable_skeleton(unsigned long start,
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
 			memset(pmdp, 0, SRMMU_PMD_TABLE_SIZE);
-			srmmu_pgd_set(pgdp, pmdp);
+			pgd_set(pgdp, pmdp);
 		}
 		pmdp = srmmu_pmd_offset(pgdp, start);
 		if(srmmu_pmd_none(*pmdp)) {
@@ -1016,7 +986,7 @@ static void __init srmmu_allocate_ptable_skeleton(unsigned long start,
 			if (ptep == NULL)
 				early_pgtable_allocfail("pte");
 			memset(ptep, 0, PTE_SIZE);
-			srmmu_pmd_set(pmdp, ptep);
+			pmd_set(pmdp, ptep);
 		}
 		if (start > (0xffffffffUL - PMD_SIZE))
 			break;
@@ -1073,7 +1043,7 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
 			memset(__nocache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
-			srmmu_pgd_set(__nocache_fix(pgdp), pmdp);
+			pgd_set(__nocache_fix(pgdp), pmdp);
 		}
 		pmdp = srmmu_pmd_offset(__nocache_fix(pgdp), start);
 		if(srmmu_pmd_none(*(pmd_t *)__nocache_fix(pmdp))) {
@@ -1082,7 +1052,7 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 			if (ptep == NULL)
 				early_pgtable_allocfail("pte");
 			memset(__nocache_fix(ptep), 0, PTE_SIZE);
-			srmmu_pmd_set(__nocache_fix(pmdp), ptep);
+			pmd_set(__nocache_fix(pmdp), ptep);
 		}
 		if(what == 1) {
 			/*
@@ -2047,22 +2017,9 @@ void __init load_mmu(void)
 
 	BTFIXUPSET_CALL(pgd_page_vaddr, srmmu_pgd_page, BTFIXUPCALL_NORM);
 
-	BTFIXUPSET_CALL(pgd_set, srmmu_pgd_set, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pmd_set, srmmu_pmd_set, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pmd_populate, srmmu_pmd_populate, BTFIXUPCALL_NORM);
-	
 	BTFIXUPSET_INT(pte_modify_mask, SRMMU_CHG_MASK);
 	BTFIXUPSET_CALL(pmd_offset, srmmu_pmd_offset, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pte_offset_kernel, srmmu_pte_offset, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(free_pte_fast, srmmu_free_pte_fast, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pte_free, srmmu_pte_free, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pte_alloc_one_kernel, srmmu_pte_alloc_one_kernel, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pte_alloc_one, srmmu_pte_alloc_one, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(free_pmd_fast, srmmu_pmd_free, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pmd_alloc_one, srmmu_pmd_alloc_one, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(free_pgd_fast, srmmu_free_pgd_fast, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(get_pgd_fast, srmmu_get_pgd_fast, BTFIXUPCALL_NORM);
 
 	BTFIXUPSET_CALL(update_mmu_cache, srmmu_update_mmu_cache, BTFIXUPCALL_NOP);
 	BTFIXUPSET_CALL(destroy_context, srmmu_destroy_context, BTFIXUPCALL_NORM);
