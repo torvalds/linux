@@ -3160,8 +3160,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 			goto scrub;
 
 		/* Enable supply if rail is enabled */
-		if (rdev->desc->ops->is_enabled &&
-				rdev->desc->ops->is_enabled(rdev)) {
+		if (_regulator_is_enabled(rdev)) {
 			ret = regulator_enable(rdev->supply);
 			if (ret < 0)
 				goto scrub;
@@ -3293,7 +3292,7 @@ int regulator_suspend_finish(void)
 				goto unlock;
 			if (!ops->disable)
 				goto unlock;
-			if (ops->is_enabled && !ops->is_enabled(rdev))
+			if (!_regulator_is_enabled(rdev))
 				goto unlock;
 
 			error = ops->disable(rdev);
