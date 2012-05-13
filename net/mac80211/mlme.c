@@ -1567,9 +1567,9 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	if (beacon && net_ratelimit())
-		printk(KERN_DEBUG "%s: detected beacon loss from AP "
-		       "- sending probe request\n", sdata->name);
+	if (beacon)
+		net_dbg_ratelimited("%s: detected beacon loss from AP - sending probe request\n",
+				    sdata->name);
 #endif
 
 	/*
@@ -2404,10 +2404,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	if (ifmgd->flags & IEEE80211_STA_BEACON_POLL) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: cancelling probereq poll due "
-			       "to a received beacon\n", sdata->name);
-		}
+		net_dbg_ratelimited("%s: cancelling probereq poll due to a received beacon\n",
+				    sdata->name);
 #endif
 		ifmgd->flags &= ~IEEE80211_STA_BEACON_POLL;
 		mutex_lock(&local->iflist_mtx);

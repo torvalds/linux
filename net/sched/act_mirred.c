@@ -174,9 +174,8 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 	}
 
 	if (!(dev->flags & IFF_UP)) {
-		if (net_ratelimit())
-			pr_notice("tc mirred to Houston: device %s is down\n",
-				  dev->name);
+		net_notice_ratelimited("tc mirred to Houston: device %s is down\n",
+				       dev->name);
 		goto out;
 	}
 

@@ -221,9 +221,8 @@ static inline int arp_checkentry(const struct arpt_arp *arp)
 static unsigned int
 arpt_error(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	if (net_ratelimit())
-		pr_err("arp_tables: error: '%s'\n",
-		       (const char *)par->targinfo);
+	net_err_ratelimited("arp_tables: error: '%s'\n",
+			    (const char *)par->targinfo);
 
 	return NF_DROP;
 }

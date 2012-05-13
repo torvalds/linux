@@ -1691,12 +1691,10 @@ reclassify:
 		tp = otp;
 
 		if (verd++ >= MAX_REC_LOOP) {
-			if (net_ratelimit())
-				pr_notice("%s: packet reclassify loop"
-					  " rule prio %u protocol %02x\n",
-					  tp->q->ops->id,
-					  tp->prio & 0xffff,
-					  ntohs(tp->protocol));
+			net_notice_ratelimited("%s: packet reclassify loop rule prio %u protocol %02x\n",
+					       tp->q->ops->id,
+					       tp->prio & 0xffff,
+					       ntohs(tp->protocol));
 			return TC_ACT_SHOT;
 		}
 		skb->tc_verd = SET_TC_VERD(skb->tc_verd, verd);

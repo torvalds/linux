@@ -444,12 +444,11 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 	return head;
 
 out_oversize:
-	if (net_ratelimit())
-		printk(KERN_DEBUG "nf_ct_frag6_reasm: payload len = %d\n", payload_len);
+	net_dbg_ratelimited("nf_ct_frag6_reasm: payload len = %d\n",
+			    payload_len);
 	goto out_fail;
 out_oom:
-	if (net_ratelimit())
-		printk(KERN_DEBUG "nf_ct_frag6_reasm: no memory for reassembly\n");
+	net_dbg_ratelimited("nf_ct_frag6_reasm: no memory for reassembly\n");
 out_fail:
 	return NULL;
 }

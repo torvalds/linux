@@ -234,8 +234,7 @@ out:
 	return -1;
 
 deadloop:
-	if (net_ratelimit())
-		pr_warning("cls_u32: dead loop\n");
+	net_warn_ratelimited("cls_u32: dead loop\n");
 	return -1;
 }
 

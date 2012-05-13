@@ -1,5 +1,5 @@
 /*
- * net/sched/ipt.c	iptables target interface
+ * net/sched/ipt.c     iptables target interface
  *
  *TODO: Add other tables. For now we only support the ipv4 table targets
  *
@@ -235,9 +235,8 @@ static int tcf_ipt(struct sk_buff *skb, const struct tc_action *a,
 		result = TC_ACT_PIPE;
 		break;
 	default:
-		if (net_ratelimit())
-			pr_notice("tc filter: Bogus netfilter code"
-				  " %d assume ACCEPT\n", ret);
+		net_notice_ratelimited("tc filter: Bogus netfilter code %d assume ACCEPT\n",
+				       ret);
 		result = TC_POLICE_OK;
 		break;
 	}

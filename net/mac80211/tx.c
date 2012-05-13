@@ -413,9 +413,8 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 
 	if (skb_queue_len(&tx->sdata->bss->ps_bc_buf) >= AP_MAX_BC_BUFFER) {
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: BC TX buffer full - dropping the oldest frame\n",
-			       tx->sdata->name);
+		net_dbg_ratelimited("%s: BC TX buffer full - dropping the oldest frame\n",
+				    tx->sdata->name);
 #endif
 		dev_kfree_skb(skb_dequeue(&tx->sdata->bss->ps_bc_buf));
 	} else
@@ -476,10 +475,8 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		if (skb_queue_len(&sta->ps_tx_buf[ac]) >= STA_MAX_TX_BUFFER) {
 			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf[ac]);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-			if (net_ratelimit())
-				printk(KERN_DEBUG "%s: STA %pM TX buffer for "
-				       "AC %d full - dropping oldest frame\n",
-				       tx->sdata->name, sta->sta.addr, ac);
+			net_dbg_ratelimited("%s: STA %pM TX buffer for AC %d full - dropping oldest frame\n",
+					    tx->sdata->name, sta->sta.addr, ac);
 #endif
 			dev_kfree_skb(old);
 		} else
@@ -1965,10 +1962,8 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		     (cpu_to_be16(ethertype) != sdata->control_port_protocol ||
 		      !ether_addr_equal(sdata->vif.addr, skb->data + ETH_ALEN)))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: dropped frame to %pM"
-			       " (unauthorized port)\n", dev->name,
-			       hdr.addr1);
+		net_dbg_ratelimited("%s: dropped frame to %pM (unauthorized port)\n",
+				    dev->name, hdr.addr1);
 #endif
 
 		I802_DEBUG_INC(local->tx_handlers_drop_unauth_port);

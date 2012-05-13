@@ -806,10 +806,9 @@ static int llc_ui_recvmsg(struct kiocb *iocb, struct socket *sock,
 			sk_wait_data(sk, &timeo);
 
 		if ((flags & MSG_PEEK) && peek_seq != llc->copied_seq) {
-			if (net_ratelimit())
-				printk(KERN_DEBUG "LLC(%s:%d): Application "
-						  "bug, race in MSG_PEEK.\n",
-				       current->comm, task_pid_nr(current));
+			net_dbg_ratelimited("LLC(%s:%d): Application bug, race in MSG_PEEK\n",
+					    current->comm,
+					    task_pid_nr(current));
 			peek_seq = llc->copied_seq;
 		}
 		continue;

@@ -748,8 +748,7 @@ static int dn_output(struct sk_buff *skb)
 		       dn_to_neigh_output);
 
 error:
-	if (net_ratelimit())
-		printk(KERN_DEBUG "dn_output: This should not happen\n");
+	net_dbg_ratelimited("dn_output: This should not happen\n");
 
 	kfree_skb(skb);
 
@@ -807,12 +806,10 @@ drop:
  */
 static int dn_rt_bug(struct sk_buff *skb)
 {
-	if (net_ratelimit()) {
-		struct dn_skb_cb *cb = DN_SKB_CB(skb);
+	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 
-		printk(KERN_DEBUG "dn_rt_bug: skb from:%04x to:%04x\n",
-				le16_to_cpu(cb->src), le16_to_cpu(cb->dst));
-	}
+	net_dbg_ratelimited("dn_rt_bug: skb from:%04x to:%04x\n",
+			    le16_to_cpu(cb->src), le16_to_cpu(cb->dst));
 
 	kfree_skb(skb);
 
@@ -1327,9 +1324,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 
 		out_dev = DN_FIB_RES_DEV(res);
 		if (out_dev == NULL) {
-			if (net_ratelimit())
-				printk(KERN_CRIT "Bug in dn_route_input_slow() "
-						 "No output device\n");
+			net_crit_ratelimited("Bug in dn_route_input_slow() No output device\n");
 			goto e_inval;
 		}
 		dev_hold(out_dev);

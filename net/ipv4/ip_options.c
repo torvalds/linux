@@ -578,8 +578,10 @@ void ip_forward_options(struct sk_buff *skb)
 			ip_hdr(skb)->daddr = opt->nexthop;
 			ip_rt_get_source(&optptr[srrptr-1], skb, rt);
 			optptr[2] = srrptr+4;
-		} else if (net_ratelimit())
-			pr_crit("%s(): Argh! Destination lost!\n", __func__);
+		} else {
+			net_crit_ratelimited("%s(): Argh! Destination lost!\n",
+					     __func__);
+		}
 		if (opt->ts_needaddr) {
 			optptr = raw + opt->ts;
 			ip_rt_get_source(&optptr[optptr[2]-9], skb, rt);

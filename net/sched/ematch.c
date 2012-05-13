@@ -537,9 +537,7 @@ pop_stack:
 	return res;
 
 stack_overflow:
-	if (net_ratelimit())
-		pr_warning("tc ematch: local stack overflow,"
-			   " increase NET_EMATCH_STACK\n");
+	net_warn_ratelimited("tc ematch: local stack overflow, increase NET_EMATCH_STACK\n");
 	return -1;
 }
 EXPORT_SYMBOL(__tcf_em_tree_match);

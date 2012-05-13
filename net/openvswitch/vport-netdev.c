@@ -157,9 +157,9 @@ static int netdev_send(struct vport *vport, struct sk_buff *skb)
 	int len;
 
 	if (unlikely(packet_length(skb) > mtu && !skb_is_gso(skb))) {
-		if (net_ratelimit())
-			pr_warn("%s: dropped over-mtu packet: %d > %d\n",
-				ovs_dp_name(vport->dp), packet_length(skb), mtu);
+		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
+				     ovs_dp_name(vport->dp),
+				     packet_length(skb), mtu);
 		goto error;
 	}
 

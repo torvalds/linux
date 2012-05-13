@@ -1673,10 +1673,9 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 
 			if (skb_network_header(skb2) < skb2->data ||
 			    skb2->network_header > skb2->tail) {
-				if (net_ratelimit())
-					pr_crit("protocol %04x is buggy, dev %s\n",
-						ntohs(skb2->protocol),
-						dev->name);
+				net_crit_ratelimited("protocol %04x is buggy, dev %s\n",
+						     ntohs(skb2->protocol),
+						     dev->name);
 				skb_reset_network_header(skb2);
 			}
 
@@ -2343,11 +2342,9 @@ EXPORT_SYMBOL(__skb_tx_hash);
 static inline u16 dev_cap_txqueue(struct net_device *dev, u16 queue_index)
 {
 	if (unlikely(queue_index >= dev->real_num_tx_queues)) {
-		if (net_ratelimit()) {
-			pr_warn("%s selects TX queue %d, but real number of TX queues is %d\n",
-				dev->name, queue_index,
-				dev->real_num_tx_queues);
-		}
+		net_warn_ratelimited("%s selects TX queue %d, but real number of TX queues is %d\n",
+				     dev->name, queue_index,
+				     dev->real_num_tx_queues);
 		return 0;
 	}
 	return queue_index;
@@ -2589,17 +2586,15 @@ int dev_queue_xmit(struct sk_buff *skb)
 				}
 			}
 			HARD_TX_UNLOCK(dev, txq);
-			if (net_ratelimit())
-				pr_crit("Virtual device %s asks to queue packet!\n",
-					dev->name);
+			net_crit_ratelimited("Virtual device %s asks to queue packet!\n",
+					     dev->name);
 		} else {
 			/* Recursion is detected! It is possible,
 			 * unfortunately
 			 */
 recursion_alert:
-			if (net_ratelimit())
-				pr_crit("Dead loop on virtual device %s, fix it urgently!\n",
-					dev->name);
+			net_crit_ratelimited("Dead loop on virtual device %s, fix it urgently!\n",
+					     dev->name);
 		}
 	}
 
@@ -3080,9 +3075,8 @@ static int ing_filter(struct sk_buff *skb, struct netdev_queue *rxq)
 	struct Qdisc *q;
 
 	if (unlikely(MAX_RED_LOOP < ttl++)) {
-		if (net_ratelimit())
-			pr_warn("Redir loop detected Dropping packet (%d->%d)\n",
-				skb->skb_iif, dev->ifindex);
+		net_warn_ratelimited("Redir loop detected Dropping packet (%d->%d)\n",
+				     skb->skb_iif, dev->ifindex);
 		return TC_ACT_SHOT;
 	}
 

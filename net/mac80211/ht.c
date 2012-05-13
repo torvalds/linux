@@ -306,10 +306,10 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 	initiator = (params & IEEE80211_DELBA_PARAM_INITIATOR_MASK) >> 11;
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	if (net_ratelimit())
-		printk(KERN_DEBUG "delba from %pM (%s) tid %d reason code %d\n",
-			mgmt->sa, initiator ? "initiator" : "recipient", tid,
-			le16_to_cpu(mgmt->u.action.u.delba.reason_code));
+	net_dbg_ratelimited("delba from %pM (%s) tid %d reason code %d\n",
+			    mgmt->sa, initiator ? "initiator" : "recipient",
+			    tid,
+			    le16_to_cpu(mgmt->u.action.u.delba.reason_code));
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	if (initiator == WLAN_BACK_INITIATOR)

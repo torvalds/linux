@@ -189,8 +189,8 @@ static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *des
 
 				hao = (struct ipv6_destopt_hao *)&opt[off];
 				if (hao->length != sizeof(hao->addr)) {
-					if (net_ratelimit())
-						printk(KERN_WARNING "destopt hao: invalid header length: %u\n", hao->length);
+					net_warn_ratelimited("destopt hao: invalid header length: %u\n",
+							     hao->length);
 					goto bad;
 				}
 				final_addr = hao->addr;

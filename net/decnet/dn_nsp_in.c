@@ -80,12 +80,15 @@ extern int decnet_log_martians;
 
 static void dn_log_martian(struct sk_buff *skb, const char *msg)
 {
-	if (decnet_log_martians && net_ratelimit()) {
+	if (decnet_log_martians) {
 		char *devname = skb->dev ? skb->dev->name : "???";
 		struct dn_skb_cb *cb = DN_SKB_CB(skb);
-		printk(KERN_INFO "DECnet: Martian packet (%s) dev=%s src=0x%04hx dst=0x%04hx srcport=0x%04hx dstport=0x%04hx\n",
-		       msg, devname, le16_to_cpu(cb->src), le16_to_cpu(cb->dst),
-		       le16_to_cpu(cb->src_port), le16_to_cpu(cb->dst_port));
+		net_info_ratelimited("DECnet: Martian packet (%s) dev=%s src=0x%04hx dst=0x%04hx srcport=0x%04hx dstport=0x%04hx\n",
+				     msg, devname,
+				     le16_to_cpu(cb->src),
+				     le16_to_cpu(cb->dst),
+				     le16_to_cpu(cb->src_port),
+				     le16_to_cpu(cb->dst_port));
 	}
 }
 

@@ -3952,10 +3952,9 @@ void tcp_parse_options(const struct sk_buff *skb, struct tcp_options_received *o
 					__u8 snd_wscale = *(__u8 *)ptr;
 					opt_rx->wscale_ok = 1;
 					if (snd_wscale > 14) {
-						if (net_ratelimit())
-							pr_info("%s: Illegal window scaling value %d >14 received\n",
-								__func__,
-								snd_wscale);
+						net_info_ratelimited("%s: Illegal window scaling value %d >14 received\n",
+								     __func__,
+								     snd_wscale);
 						snd_wscale = 14;
 					}
 					opt_rx->snd_wscale = snd_wscale;

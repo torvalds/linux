@@ -960,8 +960,7 @@ void rt_cache_flush_batch(struct net *net)
 
 static void rt_emergency_hash_rebuild(struct net *net)
 {
-	if (net_ratelimit())
-		pr_warn("Route hash chain too long!\n");
+	net_warn_ratelimited("Route hash chain too long!\n");
 	rt_cache_invalidate(net);
 }
 
@@ -1084,8 +1083,7 @@ static int rt_garbage_collect(struct dst_ops *ops)
 		goto out;
 	if (dst_entries_get_slow(&ipv4_dst_ops) < ip_rt_max_size)
 		goto out;
-	if (net_ratelimit())
-		pr_warn("dst cache overflow\n");
+	net_warn_ratelimited("dst cache overflow\n");
 	RT_CACHE_STAT_INC(gc_dst_overflow);
 	return 1;
 
@@ -1182,8 +1180,7 @@ restart:
 		if (rt->rt_type == RTN_UNICAST || rt_is_output_route(rt)) {
 			int err = rt_bind_neighbour(rt);
 			if (err) {
-				if (net_ratelimit())
-					pr_warn("Neighbour table failure & not caching routes\n");
+				net_warn_ratelimited("Neighbour table failure & not caching routes\n");
 				ip_rt_put(rt);
 				return ERR_PTR(err);
 			}
@@ -1299,8 +1296,7 @@ restart:
 				goto restart;
 			}
 
-			if (net_ratelimit())
-				pr_warn("Neighbour table overflow\n");
+			net_warn_ratelimited("Neighbour table overflow\n");
 			rt_drop(rt);
 			return ERR_PTR(-ENOBUFS);
 		}
@@ -1503,11 +1499,11 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 
 reject_redirect:
 #ifdef CONFIG_IP_ROUTE_VERBOSE
-	if (IN_DEV_LOG_MARTIANS(in_dev) && net_ratelimit())
-		pr_info("Redirect from %pI4 on %s about %pI4 ignored\n"
-			"  Advised path = %pI4 -> %pI4\n",
-			&old_gw, dev->name, &new_gw,
-			&saddr, &daddr);
+	if (IN_DEV_LOG_MARTIANS(in_dev))
+		net_info_ratelimited("Redirect from %pI4 on %s about %pI4 ignored\n"
+				     "  Advised path = %pI4 -> %pI4\n",
+				     &old_gw, dev->name, &new_gw,
+				     &saddr, &daddr);
 #endif
 	;
 }
@@ -1617,11 +1613,10 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 		++peer->rate_tokens;
 #ifdef CONFIG_IP_ROUTE_VERBOSE
 		if (log_martians &&
-		    peer->rate_tokens == ip_rt_redirect_number &&
-		    net_ratelimit())
-			pr_warn("host %pI4/if%d ignores redirects for %pI4 to %pI4\n",
-				&ip_hdr(skb)->saddr, rt->rt_iif,
-				&rt->rt_dst, &rt->rt_gateway);
+		    peer->rate_tokens == ip_rt_redirect_number)
+			net_warn_ratelimited("host %pI4/if%d ignores redirects for %pI4 to %pI4\n",
+					     &ip_hdr(skb)->saddr, rt->rt_iif,
+					     &rt->rt_dst, &rt->rt_gateway);
 #endif
 	}
 }
@@ -2135,8 +2130,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	/* get a working reference to the output device */
 	out_dev = __in_dev_get_rcu(FIB_RES_DEV(*res));
 	if (out_dev == NULL) {
-		if (net_ratelimit())
-			pr_crit("Bug in ip_route_input_slow(). Please report.\n");
+		net_crit_ratelimited("Bug in ip_route_input_slow(). Please report.\n");
 		return -EINVAL;
 	}
 
@@ -2407,9 +2401,9 @@ no_route:
 martian_destination:
 	RT_CACHE_STAT_INC(in_martian_dst);
 #ifdef CONFIG_IP_ROUTE_VERBOSE
-	if (IN_DEV_LOG_MARTIANS(in_dev) && net_ratelimit())
-		pr_warn("martian destination %pI4 from %pI4, dev %s\n",
-			&daddr, &saddr, dev->name);
+	if (IN_DEV_LOG_MARTIANS(in_dev))
+		net_warn_ratelimited("martian destination %pI4 from %pI4, dev %s\n",
+				     &daddr, &saddr, dev->name);
 #endif
 
 e_hostunreach:

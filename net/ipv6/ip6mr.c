@@ -1147,8 +1147,7 @@ static int ip6mr_cache_report(struct mr6_table *mrt, struct sk_buff *pkt,
 	 */
 	ret = sock_queue_rcv_skb(mrt->mroute6_sk, skb);
 	if (ret < 0) {
-		if (net_ratelimit())
-			printk(KERN_WARNING "mroute6: pending queue full, dropping entries.\n");
+		net_warn_ratelimited("mroute6: pending queue full, dropping entries\n");
 		kfree_skb(skb);
 	}
 

@@ -955,8 +955,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 
 	/* Fragments are not supported */
 	if (ip_is_fragment(h)) {
-		if (net_ratelimit())
-			pr_err("DHCP/BOOTP: Ignoring fragmented reply\n");
+		net_err_ratelimited("DHCP/BOOTP: Ignoring fragmented reply\n");
 		goto drop;
 	}
 
@@ -1004,16 +1003,14 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	/* Is it a reply to our BOOTP request? */
 	if (b->op != BOOTP_REPLY ||
 	    b->xid != d->xid) {
-		if (net_ratelimit())
-			pr_err("DHCP/BOOTP: Reply not for us, op[%x] xid[%x]\n",
-			       b->op, b->xid);
+		net_err_ratelimited("DHCP/BOOTP: Reply not for us, op[%x] xid[%x]\n",
+				    b->op, b->xid);
 		goto drop_unlock;
 	}
 
 	/* Is it a reply for the device we are configuring? */
 	if (b->xid != ic_dev_xid) {
-		if (net_ratelimit())
-			pr_err("DHCP/BOOTP: Ignoring delayed packet\n");
+		net_err_ratelimited("DHCP/BOOTP: Ignoring delayed packet\n");
 		goto drop_unlock;
 	}
 

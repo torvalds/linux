@@ -1745,9 +1745,9 @@ do_prequeue:
 		}
 		if ((flags & MSG_PEEK) &&
 		    (peek_seq - copied - urg_hole != tp->copied_seq)) {
-			if (net_ratelimit())
-				printk(KERN_DEBUG "TCP(%s:%d): Application bug, race in MSG_PEEK.\n",
-				       current->comm, task_pid_nr(current));
+			net_dbg_ratelimited("TCP(%s:%d): Application bug, race in MSG_PEEK\n",
+					    current->comm,
+					    task_pid_nr(current));
 			peek_seq = tp->copied_seq;
 		}
 		continue;
@@ -2002,10 +2002,10 @@ bool tcp_check_oom(struct sock *sk, int shift)
 	too_many_orphans = tcp_too_many_orphans(sk, shift);
 	out_of_socket_memory = tcp_out_of_memory(sk);
 
-	if (too_many_orphans && net_ratelimit())
-		pr_info("too many orphaned sockets\n");
-	if (out_of_socket_memory && net_ratelimit())
-		pr_info("out of memory -- consider tuning tcp_mem\n");
+	if (too_many_orphans)
+		net_info_ratelimited("too many orphaned sockets\n");
+	if (out_of_socket_memory)
+		net_info_ratelimited("out of memory -- consider tuning tcp_mem\n");
 	return too_many_orphans || out_of_socket_memory;
 }
 

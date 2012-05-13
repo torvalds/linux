@@ -2934,8 +2934,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 
 	if (datalen < sizeof(struct pktgen_hdr)) {
 		datalen = sizeof(struct pktgen_hdr);
-		if (net_ratelimit())
-			pr_info("increased datalen to %d\n", datalen);
+		net_info_ratelimited("increased datalen to %d\n", datalen);
 	}
 
 	udph->source = htons(pkt_dev->cur_udp_src);
@@ -3365,8 +3364,8 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		pkt_dev->errors++;
 		break;
 	default: /* Drivers are not supposed to return other values! */
-		if (net_ratelimit())
-			pr_info("%s xmit error: %d\n", pkt_dev->odevname, ret);
+		net_info_ratelimited("%s xmit error: %d\n",
+				     pkt_dev->odevname, ret);
 		pkt_dev->errors++;
 		/* fallthru */
 	case NETDEV_TX_LOCKED:
