@@ -1557,36 +1557,36 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 		bool creds_match = same_creds(&conf->cl_cred, &rqstp->rq_cred);
 		bool verfs_match = same_verf(&verf, &conf->cl_verifier);
 
-		if (!clp_used_exchangeid(conf)) {
-			if (update) { /* buggy client */
+		if (update) {
+			if (!clp_used_exchangeid(conf)) { /* buggy client */
 				status = nfserr_inval;
 				goto out;
 			}
-		}
-		if (!creds_match) { /* case 9 */
-			if (update)
+			if (!creds_match) { /* case 9 */
 				status = nfserr_perm;
-			else /* case 3 */
-				status = nfserr_clid_inuse;
-			goto out;
-		}
-		if (!verfs_match) { /* case 8 */
-			if (update) {
+				goto out;
+			}
+			if (!verfs_match) { /* case 8 */
 				status = nfserr_not_same;
 				goto out;
 			}
-			/* case 5, client reboot */
-			expire_client(conf);
-			goto out_new;
+			/* case 6 */
+			exid->flags |= EXCHGID4_FLAG_CONFIRMED_R;
+			new = conf;
+			goto out_copy;
 		}
-		if (!clp_used_exchangeid(conf)) {
-			status = nfserr_inval;
+		if (!creds_match) { /* case 3 */
+			status = nfserr_clid_inuse;
 			goto out;
 		}
-		/* case 2 */
-		exid->flags |= EXCHGID4_FLAG_CONFIRMED_R;
-		new = conf;
-		goto out_copy;
+		if (verfs_match) { /* case 2 */
+			exid->flags |= EXCHGID4_FLAG_CONFIRMED_R;
+			new = conf;
+			goto out_copy;
+		}
+		/* case 5, client reboot */
+		expire_client(conf);
+		goto out_new;
 	}
 
 	if (update) { /* case 7 */
