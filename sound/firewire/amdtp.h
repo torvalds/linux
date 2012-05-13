@@ -1,6 +1,7 @@
 #ifndef SOUND_FIREWIRE_AMDTP_H_INCLUDED
 #define SOUND_FIREWIRE_AMDTP_H_INCLUDED
 
+#include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include "packets-buffer.h"
@@ -55,6 +56,7 @@ struct amdtp_out_stream {
 	struct iso_packets_buffer buffer;
 
 	struct snd_pcm_substream *pcm;
+	struct tasklet_struct period_tasklet;
 
 	int packet_index;
 	unsigned int data_block_counter;
@@ -81,6 +83,7 @@ void amdtp_out_stream_stop(struct amdtp_out_stream *s);
 
 void amdtp_out_stream_set_pcm_format(struct amdtp_out_stream *s,
 				     snd_pcm_format_t format);
+void amdtp_out_stream_pcm_prepare(struct amdtp_out_stream *s);
 void amdtp_out_stream_pcm_abort(struct amdtp_out_stream *s);
 
 /**
@@ -120,18 +123,6 @@ static inline void amdtp_out_stream_set_midi(struct amdtp_out_stream *s,
 static inline bool amdtp_out_streaming_error(struct amdtp_out_stream *s)
 {
 	return s->packet_index < 0;
-}
-
-/**
- * amdtp_out_stream_pcm_prepare - prepare PCM device for running
- * @s: the AMDTP output stream
- *
- * This function should be called from the PCM device's .prepare callback.
- */
-static inline void amdtp_out_stream_pcm_prepare(struct amdtp_out_stream *s)
-{
-	s->pcm_buffer_pointer = 0;
-	s->pcm_period_pointer = 0;
 }
 
 /**
