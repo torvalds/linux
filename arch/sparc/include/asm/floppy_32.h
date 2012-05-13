@@ -229,10 +229,7 @@ static inline void virtual_dma_init(void)
 static inline void sun_fd_disable_dma(void)
 {
 	doing_pdma = 0;
-	if (pdma_base) {
-		mmu_unlockarea(pdma_base, pdma_areasize);
-		pdma_base = NULL;
-	}
+	pdma_base = NULL;
 }
 
 static inline void sun_fd_set_dma_mode(int mode)
@@ -262,7 +259,6 @@ static inline void sun_fd_set_dma_count(int length)
 
 static inline void sun_fd_enable_dma(void)
 {
-	pdma_vaddr = mmu_lockarea(pdma_vaddr, pdma_size);
 	pdma_base = pdma_vaddr;
 	pdma_areasize = pdma_size;
 }

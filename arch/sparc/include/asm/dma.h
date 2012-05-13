@@ -92,12 +92,6 @@ extern int isa_dma_bridge_buggy;
 #ifdef CONFIG_SPARC32
 
 /* Routines for data transfer buffers. */
-BTFIXUPDEF_CALL(char *, mmu_lockarea, char *, unsigned long)
-BTFIXUPDEF_CALL(void,   mmu_unlockarea, char *, unsigned long)
-
-#define mmu_lockarea(vaddr,len) BTFIXUP_CALL(mmu_lockarea)(vaddr,len)
-#define mmu_unlockarea(vaddr,len) BTFIXUP_CALL(mmu_unlockarea)(vaddr,len)
-
 struct page;
 struct device;
 struct scatterlist;

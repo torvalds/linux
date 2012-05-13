@@ -242,22 +242,8 @@ static void iounit_unmap_dma_area(struct device *dev, unsigned long addr, int le
 }
 #endif
 
-static char *iounit_lockarea(char *vaddr, unsigned long len)
-{
-/* FIXME: Write this */
-	return vaddr;
-}
-
-static void iounit_unlockarea(char *vaddr, unsigned long len)
-{
-/* FIXME: Write this */
-}
-
 void __init ld_mmu_iounit(void)
 {
-	BTFIXUPSET_CALL(mmu_lockarea, iounit_lockarea, BTFIXUPCALL_RETO0);
-	BTFIXUPSET_CALL(mmu_unlockarea, iounit_unlockarea, BTFIXUPCALL_NOP);
-
 	BTFIXUPSET_CALL(mmu_get_scsi_one, iounit_get_scsi_one, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(mmu_get_scsi_sgl, iounit_get_scsi_sgl, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(mmu_release_scsi_one, iounit_release_scsi_one, BTFIXUPCALL_NORM);

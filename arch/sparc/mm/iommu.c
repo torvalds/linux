@@ -426,20 +426,9 @@ static void iommu_unmap_dma_area(struct device *dev, unsigned long busa, int len
 }
 #endif
 
-static char *iommu_lockarea(char *vaddr, unsigned long len)
-{
-	return vaddr;
-}
-
-static void iommu_unlockarea(char *vaddr, unsigned long len)
-{
-}
-
 void __init ld_mmu_iommu(void)
 {
 	viking_flush = (BTFIXUPVAL_CALL(flush_page_for_dma) == (unsigned long)viking_flush_page);
-	BTFIXUPSET_CALL(mmu_lockarea, iommu_lockarea, BTFIXUPCALL_RETO0);
-	BTFIXUPSET_CALL(mmu_unlockarea, iommu_unlockarea, BTFIXUPCALL_NOP);
 
 	if (!BTFIXUPVAL_CALL(flush_page_for_dma)) {
 		/* IO coherent chip */
