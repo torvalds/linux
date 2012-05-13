@@ -1556,6 +1556,14 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 			status = nfserr_clid_inuse; /* XXX: ? */
 			goto out;
 		}
+		if (!same_creds(&conf->cl_cred, &rqstp->rq_cred)) {
+			/* 18.35.4 case 9 */
+			if (exid->flags & EXCHGID4_FLAG_UPD_CONFIRMED_REC_A)
+				status = nfserr_perm;
+			else /* case 3 */
+				status = nfserr_clid_inuse;
+			goto out;
+		}
 		if (!same_verf(&verf, &conf->cl_verifier)) {
 			/* 18.35.4 case 8 */
 			if (exid->flags & EXCHGID4_FLAG_UPD_CONFIRMED_REC_A) {
@@ -1563,15 +1571,6 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 				goto out;
 			}
 			/* Client reboot: destroy old state */
-			expire_client(conf);
-			goto out_new;
-		}
-		if (!same_creds(&conf->cl_cred, &rqstp->rq_cred)) {
-			/* 18.35.4 case 9 */
-			if (exid->flags & EXCHGID4_FLAG_UPD_CONFIRMED_REC_A) {
-				status = nfserr_perm;
-				goto out;
-			}
 			expire_client(conf);
 			goto out_new;
 		}
