@@ -245,6 +245,7 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 			struct regmap_irq_chip_data **data);
 void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *data);
 int regmap_irq_chip_get_base(struct regmap_irq_chip_data *data);
+int regmap_irq_get_virq(struct regmap_irq_chip_data *data, int irq);
 
 #else
 
