@@ -33,6 +33,7 @@
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 #include <asm/mmu_context.h>
+#include <asm/switch_to.h>
 #include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
@@ -776,6 +777,7 @@ program_interrupt:
 	}
 	}
 
+	preempt_disable();
 	if (!(r & RESUME_HOST)) {
 		/* To avoid clobbering exit_reason, only check for signals if
 		 * we aren't already exiting to userspace for some other
@@ -797,8 +799,6 @@ program_interrupt:
 			run->exit_reason = KVM_EXIT_INTR;
 			r = -EINTR;
 		} else {
-			preempt_disable();
-
 			/* In case an interrupt came in that was triggered
 			 * from userspace (like DEC), we need to check what
 			 * to inject now! */
@@ -880,7 +880,8 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 
 	switch (reg->id) {
 	case KVM_REG_PPC_HIOR:
-		r = put_user(to_book3s(vcpu)->hior, (u64 __user *)reg->addr);
+		r = copy_to_user((u64 __user *)(long)reg->addr,
+				&to_book3s(vcpu)->hior, sizeof(u64));
 		break;
 	default:
 		break;
@@ -895,7 +896,8 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 
 	switch (reg->id) {
 	case KVM_REG_PPC_HIOR:
-		r = get_user(to_book3s(vcpu)->hior, (u64 __user *)reg->addr);
+		r = copy_from_user(&to_book3s(vcpu)->hior,
+				   (u64 __user *)(long)reg->addr, sizeof(u64));
 		if (!r)
 			to_book3s(vcpu)->hior_explicit = true;
 		break;

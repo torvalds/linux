@@ -113,6 +113,7 @@ config MACH_ARMCORE
 	select IWMMXT
 	select PXA25x
 	select MIGHT_HAVE_PCI
+	select NEED_MACH_IO_H if PCI
 
 config MACH_EM_X270
 	bool "CompuLab EM-x270 platform"

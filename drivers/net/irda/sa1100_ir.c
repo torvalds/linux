@@ -147,7 +147,7 @@ static void sa1100_irda_dma_start(struct sa1100_buf *buf,
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *chan = buf->chan;
 
-	desc = chan->device->device_prep_slave_sg(chan, &buf->sg, 1, dir,
+	desc = dmaengine_prep_slave_sg(chan, &buf->sg, 1, dir,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (desc) {
 		desc->callback = cb;

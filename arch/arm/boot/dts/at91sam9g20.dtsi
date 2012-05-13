@@ -35,7 +35,7 @@
 		};
 	};
 
-	memory@20000000 {
+	memory {
 		reg = <0x20000000 0x08000000>;
 	};
 
@@ -55,7 +55,6 @@
 				#interrupt-cells = <2>;
 				compatible = "atmel,at91rm9200-aic";
 				interrupt-controller;
-				interrupt-parent;
 				reg = <0xfffff000 0x200>;
 			};
 

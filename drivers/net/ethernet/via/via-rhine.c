@@ -503,30 +503,32 @@ static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid);
 static int rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid);
 static void rhine_restart_tx(struct net_device *dev);
 
-static void rhine_wait_bit(struct rhine_private *rp, u8 reg, u8 mask, bool high)
+static void rhine_wait_bit(struct rhine_private *rp, u8 reg, u8 mask, bool low)
 {
 	void __iomem *ioaddr = rp->base;
 	int i;
 
 	for (i = 0; i < 1024; i++) {
-		if (high ^ !!(ioread8(ioaddr + reg) & mask))
+		bool has_mask_bits = !!(ioread8(ioaddr + reg) & mask);
+
+		if (low ^ has_mask_bits)
 			break;
 		udelay(10);
 	}
 	if (i > 64) {
 		netif_dbg(rp, hw, rp->dev, "%s bit wait (%02x/%02x) cycle "
-			  "count: %04d\n", high ? "high" : "low", reg, mask, i);
+			  "count: %04d\n", low ? "low" : "high", reg, mask, i);
 	}
 }
 
 static void rhine_wait_bit_high(struct rhine_private *rp, u8 reg, u8 mask)
 {
-	rhine_wait_bit(rp, reg, mask, true);
+	rhine_wait_bit(rp, reg, mask, false);
 }
 
 static void rhine_wait_bit_low(struct rhine_private *rp, u8 reg, u8 mask)
 {
-	rhine_wait_bit(rp, reg, mask, false);
+	rhine_wait_bit(rp, reg, mask, true);
 }
 
 static u32 rhine_get_events(struct rhine_private *rp)

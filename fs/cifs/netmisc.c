@@ -197,8 +197,7 @@ cifs_convert_address(struct sockaddr *dst, const char *src, int len)
 		memcpy(scope_id, pct + 1, slen);
 		scope_id[slen] = '\0';
 
-		rc = strict_strtoul(scope_id, 0,
-					(unsigned long *)&s6->sin6_scope_id);
+		rc = kstrtouint(scope_id, 0, &s6->sin6_scope_id);
 		rc = (rc == 0) ? 1 : 0;
 	}
 

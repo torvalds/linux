@@ -80,6 +80,7 @@ struct da9052 {
 	struct regmap *regmap;
 
 	int irq_base;
+	struct regmap_irq_chip_data *irq_data;
 	u8 chip_id;
 
 	int chip_irq;

@@ -2999,8 +2999,8 @@ int si_rlc_init(struct radeon_device *rdev)
 	}
 	r = radeon_bo_pin(rdev->rlc.save_restore_obj, RADEON_GEM_DOMAIN_VRAM,
 			  &rdev->rlc.save_restore_gpu_addr);
+	radeon_bo_unreserve(rdev->rlc.save_restore_obj);
 	if (r) {
-		radeon_bo_unreserve(rdev->rlc.save_restore_obj);
 		dev_warn(rdev->dev, "(%d) pin RLC sr bo failed\n", r);
 		si_rlc_fini(rdev);
 		return r;
@@ -3023,9 +3023,8 @@ int si_rlc_init(struct radeon_device *rdev)
 	}
 	r = radeon_bo_pin(rdev->rlc.clear_state_obj, RADEON_GEM_DOMAIN_VRAM,
 			  &rdev->rlc.clear_state_gpu_addr);
+	radeon_bo_unreserve(rdev->rlc.clear_state_obj);
 	if (r) {
-
-		radeon_bo_unreserve(rdev->rlc.clear_state_obj);
 		dev_warn(rdev->dev, "(%d) pin RLC c bo failed\n", r);
 		si_rlc_fini(rdev);
 		return r;

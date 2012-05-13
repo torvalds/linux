@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+#include <linux/atomic.h>
 #include <linux/netlink.h>
 #include <linux/rculist.h>
 #include <linux/slab.h>
@@ -17,7 +18,6 @@
 #include <linux/errno.h>
 #include <net/netlink.h>
 #include <net/sock.h>
-#include <asm/atomic.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter/nfnetlink.h>

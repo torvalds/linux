@@ -88,11 +88,8 @@ static inline void set_current(struct task_struct *task)
 
 extern void arch_switch_to(struct task_struct *to);
 
-void *_switch_to(void *prev, void *next, void *last)
+void *__switch_to(struct task_struct *from, struct task_struct *to)
 {
-	struct task_struct *from = prev;
-	struct task_struct *to = next;
-
 	to->thread.prev_sched = from;
 	set_current(to);
 
@@ -111,7 +108,6 @@ void *_switch_to(void *prev, void *next, void *last)
 	} while (current->thread.saved_task);
 
 	return current->thread.prev_sched;
-
 }
 
 void interrupt_end(void)

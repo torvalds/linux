@@ -225,7 +225,7 @@ void mpc8610hpcd_set_monitor_port(enum fsl_diu_monitor_port port)
 void mpc8610hpcd_set_pixel_clock(unsigned int pixclock)
 {
 	struct device_node *guts_np = NULL;
-	struct ccsr_guts_86xx __iomem *guts;
+	struct ccsr_guts __iomem *guts;
 	unsigned long freq;
 	u64 temp;
 	u32 pxclk;

@@ -823,7 +823,7 @@ config CACHELINE_ALIGNED_L1
 	bool "Locate cacheline_aligned data to L1 Data Memory"
 	default y if !BF54x
 	default n if BF54x
-	depends on !SMP && !BF531
+	depends on !SMP && !BF531 && !CRC32
 	help
 	  If enabled, cacheline_aligned data is linked
 	  into L1 data memory. (less latency)

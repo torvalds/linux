@@ -748,13 +748,6 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 	u64 used = btrfs_block_group_used(&block_group->item);
 
 	/*
-	 * If we're unmounting then just return, since this does a search on the
-	 * normal root and not the commit root and we could deadlock.
-	 */
-	if (btrfs_fs_closing(fs_info))
-		return 0;
-
-	/*
 	 * If this block group has been marked to be cleared for one reason or
 	 * another then we can't trust the on disk cache, so just return.
 	 */
@@ -768,6 +761,8 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 	path = btrfs_alloc_path();
 	if (!path)
 		return 0;
+	path->search_commit_root = 1;
+	path->skip_locking = 1;
 
 	inode = lookup_free_space_inode(root, block_group, path);
 	if (IS_ERR(inode)) {

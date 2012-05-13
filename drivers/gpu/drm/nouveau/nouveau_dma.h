@@ -48,8 +48,8 @@ void nv50_dma_push(struct nouveau_channel *, struct nouveau_bo *,
 
 /* Hardcoded object assignments to subchannels (subchannel id). */
 enum {
-	NvSubSw		= 0,
-	NvSubM2MF	= 1,
+	NvSubM2MF	= 0,
+	NvSubSw		= 1,
 	NvSub2D		= 2,
 	NvSubCtxSurf2D  = 2,
 	NvSubGdiRect    = 3,

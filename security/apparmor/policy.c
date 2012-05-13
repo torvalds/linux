@@ -964,11 +964,13 @@ static int audit_policy(int op, gfp_t gfp, const char *name, const char *info,
 			int error)
 {
 	struct common_audit_data sa;
+	struct apparmor_audit_data aad = {0,};
 	COMMON_AUDIT_DATA_INIT(&sa, NONE);
-	sa.aad.op = op;
-	sa.aad.name = name;
-	sa.aad.info = info;
-	sa.aad.error = error;
+	sa.aad = &aad;
+	aad.op = op;
+	aad.name = name;
+	aad.info = info;
+	aad.error = error;
 
 	return aa_audit(AUDIT_APPARMOR_STATUS, __aa_current_profile(), gfp,
 			&sa, NULL);

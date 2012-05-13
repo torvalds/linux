@@ -314,6 +314,7 @@ struct hci_conn {
 
 	__u8		remote_cap;
 	__u8		remote_auth;
+	bool		flush_key;
 
 	unsigned int	sent;
 
@@ -427,7 +428,7 @@ enum {
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
-	return (test_bit(HCI_SSP_ENABLED, &hdev->flags) &&
+	return (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
 				test_bit(HCI_CONN_SSP_ENABLED, &conn->flags));
 }
 
@@ -907,11 +908,13 @@ static inline void hci_role_switch_cfm(struct hci_conn *conn, __u8 status,
 
 static inline bool eir_has_data_type(u8 *data, size_t data_len, u8 type)
 {
-	u8 field_len;
-	size_t parsed;
+	size_t parsed = 0;
 
-	for (parsed = 0; parsed < data_len - 1; parsed += field_len) {
-		field_len = data[0];
+	if (data_len < 2)
+		return false;
+
+	while (parsed < data_len - 1) {
+		u8 field_len = data[0];
 
 		if (field_len == 0)
 			break;
@@ -978,7 +981,7 @@ int mgmt_discoverable(struct hci_dev *hdev, u8 discoverable);
 int mgmt_connectable(struct hci_dev *hdev, u8 connectable);
 int mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status);
 int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
-		      u8 persistent);
+		      bool persistent);
 int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 			  u8 addr_type, u32 flags, u8 *name, u8 name_len,
 			  u8 *dev_class);

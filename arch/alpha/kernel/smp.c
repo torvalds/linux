@@ -450,7 +450,7 @@ setup_smp(void)
 		smp_num_probed = 1;
 	}
 
-	printk(KERN_INFO "SMP: %d CPUs probed -- cpu_present_map = %lx\n",
+	printk(KERN_INFO "SMP: %d CPUs probed -- cpu_present_mask = %lx\n",
 	       smp_num_probed, cpumask_bits(cpu_present_mask)[0]);
 }
 

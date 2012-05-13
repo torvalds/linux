@@ -1173,6 +1173,13 @@ enum {
 };
 
 
+struct bnx2x_prev_path_list {
+	u8 bus;
+	u8 slot;
+	u8 path;
+	struct list_head list;
+};
+
 struct bnx2x {
 	/* Fields used in the tx and intr/napi performance paths
 	 * are grouped together in the beginning of the structure

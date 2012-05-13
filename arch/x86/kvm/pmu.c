@@ -369,7 +369,7 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data)
 	case MSR_CORE_PERF_FIXED_CTR_CTRL:
 		if (pmu->fixed_ctr_ctrl == data)
 			return 0;
-		if (!(data & 0xfffffffffffff444)) {
+		if (!(data & 0xfffffffffffff444ull)) {
 			reprogram_fixed_counters(pmu, data);
 			return 0;
 		}
@@ -459,17 +459,17 @@ void kvm_pmu_cpuid_update(struct kvm_vcpu *vcpu)
 	pmu->available_event_types = ~entry->ebx & ((1ull << bitmap_len) - 1);
 
 	if (pmu->version == 1) {
-		pmu->global_ctrl = (1 << pmu->nr_arch_gp_counters) - 1;
-		return;
+		pmu->nr_arch_fixed_counters = 0;
+	} else {
+		pmu->nr_arch_fixed_counters = min((int)(entry->edx & 0x1f),
+				X86_PMC_MAX_FIXED);
+		pmu->counter_bitmask[KVM_PMC_FIXED] =
+			((u64)1 << ((entry->edx >> 5) & 0xff)) - 1;
 	}
 
-	pmu->nr_arch_fixed_counters = min((int)(entry->edx & 0x1f),
-			X86_PMC_MAX_FIXED);
-	pmu->counter_bitmask[KVM_PMC_FIXED] =
-		((u64)1 << ((entry->edx >> 5) & 0xff)) - 1;
-	pmu->global_ctrl_mask = ~(((1 << pmu->nr_arch_gp_counters) - 1)
-			| (((1ull << pmu->nr_arch_fixed_counters) - 1)
-				<< X86_PMC_IDX_FIXED));
+	pmu->global_ctrl = ((1 << pmu->nr_arch_gp_counters) - 1) |
+		(((1ull << pmu->nr_arch_fixed_counters) - 1) << X86_PMC_IDX_FIXED);
+	pmu->global_ctrl_mask = ~pmu->global_ctrl;
 }
 
 void kvm_pmu_init(struct kvm_vcpu *vcpu)

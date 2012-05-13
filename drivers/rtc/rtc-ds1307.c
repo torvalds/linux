@@ -902,6 +902,7 @@ read_rtc:
 		}
 		ds1307->nvram->attr.name = "nvram";
 		ds1307->nvram->attr.mode = S_IRUGO | S_IWUSR;
+		sysfs_bin_attr_init(ds1307->nvram);
 		ds1307->nvram->read = ds1307_nvram_read,
 		ds1307->nvram->write = ds1307_nvram_write,
 		ds1307->nvram->size = chip->nvram_size;

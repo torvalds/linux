@@ -116,10 +116,10 @@ static struct ucc_geth_info ugeth_primary_info = {
 	.maxGroupAddrInHash = 4,
 	.maxIndAddrInHash = 4,
 	.prel = 7,
-	.maxFrameLength = 1518,
+	.maxFrameLength = 1518+16, /* Add extra bytes for VLANs etc. */
 	.minFrameLength = 64,
-	.maxD1Length = 1520,
-	.maxD2Length = 1520,
+	.maxD1Length = 1520+16, /* Add extra bytes for VLANs etc. */
+	.maxD2Length = 1520+16, /* Add extra bytes for VLANs etc. */
 	.vlantype = 0x8100,
 	.ecamptr = ((uint32_t) NULL),
 	.eventRegMask = UCCE_OTHER,
@@ -3945,6 +3945,8 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 		}
 
 	if (max_speed == SPEED_1000) {
+		unsigned int snums = qe_get_num_of_snums();
+
 		/* configure muram FIFOs for gigabit operation */
 		ug_info->uf_info.urfs = UCC_GETH_URFS_GIGA_INIT;
 		ug_info->uf_info.urfet = UCC_GETH_URFET_GIGA_INIT;
@@ -3954,11 +3956,11 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 		ug_info->uf_info.utftt = UCC_GETH_UTFTT_GIGA_INIT;
 		ug_info->numThreadsTx = UCC_GETH_NUM_OF_THREADS_4;
 
-		/* If QE's snum number is 46 which means we need to support
+		/* If QE's snum number is 46/76 which means we need to support
 		 * 4 UECs at 1000Base-T simultaneously, we need to allocate
 		 * more Threads to Rx.
 		 */
-		if (qe_get_num_of_snums() == 46)
+		if ((snums == 76) || (snums == 46))
 			ug_info->numThreadsRx = UCC_GETH_NUM_OF_THREADS_6;
 		else
 			ug_info->numThreadsRx = UCC_GETH_NUM_OF_THREADS_4;

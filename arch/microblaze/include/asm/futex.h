@@ -24,7 +24,7 @@
 			.word	1b,4b,2b,4b;				\
 			.previous;"					\
 	: "=&r" (oldval), "=&r" (ret)					\
-	: "b" (uaddr), "i" (-EFAULT), "r" (oparg)			\
+	: "r" (uaddr), "i" (-EFAULT), "r" (oparg)			\
 	);								\
 })
 
