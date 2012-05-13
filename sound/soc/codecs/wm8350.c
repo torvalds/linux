@@ -1300,35 +1300,36 @@ static void wm8350_hpr_work(struct work_struct *work)
 	wm8350_hp_work(priv, &priv->hpr, WM8350_JACK_R_LVL);
 }
 
-static irqreturn_t wm8350_hp_jack_handler(int irq, void *data)
+static irqreturn_t wm8350_hpl_jack_handler(int irq, void *data)
 {
 	struct wm8350_data *priv = data;
 	struct wm8350 *wm8350 = priv->wm8350;
-	struct wm8350_jack_data *jack = NULL;
 
-	switch (irq - wm8350->irq_base) {
-	case WM8350_IRQ_CODEC_JCK_DET_L:
 #ifndef CONFIG_SND_SOC_WM8350_MODULE
-		trace_snd_soc_jack_irq("WM8350 HPL");
+	trace_snd_soc_jack_irq("WM8350 HPL");
 #endif
-		jack = &priv->hpl;
-		break;
-
-	case WM8350_IRQ_CODEC_JCK_DET_R:
-#ifndef CONFIG_SND_SOC_WM8350_MODULE
-		trace_snd_soc_jack_irq("WM8350 HPR");
-#endif
-		jack = &priv->hpr;
-		break;
-
-	default:
-		BUG();
-	}
 
 	if (device_may_wakeup(wm8350->dev))
 		pm_wakeup_event(wm8350->dev, 250);
 
-	schedule_delayed_work(&jack->work, 200);
+	schedule_delayed_work(&priv->hpl.work, 200);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t wm8350_hpr_jack_handler(int irq, void *data)
+{
+	struct wm8350_data *priv = data;
+	struct wm8350 *wm8350 = priv->wm8350;
+
+#ifndef CONFIG_SND_SOC_WM8350_MODULE
+	trace_snd_soc_jack_irq("WM8350 HPR");
+#endif
+
+	if (device_may_wakeup(wm8350->dev))
+		pm_wakeup_event(wm8350->dev, 250);
+
+	schedule_delayed_work(&priv->hpr.work, 200);
 
 	return IRQ_HANDLED;
 }
@@ -1379,7 +1380,14 @@ int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
 	}
 
 	/* Sync status */
-	wm8350_hp_jack_handler(irq + wm8350->irq_base, priv);
+	switch (which) {
+	case WM8350_JDL:
+		wm8350_hpl_jack_handler(0, priv);
+		break;
+	case WM8350_JDR:
+		wm8350_hpr_jack_handler(0, priv);
+		break;
+	}
 
 	return 0;
 }
@@ -1561,10 +1569,10 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 			  WM8350_JDL_ENA | WM8350_JDR_ENA);
 
 	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L,
-			    wm8350_hp_jack_handler, 0, "Left jack detect",
+			    wm8350_hpl_jack_handler, 0, "Left jack detect",
 			    priv);
 	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R,
-			    wm8350_hp_jack_handler, 0, "Right jack detect",
+			    wm8350_hpr_jack_handler, 0, "Right jack detect",
 			    priv);
 	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_MICSCD,
 			    wm8350_mic_handler, 0, "Microphone short", priv);
