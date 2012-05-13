@@ -7,17 +7,18 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
-#include <plat/gpio-nomadik.h>
+#include <linux/pinctrl/consumer.h>
 
+#include <plat/gpio-nomadik.h>
 #include <plat/pincfg.h>
 #include <plat/ste_dma40.h>
 
 #include <mach/devices.h>
-#include <ste-dma40-db8500.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/msp.h>
 
+#include "ste-dma40-db8500.h"
 #include "board-mop500.h"
 #include "devices-db8500.h"
 #include "pins-db8500.h"
@@ -28,19 +29,10 @@ static DEFINE_SPINLOCK(msp_rxtx_lock);
 /* Reference Count */
 static int msp_rxtx_ref;
 
-static pin_cfg_t mop500_msp1_pins_init[] = {
-		GPIO33_MSP1_TXD | PIN_OUTPUT_LOW   | PIN_SLPM_WAKEUP_DISABLE,
-		GPIO34_MSP1_TFS | PIN_INPUT_NOPULL | PIN_SLPM_WAKEUP_DISABLE,
-		GPIO35_MSP1_TCK | PIN_INPUT_NOPULL | PIN_SLPM_WAKEUP_DISABLE,
-		GPIO36_MSP1_RXD | PIN_INPUT_NOPULL | PIN_SLPM_WAKEUP_DISABLE,
-};
-
-static pin_cfg_t mop500_msp1_pins_exit[] = {
-		GPIO33_MSP1_TXD | PIN_OUTPUT_LOW   | PIN_SLPM_WAKEUP_ENABLE,
-		GPIO34_MSP1_TFS | PIN_INPUT_NOPULL | PIN_SLPM_WAKEUP_ENABLE,
-		GPIO35_MSP1_TCK | PIN_INPUT_NOPULL | PIN_SLPM_WAKEUP_ENABLE,
-		GPIO36_MSP1_RXD | PIN_INPUT_NOPULL | PIN_SLPM_WAKEUP_ENABLE,
-};
+/* Pin modes */
+struct pinctrl *msp1_p;
+struct pinctrl_state *msp1_def;
+struct pinctrl_state *msp1_sleep;
 
 int msp13_i2s_init(void)
 {
@@ -48,9 +40,11 @@ int msp13_i2s_init(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&msp_rxtx_lock, flags);
-	if (msp_rxtx_ref == 0)
-		retval = nmk_config_pins(
-				ARRAY_AND_SIZE(mop500_msp1_pins_init));
+	if (msp_rxtx_ref == 0 && !(IS_ERR(msp1_p) || IS_ERR(msp1_def))) {
+		retval = pinctrl_select_state(msp1_p, msp1_def);
+		if (retval)
+			pr_err("could not set MSP1 defstate\n");
+	}
 	if (!retval)
 		msp_rxtx_ref++;
 	spin_unlock_irqrestore(&msp_rxtx_lock, flags);
@@ -66,9 +60,11 @@ int msp13_i2s_exit(void)
 	spin_lock_irqsave(&msp_rxtx_lock, flags);
 	WARN_ON(!msp_rxtx_ref);
 	msp_rxtx_ref--;
-	if (msp_rxtx_ref == 0)
-		retval = nmk_config_pins_sleep(
-				ARRAY_AND_SIZE(mop500_msp1_pins_exit));
+	if (msp_rxtx_ref == 0 && !(IS_ERR(msp1_p) || IS_ERR(msp1_sleep))) {
+		retval = pinctrl_select_state(msp1_p, msp1_sleep);
+		if (retval)
+			pr_err("could not set MSP1 sleepstate\n");
+	}
 	spin_unlock_irqrestore(&msp_rxtx_lock, flags);
 
 	return retval;
@@ -170,7 +166,8 @@ static struct stedma40_chan_cfg msp2_dma_tx = {
 	/* data_width is set during configuration */
 };
 
-static int db8500_add_msp_i2s(struct device *parent, int id,
+static struct platform_device *db8500_add_msp_i2s(struct device *parent,
+			int id,
 			resource_size_t base, int irq,
 			struct msp_i2s_platform_data *pdata)
 {
@@ -188,10 +185,10 @@ static int db8500_add_msp_i2s(struct device *parent, int id,
 	if (!pdev) {
 		pr_err("Failed to register platform-device 'ux500-msp-i2s.%d'!\n",
 			id);
-		return -EIO;
+		return NULL;
 	}
 
-	return 0;
+	return pdev;
 }
 
 /* Platform device for ASoC U8500 machine */
@@ -228,23 +225,43 @@ static struct msp_i2s_platform_data msp3_platform_data = {
 
 int mop500_msp_init(struct device *parent)
 {
-	int ret;
+	struct platform_device *msp1;
 
 	pr_info("%s: Register platform-device 'snd-soc-u8500'.\n", __func__);
 	platform_device_register(&snd_soc_u8500);
 
 	pr_info("Initialize MSP I2S-devices.\n");
-	ret = db8500_add_msp_i2s(parent, 0, U8500_MSP0_BASE, IRQ_DB8500_MSP0,
-				&msp0_platform_data);
-	ret |= db8500_add_msp_i2s(parent, 1, U8500_MSP1_BASE, IRQ_DB8500_MSP1,
-				&msp1_platform_data);
-	ret |= db8500_add_msp_i2s(parent, 2, U8500_MSP2_BASE, IRQ_DB8500_MSP2,
-				&msp2_platform_data);
-	ret |= db8500_add_msp_i2s(parent, 3, U8500_MSP3_BASE, IRQ_DB8500_MSP1,
-				&msp3_platform_data);
+	db8500_add_msp_i2s(parent, 0, U8500_MSP0_BASE, IRQ_DB8500_MSP0,
+			   &msp0_platform_data);
+	msp1 = db8500_add_msp_i2s(parent, 1, U8500_MSP1_BASE, IRQ_DB8500_MSP1,
+			   &msp1_platform_data);
+	db8500_add_msp_i2s(parent, 2, U8500_MSP2_BASE, IRQ_DB8500_MSP2,
+			   &msp2_platform_data);
+	db8500_add_msp_i2s(parent, 3, U8500_MSP3_BASE, IRQ_DB8500_MSP1,
+			   &msp3_platform_data);
+
+	/* Get the pinctrl handle for MSP1 */
+	if (msp1) {
+		msp1_p = pinctrl_get(&msp1->dev);
+		if (IS_ERR(msp1_p))
+			dev_err(&msp1->dev, "could not get MSP1 pinctrl\n");
+		else {
+			msp1_def = pinctrl_lookup_state(msp1_p,
+							PINCTRL_STATE_DEFAULT);
+			if (IS_ERR(msp1_def)) {
+				dev_err(&msp1->dev,
+					"could not get MSP1 defstate\n");
+			}
+			msp1_sleep = pinctrl_lookup_state(msp1_p,
+							  PINCTRL_STATE_SLEEP);
+			if (IS_ERR(msp1_sleep))
+				dev_err(&msp1->dev,
+					"could not get MSP1 idlestate\n");
+		}
+	}
 
 	pr_info("%s: Register platform-device 'ux500-pcm'\n", __func__);
 	platform_device_register(&ux500_pcm);
 
-	return ret;
+	return 0;
 }

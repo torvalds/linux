@@ -9,6 +9,8 @@ config UX500_SOC_COMMON
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369
 	select CACHE_L2X0
+	select PINCTRL
+	select PINCTRL_NOMADIK
 
 config UX500_SOC_DB5500
 	bool
@@ -20,6 +22,7 @@ config UX500_SOC_DB8500
 	select REGULATOR
 	select REGULATOR_DB8500_PRCMU
 	select CPU_FREQ_TABLE if CPU_FREQ
+	select PINCTRL_DB8500
 
 menu "Ux500 target platform (boards)"
 
