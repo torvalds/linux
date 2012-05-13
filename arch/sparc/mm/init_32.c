@@ -300,7 +300,6 @@ void __init paging_init(void)
 	case sun4d:
 		srmmu_paging_init();
 		sparc_unmapped_base = 0x50000000;
-		BTFIXUPSET_SETHI(sparc_unmapped_base, 0x50000000);
 		break;
 	default:
 		prom_printf("paging_init: Cannot init paging on this Sparc\n");

@@ -110,10 +110,7 @@ typedef unsigned long iopgprot_t;
 typedef struct page *pgtable_t;
 
 extern unsigned long sparc_unmapped_base;
-
-BTFIXUPDEF_SETHI(sparc_unmapped_base)
-
-#define TASK_UNMAPPED_BASE	BTFIXUP_SETHI(sparc_unmapped_base)
+#define TASK_UNMAPPED_BASE	sparc_unmapped_base
 
 #else /* !(__ASSEMBLY__) */
 
