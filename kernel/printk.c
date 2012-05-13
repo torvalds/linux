@@ -448,7 +448,7 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 
 	/* escape non-printable characters */
 	for (i = 0; i < msg->text_len; i++) {
-		char c = log_text(msg)[i];
+		unsigned char c = log_text(msg)[i];
 
 		if (c < ' ' || c >= 128)
 			len += sprintf(user->buf + len, "\\x%02x", c);
@@ -461,7 +461,7 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 		bool line = true;
 
 		for (i = 0; i < msg->dict_len; i++) {
-			char c = log_dict(msg)[i];
+			unsigned char c = log_dict(msg)[i];
 
 			if (line) {
 				user->buf[len++] = ' ';
@@ -785,56 +785,81 @@ static bool printk_time;
 #endif
 module_param_named(time, printk_time, bool, S_IRUGO | S_IWUSR);
 
-static size_t prepend_timestamp(unsigned long long t, char *buf)
+static size_t print_prefix(const struct log *msg, bool syslog, char *buf)
 {
-	unsigned long rem_ns;
+	size_t len = 0;
 
-	if (!printk_time)
-		return 0;
-
-	if (!buf)
-		return 15;
-
-	rem_ns = do_div(t, 1000000000);
-
-	return sprintf(buf, "[%5lu.%06lu] ",
-		       (unsigned long) t, rem_ns / 1000);
-}
-
-static int syslog_print_line(u32 idx, char *text, size_t size)
-{
-	struct log *msg;
-	size_t len;
-
-	msg = log_from_idx(idx);
-	if (!text) {
-		/* calculate length only */
-		len = 3;
-
-		if (msg->level > 9)
-			len++;
-		if (msg->level > 99)
-			len++;
-		len += prepend_timestamp(0, NULL);
-
-		len += msg->text_len;
-		len++;
-		return len;
+	if (syslog) {
+		if (buf) {
+			len += sprintf(buf, "<%u>", msg->level);
+		} else {
+			len += 3;
+			if (msg->level > 9)
+				len++;
+			if (msg->level > 99)
+				len++;
+		}
 	}
 
-	len = sprintf(text, "<%u>", msg->level);
-	len += prepend_timestamp(msg->ts_nsec, text + len);
-	if (len + msg->text_len > size)
-		return -EINVAL;
-	memcpy(text + len, log_text(msg), msg->text_len);
-	len += msg->text_len;
-	text[len++] = '\n';
+	if (printk_time) {
+		if (buf) {
+			unsigned long long ts = msg->ts_nsec;
+			unsigned long rem_nsec = do_div(ts, 1000000000);
+
+			len += sprintf(buf + len, "[%5lu.%06lu] ",
+					 (unsigned long) ts, rem_nsec / 1000);
+		} else {
+			len += 15;
+		}
+	}
+
+	return len;
+}
+
+static size_t msg_print_text(const struct log *msg, bool syslog,
+			     char *buf, size_t size)
+{
+	const char *text = log_text(msg);
+	size_t text_size = msg->text_len;
+	size_t len = 0;
+
+	do {
+		const char *next = memchr(text, '\n', text_size);
+		size_t text_len;
+
+		if (next) {
+			text_len = next - text;
+			next++;
+			text_size -= next - text;
+		} else {
+			text_len = text_size;
+		}
+
+		if (buf) {
+			if (print_prefix(msg, syslog, NULL) +
+			    text_len + 1>= size - len)
+				break;
+
+			len += print_prefix(msg, syslog, buf + len);
+			memcpy(buf + len, text, text_len);
+			len += text_len;
+			buf[len++] = '\n';
+		} else {
+			/* SYSLOG_ACTION_* buffer size only calculation */
+			len += print_prefix(msg, syslog, NULL);
+			len += text_len + 1;
+		}
+
+		text = next;
+	} while (text);
+
 	return len;
 }
 
 static int syslog_print(char __user *buf, int size)
 {
 	char *text;
+	struct log *msg;
 	int len;
 
 	text = kmalloc(LOG_LINE_MAX, GFP_KERNEL);
@@ -847,7 +872,8 @@ static int syslog_print(char __user *buf, int size)
 		syslog_seq = log_first_seq;
 		syslog_idx = log_first_idx;
 	}
-	len = syslog_print_line(syslog_idx, text, LOG_LINE_MAX);
+	msg = log_from_idx(syslog_idx);
+	len = msg_print_text(msg, true, text, LOG_LINE_MAX);
 	syslog_idx = log_next(syslog_idx);
 	syslog_seq++;
 	raw_spin_unlock_irq(&logbuf_lock);
@@ -887,14 +913,18 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 		seq = clear_seq;
 		idx = clear_idx;
 		while (seq < log_next_seq) {
-			len += syslog_print_line(idx, NULL, 0);
+			struct log *msg = log_from_idx(idx);
+
+			len += msg_print_text(msg, true, NULL, 0);
 			idx = log_next(idx);
 			seq++;
 		}
 		seq = clear_seq;
 		idx = clear_idx;
 		while (len > size && seq < log_next_seq) {
-			len -= syslog_print_line(idx, NULL, 0);
+			struct log *msg = log_from_idx(idx);
+
+			len -= msg_print_text(msg, true, NULL, 0);
 			idx = log_next(idx);
 			seq++;
 		}
@@ -904,9 +934,10 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 
 		len = 0;
 		while (len >= 0 && seq < next_seq) {
+			struct log *msg = log_from_idx(idx);
 			int textlen;
 
-			textlen = syslog_print_line(idx, text, LOG_LINE_MAX);
+			textlen = msg_print_text(msg, true, text, LOG_LINE_MAX);
 			if (textlen < 0) {
 				len = textlen;
 				break;
@@ -1044,7 +1075,9 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 			seq = syslog_seq;
 			idx = syslog_idx;
 			while (seq < log_next_seq) {
-				error += syslog_print_line(idx, NULL, 0);
+				struct log *msg = log_from_idx(idx);
+
+				error += msg_print_text(msg, true, NULL, 0);
 				idx = log_next(idx);
 				seq++;
 			}
@@ -1439,10 +1472,8 @@ static struct log *log_from_idx(u32 idx) { return NULL; }
 static u32 log_next(u32 idx) { return 0; }
 static char *log_text(const struct log *msg) { return NULL; }
 static void call_console_drivers(int level, const char *text, size_t len) {}
-static size_t prepend_timestamp(unsigned long long t, char *buf)
-{
-	return 0;
-}
+static size_t msg_print_text(const struct log *msg, bool syslog,
+			     char *buf, size_t size) { return 0; }
 
 #endif /* CONFIG_PRINTK */
 
@@ -1750,7 +1781,7 @@ again:
 	for (;;) {
 		struct log *msg;
 		static char text[LOG_LINE_MAX];
-		size_t len, l;
+		size_t len;
 		int level;
 
 		raw_spin_lock_irqsave(&logbuf_lock, flags);
@@ -1771,13 +1802,7 @@ again:
 		msg = log_from_idx(console_idx);
 		level = msg->level & 7;
 
-		len = prepend_timestamp(msg->ts_nsec, text);
-		l = msg->text_len;
-		if (len + l + 1 >= sizeof(text))
-			l = sizeof(text) - len - 1;
-		memcpy(text + len, log_text(msg), l);
-		len += l;
-		text[len++] = '\n';
+		len = msg_print_text(msg, false, text, sizeof(text));
 
 		console_idx = log_next(console_idx);
 		console_seq++;
