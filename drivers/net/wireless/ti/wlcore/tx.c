@@ -178,10 +178,11 @@ u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 unsigned int wlcore_calc_packet_alignment(struct wl1271 *wl,
 					  unsigned int packet_length)
 {
-	if (wl->quirks & WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN)
-		return ALIGN(packet_length, WL12XX_BUS_BLOCK_SIZE);
-	else
+	if ((wl->quirks & WLCORE_QUIRK_TX_PAD_LAST_FRAME) ||
+	    !(wl->quirks & WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN))
 		return ALIGN(packet_length, WL1271_TX_ALIGN_TO);
+	else
+		return ALIGN(packet_length, WL12XX_BUS_BLOCK_SIZE);
 }
 EXPORT_SYMBOL(wlcore_calc_packet_alignment);
 
@@ -662,7 +663,7 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 	struct wl12xx_vif *wlvif;
 	struct sk_buff *skb;
 	struct wl1271_tx_hw_descr *desc;
-	u32 buf_offset = 0;
+	u32 buf_offset = 0, last_len = 0;
 	bool sent_packets = false;
 	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
 	int ret;
@@ -686,6 +687,9 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 			 * Flush buffer and try again.
 			 */
 			wl1271_skb_queue_head(wl, wlvif, skb);
+
+			buf_offset = wlcore_hw_pre_pkt_send(wl, buf_offset,
+							    last_len);
 			wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
 					  buf_offset, true);
 			sent_packets = true;
@@ -711,7 +715,8 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 				ieee80211_free_txskb(wl->hw, skb);
 			goto out_ack;
 		}
-		buf_offset += ret;
+		last_len = ret;
+		buf_offset += last_len;
 		wl->tx_packets_count++;
 		if (has_data) {
 			desc = (struct wl1271_tx_hw_descr *) skb->data;
@@ -721,6 +726,7 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 
 out_ack:
 	if (buf_offset) {
+		buf_offset = wlcore_hw_pre_pkt_send(wl, buf_offset, last_len);
 		wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
 				  buf_offset, true);
 		sent_packets = true;

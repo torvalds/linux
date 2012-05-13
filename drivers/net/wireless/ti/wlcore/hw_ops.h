@@ -188,4 +188,13 @@ wlcore_hw_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	return wl->ops->set_key(wl, cmd, vif, sta, key_conf);
 }
 
+static inline u32
+wlcore_hw_pre_pkt_send(struct wl1271 *wl, u32 buf_offset, u32 last_len)
+{
+	if (wl->ops->pre_pkt_send)
+		return wl->ops->pre_pkt_send(wl, buf_offset, last_len);
+
+	return buf_offset;
+}
+
 #endif

@@ -1406,6 +1406,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.debugfs_init		= wl12xx_debugfs_add_files,
 	.get_spare_blocks	= wl12xx_get_spare_blocks,
 	.set_key		= wl12xx_set_key,
+	.pre_pkt_send		= NULL,
 };
 
 static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {

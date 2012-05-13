@@ -600,7 +600,8 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 		wl->plt_fw_name = WL18XX_FW_NAME;
 		wl->quirks |= WLCORE_QUIRK_NO_ELP |
 			      WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED |
-			      WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN;
+			      WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN |
+			      WLCORE_QUIRK_TX_PAD_LAST_FRAME;
 
 		break;
 	case CHIP_ID_185x_PG10:
@@ -847,7 +848,6 @@ wl18xx_set_tx_desc_blocks(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
 			  u32 blks, u32 spare_blks)
 {
 	desc->wl18xx_mem.total_mem_blocks = blks;
-	desc->wl18xx_mem.reserved = 0;
 }
 
 static void
@@ -855,6 +855,12 @@ wl18xx_set_tx_desc_data_len(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
 			    struct sk_buff *skb)
 {
 	desc->length = cpu_to_le16(skb->len);
+
+	/* if only the last frame is to be padded, we unset this bit on Tx */
+	if (wl->quirks & WLCORE_QUIRK_TX_PAD_LAST_FRAME)
+		desc->wl18xx_mem.ctrl = WL18XX_TX_CTRL_NOT_PADDED;
+	else
+		desc->wl18xx_mem.ctrl = 0;
 
 	wl1271_debug(DEBUG_TX, "tx_fill_hdr: hlid: %d "
 		     "len: %d life: %d mem: %d", desc->hlid,
@@ -1152,6 +1158,25 @@ out:
 	return ret;
 }
 
+static u32 wl18xx_pre_pkt_send(struct wl1271 *wl,
+			       u32 buf_offset, u32 last_len)
+{
+	if (wl->quirks & WLCORE_QUIRK_TX_PAD_LAST_FRAME) {
+		struct wl1271_tx_hw_descr *last_desc;
+
+		/* get the last TX HW descriptor written to the aggr buf */
+		last_desc = (struct wl1271_tx_hw_descr *)(wl->aggr_buf +
+							buf_offset - last_len);
+
+		/* the last frame is padded up to an SDIO block */
+		last_desc->wl18xx_mem.ctrl &= ~WL18XX_TX_CTRL_NOT_PADDED;
+		return ALIGN(buf_offset, WL12XX_BUS_BLOCK_SIZE);
+	}
+
+	/* no modifications */
+	return buf_offset;
+}
+
 static struct wlcore_ops wl18xx_ops = {
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
@@ -1176,6 +1201,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.handle_static_data	= wl18xx_handle_static_data,
 	.get_spare_blocks = wl18xx_get_spare_blocks,
 	.set_key	= wl18xx_set_key,
+	.pre_pkt_send	= wl18xx_pre_pkt_send,
 };
 
 /* HT cap appropriate for wide channels */

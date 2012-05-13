@@ -32,6 +32,9 @@
 #define WL18XX_TX_STATUS_DESC_ID_MASK    0x7F
 #define WL18XX_TX_STATUS_STAT_BIT_IDX    7
 
+/* Indicates this TX HW frame is not padded to SDIO block size */
+#define WL18XX_TX_CTRL_NOT_PADDED	BIT(7)
+
 /*
  * The FW uses a special bit to indicate a wide channel should be used in
  * the rate policy.

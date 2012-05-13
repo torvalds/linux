@@ -93,9 +93,9 @@ struct wl18xx_tx_mem {
 	u8 total_mem_blocks;
 
 	/*
-	 * always zero
+	 * control bits
 	 */
-	u8 reserved;
+	u8 ctrl;
 } __packed;
 
 /*

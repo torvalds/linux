@@ -80,6 +80,7 @@ struct wlcore_ops {
 		       struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta,
 		       struct ieee80211_key_conf *key_conf);
+	u32 (*pre_pkt_send)(struct wl1271 *wl, u32 buf_offset, u32 last_len);
 };
 
 enum wlcore_partitions {
@@ -419,6 +420,9 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 
 /* Some firmwares may not support ELP */
 #define WLCORE_QUIRK_NO_ELP			BIT(6)
+
+/* pad only the last frame in the aggregate buffer */
+#define WLCORE_QUIRK_TX_PAD_LAST_FRAME		BIT(7)
 
 /* extra header space is required for TKIP */
 #define WLCORE_QUIRK_TKIP_HEADER_SPACE		BIT(8)
