@@ -79,6 +79,23 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 }
 EXPORT_SYMBOL_GPL(usb_store_new_id);
 
+static ssize_t show_dynids(struct device_driver *driver, char *buf)
+{
+	struct usb_dynid *dynid;
+	struct usb_driver *usb_drv = to_usb_driver(driver);
+	size_t count = 0;
+
+	list_for_each_entry(dynid, &usb_drv->dynids.list, node)
+		if (dynid->id.bInterfaceClass != 0)
+			count += scnprintf(&buf[count], PAGE_SIZE - count, "%04x %04x %02x\n",
+					   dynid->id.idVendor, dynid->id.idProduct,
+					   dynid->id.bInterfaceClass);
+		else
+			count += scnprintf(&buf[count], PAGE_SIZE - count, "%04x %04x\n",
+					   dynid->id.idVendor, dynid->id.idProduct);
+	return count;
+}
+
 static ssize_t store_new_id(struct device_driver *driver,
 			    const char *buf, size_t count)
 {
@@ -86,7 +103,7 @@ static ssize_t store_new_id(struct device_driver *driver,
 
 	return usb_store_new_id(&usb_drv->dynids, driver, buf, count);
 }
-static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
+static DRIVER_ATTR(new_id, S_IRUGO | S_IWUSR, show_dynids, store_new_id);
 
 /**
  * store_remove_id - remove a USB device ID from this driver
@@ -127,7 +144,7 @@ store_remove_id(struct device_driver *driver, const char *buf, size_t count)
 		return retval;
 	return count;
 }
-static DRIVER_ATTR(remove_id, S_IWUSR, NULL, store_remove_id);
+static DRIVER_ATTR(remove_id, S_IRUGO | S_IWUSR, show_dynids, store_remove_id);
 
 static int usb_create_newid_files(struct usb_driver *usb_drv)
 {
