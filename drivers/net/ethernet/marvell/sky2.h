@@ -2241,7 +2241,6 @@ struct sky2_port {
 	u16		     rx_pending;
 	u16		     rx_data_size;
 	u16		     rx_nfrags;
-	u16		     rx_tag;
 
 	struct {
 		unsigned long last;

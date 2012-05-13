@@ -1742,15 +1742,17 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 	mfs = ntohs(flp->fl_csp.sp_bb_data) &
 		FC_SP_BB_DATA_MASK;
-	if (mfs >= FC_SP_MIN_MAX_PAYLOAD &&
-	    mfs <= lport->mfs) {
-		lport->mfs = mfs;
-		fc_host_maxframe_size(lport->host) = mfs;
-	} else {
+
+	if (mfs < FC_SP_MIN_MAX_PAYLOAD || mfs > FC_SP_MAX_MAX_PAYLOAD) {
 		FC_LPORT_DBG(lport, "FLOGI bad mfs:%hu response, "
 			     "lport->mfs:%hu\n", mfs, lport->mfs);
 		fc_lport_error(lport, fp);
 		goto err;
+	}
+
+	if (mfs <= lport->mfs) {
+		lport->mfs = mfs;
+		fc_host_maxframe_size(lport->host) = mfs;
 	}
 
 	csp_flags = ntohs(flp->fl_csp.sp_features);

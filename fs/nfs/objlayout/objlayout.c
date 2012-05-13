@@ -604,7 +604,6 @@ int objlayout_get_deviceinfo(struct pnfs_layout_hdr *pnfslay,
 {
 	struct objlayout_deviceinfo *odi;
 	struct pnfs_device pd;
-	struct super_block *sb;
 	struct page *page, **pages;
 	u32 *p;
 	int err;
@@ -623,7 +622,6 @@ int objlayout_get_deviceinfo(struct pnfs_layout_hdr *pnfslay,
 	pd.pglen = PAGE_SIZE;
 	pd.mincount = 0;
 
-	sb = pnfslay->plh_inode->i_sb;
 	err = nfs4_proc_getdeviceinfo(NFS_SERVER(pnfslay->plh_inode), &pd);
 	dprintk("%s nfs_getdeviceinfo returned %d\n", __func__, err);
 	if (err)

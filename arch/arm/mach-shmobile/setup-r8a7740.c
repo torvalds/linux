@@ -350,19 +350,19 @@ static void r8a7740_i2c_workaround(struct platform_device *pdev)
 	i2c_write(reg, ICSTART, i2c_read(reg, ICSTART) | 0x10);
 	i2c_read(reg, ICSTART); /* dummy read */
 
-	mdelay(100);
+	udelay(10);
 
 	i2c_write(reg, ICCR, 0x01);
-	i2c_read(reg, ICCR);
 	i2c_write(reg, ICSTART, 0x00);
-	i2c_read(reg, ICSTART);
+
+	udelay(10);
 
 	i2c_write(reg, ICCR, 0x10);
-	mdelay(100);
+	udelay(10);
 	i2c_write(reg, ICCR, 0x00);
-	mdelay(100);
+	udelay(10);
 	i2c_write(reg, ICCR, 0x10);
-	mdelay(100);
+	udelay(10);
 
 	iounmap(reg);
 }

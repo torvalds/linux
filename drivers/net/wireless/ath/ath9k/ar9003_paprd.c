@@ -54,7 +54,7 @@ void ar9003_paprd_enable(struct ath_hw *ah, bool val)
 
 	if (val) {
 		ah->paprd_table_write_done = true;
-		ath9k_hw_apply_txpower(ah, chan);
+		ath9k_hw_apply_txpower(ah, chan, false);
 	}
 
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL0_B0,

@@ -1100,6 +1100,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	if (!sym->st_shndx || get_secindex(info, sym) >= info->num_sections)
 		return;
 
+	/* We're looking for an object */
+	if (ELF_ST_TYPE(sym->st_info) != STT_OBJECT)
+		return;
+
 	/* All our symbols are of form <prefix>__mod_XXX_device_table. */
 	name = strstr(symname, "__mod_");
 	if (!name)

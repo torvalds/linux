@@ -3154,14 +3154,6 @@ static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
 			set_ring_rsc_enabled(rx_ring);
 		else
 			clear_ring_rsc_enabled(rx_ring);
-#ifdef IXGBE_FCOE
-		if (netdev->features & NETIF_F_FCOE_MTU) {
-			struct ixgbe_ring_feature *f;
-			f = &adapter->ring_feature[RING_F_FCOE];
-			if ((i >= f->mask) && (i < f->mask + f->indices))
-				set_bit(__IXGBE_RX_FCOE_BUFSZ, &rx_ring->state);
-		}
-#endif /* IXGBE_FCOE */
 	}
 }
 
@@ -4836,7 +4828,9 @@ static int ixgbe_resume(struct pci_dev *pdev)
 
 	pci_wake_from_d3(pdev, false);
 
+	rtnl_lock();
 	err = ixgbe_init_interrupt_scheme(adapter);
+	rtnl_unlock();
 	if (err) {
 		e_dev_err("Cannot initialize interrupts for device\n");
 		return err;
@@ -4879,10 +4873,6 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	}
 
 	ixgbe_clear_interrupt_scheme(adapter);
-#ifdef CONFIG_DCB
-	kfree(adapter->ixgbe_ieee_pfc);
-	kfree(adapter->ixgbe_ieee_ets);
-#endif
 
 #ifdef CONFIG_PM
 	retval = pci_save_state(pdev);
@@ -4892,6 +4882,16 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 #endif
 	if (wufc) {
 		ixgbe_set_rx_mode(netdev);
+
+		/*
+		 * enable the optics for both mult-speed fiber and
+		 * 82599 SFP+ fiber as we can WoL.
+		 */
+		if (hw->mac.ops.enable_tx_laser &&
+		    (hw->phy.multispeed_fiber ||
+		    (hw->mac.ops.get_media_type(hw) == ixgbe_media_type_fiber &&
+		     hw->mac.type == ixgbe_mac_82599EB)))
+			hw->mac.ops.enable_tx_laser(hw);
 
 		/* turn on all-multi mode if wake on multicast is enabled */
 		if (wufc & IXGBE_WUFC_MC) {
@@ -7220,6 +7220,11 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 
 	ixgbe_release_hw_control(adapter);
 
+#ifdef CONFIG_DCB
+	kfree(adapter->ixgbe_ieee_pfc);
+	kfree(adapter->ixgbe_ieee_ets);
+
+#endif
 	iounmap(adapter->hw.hw_addr);
 	pci_release_selected_regions(pdev, pci_select_bars(pdev,
 				     IORESOURCE_MEM));
