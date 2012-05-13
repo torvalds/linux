@@ -532,6 +532,20 @@ err_unlock:
 EXPORT_SYMBOL(amdtp_out_stream_start);
 
 /**
+ * amdtp_out_stream_pcm_pointer - get the PCM buffer position
+ * @s: the AMDTP output stream that transports the PCM data
+ *
+ * Returns the current buffer position, in frames.
+ */
+unsigned long amdtp_out_stream_pcm_pointer(struct amdtp_out_stream *s)
+{
+	fw_iso_context_flush_completions(s->context);
+
+	return ACCESS_ONCE(s->pcm_buffer_pointer);
+}
+EXPORT_SYMBOL(amdtp_out_stream_pcm_pointer);
+
+/**
  * amdtp_out_stream_update - update the stream after a bus reset
  * @s: the AMDTP output stream
  */

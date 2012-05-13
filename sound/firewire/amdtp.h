@@ -84,6 +84,7 @@ void amdtp_out_stream_stop(struct amdtp_out_stream *s);
 void amdtp_out_stream_set_pcm_format(struct amdtp_out_stream *s,
 				     snd_pcm_format_t format);
 void amdtp_out_stream_pcm_prepare(struct amdtp_out_stream *s);
+unsigned long amdtp_out_stream_pcm_pointer(struct amdtp_out_stream *s);
 void amdtp_out_stream_pcm_abort(struct amdtp_out_stream *s);
 
 /**
@@ -138,18 +139,6 @@ static inline void amdtp_out_stream_pcm_trigger(struct amdtp_out_stream *s,
 						struct snd_pcm_substream *pcm)
 {
 	ACCESS_ONCE(s->pcm) = pcm;
-}
-
-/**
- * amdtp_out_stream_pcm_pointer - get the PCM buffer position
- * @s: the AMDTP output stream that transports the PCM data
- *
- * Returns the current buffer position, in frames.
- */
-static inline unsigned long
-amdtp_out_stream_pcm_pointer(struct amdtp_out_stream *s)
-{
-	return ACCESS_ONCE(s->pcm_buffer_pointer);
 }
 
 static inline bool cip_sfc_is_base_44100(enum cip_sfc sfc)
