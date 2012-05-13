@@ -46,15 +46,6 @@ static void __init shmobile_timer_init(void)
 {
 }
 
-void __init shmobile_twd_init(struct twd_local_timer *twd_local_timer)
-{
-#ifdef CONFIG_HAVE_ARM_TWD
-	int err = twd_local_timer_register(twd_local_timer);
-	if (err)
-		pr_err("twd_local_timer_register failed %d\n", err);
-#endif
-}
-
 struct sys_timer shmobile_timer = {
 	.init		= shmobile_timer_init,
 };
