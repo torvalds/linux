@@ -42,9 +42,4 @@ DECLARE_PER_CPU(struct clock_event_device, sparc32_clockevent);
 extern void register_percpu_ce(int cpu);
 #endif
 
-/* FIXME: Make do_[gs]ettimeofday btfixup calls */
-struct timespec;
-BTFIXUPDEF_CALL(int, bus_do_settimeofday, struct timespec *tv)
-#define bus_do_settimeofday(tv) BTFIXUP_CALL(bus_do_settimeofday)(tv)
-
 #endif /* !(_SPARC_TIMER_H) */
