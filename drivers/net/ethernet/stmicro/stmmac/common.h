@@ -247,8 +247,8 @@ struct stmmac_desc_ops {
 
 struct stmmac_dma_ops {
 	/* DMA core initialization */
-	int (*init) (void __iomem *ioaddr, int pbl, int fb, int burst_len,
-			u32 dma_tx, u32 dma_rx);
+	int (*init) (void __iomem *ioaddr, int pbl, int fb, int mb,
+		     int burst_len, u32 dma_tx, u32 dma_rx);
 	/* Dump DMA registers */
 	void (*dump_regs) (void __iomem *ioaddr);
 	/* Set tx/rx threshold in the csr6 register

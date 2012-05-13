@@ -141,6 +141,7 @@ enum rx_tx_priority_ratio {
 };
 
 #define DMA_BUS_MODE_FB		0x00010000	/* Fixed burst */
+#define DMA_BUS_MODE_MB		0x04000000	/* Mixed burst */
 #define DMA_BUS_MODE_RPBL_MASK	0x003e0000	/* Rx-Programmable Burst Len */
 #define DMA_BUS_MODE_RPBL_SHIFT	17
 #define DMA_BUS_MODE_USP	0x00800000

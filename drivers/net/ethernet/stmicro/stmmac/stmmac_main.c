@@ -925,6 +925,7 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 {
 	int pbl = DEFAULT_DMA_PBL, fixed_burst = 0, burst_len = 0;
+	int mixed_burst = 0;
 
 	/* Some DMA parameters can be passed from the platform;
 	 * in case of these are not passed we keep a default
@@ -932,10 +933,11 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	if (priv->plat->dma_cfg) {
 		pbl = priv->plat->dma_cfg->pbl;
 		fixed_burst = priv->plat->dma_cfg->fixed_burst;
+		mixed_burst = priv->plat->dma_cfg->mixed_burst;
 		burst_len = priv->plat->dma_cfg->burst_len;
 	}
 
-	return priv->hw->dma->init(priv->ioaddr, pbl, fixed_burst,
+	return priv->hw->dma->init(priv->ioaddr, pbl, fixed_burst, mixed_burst,
 				   burst_len, priv->dma_tx_phy,
 				   priv->dma_rx_phy);
 }

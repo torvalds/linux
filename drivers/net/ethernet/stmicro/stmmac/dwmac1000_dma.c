@@ -31,7 +31,7 @@
 #include "dwmac_dma.h"
 
 static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb,
-			      int burst_len, u32 dma_tx, u32 dma_rx)
+			      int mb, int burst_len, u32 dma_tx, u32 dma_rx)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
 	int limit;
@@ -65,6 +65,10 @@ static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb,
 	/* Set the Fixed burst mode */
 	if (fb)
 		value |= DMA_BUS_MODE_FB;
+
+	/* Mixed Burst has no effect when fb is set */
+	if (mb)
+		value |= DMA_BUS_MODE_MB;
 
 #ifdef CONFIG_STMMAC_DA
 	value |= DMA_BUS_MODE_DA;	/* Rx has priority over tx */
