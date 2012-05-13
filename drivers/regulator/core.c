@@ -3193,6 +3193,8 @@ unset_supplies:
 	unset_regulator_supplies(rdev);
 
 scrub:
+	if (rdev->supply)
+		regulator_put(rdev->supply);
 	kfree(rdev->constraints);
 	device_unregister(&rdev->dev);
 	/* device core frees rdev */
