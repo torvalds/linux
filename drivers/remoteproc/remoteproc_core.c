@@ -354,7 +354,7 @@ static void __rproc_free_vrings(struct rproc_vdev *rvdev, int i)
 {
 	struct rproc *rproc = rvdev->rproc;
 
-	for (i--; i > 0; i--) {
+	for (i--; i >= 0; i--) {
 		struct rproc_vring *rvring = &rvdev->vring[i];
 		int size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
 
