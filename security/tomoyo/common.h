@@ -860,7 +860,6 @@ struct tomoyo_aggregator {
 /* Structure for policy manager. */
 struct tomoyo_manager {
 	struct tomoyo_acl_head head;
-	bool is_domain;  /* True if manager is a domainname. */
 	/* A path to program or a domainname. */
 	const struct tomoyo_path_info *manager;
 };
