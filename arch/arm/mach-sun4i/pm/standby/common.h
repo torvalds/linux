@@ -15,18 +15,11 @@
 * Update  : date                auther      ver     notes
 *********************************************************************************************************
 */
+
+#include <linux/types.h>
+
 #ifndef __COMMON_H__
 #define __COMMON_H__
-
-typedef signed char         __s8;
-typedef unsigned char       __u8;
-typedef signed short        __s16;
-typedef unsigned short      __u16;
-typedef signed int          __s32;
-typedef unsigned int        __u32;
-typedef signed long long    __s64;
-typedef unsigned long long  __u64;
-
 
 static inline __u64 standby_uldiv(__u64 dividend, __u32 divisior)
 {
