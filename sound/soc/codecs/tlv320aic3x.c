@@ -1160,24 +1160,6 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-void aic3x_set_headset_detection(struct snd_soc_codec *codec, int detect,
-				 int headset_debounce, int button_debounce)
-{
-	u8 val;
-
-	val = ((detect & AIC3X_HEADSET_DETECT_MASK)
-		<< AIC3X_HEADSET_DETECT_SHIFT) |
-	      ((headset_debounce & AIC3X_HEADSET_DEBOUNCE_MASK)
-		<< AIC3X_HEADSET_DEBOUNCE_SHIFT) |
-	      ((button_debounce & AIC3X_BUTTON_DEBOUNCE_MASK)
-		<< AIC3X_BUTTON_DEBOUNCE_SHIFT);
-
-	if (detect & AIC3X_HEADSET_DETECT_MASK)
-		val |= AIC3X_HEADSET_DETECT_ENABLED;
-
-	snd_soc_write(codec, AIC3X_HEADSET_DETECT_CTRL_A, val);
-}
-
 #define AIC3X_RATES	SNDRV_PCM_RATE_8000_96000
 #define AIC3X_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
