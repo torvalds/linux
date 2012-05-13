@@ -1921,12 +1921,6 @@ static void __init get_srmmu_type(void)
 	srmmu_is_bad();
 }
 
-extern unsigned long spwin_mmu_patchme, fwin_mmu_patchme,
-	tsetup_mmu_patchme, rtrap_mmu_patchme;
-
-extern unsigned long spwin_srmmu_stackchk, srmmu_fwin_stackchk,
-	tsetup_srmmu_stackchk, srmmu_rett_stackchk;
-
 #ifdef CONFIG_SMP
 /* Local cross-calls. */
 static void smp_flush_page_for_dma(unsigned long page)
