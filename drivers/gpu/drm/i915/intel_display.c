@@ -2796,13 +2796,13 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	/* For PCH output, training FDI link */
 	dev_priv->display.fdi_link_train(crtc);
 
+	intel_enable_pch_pll(intel_crtc);
+
 	if (HAS_PCH_LPT(dev)) {
 		DRM_DEBUG_KMS("LPT detected: programming iCLKIP\n");
 		lpt_program_iclkip(crtc);
 	} else if (HAS_PCH_CPT(dev)) {
 		u32 sel;
-
-		intel_enable_pch_pll(intel_crtc);
 
 		temp = I915_READ(PCH_DPLL_SEL);
 		switch (pipe) {
