@@ -565,17 +565,6 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 	wm831x_set_bits(wm831x, WM831X_IRQ_CONFIG,
 			WM831X_IRQ_OD, i);
 
-	/* Try to flag /IRQ as a wake source; there are a number of
-	 * unconditional wake sources in the PMIC so this isn't
-	 * conditional but we don't actually care *too* much if it
-	 * fails.
-	 */
-	ret = enable_irq_wake(irq);
-	if (ret != 0) {
-		dev_warn(wm831x->dev, "Can't enable IRQ as wake source: %d\n",
-			 ret);
-	}
-
 	wm831x->irq = irq;
 
 	/* Register them with genirq */
@@ -597,6 +586,18 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 	}
 
 	if (irq) {
+		/* Try to flag /IRQ as a wake source; there are a number of
+		 * unconditional wake sources in the PMIC so this isn't
+		 * conditional but we don't actually care *too* much if it
+		 * fails.
+		 */
+		ret = enable_irq_wake(irq);
+		if (ret != 0) {
+			dev_warn(wm831x->dev,
+				 "Can't enable IRQ as wake source: %d\n",
+				 ret);
+		}
+
 		ret = request_threaded_irq(irq, NULL, wm831x_irq_thread,
 					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 					   "wm831x", wm831x);
