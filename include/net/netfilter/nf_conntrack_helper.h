@@ -15,6 +15,11 @@
 
 struct module;
 
+enum nf_ct_helper_flags {
+	NF_CT_HELPER_F_USERSPACE	= (1 << 0),
+	NF_CT_HELPER_F_CONFIGURED	= (1 << 1),
+};
+
 #define NF_CT_HELPER_NAME_LEN	16
 
 struct nf_conntrack_helper {
@@ -42,6 +47,9 @@ struct nf_conntrack_helper {
 	int (*from_nlattr)(struct nlattr *attr, struct nf_conn *ct);
 	int (*to_nlattr)(struct sk_buff *skb, const struct nf_conn *ct);
 	unsigned int expect_class_max;
+
+	unsigned int flags;
+	unsigned int queue_num;		/* For user-space helpers. */
 };
 
 extern struct nf_conntrack_helper *
@@ -95,5 +103,8 @@ struct nf_ct_helper_expectfn *
 nf_ct_helper_expectfn_find_by_name(const char *name);
 struct nf_ct_helper_expectfn *
 nf_ct_helper_expectfn_find_by_symbol(const void *symbol);
+
+extern struct hlist_head *nf_ct_helper_hash;
+extern unsigned int nf_ct_helper_hsize;
 
 #endif /*_NF_CONNTRACK_HELPER_H*/
