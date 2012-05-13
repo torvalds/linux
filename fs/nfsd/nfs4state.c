@@ -1545,13 +1545,11 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 	status = nfs4_make_rec_clidname(dname, &exid->clname);
 
 	if (status)
-		goto error;
+		return status;
 
 	strhashval = clientstr_hashval(dname);
 
 	nfs4_lock_state();
-	status = nfs_ok;
-
 	conf = find_confirmed_client_by_str(dname, strhashval);
 	if (conf) {
 		if (!clp_used_exchangeid(conf)) {
@@ -1630,8 +1628,6 @@ out_copy:
 
 out:
 	nfs4_unlock_state();
-error:
-	dprintk("nfsd4_exchange_id returns %d\n", ntohl(status));
 	return status;
 }
 
