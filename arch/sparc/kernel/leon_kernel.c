@@ -463,11 +463,11 @@ bad:
 	return;
 }
 
-void leon_clear_clock_irq(void)
+static void leon_clear_clock_irq(void)
 {
 }
 
-void leon_load_profile_irq(int cpu, unsigned int limit)
+static void leon_load_profile_irq(int cpu, unsigned int limit)
 {
 }
 
@@ -517,12 +517,9 @@ void __init leon_init_IRQ(void)
 {
 	sparc_config.init_timers      = leon_init_timers;
 	sparc_config.build_device_irq = _leon_build_device_irq;
-	sparc_config.clock_rate = 1000000;
-
-	BTFIXUPSET_CALL(clear_clock_irq, leon_clear_clock_irq,
-			BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(load_profile_irq, leon_load_profile_irq,
-			BTFIXUPCALL_NOP);
+	sparc_config.clock_rate       = 1000000;
+	sparc_config.clear_clock_irq  = leon_clear_clock_irq;
+	sparc_config.load_profile_irq = leon_load_profile_irq;
 }
 
 void __init leon_init(void)

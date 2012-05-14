@@ -95,10 +95,10 @@ irqreturn_t notrace timer_interrupt(int dummy, void *dev_id)
 	if (timer_cs_enabled) {
 		write_seqlock(&timer_cs_lock);
 		timer_cs_internal_counter++;
-		clear_clock_irq();
+		sparc_config.clear_clock_irq();
 		write_sequnlock(&timer_cs_lock);
 	} else {
-		clear_clock_irq();
+		sparc_config.clear_clock_irq();
 	}
 
 	if (timer_ce_enabled)
@@ -200,12 +200,13 @@ static void percpu_ce_setup(enum clock_event_mode mode,
 
 	switch (mode) {
 		case CLOCK_EVT_MODE_PERIODIC:
-			load_profile_irq(cpu, SBUS_CLOCK_RATE / HZ);
+			sparc_config.load_profile_irq(cpu,
+						      SBUS_CLOCK_RATE / HZ);
 			break;
 		case CLOCK_EVT_MODE_ONESHOT:
 		case CLOCK_EVT_MODE_SHUTDOWN:
 		case CLOCK_EVT_MODE_UNUSED:
-			load_profile_irq(cpu, 0);
+			sparc_config.load_profile_irq(cpu, 0);
 			break;
 		default:
 			break;
@@ -218,7 +219,7 @@ static int percpu_ce_set_next_event(unsigned long delta,
 	int cpu = __first_cpu(evt->cpumask);
 	unsigned int next = (unsigned int)delta;
 
-	load_profile_irq(cpu, next);
+	sparc_config.load_profile_irq(cpu, next);
 	return 0;
 }
 

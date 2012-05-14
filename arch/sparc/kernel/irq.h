@@ -70,6 +70,9 @@ struct sparc_config {
 
 	/* function to obtain offsett for cs period */
 	unsigned int (*get_cycles_offset)(void);
+
+	void (*clear_clock_irq)(void);
+	void (*load_profile_irq)(int cpu, unsigned int limit);
 };
 extern struct sparc_config sparc_config;
 
@@ -77,27 +80,6 @@ unsigned int irq_alloc(unsigned int real_irq, unsigned int pil);
 void irq_link(unsigned int irq);
 void irq_unlink(unsigned int irq);
 void handler_irq(unsigned int pil, struct pt_regs *regs);
-
-/* Dave Redman (djhr@tadpole.co.uk)
- * changed these to function pointers.. it saves cycles and will allow
- * the irq dependencies to be split into different files at a later date
- * sun4m_irq.c etc so we could reduce the kernel size.
- * Jakub Jelinek (jj@sunsite.mff.cuni.cz)
- * Changed these to btfixup entities... It saves cycles :)
- */
-
-BTFIXUPDEF_CALL(void, clear_clock_irq, void)
-BTFIXUPDEF_CALL(void, load_profile_irq, int, unsigned int)
-
-static inline void clear_clock_irq(void)
-{
-	BTFIXUP_CALL(clear_clock_irq)();
-}
-
-static inline void load_profile_irq(int cpu, int limit)
-{
-	BTFIXUP_CALL(load_profile_irq)(cpu, limit);
-}
 
 unsigned long leon_get_irqmask(unsigned int irq);
 

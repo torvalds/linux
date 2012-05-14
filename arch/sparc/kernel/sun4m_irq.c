@@ -462,12 +462,12 @@ void __init sun4m_init_IRQ(void)
 	if (num_cpu_iregs == 4)
 		sbus_writel(0, &sun4m_irq_global->interrupt_target);
 
-	BTFIXUPSET_CALL(clear_clock_irq, sun4m_clear_clock_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(load_profile_irq, sun4m_load_profile_irq, BTFIXUPCALL_NORM);
-
-	sparc_config.init_timers = sun4m_init_timers;
+	sparc_config.init_timers      = sun4m_init_timers;
 	sparc_config.build_device_irq = sun4m_build_device_irq;
 	sparc_config.clock_rate       = SBUS_CLOCK_RATE;
+	sparc_config.clear_clock_irq  = sun4m_clear_clock_irq;
+	sparc_config.load_profile_irq = sun4m_load_profile_irq;
+
 
 	/* Cannot enable interrupts until OBP ticker is disabled. */
 }
