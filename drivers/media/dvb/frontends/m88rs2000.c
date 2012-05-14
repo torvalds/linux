@@ -787,13 +787,13 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 		return -ENODEV;
 
 	for (i = 0; i < 25; i++) {
-		u8 reg = m88rs2000_demod_read(state, 0x8c);
+		reg = m88rs2000_demod_read(state, 0x8c);
 		if ((reg & 0x7) == 0x7) {
 			status = FE_HAS_LOCK;
 			break;
 		}
 		state->no_lock_count++;
-		if (state->no_lock_count > 15) {
+		if (state->no_lock_count == 15) {
 			reg = m88rs2000_demod_read(state, 0x70);
 			reg ^= 0x4;
 			m88rs2000_demod_write(state, 0x70, reg);
