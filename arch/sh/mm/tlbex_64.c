@@ -38,54 +38,15 @@
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
-#include <cpu/registers.h>
-
-/* Callable from fault.c, so not static */
-inline void __do_tlb_refill(unsigned long address,
-                            unsigned long long is_text_not_data, pte_t *pte)
-{
-	unsigned long long ptel;
-	unsigned long long pteh=0;
-	struct tlb_info *tlbp;
-	unsigned long long next;
-
-	/* Get PTEL first */
-	ptel = pte_val(*pte);
-
-	/*
-	 * Set PTEH register
-	 */
-	pteh = neff_sign_extend(address & MMU_VPN_MASK);
-
-	/* Set the ASID. */
-	pteh |= get_asid() << PTEH_ASID_SHIFT;
-	pteh |= PTEH_VALID;
-
-	/* Set PTEL register, set_pte has performed the sign extension */
-	ptel &= _PAGE_FLAGS_HARDWARE_MASK; /* drop software flags */
-
-	tlbp = is_text_not_data ? &(cpu_data->itlb) : &(cpu_data->dtlb);
-	next = tlbp->next;
-	__flush_tlb_slot(next);
-	asm volatile ("putcfg %0,1,%2\n\n\t"
-		      "putcfg %0,0,%1\n"
-		      :  : "r" (next), "r" (pteh), "r" (ptel) );
-
-	next += TLB_STEP;
-	if (next > tlbp->last) next = tlbp->first;
-	tlbp->next = next;
-
-}
 
 static int handle_vmalloc_fault(struct mm_struct *mm,
 				unsigned long protection_flags,
-                                unsigned long long textaccess,
 				unsigned long address)
 {
 	pgd_t *dir;
 	pud_t *pud;
 	pmd_t *pmd;
-	static pte_t *pte;
+	pte_t *pte;
 	pte_t entry;
 
 	dir = pgd_offset_k(address);
@@ -106,14 +67,13 @@ static int handle_vmalloc_fault(struct mm_struct *mm,
 	if ((pte_val(entry) & protection_flags) != protection_flags)
 		return 0;
 
-        __do_tlb_refill(address, textaccess, pte);
+	update_mmu_cache(NULL, address, pte);
 
 	return 1;
 }
 
 static int handle_tlbmiss(struct mm_struct *mm,
 			  unsigned long long protection_flags,
-			  unsigned long long textaccess,
 			  unsigned long address)
 {
 	pgd_t *dir;
@@ -165,7 +125,7 @@ static int handle_tlbmiss(struct mm_struct *mm,
 	if ((pte_val(entry) & protection_flags) != protection_flags)
 		return 0;
 
-        __do_tlb_refill(address, textaccess, pte);
+	update_mmu_cache(NULL, address, pte);
 
 	return 1;
 }
@@ -210,7 +170,6 @@ asmlinkage int do_fast_page_fault(unsigned long long ssr_md,
 {
 	struct task_struct *tsk;
 	struct mm_struct *mm;
-	unsigned long long textaccess;
 	unsigned long long protection_flags;
 	unsigned long long index;
 	unsigned long long expevt4;
@@ -229,8 +188,11 @@ asmlinkage int do_fast_page_fault(unsigned long long ssr_md,
 	 * that PRU is set when it needs to be. */
 	index = expevt4 ^ (expevt4 >> 5);
 	index &= 7;
+
 	protection_flags = expevt_lookup_table.protection_flags[index];
-	textaccess       = expevt_lookup_table.is_text_access[index];
+
+	if (expevt_lookup_table.is_text_access[index])
+		set_thread_fault_code(FAULT_CODE_ITLB);
 
 	/* SIM
 	 * Note this is now called with interrupts still disabled
@@ -252,11 +214,10 @@ asmlinkage int do_fast_page_fault(unsigned long long ssr_md,
 			 * Process-contexts can never have this address
 			 * range mapped
 			 */
-			if (handle_vmalloc_fault(mm, protection_flags,
-						 textaccess, address))
+			if (handle_vmalloc_fault(mm, protection_flags, address))
 				return 1;
 	} else if (!in_interrupt() && mm) {
-		if (handle_tlbmiss(mm, protection_flags, textaccess, address))
+		if (handle_tlbmiss(mm, protection_flags, address))
 			return 1;
 	}
 
