@@ -564,11 +564,11 @@ void emac_sys_setup(wemac_board_info_t * db)
 	}
 
 	//	reg_val = readl(db->ccmu_vbase + CCM_AHB_GATING_REG);
-	//	printk("db->ccmu_vbase: %x, ccmu ahb gate:¡¡0x%x\n",db->ccmu_vbase + CCM_AHB_GATING_REG , reg_val);
+	//	printk("db->ccmu_vbase: %x, ccmu ahb gate: 0x%x\n",db->ccmu_vbase + CCM_AHB_GATING_REG , reg_val);
 	//	reg_val |= 0x1<<17;			//EMAC
 	//	writel(reg_val, db->ccmu_vbase + CCM_AHB_GATING_REG);
 	//	reg_val = readl(db->ccmu_vbase + CCM_AHB_GATING_REG);
-	//	printk("db->ccmu_vbase: %x, ccmu ahb gate:¡¡0x%x\n",db->ccmu_vbase + CCM_AHB_GATING_REG , reg_val);
+	//	printk("db->ccmu_vbase: %x, ccmu ahb gate: 0x%x\n",db->ccmu_vbase + CCM_AHB_GATING_REG , reg_val);
 
 
 }
@@ -1795,7 +1795,7 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	if(NULL == db->mos_gpio){
 		printk(KERN_ERR "can't request memory for mos_gpio\n");
 	}else{
-		if(SCRIPT_PARSER_OK != script_parser_fetch("emac_para", "emac_power", 
+		if(SCRIPT_PARSER_OK != script_parser_fetch("emac_para", "emac_power",
 					(int *)(db->mos_gpio), sizeof(user_gpio_set_t)/sizeof(int))){
 			printk(KERN_ERR "can't get information emac_power gpio\n");
 		}else{
