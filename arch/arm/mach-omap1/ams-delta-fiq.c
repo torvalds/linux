@@ -48,7 +48,7 @@ static irqreturn_t deferred_fiq(int irq, void *dev_id)
 	struct irq_chip *irq_chip = NULL;
 	int gpio, irq_num, fiq_count;
 
-	irq_desc = irq_to_desc(IH_GPIO_BASE);
+	irq_desc = irq_to_desc(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK));
 	if (irq_desc)
 		irq_chip = irq_desc->irq_data.chip;
 
