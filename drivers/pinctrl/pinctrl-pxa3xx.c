@@ -138,11 +138,6 @@ static int pxa3xx_pmx_enable(struct pinctrl_dev *pctrldev, unsigned func,
 	return 0;
 }
 
-static void pxa3xx_pmx_disable(struct pinctrl_dev *pctrldev, unsigned func,
-			       unsigned group)
-{
-}
-
 static int pxa3xx_pmx_request_gpio(struct pinctrl_dev *pctrldev,
 				   struct pinctrl_gpio_range *range,
 				   unsigned pin)
@@ -170,7 +165,6 @@ static struct pinmux_ops pxa3xx_pmx_ops = {
 	.get_function_name	= pxa3xx_pmx_get_func_name,
 	.get_function_groups	= pxa3xx_pmx_get_groups,
 	.enable			= pxa3xx_pmx_enable,
-	.disable		= pxa3xx_pmx_disable,
 	.gpio_request_enable	= pxa3xx_pmx_request_gpio,
 };
 
