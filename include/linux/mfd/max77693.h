@@ -31,7 +31,6 @@
 #define __LINUX_MFD_MAX77693_H
 
 struct max77693_platform_data {
-	/* IRQ */
 	int wakeup;
 };
 #endif	/* __LINUX_MFD_MAX77693_H */

@@ -154,12 +154,18 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 	max77693->haptic = i2c_new_dummy(i2c->adapter, I2C_ADDR_HAPTIC);
 	i2c_set_clientdata(max77693->haptic, max77693);
 
+	ret = max77693_irq_init(max77693);
+	if (ret < 0)
+		goto err_mfd;
+
 	pm_runtime_set_active(max77693->dev);
 
 	ret = mfd_add_devices(max77693->dev, -1, max77693_devs,
 			ARRAY_SIZE(max77693_devs), NULL, 0);
 	if (ret < 0)
 		goto err_mfd;
+
+	device_init_wakeup(max77693->dev, pdata->wakeup);
 
 	return ret;
 
@@ -189,10 +195,36 @@ static const struct i2c_device_id max77693_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max77693_i2c_id);
 
+static int max77693_suspend(struct device *dev)
+{
+	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct max77693_dev *max77693 = i2c_get_clientdata(i2c);
+
+	if (device_may_wakeup(dev))
+		irq_set_irq_wake(max77693->irq, 1);
+	return 0;
+}
+
+static int max77693_resume(struct device *dev)
+{
+	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct max77693_dev *max77693 = i2c_get_clientdata(i2c);
+
+	if (device_may_wakeup(dev))
+		irq_set_irq_wake(max77693->irq, 0);
+	return max77693_irq_resume(max77693);
+}
+
+const struct dev_pm_ops max77693_pm = {
+	.suspend = max77693_suspend,
+	.resume = max77693_resume,
+};
+
 static struct i2c_driver max77693_i2c_driver = {
 	.driver = {
 		   .name = "max77693",
 		   .owner = THIS_MODULE,
+		   .pm = &max77693_pm,
 	},
 	.probe = max77693_i2c_probe,
 	.remove = max77693_i2c_remove,
