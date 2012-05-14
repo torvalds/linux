@@ -234,6 +234,25 @@ config KEYS_COMPAT
 config AUDIT_ARCH
 	def_bool y
 
+config HAVE_MARCH_Z900_FEATURES
+	def_bool n
+
+config HAVE_MARCH_Z990_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z900_FEATURES
+
+config HAVE_MARCH_Z9_109_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z990_FEATURES
+
+config HAVE_MARCH_Z10_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z9_109_FEATURES
+
+config HAVE_MARCH_Z196_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z10_FEATURES
+
 comment "Code generation options"
 
 choice
@@ -249,6 +268,7 @@ config MARCH_G5
 
 config MARCH_Z900
 	bool "IBM zSeries model z800 and z900"
+	select HAVE_MARCH_Z900_FEATURES if 64BIT
 	help
 	  Select this to enable optimizations for model z800/z900 (2064 and
 	  2066 series). This will enable some optimizations that are not
@@ -256,6 +276,7 @@ config MARCH_Z900
 
 config MARCH_Z990
 	bool "IBM zSeries model z890 and z990"
+	select HAVE_MARCH_Z990_FEATURES if 64BIT
 	help
 	  Select this to enable optimizations for model z890/z990 (2084 and
 	  2086 series). The kernel will be slightly faster but will not work
@@ -263,6 +284,7 @@ config MARCH_Z990
 
 config MARCH_Z9_109
 	bool "IBM System z9"
+	select HAVE_MARCH_Z9_109_FEATURES if 64BIT
 	help
 	  Select this to enable optimizations for IBM System z9 (2094 and
 	  2096 series). The kernel will be slightly faster but will not work
@@ -270,6 +292,7 @@ config MARCH_Z9_109
 
 config MARCH_Z10
 	bool "IBM System z10"
+	select HAVE_MARCH_Z10_FEATURES if 64BIT
 	help
 	  Select this to enable optimizations for IBM System z10 (2097 and
 	  2098 series). The kernel will be slightly faster but will not work
@@ -277,6 +300,7 @@ config MARCH_Z10
 
 config MARCH_Z196
 	bool "IBM zEnterprise 114 and 196"
+	select HAVE_MARCH_Z196_FEATURES if 64BIT
 	help
 	  Select this to enable optimizations for IBM zEnterprise 114 and 196
 	  (2818 and 2817 series). The kernel will be slightly faster but will
