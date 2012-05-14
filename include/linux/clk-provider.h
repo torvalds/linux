@@ -144,7 +144,7 @@ struct clk_init_data {
  */
 struct clk_hw {
 	struct clk *clk;
-	struct clk_init_data *init;
+	const struct clk_init_data *init;
 };
 
 /*
