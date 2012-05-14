@@ -288,12 +288,14 @@
 
 	sdhci@c8000000 {
 		status = "okay";
+		bus-width = <4>;
 	};
 
 	sdhci@c8000600 {
 		status = "okay";
 		cd-gpios = <&gpio 121 0>; /* gpio PP1 */
 		wp-gpios = <&gpio 122 0>; /* gpio PP2 */
+		bus-width = <4>;
 	};
 
 	sound {

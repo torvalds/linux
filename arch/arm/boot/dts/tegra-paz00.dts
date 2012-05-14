@@ -296,11 +296,13 @@
 		cd-gpios = <&gpio 173 0>; /* gpio PV5 */
 		wp-gpios = <&gpio 57 0>;  /* gpio PH1 */
 		power-gpios = <&gpio 169 0>; /* gpio PV1 */
+		bus-width = <4>;
 	};
 
 	sdhci@c8000600 {
 		status = "okay";
 		support-8bit;
+		bus-width = <8>;
 	};
 
 	gpio-keys {

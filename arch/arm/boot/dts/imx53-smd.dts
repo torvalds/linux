@@ -31,7 +31,7 @@
 				};
 
 				esdhc@50008000 { /* ESDHC2 */
-					fsl,card-wired;
+					non-removable;
 					status = "okay";
 				};
 
@@ -72,7 +72,7 @@
 				};
 
 				esdhc@50020000 { /* ESDHC3 */
-					fsl,card-wired;
+					non-removable;
 					status = "okay";
 				};
 			};

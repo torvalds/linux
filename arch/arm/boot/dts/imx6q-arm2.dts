@@ -38,7 +38,7 @@
 			};
 
 			usdhc@0219c000 { /* uSDHC4 */
-				fsl,card-wired;
+				non-removable;
 				vmmc-supply = <&reg_3p3v>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usdhc4_1>;
