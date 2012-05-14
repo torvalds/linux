@@ -161,10 +161,32 @@ static const char *get_medion_keymap(struct usb_interface *interface)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 
-	/* The receiver shipped with the "Digitainer" variant helpfully has
-	 * a single additional bit set in its descriptor. */
-	if (udev->actconfig->desc.bmAttributes & USB_CONFIG_ATT_WAKEUP)
-		return RC_MAP_MEDION_X10_DIGITAINER;
+	/*
+	 * There are many different Medion remotes shipped with a receiver
+	 * with the same usb id, but the receivers have subtle differences
+	 * in the USB descriptors allowing us to detect them.
+	 */
+
+	if (udev->manufacturer && udev->product) {
+		if (udev->actconfig->desc.bmAttributes & USB_CONFIG_ATT_WAKEUP) {
+
+			if (!strcmp(udev->manufacturer, "X10 Wireless Technology Inc")
+			    && !strcmp(udev->product, "USB Receiver"))
+				return RC_MAP_MEDION_X10_DIGITAINER;
+
+			if (!strcmp(udev->manufacturer, "X10 WTI")
+			    && !strcmp(udev->product, "RF receiver"))
+				return RC_MAP_MEDION_X10_OR2X;
+		} else {
+
+			 if (!strcmp(udev->manufacturer, "X10 Wireless Technology Inc")
+			    && !strcmp(udev->product, "USB Receiver"))
+				return RC_MAP_MEDION_X10;
+		}
+	}
+
+	dev_info(&interface->dev,
+		 "Unknown Medion X10 receiver, using default ati_remote Medion keymap\n");
 
 	return RC_MAP_MEDION_X10;
 }
