@@ -107,6 +107,14 @@
 #define DOCMD2_E	(0x1 << 17)	/* 2nd cmd stage execute */
 #define DOCMD1_E	(0x1 << 16)	/* 1st cmd stage execute */
 
+/* FLINTDMACR control bits */
+#define ESTERINTE	(0x1 << 24)	/* ECC error interrupt enable */
+#define AC1CLR		(0x1 << 19)	/* ECC FIFO clear */
+#define AC0CLR		(0x1 << 18)	/* Data FIFO clear */
+#define ECERB		(0x1 << 9)	/* ECC error */
+#define STERB		(0x1 << 8)	/* Status error */
+#define STERINTE	(0x1 << 4)	/* Status error enable */
+
 /* FLTRCR control bits */
 #define TRSTRT		(0x1 << 0)	/* translation start */
 #define TREND		(0x1 << 1)	/* translation end */
@@ -145,6 +153,7 @@ struct sh_flctl {
 	uint32_t erase_ADRCNT;		/* bits of FLCMDCR in ERASE1 cmd */
 	uint32_t rw_ADRCNT;	/* bits of FLCMDCR in READ WRITE cmd */
 	uint32_t flcmncr_base;	/* base value of FLCMNCR */
+	uint32_t flintdmacr_base;	/* irq enable bits */
 
 	int	hwecc_cant_correct[4];
 
