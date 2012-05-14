@@ -394,10 +394,6 @@ struct radeon_encoder {
 	struct drm_display_mode native_mode;
 	void *enc_priv;
 	int audio_polling_active;
-	bool hdmi_enabled;
-	int hdmi_offset;
-	int hdmi_audio_workaround;
-	int hdmi_buffer_status;
 	bool is_ext_encoder;
 	u16 caps;
 };

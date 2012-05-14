@@ -39,7 +39,9 @@ static void evergreen_hdmi_update_ACR(struct drm_encoder *encoder, uint32_t cloc
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_hdmi_acr acr = r600_hdmi_acr(clock);
-	uint32_t offset = to_radeon_encoder(encoder)->hdmi_offset;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	uint32_t offset = dig->afmt->offset;
 
 	WREG32(HDMI_ACR_32_0 + offset, HDMI_ACR_CTS_32(acr.cts_32khz));
 	WREG32(HDMI_ACR_32_1 + offset, acr.n_32khz);
@@ -92,7 +94,9 @@ static void evergreen_hdmi_videoinfoframe(
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
-	uint32_t offset = to_radeon_encoder(encoder)->hdmi_offset;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	uint32_t offset = dig->afmt->offset;
 
 	uint8_t frame[14];
 
@@ -148,13 +152,17 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
-	uint32_t offset = to_radeon_encoder(encoder)->hdmi_offset;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	uint32_t offset;
 
 	if (ASIC_IS_DCE5(rdev))
 		return;
 
-	if (!to_radeon_encoder(encoder)->hdmi_enabled)
+	/* Silent, r600_hdmi_enable will raise WARN for us */
+	if (!dig->afmt->enabled)
 		return;
+	offset = dig->afmt->offset;
 
 	r600_audio_set_clock(encoder, mode->clock);
 
