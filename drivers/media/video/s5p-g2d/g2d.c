@@ -674,42 +674,27 @@ static int g2d_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret = 0;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
+
 	spin_lock_init(&dev->ctrl_lock);
 	mutex_init(&dev->mutex);
 	atomic_set(&dev->num_inst, 0);
 	init_waitqueue_head(&dev->irq_queue);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to find registers\n");
-		ret = -ENOENT;
-		goto free_dev;
-	}
 
-	dev->res_regs = request_mem_region(res->start, resource_size(res),
-						dev_name(&pdev->dev));
-
-	if (!dev->res_regs) {
-		dev_err(&pdev->dev, "failed to obtain register region\n");
-		ret = -ENOENT;
-		goto free_dev;
-	}
-
-	dev->regs = ioremap(res->start, resource_size(res));
-	if (!dev->regs) {
-		dev_err(&pdev->dev, "failed to map registers\n");
-		ret = -ENOENT;
-		goto rel_res_regs;
+	dev->regs = devm_request_and_ioremap(&pdev->dev, res);
+	if (dev->regs == NULL) {
+			dev_err(&pdev->dev, "Failed to obtain io memory\n");
+			return -ENOENT;
 	}
 
 	dev->clk = clk_get(&pdev->dev, "sclk_fimg2d");
 	if (IS_ERR_OR_NULL(dev->clk)) {
 		dev_err(&pdev->dev, "failed to get g2d clock\n");
-		ret = -ENXIO;
-		goto unmap_regs;
+		return -ENXIO;
 	}
 
 	ret = clk_prepare(dev->clk);
@@ -740,7 +725,8 @@ static int g2d_probe(struct platform_device *pdev)
 
 	dev->irq = res->start;
 
-	ret = request_irq(dev->irq, g2d_isr, 0, pdev->name, dev);
+	ret = devm_request_irq(&pdev->dev, dev->irq, g2d_isr,
+						0, pdev->name, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to install IRQ\n");
 		goto put_clk_gate;
@@ -749,7 +735,7 @@ static int g2d_probe(struct platform_device *pdev)
 	dev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
 	if (IS_ERR(dev->alloc_ctx)) {
 		ret = PTR_ERR(dev->alloc_ctx);
-		goto rel_irq;
+		goto unprep_clk_gate;
 	}
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
@@ -797,8 +783,6 @@ unreg_v4l2_dev:
 	v4l2_device_unregister(&dev->v4l2_dev);
 alloc_ctx_cleanup:
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
-rel_irq:
-	free_irq(dev->irq, dev);
 unprep_clk_gate:
 	clk_unprepare(dev->gate);
 put_clk_gate:
@@ -807,12 +791,7 @@ unprep_clk:
 	clk_unprepare(dev->clk);
 put_clk:
 	clk_put(dev->clk);
-unmap_regs:
-	iounmap(dev->regs);
-rel_res_regs:
-	release_resource(dev->res_regs);
-free_dev:
-	kfree(dev);
+
 	return ret;
 }
 
@@ -825,14 +804,10 @@ static int g2d_remove(struct platform_device *pdev)
 	video_unregister_device(dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
-	free_irq(dev->irq, dev);
 	clk_unprepare(dev->gate);
 	clk_put(dev->gate);
 	clk_unprepare(dev->clk);
 	clk_put(dev->clk);
-	iounmap(dev->regs);
-	release_resource(dev->res_regs);
-	kfree(dev);
 	return 0;
 }
 
