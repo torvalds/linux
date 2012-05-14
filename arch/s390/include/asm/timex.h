@@ -77,7 +77,7 @@ static inline unsigned long long get_clock(void)
 {
 	unsigned long long clk;
 
-#if defined(CONFIG_64BIT) && !defined(CONFIG_MARCH_Z900) && !defined(CONFIG_MARCH_Z990)
+#ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
 	asm volatile(".insn s,0xb27c0000,%0" : "=Q" (clk) : : "cc");
 #else
 	asm volatile("stck %0" : "=Q" (clk) : : "cc");
