@@ -10,12 +10,12 @@
 *
 * Author 		: javen
 *
-* Description 	: C¿âº¯Êı
+* Description 	: Cåº“å‡½æ•°
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
 *       javen     	   2010-09-07          1.0         create this word
-*       holi     	   2010-12-02          1.1         Ìí¼Ó¾ßÌåµÄ½Ó¿Ú£¬
+*       holi     	   2010-12-02          1.1         æ·»åŠ å…·ä½“çš„æ¥å£ï¼Œ
 *************************************************************************************
 */
 #ifndef  __OSAL_PIN_H__

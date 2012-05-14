@@ -10,19 +10,19 @@
 *
 * Author 		: javen
 *
-* Description 	: C¿âº¯Êı
+* Description 	: Cåº“å‡½æ•°
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
 *       javen     	   2010-09-07          1.0         	create this word
-*		holi		   2010-12-03		   1.1			Ôö¼ÓÁËOSAL_io_remap
+*		holi		   2010-12-03		   1.1			å¢åŠ äº†OSAL_io_remap
 *************************************************************************************
 */
 #ifndef  __OSAL_LIB_C_H__
 #define  __OSAL_LIB_C_H__
 
 //----------------------------------------------------------------
-//  ×Ö·û´®²Ù×÷
+//  å­—ç¬¦ä¸²æ“ä½œ
 //----------------------------------------------------------------
 //__size_t OSAL_strlen(const char *str);
 //int OSAL_strcmp(const char * p1_str, const char * p2_str);
@@ -35,50 +35,50 @@
 //char * OSAL_strstr(const char * str, const char * substr);
 
 ////----------------------------------------------------------------
-////  ÄÚ´æ²Ù×÷
+////  å†…å­˜æ“ä½œ
 ////----------------------------------------------------------------
 //void * OSAL_memset(void * pmem, int value, __size_t size);
 //void * OSAL_memcpy (void * pdest,  const void * psrc, __size_t size);
 //int OSAL_memcmp (const void * p1_mem, const void * p2_mem, __size_t size);
 //void * OSAL_memchr(const void *s, int c, __size_t n);
 
-/* ÆÕÍ¨ÄÚ´æ·ÖÅä */
+/* æ™®é€šå†…å­˜åˆ†é… */
 void * OSAL_malloc(__u32 Size);
 void OSAL_free(void *pAddr);
 
-/* Á¬ĞøµÄÎïÀíÄÚ´æ·ÖÅä */
+/* è¿ç»­çš„ç‰©ç†å†…å­˜åˆ†é… */
 void * OSAL_PhyAlloc(__u32 Size);
 void OSAL_PhyFree(void *pAddr, __u32 Size);
 
-/* ĞéÄâÄÚ´æºÍÎïÀíÄÚ´æÖ®¼äµÄ×ª»¯ */
+/* è™šæ‹Ÿå†…å­˜å’Œç‰©ç†å†…å­˜ä¹‹é—´çš„è½¬åŒ– */
 unsigned int OSAL_VAtoPA(void *va);
 void *OSAL_PAtoVA(unsigned int pa);
 
 
 /*
 *******************************************************************************
-*                     IOµØÖ·×ª»»
+*                     IOåœ°å€è½¬æ¢
 *
 * Description:
-*    	½«Ò»¿éÎïÀíµØÖ·×ª»¯ÎªĞéÄâµØÖ·
+*    	å°†ä¸€å—ç‰©ç†åœ°å€è½¬åŒ–ä¸ºè™šæ‹Ÿåœ°å€
 *
 * Parameters:
-*		phy_addr	£º	ÎïÀíµØÖ·
-*		size		:	µØÖ·µÄ³¤¶È
-* 
+*		phy_addr	ï¼š	ç‰©ç†åœ°å€
+*		size		:	åœ°å€çš„é•¿åº¦
+*
 * Return value:
-*		==0			:	Ê§°Ü
-*		!=0			:	ĞéÄâµØÖ·
+*		==0			:	å¤±è´¥
+*		!=0			:	è™šæ‹Ÿåœ°å€
 *
 * note:
-*    	size±ØĞëÒÔ4KÎªµİÔö¿ÅÁ££¬¼È4kµÄÕûÊı±¶
+*    	sizeå¿…é¡»ä»¥4Kä¸ºé€’å¢é¢—ç²’ï¼Œæ—¢4kçš„æ•´æ•°å€
 *
 *******************************************************************************
 */
 void *	 OSAL_io_remap(u32 phy_addr , u32 size);
 
 //----------------------------------------------------------------
-//  ´®¿ÚÊäÈëÊä³ö²Ù×÷
+//  ä¸²å£è¾“å…¥è¾“å‡ºæ“ä½œ
 //----------------------------------------------------------------
 int OSAL_printf(const char *, ...);
 
@@ -90,18 +90,18 @@ int OSAL_getchar(void);
 char * OSAL_gets(char *);
 
 //----------------------------------------------------------------
-//  ÊµÓÃº¯Êı
+//  å®ç”¨å‡½æ•°
 //----------------------------------------------------------------
-/* ×Ö·û´®×ª³¤ÕûĞÎ */
+/* å­—ç¬¦ä¸²è½¬é•¿æ•´å½¢ */
 long OSAL_strtol (const char *str, const char **err, int base);
 
-/* ÓĞ·ûºÅÊ®½øÖÆÕûĞÎ×ª×Ö·û´®*/
+/* æœ‰ç¬¦å·åè¿›åˆ¶æ•´å½¢è½¬å­—ç¬¦ä¸²*/
 void OSAL_int2str_dec(int input, char * str);
 
-/* Ê®Áù½øÖÆÕûĞÎ×ª×Ö·û´®*/
+/* åå…­è¿›åˆ¶æ•´å½¢è½¬å­—ç¬¦ä¸²*/
 void OSAL_int2str_hex(int input, char * str, int hex_flag);
 
-/* ÎŞ·ûºÅÊ®½øÖÆÕûĞÎ×ª×Ö·û´®*/
+/* æ— ç¬¦å·åè¿›åˆ¶æ•´å½¢è½¬å­—ç¬¦ä¸²*/
 void OSAL_uint2str_dec(unsigned int input, char * str);
 
 

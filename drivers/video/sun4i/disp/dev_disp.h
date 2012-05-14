@@ -19,7 +19,7 @@ struct info_mm {
 typedef struct
 {
 	struct device   *       dev;
-	
+
 	__u32                   base_image0;
 	__u32                   base_image1;
 	__u32                   base_scaler0;
@@ -33,12 +33,12 @@ typedef struct
 	__u32                   base_sdram;
     __u32                   base_pioc;
 	__u32                   base_pwm;
-	
+
     __disp_init_t           disp_init;
-    
+
     __bool                  fb_enable[FB_MAX];
     __fb_mode_t             fb_mode[FB_MAX];
-    __u32                   layer_hdl[FB_MAX][2];//[fb_id][0]:screen0 layer handle;[fb_id][1]:screen1 layer handle 
+    __u32                   layer_hdl[FB_MAX][2];//[fb_id][0]:screen0 layer handle;[fb_id][1]:screen1 layer handle
     struct fb_info *        fbinfo[FB_MAX];
     __disp_fb_create_para_t fb_para[FB_MAX];
 	wait_queue_head_t       wait[2];
@@ -58,9 +58,9 @@ typedef struct
 
 struct alloc_struct_t
 {
-    __u32 address;                      //ÉêÇëÄÚ´æµÄµØÖ·
-    __u32 size;                         //·ÖÅäµÄÄÚ´æ´óĞ¡£¬ÓÃ»§Êµ¼ÊµÃµ½µÄÄÚ´æ´óĞ¡
-    __u32 o_size;                       //ÓÃ»§ÉêÇëµÄÄÚ´æ´óĞ¡
+    __u32 address;                      //ç”³è¯·å†…å­˜çš„åœ°å€
+    __u32 size;                         //åˆ†é…çš„å†…å­˜å¤§å°ï¼Œç”¨æˆ·å®é™…å¾—åˆ°çš„å†…å­˜å¤§å°
+    __u32 o_size;                       //ç”¨æˆ·ç”³è¯·çš„å†…å­˜å¤§å°
     struct alloc_struct_t *next;
 };
 

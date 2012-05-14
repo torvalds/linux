@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: Cache²Ù×÷
+* Description 	: Cacheæ“ä½œ
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -21,26 +21,26 @@
 #ifndef  __OSAL_CACHE_H__
 #define  __OSAL_CACHE_H__
 
-/* Ë¢ÐÂ±ê¼ÇÎ» */
-#define  CACHE_FLUSH_I_CACHE_REGION				0  /* Çå³ýI-cacheÖÐ´ú±íÖ÷´æÖÐÒ»¿éÇøÓòµÄcacheÐÐ 			*/
-#define  CACHE_FLUSH_D_CACHE_REGION				1  /* Çå³ýD-cacheÖÐ´ú±íÖ÷´æÖÐÒ»¿éÇøÓòµÄcacheÐÐ 			*/
-#define  CACHE_FLUSH_CACHE_REGION				2  /* Çå³ýD-cacheºÍI-cacheÖÐ´ú±íÖ÷´æÖÐÒ»¿éÇøÓòµÄcacheÐÐ */
-#define  CACHE_CLEAN_D_CACHE_REGION				3  /* ÇåÀíD-cacheÖÐ´ú±íÖ÷´æÖÐÒ»¿éÇøÓòµÄcacheÐÐ 			*/
-#define  CACHE_CLEAN_FLUSH_D_CACHE_REGION	 	4  /* ÇåÀí²¢Çå³ýD-cacheÖÐ´ú±íÖ÷´æÖÐÒ»¿éÇøÓòµÄcacheÐÐ 	*/
-#define  CACHE_CLEAN_FLUSH_CACHE_REGION			5  /* ÇåÀí²¢Çå³ýD-cache£¬½ÓÏÂÀ´½â³ýI-cache 				*/
+/* åˆ·æ–°æ ‡è®°ä½ */
+#define  CACHE_FLUSH_I_CACHE_REGION				0  /* æ¸…é™¤I-cacheä¸­ä»£è¡¨ä¸»å­˜ä¸­ä¸€å—åŒºåŸŸçš„cacheè¡Œ 			*/
+#define  CACHE_FLUSH_D_CACHE_REGION				1  /* æ¸…é™¤D-cacheä¸­ä»£è¡¨ä¸»å­˜ä¸­ä¸€å—åŒºåŸŸçš„cacheè¡Œ 			*/
+#define  CACHE_FLUSH_CACHE_REGION				2  /* æ¸…é™¤D-cacheå’ŒI-cacheä¸­ä»£è¡¨ä¸»å­˜ä¸­ä¸€å—åŒºåŸŸçš„cacheè¡Œ */
+#define  CACHE_CLEAN_D_CACHE_REGION				3  /* æ¸…ç†D-cacheä¸­ä»£è¡¨ä¸»å­˜ä¸­ä¸€å—åŒºåŸŸçš„cacheè¡Œ 			*/
+#define  CACHE_CLEAN_FLUSH_D_CACHE_REGION	 	4  /* æ¸…ç†å¹¶æ¸…é™¤D-cacheä¸­ä»£è¡¨ä¸»å­˜ä¸­ä¸€å—åŒºåŸŸçš„cacheè¡Œ 	*/
+#define  CACHE_CLEAN_FLUSH_CACHE_REGION			5  /* æ¸…ç†å¹¶æ¸…é™¤D-cacheï¼ŒæŽ¥ä¸‹æ¥è§£é™¤I-cache 				*/
 
 /*
 *******************************************************************************
 *                     OSAL_CacheRangeFlush
 *
 * Description:
-*    Cache²Ù×÷
+*    Cacheæ“ä½œ
 *
 * Parameters:
-*    Address    :  Òª±»Ë¢ÐÂµÄÐéÄâÆðÊ¼µØÖ·
-*    Length     :  ±»Ë¢ÐÂµÄ´óÐ¡
-*    Flags      :  Ë¢ÐÂ±ê¼ÇÎ»
-*    
+*    Address    :  è¦è¢«åˆ·æ–°çš„è™šæ‹Ÿèµ·å§‹åœ°å€
+*    Length     :  è¢«åˆ·æ–°çš„å¤§å°
+*    Flags      :  åˆ·æ–°æ ‡è®°ä½
+*
 * Return value:
 *    void
 *

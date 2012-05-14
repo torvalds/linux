@@ -10,18 +10,18 @@
 *
 * Author 		: javen
 *
-* Description 	: C¿âº¯Êı
+* Description 	: Cåº“å‡½æ•°
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
 *       javen     	   2010-09-07          1.0         create this word
-*       holi     	   2010-12-02          1.1         Ìí¼Ó¾ßÌåµÄ½Ó¿Ú£¬
+*       holi     	   2010-12-02          1.1         æ·»åŠ å…·ä½“çš„æ¥å£ï¼Œ
 *************************************************************************************
 */
 #include "OSAL_Pin.h"
 
 __hdle OSAL_GPIO_Request(user_gpio_set_t *gpio_list, __u32 group_count_max)
-{    
+{
     //__inf("OSAL_GPIO_Request, port:%d, port_num:%d, mul_sel:%d, pull:%d, drv_level:%d, data:%d\n", gpio_list->port, gpio_list->port_num, gpio_list->mul_sel, gpio_list->pull, gpio_list->drv_level, gpio_list->data);
 
     return gpio_request(gpio_list, group_count_max);
@@ -33,13 +33,13 @@ __hdle OSAL_GPIO_Request_Ex(char *main_name, const char *sub_name)
 }
 
 //if_release_to_default_status:
-    //Èç¹ûÊÇ0»òÕß1£¬±íÊ¾ÊÍ·ÅºóµÄGPIO´¦ÓÚÊäÈë×´Ì¬£¬ÊäÈë×´×´Ì¬²»»áµ¼ÖÂÍâ²¿µçÆ½µÄ´íÎó¡£
-    //Èç¹ûÊÇ2£¬±íÊ¾ÊÍ·ÅºóµÄGPIO×´Ì¬²»±ä£¬¼´ÊÍ·ÅµÄÊ±ºò²»¹ÜÀíµ±Ç°GPIOµÄÓ²¼ş¼Ä´æÆ÷¡£
+    //å¦‚æœæ˜¯0æˆ–è€…1ï¼Œè¡¨ç¤ºé‡Šæ”¾åçš„GPIOå¤„äºè¾“å…¥çŠ¶æ€ï¼Œè¾“å…¥çŠ¶çŠ¶æ€ä¸ä¼šå¯¼è‡´å¤–éƒ¨ç”µå¹³çš„é”™è¯¯ã€‚
+    //å¦‚æœæ˜¯2ï¼Œè¡¨ç¤ºé‡Šæ”¾åçš„GPIOçŠ¶æ€ä¸å˜ï¼Œå³é‡Šæ”¾çš„æ—¶å€™ä¸ç®¡ç†å½“å‰GPIOçš„ç¡¬ä»¶å¯„å­˜å™¨ã€‚
 __s32 OSAL_GPIO_Release(__hdle p_handler, __s32 if_release_to_default_status)
 {
     //__inf("OSAL_GPIO_Release\n");
     gpio_release(p_handler, if_release_to_default_status);
-    
+
     return 0;
 }
 
