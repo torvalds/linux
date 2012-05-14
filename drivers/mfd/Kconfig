@@ -465,7 +465,7 @@ config MFD_S5M_CORE
 	 of the device
 
 config MFD_WM8400
-	tristate "Support Wolfson Microelectronics WM8400"
+	bool "Support Wolfson Microelectronics WM8400"
 	select MFD_CORE
 	depends on I2C
 	select REGMAP_I2C
