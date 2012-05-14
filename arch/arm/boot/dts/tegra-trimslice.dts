@@ -6,11 +6,11 @@
 	model = "Compulab TrimSlice board";
 	compatible = "compulab,trimslice", "nvidia,tegra20";
 
-	memory@0 {
-		reg = < 0x00000000 0x40000000 >;
+	memory {
+		reg = <0x00000000 0x40000000>;
 	};
 
-	pinmux@70000000 {
+	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -182,22 +182,22 @@
 				nvidia,tristate = <1>;
 			};
 			conf_atb {
-				nvidia,pins = "atb", "cdev1", "dap1", "gma",
-					"gmc", "gmd", "gpu", "gpu7", "gpv",
-					"sdio1", "slxa", "slxk", "uac";
+				nvidia,pins = "atb", "cdev1", "cdev2", "dap1",
+					"gma", "gmc", "gmd", "gpu", "gpu7",
+					"gpv", "sdio1", "slxa", "slxk", "uac";
 				nvidia,pull = <0>;
 				nvidia,tristate = <0>;
-			};
-			conf_cdev2 {
-				nvidia,pins = "cdev2", "csus", "spia", "spib",
-					"spid", "spif";
-				nvidia,pull = <1>;
-				nvidia,tristate = <1>;
 			};
 			conf_ck32 {
 				nvidia,pins = "ck32", "ddrc", "pmca", "pmcb",
 					"pmcc", "pmcd", "pmce", "xm2c", "xm2d";
 				nvidia,pull = <0>;
+			};
+			conf_csus {
+				nvidia,pins = "csus", "spia", "spib",
+					"spid", "spif";
+				nvidia,pull = <1>;
+				nvidia,tristate = <1>;
 			};
 			conf_ddc {
 				nvidia,pins = "ddc", "dtf", "rm", "sdc", "sdd";
@@ -240,15 +240,27 @@
 		};
 	};
 
+	i2s@70002800 {
+		status = "okay";
+	};
+
+	serial@70006000 {
+		status = "okay";
+		clock-frequency = <216000000>;
+	};
+
 	i2c@7000c000 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@7000c400 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@7000c500 {
+		status = "okay";
 		clock-frequency = <400000>;
 
 		codec: codec@1a {
@@ -262,50 +274,31 @@
 		};
 	};
 
-	i2c@7000d000 {
-		status = "disable";
+	usb@c5000000 {
+		status = "okay";
 	};
 
-	i2s@70002a00 {
-		status = "disable";
+	usb@c5004000 {
+		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
+	};
+
+	usb@c5008000 {
+		status = "okay";
+	};
+
+	sdhci@c8000000 {
+		status = "okay";
+	};
+
+	sdhci@c8000600 {
+		status = "okay";
+		cd-gpios = <&gpio 121 0>; /* gpio PP1 */
+		wp-gpios = <&gpio 122 0>; /* gpio PP2 */
 	};
 
 	sound {
 		compatible = "nvidia,tegra-audio-trimslice";
 		nvidia,i2s-controller = <&tegra_i2s1>;
 		nvidia,audio-codec = <&codec>;
-	};
-
-	serial@70006000 {
-		clock-frequency = < 216000000 >;
-	};
-
-	serial@70006040 {
-		status = "disable";
-	};
-
-	serial@70006200 {
-		status = "disable";
-	};
-
-	serial@70006300 {
-		status = "disable";
-	};
-
-	serial@70006400 {
-		status = "disable";
-	};
-
-	sdhci@c8000200 {
-		status = "disable";
-	};
-
-	sdhci@c8000400 {
-		status = "disable";
-	};
-
-	sdhci@c8000600 {
-		cd-gpios = <&gpio 121 0>;
-		wp-gpios = <&gpio 122 0>;
 	};
 };

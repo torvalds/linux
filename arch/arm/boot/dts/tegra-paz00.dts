@@ -6,11 +6,11 @@
 	model = "Toshiba AC100 / Dynabook AZ";
 	compatible = "compal,paz00", "nvidia,tegra20";
 
-	memory@0 {
+	memory {
 		reg = <0x00000000 0x20000000>;
 	};
 
-	pinmux@70000000 {
+	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -159,16 +159,12 @@
 			};
 			conf_ata {
 				nvidia,pins = "ata", "atb", "atc", "atd", "ate",
-					"cdev1", "dap1", "dap2", "dtf", "gma",
-					"gmb", "gmc", "gmd", "gme", "gpu",
-					"gpu7", "gpv", "i2cp", "pta", "rm",
-					"sdio1", "slxk", "spdo", "uac", "uda";
+					"cdev1", "cdev2", "dap1", "dap2", "dtf",
+					"gma", "gmb", "gmc", "gmd", "gme",
+					"gpu", "gpu7", "gpv", "i2cp", "pta",
+					"rm", "sdio1", "slxk", "spdo", "uac",
+					"uda";
 				nvidia,pull = <0>;
-				nvidia,tristate = <0>;
-			};
-			conf_cdev2 {
-				nvidia,pins = "cdev2";
-				nvidia,pull = <1>;
 				nvidia,tristate = <0>;
 			};
 			conf_ck32 {
@@ -230,7 +226,22 @@
 		};
 	};
 
+	i2s@70002800 {
+		status = "okay";
+	};
+
+	serial@70006000 {
+		status = "okay";
+		clock-frequency = <216000000>;
+	};
+
+	serial@70006200 {
+		status = "okay";
+		clock-frequency = <216000000>;
+	};
+
 	i2c@7000c000 {
+		status = "okay";
 		clock-frequency = <400000>;
 
 		alc5632: alc5632@1e {
@@ -242,25 +253,23 @@
 	};
 
 	i2c@7000c400 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
-	i2c@7000c500 {
-		status = "disable";
-	};
-
-	nvec@7000c500 {
+	nvec {
+		compatible = "nvidia,nvec";
+		reg = <0x7000c500 0x100>;
+		interrupts = <0 92 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "nvidia,nvec";
-		reg = <0x7000C500 0x100>;
-		interrupts = <0 92 0x04>;
 		clock-frequency = <80000>;
-		request-gpios = <&gpio 170 0>;
+		request-gpios = <&gpio 170 0>; /* gpio PV2 */
 		slave-addr = <138>;
 	};
 
 	i2c@7000d000 {
+		status = "okay";
 		clock-frequency = <400000>;
 
 		adt7461@4c {
@@ -269,8 +278,50 @@
 		};
 	};
 
-	i2s@70002a00 {
-		status = "disable";
+	usb@c5000000 {
+		status = "okay";
+	};
+
+	usb@c5004000 {
+		status = "okay";
+		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
+	};
+
+	usb@c5008000 {
+		status = "okay";
+	};
+
+	sdhci@c8000000 {
+		status = "okay";
+		cd-gpios = <&gpio 173 0>; /* gpio PV5 */
+		wp-gpios = <&gpio 57 0>;  /* gpio PH1 */
+		power-gpios = <&gpio 169 0>; /* gpio PV1 */
+	};
+
+	sdhci@c8000600 {
+		status = "okay";
+		support-8bit;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			gpios = <&gpio 79 1>; /* gpio PJ7, active low */
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		wifi {
+			label = "wifi-led";
+			gpios = <&gpio 24 0>; /* gpio PD0 */
+			linux,default-trigger = "rfkill0";
+		};
 	};
 
 	sound {
@@ -291,64 +342,5 @@
 		nvidia,audio-codec = <&alc5632>;
 		nvidia,i2s-controller = <&tegra_i2s1>;
 		nvidia,hp-det-gpios = <&gpio 178 0>; /* gpio PW2 */
-	};
-
-	serial@70006000 {
-		clock-frequency = <216000000>;
-	};
-
-	serial@70006040 {
-		status = "disable";
-	};
-
-	serial@70006200 {
-		clock-frequency = <216000000>;
-	};
-
-	serial@70006300 {
-		status = "disable";
-	};
-
-	serial@70006400 {
-		status = "disable";
-	};
-
-	sdhci@c8000000 {
-		cd-gpios = <&gpio 173 0>; /* gpio PV5 */
-		wp-gpios = <&gpio 57 0>;  /* gpio PH1 */
-		power-gpios = <&gpio 169 0>; /* gpio PV1 */
-	};
-
-	sdhci@c8000200 {
-		status = "disable";
-	};
-
-	sdhci@c8000400 {
-		status = "disable";
-	};
-
-	sdhci@c8000600 {
-		support-8bit;
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		power {
-			label = "Power";
-			gpios = <&gpio 79 1>; /* gpio PJ7, active low */
-			linux,code = <116>; /* KEY_POWER */
-			gpio-key,wakeup;
-		};
-	};
-
-	gpio-leds {
-		compatible = "gpio-leds";
-
-		wifi {
-			label = "wifi-led";
-			gpios = <&gpio 24 0>;
-			linux,default-trigger = "rfkill0";
-		};
 	};
 };
