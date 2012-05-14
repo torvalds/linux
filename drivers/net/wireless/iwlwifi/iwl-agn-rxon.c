@@ -175,7 +175,8 @@ static int iwlagn_disconn_pan(struct iwl_priv *priv,
 	return ret;
 }
 
-void iwlagn_update_qos(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
+static void iwlagn_update_qos(struct iwl_priv *priv,
+			      struct iwl_rxon_context *ctx)
 {
 	int ret;
 
@@ -202,8 +203,8 @@ void iwlagn_update_qos(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		IWL_DEBUG_QUIET_RFKILL(priv, "Failed to update QoS\n");
 }
 
-int iwlagn_update_beacon(struct iwl_priv *priv,
-			 struct ieee80211_vif *vif)
+static int iwlagn_update_beacon(struct iwl_priv *priv,
+				struct ieee80211_vif *vif)
 {
 	lockdep_assert_held(&priv->mutex);
 
@@ -215,7 +216,7 @@ int iwlagn_update_beacon(struct iwl_priv *priv,
 }
 
 static int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
-			   struct iwl_rxon_context *ctx)
+				  struct iwl_rxon_context *ctx)
 {
 	int ret = 0;
 	struct iwl_rxon_assoc_cmd rxon_assoc;
@@ -863,8 +864,8 @@ static int iwl_check_rxon_cmd(struct iwl_priv *priv,
  * or is clearing the RXON_FILTER_ASSOC_MSK, then return 1 to indicate that
  * a new tune (full RXON command, rather than RXON_ASSOC cmd) is required.
  */
-int iwl_full_rxon_required(struct iwl_priv *priv,
-			   struct iwl_rxon_context *ctx)
+static int iwl_full_rxon_required(struct iwl_priv *priv,
+				  struct iwl_rxon_context *ctx)
 {
 	const struct iwl_rxon_cmd *staging = &ctx->staging;
 	const struct iwl_rxon_cmd *active = &ctx->active;
@@ -1294,9 +1295,9 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	return ret;
 }
 
-void iwlagn_check_needed_chains(struct iwl_priv *priv,
-				struct iwl_rxon_context *ctx,
-				struct ieee80211_bss_conf *bss_conf)
+static void iwlagn_check_needed_chains(struct iwl_priv *priv,
+				       struct iwl_rxon_context *ctx,
+				       struct ieee80211_bss_conf *bss_conf)
 {
 	struct ieee80211_vif *vif = ctx->vif;
 	struct iwl_rxon_context *tmp;
@@ -1388,7 +1389,7 @@ void iwlagn_check_needed_chains(struct iwl_priv *priv,
 	ht_conf->single_chain_sufficient = !need_multiple;
 }
 
-void iwlagn_chain_noise_reset(struct iwl_priv *priv)
+static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 {
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
 	int ret;
