@@ -9,7 +9,6 @@ Required properties:
 - reg: I2C slave address
 
 Optional properties:
-- ti,enable-force-pwm: Enable force PWM mode. This is boolean value.
 - ti,enable-vout-discharge: Enable output discharge. This is boolean value.
 - ti,enable-pull-down: Enable pull down. This is boolean value.
 - ti,vsel0-gpio: GPIO for controlling VSEL0 line.

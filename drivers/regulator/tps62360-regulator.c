@@ -49,6 +49,8 @@
 #define REG_RAMPCTRL		6
 #define REG_CHIPID		8
 
+#define FORCE_PWM_ENABLE	BIT(7)
+
 enum chips {TPS62360, TPS62361, TPS62362, TPS62363};
 
 #define TPS62360_BASE_VOLTAGE	770000
@@ -69,7 +71,6 @@ struct tps62360_chip {
 	int voltage_base;
 	u8 voltage_reg_mask;
 	bool en_internal_pulldn;
-	bool en_force_pwm;
 	bool en_discharge;
 	bool valid_gpios;
 	int lru_index[4];
@@ -191,37 +192,81 @@ static int tps62360_set_voltage_time_sel(struct regulator_dev *rdev,
 	return DIV_ROUND_UP(abs(old_uV - new_uV), tps->change_uv_per_us);
 }
 
+static int tps62360_set_mode(struct regulator_dev *rdev, unsigned int mode)
+{
+	struct tps62360_chip *tps = rdev_get_drvdata(rdev);
+	int i;
+	int val;
+	int ret;
+
+	/* Enable force PWM mode in FAST mode only. */
+	switch (mode) {
+	case REGULATOR_MODE_FAST:
+		val = FORCE_PWM_ENABLE;
+		break;
+
+	case REGULATOR_MODE_NORMAL:
+		val = 0;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	if (!tps->valid_gpios) {
+		ret = regmap_update_bits(tps->regmap,
+			REG_VSET0 + tps->curr_vset_id, FORCE_PWM_ENABLE, val);
+		if (ret < 0)
+			dev_err(tps->dev,
+				"%s(): register %d update failed with err %d\n",
+				__func__, REG_VSET0 + tps->curr_vset_id, ret);
+		return ret;
+	}
+
+	/* If gpios are valid then all register set need to be control */
+	for (i = 0; i < 4; ++i) {
+		ret = regmap_update_bits(tps->regmap,
+					REG_VSET0 + i, FORCE_PWM_ENABLE, val);
+		if (ret < 0) {
+			dev_err(tps->dev,
+				"%s(): register %d update failed with err %d\n",
+				__func__, REG_VSET0 + i, ret);
+			return ret;
+		}
+	}
+	return ret;
+}
+
+static unsigned int tps62360_get_mode(struct regulator_dev *rdev)
+{
+	struct tps62360_chip *tps = rdev_get_drvdata(rdev);
+	unsigned int data;
+	int ret;
+
+	ret = regmap_read(tps->regmap, REG_VSET0 + tps->curr_vset_id, &data);
+	if (ret < 0) {
+		dev_err(tps->dev, "%s(): register %d read failed with err %d\n",
+			__func__, REG_VSET0 + tps->curr_vset_id, ret);
+		return ret;
+	}
+	return (data & FORCE_PWM_ENABLE) ?
+				REGULATOR_MODE_FAST : REGULATOR_MODE_NORMAL;
+}
+
 static struct regulator_ops tps62360_dcdc_ops = {
 	.get_voltage_sel	= tps62360_dcdc_get_voltage_sel,
 	.set_voltage_sel	= tps62360_dcdc_set_voltage_sel,
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.set_voltage_time_sel	= tps62360_set_voltage_time_sel,
+	.set_mode		= tps62360_set_mode,
+	.get_mode		= tps62360_get_mode,
 };
-
-static int __devinit tps62360_init_force_pwm(struct tps62360_chip *tps,
-	struct tps62360_regulator_platform_data *pdata,
-	int vset_id)
-{
-	int ret;
-	int bit = 0;
-
-	if (pdata->en_force_pwm)
-		bit = BIT(7);
-
-	ret = regmap_update_bits(tps->regmap, REG_VSET0 + vset_id, BIT(7), bit);
-	if (ret < 0)
-		dev_err(tps->dev,
-			"%s(): register %d update failed with err %d\n",
-			__func__, REG_VSET0 + vset_id, ret);
-	return ret;
-}
 
 static int __devinit tps62360_init_dcdc(struct tps62360_chip *tps,
 		struct tps62360_regulator_platform_data *pdata)
 {
 	int ret;
-	int i;
 	unsigned int ramp_ctrl;
 
 	/* Initialize internal pull up/down control */
@@ -234,19 +279,6 @@ static int __devinit tps62360_init_dcdc(struct tps62360_chip *tps,
 			"%s(): register %d write failed with err %d\n",
 			__func__, REG_CONTROL, ret);
 		return ret;
-	}
-
-	/* Initialize force PWM mode */
-	if (tps->valid_gpios) {
-		for (i = 0; i < 4; ++i) {
-			ret = tps62360_init_force_pwm(tps, pdata, i);
-			if (ret < 0)
-				return ret;
-		}
-	} else {
-		ret = tps62360_init_force_pwm(tps, pdata, tps->curr_vset_id);
-		if (ret < 0)
-			return ret;
 	}
 
 	/* Reset output discharge path to reduce power consumption */
@@ -310,9 +342,6 @@ static struct tps62360_regulator_platform_data *
 	if (of_find_property(np, "ti,enable-pull-down", NULL))
 		pdata->en_internal_pulldn = true;
 
-	if (of_find_property(np, "ti,enable-force-pwm", NULL))
-		pdata->en_force_pwm = true;
-
 	if (of_find_property(np, "ti,enable-vout-discharge", NULL))
 		pdata->en_discharge = true;
 
@@ -370,7 +399,6 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	tps->en_force_pwm = pdata->en_force_pwm;
 	tps->en_discharge = pdata->en_discharge;
 	tps->en_internal_pulldn = pdata->en_internal_pulldn;
 	tps->vsel0_gpio = pdata->vsel0_gpio;
