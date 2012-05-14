@@ -50,6 +50,14 @@ config TEGRA_PCI
 	depends on ARCH_TEGRA_2x_SOC
 	select PCI
 
+config TEGRA_AHB
+	bool "Enable AHB driver for NVIDIA Tegra SoCs"
+	default y
+	help
+	  Adds AHB configuration functionality for NVIDIA Tegra SoCs,
+	  which controls AHB bus master arbitration and some
+	  perfomance parameters(priority, prefech size).
+
 comment "Tegra board type"
 
 config MACH_HARMONY
