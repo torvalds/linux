@@ -246,7 +246,7 @@ asmlinkage int do_fast_page_fault(unsigned long long ssr_md,
 	tsk = current;
 	mm = tsk->mm;
 
-	if ((address >= VMALLOC_START && address < VMALLOC_END)) {
+	if (is_vmalloc_addr((void *)address)) {
 		if (ssr_md)
 			/*
 			 * Process-contexts can never have this address

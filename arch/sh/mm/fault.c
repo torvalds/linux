@@ -66,7 +66,7 @@ static void show_pte(struct mm_struct *mm, unsigned long addr)
 	printk(KERN_ALERT "pgd = %p\n", pgd);
 	pgd += pgd_index(addr);
 	printk(KERN_ALERT "[%08lx] *pgd=%0*Lx", addr,
-	       sizeof(*pgd) * 2, (u64)pgd_val(*pgd));
+	       (u32)(sizeof(*pgd) * 2), (u64)pgd_val(*pgd));
 
 	do {
 		pud_t *pud;
@@ -83,7 +83,7 @@ static void show_pte(struct mm_struct *mm, unsigned long addr)
 
 		pud = pud_offset(pgd, addr);
 		if (PTRS_PER_PUD != 1)
-			printk(", *pud=%0*Lx", sizeof(*pud) * 2,
+			printk(", *pud=%0*Lx", (u32)(sizeof(*pud) * 2),
 			       (u64)pud_val(*pud));
 
 		if (pud_none(*pud))
@@ -96,7 +96,7 @@ static void show_pte(struct mm_struct *mm, unsigned long addr)
 
 		pmd = pmd_offset(pud, addr);
 		if (PTRS_PER_PMD != 1)
-			printk(", *pmd=%0*Lx", sizeof(*pmd) * 2,
+			printk(", *pmd=%0*Lx", (u32)(sizeof(*pmd) * 2),
 			       (u64)pmd_val(*pmd));
 
 		if (pmd_none(*pmd))
@@ -112,7 +112,8 @@ static void show_pte(struct mm_struct *mm, unsigned long addr)
 			break;
 
 		pte = pte_offset_kernel(pmd, addr);
-		printk(", *pte=%0*Lx", sizeof(*pte) * 2, (u64)pte_val(*pte));
+		printk(", *pte=%0*Lx", (u32)(sizeof(*pte) * 2),
+		       (u64)pte_val(*pte));
 	} while (0);
 
 	printk("\n");
@@ -354,14 +355,19 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 	return 1;
 }
 
-static inline int access_error(int write, struct vm_area_struct *vma)
+static inline int access_error(int error_code, struct vm_area_struct *vma)
 {
-	if (write) {
+	if (error_code & FAULT_CODE_WRITE) {
 		/* write, present and write, not present: */
 		if (unlikely(!(vma->vm_flags & VM_WRITE)))
 			return 1;
 		return 0;
 	}
+
+	/* ITLB miss on NX page */
+	if (unlikely((error_code & FAULT_CODE_ITLB) &&
+		     !(vma->vm_flags & VM_EXEC)))
+		return 1;
 
 	/* read, not present: */
 	if (unlikely(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))))
@@ -499,66 +505,4 @@ good_area:
 	}
 
 	up_read(&mm->mmap_sem);
-}
-
-/*
- * Called with interrupts disabled.
- */
-asmlinkage int __kprobes
-handle_tlbmiss(struct pt_regs *regs, unsigned long error_code,
-	       unsigned long address)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	pte_t entry;
-
-	/*
-	 * We don't take page faults for P1, P2, and parts of P4, these
-	 * are always mapped, whether it be due to legacy behaviour in
-	 * 29-bit mode, or due to PMB configuration in 32-bit mode.
-	 */
-	if (address >= P3SEG && address < P3_ADDR_MAX) {
-		pgd = pgd_offset_k(address);
-	} else {
-		if (unlikely(address >= TASK_SIZE || !current->mm))
-			return 1;
-
-		pgd = pgd_offset(current->mm, address);
-	}
-
-	pud = pud_offset(pgd, address);
-	if (pud_none_or_clear_bad(pud))
-		return 1;
-	pmd = pmd_offset(pud, address);
-	if (pmd_none_or_clear_bad(pmd))
-		return 1;
-	pte = pte_offset_kernel(pmd, address);
-	entry = *pte;
-	if (unlikely(pte_none(entry) || pte_not_present(entry)))
-		return 1;
-	if (unlikely(error_code && !pte_write(entry)))
-		return 1;
-
-	if (error_code)
-		entry = pte_mkdirty(entry);
-	entry = pte_mkyoung(entry);
-
-	set_pte(pte, entry);
-
-#if defined(CONFIG_CPU_SH4) && !defined(CONFIG_SMP)
-	/*
-	 * SH-4 does not set MMUCR.RC to the corresponding TLB entry in
-	 * the case of an initial page write exception, so we need to
-	 * flush it in order to avoid potential TLB entry duplication.
-	 */
-	if (error_code == FAULT_CODE_INITIAL)
-		local_flush_tlb_one(get_asid(), address & PAGE_MASK);
-#endif
-
-	set_thread_fault_code(error_code);
-	update_mmu_cache(NULL, address, pte);
-
-	return 0;
 }
