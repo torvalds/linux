@@ -19,11 +19,13 @@ extern void mxs_timer_init(struct clk *, int);
 extern void mxs_restart(char, const char *);
 extern int mxs_saif_clkmux_select(unsigned int clkmux);
 
+extern void mx23_soc_init(void);
 extern int mx23_register_gpios(void);
 extern int mx23_clocks_init(void);
 extern void mx23_map_io(void);
 extern void mx23_init_irq(void);
 
+extern void mx28_soc_init(void);
 extern int mx28_register_gpios(void);
 extern int mx28_clocks_init(void);
 extern void mx28_map_io(void);

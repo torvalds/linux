@@ -207,6 +207,8 @@ static int apx4devkit_phy_fixup(struct phy_device *phy)
 
 static void __init apx4devkit_init(void)
 {
+	mx28_soc_init();
+
 	mxs_iomux_setup_multiple_pads(apx4devkit_pads,
 			ARRAY_SIZE(apx4devkit_pads));
 

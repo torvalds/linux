@@ -469,6 +469,7 @@ config ARCH_MXS
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select HAVE_CLK_PREPARE
+	select PINCTRL
 	help
 	  Support for Freescale MXS-based family of processors
 

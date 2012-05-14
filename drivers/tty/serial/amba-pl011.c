@@ -52,6 +52,7 @@
 #include <linux/scatterlist.h>
 #include <linux/delay.h>
 #include <linux/types.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <asm/io.h>
 #include <asm/sizes.h>
@@ -1916,6 +1917,7 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	struct uart_amba_port *uap;
 	struct vendor_data *vendor = id->data;
+	struct pinctrl *pinctrl;
 	void __iomem *base;
 	int i, ret;
 
@@ -1938,6 +1940,12 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 	if (!base) {
 		ret = -ENOMEM;
 		goto free;
+	}
+
+	pinctrl = devm_pinctrl_get_select_default(&dev->dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
+		goto unmap;
 	}
 
 	uap->clk = clk_get(&dev->dev, NULL);
