@@ -358,7 +358,17 @@ struct ubi_rnvol_req {
  *                             requests.
  * @lnum: logical eraseblock number to change
  * @bytes: how many bytes will be written to the logical eraseblock
+ * @dtype: pass "3" for better compatibility with old kernels
  * @padding: reserved for future, not used, has to be zeroed
+ *
+ * The @dtype field used to inform UBI about what kind of data will be written
+ * to the LEB: long term (value 1), short term (value 2), unknown (value 3).
+ * UBI tried to pick a PEB with lower erase counter for short term data and a
+ * PEB with higher erase counter for long term data. But this was not really
+ * used because users usually do not know this and could easily mislead UBI. We
+ * removed this feature in May 2012. UBI currently just ignores the @dtype
+ * field. But for better compatibility with older kernels it is recommended to
+ * set @dtype to 3 (unknown).
  */
 struct ubi_leb_change_req {
 	__s32 lnum;
@@ -369,6 +379,7 @@ struct ubi_leb_change_req {
 
 /**
  * struct ubi_map_req - a data structure used in map LEB requests.
+ * @dtype: pass "3" for better compatibility with old kernels
  * @lnum: logical eraseblock number to unmap
  * @padding: reserved for future, not used, has to be zeroed
  */

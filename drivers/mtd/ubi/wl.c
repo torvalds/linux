@@ -41,12 +41,6 @@
  * physical eraseblocks with low erase counter to free physical eraseblocks
  * with high erase counter.
  *
- * The 'ubi_wl_get_peb()' function accepts data type hints which help to pick
- * an "optimal" physical eraseblock. For example, when it is known that the
- * physical eraseblock will be "put" soon because it contains short-term data,
- * the WL sub-system may pick a free physical eraseblock with low erase
- * counter, and so forth.
- *
  * If the WL sub-system fails to erase a physical eraseblock, it marks it as
  * bad.
  *
@@ -70,8 +64,7 @@
  *    to the user; instead, we first want to let users fill them up with data;
  *
  *  o there is a chance that the user will put the physical eraseblock very
- *    soon, so it makes sense not to move it for some time, but wait; this is
- *    especially important in case of "short term" physical eraseblocks.
+ *    soon, so it makes sense not to move it for some time, but wait.
  *
  * Physical eraseblocks stay protected only for limited time. But the "time" is
  * measured in erase cycles in this case. This is implemented with help of the
