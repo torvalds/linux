@@ -6581,6 +6581,7 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 		kvm_inject_page_fault(vcpu, &fault);
 	}
 	vcpu->arch.apf.halted = false;
+	vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 }
 
 bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu)

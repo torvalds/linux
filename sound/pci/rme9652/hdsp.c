@@ -5170,6 +5170,7 @@ static int snd_hdsp_create_hwdep(struct snd_card *card, struct hdsp *hdsp)
 	strcpy(hw->name, "HDSP hwdep interface");
 
 	hw->ops.ioctl = snd_hdsp_hwdep_ioctl;
+	hw->ops.ioctl_compat = snd_hdsp_hwdep_ioctl;
 
 	return 0;
 }
