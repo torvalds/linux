@@ -185,28 +185,17 @@ static int tps62360_dcdc_set_voltage(struct regulator_dev *dev,
 	return 0;
 }
 
-static int tps62360_dcdc_list_voltage(struct regulator_dev *dev,
-					unsigned selector)
-{
-	struct tps62360_chip *tps = rdev_get_drvdata(dev);
-
-	if (selector >= tps->desc.n_voltages)
-		return -EINVAL;
-
-	return tps->voltage_base + selector * 10000;
-}
-
 static int tps62360_set_voltage_time_sel(struct regulator_dev *rdev,
 		unsigned int old_selector, unsigned int new_selector)
 {
 	struct tps62360_chip *tps = rdev_get_drvdata(rdev);
 	int old_uV, new_uV;
 
-	old_uV = tps62360_dcdc_list_voltage(rdev, old_selector);
+	old_uV = regulator_list_voltage_linear(rdev, old_selector);
 	if (old_uV < 0)
 		return old_uV;
 
-	new_uV = tps62360_dcdc_list_voltage(rdev, new_selector);
+	new_uV = regulator_list_voltage_linear(rdev, new_selector);
 	if (new_uV < 0)
 		return new_uV;
 
@@ -216,7 +205,7 @@ static int tps62360_set_voltage_time_sel(struct regulator_dev *rdev,
 static struct regulator_ops tps62360_dcdc_ops = {
 	.get_voltage_sel	= tps62360_dcdc_get_voltage_sel,
 	.set_voltage		= tps62360_dcdc_set_voltage,
-	.list_voltage		= tps62360_dcdc_list_voltage,
+	.list_voltage		= regulator_list_voltage_linear,
 	.set_voltage_time_sel	= tps62360_set_voltage_time_sel,
 };
 
@@ -420,6 +409,9 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 	tps->desc.ops = &tps62360_dcdc_ops;
 	tps->desc.type = REGULATOR_VOLTAGE;
 	tps->desc.owner = THIS_MODULE;
+	tps->desc.min_uV = tps->voltage_base;
+	tps->desc.uV_step = 10000;
+
 	tps->regmap = devm_regmap_init_i2c(client, &tps62360_regmap_config);
 	if (IS_ERR(tps->regmap)) {
 		ret = PTR_ERR(tps->regmap);
