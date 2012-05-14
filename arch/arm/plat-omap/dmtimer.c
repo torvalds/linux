@@ -40,6 +40,8 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <plat/dmtimer.h>
 #include <plat/omap-pm.h>
@@ -211,6 +213,13 @@ struct omap_dm_timer *omap_dm_timer_request_specific(int id)
 	struct omap_dm_timer *timer = NULL, *t;
 	unsigned long flags;
 	int ret = 0;
+
+	/* Requesting timer by ID is not supported when device tree is used */
+	if (of_have_populated_dt()) {
+		pr_warn("%s: Please use omap_dm_timer_request_by_cap()\n",
+			__func__);
+		return NULL;
+	}
 
 	spin_lock_irqsave(&dm_timer_lock, flags);
 	list_for_each_entry(t, &omap_timer_list, node) {
@@ -466,7 +475,7 @@ int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 	 * use the clock framework to set the parent clock. To be removed
 	 * once OMAP1 migrated to using clock framework for dmtimers
 	 */
-	if (pdata->set_timer_src)
+	if (pdata && pdata->set_timer_src)
 		return pdata->set_timer_src(timer->pdev, source);
 
 	fclk = clk_get(&timer->pdev->dev, "fck");
@@ -747,7 +756,7 @@ static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct dmtimer_platform_data *pdata = pdev->dev.platform_data;
 
-	if (!pdata) {
+	if (!pdata && !dev->of_node) {
 		dev_err(dev, "%s: no platform data.\n", __func__);
 		return -ENODEV;
 	}
@@ -776,11 +785,23 @@ static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	timer->id = pdev->id;
+	if (dev->of_node) {
+		if (of_find_property(dev->of_node, "ti,timer-alwon", NULL))
+			timer->capability |= OMAP_TIMER_ALWON;
+		if (of_find_property(dev->of_node, "ti,timer-dsp", NULL))
+			timer->capability |= OMAP_TIMER_HAS_DSP_IRQ;
+		if (of_find_property(dev->of_node, "ti,timer-pwm", NULL))
+			timer->capability |= OMAP_TIMER_HAS_PWM;
+		if (of_find_property(dev->of_node, "ti,timer-secure", NULL))
+			timer->capability |= OMAP_TIMER_SECURE;
+	} else {
+		timer->id = pdev->id;
+		timer->capability = pdata->timer_capability;
+		timer->reserved = omap_dm_timer_reserved_systimer(timer->id);
+	}
+
 	timer->irq = irq->start;
-	timer->reserved = omap_dm_timer_reserved_systimer(timer->id);
 	timer->pdev = pdev;
-	timer->capability = pdata->timer_capability;
 
 	/* Skip pm_runtime_enable for OMAP1 */
 	if (!(timer->capability & OMAP_TIMER_NEEDS_RESET)) {
@@ -820,7 +841,8 @@ static int __devexit omap_dm_timer_remove(struct platform_device *pdev)
 
 	spin_lock_irqsave(&dm_timer_lock, flags);
 	list_for_each_entry(timer, &omap_timer_list, node)
-		if (timer->pdev->id == pdev->id) {
+		if (!strcmp(dev_name(&timer->pdev->dev),
+			    dev_name(&pdev->dev))) {
 			list_del(&timer->node);
 			ret = 0;
 			break;
@@ -830,11 +852,18 @@ static int __devexit omap_dm_timer_remove(struct platform_device *pdev)
 	return ret;
 }
 
+static const struct of_device_id omap_timer_match[] = {
+	{ .compatible = "ti,omap2-timer", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, omap_timer_match);
+
 static struct platform_driver omap_dm_timer_driver = {
 	.probe  = omap_dm_timer_probe,
 	.remove = __devexit_p(omap_dm_timer_remove),
 	.driver = {
 		.name   = "omap_timer",
+		.of_match_table = of_match_ptr(omap_timer_match),
 	},
 };
 
