@@ -76,7 +76,7 @@ static int max8649_list_voltage(struct regulator_dev *rdev, unsigned index)
 	return (MAX8649_DCDC_VMIN + index * MAX8649_DCDC_STEP);
 }
 
-static int max8649_get_voltage(struct regulator_dev *rdev)
+static int max8649_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct max8649_regulator_info *info = rdev_get_drvdata(rdev);
 	unsigned int val;
@@ -87,7 +87,7 @@ static int max8649_get_voltage(struct regulator_dev *rdev)
 	if (ret != 0)
 		return ret;
 	data = (unsigned char)val & MAX8649_VOL_MASK;
-	return max8649_list_voltage(rdev, data);
+	return data;
 }
 
 static int max8649_set_voltage(struct regulator_dev *rdev,
@@ -196,7 +196,7 @@ static unsigned int max8649_get_mode(struct regulator_dev *rdev)
 
 static struct regulator_ops max8649_dcdc_ops = {
 	.set_voltage	= max8649_set_voltage,
-	.get_voltage	= max8649_get_voltage,
+	.get_voltage_sel = max8649_get_voltage_sel,
 	.list_voltage	= max8649_list_voltage,
 	.enable		= max8649_enable,
 	.disable	= max8649_disable,
