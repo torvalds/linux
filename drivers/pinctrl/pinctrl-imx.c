@@ -269,12 +269,6 @@ static int imx_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static void imx_pmx_disable(struct pinctrl_dev *pctldev, unsigned func_selector,
-			    unsigned group_selector)
-{
-	/* nothing to do here */
-}
-
 static int imx_pmx_get_funcs_count(struct pinctrl_dev *pctldev)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
@@ -310,7 +304,6 @@ static struct pinmux_ops imx_pmx_ops = {
 	.get_function_name = imx_pmx_get_func_name,
 	.get_function_groups = imx_pmx_get_groups,
 	.enable = imx_pmx_enable,
-	.disable = imx_pmx_disable,
 };
 
 static int imx_pinconf_get(struct pinctrl_dev *pctldev,
