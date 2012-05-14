@@ -461,12 +461,13 @@ static int fq_codel_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
 	struct tc_fq_codel_xstats st = {
 		.type				= TCA_FQ_CODEL_XSTATS_QDISC,
-		.qdisc_stats.maxpacket		= q->cstats.maxpacket,
-		.qdisc_stats.drop_overlimit	= q->drop_overlimit,
-		.qdisc_stats.ecn_mark		= q->cstats.ecn_mark,
-		.qdisc_stats.new_flow_count	= q->new_flow_count,
 	};
 	struct list_head *pos;
+
+	st.qdisc_stats.maxpacket = q->cstats.maxpacket;
+	st.qdisc_stats.drop_overlimit = q->drop_overlimit;
+	st.qdisc_stats.ecn_mark = q->cstats.ecn_mark;
+	st.qdisc_stats.new_flow_count = q->new_flow_count;
 
 	list_for_each(pos, &q->new_flows)
 		st.qdisc_stats.new_flows_len++;
