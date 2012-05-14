@@ -112,9 +112,6 @@ struct sun4m_handler_data {
 #define SUN4M_INT_E14		0x00000080
 #define SUN4M_INT_E10		0x00080000
 
-#define SUN4M_HARD_INT(x)	(0x000000001 << (x))
-#define SUN4M_SOFT_INT(x)	(0x000010000 << (x))
-
 #define	SUN4M_INT_MASKALL	0x80000000	  /* mask all interrupts */
 #define	SUN4M_INT_MODULE_ERR	0x40000000	  /* module error */
 #define	SUN4M_INT_M2S_WRITE_ERR	0x20000000	  /* write buffer error */
@@ -281,13 +278,6 @@ static unsigned int sun4m_build_device_irq(struct platform_device *op,
 out:
 	return irq;
 }
-
-#ifdef CONFIG_SMP
-static void sun4m_send_ipi(int cpu, int level)
-{
-	sbus_writel(SUN4M_SOFT_INT(level), &sun4m_irq_percpu[cpu]->set);
-}
-#endif
 
 struct sun4m_timer_percpu {
 	u32		l14_limit;
@@ -478,10 +468,6 @@ void __init sun4m_init_IRQ(void)
 	sparc_config.init_timers = sun4m_init_timers;
 	sparc_config.build_device_irq = sun4m_build_device_irq;
 	sparc_config.clock_rate       = SBUS_CLOCK_RATE;
-
-#ifdef CONFIG_SMP
-	BTFIXUPSET_CALL(set_cpu_int, sun4m_send_ipi, BTFIXUPCALL_NORM);
-#endif
 
 	/* Cannot enable interrupts until OBP ticker is disabled. */
 }

@@ -40,6 +40,8 @@ volatile unsigned long cpu_callin_map[NR_CPUS] __cpuinitdata = {0,};
 
 cpumask_t smp_commenced_mask = CPU_MASK_NONE;
 
+const struct sparc32_ipi_ops *sparc32_ipi_ops;
+
 /* The only guaranteed locking primitive available on all Sparc
  * processors is 'ldstub [%reg + immediate], %dest_reg' which atomically
  * places the current byte at the effective address into dest_reg and
@@ -124,7 +126,7 @@ void smp_send_reschedule(int cpu)
 	 * a single CPU. The trap handler needs only to do trap entry/return
 	 * to call schedule.
 	 */
-	BTFIXUP_CALL(smp_ipi_resched)(cpu);
+	sparc32_ipi_ops->resched(cpu);
 }
 
 void smp_send_stop(void)
@@ -134,7 +136,7 @@ void smp_send_stop(void)
 void arch_send_call_function_single_ipi(int cpu)
 {
 	/* trigger one IPI single call on one CPU */
-	BTFIXUP_CALL(smp_ipi_single)(cpu);
+	sparc32_ipi_ops->single(cpu);
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
@@ -143,7 +145,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 
 	/* trigger IPI mask call on each CPU */
 	for_each_cpu(cpu, mask)
-		BTFIXUP_CALL(smp_ipi_mask_one)(cpu);
+		sparc32_ipi_ops->mask_one(cpu);
 }
 
 void smp_resched_interrupt(void)

@@ -34,8 +34,6 @@ swap_ulong(volatile unsigned long *ptr, unsigned long val)
 	return val;
 }
 
-static void smp4m_ipi_init(void);
-
 void __cpuinit smp4m_callin(void)
 {
 	int cpuid = hard_smp_processor_id();
@@ -88,7 +86,6 @@ void __cpuinit smp4m_callin(void)
  */
 void __init smp4m_boot_cpus(void)
 {
-	smp4m_ipi_init();
 	sun4m_unmask_profile_irq();
 	local_ops->cache_all();
 }
@@ -156,25 +153,24 @@ void __init smp4m_smp_done(void)
 	/* Ok, they are spinning and ready to go. */
 }
 
-
-/* Initialize IPIs on the SUN4M SMP machine */
-static void __init smp4m_ipi_init(void)
+static void sun4m_send_ipi(int cpu, int level)
 {
+	sbus_writel(SUN4M_SOFT_INT(level), &sun4m_irq_percpu[cpu]->set);
 }
 
-static void smp4m_ipi_resched(int cpu)
+static void sun4m_ipi_resched(int cpu)
 {
-	set_cpu_int(cpu, IRQ_IPI_RESCHED);
+	sun4m_send_ipi(cpu, IRQ_IPI_RESCHED);
 }
 
-static void smp4m_ipi_single(int cpu)
+static void sun4m_ipi_single(int cpu)
 {
-	set_cpu_int(cpu, IRQ_IPI_SINGLE);
+	sun4m_send_ipi(cpu, IRQ_IPI_SINGLE);
 }
 
-static void smp4m_ipi_mask_one(int cpu)
+static void sun4m_ipi_mask_one(int cpu)
 {
-	set_cpu_int(cpu, IRQ_IPI_MASK);
+	sun4m_send_ipi(cpu, IRQ_IPI_MASK);
 }
 
 static struct smp_funcall {
@@ -191,7 +187,7 @@ static struct smp_funcall {
 static DEFINE_SPINLOCK(cross_call_lock);
 
 /* Cross calls must be serialized, at least currently. */
-static void smp4m_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
+static void sun4m_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 			     unsigned long arg2, unsigned long arg3,
 			     unsigned long arg4)
 {
@@ -218,7 +214,7 @@ static void smp4m_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 				if (cpumask_test_cpu(i, &mask)) {
 					ccall_info.processors_in[i] = 0;
 					ccall_info.processors_out[i] = 0;
-					set_cpu_int(i, IRQ_CROSS_CALL);
+					sun4m_send_ipi(i, IRQ_CROSS_CALL);
 				} else {
 					ccall_info.processors_in[i] = 1;
 					ccall_info.processors_out[i] = 1;
@@ -281,10 +277,14 @@ void smp4m_percpu_timer_interrupt(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
+static const struct sparc32_ipi_ops sun4m_ipi_ops = {
+	.cross_call = sun4m_cross_call,
+	.resched    = sun4m_ipi_resched,
+	.single     = sun4m_ipi_single,
+	.mask_one   = sun4m_ipi_mask_one,
+};
+
 void __init sun4m_init_smp(void)
 {
-	BTFIXUPSET_CALL(smp_cross_call, smp4m_cross_call, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(smp_ipi_resched, smp4m_ipi_resched, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(smp_ipi_single, smp4m_ipi_single, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(smp_ipi_mask_one, smp4m_ipi_mask_one, BTFIXUPCALL_NORM);
+	sparc32_ipi_ops = &sun4m_ipi_ops;
 }

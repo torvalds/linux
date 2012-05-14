@@ -10,6 +10,9 @@ struct irq_bucket {
         unsigned int pil;
 };
 
+#define SUN4M_HARD_INT(x)       (0x000000001 << (x))
+#define SUN4M_SOFT_INT(x)       (0x000010000 << (x))
+
 #define SUN4D_MAX_BOARD 10
 #define SUN4D_MAX_IRQ ((SUN4D_MAX_BOARD + 2) << 5)
 
@@ -96,10 +99,9 @@ static inline void load_profile_irq(int cpu, int limit)
 	BTFIXUP_CALL(load_profile_irq)(cpu, limit);
 }
 
-#ifdef CONFIG_SMP
-BTFIXUPDEF_CALL(void, set_cpu_int, int, int)
+unsigned long leon_get_irqmask(unsigned int irq);
 
-#define set_cpu_int(cpu,level) BTFIXUP_CALL(set_cpu_int)(cpu,level)
+#ifdef CONFIG_SMP
 
 /* All SUN4D IPIs are sent on this IRQ, may be shared with hard IRQs */
 #define SUN4D_IPI_IRQ 13

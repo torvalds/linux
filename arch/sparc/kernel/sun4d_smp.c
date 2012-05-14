@@ -235,7 +235,20 @@ void sun4d_ipi_interrupt(void)
 	}
 }
 
-static void smp4d_ipi_single(int cpu)
+/* +-------+-------------+-----------+------------------------------------+
+ * | bcast |  devid      |   sid     |              levels mask           |
+ * +-------+-------------+-----------+------------------------------------+
+ *  31      30         23 22       15 14                                 0
+ */
+#define IGEN_MESSAGE(bcast, devid, sid, levels) \
+	(((bcast) << 31) | ((devid) << 23) | ((sid) << 15) | (levels))
+
+static void sun4d_send_ipi(int cpu, int level)
+{
+	cc_set_igen(IGEN_MESSAGE(0, cpu << 3, 6 + ((level >> 1) & 7), 1 << (level - 1)));
+}
+
+static void sun4d_ipi_single(int cpu)
 {
 	struct sun4d_ipi_work *work = &per_cpu(sun4d_ipi_work, cpu);
 
@@ -246,7 +259,7 @@ static void smp4d_ipi_single(int cpu)
 	sun4d_send_ipi(cpu, SUN4D_IPI_IRQ);
 }
 
-static void smp4d_ipi_mask_one(int cpu)
+static void sun4d_ipi_mask_one(int cpu)
 {
 	struct sun4d_ipi_work *work = &per_cpu(sun4d_ipi_work, cpu);
 
@@ -257,7 +270,7 @@ static void smp4d_ipi_mask_one(int cpu)
 	sun4d_send_ipi(cpu, SUN4D_IPI_IRQ);
 }
 
-static void smp4d_ipi_resched(int cpu)
+static void sun4d_ipi_resched(int cpu)
 {
 	struct sun4d_ipi_work *work = &per_cpu(sun4d_ipi_work, cpu);
 
@@ -282,7 +295,7 @@ static struct smp_funcall {
 static DEFINE_SPINLOCK(cross_call_lock);
 
 /* Cross calls must be serialized, at least currently. */
-static void smp4d_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
+static void sun4d_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 			     unsigned long arg2, unsigned long arg3,
 			     unsigned long arg4)
 {
@@ -391,6 +404,13 @@ void smp4d_percpu_timer_interrupt(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
+static const struct sparc32_ipi_ops sun4d_ipi_ops = {
+	.cross_call = sun4d_cross_call,
+	.resched    = sun4d_ipi_resched,
+	.single     = sun4d_ipi_single,
+	.mask_one   = sun4d_ipi_mask_one,
+};
+
 void __init sun4d_init_smp(void)
 {
 	int i;
@@ -398,11 +418,7 @@ void __init sun4d_init_smp(void)
 	/* Patch ipi15 trap table */
 	t_nmi[1] = t_nmi[1] + (linux_trap_ipi15_sun4d - linux_trap_ipi15_sun4m);
 
-	/* And set btfixup... */
-	BTFIXUPSET_CALL(smp_cross_call, smp4d_cross_call, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(smp_ipi_resched, smp4d_ipi_resched, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(smp_ipi_single, smp4d_ipi_single, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(smp_ipi_mask_one, smp4d_ipi_mask_one, BTFIXUPCALL_NORM);
+	sparc32_ipi_ops = &sun4d_ipi_ops;
 
 	for (i = 0; i < NR_CPUS; i++) {
 		ccall_info.processors_in[i] = 1;

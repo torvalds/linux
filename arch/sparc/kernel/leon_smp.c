@@ -346,6 +346,13 @@ static void __init leon_ipi_init(void)
 	}
 }
 
+static void leon_send_ipi(int cpu, int level)
+{
+	unsigned long mask;
+	mask = leon_get_irqmask(level);
+	LEON3_BYPASS_STORE_PA(&leon3_irqctrl_regs->force[cpu], mask);
+}
+
 static void leon_ipi_single(int cpu)
 {
 	struct leon_ipi_work *work = &per_cpu(leon_ipi_work, cpu);
@@ -354,7 +361,7 @@ static void leon_ipi_single(int cpu)
 	work->single = 1;
 
 	/* Generate IRQ on the CPU */
-	set_cpu_int(cpu, leon_ipi_irq);
+	leon_send_ipi(cpu, leon_ipi_irq);
 }
 
 static void leon_ipi_mask_one(int cpu)
@@ -365,7 +372,7 @@ static void leon_ipi_mask_one(int cpu)
 	work->msk = 1;
 
 	/* Generate IRQ on the CPU */
-	set_cpu_int(cpu, leon_ipi_irq);
+	leon_send_ipi(cpu, leon_ipi_irq);
 }
 
 static void leon_ipi_resched(int cpu)
@@ -376,7 +383,7 @@ static void leon_ipi_resched(int cpu)
 	work->resched = 1;
 
 	/* Generate IRQ on the CPU (any IRQ will cause resched) */
-	set_cpu_int(cpu, leon_ipi_irq);
+	leon_send_ipi(cpu, leon_ipi_irq);
 }
 
 void leonsmp_ipi_interrupt(void)
@@ -448,7 +455,7 @@ static void leon_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 				if (cpumask_test_cpu(i, &mask)) {
 					ccall_info.processors_in[i] = 0;
 					ccall_info.processors_out[i] = 0;
-					set_cpu_int(i, LEON3_IRQ_CROSS_CALL);
+					leon_send_ipi(i, LEON3_IRQ_CROSS_CALL);
 
 				}
 			}
@@ -491,15 +498,19 @@ void leon_cross_call_irq(void)
 	ccall_info.processors_out[i] = 1;
 }
 
+static const struct sparc32_ipi_ops leon_ipi_ops = {
+	.cross_call = leon_cross_call,
+	.resched    = leon_ipi_resched,
+	.single     = leon_ipi_single,
+	.mask_one   = leon_ipi_mask_one,
+};
+
 void __init leon_init_smp(void)
 {
 	/* Patch ipi15 trap table */
 	t_nmi[1] = t_nmi[1] + (linux_trap_ipi15_leon - linux_trap_ipi15_sun4m);
 
-	BTFIXUPSET_CALL(smp_cross_call, leon_cross_call, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(smp_ipi_resched, leon_ipi_resched, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(smp_ipi_single, leon_ipi_single, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(smp_ipi_mask_one, leon_ipi_mask_one, BTFIXUPCALL_NORM);
+	sparc32_ipi_ops = &leon_ipi_ops;
 }
 
 #endif /* CONFIG_SPARC_LEON */

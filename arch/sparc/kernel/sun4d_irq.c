@@ -244,11 +244,6 @@ struct irq_chip sun4d_irq = {
 };
 
 #ifdef CONFIG_SMP
-static void sun4d_set_cpu_int(int cpu, int level)
-{
-	sun4d_send_ipi(cpu, level);
-}
-
 /* Setup IRQ distribution scheme. */
 void __init sun4d_distribute_irqs(void)
 {
@@ -518,8 +513,5 @@ void __init sun4d_init_IRQ(void)
 	sparc_config.build_device_irq = sun4d_build_device_irq;
 	sparc_config.clock_rate       = SBUS_CLOCK_RATE;
 
-#ifdef CONFIG_SMP
-	BTFIXUPSET_CALL(set_cpu_int, sun4d_set_cpu_int, BTFIXUPCALL_NORM);
-#endif
 	/* Cannot enable interrupts until OBP ticker is disabled. */
 }

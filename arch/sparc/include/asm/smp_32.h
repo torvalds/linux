@@ -58,24 +58,43 @@ struct seq_file;
 void smp_bogo(struct seq_file *);
 void smp_info(struct seq_file *);
 
-BTFIXUPDEF_CALL(void, smp_cross_call, smpfunc_t, cpumask_t, unsigned long, unsigned long, unsigned long, unsigned long)
-BTFIXUPDEF_CALL(void, smp_ipi_resched, int);
-BTFIXUPDEF_CALL(void, smp_ipi_single, int);
-BTFIXUPDEF_CALL(void, smp_ipi_mask_one, int);
+struct sparc32_ipi_ops {
+	void (*cross_call)(smpfunc_t func, cpumask_t mask, unsigned long arg1,
+			   unsigned long arg2, unsigned long arg3,
+			   unsigned long arg4);
+	void (*resched)(int cpu);
+	void (*single)(int cpu);
+	void (*mask_one)(int cpu);
+};
+extern const struct sparc32_ipi_ops *sparc32_ipi_ops;
 
-#define smp_cross_call(func,mask,arg1,arg2,arg3,arg4) BTFIXUP_CALL(smp_cross_call)(func,mask,arg1,arg2,arg3,arg4)
+static inline void xc0(smpfunc_t func)
+{
+	sparc32_ipi_ops->cross_call(func, *cpu_online_mask, 0, 0, 0, 0);
+}
 
-static inline void xc0(smpfunc_t func) { smp_cross_call(func, *cpu_online_mask, 0, 0, 0, 0); }
 static inline void xc1(smpfunc_t func, unsigned long arg1)
-{ smp_cross_call(func, *cpu_online_mask, arg1, 0, 0, 0); }
+{
+	sparc32_ipi_ops->cross_call(func, *cpu_online_mask, arg1, 0, 0, 0);
+}
 static inline void xc2(smpfunc_t func, unsigned long arg1, unsigned long arg2)
-{ smp_cross_call(func, *cpu_online_mask, arg1, arg2, 0, 0); }
+{
+	sparc32_ipi_ops->cross_call(func, *cpu_online_mask, arg1, arg2, 0, 0);
+}
+
 static inline void xc3(smpfunc_t func, unsigned long arg1, unsigned long arg2,
-			   unsigned long arg3)
-{ smp_cross_call(func, *cpu_online_mask, arg1, arg2, arg3, 0); }
+		       unsigned long arg3)
+{
+	sparc32_ipi_ops->cross_call(func, *cpu_online_mask,
+				    arg1, arg2, arg3, 0);
+}
+
 static inline void xc4(smpfunc_t func, unsigned long arg1, unsigned long arg2,
-			   unsigned long arg3, unsigned long arg4)
-{ smp_cross_call(func, *cpu_online_mask, arg1, arg2, arg3, arg4); }
+		       unsigned long arg3, unsigned long arg4)
+{
+	sparc32_ipi_ops->cross_call(func, *cpu_online_mask,
+				    arg1, arg2, arg3, arg4);
+}
 
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);

@@ -86,7 +86,7 @@ void leon_eirq_setup(unsigned int eirq)
 	sparc_leon_eirq = eirq;
 }
 
-static inline unsigned long get_irqmask(unsigned int irq)
+unsigned long leon_get_irqmask(unsigned int irq)
 {
 	unsigned long mask;
 
@@ -212,7 +212,7 @@ unsigned int leon_build_device_irq(unsigned int real_irq,
 	unsigned long mask;
 
 	irq = 0;
-	mask = get_irqmask(real_irq);
+	mask = leon_get_irqmask(real_irq);
 	if (mask == 0)
 		goto out;
 
@@ -497,14 +497,6 @@ void __init leon_node_init(struct device_node *dp, struct device_node ***nextp)
 }
 
 #ifdef CONFIG_SMP
-
-void leon_set_cpu_int(int cpu, int level)
-{
-	unsigned long mask;
-	mask = get_irqmask(level);
-	LEON3_BYPASS_STORE_PA(&leon3_irqctrl_regs->force[cpu], mask);
-}
-
 void leon_clear_profile_irq(int cpu)
 {
 }
@@ -512,7 +504,7 @@ void leon_clear_profile_irq(int cpu)
 void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu)
 {
 	unsigned long mask, flags, *addr;
-	mask = get_irqmask(irq_nr);
+	mask = leon_get_irqmask(irq_nr);
 	spin_lock_irqsave(&leon_irq_lock, flags);
 	addr = (unsigned long *)LEON_IMASK(cpu);
 	LEON3_BYPASS_STORE_PA(addr, (LEON3_BYPASS_LOAD_PA(addr) | mask));
@@ -531,11 +523,6 @@ void __init leon_init_IRQ(void)
 			BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(load_profile_irq, leon_load_profile_irq,
 			BTFIXUPCALL_NOP);
-
-#ifdef CONFIG_SMP
-	BTFIXUPSET_CALL(set_cpu_int, leon_set_cpu_int, BTFIXUPCALL_NORM);
-#endif
-
 }
 
 void __init leon_init(void)
