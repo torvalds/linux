@@ -44,6 +44,7 @@ struct net_device_context {
 	/* point back to our device context */
 	struct hv_device *device_ctx;
 	struct delayed_work dwork;
+	struct work_struct work;
 };
 
 
@@ -51,30 +52,22 @@ static int ring_size = 128;
 module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
 
-struct set_multicast_work {
-	struct work_struct work;
-	struct net_device *net;
-};
-
 static void do_set_multicast(struct work_struct *w)
 {
-	struct set_multicast_work *swk =
-		container_of(w, struct set_multicast_work, work);
-	struct net_device *net = swk->net;
-
-	struct net_device_context *ndevctx = netdev_priv(net);
+	struct net_device_context *ndevctx =
+		container_of(w, struct net_device_context, work);
 	struct netvsc_device *nvdev;
 	struct rndis_device *rdev;
 
 	nvdev = hv_get_drvdata(ndevctx->device_ctx);
-	if (nvdev == NULL)
-		goto out;
+	if (nvdev == NULL || nvdev->ndev == NULL)
+		return;
 
 	rdev = nvdev->extension;
 	if (rdev == NULL)
-		goto out;
+		return;
 
-	if (net->flags & IFF_PROMISC)
+	if (nvdev->ndev->flags & IFF_PROMISC)
 		rndis_filter_set_packet_filter(rdev,
 			NDIS_PACKET_TYPE_PROMISCUOUS);
 	else
@@ -82,21 +75,13 @@ static void do_set_multicast(struct work_struct *w)
 			NDIS_PACKET_TYPE_BROADCAST |
 			NDIS_PACKET_TYPE_ALL_MULTICAST |
 			NDIS_PACKET_TYPE_DIRECTED);
-
-out:
-	kfree(w);
 }
 
 static void netvsc_set_multicast_list(struct net_device *net)
 {
-	struct set_multicast_work *swk =
-		kmalloc(sizeof(struct set_multicast_work), GFP_ATOMIC);
-	if (swk == NULL)
-		return;
+	struct net_device_context *net_device_ctx = netdev_priv(net);
 
-	swk->net = net;
-	INIT_WORK(&swk->work, do_set_multicast);
-	schedule_work(&swk->work);
+	schedule_work(&net_device_ctx->work);
 }
 
 static int netvsc_open(struct net_device *net)
@@ -125,6 +110,8 @@ static int netvsc_close(struct net_device *net)
 
 	netif_tx_disable(net);
 
+	/* Make sure netvsc_set_multicast_list doesn't re-enable filter! */
+	cancel_work_sync(&net_device_ctx->work);
 	ret = rndis_filter_close(device_obj);
 	if (ret != 0)
 		netdev_err(net, "unable to close device (ret %d).\n", ret);
@@ -335,6 +322,7 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 
 	nvdev->start_remove = true;
 	cancel_delayed_work_sync(&ndevctx->dwork);
+	cancel_work_sync(&ndevctx->work);
 	netif_tx_disable(ndev);
 	rndis_filter_device_remove(hdev);
 
@@ -403,6 +391,7 @@ static int netvsc_probe(struct hv_device *dev,
 	net_device_ctx->device_ctx = dev;
 	hv_set_drvdata(dev, net);
 	INIT_DELAYED_WORK(&net_device_ctx->dwork, netvsc_send_garp);
+	INIT_WORK(&net_device_ctx->work, do_set_multicast);
 
 	net->netdev_ops = &device_ops;
 
@@ -456,6 +445,7 @@ static int netvsc_remove(struct hv_device *dev)
 
 	ndev_ctx = netdev_priv(net);
 	cancel_delayed_work_sync(&ndev_ctx->dwork);
+	cancel_work_sync(&ndev_ctx->work);
 
 	/* Stop outbound asap */
 	netif_tx_disable(net);

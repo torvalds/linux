@@ -39,6 +39,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
 #include <linux/fsl/mxs-dma.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <mach/mxs.h>
 #include <mach/common.h>
@@ -363,6 +364,7 @@ static void mxs_mmc_bc(struct mxs_mmc_host *host)
 		goto out;
 
 	dmaengine_submit(desc);
+	dma_async_issue_pending(host->dmach);
 	return;
 
 out:
@@ -403,6 +405,7 @@ static void mxs_mmc_ac(struct mxs_mmc_host *host)
 		goto out;
 
 	dmaengine_submit(desc);
+	dma_async_issue_pending(host->dmach);
 	return;
 
 out:
@@ -531,6 +534,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 		goto out;
 
 	dmaengine_submit(desc);
+	dma_async_issue_pending(host->dmach);
 	return;
 out:
 	dev_warn(mmc_dev(host->mmc),
@@ -679,6 +683,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	struct mmc_host *mmc;
 	struct resource *iores, *dmares, *r;
 	struct mxs_mmc_platform_data *pdata;
+	struct pinctrl *pinctrl;
 	int ret = 0, irq_err, irq_dma;
 	dma_cap_mask_t mask;
 
@@ -715,6 +720,12 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	host->dma_res = dmares;
 	host->irq = irq_err;
 	host->sdio_irq_en = 0;
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
+		goto out_iounmap;
+	}
 
 	host->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {

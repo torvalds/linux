@@ -622,6 +622,16 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter, int v_idx,
 		if (adapter->hw.mac.type == ixgbe_mac_82599EB)
 			set_bit(__IXGBE_RX_CSUM_UDP_ZERO_ERR, &ring->state);
 
+#ifdef IXGBE_FCOE
+		if (adapter->netdev->features & NETIF_F_FCOE_MTU) {
+			struct ixgbe_ring_feature *f;
+			f = &adapter->ring_feature[RING_F_FCOE];
+			if ((rxr_idx >= f->mask) &&
+			    (rxr_idx < f->mask + f->indices))
+				set_bit(__IXGBE_RX_FCOE_BUFSZ, &ring->state);
+		}
+
+#endif /* IXGBE_FCOE */
 		/* apply Rx specific ring traits */
 		ring->count = adapter->rx_ring_count;
 		ring->queue_index = rxr_idx;

@@ -1429,7 +1429,7 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	}
 
 	open_flags = nd->intent.open.flags;
-	attr.ia_valid = 0;
+	attr.ia_valid = ATTR_OPEN;
 
 	ctx = create_nfs_open_context(dentry, open_flags);
 	res = ERR_CAST(ctx);
@@ -1536,7 +1536,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	if (IS_ERR(ctx))
 		goto out;
 
-	attr.ia_valid = 0;
+	attr.ia_valid = ATTR_OPEN;
 	if (openflags & O_TRUNC) {
 		attr.ia_valid |= ATTR_SIZE;
 		attr.ia_size = 0;

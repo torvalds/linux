@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/time.h>
 #include <linux/fsl/mxs-dma.h>
+#include <linux/pinctrl/consumer.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -625,6 +626,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	struct resource *iores, *dmares;
 	struct mxs_saif *saif;
 	struct mxs_saif_platform_data *pdata;
+	struct pinctrl *pinctrl;
 	int ret = 0;
 
 	if (pdev->id >= ARRAY_SIZE(mxs_saif))
@@ -648,6 +650,12 @@ static int mxs_saif_probe(struct platform_device *pdev)
 		}
 	} else {
 		saif->master_id = saif->id;
+	}
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
+		return ret;
 	}
 
 	saif->clk = clk_get(&pdev->dev, NULL);

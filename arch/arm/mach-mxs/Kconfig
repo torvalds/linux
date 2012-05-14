@@ -9,11 +9,13 @@ config SOC_IMX23
 	bool
 	select CPU_ARM926T
 	select HAVE_PWM
+	select PINCTRL_IMX23
 
 config SOC_IMX28
 	bool
 	select CPU_ARM926T
 	select HAVE_PWM
+	select PINCTRL_IMX28
 
 comment "MXS platforms:"
 

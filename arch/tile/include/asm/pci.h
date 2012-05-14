@@ -47,8 +47,8 @@ struct pci_controller {
  */
 #define PCI_DMA_BUS_IS_PHYS     1
 
-int __devinit tile_pci_init(void);
-int __devinit pcibios_init(void);
+int __init tile_pci_init(void);
+int __init pcibios_init(void);
 
 static inline void pci_iounmap(struct pci_dev *dev, void __iomem *addr) {}
 

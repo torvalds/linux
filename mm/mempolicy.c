@@ -1361,11 +1361,14 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
 
 	mm = get_task_mm(task);
 	put_task_struct(task);
-	if (mm)
-		err = do_migrate_pages(mm, old, new,
-			capable(CAP_SYS_NICE) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
-	else
+
+	if (!mm) {
 		err = -EINVAL;
+		goto out;
+	}
+
+	err = do_migrate_pages(mm, old, new,
+		capable(CAP_SYS_NICE) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
 
 	mmput(mm);
 out:
