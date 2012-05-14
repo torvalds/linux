@@ -101,7 +101,7 @@ static int _standby_twi_stop(void)
 
     twi_reg->reg_ctl = (twi_reg->reg_ctl & 0xc0) | 0x10;/* set stop+clear int flag */
 
-    nop_read = twi_reg->reg_ctl;/* apbÊ±ÖÓµÍÊ±±ØĞë¼Ù¶ÁÒ»´Îstop bit,ÏÂÒ»¸öÖÜÆÚ²ÅÉúĞ§ */
+    nop_read = twi_reg->reg_ctl;/* apbæ—¶é’Ÿä½æ—¶å¿…é¡»å‡è¯»ä¸€æ¬¡stop bit,ä¸‹ä¸€ä¸ªå‘¨æœŸæ‰ç”Ÿæ•ˆ */
     nop_read = nop_read;
     // 1. stop bit is zero.
     while((twi_reg->reg_ctl & 0x10)&&(timeout--));
@@ -150,7 +150,7 @@ __s32 twi_byte_rw(enum twi_op_type_e op, __u8 saddr, __u8 baddr, __u8 *data)
     unsigned int   timeout;
     int   ret = -1;
 
-    twi_reg->reg_efr = 0;/* ±ê×¼¶ÁĞ´±ØĞëÖÃ0 */
+    twi_reg->reg_efr = 0;/* æ ‡å‡†è¯»å†™å¿…é¡»ç½®0 */
 
     state_tmp = twi_reg->reg_status;
     if(state_tmp != 0xf8)

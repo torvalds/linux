@@ -1,7 +1,7 @@
 /*
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * 
+ *
  * Pan Nan <pannan@allwinnertech.com>
  * Victor Wei <weiziheng@allwinnertech.com>
  *
@@ -45,11 +45,11 @@
 /* readonly
 8-bits: accessed in   byte    rxFIFO decreased by 1.
         accessed in half-word rxFIFO decreased by 2.
-        accessed in   word    rxFIFO decreased by 4.      
+        accessed in   word    rxFIFO decreased by 4.
 */
 /* SPI Tx data register,default value: 0x0000_0000 */
-/* write only 
-   same as Rx data register  
+/* write only
+   same as Rx data register
 */
 
 
@@ -82,7 +82,7 @@
 #define SPI_CTL_SS_LEVEL     (0x1 << 17) /* defautl is 1:set SS to high;0:set SS to low */
 
 #define SPI_CTL_T_PAUSE_EN   (0x1 << 18) /* Transmit Pause Enable;Master mode: 1-stop when RXFIFO full;0-ignore rxFIFO */
-#define SPI_CTL_MASTER_SDC   (0x1 << 19) /* master sample data control, 1: delay--high speed operation;0:no delay. */ 
+#define SPI_CTL_MASTER_SDC   (0x1 << 19) /* master sample data control, 1: delay--high speed operation;0:no delay. */
 /* aw1620 control register 31-20bit reserved bit */
 
 
@@ -105,8 +105,8 @@
 #define SPI_INTEN_TU	    (0x1 << 14) /* txFIFO Underrun Interrupt Enable ---not happened */
 /* 15 bit reserved */
 
-#define SPI_INTEN_TC    (0x1 << 16) /* Transfer Completed Interrupt Enable  ---used */ 
-#define SPI_INTEN_SSI   (0x1 << 17) /* SSI interrupt Enable,chip select from valid state to invalid state,for slave used only */   
+#define SPI_INTEN_TC    (0x1 << 16) /* Transfer Completed Interrupt Enable  ---used */
+#define SPI_INTEN_SSI   (0x1 << 17) /* SSI interrupt Enable,chip select from valid state to invalid state,for slave used only */
 /* 31:18 bit reserved */
 #define SPI_INTEN_ERR   (SPI_INTEN_TO|SPI_INTEN_RU|SPI_INTEN_RO) //NO txFIFO underrun
 #define SPI_INTEN_MASK  (0x7f|(0x7f<<8)|(0x3<<16))
@@ -117,7 +117,7 @@
 #define SPI_STAT_RHF       (0x1 << 1) /* rxFIFO half full,0:less than 4 words;1:four or more than 4 words in rxfifo */
 #define SPI_STAT_RF        (0x1 << 2) /* rxFIFO full,0:not full;1:full */
 #define SPI_STAT_QTR_RF    (0x1 << 3) /* rxFIFO 1/4 Full, 0:not 1/4 full;1:1/4 full */
-#define SPI_STAT_3QTR_RF   (0x1 << 4) /* rxFIFO 3/4 Full, 0:not 1/4 full;1:1/4 full */ 
+#define SPI_STAT_3QTR_RF   (0x1 << 4) /* rxFIFO 3/4 Full, 0:not 1/4 full;1:1/4 full */
 #define SPI_STAT_RO        (0x1 << 5) /* rxFIFO overflow, 0: rxfifo is available;1:rxfifo has overflowed! */
 #define SPI_STAT_RU        (0x1 << 6) /* rxFIFO underrun,fectch data with no data available in FIFO */
 /* 7bit reserved */
@@ -190,41 +190,41 @@
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-    
-/* ÉèÖÃconfigµÄbitÎ» */
-/*      **************±ØÐë¸úlinuxµÄspi²ÎÊýÉèÖÃÒ»ÖÂ***************
-*       ¹¤×÷Ä£Ê½£¬°üÀ¨4ÖÖ£º
-*         0: ¹¤×÷Ä£Ê½0£¬POL=0,PAL=0;
-*         1: ¹¤×÷Ä£Ê½1£¬POL=0,PAL=1;
-*         2: ¹¤×÷Ä£Ê½2£¬POL=1,PAL=0;
-*         3: ¹¤×÷Ä£Ê½3£¬POL=1,PAL=1;
+
+/* è®¾ç½®configçš„bitä½ */
+/*      **************å¿…é¡»è·Ÿlinuxçš„spiå‚æ•°è®¾ç½®ä¸€è‡´***************
+*       å·¥ä½œæ¨¡å¼ï¼ŒåŒ…æ‹¬4ç§ï¼š
+*         0: å·¥ä½œæ¨¡å¼0ï¼ŒPOL=0,PAL=0;
+*         1: å·¥ä½œæ¨¡å¼1ï¼ŒPOL=0,PAL=1;
+*         2: å·¥ä½œæ¨¡å¼2ï¼ŒPOL=1,PAL=0;
+*         3: å·¥ä½œæ¨¡å¼3ï¼ŒPOL=1,PAL=1;
 */
 #define SPI_PHA_ACTIVE_		    (0x01)
 #define SPI_POL_ACTIVE_		    (0x02)
-    
+
 #define SPI_MODE_0_ACTIVE_		(0|0)
 #define SPI_MODE_1_ACTIVE_		(0|SPI_PHA_ACTIVE_)
 #define SPI_MODE_2_ACTIVE_		(SPI_POL_ACTIVE_|0)
-#define SPI_MODE_3_ACTIVE_		(SPI_POL_ACTIVE_|SPI_PHA_ACTIVE_) /*Ä¬ÈÏÎªÄ£Ê½3*/
-/* ÏÂÃæÊôÐÔÉÙÓÃ */
-#define SPI_CS_HIGH_ACTIVE_		    (0x04)  /*Ä¬ÈÏÎªÆ¬Ñ¡µÍµçÆ½ÓÐÐ§£¬¼´µÍµçÆ½Ñ¡ÖÐÆ¬Ñ¡*/
-#define SPI_LSB_FIRST_ACTIVE_		(0x08)  /*Ä¬ÈÏÎªÏÈ·¢ËÍMSB£¬¼´ÏÈ·¢ËÍ×îµÍÎ»*/
-    
-#define SPI_DUMMY_ONE_ACTIVE_        (0x10)  /*Ä¬ÈÏÎª½ÓÊÕÊ±spi¿ØÖÆÆ÷×Ô¶¯Ìî³ä0·ÅÔÚtxFIFO */
-#define SPI_RECEIVE_ALL_ACTIVE_      (0x20)  /*Ä¬ÈÏÎª·ÅÆúÎÞÓÃµÄburst£¬¼´·¢ËÍµÄÊ±ºò·ÅÆúrxFIFO½ÓÊÕµ½Êý¾Ý */
-    
-    
+#define SPI_MODE_3_ACTIVE_		(SPI_POL_ACTIVE_|SPI_PHA_ACTIVE_) /*é»˜è®¤ä¸ºæ¨¡å¼3*/
+/* ä¸‹é¢å±žæ€§å°‘ç”¨ */
+#define SPI_CS_HIGH_ACTIVE_		    (0x04)  /*é»˜è®¤ä¸ºç‰‡é€‰ä½Žç”µå¹³æœ‰æ•ˆï¼Œå³ä½Žç”µå¹³é€‰ä¸­ç‰‡é€‰*/
+#define SPI_LSB_FIRST_ACTIVE_		(0x08)  /*é»˜è®¤ä¸ºå…ˆå‘é€MSBï¼Œå³å…ˆå‘é€æœ€ä½Žä½*/
+
+#define SPI_DUMMY_ONE_ACTIVE_        (0x10)  /*é»˜è®¤ä¸ºæŽ¥æ”¶æ—¶spiæŽ§åˆ¶å™¨è‡ªåŠ¨å¡«å……0æ”¾åœ¨txFIFO */
+#define SPI_RECEIVE_ALL_ACTIVE_      (0x20)  /*é»˜è®¤ä¸ºæ”¾å¼ƒæ— ç”¨çš„burstï¼Œå³å‘é€çš„æ—¶å€™æ”¾å¼ƒrxFIFOæŽ¥æ”¶åˆ°æ•°æ® */
+
+
 /* can modify to adapt the application */
 #define BULK_DATA_BOUNDARY    64
 
 /* spi controller just suppport 20Mhz */
 #define SPI_MAX_FREQUENCY 80000000
-    
+
 /* distinguish sdram and sram address */
 #define SPI_RAM_BOUNDAY   (0x80000000)
 
 
-    
+
 /* function mode select */
 #define SPI_MASTER_MODE     (0x1)
 #define SPI_SLAVE_MODE      (0x0)
@@ -241,7 +241,7 @@ struct sunxi_spi_platform_data {
 
 /* spi device controller state, alloc */
 struct sunxi_spi_config {
-	int bits_per_word; // 8bit 
+	int bits_per_word; // 8bit
 	int max_speed_hz;  // 20MHz
 	int mode; // pha,pol,LSB,etc..
 };
