@@ -52,22 +52,13 @@ static inline int check_range(struct max8925_regulator_info *info,
 	return 0;
 }
 
-static int max8925_set_voltage(struct regulator_dev *rdev,
-			       int min_uV, int max_uV, unsigned int *selector)
+static int max8925_set_voltage_sel(struct regulator_dev *rdev,
+				   unsigned int selector)
 {
 	struct max8925_regulator_info *info = rdev_get_drvdata(rdev);
-	unsigned char data, mask;
+	unsigned char mask = rdev->desc->n_voltages - 1;
 
-	if (check_range(info, min_uV, max_uV)) {
-		dev_err(info->chip->dev, "invalid voltage range (%d, %d) uV\n",
-			min_uV, max_uV);
-		return -EINVAL;
-	}
-	data = DIV_ROUND_UP(min_uV - info->desc.min_uV, info->desc.uV_step);
-	*selector = data;
-	mask = rdev->desc->n_voltages - 1;
-
-	return max8925_set_bits(info->i2c, info->vol_reg, mask, data);
+	return max8925_set_bits(info->i2c, info->vol_reg, mask, selector);
 }
 
 static int max8925_get_voltage_sel(struct regulator_dev *rdev)
@@ -152,8 +143,9 @@ static int max8925_set_dvm_disable(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops max8925_regulator_sdv_ops = {
+	.map_voltage		= regulator_map_voltage_linear,
 	.list_voltage		= regulator_list_voltage_linear,
-	.set_voltage		= max8925_set_voltage,
+	.set_voltage_sel	= max8925_set_voltage_sel,
 	.get_voltage_sel	= max8925_get_voltage_sel,
 	.enable			= max8925_enable,
 	.disable		= max8925_disable,
@@ -164,8 +156,9 @@ static struct regulator_ops max8925_regulator_sdv_ops = {
 };
 
 static struct regulator_ops max8925_regulator_ldo_ops = {
+	.map_voltage		= regulator_map_voltage_linear,
 	.list_voltage		= regulator_list_voltage_linear,
-	.set_voltage		= max8925_set_voltage,
+	.set_voltage_sel	= max8925_set_voltage_sel,
 	.get_voltage_sel	= max8925_get_voltage_sel,
 	.enable			= max8925_enable,
 	.disable		= max8925_disable,
