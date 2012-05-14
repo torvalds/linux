@@ -43,7 +43,6 @@ static struct neigh_node *bat_iv_ogm_neigh_new(struct hard_iface *hard_iface,
 		goto out;
 
 	INIT_LIST_HEAD(&neigh_node->bonding_list);
-	spin_lock_init(&neigh_node->tq_lock);
 
 	neigh_node->orig_node = orig_neigh;
 	neigh_node->if_incoming = hard_iface;
@@ -637,12 +636,12 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 		if (is_duplicate)
 			continue;
 
-		spin_lock_bh(&tmp_neigh_node->tq_lock);
+		spin_lock_bh(&tmp_neigh_node->lq_update_lock);
 		ring_buffer_set(tmp_neigh_node->tq_recv,
 				&tmp_neigh_node->tq_index, 0);
 		tmp_neigh_node->tq_avg =
 			ring_buffer_avg(tmp_neigh_node->tq_recv);
-		spin_unlock_bh(&tmp_neigh_node->tq_lock);
+		spin_unlock_bh(&tmp_neigh_node->lq_update_lock);
 	}
 
 	if (!neigh_node) {
@@ -668,12 +667,12 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 	orig_node->flags = batman_ogm_packet->flags;
 	neigh_node->last_seen = jiffies;
 
-	spin_lock_bh(&neigh_node->tq_lock);
+	spin_lock_bh(&neigh_node->lq_update_lock);
 	ring_buffer_set(neigh_node->tq_recv,
 			&neigh_node->tq_index,
 			batman_ogm_packet->tq);
 	neigh_node->tq_avg = ring_buffer_avg(neigh_node->tq_recv);
-	spin_unlock_bh(&neigh_node->tq_lock);
+	spin_unlock_bh(&neigh_node->lq_update_lock);
 
 	if (!is_duplicate) {
 		orig_node->last_ttl = batman_ogm_packet->header.ttl;

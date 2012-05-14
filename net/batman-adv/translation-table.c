@@ -206,6 +206,8 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 
 	if (tt_local_entry) {
 		tt_local_entry->last_seen = jiffies;
+		/* possibly unset the TT_CLIENT_PENDING flag */
+		tt_local_entry->common.flags &= ~TT_CLIENT_PENDING;
 		goto out;
 	}
 
@@ -2116,4 +2118,23 @@ request_table:
 			return;
 		}
 	}
+}
+
+/* returns true whether we know that the client has moved from its old
+ * originator to another one. This entry is kept is still kept for consistency
+ * purposes
+ */
+bool tt_global_client_is_roaming(struct bat_priv *bat_priv, uint8_t *addr)
+{
+	struct tt_global_entry *tt_global_entry;
+	bool ret = false;
+
+	tt_global_entry = tt_global_hash_find(bat_priv, addr);
+	if (!tt_global_entry)
+		goto out;
+
+	ret = tt_global_entry->common.flags & TT_CLIENT_ROAM;
+	tt_global_entry_free_ref(tt_global_entry);
+out:
+	return ret;
 }

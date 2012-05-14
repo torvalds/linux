@@ -234,17 +234,14 @@ int window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
 {
 	if ((seq_num_diff <= -TQ_LOCAL_WINDOW_SIZE) ||
 	    (seq_num_diff >= EXPECTED_SEQNO_RANGE)) {
-		if (has_timed_out(*last_reset, RESET_PROTECTION_MS)) {
-
-			*last_reset = jiffies;
-			bat_dbg(DBG_BATMAN, bat_priv,
-				"old packet received, start protection\n");
-
-			return 0;
-		} else {
+		if (!has_timed_out(*last_reset, RESET_PROTECTION_MS))
 			return 1;
-		}
+
+		*last_reset = jiffies;
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"old packet received, start protection\n");
 	}
+
 	return 0;
 }
 
@@ -916,12 +913,20 @@ static int check_unicast_ttvn(struct bat_priv *bat_priv,
 
 	/* Check whether I have to reroute the packet */
 	if (seq_before(unicast_packet->ttvn, curr_ttvn) || tt_poss_change) {
-		/* Linearize the skb before accessing it */
-		if (skb_linearize(skb) < 0)
+		/* check if there is enough data before accessing it */
+		if (pskb_may_pull(skb, sizeof(struct unicast_packet) +
+				  ETH_HLEN) < 0)
 			return 0;
 
 		ethhdr = (struct ethhdr *)(skb->data +
 			sizeof(struct unicast_packet));
+
+		/* we don't have an updated route for this client, so we should
+		 * not try to reroute the packet!!
+		 */
+		if (tt_global_client_is_roaming(bat_priv, ethhdr->h_dest))
+			return 1;
+
 		orig_node = transtable_search(bat_priv, NULL, ethhdr->h_dest);
 
 		if (!orig_node) {
