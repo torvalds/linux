@@ -857,10 +857,10 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 	int_mask = mci_readl(host, INTMASK);
 	if (enb) {
 		mci_writel(host, INTMASK,
-			   (int_mask | (1 << SDMMC_INT_SDIO(slot->id))));
+			   (int_mask | SDMMC_INT_SDIO(slot->id)));
 	} else {
 		mci_writel(host, INTMASK,
-			   (int_mask & ~(1 << SDMMC_INT_SDIO(slot->id))));
+			   (int_mask & ~SDMMC_INT_SDIO(slot->id)));
 	}
 }
 
