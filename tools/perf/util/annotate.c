@@ -18,6 +18,17 @@
 
 const char 	*disassembler_style;
 
+static struct ins *ins__find(const char *name);
+static int disasm_line__parse(char *line, char **namep, char **rawp);
+
+static void ins__delete(struct ins_operands *ops)
+{
+	free(ops->source.raw);
+	free(ops->source.name);
+	free(ops->target.raw);
+	free(ops->target.name);
+}
+
 static int ins__raw_scnprintf(struct ins *ins, char *bf, size_t size,
 			      struct ins_operands *ops)
 {
@@ -56,6 +67,12 @@ static int call__parse(struct ins_operands *ops)
 	return ops->target.name == NULL ? -1 : 0;
 
 indirect_call:
+	tok = strchr(endptr, '(');
+	if (tok != NULL) {
+		ops->target.addr = 0;
+		return 0;
+	}
+
 	tok = strchr(endptr, '*');
 	if (tok == NULL)
 		return -1;
@@ -69,6 +86,9 @@ static int call__scnprintf(struct ins *ins, char *bf, size_t size,
 {
 	if (ops->target.name)
 		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->target.name);
+
+	if (ops->target.addr == 0)
+		return ins__raw_scnprintf(ins, bf, size, ops);
 
 	return scnprintf(bf, size, "%-6.6s *%" PRIx64, ins->name, ops->target.addr);
 }
@@ -113,6 +133,185 @@ bool ins__is_jump(const struct ins *ins)
 	return ins->ops == &jump_ops;
 }
 
+static int comment__symbol(char *raw, char *comment, u64 *addrp, char **namep)
+{
+	char *endptr, *name, *t;
+
+	if (strstr(raw, "(%rip)") == NULL)
+		return 0;
+
+	*addrp = strtoull(comment, &endptr, 16);
+	name = strchr(endptr, '<');
+	if (name == NULL)
+		return -1;
+
+	name++;
+
+	t = strchr(name, '>');
+	if (t == NULL)
+		return 0;
+
+	*t = '\0';
+	*namep = strdup(name);
+	*t = '>';
+
+	return 0;
+}
+
+static int lock__parse(struct ins_operands *ops)
+{
+	char *name;
+
+	ops->locked.ops = zalloc(sizeof(*ops->locked.ops));
+	if (ops->locked.ops == NULL)
+		return 0;
+
+	if (disasm_line__parse(ops->raw, &name, &ops->locked.ops->raw) < 0)
+		goto out_free_ops;
+
+        ops->locked.ins = ins__find(name);
+        if (ops->locked.ins == NULL)
+                goto out_free_ops;
+
+        if (!ops->locked.ins->ops)
+                return 0;
+
+        if (ops->locked.ins->ops->parse)
+                ops->locked.ins->ops->parse(ops->locked.ops);
+
+	return 0;
+
+out_free_ops:
+	free(ops->locked.ops);
+	ops->locked.ops = NULL;
+	return 0;
+}
+
+static int lock__scnprintf(struct ins *ins, char *bf, size_t size,
+			   struct ins_operands *ops)
+{
+	int printed;
+
+	if (ops->locked.ins == NULL)
+		return ins__raw_scnprintf(ins, bf, size, ops);
+
+	printed = scnprintf(bf, size, "%-6.6s ", ins->name);
+	return printed + ins__scnprintf(ops->locked.ins, bf + printed,
+					size - printed, ops->locked.ops);
+}
+
+static void lock__delete(struct ins_operands *ops)
+{
+	free(ops->locked.ops);
+	free(ops->target.raw);
+	free(ops->target.name);
+}
+
+static struct ins_ops lock_ops = {
+	.free	   = lock__delete,
+	.parse	   = lock__parse,
+	.scnprintf = lock__scnprintf,
+};
+
+static int mov__parse(struct ins_operands *ops)
+{
+	char *s = strchr(ops->raw, ','), *target, *comment, prev;
+
+	if (s == NULL)
+		return -1;
+
+	*s = '\0';
+	ops->source.raw = strdup(ops->raw);
+	*s = ',';
+	
+	if (ops->source.raw == NULL)
+		return -1;
+
+	target = ++s;
+
+	while (s[0] != '\0' && !isspace(s[0]))
+		++s;
+	prev = *s;
+	*s = '\0';
+
+	ops->target.raw = strdup(target);
+	*s = prev;
+
+	if (ops->target.raw == NULL)
+		goto out_free_source;
+
+	comment = strchr(s, '#');
+	if (comment == NULL)
+		return 0;
+
+	while (comment[0] != '\0' && isspace(comment[0]))
+		++comment;
+
+	comment__symbol(ops->source.raw, comment, &ops->source.addr, &ops->source.name);
+	comment__symbol(ops->target.raw, comment, &ops->target.addr, &ops->target.name);
+
+	return 0;
+
+out_free_source:
+	free(ops->source.raw);
+	ops->source.raw = NULL;
+	return -1;
+}
+
+static int mov__scnprintf(struct ins *ins, char *bf, size_t size,
+			   struct ins_operands *ops)
+{
+	return scnprintf(bf, size, "%-6.6s %s,%s", ins->name,
+			 ops->source.name ?: ops->source.raw,
+			 ops->target.name ?: ops->target.raw);
+}
+
+static struct ins_ops mov_ops = {
+	.parse	   = mov__parse,
+	.scnprintf = mov__scnprintf,
+};
+
+static int dec__parse(struct ins_operands *ops)
+{
+	char *target, *comment, *s, prev;
+
+	target = s = ops->raw;
+
+	while (s[0] != '\0' && !isspace(s[0]))
+		++s;
+	prev = *s;
+	*s = '\0';
+
+	ops->target.raw = strdup(target);
+	*s = prev;
+
+	if (ops->target.raw == NULL)
+		return -1;
+
+	comment = strchr(s, '#');
+	if (comment == NULL)
+		return 0;
+
+	while (comment[0] != '\0' && isspace(comment[0]))
+		++comment;
+
+	comment__symbol(ops->target.raw, comment, &ops->target.addr, &ops->target.name);
+
+	return 0;
+}
+
+static int dec__scnprintf(struct ins *ins, char *bf, size_t size,
+			   struct ins_operands *ops)
+{
+	return scnprintf(bf, size, "%-6.6s %s", ins->name,
+			 ops->target.name ?: ops->target.raw);
+}
+
+static struct ins_ops dec_ops = {
+	.parse	   = dec__parse,
+	.scnprintf = dec__scnprintf,
+};
+
 static int nop__scnprintf(struct ins *ins __used, char *bf, size_t size,
 			  struct ins_operands *ops __used)
 {
@@ -127,8 +326,25 @@ static struct ins_ops nop_ops = {
  * Must be sorted by name!
  */
 static struct ins instructions[] = {
+	{ .name = "add",   .ops  = &mov_ops, },
+	{ .name = "addl",  .ops  = &mov_ops, },
+	{ .name = "addq",  .ops  = &mov_ops, },
+	{ .name = "addw",  .ops  = &mov_ops, },
+	{ .name = "and",   .ops  = &mov_ops, },
+	{ .name = "bts",   .ops  = &mov_ops, },
 	{ .name = "call",  .ops  = &call_ops, },
 	{ .name = "callq", .ops  = &call_ops, },
+	{ .name = "cmp",   .ops  = &mov_ops, },
+	{ .name = "cmpb",  .ops  = &mov_ops, },
+	{ .name = "cmpl",  .ops  = &mov_ops, },
+	{ .name = "cmpq",  .ops  = &mov_ops, },
+	{ .name = "cmpw",  .ops  = &mov_ops, },
+	{ .name = "cmpxch", .ops  = &mov_ops, },
+	{ .name = "dec",   .ops  = &dec_ops, },
+	{ .name = "decl",  .ops  = &dec_ops, },
+	{ .name = "imul",  .ops  = &mov_ops, },
+	{ .name = "inc",   .ops  = &dec_ops, },
+	{ .name = "incl",  .ops  = &dec_ops, },
 	{ .name = "ja",	   .ops  = &jump_ops, },
 	{ .name = "jae",   .ops  = &jump_ops, },
 	{ .name = "jb",	   .ops  = &jump_ops, },
@@ -164,9 +380,25 @@ static struct ins instructions[] = {
 	{ .name = "jrcxz", .ops  = &jump_ops, },
 	{ .name = "js",	   .ops  = &jump_ops, },
 	{ .name = "jz",	   .ops  = &jump_ops, },
+	{ .name = "lea",   .ops  = &mov_ops, },
+	{ .name = "lock",  .ops  = &lock_ops, },
+	{ .name = "mov",   .ops  = &mov_ops, },
+	{ .name = "movb",  .ops  = &mov_ops, },
+	{ .name = "movdqa",.ops  = &mov_ops, },
+	{ .name = "movl",  .ops  = &mov_ops, },
+	{ .name = "movq",  .ops  = &mov_ops, },
+	{ .name = "movslq", .ops  = &mov_ops, },
+	{ .name = "movzbl", .ops  = &mov_ops, },
+	{ .name = "movzwl", .ops  = &mov_ops, },
 	{ .name = "nop",   .ops  = &nop_ops, },
 	{ .name = "nopl",  .ops  = &nop_ops, },
 	{ .name = "nopw",  .ops  = &nop_ops, },
+	{ .name = "or",    .ops  = &mov_ops, },
+	{ .name = "orl",   .ops  = &mov_ops, },
+	{ .name = "test",  .ops  = &mov_ops, },
+	{ .name = "testb", .ops  = &mov_ops, },
+	{ .name = "testl", .ops  = &mov_ops, },
+	{ .name = "xadd",  .ops  = &mov_ops, },
 };
 
 static int ins__cmp(const void *name, const void *insp)
@@ -257,6 +489,44 @@ static void disasm_line__init_ins(struct disasm_line *dl)
 		dl->ins->ops->parse(&dl->ops);
 }
 
+static int disasm_line__parse(char *line, char **namep, char **rawp)
+{
+	char *name = line, tmp;
+
+	while (isspace(name[0]))
+		++name;
+
+	if (name[0] == '\0')
+		return -1;
+
+	*rawp = name + 1;
+
+	while ((*rawp)[0] != '\0' && !isspace((*rawp)[0]))
+		++*rawp;
+
+	tmp = (*rawp)[0];
+	(*rawp)[0] = '\0';
+	*namep = strdup(name);
+
+	if (*namep == NULL)
+		goto out_free_name;
+
+	(*rawp)[0] = tmp;
+
+	if ((*rawp)[0] != '\0') {
+		(*rawp)++;
+		while (isspace((*rawp)[0]))
+			++(*rawp);
+	}
+
+	return 0;
+
+out_free_name:
+	free(*namep);
+	*namep = NULL;
+	return -1;
+}
+
 static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privsize)
 {
 	struct disasm_line *dl = zalloc(sizeof(*dl) + privsize);
@@ -268,34 +538,8 @@ static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privs
 			goto out_delete;
 
 		if (offset != -1) {
-			char *name = dl->line, tmp;
-
-			while (isspace(name[0]))
-				++name;
-
-			if (name[0] == '\0')
-				goto out_delete;
-
-			dl->ops.raw = name + 1;
-
-			while (dl->ops.raw[0] != '\0' &&
-			       !isspace(dl->ops.raw[0]))
-				++dl->ops.raw;
-
-			tmp = dl->ops.raw[0];
-			dl->ops.raw[0] = '\0';
-			dl->name = strdup(name);
-
-			if (dl->name == NULL)
+			if (disasm_line__parse(dl->line, &dl->name, &dl->ops.raw) < 0)
 				goto out_free_line;
-
-			dl->ops.raw[0] = tmp;
-
-			if (dl->ops.raw[0] != '\0') {
-				dl->ops.raw++;
-				while (isspace(dl->ops.raw[0]))
-					++dl->ops.raw;
-			}
 
 			disasm_line__init_ins(dl);
 		}
@@ -314,7 +558,10 @@ void disasm_line__free(struct disasm_line *dl)
 {
 	free(dl->line);
 	free(dl->name);
-	free(dl->ops.target.name);
+	if (dl->ins && dl->ins->ops->free)
+		dl->ins->ops->free(&dl->ops);
+	else
+		ins__delete(&dl->ops);
 	free(dl);
 }
 

@@ -13,13 +13,26 @@ struct ins;
 struct ins_operands {
 	char	*raw;
 	struct {
+		char	*raw;
 		char	*name;
-		u64	offset;
 		u64	addr;
+		u64	offset;
 	} target;
+	union {
+		struct {
+			char	*raw;
+			char	*name;
+			u64	addr;
+		} source;
+		struct {
+			struct ins *ins;
+			struct ins_operands *ops;
+		} locked;
+	};
 };
 
 struct ins_ops {
+	void (*free)(struct ins_operands *ops);
 	int (*parse)(struct ins_operands *ops);
 	int (*scnprintf)(struct ins *ins, char *bf, size_t size,
 			 struct ins_operands *ops);
