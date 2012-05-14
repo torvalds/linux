@@ -1284,7 +1284,7 @@ static void codec_resume_events(struct work_struct *work)
 	gpio_write_one_pin_value(gpio_pa_shutdown, 1, "audio_pa_ctrl");
 }
 
-static int __init sun4i_codec_probe(struct platform_device *pdev)
+static int __devinit sun4i_codec_probe(struct platform_device *pdev)
 {
 	int err;
 	int ret;
