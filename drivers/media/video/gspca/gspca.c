@@ -2285,9 +2285,9 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	 * usb_lock is taken for a long time, e.g. when changing a control
 	 * value, and a new frame is ready to be dequeued.
 	 */
-	v4l2_dont_use_lock(&gspca_dev->vdev, VIDIOC_DQBUF);
-	v4l2_dont_use_lock(&gspca_dev->vdev, VIDIOC_QBUF);
-	v4l2_dont_use_lock(&gspca_dev->vdev, VIDIOC_QUERYBUF);
+	v4l2_disable_ioctl_locking(&gspca_dev->vdev, VIDIOC_DQBUF);
+	v4l2_disable_ioctl_locking(&gspca_dev->vdev, VIDIOC_QBUF);
+	v4l2_disable_ioctl_locking(&gspca_dev->vdev, VIDIOC_QUERYBUF);
 
 	/* init video stuff */
 	ret = video_register_device(&gspca_dev->vdev,

@@ -623,7 +623,7 @@ In some cases you want to tell the core that a function you had specified in
 your v4l2_ioctl_ops should be ignored. You can mark such ioctls by calling this
 function before video_device_register is called:
 
-void v4l2_dont_use_cmd(struct video_device *vdev, unsigned int cmd);
+void v4l2_disable_ioctl(struct video_device *vdev, unsigned int cmd);
 
 This tends to be needed if based on external factors (e.g. which card is
 being used) you want to turns off certain features in v4l2_ioctl_ops without
@@ -655,9 +655,9 @@ will be either a top-level mutex or a mutex per device node. By default this
 lock will be used for unlocked_ioctl, but you can disable locking for
 selected ioctls by calling:
 
-	void v4l2_dont_use_lock(struct video_device *vdev, unsigned int cmd);
+	void v4l2_disable_ioctl_locking(struct video_device *vdev, unsigned int cmd);
 
-E.g.: v4l2_dont_use_lock(vdev, VIDIOC_DQBUF);
+E.g.: v4l2_disable_ioctl_locking(vdev, VIDIOC_DQBUF);
 
 You have to call this before you register the video_device.
 

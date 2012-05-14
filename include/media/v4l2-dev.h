@@ -132,7 +132,7 @@ struct video_device
 	DECLARE_BITMAP(valid_ioctls, BASE_VIDIOC_PRIVATE);
 
 	/* serialization lock */
-	DECLARE_BITMAP(dont_use_lock, BASE_VIDIOC_PRIVATE);
+	DECLARE_BITMAP(disable_locking, BASE_VIDIOC_PRIVATE);
 	struct mutex *lock;
 };
 
@@ -182,17 +182,17 @@ void video_device_release_empty(struct video_device *vdev);
 bool v4l2_is_known_ioctl(unsigned int cmd);
 
 /* mark that this command shouldn't use core locking */
-static inline void v4l2_dont_use_lock(struct video_device *vdev, unsigned int cmd)
+static inline void v4l2_disable_ioctl_locking(struct video_device *vdev, unsigned int cmd)
 {
 	if (_IOC_NR(cmd) < BASE_VIDIOC_PRIVATE)
-		set_bit(_IOC_NR(cmd), vdev->dont_use_lock);
+		set_bit(_IOC_NR(cmd), vdev->disable_locking);
 }
 
-/* Mark that this command isn't implemented, must be called before
+/* Mark that this command isn't implemented. This must be called before
    video_device_register. See also the comments in determine_valid_ioctls().
    This function allows drivers to provide just one v4l2_ioctl_ops struct, but
    disable ioctls based on the specific card that is actually found. */
-static inline void v4l2_dont_use_cmd(struct video_device *vdev, unsigned int cmd)
+static inline void v4l2_disable_ioctl(struct video_device *vdev, unsigned int cmd)
 {
 	if (_IOC_NR(cmd) < BASE_VIDIOC_PRIVATE)
 		set_bit(_IOC_NR(cmd), vdev->valid_ioctls);

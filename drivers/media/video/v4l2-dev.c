@@ -329,7 +329,7 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (vdev->lock) {
 			/* always lock unless the cmd is marked as "don't use lock" */
 			locked = !v4l2_is_known_ioctl(cmd) ||
-				 !test_bit(_IOC_NR(cmd), vdev->dont_use_lock);
+				 !test_bit(_IOC_NR(cmd), vdev->disable_locking);
 
 			if (locked && mutex_lock_interruptible(vdev->lock))
 				return -ERESTARTSYS;

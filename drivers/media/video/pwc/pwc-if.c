@@ -1195,9 +1195,9 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	 * v4l2_lock is taken for a long time, e.g. when changing a control
 	 * value, and a new frame is ready to be dequeued.
 	 */
-	v4l2_dont_use_lock(&pdev->vdev, VIDIOC_DQBUF);
-	v4l2_dont_use_lock(&pdev->vdev, VIDIOC_QBUF);
-	v4l2_dont_use_lock(&pdev->vdev, VIDIOC_QUERYBUF);
+	v4l2_disable_ioctl_locking(&pdev->vdev, VIDIOC_DQBUF);
+	v4l2_disable_ioctl_locking(&pdev->vdev, VIDIOC_QBUF);
+	v4l2_disable_ioctl_locking(&pdev->vdev, VIDIOC_QUERYBUF);
 
 	rc = video_register_device(&pdev->vdev, VFL_TYPE_GRABBER, -1);
 	if (rc < 0) {
