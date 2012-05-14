@@ -2349,6 +2349,8 @@ static inline int l2cap_ertm_init(struct l2cap_chan *chan)
 	chan->sdu_last_frag = NULL;
 	chan->sdu_len = 0;
 
+	skb_queue_head_init(&chan->tx_q);
+
 	if (chan->mode != L2CAP_MODE_ERTM)
 		return 0;
 
@@ -2360,7 +2362,6 @@ static inline int l2cap_ertm_init(struct l2cap_chan *chan)
 	INIT_DELAYED_WORK(&chan->ack_timer, l2cap_ack_timeout);
 
 	skb_queue_head_init(&chan->srej_q);
-	skb_queue_head_init(&chan->tx_q);
 
 	INIT_LIST_HEAD(&chan->srej_l);
 	err = l2cap_seq_list_init(&chan->srej_list, chan->tx_win);
