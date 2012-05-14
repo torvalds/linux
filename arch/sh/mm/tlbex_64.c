@@ -33,76 +33,32 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
+#include <linux/kprobes.h>
 #include <asm/tlb.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 
-static int handle_vmalloc_fault(struct mm_struct *mm,
-				unsigned long protection_flags,
-				unsigned long address)
-{
-	pgd_t *dir;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	pte_t entry;
-
-	dir = pgd_offset_k(address);
-
-	pud = pud_offset(dir, address);
-	if (pud_none_or_clear_bad(pud))
-		return 1;
-
-	pmd = pmd_offset(pud, address);
-	if (pmd_none_or_clear_bad(pmd))
-		return 1;
-
-	pte = pte_offset_kernel(pmd, address);
-	entry = *pte;
-
-	if (pte_none(entry) || !pte_present(entry))
-		return 1;
-	if ((pte_val(entry) & protection_flags) != protection_flags)
-		return 1;
-
-	update_mmu_cache(NULL, address, pte);
-
-	return 0;
-}
-
-static int handle_tlbmiss(struct mm_struct *mm,
-			  unsigned long long protection_flags,
+static int handle_tlbmiss(unsigned long long protection_flags,
 			  unsigned long address)
 {
-	pgd_t *dir;
+	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	pte_t entry;
 
-	/* NB. The PGD currently only contains a single entry - there is no
-	   page table tree stored for the top half of the address space since
-	   virtual pages in that region should never be mapped in user mode.
-	   (In kernel mode, the only things in that region are the 512Mb super
-	   page (locked in), and vmalloc (modules) +  I/O device pages (handled
-	   by handle_vmalloc_fault), so no PGD for the upper half is required
-	   by kernel mode either).
+	if (is_vmalloc_addr((void *)address)) {
+		pgd = pgd_offset_k(address);
+	} else {
+		if (unlikely(address >= TASK_SIZE || !current->mm))
+			return 1;
 
-	   See how mm->pgd is allocated and initialised in pgd_alloc to see why
-	   the next test is necessary.  - RPC */
-	if (address >= (unsigned long) TASK_SIZE)
-		/* upper half - never has page table entries. */
-		return 1;
+		pgd = pgd_offset(current->mm, address);
+	}
 
-	dir = pgd_offset(mm, address);
-	if (pgd_none(*dir) || !pgd_present(*dir))
-		return 1;
-	if (!pgd_present(*dir))
-		return 1;
-
-	pud = pud_offset(dir, address);
+	pud = pud_offset(pgd, address);
 	if (pud_none(*pud) || !pud_present(*pud))
 		return 1;
 
@@ -112,7 +68,6 @@ static int handle_tlbmiss(struct mm_struct *mm,
 
 	pte = pte_offset_kernel(pmd, address);
 	entry = *pte;
-
 	if (pte_none(entry) || !pte_present(entry))
 		return 1;
 
@@ -146,9 +101,6 @@ struct expevt_lookup {
 #define PRX (1<<7)
 #define PRR (1<<6)
 
-#define DIRTY (_PAGE_DIRTY | _PAGE_ACCESSED)
-#define YOUNG (_PAGE_ACCESSED)
-
 /* Sized as 8 rather than 4 to allow checking the PTE's PRU bit against whether
    the fault happened in user mode or privileged mode. */
 static struct expevt_lookup expevt_lookup_table = {
@@ -164,12 +116,10 @@ static struct expevt_lookup expevt_lookup_table = {
    general fault handling in fault.c which deals with mapping file-backed
    pages, stack growth, segmentation faults, swapping etc etc)
  */
-asmlinkage int do_fast_page_fault(unsigned long long ssr_md,
-				  unsigned long long expevt,
-			          unsigned long address)
+asmlinkage int __kprobes
+do_fast_page_fault(unsigned long long ssr_md, unsigned long long expevt,
+		   unsigned long address)
 {
-	struct task_struct *tsk;
-	struct mm_struct *mm;
 	unsigned long long protection_flags;
 	unsigned long long index;
 	unsigned long long expevt4;
@@ -194,32 +144,5 @@ asmlinkage int do_fast_page_fault(unsigned long long ssr_md,
 	if (expevt_lookup_table.is_text_access[index])
 		set_thread_fault_code(FAULT_CODE_ITLB);
 
-	/* SIM
-	 * Note this is now called with interrupts still disabled
-	 * This is to cope with being called for a missing IO port
-	 * address with interrupts disabled. This should be fixed as
-	 * soon as we have a better 'fast path' miss handler.
-	 *
-	 * Plus take care how you try and debug this stuff.
-	 * For example, writing debug data to a port which you
-	 * have just faulted on is not going to work.
-	 */
-
-	tsk = current;
-	mm = tsk->mm;
-
-	if (is_vmalloc_addr((void *)address)) {
-		if (ssr_md)
-			/*
-			 * Process-contexts can never have this address
-			 * range mapped
-			 */
-			if (handle_vmalloc_fault(mm, protection_flags, address) == 0)
-				return 0;
-	} else if (!in_interrupt() && mm) {
-		if (handle_tlbmiss(mm, protection_flags, address) == 0)
-			return 0;
-	}
-
-	return 1;
+	return handle_tlbmiss(protection_flags, address);
 }
