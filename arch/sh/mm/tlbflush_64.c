@@ -61,15 +61,17 @@ static pte_t *lookup_pte(struct mm_struct *mm, unsigned long address)
  * and the problem, and then passes it off to one of the appropriate
  * routines.
  */
-asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
-			      unsigned long textaccess, unsigned long address)
+asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code,
+			      unsigned long address)
 {
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
 	const struct exception_table_entry *fixup;
+	int write = error_code & FAULT_CODE_WRITE;
+	int textaccess = error_code & FAULT_CODE_ITLB;
 	unsigned int flags = (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
-			      (writeaccess ? FAULT_FLAG_WRITE : 0));
+			      (write ? FAULT_FLAG_WRITE : 0));
 	pte_t *pte;
 	int fault;
 
@@ -122,7 +124,7 @@ good_area:
 		if (!(vma->vm_flags & VM_EXEC))
 			goto bad_area;
 	} else {
-		if (writeaccess) {
+		if (write) {
 			if (!(vma->vm_flags & VM_WRITE))
 				goto bad_area;
 		} else {
@@ -239,7 +241,7 @@ no_context:
 		printk(KERN_ALERT "Unable to handle kernel paging request");
 	printk(" at virtual address %08lx\n", address);
 	printk(KERN_ALERT "pc = %08Lx%08Lx\n", regs->pc >> 32, regs->pc & 0xffffffff);
-	die("Oops", regs, writeaccess);
+	die("Oops", regs, error_code);
 	do_exit(SIGKILL);
 
 /*

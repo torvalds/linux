@@ -1079,9 +1079,8 @@ restore_all:
  *
  * Kernel TLB fault handlers will get a slightly different interface.
  * (r2)   struct pt_regs *, original register's frame pointer
- * (r3)   writeaccess, whether it's a store fault as opposed to load fault
- * (r4)   execaccess, whether it's a ITLB fault as opposed to DTLB fault
- * (r5)   Effective Address of fault
+ * (r3)   page fault error code (see asm/thread_info.h)
+ * (r4)   Effective Address of fault
  * (LINK) return address
  * (SP)   = r2
  *
@@ -1092,26 +1091,25 @@ restore_all:
 tlb_miss_load:
 	or	SP, ZERO, r2
 	or	ZERO, ZERO, r3		/* Read */
-	or	ZERO, ZERO, r4		/* Data */
-	getcon	TEA, r5
+	getcon	TEA, r4
 	pta	call_do_page_fault, tr0
 	beq	ZERO, ZERO, tr0
 
 tlb_miss_store:
 	or	SP, ZERO, r2
-	movi	1, r3			/* Write */
-	or	ZERO, ZERO, r4		/* Data */
-	getcon	TEA, r5
+	movi	FAULT_CODE_WRITE, r3		/* Write */
+	getcon	TEA, r4
 	pta	call_do_page_fault, tr0
 	beq	ZERO, ZERO, tr0
 
 itlb_miss_or_IRQ:
 	pta	its_IRQ, tr0
 	beqi/u	r4, EVENT_INTERRUPT, tr0
+
+	/* ITLB miss */
 	or	SP, ZERO, r2
-	or	ZERO, ZERO, r3		/* Read */
-	movi	1, r4			/* Text */
-	getcon	TEA, r5
+	movi	FAULT_CODE_ITLB, r3
+	getcon	TEA, r4
 	/* Fall through */
 
 call_do_page_fault:
