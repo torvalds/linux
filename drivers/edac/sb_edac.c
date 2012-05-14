@@ -599,7 +599,7 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 		pvt->is_close_pg = false;
 	}
 
-	pci_read_config_dword(pvt->pci_ta, RANK_CFG_A, &reg);
+	pci_read_config_dword(pvt->pci_ddrio, RANK_CFG_A, &reg);
 	if (IS_RDIMM_ENABLED(reg)) {
 		/* FIXME: Can also be LRDIMM */
 		debugf0("Memory is registered\n");
