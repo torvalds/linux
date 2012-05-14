@@ -70,25 +70,6 @@ static inline int check_range(int min_uV, int max_uV)
 	return 0;
 }
 
-static int max8649_set_voltage(struct regulator_dev *rdev,
-			       int min_uV, int max_uV, unsigned *selector)
-{
-	struct max8649_regulator_info *info = rdev_get_drvdata(rdev);
-	unsigned char data, mask;
-
-	if (check_range(min_uV, max_uV)) {
-		dev_err(info->dev, "invalid voltage range (%d, %d) uV\n",
-			min_uV, max_uV);
-		return -EINVAL;
-	}
-	data = DIV_ROUND_UP(min_uV - MAX8649_DCDC_VMIN, MAX8649_DCDC_STEP);
-	mask = MAX8649_VOL_MASK;
-	*selector = data & mask;
-
-	return regmap_update_bits(info->regmap, rdev->desc->vsel_reg, mask,
-				  data);
-}
-
 /* EN_PD means pulldown on EN input */
 static int max8649_enable(struct regulator_dev *rdev)
 {
@@ -176,9 +157,10 @@ static unsigned int max8649_get_mode(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops max8649_dcdc_ops = {
-	.set_voltage	= max8649_set_voltage,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage	= regulator_list_voltage_linear,
+	.map_voltage	= regulator_map_voltage_linear,
 	.enable		= max8649_enable,
 	.disable	= max8649_disable,
 	.is_enabled	= max8649_is_enabled,
