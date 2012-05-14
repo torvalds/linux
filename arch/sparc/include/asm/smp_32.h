@@ -8,7 +8,6 @@
 
 #include <linux/threads.h>
 #include <asm/head.h>
-#include <asm/btfixup.h>
 
 #ifndef __ASSEMBLY__
 

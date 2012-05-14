@@ -14,8 +14,6 @@
 #define PAGE_SIZE    (_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK    (~(PAGE_SIZE-1))
 
-#include <asm/btfixup.h>
-
 #ifndef __ASSEMBLY__
 
 #define clear_page(page)	 memset((void *)(page), 0, PAGE_SIZE)

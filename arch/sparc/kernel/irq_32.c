@@ -366,6 +366,5 @@ void __init init_IRQ(void)
 		prom_printf("Cannot initialize IRQs on this Sun machine...");
 		break;
 	}
-	btfixup();
 }
 

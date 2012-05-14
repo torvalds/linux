@@ -15,7 +15,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/btfixup.h>
 #include <asm/ptrace.h>
 #include <asm/page.h>
 

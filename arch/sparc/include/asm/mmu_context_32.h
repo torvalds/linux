@@ -1,8 +1,6 @@
 #ifndef __SPARC_MMU_CONTEXT_H
 #define __SPARC_MMU_CONTEXT_H
 
-#include <asm/btfixup.h>
-
 #ifndef __ASSEMBLY__
 
 #include <asm-generic/mm_hooks.h>

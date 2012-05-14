@@ -11,8 +11,6 @@
 #ifndef __ARCH_SPARC_CMPXCHG__
 #define __ARCH_SPARC_CMPXCHG__
 
-#include <asm/btfixup.h>
-
 static inline unsigned long xchg_u32(__volatile__ unsigned long *m, unsigned long val)
 {
 	__asm__ __volatile__("swap [%2], %0"

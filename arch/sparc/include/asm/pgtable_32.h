@@ -19,7 +19,6 @@
 #include <asm/pgtsrmmu.h>
 #include <asm/vaddrs.h>
 #include <asm/oplib.h>
-#include <asm/btfixup.h>
 #include <asm/cpu_type.h>
 
 

@@ -141,7 +141,6 @@ static int __init iommu_init(void)
 
 subsys_initcall(iommu_init);
 
-/* This begs to be btfixup-ed by srmmu. */
 /* Flush the iotlb entries to ram. */
 /* This could be better if we didn't have to flush whole pages. */
 static void iommu_flush_iotlb(iopte_t *iopte, unsigned int niopte)

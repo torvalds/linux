@@ -6,7 +6,6 @@
 #ifndef _SPARC_ASMMACRO_H
 #define _SPARC_ASMMACRO_H
 
-#include <asm/btfixup.h>
 #include <asm/asi.h>
 
 #define GET_PROCESSOR4M_ID(reg) \

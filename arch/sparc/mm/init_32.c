@@ -308,7 +308,6 @@ void __init paging_init(void)
 		prom_halt();
 	}
 
-	btfixup();
 	prom_build_devicetree();
 	of_fill_in_cpu_data();
 	device_scan();

@@ -14,7 +14,6 @@
 #include <asm-generic/percpu.h>
 
 #include <asm/cpu_type.h>  /* For SUN4M_NCPUS */
-#include <asm/btfixup.h>
 
 #define SBUS_CLOCK_RATE   2000000 /* 2MHz */
 #define TIMER_VALUE_SHIFT 9

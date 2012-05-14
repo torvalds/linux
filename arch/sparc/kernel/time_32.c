@@ -356,8 +356,6 @@ static void __init sbus_time_init(void)
 
 void __init time_init(void)
 {
-	btfixup();
-
 	sparc_config.features = 0;
 	late_time_init = sparc32_late_time_init;
 

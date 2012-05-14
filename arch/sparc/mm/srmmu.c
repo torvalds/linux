@@ -48,8 +48,6 @@
 #include <asm/turbosparc.h>
 #include <asm/leon.h>
 
-#include <asm/btfixup.h>
-
 enum mbus_module srmmu_modtype;
 static unsigned int hwbug_bitmask;
 int vac_cache_size;
@@ -2186,5 +2184,4 @@ void __init load_mmu(void)
 	else
 		sun4m_init_smp();
 #endif
-	btfixup();
 }
