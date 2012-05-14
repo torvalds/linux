@@ -640,20 +640,16 @@ static int nfs_idmap_legacy_upcall(struct key_construction *cons,
 	struct idmap_msg *im;
 	struct idmap *idmap = (struct idmap *)aux;
 	struct key *key = cons->key;
-	int ret;
+	int ret = -ENOMEM;
 
 	/* msg and im are freed in idmap_pipe_destroy_msg */
 	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
-	if (IS_ERR(msg)) {
-		ret = PTR_ERR(msg);
+	if (!msg)
 		goto out0;
-	}
 
 	im = kmalloc(sizeof(*im), GFP_KERNEL);
-	if (IS_ERR(im)) {
-		ret = PTR_ERR(im);
+	if (!im)
 		goto out1;
-	}
 
 	ret = nfs_idmap_prepare_message(key->description, im, msg);
 	if (ret < 0)
