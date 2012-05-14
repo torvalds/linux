@@ -52,7 +52,7 @@ static inline void show_leds(int cpuid)
 
 void __cpuinit smp4d_callin(void)
 {
-	int cpuid = hard_smp4d_processor_id();
+	int cpuid = hard_smp_processor_id();
 	unsigned long flags;
 
 	/* Show we are alive */
@@ -354,7 +354,7 @@ static void smp4d_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 /* Running cross calls. */
 void smp4d_cross_call_irq(void)
 {
-	int i = hard_smp4d_processor_id();
+	int i = hard_smp_processor_id();
 
 	ccall_info.processors_in[i] = 1;
 	ccall_info.func(ccall_info.arg1, ccall_info.arg2, ccall_info.arg3,
@@ -365,7 +365,7 @@ void smp4d_cross_call_irq(void)
 void smp4d_percpu_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
-	int cpu = hard_smp4d_processor_id();
+	int cpu = hard_smp_processor_id();
 	struct clock_event_device *ce;
 	static int cpu_tick[NR_CPUS];
 	static char led_mask[] = { 0xe, 0xd, 0xb, 0x7, 0xb, 0xd };
@@ -391,24 +391,6 @@ void smp4d_percpu_timer_interrupt(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-void __init smp4d_blackbox_id(unsigned *addr)
-{
-	int rd = *addr & 0x3e000000;
-
-	addr[0] = 0xc0800800 | rd;		/* lda [%g0] ASI_M_VIKING_TMP1, reg */
-	addr[1] = 0x01000000;			/* nop */
-	addr[2] = 0x01000000;			/* nop */
-}
-
-void __init smp4d_blackbox_current(unsigned *addr)
-{
-	int rd = *addr & 0x3e000000;
-
-	addr[0] = 0xc0800800 | rd;		/* lda [%g0] ASI_M_VIKING_TMP1, reg */
-	addr[2] = 0x81282002 | rd | (rd >> 11);	/* sll reg, 2, reg */
-	addr[4] = 0x01000000;			/* nop */
-}
-
 void __init sun4d_init_smp(void)
 {
 	int i;
@@ -417,10 +399,7 @@ void __init sun4d_init_smp(void)
 	t_nmi[1] = t_nmi[1] + (linux_trap_ipi15_sun4d - linux_trap_ipi15_sun4m);
 
 	/* And set btfixup... */
-	BTFIXUPSET_BLACKBOX(hard_smp_processor_id, smp4d_blackbox_id);
-	BTFIXUPSET_BLACKBOX(load_current, smp4d_blackbox_current);
 	BTFIXUPSET_CALL(smp_cross_call, smp4d_cross_call, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(__hard_smp_processor_id, __smp4d_processor_id, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(smp_ipi_resched, smp4d_ipi_resched, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(smp_ipi_single, smp4d_ipi_single, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(smp_ipi_mask_one, smp4d_ipi_mask_one, BTFIXUPCALL_NORM);

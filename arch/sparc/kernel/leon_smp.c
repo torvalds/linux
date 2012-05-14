@@ -73,7 +73,7 @@ static inline unsigned long do_swap(volatile unsigned long *ptr,
 
 void __cpuinit leon_callin(void)
 {
-	int cpuid = hard_smpleon_processor_id();
+	int cpuid = hard_smp_processor_id();
 
 	local_ops->cache_all();
 	local_ops->tlb_all();
@@ -491,39 +491,12 @@ void leon_cross_call_irq(void)
 	ccall_info.processors_out[i] = 1;
 }
 
-void __init leon_blackbox_id(unsigned *addr)
-{
-	int rd = *addr & 0x3e000000;
-	int rs1 = rd >> 11;
-
-	/* patch places where ___b_hard_smp_processor_id appears */
-	addr[0] = 0x81444000 | rd;	/* rd %asr17, reg */
-	addr[1] = 0x8130201c | rd | rs1;	/* srl reg, 0x1c, reg */
-	addr[2] = 0x01000000;	/* nop */
-}
-
-void __init leon_blackbox_current(unsigned *addr)
-{
-	int rd = *addr & 0x3e000000;
-	int rs1 = rd >> 11;
-
-	/* patch LOAD_CURRENT macro where ___b_load_current appears */
-	addr[0] = 0x81444000 | rd;	/* rd %asr17, reg */
-	addr[2] = 0x8130201c | rd | rs1;	/* srl reg, 0x1c, reg */
-	addr[4] = 0x81282002 | rd | rs1;	/* sll reg, 0x2, reg */
-
-}
-
 void __init leon_init_smp(void)
 {
 	/* Patch ipi15 trap table */
 	t_nmi[1] = t_nmi[1] + (linux_trap_ipi15_leon - linux_trap_ipi15_sun4m);
 
-	BTFIXUPSET_BLACKBOX(hard_smp_processor_id, leon_blackbox_id);
-	BTFIXUPSET_BLACKBOX(load_current, leon_blackbox_current);
 	BTFIXUPSET_CALL(smp_cross_call, leon_cross_call, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(__hard_smp_processor_id, __leon_processor_id,
-			BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(smp_ipi_resched, leon_ipi_resched, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(smp_ipi_single, leon_ipi_single, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(smp_ipi_mask_one, leon_ipi_mask_one, BTFIXUPCALL_NORM);

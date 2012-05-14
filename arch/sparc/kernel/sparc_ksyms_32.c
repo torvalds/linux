@@ -28,10 +28,5 @@ EXPORT_SYMBOL(__ndelay);
 EXPORT_SYMBOL(__ret_efault);
 EXPORT_SYMBOL(empty_zero_page);
 
-/* Defined using magic */
-#ifdef CONFIG_SMP
-EXPORT_SYMBOL(BTFIXUP_CALL(__hard_smp_processor_id));
-#endif
-
 /* Exporting a symbol from /init/main.c */
 EXPORT_SYMBOL(saved_command_line);

@@ -59,12 +59,9 @@ void smp_bogo(struct seq_file *);
 void smp_info(struct seq_file *);
 
 BTFIXUPDEF_CALL(void, smp_cross_call, smpfunc_t, cpumask_t, unsigned long, unsigned long, unsigned long, unsigned long)
-BTFIXUPDEF_CALL(int, __hard_smp_processor_id, void)
 BTFIXUPDEF_CALL(void, smp_ipi_resched, int);
 BTFIXUPDEF_CALL(void, smp_ipi_single, int);
 BTFIXUPDEF_CALL(void, smp_ipi_mask_one, int);
-BTFIXUPDEF_BLACKBOX(hard_smp_processor_id)
-BTFIXUPDEF_BLACKBOX(load_current)
 
 #define smp_cross_call(func,mask,arg1,arg2,arg3,arg4) BTFIXUP_CALL(smp_cross_call)(func,mask,arg1,arg2,arg3,arg4)
 
@@ -117,45 +114,7 @@ extern inline int hard_smpleon_processor_id(void)
 	return cpuid;
 }
 
-#ifndef MODULE
-static inline int hard_smp_processor_id(void)
-{
-	int cpuid;
-
-	/* Black box - sun4m
-		__asm__ __volatile__("rd %%tbr, %0\n\t"
-				     "srl %0, 12, %0\n\t"
-				     "and %0, 3, %0\n\t" :
-				     "=&r" (cpuid));
-	             - sun4d
-		__asm__ __volatile__("lda [%g0] ASI_M_VIKING_TMP1, %0\n\t"
-				     "nop; nop" :
-				     "=&r" (cpuid));
-		     - leon
-		__asm__ __volatile__(	"rd %asr17, %0\n\t"
-					"srl %0, 0x1c, %0\n\t"
-					"nop\n\t" :
-					"=&r" (cpuid));
-	   See btfixup.h and btfixupprep.c to understand how a blackbox works.
-	 */
-	__asm__ __volatile__("sethi %%hi(___b_hard_smp_processor_id), %0\n\t"
-			     "sethi %%hi(boot_cpu_id), %0\n\t"
-			     "ldub [%0 + %%lo(boot_cpu_id)], %0\n\t" :
-			     "=&r" (cpuid));
-	return cpuid;
-}
-#else
-static inline int hard_smp_processor_id(void)
-{
-	int cpuid;
-
-	__asm__ __volatile__("mov %%o7, %%g1\n\t"
-			     "call ___f___hard_smp_processor_id\n\t"
-			     " nop\n\t"
-			     "mov %%g2, %0\n\t" : "=r"(cpuid) : : "g1", "g2");
-	return cpuid;
-}
-#endif
+extern int hard_smp_processor_id(void);
 
 #define raw_smp_processor_id()		(current_thread_info()->cpu)
 

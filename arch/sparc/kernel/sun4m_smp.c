@@ -281,32 +281,9 @@ void smp4m_percpu_timer_interrupt(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-static void __init smp4m_blackbox_id(unsigned *addr)
-{
-	int rd = *addr & 0x3e000000;
-	int rs1 = rd >> 11;
-
-	addr[0] = 0x81580000 | rd;		/* rd %tbr, reg */
-	addr[1] = 0x8130200c | rd | rs1;	/* srl reg, 0xc, reg */
-	addr[2] = 0x80082003 | rd | rs1;	/* and reg, 3, reg */
-}
-
-static void __init smp4m_blackbox_current(unsigned *addr)
-{
-	int rd = *addr & 0x3e000000;
-	int rs1 = rd >> 11;
-
-	addr[0] = 0x81580000 | rd;		/* rd %tbr, reg */
-	addr[2] = 0x8130200a | rd | rs1;	/* srl reg, 0xa, reg */
-	addr[4] = 0x8008200c | rd | rs1;	/* and reg, 0xc, reg */
-}
-
 void __init sun4m_init_smp(void)
 {
-	BTFIXUPSET_BLACKBOX(hard_smp_processor_id, smp4m_blackbox_id);
-	BTFIXUPSET_BLACKBOX(load_current, smp4m_blackbox_current);
 	BTFIXUPSET_CALL(smp_cross_call, smp4m_cross_call, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(__hard_smp_processor_id, __smp4m_processor_id, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(smp_ipi_resched, smp4m_ipi_resched, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(smp_ipi_single, smp4m_ipi_single, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(smp_ipi_mask_one, smp4m_ipi_mask_one, BTFIXUPCALL_NORM);

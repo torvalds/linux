@@ -80,8 +80,6 @@ extern unsigned int patchme_maybe_smp_msg[];
 extern void floppy_hardint(void);
 
 /* trampoline_32.S */
-extern int __smp4m_processor_id(void);
-extern int __smp4d_processor_id(void);
 extern unsigned long sun4m_cpu_startup;
 extern unsigned long sun4d_cpu_startup;
 

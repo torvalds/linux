@@ -192,6 +192,52 @@ extern int root_mountflags;
 
 char reboot_command[COMMAND_LINE_SIZE];
 
+struct cpuid_patch_entry {
+	unsigned int	addr;
+	unsigned int	sun4d[3];
+	unsigned int	leon[3];
+};
+extern struct cpuid_patch_entry __cpuid_patch, __cpuid_patch_end;
+
+static void __init per_cpu_patch(void)
+{
+	struct cpuid_patch_entry *p;
+
+	if (sparc_cpu_model == sun4m) {
+		/* Nothing to do, this is what the unpatched code
+		 * targets.
+		 */
+		return;
+	}
+
+	p = &__cpuid_patch;
+	while (p < &__cpuid_patch_end) {
+		unsigned long addr = p->addr;
+		unsigned int *insns;
+
+		switch (sparc_cpu_model) {
+		case sun4d:
+			insns = &p->sun4d[0];
+			break;
+
+		case sparc_leon:
+			insns = &p->leon[0];
+			break;
+		default:
+			prom_printf("Unknown cpu type, halting.\n");
+			prom_halt();
+		}
+		*(unsigned int *) (addr + 0) = insns[0];
+		*(unsigned int *) (addr + 4) = insns[1];
+		*(unsigned int *) (addr + 8) = insns[2];
+	}
+#ifdef CONFIG_SMP
+	local_ops->cache_all();
+#else
+	sparc32_cachetlb_ops->cache_all();
+#endif
+}
+
 enum sparc_cpu sparc_cpu_model;
 EXPORT_SYMBOL(sparc_cpu_model);
 
@@ -294,6 +340,11 @@ void __init setup_arch(char **cmdline_p)
 	init_task.thread.kregs = &fake_swapper_regs;
 
 	paging_init();
+
+	/* Now that we have the cache ops hooked up, we can patch
+	 * instructions.
+	 */
+	per_cpu_patch();
 
 	smp_setup_cpu_possible_map();
 }
