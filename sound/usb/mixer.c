@@ -1141,9 +1141,6 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		len = snd_usb_copy_string_desc(state, nameid,
 				kctl->id.name, sizeof(kctl->id.name));
 
-	/* get min/max values */
-	get_min_max_with_quirks(cval, 0, kctl);
-
 	switch (control) {
 	case UAC_FU_MUTE:
 	case UAC_FU_VOLUME:
@@ -1175,22 +1172,25 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		}
 		append_ctl_name(kctl, control == UAC_FU_MUTE ?
 				" Switch" : " Volume");
-		if (control == UAC_FU_VOLUME) {
-			check_mapped_dB(map, cval);
-			if (cval->dBmin < cval->dBmax || !cval->initialized) {
-				kctl->tlv.c = snd_usb_mixer_vol_tlv;
-				kctl->vd[0].access |= 
-					SNDRV_CTL_ELEM_ACCESS_TLV_READ |
-					SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
-			}
-		}
 		break;
-
 	default:
 		if (! len)
 			strlcpy(kctl->id.name, audio_feature_info[control-1].name,
 				sizeof(kctl->id.name));
 		break;
+	}
+
+	/* get min/max values */
+	get_min_max_with_quirks(cval, 0, kctl);
+
+	if (control == UAC_FU_VOLUME) {
+		check_mapped_dB(map, cval);
+		if (cval->dBmin < cval->dBmax || !cval->initialized) {
+			kctl->tlv.c = snd_usb_mixer_vol_tlv;
+			kctl->vd[0].access |=
+				SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+				SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+		}
 	}
 
 	range = (cval->max - cval->min) / cval->res;
