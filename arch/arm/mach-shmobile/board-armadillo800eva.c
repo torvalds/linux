@@ -768,11 +768,17 @@ static void __init eva_add_early_devices(void)
 	shmobile_timer.init = eva_earlytimer_init;
 }
 
-MACHINE_START(ARMADILLO800EVA, "armadillo800eva")
+static const char *eva_boards_compat_dt[] __initdata = {
+	"renesas,armadillo800eva",
+	NULL,
+};
+
+DT_MACHINE_START(ARMADILLO800EVA_DT, "armadillo800eva")
 	.map_io		= r8a7740_map_io,
 	.init_early	= eva_add_early_devices,
 	.init_irq	= r8a7740_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= eva_init,
 	.timer		= &shmobile_timer,
+	.dt_compat	= eva_boards_compat_dt,
 MACHINE_END
