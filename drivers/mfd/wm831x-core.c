@@ -1813,27 +1813,27 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8310:
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8310_devs, ARRAY_SIZE(wm8310_devs),
-				      NULL, wm831x->irq_base);
+				      NULL, 0);
 		break;
 
 	case WM8311:
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8311_devs, ARRAY_SIZE(wm8311_devs),
-				      NULL, wm831x->irq_base);
+				      NULL, 0);
 		if (!pdata || !pdata->disable_touch)
 			mfd_add_devices(wm831x->dev, wm831x_num,
 					touch_devs, ARRAY_SIZE(touch_devs),
-					NULL, wm831x->irq_base);
+					NULL, 0);
 		break;
 
 	case WM8312:
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8312_devs, ARRAY_SIZE(wm8312_devs),
-				      NULL, wm831x->irq_base);
+				      NULL, 0);
 		if (!pdata || !pdata->disable_touch)
 			mfd_add_devices(wm831x->dev, wm831x_num,
 					touch_devs, ARRAY_SIZE(touch_devs),
-					NULL, wm831x->irq_base);
+					NULL, 0);
 		break;
 
 	case WM8320:
@@ -1842,7 +1842,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8326:
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
-				      NULL, wm831x->irq_base);
+				      NULL, 0);
 		break;
 
 	default:
@@ -1867,7 +1867,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	if (ret & WM831X_XTAL_ENA) {
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      rtc_devs, ARRAY_SIZE(rtc_devs),
-				      NULL, wm831x->irq_base);
+				      NULL, 0);
 		if (ret != 0) {
 			dev_err(wm831x->dev, "Failed to add RTC: %d\n", ret);
 			goto err_irq;
@@ -1880,7 +1880,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		/* Treat errors as non-critical */
 		ret = mfd_add_devices(wm831x->dev, wm831x_num, backlight_devs,
 				      ARRAY_SIZE(backlight_devs), NULL,
-				      wm831x->irq_base);
+				      0);
 		if (ret < 0)
 			dev_err(wm831x->dev, "Failed to add backlight: %d\n",
 				ret);
@@ -1909,8 +1909,7 @@ void wm831x_device_exit(struct wm831x *wm831x)
 {
 	wm831x_otp_exit(wm831x);
 	mfd_remove_devices(wm831x->dev);
-	if (wm831x->irq_base)
-		free_irq(wm831x->irq_base + WM831X_IRQ_AUXADC_DATA, wm831x);
+	free_irq(wm831x_irq(wm831x, WM831X_IRQ_AUXADC_DATA), wm831x);
 	wm831x_irq_exit(wm831x);
 }
 

@@ -198,7 +198,7 @@ static __devinit int wm831x_isink_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	irq = platform_get_irq(pdev, 0);
+	irq = wm831x_irq(wm831x, platform_get_irq(pdev, 0));
 	ret = request_threaded_irq(irq, NULL, wm831x_isink_irq,
 				   IRQF_TRIGGER_RISING, isink->name, isink);
 	if (ret != 0) {
@@ -223,7 +223,7 @@ static __devexit int wm831x_isink_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	free_irq(platform_get_irq(pdev, 0), isink);
+	free_irq(wm831x_irq(isink->wm831x, platform_get_irq(pdev, 0)), isink);
 
 	regulator_unregister(isink->regulator);
 

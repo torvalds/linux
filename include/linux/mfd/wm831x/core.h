@@ -17,6 +17,7 @@
 
 #include <linux/completion.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/list.h>
 #include <linux/regmap.h>
 
@@ -338,6 +339,7 @@
 #define WM831X_FLL_CLK_SRC_WIDTH                     2  /* FLL_CLK_SRC - [1:0] */
 
 struct regulator_dev;
+struct irq_domain;
 
 #define WM831X_NUM_IRQ_REGS 5
 #define WM831X_NUM_GPIO_REGS 16
@@ -367,7 +369,7 @@ struct wm831x {
 
 	int irq;  /* Our chip IRQ */
 	struct mutex irq_lock;
-	int irq_base;
+	struct irq_domain *irq_domain;
 	int irq_masks_cur[WM831X_NUM_IRQ_REGS];   /* Currently active value */
 	int irq_masks_cache[WM831X_NUM_IRQ_REGS]; /* Cached hardware value */
 
@@ -416,6 +418,11 @@ void wm831x_device_shutdown(struct wm831x *wm831x);
 int wm831x_irq_init(struct wm831x *wm831x, int irq);
 void wm831x_irq_exit(struct wm831x *wm831x);
 void wm831x_auxadc_init(struct wm831x *wm831x);
+
+static inline int wm831x_irq(struct wm831x *wm831x, int irq)
+{
+	return irq_create_mapping(wm831x->irq_domain, irq);
+}
 
 extern struct regmap_config wm831x_regmap_config;
 
