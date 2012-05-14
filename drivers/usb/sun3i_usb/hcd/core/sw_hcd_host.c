@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: Ö÷»ú¿ØÖÆÆ÷µÄÏà¹Ø²Ù×÷
+* Description 	: ä¸»æœºæ§åˆ¶å™¨çš„ç›¸å…³æ“ä½œ
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -63,7 +63,7 @@ static void sw_hcd_ep_program(struct sw_hcd *sw_hcd,
 *    void
 *
 * Parameters:
-*    ep : input. ÎïÀí ep µÄĞÅÏ¢
+*    ep : input. ç‰©ç† ep çš„ä¿¡æ¯
 *
 * Return value:
 *    void
@@ -117,7 +117,7 @@ static void sw_hcd_h_ep0_flush_fifo(struct sw_hcd_hw_ep *ep)
 *    Clear TX fifo. Needed to avoid BABBLE errors.
 *
 * Parameters:
-*    ep : input. ÎïÀí ep µÄĞÅÏ¢
+*    ep : input. ç‰©ç† ep çš„ä¿¡æ¯
 *
 * Return value:
 *    void
@@ -134,7 +134,7 @@ static void sw_hcd_h_tx_flush_fifo(struct sw_hcd_hw_ep *ep)
 	u16  lastcsr = 0;
 	int  retries = 1000;
 
-	/* Èç¹û¼ì²âµ½ fifo ²»¿Õ£¬ÄÇÃ´¾ÍË¢ fifo */
+	/* å¦‚æœæ£€æµ‹åˆ° fifo ä¸ç©ºï¼Œé‚£ä¹ˆå°±åˆ· fifo */
 	csr = USBC_Readw(USBC_REG_TXCSR(usbc_base));
 	while (csr & (1 << USBC_BP_TXCSR_H_FIFO_NOT_EMPTY)) {
 	    if (csr != lastcsr){
@@ -166,8 +166,8 @@ static void sw_hcd_h_tx_flush_fifo(struct sw_hcd_hw_ep *ep)
 *    void
 *
 * Parameters:
-*    hw_ep  :  input.  ÎïÀí ep µÄĞÅÏ¢
-*    csr    :  input.  rx×´Ì¬¼Ä´æÆ÷µÄÖµ
+*    hw_ep  :  input.  ç‰©ç† ep çš„ä¿¡æ¯
+*    csr    :  input.  rxçŠ¶æ€å¯„å­˜å™¨çš„å€¼
 *
 * Return value:
 *    void
@@ -206,7 +206,7 @@ static u16 sw_hcd_h_rx_flush_fifo(struct sw_hcd_hw_ep *hw_ep, u16 csr)
 *    void
 *
 * Parameters:
-*    ep : input. ÎïÀí ep µÄĞÅÏ¢
+*    ep : input. ç‰©ç† ep çš„ä¿¡æ¯
 *
 * Return value:
 *    void
@@ -266,7 +266,7 @@ static void sw_hcd_h_ep0_flush_fifo(struct sw_hcd_hw_ep *ep)
 *    Clear TX fifo. Needed to avoid BABBLE errors.
 *
 * Parameters:
-*    ep : input. ÎïÀí ep µÄĞÅÏ¢
+*    ep : input. ç‰©ç† ep çš„ä¿¡æ¯
 *
 * Return value:
 *    void
@@ -283,7 +283,7 @@ static void sw_hcd_h_tx_flush_fifo(struct sw_hcd_hw_ep *ep)
 	u16  lastcsr = 0;
 	int  retries = 1000;
 
-	/* Èç¹û¼ì²âµ½ fifo ²»¿Õ£¬ÄÇÃ´¾ÍË¢ fifo */
+	/* å¦‚æœæ£€æµ‹åˆ° fifo ä¸ç©ºï¼Œé‚£ä¹ˆå°±åˆ· fifo */
 	csr = USBC_Readw(USBC_REG_TXCSR(usbc_base));
 	while (csr & (1 << USBC_BP_TXCSR_H_FIFO_NOT_EMPTY)) {
 	    if (csr != lastcsr){
@@ -316,8 +316,8 @@ static void sw_hcd_h_tx_flush_fifo(struct sw_hcd_hw_ep *ep)
 *    void
 *
 * Parameters:
-*    hw_ep  :  input.  ÎïÀí ep µÄĞÅÏ¢
-*    csr    :  input.  rx×´Ì¬¼Ä´æÆ÷µÄÖµ
+*    hw_ep  :  input.  ç‰©ç† ep çš„ä¿¡æ¯
+*    csr    :  input.  rxçŠ¶æ€å¯„å­˜å™¨çš„å€¼
 *
 * Return value:
 *    void
@@ -358,7 +358,7 @@ static u16 sw_hcd_h_rx_flush_fifo(struct sw_hcd_hw_ep *hw_ep, u16 csr)
 * sw_hcd must be locked.
 *
 * Parameters:
-*    ep : input. ÎïÀí ep µÄĞÅÏ¢
+*    ep : input. ç‰©ç† ep çš„ä¿¡æ¯
 *
 * Return value:
 *    void
@@ -397,7 +397,7 @@ static inline void sw_hcd_h_tx_start(struct sw_hcd_hw_ep *ep)
 *                     sw_hcd_clean_dma_status
 *
 * Description:
-*    Çå¿Õep¹ØÓÚDMAµÄËùÓĞ×´Ì¬, Ò»°ãÔÚDMAÒì³£µÄÊ±¼äµ÷ÓÃ
+*    æ¸…ç©ºepå…³äºDMAçš„æ‰€æœ‰çŠ¶æ€, ä¸€èˆ¬åœ¨DMAå¼‚å¸¸çš„æ—¶é—´è°ƒç”¨
 *
 * Parameters:
 *    qh  :  input.
@@ -446,7 +446,7 @@ static void sw_hcd_clean_ep_dma_status(struct sw_hcd_qh *qh)
 *              sw_hcd_clean_ep_dma_status_and_flush_fifo
 *
 * Description:
-*    Çå¿Õep¹ØÓÚDMAµÄËùÓĞ×´Ì¬, Ò»°ãÔÚDMAÒì³£µÄÊ±¼äµ÷ÓÃ
+*    æ¸…ç©ºepå…³äºDMAçš„æ‰€æœ‰çŠ¶æ€, ä¸€èˆ¬åœ¨DMAå¼‚å¸¸çš„æ—¶é—´è°ƒç”¨
 *
 * Parameters:
 *    qh  :  input.
@@ -510,7 +510,7 @@ void sw_hcd_clean_ep_dma_status_and_flush_fifo(struct sw_hcd_qh *qh)
 *    void
 *
 * Parameters:
-*    ep : input. ÎïÀí ep µÄĞÅÏ¢
+*    ep : input. ç‰©ç† ep çš„ä¿¡æ¯
 *
 * Return value:
 *    void
@@ -529,7 +529,7 @@ static inline void sw_hcd_h_tx_dma_start(struct sw_hcd_hw_ep *ep, struct sw_hcd_
 	old_ep_index = USBC_GetActiveEp(qh->hw_ep->sw_hcd->sw_hcd_io->usb_bsp_hdle);
 	USBC_SelectActiveEp(qh->hw_ep->sw_hcd->sw_hcd_io->usb_bsp_hdle, qh->hw_ep->epnum);
 
-	/* µÍ8Î», clear timeout, stall error */
+	/* ä½8ä½, clear timeout, stall error */
 	txcsr = USBC_Readb(USBC_REG_TXCSR(usbc_base));
 	txcsr |= USBC_TXCSR_H_WZC_BITS;
 	USBC_Writeb(txcsr, USBC_REG_TXCSR(usbc_base));
@@ -626,9 +626,9 @@ static bool sw_hcd_tx_dma_program(struct sw_hcd_hw_ep *hw_ep,
 * Context: controller locked, irqs blocked
 *
 * Parameters:
-*    sw_hcd   :  input.  USB¿ØÖÆÆ÷
-*    is_in  :  input.  flag. ÊÇ·ñÊÇ in ep£¿
-*    qh     :  output. ep µÄµ÷¶ÈĞÅÏ¢
+*    sw_hcd   :  input.  USBæ§åˆ¶å™¨
+*    is_in  :  input.  flag. æ˜¯å¦æ˜¯ in epï¼Ÿ
+*    qh     :  output. ep çš„è°ƒåº¦ä¿¡æ¯
 *
 * Return value:
 *    void
@@ -783,9 +783,9 @@ start:
 *    caller owns controller lock, irqs are blocked.
 *
 * Parameters:
-*    sw_hcd   :  input.  USB ¿ØÖÆÆ÷
-*    urb    :  input.  USB ÇëÇó°ü
-*    status :  input.  urb µÄ×´Ì¬
+*    sw_hcd   :  input.  USB æ§åˆ¶å™¨
+*    urb    :  input.  USB è¯·æ±‚åŒ…
+*    status :  input.  urb çš„çŠ¶æ€
 *
 * Return value:
 *    void
@@ -831,9 +831,9 @@ __acquires(sw_hcd->lock)
 *    for bulk/interrupt endpoints only
 *
 * Parameters:
-*    ep     :  output. ÎïÀí ep µÄĞÅÏ¢
-*    is_in  :  input.  flag. ÊÇ·ñÊÇ in ep£¿
-*    urb    :  input.  USB ÇëÇó°ü
+*    ep     :  output. ç‰©ç† ep çš„ä¿¡æ¯
+*    is_in  :  input.  flag. æ˜¯å¦æ˜¯ in epï¼Ÿ
+*    urb    :  input.  USB è¯·æ±‚åŒ…
 *
 * Return value:
 *    void
@@ -888,9 +888,9 @@ static inline void sw_hcd_save_toggle(struct sw_hcd_hw_ep *ep, int is_in, struct
 *    caller owns controller lock, irqs are blocked.
 *
 * Parameters:
-*    qh     :  input. ep µÄµ÷¶ÈĞÅÏ¢
-*    urb    :  input.  USB ÇëÇó°ü
-*    status :  input.  urb µÄ×´Ì¬
+*    qh     :  input. ep çš„è°ƒåº¦ä¿¡æ¯
+*    urb    :  input.  USB è¯·æ±‚åŒ…
+*    status :  input.  urb çš„çŠ¶æ€
 *
 * Return value:
 *    void
@@ -1007,10 +1007,10 @@ static struct sw_hcd_qh *sw_hcd_giveback(struct sw_hcd_qh *qh, struct urb *urb, 
 *    void
 *
 * Parameters:
-*    sw_hcd   :  input.  USB¿ØÖÆÆ÷
-*    urb    :  input.  USB ÇëÇó°ü
-*    hw_ep  :  input.  ÎïÀí ep µÄĞÅÏ¢
-*    is_in  :  input.  flag. ÊÇ·ñÊÇ in ep£¿
+*    sw_hcd   :  input.  USBæ§åˆ¶å™¨
+*    urb    :  input.  USB è¯·æ±‚åŒ…
+*    hw_ep  :  input.  ç‰©ç† ep çš„ä¿¡æ¯
+*    is_in  :  input.  flag. æ˜¯å¦æ˜¯ in epï¼Ÿ
 *
 * Return value:
 *    void
@@ -1067,8 +1067,8 @@ static void sw_hcd_advance_schedule(struct sw_hcd *sw_hcd,
 *    void
 *
 * Parameters:
-*    sw_hcd       :  input.  USB¿ØÖÆÆ÷
-*    urb        :  input.  USB ÇëÇó°ü
+*    sw_hcd       :  input.  USBæ§åˆ¶å™¨
+*    urb        :  input.  USB è¯·æ±‚åŒ…
 *    epnum      :  input.  ep index
 *    iso_err    :  input.  flag. is iso error?
 *
@@ -1206,9 +1206,9 @@ static bool sw_hcd_host_packet_rx(struct sw_hcd *sw_hcd, struct urb *urb, u8 epn
 *    void
 *
 * Parameters:
-*    sw_hcd	:  input.  USB¿ØÖÆÆ÷
-*    qh    	:  input.  ep µÄµ÷¶ÈĞÅÏ¢
-*    ep     :  input.  ÎïÀí ep µÄĞÅÏ¢
+*    sw_hcd	:  input.  USBæ§åˆ¶å™¨
+*    qh    	:  input.  ep çš„è°ƒåº¦ä¿¡æ¯
+*    ep     :  input.  ç‰©ç† ep çš„ä¿¡æ¯
 *
 * Return value:
 *    void
@@ -1649,7 +1649,7 @@ static bool sw_hcd_h_ep0_continue(struct sw_hcd *sw_hcd, u16 len, struct urb *ur
 * from sw_hcd_interrupt().
 *
 * Parameters:
-*    sw_hcd   :  input.  USB ¿ØÖÆÆ÷
+*    sw_hcd   :  input.  USB æ§åˆ¶å™¨
 *
 * Return value:
 *    void
@@ -1813,7 +1813,7 @@ EXPORT_SYMBOL(sw_hcd_h_ep0_irq);
 *    Service a Tx-Available or dma completion irq for the endpoint
 *
 * Parameters:
-*    sw_hcd   :  input.  USB ¿ØÖÆÆ÷
+*    sw_hcd   :  input.  USB æ§åˆ¶å™¨
 *    epnum  :  input.  ep index
 *
 * Return value:
@@ -1943,10 +1943,10 @@ void sw_hcd_host_tx(struct sw_hcd *sw_hcd, u8 epnum)
 
 	if (is_sw_hcd_dma_capable(qh->segsize, qh->maxpacket, epnum)
 		&& !status) {
-		/* dmaÖĞ¶Ï²úÉúÒÔºó£¬USBÉè±¸²»»áÂíÉÏÈ¡×ßFIFOÖĞµÄÊı¾İ,
-		 * ÕâÀï¼ì²âTX_READY£¬Ò»Ö±µ½Êı¾İ±»È¡×ßÎªÖ¹¡£
+		/* dmaä¸­æ–­äº§ç”Ÿä»¥åï¼ŒUSBè®¾å¤‡ä¸ä¼šé©¬ä¸Šå–èµ°FIFOä¸­çš„æ•°æ®,
+		 * è¿™é‡Œæ£€æµ‹TX_READYï¼Œä¸€ç›´åˆ°æ•°æ®è¢«å–èµ°ä¸ºæ­¢ã€‚
 		 *
-		 * Õı³£Çé¿öÏÂ, dma´«ÊäÊı¾İÍê³ÉÒÔºó, »ácallback, ²»»áÖ±½Óreturn¡£
+		 * æ­£å¸¸æƒ…å†µä¸‹, dmaä¼ è¾“æ•°æ®å®Œæˆä»¥å, ä¼šcallback, ä¸ä¼šç›´æ¥returnã€‚
 		 */
 		if (tx_csr & ((1 << USBC_BP_TXCSR_H_FIFO_NOT_EMPTY) | (1 << USBC_BP_TXCSR_H_TX_READY))) {
 			__u32 cmt = 0xfff;
@@ -2375,10 +2375,10 @@ void sw_hcd_host_rx(struct sw_hcd *sw_hcd, u8 epnum)
 	if (is_sw_hcd_dma_capable(qh->segsize, qh->maxpacket, epnum) && (rx_csr & (1 << USBC_BP_RXCSR_H_DMA_REQ_EN))) {
 		/* during dma, if usb receive short packet, then rx irq come */
 
-		/* ²éÑ¯µ±Ç°DMA´«ÊäµÄ×Ö½ÚÊı */
+		/* æŸ¥è¯¢å½“å‰DMAä¼ è¾“çš„å­—èŠ‚æ•° */
 		xfer_len = sw_hcd_dma_transmit_length(qh, is_direction_in(qh), (urb->transfer_dma + urb->actual_length));
 
-		/* Í£Ö¹DMA´«Êä */
+		/* åœæ­¢DMAä¼ è¾“ */
 		if(sw_hcd_dma_is_busy(qh)){
 			DMSG_WRN("WRN: during dma phase, rx irq come\n");
 			sw_hcd_dma_stop(qh);

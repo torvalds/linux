@@ -2,7 +2,7 @@
 ********************************************************************************************************************
 *                                              usb controller
 *
-*                              (c) Copyright 2007-2009, 
+*                              (c) Copyright 2007-2009,
 *										All	Rights Reserved
 *
 * File Name 	: usbc_phy.c
@@ -13,9 +13,9 @@
 *
 * Date 			: 2009.10.21
 *
-* Description 	: ÊÊÓÃÓÚsuniiÆ½Ì¨£¬USB¹«¹²²Ù×÷²¿·Ö
+* Description 	: é€‚ç”¨äºsuniiå¹³å°ï¼ŒUSBå…¬å…±æ“ä½œéƒ¨åˆ†
 *
-* History 		: 
+* History 		:
 *
 ********************************************************************************************************************
 */
@@ -26,7 +26,7 @@
 /*
  ***************************************************************************
  *
- * ¶¨ÒåUSB PHY¿ØÖÆ¼Ä´æÆ÷Î»
+ * å®šä¹‰USB PHYæ§åˆ¶å¯„å­˜å™¨ä½
  *
  ***************************************************************************
  */
@@ -43,7 +43,7 @@
 #define  USBC_PHY_OTG_FUNC_EN			0x28
 #define  USBC_PHY_VBUS_DET_EN			0x29
 #define  USBC_PHY_DISCON_TH_SEL			0x2a
-		
+
 #if 0
 /*
  ***************************************************************************
@@ -56,7 +56,7 @@ static __u32 __USBC_PHY_REG_READ(__u32 usbc_base_addr, __u32 usbc_phy_reg_addr)
 {
   	__u32 reg_val = 0;
   	__u32 i = 0;
-  	
+
   	USBC_Writeb(usbc_phy_reg_addr, USBC_REG_PHYCTL(USBC0_REGS_BASE) + 1);
   	for(i=0; i<0x4; i++);
   	reg_val = USBC_Readb(USBC_REG_PHYCTL(USBC0_REGS_BASE) + 2);
@@ -76,7 +76,7 @@ static __u32 __USBC_PHY_REG_READ(__u32 usbc_base_addr, __u32 usbc_phy_reg_addr)
 static void __USBC_PHY_REG_WRITE(__u32 usbc_base_addr, __u32 usbc_phy_reg_addr, __u32 usbc_phy_reg_data)
 {
   	__u32 reg_val = 0;
-  	
+
   	USBC_Writeb(usbc_phy_reg_addr, USBC_REG_PHYCTL(USBC0_REGS_BASE) + 1);
   	reg_val = USBC_Readb(USBC_REG_PHYCTL(USBC0_REGS_BASE));
   	reg_val &= ~(0x1 << 7);
@@ -95,7 +95,7 @@ static void __USBC_PHY_REG_WRITE(__u32 usbc_base_addr, __u32 usbc_phy_reg_addr, 
   		USBC_Writeb(reg_val, USBC_REG_PHYCTL(USBC0_REGS_BASE));
   		reg_val &= ~0x2;
   		USBC_Writeb(reg_val, USBC_REG_PHYCTL(USBC0_REGS_BASE));
-  	} 
+  	}
 }
 
 
@@ -110,14 +110,14 @@ static void __USBC_PHY_REG_WRITE(__u32 usbc_base_addr, __u32 usbc_phy_reg_addr, 
 static void __USBC_PHY_SET_PLL_BW(__u32 val)
 {
     __USBC_PHY_REG_WRITE(USBC0_REGS_BASE, USBC_PHY_PLL_BW, val);
-    __USBC_PHY_REG_WRITE(USBC0_REGS_BASE, USBC_PHY_PLL_BW + 1, val >> 1);    
+    __USBC_PHY_REG_WRITE(USBC0_REGS_BASE, USBC_PHY_PLL_BW + 1, val >> 1);
 }
 */
 
 /*
  ***************************************************************************
  *
- * Enable/Disable USB res45 Calibration, val = 0--Disable£»1--Enable, default = 0
+ * Enable/Disable USB res45 Calibration, val = 0--Disableï¼›1--Enable, default = 0
  *
  ***************************************************************************
  */
@@ -136,7 +136,7 @@ static void __USBC_PHY_RES45_CALIBRATION_ENABLE(__u32 val)
 static void __USBC_PHY_SET_TX_AMPLITUDE(__u32 usbc_base_addr, __u32 val)
 {
     __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_TX_AMPLITUDE_TUNE, val);
-    __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_TX_AMPLITUDE_TUNE + 1, val >> 1);    
+    __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_TX_AMPLITUDE_TUNE + 1, val >> 1);
 }
 
 /*
@@ -149,8 +149,8 @@ static void __USBC_PHY_SET_TX_AMPLITUDE(__u32 usbc_base_addr, __u32 val)
 static void __USBC_PHY_SET_TX_SLEWRATE(__u32 usbc_base_addr, __u32 val)
 {
     __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_TX_SLEWRATE_TUNE, val);
-    __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_TX_SLEWRATE_TUNE + 1, val >> 1); 
-    __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_TX_SLEWRATE_TUNE + 2, val >> 2);      
+    __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_TX_SLEWRATE_TUNE + 1, val >> 1);
+    __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_TX_SLEWRATE_TUNE + 2, val >> 2);
 }
 
 /*
@@ -164,14 +164,14 @@ static void __USBC_PHY_SET_TX_SLEWRATE(__u32 usbc_base_addr, __u32 val)
 static void __USBC_PHY_SET_VBUS_VALID_THRESHOLD(__u32 usbc_base_addr, __u32 val)
 {
     __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_VBUSVALID_TH_SEL, val);
-    __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_VBUSVALID_TH_SEL + 1, val >> 1);    
+    __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_VBUSVALID_TH_SEL + 1, val >> 1);
 }
 */
 
 /*
  ***************************************************************************
  *
- * Enable/Diasble USB OTG Function, val = 0--Disable£»1--Enable, default = 1
+ * Enable/Diasble USB OTG Function, val = 0--Disableï¼›1--Enable, default = 1
  *
  ***************************************************************************
  */
@@ -185,7 +185,7 @@ static void __USBC_PHY_OTG_FUNC_ENABLE(__u32 usbc_base_addr, __u32 val)
 /*
  ***************************************************************************
  *
- * Enable/Diasble USB VBUS Detect Function, val = 0--Disable£»1--Enable, default = 1
+ * Enable/Diasble USB VBUS Detect Function, val = 0--Disableï¼›1--Enable, default = 1
  *
  ***************************************************************************
  */
@@ -206,7 +206,7 @@ static void __USBC_PHY_VBUS_DET_ENABLE(__u32 usbc_base_addr, __u32 val)
 static void __USBC_PHY_SET_DISCON_DET_THRESHOLD(__u32 usbc_base_addr, __u32 val)
 {
     __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_DISCON_TH_SEL, val);
-    __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_DISCON_TH_SEL + 1, val >> 1);    
+    __USBC_PHY_REG_WRITE(usbc_base_addr, USBC_PHY_DISCON_TH_SEL + 1, val >> 1);
 }
 #endif
 
@@ -215,7 +215,7 @@ static void __USBC_PHY_SET_DISCON_DET_THRESHOLD(__u32 usbc_base_addr, __u32 val)
 *                     USBC_PHY_SetCommonConfig
 *
 * Description:
-*    PhyµÄ¹«¹²ÉèÖÃ£¬ÓÃÓÚUSB PHYµÄ¹«¹²³õÊ¼»¯
+*    Phyçš„å…¬å…±è®¾ç½®ï¼Œç”¨äºUSB PHYçš„å…¬å…±åˆå§‹åŒ–
 *
 * Arguments:
 *    NULL
@@ -224,13 +224,13 @@ static void __USBC_PHY_SET_DISCON_DET_THRESHOLD(__u32 usbc_base_addr, __u32 val)
 *    NULL
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
 void USBC_PHY_SetCommonConfig(void)
 {
-    //__USBC_PHY_RES45_CALIBRATION_ENABLE(1);    
+    //__USBC_PHY_RES45_CALIBRATION_ENABLE(1);
 }
 
 /*
@@ -238,27 +238,27 @@ void USBC_PHY_SetCommonConfig(void)
 *                     USBC_PHY_SetPrivateConfig
 *
 * Description:
-*    USB PHYµÄ¸÷×ÔÉèÖÃ
+*    USB PHYçš„å„è‡ªè®¾ç½®
 *
 * Arguments:
-*    hUSB       :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
+*    hUSB       :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
 *
 * Returns:
 *    NULL
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
 void USBC_PHY_SetPrivateConfig(__hdle hUSB)
 {
 //    __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
-//    
+//
 //	if(usbc_otg == NULL){
 //		return ;
 //	}
-//    
+//
 //    USBC_REG_set_bit_l(0, USBC_REG_PHYTUNE(usbc_otg->base_addr));
 //    USBC_REG_set_bit_l(7, USBC_REG_PHYTUNE(usbc_otg->base_addr));
 //    USBC_REG_set_bit_l(6, USBC_REG_PHYTUNE(usbc_otg->base_addr));
@@ -266,7 +266,7 @@ void USBC_PHY_SetPrivateConfig(__hdle hUSB)
 //    USBC_REG_set_bit_l(4, USBC_REG_PHYTUNE(usbc_otg->base_addr));
 //    //__USBC_PHY_SET_TX_AMPLITUDE(usbc_otg->base_addr, 2);
 //    //__USBC_PHY_SET_TX_SLEWRATE(usbc_otg->base_addr, 6);
-//    //__USBC_PHY_SET_DISCON_DET_THRESHOLD(usbc_otg->base_addr, 3);    
+//    //__USBC_PHY_SET_DISCON_DET_THRESHOLD(usbc_otg->base_addr, 3);
 }
 
 /*
@@ -274,16 +274,16 @@ void USBC_PHY_SetPrivateConfig(__hdle hUSB)
 *                     USBC_PHY_GetCommonConfig
 *
 * Description:
-*    ¶ÁÈ¡PhyµÄ¹«¹²ÉèÖÃ£¬Ö÷ÒªÓÃÓÚDebug£¬¿´PhyµÄÉèÖÃÊÇ·ñÕıÈ·
+*    è¯»å–Phyçš„å…¬å…±è®¾ç½®ï¼Œä¸»è¦ç”¨äºDebugï¼Œçœ‹Phyçš„è®¾ç½®æ˜¯å¦æ­£ç¡®
 *
 * Arguments:
 *    NULL
 *
 * Returns:
-*    32bitsµÄUSB PHY¹«¹²ÉèÖÃÖµ
+*    32bitsçš„USB PHYå…¬å…±è®¾ç½®å€¼
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -292,7 +292,7 @@ __u32 USBC_PHY_GetCommonConfig(void)
     __u32 reg_val = 0;
 /*
     __u32 i = 0;
-    
+
     reg_val = 0;
 	for(i=0; i<0x20; i++)
 	{
@@ -307,7 +307,7 @@ __u32 USBC_PHY_GetCommonConfig(void)
 ***********************************************************************************
 *                                usb_phy0_write
 *Description:
-*    Ğ´usb phy0µÄphy¼Ä´æÆ÷£¬Ö÷ÒªÓÃÓÚphy0 standbyÊ±µÄĞ´Èë
+*    å†™usb phy0çš„phyå¯„å­˜å™¨ï¼Œä¸»è¦ç”¨äºphy0 standbyæ—¶çš„å†™å…¥
 *
 *Arguments:
 *    address,  data,   dmask

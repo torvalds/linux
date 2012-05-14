@@ -13,7 +13,7 @@
 *
 * Date 			: 2009.09.01
 *
-* Description 	: ÊÊÓÃÓÚsuniiÆ½Ì¨£¬USB¹«¹²²Ù×÷²¿·Ö
+* Description 	: é€‚ç”¨äºsuniiå¹³å°ï¼ŒUSBå…¬å…±æ“ä½œéƒ¨åˆ†
 *
 * History 		:
 *
@@ -24,7 +24,7 @@
 
 
 static __u32 usbc_base_address[USBC_MAX_CTL_NUM];       /* usb base address */
-static __usbc_otg_t usbc_otg_array[USBC_MAX_OPEN_NUM];  /* usbc ÄÚ²¿Ê¹ÓÃ, ÓÃÀ´¹ÜÀíUSB¶Ë¿Ú */
+static __usbc_otg_t usbc_otg_array[USBC_MAX_OPEN_NUM];  /* usbc å†…éƒ¨ä½¿ç”¨, ç”¨æ¥ç®¡ç†USBç«¯å£ */
 static __fifo_info_t usbc_info_g;
 
 /*
@@ -32,16 +32,16 @@ static __fifo_info_t usbc_info_g;
 *                     USBC_GetVbusStatus
 *
 * Description:
-*    »ñµÃµ±Ç°vbusµÄ×´Ì¬
+*    è·å¾—å½“å‰vbusçš„çŠ¶æ€
 *
 * Arguments:
-*    hUSB  :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
+*    hUSB  :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
 *
 * Returns:
-*    ·µ»Øµ±Ç°vbusµÄ×´Ì¬
+*    è¿”å›å½“å‰vbusçš„çŠ¶æ€
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -83,16 +83,16 @@ __u32 USBC_GetVbusStatus(__hdle hUSB)
 *                     USBC_OTG_SelectMode
 *
 * Description:
-*    Ñ¡ÔñÉè±¸µÄÀàĞÍ¡£µ±Ç°Éè±¸ÊÇ×÷device, »¹ÊÇ×÷host
+*    é€‰æ‹©è®¾å¤‡çš„ç±»å‹ã€‚å½“å‰è®¾å¤‡æ˜¯ä½œdevice, è¿˜æ˜¯ä½œhost
 *
 * Arguments:
-*    hUSB  :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
+*    hUSB  :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
 *
 * Returns:
 *
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -116,16 +116,16 @@ void USBC_OTG_SelectMode(__hdle hUSB, __u32 mode)
 *                     USBC_ReadLenFromFifo
 *
 * Description:
-*    ±¾´Îfifo¿ÉÒÔ¶Áµ½µÄÊı¾İ³¤¶È
+*    æœ¬æ¬¡fifoå¯ä»¥è¯»åˆ°çš„æ•°æ®é•¿åº¦
 *
 * Arguments:
-*    hUSB     :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
-*    ep_type  :  input.  epµÄÀàĞÍ, rx »ò tx¡£
+*    hUSB     :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
+*    ep_type  :  input.  epçš„ç±»å‹, rx æˆ– txã€‚
 * Returns:
-*    ·µ»Ø±¾´Îfifo¿ÉÒÔ¶Áµ½µÄÊı¾İ³¤¶È
+*    è¿”å›æœ¬æ¬¡fifoå¯ä»¥è¯»åˆ°çš„æ•°æ®é•¿åº¦
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -160,19 +160,19 @@ __u32 USBC_ReadLenFromFifo(__hdle hUSB, __u32 ep_type)
 *                     USBC_WritePacket
 *
 * Description:
-*    ÍùfifoÀïÃæĞ´Êı¾İ°ü
+*    å¾€fifoé‡Œé¢å†™æ•°æ®åŒ…
 *
 * Arguments:
-*    hUSB    :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
-*    fifo    :  input.  fifoµØÖ·.
-*    cnt     :  input.  Ğ´Êı¾İ³¤¶È
-*    buff    :  input.  ´æ·ÅÒªĞ´µÄÊı¾İ
+*    hUSB    :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
+*    fifo    :  input.  fifoåœ°å€.
+*    cnt     :  input.  å†™æ•°æ®é•¿åº¦
+*    buff    :  input.  å­˜æ”¾è¦å†™çš„æ•°æ®
 *
 * Returns:
-*    ·µ»Ø³É¹¦Ğ´ÈëµÄ³¤¶È
+*    è¿”å›æˆåŠŸå†™å…¥çš„é•¿åº¦
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -189,19 +189,19 @@ __u32 USBC_WritePacket(__hdle hUSB, __u32 fifo, __u32 cnt, void *buff)
 		return 0;
 	}
 
-    //--<1>--µ÷ÕûÊı¾İ
+    //--<1>--è°ƒæ•´æ•°æ®
 	buf32 = buff;
 	len   = cnt;
 
 	i32 = len >> 2;
 	i8  = len & 0x03;
 
-    //--<2>--´¦Àí4×Ö½ÚµÄ²¿·Ö
+    //--<2>--å¤„ç†4å­—èŠ‚çš„éƒ¨åˆ†
 	while (i32--){
 		USBC_Writel(*buf32++, fifo);
 	}
 
-    //--<3>--´¦Àí·Ç4×Ö½ÚµÄ²¿·Ö
+    //--<3>--å¤„ç†é4å­—èŠ‚çš„éƒ¨åˆ†
 	buf8 = (__u8 *)buf32;
 	while (i8--){
 		USBC_Writeb(*buf8++, fifo);
@@ -215,19 +215,19 @@ __u32 USBC_WritePacket(__hdle hUSB, __u32 fifo, __u32 cnt, void *buff)
 *                     USBC_ReadPacket
 *
 * Description:
-*    ´ÓfifoÀïÃæ¶ÁÊı¾İ
+*    ä»fifoé‡Œé¢è¯»æ•°æ®
 *
 * Arguments:
-*    hUSB    :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
-*    fifo    :  input.  fifoµØÖ·.
-*    cnt     :  input.  Ğ´Êı¾İ³¤¶È
-*    buff    :  input.  ´æ·ÅÒª¶ÁµÄÊı¾İ
+*    hUSB    :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
+*    fifo    :  input.  fifoåœ°å€.
+*    cnt     :  input.  å†™æ•°æ®é•¿åº¦
+*    buff    :  input.  å­˜æ”¾è¦è¯»çš„æ•°æ®
 *
 * Returns:
-*    ·µ»Ø³É¹¦¶ÁµÄ³¤¶È
+*    è¿”å›æˆåŠŸè¯»çš„é•¿åº¦
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -244,19 +244,19 @@ __u32 USBC_ReadPacket(__hdle hUSB, __u32 fifo, __u32 cnt, void *buff)
 		return 0;
 	}
 
-	//--<1>--µ÷ÕûÊı¾İ
+	//--<1>--è°ƒæ•´æ•°æ®
 	buf32 = buff;
 	len   = cnt;
 
     i32 = len >> 2;
 	i8  = len & 0x03;
 
-	//--<2>--´¦Àí4×Ö½ÚµÄ²¿·Ö
+	//--<2>--å¤„ç†4å­—èŠ‚çš„éƒ¨åˆ†
 	while (i32--){
         *buf32++ = USBC_Readl(fifo);
     }
 
-	//--<3>--´¦Àí·Ç4×Ö½ÚµÄ²¿·Ö
+	//--<3>--å¤„ç†é4å­—èŠ‚çš„éƒ¨åˆ†
 	buf8 = (__u8 *)buf32;
 	while (i8--){
         *buf8++ = USBC_Readb(fifo);
@@ -265,7 +265,7 @@ __u32 USBC_ReadPacket(__hdle hUSB, __u32 fifo, __u32 cnt, void *buff)
 	return len;
 }
 
-/* Ó³ÉäSRAM D¸øusb fifoÊ¹ÓÃ */
+/* æ˜ å°„SRAM Dç»™usb fifoä½¿ç”¨ */
 void USBC_ConfigFIFO_Base(__hdle hUSB, __u32 sram_base, __u32 fifo_mode)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -312,7 +312,7 @@ void USBC_ConfigFIFO_Base(__hdle hUSB, __u32 sram_base, __u32 fifo_mode)
 	return ;
 }
 
-/* »ñµÃport fifoµÄÆğÊ¼µØÖ· */
+/* è·å¾—port fifoçš„èµ·å§‹åœ°å€ */
 __u32 USBC_GetPortFifoStartAddr(__hdle hUSB)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -330,7 +330,7 @@ __u32 USBC_GetPortFifoStartAddr(__hdle hUSB)
 	}
 }
 
-/* »ñµÃport fifoµÄ´óĞ¡ */
+/* è·å¾—port fifoçš„å¤§å° */
 __u32 USBC_GetPortFifoSize(__hdle hUSB)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -352,17 +352,17 @@ __u32 USBC_GetPortFifoSize(__hdle hUSB)
 *                     USBC_SelectFIFO
 *
 * Description:
-*    Ñ¡ÔñÉè±¸µÄÀàĞÍ¡£µ±Ç°Éè±¸ÊÇ×÷device, »¹ÊÇ×÷host
+*    é€‰æ‹©è®¾å¤‡çš„ç±»å‹ã€‚å½“å‰è®¾å¤‡æ˜¯ä½œdevice, è¿˜æ˜¯ä½œhost
 *
 * Arguments:
-*    hUSB     :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
-*    ep_index :  input.  epºÅ¡£ÓÃÀ´Ñ¡ÔñÏàÓ¦µÄfifo
+*    hUSB     :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
+*    ep_index :  input.  epå·ã€‚ç”¨æ¥é€‰æ‹©ç›¸åº”çš„fifo
 *
 * Returns:
-*    ·µ»ØÑ¡ÖĞµÄfifo
+*    è¿”å›é€‰ä¸­çš„fifo
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -431,31 +431,31 @@ static void __USBC_ConfigFifo_TxEp_Default(__u32 usbc_base_addr)
 *                     USBC_ConfigFifo_TxEp
 *
 * Description:
-*    ÅäÖÃtx ep µÄfifoµØÖ·ºÍ´óĞ¡¡£
+*    é…ç½®tx ep çš„fifoåœ°å€å’Œå¤§å°ã€‚
 *
 * Arguments:
-*    hUSB           :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
-*    is_double_fifo :  input.  ÊÇ·ñÊ¹ÓÃÓ²¼şË«fifo
-*    fifo_size      :  input.  fifo´óĞ¡ = 2µÄfifo_size´Î·½
-*    fifo_addr      :  input.  fifoµÄÆğÊ¼µØÖ· = fifo_addr * 8
+*    hUSB           :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
+*    is_double_fifo :  input.  æ˜¯å¦ä½¿ç”¨ç¡¬ä»¶åŒfifo
+*    fifo_size      :  input.  fifoå¤§å° = 2çš„fifo_sizeæ¬¡æ–¹
+*    fifo_addr      :  input.  fifoçš„èµ·å§‹åœ°å€ = fifo_addr * 8
 *
 * Returns:
-*    ·µ»Ø³É¹¦¶ÁµÄ³¤¶È
+*    è¿”å›æˆåŠŸè¯»çš„é•¿åº¦
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
 void __USBC_ConfigFifo_TxEp(__u32 usbc_base_addr, __u32 is_double_fifo, __u32 fifo_size, __u32 fifo_addr)
 {
     __u32 temp = 0;
-    __u32 size = 0;   //fifo_size = (size + 3)µÄ2´Î·½
+    __u32 size = 0;   //fifo_size = (size + 3)çš„2æ¬¡æ–¹
     __u32 addr = 0;   //fifo_addr = addr * 8
 
-	//--<1>--»»Ëãsz, ²»Âú512£¬ÒÔ512¶ÔÆë
+	//--<1>--æ¢ç®—sz, ä¸æ»¡512ï¼Œä»¥512å¯¹é½
 	temp = fifo_size + 511;
-	temp &= ~511;  //°Ñ511ºóÃæµÄÇåÁã
+	temp &= ~511;  //æŠŠ511åé¢çš„æ¸…é›¶
 	temp >>= 3;
 	temp >>= 1;
 	while(temp){
@@ -463,7 +463,7 @@ void __USBC_ConfigFifo_TxEp(__u32 usbc_base_addr, __u32 is_double_fifo, __u32 fi
 		temp >>= 1;
 	}
 
-	//--<2>--»»Ëãaddr
+	//--<2>--æ¢ç®—addr
 	addr = fifo_addr >> 3;
 
 	//--<3>--config fifo addr
@@ -487,31 +487,31 @@ void __USBC_ConfigFifo_RxEp_Default(__u32 usbc_base_addr)
 *                     USBC_ConfigFifo_RxEp
 *
 * Description:
-*    ÅäÖÃtx ep µÄfifoµØÖ·ºÍ´óĞ¡¡£
+*    é…ç½®tx ep çš„fifoåœ°å€å’Œå¤§å°ã€‚
 *
 * Arguments:
-*    hUSB           :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
-*    is_double_fifo :  input.  ÊÇ·ñÊ¹ÓÃÓ²¼şË«fifo
-*    fifo_size      :  input.  fifo´óĞ¡ = 2µÄfifo_size´Î·½
-*    fifo_addr      :  input.  fifoµÄÆğÊ¼µØÖ· = fifo_addr * 8
+*    hUSB           :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
+*    is_double_fifo :  input.  æ˜¯å¦ä½¿ç”¨ç¡¬ä»¶åŒfifo
+*    fifo_size      :  input.  fifoå¤§å° = 2çš„fifo_sizeæ¬¡æ–¹
+*    fifo_addr      :  input.  fifoçš„èµ·å§‹åœ°å€ = fifo_addr * 8
 *
 * Returns:
-*    ·µ»Ø³É¹¦¶ÁµÄ³¤¶È
+*    è¿”å›æˆåŠŸè¯»çš„é•¿åº¦
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
 void __USBC_ConfigFifo_RxEp(__u32 usbc_base_addr, __u32 is_double_fifo, __u32 fifo_size, __u32 fifo_addr)
 {
     __u32 temp = 0;
-    __u32 size = 0;   //fifo_size = (size + 3)µÄ2´Î·½
+    __u32 size = 0;   //fifo_size = (size + 3)çš„2æ¬¡æ–¹
     __u32 addr = 0;   //fifo_addr = addr * 8
 
-	//--<1>--¼ÆËãsz, ²»Âú512£¬ÒÔ512¶ÔÆë
+	//--<1>--è®¡ç®—sz, ä¸æ»¡512ï¼Œä»¥512å¯¹é½
 	temp = fifo_size + 511;
-	temp &= ~511;  //°Ñ511ºóÃæµÄÇåÁã
+	temp &= ~511;  //æŠŠ511åé¢çš„æ¸…é›¶
 	temp >>= 3;
 	temp >>= 1;
 	while(temp){
@@ -519,7 +519,7 @@ void __USBC_ConfigFifo_RxEp(__u32 usbc_base_addr, __u32 is_double_fifo, __u32 fi
 		temp >>= 1;
 	}
 
-	//--<2>--»»Ëãaddr
+	//--<2>--æ¢ç®—addr
 	addr = fifo_addr >> 3;
 
 	//--<3>--config fifo addr
@@ -537,17 +537,17 @@ void __USBC_ConfigFifo_RxEp(__u32 usbc_base_addr, __u32 is_double_fifo, __u32 fi
 *                     USBC_ConfigFifo_Default
 *
 * Description:
-*    ÅäÖÃep µÄfifoµØÖ·ºÍ´óĞ¡¡£
+*    é…ç½®ep çš„fifoåœ°å€å’Œå¤§å°ã€‚
 *
 * Arguments:
-*    hUSB           :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
-*	 ep_type		:  input.  epµÄÀàĞÍ
+*    hUSB           :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
+*	 ep_type		:  input.  epçš„ç±»å‹
 *
 * Returns:
-*    ·µ»Ø³É¹¦¶ÁµÄ³¤¶È
+*    è¿”å›æˆåŠŸè¯»çš„é•¿åº¦
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -582,20 +582,20 @@ void USBC_ConfigFifo_Default(__hdle hUSB, __u32 ep_type)
 *                     USBC_ConfigFifo
 *
 * Description:
-*    ÅäÖÃep µÄfifoµØÖ·ºÍ´óĞ¡¡£
+*    é…ç½®ep çš„fifoåœ°å€å’Œå¤§å°ã€‚
 *
 * Arguments:
-*    hUSB           :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
-*	 ep_type		:  input.  epµÄÀàĞÍ
-*    is_double_fifo :  input.  ÊÇ·ñÊ¹ÓÃÓ²¼şË«fifo
-*    fifo_size      :  input.  fifo´óĞ¡ = 2µÄfifo_size´Î·½
-*    fifo_addr      :  input.  fifoµÄÆğÊ¼µØÖ· = fifo_addr * 8
+*    hUSB           :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
+*	 ep_type		:  input.  epçš„ç±»å‹
+*    is_double_fifo :  input.  æ˜¯å¦ä½¿ç”¨ç¡¬ä»¶åŒfifo
+*    fifo_size      :  input.  fifoå¤§å° = 2çš„fifo_sizeæ¬¡æ–¹
+*    fifo_addr      :  input.  fifoçš„èµ·å§‹åœ°å€ = fifo_addr * 8
 *
 * Returns:
-*    ·µ»Ø³É¹¦¶ÁµÄ³¤¶È
+*    è¿”å›æˆåŠŸè¯»çš„é•¿åº¦
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -630,16 +630,16 @@ void USBC_ConfigFifo(__hdle hUSB, __u32 ep_type, __u32 is_double_fifo, __u32 fif
 *                     USBC_GetLastFrameNumber
 *
 * Description:
-*    »ñµÃ×îºóÒ»Ö¡µÄÖ¡ºÅ
+*    è·å¾—æœ€åä¸€å¸§çš„å¸§å·
 *
 * Arguments:
-*    hUSB  :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
+*    hUSB  :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
 *
 * Returns:
 *
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -659,16 +659,16 @@ __u32 USBC_GetLastFrameNumber(__hdle hUSB)
 *                     USBC_GetStatus_Dp
 *
 * Description:
-*    »ñµÃdpµÄ×´Ì¬
+*    è·å¾—dpçš„çŠ¶æ€
 *
 * Arguments:
-*    hUSB  :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
+*    hUSB  :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
 *
 * Returns:
 *
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -695,16 +695,16 @@ __u32 USBC_GetStatus_Dp(__hdle hUSB)
 *                     USBC_GetStatus_Dm
 *
 * Description:
-*    »ñµÃdmµÄ×´Ì¬
+*    è·å¾—dmçš„çŠ¶æ€
 *
 * Arguments:
-*    hUSB :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
+*    hUSB :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
 *
 * Returns:
 *
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -729,16 +729,16 @@ __u32 USBC_GetStatus_Dm(__hdle hUSB)
 *                     USBC_GetStatus_Dp
 *
 * Description:
-*    »ñµÃdpµÄ×´Ì¬
+*    è·å¾—dpçš„çŠ¶æ€
 *
 * Arguments:
-*    hUSB  :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
+*    hUSB  :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
 *
 * Returns:
 *
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -767,16 +767,16 @@ __u32 USBC_GetStatus_DpDm(__hdle hUSB)
 *                     USBC_GetOtgMode_Form_ID
 *
 * Description:
-*    ´Óvendor0 µÄ id »ñµÃµ±Ç°OTGµÄÄ£Ê½
+*    ä»vendor0 çš„ id è·å¾—å½“å‰OTGçš„æ¨¡å¼
 *
 * Arguments:
-*    hUSB :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
+*    hUSB :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
 *
 * Returns:
 *    USBC_OTG_DEVICE / USBC_OTG_HOST
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -802,16 +802,16 @@ __u32 USBC_GetOtgMode_Form_ID(__hdle hUSB)
 *                     USBC_GetOtgMode_Form_BDevice
 *
 * Description:
-*    ´Ó OTG Device µÄ B-Device »ñµÃµ±Ç°OTGµÄÄ£Ê½
+*    ä» OTG Device çš„ B-Device è·å¾—å½“å‰OTGçš„æ¨¡å¼
 *
 * Arguments:
-*    hUSB :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
+*    hUSB :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
 *
 * Returns:
 *    USBC_OTG_DEVICE / USBC_OTG_HOST
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -837,19 +837,19 @@ __u32 USBC_GetOtgMode_Form_BDevice(__hdle hUSB)
 *                     USBC_SelectBus
 *
 * Description:
-*    Ñ¡ÔñÊı¾İ´«ÊäµÄ×ÜÏß·½Ê½
+*    é€‰æ‹©æ•°æ®ä¼ è¾“çš„æ€»çº¿æ–¹å¼
 *
 * Arguments:
-*    hUSB     :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
-*    io_type  :  input.  ×ÜÏß·½Ê½, pio»¹ÊÇdma.
-*    ep_type  :  input.  epµÄÀàĞÍ, rx »ò tx¡£
-*    ep_index :  input.  epºÅ
+*    hUSB     :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
+*    io_type  :  input.  æ€»çº¿æ–¹å¼, pioè¿˜æ˜¯dma.
+*    ep_type  :  input.  epçš„ç±»å‹, rx æˆ– txã€‚
+*    ep_index :  input.  epå·
 *
 * Returns:
 *
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -872,86 +872,86 @@ void USBC_SelectBus(__hdle hUSB, __u32 io_type, __u32 ep_type, __u32 ep_index)
 			reg_val |= 0x1<<USBC_BP_VEND0_BUS_SEL;
 		}
 	}else{
-	    //reg_val &= ~(0x1 << USBC_BP_VEND0_DRQ_SEL);  //Çå³ıdrq_sel, Ñ¡Ôñpio
-	    reg_val &= 0x00;  //Çå³ıdrq_sel, Ñ¡Ôñpio
+	    //reg_val &= ~(0x1 << USBC_BP_VEND0_DRQ_SEL);  //æ¸…é™¤drq_sel, é€‰æ‹©pio
+	    reg_val &= 0x00;  //æ¸…é™¤drq_sel, é€‰æ‹©pio
 	}
 
 	USBC_Writeb(reg_val, USBC_REG_VEND0(usbc_otg->base_addr));
 }
 
-/* »ñµÃtx epÖĞ¶Ï±êÖ¾Î» */
+/* è·å¾—tx epä¸­æ–­æ ‡å¿—ä½ */
 static __u32 __USBC_INT_TxPending(__u32 usbc_base_addr)
 {
     return (USBC_Readw(USBC_REG_INTTx(usbc_base_addr)));
 }
 
-/* Çå³ıtx epÖĞ¶Ï±êÖ¾Î» */
+/* æ¸…é™¤tx epä¸­æ–­æ ‡å¿—ä½ */
 static void __USBC_INT_ClearTxPending(__u32 usbc_base_addr, __u8 ep_index)
 {
     USBC_Writew((1 << ep_index), USBC_REG_INTTx(usbc_base_addr));
 }
 
-/* Çå³ıËùÓĞtx epÖĞ¶Ï±êÖ¾Î» */
+/* æ¸…é™¤æ‰€æœ‰tx epä¸­æ–­æ ‡å¿—ä½ */
 static void __USBC_INT_ClearTxPendingAll(__u32 usbc_base_addr)
 {
     USBC_Writew(0xffff, USBC_REG_INTTx(usbc_base_addr));
 }
 
-/* »ñµÃrx epÖĞ¶Ï±êÖ¾Î» */
+/* è·å¾—rx epä¸­æ–­æ ‡å¿—ä½ */
 static __u32 __USBC_INT_RxPending(__u32 usbc_base_addr)
 {
     return (USBC_Readw(USBC_REG_INTRx(usbc_base_addr)));
 }
 
-/* Çå³ırx epÖĞ¶Ï±êÖ¾Î» */
+/* æ¸…é™¤rx epä¸­æ–­æ ‡å¿—ä½ */
 static void __USBC_INT_ClearRxPending(__u32 usbc_base_addr, __u8 ep_index)
 {
     USBC_Writew((1 << ep_index), USBC_REG_INTRx(usbc_base_addr));
 }
 
-/* Çå³ırx epÖĞ¶Ï±êÖ¾Î» */
+/* æ¸…é™¤rx epä¸­æ–­æ ‡å¿—ä½ */
 static void __USBC_INT_ClearRxPendingAll(__u32 usbc_base_addr)
 {
     USBC_Writew(0xffff, USBC_REG_INTRx(usbc_base_addr));
 }
 
-/* ¿ªÄ³Ò»¸ötx epµÄÖĞ¶Ï */
+/* å¼€æŸä¸€ä¸ªtx epçš„ä¸­æ–­ */
 static void __USBC_INT_EnableTxEp(__u32 usbc_base_addr, __u8 ep_index)
 {
     USBC_REG_set_bit_w(ep_index, USBC_REG_INTTxE(usbc_base_addr));
 }
 
-/* ¿ªÄ³Ò»¸örx epµÄÖĞ¶Ï */
+/* å¼€æŸä¸€ä¸ªrx epçš„ä¸­æ–­ */
 static void __USBC_INT_EnableRxEp(__u32 usbc_base_addr, __u8 ep_index)
 {
     USBC_REG_set_bit_w(ep_index, USBC_REG_INTRxE(usbc_base_addr));
 }
 
-/* ¹ØÄ³Ò»¸ötx epµÄÖĞ¶Ï */
+/* å…³æŸä¸€ä¸ªtx epçš„ä¸­æ–­ */
 static void __USBC_INT_DisableTxEp(__u32 usbc_base_addr, __u8 ep_index)
 {
     USBC_REG_clear_bit_w(ep_index, USBC_REG_INTTxE(usbc_base_addr));
 }
 
-/* ¹ØÄ³Ò»¸örx epµÄÖĞ¶Ï */
+/* å…³æŸä¸€ä¸ªrx epçš„ä¸­æ–­ */
 static void __USBC_INT_DisableRxEp(__u32 usbc_base_addr, __u8 ep_index)
 {
     USBC_REG_clear_bit_w(ep_index, USBC_REG_INTRxE(usbc_base_addr));
 }
 
-/* ¹ØËùÓĞµÄtx epÖĞ¶Ï */
+/* å…³æ‰€æœ‰çš„tx epä¸­æ–­ */
 static void __USBC_INT_DisableTxAll(__u32 usbc_base_addr)
 {
     USBC_Writew(0, USBC_REG_INTTxE(usbc_base_addr));
 }
 
-/* ¹ØËùÓĞµÄrx epÖĞ¶Ï */
+/* å…³æ‰€æœ‰çš„rx epä¸­æ–­ */
 static void __USBC_INT_DisableRxAll(__u32 usbc_base_addr)
 {
     USBC_Writew(0, USBC_REG_INTRxE(usbc_base_addr));
 }
 
-/* »ñµÃepÖĞ¶Ï±êÖ¾Î» */
+/* è·å¾—epä¸­æ–­æ ‡å¿—ä½ */
 __u32 USBC_INT_EpPending(__hdle hUSB, __u32 ep_type)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -973,7 +973,7 @@ __u32 USBC_INT_EpPending(__hdle hUSB, __u32 ep_type)
 	}
 }
 
-/* Çå³ıepÖĞ¶Ï±êÖ¾Î» */
+/* æ¸…é™¤epä¸­æ–­æ ‡å¿—ä½ */
 void USBC_INT_ClearEpPending(__hdle hUSB, __u32 ep_type, __u8 ep_index)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -999,7 +999,7 @@ void USBC_INT_ClearEpPending(__hdle hUSB, __u32 ep_type, __u8 ep_index)
 	return ;
 }
 
-/* Çå³ıepÖĞ¶Ï±êÖ¾Î» */
+/* æ¸…é™¤epä¸­æ–­æ ‡å¿—ä½ */
 void USBC_INT_ClearEpPendingAll(__hdle hUSB, __u32 ep_type)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1025,7 +1025,7 @@ void USBC_INT_ClearEpPendingAll(__hdle hUSB, __u32 ep_type)
 	return ;
 }
 
-/* »ñµÃusb miscÖĞ¶Ï±êÖ¾Î» */
+/* è·å¾—usb miscä¸­æ–­æ ‡å¿—ä½ */
 __u32 USBC_INT_MiscPending(__hdle hUSB)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1037,7 +1037,7 @@ __u32 USBC_INT_MiscPending(__hdle hUSB)
     return (USBC_Readb(USBC_REG_INTUSB(usbc_otg->base_addr)));
 }
 
-/* Çå³ıusb miscÖĞ¶Ï±êÖ¾Î» */
+/* æ¸…é™¤usb miscä¸­æ–­æ ‡å¿—ä½ */
 void USBC_INT_ClearMiscPending(__hdle hUSB, __u32 mask)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1049,7 +1049,7 @@ void USBC_INT_ClearMiscPending(__hdle hUSB, __u32 mask)
     USBC_Writeb(mask, USBC_REG_INTUSB(usbc_otg->base_addr));
 }
 
-/* Çå³ıËùÓĞusb miscÖĞ¶Ï±êÖ¾Î» */
+/* æ¸…é™¤æ‰€æœ‰usb miscä¸­æ–­æ ‡å¿—ä½ */
 void USBC_INT_ClearMiscPendingAll(__hdle hUSB)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1061,7 +1061,7 @@ void USBC_INT_ClearMiscPendingAll(__hdle hUSB)
     USBC_Writeb(0xff, USBC_REG_INTUSB(usbc_otg->base_addr));
 }
 
-/* ¿ªÄ³Ò»¸öepÖĞ¶Ï */
+/* å¼€æŸä¸€ä¸ªepä¸­æ–­ */
 void USBC_INT_EnableEp(__hdle hUSB, __u32 ep_type, __u8 ep_index)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1086,7 +1086,7 @@ void USBC_INT_EnableEp(__hdle hUSB, __u32 ep_type, __u8 ep_index)
 	return ;
 }
 
-/* ¿ªÄ³Ò»¸öusb miscÖĞ¶Ï */
+/* å¼€æŸä¸€ä¸ªusb miscä¸­æ–­ */
 void USBC_INT_EnableUsbMiscUint(__hdle hUSB, __u32 mask)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1101,7 +1101,7 @@ void USBC_INT_EnableUsbMiscUint(__hdle hUSB, __u32 mask)
 	USBC_Writeb(reg_val, USBC_REG_INTUSBE(usbc_otg->base_addr));
 }
 
-/* ¹ØÄ³tx epµÄÖĞ¶Ï */
+/* å…³æŸtx epçš„ä¸­æ–­ */
 void USBC_INT_DisableEp(__hdle hUSB, __u32 ep_type, __u8 ep_index)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1126,7 +1126,7 @@ void USBC_INT_DisableEp(__hdle hUSB, __u32 ep_type, __u8 ep_index)
 	return;
 }
 
-/* ¹ØÄ³Ò»¸öusb miscÖĞ¶Ï */
+/* å…³æŸä¸€ä¸ªusb miscä¸­æ–­ */
 void USBC_INT_DisableUsbMiscUint(__hdle hUSB, __u32 mask)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1141,7 +1141,7 @@ void USBC_INT_DisableUsbMiscUint(__hdle hUSB, __u32 mask)
 	USBC_Writeb(reg_val, USBC_REG_INTUSBE(usbc_otg->base_addr));
 }
 
-/* ¹ØËùÓĞµÄepÖĞ¶Ï */
+/* å…³æ‰€æœ‰çš„epä¸­æ–­ */
 void USBC_INT_DisableEpAll(__hdle hUSB, __u32 ep_type)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1166,7 +1166,7 @@ void USBC_INT_DisableEpAll(__hdle hUSB, __u32 ep_type)
 	return;
 }
 
-/* ¹ØËùÓĞµÄusb miscÖĞ¶Ï */
+/* å…³æ‰€æœ‰çš„usb miscä¸­æ–­ */
 void USBC_INT_DisableUsbMiscAll(__hdle hUSB)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1178,7 +1178,7 @@ void USBC_INT_DisableUsbMiscAll(__hdle hUSB)
     USBC_Writeb(0, USBC_REG_INTUSBE(usbc_otg->base_addr));
 }
 
-/* »ñµÃµ±Ç°»î¶¯µÄep */
+/* è·å¾—å½“å‰æ´»åŠ¨çš„ep */
 __u32 USBC_GetActiveEp(__hdle hUSB)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1190,7 +1190,7 @@ __u32 USBC_GetActiveEp(__hdle hUSB)
     return USBC_Readb(USBC_REG_EPIND(usbc_otg->base_addr));
 }
 
-/* ÅäÖÃµ±Ç°»î¶¯ep */
+/* é…ç½®å½“å‰æ´»åŠ¨ep */
 void USBC_SelectActiveEp(__hdle hUSB, __u8 ep_index)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1202,7 +1202,7 @@ void USBC_SelectActiveEp(__hdle hUSB, __u8 ep_index)
 	USBC_Writeb(ep_index, USBC_REG_EPIND(usbc_otg->base_addr));
 }
 
-/* ¼ÓÇ¿usb´«ÊäĞÅºÅ */
+/* åŠ å¼ºusbä¼ è¾“ä¿¡å· */
 void USBC_EnhanceSignal(__hdle hUSB)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1214,7 +1214,7 @@ void USBC_EnhanceSignal(__hdle hUSB)
 	return;
 }
 
-/* ½øÈë TestPacket Ä£Ê½ */
+/* è¿›å…¥ TestPacket æ¨¡å¼ */
 void USBC_EnterMode_TestPacket(__hdle hUSB)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1226,7 +1226,7 @@ void USBC_EnterMode_TestPacket(__hdle hUSB)
     USBC_REG_set_bit_b(USBC_BP_TMCTL_TEST_PACKET, USBC_REG_TMCTL(usbc_otg->base_addr));
 }
 
-/* ½øÈë Test_K Ä£Ê½ */
+/* è¿›å…¥ Test_K æ¨¡å¼ */
 void USBC_EnterMode_Test_K(__hdle hUSB)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1238,7 +1238,7 @@ void USBC_EnterMode_Test_K(__hdle hUSB)
     USBC_REG_set_bit_b(USBC_BP_TMCTL_TEST_K, USBC_REG_TMCTL(usbc_otg->base_addr));
 }
 
-/* ½øÈë Test_J Ä£Ê½ */
+/* è¿›å…¥ Test_J æ¨¡å¼ */
 void USBC_EnterMode_Test_J(__hdle hUSB)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1250,7 +1250,7 @@ void USBC_EnterMode_Test_J(__hdle hUSB)
     USBC_REG_set_bit_b(USBC_BP_TMCTL_TEST_J, USBC_REG_TMCTL(usbc_otg->base_addr));
 }
 
-/* ½øÈë Test_SE0_NAK Ä£Ê½ */
+/* è¿›å…¥ Test_SE0_NAK æ¨¡å¼ */
 void USBC_EnterMode_Test_SE0_NAK(__hdle hUSB)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1262,7 +1262,7 @@ void USBC_EnterMode_Test_SE0_NAK(__hdle hUSB)
     USBC_REG_set_bit_b(USBC_BP_TMCTL_TEST_SE0_NAK, USBC_REG_TMCTL(usbc_otg->base_addr));
 }
 
-/* Çå³ıËùÓĞ²âÊÔÄ£Ê½ */
+/* æ¸…é™¤æ‰€æœ‰æµ‹è¯•æ¨¡å¼ */
 void USBC_EnterMode_Idle(__hdle hUSB)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1277,7 +1277,7 @@ void USBC_EnterMode_Idle(__hdle hUSB)
 	USBC_REG_clear_bit_b(USBC_BP_TMCTL_TEST_SE0_NAK, USBC_REG_TMCTL(usbc_otg->base_addr));
 }
 
-/* vbus, id, dpdm±ä»¯Î»ÊÇĞ´1ÇåÁã, Òò´ËÎÒÃÇÔÚ²Ù×÷ÆäËûbitµÄÊ±ºòÇå³ıÕâĞ©Î» */
+/* vbus, id, dpdmå˜åŒ–ä½æ˜¯å†™1æ¸…é›¶, å› æ­¤æˆ‘ä»¬åœ¨æ“ä½œå…¶ä»–bitçš„æ—¶å€™æ¸…é™¤è¿™äº›ä½ */
 static __u32 __USBC_WakeUp_ClearChangeDetect(__u32 reg_val)
 {
     __u32 temp = reg_val;
@@ -1300,7 +1300,7 @@ void USBC_EnableIdPullUp(__hdle hUSB)
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
     __u32 reg_val = 0;
 
-    //vbus, id, dpdm±ä»¯Î»ÊÇĞ´1ÇåÁã, Òò´ËÎÒÃÇÔÚ²Ù×÷ÆäËûbitµÄÊ±ºòÇå³ıÕâĞ©Î»
+    //vbus, id, dpdmå˜åŒ–ä½æ˜¯å†™1æ¸…é›¶, å› æ­¤æˆ‘ä»¬åœ¨æ“ä½œå…¶ä»–bitçš„æ—¶å€™æ¸…é™¤è¿™äº›ä½
 	reg_val = USBC_Readl(USBC_REG_ISCR(usbc_otg->base_addr));
 	reg_val |= (1 << USBC_BP_ISCR_ID_PULLUP_EN);
 	reg_val = __USBC_WakeUp_ClearChangeDetect(reg_val);
@@ -1312,7 +1312,7 @@ void USBC_DisableIdPullUp(__hdle hUSB)
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
     __u32 reg_val = 0;
 
-	//vbus, id, dpdm±ä»¯Î»ÊÇĞ´1ÇåÁã, Òò´ËÎÒÃÇÔÚ²Ù×÷ÆäËûbitµÄÊ±ºòÇå³ıÕâĞ©Î»
+	//vbus, id, dpdmå˜åŒ–ä½æ˜¯å†™1æ¸…é›¶, å› æ­¤æˆ‘ä»¬åœ¨æ“ä½œå…¶ä»–bitçš„æ—¶å€™æ¸…é™¤è¿™äº›ä½
 	reg_val = USBC_Readl(USBC_REG_ISCR(usbc_otg->base_addr));
 	reg_val &= ~(1 << USBC_BP_ISCR_ID_PULLUP_EN);
 	reg_val = __USBC_WakeUp_ClearChangeDetect(reg_val);
@@ -1324,7 +1324,7 @@ void USBC_EnableDpDmPullUp(__hdle hUSB)
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
     __u32 reg_val = 0;
 
-    //vbus, id, dpdm±ä»¯Î»ÊÇĞ´1ÇåÁã, Òò´ËÎÒÃÇÔÚ²Ù×÷ÆäËûbitµÄÊ±ºòÇå³ıÕâĞ©Î»
+    //vbus, id, dpdmå˜åŒ–ä½æ˜¯å†™1æ¸…é›¶, å› æ­¤æˆ‘ä»¬åœ¨æ“ä½œå…¶ä»–bitçš„æ—¶å€™æ¸…é™¤è¿™äº›ä½
 	reg_val = USBC_Readl(USBC_REG_ISCR(usbc_otg->base_addr));
 	reg_val |= (1 << USBC_BP_ISCR_DPDM_PULLUP_EN);
 	reg_val = __USBC_WakeUp_ClearChangeDetect(reg_val);
@@ -1336,7 +1336,7 @@ void USBC_DisableDpDmPullUp(__hdle hUSB)
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
     __u32 reg_val = 0;
 
-	//vbus, id, dpdm±ä»¯Î»ÊÇĞ´1ÇåÁã, Òò´ËÎÒÃÇÔÚ²Ù×÷ÆäËûbitµÄÊ±ºòÇå³ıÕâĞ©Î»
+	//vbus, id, dpdmå˜åŒ–ä½æ˜¯å†™1æ¸…é›¶, å› æ­¤æˆ‘ä»¬åœ¨æ“ä½œå…¶ä»–bitçš„æ—¶å€™æ¸…é™¤è¿™äº›ä½
 	reg_val = USBC_Readl(USBC_REG_ISCR(usbc_otg->base_addr));
 	reg_val &= ~(1 << USBC_BP_ISCR_DPDM_PULLUP_EN);
 	reg_val = __USBC_WakeUp_ClearChangeDetect(reg_val);
@@ -1347,7 +1347,7 @@ static void __USBC_ForceIdDisable(__u32 usbc_base_addr)
 {
 	__u32 reg_val = 0;
 
-	//vbus, id, dpdm±ä»¯Î»ÊÇĞ´1ÇåÁã, Òò´ËÎÒÃÇÔÚ²Ù×÷ÆäËûbitµÄÊ±ºòÇå³ıÕâĞ©Î»
+	//vbus, id, dpdmå˜åŒ–ä½æ˜¯å†™1æ¸…é›¶, å› æ­¤æˆ‘ä»¬åœ¨æ“ä½œå…¶ä»–bitçš„æ—¶å€™æ¸…é™¤è¿™äº›ä½
 	reg_val = USBC_Readl(USBC_REG_ISCR(usbc_base_addr));
 	reg_val &= ~(0x03 << USBC_BP_ISCR_FORCE_ID);
 	reg_val = __USBC_WakeUp_ClearChangeDetect(reg_val);
@@ -1358,7 +1358,7 @@ static void __USBC_ForceIdToLow(__u32 usbc_base_addr)
 {
 	__u32 reg_val = 0;
 
-	//ÏÈĞ´00£¬ºóĞ´10
+	//å…ˆå†™00ï¼Œåå†™10
 	reg_val = USBC_Readl(USBC_REG_ISCR(usbc_base_addr));
 	reg_val &= ~(0x03 << USBC_BP_ISCR_FORCE_ID);
 	reg_val |= (0x02 << USBC_BP_ISCR_FORCE_ID);
@@ -1370,7 +1370,7 @@ static void __USBC_ForceIdToHigh(__u32 usbc_base_addr)
 {
 	__u32 reg_val = 0;
 
-	//ÏÈĞ´00£¬ºóĞ´10
+	//å…ˆå†™00ï¼Œåå†™10
 	reg_val = USBC_Readl(USBC_REG_ISCR(usbc_base_addr));
 	//reg_val &= ~(0x03 << USBC_BP_ISCR_FORCE_ID);
 	reg_val |= (0x03 << USBC_BP_ISCR_FORCE_ID);
@@ -1401,7 +1401,7 @@ static void __USBC_ForceVbusValidDisable(__u32 usbc_base_addr)
 {
 	__u32 reg_val = 0;
 
-	//ÏÈĞ´00£¬ºóĞ´10
+	//å…ˆå†™00ï¼Œåå†™10
 	reg_val = USBC_Readl(USBC_REG_ISCR(usbc_base_addr));
 	reg_val &= ~(0x03 << USBC_BP_ISCR_FORCE_VBUS_VALID);
 	reg_val = __USBC_WakeUp_ClearChangeDetect(reg_val);
@@ -1412,7 +1412,7 @@ static void __USBC_ForceVbusValidToLow(__u32 usbc_base_addr)
 {
 	__u32 reg_val = 0;
 
-	//ÏÈĞ´00£¬ºóĞ´10
+	//å…ˆå†™00ï¼Œåå†™10
 	reg_val = USBC_Readl(USBC_REG_ISCR(usbc_base_addr));
 	reg_val &= ~(0x03 << USBC_BP_ISCR_FORCE_VBUS_VALID);
 	reg_val |= (0x02 << USBC_BP_ISCR_FORCE_VBUS_VALID);
@@ -1424,7 +1424,7 @@ static void __USBC_ForceVbusValidToHigh(__u32 usbc_base_addr)
 {
 	__u32 reg_val = 0;
 
-	//ÏÈĞ´00£¬ºóĞ´11
+	//å…ˆå†™00ï¼Œåå†™11
 	reg_val = USBC_Readl(USBC_REG_ISCR(usbc_base_addr));
 	//reg_val &= ~(0x03 << USBC_BP_ISCR_FORCE_VBUS_VALID);
 	reg_val |= (0x03 << USBC_BP_ISCR_FORCE_VBUS_VALID);
@@ -1480,7 +1480,7 @@ void USBC_EnableHosc(__hdle hUSB)
 	USBC_Writel(reg_val, USBC_REG_ISCR(usbc_otg->base_addr));
 }
 
-/* ½ûÓÃHosc */
+/* ç¦ç”¨Hosc */
 void USBC_DisableHosc(__hdle hUSB)
 {
 	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1492,14 +1492,14 @@ void USBC_DisableHosc(__hdle hUSB)
 	USBC_Writel(reg_val, USBC_REG_ISCR(usbc_otg->base_addr));
 }
 
-/* ²éÑ¯ÊÇ·ñ²úÉú vbus ÖĞ¶Ï */
+/* æŸ¥è¯¢æ˜¯å¦äº§ç”Ÿ vbus ä¸­æ–­ */
 __u32 USBC_IsVbusChange(__hdle hUSB)
 {
 	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
 	__u32 reg_val = 0;
 	__u32 temp = 0;
 
-    //¶ÁÈ¡±ä»¯Î»µÄÍ¬Ê±, Ğ´1Çå³ı¸ÃÎ»
+    //è¯»å–å˜åŒ–ä½çš„åŒæ—¶, å†™1æ¸…é™¤è¯¥ä½
     reg_val = USBC_Readl(USBC_REG_ISCR(usbc_otg->base_addr));
 
 	temp = reg_val & (1 << USBC_BP_ISCR_VBUS_CHANGE_DETECT);
@@ -1511,14 +1511,14 @@ __u32 USBC_IsVbusChange(__hdle hUSB)
 	return temp;
 }
 
-/* ²éÑ¯ÊÇ·ñ²úÉú id ÖĞ¶Ï */
+/* æŸ¥è¯¢æ˜¯å¦äº§ç”Ÿ id ä¸­æ–­ */
 __u32 USBC_IsIdChange(__hdle hUSB)
 {
 	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
 	__u32 reg_val = 0;
 	__u32 temp = 0;
 
-    //¶ÁÈ¡±ä»¯Î»µÄÍ¬Ê±, Ğ´1Çå³ı¸ÃÎ»
+    //è¯»å–å˜åŒ–ä½çš„åŒæ—¶, å†™1æ¸…é™¤è¯¥ä½
     reg_val = USBC_Readl(USBC_REG_ISCR(usbc_otg->base_addr));
 
 	temp = reg_val & (1 << USBC_BP_ISCR_ID_CHANGE_DETECT);
@@ -1530,14 +1530,14 @@ __u32 USBC_IsIdChange(__hdle hUSB)
 	return temp;
 }
 
-/* ²éÑ¯ÊÇ·ñ²úÉú dpdm ÖĞ¶Ï */
+/* æŸ¥è¯¢æ˜¯å¦äº§ç”Ÿ dpdm ä¸­æ–­ */
 __u32 USBC_IsDpDmChange(__hdle hUSB)
 {
 	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
 	__u32 reg_val = 0;
 	__u32 temp = 0;
 
-    //¶ÁÈ¡±ä»¯Î»µÄÍ¬Ê±, Ğ´1Çå³ı¸ÃÎ»
+    //è¯»å–å˜åŒ–ä½çš„åŒæ—¶, å†™1æ¸…é™¤è¯¥ä½
     reg_val = USBC_Readl(USBC_REG_ISCR(usbc_otg->base_addr));
 
 	temp = reg_val & (1 << USBC_BP_ISCR_DPDM_CHANGE_DETECT);
@@ -1549,7 +1549,7 @@ __u32 USBC_IsDpDmChange(__hdle hUSB)
 	return temp;
 }
 
-/* ½ûÓÃ wake ÖĞ¶Ï */
+/* ç¦ç”¨ wake ä¸­æ–­ */
 void USBC_DisableWakeIrq(__hdle hUSB)
 {
 	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1561,7 +1561,7 @@ void USBC_DisableWakeIrq(__hdle hUSB)
 	USBC_Writel(reg_val, USBC_REG_ISCR(usbc_otg->base_addr));
 }
 
-/* ½ûÓÃ vbus ÖĞ¶Ï */
+/* ç¦ç”¨ vbus ä¸­æ–­ */
 void USBC_DisableVbusChange(__hdle hUSB)
 {
 	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1573,7 +1573,7 @@ void USBC_DisableVbusChange(__hdle hUSB)
 	USBC_Writel(reg_val, USBC_REG_ISCR(usbc_otg->base_addr));
 }
 
-/* ½ûÓÃ id ÖĞ¶Ï */
+/* ç¦ç”¨ id ä¸­æ–­ */
 void USBC_DisableIdChange(__hdle hUSB)
 {
 	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1585,7 +1585,7 @@ void USBC_DisableIdChange(__hdle hUSB)
 	USBC_Writel(reg_val, USBC_REG_ISCR(usbc_otg->base_addr));
 }
 
-/* ½ûÓÃ dpdm ÖĞ¶Ï */
+/* ç¦ç”¨ dpdm ä¸­æ–­ */
 void USBC_DisableDpDmChange(__hdle hUSB)
 {
 	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1597,7 +1597,7 @@ void USBC_DisableDpDmChange(__hdle hUSB)
 	USBC_Writel(reg_val, USBC_REG_ISCR(usbc_otg->base_addr));
 }
 
-/* Ê¹ÄÜ wake ÖĞ¶Ï */
+/* ä½¿èƒ½ wake ä¸­æ–­ */
 void USBC_EnableWakeIrq(__hdle hUSB)
 {
 	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1609,7 +1609,7 @@ void USBC_EnableWakeIrq(__hdle hUSB)
 	USBC_Writel(reg_val, USBC_REG_ISCR(usbc_otg->base_addr));
 }
 
-/* Ê¹ÄÜ vbus ±ä»¯ÖĞ¶Ï */
+/* ä½¿èƒ½ vbus å˜åŒ–ä¸­æ–­ */
 void USBC_EnableVbusChange(__hdle hUSB)
 {
 	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1621,7 +1621,7 @@ void USBC_EnableVbusChange(__hdle hUSB)
 	USBC_Writel(reg_val, USBC_REG_ISCR(usbc_otg->base_addr));
 }
 
-/* Ê¹ÄÜid±ä»¯ÖĞ¶Ï */
+/* ä½¿èƒ½idå˜åŒ–ä¸­æ–­ */
 void USBC_EnableIdChange(__hdle hUSB)
 {
 	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1633,7 +1633,7 @@ void USBC_EnableIdChange(__hdle hUSB)
 	USBC_Writel(reg_val, USBC_REG_ISCR(usbc_otg->base_addr));
 }
 
-/* Ê¹ÄÜdmdp±ä»¯ÖĞ¶Ï */
+/* ä½¿èƒ½dmdpå˜åŒ–ä¸­æ–­ */
 void USBC_EnableDpDmChange(__hdle hUSB)
 {
 	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1645,7 +1645,7 @@ void USBC_EnableDpDmChange(__hdle hUSB)
 	USBC_Writel(reg_val, USBC_REG_ISCR(usbc_otg->base_addr));
 }
 
-/* ²âÊÔÄ£Ê½, »ñµÃ¼Ä´æÆ÷µÄÖµ */
+/* æµ‹è¯•æ¨¡å¼, è·å¾—å¯„å­˜å™¨çš„å€¼ */
 __u32 USBC_TestMode_ReadReg(__hdle hUSB, __u32 offset, __u32 reg_width)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
@@ -1673,16 +1673,16 @@ __u32 USBC_TestMode_ReadReg(__hdle hUSB, __u32 offset, __u32 reg_width)
 *                     USBC_open_otg
 *
 * Description:
-*    ÏòbspÉêÇë»ñµÃ¶Ë¿ÚºÅÎªotg_noµÄtogÊ¹ÓÃÈ¨
+*    å‘bspç”³è¯·è·å¾—ç«¯å£å·ä¸ºotg_noçš„togä½¿ç”¨æƒ
 *
 * Arguments:
-*    otg_no  :  input.  ĞèÒªÊ¹ÓÃµÄTOG¶Ë¿ÚºÅ, ·¶Î§Îª: 0 ~ USBC_MAX_CTL_NUM
+*    otg_no  :  input.  éœ€è¦ä½¿ç”¨çš„TOGç«¯å£å·, èŒƒå›´ä¸º: 0 ~ USBC_MAX_CTL_NUM
 *
 * Returns:
-*    ³É¹¦, ·µ»Øusbc_otg¾ä±ú¡£Ê§°Ü, ·µ»ØNULL
+*    æˆåŠŸ, è¿”å›usbc_otgå¥æŸ„ã€‚å¤±è´¥, è¿”å›NULL
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -1692,12 +1692,12 @@ __hdle USBC_open_otg(__u32 otg_no)
     __usbc_otg_t *usbc_otg = usbc_otg_array;
 	__u32 i = 0;
 
-    //--<1>--otg_no²»ÄÜ³¬¹ıËùÄÜÖ§³ÖµÄ·¶Î§
+    //--<1>--otg_noä¸èƒ½è¶…è¿‡æ‰€èƒ½æ”¯æŒçš„èŒƒå›´
     if(otg_no >= USBC_MAX_CTL_NUM){
 		return 0;
 	}
 
-    //--<2>--ÔÚ¹ÜÀíÊı×éÀïÕÒÒ»¸ö¿ÕÎ», ×î´óÖ§³ÖÍ¬Ê±´ò¿ª8´Î
+    //--<2>--åœ¨ç®¡ç†æ•°ç»„é‡Œæ‰¾ä¸€ä¸ªç©ºä½, æœ€å¤§æ”¯æŒåŒæ—¶æ‰“å¼€8æ¬¡
     for(i = 0; i < USBC_MAX_OPEN_NUM; i++){
 		if(usbc_otg[i].used == 0){
 			usbc_otg[i].used      = 1;
@@ -1716,12 +1716,12 @@ __hdle USBC_open_otg(__u32 otg_no)
 {
     __usbc_otg_t *usbc_otg = usbc_otg_array;
 
-    //--<1>--otg_no²»ÄÜ³¬¹ıËùÄÜÖ§³ÖµÄ·¶Î§
+    //--<1>--otg_noä¸èƒ½è¶…è¿‡æ‰€èƒ½æ”¯æŒçš„èŒƒå›´
     if(otg_no >= USBC_MAX_CTL_NUM){
 		return 0;
 	}
 
-    //--<2>--ÔÚ¹ÜÀíÊı×éÀïÕÒÒ»¸ö¿ÕÎ», ×î´óÖ§³ÖÍ¬Ê±´ò¿ª8´Î
+    //--<2>--åœ¨ç®¡ç†æ•°ç»„é‡Œæ‰¾ä¸€ä¸ªç©ºä½, æœ€å¤§æ”¯æŒåŒæ—¶æ‰“å¼€8æ¬¡
 	usbc_otg[otg_no].used      = 1;
 	usbc_otg[otg_no].no        = otg_no;
 	usbc_otg[otg_no].port_num  = otg_no;
@@ -1737,17 +1737,17 @@ __hdle USBC_open_otg(__u32 otg_no)
 *                     USBC_close_otg
 *
 * Description:
-*    ÊÍ·ÅtogµÄÊ¹ÓÃÈ¨
+*    é‡Šæ”¾togçš„ä½¿ç”¨æƒ
 *
 * Arguments:
-*    hUSB  :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
+*    hUSB  :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
 *
 * Returns:
-*    0  :  ³É¹¦
-*   !0  :  Ê§°Ü
+*    0  :  æˆåŠŸ
+*   !0  :  å¤±è´¥
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -1776,8 +1776,8 @@ __s32  USBC_close_otg(__hdle hUSB)
 *
 *
 * Returns:
-*    0  :  ³É¹¦
-*   !0  :  Ê§°Ü
+*    0  :  æˆåŠŸ
+*   !0  :  å¤±è´¥
 *
 * note:
 *
@@ -1793,7 +1793,7 @@ __s32 USBC_init(bsp_usbc_t *usbc)
 //    memset(&usbc_info_g, 0, sizeof(__fifo_info_t));
 //    memset(usbc_otg, 0, (USBC_MAX_OPEN_NUM * sizeof(__usbc_otg_t)));
 
-    /* ±£´æ driver ´«½øÀ´µÄ usb ¿ØÖÆÆ÷µÄ»ùÖ· */
+    /* ä¿å­˜ driver ä¼ è¿›æ¥çš„ usb æ§åˆ¶å™¨çš„åŸºå€ */
 /*
     for(i = 0; i < USBC_MAX_CTL_NUM; i++){
         __u32 port_num = 0;
@@ -1825,8 +1825,8 @@ __s32 USBC_init(bsp_usbc_t *usbc)
 *
 *
 * Returns:
-*    0  :  ³É¹¦
-*   !0  :  Ê§°Ü
+*    0  :  æˆåŠŸ
+*   !0  :  å¤±è´¥
 *
 * note:
 *
@@ -1844,7 +1844,7 @@ __s32 USBC_exit(bsp_usbc_t *usbc)
     return 0;
 }
 
-/* USB´«ÊäÀàĞÍÑ¡Ôñ, ¶ÁĞ´Êı¾İµÈ */
+/* USBä¼ è¾“ç±»å‹é€‰æ‹©, è¯»å†™æ•°æ®ç­‰ */
 EXPORT_SYMBOL(USBC_OTG_SelectMode);
 
 EXPORT_SYMBOL(USBC_ReadLenFromFifo);
@@ -1868,7 +1868,7 @@ EXPORT_SYMBOL(USBC_EnhanceSignal);
 EXPORT_SYMBOL(USBC_GetLastFrameNumber);
 
 
-/* usb ÖĞ¶Ï²Ù×÷²¿·Ö */
+/* usb ä¸­æ–­æ“ä½œéƒ¨åˆ† */
 EXPORT_SYMBOL(USBC_INT_EpPending);
 EXPORT_SYMBOL(USBC_INT_MiscPending);
 EXPORT_SYMBOL(USBC_INT_ClearEpPending);
@@ -1886,7 +1886,7 @@ EXPORT_SYMBOL(USBC_INT_DisableEpAll);
 EXPORT_SYMBOL(USBC_INT_DisableUsbMiscAll);
 
 
-/* usb ¿ØÖÆ²Ù×÷²¿·Ö */
+/* usb æ§åˆ¶æ“ä½œéƒ¨åˆ† */
 EXPORT_SYMBOL(USBC_GetVbusStatus);
 EXPORT_SYMBOL(USBC_GetStatus_Dp);
 EXPORT_SYMBOL(USBC_GetStatus_Dm);
@@ -1926,7 +1926,7 @@ EXPORT_SYMBOL(USBC_EnableVbusChange);
 EXPORT_SYMBOL(USBC_EnableIdChange);
 EXPORT_SYMBOL(USBC_EnableDpDmChange);
 
-/* usb ²âÊÔÄ£Ê½ */
+/* usb æµ‹è¯•æ¨¡å¼ */
 EXPORT_SYMBOL(USBC_EnterMode_TestPacket);
 EXPORT_SYMBOL(USBC_EnterMode_Test_K);
 EXPORT_SYMBOL(USBC_EnterMode_Test_J);

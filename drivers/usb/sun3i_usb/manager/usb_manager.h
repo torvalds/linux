@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: USB 管理程序
+* Description 	: USB 绠＄悊绋嬪簭
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -21,7 +21,7 @@
 #ifndef  __USB_MANAGER_H__
 #define  __USB_MANAGER_H__
 
-/* dma 调试打印 */
+/* dma 璋冭瘯鎵撳嵃 */
 #if	0
     #define DMSG_DBG_MANAGER     		DMSG_PRINT
 #else

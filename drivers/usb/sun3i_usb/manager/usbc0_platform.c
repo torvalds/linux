@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: USB¿ØÖÆÆ÷0Éè±¸ĞÅÏ¢
+* Description 	: USBæ§åˆ¶å™¨0è®¾å¤‡ä¿¡æ¯
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -45,7 +45,7 @@
 #include  "../include/sw_usb_config.h"
 
 //---------------------------------------------------------------
-//  device ĞÅÏ¢ÃèÊö
+//  device ä¿¡æ¯æè¿°
 //---------------------------------------------------------------
 static struct sw_udc_mach_info sw_udc_cfg = {
 	.vbus_pin		    = 0,
@@ -66,7 +66,7 @@ static struct platform_device sw_udc_device = {
 };
 
 //---------------------------------------------------------------
-//  host ĞÅÏ¢ÃèÊö
+//  host ä¿¡æ¯æè¿°
 //---------------------------------------------------------------
 static struct sw_hcd_eps_bits sw_hcd_eps[] = {
 	{ "ep1_tx", 8, },

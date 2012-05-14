@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: °å¼¶¿ØÖÆ
+* Description 	: æ¿çº§æ§åˆ¶
 *
 * Notes         :
 *
@@ -45,7 +45,7 @@
 
 //---------------------------------------------------
 //
-//  USB  ÅäÖÃĞÅÏ¢
+//  USB  é…ç½®ä¿¡æ¯
 //
 //---------------------------------------------------
 enum usb_gpio_group_type{
@@ -60,31 +60,31 @@ enum usb_port_type{
     USB_PORT_TYPE_OTG,
 };
 
-/* 0: dp/dm¼ì²â£¬ 1: vbus/id¼ì²â */
+/* 0: dp/dmæ£€æµ‹ï¼Œ 1: vbus/idæ£€æµ‹ */
 enum usb_detect_type{
     USB_DETECT_TYPE_DP_DM = 0,
     USB_DETECT_TYPE_VBUS_ID,
 };
 
-/* pioĞÅÏ¢ */
+/* pioä¿¡æ¯ */
 typedef struct usb_gpio{
-	__u32 valid;          	/* pioÊÇ·ñ¿ÉÓÃ¡£ 0:ÎŞĞ§, !0:ÓĞĞ§	*/
+	__u32 valid;          	/* pioæ˜¯å¦å¯ç”¨ã€‚ 0:æ— æ•ˆ, !0:æœ‰æ•ˆ	*/
 
-	__u32 group_type;		/* pioÀàĞÍ 							*/
+	__u32 group_type;		/* pioç±»å‹ 							*/
 	user_gpio_set_t gpio_set;
 }usb_gpio_t;
 
 typedef struct usb_port_info{
-	__u32 enable;          				/* portÊÇ·ñ¿ÉÓÃ			*/
+	__u32 enable;          				/* portæ˜¯å¦å¯ç”¨			*/
 
-	__u32 port_no;						/* usb¶Ë¿ÚºÅ			*/
-	enum usb_port_type port_type;    	/* usb¶Ë¿ÚÀàĞÍ			*/
-	enum usb_detect_type detect_type; 	/* usb¼ì²â·½Ê½			*/
+	__u32 port_no;						/* usbç«¯å£å·			*/
+	enum usb_port_type port_type;    	/* usbç«¯å£ç±»å‹			*/
+	enum usb_detect_type detect_type; 	/* usbæ£€æµ‹æ–¹å¼			*/
 
-	usb_gpio_t id;						/* usb id pinĞÅÏ¢ 		*/
-	usb_gpio_t det_vbus;				/* usb vbus pinĞÅÏ¢ 	*/
-	usb_gpio_t drv_vbus;				/* usb drv_vbus pinĞÅÏ¢	*/
-	__u32 usbc_init_state;				/* usb ¿ØÖÆÆ÷µÄ³õÊ¼»¯×´Ì¬¡£0 : ²»¹¤×÷. 1 : ¹¤×÷ */
+	usb_gpio_t id;						/* usb id pinä¿¡æ¯ 		*/
+	usb_gpio_t det_vbus;				/* usb vbus pinä¿¡æ¯ 	*/
+	usb_gpio_t drv_vbus;				/* usb drv_vbus pinä¿¡æ¯	*/
+	__u32 usbc_init_state;				/* usb æ§åˆ¶å™¨çš„åˆå§‹åŒ–çŠ¶æ€ã€‚0 : ä¸å·¥ä½œ. 1 : å·¥ä½œ */
 }usb_port_info_t;
 
 typedef struct usb_cfg{

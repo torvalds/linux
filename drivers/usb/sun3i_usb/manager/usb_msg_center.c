@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: USB 消息分发
+* Description 	: USB 娑堟伅鍒嗗彂
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
