@@ -1,7 +1,7 @@
 /*
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * 
+ *
  * Pan Nan <pannan@allwinnertech.com>
  * Tom Cubie <tanglaing@allwinnertech.com>
  * Victor Wei <weiziheng@allwinnertech.com>
@@ -123,7 +123,7 @@ static inline void aw_twi_clear_irq_flag(void *base_addr)
 	unsigned int reg_val = readl(base_addr + TWI_CTL_REG);
 	reg_val &= ~TWI_CTL_INTFLG;//0x 1111_0111
 	writel(reg_val ,base_addr + TWI_CTL_REG);
-    
+
 	/* read two more times to make sure that interrupt flag does really be cleared */
 	{
 		unsigned int temp;
@@ -134,14 +134,14 @@ static inline void aw_twi_clear_irq_flag(void *base_addr)
 
 /* get data first, then clear flag */
 static inline void aw_twi_get_byte(void *base_addr, unsigned char  *buffer)
-{    
+{
 	*buffer = (unsigned char)( TWI_DATA_MASK & readl(base_addr + TWI_DATA_REG) );
 	aw_twi_clear_irq_flag(base_addr);
 }
 
 /* only get data, we will clear the flag when stop */
 static inline void aw_twi_get_last_byte(void *base_addr, unsigned char  *buffer)
-{    
+{
 	*buffer = (unsigned char)( TWI_DATA_MASK & readl(base_addr + TWI_DATA_REG) );
 }
 
@@ -155,8 +155,8 @@ static inline void aw_twi_put_byte(void *base_addr, const unsigned char *buffer)
 static inline void aw_twi_enable_irq(void *base_addr)
 {
 	unsigned int reg_val = readl(base_addr + TWI_CTL_REG);
-    
-	/* 
+
+	/*
 	 * 1 when enable irq for next operation, set intflag to 1 to prevent to clear it by a mistake
 	 *   (intflag bit is write-0-to-clear bit)
 	 * 2 Similarly, mask startbit and stopbit to prevent to set it twice by a mistake
@@ -190,7 +190,7 @@ static inline void aw_twi_enable_bus(void *base_addr)
 
 /* trigger start signal, the start bit will be cleared automatically */
 static inline void aw_twi_set_start(void *base_addr)
-{    
+{
 	unsigned int reg_val = readl(base_addr + TWI_CTL_REG);
 	reg_val |= TWI_CTL_STA;
 	writel(reg_val, base_addr + TWI_CTL_REG);
@@ -245,7 +245,7 @@ static inline unsigned int aw_twi_query_irq_flag(void *base_addr)
 
 /* get interrupt status */
 static inline unsigned int aw_twi_query_irq_status(void *base_addr)
-{ 
+{
 	unsigned int reg_val = readl(base_addr + TWI_STAT_REG);
 	return (reg_val & TWI_STAT_MASK);
 }
@@ -266,21 +266,21 @@ static inline void twi_clk_write_reg(unsigned int clk_n, unsigned int clk_m, voi
 
 /*
 * Fin is APB CLOCK INPUT;
-* Fsample = F0 = Fin/2^CLK_N; 
-* F1 = F0/(CLK_M+1);                             
-* Foscl = F1/10 = Fin/(2^CLK_N * (CLK_M+1)*10); 
-* Foscl is clock SCL;100KHz or 400KHz      
+* Fsample = F0 = Fin/2^CLK_N;
+* F1 = F0/(CLK_M+1);
+* Foscl = F1/10 = Fin/(2^CLK_N * (CLK_M+1)*10);
+* Foscl is clock SCL;100KHz or 400KHz
 *
 * clk_in: apb clk clock
-* sclk_req: freqence to set in HZ  
-*/ 
+* sclk_req: freqence to set in HZ
+*/
 static void aw_twi_set_clock(unsigned int clk_in, unsigned int sclk_req, void *base_addr)
-{ 
+{
 	unsigned int clk_m = 0;
 	unsigned int clk_n = 0;
 	unsigned int _2_pow_clk_n = 1;
-	unsigned int src_clk      = clk_in/10;   
-	unsigned int divider      = src_clk/sclk_req;  // 400khz or 100khz  
+	unsigned int src_clk      = clk_in/10;
+	unsigned int divider      = src_clk/sclk_req;  // 400khz or 100khz
 	unsigned int sclk_real    = 0;      // the real clock frequency
 
 #ifdef CONFIG_FPGA_SIM
@@ -296,9 +296,9 @@ static void aw_twi_set_clock(unsigned int clk_in, unsigned int sclk_req, void *b
 		goto set_clk;
 	}
 	/* search clk_n and clk_m,from large to small value so that can quickly find suitable m & n. */
-	while (clk_n < 8) { // 3bits max value is 8 
+	while (clk_n < 8) { // 3bits max value is 8
 		/* (m+1)*2^n = divider -->m = divider/2^n -1 */
-		clk_m = (divider/_2_pow_clk_n) - 1; 
+		clk_m = (divider/_2_pow_clk_n) - 1;
 		/* clk_m = (divider >> (_2_pow_clk_n>>1))-1 */
 		while (clk_m < 16) { /* 4bits max value is 16 */
 			sclk_real = src_clk/(clk_m + 1)/_2_pow_clk_n;  /* src_clk/((m+1)*2^n) */
@@ -313,7 +313,7 @@ static void aw_twi_set_clock(unsigned int clk_in, unsigned int sclk_req, void *b
 		_2_pow_clk_n *= 2; /* mutilple by 2 */
 	}
 
-set_clk:    
+set_clk:
 	twi_clk_write_reg(clk_n, clk_m, base_addr);
 
 	return;
@@ -323,17 +323,17 @@ static inline void aw_twi_soft_reset(void *base_addr)
 {
 	unsigned int reg_val = readl(base_addr + TWI_SRST_REG);
 	reg_val |= TWI_SRST_SRST; /* set soft reset bit,0x0000 0001 */
-	writel(reg_val, base_addr + TWI_SRST_REG);    
+	writel(reg_val, base_addr + TWI_SRST_REG);
 }
 
-/* Enhanced Feature Register */ 
+/* Enhanced Feature Register */
 static inline void aw_twi_set_EFR(void *base_addr, unsigned int efr)
 {
 	unsigned int reg_val = readl(base_addr + TWI_EFR_REG);
-    
+
 	reg_val &= ~TWI_EFR_MASK;
 	efr     &= TWI_EFR_MASK;
-	reg_val |= efr;    
+	reg_val |= efr;
 	writel(reg_val, base_addr + TWI_EFR_REG);
 }
 
@@ -473,7 +473,7 @@ static int aw_twi_stop(void *base_addr)
 *  FunctionName:           i2c_sunxi_addr_byte
 *
 *  Description:
-*            ·¢ËÍslaveµØÖ·£¬7bitµÄÈ«²¿ÐÅÏ¢£¬¼°10bitµÄµÚÒ»²¿·ÖµØÖ·¡£¹©Íâ²¿½Ó¿Úµ÷ÓÃ£¬ÄÚ²¿ÊµÏÖ¡£
+*            å‘é€slaveåœ°å€ï¼Œ7bitçš„å…¨éƒ¨ä¿¡æ¯ï¼ŒåŠ10bitçš„ç¬¬ä¸€éƒ¨åˆ†åœ°å€ã€‚ä¾›å¤–éƒ¨æŽ¥å£è°ƒç”¨ï¼Œå†…éƒ¨å®žçŽ°ã€‚
 *         7bits addr: 7-1bits addr+0 bit r/w
 *         10bits addr: 1111_11xx_xxxx_xxxx-->1111_0xx_rw,xxxx_xxxx
 *         send the 7 bits addr,or the first part of 10 bits addr
@@ -481,7 +481,7 @@ static int aw_twi_stop(void *base_addr)
 *
 *
 *  Return value:
-*           ÎÞ
+*           æ— 
 *  Notes:
 *
 ****************************************************************************************************
@@ -725,7 +725,7 @@ static int i2c_sunxi_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int nu
 	struct sunxi_i2c *i2c = (struct sunxi_i2c *)adap->algo_data;
 	int ret = AWXX_I2C_FAIL;
 	int i   = 0;
-	
+
 	if(i2c->suspend_flag) {
 		i2c_dbg("[i2c-%d] has already suspend, dev addr:%x!\n", i2c->adap.nr, msgs->addr);
 		return -ENODEV;
@@ -733,7 +733,7 @@ static int i2c_sunxi_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int nu
 
 	for(i = adap->retries; i >= 0; i--) {
 		ret = i2c_sunxi_do_xfer(i2c, msgs, num);
-		
+
 		if(ret != AWXX_I2C_RETRY) {
 			goto out;
 		}
@@ -857,7 +857,7 @@ static int i2c_sunxi_clk_init(struct sunxi_i2c *i2c)
 static int i2c_sunxi_clk_exit(struct sunxi_i2c *i2c)
 {
 	void *base_addr = i2c->base_addr;
-	
+
 	// aw_twi_disable_irq(base_addr);
 	// disable twi bus
 	aw_twi_disable_bus(base_addr);
@@ -1105,7 +1105,7 @@ static int i2c_sunxi_resume(struct platform_device *pdev)
 	struct sunxi_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspend_flag = 0;
-	
+
 	if(0 == i2c->bus_num) {
 		return 0;
 	}
@@ -1116,7 +1116,7 @@ static int i2c_sunxi_resume(struct platform_device *pdev)
 	}
 
 	aw_twi_soft_reset(i2c->base_addr);
-	
+
 	i2c_dbg("[i2c%d] resume okay.. \n", i2c->bus_num);
 	return 0;
 }
