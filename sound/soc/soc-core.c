@@ -1612,7 +1612,8 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		}
 
 		/* If this is a regular CPU link there will be a platform */
-		if (dai_fmt && dai_link->platform_name) {
+		if (dai_fmt &&
+		    (dai_link->platform_name || dai_link->platform_of_node)) {
 			ret = snd_soc_dai_set_fmt(card->rtd[i].cpu_dai,
 						  dai_fmt);
 			if (ret != 0 && ret != -ENOTSUPP)
