@@ -13,7 +13,7 @@
  *
  */
 #include "sun4i_ace_i.h"
-#include <linux/module.h> 
+#include <linux/module.h>
 #include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -28,9 +28,9 @@ EXPORT_SYMBOL(ace_hsram);
 __s32       configTimes = 0;
 
 #define ACE_REGS_BASE ACE_REGS_pBASE
-struct semaphore		pSemAceClkAdjust; 						
-struct semaphore		pSemAceCe;                              
-struct semaphore		pSemAceConfig;      
+struct semaphore		pSemAceClkAdjust;
+struct semaphore		pSemAceCe;
+struct semaphore		pSemAceConfig;
 
 
 struct clk *parent_clk = NULL;
@@ -71,7 +71,7 @@ int esCLK_CloseMclkSrc(int parent)
 }
 
 int esCLK_MclkOnOff(struct clk *clk, int onoff)
-{	
+{
 	int ret = 1;
 
 	if (onoff == 1) {
@@ -84,43 +84,43 @@ int esCLK_MclkOnOff(struct clk *clk, int onoff)
 		clk_disable(clk);
 		ret = 1;
 	}
-	
+
 	return ret;
 }
 void *esMEM_SramReqBlk(int addr)
-{	
+{
 	void *map_addr = NULL;
 
 	addr |= 0xf0000000;
 	map_addr = (void *)addr;
-	
+
 	return map_addr;
 }
 
 __s32 ACE_Init(void)
 {
-    //create semphore to sync clock adjust.    
+    //create semphore to sync clock adjust.
  	sema_init(&pSemAceClkAdjust, 1);
-		
-	/*ae,ceµƒœ‡πÿºƒ¥Ê∆˜∂º–Ë“™Õ®π˝’‚∏ˆµÿ÷∑÷µ”≥…‰∆´“∆’“µΩ*/
+
+	/*ae,ceÁöÑÁõ∏ÂÖ≥ÂØÑÂ≠òÂô®ÈÉΩÈúÄË¶ÅÈÄöËøáËøô‰∏™Âú∞ÂùÄÂÄºÊò†Â∞ÑÂÅèÁßªÊâæÂà∞*/
 	ace_hsram = ioremap(ACE_REGS_pBASE, 4096);
     if (!ace_hsram) {
         printk("cannot map region for sram");
        return -1;
     }
-    //create sem to sync ace config    
+    //create sem to sync ace config
     sema_init(&pSemAceConfig, 1);
-       
+
     //create semphore to sync resource usage
     sema_init(&pSemAceCe, 1);
-       
+
     configTimes = 0;
     return ACE_OK;
 }
 EXPORT_SYMBOL_GPL(ACE_Init);
 
 __s32 ACE_Exit(void)
-{        
+{
     iounmap((void *)ace_hsram);
     return ACE_OK;
 }
@@ -134,17 +134,17 @@ s32 ACE_HwReq(__ace_module_type_e module, __ace_request_mode_e mode, __u32 timeo
             if (down_trylock(&pSemAceCe)== 0) {     //the resource is available or not
                  return ACE_FAIL;
 	    	}
-	    } else if (ACE_REQUEST_MODE_WAIT == mode) {            
+	    } else if (ACE_REQUEST_MODE_WAIT == mode) {
             if (down_interruptible(&pSemAceCe)) {
 	    	    return  -ERESTARTSYS;
 	        }
 	    }
-        ACE_EnableModule(ACE_MODULE_CE, ACE_MODULE_ENABLE);	    
-    } else if (ACE_MODULE_AE == module) {			
+        ACE_EnableModule(ACE_MODULE_CE, ACE_MODULE_ENABLE);
+    } else if (ACE_MODULE_AE == module) {
         ACE_EnableModule(ACE_MODULE_AE, ACE_MODULE_ENABLE);
     } else {
 		printk("%s, %d\n", __FILE__, __LINE__);
-        return ACE_FAIL;			
+        return ACE_FAIL;
     }
 
     return ACE_OK;
@@ -155,21 +155,21 @@ __s32 ACE_HwRel(__ace_module_type_e module)
 {
 	if (module == ACE_MODULE_CE) {
         //release semphore
-	    up(&pSemAceCe);			
-        ACE_EnableModule(ACE_MODULE_CE, ACE_MODULE_DISABLE);			
-    } else if(module == ACE_MODULE_AE) {			
+	    up(&pSemAceCe);
+        ACE_EnableModule(ACE_MODULE_CE, ACE_MODULE_DISABLE);
+    } else if(module == ACE_MODULE_AE) {
         ACE_EnableModule(ACE_MODULE_AE, ACE_MODULE_DISABLE);
     }
-    
+
     return ACE_OK;
-    
+
 }
 EXPORT_SYMBOL_GPL(ACE_HwRel);
 
 __u32 ACE_GetClk(void)
 {
     __u32 temp = 0;
-    temp = esCLK_GetSrcFreq(esCLK_GetMclkSrc(hAceMClk)); 
+    temp = esCLK_GetSrcFreq(esCLK_GetMclkSrc(hAceMClk));
     return temp;
 }
 EXPORT_SYMBOL_GPL(ACE_GetClk);
@@ -182,7 +182,7 @@ static __s32 ACE_EnableModule(__ace_module_type_e module, __u32 mode)
         	status |=  ACE_CE_ENABLE_MASK;
         } else if(ACE_MODULE_DISABLE == mode) {
             status &= (~ACE_CE_ENABLE_MASK);
-        }  
+        }
     } else if(ACE_MODULE_AE == module) {
         if(ACE_MODULE_ENABLE == mode) {
 			status |=  ACE_AE_ENABLE_MASK;
@@ -191,5 +191,5 @@ static __s32 ACE_EnableModule(__ace_module_type_e module, __u32 mode)
         }
     }
     writeReg(ACE_MODE_SELECTOR,status);
-    return ACE_OK;  
+    return ACE_OK;
 }

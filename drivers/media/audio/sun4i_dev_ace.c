@@ -51,18 +51,18 @@ static int ref_count = 0;
 static DECLARE_WAIT_QUEUE_HEAD(wait_ae);
 __u32 ae_interrupt_sta = 0, ae_interrupt_value = 0;
 void *       ccmu_hsram;
-/*ae¡¢ace¡¢ce¹²ÏíÖĞ¶ÏºÅ*/
+/*aeã€aceã€ceå…±äº«ä¸­æ–­å·*/
 #define ACE_IRQ_NO (60)
 
 //#define ACE_DEBUG
-static int ace_dev_open(struct inode *inode, struct file *filp){   
+static int ace_dev_open(struct inode *inode, struct file *filp){
     int status = 0;
     return status;
 }
 
 static int ace_dev_release(struct inode *inode, struct file *filp){
     int status = 0;
-    
+
     return status;
 }
 
@@ -73,7 +73,7 @@ static int ace_dev_release(struct inode *inode, struct file *filp){
 static irqreturn_t ace_interrupt(int irq, void *dev)
 {
 	volatile int ae_out_mode_reg = 0;
-	
+
 	/*status 0x24*/
 	ae_out_mode_reg = readReg(AE_STATUS_REG);
 	ae_interrupt_value = ae_out_mode_reg;
@@ -82,12 +82,12 @@ static irqreturn_t ace_interrupt(int irq, void *dev)
 	}
 
 	ae_out_mode_reg &= 0x0f;
-	writeReg(AE_STATUS_REG,ae_out_mode_reg);	
+	writeReg(AE_STATUS_REG,ae_out_mode_reg);
 	ae_interrupt_sta = 1;
 
 	ae_out_mode_reg = readReg(AE_STATUS_REG);
 	wake_up_interruptible(&wait_ae);
-	
+
     return IRQ_HANDLED;
 }
 
@@ -95,21 +95,21 @@ static long ace_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 {
 	int 				ret_val = 0;
 	unsigned long       test_arg;
-	__ace_req_e 		mpara;	
+	__ace_req_e 		mpara;
 	unsigned long rate;
-	switch (cmd){		
+	switch (cmd){
 		case ACE_DEV_HWREQ:
 			test_arg = copy_from_user(&mpara, (__ace_req_e *)arg,
-                       sizeof(__ace_req_e));			
-			ret_val = ACE_HwReq(mpara.module, mpara.mode, mpara.timeout);			
+                       sizeof(__ace_req_e));
+			ret_val = ACE_HwReq(mpara.module, mpara.mode, mpara.timeout);
 			break;
-			
-		case ACE_DEV_HWREL:			
+
+		case ACE_DEV_HWREL:
 			test_arg = copy_from_user(&mpara, (__ace_req_e *)arg,
-                       sizeof(__ace_req_e));			
-			ret_val = ACE_HwRel(mpara.module);			
+                       sizeof(__ace_req_e));
+			ret_val = ACE_HwRel(mpara.module);
 			break;
-			
+
 		case ACE_DEV_GETCLKFREQ:
 			test_arg = ACE_GetClk();
 			put_user(test_arg, (unsigned long *)arg);
@@ -120,21 +120,21 @@ static long ace_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 			break;
 		case ACE_DEV_INS_ISR:
 			break;
-		
+
 		case ACE_DEV_UNINS_ISR:
 		   break;
 
 		case ACE_DEV_WAIT_AE:
-			wait_event_interruptible(wait_ae, 
+			wait_event_interruptible(wait_ae,
 			    ae_interrupt_sta);
 			ae_interrupt_sta = 0;
 			return ae_interrupt_value;
 		case ACE_DEV_CLK_OPEN:
-			/* ace_moduleclk */			
+			/* ace_moduleclk */
 			ace_moduleclk = clk_get(NULL,"ace");
 			ace_pll5_pclk = clk_get(NULL, "sdram_pll_p");
 			if (clk_set_parent(ace_moduleclk, ace_pll5_pclk)) {
-				printk("try to set parent of ace_moduleclk to ace_pll5clk failed!\n");		
+				printk("try to set parent of ace_moduleclk to ace_pll5clk failed!\n");
 			}
 			rate = clk_get_rate(ace_pll5_pclk);
 			if(clk_set_rate(ace_moduleclk, rate/2)) {
@@ -153,16 +153,16 @@ static long ace_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 				printk("ace_moduleclk failed; \n");
 				goto out;
 			}
-			
+
 			/*geting dram clk for ace!*/
 			dram_aceclk = clk_get(NULL, "sdram_ace");
-		
+
 			if (-1 == clk_enable(dram_aceclk)) {
 				printk("dram_moduleclk failed; \n");
 				 goto out1;
 			}
 			/* getting ahb clk for ace! */
-			ahb_aceclk = clk_get(NULL,"ahb_ace");		
+			ahb_aceclk = clk_get(NULL,"ahb_ace");
 			if (-1 == clk_enable(ahb_aceclk)) {
 				printk("ahb_aceclk failed; \n");
 				goto out2;
@@ -173,38 +173,38 @@ static long ace_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 				clk_disable(dram_aceclk);
 			out1:
 				clk_disable(ace_moduleclk);
-			out:			
+			out:
 			break;
-		case ACE_DEV_CLK_CLOSE:			
+		case ACE_DEV_CLK_CLOSE:
 			clk_disable(ace_moduleclk);
-			//ÊÍ·Åace_moduleclkÊ±ÖÓ¾ä±ú
+			//é‡Šæ”¾ace_moduleclkæ—¶é’Ÿå¥æŸ„
 			clk_put(ace_moduleclk);
-			//ÊÍ·Åace_pll5_pclkÊ±ÖÓ¾ä±ú
+			//é‡Šæ”¾ace_pll5_pclkæ—¶é’Ÿå¥æŸ„
 			clk_put(ace_pll5_pclk);
-		
+
 			clk_disable(dram_aceclk);
-			//ÊÍ·Ådram_aceclkÊ±ÖÓ¾ä±ú
-			clk_put(dram_aceclk);	
-		
+			//é‡Šæ”¾dram_aceclkæ—¶é’Ÿå¥æŸ„
+			clk_put(dram_aceclk);
+
 			clk_disable(ahb_aceclk);
-			//ÊÍ·Åahb_aceclkÊ±ÖÓ¾ä±ú
+			//é‡Šæ”¾ahb_aceclkæ—¶é’Ÿå¥æŸ„
 			clk_put(ahb_aceclk);
 			ref_count--;
 			break;
 		default:
 			break;
-	}	
+	}
 	return ret_val;
 }
 
 void acedev_vma_open(struct vm_area_struct *vma)
 {
 
-} 
+}
 
 void acedev_vma_close(struct vm_area_struct *vma)
 {
-	
+
 }
 
 static struct vm_operations_struct acedev_remap_vm_ops = {
@@ -218,7 +218,7 @@ static int acedev_mmap(struct file *filp, struct vm_area_struct *vma)
     temp_pfn = ACE_REGS_pBASE >> 12;
     /* Set reserved and I/O flag for the area. */
     vma->vm_flags |= VM_RESERVED | VM_IO;
-	
+
     /* Select uncached access. */
     vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
     if (io_remap_pfn_range(vma, vma->vm_start, temp_pfn,
@@ -227,24 +227,24 @@ static int acedev_mmap(struct file *filp, struct vm_area_struct *vma)
     }
     vma->vm_ops = &acedev_remap_vm_ops;
     acedev_vma_open(vma);
-    
-    return 0; 
-} 
+
+    return 0;
+}
 
 static int snd_sw_ace_suspend(struct platform_device *pdev,pm_message_t state)
-{		
+{
 	suspend_acerate = clk_get_rate(ace_moduleclk);
 	clk_disable(dram_aceclk);
-	//ÊÍ·Ådram_aceclkÊ±ÖÓ¾ä±ú
-	clk_put(dram_aceclk);	
-	
+	//é‡Šæ”¾dram_aceclkæ—¶é’Ÿå¥æŸ„
+	clk_put(dram_aceclk);
+
 	clk_disable(ace_moduleclk);
-	//ÊÍ·Åace_moduleclkÊ±ÖÓ¾ä±ú
+	//é‡Šæ”¾ace_moduleclkæ—¶é’Ÿå¥æŸ„
 	clk_put(ace_moduleclk);
 	clk_disable(ahb_aceclk);
-	//ÊÍ·Åahb_aceclkÊ±ÖÓ¾ä±ú
+	//é‡Šæ”¾ahb_aceclkæ—¶é’Ÿå¥æŸ„
 	clk_put(ahb_aceclk);
-	//ÊÍ·Åace_pll5_pclkÊ±ÖÓ¾ä±ú
+	//é‡Šæ”¾ace_pll5_pclkæ—¶é’Ÿå¥æŸ„
 	clk_put(ace_pll5_pclk);
 
 	/*for clk test*/
@@ -260,18 +260,18 @@ static int snd_sw_ace_suspend(struct platform_device *pdev,pm_message_t state)
 }
 
 static int snd_sw_ace_resume(struct platform_device *pdev)
-{	
+{
 	if(ref_count == 0){
 		return 0;
 	}
-	/* ace_moduleclk */   
+	/* ace_moduleclk */
 	ace_moduleclk = clk_get(NULL,"ace");
 	ace_pll5_pclk = clk_get(NULL, "sdram_pll_p");
 	if (clk_set_parent(ace_moduleclk, ace_pll5_pclk)) {
 		printk("try to set parent of ace_moduleclk to ace_pll5clk failed!\n");
-		goto out;      
+		goto out;
 	}
-	
+
 	if(clk_set_rate(ace_moduleclk, suspend_acerate)) {
 	   	printk("try to set ace_moduleclk rate failed!!!\n");
 	   	goto out;
@@ -288,16 +288,16 @@ static int snd_sw_ace_resume(struct platform_device *pdev)
 	   printk("ace_moduleclk failed; \n");
 	   goto out;
 	}
-	
+
 	/*geting dram clk for ace!*/
 	dram_aceclk = clk_get(NULL, "sdram_ace");
-	
+
 	if (-1 == clk_enable(dram_aceclk)) {
 	   	printk("dram_moduleclk failed; \n");
 	   	goto out1;
 	}
 	/* getting ahb clk for ace! */
-	ahb_aceclk = clk_get(NULL,"ahb_ace");           
+	ahb_aceclk = clk_get(NULL,"ahb_ace");
 	if (-1 == clk_enable(ahb_aceclk)) {
 	   	printk("ahb_aceclk failed; \n");
 	   	goto out2;
@@ -308,7 +308,7 @@ static int snd_sw_ace_resume(struct platform_device *pdev)
 		clk_disable(dram_aceclk);
 	out1:
 		clk_disable(ace_moduleclk);
-	out:		
+	out:
 	return 0;
 }
 
@@ -322,7 +322,7 @@ static struct file_operations ace_dev_fops = {
 
 /*data relating*/
 static struct platform_device sw_device_ace = {
-	.name = "sun4i-ace",   	   
+	.name = "sun4i-ace",
 };
 
 /*method relating*/
@@ -340,29 +340,29 @@ static int __init ace_dev_init(void)
 {
     int status = 0;
     int err = 0;
-	int ret = 0;   		
+	int ret = 0;
 	printk("[ace_drv] start!!!\n");
 	ret = request_irq(ACE_IRQ_NO, ace_interrupt, 0, "ace_dev", NULL);
 	if (ret < 0) {
 	   printk("request ace irq err\n");
 	   return -EINVAL;
-	}		
-	
+	}
+
 	if((platform_device_register(&sw_device_ace))<0)
 		return err;
 	if ((err = platform_driver_register(&sw_ace_driver)) < 0)
 		return err;
-		
+
     alloc_chrdev_region(&dev_num, 0, 1, "ace_chrdev");
     ace_dev = cdev_alloc();
     cdev_init(ace_dev, &ace_dev_fops);
     ace_dev->owner = THIS_MODULE;
-    err = cdev_add(ace_dev, dev_num, 1);	
+    err = cdev_add(ace_dev, dev_num, 1);
     if (err) {
-    	printk(KERN_NOTICE"Error %d adding ace_dev!\n", err);    
+    	printk(KERN_NOTICE"Error %d adding ace_dev!\n", err);
         return -1;
     }
-    
+
     ace_dev_class = class_create(THIS_MODULE, "ace_cls");
     device_create(ace_dev_class, NULL, dev_num, NULL, "ace_dev");
     ACE_Init();
@@ -374,7 +374,7 @@ module_init(ace_dev_init);
 static void __exit ace_dev_exit(void)
 {
 	free_irq(ACE_IRQ_NO, NULL);
-	ACE_Exit();	
+	ACE_Exit();
     device_destroy(ace_dev_class,  dev_num);
     class_destroy(ace_dev_class);
     platform_driver_unregister(&sw_ace_driver);
