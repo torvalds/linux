@@ -326,7 +326,7 @@ static const struct of_device_id tps62360_of_match[] = {
 	 { .compatible = "ti,tps62362", .data = (void *)TPS62362},
 	 { .compatible = "ti,tps62363", .data = (void *)TPS62363},
 	{},
-}
+};
 MODULE_DEVICE_TABLE(of, tps62360_of_match);
 #endif
 
