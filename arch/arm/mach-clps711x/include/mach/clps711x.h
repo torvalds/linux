@@ -1,8 +1,6 @@
 /*
- *  arch/arm/include/asm/hardware/clps7111.h
- *
- *  This file contains the hardware definitions of the CLPS7111 internal
- *  registers.
+ *  This file contains the hardware definitions of the Cirrus Logic
+ *  ARM7 CLPS711X internal registers.
  *
  *  Copyright (C) 2000 Deep Blue Solutions Ltd.
  *
@@ -20,8 +18,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ifndef __ASM_HARDWARE_CLPS7111_H
-#define __ASM_HARDWARE_CLPS7111_H
+#ifndef __MACH_CLPS711X_H
+#define __MACH_CLPS711X_H
 
 #define CLPS711X_PHYS_BASE	(0x80000000)
 
@@ -43,7 +41,7 @@
 #define INTSR1		(0x0240)
 #define INTMR1		(0x0280)
 #define LCDCON		(0x02c0)
-#define TC1D            (0x0300)
+#define TC1D		(0x0300)
 #define TC2D		(0x0340)
 #define RTCDR		(0x0380)
 #define RTCMR		(0x03c0)
@@ -231,4 +229,4 @@
 #define SDCONF_CASLAT_2		(2)
 #define SDCONF_CASLAT_3		(3)
 
-#endif /* __ASM_HARDWARE_CLPS7111_H */
+#endif /* __MACH_CLPS711X_H */
