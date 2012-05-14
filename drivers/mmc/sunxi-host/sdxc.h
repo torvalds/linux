@@ -3,9 +3,9 @@
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Aaron.Maoye <leafy.myeh@allwinnertech.com>
- * 
+ *
  * description for this code
- * sdxc.h - 
+ * sdxc.h -
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -192,9 +192,9 @@
 #define SDXC_IDMA_ERR        (SDXC_IDMACFatalBusErr|SDXC_IDMACDesInvalid|SDXC_IDMACCardErrSum|SDXC_IDMACAbnormalIntSum)
 
 /*
- * IDMAÃèÊö·ûÖÐÖ§³Ö×î´óµÄbuffer³¤¶ÈÎª8192£¬Èç¹ûµ¥´Î´«Êä>8192ÐèÒª½«bufferÖ¸¶¨µ½²»Í¬µÄÃèÊö·ûÖÐ
- * ÕâÀïÖ§³Ö×î´ó1024¸öÃèÊö·û£¬¼´Ö§³Öµ¥´Î´«ÊäµÄ×î´ó³¤¶ÈÎª1024*8192 = 8MÊý¾Ý£¬ÔÚ´«ÊäÖÐÒ»´ÎÐÔ·ÖÅä
- * ÃèÊö·û¿Õ¼ä£¬±ÜÃâ¶à´Î·ÖÅäÊ¹Ð§ÂÊµÍÏÂ£¬ÃèÊö·û¹²Õ¼ÓÃ1024*16 = 16K¿Õ¼ä£¬´«ÊäÍê±ÏºóÊÍ·Å
+ * IDMAæè¿°ç¬¦ä¸­æ”¯æŒæœ€å¤§çš„bufferé•¿åº¦ä¸º8192ï¼Œå¦‚æžœå•æ¬¡ä¼ è¾“>8192éœ€è¦å°†bufferæŒ‡å®šåˆ°ä¸åŒçš„æè¿°ç¬¦ä¸­
+ * è¿™é‡Œæ”¯æŒæœ€å¤§1024ä¸ªæè¿°ç¬¦ï¼Œå³æ”¯æŒå•æ¬¡ä¼ è¾“çš„æœ€å¤§é•¿åº¦ä¸º1024*8192 = 8Mæ•°æ®ï¼Œåœ¨ä¼ è¾“ä¸­ä¸€æ¬¡æ€§åˆ†é…
+ * æè¿°ç¬¦ç©ºé—´ï¼Œé¿å…å¤šæ¬¡åˆ†é…ä½¿æ•ˆçŽ‡ä½Žä¸‹ï¼Œæè¿°ç¬¦å…±å ç”¨1024*16 = 16Kç©ºé—´ï¼Œä¼ è¾“å®Œæ¯•åŽé‡Šæ”¾
  */
 #define SDXC_DES_BUFFER_MAX_LEN       (1 << SUNXI_MMC_MAX_DMA_DES_BIT) //16bits in aw1625, 13bit in aw1623
 #define SDXC_DES_NUM_SHIFT            (SUNXI_MMC_MAX_DMA_DES_BIT)  //65536 == 1<<16; change to 16bits, 13bit used in aw1623

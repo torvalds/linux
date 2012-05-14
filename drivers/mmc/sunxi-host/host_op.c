@@ -3,7 +3,7 @@
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Aaron.Maoye <leafy.myeh@allwinnertech.com>
- * 
+ *
  * description for this code
  *
  * This program is free software; you can redistribute it and/or
@@ -35,7 +35,7 @@ s32 sunximmc_init_controller(struct sunxi_mmc_host* smc_host)
 }
 
 /* static s32 sunximmc_set_src_clk(struct sunxi_mmc_host* smc_host)
- * ÉèÖÃSD¿¨¿ØÖÆÆ÷Ô´Ê±ÖÓÆµÂÊ, Ä¿±êÎª100MHz£¬clockÔ´ÓÐsmc_hostµÄclk_source¾ö¶¨
+ * è®¾ç½®SDå¡æŽ§åˆ¶å™¨æºæ—¶é’Ÿé¢‘çŽ‡, ç›®æ ‡ä¸º100MHzï¼Œclockæºæœ‰smc_hostçš„clk_sourceå†³å®š
  * clk_source: 0-video PLL, 2-dram PLL, 3-core pll
  */
 static int sunximmc_set_src_clk(struct sunxi_mmc_host* smc_host)
@@ -67,7 +67,7 @@ static int sunximmc_set_src_clk(struct sunxi_mmc_host* smc_host)
     clk_set_parent(smc_host->mclk, source_clock);
     clk_set_rate(smc_host->mclk, smc_host->mod_clk);
     clk_enable(smc_host->mclk);
-    
+
     #ifdef CONFIG_SUN5I_FPGA
     smc_host->mod_clk = 24000000;
     #else
@@ -90,7 +90,7 @@ static int sunximmc_resource_request(struct sunxi_mmc_host *smc_host)
     char pio_para[16] = {0};
     u32 pio_hdle = 0;
     s32 ret = 0;
-   
+
     sprintf(pio_para, "mmc%d_para", smc_no);
     pio_hdle = gpio_request_ex(pio_para, NULL);
     if (!pio_hdle)
@@ -135,7 +135,7 @@ static int sunximmc_resource_request(struct sunxi_mmc_host *smc_host)
     	goto iounmap;
     }
 
-    sprintf(mclk_name, "sdc%d", smc_no); 
+    sprintf(mclk_name, "sdc%d", smc_no);
     smc_host->mclk = clk_get(&pdev->dev, mclk_name);
     if (IS_ERR(smc_host->mclk))
     {
@@ -187,7 +187,7 @@ static inline void sunximmc_suspend_pins(struct sunxi_mmc_host* smc_host)
     user_gpio_set_t suspend_gpio_set = {"suspend_pins_sdio", 0, 0, 0, 2, 1, 0};     //for sdio
     user_gpio_set_t suspend_gpio_set_card = {"suspend_pins_mmc", 0, 0, 0, 0, 1, 0};    //for mmc card
     u32 i;
-    
+
     SMC_DBG("mmc %d suspend pins\n", smc_host->pdev->id);
     /* backup gpios' current config */
     ret = gpio_get_all_pin_status(smc_host->pio_hdle, smc_host->bak_gpios, 6, 1);
@@ -196,22 +196,22 @@ static inline void sunximmc_suspend_pins(struct sunxi_mmc_host* smc_host)
         SMC_ERR("fail to fetch current gpio cofiguration\n");
         return;
     }
-    
+
 //    {
 //        SMC_MSG("printk backup gpio configuration: \n");
 //        for (i=0; i<6; i++)
 //        {
 //            SMC_MSG("gpio[%d]: name %s, port %c[%d], cfg %d, pull %d, drvl %d, data %d\n",
-//                         i, smc_host->bak_gpios[i].gpio_name, 
-//                            smc_host->bak_gpios[i].port + 'A' - 1, 
-//                            smc_host->bak_gpios[i].port_num, 
+//                         i, smc_host->bak_gpios[i].gpio_name,
+//                            smc_host->bak_gpios[i].port + 'A' - 1,
+//                            smc_host->bak_gpios[i].port_num,
 //                            smc_host->bak_gpios[i].mul_sel,
 //                            smc_host->bak_gpios[i].pull,
 //                            smc_host->bak_gpios[i].drv_level,
 //                            smc_host->bak_gpios[i].data);
 //        }
 //    }
-    
+
     switch(smc_host->pdev->id)
     {
         case 0:
@@ -239,24 +239,24 @@ static inline void sunximmc_suspend_pins(struct sunxi_mmc_host* smc_host)
             }
             break;
     }
-    
+
 //    {
 //        user_gpio_set_t post_cfg[6];
-//        
+//
 //        gpio_get_all_pin_status(smc_host->pio_hdle, post_cfg, 6, 1);
 //        for (i=0; i<6; i++)
 //        {
 //            SMC_MSG("post suspend, gpio[%d]: name %s, port %c[%d], cfg %d, pull %d, drvl %d, data %d\n",
-//                         i, post_cfg[i].gpio_name, 
-//                            post_cfg[i].port + 'A' - 1, 
-//                            post_cfg[i].port_num, 
+//                         i, post_cfg[i].gpio_name,
+//                            post_cfg[i].port + 'A' - 1,
+//                            post_cfg[i].port_num,
 //                            post_cfg[i].mul_sel,
 //                            post_cfg[i].pull,
 //                            post_cfg[i].drv_level,
 //                            post_cfg[i].data);
 //        }
 //    }
-    
+
     smc_host->gpio_suspend_ok = 1;
     return;
 }
@@ -265,7 +265,7 @@ static inline void sunximmc_resume_pins(struct sunxi_mmc_host* smc_host)
 {
     int ret;
     u32 i;
-    
+
     SMC_DBG("mmc %d resume pins\n", smc_host->pdev->id);
     switch(smc_host->pdev->id)
     {
@@ -286,7 +286,7 @@ static inline void sunximmc_resume_pins(struct sunxi_mmc_host* smc_host)
                     }
                 }
             }
-            
+
             break;
     }
 }
@@ -304,7 +304,7 @@ static void sunximmc_finalize_request(struct sunxi_mmc_host *smc_host)
 
     SMC_DBG("request finalize !!\n");
     sdxc_request_done(smc_host);
-    
+
     if (smc_host->error)
     {
         mrq->cmd->error = ETIMEDOUT;
@@ -332,7 +332,7 @@ static void sunximmc_finalize_request(struct sunxi_mmc_host *smc_host)
 static s32 sunximmc_get_ro(struct mmc_host *mmc)
 {
     struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
-    char mmc_para[16] = {0}; 
+    char mmc_para[16] = {0};
     int card_wp = 0;
     int ret;
     u32 gpio_val;
@@ -458,13 +458,13 @@ static void sunximmc_tasklet(unsigned long data)
     struct sunxi_mmc_host *smc_host = (struct sunxi_mmc_host *) data;
 
 	sdxc_int_disable(smc_host);
-	
+
 	if (smc_host->pio_active == XFER_WRITE)
 		sdxc_do_pio_write(smc_host);
 
 	if (smc_host->pio_active == XFER_READ)
 		sdxc_do_pio_read(smc_host);
-		
+
     if (smc_host->wait == SDC_WAIT_FINALIZE)
     {
         sdxc_int_enable(smc_host);
@@ -523,7 +523,7 @@ static void sunximmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
     }
 
     /* set clock */
-    if (smc_host->power_on) 
+    if (smc_host->power_on)
     {
         /* set clock */
         if (ios->clock)
@@ -543,7 +543,7 @@ static void sunximmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
             	SMC_DBG("powered down.\n");
             }
         }
-    
+
         /* set bus width */
         if (smc_host->bus_width != (1<<ios->bus_width))
         {
@@ -569,10 +569,10 @@ static void sunximmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
     smc_host->mrq = mrq;
 
-    if (sunximmc_card_present(mmc) == 0 
+    if (sunximmc_card_present(mmc) == 0
         || smc_host->ferror || !smc_host->power_on)
     {
-    	SMC_DBG("no medium present, ferr %d, pwd %d\n", 
+    	SMC_DBG("no medium present, ferr %d, pwd %d\n",
     	        smc_host->ferror, smc_host->power_on);
     	smc_host->mrq->cmd->error = -ENOMEDIUM;
     	mmc_request_done(mmc, mrq);
@@ -586,11 +586,11 @@ static void sunximmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 void sunximmc_rescan_card(unsigned id, unsigned insert)
 {
     struct sunxi_mmc_host *smc_host = NULL;
-    
+
     BUG_ON(id > 3);
     BUG_ON(sw_host[id] == NULL);
     smc_host = sw_host[id];
-    
+
     smc_host->present = insert ? 1 : 0;
     mmc_detect_change(smc_host->mmc, 0);
     return;
@@ -660,7 +660,7 @@ static int __devinit sunximmc_probe(struct platform_device *pdev)
     mmc->max_req_size	= 4095 * 512;              //32bit byte counter = 2^32 - 1
     mmc->max_seg_size	= mmc->max_req_size;
     mmc->max_segs	    = 256;
-    
+
     if (sunximmc_resource_request(smc_host))
     {
         SMC_ERR("%s: Failed to get resouce.\n", dev_name(&pdev->dev));
@@ -691,7 +691,7 @@ static int __devinit sunximmc_probe(struct platform_device *pdev)
     	goto probe_free_irq;
     }
     disable_irq(smc_host->irq);
-    
+
     /* add host */
     ret = mmc_add_host(mmc);
     if (ret)
@@ -700,7 +700,7 @@ static int __devinit sunximmc_probe(struct platform_device *pdev)
     	goto probe_free_irq;
     }
     platform_set_drvdata(pdev, mmc);
-    
+
     //fetch card detecetd mode
     sprintf(mmc_para, "mmc%d_para", pdev->id);
     ret = script_parser_fetch(mmc_para, "sdc_detmode", &card_detmode, sizeof(int));
@@ -720,7 +720,7 @@ static int __devinit sunximmc_probe(struct platform_device *pdev)
         add_timer(&smc_host->cd_timer);
         smc_host->present = 0;
     }
-    
+
     enable_irq(smc_host->irq);
     if (smc_host->cd_mode == CARD_ALWAYS_PRESENT)
     {
@@ -729,9 +729,9 @@ static int __devinit sunximmc_probe(struct platform_device *pdev)
 
     sw_host[pdev->id] = smc_host;
 
-    SMC_MSG("mmc%d Probe: base:0x%p irq:%u dma:%u pdes:0x%p, ret %d.\n", 
+    SMC_MSG("mmc%d Probe: base:0x%p irq:%u dma:%u pdes:0x%p, ret %d.\n",
             pdev->id, smc_host->smc_base, smc_host->irq, smc_host->dma_no, smc_host->pdes, ret);
-    
+
     goto probe_out;
 
 probe_free_irq:
@@ -767,7 +767,7 @@ static int __devexit sunximmc_remove(struct platform_device *pdev)
     struct sunxi_mmc_host	*smc_host = mmc_priv(mmc);
 
     SMC_MSG("%s: Remove.\n", dev_name(&pdev->dev));
-	
+
 	sdxc_exit(smc_host);
 
 	sunximmc_shutdown(pdev);
@@ -784,7 +784,7 @@ static int __devexit sunximmc_remove(struct platform_device *pdev)
     }
 
     sunximmc_resource_release(smc_host);
-    
+
     mmc_free_host(mmc);
     sw_host[pdev->id] = NULL;
 
@@ -804,21 +804,21 @@ static int sunximmc_suspend(struct device *dev)
 
         if (mmc->card && (mmc->card->type!=MMC_TYPE_SDIO || mmc_pm_io_shd_suspend_host()))
             ret = mmc_suspend_host(mmc);
-        
+
         if (smc_host->power_on) {
             /* disable irq */
             disable_irq(smc_host->irq);
-    
+
             /* backup registers */
             sdxc_regs_save(smc_host);
-    
+
         	/* disable mmc mclk */
         	clk_disable(smc_host->mclk);
-    
+
         	/* disable mmc hclk */
             if (mmc->card && mmc->card->type!=MMC_TYPE_SDIO)
         	    clk_disable(smc_host->hclk);
-            
+
             /* suspend pins to save power */
             sunximmc_suspend_pins(smc_host);
         }
@@ -837,27 +837,27 @@ static int sunximmc_resume(struct device *dev)
     if (mmc)
     {
         struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
-        
+
         if (smc_host->power_on) {
             /* resume pins to correct status */
             sunximmc_resume_pins(smc_host);
-            
+
         	/* enable mmc hclk */
             if (mmc->card && mmc->card->type!=MMC_TYPE_SDIO)
         	    clk_enable(smc_host->hclk);
-    
+
         	/* enable mmc mclk */
         	clk_enable(smc_host->mclk);
-    
+
             /* restore registers */
             if (mmc->card && mmc->card->type!=MMC_TYPE_SDIO)
                 sdxc_regs_restore(smc_host);
             sdxc_program_clk(smc_host);
-            
+
             /* enable irq */
             enable_irq(smc_host->irq);
         }
-    
+
         if (mmc->card && (mmc->card->type!=MMC_TYPE_SDIO || mmc_pm_io_shd_suspend_host()))
             ret = mmc_resume_host(mmc);
     }
@@ -934,30 +934,30 @@ static int __init sunximmc_init(void)
     int i;
     char mmc_para[16] = {0};
     int used = 0;
-    
+
     SMC_MSG("sunximmc_init\n");
     for (i=0; i<SUNXI_MMC_HOST_NUM; i++)
     {
         memset(mmc_para, 0, sizeof(mmc_para));
         sprintf(mmc_para, "mmc%d_para", i);
         used = 0;
-        
+
         ret = script_parser_fetch(mmc_para,"sdc_used", &used, sizeof(int));
         if (ret)
         {
         	printk("sunximmc_init fetch mmc%d using configuration failed\n", i);
         }
-        
+
         if (used)
         {
             sdc_used |= 1 << i;
             platform_device_register(&awmmc_device[i]);
         }
-        
+
     }
-    
+
     SMC_MSG("sunxi mmc controller using config : 0x%x\n", sdc_used);
-    
+
     if (sdc_used)
     {
         return platform_driver_register(&sunximmc_driver);
