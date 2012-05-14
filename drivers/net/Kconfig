@@ -66,10 +66,7 @@ config DUMMY
 	  <http://www.tldp.org/docs.html#guide>.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called dummy.  If you want to use more than one dummy
-	  device at a time, you need to compile this driver as a module.
-	  Instead of 'dummy', the devices will then be called 'dummy0',
-	  'dummy1' etc.
+	  will be called dummy.
 
 config EQUALIZER
 	tristate "EQL (serial line load balancing) support"
