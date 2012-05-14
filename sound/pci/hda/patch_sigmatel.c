@@ -4232,13 +4232,6 @@ static void stac_store_hints(struct hda_codec *codec)
 	val = snd_hda_get_bool_hint(codec, "eapd_switch");
 	if (val >= 0)
 		spec->eapd_switch = val;
-	get_int_hint(codec, "gpio_led_polarity", &spec->gpio_led_polarity);
-	if (get_int_hint(codec, "gpio_led", &spec->gpio_led)) {
-		spec->gpio_mask |= spec->gpio_led;
-		spec->gpio_dir |= spec->gpio_led;
-		if (spec->gpio_led_polarity)
-			spec->gpio_data |= spec->gpio_led;
-	}
 }
 
 static void stac_issue_unsol_events(struct hda_codec *codec, int num_pins,
@@ -4843,6 +4836,11 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 	struct sigmatel_spec *spec = codec->spec;
 	const struct dmi_device *dev = NULL;
 
+	if (get_int_hint(codec, "gpio_led", &spec->gpio_led)) {
+		get_int_hint(codec, "gpio_led_polarity",
+			     &spec->gpio_led_polarity);
+		return 1;
+	}
 	if ((codec->subsystem_id >> 16) == PCI_VENDOR_ID_HP) {
 		while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING,
 								NULL, dev))) {
