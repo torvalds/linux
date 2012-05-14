@@ -1,0 +1,34 @@
+#
+# ST Microelectronics SPEAr PINCTRL drivers
+#
+
+if PLAT_SPEAR
+
+config PINCTRL_SPEAR
+	bool
+	depends on OF
+	select PINMUX
+	help
+	  This enables pin control drivers for SPEAr Platform
+
+config PINCTRL_SPEAR3XX
+	bool
+	depends on ARCH_SPEAR3XX
+	select PINCTRL_SPEAR
+
+config PINCTRL_SPEAR300
+	bool "ST Microelectronics SPEAr300 SoC pin controller driver"
+	depends on MACH_SPEAR300
+	select PINCTRL_SPEAR3XX
+
+config PINCTRL_SPEAR310
+	bool "ST Microelectronics SPEAr310 SoC pin controller driver"
+	depends on MACH_SPEAR310
+	select PINCTRL_SPEAR3XX
+
+config PINCTRL_SPEAR320
+	bool "ST Microelectronics SPEAr320 SoC pin controller driver"
+	depends on MACH_SPEAR320
+	select PINCTRL_SPEAR3XX
+
+endif

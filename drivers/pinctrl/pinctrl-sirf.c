@@ -853,18 +853,14 @@ static const struct sirfsoc_pin_group sirfsoc_pin_groups[] = {
 	SIRFSOC_PIN_GROUP("gpsgrp", gps_pins),
 };
 
-static int sirfsoc_list_groups(struct pinctrl_dev *pctldev, unsigned selector)
+static int sirfsoc_get_groups_count(struct pinctrl_dev *pctldev)
 {
-	if (selector >= ARRAY_SIZE(sirfsoc_pin_groups))
-		return -EINVAL;
-	return 0;
+	return ARRAY_SIZE(sirfsoc_pin_groups);
 }
 
 static const char *sirfsoc_get_group_name(struct pinctrl_dev *pctldev,
 				       unsigned selector)
 {
-	if (selector >= ARRAY_SIZE(sirfsoc_pin_groups))
-		return NULL;
 	return sirfsoc_pin_groups[selector].name;
 }
 
@@ -872,8 +868,6 @@ static int sirfsoc_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector
 			       const unsigned **pins,
 			       unsigned *num_pins)
 {
-	if (selector >= ARRAY_SIZE(sirfsoc_pin_groups))
-		return -EINVAL;
 	*pins = sirfsoc_pin_groups[selector].pins;
 	*num_pins = sirfsoc_pin_groups[selector].num_pins;
 	return 0;
@@ -886,7 +880,7 @@ static void sirfsoc_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s
 }
 
 static struct pinctrl_ops sirfsoc_pctrl_ops = {
-	.list_groups = sirfsoc_list_groups,
+	.get_groups_count = sirfsoc_get_groups_count,
 	.get_group_name = sirfsoc_get_group_name,
 	.get_group_pins = sirfsoc_get_group_pins,
 	.pin_dbg_show = sirfsoc_pin_dbg_show,
@@ -1033,11 +1027,9 @@ static void sirfsoc_pinmux_disable(struct pinctrl_dev *pmxdev, unsigned selector
 	sirfsoc_pinmux_endisable(spmx, selector, false);
 }
 
-static int sirfsoc_pinmux_list_funcs(struct pinctrl_dev *pmxdev, unsigned selector)
+static int sirfsoc_pinmux_get_funcs_count(struct pinctrl_dev *pmxdev)
 {
-	if (selector >= ARRAY_SIZE(sirfsoc_pmx_functions))
-		return -EINVAL;
-	return 0;
+	return ARRAY_SIZE(sirfsoc_pmx_functions);
 }
 
 static const char *sirfsoc_pinmux_get_func_name(struct pinctrl_dev *pctldev,
@@ -1074,9 +1066,9 @@ static int sirfsoc_pinmux_request_gpio(struct pinctrl_dev *pmxdev,
 }
 
 static struct pinmux_ops sirfsoc_pinmux_ops = {
-	.list_functions = sirfsoc_pinmux_list_funcs,
 	.enable = sirfsoc_pinmux_enable,
 	.disable = sirfsoc_pinmux_disable,
+	.get_functions_count = sirfsoc_pinmux_get_funcs_count,
 	.get_function_name = sirfsoc_pinmux_get_func_name,
 	.get_function_groups = sirfsoc_pinmux_get_groups,
 	.gpio_request_enable = sirfsoc_pinmux_request_gpio,
