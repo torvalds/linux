@@ -2040,8 +2040,7 @@ static void collect_usb_address_map(struct usb_device *udev, unsigned long *map)
 		map[udev->devnum/32] |= (1 << (udev->devnum % 32));
 
 	for (chix = 0; chix < udev->maxchild; chix++) {
-		struct usb_device *childdev =
-			usb_get_hub_child_device(udev, chix + 1);
+		struct usb_device *childdev = udev->children[chix];
 
 		if (childdev)
 			collect_usb_address_map(childdev, map);

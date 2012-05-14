@@ -590,8 +590,7 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 
 	/* Now look at all of this device's children. */
 	for (chix = 0; chix < usbdev->maxchild; chix++) {
-		struct usb_device *childdev =
-			usb_get_hub_child_device(usbdev, chix + 1);
+		struct usb_device *childdev = usbdev->children[chix];
 
 		if (childdev) {
 			usb_lock_device(childdev);
