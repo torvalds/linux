@@ -2047,7 +2047,7 @@ int regulator_map_voltage_linear(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	ret = (min_uV - rdev->desc->min_uV) / rdev->desc->uV_step;
+	ret = DIV_ROUND_UP(min_uV - rdev->desc->min_uV, rdev->desc->uV_step);
 	if (ret < 0)
 		return ret;
 
