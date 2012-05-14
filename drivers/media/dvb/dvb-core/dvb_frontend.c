@@ -1049,9 +1049,6 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_B, 0, 0),
 	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_C, 0, 0),
 	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_D, 0, 0),
-	_DTV_CMD(DTV_ATSCMH_FIC_ERR, 0, 0),
-	_DTV_CMD(DTV_ATSCMH_CRC_ERR, 0, 0),
-	_DTV_CMD(DTV_ATSCMH_RS_ERR, 0, 0),
 };
 
 static void dtv_property_dump(struct dtv_property *tvp)
@@ -1437,15 +1434,6 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 		break;
 	case DTV_ATSCMH_SCCC_CODE_MODE_D:
 		tvp->u.data = fe->dtv_property_cache.atscmh_sccc_code_mode_d;
-		break;
-	case DTV_ATSCMH_FIC_ERR:
-		tvp->u.data = fe->dtv_property_cache.atscmh_fic_err;
-		break;
-	case DTV_ATSCMH_CRC_ERR:
-		tvp->u.data = fe->dtv_property_cache.atscmh_crc_err;
-		break;
-	case DTV_ATSCMH_RS_ERR:
-		tvp->u.data = fe->dtv_property_cache.atscmh_rs_err;
 		break;
 
 	default:

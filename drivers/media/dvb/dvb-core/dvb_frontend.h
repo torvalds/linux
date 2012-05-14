@@ -390,10 +390,6 @@ struct dtv_frontend_properties {
 	u8			atscmh_sccc_code_mode_b;
 	u8			atscmh_sccc_code_mode_c;
 	u8			atscmh_sccc_code_mode_d;
-
-	u16			atscmh_fic_err;
-	u16			atscmh_crc_err;
-	u16			atscmh_rs_err;
 };
 
 struct dvb_frontend {

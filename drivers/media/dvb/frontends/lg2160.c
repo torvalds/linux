@@ -804,6 +804,7 @@ fail:
 
 /* ------------------------------------------------------------------------ */
 
+#if 0
 static int lg216x_read_fic_err_count(struct lg216x_state *state, u8 *err)
 {
 	u8 fic_err;
@@ -936,6 +937,7 @@ static int lg216x_read_rs_err_count(struct lg216x_state *state, u16 *err)
 	}
 	return ret;
 }
+#endif
 
 /* ------------------------------------------------------------------------ */
 
@@ -1016,6 +1018,7 @@ static int lg216x_get_frontend(struct dvb_frontend *fe)
 		if (lg_fail(ret))
 			goto fail;
 	}
+#if 0
 	ret = lg216x_read_fic_err_count(state,
 				(u8 *)&fe->dtv_property_cache.atscmh_fic_err);
 	if (lg_fail(ret))
@@ -1042,6 +1045,7 @@ static int lg216x_get_frontend(struct dvb_frontend *fe)
 		break;
 	}
 	lg_fail(ret);
+#endif
 fail:
 	return ret;
 }
@@ -1319,13 +1323,16 @@ static int lg216x_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct lg216x_state *state = fe->demodulator_priv;
 	int ret;
-
+#if 0
 	ret = lg216x_read_rs_err_count(state,
 				       &fe->dtv_property_cache.atscmh_rs_err);
 	if (lg_fail(ret))
 		goto fail;
 
 	*ucblocks = fe->dtv_property_cache.atscmh_rs_err;
+#else
+	*ucblocks = 0;
+#endif
 fail:
 	return 0;
 }

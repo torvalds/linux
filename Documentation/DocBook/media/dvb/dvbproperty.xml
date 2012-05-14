@@ -664,21 +664,6 @@ typedef enum atscmh_sccc_code_mode {
 } atscmh_sccc_code_mode_t;
 </programlisting>
 		</section>
-		<section id="DTV-ATSCMH-FIC-ERR">
-			<title><constant>DTV_ATSCMH_FIC_ERR</constant></title>
-			<para>FIC error count.</para>
-			<para>Possible values: 0, 1, 2, 3, ..., 0xffff</para>
-		</section>
-		<section id="DTV-ATSCMH-CRC-ERR">
-			<title><constant>DTV_ATSCMH_CRC_ERR</constant></title>
-			<para>CRC error count.</para>
-			<para>Possible values: 0, 1, 2, 3, ..., 0xffff</para>
-		</section>
-		<section id="DTV-ATSCMH-RS-ERR">
-			<title><constant>DTV_ATSCMH_RS_ERR</constant></title>
-			<para>RS error count.</para>
-			<para>Possible values: 0, 1, 2, 3, ..., 0xffff</para>
-		</section>
 	</section>
 	<section id="DTV-API-VERSION">
 	<title><constant>DTV_API_VERSION</constant></title>
@@ -947,9 +932,6 @@ typedef enum fe_hierarchy {
 				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE_MODE-B"><constant>DTV_ATSCMH_SCCC_CODE_MODE_B</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE_MODE-C"><constant>DTV_ATSCMH_SCCC_CODE_MODE_C</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE_MODE-D"><constant>DTV_ATSCMH_SCCC_CODE_MODE_D</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-FIC-ERR"><constant>DTV_ATSCMH_FIC_ERR</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-CRC-ERR"><constant>DTV_ATSCMH_CRC_ERR</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-RS-ERR"><constant>DTV_ATSCMH_RS_ERR</constant></link></para></listitem>
 			</itemizedlist>
 		</section>
 	</section>

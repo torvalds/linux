@@ -336,11 +336,8 @@ struct dvb_frontend_event {
 #define DTV_ATSCMH_SCCC_CODE_MODE_B	57
 #define DTV_ATSCMH_SCCC_CODE_MODE_C	58
 #define DTV_ATSCMH_SCCC_CODE_MODE_D	59
-#define DTV_ATSCMH_FIC_ERR		60
-#define DTV_ATSCMH_CRC_ERR		61
-#define DTV_ATSCMH_RS_ERR		62
 
-#define DTV_MAX_COMMAND				DTV_ATSCMH_RS_ERR
+#define DTV_MAX_COMMAND				DTV_ATSCMH_SCCC_CODE_MODE_D
 
 typedef enum fe_pilot {
 	PILOT_ON,
