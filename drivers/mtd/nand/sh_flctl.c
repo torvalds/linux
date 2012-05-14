@@ -44,11 +44,17 @@ static struct nand_ecclayout flctl_4secc_oob_16 = {
 };
 
 static struct nand_ecclayout flctl_4secc_oob_64 = {
-	.eccbytes = 10,
-	.eccpos = {48, 49, 50, 51, 52, 53, 54, 55, 56, 57},
+	.eccbytes = 4 * 10,
+	.eccpos = {
+		 6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+		22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+		38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+		54, 55, 56, 57, 58, 59, 60, 61, 62, 63 },
 	.oobfree = {
-		{.offset = 60,
-		. length = 4} },
+		{.offset =  2, .length = 4},
+		{.offset = 16, .length = 6},
+		{.offset = 32, .length = 6},
+		{.offset = 48, .length = 6} },
 };
 
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
@@ -62,7 +68,7 @@ static struct nand_bbt_descr flctl_4secc_smallpage = {
 
 static struct nand_bbt_descr flctl_4secc_largepage = {
 	.options = NAND_BBT_SCAN2NDPAGE,
-	.offs = 58,
+	.offs = 0,
 	.len = 2,
 	.pattern = scan_ff_pattern,
 };
@@ -832,7 +838,7 @@ static int flctl_chip_init_tail(struct mtd_info *mtd)
 		chip->ecc.mode = NAND_ECC_HW;
 
 		/* 4 symbols ECC enabled */
-		flctl->flcmncr_base |= _4ECCEN | ECCPOS2 | ECCPOS_02;
+		flctl->flcmncr_base |= _4ECCEN;
 	} else {
 		chip->ecc.mode = NAND_ECC_SOFT;
 	}
