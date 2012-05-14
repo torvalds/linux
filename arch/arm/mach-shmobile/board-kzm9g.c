@@ -443,7 +443,12 @@ static void __init kzm_init(void)
 	platform_add_devices(kzm_devices, ARRAY_SIZE(kzm_devices));
 }
 
-MACHINE_START(KZM9G, "kzm9g")
+static const char *kzm9g_boards_compat_dt[] __initdata = {
+	"renesas,kzm9g",
+	NULL,
+};
+
+DT_MACHINE_START(KZM9G_DT, "kzm9g")
 	.map_io		= sh73a0_map_io,
 	.init_early	= sh73a0_add_early_devices,
 	.nr_irqs	= NR_IRQS_LEGACY,
@@ -451,4 +456,5 @@ MACHINE_START(KZM9G, "kzm9g")
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= kzm_init,
 	.timer		= &shmobile_timer,
+	.dt_compat	= kzm9g_boards_compat_dt,
 MACHINE_END
