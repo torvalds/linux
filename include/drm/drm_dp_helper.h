@@ -72,6 +72,10 @@
 
 #define DP_MAIN_LINK_CHANNEL_CODING         0x006
 
+#define DP_DOWN_STREAM_PORT_COUNT	    0x007
+#define  DP_PORT_COUNT_MASK		    0x0f
+#define  DP_OUI_SUPPORT			    (1 << 7)
+
 #define DP_EDP_CONFIGURATION_CAP            0x00d
 #define DP_TRAINING_AUX_RD_INTERVAL         0x00e
 
