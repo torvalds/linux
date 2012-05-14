@@ -246,28 +246,37 @@ int fimc_capture_resume(struct fimc_dev *fimc)
 
 }
 
-static unsigned int get_plane_size(struct fimc_frame *fr, unsigned int plane)
-{
-	if (!fr || plane >= fr->fmt->memplanes)
-		return 0;
-	return fr->f_width * fr->f_height * fr->fmt->depth[plane] / 8;
-}
-
-static int queue_setup(struct vb2_queue *vq,  const struct v4l2_format *pfmt,
+static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
 		       unsigned int *num_buffers, unsigned int *num_planes,
 		       unsigned int sizes[], void *allocators[])
 {
+	const struct v4l2_pix_format_mplane *pixm = NULL;
 	struct fimc_ctx *ctx = vq->drv_priv;
-	struct fimc_fmt *fmt = ctx->d_frame.fmt;
+	struct fimc_frame *frame = &ctx->d_frame;
+	struct fimc_fmt *fmt = frame->fmt;
+	unsigned long wh;
 	int i;
 
-	if (!fmt)
+	if (pfmt) {
+		pixm = &pfmt->fmt.pix_mp;
+		fmt = fimc_find_format(&pixm->pixelformat, NULL,
+				       FMT_FLAGS_CAM | FMT_FLAGS_M2M, -1);
+		wh = pixm->width * pixm->height;
+	} else {
+		wh = frame->f_width * frame->f_height;
+	}
+
+	if (fmt == NULL)
 		return -EINVAL;
 
 	*num_planes = fmt->memplanes;
 
 	for (i = 0; i < fmt->memplanes; i++) {
-		sizes[i] = get_plane_size(&ctx->d_frame, i);
+		unsigned int size = (wh * fmt->depth[i]) / 8;
+		if (pixm)
+			sizes[i] = max(size, pixm->plane_fmt[i].sizeimage);
+		else
+			sizes[i] = size;
 		allocators[i] = ctx->fimc_dev->alloc_ctx;
 	}
 
@@ -1383,7 +1392,7 @@ static int fimc_subdev_set_crop(struct v4l2_subdev *sd,
 	fimc_capture_try_crop(ctx, r, crop->pad);
 
 	if (crop->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mutex_lock(&fimc->lock);
+		mutex_unlock(&fimc->lock);
 		*v4l2_subdev_get_try_crop(fh, crop->pad) = *r;
 		return 0;
 	}

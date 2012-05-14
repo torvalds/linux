@@ -530,7 +530,10 @@ static int soc_camera_open(struct file *file)
 		if (icl->reset)
 			icl->reset(icd->pdev);
 
+		/* Don't mess with the host during probe */
+		mutex_lock(&ici->host_lock);
 		ret = ici->ops->add(icd);
+		mutex_unlock(&ici->host_lock);
 		if (ret < 0) {
 			dev_err(icd->pdev, "Couldn't activate the camera: %d\n", ret);
 			goto eiciadd;
@@ -956,7 +959,7 @@ static void scan_add_host(struct soc_camera_host *ici)
 {
 	struct soc_camera_device *icd;
 
-	mutex_lock(&list_lock);
+	mutex_lock(&ici->host_lock);
 
 	list_for_each_entry(icd, &devices, list) {
 		if (icd->iface == ici->nr) {
@@ -967,7 +970,7 @@ static void scan_add_host(struct soc_camera_host *ici)
 		}
 	}
 
-	mutex_unlock(&list_lock);
+	mutex_unlock(&ici->host_lock);
 }
 
 #ifdef CONFIG_I2C_BOARDINFO
@@ -1313,6 +1316,7 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	list_add_tail(&ici->list, &hosts);
 	mutex_unlock(&list_lock);
 
+	mutex_init(&ici->host_lock);
 	scan_add_host(ici);
 
 	return 0;
