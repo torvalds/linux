@@ -136,7 +136,6 @@ static inline void
 claw_set_busy(struct net_device *dev)
 {
  ((struct claw_privbk *)dev->ml_priv)->tbusy = 1;
- eieio();
 }
 
 static inline void
@@ -144,13 +143,11 @@ claw_clear_busy(struct net_device *dev)
 {
 	clear_bit(0, &(((struct claw_privbk *) dev->ml_priv)->tbusy));
 	netif_wake_queue(dev);
-	eieio();
 }
 
 static inline int
 claw_check_busy(struct net_device *dev)
 {
-	eieio();
 	return ((struct claw_privbk *) dev->ml_priv)->tbusy;
 }
 
