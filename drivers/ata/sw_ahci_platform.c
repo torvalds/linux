@@ -33,8 +33,8 @@
 #include "ahci.h"
 
 #include <linux/clk.h>
-#include <mach/gpio_v2.h>
-#include <mach/script_v2.h>
+#include <mach/sys_config.h>
+#include <mach/platform.h>
 #include "sw_ahci_platform.h"
 
 static struct scsi_host_template ahci_platform_sht = {
