@@ -14358,7 +14358,7 @@ void wlc_phy_nphy_tkip_rifs_war(struct brcms_phy *pi, u8 rifs)
 
 	wlc_phy_write_txmacreg_nphy(pi, holdoff, delay);
 
-	if (pi && pi->sh && (pi->sh->_rifs_phy != rifs))
+	if (pi->sh && (pi->sh->_rifs_phy != rifs))
 		pi->sh->_rifs_phy = rifs;
 }
 
