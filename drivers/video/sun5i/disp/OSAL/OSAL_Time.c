@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: Time²Ù×÷
+* Description 	: Timeæ“ä½œ
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -25,16 +25,16 @@
 *                     OSAL_CreateTimer
 *
 * Description:
-*    ³õÊ¼»¯Ò»¸ötimer
+*    åˆå§‹åŒ–ä¸€ä¸ªtimer
 *
 * Parameters:
-*    Period     :  input. ÖÜÆÚÊ±¼ä
-*    EventType  :  input. ÊÂ¼ş´¥·¢µÄÀàĞÍ£¬Ò»´Î»¹ÊÇ¶à´Î¡£
-*    CallBack   :  input. »Øµ÷º¯Êı
-*    pArg       :  input. »Øµ÷º¯ÊıµÄ²ÎÊı
-* 
+*    Period     :  input. å‘¨æœŸæ—¶é—´
+*    EventType  :  input. äº‹ä»¶è§¦å‘çš„ç±»å‹ï¼Œä¸€æ¬¡è¿˜æ˜¯å¤šæ¬¡ã€‚
+*    CallBack   :  input. å›è°ƒå‡½æ•°
+*    pArg       :  input. å›è°ƒå‡½æ•°çš„å‚æ•°
+*
 * Return value:
-*    ·µ»Øtimer¾ä±ú
+*    è¿”å›timerå¥æŸ„
 *
 * note:
 *    void
@@ -51,13 +51,13 @@ __hdle OSAL_CreateTimer(__u32 Period, __u32 EventType, TIMECALLBACK CallBack, vo
 *                     OSAL_DelTimer
 *
 * Description:
-*    É¾³ıtimer
+*    åˆ é™¤timer
 *
 * Parameters:
-*    HTimer  :  input. OSAL_InitTimerÉêÇëtimer¾ä±ú
-* 
+*    HTimer  :  input. OSAL_InitTimerç”³è¯·timerå¥æŸ„
+*
 * Return value:
-*    ·µ»Ø³É¹¦»òÕßÊ§°Ü
+*    è¿”å›æˆåŠŸæˆ–è€…å¤±è´¥
 *
 * note:
 *    void
@@ -74,13 +74,13 @@ __s32 OSAL_DelTimer(__hdle HTimer)
 *                     OSAL_StartTimer
 *
 * Description:
-*    ¿ªÊ¼timer¼ÆÊ±
+*    å¼€å§‹timerè®¡æ—¶
 *
 * Parameters:
-*    HTimer  :  input. OSAL_InitTimerÉêÇëtimer¾ä±ú
-* 
+*    HTimer  :  input. OSAL_InitTimerç”³è¯·timerå¥æŸ„
+*
 * Return value:
-*    ·µ»Ø³É¹¦»òÕßÊ§°Ü
+*    è¿”å›æˆåŠŸæˆ–è€…å¤±è´¥
 *
 * note:
 *    void
@@ -92,7 +92,7 @@ __s32 OSAL_StartTimer(__hdle HTimer)
 	return 0;
 }
 
-/* Ë¯Ãß *//* µ¥Î»£ººÁÃë */
+/* ç¡çœ  *//* å•ä½ï¼šæ¯«ç§’ */
 void OSAL_Sleep(__u32 Milliseconds)
 {
 

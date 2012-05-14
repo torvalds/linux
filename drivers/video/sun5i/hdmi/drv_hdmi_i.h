@@ -13,8 +13,8 @@
 #include <linux/fs.h>
 #include <linux/dma-mapping.h>
 #include <linux/sched.h>   //wake_up_process()
-#include <linux/kthread.h> //kthread_create()°¢kthread_run()
-#include <linux/err.h> //IS_ERR()°¢PTR_ERR()
+#include <linux/kthread.h> //kthread_create()„ÄÅkthread_run()
+#include <linux/err.h> //IS_ERR()„ÄÅPTR_ERR()
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/errno.h>

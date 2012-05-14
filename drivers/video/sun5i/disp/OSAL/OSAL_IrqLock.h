@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: ÁÙ½çÇø²Ù×÷
+* Description 	: ä¸´ç•ŒåŒºæ“ä½œ
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>

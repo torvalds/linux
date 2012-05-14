@@ -10,12 +10,12 @@
 *
 * Author 		: javen
 *
-* Description 	: Dma²Ù×÷
+* Description 	: Dmaæ“ä½œ
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
 *       javen     	   	2010-09-07          1.0         create this word
-*		holi			2010-12-04			1.1			µ÷ÕûµÄ²ÎÊı²¿·Ö£¬ÍêÈ«×ßCSP_paraÕâÌõÂ·
+*		holi			2010-12-04			1.1			è°ƒæ•´çš„å‚æ•°éƒ¨åˆ†ï¼Œå®Œå…¨èµ°CSP_paraè¿™æ¡è·¯
 *************************************************************************************
 */
 
@@ -29,14 +29,14 @@
 *                     OSAL_DmaRequest
 *
 * Description:
-*    ÉêÇëDMAÍ¨µÀ¡£
+*    ç”³è¯·DMAé€šé“ã€‚
 *
 * Parameters:
-*	 user_name 	:	Ä£¿éÃû£¬·½±ãÍ³¼Æ
-*    DmaType  	:  	input. DMAÀàĞÍ¡£Normal or Dedicated
-* 
+*	 user_name 	:	æ¨¡å—åï¼Œæ–¹ä¾¿ç»Ÿè®¡
+*    DmaType  	:  	input. DMAç±»å‹ã€‚Normal or Dedicated
+*
 * Return value:
-*    ³É¹¦·µ»ØDMA¾ä±ú£¬Ê§°Ü·µ»ØNULL¡£
+*    æˆåŠŸè¿”å›DMAå¥æŸ„ï¼Œå¤±è´¥è¿”å›NULLã€‚
 *
 * note:
 *    void
@@ -53,13 +53,13 @@ __hdle OSAL_DmaRequest(u8 * user_name ,__u32 DmaType)
 *                     OSAL_DmaRelease
 *
 * Description:
-*    ÉêÇëDMAÍ¨µÀ¡£
+*    ç”³è¯·DMAé€šé“ã€‚
 *
 * Parameters:
-*    hDMA £º input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-* 
+*    hDMA ï¼š input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*
 * Return value:
-*    ³É¹¦·µ»ØEBSP_OK£¬Ê§°Ü·µ»ØEBSP_FAIL¡£
+*    æˆåŠŸè¿”å›EBSP_OKï¼Œå¤±è´¥è¿”å›EBSP_FAILã€‚
 *
 * note:
 *    void
@@ -77,12 +77,12 @@ __s32 OSAL_DmaRelease(__hdle hDMA)
 *                     OSAL_DmaEnableINT
 *
 * Description:
-*    Ê¹ÄÜDMAÖĞ¶Ï
+*    ä½¿èƒ½DMAä¸­æ–­
 *
 * Parameters:
-*    hDMA 	    :  input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-*    IrqType    :  input. ´«ÊäÀàĞÍ¡£end_irq or half_irq¡£
-* 
+*    hDMA 	    :  input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*    IrqType    :  input. ä¼ è¾“ç±»å‹ã€‚end_irq or half_irqã€‚
+*
 * Return value:
 *    void
 *
@@ -101,12 +101,12 @@ __s32 OSAL_DmaEnableINT(__hdle hDMA, __s32 IrqType)
 *                     OSAL_DmaDisableINT
 *
 * Description:
-*    ½ûÖ¹DMAÖĞ¶Ï
+*    ç¦æ­¢DMAä¸­æ–­
 *
 * Parameters:
-*    hDMA 	    :  input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-*    IrqType    :  input. ´«ÊäÀàĞÍ¡£end_irq or half_irq¡£
-* 
+*    hDMA 	    :  input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*    IrqType    :  input. ä¼ è¾“ç±»å‹ã€‚end_irq or half_irqã€‚
+*
 * Return value:
 *    void
 *
@@ -125,19 +125,19 @@ __s32 OSAL_DmaDisableINT(__hdle hDMA, __s32 IrqType)
 *                     eBsp_DmaRegIrq
 *
 * Description:
-*    ×¢²áÖĞ¶Ï´¦Àíº¯Êı¡£
+*    æ³¨å†Œä¸­æ–­å¤„ç†å‡½æ•°ã€‚
 *
 * Parameters:
-*    hDMA 	    :  input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-*    IrqType    :  input. ÖĞ¶ÏÀàĞÍ¡£end_irq or half_irq¡£
-*    pCallBack  :  input. ÖĞ¶Ï»Øµ÷º¯Êı¡£
-*    pArg		:  input. ÖĞ¶Ï»Øµ÷º¯ÊıµÄ²ÎÊı¡£
-* 
+*    hDMA 	    :  input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*    IrqType    :  input. ä¸­æ–­ç±»å‹ã€‚end_irq or half_irqã€‚
+*    pCallBack  :  input. ä¸­æ–­å›è°ƒå‡½æ•°ã€‚
+*    pArg		:  input. ä¸­æ–­å›è°ƒå‡½æ•°çš„å‚æ•°ã€‚
+*
 * Return value:
-*    ³É¹¦·µ»ØDMA¾ä±ú£¬Ê§°Ü·µ»ØNULL¡£
+*    æˆåŠŸè¿”å›DMAå¥æŸ„ï¼Œå¤±è´¥è¿”å›NULLã€‚
 *
 * note:
-*    »Øµ÷º¯ÊıµÄÔ­ĞÍ£ºtypedef void (*DmaCallback)(void *pArg);
+*    å›è°ƒå‡½æ•°çš„åŸå‹ï¼štypedef void (*DmaCallback)(void *pArg);
 *
 *******************************************************************************
 */
@@ -151,15 +151,15 @@ __s32 OSAL_DmaRegIrq(__hdle hDMA, __u32 IrqType, DmaCallback pCallBack, void *pA
 *                     FunctionName
 *
 * Description:
-*    ×¢ÏúÖĞ¶Ï´¦Àíº¯Êı¡£
+*    æ³¨é”€ä¸­æ–­å¤„ç†å‡½æ•°ã€‚
 *
 * Parameters:
-*    hDMA 	    :  input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-*    IrqType    :  input. ´«ÊäÀàĞÍ¡£end_irq or half_irq¡£
-*    pCallBack  :  input. ÖĞ¶Ï»Øµ÷º¯Êı¡£
-* 
+*    hDMA 	    :  input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*    IrqType    :  input. ä¼ è¾“ç±»å‹ã€‚end_irq or half_irqã€‚
+*    pCallBack  :  input. ä¸­æ–­å›è°ƒå‡½æ•°ã€‚
+*
 * Return value:
-*    ³É¹¦·µ»ØDMA¾ä±ú£¬Ê§°Ü·µ»ØNULL¡£
+*    æˆåŠŸè¿”å›DMAå¥æŸ„ï¼Œå¤±è´¥è¿”å›NULLã€‚
 *
 * note:
 *    void
@@ -176,14 +176,14 @@ __s32 OSAL_DmaUnRegIrq(__hdle hDMA, __u32 IrqType, DmaCallback pCallBack)
 *                     OSAL_DmaConfig
 *
 * Description:
-*    ÅäÖÃDMA Í¨µÀ£¬³£ÓÃÅäÖÃ¡£
+*    é…ç½®DMA é€šé“ï¼Œå¸¸ç”¨é…ç½®ã€‚
 *
 * Parameters:
-*    hDMA 	     :  input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-*    p_cfg       :  input.  DMAÅäÖÃ¡£,Êµ¼ÊÊı¾İ½á¹¹Çë²ÎÊıstruct CSP_dma_config{}
-* 
+*    hDMA 	     :  input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*    p_cfg       :  input.  DMAé…ç½®ã€‚,å®é™…æ•°æ®ç»“æ„è¯·å‚æ•°struct CSP_dma_config{}
+*
 * Return value:
-*    ³É¹¦·µ»ØEBSP_OK£¬Ê§°Ü·µ»ØEBSP_FAIL¡£
+*    æˆåŠŸè¿”å›EBSP_OKï¼Œå¤±è´¥è¿”å›EBSP_FAILã€‚
 *
 * note:
 *    void
@@ -200,16 +200,16 @@ __s32 OSAL_DmaConfig(__hdle hDMA, void * p_cfg)
 *                     OSAL_DmaStart
 *
 * Description:
-*    ¿ªÊ¼ DMA ´«Êä¡£
+*    å¼€å§‹ DMA ä¼ è¾“ã€‚
 *
 * Parameters:
-*    hDMA 	 		 :  input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-*    SrcAddr		 :  input. Ô´µØÖ·
-*    DestAddr		 :  input. Ä¿±êµØÖ·
-*    TransferLength  :  input. ´«Êä³¤¶È
-* 
+*    hDMA 	 		 :  input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*    SrcAddr		 :  input. æºåœ°å€
+*    DestAddr		 :  input. ç›®æ ‡åœ°å€
+*    TransferLength  :  input. ä¼ è¾“é•¿åº¦
+*
 * Return value:
-*    ³É¹¦·µ»ØEBSP_OK£¬Ê§°Ü·µ»ØEBSP_FAIL¡£
+*    æˆåŠŸè¿”å›EBSP_OKï¼Œå¤±è´¥è¿”å›EBSP_FAILã€‚
 *
 * note:
 *    void
@@ -226,13 +226,13 @@ __s32 OSAL_DmaStart(__hdle hDMA, __u32 SrcAddr, __u32 DestAddr, __u32 TransferLe
 *                     OSAL_DmaStop
 *
 * Description:
-*    Í£Ö¹±¾´ÎDMA ´«Êä¡£
+*    åœæ­¢æœ¬æ¬¡DMA ä¼ è¾“ã€‚
 *
 * Parameters:
-*    hDMA £º input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-* 
+*    hDMA ï¼š input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*
 * Return value:
-*    ³É¹¦·µ»ØEBSP_OK£¬Ê§°Ü·µ»ØEBSP_FAIL¡£
+*    æˆåŠŸè¿”å›EBSP_OKï¼Œå¤±è´¥è¿”å›EBSP_FAILã€‚
 *
 * note:
 *    void
@@ -249,13 +249,13 @@ __s32 OSAL_DmaStop(__hdle hDMA)
 *                     OSAL_DmaRestart
 *
 * Description:
-*    ÖØĞÂÉÏÒ»´ÎDMA´«Êä¡£
+*    é‡æ–°ä¸Šä¸€æ¬¡DMAä¼ è¾“ã€‚
 *
 * Parameters:
-*    hDMA 	£º input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-* 
+*    hDMA 	ï¼š input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*
 * Return value:
-*    ³É¹¦·µ»ØEBSP_OK£¬Ê§°Ü·µ»ØEBSP_FAIL¡£
+*    æˆåŠŸè¿”å›EBSP_OKï¼Œå¤±è´¥è¿”å›EBSP_FAILã€‚
 *
 * note:
 *    void
@@ -272,13 +272,13 @@ __s32 OSAL_DmaRestart(__hdle hDMA)
 *                     OSAL_DmaQueryChannelNo
 *
 * Description:
-*    ²éÑ¯DMAµÄÍ¨µÀºÅ¡£
+*    æŸ¥è¯¢DMAçš„é€šé“å·ã€‚
 *
 * Parameters:
-*    hDMA  £º input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-* 
+*    hDMA  ï¼š input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*
 * Return value:
-*    ·µ»ØDMAÍ¨µÀºÅ¡£
+*    è¿”å›DMAé€šé“å·ã€‚
 *
 * note:
 *    void
@@ -295,13 +295,13 @@ __u32 OSAL_DmaQueryChannelNo(__hdle hDMA)
 *                     OSAL_DmaQueryStatus
 *
 * Description:
-*    ²éÑ¯DMAµÄÍ¨µÀµÄ×´Ì¬£¬Busy or Idle¡£
+*    æŸ¥è¯¢DMAçš„é€šé“çš„çŠ¶æ€ï¼ŒBusy or Idleã€‚
 *
 * Parameters:
-*    hDMA £º input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-* 
+*    hDMA ï¼š input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*
 * Return value:
-*    ·µ»Øµ±Ç°DMAÍ¨µÀµÄ×´Ì¬¡£1£ºbusy£¬0£ºidle¡£
+*    è¿”å›å½“å‰DMAé€šé“çš„çŠ¶æ€ã€‚1ï¼šbusyï¼Œ0ï¼šidleã€‚
 *
 * note:
 *    void
@@ -318,13 +318,13 @@ __u32 OSAL_DmaQueryStatus(__hdle hDMA)
 *                     OSAL_DmaQueryLeftCount
 *
 * Description:
-*    ²éÑ¯DMAµÄÊ£Óà×Ö½ÚÊı¡£
+*    æŸ¥è¯¢DMAçš„å‰©ä½™å­—èŠ‚æ•°ã€‚
 *
 * Parameters:
-*    hDMA  :  input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-* 
+*    hDMA  :  input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*
 * Return value:
-*    ·µ»Øµ±Ç°DMAµÄÊ£Óà×Ö½ÚÊı¡£
+*    è¿”å›å½“å‰DMAçš„å‰©ä½™å­—èŠ‚æ•°ã€‚
 *
 * note:
 *    void
@@ -341,16 +341,16 @@ __u32 OSAL_DmaQueryLeftCount(__hdle hDMA)
 *                     OSAL_DmaQueryConfig
 *
 * Description:
-*    ²éÑ¯DMAÍ¨µÀµÄÅäÖÃ¡£
+*    æŸ¥è¯¢DMAé€šé“çš„é…ç½®ã€‚
 *
 * Parameters:
-*    hDMA 	   :  input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-*    RegAddr   :  input. ¼Ä´æÆ÷µØÖ·
-*    RegWidth  :  input. ¼Ä´æÆ÷¿í¶È
-*    RegValue  :  output. ¼Ä´æÆ÷Öµ
-* 
+*    hDMA 	   :  input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*    RegAddr   :  input. å¯„å­˜å™¨åœ°å€
+*    RegWidth  :  input. å¯„å­˜å™¨å®½åº¦
+*    RegValue  :  output. å¯„å­˜å™¨å€¼
+*
 * Return value:
-*    ³É¹¦·µ»ØEBSP_OK£¬Ê§°Ü·µ»ØEBSP_FAIL¡£
+*    æˆåŠŸè¿”å›EBSP_OKï¼Œå¤±è´¥è¿”å›EBSP_FAILã€‚
 *
 * note:
 *    void
@@ -366,13 +366,13 @@ __s32 OSAL_DmaQueryConfig(__hdle hDMA, __u32 RegAddr, __u32 RegWidth, __u32 *Reg
 *                     eBsp_DmaPause
 *
 * Description:
-*    ÔİÍ£DMA´«Êä¡£
+*    æš‚åœDMAä¼ è¾“ã€‚
 *
 * Parameters:
-*    hDMA  £º input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-* 
+*    hDMA  ï¼š input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*
 * Return value:
-*    ³É¹¦·µ»ØEBSP_OK£¬Ê§°Ü·µ»ØEBSP_FAIL¡£
+*    æˆåŠŸè¿”å›EBSP_OKï¼Œå¤±è´¥è¿”å›EBSP_FAILã€‚
 *
 * note:
 *    void
@@ -387,13 +387,13 @@ __s32 OSAL_DmaPause(__hdle hDMA){
 *                     eBsp_DmaProceed
 *
 * Description:
-*    ¼ÌĞøcsp_DmaPause ÔİÍ£µÄDMA´«Êä¡£
+*    ç»§ç»­csp_DmaPause æš‚åœçš„DMAä¼ è¾“ã€‚
 *
 * Parameters:
-*    hDMA  £º input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-* 
+*    hDMA  ï¼š input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*
 * Return value:
-*    ³É¹¦·µ»ØEBSP_OK£¬Ê§°Ü·µ»ØEBSP_FAIL¡£
+*    æˆåŠŸè¿”å›EBSP_OKï¼Œå¤±è´¥è¿”å›EBSP_FAILã€‚
 *
 * note:
 *    void
@@ -408,12 +408,12 @@ __s32 OSAL_DmaProceed(__hdle hDMA){
 *                     OSAL_DmaChangeMode
 *
 * Description:
-*    ÇĞ»» DMA µÄ´«ÊäÄ£Ê½¡£
+*    åˆ‡æ¢ DMA çš„ä¼ è¾“æ¨¡å¼ã€‚
 *
 * Parameters:
-*    hDMA  £º input. cspRequestDmaÉêÇëµÄ¾ä±ú¡£
-*    mode  :  input. ´«ÊäÄ£Ê½
-* 
+*    hDMA  ï¼š input. cspRequestDmaç”³è¯·çš„å¥æŸ„ã€‚
+*    mode  :  input. ä¼ è¾“æ¨¡å¼
+*
 * Return value:
 *    void
 *

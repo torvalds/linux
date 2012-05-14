@@ -15,7 +15,7 @@ __s32 TVE_set_reg_base(__u32 sel,__u32 address)
 	{
 	    tve_reg_base1 = address;
 	}
-	return 0;	
+	return 0;
 }
 
 //tve
@@ -46,7 +46,7 @@ __s32  TVE_init(__u32 sel)
 	    TVE_dac_sel(0, 2, 2);
 	    TVE_dac_sel(0, 3, 3);
 	}
-	TVE_SET_BIT(sel,TVE_008,0x3<<16);	
+	TVE_SET_BIT(sel,TVE_008,0x3<<16);
 	TVE_WUINT32(sel,TVE_024,0x18181818);
 
 	return 0;
@@ -92,7 +92,7 @@ __s32 TVE_close(__u32 sel)
 //                            Chroma(1)    Luma(2)
 
 __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
-{ 
+{
 	switch(mode)
 	{
 	case DISP_TV_MOD_PAL_SVIDEO:
@@ -132,7 +132,7 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel,TVE_128, 0x00000000);//
 		TVE_WUINT32(sel,TVE_12C, 0x00000101);//
 		break;
-		
+
 	case DISP_TV_MOD_PAL_NC:
 	case DISP_TV_MOD_PAL_NC_SVIDEO:
 		TVE_WUINT32(sel,TVE_004, 0x07030001);//PAL
@@ -296,7 +296,7 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel,TVE_13C, 0x07000000);
 		TVE_WUINT32(sel,TVE_00C, 0x01be0124);
 		TVE_WUINT32(sel,TVE_128, 0x00000000);//
-		TVE_WUINT32(sel,TVE_020, 0x00fc00c0);//0x00fc00fcÖØÓ°£¿
+		TVE_WUINT32(sel,TVE_020, 0x00fc00c0);//0x00fc00fcé‡å½±ï¼Ÿ
 		TVE_WUINT32(sel,TVE_118, 0x0000a0a0);
 		break;
 
@@ -306,7 +306,7 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel,TVE_014, 0x00c0002c);//60hz
 		TVE_WUINT32(sel,TVE_018, 0x07bc002c);//60hz
 		TVE_WUINT32(sel,TVE_01C, 0x00290465);//
-		TVE_WUINT32(sel,TVE_020, 0x00fc00c0);//0x00fc00fcÖØÓ°£¿
+		TVE_WUINT32(sel,TVE_020, 0x00fc00c0);//0x00fc00fcé‡å½±ï¼Ÿ
 		TVE_WUINT32(sel,TVE_114, 0x582c022c);//
 		TVE_WUINT32(sel,TVE_118, 0x0000a0a0);
 		TVE_WUINT32(sel,TVE_124, 0x00000780);//
@@ -319,8 +319,8 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		return 0;
 	}
 	TVE_CLR_BIT(sel,TVE_008,0xfff<<4);
-	TVE_SET_BIT(sel,TVE_008,0x3<<16);	
-	TVE_SET_BIT(sel,TVE_008,0xf<<18);	
+	TVE_SET_BIT(sel,TVE_008,0x3<<16);
+	TVE_SET_BIT(sel,TVE_008,0xf<<18);
 	TVE_WUINT32(sel,TVE_024,0x1F1F1F1F);
 	return 0;
 }
@@ -329,8 +329,8 @@ __s32 TVE_set_vga_mode(__u32 sel)
 {
     TVE_WUINT32(sel,TVE_004, 0x20000000);
     TVE_WUINT32(sel,TVE_008, 0x40031ac7);
-    TVE_WUINT32(sel,TVE_024, 0x00000000);    
-    TVE_INIT_BIT(0,TVE_000, 0xfff<<4,0x321<<4); 
+    TVE_WUINT32(sel,TVE_024, 0x00000000);
+    TVE_INIT_BIT(0,TVE_000, 0xfff<<4,0x321<<4);
 	return 0;
 }
 
@@ -349,11 +349,11 @@ __u8  TVE_clear_int(__u32 sel)
 {
     __u32    sts = 0;
     __u32    readval;
-    
+
     readval = TVE_RUINT32(sel,TVE_034);
     sts = readval & 0x0f;
     TVE_WUINT32(sel,TVE_034,sts);
-    
+
     return 0;
 }
 
@@ -363,7 +363,7 @@ __s32 TVE_get_dac_status(__u32 index)
     __u32 reg_000,map,sel,dac;
     __s32 status;
 
-    reg_000 = TVE_RUINT32(0,TVE_000); 
+    reg_000 = TVE_RUINT32(0,TVE_000);
     map = (reg_000>>(4*(index+1))) & 0xf;
     if(map>=1 && map<=4)
     {
@@ -380,8 +380,8 @@ __s32 TVE_get_dac_status(__u32 index)
         return -1;
     }
 
-    TVE_SET_BIT(sel,TVE_008,0x3<<16);		
-    TVE_SET_BIT(sel,TVE_008,0xf<<18);	
+    TVE_SET_BIT(sel,TVE_008,0x3<<16);
+    TVE_SET_BIT(sel,TVE_008,0xf<<18);
     TVE_WUINT32(sel,TVE_024,0x18181818);
 
     status = TVE_RUINT32(sel,TVE_038)>>(dac*8);
@@ -397,7 +397,7 @@ __u8 TVE_dac_int_enable(__u32 sel,__u8 index)
     readval = TVE_RUINT32(sel,TVE_030);
     readval |= (1<<(16+index));
     TVE_WUINT32(sel,TVE_030,readval);
-    
+
     return 0;
 }
 
@@ -408,7 +408,7 @@ __u8 TVE_dac_int_disable(__u32 sel,__u8 index)
     readval = TVE_RUINT32(sel,TVE_030);
     readval &= (~(1<<(16+index)));
     TVE_WUINT32(sel,TVE_030,readval);
-    
+
     return 0;
 }
 
@@ -419,7 +419,7 @@ __u8 TVE_dac_autocheck_enable(__u32 sel,__u8 index)
     readval = TVE_RUINT32(sel,TVE_030);
     readval |= (1<<index);
     TVE_WUINT32(sel,TVE_030,readval);
-    
+
     return 0;
 }
 
@@ -430,7 +430,7 @@ __u8 TVE_dac_autocheck_disable(__u32 sel,__u8 index)
     readval = TVE_RUINT32(sel,TVE_030);
     readval &= (~(1<<index));
     TVE_WUINT32(sel,TVE_030,readval);
-    
+
     return 0;
 }
 
@@ -450,12 +450,12 @@ __u8 TVE_dac_disable(__u32 sel,__u8 index)
     __u32   readval;
 
     readval = TVE_RUINT32(sel,TVE_008);
-    
+
     TVE_WUINT32(sel,TVE_008,readval & (~(1<<index)));
 
-    
+
     return 0;
-} 
+}
 
 __s32 TVE_dac_set_source(__u32 sel,__u32 index,__u32 source)
 {
@@ -484,7 +484,7 @@ __s32 TVE_dac_set_source(__u32 sel,__u32 index,__u32 source)
         return 0;
     }
     TVE_WUINT32(sel,TVE_008,readval);
-    
+
     return 0;
 }
 
@@ -542,7 +542,7 @@ __u8 TVE_dac_set_de_bounce(__u32 sel,__u8 index,__u32 times)
         return 0;
     }
     TVE_WUINT32(sel,TVE_03C,readval);
-    
+
     return 0;
 }
 
@@ -573,7 +573,7 @@ __u8 TVE_dac_get_de_bounce(__u32 sel,__u8 index)
     {
         return 0;
     }
-    
+
     return sts;
 }
 
@@ -585,57 +585,57 @@ __s32 TVE_dac_sel(__u32 sel,__u32 dac, __u32 index)
 
 	if(dac == 0)
 	{
-        readval = TVE_RUINT32(sel,TVE_000);	
-    	readval &= (~(0xf<<4)); 
+        readval = TVE_RUINT32(sel,TVE_000);
+    	readval &= (~(0xf<<4));
     	readval |= ((sel*4+index+1)<<4);
     	TVE_WUINT32(sel,TVE_000,readval);
 
     	if(sel == 1)
     	{
-            readval = TVE_RUINT32(0,TVE_000);	
-        	readval &= (~(0xf<<4)); 
+            readval = TVE_RUINT32(0,TVE_000);
+        	readval &= (~(0xf<<4));
         	readval |= ((sel*4+index+1)<<4);
         	TVE_WUINT32(0,TVE_000,readval);
     	}
 	}
 	else if(dac == 1)
 	{
-        readval = TVE_RUINT32(sel,TVE_000);	
-    	readval &= (~(0xf<<8)); 
+        readval = TVE_RUINT32(sel,TVE_000);
+    	readval &= (~(0xf<<8));
     	readval |= ((sel*4+index+1)<<8);
     	TVE_WUINT32(sel,TVE_000,readval);
     	if(sel == 1)
     	{
-            readval = TVE_RUINT32(0,TVE_000);	
-        	readval &= (~(0xf<<8)); 
+            readval = TVE_RUINT32(0,TVE_000);
+        	readval &= (~(0xf<<8));
         	readval |= ((sel*4+index+1)<<8);
         	TVE_WUINT32(0,TVE_000,readval);
     	}
 	}
 	else if(dac == 2)
 	{
-        readval = TVE_RUINT32(sel,TVE_000);	
-    	readval &= (~(0xf<<12)); 
+        readval = TVE_RUINT32(sel,TVE_000);
+    	readval &= (~(0xf<<12));
     	readval |= ((sel*4+index+1)<<12);
     	TVE_WUINT32(sel,TVE_000,readval);
     	if(sel == 1)
     	{
-            readval = TVE_RUINT32(0,TVE_000);	
-        	readval &= (~(0xf<<12)); 
+            readval = TVE_RUINT32(0,TVE_000);
+        	readval &= (~(0xf<<12));
         	readval |= ((sel*4+index+1)<<12);
         	TVE_WUINT32(0,TVE_000,readval);
     	}
 	}
 	else if(dac == 3)
 	{
-        readval = TVE_RUINT32(sel,TVE_000);	
-    	readval &= (~(0xf<<16)); 
+        readval = TVE_RUINT32(sel,TVE_000);
+    	readval &= (~(0xf<<16));
     	readval |= ((sel*4+index+1)<<16);
     	TVE_WUINT32(sel,TVE_000,readval);
     	if(sel == 1)
     	{
-            readval = TVE_RUINT32(0,TVE_000);	
-        	readval &= (~(0xf<<16)); 
+            readval = TVE_RUINT32(0,TVE_000);
+        	readval &= (~(0xf<<16));
         	readval |= ((sel*4+index+1)<<16);
         	TVE_WUINT32(0,TVE_000,readval);
     	}
@@ -645,13 +645,13 @@ __s32 TVE_dac_sel(__u32 sel,__u32 dac, __u32 index)
 
 
 __u8 TVE_csc_init(__u32 sel,__u8 type)
-{                                              
-	if(sel==0)                                              
-	{                                              
-		TVE_WUINT32(sel, TVE_040, 0x08440832);                                              
-		TVE_WUINT32(sel, TVE_044, 0x3B6DACE1);                                              
-		TVE_WUINT32(sel, TVE_048, 0x0E1D13DC);                                              
-		TVE_WUINT32(sel, TVE_04C, 0x00108080);   	                                              
+{
+	if(sel==0)
+	{
+		TVE_WUINT32(sel, TVE_040, 0x08440832);
+		TVE_WUINT32(sel, TVE_044, 0x3B6DACE1);
+		TVE_WUINT32(sel, TVE_048, 0x0E1D13DC);
+		TVE_WUINT32(sel, TVE_04C, 0x00108080);
 		return 0;
 	}
 	else
@@ -659,13 +659,13 @@ __u8 TVE_csc_init(__u32 sel,__u8 type)
 }
 
 __u8 TVE_csc_enable(__u32 sel)
-{                                              
+{
 	TVE_SET_BIT(sel,TVE_040, (__u32)(0x1<<31));
-	return 0;	
+	return 0;
 }
 
 __u8 TVE_csc_disable(__u32 sel)
-{                                              
+{
 	TVE_CLR_BIT(sel,TVE_040, 0x1<<31);
 	return 0;
 }

@@ -10,14 +10,14 @@
 *
 * Author 		: javen
 *
-* Description 	: ²Ù×÷ÏµÍ³ÊÊÅä²ã
+* Description 	: æ“ä½œç³»ç»Ÿé€‚é…å±‚
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
 *       javen     	   2010-09-07          1.0         create this word
 *
 *************************************************************************************
-*/ 
+*/
 #ifndef  __OSAL_H__
 #define  __OSAL_H__
 

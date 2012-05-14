@@ -2,14 +2,14 @@
 **************************************************************************************************************
 *											         eLDK
 *						            the Easy Portable/Player Develop Kits
-*									           desktop system 
+*									           desktop system
 *
 *						        	 (c) Copyright 2009-2012, ,HUANGXIN China
 *											 All Rights Reserved
 *
 * File    	: sun4i_cedar.h
 * By      	: HUANGXIN
-* Func		: 
+* Func		:
 * Version	: v1.0
 * ============================================================================================================
 * 2011-5-25 9:57:05  HUANGXIN create this file, implements the fundemental interface;
@@ -26,7 +26,7 @@ enum IOCTL_CMD {
 	IOCTL_ENABLE_VE,
 	IOCTL_DISABLE_VE,
 	IOCTL_SET_VE_FREQ,
-	
+
 	IOCTL_CONFIG_AVS2 = 0x200,
 	IOCTL_GETVALUE_AVS2 ,
 	IOCTL_PAUSE_AVS2 ,
@@ -37,7 +37,7 @@ enum IOCTL_CMD {
 	IOCTL_ENGINE_REL,
 	IOCTL_ENGINE_CHECK_DELAY,
 	IOCTL_GET_IC_VER,
-	
+
 	IOCTL_ADJUST_AVS2_ABS,
 };
 
@@ -50,13 +50,13 @@ struct cedarv_env_infomation{
 struct __cedarv_task {
 	int task_prio;
 	int ID;
-	unsigned long timeout;	
+	unsigned long timeout;
 	unsigned int frametime;
 	unsigned int block_mode;
 };
 
 struct cedarv_engine_task {
-	struct __cedarv_task t;	
+	struct __cedarv_task t;
 	struct list_head list;
 	struct task_struct *task_handle;
 	unsigned int status;
@@ -64,7 +64,7 @@ struct cedarv_engine_task {
 	unsigned int is_first_task;
 };
 
-/*利用优先级task_prio查询当前运行task的frametime，和比优先级task_prio高的task可能运行的总时间total_time*/
+/*鍒╃敤浼樺厛绾ask_prio鏌ヨ褰撳墠杩愯task鐨刦rametime锛屽拰姣斾紭鍏堢骇task_prio楂樼殑task鍙兘杩愯鐨勬�绘椂闂磘otal_time*/
 struct cedarv_engine_task_info {
 	int task_prio;
 	unsigned int frametime;

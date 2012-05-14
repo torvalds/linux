@@ -8,9 +8,9 @@ static sprite_t gsprite[2];
 static __s32 Sprite_Get_Idle_Block_id(__u32 sel)
 {
     __s32 i = 0;
-	
+
     for(i = 0;i<MAX_SPRITE_BLOCKS;i++)
-    { 
+    {
         if(!(gsprite[sel].block_status[i] & SPRITE_BLOCK_USED))
         {
             return i;
@@ -51,7 +51,7 @@ static __s32 Sprite_Hid_To_Id(__u32 sel, __s32 hid)
 	}
 }
 
-//--hgl--ÓÃÕâ¸öµÄÇ°Ìá£ºprev,next±ØÐëÊÇ´æÔÚµÄ£¬·ñÔò±ÀÀ£¡£
+//--hgl--ç”¨è¿™ä¸ªçš„å‰æï¼šprev,nextå¿…é¡»æ˜¯å­˜åœ¨çš„ï¼Œå¦åˆ™å´©æºƒã€‚
 static __inline void ___list_add(list_head_t *node,list_head_t *prev,list_head_t *next)
 {
 	node->next = next;
@@ -60,9 +60,9 @@ static __inline void ___list_add(list_head_t *node,list_head_t *prev,list_head_t
 	next->prev = node;
 }
 
-//½«nodeÌí¼Óµ½listµÄ×îºóÃæ£¬Ò²¼ÈÆäÇ°Ãæ
+//å°†nodeæ·»åŠ åˆ°listçš„æœ€åŽé¢ï¼Œä¹Ÿæ—¢å…¶å‰é¢
 static  __inline void list_add_node_tail(list_head_t *node, list_head_t **head)
-{	
+{
 	if(*head == NULL)
 	{
 		*head = node;
@@ -73,7 +73,7 @@ static  __inline void list_add_node_tail(list_head_t *node, list_head_t **head)
 	}
 }
 
-//´ÓlistÖÐÉ¾³ýentry
+//ä»Žlistä¸­åˆ é™¤entry
 static __inline void list_del_node(list_head_t *entry)
 {
 	entry->prev->next = entry->next;
@@ -82,7 +82,7 @@ static __inline void list_del_node(list_head_t *entry)
 	entry->prev = entry;
 }
 
-//ÄÚ²¿º¯Êý,ÊÍ·Å¸Ã½ÚµãµÄ¿Õ¼ä
+//å†…éƒ¨å‡½æ•°,é‡Šæ”¾è¯¥èŠ‚ç‚¹çš„ç©ºé—´
 static __inline void list_free_node(list_head_t * node)
 {
 	if(node != NULL)
@@ -93,15 +93,15 @@ static __inline void list_free_node(list_head_t * node)
 	}
 }
 
-//ÉêÇëÒ»¸öÐÂµÄ½áµã,²¢³õÊ¼»¯
+//ç”³è¯·ä¸€ä¸ªæ–°çš„ç»“ç‚¹,å¹¶åˆå§‹åŒ–
 static list_head_t * List_New_Sprite_Block(__u32 sel, __disp_sprite_block_para_t * para)
 {
 	list_head_t * node = NULL;
 	sprite_block_data_t * data = NULL;
 	__s32 id;
-	
+
 	id = Sprite_Get_Idle_Block_id(sel);
-	
+
 	if(id != DIS_NO_RES)
 	{
 		data = (sprite_block_data_t *)OSAL_malloc(sizeof(sprite_block_data_t));
@@ -115,7 +115,7 @@ static list_head_t * List_New_Sprite_Block(__u32 sel, __disp_sprite_block_para_t
 		data->scn_win.height = para->scn_win.height;
 		data->address = (__u32)para->fb.addr[0];
 		data->size.width = para->fb.size.width;
-		
+
 		node = (list_head_t *)OSAL_malloc(sizeof(list_head_t));
 		node->next = node->prev = node;
 		node->data = data;
@@ -128,13 +128,13 @@ static list_head_t * List_New_Sprite_Block(__u32 sel, __disp_sprite_block_para_t
 	}
 }
 
-//ÔÚÁ´±íµÄÎ²²¿Ôö¼ÓÐÂ½áµã
+//åœ¨é“¾è¡¨çš„å°¾éƒ¨å¢žåŠ æ–°ç»“ç‚¹
 static void* List_Add_Sprite_Block(__u32 sel, __disp_sprite_block_para_t * para)
 {
 	list_head_t * node = NULL;
-	
+
 	node = List_New_Sprite_Block(sel, para);
-	
+
 	if(node != NULL)
 	{
 		list_add_node_tail(node,&gsprite[sel].header);
@@ -143,13 +143,13 @@ static void* List_Add_Sprite_Block(__u32 sel, __disp_sprite_block_para_t * para)
 	return NULL;
 }
 
-//ÔÚÁ´±íÖÐÑ°ÕÒblock id,²¢·µ»Ø¸Ã½áµãµÄÖ¸Õë
+//åœ¨é“¾è¡¨ä¸­å¯»æ‰¾block id,å¹¶è¿”å›žè¯¥ç»“ç‚¹çš„æŒ‡é’ˆ
 static list_head_t *  List_Find_Sprite_Block(__u32 sel, __s32 id)
 {
 	list_head_t * guard = NULL;
-	
+
 	guard = gsprite[sel].header;
-	
+
 	if(guard != NULL)
 	{
 		do
@@ -162,12 +162,12 @@ static list_head_t *  List_Find_Sprite_Block(__u32 sel, __s32 id)
 		}
 		while(guard != gsprite[sel].header);
 	}
-	
+
 	return NULL;
-	
+
 }
 
-//´ÓÁ´±íÖÐÉ¾³ýblock id,²¢·µ»Ø¸ÃblockµÄÖ¸Õë
+//ä»Žé“¾è¡¨ä¸­åˆ é™¤block id,å¹¶è¿”å›žè¯¥blockçš„æŒ‡é’ˆ
 static list_head_t * List_Delete_Sprite_Block(__u32 sel, list_head_t * node)
 {
 	__s32 id = 0;
@@ -179,7 +179,7 @@ static list_head_t * List_Delete_Sprite_Block(__u32 sel, list_head_t * node)
 		{
 			__s32 next_id = 0;
 			list_head_t * next_node = NULL;
-			
+
 			next_id = node->next->data->id;
 			next_node = node->next;
 
@@ -190,7 +190,7 @@ static list_head_t * List_Delete_Sprite_Block(__u32 sel, list_head_t * node)
 			else
 			{
 				__s32 id_tmp = 0;
-				
+
 				id_tmp = gsprite[sel].sprite_hid[0];
 				gsprite[sel].sprite_hid[0] = gsprite[sel].sprite_hid[next_id];
 				gsprite[sel].sprite_hid[next_id] = id_tmp;
@@ -210,7 +210,7 @@ static list_head_t * List_Delete_Sprite_Block(__u32 sel, list_head_t * node)
 	}
 }
 
-//´ÓÁ´±íÖÐÉ¾³ýblock id,²¢ÊÍ·ÅÆä¿Õ¼ä,·µ»Ø¸ÃblockµÄid(¸Ãid¿ÉÄÜ²»ÊÇÆäÔ­À´µÄid)
+//ä»Žé“¾è¡¨ä¸­åˆ é™¤block id,å¹¶é‡Šæ”¾å…¶ç©ºé—´,è¿”å›žè¯¥blockçš„id(è¯¥idå¯èƒ½ä¸æ˜¯å…¶åŽŸæ¥çš„id)
 static __s32 List_Delete_Free_Sprite_Block(__u32 sel, list_head_t * node)
 {
     __s32 ret = -1;
@@ -237,13 +237,13 @@ static __s32 List_Assert_Sprite_Block(__u32 sel, list_head_t * dst_node, list_he
 	{
 	    __s32 id = 0;
 		__s32 id_tmp = 0;
-		
+
 		next_node = gsprite[sel].header;
-		
+
 		id = node->data->id;
 		node->data->id = 0;
 		next_node->data->id = id;
-		
+
 		id_tmp = gsprite[sel].sprite_hid[0];
 		gsprite[sel].sprite_hid[0] = gsprite[sel].sprite_hid[id];
 		gsprite[sel].sprite_hid[id] = id_tmp;
@@ -257,7 +257,7 @@ static __s32 List_Assert_Sprite_Block(__u32 sel, list_head_t * dst_node, list_he
 		next_node = dst_node->next;
 	}
 	___list_add(node,dst_node,next_node);
-	
+
 	return DIS_SUCCESS;
 }
 
@@ -288,7 +288,7 @@ static __s32 List_Get_Last_Sprite_Block_Id(__u32 sel)
 static __s32 sprite_set_sprite_block_para(__u32 sel, __u32 id, __u32 next_id, __disp_sprite_block_para_t * para)
 {
     __u32 bpp, addr;
-    
+
     bpp = de_format_to_bpp(gsprite[sel].format);
 
 	addr = DE_BE_Offset_To_Addr((__u32)para->fb.addr[0] ,para->fb.size.width, para->src_win.x, para->src_win.y, bpp);
@@ -309,11 +309,11 @@ __s32 BSP_disp_sprite_init(__u32 sel)
 	memset(&gsprite[sel],0,sizeof(sprite_t));
 	gsprite[sel].status = 0;
 	for(i = 0;i<MAX_SPRITE_BLOCKS;i++)
-    { 
+    {
         gsprite[sel].block_status[i] = 0;
         gsprite[sel].sprite_hid[i] = 100+i;
     }
-	
+
 	return DIS_SUCCESS;
 }
 
@@ -325,7 +325,7 @@ __s32 BSP_disp_sprite_exit(__u32 sel)
 
 	gsprite[sel].status = 0;
 	for(i = 0;i<MAX_SPRITE_BLOCKS;i++)
-	{ 
+	{
 		gsprite[sel].block_status[i] = 0;
 		gsprite[sel].sprite_hid[i] = 100+i;
 	}
@@ -343,13 +343,13 @@ __s32 BSP_disp_sprite_exit(__u32 sel)
 }
 
 __s32 BSP_disp_sprite_open(__u32 sel)
-{	  
+{
     __u32 cpu_sr;
-    
+
 	if(!gsprite[sel].status & SPRITE_OPENED)
 	{
 		DE_BE_Sprite_Enable(sel, TRUE);
-		
+
 		OSAL_IrqLock(&cpu_sr);
 		gsprite[sel].enable = TRUE;
 		gsprite[sel].status|= SPRITE_OPENED;
@@ -359,9 +359,9 @@ __s32 BSP_disp_sprite_open(__u32 sel)
 }
 
 __s32 BSP_disp_sprite_close(__u32 sel)
-{   
+{
     __u32 cpu_sr;
-    
+
 	if(gsprite[sel].status & SPRITE_OPENED)
 	{
 		DE_BE_Sprite_Enable(sel, FALSE);
@@ -378,7 +378,7 @@ __s32 BSP_disp_sprite_alpha_enable(__u32 sel)
 {
 	DE_BE_Sprite_Global_Alpha_Enable(sel, TRUE);
 	gsprite[sel].global_alpha_enable = TRUE;
-	
+
 	return DIS_SUCCESS;
 }
 
@@ -386,7 +386,7 @@ __s32 BSP_disp_sprite_alpha_disable(__u32 sel)
 {
 	DE_BE_Sprite_Global_Alpha_Enable(sel, FALSE);
 	gsprite[sel].global_alpha_enable = FALSE;
-	
+
 	return DIS_SUCCESS;
 }
 
@@ -399,7 +399,7 @@ __s32 BSP_disp_sprite_set_alpha_vale(__u32 sel, __u32 alpha)
 {
 	DE_BE_Sprite_Set_Global_Alpha(sel, alpha);
 	gsprite[sel].global_alpha_value = alpha;
-	
+
 	return DIS_SUCCESS;
 }
 
@@ -413,7 +413,7 @@ __s32 BSP_disp_sprite_set_format(__u32 sel, __disp_pixel_fmt_t format, __disp_pi
 	gsprite[sel].format = format;
 	gsprite[sel].pixel_seq = pixel_seq;
 	DE_BE_Sprite_Set_Format(sel, pixel_seq,(format==DISP_FORMAT_ARGB8888)?0:1);
-	
+
 	return DIS_SUCCESS;
 }
 
@@ -424,7 +424,7 @@ __s32 BSP_disp_sprite_set_palette_table(__u32 sel, __u32 *buffer, __u32 offset, 
         DE_WRN("para invalid in BSP_disp_sprite_set_palette_table\n");
         return DIS_PARA_FAILED;
     }
-    
+
     DE_BE_Sprite_Set_Palette_Table(sel, (__u32)buffer,offset,size);
 
     return DIS_SUCCESS;
@@ -438,7 +438,7 @@ __s32 BSP_disp_sprite_set_order(__u32 sel, __s32 hid,__s32 dst_hid)//todo
 
 	id = Sprite_Hid_To_Id(sel, hid);
 	dst_id = Sprite_Hid_To_Id(sel, dst_hid);
-	if((gsprite[sel].block_status[id] & SPRITE_BLOCK_USED) 
+	if((gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
 		&& (dst_id == -1 || (gsprite[sel].block_status[dst_id] & SPRITE_BLOCK_USED)))
 	{
 		if(id == dst_id)//same block,not need to move
@@ -467,7 +467,7 @@ __s32 BSP_disp_sprite_set_order(__u32 sel, __s32 hid,__s32 dst_hid)//todo
 		{
 			chg_node0 = node->prev;
 		}
-        
+
 		if(dst_id == -1)//move to the front of the list
 		{
 			chg_node1 = gsprite[sel].header;
@@ -479,7 +479,7 @@ __s32 BSP_disp_sprite_set_order(__u32 sel, __s32 hid,__s32 dst_hid)//todo
 
 		List_Delete_Sprite_Block(sel, node);
 		List_Assert_Sprite_Block(sel, dst_node,node);
-        
+
 		para.fb.addr[0] = node->data->address;
 		para.fb.size.width = node->data->size.width;
 		para.src_win.x = node->data->src_win.x;
@@ -490,7 +490,7 @@ __s32 BSP_disp_sprite_set_order(__u32 sel, __s32 hid,__s32 dst_hid)//todo
 			para.scn_win.y = -2000;
 		}
 		sprite_set_sprite_block_para(sel, node->data->id,node->next->data->id,&para);
-		
+
 		para.fb.addr[0] = chg_node0->data->address;
 		para.fb.size.width = chg_node0->data->size.width;
 		para.src_win.x = chg_node0->data->src_win.x;
@@ -524,7 +524,7 @@ __s32 BSP_disp_sprite_set_order(__u32 sel, __s32 hid,__s32 dst_hid)//todo
 __s32 BSP_disp_sprite_get_top_block(__u32 sel)
 {
 	__u32 id;
-	
+
 	id = List_Get_First_Sprite_Block_Id(sel);
 	return Sprite_Id_To_Hid(sel, id);
 }
@@ -532,7 +532,7 @@ __s32 BSP_disp_sprite_get_top_block(__u32 sel)
 __s32 BSP_disp_sprite_get_bottom_block(__u32 sel)
 {
 	__u32 id;
-	
+
 	id = List_Get_Last_Sprite_Block_Id(sel);
 	return Sprite_Id_To_Hid(sel, id);
 }
@@ -549,7 +549,7 @@ __s32 BSP_disp_sprite_block_request(__u32 sel, __disp_sprite_block_para_t *para)
 	__disp_sprite_block_para_t cur_para;
 	list_head_t * node = NULL;
 	__u32 cpu_sr;
-	
+
 	if((para->scn_win.width != 8) && (para->scn_win.width != 16) && (para->scn_win.width != 32)
 		&& (para->scn_win.width != 64) && (para->scn_win.width != 128) && (para->scn_win.width != 256)
 		&& (para->scn_win.width != 512))
@@ -564,13 +564,13 @@ __s32 BSP_disp_sprite_block_request(__u32 sel, __disp_sprite_block_para_t *para)
 		DE_WRN("BSP_disp_sprite_block_request,scn_win height invalid:%d\n",para->scn_win.height);
 		return DIS_NULL;
 	}
-	
+
     node = List_Add_Sprite_Block(sel, para);
     if(node == NULL)
     {
         return (__s32)NULL;
     }
-    
+
     id = node->data->id;
 	node->data->address = (__u32)para->fb.addr[0];
 	node->data->size.width = para->fb.size.width;
@@ -580,10 +580,10 @@ __s32 BSP_disp_sprite_block_request(__u32 sel, __disp_sprite_block_para_t *para)
 	node->data->scn_win.y = para->scn_win.y;
 	node->data->scn_win.width = para->scn_win.width;
 	node->data->scn_win.height = para->scn_win.height;
-	
+
     memcpy(&cur_para,para,sizeof(__disp_sprite_block_para_t));
     cur_para.scn_win.y = -2000;
-    
+
 	DE_BE_Sprite_Block_Set_Next_Id(sel, node->prev->data->id, id);
 	sprite_set_sprite_block_para(sel, id, 0, para);
 
@@ -593,7 +593,7 @@ __s32 BSP_disp_sprite_block_request(__u32 sel, __disp_sprite_block_para_t *para)
     OSAL_IrqUnLock(cpu_sr);
 
     return Sprite_Id_To_Hid(sel, id);
-	
+
 }
 
 __s32 BSP_disp_sprite_block_release(__u32 sel, __s32 hid)
@@ -602,9 +602,9 @@ __s32 BSP_disp_sprite_block_release(__u32 sel, __s32 hid)
 	list_head_t * node = NULL, *next_node=NULL, *pre_node=NULL;
 	__s32 release_id = 0;
 	__u32 cpu_sr;
-    
+
 	id = Sprite_Hid_To_Id(sel, hid);
-	
+
 	if(gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
 	{
 		node = List_Find_Sprite_Block(sel, id);
@@ -627,7 +627,7 @@ __s32 BSP_disp_sprite_block_release(__u32 sel, __s32 hid)
 			para.scn_win.y = -2000;
 			para.scn_win.width = 8;
 			para.scn_win.height = 8;
-			
+
 			sprite_set_sprite_block_para(sel, id,0,&para);
 		}
 		else if(id == 0)//release the first block
@@ -650,7 +650,7 @@ __s32 BSP_disp_sprite_block_release(__u32 sel, __s32 hid)
 			para.scn_win.width = next_node->data->scn_win.width;
 			para.scn_win.height = next_node->data->scn_win.height;
 			sprite_set_sprite_block_para(sel, 0,next_node->next->data->id,&para);
-			
+
 			para.fb.addr[0] = 0;
 			para.fb.size.width= 8;
 			para.src_win.x = 0;
@@ -692,12 +692,12 @@ __s32 BSP_disp_sprite_block_release(__u32 sel, __s32 hid)
 			para.scn_win.height = 8;
 			sprite_set_sprite_block_para(sel, id,0,&para);
 		}
-		
+
 		OSAL_IrqLock(&cpu_sr);
 		gsprite[sel].block_status[release_id] &= SPRITE_BLOCK_USED_MASK;
 		gsprite[sel].block_num --;
 		OSAL_IrqUnLock(cpu_sr);
-		
+
 		return DIS_SUCCESS;
 	}
 	else
@@ -713,7 +713,7 @@ __s32 BSP_disp_sprite_block_set_screen_win(__u32 sel, __s32 hid, __disp_rect_t *
 	list_head_t * node = NULL;
 	__disp_rect_t cur_scn;
 	__u32 cpu_sr;
-	
+
 	id = Sprite_Hid_To_Id(sel, hid);
 	if(gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
 	{
@@ -742,7 +742,7 @@ __s32 BSP_disp_sprite_block_set_screen_win(__u32 sel, __s32 hid, __disp_rect_t *
 		cur_scn.y = scn_win->y;
 		cur_scn.width = scn_win->width;
 		cur_scn.height = scn_win->height;
-		
+
 		if(node->data->enable == FALSE)
 		{
 			cur_scn.y = -2000;
@@ -762,19 +762,19 @@ __s32 BSP_disp_sprite_block_set_screen_win(__u32 sel, __s32 hid, __disp_rect_t *
 	{
 		return DIS_OBJ_NOT_INITED;
 	}
-	
+
 }
 
 __s32 BSP_disp_sprite_block_get_srceen_win(__u32 sel, __s32 hid, __disp_rect_t * scn_win)
 {
 	__s32 id = 0;
 	list_head_t * node = NULL;
-	
+
 	id = Sprite_Hid_To_Id(sel, hid);
 	if(gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
 	{
 		node = List_Find_Sprite_Block(sel, id);
-		
+
 		scn_win->x = node->data->scn_win.x;
 		scn_win->y = node->data->scn_win.y;
 		scn_win->width = node->data->scn_win.width;
@@ -795,7 +795,7 @@ __s32 BSP_disp_sprite_block_set_src_win(__u32 sel, __s32 hid, __disp_rect_t * sr
 	list_head_t * node = NULL;
 	__u32 cpu_sr;
 	__u32 bpp, addr;
-	
+
 	id = Sprite_Hid_To_Id(sel, hid);
 	if(gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
 	{
@@ -816,14 +816,14 @@ __s32 BSP_disp_sprite_block_set_src_win(__u32 sel, __s32 hid, __disp_rect_t * sr
 	{
 		return DIS_OBJ_NOT_INITED;
 	}
-	
+
 }
 
 __s32 BSP_disp_sprite_block_get_src_win(__u32 sel, __s32 hid, __disp_rect_t * src_win)
 {
 	__s32 id = 0;
 	list_head_t * node = NULL;
-	
+
 	id = Sprite_Hid_To_Id(sel, hid);
 	if(gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
 	{
@@ -833,7 +833,7 @@ __s32 BSP_disp_sprite_block_get_src_win(__u32 sel, __s32 hid, __disp_rect_t * sr
 		src_win->y = node->data->src_win.y;
 		src_win->width = node->data->scn_win.width;
 		src_win->height = node->data->scn_win.height;
-		
+
 		return DIS_SUCCESS;
 	}
 	else
@@ -849,18 +849,18 @@ __s32 BSP_disp_sprite_block_set_framebuffer(__u32 sel, __s32 hid, __disp_fb_t * 
 	list_head_t * node = NULL;
 	__s32 bpp = 0, addr;
 	__u32 cpu_sr;
-	
+
 	id = Sprite_Hid_To_Id(sel, hid);
 	if(gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
 	{
 		node = List_Find_Sprite_Block(sel, id);
-		
+
 		bpp = de_format_to_bpp(gsprite[sel].format);
 		OSAL_CacheRangeFlush((void *)fb->addr[0], (fb->size.width * node->data->src_win.height * bpp + 7)/8,CACHE_CLEAN_FLUSH_D_CACHE_REGION);
 
     	addr = DE_BE_Offset_To_Addr( fb->addr[0], fb->size.width, node->data->src_win.x, node->data->src_win.y, bpp);
         DE_BE_Sprite_Block_Set_fb(sel, id,(__u32)OSAL_VAtoPA((void*)addr), fb->size.width*(bpp>>3));
-        
+
 		OSAL_IrqLock(&cpu_sr);
 		node->data->address = fb->addr[0];
 		node->data->size.width = fb->size.width;
@@ -873,14 +873,14 @@ __s32 BSP_disp_sprite_block_set_framebuffer(__u32 sel, __s32 hid, __disp_fb_t * 
 	{
 		return DIS_OBJ_NOT_INITED;
 	}
-	
+
 }
 
 __s32 BSP_disp_sprite_block_get_framebufer(__u32 sel, __s32 hid,__disp_fb_t *fb)
 {
 	__s32 id = 0;
 	list_head_t * node = NULL;
-	
+
 	id = Sprite_Hid_To_Id(sel, hid);
 
 	if(gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
@@ -910,7 +910,7 @@ __s32 BSP_disp_sprite_block_set_para(__u32 sel, __u32 hid,__disp_sprite_block_pa
 
 	id = Sprite_Hid_To_Id(sel, hid);
 	if(gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
-	{		
+	{
 		node = List_Find_Sprite_Block(sel, id);
 
 		memcpy(&cur_para,para,sizeof(__disp_sprite_block_para_t));
@@ -947,9 +947,9 @@ __s32 BSP_disp_sprite_block_get_para(__u32 sel, __u32 hid,__disp_sprite_block_pa
 
 	id = Sprite_Hid_To_Id(sel, hid);
 	if(gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
-	{		
+	{
 		node = List_Find_Sprite_Block(sel, id);
-		
+
 		para->fb.format = gsprite[sel].format;
 		para->fb.addr[0] = node->data->address;
 		para->fb.size.width = node->data->size.width;
@@ -974,7 +974,7 @@ __s32 BSP_disp_sprite_block_get_para(__u32 sel, __u32 hid,__disp_sprite_block_pa
 __s32 BSP_disp_sprite_block_set_top(__u32 sel, __u32 hid)
 {
 	__u32 id;
-	
+
 	id = List_Get_Last_Sprite_Block_Id(sel);
 	return BSP_disp_sprite_set_order(sel, hid,Sprite_Id_To_Hid(sel, id));
 }
@@ -988,7 +988,7 @@ __s32 BSP_disp_sprite_block_get_pre_block(__u32 sel, __u32 hid)
 {
 	__s32 id = 0;
 	list_head_t * node = NULL;
-	
+
 	id = Sprite_Hid_To_Id(sel, hid);
 
 	if(gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
@@ -1010,7 +1010,7 @@ __s32 BSP_disp_sprite_block_get_next_block(__u32 sel, __u32 hid)
 {
 	__s32 id = 0;
 	list_head_t * node = NULL;
-	
+
 	id = Sprite_Hid_To_Id(sel, hid);
 
 	if(gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
@@ -1032,7 +1032,7 @@ __s32 BSP_disp_sprite_block_get_prio(__u32 sel, __u32 hid)
 {
 	__s32 id = 0;
 	__s32 prio = 0;
-	
+
 	id = Sprite_Hid_To_Id(sel, hid);
 
 	if(gsprite[sel].block_status[id] & SPRITE_BLOCK_USED)
