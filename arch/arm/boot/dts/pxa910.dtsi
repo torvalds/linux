@@ -55,6 +55,13 @@
 				interrupts = <13>;
 			};
 
+			timer1: timer@d4016000 {
+				compatible = "mrvl,mmp-timer";
+				reg = <0xd4016000 0x100>;
+				interrupts = <29>;
+				status = "disabled";
+			};
+
 			uart1: uart@d4017000 {
 				compatible = "mrvl,mmp-uart";
 				reg = <0xd4017000 0x1000>;
@@ -69,10 +76,10 @@
 				status = "disabled";
 			};
 
-			uart3: uart@d4026000 {
+			uart3: uart@d4036000 {
 				compatible = "mrvl,mmp-uart";
-				reg = <0xd4026000 0x1000>;
-				interrupts = <29>;
+				reg = <0xd4036000 0x1000>;
+				interrupts = <59>;
 				status = "disabled";
 			};
 
@@ -114,10 +121,10 @@
 				status = "disabled";
 			};
 
-			twsi2: i2c@d4025000 {
+			twsi2: i2c@d4037000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4025000 0x1000>;
-				interrupts = <58>;
+				reg = <0xd4037000 0x1000>;
+				interrupts = <54>;
 				status = "disabled";
 			};
 

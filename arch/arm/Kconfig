@@ -632,6 +632,7 @@ config ARCH_MMP
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
+	select IRQ_DOMAIN
 	select TICK_ONESHOT
 	select PLAT_PXA
 	select SPARSE_IRQ
