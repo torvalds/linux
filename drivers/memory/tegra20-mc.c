@@ -241,14 +241,8 @@ static int __devinit tegra20_mc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit tegra20_mc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver tegra20_mc_driver = {
 	.probe = tegra20_mc_probe,
-	.remove = __devexit_p(tegra20_mc_remove),
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
