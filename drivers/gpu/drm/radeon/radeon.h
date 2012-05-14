@@ -1094,7 +1094,6 @@ int radeon_pm_get_type_index(struct radeon_device *rdev,
 			     int instance);
 
 struct r600_audio {
-	bool			enabled;
 	int			channels;
 	int			rate;
 	int			bits_per_sample;
@@ -1535,7 +1534,8 @@ struct radeon_device {
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
 	struct mutex vram_mutex;
-	struct r600_audio audio; /* audio stuff */
+	bool audio_enabled;
+	struct r600_audio audio_status; /* audio stuff */
 	struct notifier_block acpi_nb;
 	/* only one userspace can use Hyperz features or CMASK at a time */
 	struct drm_file *hyperz_filp;

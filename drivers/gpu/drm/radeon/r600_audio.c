@@ -63,67 +63,56 @@ static int r600_audio_chipset_supported(struct radeon_device *rdev)
 		|| rdev->family == CHIP_RS740;
 }
 
-/*
- * current number of channels
- */
-int r600_audio_channels(struct radeon_device *rdev)
+struct r600_audio r600_audio_status(struct radeon_device *rdev)
 {
-	return (RREG32(R600_AUDIO_RATE_BPS_CHANNEL) & 0x7) + 1;
-}
+	struct r600_audio status;
+	uint32_t value;
 
-/*
- * current bits per sample
- */
-int r600_audio_bits_per_sample(struct radeon_device *rdev)
-{
-	uint32_t value = (RREG32(R600_AUDIO_RATE_BPS_CHANNEL) & 0xF0) >> 4;
-	switch (value) {
-	case 0x0: return  8;
-	case 0x1: return 16;
-	case 0x2: return 20;
-	case 0x3: return 24;
-	case 0x4: return 32;
+	value = RREG32(R600_AUDIO_RATE_BPS_CHANNEL);
+
+	/* number of channels */
+	status.channels = (value & 0x7) + 1;
+
+	/* bits per sample */
+	switch ((value & 0xF0) >> 4) {
+	case 0x0:
+		status.bits_per_sample = 8;
+		break;
+	case 0x1:
+		status.bits_per_sample = 16;
+		break;
+	case 0x2:
+		status.bits_per_sample = 20;
+		break;
+	case 0x3:
+		status.bits_per_sample = 24;
+		break;
+	case 0x4:
+		status.bits_per_sample = 32;
+		break;
+	default:
+		dev_err(rdev->dev, "Unknown bits per sample 0x%x, using 16\n",
+			(int)value);
+		status.bits_per_sample = 16;
 	}
 
-	dev_err(rdev->dev, "Unknown bits per sample 0x%x using 16 instead\n",
-		(int)value);
-
-	return 16;
-}
-
-/*
- * current sampling rate in HZ
- */
-int r600_audio_rate(struct radeon_device *rdev)
-{
-	uint32_t value = RREG32(R600_AUDIO_RATE_BPS_CHANNEL);
-	uint32_t result;
-
+	/* current sampling rate in HZ */
 	if (value & 0x4000)
-		result = 44100;
+		status.rate = 44100;
 	else
-		result = 48000;
+		status.rate = 48000;
+	status.rate *= ((value >> 11) & 0x7) + 1;
+	status.rate /= ((value >> 8) & 0x7) + 1;
 
-	result *= ((value >> 11) & 0x7) + 1;
-	result /= ((value >> 8) & 0x7) + 1;
+	value = RREG32(R600_AUDIO_STATUS_BITS);
 
-	return result;
-}
+	/* iec 60958 status bits */
+	status.status_bits = value & 0xff;
 
-/*
- * iec 60958 status bits
- */
-uint8_t r600_audio_status_bits(struct radeon_device *rdev)
-{
-	return RREG32(R600_AUDIO_STATUS_BITS) & 0xff;
-}
+	/* iec 60958 category code */
+	status.category_code = (value >> 8) & 0xff;
 
-/*
- * iec 60958 category code
- */
-uint8_t r600_audio_category_code(struct radeon_device *rdev)
-{
-	return (RREG32(R600_AUDIO_STATUS_BITS) >> 8) & 0xff;
+	return status;
 }
 
 /*
@@ -134,33 +123,23 @@ void r600_audio_update_hdmi(struct work_struct *work)
 	struct radeon_device *rdev = container_of(work, struct radeon_device,
 						  audio_work);
 	struct drm_device *dev = rdev->ddev;
-
-	int channels = r600_audio_channels(rdev);
-	int rate = r600_audio_rate(rdev);
-	int bps = r600_audio_bits_per_sample(rdev);
-	uint8_t status_bits = r600_audio_status_bits(rdev);
-	uint8_t category_code = r600_audio_category_code(rdev);
+	struct r600_audio audio_status = r600_audio_status(rdev);
 	struct drm_encoder *encoder;
-	int changes = 0;
+	bool changed = false;
 
-	changes |= channels != rdev->audio.channels;
-	changes |= rate != rdev->audio.rate;
-	changes |= bps != rdev->audio.bits_per_sample;
-	changes |= status_bits != rdev->audio.status_bits;
-	changes |= category_code != rdev->audio.category_code;
-
-	if (changes) {
-		rdev->audio.channels = channels;
-		rdev->audio.rate = rate;
-		rdev->audio.bits_per_sample = bps;
-		rdev->audio.status_bits = status_bits;
-		rdev->audio.category_code = category_code;
+	if (rdev->audio_status.channels != audio_status.channels ||
+	    rdev->audio_status.rate != audio_status.rate ||
+	    rdev->audio_status.bits_per_sample != audio_status.bits_per_sample ||
+	    rdev->audio_status.status_bits != audio_status.status_bits ||
+	    rdev->audio_status.category_code != audio_status.category_code) {
+		rdev->audio_status = audio_status;
+		changed = true;
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (!radeon_dig_encoder(encoder))
 			continue;
-		if (changes || r600_hdmi_buffer_status_changed(encoder))
+		if (changed || r600_hdmi_buffer_status_changed(encoder))
 			r600_hdmi_update_audio_settings(encoder);
 	}
 }
@@ -182,7 +161,7 @@ static void r600_audio_engine_enable(struct radeon_device *rdev, bool enable)
 		WREG32_P(R600_AUDIO_ENABLE,
 			 enable ? 0x81000000 : 0x0, ~0x81000000);
 	}
-	rdev->audio.enabled = enable;
+	rdev->audio_enabled = enable;
 }
 
 /*
@@ -195,11 +174,11 @@ int r600_audio_init(struct radeon_device *rdev)
 
 	r600_audio_engine_enable(rdev, true);
 
-	rdev->audio.channels = -1;
-	rdev->audio.rate = -1;
-	rdev->audio.bits_per_sample = -1;
-	rdev->audio.status_bits = 0;
-	rdev->audio.category_code = 0;
+	rdev->audio_status.channels = -1;
+	rdev->audio_status.rate = -1;
+	rdev->audio_status.bits_per_sample = -1;
+	rdev->audio_status.status_bits = 0;
+	rdev->audio_status.category_code = 0;
 
 	return 0;
 }
@@ -268,7 +247,7 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
  */
 void r600_audio_fini(struct radeon_device *rdev)
 {
-	if (!rdev->audio.enabled)
+	if (!rdev->audio_enabled)
 		return;
 
 	r600_audio_engine_enable(rdev, false);
