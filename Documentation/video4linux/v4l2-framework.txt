@@ -590,8 +590,8 @@ You should also set these fields:
   future!), then set this to your v4l2_ioctl_ops struct.
 
 - lock: leave to NULL if you want to do all the locking in the driver.
-  Otherwise you give it a pointer to a struct mutex_lock and before any
-  of the v4l2_file_operations is called this lock will be taken by the
+  Otherwise you give it a pointer to a struct mutex_lock and before the
+  unlocked_ioctl file operation is called this lock will be taken by the
   core and released afterwards. See the next section for more details.
 
 - prio: keeps track of the priorities. Used to implement VIDIOC_G/S_PRIORITY.
@@ -652,8 +652,8 @@ v4l2_file_operations and locking
 
 You can set a pointer to a mutex_lock in struct video_device. Usually this
 will be either a top-level mutex or a mutex per device node. By default this
-lock will be used for each file operation and ioctl, but you can disable
-locking for selected ioctls by calling:
+lock will be used for unlocked_ioctl, but you can disable locking for
+selected ioctls by calling:
 
 	void v4l2_dont_use_lock(struct video_device *vdev, unsigned int cmd);
 
@@ -674,7 +674,7 @@ of a USB webcam might take a long time), then you might be better off with
 doing your own locking if you want to allow the user to do other things with
 the device while waiting for the high-latency command to finish.
 
-If a lock is specified then all file operations will be serialized on that
+If a lock is specified then all ioctl commands will be serialized on that
 lock. If you use videobuf then you must pass the same lock to the videobuf
 queue initialize function: if videobuf has to wait for a frame to arrive, then
 it will temporarily unlock the lock and relock it afterwards. If your driver
