@@ -75,8 +75,8 @@ void __cpuinit leon_callin(void)
 {
 	int cpuid = hard_smpleon_processor_id();
 
-	local_flush_cache_all();
-	local_flush_tlb_all();
+	local_ops->cache_all();
+	local_ops->tlb_all();
 	leon_configure_cache_smp();
 
 	notify_cpu_starting(cpuid);
@@ -87,8 +87,8 @@ void __cpuinit leon_callin(void)
 	calibrate_delay();
 	smp_store_cpu_info(cpuid);
 
-	local_flush_cache_all();
-	local_flush_tlb_all();
+	local_ops->cache_all();
+	local_ops->tlb_all();
 
 	/*
 	 * Unblock the master CPU _only_ when the scheduler state
@@ -99,8 +99,8 @@ void __cpuinit leon_callin(void)
 	 */
 	do_swap(&cpu_callin_map[cpuid], 1);
 
-	local_flush_cache_all();
-	local_flush_tlb_all();
+	local_ops->cache_all();
+	local_ops->tlb_all();
 
 	/* Fix idle thread fields. */
 	__asm__ __volatile__("ld [%0], %%g6\n\t" : : "r"(&current_set[cpuid])
@@ -143,8 +143,8 @@ void __init leon_configure_cache_smp(void)
 		}
 	}
 
-	local_flush_cache_all();
-	local_flush_tlb_all();
+	local_ops->cache_all();
+	local_ops->tlb_all();
 }
 
 void leon_smp_setbroadcast(unsigned int mask)
@@ -199,7 +199,7 @@ void __init leon_boot_cpus(void)
 	leon_smp_setbroadcast(1 << LEON3_IRQ_TICKER);
 
 	leon_configure_cache_smp();
-	local_flush_cache_all();
+	local_ops->cache_all();
 
 }
 
@@ -226,7 +226,7 @@ int __cpuinit leon_boot_one_cpu(int i)
 	/* whirrr, whirrr, whirrrrrrrrr... */
 	printk(KERN_INFO "Starting CPU %d : (irqmp: 0x%x)\n", (unsigned int)i,
 	       (unsigned int)&leon3_irqctrl_regs->mpstatus);
-	local_flush_cache_all();
+	local_ops->cache_all();
 
 	/* Make sure all IRQs are of from the start for this new CPU */
 	LEON_BYPASS_STORE_PA(&leon3_irqctrl_regs->mask[i], 0);
@@ -251,7 +251,7 @@ int __cpuinit leon_boot_one_cpu(int i)
 		leon_enable_irq_cpu(leon_ipi_irq, i);
 	}
 
-	local_flush_cache_all();
+	local_ops->cache_all();
 	return 0;
 }
 
@@ -271,7 +271,7 @@ void __init leon_smp_done(void)
 		}
 	}
 	*prev = first;
-	local_flush_cache_all();
+	local_ops->cache_all();
 
 	/* Free unneeded trap tables */
 	if (!cpu_present(1)) {
@@ -337,7 +337,7 @@ static void __init leon_ipi_init(void)
 	local_irq_save(flags);
 	trap_table = &sparc_ttable[SP_TRAP_IRQ1 + (leon_ipi_irq - 1)];
 	trap_table->inst_three += smpleon_ipi - real_irq_entry;
-	local_flush_cache_all();
+	local_ops->cache_all();
 	local_irq_restore(flags);
 
 	for_each_possible_cpu(cpu) {

@@ -427,7 +427,7 @@ void __init leon_init_timers(void)
 		 */
 		local_irq_save(flags);
 		patchme_maybe_smp_msg[0] = 0x01000000; /* NOP out the branch */
-		local_flush_cache_all();
+		local_ops->cache_all();
 		local_irq_restore(flags);
 	}
 #endif

@@ -431,7 +431,7 @@ static void __init sun4m_init_timers(void)
 		trap_table->inst_two = lvl14_save[1];
 		trap_table->inst_three = lvl14_save[2];
 		trap_table->inst_four = lvl14_save[3];
-		local_flush_cache_all();
+		local_ops->cache_all();
 		local_irq_restore(flags);
 	}
 #endif

@@ -38,7 +38,6 @@ static char insn_s[] __initdata = "Fixup s %p doesn't refer to an OR at %p[%08x]
 static char insn_h[] __initdata = "Fixup h %p doesn't refer to a SETHI at %p[%08x]\n";
 static char insn_a[] __initdata = "Fixup a %p doesn't refer to a SETHI nor OR at %p[%08x]\n";
 static char insn_i[] __initdata = "Fixup i %p doesn't refer to a valid instruction at %p[%08x]\n";
-static char fca_und[] __initdata = "flush_cache_all undefined in btfixup()\n";
 static char wrong_setaddr[] __initdata = "Garbled CALL/INT patch at %p[%08x,%08x,%08x]=%08x\n";
 
 #ifdef BTFIXUP_OPTIMIZE_OTHER
@@ -75,7 +74,6 @@ void __init btfixup(void)
 	unsigned insn;
 	unsigned *addr;
 	int fmangled = 0;
-	void (*flush_cacheall)(void);
 	
 	if (!visited) {
 		visited++;
@@ -311,13 +309,8 @@ void __init btfixup(void)
 			p = q + count;
 	}
 #ifdef CONFIG_SMP
-	flush_cacheall = (void (*)(void))BTFIXUPVAL_CALL(local_flush_cache_all);
+	local_ops->cache_all();
 #else
-	flush_cacheall = (void (*)(void))BTFIXUPVAL_CALL(flush_cache_all);
+	sparc32_cachetlb_ops->cache_all();
 #endif
-	if (!flush_cacheall) {
-		prom_printf(fca_und);
-		prom_halt();
-	}
-	(*flush_cacheall)();
 }

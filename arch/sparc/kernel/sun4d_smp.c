@@ -10,12 +10,14 @@
 #include <linux/interrupt.h>
 #include <linux/profile.h>
 #include <linux/delay.h>
+#include <linux/sched.h>
 #include <linux/cpu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/switch_to.h>
 #include <asm/tlbflush.h>
 #include <asm/timer.h>
+#include <asm/oplib.h>
 #include <asm/sbi.h>
 #include <asm/mmu.h>
 
@@ -60,8 +62,8 @@ void __cpuinit smp4d_callin(void)
 	/* Enable level15 interrupt, disable level14 interrupt for now */
 	cc_set_imsk((cc_get_imsk() & ~0x8000) | 0x4000);
 
-	local_flush_cache_all();
-	local_flush_tlb_all();
+	local_ops->cache_all();
+	local_ops->tlb_all();
 
 	notify_cpu_starting(cpuid);
 	/*
@@ -75,13 +77,13 @@ void __cpuinit smp4d_callin(void)
 
 	calibrate_delay();
 	smp_store_cpu_info(cpuid);
-	local_flush_cache_all();
-	local_flush_tlb_all();
+	local_ops->cache_all();
+	local_ops->tlb_all();
 
 	/* Allow master to continue. */
 	sun4d_swap((unsigned long *)&cpu_callin_map[cpuid], 1);
-	local_flush_cache_all();
-	local_flush_tlb_all();
+	local_ops->cache_all();
+	local_ops->tlb_all();
 
 	while ((unsigned long)current_set[cpuid] < PAGE_OFFSET)
 		barrier();
@@ -101,8 +103,8 @@ void __cpuinit smp4d_callin(void)
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
 
-	local_flush_cache_all();
-	local_flush_tlb_all();
+	local_ops->cache_all();
+	local_ops->tlb_all();
 
 	local_irq_enable();	/* We don't allow PIL 14 yet */
 
@@ -124,7 +126,7 @@ void __init smp4d_boot_cpus(void)
 	smp4d_ipi_init();
 	if (boot_cpu_id)
 		current_set[0] = NULL;
-	local_flush_cache_all();
+	local_ops->cache_all();
 }
 
 int __cpuinit smp4d_boot_one_cpu(int i)
@@ -150,7 +152,7 @@ int __cpuinit smp4d_boot_one_cpu(int i)
 
 	/* whirrr, whirrr, whirrrrrrrrr... */
 	printk(KERN_INFO "Starting CPU %d at %p\n", i, entry);
-	local_flush_cache_all();
+	local_ops->cache_all();
 	prom_startcpu(cpu_node,
 		      &smp_penguin_ctable, 0, (char *)entry);
 
@@ -168,7 +170,7 @@ int __cpuinit smp4d_boot_one_cpu(int i)
 		return -ENODEV;
 
 	}
-	local_flush_cache_all();
+	local_ops->cache_all();
 	return 0;
 }
 
@@ -185,7 +187,7 @@ void __init smp4d_smp_done(void)
 		prev = &cpu_data(i).next;
 	}
 	*prev = first;
-	local_flush_cache_all();
+	local_ops->cache_all();
 
 	/* Ok, they are spinning and ready to go. */
 	smp_processors_ready = 1;

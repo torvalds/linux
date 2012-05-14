@@ -65,23 +65,19 @@ extern unsigned long last_valid_pfn;
 
 static pgd_t *srmmu_swapper_pg_dir;
 
+const struct sparc32_cachetlb_ops *sparc32_cachetlb_ops;
+
 #ifdef CONFIG_SMP
+const struct sparc32_cachetlb_ops *local_ops;
+
 #define FLUSH_BEGIN(mm)
 #define FLUSH_END
 #else
-#define FLUSH_BEGIN(mm) if((mm)->context != NO_CONTEXT) {
+#define FLUSH_BEGIN(mm) if ((mm)->context != NO_CONTEXT) {
 #define FLUSH_END	}
 #endif
 
-BTFIXUPDEF_CALL(void, flush_page_for_dma, unsigned long)
-#define flush_page_for_dma(page) BTFIXUP_CALL(flush_page_for_dma)(page)
-
 int flush_page_for_dma_global = 1;
-
-#ifdef CONFIG_SMP
-BTFIXUPDEF_CALL(void, local_flush_page_for_dma, unsigned long)
-#define local_flush_page_for_dma(page) BTFIXUP_CALL(local_flush_page_for_dma)(page)
-#endif
 
 char *srmmu_name;
 
@@ -1126,7 +1122,7 @@ void __init srmmu_paging_init(void)
 	srmmu_set_ctable_ptr((unsigned long)srmmu_ctx_table_phys);
 #ifdef CONFIG_SMP
 	/* Stop from hanging here... */
-	local_flush_tlb_all();
+	local_ops->tlb_all();
 #else
 	flush_tlb_all();
 #endif
@@ -1284,6 +1280,20 @@ static void __cpuinit poke_hypersparc(void)
 	clear = srmmu_get_fstatus();
 }
 
+static const struct sparc32_cachetlb_ops hypersparc_ops = {
+	.cache_all	= hypersparc_flush_cache_all,
+	.cache_mm	= hypersparc_flush_cache_mm,
+	.cache_page	= hypersparc_flush_cache_page,
+	.cache_range	= hypersparc_flush_cache_range,
+	.tlb_all	= hypersparc_flush_tlb_all,
+	.tlb_mm		= hypersparc_flush_tlb_mm,
+	.tlb_page	= hypersparc_flush_tlb_page,
+	.tlb_range	= hypersparc_flush_tlb_range,
+	.page_to_ram	= hypersparc_flush_page_to_ram,
+	.sig_insns	= hypersparc_flush_sig_insns,
+	.page_for_dma	= hypersparc_flush_page_for_dma,
+};
+
 static void __init init_hypersparc(void)
 {
 	srmmu_name = "ROSS HyperSparc";
@@ -1292,21 +1302,7 @@ static void __init init_hypersparc(void)
 	init_vac_layout();
 
 	is_hypersparc = 1;
-
-	BTFIXUPSET_CALL(flush_cache_all, hypersparc_flush_cache_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_mm, hypersparc_flush_cache_mm, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_range, hypersparc_flush_cache_range, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_page, hypersparc_flush_cache_page, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(flush_tlb_all, hypersparc_flush_tlb_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_mm, hypersparc_flush_tlb_mm, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_range, hypersparc_flush_tlb_range, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_page, hypersparc_flush_tlb_page, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(__flush_page_to_ram, hypersparc_flush_page_to_ram, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_sig_insns, hypersparc_flush_sig_insns, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_page_for_dma, hypersparc_flush_page_for_dma, BTFIXUPCALL_NOP);
-
+	sparc32_cachetlb_ops = &hypersparc_ops;
 
 	poke_srmmu = poke_hypersparc;
 
@@ -1352,25 +1348,24 @@ static void __cpuinit poke_cypress(void)
 	srmmu_set_mmureg(mreg);
 }
 
+static const struct sparc32_cachetlb_ops cypress_ops = {
+	.cache_all	= cypress_flush_cache_all,
+	.cache_mm	= cypress_flush_cache_mm,
+	.cache_page	= cypress_flush_cache_page,
+	.cache_range	= cypress_flush_cache_range,
+	.tlb_all	= cypress_flush_tlb_all,
+	.tlb_mm		= cypress_flush_tlb_mm,
+	.tlb_page	= cypress_flush_tlb_page,
+	.tlb_range	= cypress_flush_tlb_range,
+	.page_to_ram	= cypress_flush_page_to_ram,
+	.sig_insns	= cypress_flush_sig_insns,
+	.page_for_dma	= cypress_flush_page_for_dma,
+};
+
 static void __init init_cypress_common(void)
 {
 	init_vac_layout();
-
-	BTFIXUPSET_CALL(flush_cache_all, cypress_flush_cache_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_mm, cypress_flush_cache_mm, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_range, cypress_flush_cache_range, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_page, cypress_flush_cache_page, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(flush_tlb_all, cypress_flush_tlb_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_mm, cypress_flush_tlb_mm, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_page, cypress_flush_tlb_page, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_range, cypress_flush_tlb_range, BTFIXUPCALL_NORM);
-
-
-	BTFIXUPSET_CALL(__flush_page_to_ram, cypress_flush_page_to_ram, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_sig_insns, cypress_flush_sig_insns, BTFIXUPCALL_NOP);
-	BTFIXUPSET_CALL(flush_page_for_dma, cypress_flush_page_for_dma, BTFIXUPCALL_NOP);
-
+	sparc32_cachetlb_ops = &cypress_ops;
 	poke_srmmu = poke_cypress;
 }
 
@@ -1420,6 +1415,20 @@ static void __cpuinit poke_swift(void)
 	mreg &= ~(SWIFT_BF);
 	srmmu_set_mmureg(mreg);
 }
+
+static const struct sparc32_cachetlb_ops swift_ops = {
+	.cache_all	= swift_flush_cache_all,
+	.cache_mm	= swift_flush_cache_mm,
+	.cache_page	= swift_flush_cache_page,
+	.cache_range	= swift_flush_cache_range,
+	.tlb_all	= swift_flush_tlb_all,
+	.tlb_mm		= swift_flush_tlb_mm,
+	.tlb_page	= swift_flush_tlb_page,
+	.tlb_range	= swift_flush_tlb_range,
+	.page_to_ram	= swift_flush_page_to_ram,
+	.sig_insns	= swift_flush_sig_insns,
+	.page_for_dma	= swift_flush_page_for_dma,
+};
 
 #define SWIFT_MASKID_ADDR  0x10003018
 static void __init init_swift(void)
@@ -1471,21 +1480,7 @@ static void __init init_swift(void)
 		break;
 	}
 
-	BTFIXUPSET_CALL(flush_cache_all, swift_flush_cache_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_mm, swift_flush_cache_mm, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_page, swift_flush_cache_page, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_range, swift_flush_cache_range, BTFIXUPCALL_NORM);
-
-
-	BTFIXUPSET_CALL(flush_tlb_all, swift_flush_tlb_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_mm, swift_flush_tlb_mm, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_page, swift_flush_tlb_page, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_range, swift_flush_tlb_range, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(__flush_page_to_ram, swift_flush_page_to_ram, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_sig_insns, swift_flush_sig_insns, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_page_for_dma, swift_flush_page_for_dma, BTFIXUPCALL_NORM);
-
+	sparc32_cachetlb_ops = &swift_ops;
 	flush_page_for_dma_global = 0;
 
 	/*
@@ -1618,26 +1613,25 @@ static void __cpuinit poke_turbosparc(void)
 	srmmu_set_mmureg(mreg);
 }
 
+static const struct sparc32_cachetlb_ops turbosparc_ops = {
+	.cache_all	= turbosparc_flush_cache_all,
+	.cache_mm	= turbosparc_flush_cache_mm,
+	.cache_page	= turbosparc_flush_cache_page,
+	.cache_range	= turbosparc_flush_cache_range,
+	.tlb_all	= turbosparc_flush_tlb_all,
+	.tlb_mm		= turbosparc_flush_tlb_mm,
+	.tlb_page	= turbosparc_flush_tlb_page,
+	.tlb_range	= turbosparc_flush_tlb_range,
+	.page_to_ram	= turbosparc_flush_page_to_ram,
+	.sig_insns	= turbosparc_flush_sig_insns,
+	.page_for_dma	= turbosparc_flush_page_for_dma,
+};
+
 static void __init init_turbosparc(void)
 {
 	srmmu_name = "Fujitsu TurboSparc";
 	srmmu_modtype = TurboSparc;
-
-	BTFIXUPSET_CALL(flush_cache_all, turbosparc_flush_cache_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_mm, turbosparc_flush_cache_mm, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_page, turbosparc_flush_cache_page, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_range, turbosparc_flush_cache_range, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(flush_tlb_all, turbosparc_flush_tlb_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_mm, turbosparc_flush_tlb_mm, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_page, turbosparc_flush_tlb_page, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_range, turbosparc_flush_tlb_range, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(__flush_page_to_ram, turbosparc_flush_page_to_ram, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(flush_sig_insns, turbosparc_flush_sig_insns, BTFIXUPCALL_NOP);
-	BTFIXUPSET_CALL(flush_page_for_dma, turbosparc_flush_page_for_dma, BTFIXUPCALL_NORM);
-
+	sparc32_cachetlb_ops = &turbosparc_ops;
 	poke_srmmu = poke_turbosparc;
 }
 
@@ -1652,6 +1646,20 @@ static void __cpuinit poke_tsunami(void)
 	srmmu_set_mmureg(mreg);
 }
 
+static const struct sparc32_cachetlb_ops tsunami_ops = {
+	.cache_all	= tsunami_flush_cache_all,
+	.cache_mm	= tsunami_flush_cache_mm,
+	.cache_page	= tsunami_flush_cache_page,
+	.cache_range	= tsunami_flush_cache_range,
+	.tlb_all	= tsunami_flush_tlb_all,
+	.tlb_mm		= tsunami_flush_tlb_mm,
+	.tlb_page	= tsunami_flush_tlb_page,
+	.tlb_range	= tsunami_flush_tlb_range,
+	.page_to_ram	= tsunami_flush_page_to_ram,
+	.sig_insns	= tsunami_flush_sig_insns,
+	.page_for_dma	= tsunami_flush_page_for_dma,
+};
+
 static void __init init_tsunami(void)
 {
 	/*
@@ -1662,22 +1670,7 @@ static void __init init_tsunami(void)
 
 	srmmu_name = "TI Tsunami";
 	srmmu_modtype = Tsunami;
-
-	BTFIXUPSET_CALL(flush_cache_all, tsunami_flush_cache_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_mm, tsunami_flush_cache_mm, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_page, tsunami_flush_cache_page, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_range, tsunami_flush_cache_range, BTFIXUPCALL_NORM);
-
-
-	BTFIXUPSET_CALL(flush_tlb_all, tsunami_flush_tlb_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_mm, tsunami_flush_tlb_mm, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_page, tsunami_flush_tlb_page, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_range, tsunami_flush_tlb_range, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(__flush_page_to_ram, tsunami_flush_page_to_ram, BTFIXUPCALL_NOP);
-	BTFIXUPSET_CALL(flush_sig_insns, tsunami_flush_sig_insns, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_page_for_dma, tsunami_flush_page_for_dma, BTFIXUPCALL_NORM);
-
+	sparc32_cachetlb_ops = &tsunami_ops;
 	poke_srmmu = poke_tsunami;
 
 	tsunami_setup_blockops();
@@ -1688,7 +1681,7 @@ static void __cpuinit poke_viking(void)
 	unsigned long mreg = srmmu_get_mmureg();
 	static int smp_catch;
 
-	if(viking_mxcc_present) {
+	if (viking_mxcc_present) {
 		unsigned long mxcc_control = mxcc_get_creg();
 
 		mxcc_control |= (MXCC_CTL_ECE | MXCC_CTL_PRE | MXCC_CTL_MCE);
@@ -1725,6 +1718,52 @@ static void __cpuinit poke_viking(void)
 	srmmu_set_mmureg(mreg);
 }
 
+static struct sparc32_cachetlb_ops viking_ops = {
+	.cache_all	= viking_flush_cache_all,
+	.cache_mm	= viking_flush_cache_mm,
+	.cache_page	= viking_flush_cache_page,
+	.cache_range	= viking_flush_cache_range,
+	.tlb_all	= viking_flush_tlb_all,
+	.tlb_mm		= viking_flush_tlb_mm,
+	.tlb_page	= viking_flush_tlb_page,
+	.tlb_range	= viking_flush_tlb_range,
+	.page_to_ram	= viking_flush_page_to_ram,
+	.sig_insns	= viking_flush_sig_insns,
+	.page_for_dma	= viking_flush_page_for_dma,
+};
+
+#ifdef CONFIG_SMP
+/* On sun4d the cpu broadcasts local TLB flushes, so we can just
+ * perform the local TLB flush and all the other cpus will see it.
+ * But, unfortunately, there is a bug in the sun4d XBUS backplane
+ * that requires that we add some synchronization to these flushes.
+ *
+ * The bug is that the fifo which keeps track of all the pending TLB
+ * broadcasts in the system is an entry or two too small, so if we
+ * have too many going at once we'll overflow that fifo and lose a TLB
+ * flush resulting in corruption.
+ *
+ * Our workaround is to take a global spinlock around the TLB flushes,
+ * which guarentees we won't ever have too many pending.  It's a big
+ * hammer, but a semaphore like system to make sure we only have N TLB
+ * flushes going at once will require SMP locking anyways so there's
+ * no real value in trying any harder than this.
+ */
+static struct sparc32_cachetlb_ops viking_sun4d_smp_ops = {
+	.cache_all	= viking_flush_cache_all,
+	.cache_mm	= viking_flush_cache_mm,
+	.cache_page	= viking_flush_cache_page,
+	.cache_range	= viking_flush_cache_range,
+	.tlb_all	= sun4dsmp_flush_tlb_all,
+	.tlb_mm		= sun4dsmp_flush_tlb_mm,
+	.tlb_page	= sun4dsmp_flush_tlb_page,
+	.tlb_range	= sun4dsmp_flush_tlb_range,
+	.page_to_ram	= viking_flush_page_to_ram,
+	.sig_insns	= viking_flush_sig_insns,
+	.page_for_dma	= viking_flush_page_for_dma,
+};
+#endif
+
 static void __init init_viking(void)
 {
 	unsigned long mreg = srmmu_get_mmureg();
@@ -1742,76 +1781,101 @@ static void __init init_viking(void)
 		 * This is only necessary because of the new way in
 		 * which we use the IOMMU.
 		 */
-		BTFIXUPSET_CALL(flush_page_for_dma, viking_flush_page, BTFIXUPCALL_NORM);
-
+		viking_ops.page_for_dma = viking_flush_page;
+#ifdef CONFIG_SMP
+		viking_sun4d_smp_ops.page_for_dma = viking_flush_page;
+#endif
 		flush_page_for_dma_global = 0;
 	} else {
 		srmmu_name = "TI Viking/MXCC";
 		viking_mxcc_present = 1;
-
 		srmmu_cache_pagetables = 1;
-
-		/* MXCC vikings lack the DMA snooping bug. */
-		BTFIXUPSET_CALL(flush_page_for_dma, viking_flush_page_for_dma, BTFIXUPCALL_NOP);
 	}
 
-	BTFIXUPSET_CALL(flush_cache_all, viking_flush_cache_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_mm, viking_flush_cache_mm, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_page, viking_flush_cache_page, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_range, viking_flush_cache_range, BTFIXUPCALL_NORM);
-
+	sparc32_cachetlb_ops = (const struct sparc32_cachetlb_ops *)
+		&viking_ops;
 #ifdef CONFIG_SMP
-	if (sparc_cpu_model == sun4d) {
-		BTFIXUPSET_CALL(flush_tlb_all, sun4dsmp_flush_tlb_all, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(flush_tlb_mm, sun4dsmp_flush_tlb_mm, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(flush_tlb_page, sun4dsmp_flush_tlb_page, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(flush_tlb_range, sun4dsmp_flush_tlb_range, BTFIXUPCALL_NORM);
-	} else
+	if (sparc_cpu_model == sun4d)
+		sparc32_cachetlb_ops = (const struct sparc32_cachetlb_ops *)
+			&viking_sun4d_smp_ops;
 #endif
-	{
-		BTFIXUPSET_CALL(flush_tlb_all, viking_flush_tlb_all, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(flush_tlb_mm, viking_flush_tlb_mm, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(flush_tlb_page, viking_flush_tlb_page, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(flush_tlb_range, viking_flush_tlb_range, BTFIXUPCALL_NORM);
-	}
-
-	BTFIXUPSET_CALL(__flush_page_to_ram, viking_flush_page_to_ram, BTFIXUPCALL_NOP);
-	BTFIXUPSET_CALL(flush_sig_insns, viking_flush_sig_insns, BTFIXUPCALL_NOP);
 
 	poke_srmmu = poke_viking;
 }
 
 #ifdef CONFIG_SPARC_LEON
+static void leon_flush_cache_mm(struct mm_struct *mm)
+{
+	leon_flush_cache_all();
+}
+
+static void leon_flush_cache_page(struct vm_area_struct *vma, unsigned long page)
+{
+	leon_flush_pcache_all(vma, page);
+}
+
+static void leon_flush_cache_range(struct vm_area_struct *vma,
+				   unsigned long start,
+				   unsigned long end)
+{
+	leon_flush_cache_all();
+}
+
+static void leon_flush_tlb_mm(struct mm_struct *mm)
+{
+	leon_flush_tlb_all();
+}
+
+static void leon_flush_tlb_page(struct vm_area_struct *vma,
+				unsigned long page)
+{
+	leon_flush_tlb_all();
+}
+
+static void leon_flush_tlb_range(struct vm_area_struct *vma,
+				 unsigned long start,
+				 unsigned long end)
+{
+	leon_flush_tlb_all();
+}
+
+static void leon_flush_page_to_ram(unsigned long page)
+{
+	leon_flush_cache_all();
+}
+
+static void leon_flush_sig_insns(struct mm_struct *mm, unsigned long page)
+{
+	leon_flush_cache_all();
+}
+
+static void leon_flush_page_for_dma(unsigned long page)
+{
+	leon_flush_dcache_all();
+}
 
 void __init poke_leonsparc(void)
 {
 }
 
+static const struct sparc32_cachetlb_ops leon_ops = {
+	.cache_all	= leon_flush_cache_all,
+	.cache_mm	= leon_flush_cache_mm,
+	.cache_page	= leon_flush_cache_page,
+	.cache_range	= leon_flush_cache_range,
+	.tlb_all	= leon_flush_tlb_all,
+	.tlb_mm		= leon_flush_tlb_mm,
+	.tlb_page	= leon_flush_tlb_page,
+	.tlb_range	= leon_flush_tlb_range,
+	.page_to_ram	= leon_flush_page_to_ram,
+	.sig_insns	= leon_flush_sig_insns,
+	.page_for_dma	= leon_flush_page_for_dma,
+};
+
 void __init init_leon(void)
 {
-
 	srmmu_name = "LEON";
-
-	BTFIXUPSET_CALL(flush_cache_all, leon_flush_cache_all,
-			BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_mm, leon_flush_cache_all,
-			BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_page, leon_flush_pcache_all,
-			BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_range, leon_flush_cache_all,
-			BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_page_for_dma, leon_flush_dcache_all,
-			BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(flush_tlb_all, leon_flush_tlb_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_mm, leon_flush_tlb_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_page, leon_flush_tlb_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_tlb_range, leon_flush_tlb_all, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(__flush_page_to_ram, leon_flush_cache_all,
-			BTFIXUPCALL_NOP);
-	BTFIXUPSET_CALL(flush_sig_insns, leon_flush_cache_all, BTFIXUPCALL_NOP);
-
+	sparc32_cachetlb_ops = &leon_ops;
 	poke_srmmu = poke_leonsparc;
 
 	srmmu_cache_pagetables = 0;
@@ -1925,10 +1989,152 @@ static void __init get_srmmu_type(void)
 /* Local cross-calls. */
 static void smp_flush_page_for_dma(unsigned long page)
 {
-	xc1((smpfunc_t) BTFIXUP_CALL(local_flush_page_for_dma), page);
-	local_flush_page_for_dma(page);
+	xc1((smpfunc_t) local_ops->page_for_dma, page);
+	local_ops->page_for_dma(page);
 }
 
+static void smp_flush_cache_all(void)
+{
+	xc0((smpfunc_t) local_ops->cache_all);
+	local_ops->cache_all();
+}
+
+static void smp_flush_tlb_all(void)
+{
+	xc0((smpfunc_t) local_ops->tlb_all);
+	local_ops->tlb_all();
+}
+
+static void smp_flush_cache_mm(struct mm_struct *mm)
+{
+	if (mm->context != NO_CONTEXT) {
+		cpumask_t cpu_mask;
+		cpumask_copy(&cpu_mask, mm_cpumask(mm));
+		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+		if (!cpumask_empty(&cpu_mask))
+			xc1((smpfunc_t) local_ops->cache_mm, (unsigned long) mm);
+		local_ops->cache_mm(mm);
+	}
+}
+
+static void smp_flush_tlb_mm(struct mm_struct *mm)
+{
+	if (mm->context != NO_CONTEXT) {
+		cpumask_t cpu_mask;
+		cpumask_copy(&cpu_mask, mm_cpumask(mm));
+		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+		if (!cpumask_empty(&cpu_mask)) {
+			xc1((smpfunc_t) local_ops->tlb_mm, (unsigned long) mm);
+			if (atomic_read(&mm->mm_users) == 1 && current->active_mm == mm)
+				cpumask_copy(mm_cpumask(mm),
+					     cpumask_of(smp_processor_id()));
+		}
+		local_ops->tlb_mm(mm);
+	}
+}
+
+static void smp_flush_cache_range(struct vm_area_struct *vma,
+				  unsigned long start,
+				  unsigned long end)
+{
+	struct mm_struct *mm = vma->vm_mm;
+
+	if (mm->context != NO_CONTEXT) {
+		cpumask_t cpu_mask;
+		cpumask_copy(&cpu_mask, mm_cpumask(mm));
+		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+		if (!cpumask_empty(&cpu_mask))
+			xc3((smpfunc_t) local_ops->cache_range,
+			    (unsigned long) vma, start, end);
+		local_ops->cache_range(vma, start, end);
+	}
+}
+
+static void smp_flush_tlb_range(struct vm_area_struct *vma,
+				unsigned long start,
+				unsigned long end)
+{
+	struct mm_struct *mm = vma->vm_mm;
+
+	if (mm->context != NO_CONTEXT) {
+		cpumask_t cpu_mask;
+		cpumask_copy(&cpu_mask, mm_cpumask(mm));
+		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+		if (!cpumask_empty(&cpu_mask))
+			xc3((smpfunc_t) local_ops->tlb_range,
+			    (unsigned long) vma, start, end);
+		local_ops->tlb_range(vma, start, end);
+	}
+}
+
+static void smp_flush_cache_page(struct vm_area_struct *vma, unsigned long page)
+{
+	struct mm_struct *mm = vma->vm_mm;
+
+	if (mm->context != NO_CONTEXT) {
+		cpumask_t cpu_mask;
+		cpumask_copy(&cpu_mask, mm_cpumask(mm));
+		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+		if (!cpumask_empty(&cpu_mask))
+			xc2((smpfunc_t) local_ops->cache_page,
+			    (unsigned long) vma, page);
+		local_ops->cache_page(vma, page);
+	}
+}
+
+static void smp_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
+{
+	struct mm_struct *mm = vma->vm_mm;
+
+	if (mm->context != NO_CONTEXT) {
+		cpumask_t cpu_mask;
+		cpumask_copy(&cpu_mask, mm_cpumask(mm));
+		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+		if (!cpumask_empty(&cpu_mask))
+			xc2((smpfunc_t) local_ops->tlb_page,
+			    (unsigned long) vma, page);
+		local_ops->tlb_page(vma, page);
+	}
+}
+
+static void smp_flush_page_to_ram(unsigned long page)
+{
+	/* Current theory is that those who call this are the one's
+	 * who have just dirtied their cache with the pages contents
+	 * in kernel space, therefore we only run this on local cpu.
+	 *
+	 * XXX This experiment failed, research further... -DaveM
+	 */
+#if 1
+	xc1((smpfunc_t) local_ops->page_to_ram, page);
+#endif
+	local_ops->page_to_ram(page);
+}
+
+static void smp_flush_sig_insns(struct mm_struct *mm, unsigned long insn_addr)
+{
+	cpumask_t cpu_mask;
+	cpumask_copy(&cpu_mask, mm_cpumask(mm));
+	cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+	if (!cpumask_empty(&cpu_mask))
+		xc2((smpfunc_t) local_ops->sig_insns,
+		    (unsigned long) mm, insn_addr);
+	local_ops->sig_insns(mm, insn_addr);
+}
+
+static struct sparc32_cachetlb_ops smp_cachetlb_ops = {
+	.cache_all	= smp_flush_cache_all,
+	.cache_mm	= smp_flush_cache_mm,
+	.cache_page	= smp_flush_cache_page,
+	.cache_range	= smp_flush_cache_range,
+	.tlb_all	= smp_flush_tlb_all,
+	.tlb_mm		= smp_flush_tlb_mm,
+	.tlb_page	= smp_flush_tlb_page,
+	.tlb_range	= smp_flush_tlb_range,
+	.page_to_ram	= smp_flush_page_to_ram,
+	.sig_insns	= smp_flush_sig_insns,
+	.page_for_dma	= smp_flush_page_for_dma,
+};
 #endif
 
 /* Load up routines and constants for sun4m and sun4d mmu */
@@ -1942,44 +2148,30 @@ void __init load_mmu(void)
 
 #ifdef CONFIG_SMP
 	/* El switcheroo... */
+	local_ops = sparc32_cachetlb_ops;
 
-	BTFIXUPCOPY_CALL(local_flush_cache_all, flush_cache_all);
-	BTFIXUPCOPY_CALL(local_flush_cache_mm, flush_cache_mm);
-	BTFIXUPCOPY_CALL(local_flush_cache_range, flush_cache_range);
-	BTFIXUPCOPY_CALL(local_flush_cache_page, flush_cache_page);
-	BTFIXUPCOPY_CALL(local_flush_tlb_all, flush_tlb_all);
-	BTFIXUPCOPY_CALL(local_flush_tlb_mm, flush_tlb_mm);
-	BTFIXUPCOPY_CALL(local_flush_tlb_range, flush_tlb_range);
-	BTFIXUPCOPY_CALL(local_flush_tlb_page, flush_tlb_page);
-	BTFIXUPCOPY_CALL(local_flush_page_to_ram, __flush_page_to_ram);
-	BTFIXUPCOPY_CALL(local_flush_sig_insns, flush_sig_insns);
-	BTFIXUPCOPY_CALL(local_flush_page_for_dma, flush_page_for_dma);
-
-	BTFIXUPSET_CALL(flush_cache_all, smp_flush_cache_all, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_mm, smp_flush_cache_mm, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_range, smp_flush_cache_range, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_cache_page, smp_flush_cache_page, BTFIXUPCALL_NORM);
-	if (sparc_cpu_model != sun4d &&
-	    sparc_cpu_model != sparc_leon) {
-		BTFIXUPSET_CALL(flush_tlb_all, smp_flush_tlb_all, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(flush_tlb_mm, smp_flush_tlb_mm, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(flush_tlb_range, smp_flush_tlb_range, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(flush_tlb_page, smp_flush_tlb_page, BTFIXUPCALL_NORM);
+	if (sparc_cpu_model == sun4d || sparc_cpu_model == sparc_leon) {
+		smp_cachetlb_ops.tlb_all = local_ops->tlb_all;
+		smp_cachetlb_ops.tlb_mm = local_ops->tlb_mm;
+		smp_cachetlb_ops.tlb_range = local_ops->tlb_range;
+		smp_cachetlb_ops.tlb_page = local_ops->tlb_page;
 	}
-	BTFIXUPSET_CALL(__flush_page_to_ram, smp_flush_page_to_ram, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_sig_insns, smp_flush_sig_insns, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(flush_page_for_dma, smp_flush_page_for_dma, BTFIXUPCALL_NORM);
 
 	if (poke_srmmu == poke_viking) {
 		/* Avoid unnecessary cross calls. */
-		BTFIXUPCOPY_CALL(flush_cache_all, local_flush_cache_all);
-		BTFIXUPCOPY_CALL(flush_cache_mm, local_flush_cache_mm);
-		BTFIXUPCOPY_CALL(flush_cache_range, local_flush_cache_range);
-		BTFIXUPCOPY_CALL(flush_cache_page, local_flush_cache_page);
-		BTFIXUPCOPY_CALL(__flush_page_to_ram, local_flush_page_to_ram);
-		BTFIXUPCOPY_CALL(flush_sig_insns, local_flush_sig_insns);
-		BTFIXUPCOPY_CALL(flush_page_for_dma, local_flush_page_for_dma);
+		smp_cachetlb_ops.cache_all = local_ops->cache_all;
+		smp_cachetlb_ops.cache_mm = local_ops->cache_mm;
+		smp_cachetlb_ops.cache_range = local_ops->cache_range;
+		smp_cachetlb_ops.cache_page = local_ops->cache_page;
+
+		smp_cachetlb_ops.page_to_ram = local_ops->page_to_ram;
+		smp_cachetlb_ops.sig_insns = local_ops->sig_insns;
+		smp_cachetlb_ops.page_for_dma = local_ops->page_for_dma;
 	}
+
+	/* It really is const after this point. */
+	sparc32_cachetlb_ops = (const struct sparc32_cachetlb_ops *)
+		&smp_cachetlb_ops;
 #endif
 
 	if (sparc_cpu_model == sun4d)

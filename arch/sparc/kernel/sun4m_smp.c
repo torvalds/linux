@@ -8,12 +8,14 @@
 #include <linux/interrupt.h>
 #include <linux/profile.h>
 #include <linux/delay.h>
+#include <linux/sched.h>
 #include <linux/cpu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/switch_to.h>
 #include <asm/tlbflush.h>
 #include <asm/timer.h>
+#include <asm/oplib.h>
 
 #include "irq.h"
 #include "kernel.h"
@@ -38,8 +40,8 @@ void __cpuinit smp4m_callin(void)
 {
 	int cpuid = hard_smp_processor_id();
 
-	local_flush_cache_all();
-	local_flush_tlb_all();
+	local_ops->cache_all();
+	local_ops->tlb_all();
 
 	notify_cpu_starting(cpuid);
 
@@ -48,8 +50,8 @@ void __cpuinit smp4m_callin(void)
 	calibrate_delay();
 	smp_store_cpu_info(cpuid);
 
-	local_flush_cache_all();
-	local_flush_tlb_all();
+	local_ops->cache_all();
+	local_ops->tlb_all();
 
 	/*
 	 * Unblock the master CPU _only_ when the scheduler state
@@ -61,8 +63,8 @@ void __cpuinit smp4m_callin(void)
 	swap_ulong(&cpu_callin_map[cpuid], 1);
 
 	/* XXX: What's up with all the flushes? */
-	local_flush_cache_all();
-	local_flush_tlb_all();
+	local_ops->cache_all();
+	local_ops->tlb_all();
 
 	/* Fix idle thread fields. */
 	__asm__ __volatile__("ld [%0], %%g6\n\t"
@@ -88,7 +90,7 @@ void __init smp4m_boot_cpus(void)
 {
 	smp4m_ipi_init();
 	sun4m_unmask_profile_irq();
-	local_flush_cache_all();
+	local_ops->cache_all();
 }
 
 int __cpuinit smp4m_boot_one_cpu(int i)
@@ -117,7 +119,7 @@ int __cpuinit smp4m_boot_one_cpu(int i)
 
 	/* whirrr, whirrr, whirrrrrrrrr... */
 	printk(KERN_INFO "Starting CPU %d at %p\n", i, entry);
-	local_flush_cache_all();
+	local_ops->cache_all();
 	prom_startcpu(cpu_node, &smp_penguin_ctable, 0, (char *)entry);
 
 	/* wheee... it's going... */
@@ -132,7 +134,7 @@ int __cpuinit smp4m_boot_one_cpu(int i)
 		return -ENODEV;
 	}
 
-	local_flush_cache_all();
+	local_ops->cache_all();
 	return 0;
 }
 
@@ -149,7 +151,7 @@ void __init smp4m_smp_done(void)
 		prev = &cpu_data(i).next;
 	}
 	*prev = first;
-	local_flush_cache_all();
+	local_ops->cache_all();
 
 	/* Ok, they are spinning and ready to go. */
 }
