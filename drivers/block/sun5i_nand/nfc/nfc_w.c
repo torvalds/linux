@@ -60,7 +60,7 @@ void _wait_twb(void)
 *								NFC_Write
 *
 * Description 	: write one page data into flash in single plane mode.
-* Arguments	: *wcmd	-- the write command sequence list head¡£
+* Arguments	: *wcmd	-- the write command sequence list headã€‚
 *			  *mainbuf	-- point to data buffer address, 	it must be four bytes align.
 *                     *sparebuf	-- point to spare buffer address.
 *                     dma_wait_mode	-- how to deal when dma start, 0 = wait till dma finish,
@@ -247,11 +247,11 @@ __s32 NFC_Write_Seq( NFC_CMD_LIST  *wcmd, void *mainbuf, void *sparebuf,  __u8 d
 
 	/*enable ecc*/
 	_enable_ecc(1);
-	
+
 	/*set ecc to 24-bit ecc*/
     ecc_mode_temp = NFC_READ_REG(NFC_REG_ECC_CTL) & 0xf000;
 	NFC_WRITE_REG(NFC_REG_ECC_CTL, ((NFC_READ_REG(NFC_REG_ECC_CTL) & (~NFC_ECC_MODE))|(0x1<<12) ));
-	
+
 	NFC_WRITE_REG(NFC_REG_CMD,cfg);
 
     NAND_WaitDmaFinish();
@@ -268,7 +268,7 @@ __s32 NFC_Write_Seq( NFC_CMD_LIST  *wcmd, void *mainbuf, void *sparebuf,  __u8 d
 
 	/*disable ecc*/
 	_disable_ecc();
-	
+
 	/*set ecc to original value*/
 	NFC_WRITE_REG(NFC_REG_ECC_CTL, (NFC_READ_REG(NFC_REG_ECC_CTL) & (~NFC_ECC_MODE))|ecc_mode_temp);
 
@@ -552,7 +552,7 @@ __s32 _read_in_page_mode_seq(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__
 
 	/*enable ecc*/
 	_enable_ecc(1);
-	
+
 	/*set ecc to 24-bit ecc*/
     ecc_mode_temp = NFC_READ_REG(NFC_REG_ECC_CTL) & 0xf000;
 	NFC_WRITE_REG(NFC_REG_ECC_CTL, ((NFC_READ_REG(NFC_REG_ECC_CTL) & (~NFC_ECC_MODE))|(0x1<<12)));
@@ -579,7 +579,7 @@ __s32 _read_in_page_mode_seq(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__
 
     /*set ecc to original value*/
 	NFC_WRITE_REG(NFC_REG_ECC_CTL, (NFC_READ_REG(NFC_REG_ECC_CTL) & (~NFC_ECC_MODE))|ecc_mode_temp);
-    
+
 	/*if dma mode is wait*/
 	if(0 == dma_wait_mode){
 		ret1 = _wait_dma_end();
@@ -771,7 +771,7 @@ __s32 _read_in_page_mode_spare(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,
 	_enable_ecc(1);
 	NFC_WRITE_REG(NFC_REG_CMD,cfg);
 
-    NAND_WaitDmaFinish();// 
+    NAND_WaitDmaFinish();//
 
 	/*wait cmd fifo free and cmd finish*/
 	ret = _wait_cmdfifo_free();
@@ -866,13 +866,13 @@ __s32 NFC_LSBInit(__u32 read_retry_type)
 	{
 		//set lsb mode
 		lsb_mode_reg_num = 5;
-		
+
 		lsb_mode_reg_adr[0] = 0xa4;
 		lsb_mode_reg_adr[1] = 0xa5;
 		lsb_mode_reg_adr[2] = 0xb0;
 		lsb_mode_reg_adr[3] = 0xb1;
 		lsb_mode_reg_adr[4] = 0xc9;
-		
+
 		lsb_mode_val[0] = 0x25;
 		lsb_mode_val[1] = 0x25;
 		lsb_mode_val[2] = 0x25;
@@ -883,15 +883,15 @@ __s32 NFC_LSBInit(__u32 read_retry_type)
 	{
 	    return -1;
 	}
-	
+
 	return 0;
 }
 
 __s32 LSB_GetDefaultParam(__u32 chip,__u8* default_value, __u32 read_retry_type)
 {
-    __s32 ret; 
-    __u32 i; 
-    
+    __s32 ret;
+    __u32 i;
+
     ret =_vender_get_param(&lsb_mode_default_val[0], &lsb_mode_reg_adr[0], lsb_mode_reg_num);
     for(i=0; i<lsb_mode_reg_num; i++)
     {
@@ -899,15 +899,15 @@ __s32 LSB_GetDefaultParam(__u32 chip,__u8* default_value, __u32 read_retry_type)
     }
 
 	return ret;
-	
+
 }
 
 __s32 LSB_SetDefaultParam(__u32 chip,__u8* default_value, __u32 read_retry_type)
 {
-    __s32 ret; 
-    
+    __s32 ret;
+
     ret =_vender_set_param(&lsb_mode_default_val[0], &lsb_mode_reg_adr[0], lsb_mode_reg_num);
-    
+
 	return ret;
 }
 
@@ -915,24 +915,24 @@ __s32 NFC_LSBEnable(__u32 chip, __u32 read_retry_type)
 {
     __u8 value[LSB_MODE_MAX_REG_NUM];
     __u32 i;
-    
+
     //fix chip 0
     LSB_GetDefaultParam(0,value,read_retry_type);
     for(i=0;i<lsb_mode_reg_num;i++)
         value[i] += lsb_mode_val[i];
-        
+
     _vender_set_param(value, &lsb_mode_reg_adr[0], lsb_mode_reg_num);
-    
+
     return 0;
 }
 
 __s32 NFC_LSBDisable(__u32 chip, __u32 read_retry_type)
 {
     __u8 value[LSB_MODE_MAX_REG_NUM];
-        
+
     //fix chip 0
     LSB_SetDefaultParam(0,value, read_retry_type);
-    
+
     return 0;
 }
 

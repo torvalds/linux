@@ -44,13 +44,13 @@ extern void * nand_base;
 *   hardware registers base define
 *********************************************************************************************************
 */
-#define REGS_pBASE		0x01C00000		//¼Ä´æÆ÷ÎïÀíµØÖ·
-#define REGS_pSIZE      0x00300000      //¼Ä´æÆ÷ÎïÀí¿Õ¼ä´óĞ¡
+#define REGS_pBASE		0x01C00000		//å¯„å­˜å™¨ç‰©ç†åœ°å€
+#define REGS_pSIZE      0x00300000      //å¯„å­˜å™¨ç‰©ç†ç©ºé—´å¤§å°
 #define DRAM_pBASE      0x80000000
 #define SRAM_pBASE      0x00000000
 //#define SRAM_SIZE      (32 * 1024)
 
-//#define	REGS_vBASE  0xf0000000      //??¡ä??¡ÂD¨¦?a¦Ì??¡¤
+//#define	REGS_vBASE  0xf0000000      //??â€²??Ã·DÃ©?aÎ¼??Â·
 //#define DRAM_vBASE	0xc2000000
 //#define SRAM_vBASE  0xffe00000
 
@@ -62,7 +62,7 @@ extern void * nand_base;
 //	#define DRAM_BASE               DRAM_vBASE
 //#endif    // #ifdef  USE_PHYSICAL_ADDRESS
 //
-// ÎïÀíµØÖ·
+// ç‰©ç†åœ°å€
 #define SRAM_REGS_pBASE         ( REGS_pBASE + 0x00000 )    //SRAM controller
 #define DRAM_REGS_pBASE         ( REGS_pBASE + 0x01000 )    //SDRAM/DDR controller
 #define DMAC_REGS_pBASE         ( REGS_pBASE + 0x02000 )    //DMA controller

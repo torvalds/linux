@@ -14,7 +14,7 @@
  *
  * Date : 2008.12.02
  *
- * Description : 
+ * Description :
  *
  * History :
  *================================================================================================
@@ -40,9 +40,9 @@ extern struct __NandStorageInfo_t  NandStorageInfo;
             DIE_CNT_OF_CHIP * NandStorageInfo.ChipCnt  / 1024 * DATA_BLK_CNT_OF_ZONE)
 
 
-struct nand_disk{	
-	unsigned long size;						
-	unsigned long offset;	
+struct nand_disk{
+	unsigned long size;
+	unsigned long offset;
 	unsigned char type;
 };
 
@@ -54,8 +54,8 @@ typedef struct tag_PARTITION{
 	__u32 lenlo;				//size low 32 bit
 	__u8  classname[12];		//major device name
 	__u8  name[12];				//minor device name
-	unsigned  int       user_type;          //±êÖ¾µ±Ç°ÅÌ·ûËùÊôÓÚµÄÓÃ»§
-	unsigned  int       ro;                 //±êÖ¾µ±Ç°ÅÌ·ûµÄ¶ÁĞ´ÊôĞÔ
+	unsigned  int       user_type;          //æ ‡å¿—å½“å‰ç›˜ç¬¦æ‰€å±äºçš„ç”¨æˆ·
+	unsigned  int       ro;                 //æ ‡å¿—å½“å‰ç›˜ç¬¦çš„è¯»å†™å±æ€§
 	__u8  res[16];				//reserved
 }PARTITION;
 
@@ -63,11 +63,11 @@ typedef struct tag_PARTITION{
 typedef struct tag_MBR{
 	__u32 crc32;					// crc, from byte 4 to mbr tail
 	__u32 version;					// version
-	__u8  magic[8];					// magic number	
+	__u8  magic[8];					// magic number
 	__u8  copy;						// mbr backup count
 	__u8  index;					// current part	no
-	__u16   PartCount;				// part counter	
-	PARTITION array[MAX_PART_COUNT];// part info	
+	__u16   PartCount;				// part counter
+	PARTITION array[MAX_PART_COUNT];// part info
 	__u8 res[MBR_RESERVED];         // reserved space
 }MBR;
 
