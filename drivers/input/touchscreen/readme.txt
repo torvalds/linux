@@ -1,12 +1,12 @@
-touch screen driver ÏÖ×´ÃèÊö£º
+touch screen driver çŽ°çŠ¶æè¿°ï¼š
 @2011.11.16
-	ctp_platform_ops.h: ½¨Á¢3.0 ³õÊ¼°æ±¾£»
-	1. ÐÂÔöi2c Ïà¹ØµÄdetect½Ó¿Ú£»
-	2. ¸üÐÂset_gpio_irq_mode½Ó¿Ú£¬ÄÜÊµÏÖÍâ²¿32¸öÖÐ¶ÏÔ´µÄÅäÖÃ£»
-	
-	1.goodix_touch: ½¨Á¢3.0 ³õÊ¼°æ±¾£»
-		1.1 Ö§³Öµ¥µã»òË«µã×ø±êÉÏ±¨·½Ê½£»
-		1.2 ²ÉÓÃctp_platform_ops²Ù×÷¼¯Íê³ÉÆ½Ì¨Ïà¹Ø²Ù×÷£»
-		
-	ft5x_ts: ½¨Á¢3.0 ³õÊ¼°æ±¾£»
-		1. ²ÉÓÃctp_platform_ops²Ù×÷¼¯Íê³ÉÆ½Ì¨Ïà¹Ø²Ù×÷£»
+	ctp_platform_ops.h: å»ºç«‹3.0 åˆå§‹ç‰ˆæœ¬ï¼›
+	1. æ–°å¢ži2c ç›¸å…³çš„detectæŽ¥å£ï¼›
+	2. æ›´æ–°set_gpio_irq_modeæŽ¥å£ï¼Œèƒ½å®žçŽ°å¤–éƒ¨32ä¸ªä¸­æ–­æºçš„é…ç½®ï¼›
+
+	1.goodix_touch: å»ºç«‹3.0 åˆå§‹ç‰ˆæœ¬ï¼›
+		1.1 æ”¯æŒå•ç‚¹æˆ–åŒç‚¹åæ ‡ä¸ŠæŠ¥æ–¹å¼ï¼›
+		1.2 é‡‡ç”¨ctp_platform_opsæ“ä½œé›†å®Œæˆå¹³å°ç›¸å…³æ“ä½œï¼›
+
+	ft5x_ts: å»ºç«‹3.0 åˆå§‹ç‰ˆæœ¬ï¼›
+		1. é‡‡ç”¨ctp_platform_opsæ“ä½œé›†å®Œæˆå¹³å°ç›¸å…³æ“ä½œï¼›
