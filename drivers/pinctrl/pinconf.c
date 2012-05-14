@@ -50,9 +50,9 @@ int pinconf_validate_map(struct pinctrl_map const *map, int i)
 		return -EINVAL;
 	}
 
-	if (map->data.configs.num_configs &&
+	if (!map->data.configs.num_configs ||
 			!map->data.configs.configs) {
-		pr_err("failed to register map %s (%d): no configs ptr given\n",
+		pr_err("failed to register map %s (%d): no configs given\n",
 		       map->name, i);
 		return -EINVAL;
 	}
