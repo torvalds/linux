@@ -1599,6 +1599,29 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size,
 	}
 
  out:
+	/*
+	 * The ring buffer resize can happen with the ring buffer
+	 * enabled, so that the update disturbs the tracing as little
+	 * as possible. But if the buffer is disabled, we do not need
+	 * to worry about that, and we can take the time to verify
+	 * that the buffer is not corrupt.
+	 */
+	if (atomic_read(&buffer->record_disabled)) {
+		atomic_inc(&buffer->record_disabled);
+		/*
+		 * Even though the buffer was disabled, we must make sure
+		 * that it is truly disabled before calling rb_check_pages.
+		 * There could have been a race between checking
+		 * record_disable and incrementing it.
+		 */
+		synchronize_sched();
+		for_each_buffer_cpu(buffer, cpu) {
+			cpu_buffer = buffer->buffers[cpu];
+			rb_check_pages(cpu_buffer);
+		}
+		atomic_dec(&buffer->record_disabled);
+	}
+
 	mutex_unlock(&buffer->mutex);
 	return size;
 
@@ -3749,6 +3772,12 @@ void
 ring_buffer_read_finish(struct ring_buffer_iter *iter)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = iter->cpu_buffer;
+
+	/*
+	 * Ring buffer is disabled from recording, here's a good place
+	 * to check the integrity of the ring buffer. 
+	 */
+	rb_check_pages(cpu_buffer);
 
 	atomic_dec(&cpu_buffer->record_disabled);
 	atomic_dec(&cpu_buffer->buffer->resize_disabled);
