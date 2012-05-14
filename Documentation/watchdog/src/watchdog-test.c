@@ -47,18 +47,18 @@ int main(int argc, char *argv[])
 	    ioctl(fd, WDIOC_SETOPTIONS, &flags);
 	    fprintf(stderr, "Watchdog card disabled.\n");
 	    fflush(stderr);
-	    exit(0);
+	    goto end;
 	} else if (!strncasecmp(argv[1], "-e", 2)) {
 	    flags = WDIOS_ENABLECARD;
 	    ioctl(fd, WDIOC_SETOPTIONS, &flags);
 	    fprintf(stderr, "Watchdog card enabled.\n");
 	    fflush(stderr);
-	    exit(0);
+	    goto end;
 	} else {
 	    fprintf(stderr, "-d to disable, -e to enable.\n");
 	    fprintf(stderr, "run by itself to tick the card.\n");
 	    fflush(stderr);
-	    exit(0);
+	    goto end;
 	}
     } else {
 	fprintf(stderr, "Watchdog Ticking Away!\n");
@@ -69,4 +69,7 @@ int main(int argc, char *argv[])
 	keep_alive();
 	sleep(1);
     }
+end:
+    close(fd);
+    return 0;
 }
