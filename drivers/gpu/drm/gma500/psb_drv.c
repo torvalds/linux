@@ -208,11 +208,11 @@ static int psb_driver_unload(struct drm_device *dev)
 	psb_modeset_cleanup(dev);
 
 	if (dev_priv) {
-		psb_intel_opregion_fini(dev);
-		psb_lid_timer_takedown(dev_priv);
 
 		if (dev_priv->ops->chip_teardown)
 			dev_priv->ops->chip_teardown(dev);
+
+		psb_intel_opregion_fini(dev);
 		psb_do_takedown(dev);
 
 
@@ -336,8 +336,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	PSB_WSGX32(0x30000000, PSB_CR_BIF_3D_REQ_BASE);
 
 	acpi_video_register();
-	if (dev_priv->opregion.lid_state)
-		psb_lid_timer_init(dev_priv);
 
 	ret = drm_vblank_init(dev, dev_priv->num_pipe);
 	if (ret)

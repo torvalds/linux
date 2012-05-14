@@ -352,8 +352,17 @@ static int psb_chip_setup(struct drm_device *dev)
 	return 0;
 }
 
+/* Not exactly an erratum more an irritation */
+static int psb_chip_errata(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	psb_lid_timer_init(dev_priv);
+}
+
 static void psb_chip_teardown(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	psb_lid_timer_takedown(dev_priv);
 	gma_intel_teardown_gmbus(dev);
 }
 
@@ -367,6 +376,7 @@ const struct psb_ops psb_chip_ops = {
 	.sgx_offset = PSB_SGX_OFFSET,
 	.chip_setup = psb_chip_setup,
 	.chip_teardown = psb_chip_teardown,
+	.errata = psb_chip_errata,
 
 	.crtc_helper = &psb_intel_helper_funcs,
 	.crtc_funcs = &psb_intel_crtc_funcs,
