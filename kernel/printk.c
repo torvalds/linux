@@ -1264,13 +1264,13 @@ asmlinkage int vprintk_emit(int facility, int level,
 			    const char *fmt, va_list args)
 {
 	static int recursion_bug;
-	static char buf[LOG_LINE_MAX];
-	static size_t buflen;
-	static int buflevel;
+	static char cont_buf[LOG_LINE_MAX];
+	static size_t cont_len;
+	static int cont_level;
+	static struct task_struct *cont_task;
 	static char textbuf[LOG_LINE_MAX];
-	static struct task_struct *cont;
 	char *text = textbuf;
-	size_t textlen;
+	size_t text_len;
 	unsigned long flags;
 	int this_cpu;
 	bool newline = false;
@@ -1320,15 +1320,15 @@ asmlinkage int vprintk_emit(int facility, int level,
 	 * The printf needs to come first; we need the syslog
 	 * prefix which might be passed-in as a parameter.
 	 */
-	textlen = vscnprintf(text, sizeof(textbuf), fmt, args);
+	text_len = vscnprintf(text, sizeof(textbuf), fmt, args);
 
 	/* mark and strip a trailing newline */
-	if (textlen && text[textlen-1] == '\n') {
-		textlen--;
+	if (text_len && text[text_len-1] == '\n') {
+		text_len--;
 		newline = true;
 	}
 
-	/* strip syslog prefix and extract log level or flags */
+	/* strip syslog prefix and extract log level or control flags */
 	if (text[0] == '<' && text[1] && text[2] == '>') {
 		switch (text[1]) {
 		case '0' ... '7':
@@ -1338,49 +1338,67 @@ asmlinkage int vprintk_emit(int facility, int level,
 			prefix = true;
 		case 'c':	/* KERN_CONT */
 			text += 3;
-			textlen -= 3;
+			text_len -= 3;
 		}
 	}
 
-	if (buflen && (prefix || dict || cont != current)) {
-		/* flush existing buffer */
-		log_store(facility, buflevel, NULL, 0, buf, buflen);
-		printed_len += buflen;
-		buflen = 0;
+	if (level == -1)
+		level = default_message_loglevel;
+
+	if (dict) {
+		prefix = true;
+		newline = true;
 	}
 
-	if (buflen == 0) {
-		/* remember level for first message in the buffer */
-		if (level == -1)
-			buflevel = default_message_loglevel;
-		else
-			buflevel = level;
-	}
-
-	if (buflen || !newline) {
-		/* append to existing buffer, or buffer until next message */
-		if (buflen + textlen > sizeof(buf))
-			textlen = sizeof(buf) - buflen;
-		memcpy(buf + buflen, text, textlen);
-		buflen += textlen;
-	}
-
-	if (newline) {
-		/* end of line; flush buffer */
-		if (buflen) {
-			log_store(facility, buflevel,
-				  dict, dictlen, buf, buflen);
-			printed_len += buflen;
-			buflen = 0;
-		} else {
-			log_store(facility, buflevel,
-				  dict, dictlen, text, textlen);
-			printed_len += textlen;
+	if (!newline) {
+		if (cont_len && (prefix || cont_task != current)) {
+			/*
+			 * Flush earlier buffer, which is either from a
+			 * different thread, or when we got a new prefix.
+			 */
+			log_store(facility, cont_level, NULL, 0, cont_buf, cont_len);
+			cont_len = 0;
 		}
-		cont = NULL;
+
+		if (!cont_len) {
+			cont_level = level;
+			cont_task = current;
+		}
+
+		/* buffer or append to earlier buffer from the same thread */
+		if (cont_len + text_len > sizeof(cont_buf))
+			text_len = sizeof(cont_buf) - cont_len;
+		memcpy(cont_buf + cont_len, text, text_len);
+		cont_len += text_len;
 	} else {
-		/* remember thread which filled the buffer */
-		cont = current;
+		if (cont_len && cont_task == current) {
+			if (prefix) {
+				/*
+				 * New prefix from the same thread; flush. We
+				 * either got no earlier newline, or we race
+				 * with an interrupt.
+				 */
+				log_store(facility, cont_level,
+					  NULL, 0, cont_buf, cont_len);
+				cont_len = 0;
+			}
+
+			/* append to the earlier buffer and flush */
+			if (cont_len + text_len > sizeof(cont_buf))
+				text_len = sizeof(cont_buf) - cont_len;
+			memcpy(cont_buf + cont_len, text, text_len);
+			cont_len += text_len;
+			log_store(facility, cont_level,
+				  NULL, 0, cont_buf, cont_len);
+			cont_len = 0;
+			cont_task = NULL;
+			printed_len = cont_len;
+		} else {
+			/* ordinary single and terminated line */
+			log_store(facility, level,
+				  dict, dictlen, text, text_len);
+			printed_len = text_len;
+		}
 	}
 
 	/*
@@ -1470,7 +1488,6 @@ EXPORT_SYMBOL(printk);
 #define LOG_LINE_MAX 0
 static struct log *log_from_idx(u32 idx) { return NULL; }
 static u32 log_next(u32 idx) { return 0; }
-static char *log_text(const struct log *msg) { return NULL; }
 static void call_console_drivers(int level, const char *text, size_t len) {}
 static size_t msg_print_text(const struct log *msg, bool syslog,
 			     char *buf, size_t size) { return 0; }
