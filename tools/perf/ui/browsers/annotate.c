@@ -11,40 +11,45 @@
 #include <pthread.h>
 #include <newt.h>
 
+struct browser_disasm_line {
+	struct rb_node	rb_node;
+	double		percent;
+	u32		idx;
+	int		idx_asm;
+	bool		jump_target;
+};
+
 struct annotate_browser {
 	struct ui_browser b;
 	struct rb_root	  entries;
 	struct rb_node	  *curr_hot;
-	struct objdump_line *selection;
+	struct disasm_line	  *selection;
+	struct disasm_line  **offsets;
 	u64		    start;
 	int		    nr_asm_entries;
 	int		    nr_entries;
 	bool		    hide_src_code;
 	bool		    use_offset;
+	bool		    jump_arrows;
 	bool		    searching_backwards;
+	u8		    addr_width;
+	u8		    min_addr_width;
+	u8		    max_addr_width;
 	char		    search_bf[128];
 };
 
-struct objdump_line_rb_node {
-	struct rb_node	rb_node;
-	double		percent;
-	u32		idx;
-	int		idx_asm;
-};
-
-static inline
-struct objdump_line_rb_node *objdump_line__rb(struct objdump_line *self)
+static inline struct browser_disasm_line *disasm_line__browser(struct disasm_line *dl)
 {
-	return (struct objdump_line_rb_node *)(self + 1);
+	return (struct browser_disasm_line *)(dl + 1);
 }
 
-static bool objdump_line__filter(struct ui_browser *browser, void *entry)
+static bool disasm_line__filter(struct ui_browser *browser, void *entry)
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 
 	if (ab->hide_src_code) {
-		struct objdump_line *ol = list_entry(entry, struct objdump_line, node);
-		return ol->offset == -1;
+		struct disasm_line *dl = list_entry(entry, struct disasm_line, node);
+		return dl->offset == -1;
 	}
 
 	return false;
@@ -53,72 +58,147 @@ static bool objdump_line__filter(struct ui_browser *browser, void *entry)
 static void annotate_browser__write(struct ui_browser *self, void *entry, int row)
 {
 	struct annotate_browser *ab = container_of(self, struct annotate_browser, b);
-	struct objdump_line *ol = list_entry(entry, struct objdump_line, node);
+	struct disasm_line *dl = list_entry(entry, struct disasm_line, node);
+	struct browser_disasm_line *bdl = disasm_line__browser(dl);
 	bool current_entry = ui_browser__is_current_entry(self, row);
 	bool change_color = (!ab->hide_src_code &&
 			     (!current_entry || (self->use_navkeypressed &&
 					         !self->navkeypressed)));
-	int width = self->width;
+	int width = self->width, printed;
+	char bf[256];
 
-	if (ol->offset != -1) {
-		struct objdump_line_rb_node *olrb = objdump_line__rb(ol);
-		ui_browser__set_percent_color(self, olrb->percent, current_entry);
-		slsmg_printf(" %7.2f ", olrb->percent);
+	if (dl->offset != -1 && bdl->percent != 0.0) {
+		ui_browser__set_percent_color(self, bdl->percent, current_entry);
+		slsmg_printf("%6.2f ", bdl->percent);
 	} else {
 		ui_browser__set_percent_color(self, 0, current_entry);
-		slsmg_write_nstring(" ", 9);
+		slsmg_write_nstring(" ", 7);
 	}
 
-	SLsmg_write_char(':');
-	slsmg_write_nstring(" ", 8);
+	SLsmg_write_char(' ');
 
 	/* The scroll bar isn't being used */
 	if (!self->navkeypressed)
 		width += 1;
 
-	if (ol->offset != -1 && change_color)
-		ui_browser__set_color(self, HE_COLORSET_CODE);
-
-	if (!*ol->line)
-		slsmg_write_nstring(" ", width - 18);
-	else if (ol->offset == -1)
-		slsmg_write_nstring(ol->line, width - 18);
-	else {
-		char bf[64];
-		u64 addr = ol->offset;
-		int printed, color = -1;
+	if (!*dl->line)
+		slsmg_write_nstring(" ", width - 7);
+	else if (dl->offset == -1) {
+		printed = scnprintf(bf, sizeof(bf), "%*s  ",
+				    ab->addr_width, " ");
+		slsmg_write_nstring(bf, printed);
+		slsmg_write_nstring(dl->line, width - printed - 6);
+	} else {
+		u64 addr = dl->offset;
+		int color = -1;
 
 		if (!ab->use_offset)
 			addr += ab->start;
 
-		printed = scnprintf(bf, sizeof(bf), " %" PRIx64 ":", addr);
+		if (!ab->use_offset) {
+			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
+		} else {
+			if (bdl->jump_target) {
+				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ": ",
+						    ab->addr_width, addr);
+			} else {
+				printed = scnprintf(bf, sizeof(bf), "%*s  ",
+						    ab->addr_width, " ");
+			}
+		}
+
 		if (change_color)
 			color = ui_browser__set_color(self, HE_COLORSET_ADDR);
 		slsmg_write_nstring(bf, printed);
 		if (change_color)
 			ui_browser__set_color(self, color);
-		slsmg_write_nstring(ol->line, width - 18 - printed);
+		if (dl->ins && dl->ins->ops->scnprintf) {
+			if (ins__is_jump(dl->ins)) {
+				bool fwd = dl->ops.target.offset > (u64)dl->offset;
+
+				ui_browser__write_graph(self, fwd ? SLSMG_DARROW_CHAR :
+								    SLSMG_UARROW_CHAR);
+				SLsmg_write_char(' ');
+			} else if (ins__is_call(dl->ins)) {
+				ui_browser__write_graph(self, SLSMG_RARROW_CHAR);
+				SLsmg_write_char(' ');
+			} else {
+				slsmg_write_nstring(" ", 2);
+			}
+		} else {
+			if (strcmp(dl->name, "retq")) {
+				slsmg_write_nstring(" ", 2);
+			} else {
+				ui_browser__write_graph(self, SLSMG_LARROW_CHAR);
+				SLsmg_write_char(' ');
+			}
+		}
+
+		disasm_line__scnprintf(dl, bf, sizeof(bf), !ab->use_offset);
+		slsmg_write_nstring(bf, width - 10 - printed);
 	}
 
 	if (current_entry)
-		ab->selection = ol;
+		ab->selection = dl;
 }
 
-static double objdump_line__calc_percent(struct objdump_line *self,
-					 struct symbol *sym, int evidx)
+static void annotate_browser__draw_current_jump(struct ui_browser *browser)
+{
+	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
+	struct disasm_line *cursor = ab->selection, *target;
+	struct browser_disasm_line *btarget, *bcursor;
+	unsigned int from, to;
+
+	if (!cursor->ins || !ins__is_jump(cursor->ins) ||
+	    !disasm_line__has_offset(cursor))
+		return;
+
+	target = ab->offsets[cursor->ops.target.offset];
+	if (!target)
+		return;
+
+	bcursor = disasm_line__browser(cursor);
+	btarget = disasm_line__browser(target);
+
+	if (ab->hide_src_code) {
+		from = bcursor->idx_asm;
+		to = btarget->idx_asm;
+	} else {
+		from = (u64)bcursor->idx;
+		to = (u64)btarget->idx;
+	}
+
+	ui_browser__set_color(browser, HE_COLORSET_CODE);
+	__ui_browser__line_arrow(browser, 9 + ab->addr_width, from, to);
+}
+
+static unsigned int annotate_browser__refresh(struct ui_browser *browser)
+{
+	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
+	int ret = ui_browser__list_head_refresh(browser);
+
+	if (ab->jump_arrows)
+		annotate_browser__draw_current_jump(browser);
+
+	ui_browser__set_color(browser, HE_COLORSET_NORMAL);
+	__ui_browser__vline(browser, 7, 0, browser->height - 1);
+	return ret;
+}
+
+static double disasm_line__calc_percent(struct disasm_line *dl, struct symbol *sym, int evidx)
 {
 	double percent = 0.0;
 
-	if (self->offset != -1) {
+	if (dl->offset != -1) {
 		int len = sym->end - sym->start;
 		unsigned int hits = 0;
 		struct annotation *notes = symbol__annotation(sym);
 		struct source_line *src_line = notes->src->lines;
 		struct sym_hist *h = annotation__histogram(notes, evidx);
-		s64 offset = self->offset;
-		struct objdump_line *next;
+		s64 offset = dl->offset;
+		struct disasm_line *next;
 
-		next = objdump__get_next_ip_line(&notes->src->source, self);
+		next = disasm__get_next_ip_line(&notes->src->source, dl);
 		while (offset < (s64)len &&
 		       (next == NULL || offset < next->offset)) {
 			if (src_line) {
@@ -139,27 +219,26 @@ static double objdump_line__calc_percent(struct objdump_line *self,
 	return percent;
 }
 
-static void objdump__insert_line(struct rb_root *self,
-				 struct objdump_line_rb_node *line)
+static void disasm_rb_tree__insert(struct rb_root *root, struct browser_disasm_line *bdl)
 {
-	struct rb_node **p = &self->rb_node;
+	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
-	struct objdump_line_rb_node *l;
+	struct browser_disasm_line *l;
 
 	while (*p != NULL) {
 		parent = *p;
-		l = rb_entry(parent, struct objdump_line_rb_node, rb_node);
-		if (line->percent < l->percent)
+		l = rb_entry(parent, struct browser_disasm_line, rb_node);
+		if (bdl->percent < l->percent)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
 	}
-	rb_link_node(&line->rb_node, parent, p);
-	rb_insert_color(&line->rb_node, self);
+	rb_link_node(&bdl->rb_node, parent, p);
+	rb_insert_color(&bdl->rb_node, root);
 }
 
 static void annotate_browser__set_top(struct annotate_browser *self,
-				      struct objdump_line *pos, u32 idx)
+				      struct disasm_line *pos, u32 idx)
 {
 	unsigned back;
 
@@ -168,9 +247,9 @@ static void annotate_browser__set_top(struct annotate_browser *self,
 	self->b.top_idx = self->b.index = idx;
 
 	while (self->b.top_idx != 0 && back != 0) {
-		pos = list_entry(pos->node.prev, struct objdump_line, node);
+		pos = list_entry(pos->node.prev, struct disasm_line, node);
 
-		if (objdump_line__filter(&self->b, &pos->node))
+		if (disasm_line__filter(&self->b, &pos->node))
 			continue;
 
 		--self->b.top_idx;
@@ -184,12 +263,12 @@ static void annotate_browser__set_top(struct annotate_browser *self,
 static void annotate_browser__set_rb_top(struct annotate_browser *browser,
 					 struct rb_node *nd)
 {
-	struct objdump_line_rb_node *rbpos;
-	struct objdump_line *pos;
+	struct browser_disasm_line *bpos;
+	struct disasm_line *pos;
 
-	rbpos = rb_entry(nd, struct objdump_line_rb_node, rb_node);
-	pos = ((struct objdump_line *)rbpos) - 1;
-	annotate_browser__set_top(browser, pos, rbpos->idx);
+	bpos = rb_entry(nd, struct browser_disasm_line, rb_node);
+	pos = ((struct disasm_line *)bpos) - 1;
+	annotate_browser__set_top(browser, pos, bpos->idx);
 	browser->curr_hot = nd;
 }
 
@@ -199,20 +278,20 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	struct objdump_line *pos;
+	struct disasm_line *pos;
 
 	browser->entries = RB_ROOT;
 
 	pthread_mutex_lock(&notes->lock);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
-		struct objdump_line_rb_node *rbpos = objdump_line__rb(pos);
-		rbpos->percent = objdump_line__calc_percent(pos, sym, evidx);
-		if (rbpos->percent < 0.01) {
-			RB_CLEAR_NODE(&rbpos->rb_node);
+		struct browser_disasm_line *bpos = disasm_line__browser(pos);
+		bpos->percent = disasm_line__calc_percent(pos, sym, evidx);
+		if (bpos->percent < 0.01) {
+			RB_CLEAR_NODE(&bpos->rb_node);
 			continue;
 		}
-		objdump__insert_line(&browser->entries, rbpos);
+		disasm_rb_tree__insert(&browser->entries, bpos);
 	}
 	pthread_mutex_unlock(&notes->lock);
 
@@ -221,38 +300,38 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 
 static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 {
-	struct objdump_line *ol;
-	struct objdump_line_rb_node *olrb;
+	struct disasm_line *dl;
+	struct browser_disasm_line *bdl;
 	off_t offset = browser->b.index - browser->b.top_idx;
 
 	browser->b.seek(&browser->b, offset, SEEK_CUR);
-	ol = list_entry(browser->b.top, struct objdump_line, node);
-	olrb = objdump_line__rb(ol);
+	dl = list_entry(browser->b.top, struct disasm_line, node);
+	bdl = disasm_line__browser(dl);
 
 	if (browser->hide_src_code) {
-		if (olrb->idx_asm < offset)
-			offset = olrb->idx;
+		if (bdl->idx_asm < offset)
+			offset = bdl->idx;
 
 		browser->b.nr_entries = browser->nr_entries;
 		browser->hide_src_code = false;
 		browser->b.seek(&browser->b, -offset, SEEK_CUR);
-		browser->b.top_idx = olrb->idx - offset;
-		browser->b.index = olrb->idx;
+		browser->b.top_idx = bdl->idx - offset;
+		browser->b.index = bdl->idx;
 	} else {
-		if (olrb->idx_asm < 0) {
+		if (bdl->idx_asm < 0) {
 			ui_helpline__puts("Only available for assembly lines.");
 			browser->b.seek(&browser->b, -offset, SEEK_CUR);
 			return false;
 		}
 
-		if (olrb->idx_asm < offset)
-			offset = olrb->idx_asm;
+		if (bdl->idx_asm < offset)
+			offset = bdl->idx_asm;
 
 		browser->b.nr_entries = browser->nr_asm_entries;
 		browser->hide_src_code = true;
 		browser->b.seek(&browser->b, -offset, SEEK_CUR);
-		browser->b.top_idx = olrb->idx_asm - offset;
-		browser->b.index = olrb->idx_asm;
+		browser->b.top_idx = bdl->idx_asm - offset;
+		browser->b.index = bdl->idx_asm;
 	}
 
 	return true;
@@ -263,23 +342,16 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 				    void *arg, int delay_secs)
 {
 	struct map_symbol *ms = browser->b.priv;
+	struct disasm_line *dl = browser->selection;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes;
 	struct symbol *target;
-	char *s = strstr(browser->selection->line, "callq ");
 	u64 ip;
 
-	if (s == NULL)
+	if (!ins__is_call(dl->ins))
 		return false;
 
-	s = strchr(s, ' ');
-	if (s++ == NULL) {
-		ui_helpline__puts("Invallid callq instruction.");
-		return true;
-	}
-
-	ip = strtoull(s, NULL, 16);
-	ip = ms->map->map_ip(ms->map, ip);
+	ip = ms->map->map_ip(ms->map, dl->ops.target.addr);
 	target = map__find_symbol(ms->map, ip, NULL);
 	if (target == NULL) {
 		ui_helpline__puts("The called function was not found.");
@@ -302,20 +374,20 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	return true;
 }
 
-static struct objdump_line *
-	annotate_browser__find_offset(struct annotate_browser *browser,
-				      s64 offset, s64 *idx)
+static
+struct disasm_line *annotate_browser__find_offset(struct annotate_browser *browser,
+					  s64 offset, s64 *idx)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	struct objdump_line *pos;
+	struct disasm_line *pos;
 
 	*idx = 0;
 	list_for_each_entry(pos, &notes->src->source, node) {
 		if (pos->offset == offset)
 			return pos;
-		if (!objdump_line__filter(&browser->b, &pos->node))
+		if (!disasm_line__filter(&browser->b, &pos->node))
 			++*idx;
 	}
 
@@ -324,51 +396,35 @@ static struct objdump_line *
 
 static bool annotate_browser__jump(struct annotate_browser *browser)
 {
-	const char *jumps[] = { "je ", "jne ", "ja ", "jmpq ", "js ", "jmp ", NULL };
-	struct objdump_line *line;
-	s64 idx, offset;
-	char *s = NULL;
-	int i = 0;
+	struct disasm_line *dl = browser->selection;
+	s64 idx;
 
-	while (jumps[i]) {
-		s = strstr(browser->selection->line, jumps[i++]);
-		if (s)
-			break;
-	}
-
-	if (s == NULL)
+	if (!ins__is_jump(dl->ins))
 		return false;
 
-	s = strchr(s, '+');
-	if (s++ == NULL) {
-		ui_helpline__puts("Invallid jump instruction.");
-		return true;
-	}
-
-	offset = strtoll(s, NULL, 16);
-	line = annotate_browser__find_offset(browser, offset, &idx);
-	if (line == NULL) {
+	dl = annotate_browser__find_offset(browser, dl->ops.target.offset, &idx);
+	if (dl == NULL) {
 		ui_helpline__puts("Invallid jump offset");
 		return true;
 	}
 
-	annotate_browser__set_top(browser, line, idx);
+	annotate_browser__set_top(browser, dl, idx);
 	
 	return true;
 }
 
-static struct objdump_line *
-	annotate_browser__find_string(struct annotate_browser *browser,
-				      char *s, s64 *idx)
+static
+struct disasm_line *annotate_browser__find_string(struct annotate_browser *browser,
+					  char *s, s64 *idx)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	struct objdump_line *pos = browser->selection;
+	struct disasm_line *pos = browser->selection;
 
 	*idx = browser->b.index;
 	list_for_each_entry_continue(pos, &notes->src->source, node) {
-		if (objdump_line__filter(&browser->b, &pos->node))
+		if (disasm_line__filter(&browser->b, &pos->node))
 			continue;
 
 		++*idx;
@@ -382,32 +438,32 @@ static struct objdump_line *
 
 static bool __annotate_browser__search(struct annotate_browser *browser)
 {
-	struct objdump_line *line;
+	struct disasm_line *dl;
 	s64 idx;
 
-	line = annotate_browser__find_string(browser, browser->search_bf, &idx);
-	if (line == NULL) {
+	dl = annotate_browser__find_string(browser, browser->search_bf, &idx);
+	if (dl == NULL) {
 		ui_helpline__puts("String not found!");
 		return false;
 	}
 
-	annotate_browser__set_top(browser, line, idx);
+	annotate_browser__set_top(browser, dl, idx);
 	browser->searching_backwards = false;
 	return true;
 }
 
-static struct objdump_line *
-	annotate_browser__find_string_reverse(struct annotate_browser *browser,
-					      char *s, s64 *idx)
+static
+struct disasm_line *annotate_browser__find_string_reverse(struct annotate_browser *browser,
+						  char *s, s64 *idx)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	struct objdump_line *pos = browser->selection;
+	struct disasm_line *pos = browser->selection;
 
 	*idx = browser->b.index;
 	list_for_each_entry_continue_reverse(pos, &notes->src->source, node) {
-		if (objdump_line__filter(&browser->b, &pos->node))
+		if (disasm_line__filter(&browser->b, &pos->node))
 			continue;
 
 		--*idx;
@@ -421,16 +477,16 @@ static struct objdump_line *
 
 static bool __annotate_browser__search_reverse(struct annotate_browser *browser)
 {
-	struct objdump_line *line;
+	struct disasm_line *dl;
 	s64 idx;
 
-	line = annotate_browser__find_string_reverse(browser, browser->search_bf, &idx);
-	if (line == NULL) {
+	dl = annotate_browser__find_string_reverse(browser, browser->search_bf, &idx);
+	if (dl == NULL) {
 		ui_helpline__puts("String not found!");
 		return false;
 	}
 
-	annotate_browser__set_top(browser, line, idx);
+	annotate_browser__set_top(browser, dl, idx);
 	browser->searching_backwards = true;
 	return true;
 }
@@ -491,9 +547,9 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 	struct map_symbol *ms = self->b.priv;
 	struct symbol *sym = ms->sym;
 	const char *help = "<-/ESC: Exit, TAB/shift+TAB: Cycle hot lines, "
-			   "H: Go to hottest line, ->/ENTER: Line action, "
-			   "O: Toggle offset view, "
-			   "S: Toggle source code view";
+			   "H: Hottest line, ->/ENTER: Line action, "
+			   "O: Offset view, "
+			   "S: Source view";
 	int key;
 
 	if (ui_browser__show(&self->b, sym->name, help) < 0)
@@ -558,6 +614,13 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 		case 'O':
 		case 'o':
 			self->use_offset = !self->use_offset;
+			if (self->use_offset)
+				self->addr_width = self->min_addr_width;
+			else
+				self->addr_width = self->max_addr_width;
+			continue;
+		case 'j':
+			self->jump_arrows = !self->jump_arrows;
 			continue;
 		case '/':
 			if (annotate_browser__search(self, delay_secs)) {
@@ -581,9 +644,15 @@ show_help:
 				ui_helpline__puts("Huh? No selection. Report to linux-kernel@vger.kernel.org");
 			else if (self->selection->offset == -1)
 				ui_helpline__puts("Actions are only available for assembly lines.");
-			else if (!(annotate_browser__jump(self) ||
-				   annotate_browser__callq(self, evidx, timer, arg, delay_secs)))
-				ui_helpline__puts("Actions are only available for the 'callq' and jump instructions.");
+			else if (!self->selection->ins) {
+				if (strcmp(self->selection->name, "retq"))
+					goto show_sup_ins;
+				goto out;
+			} else if (!(annotate_browser__jump(self) ||
+				     annotate_browser__callq(self, evidx, timer, arg, delay_secs))) {
+show_sup_ins:
+				ui_helpline__puts("Actions are only available for 'callq', 'retq' & jump instructions.");
+			}
 			continue;
 		case K_LEFT:
 		case K_ESC:
@@ -609,27 +678,64 @@ int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
 				    timer, arg, delay_secs);
 }
 
+static void annotate_browser__mark_jump_targets(struct annotate_browser *browser,
+						size_t size)
+{
+	u64 offset;
+
+	for (offset = 0; offset < size; ++offset) {
+		struct disasm_line *dl = browser->offsets[offset], *dlt;
+		struct browser_disasm_line *bdlt;
+
+		if (!dl || !dl->ins || !ins__is_jump(dl->ins) ||
+		    !disasm_line__has_offset(dl))
+			continue;
+
+		if (dl->ops.target.offset >= size) {
+			ui__error("jump to after symbol!\n"
+				  "size: %zx, jump target: %" PRIx64,
+				  size, dl->ops.target.offset);
+			continue;
+		}
+
+		dlt = browser->offsets[dl->ops.target.offset];
+		/*
+ 		 * FIXME: Oops, no jump target? Buggy disassembler? Or do we
+ 		 * have to adjust to the previous offset?
+ 		 */
+		if (dlt == NULL)
+			continue;
+
+		bdlt = disasm_line__browser(dlt);
+		bdlt->jump_target = true;
+	}
+		
+}
+
 int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 			 void(*timer)(void *arg), void *arg,
 			 int delay_secs)
 {
-	struct objdump_line *pos, *n;
+	struct disasm_line *pos, *n;
 	struct annotation *notes;
+	const size_t size = symbol__size(sym);
 	struct map_symbol ms = {
 		.map = map,
 		.sym = sym,
 	};
 	struct annotate_browser browser = {
 		.b = {
-			.refresh = ui_browser__list_head_refresh,
+			.refresh = annotate_browser__refresh,
 			.seek	 = ui_browser__list_head_seek,
 			.write	 = annotate_browser__write,
-			.filter  = objdump_line__filter,
+			.filter  = disasm_line__filter,
 			.priv	 = &ms,
 			.use_navkeypressed = true,
 		},
+		.use_offset = true,
+		.jump_arrows = true,
 	};
-	int ret;
+	int ret = -1;
 
 	if (sym == NULL)
 		return -1;
@@ -637,9 +743,15 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 	if (map->dso->annotate_warned)
 		return -1;
 
-	if (symbol__annotate(sym, map, sizeof(struct objdump_line_rb_node)) < 0) {
-		ui__error("%s", ui_helpline__last_msg);
+	browser.offsets = zalloc(size * sizeof(struct disasm_line *));
+	if (browser.offsets == NULL) {
+		ui__error("Not enough memory!");
 		return -1;
+	}
+
+	if (symbol__annotate(sym, map, sizeof(struct browser_disasm_line)) < 0) {
+		ui__error("%s", ui_helpline__last_msg);
+		goto out_free_offsets;
 	}
 
 	ui_helpline__push("Press <- or ESC to exit");
@@ -648,26 +760,42 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 	browser.start = map__rip_2objdump(map, sym->start);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
-		struct objdump_line_rb_node *rbpos;
+		struct browser_disasm_line *bpos;
 		size_t line_len = strlen(pos->line);
 
 		if (browser.b.width < line_len)
 			browser.b.width = line_len;
-		rbpos = objdump_line__rb(pos);
-		rbpos->idx = browser.nr_entries++;
-		if (pos->offset != -1)
-			rbpos->idx_asm = browser.nr_asm_entries++;
-		else
-			rbpos->idx_asm = -1;
+		bpos = disasm_line__browser(pos);
+		bpos->idx = browser.nr_entries++;
+		if (pos->offset != -1) {
+			bpos->idx_asm = browser.nr_asm_entries++;
+			/*
+			 * FIXME: short term bandaid to cope with assembly
+			 * routines that comes with labels in the same column
+			 * as the address in objdump, sigh.
+			 *
+			 * E.g. copy_user_generic_unrolled
+ 			 */
+			if (pos->offset < (s64)size)
+				browser.offsets[pos->offset] = pos;
+		} else
+			bpos->idx_asm = -1;
 	}
 
+	annotate_browser__mark_jump_targets(&browser, size);
+
+	browser.addr_width = browser.min_addr_width = hex_width(size);
+	browser.max_addr_width = hex_width(sym->end);
 	browser.b.nr_entries = browser.nr_entries;
 	browser.b.entries = &notes->src->source,
 	browser.b.width += 18; /* Percentage */
 	ret = annotate_browser__run(&browser, evidx, timer, arg, delay_secs);
 	list_for_each_entry_safe(pos, n, &notes->src->source, node) {
 		list_del(&pos->node);
-		objdump_line__free(pos);
+		disasm_line__free(pos);
 	}
+
+out_free_offsets:
+	free(browser.offsets);
 	return ret;
 }

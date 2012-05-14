@@ -1,10 +1,6 @@
-# Dependency on CONFIG_BROKEN is because there is a commit dependency
-# on a cleancache naming change to be submitted by Konrad Wilk
-# a39c00ded70339603ffe1b0ffdf3ade85bcf009a "Merge branch 'stable/cleancache.v13'
-# into linux-next.  Once this commit is present, BROKEN can be removed
 config RAMSTER
 	bool "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
-	depends on (CLEANCACHE || FRONTSWAP) && CONFIGFS_FS=y && !ZCACHE && !XVMALLOC && !HIGHMEM && BROKEN
+	depends on (CLEANCACHE || FRONTSWAP) && CONFIGFS_FS=y && !ZCACHE && !XVMALLOC && !HIGHMEM
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
 	default n

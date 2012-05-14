@@ -140,7 +140,7 @@ int of_gpio_simple_xlate(struct gpio_chip *gc,
 	if (WARN_ON(gpiospec->args_count < gc->of_gpio_n_cells))
 		return -EINVAL;
 
-	if (gpiospec->args[0] > gc->ngpio)
+	if (gpiospec->args[0] >= gc->ngpio)
 		return -EINVAL;
 
 	if (flags)

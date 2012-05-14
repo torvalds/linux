@@ -1044,6 +1044,8 @@ static int scrub_recheck_block(struct btrfs_fs_info *fs_info,
 
 		BUG_ON(!page->page);
 		bio = bio_alloc(GFP_NOFS, 1);
+		if (!bio)
+			return -EIO;
 		bio->bi_bdev = page->bdev;
 		bio->bi_sector = page->physical >> 9;
 		bio->bi_end_io = scrub_complete_bio_end_io;
@@ -1171,6 +1173,8 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 		DECLARE_COMPLETION_ONSTACK(complete);
 
 		bio = bio_alloc(GFP_NOFS, 1);
+		if (!bio)
+			return -EIO;
 		bio->bi_bdev = page_bad->bdev;
 		bio->bi_sector = page_bad->physical >> 9;
 		bio->bi_end_io = scrub_complete_bio_end_io;

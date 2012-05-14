@@ -14,6 +14,7 @@
 #include "util.h"
 #include "cpumap.h"
 #include "thread_map.h"
+#include "target.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define GROUP_FD(group_fd, cpu) (*(int *)xyarray__entry(group_fd, cpu, 0))
@@ -106,15 +107,15 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 	if (opts->call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
-	if (opts->system_wide)
+	if (opts->target.system_wide)
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 
 	if (opts->period)
 		attr->sample_type	|= PERF_SAMPLE_PERIOD;
 
 	if (!opts->sample_id_all_missing &&
-	    (opts->sample_time || opts->system_wide ||
-	     !opts->no_inherit || opts->cpu_list))
+	    (opts->sample_time || !opts->no_inherit ||
+	     !perf_target__no_cpu(&opts->target)))
 		attr->sample_type	|= PERF_SAMPLE_TIME;
 
 	if (opts->raw_samples) {
@@ -135,7 +136,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 	attr->mmap = track;
 	attr->comm = track;
 
-	if (!opts->target_pid && !opts->target_tid && !opts->system_wide &&
+	if (perf_target__none(&opts->target) &&
 	    (!opts->group || evsel == first)) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;

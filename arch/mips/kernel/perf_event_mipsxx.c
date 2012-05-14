@@ -1325,7 +1325,7 @@ static int mipsxx_pmu_handle_shared_irq(void)
 
 	regs = get_irq_regs();
 
-	perf_sample_data_init(&data, 0);
+	perf_sample_data_init(&data, 0, 0);
 
 	switch (counters) {
 #define HANDLE_COUNTER(n)						\

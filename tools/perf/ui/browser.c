@@ -593,6 +593,111 @@ unsigned int ui_browser__argv_refresh(struct ui_browser *browser)
 	return row;
 }
 
+void __ui_browser__vline(struct ui_browser *browser, unsigned int column,
+			 u16 start, u16 end)
+{
+	SLsmg_set_char_set(1);
+	ui_browser__gotorc(browser, start, column);
+	SLsmg_draw_vline(end - start + 1);
+	SLsmg_set_char_set(0);
+}
+
+void ui_browser__write_graph(struct ui_browser *browser __used, int graph)
+{
+	SLsmg_set_char_set(1);
+	SLsmg_write_char(graph);
+	SLsmg_set_char_set(0);
+}
+
+static void __ui_browser__line_arrow_up(struct ui_browser *browser,
+					unsigned int column,
+					u64 start, u64 end)
+{
+	unsigned int row, end_row;
+
+	SLsmg_set_char_set(1);
+
+	if (start < browser->top_idx + browser->height) {
+		row = start - browser->top_idx;
+		ui_browser__gotorc(browser, row, column);
+		SLsmg_write_char(SLSMG_LLCORN_CHAR);
+		ui_browser__gotorc(browser, row, column + 1);
+		SLsmg_draw_hline(2);
+
+		if (row-- == 0)
+			goto out;
+	} else
+		row = browser->height - 1;
+
+	if (end > browser->top_idx)
+		end_row = end - browser->top_idx;
+	else
+		end_row = 0;
+
+	ui_browser__gotorc(browser, end_row, column);
+	SLsmg_draw_vline(row - end_row + 1);
+
+	ui_browser__gotorc(browser, end_row, column);
+	if (end >= browser->top_idx) {
+		SLsmg_write_char(SLSMG_ULCORN_CHAR);
+		ui_browser__gotorc(browser, end_row, column + 1);
+		SLsmg_write_char(SLSMG_HLINE_CHAR);
+		ui_browser__gotorc(browser, end_row, column + 2);
+		SLsmg_write_char(SLSMG_RARROW_CHAR);
+	}
+out:
+	SLsmg_set_char_set(0);
+}
+
+static void __ui_browser__line_arrow_down(struct ui_browser *browser,
+					  unsigned int column,
+					  u64 start, u64 end)
+{
+	unsigned int row, end_row;
+
+	SLsmg_set_char_set(1);
+
+	if (start >= browser->top_idx) {
+		row = start - browser->top_idx;
+		ui_browser__gotorc(browser, row, column);
+		SLsmg_write_char(SLSMG_ULCORN_CHAR);
+		ui_browser__gotorc(browser, row, column + 1);
+		SLsmg_draw_hline(2);
+
+		if (row++ == 0)
+			goto out;
+	} else
+		row = 0;
+
+	if (end >= browser->top_idx + browser->height)
+		end_row = browser->height - 1;
+	else
+		end_row = end - browser->top_idx;;
+
+	ui_browser__gotorc(browser, row, column);
+	SLsmg_draw_vline(end_row - row + 1);
+
+	ui_browser__gotorc(browser, end_row, column);
+	if (end < browser->top_idx + browser->height) {
+		SLsmg_write_char(SLSMG_LLCORN_CHAR);
+		ui_browser__gotorc(browser, end_row, column + 1);
+		SLsmg_write_char(SLSMG_HLINE_CHAR);
+		ui_browser__gotorc(browser, end_row, column + 2);
+		SLsmg_write_char(SLSMG_RARROW_CHAR);
+	}
+out:
+	SLsmg_set_char_set(0);
+}
+
+void __ui_browser__line_arrow(struct ui_browser *browser, unsigned int column,
+			      u64 start, u64 end)
+{
+	if (start > end)
+		__ui_browser__line_arrow_up(browser, column, start, end);
+	else
+		__ui_browser__line_arrow_down(browser, column, start, end);
+}
+
 void ui_browser__init(void)
 {
 	int i = 0;

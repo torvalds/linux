@@ -37,6 +37,9 @@ void ui_browser__refresh_dimensions(struct ui_browser *self);
 void ui_browser__reset_index(struct ui_browser *self);
 
 void ui_browser__gotorc(struct ui_browser *self, int y, int x);
+void ui_browser__write_graph(struct ui_browser *browser, int graph);
+void __ui_browser__line_arrow(struct ui_browser *browser, unsigned int column,
+			      u64 start, u64 end);
 void __ui_browser__show_title(struct ui_browser *browser, const char *title);
 void ui_browser__show_title(struct ui_browser *browser, const char *title);
 int ui_browser__show(struct ui_browser *self, const char *title,
@@ -46,6 +49,8 @@ int ui_browser__refresh(struct ui_browser *self);
 int ui_browser__run(struct ui_browser *browser, int delay_secs);
 void ui_browser__update_nr_entries(struct ui_browser *browser, u32 nr_entries);
 void ui_browser__handle_resize(struct ui_browser *browser);
+void __ui_browser__vline(struct ui_browser *browser, unsigned int column,
+			 u16 start, u16 end);
 
 int ui_browser__warning(struct ui_browser *browser, int timeout,
 			const char *format, ...);

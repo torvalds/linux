@@ -500,6 +500,7 @@ rndis_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 			if (buf) {
 				memcpy(req->buf, buf, n);
 				req->complete = rndis_response_complete;
+				req->context = rndis;
 				rndis_free_response(rndis->config, buf);
 				value = n;
 			}

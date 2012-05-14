@@ -588,7 +588,7 @@ static void *display_thread_tui(void *arg)
 	 * via --uid.
 	 */
 	list_for_each_entry(pos, &top->evlist->entries, node)
-		pos->hists.uid_filter_str = top->uid_str;
+		pos->hists.uid_filter_str = top->target.uid_str;
 
 	perf_evlist__tui_browse_hists(top->evlist, help,
 				      perf_top__sort_new_samples,
@@ -948,6 +948,10 @@ try_again:
 
 				attr->type = PERF_TYPE_SOFTWARE;
 				attr->config = PERF_COUNT_SW_CPU_CLOCK;
+				if (counter->name) {
+					free(counter->name);
+					counter->name = strdup(event_name(counter));
+				}
 				goto try_again;
 			}
 
@@ -1016,7 +1020,7 @@ static int __cmd_top(struct perf_top *top)
 	if (ret)
 		goto out_delete;
 
-	if (top->target_tid || top->uid != UINT_MAX)
+	if (!perf_target__no_task(&top->target))
 		perf_event__synthesize_thread_map(&top->tool, top->evlist->threads,
 						  perf_event__process,
 						  &top->session->host_machine);
@@ -1150,11 +1154,11 @@ static const char * const top_usage[] = {
 int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
 	struct perf_evsel *pos;
-	int status = -ENOMEM;
+	int status;
+	char errbuf[BUFSIZ];
 	struct perf_top top = {
 		.count_filter	     = 5,
 		.delay_secs	     = 2,
-		.uid		     = UINT_MAX,
 		.freq		     = 1000, /* 1 KHz */
 		.mmap_pages	     = 128,
 		.sym_pcnt_filter     = 5,
@@ -1166,13 +1170,13 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		     parse_events_option),
 	OPT_INTEGER('c', "count", &top.default_interval,
 		    "event period to sample"),
-	OPT_STRING('p', "pid", &top.target_pid, "pid",
+	OPT_STRING('p', "pid", &top.target.pid, "pid",
 		    "profile events on existing process id"),
-	OPT_STRING('t', "tid", &top.target_tid, "tid",
+	OPT_STRING('t', "tid", &top.target.tid, "tid",
 		    "profile events on existing thread id"),
-	OPT_BOOLEAN('a', "all-cpus", &top.system_wide,
+	OPT_BOOLEAN('a', "all-cpus", &top.target.system_wide,
 			    "system-wide collection from all CPUs"),
-	OPT_STRING('C', "cpu", &top.cpu_list, "cpu",
+	OPT_STRING('C', "cpu", &top.target.cpu_list, "cpu",
 		    "list of cpus to monitor"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
@@ -1227,7 +1231,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		    "Display raw encoding of assembly instructions (default)"),
 	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
-	OPT_STRING('u', "uid", &top.uid_str, "user", "user to profile"),
+	OPT_STRING('u', "uid", &top.target.uid_str, "user", "user to profile"),
 	OPT_END()
 	};
 
@@ -1253,22 +1257,27 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	setup_browser(false);
 
-	top.uid = parse_target_uid(top.uid_str, top.target_tid, top.target_pid);
-	if (top.uid_str != NULL && top.uid == UINT_MAX - 1)
-		goto out_delete_evlist;
-
-	/* CPU and PID are mutually exclusive */
-	if (top.target_tid && top.cpu_list) {
-		printf("WARNING: PID switch overriding CPU\n");
-		sleep(1);
-		top.cpu_list = NULL;
+	status = perf_target__validate(&top.target);
+	if (status) {
+		perf_target__strerror(&top.target, status, errbuf, BUFSIZ);
+		ui__warning("%s", errbuf);
 	}
 
-	if (top.target_pid)
-		top.target_tid = top.target_pid;
+	status = perf_target__parse_uid(&top.target);
+	if (status) {
+		int saved_errno = errno;
 
-	if (perf_evlist__create_maps(top.evlist, top.target_pid,
-				     top.target_tid, top.uid, top.cpu_list) < 0)
+		perf_target__strerror(&top.target, status, errbuf, BUFSIZ);
+		ui__warning("%s", errbuf);
+
+		status = -saved_errno;
+		goto out_delete_evlist;
+	}
+
+	if (perf_target__none(&top.target))
+		top.target.system_wide = true;
+
+	if (perf_evlist__create_maps(top.evlist, &top.target) < 0)
 		usage_with_options(top_usage, options);
 
 	if (!top.evlist->nr_entries &&

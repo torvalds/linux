@@ -117,7 +117,7 @@ struct mgmt_mode {
 #define MGMT_OP_SET_DISCOVERABLE	0x0006
 struct mgmt_cp_set_discoverable {
 	__u8	val;
-	__u16	timeout;
+	__le16	timeout;
 } __packed;
 #define MGMT_SET_DISCOVERABLE_SIZE	3
 

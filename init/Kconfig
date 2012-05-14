@@ -1156,7 +1156,7 @@ menu "Kernel Performance Events And Counters"
 
 config PERF_EVENTS
 	bool "Kernel performance events and counters"
-	default y if (PROFILING || PERF_COUNTERS)
+	default y if PROFILING
 	depends on HAVE_PERF_EVENTS
 	select ANON_INODES
 	select IRQ_WORK
@@ -1182,18 +1182,6 @@ config PERF_EVENTS
 	  capabilities on top of those.
 
 	  Say Y if unsure.
-
-config PERF_COUNTERS
-	bool "Kernel performance counters (old config option)"
-	depends on HAVE_PERF_EVENTS
-	help
-	  This config has been obsoleted by the PERF_EVENTS
-	  config option - please see that one for details.
-
-	  It has no effect on the kernel whether you enable
-	  it or not, it is a compatibility placeholder.
-
-	  Say N if unsure.
 
 config DEBUG_PERF_USE_VMALLOC
 	default n

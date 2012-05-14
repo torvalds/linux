@@ -1062,11 +1062,6 @@ static int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev)
 
 	set_bit(DEVICE_STATE_INITIALIZED, &rt2x00dev->flags);
 
-	/*
-	 * Register the extra components.
-	 */
-	rt2x00rfkill_register(rt2x00dev);
-
 	return 0;
 }
 
@@ -1210,6 +1205,7 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	rt2x00link_register(rt2x00dev);
 	rt2x00leds_register(rt2x00dev);
 	rt2x00debug_register(rt2x00dev);
+	rt2x00rfkill_register(rt2x00dev);
 
 	return 0;
 
