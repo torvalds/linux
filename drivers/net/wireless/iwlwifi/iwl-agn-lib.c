@@ -186,76 +186,8 @@ done:
 /*
  * BT coex
  */
-/*
- * Macros to access the lookup table.
- *
- * The lookup table has 7 inputs: bt3_prio, bt3_txrx, bt_rf_act, wifi_req,
-* wifi_prio, wifi_txrx and wifi_sh_ant_req.
- *
- * It has three outputs: WLAN_ACTIVE, WLAN_KILL and ANT_SWITCH
- *
- * The format is that "registers" 8 through 11 contain the WLAN_ACTIVE bits
- * one after another in 32-bit registers, and "registers" 0 through 7 contain
- * the WLAN_KILL and ANT_SWITCH bits interleaved (in that order).
- *
- * These macros encode that format.
- */
-#define LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, wifi_req, wifi_prio, \
-		  wifi_txrx, wifi_sh_ant_req) \
-	(bt3_prio | (bt3_txrx << 1) | (bt_rf_act << 2) | (wifi_req << 3) | \
-	(wifi_prio << 4) | (wifi_txrx << 5) | (wifi_sh_ant_req << 6))
-
-#define LUT_PTA_WLAN_ACTIVE_OP(lut, op, val) \
-	lut[8 + ((val) >> 5)] op (cpu_to_le32(BIT((val) & 0x1f)))
-#define LUT_TEST_PTA_WLAN_ACTIVE(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
-				 wifi_prio, wifi_txrx, wifi_sh_ant_req) \
-	(!!(LUT_PTA_WLAN_ACTIVE_OP(lut, &, LUT_VALUE(bt3_prio, bt3_txrx, \
-				   bt_rf_act, wifi_req, wifi_prio, wifi_txrx, \
-				   wifi_sh_ant_req))))
-#define LUT_SET_PTA_WLAN_ACTIVE(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
-				wifi_prio, wifi_txrx, wifi_sh_ant_req) \
-	LUT_PTA_WLAN_ACTIVE_OP(lut, |=, LUT_VALUE(bt3_prio, bt3_txrx, \
-			       bt_rf_act, wifi_req, wifi_prio, wifi_txrx, \
-			       wifi_sh_ant_req))
-#define LUT_CLEAR_PTA_WLAN_ACTIVE(lut, bt3_prio, bt3_txrx, bt_rf_act, \
-				  wifi_req, wifi_prio, wifi_txrx, \
-				  wifi_sh_ant_req) \
-	LUT_PTA_WLAN_ACTIVE_OP(lut, &= ~, LUT_VALUE(bt3_prio, bt3_txrx, \
-			       bt_rf_act, wifi_req, wifi_prio, wifi_txrx, \
-			       wifi_sh_ant_req))
-
-#define LUT_WLAN_KILL_OP(lut, op, val) \
-	lut[(val) >> 4] op (cpu_to_le32(BIT(((val) << 1) & 0x1e)))
-#define LUT_TEST_WLAN_KILL(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
-			   wifi_prio, wifi_txrx, wifi_sh_ant_req) \
-	(!!(LUT_WLAN_KILL_OP(lut, &, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
-			     wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))))
-#define LUT_SET_WLAN_KILL(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
-			  wifi_prio, wifi_txrx, wifi_sh_ant_req) \
-	LUT_WLAN_KILL_OP(lut, |=, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
-			 wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
-#define LUT_CLEAR_WLAN_KILL(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
-			    wifi_prio, wifi_txrx, wifi_sh_ant_req) \
-	LUT_WLAN_KILL_OP(lut, &= ~, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
-			 wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
-
-#define LUT_ANT_SWITCH_OP(lut, op, val) \
-	lut[(val) >> 4] op (cpu_to_le32(BIT((((val) << 1) & 0x1e) + 1)))
-#define LUT_TEST_ANT_SWITCH(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
-			    wifi_prio, wifi_txrx, wifi_sh_ant_req) \
-	(!!(LUT_ANT_SWITCH_OP(lut, &, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
-			      wifi_req, wifi_prio, wifi_txrx, \
-			      wifi_sh_ant_req))))
-#define LUT_SET_ANT_SWITCH(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
-			   wifi_prio, wifi_txrx, wifi_sh_ant_req) \
-	LUT_ANT_SWITCH_OP(lut, |=, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
-			  wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
-#define LUT_CLEAR_ANT_SWITCH(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
-			     wifi_prio, wifi_txrx, wifi_sh_ant_req) \
-	LUT_ANT_SWITCH_OP(lut, &= ~, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
-			  wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
-
-static const __le32 iwlagn_def_3w_lookup[12] = {
+/* Notmal TDM */
+static const __le32 iwlagn_def_3w_lookup[IWLAGN_BT_DECISION_LUT_SIZE] = {
 	cpu_to_le32(0xaaaaaaaa),
 	cpu_to_le32(0xaaaaaaaa),
 	cpu_to_le32(0xaeaaaaaa),
@@ -270,7 +202,25 @@ static const __le32 iwlagn_def_3w_lookup[12] = {
 	cpu_to_le32(0xf0005000),
 };
 
-static const __le32 iwlagn_concurrent_lookup[12] = {
+
+/* Loose Coex */
+static const __le32 iwlagn_loose_lookup[IWLAGN_BT_DECISION_LUT_SIZE] = {
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaeaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xcc00ff28),
+	cpu_to_le32(0x0000aaaa),
+	cpu_to_le32(0xcc00aaaa),
+	cpu_to_le32(0x0000aaaa),
+	cpu_to_le32(0x00000000),
+	cpu_to_le32(0x00000000),
+	cpu_to_le32(0xf0005000),
+	cpu_to_le32(0xf0005000),
+};
+
+/* Full concurrency */
+static const __le32 iwlagn_concurrent_lookup[IWLAGN_BT_DECISION_LUT_SIZE] = {
 	cpu_to_le32(0xaaaaaaaa),
 	cpu_to_le32(0xaaaaaaaa),
 	cpu_to_le32(0xaaaaaaaa),
@@ -325,6 +275,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 
 	basic.kill_ack_mask = priv->kill_ack_mask;
 	basic.kill_cts_mask = priv->kill_cts_mask;
+	basic.reduce_txpower = priv->reduced_txpower;
 	basic.valid = priv->bt_valid;
 
 	/*
@@ -610,29 +561,62 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 			BT_UART_MSG_FRAME7CONNECTABLE_POS);
 }
 
-static void iwlagn_set_kill_msk(struct iwl_priv *priv,
+static bool iwlagn_set_kill_msk(struct iwl_priv *priv,
 				struct iwl_bt_uart_msg *uart_msg)
 {
-	u8 kill_msk;
-	static const __le32 bt_kill_ack_msg[2] = {
+	bool need_update = false;
+	u8 kill_msk = IWL_BT_KILL_REDUCE;
+	static const __le32 bt_kill_ack_msg[3] = {
 		IWLAGN_BT_KILL_ACK_MASK_DEFAULT,
-		IWLAGN_BT_KILL_ACK_CTS_MASK_SCO };
-	static const __le32 bt_kill_cts_msg[2] = {
+		IWLAGN_BT_KILL_ACK_CTS_MASK_SCO,
+		IWLAGN_BT_KILL_ACK_CTS_MASK_REDUCE};
+	static const __le32 bt_kill_cts_msg[3] = {
 		IWLAGN_BT_KILL_CTS_MASK_DEFAULT,
-		IWLAGN_BT_KILL_ACK_CTS_MASK_SCO };
+		IWLAGN_BT_KILL_ACK_CTS_MASK_SCO,
+		IWLAGN_BT_KILL_ACK_CTS_MASK_REDUCE};
 
-	kill_msk = (BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3)
-		? 1 : 0;
+	if (!priv->reduced_txpower)
+		kill_msk = (BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3)
+			? IWL_BT_KILL_OVERRIDE : IWL_BT_KILL_DEFAULT;
 	if (priv->kill_ack_mask != bt_kill_ack_msg[kill_msk] ||
 	    priv->kill_cts_mask != bt_kill_cts_msg[kill_msk]) {
 		priv->bt_valid |= IWLAGN_BT_VALID_KILL_ACK_MASK;
 		priv->kill_ack_mask = bt_kill_ack_msg[kill_msk];
 		priv->bt_valid |= IWLAGN_BT_VALID_KILL_CTS_MASK;
 		priv->kill_cts_mask = bt_kill_cts_msg[kill_msk];
-
-		/* schedule to send runtime bt_config */
-		queue_work(priv->workqueue, &priv->bt_runtime_config);
+		need_update = true;
 	}
+	return need_update;
+}
+
+static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
+				struct iwl_bt_uart_msg *uart_msg)
+{
+	bool need_update = false;
+
+	if (!priv->reduced_txpower &&
+	    !iwl_is_associated(priv, IWL_RXON_CTX_PAN) &&
+	    (uart_msg->frame3 & (BT_UART_MSG_FRAME3ACL_MSK |
+	    BT_UART_MSG_FRAME3OBEX_MSK)) &&
+	    !(uart_msg->frame3 & (BT_UART_MSG_FRAME3SCOESCO_MSK |
+	    BT_UART_MSG_FRAME3SNIFF_MSK | BT_UART_MSG_FRAME3A2DP_MSK))) {
+		/* enabling reduced tx power */
+		priv->reduced_txpower = true;
+		priv->bt_valid |= IWLAGN_BT_VALID_REDUCED_TX_PWR;
+		need_update = true;
+	} else if (priv->reduced_txpower &&
+		   (iwl_is_associated(priv, IWL_RXON_CTX_PAN) ||
+		   (uart_msg->frame3 & (BT_UART_MSG_FRAME3SCOESCO_MSK |
+		   BT_UART_MSG_FRAME3SNIFF_MSK | BT_UART_MSG_FRAME3A2DP_MSK)) ||
+		   !(uart_msg->frame3 & (BT_UART_MSG_FRAME3ACL_MSK |
+		   BT_UART_MSG_FRAME3OBEX_MSK)))) {
+		/* disable reduced tx power */
+		priv->reduced_txpower = false;
+		priv->bt_valid &= ~IWLAGN_BT_VALID_REDUCED_TX_PWR;
+		need_update = true;
+	}
+
+	return need_update;
 }
 
 int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
@@ -680,7 +664,12 @@ int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 		}
 	}
 
-	iwlagn_set_kill_msk(priv, uart_msg);
+	/* schedule to send runtime bt_config */
+	/* check reduce power before change ack/cts kill mask */
+	if (iwlagn_fill_txpower_mode(priv, uart_msg) ||
+	    iwlagn_set_kill_msk(priv, uart_msg))
+		queue_work(priv->workqueue, &priv->bt_runtime_config);
+
 
 	/* FIXME: based on notification, adjust the prio_boost */
 

@@ -102,6 +102,8 @@
 #define BBP_SIZE			0x00ff
 #define RF_BASE				0x0004
 #define RF_SIZE				0x0010
+#define RFCSR_BASE			0x0000
+#define RFCSR_SIZE			0x0040
 
 /*
  * Number of TX queues.

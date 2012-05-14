@@ -378,7 +378,11 @@ static int cmp_bss_core(struct cfg80211_bss *a,
 			       b->len_information_elements);
 	}
 
-	return compare_ether_addr(a->bssid, b->bssid);
+	/*
+	 * we can't use compare_ether_addr here since we need a < > operator.
+	 * The binary return value of compare_ether_addr isn't enough
+	 */
+	return memcmp(a->bssid, b->bssid, sizeof(a->bssid));
 }
 
 static int cmp_bss(struct cfg80211_bss *a,

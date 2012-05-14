@@ -11443,20 +11443,6 @@ static void ipw_bg_down(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
-/* Called by register_netdev() */
-static int ipw_net_init(struct net_device *dev)
-{
-	int rc = 0;
-	struct ipw_priv *priv = libipw_priv(dev);
-
-	mutex_lock(&priv->mutex);
-	if (ipw_up(priv))
-		rc = -EIO;
-	mutex_unlock(&priv->mutex);
-
-	return rc;
-}
-
 static int ipw_wdev_init(struct net_device *dev)
 {
 	int i, rc = 0;
@@ -11725,7 +11711,6 @@ static void ipw_prom_free(struct ipw_priv *priv)
 #endif
 
 static const struct net_device_ops ipw_netdev_ops = {
-	.ndo_init		= ipw_net_init,
 	.ndo_open		= ipw_net_open,
 	.ndo_stop		= ipw_net_stop,
 	.ndo_set_rx_mode	= ipw_net_set_multicast_list,
@@ -11848,17 +11833,24 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 		goto out_release_irq;
 	}
 
-	mutex_unlock(&priv->mutex);
-	err = register_netdev(net_dev);
-	if (err) {
-		IPW_ERROR("failed to register network device\n");
+	if (ipw_up(priv)) {
+		mutex_unlock(&priv->mutex);
+		err = -EIO;
 		goto out_remove_sysfs;
 	}
+
+	mutex_unlock(&priv->mutex);
 
 	err = ipw_wdev_init(net_dev);
 	if (err) {
 		IPW_ERROR("failed to register wireless device\n");
-		goto out_unregister_netdev;
+		goto out_remove_sysfs;
+	}
+
+	err = register_netdev(net_dev);
+	if (err) {
+		IPW_ERROR("failed to register network device\n");
+		goto out_unregister_wiphy;
 	}
 
 #ifdef CONFIG_IPW2200_PROMISCUOUS
@@ -11867,10 +11859,8 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 		if (err) {
 			IPW_ERROR("Failed to register promiscuous network "
 				  "device (error %d).\n", err);
-			wiphy_unregister(priv->ieee->wdev.wiphy);
-			kfree(priv->ieee->a_band.channels);
-			kfree(priv->ieee->bg_band.channels);
-			goto out_unregister_netdev;
+			unregister_netdev(priv->net_dev);
+			goto out_unregister_wiphy;
 		}
 	}
 #endif
@@ -11882,8 +11872,10 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 
 	return 0;
 
-      out_unregister_netdev:
-	unregister_netdev(priv->net_dev);
+      out_unregister_wiphy:
+	wiphy_unregister(priv->ieee->wdev.wiphy);
+	kfree(priv->ieee->a_band.channels);
+	kfree(priv->ieee->bg_band.channels);
       out_remove_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &ipw_attribute_group);
       out_release_irq:

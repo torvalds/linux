@@ -210,7 +210,7 @@ static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
 		disable_40 = true;
 
 	if (sta && (!reconfig ||
-		    (disable_40 != !!(sta->sta.ht_cap.cap &
+		    (disable_40 != !(sta->sta.ht_cap.cap &
 					IEEE80211_HT_CAP_SUP_WIDTH_20_40)))) {
 
 		if (disable_40)

@@ -362,6 +362,7 @@ struct sta_info {
 	struct timer_list plink_timer;
 	s64 t_offset;
 	s64 t_offset_setpoint;
+	enum nl80211_channel_type ch_type;
 #endif
 
 #ifdef CONFIG_MAC80211_DEBUGFS

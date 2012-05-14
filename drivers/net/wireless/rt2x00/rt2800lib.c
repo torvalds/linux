@@ -836,6 +836,13 @@ const struct rt2x00debug rt2800_rt2x00debug = {
 		.word_size	= sizeof(u32),
 		.word_count	= RF_SIZE / sizeof(u32),
 	},
+	.rfcsr	= {
+		.read		= rt2800_rfcsr_read,
+		.write		= rt2800_rfcsr_write,
+		.word_base	= RFCSR_BASE,
+		.word_size	= sizeof(u8),
+		.word_count	= RFCSR_SIZE / sizeof(u8),
+	},
 };
 EXPORT_SYMBOL_GPL(rt2800_rt2x00debug);
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */

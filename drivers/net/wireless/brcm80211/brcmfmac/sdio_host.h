@@ -43,6 +43,13 @@
 /* as of sdiod rev 0, supports 3 functions */
 #define SBSDIO_NUM_FUNCTION		3
 
+/* function 0 vendor specific CCCR registers */
+#define SDIO_CCCR_BRCM_SEPINT		0xf2
+
+#define  SDIO_SEPINT_MASK		0x01
+#define  SDIO_SEPINT_OE			0x02
+#define  SDIO_SEPINT_ACT_HI		0x04
+
 /* function 1 miscellaneous registers */
 
 /* sprom command and status */
@@ -144,13 +151,18 @@ struct brcmf_sdio_dev {
 	wait_queue_head_t request_buffer_wait;
 	struct device *dev;
 	struct brcmf_bus *bus_if;
+#ifdef CONFIG_BRCMFMAC_SDIO_OOB
+	unsigned int irq;		/* oob interrupt number */
+	unsigned long irq_flags;	/* board specific oob flags */
+	bool irq_en;			/* irq enable flags */
+	spinlock_t irq_en_lock;
+	bool irq_wake;			/* irq wake enable flags */
+#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
 };
 
-/* Register/deregister device interrupt handler. */
-extern int
-brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev);
-
-extern int brcmf_sdcard_intr_dereg(struct brcmf_sdio_dev *sdiodev);
+/* Register/deregister interrupt handler. */
+extern int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev);
+extern int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 
 /* Access SDIO address space (e.g. CCCR) using CMD52 (single-byte interface).
  *   fn:   function number

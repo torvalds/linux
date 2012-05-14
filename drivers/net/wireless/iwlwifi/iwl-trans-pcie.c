@@ -2175,6 +2175,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	/* Initialize the wait queue for commands */
 	init_waitqueue_head(&trans->wait_command_queue);
+	spin_lock_init(&trans->reg_lock);
 
 	return trans;
 

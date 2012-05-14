@@ -1307,6 +1307,9 @@ static int iwl_init_geos(struct iwl_priv *priv)
 		priv->hw_params.sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
 	}
 
+	if (iwlwifi_mod_params.disable_5ghz)
+		priv->bands[IEEE80211_BAND_5GHZ].n_channels = 0;
+
 	IWL_INFO(priv, "Tunable channels: %d 802.11bg, %d 802.11a channels\n",
 		   priv->bands[IEEE80211_BAND_2GHZ].n_channels,
 		   priv->bands[IEEE80211_BAND_5GHZ].n_channels);
@@ -1417,38 +1420,37 @@ void iwl_set_hw_params(struct iwl_priv *priv)
 
 
 
-void iwl_debug_config(struct iwl_priv *priv)
+/* show what optional capabilities we have */
+void iwl_option_config(struct iwl_priv *priv)
 {
-	dev_printk(KERN_INFO, priv->trans->dev, "CONFIG_IWLWIFI_DEBUG "
 #ifdef CONFIG_IWLWIFI_DEBUG
-		"enabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEBUG enabled\n");
 #else
-		"disabled\n");
-#endif
-	dev_printk(KERN_INFO, priv->trans->dev, "CONFIG_IWLWIFI_DEBUGFS "
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-		"enabled\n");
-#else
-		"disabled\n");
-#endif
-	dev_printk(KERN_INFO, priv->trans->dev, "CONFIG_IWLWIFI_DEVICE_TRACING "
-#ifdef CONFIG_IWLWIFI_DEVICE_TRACING
-		"enabled\n");
-#else
-		"disabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEBUG disabled\n");
 #endif
 
-	dev_printk(KERN_INFO, priv->trans->dev, "CONFIG_IWLWIFI_DEVICE_TESTMODE "
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-		"enabled\n");
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEBUGFS enabled\n");
 #else
-		"disabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEBUGFS disabled\n");
 #endif
-	dev_printk(KERN_INFO, priv->trans->dev, "CONFIG_IWLWIFI_P2P "
-#ifdef CONFIG_IWLWIFI_P2P
-		"enabled\n");
+
+#ifdef CONFIG_IWLWIFI_DEVICE_TRACING
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TRACING enabled\n");
 #else
-		"disabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TRACING disabled\n");
+#endif
+
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TESTMODE enabled\n");
+#else
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TESTMODE disabled\n");
+#endif
+
+#ifdef CONFIG_IWLWIFI_P2P
+	IWL_INFO(priv, "CONFIG_IWLWIFI_P2P enabled\n");
+#else
+	IWL_INFO(priv, "CONFIG_IWLWIFI_P2P disabled\n");
 #endif
 }
 
@@ -1567,8 +1569,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 
 	SET_IEEE80211_DEV(priv->hw, priv->trans->dev);
 
-	/* show what debugging capabilities we have */
-	iwl_debug_config(priv);
+	iwl_option_config(priv);
 
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 
@@ -1586,7 +1587,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/* these spin locks will be used in apm_ops.init and EEPROM access
 	 * we should init now
 	 */
-	spin_lock_init(&priv->trans->reg_lock);
 	spin_lock_init(&priv->statistics.lock);
 
 	/***********************

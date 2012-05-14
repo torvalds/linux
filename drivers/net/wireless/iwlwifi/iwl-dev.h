@@ -921,6 +921,7 @@ struct iwl_priv {
 	__le32 kill_ack_mask;
 	__le32 kill_cts_mask;
 	__le16 bt_valid;
+	bool reduced_txpower;
 	u16 bt_on_thresh;
 	u16 bt_duration;
 	u16 dynamic_frag_thresh;

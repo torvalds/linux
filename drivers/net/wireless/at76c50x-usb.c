@@ -1122,12 +1122,12 @@ exit:
 static void at76_dump_mib_local(struct at76_priv *priv)
 {
 	int ret;
-	struct mib_local *m = kmalloc(sizeof(struct mib_phy), GFP_KERNEL);
+	struct mib_local *m = kmalloc(sizeof(*m), GFP_KERNEL);
 
 	if (!m)
 		return;
 
-	ret = at76_get_mib(priv->udev, MIB_LOCAL, m, sizeof(struct mib_local));
+	ret = at76_get_mib(priv->udev, MIB_LOCAL, m, sizeof(*m));
 	if (ret < 0) {
 		wiphy_err(priv->hw->wiphy,
 			  "at76_get_mib (LOCAL) failed: %d\n", ret);
