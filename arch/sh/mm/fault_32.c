@@ -2,7 +2,7 @@
  * Page fault handler for SH with an MMU.
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2003 - 2009  Paul Mundt
+ *  Copyright (C) 2003 - 2012  Paul Mundt
  *
  *  Based on linux/arch/i386/mm/fault.c:
  *   Copyright (C) 1995  Linus Torvalds
@@ -16,6 +16,7 @@
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
 #include <linux/perf_event.h>
+#include <linux/kdebug.h>
 #include <asm/io_trapped.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
@@ -33,6 +34,20 @@ static inline int notify_page_fault(struct pt_regs *regs, int trap)
 	}
 
 	return ret;
+}
+
+static void
+force_sig_info_fault(int si_signo, int si_code, unsigned long address,
+		     struct task_struct *tsk)
+{
+	siginfo_t info;
+
+	info.si_signo	= si_signo;
+	info.si_errno	= 0;
+	info.si_code	= si_code;
+	info.si_addr	= (void __user *)address;
+
+	force_sig_info(si_signo, &info, tsk);
 }
 
 /*
@@ -176,6 +191,185 @@ static noinline int vmalloc_fault(unsigned long address)
 	return 0;
 }
 
+static void
+show_fault_oops(struct pt_regs *regs, unsigned long address)
+{
+	if (!oops_may_print())
+		return;
+
+	printk(KERN_ALERT "BUG: unable to handle kernel ");
+	if (address < PAGE_SIZE)
+		printk(KERN_CONT "NULL pointer dereference");
+	else
+		printk(KERN_CONT "paging request");
+
+	printk(KERN_CONT " at %08lx\n", address);
+	printk(KERN_ALERT "PC:");
+	printk_address(regs->pc, 1);
+
+	show_pte(NULL, address);
+}
+
+static noinline void
+no_context(struct pt_regs *regs, unsigned long writeaccess,
+	   unsigned long address)
+{
+	/* Are we prepared to handle this kernel fault?  */
+	if (fixup_exception(regs))
+		return;
+
+	if (handle_trapped_io(regs, address))
+		return;
+
+	/*
+	 * Oops. The kernel tried to access some bad page. We'll have to
+	 * terminate things with extreme prejudice.
+	 */
+	bust_spinlocks(1);
+
+	show_fault_oops(regs, address);
+
+	die("Oops", regs, writeaccess);
+	bust_spinlocks(0);
+	do_exit(SIGKILL);
+}
+
+static void
+__bad_area_nosemaphore(struct pt_regs *regs, unsigned long writeaccess,
+		       unsigned long address, int si_code)
+{
+	struct task_struct *tsk = current;
+
+	/* User mode accesses just cause a SIGSEGV */
+	if (user_mode(regs)) {
+		/*
+		 * It's possible to have interrupts off here:
+		 */
+		local_irq_enable();
+
+		force_sig_info_fault(SIGSEGV, si_code, address, tsk);
+
+		return;
+	}
+
+	no_context(regs, writeaccess, address);
+}
+
+static noinline void
+bad_area_nosemaphore(struct pt_regs *regs, unsigned long writeaccess,
+		     unsigned long address)
+{
+	__bad_area_nosemaphore(regs, writeaccess, address, SEGV_MAPERR);
+}
+
+static void
+__bad_area(struct pt_regs *regs, unsigned long writeaccess,
+	   unsigned long address, int si_code)
+{
+	struct mm_struct *mm = current->mm;
+
+	/*
+	 * Something tried to access memory that isn't in our memory map..
+	 * Fix it, but check if it's kernel or user first..
+	 */
+	up_read(&mm->mmap_sem);
+
+	__bad_area_nosemaphore(regs, writeaccess, address, si_code);
+}
+
+static noinline void
+bad_area(struct pt_regs *regs, unsigned long writeaccess, unsigned long address)
+{
+	__bad_area(regs, writeaccess, address, SEGV_MAPERR);
+}
+
+static noinline void
+bad_area_access_error(struct pt_regs *regs, unsigned long writeaccess,
+		      unsigned long address)
+{
+	__bad_area(regs, writeaccess, address, SEGV_ACCERR);
+}
+
+static void out_of_memory(void)
+{
+	/*
+	 * We ran out of memory, call the OOM killer, and return the userspace
+	 * (which will retry the fault, or kill us if we got oom-killed):
+	 */
+	up_read(&current->mm->mmap_sem);
+
+	pagefault_out_of_memory();
+}
+
+static void
+do_sigbus(struct pt_regs *regs, unsigned long writeaccess, unsigned long address)
+{
+	struct task_struct *tsk = current;
+	struct mm_struct *mm = tsk->mm;
+
+	up_read(&mm->mmap_sem);
+
+	/* Kernel mode? Handle exceptions or die: */
+	if (!user_mode(regs))
+		no_context(regs, writeaccess, address);
+
+	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
+}
+
+static noinline int
+mm_fault_error(struct pt_regs *regs, unsigned long writeaccess,
+	       unsigned long address, unsigned int fault)
+{
+	/*
+	 * Pagefault was interrupted by SIGKILL. We have no reason to
+	 * continue pagefault.
+	 */
+	if (fatal_signal_pending(current)) {
+		if (!(fault & VM_FAULT_RETRY))
+			up_read(&current->mm->mmap_sem);
+		if (!user_mode(regs))
+			no_context(regs, writeaccess, address);
+		return 1;
+	}
+
+	if (!(fault & VM_FAULT_ERROR))
+		return 0;
+
+	if (fault & VM_FAULT_OOM) {
+		/* Kernel mode? Handle exceptions or die: */
+		if (!user_mode(regs)) {
+			up_read(&current->mm->mmap_sem);
+			no_context(regs, writeaccess, address);
+			return 1;
+		}
+
+		out_of_memory();
+	} else {
+		if (fault & VM_FAULT_SIGBUS)
+			do_sigbus(regs, writeaccess, address);
+		else
+			BUG();
+	}
+
+	return 1;
+}
+
+static inline int access_error(int write, struct vm_area_struct *vma)
+{
+	if (write) {
+		/* write, present and write, not present: */
+		if (unlikely(!(vma->vm_flags & VM_WRITE)))
+			return 1;
+		return 0;
+	}
+
+	/* read, not present: */
+	if (unlikely(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))))
+		return 1;
+
+	return 0;
+}
+
 static int fault_in_kernel_space(unsigned long address)
 {
 	return address >= TASK_SIZE;
@@ -194,15 +388,12 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
-	int si_code;
 	int fault;
-	siginfo_t info;
 	unsigned int flags = (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
 			      (writeaccess ? FAULT_FLAG_WRITE : 0));
 
 	tsk = current;
 	mm = tsk->mm;
-	si_code = SEGV_MAPERR;
 	vec = lookup_exception_vector();
 
 	/*
@@ -220,7 +411,8 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 		if (notify_page_fault(regs, vec))
 			return;
 
-		goto bad_area_nosemaphore;
+		bad_area_nosemaphore(regs, writeaccess, address);
+		return;
 	}
 
 	if (unlikely(notify_page_fault(regs, vec)))
@@ -236,34 +428,38 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	 * If we're in an interrupt, have no user context or are running
 	 * in an atomic region then we must not take the fault:
 	 */
-	if (in_atomic() || !mm)
-		goto no_context;
+	if (unlikely(in_atomic() || !mm)) {
+		bad_area_nosemaphore(regs, writeaccess, address);
+		return;
+	}
 
 retry:
 	down_read(&mm->mmap_sem);
 
 	vma = find_vma(mm, address);
-	if (!vma)
-		goto bad_area;
-	if (vma->vm_start <= address)
+	if (unlikely(!vma)) {
+		bad_area(regs, writeaccess, address);
+		return;
+	}
+	if (likely(vma->vm_start <= address))
 		goto good_area;
-	if (!(vma->vm_flags & VM_GROWSDOWN))
-		goto bad_area;
-	if (expand_stack(vma, address))
-		goto bad_area;
+	if (unlikely(!(vma->vm_flags & VM_GROWSDOWN))) {
+		bad_area(regs, writeaccess, address);
+		return;
+	}
+	if (unlikely(expand_stack(vma, address))) {
+		bad_area(regs, writeaccess, address);
+		return;
+	}
 
 	/*
 	 * Ok, we have a good vm_area for this memory access, so
 	 * we can handle it..
 	 */
 good_area:
-	si_code = SEGV_ACCERR;
-	if (writeaccess) {
-		if (!(vma->vm_flags & VM_WRITE))
-			goto bad_area;
-	} else {
-		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
-			goto bad_area;
+	if (unlikely(access_error(writeaccess, vma))) {
+		bad_area_access_error(regs, writeaccess, address);
+		return;
 	}
 
 	/*
@@ -273,16 +469,9 @@ good_area:
 	 */
 	fault = handle_mm_fault(mm, vma, address, flags);
 
-	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
-		return;
-
-	if (unlikely(fault & VM_FAULT_ERROR)) {
-		if (fault & VM_FAULT_OOM)
-			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGBUS)
-			goto do_sigbus;
-		BUG();
-	}
+	if (unlikely(fault & (VM_FAULT_RETRY | VM_FAULT_ERROR)))
+		if (mm_fault_error(regs, writeaccess, address, fault))
+			return;
 
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
 		if (fault & VM_FAULT_MAJOR) {
@@ -307,80 +496,6 @@ good_area:
 	}
 
 	up_read(&mm->mmap_sem);
-	return;
-
-	/*
-	 * Something tried to access memory that isn't in our memory map..
-	 * Fix it, but check if it's kernel or user first..
-	 */
-bad_area:
-	up_read(&mm->mmap_sem);
-
-bad_area_nosemaphore:
-	if (user_mode(regs)) {
-		info.si_signo = SIGSEGV;
-		info.si_errno = 0;
-		info.si_code = si_code;
-		info.si_addr = (void *) address;
-		force_sig_info(SIGSEGV, &info, tsk);
-		return;
-	}
-
-no_context:
-	/* Are we prepared to handle this kernel fault?  */
-	if (fixup_exception(regs))
-		return;
-
-	if (handle_trapped_io(regs, address))
-		return;
-/*
- * Oops. The kernel tried to access some bad page. We'll have to
- * terminate things with extreme prejudice.
- *
- */
-
-	bust_spinlocks(1);
-
-	if (oops_may_print()) {
-		printk(KERN_ALERT
-		       "Unable to handle kernel %s at virtual address %08lx\n",
-		       (address < PAGE_SIZE) ? "NULL pointer dereference" :
-		       "paging request", address);
-
-		show_pte(mm, address);
-	}
-
-	die("Oops", regs, writeaccess);
-	bust_spinlocks(0);
-	do_exit(SIGKILL);
-
-/*
- * We ran out of memory, or some other thing happened to us that made
- * us unable to handle the page fault gracefully.
- */
-out_of_memory:
-	up_read(&mm->mmap_sem);
-	if (!user_mode(regs))
-		goto no_context;
-	pagefault_out_of_memory();
-	return;
-
-do_sigbus:
-	up_read(&mm->mmap_sem);
-
-	/*
-	 * Send a sigbus, regardless of whether we were in kernel
-	 * or user mode.
-	 */
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code = BUS_ADRERR;
-	info.si_addr = (void *)address;
-	force_sig_info(SIGBUS, &info, tsk);
-
-	/* Kernel mode? Handle exceptions or die */
-	if (!user_mode(regs))
-		goto no_context;
 }
 
 /*
