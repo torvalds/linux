@@ -51,7 +51,7 @@ static u8 llcp_tlv8(u8 *tlv, u8 type)
 	return tlv[2];
 }
 
-static u8 llcp_tlv16(u8 *tlv, u8 type)
+static u16 llcp_tlv16(u8 *tlv, u8 type)
 {
 	if (tlv[0] != type || tlv[1] != llcp_tlv_length[tlv[0]])
 		return 0;
@@ -67,7 +67,7 @@ static u8 llcp_tlv_version(u8 *tlv)
 
 static u16 llcp_tlv_miux(u8 *tlv)
 {
-	return llcp_tlv16(tlv, LLCP_TLV_MIUX) & 0x7f;
+	return llcp_tlv16(tlv, LLCP_TLV_MIUX) & 0x7ff;
 }
 
 static u16 llcp_tlv_wks(u8 *tlv)
