@@ -183,6 +183,9 @@ int nfc_llcp_parse_connection_tlv(struct nfc_llcp_sock *sock,
 		pr_debug("type 0x%x length %d\n", type, length);
 
 		switch (type) {
+		case LLCP_TLV_MIUX:
+			sock->miu = llcp_tlv_miux(tlv) + 128;
+			break;
 		case LLCP_TLV_RW:
 			sock->rw = llcp_tlv_rw(tlv);
 			break;
@@ -197,7 +200,7 @@ int nfc_llcp_parse_connection_tlv(struct nfc_llcp_sock *sock,
 		tlv += length + 2;
 	}
 
-	pr_debug("sock %p rw %d\n", sock, sock->rw);
+	pr_debug("sock %p rw %d miu %d\n", sock, sock->rw, sock->miu);
 
 	return 0;
 }
@@ -505,7 +508,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 	while (remaining_len > 0) {
 
-		frag_len = min_t(size_t, local->remote_miu, remaining_len);
+		frag_len = min_t(size_t, sock->miu, remaining_len);
 
 		pr_debug("Fragment %zd bytes remaining %zd",
 			 frag_len, remaining_len);

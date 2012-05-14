@@ -102,6 +102,7 @@ struct nfc_llcp_sock {
 	char *service_name;
 	size_t service_name_len;
 	u8 rw;
+	u16 miu;
 
 	/* Link variables */
 	u8 send_n;

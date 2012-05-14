@@ -655,6 +655,7 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 	new_sock = nfc_llcp_sock(new_sk);
 	new_sock->dev = local->dev;
 	new_sock->local = nfc_llcp_local_get(local);
+	new_sock->miu = local->remote_miu;
 	new_sock->nfc_protocol = sock->nfc_protocol;
 	new_sock->ssap = sock->ssap;
 	new_sock->dsap = ssap;

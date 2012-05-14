@@ -477,6 +477,7 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 
 	llcp_sock->dev = dev;
 	llcp_sock->local = nfc_llcp_local_get(local);
+	llcp_sock->miu = llcp_sock->local->remote_miu;
 	llcp_sock->ssap = nfc_llcp_get_local_ssap(local);
 	if (llcp_sock->ssap == LLCP_SAP_MAX) {
 		ret = -ENOMEM;
@@ -679,6 +680,7 @@ struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp)
 	llcp_sock->ssap = 0;
 	llcp_sock->dsap = LLCP_SAP_SDP;
 	llcp_sock->rw = LLCP_DEFAULT_RW;
+	llcp_sock->miu = LLCP_DEFAULT_MIU;
 	llcp_sock->send_n = llcp_sock->send_ack_n = 0;
 	llcp_sock->recv_n = llcp_sock->recv_ack_n = 0;
 	llcp_sock->remote_ready = 1;
