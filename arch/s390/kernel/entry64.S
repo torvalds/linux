@@ -88,9 +88,7 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 	clg	\scratch,BASED(.Lsie_length)
 	jhe	.+22
 	lg	%r9,BASED(.Lsie_loop)
-	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_SPP
-	jz	.+8
-	.insn	s,0xb2800000,BASED(.Lhost_id)	# set host id
+	SPP	BASED(.Lhost_id)	# set host id
 #endif
 	.endm
 
