@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: ¼Ä´æÆ÷¶¨Òå
+* Description 	: å¯„å­˜å™¨å®šä¹‰
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -22,7 +22,7 @@
 #define  __SUN4I_USB_BSP_H__
 
 //-----------------------------------------------------------------------
-//   ¶ÁĞ´¼Ä´æÆ÷, 8bit, 16bit, 32bit
+//   è¯»å†™å¯„å­˜å™¨, 8bit, 16bit, 32bit
 //-----------------------------------------------------------------------
 
 #define  USBC_Readb(reg)	                    (*(volatile unsigned char *)(reg))
@@ -501,12 +501,12 @@
 #define  USBC_BP_ISCR_DPDM_CHANGE_DETECT_EN   	0
 
 //-----------------------------------------------------------------------
-//   ×Ô¶¨Òå
+//   è‡ªå®šä¹‰
 //-----------------------------------------------------------------------
 
-/* usb×ÊÔ´ÃèÊö */
+/* usbèµ„æºæè¿° */
 #define  USBC_MAX_CTL_NUM		3
-#define  USBC_MAX_EP_NUM      	6   	/* ÄÜ¹»Ö§³ÖµÄ×î´óepºÅ, ep0~5 */
+#define  USBC_MAX_EP_NUM      	6   	/* èƒ½å¤Ÿæ”¯æŒçš„æœ€å¤§epå·, ep0~5 */
 #define  USBC0_MAX_FIFO_SIZE   	(8 * 1024)
 #define  USBC_EP0_FIFOSIZE	  	64	/* This is non-configurable */
 
@@ -604,7 +604,7 @@
 
 
 //-----------------------------------------------------------------------
-//   USB host ²Ù×÷²¿·Ö
+//   USB host æ“ä½œéƒ¨åˆ†
 //-----------------------------------------------------------------------
 void USBC_Host_SetFunctionAddress_Deafult(__hdle hUSB, __u32 ep_type, __u32 ep_index);
 void USBC_Host_SetFunctionAddress(__hdle hUSB,
@@ -665,7 +665,7 @@ __s32 USBC_Host_WriteDataStatus(__hdle hUSB, __u32 ep_type, __u32 complete);
 
 
 //-----------------------------------------------------------------------
-//   USB device ²Ù×÷²¿·Ö
+//   USB device æ“ä½œéƒ¨åˆ†
 //-----------------------------------------------------------------------
 void USBC_Dev_SetAddress_default(__hdle hUSB);
 void USBC_Dev_SetAddress(__hdle hUSB, __u8 address);
@@ -694,10 +694,10 @@ __s32 USBC_Dev_ReadDataStatus(__hdle hUSB, __u32 ep_type, __u32 complete);
 
 
 //-----------------------------------------------------------------------
-//   USB ¹«¹²²Ù×÷²¿·Ö
+//   USB å…¬å…±æ“ä½œéƒ¨åˆ†
 //-----------------------------------------------------------------------
 
-/* USB´«ÊäÀàĞÍÑ¡Ôñ, ¶ÁĞ´Êı¾İµÈ */
+/* USBä¼ è¾“ç±»å‹é€‰æ‹©, è¯»å†™æ•°æ®ç­‰ */
 void USBC_OTG_SelectMode(__hdle hUSB, __u32 mode);
 
 __u32 USBC_ReadLenFromFifo(__hdle hUSB, __u32 ep_type);
@@ -721,7 +721,7 @@ void USBC_EnhanceSignal(__hdle hUSB);
 __u32 USBC_GetLastFrameNumber(__hdle hUSB);
 
 
-/* usb ÖĞ¶Ï²Ù×÷²¿·Ö */
+/* usb ä¸­æ–­æ“ä½œéƒ¨åˆ† */
 __u32 USBC_INT_EpPending(__hdle hUSB, __u32 ep_type);
 __u32 USBC_INT_MiscPending(__hdle hUSB);
 void USBC_INT_ClearEpPending(__hdle hUSB, __u32 ep_type, __u8 ep_index);
@@ -739,7 +739,7 @@ void USBC_INT_DisableEpAll(__hdle hUSB, __u32 ep_type);
 void USBC_INT_DisableUsbMiscAll(__hdle hUSB);
 
 
-/* usb ¿ØÖÆ²Ù×÷²¿·Ö */
+/* usb æ§åˆ¶æ“ä½œéƒ¨åˆ† */
 __u32 USBC_GetVbusStatus(__hdle hUSB);
 __u32 USBC_GetStatus_Dp(__hdle hUSB);
 __u32 USBC_GetStatus_Dm(__hdle hUSB);
@@ -788,7 +788,7 @@ void USBC_Phy_Standby_Recover(__hdle hUSB, __u32 phy_index);
 void UsbPhyInit(__u32 usbc_no);
 void UsbPhyEndReset(__u32 usbc_no);
 
-/* usb ²âÊÔÄ£Ê½ */
+/* usb æµ‹è¯•æ¨¡å¼ */
 void USBC_EnterMode_TestPacket(__hdle hUSB);
 void USBC_EnterMode_Test_K(__hdle hUSB);
 void USBC_EnterMode_Test_J(__hdle hUSB);
@@ -799,12 +799,12 @@ __u32 USBC_TestMode_ReadReg(__hdle hUSB, __u32 offset, __u32 reg_width);
 
 
 //---------------------------------------------------------------
-//  bspÈë¿Ú
+//  bspå…¥å£
 //---------------------------------------------------------------
-/* ¿ØÖÆÆ÷ĞÅÏ¢ */
+/* æ§åˆ¶å™¨ä¿¡æ¯ */
 typedef struct tag_usbc_info{
-    __u32 num;      /* ¿ØÖÆÆ÷±àºÅ */
-    __u32 base;     /* ¿ØÖÆÆ÷»ùÖ· */
+    __u32 num;      /* æ§åˆ¶å™¨ç¼–å· */
+    __u32 base;     /* æ§åˆ¶å™¨åŸºå€ */
 }usbc_info_t;
 
 typedef struct tag_bsp_usbc{
@@ -812,11 +812,11 @@ typedef struct tag_bsp_usbc{
     __u32 sram_base;
 }bsp_usbc_t;
 
-/* ´ò¿ªÉè±¸ */
+/* æ‰“å¼€è®¾å¤‡ */
 __hdle USBC_open_otg(__u32 otg_no);
 __s32  USBC_close_otg(__hdle hUSB);
 
-/* ³õÊ¼»¯ */
+/* åˆå§‹åŒ– */
 __s32 USBC_init(bsp_usbc_t *usbc);
 __s32 USBC_exit(bsp_usbc_t *usbc);
 

@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: DMA ²Ù×÷¼¯
+* Description 	: DMA æ“ä½œé›†
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -55,7 +55,7 @@ static void sw_udc_CleanFlushDCacheRegion(void *adr, __u32 bytes)
 *                     sw_udc_switch_bus_to_dma
 *
 * Description:
-*    ÇĞ»» USB ×ÜÏß¸ø DMA
+*    åˆ‡æ¢ USB æ€»çº¿ç»™ DMA
 *
 * Parameters:
 *    void
@@ -90,7 +90,7 @@ void sw_udc_switch_bus_to_dma(struct sw_udc_ep *ep, u32 is_tx)
 *                     sw_udc_switch_bus_to_pio
 *
 * Description:
-*    ÇĞ»» USB ×ÜÏß¸ø PIO
+*    åˆ‡æ¢ USB æ€»çº¿ç»™ PIO
 *
 * Parameters:
 *    void
@@ -115,7 +115,7 @@ void sw_udc_switch_bus_to_pio(struct sw_udc_ep *ep, __u32 is_tx)
 *                     sw_udc_enable_dma_channel_irq
 *
 * Description:
-*    Ê¹ÄÜ DMA channel ÖĞ¶Ï
+*    ä½¿èƒ½ DMA channel ä¸­æ–­
 *
 * Parameters:
 *    void
@@ -140,7 +140,7 @@ void sw_udc_enable_dma_channel_irq(struct sw_udc_ep *ep)
 *                     sw_udc_disable_dma_channel_irq
 *
 * Description:
-*    ½ûÖ¹ DMA channel ÖĞ¶Ï
+*    ç¦æ­¢ DMA channel ä¸­æ–­
 *
 * Parameters:
 *    void
@@ -165,7 +165,7 @@ void sw_udc_disable_dma_channel_irq(struct sw_udc_ep *ep)
 *                     sw_udc_dma_set_config
 *
 * Description:
-*    ÅäÖÃ DMA
+*    é…ç½® DMA
 *
 * Parameters:
 *    void
@@ -248,7 +248,7 @@ void sw_udc_dma_set_config(struct sw_udc_ep *ep, struct sw_udc_request *req, __u
 *                     sw_udc_dma_start
 *
 * Description:
-*    ¿ªÊ¼ DMA ´«Êä
+*    å¼€å§‹ DMA ä¼ è¾“
 *
 * Parameters:
 *    void
@@ -282,7 +282,7 @@ void sw_udc_dma_start(struct sw_udc_ep *ep, __u32 fifo, __u32 buffer, __u32 len)
 *                     sw_udc_dma_stop
 *
 * Description:
-*    ÖÕÖ¹ DMA ´«Êä
+*    ç»ˆæ­¢ DMA ä¼ è¾“
 *
 * Parameters:
 *    void
@@ -314,7 +314,7 @@ void sw_udc_dma_stop(struct sw_udc_ep *ep)
 *                     sw_udc_dma_transmit_length
 *
 * Description:
-*    ²éÑ¯ DMA ÒÑ¾­´«ÊäµÄ³¤¶È
+*    æŸ¥è¯¢ DMA å·²ç»ä¼ è¾“çš„é•¿åº¦
 *
 * Parameters:
 *    void
@@ -373,7 +373,7 @@ __u32 sw_udc_dma_transmit_length(struct sw_udc_ep *ep, __u32 is_in, __u32 buffer
 *                     sw_udc_dma_probe
 *
 * Description:
-*    DMA ³õÊ¼»¯
+*    DMA åˆå§‹åŒ–
 *
 * Parameters:
 *    void
@@ -396,7 +396,7 @@ __u32 sw_udc_dma_is_busy(struct sw_udc_ep *ep)
 *                     sw_udc_dma_probe
 *
 * Description:
-*    DMA ³õÊ¼»¯
+*    DMA åˆå§‹åŒ–
 *
 * Parameters:
 *    void
@@ -437,7 +437,7 @@ static void sw_udc_dma_callback(struct sw_dma_chan * ch, void *buf, int size, en
 *                     sw_udc_dma_probe
 *
 * Description:
-*    DMA ³õÊ¼»¯
+*    DMA åˆå§‹åŒ–
 *
 * Parameters:
 *    void
@@ -486,7 +486,7 @@ __s32 sw_udc_dma_probe(struct sw_udc *dev)
 *                     sw_udc_dma_remove
 *
 * Description:
-*    DMA ÒÆ³ı
+*    DMA ç§»é™¤
 *
 * Parameters:
 *    void

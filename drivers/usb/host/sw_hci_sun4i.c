@@ -17,7 +17,7 @@
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
 *    yangnaitian      2011-5-24            1.0          create this file
-*    javen            2011-7-18            1.1          Ìí¼ÓÁËÊ±ÖÓ¿ª¹ØºÍ¹©µç¿ª¹Ø
+*    javen            2011-7-18            1.1          æ·»åŠ äº†æ—¶é’Ÿå¼€å…³å’Œä¾›ç”µå¼€å…³
 *
 *************************************************************************************
 */
@@ -324,19 +324,19 @@ static void UsbPhyInit(__u32 usbc_no)
 {
 //	DMSG_INFO("csr1: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Readl(USBC_Phy_GetCsr(usbc_no)));
 
-    /* µ÷½Ú45Å·×è¿¹ */
+    /* è°ƒèŠ‚45æ¬§é˜»æŠ— */
 	if(usbc_no == 0){
 	    USBC_Phy_Write(usbc_no, 0x0c, 0x01, 1);
 	}
 
 //	DMSG_INFO("csr2-0: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Phy_Read(usbc_no, 0x0c, 1));
 
-    /* µ÷Õû USB0 PHY µÄ·ù¶ÈºÍËÙÂÊ */
+    /* è°ƒæ•´ USB0 PHY çš„å¹…åº¦å’Œé€ŸçŽ‡ */
 	USBC_Phy_Write(usbc_no, 0x20, 0x14, 5);
 
 //	DMSG_INFO("csr2-1: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Phy_Read(usbc_no, 0x20, 5));
 
-    /* µ÷½Ú disconnect ÓòÖµ */
+    /* è°ƒèŠ‚ disconnect åŸŸå€¼ */
 	USBC_Phy_Write(usbc_no, 0x2a, 3, 2);
 
 //	DMSG_INFO("csr2: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Phy_Read(usbc_no, 0x2a, 2));

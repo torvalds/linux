@@ -47,14 +47,14 @@
 #define  DMSG_ERR(...)        		(DMSG_PRINT_EX("WRN:L%d(%s):", __LINE__, __FILE__), DMSG_PRINT_EX(__VA_ARGS__))
 
 
-/* ²âÊÔ */
+/* æµ‹è¯• */
 #if  0
     #define DMSG_TEST         			DMSG_PRINT
 #else
     #define DMSG_TEST(...)
 #endif
 
-/* ´úÂëµ÷ÊÔ */
+/* ä»£ç è°ƒè¯• */
 #if  0
     #define DMSG_MANAGER_DEBUG          DMSG_PRINT
 #else
@@ -67,28 +67,28 @@
     #define DMSG_DEBUG(...)
 #endif
 
-/* ÆÕÍ¨ĞÅÏ¢´òÓ¡ */
+/* æ™®é€šä¿¡æ¯æ‰“å° */
 #if  1
     #define DMSG_INFO         			DMSG_PRINT
 #else
     #define DMSG_INFO(...)
 #endif
 
-/* ÑÏÖØ¾¯¸æ */
+/* ä¸¥é‡è­¦å‘Š */
 #if	1
     #define DMSG_PANIC        			DMSG_ERR
 #else
     #define DMSG_PANIC(...)
 #endif
 
-/* ÆÕÍ¨¾¯¸æ */
+/* æ™®é€šè­¦å‘Š */
 #if	0
     #define DMSG_WRN        			DMSG_ERR
 #else
     #define DMSG_WRN(...)
 #endif
 
-/* dma µ÷ÊÔ´òÓ¡ */
+/* dma è°ƒè¯•æ‰“å° */
 #if	0
     #define DMSG_DBG_DMA     			DMSG_PRINT
 #else
@@ -96,7 +96,7 @@
 #endif
 
 //---------------------------------------------------------------
-//  º¯Êı ¶¨Òå
+//  å‡½æ•° å®šä¹‰
 //---------------------------------------------------------------
 void print_usb_reg_by_ep(spinlock_t *lock, __u32 usbc_base, __s32 ep_index, char *str);
 void print_all_usb_reg(spinlock_t *lock, __u32 usbc_base, __s32 ep_start, __u32 ep_end, char *str);

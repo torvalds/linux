@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: Ö÷»ú¿ØÖÆÆ÷µÄÏà¹Ø²Ù×÷
+* Description 	: ä¸»æœºæ§åˆ¶å™¨çš„ç›¸å…³æ“ä½œ
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -21,13 +21,13 @@
 #ifndef  __SW_HCD_HOST_H__
 #define  __SW_HCD_HOST_H__
 
-/* ´Ó struct usb_hcd ½á¹¹Àï»ñµÃ struct sw_hcd ½á¹¹ */
+/* ä» struct usb_hcd ç»“æ„é‡Œè·å¾— struct sw_hcd ç»“æ„ */
 static inline struct usb_hcd *sw_hcd_to_hcd(struct sw_hcd *sw_hcd)
 {
 	return container_of((void *) sw_hcd, struct usb_hcd, hcd_priv);
 }
 
-/* ´Ó struct sw_hcd ½á¹¹Àï»ñµÃ struct usb_hcd ½á¹¹ */
+/* ä» struct sw_hcd ç»“æ„é‡Œè·å¾— struct usb_hcd ç»“æ„ */
 static inline struct sw_hcd *hcd_to_sw_hcd(struct usb_hcd *hcd)
 {
 	return (struct sw_hcd *) (hcd->hcd_priv);
@@ -53,7 +53,7 @@ typedef struct sw_hcd_qh{
 
 	u8  is_ready;	                /* safe to modify hw_ep         */
 	u8  type;		                /* ep type XFERTYPE_*           */
-	u8  epnum;                      /* target ep index. ¶ÔÓ¦µÄÍâÉèµÄep */
+	u8  epnum;                      /* target ep index. å¯¹åº”çš„å¤–è®¾çš„ep */
 	u16  maxpacket;                 /* max packet size              */
 	u16  frame;		                /* for periodic schedule        */
 	unsigned  iso_idx;	            /* in urb->iso_frame_desc[]     */
@@ -98,7 +98,7 @@ static inline struct urb *next_urb(struct sw_hcd_qh *qh)
 }
 
 //---------------------------------------------------------------
-//  º¯Êı ¶¨Òå
+//  å‡½æ•° å®šä¹‰
 //---------------------------------------------------------------
 irqreturn_t sw_hcd_h_ep0_irq(struct sw_hcd *sw_hcd);
 

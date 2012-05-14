@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: Ö÷»ú¿ØÖÆÆ÷Çý¶¯
+* Description 	: ä¸»æœºæŽ§åˆ¶å™¨é©±åŠ¨
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -846,7 +846,7 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_RESET));
 
-        //°Ñbabbleµ±×÷disconnect´¦Àí
+        //æŠŠbabbleå½“ä½œdisconnectå¤„ç†
 		USBC_Host_SetFunctionAddress_Deafult(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_EP_TYPE_TX, 0);
 		{
 		    u32 i = 1;
@@ -857,7 +857,7 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 			}
 		}
 
-		/* Çå³ý¹ØÓÚ°Î³öÉè±¸µÄËùÓÐÖÐ¶Ï, Ä¿Ç°Ã»ÓÐhub, ËùÒÔ¿ÉÒÔÇå³ýËùÓÐÖÐ¶Ï */
+		/* æ¸…é™¤å…³äºŽæ‹”å‡ºè®¾å¤‡çš„æ‰€æœ‰ä¸­æ–­, ç›®å‰æ²¡æœ‰hub, æ‰€ä»¥å¯ä»¥æ¸…é™¤æ‰€æœ‰ä¸­æ–­ */
 		USBC_INT_ClearMiscPendingAll(sw_hcd->sw_hcd_io->usb_bsp_hdle);
 		USBC_INT_ClearEpPendingAll(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_EP_TYPE_TX);
 		USBC_INT_ClearEpPendingAll(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_EP_TYPE_RX);

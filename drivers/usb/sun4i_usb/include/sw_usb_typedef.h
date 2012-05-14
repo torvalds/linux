@@ -82,31 +82,31 @@ typedef signed char           __bool;
 #undef  __hdle
 typedef unsigned int        __hdle;
 
-/* ÉèÖÃÄ³¸öbitÎ»Îª1 */
+/* è®¾ç½®æŸä¸ªbitä½ä¸º1 */
 #undef  x_set_bit
 #define x_set_bit( value, bit )      		( (value) |=  ( 1U << (bit) ) )
 
-/* °ÑÄ³¸öbitÎ»ÇåÁã */
+/* æŠŠæŸä¸ªbitä½æ¸…é›¶ */
 #undef  x_clear_bit
 #define x_clear_bit( value, bit )    		( (value) &= ~( 1U << (bit) ) )
 
-/* °ÑÄ³¸öbitÎ»µÄÖµÈ¡·´ */
+/* æŠŠæŸä¸ªbitä½çš„å€¼å–å */
 #undef  x_reverse_bit
 #define x_reverse_bit( value, bit )  		( (value) ^=  ( 1U << (bit) ) )
 
-/* ÅĞ¶ÏÄ³¸öbitÎ»ÊÇ·ñÎª1 */
+/* åˆ¤æ–­æŸä¸ªbitä½æ˜¯å¦ä¸º1 */
 #undef  x_test_bit
 #define x_test_bit( value, bit )     		( (value)  &  ( 1U << (bit) ) )
 
-/* È¡×îĞ¡Öµ */
+/* å–æœ€å°å€¼ */
 #undef  x_min
 #define x_min( x, y )          				( (x) < (y) ? (x) : (y) )
 
-/* È¡×î´óÖµ */
+/* å–æœ€å¤§å€¼ */
 #undef  x_max
 #define x_max( x, y )          				( (x) > (y) ? (x) : (y) )
 
-/* È¡¾ø¶ÔÖµ */
+/* å–ç»å¯¹å€¼ */
 #undef  x_absolute
 #define x_absolute(p)        				((p) > 0 ? (p) : -(p))
 

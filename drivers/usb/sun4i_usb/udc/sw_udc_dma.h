@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: DMA ²Ù×÷¼¯
+* Description 	: DMA æ“ä½œé›†
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -22,7 +22,7 @@
 #define  __SW_UDC_DMA_H__
 
 //---------------------------------------------------------------
-//  ºê ¶¨Òå
+//  å® å®šä¹‰
 //---------------------------------------------------------------
 #ifdef  SW_UDC_DMA
 #define  is_udc_support_dma()       1
@@ -34,7 +34,7 @@
 #define  is_tx_ep(ep)		((ep->bEndpointAddress) & USB_DIR_IN)
 
 //---------------------------------------------------------------
-//  º¯Êı ¶¨Òå
+//  å‡½æ•° å®šä¹‰
 //---------------------------------------------------------------
 void sw_udc_switch_bus_to_dma(struct sw_udc_ep *ep, u32 is_tx);
 void sw_udc_switch_bus_to_pio(struct sw_udc_ep *ep, __u32 is_tx);

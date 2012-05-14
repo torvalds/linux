@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: USB π‹¿Ì≥Ã–Ú
+* Description 	: USB ÁÆ°ÁêÜÁ®ãÂ∫è
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -254,7 +254,7 @@ static __s32 check_usb_board_info(struct usb_cfg *cfg)
     // USB0
     //-------------------------------------
     if(cfg->port[0].enable){
-        /* ºÏ≤Èportµƒ π”√¿‡–Õ «∑Ò∫œ∑® */
+        /* Ê£ÄÊü•portÁöÑ‰ΩøÁî®Á±ªÂûãÊòØÂê¶ÂêàÊ≥ï */
         if(cfg->port[0].port_type != USB_PORT_TYPE_DEVICE
            && cfg->port[0].port_type != USB_PORT_TYPE_HOST
            && cfg->port[0].port_type != USB_PORT_TYPE_OTG){
@@ -262,14 +262,14 @@ static __s32 check_usb_board_info(struct usb_cfg *cfg)
     	    goto err;
         }
 
-        /* ºÏ≤ÈUSBµƒ≤Â∞ŒºÏ≤‚∑Ω Ω «∑Ò∫œ∑® */
+        /* Ê£ÄÊü•USBÁöÑÊèíÊãîÊ£ÄÊµãÊñπÂºèÊòØÂê¶ÂêàÊ≥ï */
         if(cfg->port[0].detect_type != USB_DETECT_TYPE_DP_DM
            && cfg->port[0].detect_type != USB_DETECT_TYPE_VBUS_ID){
             DMSG_PANIC("ERR: usbc0 detect_type(%d) is unkown\n", cfg->port[0].detect_type);
     	    goto err;
         }
 
-        /* »Áπ˚”√VBUS/IDºÏ≤‚∑Ω Ω£¨æÕ±ÿ–ÎºÏ≤Èid/vbus pin µƒ”––ß–‘ */
+        /* Â¶ÇÊûúÁî®VBUS/IDÊ£ÄÊµãÊñπÂºèÔºåÂ∞±ÂøÖÈ°ªÊ£ÄÊü•id/vbus pin ÁöÑÊúâÊïàÊÄß */
         if(cfg->port[0].detect_type == USB_DETECT_TYPE_VBUS_ID){
             if(cfg->port[0].id.valid == 0){
                 DMSG_PANIC("ERR: id pin is invaild\n");
