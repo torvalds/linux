@@ -264,11 +264,11 @@ static int yama_ptrace_access_check(struct task_struct *child,
 		case YAMA_SCOPE_RELATIONAL:
 			if (!task_is_descendant(current, child) &&
 			    !ptracer_exception_found(current, child) &&
-			    !capable(CAP_SYS_PTRACE))
+			    !ns_capable(task_user_ns(child), CAP_SYS_PTRACE))
 				rc = -EPERM;
 			break;
 		case YAMA_SCOPE_CAPABILITY:
-			if (!capable(CAP_SYS_PTRACE))
+			if (!ns_capable(task_user_ns(child), CAP_SYS_PTRACE))
 				rc = -EPERM;
 			break;
 		case YAMA_SCOPE_NO_ATTACH:
