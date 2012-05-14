@@ -551,19 +551,29 @@ static u64 mmu_spte_get_lockless(u64 *sptep)
 
 static void walk_shadow_page_lockless_begin(struct kvm_vcpu *vcpu)
 {
-	rcu_read_lock();
-	atomic_inc(&vcpu->kvm->arch.reader_counter);
-
-	/* Increase the counter before walking shadow page table */
-	smp_mb__after_atomic_inc();
+	/*
+	 * Prevent page table teardown by making any free-er wait during
+	 * kvm_flush_remote_tlbs() IPI to all active vcpus.
+	 */
+	local_irq_disable();
+	vcpu->mode = READING_SHADOW_PAGE_TABLES;
+	/*
+	 * Make sure a following spte read is not reordered ahead of the write
+	 * to vcpu->mode.
+	 */
+	smp_mb();
 }
 
 static void walk_shadow_page_lockless_end(struct kvm_vcpu *vcpu)
 {
-	/* Decrease the counter after walking shadow page table finished */
-	smp_mb__before_atomic_dec();
-	atomic_dec(&vcpu->kvm->arch.reader_counter);
-	rcu_read_unlock();
+	/*
+	 * Make sure the write to vcpu->mode is not reordered in front of
+	 * reads to sptes.  If it does, kvm_commit_zap_page() can see us
+	 * OUTSIDE_GUEST_MODE and proceed to free the shadow page table.
+	 */
+	smp_mb();
+	vcpu->mode = OUTSIDE_GUEST_MODE;
+	local_irq_enable();
 }
 
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
@@ -1989,30 +1999,6 @@ static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 	return ret;
 }
 
-static void kvm_mmu_isolate_pages(struct list_head *invalid_list)
-{
-	struct kvm_mmu_page *sp;
-
-	list_for_each_entry(sp, invalid_list, link)
-		kvm_mmu_isolate_page(sp);
-}
-
-static void free_pages_rcu(struct rcu_head *head)
-{
-	struct kvm_mmu_page *next, *sp;
-
-	sp = container_of(head, struct kvm_mmu_page, rcu);
-	while (sp) {
-		if (!list_empty(&sp->link))
-			next = list_first_entry(&sp->link,
-				      struct kvm_mmu_page, link);
-		else
-			next = NULL;
-		kvm_mmu_free_page(sp);
-		sp = next;
-	}
-}
-
 static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 				    struct list_head *invalid_list)
 {
@@ -2021,17 +2007,17 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 	if (list_empty(invalid_list))
 		return;
 
+	/*
+	 * wmb: make sure everyone sees our modifications to the page tables
+	 * rmb: make sure we see changes to vcpu->mode
+	 */
+	smp_mb();
+
+	/*
+	 * Wait for all vcpus to exit guest mode and/or lockless shadow
+	 * page table walks.
+	 */
 	kvm_flush_remote_tlbs(kvm);
-
-	if (atomic_read(&kvm->arch.reader_counter)) {
-		kvm_mmu_isolate_pages(invalid_list);
-		sp = list_first_entry(invalid_list, struct kvm_mmu_page, link);
-		list_del_init(invalid_list);
-
-		trace_kvm_mmu_delay_free_pages(sp);
-		call_rcu(&sp->rcu, free_pages_rcu);
-		return;
-	}
 
 	do {
 		sp = list_first_entry(invalid_list, struct kvm_mmu_page, link);
@@ -2039,7 +2025,6 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 		kvm_mmu_isolate_page(sp);
 		kvm_mmu_free_page(sp);
 	} while (!list_empty(invalid_list));
-
 }
 
 /*

@@ -128,7 +128,8 @@ int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
 enum {
 	OUTSIDE_GUEST_MODE,
 	IN_GUEST_MODE,
-	EXITING_GUEST_MODE
+	EXITING_GUEST_MODE,
+	READING_SHADOW_PAGE_TABLES,
 };
 
 /*

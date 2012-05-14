@@ -240,8 +240,6 @@ struct kvm_mmu_page {
 #endif
 
 	int write_flooding_count;
-
-	struct rcu_head rcu;
 };
 
 struct kvm_pio_request {
@@ -539,8 +537,6 @@ struct kvm_arch {
 	/* fields used by HYPER-V emulation */
 	u64 hv_guest_os_id;
 	u64 hv_hypercall;
-
-	atomic_t reader_counter;
 
 	#ifdef CONFIG_KVM_MMU_AUDIT
 	int audit_point;
