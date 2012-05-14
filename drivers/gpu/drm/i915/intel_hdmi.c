@@ -89,6 +89,32 @@ static u32 g4x_infoframe_enable(struct dip_infoframe *frame)
 	}
 }
 
+static u32 hsw_infoframe_enable(struct dip_infoframe *frame)
+{
+	switch (frame->type) {
+	case DIP_TYPE_AVI:
+		return VIDEO_DIP_ENABLE_AVI_HSW;
+	case DIP_TYPE_SPD:
+		return VIDEO_DIP_ENABLE_SPD_HSW;
+	default:
+		DRM_DEBUG_DRIVER("unknown info frame type %d\n", frame->type);
+		return 0;
+	}
+}
+
+static u32 hsw_infoframe_data_reg(struct dip_infoframe *frame, enum pipe pipe)
+{
+	switch (frame->type) {
+	case DIP_TYPE_AVI:
+		return HSW_TVIDEO_DIP_AVI_DATA(pipe);
+	case DIP_TYPE_SPD:
+		return HSW_TVIDEO_DIP_SPD_DATA(pipe);
+	default:
+		DRM_DEBUG_DRIVER("unknown info frame type %d\n", frame->type);
+		return 0;
+	}
+}
+
 static void g4x_write_infoframe(struct drm_encoder *encoder,
 				struct dip_infoframe *frame)
 {
@@ -251,13 +277,30 @@ static void vlv_write_infoframe(struct drm_encoder *encoder,
 static void hsw_write_infoframe(struct drm_encoder *encoder,
 				struct dip_infoframe *frame)
 {
-	/* Not implemented yet, so avoid doing anything at all.
-	 * This is the placeholder for Paulo Zanoni's infoframe writing patch
-	 */
-	DRM_DEBUG_DRIVER("Attempting to write infoframe on Haswell, this is not implemented yet.\n");
+	uint32_t *data = (uint32_t *)frame;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
+	u32 ctl_reg = HSW_TVIDEO_DIP_CTL(intel_crtc->pipe);
+	u32 data_reg = hsw_infoframe_data_reg(frame, intel_crtc->pipe);
+	unsigned int i, len = DIP_HEADER_SIZE + frame->len;
+	u32 val = I915_READ(ctl_reg);
 
-	return;
+	if (data_reg == 0)
+		return;
 
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
+
+	val &= ~hsw_infoframe_enable(frame);
+	I915_WRITE(ctl_reg, val);
+
+	for (i = 0; i < len; i += 4) {
+		I915_WRITE(data_reg + i, *data);
+		data++;
+	}
+
+	val |= hsw_infoframe_enable(frame);
+	I915_WRITE(ctl_reg, val);
 }
 
 static void intel_set_infoframe(struct drm_encoder *encoder,

@@ -1697,6 +1697,7 @@
 /* Video Data Island Packet control */
 #define VIDEO_DIP_DATA		0x61178
 #define VIDEO_DIP_CTL		0x61170
+/* Pre HSW: */
 #define   VIDEO_DIP_ENABLE		(1 << 31)
 #define   VIDEO_DIP_PORT_B		(1 << 29)
 #define   VIDEO_DIP_PORT_C		(2 << 29)
@@ -1713,6 +1714,9 @@
 #define   VIDEO_DIP_FREQ_VSYNC		(1 << 16)
 #define   VIDEO_DIP_FREQ_2VSYNC		(2 << 16)
 #define   VIDEO_DIP_FREQ_MASK		(3 << 16)
+/* HSW and later: */
+#define   VIDEO_DIP_ENABLE_AVI_HSW	(1 << 12)
+#define   VIDEO_DIP_ENABLE_SPD_HSW	(1 << 0)
 
 /* Panel power sequencing */
 #define PP_STATUS	0x61200
