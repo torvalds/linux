@@ -37,6 +37,10 @@ i.MX6 Quad SABRE Lite Board
 Required root node properties:
     - compatible = "fsl,imx6q-sabrelite", "fsl,imx6q";
 
+i.MX6 Quad SABRE Smart Device Board
+Required root node properties:
+    - compatible = "fsl,imx6q-sabresd", "fsl,imx6q";
+
 Generic i.MX boards
 -------------------
 
