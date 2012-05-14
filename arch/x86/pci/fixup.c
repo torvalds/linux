@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <asm/pci_x86.h>
+#include <asm/vga.h>
 
 static void __devinit pci_fixup_i450nx(struct pci_dev *d)
 {
@@ -348,6 +349,8 @@ static void __devinit pci_fixup_video(struct pci_dev *pdev)
 	if (config & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
 		pdev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_SHADOW;
 		dev_printk(KERN_DEBUG, &pdev->dev, "Boot video device\n");
+		if (!vga_default_device())
+			vga_set_default_device(pdev);
 	}
 }
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_ANY_ID, PCI_ANY_ID,
