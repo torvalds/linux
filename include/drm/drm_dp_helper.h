@@ -213,6 +213,10 @@
 # define DP_TEST_NAK			    (1 << 1)
 # define DP_TEST_EDID_CHECKSUM_WRITE	    (1 << 2)
 
+#define DP_SOURCE_OUI			    0x300
+#define DP_SINK_OUI			    0x400
+#define DP_BRANCH_OUI			    0x500
+
 #define DP_SET_POWER                        0x600
 # define DP_SET_POWER_D0                    0x1
 # define DP_SET_POWER_D3                    0x2
