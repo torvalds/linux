@@ -507,6 +507,7 @@ struct drm_psb_private {
 	 * Modesetting
 	 */
 	struct psb_intel_mode_device mode_dev;
+	bool modeset;	/* true if we have done the mode_device setup */
 
 	struct drm_crtc *plane_to_crtc_mapping[PSB_NUM_PIPE];
 	struct drm_crtc *pipe_to_crtc_mapping[PSB_NUM_PIPE];

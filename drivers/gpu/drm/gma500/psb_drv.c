@@ -152,10 +152,6 @@ static void psb_lastclose(struct drm_device *dev)
 	return;
 }
 
-static void psb_do_takedown(struct drm_device *dev)
-{
-}
-
 static int psb_do_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -194,7 +190,6 @@ static int psb_do_init(struct drm_device *dev)
 	PSB_WSGX32(pg->gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
 	return 0;
 out_err:
-	psb_do_takedown(dev);
 	return ret;
 }
 
@@ -204,17 +199,16 @@ static int psb_driver_unload(struct drm_device *dev)
 
 	/* Kill vblank etc here */
 
-	gma_backlight_exit(dev);
-	psb_modeset_cleanup(dev);
 
 	if (dev_priv) {
+		if (dev_priv->backlight_device)
+			gma_backlight_exit(dev);
+		psb_modeset_cleanup(dev);
 
 		if (dev_priv->ops->chip_teardown)
 			dev_priv->ops->chip_teardown(dev);
 
 		psb_intel_opregion_fini(dev);
-		psb_do_takedown(dev);
-
 
 		if (dev_priv->pf_pd) {
 			psb_mmu_free_pagedir(dev_priv->pf_pd);
@@ -248,15 +242,13 @@ static int psb_driver_unload(struct drm_device *dev)
 			dev_priv->sgx_reg = NULL;
 		}
 
+		/* Destroy VBT data */
+		psb_intel_destroy_bios(dev);
+
 		kfree(dev_priv);
 		dev->dev_private = NULL;
-
-		/*destroy VBT data*/
-		psb_intel_destroy_bios(dev);
 	}
-
 	gma_power_uninit(dev);
-
 	return 0;
 }
 
