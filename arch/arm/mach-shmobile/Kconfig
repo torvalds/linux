@@ -102,6 +102,7 @@ config MACH_KZM9G
 	bool "KZM-A9-GT board"
 	depends on ARCH_SH73A0
 	select ARCH_REQUIRE_GPIOLIB
+	select USE_OF
 
 comment "SH-Mobile System Configuration"
 
