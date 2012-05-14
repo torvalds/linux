@@ -97,6 +97,13 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 			break;
 		}
 		break;
+
+	case PCI_VENDOR_ID_PHILIPS:
+		/*
+		 * Philips controllers set HCC_PGM_FRAMELISTLEN, but
+		 * they don't implement schedule sizes shorter than 1024.
+		 */
+		ehci->sched_size_bug = 1;
 	}
 
 	/* cache this readonly data; minimize chip reads */

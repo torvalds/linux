@@ -639,7 +639,7 @@ static int ehci_init(struct usb_hcd *hcd)
 	INIT_LIST_HEAD(&ehci->cached_itd_list);
 	INIT_LIST_HEAD(&ehci->cached_sitd_list);
 
-	if (HCC_PGM_FRAMELISTLEN(hcc_params)) {
+	if (HCC_PGM_FRAMELISTLEN(hcc_params) && !ehci->sched_size_bug) {
 		/* periodic schedule size can be smaller than default */
 		switch (EHCI_TUNE_FLS) {
 		case 0: ehci->periodic_size = 1024; break;
