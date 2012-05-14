@@ -21,8 +21,66 @@
 #include <asm/mach/arch.h>
 #include <plat/shirq.h>
 #include <mach/generic.h>
-#include <mach/hardware.h>
 #include <mach/spear.h>
+
+#define SPEAR320_UART1_BASE		UL(0xA3000000)
+#define SPEAR320_UART2_BASE		UL(0xA4000000)
+#define SPEAR320_SSP0_BASE		UL(0xA5000000)
+#define SPEAR320_SSP1_BASE		UL(0xA6000000)
+
+/* Interrupt registers offsets and masks */
+#define SPEAR320_INT_STS_MASK_REG		0x04
+#define SPEAR320_INT_CLR_MASK_REG		0x04
+#define SPEAR320_INT_ENB_MASK_REG		0x08
+#define SPEAR320_GPIO_IRQ_MASK			(1 << 0)
+#define SPEAR320_I2S_PLAY_IRQ_MASK		(1 << 1)
+#define SPEAR320_I2S_REC_IRQ_MASK		(1 << 2)
+#define SPEAR320_EMI_IRQ_MASK			(1 << 7)
+#define SPEAR320_CLCD_IRQ_MASK			(1 << 8)
+#define SPEAR320_SPP_IRQ_MASK			(1 << 9)
+#define SPEAR320_SDHCI_IRQ_MASK			(1 << 10)
+#define SPEAR320_CAN_U_IRQ_MASK			(1 << 11)
+#define SPEAR320_CAN_L_IRQ_MASK			(1 << 12)
+#define SPEAR320_UART1_IRQ_MASK			(1 << 13)
+#define SPEAR320_UART2_IRQ_MASK			(1 << 14)
+#define SPEAR320_SSP1_IRQ_MASK			(1 << 15)
+#define SPEAR320_SSP2_IRQ_MASK			(1 << 16)
+#define SPEAR320_SMII0_IRQ_MASK			(1 << 17)
+#define SPEAR320_MII1_SMII1_IRQ_MASK		(1 << 18)
+#define SPEAR320_WAKEUP_SMII0_IRQ_MASK		(1 << 19)
+#define SPEAR320_WAKEUP_MII1_SMII1_IRQ_MASK	(1 << 20)
+#define SPEAR320_I2C1_IRQ_MASK			(1 << 21)
+
+#define SPEAR320_SHIRQ_RAS1_MASK		0x000380
+#define SPEAR320_SHIRQ_RAS3_MASK		0x000007
+#define SPEAR320_SHIRQ_INTRCOMM_RAS_MASK	0x3FF800
+
+/* SPEAr320 Virtual irq definitions */
+/* IRQs sharing IRQ_GEN_RAS_1 */
+#define SPEAR320_VIRQ_EMI			(SPEAR3XX_VIRQ_START + 0)
+#define SPEAR320_VIRQ_CLCD			(SPEAR3XX_VIRQ_START + 1)
+#define SPEAR320_VIRQ_SPP			(SPEAR3XX_VIRQ_START + 2)
+
+/* IRQs sharing IRQ_GEN_RAS_2 */
+#define SPEAR320_IRQ_SDHCI			SPEAR3XX_IRQ_GEN_RAS_2
+
+/* IRQs sharing IRQ_GEN_RAS_3 */
+#define SPEAR320_VIRQ_PLGPIO			(SPEAR3XX_VIRQ_START + 3)
+#define SPEAR320_VIRQ_I2S_PLAY			(SPEAR3XX_VIRQ_START + 4)
+#define SPEAR320_VIRQ_I2S_REC			(SPEAR3XX_VIRQ_START + 5)
+
+/* IRQs sharing IRQ_INTRCOMM_RAS_ARM */
+#define SPEAR320_VIRQ_CANU			(SPEAR3XX_VIRQ_START + 6)
+#define SPEAR320_VIRQ_CANL			(SPEAR3XX_VIRQ_START + 7)
+#define SPEAR320_VIRQ_UART1			(SPEAR3XX_VIRQ_START + 8)
+#define SPEAR320_VIRQ_UART2			(SPEAR3XX_VIRQ_START + 9)
+#define SPEAR320_VIRQ_SSP1			(SPEAR3XX_VIRQ_START + 10)
+#define SPEAR320_VIRQ_SSP2			(SPEAR3XX_VIRQ_START + 11)
+#define SPEAR320_VIRQ_SMII0			(SPEAR3XX_VIRQ_START + 12)
+#define SPEAR320_VIRQ_MII1_SMII1		(SPEAR3XX_VIRQ_START + 13)
+#define SPEAR320_VIRQ_WAKEUP_SMII0		(SPEAR3XX_VIRQ_START + 14)
+#define SPEAR320_VIRQ_WAKEUP_MII1_SMII1		(SPEAR3XX_VIRQ_START + 15)
+#define SPEAR320_VIRQ_I2C1			(SPEAR3XX_VIRQ_START + 16)
 
 /* spear3xx shared irq */
 static struct shirq_dev_config shirq_ras1_config[] = {
@@ -422,10 +480,19 @@ static const char * const spear320_dt_board_compat[] = {
 	NULL,
 };
 
+struct map_desc spear320_io_desc[] __initdata = {
+	{
+		.virtual	= VA_SPEAR320_SOC_CONFIG_BASE,
+		.pfn		= __phys_to_pfn(SPEAR320_SOC_CONFIG_BASE),
+		.length		= SZ_16M,
+		.type		= MT_DEVICE
+	},
+};
+
 static void __init spear320_map_io(void)
 {
+	iotable_init(spear320_io_desc, ARRAY_SIZE(spear320_io_desc));
 	spear3xx_map_io();
-	spear320_clk_init();
 }
 
 DT_MACHINE_START(SPEAR320_DT, "ST SPEAr320 SoC with Flattened Device Tree")

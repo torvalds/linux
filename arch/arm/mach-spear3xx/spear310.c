@@ -20,7 +20,67 @@
 #include <asm/mach/arch.h>
 #include <plat/shirq.h>
 #include <mach/generic.h>
-#include <mach/hardware.h>
+#include <mach/spear.h>
+
+#define SPEAR310_UART1_BASE		UL(0xB2000000)
+#define SPEAR310_UART2_BASE		UL(0xB2080000)
+#define SPEAR310_UART3_BASE		UL(0xB2100000)
+#define SPEAR310_UART4_BASE		UL(0xB2180000)
+#define SPEAR310_UART5_BASE		UL(0xB2200000)
+#define SPEAR310_SOC_CONFIG_BASE	UL(0xB4000000)
+
+/* Interrupt registers offsets and masks */
+#define SPEAR310_INT_STS_MASK_REG	0x04
+#define SPEAR310_SMII0_IRQ_MASK		(1 << 0)
+#define SPEAR310_SMII1_IRQ_MASK		(1 << 1)
+#define SPEAR310_SMII2_IRQ_MASK		(1 << 2)
+#define SPEAR310_SMII3_IRQ_MASK		(1 << 3)
+#define SPEAR310_WAKEUP_SMII0_IRQ_MASK	(1 << 4)
+#define SPEAR310_WAKEUP_SMII1_IRQ_MASK	(1 << 5)
+#define SPEAR310_WAKEUP_SMII2_IRQ_MASK	(1 << 6)
+#define SPEAR310_WAKEUP_SMII3_IRQ_MASK	(1 << 7)
+#define SPEAR310_UART1_IRQ_MASK		(1 << 8)
+#define SPEAR310_UART2_IRQ_MASK		(1 << 9)
+#define SPEAR310_UART3_IRQ_MASK		(1 << 10)
+#define SPEAR310_UART4_IRQ_MASK		(1 << 11)
+#define SPEAR310_UART5_IRQ_MASK		(1 << 12)
+#define SPEAR310_EMI_IRQ_MASK		(1 << 13)
+#define SPEAR310_TDM_HDLC_IRQ_MASK	(1 << 14)
+#define SPEAR310_RS485_0_IRQ_MASK	(1 << 15)
+#define SPEAR310_RS485_1_IRQ_MASK	(1 << 16)
+
+#define SPEAR310_SHIRQ_RAS1_MASK	0x000FF
+#define SPEAR310_SHIRQ_RAS2_MASK	0x01F00
+#define SPEAR310_SHIRQ_RAS3_MASK	0x02000
+#define SPEAR310_SHIRQ_INTRCOMM_RAS_MASK	0x1C000
+
+/* SPEAr310 Virtual irq definitions */
+/* IRQs sharing IRQ_GEN_RAS_1 */
+#define SPEAR310_VIRQ_SMII0			(SPEAR3XX_VIRQ_START + 0)
+#define SPEAR310_VIRQ_SMII1			(SPEAR3XX_VIRQ_START + 1)
+#define SPEAR310_VIRQ_SMII2			(SPEAR3XX_VIRQ_START + 2)
+#define SPEAR310_VIRQ_SMII3			(SPEAR3XX_VIRQ_START + 3)
+#define SPEAR310_VIRQ_WAKEUP_SMII0		(SPEAR3XX_VIRQ_START + 4)
+#define SPEAR310_VIRQ_WAKEUP_SMII1		(SPEAR3XX_VIRQ_START + 5)
+#define SPEAR310_VIRQ_WAKEUP_SMII2		(SPEAR3XX_VIRQ_START + 6)
+#define SPEAR310_VIRQ_WAKEUP_SMII3		(SPEAR3XX_VIRQ_START + 7)
+
+/* IRQs sharing IRQ_GEN_RAS_2 */
+#define SPEAR310_VIRQ_UART1			(SPEAR3XX_VIRQ_START + 8)
+#define SPEAR310_VIRQ_UART2			(SPEAR3XX_VIRQ_START + 9)
+#define SPEAR310_VIRQ_UART3			(SPEAR3XX_VIRQ_START + 10)
+#define SPEAR310_VIRQ_UART4			(SPEAR3XX_VIRQ_START + 11)
+#define SPEAR310_VIRQ_UART5			(SPEAR3XX_VIRQ_START + 12)
+
+/* IRQs sharing IRQ_GEN_RAS_3 */
+#define SPEAR310_VIRQ_EMI			(SPEAR3XX_VIRQ_START + 13)
+#define SPEAR310_VIRQ_PLGPIO			(SPEAR3XX_VIRQ_START + 14)
+
+/* IRQs sharing IRQ_INTRCOMM_RAS_ARM */
+#define SPEAR310_VIRQ_TDM_HDLC			(SPEAR3XX_VIRQ_START + 15)
+#define SPEAR310_VIRQ_RS485_0			(SPEAR3XX_VIRQ_START + 16)
+#define SPEAR310_VIRQ_RS485_1			(SPEAR3XX_VIRQ_START + 17)
+
 
 /* spear3xx shared irq */
 static struct shirq_dev_config shirq_ras1_config[] = {
@@ -418,7 +478,6 @@ static const char * const spear310_dt_board_compat[] = {
 static void __init spear310_map_io(void)
 {
 	spear3xx_map_io();
-	spear310_clk_init();
 }
 
 DT_MACHINE_START(SPEAR310_DT, "ST SPEAr310 SoC with Flattened Device Tree")

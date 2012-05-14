@@ -19,7 +19,46 @@
 #include <asm/mach/arch.h>
 #include <plat/shirq.h>
 #include <mach/generic.h>
-#include <mach/hardware.h>
+#include <mach/spear.h>
+
+/* Base address of various IPs */
+#define SPEAR300_TELECOM_BASE		UL(0x50000000)
+
+/* Interrupt registers offsets and masks */
+#define SPEAR300_INT_ENB_MASK_REG	0x54
+#define SPEAR300_INT_STS_MASK_REG	0x58
+#define SPEAR300_IT_PERS_S_IRQ_MASK	(1 << 0)
+#define SPEAR300_IT_CHANGE_S_IRQ_MASK	(1 << 1)
+#define SPEAR300_I2S_IRQ_MASK		(1 << 2)
+#define SPEAR300_TDM_IRQ_MASK		(1 << 3)
+#define SPEAR300_CAMERA_L_IRQ_MASK	(1 << 4)
+#define SPEAR300_CAMERA_F_IRQ_MASK	(1 << 5)
+#define SPEAR300_CAMERA_V_IRQ_MASK	(1 << 6)
+#define SPEAR300_KEYBOARD_IRQ_MASK	(1 << 7)
+#define SPEAR300_GPIO1_IRQ_MASK		(1 << 8)
+
+#define SPEAR300_SHIRQ_RAS1_MASK	0x1FF
+
+#define SPEAR300_SOC_CONFIG_BASE	UL(0x99000000)
+
+
+/* SPEAr300 Virtual irq definitions */
+/* IRQs sharing IRQ_GEN_RAS_1 */
+#define SPEAR300_VIRQ_IT_PERS_S			(SPEAR3XX_VIRQ_START + 0)
+#define SPEAR300_VIRQ_IT_CHANGE_S		(SPEAR3XX_VIRQ_START + 1)
+#define SPEAR300_VIRQ_I2S			(SPEAR3XX_VIRQ_START + 2)
+#define SPEAR300_VIRQ_TDM			(SPEAR3XX_VIRQ_START + 3)
+#define SPEAR300_VIRQ_CAMERA_L			(SPEAR3XX_VIRQ_START + 4)
+#define SPEAR300_VIRQ_CAMERA_F			(SPEAR3XX_VIRQ_START + 5)
+#define SPEAR300_VIRQ_CAMERA_V			(SPEAR3XX_VIRQ_START + 6)
+#define SPEAR300_VIRQ_KEYBOARD			(SPEAR3XX_VIRQ_START + 7)
+#define SPEAR300_VIRQ_GPIO1			(SPEAR3XX_VIRQ_START + 8)
+
+/* IRQs sharing IRQ_GEN_RAS_3 */
+#define SPEAR300_IRQ_CLCD			SPEAR3XX_IRQ_GEN_RAS_3
+
+/* IRQs sharing IRQ_INTRCOMM_RAS_ARM */
+#define SPEAR300_IRQ_SDHCI			SPEAR3XX_IRQ_INTRCOMM_RAS_ARM
 
 /* spear3xx shared irq */
 static struct shirq_dev_config shirq_ras1_config[] = {
@@ -298,7 +337,6 @@ static const char * const spear300_dt_board_compat[] = {
 static void __init spear300_map_io(void)
 {
 	spear3xx_map_io();
-	spear300_clk_init();
 }
 
 DT_MACHINE_START(SPEAR300_DT, "ST SPEAr300 SoC with Flattened Device Tree")

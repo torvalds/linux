@@ -14,6 +14,8 @@
  */
 
 #include <linux/amba/pl08x.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -21,9 +23,11 @@
 #include <asm/hardware/pl080.h>
 #include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/time.h>
+#include <asm/mach/map.h>
 #include <plat/pl080.h>
 #include <mach/generic.h>
-#include <mach/hardware.h>
+#include <mach/spear.h>
 
 /* dmac device registration */
 static struct pl08x_channel_data spear600_dma_info[] = {
@@ -384,32 +388,29 @@ struct pl08x_platform_data pl080_plat_data = {
 	.num_slave_channels = ARRAY_SIZE(spear600_dma_info),
 };
 
-/* Following will create static virtual/physical mappings */
-static struct map_desc spear6xx_io_desc[] __initdata = {
+/*
+ * Following will create 16MB static virtual/physical mappings
+ * PHYSICAL		VIRTUAL
+ * 0xF0000000		0xF0000000
+ * 0xF1000000		0xF1000000
+ * 0xD0000000		0xFD000000
+ * 0xFC000000		0xFC000000
+ */
+struct map_desc spear6xx_io_desc[] __initdata = {
 	{
-		.virtual	= VA_SPEAR6XX_ICM1_UART0_BASE,
-		.pfn		= __phys_to_pfn(SPEAR6XX_ICM1_UART0_BASE),
-		.length		= SZ_4K,
+		.virtual	= VA_SPEAR6XX_ML_CPU_BASE,
+		.pfn		= __phys_to_pfn(SPEAR6XX_ML_CPU_BASE),
+		.length		= 2 * SZ_16M,
+		.type		= MT_DEVICE
+	},	{
+		.virtual	= VA_SPEAR6XX_ICM1_BASE,
+		.pfn		= __phys_to_pfn(SPEAR6XX_ICM1_BASE),
+		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= VA_SPEAR6XX_CPU_VIC_PRI_BASE,
-		.pfn		= __phys_to_pfn(SPEAR6XX_CPU_VIC_PRI_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= VA_SPEAR6XX_CPU_VIC_SEC_BASE,
-		.pfn		= __phys_to_pfn(SPEAR6XX_CPU_VIC_SEC_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= VA_SPEAR6XX_ICM3_SYS_CTRL_BASE,
-		.pfn		= __phys_to_pfn(SPEAR6XX_ICM3_SYS_CTRL_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= VA_SPEAR6XX_ICM3_MISC_REG_BASE,
-		.pfn		= __phys_to_pfn(SPEAR6XX_ICM3_MISC_REG_BASE),
-		.length		= SZ_4K,
+		.virtual	= VA_SPEAR6XX_ICM3_SMI_CTRL_BASE,
+		.pfn		= __phys_to_pfn(SPEAR6XX_ICM3_SMI_CTRL_BASE),
+		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	},
 };
@@ -446,7 +447,7 @@ static void __init spear6xx_timer_init(void)
 	clk_put(gpt_clk);
 	clk_put(pclk);
 
-	spear_setup_timer();
+	spear_setup_of_timer();
 }
 
 struct sys_timer spear6xx_timer = {
