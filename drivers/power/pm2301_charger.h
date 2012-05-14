@@ -34,6 +34,8 @@
 #define WD_TIMER			0x30 /* 4min */
 #define WD_KICK_INTERVAL		(60 * HZ)
 
+#define PM2XXX_NUM_INT_REG		0x6
+
 /* Constant voltage/current */
 #define PM2XXX_CONST_CURR		0x0
 #define PM2XXX_CONST_VOLT		0x1
@@ -237,11 +239,31 @@
 #define PM2XXX_VPWR2_OVV_10		0x2
 #define PM2XXX_VPWR2_OVV_NONE		0x3
 
+/* Input charger drop VPWR2 */
+#define PM2XXX_VPWR2_HW_OPT_EN		(0x1<<4)
+#define PM2XXX_VPWR2_HW_OPT_DIS		(0x0<<4)
+
+#define PM2XXX_VPWR2_VALID_EN		(0x1<<3)
+#define PM2XXX_VPWR2_VALID_DIS		(0x0<<3)
+
+#define PM2XXX_VPWR2_DROP_EN		(0x1<<2)
+#define PM2XXX_VPWR2_DROP_DIS		(0x0<<2)
+
 /* Input charger voltage VPWR1 */
 #define PM2XXX_VPWR1_OVV_6_0		0x0
 #define PM2XXX_VPWR1_OVV_6_3		0x1
 #define PM2XXX_VPWR1_OVV_10		0x2
 #define PM2XXX_VPWR1_OVV_NONE		0x3
+
+/* Input charger drop VPWR1 */
+#define PM2XXX_VPWR1_HW_OPT_EN		(0x1<<4)
+#define PM2XXX_VPWR1_HW_OPT_DIS		(0x0<<4)
+
+#define PM2XXX_VPWR1_VALID_EN		(0x1<<3)
+#define PM2XXX_VPWR1_VALID_DIS		(0x0<<3)
+
+#define PM2XXX_VPWR1_DROP_EN		(0x1<<2)
+#define PM2XXX_VPWR1_DROP_DIS		(0x0<<2)
 
 /* Battery low level comparator control register */
 #define PM2XXX_VBAT_LOW_MONITORING_DIS	0x0
@@ -446,6 +468,11 @@ struct pm2xxx_charger_event_flags {
 	bool chgwdexp;
 };
 
+struct pm2xxx_interrupts {
+	u8 reg[PM2XXX_NUM_INT_REG];
+	int (*handler[PM2XXX_NUM_INT_REG])(void *, int);
+};
+
 struct pm2xxx_config {
 	struct i2c_client *pm2xxx_i2c;
 	struct i2c_device_id *pm2xxx_id;
@@ -467,7 +494,7 @@ struct pm2xxx_charger {
 	int old_vbat;
 	int failure_case;
 	int failure_input_ovv;
-	u8 pm2_int[6];
+	struct pm2xxx_interrupts *pm2_int;
 	struct ab8500_gpadc *gpadc;
 	struct regulator *regu;
 	struct pm2xxx_bm_data *bat;
