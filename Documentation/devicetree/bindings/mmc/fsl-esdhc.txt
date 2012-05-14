@@ -11,9 +11,11 @@ Required properties:
   - interrupt-parent : interrupt source phandle.
   - clock-frequency : specifies eSDHC base clock frequency.
   - sdhci,wp-inverted : (optional) specifies that eSDHC controller
-    reports inverted write-protect state;
+    reports inverted write-protect state; New devices should use
+    the generic "wp-inverted" property.
   - sdhci,1-bit-only : (optional) specifies that a controller can
-    only handle 1-bit data transfers.
+    only handle 1-bit data transfers. New devices should use the
+    generic "bus-width = <1>" property.
   - sdhci,auto-cmd12: (optional) specifies that a controller can
     only handle auto CMD12.
 
