@@ -343,7 +343,7 @@ void nfs_callback_down(int minorversion)
 int
 check_gss_callback_principal(struct nfs_client *clp, struct svc_rqst *rqstp)
 {
-	char *p = svc_gss_principal(rqstp);
+	char *p = rqstp->rq_cred.cr_principal;
 
 	if (rqstp->rq_authop->flavour != RPC_AUTH_GSS)
 		return 1;

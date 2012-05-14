@@ -1087,9 +1087,7 @@ free_client(struct nfs4_client *clp)
 		list_del(&ses->se_perclnt);
 		nfsd4_put_session_locked(ses);
 	}
-	if (clp->cl_cred.cr_group_info)
-		put_group_info(clp->cl_cred.cr_group_info);
-	kfree(clp->cl_principal);
+	free_svc_cred(&clp->cl_cred);
 	kfree(clp->cl_name.data);
 	kfree(clp);
 }
@@ -1170,12 +1168,20 @@ static void copy_clid(struct nfs4_client *target, struct nfs4_client *source)
 	target->cl_clientid.cl_id = source->cl_clientid.cl_id; 
 }
 
-static void copy_cred(struct svc_cred *target, struct svc_cred *source)
+static int copy_cred(struct svc_cred *target, struct svc_cred *source)
 {
+	if (source->cr_principal) {
+		target->cr_principal =
+				kstrdup(source->cr_principal, GFP_KERNEL);
+		if (target->cr_principal == NULL)
+			return -ENOMEM;
+	} else
+		target->cr_principal = NULL;
 	target->cr_uid = source->cr_uid;
 	target->cr_gid = source->cr_gid;
 	target->cr_group_info = source->cr_group_info;
 	get_group_info(target->cr_group_info);
+	return 0;
 }
 
 static int same_name(const char *n1, const char *n2)
@@ -1242,25 +1248,20 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 {
 	struct nfs4_client *clp;
 	struct sockaddr *sa = svc_addr(rqstp);
-	char *princ;
+	int ret;
 
 	clp = alloc_client(name);
 	if (clp == NULL)
 		return NULL;
 
 	INIT_LIST_HEAD(&clp->cl_sessions);
-
-	princ = svc_gss_principal(rqstp);
-	if (princ) {
-		clp->cl_principal = kstrdup(princ, GFP_KERNEL);
-		if (clp->cl_principal == NULL) {
-			spin_lock(&client_lock);
-			free_client(clp);
-			spin_unlock(&client_lock);
-			return NULL;
-		}
+	ret = copy_cred(&clp->cl_cred, &rqstp->rq_cred);
+	if (ret) {
+		spin_lock(&client_lock);
+		free_client(clp);
+		spin_unlock(&client_lock);
+		return NULL;
 	}
-
 	idr_init(&clp->cl_stateids);
 	memcpy(clp->cl_recdir, recdir, HEXDIR_LEN);
 	atomic_set(&clp->cl_refcount, 0);
@@ -1279,7 +1280,6 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 	copy_verf(clp, verf);
 	rpc_copy_addr((struct sockaddr *) &clp->cl_addr, sa);
 	clp->cl_flavor = rqstp->rq_flavor;
-	copy_cred(&clp->cl_cred, &rqstp->rq_cred);
 	gen_confirm(clp);
 	clp->cl_cb_session = NULL;
 	return clp;
