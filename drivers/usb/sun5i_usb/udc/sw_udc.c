@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: USB Device ¿ØÖÆÆ÷Çı¶¯
+* Description 	: USB Device æ§åˆ¶å™¨é©±åŠ¨
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -51,14 +51,14 @@
 #include  "sw_udc_dma.h"
 
 //---------------------------------------------------------------
-//  ºê ¶¨Òå
+//  å® å®šä¹‰
 //---------------------------------------------------------------
 #define DRIVER_DESC	    "SoftWinner USB Device Controller"
 #define DRIVER_VERSION	"20080411"
 #define DRIVER_AUTHOR	"SoftWinner USB Developer"
 
 //---------------------------------------------------------------
-//  È«¾Ö±äÁ¿ ¶¨Òå
+//  å…¨å±€å˜é‡ å®šä¹‰
 //---------------------------------------------------------------
 static const char		gadget_name[] = "sw_usb_udc";
 static const char		driver_desc[] = DRIVER_DESC;
@@ -83,13 +83,13 @@ static const unsigned char TestPkt[54] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x
 		                                 0xFB, 0xFD, 0x7E, 0x00};
 
 //---------------------------------------------------------------
-//  º¯Êı ¶¨Òå
+//  å‡½æ•° å®šä¹‰
 //---------------------------------------------------------------
 
-/*Âú×ãDMA´«ÊäµÄÌõ¼şÈçÏÂ:
- * 1¡¢Çı¶¯Ö§³ÖDMA´«Êä
- * 2¡¢·Çep0
- * 3¡¢´óÓÚÒ»¸ö°ü
+/*æ»¡è¶³DMAä¼ è¾“çš„æ¡ä»¶å¦‚ä¸‹:
+ * 1ã€é©±åŠ¨æ”¯æŒDMAä¼ è¾“
+ * 2ã€éep0
+ * 3ã€å¤§äºä¸€ä¸ªåŒ…
  */
 #define  is_sw_udc_dma_capable(len, maxpacket, epnum)		(is_udc_support_dma() \
 	                                                 	&& (len > maxpacket) \
@@ -106,7 +106,7 @@ static __u32 is_peripheral_active(void)
 
 /*
 **********************************************************
-*    ¹ØUSBÄ£¿éÖĞ¶Ï
+*    å…³USBæ¨¡å—ä¸­æ–­
 **********************************************************
 */
 static void disable_irq_udc(struct sw_udc *dev)
@@ -116,7 +116,7 @@ static void disable_irq_udc(struct sw_udc *dev)
 
 /*
 **********************************************************
-*    ¿ªUSBÄ£¿éÖĞ¶Ï
+*    å¼€USBæ¨¡å—ä¸­æ–­
 **********************************************************
 */
 static void enable_irq_udc(struct sw_udc *dev)
@@ -440,7 +440,7 @@ static int dma_write_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
 
 	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, old_ep_index);
 
-	/* ½ØÈ¡·ÇÕû°ü²¿·Ö */
+	/* æˆªå–éæ•´åŒ…éƒ¨åˆ† */
 	left_len = req->req.length - req->req.actual;
     left_len = left_len - (left_len % ep->ep.maxpacket);
 
@@ -671,7 +671,7 @@ static int dma_read_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
 
 	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, old_ep_index);
 
-	/* ½ØÈ¡·ÇÕû°ü²¿·Ö */
+	/* æˆªå–éæ•´åŒ…éƒ¨åˆ† */
 	left_len = req->req.length - req->req.actual;
     left_len = left_len - (left_len % ep->ep.maxpacket);
 
@@ -912,7 +912,7 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
     			tmp = crq->wValue & 0x7F;
     			dev->address = tmp;
 
-    			//rx½ÓÊÕÍê±Ï¡¢dataend¡¢tx_pakect×¼±¸¾ÍĞ÷
+    			//rxæ¥æ”¶å®Œæ¯•ã€dataendã€tx_pakectå‡†å¤‡å°±ç»ª
 				USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
 
 				dev->ep0state = EP0_END_XFER;
@@ -963,16 +963,16 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
 */
 
         case USB_REQ_SET_FEATURE:
-            //--<1>--Êı¾İ·½Ïò±ØĞëÎª host to device
+            //--<1>--æ•°æ®æ–¹å‘å¿…é¡»ä¸º host to device
             if(x_test_bit(crq->bRequestType, 7) == 1){
                 DMSG_PANIC("USB_REQ_CLEAR_FEATURE: data is not host to device\n");
                 break;
             }
 
-            //--<3>--Êı¾İ½×¶Î
+            //--<3>--æ•°æ®é˜¶æ®µ
             if(crq->bRequestType == USB_RECIP_DEVICE){
                 if((crq->wValue == USB_DEVICE_TEST_MODE) && (crq->wIndex == 0x0400)){
-                    //setup packet°ü½ÓÊÕÍê±Ï
+                    //setup packetåŒ…æ¥æ”¶å®Œæ¯•
                     USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
 
                     dev->ep0state = EP0_END_XFER;
@@ -981,13 +981,13 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
                     return;
                 }
             }else if(crq->bRequestType == USB_RECIP_INTERFACE){
-                //--<2>--ÁîÅÆ½×¶Î½áÊø
+                //--<2>--ä»¤ç‰Œé˜¶æ®µç»“æŸ
                 USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 0);
 
-                //²»´¦Àí
+                //ä¸å¤„ç†
 
             }else if(crq->bRequestType == USB_RECIP_ENDPOINT){
-                //--<3>--½ûÓÃep
+                //--<3>--ç¦ç”¨ep
                 USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 0);
 
             }else{
@@ -1004,7 +1004,7 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
         break;
 
     	default:
-			/* Ö»ÊÕsetupÊı¾İ°ü£¬²»ÄÜÖÃDataEnd */
+			/* åªæ”¶setupæ•°æ®åŒ…ï¼Œä¸èƒ½ç½®DataEnd */
 			USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 0);
     		break;
 	}
@@ -1041,7 +1041,7 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
 	}
 
 	if(crq->bRequest == USB_REQ_SET_CONFIGURATION || crq->bRequest == USB_REQ_SET_INTERFACE){
-		//rx_packet°ü½ÓÊÕÍê±Ï
+		//rx_packetåŒ…æ¥æ”¶å®Œæ¯•
 		USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
 	}
 
@@ -1127,7 +1127,7 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
     			tmp = crq->wValue & 0x7F;
     			dev->address = tmp;
 
-    			//rx½ÓÊÕÍê±Ï¡¢dataend¡¢tx_pakect×¼±¸¾ÍĞ÷
+    			//rxæ¥æ”¶å®Œæ¯•ã€dataendã€tx_pakectå‡†å¤‡å°±ç»ª
 				USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
 
 				dev->ep0state = EP0_END_XFER;
@@ -1148,7 +1148,7 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
 		break;
 
 		case USB_REQ_CLEAR_FEATURE:
-			//--<1>--Êı¾İ·½Ïò±ØĞëÎª host to device
+			//--<1>--æ•°æ®æ–¹å‘å¿…é¡»ä¸º host to device
 			if(x_test_bit(crq->bRequestType, 7) == 1){
 				DMSG_PANIC("USB_REQ_CLEAR_FEATURE: data is not host to device\n");
 				break;
@@ -1156,7 +1156,7 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
 
 			USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
 
-			//--<3>--Êı¾İ½×¶Î
+			//--<3>--æ•°æ®é˜¶æ®µ
 			if(crq->bRequestType == USB_RECIP_DEVICE){
 				/* wValue 0-1 */
 				if(crq->wValue){
@@ -1169,12 +1169,12 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
 				}
 
 			}else if(crq->bRequestType == USB_RECIP_INTERFACE){
-				//--<2>--ÁîÅÆ½×¶Î½áÊø
+				//--<2>--ä»¤ç‰Œé˜¶æ®µç»“æŸ
 
-				//²»´¦Àí
+				//ä¸å¤„ç†
 
 			}else if(crq->bRequestType == USB_RECIP_ENDPOINT){
-				//--<3>--½â³ı½ûÓÃep
+				//--<3>--è§£é™¤ç¦ç”¨ep
 				//sw_udc_set_halt(&dev->ep[crq->wIndex & 0x7f].ep, 0);
 				//dev->devstatus &= ~(1 << USB_DEVICE_REMOTE_WAKEUP);
 				/* wValue 0-1 */
@@ -1195,15 +1195,15 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
 		//break;
 
         case USB_REQ_SET_FEATURE:
-            //--<1>--Êı¾İ·½Ïò±ØĞëÎª host to device
+            //--<1>--æ•°æ®æ–¹å‘å¿…é¡»ä¸º host to device
             if(x_test_bit(crq->bRequestType, 7) == 1){
                 DMSG_PANIC("USB_REQ_SET_FEATURE: data is not host to device\n");
                 break;
             }
-            //--<3>--Êı¾İ½×¶Î
+            //--<3>--æ•°æ®é˜¶æ®µ
             if(crq->bRequestType == USB_RECIP_DEVICE){
                 if((crq->wValue == USB_DEVICE_TEST_MODE) && (crq->wIndex == 0x0400)){
-                    //setup packet°ü½ÓÊÕÍê±Ï
+                    //setup packetåŒ…æ¥æ”¶å®Œæ¯•
                     USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
 
                     dev->ep0state = EP0_END_XFER;
@@ -1216,12 +1216,12 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
 				dev->devstatus |= (1 << USB_DEVICE_REMOTE_WAKEUP);
 
             }else if(crq->bRequestType == USB_RECIP_INTERFACE){
-                //--<2>--ÁîÅÆ½×¶Î½áÊø
+                //--<2>--ä»¤ç‰Œé˜¶æ®µç»“æŸ
                 USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
-                //²»´¦Àí
+                //ä¸å¤„ç†
 
             }else if(crq->bRequestType == USB_RECIP_ENDPOINT){
-                //--<3>--½ûÓÃep
+                //--<3>--ç¦ç”¨ep
                 USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
 				sw_udc_set_halt(&dev->ep[crq->wIndex & 0x7f].ep, 1);
             }else{
@@ -1237,7 +1237,7 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
         //break;
 
     	default:
-			/* Ö»ÊÕsetupÊı¾İ°ü£¬²»ÄÜÖÃDataEnd */
+			/* åªæ”¶setupæ•°æ®åŒ…ï¼Œä¸èƒ½ç½®DataEnd */
 			USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 0);
     		break;
 	}
@@ -1274,7 +1274,7 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
 	}
 
 	if(crq->bRequest == USB_REQ_SET_CONFIGURATION || crq->bRequest == USB_REQ_SET_INTERFACE){
-		//rx_packet°ü½ÓÊÕÍê±Ï
+		//rx_packetåŒ…æ¥æ”¶å®Œæ¯•
 		USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
 	}
 
@@ -1498,7 +1498,7 @@ static void sw_udc_handle_ep(struct sw_udc_ep *ep)
 *                     filtrate_irq_misc
 *
 * Description:
-*    ¹ıÂËÃ»ÓÃµÄÖĞ¶Ï, ±£Áô disconect, reset, resume, suspend
+*    è¿‡æ»¤æ²¡ç”¨çš„ä¸­æ–­, ä¿ç•™ disconect, reset, resume, suspend
 *
 * Parameters:
 *    void
@@ -1582,7 +1582,7 @@ static void throw_away_all_urb(struct sw_udc *dev)
 *                     sw_udc_clean_dma_status
 *
 * Description:
-*    Çå¿Õep¹ØÓÚDMAµÄËùÓĞ×´Ì¬, Ò»°ãÔÚDMAÒì³£µÄÊ±¼äµ÷ÓÃ
+*    æ¸…ç©ºepå…³äºDMAçš„æ‰€æœ‰çŠ¶æ€, ä¸€èˆ¬åœ¨DMAå¼‚å¸¸çš„æ—¶é—´è°ƒç”¨
 *
 * Parameters:
 *    qh  :  input.
@@ -1935,7 +1935,7 @@ void sw_udc_dma_completion(struct sw_udc *dev, struct sw_udc_ep *ep, struct sw_u
 		}
 	}
 
-    /* Èç¹û±¾´Î´«ÊäÓĞÊı¾İÃ»ÓĞ´«ÊäÍê±Ï£¬µÃ½Ó×Å´«Êä */
+    /* å¦‚æœæœ¬æ¬¡ä¼ è¾“æœ‰æ•°æ®æ²¡æœ‰ä¼ è¾“å®Œæ¯•ï¼Œå¾—æ¥ç€ä¼ è¾“ */
 	req->req.actual += dma_transmit_len;
 	if(req->req.length > req->req.actual){
 		DMSG_INFO_UDC("dma irq, transfer left data\n");
@@ -1953,12 +1953,12 @@ void sw_udc_dma_completion(struct sw_udc *dev, struct sw_udc_ep *ep, struct sw_u
 				is_complete = 1;
 			}
 		}
-	}else{	/* Èç¹ûDMAÍê³ÉµÄ´«ÊäÁËÊı¾İ£¬¾Ídone */
+	}else{	/* å¦‚æœDMAå®Œæˆçš„ä¼ è¾“äº†æ•°æ®ï¼Œå°±done */
 		sw_udc_done(ep, req, 0);
 		is_complete = 1;
 	}
 
-    /* Èç¹ûDMAÍê³ÉµÄ´«ÊäÁËÊı¾İ£¬¾Ídone */
+    /* å¦‚æœDMAå®Œæˆçš„ä¼ è¾“äº†æ•°æ®ï¼Œå°±done */
 
 	if(is_complete){
 		ep->dma_working	= 0;
@@ -1966,7 +1966,7 @@ void sw_udc_dma_completion(struct sw_udc *dev, struct sw_udc_ep *ep, struct sw_u
 	}
 
 	//-------------------------------------------------
-	//·¢ÆğÏÂÒ»´Î´«Êä
+	//å‘èµ·ä¸‹ä¸€æ¬¡ä¼ è¾“
 	//-------------------------------------------------
 	if(is_complete){
 		if(likely (!list_empty(&ep->queue))){
@@ -2085,8 +2085,8 @@ static int sw_udc_ep_enable(struct usb_ep *_ep,
 	ep->halted              = 0;
 	ep->bEndpointAddress    = desc->bEndpointAddress;
 
-	/* select fifo address, Ô¤ÏÈ¹Ì¶¨·ÖÅä
-	 * ´Ó1KµÄÎ»ÖÃ¿ªÊ¼£¬Ã¿¸öep·ÖÅä1KµÄ¿Õ¼ä
+	/* select fifo address, é¢„å…ˆå›ºå®šåˆ†é…
+	 * ä»1Kçš„ä½ç½®å¼€å§‹ï¼Œæ¯ä¸ªepåˆ†é…1Kçš„ç©ºé—´
 	 */
 	fifo_addr = ep->num * 1024;
 
@@ -2103,13 +2103,13 @@ static int sw_udc_ep_enable(struct usb_ep *_ep,
 	    USBC_Dev_ConfigEp(g_sw_udc_io.usb_bsp_hdle, USBC_TS_TYPE_BULK, USBC_EP_TYPE_TX, SW_UDC_FIFO_NUM, _ep->maxpacket & 0x7ff);
     	USBC_ConfigFifo(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_TX, SW_UDC_FIFO_NUM, 512, fifo_addr);
 
-		//¿ªÆô¸ÃepµÄtx_irq en
+		//å¼€å¯è¯¥epçš„tx_irq en
 		USBC_INT_EnableEp(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_TX, ep->num);
 	}else{	 /* rx */
 	    USBC_Dev_ConfigEp(g_sw_udc_io.usb_bsp_hdle, USBC_TS_TYPE_BULK, USBC_EP_TYPE_RX, SW_UDC_FIFO_NUM, _ep->maxpacket & 0x7ff);
    		USBC_ConfigFifo(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_RX, SW_UDC_FIFO_NUM, 512, fifo_addr);
 
-		//¿ªÆô¸ÃepµÄrx_irq
+		//å¼€å¯è¯¥epçš„rx_irq
 		USBC_INT_EnableEp(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_RX, ep->num);
 	}
 
@@ -2405,7 +2405,7 @@ static int sw_udc_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_
 		}
 	}
 
-	/* 1. ÇëÇóÃ»ÓĞ±»´¦Àí
+	/* 1. è¯·æ±‚æ²¡æœ‰è¢«å¤„ç†
 	 * 2.
 	 */
 	if(req && !is_req_queue(req)){
@@ -2973,7 +2973,7 @@ s32  usbd_stop_work(void)
 	DMSG_INFO_UDC("usbd_stop_work\n");
 
 	disable_irq_udc(the_controller);
-    USBC_Dev_ConectSwitch(g_sw_udc_io.usb_bsp_hdle, USBC_DEVICE_SWITCH_OFF);	//Ä¬ÈÏÎªpulldown
+    USBC_Dev_ConectSwitch(g_sw_udc_io.usb_bsp_hdle, USBC_DEVICE_SWITCH_OFF);	//é»˜è®¤ä¸ºpulldown
 
 	return 0;
 }
@@ -3590,8 +3590,8 @@ static int sw_udc_suspend(struct platform_device *pdev, pm_message_t message)
 		return 0;
 	}
 
-    /* Èç¹û USB Ã»ÓĞ½Ó PC, ¾Í¿ÉÒÔ½øÈë suspend¡£
-     * Èç¹û USB ½ÓÁË PC, ¾Í²»½øÈë suspend
+    /* å¦‚æœ USB æ²¡æœ‰æ¥ PC, å°±å¯ä»¥è¿›å…¥ suspendã€‚
+     * å¦‚æœ USB æ¥äº† PC, å°±ä¸è¿›å…¥ suspend
      */
     if(usb_connect){
         DMSG_PANIC("ERR: usb is connect to PC, can not suspend\n");

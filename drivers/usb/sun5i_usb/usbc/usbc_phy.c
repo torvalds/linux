@@ -13,7 +13,7 @@
 *
 * Date 			: 2009.10.21
 *
-* Description 	: ÊÊÓÃÓÚsuniiÆ½Ì¨£¬USB¹«¹²²Ù×÷²¿·Ö
+* Description 	: é€‚ç”¨äºsuniiå¹³å°ï¼ŒUSBå…¬å…±æ“ä½œéƒ¨åˆ†
 *
 * History 		:
 *
@@ -26,7 +26,7 @@
 /*
  ***************************************************************************
  *
- * ¶¨ÒåUSB PHY¿ØÖÆ¼Ä´æÆ÷Î»
+ * å®šä¹‰USB PHYæ§åˆ¶å¯„å­˜å™¨ä½
  *
  ***************************************************************************
  */
@@ -117,7 +117,7 @@ static void __USBC_PHY_SET_PLL_BW(__u32 val)
 /*
  ***************************************************************************
  *
- * Enable/Disable USB res45 Calibration, val = 0--Disable£»1--Enable, default = 0
+ * Enable/Disable USB res45 Calibration, val = 0--Disableï¼›1--Enable, default = 0
  *
  ***************************************************************************
  */
@@ -171,7 +171,7 @@ static void __USBC_PHY_SET_VBUS_VALID_THRESHOLD(__u32 usbc_base_addr, __u32 val)
 /*
  ***************************************************************************
  *
- * Enable/Diasble USB OTG Function, val = 0--Disable£»1--Enable, default = 1
+ * Enable/Diasble USB OTG Function, val = 0--Disableï¼›1--Enable, default = 1
  *
  ***************************************************************************
  */
@@ -185,7 +185,7 @@ static void __USBC_PHY_OTG_FUNC_ENABLE(__u32 usbc_base_addr, __u32 val)
 /*
  ***************************************************************************
  *
- * Enable/Diasble USB VBUS Detect Function, val = 0--Disable£»1--Enable, default = 1
+ * Enable/Diasble USB VBUS Detect Function, val = 0--Disableï¼›1--Enable, default = 1
  *
  ***************************************************************************
  */
@@ -215,7 +215,7 @@ static void __USBC_PHY_SET_DISCON_DET_THRESHOLD(__u32 usbc_base_addr, __u32 val)
 *                     USBC_PHY_SetCommonConfig
 *
 * Description:
-*    PhyµÄ¹«¹²ÉèÖÃ£¬ÓÃÓÚUSB PHYµÄ¹«¹²³õÊ¼»¯
+*    Phyçš„å…¬å…±è®¾ç½®ï¼Œç”¨äºUSB PHYçš„å…¬å…±åˆå§‹åŒ–
 *
 * Arguments:
 *    NULL
@@ -224,7 +224,7 @@ static void __USBC_PHY_SET_DISCON_DET_THRESHOLD(__u32 usbc_base_addr, __u32 val)
 *    NULL
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -238,16 +238,16 @@ void USBC_PHY_SetCommonConfig(void)
 *                     USBC_PHY_SetPrivateConfig
 *
 * Description:
-*    USB PHYµÄ¸÷×ÔÉèÖÃ
+*    USB PHYçš„å„è‡ªè®¾ç½®
 *
 * Arguments:
-*    hUSB       :  input.  USBC_open_otg»ñµÃµÄ¾ä±ú, ¼ÇÂ¼ÁËUSBCËùĞèÒªµÄÒ»Ğ©¹Ø¼üÊı¾İ
+*    hUSB       :  input.  USBC_open_otgè·å¾—çš„å¥æŸ„, è®°å½•äº†USBCæ‰€éœ€è¦çš„ä¸€äº›å…³é”®æ•°æ®
 *
 * Returns:
 *    NULL
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -274,16 +274,16 @@ void USBC_PHY_SetPrivateConfig(__hdle hUSB)
 *                     USBC_PHY_GetCommonConfig
 *
 * Description:
-*    ¶ÁÈ¡PhyµÄ¹«¹²ÉèÖÃ£¬Ö÷ÒªÓÃÓÚDebug£¬¿´PhyµÄÉèÖÃÊÇ·ñÕıÈ·
+*    è¯»å–Phyçš„å…¬å…±è®¾ç½®ï¼Œä¸»è¦ç”¨äºDebugï¼Œçœ‹Phyçš„è®¾ç½®æ˜¯å¦æ­£ç¡®
 *
 * Arguments:
 *    NULL
 *
 * Returns:
-*    32bitsµÄUSB PHY¹«¹²ÉèÖÃÖµ
+*    32bitsçš„USB PHYå…¬å…±è®¾ç½®å€¼
 *
 * note:
-*    ÎŞ
+*    æ— 
 *
 ***********************************************************************************
 */
@@ -307,7 +307,7 @@ __u32 USBC_PHY_GetCommonConfig(void)
 ***********************************************************************************
 *                                usb_phy0_write
 *Description:
-*    Ğ´usb phy0µÄphy¼Ä´æÆ÷£¬Ö÷ÒªÓÃÓÚphy0 standbyÊ±µÄĞ´Èë
+*    å†™usb phy0çš„phyå¯„å­˜å™¨ï¼Œä¸»è¦ç”¨äºphy0 standbyæ—¶çš„å†™å…¥
 *
 *Arguments:
 *    address,  data,   dmask
@@ -607,19 +607,19 @@ void UsbPhyInit(__u32 usbc_no)
 {
 //	DMSG_INFO("csr1: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Readl(USBC_Phy_GetCsr(usbc_no)));
 
-    /* µ÷½Ú45Å·×è¿¹ */
+    /* è°ƒèŠ‚45æ¬§é˜»æŠ— */
 	if(usbc_no == 0){
 	    USBC_Phy_Write(usbc_no, 0x0c, 0x01, 1);
 	}
 
 //	DMSG_INFO("csr2-0: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Phy_Read(usbc_no, 0x0c, 1));
 
-    /* µ÷Õû USB0 PHY µÄ·ù¶ÈºÍËÙÂÊ */
+    /* è°ƒæ•´ USB0 PHY çš„å¹…åº¦å’Œé€Ÿç‡ */
 	USBC_Phy_Write(usbc_no, 0x20, 0x14, 5);
 
 //	DMSG_INFO("csr2-1: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Phy_Read(usbc_no, 0x20, 5));
 
-    /* µ÷½Ú disconnect ÓòÖµ */
+    /* è°ƒèŠ‚ disconnect åŸŸå€¼ */
 	USBC_Phy_Write(usbc_no, 0x2a, 3, 2);
 
 //	DMSG_INFO("csr2: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Phy_Read(usbc_no, 0x2a, 2));

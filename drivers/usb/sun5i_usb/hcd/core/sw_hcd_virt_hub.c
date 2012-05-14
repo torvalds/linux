@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: ÐéÄâ hub
+* Description 	: è™šæ‹Ÿ hub
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -41,7 +41,7 @@
 *    only suspend USB port
 *
 * Parameters:
-*    sw_hcd        :  input.  USB¿ØÖÆÆ÷
+*    sw_hcd        :  input.  USBæŽ§åˆ¶å™¨
 *
 * Return value:
 *    void
@@ -70,7 +70,7 @@ void sw_hcd_port_suspend_ex(struct sw_hcd *sw_hcd)
 *    only resume USB port
 *
 * Parameters:
-*    sw_hcd        :  input.  USB¿ØÖÆÆ÷
+*    sw_hcd        :  input.  USBæŽ§åˆ¶å™¨
 *
 * Return value:
 *    void
@@ -98,7 +98,7 @@ void sw_hcd_port_resume_ex(struct sw_hcd *sw_hcd)
 *    only reset USB port
 *
 * Parameters:
-*    sw_hcd        :  input.  USB¿ØÖÆÆ÷
+*    sw_hcd        :  input.  USBæŽ§åˆ¶å™¨
 *
 * Return value:
 *    void
@@ -130,7 +130,7 @@ void sw_hcd_port_reset_ex(struct sw_hcd *sw_hcd)
 *    suspend USB port
 *
 * Parameters:
-*    sw_hcd        :  input.  USB¿ØÖÆÆ÷
+*    sw_hcd        :  input.  USBæŽ§åˆ¶å™¨
 *    do_suspend  :  input.  flag. is suspend USB port or not?
 *
 * Return value:
@@ -204,7 +204,7 @@ static void sw_hcd_port_suspend(struct sw_hcd *sw_hcd, bool do_suspend)
 *    reset USB port
 *
 * Parameters:
-*    sw_hcd       :  input.  USB¿ØÖÆÆ÷
+*    sw_hcd       :  input.  USBæŽ§åˆ¶å™¨
 *    do_reset   :  input.  flag. is reset USB port or not?
 *
 * Return value:
@@ -311,10 +311,10 @@ static void sw_hcd_port_reset(struct sw_hcd *sw_hcd, bool do_reset)
 *                     sw_hcd_root_disconnect
 *
 * Description:
-*    ¶Ï¿ªÁ¬½Ó
+*    æ–­å¼€è¿žæŽ¥
 *
 * Parameters:
-*    sw_hcd       :  input.  USB¿ØÖÆÆ÷
+*    sw_hcd       :  input.  USBæŽ§åˆ¶å™¨
 *
 * Return value:
 *    void

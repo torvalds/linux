@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: Ö÷»ú¿ØÖÆÆ÷Çı¶¯
+* Description 	: ä¸»æœºæ§åˆ¶å™¨é©±åŠ¨
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -38,7 +38,7 @@
 #include  "sw_hcd_config.h"
 
 //---------------------------------------------------------------
-//  Ô¤ ¶¨Òå
+//  é¢„ å®šä¹‰
 //---------------------------------------------------------------
 struct sw_hcd;
 struct sw_hcd_hw_ep;
@@ -54,7 +54,7 @@ struct sw_hcd_hw_ep;
 
 
 //---------------------------------------------------------------
-//  ºê ¶¨Òå
+//  å® å®šä¹‰
 //---------------------------------------------------------------
 
 #define is_host_active(m)		((m)->is_host)
@@ -62,7 +62,7 @@ struct sw_hcd_hw_ep;
 
 
 //---------------------------------------------------------------
-//  Êı¾İ½á¹¹ ¶¨Òå
+//  æ•°æ®ç»“æ„ å®šä¹‰
 //---------------------------------------------------------------
 
 #define	is_host_capable()			(1)
@@ -85,27 +85,27 @@ enum sw_hcd_h_ep0_state {
  * Ordered slightly for better cacheline locality.
  */
 typedef struct sw_hcd_hw_ep{
-	struct sw_hcd *sw_hcd;              /* ep µÄËŞÖ÷                    */
-	void __iomem *fifo;             /* fifoµÄ»ùÖ·                   */
-	void __iomem *regs;             /* USB ¿ØÖÆÆ÷»ùÖ·               */
+	struct sw_hcd *sw_hcd;              /* ep çš„å®¿ä¸»                    */
+	void __iomem *fifo;             /* fifoçš„åŸºå€                   */
+	void __iomem *regs;             /* USB æ§åˆ¶å™¨åŸºå€               */
 
 	u8 epnum;      	                /* index in sw_hcd->endpoints[]   */
 
 	/* hardware configuration, possibly dynamic */
-	bool is_shared_fifo;            /* ÊÇ·ñ¹²Ïí fifo                */
-	bool tx_double_buffered;        /* Flag. ÊÇ·ñÊÇË«fifo?          */
-	bool rx_double_buffered;        /* Flag. ÊÇ·ñÊÇË«fifo?          */
-	u16 max_packet_sz_tx;           /* ×î³¤°ü´óĞ¡                   */
-	u16 max_packet_sz_rx;           /* ×î³¤°ü´óĞ¡                   */
+	bool is_shared_fifo;            /* æ˜¯å¦å…±äº« fifo                */
+	bool tx_double_buffered;        /* Flag. æ˜¯å¦æ˜¯åŒfifo?          */
+	bool rx_double_buffered;        /* Flag. æ˜¯å¦æ˜¯åŒfifo?          */
+	u16 max_packet_sz_tx;           /* æœ€é•¿åŒ…å¤§å°                   */
+	u16 max_packet_sz_rx;           /* æœ€é•¿åŒ…å¤§å°                   */
 
-	void __iomem *target_regs;      /* hub ÉÏµÄÄ¿±êÉè±¸µÄµØÖ·       */
+	void __iomem *target_regs;      /* hub ä¸Šçš„ç›®æ ‡è®¾å¤‡çš„åœ°å€       */
 
 	/* currently scheduled peripheral endpoint */
-	struct sw_hcd_qh *in_qh;          /* ´æ·Å in ep µÄµ÷¶ÈĞÅÏ¢        */
-	struct sw_hcd_qh *out_qh;         /* ´æ·Å out ep µÄµ÷¶ÈĞÅÏ¢       */
+	struct sw_hcd_qh *in_qh;          /* å­˜æ”¾ in ep çš„è°ƒåº¦ä¿¡æ¯        */
+	struct sw_hcd_qh *out_qh;         /* å­˜æ”¾ out ep çš„è°ƒåº¦ä¿¡æ¯       */
 
-	u8 rx_reinit;                   /* flag. ÊÇ·ñÖØĞÂ³õÊ¼»¯         */
-	u8 tx_reinit;                   /* flag. ÊÇ·ñÖØĞÂ³õÊ¼»¯         */
+	u8 rx_reinit;                   /* flag. æ˜¯å¦é‡æ–°åˆå§‹åŒ–         */
+	u8 tx_reinit;                   /* flag. æ˜¯å¦é‡æ–°åˆå§‹åŒ–         */
 }sw_hcd_hw_ep_t;
 
 
@@ -114,7 +114,7 @@ typedef struct sw_hcd_hw_ep{
  */
 typedef struct sw_hcd{
     /* device lock */
-	spinlock_t lock;                    /* »¥³âËø       */
+	spinlock_t lock;                    /* äº’æ–¥é”       */
 	irqreturn_t (*isr)(int, void *);    /*  */
 	struct work_struct irq_work;        /*  */
 
@@ -123,10 +123,10 @@ typedef struct sw_hcd{
 
 /* this hub status bit is reserved by USB 2.0 and not seen by usbcore */
 #define SW_HCD_PORT_STAT_RESUME	(1 << 31)
-	u32 port1_status;                   /* ĞéÄâ hub µÄ¶Ë¿Ú×´Ì¬  */
-	unsigned long rh_timer;             /* root hub µÄdelayÊ±¼ä */
+	u32 port1_status;                   /* è™šæ‹Ÿ hub çš„ç«¯å£çŠ¶æ€  */
+	unsigned long rh_timer;             /* root hub çš„delayæ—¶é—´ */
 
-	enum sw_hcd_h_ep0_state ep0_stage;    /* ep0 µÄ×´Ì¬           */
+	enum sw_hcd_h_ep0_state ep0_stage;    /* ep0 çš„çŠ¶æ€           */
 
 	/* bulk traffic normally dedicates endpoint hardware, and each
 	 * direction has its own ring of host side endpoints.
@@ -148,24 +148,24 @@ typedef struct sw_hcd{
 	sw_hcd_dma_t sw_hcd_dma;
 
 	struct device *controller;          /*  */
-	void __iomem *ctrl_base;            /* USB ¿ØÖÆÆ÷»ùÖ·       */
-	void __iomem *mregs;                /* USB ¿ØÖÆÆ÷»ùÖ·       */
+	void __iomem *ctrl_base;            /* USB æ§åˆ¶å™¨åŸºå€       */
+	void __iomem *mregs;                /* USB æ§åˆ¶å™¨åŸºå€       */
 
 	/* passed down from chip/board specific irq handlers */
-	u8 int_usb;                         /* USB ÖĞ¶Ï             */
-	u16 int_rx;                         /* rx ÖĞ¶Ï              */
-	u16 int_tx;                         /* tx ÖĞ¶Ï              */
+	u8 int_usb;                         /* USB ä¸­æ–­             */
+	u16 int_rx;                         /* rx ä¸­æ–­              */
+	u16 int_tx;                         /* tx ä¸­æ–­              */
 
-	int nIrq;                           /* ÖĞ¶ÏºÅ               */
-	unsigned irq_wake:1;                /* flag. ÖĞ¶ÏÊ¹ÄÜ±êÖ¾   */
+	int nIrq;                           /* ä¸­æ–­å·               */
+	unsigned irq_wake:1;                /* flag. ä¸­æ–­ä½¿èƒ½æ ‡å¿—   */
 
-	struct sw_hcd_hw_ep endpoints[SW_HCD_C_NUM_EPS];    /* sw_hcd ËùÓĞ ep µÄĞÅÏ¢ */
+	struct sw_hcd_hw_ep endpoints[SW_HCD_C_NUM_EPS];    /* sw_hcd æ‰€æœ‰ ep çš„ä¿¡æ¯ */
 #define control_ep endpoints
 
 #define VBUSERR_RETRY_COUNT	3
-	u16 vbuserr_retry;                  /* vbus error ºó£¬host retryµÄ´ÎÊı  */
-	u16 epmask;                         /* epÑÚÂë£¬bitn = 1, ±íÊ¾ epn ÓĞĞ§  */
-	u8 nr_endpoints;                    /* ÓĞĞ§ ep µÄ¸öÊı                   */
+	u16 vbuserr_retry;                  /* vbus error åï¼Œhost retryçš„æ¬¡æ•°  */
+	u16 epmask;                         /* epæ©ç ï¼Œbitn = 1, è¡¨ç¤º epn æœ‰æ•ˆ  */
+	u8 nr_endpoints;                    /* æœ‰æ•ˆ ep çš„ä¸ªæ•°                   */
 
 	u8 board_mode;		                /* enum sw_hcd_mode                   */
 
@@ -174,7 +174,7 @@ typedef struct sw_hcd{
 
 	u8 min_power;	                    /* vbus for periph, in mA/2         */
 
-	bool is_host;                       /* flag. ÊÇ·ñÊÇ host ´«Êä±êÖ¾       */
+	bool is_host;                       /* flag. æ˜¯å¦æ˜¯ host ä¼ è¾“æ ‡å¿—       */
 	int a_wait_bcon;	                /* VBUS timeout in msecs            */
 	unsigned long idle_timeout;	        /* Next timeout in jiffies          */
 
@@ -190,7 +190,7 @@ typedef struct sw_hcd{
 	unsigned bulk_combine:1;
 #define	can_bulk_combine(sw_usb, type)     (((type) == USB_ENDPOINT_XFER_BULK) && (sw_usb)->bulk_combine)
 
-	struct sw_hcd_config	*config;        /* sw_hcd µÄÅäÖÃĞÅÏ¢                  */
+	struct sw_hcd_config	*config;        /* sw_hcd çš„é…ç½®ä¿¡æ¯                  */
 
 	sw_hcd_io_t	*sw_hcd_io;
 	u32 enable;
@@ -255,7 +255,7 @@ static inline struct sw_hcd *dev_to_sw_hcd(struct device *dev)
 }
 
 
-/* vbus ²Ù×÷ */
+/* vbus æ“ä½œ */
 static inline void sw_hcd_set_vbus(struct sw_hcd *sw_hcd, int is_on)
 {
 	if(sw_hcd->board_set_vbus){
@@ -263,7 +263,7 @@ static inline void sw_hcd_set_vbus(struct sw_hcd *sw_hcd, int is_on)
 	}
 }
 
-/* ¶ÁÈ¡ fifo µÄ´óĞ¡ */
+/* è¯»å– fifo çš„å¤§å° */
 static inline int sw_hcd_read_fifosize(struct sw_hcd *sw_hcd, struct sw_hcd_hw_ep *hw_ep, u8 epnum)
 {
 	void *xbase = sw_hcd->mregs;
@@ -299,7 +299,7 @@ static inline int sw_hcd_read_fifosize(struct sw_hcd *sw_hcd, struct sw_hcd_hw_e
 	return 0;
 }
 
-/* ÅäÖÃ ep0 */
+/* é…ç½® ep0 */
 static inline void sw_hcd_configure_ep0(struct sw_hcd *sw_hcd)
 {
 	sw_hcd->endpoints[0].max_packet_sz_tx = USBC_EP0_FIFOSIZE;
@@ -311,7 +311,7 @@ static inline void sw_hcd_configure_ep0(struct sw_hcd *sw_hcd)
 #define  is_direction_in(qh)		(qh->hep->desc.bEndpointAddress & USB_ENDPOINT_DIR_MASK)
 
 //---------------------------------------------------------------
-//  º¯Êı ¶¨Òå
+//  å‡½æ•° å®šä¹‰
 //---------------------------------------------------------------
 void sw_hcd_write_fifo(struct sw_hcd_hw_ep *hw_ep, u16 len, const u8 *src);
 void sw_hcd_read_fifo(struct sw_hcd_hw_ep *hw_ep, u16 len, u8 *dst);

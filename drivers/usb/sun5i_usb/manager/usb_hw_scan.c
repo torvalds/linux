@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: USB ¼ì²â
+* Description 	: USB æ£€æµ‹
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -81,19 +81,19 @@ static __u32 get_pin_data(u32 id_hdle)
 *                     PIODataIn_debounce
 *
 * Description:
-* 	¹ýÂËPIOµÄÃ«´Ì
-* 	È¡10´Î£¬Èç¹û10´ÎÏàÍ¬£¬ÔòÈÏÎªÎÞ¶¶¶¯£¬È¡ÈÎÒâÒ»´ÎµÄÖµ·µ»Ø
-* 	Èç¹û10´ÎÓÐÒ»´Î²»ÏàÍ¬£¬Ôò±¾´Î¶ÁÈ¡ÎÞÐ§
+* 	è¿‡æ»¤PIOçš„æ¯›åˆº
+* 	å–10æ¬¡ï¼Œå¦‚æžœ10æ¬¡ç›¸åŒï¼Œåˆ™è®¤ä¸ºæ— æŠ–åŠ¨ï¼Œå–ä»»æ„ä¸€æ¬¡çš„å€¼è¿”å›ž
+* 	å¦‚æžœ10æ¬¡æœ‰ä¸€æ¬¡ä¸ç›¸åŒï¼Œåˆ™æœ¬æ¬¡è¯»å–æ— æ•ˆ
 *
 * Arguments:
 *    phdle  :  input.
-*    value  :  output.  ¶Á»ØÀ´µÄPIOµÄÖµ
+*    value  :  output.  è¯»å›žæ¥çš„PIOçš„å€¼
 *
 * Returns:
-*    ·µ»ØÊÇ·ñÓÐ±ä»¯
+*    è¿”å›žæ˜¯å¦æœ‰å˜åŒ–
 *
 * note:
-*    ÎÞ
+*    æ— 
 *
 *********************************************************************
 */
@@ -103,10 +103,10 @@ static __u32 PIODataIn_debounce(__hdle phdle, __u32 *value)
     __u32 time   = 10;
 	__u32 temp1  = 0;
 	__u32 cnt    = 0;
-	__u32 change = 0;	/* ÊÇ·ñÓÐ¶¶¶¯? */
+	__u32 change = 0;	/* æ˜¯å¦æœ‰æŠ–åŠ¨? */
 
-    /* È¡ 10 ´ÎPIOµÄ×´Ì¬£¬Èç¹û10´ÎµÄÖµ¶¼Ò»Ñù£¬ËµÃ÷±¾´Î¶Á²Ù×÷ÓÐÐ§£¬
-       ·ñÔò£¬ÈÏÎª±¾´Î¶Á²Ù×÷Ê§°Ü¡£
+    /* å– 10 æ¬¡PIOçš„çŠ¶æ€ï¼Œå¦‚æžœ10æ¬¡çš„å€¼éƒ½ä¸€æ ·ï¼Œè¯´æ˜Žæœ¬æ¬¡è¯»æ“ä½œæœ‰æ•ˆï¼Œ
+       å¦åˆ™ï¼Œè®¤ä¸ºæœ¬æ¬¡è¯»æ“ä½œå¤±è´¥ã€‚
     */
     if(phdle){
         retry = time;
@@ -117,7 +117,7 @@ static __u32 PIODataIn_debounce(__hdle phdle, __u32 *value)
 			}
 		}
 
-        /* 10 ´Î¶¼Îª0£¬»òÕß¶¼Îª1 */
+        /* 10 æ¬¡éƒ½ä¸º0ï¼Œæˆ–è€…éƒ½ä¸º1 */
 		if((cnt == time)||(cnt == 0)){
 		    change = 0;
 		}
@@ -609,7 +609,7 @@ __s32 usb_hw_scan_init(struct usb_cfg *cfg)
 						goto failed;
 					}
 
-                    /* Èç¹ûidºÍvbusµÄpinÏàÍ¬, ¾Í²»ÐèÒªÀ­pioÁË */
+                    /* å¦‚æžœidå’Œvbusçš„pinç›¸åŒ, å°±ä¸éœ€è¦æ‹‰pioäº† */
 					if(port_info->id.gpio_set.port_num == port_info->det_vbus.gpio_set.port_num){
 						need_pull_pio = 0;
 					}

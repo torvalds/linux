@@ -53,7 +53,7 @@
 
 
 //---------------------------------------------------------------
-//  ºê ¶¨Òå
+//  å® å®šä¹‰
 //---------------------------------------------------------------
 #define  USBC_Readb(reg)	                    (*(volatile unsigned char *)(reg))
 #define  USBC_Readw(reg)	                    (*(volatile unsigned short *)(reg))
@@ -214,11 +214,11 @@ struct sw_hci_hcd{
 
 	u32 drv_vbus_Handle;
 	user_gpio_set_t drv_vbus_gpio_set;
-	__u32 power_flag;                   /* flag. ÊÇ·ñ¹©µç       */
+	__u32 power_flag;                   /* flag. æ˜¯å¦ä¾›ç”µ       */
 
-    __u32 used;                         /* flag. ¿ØÖÆÆ÷ÊÇ·ñ±»Ê¹ÓÃ */
-	__u32 probe;                        /* ¿ØÖÆÆ÷³õÊ¼»¯ */
-	__u32 host_init_state;				/* usb ¿ØÖÆÆ÷µÄ³õÊ¼»¯×´Ì¬¡£0 : ²»¹¤×÷. 1 : ¹¤×÷ */
+    __u32 used;                         /* flag. æ§åˆ¶å™¨æ˜¯å¦è¢«ä½¿ç”¨ */
+	__u32 probe;                        /* æ§åˆ¶å™¨åˆå§‹åŒ– */
+	__u32 host_init_state;				/* usb æ§åˆ¶å™¨çš„åˆå§‹åŒ–çŠ¶æ€ã€‚0 : ä¸å·¥ä½œ. 1 : å·¥ä½œ */
 
 	int (* open_clock)(struct sw_hci_hcd *sw_hci, u32 ohci);
 	int (* close_clock)(struct sw_hci_hcd *sw_hci, u32 ohci);

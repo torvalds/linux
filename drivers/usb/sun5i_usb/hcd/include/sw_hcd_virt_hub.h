@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: ÐéÄâ hub
+* Description 	: è™šæ‹Ÿ hub
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>

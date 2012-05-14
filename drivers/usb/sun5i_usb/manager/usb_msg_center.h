@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: USB ÏûÏ¢·Ö·¢
+* Description 	: USB æ¶ˆæ¯åˆ†å‘
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -29,7 +29,7 @@ typedef enum usb_role{
 }usb_role_t;
 
 typedef struct usb_msg{
-	u8  app_drv_null;       //²»¼ÓÔØÈçºÎÇı¶¯
+	u8  app_drv_null;       //ä¸åŠ è½½å¦‚ä½•é©±åŠ¨
 	u8  app_insmod_host;
 	u8  app_rmmod_host;
 	u8  app_insmod_device;
@@ -46,9 +46,9 @@ typedef struct usb_msg_center_info{
 
 	struct usb_msg msg;
 	enum usb_role role;
-	
-	u32 skip;                 	//ÊÇ·ñÌøÔ¾£¬²»½øÈëÏûÏ¢´¦Àí
-	                          	//Ö÷ÒªÊÇ¹ıÂËÎŞĞ§ÏûÏ¢
+
+	u32 skip;                 	//æ˜¯å¦è·³è·ƒï¼Œä¸è¿›å…¥æ¶ˆæ¯å¤„ç†
+	                          	//ä¸»è¦æ˜¯è¿‡æ»¤æ— æ•ˆæ¶ˆæ¯
 }usb_msg_center_info_t;
 
 //----------------------------------------------------------

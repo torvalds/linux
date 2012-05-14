@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: °å¼¶¿ØÖÆ
+* Description 	: æ¿çº§æŽ§åˆ¶
 *
 * Notes         :
 *
@@ -41,7 +41,7 @@
 #include  "sw_udc_board.h"
 
 //---------------------------------------------------------------
-//  ºê ¶¨Òå
+//  å® å®šä¹‰
 //---------------------------------------------------------------
 
 #define res_size(_r) (((_r)->end - (_r)->start) + 1)
@@ -228,7 +228,7 @@ u32 close_usb_clock(sw_udc_io_t *sw_udc_io)
 	reg_value &= ~(1 << 0);	            /* AHB clock gate usb0 */
 	USBC_Writel(reg_value, (ccmu_base + 0x60));
 
-    //µÈsieµÄÊ±ÖÓ±äÎÈ
+    //ç­‰sieçš„æ—¶é’Ÿå˜ç¨³
 	reg_value = 10000;
 	while(reg_value--);
 
@@ -241,7 +241,7 @@ u32 close_usb_clock(sw_udc_io_t *sw_udc_io)
 	reg_value &= ~(1 << 0);          //disable reset
 	USBC_Writel(reg_value, (ccmu_base + 0xcc));
 
-	//ÑÓÊ±
+	//å»¶æ—¶
 	reg_value = 10000;
 	while(reg_value--);
     sw_udc_io->clk_is_open = 0;

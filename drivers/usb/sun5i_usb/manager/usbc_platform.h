@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: USB¿ØÖÆÆ÷Éè±¸ĞÅÏ¢
+* Description 	: USBæ§åˆ¶å™¨è®¾å¤‡ä¿¡æ¯
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>

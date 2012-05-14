@@ -10,7 +10,7 @@
 *
 * Author 		: javen
 *
-* Description 	: Ö÷»ú¿ØÖÆÆ÷Çı¶¯
+* Description 	: ä¸»æœºæ§åˆ¶å™¨é©±åŠ¨
 *
 * History 		:
 *      <author>    		<time>       	<version >    		<desc>
@@ -35,7 +35,7 @@
 #include  "../include/sw_hcd_dma.h"
 
 //---------------------------------------------------------------
-//  È«¾ÖĞÅÏ¢ ¶¨Òå
+//  å…¨å±€ä¿¡æ¯ å®šä¹‰
 //---------------------------------------------------------------
 
 #define  DRIVER_AUTHOR      "Javen"
@@ -95,7 +95,7 @@ static struct sw_hcd *g_sw_hcd0 = NULL;
 
 
 //---------------------------------------------------------------
-//  º¯ÊıÇø
+//  å‡½æ•°åŒº
 //---------------------------------------------------------------
 
 #define  sw_hcd_BOARD_DRV_VBUS_GPIO	(AW_GPB(16))  /* PIOB16 */
@@ -357,7 +357,7 @@ static u32 close_usb_clock(sw_hcd_io_t *sw_hcd_io)
 	reg_value &= ~(1 << 0);	            /* AHB clock gate usb0 */
 	USBC_Writel(reg_value, (ccmu_base + 0x60));
 
-	//µÈsieµÄÊ±ÖÓ±äÎÈ
+	//ç­‰sieçš„æ—¶é’Ÿå˜ç¨³
 	reg_value = 10000;
 	while(reg_value--);
 
@@ -370,7 +370,7 @@ static u32 close_usb_clock(sw_hcd_io_t *sw_hcd_io)
 	reg_value &= ~(1 << 0);          //disable reset
 	USBC_Writel(reg_value, (ccmu_base + 0xcc));
 
-	//ÑÓÊ±
+	//å»¶æ—¶
 	reg_value = 10000;
 	while(reg_value--);
 
