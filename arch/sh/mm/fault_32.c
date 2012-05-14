@@ -211,7 +211,7 @@ show_fault_oops(struct pt_regs *regs, unsigned long address)
 }
 
 static noinline void
-no_context(struct pt_regs *regs, unsigned long writeaccess,
+no_context(struct pt_regs *regs, unsigned long error_code,
 	   unsigned long address)
 {
 	/* Are we prepared to handle this kernel fault?  */
@@ -229,13 +229,13 @@ no_context(struct pt_regs *regs, unsigned long writeaccess,
 
 	show_fault_oops(regs, address);
 
-	die("Oops", regs, writeaccess);
+	die("Oops", regs, error_code);
 	bust_spinlocks(0);
 	do_exit(SIGKILL);
 }
 
 static void
-__bad_area_nosemaphore(struct pt_regs *regs, unsigned long writeaccess,
+__bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 		       unsigned long address, int si_code)
 {
 	struct task_struct *tsk = current;
@@ -252,18 +252,18 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long writeaccess,
 		return;
 	}
 
-	no_context(regs, writeaccess, address);
+	no_context(regs, error_code, address);
 }
 
 static noinline void
-bad_area_nosemaphore(struct pt_regs *regs, unsigned long writeaccess,
+bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 		     unsigned long address)
 {
-	__bad_area_nosemaphore(regs, writeaccess, address, SEGV_MAPERR);
+	__bad_area_nosemaphore(regs, error_code, address, SEGV_MAPERR);
 }
 
 static void
-__bad_area(struct pt_regs *regs, unsigned long writeaccess,
+__bad_area(struct pt_regs *regs, unsigned long error_code,
 	   unsigned long address, int si_code)
 {
 	struct mm_struct *mm = current->mm;
@@ -274,20 +274,20 @@ __bad_area(struct pt_regs *regs, unsigned long writeaccess,
 	 */
 	up_read(&mm->mmap_sem);
 
-	__bad_area_nosemaphore(regs, writeaccess, address, si_code);
+	__bad_area_nosemaphore(regs, error_code, address, si_code);
 }
 
 static noinline void
-bad_area(struct pt_regs *regs, unsigned long writeaccess, unsigned long address)
+bad_area(struct pt_regs *regs, unsigned long error_code, unsigned long address)
 {
-	__bad_area(regs, writeaccess, address, SEGV_MAPERR);
+	__bad_area(regs, error_code, address, SEGV_MAPERR);
 }
 
 static noinline void
-bad_area_access_error(struct pt_regs *regs, unsigned long writeaccess,
+bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
 		      unsigned long address)
 {
-	__bad_area(regs, writeaccess, address, SEGV_ACCERR);
+	__bad_area(regs, error_code, address, SEGV_ACCERR);
 }
 
 static void out_of_memory(void)
@@ -302,7 +302,7 @@ static void out_of_memory(void)
 }
 
 static void
-do_sigbus(struct pt_regs *regs, unsigned long writeaccess, unsigned long address)
+do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address)
 {
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
@@ -311,13 +311,13 @@ do_sigbus(struct pt_regs *regs, unsigned long writeaccess, unsigned long address
 
 	/* Kernel mode? Handle exceptions or die: */
 	if (!user_mode(regs))
-		no_context(regs, writeaccess, address);
+		no_context(regs, error_code, address);
 
 	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
 }
 
 static noinline int
-mm_fault_error(struct pt_regs *regs, unsigned long writeaccess,
+mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 	       unsigned long address, unsigned int fault)
 {
 	/*
@@ -328,7 +328,7 @@ mm_fault_error(struct pt_regs *regs, unsigned long writeaccess,
 		if (!(fault & VM_FAULT_RETRY))
 			up_read(&current->mm->mmap_sem);
 		if (!user_mode(regs))
-			no_context(regs, writeaccess, address);
+			no_context(regs, error_code, address);
 		return 1;
 	}
 
@@ -339,14 +339,14 @@ mm_fault_error(struct pt_regs *regs, unsigned long writeaccess,
 		/* Kernel mode? Handle exceptions or die: */
 		if (!user_mode(regs)) {
 			up_read(&current->mm->mmap_sem);
-			no_context(regs, writeaccess, address);
+			no_context(regs, error_code, address);
 			return 1;
 		}
 
 		out_of_memory();
 	} else {
 		if (fault & VM_FAULT_SIGBUS)
-			do_sigbus(regs, writeaccess, address);
+			do_sigbus(regs, error_code, address);
 		else
 			BUG();
 	}
@@ -381,7 +381,7 @@ static int fault_in_kernel_space(unsigned long address)
  * routines.
  */
 asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
-					unsigned long writeaccess,
+					unsigned long error_code,
 					unsigned long address)
 {
 	unsigned long vec;
@@ -389,8 +389,9 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
 	int fault;
+	int write = error_code & FAULT_CODE_WRITE;
 	unsigned int flags = (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
-			      (writeaccess ? FAULT_FLAG_WRITE : 0));
+			      (write ? FAULT_FLAG_WRITE : 0));
 
 	tsk = current;
 	mm = tsk->mm;
@@ -411,7 +412,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 		if (notify_page_fault(regs, vec))
 			return;
 
-		bad_area_nosemaphore(regs, writeaccess, address);
+		bad_area_nosemaphore(regs, error_code, address);
 		return;
 	}
 
@@ -429,7 +430,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	 * in an atomic region then we must not take the fault:
 	 */
 	if (unlikely(in_atomic() || !mm)) {
-		bad_area_nosemaphore(regs, writeaccess, address);
+		bad_area_nosemaphore(regs, error_code, address);
 		return;
 	}
 
@@ -438,17 +439,17 @@ retry:
 
 	vma = find_vma(mm, address);
 	if (unlikely(!vma)) {
-		bad_area(regs, writeaccess, address);
+		bad_area(regs, error_code, address);
 		return;
 	}
 	if (likely(vma->vm_start <= address))
 		goto good_area;
 	if (unlikely(!(vma->vm_flags & VM_GROWSDOWN))) {
-		bad_area(regs, writeaccess, address);
+		bad_area(regs, error_code, address);
 		return;
 	}
 	if (unlikely(expand_stack(vma, address))) {
-		bad_area(regs, writeaccess, address);
+		bad_area(regs, error_code, address);
 		return;
 	}
 
@@ -457,10 +458,12 @@ retry:
 	 * we can handle it..
 	 */
 good_area:
-	if (unlikely(access_error(writeaccess, vma))) {
-		bad_area_access_error(regs, writeaccess, address);
+	if (unlikely(access_error(error_code, vma))) {
+		bad_area_access_error(regs, error_code, address);
 		return;
 	}
+
+	set_thread_fault_code(error_code);
 
 	/*
 	 * If for any reason at all we couldn't handle the fault,
@@ -470,7 +473,7 @@ good_area:
 	fault = handle_mm_fault(mm, vma, address, flags);
 
 	if (unlikely(fault & (VM_FAULT_RETRY | VM_FAULT_ERROR)))
-		if (mm_fault_error(regs, writeaccess, address, fault))
+		if (mm_fault_error(regs, error_code, address, fault))
 			return;
 
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
@@ -502,7 +505,7 @@ good_area:
  * Called with interrupts disabled.
  */
 asmlinkage int __kprobes
-handle_tlbmiss(struct pt_regs *regs, unsigned long writeaccess,
+handle_tlbmiss(struct pt_regs *regs, unsigned long error_code,
 	       unsigned long address)
 {
 	pgd_t *pgd;
@@ -535,10 +538,10 @@ handle_tlbmiss(struct pt_regs *regs, unsigned long writeaccess,
 	entry = *pte;
 	if (unlikely(pte_none(entry) || pte_not_present(entry)))
 		return 1;
-	if (unlikely(writeaccess && !pte_write(entry)))
+	if (unlikely(error_code && !pte_write(entry)))
 		return 1;
 
-	if (writeaccess)
+	if (error_code)
 		entry = pte_mkdirty(entry);
 	entry = pte_mkyoung(entry);
 
@@ -550,10 +553,11 @@ handle_tlbmiss(struct pt_regs *regs, unsigned long writeaccess,
 	 * the case of an initial page write exception, so we need to
 	 * flush it in order to avoid potential TLB entry duplication.
 	 */
-	if (writeaccess == 2)
+	if (error_code == FAULT_CODE_INITIAL)
 		local_flush_tlb_one(get_asid(), address & PAGE_MASK);
 #endif
 
+	set_thread_fault_code(error_code);
 	update_mmu_cache(NULL, address, pte);
 
 	return 0;
