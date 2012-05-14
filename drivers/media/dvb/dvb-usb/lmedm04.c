@@ -1205,14 +1205,13 @@ static int lme2510_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
-	int ret = 0;
 
 	usb_reset_configuration(udev);
 
 	usb_set_interface(udev, intf->cur_altsetting->desc.bInterfaceNumber, 1);
 
 	if (udev->speed != USB_SPEED_HIGH) {
-		ret = usb_reset_device(udev);
+		usb_reset_device(udev);
 		info("DEV Failed to connect in HIGH SPEED mode");
 		return -ENODEV;
 	}

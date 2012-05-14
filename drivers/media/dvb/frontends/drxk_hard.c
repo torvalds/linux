@@ -1380,20 +1380,20 @@ static int DownloadMicrocode(struct drxk_state *state,
 			     const u8 pMCImage[], u32 Length)
 {
 	const u8 *pSrc = pMCImage;
-	u16 Flags;
-	u16 Drain;
 	u32 Address;
 	u16 nBlocks;
 	u16 BlockSize;
-	u16 BlockCRC;
 	u32 offset = 0;
 	u32 i;
 	int status = 0;
 
 	dprintk(1, "\n");
 
-	/* down the drain (we don care about MAGIC_WORD) */
+	/* down the drain (we don't care about MAGIC_WORD) */
+#if 0
+	/* For future reference */
 	Drain = (pSrc[0] << 8) | pSrc[1];
+#endif
 	pSrc += sizeof(u16);
 	offset += sizeof(u16);
 	nBlocks = (pSrc[0] << 8) | pSrc[1];
@@ -1410,11 +1410,17 @@ static int DownloadMicrocode(struct drxk_state *state,
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
 
+#if 0
+		/* For future reference */
 		Flags = (pSrc[0] << 8) | pSrc[1];
+#endif
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
 
+#if 0
+		/* For future reference */
 		BlockCRC = (pSrc[0] << 8) | pSrc[1];
+#endif
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
 

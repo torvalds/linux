@@ -520,7 +520,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 {
 	char codes[USB_BUFLEN * 3 + 1];
 	char inout[9];
-	u8 cmd, subcmd, data1, data2, data3, data4, data5;
+	u8 cmd, subcmd, data1, data2, data3, data4;
 	struct device *dev = ir->dev;
 	int i, start, skip = 0;
 	u32 carrier, period;
@@ -553,7 +553,6 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 	data2  = buf[start + 3] & 0xff;
 	data3  = buf[start + 4] & 0xff;
 	data4  = buf[start + 5] & 0xff;
-	data5  = buf[start + 6] & 0xff;
 
 	switch (cmd) {
 	case MCE_CMD_NULL:
