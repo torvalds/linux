@@ -120,7 +120,7 @@ static void au0828_irq_callback(struct urb *urb)
 	struct au0828_dmaqueue  *dma_q = urb->context;
 	struct au0828_dev *dev = container_of(dma_q, struct au0828_dev, vidq);
 	unsigned long flags = 0;
-	int rc, i;
+	int i;
 
 	switch (urb->status) {
 	case 0:             /* success */
@@ -138,7 +138,7 @@ static void au0828_irq_callback(struct urb *urb)
 
 	/* Copy data from URB */
 	spin_lock_irqsave(&dev->slock, flags);
-	rc = dev->isoc_ctl.isoc_copy(dev, urb);
+	dev->isoc_ctl.isoc_copy(dev, urb);
 	spin_unlock_irqrestore(&dev->slock, flags);
 
 	/* Reset urb buffers */
