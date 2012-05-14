@@ -2134,7 +2134,7 @@ RTY_CMD55:
 	sd_card->sd_addr += (u32) rsp[2] << 16;
 
 	/* Get CSD register for Calculating Timing,Capacity,
-	 * Check CSD to determaine as if this is the SD ROM card */
+	 * Check CSD to determine as if this is the SD ROM card */
 	retval = sd_check_csd(chip, 1);
 	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, retval);
@@ -2648,7 +2648,7 @@ RTY_MMC_RST:
 		TRACE_RET(chip, retval);
 
 	/* Get CSD register for Calculating Timing,Capacity
-	 * Check CSD to determaine as if this is the SD ROM card */
+	 * Check CSD to determine as if this is the SD ROM card */
 	retval = sd_check_csd(chip, 1);
 	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, retval);
@@ -3225,7 +3225,7 @@ int release_sd_card(struct rts51x_chip *chip)
 	struct sd_info *sd_card = &(chip->sd_card);
 	int retval;
 
-	RTS51X_DEBUGP("elease_sd_card\n");
+	RTS51X_DEBUGP("release_sd_card\n");
 
 	chip->card_ready &= ~SD_CARD;
 	chip->card_fail &= ~SD_CARD;

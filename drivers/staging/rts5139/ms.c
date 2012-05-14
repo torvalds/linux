@@ -3149,7 +3149,7 @@ Fail:
 		TRACE_RET(chip, STATUS_FAIL);
 
 	sec_cnt = chip->rsp_buf[0];
-	RTS51X_DEBUGP("%d pages need be trasferred, %d pages remained\n",
+	RTS51X_DEBUGP("%d pages need be transferred, %d pages remained\n",
 		       (int)page_cnt, (int)sec_cnt);
 	page_addr = start_page + (page_cnt - sec_cnt);
 

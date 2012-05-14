@@ -328,7 +328,7 @@ struct rts51x_option {
 	u8 ddr50_rx_phase;
 	u8 sdr50_tx_phase;
 	u8 sdr50_rx_phase;
-	/* used to enable select sdr50 tx phase according to  proportion. */
+	/* used to enable select sdr50 tx phase according to proportion. */
 	u8 sdr50_phase_sel;
 	u8 ms_errreg_fix;
 	u8 reset_mmc_first;

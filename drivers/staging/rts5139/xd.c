@@ -2120,7 +2120,7 @@ int release_xd_card(struct rts51x_chip *chip)
 	struct xd_info *xd_card = &(chip->xd_card);
 	int retval;
 
-	RTS51X_DEBUGP("elease_xd_card\n");
+	RTS51X_DEBUGP("release_xd_card\n");
 
 	chip->card_ready &= ~XD_CARD;
 	chip->card_fail &= ~XD_CARD;

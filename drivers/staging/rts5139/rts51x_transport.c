@@ -418,7 +418,7 @@ static int rts51x_sg_wait(struct usb_sg_request *io, int timeout)
 		 */
 		spin_unlock_irq(&io->lock);
 		switch (retval) {
-			/* maybe we retrying will recover */
+			/* maybe the retry will recover */
 		case -ENXIO:	/* hc didn't queue this one */
 		case -EAGAIN:
 		case -ENOMEM:
