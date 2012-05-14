@@ -147,9 +147,9 @@ struct tpci200_slot {
 struct tpci200_infos {
 	struct pci_dev			*pdev;
 	struct pci_device_id		*id_table;
-	void				*interface_regs;
-	void				*ioidint_space;
-	void				*mem8_space;
+	void __iomem			*interface_regs;
+	void __iomem			*ioidint_space;
+	void __iomem			*mem8_space;
 	spinlock_t			access_lock;
 	struct ipack_bus_device		drv;
 };

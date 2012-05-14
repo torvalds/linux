@@ -72,7 +72,7 @@ static inline void ipoctal_write_io_reg(struct ipoctal *ipoctal,
 {
 	unsigned long offset;
 
-	offset = ((void *) dest) - ipoctal->dev->io_space.address;
+	offset = ((void __iomem *) dest) - ipoctal->dev->io_space.address;
 	ipoctal->dev->ops->write8(ipoctal->dev, IPACK_IO_SPACE, offset, value);
 }
 
@@ -89,7 +89,7 @@ static inline unsigned char ipoctal_read_io_reg(struct ipoctal *ipoctal,
 	unsigned long offset;
 	unsigned char value;
 
-	offset = ((void *) src) - ipoctal->dev->io_space.address;
+	offset = ((void __iomem *) src) - ipoctal->dev->io_space.address;
 	ipoctal->dev->ops->read8(ipoctal->dev, IPACK_IO_SPACE, offset, &value);
 	return value;
 }

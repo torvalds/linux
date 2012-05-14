@@ -42,7 +42,7 @@ enum ipack_space {
  *	@size: size of the mapped space
  */
 struct ipack_addr_space {
-	void         *address;
+	void __iomem *address;
 	unsigned int size;
 };
 
