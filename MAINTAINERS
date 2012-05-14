@@ -5244,6 +5244,14 @@ M:	Linus Walleij <linus.walleij@linaro.org>
 S:	Maintained
 F:	drivers/pinctrl/
 
+PIN CONTROLLER - ST SPEAR
+M:	Viresh Kumar <viresh.kumar@st.com>
+L:	spear-devel@list.st.com
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+W:	http://www.st.com/spear
+S:	Maintained
+F:	driver/pinctrl/spear/
+
 PKTCDVD DRIVER
 M:	Peter Osterlund <petero2@telia.com>
 S:	Maintained
@@ -6337,21 +6345,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
 F:	drivers/clk/spear/
-
-SPEAR PAD MULTIPLEXING SUPPORT
-M:	Viresh Kumar <viresh.kumar@st.com>
-L:	spear-devel@list.st.com
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.st.com/spear
-S:	Maintained
-F:	arch/arm/plat-spear/include/plat/padmux.h
-F:	arch/arm/plat-spear/padmux.c
-F:	arch/arm/mach-spear*/spear*xx.c
-F:	arch/arm/mach-spear*/include/mach/generic.h
-F:	arch/arm/mach-spear3xx/spear3*0.c
-F:	arch/arm/mach-spear3xx/spear3*0_evb.c
-F:	arch/arm/mach-spear6xx/spear600.c
-F:	arch/arm/mach-spear6xx/spear600_evb.c
 
 SPI SUBSYSTEM
 M:	Grant Likely <grant.likely@secretlab.ca>
