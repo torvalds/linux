@@ -119,7 +119,7 @@ static int hwt_request(hwt_req_t *req);
 
 /*!
  * @brief Prepare target/host for RF-tests.
- * 
+ *
  * prepare for wi-fi tests.
  * You should download x-test-p before calling this function.
  *
@@ -127,10 +127,10 @@ static int hwt_request(hwt_req_t *req);
  * @return none
  */
 void nrwifi_rf_test_start(void)
-{   
-   ind_handle =  we_ind_register(WE_IND_CONSOLE_REPLY, 
+{
+   ind_handle =  we_ind_register(WE_IND_CONSOLE_REPLY,
                                  "WE_IND_CONSOLE_REPLY",
-                                 handle_console_reply, 
+                                 handle_console_reply,
                                  NULL,
                                  FALSE,
                                  NULL);
@@ -152,7 +152,7 @@ void nrwifi_rf_test_start(void)
 
 /*!
  * @brief Reset statistics and start listening for data.
- * 
+ *
  * @param channel RF-channel
  *
  *
@@ -165,8 +165,8 @@ void nrwifi_start_rx_test(int channel)
    //CON_print("nrwifi_start_rx_test(%u)\n", channel);
 
    DE_MEMSET(&req, 0, sizeof(hwt_req_t));
-   
-   
+
+
    req.no = HWT_RX_REQ_START;
    req.attr_param.Channel = channel;
    settings.rf_channel = channel;
@@ -181,7 +181,7 @@ void nrwifi_start_rx_test(int channel)
  * the statistics is for one rate only
  * the statistics will not be cleared
  *
- * @param cb_fn   pointer to the function that will be called when the data have 
+ * @param cb_fn   pointer to the function that will be called when the data have
  *                been fetched fetched from target.
  * @param rate    rate in unit bits/sec (11000000 = 11Mbps)
  *
@@ -196,8 +196,8 @@ void  nrwifi_get_rx_stats(nrwifi_rf_statiscs_cb cb_fn, int rate)
    DE_MEMSET(&req, 0, sizeof(hwt_req_t));
 
    settings.data_rate = hwt_convert_bitrate_into_xmit_bitrate_code(rate);
-   
-   
+
+
    req.no = HWT_RX_REQ_END;
    req.attr_param.DataRate = rate;
    req.result_cb = hwt_req_result_cb;
@@ -225,7 +225,7 @@ void  nrwifi_start_pkt_tx( int PacketLength,
    hwt_req_t req;
 
    DE_MEMSET(&req, 0, sizeof(hwt_req_t));
-  
+
    req.no = HWT_TX_REQ_PKT_START;
    req.attr_param.PacketLength = PacketLength;
    req.attr_param.NumOfFrame = NumOfFrame;
@@ -280,16 +280,16 @@ static int hwt_request(hwt_req_t *req)
       default:
          break;
    }
-   
+
    /* sanity */
    if(req->attr_param.Channel > 14)        req->attr_param.Channel = 14;
    if(req->attr_param.Channel < 1)         req->attr_param.Channel = 1;
 
    if(req->attr_param.DataRate)
       settings.data_rate = hwt_convert_bitrate_into_xmit_bitrate_code(req->attr_param.DataRate);
-   
+
    if(req->attr_param.PacketLength > 1536)      req->attr_param.PacketLength = 1536;
- 
+
    if(hwt_console_request(req))
       return TRUE;
 
@@ -304,7 +304,7 @@ static char *nrstrtok_r (char *s, const char *delim, char **save_ptr)
   if (s == NULL)
     s = *save_ptr;
 
-  // Scan leading delimiters. 
+  // Scan leading delimiters.
   s += strspn (s, delim);
   if (*s == '\0')
     {
@@ -320,11 +320,11 @@ static char *nrstrtok_r (char *s, const char *delim, char **save_ptr)
     *save_ptr = strchr (token, '\0');// *save_ptr = memchr (token, '\0', strlen(token));
   else
     {
-      // Terminate the token and make *SAVE_PTR point past it. 
+      // Terminate the token and make *SAVE_PTR point past it.
       *s = '\0';
       *save_ptr = s + 1;
     }
-  
+
   return token;
 }
 
@@ -373,13 +373,13 @@ static void handle_console_reply(wi_msg_param_t param, void* priv)
       return;
    }
 
-   Mlme_CreateMessageContext(msg_ref); 
-   
+   Mlme_CreateMessageContext(msg_ref);
+
    msg_ref.raw = &reply;
    msg_ref.raw_size = sizeof(reply);
    msg_ref.packed = buf;
    msg_ref.packed_size = buflen;
- 
+
    INIT_BLOB(&blob, msg_ref.packed, msg_ref.packed_size);
 
    packer_HIC_Unpack(&msg_ref, &blob);
@@ -388,7 +388,7 @@ static void handle_console_reply(wi_msg_param_t param, void* priv)
 
    if(msg_ref.msg_id == HIC_MAC_CONSOLE_CFM)
    {
-     //CON_print("HIC_MAC_CONSOLE_CFM: trans_id = %u, result = %u\n", 
+     //CON_print("HIC_MAC_CONSOLE_CFM: trans_id = %u, result = %u\n",
      //            reply.cfm.trans_id,
      //            reply.cfm.result);*/
    }
@@ -398,7 +398,7 @@ static void handle_console_reply(wi_msg_param_t param, void* priv)
       parse_console_reply(&reply.ind.string);
    }
    return;
-   
+
 }
 
 
@@ -430,13 +430,13 @@ static void parse_console_reply(char *string)
       command_result(TP_ProxyStatusCode_DriverError, NULL);
    }
    if(DE_STRCMP(token, "RFCHAN") == 0) {
-      // do nothing, other command will follow 
+      // do nothing, other command will follow
    }
    if(DE_STRCMP(token, "TXGEN_START") == 0) {
       command_result(TP_ProxyStatusCode_OK, NULL);
    }
    if(DE_STRCMP(token, "TXGEN_COMPLETE") == 0) {
-      // don't need to do anything here 
+      // don't need to do anything here
    }
    if(DE_STRCMP(token, "TXGEN_STOP") == 0) {
       command_result(TP_ProxyStatusCode_OK, NULL);
@@ -473,8 +473,8 @@ static void parse_console_reply(char *string)
       PARSE_INT(rr.bad_crc);
       PARSE_INT(rr.bad_crc_ucast);
       PARSE_INT(rr.bad_crc_mcast);
-                
-      // non-per-rate statistics follow 
+
+      // non-per-rate statistics follow
       PARSE_INT(rr.ofdm_chest_mag);
       PARSE_INT(rr.ofdm_snr);
       PARSE_INT(rr.ofdm_frame_counter);
@@ -562,7 +562,7 @@ static void command_result(int status, void *param)
    if(!req)
       return;
 
-   if(!req->result_cb) 
+   if(!req->result_cb)
       return;
 
    if(req->no != HWT_RX_REQ_END)
@@ -570,13 +570,13 @@ static void command_result(int status, void *param)
 
    /* HWT_RX_REQ_END */
 
-   req->attr_param.iErrorFrame = rxstat.bad_crc 
-      + rxstat.bad_crc_ucast 
+   req->attr_param.iErrorFrame = rxstat.bad_crc
+      + rxstat.bad_crc_ucast
       + rxstat.bad_crc_mcast;
 
-   req->attr_param.iGoodFrame = 
-      rxstat.ucast_to_self 
-      + rxstat.ucast_to_other 
+   req->attr_param.iGoodFrame =
+      rxstat.ucast_to_self
+      + rxstat.ucast_to_other
       + rxstat.mcast_to_self
       + rxstat.mcast_to_other
       + rxstat.ack_to_self
@@ -592,13 +592,13 @@ static void command_result(int status, void *param)
 
 }
 
-/*! 
+/*!
  * @param   'bitrate'   unit bits/s
  */
 static m80211_xmit_rate_t hwt_convert_bitrate_into_xmit_bitrate_code(uint32_t bitrate)
 {
    m80211_xmit_rate_t rate;
-   
+
    switch(bitrate)
    {
       case 1000000:
@@ -667,13 +667,13 @@ static int hwt_console_request(hwt_req_t *req)
          }
 
          x_cmd_set_tx_power(req->attr_param.TxPower);
-         
+
          DE_SNPRINTF(cmd, sizeof(cmd),
                      "txgen_start=%u,%u,%u,%u,%x,%u,%u\n",
                      settings.data_rate, /* 0-13,14=CW */
                      req->attr_param.PacketLength,
-                     0, /* inf */ 
-                     (req->attr_param.iInterPacketDelay+500)/1000, /* µs -> ms */
+                     0, /* inf */
+                     (req->attr_param.iInterPacketDelay+500)/1000, /* ç¥ -> ms */
                      0x100, /* PRBS9 */
                      0, /* autoprint */
                      0); /* framenum gen */
@@ -687,7 +687,7 @@ static int hwt_console_request(hwt_req_t *req)
          }
 
          x_cmd_set_tx_power(req->attr_param.TxPower);
-         
+
          DE_SNPRINTF(cmd, sizeof(cmd),
                      "txgen_start=%u,%u,%u,%u,%x,%u,%u\n",
                      14, /* 14=CW */
@@ -699,7 +699,7 @@ static int hwt_console_request(hwt_req_t *req)
                      0); /* framenum gen */
          break;
 #endif
-      case HWT_TX_REQ_PKT_START: 
+      case HWT_TX_REQ_PKT_START:
          if(req->attr_param.Channel != settings.rf_channel)
          {
             settings.rf_channel = req->attr_param.Channel;
@@ -707,13 +707,13 @@ static int hwt_console_request(hwt_req_t *req)
          }
 
          //x_cmd_set_tx_power(req->attr_param.TxPower);
-         
-         DE_SNPRINTF(cmd, sizeof(cmd), 
-                     "txgen_start=%u,%u,%u,%u,%x,%u,%u\n", 
+
+         DE_SNPRINTF(cmd, sizeof(cmd),
+                     "txgen_start=%u,%u,%u,%u,%x,%u,%u\n",
                      settings.data_rate, /* 0-13,14=CW */
                      req->attr_param.PacketLength,
                      req->attr_param.NumOfFrame,
-                     (req->attr_param.iInterPacketDelay+500)/1000, /* µs -> ms */
+                     (req->attr_param.iInterPacketDelay+500)/1000, /* ç¥ -> ms */
                      0x100, /* PRBS9 */
                      0, /* autoprint */
                      0); /* framenum gen */

@@ -32,7 +32,7 @@ static void sha256_digest_int(const void *msg, unsigned len, MInt *d)
 
 
 /*****************************************
-*ECC  
+*ECC
 ******************************************/
 
 #ifndef max
@@ -46,7 +46,7 @@ static void sha256_digest_int(const void *msg, unsigned len, MInt *d)
 
 
 #define MASK 0xf
-#define READ_FILE       52  
+#define READ_FILE       52
 
 #define MAX_CMP_WORD         (DWord)0xffffffff
 #define HalfWord unsigned short
@@ -63,15 +63,15 @@ static void sha256_digest_int(const void *msg, unsigned len, MInt *d)
 
 
 
-#define ONE        1               
-#define MINUS_ONE  3               
+#define ONE        1
+#define MINUS_ONE  3
 
 /* #define MINTLENGTH    13 */
 #define POINTTABLELEN 128
 #define PARABYTELEN   24
 #define PARABUFFER    6
 #define MI_NEGATIVE     2
-#define FP_SQUARE_ROOT    101 
+#define FP_SQUARE_ROOT    101
 #define OUTPUT_SIZE  5
 #define OUTPUT_LEN   6
 #define FP_IsZero(ptr) (((((ptr)->length == 1) && ((ptr)->value[0] == 0)))|| ((ptr)->length==0))
@@ -86,15 +86,15 @@ static void sha256_digest_int(const void *msg, unsigned len, MInt *d)
 
 
 typedef struct {
-	int  isInfinite; 
-	MInt x;          
-	MInt y;          
+	int  isInfinite;
+	MInt x;
+	MInt y;
 } EcFpPoint;
 
 typedef struct {
-	MInt x;          
-	MInt y;          
-	MInt z;          
+	MInt x;
+	MInt y;
+	MInt z;
 }EcFpPointProject;
 #define FPSqr_Mul(a,p,product) FP_Mul(a,a,p,product);
 
@@ -108,12 +108,12 @@ typedef	struct {
 	MInt Order;
 	MInt cofactor;
 } EllipticCurve;
-    
+
 static int randseed;
 static EcFpPoint pTable1[POINTTABLELEN];
 static EllipticCurve TheCurve;
 
-/* 64Œª≥À∑®”≈ªØ*/
+/* 64‰Ωç‰πòÊ≥ï‰ºòÂåñ*/
 #ifdef IWN_ECC_GCCINT64
 #define DWordMult(product_64, v1, v2)		\
 	do									\
@@ -138,7 +138,7 @@ static  void DWordMult (DWord a[2],const DWord b,const DWord c)
   t = (DWord)bLow * (DWord)cHigh;
   u = (DWord)bHigh * (DWord)cLow;
   a[1] = (DWord)bHigh * (DWord)cHigh;
-  
+
   if ((t += u) < u)
     a[1] += TO_HIGH_HALF (1);
   u = TO_HIGH_HALF (t);
@@ -146,12 +146,12 @@ static  void DWordMult (DWord a[2],const DWord b,const DWord c)
   if ((a[0] += u) < u)
     ++ a[1];
   a[1] += HIGH_HALF (t);
- 
+
 }
 #endif
 
 
-/* 64Œª≥˝∑®”≈ªØ*/
+/* 64‰ΩçÈô§Ê≥ï‰ºòÂåñ*/
 #ifdef IWN_ECC_CPU_DIVISION64
 #define CMP_WordDiv(val_p, dividend_64_p, divisor)		\
    *(val_p) = (unsigned int)(((((unsigned long long)(dividend_64_p)[1])<<32) |(dividend_64_p)[0]) / (unsigned long long)(divisor))
@@ -190,7 +190,7 @@ static void CMP_WordDiv (DWord *a,DWord b[2],DWord c)
   if (cHigh == MAX_CMP_HALF_WORD)
     aLow = (HalfWord)LOW_HALF (t[1]);
   else
-    aLow = 
+    aLow =
       (HalfWord)((TO_HIGH_HALF (t[1]) + HIGH_HALF (t[0])) / (cHigh + 1));
   u = (DWord)aLow * (DWord)cLow;
   v = (DWord)aLow * (DWord)cHigh;
@@ -205,7 +205,7 @@ static void CMP_WordDiv (DWord *a,DWord b[2],DWord c)
       -- t[1];
     ++ aLow;
   }
-  
+
   *a = TO_HIGH_HALF (aHigh) + aLow;
 
 }
@@ -231,7 +231,7 @@ static DWord CMP_SubProduct (DWord *a,DWord *b,DWord c,
 static int CMP_ArrayCmp (DWord *a,DWord *b,unsigned int length);
 static int MI_RecomputeLength (int targetLength,MInt *theInt);
 int FpMinus (MInt *operand,MInt *prime,MInt *result);
-static int FP_Add (MInt *addend1,MInt *addend2, 
+static int FP_Add (MInt *addend1,MInt *addend2,
 				MInt *modulus,MInt *sum);
 static int FP_Substract (MInt *minuend,MInt *subtrahend,
 					 MInt *modulus,MInt *difference);
@@ -295,7 +295,7 @@ static int MI_Move (MInt *source,MInt *destination)
 static int MI_Compare (MInt *firstMInt,MInt *secondMInt)
 {
   int i;
-  
+
   if (firstMInt->length > secondMInt->length)
   {
 	  if((firstMInt->length==1)&&(firstMInt->value[0]==0))
@@ -323,8 +323,8 @@ static  int MI_Add (MInt *addend1,MInt *addend2,MInt *sum)
 {
   DWord *a, carry, *longValue, *shortValue, word;
   int i, max, min;
-  
-  if (addend1->length > addend2->length) 
+
+  if (addend1->length > addend2->length)
   {
     max = addend1->length; min = addend2->length;
     longValue = addend1->value; shortValue = addend2->value;
@@ -336,7 +336,7 @@ static  int MI_Add (MInt *addend1,MInt *addend2,MInt *sum)
   do {
     carry = 0;
     a = sum->value;
-    for (i = 0; i < min; ++ i) 
+    for (i = 0; i < min; ++ i)
 	{
       if ((word = longValue[i] + carry) < carry) {
         carry = 1;
@@ -344,7 +344,7 @@ static  int MI_Add (MInt *addend1,MInt *addend2,MInt *sum)
       }
       else if ((word += shortValue[i]) < shortValue[i])
         carry = 1;
-      else 
+      else
         carry = 0;
       a[i] = word;
     }
@@ -355,19 +355,19 @@ static  int MI_Add (MInt *addend1,MInt *addend2,MInt *sum)
 	  {
         carry = 0;
         ++ i;
-        memcpy (&a[i], &longValue[i], 
+        memcpy (&a[i], &longValue[i],
           sizeof (DWord) * (max - i));
         break;
       }
-    
+
     if (carry == 1) {
       a[max] = 1;
       sum->length = max + 1;
     }
     else
       sum->length = max;
-  } while (0);  
-  
+  } while (0);
+
   return 0;
 }
 
@@ -519,7 +519,7 @@ static  int MI_Subtract (MInt *minuend,MInt *subtrahend,MInt *difference)
 
   do
   {
-    if ((i = MI_Compare (minuend, subtrahend)) > 0) 
+    if ((i = MI_Compare (minuend, subtrahend)) > 0)
 	{
       b = minuend;
       c = subtrahend;
@@ -535,18 +535,18 @@ static  int MI_Subtract (MInt *minuend,MInt *subtrahend,MInt *difference)
       status = MI_NEGATIVE;
     }
     borrow = 0;
-    for (i = 0; i < c->length ; ++ i) 
+    for (i = 0; i < c->length ; ++ i)
 	{
-      if ((borrow += c->value[i]) < c->value[i]) 
+      if ((borrow += c->value[i]) < c->value[i])
 	  {
         difference->value[i] = b->value[i];
         borrow = 1;
       }
-      else 
+      else
 	  {
         if ((ai = b->value[i] - borrow) > (MAX_CMP_WORD - borrow))
           borrow = 1;
-        else 
+        else
           borrow = 0;
         difference->value[i] = ai;
       }
@@ -562,7 +562,7 @@ static  int MI_Subtract (MInt *minuend,MInt *subtrahend,MInt *difference)
     MI_RecomputeLength (b->length , difference);
   } while (0);
 
-  return (status);  
+  return (status);
 }
 
 static int DW_AddProduct (DWord *a, DWord *b, DWord c, DWord *d, unsigned int length)
@@ -571,7 +571,7 @@ static int DW_AddProduct (DWord *a, DWord *b, DWord c, DWord *d, unsigned int le
   unsigned int i;
 
   carry = 0;
-  for (i = 0; i < length; ++ i) 
+  for (i = 0; i < length; ++ i)
   {
     DWordMult (t, c, d[i]);
     if ((a[i] = b[i] + carry) < carry)	carry = 1;
@@ -587,7 +587,7 @@ static int MI_Multiply(MInt *multiplicand,MInt *multiplier,MInt *product)
 {
 	DWord a[MINTLENGTH], *b, *c;
 	int cLen, i, productLen;
-  
+
     productLen = multiplicand->length + multiplier->length;
     if (MINTLENGTH<productLen)
       return (-1);
@@ -596,13 +596,13 @@ static int MI_Multiply(MInt *multiplicand,MInt *multiplier,MInt *product)
     c = multiplier->value;
     cLen = multiplier->length;
     for(i=0;i<productLen;i++)	a[i]=0;;
-    
+
     for (i = 0; i < multiplicand->length; ++ i)
       a[cLen + i] += DW_AddProduct (&a[i], &a[i], b[i], c, cLen);
 	for(i=0;i<productLen;i++)
 		product->value[i]=a[i];
 	MI_RecomputeLength (productLen, product);
-  
+
   return (0);
 }
 static DWord CMP_ArraySub (DWord *a,DWord *b,DWord *c,
@@ -620,7 +620,7 @@ static DWord CMP_ArraySub (DWord *a,DWord *b,DWord *c,
     else {
       if ((ai = b[i] - borrow) > (MAX_CMP_WORD - borrow))
         borrow = 1;
-      else 
+      else
         borrow = 0;
       a[i] = ai;
     }
@@ -633,11 +633,11 @@ static DWord CMP_ArrayLeftShift (DWord *a,unsigned int bits,
 {
   DWord r, shiftOut;
   unsigned int i, bitsLeft;
-  
+
   if (bits == 0) {
     return (0);
   }
-  
+
   bitsLeft = CMP_WORD_SIZE - bits;
   shiftOut = 0;
   for (i = 0; i < length; ++i) {
@@ -675,13 +675,13 @@ static DWord CMP_SubProduct (DWord *a,DWord *b,DWord c,
   unsigned int i;
 
   borrow = 0;
-  for (i = 0; i < length; ++ i) 
+  for (i = 0; i < length; ++ i)
   {
     DWordMult (t, c, d[i]);
 
-    if ((borrow += t[0]) < t[0]) 
+    if ((borrow += t[0]) < t[0])
       ++ t[1];
-    if ((a[i] = b[i] - borrow) > (MAX_CMP_WORD - borrow)) 
+    if ((a[i] = b[i] - borrow) > (MAX_CMP_WORD - borrow))
       borrow = t[1] + 1;
     else
       borrow = t[1];
@@ -699,7 +699,7 @@ static int CMP_ArrayCmp (DWord *a,DWord *b,unsigned int length)
       return (-1);
   }
   return (0);
-} 
+}
 static int MI_ModularReduce (MInt *operand,MInt *modulus,MInt *reducedValue)
 {
   DWord ai, t, *cc, *dd;
@@ -722,12 +722,12 @@ static int MI_ModularReduce (MInt *operand,MInt *modulus,MInt *reducedValue)
 
     a=modulus->value[modulus->length-1];
     for(i=0;(i<(int)CMP_WORD_SIZE)&&(a!=0);++i,a>>=1);
-    
+
     shift = CMP_WORD_SIZE - i;
 
     ccWords = reducedValue->length;
     cc = reducedValue->value;
-    if ((cc[ccWords] = CMP_ArrayLeftShift (cc, shift, ccWords)) != 0) 
+    if ((cc[ccWords] = CMP_ArrayLeftShift (cc, shift, ccWords)) != 0)
       cc[++ ccWords] = 0;
 
     ddWords = modulus->length;
@@ -750,9 +750,9 @@ static int MI_ModularReduce (MInt *operand,MInt *modulus,MInt *reducedValue)
     CMP_ArrayRightShift (dd, shift, ddWords);
     CMP_ArrayRightShift (cc, shift, ddWords);
     MI_RecomputeLength (ddWords, reducedValue);
-  } while (0); 
-  
-  
+  } while (0);
+
+
   return 0;
 }
 
@@ -768,21 +768,21 @@ static int MI_RecomputeLength (int targetLength,MInt *theInt)
 }
 int FpMinus (MInt *operand,MInt *prime,MInt *result)
 {
-	if (operand->length == 1 && operand->value[0] == 0) 
+	if (operand->length == 1 && operand->value[0] == 0)
 		FP_Move (operand, result);
     else
 	    MI_Subtract (prime, operand, result);
     return 0;
 }
 
-static int FP_Add (MInt *addend1,MInt *addend2, 
+static int FP_Add (MInt *addend1,MInt *addend2,
 				MInt *modulus,MInt *sum)
 {
 	MInt t;
     MI_Add (addend1, addend2, &t);
     if (MI_Compare (&t, modulus) >= 0)
 		MI_Subtract (&t, modulus, sum);
-    else 
+    else
 		MI_Move (&t, sum);
 	return 0;
 }
@@ -799,7 +799,7 @@ static int FP_Substract (MInt *minuend,MInt *subtrahend,
 	else
         MI_Subtract (modulus, &t, difference);
     return 0;
-  
+
 }
 
 /* #define MB_ECC */
@@ -814,12 +814,12 @@ static int GenRandomNumberForFixLen(int wordLen,MInt *theInt)
 	unsigned int ss=1;
 
 	theInt->length=wordLen;
-	
+
 #ifdef MB_ECC
 	GetRandPri((BYTE *)theInt->value, wordLen*sizeof(int));
 #else
 	srand((unsigned)time(NULL));
-	
+
 	for(j=0;j<wordLen;j++)
 	{
 		for(k=0;k<3;k++)
@@ -831,7 +831,7 @@ static int GenRandomNumberForFixLen(int wordLen,MInt *theInt)
 		theInt->value[j]=ss;
 		ss=1;
 	}
-#endif	
+#endif
 	return 0;
 }
 
@@ -841,14 +841,14 @@ static int GenRandomNumber (MInt *theInt, MInt *maxInt)
 	int j,k,aa;
 	MInt t;
 	unsigned int ss=1;
-	
+
 	t.length=maxInt->length ;
-	
+
 #ifdef MB_ECC
 	GetRandPri((BYTE *)theInt->value, t.length*sizeof(int));
 #else
 	srand((unsigned)time(NULL));
-	
+
 	for(j=0;j<maxInt->length ;j++)
 	{
 		for(k=0;k<3;k++)
@@ -861,7 +861,7 @@ static int GenRandomNumber (MInt *theInt, MInt *maxInt)
 		ss=1;
 
 	}
-#endif	
+#endif
 	MI_ModularReduce (&t, maxInt,theInt);
 
 	return 0;
@@ -875,13 +875,13 @@ static int MI_Divide (MInt *dividend,MInt *divisor,
   DWord a;
   int i;
   unsigned int ccWords, ddWords, shift;
-  
+
   MI_RecomputeLength (dividend->length,dividend);
   MI_RecomputeLength (divisor->length,divisor);
 
-  do 
+  do
   {
-    if (MI_Compare (dividend, divisor) < 0) 
+    if (MI_Compare (dividend, divisor) < 0)
     {
       MI_WordToMInt (0, quotient);
       MI_Move (dividend, remainder);
@@ -896,8 +896,8 @@ static int MI_Divide (MInt *dividend,MInt *divisor,
     shift = CMP_WORD_SIZE - i;
     ccWords = remainder->length;
     cc = remainder->value;
-    if ((cc[ccWords] = 
-    	CMP_ArrayLeftShift (cc, shift, ccWords)) != 0) 
+    if ((cc[ccWords] =
+    	CMP_ArrayLeftShift (cc, shift, ccWords)) != 0)
       cc[++ ccWords] = 0;
 
     ddWords = divisor->length;
@@ -905,8 +905,8 @@ static int MI_Divide (MInt *dividend,MInt *divisor,
     CMP_ArrayLeftShift (dd, shift, ddWords);
     t = dd[ddWords - 1];
     aa = quotient->value;
-  
-    for (i = ccWords - ddWords; i >= 0; -- i) 
+
+    for (i = ccWords - ddWords; i >= 0; -- i)
     {
       if (t == MAX_CMP_WORD)
         ai = cc[i + ddWords];
@@ -926,7 +926,7 @@ static int MI_Divide (MInt *dividend,MInt *divisor,
     MI_RecomputeLength (ddWords, remainder);
     MI_RecomputeLength (ccWords - ddWords + 1, quotient);
   } while (0);
-              
+
   return 0;
 }
 static int FpDivByTwo(MInt *a,MInt *p)
@@ -972,7 +972,7 @@ static int FP_Invert (MInt *operand,MInt *modulus,MInt *inverse)
     MI_Move (modulus, &v3);
 
     u1Sign = 1;
-	while (v3.length != 0 ) 
+	while (v3.length != 0 )
 	{
 		MI_Divide (&u3, &v3, &q, &t3);
 		MI_Multiply (&q, &v1, &w);
@@ -984,11 +984,11 @@ static int FP_Invert (MInt *operand,MInt *modulus,MInt *inverse)
 		u1Sign = -u1Sign;
     }
 
-    if (u1Sign < 0) 
+    if (u1Sign < 0)
 		MI_Subtract (modulus, &u1, inverse);
-    else 
+    else
 		MI_Move (&u1, inverse);
-    
+
 	return 0;
 }
 
@@ -1001,24 +1001,24 @@ static int FP_Div(MInt *op1,MInt *op2,MInt *prime,MInt *result)
 }
 
 static int FP_MulNormal(MInt *multiplicand,MInt *multiplier,
-		   MInt *p,MInt *product) 
+		   MInt *p,MInt *product)
 {
 	DWord a[MINTLENGTH], *bb, *c;
 	int cLen, i, productLen;
 
 	if(FP_IsZero(multiplicand)||FP_IsZero(multiplier))
-	{	
-		product->length =0;	
-		product->value [0]=0;	
+	{
+		product->length =0;
+		product->value [0]=0;
 		return 0;
 	}
 
 	productLen = multiplicand->length + multiplier->length;
-	bb = multiplicand->value;    
+	bb = multiplicand->value;
 	c = multiplier->value;
 	cLen = multiplier->length;
 	for(i=0;i<MINTLENGTH;i++)	a[i]=0;
-    
+
 	for (i = 0; i < multiplicand->length; ++ i)
 		a[cLen + i] += DW_AddProduct (&a[i], &a[i], bb[i], c, cLen);
 
@@ -1026,7 +1026,7 @@ static int FP_MulNormal(MInt *multiplicand,MInt *multiplier,
 		product->value[i]=a[i];
 	MI_RecomputeLength (productLen , product);
 	MI_ModularReduce (product, p, product);
-	
+
 	return 0;
 }
 
@@ -1043,11 +1043,11 @@ static int OctetStringToMInt (const unsigned char *OString, unsigned int OSLen,
 	DWord word;
 	int i, j, k, t, words;
 	words = (OSLen+MI_BYTES_PER_WORD-1)/MI_BYTES_PER_WORD;
-	for (i = OSLen, j = 0; i > 0; i -= 4, ++ j) 
+	for (i = OSLen, j = 0; i > 0; i -= 4, ++ j)
 	{
 		word = 0;
 		t = (int)min (i, (int)MI_BYTES_PER_WORD);
-		for (k = 0; k < t; ++ k) 
+		for (k = 0; k < t; ++ k)
 		{
 			word = (word << MI_BITS_PER_BYTE) | OString[i - t + k];
 		}
@@ -1070,9 +1070,9 @@ static int JointSFKL_Encode(MInt *k, MInt *l,unsigned char *JSF)
 	 while(k->length||l->length||d0||d1){
 		temp0=(k->value[0]+d0)&7;
 		temp1=(l->value[0]+d1)&7;
-		
+
 		if(!(temp0&01))  jsfk=0;
-		else{ 
+		else{
 			 jsfk=temp0&03;
 			 if(((temp1&3)==2)&&(((temp0&7)==3)||((temp0&7)==5)))
 			     jsfk=(jsfk+2)&3;
@@ -1083,11 +1083,11 @@ static int JointSFKL_Encode(MInt *k, MInt *l,unsigned char *JSF)
 			jsfl=temp1&03;
 			if(((temp0&3)==2)&&(((temp1&7)==3)||((temp1&7)==5)))
 			     jsfl=(jsfl+2)&3;
-		}						
-		JSF[index]=(((jsfk+1)>>1)*3+((jsfl+1)>>1)); 
+		}
+		JSF[index]=(((jsfk+1)>>1)*3+((jsfl+1)>>1));
 
 		if(((1+jsfk)&3)==(2*d0)) d0=1-d0;
-		if(((1+jsfl)&3)==(2*d1)) d1=1-d1;	
+		if(((1+jsfl)&3)==(2*d1)) d1=1-d1;
 
 		i=k->length-1;
 		if(k->value[i]==1)  k->length--;
@@ -1104,7 +1104,7 @@ static int JointSFKL_Encode(MInt *k, MInt *l,unsigned char *JSF)
 		    temp1=l->value[i]&01;
 		    l->value[i]=(l->value[i]>>1)|(temp0<<31);
 			temp0=temp1;
-		}   
+		}
 		index++;
 	 }
 	 MI_Move(&k1,k);
@@ -1122,22 +1122,22 @@ static int MIntToOctetString (MInt *srcInt,unsigned int OSBufferSize,
 	status = 0;
   do
   {
-	for (i = srcInt->length - 1, j = 0; i >= 0; -- i) 
+	for (i = srcInt->length - 1, j = 0; i >= 0; -- i)
 	{
 		t = MI_BYTES_PER_WORD;
 		word = srcInt->value[i];
-		if (i == srcInt->length - 1) 
+		if (i == srcInt->length - 1)
 		{
 			while ((word>>((t-1)*MI_BITS_PER_BYTE)==0)&&(t>1))
 			-- t;
-			if(t+i*MI_BYTES_PER_WORD>OSBufferSize) 
+			if(t+i*MI_BYTES_PER_WORD>OSBufferSize)
 			{
 				status = OUTPUT_SIZE;
 				break;
 			}
 		}
-		for (k = t - 1; k >= 0; -- k) 
-			DString[j ++] = 
+		for (k = t - 1; k >= 0; -- k)
+			DString[j ++] =
           (unsigned char)(srcInt->value[i]>>(k*MI_BITS_PER_BYTE));
     }
     if (status == 0)
@@ -1152,29 +1152,29 @@ static int ECFpAdd (EcFpPoint *addend1, EcFpPoint *addend2,
 {
 	MInt r, s, t;
 	b = b;
-    if (addend1->isInfinite == 1) 
+    if (addend1->isInfinite == 1)
 	{
 		sum->isInfinite = addend2->isInfinite;
 		FP_Move (&addend2->x, &sum->x);
 		FP_Move (&addend2->y, &sum->y);
 		return 0;
     }
-    else if (addend2->isInfinite == 1) 
+    else if (addend2->isInfinite == 1)
 	{
       sum->isInfinite = addend1->isInfinite;
       FP_Move (&addend1->x, &sum->x);
       FP_Move (&addend1->y, &sum->y);
       return 0;
     }
-    else if (FP_Equal (&addend1->x, &addend2->x)) 
+    else if (FP_Equal (&addend1->x, &addend2->x))
 	{
 		FP_Substract (prime, &addend2->y, prime, &r);
-		if (FP_Equal (&addend1->y, &r)) 
+		if (FP_Equal (&addend1->y, &r))
 		{
 			sum->isInfinite = 1;
 			return 0;
 		}
-		else if (FP_Equal (&addend1->y, &addend2->y)) 
+		else if (FP_Equal (&addend1->y, &addend2->y))
 		{
 			FPSqr_Mul (&addend1->x,prime, &r);
 			FP_Add (&r, &r, prime, &t);
@@ -1193,7 +1193,7 @@ static int ECFpAdd (EcFpPoint *addend1, EcFpPoint *addend2,
 
 			return 0;
         }
-    }  
+    }
     FP_Substract (&addend2->x, &addend1->x, prime, &t);
     FP_Substract (&addend2->y, &addend1->y, prime, &s);
     FP_Invert (&t, prime, &r);
@@ -1221,14 +1221,14 @@ static int MIntToFixedLenOS(MInt *srcInt,unsigned int fixedLength,
     if ((status = MIntToOctetString (srcInt,OSBufferSize,
       &len, DString)) != 0)
       break;
-    if ((d = fixedLength - len) > 0) 
+    if ((d = fixedLength - len) > 0)
 	{
-      for (i = fixedLength - 1; i >= d; -- i) 
+      for (i = fixedLength - 1; i >= d; -- i)
         DString[i] = DString[i - d];
       for (i = d - 1; i >= 0; -- i)
         DString[i] = 0;
     }
-    else if (d < 0) 
+    else if (d < 0)
 	{
       status = OUTPUT_LEN;
       break;
@@ -1241,7 +1241,7 @@ static int MIntToFixedLenOS(MInt *srcInt,unsigned int fixedLength,
 static int ECFpKTimes (EcFpPoint *operand,MInt *k,MInt *a,MInt *b,
 				MInt *prime, EcFpPoint *result)
 {
-	EcFpPointProject rr;         
+	EcFpPointProject rr;
 	EcFpPoint pp, qq;
 	MInt inverse, kk,temp;
 	DWord s, t;
@@ -1261,15 +1261,15 @@ static int ECFpKTimes (EcFpPoint *operand,MInt *k,MInt *a,MInt *b,
     kkWords = kk.length;
     FP_Move (&operand->x, &pp.x);
     FP_Move (&operand->y, &pp.y);
-    
+
     FP_Move (&operand->x, &qq.x);
     FpMinus (&operand->y, prime, &qq.y);
-    
+
     for (i = kkWords - 1; i >= 0; -- i)
 	{
 		t = kk.value[i];
 		bits = MI_WORD_SIZE;
-		if (i == kkWords - 1) 
+		if (i == kkWords - 1)
 		{
 			while (! (t>>(MI_WORD_SIZE-2)))
 			{
@@ -1277,28 +1277,28 @@ static int ECFpKTimes (EcFpPoint *operand,MInt *k,MInt *a,MInt *b,
 				bits -= 2;
 			}
 		}
-		for (j = bits; j > 0; j -= 2, t <<= 2) 
+		for (j = bits; j > 0; j -= 2, t <<= 2)
 		{
 			ECFpDoubleProj (&rr, a, b, prime, &rr);
 			if ((s = (t>>(MI_WORD_SIZE-2)))==ONE)
 				ECFpAddProj (&rr, &pp, a, b, prime, &rr);
-			else if (s == MINUS_ONE) 
+			else if (s == MINUS_ONE)
 				ECFpAddProj (&rr, &qq, a, b, prime, &rr);
 		}
 	}
 
-    if (FP_IsZero (&rr.z)) 
+    if (FP_IsZero (&rr.z))
 		result->isInfinite = 1;
     else
 	{
 		result->isInfinite = 0;
 		FP_Invert (&rr.z, prime, &inverse);
 		FPSqr_Mul (&inverse, prime, &temp);
-		FP_Mul (&rr.x, &temp, prime, &result->x); 
+		FP_Mul (&rr.x, &temp, prime, &result->x);
 		FP_Mul(&temp,&inverse,prime,&inverse);
 		FP_Mul (&rr.y, &inverse, prime, &result->y);
     }
-  
+
 	return 0;
 }
 
@@ -1306,20 +1306,20 @@ static int ECFpKTimes (EcFpPoint *operand,MInt *k,MInt *a,MInt *b,
 
 static DWord C_TABLE1[8] = { 0, 0, 0, 4, 0, 4, 4, 4 },
 C_TABLE2[8] = {0, 1, 0, 3, 1, 0, 3, 0 };
- 
+
 static int CanonicalEncode (MInt *source, MInt *destination)
 {
 	DWord word, srcWord;
 	int ci, entry, i, j, wordBits, words;
-  
+
 	words = source->length;
 	ci = 0;
 	wordBits = sizeof (DWord) * 8;
-	for (i = 0; i < words; ++ i) 
+	for (i = 0; i < words; ++ i)
 	{
 		word = 0;
 		srcWord = source->value[i];
-		for (j = 0; j < wordBits / 2; ++ j) 
+		for (j = 0; j < wordBits / 2; ++ j)
 		{
 			entry = ci | (unsigned int)((srcWord >> j) & 3);
 			ci = (int)C_TABLE1[entry];
@@ -1327,24 +1327,24 @@ static int CanonicalEncode (MInt *source, MInt *destination)
 		}
 		destination->value[2 * i] = word;
 		word = 0;
-		for (j = MI_WORD_SIZE / 2; j < wordBits - 1; ++ j) 
+		for (j = MI_WORD_SIZE / 2; j < wordBits - 1; ++ j)
 		{
 			entry = ci | (unsigned int)((srcWord >> j) & 3);
 			ci = (int)C_TABLE1[entry];
 			word |= (C_TABLE2[entry] << (2 * j - MI_WORD_SIZE));
 		}
-		entry = ci | (unsigned int)(srcWord >> (wordBits - 1)); 
+		entry = ci | (unsigned int)(srcWord >> (wordBits - 1));
 		entry = (i == words - 1) ? (unsigned int)entry :(unsigned int)entry | (unsigned int)(((source->value[i + 1]) << 1) & 2);
 		ci = (int)C_TABLE1[entry];
 		word |= (C_TABLE2[entry] << (MI_WORD_SIZE - 2));
 		destination->value[2 * i + 1] = word;
 	}
-	if (ci != 0) 
+	if (ci != 0)
 		destination->value[2 * i] = 1;
-	else 
+	else
 		destination->value[2 * i] = 0;
 	MI_RecomputeLength (2 * words + 1, destination);
-	
+
 	return 0;
 }
 int PubKeyToOctetString(Point *poPublicKey,unsigned int OSBuffSize,
@@ -1370,7 +1370,7 @@ int PubKeyToOctetString(Point *poPublicKey,unsigned int OSBuffSize,
 	MIntToFixedLenOS(&x,PARABUFFER*4,OSBuffSize,&len,DString);
 	MIntToFixedLenOS(&y,PARABUFFER*4,OSBuffSize,OSLen,DString+len);
 	*OSLen+=len;
-		
+
 	return 0;
 }
 /*
@@ -1403,7 +1403,7 @@ static int ECES_Format(int len,const unsigned char *OString, unsigned int OSLen,
 	}
 	DestOString[i]=0;
 	memcpy (&DestOString[i+1], OString, sizeof(unsigned char)*OSLen);
-#endif	
+#endif
 	*DestLen=len;
 	return 0;
 }
@@ -1411,7 +1411,7 @@ static int ECFpKTimes_FixP (EcFpPoint *operand,EcFpPoint *Table1,
 				 MInt *k,MInt *a,MInt *b,
 				MInt *prime, EcFpPoint *result)
 {
-	EcFpPointProject rr;       
+	EcFpPointProject rr;
 	MInt inverse,temp;
 
 	int i,j,m,e,length;
@@ -1451,19 +1451,19 @@ static int ECFpKTimes_FixP (EcFpPoint *operand,EcFpPoint *Table1,
 		if(t2!=0)
 			ECFpAddProj (&rr, Table1+length+t2, a, b, prime, &rr);
 	}
-	if (FP_IsZero(&rr.z)) 
+	if (FP_IsZero(&rr.z))
 		result->isInfinite = 1;
     else
 	{
 		result->isInfinite = 0;
 		FP_Invert (&rr.z, prime, &inverse);
-		
+
 		FPSqr_Mul (&inverse, prime, &temp);
 		(* FpMul) (&rr.x, &temp, prime, &result->x);
 		(* FpMul)(&temp,&inverse,prime,&inverse);
 		(* FpMul) (&rr.y, &inverse, prime, &result->y);
     }
-  
+
 	return 0;
 }
 static int ECFpDoubleProj (EcFpPointProject *operand,MInt *a,MInt *b,
@@ -1481,9 +1481,9 @@ static int ECFpDoubleProj (EcFpPointProject *operand,MInt *a,MInt *b,
     MI_Move(&operand->x,&t1);
 	MI_Move(&operand->y,&t2);
 	MI_Move(&operand->z,&t3);
-	
+
 	MI_Move(prime,&temp);
-	temp.value[0]=temp.value[0]-3; 
+	temp.value[0]=temp.value[0]-3;
 	if(MI_Compare(a,&temp)==0)
 	{
 		FPSqr_Mul(&t3,prime,&t4);
@@ -1517,7 +1517,7 @@ static int ECFpDoubleProj (EcFpPointProject *operand,MInt *a,MInt *b,
 	FP_Add(&t2,&t2,prime,&temp);
 	FP_Add(&temp,&temp,prime,&t2);
 	FP_Move(&t2,&temp);
-	FP_Add(&temp,&temp,prime,&t2); 
+	FP_Add(&temp,&temp,prime,&t2);
 	FP_Substract(&t5,&t1,prime,&t5);
 	FP_Mul(&t4,&t5,prime,&t5);
 	FP_Substract(&t5,&t2,prime,&t2);
@@ -1530,34 +1530,34 @@ static int ECFpDoubleProj (EcFpPointProject *operand,MInt *a,MInt *b,
 }
 
 static int ECFpKPAddLQs(EcFpPoint *P,EcFpPoint *Q,MInt *u1,MInt *u2,
-				 MInt *a, MInt *b,MInt *prime,EcFpPoint *result)			     
+				 MInt *a, MInt *b,MInt *prime,EcFpPoint *result)
 {
 	 int  i,JSFlong;
-	 unsigned char JSFKL[258];	 
-	 	
+	 unsigned char JSFKL[258];
+
 	 MInt inverse, temp;
-	 static EcFpPoint   Point_PQ[8]; 
-	 EcFpPointProject rr;	 
-	
-	 JSFlong=JointSFKL_Encode(u1,u2,JSFKL);	 
+	 static EcFpPoint   Point_PQ[8];
+	 EcFpPointProject rr;
+
+	 JSFlong=JointSFKL_Encode(u1,u2,JSFKL);
 
 	 memset(Point_PQ, 0, sizeof(Point_PQ));
-	 
+
 	 FP_Move (&P->x, &Point_PQ[2].x);
-     FP_Move (&P->y, &Point_PQ[2].y);       
-	  
+     FP_Move (&P->y, &Point_PQ[2].y);
+
 	 FP_Move (&Q->x, &Point_PQ[0].x);
-     FP_Move (&Q->y, &Point_PQ[0].y);       
+     FP_Move (&Q->y, &Point_PQ[0].y);
      FP_Move (&P->x, &Point_PQ[5].x);
-     FpMinus (&P->y, prime, &Point_PQ[5].y); 
+     FpMinus (&P->y, prime, &Point_PQ[5].y);
 	 FP_Move (&Q->x, &Point_PQ[1].x);
-     FpMinus (&Q->y, prime, &Point_PQ[1].y); 
-	
-	 ECFpAdd (P,Q,a,b,prime,&Point_PQ[3]);  
-      
+     FpMinus (&Q->y, prime, &Point_PQ[1].y);
+
+	 ECFpAdd (P,Q,a,b,prime,&Point_PQ[3]);
+
 	 FP_Move (&Point_PQ[3].x, &Point_PQ[7].x);
-     FpMinus (&Point_PQ[3].y, prime, &Point_PQ[7].y);   
-	 
+     FpMinus (&Point_PQ[3].y, prime, &Point_PQ[7].y);
+
 	 ECFpAdd (P,&Point_PQ[1],a,b,prime,&Point_PQ[4]);
 
 	 FP_Move (&Point_PQ[4].x, &Point_PQ[6].x);
@@ -1566,19 +1566,19 @@ static int ECFpKPAddLQs(EcFpPoint *P,EcFpPoint *Q,MInt *u1,MInt *u2,
 	 MI_WordToMInt (0, &rr.x);
      MI_WordToMInt (1, &rr.y);
      MI_WordToMInt (0, &rr.z);
-	 
-	 for(i=JSFlong-1;i>=0;i--){		 
-		ECFpDoubleProj(&rr,a,b,prime, &rr);		
+
+	 for(i=JSFlong-1;i>=0;i--){
+		ECFpDoubleProj(&rr,a,b,prime, &rr);
 		if(JSFKL[i])
 			ECFpAddProj(&rr,&Point_PQ[JSFKL[i]-1],a,b,prime,&rr);
-	 }				 
-	 
+	 }
+
 	 FP_Invert (&rr.z, prime, &inverse);
 	 FPSqr_Mul (&inverse, prime, &temp);
 	 FP_Mul (&rr.x, &temp, prime, &result->x);
 	 FP_Mul(&temp,&inverse,prime,&inverse);
 	 FP_Mul (&rr.y, &inverse, prime, &result->y);
-  
+
 	return 0;
 
 }
@@ -1624,7 +1624,7 @@ static int PointToEcFpPoint(const Point *sour,EcFpPoint *dest )
 		dest->isInfinite=1;
 	else
 		dest->isInfinite=0;
-		
+
 	return 0;
 }
 
@@ -1651,15 +1651,15 @@ static int PointToEcFpPoint(const Point *sour,EcFpPoint *dest )
 	MInt s;
 	int i;
 	OctetStringToMInt(OString,OSLen,&s);
-	
+
 	for(i=0;i<s.length;i++)
 		piPrivateKey[i]=s.value[i];
 	*piLenOfPriKey=s.length;
-	
+
 	return 0;
 }
 
-	
+
  int OctetStringToPubKey(const unsigned char *OString, unsigned int OSLen,
 				Point *poPublicKey)
 {
@@ -1669,7 +1669,7 @@ static int PointToEcFpPoint(const Point *sour,EcFpPoint *dest )
 	len=OSLen/2;
 	OctetStringToMInt(OString,len,&x);
 	OctetStringToMInt(OString+len,len,&y);
-	
+
 	for(i=0;i<x.length ;i++)
 		poPublicKey->x[i]=x.value[i];
 	for(i=x.length ;i<PARABUFFER;i++)
@@ -1757,10 +1757,10 @@ static int ECFpAddProj (EcFpPointProject *addend1,EcFpPoint *addend2,
 		return 0;
     }
 
-	MI_Move(&addend1->x,&t1); 
+	MI_Move(&addend1->x,&t1);
 	MI_Move(&addend1->y,&t2);
 	MI_Move(&addend1->z,&t3);
-	FPSqr_Mul(&t3,prime,&t7); 
+	FPSqr_Mul(&t3,prime,&t7);
 	FP_Mul(&addend2->x,&t7,prime,&t4);
 	FP_Mul(&t3,&t7,prime,&t7);
 	FP_Mul(&addend2->y,&t7,prime,&t5);
@@ -1791,7 +1791,7 @@ static int ECFpAddProj (EcFpPointProject *addend1,EcFpPoint *addend2,
 	FP_Mul(&t5,&t7,prime,&t5);
 	FP_Mul(&t2,&t4,prime,&t4);
 	FP_Substract(&t5,&t4,prime,&result->y);
-	FpDivByTwo(&result->y,prime); 
+	FpDivByTwo(&result->y,prime);
 	MI_Move(&t1,&result->x);
 	MI_Move(&t3,&result->z);
 
@@ -1833,19 +1833,19 @@ static int ECES_DeFormat(unsigned char *OString, unsigned int OSLen,
 		memcpy (DestOString+i, OString,
 		sizeof(unsigned char)*(OSLen));
 	}
-	
+
 	return 0;
 }
 
 int KTimesPoint(unsigned int *piPrivateKey,int *piLenOfPriKey,
 				 Point *poTempPublicKey,const int iKeyBitLen1,Point *poAddPoint,const int iKeyBitLen2)
 {
-	
+
 	int i;
 	EcFpPoint point0;
 	EcFpPoint point1;
 	MInt key;
-	
+
 	PointToEcFpPoint(poTempPublicKey,&point1);
 	for(i=0;i<*piLenOfPriKey;i++)
 		key.value[i]=piPrivateKey[i];
@@ -1853,7 +1853,7 @@ int KTimesPoint(unsigned int *piPrivateKey,int *piLenOfPriKey,
 
 	if(MI_Compare(&key,&TheCurve.Order)>=0)
 		return 0;
-    
+
 	ECFpKTimes(&point1,&key,&TheCurve.A,&TheCurve.B,
 				&TheCurve.P,&point0);
 
@@ -1871,7 +1871,7 @@ int Generate_PubKey(unsigned int *piPrivateKey,int piLenOfPriKey,
 	int i;
 	EcFpPoint point0;
 	MInt key;
-		
+
 	for(i=0;i<piLenOfPriKey;i++)
 		key.value[i]=piPrivateKey[i];
 	key.length=piLenOfPriKey;
@@ -1942,16 +1942,16 @@ static int Encrypt_With_Public_Key(BYTE *pbCipherOut,const BYTE *pbPlainIn,
 			ECFpKTimes_FixP(&TheCurve.BasePoint,pTable1,&k,
 				&TheCurve.A,&TheCurve.B,&TheCurve.P,&E1) ;
 			ECFpKTimes(&Q,&k,&TheCurve.A,&TheCurve.B,
-				&TheCurve.P,&E2);  
+				&TheCurve.P,&E2);
 	}while(FP_IsZero(&E2.x));
-		
+
 	FP_Mul(&m,&E2.x,&TheCurve.P,&c);
 	CipherLen=TheCurve.P.length *4;
 
 	EcFpPointToFixLenOS(&E1,CipherLen,100,&len,pbCipherOut);
 	MIntToFixedLenOS(&c,CipherLen,100,&len1,pbCipherOut+len);
 	CipherLen=len+len1;
-	
+
 	return CipherLen;
 }
 #endif
@@ -1981,7 +1981,7 @@ static int Decrypt_With_Private_Key(BYTE *pbPlainOut,const BYTE *pbCipherIn,
 	OctetStringToMInt(pbCipherIn+2*CipherLen+1,CipherLen,&c);
 
 	ECFpKTimes(&E1,&priKey,&TheCurve.A,&TheCurve.B,
-		&TheCurve.P,&E2);  
+		&TheCurve.P,&E2);
 	FP_Div(&c,&E2.x,&TheCurve.P,&dem);
 
 	MIntToOctetString(&dem,100,&len,buff);
@@ -2032,7 +2032,7 @@ int Sign_With_Private_Key(unsigned char *pbSignOut,const unsigned char *pbData,i
 	signLen=TheCurve.P.length*4;
 
 	MIntToFixedLenOS(&r,signLen,100,&len,pbSignOut);
-	MIntToFixedLenOS(&s0,signLen,100,&len,pbSignOut+signLen); 
+	MIntToFixedLenOS(&s0,signLen,100,&len,pbSignOut+signLen);
 	signLen=signLen*2;
 
 	return signLen;
@@ -2046,7 +2046,7 @@ int Verify_With_Public_Key(const unsigned char *pbData,int iDataLen,
 	int len, status;
 	MInt  c,u1,u2,s,r,hashValue,temp;
 	EcFpPoint  point2,Q;
-	
+
 	len=iSignInLen/2;
 	PointToEcFpPoint(&oPubPoint,&Q);
 	sha256_digest_int(pbData,iDataLen,&hashValue);
@@ -2073,7 +2073,7 @@ int Verify_With_Public_Key(const unsigned char *pbData,int iDataLen,
 #endif
 
 /**********************************
-* ECC library function 
+* ECC library function
 ***********************************/
 
 int ECC_Init(void)
@@ -2101,19 +2101,19 @@ int ECC_Init(void)
 	unsigned char n192[30]= {0xBD,0xB6,0xF4,0xFE,0x3E,0x8B,0x1D,0x9E,
 							 0x0D,0xA8,0xC0,0xD4,0x0F,0xC9,0x62,0x19,
 							 0x5D,0xFA,0xE7,0x6F,0x56,0x56,0x46,0x77};
-	
-	
+
+
 	OctetStringToMInt(p192,PARABYTELEN,&TheCurve.P); /*p*/
 	OctetStringToMInt(a192,PARABYTELEN,&TheCurve.A); /*a*/
 	OctetStringToMInt(b192,PARABYTELEN,&TheCurve.B); /*p*/
-	
+
 	OctetStringToMInt(x192,PARABYTELEN,&TheCurve.BasePoint.x); /*x*/
 	OctetStringToMInt(y192,PARABYTELEN,&TheCurve.BasePoint.y); /*y*/
 	OctetStringToMInt(n192,PARABYTELEN,&TheCurve.Order);/*N*/
 	FpMul=FP_MulNormal;
 
 	gettalbe();
-		
+
 	return 1;
 }
 #if 1
@@ -2126,15 +2126,15 @@ int ecc192_genkey_pc(unsigned char *priv_key, unsigned char *pub_key)
 	Point oPubPoint;
 	MInt key;
 	EcFpPoint point0;
-	/*≤˙…˙¡Ÿ ±ÀΩ‘ø*/
+	/*‰∫ßÁîü‰∏¥Êó∂ÁßÅÈí•*/
 	oPubPoint.x = pubkey_x;
 	oPubPoint.y = pubkey_y;
-	
+
 	do{
 		GenRandomNumberForFixLen(6,&key);
 	}while(MI_Compare(&key,&TheCurve.Order)>=0);
 
-	
+
 	ECFpKTimes_FixP(&TheCurve.BasePoint,pTable1,&key,
 		&TheCurve.A, &TheCurve.B,&TheCurve.P, &point0);
 	EcFpPointToPoint(&point0 ,&oPubPoint);
@@ -2144,7 +2144,7 @@ int ecc192_genkey_pc(unsigned char *priv_key, unsigned char *pub_key)
 							&temp_pubkey_len,
 							pub_key+1);
 	pub_key[0] = 0x04;
-#if 0	
+#if 0
 	for(i=0;i<6;i++)
 		PrivateKey[i]=key.value[i];
 #endif
@@ -2157,24 +2157,24 @@ int ecc192_genkey(unsigned char *priv_key, unsigned char *pub_key)
 {
 	unsigned int pubkey_x[IWN_PUBKEY_INTLEN]={0,};
 	unsigned int pubkey_y[IWN_PUBKEY_INTLEN]={0,};
-	
+
 	int  i =0;
 	unsigned int temp_pubkey_len =0;
 	unsigned int temp_prikey_len =0;
 	Point oPubPoint;
 	MInt key;
 	EcFpPoint point0;
-	/*≤˙…˙¡Ÿ ±ÀΩ‘ø*/
+	/*‰∫ßÁîü‰∏¥Êó∂ÁßÅÈí•*/
 	oPubPoint.x = pubkey_x;
 	oPubPoint.y = pubkey_y;
-	
+
 	GenRandomNumberForFixLen(6,&key);
 	if(MI_Compare(&key,&TheCurve.Order)>=0)
 	{
 		for(i = TheCurve.Order.length -1; i>=0; i--)
 			key.value[i] &= TheCurve.Order.value[i];
 	}
-	
+
 	ECFpKTimes_FixP(&TheCurve.BasePoint,pTable1,&key,
 		&TheCurve.A, &TheCurve.B,&TheCurve.P, &point0);
 	EcFpPointToPoint(&point0 ,&oPubPoint);
@@ -2184,7 +2184,7 @@ int ecc192_genkey(unsigned char *priv_key, unsigned char *pub_key)
 							&temp_pubkey_len,
 							pub_key+1);
 	pub_key[0] = 0x04;
-#if 0	
+#if 0
 	for(i=0;i<6;i++)
 		PrivateKey[i]=key.value[i];
 #endif
@@ -2199,8 +2199,8 @@ int ecc192_genkey_MB(unsigned char *priv_key, unsigned char *pub_key)
 	unsigned int pub_x[6]={0,};
 	unsigned int pub_y[6]={0,};
 	unsigned int t_priv[24] = {0,};
-	
-	
+
+
 	int publen =0;
 	int privlen =0;
 	Point oPubPoint;
@@ -2225,8 +2225,8 @@ int ecc192_genpubkey(unsigned char *priv_key, unsigned char *pub_key)
 	unsigned int pub_x[6]={0,};
 	unsigned int pub_y[6]={0,};
 	unsigned int t_priv[24] = {0,};
-	
-	
+
+
 	int publen =0;
 	int privlen =0;
 	Point oPubPoint;
@@ -2246,24 +2246,24 @@ int ecc192_generate_pubKey(unsigned char *priv_key, unsigned char *pub_key)
 {
 	unsigned int pubkey_x[24]={0,};
 	unsigned int pubkey_y[24]={0,};
-	
+
 	int  i =0;
 	unsigned int temp_pubkey_len =0;
 	unsigned int temp_prikey_len =0;
 	Point oPubPoint;
 	MInt key;
 	EcFpPoint point0;
-	/*≤˙…˙¡Ÿ ±ÀΩ‘ø*/
+	/*‰∫ßÁîü‰∏¥Êó∂ÁßÅÈí•*/
 	oPubPoint.x = pubkey_x;
 	oPubPoint.y = pubkey_y;
-#if 0	
+#if 0
 	do{
 		GenRandomNumberForFixLen(6,&key);
 	}while(MI_Compare(&key,&TheCurve.Order)>=0);
 #endif
 
 	OctetStringToPriKey(priv_key, 24, key.value, (int *)&temp_prikey_len);
-	
+
 	ECFpKTimes_FixP(&TheCurve.BasePoint,pTable1,&key,
 		&TheCurve.A, &TheCurve.B,&TheCurve.P, &point0);
 	EcFpPointToPoint(&point0 ,&oPubPoint);
@@ -2273,7 +2273,7 @@ int ecc192_generate_pubKey(unsigned char *priv_key, unsigned char *pub_key)
 							&temp_pubkey_len,
 							pub_key+1);
 	pub_key[0] = 0x04;
-#if 0	
+#if 0
 	for(i=0;i<6;i++)
 		PrivateKey[i]=key.value[i];
 	PriKeyToOctetString(key.value, 6,  24, &temp_prikey_len, priv_key);
@@ -2288,10 +2288,10 @@ int  ecc192_sign(const unsigned char *priv_key, const unsigned char *in, int in_
 	int out_len = 0;
 	unsigned int PrivateKey[IWN_PRIKEY_INTLEN+1]={0,};
 	int LenOfPrivKey = 0;
-#if 0	
+#if 0
 	DPrint_string("priv_key",priv_key,24);
 	DPrint_string("data", in,  in_len);
-#endif	
+#endif
 	OctetStringToPriKey(priv_key, 24, PrivateKey, &LenOfPrivKey);
 	out_len = Sign_With_Private_Key(out, in, in_len,	PrivateKey, LenOfPrivKey);
 	return out_len;
@@ -2312,7 +2312,7 @@ int   ecc192_verify(const unsigned char *pub_key, const unsigned char *in ,  int
 	oPubPoint.y = pubkey_y;
 #if 0
 	DPrint_string("pub_key", pub_key, 48);
-#endif	
+#endif
 	OctetStringToPubKey((const unsigned char *)pub_key+1, 48, &oPubPoint);
 #if 0
 	DPrint_string("x", oPubPoint.x, 24);
@@ -2343,12 +2343,12 @@ int ecc192_decrypt(unsigned char *pout, const unsigned char *pin, int  len,unsig
 {
 	unsigned int PrivateKey[IWN_PUBKEY_INTLEN]={0,};
 	int LenOfPrivKey = 0;
-#if 0	
+#if 0
 	DPrint_string("priv_key", priv_key,24);
 	DPrint_string("in", in,  in_len);
-#endif	
+#endif
 	OctetStringToPriKey(priv_key, 24, PrivateKey, &LenOfPrivKey);
-	
+
 	return Decrypt_With_Private_Key(pout,pin, len, (const unsigned int *)PrivateKey,LenOfPrivKey);
 }
 #endif
@@ -2375,17 +2375,17 @@ int ecc192_ecdh(const unsigned char * priv_key, const unsigned char *pub_key, un
 	oPubPoint.y = pubkey_y;
 	OctetStringToPubKey((const unsigned char *)pub_key+1, 48, &oPubPoint);
 
-#if 0	
+#if 0
 	DPrint_string("priv_key", priv_key,24);
 	DPrint_string("in", in,  in_len);
-#endif	
+#endif
 	OctetStringToPriKey(priv_key, 24, PrivateKey, &LenOfPrivKey);
 
 	ret = KTimesPoint(PrivateKey,//y
-                &private_len_int,     // int∏ˆ ˝
+                &private_len_int,     // int‰∏™Êï∞
                 &oPubPoint,//x*P
                 192,  // 192
-                &poutPublicKey,    // ‰≥ˆµƒx*y*P
+                &poutPublicKey,    //ËæìÂá∫ÁöÑx*y*P
                 192   //192
                 );
 	if(ret != 0)
