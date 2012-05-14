@@ -550,7 +550,12 @@ SENS(initTas5130, tas5130_sensor_init, F_GAIN,
 static void reg_r(struct gspca_dev *gspca_dev,
 		  __u16 value)
 {
-	usb_control_msg(gspca_dev->dev,
+	int res;
+
+	if (gspca_dev->usb_err < 0)
+		return;
+
+	res = usb_control_msg(gspca_dev->dev,
 			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			0,			/* request */
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
@@ -558,6 +563,12 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			0,			/* index */
 			gspca_dev->usb_buf, 1,
 			500);
+
+	if (res < 0) {
+		dev_err(gspca_dev->v4l2_dev.dev,
+			"Error reading register %02x: %d\n", value, res);
+		gspca_dev->usb_err = res;
+	}
 }
 
 static void reg_w(struct gspca_dev *gspca_dev,
@@ -565,14 +576,13 @@ static void reg_w(struct gspca_dev *gspca_dev,
 		  const __u8 *buffer,
 		  int len)
 {
-#ifdef GSPCA_DEBUG
-	if (len > USB_BUF_SZ) {
-		PDEBUG(D_ERR|D_PACK, "reg_w: buffer overflow");
+	int res;
+
+	if (gspca_dev->usb_err < 0)
 		return;
-	}
-#endif
+
 	memcpy(gspca_dev->usb_buf, buffer, len);
-	usb_control_msg(gspca_dev->dev,
+	res = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0x08,			/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
@@ -580,30 +590,48 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			0,			/* index */
 			gspca_dev->usb_buf, len,
 			500);
+
+	if (res < 0) {
+		dev_err(gspca_dev->v4l2_dev.dev,
+			"Error writing register %02x: %d\n", value, res);
+		gspca_dev->usb_err = res;
+	}
 }
 
-static int i2c_w(struct gspca_dev *gspca_dev, const __u8 *buffer)
+static void i2c_w(struct gspca_dev *gspca_dev, const __u8 *buffer)
 {
 	int retry = 60;
+
+	if (gspca_dev->usb_err < 0)
+		return;
 
 	/* is i2c ready */
 	reg_w(gspca_dev, 0x08, buffer, 8);
 	while (retry--) {
+		if (gspca_dev->usb_err < 0)
+			return;
 		msleep(10);
 		reg_r(gspca_dev, 0x08);
 		if (gspca_dev->usb_buf[0] & 0x04) {
-			if (gspca_dev->usb_buf[0] & 0x08)
-				return -1;
-			return 0;
+			if (gspca_dev->usb_buf[0] & 0x08) {
+				dev_err(gspca_dev->v4l2_dev.dev,
+					"i2c write error\n");
+				gspca_dev->usb_err = -EIO;
+			}
+			return;
 		}
 	}
-	return -1;
+
+	dev_err(gspca_dev->v4l2_dev.dev, "i2c write timeout\n");
+	gspca_dev->usb_err = -EIO;
 }
 
 static void i2c_w_vector(struct gspca_dev *gspca_dev,
 			const __u8 buffer[][8], int len)
 {
 	for (;;) {
+		if (gspca_dev->usb_err < 0)
+			return;
 		reg_w(gspca_dev, 0x08, *buffer, 8);
 		len -= 8;
 		if (len <= 0)
@@ -625,10 +653,9 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		/* change reg 0x06 */
 		i2cOV[1] = sensor_data[sd->sensor].sensor_addr;
 		i2cOV[3] = sd->ctrls[BRIGHTNESS].val;
-		if (i2c_w(gspca_dev, i2cOV) < 0)
-			goto err;
+		i2c_w(gspca_dev, i2cOV);
 		break;
-	    }
+	}
 	case SENSOR_PAS106:
 	case SENSOR_PAS202: {
 		__u8 i2cpbright[] =
@@ -650,16 +677,13 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		} else
 			i2cpbright[4] = sd->ctrls[BRIGHTNESS].val - 127;
 
-		if (i2c_w(gspca_dev, i2cpbright) < 0)
-			goto err;
-		if (i2c_w(gspca_dev, i2cpdoit) < 0)
-			goto err;
+		i2c_w(gspca_dev, i2cpbright);
+		i2c_w(gspca_dev, i2cpdoit);
 		break;
-	    }
 	}
-	return;
-err:
-	PDEBUG(D_ERR, "i2c error brightness");
+	default:
+		break;
+	}
 }
 
 static void setsensorgain(struct gspca_dev *gspca_dev)
@@ -676,20 +700,18 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 		i2c[4] = 0x3f - (gain / 4);
 		i2c[5] = 0x3f - (gain / 4);
 
-		if (i2c_w(gspca_dev, i2c) < 0)
-			goto err;
+		i2c_w(gspca_dev, i2c);
 		break;
-	    }
+	}
 	case SENSOR_TAS5110C:
 	case SENSOR_TAS5130CXX: {
 		__u8 i2c[] =
 			{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10};
 
 		i2c[4] = 255 - gain;
-		if (i2c_w(gspca_dev, i2c) < 0)
-			goto err;
+		i2c_w(gspca_dev, i2c);
 		break;
-	    }
+	}
 	case SENSOR_TAS5110D: {
 		__u8 i2c[] = {
 			0xb0, 0x61, 0x02, 0x00, 0x10, 0x00, 0x00, 0x17 };
@@ -703,11 +725,9 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 		i2c[3] |= (gain & 0x04) << 3;
 		i2c[3] |= (gain & 0x02) << 5;
 		i2c[3] |= (gain & 0x01) << 7;
-		if (i2c_w(gspca_dev, i2c) < 0)
-			goto err;
+		i2c_w(gspca_dev, i2c);
 		break;
-	    }
-
+	}
 	case SENSOR_OV6650:
 		gain >>= 1;
 		/* fall thru */
@@ -716,10 +736,9 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 
 		i2c[1] = sensor_data[sd->sensor].sensor_addr;
 		i2c[3] = gain >> 2;
-		if (i2c_w(gspca_dev, i2c) < 0)
-			goto err;
+		i2c_w(gspca_dev, i2c);
 		break;
-	    }
+	}
 	case SENSOR_PAS106:
 	case SENSOR_PAS202: {
 		__u8 i2cpgain[] =
@@ -743,18 +762,14 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 		i2cpcolorgain[5] = gain >> 4;
 		i2cpcolorgain[6] = gain >> 4;
 
-		if (i2c_w(gspca_dev, i2cpgain) < 0)
-			goto err;
-		if (i2c_w(gspca_dev, i2cpcolorgain) < 0)
-			goto err;
-		if (i2c_w(gspca_dev, i2cpdoit) < 0)
-			goto err;
+		i2c_w(gspca_dev, i2cpgain);
+		i2c_w(gspca_dev, i2cpcolorgain);
+		i2c_w(gspca_dev, i2cpdoit);
 		break;
-	    }
 	}
-	return;
-err:
-	PDEBUG(D_ERR, "i2c error gain");
+	default:
+		break;
+	}
 }
 
 static void setgain(struct gspca_dev *gspca_dev)
@@ -802,10 +817,9 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 		i2c[3] = reg >> 8;
 		i2c[4] = reg & 0xff;
-		if (i2c_w(gspca_dev, i2c) != 0)
-			goto err;
+		i2c_w(gspca_dev, i2c);
 		break;
-	    }
+	}
 	case SENSOR_TAS5110C:
 	case SENSOR_TAS5110D: {
 		/* register 19's high nibble contains the sn9c10x clock divider
@@ -816,7 +830,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		reg = (reg << 4) | 0x0b;
 		reg_w(gspca_dev, 0x19, &reg, 1);
 		break;
-	    }
+	}
 	case SENSOR_OV6650:
 	case SENSOR_OV7630: {
 		/* The ov6650 / ov7630 have 2 registers which both influence
@@ -884,12 +898,11 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		if (sd->reg11 == reg11)
 			i2c[0] = 0xa0;
 
-		if (i2c_w(gspca_dev, i2c) == 0)
+		i2c_w(gspca_dev, i2c);
+		if (gspca_dev->usb_err == 0)
 			sd->reg11 = reg11;
-		else
-			goto err;
 		break;
-	    }
+	}
 	case SENSOR_PAS202: {
 		__u8 i2cpframerate[] =
 			{0xb0, 0x40, 0x04, 0x00, 0x00, 0x00, 0x00, 0x16};
@@ -923,14 +936,11 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 		i2cpframerate[3] = framerate_ctrl >> 6;
 		i2cpframerate[4] = framerate_ctrl & 0x3f;
-		if (i2c_w(gspca_dev, i2cpframerate) < 0)
-			goto err;
-		if (i2c_w(gspca_dev, i2cpexpo) < 0)
-			goto err;
-		if (i2c_w(gspca_dev, i2cpdoit) < 0)
-			goto err;
+		i2c_w(gspca_dev, i2cpframerate);
+		i2c_w(gspca_dev, i2cpexpo);
+		i2c_w(gspca_dev, i2cpdoit);
 		break;
-	    }
+	}
 	case SENSOR_PAS106: {
 		__u8 i2cpframerate[] =
 			{0xb1, 0x40, 0x03, 0x00, 0x00, 0x00, 0x00, 0x14};
@@ -955,27 +965,21 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 		i2cpframerate[3] = framerate_ctrl >> 4;
 		i2cpframerate[4] = framerate_ctrl & 0x0f;
-		if (i2c_w(gspca_dev, i2cpframerate) < 0)
-			goto err;
-		if (i2c_w(gspca_dev, i2cpexpo) < 0)
-			goto err;
-		if (i2c_w(gspca_dev, i2cpdoit) < 0)
-			goto err;
+		i2c_w(gspca_dev, i2cpframerate);
+		i2c_w(gspca_dev, i2cpexpo);
+		i2c_w(gspca_dev, i2cpdoit);
 		break;
-	    }
 	}
-	return;
-err:
-	PDEBUG(D_ERR, "i2c error exposure");
+	default:
+		break;
+	}
 }
 
 static void setfreq(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	switch (sd->sensor) {
-	case SENSOR_OV6650:
-	case SENSOR_OV7630: {
+	if (sd->sensor == SENSOR_OV6650 || sd->sensor == SENSOR_OV7630) {
 		/* Framerate adjust register for artificial light 50 hz flicker
 		   compensation, for the ov6650 this is identical to ov6630
 		   0x2b register, see ov6630 datasheet.
@@ -993,10 +997,7 @@ static void setfreq(struct gspca_dev *gspca_dev)
 			break;
 		}
 		i2c[1] = sensor_data[sd->sensor].sensor_addr;
-		if (i2c_w(gspca_dev, i2c) < 0)
-			PDEBUG(D_ERR, "i2c error setfreq");
-		break;
-	    }
+		i2c_w(gspca_dev, i2c);
 	}
 }
 
@@ -1100,7 +1101,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	reg_w(gspca_dev, 0x01, &stop, 1);
 
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 /* -- start the camera -- */
@@ -1245,7 +1246,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	sd->exp_too_high_cnt = 0;
 	sd->exp_too_low_cnt = 0;
 	atomic_set(&sd->avg_lum, -1);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
