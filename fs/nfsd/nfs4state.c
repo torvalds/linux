@@ -1508,6 +1508,19 @@ nfsd4_set_ex_flags(struct nfs4_client *new, struct nfsd4_exchange_id *clid)
 	clid->flags = new->cl_exchange_flags;
 }
 
+static bool client_has_state(struct nfs4_client *clp)
+{
+	/*
+	 * Note clp->cl_openowners check isn't quite right: there's no
+	 * need to count owners without stateid's.
+	 *
+	 * Also note we should probably be using this in 4.0 case too.
+	 */
+	return list_empty(&clp->cl_openowners)
+		&& list_empty(&clp->cl_delegations)
+		&& list_empty(&clp->cl_sessions);
+}
+
 __be32
 nfsd4_exchange_id(struct svc_rqst *rqstp,
 		  struct nfsd4_compound_state *cstate,
@@ -1576,8 +1589,11 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 			goto out_copy;
 		}
 		if (!creds_match) { /* case 3 */
-			status = nfserr_clid_inuse;
-			goto out;
+			if (client_has_state(conf)) {
+				status = nfserr_clid_inuse;
+				goto out;
+			}
+			goto expire_client;
 		}
 		if (verfs_match) { /* case 2 */
 			exid->flags |= EXCHGID4_FLAG_CONFIRMED_R;
@@ -1585,6 +1601,7 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 			goto out_copy;
 		}
 		/* case 5, client reboot */
+expire_client:
 		expire_client(conf);
 		goto out_new;
 	}
