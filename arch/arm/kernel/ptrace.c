@@ -906,27 +906,14 @@ long arch_ptrace(struct task_struct *child, long request,
 	return ret;
 }
 
-#ifdef __ARMEB__
-#define AUDIT_ARCH_NR AUDIT_ARCH_ARMEB
-#else
-#define AUDIT_ARCH_NR AUDIT_ARCH_ARM
-#endif
-
 asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scno)
 {
 	unsigned long ip;
 
-	/*
-	 * Save IP.  IP is used to denote syscall entry/exit:
-	 *  IP = 0 -> entry, = 1 -> exit
-	 */
-	ip = regs->ARM_ip;
-	regs->ARM_ip = why;
-
-	if (!ip)
+	if (why)
 		audit_syscall_exit(regs);
 	else
-		audit_syscall_entry(AUDIT_ARCH_NR, scno, regs->ARM_r0,
+		audit_syscall_entry(AUDIT_ARCH_ARM, scno, regs->ARM_r0,
 				    regs->ARM_r1, regs->ARM_r2, regs->ARM_r3);
 
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
@@ -935,6 +922,13 @@ asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scno)
 		return scno;
 
 	current_thread_info()->syscall = scno;
+
+	/*
+	 * IP is used to denote syscall entry/exit:
+	 * IP = 0 -> entry, =1 -> exit
+	 */
+	ip = regs->ARM_ip;
+	regs->ARM_ip = why;
 
 	/* the 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
