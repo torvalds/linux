@@ -512,7 +512,7 @@ static int axp_cal_restvol(int vol)
     }
     else if(vol < 3750)
     {
-        return (18500 + 1500 * (vol - 3650) / 10)/1000;              //20%¸ÄÎª18%
+        return (18500 + 1500 * (vol - 3650) / 10)/1000;              //20%æ”¹ä¸º18%
     }
     else if(vol < 3830)
     {
@@ -520,7 +520,7 @@ static int axp_cal_restvol(int vol)
     }
     else if(vol < 4000)
     {
-        return (48500 + (4000 * (vol - 3830)/(400 - 383)))/1000;    //40%¸ÄÎª37%
+        return (48500 + (4000 * (vol - 3830)/(400 - 383)))/1000;    //40%æ”¹ä¸º37%
     }
     else
     {
@@ -528,7 +528,7 @@ static int axp_cal_restvol(int vol)
         {
             vol = 4150;
         }
-        return (855 + (150 * (vol - 4000)/150))/10;                 //4200-3950 = 250£¬13%¸ÄÎª15%
+        return (855 + (150 * (vol - 4000)/150))/10;                 //4200-3950 = 250ï¼Œ13%æ”¹ä¸º15%
     }
 }
 
@@ -804,7 +804,7 @@ static int axp_main_task(void *arg)
            		}
 			}
 
-			if((pre_charge_status == 1) && (!charger->is_on) && (charger->bat_det) && (charger->ext_valid)){//³äµç½áÊøÊ±Ë¢ÐÂÎª100
+			if((pre_charge_status == 1) && (!charger->is_on) && (charger->bat_det) && (charger->ext_valid)){//å……ç”µç»“æŸæ—¶åˆ·æ–°ä¸º100
             	charger->rest_vol = total_vol / batcap_count;
 			}
 
