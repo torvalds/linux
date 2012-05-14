@@ -40,7 +40,7 @@ int ima_init_crypto(void)
 /*
  * Calculate the MD5/SHA1 file digest
  */
-int ima_calc_hash(struct file *file, char *digest)
+int ima_calc_file_hash(struct file *file, char *digest)
 {
 	loff_t i_size, offset = 0;
 	char *rbuf;
@@ -93,9 +93,9 @@ out:
 }
 
 /*
- * Calculate the hash of a given template
+ * Calculate the hash of a given buffer
  */
-int ima_calc_template_hash(int template_len, void *template, char *digest)
+int ima_calc_buffer_hash(const void *data, int len, char *digest)
 {
 	struct {
 		struct shash_desc shash;
@@ -105,7 +105,7 @@ int ima_calc_template_hash(int template_len, void *template, char *digest)
 	desc.shash.tfm = ima_shash_tfm;
 	desc.shash.flags = 0;
 
-	return crypto_shash_digest(&desc.shash, template, template_len, digest);
+	return crypto_shash_digest(&desc.shash, data, len, digest);
 }
 
 static void __init ima_pcrread(int idx, u8 *pcr)

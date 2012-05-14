@@ -50,8 +50,8 @@ int ima_store_template(struct ima_template_entry *entry,
 	entry->template_len = sizeof(entry->template);
 
 	if (!violation) {
-		result = ima_calc_template_hash(entry->template_len,
-						&entry->template,
+		result = ima_calc_buffer_hash(&entry->template,
+						entry->template_len,
 						entry->digest);
 		if (result < 0) {
 			integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
@@ -148,7 +148,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 		u64 i_version = file->f_dentry->d_inode->i_version;
 
 		iint->ima_xattr.type = IMA_XATTR_DIGEST;
-		result = ima_calc_hash(file, iint->ima_xattr.digest);
+		result = ima_calc_file_hash(file, iint->ima_xattr.digest);
 		if (!result) {
 			iint->version = i_version;
 			iint->flags |= IMA_COLLECTED;
