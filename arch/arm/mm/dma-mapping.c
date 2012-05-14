@@ -295,7 +295,7 @@ void __init dma_contiguous_remap(void)
 		 * Clear previous low-memory mapping
 		 */
 		for (addr = __phys_to_virt(start); addr < __phys_to_virt(end);
-		     addr += PGDIR_SIZE)
+		     addr += PMD_SIZE)
 			pmd_clear(pmd_off_k(addr));
 
 		iotable_init(&map, 1);
