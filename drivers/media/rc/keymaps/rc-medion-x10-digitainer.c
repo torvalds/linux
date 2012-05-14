@@ -86,6 +86,14 @@ static struct rc_map_table medion_x10_digitainer[] = {
 	{ 0x14, KEY_8 },
 	{ 0x15, KEY_9 },
 	{ 0x17, KEY_0 },
+
+	/* these do not actually exist on this remote, but these scancodes
+	 * exist on all other Medion X10 remotes and adding them here allows
+	 * such remotes to be adequately usable with this keymap in case
+	 * this keymap is wrongly used with them (which is quite possible as
+	 * there are lots of different Medion X10 remotes): */
+	{ 0x1a, KEY_UP },
+	{ 0x22, KEY_DOWN },
 };
 
 static struct rc_map_list medion_x10_digitainer_map = {
