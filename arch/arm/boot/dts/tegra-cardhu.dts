@@ -93,6 +93,14 @@
 
 	i2c@7000c500 {
 		clock-frequency = <100000>;
+
+		/* ALS and Proximity sensor */
+		isl29028@44 {
+			compatible = "isil,isl29028";
+			reg = <0x44>;
+			interrupt-parent = <&gpio>;
+			interrupts = <88 0x04>; /*gpio PL0 */
+		};
 	};
 
 	i2c@7000c700 {

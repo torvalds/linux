@@ -250,13 +250,19 @@
 
 	i2c@7000c500 {
 		clock-frequency = <400000>;
+
+		codec: codec@1a {
+			compatible = "ti,tlv320aic23";
+			reg = <0x1a>;
+		};
+
+		rtc@56 {
+			compatible = "emmicro,em3027";
+			reg = <0x56>;
+		};
 	};
 
 	i2c@7000d000 {
-		status = "disable";
-	};
-
-	i2s@70002800 {
 		status = "disable";
 	};
 
@@ -264,8 +270,10 @@
 		status = "disable";
 	};
 
-	das@70000c00 {
-		status = "disable";
+	sound {
+		compatible = "nvidia,tegra-audio-trimslice";
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&codec>;
 	};
 
 	serial@70006000 {
@@ -285,10 +293,6 @@
 	};
 
 	serial@70006400 {
-		status = "disable";
-	};
-
-	sdhci@c8000000 {
 		status = "disable";
 	};
 

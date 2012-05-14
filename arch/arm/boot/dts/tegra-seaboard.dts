@@ -100,7 +100,7 @@
 			};
 			hdint {
 				nvidia,pins = "hdint", "lpw0", "lpw2", "lsc1",
-					"lsck", "lsda", "pta";
+					"lsck", "lsda";
 				nvidia,function = "hdmi";
 			};
 			i2cp {
@@ -133,6 +133,10 @@
 			pmc {
 				nvidia,pins = "pmc";
 				nvidia,function = "pwr_on";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "i2c2";
 			};
 			rm {
 				nvidia,pins = "rm";
@@ -270,10 +274,32 @@
 			micdet-delay = <100>;
 			gpio-cfg = < 0xffffffff 0xffffffff 0 0xffffffff 0xffffffff >;
 		};
+
+		/* ALS and proximity sensor */
+		isl29018@44 {
+			compatible = "isil,isl29018";
+			reg = <0x44>;
+			interrupt-parent = <&gpio>;
+			interrupts = < 202 0x04 >; /* GPIO PZ2 */
+		};
+
+		gyrometer@68 {
+			compatible = "invn,mpu3050";
+			reg = <0x68>;
+			interrupt-parent = <&gpio>;
+			interrupts = <204 0x04>; /* gpio PZ4 */
+		};
 	};
 
 	i2c@7000c400 {
-		clock-frequency = <400000>;
+		clock-frequency = <100000>;
+
+		smart-battery@b {
+			compatible = "ti,bq20z75", "smart-battery-1.1";
+			reg = <0xb>;
+			ti,i2c-retry-count = <2>;
+			ti,poll-retry-count = <10>;
+		};
 	};
 
 	i2c@7000c500 {
@@ -283,9 +309,16 @@
 	i2c@7000d000 {
 		clock-frequency = <400000>;
 
-		adt7461@4c {
-			compatible = "adt7461";
+		temperature-sensor@4c {
+			compatible = "nct1008";
 			reg = <0x4c>;
+		};
+
+		magnetometer@c {
+			compatible = "ak8975";
+			reg = <0xc>;
+			interrupt-parent = <&gpio>;
+			interrupts = <109 0x04>; /* gpio PN5 */
 		};
 	};
 
