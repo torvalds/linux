@@ -1095,7 +1095,7 @@ static int cx231xx_initialize_codec(struct cx231xx *dev)
 {
 	int version;
 	int retval;
-	u32 i, data[7];
+	u32 i;
 	u32 val = 0;
 
 	dprintk(1, "%s()\n", __func__);
@@ -1154,6 +1154,11 @@ static int cx231xx_initialize_codec(struct cx231xx *dev)
 		CX231xx_CUSTOM_EXTENSION_USR_DATA, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0);
 */
+
+#if 0
+	/* TODO */
+	u32 data[7];
+
 	/* Setup to capture VBI */
 	data[0] = 0x0001BD00;
 	data[1] = 1;          /* frames per interrupt */
@@ -1162,7 +1167,7 @@ static int cx231xx_initialize_codec(struct cx231xx *dev)
 	data[4] = 0x206080C0; /* stop codes */
 	data[5] = 6;          /* lines */
 	data[6] = 64;         /* BPL */
-/*
+
 	cx231xx_api_cmd(dev, CX2341X_ENC_SET_VBI_CONFIG, 7, 0, data[0], data[1],
 		data[2], data[3], data[4], data[5], data[6]);
 
@@ -1175,7 +1180,7 @@ static int cx231xx_initialize_codec(struct cx231xx *dev)
 		cx231xx_api_cmd(dev, CX2341X_ENC_SET_VBI_LINE, 5, 0,
 				i | 0x80000000, valid, 0, 0, 0);
 	}
-*/
+#endif
 /*	cx231xx_api_cmd(dev, CX2341X_ENC_MUTE_AUDIO, 1, 0, CX231xx_UNMUTE);
 	msleep(60);
 */
@@ -1792,17 +1797,16 @@ static int vidioc_streamon(struct file *file, void *priv,
 	struct cx231xx_fh  *fh  = file->private_data;
 
 	struct cx231xx *dev = fh->dev;
-	int rc = 0;
 	dprintk(3, "enter vidioc_streamon()\n");
 		cx231xx_set_alt_setting(dev, INDEX_TS1, 0);
-		rc = cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
+		cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
 		if (dev->USE_ISO)
-			rc = cx231xx_init_isoc(dev, CX231XX_NUM_PACKETS,
+			cx231xx_init_isoc(dev, CX231XX_NUM_PACKETS,
 				       CX231XX_NUM_BUFS,
 				       dev->video_mode.max_pkt_size,
 				       cx231xx_isoc_copy);
 		else {
-			rc = cx231xx_init_bulk(dev, 320,
+			cx231xx_init_bulk(dev, 320,
 				       5,
 				       dev->ts1_mode.max_pkt_size,
 				       cx231xx_bulk_copy);
