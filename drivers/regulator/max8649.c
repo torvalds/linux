@@ -70,11 +70,6 @@ static inline int check_range(int min_uV, int max_uV)
 	return 0;
 }
 
-static int max8649_list_voltage(struct regulator_dev *rdev, unsigned index)
-{
-	return (MAX8649_DCDC_VMIN + index * MAX8649_DCDC_STEP);
-}
-
 static int max8649_set_voltage(struct regulator_dev *rdev,
 			       int min_uV, int max_uV, unsigned *selector)
 {
@@ -135,7 +130,7 @@ static int max8649_enable_time(struct regulator_dev *rdev)
 	if (ret != 0)
 		return ret;
 	val &= MAX8649_VOL_MASK;
-	voltage = max8649_list_voltage(rdev, (unsigned char)val); /* uV */
+	voltage = regulator_list_voltage_linear(rdev, (unsigned char)val);
 
 	/* get rate */
 	ret = regmap_read(info->regmap, MAX8649_RAMP, &val);
@@ -183,7 +178,7 @@ static unsigned int max8649_get_mode(struct regulator_dev *rdev)
 static struct regulator_ops max8649_dcdc_ops = {
 	.set_voltage	= max8649_set_voltage,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
-	.list_voltage	= max8649_list_voltage,
+	.list_voltage	= regulator_list_voltage_linear,
 	.enable		= max8649_enable,
 	.disable	= max8649_disable,
 	.is_enabled	= max8649_is_enabled,
@@ -200,6 +195,8 @@ static struct regulator_desc dcdc_desc = {
 	.n_voltages	= 1 << 6,
 	.owner		= THIS_MODULE,
 	.vsel_mask	= MAX8649_VOL_MASK,
+	.min_uV		= MAX8649_DCDC_VMIN,
+	.uV_step	= MAX8649_DCDC_STEP,
 };
 
 static struct regmap_config max8649_regmap_config = {
