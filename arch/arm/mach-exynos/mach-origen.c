@@ -45,6 +45,7 @@
 #include <mach/ohci.h>
 #include <mach/map.h>
 
+#include <drm/exynos_drm.h>
 #include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
@@ -583,6 +584,27 @@ static struct platform_device origen_lcd_hv070wsa = {
 	.dev.platform_data	= &origen_lcd_hv070wsa_data,
 };
 
+#ifdef CONFIG_DRM_EXYNOS
+static struct exynos_drm_fimd_pdata drm_fimd_pdata = {
+	.panel	= {
+		.timing	= {
+			.left_margin	= 64,
+			.right_margin	= 16,
+			.upper_margin	= 64,
+			.lower_margin	= 16,
+			.hsync_len	= 48,
+			.vsync_len	= 3,
+			.xres		= 1024,
+			.yres		= 600,
+		},
+	},
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
+	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC |
+				VIDCON1_INV_VCLK,
+	.default_win	= 0,
+	.bpp		= 32,
+};
+#else
 static struct s3c_fb_pd_win origen_fb_win0 = {
 	.win_mode = {
 		.left_margin	= 64,
@@ -596,6 +618,8 @@ static struct s3c_fb_pd_win origen_fb_win0 = {
 	},
 	.max_bpp		= 32,
 	.default_bpp		= 24,
+	.virtual_x		= 1024,
+	.virtual_y		= 2 * 600,
 };
 
 static struct s3c_fb_platdata origen_lcd_pdata __initdata = {
@@ -605,9 +629,10 @@ static struct s3c_fb_platdata origen_lcd_pdata __initdata = {
 				VIDCON1_INV_VCLK,
 	.setup_gpio	= exynos4_fimd0_gpio_setup_24bpp,
 };
+#endif
 
 /* Bluetooth rfkill gpio platform data */
-struct rfkill_gpio_platform_data origen_bt_pdata = {
+static struct rfkill_gpio_platform_data origen_bt_pdata = {
 	.reset_gpio	= EXYNOS4_GPX2(2),
 	.shutdown_gpio	= -1,
 	.type		= RFKILL_TYPE_BLUETOOTH,
@@ -644,6 +669,9 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
 	&s5p_device_mixer,
+#ifdef CONFIG_DRM_EXYNOS
+	&exynos_device_drm,
+#endif
 	&exynos4_device_ohci,
 	&origen_device_gpiokeys,
 	&origen_lcd_hv070wsa,
@@ -719,7 +747,12 @@ static void __init origen_machine_init(void)
 	s5p_tv_setup();
 	s5p_i2c_hdmiphy_set_platdata(NULL);
 
+#ifdef CONFIG_DRM_EXYNOS
+	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;
+	exynos4_fimd0_gpio_setup_24bpp();
+#else
 	s5p_fimd0_set_platdata(&origen_lcd_pdata);
+#endif
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
 

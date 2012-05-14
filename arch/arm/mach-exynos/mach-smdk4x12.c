@@ -31,6 +31,7 @@
 #include <plat/gpio-cfg.h>
 #include <plat/iic.h>
 #include <plat/keypad.h>
+#include <plat/mfc.h>
 #include <plat/regs-serial.h>
 #include <plat/sdhci.h>
 
@@ -244,6 +245,14 @@ static struct platform_device *smdk4x12_devices[] __initdata = {
 	&s3c_device_i2c7,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
+	&s5p_device_fimc0,
+	&s5p_device_fimc1,
+	&s5p_device_fimc2,
+	&s5p_device_fimc3,
+	&s5p_device_fimc_md,
+	&s5p_device_mfc,
+	&s5p_device_mfc_l,
+	&s5p_device_mfc_r,
 	&samsung_device_keypad,
 };
 
@@ -254,6 +263,11 @@ static void __init smdk4x12_map_io(void)
 	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(smdk4x12_uartcfgs, ARRAY_SIZE(smdk4x12_uartcfgs));
+}
+
+static void __init smdk4x12_reserve(void)
+{
+	s5p_mfc_reserve_mem(0x43000000, 8 << 20, 0x51000000, 8 << 20);
 }
 
 static void __init smdk4x12_machine_init(void)
@@ -293,6 +307,7 @@ MACHINE_START(SMDK4212, "SMDK4212")
 	.init_machine	= smdk4x12_machine_init,
 	.timer		= &exynos4_timer,
 	.restart	= exynos4_restart,
+	.reserve	= &smdk4x12_reserve,
 MACHINE_END
 
 MACHINE_START(SMDK4412, "SMDK4412")
@@ -305,4 +320,5 @@ MACHINE_START(SMDK4412, "SMDK4412")
 	.init_machine	= smdk4x12_machine_init,
 	.timer		= &exynos4_timer,
 	.restart	= exynos4_restart,
+	.reserve	= &smdk4x12_reserve,
 MACHINE_END
