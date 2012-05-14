@@ -1882,6 +1882,16 @@ F:	Documentation/filesystems/coda.txt
 F:	fs/coda/
 F:	include/linux/coda*.h
 
+COMMON CLK FRAMEWORK
+M:	Mike Turquette <mturquette@ti.com>
+M:	Mike Turquette <mturquette@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (same as CLK API & CLKDEV)
+T:	git git://git.linaro.org/people/mturquette/linux.git
+S:	Maintained
+F:	drivers/clk/clk.c
+F:	drivers/clk/clk-*
+F:	include/linux/clk-pr*
+
 COMMON INTERNET FILE SYSTEM (CIFS)
 M:	Steve French <sfrench@samba.org>
 L:	linux-cifs@vger.kernel.org
@@ -5235,6 +5245,14 @@ M:	Linus Walleij <linus.walleij@linaro.org>
 S:	Maintained
 F:	drivers/pinctrl/
 
+PIN CONTROLLER - ST SPEAR
+M:	Viresh Kumar <viresh.kumar@st.com>
+L:	spear-devel@list.st.com
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+W:	http://www.st.com/spear
+S:	Maintained
+F:	driver/pinctrl/spear/
+
 PKTCDVD DRIVER
 M:	Peter Osterlund <petero2@telia.com>
 S:	Maintained
@@ -6299,14 +6317,25 @@ F:	include/linux/compiler.h
 
 SPEAR PLATFORM SUPPORT
 M:	Viresh Kumar <viresh.kumar@st.com>
+M:	Shiraz Hashim <shiraz.hashim@st.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
 F:	arch/arm/plat-spear/
 
+SPEAR13XX MACHINE SUPPORT
+M:	Viresh Kumar <viresh.kumar@st.com>
+M:	Shiraz Hashim <shiraz.hashim@st.com>
+L:	spear-devel@list.st.com
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+W:	http://www.st.com/spear
+S:	Maintained
+F:	arch/arm/mach-spear13xx/
+
 SPEAR3XX MACHINE SUPPORT
 M:	Viresh Kumar <viresh.kumar@st.com>
+M:	Shiraz Hashim <shiraz.hashim@st.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
@@ -6315,6 +6344,8 @@ F:	arch/arm/mach-spear3xx/
 
 SPEAR6XX MACHINE SUPPORT
 M:	Rajeev Kumar <rajeev-dlh.kumar@st.com>
+M:	Shiraz Hashim <shiraz.hashim@st.com>
+M:	Viresh Kumar <viresh.kumar@st.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
@@ -6327,24 +6358,7 @@ L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
-F:	arch/arm/mach-spear*/clock.c
-F:	arch/arm/plat-spear/clock.c
-F:	arch/arm/plat-spear/include/plat/clock.h
-
-SPEAR PAD MULTIPLEXING SUPPORT
-M:	Viresh Kumar <viresh.kumar@st.com>
-L:	spear-devel@list.st.com
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.st.com/spear
-S:	Maintained
-F:	arch/arm/plat-spear/include/plat/padmux.h
-F:	arch/arm/plat-spear/padmux.c
-F:	arch/arm/mach-spear*/spear*xx.c
-F:	arch/arm/mach-spear*/include/mach/generic.h
-F:	arch/arm/mach-spear3xx/spear3*0.c
-F:	arch/arm/mach-spear3xx/spear3*0_evb.c
-F:	arch/arm/mach-spear6xx/spear600.c
-F:	arch/arm/mach-spear6xx/spear600_evb.c
+F:	drivers/clk/spear/
 
 SPI SUBSYSTEM
 M:	Grant Likely <grant.likely@secretlab.ca>
