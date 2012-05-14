@@ -168,9 +168,6 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Probing LDO%d\n", id + 1);
 
-	if (!pdata)
-		return -ENODEV;
-
 	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm8994_ldo), GFP_KERNEL);
 	if (ldo == NULL) {
 		dev_err(&pdev->dev, "Unable to allocate private data\n");
@@ -192,9 +189,10 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 		ldo->is_enabled = true;
 
 	config.dev = wm8994->dev;
-	config.init_data = pdata->ldo[id].init_data;
 	config.driver_data = ldo;
 	config.regmap = wm8994->regmap;
+	if (pdata)
+		config.init_data = pdata->ldo[id].init_data;
 
 	ldo->regulator = regulator_register(&wm8994_ldo_desc[id], &config);
 	if (IS_ERR(ldo->regulator)) {
