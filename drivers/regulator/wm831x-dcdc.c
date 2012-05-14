@@ -518,7 +518,7 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 	}
 	dcdc->dvs_vsel = ret & WM831X_DC1_DVS_VSEL_MASK;
 
-	if (pdata->dcdc[id])
+	if (pdata && pdata->dcdc[id])
 		wm831x_buckv_dvs_init(dcdc, pdata->dcdc[id]->driver_data);
 
 	config.dev = pdev->dev.parent;
@@ -846,7 +846,8 @@ static __devinit int wm831x_boostp_probe(struct platform_device *pdev)
 	dcdc->desc.enable_mask = 1 << id;
 
 	config.dev = pdev->dev.parent;
-	config.init_data = pdata->dcdc[id];
+	if (pdata)
+		config.init_data = pdata->dcdc[id];
 	config.driver_data = dcdc;
 	config.regmap = wm831x->regmap;
 
