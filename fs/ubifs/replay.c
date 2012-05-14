@@ -154,8 +154,7 @@ static int set_bud_lprops(struct ubifs_info *c, struct bud_entry *b)
 
 	/* Make sure the journal head points to the latest bud */
 	err = ubifs_wbuf_seek_nolock(&c->jheads[b->bud->jhead].wbuf,
-				     b->bud->lnum, c->leb_size - b->free,
-				     UBI_SHORTTERM);
+				     b->bud->lnum, c->leb_size - b->free);
 
 out:
 	ubifs_release_lprops(c);

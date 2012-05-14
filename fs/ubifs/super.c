@@ -813,13 +813,11 @@ static int alloc_wbufs(struct ubifs_info *c)
 		c->jheads[i].grouped = 1;
 	}
 
-	c->jheads[BASEHD].wbuf.dtype = UBI_SHORTTERM;
 	/*
 	 * Garbage Collector head likely contains long-term data and
 	 * does not need to be synchronized by timer. Also GC head nodes are
 	 * not grouped.
 	 */
-	c->jheads[GCHD].wbuf.dtype = UBI_LONGTERM;
 	c->jheads[GCHD].wbuf.no_timer = 1;
 	c->jheads[GCHD].grouped = 0;
 

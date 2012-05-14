@@ -222,8 +222,6 @@ struct ubi_volume_desc;
  * @upd_ebs: how many eraseblocks are expected to be updated
  * @ch_lnum: LEB number which is being changing by the atomic LEB change
  *           operation
- * @ch_dtype: data persistency type which is being changing by the atomic LEB
- *            change operation
  * @upd_bytes: how many bytes are expected to be received for volume update or
  *             atomic LEB change
  * @upd_received: how many bytes were already received for volume update or
@@ -270,7 +268,6 @@ struct ubi_volume {
 
 	int upd_ebs;
 	int ch_lnum;
-	int ch_dtype;
 	long long upd_bytes;
 	long long upd_received;
 	void *upd_buf;
@@ -525,18 +522,17 @@ int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,
 int ubi_eba_read_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 		     void *buf, int offset, int len, int check);
 int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
-		      const void *buf, int offset, int len, int dtype);
+		      const void *buf, int offset, int len);
 int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
-			 int lnum, const void *buf, int len, int dtype,
-			 int used_ebs);
+			 int lnum, const void *buf, int len, int used_ebs);
 int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
-			      int lnum, const void *buf, int len, int dtype);
+			      int lnum, const void *buf, int len);
 int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		     struct ubi_vid_hdr *vid_hdr);
 int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si);
 
 /* wl.c */
-int ubi_wl_get_peb(struct ubi_device *ubi, int dtype);
+int ubi_wl_get_peb(struct ubi_device *ubi);
 int ubi_wl_put_peb(struct ubi_device *ubi, int pnum, int torture);
 int ubi_wl_flush(struct ubi_device *ubi);
 int ubi_wl_scrub_peb(struct ubi_device *ubi, int pnum);

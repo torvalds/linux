@@ -383,18 +383,14 @@ static struct ubi_wl_entry *find_wl_entry(struct rb_root *root, int diff)
 /**
  * ubi_wl_get_peb - get a physical eraseblock.
  * @ubi: UBI device description object
- * @dtype: type of data which will be stored in this physical eraseblock
  *
  * This function returns a physical eraseblock in case of success and a
  * negative error code in case of failure. Might sleep.
  */
-int ubi_wl_get_peb(struct ubi_device *ubi, int dtype)
+int ubi_wl_get_peb(struct ubi_device *ubi)
 {
 	int err;
 	struct ubi_wl_entry *e, *first, *last;
-
-	ubi_assert(dtype == UBI_LONGTERM || dtype == UBI_SHORTTERM ||
-		   dtype == UBI_UNKNOWN);
 
 retry:
 	spin_lock(&ubi->wl_lock);
@@ -413,43 +409,13 @@ retry:
 		goto retry;
 	}
 
-	switch (dtype) {
-	case UBI_LONGTERM:
-		/*
-		 * For long term data we pick a physical eraseblock with high
-		 * erase counter. But the highest erase counter we can pick is
-		 * bounded by the the lowest erase counter plus
-		 * %WL_FREE_MAX_DIFF.
-		 */
-		e = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF);
-		break;
-	case UBI_UNKNOWN:
-		/*
-		 * For unknown data we pick a physical eraseblock with medium
-		 * erase counter. But we by no means can pick a physical
-		 * eraseblock with erase counter greater or equivalent than the
-		 * lowest erase counter plus %WL_FREE_MAX_DIFF/2.
-		 */
-		first = rb_entry(rb_first(&ubi->free), struct ubi_wl_entry,
-					u.rb);
-		last = rb_entry(rb_last(&ubi->free), struct ubi_wl_entry, u.rb);
+	first = rb_entry(rb_first(&ubi->free), struct ubi_wl_entry, u.rb);
+	last = rb_entry(rb_last(&ubi->free), struct ubi_wl_entry, u.rb);
 
-		if (last->ec - first->ec < WL_FREE_MAX_DIFF)
-			e = rb_entry(ubi->free.rb_node,
-					struct ubi_wl_entry, u.rb);
-		else
-			e = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF/2);
-		break;
-	case UBI_SHORTTERM:
-		/*
-		 * For short term data we pick a physical eraseblock with the
-		 * lowest erase counter as we expect it will be erased soon.
-		 */
-		e = rb_entry(rb_first(&ubi->free), struct ubi_wl_entry, u.rb);
-		break;
-	default:
-		BUG();
-	}
+	if (last->ec - first->ec < WL_FREE_MAX_DIFF)
+		e = rb_entry(ubi->free.rb_node, struct ubi_wl_entry, u.rb);
+	else
+		e = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF/2);
 
 	paranoid_check_in_wl_tree(ubi, e, &ubi->free);
 

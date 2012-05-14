@@ -213,10 +213,10 @@ static int write_rcvrd_mst_node(struct ubifs_info *c,
 	mst->flags |= cpu_to_le32(UBIFS_MST_RCVRY);
 
 	ubifs_prepare_node(c, mst, UBIFS_MST_NODE_SZ, 1);
-	err = ubifs_leb_change(c, lnum, mst, sz, UBI_SHORTTERM);
+	err = ubifs_leb_change(c, lnum, mst, sz);
 	if (err)
 		goto out;
-	err = ubifs_leb_change(c, lnum + 1, mst, sz, UBI_SHORTTERM);
+	err = ubifs_leb_change(c, lnum + 1, mst, sz);
 	if (err)
 		goto out;
 out:
@@ -555,8 +555,7 @@ static int fix_unclean_leb(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 					ubifs_pad(c, buf, pad_len);
 				}
 			}
-			err = ubifs_leb_change(c, lnum, sleb->buf, len,
-					       UBI_UNKNOWN);
+			err = ubifs_leb_change(c, lnum, sleb->buf, len);
 			if (err)
 				return err;
 		}
@@ -941,7 +940,7 @@ static int recover_head(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 		err = ubifs_leb_read(c, lnum, sbuf, 0, offs, 1);
 		if (err)
 			return err;
-		return ubifs_leb_change(c, lnum, sbuf, offs, UBI_UNKNOWN);
+		return ubifs_leb_change(c, lnum, sbuf, offs);
 	}
 
 	return 0;
@@ -1071,7 +1070,7 @@ static int clean_an_unclean_leb(struct ubifs_info *c,
 	}
 
 	/* Write back the LEB atomically */
-	err = ubifs_leb_change(c, lnum, sbuf, len, UBI_UNKNOWN);
+	err = ubifs_leb_change(c, lnum, sbuf, len);
 	if (err)
 		return err;
 
@@ -1472,7 +1471,7 @@ static int fix_size_in_place(struct ubifs_info *c, struct size_entry *e)
 		len -= 1;
 	len = ALIGN(len + 1, c->min_io_size);
 	/* Atomically write the fixed LEB back again */
-	err = ubifs_leb_change(c, lnum, c->sbuf, len, UBI_UNKNOWN);
+	err = ubifs_leb_change(c, lnum, c->sbuf, len);
 	if (err)
 		goto out;
 	dbg_rcvry("inode %lu at %d:%d size %lld -> %lld",

@@ -299,11 +299,10 @@ int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head);
 int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head);
 
 int dbg_leb_write(struct ubifs_info *c, int lnum, const void *buf, int offs,
-		  int len, int dtype);
-int dbg_leb_change(struct ubifs_info *c, int lnum, const void *buf, int len,
-		   int dtype);
+		  int len);
+int dbg_leb_change(struct ubifs_info *c, int lnum, const void *buf, int len);
 int dbg_leb_unmap(struct ubifs_info *c, int lnum);
-int dbg_leb_map(struct ubifs_info *c, int lnum, int dtype);
+int dbg_leb_map(struct ubifs_info *c, int lnum);
 
 /* Debugfs-related stuff */
 int dbg_debugfs_init(void);

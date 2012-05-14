@@ -379,7 +379,7 @@ int ubifs_write_master(struct ubifs_info *c)
 	c->mst_offs = offs;
 	c->mst_node->highest_inum = cpu_to_le64(c->highest_inum);
 
-	err = ubifs_write_node(c, c->mst_node, len, lnum, offs, UBI_SHORTTERM);
+	err = ubifs_write_node(c, c->mst_node, len, lnum, offs);
 	if (err)
 		return err;
 
@@ -390,7 +390,7 @@ int ubifs_write_master(struct ubifs_info *c)
 		if (err)
 			return err;
 	}
-	err = ubifs_write_node(c, c->mst_node, len, lnum, offs, UBI_SHORTTERM);
+	err = ubifs_write_node(c, c->mst_node, len, lnum, offs);
 
 	return err;
 }

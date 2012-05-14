@@ -106,7 +106,7 @@ int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
 			return err;
 
 		err = ubi_eba_write_leb(ubi, layout_vol, i, ubi->vtbl, 0,
-					ubi->vtbl_size, UBI_LONGTERM);
+					ubi->vtbl_size);
 		if (err)
 			return err;
 	}
@@ -158,7 +158,7 @@ int ubi_vtbl_rename_volumes(struct ubi_device *ubi,
 			return err;
 
 		err = ubi_eba_write_leb(ubi, layout_vol, i, ubi->vtbl, 0,
-					ubi->vtbl_size, UBI_LONGTERM);
+					ubi->vtbl_size);
 		if (err)
 			return err;
 	}

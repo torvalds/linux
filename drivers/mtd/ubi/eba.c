@@ -507,7 +507,7 @@ static int recover_peb(struct ubi_device *ubi, int pnum, int vol_id, int lnum,
 		return -ENOMEM;
 
 retry:
-	new_pnum = ubi_wl_get_peb(ubi, UBI_UNKNOWN);
+	new_pnum = ubi_wl_get_peb(ubi);
 	if (new_pnum < 0) {
 		ubi_free_vid_hdr(ubi, vid_hdr);
 		return new_pnum;
@@ -585,7 +585,6 @@ write_error:
  * @buf: the data to write
  * @offset: offset within the logical eraseblock where to write
  * @len: how many bytes to write
- * @dtype: data type
  *
  * This function writes data to logical eraseblock @lnum of a dynamic volume
  * @vol. Returns zero in case of success and a negative error code in case
@@ -593,7 +592,7 @@ write_error:
  * written to the flash media, but may be some garbage.
  */
 int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
-		      const void *buf, int offset, int len, int dtype)
+		      const void *buf, int offset, int len)
 {
 	int err, pnum, tries = 0, vol_id = vol->vol_id;
 	struct ubi_vid_hdr *vid_hdr;
@@ -641,7 +640,7 @@ int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 	vid_hdr->data_pad = cpu_to_be32(vol->data_pad);
 
 retry:
-	pnum = ubi_wl_get_peb(ubi, dtype);
+	pnum = ubi_wl_get_peb(ubi);
 	if (pnum < 0) {
 		ubi_free_vid_hdr(ubi, vid_hdr);
 		leb_write_unlock(ubi, vol_id, lnum);
@@ -707,7 +706,6 @@ write_error:
  * @lnum: logical eraseblock number
  * @buf: data to write
  * @len: how many bytes to write
- * @dtype: data type
  * @used_ebs: how many logical eraseblocks will this volume contain
  *
  * This function writes data to logical eraseblock @lnum of static volume
@@ -724,8 +722,7 @@ write_error:
  * code in case of failure.
  */
 int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
-			 int lnum, const void *buf, int len, int dtype,
-			 int used_ebs)
+			 int lnum, const void *buf, int len, int used_ebs)
 {
 	int err, pnum, tries = 0, data_size = len, vol_id = vol->vol_id;
 	struct ubi_vid_hdr *vid_hdr;
@@ -763,7 +760,7 @@ int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
 	vid_hdr->data_crc = cpu_to_be32(crc);
 
 retry:
-	pnum = ubi_wl_get_peb(ubi, dtype);
+	pnum = ubi_wl_get_peb(ubi);
 	if (pnum < 0) {
 		ubi_free_vid_hdr(ubi, vid_hdr);
 		leb_write_unlock(ubi, vol_id, lnum);
@@ -827,7 +824,6 @@ write_error:
  * @lnum: logical eraseblock number
  * @buf: data to write
  * @len: how many bytes to write
- * @dtype: data type
  *
  * This function changes the contents of a logical eraseblock atomically. @buf
  * has to contain new logical eraseblock data, and @len - the length of the
@@ -839,7 +835,7 @@ write_error:
  * LEB change may be done at a time. This is ensured by @ubi->alc_mutex.
  */
 int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
-			      int lnum, const void *buf, int len, int dtype)
+			      int lnum, const void *buf, int len)
 {
 	int err, pnum, tries = 0, vol_id = vol->vol_id;
 	struct ubi_vid_hdr *vid_hdr;
@@ -856,7 +852,7 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
 		err = ubi_eba_unmap_leb(ubi, vol, lnum);
 		if (err)
 			return err;
-		return ubi_eba_write_leb(ubi, vol, lnum, NULL, 0, 0, dtype);
+		return ubi_eba_write_leb(ubi, vol, lnum, NULL, 0, 0);
 	}
 
 	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
@@ -881,7 +877,7 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
 	vid_hdr->data_crc = cpu_to_be32(crc);
 
 retry:
-	pnum = ubi_wl_get_peb(ubi, dtype);
+	pnum = ubi_wl_get_peb(ubi);
 	if (pnum < 0) {
 		err = pnum;
 		goto out_leb_unlock;
