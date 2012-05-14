@@ -28,7 +28,7 @@ struct platform_device hdmi_device =
 };
 
 
-static int __init hdmi_probe(struct platform_device *pdev)
+static int __devinit hdmi_probe(struct platform_device *pdev)
 {
 	__inf("hdmi_probe call\n");
 
