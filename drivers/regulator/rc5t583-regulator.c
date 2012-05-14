@@ -60,32 +60,6 @@ struct rc5t583_regulator {
 	struct regulator_dev	*rdev;
 };
 
-static int rc5t583_set_voltage(struct regulator_dev *rdev,
-			       int min_uV, int max_uV, unsigned *selector)
-{
-	struct rc5t583_regulator *reg = rdev_get_drvdata(rdev);
-	int sel, ret;
-
-	if (min_uV < rdev->desc->min_uV)
-		min_uV = rdev->desc->min_uV;
-
-	sel = DIV_ROUND_UP(min_uV - rdev->desc->min_uV, rdev->desc->uV_step);
-
-	if (sel >= rdev->desc->n_voltages) {
-		dev_err(&rdev->dev, "Invalid selector 0x%02x\n", sel);
-		return -EINVAL;
-	}
-
-	*selector = sel;
-
-	ret = rc5t583_update(reg->mfd->dev, rdev->desc->vsel_reg, sel,
-			     rdev->desc->vsel_mask);
-	if (ret < 0)
-		dev_err(&rdev->dev, "Error in update voltage register 0x%02x\n",
-			rdev->desc->vsel_reg);
-	return ret;
-}
-
 static int rc5t583_regulator_enable_time(struct regulator_dev *rdev)
 {
 	struct rc5t583_regulator *reg = rdev_get_drvdata(rdev);
@@ -120,8 +94,9 @@ static struct regulator_ops rc5t583_ops = {
 	.disable		= regulator_disable_regmap,
 	.enable_time		= rc5t583_regulator_enable_time,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
-	.set_voltage		= rc5t583_set_voltage,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
 	.set_voltage_time_sel	= rc5t583_set_voltage_time_sel,
 };
 
