@@ -230,6 +230,7 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 		return -1;
 	}
 
+	/* Handle both signed and unsigned cases properly */
 	if ((parser->global.logical_minimum < 0 &&
 		parser->global.logical_maximum <
 		parser->global.logical_minimum) ||
