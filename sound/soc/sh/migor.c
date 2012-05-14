@@ -35,7 +35,7 @@ static unsigned long siumckb_recalc(struct clk *clk)
 	return codec_freq;
 }
 
-static struct clk_ops siumckb_clk_ops = {
+static struct sh_clk_ops siumckb_clk_ops = {
 	.recalc = siumckb_recalc,
 };
 

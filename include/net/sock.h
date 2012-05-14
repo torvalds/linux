@@ -1129,9 +1129,9 @@ sk_sockets_allocated_read_positive(struct sock *sk)
 	struct proto *prot = sk->sk_prot;
 
 	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-		return percpu_counter_sum_positive(sk->sk_cgrp->sockets_allocated);
+		return percpu_counter_read_positive(sk->sk_cgrp->sockets_allocated);
 
-	return percpu_counter_sum_positive(prot->sockets_allocated);
+	return percpu_counter_read_positive(prot->sockets_allocated);
 }
 
 static inline int

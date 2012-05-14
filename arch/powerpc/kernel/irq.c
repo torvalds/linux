@@ -229,6 +229,19 @@ notrace void arch_local_irq_restore(unsigned long en)
 	 */
 	if (unlikely(irq_happened != PACA_IRQ_HARD_DIS))
 		__hard_irq_disable();
+#ifdef CONFIG_TRACE_IRQFLAG
+	else {
+		/*
+		 * We should already be hard disabled here. We had bugs
+		 * where that wasn't the case so let's dbl check it and
+		 * warn if we are wrong. Only do that when IRQ tracing
+		 * is enabled as mfmsr() can be costly.
+		 */
+		if (WARN_ON(mfmsr() & MSR_EE))
+			__hard_irq_disable();
+	}
+#endif /* CONFIG_TRACE_IRQFLAG */
+
 	set_soft_enabled(0);
 
 	/*

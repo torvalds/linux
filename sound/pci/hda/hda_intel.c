@@ -783,11 +783,13 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 {
 	struct azx *chip = bus->private_data;
 	unsigned long timeout;
+	unsigned long loopcounter;
 	int do_poll = 0;
 
  again:
 	timeout = jiffies + msecs_to_jiffies(1000);
-	for (;;) {
+
+	for (loopcounter = 0;; loopcounter++) {
 		if (chip->polling_mode || do_poll) {
 			spin_lock_irq(&chip->reg_lock);
 			azx_update_rirb(chip);
@@ -803,7 +805,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 		}
 		if (time_after(jiffies, timeout))
 			break;
-		if (bus->needs_damn_long_delay)
+		if (bus->needs_damn_long_delay || loopcounter > 3000)
 			msleep(2); /* temporary workaround */
 		else {
 			udelay(10);
@@ -2351,6 +2353,17 @@ static void azx_power_notify(struct hda_bus *bus)
  * power management
  */
 
+static int snd_hda_codecs_inuse(struct hda_bus *bus)
+{
+	struct hda_codec *codec;
+
+	list_for_each_entry(codec, &bus->codec_list, list) {
+		if (snd_hda_codec_needs_resume(codec))
+			return 1;
+	}
+	return 0;
+}
+
 static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
@@ -2397,7 +2410,8 @@ static int azx_resume(struct pci_dev *pci)
 		return -EIO;
 	azx_init_pci(chip);
 
-	azx_init_chip(chip, 1);
+	if (snd_hda_codecs_inuse(chip->bus))
+		azx_init_chip(chip, 1);
 
 	snd_hda_resume(chip->bus);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);

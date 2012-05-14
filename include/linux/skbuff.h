@@ -1020,7 +1020,7 @@ static inline void skb_queue_splice(const struct sk_buff_head *list,
 }
 
 /**
- *	skb_queue_splice - join two skb lists and reinitialise the emptied list
+ *	skb_queue_splice_init - join two skb lists and reinitialise the emptied list
  *	@list: the new list to add
  *	@head: the place to add it in the first list
  *
@@ -1051,7 +1051,7 @@ static inline void skb_queue_splice_tail(const struct sk_buff_head *list,
 }
 
 /**
- *	skb_queue_splice_tail - join two skb lists and reinitialise the emptied list
+ *	skb_queue_splice_tail_init - join two skb lists and reinitialise the emptied list
  *	@list: the new list to add
  *	@head: the place to add it in the first list
  *
