@@ -5279,10 +5279,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_deliver_pmi(vcpu);
 	}
 
-	r = kvm_mmu_reload(vcpu);
-	if (unlikely(r))
-		goto out;
-
 	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
 		inject_pending_event(vcpu);
 
@@ -5296,6 +5292,12 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			update_cr8_intercept(vcpu);
 			kvm_lapic_sync_to_vapic(vcpu);
 		}
+	}
+
+	r = kvm_mmu_reload(vcpu);
+	if (unlikely(r)) {
+		kvm_x86_ops->cancel_injection(vcpu);
+		goto out;
 	}
 
 	preempt_disable();
