@@ -220,7 +220,8 @@ static void tegra30_mc_decode(struct tegra30_mc *mc, int n)
 
 	idx = n - MC_INT_ERR_SHIFT;
 	if ((idx < 0) || (idx >= ARRAY_SIZE(mc_int_err)) || (idx == 1)) {
-		pr_err_ratelimited("Unknown interrupt status %08lx\n", BIT(n));
+		dev_err_ratelimited(mc->dev, "Unknown interrupt status %08lx\n",
+				    BIT(n));
 		return;
 	}
 
@@ -243,7 +244,7 @@ static void tegra30_mc_decode(struct tegra30_mc *mc, int n)
 
 	addr = readl(mc + MC_ERR_ADR);
 
-	pr_err_ratelimited("%s (0x%08x): 0x%08x %s (%s %s %s %s)\n",
+	dev_err_ratelimited(mc->dev, "%s (0x%08x): 0x%08x %s (%s %s %s %s)\n",
 			   mc_int_err[idx], err, addr, client,
 			   (err & MC_ERR_SECURITY) ? "secure" : "non-secure",
 			   (err & MC_ERR_RW) ? "write" : "read",
