@@ -218,7 +218,7 @@ struct mxt_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
 	char phys[64];		/* device physical location */
-	const struct mxt_platform_data *pdata;
+	struct mxt_platform_data *pdata;
 	struct mxt_object *object_table;
 	struct mxt_info *info;
 	void *raw_info_block;
@@ -2657,6 +2657,26 @@ static void mxt_input_close(struct input_dev *dev)
 	mxt_stop(data);
 }
 
+static int mxt_handle_pdata(struct mxt_data *data)
+{
+	data->pdata = dev_get_platdata(&data->client->dev);
+
+	/* Use provided platform data if present */
+	if (data->pdata)
+		return 0;
+
+	data->pdata = kzalloc(sizeof(*data->pdata), GFP_KERNEL);
+	if (!data->pdata) {
+		dev_err(&data->client->dev, "Failed to allocate pdata\n");
+		return -ENOMEM;
+	}
+
+	/* Set default parameters */
+	data->pdata->irqflags = IRQF_TRIGGER_FALLING;
+
+	return 0;
+}
+
 static int mxt_initialize_t9_input_device(struct mxt_data *data)
 {
 	struct device *dev = &data->client->dev;
@@ -2773,11 +2793,7 @@ static int mxt_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct mxt_data *data;
-	const struct mxt_platform_data *pdata = dev_get_platdata(&client->dev);
 	int error;
-
-	if (!pdata)
-		return -EINVAL;
 
 	data = kzalloc(sizeof(struct mxt_data), GFP_KERNEL);
 	if (!data) {
@@ -2789,20 +2805,23 @@ static int mxt_probe(struct i2c_client *client,
 		 client->adapter->nr, client->addr);
 
 	data->client = client;
-	data->pdata = pdata;
 	data->irq = client->irq;
 	i2c_set_clientdata(client, data);
+
+	error = mxt_handle_pdata(data);
+	if (error)
+		goto err_free_mem;
 
 	init_completion(&data->bl_completion);
 	init_completion(&data->reset_completion);
 	init_completion(&data->crc_completion);
 
-	error = request_threaded_irq(client->irq, NULL, mxt_interrupt,
-				     pdata->irqflags | IRQF_ONESHOT,
+	error = request_threaded_irq(data->irq, NULL, mxt_interrupt,
+				     data->pdata->irqflags | IRQF_ONESHOT,
 				     client->name, data);
 	if (error) {
 		dev_err(&client->dev, "Failed to register interrupt\n");
-		goto err_free_mem;
+		goto err_free_pdata;
 	}
 
 	mxt_probe_regulators(data);
@@ -2825,7 +2844,10 @@ static int mxt_probe(struct i2c_client *client,
 err_free_object:
 	mxt_free_object_table(data);
 err_free_irq:
-	free_irq(client->irq, data);
+	free_irq(data->irq, data);
+err_free_pdata:
+	if (!dev_get_platdata(&data->client->dev))
+		kfree(data->pdata);
 err_free_mem:
 	kfree(data);
 	return error;
@@ -2840,6 +2862,8 @@ static int mxt_remove(struct i2c_client *client)
 	regulator_put(data->reg_avdd);
 	regulator_put(data->reg_vdd);
 	mxt_free_object_table(data);
+	if (!dev_get_platdata(&data->client->dev))
+		kfree(data->pdata);
 	kfree(data);
 
 	return 0;
