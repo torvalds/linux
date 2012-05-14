@@ -149,9 +149,7 @@ static unsigned long clk_mtu_get_rate(struct clk *clk)
 	unsigned long mturate;
 	unsigned long retclk;
 
-	if (cpu_is_u5500())
-		addr = __io_address(U5500_PRCMU_BASE);
-	else if (cpu_is_u8500_family())
+	if (cpu_is_u8500_family())
 		addr = __io_address(U8500_PRCMU_BASE);
 	else
 		ux500_unknown_soc();
@@ -705,14 +703,6 @@ late_initcall(clk_init_smp_twd_cpufreq);
 
 int __init clk_init(void)
 {
-	if (cpu_is_u5500()) {
-		/* Clock tree for U5500 not implemented yet */
-		clk_prcc_ops.enable = clk_prcc_ops.disable = NULL;
-		clk_prcmu_ops.enable = clk_prcmu_ops.disable = NULL;
-		clk_uartclk.rate = 36360000;
-		clk_sdmmcclk.rate = 99900000;
-	}
-
 	clkdev_add_table(u8500_clks, ARRAY_SIZE(u8500_clks));
 	clkdev_add(&clk_smp_twd_lookup);
 
