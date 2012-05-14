@@ -39,10 +39,6 @@ static long __validate_layout(struct ceph_mds_client *mdsc,
 {
 	int i, err;
 
-	/* preferred_osd is no longer supported */
-	if (l->preferred_osd != -1)
-		return -EINVAL;
-
 	/* validate striping parameters */
 	if ((l->object_size & ~PAGE_MASK) ||
 	    (l->stripe_unit & ~PAGE_MASK) ||
