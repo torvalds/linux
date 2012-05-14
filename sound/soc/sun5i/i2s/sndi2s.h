@@ -20,7 +20,7 @@ typedef struct hdmi_audio
 {
 	__u8    hw_intf;        /* 0:iis  1:spdif 2:pcm */
 	__u16	fs_between;     /* fs */
-	__u32   sample_rate;    /*sample rate*/  
+	__u32   sample_rate;    /*sample rate*/
 	__u8    clk_edge;       /* 0:*/
 	__u8    ch0_en;         /* 1 */
 	__u8    ch1_en;         /* 0 */
@@ -50,7 +50,7 @@ typedef enum tag_HDMI_CMD
 		HDMI_CMD_SET_AUDIO_PARA,
 		HDMI_CMD_AUDIO_RESET_NOTIFY,            /*iis reset finish notify    */
 		HDMI_CMD_CLOSE,                         /*iis reset finish notify    */
-		HDMI_CMD_MOD_SUPPORT,                   /*判断某一种hdmi模式是否支持*/
+		HDMI_CMD_MOD_SUPPORT,                   /*鍒ゆ柇鏌愪竴绉峢dmi妯″紡鏄惁鏀寔*/
 		HDMI_CMD_AUDIO_ENABLE,
 		HDMI_CMD_GET_HPD_STATUS,
 }__hdmi_cmd_t;
