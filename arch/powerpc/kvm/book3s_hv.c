@@ -1192,8 +1192,6 @@ static void unpin_slot(struct kvm *kvm, int slot_id)
 				continue;
 			pfn = physp[j] >> PAGE_SHIFT;
 			page = pfn_to_page(pfn);
-			if (PageHuge(page))
-				page = compound_head(page);
 			SetPageDirty(page);
 			put_page(page);
 		}

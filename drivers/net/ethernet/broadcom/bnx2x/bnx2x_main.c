@@ -9122,13 +9122,34 @@ static int __devinit bnx2x_prev_unload_common(struct bnx2x *bp)
 	return bnx2x_prev_mcp_done(bp);
 }
 
+/* previous driver DMAE transaction may have occurred when pre-boot stage ended
+ * and boot began, or when kdump kernel was loaded. Either case would invalidate
+ * the addresses of the transaction, resulting in was-error bit set in the pci
+ * causing all hw-to-host pcie transactions to timeout. If this happened we want
+ * to clear the interrupt which detected this from the pglueb and the was done
+ * bit
+ */
+static void __devinit bnx2x_prev_interrupted_dmae(struct bnx2x *bp)
+{
+	u32 val = REG_RD(bp, PGLUE_B_REG_PGLUE_B_INT_STS);
+	if (val & PGLUE_B_PGLUE_B_INT_STS_REG_WAS_ERROR_ATTN) {
+		BNX2X_ERR("was error bit was found to be set in pglueb upon startup. Clearing");
+		REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR, 1 << BP_FUNC(bp));
+	}
+}
+
 static int __devinit bnx2x_prev_unload(struct bnx2x *bp)
 {
 	int time_counter = 10;
 	u32 rc, fw, hw_lock_reg, hw_lock_val;
 	BNX2X_DEV_INFO("Entering Previous Unload Flow\n");
 
-       /* Release previously held locks */
+	/* clear hw from errors which may have resulted from an interrupted
+	 * dmae transaction.
+	 */
+	bnx2x_prev_interrupted_dmae(bp);
+
+	/* Release previously held locks */
 	hw_lock_reg = (BP_FUNC(bp) <= 5) ?
 		      (MISC_REG_DRIVER_CONTROL_1 + BP_FUNC(bp) * 8) :
 		      (MISC_REG_DRIVER_CONTROL_7 + (BP_FUNC(bp) - 6) * 8);

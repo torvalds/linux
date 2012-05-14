@@ -1715,13 +1715,24 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				res = DID_ERROR << 16;
 				break;
 			}
-		} else {
+		} else if (lscsi_status != SAM_STAT_TASK_SET_FULL &&
+			    lscsi_status != SAM_STAT_BUSY) {
+			/*
+			 * scsi status of task set and busy are considered to be
+			 * task not completed.
+			 */
+
 			ql_dbg(ql_dbg_io, fcport->vha, 0x301f,
 			    "Dropped frame(s) detected (0x%x "
-			    "of 0x%x bytes).\n", resid, scsi_bufflen(cp));
+			    "of 0x%x bytes).\n", resid,
+			    scsi_bufflen(cp));
 
 			res = DID_ERROR << 16 | lscsi_status;
 			goto check_scsi_status;
+		} else {
+			ql_dbg(ql_dbg_io, fcport->vha, 0x3030,
+			    "scsi_status: 0x%x, lscsi_status: 0x%x\n",
+			    scsi_status, lscsi_status);
 		}
 
 		res = DID_OK << 16 | lscsi_status;
