@@ -214,18 +214,11 @@ static int mxs_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static void mxs_pinctrl_disable(struct pinctrl_dev *pctldev,
-				unsigned function, unsigned group)
-{
-	/* Nothing to do here */
-}
-
 static struct pinmux_ops mxs_pinmux_ops = {
 	.get_functions_count = mxs_pinctrl_get_funcs_count,
 	.get_function_name = mxs_pinctrl_get_func_name,
 	.get_function_groups = mxs_pinctrl_get_func_groups,
 	.enable = mxs_pinctrl_enable,
-	.disable = mxs_pinctrl_disable,
 };
 
 static int mxs_pinconf_get(struct pinctrl_dev *pctldev,
