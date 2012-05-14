@@ -159,16 +159,12 @@
 			};
 			conf_ata {
 				nvidia,pins = "ata", "atb", "atc", "atd", "ate",
-					"cdev1", "dap1", "dap2", "dtf", "gma",
-					"gmb", "gmc", "gmd", "gme", "gpu",
-					"gpu7", "gpv", "i2cp", "pta", "rm",
-					"sdio1", "slxk", "spdo", "uac", "uda";
+					"cdev1", "cdev2", "dap1", "dap2", "dtf",
+					"gma", "gmb", "gmc", "gmd", "gme",
+					"gpu", "gpu7", "gpv", "i2cp", "pta",
+					"rm", "sdio1", "slxk", "spdo", "uac",
+					"uda";
 				nvidia,pull = <0>;
-				nvidia,tristate = <0>;
-			};
-			conf_cdev2 {
-				nvidia,pins = "cdev2";
-				nvidia,pull = <1>;
 				nvidia,tristate = <0>;
 			};
 			conf_ck32 {
@@ -350,5 +346,9 @@
 			gpios = <&gpio 24 0>;
 			linux,default-trigger = "rfkill0";
 		};
+	};
+
+	usb@c5004000 {
+		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
 	};
 };

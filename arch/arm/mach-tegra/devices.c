@@ -439,9 +439,8 @@ static struct resource tegra_usb3_resources[] = {
 	},
 };
 
-static struct tegra_ulpi_config tegra_ehci2_ulpi_phy_config = {
-	/* All existing boards use GPIO PV0 for phy reset */
-	.reset_gpio = TEGRA_GPIO_PV0,
+struct tegra_ulpi_config tegra_ehci2_ulpi_phy_config = {
+	.reset_gpio = -1,
 	.clk = "cdev2",
 };
 
