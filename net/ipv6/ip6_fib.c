@@ -673,11 +673,10 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 					    &rt->rt6i_gateway)) {
 				if (!(iter->rt6i_flags & RTF_EXPIRES))
 					return -EEXIST;
-				iter->dst.expires = rt->dst.expires;
-				if (!(rt->rt6i_flags & RTF_EXPIRES)) {
-					iter->rt6i_flags &= ~RTF_EXPIRES;
-					iter->dst.expires = 0;
-				}
+				if (!(rt->rt6i_flags & RTF_EXPIRES))
+					rt6_clean_expires(iter);
+				else
+					rt6_set_expires(iter, rt->dst.expires);
 				return -EEXIST;
 			}
 		}

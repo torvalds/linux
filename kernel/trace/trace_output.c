@@ -652,6 +652,8 @@ int trace_print_lat_context(struct trace_iterator *iter)
 {
 	u64 next_ts;
 	int ret;
+	/* trace_find_next_entry will reset ent_size */
+	int ent_size = iter->ent_size;
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry = iter->ent,
 			   *next_entry = trace_find_next_entry(iter, NULL,
@@ -659,6 +661,9 @@ int trace_print_lat_context(struct trace_iterator *iter)
 	unsigned long verbose = (trace_flags & TRACE_ITER_VERBOSE);
 	unsigned long abs_usecs = ns2usecs(iter->ts - iter->tr->time_start);
 	unsigned long rel_usecs;
+
+	/* Restore the original ent_size */
+	iter->ent_size = ent_size;
 
 	if (!next_entry)
 		next_ts = iter->ts;
