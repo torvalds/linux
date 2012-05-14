@@ -65,40 +65,28 @@ void intel_dip_infoframe_csum(struct dip_infoframe *frame)
 
 static u32 g4x_infoframe_index(struct dip_infoframe *frame)
 {
-	u32 flags = 0;
-
 	switch (frame->type) {
 	case DIP_TYPE_AVI:
-		flags |= VIDEO_DIP_SELECT_AVI;
-		break;
+		return VIDEO_DIP_SELECT_AVI;
 	case DIP_TYPE_SPD:
-		flags |= VIDEO_DIP_SELECT_SPD;
-		break;
+		return VIDEO_DIP_SELECT_SPD;
 	default:
 		DRM_DEBUG_DRIVER("unknown info frame type %d\n", frame->type);
-		break;
+		return 0;
 	}
-
-	return flags;
 }
 
 static u32 g4x_infoframe_enable(struct dip_infoframe *frame)
 {
-	u32 flags = 0;
-
 	switch (frame->type) {
 	case DIP_TYPE_AVI:
-		flags |= VIDEO_DIP_ENABLE_AVI;
-		break;
+		return VIDEO_DIP_ENABLE_AVI;
 	case DIP_TYPE_SPD:
-		flags |= VIDEO_DIP_ENABLE_SPD;
-		break;
+		return VIDEO_DIP_ENABLE_SPD;
 	default:
 		DRM_DEBUG_DRIVER("unknown info frame type %d\n", frame->type);
-		break;
+		return 0;
 	}
-
-	return flags;
 }
 
 static void g4x_write_infoframe(struct drm_encoder *encoder,
@@ -111,8 +99,6 @@ static void g4x_write_infoframe(struct drm_encoder *encoder,
 	u32 val = I915_READ(VIDEO_DIP_CTL);
 	unsigned i, len = DIP_HEADER_SIZE + frame->len;
 
-
-	/* XXX first guess at handling video port, is this corrent? */
 	val &= ~VIDEO_DIP_PORT_MASK;
 	if (intel_hdmi->sdvox_reg == SDVOB)
 		val |= VIDEO_DIP_PORT_B;
@@ -147,8 +133,7 @@ static void ibx_write_infoframe(struct drm_encoder *encoder,
 	uint32_t *data = (uint32_t *)frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	int reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
 	unsigned i, len = DIP_HEADER_SIZE + frame->len;
@@ -197,8 +182,7 @@ static void cpt_write_infoframe(struct drm_encoder *encoder,
 	uint32_t *data = (uint32_t *)frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	int reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
 	unsigned i, len = DIP_HEADER_SIZE + frame->len;
 	u32 val = I915_READ(reg);
@@ -237,8 +221,7 @@ static void vlv_write_infoframe(struct drm_encoder *encoder,
 	uint32_t *data = (uint32_t *)frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	int reg = VLV_TVIDEO_DIP_CTL(intel_crtc->pipe);
 	unsigned i, len = DIP_HEADER_SIZE + frame->len;
 	u32 val = I915_READ(reg);
@@ -266,7 +249,7 @@ static void vlv_write_infoframe(struct drm_encoder *encoder,
 }
 
 static void hsw_write_infoframe(struct drm_encoder *encoder,
-				     struct dip_infoframe *frame)
+				struct dip_infoframe *frame)
 {
 	/* Not implemented yet, so avoid doing anything at all.
 	 * This is the placeholder for Paulo Zanoni's infoframe writing patch
@@ -325,8 +308,7 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	u32 sdvox;
 
@@ -500,8 +482,8 @@ intel_hdmi_detect_audio(struct drm_connector *connector)
 
 static int
 intel_hdmi_set_property(struct drm_connector *connector,
-		      struct drm_property *property,
-		      uint64_t val)
+			struct drm_property *property,
+			uint64_t val)
 {
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
