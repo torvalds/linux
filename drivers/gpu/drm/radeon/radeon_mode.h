@@ -220,12 +220,20 @@ enum radeon_dvo_chip {
 
 struct radeon_fbdev;
 
+struct radeon_afmt {
+	bool enabled;
+	int offset;
+	bool last_buffer_filled_status;
+	int id;
+};
+
 struct radeon_mode_info {
 	struct atom_context *atom_context;
 	struct card_info *atom_card_info;
 	enum radeon_connector_table connector_table;
 	bool mode_config_initialized;
 	struct radeon_crtc *crtcs[6];
+	struct radeon_afmt *afmt[6];
 	/* DVI-I properties */
 	struct drm_property *coherent_mode_property;
 	/* DAC enable load detect */
@@ -364,6 +372,7 @@ struct radeon_encoder_atom_dig {
 	int dpms_mode;
 	uint8_t backlight_level;
 	int panel_mode;
+	struct radeon_afmt *afmt;
 };
 
 struct radeon_encoder_atom_dac {

@@ -1225,6 +1225,93 @@ void radeon_update_display_priority(struct radeon_device *rdev)
 
 }
 
+/*
+ * Allocate hdmi structs and determine register offsets
+ */
+static void radeon_afmt_init(struct radeon_device *rdev)
+{
+	int i;
+
+	for (i = 0; i < RADEON_MAX_AFMT_BLOCKS; i++)
+		rdev->mode_info.afmt[i] = NULL;
+
+	if (ASIC_IS_DCE6(rdev)) {
+		/* todo */
+	} else if (ASIC_IS_DCE4(rdev)) {
+		/* DCE4/5 has 6 audio blocks tied to DIG encoders */
+		/* DCE4.1 has 2 audio blocks tied to DIG encoders */
+		rdev->mode_info.afmt[0] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+		if (rdev->mode_info.afmt[0]) {
+			rdev->mode_info.afmt[0]->offset = EVERGREEN_CRTC0_REGISTER_OFFSET;
+			rdev->mode_info.afmt[0]->id = 0;
+		}
+		rdev->mode_info.afmt[1] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+		if (rdev->mode_info.afmt[1]) {
+			rdev->mode_info.afmt[1]->offset = EVERGREEN_CRTC1_REGISTER_OFFSET;
+			rdev->mode_info.afmt[1]->id = 1;
+		}
+		if (!ASIC_IS_DCE41(rdev)) {
+			rdev->mode_info.afmt[2] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+			if (rdev->mode_info.afmt[2]) {
+				rdev->mode_info.afmt[2]->offset = EVERGREEN_CRTC2_REGISTER_OFFSET;
+				rdev->mode_info.afmt[2]->id = 2;
+			}
+			rdev->mode_info.afmt[3] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+			if (rdev->mode_info.afmt[3]) {
+				rdev->mode_info.afmt[3]->offset = EVERGREEN_CRTC3_REGISTER_OFFSET;
+				rdev->mode_info.afmt[3]->id = 3;
+			}
+			rdev->mode_info.afmt[4] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+			if (rdev->mode_info.afmt[4]) {
+				rdev->mode_info.afmt[4]->offset = EVERGREEN_CRTC4_REGISTER_OFFSET;
+				rdev->mode_info.afmt[4]->id = 4;
+			}
+			rdev->mode_info.afmt[5] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+			if (rdev->mode_info.afmt[5]) {
+				rdev->mode_info.afmt[5]->offset = EVERGREEN_CRTC5_REGISTER_OFFSET;
+				rdev->mode_info.afmt[5]->id = 5;
+			}
+		}
+	} else if (ASIC_IS_DCE3(rdev)) {
+		/* DCE3.x has 2 audio blocks tied to DIG encoders */
+		rdev->mode_info.afmt[0] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+		if (rdev->mode_info.afmt[0]) {
+			rdev->mode_info.afmt[0]->offset = DCE3_HDMI_OFFSET0;
+			rdev->mode_info.afmt[0]->id = 0;
+		}
+		rdev->mode_info.afmt[1] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+		if (rdev->mode_info.afmt[1]) {
+			rdev->mode_info.afmt[1]->offset = DCE3_HDMI_OFFSET1;
+			rdev->mode_info.afmt[1]->id = 1;
+		}
+	} else if (ASIC_IS_DCE2(rdev)) {
+		/* DCE2 has at least 1 routable audio block */
+		rdev->mode_info.afmt[0] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+		if (rdev->mode_info.afmt[0]) {
+			rdev->mode_info.afmt[0]->offset = DCE2_HDMI_OFFSET0;
+			rdev->mode_info.afmt[0]->id = 0;
+		}
+		/* r6xx has 2 routable audio blocks */
+		if (rdev->family >= CHIP_R600) {
+			rdev->mode_info.afmt[1] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+			if (rdev->mode_info.afmt[1]) {
+				rdev->mode_info.afmt[1]->offset = DCE2_HDMI_OFFSET1;
+				rdev->mode_info.afmt[1]->id = 1;
+			}
+		}
+	}
+}
+
+static void radeon_afmt_fini(struct radeon_device *rdev)
+{
+	int i;
+
+	for (i = 0; i < RADEON_MAX_AFMT_BLOCKS; i++) {
+		kfree(rdev->mode_info.afmt[i]);
+		rdev->mode_info.afmt[i] = NULL;
+	}
+}
+
 int radeon_modeset_init(struct radeon_device *rdev)
 {
 	int i;
@@ -1285,6 +1372,9 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	/* initialize hpd */
 	radeon_hpd_init(rdev);
 
+	/* setup afmt */
+	radeon_afmt_init(rdev);
+
 	/* Initialize power management */
 	radeon_pm_init(rdev);
 
@@ -1301,6 +1391,7 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 	radeon_pm_fini(rdev);
 
 	if (rdev->mode_info.mode_config_initialized) {
+		radeon_afmt_fini(rdev);
 		drm_kms_helper_poll_fini(rdev->ddev);
 		radeon_hpd_fini(rdev);
 		drm_mode_config_cleanup(rdev->ddev);
