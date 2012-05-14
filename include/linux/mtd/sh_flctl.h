@@ -129,8 +129,14 @@
 #define	_4ECCEND	(0x1 << 1)	/* 4 symbols end */
 #define	_4ECCEXST	(0x1 << 0)	/* 4 symbols exist */
 
-#define INIT_FL4ECCRESULT_VAL	0x03FF03FF
 #define LOOP_TIMEOUT_MAX	0x00010000
+
+enum flctl_ecc_res_t {
+	FL_SUCCESS,
+	FL_REPAIRABLE,
+	FL_ERROR,
+	FL_TIMEOUT
+};
 
 struct sh_flctl {
 	struct mtd_info		mtd;
@@ -150,8 +156,6 @@ struct sh_flctl {
 	uint32_t rw_ADRCNT;	/* bits of FLCMDCR in READ WRITE cmd */
 	uint32_t flcmncr_base;	/* base value of FLCMNCR */
 	uint32_t flintdmacr_base;	/* irq enable bits */
-
-	int	hwecc_cant_correct[4];
 
 	unsigned page_size:1;	/* NAND page size (0 = 512, 1 = 2048) */
 	unsigned hwecc:1;	/* Hardware ECC (0 = disabled, 1 = enabled) */
