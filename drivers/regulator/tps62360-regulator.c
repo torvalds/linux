@@ -137,35 +137,24 @@ static int tps62360_dcdc_get_voltage_sel(struct regulator_dev *dev)
 	return vsel;
 }
 
-static int tps62360_dcdc_set_voltage(struct regulator_dev *dev,
-	     int min_uV, int max_uV, unsigned *selector)
+static int tps62360_dcdc_set_voltage_sel(struct regulator_dev *dev,
+					 unsigned selector)
 {
 	struct tps62360_chip *tps = rdev_get_drvdata(dev);
-	int vsel;
 	int ret;
 	bool found = false;
 	int new_vset_id = tps->curr_vset_id;
-
-	if ((max_uV < min_uV) || (max_uV < tps->voltage_base))
-		return -EINVAL;
-
-	if (min_uV > (tps->voltage_base + (tps->desc.n_voltages - 1) * 10000))
-		return -EINVAL;
-
-	vsel = DIV_ROUND_UP(min_uV - tps->voltage_base, 10000);
-	if (selector)
-		*selector = (vsel & tps->voltage_reg_mask);
 
 	/*
 	 * If gpios are available to select the VSET register then least
 	 * recently used register for new configuration.
 	 */
 	if (tps->valid_gpios)
-		found = find_voltage_set_register(tps, vsel, &new_vset_id);
+		found = find_voltage_set_register(tps, selector, &new_vset_id);
 
 	if (!found) {
 		ret = regmap_update_bits(tps->regmap, REG_VSET0 + new_vset_id,
-				tps->voltage_reg_mask, vsel);
+				tps->voltage_reg_mask, selector);
 		if (ret < 0) {
 			dev_err(tps->dev,
 				"%s(): register %d update failed with err %d\n",
@@ -173,7 +162,7 @@ static int tps62360_dcdc_set_voltage(struct regulator_dev *dev,
 			return ret;
 		}
 		tps->curr_vset_id = new_vset_id;
-		tps->curr_vset_vsel[new_vset_id] = vsel;
+		tps->curr_vset_vsel[new_vset_id] = selector;
 	}
 
 	/* Select proper VSET register vio gpios */
@@ -204,8 +193,9 @@ static int tps62360_set_voltage_time_sel(struct regulator_dev *rdev,
 
 static struct regulator_ops tps62360_dcdc_ops = {
 	.get_voltage_sel	= tps62360_dcdc_get_voltage_sel,
-	.set_voltage		= tps62360_dcdc_set_voltage,
+	.set_voltage_sel	= tps62360_dcdc_set_voltage_sel,
 	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
 	.set_voltage_time_sel	= tps62360_set_voltage_time_sel,
 };
 
