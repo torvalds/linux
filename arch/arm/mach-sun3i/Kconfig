@@ -1,3 +1,4 @@
+if ARCH_SUN3I
 menu "All winner system configure"
 
 config SW_SYSMEM_TOTAL_MEM
@@ -29,3 +30,4 @@ config SW_PIN_TEST
 	  "Test code for PIN module"
 
 endmenu
+endif

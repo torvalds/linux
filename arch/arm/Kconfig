@@ -641,16 +641,6 @@ config ARCH_SUN5I
         help
           This enables support for Allwinner Technology Co., Ltd A12/A13 SoC based systems
 
-#if ARCH_SUN3I
-source "arch/arm/mach-sun3i/Kconfig"
-#endif
-#if ARCH_SUN4I
-#source "arch/arm/mach-sun4i/Kconfig"
-#endif
-if ARCH_SUN5I
-source "arch/arm/mach-sun5i/Kconfig"
-endif
-
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	select CPU_ARM926T
@@ -1040,6 +1030,10 @@ source "arch/arm/mach-s5p64x0/Kconfig"
 source "arch/arm/mach-s5pc100/Kconfig"
 
 source "arch/arm/mach-s5pv210/Kconfig"
+
+source "arch/arm/mach-sun3i/Kconfig"
+source "arch/arm/mach-sun4i/Kconfig"
+source "arch/arm/mach-sun5i/Kconfig"
 
 source "arch/arm/mach-exynos4/Kconfig"
 
