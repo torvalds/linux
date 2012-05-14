@@ -472,6 +472,7 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(regmap_reinit_cache);
 
 /**
  * regmap_exit(): Free a previously allocated register map
