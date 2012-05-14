@@ -1263,11 +1263,6 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 
 	genpd_acquire_lock(genpd);
 
-	if (genpd->status == GPD_STATE_POWER_OFF) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (genpd->prepared_count > 0) {
 		ret = -EAGAIN;
 		goto out;
@@ -1290,7 +1285,7 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	dev->power.subsys_data->domain_data = &gpd_data->base;
 	gpd_data->base.dev = dev;
 	list_add_tail(&gpd_data->base.list_node, &genpd->dev_list);
-	gpd_data->need_restore = false;
+	gpd_data->need_restore = genpd->status == GPD_STATE_POWER_OFF;
 	if (td)
 		gpd_data->td = *td;
 
@@ -1416,6 +1411,26 @@ void pm_genpd_dev_always_on(struct device *dev, bool val)
 	spin_unlock_irqrestore(&dev->power.lock, flags);
 }
 EXPORT_SYMBOL_GPL(pm_genpd_dev_always_on);
+
+/**
+ * pm_genpd_dev_need_restore - Set/unset the device's "need restore" flag.
+ * @dev: Device to set/unset the flag for.
+ * @val: The new value of the device's "need restore" flag.
+ */
+void pm_genpd_dev_need_restore(struct device *dev, bool val)
+{
+	struct pm_subsys_data *psd;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->power.lock, flags);
+
+	psd = dev_to_psd(dev);
+	if (psd && psd->domain_data)
+		to_gpd_data(psd->domain_data)->need_restore = val;
+
+	spin_unlock_irqrestore(&dev->power.lock, flags);
+}
+EXPORT_SYMBOL_GPL(pm_genpd_dev_need_restore);
 
 /**
  * pm_genpd_add_subdomain - Add a subdomain to an I/O PM domain.
