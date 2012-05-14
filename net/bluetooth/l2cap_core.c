@@ -2104,7 +2104,10 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 		if (err)
 			break;
 
+		if (chan->mode == L2CAP_MODE_ERTM && chan->tx_send_head == NULL)
+			chan->tx_send_head = seg_queue.next;
 		skb_queue_splice_tail_init(&seg_queue, &chan->tx_q);
+
 		if (chan->mode == L2CAP_MODE_ERTM)
 			err = l2cap_ertm_send(chan);
 		else
