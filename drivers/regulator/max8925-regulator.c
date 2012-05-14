@@ -78,7 +78,7 @@ static int max8925_set_voltage(struct regulator_dev *rdev,
 	return max8925_set_bits(info->i2c, info->vol_reg, mask, data);
 }
 
-static int max8925_get_voltage(struct regulator_dev *rdev)
+static int max8925_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct max8925_regulator_info *info = rdev_get_drvdata(rdev);
 	unsigned char data, mask;
@@ -90,7 +90,7 @@ static int max8925_get_voltage(struct regulator_dev *rdev)
 	mask = rdev->desc->n_voltages - 1;
 	data = ret & mask;
 
-	return max8925_list_voltage(rdev, data);
+	return data;
 }
 
 static int max8925_enable(struct regulator_dev *rdev)
@@ -162,7 +162,7 @@ static int max8925_set_dvm_disable(struct regulator_dev *rdev)
 static struct regulator_ops max8925_regulator_sdv_ops = {
 	.list_voltage		= max8925_list_voltage,
 	.set_voltage		= max8925_set_voltage,
-	.get_voltage		= max8925_get_voltage,
+	.get_voltage_sel	= max8925_get_voltage_sel,
 	.enable			= max8925_enable,
 	.disable		= max8925_disable,
 	.is_enabled		= max8925_is_enabled,
@@ -174,7 +174,7 @@ static struct regulator_ops max8925_regulator_sdv_ops = {
 static struct regulator_ops max8925_regulator_ldo_ops = {
 	.list_voltage		= max8925_list_voltage,
 	.set_voltage		= max8925_set_voltage,
-	.get_voltage		= max8925_get_voltage,
+	.get_voltage_sel	= max8925_get_voltage_sel,
 	.enable			= max8925_enable,
 	.disable		= max8925_disable,
 	.is_enabled		= max8925_is_enabled,
