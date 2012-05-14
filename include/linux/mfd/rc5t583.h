@@ -272,11 +272,13 @@ struct rc5t583 {
  * rc5t583_platform_data: Platform data for ricoh rc5t583 pmu.
  * The board specific data is provided through this structure.
  * @irq_base: Irq base number on which this device registers their interrupts.
+ * @gpio_base: GPIO base from which gpio of this device will start.
  * @enable_shutdown: Enable shutdown through the input pin "shutdown".
  */
 
 struct rc5t583_platform_data {
 	int		irq_base;
+	int		gpio_base;
 	bool		enable_shutdown;
 };
 
