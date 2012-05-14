@@ -335,7 +335,7 @@ tlb_miss:
 	/* If the fast path handler fixed the fault, just drop through quickly
 	   to the restore code right away to return to the excepting context.
 	   */
-	beqi/u	r2, 0, tr1
+	bnei/u	r2, 0, tr1
 
 fast_tlb_miss_restore:
 	ld.q	SP, SAVED_TR0, r2

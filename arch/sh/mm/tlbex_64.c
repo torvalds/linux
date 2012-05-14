@@ -53,23 +53,23 @@ static int handle_vmalloc_fault(struct mm_struct *mm,
 
 	pud = pud_offset(dir, address);
 	if (pud_none_or_clear_bad(pud))
-		return 0;
+		return 1;
 
 	pmd = pmd_offset(pud, address);
 	if (pmd_none_or_clear_bad(pmd))
-		return 0;
+		return 1;
 
 	pte = pte_offset_kernel(pmd, address);
 	entry = *pte;
 
 	if (pte_none(entry) || !pte_present(entry))
-		return 0;
+		return 1;
 	if ((pte_val(entry) & protection_flags) != protection_flags)
-		return 0;
+		return 1;
 
 	update_mmu_cache(NULL, address, pte);
 
-	return 1;
+	return 0;
 }
 
 static int handle_tlbmiss(struct mm_struct *mm,
@@ -94,27 +94,27 @@ static int handle_tlbmiss(struct mm_struct *mm,
 	   the next test is necessary.  - RPC */
 	if (address >= (unsigned long) TASK_SIZE)
 		/* upper half - never has page table entries. */
-		return 0;
+		return 1;
 
 	dir = pgd_offset(mm, address);
 	if (pgd_none(*dir) || !pgd_present(*dir))
-		return 0;
+		return 1;
 	if (!pgd_present(*dir))
-		return 0;
+		return 1;
 
 	pud = pud_offset(dir, address);
 	if (pud_none(*pud) || !pud_present(*pud))
-		return 0;
+		return 1;
 
 	pmd = pmd_offset(pud, address);
 	if (pmd_none(*pmd) || !pmd_present(*pmd))
-		return 0;
+		return 1;
 
 	pte = pte_offset_kernel(pmd, address);
 	entry = *pte;
 
 	if (pte_none(entry) || !pte_present(entry))
-		return 0;
+		return 1;
 
 	/*
 	 * If the page doesn't have sufficient protection bits set to
@@ -123,11 +123,11 @@ static int handle_tlbmiss(struct mm_struct *mm,
 	 * handler.
 	 */
 	if ((pte_val(entry) & protection_flags) != protection_flags)
-		return 0;
+		return 1;
 
 	update_mmu_cache(NULL, address, pte);
 
-	return 1;
+	return 0;
 }
 
 /*
@@ -214,12 +214,12 @@ asmlinkage int do_fast_page_fault(unsigned long long ssr_md,
 			 * Process-contexts can never have this address
 			 * range mapped
 			 */
-			if (handle_vmalloc_fault(mm, protection_flags, address))
-				return 1;
+			if (handle_vmalloc_fault(mm, protection_flags, address) == 0)
+				return 0;
 	} else if (!in_interrupt() && mm) {
-		if (handle_tlbmiss(mm, protection_flags, address))
-			return 1;
+		if (handle_tlbmiss(mm, protection_flags, address) == 0)
+			return 0;
 	}
 
-	return 0;
+	return 1;
 }
