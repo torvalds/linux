@@ -44,7 +44,7 @@ obj-$(CONFIG_HAVE_SRAM_POOL)	+= sram.o
 
 GCOV_PROFILE_pmb.o := n
 
-# Special flags for fault_64.o.  This puts restrictions on the number of
+# Special flags for tlbex_64.o.  This puts restrictions on the number of
 # caller-save registers that the compiler can target when building this file.
 # This is required because the code is called from a context in entry.S where
 # very few registers have been saved in the exception handler (for speed
@@ -59,7 +59,7 @@ GCOV_PROFILE_pmb.o := n
 # The resources not listed below are callee save, i.e. the compiler is free to
 # use any of them and will spill them to the stack itself.
 
-CFLAGS_fault_64.o += -ffixed-r7 \
+CFLAGS_tlbex_64.o += -ffixed-r7 \
 	-ffixed-r8 -ffixed-r9 -ffixed-r10 -ffixed-r11 -ffixed-r12 \
 	-ffixed-r13 -ffixed-r14 -ffixed-r16 -ffixed-r17 -ffixed-r19 \
 	-ffixed-r20 -ffixed-r21 -ffixed-r22 -ffixed-r23 \
