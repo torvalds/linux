@@ -103,35 +103,6 @@ static inline int cpu_logical_map(int cpu)
 	return cpu;
 }
 
-static inline int hard_smp4m_processor_id(void)
-{
-	int cpuid;
-
-	__asm__ __volatile__("rd %%tbr, %0\n\t"
-			     "srl %0, 12, %0\n\t"
-			     "and %0, 3, %0\n\t" :
-			     "=&r" (cpuid));
-	return cpuid;
-}
-
-static inline int hard_smp4d_processor_id(void)
-{
-	int cpuid;
-
-	__asm__ __volatile__("lda [%%g0] %1, %0\n\t" :
-			     "=&r" (cpuid) : "i" (ASI_M_VIKING_TMP1));
-	return cpuid;
-}
-
-extern inline int hard_smpleon_processor_id(void)
-{
-	int cpuid;
-	__asm__ __volatile__("rd     %%asr17,%0\n\t"
-			     "srl    %0,28,%0" :
-			     "=&r" (cpuid) : );
-	return cpuid;
-}
-
 extern int hard_smp_processor_id(void);
 
 #define raw_smp_processor_id()		(current_thread_info()->cpu)
