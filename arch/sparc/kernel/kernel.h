@@ -32,9 +32,6 @@ extern void cpu_probe(void);
 /* traps_32.c */
 extern void handle_hw_divzero(struct pt_regs *regs, unsigned long pc,
                               unsigned long npc, unsigned long psr);
-/* muldiv.c */
-extern int do_user_muldiv (struct pt_regs *, unsigned long);
-
 /* irq_32.c */
 extern struct irqaction static_irqaction[];
 extern int static_irq_count;

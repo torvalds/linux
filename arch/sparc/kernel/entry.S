@@ -1161,11 +1161,13 @@ fpload:
 	.globl	__ndelay
 __ndelay:
 	save	%sp, -STACKFRAME_SZ, %sp
-	mov	%i0, %o0
-	call	.umul			! round multiplier up so large ns ok
-	 mov	0x1ae, %o1		! 2**32 / (1 000 000 000 / HZ)
-	call	.umul
-	 mov	%i1, %o1		! udelay_val
+	mov	%i0, %o0		! round multiplier up so large ns ok
+	mov	0x1ae, %o1		! 2**32 / (1 000 000 000 / HZ)
+	umul	%o0, %o1, %o0
+	rd	%y, %o1
+	mov	%i1, %o1		! udelay_val
+	umul	%o0, %o1, %o0
+	rd	%y, %o1
 	ba	delay_continue
 	 mov	%o1, %o0		! >>32 later for better resolution
 
@@ -1174,18 +1176,21 @@ __udelay:
 	save	%sp, -STACKFRAME_SZ, %sp
 	mov	%i0, %o0
 	sethi	%hi(0x10c7), %o1	! round multiplier up so large us ok
-	call	.umul
-	 or	%o1, %lo(0x10c7), %o1	! 2**32 / 1 000 000
-	call	.umul
-	 mov	%i1, %o1		! udelay_val
+	or	%o1, %lo(0x10c7), %o1	! 2**32 / 1 000 000
+	umul	%o0, %o1, %o0
+	rd	%y, %o1
+	mov	%i1, %o1		! udelay_val
+	umul	%o0, %o1, %o0
+	rd	%y, %o1
 	sethi	%hi(0x028f4b62), %l0	! Add in rounding constant * 2**32,
 	or	%g0, %lo(0x028f4b62), %l0
 	addcc	%o0, %l0, %o0		! 2**32 * 0.009 999
 	bcs,a	3f
 	 add	%o1, 0x01, %o1
 3:
-	call	.umul
-	 mov	HZ, %o0			! >>32 earlier for wider range
+	mov	HZ, %o0			! >>32 earlier for wider range
+	umul	%o0, %o1, %o0
+	rd	%y, %o1
 
 delay_continue:
 	cmp	%o0, 0x0

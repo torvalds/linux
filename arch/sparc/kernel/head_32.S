@@ -746,51 +746,6 @@ sun4d_init:
 	/* Fall through to sun4m_init */
 
 sun4m_init:
-
-#define PATCH_IT(dst, src)	\
-	set	(dst), %g5;	\
-	set	(src), %g4;	\
-	ld	[%g4], %g3;	\
-	st	%g3, [%g5];	\
-	ld	[%g4+0x4], %g3;	\
-	st	%g3, [%g5+0x4];
-
-	/* Signed multiply. */
-	PATCH_IT(.mul, .mul_patch)
-	PATCH_IT(.mul+0x08, .mul_patch+0x08)
-
-	/* Signed remainder. */
-	PATCH_IT(.rem, .rem_patch)
-	PATCH_IT(.rem+0x08, .rem_patch+0x08)
-	PATCH_IT(.rem+0x10, .rem_patch+0x10)
-	PATCH_IT(.rem+0x18, .rem_patch+0x18)
-	PATCH_IT(.rem+0x20, .rem_patch+0x20)
-	PATCH_IT(.rem+0x28, .rem_patch+0x28)
-
-	/* Signed division. */
-	PATCH_IT(.div, .div_patch)
-	PATCH_IT(.div+0x08, .div_patch+0x08)
-	PATCH_IT(.div+0x10, .div_patch+0x10)
-	PATCH_IT(.div+0x18, .div_patch+0x18)
-	PATCH_IT(.div+0x20, .div_patch+0x20)
-
-	/* Unsigned multiply. */
-	PATCH_IT(.umul, .umul_patch)
-	PATCH_IT(.umul+0x08, .umul_patch+0x08)
-
-	/* Unsigned remainder. */
-	PATCH_IT(.urem, .urem_patch)
-	PATCH_IT(.urem+0x08, .urem_patch+0x08)
-	PATCH_IT(.urem+0x10, .urem_patch+0x10)
-	PATCH_IT(.urem+0x18, .urem_patch+0x18)
-
-	/* Unsigned division. */
-	PATCH_IT(.udiv, .udiv_patch)
-	PATCH_IT(.udiv+0x08, .udiv_patch+0x08)
-	PATCH_IT(.udiv+0x10, .udiv_patch+0x10)
-
-#undef PATCH_IT
-
 /* Ok, the PROM could have done funny things and apple cider could still
  * be sitting in the fault status/address registers.  Read them all to
  * clear them so we don't get magic faults later on.
