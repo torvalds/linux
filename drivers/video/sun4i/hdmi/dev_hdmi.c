@@ -9,7 +9,7 @@ static struct class *hdmi_class;
 hdmi_info_t ghdmi;
 
 
-static struct resource hdmi_resource[1] = 
+static struct resource hdmi_resource[1] =
 {
 	[0] = {
 		.start = 0x01c16000,
@@ -18,7 +18,7 @@ static struct resource hdmi_resource[1] =
 	},
 };
 
-struct platform_device hdmi_device = 
+struct platform_device hdmi_device =
 {
 	.name           = "hdmi",
 	.id		        = -1,
@@ -31,7 +31,7 @@ struct platform_device hdmi_device =
 static int __init hdmi_probe(struct platform_device *pdev)
 {
 	__inf("hdmi_probe call\n");
-		
+
     memset(&ghdmi, 0, sizeof(hdmi_info_t));
 
 	ghdmi.base_hdmi = 0xf1c16000;
@@ -61,13 +61,13 @@ int hdmi_resume(struct platform_device *pdev)
 {
     return 0;
 }
-static struct platform_driver hdmi_driver = 
+static struct platform_driver hdmi_driver =
 {
 	.probe		= hdmi_probe,
 	.remove		= hdmi_remove,
 	.suspend    = hdmi_suspend,
 	.resume    = hdmi_resume,
-	.driver		= 
+	.driver		=
 	{
 		.name	= "hdmi",
 		.owner	= THIS_MODULE,
@@ -106,7 +106,7 @@ long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 
-static const struct file_operations hdmi_fops = 
+static const struct file_operations hdmi_fops =
 {
 	.owner		= THIS_MODULE,
 	.open		= hdmi_open,
@@ -120,7 +120,7 @@ static const struct file_operations hdmi_fops =
 int __init hdmi_module_init(void)
 {
 	int ret = 0, err;
-	
+
 	__inf("hdmi_module_init\n");
 
 	 alloc_chrdev_region(&devid, 0, 1, "hdmi");
@@ -140,16 +140,16 @@ int __init hdmi_module_init(void)
         __wrn("class_create fail\n");
         return -1;
     }
-    
+
 	ret |= hdmi_i2c_add_driver();
 
 	ret = platform_device_register(&hdmi_device);
-	
+
 	if (ret == 0)
-	{	
+	{
 		ret = platform_driver_register(&hdmi_driver);
 	}
-	
+
 	return ret;
 }
 

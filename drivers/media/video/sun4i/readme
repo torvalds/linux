@@ -20,7 +20,7 @@
 #handles the irq/clock/phy memory alloc of the cedar device,
 #and also the AV-SYNC counter (AVS_CNT1);
 #    Please pay attention to the method to request/remap IO
-#resource and request/free irq, which are just handle once in 
+#resource and request/free irq, which are just handle once in
 #module init and module exit.
 #-------------------------------------------------------------
 
