@@ -746,21 +746,6 @@ sun4d_init:
 	/* Fall through to sun4m_init */
 
 sun4m_init:
-	/* XXX Fucking Cypress... */
-	lda	[%g0] ASI_M_MMUREGS, %g5
-	srl	%g5, 28, %g4
-
-	cmp	%g4, 1
-	bne	1f
-	 srl	%g5, 24, %g4
-
-	and	%g4, 0xf, %g4
-	cmp	%g4, 7		/* This would be a HyperSparc. */
-
-	bne	2f
-	 nop
-
-1:
 
 #define PATCH_IT(dst, src)	\
 	set	(dst), %g5;	\

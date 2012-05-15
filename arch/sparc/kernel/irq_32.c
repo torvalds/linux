@@ -23,14 +23,6 @@
 #include "kernel.h"
 #include "irq.h"
 
-#ifdef CONFIG_SMP
-#define SMP_NOP2 "nop; nop;\n\t"
-#define SMP_NOP3 "nop; nop; nop;\n\t"
-#else
-#define SMP_NOP2
-#define SMP_NOP3
-#endif /* SMP */
-
 /* platform specific irq setup */
 struct sparc_config sparc_config;
 
@@ -41,7 +33,6 @@ unsigned long arch_local_irq_save(void)
 
 	__asm__ __volatile__(
 		"rd	%%psr, %0\n\t"
-		SMP_NOP3	/* Sun4m + Cypress + SMP bug */
 		"or	%0, %2, %1\n\t"
 		"wr	%1, 0, %%psr\n\t"
 		"nop; nop; nop\n"
@@ -59,7 +50,6 @@ void arch_local_irq_enable(void)
 
 	__asm__ __volatile__(
 		"rd	%%psr, %0\n\t"
-		SMP_NOP3	/* Sun4m + Cypress + SMP bug */
 		"andn	%0, %1, %0\n\t"
 		"wr	%0, 0, %%psr\n\t"
 		"nop; nop; nop\n"
@@ -76,7 +66,6 @@ void arch_local_irq_restore(unsigned long old_psr)
 	__asm__ __volatile__(
 		"rd	%%psr, %0\n\t"
 		"and	%2, %1, %2\n\t"
-		SMP_NOP2	/* Sun4m + Cypress + SMP bug */
 		"andn	%0, %1, %0\n\t"
 		"wr	%0, %2, %%psr\n\t"
 		"nop; nop; nop\n"
