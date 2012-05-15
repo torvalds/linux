@@ -396,7 +396,7 @@ static void perf_record__mmap_read_all(struct perf_record *rec)
 			perf_record__mmap_read(rec, &rec->evlist->mmap[i]);
 	}
 
-	if (perf_header__has_feat(&rec->session->header, HEADER_TRACE_INFO))
+	if (perf_header__has_feat(&rec->session->header, HEADER_TRACING_DATA))
 		write_output(rec, &finished_round_event, sizeof(finished_round_event));
 }
 
@@ -478,7 +478,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		perf_header__clear_feat(&session->header, HEADER_BUILD_ID);
 
 	if (!have_tracepoints(&evsel_list->entries))
-		perf_header__clear_feat(&session->header, HEADER_TRACE_INFO);
+		perf_header__clear_feat(&session->header, HEADER_TRACING_DATA);
 
 	if (!rec->opts.branch_stack)
 		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
