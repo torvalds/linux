@@ -17,6 +17,9 @@
 #include <asm/prom.h>
 #endif
 
+#include <target/target_core_base.h>
+#include "qla_target.h"
+
 /*
 *  QLogic ISP2x00 Hardware Support Function Prototypes.
 */
@@ -518,7 +521,10 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 			return QLA_FUNCTION_FAILED;
 		}
 	}
-	rval = qla2x00_init_rings(vha);
+
+	if (qla_ini_mode_enabled(vha))
+		rval = qla2x00_init_rings(vha);
+
 	ha->flags.chip_reset_done = 1;
 
 	if (rval == QLA_SUCCESS && IS_QLA84XX(ha)) {
@@ -1233,6 +1239,8 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 			mq_size += ha->max_rsp_queues *
 			    (rsp->length * sizeof(response_t));
 		}
+		if (ha->tgt.atio_q_length)
+			mq_size += ha->tgt.atio_q_length * sizeof(request_t);
 		/* Allocate memory for Fibre Channel Event Buffer. */
 		if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha))
 			goto try_eft;
@@ -1696,6 +1704,12 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 	icb->response_q_address[0] = cpu_to_le32(LSD(rsp->dma));
 	icb->response_q_address[1] = cpu_to_le32(MSD(rsp->dma));
 
+	/* Setup ATIO queue dma pointers for target mode */
+	icb->atio_q_inpointer = __constant_cpu_to_le16(0);
+	icb->atio_q_length = cpu_to_le16(ha->tgt.atio_q_length);
+	icb->atio_q_address[0] = cpu_to_le32(LSD(ha->tgt.atio_dma));
+	icb->atio_q_address[1] = cpu_to_le32(MSD(ha->tgt.atio_dma));
+
 	if (ha->mqenable || IS_QLA83XX(ha)) {
 		icb->qos = __constant_cpu_to_le16(QLA_DEFAULT_QUE_QOS);
 		icb->rid = __constant_cpu_to_le16(rid);
@@ -1739,6 +1753,8 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 		WRT_REG_DWORD(&reg->isp24.rsp_q_in, 0);
 		WRT_REG_DWORD(&reg->isp24.rsp_q_out, 0);
 	}
+	qlt_24xx_config_rings(vha, reg);
+
 	/* PCI posting */
 	RD_REG_DWORD(&ioreg->hccr);
 }
@@ -1793,6 +1809,11 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 	spin_lock(&ha->vport_slock);
 
 	spin_unlock(&ha->vport_slock);
+
+	ha->tgt.atio_ring_ptr = ha->tgt.atio_ring;
+	ha->tgt.atio_ring_index = 0;
+	/* Initialize ATIO queue entries */
+	qlt_init_atio_q_entries(vha);
 
 	ha->isp_ops->config_rings(vha);
 
@@ -2051,6 +2072,10 @@ qla2x00_configure_hba(scsi_qla_host_t *vha)
 	vha->d_id.b.area = area;
 	vha->d_id.b.al_pa = al_pa;
 
+	spin_lock(&ha->vport_slock);
+	qlt_update_vp_map(vha, SET_AL_PA);
+	spin_unlock(&ha->vport_slock);
+
 	if (!vha->flags.init_done)
 		ql_log(ql_log_info, vha, 0x2010,
 		    "Topology - %s, Host Loop address 0x%x.\n",
@@ -2270,7 +2295,7 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	if (IS_QLA23XX(ha)) {
 		nv->firmware_options[0] |= BIT_2;
 		nv->firmware_options[0] &= ~BIT_3;
-		nv->firmware_options[0] &= ~BIT_6;
+		nv->special_options[0] &= ~BIT_6;
 		nv->add_firmware_options[1] |= BIT_5 | BIT_4;
 
 		if (IS_QLA2300(ha)) {
@@ -2467,14 +2492,21 @@ qla2x00_rport_del(void *data)
 {
 	fc_port_t *fcport = data;
 	struct fc_rport *rport;
+	scsi_qla_host_t *vha = fcport->vha;
 	unsigned long flags;
 
 	spin_lock_irqsave(fcport->vha->host->host_lock, flags);
 	rport = fcport->drport ? fcport->drport: fcport->rport;
 	fcport->drport = NULL;
 	spin_unlock_irqrestore(fcport->vha->host->host_lock, flags);
-	if (rport)
+	if (rport) {
 		fc_remote_port_delete(rport);
+		/*
+		 * Release the target mode FC NEXUS in qla_target.c code
+		 * if target mod is enabled.
+		 */
+		qlt_fc_port_deleted(vha, fcport);
+	}
 }
 
 /**
@@ -2853,6 +2885,12 @@ qla2x00_reg_remote_port(scsi_qla_host_t *vha, fc_port_t *fcport)
 		    "Unable to allocate fc remote port.\n");
 		return;
 	}
+	/*
+	 * Create target mode FC NEXUS in qla_target.c if target mode is
+	 * enabled..
+	 */
+	qlt_fc_port_added(vha, fcport);
+
 	spin_lock_irqsave(fcport->vha->host->host_lock, flags);
 	*((fc_port_t **)rport->dd_data) = fcport;
 	spin_unlock_irqrestore(fcport->vha->host->host_lock, flags);
@@ -3532,6 +3570,12 @@ qla2x00_fabric_login(scsi_qla_host_t *vha, fc_port_t *fcport,
 			if (mb[10] & BIT_1)
 				fcport->supported_classes |= FC_COS_CLASS3;
 
+			if (IS_FWI2_CAPABLE(ha)) {
+				if (mb[10] & BIT_7)
+					fcport->flags |=
+					    FCF_CONF_COMP_SUPPORTED;
+			}
+
 			rval = QLA_SUCCESS;
 			break;
 		} else if (mb[0] == MBS_LOOP_ID_USED) {
@@ -4003,6 +4047,7 @@ qla2x00_restart_isp(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
+	unsigned long flags;
 
 	/* If firmware needs to be loaded */
 	if (qla2x00_isp_firmware(vha)) {
@@ -4027,6 +4072,16 @@ qla2x00_restart_isp(scsi_qla_host_t *vha)
 			qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL);
 
 			vha->flags.online = 1;
+
+			/*
+			 * Process any ATIO queue entries that came in
+			 * while we weren't online.
+			 */
+			spin_lock_irqsave(&ha->hardware_lock, flags);
+			if (qla_tgt_mode_enabled(vha))
+				qlt_24xx_process_atio_queue(vha);
+			spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
 			/* Wait at most MAX_TARGET RSCNs for a stable link. */
 			wait_time = 256;
 			do {
@@ -4267,6 +4322,15 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 		rval = 1;
 	}
 
+	if (!qla_ini_mode_enabled(vha)) {
+		/* Don't enable full login after initial LIP */
+		nv->firmware_options_1 &= __constant_cpu_to_le32(~BIT_13);
+		/* Don't enable LIP full login for initiator */
+		nv->host_p &= __constant_cpu_to_le32(~BIT_10);
+	}
+
+	qlt_24xx_config_nvram_stage1(vha, nv);
+
 	/* Reset Initialization control block */
 	memset(icb, 0, ha->init_cb_size);
 
@@ -4294,8 +4358,10 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	qla2x00_set_model_info(vha, nv->model_name, sizeof(nv->model_name),
 	    "QLA2462");
 
-	/* Use alternate WWN? */
+	qlt_24xx_config_nvram_stage2(vha, icb);
+
 	if (nv->host_p & __constant_cpu_to_le32(BIT_15)) {
+		/* Use alternate WWN? */
 		memcpy(icb->node_name, nv->alternate_node_name, WWN_SIZE);
 		memcpy(icb->port_name, nv->alternate_port_name, WWN_SIZE);
 	}

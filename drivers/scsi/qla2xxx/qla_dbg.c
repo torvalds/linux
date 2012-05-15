@@ -11,8 +11,8 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x0120       | 0x4b,0xba,0xfa |
- * | Mailbox commands             |       0x113e       | 0x111a-0x111b  |
+ * | Module Init and Probe        |       0x0122       | 0x4b,0xba,0xfa |
+ * | Mailbox commands             |       0x1140       | 0x111a-0x111b  |
  * |                              |                    | 0x112c-0x112e  |
  * |                              |                    | 0x113a         |
  * | Device Discovery             |       0x2086       | 0x2020-0x2022  |
@@ -33,6 +33,9 @@
  * | ISP82XX Specific             |       0xb054       | 0xb024         |
  * | MultiQ                       |       0xc00c       |		|
  * | Misc                         |       0xd010       |		|
+ * | Target Mode		  |	  0xe06f       |		|
+ * | Target Mode Management	  |	  0xf071       |		|
+ * | Target Mode Task Management  |	  0x1000b      |		|
  * ----------------------------------------------------------------------
  */
 
@@ -377,6 +380,54 @@ qla25xx_copy_fce(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	memcpy(iter_reg, ha->fce, ntohl(fcec->size));
 
 	return (char *)iter_reg + ntohl(fcec->size);
+}
+
+static inline void *
+qla2xxx_copy_atioqueues(struct qla_hw_data *ha, void *ptr,
+	uint32_t **last_chain)
+{
+	struct qla2xxx_mqueue_chain *q;
+	struct qla2xxx_mqueue_header *qh;
+	uint32_t num_queues;
+	int que;
+	struct {
+		int length;
+		void *ring;
+	} aq, *aqp;
+
+	if (!ha->tgt.atio_q_length)
+		return ptr;
+
+	num_queues = 1;
+	aqp = &aq;
+	aqp->length = ha->tgt.atio_q_length;
+	aqp->ring = ha->tgt.atio_ring;
+
+	for (que = 0; que < num_queues; que++) {
+		/* aqp = ha->atio_q_map[que]; */
+		q = ptr;
+		*last_chain = &q->type;
+		q->type = __constant_htonl(DUMP_CHAIN_QUEUE);
+		q->chain_size = htonl(
+		    sizeof(struct qla2xxx_mqueue_chain) +
+		    sizeof(struct qla2xxx_mqueue_header) +
+		    (aqp->length * sizeof(request_t)));
+		ptr += sizeof(struct qla2xxx_mqueue_chain);
+
+		/* Add header. */
+		qh = ptr;
+		qh->queue = __constant_htonl(TYPE_ATIO_QUEUE);
+		qh->number = htonl(que);
+		qh->size = htonl(aqp->length * sizeof(request_t));
+		ptr += sizeof(struct qla2xxx_mqueue_header);
+
+		/* Add data. */
+		memcpy(ptr, aqp->ring, aqp->length * sizeof(request_t));
+
+		ptr += aqp->length * sizeof(request_t);
+	}
+
+	return ptr;
 }
 
 static inline void *
@@ -874,6 +925,8 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	struct qla24xx_fw_dump *fw;
 	uint32_t	ext_mem_cnt;
 	void		*nxt;
+	void		*nxt_chain;
+	uint32_t	*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	if (IS_QLA82XX(ha))
@@ -1091,6 +1144,16 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	nxt = qla2xxx_copy_queues(ha, nxt);
 
 	qla24xx_copy_eft(ha, nxt);
+
+	nxt_chain = (void *)ha->fw_dump + ha->chain_offset;
+	nxt_chain = qla2xxx_copy_atioqueues(ha, nxt_chain, &last_chain);
+	if (last_chain) {
+		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
+		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);
+	}
+
+	/* Adjust valid length. */
+	ha->fw_dump_len = (nxt_chain - (void *)ha->fw_dump);
 
 qla24xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);
@@ -1400,6 +1463,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	/* Chain entries -- started with MQ. */
 	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
 	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
+	nxt_chain = qla2xxx_copy_atioqueues(ha, nxt_chain, &last_chain);
 	if (last_chain) {
 		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
 		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);
@@ -1718,6 +1782,7 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	/* Chain entries -- started with MQ. */
 	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
 	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
+	nxt_chain = qla2xxx_copy_atioqueues(ha, nxt_chain, &last_chain);
 	if (last_chain) {
 		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
 		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);
@@ -2219,6 +2284,7 @@ copy_queue:
 	/* Chain entries -- started with MQ. */
 	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
 	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
+	nxt_chain = qla2xxx_copy_atioqueues(ha, nxt_chain, &last_chain);
 	if (last_chain) {
 		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
 		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);

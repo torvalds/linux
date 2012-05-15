@@ -13,11 +13,12 @@
 #include <linux/mutex.h>
 #include <linux/kobject.h>
 #include <linux/slab.h>
-
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsicam.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
+
+#include "qla_target.h"
 
 /*
  * Driver version
@@ -39,6 +40,12 @@ static struct kmem_cache *ctx_cachep;
  * error level for logging
  */
 int ql_errlev = ql_log_all;
+
+int ql2xenableclass2;
+module_param(ql2xenableclass2, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(ql2xenableclass2,
+		"Specify if Class 2 operations are supported from the very "
+		"beginning. Default is 0 - class 2 not supported.");
 
 int ql2xlogintimeout = 20;
 module_param(ql2xlogintimeout, int, S_IRUGO);
@@ -255,6 +262,8 @@ struct scsi_host_template qla2xxx_driver_template = {
 
 	.max_sectors		= 0xFFFF,
 	.shost_attrs		= qla2x00_host_attrs,
+
+	.supported_mode		= MODE_INITIATOR,
 };
 
 static struct scsi_transport_template *qla2xxx_transport_template = NULL;
@@ -2187,6 +2196,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ql_dbg_pci(ql_dbg_init, pdev, 0x000a,
 	    "Memory allocated for ha=%p.\n", ha);
 	ha->pdev = pdev;
+	ha->tgt.enable_class_2 = ql2xenableclass2;
 
 	/* Clear our data area */
 	ha->bars = bars;
@@ -2250,6 +2260,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		req_length = REQUEST_ENTRY_CNT_24XX;
 		rsp_length = RESPONSE_ENTRY_CNT_2300;
+		ha->tgt.atio_q_length = ATIO_ENTRY_CNT_24XX;
 		ha->max_loop_id = SNS_LAST_LOOP_ID_2300;
 		ha->init_cb_size = sizeof(struct mid_init_cb_24xx);
 		ha->gid_list_info_size = 8;
@@ -2265,6 +2276,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		req_length = REQUEST_ENTRY_CNT_24XX;
 		rsp_length = RESPONSE_ENTRY_CNT_2300;
+		ha->tgt.atio_q_length = ATIO_ENTRY_CNT_24XX;
 		ha->max_loop_id = SNS_LAST_LOOP_ID_2300;
 		ha->init_cb_size = sizeof(struct mid_init_cb_24xx);
 		ha->gid_list_info_size = 8;
@@ -2433,6 +2445,7 @@ que_init:
 		goto probe_init_failed;
 	}
 
+	qlt_probe_one_stage1(base_vha, ha);
 
 	/* Set up the irqs */
 	ret = qla2x00_request_irqs(ha, rsp);
@@ -2521,6 +2534,14 @@ que_init:
 	ql_dbg(ql_dbg_init, base_vha, 0x00ee,
 	    "DPC thread started successfully.\n");
 
+	/*
+	 * If we're not coming up in initiator mode, we might sit for
+	 * a while without waking up the dpc thread, which leads to a
+	 * stuck process warning.  So just kick the dpc once here and
+	 * let the kthread start (and go back to sleep in qla2x00_do_dpc).
+	 */
+	qla2xxx_wake_dpc(base_vha);
+
 skip_dpc:
 	list_add_tail(&base_vha->list, &ha->vp_list);
 	base_vha->host->irq = ha->pdev->irq;
@@ -2566,7 +2587,11 @@ skip_dpc:
 	ql_dbg(ql_dbg_init, base_vha, 0x00f2,
 	    "Init done and hba is online.\n");
 
-	scsi_scan_host(host);
+	if (qla_ini_mode_enabled(base_vha))
+		scsi_scan_host(host);
+	else
+		ql_dbg(ql_dbg_init, base_vha, 0x0122,
+			"skipping scsi_scan_host() for non-initiator port\n");
 
 	qla2x00_alloc_sysfs_attr(base_vha);
 
@@ -2583,6 +2608,8 @@ skip_dpc:
 	    pci_name(pdev), ha->flags.enable_64bit_addressing ? '+' : '-',
 	    base_vha->host_no,
 	    ha->isp_ops->fw_version_str(base_vha, fw_str));
+
+	qlt_add_target(ha, base_vha);
 
 	return 0;
 
@@ -2629,6 +2656,22 @@ probe_hw_failed:
 probe_out:
 	pci_disable_device(pdev);
 	return ret;
+}
+
+static void
+qla2x00_stop_dpc_thread(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	struct task_struct *t = ha->dpc_thread;
+
+	if (ha->dpc_thread == NULL)
+		return;
+	/*
+	 * qla2xxx_wake_dpc checks for ->dpc_thread
+	 * so we need to zero it out.
+	 */
+	ha->dpc_thread = NULL;
+	kthread_stop(t);
 }
 
 static void
@@ -2684,6 +2727,8 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	base_vha = pci_get_drvdata(pdev);
 	ha = base_vha->hw;
 
+	ha->flags.host_shutting_down = 1;
+
 	mutex_lock(&ha->vport_lock);
 	while (ha->cur_vport_count) {
 		struct Scsi_Host *scsi_host;
@@ -2737,6 +2782,7 @@ qla2x00_remove_one(struct pci_dev *pdev)
 		ha->dpc_thread = NULL;
 		kthread_stop(t);
 	}
+	qlt_remove_target(ha, base_vha);
 
 	qla2x00_free_sysfs_attr(base_vha);
 
@@ -2788,17 +2834,7 @@ qla2x00_free_device(scsi_qla_host_t *vha)
 	if (vha->timer_active)
 		qla2x00_stop_timer(vha);
 
-	/* Kill the kernel thread for this host */
-	if (ha->dpc_thread) {
-		struct task_struct *t = ha->dpc_thread;
-
-		/*
-		 * qla2xxx_wake_dpc checks for ->dpc_thread
-		 * so we need to zero it out.
-		 */
-		ha->dpc_thread = NULL;
-		kthread_stop(t);
-	}
+	qla2x00_stop_dpc_thread(vha);
 
 	qla25xx_delete_queues(vha);
 
@@ -2860,8 +2896,10 @@ qla2x00_schedule_rport_del(struct scsi_qla_host *vha, fc_port_t *fcport,
 		spin_unlock_irqrestore(vha->host->host_lock, flags);
 		set_bit(FCPORT_UPDATE_NEEDED, &base_vha->dpc_flags);
 		qla2xxx_wake_dpc(base_vha);
-	} else
+	} else {
 		fc_remote_port_delete(rport);
+		qlt_fc_port_deleted(vha, fcport);
+	}
 }
 
 /*
@@ -2964,10 +3002,13 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 	if (!ha->init_cb)
 		goto fail;
 
+	if (qlt_mem_alloc(ha) < 0)
+		goto fail_free_init_cb;
+
 	ha->gid_list = dma_alloc_coherent(&ha->pdev->dev,
 		qla2x00_gid_list_size(ha), &ha->gid_list_dma, GFP_KERNEL);
 	if (!ha->gid_list)
-		goto fail_free_init_cb;
+		goto fail_free_tgt_mem;
 
 	ha->srb_mempool = mempool_create_slab_pool(SRB_MIN_REQ, srb_cachep);
 	if (!ha->srb_mempool)
@@ -3185,6 +3226,8 @@ fail_free_gid_list:
 	ha->gid_list_dma);
 	ha->gid_list = NULL;
 	ha->gid_list_dma = 0;
+fail_free_tgt_mem:
+	qlt_mem_free(ha);
 fail_free_init_cb:
 	dma_free_coherent(&ha->pdev->dev, ha->init_cb_size, ha->init_cb,
 	ha->init_cb_dma);
@@ -3300,6 +3343,8 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	if (ha->ctx_mempool)
 		mempool_destroy(ha->ctx_mempool);
 
+	qlt_mem_free(ha);
+
 	if (ha->init_cb)
 		dma_free_coherent(&ha->pdev->dev, ha->init_cb_size,
 			ha->init_cb, ha->init_cb_dma);
@@ -3329,6 +3374,10 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 
 	ha->gid_list = NULL;
 	ha->gid_list_dma = 0;
+
+	ha->tgt.atio_ring = NULL;
+	ha->tgt.atio_dma = 0;
+	ha->tgt.tgt_vp_map = NULL;
 }
 
 struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
@@ -3755,6 +3804,16 @@ qla2x00_do_dpc(void *data)
 		if (test_bit(FCPORT_UPDATE_NEEDED, &base_vha->dpc_flags)) {
 			qla2x00_update_fcports(base_vha);
 			clear_bit(FCPORT_UPDATE_NEEDED, &base_vha->dpc_flags);
+		}
+
+		if (test_bit(SCR_PENDING, &base_vha->dpc_flags)) {
+			int ret;
+			ret = qla2x00_send_change_request(base_vha, 0x3, 0);
+			if (ret != QLA_SUCCESS)
+				ql_log(ql_log_warn, base_vha, 0x121,
+				    "Failed to enable receiving of RSCN "
+				    "requests: 0x%x.\n", ret);
+			clear_bit(SCR_PENDING, &base_vha->dpc_flags);
 		}
 
 		if (test_bit(ISP_QUIESCE_NEEDED, &base_vha->dpc_flags)) {
@@ -4475,6 +4534,21 @@ qla2x00_module_init(void)
 		return -ENOMEM;
 	}
 
+	/* Initialize target kmem_cache and mem_pools */
+	ret = qlt_init();
+	if (ret < 0) {
+		kmem_cache_destroy(srb_cachep);
+		return ret;
+	} else if (ret > 0) {
+		/*
+		 * If initiator mode is explictly disabled by qlt_init(),
+		 * prevent scsi_transport_fc.c:fc_scsi_scan_rport() from
+		 * performing scsi_scan_target() during LOOP UP event.
+		 */
+		qla2xxx_transport_functions.disable_target_scan = 1;
+		qla2xxx_transport_vport_functions.disable_target_scan = 1;
+	}
+
 	/* Derive version string. */
 	strcpy(qla2x00_version_str, QLA2XXX_VERSION);
 	if (ql2xextended_error_logging)
@@ -4486,6 +4560,7 @@ qla2x00_module_init(void)
 		kmem_cache_destroy(srb_cachep);
 		ql_log(ql_log_fatal, NULL, 0x0002,
 		    "fc_attach_transport failed...Failing load!.\n");
+		qlt_exit();
 		return -ENODEV;
 	}
 
@@ -4499,6 +4574,7 @@ qla2x00_module_init(void)
 	    fc_attach_transport(&qla2xxx_transport_vport_functions);
 	if (!qla2xxx_transport_vport_template) {
 		kmem_cache_destroy(srb_cachep);
+		qlt_exit();
 		fc_release_transport(qla2xxx_transport_template);
 		ql_log(ql_log_fatal, NULL, 0x0004,
 		    "fc_attach_transport vport failed...Failing load!.\n");
@@ -4510,6 +4586,7 @@ qla2x00_module_init(void)
 	ret = pci_register_driver(&qla2xxx_pci_driver);
 	if (ret) {
 		kmem_cache_destroy(srb_cachep);
+		qlt_exit();
 		fc_release_transport(qla2xxx_transport_template);
 		fc_release_transport(qla2xxx_transport_vport_template);
 		ql_log(ql_log_fatal, NULL, 0x0006,
@@ -4529,6 +4606,7 @@ qla2x00_module_exit(void)
 	pci_unregister_driver(&qla2xxx_pci_driver);
 	qla2x00_release_firmware();
 	kmem_cache_destroy(srb_cachep);
+	qlt_exit();
 	if (ctx_cachep)
 		kmem_cache_destroy(ctx_cachep);
 	fc_release_transport(qla2xxx_transport_template);
