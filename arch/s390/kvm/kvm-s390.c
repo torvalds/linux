@@ -446,6 +446,14 @@ static int kvm_arch_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu,
 	int r = -EINVAL;
 
 	switch (reg->id) {
+	case KVM_REG_S390_TODPR:
+		r = put_user(vcpu->arch.sie_block->todpr,
+			     (u32 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_EPOCHDIFF:
+		r = put_user(vcpu->arch.sie_block->epoch,
+			     (u64 __user *)reg->addr);
+		break;
 	default:
 		break;
 	}
@@ -459,6 +467,14 @@ static int kvm_arch_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu,
 	int r = -EINVAL;
 
 	switch (reg->id) {
+	case KVM_REG_S390_TODPR:
+		r = get_user(vcpu->arch.sie_block->todpr,
+			     (u32 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_EPOCHDIFF:
+		r = get_user(vcpu->arch.sie_block->epoch,
+			     (u64 __user *)reg->addr);
+		break;
 	default:
 		break;
 	}

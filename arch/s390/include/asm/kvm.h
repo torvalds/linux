@@ -52,4 +52,7 @@ struct kvm_sync_regs {
 	__u32 acrs[16];	/* access registers */
 	__u64 crs[16];	/* control registers */
 };
+
+#define KVM_REG_S390_TODPR	(KVM_REG_S390 | KVM_REG_SIZE_U32 | 0x1)
+#define KVM_REG_S390_EPOCHDIFF	(KVM_REG_S390 | KVM_REG_SIZE_U64 | 0x2)
 #endif
