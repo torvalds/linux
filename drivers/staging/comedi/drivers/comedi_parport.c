@@ -91,29 +91,6 @@ pin, which can be used to wake up tasks.
 #define PARPORT_B 1
 #define PARPORT_C 2
 
-static int parport_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int parport_detach(struct comedi_device *dev);
-static struct comedi_driver driver_parport = {
-	.driver_name = "comedi_parport",
-	.module = THIS_MODULE,
-	.attach = parport_attach,
-	.detach = parport_detach,
-};
-
-static int __init driver_parport_init_module(void)
-{
-	return comedi_driver_register(&driver_parport);
-}
-
-static void __exit driver_parport_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_parport);
-}
-
-module_init(driver_parport_init_module);
-module_exit(driver_parport_cleanup_module);
-
 struct parport_private {
 	unsigned int a_data;
 	unsigned int c_data;
@@ -407,6 +384,14 @@ static int parport_detach(struct comedi_device *dev)
 
 	return 0;
 }
+
+static struct comedi_driver parport_driver = {
+	.driver_name	= "comedi_parport",
+	.module		= THIS_MODULE,
+	.attach		= parport_attach,
+	.detach		= parport_detach,
+};
+module_comedi_driver(parport_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
