@@ -2412,8 +2412,6 @@ static struct ccwgroup_driver lcs_group_driver = {
 		.owner	= THIS_MODULE,
 		.name	= "lcs",
 	},
-	.max_slaves  = 2,
-	.driver_id   = 0xD3C3E2,
 	.setup	     = lcs_probe_device,
 	.remove      = lcs_remove_device,
 	.set_online  = lcs_new_device,
@@ -2429,8 +2427,7 @@ static ssize_t lcs_driver_group_store(struct device_driver *ddrv,
 				      const char *buf, size_t count)
 {
 	int err;
-	err = ccwgroup_create_dev(lcs_root_dev, lcs_group_driver.driver_id,
-				  &lcs_group_driver, 2, buf);
+	err = ccwgroup_create_dev(lcs_root_dev, &lcs_group_driver, 2, buf);
 	return err ? err : count;
 }
 static DRIVER_ATTR(group, 0200, NULL, lcs_driver_group_store);

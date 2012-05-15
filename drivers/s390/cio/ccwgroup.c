@@ -30,19 +30,6 @@
  * to devices that use multiple subchannels.
  */
 
-/* a device matches a driver if all its slave devices match the same
- * entry of the driver */
-static int ccwgroup_bus_match(struct device *dev, struct device_driver * drv)
-{
-	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
-	struct ccwgroup_driver *gdrv = to_ccwgroupdrv(drv);
-
-	if (gdev->creator_id == gdrv->driver_id)
-		return 1;
-
-	return 0;
-}
-
 static struct bus_type ccwgroup_bus_type;
 
 static void __ccwgroup_remove_symlinks(struct ccwgroup_device *gdev)
@@ -292,7 +279,6 @@ static int __get_next_id(const char **buf, struct ccw_dev_id *id)
 /**
  * ccwgroup_create_dev() - create and register a ccw group device
  * @parent: parent device for the new device
- * @creator_id: identifier of creating driver
  * @gdrv: driver for the new group device
  * @num_devices: number of slave devices
  * @buf: buffer containing comma separated bus ids of slave devices
@@ -304,9 +290,8 @@ static int __get_next_id(const char **buf, struct ccw_dev_id *id)
  * Context:
  *  non-atomic
  */
-int ccwgroup_create_dev(struct device *parent, unsigned int creator_id,
-			struct ccwgroup_driver *gdrv, int num_devices,
-			const char *buf)
+int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
+			int num_devices, const char *buf)
 {
 	struct ccwgroup_device *gdev;
 	struct ccw_dev_id dev_id;
@@ -320,10 +305,6 @@ int ccwgroup_create_dev(struct device *parent, unsigned int creator_id,
 	atomic_set(&gdev->onoff, 0);
 	mutex_init(&gdev->reg_mutex);
 	mutex_lock(&gdev->reg_mutex);
-	if (gdrv)
-		gdev->creator_id = gdrv->driver_id;
-	else
-		gdev->creator_id = creator_id;
 	gdev->count = num_devices;
 	gdev->dev.bus = &ccwgroup_bus_type;
 	gdev->dev.parent = parent;
@@ -402,30 +383,6 @@ error:
 }
 EXPORT_SYMBOL(ccwgroup_create_dev);
 
-/**
- * ccwgroup_create_from_string() - create and register a ccw group device
- * @root: parent device for the new device
- * @creator_id: identifier of creating driver
- * @cdrv: ccw driver of slave devices
- * @num_devices: number of slave devices
- * @buf: buffer containing comma separated bus ids of slave devices
- *
- * Create and register a new ccw group device as a child of @root. Slave
- * devices are obtained from the list of bus ids given in @buf and must all
- * belong to @cdrv.
- * Returns:
- *  %0 on success and an error code on failure.
- * Context:
- *  non-atomic
- */
-int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
-				struct ccw_driver *cdrv, int num_devices,
-				const char *buf)
-{
-	return ccwgroup_create_dev(root, creator_id, NULL, num_devices, buf);
-}
-EXPORT_SYMBOL(ccwgroup_create_from_string);
-
 static int ccwgroup_notifier(struct notifier_block *nb, unsigned long action,
 			     void *data)
 {
@@ -466,14 +423,6 @@ module_init(init_ccwgroup);
 module_exit(cleanup_ccwgroup);
 
 /************************** driver stuff ******************************/
-
-static int ccwgroup_probe(struct device *dev)
-{
-	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
-	struct ccwgroup_driver *gdrv = to_ccwgroupdrv(dev->driver);
-
-	return gdrv->probe ? gdrv->probe(gdev) : -ENODEV;
-}
 
 static int ccwgroup_remove(struct device *dev)
 {
@@ -569,8 +518,6 @@ static const struct dev_pm_ops ccwgroup_pm_ops = {
 
 static struct bus_type ccwgroup_bus_type = {
 	.name   = "ccwgroup",
-	.match  = ccwgroup_bus_match,
-	.probe  = ccwgroup_probe,
 	.remove = ccwgroup_remove,
 	.shutdown = ccwgroup_shutdown,
 	.pm = &ccwgroup_pm_ops,

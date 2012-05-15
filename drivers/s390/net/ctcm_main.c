@@ -1767,8 +1767,6 @@ static struct ccwgroup_driver ctcm_group_driver = {
 		.owner	= THIS_MODULE,
 		.name	= CTC_DRIVER_NAME,
 	},
-	.max_slaves  = 2,
-	.driver_id   = 0xC3E3C3D4,	/* CTCM */
 	.setup	     = ctcm_probe_device,
 	.remove      = ctcm_remove_device,
 	.set_online  = ctcm_new_device,
@@ -1783,8 +1781,7 @@ static ssize_t ctcm_driver_group_store(struct device_driver *ddrv,
 {
 	int err;
 
-	err = ccwgroup_create_dev(ctcm_root_dev, ctcm_group_driver.driver_id,
-				  &ctcm_group_driver, 2, buf);
+	err = ccwgroup_create_dev(ctcm_root_dev, &ctcm_group_driver, 2, buf);
 	return err ? err : count;
 }
 static DRIVER_ATTR(group, 0200, NULL, ctcm_driver_group_store);

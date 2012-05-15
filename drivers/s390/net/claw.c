@@ -262,12 +262,10 @@ static struct ccwgroup_driver claw_group_driver = {
 		.owner	= THIS_MODULE,
 		.name	= "claw",
 	},
-        .max_slaves  = 2,
-        .driver_id   = 0xC3D3C1E6,
 	.setup	     = claw_probe,
-        .remove      = claw_remove_device,
-        .set_online  = claw_new_device,
-        .set_offline = claw_shutdown_device,
+	.remove      = claw_remove_device,
+	.set_online  = claw_new_device,
+	.set_offline = claw_shutdown_device,
 	.prepare     = claw_pm_prepare,
 };
 
@@ -292,8 +290,7 @@ static ssize_t claw_driver_group_store(struct device_driver *ddrv,
 				       const char *buf,	size_t count)
 {
 	int err;
-	err = ccwgroup_create_dev(claw_root_dev, claw_group_driver.driver_id,
-				  &claw_group_driver, 2, buf);
+	err = ccwgroup_create_dev(claw_root_dev, &claw_group_driver, 2, buf);
 	return err ? err : count;
 }
 static DRIVER_ATTR(group, 0200, NULL, claw_driver_group_store);

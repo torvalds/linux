@@ -5267,7 +5267,6 @@ static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
 		.owner = THIS_MODULE,
 		.name = "qeth",
 	},
-	.driver_id = 0xD8C5E3C8,
 	.setup = qeth_core_probe_device,
 	.remove = qeth_core_remove_device,
 	.set_online = qeth_core_set_online,
@@ -5286,7 +5285,6 @@ static ssize_t qeth_core_driver_group_store(struct device_driver *ddrv,
 	int err;
 
 	err = ccwgroup_create_dev(qeth_core_root_dev,
-				  qeth_core_ccwgroup_driver.driver_id,
 				  &qeth_core_ccwgroup_driver, 3, buf);
 
 	return err ? err : count;
