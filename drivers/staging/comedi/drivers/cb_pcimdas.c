@@ -123,15 +123,6 @@ static const struct cb_pcimdas_board cb_pcimdas_boards[] = {
 	 },
 };
 
-/* This is used by modprobe to translate PCI IDs to drivers.  Should
- * only be used for PCI and ISA-PnP devices */
-static DEFINE_PCI_DEVICE_TABLE(cb_pcimdas_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0056) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, cb_pcimdas_pci_table);
-
 #define N_BOARDS 1		/*  Max number of boards supported */
 
 /*
@@ -174,22 +165,6 @@ struct cb_pcimdas_private {
  * access the private structure.
  */
 #define devpriv ((struct cb_pcimdas_private *)dev->private)
-
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int cb_pcimdas_attach(struct comedi_device *dev,
-			     struct comedi_devconfig *it);
-static int cb_pcimdas_detach(struct comedi_device *dev);
-static struct comedi_driver driver_cb_pcimdas = {
-	.driver_name = "cb_pcimdas",
-	.module = THIS_MODULE,
-	.attach = cb_pcimdas_attach,
-	.detach = cb_pcimdas_detach,
-};
 
 static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
@@ -486,49 +461,37 @@ static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
 	return i;
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-static int __devinit driver_cb_pcimdas_pci_probe(struct pci_dev *dev,
-						 const struct pci_device_id
-						 *ent)
+static struct comedi_driver cb_pcimdas_driver = {
+	.driver_name	= "cb_pcimdas",
+	.module		= THIS_MODULE,
+	.attach		= cb_pcimdas_attach,
+	.detach		= cb_pcimdas_detach,
+};
+
+static int __devinit cb_pcimdas_pci_probe(struct pci_dev *dev,
+					  const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &driver_cb_pcimdas);
+	return comedi_pci_auto_config(dev, &cb_pcimdas_driver);
 }
 
-static void __devexit driver_cb_pcimdas_pci_remove(struct pci_dev *dev)
+static void __devexit cb_pcimdas_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_cb_pcimdas_pci_driver = {
-	.id_table = cb_pcimdas_pci_table,
-	.probe = &driver_cb_pcimdas_pci_probe,
-	.remove = __devexit_p(&driver_cb_pcimdas_pci_remove)
+static DEFINE_PCI_DEVICE_TABLE(cb_pcimdas_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0056) },
+	{ 0 }
 };
+MODULE_DEVICE_TABLE(pci, cb_pcimdas_pci_table);
 
-static int __init driver_cb_pcimdas_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_cb_pcimdas);
-	if (retval < 0)
-		return retval;
-
-	driver_cb_pcimdas_pci_driver.name =
-	    (char *)driver_cb_pcimdas.driver_name;
-	return pci_register_driver(&driver_cb_pcimdas_pci_driver);
-}
-
-static void __exit driver_cb_pcimdas_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_cb_pcimdas_pci_driver);
-	comedi_driver_unregister(&driver_cb_pcimdas);
-}
-
-module_init(driver_cb_pcimdas_init_module);
-module_exit(driver_cb_pcimdas_cleanup_module);
+static struct pci_driver cb_pcimdas_pci_driver = {
+	.name		= "cb_pcimdas",
+	.id_table	= cb_pcimdas_pci_table,
+	.probe		= cb_pcimdas_pci_probe,
+	.remove		= __devexit_p(cb_pcimdas_pci_remove),
+};
+module_comedi_pci_driver(cb_pcimdas_driver, cb_pcimdas_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
