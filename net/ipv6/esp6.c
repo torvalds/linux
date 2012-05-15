@@ -444,8 +444,8 @@ static void esp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			      esph->spi, IPPROTO_ESP, AF_INET6);
 	if (!x)
 		return;
-	printk(KERN_DEBUG "pmtu discovery on SA ESP/%08x/%pI6\n",
-			ntohl(esph->spi), &iph->daddr);
+	pr_debug("pmtu discovery on SA ESP/%08x/%pI6\n",
+		 ntohl(esph->spi), &iph->daddr);
 	xfrm_state_put(x);
 }
 

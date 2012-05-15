@@ -1374,8 +1374,7 @@ void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more)
 			return;
 		}
 	} else if (!rt)
-		printk(KERN_DEBUG "rt_bind_peer(0) @%p\n",
-		       __builtin_return_address(0));
+		pr_debug("rt_bind_peer(0) @%p\n", __builtin_return_address(0));
 
 	ip_select_fb_ident(iph);
 }
@@ -1839,9 +1838,9 @@ static void ipv4_link_failure(struct sk_buff *skb)
 
 static int ip_rt_bug(struct sk_buff *skb)
 {
-	printk(KERN_DEBUG "ip_rt_bug: %pI4 -> %pI4, %s\n",
-		&ip_hdr(skb)->saddr, &ip_hdr(skb)->daddr,
-		skb->dev ? skb->dev->name : "?");
+	pr_debug("%s: %pI4 -> %pI4, %s\n",
+		 __func__, &ip_hdr(skb)->saddr, &ip_hdr(skb)->daddr,
+		 skb->dev ? skb->dev->name : "?");
 	kfree_skb(skb);
 	WARN_ON(1);
 	return 0;

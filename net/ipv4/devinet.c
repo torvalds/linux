@@ -217,8 +217,7 @@ void in_dev_finish_destroy(struct in_device *idev)
 	WARN_ON(idev->ifa_list);
 	WARN_ON(idev->mc_list);
 #ifdef NET_REFCNT_DEBUG
-	printk(KERN_DEBUG "in_dev_finish_destroy: %p=%s\n",
-	       idev, dev ? dev->name : "NIL");
+	pr_debug("%s: %p=%s\n", __func__, idev, dev ? dev->name : "NIL");
 #endif
 	dev_put(dev);
 	if (!idev->dead)
@@ -1174,7 +1173,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 
 	switch (event) {
 	case NETDEV_REGISTER:
-		printk(KERN_DEBUG "inetdev_event: bug\n");
+		pr_debug("%s: bug\n", __func__);
 		RCU_INIT_POINTER(dev->ip_ptr, NULL);
 		break;
 	case NETDEV_UP:

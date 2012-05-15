@@ -41,7 +41,7 @@
 #define RT6_DEBUG 2
 
 #if RT6_DEBUG >= 3
-#define RT6_TRACE(x...) printk(KERN_DEBUG x)
+#define RT6_TRACE(x...) pr_debug(x)
 #else
 #define RT6_TRACE(x...) do { ; } while (0)
 #endif
@@ -1420,7 +1420,8 @@ static int fib6_clean_node(struct fib6_walker_t *w)
 			res = fib6_del(rt, &info);
 			if (res) {
 #if RT6_DEBUG >= 2
-				printk(KERN_DEBUG "fib6_clean_node: del failed: rt=%p@%p err=%d\n", rt, rt->rt6i_node, res);
+				pr_debug("%s: del failed: rt=%p@%p err=%d\n",
+					 __func__, rt, rt->rt6i_node, res);
 #endif
 				continue;
 			}

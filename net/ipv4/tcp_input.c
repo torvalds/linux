@@ -981,12 +981,12 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
 
 		NET_INC_STATS_BH(sock_net(sk), mib_idx);
 #if FASTRETRANS_DEBUG > 1
-		printk(KERN_DEBUG "Disorder%d %d %u f%u s%u rr%d\n",
-		       tp->rx_opt.sack_ok, inet_csk(sk)->icsk_ca_state,
-		       tp->reordering,
-		       tp->fackets_out,
-		       tp->sacked_out,
-		       tp->undo_marker ? tp->undo_retrans : 0);
+		pr_debug("Disorder%d %d %u f%u s%u rr%d\n",
+			 tp->rx_opt.sack_ok, inet_csk(sk)->icsk_ca_state,
+			 tp->reordering,
+			 tp->fackets_out,
+			 tp->sacked_out,
+			 tp->undo_marker ? tp->undo_retrans : 0);
 #endif
 		tcp_disable_fack(tp);
 	}
@@ -2716,22 +2716,22 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 	struct inet_sock *inet = inet_sk(sk);
 
 	if (sk->sk_family == AF_INET) {
-		printk(KERN_DEBUG "Undo %s %pI4/%u c%u l%u ss%u/%u p%u\n",
-		       msg,
-		       &inet->inet_daddr, ntohs(inet->inet_dport),
-		       tp->snd_cwnd, tcp_left_out(tp),
-		       tp->snd_ssthresh, tp->prior_ssthresh,
-		       tp->packets_out);
+		pr_debug("Undo %s %pI4/%u c%u l%u ss%u/%u p%u\n",
+			 msg,
+			 &inet->inet_daddr, ntohs(inet->inet_dport),
+			 tp->snd_cwnd, tcp_left_out(tp),
+			 tp->snd_ssthresh, tp->prior_ssthresh,
+			 tp->packets_out);
 	}
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (sk->sk_family == AF_INET6) {
 		struct ipv6_pinfo *np = inet6_sk(sk);
-		printk(KERN_DEBUG "Undo %s %pI6/%u c%u l%u ss%u/%u p%u\n",
-		       msg,
-		       &np->daddr, ntohs(inet->inet_dport),
-		       tp->snd_cwnd, tcp_left_out(tp),
-		       tp->snd_ssthresh, tp->prior_ssthresh,
-		       tp->packets_out);
+		pr_debug("Undo %s %pI6/%u c%u l%u ss%u/%u p%u\n",
+			 msg,
+			 &np->daddr, ntohs(inet->inet_dport),
+			 tp->snd_cwnd, tcp_left_out(tp),
+			 tp->snd_ssthresh, tp->prior_ssthresh,
+			 tp->packets_out);
 	}
 #endif
 }
@@ -3511,18 +3511,18 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	if (!tp->packets_out && tcp_is_sack(tp)) {
 		icsk = inet_csk(sk);
 		if (tp->lost_out) {
-			printk(KERN_DEBUG "Leak l=%u %d\n",
-			       tp->lost_out, icsk->icsk_ca_state);
+			pr_debug("Leak l=%u %d\n",
+				 tp->lost_out, icsk->icsk_ca_state);
 			tp->lost_out = 0;
 		}
 		if (tp->sacked_out) {
-			printk(KERN_DEBUG "Leak s=%u %d\n",
-			       tp->sacked_out, icsk->icsk_ca_state);
+			pr_debug("Leak s=%u %d\n",
+				 tp->sacked_out, icsk->icsk_ca_state);
 			tp->sacked_out = 0;
 		}
 		if (tp->retrans_out) {
-			printk(KERN_DEBUG "Leak r=%u %d\n",
-			       tp->retrans_out, icsk->icsk_ca_state);
+			pr_debug("Leak r=%u %d\n",
+				 tp->retrans_out, icsk->icsk_ca_state);
 			tp->retrans_out = 0;
 		}
 	}

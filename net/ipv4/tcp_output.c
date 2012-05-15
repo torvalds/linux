@@ -34,6 +34,8 @@
  *
  */
 
+#define pr_fmt(fmt) "TCP: " fmt
+
 #include <net/tcp.h>
 
 #include <linux/compiler.h>
@@ -2415,7 +2417,7 @@ int tcp_send_synack(struct sock *sk)
 
 	skb = tcp_write_queue_head(sk);
 	if (skb == NULL || !(TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)) {
-		printk(KERN_DEBUG "tcp_send_synack: wrong queue state\n");
+		pr_debug("%s: wrong queue state\n", __func__);
 		return -EFAULT;
 	}
 	if (!(TCP_SKB_CB(skb)->tcp_flags & TCPHDR_ACK)) {

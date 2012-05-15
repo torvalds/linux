@@ -329,7 +329,7 @@ void in6_dev_finish_destroy(struct inet6_dev *idev)
 	WARN_ON(idev->mc_list != NULL);
 
 #ifdef NET_REFCNT_DEBUG
-	printk(KERN_DEBUG "%s: %s\n", __func__, dev ? dev->name : "NIL");
+	pr_debug("%s: %s\n", __func__, dev ? dev->name : "NIL");
 #endif
 	dev_put(dev);
 	if (!idev->dead) {
@@ -542,7 +542,7 @@ void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp)
 	WARN_ON(!hlist_unhashed(&ifp->addr_lst));
 
 #ifdef NET_REFCNT_DEBUG
-	printk(KERN_DEBUG "inet6_ifa_finish_destroy\n");
+	pr_debug("%s\n", __func__);
 #endif
 
 	in6_dev_put(ifp->idev);
@@ -2405,7 +2405,7 @@ static void init_loopback(struct net_device *dev)
 	ASSERT_RTNL();
 
 	if ((idev = ipv6_find_idev(dev)) == NULL) {
-		printk(KERN_DEBUG "init loopback: add_dev failed\n");
+		pr_debug("%s: add_dev failed\n", __func__);
 		return;
 	}
 
@@ -2474,7 +2474,7 @@ static void addrconf_sit_config(struct net_device *dev)
 	 */
 
 	if ((idev = ipv6_find_idev(dev)) == NULL) {
-		printk(KERN_DEBUG "init sit: add_dev failed\n");
+		pr_debug("%s: add_dev failed\n", __func__);
 		return;
 	}
 
@@ -2509,7 +2509,7 @@ static void addrconf_gre_config(struct net_device *dev)
 	ASSERT_RTNL();
 
 	if ((idev = ipv6_find_idev(dev)) == NULL) {
-		printk(KERN_DEBUG "init gre: add_dev failed\n");
+		pr_debug("%s: add_dev failed\n", __func__);
 		return;
 	}
 
@@ -2549,7 +2549,7 @@ static void ip6_tnl_add_linklocal(struct inet6_dev *idev)
 		if (!ipv6_inherit_linklocal(idev, link_dev))
 			return;
 	}
-	printk(KERN_DEBUG "init ip6-ip6: add_linklocal failed\n");
+	pr_debug("init ip6-ip6: add_linklocal failed\n");
 }
 
 /*
@@ -2565,7 +2565,7 @@ static void addrconf_ip6_tnl_config(struct net_device *dev)
 
 	idev = addrconf_add_dev(dev);
 	if (IS_ERR(idev)) {
-		printk(KERN_DEBUG "init ip6-ip6: add_dev failed\n");
+		pr_debug("init ip6-ip6: add_dev failed\n");
 		return;
 	}
 	ip6_tnl_add_linklocal(idev);
@@ -2893,8 +2893,7 @@ static void addrconf_rs_timer(unsigned long data)
 		 * Note: we do not support deprecated "all on-link"
 		 * assumption any longer.
 		 */
-		printk(KERN_DEBUG "%s: no IPv6 routers present\n",
-		       idev->dev->name);
+		pr_debug("%s: no IPv6 routers present\n", idev->dev->name);
 	}
 
 out:

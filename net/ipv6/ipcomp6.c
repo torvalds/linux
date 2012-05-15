@@ -72,8 +72,8 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (!x)
 		return;
 
-	printk(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/%pI6\n",
-			spi, &iph->daddr);
+	pr_debug("pmtu discovery on SA IPCOMP/%08x/%pI6\n",
+		 spi, &iph->daddr);
 	xfrm_state_put(x);
 }
 
