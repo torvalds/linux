@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -16,7 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
+
 ******************************************************************************/
 #ifndef _RTL8192C_RECV_H_
 #define _RTL8192C_RECV_H_
@@ -119,10 +119,10 @@ typedef struct _Phy_OFDM_Rx_Status_Report_8192cd
 	unsigned char idle_long:1;
 	unsigned char r_ant_train_en:1;
 	unsigned char ANTSELB:1;
-	unsigned char ANTSEL:1;	
+	unsigned char ANTSEL:1;
 #else	// _BIG_ENDIAN_
 	//unsigned char rsvd:4;
-	unsigned char ANTSEL:1;	
+	unsigned char ANTSEL:1;
 	unsigned char ANTSELB:1;
 	unsigned char r_ant_train_en:1;
 	unsigned char idle_long:1;

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -71,7 +71,7 @@ __inline static _list *get_prev(_list	*list)
 {
 	return list->Blink;
 }
-	
+
 __inline static _list *get_next(_list	*list)
 {
 	return list->Flink;
@@ -96,12 +96,12 @@ __inline static void _exit_critical(_lock *plock, _irqL *pirqL)
 
 __inline static _enter_critical_ex(_lock *plock, _irqL *pirqL)
 {
-	NdisDprAcquireSpinLock(plock);	
+	NdisDprAcquireSpinLock(plock);
 }
 
 __inline static _exit_critical_ex(_lock *plock, _irqL *pirqL)
 {
-	NdisDprReleaseSpinLock(plock);	
+	NdisDprReleaseSpinLock(plock);
 }
 
 

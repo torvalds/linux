@@ -478,7 +478,7 @@ VOID Hal_TriggerRFThermalMeter( PADAPTER pAdapter )
 u8 Hal_ReadRFThermalMeter(PADAPTER pAdapter)
 {
 	u32 ThermalValue = 0;
-	
+
 	ThermalValue = _read_rfreg(pAdapter, RF_PATH_A, RF_T_METER, 0xf800);	//0x42: RF Reg[15:11]
 //	RT_TRACE(_module_mp_, _drv_alert_, ("ThermalValue = 0x%x\n", ThermalValue));
 	return (u8)ThermalValue;
@@ -765,7 +765,7 @@ void Hal_SetContinuousTx (PADAPTER pAdapter, u8 bStart)
 
 void Hal_mpt_SwitchRfSetting(PADAPTER pAdapter)
 {
-	
+
 	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(pAdapter);
 	struct mp_priv *pmp = &pAdapter->mppriv;
 	u8 ChannelToSw = pmp->channel, eRFPath = RF_PATH_A;
@@ -774,8 +774,8 @@ void Hal_mpt_SwitchRfSetting(PADAPTER pAdapter)
 	PMPT_CONTEXT	pMptCtx = &(pAdapter->mppriv.MptCtx);
     BOOLEAN             bInteralPA = _FALSE;
     u32				value = 0;
-    
-    
+
+
 	if (((ulRateIdx == MPT_RATE_1M || ulRateIdx == MPT_RATE_6M || ulRateIdx == MPT_RATE_MCS0 ||
         ulRateIdx == MPT_RATE_MCS8) && ulbandwidth == HT_CHANNEL_WIDTH_20 &&
         (ChannelToSw == 1 || ChannelToSw == 11)) ||
@@ -823,12 +823,12 @@ void MPT_CCKTxPowerAdjust(PADAPTER Adapter,BOOLEAN	bInCH14)
 
 
 	// get current cck swing value and check 0xa22 & 0xa23 later to match the table.
-	
+
 	CurrCCKSwingVal = PHY_QueryBBReg(Adapter, rCCK0_TxFilter1, bMaskHWord);
-	
+
 	if(!bInCH14)
 	{
-		// Readback the current bb cck swing value and compare with the table to 
+		// Readback the current bb cck swing value and compare with the table to
 		// get the current swing index
 		for(i=0 ; i<CCK_TABLE_SIZE ; i++)
 		{
@@ -840,25 +840,25 @@ void MPT_CCKTxPowerAdjust(PADAPTER Adapter,BOOLEAN	bInCH14)
 				break;
 			}
 		}
-		
+
 		//Write 0xa22 0xa23
 		TempVal =	CCKSwingTable_Ch1_Ch13[CCKSwingIndex][0] +
 					(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][1]<<8) ;
-	
-		
+
+
 		//Write 0xa24 ~ 0xa27
 		TempVal2 = 0;
 		TempVal2 =	CCKSwingTable_Ch1_Ch13[CCKSwingIndex][2] +
 					(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][3]<<8) +
 					(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][4]<<16 )+
 					(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][5]<<24);
-		
+
 		//Write 0xa28  0xa29
 		TempVal3 = 0;
 		TempVal3 =	CCKSwingTable_Ch1_Ch13[CCKSwingIndex][6] +
 					(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][7]<<8) ;
-		
-		
+
+
 	}
 	else
 	{
@@ -872,18 +872,18 @@ void MPT_CCKTxPowerAdjust(PADAPTER Adapter,BOOLEAN	bInCH14)
 				break;
 			}
 		}
-		
+
 		//Write 0xa22 0xa23
 		TempVal =	CCKSwingTable_Ch14[CCKSwingIndex][0] +
 					(CCKSwingTable_Ch14[CCKSwingIndex][1]<<8) ;
-		
+
 		//Write 0xa24 ~ 0xa27
 		TempVal2= 0;
 		TempVal2 =	CCKSwingTable_Ch14[CCKSwingIndex][2] +
 					(CCKSwingTable_Ch14[CCKSwingIndex][3]<<8) +
 					(CCKSwingTable_Ch14[CCKSwingIndex][4]<<16 )+
 					(CCKSwingTable_Ch14[CCKSwingIndex][5]<<24);
-		
+
 		//Write 0xa28  0xa29
 		TempVal3 = 0;
 		TempVal3 =	CCKSwingTable_Ch14[CCKSwingIndex][6] +

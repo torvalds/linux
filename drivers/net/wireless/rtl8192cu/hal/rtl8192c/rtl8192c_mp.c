@@ -903,7 +903,7 @@ s32 Hal_SetThermalMeter(PADAPTER pAdapter, u8 target_ther)
 
 void Hal_TriggerRFThermalMeter(PADAPTER pAdapter)
 {
-  
+
 	write_rfreg(pAdapter, RF_PATH_A, RF_T_METER, 0x60);	// 0x24: RF Reg[6:5]
 
 //	RT_TRACE(_module_mp_,_drv_alert_, ("TriggerRFThermalMeter() finished.\n" ));
@@ -1021,7 +1021,7 @@ void Hal_SetSingleToneTx(PADAPTER pAdapter, u8 bStart)
 			write_rfreg(pAdapter, rfPath, 0x21, 0xd4000);
 			rtw_usleep_os(100);
 		}
-		
+
 		write_rfreg(pAdapter, rfPath, 0x00, 0x2001f); // PAD all on.
 		rtw_usleep_os(100);
 	}
@@ -1045,7 +1045,7 @@ void Hal_SetSingleToneTx(PADAPTER pAdapter, u8 bStart)
 			rtw_usleep_os(100);
 		}
 	}
-	
+
 }
 
 

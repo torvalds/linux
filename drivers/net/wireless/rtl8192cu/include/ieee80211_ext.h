@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -376,7 +376,7 @@ struct ieee80211_mgmt {
 		struct {
 			u16 reason_code;
 		}  disassoc;
-#if 0		
+#if 0
 		struct {
 			__le64 timestamp;
 			u16 beacon_int;
@@ -389,7 +389,7 @@ struct ieee80211_mgmt {
 			/* only variable items: SSID, Supported rates */
 			u8 variable[0];
 		}  probe_req;
-		
+
 		struct {
 			__le64 timestamp;
 			u16 beacon_int;
@@ -398,7 +398,7 @@ struct ieee80211_mgmt {
 			 * FH Params, DS Params, CF Params, IBSS Params */
 			u8 variable[0];
 		}  probe_resp;
-#endif	
+#endif
 		struct {
 			u8 category;
 			union {
@@ -408,7 +408,7 @@ struct ieee80211_mgmt {
 					u8 status_code;
 					u8 variable[0];
 				}  wme_action;
-/*				
+/*
 				struct{
 					u8 action_code;
 					u8 element_id;
@@ -422,7 +422,7 @@ struct ieee80211_mgmt {
 					u8 length;
 					struct ieee80211_msrment_ie msr_elem;
 				}  measurement;
-*/				
+*/
 				struct{
 					u8 action_code;
 					u8 dialog_token;
