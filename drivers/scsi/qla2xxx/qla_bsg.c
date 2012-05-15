@@ -544,7 +544,7 @@ qla81xx_set_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
 	int rval = 0;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha))
 		goto done_set_internal;
 
 	new_config[0] = config[0] | (ENABLE_INTERNAL_LOOPBACK << 1);
@@ -586,7 +586,7 @@ qla81xx_reset_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
 	uint16_t new_config[4];
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha))
 		goto done_reset_internal;
 
 	memset(new_config, 0 , sizeof(new_config));
@@ -711,7 +711,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 
 	if ((ha->current_topology == ISP_CFG_F ||
 	    (atomic_read(&vha->loop_state) == LOOP_DOWN) ||
-	    ((IS_QLA81XX(ha) || IS_QLA83XX(ha)) &&
+	    ((IS_QLA81XX(ha) || IS_QLA8031(ha)) &&
 	    le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE
 	    && req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
 		elreq.options == EXTERNAL_LOOPBACK) {
