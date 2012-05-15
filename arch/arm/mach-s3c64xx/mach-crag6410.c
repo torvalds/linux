@@ -669,6 +669,7 @@ static struct i2c_board_info i2c_devs1[] __initdata = {
 	  .irq = S3C_EINT(0),
 	  .platform_data = &glenfarclas_pmic_pdata },
 
+	{ I2C_BOARD_INFO("wlf-gf-module", 0x22) },
 	{ I2C_BOARD_INFO("wlf-gf-module", 0x24) },
 	{ I2C_BOARD_INFO("wlf-gf-module", 0x25) },
 	{ I2C_BOARD_INFO("wlf-gf-module", 0x26) },
