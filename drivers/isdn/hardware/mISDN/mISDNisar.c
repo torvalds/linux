@@ -421,7 +421,8 @@ deliver_status(struct isar_ch *ch, int status)
 static inline void
 isar_rcv_frame(struct isar_ch *ch)
 {
-	u8		*ptr;
+	u8	*ptr;
+	int	maxlen;
 
 	if (!ch->is->clsb) {
 		pr_debug("%s; ISAR zero len frame\n", ch->is->name);
@@ -437,36 +438,22 @@ isar_rcv_frame(struct isar_ch *ch)
 	case ISDN_P_B_RAW:
 	case ISDN_P_B_L2DTMF:
 	case ISDN_P_B_MODEM_ASYNC:
-		if (!ch->bch.rx_skb) {
-			ch->bch.rx_skb = mI_alloc_skb(ch->bch.maxlen,
-						      GFP_ATOMIC);
-			if (unlikely(!ch->bch.rx_skb)) {
-				pr_info("%s: B receive out of memory\n",
-					ch->is->name);
-				ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
-				break;
-			}
+		maxlen = bchannel_get_rxbuf(&ch->bch, ch->is->clsb);
+		if (maxlen < 0) {
+			pr_warning("%s.B%d: No bufferspace for %d bytes\n",
+				   ch->is->name, ch->bch.nr, ch->is->clsb);
+			ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
+			break;
 		}
 		rcv_mbox(ch->is, skb_put(ch->bch.rx_skb, ch->is->clsb));
 		recv_Bchannel(&ch->bch, 0);
 		break;
 	case ISDN_P_B_HDLC:
-		if (!ch->bch.rx_skb) {
-			ch->bch.rx_skb = mI_alloc_skb(ch->bch.maxlen,
-						      GFP_ATOMIC);
-			if (unlikely(!ch->bch.rx_skb)) {
-				pr_info("%s: B receive out of memory\n",
-					ch->is->name);
-				ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
-				break;
-			}
-		}
-		if ((ch->bch.rx_skb->len + ch->is->clsb) >
-		    (ch->bch.maxlen + 2)) {
-			pr_debug("%s: incoming packet too large\n",
-				 ch->is->name);
+		maxlen = bchannel_get_rxbuf(&ch->bch, ch->is->clsb);
+		if (maxlen < 0) {
+			pr_warning("%s.B%d: No bufferspace for %d bytes\n",
+				   ch->is->name, ch->bch.nr, ch->is->clsb);
 			ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
-			skb_trim(ch->bch.rx_skb, 0);
 			break;
 		}
 		if (ch->is->cmsb & HDLC_ERROR) {

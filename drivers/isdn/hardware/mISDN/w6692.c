@@ -465,6 +465,7 @@ W6692_empty_Bfifo(struct w6692_ch *wch, int count)
 {
 	struct w6692_hw *card = wch->bch.hw;
 	u8 *ptr;
+	int maxlen;
 
 	pr_debug("%s: empty_Bfifo %d\n", card->name, count);
 	if (unlikely(wch->bch.state == ISDN_P_NONE)) {
@@ -474,20 +475,13 @@ W6692_empty_Bfifo(struct w6692_ch *wch, int count)
 			skb_trim(wch->bch.rx_skb, 0);
 		return;
 	}
-	if (!wch->bch.rx_skb) {
-		wch->bch.rx_skb = mI_alloc_skb(wch->bch.maxlen, GFP_ATOMIC);
-		if (unlikely(!wch->bch.rx_skb)) {
-			pr_info("%s: B receive out of memory\n", card->name);
-			WriteW6692B(wch, W_B_CMDR, W_B_CMDR_RACK |
-				    W_B_CMDR_RACT);
-			return;
-		}
-	}
-	if (wch->bch.rx_skb->len + count > wch->bch.maxlen) {
-		pr_debug("%s: empty_Bfifo incoming packet too large\n",
-			 card->name);
+	maxlen = bchannel_get_rxbuf(&wch->bch, count);
+	if (maxlen < 0) {
 		WriteW6692B(wch, W_B_CMDR, W_B_CMDR_RACK | W_B_CMDR_RACT);
-		skb_trim(wch->bch.rx_skb, 0);
+		if (wch->bch.rx_skb)
+			skb_trim(wch->bch.rx_skb, 0);
+		pr_warning("%s.B%d: No bufferspace for %d bytes\n",
+			   card->name, wch->bch.nr, count);
 		return;
 	}
 	ptr = skb_put(wch->bch.rx_skb, count);

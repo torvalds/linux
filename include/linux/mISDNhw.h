@@ -177,6 +177,7 @@ extern void	queue_ch_frame(struct mISDNchannel *, u_int,
 			int, struct sk_buff *);
 extern int	dchannel_senddata(struct dchannel *, struct sk_buff *);
 extern int	bchannel_senddata(struct bchannel *, struct sk_buff *);
+extern int      bchannel_get_rxbuf(struct bchannel *, int);
 extern void	recv_Dchannel(struct dchannel *);
 extern void	recv_Echannel(struct dchannel *, struct dchannel *);
 extern void	recv_Bchannel(struct bchannel *, unsigned int id);

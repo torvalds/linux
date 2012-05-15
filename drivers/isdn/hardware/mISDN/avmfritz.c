@@ -404,21 +404,14 @@ hdlc_empty_fifo(struct bchannel *bch, int count)
 	u32 *ptr;
 	u8 *p;
 	u32  val, addr;
-	int cnt = 0;
+	int cnt;
 	struct fritzcard *fc = bch->hw;
 
 	pr_debug("%s: %s %d\n", fc->name, __func__, count);
-	if (!bch->rx_skb) {
-		bch->rx_skb = mI_alloc_skb(bch->maxlen, GFP_ATOMIC);
-		if (!bch->rx_skb) {
-			pr_info("%s: B receive out of memory\n",
-				fc->name);
-			return;
-		}
-	}
-	if ((bch->rx_skb->len + count) > bch->maxlen) {
-		pr_debug("%s: overrun %d\n", fc->name,
-			 bch->rx_skb->len + count);
+	cnt = bchannel_get_rxbuf(bch, count);
+	if (cnt < 0) {
+		pr_warning("%s.B%d: No bufferspace for %d bytes\n",
+			   fc->name, bch->nr, count);
 		return;
 	}
 	p = skb_put(bch->rx_skb, count);
@@ -430,6 +423,7 @@ hdlc_empty_fifo(struct bchannel *bch, int count)
 		addr = fc->addr + CHIP_WINDOW;
 		outl(bch->nr == 2 ? AVM_HDLC_2 : AVM_HDLC_1, fc->addr);
 	}
+	cnt = 0;
 	while (cnt < count) {
 		val = le32_to_cpu(inl(addr));
 		put_unaligned(val, ptr);

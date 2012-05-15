@@ -201,20 +201,30 @@ recv_Bchannel(struct bchannel *bch, unsigned int id)
 {
 	struct mISDNhead *hh;
 
-	hh = mISDN_HEAD_P(bch->rx_skb);
-	hh->prim = PH_DATA_IND;
-	hh->id = id;
-	if (bch->rcount >= 64) {
-		printk(KERN_WARNING "B-channel %p receive queue overflow, "
-		       "flushing!\n", bch);
-		skb_queue_purge(&bch->rqueue);
-		bch->rcount = 0;
+	/* if allocation did fail upper functions still may call us */
+	if (unlikely(!bch->rx_skb))
 		return;
+	if (unlikely(!bch->rx_skb->len)) {
+		/* we have no data to send - this may happen after recovery
+		 * from overflow or too small allocation.
+		 * We need to free the buffer here */
+		dev_kfree_skb(bch->rx_skb);
+		bch->rx_skb = NULL;
+	} else {
+		hh = mISDN_HEAD_P(bch->rx_skb);
+		hh->prim = PH_DATA_IND;
+		hh->id = id;
+		if (bch->rcount >= 64) {
+			printk(KERN_WARNING
+			       "B%d receive queue overflow - flushing!\n",
+			       bch->nr);
+			skb_queue_purge(&bch->rqueue);
+		}
+		bch->rcount++;
+		skb_queue_tail(&bch->rqueue, bch->rx_skb);
+		bch->rx_skb = NULL;
+		schedule_event(bch, FLG_RECVQUEUE);
 	}
-	bch->rcount++;
-	skb_queue_tail(&bch->rqueue, bch->rx_skb);
-	bch->rx_skb = NULL;
-	schedule_event(bch, FLG_RECVQUEUE);
 }
 EXPORT_SYMBOL(recv_Bchannel);
 
@@ -399,3 +409,44 @@ bchannel_senddata(struct bchannel *ch, struct sk_buff *skb)
 	}
 }
 EXPORT_SYMBOL(bchannel_senddata);
+
+/* The function allocates a new receive skb on demand with a size for the
+ * requirements of the current protocol. It returns the tailroom of the
+ * receive skb or an error.
+ */
+int
+bchannel_get_rxbuf(struct bchannel *bch, int reqlen)
+{
+	int len;
+
+	if (bch->rx_skb) {
+		len = skb_tailroom(bch->rx_skb);
+		if (len < reqlen) {
+			pr_warning("B%d no space for %d (only %d) bytes\n",
+				   bch->nr, reqlen, len);
+			if (test_bit(FLG_TRANSPARENT, &bch->Flags)) {
+				/* send what we have now and try a new buffer */
+				recv_Bchannel(bch, 0);
+			} else {
+				/* on HDLC we have to drop too big frames */
+				return -EMSGSIZE;
+			}
+		} else {
+			return len;
+		}
+	}
+	if (unlikely(reqlen > bch->maxlen))
+		return -EMSGSIZE;
+	if (test_bit(FLG_TRANSPARENT, &bch->Flags))
+		len = reqlen;
+	else /* with HDLC we do not know the length yet */
+		len = bch->maxlen;
+	bch->rx_skb = mI_alloc_skb(len, GFP_ATOMIC);
+	if (!bch->rx_skb) {
+		pr_warning("B%d receive no memory for %d bytes\n",
+			   bch->nr, len);
+		len = -ENOMEM;
+	}
+	return len;
+}
+EXPORT_SYMBOL(bchannel_get_rxbuf);

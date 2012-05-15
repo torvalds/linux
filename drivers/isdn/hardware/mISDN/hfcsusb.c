@@ -860,7 +860,16 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 		hdlc = 1;
 	}
 	if (fifo->bch) {
+		maxlen = bchannel_get_rxbuf(fifo->bch, len);
 		rx_skb = fifo->bch->rx_skb;
+		if (maxlen < 0) {
+			if (rx_skb)
+				skb_trim(rx_skb, 0);
+			pr_warning("%s.B%d: No bufferspace for %d bytes\n",
+				   hw->name, fifo->bch->nr, len);
+			spin_unlock(&hw->lock);
+			return;
+		}
 		maxlen = fifo->bch->maxlen;
 		hdlc = test_bit(FLG_HDLC, &fifo->bch->Flags);
 	}
@@ -870,39 +879,26 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 		hdlc = 1;
 	}
 
-	if (!rx_skb) {
-		rx_skb = mI_alloc_skb(maxlen, GFP_ATOMIC);
-		if (rx_skb) {
-			if (fifo->dch)
-				fifo->dch->rx_skb = rx_skb;
-			if (fifo->bch)
-				fifo->bch->rx_skb = rx_skb;
-			if (fifo->ech)
-				fifo->ech->rx_skb = rx_skb;
-			skb_trim(rx_skb, 0);
-		} else {
-			printk(KERN_DEBUG "%s: %s: No mem for rx_skb\n",
-			       hw->name, __func__);
-			spin_unlock(&hw->lock);
-			return;
-		}
-	}
-
 	if (fifo->dch || fifo->ech) {
+		if (!rx_skb) {
+			rx_skb = mI_alloc_skb(maxlen, GFP_ATOMIC);
+			if (rx_skb) {
+				if (fifo->dch)
+					fifo->dch->rx_skb = rx_skb;
+				if (fifo->ech)
+					fifo->ech->rx_skb = rx_skb;
+				skb_trim(rx_skb, 0);
+			} else {
+				printk(KERN_DEBUG "%s: %s: No mem for rx_skb\n",
+				       hw->name, __func__);
+				spin_unlock(&hw->lock);
+				return;
+			}
+		}
 		/* D/E-Channel SKB range check */
 		if ((rx_skb->len + len) >= MAX_DFRAME_LEN_L1) {
 			printk(KERN_DEBUG "%s: %s: sbk mem exceeded "
 			       "for fifo(%d) HFCUSB_D_RX\n",
-			       hw->name, __func__, fifon);
-			skb_trim(rx_skb, 0);
-			spin_unlock(&hw->lock);
-			return;
-		}
-	} else if (fifo->bch) {
-		/* B-Channel SKB range check */
-		if ((rx_skb->len + len) >= (MAX_BCH_SIZE + 3)) {
-			printk(KERN_DEBUG "%s: %s: sbk mem exceeded "
-			       "for fifo(%d) HFCUSB_B_RX\n",
 			       hw->name, __func__, fifon);
 			skb_trim(rx_skb, 0);
 			spin_unlock(&hw->lock);

@@ -386,24 +386,16 @@ read_dma(struct tiger_ch *bc, u32 idx, int cnt)
 			bc->bch.nr, idx);
 	}
 	bc->lastrx = idx;
-	if (!bc->bch.rx_skb) {
-		bc->bch.rx_skb = mI_alloc_skb(bc->bch.maxlen, GFP_ATOMIC);
-		if (!bc->bch.rx_skb) {
-			pr_info("%s: B%1d receive out of memory\n",
-				card->name, bc->bch.nr);
-			return;
-		}
+	stat = bchannel_get_rxbuf(&bc->bch, cnt);
+	/* only transparent use the count here, HDLC overun is detected later */
+	if (stat == ENOMEM) {
+		pr_warning("%s.B%d: No memory for %d bytes\n",
+			   card->name, bc->bch.nr, cnt);
+		return;
 	}
-
-	if (test_bit(FLG_TRANSPARENT, &bc->bch.Flags)) {
-		if ((bc->bch.rx_skb->len + cnt) > bc->bch.maxlen) {
-			pr_debug("%s: B%1d overrun %d\n", card->name,
-				 bc->bch.nr, bc->bch.rx_skb->len + cnt);
-			skb_trim(bc->bch.rx_skb, 0);
-			return;
-		}
+	if (test_bit(FLG_TRANSPARENT, &bc->bch.Flags))
 		p = skb_put(bc->bch.rx_skb, cnt);
-	} else
+	else
 		p = bc->hrbuf;
 
 	for (i = 0; i < cnt; i++) {
@@ -414,48 +406,45 @@ read_dma(struct tiger_ch *bc, u32 idx, int cnt)
 			idx = 0;
 		p[i] = val & 0xff;
 	}
+
+	if (test_bit(FLG_TRANSPARENT, &bc->bch.Flags)) {
+		recv_Bchannel(&bc->bch, 0);
+		return;
+	}
+
 	pn = bc->hrbuf;
-next_frame:
-	if (test_bit(FLG_HDLC, &bc->bch.Flags)) {
+	while (cnt > 0) {
 		stat = isdnhdlc_decode(&bc->hrecv, pn, cnt, &i,
 				       bc->bch.rx_skb->data, bc->bch.maxlen);
-		if (stat > 0) /* valid frame received */
+		if (stat > 0) { /* valid frame received */
 			p = skb_put(bc->bch.rx_skb, stat);
-		else if (stat == -HDLC_CRC_ERROR)
-			pr_info("%s: B%1d receive frame CRC error\n",
-				card->name, bc->bch.nr);
-		else if (stat == -HDLC_FRAMING_ERROR)
-			pr_info("%s: B%1d receive framing error\n",
-				card->name, bc->bch.nr);
-		else if (stat == -HDLC_LENGTH_ERROR)
-			pr_info("%s: B%1d receive frame too long (> %d)\n",
-				card->name, bc->bch.nr, bc->bch.maxlen);
-	} else
-		stat = cnt;
-
-	if (stat > 0) {
-		if (debug & DEBUG_HW_BFIFO) {
-			snprintf(card->log, LOG_SIZE, "B%1d-recv %s %d ",
-				 bc->bch.nr, card->name, stat);
-			print_hex_dump_bytes(card->log, DUMP_PREFIX_OFFSET,
-					     p, stat);
-		}
-		recv_Bchannel(&bc->bch, 0);
-	}
-	if (test_bit(FLG_HDLC, &bc->bch.Flags)) {
-		pn += i;
-		cnt -= i;
-		if (!bc->bch.rx_skb) {
-			bc->bch.rx_skb = mI_alloc_skb(bc->bch.maxlen,
-						      GFP_ATOMIC);
-			if (!bc->bch.rx_skb) {
-				pr_info("%s: B%1d receive out of memory\n",
-					card->name, bc->bch.nr);
+			if (debug & DEBUG_HW_BFIFO) {
+				snprintf(card->log, LOG_SIZE,
+					 "B%1d-recv %s %d ", bc->bch.nr,
+					 card->name, stat);
+				print_hex_dump_bytes(card->log,
+						     DUMP_PREFIX_OFFSET, p,
+						     stat);
+			}
+			recv_Bchannel(&bc->bch, 0);
+			stat = bchannel_get_rxbuf(&bc->bch, bc->bch.maxlen);
+			if (stat < 0) {
+				pr_warning("%s.B%d: No memory for %d bytes\n",
+					   card->name, bc->bch.nr, cnt);
 				return;
 			}
+		} else if (stat == -HDLC_CRC_ERROR) {
+			pr_info("%s: B%1d receive frame CRC error\n",
+				card->name, bc->bch.nr);
+		} else if (stat == -HDLC_FRAMING_ERROR) {
+			pr_info("%s: B%1d receive framing error\n",
+				card->name, bc->bch.nr);
+		} else if (stat == -HDLC_LENGTH_ERROR) {
+			pr_info("%s: B%1d receive frame too long (> %d)\n",
+				card->name, bc->bch.nr, bc->bch.maxlen);
 		}
-		if (cnt > 0)
-			goto next_frame;
+		pn += i;
+		cnt -= i;
 	}
 }
 

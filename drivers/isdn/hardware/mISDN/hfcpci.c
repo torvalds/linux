@@ -577,8 +577,11 @@ hfcpci_empty_fifo_trans(struct bchannel *bch, struct bzfifo *rxbz,
 	fcnt_tx = B_FIFO_SIZE - fcnt_tx;
 	/* remaining bytes to send (bytes in tx-fifo) */
 
-	bch->rx_skb = mI_alloc_skb(fcnt_rx, GFP_ATOMIC);
-	if (bch->rx_skb) {
+	maxlen = bchannel_get_rxbuf(bch, fcnt_rx);
+	if (maxlen < 0) {
+		pr_warning("B%d: No bufferspace for %d bytes\n",
+			   bch->nr, fcnt_rx);
+	} else {
 		ptr = skb_put(bch->rx_skb, fcnt_rx);
 		if (le16_to_cpu(*z2r) + fcnt_rx <= B_FIFO_SIZE + B_SUB_VAL)
 			maxlen = fcnt_rx;	/* complete transfer */
@@ -597,9 +600,7 @@ hfcpci_empty_fifo_trans(struct bchannel *bch, struct bzfifo *rxbz,
 			memcpy(ptr, ptr1, fcnt_rx);	/* rest */
 		}
 		recv_Bchannel(bch, fcnt_tx); /* bch, id */
-	} else
-		printk(KERN_WARNING "HFCPCI: receive out of memory\n");
-
+	}
 	*z2r = cpu_to_le16(new_z2);		/* new position */
 }
 

@@ -933,22 +933,16 @@ static void
 hscx_empty_fifo(struct hscx_hw *hscx, u8 count)
 {
 	u8 *p;
+	int maxlen;
 
 	pr_debug("%s: B%1d %d\n", hscx->ip->name, hscx->bch.nr, count);
-	if (!hscx->bch.rx_skb) {
-		hscx->bch.rx_skb = mI_alloc_skb(hscx->bch.maxlen, GFP_ATOMIC);
-		if (!hscx->bch.rx_skb) {
-			pr_info("%s: B receive out of memory\n",
-				hscx->ip->name);
-			hscx_cmdr(hscx, 0x80); /* RMC */
-			return;
-		}
-	}
-	if ((hscx->bch.rx_skb->len + count) > hscx->bch.maxlen) {
-		pr_debug("%s: overrun %d\n", hscx->ip->name,
-			 hscx->bch.rx_skb->len + count);
-		skb_trim(hscx->bch.rx_skb, 0);
+	maxlen = bchannel_get_rxbuf(&hscx->bch, count);
+	if (maxlen < 0) {
 		hscx_cmdr(hscx, 0x80); /* RMC */
+		if (hscx->bch.rx_skb)
+			skb_trim(hscx->bch.rx_skb, 0);
+		pr_warning("%s.B%d: No bufferspace for %d bytes\n",
+			   hscx->ip->name, hscx->bch.nr, count);
 		return;
 	}
 	p = skb_put(hscx->bch.rx_skb, count);

@@ -2196,24 +2196,20 @@ hfcmulti_rx(struct hfc_multi *hc, int ch)
 	int f1 = 0, f2 = 0; /* = 0, to make GCC happy */
 	int again = 0;
 	struct	bchannel *bch;
-	struct  dchannel *dch;
+	struct  dchannel *dch = NULL;
 	struct sk_buff	*skb, **sp = NULL;
 	int	maxlen;
 
 	bch = hc->chan[ch].bch;
-	dch = hc->chan[ch].dch;
-	if ((!dch) && (!bch))
-		return;
-	if (dch) {
-		if (!test_bit(FLG_ACTIVE, &dch->Flags))
-			return;
-		sp = &dch->rx_skb;
-		maxlen = dch->maxlen;
-	} else {
+	if (bch) {
 		if (!test_bit(FLG_ACTIVE, &bch->Flags))
 			return;
-		sp = &bch->rx_skb;
-		maxlen = bch->maxlen;
+	} else if (hc->chan[ch].dch) {
+		dch = hc->chan[ch].dch;
+		if (!test_bit(FLG_ACTIVE, &dch->Flags))
+			return;
+	} else {
+		return;
 	}
 next_frame:
 	/* on first AND before getting next valid frame, R_FIFO must be written
@@ -2260,12 +2256,25 @@ next_frame:
 	if (Zsize <= 0)
 		return;
 
-	if (*sp == NULL) {
-		*sp = mI_alloc_skb(maxlen + 3, GFP_ATOMIC);
-		if (*sp == NULL) {
-			printk(KERN_DEBUG "%s: No mem for rx_skb\n",
-			       __func__);
+	if (bch) {
+		maxlen = bchannel_get_rxbuf(bch, Zsize);
+		if (maxlen < 0) {
+			pr_warning("card%d.B%d: No bufferspace for %d bytes\n",
+				   hc->id + 1, bch->nr, Zsize);
 			return;
+		}
+		sp = &bch->rx_skb;
+		maxlen = bch->maxlen;
+	} else { /* Dchannel */
+		sp = &dch->rx_skb;
+		maxlen = dch->maxlen + 3;
+		if (*sp == NULL) {
+			*sp = mI_alloc_skb(maxlen, GFP_ATOMIC);
+			if (*sp == NULL) {
+				pr_warning("card%d: No mem for dch rx_skb\n",
+					   hc->id + 1);
+				return;
+			}
 		}
 	}
 	/* show activity */
@@ -2281,7 +2290,7 @@ next_frame:
 			       Zsize, z1, z2, (f1 == f2) ? "fragment" : "COMPLETE",
 			       f1, f2, Zsize + (*sp)->len, again);
 		/* HDLC */
-		if ((Zsize + (*sp)->len) > (maxlen + 3)) {
+		if ((Zsize + (*sp)->len) > maxlen) {
 			if (debug & DEBUG_HFCMULTI_FIFO)
 				printk(KERN_DEBUG
 				       "%s(card %d): hdlc-frame too large.\n",
@@ -2351,24 +2360,7 @@ next_frame:
 		/* there is an incomplete frame */
 	} else {
 		/* transparent */
-		if (Zsize > skb_tailroom(*sp))
-			Zsize = skb_tailroom(*sp);
 		hc->read_fifo(hc, skb_put(*sp, Zsize), Zsize);
-		if (((*sp)->len) < MISDN_COPY_SIZE) {
-			skb = *sp;
-			*sp = mI_alloc_skb(skb->len, GFP_ATOMIC);
-			if (*sp) {
-				memcpy(skb_put(*sp, skb->len),
-				       skb->data, skb->len);
-				skb_trim(skb, 0);
-			} else {
-				printk(KERN_DEBUG "%s: No mem\n", __func__);
-				*sp = skb;
-				skb = NULL;
-			}
-		} else {
-			skb = NULL;
-		}
 		if (debug & DEBUG_HFCMULTI_FIFO)
 			printk(KERN_DEBUG
 			       "%s(card %d): fifo(%d) reading %d bytes "
@@ -2376,7 +2368,6 @@ next_frame:
 			       __func__, hc->id + 1, ch, Zsize, z1, z2);
 		/* only bch is transparent */
 		recv_Bchannel(bch, hc->chan[ch].Zfill);
-		*sp = skb;
 	}
 }
 
