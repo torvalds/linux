@@ -401,6 +401,9 @@ static int dma_mmap(struct device *dev, struct vm_area_struct *vma,
 	unsigned long user_size, kern_size;
 	struct arm_vmregion *c;
 
+	if (dma_mmap_from_coherent(dev, vma, cpu_addr, size, &ret))
+		return ret;
+
 	user_size = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 
 	c = arm_vmregion_find(&consistent_head, (unsigned long)cpu_addr);
