@@ -454,6 +454,14 @@ static int kvm_arch_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu,
 		r = put_user(vcpu->arch.sie_block->epoch,
 			     (u64 __user *)reg->addr);
 		break;
+	case KVM_REG_S390_CPU_TIMER:
+		r = put_user(vcpu->arch.sie_block->cputm,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_CLOCK_COMP:
+		r = put_user(vcpu->arch.sie_block->ckc,
+			     (u64 __user *)reg->addr);
+		break;
 	default:
 		break;
 	}
@@ -473,6 +481,14 @@ static int kvm_arch_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_S390_EPOCHDIFF:
 		r = get_user(vcpu->arch.sie_block->epoch,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_CPU_TIMER:
+		r = get_user(vcpu->arch.sie_block->cputm,
+			     (u64 __user *)reg->addr);
+		break;
+	case KVM_REG_S390_CLOCK_COMP:
+		r = get_user(vcpu->arch.sie_block->ckc,
 			     (u64 __user *)reg->addr);
 		break;
 	default:
