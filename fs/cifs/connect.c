@@ -102,7 +102,7 @@ enum {
 	Opt_srcaddr, Opt_prefixpath,
 	Opt_iocharset, Opt_sockopt,
 	Opt_netbiosname, Opt_servern,
-	Opt_ver, Opt_sec, Opt_cache,
+	Opt_ver, Opt_vers, Opt_sec, Opt_cache,
 
 	/* Mount options to be ignored */
 	Opt_ignore,
@@ -210,6 +210,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_netbiosname, "netbiosname=%s" },
 	{ Opt_servern, "servern=%s" },
 	{ Opt_ver, "ver=%s" },
+	{ Opt_vers, "vers=%s" },
 	{ Opt_sec, "sec=%s" },
 	{ Opt_cache, "cache=%s" },
 
@@ -273,6 +274,10 @@ static const match_table_t cifs_cacheflavor_tokens = {
 	{ Opt_cache_strict, "strict" },
 	{ Opt_cache_none, "none" },
 	{ Opt_cache_err, NULL }
+};
+
+static const match_table_t cifs_smb_version_tokens = {
+	{ Smb_1, SMB1_VERSION_STRING },
 };
 
 static int ip_connect(struct TCP_Server_Info *server);
@@ -1225,6 +1230,23 @@ cifs_parse_cache_flavor(char *value, struct smb_vol *vol)
 }
 
 static int
+cifs_parse_smb_version(char *value, struct smb_vol *vol)
+{
+	substring_t args[MAX_OPT_ARGS];
+
+	switch (match_token(value, cifs_smb_version_tokens, args)) {
+	case Smb_1:
+		vol->ops = &smb1_operations;
+		vol->vals = &smb1_values;
+		break;
+	default:
+		cERROR(1, "Unknown vers= option specified: %s", value);
+		return 1;
+	}
+	return 0;
+}
+
+static int
 cifs_parse_mount_options(const char *mountdata, const char *devname,
 			 struct smb_vol *vol)
 {
@@ -1276,6 +1298,10 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	vol->server_ino = 1;
 
 	vol->actimeo = CIFS_DEF_ACTIMEO;
+
+	/* FIXME: add autonegotiation -- for now, SMB1 is default */
+	vol->ops = &smb1_operations;
+	vol->vals = &smb1_values;
 
 	if (!mountdata)
 		goto cifs_parse_mount_err;
@@ -1880,6 +1906,14 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			printk(KERN_WARNING "CIFS: Invalid version"
 					    " specified\n");
 			goto cifs_parse_mount_err;
+		case Opt_vers:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (cifs_parse_smb_version(string, vol) != 0)
+				goto cifs_parse_mount_err;
+			break;
 		case Opt_sec:
 			string = match_strdup(args);
 			if (string == NULL)
@@ -2108,6 +2142,9 @@ match_security(struct TCP_Server_Info *server, struct smb_vol *vol)
 static int match_server(struct TCP_Server_Info *server, struct sockaddr *addr,
 			 struct smb_vol *vol)
 {
+	if ((server->vals != vol->vals) || (server->ops != vol->ops))
+		return 0;
+
 	if (!net_eq(cifs_net_ns(server), current->nsproxy->net_ns))
 		return 0;
 
@@ -2230,6 +2267,8 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		goto out_err;
 	}
 
+	tcp_ses->ops = volume_info->ops;
+	tcp_ses->vals = volume_info->vals;
 	cifs_set_net_ns(tcp_ses, get_net(current->nsproxy->net_ns));
 	tcp_ses->hostname = extract_hostname(volume_info->UNC);
 	if (IS_ERR(tcp_ses->hostname)) {
@@ -3635,6 +3674,7 @@ cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
 
 	if (cifs_parse_mount_options(mount_data, devname, volume_info))
 		return -EINVAL;
+
 
 	if (volume_info->nullauth) {
 		cFYI(1, "Anonymous login");

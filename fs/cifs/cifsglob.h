@@ -150,6 +150,17 @@ struct cifs_cred {
  *****************************************************************
  */
 
+enum smb_version {
+	Smb_1 = 1,
+};
+
+struct smb_version_operations {
+};
+
+struct smb_version_values {
+	char		*version_string;
+};
+
 struct smb_vol {
 	char *username;
 	char *password;
@@ -205,6 +216,8 @@ struct smb_vol {
 	bool sockopt_tcp_nodelay:1;
 	unsigned short int port;
 	unsigned long actimeo; /* attribute cache timeout (jiffies) */
+	struct smb_version_operations *ops;
+	struct smb_version_values *vals;
 	char *prepath;
 	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
 	struct nls_table *local_nls;
@@ -242,6 +255,8 @@ struct TCP_Server_Info {
 	int srv_count; /* reference counter */
 	/* 15 character server name + 0x20 16th byte indicating type = srv */
 	char server_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
+	struct smb_version_operations	*ops;
+	struct smb_version_values	*vals;
 	enum statusEnum tcpStatus; /* what we think the status is */
 	char *hostname; /* hostname portion of UNC string */
 	struct socket *ssocket;
@@ -1069,4 +1084,8 @@ void cifs_oplock_break(struct work_struct *work);
 extern const struct slow_work_ops cifs_oplock_break_ops;
 extern struct workqueue_struct *cifsiod_wq;
 
+/* Operations for different SMB versions */
+#define SMB1_VERSION_STRING	"1.0"
+extern struct smb_version_operations smb1_operations;
+extern struct smb_version_values smb1_values;
 #endif	/* _CIFS_GLOB_H */
