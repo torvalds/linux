@@ -16,11 +16,13 @@
 #include <linux/device.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <mach/common.h>
 
-#define is_sh73a0() (machine_is_ag5evm() || machine_is_kota2() || machine_is_kzm9g())
+#define is_sh73a0() (machine_is_ag5evm() || machine_is_kota2() || \
+			of_machine_is_compatible("renesas,sh73a0"))
 #define is_r8a7779() machine_is_marzen()
 
 static unsigned int __init shmobile_smp_get_core_count(void)

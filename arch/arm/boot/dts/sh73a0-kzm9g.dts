@@ -13,7 +13,7 @@
 
 / {
 	model = "KZM-A9-GT";
-	compatible = "renesas,kzm9g";
+	compatible = "renesas,kzm9g", "renesas,sh73a0";
 
 	memory {
 		device_type = "memory";
