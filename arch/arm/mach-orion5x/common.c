@@ -205,7 +205,7 @@ int __init orion5x_find_tclk(void)
 	return 166666667;
 }
 
-static void orion5x_timer_init(void)
+static void __init orion5x_timer_init(void)
 {
 	orion5x_tclk = orion5x_find_tclk();
 

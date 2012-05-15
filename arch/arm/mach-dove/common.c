@@ -181,7 +181,7 @@ static int get_tclk(void)
 	return 166666667;
 }
 
-static void dove_timer_init(void)
+static void __init dove_timer_init(void)
 {
 	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_DOVE_BRIDGE, get_tclk());
