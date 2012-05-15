@@ -116,17 +116,18 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 {
 	struct usb_wwan_intf_private *data;
 	struct usb_host_interface *intf = serial->interface->cur_altsetting;
+	struct device *dev = &serial->dev->dev;
 	int retval = -ENODEV;
 	__u8 nintf;
 	__u8 ifnum;
 	bool is_gobi1k = id->driver_info ? true : false;
 
-	dbg("Is Gobi 1000 = %d", is_gobi1k);
+	dev_dbg(dev, "Is Gobi 1000 = %d\n", is_gobi1k);
 
 	nintf = serial->dev->actconfig->desc.bNumInterfaces;
-	dbg("Num Interfaces = %d", nintf);
+	dev_dbg(dev, "Num Interfaces = %d\n", nintf);
 	ifnum = intf->desc.bInterfaceNumber;
-	dbg("This Interface = %d", ifnum);
+	dev_dbg(dev, "This Interface = %d\n", ifnum);
 
 	data = kzalloc(sizeof(struct usb_wwan_intf_private),
 					 GFP_KERNEL);
@@ -147,7 +148,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		if (intf->desc.bNumEndpoints == 2 &&
 		    usb_endpoint_is_bulk_in(&intf->endpoint[0].desc) &&
 		    usb_endpoint_is_bulk_out(&intf->endpoint[1].desc)) {
-			dbg("QDL port found");
+			dev_dbg(dev, "QDL port found\n");
 
 			if (serial->interface->num_altsetting == 1) {
 				retval = 0; /* Success */
@@ -156,7 +157,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 
 			retval = usb_set_interface(serial->dev, ifnum, 1);
 			if (retval < 0) {
-				dev_err(&serial->dev->dev,
+				dev_err(dev,
 					"Could not set interface, error %d\n",
 					retval);
 				retval = -ENODEV;
@@ -185,20 +186,20 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		 */
 
 		if (ifnum == 1 && !is_gobi1k) {
-			dbg("Gobi 2K+ DM/DIAG interface found");
+			dev_dbg(dev, "Gobi 2K+ DM/DIAG interface found\n");
 			retval = usb_set_interface(serial->dev, ifnum, 0);
 			if (retval < 0) {
-				dev_err(&serial->dev->dev,
+				dev_err(dev,
 					"Could not set interface, error %d\n",
 					retval);
 				retval = -ENODEV;
 				kfree(data);
 			}
 		} else if (ifnum == 2) {
-			dbg("Modem port found");
+			dev_dbg(dev, "Modem port found\n");
 			retval = usb_set_interface(serial->dev, ifnum, 0);
 			if (retval < 0) {
-				dev_err(&serial->dev->dev,
+				dev_err(dev,
 					"Could not set interface, error %d\n",
 					retval);
 				retval = -ENODEV;
@@ -210,10 +211,10 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 			 * # echo "\$GPS_START" > /dev/ttyUSBx
 			 * # echo "\$GPS_STOP"  > /dev/ttyUSBx
 			 */
-			dbg("Gobi 2K+ NMEA GPS interface found");
+			dev_dbg(dev, "Gobi 2K+ NMEA GPS interface found\n");
 			retval = usb_set_interface(serial->dev, ifnum, 0);
 			if (retval < 0) {
-				dev_err(&serial->dev->dev,
+				dev_err(dev,
 					"Could not set interface, error %d\n",
 					retval);
 				retval = -ENODEV;
@@ -223,8 +224,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		break;
 
 	default:
-		dev_err(&serial->dev->dev,
-			"unknown number of interfaces: %d\n", nintf);
+		dev_err(dev, "unknown number of interfaces: %d\n", nintf);
 		kfree(data);
 		retval = -ENODEV;
 	}
