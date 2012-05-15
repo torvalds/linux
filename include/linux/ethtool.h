@@ -678,12 +678,17 @@ struct ethtool_flash {
  * 	%ETHTOOL_SET_DUMP
  * @version: FW version of the dump, filled in by driver
  * @flag: driver dependent flag for dump setting, filled in by driver during
- * 	  get and filled in by ethtool for set operation
+ *        get and filled in by ethtool for set operation.
+ *        flag must be initialized by macro ETH_FW_DUMP_DISABLE value when
+ *        firmware dump is disabled.
  * @len: length of dump data, used as the length of the user buffer on entry to
  * 	 %ETHTOOL_GET_DUMP_DATA and this is returned as dump length by driver
  * 	 for %ETHTOOL_GET_DUMP_FLAG command
  * @data: data collected for get dump data operation
  */
+
+#define ETH_FW_DUMP_DISABLE 0
+
 struct ethtool_dump {
 	__u32	cmd;
 	__u32	version;
