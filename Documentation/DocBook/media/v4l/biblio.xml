@@ -208,4 +208,22 @@ in the frequency range from 87,5 to 108,0 MHz</title>
       recommended exposure index</title>
     </biblioentry>
 
+    <biblioentry id="cea861">
+      <abbrev>CEA-861-E</abbrev>
+      <authorgroup>
+	<corpauthor>Consumer Electronics Association
+(<ulink url="http://www.ce.org">http://www.ce.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>A DTV Profile for Uncompressed High Speed Digital Interfaces</title>
+    </biblioentry>
+
+    <biblioentry id="vesadmt">
+      <abbrev>VESA&nbsp;DMT</abbrev>
+      <authorgroup>
+	<corpauthor>Video Electronics Standards Association
+(<ulink url="http://www.vesa.org">http://www.vesa.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>VESA and Industry Standards and Guidelines for Computer Display Monitor Timing (DMT)</title>
+    </biblioentry>
+
   </bibliography>

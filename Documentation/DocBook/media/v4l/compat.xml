@@ -2407,6 +2407,11 @@ details.</para>
 	  <para>Added <link linkend="jpeg-controls">JPEG compression control
 	  class</link>.</para>
         </listitem>
+        <listitem>
+	  <para>Extended the DV Timings API:
+	  &VIDIOC-ENUM-DV-TIMINGS;, &VIDIOC-QUERY-DV-TIMINGS; and
+	  &VIDIOC-DV-TIMINGS-CAP;.</para>
+        </listitem>
       </orderedlist>
     </section>
 
@@ -2551,11 +2556,19 @@ and may change in the future.</para>
 ioctls.</para>
         </listitem>
         <listitem>
+	  <para>&VIDIOC-DECODER-CMD; and &VIDIOC-TRY-DECODER-CMD;
+ioctls.</para>
+        </listitem>
+        <listitem>
 	  <para>&VIDIOC-DBG-G-REGISTER; and &VIDIOC-DBG-S-REGISTER;
 ioctls.</para>
         </listitem>
         <listitem>
 	  <para>&VIDIOC-DBG-G-CHIP-IDENT; ioctl.</para>
+        </listitem>
+        <listitem>
+	  <para>&VIDIOC-ENUM-DV-TIMINGS;, &VIDIOC-QUERY-DV-TIMINGS; and
+	  &VIDIOC-DV-TIMINGS-CAP; ioctls.</para>
         </listitem>
         <listitem>
 	  <para>Flash API. <xref linkend="flash-controls" /></para>
