@@ -38,6 +38,9 @@
 #include <mach/io.h>
 #include <plat/ipp.h>
 #include <mach/rk30_camera.h>
+#include <linux/regulator/machine.h>
+#include <mach/cru.h>
+#include <mach/pmu.h>
 
 static int debug ;
 module_param(debug, int, S_IRUGO|S_IWUSR);
@@ -198,8 +201,13 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *v0.x.8 : temp version,reinit capture list when setup video buf.
 *v0.x.9 : 1. add the case of IPP unsupportted ,just cropped by CIF(not do the scale) this version. 
           2. flush workqueue when releas buffer
+*v0.x.10: 1. reset cif and wake up vb when cif have't receive data in a fixed time(now setted as 2 secs) so that app can
+             be quitted
+          2. when the flash is on ,flash off in a fixed time to prevent from flash light too hot.
+          3. when front and back camera are the same sensor,and one has the flash ,other is not,flash can't work corrrectly ,fix it
+          4. add  menu configs for convineuent to customize sensor series
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 9)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 10)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -348,6 +356,34 @@ static const char *rk_cam_driver_description = "RK_Camera";
 
 static int rk_camera_s_stream(struct soc_camera_device *icd, int enable);
 
+static void rk_cif_poweroff(struct rk_camera_dev *pcdev)
+{
+    struct regulator *ldo_18,*ldo_28;
+	ldo_28 = regulator_get(NULL, "ldo7");	// vcc28_cif
+	ldo_18 = regulator_get(NULL, "ldo1");	// vcc18_cif
+	
+	regulator_disable(ldo_28);
+	regulator_put(ldo_28);
+	regulator_disable(ldo_18);
+	regulator_put(ldo_18);
+	mdelay(500);
+}
+static void rk_cif_poweron(struct rk_camera_dev *pcdev)
+{
+    struct regulator *ldo_18,*ldo_28;
+	ldo_28 = regulator_get(NULL, "ldo7");	// vcc28_cif
+	ldo_18 = regulator_get(NULL, "ldo1");	// vcc18_cif
+	regulator_set_voltage(ldo_28, 2800000, 2800000);
+	regulator_enable(ldo_28);
+//	printk("%s set ldo7 vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
+	regulator_put(ldo_28);
+
+	regulator_set_voltage(ldo_18, 1800000, 1800000);
+//	regulator_set_suspend_voltage(ldo, 1800000);
+	regulator_enable(ldo_18);
+//	printk("%s set ldo1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
+	regulator_put(ldo_18);
+}
 
 /*
  *  Videobuf operations
@@ -1674,7 +1710,7 @@ static int rk_camera_suspend(struct soc_camera_device *icd, pm_message_t state)
                     to_soc_camera_host(icd->dev.parent);
     struct rk_camera_dev *pcdev = ici->priv;
 	struct v4l2_subdev *sd;
-    int ret = 0,tmp;
+    int ret = 0;
 
 	mutex_lock(&camera_lock);
 	if ((pcdev->icd == icd) && (icd->ops->suspend)) {
@@ -1757,6 +1793,8 @@ static void rk_camera_reinit_work(struct work_struct *work)
 	int ret;
 	struct rk_camera_work *camera_work = container_of(work, struct rk_camera_work, work);
 	struct rk_camera_dev *pcdev = camera_work->pcdev;
+    struct videobuf_buffer	*tmp_vb;
+		sd = soc_camera_to_subdev(pcdev->icd);
 	//dump regs
 	{
 		RKCAMERA_DG("CIF_CIF_CTRL = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_CTRL));
@@ -1776,7 +1814,43 @@ static void rk_camera_reinit_work(struct work_struct *work)
     	RKCAMERA_DG("CIF_CIF_FRM0_ADDR_UV = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRM0_ADDR_UV));
     	RKCAMERA_DG("CIF_CIF_FRAME_STATUS = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS));
 	}
+    while (!list_empty(&pcdev->capture)) {
+        printk("wake up video buffer!!!\n");
+        tmp_vb = list_entry(pcdev->capture.next, struct videobuf_buffer, queue);
+    	if (tmp_vb && (tmp_vb->state == VIDEOBUF_QUEUED)) 
+         {
+        	list_del_init(&(tmp_vb->queue));
+            tmp_vb->state = VIDEOBUF_ERROR;
+
+    	    wake_up_all(&tmp_vb->done);
+    	}
+    }
 	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)&(~ENABLE_CAPTURE)));
+    rk_cif_poweroff(pcdev);
+    if(IS_CIF0()){
+   	//	write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)|MASK_RST_CIF0|RQUEST_RST_CIF0 ));
+        
+  	//	write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)&(~RQUEST_RST_CIF0)) | MASK_RST_CIF0);
+
+		pmu_set_idle_request(IDLE_REQ_VIO, true);
+		cru_set_soft_reset(SOFT_RST_CIF0, true);
+		udelay(300);
+		cru_set_soft_reset(SOFT_RST_CIF0, false);
+		pmu_set_idle_request(IDLE_REQ_VIO, false);
+
+	    printk("clean cru register reset cif0 0x%x\n",read_cru_reg(CRU_CIF_RST_REG30));
+
+    }else{
+       // write_cru_reg(CRU_CIF_RST_REG30,MASK_RST_CIF1|RQUEST_RST_CIF1 | (read_cru_reg(CRU_CIF_RST_REG30)));
+       // write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)&(~RQUEST_RST_CIF1)) | MASK_RST_CIF1);
+	 	pmu_set_idle_request(IDLE_REQ_VIO, true);
+		cru_set_soft_reset(SOFT_RST_CIF1, true);
+		udelay(300);
+		cru_set_soft_reset(SOFT_RST_CIF1, false);
+		pmu_set_idle_request(IDLE_REQ_VIO, false);  
+   
+    }
+    rk_cif_poweron(pcdev);
 
 	control = to_soc_camera_control(pcdev->icd);
 	sd = dev_get_drvdata(control);
@@ -1790,6 +1864,8 @@ static void rk_camera_reinit_work(struct work_struct *work)
 	ret |= v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
 
 	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)|ENABLE_CAPTURE));
+
+
 
 	RKCAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor now! ret:0x%x\n",ret);
 }
@@ -1883,15 +1959,17 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 		pcdev->fps = 0;
 		hrtimer_cancel(&(pcdev->fps_timer.timer));
 		pcdev->fps_timer.pcdev = pcdev;
-		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(5, 0),HRTIMER_MODE_REL);
+//		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(3, 0),HRTIMER_MODE_REL);
 		cif_ctrl_val |= ENABLE_CAPTURE;
+        	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
+		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(2, 0),HRTIMER_MODE_REL);
 	} else {
         cif_ctrl_val &= ~ENABLE_CAPTURE;
+    	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
 		ret = hrtimer_cancel(&pcdev->fps_timer.timer);
-		ret |= flush_work(&(pcdev->camera_reinit_work.work));
+		flush_workqueue((pcdev->camera_wq));
 		RKCAMERA_DG("STREAM_OFF cancel timer and flush work:0x%x \n", ret);
 	}
-	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
     //must be reinit,or will be somthing wrong in irq process.
     if(enable == false){
         pcdev->active = NULL;
@@ -1999,10 +2077,10 @@ static int rk_camera_set_digit_zoom(struct soc_camera_device *icd,
 	struct v4l2_crop a;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct rk_camera_dev *pcdev = ici->priv;
-	unsigned int cif_fs = 0,cif_crop = 0;
-    int work_index =0,stream_on = 0;
     
 	#if 0
+	unsigned int cif_fs = 0,cif_crop = 0;
+    int work_index =0,stream_on = 0;
 /* ddl@rock-chips.com : The largest resolution is 2047x1088, so larger resolution must be operated some times
    (Assume operate times is 4),but resolution which ipp can operate ,it is width and height must be even. */
 	a.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;

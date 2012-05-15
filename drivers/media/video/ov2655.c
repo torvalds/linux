@@ -21,12 +21,12 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #include <media/soc_camera.h>
 #include <plat/rk_camera.h>
 #include <linux/vmalloc.h>
-static int debug;
+static int debug ;
 module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define dprintk(level, fmt, arg...) do {			\
 	if (debug >= level) 					\
-	printk(KERN_DEBUG fmt , ## arg); } while (0)
+	printk(KERN_WARNING fmt , ## arg); } while (0)
 
 #define SENSOR_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
 #define SENSOR_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
@@ -90,12 +90,25 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_AF_IS_OK		(0x01<<0)
 #define SENSOR_INIT_IS_ERR   (0x00<<28)
 #define SENSOR_INIT_IS_OK    (0x01<<28)
-
 struct reginfo
 {
     u16 reg;
     u8 val;
 };
+
+
+//flash off in fixed time to prevent from too hot , zyc
+struct  flash_timer{
+    struct soc_camera_device *icd;
+	struct hrtimer timer;
+};
+static enum hrtimer_restart flash_off_func(struct hrtimer *timer);
+
+static struct  flash_timer flash_off_timer;
+//for user defined if user want to customize the series , zyc
+#if CONFIG_OV2655_USER_DEFINED_SERIES
+#include "ov2655_user_series.c"
+#else
 
 /* init 352X288 SVGA */
 static struct reginfo sensor_init_data[] =
@@ -105,14 +118,14 @@ static struct reginfo sensor_init_data[] =
     {0x360b, 0x00},
     {0x30b0, 0xff},
     {0x30b1, 0xff},
-    {0x30b2, 0x24},
+    {0x30b2, 0x26},
 
     {0x300e, 0x34},
     {0x300f, 0xa6},
     {0x3010, 0x81},
     {0x3082, 0x01},
     {0x30f4, 0x01},
-    {0x3090, 0x33},//0x3b},
+    {0x3090, 0x3b},//0x33},
     {0x3091, 0xc0},
     {0x30ac, 0x42},
 
@@ -304,7 +317,7 @@ static struct reginfo sensor_init_data[] =
     {0x3379, 0x80},
 
     {0x3069, 0x84},
-    {0x307c, 0x10},//0x13},
+    {0x307c, 0x13},//0x10},
     {0x3087, 0x02},
 
     {0x3300, 0xfc},
@@ -321,6 +334,22 @@ static struct reginfo sensor_init_data[] =
 
     {0x3086, 0x0f},
     {0x3086, 0x00},
+#if 0
+    //night mode
+    {0x300e, 0x34},
+    {0x3011, 0x00},
+    {0x302c, 0x00},
+    {0x3071, 0x00},
+    {0x3070, 0xb9},
+    {0x301c, 0x02},
+    {0x3073, 0x00},
+    {0x3072, 0x9a},
+    {0x301d, 0x03},
+    {0x3014, 0x0c},
+    {0x3015, 0x50},//add 5 dummy frame
+    {0x302e, 0x00},
+    {0x302d, 0x00},
+#endif
 
     {0x0, 0x0}   //end flag
 
@@ -332,9 +361,10 @@ static struct reginfo sensor_720p[]=
 /* 1600X1200 UXGA */
 static struct reginfo sensor_uxga[] =
 {
-
+#if 1
+  //  {0x3086,0x01},  //sleep off
     {0x300E, 0x34},
-    {0x3011, 0x01},
+    {0x3011, 0x00},
     {0x3012, 0x00},
     {0x302a, 0x05},
     {0x302b, 0xCB},
@@ -367,7 +397,19 @@ static struct reginfo sensor_uxga[] =
     {0x331C, 0x00},
     {0x331D, 0x6C},
     {0x3302, 0x01},
+  //  {0x3086,0x00}, //sleep on
+#else
+    {0x300e, 0x38},
+    {0x3011, 0x00},
+    {0x302c, 0x00},
+    {0x3071, 0x00},
+    {0x3070, 0x5d},
+    {0x301c, 0x0d},
+    {0x3073, 0x00},
+    {0x3072, 0x4e},
+    {0x301d, 0x0f},
 
+#endif
     {0x0, 0x0},
 };
 
@@ -375,6 +417,7 @@ static struct reginfo sensor_uxga[] =
 static struct reginfo sensor_sxga[] =
 {
 #if 1
+   // {0x3086,0x01},  //sleep on
     {0x300E, 0x34},
     {0x3011, 0x00},
     {0x3012, 0x00},
@@ -409,6 +452,7 @@ static struct reginfo sensor_sxga[] =
     {0x331C, 0x00},
     {0x331D, 0x6C},
     {0x3302, 0x11},
+ //   {0x3086,0x00}, //sleep off
 #endif
     {0x0, 0x0},
 };
@@ -419,6 +463,7 @@ static struct reginfo sensor_xga[] =
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
 {
+    {0x3086,0x01},  //sleep on
     {0x300E, 0x34},
     {0x3011, 0x01},
     {0x3012, 0x10},
@@ -453,15 +498,16 @@ static struct reginfo sensor_svga[] =
     {0x331C, 0x00},
     {0x331D, 0x38},
     {0x3302, 0x11},
-
+    {0x3086,0x00}, //sleep off
     {0x0, 0x0},
 };
 
 /* 640X480 VGA */
 static struct reginfo sensor_vga[] =
 {
+ //   {0x3086,0x00},  //sleep off
     {0x300E, 0x34},
-    {0x3011, 0x01},
+    {0x3011, 0x00},
     {0x3012, 0x10},
     {0x302a, 0x02},
     {0x302b, 0xE6},
@@ -494,7 +540,7 @@ static struct reginfo sensor_vga[] =
     {0x331C, 0x08},
     {0x331D, 0x38},
     {0x3302, 0x11},
-
+//    {0x3086,0x01}, //sleep on
     {0x0, 0x0},
 };
 
@@ -618,6 +664,7 @@ static struct reginfo sensor_qcif[] =
 
     {0x0, 0x0},
 };
+#endif
 #if 0
 /* 160X120 QQVGA*/
 static struct reginfo ov2655_qqvga[] =
@@ -1124,7 +1171,7 @@ static  struct reginfo sensor_SceneAuto[] =
     {0x302e, 0x00},
     {0x302d, 0x00},
     {0x0000, 0x00}
-#else
+#else 
     {0x3014, 0x84},
     {0x3015, 0x02},
     {0x302e, 0x00},
@@ -1135,7 +1182,7 @@ static  struct reginfo sensor_SceneAuto[] =
 
 static  struct reginfo sensor_SceneNight[] =
 {
-#if 1
+#if 0
     //30fps ~ 5fps night mode for 60/50Hz light environment, 24Mhz clock input,36Mzh pclk
     {0x300e, 0x34},
     {0x3011, 0x00},
@@ -1151,7 +1198,7 @@ static  struct reginfo sensor_SceneNight[] =
     {0x302e, 0x00},
     {0x302d, 0x00},
     {0x0000, 0x00}
-#else
+#elif 0
     //15fps ~ 5fps night mode for 60/50Hz light environment, 24Mhz clock input,18Mhz pclk
     {0x300e, 0x34},
     {0x3011, 0x01},
@@ -1166,6 +1213,18 @@ static  struct reginfo sensor_SceneNight[] =
     {0x3015, 0x50},
     {0x302e, 0x00},
     {0x302d, 0x00},
+#elif 1 
+// the fixed fps, RK30 CIF can't receive data correctly when taking pic frequently in scene night mode of 
+// auto fps . Now use this series temporarily until fix the cif bug,zyc
+    {0x300e, 0x34},
+    {0x3011, 0x05},
+    {0x302c, 0x00},
+    {0x3071, 0x00},
+    {0x3070, 0x31},
+    {0x301c, 0x13},
+    {0x3073, 0x00},
+    {0x3072, 0x1a},
+    {0x301d, 0x17},
 #endif
 };
 static struct reginfo *sensor_SceneSeqe[] = {sensor_SceneAuto, sensor_SceneNight,NULL,};
@@ -1218,7 +1277,7 @@ static const struct v4l2_querymenu sensor_menus[] =
     #endif
 };
 
-static const struct v4l2_queryctrl sensor_controls[] =
+static  struct v4l2_queryctrl sensor_controls[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     {
@@ -1647,6 +1706,7 @@ static int sensor_readchk_array(struct i2c_client *client, struct reginfo *regar
     return 0;
 }
 #endif
+
 static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd cmd, int on)
 {
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
@@ -1680,6 +1740,11 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 
 			if (sensor->sensor_io_request && sensor->sensor_io_request->sensor_ioctrl) {
 				sensor->sensor_io_request->sensor_ioctrl(icd->pdev,Cam_Flash, on);
+                if(on){
+                    //flash off after 2 secs
+            		hrtimer_cancel(&(flash_off_timer.timer));
+            		hrtimer_start(&(flash_off_timer.timer),ktime_set(0, 800*1000*1000),HRTIMER_MODE_REL);
+                    }
 			}
             break;
 		}
@@ -1692,6 +1757,15 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 sensor_power_end:
 	return ret;
 }
+
+static enum hrtimer_restart flash_off_func(struct hrtimer *timer){
+	struct flash_timer *fps_timer = container_of(timer, struct flash_timer, timer);
+    sensor_ioctrl(fps_timer->icd,Sensor_Flash,0);
+	SENSOR_DG("%s %s !!!!!!",SENSOR_NAME_STRING(),__FUNCTION__);
+    return 0;
+    
+}
+
 static s32 sensor_init_width = 640;
 static s32 sensor_init_height = 480;
 static unsigned long sensor_init_busparam = (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING|SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ);
@@ -1888,6 +1962,10 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FLASH);
 	if (qctrl)
         sensor->info_priv.flash = qctrl->default_value;
+
+	hrtimer_init(&(flash_off_timer.timer), CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+    flash_off_timer.icd = icd;
+	flash_off_timer.timer.function = flash_off_func;
     #endif
 
     SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),((val == 0)?__FUNCTION__:"sensor_reinit"),icd->user_width,icd->user_height);
@@ -1916,7 +1994,6 @@ static int sensor_deactivate(struct i2c_client *client)
     }
     sensor_ioctrl(icd, Sensor_PowerDown, 1); 
     msleep(100); 
-
 	/* ddl@rock-chips.com : sensor config init width , because next open sensor quickly(soc_camera_open -> Try to configure with default parameters) */
 	icd->user_width = SENSOR_INIT_WIDTH;
     icd->user_height = SENSOR_INIT_HEIGHT;
@@ -3086,11 +3163,18 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
                 if (sensor->sensor_gpio_res->gpio_flash == INVALID_GPIO) {
                     for (i = 0; i < icd->ops->num_controls; i++) {
                 		if (V4L2_CID_FLASH == icd->ops->controls[i].id) {
-                			memset((char*)&icd->ops->controls[i],0x00,sizeof(struct v4l2_queryctrl));                			
+                			//memset((char*)&icd->ops->controls[i],0x00,sizeof(struct v4l2_queryctrl));  
+                              sensor_controls[i].id=0xffff;         			
                 		}
                     }
                     sensor->info_priv.flash = 0xff;
                     SENSOR_DG("%s flash gpio is invalidate!\n",SENSOR_NAME_STRING());
+                }else{ //two cameras are the same,need to deal diffrently ,zyc
+                    for (i = 0; i < icd->ops->num_controls; i++) {
+                           if(0xffff == icd->ops->controls[i].id){
+                              sensor_controls[i].id=V4L2_CID_FLASH;
+                           }               
+                    }
                 }
         	}
             #endif

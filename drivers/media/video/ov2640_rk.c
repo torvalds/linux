@@ -90,6 +90,18 @@ struct reginfo
     u8 val;
 };
 
+//flash off in fixed time to prevent from too hot , zyc
+struct  flash_timer{
+    struct soc_camera_device *icd;
+	struct hrtimer timer;
+};
+static enum hrtimer_restart flash_off_func(struct hrtimer *timer);
+
+static struct  flash_timer flash_off_timer;
+//for user defined if user want to customize the series , zyc
+#if CONFIG_OV2640_USER_DEFINED_SERIES
+#include "ov2640_user_series.c"
+#else
 /* init 800*600 SVGA */
 static struct reginfo sensor_init_data[] =
 {
@@ -492,6 +504,8 @@ static struct reginfo sensor_qcif[] =
 {
   {0x0, 0x0}   //end flag
 };
+
+#endif
 #if 0
 /* 160X120 QQVGA*/
 static struct reginfo ov2655_qqvga[] =
@@ -1155,7 +1169,7 @@ static const struct v4l2_querymenu sensor_menus[] =
     #endif
 };
 
-static const struct v4l2_queryctrl sensor_controls[] =
+static  struct v4l2_queryctrl sensor_controls[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     {
@@ -1615,6 +1629,11 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 
 			if (sensor->sensor_io_request && sensor->sensor_io_request->sensor_ioctrl) {
 				sensor->sensor_io_request->sensor_ioctrl(icd->pdev,Cam_Flash, on);
+                if(on){
+                    //flash off after 2 secs
+            		hrtimer_cancel(&(flash_off_timer.timer));
+            		hrtimer_start(&(flash_off_timer.timer),ktime_set(0, 800*1000*1000),HRTIMER_MODE_REL);
+                    }
 			}
             break;
 		}
@@ -1627,6 +1646,15 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 sensor_power_end:
 	return ret;
 }
+
+static enum hrtimer_restart flash_off_func(struct hrtimer *timer){
+	struct flash_timer *fps_timer = container_of(timer, struct flash_timer, timer);
+    sensor_ioctrl(fps_timer->icd,Sensor_Flash,0);
+	SENSOR_DG("%s %s !!!!!!",SENSOR_NAME_STRING(),__FUNCTION__);
+    return 0;
+    
+}
+
 static int sensor_init(struct v4l2_subdev *sd, u32 val)
 {
     struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1746,6 +1774,10 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FLASH);
 	if (qctrl)
         sensor->info_priv.flash = qctrl->default_value;
+
+	hrtimer_init(&(flash_off_timer.timer), CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+    flash_off_timer.icd = icd;
+	flash_off_timer.timer.function = flash_off_func;
     #endif
 
     SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),((val == 0)?__FUNCTION__:"sensor_reinit"),icd->user_width,icd->user_height);
@@ -2941,11 +2973,18 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
                 if (sensor->sensor_gpio_res->gpio_flash == INVALID_GPIO) {
                     for (i = 0; i < icd->ops->num_controls; i++) {
                 		if (V4L2_CID_FLASH == icd->ops->controls[i].id) {
-                			memset((char*)&icd->ops->controls[i],0x00,sizeof(struct v4l2_queryctrl));                			
+                			//memset((char*)&icd->ops->controls[i],0x00,sizeof(struct v4l2_queryctrl));  
+                              sensor_controls[i].id=0xffff;         			
                 		}
                     }
                     sensor->info_priv.flash = 0xff;
                     SENSOR_DG("%s flash gpio is invalidate!\n",SENSOR_NAME_STRING());
+                }else{ //two cameras are the same,need to deal diffrently ,zyc
+                    for (i = 0; i < icd->ops->num_controls; i++) {
+                           if(0xffff == icd->ops->controls[i].id){
+                              sensor_controls[i].id=V4L2_CID_FLASH;
+                           }               
+                    }
                 }
         	}
             #endif
