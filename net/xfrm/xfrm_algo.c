@@ -15,9 +15,6 @@
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <net/xfrm.h>
-#if defined(CONFIG_INET_AH) || defined(CONFIG_INET_AH_MODULE) || defined(CONFIG_INET6_AH) || defined(CONFIG_INET6_AH_MODULE)
-#include <net/ah.h>
-#endif
 #if defined(CONFIG_INET_ESP) || defined(CONFIG_INET_ESP_MODULE) || defined(CONFIG_INET6_ESP) || defined(CONFIG_INET6_ESP_MODULE)
 #include <net/esp.h>
 #endif
