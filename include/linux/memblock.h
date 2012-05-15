@@ -352,6 +352,7 @@ bool memblock_is_map_memory(phys_addr_t addr);
 bool memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
 bool memblock_is_reserved(phys_addr_t addr);
 bool memblock_is_region_reserved(phys_addr_t base, phys_addr_t size);
+bool memblock_overlaps_memory(phys_addr_t base, phys_addr_t size);
 
 extern void __memblock_dump_all(void);
 
