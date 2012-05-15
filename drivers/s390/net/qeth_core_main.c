@@ -5540,6 +5540,22 @@ static int __init qeth_core_init(void)
 	rc = qeth_register_dbf_views();
 	if (rc)
 		goto out_err;
+	qeth_core_root_dev = root_device_register("qeth");
+	rc = IS_ERR(qeth_core_root_dev) ? PTR_ERR(qeth_core_root_dev) : 0;
+	if (rc)
+		goto register_err;
+	qeth_core_header_cache = kmem_cache_create("qeth_hdr",
+			sizeof(struct qeth_hdr) + ETH_HLEN, 64, 0, NULL);
+	if (!qeth_core_header_cache) {
+		rc = -ENOMEM;
+		goto slab_err;
+	}
+	qeth_qdio_outbuf_cache = kmem_cache_create("qeth_buf",
+			sizeof(struct qeth_qdio_out_buffer), 0, 0, NULL);
+	if (!qeth_qdio_outbuf_cache) {
+		rc = -ENOMEM;
+		goto cqslab_err;
+	}
 	rc = ccw_driver_register(&qeth_ccw_driver);
 	if (rc)
 		goto ccw_err;
@@ -5547,36 +5563,18 @@ static int __init qeth_core_init(void)
 	rc = ccwgroup_driver_register(&qeth_core_ccwgroup_driver);
 	if (rc)
 		goto ccwgroup_err;
-	qeth_core_root_dev = root_device_register("qeth");
-	rc = IS_ERR(qeth_core_root_dev) ? PTR_ERR(qeth_core_root_dev) : 0;
-	if (rc)
-		goto register_err;
-
-	qeth_core_header_cache = kmem_cache_create("qeth_hdr",
-			sizeof(struct qeth_hdr) + ETH_HLEN, 64, 0, NULL);
-	if (!qeth_core_header_cache) {
-		rc = -ENOMEM;
-		goto slab_err;
-	}
-
-	qeth_qdio_outbuf_cache = kmem_cache_create("qeth_buf",
-			sizeof(struct qeth_qdio_out_buffer), 0, 0, NULL);
-	if (!qeth_qdio_outbuf_cache) {
-		rc = -ENOMEM;
-		goto cqslab_err;
-	}
 
 	return 0;
+
+ccwgroup_err:
+	ccw_driver_unregister(&qeth_ccw_driver);
+ccw_err:
+	kmem_cache_destroy(qeth_qdio_outbuf_cache);
 cqslab_err:
 	kmem_cache_destroy(qeth_core_header_cache);
 slab_err:
 	root_device_unregister(qeth_core_root_dev);
 register_err:
-	ccwgroup_driver_unregister(&qeth_core_ccwgroup_driver);
-ccwgroup_err:
-	ccw_driver_unregister(&qeth_ccw_driver);
-ccw_err:
-	QETH_DBF_MESSAGE(2, "Initialization failed with code %d\n", rc);
 	qeth_unregister_dbf_views();
 out_err:
 	pr_err("Initializing the qeth device driver failed\n");
@@ -5585,11 +5583,11 @@ out_err:
 
 static void __exit qeth_core_exit(void)
 {
-	root_device_unregister(qeth_core_root_dev);
 	ccwgroup_driver_unregister(&qeth_core_ccwgroup_driver);
 	ccw_driver_unregister(&qeth_ccw_driver);
 	kmem_cache_destroy(qeth_qdio_outbuf_cache);
 	kmem_cache_destroy(qeth_core_header_cache);
+	root_device_unregister(qeth_core_root_dev);
 	qeth_unregister_dbf_views();
 	pr_info("core functions removed\n");
 }
