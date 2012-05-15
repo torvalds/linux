@@ -578,13 +578,15 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
 	input = hidinput->input;
 
-	/* Check if this is a tablet report */
-	if (data[0] != 0x03)
-		return 0;
-
 	switch (hdev->product) {
 	case USB_DEVICE_ID_WACOM_GRAPHIRE_BLUETOOTH:
-		return wacom_gr_parse_report(hdev, wdata, input, data);
+		if (data[0] == 0x03) {
+			return wacom_gr_parse_report(hdev, wdata, input, data);
+		} else {
+			hid_err(hdev, "Unknown report: %d,%d size:%d\n",
+					data[0], data[1], size);
+			return 0;
+		}
 		break;
 	case USB_DEVICE_ID_WACOM_INTUOS4_BLUETOOTH:
 		i = 1;
