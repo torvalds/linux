@@ -111,13 +111,14 @@ static int aircable_probe(struct usb_serial *serial,
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
 		endpoint = &iface_desc->endpoint[i].desc;
 		if (usb_endpoint_is_bulk_out(endpoint)) {
-			dbg("found bulk out on endpoint %d", i);
+			dev_dbg(&serial->dev->dev,
+				"found bulk out on endpoint %d\n", i);
 			++num_bulk_out;
 		}
 	}
 
 	if (num_bulk_out == 0) {
-		dbg("Invalid interface, discarding");
+		dev_dbg(&serial->dev->dev, "Invalid interface, discarding\n");
 		return -ENODEV;
 	}
 
@@ -133,7 +134,7 @@ static int aircable_process_packet(struct tty_struct *tty,
 		packet += HCI_HEADER_LENGTH;
 	}
 	if (len <= 0) {
-		dbg("%s - malformed packet", __func__);
+		dev_dbg(&port->dev, "%s - malformed packet\n", __func__);
 		return 0;
 	}
 
