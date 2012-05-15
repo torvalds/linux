@@ -1296,6 +1296,11 @@ static void ctcm_irq_handler(struct ccw_device *cdev,
 
 }
 
+static const struct device_type ctcm_devtype = {
+	.name = "ctcm",
+	.groups = ctcm_attr_groups,
+};
+
 /**
  * Add ctcm specific attributes.
  * Add ctcm private data.
@@ -1307,7 +1312,6 @@ static void ctcm_irq_handler(struct ccw_device *cdev,
 static int ctcm_probe_device(struct ccwgroup_device *cgdev)
 {
 	struct ctcm_priv *priv;
-	int rc;
 
 	CTCM_DBF_TEXT_(SETUP, CTC_DBF_INFO,
 			"%s %p",
@@ -1324,17 +1328,11 @@ static int ctcm_probe_device(struct ccwgroup_device *cgdev)
 		put_device(&cgdev->dev);
 		return -ENOMEM;
 	}
-
-	rc = ctcm_add_files(&cgdev->dev);
-	if (rc) {
-		kfree(priv);
-		put_device(&cgdev->dev);
-		return rc;
-	}
 	priv->buffer_size = CTCM_BUFSIZE_DEFAULT;
 	cgdev->cdev[0]->handler = ctcm_irq_handler;
 	cgdev->cdev[1]->handler = ctcm_irq_handler;
 	dev_set_drvdata(&cgdev->dev, priv);
+	cgdev->dev.type = &ctcm_devtype;
 
 	return 0;
 }
@@ -1611,11 +1609,6 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 		goto out_dev;
 	}
 
-	if (ctcm_add_attributes(&cgdev->dev)) {
-		result = -ENODEV;
-		goto out_unregister;
-	}
-
 	strlcpy(priv->fsm->name, dev->name, sizeof(priv->fsm->name));
 
 	dev_info(&dev->dev,
@@ -1629,8 +1622,6 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 			priv->channel[CTCM_WRITE]->id, priv->protocol);
 
 	return 0;
-out_unregister:
-	unregister_netdev(dev);
 out_dev:
 	ctcm_free_netdevice(dev);
 out_ccw2:
@@ -1669,7 +1660,6 @@ static int ctcm_shutdown_device(struct ccwgroup_device *cgdev)
 		/* Close the device */
 		ctcm_close(dev);
 		dev->flags &= ~IFF_RUNNING;
-		ctcm_remove_attributes(&cgdev->dev);
 		channel_free(priv->channel[CTCM_READ]);
 	} else
 		dev = NULL;
@@ -1711,7 +1701,6 @@ static void ctcm_remove_device(struct ccwgroup_device *cgdev)
 
 	if (cgdev->state == CCWGROUP_ONLINE)
 		ctcm_shutdown_device(cgdev);
-	ctcm_remove_files(&cgdev->dev);
 	dev_set_drvdata(&cgdev->dev, NULL);
 	kfree(priv);
 	put_device(&cgdev->dev);
@@ -1780,7 +1769,7 @@ static struct ccwgroup_driver ctcm_group_driver = {
 	},
 	.max_slaves  = 2,
 	.driver_id   = 0xC3E3C3D4,	/* CTCM */
-	.probe       = ctcm_probe_device,
+	.setup	     = ctcm_probe_device,
 	.remove      = ctcm_remove_device,
 	.set_online  = ctcm_new_device,
 	.set_offline = ctcm_shutdown_device,
@@ -1789,18 +1778,15 @@ static struct ccwgroup_driver ctcm_group_driver = {
 	.restore     = ctcm_pm_resume,
 };
 
-static ssize_t
-ctcm_driver_group_store(struct device_driver *ddrv, const char *buf,
-			size_t count)
+static ssize_t ctcm_driver_group_store(struct device_driver *ddrv,
+				       const char *buf,	size_t count)
 {
 	int err;
 
-	err = ccwgroup_create_from_string(ctcm_root_dev,
-					  ctcm_group_driver.driver_id,
-					  &ctcm_ccw_driver, 2, buf);
+	err = ccwgroup_create_dev(ctcm_root_dev, ctcm_group_driver.driver_id,
+				  &ctcm_group_driver, 2, buf);
 	return err ? err : count;
 }
-
 static DRIVER_ATTR(group, 0200, NULL, ctcm_driver_group_store);
 
 static struct attribute *ctcm_group_attrs[] = {

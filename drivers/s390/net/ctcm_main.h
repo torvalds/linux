@@ -225,13 +225,7 @@ struct ctcm_priv {
 int ctcm_open(struct net_device *dev);
 int ctcm_close(struct net_device *dev);
 
-/*
- * prototypes for non-static sysfs functions
- */
-int ctcm_add_attributes(struct device *dev);
-void ctcm_remove_attributes(struct device *dev);
-int ctcm_add_files(struct device *dev);
-void ctcm_remove_files(struct device *dev);
+extern const struct attribute_group *ctcm_attr_groups[];
 
 /*
  * Compatibility macros for busy handling
