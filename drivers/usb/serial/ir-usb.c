@@ -96,18 +96,21 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&ir_device, NULL
 };
 
-static inline void irda_usb_dump_class_desc(struct usb_irda_cs_descriptor *desc)
+static inline void irda_usb_dump_class_desc(struct usb_serial *serial,
+					    struct usb_irda_cs_descriptor *desc)
 {
-	dbg("bLength=%x", desc->bLength);
-	dbg("bDescriptorType=%x", desc->bDescriptorType);
-	dbg("bcdSpecRevision=%x", __le16_to_cpu(desc->bcdSpecRevision));
-	dbg("bmDataSize=%x", desc->bmDataSize);
-	dbg("bmWindowSize=%x", desc->bmWindowSize);
-	dbg("bmMinTurnaroundTime=%d", desc->bmMinTurnaroundTime);
-	dbg("wBaudRate=%x", __le16_to_cpu(desc->wBaudRate));
-	dbg("bmAdditionalBOFs=%x", desc->bmAdditionalBOFs);
-	dbg("bIrdaRateSniff=%x", desc->bIrdaRateSniff);
-	dbg("bMaxUnicastList=%x", desc->bMaxUnicastList);
+	struct device *dev = &serial->dev->dev;
+
+	dev_dbg(dev, "bLength=%x\n", desc->bLength);
+	dev_dbg(dev, "bDescriptorType=%x\n", desc->bDescriptorType);
+	dev_dbg(dev, "bcdSpecRevision=%x\n", __le16_to_cpu(desc->bcdSpecRevision));
+	dev_dbg(dev, "bmDataSize=%x\n", desc->bmDataSize);
+	dev_dbg(dev, "bmWindowSize=%x\n", desc->bmWindowSize);
+	dev_dbg(dev, "bmMinTurnaroundTime=%d\n", desc->bmMinTurnaroundTime);
+	dev_dbg(dev, "wBaudRate=%x\n", __le16_to_cpu(desc->wBaudRate));
+	dev_dbg(dev, "bmAdditionalBOFs=%x\n", desc->bmAdditionalBOFs);
+	dev_dbg(dev, "bIrdaRateSniff=%x\n", desc->bIrdaRateSniff);
+	dev_dbg(dev, "bMaxUnicastList=%x\n", desc->bMaxUnicastList);
 }
 
 /*------------------------------------------------------------------*/
@@ -123,8 +126,9 @@ static inline void irda_usb_dump_class_desc(struct usb_irda_cs_descriptor *desc)
  * Based on the same function in drivers/net/irda/irda-usb.c
  */
 static struct usb_irda_cs_descriptor *
-irda_usb_find_class_desc(struct usb_device *dev, unsigned int ifnum)
+irda_usb_find_class_desc(struct usb_serial *serial, unsigned int ifnum)
 {
+	struct usb_device *dev = serial->dev;
 	struct usb_irda_cs_descriptor *desc;
 	int ret;
 
@@ -137,20 +141,20 @@ irda_usb_find_class_desc(struct usb_device *dev, unsigned int ifnum)
 			USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			0, ifnum, desc, sizeof(*desc), 1000);
 
-	dbg("%s -  ret=%d", __func__, ret);
+	dev_dbg(&serial->dev->dev, "%s -  ret=%d\n", __func__, ret);
 	if (ret < sizeof(*desc)) {
-		dbg("%s - class descriptor read %s (%d)",
-				__func__,
-				(ret < 0) ? "failed" : "too short",
-				ret);
+		dev_dbg(&serial->dev->dev,
+			"%s - class descriptor read %s (%d)\n", __func__,
+			(ret < 0) ? "failed" : "too short", ret);
 		goto error;
 	}
 	if (desc->bDescriptorType != USB_DT_CS_IRDA) {
-		dbg("%s - bad class descriptor type", __func__);
+		dev_dbg(&serial->dev->dev, "%s - bad class descriptor type\n",
+			__func__);
 		goto error;
 	}
 
-	irda_usb_dump_class_desc(desc);
+	irda_usb_dump_class_desc(serial, desc);
 	return desc;
 
 error:
@@ -200,14 +204,15 @@ static int ir_startup(struct usb_serial *serial)
 {
 	struct usb_irda_cs_descriptor *irda_desc;
 
-	irda_desc = irda_usb_find_class_desc(serial->dev, 0);
+	irda_desc = irda_usb_find_class_desc(serial, 0);
 	if (!irda_desc) {
 		dev_err(&serial->dev->dev,
 			"IRDA class descriptor not found, device not bound\n");
 		return -ENODEV;
 	}
 
-	dbg("%s - Baud rates supported:%s%s%s%s%s%s%s%s%s",
+	dev_dbg(&serial->dev->dev,
+		"%s - Baud rates supported:%s%s%s%s%s%s%s%s%s\n",
 		__func__,
 		(irda_desc->wBaudRate & USB_IRDA_BR_2400) ? " 2400" : "",
 		(irda_desc->wBaudRate & USB_IRDA_BR_9600) ? " 9600" : "",
@@ -316,7 +321,8 @@ static void ir_set_termios_callback(struct urb *urb)
 	kfree(urb->transfer_buffer);
 
 	if (urb->status)
-		dbg("%s - non-zero urb status: %d", __func__, urb->status);
+		dev_dbg(&urb->dev->dev, "%s - non-zero urb status: %d\n",
+			__func__, urb->status);
 }
 
 static void ir_set_termios(struct tty_struct *tty,
