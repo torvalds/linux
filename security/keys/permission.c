@@ -91,33 +91,25 @@ EXPORT_SYMBOL(key_task_permission);
  * key is invalidated, -EKEYREVOKED if the key's type has been removed or if
  * the key has been revoked or -EKEYEXPIRED if the key has expired.
  */
-int key_validate(struct key *key)
+int key_validate(const struct key *key)
 {
-	struct timespec now;
 	unsigned long flags = key->flags;
-	int ret = 0;
 
-	if (key) {
-		ret = -ENOKEY;
-		if (flags & (1 << KEY_FLAG_INVALIDATED))
-			goto error;
+	if (flags & (1 << KEY_FLAG_INVALIDATED))
+		return -ENOKEY;
 
-		/* check it's still accessible */
-		ret = -EKEYREVOKED;
-		if (flags & ((1 << KEY_FLAG_REVOKED) |
-			     (1 << KEY_FLAG_DEAD)))
-			goto error;
+	/* check it's still accessible */
+	if (flags & ((1 << KEY_FLAG_REVOKED) |
+		     (1 << KEY_FLAG_DEAD)))
+		return -EKEYREVOKED;
 
-		/* check it hasn't expired */
-		ret = 0;
-		if (key->expiry) {
-			now = current_kernel_time();
-			if (now.tv_sec >= key->expiry)
-				ret = -EKEYEXPIRED;
-		}
+	/* check it hasn't expired */
+	if (key->expiry) {
+		struct timespec now = current_kernel_time();
+		if (now.tv_sec >= key->expiry)
+			return -EKEYEXPIRED;
 	}
 
-error:
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(key_validate);

@@ -242,7 +242,7 @@ extern struct key *request_key_async_with_auxdata(struct key_type *type,
 
 extern int wait_for_key_construction(struct key *key, bool intr);
 
-extern int key_validate(struct key *key);
+extern int key_validate(const struct key *key);
 
 extern key_ref_t key_create_or_update(key_ref_t keyring,
 				      const char *type,
