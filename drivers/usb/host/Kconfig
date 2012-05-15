@@ -65,7 +65,7 @@ config USB_EHCI_HCD
 
 config USB_EHCI_ROOT_HUB_TT
 	bool "Root Hub Transaction Translators"
-	depends on USB_EHCI_HCD
+	depends on USB_EHCI_HCD || USB_CHIPIDEA_HOST
 	---help---
 	  Some EHCI chips have vendor-specific extensions to integrate
 	  transaction translators, so that no OHCI or UHCI companion
@@ -77,7 +77,7 @@ config USB_EHCI_ROOT_HUB_TT
 
 config USB_EHCI_TT_NEWSCHED
 	bool "Improved Transaction Translator scheduling"
-	depends on USB_EHCI_HCD
+	depends on USB_EHCI_HCD || USB_CHIPIDEA_HOST
 	default y
 	---help---
 	  This changes the periodic scheduling code to fill more of the low
