@@ -57,6 +57,8 @@
 #define ANOMALY_05000481 (1)
 /* IFLUSH sucks at life */
 #define ANOMALY_05000491 (1)
+/* Tempopary anomaly ID for data loss in MMR read operation if interrupted */
+#define ANOMALY_05001001 (__SILICON_REVISION__ < 1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000099 (0)

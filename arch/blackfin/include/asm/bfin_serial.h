@@ -282,7 +282,19 @@ struct bfin_uart_regs {
 #define UART_GET_GCTL(p)      UART_GET_CTL(p)
 #define UART_GET_LCR(p)       UART_GET_CTL(p)
 #define UART_GET_MCR(p)       UART_GET_CTL(p)
+#if ANOMALY_05001001
+#define UART_GET_STAT(p) \
+({ \
+	u32 __ret; \
+	unsigned long flags; \
+	flags = hard_local_irq_save(); \
+	__ret = bfin_read32(port_membase(p) + OFFSET_STAT); \
+	hard_local_irq_restore(flags); \
+	__ret; \
+})
+#else
 #define UART_GET_STAT(p)      bfin_read32(port_membase(p) + OFFSET_STAT)
+#endif
 #define UART_GET_MSR(p)       UART_GET_STAT(p)
 
 #define UART_PUT_CHAR(p, v)   bfin_write32(port_membase(p) + OFFSET_THR, v)
