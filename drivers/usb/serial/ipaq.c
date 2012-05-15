@@ -565,7 +565,7 @@ static int ipaq_calc_num_ports(struct usb_serial *serial)
 	 */
 	int ipaq_num_ports = 1;
 
-	dbg("%s - numberofendpoints: %d", __FUNCTION__,
+	dev_dbg(&serial->dev->dev, "%s - numberofendpoints: %d\n", __func__,
 		(int)serial->interface->cur_altsetting->desc.bNumEndpoints);
 
 	/*
@@ -603,8 +603,9 @@ static int ipaq_startup(struct usb_serial *serial)
 		return -ENODEV;
 	}
 
-	dbg("%s - iPAQ module configured for %d ports",
-		__FUNCTION__, serial->num_ports);
+	dev_dbg(&serial->dev->dev,
+		"%s - iPAQ module configured for %d ports\n", __func__,
+		serial->num_ports);
 
 	return usb_reset_configuration(serial->dev);
 }
