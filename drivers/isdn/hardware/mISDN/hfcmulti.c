@@ -1171,7 +1171,7 @@ init_chip(struct hfc_multi *hc)
 	hc->DTMFbase = 0x1000;
 	if (test_bit(HFC_CHIP_EXRAM_128, &hc->chip)) {
 		if (debug & DEBUG_HFCMULTI_INIT)
-			printk(KERN_DEBUG "%s: changing to 128K extenal RAM\n",
+			printk(KERN_DEBUG "%s: changing to 128K external RAM\n",
 			       __func__);
 		hc->hw.r_ctrl |= V_EXT_RAM;
 		hc->hw.r_ram_sz = 1;
@@ -1182,7 +1182,7 @@ init_chip(struct hfc_multi *hc)
 	}
 	if (test_bit(HFC_CHIP_EXRAM_512, &hc->chip)) {
 		if (debug & DEBUG_HFCMULTI_INIT)
-			printk(KERN_DEBUG "%s: changing to 512K extenal RAM\n",
+			printk(KERN_DEBUG "%s: changing to 512K external RAM\n",
 			       __func__);
 		hc->hw.r_ctrl |= V_EXT_RAM;
 		hc->hw.r_ram_sz = 2;
