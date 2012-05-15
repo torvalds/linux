@@ -2214,7 +2214,6 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			 struct nfsd4_compound_state *cstate,
 			 struct nfsd4_setclientid_confirm *setclientid_confirm)
 {
-	struct sockaddr *sa = svc_addr(rqstp);
 	struct nfs4_client *conf, *unconf;
 	nfs4_verifier confirm = setclientid_confirm->sc_confirm; 
 	clientid_t * clid = &setclientid_confirm->sc_clientid;
@@ -2232,17 +2231,12 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 	conf = find_confirmed_client(clid);
 	unconf = find_unconfirmed_client(clid);
 
-	status = nfserr_clid_inuse;
-	if (conf && !rpc_cmp_addr((struct sockaddr *) &conf->cl_addr, sa))
-		goto out;
-	if (unconf && !rpc_cmp_addr((struct sockaddr *) &unconf->cl_addr, sa))
-		goto out;
-
 	/*
 	 * section 14.2.34 of RFC 3530 has a description of
 	 * SETCLIENTID_CONFIRM request processing consisting
 	 * of 4 bullet points, labeled as CASE1 - CASE4 below.
 	 */
+	status = nfserr_clid_inuse;
 	if (conf && unconf && same_verf(&confirm, &unconf->cl_confirm)) {
 		/*
 		 * RFC 3530 14.2.34 CASE 1:
@@ -2255,7 +2249,6 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			nfsd4_probe_callback(conf);
 			expire_client(unconf);
 			status = nfs_ok;
-
 		}
 	} else if (conf && !unconf) {
 		/*
@@ -2297,11 +2290,8 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		 * Client probably hasn't noticed that we rebooted yet.
 		 */
 		status = nfserr_stale_clientid;
-	} else {
-		/* check that we have hit one of the cases...*/
-		status = nfserr_clid_inuse;
 	}
-out:
+
 	nfs4_unlock_state();
 	return status;
 }
