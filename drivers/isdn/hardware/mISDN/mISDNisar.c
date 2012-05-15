@@ -702,15 +702,11 @@ send_next(struct isar_ch *ch)
 			}
 		}
 	}
-	if (ch->bch.tx_skb) {
-		/* send confirm, on trans, free on hdlc. */
-		if (test_bit(FLG_TRANSPARENT, &ch->bch.Flags))
-			confirm_Bsend(&ch->bch);
+	if (ch->bch.tx_skb)
 		dev_kfree_skb(ch->bch.tx_skb);
-	}
-	if (get_next_bframe(&ch->bch))
+	if (get_next_bframe(&ch->bch)) {
 		isar_fill_fifo(ch);
-	else {
+	} else {
 		if (test_and_clear_bit(FLG_DLEETX, &ch->bch.Flags)) {
 			if (test_and_clear_bit(FLG_LASTDATA,
 					       &ch->bch.Flags)) {
@@ -1487,14 +1483,10 @@ isar_l2l1(struct mISDNchannel *ch, struct sk_buff *skb)
 		spin_lock_irqsave(ich->is->hwlock, flags);
 		ret = bchannel_senddata(bch, skb);
 		if (ret > 0) { /* direct TX */
-			id = hh->id; /* skb can be freed */
 			ret = 0;
 			isar_fill_fifo(ich);
-			spin_unlock_irqrestore(ich->is->hwlock, flags);
-			if (!test_bit(FLG_TRANSPARENT, &bch->Flags))
-				queue_ch_frame(ch, PH_DATA_CNF, id, NULL);
-		} else
-			spin_unlock_irqrestore(ich->is->hwlock, flags);
+		}
+		spin_unlock_irqrestore(ich->is->hwlock, flags);
 		return ret;
 	case PH_ACTIVATE_REQ:
 		spin_lock_irqsave(ich->is->hwlock, flags);

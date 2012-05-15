@@ -638,15 +638,11 @@ w6692_mode(struct w6692_ch *wch, u32 pr)
 static void
 send_next(struct w6692_ch *wch)
 {
-	if (wch->bch.tx_skb && wch->bch.tx_idx < wch->bch.tx_skb->len)
+	if (wch->bch.tx_skb && wch->bch.tx_idx < wch->bch.tx_skb->len) {
 		W6692_fill_Bfifo(wch);
-	else {
-		if (wch->bch.tx_skb) {
-			/* send confirm, on trans, free on hdlc. */
-			if (test_bit(FLG_TRANSPARENT, &wch->bch.Flags))
-				confirm_Bsend(&wch->bch);
+	} else {
+		if (wch->bch.tx_skb)
 			dev_kfree_skb(wch->bch.tx_skb);
-		}
 		if (get_next_bframe(&wch->bch))
 			W6692_fill_Bfifo(wch);
 	}
@@ -944,22 +940,17 @@ w6692_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 	struct w6692_hw *card = bch->hw;
 	int ret = -EINVAL;
 	struct mISDNhead *hh = mISDN_HEAD_P(skb);
-	u32 id;
-	u_long flags;
+	unsigned long flags;
 
 	switch (hh->prim) {
 	case PH_DATA_REQ:
 		spin_lock_irqsave(&card->lock, flags);
 		ret = bchannel_senddata(bch, skb);
 		if (ret > 0) { /* direct TX */
-			id = hh->id; /* skb can be freed */
 			ret = 0;
 			W6692_fill_Bfifo(bc);
-			spin_unlock_irqrestore(&card->lock, flags);
-			if (!test_bit(FLG_TRANSPARENT, &bch->Flags))
-				queue_ch_frame(ch, PH_DATA_CNF, id, NULL);
-		} else
-			spin_unlock_irqrestore(&card->lock, flags);
+		}
+		spin_unlock_irqrestore(&card->lock, flags);
 		return ret;
 	case PH_ACTIVATE_REQ:
 		spin_lock_irqsave(&card->lock, flags);

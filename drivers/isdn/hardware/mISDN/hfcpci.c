@@ -849,9 +849,6 @@ hfcpci_fill_fifo(struct bchannel *bch)
 		*z1t = cpu_to_le16(new_z1);	/* now send data */
 		if (bch->tx_idx < bch->tx_skb->len)
 			return;
-		/* send confirm, on trans, free on hdlc. */
-		if (test_bit(FLG_TRANSPARENT, &bch->Flags))
-			confirm_Bsend(bch);
 		dev_kfree_skb(bch->tx_skb);
 		if (get_next_bframe(bch))
 			goto next_t_frame;
@@ -1691,22 +1688,17 @@ hfcpci_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 	struct hfc_pci		*hc = bch->hw;
 	int			ret = -EINVAL;
 	struct mISDNhead	*hh = mISDN_HEAD_P(skb);
-	unsigned int		id;
-	u_long			flags;
+	unsigned long		flags;
 
 	switch (hh->prim) {
 	case PH_DATA_REQ:
 		spin_lock_irqsave(&hc->lock, flags);
 		ret = bchannel_senddata(bch, skb);
 		if (ret > 0) { /* direct TX */
-			id = hh->id; /* skb can be freed */
 			hfcpci_fill_fifo(bch);
 			ret = 0;
-			spin_unlock_irqrestore(&hc->lock, flags);
-			if (!test_bit(FLG_TRANSPARENT, &bch->Flags))
-				queue_ch_frame(ch, PH_DATA_CNF, id, NULL);
-		} else
-			spin_unlock_irqrestore(&hc->lock, flags);
+		}
+		spin_unlock_irqrestore(&hc->lock, flags);
 		return ret;
 	case PH_ACTIVATE_REQ:
 		spin_lock_irqsave(&hc->lock, flags);

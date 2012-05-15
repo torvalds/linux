@@ -595,15 +595,11 @@ fill_dma(struct tiger_ch *bc)
 static int
 bc_next_frame(struct tiger_ch *bc)
 {
-	if (bc->bch.tx_skb && bc->bch.tx_idx < bc->bch.tx_skb->len)
+	if (bc->bch.tx_skb && bc->bch.tx_idx < bc->bch.tx_skb->len) {
 		fill_dma(bc);
-	else {
-		if (bc->bch.tx_skb) {
-			/* send confirm, on trans, free on hdlc. */
-			if (test_bit(FLG_TRANSPARENT, &bc->bch.Flags))
-				confirm_Bsend(&bc->bch);
+	} else {
+		if (bc->bch.tx_skb)
 			dev_kfree_skb(bc->bch.tx_skb);
-		}
 		if (get_next_bframe(&bc->bch))
 			fill_dma(bc);
 		else
@@ -732,22 +728,17 @@ nj_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 	struct tiger_ch *bc = container_of(bch, struct tiger_ch, bch);
 	struct tiger_hw *card = bch->hw;
 	struct mISDNhead *hh = mISDN_HEAD_P(skb);
-	u32 id;
-	u_long flags;
+	unsigned long flags;
 
 	switch (hh->prim) {
 	case PH_DATA_REQ:
 		spin_lock_irqsave(&card->lock, flags);
 		ret = bchannel_senddata(bch, skb);
 		if (ret > 0) { /* direct TX */
-			id = hh->id; /* skb can be freed */
 			fill_dma(bc);
 			ret = 0;
-			spin_unlock_irqrestore(&card->lock, flags);
-			if (!test_bit(FLG_TRANSPARENT, &bch->Flags))
-				queue_ch_frame(ch, PH_DATA_CNF, id, NULL);
-		} else
-			spin_unlock_irqrestore(&card->lock, flags);
+		}
+		spin_unlock_irqrestore(&card->lock, flags);
 		return ret;
 	case PH_ACTIVATE_REQ:
 		spin_lock_irqsave(&card->lock, flags);

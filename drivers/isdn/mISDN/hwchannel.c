@@ -272,7 +272,7 @@ get_next_dframe(struct dchannel *dch)
 }
 EXPORT_SYMBOL(get_next_dframe);
 
-void
+static void
 confirm_Bsend(struct bchannel *bch)
 {
 	struct sk_buff	*skb;
@@ -294,7 +294,6 @@ confirm_Bsend(struct bchannel *bch)
 	skb_queue_tail(&bch->rqueue, skb);
 	schedule_event(bch, FLG_RECVQUEUE);
 }
-EXPORT_SYMBOL(confirm_Bsend);
 
 int
 get_next_bframe(struct bchannel *bch)
@@ -305,8 +304,8 @@ get_next_bframe(struct bchannel *bch)
 		if (bch->tx_skb) {
 			bch->next_skb = NULL;
 			test_and_clear_bit(FLG_TX_NEXT, &bch->Flags);
-			if (!test_bit(FLG_TRANSPARENT, &bch->Flags))
-				confirm_Bsend(bch); /* not for transparent */
+			/* confirm imediately to allow next data */
+			confirm_Bsend(bch);
 			return 1;
 		} else {
 			test_and_clear_bit(FLG_TX_NEXT, &bch->Flags);
@@ -395,6 +394,7 @@ bchannel_senddata(struct bchannel *ch, struct sk_buff *skb)
 		/* write to fifo */
 		ch->tx_skb = skb;
 		ch->tx_idx = 0;
+		confirm_Bsend(ch);
 		return 1;
 	}
 }

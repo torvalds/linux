@@ -2166,13 +2166,9 @@ next_frame:
 		HFC_wait_nodebug(hc);
 	}
 
-	/* send confirm, since get_net_bframe will not do it with trans */
-	if (bch && test_bit(FLG_TRANSPARENT, &bch->Flags))
-		confirm_Bsend(bch);
-
-	/* check for next frame */
 	dev_kfree_skb(*sp);
-	if (bch && get_next_bframe(bch)) { /* hdlc is confirmed here */
+	/* check for next frame */
+	if (bch && get_next_bframe(bch)) {
 		len = (*sp)->len;
 		goto next_frame;
 	}
@@ -3482,8 +3478,7 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 	struct hfc_multi	*hc = bch->hw;
 	int			ret = -EINVAL;
 	struct mISDNhead	*hh = mISDN_HEAD_P(skb);
-	unsigned int		id;
-	u_long			flags;
+	unsigned long		flags;
 
 	switch (hh->prim) {
 	case PH_DATA_REQ:
@@ -3492,19 +3487,13 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 		spin_lock_irqsave(&hc->lock, flags);
 		ret = bchannel_senddata(bch, skb);
 		if (ret > 0) { /* direct TX */
-			id = hh->id; /* skb can be freed */
 			hfcmulti_tx(hc, bch->slot);
 			ret = 0;
 			/* start fifo */
 			HFC_outb_nodebug(hc, R_FIFO, 0);
 			HFC_wait_nodebug(hc);
-			if (!test_bit(FLG_TRANSPARENT, &bch->Flags)) {
-				spin_unlock_irqrestore(&hc->lock, flags);
-				queue_ch_frame(ch, PH_DATA_CNF, id, NULL);
-			} else
-				spin_unlock_irqrestore(&hc->lock, flags);
-		} else
-			spin_unlock_irqrestore(&hc->lock, flags);
+		}
+		spin_unlock_irqrestore(&hc->lock, flags);
 		return ret;
 	case PH_ACTIVATE_REQ:
 		if (debug & DEBUG_HFCMULTI_MSG)
