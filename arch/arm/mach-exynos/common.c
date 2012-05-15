@@ -21,6 +21,7 @@
 #include <linux/of_irq.h>
 #include <linux/export.h>
 #include <linux/irqdomain.h>
+#include <linux/of_address.h>
 
 #include <asm/proc-fns.h>
 #include <asm/exception.h>
@@ -490,6 +491,35 @@ static void __init combiner_init_one(unsigned int combiner_nr,
 		     base + COMBINER_ENABLE_CLEAR);
 }
 
+#ifdef CONFIG_OF
+static int combiner_irq_domain_xlate(struct irq_domain *d,
+				     struct device_node *controller,
+				     const u32 *intspec, unsigned int intsize,
+				     unsigned long *out_hwirq,
+				     unsigned int *out_type)
+{
+	if (d->of_node != controller)
+		return -EINVAL;
+
+	if (intsize < 2)
+		return -EINVAL;
+
+	*out_hwirq = intspec[0] * MAX_IRQ_IN_COMBINER + intspec[1];
+	*out_type = 0;
+
+	return 0;
+}
+#else
+static int combiner_irq_domain_xlate(struct irq_domain *d,
+				     struct device_node *controller,
+				     const u32 *intspec, unsigned int intsize,
+				     unsigned long *out_hwirq,
+				     unsigned int *out_type)
+{
+	return -EINVAL;
+}
+#endif
+
 static int combiner_irq_domain_map(struct irq_domain *d, unsigned int irq,
 				   irq_hw_number_t hw)
 {
@@ -501,16 +531,26 @@ static int combiner_irq_domain_map(struct irq_domain *d, unsigned int irq,
 }
 
 static struct irq_domain_ops combiner_irq_domain_ops = {
+	.xlate	= combiner_irq_domain_xlate,
 	.map	= combiner_irq_domain_map,
 };
 
 void __init combiner_init(void __iomem *combiner_base, struct device_node *np)
 {
-	int i, irq_base;
+	int i, irq, irq_base;
 	unsigned int max_nr, nr_irq;
 
-	max_nr = soc_is_exynos5250() ? EXYNOS5_MAX_COMBINER_NR :
-					EXYNOS4_MAX_COMBINER_NR;
+	if (np) {
+		if (of_property_read_u32(np, "samsung,combiner-nr", &max_nr)) {
+			pr_warning("%s: number of combiners not specified, "
+				"setting default as %d.\n",
+				__func__, EXYNOS4_MAX_COMBINER_NR);
+			max_nr = EXYNOS4_MAX_COMBINER_NR;
+		}
+	} else {
+		max_nr = soc_is_exynos5250() ? EXYNOS5_MAX_COMBINER_NR :
+						EXYNOS4_MAX_COMBINER_NR;
+	}
 	nr_irq = max_nr * MAX_IRQ_IN_COMBINER;
 
 	irq_base = irq_alloc_descs(COMBINER_IRQ(0, 0), 1, nr_irq, 0);
@@ -528,13 +568,31 @@ void __init combiner_init(void __iomem *combiner_base, struct device_node *np)
 
 	for (i = 0; i < max_nr; i++) {
 		combiner_init_one(i, combiner_base + (i >> 2) * 0x10);
-		combiner_cascade_irq(i, IRQ_SPI(i));
+		irq = np ? irq_of_parse_and_map(np, i) : IRQ_SPI(i);
+		combiner_cascade_irq(i, irq);
 	}
 }
 
 #ifdef CONFIG_OF
+int __init combiner_of_init(struct device_node *np, struct device_node *parent)
+{
+	void __iomem *combiner_base;
+
+	combiner_base = of_iomap(np, 0);
+	if (!combiner_base) {
+		pr_err("%s: failed to map combiner registers\n", __func__);
+		return -ENXIO;
+	}
+
+	combiner_init(combiner_base, np);
+
+	return 0;
+}
+
 static const struct of_device_id exynos4_dt_irq_match[] = {
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
+	{ .compatible = "samsung,exynos4210-combiner",
+			.data = combiner_of_init, },
 	{},
 };
 #endif
@@ -552,7 +610,8 @@ void __init exynos4_init_irq(void)
 		of_irq_init(exynos4_dt_irq_match);
 #endif
 
-	combiner_init(S5P_VA_COMBINER_BASE, NULL);
+	if (!of_have_populated_dt())
+		combiner_init(S5P_VA_COMBINER_BASE, NULL);
 
 	/*
 	 * The parameters of s5p_init_irq() are for VIC init.
@@ -567,8 +626,6 @@ void __init exynos5_init_irq(void)
 #ifdef CONFIG_OF
 	of_irq_init(exynos4_dt_irq_match);
 #endif
-	combiner_init(S5P_VA_COMBINER_BASE, NULL);
-
 	/*
 	 * The parameters of s5p_init_irq() are for VIC init.
 	 * Theses parameters should be NULL and 0 because EXYNOS4
