@@ -88,29 +88,6 @@ Configuration options:
 #define DT2801_STATUS		1
 #define DT2801_CMD		1
 
-static int dt2801_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int dt2801_detach(struct comedi_device *dev);
-static struct comedi_driver driver_dt2801 = {
-	.driver_name = "dt2801",
-	.module = THIS_MODULE,
-	.attach = dt2801_attach,
-	.detach = dt2801_detach,
-};
-
-static int __init driver_dt2801_init_module(void)
-{
-	return comedi_driver_register(&driver_dt2801);
-}
-
-static void __exit driver_dt2801_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_dt2801);
-}
-
-module_init(driver_dt2801_init_module);
-module_exit(driver_dt2801_cleanup_module);
-
 #if 0
 /* ignore 'defined but not used' warning */
 static const struct comedi_lrange range_dt2801_ai_pgh_bipolar = { 4, {
@@ -257,22 +234,6 @@ struct dt2801_private {
 };
 
 #define devpriv ((struct dt2801_private *)dev->private)
-
-static int dt2801_ai_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-static int dt2801_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-static int dt2801_ao_insn_write(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data);
-static int dt2801_dio_insn_bits(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data);
-static int dt2801_dio_insn_config(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data);
 
 /* These are the low-level routines:
    writecommand: write a command to the board
@@ -503,6 +464,123 @@ static const struct comedi_lrange *ai_range_lkup(int type, int opt)
 	return &range_unknown;
 }
 
+static int dt2801_error(struct comedi_device *dev, int stat)
+{
+	if (stat < 0) {
+		if (stat == -ETIME)
+			printk("dt2801: timeout\n");
+		else
+			printk("dt2801: error %d\n", stat);
+		return stat;
+	}
+	printk("dt2801: error status 0x%02x, resetting...\n", stat);
+
+	dt2801_reset(dev);
+	dt2801_reset(dev);
+
+	return -EIO;
+}
+
+static int dt2801_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
+{
+	int d;
+	int stat;
+	int i;
+
+	for (i = 0; i < insn->n; i++) {
+		stat = dt2801_writecmd(dev, DT_C_READ_ADIM);
+		dt2801_writedata(dev, CR_RANGE(insn->chanspec));
+		dt2801_writedata(dev, CR_CHAN(insn->chanspec));
+		stat = dt2801_readdata2(dev, &d);
+
+		if (stat != 0)
+			return dt2801_error(dev, stat);
+
+		data[i] = d;
+	}
+
+	return i;
+}
+
+static int dt2801_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
+{
+	data[0] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
+
+	return 1;
+}
+
+static int dt2801_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
+{
+	dt2801_writecmd(dev, DT_C_WRITE_DAIM);
+	dt2801_writedata(dev, CR_CHAN(insn->chanspec));
+	dt2801_writedata2(dev, data[0]);
+
+	devpriv->ao_readback[CR_CHAN(insn->chanspec)] = data[0];
+
+	return 1;
+}
+
+static int dt2801_dio_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
+{
+	int which = 0;
+
+	if (s == dev->subdevices + 4)
+		which = 1;
+
+	if (insn->n != 2)
+		return -EINVAL;
+	if (data[0]) {
+		s->state &= ~data[0];
+		s->state |= (data[0] & data[1]);
+		dt2801_writecmd(dev, DT_C_WRITE_DIG);
+		dt2801_writedata(dev, which);
+		dt2801_writedata(dev, s->state);
+	}
+	dt2801_writecmd(dev, DT_C_READ_DIG);
+	dt2801_writedata(dev, which);
+	dt2801_readdata(dev, data + 1);
+
+	return 2;
+}
+
+static int dt2801_dio_insn_config(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn, unsigned int *data)
+{
+	int which = 0;
+
+	if (s == dev->subdevices + 4)
+		which = 1;
+
+	/* configure */
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits = 0xff;
+		dt2801_writecmd(dev, DT_C_SET_DIGOUT);
+		break;
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits = 0;
+		dt2801_writecmd(dev, DT_C_SET_DIGIN);
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = s->io_bits ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+	default:
+		return -EINVAL;
+	}
+	dt2801_writedata(dev, which);
+
+	return 1;
+}
+
 /*
    options:
 	[0] - i/o base
@@ -623,122 +701,13 @@ static int dt2801_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static int dt2801_error(struct comedi_device *dev, int stat)
-{
-	if (stat < 0) {
-		if (stat == -ETIME)
-			printk("dt2801: timeout\n");
-		else
-			printk("dt2801: error %d\n", stat);
-		return stat;
-	}
-	printk("dt2801: error status 0x%02x, resetting...\n", stat);
-
-	dt2801_reset(dev);
-	dt2801_reset(dev);
-
-	return -EIO;
-}
-
-static int dt2801_ai_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	int d;
-	int stat;
-	int i;
-
-	for (i = 0; i < insn->n; i++) {
-		stat = dt2801_writecmd(dev, DT_C_READ_ADIM);
-		dt2801_writedata(dev, CR_RANGE(insn->chanspec));
-		dt2801_writedata(dev, CR_CHAN(insn->chanspec));
-		stat = dt2801_readdata2(dev, &d);
-
-		if (stat != 0)
-			return dt2801_error(dev, stat);
-
-		data[i] = d;
-	}
-
-	return i;
-}
-
-static int dt2801_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	data[0] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
-
-	return 1;
-}
-
-static int dt2801_ao_insn_write(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	dt2801_writecmd(dev, DT_C_WRITE_DAIM);
-	dt2801_writedata(dev, CR_CHAN(insn->chanspec));
-	dt2801_writedata2(dev, data[0]);
-
-	devpriv->ao_readback[CR_CHAN(insn->chanspec)] = data[0];
-
-	return 1;
-}
-
-static int dt2801_dio_insn_bits(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	int which = 0;
-
-	if (s == dev->subdevices + 4)
-		which = 1;
-
-	if (insn->n != 2)
-		return -EINVAL;
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-		dt2801_writecmd(dev, DT_C_WRITE_DIG);
-		dt2801_writedata(dev, which);
-		dt2801_writedata(dev, s->state);
-	}
-	dt2801_writecmd(dev, DT_C_READ_DIG);
-	dt2801_writedata(dev, which);
-	dt2801_readdata(dev, data + 1);
-
-	return 2;
-}
-
-static int dt2801_dio_insn_config(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
-{
-	int which = 0;
-
-	if (s == dev->subdevices + 4)
-		which = 1;
-
-	/* configure */
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits = 0xff;
-		dt2801_writecmd(dev, DT_C_SET_DIGOUT);
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits = 0;
-		dt2801_writecmd(dev, DT_C_SET_DIGIN);
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = s->io_bits ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-	default:
-		return -EINVAL;
-	}
-	dt2801_writedata(dev, which);
-
-	return 1;
-}
+static struct comedi_driver dt2801_driver = {
+	.driver_name	= "dt2801",
+	.module		= THIS_MODULE,
+	.attach		= dt2801_attach,
+	.detach		= dt2801_detach,
+};
+module_comedi_driver(dt2801_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
