@@ -3074,6 +3074,24 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
 
+static bool drm_property_change_is_valid(struct drm_property *property,
+					 __u64 value)
+{
+	if (property->flags & DRM_MODE_PROP_IMMUTABLE)
+		return false;
+	if (property->flags & DRM_MODE_PROP_RANGE) {
+		if (value < property->values[0] || value > property->values[1])
+			return false;
+		return true;
+	} else {
+		int i;
+		for (i = 0; i < property->num_values; i++)
+			if (property->values[i] == value)
+				return true;
+		return false;
+	}
+}
+
 int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
 				       void *data, struct drm_file *file_priv)
 {
@@ -3110,27 +3128,8 @@ int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
 	}
 	property = obj_to_property(obj);
 
-	if (property->flags & DRM_MODE_PROP_IMMUTABLE)
+	if (!drm_property_change_is_valid(property, out_resp->value))
 		goto out;
-
-	if (property->flags & DRM_MODE_PROP_RANGE) {
-		if (out_resp->value < property->values[0])
-			goto out;
-
-		if (out_resp->value > property->values[1])
-			goto out;
-	} else {
-		int found = 0;
-		for (i = 0; i < property->num_values; i++) {
-			if (property->values[i] == out_resp->value) {
-				found = 1;
-				break;
-			}
-		}
-		if (!found) {
-			goto out;
-		}
-	}
 
 	/* Do DPMS ourselves */
 	if (property == connector->dev->mode_config.dpms_property) {
