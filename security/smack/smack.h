@@ -23,13 +23,19 @@
 #include <linux/lsm_audit.h>
 
 /*
+ * Smack labels were limited to 23 characters for a long time.
+ */
+#define SMK_LABELLEN	24
+#define SMK_LONGLABEL	256
+
+/*
+ * Maximum number of bytes for the levels in a CIPSO IP option.
  * Why 23? CIPSO is constrained to 30, so a 32 byte buffer is
  * bigger than can be used, and 24 is the next lower multiple
  * of 8, and there are too many issues if there isn't space set
  * aside for the terminating null byte.
  */
-#define SMK_MAXLEN	23
-#define SMK_LABELLEN	(SMK_MAXLEN+1)
+#define SMK_CIPSOLEN	24
 
 struct superblock_smack {
 	char		*smk_root;
@@ -66,6 +72,7 @@ struct task_smack {
 
 #define	SMK_INODE_INSTANT	0x01	/* inode is instantiated */
 #define	SMK_INODE_TRANSMUTE	0x02	/* directory is transmuting */
+#define	SMK_INODE_CHANGED	0x04	/* smack was transmuted */
 
 /*
  * A label access rule.
@@ -75,15 +82,6 @@ struct smack_rule {
 	char			*smk_subject;
 	char			*smk_object;
 	int			smk_access;
-};
-
-/*
- * An entry in the table mapping smack values to
- * CIPSO level/category-set values.
- */
-struct smack_cipso {
-	int	smk_level;
-	char	smk_catset[SMK_LABELLEN];
 };
 
 /*
@@ -113,22 +111,19 @@ struct smk_netlbladdr {
  * interfaces don't. The secid should go away when all of
  * these components have been repaired.
  *
- * If there is a cipso value associated with the label it
- * gets stored here, too. This will most likely be rare as
- * the cipso direct mapping in used internally.
+ * The cipso value associated with the label gets stored here, too.
  *
  * Keep the access rules for this subject label here so that
  * the entire set of rules does not need to be examined every
  * time.
  */
 struct smack_known {
-	struct list_head	list;
-	char			smk_known[SMK_LABELLEN];
-	u32			smk_secid;
-	struct smack_cipso	*smk_cipso;
-	spinlock_t		smk_cipsolock;	/* for changing cipso map */
-	struct list_head	smk_rules;	/* access rules */
-	struct mutex		smk_rules_lock;	/* lock for the rules */
+	struct list_head		list;
+	char				*smk_known;
+	u32				smk_secid;
+	struct netlbl_lsm_secattr	smk_netlabel;	/* on wire labels */
+	struct list_head		smk_rules;	/* access rules */
+	struct mutex			smk_rules_lock;	/* lock for rules */
 };
 
 /*
@@ -165,6 +160,7 @@ struct smack_known {
 #define SMACK_CIPSO_DOI_DEFAULT		3	/* Historical */
 #define SMACK_CIPSO_DOI_INVALID		-1	/* Not a DOI */
 #define SMACK_CIPSO_DIRECT_DEFAULT	250	/* Arbitrary */
+#define SMACK_CIPSO_MAPPED_DEFAULT	251	/* Also arbitrary */
 #define SMACK_CIPSO_MAXCATVAL		63	/* Bigger gets harder */
 #define SMACK_CIPSO_MAXLEVEL            255     /* CIPSO 2.2 standard */
 #define SMACK_CIPSO_MAXCATNUM           239     /* CIPSO 2.2 standard */
@@ -215,10 +211,9 @@ struct inode_smack *new_inode_smack(char *);
 int smk_access_entry(char *, char *, struct list_head *);
 int smk_access(char *, char *, int, struct smk_audit_info *);
 int smk_curacc(char *, u32, struct smk_audit_info *);
-int smack_to_cipso(const char *, struct smack_cipso *);
-char *smack_from_cipso(u32, char *);
 char *smack_from_secid(const u32);
-void smk_parse_smack(const char *string, int len, char *smack);
+char *smk_parse_smack(const char *string, int len);
+int smk_netlbl_mls(int, char *, struct netlbl_lsm_secattr *, int);
 char *smk_import(const char *, int);
 struct smack_known *smk_import_entry(const char *, int);
 struct smack_known *smk_find_entry(const char *);
@@ -228,6 +223,7 @@ u32 smack_to_secid(const char *);
  * Shared data.
  */
 extern int smack_cipso_direct;
+extern int smack_cipso_mapped;
 extern char *smack_net_ambient;
 extern char *smack_onlycap;
 extern const char *smack_cipso_option;
@@ -239,22 +235,11 @@ extern struct smack_known smack_known_invalid;
 extern struct smack_known smack_known_star;
 extern struct smack_known smack_known_web;
 
+extern struct mutex	smack_known_lock;
 extern struct list_head smack_known_list;
 extern struct list_head smk_netlbladdr_list;
 
 extern struct security_operations smack_ops;
-
-/*
- * Stricly for CIPSO level manipulation.
- * Set the category bit number in a smack label sized buffer.
- */
-static inline void smack_catset_bit(int cat, char *catsetp)
-{
-	if (cat > SMK_LABELLEN * 8)
-		return;
-
-	catsetp[(cat - 1) / 8] |= 0x80 >> ((cat - 1) % 8);
-}
 
 /*
  * Is the directory transmuting?
