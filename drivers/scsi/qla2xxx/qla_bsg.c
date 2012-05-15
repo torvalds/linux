@@ -708,7 +708,6 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 	elreq.options = bsg_job->request->rqst_data.h_vendor.vendor_cmd[1];
 
 	if ((ha->current_topology == ISP_CFG_F ||
-	    (atomic_read(&vha->loop_state) == LOOP_DOWN) ||
 	    ((IS_QLA81XX(ha) || IS_QLA8031(ha)) &&
 	    le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE
 	    && req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
