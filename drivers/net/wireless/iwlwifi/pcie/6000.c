@@ -29,7 +29,7 @@
 #include "iwl-config.h"
 #include "iwl-agn-hw.h"
 #include "cfg.h"
-#include "iwl-commands.h" /* needed for BT for now */
+#include "dvm/commands.h" /* needed for BT for now */
 
 /* Highest firmware API version supported */
 #define IWL6000_UCODE_API_MAX 6

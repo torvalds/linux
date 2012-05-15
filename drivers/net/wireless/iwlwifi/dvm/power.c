@@ -31,18 +31,16 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-
 #include <net/mac80211.h>
-
-#include "iwl-eeprom.h"
-#include "iwl-dev.h"
-#include "iwl-agn.h"
 #include "iwl-io.h"
-#include "iwl-commands.h"
 #include "iwl-debug.h"
-#include "iwl-power.h"
 #include "iwl-trans.h"
 #include "iwl-modparams.h"
+#include "eeprom.h"
+#include "dev.h"
+#include "agn.h"
+#include "commands.h"
+#include "power.h"
 
 /*
  * Setting power level allows the card to go to sleep when not busy.

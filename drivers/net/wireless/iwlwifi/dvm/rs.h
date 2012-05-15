@@ -29,8 +29,9 @@
 
 #include <net/mac80211.h>
 
-#include "iwl-commands.h"
 #include "iwl-config.h"
+
+#include "commands.h"
 
 struct iwl_rate_info {
 	u8 plcp;	/* uCode API:  IWL_RATE_6M_PLCP, etc. */

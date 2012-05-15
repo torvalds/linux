@@ -72,11 +72,10 @@
 #include "iwl-trans.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
-#include "iwl-eeprom.h"
 #include "iwl-agn-hw.h"
 #include "internal.h"
 /* FIXME: need to abstract out TX command (once we know what it looks like) */
-#include "iwl-commands.h"
+#include "dvm/commands.h"
 
 #define SCD_QUEUECHAIN_SEL_ALL(trans, trans_pcie)	\
 	(((1<<trans->cfg->base_params->num_of_queues) - 1) &\

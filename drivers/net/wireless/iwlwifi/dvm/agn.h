@@ -63,8 +63,9 @@
 #ifndef __iwl_agn_h__
 #define __iwl_agn_h__
 
-#include "iwl-dev.h"
 #include "iwl-config.h"
+
+#include "dev.h"
 
 /* The first 11 queues (0-10) are used otherwise */
 #define IWLAGN_FIRST_AMPDU_QUEUE	11

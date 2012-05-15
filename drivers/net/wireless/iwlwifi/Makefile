@@ -1,19 +1,8 @@
-# DVM
-obj-$(CONFIG_IWLDVM)   += iwldvm.o
-iwldvm-objs		:= iwl-agn.o iwl-agn-rs.o iwl-mac80211.o
-iwldvm-objs		+= iwl-ucode.o iwl-agn-tx.o
-iwldvm-objs		+= iwl-agn-lib.o iwl-agn-calib.o
-iwldvm-objs		+= iwl-agn-tt.o iwl-agn-sta.o iwl-agn-rx.o
-iwldvm-objs		+= iwl-eeprom.o iwl-power.o
-iwldvm-objs		+= iwl-scan.o iwl-led.o
-iwldvm-objs		+= iwl-agn-rxon.o iwl-agn-devices.o
-
-iwldvm-$(CONFIG_IWLWIFI_DEBUGFS) += iwl-debugfs.o
-iwldvm-$(CONFIG_IWLWIFI_DEVICE_TESTMODE) += iwl-testmode.o
+obj-$(CONFIG_IWLDVM)	+= dvm/
 
 CFLAGS_iwl-devtrace.o := -I$(src)
 
-# WIFI
+# common
 obj-$(CONFIG_IWLWIFI)	+= iwlwifi.o
 iwlwifi-objs		+= iwl-io.o
 iwlwifi-objs		+= iwl-drv.o

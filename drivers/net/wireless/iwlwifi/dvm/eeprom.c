@@ -65,15 +65,13 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-
 #include <net/mac80211.h>
-
-#include "iwl-dev.h"
-#include "iwl-debug.h"
-#include "iwl-agn.h"
-#include "iwl-eeprom.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
+#include "iwl-debug.h"
+#include "dev.h"
+#include "agn.h"
+#include "eeprom.h"
 
 /************************** EEPROM BANDS ****************************
  *

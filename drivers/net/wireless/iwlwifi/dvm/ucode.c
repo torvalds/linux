@@ -30,14 +30,15 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include "iwl-dev.h"
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
-#include "iwl-agn.h"
-#include "iwl-agn-calib.h"
 #include "iwl-trans.h"
 #include "iwl-fh.h"
 #include "iwl-op-mode.h"
+
+#include "dev.h"
+#include "agn.h"
+#include "calib.h"
 
 /******************************************************************************
  *

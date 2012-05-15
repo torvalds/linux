@@ -28,7 +28,7 @@
 #ifndef __iwl_power_setting_h__
 #define __iwl_power_setting_h__
 
-#include "iwl-commands.h"
+#include "commands.h"
 
 struct iwl_power_mgr {
 	struct iwl_powertable_cmd sleep_cmd;

@@ -35,10 +35,8 @@
 
 #include <linux/workqueue.h>
 
-#include "iwl-dev.h"
-#include "iwl-agn.h"
-#include "iwl-op-mode.h"
-#include "iwl-modparams.h"
+#include "dev.h"
+#include "agn.h"
 
 #define RS_NAME "iwl-agn-rs"
 

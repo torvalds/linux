@@ -61,9 +61,9 @@
  *
  *****************************************************************************/
 /*
- * Please use this file (iwl-commands.h) only for uCode API definitions.
+ * Please use this file (commands.h) only for uCode API definitions.
  * Please use iwl-xxxx-hw.h for hardware-related definitions.
- * Please use iwl-dev.h for driver implementation definitions.
+ * Please use dev.h for driver implementation definitions.
  */
 
 #ifndef __iwl_commands_h__

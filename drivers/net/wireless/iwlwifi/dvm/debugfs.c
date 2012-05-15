@@ -30,16 +30,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/debugfs.h>
-
 #include <linux/ieee80211.h>
 #include <net/mac80211.h>
-
-
-#include "iwl-dev.h"
 #include "iwl-debug.h"
 #include "iwl-io.h"
-#include "iwl-agn.h"
-#include "iwl-modparams.h"
+#include "dev.h"
+#include "agn.h"
 
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\

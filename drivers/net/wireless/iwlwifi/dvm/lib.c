@@ -33,12 +33,13 @@
 #include <linux/sched.h>
 #include <net/mac80211.h>
 
-#include "iwl-dev.h"
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
-#include "iwl-agn.h"
 #include "iwl-trans.h"
 #include "iwl-modparams.h"
+
+#include "dev.h"
+#include "agn.h"
 
 int iwlagn_hw_valid_rtc_data_addr(u32 addr)
 {

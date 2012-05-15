@@ -69,15 +69,14 @@
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include <net/netlink.h>
-
-#include "iwl-dev.h"
 #include "iwl-debug.h"
 #include "iwl-io.h"
-#include "iwl-agn.h"
-#include "iwl-testmode.h"
 #include "iwl-trans.h"
 #include "iwl-fh.h"
 #include "iwl-prph.h"
+#include "dev.h"
+#include "agn.h"
+#include "testmode.h"
 
 
 /* Periphery registers absolute lower bound. This is used in order to
@@ -89,7 +88,7 @@
 /* The TLVs used in the gnl message policy between the kernel module and
  * user space application. iwl_testmode_gnl_msg_policy is to be carried
  * through the NL80211_CMD_TESTMODE channel regulated by nl80211.
- * See iwl-testmode.h
+ * See testmode.h
  */
 static
 struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
@@ -129,7 +128,7 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 };
 
 /*
- * See the struct iwl_rx_packet in iwl-commands.h for the format of the
+ * See the struct iwl_rx_packet in commands.h for the format of the
  * received events from the device
  */
 static inline int get_event_length(struct iwl_rx_cmd_buffer *rxb)

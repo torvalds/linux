@@ -28,7 +28,7 @@
 #ifndef __iwl_tt_setting_h__
 #define __iwl_tt_setting_h__
 
-#include "iwl-commands.h"
+#include "commands.h"
 
 #define IWL_ABSOLUTE_ZERO		0
 #define IWL_ABSOLUTE_MAX		0xFFFFFFFF

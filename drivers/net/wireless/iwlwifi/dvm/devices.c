@@ -27,11 +27,12 @@
 /*
  * DVM device-specific data & functions
  */
-#include "iwl-agn.h"
-#include "iwl-dev.h"
-#include "iwl-commands.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
+
+#include "agn.h"
+#include "dev.h"
+#include "commands.h"
 
 /*
  * 1000 series

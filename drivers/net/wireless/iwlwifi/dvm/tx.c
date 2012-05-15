@@ -32,12 +32,11 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ieee80211.h>
-
-#include "iwl-dev.h"
 #include "iwl-io.h"
-#include "iwl-agn-hw.h"
-#include "iwl-agn.h"
 #include "iwl-trans.h"
+#include "iwl-agn-hw.h"
+#include "dev.h"
+#include "agn.h"
 
 static const u8 tid_to_ac[] = {
 	IEEE80211_AC_BE,

@@ -31,17 +31,15 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-
 #include <net/mac80211.h>
-
-#include "iwl-agn.h"
-#include "iwl-eeprom.h"
-#include "iwl-dev.h"
 #include "iwl-io.h"
-#include "iwl-commands.h"
-#include "iwl-debug.h"
-#include "iwl-agn-tt.h"
 #include "iwl-modparams.h"
+#include "iwl-debug.h"
+#include "agn.h"
+#include "eeprom.h"
+#include "dev.h"
+#include "commands.h"
+#include "tt.h"
 
 /* default Thermal Throttling transaction table
  * Current state   |         Throttling Down               |  Throttling Up

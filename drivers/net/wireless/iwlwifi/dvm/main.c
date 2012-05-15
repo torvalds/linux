@@ -44,15 +44,16 @@
 
 #include <asm/div64.h>
 
-#include "iwl-eeprom.h"
-#include "iwl-dev.h"
 #include "iwl-io.h"
-#include "iwl-agn-calib.h"
-#include "iwl-agn.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "iwl-drv.h"
 #include "iwl-modparams.h"
+
+#include "eeprom.h"
+#include "dev.h"
+#include "calib.h"
+#include "agn.h"
 
 /******************************************************************************
  *

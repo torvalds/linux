@@ -62,8 +62,8 @@
 #ifndef __iwl_calib_h__
 #define __iwl_calib_h__
 
-#include "iwl-dev.h"
-#include "iwl-commands.h"
+#include "dev.h"
+#include "commands.h"
 
 void iwl_chain_noise_calibration(struct iwl_priv *priv);
 void iwl_sensitivity_calibration(struct iwl_priv *priv);

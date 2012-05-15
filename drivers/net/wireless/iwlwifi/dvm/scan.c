@@ -30,11 +30,9 @@
 #include <linux/etherdevice.h>
 #include <net/mac80211.h>
 
-#include "iwl-eeprom.h"
-#include "iwl-dev.h"
-#include "iwl-io.h"
-#include "iwl-agn.h"
-#include "iwl-trans.h"
+#include "eeprom.h"
+#include "dev.h"
+#include "agn.h"
 
 /* For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
  * sending probe req.  This should be set long enough to hear probe responses

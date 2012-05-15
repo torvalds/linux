@@ -24,8 +24,8 @@
  *
  *****************************************************************************/
 /*
- * Please use this file (iwl-dev.h) for driver implementation definitions.
- * Please use iwl-commands.h for uCode API definitions.
+ * Please use this file (dev.h) for driver implementation definitions.
+ * Please use commands.h for uCode API definitions.
  */
 
 #ifndef __iwl_dev_h__
@@ -39,17 +39,18 @@
 #include <linux/mutex.h>
 
 #include "iwl-fw.h"
-#include "iwl-eeprom.h"
 #include "iwl-csr.h"
 #include "iwl-debug.h"
 #include "iwl-agn-hw.h"
-#include "iwl-led.h"
-#include "iwl-power.h"
-#include "iwl-agn-rs.h"
-#include "iwl-agn-tt.h"
-#include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "iwl-notif-wait.h"
+#include "iwl-trans.h"
+
+#include "eeprom.h"
+#include "led.h"
+#include "power.h"
+#include "rs.h"
+#include "tt.h"
 
 /* CT-KILL constants */
 #define CT_KILL_THRESHOLD_LEGACY   110 /* in Celsius */
@@ -664,7 +665,7 @@ struct iwl_lib_ops {
 	/* device specific configuration */
 	void (*nic_config)(struct iwl_priv *priv);
 
-	/* eeprom operations (as defined in iwl-eeprom.h) */
+	/* eeprom operations (as defined in eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
 
 	/* temperature */

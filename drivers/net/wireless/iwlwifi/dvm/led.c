@@ -34,12 +34,11 @@
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
-
-#include "iwl-dev.h"
-#include "iwl-agn.h"
 #include "iwl-io.h"
 #include "iwl-trans.h"
 #include "iwl-modparams.h"
+#include "dev.h"
+#include "agn.h"
 
 /* Throughput		OFF time(ms)	ON time (ms)
  *	>300			25		25

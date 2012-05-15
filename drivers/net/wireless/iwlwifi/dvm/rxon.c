@@ -25,11 +25,11 @@
  *****************************************************************************/
 
 #include <linux/etherdevice.h>
-#include "iwl-dev.h"
-#include "iwl-agn.h"
-#include "iwl-agn-calib.h"
 #include "iwl-trans.h"
 #include "iwl-modparams.h"
+#include "dev.h"
+#include "agn.h"
+#include "calib.h"
 
 /*
  * initialize rxon structure with default values from eeprom

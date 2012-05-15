@@ -63,10 +63,11 @@
 #include <linux/slab.h>
 #include <net/mac80211.h>
 
-#include "iwl-dev.h"
-#include "iwl-agn-calib.h"
 #include "iwl-trans.h"
-#include "iwl-agn.h"
+
+#include "dev.h"
+#include "calib.h"
+#include "agn.h"
 
 /*****************************************************************************
  * INIT calibrations framework
