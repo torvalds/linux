@@ -62,7 +62,14 @@ enum nmk_gpio_slpm {
 
 extern int nmk_gpio_set_slpm(int gpio, enum nmk_gpio_slpm mode);
 extern int nmk_gpio_set_pull(int gpio, enum nmk_gpio_pull pull);
+#ifdef CONFIG_PINCTRL_NOMADIK
 extern int nmk_gpio_set_mode(int gpio, int gpio_mode);
+#else
+static inline int nmk_gpio_set_mode(int gpio, int gpio_mode)
+{
+	return -ENODEV;
+}
+#endif
 extern int nmk_gpio_get_mode(int gpio);
 
 extern void nmk_gpio_wakeups_suspend(void);
