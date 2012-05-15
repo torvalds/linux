@@ -179,6 +179,7 @@ static int ieee802154_add_iface(struct sk_buff *skb,
 	const char *devname;
 	int rc = -ENOBUFS;
 	struct net_device *dev;
+	int type = __IEEE802154_DEV_INVALID;
 
 	pr_debug("%s\n", __func__);
 
@@ -221,7 +222,13 @@ static int ieee802154_add_iface(struct sk_buff *skb,
 		goto nla_put_failure;
 	}
 
-	dev = phy->add_iface(phy, devname);
+	if (info->attrs[IEEE802154_ATTR_DEV_TYPE]) {
+		type = nla_get_u8(info->attrs[IEEE802154_ATTR_DEV_TYPE]);
+		if (type >= __IEEE802154_DEV_MAX)
+			return -EINVAL;
+	}
+
+	dev = phy->add_iface(phy, devname, type);
 	if (IS_ERR(dev)) {
 		rc = PTR_ERR(dev);
 		goto nla_put_failure;
