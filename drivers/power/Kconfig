@@ -311,6 +311,12 @@ config BATTERY_RK29_AC_CHARGE
 	help
 	  say Y to enable suspport for the AC battery charge
 
+config BATTERY_RK29_VOL3V8
+	tristate "the battery voltage is 3.8V"
+	depends on BATTERY_RK29_ADC
+	help
+          say Y to enable suspport for the battery voltage 3.8V
+
 config BATTERY_RK30_ADC
         tristate "RK30 ADC Battery"
         depends on ADC_RK30
