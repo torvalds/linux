@@ -3712,9 +3712,6 @@ sta_not_found:
 			do_join = true;
 			set_assoc = true;
 
-			/* Cancel connection_loss_work */
-			cancel_delayed_work_sync(&wl->connection_loss_work);
-
 			/*
 			 * use basic rates from AP, and determine lowest rate
 			 * to use with control frames.
@@ -3963,6 +3960,13 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 bss info changed 0x%x",
 		     (int)changed);
+
+	/*
+	 * make sure to cancel pending disconnections if our association
+	 * state changed
+	 */
+	if (!is_ap && (changed & BSS_CHANGED_ASSOC))
+		cancel_delayed_work_sync(&wl->connection_loss_work);
 
 	mutex_lock(&wl->mutex);
 
