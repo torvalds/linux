@@ -135,7 +135,7 @@ static u32 ath9k_hw_4k_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	if (!dump_base_hdr) {
 		len += snprintf(buf + len, size - len,
 				"%20s :\n", "2GHz modal Header");
-		len += ath9k_dump_4k_modal_eeprom(buf, len, size,
+		len = ath9k_dump_4k_modal_eeprom(buf, len, size,
 						  &eep->modalHeader);
 		goto out;
 	}
