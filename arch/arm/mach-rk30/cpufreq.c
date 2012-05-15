@@ -1,6 +1,5 @@
-/* arch/arm/mach-rk29/cpufreq.c
- *
- * Copyright (C) 2010, 2011 ROCKCHIP, Inc.
+/*
+ * Copyright (C) 2012 ROCKCHIP, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -13,6 +12,7 @@
  *
  */
 //#define DEBUG 1
+#define pr_fmt(fmt) "cpufreq: " fmt
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/err.h>
@@ -43,6 +43,7 @@ static struct cpufreq_frequency_table default_freq_table[] = {
 };
 
 static struct cpufreq_frequency_table *freq_table = default_freq_table;
+static unsigned int max_freq = -1;
 
 /*********************************************************/
 
@@ -57,6 +58,9 @@ static unsigned int suspend_freq = 816 * 1000;
 static struct workqueue_struct *freq_wq;
 static struct clk *cpu_clk;
 static DEFINE_MUTEX(cpufreq_mutex);
+
+static struct clk *gpu_clk;
+#define GPU_MAX_RATE 350*1000*1000
 
 static int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_rate_callback set_rate);
 
@@ -88,20 +92,17 @@ static void rk30_cpufreq_temp_limit_work_func(struct work_struct *work);
 
 static DECLARE_DELAYED_WORK(rk30_cpufreq_temp_limit_work, rk30_cpufreq_temp_limit_work_func);
 
-static unsigned int temp_limt_freq;
-#define TEMP_LIMIT_FREQ 816000
-#define TEMP_NOR 55
-#define TEMP_HOT 80
+static unsigned int temp_limt_freq = -1;
+module_param(temp_limt_freq, uint, 0444);
 
-#define TEMP_NOR_DELAY 5000	//2s
-unsigned int get_detect_temp_dly(int temp)
-{
-	unsigned int dly = TEMP_NOR_DELAY;
-	if (temp > TEMP_NOR)
-		dly -= (temp - TEMP_NOR) * 25;
-	//FREQ_PRINTK_DBG("cpu_thermal delay(%d)\n",dly);
-	return dly;
-}
+#define TEMP_LIMIT_FREQ 816000
+
+static const struct cpufreq_frequency_table temp_limits[] = {
+	{.frequency = 1416 * 1000, .index = 50},
+	{.frequency = 1200 * 1000, .index = 55},
+	{.frequency = 1008 * 1000, .index = 60},
+	{.frequency =  816 * 1000, .index = 75},
+};
 
 extern int rk30_tsadc_get_temp(unsigned int chn);
 
@@ -109,25 +110,32 @@ extern int rk30_tsadc_get_temp(unsigned int chn);
 static void rk30_cpufreq_temp_limit_work_func(struct work_struct *work)
 {
 	struct cpufreq_policy *policy;
-	int temp_rd = 0, avg_temp, i;
-	avg_temp = get_cpu_thermal();
+	int temp, i;
+	unsigned int new = -1;
 
-	for (i = 0; i < 4; i++) {
-		temp_rd = get_cpu_thermal();
-		avg_temp = (avg_temp + temp_rd) >> 1;
+	if (clk_get_rate(gpu_clk) > GPU_MAX_RATE)
+		goto out;
+
+	temp = max(rk30_tsadc_get_temp(0), rk30_tsadc_get_temp(1));
+	FREQ_PRINTK_LOG("cpu_thermal(%d)\n", temp);
+
+	for (i = 0; i < ARRAY_SIZE(temp_limits); i++) {
+		if (temp > temp_limits[i].index) {
+			new = temp_limits[i].frequency;
+		}
 	}
-	FREQ_PRINTK_LOG("cpu_thermal(%d)\n", temp_rd);
+	if (temp_limt_freq != new) {
+		temp_limt_freq = new;
+		if (new != -1) {
+			FREQ_PRINTK_DBG("temp_limit set rate %d kHz\n", temp_limt_freq);
+			policy = cpufreq_cpu_get(0);
+			cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L);
+			cpufreq_cpu_put(policy);
+		}
+	}
 
-	if (avg_temp > TEMP_HOT) {
-		temp_limt_freq = TEMP_LIMIT_FREQ;
-		policy = cpufreq_cpu_get(0);
-		FREQ_PRINTK_DBG("temp_limit set rate %d kHz\n", temp_limt_freq);
-		cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L);
-		cpufreq_cpu_put(policy);
-	} else
-		temp_limt_freq = 0;
-
-	queue_delayed_work(freq_wq, &rk30_cpufreq_temp_limit_work, msecs_to_jiffies(get_detect_temp_dly(avg_temp)));
+out:
+	queue_delayed_work(freq_wq, &rk30_cpufreq_temp_limit_work, HZ);
 }
 
 static int rk30_cpufreq_notifier_policy(struct notifier_block *nb,
@@ -140,10 +148,10 @@ static int rk30_cpufreq_notifier_policy(struct notifier_block *nb,
 
 	if (rk30_cpufreq_is_ondemand_policy(policy)) {
 		FREQ_PRINTK_DBG("queue work\n");
-		queue_delayed_work(freq_wq, &rk30_cpufreq_temp_limit_work, msecs_to_jiffies(TEMP_NOR_DELAY));
+		queue_delayed_work(freq_wq, &rk30_cpufreq_temp_limit_work, 0);
 	} else {
 		FREQ_PRINTK_DBG("cancel work\n");
-		cancel_delayed_work(&rk30_cpufreq_temp_limit_work);
+		cancel_delayed_work_sync(&rk30_cpufreq_temp_limit_work);
 	}
 
 	return 0;
@@ -207,7 +215,7 @@ static int rk30_verify_speed(struct cpufreq_policy *policy)
 static int rk30_cpu_init(struct cpufreq_policy *policy)
 {
 	if (policy->cpu == 0) {
-		struct clk *gpu_clk;
+		int i;
 		struct clk *ddr_clk;
 		
 		gpu_clk = clk_get(NULL, "gpu");
@@ -230,12 +238,16 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 		if (freq_table == NULL) {
 			freq_table = default_freq_table;
 		}
+		max_freq = freq_table[0].frequency;
+		for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+			max_freq = max(max_freq, freq_table[i].frequency);
+		}
 		clk_enable_dvfs(cpu_clk);
 
 		freq_wq = create_singlethread_workqueue("rk30_cpufreqd");
 #ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
 		if (rk30_cpufreq_is_ondemand_policy(policy)) {
-			queue_delayed_work(freq_wq, &rk30_cpufreq_temp_limit_work, msecs_to_jiffies(TEMP_NOR_DELAY));
+			queue_delayed_work(freq_wq, &rk30_cpufreq_temp_limit_work, 60*HZ);
 		}
 		cpufreq_register_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
 #endif
@@ -294,8 +306,11 @@ static struct freq_attr *rk30_cpufreq_attr[] = {
 /**************************target freq******************************/
 static unsigned int cpufreq_scale_limt(unsigned int target_freq, struct cpufreq_policy *policy)
 {
-#ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
 	bool is_ondemand = rk30_cpufreq_is_ondemand_policy(policy);
+
+	if (is_ondemand && clk_get_rate(gpu_clk) > GPU_MAX_RATE) // high performance?
+		return max_freq;
+#ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
 	if (is_ondemand && target_freq > policy->cur && policy->cur >= TEMP_LIMIT_FREQ) {
 		unsigned int i;
 		if (cpufreq_frequency_table_target(policy, freq_table, policy->cur + 1, CPUFREQ_RELATION_L, &i) == 0) {
@@ -309,7 +324,7 @@ static unsigned int cpufreq_scale_limt(unsigned int target_freq, struct cpufreq_
 	 * If the new frequency is more than the thermal max allowed
 	 * frequency, go ahead and scale the mpu device to proper frequency.
 	 */
-	if (is_ondemand && temp_limt_freq) {
+	if (is_ondemand) {
 		target_freq = min(target_freq, temp_limt_freq);
 	}
 #endif
@@ -369,26 +384,29 @@ static int rk30_target(struct cpufreq_policy *policy, unsigned int target_freq, 
 		return -EINVAL;
 	}
 
+	mutex_lock(&cpufreq_mutex);
+
 	if (relation & ENABLE_FURTHER_CPUFREQ)
 		no_cpufreq_access--;
 	if (no_cpufreq_access) {
 #ifdef CONFIG_PM_VERBOSE
 		pr_err("denied access to %s as it is disabled temporarily\n", __func__);
 #endif
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 	if (relation & DISABLE_FURTHER_CPUFREQ)
 		no_cpufreq_access++;
 	relation &= ~MASK_FURTHER_CPUFREQ;
-
-	mutex_lock(&cpufreq_mutex);
 
 	ret = cpufreq_frequency_table_target(policy, freq_table, target_freq, relation, &i);
 	if (ret) {
 		FREQ_PRINTK_ERR("no freq match for %d(ret=%d)\n", target_freq, ret);
 		goto out;
 	}
-	new_rate = cpufreq_scale_limt(freq_table[i].frequency, policy);
+	new_rate = freq_table[i].frequency;
+	if (!no_cpufreq_access)
+		new_rate = cpufreq_scale_limt(new_rate, policy);
 
 	FREQ_PRINTK_LOG("cpufreq req=%u,new=%u(was=%u)\n", target_freq, new_rate, rk30_getspeed(0));
 	if (new_rate == rk30_getspeed(0))
