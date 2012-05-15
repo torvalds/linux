@@ -124,7 +124,7 @@ static int host_start(struct ci13xxx *ci)
 
 	ret = usb_add_hcd(hcd, 0, 0);
 	if (ret)
-		usb_remove_hcd(hcd);
+		usb_put_hcd(hcd);
 	else
 		ci->hcd = hcd;
 
