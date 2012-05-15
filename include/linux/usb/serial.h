@@ -1,7 +1,7 @@
 /*
  * USB Serial Converter stuff
  *
- *	Copyright (C) 1999 - 2005
+ *	Copyright (C) 1999 - 2012
  *	    Greg Kroah-Hartman (greg@kroah.com)
  *
  *	This program is free software; you can redistribute it and/or modify
@@ -249,6 +249,7 @@ struct usb_serial_driver {
 
 	int (*suspend)(struct usb_serial *serial, pm_message_t message);
 	int (*resume)(struct usb_serial *serial);
+	int (*reset_resume)(struct usb_serial *serial);
 
 	/* serial function calls */
 	/* Called by console and by the tty layer */

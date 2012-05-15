@@ -1,7 +1,7 @@
 /*
  * USB Serial Converter driver
  *
- * Copyright (C) 1999 - 2005 Greg Kroah-Hartman (greg@kroah.com)
+ * Copyright (C) 1999 - 2012 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2000 Peter Berger (pberger@brimson.com)
  * Copyright (C) 2000 Al Borchers (borchers@steinerpoint.com)
  *
@@ -1166,6 +1166,20 @@ int usb_serial_resume(struct usb_interface *intf)
 }
 EXPORT_SYMBOL(usb_serial_resume);
 
+static int usb_serial_reset_resume(struct usb_interface *intf)
+{
+	struct usb_serial *serial = usb_get_intfdata(intf);
+	int rv;
+
+	serial->suspending = 0;
+	if (serial->type->reset_resume)
+		rv = serial->type->reset_resume(serial);
+	else
+		rv = usb_serial_generic_resume(serial);
+
+	return rv;
+}
+
 static const struct tty_operations serial_ops = {
 	.open =			serial_open,
 	.close =		serial_close,
@@ -1403,6 +1417,14 @@ int usb_serial_register_drivers(struct usb_serial_driver *const serial_drivers[]
 	udriver->resume = usb_serial_resume;
 	udriver->probe = usb_serial_probe;
 	udriver->disconnect = usb_serial_disconnect;
+
+	/* we only set the reset_resume field if the serial_driver has one */
+	for (sd = serial_drivers; *sd; ++sd) {
+		if ((*sd)->reset_resume)
+			udriver->reset_resume = usb_serial_reset_resume;
+			break;
+	}
+
 	rc = usb_register(udriver);
 	if (rc)
 		return rc;
