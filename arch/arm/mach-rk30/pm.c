@@ -317,12 +317,13 @@ static void __sramfunc rk30_sram_suspend(void)
 {
 	u32 cru_clksel0_con;
 	u32 clkgt_regs[CRU_CLKGATES_CON_CNT];
+	u32 cru_mode_con;
 	int i;
 
 	sram_printch('5');
 	ddr_suspend();
 	sram_printch('6');
-
+	
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs[i] = cru_readl(CRU_CLKGATES_CON(i));
 	}
@@ -351,18 +352,30 @@ static void __sramfunc rk30_sram_suspend(void)
 			  | (1 << CLK_GATE_ACLK_INTMEM3 % 16)
 			  , clkgt_regs[9], CRU_CLKGATES_CON(9), 0x07ff);
 
+#ifdef CONFIG_CLK_SWITCH_TO_32K
+	cru_mode_con = cru_readl(CRU_MODE_CON);
+	cru_writel(0|
+		PLL_MODE_DEEP(APLL_ID)|
+		PLL_MODE_DEEP(DPLL_ID)|
+		PLL_MODE_DEEP(CPLL_ID)|PLL_MODE_DEEP(GPLL_ID),CRU_MODE_CON);
 	board_pmu_suspend();
-
+#else
+	board_pmu_suspend();
 	cru_clksel0_con = cru_readl(CRU_CLKSELS_CON(0));
 	cru_writel((0x1f << 16) | 0x1f, CRU_CLKSELS_CON(0));
+#endif
 
 	dsb();
 	wfi();
 
-	cru_writel((0x1f << 16) | cru_clksel0_con, CRU_CLKSELS_CON(0));
-
+#ifdef CONFIG_CLK_SWITCH_TO_32K
 	board_pmu_resume();
-
+	cru_writel((0xffff<<16) | cru_mode_con, CRU_MODE_CON);
+#else
+	cru_writel((0x1f << 16) | cru_clksel0_con, CRU_CLKSELS_CON(0));
+	board_pmu_resume();
+#endif
+	
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		cru_writel(clkgt_regs[i] | 0xffff0000, CRU_CLKGATES_CON(i));
 	}

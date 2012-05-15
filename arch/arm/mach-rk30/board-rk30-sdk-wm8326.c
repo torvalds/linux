@@ -737,7 +737,11 @@ void __sramfunc board_pmu_resume(void)
 	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
 	grf_writel(GPIO6_PB1_DO_LOW, GRF_GPIO6L_DO_ADDR);     //set gpio6_b1 output high
 	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
+#ifdef CONFIG_CLK_SWITCH_TO_32K
+	sram_32k_udelay(10000);
+#else
 	sram_udelay(10000);
+#endif
 }
 static struct wm831x_pdata wm831x_platdata = {
 

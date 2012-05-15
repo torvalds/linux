@@ -15,4 +15,10 @@ config MACH_RK30_PHONE_LOQUAT
 	
 endchoice
 
+menu "support for RK power manage "
+
+config CLK_SWITCH_TO_32K
+        bool "Support clock switch to 32.768k"
+endmenu
+
 endif
