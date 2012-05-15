@@ -222,6 +222,7 @@ struct sigmatel_spec {
 	unsigned char aloopback_shift;
 
 	/* power management */
+	unsigned int power_map_bits;
 	unsigned int num_pwrs;
 	const hda_nid_t *pwr_nids;
 	const hda_nid_t *dac_list;
@@ -314,6 +315,9 @@ struct sigmatel_spec {
 
 	struct hda_vmaster_mute_hook vmaster_mute;
 };
+
+#define AC_VERB_IDT_SET_POWER_MAP	0x7ec
+#define AC_VERB_IDT_GET_POWER_MAP	0xfec
 
 static const hda_nid_t stac9200_adc_nids[1] = {
         0x03,
@@ -4406,6 +4410,12 @@ static int stac92xx_init(struct hda_codec *codec)
 
 	/* sync mute LED */
 	snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
+
+	/* sync the power-map */
+	if (spec->num_pwrs)
+		snd_hda_codec_write(codec, codec->afg, 0,
+				    AC_VERB_IDT_SET_POWER_MAP,
+				    spec->power_map_bits);
 	if (spec->dac_list)
 		stac92xx_power_down(codec);
 	return 0;
@@ -4651,14 +4661,18 @@ static void stac_toggle_power_map(struct hda_codec *codec, hda_nid_t nid,
 
 	idx = 1 << idx;
 
-	val = snd_hda_codec_read(codec, codec->afg, 0, 0x0fec, 0x0) & 0xff;
+	val = spec->power_map_bits;
 	if (enable)
 		val &= ~idx;
 	else
 		val |= idx;
 
 	/* power down unused output ports */
-	snd_hda_codec_write(codec, codec->afg, 0, 0x7ec, val);
+	if (val != spec->power_map_bits) {
+		spec->power_map_bits = val;
+		snd_hda_codec_write(codec, codec->afg, 0,
+				    AC_VERB_IDT_SET_POWER_MAP, val);
+	}
 }
 
 static void stac92xx_pin_sense(struct hda_codec *codec, hda_nid_t nid)
@@ -4926,7 +4940,8 @@ static void stac92hd_proc_hook(struct snd_info_buffer *buffer,
 {
 	if (nid == codec->afg)
 		snd_iprintf(buffer, "Power-Map: 0x%02x\n", 
-			    snd_hda_codec_read(codec, nid, 0, 0x0fec, 0x0));
+			    snd_hda_codec_read(codec, nid, 0,
+					       AC_VERB_IDT_GET_POWER_MAP, 0));
 }
 
 static void analog_loop_proc_hook(struct snd_info_buffer *buffer,
