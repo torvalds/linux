@@ -361,8 +361,6 @@ void srmmu_mapiorange(unsigned int bus, unsigned long xpa,
                       unsigned long xva, unsigned int len);
 void srmmu_unmapiorange(unsigned long virt_addr, unsigned int len);
 
-extern int invalid_segment;
-
 /* Encode and de-code a swap entry */
 static inline unsigned long __swp_type(swp_entry_t entry)
 {
