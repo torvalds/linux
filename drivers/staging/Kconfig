@@ -130,4 +130,6 @@ source "drivers/staging/ozwpan/Kconfig"
 
 source "drivers/staging/ipack/Kconfig"
 
+source "drivers/staging/gdm72xx/Kconfig"
+
 endif # STAGING
