@@ -159,6 +159,10 @@ struct sync_fence {
 	struct list_head	sync_fence_list;
 };
 
+struct sync_fence_waiter;
+typedef void (*sync_callback_t)(struct sync_fence *fence,
+				struct sync_fence_waiter *waiter);
+
 /**
  * struct sync_fence_waiter - metadata for asynchronous waiter on a fence
  * @waiter_list:	membership in sync_fence.waiter_list_head
@@ -168,9 +172,14 @@ struct sync_fence {
 struct sync_fence_waiter {
 	struct list_head	waiter_list;
 
-	void (*callback)(struct sync_fence *fence, void *data);
-	void *callback_data;
+	sync_callback_t		callback;
 };
+
+static inline void sync_fence_waiter_init(struct sync_fence_waiter *waiter,
+					  sync_callback_t callback)
+{
+	waiter->callback = callback;
+}
 
 /*
  * API for sync_timeline implementers
@@ -284,16 +293,29 @@ void sync_fence_install(struct sync_fence *fence, int fd);
 /**
  * sync_fence_wait_async() - registers and async wait on the fence
  * @fence:		fence to wait on
- * @callback:		callback
- * @callback_data	data to pass to the callback
+ * @waiter:		waiter callback struck
  *
  * Returns 1 if @fence has already signaled.
  *
- * Registers a callback to be called when @fence signals or has an error
+ * Registers a callback to be called when @fence signals or has an error.
+ * @waiter should be initialized with sync_fence_waiter_init().
  */
 int sync_fence_wait_async(struct sync_fence *fence,
-			  void (*callback)(struct sync_fence *, void *data),
-			  void *callback_data);
+			  struct sync_fence_waiter *waiter);
+
+/**
+ * sync_fence_cancel_async() - cancels an async wait
+ * @fence:		fence to wait on
+ * @waiter:		waiter callback struck
+ *
+ * returns 0 if waiter was removed from fence's async waiter list.
+ * returns -ENOENT if waiter was not found on fence's async waiter list.
+ *
+ * Cancels a previously registered async wait.  Will fail gracefully if
+ * @waiter was never registered or if @fence has already signaled @waiter.
+ */
+int sync_fence_cancel_async(struct sync_fence *fence,
+			    struct sync_fence_waiter *waiter);
 
 /**
  * sync_fence_wait() - wait on fence
