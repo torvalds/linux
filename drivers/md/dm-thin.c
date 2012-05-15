@@ -279,8 +279,10 @@ static void __cell_release(struct cell *cell, struct bio_list *inmates)
 
 	hlist_del(&cell->list);
 
-	bio_list_add(inmates, cell->holder);
-	bio_list_merge(inmates, &cell->bios);
+	if (inmates) {
+		bio_list_add(inmates, cell->holder);
+		bio_list_merge(inmates, &cell->bios);
+	}
 
 	mempool_free(cell, prison->cell_pool);
 }
@@ -303,9 +305,10 @@ static void cell_release(struct cell *cell, struct bio_list *bios)
  */
 static void __cell_release_singleton(struct cell *cell, struct bio *bio)
 {
-	hlist_del(&cell->list);
 	BUG_ON(cell->holder != bio);
 	BUG_ON(!bio_list_empty(&cell->bios));
+
+	__cell_release(cell, NULL);
 }
 
 static void cell_release_singleton(struct cell *cell, struct bio *bio)
@@ -1177,6 +1180,7 @@ static void no_space(struct cell *cell)
 static void process_discard(struct thin_c *tc, struct bio *bio)
 {
 	int r;
+	unsigned long flags;
 	struct pool *pool = tc->pool;
 	struct cell *cell, *cell2;
 	struct cell_key key, key2;
@@ -1218,7 +1222,9 @@ static void process_discard(struct thin_c *tc, struct bio *bio)
 			m->bio = bio;
 
 			if (!ds_add_work(&pool->all_io_ds, &m->list)) {
+				spin_lock_irqsave(&pool->lock, flags);
 				list_add(&m->list, &pool->prepared_discards);
+				spin_unlock_irqrestore(&pool->lock, flags);
 				wake_worker(pool);
 			}
 		} else {
@@ -2626,8 +2632,10 @@ static int thin_endio(struct dm_target *ti,
 	if (h->all_io_entry) {
 		INIT_LIST_HEAD(&work);
 		ds_dec(h->all_io_entry, &work);
+		spin_lock_irqsave(&pool->lock, flags);
 		list_for_each_entry_safe(m, tmp, &work, list)
 			list_add(&m->list, &pool->prepared_discards);
+		spin_unlock_irqrestore(&pool->lock, flags);
 	}
 
 	mempool_free(h, pool->endio_hook_pool);
@@ -2759,6 +2767,6 @@ static void dm_thin_exit(void)
 module_init(dm_thin_init);
 module_exit(dm_thin_exit);
 
-MODULE_DESCRIPTION(DM_NAME "device-mapper thin provisioning target");
+MODULE_DESCRIPTION(DM_NAME " thin provisioning target");
 MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
 MODULE_LICENSE("GPL");

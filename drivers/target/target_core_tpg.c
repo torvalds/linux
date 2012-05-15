@@ -60,7 +60,6 @@ static void core_clear_initiator_node_from_tpg(
 	int i;
 	struct se_dev_entry *deve;
 	struct se_lun *lun;
-	struct se_lun_acl *acl, *acl_tmp;
 
 	spin_lock_irq(&nacl->device_list_lock);
 	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
@@ -81,28 +80,7 @@ static void core_clear_initiator_node_from_tpg(
 		core_update_device_list_for_node(lun, NULL, deve->mapped_lun,
 			TRANSPORT_LUNFLAGS_NO_ACCESS, nacl, tpg, 0);
 
-		spin_lock(&lun->lun_acl_lock);
-		list_for_each_entry_safe(acl, acl_tmp,
-					&lun->lun_acl_list, lacl_list) {
-			if (!strcmp(acl->initiatorname, nacl->initiatorname) &&
-			    (acl->mapped_lun == deve->mapped_lun))
-				break;
-		}
-
-		if (!acl) {
-			pr_err("Unable to locate struct se_lun_acl for %s,"
-				" mapped_lun: %u\n", nacl->initiatorname,
-				deve->mapped_lun);
-			spin_unlock(&lun->lun_acl_lock);
-			spin_lock_irq(&nacl->device_list_lock);
-			continue;
-		}
-
-		list_del(&acl->lacl_list);
-		spin_unlock(&lun->lun_acl_lock);
-
 		spin_lock_irq(&nacl->device_list_lock);
-		kfree(acl);
 	}
 	spin_unlock_irq(&nacl->device_list_lock);
 }
