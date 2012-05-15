@@ -49,15 +49,7 @@ static int wm8350_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, wm8350);
 	wm8350->dev = &i2c->dev;
 
-	ret = wm8350_device_init(wm8350, i2c->irq, i2c->dev.platform_data);
-	if (ret < 0)
-		goto err;
-
-	return ret;
-
-err:
-	regmap_exit(wm8350->regmap);
-	return ret;
+	return wm8350_device_init(wm8350, i2c->irq, i2c->dev.platform_data);
 }
 
 static int wm8350_i2c_remove(struct i2c_client *i2c)
