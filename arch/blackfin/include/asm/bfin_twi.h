@@ -42,6 +42,50 @@ struct bfin_twi_regs {
 
 #undef __BFP
 
+struct bfin_twi_iface {
+	int			irq;
+	spinlock_t		lock;
+	char			read_write;
+	u8			command;
+	u8			*transPtr;
+	int			readNum;
+	int			writeNum;
+	int			cur_mode;
+	int			manual_stop;
+	int			result;
+	struct i2c_adapter	adap;
+	struct completion	complete;
+	struct i2c_msg		*pmsg;
+	int			msg_num;
+	int			cur_msg;
+	u16			saved_clkdiv;
+	u16			saved_control;
+	struct bfin_twi_regs	*regs_base;
+};
+
+#define DEFINE_TWI_REG(reg_name, reg) \
+static inline u16 read_##reg_name(struct bfin_twi_iface *iface) \
+	{ return iface->regs_base->reg; } \
+static inline void write_##reg_name(struct bfin_twi_iface *iface, u16 v) \
+	{ iface->regs_base->reg = v; }
+
+DEFINE_TWI_REG(CLKDIV, clkdiv)
+DEFINE_TWI_REG(CONTROL, control)
+DEFINE_TWI_REG(SLAVE_CTL, slave_ctl)
+DEFINE_TWI_REG(SLAVE_STAT, slave_stat)
+DEFINE_TWI_REG(SLAVE_ADDR, slave_addr)
+DEFINE_TWI_REG(MASTER_CTL, master_ctl)
+DEFINE_TWI_REG(MASTER_STAT, master_stat)
+DEFINE_TWI_REG(MASTER_ADDR, master_addr)
+DEFINE_TWI_REG(INT_STAT, int_stat)
+DEFINE_TWI_REG(INT_MASK, int_mask)
+DEFINE_TWI_REG(FIFO_CTL, fifo_ctl)
+DEFINE_TWI_REG(FIFO_STAT, fifo_stat)
+DEFINE_TWI_REG(XMT_DATA8, xmt_data8)
+DEFINE_TWI_REG(XMT_DATA16, xmt_data16)
+DEFINE_TWI_REG(RCV_DATA8, rcv_data8)
+DEFINE_TWI_REG(RCV_DATA16, rcv_data16)
+
 /*  ********************  TWO-WIRE INTERFACE (TWI) MASKS  ***********************/
 /* TWI_CLKDIV Macros (Use: *pTWI_CLKDIV = CLKLOW(x)|CLKHI(y);  )				*/
 #define	CLKLOW(x)	((x) & 0xFF)	/* Periods Clock Is Held Low                    */
