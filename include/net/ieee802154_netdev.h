@@ -1,7 +1,7 @@
 /*
  * An interface between IEEE802.15.4 device and rest of the kernel.
  *
- * Copyright (C) 2007, 2008, 2009 Siemens AG
+ * Copyright (C) 2007-2012 Siemens AG
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2
@@ -21,6 +21,7 @@
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
  * Maxim Osipov <maxim.osipov@siemens.com>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
+ * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
  */
 
 #ifndef IEEE802154_NETDEVICE_H
@@ -112,12 +113,26 @@ struct ieee802154_mlme_ops {
 	u8 (*get_bsn)(const struct net_device *dev);
 };
 
-static inline struct ieee802154_mlme_ops *ieee802154_mlme_ops(
-		const struct net_device *dev)
+/* The IEEE 802.15.4 standard defines 2 type of the devices:
+ * - FFD - full functionality device
+ * - RFD - reduce functionality device
+ *
+ * So 2 sets of mlme operations are needed
+ */
+struct ieee802154_reduced_mlme_ops {
+	struct wpan_phy *(*get_phy)(const struct net_device *dev);
+};
+
+static inline struct ieee802154_mlme_ops *
+ieee802154_mlme_ops(const struct net_device *dev)
+{
+	return dev->ml_priv;
+}
+
+static inline struct ieee802154_reduced_mlme_ops *
+ieee802154_reduced_mlme_ops(const struct net_device *dev)
 {
 	return dev->ml_priv;
 }
 
 #endif
-
-
