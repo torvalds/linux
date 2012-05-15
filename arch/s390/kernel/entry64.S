@@ -164,22 +164,23 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
  *  gpr2 = prev
  */
 ENTRY(__switch_to)
+	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
+	stg	%r15,__THREAD_ksp(%r2)		# store kernel stack of prev
 	lg	%r4,__THREAD_info(%r2)		# get thread_info of prev
 	lg	%r5,__THREAD_info(%r3)		# get thread_info of next
+	lgr	%r15,%r5
+	aghi	%r15,STACK_SIZE			# end of kernel stack of next
+	stg	%r3,__LC_CURRENT		# store task struct of next
+	stg	%r5,__LC_THREAD_INFO		# store thread info of next
+	stg	%r15,__LC_KERNEL_STACK		# store end of kernel stack
+	lctl	%c4,%c4,__TASK_pid(%r3)		# load pid to control reg. 4
+	mvc	__LC_CURRENT_PID+4(4,%r0),__TASK_pid(%r3) # store pid of next
+	lg	%r15,__THREAD_ksp(%r3)		# load kernel stack of next
 	tm	__TI_flags+7(%r4),_TIF_MCCK_PENDING # machine check pending?
 	jz	0f
 	ni	__TI_flags+7(%r4),255-_TIF_MCCK_PENDING	# clear flag in prev
 	oi	__TI_flags+7(%r5),_TIF_MCCK_PENDING	# set it in next
-0:	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
-	stg	%r15,__THREAD_ksp(%r2)		# store kernel stack of prev
-	lg	%r15,__THREAD_ksp(%r3)		# load kernel stack of next
-	lctl	%c4,%c4,__TASK_pid(%r3)		# load pid to control reg. 4
-	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
-	stg	%r3,__LC_CURRENT		# store task struct of next
-	mvc	__LC_CURRENT_PID+4(4,%r0),__TASK_pid(%r3) # store pid of next
-	stg	%r5,__LC_THREAD_INFO		# store thread info of next
-	aghi	%r5,STACK_SIZE			# end of kernel stack of next
-	stg	%r5,__LC_KERNEL_STACK		# store end of kernel stack
+0:	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	br	%r14
 
 __critical_start:
