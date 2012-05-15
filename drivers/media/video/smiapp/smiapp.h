@@ -30,7 +30,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/smiapp.h>
 
-#include "../smiapp-pll.h"
+#include "smiapp-pll.h"
 #include "smiapp-reg.h"
 #include "smiapp-regs.h"
 #include "smiapp-quirk.h"
