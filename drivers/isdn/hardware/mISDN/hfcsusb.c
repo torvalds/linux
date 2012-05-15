@@ -231,7 +231,7 @@ hfcusb_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 		return ret;
 	case PH_ACTIVATE_REQ:
 		if (!test_and_set_bit(FLG_ACTIVE, &bch->Flags)) {
-			hfcsusb_start_endpoint(hw, bch->nr);
+			hfcsusb_start_endpoint(hw, bch->nr - 1);
 			ret = hfcsusb_setup_bch(bch, ch->protocol);
 		} else
 			ret = 0;
@@ -494,12 +494,6 @@ open_bchannel(struct hfcsusb *hw, struct channel_req *rq)
 	test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
 	bch->ch.protocol = rq->protocol;
 	rq->ch = &bch->ch;
-
-	/* start USB endpoint for bchannel */
-	if (rq->adr.channel  == 1)
-		hfcsusb_start_endpoint(hw, HFC_CHAN_B1);
-	else
-		hfcsusb_start_endpoint(hw, HFC_CHAN_B2);
 
 	if (!try_module_get(THIS_MODULE))
 		printk(KERN_WARNING "%s: %s:cannot get module\n",
@@ -1801,7 +1795,7 @@ deactivate_bchannel(struct bchannel *bch)
 	mISDN_clear_bchannel(bch);
 	spin_unlock_irqrestore(&hw->lock, flags);
 	hfcsusb_setup_bch(bch, ISDN_P_NONE);
-	hfcsusb_stop_endpoint(hw, bch->nr);
+	hfcsusb_stop_endpoint(hw, bch->nr - 1);
 }
 
 /*
