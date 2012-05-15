@@ -99,29 +99,6 @@ This driver has suffered bitrot.
 #define	C2 0x80
 #define	RWLH 0x30
 
-static int das6402_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int das6402_detach(struct comedi_device *dev);
-static struct comedi_driver driver_das6402 = {
-	.driver_name = "das6402",
-	.module = THIS_MODULE,
-	.attach = das6402_attach,
-	.detach = das6402_detach,
-};
-
-static int __init driver_das6402_init_module(void)
-{
-	return comedi_driver_register(&driver_das6402);
-}
-
-static void __exit driver_das6402_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_das6402);
-}
-
-module_init(driver_das6402_init_module);
-module_exit(driver_das6402_cleanup_module);
-
 struct das6402_private {
 	int ai_bytes_to_read;
 
@@ -130,7 +107,14 @@ struct das6402_private {
 #define devpriv ((struct das6402_private *)dev->private)
 
 static void das6402_ai_fifo_dregs(struct comedi_device *dev,
-				  struct comedi_subdevice *s);
+				  struct comedi_subdevice *s)
+{
+	while (1) {
+		if (!(inb(dev->iobase + 8) & 0x01))
+			return;
+		comedi_buf_put(s->async, inw(dev->iobase));
+	}
+}
 
 static void das6402_setcounter(struct comedi_device *dev)
 {
@@ -208,16 +192,6 @@ static void das6402_ai_fifo_read(struct comedi_device *dev, short *data, int n)
 		data[i] = inw(dev->iobase);
 }
 #endif
-
-static void das6402_ai_fifo_dregs(struct comedi_device *dev,
-				  struct comedi_subdevice *s)
-{
-	while (1) {
-		if (!(inb(dev->iobase + 8) & 0x01))
-			return;
-		comedi_buf_put(s->async, inw(dev->iobase));
-	}
-}
 
 static int das6402_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
@@ -300,16 +274,6 @@ static int board_init(struct comedi_device *dev)
 	return 0;
 }
 
-static int das6402_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, DAS6402_SIZE);
-
-	return 0;
-}
-
 static int das6402_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
@@ -362,6 +326,24 @@ static int das6402_attach(struct comedi_device *dev,
 
 	return 0;
 }
+
+static int das6402_detach(struct comedi_device *dev)
+{
+	if (dev->irq)
+		free_irq(dev->irq, dev);
+	if (dev->iobase)
+		release_region(dev->iobase, DAS6402_SIZE);
+
+	return 0;
+}
+
+static struct comedi_driver das6402_driver = {
+	.driver_name	= "das6402",
+	.module		= THIS_MODULE,
+	.attach		= das6402_attach,
+	.detach		= das6402_detach,
+};
+module_comedi_driver(das6402_driver)
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
