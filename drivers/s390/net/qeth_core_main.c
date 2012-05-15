@@ -5291,6 +5291,18 @@ static ssize_t qeth_core_driver_group_store(struct device_driver *ddrv,
 }
 static DRIVER_ATTR(group, 0200, NULL, qeth_core_driver_group_store);
 
+static struct attribute *qeth_drv_attrs[] = {
+	&driver_attr_group.attr,
+	NULL,
+};
+static struct attribute_group qeth_drv_attr_group = {
+	.attrs = qeth_drv_attrs,
+};
+static const struct attribute_group *qeth_drv_attr_groups[] = {
+	&qeth_drv_attr_group,
+	NULL,
+};
+
 static struct {
 	const char str[ETH_GSTRING_LEN];
 } qeth_ethtool_stats_keys[] = {
@@ -5531,13 +5543,10 @@ static int __init qeth_core_init(void)
 	rc = ccw_driver_register(&qeth_ccw_driver);
 	if (rc)
 		goto ccw_err;
+	qeth_core_ccwgroup_driver.driver.groups = qeth_drv_attr_groups;
 	rc = ccwgroup_driver_register(&qeth_core_ccwgroup_driver);
 	if (rc)
 		goto ccwgroup_err;
-	rc = driver_create_file(&qeth_core_ccwgroup_driver.driver,
-				&driver_attr_group);
-	if (rc)
-		goto driver_err;
 	qeth_core_root_dev = root_device_register("qeth");
 	rc = IS_ERR(qeth_core_root_dev) ? PTR_ERR(qeth_core_root_dev) : 0;
 	if (rc)
@@ -5563,9 +5572,6 @@ cqslab_err:
 slab_err:
 	root_device_unregister(qeth_core_root_dev);
 register_err:
-	driver_remove_file(&qeth_core_ccwgroup_driver.driver,
-			   &driver_attr_group);
-driver_err:
 	ccwgroup_driver_unregister(&qeth_core_ccwgroup_driver);
 ccwgroup_err:
 	ccw_driver_unregister(&qeth_ccw_driver);
@@ -5580,8 +5586,6 @@ out_err:
 static void __exit qeth_core_exit(void)
 {
 	root_device_unregister(qeth_core_root_dev);
-	driver_remove_file(&qeth_core_ccwgroup_driver.driver,
-			   &driver_attr_group);
 	ccwgroup_driver_unregister(&qeth_core_ccwgroup_driver);
 	ccw_driver_unregister(&qeth_ccw_driver);
 	kmem_cache_destroy(qeth_qdio_outbuf_cache);
