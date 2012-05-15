@@ -481,12 +481,13 @@ static int hci_dev_down(struct nfc_dev *nfc_dev)
 	return 0;
 }
 
-static int hci_start_poll(struct nfc_dev *nfc_dev, u32 protocols)
+static int hci_start_poll(struct nfc_dev *nfc_dev,
+			  u32 im_protocols, u32 tm_protocols)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
 	if (hdev->ops->start_poll)
-		return hdev->ops->start_poll(hdev, protocols);
+		return hdev->ops->start_poll(hdev, im_protocols, tm_protocols);
 	else
 		return nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
 				       NFC_HCI_EVT_READER_REQUESTED, NULL, 0);

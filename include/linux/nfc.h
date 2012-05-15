@@ -94,6 +94,8 @@ enum nfc_commands {
  * @NFC_ATTR_TARGET_SENSF_RES: NFC-F targets extra information, max 18 bytes
  * @NFC_ATTR_COMM_MODE: Passive or active mode
  * @NFC_ATTR_RF_MODE: Initiator or target
+ * @NFC_ATTR_IM_PROTOCOLS: Initiator mode protocols to poll for
+ * @NFC_ATTR_TM_PROTOCOLS: Target mode protocols to listen for
  */
 enum nfc_attrs {
 	NFC_ATTR_UNSPEC,
@@ -109,6 +111,8 @@ enum nfc_attrs {
 	NFC_ATTR_COMM_MODE,
 	NFC_ATTR_RF_MODE,
 	NFC_ATTR_DEVICE_POWERED,
+	NFC_ATTR_IM_PROTOCOLS,
+	NFC_ATTR_TM_PROTOCOLS,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };

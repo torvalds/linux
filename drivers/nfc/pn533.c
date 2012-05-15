@@ -1078,24 +1078,20 @@ stop_poll:
 	return 0;
 }
 
-static int pn533_start_poll(struct nfc_dev *nfc_dev, u32 protocols)
+static int pn533_init_target(struct nfc_dev *nfc_dev, u32 protocols)
+{
+	return 0;
+}
+
+static int pn533_start_im_poll(struct nfc_dev *nfc_dev, u32 protocols)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	struct pn533_poll_modulations *start_mod;
 	int rc;
 
-	nfc_dev_dbg(&dev->interface->dev, "%s - protocols=0x%x", __func__,
-								protocols);
-
 	if (dev->poll_mod_count) {
 		nfc_dev_err(&dev->interface->dev, "Polling operation already"
 								" active");
-		return -EBUSY;
-	}
-
-	if (dev->tgt_active_prot) {
-		nfc_dev_err(&dev->interface->dev, "Cannot poll with a target"
-							" already activated");
 		return -EBUSY;
 	}
 
@@ -1133,6 +1129,29 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev, u32 protocols)
 error:
 	pn533_poll_reset_mod_list(dev);
 	return rc;
+}
+
+static int pn533_start_poll(struct nfc_dev *nfc_dev,
+			    u32 im_protocols, u32 tm_protocols)
+{
+	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+
+	nfc_dev_dbg(&dev->interface->dev,
+		    "%s: im protocols 0x%x tm protocols 0x%x",
+		    __func__, im_protocols, tm_protocols);
+
+	if (dev->tgt_active_prot) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Cannot poll with a target already activated");
+		return -EBUSY;
+	}
+
+	if (!tm_protocols)
+		return pn533_start_im_poll(nfc_dev, im_protocols);
+	else if (!im_protocols)
+		return pn533_init_target(nfc_dev, tm_protocols);
+	else
+		return -EINVAL;
 }
 
 static void pn533_stop_poll(struct nfc_dev *nfc_dev)

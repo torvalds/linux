@@ -121,14 +121,14 @@ error:
  * The device remains polling for targets until a target is found or
  * the nfc_stop_poll function is called.
  */
-int nfc_start_poll(struct nfc_dev *dev, u32 protocols)
+int nfc_start_poll(struct nfc_dev *dev, u32 im_protocols, u32 tm_protocols)
 {
 	int rc;
 
-	pr_debug("dev_name=%s protocols=0x%x\n",
-		 dev_name(&dev->dev), protocols);
+	pr_debug("dev_name %s initiator protocols 0x%x target protocols 0x%x\n",
+		 dev_name(&dev->dev), im_protocols, tm_protocols);
 
-	if (!protocols)
+	if (!im_protocols && !tm_protocols)
 		return -EINVAL;
 
 	device_lock(&dev->dev);
@@ -143,7 +143,7 @@ int nfc_start_poll(struct nfc_dev *dev, u32 protocols)
 		goto error;
 	}
 
-	rc = dev->ops->start_poll(dev, protocols);
+	rc = dev->ops->start_poll(dev, im_protocols, tm_protocols);
 	if (!rc)
 		dev->polling = true;
 

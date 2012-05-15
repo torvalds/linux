@@ -53,7 +53,8 @@ struct nfc_target;
 struct nfc_ops {
 	int (*dev_up)(struct nfc_dev *dev);
 	int (*dev_down)(struct nfc_dev *dev);
-	int (*start_poll)(struct nfc_dev *dev, u32 protocols);
+	int (*start_poll)(struct nfc_dev *dev,
+			  u32 im_protocols, u32 tm_protocols);
 	void (*stop_poll)(struct nfc_dev *dev);
 	int (*dep_link_up)(struct nfc_dev *dev, struct nfc_target *target,
 			   u8 comm_mode, u8 *gb, size_t gb_len);

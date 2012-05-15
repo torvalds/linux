@@ -387,7 +387,8 @@ static int nci_dev_down(struct nfc_dev *nfc_dev)
 	return nci_close_device(ndev);
 }
 
-static int nci_start_poll(struct nfc_dev *nfc_dev, __u32 protocols)
+static int nci_start_poll(struct nfc_dev *nfc_dev,
+			  __u32 im_protocols, __u32 tm_protocols)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	int rc;
@@ -413,11 +414,11 @@ static int nci_start_poll(struct nfc_dev *nfc_dev, __u32 protocols)
 			return -EBUSY;
 	}
 
-	rc = nci_request(ndev, nci_rf_discover_req, protocols,
+	rc = nci_request(ndev, nci_rf_discover_req, im_protocols,
 			 msecs_to_jiffies(NCI_RF_DISC_TIMEOUT));
 
 	if (!rc)
-		ndev->poll_prots = protocols;
+		ndev->poll_prots = im_protocols;
 
 	return rc;
 }

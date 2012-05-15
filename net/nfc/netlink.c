@@ -49,6 +49,8 @@ static const struct nla_policy nfc_genl_policy[NFC_ATTR_MAX + 1] = {
 	[NFC_ATTR_COMM_MODE] = { .type = NLA_U8 },
 	[NFC_ATTR_RF_MODE] = { .type = NLA_U8 },
 	[NFC_ATTR_DEVICE_POWERED] = { .type = NLA_U8 },
+	[NFC_ATTR_IM_PROTOCOLS] = { .type = NLA_U32 },
+	[NFC_ATTR_TM_PROTOCOLS] = { .type = NLA_U32 },
 };
 
 static int nfc_genl_send_target(struct sk_buff *msg, struct nfc_target *target,
@@ -519,16 +521,25 @@ static int nfc_genl_start_poll(struct sk_buff *skb, struct genl_info *info)
 	struct nfc_dev *dev;
 	int rc;
 	u32 idx;
-	u32 protocols;
+	u32 im_protocols = 0, tm_protocols = 0;
 
 	pr_debug("Poll start\n");
 
 	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
-	    !info->attrs[NFC_ATTR_PROTOCOLS])
+	    ((!info->attrs[NFC_ATTR_IM_PROTOCOLS] &&
+	      !info->attrs[NFC_ATTR_PROTOCOLS]) &&
+	     !info->attrs[NFC_ATTR_TM_PROTOCOLS]))
 		return -EINVAL;
 
 	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
-	protocols = nla_get_u32(info->attrs[NFC_ATTR_PROTOCOLS]);
+
+	if (info->attrs[NFC_ATTR_TM_PROTOCOLS])
+		tm_protocols = nla_get_u32(info->attrs[NFC_ATTR_TM_PROTOCOLS]);
+	else if (info->attrs[NFC_ATTR_PROTOCOLS])
+		tm_protocols = nla_get_u32(info->attrs[NFC_ATTR_PROTOCOLS]);
+
+	if (info->attrs[NFC_ATTR_IM_PROTOCOLS])
+		im_protocols = nla_get_u32(info->attrs[NFC_ATTR_IM_PROTOCOLS]);
 
 	dev = nfc_get_device(idx);
 	if (!dev)
@@ -536,7 +547,7 @@ static int nfc_genl_start_poll(struct sk_buff *skb, struct genl_info *info)
 
 	mutex_lock(&dev->genl_data.genl_data_mutex);
 
-	rc = nfc_start_poll(dev, protocols);
+	rc = nfc_start_poll(dev, im_protocols, tm_protocols);
 	if (!rc)
 		dev->genl_data.poll_req_pid = info->snd_pid;
 
