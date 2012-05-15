@@ -576,6 +576,7 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 		scsi_block_requests(vha->host);
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		if (IS_QLA82XX(ha)) {
+			ha->flags.isp82xx_no_md_cap = 1;
 			qla82xx_idc_lock(ha);
 			qla82xx_set_reset_owner(vha);
 			qla82xx_idc_unlock(ha);

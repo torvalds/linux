@@ -2462,6 +2462,7 @@ struct qla_hw_data {
 		uint32_t	thermal_supported:1;
 		uint32_t	isp82xx_reset_hdlr_active:1;
 		uint32_t	isp82xx_reset_owner:1;
+		uint32_t	isp82xx_no_md_cap:1;
 		/* 28 bits */
 	} flags;
 

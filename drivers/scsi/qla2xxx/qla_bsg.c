@@ -1400,6 +1400,9 @@ qla2x00_update_optrom(struct fc_bsg_job *bsg_job)
 	if (rval)
 		return rval;
 
+	/* Set the isp82xx_no_md_cap not to capture minidump */
+	ha->flags.isp82xx_no_md_cap = 1;
+
 	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
 	    bsg_job->request_payload.sg_cnt, ha->optrom_buffer,
 	    ha->optrom_region_size);

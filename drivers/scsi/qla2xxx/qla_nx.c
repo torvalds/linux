@@ -2050,7 +2050,7 @@ qla82xx_intr_handler(int irq, void *dev_id)
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
-		ql_log(ql_log_info, NULL, 0xb054,
+		ql_log(ql_log_info, NULL, 0xb053,
 		    "%s: NULL response queue pointer.\n", __func__);
 		return IRQ_NONE;
 	}
@@ -3128,7 +3128,7 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 		if (ql2xmdenable) {
 			if (qla82xx_md_collect(vha))
 				ql_log(ql_log_warn, vha, 0xb02c,
-				    "Not able to collect minidump.\n");
+				    "Minidump not collected.\n");
 		} else
 			ql_log(ql_log_warn, vha, 0xb04f,
 			    "Minidump disabled.\n");
@@ -4134,6 +4134,14 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 	if (!ha->md_tmplt_hdr || !ha->md_dump) {
 		ql_log(ql_log_warn, vha, 0xb038,
 		    "Memory not allocated for minidump capture\n");
+		goto md_failed;
+	}
+
+	if (ha->flags.isp82xx_no_md_cap) {
+		ql_log(ql_log_warn, vha, 0xb054,
+		    "Forced reset from application, "
+		    "ignore minidump capture\n");
+		ha->flags.isp82xx_no_md_cap = 0;
 		goto md_failed;
 	}
 
