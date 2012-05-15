@@ -3607,10 +3607,6 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		netif_set_gso_max_size(adapter->netdev, 32768);
 
-
-	/* Enable VLAN tag insert/strip */
-	adapter->netdev->features |= NETIF_F_HW_VLAN_RX;
-
 	hw->mac.ops.set_vfta(&adapter->hw, 0, 0, true);
 
 #ifdef IXGBE_FCOE
@@ -6701,11 +6697,6 @@ static netdev_features_t ixgbe_fix_features(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-#ifdef CONFIG_DCB
-	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
-		features &= ~NETIF_F_HW_VLAN_RX;
-#endif
-
 	/* return error if RXHASH is being enabled when RSS is not supported */
 	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
 		features &= ~NETIF_F_RXHASH;
@@ -6717,7 +6708,6 @@ static netdev_features_t ixgbe_fix_features(struct net_device *netdev,
 	/* Turn off LRO if not RSC capable */
 	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE))
 		features &= ~NETIF_F_LRO;
-
 
 	return features;
 }
@@ -6765,6 +6755,11 @@ static int ixgbe_set_features(struct net_device *netdev,
 		adapter->flags |= IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
 		need_reset = true;
 	}
+
+	if (features & NETIF_F_HW_VLAN_RX)
+		ixgbe_vlan_strip_enable(adapter);
+	else
+		ixgbe_vlan_strip_disable(adapter);
 
 	if (changed & NETIF_F_RXALL)
 		need_reset = true;
