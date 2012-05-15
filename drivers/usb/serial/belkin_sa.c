@@ -197,12 +197,12 @@ static void belkin_sa_read_int_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-		    __func__, status);
+		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
+			__func__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d",
-		    __func__, status);
+		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+			__func__, status);
 		goto exit;
 	}
 
@@ -391,7 +391,8 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 			urb_value = BELKIN_SA_DATA_BITS(8);
 			break;
 		default:
-			dbg("CSIZE was not CS5-CS8, using default of 8");
+			dev_dbg(&port->dev,
+				"CSIZE was not CS5-CS8, using default of 8\n");
 			urb_value = BELKIN_SA_DATA_BITS(8);
 			break;
 		}
