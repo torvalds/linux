@@ -2564,7 +2564,15 @@ void
 qla2x00_free_irqs(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
-	struct rsp_que *rsp = ha->rsp_q_map[0];
+	struct rsp_que *rsp;
+
+	/*
+	 * We need to check that ha->rsp_q_map is valid in case we are called
+	 * from a probe failure context.
+	 */
+	if (!ha->rsp_q_map || !ha->rsp_q_map[0])
+		return;
+	rsp = ha->rsp_q_map[0];
 
 	if (ha->flags.msix_enabled)
 		qla24xx_disable_msix(ha);

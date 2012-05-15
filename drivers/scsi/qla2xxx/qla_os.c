@@ -306,7 +306,8 @@ static void qla2x00_free_fw_dump(struct qla_hw_data *);
 static void qla2x00_mem_free(struct qla_hw_data *);
 
 /* -------------------------------------------------------------------------- */
-static int qla2x00_alloc_queues(struct qla_hw_data *ha)
+static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
+				struct rsp_que *rsp)
 {
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 	ha->req_q_map = kzalloc(sizeof(struct req_que *) * ha->max_req_queues,
@@ -324,6 +325,12 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha)
 		    "Unable to allocate memory for response queue ptrs.\n");
 		goto fail_rsp_map;
 	}
+	/*
+	 * Make sure we record at least the request and response queue zero in
+	 * case we need to free them if part of the probe fails.
+	 */
+	ha->rsp_q_map[0] = rsp;
+	ha->req_q_map[0] = req;
 	set_bit(0, ha->rsp_qid_map);
 	set_bit(0, ha->req_qid_map);
 	return 1;
@@ -2417,6 +2424,16 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    host->max_cmd_len, host->max_channel, host->max_lun,
 	    host->transportt, sht->vendor_id);
 
+que_init:
+	/* Alloc arrays of request and response ring ptrs */
+	if (!qla2x00_alloc_queues(ha, req, rsp)) {
+		ql_log(ql_log_fatal, base_vha, 0x003d,
+		    "Failed to allocate memory for queue pointers..."
+		    "aborting.\n");
+		goto probe_init_failed;
+	}
+
+
 	/* Set up the irqs */
 	ret = qla2x00_request_irqs(ha, rsp);
 	if (ret)
@@ -2424,20 +2441,10 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_save_state(pdev);
 
-	/* Alloc arrays of request and response ring ptrs */
-que_init:
-	if (!qla2x00_alloc_queues(ha)) {
-		ql_log(ql_log_fatal, base_vha, 0x003d,
-		    "Failed to allocate memory for queue pointers.. aborting.\n");
-		goto probe_init_failed;
-	}
-
-	ha->rsp_q_map[0] = rsp;
-	ha->req_q_map[0] = req;
+	/* Assign back pointers */
 	rsp->req = req;
 	req->rsp = rsp;
-	set_bit(0, ha->req_qid_map);
-	set_bit(0, ha->rsp_qid_map);
+
 	/* FWI2-capable only. */
 	req->req_q_in = &ha->iobase->isp24.req_q_in;
 	req->req_q_out = &ha->iobase->isp24.req_q_out;
@@ -2581,7 +2588,11 @@ skip_dpc:
 
 probe_init_failed:
 	qla2x00_free_req_que(ha, req);
+	ha->req_q_map[0] = NULL;
+	clear_bit(0, ha->req_qid_map);
 	qla2x00_free_rsp_que(ha, rsp);
+	ha->rsp_q_map[0] = NULL;
+	clear_bit(0, ha->rsp_qid_map);
 	ha->max_req_queues = ha->max_rsp_queues = 0;
 
 probe_failed:
@@ -2662,6 +2673,13 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	scsi_qla_host_t *base_vha, *vha;
 	struct qla_hw_data  *ha;
 	unsigned long flags;
+
+	/*
+	 * If the PCI device is disabled that means that probe failed and any
+	 * resources should be have cleaned up on probe exit.
+	 */
+	if (!atomic_read(&pdev->enable_cnt))
+		return;
 
 	base_vha = pci_get_drvdata(pdev);
 	ha = base_vha->hw;
