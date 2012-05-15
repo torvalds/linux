@@ -2534,10 +2534,14 @@ enum nl80211_attr_cqm {
  *      configured threshold
  * @NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH: The RSSI is higher than the
  *      configured threshold
+ * @NL80211_CQM_RSSI_BEACON_LOSS_EVENT: The device experienced beacon loss.
+ *	(Note that deauth/disassoc will still follow if the AP is not
+ *	available. This event might get used as roaming event, etc.)
  */
 enum nl80211_cqm_rssi_threshold_event {
 	NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
 	NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
+	NL80211_CQM_RSSI_BEACON_LOSS_EVENT,
 };
 
 
