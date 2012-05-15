@@ -216,7 +216,7 @@ static struct wlcore_conf wl12xx_conf = {
 		.suspend_wake_up_event       = CONF_WAKE_UP_EVENT_N_DTIM,
 		.suspend_listen_interval     = 3,
 		.bcn_filt_mode               = CONF_BCN_FILT_MODE_ENABLED,
-		.bcn_filt_ie_count           = 2,
+		.bcn_filt_ie_count           = 3,
 		.bcn_filt_ie = {
 			[0] = {
 				.ie          = WLAN_EID_CHANNEL_SWITCH,
@@ -225,6 +225,10 @@ static struct wlcore_conf wl12xx_conf = {
 			[1] = {
 				.ie          = WLAN_EID_HT_OPERATION,
 				.rule        = CONF_BCN_RULE_PASS_ON_CHANGE,
+			},
+			[2] = {
+				.ie	     = WLAN_EID_ERP_INFO,
+				.rule	     = CONF_BCN_RULE_PASS_ON_CHANGE,
 			},
 		},
 		.synch_fail_thold            = 12,
