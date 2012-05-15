@@ -1190,12 +1190,12 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 	}
 
 	/* Offset in flash = lower 16 bits
-	 * Number of enteries = upper 16 bits
+	 * Number of entries = upper 16 bits
 	 */
 	offset = n & 0xffffU;
 	n = (n >> 16) & 0xffffU;
 
-	/* number of addr/value pair should not exceed 1024 enteries */
+	/* number of addr/value pair should not exceed 1024 entries */
 	if (n  >= 1024) {
 		ql_log(ql_log_fatal, vha, 0x0071,
 		    "Card flash not initialized:n=0x%x.\n", n);
@@ -2446,7 +2446,7 @@ qla82xx_load_fw(scsi_qla_host_t *vha)
 
 	if (qla82xx_fw_load_from_flash(ha) == QLA_SUCCESS) {
 		ql_log(ql_log_info, vha, 0x00a1,
-		    "Firmware loaded successully from flash.\n");
+		    "Firmware loaded successfully from flash.\n");
 		return QLA_SUCCESS;
 	} else {
 		ql_log(ql_log_warn, vha, 0x0108,
@@ -2461,7 +2461,7 @@ try_blob_fw:
 	blob = ha->hablob = qla2x00_request_firmware(vha);
 	if (!blob) {
 		ql_log(ql_log_fatal, vha, 0x00a3,
-		    "Firmware image not preset.\n");
+		    "Firmware image not present.\n");
 		goto fw_load_failed;
 	}
 
@@ -2689,7 +2689,7 @@ qla82xx_write_flash_data(struct scsi_qla_host *vha, uint32_t *dwptr,
 		if (!optrom) {
 			ql_log(ql_log_warn, vha, 0xb01b,
 			    "Unable to allocate memory "
-			    "for optron burst write (%x KB).\n",
+			    "for optrom burst write (%x KB).\n",
 			    OPTROM_BURST_SIZE / 1024);
 		}
 	}
