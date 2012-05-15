@@ -76,12 +76,12 @@ static void f81232_read_int_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __func__,
-		    status);
+		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
+			__func__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __func__,
-		    status);
+		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+			__func__, status);
 		goto exit;
 	}
 
@@ -131,7 +131,7 @@ static void f81232_process_read_urb(struct urb *urb)
 		tty_flag = TTY_PARITY;
 	else if (line_status & UART_FRAME_ERROR)
 		tty_flag = TTY_FRAME;
-	dbg("%s - tty_flag = %d", __func__, tty_flag);
+	dev_dbg(&port->dev, "%s - tty_flag = %d\n", __func__, tty_flag);
 
 	/* overrun is special, not associated with a char */
 	if (line_status & UART_OVERRUN_ERROR)
@@ -290,7 +290,9 @@ static int f81232_ioctl(struct tty_struct *tty,
 {
 	struct serial_struct ser;
 	struct usb_serial_port *port = tty->driver_data;
-	dbg("%s (%d) cmd = 0x%04x", __func__, port->number, cmd);
+
+	dev_dbg(&port->dev, "%s (%d) cmd = 0x%04x\n", __func__,
+		port->number, cmd);
 
 	switch (cmd) {
 	case TIOCGSERIAL:
@@ -306,10 +308,12 @@ static int f81232_ioctl(struct tty_struct *tty,
 		return 0;
 
 	case TIOCMIWAIT:
-		dbg("%s (%d) TIOCMIWAIT", __func__,  port->number);
+		dev_dbg(&port->dev, "%s (%d) TIOCMIWAIT\n", __func__,
+			port->number);
 		return wait_modem_info(port, arg);
 	default:
-		dbg("%s not supported = 0x%04x", __func__, cmd);
+		dev_dbg(&port->dev, "%s not supported = 0x%04x\n",
+			__func__, cmd);
 		break;
 	}
 	return -ENOIOCTLCMD;
