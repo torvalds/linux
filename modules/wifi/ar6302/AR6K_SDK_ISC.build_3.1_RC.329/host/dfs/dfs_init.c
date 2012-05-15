@@ -57,12 +57,12 @@ struct dfs_pulse ar6000_etsi_radars[] = {
         {20, 37, 2000,   2000, 0,  24, 10, 30, 36, 22,  0, 3, 28},
         {20, 37, 3000,   3000, 0,  24, 10, 30, 36, 22,  0, 3, 29},
         {20, 37, 4000,   4000, 0,  24, 10, 30, 36, 22,  0, 3, 30},
-        
+
         /* TYPE staggered pulse */
-        {20, 2, 300,    400, 2,  30, 10, 0, 2, 22,  0, 3, 31}, //0.8-2us, 2-3 bursts,300-400 PRF, 10 pulses each 
+        {20, 2, 300,    400, 2,  30, 10, 0, 2, 22,  0, 3, 31}, //0.8-2us, 2-3 bursts,300-400 PRF, 10 pulses each
         {30, 2, 400,   1200, 2,  30, 15, 0, 2, 22,  0, 3, 32}, //0.8-2us, 2-3 bursts, 400-1200 PRF, 15 pulses each
 
-        /* constant PRF based */ 
+        /* constant PRF based */
         {10, 5,   200,  1000, 0,  24, 6,  0,  8, 21,  0, -10, 33}, /*0.8-5us , 200-1000 PRF, 10 pulses */
         {15, 15,   200,  1600, 0,  24, 7,  0,  18, 21,  0, -10, 34}, /*0.8-15us , 200-1600 PRF, 15 pulses */
         {25, 15,   2300,  4000, 0,  24, 12,  0,  18, 21,  0, -10, 35}, /* 0.8-15 us, 2300-4000 PRF, 25 pulses*/
@@ -79,18 +79,18 @@ struct dfs_pulse ar6000_fcc_radars[] = {
         /* following filters are common to both FCC and JAPAN */
         {18,  1,  325,   1930, 0,  6,  7,  0,  1, 18,  0, 3,  0}, // 1428 +/- 7 us
         {9,   1, 3003,   3003, 1,  7,  5,  0,  1, 18,  0, 0,  1}, // 333 +/- 7 us
-       
+
         {23,  5, 6250,   6250, 0, 15, 11,  0,  7, 22,  0, 3,  2}, // 160 +/- 15 us
         {23,  5, 5263,   5263, 0, 18, 11,  0,  7, 22,  0, 3,  3}, // 190 +/- 15 us
         {23,  5, 4545,   4545, 0, 18, 11,  0,  7, 22,  0, 3,  4}, // 220 +/- 15 us
-        
+
         {18, 10, 4444,   4444, 0, 35,  6,  7, 13, 22,  0, 3,  5}, // 225 +/- 30 us
         {18, 10, 3636,   3636, 0, 25,  6,  7, 13, 22,  0, 3,  6}, // 275 +/- 25 us
         {18, 10, 3076,   3076, 0, 25,  8,  7, 13, 22,  0, 3,  7}, // 325 +/- 25 us
         {18, 10, 2666,   2666, 0, 25,  8,  7, 13, 22,  0, 3,  8}, // 375 +/- 25 us
         {18, 10, 2352,   2352, 0, 25,  8,  7, 13, 22,  0, 3,  9}, // 425 +/- 25 us
         {18, 10, 2105,   2105, 0, 30,  8,  7, 13, 22,  0, 3, 10}, // 475 +/- 30 us
-       
+
         {14, 15, 4444,   4444, 0, 35,  5, 13, 21, 22,  0, 3, 11}, // 225 +/- 30 us
         {14, 15, 3636,   3636, 0, 25,  5, 13, 24, 22,  0, 3, 12}, // 275 +/- 25 us
         {14, 15, 3076,   3076, 0, 25,  7, 13, 23, 22,  0, 3, 13}, // 325 +/- 25 us
@@ -218,7 +218,7 @@ struct dfs_pulse *dfs_get_radars(u_int32_t dfsdomain, u_int32_t *numradars, stru
 }
 
 int dfs_init_radar_filters_host( struct ath_dfs_host *dfs, struct ath_dfs_info *dfs_info)
-{ 
+{
     u_int32_t T, Tmax;
     int numpulses,p,n, i;
     struct dfs_filtertype *ft = NULL;
@@ -340,7 +340,7 @@ int dfs_init_radar_filters_host( struct ath_dfs_host *dfs, struct ath_dfs_info *
     if ( dfs->dfs_b5radars == NULL ) {
         dfs->dfs_b5radars = (struct dfs_bin5radars *)DFS_MALLOC(dfs->os_hdl, numb5radars * sizeof(struct dfs_bin5radars));
         if (dfs->dfs_b5radars == NULL) {
-            DFS_DPRINTK(dfs, ATH_DEBUG_DFS, 
+            DFS_DPRINTK(dfs, ATH_DEBUG_DFS,
                     "%s: cannot allocate memory for bin5 radars\n",
                     __func__);
             goto bad4;
@@ -360,7 +360,7 @@ int dfs_init_radar_filters_host( struct ath_dfs_host *dfs, struct ath_dfs_info *
     DFS_SET_MINRSSITHRESH(dfs->dev_hdl, min_rssithresh);
     DFS_SET_MAXPULSEDUR(dfs->dev_hdl, dfs_round((int32_t)((max_pulsedur*100/80)*100)));
 
-    
+
     return 0;
 
 bad4:
@@ -369,7 +369,7 @@ bad4:
     }
     return 1;
 }
- 
+
 
 
 #endif /* ATH_SUPPORT_DFS */

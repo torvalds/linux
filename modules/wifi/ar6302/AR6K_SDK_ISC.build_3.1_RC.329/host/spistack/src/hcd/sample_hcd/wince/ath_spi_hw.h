@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 // <copyright file="ath_spi_hw_drv.c" company="Atheros">
 //    Copyright (c) 2008 Atheros Corporation.  All rights reserved.
-// 
+//
 //
 // Permission to use, copy, modify, and/or distribute this software for any
 // purpose with or without fee is hereby granted, provided that the above
@@ -34,12 +34,12 @@ typedef struct _SDHCD_HW_DEVICE {
     BOOL            IrqEnabled;
     SDHCD_DEVICE    SpiCommon;             /* storage for the SPI common layer */
     PVOID           pWorker;
-    CT_WORKER_TASK  IOCompleteWorkTask;    /* work task for deferred I/O completion */   
+    CT_WORKER_TASK  IOCompleteWorkTask;    /* work task for deferred I/O completion */
     HANDLE          hIstEventSPIGpioIRQ;   /* interrupt service event */
-    HANDLE          hIstSPIGpioIRQ;        /* interrupt service thread */ 
+    HANDLE          hIstSPIGpioIRQ;        /* interrupt service thread */
     BOOL            ShutDown;              /* shutdown IST */
-    DWORD           SysIntrSPIGpioIRQ;     /* system interrupt for GPIO interrupt */ 
-    BOOL            CommonBufferDMA;       /* common buffer is used flag */ 
+    DWORD           SysIntrSPIGpioIRQ;     /* system interrupt for GPIO interrupt */
+    BOOL            CommonBufferDMA;       /* common buffer is used flag */
     UINT8           *pDmaCommonBuffer;     /* if common buffer is used, this is the buffer */
 }SDHCD_HW_DEVICE, *PSDHCD_HW_DEVICE;
 

@@ -42,7 +42,7 @@ int adjust_thresh_per_chan_busy(int ext_chan_busy, int thresh)
     }
     return adjust_thresh;
 }
-/* For the extension channel, if legacy traffic is present, we see a lot of false alarms, 
+/* For the extension channel, if legacy traffic is present, we see a lot of false alarms,
 so make the PRI margin narrower depending on the busy % for the extension channel.*/
 
 int dfs_get_pri_margin(int is_extchan_detect, int is_fixed_pattern, u_int64_t lastfull_ts, u_int32_t ext_chan_busy)
@@ -67,7 +67,7 @@ int dfs_get_pri_margin(int is_extchan_detect, int is_fixed_pattern, u_int64_t la
         // Check to see if the cached value of ext_chan_busy can be used
         if (dfs->dfs_rinfo.dfs_ext_chan_busy) {
             if (lastfull_ts < dfs->dfs_rinfo.ext_chan_busy_ts) {
-                ext_chan_busy = dfs->dfs_rinfo.dfs_ext_chan_busy; 
+                ext_chan_busy = dfs->dfs_rinfo.dfs_ext_chan_busy;
                 DFS_DPRINTK(dfs, ATH_DEBUG_DFS2," PRI Use cached copy of ext_chan_busy extchanbusy=%d \n", ext_chan_busy);
             }
         }
@@ -79,7 +79,7 @@ int dfs_get_pri_margin(int is_extchan_detect, int is_fixed_pattern, u_int64_t la
     return pri_margin;
 }
 
-/* For the extension channel, if legacy traffic is present, we see a lot of false alarms, 
+/* For the extension channel, if legacy traffic is present, we see a lot of false alarms,
 so make the thresholds higher depending on the busy % for the extension channel.*/
 
 int dfs_get_filter_threshold(struct dfs_filter *rf, int is_extchan_detect, u_int64_t lastfull_ts, u_int32_t ext_chan_busy)
@@ -87,7 +87,7 @@ int dfs_get_filter_threshold(struct dfs_filter *rf, int is_extchan_detect, u_int
     int thresh, adjust_thresh=0;
     //    struct ath_dfs_target *dfs = sc->sc_dfs_tgt;
 
-    thresh = rf->rf_threshold;    
+    thresh = rf->rf_threshold;
 
     /*XXX: Does cached value make sense here? */
 #if 0
@@ -98,7 +98,7 @@ int dfs_get_filter_threshold(struct dfs_filter *rf, int is_extchan_detect, u_int
         // Check to see if the cached value of ext_chan_busy can be used
         if (dfs->dfs_rinfo.dfs_ext_chan_busy) {
             if (lastfull_ts < dfs->dfs_rinfo.ext_chan_busy_ts) {
-                ext_chan_busy = dfs->dfs_rinfo.dfs_ext_chan_busy; 
+                ext_chan_busy = dfs->dfs_rinfo.dfs_ext_chan_busy;
                 DFS_DPRINTK(dfs, ATH_DEBUG_DFS2," THRESH Use cached copy of ext_chan_busy extchanbusy=%d lastfull_ts=%llu ext_chan_busy_ts=%llu\n", ext_chan_busy ,lastfull_ts, dfs->dfs_rinfo.ext_chan_busy_ts);
             }
         }

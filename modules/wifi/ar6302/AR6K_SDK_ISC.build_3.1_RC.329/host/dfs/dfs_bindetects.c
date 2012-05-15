@@ -90,7 +90,7 @@ int dfs_bin_fixedpattern_check(struct ath_dfs_host *dfs, struct dfs_filter *rf, 
         DFS_DPRINTK(dfs, ATH_DEBUG_DFS1, "%s FOUND filterID=%u numpulses=%d unadj thresh=%d\n", __func__, rf->rf_pulseid, numpulses, rf->rf_threshold);
         return 1;
     }
-    else 
+    else
         return 0;
 }
 
@@ -142,12 +142,12 @@ int dfs_bin_check(struct ath_dfs_host *dfs, struct dfs_filter *rf,
 
     dl = &rf->rf_dl;
     if( dl->dl_numelems < (rf->rf_threshold-1)) {
-        return 0; 
+        return 0;
     }
     if( deltaT > rf->rf_filterlen)
         return 0;
 
-    primargin = dfs_get_pri_margin(ext_chan_flag, (rf->rf_patterntype==1), 
+    primargin = dfs_get_pri_margin(ext_chan_flag, (rf->rf_patterntype==1),
             dfs->dfs_rinfo.rn_lastfull_ts, ext_chan_busy);
 
 
@@ -232,7 +232,7 @@ int dfs_bin_check(struct ath_dfs_host *dfs, struct dfs_filter *rf,
     numpulses = dfs_bin_pri_check(dfs, rf, dl, score[scoreindex], refpri, refdur, ext_chan_flag, ext_chan_busy);
     if (numpulses >= dfs_get_filter_threshold(rf, ext_chan_flag, dfs->dfs_rinfo.rn_lastfull_ts, ext_chan_busy)) {
         found = 1;
-        DFS_DPRINTK(dfs, ATH_DEBUG_DFS1, "ext_flag=%d MATCH filter=%u numpulses=%u thresh=%u refpri=%d primargin=%d\n", ext_chan_flag, rf->rf_pulseid, numpulses,rf->rf_threshold, refpri, primargin);     
+        DFS_DPRINTK(dfs, ATH_DEBUG_DFS1, "ext_flag=%d MATCH filter=%u numpulses=%u thresh=%u refpri=%d primargin=%d\n", ext_chan_flag, rf->rf_pulseid, numpulses,rf->rf_threshold, refpri, primargin);
         dfs_print_delayline(dfs, &rf->rf_dl);
         dfs_print_filter(dfs, rf);
     }

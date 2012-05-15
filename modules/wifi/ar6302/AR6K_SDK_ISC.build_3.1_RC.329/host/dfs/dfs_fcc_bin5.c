@@ -24,10 +24,10 @@ int dfs_bin5_addpulse(struct ath_dfs_host *dfs, struct dfs_bin5radars *br,
 	u_int32_t index,stop;
 	u_int64_t tsDelta;
 
-	/* Check if this pulse is a valid pulse in terms of repetition, 
+	/* Check if this pulse is a valid pulse in terms of repetition,
 	 * if not, return without adding it to the queue.
 	 * PRI : Pulse Repitetion Interval
-	 * BRI : Burst Repitetion Interval */ 
+	 * BRI : Burst Repitetion Interval */
 	if( br->br_numelems != 0){
 		index = br->br_lastelem;
 		tsDelta = thists - br->br_elems[index].be_ts;
@@ -50,7 +50,7 @@ int dfs_bin5_addpulse(struct ath_dfs_host *dfs, struct dfs_bin5radars *br,
 	stop = 0;
 	index = br->br_firstelem;
 	while ((!stop) && (br->br_numelems-1) > 0) {
-		if ((thists - br->br_elems[index].be_ts) > 
+		if ((thists - br->br_elems[index].be_ts) >
 		    ((u_int64_t) br->br_pulse.b5_timewindow)) {
 			br->br_numelems--;
 			br->br_firstelem = (br->br_firstelem +1) & DFS_MAX_B5_MASK;

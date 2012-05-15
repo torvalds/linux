@@ -144,7 +144,7 @@ u_int32_t dfs_process_ar_event(struct ath_dfs_host *dfs)
 			continue;
 		}
 		/* Received radar of interest (i.e., signature match), proceed to check if
-		 * there is enough neighboring traffic to drop out of Turbo 
+		 * there is enough neighboring traffic to drop out of Turbo
 		 */
 		if ((width >= 33 && width <= 38) ||          /* Region 0: 24Mbps ACK = 35 = 28us */
 		    (width >= 39 && width <= 44) ||          /* Region 1: 12Mbps ACK = 40 = 32us */
@@ -156,7 +156,7 @@ u_int32_t dfs_process_ar_event(struct ath_dfs_host *dfs)
 		    (width >= 257 && width <= 270) ||        /* Region 7   5.5Mbps (Long Pre) ACK = 270 = 216us */
 		    (width >= 295 && width <= 302) ||        /* Region 8   2Mbps (Long Pre) ACK = 320 = 256us */
 		    /* Ignoring Region 9 due to overlap with 255 which is same as board noise */
-		    /* Region 9  11Mbps (Long Pre) ACK = 255 = 204us */            
+		    /* Region 9  11Mbps (Long Pre) ACK = 255 = 204us */
 		    (width == 3)) {
 			ar->ar_acksum++;
 			/* double the count for strong radars that match one of the ACK signatures */
@@ -193,7 +193,7 @@ u_int32_t dfs_process_ar_event(struct ath_dfs_host *dfs)
 					} else {
 						sumpeak += ar->ar_phyerrcount[ar->ar_peaklist[i]];
 					}
-				} else 
+				} else
 					numpeaks--;
 			}
 			/*

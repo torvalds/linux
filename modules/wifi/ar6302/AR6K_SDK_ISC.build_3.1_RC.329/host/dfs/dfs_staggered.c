@@ -22,7 +22,7 @@ int is_pri_multiple(u_int32_t sample_pri, u_int32_t refpri)
 #define MAX_ALLOWED_MISSED 3
     int i;
 
-    if (sample_pri < refpri || (!refpri)) 
+    if (sample_pri < refpri || (!refpri))
         return 0;
 
     for (i=1; i<= MAX_ALLOWED_MISSED; i++) {
@@ -35,8 +35,8 @@ int is_pri_multiple(u_int32_t sample_pri, u_int32_t refpri)
 #undef MAX_ALLOWED_MISSED
 }
 
-int is_unique_pri(u_int32_t highestpri , u_int32_t midpri, 
-        u_int32_t lowestpri , u_int32_t refpri ) 
+int is_unique_pri(u_int32_t highestpri , u_int32_t midpri,
+        u_int32_t lowestpri , u_int32_t refpri )
 {
 #define DFS_STAGGERED_PRI_MARGIN_MIN  20
 #define DFS_STAGGERED_PRI_MARGIN_MAX  400
@@ -46,7 +46,7 @@ int is_unique_pri(u_int32_t highestpri , u_int32_t midpri,
         return 1;
     } else {
         if ((is_pri_multiple(refpri, highestpri)) || (is_pri_multiple(refpri, lowestpri)) ||
-           (is_pri_multiple(refpri, midpri))) 
+           (is_pri_multiple(refpri, midpri)))
         return 0;
     }
     return 0;
@@ -71,11 +71,11 @@ int dfs_staggered_check(struct ath_dfs_host *dfs, struct dfs_filter *rf,
 
     dl = &rf->rf_dl;
     if( dl->dl_numelems < (rf->rf_threshold-1)) {
-        DFS_DPRINTK(dfs, ATH_DEBUG_DFS2, "numelems %d < threshold for filter %d\n", dl->dl_numelems, rf->rf_pulseid);    
-        return 0; 
+        DFS_DPRINTK(dfs, ATH_DEBUG_DFS2, "numelems %d < threshold for filter %d\n", dl->dl_numelems, rf->rf_pulseid);
+        return 0;
     }
     if( deltaT > rf->rf_filterlen) {
-        DFS_DPRINTK(dfs, ATH_DEBUG_DFS2, "numelems %d < threshold for filter %d\n", dl->dl_numelems, rf->rf_pulseid);    
+        DFS_DPRINTK(dfs, ATH_DEBUG_DFS2, "numelems %d < threshold for filter %d\n", dl->dl_numelems, rf->rf_pulseid);
         return 0;
     }
     primargin = 10;
@@ -114,7 +114,7 @@ int dfs_staggered_check(struct ath_dfs_host *dfs, struct dfs_filter *rf,
         if( score[n] > rf->rf_threshold) {
             /* we got the most possible candidate,
              * no need to continue further */
-            DFS_DPRINTK(dfs, ATH_DEBUG_DFS2, "THRESH score[%d]=%d pri=%d\n", n, score[n], searchpri);                       
+            DFS_DPRINTK(dfs, ATH_DEBUG_DFS2, "THRESH score[%d]=%d pri=%d\n", n, score[n], searchpri);
             break;
         }
     }
@@ -136,7 +136,7 @@ int dfs_staggered_check(struct ath_dfs_host *dfs, struct dfs_filter *rf,
         delayindex = (dl->dl_firstelem + n) & DFS_MAX_DL_MASK;
         refpri = dl->dl_elems[delayindex].de_time;
 
-        if ((score[n] >= highestscore) && 
+        if ((score[n] >= highestscore) &&
                 (is_unique_pri(highestpri, midpri, lowestpri, refpri))) {
             lowestscore = midscore;
             lowestpri = midpri;
@@ -162,7 +162,7 @@ int dfs_staggered_check(struct ath_dfs_host *dfs, struct dfs_filter *rf,
                 lowestpri = refpri;
                 lowestscoreindex = n;
             }
-        } 
+        }
 
     }
 
@@ -183,7 +183,7 @@ int dfs_staggered_check(struct ath_dfs_host *dfs, struct dfs_filter *rf,
     DFS_DPRINTK(dfs, ATH_DEBUG_DFS1, "midscoreindex=%d refdur=%d refpri=%d\n", midscoreindex, refdur, refpri);
 
     numpulses += dfs_bin_pri_check(dfs, rf, dl, midscore, refpri, refdur, 0, ext_chan_busy);
-    ; 
+    ;
     delayindex = (dl->dl_firstelem + lowestscoreindex) & DFS_MAX_DL_MASK;
     refdur = dl->dl_elems[delayindex].de_dur;
     refpri = dl->dl_elems[delayindex].de_time;
@@ -194,7 +194,7 @@ int dfs_staggered_check(struct ath_dfs_host *dfs, struct dfs_filter *rf,
 
     if (numpulses >= rf->rf_threshold) {
         found = 1;
-        DFS_DPRINTK(dfs, ATH_DEBUG_DFS, "MATCH filter=%u numpulses=%u thresh=%u\n", rf->rf_pulseid, numpulses,rf->rf_threshold);     
+        DFS_DPRINTK(dfs, ATH_DEBUG_DFS, "MATCH filter=%u numpulses=%u thresh=%u\n", rf->rf_pulseid, numpulses,rf->rf_threshold);
     }
     return found;
 }

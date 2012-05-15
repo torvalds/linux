@@ -22,7 +22,7 @@ Install FC9-liveCD to USB disk (create a liveUSB):
    **** MAKE SURE YOUR PC CAN BOOT TO USB DISKS, older PCs may not support this in their BIOS ******
 
    A 4GB USB drive will be sufficient although 8GB is recommended.
-   
+
    **** Limitations:
          Using LiveUSB has some limitations:
              1. USB flash drives have limited writes (typically 100,000).  The swap partition is disabled on
@@ -35,11 +35,11 @@ Install FC9-liveCD to USB disk (create a liveUSB):
 
    Making FAT-based USB image on Windows Host PC :
    ===============================================
-   
+
    A windowsPC Utility is available to install a liveCD ISO image directly onto a USB disk and make the disk
    bootable. See: https://fedorahosted.org/liveusb-creator
 
-   This method requires a liveCD ISO file for FC9.  FC9 is the current version that 
+   This method requires a liveCD ISO file for FC9.  FC9 is the current version that
    support LiveUSB's persistent data storage.  You can install applications, new tools, SDKs etc..
 
    You can find the FC9 liveCD here:
@@ -54,22 +54,22 @@ Install FC9-liveCD to USB disk (create a liveUSB):
 
    Making Ext2-based USB image on Linux Host (for use on FC9 or later host) :
    ============================================================================
-   
+
    Get the liveCD ISO image from http://fedoraproject.org/get-fedora
-   
+
    Install the liveusb-creator utilities (as super user) :
-   
+
        > yum install liveusb-creator
        > yum --enablerepo=rawhide update syslinux
-   
+
    Partition USB disk:
-   
+
        > fdisk /dev/<usb disk e.g. sdb>
 
-		<--------- fdisk interactive dump: ---->       
+		<--------- fdisk interactive dump: ---->
 		Command (m for help): d
 		Selected partition 1
-		
+
 		Command (m for help): n
 		Command action
 		e   extended
@@ -80,34 +80,34 @@ Install FC9-liveCD to USB disk (create a liveUSB):
 		Using default value 1
 		Last cylinder or +size or +sizeM or +sizeK (1-960, default 960):
 		Using default value 960
-		
+
 		Command (m for help): t
 		Selected partition 1
 		Hex code (type L to list codes): 83
-		
+
 		Command (m for help): a
 		Partition number (1-4): 1
-		
+
 		Command (m for help): w
 		The partition table has been altered!
-		
+
 		<----------------------------------------->
- 
+
 	Format partition as ext2:
-        
+
         > umount /dev/<usb disk e.g. sdb1>
         > mkfs.ext2 /dev/<usb disk>
-        
+
     Run liveusb-creator GUI application:
-    
+
         > liveusb-creator
-   
+
     Select ISO image, kernel type (FC9-i686) and persistent storage size.
-      
+
         see : https://fedorahosted.org/liveusb-creator
-        
-           
-  
+
+
+
 Checking and installing packages:
 =================================
 
@@ -118,16 +118,16 @@ Log in as superuser
 execute the following:
 
    yum install yum-utils rpmdevtools
-   yum install kernel-devel  
+   yum install kernel-devel
    yum install gtk2-devel
    yum install dbus-glib-devel
    yum install bluez-utils-gstreamer
-   yum install openssl-devel             
-   yum install libpcap-devel 
+   yum install openssl-devel
+   yum install libpcap-devel
    yum install bluez-libs-devel
    yum install alsa-lib-devel
    yum install dbus-devel
-   
+
 Some useful utilities:
 
    yum install telnet-server
@@ -140,24 +140,24 @@ For compilation of newer BlueZ utilities and BlueZ stack:
    yum install bison
 
 
-Setting up and BUILDING OLCA 
+Setting up and BUILDING OLCA
 =============================
 
 1. Export ATH_BUILD_TYPE=LOCAL_FC9_i686
    Export ATH_BUS_TYPE=SDIO
-   
+
    The default kernel path is set to:
 
        ATH_LINUXPATH=/lib/modules/2.6.25-14.fc9.i686/build
 
-2. Set your WORKAREA and build normally.  
+2. Set your WORKAREA and build normally.
 
 
 Testing AR6K
 ============
 
 1. Unload sdhci (MMC-stack standard host driver)
-   
+
    as root, execute  "rmmod sdhci"
 
 2. Set NETIF, WORKAREA, ATH_PLATFORM variables and execute the load script (same procedure as FC3).

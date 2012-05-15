@@ -26,7 +26,7 @@ dfs_print_delayline(struct ath_dfs_host *dfs, struct dfs_delayline *dl)
     index = dl->dl_lastelem;
     for (i=0; i<dl->dl_numelems; i++) {
         de = &dl->dl_elems[index];
-        DFS_DPRINTK(dfs, ATH_DEBUG_DFS2, 
+        DFS_DPRINTK(dfs, ATH_DEBUG_DFS2,
                 "Elem %d: ts = %u (0x%x) dur=%u\n",i,
                 de->de_time, de->de_time, de->de_dur);
         index = (index - 1)& DFS_MAX_DL_MASK;
@@ -55,7 +55,7 @@ dfs_print_filters(struct ath_dfs_host *dfs)
     for (i=0; i<DFS_MAX_RADAR_TYPES; i++) {
         if (dfs->dfs_radarf[i] != NULL) {
             ft = dfs->dfs_radarf[i];
-            if((ft->ft_numfilters > DFS_MAX_NUM_RADAR_FILTERS) || (!ft->ft_numfilters)) 
+            if((ft->ft_numfilters > DFS_MAX_NUM_RADAR_FILTERS) || (!ft->ft_numfilters))
                 continue;
             printk("===========ft->ft_numfilters=%u===========\n", ft->ft_numfilters);
             for (j=0; j<ft->ft_numfilters; j++) {

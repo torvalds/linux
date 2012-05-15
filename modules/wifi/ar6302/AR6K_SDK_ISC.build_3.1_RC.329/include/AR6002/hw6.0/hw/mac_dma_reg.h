@@ -1,6 +1,6 @@
 // ------------------------------------------------------------------
 // Copyright (c) 2004-2007 Atheros Corporation.  All rights reserved.
-// 
+//
 //
 // Permission to use, copy, modify, and/or distribute this software for any
 // purpose with or without fee is hereby granted, provided that the above
@@ -104,11 +104,11 @@
 #define MAC_DMA_ISR_S3_RX_LP_Q_OVF_MASK                    0x00004000 // Rxdp  LPQ overflow
 #define MAC_DMA_ISR_S3_RX_HP_Q_OVF_MASK                    0x00008000 // Rxdp  HPQ overflow
 #define MAC_DMA_ISR_S3_QCU_QCBRURN_MASK                    0x03FF0000 // Mask for QCBRURN (QCU 0-9)
-#define MAC_DMA_ISR_S3_BRSSI_LO_MASK                       0x04000000 // RSSI HI of a beacon threshold 
-#define MAC_DMA_ISR_S3_BRSSI_HI_MASK                       0x08000000 // RSSI LO of a beacon threshold 
-#define MAC_DMA_ISR_S3_BRSSI_LO2_MASK                      0x10000000 // RSSI HI2 of a beacon threshold 
+#define MAC_DMA_ISR_S3_BRSSI_LO_MASK                       0x04000000 // RSSI HI of a beacon threshold
+#define MAC_DMA_ISR_S3_BRSSI_HI_MASK                       0x08000000 // RSSI LO of a beacon threshold
+#define MAC_DMA_ISR_S3_BRSSI_LO2_MASK                      0x10000000 // RSSI HI2 of a beacon threshold
 #define MAC_DMA_ISR_S3_BRSSI_HI2_MASK                      0x20000000 // RSSI LO2 of a beacon threshold
-#define MAC_DMA_ISR_S3_BMISS_MASK                          0x40000000 // Beacon miss 
+#define MAC_DMA_ISR_S3_BMISS_MASK                          0x40000000 // Beacon miss
 #define MAC_DMA_ISR_S3_BMISS2_MASK                         0x80000000 // Beacon miss2
 
 /* MAC Secondary interrupt status register 4 */
@@ -141,7 +141,7 @@
 #define MAC_DMA_ISR_S5_GENERIC_TIMER2_THRESHOLD(_i)        (0x01000000 << (_i))
 
 /* MAC Secondary interrupt status register 6 */
-#define MAC_DMA_ISR_S6_BB_MAC_TEMP_SENSOR_MASK             0x00000001 
+#define MAC_DMA_ISR_S6_BB_MAC_TEMP_SENSOR_MASK             0x00000001
 #define MAC_DMA_ISR_S6_BB_PANIC_IRQ_MASK                   0x00000002
 #define MAC_DMA_ISR_S6_BT_LOW_PRIORITY_RISING_MASK         0x00000004
 #define MAC_DMA_ISR_S6_BT_LOW_PRIORITY_FALLING_MASK        0x00000008
@@ -153,155 +153,155 @@
 #define MAC_DMA_ISR_S6_BT_PRIORITY_FALLING_MASK            0x00000200
 #define MAC_DMA_ISR_S6_MBZ_MASK                            0xfffffc00
 
-#define MAC_DMA_IMR_MASK_MSB                               MAC_DMA_IMR_P_MASK_MSB    
-#define MAC_DMA_IMR_MASK_LSB                               MAC_DMA_IMR_P_MASK_LSB   
-#define MAC_DMA_IMR_MASK_MASK                              MAC_DMA_IMR_P_MASK_MASK  
+#define MAC_DMA_IMR_MASK_MSB                               MAC_DMA_IMR_P_MASK_MSB
+#define MAC_DMA_IMR_MASK_LSB                               MAC_DMA_IMR_P_MASK_LSB
+#define MAC_DMA_IMR_MASK_MASK                              MAC_DMA_IMR_P_MASK_MASK
 #define MAC_DMA_IMR_MASK_GET(x)                            MAC_DMA_IMR_P_MASK_GET(x)
 #define MAC_DMA_IMR_MASK_SET(x)                            MAC_DMA_IMR_P_MASK_SET(x)
-#define MAC_DMA_IMR_ADDRESS                                MAC_DMA_IMR_P_ADDRESS    
+#define MAC_DMA_IMR_ADDRESS                                MAC_DMA_IMR_P_ADDRESS
 
 /* Primary Interrupt mask Register */
 #define MAC_DMA_IMR_HP_RXOK_MASK                           MAC_DMA_ISR_HP_RXOK_MASK
 #define MAC_DMA_IMR_LP_RXOK_MASK                           MAC_DMA_ISR_LP_RXOK_MASK
-#define MAC_DMA_IMR_RXERR_MASK                             MAC_DMA_ISR_RXERR_MASK  
+#define MAC_DMA_IMR_RXERR_MASK                             MAC_DMA_ISR_RXERR_MASK
 #define MAC_DMA_IMR_RXNOPKT_MASK                           MAC_DMA_ISR_RXNOPKT_MASK
-#define MAC_DMA_IMR_RXEOL_MASK                             MAC_DMA_ISR_RXEOL_MASK  
-#define MAC_DMA_IMR_RXORN_MASK                             MAC_DMA_ISR_RXORN_MASK  
-#define MAC_DMA_IMR_TXOK_MASK                              MAC_DMA_ISR_TXOK_MASK   
-#define MAC_DMA_IMR_BTINT_MASK                             MAC_DMA_ISR_BTINT_MASK  
-#define MAC_DMA_IMR_TXERR_MASK                             MAC_DMA_ISR_TXERR_MASK  
+#define MAC_DMA_IMR_RXEOL_MASK                             MAC_DMA_ISR_RXEOL_MASK
+#define MAC_DMA_IMR_RXORN_MASK                             MAC_DMA_ISR_RXORN_MASK
+#define MAC_DMA_IMR_TXOK_MASK                              MAC_DMA_ISR_TXOK_MASK
+#define MAC_DMA_IMR_BTINT_MASK                             MAC_DMA_ISR_BTINT_MASK
+#define MAC_DMA_IMR_TXERR_MASK                             MAC_DMA_ISR_TXERR_MASK
 #define MAC_DMA_IMR_TXNOPKT_MASK                           MAC_DMA_ISR_TXNOPKT_MASK
-#define MAC_DMA_IMR_TXEOL_MASK                             MAC_DMA_ISR_TXEOL_MASK  
-#define MAC_DMA_IMR_TXURN_MASK                             MAC_DMA_ISR_TXURN_MASK  
-#define MAC_DMA_IMR_MIB_MASK                               MAC_DMA_ISR_MIB_MASK    
-#define MAC_DMA_IMR_SWI_MASK                               MAC_DMA_ISR_SWI_MASK    
-#define MAC_DMA_IMR_RXPHY_MASK                             MAC_DMA_ISR_RXPHY_MASK  
-#define MAC_DMA_IMR_RXKCM_MASK                             MAC_DMA_ISR_RXKCM_MASK  
-#define MAC_DMA_IMR_SWBA_MASK                              MAC_DMA_ISR_SWBA_MASK   
-#define MAC_DMA_IMR_BRSSI_MASK                             MAC_DMA_ISR_BRSSI_MASK  
-#define MAC_DMA_IMR_BMISS_MASK                             MAC_DMA_ISR_BMISS_MASK  
+#define MAC_DMA_IMR_TXEOL_MASK                             MAC_DMA_ISR_TXEOL_MASK
+#define MAC_DMA_IMR_TXURN_MASK                             MAC_DMA_ISR_TXURN_MASK
+#define MAC_DMA_IMR_MIB_MASK                               MAC_DMA_ISR_MIB_MASK
+#define MAC_DMA_IMR_SWI_MASK                               MAC_DMA_ISR_SWI_MASK
+#define MAC_DMA_IMR_RXPHY_MASK                             MAC_DMA_ISR_RXPHY_MASK
+#define MAC_DMA_IMR_RXKCM_MASK                             MAC_DMA_ISR_RXKCM_MASK
+#define MAC_DMA_IMR_SWBA_MASK                              MAC_DMA_ISR_SWBA_MASK
+#define MAC_DMA_IMR_BRSSI_MASK                             MAC_DMA_ISR_BRSSI_MASK
+#define MAC_DMA_IMR_BMISS_MASK                             MAC_DMA_ISR_BMISS_MASK
 #define MAC_DMA_IMR_TXMINTR_MASK                           MAC_DMA_ISR_TXMINTR_MASK
-#define MAC_DMA_IMR_BNR_MASK                               MAC_DMA_ISR_BNR_MASK    
-#define MAC_DMA_IMR_RXINT_MASK                             MAC_DMA_ISR_RXINT_MASK  
+#define MAC_DMA_IMR_BNR_MASK                               MAC_DMA_ISR_BNR_MASK
+#define MAC_DMA_IMR_RXINT_MASK                             MAC_DMA_ISR_RXINT_MASK
 #define MAC_DMA_IMR_HCFPOLL_MASK                           MAC_DMA_ISR_HCFPOLL_MASK
 #define MAC_DMA_IMR_BCNMISC_MASK                           MAC_DMA_ISR_BCNMISC_MASK
-#define MAC_DMA_IMR_TIM_MASK                               MAC_DMA_ISR_TIM_MASK    
+#define MAC_DMA_IMR_TIM_MASK                               MAC_DMA_ISR_TIM_MASK
 #define MAC_DMA_IMR_RXMINTR_MASK                           MAC_DMA_ISR_RXMINTR_MASK
 #define MAC_DMA_IMR_QCBROVF_MASK                           MAC_DMA_ISR_QCBROVF_MASK
 #define MAC_DMA_IMR_QCBRURN_MASK                           MAC_DMA_ISR_QCBRURN_MASK
-#define MAC_DMA_IMR_QTRIG_MASK                             MAC_DMA_ISR_QTRIG_MASK  
-#define MAC_DMA_IMR_TIMER_MASK                             MAC_DMA_ISR_TIMER_MASK  
-#define MAC_DMA_IMR_HCFTO_MASK                             MAC_DMA_ISR_HCFTO_MASK  
-#define MAC_DMA_IMR_TXINTM_MASK                            MAC_DMA_ISR_TXINTM_MASK 
-#define MAC_DMA_IMR_RXINTM_MASK                            MAC_DMA_ISR_RXINTM_MASK 
+#define MAC_DMA_IMR_QTRIG_MASK                             MAC_DMA_ISR_QTRIG_MASK
+#define MAC_DMA_IMR_TIMER_MASK                             MAC_DMA_ISR_TIMER_MASK
+#define MAC_DMA_IMR_HCFTO_MASK                             MAC_DMA_ISR_HCFTO_MASK
+#define MAC_DMA_IMR_TXINTM_MASK                            MAC_DMA_ISR_TXINTM_MASK
+#define MAC_DMA_IMR_RXINTM_MASK                            MAC_DMA_ISR_RXINTM_MASK
 
 /* MAC Secondary interrupt mask register 0 */
 #define MAC_DMA_IMR_S0_QCU_TXOK_MASK                       MAC_DMA_ISR_S0_QCU_TXOK_MASK
-#define MAC_DMA_IMR_S0_QCU_TXOK_LSB                        MAC_DMA_ISR_S0_QCU_TXOK_LSB 
+#define MAC_DMA_IMR_S0_QCU_TXOK_LSB                        MAC_DMA_ISR_S0_QCU_TXOK_LSB
 
 /* MAC Secondary interrupt mask register 1 */
 #define MAC_DMA_IMR_S1_QCU_TXERR_MASK                      MAC_DMA_ISR_S1_QCU_TXERR_MASK
-#define MAC_DMA_IMR_S1_QCU_TXERR_LSB                       MAC_DMA_ISR_S1_QCU_TXERR_LSB 
+#define MAC_DMA_IMR_S1_QCU_TXERR_LSB                       MAC_DMA_ISR_S1_QCU_TXERR_LSB
 #define MAC_DMA_IMR_S1_QCU_TXEOL_MASK                      MAC_DMA_ISR_S1_QCU_TXEOL_MASK
-#define MAC_DMA_IMR_S1_QCU_TXEOL_LSB                       MAC_DMA_ISR_S1_QCU_TXEOL_LSB 
+#define MAC_DMA_IMR_S1_QCU_TXEOL_LSB                       MAC_DMA_ISR_S1_QCU_TXEOL_LSB
 
 /* MAC Secondary interrupt mask register 2 */
-#define MAC_DMA_IMR_S2_QCU_TXURN_MASK                      MAC_DMA_ISR_S2_QCU_TXURN_MASK       
-#define MAC_DMA_IMR_S2_QCU_TXURN_LSB                       MAC_DMA_ISR_S2_QCU_TXURN_LSB        
-#define MAC_DMA_IMR_S2_TDMA_START_ERR_MASK                 MAC_DMA_ISR_S2_TDMA_START_ERR_MASK  
+#define MAC_DMA_IMR_S2_QCU_TXURN_MASK                      MAC_DMA_ISR_S2_QCU_TXURN_MASK
+#define MAC_DMA_IMR_S2_QCU_TXURN_LSB                       MAC_DMA_ISR_S2_QCU_TXURN_LSB
+#define MAC_DMA_IMR_S2_TDMA_START_ERR_MASK                 MAC_DMA_ISR_S2_TDMA_START_ERR_MASK
 #define MAC_DMA_IMR_S2_TDMA_TX_AP_PULSE_MASK               MAC_DMA_ISR_S2_TDMA_TX_AP_PULSE_MASK
-#define MAC_DMA_IMR_S2_RX_PTR_BAD_MASK                     MAC_DMA_ISR_S2_RX_PTR_BAD_MASK      
-#define MAC_DMA_IMR_S2_TIM2_MASK                           MAC_DMA_ISR_S2_TIM2_MASK            
-#define MAC_DMA_IMR_S2_CAB2END_MASK                        MAC_DMA_ISR_S2_CAB2END_MASK         
-#define MAC_DMA_IMR_S2_DTIM2SYNC_MASK                      MAC_DMA_ISR_S2_DTIM2SYNC_MASK       
-#define MAC_DMA_IMR_S2_BCN2TO_MASK                         MAC_DMA_ISR_S2_BCN2TO_MASK          
-#define MAC_DMA_IMR_S2_CAB2TO_MASK                         MAC_DMA_ISR_S2_CAB2TO_MASK          
-#define MAC_DMA_IMR_S2_DTIM2_MASK                          MAC_DMA_ISR_S2_DTIM2_MASK           
-#define MAC_DMA_IMR_S2_TSF2OOR_MASK                        MAC_DMA_ISR_S2_TSF2OOR_MASK         
-#define MAC_DMA_IMR_S2_TBTT2_TIME_MASK                     MAC_DMA_ISR_S2_TBTT2_TIME_MASK      
-#define MAC_DMA_IMR_S2_CST_MASK                            MAC_DMA_ISR_S2_CST_MASK             
-#define MAC_DMA_IMR_S2_GTT_MASK                            MAC_DMA_ISR_S2_GTT_MASK             
-#define MAC_DMA_IMR_S2_TIM_MASK                            MAC_DMA_ISR_S2_TIM_MASK             
-#define MAC_DMA_IMR_S2_CABEND_MASK                         MAC_DMA_ISR_S2_CABEND_MASK          
-#define MAC_DMA_IMR_S2_DTIMSYNC_MASK                       MAC_DMA_ISR_S2_DTIMSYNC_MASK        
-#define MAC_DMA_IMR_S2_BCNTO_MASK                          MAC_DMA_ISR_S2_BCNTO_MASK           
-#define MAC_DMA_IMR_S2_CABTO_MASK                          MAC_DMA_ISR_S2_CABTO_MASK           
-#define MAC_DMA_IMR_S2_DTIM_MASK                           MAC_DMA_ISR_S2_DTIM_MASK            
-#define MAC_DMA_IMR_S2_TSFOOR_MASK                         MAC_DMA_ISR_S2_TSFOOR_MASK          
-#define MAC_DMA_IMR_S2_TBTT_TIME_MASK                      MAC_DMA_ISR_S2_TBTT_TIME_MASK       
+#define MAC_DMA_IMR_S2_RX_PTR_BAD_MASK                     MAC_DMA_ISR_S2_RX_PTR_BAD_MASK
+#define MAC_DMA_IMR_S2_TIM2_MASK                           MAC_DMA_ISR_S2_TIM2_MASK
+#define MAC_DMA_IMR_S2_CAB2END_MASK                        MAC_DMA_ISR_S2_CAB2END_MASK
+#define MAC_DMA_IMR_S2_DTIM2SYNC_MASK                      MAC_DMA_ISR_S2_DTIM2SYNC_MASK
+#define MAC_DMA_IMR_S2_BCN2TO_MASK                         MAC_DMA_ISR_S2_BCN2TO_MASK
+#define MAC_DMA_IMR_S2_CAB2TO_MASK                         MAC_DMA_ISR_S2_CAB2TO_MASK
+#define MAC_DMA_IMR_S2_DTIM2_MASK                          MAC_DMA_ISR_S2_DTIM2_MASK
+#define MAC_DMA_IMR_S2_TSF2OOR_MASK                        MAC_DMA_ISR_S2_TSF2OOR_MASK
+#define MAC_DMA_IMR_S2_TBTT2_TIME_MASK                     MAC_DMA_ISR_S2_TBTT2_TIME_MASK
+#define MAC_DMA_IMR_S2_CST_MASK                            MAC_DMA_ISR_S2_CST_MASK
+#define MAC_DMA_IMR_S2_GTT_MASK                            MAC_DMA_ISR_S2_GTT_MASK
+#define MAC_DMA_IMR_S2_TIM_MASK                            MAC_DMA_ISR_S2_TIM_MASK
+#define MAC_DMA_IMR_S2_CABEND_MASK                         MAC_DMA_ISR_S2_CABEND_MASK
+#define MAC_DMA_IMR_S2_DTIMSYNC_MASK                       MAC_DMA_ISR_S2_DTIMSYNC_MASK
+#define MAC_DMA_IMR_S2_BCNTO_MASK                          MAC_DMA_ISR_S2_BCNTO_MASK
+#define MAC_DMA_IMR_S2_CABTO_MASK                          MAC_DMA_ISR_S2_CABTO_MASK
+#define MAC_DMA_IMR_S2_DTIM_MASK                           MAC_DMA_ISR_S2_DTIM_MASK
+#define MAC_DMA_IMR_S2_TSFOOR_MASK                         MAC_DMA_ISR_S2_TSFOOR_MASK
+#define MAC_DMA_IMR_S2_TBTT_TIME_MASK                      MAC_DMA_ISR_S2_TBTT_TIME_MASK
 
 /* MAC Secondary interrupt mask register 3 */
 #define MAC_DMA_IMR_S3_QCU_QCBROVF_MASK                    MAC_DMA_ISR_S3_QCU_QCBROVF_MASK
 #define MAC_DMA_IMR_S3_RX_LP_Q_OVF_MASK                    MAC_DMA_ISR_S3_RX_LP_Q_OVF_MASK
 #define MAC_DMA_IMR_S3_RX_HP_Q_OVF_MASK                    MAC_DMA_ISR_S3_RX_HP_Q_OVF_MASK
 #define MAC_DMA_IMR_S3_QCU_QCBRURN_MASK                    MAC_DMA_ISR_S3_QCU_QCBRURN_MASK
-#define MAC_DMA_IMR_S3_BRSSI_LO_MASK                       MAC_DMA_ISR_S3_BRSSI_LO_MASK   
-#define MAC_DMA_IMR_S3_BRSSI_HI_MASK                       MAC_DMA_ISR_S3_BRSSI_HI_MASK   
-#define MAC_DMA_IMR_S3_BRSSI_LO2_MASK                      MAC_DMA_ISR_S3_BRSSI_LO2_MASK  
-#define MAC_DMA_IMR_S3_BRSSI_HI2_MASK                      MAC_DMA_ISR_S3_BRSSI_HI2_MASK  
-#define MAC_DMA_IMR_S3_BMISS_MASK                          MAC_DMA_ISR_S3_BMISS_MASK      
-#define MAC_DMA_IMR_S3_BMISS2_MASK                         MAC_DMA_ISR_S3_BMISS2_MASK     
+#define MAC_DMA_IMR_S3_BRSSI_LO_MASK                       MAC_DMA_ISR_S3_BRSSI_LO_MASK
+#define MAC_DMA_IMR_S3_BRSSI_HI_MASK                       MAC_DMA_ISR_S3_BRSSI_HI_MASK
+#define MAC_DMA_IMR_S3_BRSSI_LO2_MASK                      MAC_DMA_ISR_S3_BRSSI_LO2_MASK
+#define MAC_DMA_IMR_S3_BRSSI_HI2_MASK                      MAC_DMA_ISR_S3_BRSSI_HI2_MASK
+#define MAC_DMA_IMR_S3_BMISS_MASK                          MAC_DMA_ISR_S3_BMISS_MASK
+#define MAC_DMA_IMR_S3_BMISS2_MASK                         MAC_DMA_ISR_S3_BMISS2_MASK
 
 /* MAC Secondary interrupt mask register 4 */
-#define MAC_DMA_IMR_S4_QCU_QTRIG_MASK                      MAC_DMA_ISR_S4_QCU_QTRIG_MASK      
-#define MAC_DMA_IMR_S4_QCU_QTXDP_OVF_MASK                  MAC_DMA_ISR_S4_QCU_QTXDP_OVF_MASK  
+#define MAC_DMA_IMR_S4_QCU_QTRIG_MASK                      MAC_DMA_ISR_S4_QCU_QTRIG_MASK
+#define MAC_DMA_IMR_S4_QCU_QTXDP_OVF_MASK                  MAC_DMA_ISR_S4_QCU_QTXDP_OVF_MASK
 #define MAC_DMA_IMR_S4_QCU_TXDP_TH_INT_MASK                MAC_DMA_ISR_S4_QCU_TXDP_TH_INT_MASK
 
 /* MAC Secondary interrupt mask register 5 */
-#define MAC_DMA_IMR_S5_TBTT_TIMER_TRIGGER_MASK             MAC_DMA_ISR_S5_TBTT_TIMER_TRIGGER_MASK      
-#define MAC_DMA_IMR_S5_DBA_TIMER_TRIGGER_MASK              MAC_DMA_ISR_S5_DBA_TIMER_TRIGGER_MASK       
-#define MAC_DMA_IMR_S5_SBA_TIMER_TRIGGER_MASK              MAC_DMA_ISR_S5_SBA_TIMER_TRIGGER_MASK       
-#define MAC_DMA_IMR_S5_HCF_TIMER_TRIGGER_MASK              MAC_DMA_ISR_S5_HCF_TIMER_TRIGGER_MASK       
-#define MAC_DMA_IMR_S5_TIM_TIMER_TRIGGER_MASK              MAC_DMA_ISR_S5_TIM_TIMER_TRIGGER_MASK       
-#define MAC_DMA_IMR_S5_DTIM_TIMER_TRIGGER_MASK             MAC_DMA_ISR_S5_DTIM_TIMER_TRIGGER_MASK      
-#define MAC_DMA_IMR_S5_QUIET_TIMER_TRIGGER_MASK            MAC_DMA_ISR_S5_QUIET_TIMER_TRIGGER_MASK     
-#define MAC_DMA_IMR_S5_NDP_TIMER_TRIGGER_MASK              MAC_DMA_ISR_S5_NDP_TIMER_TRIGGER_MASK       
-#define MAC_DMA_IMR_S5_GENERIC_TIMER2_TRIGGER_MASK         MAC_DMA_ISR_S5_GENERIC_TIMER2_TRIGGER_MASK  
-#define MAC_DMA_IMR_S5_GENERIC_TIMER2_TRIGGER_LSB          MAC_DMA_ISR_S5_GENERIC_TIMER2_TRIGGER_LSB   
-#define MAC_DMA_IMR_S5_GENERIC_TIMER2_TRIGGER(_i)          MAC_DMA_ISR_S5_GENERIC_TIMER2_TRIGGER(_i)   
-#define MAC_DMA_IMR_S5_TIMER_OVERFLOW_MASK                 MAC_DMA_ISR_S5_TIMER_OVERFLOW_MASK          
-#define MAC_DMA_IMR_S5_DBA_TIMER_THRESHOLD_MASK            MAC_DMA_ISR_S5_DBA_TIMER_THRESHOLD_MASK     
-#define MAC_DMA_IMR_S5_SBA_TIMER_THRESHOLD_MASK            MAC_DMA_ISR_S5_SBA_TIMER_THRESHOLD_MASK     
-#define MAC_DMA_IMR_S5_HCF_TIMER_THRESHOLD_MASK            MAC_DMA_ISR_S5_HCF_TIMER_THRESHOLD_MASK     
-#define MAC_DMA_IMR_S5_TIM_TIMER_THRESHOLD_MASK            MAC_DMA_ISR_S5_TIM_TIMER_THRESHOLD_MASK     
-#define MAC_DMA_IMR_S5_DTIM_TIMER_THRESHOLD_MASK           MAC_DMA_ISR_S5_DTIM_TIMER_THRESHOLD_MASK    
-#define MAC_DMA_IMR_S5_QUIET_TIMER_THRESHOLD_MASK          MAC_DMA_ISR_S5_QUIET_TIMER_THRESHOLD_MASK   
-#define MAC_DMA_IMR_S5_NDP_TIMER_THRESHOLD_MASK            MAC_DMA_ISR_S5_NDP_TIMER_THRESHOLD_MASK     
+#define MAC_DMA_IMR_S5_TBTT_TIMER_TRIGGER_MASK             MAC_DMA_ISR_S5_TBTT_TIMER_TRIGGER_MASK
+#define MAC_DMA_IMR_S5_DBA_TIMER_TRIGGER_MASK              MAC_DMA_ISR_S5_DBA_TIMER_TRIGGER_MASK
+#define MAC_DMA_IMR_S5_SBA_TIMER_TRIGGER_MASK              MAC_DMA_ISR_S5_SBA_TIMER_TRIGGER_MASK
+#define MAC_DMA_IMR_S5_HCF_TIMER_TRIGGER_MASK              MAC_DMA_ISR_S5_HCF_TIMER_TRIGGER_MASK
+#define MAC_DMA_IMR_S5_TIM_TIMER_TRIGGER_MASK              MAC_DMA_ISR_S5_TIM_TIMER_TRIGGER_MASK
+#define MAC_DMA_IMR_S5_DTIM_TIMER_TRIGGER_MASK             MAC_DMA_ISR_S5_DTIM_TIMER_TRIGGER_MASK
+#define MAC_DMA_IMR_S5_QUIET_TIMER_TRIGGER_MASK            MAC_DMA_ISR_S5_QUIET_TIMER_TRIGGER_MASK
+#define MAC_DMA_IMR_S5_NDP_TIMER_TRIGGER_MASK              MAC_DMA_ISR_S5_NDP_TIMER_TRIGGER_MASK
+#define MAC_DMA_IMR_S5_GENERIC_TIMER2_TRIGGER_MASK         MAC_DMA_ISR_S5_GENERIC_TIMER2_TRIGGER_MASK
+#define MAC_DMA_IMR_S5_GENERIC_TIMER2_TRIGGER_LSB          MAC_DMA_ISR_S5_GENERIC_TIMER2_TRIGGER_LSB
+#define MAC_DMA_IMR_S5_GENERIC_TIMER2_TRIGGER(_i)          MAC_DMA_ISR_S5_GENERIC_TIMER2_TRIGGER(_i)
+#define MAC_DMA_IMR_S5_TIMER_OVERFLOW_MASK                 MAC_DMA_ISR_S5_TIMER_OVERFLOW_MASK
+#define MAC_DMA_IMR_S5_DBA_TIMER_THRESHOLD_MASK            MAC_DMA_ISR_S5_DBA_TIMER_THRESHOLD_MASK
+#define MAC_DMA_IMR_S5_SBA_TIMER_THRESHOLD_MASK            MAC_DMA_ISR_S5_SBA_TIMER_THRESHOLD_MASK
+#define MAC_DMA_IMR_S5_HCF_TIMER_THRESHOLD_MASK            MAC_DMA_ISR_S5_HCF_TIMER_THRESHOLD_MASK
+#define MAC_DMA_IMR_S5_TIM_TIMER_THRESHOLD_MASK            MAC_DMA_ISR_S5_TIM_TIMER_THRESHOLD_MASK
+#define MAC_DMA_IMR_S5_DTIM_TIMER_THRESHOLD_MASK           MAC_DMA_ISR_S5_DTIM_TIMER_THRESHOLD_MASK
+#define MAC_DMA_IMR_S5_QUIET_TIMER_THRESHOLD_MASK          MAC_DMA_ISR_S5_QUIET_TIMER_THRESHOLD_MASK
+#define MAC_DMA_IMR_S5_NDP_TIMER_THRESHOLD_MASK            MAC_DMA_ISR_S5_NDP_TIMER_THRESHOLD_MASK
 #define MAC_DMA_IMR_S5_GENERIC_TIMER2_THRESHOLD_MASK       MAC_DMA_ISR_S5_GENERIC_TIMER2_THRESHOLD_MASK
-#define MAC_DMA_IMR_S5_GENERIC_TIMER2_THRESHOLD_LSB        MAC_DMA_ISR_S5_GENERIC_TIMER2_THRESHOLD_LSB 
-#define MAC_DMA_IMR_S5_GENERIC_TIMER2_THRESHOLD(_i)        MAC_DMA_ISR_S5_GENERIC_TIMER2_THRESHOLD(_i) 
+#define MAC_DMA_IMR_S5_GENERIC_TIMER2_THRESHOLD_LSB        MAC_DMA_ISR_S5_GENERIC_TIMER2_THRESHOLD_LSB
+#define MAC_DMA_IMR_S5_GENERIC_TIMER2_THRESHOLD(_i)        MAC_DMA_ISR_S5_GENERIC_TIMER2_THRESHOLD(_i)
 
 /* MAC Secondary interrupt mask register 6 */
-#define MAC_DMA_IMR_S6_BB_MAC_TEMP_SENSOR_MASK             MAC_DMA_ISR_S6_BB_MAC_TEMP_SENSOR_MASK     
-#define MAC_DMA_IMR_S6_BB_PANIC_IRQ_MASK                   MAC_DMA_ISR_S6_BB_PANIC_IRQ_MASK           
-#define MAC_DMA_IMR_S6_BT_LOW_PRIORITY_RISING_MASK         MAC_DMA_ISR_S6_BT_LOW_PRIORITY_RISING_MASK 
+#define MAC_DMA_IMR_S6_BB_MAC_TEMP_SENSOR_MASK             MAC_DMA_ISR_S6_BB_MAC_TEMP_SENSOR_MASK
+#define MAC_DMA_IMR_S6_BB_PANIC_IRQ_MASK                   MAC_DMA_ISR_S6_BB_PANIC_IRQ_MASK
+#define MAC_DMA_IMR_S6_BT_LOW_PRIORITY_RISING_MASK         MAC_DMA_ISR_S6_BT_LOW_PRIORITY_RISING_MASK
 #define MAC_DMA_IMR_S6_BT_LOW_PRIORITY_FALLING_MASK        MAC_DMA_ISR_S6_BT_LOW_PRIORITY_FALLING_MASK
-#define MAC_DMA_IMR_S6_BT_STOMPED_MASK                     MAC_DMA_ISR_S6_BT_STOMPED_MASK             
-#define MAC_DMA_IMR_S6_WL_STOMPED_MASK                     MAC_DMA_ISR_S6_WL_STOMPED_MASK             
-#define MAC_DMA_IMR_S6_BT_ACTIVE_RISING_MASK               MAC_DMA_ISR_S6_BT_ACTIVE_RISING_MASK       
-#define MAC_DMA_IMR_S6_BT_ACTIVE_FALLING_MASK              MAC_DMA_ISR_S6_BT_ACTIVE_FALLING_MASK      
-#define MAC_DMA_IMR_S6_BT_PRIORITY_RISING_MASK             MAC_DMA_ISR_S6_BT_PRIORITY_RISING_MASK     
-#define MAC_DMA_IMR_S6_BT_PRIORITY_FALLING_MASK            MAC_DMA_ISR_S6_BT_PRIORITY_FALLING_MASK    
-#define MAC_DMA_IMR_S6_MBZ_MASK                            MAC_DMA_ISR_S6_MBZ_MASK                    
+#define MAC_DMA_IMR_S6_BT_STOMPED_MASK                     MAC_DMA_ISR_S6_BT_STOMPED_MASK
+#define MAC_DMA_IMR_S6_WL_STOMPED_MASK                     MAC_DMA_ISR_S6_WL_STOMPED_MASK
+#define MAC_DMA_IMR_S6_BT_ACTIVE_RISING_MASK               MAC_DMA_ISR_S6_BT_ACTIVE_RISING_MASK
+#define MAC_DMA_IMR_S6_BT_ACTIVE_FALLING_MASK              MAC_DMA_ISR_S6_BT_ACTIVE_FALLING_MASK
+#define MAC_DMA_IMR_S6_BT_PRIORITY_RISING_MASK             MAC_DMA_ISR_S6_BT_PRIORITY_RISING_MASK
+#define MAC_DMA_IMR_S6_BT_PRIORITY_FALLING_MASK            MAC_DMA_ISR_S6_BT_PRIORITY_FALLING_MASK
+#define MAC_DMA_IMR_S6_MBZ_MASK                            MAC_DMA_ISR_S6_MBZ_MASK
 
-#define MAC_DMA_TIMT_TX_FIRST_PKT_THRESH_LSB               MAC_DMA_TIMT_0_TX_FIRST_PKT_THRESH_LSB 
+#define MAC_DMA_TIMT_TX_FIRST_PKT_THRESH_LSB               MAC_DMA_TIMT_0_TX_FIRST_PKT_THRESH_LSB
 #define MAC_DMA_TIMT_TX_FIRST_PKT_THRESH_MASK              MAC_DMA_TIMT_0_TX_FIRST_PKT_THRESH_MASK
 #define MAC_DMA_TIMT_TX_LAST_PKT_THRESH_LSB                MAC_DMA_TIMT_0_TX_LAST_PKT_THRESH_LSB
 #define MAC_DMA_TIMT_TX_LAST_PKT_THRESH_MASK               MAC_DMA_TIMT_0_TX_LAST_PKT_THRESH_MASK
 #define MAC_DMA_TIMT_ADDRESS                               MAC_DMA_TIMT_0_ADDRESS
 #define MAC_DMA_TIMT_ADDR(_i)                              (MAC_DMA_TIMT_0_ADDRESS + ((_i)<<2))
-                                                           
+
 #define MAC_QCU_CNT_ADDR(_i)                               (MAC_QCU_CNT_ADDRESS + ((_i)<<2))
-                                                           
+
 #define MAC_DCU_MISC_ADDR(_i)                              (MAC_DCU_MISC_ADDRESS + ((_i)<<2))
 #define MAC_DCU_MISC_FRAG_BURST_WAIT_EN_MASK               MAC_DCU_MISC_FRAG_BURST_WAIT_QCU_EN_MASK
-                                                           
+
 #define MAC_QCU_TXDP_ADDR(_i)                              (MAC_QCU_TXDP_ADDRESS + ((_i)<<2))
-                                                           
+
 #define MAC_DCU_QCUMASK_ADDR(_i)                           (MAC_DCU_QCUMASK_ADDRESS + ((_i)<<2))
-                                                           
+
 #define MAC_DCU_LCL_IFS_ADDR(_i)                           (MAC_DCU_LCL_IFS_ADDRESS + ((_i)<<2))
-                                                           
+
 #define MAC_DCU_RETRY_LIMIT_ADDR(_i)                       (MAC_DCU_RETRY_LIMIT_ADDRESS + ((_i)<<2))
 
 #define MAC_QCU_MISC_ADDR(_i)                              (MAC_QCU_MISC_ADDRESS + ((_i)<<2))
@@ -320,24 +320,24 @@
 
 #define MAC_QCU_RDYTIME_ADDR(_i)                           (MAC_QCU_RDYTIME_ADDRESS + ((_i)<<2))
 
-#define MAC_DMA_MIBC_MCS_MSB                               MAC_DMA_MIBC_STROBE_MSB    
-#define MAC_DMA_MIBC_MCS_LSB                               MAC_DMA_MIBC_STROBE_LSB    
-#define MAC_DMA_MIBC_MCS_MASK                              MAC_DMA_MIBC_STROBE_MASK   
-#define MAC_DMA_MIBC_MCS_GET(x)                            MAC_DMA_MIBC_STROBE_GET(x) 
-#define MAC_DMA_MIBC_MCS_SET(x)                            MAC_DMA_MIBC_STROBE_SET(x) 
-#define MAC_DMA_MIBC_CMC_MSB                               MAC_DMA_MIBC_CLEAR_MSB     
-#define MAC_DMA_MIBC_CMC_LSB                               MAC_DMA_MIBC_CLEAR_LSB     
-#define MAC_DMA_MIBC_CMC_MASK                              MAC_DMA_MIBC_CLEAR_MASK    
-#define MAC_DMA_MIBC_CMC_GET(x)                            MAC_DMA_MIBC_CLEAR_GET(x)  
-#define MAC_DMA_MIBC_CMC_SET(x)                            MAC_DMA_MIBC_CLEAR_SET(x)  
-#define MAC_DMA_MIBC_FMC_MSB                               MAC_DMA_MIBC_FREEZE_MSB    
-#define MAC_DMA_MIBC_FMC_LSB                               MAC_DMA_MIBC_FREEZE_LSB    
-#define MAC_DMA_MIBC_FMC_MASK                              MAC_DMA_MIBC_FREEZE_MASK   
-#define MAC_DMA_MIBC_FMC_GET(x)                            MAC_DMA_MIBC_FREEZE_GET(x) 
-#define MAC_DMA_MIBC_FMC_SET(x)                            MAC_DMA_MIBC_FREEZE_SET(x) 
-#define MAC_DMA_MIBC_COW_MSB                               MAC_DMA_MIBC_WARNING_MSB   
-#define MAC_DMA_MIBC_COW_LSB                               MAC_DMA_MIBC_WARNING_LSB   
-#define MAC_DMA_MIBC_COW_MASK                              MAC_DMA_MIBC_WARNING_MASK  
+#define MAC_DMA_MIBC_MCS_MSB                               MAC_DMA_MIBC_STROBE_MSB
+#define MAC_DMA_MIBC_MCS_LSB                               MAC_DMA_MIBC_STROBE_LSB
+#define MAC_DMA_MIBC_MCS_MASK                              MAC_DMA_MIBC_STROBE_MASK
+#define MAC_DMA_MIBC_MCS_GET(x)                            MAC_DMA_MIBC_STROBE_GET(x)
+#define MAC_DMA_MIBC_MCS_SET(x)                            MAC_DMA_MIBC_STROBE_SET(x)
+#define MAC_DMA_MIBC_CMC_MSB                               MAC_DMA_MIBC_CLEAR_MSB
+#define MAC_DMA_MIBC_CMC_LSB                               MAC_DMA_MIBC_CLEAR_LSB
+#define MAC_DMA_MIBC_CMC_MASK                              MAC_DMA_MIBC_CLEAR_MASK
+#define MAC_DMA_MIBC_CMC_GET(x)                            MAC_DMA_MIBC_CLEAR_GET(x)
+#define MAC_DMA_MIBC_CMC_SET(x)                            MAC_DMA_MIBC_CLEAR_SET(x)
+#define MAC_DMA_MIBC_FMC_MSB                               MAC_DMA_MIBC_FREEZE_MSB
+#define MAC_DMA_MIBC_FMC_LSB                               MAC_DMA_MIBC_FREEZE_LSB
+#define MAC_DMA_MIBC_FMC_MASK                              MAC_DMA_MIBC_FREEZE_MASK
+#define MAC_DMA_MIBC_FMC_GET(x)                            MAC_DMA_MIBC_FREEZE_GET(x)
+#define MAC_DMA_MIBC_FMC_SET(x)                            MAC_DMA_MIBC_FREEZE_SET(x)
+#define MAC_DMA_MIBC_COW_MSB                               MAC_DMA_MIBC_WARNING_MSB
+#define MAC_DMA_MIBC_COW_LSB                               MAC_DMA_MIBC_WARNING_LSB
+#define MAC_DMA_MIBC_COW_MASK                              MAC_DMA_MIBC_WARNING_MASK
 #define MAC_DMA_MIBC_COW_GET(x)                            MAC_DMA_MIBC_WARNING_GET(x)
 #define MAC_DMA_MIBC_COW_SET(x)                            MAC_DMA_MIBC_WARNING_SET(x)
 

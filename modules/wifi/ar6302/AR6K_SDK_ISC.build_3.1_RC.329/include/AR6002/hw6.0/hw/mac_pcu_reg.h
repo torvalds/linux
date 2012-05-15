@@ -1,6 +1,6 @@
 // ------------------------------------------------------------------
 // Copyright (c) 2004-2007 Atheros Corporation.  All rights reserved.
-// 
+//
 //
 // Permission to use, copy, modify, and/or distribute this software for any
 // purpose with or without fee is hereby granted, provided that the above
@@ -27,9 +27,9 @@
 // THIS IS A SOFTWARE WRAPPER HEADER FILE
 
 
-#define MAC_PCU_BCN_RSSI_AVE_VALUE_MSB                  MAC_PCU_BCN_RSSI_AVE_AVE_VALUE_MSB   
-#define MAC_PCU_BCN_RSSI_AVE_VALUE_LSB                  MAC_PCU_BCN_RSSI_AVE_AVE_VALUE_LSB   
-#define MAC_PCU_BCN_RSSI_AVE_VALUE_MASK                 MAC_PCU_BCN_RSSI_AVE_AVE_VALUE_MASK  
+#define MAC_PCU_BCN_RSSI_AVE_VALUE_MSB                  MAC_PCU_BCN_RSSI_AVE_AVE_VALUE_MSB
+#define MAC_PCU_BCN_RSSI_AVE_VALUE_LSB                  MAC_PCU_BCN_RSSI_AVE_AVE_VALUE_LSB
+#define MAC_PCU_BCN_RSSI_AVE_VALUE_MASK                 MAC_PCU_BCN_RSSI_AVE_AVE_VALUE_MASK
 #define MAC_PCU_BCN_RSSI_AVE_VALUE_GET(x)               MAC_PCU_BCN_RSSI_AVE_AVE_VALUE_GET(x)
 #define MAC_PCU_BCN_RSSI_AVE_VALUE_SET(x)               MAC_PCU_BCN_RSSI_AVE_AVE_VALUE_SET(x)
 

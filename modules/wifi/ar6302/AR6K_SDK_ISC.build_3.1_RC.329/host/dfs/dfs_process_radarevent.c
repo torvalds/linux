@@ -36,7 +36,7 @@ u_int32_t dfs_round(int32_t val)
 
 
 static inline u_int8_t
-dfs_process_pulse_dur(struct ath_dfs_host *dfs, u_int8_t re_dur) 
+dfs_process_pulse_dur(struct ath_dfs_host *dfs, u_int8_t re_dur)
 {
 	if (re_dur == 0) {
 		return 1;
@@ -73,11 +73,11 @@ dfs_process_radarevent_host(struct ath_dfs_host *dfs, int16_t *chan_index, u_int
         *bangradar = 1;
         dfs->dfs_bangradar = 0; /* reset */
         DFS_DPRINTK(dfs, ATH_DEBUG_DFS, "%s: bangradar\n", __func__);
-        retval = 1;                    
+        retval = 1;
     }
     else
         *bangradar = 0;
- 
+
     ATH_DFSQ_LOCK(dfs);
     empty = STAILQ_EMPTY(&(dfs->dfs_radarq));
     ATH_DFSQ_UNLOCK(dfs);
@@ -145,23 +145,23 @@ dfs_process_radarevent_host(struct ath_dfs_host *dfs, int16_t *chan_index, u_int
 
 
             if (re.re_ts <= dfs->dfs_rinfo.rn_last_ts) {
-                dfs->dfs_rinfo.rn_ts_prefix += 
+                dfs->dfs_rinfo.rn_ts_prefix +=
                     (((u_int64_t) 1) << DFS_TSSHIFT);
                 /* Now, see if it's been more than 1 wrap */
                 deltafull_ts = re.re_full_ts - dfs->dfs_rinfo.rn_lastfull_ts;
-                if (deltafull_ts > 
+                if (deltafull_ts >
                         ((u_int64_t)((DFS_TSMASK - dfs->dfs_rinfo.rn_last_ts) + 1 + re.re_ts)))
                     deltafull_ts -= (DFS_TSMASK - dfs->dfs_rinfo.rn_last_ts) + 1 + re.re_ts;
                 deltafull_ts = deltafull_ts >> DFS_TSSHIFT;
                 if (deltafull_ts > 1) {
-                    dfs->dfs_rinfo.rn_ts_prefix += 
+                    dfs->dfs_rinfo.rn_ts_prefix +=
                         ((deltafull_ts - 1) << DFS_TSSHIFT);
                 }
             } else {
                 deltafull_ts = re.re_full_ts - dfs->dfs_rinfo.rn_lastfull_ts;
                 if (deltafull_ts > (u_int64_t) DFS_TSMASK) {
                     deltafull_ts = deltafull_ts >> DFS_TSSHIFT;
-                    dfs->dfs_rinfo.rn_ts_prefix += 
+                    dfs->dfs_rinfo.rn_ts_prefix +=
                         ((deltafull_ts - 1) << DFS_TSSHIFT);
                 }
             }
@@ -216,7 +216,7 @@ dfs_process_radarevent_host(struct ath_dfs_host *dfs, int16_t *chan_index, u_int
                 if( dfs_bin5_addpulse(dfs, br, &re, this_ts) ) {
                     found |= dfs_bin5_check(dfs);
                 }
-            } else 
+            } else
                         DFS_DPRINTK(dfs, ATH_DEBUG_DFS3, "%s too low to be Bin5 pulse (%d)\n", __func__, re.re_dur);
         }
         if (found) {
@@ -294,7 +294,7 @@ dfs_process_radarevent_host(struct ath_dfs_host *dfs, int16_t *chan_index, u_int
                     dfs_print_delayline(dfs, &rf->rf_dl);
                     rf->rf_dl.dl_last_ts = this_ts;
                 }
-            } 
+            }
             ft->ft_last_ts = this_ts;
             retval |= found;
             if (found) {
