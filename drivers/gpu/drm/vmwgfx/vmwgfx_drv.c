@@ -769,10 +769,7 @@ static int vmw_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 		goto out_no_tfile;
 
 	file_priv->driver_priv = vmw_fp;
-
-	if (unlikely(dev_priv->bdev.dev_mapping == NULL))
-		dev_priv->bdev.dev_mapping =
-			file_priv->filp->f_path.dentry->d_inode->i_mapping;
+	dev_priv->bdev.dev_mapping = dev->dev_mapping;
 
 	return 0;
 
