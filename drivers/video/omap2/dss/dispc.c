@@ -1304,9 +1304,6 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane plane,
 	int scale_x = out_width != orig_width;
 	int scale_y = out_height != orig_height;
 
-	dispc_ovl_set_accu_uv(plane, orig_width, orig_height, out_width,
-			out_height, ilace, color_mode, rotation);
-
 	if (!dss_has_feature(FEAT_HANDLE_UV_SEPARATE))
 		return;
 	if ((color_mode != OMAP_DSS_COLOR_YUV2 &&
@@ -1316,6 +1313,10 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane plane,
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES2(plane), 0, 8, 8);
 		return;
 	}
+
+	dispc_ovl_set_accu_uv(plane, orig_width, orig_height, out_width,
+			out_height, ilace, color_mode, rotation);
+
 	switch (color_mode) {
 	case OMAP_DSS_COLOR_NV12:
 		/* UV is subsampled by 2 vertically*/
