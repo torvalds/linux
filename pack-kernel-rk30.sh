@@ -29,7 +29,7 @@ drivers/staging/rk29/vivante
 drivers/staging/rk29/ipp/rk29-ipp.c
 
 arch/arm/mach-rk30/board-rk30-phone*
-arch/arm/configs/rk30_phone_defconfig
+arch/arm/configs/rk30_phone_*
 )
 
 defconfig=${2-rk30_sdk_defconfig}
