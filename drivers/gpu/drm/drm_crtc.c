@@ -2823,55 +2823,21 @@ EXPORT_SYMBOL(drm_property_destroy);
 void drm_connector_attach_property(struct drm_connector *connector,
 			       struct drm_property *property, uint64_t init_val)
 {
-	int i;
-
-	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
-		if (connector->properties.ids[i] == 0) {
-			connector->properties.ids[i] = property->base.id;
-			connector->properties.values[i] = init_val;
-			return;
-		}
-	}
-
-	WARN(1, "Failed to attach connector property. Please increase "
-		"DRM_OBJECT_MAX_PROPERTY by 1 for each time you see this "
-		"message\n");
+	drm_object_attach_property(&connector->base, property, init_val);
 }
 EXPORT_SYMBOL(drm_connector_attach_property);
 
 int drm_connector_property_set_value(struct drm_connector *connector,
 				  struct drm_property *property, uint64_t value)
 {
-	int i;
-
-	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
-		if (connector->properties.ids[i] == property->base.id) {
-			connector->properties.values[i] = value;
-			break;
-		}
-	}
-
-	if (i == DRM_OBJECT_MAX_PROPERTY)
-		return -EINVAL;
-	return 0;
+	return drm_object_property_set_value(&connector->base, property, value);
 }
 EXPORT_SYMBOL(drm_connector_property_set_value);
 
 int drm_connector_property_get_value(struct drm_connector *connector,
 				  struct drm_property *property, uint64_t *val)
 {
-	int i;
-
-	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
-		if (connector->properties.ids[i] == property->base.id) {
-			*val = connector->properties.values[i];
-			break;
-		}
-	}
-
-	if (i == DRM_OBJECT_MAX_PROPERTY)
-		return -EINVAL;
-	return 0;
+	return drm_object_property_get_value(&connector->base, property, val);
 }
 EXPORT_SYMBOL(drm_connector_property_get_value);
 
@@ -3148,56 +3114,16 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
 				       void *data, struct drm_file *file_priv)
 {
-	struct drm_mode_connector_set_property *out_resp = data;
-	struct drm_mode_object *obj;
-	struct drm_property *property;
-	struct drm_connector *connector;
-	int ret = -EINVAL;
-	int i;
+	struct drm_mode_connector_set_property *conn_set_prop = data;
+	struct drm_mode_obj_set_property obj_set_prop = {
+		.value = conn_set_prop->value,
+		.prop_id = conn_set_prop->prop_id,
+		.obj_id = conn_set_prop->connector_id,
+		.obj_type = DRM_MODE_OBJECT_CONNECTOR
+	};
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
-
-	mutex_lock(&dev->mode_config.mutex);
-
-	obj = drm_mode_object_find(dev, out_resp->connector_id, DRM_MODE_OBJECT_CONNECTOR);
-	if (!obj) {
-		goto out;
-	}
-	connector = obj_to_connector(obj);
-
-	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
-		if (connector->properties.ids[i] == out_resp->prop_id)
-			break;
-	}
-
-	if (i == DRM_OBJECT_MAX_PROPERTY) {
-		goto out;
-	}
-
-	obj = drm_mode_object_find(dev, out_resp->prop_id, DRM_MODE_OBJECT_PROPERTY);
-	if (!obj) {
-		goto out;
-	}
-	property = obj_to_property(obj);
-
-	if (!drm_property_change_is_valid(property, out_resp->value))
-		goto out;
-
-	/* Do DPMS ourselves */
-	if (property == connector->dev->mode_config.dpms_property) {
-		if (connector->funcs->dpms)
-			(*connector->funcs->dpms)(connector, (int) out_resp->value);
-		ret = 0;
-	} else if (connector->funcs->set_property)
-		ret = connector->funcs->set_property(connector, property, out_resp->value);
-
-	/* store the property value if successful */
-	if (!ret)
-		drm_connector_property_set_value(connector, property, out_resp->value);
-out:
-	mutex_unlock(&dev->mode_config.mutex);
-	return ret;
+	/* It does all the locking and checking we need */
+	return drm_mode_obj_set_property_ioctl(dev, &obj_set_prop, file_priv);
 }
 
 static int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
