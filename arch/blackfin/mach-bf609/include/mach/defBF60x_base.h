@@ -2634,36 +2634,36 @@
 
 
 /* =========================
-        DDR Registers
+        DMC Registers
    ========================= */
 
 /* =========================
-        DDR0
+        DMC0
    ========================= */
-#define DDR0_ID                     0xFFC80000         /* DDR0 Identification Register */
-#define DDR0_CTL                    0xFFC80004         /* DDR0 Control Register */
-#define DDR0_STAT                   0xFFC80008         /* DDR0 Status Register */
-#define DDR0_EFFCTL                 0xFFC8000C         /* DDR0 Efficiency Controller */
-#define DDR0_PRIO                   0xFFC80010         /* DDR0 Priority ID Register */
-#define DDR0_PRIOMSK                0xFFC80014         /* DDR0 Priority ID Mask */
-#define DDR0_CFG                    0xFFC80040         /* DDR0 SDRAM Configuration */
-#define DDR0_TR0                    0xFFC80044         /* DDR0 Timing Register 0 */
-#define DDR0_TR1                    0xFFC80048         /* DDR0 Timing Register 1 */
-#define DDR0_TR2                    0xFFC8004C         /* DDR0 Timing Register 2 */
-#define DDR0_MSK                    0xFFC8005C         /* DDR0 Mode Register Mask */
-#define DDR0_MR                     0xFFC80060         /* DDR0 Mode Shadow register */
-#define DDR0_EMR1                   0xFFC80064         /* DDR0 EMR1 Shadow Register */
-#define DDR0_EMR2                   0xFFC80068         /* DDR0 EMR2 Shadow Register */
-#define DDR0_EMR3                   0xFFC8006C         /* DDR0 EMR3 Shadow Register */
-#define DDR0_DLLCTL                 0xFFC80080         /* DDR0 DLL Control Register */
-#define DDR0_PADCTL                 0xFFC800C0         /* DDR0 PAD Control Register 0 */
+#define DMC0_ID                     0xFFC80000         /* DMC0 Identification Register */
+#define DMC0_CTL                    0xFFC80004         /* DMC0 Control Register */
+#define DMC0_STAT                   0xFFC80008         /* DMC0 Status Register */
+#define DMC0_EFFCTL                 0xFFC8000C         /* DMC0 Efficiency Controller */
+#define DMC0_PRIO                   0xFFC80010         /* DMC0 Priority ID Register */
+#define DMC0_PRIOMSK                0xFFC80014         /* DMC0 Priority ID Mask */
+#define DMC0_CFG                    0xFFC80040         /* DMC0 SDRAM Configuration */
+#define DMC0_TR0                    0xFFC80044         /* DMC0 Timing Register 0 */
+#define DMC0_TR1                    0xFFC80048         /* DMC0 Timing Register 1 */
+#define DMC0_TR2                    0xFFC8004C         /* DMC0 Timing Register 2 */
+#define DMC0_MSK                    0xFFC8005C         /* DMC0 Mode Register Mask */
+#define DMC0_MR                     0xFFC80060         /* DMC0 Mode Shadow register */
+#define DMC0_EMR1                   0xFFC80064         /* DMC0 EMR1 Shadow Register */
+#define DMC0_EMR2                   0xFFC80068         /* DMC0 EMR2 Shadow Register */
+#define DMC0_EMR3                   0xFFC8006C         /* DMC0 EMR3 Shadow Register */
+#define DMC0_DLLCTL                 0xFFC80080         /* DMC0 DLL Control Register */
+#define DMC0_PADCTL                 0xFFC800C0         /* DMC0 PAD Control Register 0 */
 
-#define DEVSZ_64                0x000         /* DDR External Bank Size = 64Mbit */
-#define DEVSZ_128               0x100         /* DDR External Bank Size = 128Mbit */
-#define DEVSZ_256               0x200         /* DDR External Bank Size = 256Mbit */
-#define DEVSZ_512               0x300         /* DDR External Bank Size = 512Mbit */
-#define DEVSZ_1G                0x400         /* DDR External Bank Size = 1Gbit */
-#define DEVSZ_2G                0x500         /* DDR External Bank Size = 2Gbit */
+#define DEVSZ_64                0x000         /* DMC External Bank Size = 64Mbit */
+#define DEVSZ_128               0x100         /* DMC External Bank Size = 128Mbit */
+#define DEVSZ_256               0x200         /* DMC External Bank Size = 256Mbit */
+#define DEVSZ_512               0x300         /* DMC External Bank Size = 512Mbit */
+#define DEVSZ_1G                0x400         /* DMC External Bank Size = 1Gbit */
+#define DEVSZ_2G                0x500         /* DMC External Bank Size = 2Gbit */
 
 
 /* =========================

@@ -856,7 +856,7 @@ static inline int __init get_mem_size(void)
 		ret *= 2;
 	return ret;
 #elif defined(CONFIG_BF60x)
-	u32 ddrctl = bfin_read_DDR0_CFG();
+	u32 ddrctl = bfin_read_DMC0_CFG();
 	int ret;
 	switch (ddrctl & 0xf00) {
 	case DEVSZ_64:

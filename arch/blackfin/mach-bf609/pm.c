@@ -165,11 +165,11 @@ void bf609_ddr_sr(void)
 {
 	uint32_t reg;
 
-	reg = bfin_read_DDR0_CTL();
+	reg = bfin_read_DMC0_CTL();
 	reg |= 0x8;
-	bfin_write_DDR0_CTL(reg);
+	bfin_write_DMC0_CTL(reg);
 
-	while (!(bfin_read_DDR0_STAT() & 0x8))
+	while (!(bfin_read_DMC0_STAT() & 0x8))
 		continue;
 }
 
@@ -177,14 +177,14 @@ __attribute__((l1_text))
 void bf609_ddr_sr_exit(void)
 {
 	uint32_t reg;
-	while (!(bfin_read_DDR0_STAT() & 0x1))
+	while (!(bfin_read_DMC0_STAT() & 0x1))
 		continue;
 
-	reg = bfin_read_DDR0_CTL();
+	reg = bfin_read_DMC0_CTL();
 	reg &= ~0x8;
-	bfin_write_DDR0_CTL(reg);
+	bfin_write_DMC0_CTL(reg);
 
-	while ((bfin_read_DDR0_STAT() & 0x8))
+	while ((bfin_read_DMC0_STAT() & 0x8))
 		continue;
 }
 
