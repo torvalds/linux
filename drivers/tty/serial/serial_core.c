@@ -2527,16 +2527,14 @@ void uart_insert_char(struct uart_port *port, unsigned int status,
 	struct tty_struct *tty = port->state->port.tty;
 
 	if ((status & port->ignore_status_mask & ~overrun) == 0)
-		if (tty_insert_flip_char(tty, ch, flag) == 0)
-			++port->icount.buf_overrun;
+		tty_insert_flip_char(tty, ch, flag);
 
 	/*
 	 * Overrun is special.  Since it's reported immediately,
 	 * it doesn't affect the current character.
 	 */
 	if (status & ~port->ignore_status_mask & overrun)
-		if (tty_insert_flip_char(tty, 0, TTY_OVERRUN) == 0)
-			++port->icount.buf_overrun;
+		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 }
 EXPORT_SYMBOL_GPL(uart_insert_char);
 
