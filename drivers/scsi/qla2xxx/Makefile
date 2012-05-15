@@ -3,3 +3,4 @@ qla2xxx-y := qla_os.o qla_init.o qla_mbx.o qla_iocb.o qla_isr.o qla_gs.o \
         qla_nx.o qla_target.o
 
 obj-$(CONFIG_SCSI_QLA_FC) += qla2xxx.o
+obj-$(CONFIG_TCM_QLA2XXX) += tcm_qla2xxx.o
