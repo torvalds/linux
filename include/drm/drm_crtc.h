@@ -903,6 +903,12 @@ extern int drm_connector_property_set_value(struct drm_connector *connector,
 extern int drm_connector_property_get_value(struct drm_connector *connector,
 					 struct drm_property *property,
 					 uint64_t *value);
+extern int drm_object_property_set_value(struct drm_mode_object *obj,
+					 struct drm_property *property,
+					 uint64_t val);
+extern int drm_object_property_get_value(struct drm_mode_object *obj,
+					 struct drm_property *property,
+					 uint64_t *value);
 extern struct drm_display_mode *drm_crtc_mode_create(struct drm_device *dev);
 extern void drm_framebuffer_set_object(struct drm_device *dev,
 				       unsigned long handle);
@@ -917,6 +923,9 @@ extern bool drm_crtc_in_use(struct drm_crtc *crtc);
 
 extern void drm_connector_attach_property(struct drm_connector *connector,
 					  struct drm_property *property, uint64_t init_val);
+extern void drm_object_attach_property(struct drm_mode_object *obj,
+				       struct drm_property *property,
+				       uint64_t init_val);
 extern struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 						const char *name, int num_values);
 extern struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
@@ -1029,6 +1038,10 @@ extern int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 				      void *data, struct drm_file *file_priv);
+extern int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
+					     struct drm_file *file_priv);
+extern int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
+					   struct drm_file *file_priv);
 
 extern void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
 				 int *bpp);
