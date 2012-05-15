@@ -295,17 +295,15 @@ static ssize_t claw_driver_group_store(struct device_driver *ddrv,
 }
 static DRIVER_ATTR(group, 0200, NULL, claw_driver_group_store);
 
-static struct attribute *claw_group_attrs[] = {
+static struct attribute *claw_drv_attrs[] = {
 	&driver_attr_group.attr,
 	NULL,
 };
-
-static struct attribute_group claw_group_attr_group = {
-	.attrs = claw_group_attrs,
+static struct attribute_group claw_drv_attr_group = {
+	.attrs = claw_drv_attrs,
 };
-
-static const struct attribute_group *claw_group_attr_groups[] = {
-	&claw_group_attr_group,
+static const struct attribute_group *claw_drv_attr_groups[] = {
+	&claw_drv_attr_group,
 	NULL,
 };
 
@@ -3325,17 +3323,13 @@ static int claw_probe(struct ccwgroup_device *cgdev)
 *    claw_init  and cleanup                                           *
 *---------------------------------------------------------------------*/
 
-static void __exit
-claw_cleanup(void)
+static void __exit claw_cleanup(void)
 {
-	driver_remove_file(&claw_group_driver.driver,
-			   &driver_attr_group);
 	ccwgroup_driver_unregister(&claw_group_driver);
 	ccw_driver_unregister(&claw_ccw_driver);
 	root_device_unregister(claw_root_dev);
 	claw_unregister_debug_facility();
 	pr_info("Driver unloaded\n");
-
 }
 
 /**
@@ -3344,8 +3338,7 @@ claw_cleanup(void)
  *
  * @return 0 on success, !0 on error.
  */
-static int __init
-claw_init(void)
+static int __init claw_init(void)
 {
 	int ret = 0;
 
@@ -3364,7 +3357,7 @@ claw_init(void)
 	ret = ccw_driver_register(&claw_ccw_driver);
 	if (ret)
 		goto ccw_err;
-	claw_group_driver.driver.groups = claw_group_attr_groups;
+	claw_group_driver.driver.groups = claw_drv_attr_groups;
 	ret = ccwgroup_driver_register(&claw_group_driver);
 	if (ret)
 		goto ccwgroup_err;
