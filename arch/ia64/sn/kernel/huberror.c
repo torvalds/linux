@@ -192,6 +192,7 @@ void hub_error_init(struct hubdev_info *hubdev_info)
 		    hubdev_info);
 		return;
 	}
+	irq_set_handler(SGI_II_ERROR, handle_level_irq);
 	sn_set_err_irq_affinity(SGI_II_ERROR);
 }
 
@@ -213,6 +214,7 @@ void ice_error_init(struct hubdev_info *hubdev_info)
                        hubdev_info);
 		return;
 	}
+	irq_set_handler(SGI_TIO_ERROR, handle_level_irq);
 	sn_set_err_irq_affinity(SGI_TIO_ERROR);
 }
 

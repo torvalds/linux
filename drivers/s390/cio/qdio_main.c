@@ -1458,7 +1458,6 @@ int qdio_establish(struct qdio_initialize *init_data)
 	}
 
 	qdio_setup_ssqd_info(irq_ptr);
-	DBF_EVENT("qib ac:%4x", irq_ptr->qib.ac);
 
 	qdio_detect_hsicq(irq_ptr);
 

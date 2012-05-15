@@ -108,6 +108,8 @@ struct af9015_state {
 	int (*read_status[2]) (struct dvb_frontend *fe, fe_status_t *status);
 	int (*init[2]) (struct dvb_frontend *fe);
 	int (*sleep[2]) (struct dvb_frontend *fe);
+	int (*tuner_init[2]) (struct dvb_frontend *fe);
+	int (*tuner_sleep[2]) (struct dvb_frontend *fe);
 };
 
 struct af9015_config {

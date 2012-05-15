@@ -24,8 +24,10 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/leds.h>
+#include <linux/omapfb.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/ads7846.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -39,10 +41,10 @@
 #include <plat/board.h>
 #include <plat/irda.h>
 #include <plat/keypad.h>
-#include "common.h"
 
-#include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
+#include <mach/hardware.h>
+
+#include "common.h"
 
 #define PALMTT_USBDETECT_GPIO	0
 #define PALMTT_CABLE_GPIO	1
@@ -273,10 +275,6 @@ static struct omap_lcd_config palmtt_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_board_config_kernel palmtt_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&palmtt_lcd_config	},
-};
-
 static void __init omap_mpu_wdt_mode(int mode) {
 	if (mode)
 		omap_writew(0x8000, OMAP_WDT_TIMER_MODE);
@@ -298,15 +296,14 @@ static void __init omap_palmtt_init(void)
 
 	omap_mpu_wdt_mode(0);
 
-	omap_board_config = palmtt_config;
-	omap_board_config_size = ARRAY_SIZE(palmtt_config);
-
 	platform_add_devices(palmtt_devices, ARRAY_SIZE(palmtt_devices));
 
 	spi_register_board_info(palmtt_boardinfo,ARRAY_SIZE(palmtt_boardinfo));
 	omap_serial_init();
 	omap1_usb_init(&palmtt_usb_config);
 	omap_register_i2c_bus(1, 100, NULL, 0);
+
+	omapfb_set_lcd_config(&palmtt_lcd_config);
 }
 
 MACHINE_START(OMAP_PALMTT, "OMAP1510 based Palm Tungsten|T")

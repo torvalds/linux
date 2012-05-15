@@ -12,8 +12,8 @@
 #ifndef CNIC_IF_H
 #define CNIC_IF_H
 
-#define CNIC_MODULE_VERSION	"2.5.9"
-#define CNIC_MODULE_RELDATE	"Feb 8, 2012"
+#define CNIC_MODULE_VERSION	"2.5.10"
+#define CNIC_MODULE_RELDATE	"March 21, 2012"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1

@@ -1474,8 +1474,13 @@ static DEFINE_PCI_DEVICE_TABLE(cx25821_pci_tbl) = {
 		.device = 0x8210,
 		.subvendor = 0x14f1,
 		.subdevice = 0x0920,
-	},
-	{
+	}, {
+		/* CX25821 No Brand */
+		.vendor = 0x14f1,
+		.device = 0x8210,
+		.subvendor = 0x0000,
+		.subdevice = 0x0000,
+	}, {
 		/* --- end of list --- */
 	}
 };

@@ -2393,6 +2393,20 @@ details.</para>
 	    to the <link linkend="control">User controls class</link>.
 	  </para>
         </listitem>
+        <listitem>
+	  <para>Added the device_caps field to struct v4l2_capabilities and added the new
+	  V4L2_CAP_DEVICE_CAPS capability.</para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.4</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added <link linkend="jpeg-controls">JPEG compression control
+	  class</link>.</para>
+        </listitem>
       </orderedlist>
     </section>
 

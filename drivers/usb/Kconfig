@@ -16,7 +16,7 @@ config USB_ARCH_HAS_OHCI
 	# ARM:
 	default y if SA1111
 	default y if ARCH_OMAP
-	default y if ARCH_S3C2410
+	default y if ARCH_S3C24XX
 	default y if PXA27x
 	default y if PXA3xx
 	default y if ARCH_EP93XX

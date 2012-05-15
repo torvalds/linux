@@ -1,7 +1,6 @@
 #ifndef _SCSI_SCSI_DEVICE_H
 #define _SCSI_SCSI_DEVICE_H
 
-#include <linux/device.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -9,6 +8,7 @@
 #include <scsi/scsi.h>
 #include <linux/atomic.h>
 
+struct device;
 struct request_queue;
 struct scsi_cmnd;
 struct scsi_lun;

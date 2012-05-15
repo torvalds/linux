@@ -40,7 +40,7 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 	dev_set_drvdata(&spi->dev, wm831x);
 	wm831x->dev = &spi->dev;
 
-	wm831x->regmap = regmap_init_spi(spi, &wm831x_regmap_config);
+	wm831x->regmap = devm_regmap_init_spi(spi, &wm831x_regmap_config);
 	if (IS_ERR(wm831x->regmap)) {
 		ret = PTR_ERR(wm831x->regmap);
 		dev_err(wm831x->dev, "Failed to allocate register map: %d\n",

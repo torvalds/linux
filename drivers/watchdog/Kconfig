@@ -170,7 +170,7 @@ config HAVE_S3C2410_WATCHDOG
 
 config S3C2410_WATCHDOG
 	tristate "S3C2410 Watchdog"
-	depends on ARCH_S3C2410 || HAVE_S3C2410_WATCHDOG
+	depends on HAVE_S3C2410_WATCHDOG
 	select WATCHDOG_CORE
 	help
 	  Watchdog timer block in the Samsung SoCs. This will reboot

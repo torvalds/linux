@@ -165,11 +165,12 @@
 #define INT_QUAD_RES_30			(INT_QUAD_BASE + 30)
 #define INT_QUAD_RES_31			(INT_QUAD_BASE + 31)
 
-#define INT_MAIN_NR			(INT_QUAD_BASE + 32 - INT_PRI_BASE)
-
+/* Tegra30 has 5 banks of 32 IRQs */
+#define INT_MAIN_NR			(32 * 5)
 #define INT_GPIO_BASE			(INT_PRI_BASE + INT_MAIN_NR)
 
-#define INT_GPIO_NR			(28 * 8)
+/* Tegra30 has 8 banks of 32 GPIOs */
+#define INT_GPIO_NR			(32 * 8)
 
 #define TEGRA_NR_IRQS			(INT_GPIO_BASE + INT_GPIO_NR)
 

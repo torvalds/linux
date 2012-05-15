@@ -255,3 +255,26 @@ void service_subclass_irq_unregister(void)
 	spin_unlock(&sc_irq_lock);
 }
 EXPORT_SYMBOL(service_subclass_irq_unregister);
+
+static DEFINE_SPINLOCK(ma_subclass_lock);
+static int ma_subclass_refcount;
+
+void measurement_alert_subclass_register(void)
+{
+	spin_lock(&ma_subclass_lock);
+	if (!ma_subclass_refcount)
+		ctl_set_bit(0, 5);
+	ma_subclass_refcount++;
+	spin_unlock(&ma_subclass_lock);
+}
+EXPORT_SYMBOL(measurement_alert_subclass_register);
+
+void measurement_alert_subclass_unregister(void)
+{
+	spin_lock(&ma_subclass_lock);
+	ma_subclass_refcount--;
+	if (!ma_subclass_refcount)
+		ctl_clear_bit(0, 5);
+	spin_unlock(&ma_subclass_lock);
+}
+EXPORT_SYMBOL(measurement_alert_subclass_unregister);

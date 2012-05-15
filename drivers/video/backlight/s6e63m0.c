@@ -909,18 +909,7 @@ static struct spi_driver s6e63m0_driver = {
 	.resume		= s6e63m0_resume,
 };
 
-static int __init s6e63m0_init(void)
-{
-	return spi_register_driver(&s6e63m0_driver);
-}
-
-static void __exit s6e63m0_exit(void)
-{
-	spi_unregister_driver(&s6e63m0_driver);
-}
-
-module_init(s6e63m0_init);
-module_exit(s6e63m0_exit);
+module_spi_driver(s6e63m0_driver);
 
 MODULE_AUTHOR("InKi Dae <inki.dae@samsung.com>");
 MODULE_DESCRIPTION("S6E63M0 LCD Driver");

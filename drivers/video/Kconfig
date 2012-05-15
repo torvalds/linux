@@ -1123,6 +1123,18 @@ config FB_RIVA_BACKLIGHT
 	help
 	  Say Y here if you want to control the backlight of your display.
 
+config FB_I740
+	tristate "Intel740 support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && FB && PCI
+	select FB_MODE_HELPERS
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select VGASTATE
+	select FB_DDC
+	help
+	  This driver supports graphics cards based on Intel740 chip.
+
 config FB_I810
 	tristate "Intel 810/815 support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && FB && PCI && X86_32 && AGP_INTEL
@@ -2001,18 +2013,6 @@ config FB_SH_MOBILE_HDMI
 	---help---
 	  Driver for the on-chip SH-Mobile HDMI controller.
 
-config FB_SH_MOBILE_MERAM
-	tristate "SuperH Mobile MERAM read ahead support for LCDC"
-	depends on FB_SH_MOBILE_LCDC
-	default y
-	---help---
-	  Enable MERAM support for the SH-Mobile LCD controller.
-
-	  This will allow for caching of the framebuffer to provide more
-	  reliable access under heavy main memory bus traffic situations.
-	  Up to 4 memory channels can be configured, allowing 4 RGB or
-	  2 YCbCr framebuffers to be configured.
-
 config FB_TMIO
 	tristate "Toshiba Mobile IO FrameBuffer support"
 	depends on FB && MFD_CORE
@@ -2061,7 +2061,7 @@ config FB_S3C_DEBUG_REGWRITE
 
 config FB_S3C2410
 	tristate "S3C2410 LCD framebuffer support"
-	depends on FB && ARCH_S3C2410
+	depends on FB && ARCH_S3C24XX
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2233,6 +2233,7 @@ config FB_DA8XX
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_CFB_REV_PIXELS_IN_BYTE
 	---help---
 	  This is the frame buffer device driver for the TI LCD controller
 	  found on DA8xx/OMAP-L1xx SoCs.
@@ -2412,7 +2413,7 @@ config FB_PUV3_UNIGFX
 
 source "drivers/video/omap/Kconfig"
 source "drivers/video/omap2/Kconfig"
-
+source "drivers/video/exynos/Kconfig"
 source "drivers/video/backlight/Kconfig"
 
 if VT
@@ -2422,5 +2423,17 @@ endif
 if FB || SGI_NEWPORT_CONSOLE
 	source "drivers/video/logo/Kconfig"
 endif
+
+config FB_SH_MOBILE_MERAM
+	tristate "SuperH Mobile MERAM read ahead support"
+	depends on (SUPERH || ARCH_SHMOBILE)
+	select GENERIC_ALLOCATOR
+	---help---
+	  Enable MERAM support for the SuperH controller.
+
+	  This will allow for caching of the framebuffer to provide more
+	  reliable access under heavy main memory bus traffic situations.
+	  Up to 4 memory channels can be configured, allowing 4 RGB or
+	  2 YCbCr framebuffers to be configured.
 
 endmenu

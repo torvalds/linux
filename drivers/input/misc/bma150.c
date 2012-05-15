@@ -673,19 +673,8 @@ static struct i2c_driver bma150_driver = {
 	.remove		= __devexit_p(bma150_remove),
 };
 
-static int __init BMA150_init(void)
-{
-	return i2c_add_driver(&bma150_driver);
-}
-
-static void __exit BMA150_exit(void)
-{
-	i2c_del_driver(&bma150_driver);
-}
+module_i2c_driver(bma150_driver);
 
 MODULE_AUTHOR("Albert Zhang <xu.zhang@bosch-sensortec.com>");
 MODULE_DESCRIPTION("BMA150 driver");
 MODULE_LICENSE("GPL");
-
-module_init(BMA150_init);
-module_exit(BMA150_exit);

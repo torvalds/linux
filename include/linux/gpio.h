@@ -34,6 +34,7 @@ struct gpio {
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/bug.h>
 
 struct device;
 struct gpio_chip;

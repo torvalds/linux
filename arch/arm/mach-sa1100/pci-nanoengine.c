@@ -135,12 +135,8 @@ struct pci_bus * __init pci_nanoengine_scan_bus(int nr, struct pci_sys_data *sys
 				 &sys->resources);
 }
 
-static struct resource pci_io_ports = {
-	.name	= "PCI IO",
-	.start	= 0x400,
-	.end	= 0x7FF,
-	.flags	= IORESOURCE_IO,
-};
+static struct resource pci_io_ports =
+	DEFINE_RES_IO_NAMED(0x400, 0x400, "PCI IO");
 
 static struct resource pci_non_prefetchable_memory = {
 	.name	= "PCI non-prefetchable",
@@ -244,9 +240,11 @@ static int __init pci_nanoengine_setup_resources(struct pci_sys_data *sys)
 		printk(KERN_ERR "PCI: unable to allocate prefetchable\n");
 		return -EBUSY;
 	}
-	pci_add_resource(&sys->resources, &pci_io_ports);
-	pci_add_resource(&sys->resources, &pci_non_prefetchable_memory);
-	pci_add_resource(&sys->resources, &pci_prefetchable_memory);
+	pci_add_resource_offset(&sys->resources, &pci_io_ports, sys->io_offset);
+	pci_add_resource_offset(&sys->resources,
+				&pci_non_prefetchable_memory, sys->mem_offset);
+	pci_add_resource_offset(&sys->resources,
+				&pci_prefetchable_memory, sys->mem_offset);
 
 	return 1;
 }

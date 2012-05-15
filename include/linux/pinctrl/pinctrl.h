@@ -15,10 +15,11 @@
 #ifdef CONFIG_PINCTRL
 
 #include <linux/radix-tree.h>
-#include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/seq_file.h>
+#include "pinctrl-state.h"
 
+struct device;
 struct pinctrl_dev;
 struct pinmux_ops;
 struct pinconf_ops;

@@ -753,10 +753,6 @@ module loading or during the runtime by using the interface
 
 i.e. echo "value" > /sys/module/cifs/parameters/<param>
 
-1. echo_retries - The number of echo attempts before giving up and
-		  reconnecting to the server. The default is 5. The value 0
-		  means never reconnect.
-
-2. enable_oplocks - Enable or disable oplocks. Oplocks are enabled by default.
+1. enable_oplocks - Enable or disable oplocks. Oplocks are enabled by default.
 		    [Y/y/1]. To disable use any of [N/n/0].
 

@@ -51,7 +51,7 @@
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
-#include "crmregs-imx31.h"
+#include "crmregs-imx3.h"
 
 static int armadillo5x0_pins[] = {
 	/* UART1 */

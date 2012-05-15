@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/edac.h>
 #include <linux/atomic.h>
+#include <linux/device.h>
 #include <asm/edac.h>
 
 int edac_op_state = EDAC_OPSTATE_INVAL;

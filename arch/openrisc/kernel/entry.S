@@ -95,7 +95,6 @@ handler:							;\
 	/* r1, EPCR, ESR a already saved */			;\
 	l.sw	PT_GPR2(r1),r2					;\
 	l.sw    PT_GPR3(r1),r3					;\
-	l.sw    PT_ORIG_GPR11(r1),r11				;\
 	/* r4 already save */					;\
 	l.sw    PT_GPR5(r1),r5					;\
 	l.sw    PT_GPR6(r1),r6					;\
@@ -125,7 +124,9 @@ handler:							;\
 	/* r30 already save */					;\
 /*        l.sw    PT_GPR30(r1),r30*/					;\
 	l.sw    PT_GPR31(r1),r31					;\
-	l.sw    PT_SYSCALLNO(r1),r0
+	/* Store -1 in orig_gpr11 for non-syscall exceptions */	;\
+	l.addi	r30,r0,-1					;\
+	l.sw	PT_ORIG_GPR11(r1),r30
 
 #define UNHANDLED_EXCEPTION(handler,vector)			\
 	.global	handler						;\
@@ -133,7 +134,6 @@ handler:							;\
 	/* r1, EPCR, ESR already saved */			;\
 	l.sw    PT_GPR2(r1),r2					;\
 	l.sw    PT_GPR3(r1),r3					;\
-	l.sw    PT_ORIG_GPR11(r1),r11				;\
 	l.sw    PT_GPR5(r1),r5					;\
 	l.sw    PT_GPR6(r1),r6					;\
 	l.sw    PT_GPR7(r1),r7					;\
@@ -162,7 +162,9 @@ handler:							;\
 	/* r31 already saved */					;\
 	l.sw    PT_GPR30(r1),r30					;\
 /*        l.sw    PT_GPR31(r1),r31	*/				;\
-	l.sw    PT_SYSCALLNO(r1),r0				;\
+	/* Store -1 in orig_gpr11 for non-syscall exceptions */	;\
+	l.addi	r30,r0,-1					;\
+	l.sw	PT_ORIG_GPR11(r1),r30				;\
 	l.addi	r3,r1,0						;\
 	/* r4 is exception EA */				;\
 	l.addi	r5,r0,vector					;\
@@ -554,6 +556,7 @@ ENTRY(_sys_call_handler)
 	l.sw    PT_GPR9(r1),r9
 	/* r10 already saved */
 	l.sw    PT_GPR11(r1),r11
+	/* orig_gpr11 must be set for syscalls */
 	l.sw    PT_ORIG_GPR11(r1),r11
 	/* r12,r13 already saved */
 
@@ -567,9 +570,6 @@ ENTRY(_sys_call_handler)
 	/* r30 is the only register we clobber in the fast path */
 	/* r30 already saved */
 /*	l.sw    PT_GPR30(r1),r30 */
-	/* This is used by do_signal to determine whether to check for
-	 * syscall restart or not */
-	l.sw    PT_SYSCALLNO(r1),r11
 
 _syscall_check_trace_enter:
 	/* If TIF_SYSCALL_TRACE is set, then we want to do syscall tracing */
@@ -731,7 +731,7 @@ _syscall_trace_enter:
 	 * so that we can do the syscall for real and return to the syscall
 	 * hot path.
 	 */
-	l.lwz	r11,PT_SYSCALLNO(r1)
+	l.lwz	r11,PT_GPR11(r1)
 	l.lwz	r3,PT_GPR3(r1)
 	l.lwz	r4,PT_GPR4(r1)
 	l.lwz	r5,PT_GPR5(r1)

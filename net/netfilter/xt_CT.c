@@ -14,8 +14,10 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_CT.h>
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 
@@ -217,50 +219,59 @@ static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 		struct ctnl_timeout *timeout;
 		struct nf_conn_timeout *timeout_ext;
 
+		rcu_read_lock();
 		timeout_find_get =
 			rcu_dereference(nf_ct_timeout_find_get_hook);
 
 		if (timeout_find_get) {
 			const struct ipt_entry *e = par->entryinfo;
+			struct nf_conntrack_l4proto *l4proto;
 
 			if (e->ip.invflags & IPT_INV_PROTO) {
 				ret = -EINVAL;
 				pr_info("You cannot use inversion on "
 					 "L4 protocol\n");
-				goto err3;
+				goto err4;
 			}
 			timeout = timeout_find_get(info->timeout);
 			if (timeout == NULL) {
 				ret = -ENOENT;
 				pr_info("No such timeout policy \"%s\"\n",
 					info->timeout);
-				goto err3;
+				goto err4;
 			}
 			if (timeout->l3num != par->family) {
 				ret = -EINVAL;
 				pr_info("Timeout policy `%s' can only be "
 					"used by L3 protocol number %d\n",
 					info->timeout, timeout->l3num);
-				goto err3;
+				goto err4;
 			}
-			if (timeout->l4num != e->ip.proto) {
+			/* Make sure the timeout policy matches any existing
+			 * protocol tracker, otherwise default to generic.
+			 */
+			l4proto = __nf_ct_l4proto_find(par->family,
+						       e->ip.proto);
+			if (timeout->l4proto->l4proto != l4proto->l4proto) {
 				ret = -EINVAL;
 				pr_info("Timeout policy `%s' can only be "
 					"used by L4 protocol number %d\n",
-					info->timeout, timeout->l4num);
-				goto err3;
+					info->timeout,
+					timeout->l4proto->l4proto);
+				goto err4;
 			}
 			timeout_ext = nf_ct_timeout_ext_add(ct, timeout,
 							    GFP_KERNEL);
 			if (timeout_ext == NULL) {
 				ret = -ENOMEM;
-				goto err3;
+				goto err4;
 			}
 		} else {
 			ret = -ENOENT;
 			pr_info("Timeout policy base is empty\n");
-			goto err3;
+			goto err4;
 		}
+		rcu_read_unlock();
 	}
 #endif
 
@@ -270,6 +281,8 @@ out:
 	info->ct = ct;
 	return 0;
 
+err4:
+	rcu_read_unlock();
 err3:
 	nf_conntrack_free(ct);
 err2:
@@ -311,6 +324,7 @@ static void xt_ct_tg_destroy_v1(const struct xt_tgdtor_param *par)
 		nf_ct_l3proto_module_put(par->family);
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
+		rcu_read_lock();
 		timeout_put = rcu_dereference(nf_ct_timeout_put_hook);
 
 		if (timeout_put) {
@@ -318,6 +332,7 @@ static void xt_ct_tg_destroy_v1(const struct xt_tgdtor_param *par)
 			if (timeout_ext)
 				timeout_put(timeout_ext->timeout);
 		}
+		rcu_read_unlock();
 #endif
 	}
 	nf_ct_put(info->ct);

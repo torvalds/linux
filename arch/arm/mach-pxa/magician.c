@@ -25,7 +25,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
-#include <linux/regulator/bq24022.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/gpio-regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/i2c/pxa-i2c.h>
@@ -596,14 +597,34 @@ static struct regulator_init_data bq24022_init_data = {
 	.consumer_supplies      = bq24022_consumers,
 };
 
-static struct bq24022_mach_info bq24022_info = {
-	.gpio_nce   = GPIO30_MAGICIAN_BQ24022_nCHARGE_EN,
-	.gpio_iset2 = EGPIO_MAGICIAN_BQ24022_ISET2,
-	.init_data  = &bq24022_init_data,
+static struct gpio bq24022_gpios[] = {
+	{ EGPIO_MAGICIAN_BQ24022_ISET2, GPIOF_OUT_INIT_LOW, "bq24022_iset2" },
+};
+
+static struct gpio_regulator_state bq24022_states[] = {
+	{ .value = 100000, .gpios = (0 << 0) },
+	{ .value = 500000, .gpios = (1 << 0) },
+};
+
+static struct gpio_regulator_config bq24022_info = {
+	.supply_name = "bq24022",
+
+	.enable_gpio = GPIO30_MAGICIAN_BQ24022_nCHARGE_EN,
+	.enable_high = 0,
+	.enabled_at_boot = 0,
+
+	.gpios = bq24022_gpios,
+	.nr_gpios = ARRAY_SIZE(bq24022_gpios),
+
+	.states = bq24022_states,
+	.nr_states = ARRAY_SIZE(bq24022_states),
+
+	.type = REGULATOR_CURRENT,
+	.init_data = &bq24022_init_data,
 };
 
 static struct platform_device bq24022 = {
-	.name = "bq24022",
+	.name = "gpio-regulator",
 	.id   = -1,
 	.dev  = {
 		.platform_data = &bq24022_info,

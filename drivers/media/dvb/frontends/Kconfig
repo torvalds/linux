@@ -425,6 +425,13 @@ config DVB_CXD2820R
 	help
 	  Say Y when you want to support this frontend.
 
+config DVB_RTL2830
+	tristate "Realtek RTL2830 DVB-T"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Say Y when you want to support this frontend.
+
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
 
@@ -696,6 +703,14 @@ config DVB_IT913X_FE
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A DVB-T tuner module.
+	  Say Y when you want to support this frontend.
+
+config DVB_M88RS2000
+	tristate "M88RS2000 DVB-S demodulator and tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module.
 	  Say Y when you want to support this frontend.
 
 comment "Tools to develop new frontends"

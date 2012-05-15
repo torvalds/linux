@@ -310,14 +310,14 @@ static const struct fb_videomode ecovec_dvi_modes[] = {
 	},
 };
 
-static int ecovec24_set_brightness(void *board_data, int brightness)
+static int ecovec24_set_brightness(int brightness)
 {
 	gpio_set_value(GPIO_PTR1, brightness);
 
 	return 0;
 }
 
-static int ecovec24_get_brightness(void *board_data)
+static int ecovec24_get_brightness(void)
 {
 	return gpio_get_value(GPIO_PTR1);
 }
@@ -327,17 +327,15 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.interface_type = RGB18,
 		.chan = LCDC_CHAN_MAINLCD,
 		.fourcc = V4L2_PIX_FMT_RGB565,
-		.lcd_size_cfg = { /* 7.0 inch */
+		.panel_cfg = { /* 7.0 inch */
 			.width = 152,
 			.height = 91,
-		},
-		.board_cfg = {
-			.set_brightness = ecovec24_set_brightness,
-			.get_brightness = ecovec24_get_brightness,
 		},
 		.bl_info = {
 			.name = "sh_mobile_lcdc_bl",
 			.max_brightness = 1,
+			.set_brightness = ecovec24_set_brightness,
+			.get_brightness = ecovec24_get_brightness,
 		},
 	}
 };
@@ -1118,8 +1116,8 @@ static int __init arch_setup(void)
 		/* DVI */
 		lcdc_info.clock_source			= LCDC_CLK_EXTERNAL;
 		lcdc_info.ch[0].clock_divider		= 1;
-		lcdc_info.ch[0].lcd_cfg			= ecovec_dvi_modes;
-		lcdc_info.ch[0].num_cfg			= ARRAY_SIZE(ecovec_dvi_modes);
+		lcdc_info.ch[0].lcd_modes		= ecovec_dvi_modes;
+		lcdc_info.ch[0].num_modes		= ARRAY_SIZE(ecovec_dvi_modes);
 
 		gpio_set_value(GPIO_PTA2, 1);
 		gpio_set_value(GPIO_PTU1, 1);
@@ -1127,8 +1125,8 @@ static int __init arch_setup(void)
 		/* Panel */
 		lcdc_info.clock_source			= LCDC_CLK_PERIPHERAL;
 		lcdc_info.ch[0].clock_divider		= 2;
-		lcdc_info.ch[0].lcd_cfg			= ecovec_lcd_modes;
-		lcdc_info.ch[0].num_cfg			= ARRAY_SIZE(ecovec_lcd_modes);
+		lcdc_info.ch[0].lcd_modes		= ecovec_lcd_modes;
+		lcdc_info.ch[0].num_modes		= ARRAY_SIZE(ecovec_lcd_modes);
 
 		gpio_set_value(GPIO_PTR1, 1);
 

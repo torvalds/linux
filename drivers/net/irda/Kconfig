@@ -356,7 +356,7 @@ config VLSI_FIR
 
 config SA1100_FIR
 	tristate "SA1100 Internal IR"
-	depends on ARCH_SA1100 && IRDA
+	depends on ARCH_SA1100 && IRDA && DMA_SA11X0
 
 config VIA_FIR
 	tristate "VIA VT8231/VT1211 SIR/MIR/FIR"

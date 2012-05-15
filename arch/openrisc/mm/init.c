@@ -222,8 +222,7 @@ void __init mem_init(void)
 {
 	int codesize, reservedpages, datasize, initsize;
 
-	if (!mem_map)
-		BUG();
+	BUG_ON(!mem_map);
 
 	set_max_mapnr_init();
 

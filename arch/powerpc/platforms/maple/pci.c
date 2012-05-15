@@ -620,7 +620,7 @@ void __init maple_pci_init(void)
 	}
 
 	/* Tell pci.c to not change any resource allocations.  */
-	pci_probe_only = 1;
+	pci_add_flags(PCI_PROBE_ONLY);
 }
 
 int maple_pci_get_legacy_ide_irq(struct pci_dev *pdev, int channel)

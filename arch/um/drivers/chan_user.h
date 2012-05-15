@@ -14,8 +14,6 @@ struct chan_opts {
 	const int raw;
 };
 
-enum chan_init_pri { INIT_STATIC, INIT_ALL, INIT_ONE };
-
 struct chan_ops {
 	char *type;
 	void *(*init)(char *, int, const struct chan_opts *);

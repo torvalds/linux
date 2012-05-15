@@ -172,7 +172,7 @@ static void twl4030_vibra_close(struct input_dev *input)
 }
 
 /*** Module ***/
-#if CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 static int twl4030_vibra_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);

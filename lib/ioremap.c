@@ -9,7 +9,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
 

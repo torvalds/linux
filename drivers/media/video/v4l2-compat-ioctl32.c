@@ -14,11 +14,10 @@
  */
 
 #include <linux/compat.h>
-#include <linux/videodev2.h>
 #include <linux/module.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
-
-#ifdef CONFIG_COMPAT
 
 static long native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -937,6 +936,7 @@ static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 
 long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 {
+	struct video_device *vdev = video_devdata(file);
 	long ret = -ENOIOCTLCMD;
 
 	if (!file->f_op->unlocked_ioctl)
@@ -1005,6 +1005,8 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOC_G_ENC_INDEX:
 	case VIDIOC_ENCODER_CMD:
 	case VIDIOC_TRY_ENCODER_CMD:
+	case VIDIOC_DECODER_CMD:
+	case VIDIOC_TRY_DECODER_CMD:
 	case VIDIOC_DBG_S_REGISTER:
 	case VIDIOC_DBG_G_REGISTER:
 	case VIDIOC_DBG_G_CHIP_IDENT:
@@ -1025,14 +1027,16 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		printk(KERN_WARNING "compat_ioctl32: "
-			"unknown ioctl '%c', dir=%d, #%d (0x%08x)\n",
-			_IOC_TYPE(cmd), _IOC_DIR(cmd), _IOC_NR(cmd), cmd);
+		if (vdev->fops->compat_ioctl32)
+			ret = vdev->fops->compat_ioctl32(file, cmd, arg);
+
+		if (ret == -ENOIOCTLCMD)
+			printk(KERN_WARNING "compat_ioctl32: "
+				"unknown ioctl '%c', dir=%d, #%d (0x%08x)\n",
+				_IOC_TYPE(cmd), _IOC_DIR(cmd), _IOC_NR(cmd),
+				cmd);
 		break;
 	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(v4l2_compat_ioctl32);
-#endif
-
-MODULE_LICENSE("GPL");

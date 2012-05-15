@@ -126,9 +126,9 @@ void exit_thread(void)
 {
 }
 
-void *get_current(void)
+int get_current_pid(void)
 {
-	return current;
+	return task_pid_nr(current);
 }
 
 /*

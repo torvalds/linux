@@ -96,8 +96,8 @@ field and the &v4l2-tuner; <structfield>index</structfield> field.</entry>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved</structfield>[7]</entry>
-	    <entry>Reserved for future extensions. Drivers and
-	    applications must set the array to zero.</entry>
+	    <entry>Reserved for future extensions. Applications
+	    must set the array to zero.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -112,7 +112,7 @@ field and the &v4l2-tuner; <structfield>index</structfield> field.</entry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The <structfield>tuner</structfield> index is out of
-bounds or the value in the <structfield>type</structfield> field is
+bounds, the wrap_around value is not supported or the value in the <structfield>type</structfield> field is
 wrong.</para>
 	</listitem>
       </varlistentry>

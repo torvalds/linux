@@ -1282,7 +1282,7 @@ MODULE_PARM_DESC(iommap, "physical base for memory mapped I/O"
 /*
  * some architectures (e.g. intel xscale) align the 8bit serial registers
  * on 32bit word boundaries.
- * See linux-kernel/serial/8250.c serial_in()/out()
+ * See linux-kernel/drivers/tty/serial/8250/8250.c serial_in()/out()
  */
 module_param(ioshift, int, S_IRUGO);
 MODULE_PARM_DESC(ioshift, "shift I/O register offset (0 = no shift)");

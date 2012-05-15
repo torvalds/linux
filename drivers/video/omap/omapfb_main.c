@@ -34,7 +34,6 @@
 
 #include "omapfb.h"
 #include "lcdc.h"
-#include "dispc.h"
 
 #define MODULE_NAME	"omapfb"
 
@@ -104,29 +103,17 @@ static struct platform_device omapdss_device = {
  * ---------------------------------------------------------------------------
  */
 extern struct lcd_ctrl hwa742_ctrl;
-extern struct lcd_ctrl blizzard_ctrl;
 
 static const struct lcd_ctrl *ctrls[] = {
-#ifdef CONFIG_ARCH_OMAP1
 	&omap1_int_ctrl,
-#else
-	&omap2_int_ctrl,
-#endif
 
 #ifdef CONFIG_FB_OMAP_LCDC_HWA742
 	&hwa742_ctrl,
 #endif
-#ifdef CONFIG_FB_OMAP_LCDC_BLIZZARD
-	&blizzard_ctrl,
-#endif
 };
 
 #ifdef CONFIG_FB_OMAP_LCDC_EXTERNAL
-#ifdef CONFIG_ARCH_OMAP1
 extern struct lcd_ctrl_extif omap1_ext_if;
-#else
-extern struct lcd_ctrl_extif omap2_ext_if;
-#endif
 #endif
 
 static void omapfb_rqueue_lock(struct omapfb_device *fbdev)
@@ -170,11 +157,6 @@ static int ctrl_init(struct omapfb_device *fbdev)
 			fbdev->mem_desc.region[i].size =
 				PAGE_ALIGN(def_vram[i]);
 		fbdev->mem_desc.region_cnt = i;
-	} else {
-		struct omapfb_platform_data *conf;
-
-		conf = fbdev->dev->platform_data;
-		fbdev->mem_desc = conf->mem_desc;
 	}
 
 	if (!fbdev->mem_desc.region_cnt) {
@@ -880,7 +862,7 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 
 	if (fbdev->ctrl->setup_mem == NULL)
 		return -ENODEV;
-	if (mi->type > OMAPFB_MEMTYPE_MAX)
+	if (mi->type != OMAPFB_MEMTYPE_SDRAM)
 		return -EINVAL;
 
 	size = PAGE_ALIGN(mi->size);
@@ -1721,16 +1703,9 @@ static int omapfb_do_probe(struct platform_device *pdev,
 
 	mutex_init(&fbdev->rqueue_mutex);
 
-#ifdef CONFIG_ARCH_OMAP1
 	fbdev->int_ctrl = &omap1_int_ctrl;
 #ifdef CONFIG_FB_OMAP_LCDC_EXTERNAL
 	fbdev->ext_if = &omap1_ext_if;
-#endif
-#else	/* OMAP2 */
-	fbdev->int_ctrl = &omap2_int_ctrl;
-#ifdef CONFIG_FB_OMAP_LCDC_EXTERNAL
-	fbdev->ext_if = &omap2_ext_if;
-#endif
 #endif
 	if (omapfb_find_ctrl(fbdev) < 0) {
 		dev_err(fbdev->dev,
@@ -1766,8 +1741,7 @@ static int omapfb_do_probe(struct platform_device *pdev,
 
 #ifdef CONFIG_FB_OMAP_DMA_TUNE
 	/* Set DMA priority for EMIFF access to highest */
-	if (cpu_class_is_omap1())
-		omap_set_dma_priority(0, OMAP_DMA_PORT_EMIFF, 15);
+	omap_set_dma_priority(0, OMAP_DMA_PORT_EMIFF, 15);
 #endif
 
 	r = ctrl_change_mode(fbdev->fb_info[0]);

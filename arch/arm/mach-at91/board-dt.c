@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/gpio.h>
-#include <linux/irqdomain.h>
+#include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
@@ -38,12 +38,6 @@ static void __init ek_init_early(void)
 {
 	/* Initialize processor: 12.000 MHz crystal */
 	at91_initialize(12000000);
-
-	/* DGBU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /* det_pin is not connected */
@@ -88,15 +82,17 @@ static void __init ek_add_device_nand(void)
 	at91_add_device_nand(&ek_nand_data);
 }
 
-static const struct of_device_id aic_of_match[] __initconst = {
-	{ .compatible = "atmel,at91rm9200-aic", },
-	{},
+static const struct of_device_id irq_of_match[] __initconst = {
+
+	{ .compatible = "atmel,at91rm9200-aic", .data = at91_aic_of_init },
+	{ .compatible = "atmel,at91rm9200-gpio", .data = at91_gpio_of_irq_setup },
+	{ .compatible = "atmel,at91sam9x5-gpio", .data = at91_gpio_of_irq_setup },
+	{ /*sentinel*/ }
 };
 
 static void __init at91_dt_init_irq(void)
 {
-	irq_domain_generate_simple(aic_of_match, 0xfffff000, 0);
-	at91_init_irq_default();
+	of_irq_init(irq_of_match);
 }
 
 static void __init at91_dt_device_init(void)
@@ -109,6 +105,7 @@ static void __init at91_dt_device_init(void)
 
 static const char *at91_dt_board_compat[] __initdata = {
 	"atmel,at91sam9m10g45ek",
+	"atmel,at91sam9x5ek",
 	"calao,usb-a9g20",
 	NULL
 };

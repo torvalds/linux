@@ -25,6 +25,10 @@ config INPUT
 
 if INPUT
 
+config INPUT_OF_MATRIX_KEYMAP
+	depends on USE_OF
+	bool
+
 config INPUT_FF_MEMLESS
 	tristate "Support for memoryless force-feedback devices"
 	help

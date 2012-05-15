@@ -37,9 +37,9 @@ setup-y		+= video-bios.o
 targets		+= $(setup-y)
 hostprogs-y	:= mkcpustr tools/build
 
-HOSTCFLAGS_mkcpustr.o := -I$(srctree)/arch/$(SRCARCH)/include
-HOST_EXTRACFLAGS += -I$(objtree)/include -I$(srctree)/tools/include \
-                   -include $(srctree)/include/linux/kconfig.h
+HOST_EXTRACFLAGS += -I$(srctree)/tools/include $(LINUXINCLUDE) \
+	            -D__EXPORTED_HEADERS__
+
 $(obj)/cpu.o: $(obj)/cpustr.h
 
 quiet_cmd_cpustr = CPUSTR  $@

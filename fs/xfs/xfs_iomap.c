@@ -31,6 +31,7 @@
 #include "xfs_ialloc_btree.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_inode_item.h"
 #include "xfs_btree.h"
 #include "xfs_bmap.h"
 #include "xfs_rtalloc.h"
@@ -645,6 +646,7 @@ xfs_iomap_write_unwritten(
 	xfs_trans_t	*tp;
 	xfs_bmbt_irec_t imap;
 	xfs_bmap_free_t free_list;
+	xfs_fsize_t	i_size;
 	uint		resblks;
 	int		committed;
 	int		error;
@@ -705,7 +707,22 @@ xfs_iomap_write_unwritten(
 		if (error)
 			goto error_on_bmapi_transaction;
 
-		error = xfs_bmap_finish(&(tp), &(free_list), &committed);
+		/*
+		 * Log the updated inode size as we go.  We have to be careful
+		 * to only log it up to the actual write offset if it is
+		 * halfway into a block.
+		 */
+		i_size = XFS_FSB_TO_B(mp, offset_fsb + count_fsb);
+		if (i_size > offset + count)
+			i_size = offset + count;
+
+		i_size = xfs_new_eof(ip, i_size);
+		if (i_size) {
+			ip->i_d.di_size = i_size;
+			xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+		}
+
+		error = xfs_bmap_finish(&tp, &free_list, &committed);
 		if (error)
 			goto error_on_bmapi_transaction;
 

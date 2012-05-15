@@ -20,14 +20,15 @@
 #include <linux/clk.h>
 #include <linux/list.h>
 
+#include <plat/hardware.h>
 #include <plat/clkdev_omap.h>
 
+#include "iomap.h"
 #include "clock.h"
 #include "clock3xxx.h"
 #include "clock34xx.h"
 #include "clock36xx.h"
 #include "clock3517.h"
-
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
 #include "prm2xxx_3xxx.h"

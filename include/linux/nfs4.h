@@ -183,15 +183,12 @@ struct nfs4_acl {
 
 typedef struct { char data[NFS4_VERIFIER_SIZE]; } nfs4_verifier;
 
-struct nfs41_stateid {
+struct nfs_stateid4 {
 	__be32 seqid;
 	char other[NFS4_STATEID_OTHER_SIZE];
 } __attribute__ ((packed));
 
-typedef union {
-	char data[NFS4_STATEID_SIZE];
-	struct nfs41_stateid stateid;
-} nfs4_stateid;
+typedef struct nfs_stateid4 nfs4_stateid;
 
 enum nfs_opnum4 {
 	OP_ACCESS = 3,

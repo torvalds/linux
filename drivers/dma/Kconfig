@@ -252,6 +252,15 @@ config EP93XX_DMA
 	help
 	  Enable support for the Cirrus Logic EP93xx M2P/M2M DMA controller.
 
+config DMA_SA11X0
+	tristate "SA-11x0 DMA support"
+	depends on ARCH_SA1100
+	select DMA_ENGINE
+	help
+	  Support the DMA engine found on Intel StrongARM SA-1100 and
+	  SA-1110 SoCs.  This DMA engine can only be used with on-chip
+	  devices.
+
 config DMA_ENGINE
 	bool
 

@@ -416,7 +416,12 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 		kfree(sd);
 	} else {
 		get_current_resources(device, busnum, domain, &resources);
-		if (list_empty(&resources))
+
+		/*
+		 * _CRS with no apertures is normal, so only fall back to
+		 * defaults or native bridge info if we're ignoring _CRS.
+		 */
+		if (!pci_use_crs)
 			x86_pci_root_bus_resources(busnum, &resources);
 		bus = pci_create_root_bus(NULL, busnum, &pci_root_ops, sd,
 					  &resources);

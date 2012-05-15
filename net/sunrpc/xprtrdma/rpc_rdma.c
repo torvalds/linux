@@ -771,12 +771,17 @@ repost:
 
 	/* get request object */
 	req = rpcr_to_rdmar(rqst);
+	if (req->rl_reply) {
+		spin_unlock(&xprt->transport_lock);
+		dprintk("RPC:       %s: duplicate reply 0x%p to RPC "
+			"request 0x%p: xid 0x%08x\n", __func__, rep, req,
+			headerp->rm_xid);
+		goto repost;
+	}
 
 	dprintk("RPC:       %s: reply 0x%p completes request 0x%p\n"
 		"                   RPC request 0x%p xid 0x%08x\n",
 			__func__, rep, req, rqst, headerp->rm_xid);
-
-	BUG_ON(!req || req->rl_reply);
 
 	/* from here on, the reply is no longer an orphan */
 	req->rl_reply = rep;

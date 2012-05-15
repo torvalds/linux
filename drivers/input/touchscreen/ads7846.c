@@ -1433,17 +1433,7 @@ static struct spi_driver ads7846_driver = {
 	.remove		= __devexit_p(ads7846_remove),
 };
 
-static int __init ads7846_init(void)
-{
-	return spi_register_driver(&ads7846_driver);
-}
-module_init(ads7846_init);
-
-static void __exit ads7846_exit(void)
-{
-	spi_unregister_driver(&ads7846_driver);
-}
-module_exit(ads7846_exit);
+module_spi_driver(ads7846_driver);
 
 MODULE_DESCRIPTION("ADS7846 TouchScreen Driver");
 MODULE_LICENSE("GPL");

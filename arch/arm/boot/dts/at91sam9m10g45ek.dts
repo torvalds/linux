@@ -37,4 +37,76 @@
 			};
 		};
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		d8 {
+			label = "d8";
+			gpios = <&pioD 30 0>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		d6 {
+			label = "d6";
+			gpios = <&pioD 0 1>;
+			linux,default-trigger = "nand-disk";
+		};
+
+		d7 {
+			label = "d7";
+			gpios = <&pioD 31 1>;
+			linux,default-trigger = "mmc0";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		left_click {
+			label = "left_click";
+			gpios = <&pioB 6 1>;
+			linux,code = <272>;
+			gpio-key,wakeup;
+		};
+
+		right_click {
+			label = "right_click";
+			gpios = <&pioB 7 1>;
+			linux,code = <273>;
+			gpio-key,wakeup;
+		};
+
+		left {
+			label = "Joystick Left";
+			gpios = <&pioB 14 1>;
+			linux,code = <105>;
+		};
+
+		right {
+			label = "Joystick Right";
+			gpios = <&pioB 15 1>;
+			linux,code = <106>;
+		};
+
+		up {
+			label = "Joystick Up";
+			gpios = <&pioB 16 1>;
+			linux,code = <103>;
+		};
+
+		down {
+			label = "Joystick Down";
+			gpios = <&pioB 17 1>;
+			linux,code = <108>;
+		};
+
+		enter {
+			label = "Joystick Press";
+			gpios = <&pioB 18 1>;
+			linux,code = <28>;
+		};
+	};
 };

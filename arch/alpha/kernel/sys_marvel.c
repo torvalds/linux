@@ -384,7 +384,8 @@ marvel_init_pci(void)
 
 	marvel_register_error_handlers();
 
-	pci_probe_only = 1;
+	/* Indicate that we trust the console to configure things properly */
+	pci_set_flags(PCI_PROBE_ONLY);
 	common_init_pci();
 	locate_and_init_vga(NULL);
 

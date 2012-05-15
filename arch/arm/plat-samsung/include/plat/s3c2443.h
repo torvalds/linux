@@ -32,23 +32,3 @@ extern void s3c2443_restart(char mode, const char *cmd);
 #define s3c2443_init NULL
 #define s3c2443_restart NULL
 #endif
-
-/* common code used by s3c2443 and others.
- * note, not to be used outside of arch/arm/mach-s3c* */
-
-struct clk;	/* some files don't need clk.h otherwise */
-
-typedef unsigned int (*pll_fn)(unsigned int reg, unsigned int base);
-
-extern void s3c2443_common_setup_clocks(pll_fn get_mpll);
-extern void s3c2443_common_init_clocks(int xtal, pll_fn get_mpll,
-				       unsigned int *divs, int nr_divs,
-				       int divmask);
-
-extern int s3c2443_clkcon_enable_h(struct clk *clk, int enable);
-extern int s3c2443_clkcon_enable_p(struct clk *clk, int enable);
-extern int s3c2443_clkcon_enable_s(struct clk *clk, int enable);
-
-extern struct clksrc_clk clk_epllref;
-extern struct clksrc_clk clk_esysclk;
-extern struct clksrc_clk clk_msysclk;

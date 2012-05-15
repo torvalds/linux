@@ -158,7 +158,7 @@ static int omap3_enable_st_clock(unsigned int id, bool enable)
 	return 0;
 }
 
-static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
+static int __init omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 {
 	int id, count = 1;
 	char *name = "omap-mcbsp";

@@ -102,17 +102,7 @@ static struct i2c_driver ad7879_i2c_driver = {
 	.id_table	= ad7879_id,
 };
 
-static int __init ad7879_i2c_init(void)
-{
-	return i2c_add_driver(&ad7879_i2c_driver);
-}
-module_init(ad7879_i2c_init);
-
-static void __exit ad7879_i2c_exit(void)
-{
-	i2c_del_driver(&ad7879_i2c_driver);
-}
-module_exit(ad7879_i2c_exit);
+module_i2c_driver(ad7879_i2c_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("AD7879(-1) touchscreen I2C bus driver");

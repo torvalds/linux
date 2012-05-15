@@ -623,15 +623,7 @@ static struct i2c_driver x1205_driver = {
 	.id_table	= x1205_id,
 };
 
-static int __init x1205_init(void)
-{
-	return i2c_add_driver(&x1205_driver);
-}
-
-static void __exit x1205_exit(void)
-{
-	i2c_del_driver(&x1205_driver);
-}
+module_i2c_driver(x1205_driver);
 
 MODULE_AUTHOR(
 	"Karen Spearel <kas111 at gmail dot com>, "
@@ -639,6 +631,3 @@ MODULE_AUTHOR(
 MODULE_DESCRIPTION("Xicor/Intersil X1205 RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(x1205_init);
-module_exit(x1205_exit);

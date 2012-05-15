@@ -2181,26 +2181,9 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			switch (control->type) {
-			case WM8994:
-				if (wm8994->revision < 4) {
-					/* Tweak DC servo and DSP
-					 * configuration for improved
-					 * performance. */
-					snd_soc_write(codec, 0x102, 0x3);
-					snd_soc_write(codec, 0x56, 0x3);
-					snd_soc_write(codec, 0x817, 0);
-					snd_soc_write(codec, 0x102, 0);
-				}
-				break;
-
 			case WM8958:
 				if (wm8994->revision == 0) {
 					/* Optimise performance for rev A */
-					snd_soc_write(codec, 0x102, 0x3);
-					snd_soc_write(codec, 0xcb, 0x81);
-					snd_soc_write(codec, 0x817, 0);
-					snd_soc_write(codec, 0x102, 0);
-
 					snd_soc_update_bits(codec,
 							    WM8958_CHARGE_PUMP_2,
 							    WM8958_CP_DISCH,
@@ -2208,13 +2191,7 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 				}
 				break;
 
-			case WM1811:
-				if (wm8994->revision < 2) {
-					snd_soc_write(codec, 0x102, 0x3);
-					snd_soc_write(codec, 0x5d, 0x7e);
-					snd_soc_write(codec, 0x5e, 0x0);
-					snd_soc_write(codec, 0x102, 0x0);
-				}
+			default:
 				break;
 			}
 

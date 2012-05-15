@@ -1,7 +1,7 @@
 #include <linux/pci.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 void devm_ioremap_release(struct device *dev, void *res)
 {

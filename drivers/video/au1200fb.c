@@ -1724,7 +1724,7 @@ static int __devinit au1200fb_drv_probe(struct platform_device *dev)
 		/* Allocate the framebuffer to the maximum screen size */
 		fbdev->fb_len = (win->w[plane].xres * win->w[plane].yres * bpp) / 8;
 
-		fbdev->fb_mem = dma_alloc_noncoherent(&dev->dev,
+		fbdev->fb_mem = dmam_alloc_noncoherent(&dev->dev, &dev->dev,
 				PAGE_ALIGN(fbdev->fb_len),
 				&fbdev->fb_phys, GFP_KERNEL);
 		if (!fbdev->fb_mem) {
@@ -1788,9 +1788,6 @@ static int __devinit au1200fb_drv_probe(struct platform_device *dev)
 
 failed:
 	/* NOTE: This only does the current plane/window that failed; others are still active */
-	if (fbdev->fb_mem)
-		dma_free_noncoherent(&dev->dev, PAGE_ALIGN(fbdev->fb_len),
-				fbdev->fb_mem, fbdev->fb_phys);
 	if (fbi) {
 		if (fbi->cmap.len != 0)
 			fb_dealloc_cmap(&fbi->cmap);
@@ -1817,10 +1814,6 @@ static int __devexit au1200fb_drv_remove(struct platform_device *dev)
 
 		/* Clean up all probe data */
 		unregister_framebuffer(fbi);
-		if (fbdev->fb_mem)
-			dma_free_noncoherent(&dev->dev,
-					PAGE_ALIGN(fbdev->fb_len),
-					fbdev->fb_mem, fbdev->fb_phys);
 		if (fbi->cmap.len != 0)
 			fb_dealloc_cmap(&fbi->cmap);
 		kfree(fbi->pseudo_palette);

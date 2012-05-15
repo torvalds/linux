@@ -28,3 +28,25 @@ Required root node properties:
 i.MX6 Quad SABRE Lite Board
 Required root node properties:
     - compatible = "fsl,imx6q-sabrelite", "fsl,imx6q";
+
+Generic i.MX boards
+-------------------
+
+No iomux setup is done for these boards, so this must have been configured
+by the bootloader for boards to work with the generic bindings.
+
+i.MX27 generic board
+Required root node properties:
+    - compatible = "fsl,imx27";
+
+i.MX51 generic board
+Required root node properties:
+    - compatible = "fsl,imx51";
+
+i.MX53 generic board
+Required root node properties:
+    - compatible = "fsl,imx53";
+
+i.MX6q generic board
+Required root node properties:
+    - compatible = "fsl,imx6q";

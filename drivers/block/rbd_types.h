@@ -41,10 +41,6 @@
 #define RBD_HEADER_SIGNATURE	"RBD"
 #define RBD_HEADER_VERSION	"001.005"
 
-struct rbd_info {
-	__le64 max_id;
-} __attribute__ ((packed));
-
 struct rbd_image_snap_ondisk {
 	__le64 id;
 	__le64 image_size;

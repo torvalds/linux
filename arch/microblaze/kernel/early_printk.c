@@ -171,10 +171,24 @@ void __init remap_early_printk(void)
 {
 	if (!early_console_initialized || !early_console)
 		return;
-	printk(KERN_INFO "early_printk_console remaping from 0x%x to ",
+	printk(KERN_INFO "early_printk_console remapping from 0x%x to ",
 								base_addr);
 	base_addr = (u32) ioremap(base_addr, PAGE_SIZE);
 	printk(KERN_CONT "0x%x\n", base_addr);
+
+	/*
+	 * Early console is on the top of skipped TLB entries
+	 * decrease tlb_skip size ensure that hardcoded TLB entry will be
+	 * used by generic algorithm
+	 * FIXME check if early console mapping is on the top by rereading
+	 * TLB entry and compare baseaddr
+	 *  mts  rtlbx, (tlb_skip - 1)
+	 *  nop
+	 *  mfs  rX, rtlblo
+	 *  nop
+	 *  cmp rX, orig_base_addr
+	 */
+	tlb_skip -= 1;
 }
 
 void __init disable_early_printk(void)

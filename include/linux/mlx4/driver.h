@@ -33,7 +33,6 @@
 #ifndef MLX4_DRIVER_H
 #define MLX4_DRIVER_H
 
-#include <linux/device.h>
 #include <linux/mlx4/device.h>
 
 struct mlx4_dev;

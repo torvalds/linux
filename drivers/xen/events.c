@@ -37,6 +37,7 @@
 #include <asm/idle.h>
 #include <asm/io_apic.h>
 #include <asm/sync_bitops.h>
+#include <asm/xen/page.h>
 #include <asm/xen/pci.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
@@ -109,6 +110,8 @@ struct irq_info {
 #define PIRQ_SHAREABLE	(1 << 1)
 
 static int *evtchn_to_irq;
+static unsigned long *pirq_eoi_map;
+static bool (*pirq_needs_eoi)(unsigned irq);
 
 static DEFINE_PER_CPU(unsigned long [NR_EVENT_CHANNELS/BITS_PER_LONG],
 		      cpu_evtchn_mask);
@@ -269,10 +272,14 @@ static unsigned int cpu_from_evtchn(unsigned int evtchn)
 	return ret;
 }
 
-static bool pirq_needs_eoi(unsigned irq)
+static bool pirq_check_eoi_map(unsigned irq)
+{
+	return test_bit(irq, pirq_eoi_map);
+}
+
+static bool pirq_needs_eoi_flag(unsigned irq)
 {
 	struct irq_info *info = info_for_irq(irq);
-
 	BUG_ON(info->type != IRQT_PIRQ);
 
 	return info->u.pirq.flags & PIRQ_NEEDS_EOI;
@@ -1768,7 +1775,7 @@ void xen_callback_vector(void) {}
 
 void __init xen_init_IRQ(void)
 {
-	int i;
+	int i, rc;
 
 	evtchn_to_irq = kcalloc(NR_EVENT_CHANNELS, sizeof(*evtchn_to_irq),
 				    GFP_KERNEL);
@@ -1782,6 +1789,8 @@ void __init xen_init_IRQ(void)
 	for (i = 0; i < NR_EVENT_CHANNELS; i++)
 		mask_evtchn(i);
 
+	pirq_needs_eoi = pirq_needs_eoi_flag;
+
 	if (xen_hvm_domain()) {
 		xen_callback_vector();
 		native_init_IRQ();
@@ -1789,8 +1798,19 @@ void __init xen_init_IRQ(void)
 		 * __acpi_register_gsi can point at the right function */
 		pci_xen_hvm_init();
 	} else {
+		struct physdev_pirq_eoi_gmfn eoi_gmfn;
+
 		irq_ctx_init(smp_processor_id());
 		if (xen_initial_domain())
 			pci_xen_initial_domain();
+
+		pirq_eoi_map = (void *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+		eoi_gmfn.gmfn = virt_to_mfn(pirq_eoi_map);
+		rc = HYPERVISOR_physdev_op(PHYSDEVOP_pirq_eoi_gmfn_v2, &eoi_gmfn);
+		if (rc != 0) {
+			free_page((unsigned long) pirq_eoi_map);
+			pirq_eoi_map = NULL;
+		} else
+			pirq_needs_eoi = pirq_check_eoi_map;
 	}
 }

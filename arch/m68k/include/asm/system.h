@@ -3,6 +3,7 @@
 
 #include <linux/linkage.h>
 #include <linux/kernel.h>
+#include <linux/bug.h>
 #include <linux/irqflags.h>
 #include <asm/segment.h>
 #include <asm/entry.h>

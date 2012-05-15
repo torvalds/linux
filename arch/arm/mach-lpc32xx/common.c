@@ -138,6 +138,75 @@ struct platform_device lpc32xx_rtc_device = {
 };
 
 /*
+ * ADC support
+ */
+static struct resource adc_resources[] = {
+	{
+		.start = LPC32XX_ADC_BASE,
+		.end = LPC32XX_ADC_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = IRQ_LPC32XX_TS_IRQ,
+		.end = IRQ_LPC32XX_TS_IRQ,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device lpc32xx_adc_device = {
+	.name =  "lpc32xx-adc",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(adc_resources),
+	.resource = adc_resources,
+};
+
+/*
+ * USB support
+ */
+/* The dmamask must be set for OHCI to work */
+static u64 ohci_dmamask = ~(u32) 0;
+static struct resource ohci_resources[] = {
+	{
+		.start = IO_ADDRESS(LPC32XX_USB_BASE),
+		.end = IO_ADDRESS(LPC32XX_USB_BASE + 0x100 - 1),
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = IRQ_LPC32XX_USB_HOST,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+struct platform_device lpc32xx_ohci_device = {
+	.name = "usb-ohci",
+	.id = -1,
+	.dev = {
+		.dma_mask = &ohci_dmamask,
+		.coherent_dma_mask = 0xFFFFFFFF,
+	},
+	.num_resources = ARRAY_SIZE(ohci_resources),
+	.resource = ohci_resources,
+};
+
+/*
+ * Network Support
+ */
+static struct resource net_resources[] = {
+	[0] = DEFINE_RES_MEM(LPC32XX_ETHERNET_BASE, SZ_4K),
+	[1] = DEFINE_RES_MEM(LPC32XX_IRAM_BASE, SZ_128K),
+	[2] = DEFINE_RES_IRQ(IRQ_LPC32XX_ETHERNET),
+};
+
+static u64 lpc32xx_mac_dma_mask = 0xffffffffUL;
+struct platform_device lpc32xx_net_device = {
+	.name = "lpc-eth",
+	.id = 0,
+	.dev = {
+		.dma_mask = &lpc32xx_mac_dma_mask,
+		.coherent_dma_mask = 0xffffffffUL,
+	},
+	.num_resources = ARRAY_SIZE(net_resources),
+	.resource = net_resources,
+};
+
+/*
  * Returns the unique ID for the device
  */
 void lpc32xx_get_uid(u32 devid[4])

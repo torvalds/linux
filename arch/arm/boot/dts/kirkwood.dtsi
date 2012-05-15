@@ -1,0 +1,6 @@
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "marvell,kirkwood";
+};
+

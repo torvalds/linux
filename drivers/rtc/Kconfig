@@ -554,6 +554,13 @@ config RTC_DRV_DS1742
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1742.
 
+config RTC_DRV_DA9052
+	tristate "Dialog DA9052/DA9053 RTC"
+	depends on PMIC_DA9052
+	help
+	  Say y here to support the RTC driver for Dialog Semiconductor
+	  DA9052-BC and DA9053-AA/Bx PMICs.
+
 config RTC_DRV_EFI
 	tristate "EFI RTC"
 	depends on IA64
@@ -748,7 +755,7 @@ config HAVE_S3C_RTC
 
 config RTC_DRV_S3C
 	tristate "Samsung S3C series SoC RTC"
-	depends on ARCH_S3C2410 || ARCH_S3C64XX || HAVE_S3C_RTC
+	depends on ARCH_S3C64XX || HAVE_S3C_RTC
 	help
 	  RTC (Realtime Clock) driver for the clock inbuilt into the
 	  Samsung S3C24XX series of SoCs. This can provide periodic
@@ -773,8 +780,8 @@ config RTC_DRV_EP93XX
 	  will be called rtc-ep93xx.
 
 config RTC_DRV_SA1100
-	tristate "SA11x0/PXA2xx"
-	depends on ARCH_SA1100 || ARCH_PXA
+	tristate "SA11x0/PXA2xx/PXA910"
+	depends on ARCH_SA1100 || ARCH_PXA || ARCH_MMP
 	help
 	  If you say Y here you will get access to the real time clock
 	  built into your SA11x0 or PXA2xx CPU.
@@ -1069,5 +1076,15 @@ config RTC_DRV_PUV3
 
 	  This drive can also be built as a module. If so, the module
 	  will be called rtc-puv3.
+
+config RTC_DRV_LOONGSON1
+	tristate "loongson1 RTC support"
+	depends on MACH_LOONGSON1
+	help
+	  This is a driver for the loongson1 on-chip Counter0 (Time-Of-Year
+	  counter) to be used as a RTC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ls1x.
 
 endif # RTC_CLASS

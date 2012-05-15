@@ -25,6 +25,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/bug.h>
 #include <linux/kernel.h>
 
 const u32 si_default_state[] =

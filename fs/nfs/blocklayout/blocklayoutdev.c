@@ -46,7 +46,7 @@ static int decode_sector_number(__be32 **rp, sector_t *sp)
 
 	*rp = xdr_decode_hyper(*rp, &s);
 	if (s & 0x1ff) {
-		printk(KERN_WARNING "%s: sector not aligned\n", __func__);
+		printk(KERN_WARNING "NFS: %s: sector not aligned\n", __func__);
 		return -1;
 	}
 	*sp = s >> SECTOR_SHIFT;
@@ -79,27 +79,30 @@ int nfs4_blkdev_put(struct block_device *bdev)
 	return blkdev_put(bdev, FMODE_READ);
 }
 
-static struct bl_dev_msg bl_mount_reply;
-
 ssize_t bl_pipe_downcall(struct file *filp, const char __user *src,
 			 size_t mlen)
 {
+	struct nfs_net *nn = net_generic(filp->f_dentry->d_sb->s_fs_info,
+					 nfs_net_id);
+
 	if (mlen != sizeof (struct bl_dev_msg))
 		return -EINVAL;
 
-	if (copy_from_user(&bl_mount_reply, src, mlen) != 0)
+	if (copy_from_user(&nn->bl_mount_reply, src, mlen) != 0)
 		return -EFAULT;
 
-	wake_up(&bl_wq);
+	wake_up(&nn->bl_wq);
 
 	return mlen;
 }
 
 void bl_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 {
+	struct bl_pipe_msg *bl_pipe_msg = container_of(msg, struct bl_pipe_msg, msg);
+
 	if (msg->errno >= 0)
 		return;
-	wake_up(&bl_wq);
+	wake_up(bl_pipe_msg->bl_wq);
 }
 
 /*
@@ -111,29 +114,33 @@ nfs4_blk_decode_device(struct nfs_server *server,
 {
 	struct pnfs_block_dev *rv;
 	struct block_device *bd = NULL;
-	struct rpc_pipe_msg msg;
+	struct bl_pipe_msg bl_pipe_msg;
+	struct rpc_pipe_msg *msg = &bl_pipe_msg.msg;
 	struct bl_msg_hdr bl_msg = {
 		.type = BL_DEVICE_MOUNT,
 		.totallen = dev->mincount,
 	};
 	uint8_t *dataptr;
 	DECLARE_WAITQUEUE(wq, current);
-	struct bl_dev_msg *reply = &bl_mount_reply;
 	int offset, len, i, rc;
+	struct net *net = server->nfs_client->net;
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+	struct bl_dev_msg *reply = &nn->bl_mount_reply;
 
 	dprintk("%s CREATING PIPEFS MESSAGE\n", __func__);
 	dprintk("%s: deviceid: %s, mincount: %d\n", __func__, dev->dev_id.data,
 		dev->mincount);
 
-	memset(&msg, 0, sizeof(msg));
-	msg.data = kzalloc(sizeof(bl_msg) + dev->mincount, GFP_NOFS);
-	if (!msg.data) {
+	bl_pipe_msg.bl_wq = &nn->bl_wq;
+	memset(msg, 0, sizeof(*msg));
+	msg->data = kzalloc(sizeof(bl_msg) + dev->mincount, GFP_NOFS);
+	if (!msg->data) {
 		rv = ERR_PTR(-ENOMEM);
 		goto out;
 	}
 
-	memcpy(msg.data, &bl_msg, sizeof(bl_msg));
-	dataptr = (uint8_t *) msg.data;
+	memcpy(msg->data, &bl_msg, sizeof(bl_msg));
+	dataptr = (uint8_t *) msg->data;
 	len = dev->mincount;
 	offset = sizeof(bl_msg);
 	for (i = 0; len > 0; i++) {
@@ -142,13 +149,13 @@ nfs4_blk_decode_device(struct nfs_server *server,
 		len -= PAGE_CACHE_SIZE;
 		offset += PAGE_CACHE_SIZE;
 	}
-	msg.len = sizeof(bl_msg) + dev->mincount;
+	msg->len = sizeof(bl_msg) + dev->mincount;
 
 	dprintk("%s CALLING USERSPACE DAEMON\n", __func__);
-	add_wait_queue(&bl_wq, &wq);
-	rc = rpc_queue_upcall(bl_device_pipe->d_inode, &msg);
+	add_wait_queue(&nn->bl_wq, &wq);
+	rc = rpc_queue_upcall(nn->bl_device_pipe, msg);
 	if (rc < 0) {
-		remove_wait_queue(&bl_wq, &wq);
+		remove_wait_queue(&nn->bl_wq, &wq);
 		rv = ERR_PTR(rc);
 		goto out;
 	}
@@ -156,7 +163,7 @@ nfs4_blk_decode_device(struct nfs_server *server,
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule();
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&bl_wq, &wq);
+	remove_wait_queue(&nn->bl_wq, &wq);
 
 	if (reply->status != BL_DEVICE_REQUEST_PROC) {
 		dprintk("%s failed to open device: %d\n",
@@ -181,13 +188,14 @@ nfs4_blk_decode_device(struct nfs_server *server,
 
 	rv->bm_mdev = bd;
 	memcpy(&rv->bm_mdevid, &dev->dev_id, sizeof(struct nfs4_deviceid));
+	rv->net = net;
 	dprintk("%s Created device %s with bd_block_size %u\n",
 		__func__,
 		bd->bd_disk->disk_name,
 		bd->bd_block_size);
 
 out:
-	kfree(msg.data);
+	kfree(msg->data);
 	return rv;
 }
 

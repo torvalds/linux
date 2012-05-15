@@ -3,7 +3,7 @@
 # Licensed under the GPL
 #
 
-CPPFLAGS_vmlinux.lds := -U$(SUBARCH) -DSTART=$(LDS_START) \
+CPPFLAGS_vmlinux.lds := -DSTART=$(LDS_START) \
                         -DELF_ARCH=$(LDS_ELF_ARCH)        \
                         -DELF_FORMAT=$(LDS_ELF_FORMAT)
 extra-y := vmlinux.lds

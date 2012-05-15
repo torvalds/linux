@@ -47,6 +47,7 @@
 #include "bnx2x/bnx2x_hsi.h"
 #include "../../../scsi/bnx2i/57xx_iscsi_constants.h"
 #include "../../../scsi/bnx2i/57xx_iscsi_hsi.h"
+#include "../../../scsi/bnx2fc/bnx2fc_constants.h"
 #include "cnic.h"
 #include "cnic_defs.h"
 
@@ -2547,7 +2548,7 @@ static void cnic_bnx2x_kwqe_err(struct cnic_dev *dev, struct kwqe *kwqe)
 		}
 		kcqe.kcqe_op_flag = kcqe_op << KCQE_FLAGS_OPCODE_SHIFT;
 		kcqe.kcqe_op_flag |= KCQE_FLAGS_LAYER_MASK_L5_FCOE;
-		kcqe.kcqe_info1 = FCOE_KCQE_COMPLETION_STATUS_NIC_ERROR;
+		kcqe.kcqe_info1 = FCOE_KCQE_COMPLETION_STATUS_PARITY_ERROR;
 		kcqe.kcqe_info2 = cid;
 		kcqe.kcqe_info0 = l5_cid;
 
@@ -2558,7 +2559,7 @@ static void cnic_bnx2x_kwqe_err(struct cnic_dev *dev, struct kwqe *kwqe)
 
 		kcqe.kcqe_op_flag = (opcode + 0x10) << KCQE_FLAGS_OPCODE_SHIFT;
 		kcqe.kcqe_op_flag |= KCQE_FLAGS_LAYER_MASK_L5_ISCSI;
-		kcqe.kcqe_info1 = ISCSI_KCQE_COMPLETION_STATUS_NIC_ERROR;
+		kcqe.kcqe_info1 = ISCSI_KCQE_COMPLETION_STATUS_PARITY_ERR;
 		kcqe.kcqe_info2 = cid;
 		cnic_get_l5_cid(cp, BNX2X_SW_CID(cid), &kcqe.kcqe_info0);
 
@@ -2577,7 +2578,7 @@ static void cnic_bnx2x_kwqe_err(struct cnic_dev *dev, struct kwqe *kwqe)
 
 		kcqe.kcqe_op_flag = (kcqe_op << KCQE_FLAGS_OPCODE_SHIFT) |
 				    KCQE_FLAGS_LAYER_MASK_L4;
-		l4kcqe->status = L4_KCQE_COMPLETION_STATUS_NIC_ERROR;
+		l4kcqe->status = L4_KCQE_COMPLETION_STATUS_PARITY_ERROR;
 		l4kcqe->cid = cid;
 		cnic_get_l5_cid(cp, BNX2X_SW_CID(cid), &l4kcqe->conn_id);
 	} else {
@@ -3933,7 +3934,8 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 	case L4_KCQE_OPCODE_VALUE_CONNECT_COMPLETE:
 		if (l4kcqe->status == 0)
 			set_bit(SK_F_OFFLD_COMPLETE, &csk->flags);
-		else if (l4kcqe->status == L4_KCQE_COMPLETION_STATUS_NIC_ERROR)
+		else if (l4kcqe->status ==
+			 L4_KCQE_COMPLETION_STATUS_PARITY_ERROR)
 			set_bit(SK_F_HW_ERR, &csk->flags);
 
 		smp_mb__before_clear_bit();
@@ -3946,7 +3948,7 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 	case L4_KCQE_OPCODE_VALUE_RESET_COMP:
 	case L5CM_RAMROD_CMD_ID_SEARCHER_DELETE:
 	case L5CM_RAMROD_CMD_ID_TERMINATE_OFFLOAD:
-		if (l4kcqe->status == L4_KCQE_COMPLETION_STATUS_NIC_ERROR)
+		if (l4kcqe->status == L4_KCQE_COMPLETION_STATUS_PARITY_ERROR)
 			set_bit(SK_F_HW_ERR, &csk->flags);
 
 		cp->close_conn(csk, opcode);

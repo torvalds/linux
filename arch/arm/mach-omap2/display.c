@@ -30,6 +30,7 @@
 #include <plat/omap-pm.h>
 #include "common.h"
 
+#include "iomap.h"
 #include "mux.h"
 #include "control.h"
 #include "display.h"
@@ -124,7 +125,7 @@ static void omap4_hdmi_mux_pads(enum omap_hdmi_flags flags)
 	}
 }
 
-static int omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
+static int __init omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
 {
 	u32 enable_mask, enable_shift;
 	u32 pipd_mask, pipd_shift;
@@ -157,7 +158,7 @@ static int omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
 	return 0;
 }
 
-int omap_hdmi_init(enum omap_hdmi_flags flags)
+int __init omap_hdmi_init(enum omap_hdmi_flags flags)
 {
 	if (cpu_is_omap44xx())
 		omap4_hdmi_mux_pads(flags);
@@ -165,7 +166,7 @@ int omap_hdmi_init(enum omap_hdmi_flags flags)
 	return 0;
 }
 
-static int omap_dsi_enable_pads(int dsi_id, unsigned lane_mask)
+static int __init omap_dsi_enable_pads(int dsi_id, unsigned lane_mask)
 {
 	if (cpu_is_omap44xx())
 		return omap4_dsi_mux_pads(dsi_id, lane_mask);
@@ -173,7 +174,7 @@ static int omap_dsi_enable_pads(int dsi_id, unsigned lane_mask)
 	return 0;
 }
 
-static void omap_dsi_disable_pads(int dsi_id, unsigned lane_mask)
+static void __init omap_dsi_disable_pads(int dsi_id, unsigned lane_mask)
 {
 	if (cpu_is_omap44xx())
 		omap4_dsi_mux_pads(dsi_id, 0);

@@ -15,16 +15,17 @@
 
 #include <linux/linkage.h>
 #include <mach/hardware.h>
-#include <mach/at91sam9_sdramc.h>
+#include <mach/at91_ramc.h>
 #include <mach/at91_rstc.h>
 
 			.arm
 
 			.globl	at91sam9_alt_restart
 
-at91sam9_alt_restart:	ldr	r0, .at91_va_base_sdramc	@ preload constants
-			ldr	r1, =at91_rstc_base
-			ldr	r1, [r1]
+at91sam9_alt_restart:	ldr	r0, =at91_ramc_base		@ preload constants
+			ldr	r0, [r0]
+			ldr	r4, =at91_rstc_base
+			ldr	r1, [r4]
 
 			mov	r2, #1
 			mov	r3, #AT91_SDRAMC_LPCB_POWER_DOWN
@@ -37,6 +38,3 @@ at91sam9_alt_restart:	ldr	r0, .at91_va_base_sdramc	@ preload constants
 			str	r4, [r1, #AT91_RSTC_CR]		@ reset processor
 
 			b	.
-
-.at91_va_base_sdramc:
-	.word AT91_VA_BASE_SYS + AT91_SDRAMC0

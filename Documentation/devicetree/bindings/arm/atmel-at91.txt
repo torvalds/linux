@@ -1,0 +1,32 @@
+Atmel AT91 device tree bindings.
+================================
+
+PIT Timer required properties:
+- compatible: Should be "atmel,at91sam9260-pit"
+- reg: Should contain registers location and length
+- interrupts: Should contain interrupt for the PIT which is the IRQ line
+  shared across all System Controller members.
+
+TC/TCLIB Timer required properties:
+- compatible: Should be "atmel,<chip>-pit".
+  <chip> can be "at91rm9200" or "at91sam9x5"
+- reg: Should contain registers location and length
+- interrupts: Should contain all interrupts for the TC block
+  Note that you can specify several interrupt cells if the TC
+  block has one interrupt per channel.
+
+Examples:
+
+One interrupt per TC block:
+	tcb0: timer@fff7c000 {
+		compatible = "atmel,at91rm9200-tcb";
+		reg = <0xfff7c000 0x100>;
+		interrupts = <18 4>;
+	};
+
+One interrupt per TC channel in a TC block:
+	tcb1: timer@fffdc000 {
+		compatible = "atmel,at91rm9200-tcb";
+		reg = <0xfffdc000 0x100>;
+		interrupts = <26 4 27 4 28 4>;
+	};

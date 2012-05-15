@@ -223,7 +223,6 @@ static int cpu_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	u32 reg, bm_busy, div_max, d, f, div, frac;
 	unsigned long diff, parent_rate, calc_rate;
-	int i;
 
 	parent_rate = clk_get_rate(clk->parent);
 
@@ -275,14 +274,7 @@ static int cpu_clk_set_rate(struct clk *clk, unsigned long rate)
 	reg |= div << BP_CLKCTRL_CPU_DIV_CPU;
 	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_CPU);
 
-	for (i = 10000; i; i--)
-		if (!(__raw_readl(CLKCTRL_BASE_ADDR +
-					HW_CLKCTRL_CPU) & bm_busy))
-			break;
-	if (!i)	{
-		pr_err("%s: divider writing timeout\n", __func__);
-		return -ETIMEDOUT;
-	}
+	mxs_clkctrl_timeout(HW_CLKCTRL_CPU, bm_busy);
 
 	return 0;
 }
@@ -292,7 +284,6 @@ static int name##_set_rate(struct clk *clk, unsigned long rate)		\
 {									\
 	u32 reg, div_max, div;						\
 	unsigned long parent_rate;					\
-	int i;								\
 									\
 	parent_rate = clk_get_rate(clk->parent);			\
 	div_max = BM_CLKCTRL_##dr##_DIV >> BP_CLKCTRL_##dr##_DIV;	\
@@ -310,15 +301,7 @@ static int name##_set_rate(struct clk *clk, unsigned long rate)		\
 	}								\
 	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_##dr);		\
 									\
-	for (i = 10000; i; i--)						\
-		if (!(__raw_readl(CLKCTRL_BASE_ADDR +			\
-			HW_CLKCTRL_##dr) & BM_CLKCTRL_##dr##_BUSY))	\
-			break;						\
-	if (!i)	{							\
-		pr_err("%s: divider writing timeout\n", __func__);	\
-		return -ETIMEDOUT;					\
-	}								\
-									\
+	mxs_clkctrl_timeout(HW_CLKCTRL_##dr, BM_CLKCTRL_##dr##_BUSY);	\
 	return 0;							\
 }
 
@@ -456,12 +439,13 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("mxs-pwm.3", NULL, pwm_clk)
 	_REGISTER_CLOCK("mxs-pwm.4", NULL, pwm_clk)
 	_REGISTER_CLOCK("imx23-fb", NULL, lcdif_clk)
+	_REGISTER_CLOCK("imx23-gpmi-nand", NULL, gpmi_clk)
 };
 
 static int clk_misc_init(void)
 {
 	u32 reg;
-	int i;
+	int ret;
 
 	/* Fix up parent per register setting */
 	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_CLKSEQ);
@@ -510,14 +494,7 @@ static int clk_misc_init(void)
 	reg |= 3 << BP_CLKCTRL_HBUS_DIV;
 	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS);
 
-	for (i = 10000; i; i--)
-		if (!(__raw_readl(CLKCTRL_BASE_ADDR +
-			HW_CLKCTRL_HBUS) & BM_CLKCTRL_HBUS_BUSY))
-			break;
-	if (!i) {
-		pr_err("%s: divider writing timeout\n", __func__);
-		return -ETIMEDOUT;
-	}
+	ret = mxs_clkctrl_timeout(HW_CLKCTRL_HBUS, BM_CLKCTRL_HBUS_BUSY);
 
 	/* Gate off cpu clock in WFI for power saving */
 	__raw_writel(BM_CLKCTRL_CPU_INTERRUPT_WAIT,
@@ -532,7 +509,7 @@ static int clk_misc_init(void)
 	reg |= 30 << BP_CLKCTRL_FRAC_IOFRAC;
 	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_FRAC);
 
-	return 0;
+	return ret;
 }
 
 int __init mx23_clocks_init(void)

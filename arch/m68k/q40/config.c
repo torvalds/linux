@@ -24,6 +24,7 @@
 #include <linux/rtc.h>
 #include <linux/vt_kern.h>
 #include <linux/bcd.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/rtc.h>
@@ -329,3 +330,15 @@ static int q40_set_rtc_pll(struct rtc_pll_info *pll)
 	} else
 		return -EINVAL;
 }
+
+static __init int q40_add_kbd_device(void)
+{
+	struct platform_device *pdev;
+
+	pdev = platform_device_register_simple("q40kbd", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
+}
+arch_initcall(q40_add_kbd_device);

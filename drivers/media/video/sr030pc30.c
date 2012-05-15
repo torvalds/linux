@@ -864,18 +864,7 @@ static struct i2c_driver sr030pc30_i2c_driver = {
 	.id_table	= sr030pc30_id,
 };
 
-static int __init sr030pc30_init(void)
-{
-	return i2c_add_driver(&sr030pc30_i2c_driver);
-}
-
-static void __exit sr030pc30_exit(void)
-{
-	i2c_del_driver(&sr030pc30_i2c_driver);
-}
-
-module_init(sr030pc30_init);
-module_exit(sr030pc30_exit);
+module_i2c_driver(sr030pc30_i2c_driver);
 
 MODULE_DESCRIPTION("Siliconfile SR030PC30 camera driver");
 MODULE_AUTHOR("Sylwester Nawrocki <s.nawrocki@samsung.com>");

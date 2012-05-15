@@ -32,4 +32,27 @@
 			};
 		};
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		user_led {
+			label = "user_led";
+			gpios = <&pioB 21 1>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		user_pb {
+			label = "user_pb";
+			gpios = <&pioB 10 1>;
+			linux,code = <28>;
+			gpio-key,wakeup;
+		};
+	};
 };

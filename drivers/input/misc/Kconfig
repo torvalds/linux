@@ -134,6 +134,18 @@ config INPUT_MAX8925_ONKEY
 	  To compile this driver as a module, choose M here: the module
 	  will be called max8925_onkey.
 
+config INPUT_MAX8997_HAPTIC
+	tristate "MAXIM MAX8997 haptic controller support"
+	depends on HAVE_PWM && MFD_MAX8997
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables device driver support for the haptic controller
+	  on MAXIM MAX8997 chip. This driver supports ff-memless interface
+	  from input framework.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called max8997-haptic.
+
 config INPUT_MC13783_PWRBUTTON
 	tristate "MC13783 ON buttons"
 	depends on MFD_MC13783
@@ -415,7 +427,7 @@ config INPUT_PCF8574
 	tristate "PCF8574 Keypad input device"
 	depends on I2C && EXPERIMENTAL
 	help
-	  Say Y here if you want to support a keypad connetced via I2C
+	  Say Y here if you want to support a keypad connected via I2C
 	  with a PCF8574.
 
 	  To compile this driver as a module, choose M here: the
@@ -454,6 +466,16 @@ config INPUT_RB532_BUTTON
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rb532_button.
+
+config INPUT_DA9052_ONKEY
+	tristate "Dialog DA9052/DA9053 Onkey"
+	depends on PMIC_DA9052
+	help
+	  Support the ONKEY of Dialog DA9052 PMICs as an input device
+	  reporting power button status.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called da9052_onkey.
 
 config INPUT_DM355EVM
 	tristate "TI DaVinci DM355 EVM Keypad and IR Remote"

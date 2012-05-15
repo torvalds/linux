@@ -31,10 +31,37 @@
 #include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
 #include <linux/pm_domain.h>
+#include <linux/dma-mapping.h>
 #include <mach/hardware.h>
 #include <mach/sh7372.h>
+#include <mach/common.h>
+#include <asm/mach/map.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/time.h>
+
+static struct map_desc sh7372_io_desc[] __initdata = {
+	/* create a 1:1 entity map for 0xe6xxxxxx
+	 * used by CPGA, INTC and PFC.
+	 */
+	{
+		.virtual	= 0xe6000000,
+		.pfn		= __phys_to_pfn(0xe6000000),
+		.length		= 256 << 20,
+		.type		= MT_DEVICE_NONSHARED
+	},
+};
+
+void __init sh7372_map_io(void)
+{
+	iotable_init(sh7372_io_desc, ARRAY_SIZE(sh7372_io_desc));
+
+	/*
+	 * DMA memory at 0xff200000 - 0xffdfffff. The default 2MB size isn't
+	 * enough to allocate the frame buffer memory.
+	 */
+	init_consistent_dma_size(12 << 20);
+}
 
 /* SCIFA0 */
 static struct plat_sci_port scif0_platform_data = {
@@ -1047,8 +1074,20 @@ void __init sh7372_add_standard_devices(void)
 	sh7372_add_device_to_domain(&sh7372_a4r, &tmu01_device);
 }
 
+static void __init sh7372_earlytimer_init(void)
+{
+	sh7372_clock_init();
+	shmobile_earlytimer_init();
+}
+
 void __init sh7372_add_early_devices(void)
 {
 	early_platform_add_devices(sh7372_early_devices,
 				   ARRAY_SIZE(sh7372_early_devices));
+
+	/* setup early console here as well */
+	shmobile_setup_console();
+
+	/* override timer setup with soc-specific code */
+	shmobile_timer.init = sh7372_earlytimer_init;
 }

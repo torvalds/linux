@@ -839,15 +839,4 @@ static struct i2c_driver au8522_driver = {
 	.id_table	= au8522_id,
 };
 
-static __init int init_au8522(void)
-{
-	return i2c_add_driver(&au8522_driver);
-}
-
-static __exit void exit_au8522(void)
-{
-	i2c_del_driver(&au8522_driver);
-}
-
-module_init(init_au8522);
-module_exit(exit_au8522);
+module_i2c_driver(au8522_driver);

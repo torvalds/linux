@@ -4524,14 +4524,6 @@ int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable)
 }
 EXPORT_SYMBOL(omapdss_dsi_enable_te);
 
-void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
-		u32 fifo_size, u32 burst_size,
-		u32 *fifo_low, u32 *fifo_high)
-{
-	*fifo_high = fifo_size - burst_size;
-	*fifo_low = fifo_size - burst_size * 2;
-}
-
 int dsi_init_display(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
@@ -4695,11 +4687,9 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 	struct resource *dsi_mem;
 	struct dsi_data *dsi;
 
-	dsi = kzalloc(sizeof(*dsi), GFP_KERNEL);
-	if (!dsi) {
-		r = -ENOMEM;
-		goto err_alloc;
-	}
+	dsi = devm_kzalloc(&dsidev->dev, sizeof(*dsi), GFP_KERNEL);
+	if (!dsi)
+		return -ENOMEM;
 
 	dsi->pdev = dsidev;
 	dsi_pdev_map[dsi_module] = dsidev;
@@ -4722,12 +4712,6 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 	mutex_init(&dsi->lock);
 	sema_init(&dsi->bus_lock, 1);
 
-	r = dsi_get_clocks(dsidev);
-	if (r)
-		goto err_get_clk;
-
-	pm_runtime_enable(&dsidev->dev);
-
 	INIT_DELAYED_WORK_DEFERRABLE(&dsi->framedone_timeout_work,
 			dsi_framedone_timeout_work_callback);
 
@@ -4739,27 +4723,27 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 	dsi_mem = platform_get_resource(dsi->pdev, IORESOURCE_MEM, 0);
 	if (!dsi_mem) {
 		DSSERR("can't get IORESOURCE_MEM DSI\n");
-		r = -EINVAL;
-		goto err_ioremap;
+		return -EINVAL;
 	}
-	dsi->base = ioremap(dsi_mem->start, resource_size(dsi_mem));
+
+	dsi->base = devm_ioremap(&dsidev->dev, dsi_mem->start,
+				 resource_size(dsi_mem));
 	if (!dsi->base) {
 		DSSERR("can't ioremap DSI\n");
-		r = -ENOMEM;
-		goto err_ioremap;
+		return -ENOMEM;
 	}
+
 	dsi->irq = platform_get_irq(dsi->pdev, 0);
 	if (dsi->irq < 0) {
 		DSSERR("platform_get_irq failed\n");
-		r = -ENODEV;
-		goto err_get_irq;
+		return -ENODEV;
 	}
 
-	r = request_irq(dsi->irq, omap_dsi_irq_handler, IRQF_SHARED,
-		dev_name(&dsidev->dev), dsi->pdev);
+	r = devm_request_irq(&dsidev->dev, dsi->irq, omap_dsi_irq_handler,
+			     IRQF_SHARED, dev_name(&dsidev->dev), dsi->pdev);
 	if (r < 0) {
 		DSSERR("request_irq failed\n");
-		goto err_get_irq;
+		return r;
 	}
 
 	/* DSI VCs initialization */
@@ -4771,9 +4755,15 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 
 	dsi_calc_clock_param_ranges(dsidev);
 
+	r = dsi_get_clocks(dsidev);
+	if (r)
+		return r;
+
+	pm_runtime_enable(&dsidev->dev);
+
 	r = dsi_runtime_get(dsidev);
 	if (r)
-		goto err_get_dsi;
+		goto err_runtime_get;
 
 	rev = dsi_read_reg(dsidev, DSI_REVISION);
 	dev_dbg(&dsidev->dev, "OMAP DSI rev %d.%d\n",
@@ -4791,15 +4781,9 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 
 	return 0;
 
-err_get_dsi:
-	free_irq(dsi->irq, dsi->pdev);
-err_get_irq:
-	iounmap(dsi->base);
-err_ioremap:
+err_runtime_get:
 	pm_runtime_disable(&dsidev->dev);
-err_get_clk:
-	kfree(dsi);
-err_alloc:
+	dsi_put_clocks(dsidev);
 	return r;
 }
 
@@ -4822,11 +4806,6 @@ static int omap_dsihw_remove(struct platform_device *dsidev)
 		regulator_put(dsi->vdds_dsi_reg);
 		dsi->vdds_dsi_reg = NULL;
 	}
-
-	free_irq(dsi->irq, dsi->pdev);
-	iounmap(dsi->base);
-
-	kfree(dsi);
 
 	return 0;
 }

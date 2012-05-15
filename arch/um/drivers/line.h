@@ -15,7 +15,7 @@
 #include "chan_user.h"
 #include "mconsole_kern.h"
 
-/* There's only one modifiable field in this - .mc.list */
+/* There's only two modifiable fields in this - .mc.list and .driver */
 struct line_driver {
 	const char *name;
 	const char *device_name;
@@ -28,17 +28,18 @@ struct line_driver {
 	const int write_irq;
 	const char *write_irq_name;
 	struct mc_device mc;
+	struct tty_driver *driver;
 };
 
 struct line {
 	struct tty_struct *tty;
-	spinlock_t count_lock;
+	struct mutex count_lock;
 	unsigned long count;
 	int valid;
 
 	char *init_str;
-	int init_pri;
 	struct list_head chan_list;
+	struct chan *chan_in, *chan_out;
 
 	/*This lock is actually, mostly, local to*/
 	spinlock_t lock;
@@ -55,21 +56,12 @@ struct line {
 	int sigio;
 	struct delayed_work task;
 	const struct line_driver *driver;
-	int have_irq;
 };
-
-#define LINE_INIT(str, d) \
-	{ .count_lock =	__SPIN_LOCK_UNLOCKED((str).count_lock), \
-	  .init_str =	str,	\
-	  .init_pri =	INIT_STATIC, \
-	  .valid =	1, \
-	  .lock =	__SPIN_LOCK_UNLOCKED((str).lock), \
-	  .driver =	d }
 
 extern void line_close(struct tty_struct *tty, struct file * filp);
 extern int line_open(struct line *lines, struct tty_struct *tty);
-extern int line_setup(struct line *lines, unsigned int sizeof_lines,
-		      char *init, char **error_out);
+extern int line_setup(char **conf, unsigned nlines, char **def,
+		      char *init, char *name);
 extern int line_write(struct tty_struct *tty, const unsigned char *buf,
 		      int len);
 extern int line_put_char(struct tty_struct *tty, unsigned char ch);
@@ -87,10 +79,11 @@ extern char *add_xterm_umid(char *base);
 extern int line_setup_irq(int fd, int input, int output, struct line *line,
 			  void *data);
 extern void line_close_chan(struct line *line);
-extern struct tty_driver *register_lines(struct line_driver *line_driver,
-					 const struct tty_operations *driver,
-					 struct line *lines, int nlines);
-extern void lines_init(struct line *lines, int nlines, struct chan_opts *opts);
+extern int register_lines(struct line_driver *line_driver,
+			  const struct tty_operations *driver,
+			  struct line *lines, int nlines);
+extern int setup_one_line(struct line *lines, int n, char *init,
+			  const struct chan_opts *opts, char **error_out);
 extern void close_lines(struct line *lines, int nlines);
 
 extern int line_config(struct line *lines, unsigned int sizeof_lines,

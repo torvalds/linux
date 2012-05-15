@@ -26,23 +26,17 @@ static struct clk *gpc_dvfs_clk;
 
 static void imx5_idle(void)
 {
-	if (!need_resched()) {
-		/* gpc clock is needed for SRPG */
-		if (gpc_dvfs_clk == NULL) {
-			gpc_dvfs_clk = clk_get(NULL, "gpc_dvfs");
-			if (IS_ERR(gpc_dvfs_clk))
-				goto err0;
-		}
-		clk_enable(gpc_dvfs_clk);
-		mx5_cpu_lp_set(WAIT_UNCLOCKED_POWER_OFF);
-		if (tzic_enable_wake())
-			goto err1;
-		cpu_do_idle();
-err1:
-		clk_disable(gpc_dvfs_clk);
+	/* gpc clock is needed for SRPG */
+	if (gpc_dvfs_clk == NULL) {
+		gpc_dvfs_clk = clk_get(NULL, "gpc_dvfs");
+		if (IS_ERR(gpc_dvfs_clk))
+			return;
 	}
-err0:
-	local_irq_enable();
+	clk_enable(gpc_dvfs_clk);
+	mx5_cpu_lp_set(WAIT_UNCLOCKED_POWER_OFF);
+	if (tzic_enable_wake() != 0)
+		cpu_do_idle();
+	clk_disable(gpc_dvfs_clk);
 }
 
 /*
@@ -108,7 +102,7 @@ void __init imx51_init_early(void)
 	mxc_set_cpu_type(MXC_CPU_MX51);
 	mxc_iomux_v3_init(MX51_IO_ADDRESS(MX51_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX51_IO_ADDRESS(MX51_WDOG1_BASE_ADDR));
-	pm_idle = imx5_idle;
+	arm_pm_idle = imx5_idle;
 }
 
 void __init imx53_init_early(void)
@@ -207,6 +201,11 @@ void __init imx51_soc_init(void)
 
 	/* i.mx51 has the i.mx35 type sdma */
 	imx_add_imx_sdma("imx35-sdma", MX51_SDMA_BASE_ADDR, MX51_INT_SDMA, &imx51_sdma_pdata);
+
+	/* Setup AIPS registers */
+	imx_set_aips(MX51_IO_ADDRESS(MX51_AIPS1_BASE_ADDR));
+	imx_set_aips(MX51_IO_ADDRESS(MX51_AIPS2_BASE_ADDR));
+
 	/* i.mx51 has the i.mx31 type audmux */
 	platform_device_register_simple("imx31-audmux", 0, imx51_audmux_res,
 					ARRAY_SIZE(imx51_audmux_res));
@@ -225,6 +224,11 @@ void __init imx53_soc_init(void)
 
 	/* i.mx53 has the i.mx35 type sdma */
 	imx_add_imx_sdma("imx35-sdma", MX53_SDMA_BASE_ADDR, MX53_INT_SDMA, &imx53_sdma_pdata);
+
+	/* Setup AIPS registers */
+	imx_set_aips(MX53_IO_ADDRESS(MX53_AIPS1_BASE_ADDR));
+	imx_set_aips(MX53_IO_ADDRESS(MX53_AIPS2_BASE_ADDR));
+
 	/* i.mx53 has the i.mx31 type audmux */
 	platform_device_register_simple("imx31-audmux", 0, imx53_audmux_res,
 					ARRAY_SIZE(imx53_audmux_res));

@@ -353,6 +353,44 @@ static struct em28xx_reg_seq hauppauge_930c_digital[] = {
 };
 #endif
 
+/* 1b80:e425 MaxMedia UB425-TC
+ * GPIO_6 - demod reset, 0=active
+ * GPIO_7 - LED, 0=active
+ */
+static struct em28xx_reg_seq maxmedia_ub425_tc[] = {
+	{EM2874_R80_GPIO,  0x83,  0xff,  100},
+	{EM2874_R80_GPIO,  0xc3,  0xff,  100}, /* GPIO_6 = 1 */
+	{EM2874_R80_GPIO,  0x43,  0xff,  000}, /* GPIO_7 = 0 */
+	{-1,                 -1,    -1,   -1},
+};
+
+/* 2304:0242 PCTV QuatroStick (510e)
+ * GPIO_2: decoder reset, 0=active
+ * GPIO_4: decoder suspend, 0=active
+ * GPIO_6: demod reset, 0=active
+ * GPIO_7: LED, 1=active
+ */
+static struct em28xx_reg_seq pctv_510e[] = {
+	{EM2874_R80_GPIO, 0x10, 0xff, 100},
+	{EM2874_R80_GPIO, 0x14, 0xff, 100}, /* GPIO_2 = 1 */
+	{EM2874_R80_GPIO, 0x54, 0xff, 050}, /* GPIO_6 = 1 */
+	{             -1,   -1,   -1,  -1},
+};
+
+/* 2013:0251 PCTV QuatroStick nano (520e)
+ * GPIO_2: decoder reset, 0=active
+ * GPIO_4: decoder suspend, 0=active
+ * GPIO_6: demod reset, 0=active
+ * GPIO_7: LED, 1=active
+ */
+static struct em28xx_reg_seq pctv_520e[] = {
+	{EM2874_R80_GPIO, 0x10, 0xff, 100},
+	{EM2874_R80_GPIO, 0x14, 0xff, 100}, /* GPIO_2 = 1 */
+	{EM2874_R80_GPIO, 0x54, 0xff, 050}, /* GPIO_6 = 1 */
+	{EM2874_R80_GPIO, 0xd4, 0xff, 000}, /* GPIO_7 = 1 */
+	{             -1,   -1,   -1,  -1},
+};
+
 /*
  *  Board definitions
  */
@@ -1908,6 +1946,41 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
+	/* 1b80:e425 MaxMedia UB425-TC
+	 * Empia EM2874B + Micronas DRX 3913KA2 + NXP TDA18271HDC2 */
+	[EM2874_BOARD_MAXMEDIA_UB425_TC] = {
+		.name          = "MaxMedia UB425-TC",
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = maxmedia_ub425_tc,
+		.has_dvb       = 1,
+		.i2c_speed     = EM2874_I2C_SECONDARY_BUS_SELECT |
+				EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM28XX_I2C_FREQ_400_KHZ,
+	},
+	/* 2304:0242 PCTV QuatroStick (510e)
+	 * Empia EM2884 + Micronas DRX 3926K + NXP TDA18271HDC2 */
+	[EM2884_BOARD_PCTV_510E] = {
+		.name          = "PCTV QuatroStick (510e)",
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = pctv_510e,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
+		.i2c_speed     = EM2874_I2C_SECONDARY_BUS_SELECT |
+				EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM28XX_I2C_FREQ_400_KHZ,
+	},
+	/* 2013:0251 PCTV QuatroStick nano (520e)
+	 * Empia EM2884 + Micronas DRX 3926K + NXP TDA18271HDC2 */
+	[EM2884_BOARD_PCTV_520E] = {
+		.name          = "PCTV QuatroStick nano (520e)",
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = pctv_520e,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
+		.i2c_speed     = EM2874_I2C_SECONDARY_BUS_SELECT |
+				EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM28XX_I2C_FREQ_400_KHZ,
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -2059,6 +2132,12 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2860_BOARD_HT_VIDBOX_NW03 },
 	{ USB_DEVICE(0x1b80, 0xe309), /* Sveon STV40 */
 			.driver_info = EM2860_BOARD_EASYCAP },
+	{ USB_DEVICE(0x1b80, 0xe425),
+			.driver_info = EM2874_BOARD_MAXMEDIA_UB425_TC },
+	{ USB_DEVICE(0x2304, 0x0242),
+			.driver_info = EM2884_BOARD_PCTV_510E },
+	{ USB_DEVICE(0x2013, 0x0251),
+			.driver_info = EM2884_BOARD_PCTV_520E },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -3122,7 +3201,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	int i, nr;
 	const int ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 	char *speed;
-	char descr[255] = "";
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
@@ -3227,21 +3305,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		speed = "unknown";
 	}
 
-	if (udev->manufacturer)
-		strlcpy(descr, udev->manufacturer, sizeof(descr));
-
-	if (udev->product) {
-		if (*descr)
-			strlcat(descr, " ", sizeof(descr));
-		strlcat(descr, udev->product, sizeof(descr));
-	}
-
-	if (*descr)
-		strlcat(descr, " ", sizeof(descr));
-
 	printk(KERN_INFO DRIVER_NAME
-		": New device %s@ %s Mbps (%04x:%04x, interface %d, class %d)\n",
-		descr,
+		": New device %s %s @ %s Mbps "
+		"(%04x:%04x, interface %d, class %d)\n",
+		udev->manufacturer ? udev->manufacturer : "",
+		udev->product ? udev->product : "",
 		speed,
 		le16_to_cpu(udev->descriptor.idVendor),
 		le16_to_cpu(udev->descriptor.idProduct),
@@ -3305,6 +3373,17 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	retval = em28xx_init_dev(dev, udev, interface, nr);
 	if (retval) {
 		goto unlock_and_free;
+	}
+
+	if (has_dvb) {
+		/* pre-allocate DVB isoc transfer buffers */
+		retval = em28xx_alloc_isoc(dev, EM28XX_DIGITAL_MODE,
+					   EM28XX_DVB_MAX_PACKETS,
+					   EM28XX_DVB_NUM_BUFS,
+					   dev->dvb_max_pkt_size);
+		if (retval) {
+			goto unlock_and_free;
+		}
 	}
 
 	request_modules(dev);
@@ -3379,7 +3458,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		     video_device_node_name(dev->vdev));
 
 		dev->state |= DEV_MISCONFIGURED;
-		em28xx_uninit_isoc(dev);
+		em28xx_uninit_isoc(dev, dev->mode);
 		dev->state |= DEV_DISCONNECTED;
 		wake_up_interruptible(&dev->wait_frame);
 		wake_up_interruptible(&dev->wait_stream);
@@ -3387,6 +3466,9 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		dev->state |= DEV_DISCONNECTED;
 		em28xx_release_resources(dev);
 	}
+
+	/* free DVB isoc buffers */
+	em28xx_uninit_isoc(dev, EM28XX_DIGITAL_MODE);
 
 	mutex_unlock(&dev->lock);
 

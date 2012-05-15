@@ -123,6 +123,7 @@ struct nfs_parsed_mount_data {
 	} nfs_server;
 
 	struct security_mnt_opts lsm_opts;
+	struct net		*net;
 };
 
 /* mount_clnt.c */
@@ -137,20 +138,22 @@ struct nfs_mount_request {
 	int			noresvport;
 	unsigned int		*auth_flav_len;
 	rpc_authflavor_t	*auth_flavs;
+	struct net		*net;
 };
 
 extern int nfs_mount(struct nfs_mount_request *info);
 extern void nfs_umount(const struct nfs_mount_request *info);
 
 /* client.c */
-extern struct rpc_program nfs_program;
+extern const struct rpc_program nfs_program;
+extern void nfs_clients_init(struct net *net);
 
-extern void nfs_cleanup_cb_ident_idr(void);
+extern void nfs_cleanup_cb_ident_idr(struct net *);
 extern void nfs_put_client(struct nfs_client *);
-extern struct nfs_client *nfs4_find_client_no_ident(const struct sockaddr *);
-extern struct nfs_client *nfs4_find_client_ident(int);
+extern struct nfs_client *nfs4_find_client_ident(struct net *, int);
 extern struct nfs_client *
-nfs4_find_client_sessionid(const struct sockaddr *, struct nfs4_sessionid *);
+nfs4_find_client_sessionid(struct net *, const struct sockaddr *,
+				struct nfs4_sessionid *);
 extern struct nfs_server *nfs_create_server(
 					const struct nfs_parsed_mount_data *,
 					struct nfs_fh *);
@@ -329,6 +332,8 @@ void nfs_retry_commit(struct list_head *page_list,
 void nfs_commit_clear_lock(struct nfs_inode *nfsi);
 void nfs_commitdata_release(void *data);
 void nfs_commit_release_pages(struct nfs_write_data *data);
+void nfs_request_add_commit_list(struct nfs_page *req, struct list_head *head);
+void nfs_request_remove_commit_list(struct nfs_page *req);
 
 #ifdef CONFIG_MIGRATION
 extern int nfs_migrate_page(struct address_space *,

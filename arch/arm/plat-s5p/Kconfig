@@ -9,8 +9,8 @@ config PLAT_S5P
 	bool
 	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
 	default y
-	select ARM_VIC if !ARCH_EXYNOS4
-	select ARM_GIC if ARCH_EXYNOS4
+	select ARM_VIC if !ARCH_EXYNOS
+	select ARM_GIC if ARCH_EXYNOS
 	select GIC_NON_BANKED if ARCH_EXYNOS4
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
@@ -39,6 +39,10 @@ config S5P_HRT
 	select SAMSUNG_DEV_PWM
 	help
 	  Use the High Resolution timer support
+
+config S5P_DEV_UART
+	def_bool y
+	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
 
 config S5P_PM
 	bool
@@ -79,6 +83,16 @@ config S5P_DEV_FIMC3
 	bool
 	help
 	  Compile in platform device definitions for FIMC controller 3
+
+config S5P_DEV_JPEG
+	bool
+	help
+	  Compile in platform device definitions for JPEG codec
+
+config S5P_DEV_G2D
+	bool
+	help
+	  Compile in platform device definitions for G2D device
 
 config S5P_DEV_FIMD0
 	bool

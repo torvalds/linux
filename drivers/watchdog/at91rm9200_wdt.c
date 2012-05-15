@@ -51,7 +51,7 @@ static unsigned long at91wdt_busy;
  */
 static inline void at91_wdt_stop(void)
 {
-	at91_sys_write(AT91_ST_WDMR, AT91_ST_EXTEN);
+	at91_st_write(AT91_ST_WDMR, AT91_ST_EXTEN);
 }
 
 /*
@@ -59,9 +59,9 @@ static inline void at91_wdt_stop(void)
  */
 static inline void at91_wdt_start(void)
 {
-	at91_sys_write(AT91_ST_WDMR, AT91_ST_EXTEN | AT91_ST_RSTEN |
+	at91_st_write(AT91_ST_WDMR, AT91_ST_EXTEN | AT91_ST_RSTEN |
 				(((65536 * wdt_time) >> 8) & AT91_ST_WDV));
-	at91_sys_write(AT91_ST_CR, AT91_ST_WDRST);
+	at91_st_write(AT91_ST_CR, AT91_ST_WDRST);
 }
 
 /*
@@ -69,7 +69,7 @@ static inline void at91_wdt_start(void)
  */
 static inline void at91_wdt_reload(void)
 {
-	at91_sys_write(AT91_ST_CR, AT91_ST_WDRST);
+	at91_st_write(AT91_ST_CR, AT91_ST_WDRST);
 }
 
 /* ......................................................................... */

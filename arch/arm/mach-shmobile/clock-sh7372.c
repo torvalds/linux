@@ -89,7 +89,7 @@ static unsigned long div2_recalc(struct clk *clk)
 	return clk->parent->rate / 2;
 }
 
-static struct clk_ops div2_clk_ops = {
+static struct sh_clk_ops div2_clk_ops = {
 	.recalc		= div2_recalc,
 };
 
@@ -128,7 +128,7 @@ static unsigned long pllc01_recalc(struct clk *clk)
 	return clk->parent->rate * mult;
 }
 
-static struct clk_ops pllc01_clk_ops = {
+static struct sh_clk_ops pllc01_clk_ops = {
 	.recalc		= pllc01_recalc,
 };
 
@@ -276,7 +276,7 @@ static int pllc2_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
-static struct clk_ops pllc2_clk_ops = {
+static struct sh_clk_ops pllc2_clk_ops = {
 	.recalc		= pllc2_recalc,
 	.round_rate	= pllc2_round_rate,
 	.set_rate	= pllc2_set_rate,
@@ -468,7 +468,7 @@ static int fsidiv_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-static struct clk_ops fsidiv_clk_ops = {
+static struct sh_clk_ops fsidiv_clk_ops = {
 	.recalc		= fsidiv_recalc,
 	.round_rate	= fsidiv_round_rate,
 	.set_rate	= fsidiv_set_rate,
@@ -710,7 +710,7 @@ void __init sh7372_clock_init(void)
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
-		clk_init();
+		shmobile_clk_init();
 	else
 		panic("failed to setup sh7372 clocks\n");
 

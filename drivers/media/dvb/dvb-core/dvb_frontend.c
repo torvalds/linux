@@ -655,6 +655,8 @@ restart:
 					dprintk("%s: Retune requested, FESTATE_RETUNE\n", __func__);
 					re_tune = true;
 					fepriv->state = FESTATE_TUNED;
+				} else {
+					re_tune = false;
 				}
 
 				if (fe->ops.tune)

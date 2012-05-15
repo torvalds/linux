@@ -219,9 +219,9 @@ static int __init pci_versatile_setup_resources(struct list_head *resources)
 	 * the mem resource for this bus
 	 * the prefetch mem resource for this bus
 	 */
-	pci_add_resource(resources, &io_mem);
-	pci_add_resource(resources, &non_mem);
-	pci_add_resource(resources, &pre_mem);
+	pci_add_resource_offset(resources, &io_mem, sys->io_offset);
+	pci_add_resource_offset(resources, &non_mem, sys->mem_offset);
+	pci_add_resource_offset(resources, &pre_mem, sys->mem_offset);
 
 	goto out;
 

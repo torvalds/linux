@@ -261,20 +261,9 @@ static struct i2c_driver max6900_driver = {
 	.id_table = max6900_id,
 };
 
-static int __init max6900_init(void)
-{
-	return i2c_add_driver(&max6900_driver);
-}
-
-static void __exit max6900_exit(void)
-{
-	i2c_del_driver(&max6900_driver);
-}
+module_i2c_driver(max6900_driver);
 
 MODULE_DESCRIPTION("Maxim MAX6900 RTC driver");
 MODULE_AUTHOR("Dale Farnsworth <dale@farnsworth.org>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(max6900_init);
-module_exit(max6900_exit);

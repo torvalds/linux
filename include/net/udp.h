@@ -23,6 +23,7 @@
 #define _UDP_H
 
 #include <linux/list.h>
+#include <linux/bug.h>
 #include <net/inet_sock.h>
 #include <net/sock.h>
 #include <net/snmp.h>

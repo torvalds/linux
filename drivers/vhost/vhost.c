@@ -222,6 +222,8 @@ static int vhost_worker(void *data)
 		if (work) {
 			__set_current_state(TASK_RUNNING);
 			work->fn(work);
+			if (need_resched())
+				schedule();
 		} else
 			schedule();
 
@@ -403,7 +405,7 @@ long vhost_dev_reset_owner(struct vhost_dev *dev)
 	if (!memory)
 		return -ENOMEM;
 
-	vhost_dev_cleanup(dev);
+	vhost_dev_cleanup(dev, true);
 
 	memory->nregions = 0;
 	RCU_INIT_POINTER(dev->memory, memory);
@@ -434,8 +436,8 @@ int vhost_zerocopy_signal_used(struct vhost_virtqueue *vq)
 	return j;
 }
 
-/* Caller should have device mutex */
-void vhost_dev_cleanup(struct vhost_dev *dev)
+/* Caller should have device mutex if and only if locked is set */
+void vhost_dev_cleanup(struct vhost_dev *dev, bool locked)
 {
 	int i;
 
@@ -472,7 +474,8 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
 	dev->log_file = NULL;
 	/* No one will access memory at this point */
 	kfree(rcu_dereference_protected(dev->memory,
-					lockdep_is_held(&dev->mutex)));
+					locked ==
+						lockdep_is_held(&dev->mutex)));
 	RCU_INIT_POINTER(dev->memory, NULL);
 	WARN_ON(!list_empty(&dev->work_list));
 	if (dev->worker) {

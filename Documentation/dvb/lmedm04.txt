@@ -66,5 +66,16 @@ dd if=US290D.sys ibs=1 skip=36856 count=3976 of=dvb-usb-lme2510-s0194.fw
 For LME2510C
 dd if=US290D.sys ibs=1 skip=33152 count=3697 of=dvb-usb-lme2510c-s0194.fw
 
+---------------------------------------------------------------------
+
+The m88rs2000 tuner driver can be found in windows/system32/drivers
+
+US2B0D.sys (dated 29 Jun 2010)
+
+dd if=US2B0D.sys ibs=1 skip=34432 count=3871 of=dvb-usb-lme2510c-rs2000.fw
+
+We need to modify id of rs2000 firmware or it will warm boot id 3344:1120.
+
+echo -ne \\xF0\\x22 | dd conv=notrunc bs=1 count=2 seek=266 of=dvb-usb-lme2510c-rs2000.fw
 
 Copy the firmware file(s) to /lib/firmware

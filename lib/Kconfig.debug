@@ -184,7 +184,7 @@ config LOCKUP_DETECTOR
 
 config HARDLOCKUP_DETECTOR
 	def_bool LOCKUP_DETECTOR && PERF_EVENTS && HAVE_PERF_EVENTS_NMI && \
-		 !ARCH_HAS_NMI_WATCHDOG
+		 !HAVE_NMI_WATCHDOG
 
 config BOOTPARAM_HARDLOCKUP_PANIC
 	bool "Panic (Reboot) On Hard Lockups"
@@ -1140,14 +1140,6 @@ config LATENCYTOP
 	help
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
-
-config SYSCTL_SYSCALL_CHECK
-	bool "Sysctl checks"
-	depends on SYSCTL
-	---help---
-	  sys_sysctl uses binary paths that have been found challenging
-	  to properly maintain and use. This enables checks that help
-	  you to keep things correct.
 
 source mm/Kconfig.debug
 source kernel/trace/Kconfig

@@ -591,42 +591,42 @@
 /*
  * Timer/counter register offsets
  */
-#define LCP32XX_TIMER_IR(x)			io_p2v((x) + 0x00)
-#define LCP32XX_TIMER_TCR(x)			io_p2v((x) + 0x04)
-#define LCP32XX_TIMER_TC(x)			io_p2v((x) + 0x08)
-#define LCP32XX_TIMER_PR(x)			io_p2v((x) + 0x0C)
-#define LCP32XX_TIMER_PC(x)			io_p2v((x) + 0x10)
-#define LCP32XX_TIMER_MCR(x)			io_p2v((x) + 0x14)
-#define LCP32XX_TIMER_MR0(x)			io_p2v((x) + 0x18)
-#define LCP32XX_TIMER_MR1(x)			io_p2v((x) + 0x1C)
-#define LCP32XX_TIMER_MR2(x)			io_p2v((x) + 0x20)
-#define LCP32XX_TIMER_MR3(x)			io_p2v((x) + 0x24)
-#define LCP32XX_TIMER_CCR(x)			io_p2v((x) + 0x28)
-#define LCP32XX_TIMER_CR0(x)			io_p2v((x) + 0x2C)
-#define LCP32XX_TIMER_CR1(x)			io_p2v((x) + 0x30)
-#define LCP32XX_TIMER_CR2(x)			io_p2v((x) + 0x34)
-#define LCP32XX_TIMER_CR3(x)			io_p2v((x) + 0x38)
-#define LCP32XX_TIMER_EMR(x)			io_p2v((x) + 0x3C)
-#define LCP32XX_TIMER_CTCR(x)			io_p2v((x) + 0x70)
+#define LPC32XX_TIMER_IR(x)			io_p2v((x) + 0x00)
+#define LPC32XX_TIMER_TCR(x)			io_p2v((x) + 0x04)
+#define LPC32XX_TIMER_TC(x)			io_p2v((x) + 0x08)
+#define LPC32XX_TIMER_PR(x)			io_p2v((x) + 0x0C)
+#define LPC32XX_TIMER_PC(x)			io_p2v((x) + 0x10)
+#define LPC32XX_TIMER_MCR(x)			io_p2v((x) + 0x14)
+#define LPC32XX_TIMER_MR0(x)			io_p2v((x) + 0x18)
+#define LPC32XX_TIMER_MR1(x)			io_p2v((x) + 0x1C)
+#define LPC32XX_TIMER_MR2(x)			io_p2v((x) + 0x20)
+#define LPC32XX_TIMER_MR3(x)			io_p2v((x) + 0x24)
+#define LPC32XX_TIMER_CCR(x)			io_p2v((x) + 0x28)
+#define LPC32XX_TIMER_CR0(x)			io_p2v((x) + 0x2C)
+#define LPC32XX_TIMER_CR1(x)			io_p2v((x) + 0x30)
+#define LPC32XX_TIMER_CR2(x)			io_p2v((x) + 0x34)
+#define LPC32XX_TIMER_CR3(x)			io_p2v((x) + 0x38)
+#define LPC32XX_TIMER_EMR(x)			io_p2v((x) + 0x3C)
+#define LPC32XX_TIMER_CTCR(x)			io_p2v((x) + 0x70)
 
 /*
  * ir register definitions
  */
-#define LCP32XX_TIMER_CNTR_MTCH_BIT(n)		(1 << ((n) & 0x3))
-#define LCP32XX_TIMER_CNTR_CAPT_BIT(n)		(1 << (4 + ((n) & 0x3)))
+#define LPC32XX_TIMER_CNTR_MTCH_BIT(n)		(1 << ((n) & 0x3))
+#define LPC32XX_TIMER_CNTR_CAPT_BIT(n)		(1 << (4 + ((n) & 0x3)))
 
 /*
  * tcr register definitions
  */
-#define LCP32XX_TIMER_CNTR_TCR_EN		0x1
-#define LCP32XX_TIMER_CNTR_TCR_RESET		0x2
+#define LPC32XX_TIMER_CNTR_TCR_EN		0x1
+#define LPC32XX_TIMER_CNTR_TCR_RESET		0x2
 
 /*
  * mcr register definitions
  */
-#define LCP32XX_TIMER_CNTR_MCR_MTCH(n)		(0x1 << ((n) * 3))
-#define LCP32XX_TIMER_CNTR_MCR_RESET(n)		(0x1 << (((n) * 3) + 1))
-#define LCP32XX_TIMER_CNTR_MCR_STOP(n)		(0x1 << (((n) * 3) + 2))
+#define LPC32XX_TIMER_CNTR_MCR_MTCH(n)		(0x1 << ((n) * 3))
+#define LPC32XX_TIMER_CNTR_MCR_RESET(n)		(0x1 << (((n) * 3) + 1))
+#define LPC32XX_TIMER_CNTR_MCR_STOP(n)		(0x1 << (((n) * 3) + 2))
 
 /*
  * Standard UART register offsets
@@ -690,5 +690,8 @@
 #define LPC32XX_GPIO_P1_MUX_SET			_GPREG(0x130)
 #define LPC32XX_GPIO_P1_MUX_CLR			_GPREG(0x134)
 #define LPC32XX_GPIO_P1_MUX_STATE		_GPREG(0x138)
+#define LPC32XX_GPIO_P2_MUX_SET			_GPREG(0x028)
+#define LPC32XX_GPIO_P2_MUX_CLR			_GPREG(0x02C)
+#define LPC32XX_GPIO_P2_MUX_STATE		_GPREG(0x030)
 
 #endif

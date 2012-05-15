@@ -28,7 +28,7 @@ struct task_struct;
 struct pci_dev;
 
 extern int amd_iommu_detect(void);
-
+extern int amd_iommu_init_hardware(void);
 
 /**
  * amd_iommu_enable_device_erratum() - Enable erratum workaround for device

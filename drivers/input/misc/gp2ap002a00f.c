@@ -281,18 +281,7 @@ static struct i2c_driver gp2a_i2c_driver = {
 	.id_table	= gp2a_i2c_id,
 };
 
-static int __init gp2a_init(void)
-{
-	return i2c_add_driver(&gp2a_i2c_driver);
-}
-
-static void __exit gp2a_exit(void)
-{
-	i2c_del_driver(&gp2a_i2c_driver);
-}
-
-module_init(gp2a_init);
-module_exit(gp2a_exit);
+module_i2c_driver(gp2a_i2c_driver);
 
 MODULE_AUTHOR("Courtney Cavin <courtney.cavin@sonyericsson.com>");
 MODULE_DESCRIPTION("Sharp GP2AP002A00F I2C Proximity/Opto sensor driver");

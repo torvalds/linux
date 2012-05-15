@@ -210,6 +210,54 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
 	return 1;
 }
 
+/* copied and modified from get_key_msi_tvanywhere_plus() */
+static int get_key_kworld_pc150u(struct IR_i2c *ir, u32 *ir_key,
+					u32 *ir_raw)
+{
+	unsigned char b;
+	unsigned int gpio;
+
+	/* <dev> is needed to access GPIO. Used by the saa_readl macro. */
+	struct saa7134_dev *dev = ir->c->adapter->algo_data;
+	if (dev == NULL) {
+		i2cdprintk("get_key_kworld_pc150u: "
+			   "ir->c->adapter->algo_data is NULL!\n");
+		return -EIO;
+	}
+
+	/* rising SAA7134_GPIO_GPRESCAN reads the status */
+
+	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+
+	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
+
+	/* GPIO&0x100 is pulsed low when a button is pressed. Don't do
+	   I2C receive if gpio&0x100 is not low. */
+
+	if (gpio & 0x100)
+		return 0;       /* No button press */
+
+	/* GPIO says there is a button press. Get it. */
+
+	if (1 != i2c_master_recv(ir->c, &b, 1)) {
+		i2cdprintk("read error\n");
+		return -EIO;
+	}
+
+	/* No button press */
+
+	if (b == 0xff)
+		return 0;
+
+	/* Button pressed */
+
+	dprintk("get_key_kworld_pc150u: Key = 0x%02X\n", b);
+	*ir_key = b;
+	*ir_raw = b;
+	return 1;
+}
+
 static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	unsigned char b;
@@ -891,6 +939,21 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		 * otherwise it will miss some keypresses
 		 */
 		dev->init_data.polling_interval = 50;
+		info.addr = 0x30;
+		/* MSI TV@nywhere Plus controller doesn't seem to
+		   respond to probes unless we read something from
+		   an existing device. Weird...
+		   REVISIT: might no longer be needed */
+		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
+		dprintk("probe 0x%02x @ %s: %s\n",
+			msg_msi.addr, dev->i2c_adap.name,
+			(1 == rc) ? "yes" : "no");
+		break;
+	case SAA7134_BOARD_KWORLD_PC150U:
+		/* copied and modified from MSI TV@nywhere Plus */
+		dev->init_data.name = "Kworld PC150-U";
+		dev->init_data.get_key = get_key_kworld_pc150u;
+		dev->init_data.ir_codes = RC_MAP_KWORLD_PC150U;
 		info.addr = 0x30;
 		/* MSI TV@nywhere Plus controller doesn't seem to
 		   respond to probes unless we read something from

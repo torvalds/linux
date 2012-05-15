@@ -426,29 +426,6 @@ static struct snd_soc_ops ams_delta_ops = {
 };
 
 
-/* Board specific codec bias level control */
-static int ams_delta_set_bias_level(struct snd_soc_card *card,
-				    struct snd_soc_dapm_context *dapm,
-				    enum snd_soc_bias_level level)
-{
-	switch (level) {
-	case SND_SOC_BIAS_ON:
-	case SND_SOC_BIAS_PREPARE:
-	case SND_SOC_BIAS_STANDBY:
-		if (card->dapm.bias_level == SND_SOC_BIAS_OFF)
-			ams_delta_latch2_write(AMS_DELTA_LATCH2_MODEM_NRESET,
-						AMS_DELTA_LATCH2_MODEM_NRESET);
-		break;
-	case SND_SOC_BIAS_OFF:
-		if (card->dapm.bias_level != SND_SOC_BIAS_OFF)
-			ams_delta_latch2_write(AMS_DELTA_LATCH2_MODEM_NRESET,
-						0);
-	}
-	card->dapm.bias_level = level;
-
-	return 0;
-}
-
 /* Digital mute implemented using modem/CPU multiplexer.
  * Shares hardware with codec config pulse generation */
 static bool ams_delta_muted = 1;
@@ -511,9 +488,6 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 		ams_delta_ops.startup = ams_delta_startup;
 		ams_delta_ops.shutdown = ams_delta_shutdown;
 	}
-
-	/* Set codec bias level */
-	ams_delta_set_bias_level(card, dapm, SND_SOC_BIAS_STANDBY);
 
 	/* Add hook switch - can be used to control the codec from userspace
 	 * even if line discipline fails */
@@ -598,7 +572,6 @@ static struct snd_soc_card ams_delta_audio_card = {
 	.owner = THIS_MODULE,
 	.dai_link = &ams_delta_dai_link,
 	.num_links = 1,
-	.set_bias_level = ams_delta_set_bias_level,
 };
 
 /* Module init/exit */
@@ -635,7 +608,7 @@ err:
 	platform_device_put(ams_delta_audio_platform_device);
 	return ret;
 }
-module_init(ams_delta_module_init);
+late_initcall(ams_delta_module_init);
 
 static void __exit ams_delta_module_exit(void)
 {
@@ -646,11 +619,6 @@ static void __exit ams_delta_module_exit(void)
 	snd_soc_jack_free_gpios(&ams_delta_hook_switch,
 			ARRAY_SIZE(ams_delta_hook_switch_gpios),
 			ams_delta_hook_switch_gpios);
-
-	/* Keep modem power on */
-	ams_delta_set_bias_level(&ams_delta_audio_card,
-				 &ams_delta_audio_card.rtd[0].codec->dapm,
-				 SND_SOC_BIAS_STANDBY);
 
 	platform_device_unregister(cx20442_platform_device);
 	platform_device_unregister(ams_delta_audio_platform_device);

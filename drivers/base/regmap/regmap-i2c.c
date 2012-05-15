@@ -111,4 +111,21 @@ struct regmap *regmap_init_i2c(struct i2c_client *i2c,
 }
 EXPORT_SYMBOL_GPL(regmap_init_i2c);
 
+/**
+ * devm_regmap_init_i2c(): Initialise managed register map
+ *
+ * @i2c: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap.  The regmap will be automatically freed by the
+ * device management code.
+ */
+struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c,
+				    const struct regmap_config *config)
+{
+	return devm_regmap_init(&i2c->dev, &regmap_i2c, config);
+}
+EXPORT_SYMBOL_GPL(devm_regmap_init_i2c);
+
 MODULE_LICENSE("GPL");

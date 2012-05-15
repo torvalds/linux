@@ -116,7 +116,7 @@ static inline int samsung_dmadev_flush(unsigned ch)
 	return dmaengine_terminate_all((struct dma_chan *)ch);
 }
 
-struct samsung_dma_ops dmadev_ops = {
+static struct samsung_dma_ops dmadev_ops = {
 	.request	= samsung_dmadev_request,
 	.release	= samsung_dmadev_release,
 	.prepare	= samsung_dmadev_prepare,

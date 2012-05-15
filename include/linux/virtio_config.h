@@ -53,6 +53,7 @@
 
 #ifdef __KERNEL__
 #include <linux/err.h>
+#include <linux/bug.h>
 #include <linux/virtio.h>
 
 /**

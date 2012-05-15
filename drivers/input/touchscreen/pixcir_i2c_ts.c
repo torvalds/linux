@@ -222,17 +222,7 @@ static struct i2c_driver pixcir_i2c_ts_driver = {
 	.id_table	= pixcir_i2c_ts_id,
 };
 
-static int __init pixcir_i2c_ts_init(void)
-{
-	return i2c_add_driver(&pixcir_i2c_ts_driver);
-}
-module_init(pixcir_i2c_ts_init);
-
-static void __exit pixcir_i2c_ts_exit(void)
-{
-	i2c_del_driver(&pixcir_i2c_ts_driver);
-}
-module_exit(pixcir_i2c_ts_exit);
+module_i2c_driver(pixcir_i2c_ts_driver);
 
 MODULE_AUTHOR("Jianchun Bian <jcbian@pixcir.com.cn>, Dequan Meng <dqmeng@pixcir.com.cn>");
 MODULE_DESCRIPTION("Pixcir I2C Touchscreen Driver");

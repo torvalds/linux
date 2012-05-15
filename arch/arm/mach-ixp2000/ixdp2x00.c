@@ -239,12 +239,12 @@ void ixdp2x00_slave_pci_postinit(void)
 	 * Remove PMC device is there is one
 	 */
 	if((dev = pci_get_bus_and_slot(1, IXDP2X00_PMC_DEVFN))) {
-		pci_remove_bus_device(dev);
+		pci_stop_and_remove_bus_device(dev);
 		pci_dev_put(dev);
 	}
 
 	dev = pci_get_bus_and_slot(0, IXDP2X00_21555_DEVFN);
-	pci_remove_bus_device(dev);
+	pci_stop_and_remove_bus_device(dev);
 	pci_dev_put(dev);
 }
 

@@ -285,18 +285,7 @@ static struct i2c_driver egalax_ts_driver = {
 	.remove		= __devexit_p(egalax_ts_remove),
 };
 
-static int __init egalax_ts_init(void)
-{
-	return i2c_add_driver(&egalax_ts_driver);
-}
-
-static void __exit egalax_ts_exit(void)
-{
-	i2c_del_driver(&egalax_ts_driver);
-}
-
-module_init(egalax_ts_init);
-module_exit(egalax_ts_exit);
+module_i2c_driver(egalax_ts_driver);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("Touchscreen driver for EETI eGalax touch controller");

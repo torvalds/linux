@@ -5927,7 +5927,8 @@ static void add_caps(IXJ *j)
 	j->caplist[j->caps].cap = PHONE_VENDOR_QUICKNET;
 	strcpy(j->caplist[j->caps].desc, "Quicknet Technologies, Inc. (www.quicknet.net)");
 	j->caplist[j->caps].captype = vendor;
-	j->caplist[j->caps].handle = j->caps++;
+	j->caplist[j->caps].handle = j->caps;
+	j->caps++;
 	j->caplist[j->caps].captype = device;
 	switch (j->cardtype) {
 	case QTI_PHONEJACK:
@@ -5947,11 +5948,13 @@ static void add_caps(IXJ *j)
 		break;
 	}
 	j->caplist[j->caps].cap = j->cardtype;
-	j->caplist[j->caps].handle = j->caps++;
+	j->caplist[j->caps].handle = j->caps;
+	j->caps++;
 	strcpy(j->caplist[j->caps].desc, "POTS");
 	j->caplist[j->caps].captype = port;
 	j->caplist[j->caps].cap = pots;
-	j->caplist[j->caps].handle = j->caps++;
+	j->caplist[j->caps].handle = j->caps;
+	j->caps++;
 
  	/* add devices that can do speaker/mic */
 	switch (j->cardtype) {
@@ -5962,7 +5965,8 @@ static void add_caps(IXJ *j)
 		strcpy(j->caplist[j->caps].desc, "SPEAKER");
 		j->caplist[j->caps].captype = port;
 		j->caplist[j->caps].cap = speaker;
-		j->caplist[j->caps].handle = j->caps++;
+		j->caplist[j->caps].handle = j->caps;
+		j->caps++;
         default:
      		break;
 	}
@@ -5973,7 +5977,8 @@ static void add_caps(IXJ *j)
 		strcpy(j->caplist[j->caps].desc, "HANDSET");
 		j->caplist[j->caps].captype = port;
 		j->caplist[j->caps].cap = handset;
-		j->caplist[j->caps].handle = j->caps++;
+		j->caplist[j->caps].handle = j->caps;
+		j->caps++;
 		break;
         default:
      		break;
@@ -5985,7 +5990,8 @@ static void add_caps(IXJ *j)
 		strcpy(j->caplist[j->caps].desc, "PSTN");
 		j->caplist[j->caps].captype = port;
 		j->caplist[j->caps].cap = pstn;
-		j->caplist[j->caps].handle = j->caps++;
+		j->caplist[j->caps].handle = j->caps;
+		j->caps++;
 		break;
         default:
      		break;
@@ -5995,50 +6001,59 @@ static void add_caps(IXJ *j)
 	strcpy(j->caplist[j->caps].desc, "ULAW");
 	j->caplist[j->caps].captype = codec;
 	j->caplist[j->caps].cap = ULAW;
-	j->caplist[j->caps].handle = j->caps++;
+	j->caplist[j->caps].handle = j->caps;
+	j->caps++;
 
 	strcpy(j->caplist[j->caps].desc, "LINEAR 16 bit");
 	j->caplist[j->caps].captype = codec;
 	j->caplist[j->caps].cap = LINEAR16;
-	j->caplist[j->caps].handle = j->caps++;
+	j->caplist[j->caps].handle = j->caps;
+	j->caps++;
 
 	strcpy(j->caplist[j->caps].desc, "LINEAR 8 bit");
 	j->caplist[j->caps].captype = codec;
 	j->caplist[j->caps].cap = LINEAR8;
-	j->caplist[j->caps].handle = j->caps++;
+	j->caplist[j->caps].handle = j->caps;
+	j->caps++;
 
 	strcpy(j->caplist[j->caps].desc, "Windows Sound System");
 	j->caplist[j->caps].captype = codec;
 	j->caplist[j->caps].cap = WSS;
-	j->caplist[j->caps].handle = j->caps++;
+	j->caplist[j->caps].handle = j->caps;
+	j->caps++;
 
 	/* software ALAW codec, made from ULAW */
 	strcpy(j->caplist[j->caps].desc, "ALAW");
 	j->caplist[j->caps].captype = codec;
 	j->caplist[j->caps].cap = ALAW;
-	j->caplist[j->caps].handle = j->caps++;
+	j->caplist[j->caps].handle = j->caps;
+	j->caps++;
 
 	/* version 12 of the 8020 does the following codecs in a broken way */
 	if (j->dsp.low != 0x20 || j->ver.low != 0x12) {
 		strcpy(j->caplist[j->caps].desc, "G.723.1 6.3kbps");
 		j->caplist[j->caps].captype = codec;
 		j->caplist[j->caps].cap = G723_63;
-		j->caplist[j->caps].handle = j->caps++;
+		j->caplist[j->caps].handle = j->caps;
+		j->caps++;
 
 		strcpy(j->caplist[j->caps].desc, "G.723.1 5.3kbps");
 		j->caplist[j->caps].captype = codec;
 		j->caplist[j->caps].cap = G723_53;
-		j->caplist[j->caps].handle = j->caps++;
+		j->caplist[j->caps].handle = j->caps;
+		j->caps++;
 
 		strcpy(j->caplist[j->caps].desc, "TrueSpeech 4.8kbps");
 		j->caplist[j->caps].captype = codec;
 		j->caplist[j->caps].cap = TS48;
-		j->caplist[j->caps].handle = j->caps++;
+		j->caplist[j->caps].handle = j->caps;
+		j->caps++;
 
 		strcpy(j->caplist[j->caps].desc, "TrueSpeech 4.1kbps");
 		j->caplist[j->caps].captype = codec;
 		j->caplist[j->caps].cap = TS41;
-		j->caplist[j->caps].handle = j->caps++;
+		j->caplist[j->caps].handle = j->caps;
+		j->caps++;
 	}
 
 	/* 8020 chips can do TS8.5 native, and 8021/8022 can load it */
@@ -6046,7 +6061,8 @@ static void add_caps(IXJ *j)
 		strcpy(j->caplist[j->caps].desc, "TrueSpeech 8.5kbps");
 		j->caplist[j->caps].captype = codec;
 		j->caplist[j->caps].cap = TS85;
-		j->caplist[j->caps].handle = j->caps++;
+		j->caplist[j->caps].handle = j->caps;
+		j->caps++;
 	}
 
 	/* 8021 chips can do G728 */
@@ -6054,7 +6070,8 @@ static void add_caps(IXJ *j)
 		strcpy(j->caplist[j->caps].desc, "G.728 16kbps");
 		j->caplist[j->caps].captype = codec;
 		j->caplist[j->caps].cap = G728;
-		j->caplist[j->caps].handle = j->caps++;
+		j->caplist[j->caps].handle = j->caps;
+		j->caps++;
 	}
 
 	/* 8021/8022 chips can do G729 if loaded */
@@ -6062,13 +6079,15 @@ static void add_caps(IXJ *j)
 		strcpy(j->caplist[j->caps].desc, "G.729A 8kbps");
 		j->caplist[j->caps].captype = codec;
 		j->caplist[j->caps].cap = G729;
-		j->caplist[j->caps].handle = j->caps++;
+		j->caplist[j->caps].handle = j->caps;
+		j->caps++;
 	}
 	if (j->dsp.low != 0x20 && j->flags.g729_loaded) {
 		strcpy(j->caplist[j->caps].desc, "G.729B 8kbps");
 		j->caplist[j->caps].captype = codec;
 		j->caplist[j->caps].cap = G729B;
-		j->caplist[j->caps].handle = j->caps++;
+		j->caplist[j->caps].handle = j->caps;
+		j->caps++;
 	}
 }
 

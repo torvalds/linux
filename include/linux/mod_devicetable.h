@@ -414,6 +414,15 @@ struct hv_vmbus_device_id {
 			__attribute__((aligned(sizeof(kernel_ulong_t))));
 };
 
+/* rpmsg */
+
+#define RPMSG_NAME_SIZE			32
+#define RPMSG_DEVICE_MODALIAS_FMT	"rpmsg:%s"
+
+struct rpmsg_device_id {
+	char name[RPMSG_NAME_SIZE];
+};
+
 /* i2c */
 
 #define I2C_NAME_SIZE	20

@@ -15,14 +15,19 @@
 
 /* The LEON architecture does not rely on a BIOS or bootloader to setup
  * PCI for us. The Linux generic routines are used to setup resources,
- * reset values of confuration-space registers settings ae preseved.
+ * reset values of configuration-space register settings are preserved.
+ *
+ * PCI Memory and Prefetchable Memory is direct-mapped. However I/O Space is
+ * accessed through a Window which is translated to low 64KB in PCI space, the
+ * first 4KB is not used so 60KB is available.
  */
 void leon_pci_init(struct platform_device *ofdev, struct leon_pci_info *info)
 {
 	LIST_HEAD(resources);
 	struct pci_bus *root_bus;
 
-	pci_add_resource(&resources, &info->io_space);
+	pci_add_resource_offset(&resources, &info->io_space,
+				info->io_space.start - 0x1000);
 	pci_add_resource(&resources, &info->mem_space);
 
 	root_bus = pci_scan_root_bus(&ofdev->dev, 0, info->ops, info,
@@ -37,44 +42,6 @@ void leon_pci_init(struct platform_device *ofdev, struct leon_pci_info *info)
 		pci_free_resource_list(&resources);
 	}
 }
-
-/* PCI Memory and Prefetchable Memory is direct-mapped. However I/O Space is
- * accessed through a Window which is translated to low 64KB in PCI space, the
- * first 4KB is not used so 60KB is available.
- *
- * This function is used by generic code to translate resource addresses into
- * PCI addresses.
- */
-void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			     struct resource *res)
-{
-	struct leon_pci_info *info = dev->bus->sysdata;
-
-	region->start = res->start;
-	region->end = res->end;
-
-	if (res->flags & IORESOURCE_IO) {
-		region->start -= (info->io_space.start - 0x1000);
-		region->end -= (info->io_space.start - 0x1000);
-	}
-}
-EXPORT_SYMBOL(pcibios_resource_to_bus);
-
-/* see pcibios_resource_to_bus() comment */
-void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			     struct pci_bus_region *region)
-{
-	struct leon_pci_info *info = dev->bus->sysdata;
-
-	res->start = region->start;
-	res->end = region->end;
-
-	if (res->flags & IORESOURCE_IO) {
-		res->start += (info->io_space.start - 0x1000);
-		res->end += (info->io_space.start - 0x1000);
-	}
-}
-EXPORT_SYMBOL(pcibios_bus_to_resource);
 
 void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
 {

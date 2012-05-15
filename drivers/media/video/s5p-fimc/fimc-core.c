@@ -1602,24 +1602,35 @@ static void fimc_clk_put(struct fimc_dev *fimc)
 {
 	int i;
 	for (i = 0; i < fimc->num_clocks; i++) {
-		if (fimc->clock[i])
-			clk_put(fimc->clock[i]);
+		if (IS_ERR_OR_NULL(fimc->clock[i]))
+			continue;
+		clk_unprepare(fimc->clock[i]);
+		clk_put(fimc->clock[i]);
+		fimc->clock[i] = NULL;
 	}
 }
 
 static int fimc_clk_get(struct fimc_dev *fimc)
 {
-	int i;
+	int i, ret;
+
 	for (i = 0; i < fimc->num_clocks; i++) {
 		fimc->clock[i] = clk_get(&fimc->pdev->dev, fimc_clocks[i]);
-		if (!IS_ERR_OR_NULL(fimc->clock[i]))
-			continue;
-		dev_err(&fimc->pdev->dev, "failed to get fimc clock: %s\n",
-			fimc_clocks[i]);
-		return -ENXIO;
+		if (IS_ERR(fimc->clock[i]))
+			goto err;
+		ret = clk_prepare(fimc->clock[i]);
+		if (ret < 0) {
+			clk_put(fimc->clock[i]);
+			fimc->clock[i] = NULL;
+			goto err;
+		}
 	}
-
 	return 0;
+err:
+	fimc_clk_put(fimc);
+	dev_err(&fimc->pdev->dev, "failed to get clock: %s\n",
+		fimc_clocks[i]);
+	return -ENXIO;
 }
 
 static int fimc_m2m_suspend(struct fimc_dev *fimc)
@@ -1667,8 +1678,6 @@ static int fimc_probe(struct platform_device *pdev)
 	struct s5p_platform_fimc *pdata;
 	int ret = 0;
 
-	dev_dbg(&pdev->dev, "%s():\n", __func__);
-
 	drv_data = (struct samsung_fimc_driverdata *)
 		platform_get_device_id(pdev)->driver_data;
 
@@ -1678,7 +1687,7 @@ static int fimc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	fimc = kzalloc(sizeof(struct fimc_dev), GFP_KERNEL);
+	fimc = devm_kzalloc(&pdev->dev, sizeof(*fimc), GFP_KERNEL);
 	if (!fimc)
 		return -ENOMEM;
 
@@ -1689,51 +1698,35 @@ static int fimc_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 	fimc->pdata = pdata;
 
-
 	init_waitqueue_head(&fimc->irq_queue);
 	spin_lock_init(&fimc->slock);
 	mutex_init(&fimc->lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to find the registers\n");
-		ret = -ENOENT;
-		goto err_info;
-	}
-
-	fimc->regs_res = request_mem_region(res->start, resource_size(res),
-			dev_name(&pdev->dev));
-	if (!fimc->regs_res) {
-		dev_err(&pdev->dev, "failed to obtain register region\n");
-		ret = -ENOENT;
-		goto err_info;
-	}
-
-	fimc->regs = ioremap(res->start, resource_size(res));
-	if (!fimc->regs) {
-		dev_err(&pdev->dev, "failed to map registers\n");
-		ret = -ENXIO;
-		goto err_req_region;
+	fimc->regs = devm_request_and_ioremap(&pdev->dev, res);
+	if (fimc->regs == NULL) {
+		dev_err(&pdev->dev, "Failed to obtain io memory\n");
+		return -ENOENT;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get IRQ resource\n");
-		ret = -ENXIO;
-		goto err_regs_unmap;
+	if (res == NULL) {
+		dev_err(&pdev->dev, "Failed to get IRQ resource\n");
+		return -ENXIO;
 	}
 	fimc->irq = res->start;
 
 	fimc->num_clocks = MAX_FIMC_CLOCKS;
 	ret = fimc_clk_get(fimc);
 	if (ret)
-		goto err_regs_unmap;
+		return ret;
 	clk_set_rate(fimc->clock[CLK_BUS], drv_data->lclk_frequency);
 	clk_enable(fimc->clock[CLK_BUS]);
 
 	platform_set_drvdata(pdev, fimc);
 
-	ret = request_irq(fimc->irq, fimc_irq_handler, 0, pdev->name, fimc);
+	ret = devm_request_irq(&pdev->dev, fimc->irq, fimc_irq_handler,
+			       0, pdev->name, fimc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to install irq (%d)\n", ret);
 		goto err_clk;
@@ -1742,7 +1735,7 @@ static int fimc_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0)
-		goto err_irq;
+		goto err_clk;
 	/* Initialize contiguous memory allocator */
 	fimc->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
 	if (IS_ERR(fimc->alloc_ctx)) {
@@ -1757,17 +1750,8 @@ static int fimc_probe(struct platform_device *pdev)
 
 err_pm:
 	pm_runtime_put(&pdev->dev);
-err_irq:
-	free_irq(fimc->irq, fimc);
 err_clk:
 	fimc_clk_put(fimc);
-err_regs_unmap:
-	iounmap(fimc->regs);
-err_req_region:
-	release_resource(fimc->regs_res);
-	kfree(fimc->regs_res);
-err_info:
-	kfree(fimc);
 	return ret;
 }
 
@@ -1854,11 +1838,6 @@ static int __devexit fimc_remove(struct platform_device *pdev)
 
 	clk_disable(fimc->clock[CLK_BUS]);
 	fimc_clk_put(fimc);
-	free_irq(fimc->irq, fimc);
-	iounmap(fimc->regs);
-	release_resource(fimc->regs_res);
-	kfree(fimc->regs_res);
-	kfree(fimc);
 
 	dev_info(&pdev->dev, "driver unloaded\n");
 	return 0;

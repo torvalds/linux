@@ -8,7 +8,7 @@ obj-y += linked_dtb.o
 
 targets := linux.bin linux.bin.gz simpleImage.%
 
-OBJCOPYFLAGS := -O binary
+OBJCOPYFLAGS := -R .note -R .comment -R .note.gnu.build-id -O binary
 
 # Ensure system.dtb exists
 $(obj)/linked_dtb.o: $(obj)/system.dtb

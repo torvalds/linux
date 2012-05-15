@@ -49,9 +49,6 @@ static LIST_HEAD(hybrid_tuner_instance_list);
 #define dprintk(level, fmt, arg...) if (debug >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
 
-#define XC5000_DEFAULT_FIRMWARE "dvb-fe-xc5000-1.6.114.fw"
-#define XC5000_DEFAULT_FIRMWARE_SIZE 12401
-
 struct xc5000_priv {
 	struct tuner_i2c_props i2c_props;
 	struct list_head hybrid_tuner_instance_list;
@@ -62,6 +59,8 @@ struct xc5000_priv {
 	u8  video_standard;
 	u8  rf_mode;
 	u8  radio_input;
+
+	int chip_id;
 };
 
 /* Misc Defines */
@@ -203,6 +202,33 @@ static struct XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"FM Radio-INPUT1",   0x0208, 0x9002},
 	{"FM Radio-INPUT1_MONO", 0x0278, 0x9002}
 };
+
+
+struct xc5000_fw_cfg {
+	char *name;
+	u16 size;
+};
+
+static const struct xc5000_fw_cfg xc5000a_1_6_114 = {
+	.name = "dvb-fe-xc5000-1.6.114.fw",
+	.size = 12401,
+};
+
+static const struct xc5000_fw_cfg xc5000c_41_024_5_31875 = {
+	.name = "dvb-fe-xc5000c-41.024.5-31875.fw",
+	.size = 16503,
+};
+
+static inline const struct xc5000_fw_cfg *xc5000_assign_firmware(int chip_id)
+{
+	switch (chip_id) {
+	default:
+	case XC5000A:
+		return &xc5000a_1_6_114;
+	case XC5000C:
+		return &xc5000c_41_024_5_31875;
+	}
+}
 
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe);
 static int xc5000_is_firmware_loaded(struct dvb_frontend *fe);
@@ -552,12 +578,14 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 	struct xc5000_priv *priv = fe->tuner_priv;
 	const struct firmware *fw;
 	int ret;
+	const struct xc5000_fw_cfg *desired_fw =
+		xc5000_assign_firmware(priv->chip_id);
 
 	/* request the firmware, this will block and timeout */
 	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
-		XC5000_DEFAULT_FIRMWARE);
+		desired_fw->name);
 
-	ret = request_firmware(&fw, XC5000_DEFAULT_FIRMWARE,
+	ret = request_firmware(&fw, desired_fw->name,
 		priv->i2c_props.adap->dev.parent);
 	if (ret) {
 		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
@@ -569,7 +597,7 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 		ret = XC_RESULT_SUCCESS;
 	}
 
-	if (fw->size != XC5000_DEFAULT_FIRMWARE_SIZE) {
+	if (fw->size != desired_fw->size) {
 		printk(KERN_ERR "xc5000: firmware incorrect size\n");
 		ret = XC_RESULT_RESET_FAILURE;
 	} else {
@@ -1138,6 +1166,13 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 
 	if (priv->radio_input == 0)
 		priv->radio_input = cfg->radio_input;
+
+	/* don't override chip id if it's already been set
+	   unless explicitly specified */
+	if ((priv->chip_id == 0) || (cfg->chip_id))
+		/* use default chip id if none specified, set to 0 so
+		   it can be overridden if this is a hybrid driver */
+		priv->chip_id = (cfg->chip_id) ? cfg->chip_id : 0;
 
 	/* Check if firmware has been loaded. It is possible that another
 	   instance of the driver has loaded the firmware.

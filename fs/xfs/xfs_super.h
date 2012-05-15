@@ -21,13 +21,11 @@
 #include <linux/exportfs.h>
 
 #ifdef CONFIG_XFS_QUOTA
-extern void xfs_qm_init(void);
+extern int xfs_qm_init(void);
 extern void xfs_qm_exit(void);
-# define vfs_initquota()	xfs_qm_init()
-# define vfs_exitquota()	xfs_qm_exit()
 #else
-# define vfs_initquota()	do { } while (0)
-# define vfs_exitquota()	do { } while (0)
+# define xfs_qm_init()	(0)
+# define xfs_qm_exit()	do { } while (0)
 #endif
 
 #ifdef CONFIG_XFS_POSIX_ACL

@@ -367,7 +367,7 @@ static inline u32 ceph_ino_to_ino32(__u64 vino)
 	u32 ino = vino & 0xffffffff;
 	ino ^= vino >> 32;
 	if (!ino)
-		ino = 1;
+		ino = 2;
 	return ino;
 }
 
@@ -733,6 +733,8 @@ extern ssize_t ceph_listxattr(struct dentry *, char *, size_t);
 extern int ceph_removexattr(struct dentry *, const char *);
 extern void __ceph_build_xattrs_blob(struct ceph_inode_info *ci);
 extern void __ceph_destroy_xattrs(struct ceph_inode_info *ci);
+extern void __init ceph_xattr_init(void);
+extern void ceph_xattr_exit(void);
 
 /* caps.c */
 extern const char *ceph_cap_string(int c);

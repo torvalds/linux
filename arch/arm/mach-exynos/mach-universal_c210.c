@@ -47,6 +47,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/s5p_fimc.h>
 #include <media/m5mols.h>
+#include <media/s5k6aa.h>
 
 #include "common.h"
 
@@ -123,8 +124,10 @@ static struct regulator_consumer_supply lp3974_buck1_consumer =
 static struct regulator_consumer_supply lp3974_buck2_consumer =
 	REGULATOR_SUPPLY("vddg3d", NULL);
 
-static struct regulator_consumer_supply lp3974_buck3_consumer =
-	REGULATOR_SUPPLY("vdet", "s5p-sdo");
+static struct regulator_consumer_supply lp3974_buck3_consumer[] = {
+	REGULATOR_SUPPLY("vdet", "s5p-sdo"),
+	REGULATOR_SUPPLY("vdd_reg", "0-003c"),
+};
 
 static struct regulator_init_data lp3974_buck1_data = {
 	.constraints	= {
@@ -169,8 +172,8 @@ static struct regulator_init_data lp3974_buck3_data = {
 			.enabled	= 1,
 		},
 	},
-	.num_consumer_supplies = 1,
-	.consumer_supplies = &lp3974_buck3_consumer,
+	.num_consumer_supplies = ARRAY_SIZE(lp3974_buck3_consumer),
+	.consumer_supplies = lp3974_buck3_consumer,
 };
 
 static struct regulator_init_data lp3974_buck4_data = {
@@ -303,6 +306,9 @@ static struct regulator_init_data lp3974_ldo8_data = {
 	.consumer_supplies = lp3974_ldo8_consumer,
 };
 
+static struct regulator_consumer_supply lp3974_ldo9_consumer =
+	REGULATOR_SUPPLY("vddio", "0-003c");
+
 static struct regulator_init_data lp3974_ldo9_data = {
 	.constraints	= {
 		.name		= "VCC_2.8V",
@@ -314,6 +320,8 @@ static struct regulator_init_data lp3974_ldo9_data = {
 			.enabled	= 1,
 		},
 	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &lp3974_ldo9_consumer,
 };
 
 static struct regulator_init_data lp3974_ldo10_data = {
@@ -412,6 +420,7 @@ static struct regulator_init_data lp3974_ldo15_data = {
 };
 
 static struct regulator_consumer_supply lp3974_ldo16_consumer[] = {
+	REGULATOR_SUPPLY("vdda", "0-003c"),
 	REGULATOR_SUPPLY("a_sensor", "0-001f"),
 };
 
@@ -743,7 +752,7 @@ static struct s3c_sdhci_platdata universal_hsmmc0_data __initdata = {
 };
 
 static struct regulator_consumer_supply mmc0_supplies[] = {
-	REGULATOR_SUPPLY("vmmc", "s3c-sdhci.0"),
+	REGULATOR_SUPPLY("vmmc", "exynos4-sdhci.0"),
 };
 
 static struct regulator_init_data mmc0_fixed_voltage_init_data = {
@@ -819,6 +828,8 @@ static struct s3c_fb_pd_win universal_fb_win0 = {
 	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
+	.virtual_x	= 480,
+	.virtual_y	= 2 * 800,
 };
 
 static struct s3c_fb_platdata universal_lcd_pdata __initdata = {
@@ -828,6 +839,28 @@ static struct s3c_fb_platdata universal_lcd_pdata __initdata = {
 	.vidcon1	= VIDCON1_INV_VCLK | VIDCON1_INV_VDEN
 			  | VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 	.setup_gpio	= exynos4_fimd0_gpio_setup_24bpp,
+};
+
+static struct regulator_consumer_supply cam_vt_dio_supply =
+	REGULATOR_SUPPLY("vdd_core", "0-003c");
+
+static struct regulator_init_data cam_vt_dio_reg_init_data = {
+	.constraints = { .valid_ops_mask = REGULATOR_CHANGE_STATUS },
+	.num_consumer_supplies = 1,
+	.consumer_supplies = &cam_vt_dio_supply,
+};
+
+static struct fixed_voltage_config cam_vt_dio_fixed_voltage_cfg = {
+	.supply_name	= "CAM_VT_D_IO",
+	.microvolts	= 2800000,
+	.gpio		= EXYNOS4_GPE2(1), /* CAM_PWR_EN2 */
+	.enable_high	= 1,
+	.init_data	= &cam_vt_dio_reg_init_data,
+};
+
+static struct platform_device cam_vt_dio_fixed_reg_dev = {
+	.name = "reg-fixed-voltage", .id = FIXED_REG_ID_CAM_VT_DIO,
+	.dev = { .platform_data	= &cam_vt_dio_fixed_voltage_cfg },
 };
 
 static struct regulator_consumer_supply cam_i_core_supply =
@@ -885,6 +918,28 @@ static struct s5p_platform_mipi_csis mipi_csis_platdata = {
 #define GPIO_CAM_LEVEL_EN(n)	EXYNOS4_GPE4(n + 3)
 #define GPIO_CAM_8M_ISP_INT	EXYNOS4_GPX1(5)	/* XEINT_13 */
 #define GPIO_CAM_MEGA_nRST	EXYNOS4_GPE2(5)
+#define GPIO_CAM_VGA_NRST	EXYNOS4_GPE4(7)
+#define GPIO_CAM_VGA_NSTBY	EXYNOS4_GPE4(6)
+
+static int s5k6aa_set_power(int on)
+{
+	gpio_set_value(GPIO_CAM_LEVEL_EN(2), !!on);
+	return 0;
+}
+
+static struct s5k6aa_platform_data s5k6aa_platdata = {
+	.mclk_frequency	= 21600000UL,
+	.gpio_reset	= { GPIO_CAM_VGA_NRST, 0 },
+	.gpio_stby	= { GPIO_CAM_VGA_NSTBY, 0 },
+	.bus_type	= V4L2_MBUS_PARALLEL,
+	.horiz_flip	= 1,
+	.set_power	= s5k6aa_set_power,
+};
+
+static struct i2c_board_info s5k6aa_board_info = {
+	I2C_BOARD_INFO("S5K6AA", 0x3C),
+	.platform_data = &s5k6aa_platdata,
+};
 
 static int m5mols_set_power(struct device *dev, int on)
 {
@@ -909,6 +964,14 @@ static struct s5p_fimc_isp_info universal_camera_sensors[] = {
 		.mux_id		= 0,
 		.flags		= V4L2_MBUS_PCLK_SAMPLE_FALLING |
 				  V4L2_MBUS_VSYNC_ACTIVE_LOW,
+		.bus_type	= FIMC_ITU_601,
+		.board_info	= &s5k6aa_board_info,
+		.i2c_bus_num	= 0,
+		.clk_frequency	= 24000000UL,
+	}, {
+		.mux_id		= 0,
+		.flags		= V4L2_MBUS_PCLK_SAMPLE_FALLING |
+				  V4L2_MBUS_VSYNC_ACTIVE_LOW,
 		.bus_type	= FIMC_MIPI_CSI2,
 		.board_info	= &m5mols_board_info,
 		.i2c_bus_num	= 0,
@@ -927,9 +990,11 @@ static struct gpio universal_camera_gpios[] = {
 	{ GPIO_CAM_LEVEL_EN(2),	GPIOF_OUT_INIT_LOW,  "CAM_LVL_EN2" },
 	{ GPIO_CAM_8M_ISP_INT,	GPIOF_IN,            "8M_ISP_INT"  },
 	{ GPIO_CAM_MEGA_nRST,	GPIOF_OUT_INIT_LOW,  "CAM_8M_NRST" },
+	{ GPIO_CAM_VGA_NRST,	GPIOF_OUT_INIT_LOW,  "CAM_VGA_NRST"  },
+	{ GPIO_CAM_VGA_NSTBY,	GPIOF_OUT_INIT_LOW,  "CAM_VGA_NSTBY" },
 };
 
-static void universal_camera_init(void)
+static void __init universal_camera_init(void)
 {
 	s3c_set_platdata(&mipi_csis_platdata, sizeof(mipi_csis_platdata),
 			 &s5p_device_mipi_csis0);
@@ -950,6 +1015,8 @@ static void universal_camera_init(void)
 	/* Free GPIOs controlled directly by the sensor drivers. */
 	gpio_free(GPIO_CAM_MEGA_nRST);
 	gpio_free(GPIO_CAM_8M_ISP_INT);
+	gpio_free(GPIO_CAM_VGA_NRST);
+	gpio_free(GPIO_CAM_VGA_NSTBY);
 
 	if (exynos4_fimc_setup_gpio(S5P_CAMPORT_A))
 		pr_err("Camera port A setup failed\n");
@@ -962,6 +1029,7 @@ static struct platform_device *universal_devices[] __initdata = {
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
 	&s5p_device_fimc3,
+	&s5p_device_g2d,
 	&mmc0_fixed_voltage,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc2,
@@ -980,9 +1048,11 @@ static struct platform_device *universal_devices[] __initdata = {
 	&universal_gpio_keys,
 	&s5p_device_onenand,
 	&s5p_device_fimd0,
+	&s5p_device_jpeg,
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
+	&cam_vt_dio_fixed_reg_dev,
 	&cam_i_core_fixed_reg_dev,
 	&cam_s_if_fixed_reg_dev,
 	&s5p_device_fimc_md,
@@ -995,7 +1065,7 @@ static void __init universal_map_io(void)
 	s3c24xx_init_uarts(universal_uartcfgs, ARRAY_SIZE(universal_uartcfgs));
 }
 
-void s5p_tv_setup(void)
+static void s5p_tv_setup(void)
 {
 	/* direct HPD to HDMI chip */
 	gpio_request_one(EXYNOS4_GPX3(7), GPIOF_IN, "hpd-plug");

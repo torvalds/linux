@@ -208,6 +208,8 @@ enum hotplug_state {
 };
 
 struct sh_hdmi {
+	struct sh_mobile_lcdc_entity entity;
+
 	void __iomem *base;
 	enum hotplug_state hp_state;	/* hot-plug status */
 	u8 preprogrammed_vic;		/* use a pre-programmed VIC or
@@ -217,13 +219,12 @@ struct sh_hdmi {
 	u8 edid_blocks;
 	struct clk *hdmi_clk;
 	struct device *dev;
-	struct fb_info *info;
-	struct mutex mutex;		/* Protect the info pointer */
 	struct delayed_work edid_work;
-	struct fb_var_screeninfo var;
+	struct fb_videomode mode;
 	struct fb_monspecs monspec;
-	struct notifier_block notifier;
 };
+
+#define entity_to_sh_hdmi(e)	container_of(e, struct sh_hdmi, entity)
 
 static void hdmi_write(struct sh_hdmi *hdmi, u8 data, u8 reg)
 {
@@ -290,24 +291,24 @@ static struct snd_soc_codec_driver soc_codec_dev_sh_hdmi = {
 /* External video parameter settings */
 static void sh_hdmi_external_video_param(struct sh_hdmi *hdmi)
 {
-	struct fb_var_screeninfo *var = &hdmi->var;
+	struct fb_videomode *mode = &hdmi->mode;
 	u16 htotal, hblank, hdelay, vtotal, vblank, vdelay, voffset;
 	u8 sync = 0;
 
-	htotal = var->xres + var->right_margin + var->left_margin + var->hsync_len;
-
-	hdelay = var->hsync_len + var->left_margin;
-	hblank = var->right_margin + hdelay;
+	htotal = mode->xres + mode->right_margin + mode->left_margin
+	       + mode->hsync_len;
+	hdelay = mode->hsync_len + mode->left_margin;
+	hblank = mode->right_margin + hdelay;
 
 	/*
 	 * Vertical timing looks a bit different in Figure 18,
 	 * but let's try the same first by setting offset = 0
 	 */
-	vtotal = var->yres + var->upper_margin + var->lower_margin + var->vsync_len;
-
-	vdelay = var->vsync_len + var->upper_margin;
-	vblank = var->lower_margin + vdelay;
-	voffset = min(var->upper_margin / 2, 6U);
+	vtotal = mode->yres + mode->upper_margin + mode->lower_margin
+	       + mode->vsync_len;
+	vdelay = mode->vsync_len + mode->upper_margin;
+	vblank = mode->lower_margin + vdelay;
+	voffset = min(mode->upper_margin / 2, 6U);
 
 	/*
 	 * [3]: VSYNC polarity: Positive
@@ -315,14 +316,14 @@ static void sh_hdmi_external_video_param(struct sh_hdmi *hdmi)
 	 * [1]: Interlace/Progressive: Progressive
 	 * [0]: External video settings enable: used.
 	 */
-	if (var->sync & FB_SYNC_HOR_HIGH_ACT)
+	if (mode->sync & FB_SYNC_HOR_HIGH_ACT)
 		sync |= 4;
-	if (var->sync & FB_SYNC_VERT_HIGH_ACT)
+	if (mode->sync & FB_SYNC_VERT_HIGH_ACT)
 		sync |= 8;
 
 	dev_dbg(hdmi->dev, "H: %u, %u, %u, %u; V: %u, %u, %u, %u; sync 0x%x\n",
-		htotal, hblank, hdelay, var->hsync_len,
-		vtotal, vblank, vdelay, var->vsync_len, sync);
+		htotal, hblank, hdelay, mode->hsync_len,
+		vtotal, vblank, vdelay, mode->vsync_len, sync);
 
 	hdmi_write(hdmi, sync | (voffset << 4), HDMI_EXTERNAL_VIDEO_PARAM_SETTINGS);
 
@@ -335,8 +336,8 @@ static void sh_hdmi_external_video_param(struct sh_hdmi *hdmi)
 	hdmi_write(hdmi, hdelay, HDMI_EXTERNAL_H_DELAY_7_0);
 	hdmi_write(hdmi, hdelay >> 8, HDMI_EXTERNAL_H_DELAY_9_8);
 
-	hdmi_write(hdmi, var->hsync_len, HDMI_EXTERNAL_H_DURATION_7_0);
-	hdmi_write(hdmi, var->hsync_len >> 8, HDMI_EXTERNAL_H_DURATION_9_8);
+	hdmi_write(hdmi, mode->hsync_len, HDMI_EXTERNAL_H_DURATION_7_0);
+	hdmi_write(hdmi, mode->hsync_len >> 8, HDMI_EXTERNAL_H_DURATION_9_8);
 
 	hdmi_write(hdmi, vtotal, HDMI_EXTERNAL_V_TOTAL_7_0);
 	hdmi_write(hdmi, vtotal >> 8, HDMI_EXTERNAL_V_TOTAL_9_8);
@@ -345,7 +346,7 @@ static void sh_hdmi_external_video_param(struct sh_hdmi *hdmi)
 
 	hdmi_write(hdmi, vdelay, HDMI_EXTERNAL_V_DELAY);
 
-	hdmi_write(hdmi, var->vsync_len, HDMI_EXTERNAL_V_DURATION);
+	hdmi_write(hdmi, mode->vsync_len, HDMI_EXTERNAL_V_DURATION);
 
 	/* Set bit 0 of HDMI_EXTERNAL_VIDEO_PARAM_SETTINGS here for external mode */
 	if (!hdmi->preprogrammed_vic)
@@ -472,7 +473,7 @@ static void sh_hdmi_audio_config(struct sh_hdmi *hdmi)
  */
 static void sh_hdmi_phy_config(struct sh_hdmi *hdmi)
 {
-	if (hdmi->var.pixclock < 10000) {
+	if (hdmi->mode.pixclock < 10000) {
 		/* for 1080p8bit 148MHz */
 		hdmi_write(hdmi, 0x1d, HDMI_SLIPHDMIT_PARAM_SETTINGS_1);
 		hdmi_write(hdmi, 0x00, HDMI_SLIPHDMIT_PARAM_SETTINGS_2);
@@ -483,7 +484,7 @@ static void sh_hdmi_phy_config(struct sh_hdmi *hdmi)
 		hdmi_write(hdmi, 0x0e, HDMI_SLIPHDMIT_PARAM_SETTINGS_8);
 		hdmi_write(hdmi, 0x25, HDMI_SLIPHDMIT_PARAM_SETTINGS_9);
 		hdmi_write(hdmi, 0x04, HDMI_SLIPHDMIT_PARAM_SETTINGS_10);
-	} else if (hdmi->var.pixclock < 30000) {
+	} else if (hdmi->mode.pixclock < 30000) {
 		/* 720p, 8bit, 74.25MHz. Might need to be adjusted for other formats */
 		/*
 		 * [1:0]	Speed_A
@@ -732,14 +733,12 @@ static unsigned long sh_hdmi_rate_error(struct sh_hdmi *hdmi,
 static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 			     unsigned long *parent_rate)
 {
-	struct fb_var_screeninfo tmpvar;
-	struct fb_var_screeninfo *var = &tmpvar;
+	struct sh_mobile_lcdc_chan *ch = hdmi->entity.lcdc;
 	const struct fb_videomode *mode, *found = NULL;
-	struct fb_info *info = hdmi->info;
-	struct fb_modelist *modelist = NULL;
 	unsigned int f_width = 0, f_height = 0, f_refresh = 0;
 	unsigned long found_rate_error = ULONG_MAX; /* silly compiler... */
 	bool scanning = false, preferred_bad = false;
+	bool use_edid_mode = false;
 	u8 edid[128];
 	char *forced;
 	int i;
@@ -854,12 +853,9 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 		}
 
 		/* Check if supported: sufficient fb memory, supported clock-rate */
-		fb_videomode_to_var(var, mode);
-
-		var->bits_per_pixel = info->var.bits_per_pixel;
-
-		if (info && info->fbops->fb_check_var &&
-		    info->fbops->fb_check_var(var, info)) {
+		if (ch && ch->notify &&
+		    ch->notify(ch, SH_MOBILE_LCDC_EVENT_DISPLAY_MODE, mode,
+			       NULL)) {
 			scanning = true;
 			preferred_bad = true;
 			continue;
@@ -867,28 +863,19 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 
 		found = mode;
 		found_rate_error = rate_error;
+		use_edid_mode = true;
 	}
 
-	hdmi->var.width = hdmi->monspec.max_x * 10;
-	hdmi->var.height = hdmi->monspec.max_y * 10;
-
 	/*
-	 * TODO 1: if no ->info is present, postpone running the config until
-	 * after ->info first gets registered.
+	 * TODO 1: if no default mode is present, postpone running the config
+	 * until after the LCDC channel is initialized.
 	 * TODO 2: consider registering the HDMI platform device from the LCDC
-	 * driver, and passing ->info with HDMI platform data.
+	 * driver.
 	 */
-	if (info && !found) {
-		modelist = info->modelist.next &&
-			!list_empty(&info->modelist) ?
-			list_entry(info->modelist.next,
-				   struct fb_modelist, list) :
-			NULL;
-
-		if (modelist) {
-			found = &modelist->mode;
-			found_rate_error = sh_hdmi_rate_error(hdmi, found, hdmi_rate, parent_rate);
-		}
+	if (!found && hdmi->entity.def_mode.xres != 0) {
+		found = &hdmi->entity.def_mode;
+		found_rate_error = sh_hdmi_rate_error(hdmi, found, hdmi_rate,
+						      parent_rate);
 	}
 
 	/* No cookie today */
@@ -912,12 +899,13 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 	else
 		hdmi->preprogrammed_vic = 0;
 
-	dev_dbg(hdmi->dev, "Using %s %s mode %ux%u@%uHz (%luHz), clock error %luHz\n",
-		modelist ? "default" : "EDID", hdmi->preprogrammed_vic ? "VIC" : "external",
-		found->xres, found->yres, found->refresh,
-		PICOS2KHZ(found->pixclock) * 1000, found_rate_error);
+	dev_dbg(hdmi->dev, "Using %s %s mode %ux%u@%uHz (%luHz), "
+		"clock error %luHz\n", use_edid_mode ? "EDID" : "default",
+		hdmi->preprogrammed_vic ? "VIC" : "external", found->xres,
+		found->yres, found->refresh, PICOS2KHZ(found->pixclock) * 1000,
+		found_rate_error);
 
-	fb_videomode_to_var(&hdmi->var, found);
+	hdmi->mode = *found;
 	sh_hdmi_external_video_param(hdmi);
 
 	return 0;
@@ -998,22 +986,12 @@ static irqreturn_t sh_hdmi_hotplug(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* locking:	called with info->lock held, or before register_framebuffer() */
-static void sh_hdmi_display_on(void *arg, struct fb_info *info)
+static int sh_hdmi_display_on(struct sh_mobile_lcdc_entity *entity)
 {
-	/*
-	 * info is guaranteed to be valid, when we are called, because our
-	 * FB_EVENT_FB_UNBIND notify is also called with info->lock held
-	 */
-	struct sh_hdmi *hdmi = arg;
-	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
-	struct sh_mobile_lcdc_chan *ch = info->par;
+	struct sh_hdmi *hdmi = entity_to_sh_hdmi(entity);
 
-	dev_dbg(hdmi->dev, "%s(%p): state %x\n", __func__,
-		pdata->lcd_dev, info->state);
-
-	/* No need to lock */
-	hdmi->info = info;
+	dev_dbg(hdmi->dev, "%s(%p): state %x\n", __func__, hdmi,
+		hdmi->hp_state);
 
 	/*
 	 * hp_state can be set to
@@ -1021,56 +999,30 @@ static void sh_hdmi_display_on(void *arg, struct fb_info *info)
 	 * HDMI_HOTPLUG_CONNECTED:	on monitor plug-in
 	 * HDMI_HOTPLUG_EDID_DONE:	on EDID read completion
 	 */
-	switch (hdmi->hp_state) {
-	case HDMI_HOTPLUG_EDID_DONE:
+	if (hdmi->hp_state == HDMI_HOTPLUG_EDID_DONE) {
 		/* PS mode d->e. All functions are active */
 		hdmi_write(hdmi, 0x80, HDMI_SYSTEM_CTRL);
 		dev_dbg(hdmi->dev, "HDMI running\n");
-		break;
-	case HDMI_HOTPLUG_DISCONNECTED:
-		info->state = FBINFO_STATE_SUSPENDED;
-	default:
-		hdmi->var = ch->display_var;
 	}
+
+	return hdmi->hp_state == HDMI_HOTPLUG_DISCONNECTED
+		? SH_MOBILE_LCDC_DISPLAY_DISCONNECTED
+		: SH_MOBILE_LCDC_DISPLAY_CONNECTED;
 }
 
-/* locking: called with info->lock held */
-static void sh_hdmi_display_off(void *arg)
+static void sh_hdmi_display_off(struct sh_mobile_lcdc_entity *entity)
 {
-	struct sh_hdmi *hdmi = arg;
-	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
+	struct sh_hdmi *hdmi = entity_to_sh_hdmi(entity);
 
-	dev_dbg(hdmi->dev, "%s(%p)\n", __func__, pdata->lcd_dev);
+	dev_dbg(hdmi->dev, "%s(%p)\n", __func__, hdmi);
 	/* PS mode e->a */
 	hdmi_write(hdmi, 0x10, HDMI_SYSTEM_CTRL);
 }
 
-static bool sh_hdmi_must_reconfigure(struct sh_hdmi *hdmi)
-{
-	struct fb_info *info = hdmi->info;
-	struct sh_mobile_lcdc_chan *ch = info->par;
-	struct fb_var_screeninfo *new_var = &hdmi->var, *old_var = &ch->display_var;
-	struct fb_videomode mode1, mode2;
-
-	fb_var_to_videomode(&mode1, old_var);
-	fb_var_to_videomode(&mode2, new_var);
-
-	dev_dbg(info->dev, "Old %ux%u, new %ux%u\n",
-		mode1.xres, mode1.yres, mode2.xres, mode2.yres);
-
-	if (fb_mode_is_equal(&mode1, &mode2)) {
-		/* It can be a different monitor with an equal video-mode */
-		old_var->width = new_var->width;
-		old_var->height = new_var->height;
-		return false;
-	}
-
-	dev_dbg(info->dev, "Switching %u -> %u lines\n",
-		mode1.yres, mode2.yres);
-	*old_var = *new_var;
-
-	return true;
-}
+static const struct sh_mobile_lcdc_entity_ops sh_hdmi_ops = {
+	.display_on = sh_hdmi_display_on,
+	.display_off = sh_hdmi_display_off,
+};
 
 /**
  * sh_hdmi_clk_configure() - set HDMI clock frequency and enable the clock
@@ -1111,20 +1063,11 @@ static long sh_hdmi_clk_configure(struct sh_hdmi *hdmi, unsigned long hdmi_rate,
 static void sh_hdmi_edid_work_fn(struct work_struct *work)
 {
 	struct sh_hdmi *hdmi = container_of(work, struct sh_hdmi, edid_work.work);
-	struct fb_info *info;
-	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
-	struct sh_mobile_lcdc_chan *ch;
+	struct sh_mobile_lcdc_chan *ch = hdmi->entity.lcdc;
 	int ret;
 
-	dev_dbg(hdmi->dev, "%s(%p): begin, hotplug status %d\n", __func__,
-		pdata->lcd_dev, hdmi->hp_state);
-
-	if (!pdata->lcd_dev)
-		return;
-
-	mutex_lock(&hdmi->mutex);
-
-	info = hdmi->info;
+	dev_dbg(hdmi->dev, "%s(%p): begin, hotplug status %d\n", __func__, hdmi,
+		hdmi->hp_state);
 
 	if (hdmi->hp_state == HDMI_HOTPLUG_CONNECTED) {
 		unsigned long parent_rate = 0, hdmi_rate;
@@ -1145,103 +1088,32 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 		/* Switched to another (d) power-save mode */
 		msleep(10);
 
-		if (!info)
-			goto out;
-
-		ch = info->par;
-
-		if (lock_fb_info(info)) {
-			console_lock();
-
-			/* HDMI plug in */
-			if (!sh_hdmi_must_reconfigure(hdmi) &&
-			    info->state == FBINFO_STATE_RUNNING) {
-				/*
-				 * First activation with the default monitor - just turn
-				 * on, if we run a resume here, the logo disappears
-				 */
-				info->var.width = hdmi->var.width;
-				info->var.height = hdmi->var.height;
-				sh_hdmi_display_on(hdmi, info);
-			} else {
-				/* New monitor or have to wake up */
-				fb_set_suspend(info, 0);
-			}
-
-			console_unlock();
-			unlock_fb_info(info);
-		}
+		if (ch && ch->notify)
+			ch->notify(ch, SH_MOBILE_LCDC_EVENT_DISPLAY_CONNECT,
+				   &hdmi->mode, &hdmi->monspec);
 	} else {
-		ret = 0;
-		if (!info)
-			goto out;
-
 		hdmi->monspec.modedb_len = 0;
 		fb_destroy_modedb(hdmi->monspec.modedb);
 		hdmi->monspec.modedb = NULL;
 
-		if (lock_fb_info(info)) {
-			console_lock();
+		if (ch && ch->notify)
+			ch->notify(ch, SH_MOBILE_LCDC_EVENT_DISPLAY_DISCONNECT,
+				   NULL, NULL);
 
-			/* HDMI disconnect */
-			fb_set_suspend(info, 1);
-
-			console_unlock();
-			unlock_fb_info(info);
-		}
+		ret = 0;
 	}
 
 out:
 	if (ret < 0 && ret != -EAGAIN)
 		hdmi->hp_state = HDMI_HOTPLUG_DISCONNECTED;
-	mutex_unlock(&hdmi->mutex);
 
-	dev_dbg(hdmi->dev, "%s(%p): end\n", __func__, pdata->lcd_dev);
-}
-
-static int sh_hdmi_notify(struct notifier_block *nb,
-			  unsigned long action, void *data)
-{
-	struct fb_event *event = data;
-	struct fb_info *info = event->info;
-	struct sh_mobile_lcdc_chan *ch = info->par;
-	struct sh_mobile_lcdc_board_cfg	*board_cfg = &ch->cfg.board_cfg;
-	struct sh_hdmi *hdmi = board_cfg->board_data;
-
-	if (!hdmi || nb != &hdmi->notifier || hdmi->info != info)
-		return NOTIFY_DONE;
-
-	switch(action) {
-	case FB_EVENT_FB_REGISTERED:
-		/* Unneeded, activation taken care by sh_hdmi_display_on() */
-		break;
-	case FB_EVENT_FB_UNREGISTERED:
-		/*
-		 * We are called from unregister_framebuffer() with the
-		 * info->lock held. This is bad for us, because we can race with
-		 * the scheduled work, which has to call fb_set_suspend(), which
-		 * takes info->lock internally, so, sh_hdmi_edid_work_fn()
-		 * cannot take and hold info->lock for the whole function
-		 * duration. Using an additional lock creates a classical AB-BA
-		 * lock up. Therefore, we have to release the info->lock
-		 * temporarily, synchronise with the work queue and re-acquire
-		 * the info->lock.
-		 */
-		unlock_fb_info(info);
-		mutex_lock(&hdmi->mutex);
-		hdmi->info = NULL;
-		mutex_unlock(&hdmi->mutex);
-		lock_fb_info(info);
-		return NOTIFY_OK;
-	}
-	return NOTIFY_DONE;
+	dev_dbg(hdmi->dev, "%s(%p): end\n", __func__, hdmi);
 }
 
 static int __init sh_hdmi_probe(struct platform_device *pdev)
 {
 	struct sh_mobile_hdmi_info *pdata = pdev->dev.platform_data;
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	struct sh_mobile_lcdc_board_cfg	*board_cfg;
 	int irq = platform_get_irq(pdev, 0), ret;
 	struct sh_hdmi *hdmi;
 	long rate;
@@ -1255,9 +1127,9 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	mutex_init(&hdmi->mutex);
-
 	hdmi->dev = &pdev->dev;
+	hdmi->entity.owner = THIS_MODULE;
+	hdmi->entity.ops = &sh_hdmi_ops;
 
 	hdmi->hdmi_clk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(hdmi->hdmi_clk)) {
@@ -1297,14 +1169,7 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		goto emap;
 	}
 
-	platform_set_drvdata(pdev, hdmi);
-
-	/* Set up LCDC callbacks */
-	board_cfg = &pdata->lcd_chan->board_cfg;
-	board_cfg->owner = THIS_MODULE;
-	board_cfg->board_data = hdmi;
-	board_cfg->display_on = sh_hdmi_display_on;
-	board_cfg->display_off = sh_hdmi_display_off;
+	platform_set_drvdata(pdev, &hdmi->entity);
 
 	INIT_DELAYED_WORK(&hdmi->edid_work, sh_hdmi_edid_work_fn);
 
@@ -1329,9 +1194,6 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		goto ecodec;
 	}
 
-	hdmi->notifier.notifier_call = sh_hdmi_notify;
-	fb_register_client(&hdmi->notifier);
-
 	return 0;
 
 ecodec:
@@ -1347,7 +1209,6 @@ ereqreg:
 erate:
 	clk_put(hdmi->hdmi_clk);
 egetclk:
-	mutex_destroy(&hdmi->mutex);
 	kfree(hdmi);
 
 	return ret;
@@ -1355,20 +1216,11 @@ egetclk:
 
 static int __exit sh_hdmi_remove(struct platform_device *pdev)
 {
-	struct sh_mobile_hdmi_info *pdata = pdev->dev.platform_data;
-	struct sh_hdmi *hdmi = platform_get_drvdata(pdev);
+	struct sh_hdmi *hdmi = entity_to_sh_hdmi(platform_get_drvdata(pdev));
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	struct sh_mobile_lcdc_board_cfg	*board_cfg = &pdata->lcd_chan->board_cfg;
 	int irq = platform_get_irq(pdev, 0);
 
 	snd_soc_unregister_codec(&pdev->dev);
-
-	fb_unregister_client(&hdmi->notifier);
-
-	board_cfg->display_on = NULL;
-	board_cfg->display_off = NULL;
-	board_cfg->board_data = NULL;
-	board_cfg->owner = NULL;
 
 	/* No new work will be scheduled, wait for running ISR */
 	free_irq(irq, hdmi);
@@ -1380,7 +1232,6 @@ static int __exit sh_hdmi_remove(struct platform_device *pdev)
 	clk_put(hdmi->hdmi_clk);
 	iounmap(hdmi->base);
 	release_mem_region(res->start, resource_size(res));
-	mutex_destroy(&hdmi->mutex);
 	kfree(hdmi);
 
 	return 0;

@@ -132,32 +132,8 @@
 #define SKPCR_DCLKEN	(1<<7)
 #define SKPCR_PWMCLKEN	(1<<8)
 
-/*
- * USB Host controller
- */
+/* USB Host controller */
 #define SA1111_USB		0x0400
-
-/*
- * Offsets from SA1111_USB_BASE
- */
-#define SA1111_USB_STATUS	0x0118
-#define SA1111_USB_RESET	0x011c
-#define SA1111_USB_IRQTEST	0x0120
-
-#define USB_RESET_FORCEIFRESET	(1 << 0)
-#define USB_RESET_FORCEHCRESET	(1 << 1)
-#define USB_RESET_CLKGENRESET	(1 << 2)
-#define USB_RESET_SIMSCALEDOWN	(1 << 3)
-#define USB_RESET_USBINTTEST	(1 << 4)
-#define USB_RESET_SLEEPSTBYEN	(1 << 5)
-#define USB_RESET_PWRSENSELOW	(1 << 6)
-#define USB_RESET_PWRCTRLLOW	(1 << 7)
-
-#define USB_STATUS_IRQHCIRMTWKUP  (1 <<  7)
-#define USB_STATUS_IRQHCIBUFFACC  (1 <<  8)
-#define USB_STATUS_NIRQHCIM       (1 <<  9)
-#define USB_STATUS_NHCIMFCLR      (1 << 10)
-#define USB_STATUS_USBPWRSENSE    (1 << 11)
 
 /*
  * Serial Audio Controller
@@ -327,22 +303,6 @@
  *    PC_SSR		GPIO Block C Sleep State
  */
 
-#define _PA_DDR		_SA1111( 0x1000 )
-#define _PA_DRR		_SA1111( 0x1004 )
-#define _PA_DWR		_SA1111( 0x1004 )
-#define _PA_SDR		_SA1111( 0x1008 )
-#define _PA_SSR		_SA1111( 0x100c )
-#define _PB_DDR		_SA1111( 0x1010 )
-#define _PB_DRR		_SA1111( 0x1014 )
-#define _PB_DWR		_SA1111( 0x1014 )
-#define _PB_SDR		_SA1111( 0x1018 )
-#define _PB_SSR		_SA1111( 0x101c )
-#define _PC_DDR		_SA1111( 0x1020 )
-#define _PC_DRR		_SA1111( 0x1024 )
-#define _PC_DWR		_SA1111( 0x1024 )
-#define _PC_SDR		_SA1111( 0x1028 )
-#define _PC_SSR		_SA1111( 0x102c )
-
 #define SA1111_GPIO	0x1000
 
 #define SA1111_GPIO_PADDR	(0x000)
@@ -425,106 +385,30 @@
 #define SA1111_WAKEPOL0		0x0034
 #define SA1111_WAKEPOL1		0x0038
 
-/*
- * PS/2 Trackpad and Mouse Interfaces
- *
- * Registers
- *    PS2CR		Control Register
- *    PS2STAT		Status Register
- *    PS2DATA		Transmit/Receive Data register
- *    PS2CLKDIV		Clock Division Register
- *    PS2PRECNT		Clock Precount Register
- *    PS2TEST1		Test register 1
- *    PS2TEST2		Test register 2
- *    PS2TEST3		Test register 3
- *    PS2TEST4		Test register 4
- */
-
+/* PS/2 Trackpad and Mouse Interfaces */
 #define SA1111_KBD		0x0a00
 #define SA1111_MSE		0x0c00
 
-/*
- * These are offsets from the above bases.
- */
-#define SA1111_PS2CR		0x0000
-#define SA1111_PS2STAT		0x0004
-#define SA1111_PS2DATA		0x0008
-#define SA1111_PS2CLKDIV	0x000c
-#define SA1111_PS2PRECNT	0x0010
+/* PCMCIA Interface */
+#define SA1111_PCMCIA		0x1600
 
-#define PS2CR_ENA		0x08
-#define PS2CR_FKD		0x02
-#define PS2CR_FKC		0x01
-
-#define PS2STAT_STP		0x0100
-#define PS2STAT_TXE		0x0080
-#define PS2STAT_TXB		0x0040
-#define PS2STAT_RXF		0x0020
-#define PS2STAT_RXB		0x0010
-#define PS2STAT_ENA		0x0008
-#define PS2STAT_RXP		0x0004
-#define PS2STAT_KBD		0x0002
-#define PS2STAT_KBC		0x0001
-
-/*
- * PCMCIA Interface
- *
- * Registers
- *    PCSR	Status Register
- *    PCCR	Control Register
- *    PCSSR	Sleep State Register
- */
-
-#define SA1111_PCMCIA	0x1600
-
-/*
- * These are offsets from the above base.
- */
-#define SA1111_PCCR	0x0000
-#define SA1111_PCSSR	0x0004
-#define SA1111_PCSR	0x0008
-
-#define PCSR_S0_READY	(1<<0)
-#define PCSR_S1_READY	(1<<1)
-#define PCSR_S0_DETECT	(1<<2)
-#define PCSR_S1_DETECT	(1<<3)
-#define PCSR_S0_VS1	(1<<4)
-#define PCSR_S0_VS2	(1<<5)
-#define PCSR_S1_VS1	(1<<6)
-#define PCSR_S1_VS2	(1<<7)
-#define PCSR_S0_WP	(1<<8)
-#define PCSR_S1_WP	(1<<9)
-#define PCSR_S0_BVD1	(1<<10)
-#define PCSR_S0_BVD2	(1<<11)
-#define PCSR_S1_BVD1	(1<<12)
-#define PCSR_S1_BVD2	(1<<13)
-
-#define PCCR_S0_RST	(1<<0)
-#define PCCR_S1_RST	(1<<1)
-#define PCCR_S0_FLT	(1<<2)
-#define PCCR_S1_FLT	(1<<3)
-#define PCCR_S0_PWAITEN	(1<<4)
-#define PCCR_S1_PWAITEN	(1<<5)
-#define PCCR_S0_PSE	(1<<6)
-#define PCCR_S1_PSE	(1<<7)
-
-#define PCSSR_S0_SLEEP	(1<<0)
-#define PCSSR_S1_SLEEP	(1<<1)
 
 
 
 
 extern struct bus_type sa1111_bus_type;
 
-#define SA1111_DEVID_SBI	0
-#define SA1111_DEVID_SK		1
-#define SA1111_DEVID_USB	2
-#define SA1111_DEVID_SAC	3
-#define SA1111_DEVID_SSP	4
-#define SA1111_DEVID_PS2	5
-#define SA1111_DEVID_GPIO	6
-#define SA1111_DEVID_INT	7
-#define SA1111_DEVID_PCMCIA	8
+#define SA1111_DEVID_SBI	(1 << 0)
+#define SA1111_DEVID_SK		(1 << 1)
+#define SA1111_DEVID_USB	(1 << 2)
+#define SA1111_DEVID_SAC	(1 << 3)
+#define SA1111_DEVID_SSP	(1 << 4)
+#define SA1111_DEVID_PS2	(3 << 5)
+#define SA1111_DEVID_PS2_KBD	(1 << 5)
+#define SA1111_DEVID_PS2_MSE	(1 << 6)
+#define SA1111_DEVID_GPIO	(1 << 7)
+#define SA1111_DEVID_INT	(1 << 8)
+#define SA1111_DEVID_PCMCIA	(1 << 9)
 
 struct sa1111_dev {
 	struct device	dev;
@@ -548,6 +432,7 @@ struct sa1111_driver {
 	int (*remove)(struct sa1111_dev *);
 	int (*suspend)(struct sa1111_dev *, pm_message_t);
 	int (*resume)(struct sa1111_dev *);
+	void (*shutdown)(struct sa1111_dev *);
 };
 
 #define SA1111_DRV(_d)	container_of((_d), struct sa1111_driver, drv)
@@ -555,9 +440,10 @@ struct sa1111_driver {
 #define SA1111_DRIVER_NAME(_sadev) ((_sadev)->dev.driver->name)
 
 /*
- * These frob the SKPCR register.
+ * These frob the SKPCR register, and call platform specific
+ * enable/disable functions.
  */
-void sa1111_enable_device(struct sa1111_dev *);
+int sa1111_enable_device(struct sa1111_dev *);
 void sa1111_disable_device(struct sa1111_dev *);
 
 unsigned int sa1111_pll_clock(struct sa1111_dev *);
@@ -580,6 +466,10 @@ void sa1111_set_sleep_io(struct sa1111_dev *sadev, unsigned int bits, unsigned i
 
 struct sa1111_platform_data {
 	int	irq_base;	/* base for cascaded on-chip IRQs */
+	unsigned disable_devs;
+	void	*data;
+	int	(*enable)(void *, unsigned);
+	void	(*disable)(void *, unsigned);
 };
 
 #endif  /* _ASM_ARCH_SA1111 */

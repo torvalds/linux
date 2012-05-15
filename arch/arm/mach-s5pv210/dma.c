@@ -35,7 +35,7 @@
 
 static u64 dma_dmamask = DMA_BIT_MASK(32);
 
-u8 pdma0_peri[] = {
+static u8 pdma0_peri[] = {
 	DMACH_UART0_RX,
 	DMACH_UART0_TX,
 	DMACH_UART1_RX,
@@ -66,28 +66,15 @@ u8 pdma0_peri[] = {
 	DMACH_SPDIF,
 };
 
-struct dma_pl330_platdata s5pv210_pdma0_pdata = {
+static struct dma_pl330_platdata s5pv210_pdma0_pdata = {
 	.nr_valid_peri = ARRAY_SIZE(pdma0_peri),
 	.peri_id = pdma0_peri,
 };
 
-struct amba_device s5pv210_device_pdma0 = {
-	.dev = {
-		.init_name = "dma-pl330.0",
-		.dma_mask = &dma_dmamask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-		.platform_data = &s5pv210_pdma0_pdata,
-	},
-	.res = {
-		.start = S5PV210_PA_PDMA0,
-		.end = S5PV210_PA_PDMA0 + SZ_4K,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = {IRQ_PDMA0, NO_IRQ},
-	.periphid = 0x00041330,
-};
+static AMBA_AHB_DEVICE(s5pv210_pdma0, "dma-pl330.0", 0x00041330,
+	S5PV210_PA_PDMA0, {IRQ_PDMA0}, &s5pv210_pdma0_pdata);
 
-u8 pdma1_peri[] = {
+static u8 pdma1_peri[] = {
 	DMACH_UART0_RX,
 	DMACH_UART0_TX,
 	DMACH_UART1_RX,
@@ -122,36 +109,23 @@ u8 pdma1_peri[] = {
 	DMACH_PCM2_TX,
 };
 
-struct dma_pl330_platdata s5pv210_pdma1_pdata = {
+static struct dma_pl330_platdata s5pv210_pdma1_pdata = {
 	.nr_valid_peri = ARRAY_SIZE(pdma1_peri),
 	.peri_id = pdma1_peri,
 };
 
-struct amba_device s5pv210_device_pdma1 = {
-	.dev = {
-		.init_name = "dma-pl330.1",
-		.dma_mask = &dma_dmamask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-		.platform_data = &s5pv210_pdma1_pdata,
-	},
-	.res = {
-		.start = S5PV210_PA_PDMA1,
-		.end = S5PV210_PA_PDMA1 + SZ_4K,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = {IRQ_PDMA1, NO_IRQ},
-	.periphid = 0x00041330,
-};
+static AMBA_AHB_DEVICE(s5pv210_pdma1, "dma-pl330.1", 0x00041330,
+	S5PV210_PA_PDMA1, {IRQ_PDMA1}, &s5pv210_pdma1_pdata);
 
 static int __init s5pv210_dma_init(void)
 {
 	dma_cap_set(DMA_SLAVE, s5pv210_pdma0_pdata.cap_mask);
 	dma_cap_set(DMA_CYCLIC, s5pv210_pdma0_pdata.cap_mask);
-	amba_device_register(&s5pv210_device_pdma0, &iomem_resource);
+	amba_device_register(&s5pv210_pdma0_device, &iomem_resource);
 
 	dma_cap_set(DMA_SLAVE, s5pv210_pdma1_pdata.cap_mask);
 	dma_cap_set(DMA_CYCLIC, s5pv210_pdma1_pdata.cap_mask);
-	amba_device_register(&s5pv210_device_pdma1, &iomem_resource);
+	amba_device_register(&s5pv210_pdma1_device, &iomem_resource);
 
 	return 0;
 }

@@ -128,7 +128,7 @@ static void __init board_mmc_init(void)
 		return;
 	}
 
-	omap2_hsmmc_init(board_mmc_info);
+	omap_hsmmc_init(board_mmc_info);
 }
 
 static struct omap_smsc911x_platform_data __initdata board_smsc911x_data = {
@@ -205,6 +205,7 @@ static void __init omap3logic_init(void)
 
 MACHINE_START(OMAP3_TORPEDO, "Logic OMAP3 Torpedo board")
 	.atag_offset	= 0x100,
+	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
@@ -216,6 +217,7 @@ MACHINE_END
 
 MACHINE_START(OMAP3530_LV_SOM, "OMAP Logic 3530 LV SOM board")
 	.atag_offset	= 0x100,
+	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,

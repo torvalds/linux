@@ -171,7 +171,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, umode_t mode,
 	}
 	tcon = tlink_tcon(tlink);
 
-	if (enable_oplocks)
+	if (tcon->ses->server->oplocks)
 		oplock = REQ_OPLOCK;
 
 	if (nd)
@@ -492,7 +492,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 {
 	int xid;
 	int rc = 0; /* to get around spurious gcc warning, set to zero here */
-	__u32 oplock = enable_oplocks ? REQ_OPLOCK : 0;
+	__u32 oplock;
 	__u16 fileHandle = 0;
 	bool posix_open = false;
 	struct cifs_sb_info *cifs_sb;
@@ -517,6 +517,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		return (struct dentry *)tlink;
 	}
 	pTcon = tlink_tcon(tlink);
+
+	oplock = pTcon->ses->server->oplocks ? REQ_OPLOCK : 0;
 
 	/*
 	 * Don't allow the separator character in a path component.

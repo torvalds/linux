@@ -968,7 +968,6 @@ static int gfar_probe(struct platform_device *ofdev)
 	struct gfar_private *priv = NULL;
 	struct gfar __iomem *regs = NULL;
 	int err = 0, i, grp_idx = 0;
-	int len_devname;
 	u32 rstat = 0, tstat = 0, rqueue = 0, tqueue = 0;
 	u32 isrg = 0;
 	u32 __iomem *baddr;
@@ -1169,40 +1168,16 @@ static int gfar_probe(struct platform_device *ofdev)
 		priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
 
 	/* fill out IRQ number and name fields */
-	len_devname = strlen(dev->name);
 	for (i = 0; i < priv->num_grps; i++) {
-		strncpy(&priv->gfargrp[i].int_name_tx[0], dev->name,
-				len_devname);
 		if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
-			strncpy(&priv->gfargrp[i].int_name_tx[len_devname],
-				"_g", sizeof("_g"));
-			priv->gfargrp[i].int_name_tx[
-				strlen(priv->gfargrp[i].int_name_tx)] = i+48;
-			strncpy(&priv->gfargrp[i].int_name_tx[strlen(
-				priv->gfargrp[i].int_name_tx)],
-				"_tx", sizeof("_tx") + 1);
-
-			strncpy(&priv->gfargrp[i].int_name_rx[0], dev->name,
-					len_devname);
-			strncpy(&priv->gfargrp[i].int_name_rx[len_devname],
-					"_g", sizeof("_g"));
-			priv->gfargrp[i].int_name_rx[
-				strlen(priv->gfargrp[i].int_name_rx)] = i+48;
-			strncpy(&priv->gfargrp[i].int_name_rx[strlen(
-				priv->gfargrp[i].int_name_rx)],
-				"_rx", sizeof("_rx") + 1);
-
-			strncpy(&priv->gfargrp[i].int_name_er[0], dev->name,
-					len_devname);
-			strncpy(&priv->gfargrp[i].int_name_er[len_devname],
-				"_g", sizeof("_g"));
-			priv->gfargrp[i].int_name_er[strlen(
-					priv->gfargrp[i].int_name_er)] = i+48;
-			strncpy(&priv->gfargrp[i].int_name_er[strlen(\
-				priv->gfargrp[i].int_name_er)],
-				"_er", sizeof("_er") + 1);
+			sprintf(priv->gfargrp[i].int_name_tx, "%s%s%c%s",
+				dev->name, "_g", '0' + i, "_tx");
+			sprintf(priv->gfargrp[i].int_name_rx, "%s%s%c%s",
+				dev->name, "_g", '0' + i, "_rx");
+			sprintf(priv->gfargrp[i].int_name_er, "%s%s%c%s",
+				dev->name, "_g", '0' + i, "_er");
 		} else
-			priv->gfargrp[i].int_name_tx[len_devname] = '\0';
+			strcpy(priv->gfargrp[i].int_name_tx, dev->name);
 	}
 
 	/* Initialize the filer table */

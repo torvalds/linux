@@ -41,7 +41,7 @@ static inline int frqcr3_lookup(struct clk *clk, unsigned long rate)
 	return 5;
 }
 
-static struct clk_ops sh4202_emi_clk_ops = {
+static struct sh_clk_ops sh4202_emi_clk_ops = {
 	.recalc		= emi_clk_recalc,
 };
 
@@ -56,7 +56,7 @@ static unsigned long femi_clk_recalc(struct clk *clk)
 	return clk->parent->rate / frqcr3_divisors[idx];
 }
 
-static struct clk_ops sh4202_femi_clk_ops = {
+static struct sh_clk_ops sh4202_femi_clk_ops = {
 	.recalc		= femi_clk_recalc,
 };
 
@@ -130,7 +130,7 @@ static int shoc_clk_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-static struct clk_ops sh4202_shoc_clk_ops = {
+static struct sh_clk_ops sh4202_shoc_clk_ops = {
 	.init		= shoc_clk_init,
 	.recalc		= shoc_clk_recalc,
 	.set_rate	= shoc_clk_set_rate,

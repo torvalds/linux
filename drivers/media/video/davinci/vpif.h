@@ -18,8 +18,6 @@
 
 #include <linux/io.h>
 #include <linux/videodev2.h>
-#include <mach/hardware.h>
-#include <mach/dm646x.h>
 #include <media/davinci/vpif_types.h>
 
 /* Maximum channel allowed */

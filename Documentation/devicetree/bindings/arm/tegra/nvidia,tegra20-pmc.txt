@@ -1,0 +1,19 @@
+NVIDIA Tegra Power Management Controller (PMC)
+
+Properties:
+- name : Should be pmc
+- compatible : Should contain "nvidia,tegra<chip>-pmc".
+- reg : Offset and length of the register set for the device
+- nvidia,invert-interrupt : If present, inverts the PMU interrupt signal.
+  The PMU is an external Power Management Unit, whose interrupt output
+  signal is fed into the PMC. This signal is optionally inverted, and then
+  fed into the ARM GIC. The PMC is not involved in the detection or
+  handling of this interrupt signal, merely its inversion.
+
+Example:
+
+pmc@7000f400 {
+	compatible = "nvidia,tegra20-pmc";
+	reg = <0x7000e400 0x400>;
+	nvidia,invert-interrupt;
+};

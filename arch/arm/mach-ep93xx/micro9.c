@@ -22,6 +22,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+#include "soc.h"
 
 /*************************************************************************
  * Micro9 NOR Flash

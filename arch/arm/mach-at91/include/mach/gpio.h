@@ -191,10 +191,15 @@
 extern int __init_or_module at91_set_GPIO_periph(unsigned pin, int use_pullup);
 extern int __init_or_module at91_set_A_periph(unsigned pin, int use_pullup);
 extern int __init_or_module at91_set_B_periph(unsigned pin, int use_pullup);
+extern int __init_or_module at91_set_C_periph(unsigned pin, int use_pullup);
+extern int __init_or_module at91_set_D_periph(unsigned pin, int use_pullup);
 extern int __init_or_module at91_set_gpio_input(unsigned pin, int use_pullup);
 extern int __init_or_module at91_set_gpio_output(unsigned pin, int value);
 extern int __init_or_module at91_set_deglitch(unsigned pin, int is_on);
+extern int __init_or_module at91_set_debounce(unsigned pin, int is_on, int div);
 extern int __init_or_module at91_set_multi_drive(unsigned pin, int is_on);
+extern int __init_or_module at91_set_pulldown(unsigned pin, int is_on);
+extern int __init_or_module at91_disable_schmitt_trig(unsigned pin);
 
 /* callable at any time */
 extern int at91_set_gpio_value(unsigned pin, int value);
@@ -203,18 +208,6 @@ extern int at91_get_gpio_value(unsigned pin);
 /* callable only from core power-management code */
 extern void at91_gpio_suspend(void);
 extern void at91_gpio_resume(void);
-
-/*-------------------------------------------------------------------------*/
-
-/* wrappers for "new style" GPIO calls. the old AT91-specific ones should
- * eventually be removed (along with this errno.h inclusion), and the
- * gpio request/free calls should probably be implemented.
- */
-
-#include <asm/errno.h>
-
-#define gpio_to_irq(gpio) (gpio + NR_AIC_IRQS)
-#define irq_to_gpio(irq)  (irq - NR_AIC_IRQS)
 
 #endif	/* __ASSEMBLY__ */
 

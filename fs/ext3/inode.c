@@ -756,6 +756,7 @@ static int ext3_splice_branch(handle_t *handle, struct inode *inode,
 	struct ext3_block_alloc_info *block_i;
 	ext3_fsblk_t current_block;
 	struct ext3_inode_info *ei = EXT3_I(inode);
+	struct timespec now;
 
 	block_i = ei->i_block_alloc_info;
 	/*
@@ -795,9 +796,11 @@ static int ext3_splice_branch(handle_t *handle, struct inode *inode,
 	}
 
 	/* We are done with atomic stuff, now do the rest of housekeeping */
-
-	inode->i_ctime = CURRENT_TIME_SEC;
-	ext3_mark_inode_dirty(handle, inode);
+	now = CURRENT_TIME_SEC;
+	if (!timespec_equal(&inode->i_ctime, &now) || !where->bh) {
+		inode->i_ctime = now;
+		ext3_mark_inode_dirty(handle, inode);
+	}
 	/* ext3_mark_inode_dirty already updated i_sync_tid */
 	atomic_set(&ei->i_datasync_tid, handle->h_transaction->t_tid);
 

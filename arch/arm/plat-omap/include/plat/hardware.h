@@ -43,6 +43,12 @@
 #endif
 #include <plat/serial.h>
 
+#ifdef __ASSEMBLER__
+#define IOMEM(x)		(x)
+#else
+#define IOMEM(x)		((void __force __iomem *)(x))
+#endif
+
 /*
  * ---------------------------------------------------------------------------
  * Common definitions for all OMAP processors

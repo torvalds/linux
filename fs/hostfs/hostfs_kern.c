@@ -283,6 +283,7 @@ int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
 	char *name;
 	unsigned long long next, ino;
 	int error, len;
+	unsigned int type;
 
 	name = dentry_name(file->f_path.dentry);
 	if (name == NULL)
@@ -292,9 +293,9 @@ int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
 	if (dir == NULL)
 		return -error;
 	next = file->f_pos;
-	while ((name = read_dir(dir, &next, &ino, &len)) != NULL) {
+	while ((name = read_dir(dir, &next, &ino, &len, &type)) != NULL) {
 		error = (*filldir)(ent, name, len, file->f_pos,
-				   ino, DT_UNKNOWN);
+				   ino, type);
 		if (error) break;
 		file->f_pos = next;
 	}

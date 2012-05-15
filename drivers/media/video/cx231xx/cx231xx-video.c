@@ -2319,8 +2319,7 @@ static int cx231xx_v4l2_close(struct file *filp)
 			if (dev->state & DEV_DISCONNECTED) {
 				if (atomic_read(&dev->devlist_count) > 0) {
 					cx231xx_release_resources(dev);
-					kfree(dev);
-					dev = NULL;
+					fh->dev = NULL;
 					return 0;
 				}
 				return 0;
@@ -2350,8 +2349,7 @@ static int cx231xx_v4l2_close(struct file *filp)
 		   free the remaining resources */
 		if (dev->state & DEV_DISCONNECTED) {
 			cx231xx_release_resources(dev);
-			kfree(dev);
-			dev = NULL;
+			fh->dev = NULL;
 			return 0;
 		}
 

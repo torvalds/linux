@@ -3,6 +3,7 @@
 
 #include <linux/fs.h>
 #include <linux/kernel.h>
+#include <linux/bug.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>

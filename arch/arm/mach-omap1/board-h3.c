@@ -30,24 +30,25 @@
 #include <linux/spi/spi.h>
 #include <linux/i2c/tps65010.h>
 #include <linux/smc91x.h>
+#include <linux/omapfb.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>
-#include <mach/hardware.h>
-
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/irqs.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
 #include <plat/usb.h>
 #include <plat/keypad.h>
 #include <plat/dma.h>
-#include "common.h"
 #include <plat/flash.h>
 
+#include <mach/hardware.h>
+#include <mach/irqs.h>
+
+#include "common.h"
 #include "board-h3.h"
 
 /* In OMAP1710 H3 the Ethernet is directly connected to CS1 */
@@ -370,10 +371,6 @@ static struct omap_lcd_config h3_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_board_config_kernel h3_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&h3_lcd_config },
-};
-
 static struct i2c_board_info __initdata h3_i2c_board_info[] = {
        {
 		I2C_BOARD_INFO("tps65013", 0x48),
@@ -426,13 +423,13 @@ static void __init h3_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	spi_register_board_info(h3_spi_board_info,
 				ARRAY_SIZE(h3_spi_board_info));
-	omap_board_config = h3_config;
-	omap_board_config_size = ARRAY_SIZE(h3_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, h3_i2c_board_info,
 			      ARRAY_SIZE(h3_i2c_board_info));
 	omap1_usb_init(&h3_usb_config);
 	h3_mmc_init();
+
+	omapfb_set_lcd_config(&h3_lcd_config);
 }
 
 MACHINE_START(OMAP_H3, "TI OMAP1710 H3 board")

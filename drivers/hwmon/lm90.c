@@ -57,6 +57,9 @@
  * This driver also supports the SA56004 from Philips. This device is
  * pin-compatible with the LM86, the ED/EDP parts are also address-compatible.
  *
+ * This driver also supports the G781 from GMT. This device is compatible
+ * with the ADM1032.
+ *
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
  * concern all supported chipsets, unless mentioned otherwise.
@@ -107,7 +110,7 @@ static const unsigned short normal_i2c[] = {
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
-	max6646, w83l771, max6696, sa56004 };
+	max6646, w83l771, max6696, sa56004, g781 };
 
 /*
  * The LM90 registers
@@ -184,6 +187,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "adm1032", adm1032 },
 	{ "adt7461", adt7461 },
 	{ "adt7461a", adt7461 },
+	{ "g781", g781 },
 	{ "lm90", lm90 },
 	{ "lm86", lm86 },
 	{ "lm89", lm86 },
@@ -228,6 +232,12 @@ static const struct lm90_params lm90_params[] = {
 		  | LM90_HAVE_BROKEN_ALERT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
+	},
+	[g781] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_BROKEN_ALERT,
+		.alert_alarms = 0x7c,
+		.max_convrate = 8,
 	},
 	[lm86] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
@@ -308,22 +318,24 @@ struct lm90_data {
 
 	/* registers values */
 	s8 temp8[8];	/* 0: local low limit
-			   1: local high limit
-			   2: local critical limit
-			   3: remote critical limit
-			   4: local emergency limit (max6659 and max6695/96)
-			   5: remote emergency limit (max6659 and max6695/96)
-			   6: remote 2 critical limit (max6695/96 only)
-			   7: remote 2 emergency limit (max6695/96 only) */
+			 * 1: local high limit
+			 * 2: local critical limit
+			 * 3: remote critical limit
+			 * 4: local emergency limit (max6659 and max6695/96)
+			 * 5: remote emergency limit (max6659 and max6695/96)
+			 * 6: remote 2 critical limit (max6695/96 only)
+			 * 7: remote 2 emergency limit (max6695/96 only)
+			 */
 	s16 temp11[8];	/* 0: remote input
-			   1: remote low limit
-			   2: remote high limit
-			   3: remote offset (except max6646, max6657/58/59,
-					     and max6695/96)
-			   4: local input
-			   5: remote 2 input (max6695/96 only)
-			   6: remote 2 low limit (max6695/96 only)
-			   7: remote 2 high limit (ma6695/96 only) */
+			 * 1: remote low limit
+			 * 2: remote high limit
+			 * 3: remote offset (except max6646, max6657/58/59,
+			 *		     and max6695/96)
+			 * 4: local input
+			 * 5: remote 2 input (max6695/96 only)
+			 * 6: remote 2 low limit (max6695/96 only)
+			 * 7: remote 2 high limit (max6695/96 only)
+			 */
 	u8 temp_hyst;
 	u16 alarms; /* bitvector (upper 8 bits for max6695/96) */
 };
@@ -533,8 +545,10 @@ static struct lm90_data *lm90_update_device(struct device *dev)
 				data->alarms |= alarms << 8;
 		}
 
-		/* Re-enable ALERT# output if it was originally enabled and
-		 * relevant alarms are all clear */
+		/*
+		 * Re-enable ALERT# output if it was originally enabled and
+		 * relevant alarms are all clear
+		 */
 		if ((data->config_orig & 0x80) == 0
 		 && (data->alarms & data->alert_alarms) == 0) {
 			u8 config;
@@ -1162,8 +1176,10 @@ static int lm90_detect(struct i2c_client *client,
 		 && (config1 & 0x3F) == 0x00
 		 && convrate <= 0x0A) {
 			name = "adm1032";
-			/* The ADM1032 supports PEC, but only if combined
-			   transactions are not used. */
+			/*
+			 * The ADM1032 supports PEC, but only if combined
+			 * transactions are not used.
+			 */
 			if (i2c_check_functionality(adapter,
 						    I2C_FUNC_SMBUS_BYTE))
 				info->flags |= I2C_CLIENT_PEC;
@@ -1283,6 +1299,13 @@ static int lm90_detect(struct i2c_client *client,
 		 && convrate <= 0x09) {
 			name = "sa56004";
 		}
+	} else
+	if ((address == 0x4C || address == 0x4D)
+	 && man_id == 0x47) { /* GMT */
+		if (chip_id == 0x01 /* G781 */
+		 && (config1 & 0x3F) == 0x00
+		 && convrate <= 0x08)
+			name = "g781";
 	}
 
 	if (!name) { /* identification failed */
@@ -1311,6 +1334,15 @@ static void lm90_remove_files(struct i2c_client *client, struct lm90_data *data)
 		device_remove_file(dev, &sensor_dev_attr_temp2_offset.dev_attr);
 	device_remove_file(dev, &dev_attr_pec);
 	sysfs_remove_group(&dev->kobj, &lm90_group);
+}
+
+static void lm90_restore_conf(struct i2c_client *client, struct lm90_data *data)
+{
+	/* Restore initial configuration */
+	i2c_smbus_write_byte_data(client, LM90_REG_W_CONVRATE,
+				  data->convrate_orig);
+	i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
+				  data->config_orig);
 }
 
 static void lm90_init_client(struct i2c_client *client)
@@ -1382,8 +1414,10 @@ static int lm90_probe(struct i2c_client *client,
 			client->flags &= ~I2C_CLIENT_PEC;
 	}
 
-	/* Different devices have different alarm bits triggering the
-	 * ALERT# output */
+	/*
+	 * Different devices have different alarm bits triggering the
+	 * ALERT# output
+	 */
 	data->alert_alarms = lm90_params[data->kind].alert_alarms;
 
 	/* Set chip capabilities */
@@ -1399,7 +1433,7 @@ static int lm90_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&dev->kobj, &lm90_group);
 	if (err)
-		goto exit_free;
+		goto exit_restore;
 	if (client->flags & I2C_CLIENT_PEC) {
 		err = device_create_file(dev, &dev_attr_pec);
 		if (err)
@@ -1438,7 +1472,8 @@ static int lm90_probe(struct i2c_client *client,
 
 exit_remove_files:
 	lm90_remove_files(client, data);
-exit_free:
+exit_restore:
+	lm90_restore_conf(client, data);
 	kfree(data);
 exit:
 	return err;
@@ -1450,12 +1485,7 @@ static int lm90_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	lm90_remove_files(client, data);
-
-	/* Restore initial configuration */
-	i2c_smbus_write_byte_data(client, LM90_REG_W_CONVRATE,
-				  data->convrate_orig);
-	i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
-				  data->config_orig);
+	lm90_restore_conf(client, data);
 
 	kfree(data);
 	return 0;
@@ -1488,9 +1518,11 @@ static void lm90_alert(struct i2c_client *client, unsigned int flag)
 			dev_warn(&client->dev,
 				 "temp%d out of range, please check!\n", 3);
 
-		/* Disable ALERT# output, because these chips don't implement
-		  SMBus alert correctly; they should only hold the alert line
-		  low briefly. */
+		/*
+		 * Disable ALERT# output, because these chips don't implement
+		 * SMBus alert correctly; they should only hold the alert line
+		 * low briefly.
+		 */
 		if ((data->flags & LM90_HAVE_BROKEN_ALERT)
 		 && (alarms & data->alert_alarms)) {
 			dev_dbg(&client->dev, "Disabling ALERT#\n");

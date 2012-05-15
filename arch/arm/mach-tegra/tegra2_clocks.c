@@ -720,7 +720,7 @@ static void tegra2_pllx_clk_init(struct clk *c)
 {
 	tegra2_pll_clk_init(c);
 
-	if (tegra_sku_id() == 7)
+	if (tegra_sku_id == 7)
 		c->max_rate = 750000000;
 }
 
@@ -1143,15 +1143,35 @@ static void tegra2_emc_clk_init(struct clk *c)
 
 static long tegra2_emc_clk_round_rate(struct clk *c, unsigned long rate)
 {
-	long new_rate = rate;
+	long emc_rate;
+	long clk_rate;
 
-	new_rate = tegra_emc_round_rate(new_rate);
-	if (new_rate < 0)
+	/*
+	 * The slowest entry in the EMC clock table that is at least as
+	 * fast as rate.
+	 */
+	emc_rate = tegra_emc_round_rate(rate);
+	if (emc_rate < 0)
 		return c->max_rate;
 
-	BUG_ON(new_rate != tegra2_periph_clk_round_rate(c, new_rate));
+	/*
+	 * The fastest rate the PLL will generate that is at most the
+	 * requested rate.
+	 */
+	clk_rate = tegra2_periph_clk_round_rate(c, emc_rate);
 
-	return new_rate;
+	/*
+	 * If this fails, and emc_rate > clk_rate, it's because the maximum
+	 * rate in the EMC tables is larger than the maximum rate of the EMC
+	 * clock. The EMC clock's max rate is the rate it was running when the
+	 * kernel booted. Such a mismatch is probably due to using the wrong
+	 * BCT, i.e. using a Tegra20 BCT with an EMC table written for Tegra25.
+	 */
+	WARN_ONCE(emc_rate != clk_rate,
+		"emc_rate %ld != clk_rate %ld",
+		emc_rate, clk_rate);
+
+	return emc_rate;
 }
 
 static int tegra2_emc_clk_set_rate(struct clk *c, unsigned long rate)

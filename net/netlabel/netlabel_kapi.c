@@ -597,7 +597,7 @@ int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap *catmap,
 			iter = iter->next;
 			iter_max_spot = iter->startbit + NETLBL_CATMAP_SIZE;
 		}
-		ret_val = netlbl_secattr_catmap_setbit(iter, spot, GFP_ATOMIC);
+		ret_val = netlbl_secattr_catmap_setbit(iter, spot, flags);
 	}
 
 	return ret_val;

@@ -146,9 +146,6 @@ struct tmds_setting_information {
 
 struct lvds_setting_information {
 	int iga_path;
-	int h_active;
-	int v_active;
-	int bpp;
 	int lcd_panel_hres;
 	int lcd_panel_vres;
 	int display_method;

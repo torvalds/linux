@@ -26,7 +26,6 @@
 #include <linux/mutex.h>		/* struct mutex */
 #include <linux/rwsem.h>		/* struct rw_semaphore */
 #include <linux/pm.h>			/* pm_message_t */
-#include <linux/device.h>
 #include <linux/stringify.h>
 
 /* number of supported soundcards */
@@ -39,10 +38,10 @@
 #define CONFIG_SND_MAJOR	116	/* standard configuration */
 
 /* forward declarations */
-#ifdef CONFIG_PCI
 struct pci_dev;
-#endif
 struct module;
+struct device;
+struct device_attribute;
 
 /* device allocation stuff */
 

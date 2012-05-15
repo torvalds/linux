@@ -394,6 +394,7 @@ config KEYBOARD_NOMADIK
 config KEYBOARD_TEGRA
 	tristate "NVIDIA Tegra internal matrix keyboard controller support"
 	depends on ARCH_TEGRA
+	select INPUT_OF_MATRIX_KEYMAP if USE_OF
 	help
 	  Say Y here if you want to use a matrix keyboard connected directly
 	  to the internal keyboard controller on Tegra SoCs.
@@ -512,7 +513,6 @@ config KEYBOARD_OMAP
 
 config KEYBOARD_OMAP4
 	tristate "TI OMAP4 keypad support"
-	depends on ARCH_OMAP4
 	help
 	  Say Y here if you want to use the OMAP4 keypad.
 

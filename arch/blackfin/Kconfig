@@ -36,6 +36,7 @@ config BLACKFIN
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_PROBE
 	select IRQ_PER_CPU if SMP
+	select HAVE_NMI_WATCHDOG if NMI_WATCHDOG
 
 config GENERIC_CSUM
 	def_bool y

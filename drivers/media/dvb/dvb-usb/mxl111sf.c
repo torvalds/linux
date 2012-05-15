@@ -351,14 +351,12 @@ static int mxl111sf_ep6_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 					      adap_state->ep6_clockphase,
 					      0, 0);
 		mxl_fail(ret);
+#if 0
 	} else {
 		ret = mxl111sf_disable_656_port(state);
 		mxl_fail(ret);
+#endif
 	}
-
-	mxl111sf_read_reg(state, 0x12, &tmp);
-	tmp &= ~0x04;
-	mxl111sf_write_reg(state, 0x12, tmp);
 
 	return ret;
 }

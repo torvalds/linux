@@ -21,8 +21,13 @@
 	 */
 
 	.macro addruart, rp, rv, tmp
-		ldr	\rp, = S3C_PA_UART
-		ldr	\rv, = S3C_VA_UART
+		mov	\rp, #0x10000000
+		ldr	\rp, [\rp, #0x0]
+		and	\rp, \rp, #0xf00000
+		teq	\rp, #0x500000		@@ EXYNOS5
+		ldreq	\rp, =EXYNOS5_PA_UART
+		movne	\rp, #EXYNOS4_PA_UART	@@ EXYNOS4
+		ldr	\rv, =S3C_VA_UART
 #if CONFIG_DEBUG_S3C_UART != 0
 		add	\rp, \rp, #(0x10000 * CONFIG_DEBUG_S3C_UART)
 		add	\rv, \rv, #(0x10000 * CONFIG_DEBUG_S3C_UART)

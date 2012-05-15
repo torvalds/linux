@@ -180,9 +180,8 @@ config XEN_PRIVCMD
 
 config XEN_ACPI_PROCESSOR
 	tristate "Xen ACPI processor"
-	depends on XEN && X86 && ACPI_PROCESSOR
-	default y if (X86_ACPI_CPUFREQ = y || X86_POWERNOW_K8 = y)
-	default m if (X86_ACPI_CPUFREQ = m || X86_POWERNOW_K8 = m)
+	depends on XEN && X86 && ACPI_PROCESSOR && CPU_FREQ
+	default m
 	help
           This ACPI processor uploads Power Management information to the Xen hypervisor.
 

@@ -258,17 +258,7 @@ static struct i2c_driver qt1070_driver = {
 	.remove		= __devexit_p(qt1070_remove),
 };
 
-static int __init qt1070_init(void)
-{
-	return i2c_add_driver(&qt1070_driver);
-}
-module_init(qt1070_init);
-
-static void __exit qt1070_exit(void)
-{
-	i2c_del_driver(&qt1070_driver);
-}
-module_exit(qt1070_exit);
+module_i2c_driver(qt1070_driver);
 
 MODULE_AUTHOR("Bo Shen <voice.shen@atmel.com>");
 MODULE_DESCRIPTION("Driver for AT42QT1070 QTouch sensor");

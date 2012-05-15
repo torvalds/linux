@@ -23,6 +23,7 @@
 
 #include <linux/device.h>
 #include <linux/uio.h>
+#include <linux/bug.h>
 #include <linux/scatterlist.h>
 #include <linux/bitmap.h>
 #include <asm/page.h>

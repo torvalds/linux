@@ -18,20 +18,23 @@
 #include <linux/smp.h>
 #include <linux/jiffies.h>
 #include <linux/clockchips.h>
-#include <linux/irq.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/of_irq.h>
+#include <linux/of_address.h>
 
 #include <asm/smp_twd.h>
 #include <asm/localtimer.h>
 #include <asm/hardware/gic.h>
 
 /* set up by the platform code */
-void __iomem *twd_base;
+static void __iomem *twd_base;
 
 static struct clk *twd_clk;
 static unsigned long twd_timer_rate;
 
 static struct clock_event_device __percpu **twd_evt;
+static int twd_ppi;
 
 static void twd_set_mode(enum clock_event_mode mode,
 			struct clock_event_device *clk)
@@ -77,7 +80,7 @@ static int twd_set_next_event(unsigned long evt,
  * If a local timer interrupt has occurred, acknowledge and return 1.
  * Otherwise, return 0.
  */
-int twd_timer_ack(void)
+static int twd_timer_ack(void)
 {
 	if (__raw_readl(twd_base + TWD_TIMER_INTSTAT)) {
 		__raw_writel(1, twd_base + TWD_TIMER_INTSTAT);
@@ -87,7 +90,7 @@ int twd_timer_ack(void)
 	return 0;
 }
 
-void twd_timer_stop(struct clock_event_device *clk)
+static void twd_timer_stop(struct clock_event_device *clk)
 {
 	twd_set_mode(CLOCK_EVT_MODE_UNUSED, clk);
 	disable_percpu_irq(clk->irq);
@@ -222,27 +225,9 @@ static struct clk *twd_get_clock(void)
 /*
  * Setup the local clock events for a CPU.
  */
-void __cpuinit twd_timer_setup(struct clock_event_device *clk)
+static int __cpuinit twd_timer_setup(struct clock_event_device *clk)
 {
 	struct clock_event_device **this_cpu_clk;
-
-	if (!twd_evt) {
-		int err;
-
-		twd_evt = alloc_percpu(struct clock_event_device *);
-		if (!twd_evt) {
-			pr_err("twd: can't allocate memory\n");
-			return;
-		}
-
-		err = request_percpu_irq(clk->irq, twd_handler,
-					 "twd", twd_evt);
-		if (err) {
-			pr_err("twd: can't register interrupt %d (%d)\n",
-			       clk->irq, err);
-			return;
-		}
-	}
 
 	if (!twd_clk)
 		twd_clk = twd_get_clock();
@@ -260,6 +245,7 @@ void __cpuinit twd_timer_setup(struct clock_event_device *clk)
 	clk->rating = 350;
 	clk->set_mode = twd_set_mode;
 	clk->set_next_event = twd_set_next_event;
+	clk->irq = twd_ppi;
 
 	this_cpu_clk = __this_cpu_ptr(twd_evt);
 	*this_cpu_clk = clk;
@@ -267,4 +253,95 @@ void __cpuinit twd_timer_setup(struct clock_event_device *clk)
 	clockevents_config_and_register(clk, twd_timer_rate,
 					0xf, 0xffffffff);
 	enable_percpu_irq(clk->irq, 0);
+
+	return 0;
 }
+
+static struct local_timer_ops twd_lt_ops __cpuinitdata = {
+	.setup	= twd_timer_setup,
+	.stop	= twd_timer_stop,
+};
+
+static int __init twd_local_timer_common_register(void)
+{
+	int err;
+
+	twd_evt = alloc_percpu(struct clock_event_device *);
+	if (!twd_evt) {
+		err = -ENOMEM;
+		goto out_free;
+	}
+
+	err = request_percpu_irq(twd_ppi, twd_handler, "twd", twd_evt);
+	if (err) {
+		pr_err("twd: can't register interrupt %d (%d)\n", twd_ppi, err);
+		goto out_free;
+	}
+
+	err = local_timer_register(&twd_lt_ops);
+	if (err)
+		goto out_irq;
+
+	return 0;
+
+out_irq:
+	free_percpu_irq(twd_ppi, twd_evt);
+out_free:
+	iounmap(twd_base);
+	twd_base = NULL;
+	free_percpu(twd_evt);
+
+	return err;
+}
+
+int __init twd_local_timer_register(struct twd_local_timer *tlt)
+{
+	if (twd_base || twd_evt)
+		return -EBUSY;
+
+	twd_ppi	= tlt->res[1].start;
+
+	twd_base = ioremap(tlt->res[0].start, resource_size(&tlt->res[0]));
+	if (!twd_base)
+		return -ENOMEM;
+
+	return twd_local_timer_common_register();
+}
+
+#ifdef CONFIG_OF
+const static struct of_device_id twd_of_match[] __initconst = {
+	{ .compatible = "arm,cortex-a9-twd-timer",	},
+	{ .compatible = "arm,cortex-a5-twd-timer",	},
+	{ .compatible = "arm,arm11mp-twd-timer",	},
+	{ },
+};
+
+void __init twd_local_timer_of_register(void)
+{
+	struct device_node *np;
+	int err;
+
+	np = of_find_matching_node(NULL, twd_of_match);
+	if (!np) {
+		err = -ENODEV;
+		goto out;
+	}
+
+	twd_ppi = irq_of_parse_and_map(np, 0);
+	if (!twd_ppi) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	twd_base = of_iomap(np, 0);
+	if (!twd_base) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	err = twd_local_timer_common_register();
+
+out:
+	WARN(err, "twd_local_timer_of_register failed (%d)\n", err);
+}
+#endif

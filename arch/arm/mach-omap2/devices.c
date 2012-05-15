@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/platform_data/omap4-keypad.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -24,7 +25,7 @@
 #include <asm/mach/map.h>
 #include <asm/pmu.h>
 
-#include <plat/tc.h>
+#include "iomap.h"
 #include <plat/board.h>
 #include <plat/mmc.h>
 #include <plat/dma.h>
@@ -275,7 +276,7 @@ int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 }
 
 #if defined(CONFIG_OMAP_MBOX_FWK) || defined(CONFIG_OMAP_MBOX_FWK_MODULE)
-static inline void omap_init_mbox(void)
+static inline void __init omap_init_mbox(void)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
@@ -315,7 +316,7 @@ static inline void omap_init_audio(void) {}
 #if defined(CONFIG_SND_OMAP_SOC_MCPDM) || \
 		defined(CONFIG_SND_OMAP_SOC_MCPDM_MODULE)
 
-static void omap_init_mcpdm(void)
+static void __init omap_init_mcpdm(void)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
@@ -336,7 +337,7 @@ static inline void omap_init_mcpdm(void) {}
 #if defined(CONFIG_SND_OMAP_SOC_DMIC) || \
 		defined(CONFIG_SND_OMAP_SOC_DMIC_MODULE)
 
-static void omap_init_dmic(void)
+static void __init omap_init_dmic(void)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
@@ -358,7 +359,7 @@ static inline void omap_init_dmic(void) {}
 
 #include <plat/mcspi.h>
 
-static int omap_mcspi_init(struct omap_hwmod *oh, void *unused)
+static int __init omap_mcspi_init(struct omap_hwmod *oh, void *unused)
 {
 	struct platform_device *pdev;
 	char *name = "omap2_mcspi";
@@ -632,9 +633,7 @@ void __init omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_HDQ_MASTER_OMAP) || defined(CONFIG_HDQ_MASTER_OMAP_MODULE)
-#if defined(CONFIG_SOC_OMAP2430) || defined(CONFIG_SOC_OMAP3430)
 #define OMAP_HDQ_BASE	0x480B2000
-#endif
 static struct resource omap_hdq_resources[] = {
 	{
 		.start		= OMAP_HDQ_BASE,
@@ -657,7 +656,10 @@ static struct platform_device omap_hdq_dev = {
 };
 static inline void omap_hdq_init(void)
 {
-	(void) platform_device_register(&omap_hdq_dev);
+	if (cpu_is_omap2420())
+		return;
+
+	platform_device_register(&omap_hdq_dev);
 }
 #else
 static inline void omap_hdq_init(void) {}

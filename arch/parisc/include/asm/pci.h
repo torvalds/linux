@@ -82,38 +82,8 @@ struct pci_hba_data {
 
 #ifdef CONFIG_64BIT
 #define PCI_F_EXTEND		0xffffffff00000000UL
-#define PCI_IS_LMMIO(hba,a)	pci_is_lmmio(hba,a)
-
-/* We need to know if an address is LMMMIO or GMMIO.
- * LMMIO requires mangling and GMMIO we must use as-is.
- */
-static __inline__  int pci_is_lmmio(struct pci_hba_data *hba, unsigned long a)
-{
-	return(((a) & PCI_F_EXTEND) == PCI_F_EXTEND);
-}
-
-/*
-** Convert between PCI (IO_VIEW) addresses and processor (PA_VIEW) addresses.
-** See pci.c for more conversions used by Generic PCI code.
-**
-** Platform characteristics/firmware guarantee that
-**	(1) PA_VIEW - IO_VIEW = lmmio_offset for both LMMIO and ELMMIO
-**	(2) PA_VIEW == IO_VIEW for GMMIO
-*/
-#define PCI_BUS_ADDR(hba,a)	(PCI_IS_LMMIO(hba,a)	\
-		?  ((a) - hba->lmmio_space_offset)	/* mangle LMMIO */ \
-		: (a))					/* GMMIO */
-#define PCI_HOST_ADDR(hba,a)	(((a) & PCI_F_EXTEND) == 0 \
-		? (a) + hba->lmmio_space_offset \
-		: (a))
-
 #else	/* !CONFIG_64BIT */
-
-#define PCI_BUS_ADDR(hba,a)	(a)
-#define PCI_HOST_ADDR(hba,a)	(a)
 #define PCI_F_EXTEND		0UL
-#define PCI_IS_LMMIO(hba,a)	(1)	/* 32-bit doesn't support GMMIO */
-
 #endif /* !CONFIG_64BIT */
 
 /*
@@ -244,14 +214,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 	*strategy_parameter = cacheline_size;
 }
 #endif
-
-extern void
-pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			 struct resource *res);
-
-extern void
-pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			struct pci_bus_region *region);
 
 static inline void pcibios_penalize_isa_irq(int irq, int active)
 {

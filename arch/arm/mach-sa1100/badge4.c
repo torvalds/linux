@@ -39,20 +39,27 @@
 #include "generic.h"
 
 static struct resource sa1111_resources[] = {
-	[0] = {
-		.start		= BADGE4_SA1111_BASE,
-		.end		= BADGE4_SA1111_BASE + 0x00001fff,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= BADGE4_IRQ_GPIO_SA1111,
-		.end		= BADGE4_IRQ_GPIO_SA1111,
-		.flags		= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(BADGE4_SA1111_BASE, 0x2000),
+	[1] = DEFINE_RES_IRQ(BADGE4_IRQ_GPIO_SA1111),
 };
 
+static int badge4_sa1111_enable(void *data, unsigned devid)
+{
+	if (devid == SA1111_DEVID_USB)
+		badge4_set_5V(BADGE4_5V_USB, 1);
+	return 0;
+}
+
+static void badge4_sa1111_disable(void *data, unsigned devid)
+{
+	if (devid == SA1111_DEVID_USB)
+		badge4_set_5V(BADGE4_5V_USB, 0);
+}
+
 static struct sa1111_platform_data sa1111_info = {
-	.irq_base	= IRQ_BOARD_END,
+	.disable_devs	= SA1111_DEVID_PS2_MSE,
+	.enable		= badge4_sa1111_enable,
+	.disable	= badge4_sa1111_disable,
 };
 
 static u64 sa1111_dmamask = 0xffffffffUL;
@@ -121,11 +128,8 @@ static struct flash_platform_data badge4_flash_data = {
 	.nr_parts	= ARRAY_SIZE(badge4_partitions),
 };
 
-static struct resource badge4_flash_resource = {
-	.start		= SA1100_CS0_PHYS,
-	.end		= SA1100_CS0_PHYS + SZ_64M - 1,
-	.flags		= IORESOURCE_MEM,
-};
+static struct resource badge4_flash_resource =
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_64M);
 
 static int five_v_on __initdata = 0;
 
@@ -269,11 +273,6 @@ static struct map_desc badge4_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(0x10000000),
 		.length		= 0x00100000,
 		.type		= MT_DEVICE
-	}, {	/* SA-1111      */
-		.virtual	= 0xf4000000,
-		.pfn		= __phys_to_pfn(0x48000000),
-		.length		= 0x00100000,
-		.type		= MT_DEVICE
 	}
 };
 
@@ -304,6 +303,7 @@ static void __init badge4_map_io(void)
 MACHINE_START(BADGE4, "Hewlett-Packard Laboratories BadgePAD 4")
 	.atag_offset	= 0x100,
 	.map_io		= badge4_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 #ifdef CONFIG_SA1111

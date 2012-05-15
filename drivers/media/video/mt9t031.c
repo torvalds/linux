@@ -850,18 +850,7 @@ static struct i2c_driver mt9t031_i2c_driver = {
 	.id_table	= mt9t031_id,
 };
 
-static int __init mt9t031_mod_init(void)
-{
-	return i2c_add_driver(&mt9t031_i2c_driver);
-}
-
-static void __exit mt9t031_mod_exit(void)
-{
-	i2c_del_driver(&mt9t031_i2c_driver);
-}
-
-module_init(mt9t031_mod_init);
-module_exit(mt9t031_mod_exit);
+module_i2c_driver(mt9t031_i2c_driver);
 
 MODULE_DESCRIPTION("Micron MT9T031 Camera driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <lg@denx.de>");

@@ -152,6 +152,10 @@ config MACH_AMS_DELTA
 	bool "Amstrad E3 (Delta)"
 	depends on ARCH_OMAP1 && ARCH_OMAP15XX
 	select FIQ
+	select GPIO_GENERIC_PLATFORM
+	select LEDS_GPIO_REGISTER
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
 	help
 	  Support for the Amstrad E3 (codename Delta) videophone. Say Y here
 	  if you have such a device.

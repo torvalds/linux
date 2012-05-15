@@ -1,0 +1,22 @@
+Kernel driver MCP3021
+======================
+
+Supported chips:
+  * Microchip Technology MCP3021
+    Prefix: 'mcp3021'
+    Datasheet: http://ww1.microchip.com/downloads/en/DeviceDoc/21805a.pdf
+
+Author: Mingkai Hu
+
+Description
+-----------
+
+This driver implements support for the Microchip Technology MCP3021 chip.
+
+The Microchip Technology Inc. MCP3021 is a successive approximation A/D
+converter (ADC) with 10-bit resolution.
+This device provides one single-ended input with very low power consumption.
+Communication to the MCP3021 is performed using a 2-wire I2C compatible
+interface. Standard (100 kHz) and Fast (400 kHz) I2C modes are available.
+The default I2C device address is 0x4d (contact the Microchip factory for
+additional address options).

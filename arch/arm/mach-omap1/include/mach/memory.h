@@ -18,7 +18,8 @@
  * Note that the is_lbus_device() test is not very efficient on 1510
  * because of the strncmp().
  */
-#ifdef CONFIG_ARCH_OMAP15XX
+#if defined(CONFIG_ARCH_OMAP15XX) && !defined(__ASSEMBLER__)
+#include <plat/cpu.h>
 
 /*
  * OMAP-1510 Local Bus address offset

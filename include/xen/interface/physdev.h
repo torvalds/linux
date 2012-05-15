@@ -39,6 +39,27 @@ struct physdev_eoi {
 };
 
 /*
+ * Register a shared page for the hypervisor to indicate whether the guest
+ * must issue PHYSDEVOP_eoi. The semantics of PHYSDEVOP_eoi change slightly
+ * once the guest used this function in that the associated event channel
+ * will automatically get unmasked. The page registered is used as a bit
+ * array indexed by Xen's PIRQ value.
+ */
+#define PHYSDEVOP_pirq_eoi_gmfn_v1       17
+/*
+ * Register a shared page for the hypervisor to indicate whether the
+ * guest must issue PHYSDEVOP_eoi. This hypercall is very similar to
+ * PHYSDEVOP_pirq_eoi_gmfn_v1 but it doesn't change the semantics of
+ * PHYSDEVOP_eoi. The page registered is used as a bit array indexed by
+ * Xen's PIRQ value.
+ */
+#define PHYSDEVOP_pirq_eoi_gmfn_v2       28
+struct physdev_pirq_eoi_gmfn {
+    /* IN */
+    unsigned long gmfn;
+};
+
+/*
  * Query the status of an IRQ line.
  * @arg == pointer to physdev_irq_status_query structure.
  */

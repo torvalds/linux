@@ -9,6 +9,7 @@
  */
 
 #include <linux/clkdev.h>
+#include <linux/of.h>
 
  /* Map io */
 extern void __init at91_map_io(void);
@@ -25,9 +26,13 @@ extern void __init at91_init_irq_default(void);
 extern void __init at91_init_interrupts(unsigned int priority[]);
 extern void __init at91x40_init_interrupts(unsigned int priority[]);
 extern void __init at91_aic_init(unsigned int priority[]);
+extern int  __init at91_aic_of_init(struct device_node *node,
+				    struct device_node *parent);
+
 
  /* Timer */
 struct sys_timer;
+extern void at91rm9200_ioremap_st(u32 addr);
 extern struct sys_timer at91rm9200_timer;
 extern void at91sam926x_ioremap_pit(u32 addr);
 extern struct sys_timer at91sam926x_timer;
@@ -45,7 +50,6 @@ extern void __init at91sam9261_set_console_clock(int id);
 extern void __init at91sam9263_set_console_clock(int id);
 extern void __init at91sam9rl_set_console_clock(int id);
 extern void __init at91sam9g45_set_console_clock(int id);
-extern void __init at91cap9_set_console_clock(int id);
 #ifdef CONFIG_AT91_PMC_UNIT
 extern int __init at91_clock_init(unsigned long main_clock);
 #else
@@ -57,6 +61,9 @@ struct device;
 extern void at91_irq_suspend(void);
 extern void at91_irq_resume(void);
 
+/* idle */
+extern void at91sam9_idle(void);
+
 /* reset */
 extern void at91_ioremap_rstc(u32 base_addr);
 extern void at91sam9_alt_restart(char, const char *);
@@ -64,6 +71,12 @@ extern void at91sam9g45_restart(char, const char *);
 
 /* shutdown */
 extern void at91_ioremap_shdwc(u32 base_addr);
+
+/* Matrix */
+extern void at91_ioremap_matrix(u32 base_addr);
+
+/* Ram Controler */
+extern void at91_ioremap_ramc(int id, u32 addr, u32 size);
 
  /* GPIO */
 #define AT91RM9200_PQFP		3	/* AT91RM9200 PQFP package has 3 banks */
@@ -75,5 +88,7 @@ struct at91_gpio_bank {
 };
 extern void __init at91_gpio_init(struct at91_gpio_bank *, int nr_banks);
 extern void __init at91_gpio_irq_setup(void);
+extern int  __init at91_gpio_of_irq_setup(struct device_node *node,
+					  struct device_node *parent);
 
 extern int at91_extern_irq;

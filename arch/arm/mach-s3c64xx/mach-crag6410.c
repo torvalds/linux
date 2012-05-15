@@ -19,7 +19,9 @@
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/leds.h>
 #include <linux/delay.h>
+#include <linux/mmc/host.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
 #include <linux/pwm_backlight.h>
@@ -59,6 +61,7 @@
 #include <plat/sdhci.h>
 #include <plat/gpio-cfg.h>
 #include <plat/s3c64xx-spi.h>
+#include <plat/udc-hs.h>
 
 #include <plat/keypad.h>
 #include <plat/clock.h>
@@ -298,6 +301,7 @@ static struct platform_device littlemill_device = {
 };
 
 static struct regulator_consumer_supply wallvdd_consumers[] = {
+	REGULATOR_SUPPLY("SPKVDD", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDD1", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDD2", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDDL", "1-001a"),
@@ -574,11 +578,19 @@ static struct s3c2410_platform_i2c i2c0_pdata = {
 	.frequency = 400000,
 };
 
+static struct regulator_consumer_supply pvdd_1v2_consumers[] __initdata = {
+	REGULATOR_SUPPLY("DCVDD", "spi0.0"),
+	REGULATOR_SUPPLY("AVDD", "spi0.0"),
+};
+
 static struct regulator_init_data pvdd_1v2 __initdata = {
 	.constraints = {
 		.name = "PVDD_1V2",
-		.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
+
+	.consumer_supplies = pvdd_1v2_consumers,
+	.num_consumer_supplies = ARRAY_SIZE(pvdd_1v2_consumers),
 };
 
 static struct regulator_consumer_supply pvdd_1v8_consumers[] __initdata = {
@@ -592,6 +604,7 @@ static struct regulator_consumer_supply pvdd_1v8_consumers[] __initdata = {
 	REGULATOR_SUPPLY("AVDD2", "1-001a"),
 	REGULATOR_SUPPLY("DCVDD", "1-001a"),
 	REGULATOR_SUPPLY("AVDD", "1-001a"),
+	REGULATOR_SUPPLY("DBVDD", "spi0.0"),
 };
 
 static struct regulator_init_data pvdd_1v8 __initdata = {
@@ -681,6 +694,7 @@ static void __init crag6410_map_io(void)
 static struct s3c_sdhci_platdata crag6410_hsmmc2_pdata = {
 	.max_width		= 4,
 	.cd_type		= S3C_SDHCI_CD_PERMANENT,
+	.host_caps		= MMC_CAP_POWER_OFF_CARD,
 };
 
 static void crag6410_cfg_sdhci0(struct platform_device *dev, int width)
@@ -696,7 +710,58 @@ static struct s3c_sdhci_platdata crag6410_hsmmc0_pdata = {
 	.max_width		= 4,
 	.cd_type		= S3C_SDHCI_CD_INTERNAL,
 	.cfg_gpio		= crag6410_cfg_sdhci0,
+	.host_caps		= MMC_CAP_POWER_OFF_CARD,
 };
+
+static const struct gpio_led gpio_leds[] = {
+	{
+		.name = "d13:green:",
+		.gpio = MMGPIO_GPIO_BASE + 0,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d14:green:",
+		.gpio = MMGPIO_GPIO_BASE + 1,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d15:green:",
+		.gpio = MMGPIO_GPIO_BASE + 2,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d16:green:",
+		.gpio = MMGPIO_GPIO_BASE + 3,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d17:green:",
+		.gpio = MMGPIO_GPIO_BASE + 4,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d18:green:",
+		.gpio = MMGPIO_GPIO_BASE + 5,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d19:green:",
+		.gpio = MMGPIO_GPIO_BASE + 6,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d20:green:",
+		.gpio = MMGPIO_GPIO_BASE + 7,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+};
+
+static const struct gpio_led_platform_data gpio_leds_pdata = {
+	.leds = gpio_leds,
+	.num_leds = ARRAY_SIZE(gpio_leds),
+};
+
+static struct s3c_hsotg_plat crag6410_hsotg_pdata;
 
 static void __init crag6410_machine_init(void)
 {
@@ -722,13 +787,17 @@ static void __init crag6410_machine_init(void)
 	s3c_i2c0_set_platdata(&i2c0_pdata);
 	s3c_i2c1_set_platdata(&i2c1_pdata);
 	s3c_fb_set_platdata(&crag6410_lcd_pdata);
+	s3c_hsotg_set_platdata(&crag6410_hsotg_pdata);
 
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
 	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
 
 	samsung_keypad_set_platdata(&crag6410_keypad_data);
+	s3c64xx_spi0_set_platdata(&s3c64xx_spi0_pdata, 0, 1);
 
 	platform_add_devices(crag6410_devices, ARRAY_SIZE(crag6410_devices));
+
+	gpio_led_register_device(-1, &gpio_leds_pdata);
 
 	regulator_has_full_constraints();
 

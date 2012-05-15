@@ -24,7 +24,6 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
-#include <mach/system.h>
 #include <plat/common.h>
 #include <plat/prcm.h>
 #include <plat/irqs.h>

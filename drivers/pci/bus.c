@@ -18,28 +18,36 @@
 
 #include "pci.h"
 
-void pci_add_resource(struct list_head *resources, struct resource *res)
+void pci_add_resource_offset(struct list_head *resources, struct resource *res,
+			     resource_size_t offset)
 {
-	struct pci_bus_resource *bus_res;
+	struct pci_host_bridge_window *window;
 
-	bus_res = kzalloc(sizeof(struct pci_bus_resource), GFP_KERNEL);
-	if (!bus_res) {
-		printk(KERN_ERR "PCI: can't add bus resource %pR\n", res);
+	window = kzalloc(sizeof(struct pci_host_bridge_window), GFP_KERNEL);
+	if (!window) {
+		printk(KERN_ERR "PCI: can't add host bridge window %pR\n", res);
 		return;
 	}
 
-	bus_res->res = res;
-	list_add_tail(&bus_res->list, resources);
+	window->res = res;
+	window->offset = offset;
+	list_add_tail(&window->list, resources);
+}
+EXPORT_SYMBOL(pci_add_resource_offset);
+
+void pci_add_resource(struct list_head *resources, struct resource *res)
+{
+	pci_add_resource_offset(resources, res, 0);
 }
 EXPORT_SYMBOL(pci_add_resource);
 
 void pci_free_resource_list(struct list_head *resources)
 {
-	struct pci_bus_resource *bus_res, *tmp;
+	struct pci_host_bridge_window *window, *tmp;
 
-	list_for_each_entry_safe(bus_res, tmp, resources, list) {
-		list_del(&bus_res->list);
-		kfree(bus_res);
+	list_for_each_entry_safe(window, tmp, resources, list) {
+		list_del(&window->list);
+		kfree(window);
 	}
 }
 EXPORT_SYMBOL(pci_free_resource_list);

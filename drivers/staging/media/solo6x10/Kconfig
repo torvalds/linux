@@ -5,4 +5,4 @@ config SOLO6X10
 	select SND_PCM
 	---help---
 	  This driver supports the Softlogic based MPEG-4 and h.264 codec
-	  codec cards.
+	  cards.

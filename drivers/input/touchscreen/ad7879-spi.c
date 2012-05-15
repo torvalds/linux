@@ -157,17 +157,7 @@ static struct spi_driver ad7879_spi_driver = {
 	.remove		= __devexit_p(ad7879_spi_remove),
 };
 
-static int __init ad7879_spi_init(void)
-{
-	return spi_register_driver(&ad7879_spi_driver);
-}
-module_init(ad7879_spi_init);
-
-static void __exit ad7879_spi_exit(void)
-{
-	spi_unregister_driver(&ad7879_spi_driver);
-}
-module_exit(ad7879_spi_exit);
+module_spi_driver(ad7879_spi_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("AD7879(-1) touchscreen SPI bus driver");

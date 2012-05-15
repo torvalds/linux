@@ -1092,28 +1092,33 @@ static void psmouse_initialize(struct psmouse *psmouse)
  * psmouse_activate() enables the mouse so that we get motion reports from it.
  */
 
-static void psmouse_activate(struct psmouse *psmouse)
+int psmouse_activate(struct psmouse *psmouse)
 {
-	if (ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_ENABLE))
+	if (ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_ENABLE)) {
 		psmouse_warn(psmouse, "Failed to enable mouse on %s\n",
 			     psmouse->ps2dev.serio->phys);
+		return -1;
+	}
 
 	psmouse_set_state(psmouse, PSMOUSE_ACTIVATED);
+	return 0;
 }
-
 
 /*
  * psmouse_deactivate() puts the mouse into poll mode so that we don't get motion
  * reports from it unless we explicitly request it.
  */
 
-static void psmouse_deactivate(struct psmouse *psmouse)
+int psmouse_deactivate(struct psmouse *psmouse)
 {
-	if (ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_DISABLE))
+	if (ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_DISABLE)) {
 		psmouse_warn(psmouse, "Failed to deactivate mouse on %s\n",
 			     psmouse->ps2dev.serio->phys);
+		return -1;
+	}
 
 	psmouse_set_state(psmouse, PSMOUSE_CMD_MODE);
+	return 0;
 }
 
 

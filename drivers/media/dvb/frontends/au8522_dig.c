@@ -588,11 +588,6 @@ static int au8522_set_frontend(struct dvb_frontend *fe)
 	    (state->current_modulation == c->modulation))
 		return 0;
 
-	au8522_enable_modulation(fe, c->modulation);
-
-	/* Allow the demod to settle */
-	msleep(100);
-
 	if (fe->ops.tuner_ops.set_params) {
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
@@ -603,6 +598,11 @@ static int au8522_set_frontend(struct dvb_frontend *fe)
 
 	if (ret < 0)
 		return ret;
+
+	/* Allow the tuner to settle */
+	msleep(100);
+
+	au8522_enable_modulation(fe, c->modulation);
 
 	state->current_frequency = c->frequency;
 

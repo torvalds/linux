@@ -47,9 +47,6 @@ STATIC int	xfs_qm_log_quotaoff_end(xfs_mount_t *, xfs_qoff_logitem_t *,
 					uint);
 STATIC uint	xfs_qm_export_flags(uint);
 STATIC uint	xfs_qm_export_qtype_flags(uint);
-STATIC void	xfs_qm_export_dquot(xfs_mount_t *, xfs_disk_dquot_t *,
-					fs_disk_quota_t *);
-
 
 /*
  * Turn off quota accounting and/or enforcement for all udquots and/or
@@ -69,7 +66,6 @@ xfs_qm_scall_quotaoff(
 	int			error;
 	uint			inactivate_flags;
 	xfs_qoff_logitem_t	*qoffstart;
-	int			nculprits;
 
 	/*
 	 * No file system can have quotas enabled on disk but not in core.
@@ -175,18 +171,13 @@ xfs_qm_scall_quotaoff(
 	 * This isn't protected by a particular lock directly, because we
 	 * don't want to take a mrlock every time we depend on quotas being on.
 	 */
-	mp->m_qflags &= ~(flags);
+	mp->m_qflags &= ~flags;
 
 	/*
 	 * Go through all the dquots of this file system and purge them,
-	 * according to what was turned off. We may not be able to get rid
-	 * of all dquots, because dquots can have temporary references that
-	 * are not attached to inodes. eg. xfs_setattr, xfs_create.
-	 * So, if we couldn't purge all the dquots from the filesystem,
-	 * we can't get rid of the incore data structures.
+	 * according to what was turned off.
 	 */
-	while ((nculprits = xfs_qm_dqpurge_all(mp, dqtype)))
-		delay(10 * nculprits);
+	xfs_qm_dqpurge_all(mp, dqtype);
 
 	/*
 	 * Transactions that had started before ACTIVE state bit was cleared
@@ -635,42 +626,6 @@ xfs_qm_scall_setqlim(
 	return error;
 }
 
-int
-xfs_qm_scall_getquota(
-	xfs_mount_t	*mp,
-	xfs_dqid_t	id,
-	uint		type,
-	fs_disk_quota_t *out)
-{
-	xfs_dquot_t	*dqp;
-	int		error;
-
-	/*
-	 * Try to get the dquot. We don't want it allocated on disk, so
-	 * we aren't passing the XFS_QMOPT_DOALLOC flag. If it doesn't
-	 * exist, we'll get ENOENT back.
-	 */
-	if ((error = xfs_qm_dqget(mp, NULL, id, type, 0, &dqp))) {
-		return (error);
-	}
-
-	/*
-	 * If everything's NULL, this dquot doesn't quite exist as far as
-	 * our utility programs are concerned.
-	 */
-	if (XFS_IS_DQUOT_UNINITIALIZED(dqp)) {
-		xfs_qm_dqput(dqp);
-		return XFS_ERROR(ENOENT);
-	}
-	/*
-	 * Convert the disk dquot to the exportable format
-	 */
-	xfs_qm_export_dquot(mp, &dqp->q_core, out);
-	xfs_qm_dqput(dqp);
-	return (error ? XFS_ERROR(EFAULT) : 0);
-}
-
-
 STATIC int
 xfs_qm_log_quotaoff_end(
 	xfs_mount_t		*mp,
@@ -759,50 +714,66 @@ error0:
 }
 
 
-/*
- * Translate an internal style on-disk-dquot to the exportable format.
- * The main differences are that the counters/limits are all in Basic
- * Blocks (BBs) instead of the internal FSBs, and all on-disk data has
- * to be converted to the native endianness.
- */
-STATIC void
-xfs_qm_export_dquot(
-	xfs_mount_t		*mp,
-	xfs_disk_dquot_t	*src,
+int
+xfs_qm_scall_getquota(
+	struct xfs_mount	*mp,
+	xfs_dqid_t		id,
+	uint			type,
 	struct fs_disk_quota	*dst)
 {
+	struct xfs_dquot	*dqp;
+	int			error;
+
+	/*
+	 * Try to get the dquot. We don't want it allocated on disk, so
+	 * we aren't passing the XFS_QMOPT_DOALLOC flag. If it doesn't
+	 * exist, we'll get ENOENT back.
+	 */
+	error = xfs_qm_dqget(mp, NULL, id, type, 0, &dqp);
+	if (error)
+		return error;
+
+	/*
+	 * If everything's NULL, this dquot doesn't quite exist as far as
+	 * our utility programs are concerned.
+	 */
+	if (XFS_IS_DQUOT_UNINITIALIZED(dqp)) {
+		error = XFS_ERROR(ENOENT);
+		goto out_put;
+	}
+
 	memset(dst, 0, sizeof(*dst));
-	dst->d_version = FS_DQUOT_VERSION;  /* different from src->d_version */
-	dst->d_flags = xfs_qm_export_qtype_flags(src->d_flags);
-	dst->d_id = be32_to_cpu(src->d_id);
+	dst->d_version = FS_DQUOT_VERSION;
+	dst->d_flags = xfs_qm_export_qtype_flags(dqp->q_core.d_flags);
+	dst->d_id = be32_to_cpu(dqp->q_core.d_id);
 	dst->d_blk_hardlimit =
-		XFS_FSB_TO_BB(mp, be64_to_cpu(src->d_blk_hardlimit));
+		XFS_FSB_TO_BB(mp, be64_to_cpu(dqp->q_core.d_blk_hardlimit));
 	dst->d_blk_softlimit =
-		XFS_FSB_TO_BB(mp, be64_to_cpu(src->d_blk_softlimit));
-	dst->d_ino_hardlimit = be64_to_cpu(src->d_ino_hardlimit);
-	dst->d_ino_softlimit = be64_to_cpu(src->d_ino_softlimit);
-	dst->d_bcount = XFS_FSB_TO_BB(mp, be64_to_cpu(src->d_bcount));
-	dst->d_icount = be64_to_cpu(src->d_icount);
-	dst->d_btimer = be32_to_cpu(src->d_btimer);
-	dst->d_itimer = be32_to_cpu(src->d_itimer);
-	dst->d_iwarns = be16_to_cpu(src->d_iwarns);
-	dst->d_bwarns = be16_to_cpu(src->d_bwarns);
+		XFS_FSB_TO_BB(mp, be64_to_cpu(dqp->q_core.d_blk_softlimit));
+	dst->d_ino_hardlimit = be64_to_cpu(dqp->q_core.d_ino_hardlimit);
+	dst->d_ino_softlimit = be64_to_cpu(dqp->q_core.d_ino_softlimit);
+	dst->d_bcount = XFS_FSB_TO_BB(mp, dqp->q_res_bcount);
+	dst->d_icount = dqp->q_res_icount;
+	dst->d_btimer = be32_to_cpu(dqp->q_core.d_btimer);
+	dst->d_itimer = be32_to_cpu(dqp->q_core.d_itimer);
+	dst->d_iwarns = be16_to_cpu(dqp->q_core.d_iwarns);
+	dst->d_bwarns = be16_to_cpu(dqp->q_core.d_bwarns);
 	dst->d_rtb_hardlimit =
-		XFS_FSB_TO_BB(mp, be64_to_cpu(src->d_rtb_hardlimit));
+		XFS_FSB_TO_BB(mp, be64_to_cpu(dqp->q_core.d_rtb_hardlimit));
 	dst->d_rtb_softlimit =
-		XFS_FSB_TO_BB(mp, be64_to_cpu(src->d_rtb_softlimit));
-	dst->d_rtbcount = XFS_FSB_TO_BB(mp, be64_to_cpu(src->d_rtbcount));
-	dst->d_rtbtimer = be32_to_cpu(src->d_rtbtimer);
-	dst->d_rtbwarns = be16_to_cpu(src->d_rtbwarns);
+		XFS_FSB_TO_BB(mp, be64_to_cpu(dqp->q_core.d_rtb_softlimit));
+	dst->d_rtbcount = XFS_FSB_TO_BB(mp, dqp->q_res_rtbcount);
+	dst->d_rtbtimer = be32_to_cpu(dqp->q_core.d_rtbtimer);
+	dst->d_rtbwarns = be16_to_cpu(dqp->q_core.d_rtbwarns);
 
 	/*
 	 * Internally, we don't reset all the timers when quota enforcement
 	 * gets turned off. No need to confuse the user level code,
 	 * so return zeroes in that case.
 	 */
-	if ((!XFS_IS_UQUOTA_ENFORCED(mp) && src->d_flags == XFS_DQ_USER) ||
+	if ((!XFS_IS_UQUOTA_ENFORCED(mp) && dqp->q_core.d_flags == XFS_DQ_USER) ||
 	    (!XFS_IS_OQUOTA_ENFORCED(mp) &&
-			(src->d_flags & (XFS_DQ_PROJ | XFS_DQ_GROUP)))) {
+			(dqp->q_core.d_flags & (XFS_DQ_PROJ | XFS_DQ_GROUP)))) {
 		dst->d_btimer = 0;
 		dst->d_itimer = 0;
 		dst->d_rtbtimer = 0;
@@ -823,6 +794,9 @@ xfs_qm_export_dquot(
 		}
 	}
 #endif
+out_put:
+	xfs_qm_dqput(dqp);
+	return error;
 }
 
 STATIC uint

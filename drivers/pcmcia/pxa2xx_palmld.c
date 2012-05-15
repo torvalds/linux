@@ -23,7 +23,6 @@
 static struct gpio palmld_pcmcia_gpios[] = {
 	{ GPIO_NR_PALMLD_PCMCIA_POWER,	GPIOF_INIT_LOW,	"PCMCIA Power" },
 	{ GPIO_NR_PALMLD_PCMCIA_RESET,	GPIOF_INIT_HIGH,"PCMCIA Reset" },
-	{ GPIO_NR_PALMLD_PCMCIA_READY,	GPIOF_IN,	"PCMCIA Ready" },
 };
 
 static int palmld_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
@@ -33,7 +32,8 @@ static int palmld_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	ret = gpio_request_array(palmld_pcmcia_gpios,
 				ARRAY_SIZE(palmld_pcmcia_gpios));
 
-	skt->socket.pci_irq = gpio_to_irq(GPIO_NR_PALMLD_PCMCIA_READY);
+	skt->stat[SOC_STAT_RDY].gpio = GPIO_NR_PALMLD_PCMCIA_READY;
+	skt->stat[SOC_STAT_RDY].name = "PCMCIA Ready";
 
 	return ret;
 }
@@ -47,10 +47,6 @@ static void palmld_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 					struct pcmcia_state *state)
 {
 	state->detect = 1; /* always inserted */
-	state->ready  = !!gpio_get_value(GPIO_NR_PALMLD_PCMCIA_READY);
-	state->bvd1   = 1;
-	state->bvd2   = 1;
-	state->wrprot = 0;
 	state->vs_3v  = 1;
 	state->vs_Xv  = 0;
 }

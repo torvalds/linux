@@ -383,6 +383,9 @@ static void __init pSeries_setup_arch(void)
 
 	fwnmi_init();
 
+	/* By default, only probe PCI (can be overriden by rtas_pci) */
+	pci_add_flags(PCI_PROBE_ONLY);
+
 	/* Find and initialize PCI host bridges */
 	init_pci_config_tokens();
 	eeh_pseries_init();

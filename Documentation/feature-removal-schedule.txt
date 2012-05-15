@@ -513,20 +513,6 @@ Who:	Bjorn Helgaas <bhelgaas@google.com>
 
 ----------------------------
 
-What:	The CAP9 SoC family will be removed
-When:	3.4
-Files:	arch/arm/mach-at91/at91cap9.c
-	arch/arm/mach-at91/at91cap9_devices.c
-	arch/arm/mach-at91/include/mach/at91cap9.h
-	arch/arm/mach-at91/include/mach/at91cap9_matrix.h
-	arch/arm/mach-at91/include/mach/at91cap9_ddrsdr.h
-	arch/arm/mach-at91/board-cap9adk.c
-Why:	The code is not actively maintained and platforms are now hard to find.
-Who:	Nicolas Ferre <nicolas.ferre@atmel.com>
-	Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
-
-----------------------------
-
 What:	Low Performance USB Block driver ("CONFIG_BLK_DEV_UB")
 When:	3.6
 Why:	This driver provides support for USB storage devices like "USB

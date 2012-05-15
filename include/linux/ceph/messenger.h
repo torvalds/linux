@@ -14,8 +14,6 @@
 struct ceph_msg;
 struct ceph_connection;
 
-extern struct workqueue_struct *ceph_msgr_wq;       /* receive work queue */
-
 /*
  * Ceph defines these callbacks for handling connection events.
  */
@@ -54,7 +52,6 @@ struct ceph_connection_operations {
 struct ceph_messenger {
 	struct ceph_entity_inst inst;    /* my name+address */
 	struct ceph_entity_addr my_enc_addr;
-	struct page *zero_page;          /* used in certain error cases */
 
 	bool nocrc;
 
@@ -101,7 +98,7 @@ struct ceph_msg {
 struct ceph_msg_pos {
 	int page, page_pos;  /* which page; offset in page */
 	int data_pos;        /* offset in data payload */
-	int did_page_crc;    /* true if we've calculated crc for current page */
+	bool did_page_crc;   /* true if we've calculated crc for current page */
 };
 
 /* ceph connection fault delay defaults, for exponential backoff */

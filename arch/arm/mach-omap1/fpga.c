@@ -24,11 +24,14 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 
 #include <plat/fpga.h>
+
+#include <mach/hardware.h>
+
+#include "iomap.h"
 
 static void fpga_mask_irq(struct irq_data *d)
 {

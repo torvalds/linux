@@ -19,7 +19,6 @@
 #define __PHY_H
 
 #include <linux/spinlock.h>
-#include <linux/device.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/timer.h>
@@ -87,6 +86,9 @@ typedef enum {
 /* Or MII_ADDR_C45 into regnum for read/write on mii_bus to enable the 21 bit
    IEEE 802.3ae clause 45 addressing mode used by 10GIGE phy chips. */
 #define MII_ADDR_C45 (1<<30)
+
+struct device;
+struct sk_buff;
 
 /*
  * The Bus class for PHYs.  Devices which provide access to
@@ -241,7 +243,6 @@ enum phy_state {
 	PHY_RESUMING
 };
 
-struct sk_buff;
 
 /* phy_device: An instance of a PHY
  *

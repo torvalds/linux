@@ -23,6 +23,7 @@
 #include <linux/highmem.h>
 #include <linux/mempool.h>
 #include <linux/ioprio.h>
+#include <linux/bug.h>
 
 #ifdef CONFIG_BLOCK
 

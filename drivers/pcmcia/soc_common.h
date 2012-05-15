@@ -50,6 +50,16 @@ struct soc_pcmcia_socket {
 	struct resource		res_attr;
 	void __iomem		*virt_io;
 
+	struct {
+		int		gpio;
+		unsigned int	irq;
+		const char	*name;
+	} stat[4];
+#define SOC_STAT_CD		0	/* Card detect */
+#define SOC_STAT_BVD1		1	/* BATDEAD / IOSTSCHG */
+#define SOC_STAT_BVD2		2	/* BATWARN / IOSPKR */
+#define SOC_STAT_RDY		3	/* Ready / Interrupt */
+
 	unsigned int		irq_state;
 
 	struct timer_list	poll_timer;
@@ -115,25 +125,16 @@ struct pcmcia_low_level {
 };
 
 
-struct pcmcia_irqs {
-	int sock;
-	int irq;
-	const char *str;
-};
-
 struct soc_pcmcia_timing {
 	unsigned short io;
 	unsigned short mem;
 	unsigned short attr;
 };
 
-extern int soc_pcmcia_request_irqs(struct soc_pcmcia_socket *skt, struct pcmcia_irqs *irqs, int nr);
-extern void soc_pcmcia_free_irqs(struct soc_pcmcia_socket *skt, struct pcmcia_irqs *irqs, int nr);
-extern void soc_pcmcia_disable_irqs(struct soc_pcmcia_socket *skt, struct pcmcia_irqs *irqs, int nr);
-extern void soc_pcmcia_enable_irqs(struct soc_pcmcia_socket *skt, struct pcmcia_irqs *irqs, int nr);
 extern void soc_common_pcmcia_get_timing(struct soc_pcmcia_socket *, struct soc_pcmcia_timing *);
 
-
+void soc_pcmcia_init_one(struct soc_pcmcia_socket *skt,
+	struct pcmcia_low_level *ops, struct device *dev);
 void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt);
 int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt);
 

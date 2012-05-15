@@ -201,6 +201,11 @@ fe_modulation_t fe_con[] = {
 	QAM_64,
 };
 
+enum {
+	PRIORITY_HIGH = 0,	/* High-priority stream */
+	PRIORITY_LOW,	/* Low-priority stream */
+};
+
 /* Standard demodulator functions */
 static struct it913xset set_solo_fe[] = {
 	{PRO_LINK, GPIOH5_EN, {0x01}, 0x01},

@@ -406,18 +406,15 @@ static struct resource pxa_rtc_resources[] = {
 	[1] = {
 		.start  = IRQ_RTC1Hz,
 		.end    = IRQ_RTC1Hz,
+		.name	= "rtc 1Hz",
 		.flags  = IORESOURCE_IRQ,
 	},
 	[2] = {
 		.start  = IRQ_RTCAlrm,
 		.end    = IRQ_RTCAlrm,
+		.name	= "rtc alarm",
 		.flags  = IORESOURCE_IRQ,
 	},
-};
-
-struct platform_device sa1100_device_rtc = {
-	.name		= "sa1100-rtc",
-	.id		= -1,
 };
 
 struct platform_device pxa_device_rtc = {
@@ -425,6 +422,27 @@ struct platform_device pxa_device_rtc = {
 	.id		= -1,
 	.num_resources  = ARRAY_SIZE(pxa_rtc_resources),
 	.resource       = pxa_rtc_resources,
+};
+
+static struct resource sa1100_rtc_resources[] = {
+	{
+		.start  = IRQ_RTC1Hz,
+		.end    = IRQ_RTC1Hz,
+		.name	= "rtc 1Hz",
+		.flags  = IORESOURCE_IRQ,
+	}, {
+		.start  = IRQ_RTCAlrm,
+		.end    = IRQ_RTCAlrm,
+		.name	= "rtc alarm",
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device sa1100_device_rtc = {
+	.name		= "sa1100-rtc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(sa1100_rtc_resources),
+	.resource	= sa1100_rtc_resources,
 };
 
 static struct resource pxa_ac97_resources[] = {

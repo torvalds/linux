@@ -31,8 +31,11 @@
 /*
  * Enable RPC debugging/profiling.
  */
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_SUNRPC_DEBUG
 #define  RPC_DEBUG
+#endif
+#ifdef CONFIG_TRACEPOINTS
+#define RPC_TRACEPOINTS
 #endif
 /* #define  RPC_PROFILE */
 
@@ -47,15 +50,32 @@ extern unsigned int		nlm_debug;
 #endif
 
 #define dprintk(args...)	dfprintk(FACILITY, ## args)
+#define dprintk_rcu(args...)	dfprintk_rcu(FACILITY, ## args)
 
 #undef ifdebug
 #ifdef RPC_DEBUG			
 # define ifdebug(fac)		if (unlikely(rpc_debug & RPCDBG_##fac))
-# define dfprintk(fac, args...)	do { ifdebug(fac) printk(args); } while(0)
+
+# define dfprintk(fac, args...)	\
+	do { \
+		ifdebug(fac) \
+			printk(KERN_DEFAULT args); \
+	} while (0)
+
+# define dfprintk_rcu(fac, args...)	\
+	do { \
+		ifdebug(fac) { \
+			rcu_read_lock(); \
+			printk(KERN_DEFAULT args); \
+			rcu_read_unlock(); \
+		} \
+	} while (0)
+
 # define RPC_IFDEBUG(x)		x
 #else
 # define ifdebug(fac)		if (0)
-# define dfprintk(fac, args...)	do ; while (0)
+# define dfprintk(fac, args...)	do {} while (0)
+# define dfprintk_rcu(fac, args...)	do {} while (0)
 # define RPC_IFDEBUG(x)
 #endif
 

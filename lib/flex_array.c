@@ -23,7 +23,7 @@
 #include <linux/flex_array.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/reciprocal_div.h>
 
 struct flex_array_part {

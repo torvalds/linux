@@ -350,18 +350,7 @@ static struct i2c_driver cy8ctmg110_driver = {
 	.remove		= __devexit_p(cy8ctmg110_remove),
 };
 
-static int __init cy8ctmg110_init(void)
-{
-	return i2c_add_driver(&cy8ctmg110_driver);
-}
-
-static void __exit cy8ctmg110_exit(void)
-{
-	i2c_del_driver(&cy8ctmg110_driver);
-}
-
-module_init(cy8ctmg110_init);
-module_exit(cy8ctmg110_exit);
+module_i2c_driver(cy8ctmg110_driver);
 
 MODULE_AUTHOR("Samuli Konttila <samuli.konttila@aavamobile.com>");
 MODULE_DESCRIPTION("cy8ctmg110 TouchScreen Driver");

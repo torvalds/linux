@@ -147,29 +147,23 @@ struct sh_mobile_lcdc_sys_bus_ops {
 	unsigned long (*read_data)(void *handle);
 };
 
-struct module;
-struct sh_mobile_lcdc_board_cfg {
-	struct module *owner;
-	void *board_data;
-	int (*setup_sys)(void *board_data, void *sys_ops_handle,
+struct sh_mobile_lcdc_panel_cfg {
+	unsigned long width;		/* Panel width in mm */
+	unsigned long height;		/* Panel height in mm */
+	int (*setup_sys)(void *sys_ops_handle,
 			 struct sh_mobile_lcdc_sys_bus_ops *sys_ops);
-	void (*start_transfer)(void *board_data, void *sys_ops_handle,
+	void (*start_transfer)(void *sys_ops_handle,
 			       struct sh_mobile_lcdc_sys_bus_ops *sys_ops);
-	void (*display_on)(void *board_data, struct fb_info *info);
-	void (*display_off)(void *board_data);
-	int (*set_brightness)(void *board_data, int brightness);
-	int (*get_brightness)(void *board_data);
-};
-
-struct sh_mobile_lcdc_lcd_size_cfg { /* width and height of panel in mm */
-	unsigned long width;
-	unsigned long height;
+	void (*display_on)(void);
+	void (*display_off)(void);
 };
 
 /* backlight info */
 struct sh_mobile_lcdc_bl_info {
 	const char *name;
 	int max_brightness;
+	int (*set_brightness)(int brightness);
+	int (*get_brightness)(void);
 };
 
 struct sh_mobile_lcdc_chan_cfg {
@@ -179,13 +173,14 @@ struct sh_mobile_lcdc_chan_cfg {
 	int interface_type; /* selects RGBn or SYSn I/F, see above */
 	int clock_divider;
 	unsigned long flags; /* LCDC_FLAGS_... */
-	const struct fb_videomode *lcd_cfg;
-	int num_cfg;
-	struct sh_mobile_lcdc_lcd_size_cfg lcd_size_cfg;
-	struct sh_mobile_lcdc_board_cfg board_cfg;
+	const struct fb_videomode *lcd_modes;
+	int num_modes;
+	struct sh_mobile_lcdc_panel_cfg panel_cfg;
 	struct sh_mobile_lcdc_bl_info bl_info;
 	struct sh_mobile_lcdc_sys_bus_cfg sys_bus_cfg; /* only for SYSn I/F */
-	struct sh_mobile_meram_cfg *meram_cfg;
+	const struct sh_mobile_meram_cfg *meram_cfg;
+
+	struct platform_device *tx_dev;	/* HDMI/DSI transmitter device */
 };
 
 struct sh_mobile_lcdc_info {

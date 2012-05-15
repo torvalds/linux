@@ -175,7 +175,7 @@ static irqreturn_t samsung_keypad_irq(int irq, void *dev_id)
 
 	} while (key_down && !keypad->stopped);
 
-	pm_runtime_put_sync(&keypad->pdev->dev);
+	pm_runtime_put(&keypad->pdev->dev);
 
 	return IRQ_HANDLED;
 }
@@ -199,7 +199,7 @@ static void samsung_keypad_start(struct samsung_keypad *keypad)
 	/* KEYIFCOL reg clear. */
 	writel(0, keypad->base + SAMSUNG_KEYIFCOL);
 
-	pm_runtime_put_sync(&keypad->pdev->dev);
+	pm_runtime_put(&keypad->pdev->dev);
 }
 
 static void samsung_keypad_stop(struct samsung_keypad *keypad)
@@ -229,7 +229,7 @@ static void samsung_keypad_stop(struct samsung_keypad *keypad)
 	 */
 	enable_irq(keypad->irq);
 
-	pm_runtime_put_sync(&keypad->pdev->dev);
+	pm_runtime_put(&keypad->pdev->dev);
 }
 
 static int samsung_keypad_open(struct input_dev *input_dev)

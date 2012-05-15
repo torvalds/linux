@@ -2280,7 +2280,7 @@ static int __devinit smc_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_release_io;
 #if defined(CONFIG_SA1100_ASSABET)
-	NCR_0 |= NCR_ENET_OSC_EN;
+	neponset_ncr_set(NCR_ENET_OSC_EN);
 #endif
 	platform_set_drvdata(pdev, ndev);
 	ret = smc_enable_device(pdev);

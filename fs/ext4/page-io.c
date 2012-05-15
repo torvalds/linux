@@ -60,7 +60,6 @@ void ext4_ioend_wait(struct inode *inode)
 static void put_io_page(struct ext4_io_page *io_page)
 {
 	if (atomic_dec_and_test(&io_page->p_count)) {
-		end_page_writeback(io_page->p_page);
 		put_page(io_page->p_page);
 		kmem_cache_free(io_page_cachep, io_page);
 	}
@@ -110,6 +109,8 @@ int ext4_end_io_nolock(ext4_io_end_t *io)
 	if (io->iocb)
 		aio_complete(io->iocb, io->result, 0);
 
+	if (io->flag & EXT4_IO_END_DIRECT)
+		inode_dio_done(inode);
 	/* Wake up anyone waiting on unwritten extent conversion */
 	if (atomic_dec_and_test(&EXT4_I(inode)->i_aiodio_unwritten))
 		wake_up_all(ext4_ioend_wq(io->inode));
@@ -127,12 +128,18 @@ static void ext4_end_io_work(struct work_struct *work)
 	unsigned long		flags;
 
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+	if (io->flag & EXT4_IO_END_IN_FSYNC)
+		goto requeue;
 	if (list_empty(&io->list)) {
 		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 		goto free;
 	}
 
 	if (!mutex_trylock(&inode->i_mutex)) {
+		bool was_queued;
+requeue:
+		was_queued = !!(io->flag & EXT4_IO_END_QUEUED);
+		io->flag |= EXT4_IO_END_QUEUED;
 		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 		/*
 		 * Requeue the work instead of waiting so that the work
@@ -145,9 +152,8 @@ static void ext4_end_io_work(struct work_struct *work)
 		 * yield the cpu if it sees an end_io request that has already
 		 * been requeued.
 		 */
-		if (io->flag & EXT4_IO_END_QUEUED)
+		if (was_queued)
 			yield();
-		io->flag |= EXT4_IO_END_QUEUED;
 		return;
 	}
 	list_del_init(&io->list);
@@ -227,9 +233,9 @@ static void ext4_end_bio(struct bio *bio, int error)
 			} while (bh != head);
 		}
 
-		put_io_page(io_end->pages[i]);
+		if (atomic_read(&io_end->pages[i]->p_count) == 1)
+			end_page_writeback(io_end->pages[i]->p_page);
 	}
-	io_end->num_io_pages = 0;
 	inode = io_end->inode;
 
 	if (error) {
@@ -421,6 +427,8 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	 * PageWriteback bit from the page to prevent the system from
 	 * wedging later on.
 	 */
+	if (atomic_read(&io_page->p_count) == 1)
+		end_page_writeback(page);
 	put_io_page(io_page);
 	return ret;
 }

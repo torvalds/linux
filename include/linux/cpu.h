@@ -14,10 +14,11 @@
 #ifndef _LINUX_CPU_H_
 #define _LINUX_CPU_H_
 
-#include <linux/device.h>
 #include <linux/node.h>
 #include <linux/compiler.h>
 #include <linux/cpumask.h>
+
+struct device;
 
 struct cpu {
 	int node_id;		/* The node which contains the CPU */

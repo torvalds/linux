@@ -553,7 +553,6 @@ dino_fixup_bus(struct pci_bus *bus)
 	struct list_head *ln;
         struct pci_dev *dev;
         struct dino_device *dino_dev = DINO_DEV(parisc_walk_tree(bus->bridge));
-	int port_base = HBA_PORT_BASE(dino_dev->hba.hba_num);
 
 	DBG(KERN_WARNING "%s(0x%p) bus %d platform_data 0x%p\n",
 	    __func__, bus, bus->secondary,
@@ -599,8 +598,6 @@ dino_fixup_bus(struct pci_bus *bus)
 
 
 	list_for_each(ln, &bus->devices) {
-		int i;
-
 		dev = pci_dev_b(ln);
 		if (is_card_dino(&dino_dev->hba.dev->id))
 			dino_card_fixup(dev);
@@ -612,21 +609,6 @@ dino_fixup_bus(struct pci_bus *bus)
 		if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)
 			continue;
 
-		/* Adjust the I/O Port space addresses */
-		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-			struct resource *res = &dev->resource[i];
-			if (res->flags & IORESOURCE_IO) {
-				res->start |= port_base;
-				res->end |= port_base;
-			}
-#ifdef __LP64__
-			/* Sign Extend MMIO addresses */
-			else if (res->flags & IORESOURCE_MEM) {
-				res->start |= F_EXTEND(0UL);
-				res->end   |= F_EXTEND(0UL);
-			}
-#endif
-		}
 		/* null out the ROM resource if there is one (we don't
 		 * care about an expansion rom on parisc, since it
 		 * usually contains (x86) bios code) */
@@ -991,11 +973,14 @@ static int __init dino_probe(struct parisc_device *dev)
 
 	dev->dev.platform_data = dino_dev;
 
-	pci_add_resource(&resources, &dino_dev->hba.io_space);
+	pci_add_resource_offset(&resources, &dino_dev->hba.io_space,
+				HBA_PORT_BASE(dino_dev->hba.hba_num));
 	if (dino_dev->hba.lmmio_space.flags)
-		pci_add_resource(&resources, &dino_dev->hba.lmmio_space);
+		pci_add_resource_offset(&resources, &dino_dev->hba.lmmio_space,
+					dino_dev->hba.lmmio_space_offset);
 	if (dino_dev->hba.elmmio_space.flags)
-		pci_add_resource(&resources, &dino_dev->hba.elmmio_space);
+		pci_add_resource_offset(&resources, &dino_dev->hba.elmmio_space,
+					dino_dev->hba.lmmio_space_offset);
 	if (dino_dev->hba.gmmio_space.flags)
 		pci_add_resource(&resources, &dino_dev->hba.gmmio_space);
 

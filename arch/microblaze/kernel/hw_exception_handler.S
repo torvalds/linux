@@ -820,19 +820,26 @@ ex_handler_done:
  *	Upon exit, we reload everything and RFI.
  * A common place to load the TLB.
  */
+.section .data
+.align 4
+.global tlb_skip
+	tlb_skip:
+		.long	MICROBLAZE_TLB_SKIP
 	tlb_index:
-		.long	1 /* MS: storing last used tlb index */
+		/* MS: storing last used tlb index */
+		.long	MICROBLAZE_TLB_SIZE/2
+.previous
 	finish_tlb_load:
 		/* MS: load the last used TLB index. */
 		lwi	r5, r0, TOPHYS(tlb_index)
 		addik	r5, r5, 1 /* MS: inc tlb_index -> use next one */
 
 /* MS: FIXME this is potential fault, because this is mask not count */
-		andi	r5, r5, (MICROBLAZE_TLB_SIZE-1)
+		andi	r5, r5, MICROBLAZE_TLB_SIZE - 1
 		ori	r6, r0, 1
 		cmp	r31, r5, r6
 		blti	r31, ex12
-		addik	r5, r6, 1
+		lwi	r5, r0, TOPHYS(tlb_skip)
 	ex12:
 		/* MS: save back current TLB index */
 		swi	r5, r0, TOPHYS(tlb_index)

@@ -1458,8 +1458,10 @@ qlcnic_reset_context(struct qlcnic_adapter *adapter)
 
 		if (netif_running(netdev)) {
 			err = qlcnic_attach(adapter);
-			if (!err)
+			if (!err) {
 				__qlcnic_up(adapter, netdev);
+				qlcnic_restore_indev_addr(netdev, NETDEV_UP);
+			}
 		}
 
 		netif_device_attach(netdev);

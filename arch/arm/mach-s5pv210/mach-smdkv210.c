@@ -46,6 +46,7 @@
 #include <plat/s5p-time.h>
 #include <plat/backlight.h>
 #include <plat/regs-fb-v4.h>
+#include <plat/mfc.h>
 
 #include "common.h"
 
@@ -140,7 +141,7 @@ static struct dm9000_plat_data smdkv210_dm9000_platdata = {
 	.dev_addr	= { 0x00, 0x09, 0xc0, 0xff, 0xec, 0x48 },
 };
 
-struct platform_device smdkv210_dm9000 = {
+static struct platform_device smdkv210_dm9000 = {
 	.name		= "dm9000",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(smdkv210_dm9000_resources),
@@ -223,6 +224,14 @@ static struct platform_device *smdkv210_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_ts,
 	&s3c_device_wdt,
+	&s5p_device_fimc0,
+	&s5p_device_fimc1,
+	&s5p_device_fimc2,
+	&s5p_device_fimc_md,
+	&s5p_device_jpeg,
+	&s5p_device_mfc,
+	&s5p_device_mfc_l,
+	&s5p_device_mfc_r,
 	&s5pv210_device_ac97,
 	&s5pv210_device_iis0,
 	&s5pv210_device_spdif,
@@ -282,6 +291,11 @@ static void __init smdkv210_map_io(void)
 	s5p_set_timer_source(S5P_PWM2, S5P_PWM4);
 }
 
+static void __init smdkv210_reserve(void)
+{
+	s5p_mfc_reserve_mem(0x43000000, 8 << 20, 0x51000000, 8 << 20);
+}
+
 static void __init smdkv210_machine_init(void)
 {
 	s3c_pm_init();
@@ -319,4 +333,5 @@ MACHINE_START(SMDKV210, "SMDKV210")
 	.init_machine	= smdkv210_machine_init,
 	.timer		= &s5p_timer,
 	.restart	= s5pv210_restart,
+	.reserve	= &smdkv210_reserve,
 MACHINE_END

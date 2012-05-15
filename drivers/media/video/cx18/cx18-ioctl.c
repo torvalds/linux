@@ -1085,8 +1085,6 @@ static int cx18_log_status(struct file *file, void *fh)
 	struct v4l2_audio audin;
 	int i;
 
-	CX18_INFO("=================  START STATUS CARD #%d  "
-		  "=================\n", cx->instance);
 	CX18_INFO("Version: %s  Card: %s\n", CX18_VERSION, cx->card_name);
 	if (cx->hw_flags & CX18_HW_TVEEPROM) {
 		struct tveeprom tv;
@@ -1120,8 +1118,6 @@ static int cx18_log_status(struct file *file, void *fh)
 	CX18_INFO("Read MPEG/VBI: %lld/%lld bytes\n",
 			(long long)cx->mpg_data_received,
 			(long long)cx->vbi_data_inserted);
-	CX18_INFO("==================  END STATUS CARD #%d  "
-		  "==================\n", cx->instance);
 	return 0;
 }
 

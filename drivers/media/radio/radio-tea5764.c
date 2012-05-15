@@ -575,21 +575,7 @@ static struct i2c_driver tea5764_i2c_driver = {
 	.id_table = tea5764_id,
 };
 
-/* init the driver */
-static int __init tea5764_init(void)
-{
-	int ret = i2c_add_driver(&tea5764_i2c_driver);
-
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ": "
-		DRIVER_DESC "\n");
-	return ret;
-}
-
-/* cleanup the driver */
-static void __exit tea5764_exit(void)
-{
-	i2c_del_driver(&tea5764_i2c_driver);
-}
+module_i2c_driver(tea5764_i2c_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -600,6 +586,3 @@ module_param(use_xtal, int, 0);
 MODULE_PARM_DESC(use_xtal, "Chip have a xtal connected in board");
 module_param(radio_nr, int, 0);
 MODULE_PARM_DESC(radio_nr, "video4linux device number to use");
-
-module_init(tea5764_init);
-module_exit(tea5764_exit);

@@ -41,15 +41,29 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 	pm->clock_gate = clk_get(&dev->plat_dev->dev, MFC_GATE_CLK_NAME);
 	if (IS_ERR(pm->clock_gate)) {
 		mfc_err("Failed to get clock-gating control\n");
-		ret = -ENOENT;
+		ret = PTR_ERR(pm->clock_gate);
 		goto err_g_ip_clk;
 	}
+
+	ret = clk_prepare(pm->clock_gate);
+	if (ret) {
+		mfc_err("Failed to preapre clock-gating control\n");
+		goto err_p_ip_clk;
+	}
+
 	pm->clock = clk_get(&dev->plat_dev->dev, MFC_CLKNAME);
 	if (IS_ERR(pm->clock)) {
 		mfc_err("Failed to get MFC clock\n");
-		ret = -ENOENT;
+		ret = PTR_ERR(pm->clock);
 		goto err_g_ip_clk_2;
 	}
+
+	ret = clk_prepare(pm->clock);
+	if (ret) {
+		mfc_err("Failed to prepare MFC clock\n");
+		goto err_p_ip_clk_2;
+	}
+
 	atomic_set(&pm->power, 0);
 #ifdef CONFIG_PM_RUNTIME
 	pm->device = &dev->plat_dev->dev;
@@ -59,7 +73,11 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 	atomic_set(&clk_ref, 0);
 #endif
 	return 0;
+err_p_ip_clk_2:
+	clk_put(pm->clock);
 err_g_ip_clk_2:
+	clk_unprepare(pm->clock_gate);
+err_p_ip_clk:
 	clk_put(pm->clock_gate);
 err_g_ip_clk:
 	return ret;
@@ -67,7 +85,9 @@ err_g_ip_clk:
 
 void s5p_mfc_final_pm(struct s5p_mfc_dev *dev)
 {
+	clk_unprepare(pm->clock_gate);
 	clk_put(pm->clock_gate);
+	clk_unprepare(pm->clock);
 	clk_put(pm->clock);
 #ifdef CONFIG_PM_RUNTIME
 	pm_runtime_disable(pm->device);
