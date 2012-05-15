@@ -83,8 +83,35 @@ DEFINE_TWI_REG(FIFO_CTL, fifo_ctl)
 DEFINE_TWI_REG(FIFO_STAT, fifo_stat)
 DEFINE_TWI_REG(XMT_DATA8, xmt_data8)
 DEFINE_TWI_REG(XMT_DATA16, xmt_data16)
+#if !ANOMALY_05001001
 DEFINE_TWI_REG(RCV_DATA8, rcv_data8)
 DEFINE_TWI_REG(RCV_DATA16, rcv_data16)
+#else
+static inline u16 read_RCV_DATA8(struct bfin_twi_iface *iface)
+{
+	u16 ret;
+	unsigned long flags;
+
+	flags = hard_local_irq_save();
+	ret = iface->regs_base->rcv_data8;
+	hard_local_irq_restore(flags);
+
+	return ret;
+}
+
+static inline u16 read_RCV_DATA16(struct bfin_twi_iface *iface)
+{
+	u16 ret;
+	unsigned long flags;
+
+	flags = hard_local_irq_save();
+	ret = iface->regs_base->rcv_data16;
+	hard_local_irq_restore(flags);
+
+	return ret;
+}
+#endif
+
 
 /*  ********************  TWO-WIRE INTERFACE (TWI) MASKS  ***********************/
 /* TWI_CLKDIV Macros (Use: *pTWI_CLKDIV = CLKLOW(x)|CLKHI(y);  )				*/
