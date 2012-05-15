@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-s5p/dev-mfc.c
- *
+/*
  * Copyright (C) 2010-2011 Samsung Electronics Co.Ltd
  *
  * Base S5P MFC resource and device definitions
@@ -8,7 +7,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
