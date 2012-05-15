@@ -24,6 +24,8 @@
  *		Fixed routing subtrees.
  */
 
+#define pr_fmt(fmt) "IPv6: " fmt
+
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/export.h>
@@ -794,7 +796,7 @@ static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort,
 				goto retry;
 			}
 
-			net_warn_ratelimited("ipv6: Neighbour table overflow\n");
+			net_warn_ratelimited("Neighbour table overflow\n");
 			dst_free(&rt->dst);
 			return NULL;
 		}
@@ -1280,7 +1282,7 @@ int ip6_route_add(struct fib6_config *cfg)
 	    !(cfg->fc_nlinfo.nlh->nlmsg_flags & NLM_F_CREATE)) {
 		table = fib6_get_table(net, cfg->fc_table);
 		if (!table) {
-			printk(KERN_WARNING "IPv6: NLM_F_CREATE should be specified when creating new route\n");
+			pr_warn("NLM_F_CREATE should be specified when creating new route\n");
 			table = fib6_new_table(net, cfg->fc_table);
 		}
 	} else {
@@ -2102,7 +2104,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	int err;
 
 	if (!rt) {
-		net_warn_ratelimited("IPv6:  Maximum number of routes reached, consider increasing route/max_size\n");
+		net_warn_ratelimited("Maximum number of routes reached, consider increasing route/max_size\n");
 		return ERR_PTR(-ENOMEM);
 	}
 

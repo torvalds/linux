@@ -266,7 +266,7 @@ static struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
 		case ND_OPT_REDIRECT_HDR:
 			if (ndopts->nd_opt_array[nd_opt->nd_opt_type]) {
 				ND_PRINTK2(KERN_WARNING
-					   "%s(): duplicated ND6 option found: type=%d\n",
+					   "%s: duplicated ND6 option found: type=%d\n",
 					   __func__,
 					   nd_opt->nd_opt_type);
 			} else {
@@ -297,7 +297,7 @@ static struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
 				 * protocol.
 				 */
 				ND_PRINTK2(KERN_NOTICE
-					   "%s(): ignored unsupported option; type=%d, len=%d\n",
+					   "%s: ignored unsupported option; type=%d, len=%d\n",
 					   __func__,
 					   nd_opt->nd_opt_type, nd_opt->nd_opt_len);
 			}
@@ -459,7 +459,7 @@ struct sk_buff *ndisc_build_skb(struct net_device *dev,
 				  1, &err);
 	if (!skb) {
 		ND_PRINTK0(KERN_ERR
-			   "ICMPv6 ND: %s() failed to allocate an skb, err=%d.\n",
+			   "ICMPv6 ND: %s failed to allocate an skb, err=%d.\n",
 			   __func__, err);
 		return NULL;
 	}
@@ -696,7 +696,7 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 
 	if ((probes -= neigh->parms->ucast_probes) < 0) {
 		if (!(neigh->nud_state & NUD_VALID)) {
-			ND_PRINTK1(KERN_DEBUG "%s(): trying to ucast probe in NUD_INVALID: %pI6\n",
+			ND_PRINTK1(KERN_DEBUG "%s: trying to ucast probe in NUD_INVALID: %pI6\n",
 				   __func__, target);
 		}
 		ndisc_send_ns(dev, neigh, target, target, saddr);
@@ -1230,7 +1230,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		neigh = dst_neigh_lookup(&rt->dst, &ipv6_hdr(skb)->saddr);
 		if (!neigh) {
 			ND_PRINTK0(KERN_ERR
-				   "ICMPv6 RA: %s() got default router without neighbour.\n",
+				   "ICMPv6 RA: %s got default router without neighbour.\n",
 				   __func__);
 			dst_release(&rt->dst);
 			return;
@@ -1248,7 +1248,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		rt = rt6_add_dflt_router(&ipv6_hdr(skb)->saddr, skb->dev, pref);
 		if (rt == NULL) {
 			ND_PRINTK0(KERN_ERR
-				   "ICMPv6 RA: %s() failed to add default route.\n",
+				   "ICMPv6 RA: %s failed to add default route.\n",
 				   __func__);
 			return;
 		}
@@ -1256,7 +1256,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		neigh = dst_neigh_lookup(&rt->dst, &ipv6_hdr(skb)->saddr);
 		if (neigh == NULL) {
 			ND_PRINTK0(KERN_ERR
-				   "ICMPv6 RA: %s() got default router without neighbour.\n",
+				   "ICMPv6 RA: %s got default router without neighbour.\n",
 				   __func__);
 			dst_release(&rt->dst);
 			return;
@@ -1605,7 +1605,7 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 				   1, &err);
 	if (buff == NULL) {
 		ND_PRINTK0(KERN_ERR
-			   "ICMPv6 Redirect: %s() failed to allocate an skb, err=%d.\n",
+			   "ICMPv6 Redirect: %s failed to allocate an skb, err=%d.\n",
 			   __func__, err);
 		goto release;
 	}
@@ -1767,11 +1767,7 @@ static void ndisc_warn_deprecated_sysctl(struct ctl_table *ctl,
 	static int warned;
 	if (strcmp(warncomm, current->comm) && warned < 5) {
 		strcpy(warncomm, current->comm);
-		printk(KERN_WARNING
-			"process `%s' is using deprecated sysctl (%s) "
-			"net.ipv6.neigh.%s.%s; "
-			"Use net.ipv6.neigh.%s.%s_ms "
-			"instead.\n",
+		pr_warn("process `%s' is using deprecated sysctl (%s) net.ipv6.neigh.%s.%s - use net.ipv6.neigh.%s.%s_ms instead\n",
 			warncomm, func,
 			dev_name, ctl->procname,
 			dev_name, ctl->procname);

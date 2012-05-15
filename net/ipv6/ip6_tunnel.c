@@ -18,6 +18,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
@@ -836,15 +838,12 @@ static inline int ip6_tnl_xmit_ctl(struct ip6_tnl *t)
 			ldev = dev_get_by_index_rcu(net, p->link);
 
 		if (unlikely(!ipv6_chk_addr(net, &p->laddr, ldev, 0)))
-			printk(KERN_WARNING
-			       "%s xmit: Local address not yet configured!\n",
-			       p->name);
+			pr_warn("%s xmit: Local address not yet configured!\n",
+				p->name);
 		else if (!ipv6_addr_is_multicast(&p->raddr) &&
 			 unlikely(ipv6_chk_addr(net, &p->raddr, NULL, 0)))
-			printk(KERN_WARNING
-			       "%s xmit: Routing loop! "
-			       "Remote address found on this node!\n",
-			       p->name);
+			pr_warn("%s xmit: Routing loop! Remote address found on this node!\n",
+				p->name);
 		else
 			ret = 1;
 		rcu_read_unlock();
@@ -1542,13 +1541,13 @@ static int __init ip6_tunnel_init(void)
 
 	err = xfrm6_tunnel_register(&ip4ip6_handler, AF_INET);
 	if (err < 0) {
-		printk(KERN_ERR "ip6_tunnel init: can't register ip4ip6\n");
+		pr_err("%s: can't register ip4ip6\n", __func__);
 		goto out_ip4ip6;
 	}
 
 	err = xfrm6_tunnel_register(&ip6ip6_handler, AF_INET6);
 	if (err < 0) {
-		printk(KERN_ERR "ip6_tunnel init: can't register ip6ip6\n");
+		pr_err("%s: can't register ip6ip6\n", __func__);
 		goto out_ip6ip6;
 	}
 
@@ -1569,10 +1568,10 @@ out_pernet:
 static void __exit ip6_tunnel_cleanup(void)
 {
 	if (xfrm6_tunnel_deregister(&ip4ip6_handler, AF_INET))
-		printk(KERN_INFO "ip6_tunnel close: can't deregister ip4ip6\n");
+		pr_info("%s: can't deregister ip4ip6\n", __func__);
 
 	if (xfrm6_tunnel_deregister(&ip6ip6_handler, AF_INET6))
-		printk(KERN_INFO "ip6_tunnel close: can't deregister ip6ip6\n");
+		pr_info("%s: can't deregister ip6ip6\n", __func__);
 
 	unregister_pernet_device(&ip6_tnl_net_ops);
 }

@@ -350,7 +350,7 @@ static int __net_init ip6addrlbl_net_init(struct net *net)
 	int err = 0;
 	int i;
 
-	ADDRLABEL(KERN_DEBUG "%s()\n", __func__);
+	ADDRLABEL(KERN_DEBUG "%s\n", __func__);
 
 	for (i = 0; i < ARRAY_SIZE(ip6addrlbl_init_table); i++) {
 		int ret = ip6addrlbl_add(net,

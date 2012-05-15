@@ -24,6 +24,8 @@
  * 	This file is derived from net/ipv4/esp.c
  */
 
+#define pr_fmt(fmt) "IPv6: " fmt
+
 #include <crypto/aead.h>
 #include <crypto/authenc.h>
 #include <linux/err.h>
@@ -651,11 +653,11 @@ static const struct inet6_protocol esp6_protocol = {
 static int __init esp6_init(void)
 {
 	if (xfrm_register_type(&esp6_type, AF_INET6) < 0) {
-		printk(KERN_INFO "ipv6 esp init: can't add xfrm type\n");
+		pr_info("%s: can't add xfrm type\n", __func__);
 		return -EAGAIN;
 	}
 	if (inet6_add_protocol(&esp6_protocol, IPPROTO_ESP) < 0) {
-		printk(KERN_INFO "ipv6 esp init: can't add protocol\n");
+		pr_info("%s: can't add protocol\n", __func__);
 		xfrm_unregister_type(&esp6_type, AF_INET6);
 		return -EAGAIN;
 	}
@@ -666,9 +668,9 @@ static int __init esp6_init(void)
 static void __exit esp6_fini(void)
 {
 	if (inet6_del_protocol(&esp6_protocol, IPPROTO_ESP) < 0)
-		printk(KERN_INFO "ipv6 esp close: can't remove protocol\n");
+		pr_info("%s: can't remove protocol\n", __func__);
 	if (xfrm_unregister_type(&esp6_type, AF_INET6) < 0)
-		printk(KERN_INFO "ipv6 esp close: can't remove xfrm type\n");
+		pr_info("%s: can't remove xfrm type\n", __func__);
 }
 
 module_init(esp6_init);

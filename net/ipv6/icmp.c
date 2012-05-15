@@ -29,6 +29,8 @@
  *	Kazunori MIYAZAWA @USAGI:       change output process to use ip6_append_data
  */
 
+#define pr_fmt(fmt) "IPv6: " fmt
+
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -820,9 +822,7 @@ static int __net_init icmpv6_sk_init(struct net *net)
 		err = inet_ctl_sock_create(&sk, PF_INET6,
 					   SOCK_RAW, IPPROTO_ICMPV6, net);
 		if (err < 0) {
-			printk(KERN_ERR
-			       "Failed to initialize the ICMP6 control socket "
-			       "(err %d).\n",
+			pr_err("Failed to initialize the ICMP6 control socket (err %d)\n",
 			       err);
 			goto fail;
 		}
@@ -881,7 +881,7 @@ int __init icmpv6_init(void)
 	return 0;
 
 fail:
-	printk(KERN_ERR "Failed to register ICMP6 protocol\n");
+	pr_err("Failed to register ICMP6 protocol\n");
 	unregister_pernet_subsys(&icmpv6_sk_ops);
 	return err;
 }
