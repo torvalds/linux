@@ -91,7 +91,7 @@ void (*board_nmi_handler_setup)(void);
 void (*board_ejtag_handler_setup)(void);
 void (*board_bind_eic_interrupt)(int irq, int regset);
 void (*board_ebase_setup)(void);
-
+void __cpuinitdata(*board_cache_error_setup)(void);
 
 static void show_raw_backtrace(unsigned long reg29)
 {
@@ -1796,6 +1796,9 @@ void __init trap_init(void)
 		set_except_vector(25, handle_mt);
 
 	set_except_vector(26, handle_dsp);
+
+	if (board_cache_error_setup)
+		board_cache_error_setup();
 
 	if (cpu_has_vce)
 		/* Special exception: R4[04]00 uses also the divec space. */
