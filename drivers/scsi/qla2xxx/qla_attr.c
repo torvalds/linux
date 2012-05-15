@@ -1105,9 +1105,8 @@ qla2x00_total_isp_aborts_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
-	struct qla_hw_data *ha = vha->hw;
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-	    ha->qla_stats.total_isp_aborts);
+	    vha->qla_stats.total_isp_aborts);
 }
 
 static ssize_t
@@ -1537,7 +1536,7 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	dma_addr_t stats_dma;
 	struct fc_host_statistics *pfc_host_stat;
 
-	pfc_host_stat = &ha->fc_host_stat;
+	pfc_host_stat = &vha->fc_host_stat;
 	memset(pfc_host_stat, -1, sizeof(struct fc_host_statistics));
 
 	if (test_bit(UNLOADING, &vha->dpc_flags))
@@ -1580,8 +1579,8 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 		pfc_host_stat->dumped_frames = stats->dumped_frames;
 		pfc_host_stat->nos_count = stats->nos_rcvd;
 	}
-	pfc_host_stat->fcp_input_megabytes = ha->qla_stats.input_bytes >> 20;
-	pfc_host_stat->fcp_output_megabytes = ha->qla_stats.output_bytes >> 20;
+	pfc_host_stat->fcp_input_megabytes = vha->qla_stats.input_bytes >> 20;
+	pfc_host_stat->fcp_output_megabytes = vha->qla_stats.output_bytes >> 20;
 
 done_free:
         dma_pool_free(ha->s_dma_pool, stats, stats_dma);

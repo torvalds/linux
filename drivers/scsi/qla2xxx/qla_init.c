@@ -3841,7 +3841,7 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 		vha->flags.online = 0;
 	ha->flags.chip_reset_done = 0;
 	clear_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-	ha->qla_stats.total_isp_aborts++;
+	vha->qla_stats.total_isp_aborts++;
 
 	ql_log(ql_log_info, vha, 0x00af,
 	    "Performing ISP error recovery - ha=%p.\n", ha);

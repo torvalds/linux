@@ -2804,7 +2804,6 @@ struct qla_hw_data {
 					/* ISP2322: red, green, amber. */
 	uint16_t        zio_mode;
 	uint16_t        zio_timer;
-	struct fc_host_statistics fc_host_stat;
 
 	struct qla_msix_entry *msix_entries;
 
@@ -2817,7 +2816,6 @@ struct qla_hw_data {
 	int             cur_vport_count;
 
 	struct qla_chip_state_84xx *cs84xx;
-	struct qla_statistics qla_stats;
 	struct isp_operations *isp_ops;
 	struct workqueue_struct *wq;
 	struct qlfc_fw fw_buf;
@@ -2979,6 +2977,8 @@ typedef struct scsi_qla_host {
 	struct req_que *req;
 	int		fw_heartbeat_counter;
 	int		seconds_since_last_heartbeat;
+	struct fc_host_statistics fc_host_stat;
+	struct qla_statistics qla_stats;
 
 	atomic_t	vref_count;
 } scsi_qla_host_t;

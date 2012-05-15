@@ -23,18 +23,17 @@ qla2x00_get_cmd_direction(srb_t *sp)
 {
 	uint16_t cflags;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
+	struct scsi_qla_host *vha = sp->fcport->vha;
 
 	cflags = 0;
 
 	/* Set transfer direction */
 	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
 		cflags = CF_WRITE;
-		sp->fcport->vha->hw->qla_stats.output_bytes +=
-		    scsi_bufflen(cmd);
+		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
 	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cflags = CF_READ;
-		sp->fcport->vha->hw->qla_stats.input_bytes +=
-		    scsi_bufflen(cmd);
+		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
 	}
 	return (cflags);
 }
@@ -630,11 +629,11 @@ qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
 		cmd_pkt->control_flags =
 		    __constant_cpu_to_le16(CF_WRITE_DATA);
-		ha->qla_stats.output_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
 	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cmd_pkt->control_flags =
 		    __constant_cpu_to_le16(CF_READ_DATA);
-		ha->qla_stats.input_bytes += scsi_bufflen(cmd);
+		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
 	}
 
 	cur_seg = scsi_sglist(cmd);
@@ -746,13 +745,11 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
 		cmd_pkt->task_mgmt_flags =
 		    __constant_cpu_to_le16(TMF_WRITE_DATA);
-		sp->fcport->vha->hw->qla_stats.output_bytes +=
-		    scsi_bufflen(cmd);
+		vha->qla_stats.output_bytes += scsi_bufflen(cmd);
 	} else if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		cmd_pkt->task_mgmt_flags =
 		    __constant_cpu_to_le16(TMF_READ_DATA);
-		sp->fcport->vha->hw->qla_stats.input_bytes +=
-		    scsi_bufflen(cmd);
+		vha->qla_stats.input_bytes += scsi_bufflen(cmd);
 	}
 
 	/* One DSD is available in the Command Type 3 IOCB */
