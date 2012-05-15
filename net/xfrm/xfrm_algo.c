@@ -752,3 +752,5 @@ void *pskb_put(struct sk_buff *skb, struct sk_buff *tail, int len)
 }
 EXPORT_SYMBOL_GPL(pskb_put);
 #endif
+
+MODULE_LICENSE("GPL");
