@@ -39,7 +39,7 @@
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
 #include <linux/clk.h>
-
+#include <linux/mfd/tlv320aic3262-registers.h>
 #include "../codecs/tlv320aic326x.h"
 
 #if 0
@@ -278,19 +278,151 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 	
-	return 0;
+	return ret;
 }
 
 static int rk29_aif2_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-	return 0;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	unsigned int pll_out = 0; 
+	int div_bclk,div_mclk;
+	int ret;	
+
+	DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
+
+	/* set codec DAI configuration */
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
+			SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_CBM_CFM);
+	if (ret < 0)
+	{
+		printk("%s: snd_soc_dai_set_fmt err =%d\n",__FUNCTION__,ret);
+		return ret;
+	}
+	switch(params_rate(params)) {
+		case 8000:
+		case 16000:
+		case 24000:
+		case 32000:
+		case 48000:
+			pll_out = 12288000;
+			break;
+		case 11025:
+		case 22050:
+		case 44100:
+			pll_out = 11289600;
+			break;
+		default:
+			DBG("Enter:%s, %d, Error rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
+			return -EINVAL;
+	}
+		
+	div_bclk=(pll_out/4)/params_rate(params)-1;
+	div_mclk=3;
+	
+	DBG_AIC3262(" %s, pll_out=%d, div_bclk=%d, div_mclk=%d\n",__FUNCTION__,pll_out,div_bclk,div_mclk);
+	
+	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+	if(ret < 0)
+	{
+		DBG("rk29_hw_params_aic3262:failed to set the cpu sysclk for codec side\n"); 
+		return ret;
+	}
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, div_bclk);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
+	DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));
+
+	/* set the codec system clock */
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, 0);
+	if (ret < 0)
+	{
+		printk("%s: snd_soc_dai_set_sysclk err =%d\n",__FUNCTION__,ret);
+		return ret;
+	}
+
+	/* set the codec FLL */
+	ret = snd_soc_dai_set_pll(codec_dai, 0, AIC3262_PLL_CLKIN_MCLK1 , pll_out, 8000*256);
+	if (ret < 0)
+	{
+		printk("%s: snd_soc_dai_set_pll err =%d\n",__FUNCTION__,ret);
+		return ret;
+	}
+
+	return ret;
 }
 
 static int rk29_aif3_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-	return 0;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	unsigned int pll_out = 0; 
+	int div_bclk,div_mclk;
+	int ret;	
+
+	DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
+
+	/* set codec DAI configuration */
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
+			SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_CBM_CFM);
+	if (ret < 0)
+	{
+		printk("%s: snd_soc_dai_set_fmt err =%d\n",__FUNCTION__,ret);
+		return ret;
+	}
+	switch(params_rate(params)) {
+		case 8000:
+		case 16000:
+		case 24000:
+		case 32000:
+		case 48000:
+			pll_out = 12288000;
+			break;
+		case 11025:
+		case 22050:
+		case 44100:
+			pll_out = 11289600;
+			break;
+		default:
+			DBG("Enter:%s, %d, Error rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
+			return -EINVAL;
+	}
+		
+	div_bclk=(pll_out/4)/params_rate(params)-1;
+	div_mclk=3;
+	
+	DBG_AIC3262(" %s, pll_out=%d, div_bclk=%d, div_mclk=%d\n",__FUNCTION__,pll_out,div_bclk,div_mclk);
+	
+	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+	if(ret < 0)
+	{
+		DBG("rk29_hw_params_aic3262:failed to set the cpu sysclk for codec side\n"); 
+		return ret;
+	}
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, div_bclk);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
+	DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));
+
+	/* set the codec system clock */
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, 0);
+	if (ret < 0)
+	{
+		printk("%s: snd_soc_dai_set_sysclk err =%d\n",__FUNCTION__,ret);
+		return ret;
+	}
+
+	/* set the codec FLL */
+	ret = snd_soc_dai_set_pll(codec_dai, 0, AIC3262_PLL_CLKIN_MCLK1 , pll_out, 8000*256);
+	if (ret < 0)
+	{
+		printk("%s: snd_soc_dai_set_pll err =%d\n",__FUNCTION__,ret);
+		return ret;
+	}
+
+	return ret;
 }
 
 static struct snd_soc_ops rk29_aif1_ops = {
