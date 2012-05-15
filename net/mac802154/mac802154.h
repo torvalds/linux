@@ -95,4 +95,7 @@ extern struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced;
 netdev_tx_t mac802154_tx(struct mac802154_priv *priv, struct sk_buff *skb,
 			 u8 page, u8 chan);
 
+/* MIB callbacks */
+void mac802154_dev_set_ieee_addr(struct net_device *dev);
+
 #endif /* MAC802154_H */
