@@ -19,23 +19,11 @@ config C6X
 config MMU
 	def_bool n
 
-config ZONE_DMA
-	def_bool y
-
 config FPU
-	def_bool n
-
-config HIGHMEM
-	def_bool n
-
-config NUMA
 	def_bool n
 
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
-
-config RWSEM_XCHGADD_ALGORITHM
-	def_bool n
 
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
