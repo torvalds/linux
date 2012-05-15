@@ -3152,14 +3152,13 @@ static void rem_slave_eqs(struct mlx4_dev *dev, int slave)
 							   MLX4_CMD_HW2SW_EQ,
 							   MLX4_CMD_TIME_CLASS_A,
 							   MLX4_CMD_NATIVE);
-					mlx4_dbg(dev, "rem_slave_eqs: failed"
-						 " to move slave %d eqs %d to"
-						 " SW ownership\n", slave, eqn);
+					if (err)
+						mlx4_dbg(dev, "rem_slave_eqs: failed"
+							 " to move slave %d eqs %d to"
+							 " SW ownership\n", slave, eqn);
 					mlx4_free_cmd_mailbox(dev, mailbox);
-					if (!err) {
-						atomic_dec(&eq->mtt->ref_count);
-						state = RES_EQ_RESERVED;
-					}
+					atomic_dec(&eq->mtt->ref_count);
+					state = RES_EQ_RESERVED;
 					break;
 
 				default:
