@@ -3857,4 +3857,15 @@ do {						\
 } while (0)
 #endif
 
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
+#define ibss_vdbg(fmt, ...)			\
+	pr_debug(fmt, ##__VA_ARGS__)
+#else
+#define ibss_vdbg(fmt, ...)			\
+do {						\
+	if (0)					\
+		pr_debug(fmt, ##__VA_ARGS__);	\
+} while (0)
+#endif
+
 #endif /* MAC80211_H */
