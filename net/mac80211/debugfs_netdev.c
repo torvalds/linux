@@ -685,6 +685,6 @@ void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)
 
 	sprintf(buf, "netdev:%s", sdata->name);
 	if (!debugfs_rename(dir->d_parent, dir, dir->d_parent, buf))
-		printk(KERN_ERR "mac80211: debugfs: failed to rename debugfs "
+		pr_err("mac80211: debugfs: failed to rename debugfs "
 		       "dir to %s\n", buf);
 }

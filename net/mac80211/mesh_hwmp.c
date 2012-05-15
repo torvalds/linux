@@ -15,7 +15,7 @@
 
 #ifdef CONFIG_MAC80211_VERBOSE_MHWMP_DEBUG
 #define mhwmp_dbg(fmt, args...) \
-	printk(KERN_DEBUG "Mesh HWMP (%s): " fmt "\n", sdata->name, ##args)
+	pr_debug("Mesh HWMP (%s): " fmt "\n", sdata->name, ##args)
 #else
 #define mhwmp_dbg(fmt, args...)   do { (void)(0); } while (0)
 #endif

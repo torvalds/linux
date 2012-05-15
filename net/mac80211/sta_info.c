@@ -333,9 +333,8 @@ static int sta_info_insert_drv_state(struct ieee80211_local *local,
 	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-		printk(KERN_DEBUG
-		       "%s: failed to move IBSS STA %pM to state %d (%d) - keeping it anyway.\n",
-		       sdata->name, sta->sta.addr, state + 1, err);
+		pr_debug("%s: failed to move IBSS STA %pM to state %d (%d) - keeping it anyway\n",
+			 sdata->name, sta->sta.addr, state + 1, err);
 		err = 0;
 	}
 
@@ -619,8 +618,7 @@ static bool sta_info_cleanup_expire_buffered_ac(struct ieee80211_local *local,
 
 		local->total_ps_buffered--;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "Buffered frame expired (STA %pM)\n",
-		       sta->sta.addr);
+		pr_debug("Buffered frame expired (STA %pM)\n", sta->sta.addr);
 #endif
 		dev_kfree_skb(skb);
 	}
@@ -890,8 +888,8 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 
 		if (time_after(jiffies, sta->last_rx + exp_time)) {
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
-			printk(KERN_DEBUG "%s: expiring inactive STA %pM\n",
-			       sdata->name, sta->sta.addr);
+			pr_debug("%s: expiring inactive STA %pM\n",
+				 sdata->name, sta->sta.addr);
 #endif
 			WARN_ON(__sta_info_destroy(sta));
 		}
@@ -991,9 +989,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	sta_info_recalc_tim(sta);
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	printk(KERN_DEBUG "%s: STA %pM aid %d sending %d filtered/%d PS frames "
-	       "since STA not sleeping anymore\n", sdata->name,
-	       sta->sta.addr, sta->sta.aid, filtered, buffered);
+	pr_debug("%s: STA %pM aid %d sending %d filtered/%d PS frames since STA not sleeping anymore\n",
+		 sdata->name, sta->sta.addr, sta->sta.aid, filtered, buffered);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 }
 
@@ -1385,8 +1382,8 @@ int sta_info_move_state(struct sta_info *sta,
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: moving STA %pM to state %d\n",
-		sta->sdata->name, sta->sta.addr, new_state);
+	pr_debug("%s: moving STA %pM to state %d\n",
+		 sta->sdata->name, sta->sta.addr, new_state);
 #endif
 
 	/*

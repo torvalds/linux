@@ -19,7 +19,7 @@
 #include "mesh.h"
 
 #ifdef CONFIG_MAC80211_VERBOSE_MPATH_DEBUG
-#define mpath_dbg(fmt, args...)	printk(KERN_DEBUG fmt, ##args)
+#define mpath_dbg(fmt, args...)	pr_debug(fmt, ##args)
 #else
 #define mpath_dbg(fmt, args...)	do { (void)(0); } while (0)
 #endif

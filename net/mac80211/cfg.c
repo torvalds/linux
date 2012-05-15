@@ -2679,7 +2679,7 @@ static int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		return -EINVAL;
 
 #ifdef CONFIG_MAC80211_VERBOSE_TDLS_DEBUG
-	printk(KERN_DEBUG "TDLS mgmt action %d peer %pM\n", action_code, peer);
+	pr_debug("TDLS mgmt action %d peer %pM\n", action_code, peer);
 #endif
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
@@ -2790,7 +2790,7 @@ static int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		return -EINVAL;
 
 #ifdef CONFIG_MAC80211_VERBOSE_TDLS_DEBUG
-	printk(KERN_DEBUG "TDLS oper %d peer %pM\n", oper, peer);
+	pr_debug("TDLS oper %d peer %pM\n", oper, peer);
 #endif
 
 	switch (oper) {

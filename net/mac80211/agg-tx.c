@@ -185,8 +185,8 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 	spin_unlock_bh(&sta->lock);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Tx BA session stop requested for %pM tid %u\n",
-	       sta->sta.addr, tid);
+	pr_debug("Tx BA session stop requested for %pM tid %u\n",
+		 sta->sta.addr, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	del_timer_sync(&tid_tx->addba_resp_timer);
@@ -254,15 +254,14 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 	    test_bit(HT_AGG_STATE_RESPONSE_RECEIVED, &tid_tx->state)) {
 		rcu_read_unlock();
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "timer expired on tid %d but we are not "
-				"(or no longer) expecting addBA response there\n",
-			tid);
+		pr_debug("timer expired on tid %d but we are not (or no longer) expecting addBA response there\n",
+			 tid);
 #endif
 		return;
 	}
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "addBA response timer expired on tid %d\n", tid);
+	pr_debug("addBA response timer expired on tid %d\n", tid);
 #endif
 
 	ieee80211_stop_tx_ba_session(&sta->sta, tid);
@@ -373,8 +372,8 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 			       &sta->sta, tid, &start_seq_num, 0);
 	if (ret) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "BA request denied - HW unavailable for"
-					" tid %d\n", tid);
+		pr_debug("BA request denied - HW unavailable for tid %d\n",
+			 tid);
 #endif
 		spin_lock_bh(&sta->lock);
 		ieee80211_agg_splice_packets(sdata, tid_tx, tid);
@@ -389,7 +388,7 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	/* activate the timer for the recipient's addBA response */
 	mod_timer(&tid_tx->addba_resp_timer, jiffies + ADDBA_RESP_INTERVAL);
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "activated addBA response timer on tid %d\n", tid);
+	pr_debug("activated addBA response timer on tid %d\n", tid);
 #endif
 
 	spin_lock_bh(&sta->lock);
@@ -438,7 +437,7 @@ static void sta_tx_agg_session_timer_expired(unsigned long data)
 	rcu_read_unlock();
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "tx session timer expired on tid %d\n", (u16)*ptid);
+	pr_debug("tx session timer expired on tid %d\n", (u16)*ptid);
 #endif
 
 	ieee80211_stop_tx_ba_session(&sta->sta, *ptid);
@@ -464,8 +463,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 		return -EINVAL;
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Open BA session requested for %pM tid %u\n",
-	       pubsta->addr, tid);
+	pr_debug("Open BA session requested for %pM tid %u\n",
+		 pubsta->addr, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
@@ -477,8 +476,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 
 	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "BA sessions blocked. "
-		       "Denying BA session request\n");
+		pr_debug("BA sessions blocked - Denying BA session request\n");
 #endif
 		return -EINVAL;
 	}
@@ -498,8 +496,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	if (sta->sdata->vif.type == NL80211_IFTYPE_ADHOC &&
 	    !sta->sta.ht_cap.ht_supported) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "BA request denied - IBSS STA %pM"
-		       "does not advertise HT support\n", pubsta->addr);
+		pr_debug("BA request denied - IBSS STA %pM does not advertise HT support\n",
+			 pubsta->addr);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 		return -EINVAL;
 	}
@@ -521,10 +519,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	    time_before(jiffies, sta->ampdu_mlme.last_addba_req_time[tid] +
 			HT_AGG_RETRIES_PERIOD)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "BA request denied - "
-		       "waiting a grace period after %d failed requests "
-		       "on tid %u\n",
-		       sta->ampdu_mlme.addba_req_num[tid], tid);
+		pr_debug("BA request denied - waiting a grace period after %d failed requests on tid %u\n",
+			 sta->ampdu_mlme.addba_req_num[tid], tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 		ret = -EBUSY;
 		goto err_unlock_sta;
@@ -534,8 +530,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	/* check if the TID is not in aggregation flow already */
 	if (tid_tx || sta->ampdu_mlme.tid_start_tx[tid]) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "BA request denied - session is not "
-				 "idle on tid %u\n", tid);
+		pr_debug("BA request denied - session is not idle on tid %u\n",
+			 tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 		ret = -EAGAIN;
 		goto err_unlock_sta;
@@ -592,7 +588,7 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Aggregation is on for tid %d\n", tid);
+	pr_debug("Aggregation is on for tid %d\n", tid);
 #endif
 
 	drv_ampdu_action(local, sta->sdata,
@@ -628,8 +624,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 
 	if (tid >= STA_TID_NUM) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "Bad TID value: tid = %d (>= %d)\n",
-				tid, STA_TID_NUM);
+		pr_debug("Bad TID value: tid = %d (>= %d)\n", tid, STA_TID_NUM);
 #endif
 		return;
 	}
@@ -639,7 +634,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 	if (!sta) {
 		mutex_unlock(&local->sta_mtx);
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "Could not find station: %pM\n", ra);
+		pr_debug("Could not find station: %pM\n", ra);
 #endif
 		return;
 	}
@@ -649,7 +644,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 
 	if (WARN_ON(!tid_tx)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "addBA was not requested!\n");
+		pr_debug("addBA was not requested!\n");
 #endif
 		goto unlock;
 	}
@@ -751,15 +746,13 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 
 	if (tid >= STA_TID_NUM) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "Bad TID value: tid = %d (>= %d)\n",
-				tid, STA_TID_NUM);
+		pr_debug("Bad TID value: tid = %d (>= %d)\n", tid, STA_TID_NUM);
 #endif
 		return;
 	}
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Stopping Tx BA session for %pM tid %d\n",
-	       ra, tid);
+	pr_debug("Stopping Tx BA session for %pM tid %d\n", ra, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	mutex_lock(&local->sta_mtx);
@@ -767,7 +760,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	sta = sta_info_get_bss(sdata, ra);
 	if (!sta) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "Could not find station: %pM\n", ra);
+		pr_debug("Could not find station: %pM\n", ra);
 #endif
 		goto unlock;
 	}
@@ -778,7 +771,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 
 	if (!tid_tx || !test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "unexpected callback to A-MPDU stop\n");
+		pr_debug("unexpected callback to A-MPDU stop\n");
 #endif
 		goto unlock_sta;
 	}
@@ -856,7 +849,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 
 	if (mgmt->u.action.u.addba_resp.dialog_token != tid_tx->dialog_token) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "wrong addBA response token, tid %d\n", tid);
+		pr_debug("wrong addBA response token, tid %d\n", tid);
 #endif
 		goto out;
 	}
@@ -864,7 +857,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 	del_timer_sync(&tid_tx->addba_resp_timer);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "switched off addBA timer for tid %d\n", tid);
+	pr_debug("switched off addBA timer for tid %d\n", tid);
 #endif
 
 	/*
@@ -875,9 +868,8 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 	if (test_bit(HT_AGG_STATE_WANT_STOP, &tid_tx->state) ||
 	    test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG
-		       "got addBA resp for tid %d but we already gave up\n",
-		       tid);
+		pr_debug("got addBA resp for tid %d but we already gave up\n",
+			 tid);
 #endif
 		goto out;
 	}
