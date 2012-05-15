@@ -1836,13 +1836,17 @@ static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan,
 	/* Continuation fragments (no L2CAP header) */
 	frag = &skb_shinfo(skb)->frag_list;
 	while (len) {
+		struct sk_buff *tmp;
+
 		count = min_t(unsigned int, conn->mtu, len);
 
-		*frag = chan->ops->alloc_skb(chan, count,
-					     msg->msg_flags & MSG_DONTWAIT);
+		tmp = chan->ops->alloc_skb(chan, count,
+					   msg->msg_flags & MSG_DONTWAIT);
+		if (IS_ERR(tmp))
+			return PTR_ERR(tmp);
 
-		if (IS_ERR(*frag))
-			return PTR_ERR(*frag);
+		*frag = tmp;
+
 		if (memcpy_fromiovec(skb_put(*frag, count), msg->msg_iov, count))
 			return -EFAULT;
 
