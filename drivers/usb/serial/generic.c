@@ -252,7 +252,7 @@ int usb_serial_generic_write_room(struct tty_struct *tty)
 	room = kfifo_avail(&port->write_fifo);
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	dbg("%s - returns %d", __func__, room);
+	dev_dbg(&port->dev, "%s - returns %d\n", __func__, room);
 	return room;
 }
 
@@ -269,7 +269,7 @@ int usb_serial_generic_chars_in_buffer(struct tty_struct *tty)
 	chars = kfifo_len(&port->write_fifo) + port->tx_bytes;
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	dbg("%s - returns %d", __func__, chars);
+	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
 	return chars;
 }
 
@@ -281,7 +281,8 @@ static int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 	if (!test_and_clear_bit(index, &port->read_urbs_free))
 		return 0;
 
-	dbg("%s - port %d, urb %d", __func__, port->number, index);
+	dev_dbg(&port->dev, "%s - port %d, urb %d\n", __func__,
+		port->number, index);
 
 	res = usb_submit_urb(port->read_urbs[index], mem_flags);
 	if (res) {
@@ -361,10 +362,12 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 	}
 	set_bit(i, &port->read_urbs_free);
 
-	dbg("%s - port %d, urb %d, len %d", __func__, port->number, i,
-							urb->actual_length);
+	dev_dbg(&port->dev, "%s - port %d, urb %d, len %d\n",
+		__func__, port->number, i, urb->actual_length);
+
 	if (urb->status) {
-		dbg("%s - non-zero urb status: %d", __func__, urb->status);
+		dev_dbg(&port->dev, "%s - non-zero urb status: %d\n",
+			__func__, urb->status);
 		return;
 	}
 
@@ -400,7 +403,8 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	if (status) {
-		dbg("%s - non-zero urb status: %d", __func__, status);
+		dev_dbg(&port->dev, "%s - non-zero urb status: %d\n",
+			__func__, status);
 
 		spin_lock_irqsave(&port->lock, flags);
 		kfifo_reset_out(&port->write_fifo);
@@ -485,7 +489,8 @@ void usb_serial_handle_dcd_change(struct usb_serial_port *usb_port,
 {
 	struct tty_port *port = &usb_port->port;
 
-	dbg("%s - port %d, status %d", __func__, usb_port->number, status);
+	dev_dbg(&usb_port->dev, "%s - port %d, status %d\n", __func__,
+		usb_port->number, status);
 
 	if (status)
 		wake_up_interruptible(&port->open_wait);
