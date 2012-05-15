@@ -21,7 +21,7 @@ __s32 Hdmi_hal_video_enable(__bool enable)
 		hdmi_state 			= HDMI_State_Video_config;
 	}
     video_enable = enable;
-    
+
     return 0;
 }
 
@@ -46,7 +46,7 @@ __s32 Hdmi_hal_audio_enable(__u8 mode, __u8 channel)
 	{
 		hdmi_state 			= HDMI_State_Audio_config;
 	}
-	
+
 	audio_info.audio_en     = (channel == 0)?0:1;
 
     return 0;
@@ -121,9 +121,9 @@ __s32 Hdmi_hal_main_task(void)
 }
 
 __s32 Hdmi_hal_init(void)
-{	
+{
     //hdmi_audio_t audio_para;
-    
+
 	hdmi_core_initial();
     audio_info.channel_num  = 2;
 //for audio test

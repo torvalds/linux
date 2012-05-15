@@ -12,7 +12,7 @@ static void LCD_vcc_off(__u32 sel);
 #define LCD_PARA_USE_CONFIG
 
 #ifdef LCD_PARA_USE_CONFIG
-static __u8 g_gamma_tbl[][2] = 
+static __u8 g_gamma_tbl[][2] =
 {
 //{input value, corrected value}
     {0, 0},
@@ -38,13 +38,13 @@ static __u8 g_gamma_tbl[][2] =
 static void LCD_cfg_panel_info(__panel_para_t * info)
 {
     __u32 i = 0, j=0;
-    
+
     memset(info,0,sizeof(__panel_para_t));
 
     info->lcd_x             = 1280;
     info->lcd_y             = 768;
     info->lcd_dclk_freq     = 68;       //MHz
-    
+
     info->lcd_pwm_not_used  = 0;
     info->lcd_pwm_ch        = 0;
     info->lcd_pwm_freq      = 10000;     //Hz
@@ -59,7 +59,7 @@ static void LCD_cfg_panel_info(__panel_para_t * info)
     info->lcd_vt            = 1580;  //vysnc total cycle *2
     info->lcd_hv_vspw       = 0;        //vysnc plus width
 
-    info->lcd_hv_if         = 0;        //0:hv parallel 1:hv serial 
+    info->lcd_hv_if         = 0;        //0:hv parallel 1:hv serial
     info->lcd_hv_smode      = 0;        //0:RGB888 1:CCIR656
     info->lcd_hv_s888_if    = 0;        //serial RGB format
     info->lcd_hv_syuv_if    = 0;        //serial YUV format
@@ -78,7 +78,7 @@ static void LCD_cfg_panel_info(__panel_para_t * info)
     if(info->lcd_gamma_correction_en)
     {
         __u32 items = sizeof(g_gamma_tbl)/2;
-        
+
         for(i=0; i<items-1; i++)
         {
             __u32 num = g_gamma_tbl[i+1][0] - g_gamma_tbl[i][0];
@@ -178,18 +178,18 @@ static void LCD_bl_close(__u32 sel)
 }
 
 #define IIC_SCLB_LOW()	        LCD_GPIO_write(0, 0, 0)
-#define IIC_SCLB_HIGH()	        LCD_GPIO_write(0, 0, 1)		
+#define IIC_SCLB_HIGH()	        LCD_GPIO_write(0, 0, 1)
 
 #define IIC_SDAB_INPUT_SETUP()	LCD_GPIO_set_attr(0, 1, 0)
 #define IIC_SDAB_OUTPUT_SETUP()	LCD_GPIO_set_attr(0, 1, 1)
-#define CHECK_SDAB_HIGH()       LCD_GPIO_read(0, 1)		 
-#define IIC_SDAB_LOW()          LCD_GPIO_write(0, 1, 0)			
-#define IIC_SDAB_HIGH()	        LCD_GPIO_write(0, 1, 1)		
+#define CHECK_SDAB_HIGH()       LCD_GPIO_read(0, 1)
+#define IIC_SDAB_LOW()          LCD_GPIO_write(0, 1, 0)
+#define IIC_SDAB_HIGH()	        LCD_GPIO_write(0, 1, 1)
 
 static __bool i2cB_clock( void )
 {
 	__bool sample = 0;
-	
+
 	IIC_SCLB_HIGH();
 	LCD_delay_us(10) ;
 	IIC_SCLB_LOW();
@@ -286,7 +286,7 @@ static __bool i2cBTransmit(__u8 value)
 		value = value << 1 ;
 		LCD_delay_us(10) ;
 		i2cB_clock() ;
-		
+
 	}
 	return(!i2cB_ack());
 }
@@ -294,7 +294,7 @@ static __bool i2cBTransmit(__u8 value)
 static __bool i2cBTransmitSubAddr(__u8 value)
 {
 	register __u8 i ;
-	
+
 	for ( i=0 ; i<8 ; i++ )
 	{
 		if((value&0x80)==0x80)
@@ -318,22 +318,22 @@ static __bool i2cBLocateSubAddr(__u8 slave_addr, __u8 sub_addr)
 
     for (i=0; i<3; i++)
     {
-        //Start I2C   
+        //Start I2C
         if (i2cBStart())
-        {         
-            //__inf("-------------Start I2C OK-----------\n");  
+        {
+            //__inf("-------------Start I2C OK-----------\n");
             if (i2cBTransmit(slave_addr))
-            {  
-                //__inf("-------------SLAVE ADDR SEND OK-----------\n"); 
+            {
+                //__inf("-------------SLAVE ADDR SEND OK-----------\n");
                 if (i2cBTransmitSubAddr(sub_addr))
-                { 
+                {
                     //__inf("-------------ADDR SEND OK-----------\n");
                     return(1);
                 }
             }
         }
         i2cBStop();
-    }    
+    }
 
     return(0);
 }
@@ -341,7 +341,7 @@ static __bool i2cBLocateSubAddr(__u8 slave_addr, __u8 sub_addr)
 static __bool IIC_Write_forT101(__u8 slave_addr, __u8 sub_addr, __u8 value)
 {
 	if (i2cBLocateSubAddr(slave_addr, sub_addr))
-	{  
+	{
 		if (i2cBTransmit(value))
 		{
 			i2cBStop();
@@ -349,9 +349,9 @@ static __bool IIC_Write_forT101(__u8 slave_addr, __u8 sub_addr, __u8 value)
 			return(1);
 		}
 	}
-	i2cBStop();   
- 
-    __inf("-------------DATA SEND FAIL-----------\n"); 
+	i2cBStop();
+
+    __inf("-------------DATA SEND FAIL-----------\n");
 	return(0);
 }
 
@@ -364,7 +364,7 @@ void i2cREAD(void)
 
     //__inf("-------------IIC_Read_data-----------------\n");
     for ( i=0 ; i<8 ; i++ )
-	{	 
+	{
         value = value << 1;
 
         //i2cB_clock() ;
@@ -378,11 +378,11 @@ void i2cREAD(void)
 
         if(CHECK_SDAB_HIGH())
             value = value + 1;
-    }	
-	  
+    }
+
 	//__inf("-------------read ok----------\n");
 	i2cB_ack();
-	i2cBStop(); 
+	i2cBStop();
 
 }
 
@@ -390,18 +390,18 @@ static __bool IIC_Read_forT101(__u8 slave_addr1, __u8 sub_addr1)
 {
 	if (i2cBLocateSubAddr(slave_addr1, sub_addr1))
     {
-	   i2cREAD() ; 
+	   i2cREAD() ;
 	}
 
     //i2cBLocateSubAddr(slave_addr, sub_addr);
-    //i2cBStop();  
+    //i2cBStop();
 	return(0);
 }
 
 static void  LCD_io_init(__u32 sel)
 {
     __inf("------+++++++++++++lcd init*************\n");
-    
+
     //request SCLB gpio, and output high as default
     LCD_GPIO_request(sel, 0);
     LCD_GPIO_set_attr(sel, 0, 1);
@@ -416,7 +416,7 @@ static void  LCD_io_init(__u32 sel)
 static void  LCD_io_exit(__u32 sel)
 {
     __inf("------+++++++++++++lcd exit*************\n");
-    
+
     //release SCLB gpio
     LCD_GPIO_release(sel, 0);
 
@@ -427,22 +427,22 @@ static void  LCD_io_exit(__u32 sel)
 static void  LCD_open_cmd(__u32 sel)
 {
     __inf("------+++++++++++++into  T201_Initialize*************\n");
-    
-    IIC_Write_forT101(0x6c, 0x2a,0xa2); 
-    IIC_Write_forT101(0x6c, 0x2d,0xc2); 
-    IIC_Write_forT101(0x6c, 0x33,0x03); 
-    IIC_Write_forT101(0x6c, 0x36,0x30); 
-    IIC_Write_forT101(0x6c, 0x46,0x49); 
-    IIC_Write_forT101(0x6c, 0x47,0x92); 
-    IIC_Write_forT101(0x6c, 0x48,0x00); 
-    IIC_Write_forT101(0x6c, 0x5f,0x00); 
-    IIC_Write_forT101(0x6c, 0x60,0xa5); 
-    IIC_Write_forT101(0x6c, 0x61,0x08); 
-    IIC_Write_forT101(0x6c, 0x62,0xff); 
-    IIC_Write_forT101(0x6c, 0x64,0x00); 
-    IIC_Write_forT101(0x6c, 0x80,0x01); 
-    IIC_Write_forT101(0x6c, 0x81,0xe4); 
-    IIC_Write_forT101(0x6c, 0x34,0x01); 
+
+    IIC_Write_forT101(0x6c, 0x2a,0xa2);
+    IIC_Write_forT101(0x6c, 0x2d,0xc2);
+    IIC_Write_forT101(0x6c, 0x33,0x03);
+    IIC_Write_forT101(0x6c, 0x36,0x30);
+    IIC_Write_forT101(0x6c, 0x46,0x49);
+    IIC_Write_forT101(0x6c, 0x47,0x92);
+    IIC_Write_forT101(0x6c, 0x48,0x00);
+    IIC_Write_forT101(0x6c, 0x5f,0x00);
+    IIC_Write_forT101(0x6c, 0x60,0xa5);
+    IIC_Write_forT101(0x6c, 0x61,0x08);
+    IIC_Write_forT101(0x6c, 0x62,0xff);
+    IIC_Write_forT101(0x6c, 0x64,0x00);
+    IIC_Write_forT101(0x6c, 0x80,0x01);
+    IIC_Write_forT101(0x6c, 0x81,0xe4);
+    IIC_Write_forT101(0x6c, 0x34,0x01);
 
     __inf("-------------out  T201_Initialize*************\n");
 }
@@ -458,16 +458,16 @@ static __s32 LCD_user_defined_func(__u32 sel, __u32 para1, __u32 para2, __u32 pa
     switch(para1)
     {
     case 0:
-        IIC_Write_forT101(0x6c, 0x48,0x00); 
+        IIC_Write_forT101(0x6c, 0x48,0x00);
         break;
     case 1:
-        IIC_Write_forT101(0x6c, 0x48,0x03); 
+        IIC_Write_forT101(0x6c, 0x48,0x03);
         break;
     case 2:
-        IIC_Write_forT101(0x6c, 0x36,0x30); 
+        IIC_Write_forT101(0x6c, 0x36,0x30);
         break;
     case 3:
-        IIC_Write_forT101(0x6c, 0x36,0x00); 
+        IIC_Write_forT101(0x6c, 0x36,0x00);
         break;
     default:
         break;
