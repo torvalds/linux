@@ -2499,6 +2499,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 	fcport->loop_id = FC_NO_LOOP_ID;
 	qla2x00_set_fcport_state(fcport, FCS_UNCONFIGURED);
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
+	fcport->scan_state = QLA_FCPORT_SCAN_NONE;
 
 	return fcport;
 }
@@ -2985,13 +2986,6 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 			}
 		}
 
-#define QLA_FCPORT_SCAN		1
-#define QLA_FCPORT_FOUND	2
-
-		list_for_each_entry(fcport, &vha->vp_fcports, list) {
-			fcport->scan_state = QLA_FCPORT_SCAN;
-		}
-
 		rval = qla2x00_find_all_fabric_devs(vha, &new_fcports);
 		if (rval != QLA_SUCCESS)
 			break;
@@ -3007,7 +3001,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 			if ((fcport->flags & FCF_FABRIC_DEVICE) == 0)
 				continue;
 
-			if (fcport->scan_state == QLA_FCPORT_SCAN &&
+			if (fcport->scan_state != QLA_FCPORT_SCAN_FOUND &&
 			    atomic_read(&fcport->state) == FCS_ONLINE) {
 				qla2x00_mark_device_lost(vha, fcport,
 				    ql2xplogiabsentdevice, 0);
@@ -3022,7 +3016,9 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 					    fcport->d_id.b.al_pa);
 					fcport->loop_id = FC_NO_LOOP_ID;
 				}
+				continue;
 			}
+			fcport->scan_state = QLA_FCPORT_SCAN_NONE;
 		}
 
 		/* Starting free loop ID. */
@@ -3277,7 +3273,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 			    WWN_SIZE))
 				continue;
 
-			fcport->scan_state = QLA_FCPORT_FOUND;
+			fcport->scan_state = QLA_FCPORT_SCAN_FOUND;
 
 			found++;
 
