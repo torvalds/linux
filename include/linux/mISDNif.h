@@ -37,7 +37,7 @@
  */
 #define	MISDN_MAJOR_VERSION	1
 #define	MISDN_MINOR_VERSION	1
-#define MISDN_RELEASE		28
+#define MISDN_RELEASE		29
 
 /* primitives for information exchange
  * generell format
@@ -365,6 +365,7 @@ clear_channelmap(u_int nr, u_char *map)
 #define MISDN_CTRL_LOOP			0x0001
 #define MISDN_CTRL_CONNECT		0x0002
 #define MISDN_CTRL_DISCONNECT		0x0004
+#define MISDN_CTRL_RX_BUFFER		0x0008
 #define MISDN_CTRL_PCMCONNECT		0x0010
 #define MISDN_CTRL_PCMDISCONNECT	0x0020
 #define MISDN_CTRL_SETPEER		0x0040
@@ -386,6 +387,12 @@ clear_channelmap(u_int nr, u_char *map)
 #define MISDN_CTRL_HFC_ECHOCAN_OFF 	0x4008
 #define MISDN_CTRL_HFC_WD_INIT		0x4009
 #define MISDN_CTRL_HFC_WD_RESET		0x400A
+
+/* special RX buffer value for MISDN_CTRL_RX_BUFFER request.p1 is the minimum
+ * buffer size request.p2 the maximum. Using  MISDN_CTRL_RX_SIZE_IGNORE will
+ * not change the value, but still read back the actual stetting.
+ */
+#define MISDN_CTRL_RX_SIZE_IGNORE	-1
 
 /* socket options */
 #define MISDN_TIME_STAMP		0x0001

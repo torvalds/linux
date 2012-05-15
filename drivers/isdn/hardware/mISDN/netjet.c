@@ -408,7 +408,7 @@ read_dma(struct tiger_ch *bc, u32 idx, int cnt)
 	}
 
 	if (test_bit(FLG_TRANSPARENT, &bc->bch.Flags)) {
-		recv_Bchannel(&bc->bch, 0);
+		recv_Bchannel(&bc->bch, 0, false);
 		return;
 	}
 
@@ -426,7 +426,7 @@ read_dma(struct tiger_ch *bc, u32 idx, int cnt)
 						     DUMP_PREFIX_OFFSET, p,
 						     stat);
 			}
-			recv_Bchannel(&bc->bch, 0);
+			recv_Bchannel(&bc->bch, 0, false);
 			stat = bchannel_get_rxbuf(&bc->bch, bc->bch.maxlen);
 			if (stat < 0) {
 				pr_warning("%s.B%d: No memory for %d bytes\n",
@@ -758,21 +758,7 @@ nj_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 static int
 channel_bctrl(struct tiger_ch *bc, struct mISDN_ctrl_req *cq)
 {
-	int ret = 0;
-	struct tiger_hw *card  = bc->bch.hw;
-
-	switch (cq->op) {
-	case MISDN_CTRL_GETOP:
-		cq->op = 0;
-		break;
-		/* Nothing implemented yet */
-	case MISDN_CTRL_FILL_EMPTY:
-	default:
-		pr_info("%s: %s unknown Op %x\n", card->name, __func__, cq->op);
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
+	return mISDN_ctrl_bchannel(&bc->bch, cq);
 }
 
 static int
@@ -1006,7 +992,8 @@ setup_instance(struct tiger_hw *card)
 	for (i = 0; i < 2; i++) {
 		card->bc[i].bch.nr = i + 1;
 		set_channelmap(i + 1, card->isac.dch.dev.channelmap);
-		mISDN_initbchannel(&card->bc[i].bch, MAX_DATA_MEM);
+		mISDN_initbchannel(&card->bc[i].bch, MAX_DATA_MEM,
+				   NJ_DMA_RXSIZE >> 1);
 		card->bc[i].bch.hw = card;
 		card->bc[i].bch.ch.send = nj_l2l1B;
 		card->bc[i].bch.ch.ctrl = nj_bctrl;

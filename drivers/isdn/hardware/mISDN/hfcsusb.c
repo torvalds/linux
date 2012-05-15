@@ -810,7 +810,8 @@ channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = MISDN_CTRL_FILL_EMPTY;
+		ret = mISDN_ctrl_bchannel(bch, cq);
+		cq->op |= MISDN_CTRL_FILL_EMPTY;
 		break;
 	case MISDN_CTRL_FILL_EMPTY: /* fill fifo, if empty */
 		test_and_set_bit(FLG_FILLEMPTY, &bch->Flags);
@@ -819,8 +820,7 @@ channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 			       "off=%d)\n", __func__, bch->nr, !!cq->p1);
 		break;
 	default:
-		printk(KERN_WARNING "%s: unknown Op %x\n", __func__, cq->op);
-		ret = -EINVAL;
+		ret = mISDN_ctrl_bchannel(bch, cq);
 		break;
 	}
 	return ret;
@@ -931,7 +931,8 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 				if (fifo->dch)
 					recv_Dchannel(fifo->dch);
 				if (fifo->bch)
-					recv_Bchannel(fifo->bch, MISDN_ID_ANY);
+					recv_Bchannel(fifo->bch, MISDN_ID_ANY,
+						      0);
 				if (fifo->ech)
 					recv_Echannel(fifo->ech,
 						      &hw->dch);
@@ -952,8 +953,7 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 		}
 	} else {
 		/* deliver transparent data to layer2 */
-		if (rx_skb->len >= poll)
-			recv_Bchannel(fifo->bch, MISDN_ID_ANY);
+		recv_Bchannel(fifo->bch, MISDN_ID_ANY, false);
 	}
 	spin_unlock(&hw->lock);
 }
@@ -1861,7 +1861,7 @@ setup_instance(struct hfcsusb *hw, struct device *parent)
 		hw->bch[i].nr = i + 1;
 		set_channelmap(i + 1, hw->dch.dev.channelmap);
 		hw->bch[i].debug = debug;
-		mISDN_initbchannel(&hw->bch[i], MAX_DATA_MEM);
+		mISDN_initbchannel(&hw->bch[i], MAX_DATA_MEM, poll >> 1);
 		hw->bch[i].hw = hw;
 		hw->bch[i].ch.send = hfcusb_l2l1B;
 		hw->bch[i].ch.ctrl = hfc_bctrl;

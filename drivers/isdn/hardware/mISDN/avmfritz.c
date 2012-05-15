@@ -536,12 +536,12 @@ HDLC_irq(struct bchannel *bch, u32 stat)
 			hdlc_empty_fifo(bch, len);
 			if (!bch->rx_skb)
 				goto handle_tx;
-			if (test_bit(FLG_TRANSPARENT, &bch->Flags) ||
-			    (stat & HDLC_STAT_RME)) {
-				if (((stat & HDLC_STAT_CRCVFRRAB) ==
-				     HDLC_STAT_CRCVFR) ||
-				    test_bit(FLG_TRANSPARENT, &bch->Flags)) {
-					recv_Bchannel(bch, 0);
+			if (test_bit(FLG_TRANSPARENT, &bch->Flags)) {
+				recv_Bchannel(bch, 0, false);
+			} else if (stat & HDLC_STAT_RME) {
+				if ((stat & HDLC_STAT_CRCVFRRAB) ==
+				    HDLC_STAT_CRCVFR) {
+					recv_Bchannel(bch, 0, false);
 				} else {
 					pr_warning("%s: got invalid frame\n",
 						   fc->name);
@@ -809,21 +809,7 @@ init_card(struct fritzcard *fc)
 static int
 channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 {
-	int ret = 0;
-	struct fritzcard *fc = bch->hw;
-
-	switch (cq->op) {
-	case MISDN_CTRL_GETOP:
-		cq->op = 0;
-		break;
-		/* Nothing implemented yet */
-	case MISDN_CTRL_FILL_EMPTY:
-	default:
-		pr_info("%s: %s unknown Op %x\n", fc->name, __func__, cq->op);
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
+	return mISDN_ctrl_bchannel(bch, cq);
 }
 
 static int
@@ -1019,6 +1005,7 @@ static int __devinit
 setup_instance(struct fritzcard *card)
 {
 	int i, err;
+	unsigned short minsize;
 	u_long flags;
 
 	snprintf(card->name, MISDN_MAX_IDLEN - 1, "AVM.%d", AVM_cnt + 1);
@@ -1038,7 +1025,11 @@ setup_instance(struct fritzcard *card)
 	for (i = 0; i < 2; i++) {
 		card->bch[i].nr = i + 1;
 		set_channelmap(i + 1, card->isac.dch.dev.channelmap);
-		mISDN_initbchannel(&card->bch[i], MAX_DATA_MEM);
+		if (AVM_FRITZ_PCIV2 == card->type)
+			minsize = HDLC_FIFO_SIZE_V2;
+		else
+			minsize = HDLC_FIFO_SIZE_V1;
+		mISDN_initbchannel(&card->bch[i], MAX_DATA_MEM, minsize);
 		card->bch[i].hw = card;
 		card->bch[i].ch.send = avm_l2l1B;
 		card->bch[i].ch.ctrl = avm_bctrl;

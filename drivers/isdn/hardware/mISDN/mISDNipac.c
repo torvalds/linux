@@ -1063,7 +1063,7 @@ ipac_rme(struct hscx_hw *hx)
 		skb_trim(hx->bch.rx_skb, 0);
 	} else {
 		skb_trim(hx->bch.rx_skb, hx->bch.rx_skb->len - 1);
-		recv_Bchannel(&hx->bch, 0);
+		recv_Bchannel(&hx->bch, 0, false);
 	}
 }
 
@@ -1114,11 +1114,8 @@ ipac_irq(struct hscx_hw *hx, u8 ista)
 
 	if (istab & IPACX_B_RPF) {
 		hscx_empty_fifo(hx, hx->fifo_size);
-		if (test_bit(FLG_TRANSPARENT, &hx->bch.Flags)) {
-			/* receive transparent audio data */
-			if (hx->bch.rx_skb)
-				recv_Bchannel(&hx->bch, 0);
-		}
+		if (test_bit(FLG_TRANSPARENT, &hx->bch.Flags))
+			recv_Bchannel(&hx->bch, 0, false);
 	}
 
 	if (istab & IPACX_B_RFO) {
@@ -1377,20 +1374,7 @@ hscx_l2l1(struct mISDNchannel *ch, struct sk_buff *skb)
 static int
 channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 {
-	int	ret = 0;
-
-	switch (cq->op) {
-	case MISDN_CTRL_GETOP:
-		cq->op = 0;
-		break;
-		/* Nothing implemented yet */
-	case MISDN_CTRL_FILL_EMPTY:
-	default:
-		pr_info("%s: unknown Op %x\n", __func__, cq->op);
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
+	return mISDN_ctrl_bchannel(bch, cq);
 }
 
 static int
@@ -1608,7 +1592,8 @@ mISDNipac_init(struct ipac_hw *ipac, void *hw)
 		set_channelmap(i + 1, ipac->isac.dch.dev.channelmap);
 		list_add(&ipac->hscx[i].bch.ch.list,
 			 &ipac->isac.dch.dev.bchannels);
-		mISDN_initbchannel(&ipac->hscx[i].bch, MAX_DATA_MEM);
+		mISDN_initbchannel(&ipac->hscx[i].bch, MAX_DATA_MEM,
+				   ipac->hscx[i].fifo_size);
 		ipac->hscx[i].bch.ch.nr = i + 1;
 		ipac->hscx[i].bch.ch.send = &hscx_l2l1;
 		ipac->hscx[i].bch.ch.ctrl = hscx_bctrl;

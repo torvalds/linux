@@ -688,7 +688,7 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 			if (count == 0)
 				count = W_B_FIFO_THRESH;
 			W6692_empty_Bfifo(wch, count);
-			recv_Bchannel(&wch->bch, 0);
+			recv_Bchannel(&wch->bch, 0, false);
 		}
 	}
 	if (stat & W_B_EXI_RMR) {
@@ -704,9 +704,8 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 				    W_B_CMDR_RRST | W_B_CMDR_RACT);
 		} else {
 			W6692_empty_Bfifo(wch, W_B_FIFO_THRESH);
-			if (test_bit(FLG_TRANSPARENT, &wch->bch.Flags) &&
-			    wch->bch.rx_skb && (wch->bch.rx_skb->len > 0))
-				recv_Bchannel(&wch->bch, 0);
+			if (test_bit(FLG_TRANSPARENT, &wch->bch.Flags))
+				recv_Bchannel(&wch->bch, 0, false);
 		}
 	}
 	if (stat & W_B_EXI_RDOV) {
@@ -979,20 +978,7 @@ w6692_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 static int
 channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 {
-	int	ret = 0;
-
-	switch (cq->op) {
-	case MISDN_CTRL_GETOP:
-		cq->op = 0;
-		break;
-		/* Nothing implemented yet */
-	case MISDN_CTRL_FILL_EMPTY:
-	default:
-		pr_info("%s: unknown Op %x\n", __func__, cq->op);
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
+	return mISDN_ctrl_bchannel(bch, cq);
 }
 
 static int
@@ -1303,7 +1289,8 @@ setup_instance(struct w6692_hw *card)
 	card->dch.hw = card;
 	card->dch.dev.nrbchan = 2;
 	for (i = 0; i < 2; i++) {
-		mISDN_initbchannel(&card->bc[i].bch, MAX_DATA_MEM);
+		mISDN_initbchannel(&card->bc[i].bch, MAX_DATA_MEM,
+				   W_B_FIFO_THRESH);
 		card->bc[i].bch.hw = card;
 		card->bc[i].bch.nr = i + 1;
 		card->bc[i].bch.ch.nr = i + 1;

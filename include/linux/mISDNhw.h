@@ -154,7 +154,12 @@ struct bchannel {
 	struct timer_list	timer;
 	/* receive data */
 	struct sk_buff		*rx_skb;
-	int			maxlen;
+	unsigned short		maxlen;
+	unsigned short		init_maxlen; /* initial value */
+	unsigned short		next_maxlen; /* pending value */
+	unsigned short		minlen; /* for transparent data */
+	unsigned short		init_minlen; /* initial value */
+	unsigned short		next_minlen; /* pending value */
 	/* send data */
 	struct sk_buff		*next_skb;
 	struct sk_buff		*tx_skb;
@@ -169,10 +174,12 @@ struct bchannel {
 };
 
 extern int	mISDN_initdchannel(struct dchannel *, int, void *);
-extern int	mISDN_initbchannel(struct bchannel *, int);
+extern int	mISDN_initbchannel(struct bchannel *, unsigned short,
+				   unsigned short);
 extern int	mISDN_freedchannel(struct dchannel *);
 extern void	mISDN_clear_bchannel(struct bchannel *);
 extern int	mISDN_freebchannel(struct bchannel *);
+extern int	mISDN_ctrl_bchannel(struct bchannel *, struct mISDN_ctrl_req *);
 extern void	queue_ch_frame(struct mISDNchannel *, u_int,
 			int, struct sk_buff *);
 extern int	dchannel_senddata(struct dchannel *, struct sk_buff *);
@@ -180,7 +187,7 @@ extern int	bchannel_senddata(struct bchannel *, struct sk_buff *);
 extern int      bchannel_get_rxbuf(struct bchannel *, int);
 extern void	recv_Dchannel(struct dchannel *);
 extern void	recv_Echannel(struct dchannel *, struct dchannel *);
-extern void	recv_Bchannel(struct bchannel *, unsigned int id);
+extern void	recv_Bchannel(struct bchannel *, unsigned int, bool);
 extern void	recv_Dchannel_skb(struct dchannel *, struct sk_buff *);
 extern void	recv_Bchannel_skb(struct bchannel *, struct sk_buff *);
 extern int	get_next_bframe(struct bchannel *);

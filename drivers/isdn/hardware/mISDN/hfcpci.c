@@ -453,7 +453,7 @@ hfcpci_empty_bfifo(struct bchannel *bch, struct bzfifo *bz,
 		}
 		bz->za[new_f2].z2 = cpu_to_le16(new_z2);
 		bz->f2 = new_f2;	/* next buffer */
-		recv_Bchannel(bch, MISDN_ID_ANY);
+		recv_Bchannel(bch, MISDN_ID_ANY, false);
 	}
 }
 
@@ -599,7 +599,7 @@ hfcpci_empty_fifo_trans(struct bchannel *bch, struct bzfifo *rxbz,
 			ptr1 = bdata;	/* start of buffer */
 			memcpy(ptr, ptr1, fcnt_rx);	/* rest */
 		}
-		recv_Bchannel(bch, fcnt_tx); /* bch, id */
+		recv_Bchannel(bch, fcnt_tx, false); /* bch, id, !force */
 	}
 	*z2r = cpu_to_le16(new_z2);		/* new position */
 }
@@ -1535,7 +1535,8 @@ channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = MISDN_CTRL_FILL_EMPTY;
+		ret = mISDN_ctrl_bchannel(bch, cq);
+		cq->op |= MISDN_CTRL_FILL_EMPTY;
 		break;
 	case MISDN_CTRL_FILL_EMPTY: /* fill fifo, if empty */
 		test_and_set_bit(FLG_FILLEMPTY, &bch->Flags);
@@ -1544,8 +1545,7 @@ channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 			       "off=%d)\n", __func__, bch->nr, !!cq->p1);
 		break;
 	default:
-		printk(KERN_WARNING "%s: unknown Op %x\n", __func__, cq->op);
-		ret = -EINVAL;
+		ret = mISDN_ctrl_bchannel(bch, cq);
 		break;
 	}
 	return ret;
@@ -2116,7 +2116,7 @@ setup_card(struct hfc_pci *card)
 		card->bch[i].nr = i + 1;
 		set_channelmap(i + 1, card->dch.dev.channelmap);
 		card->bch[i].debug = debug;
-		mISDN_initbchannel(&card->bch[i], MAX_DATA_MEM);
+		mISDN_initbchannel(&card->bch[i], MAX_DATA_MEM, poll >> 1);
 		card->bch[i].hw = card;
 		card->bch[i].ch.send = hfcpci_l2l1B;
 		card->bch[i].ch.ctrl = hfc_bctrl;

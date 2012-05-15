@@ -446,7 +446,7 @@ isar_rcv_frame(struct isar_ch *ch)
 			break;
 		}
 		rcv_mbox(ch->is, skb_put(ch->bch.rx_skb, ch->is->clsb));
-		recv_Bchannel(&ch->bch, 0);
+		recv_Bchannel(&ch->bch, 0, false);
 		break;
 	case ISDN_P_B_HDLC:
 		maxlen = bchannel_get_rxbuf(&ch->bch, ch->is->clsb);
@@ -481,7 +481,7 @@ isar_rcv_frame(struct isar_ch *ch)
 				break;
 			}
 			skb_trim(ch->bch.rx_skb, ch->bch.rx_skb->len - 2);
-			recv_Bchannel(&ch->bch, 0);
+			recv_Bchannel(&ch->bch, 0, false);
 		}
 		break;
 	case ISDN_P_B_T30_FAX:
@@ -517,7 +517,7 @@ isar_rcv_frame(struct isar_ch *ch)
 				ch->state = STFAX_ESCAPE;
 				/* set_skb_flag(skb, DF_NOMOREDATA); */
 			}
-			recv_Bchannel(&ch->bch, 0);
+			recv_Bchannel(&ch->bch, 0, false);
 			if (ch->is->cmsb & SART_NMD)
 				deliver_status(ch, HW_MOD_NOCARR);
 			break;
@@ -557,7 +557,7 @@ isar_rcv_frame(struct isar_ch *ch)
 				break;
 			}
 			skb_trim(ch->bch.rx_skb, ch->bch.rx_skb->len - 2);
-			recv_Bchannel(&ch->bch, 0);
+			recv_Bchannel(&ch->bch, 0, false);
 		}
 		if (ch->is->cmsb & SART_NMD) { /* ABORT */
 			pr_debug("%s: isar_rcv_frame: no more data\n",
@@ -1554,20 +1554,7 @@ isar_l2l1(struct mISDNchannel *ch, struct sk_buff *skb)
 static int
 channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 {
-	int	ret = 0;
-
-	switch (cq->op) {
-	case MISDN_CTRL_GETOP:
-		cq->op = 0;
-		break;
-		/* Nothing implemented yet */
-	case MISDN_CTRL_FILL_EMPTY:
-	default:
-		pr_info("%s: unknown Op %x\n", __func__, cq->op);
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
+	return mISDN_ctrl_bchannel(bch, cq);
 }
 
 static int
@@ -1665,7 +1652,7 @@ mISDNisar_init(struct isar_hw *isar, void *hw)
 	isar->hw = hw;
 	for (i = 0; i < 2; i++) {
 		isar->ch[i].bch.nr = i + 1;
-		mISDN_initbchannel(&isar->ch[i].bch, MAX_DATA_MEM);
+		mISDN_initbchannel(&isar->ch[i].bch, MAX_DATA_MEM, 32);
 		isar->ch[i].bch.ch.nr = i + 1;
 		isar->ch[i].bch.ch.send = &isar_l2l1;
 		isar->ch[i].bch.ch.ctrl = isar_bctrl;
