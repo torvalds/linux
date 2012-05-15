@@ -577,12 +577,6 @@ int vfp_preserve_user_clear_hwstate(struct user_vfp __user *ufp,
 	 * entry.
 	 */
 	hwstate->fpscr &= ~(FPSCR_LENGTH_MASK | FPSCR_STRIDE_MASK);
-
-	/*
-	 * Disable VFP in the hwstate so that we can detect if it gets
-	 * used.
-	 */
-	hwstate->fpexc &= ~FPEXC_EN;
 	return 0;
 }
 
@@ -595,12 +589,8 @@ int vfp_restore_user_hwstate(struct user_vfp __user *ufp,
 	unsigned long fpexc;
 	int err = 0;
 
-	/*
-	 * If VFP has been used, then disable it to avoid corrupting
-	 * the new thread state.
-	 */
-	if (hwstate->fpexc & FPEXC_EN)
-		vfp_flush_hwstate(thread);
+	/* Disable VFP to avoid corrupting the new thread state. */
+	vfp_flush_hwstate(thread);
 
 	/*
 	 * Copy the floating point registers. There can be unused
