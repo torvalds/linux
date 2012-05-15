@@ -3725,8 +3725,7 @@ hfcm_bctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
-		if (test_bit(FLG_ACTIVE, &bch->Flags))
-			deactivate_bchannel(bch); /* locked there */
+		deactivate_bchannel(bch); /* locked there */
 		ch->protocol = ISDN_P_NONE;
 		ch->peer = NULL;
 		module_put(THIS_MODULE);

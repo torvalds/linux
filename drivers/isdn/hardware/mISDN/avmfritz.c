@@ -839,14 +839,10 @@ avm_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
-		if (test_bit(FLG_ACTIVE, &bch->Flags)) {
-			spin_lock_irqsave(&fc->lock, flags);
-			mISDN_freebchannel(bch);
-			test_and_clear_bit(FLG_TX_BUSY, &bch->Flags);
-			test_and_clear_bit(FLG_ACTIVE, &bch->Flags);
-			modehdlc(bch, ISDN_P_NONE);
-			spin_unlock_irqrestore(&fc->lock, flags);
-		}
+		spin_lock_irqsave(&fc->lock, flags);
+		mISDN_freebchannel(bch);
+		modehdlc(bch, ISDN_P_NONE);
+		spin_unlock_irqrestore(&fc->lock, flags);
 		ch->protocol = ISDN_P_NONE;
 		ch->peer = NULL;
 		module_put(THIS_MODULE);

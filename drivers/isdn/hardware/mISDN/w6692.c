@@ -1061,15 +1061,10 @@ w6692_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
-		if (test_bit(FLG_ACTIVE, &bch->Flags)) {
-			spin_lock_irqsave(&card->lock, flags);
-			mISDN_freebchannel(bch);
-			w6692_mode(bc, ISDN_P_NONE);
-			spin_unlock_irqrestore(&card->lock, flags);
-		} else {
-			skb_queue_purge(&bch->rqueue);
-			bch->rcount = 0;
-		}
+		spin_lock_irqsave(&card->lock, flags);
+		mISDN_freebchannel(bch);
+		w6692_mode(bc, ISDN_P_NONE);
+		spin_unlock_irqrestore(&card->lock, flags);
 		ch->protocol = ISDN_P_NONE;
 		ch->peer = NULL;
 		module_put(THIS_MODULE);
