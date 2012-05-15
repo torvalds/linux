@@ -297,7 +297,6 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 
 		/* Initialize all required  fields of fcport */
 		fcport->vha = vha;
-		fcport->vp_idx = vha->vp_idx;
 		fcport->d_id.b.al_pa =
 			bsg_job->request->rqst_data.h_els.port_id[0];
 		fcport->d_id.b.area =
@@ -483,7 +482,6 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 
 	/* Initialize all required  fields of fcport */
 	fcport->vha = vha;
-	fcport->vp_idx = vha->vp_idx;
 	fcport->d_id.b.al_pa = bsg_job->request->rqst_data.h_ct.port_id[0];
 	fcport->d_id.b.area = bsg_job->request->rqst_data.h_ct.port_id[1];
 	fcport->d_id.b.domain = bsg_job->request->rqst_data.h_ct.port_id[2];

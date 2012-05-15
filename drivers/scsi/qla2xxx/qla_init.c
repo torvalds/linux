@@ -2495,7 +2495,6 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 
 	/* Setup fcport template structure. */
 	fcport->vha = vha;
-	fcport->vp_idx = vha->vp_idx;
 	fcport->port_type = FCT_UNKNOWN;
 	fcport->loop_id = FC_NO_LOOP_ID;
 	qla2x00_set_fcport_state(fcport, FCS_UNCONFIGURED);
@@ -2726,7 +2725,6 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 		new_fcport->d_id.b.area = area;
 		new_fcport->d_id.b.al_pa = al_pa;
 		new_fcport->loop_id = loop_id;
-		new_fcport->vp_idx = vha->vp_idx;
 		rval2 = qla2x00_get_port_database(vha, new_fcport, 0);
 		if (rval2 != QLA_SUCCESS) {
 			ql_dbg(ql_dbg_disc, vha, 0x201a,
@@ -2760,10 +2758,6 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 
 		if (!found) {
 			/* New device, add to fcports list. */
-			if (vha->vp_idx) {
-				new_fcport->vha = vha;
-				new_fcport->vp_idx = vha->vp_idx;
-			}
 			list_add_tail(&new_fcport->list, &vha->vp_fcports);
 
 			/* Allocate a new replacement fcport. */
@@ -3084,10 +3078,6 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 			/* Login and update database */
 			qla2x00_fabric_dev_login(vha, fcport, &next_loopid);
 
-			if (vha->vp_idx) {
-				fcport->vha = vha;
-				fcport->vp_idx = vha->vp_idx;
-			}
 			list_move_tail(&fcport->list, &vha->vp_fcports);
 		}
 	} while (0);

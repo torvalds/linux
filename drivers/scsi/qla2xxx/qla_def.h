@@ -1719,7 +1719,6 @@ typedef struct fc_port {
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
 
-	uint16_t vp_idx;
 	uint8_t fc4_type;
 	uint8_t scan_state;
 } fc_port_t;

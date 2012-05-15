@@ -2877,7 +2877,7 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *vha, fc_port_t *fcport,
     int do_login, int defer)
 {
 	if (atomic_read(&fcport->state) == FCS_ONLINE &&
-	    vha->vp_idx == fcport->vp_idx) {
+	    vha->vp_idx == fcport->vha->vp_idx) {
 		qla2x00_set_fcport_state(fcport, FCS_DEVICE_LOST);
 		qla2x00_schedule_rport_del(vha, fcport, defer);
 	}
@@ -2926,7 +2926,7 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *vha, int defer)
 	fc_port_t *fcport;
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
-		if (vha->vp_idx != 0 && vha->vp_idx != fcport->vp_idx)
+		if (vha->vp_idx != 0 && vha->vp_idx != fcport->vha->vp_idx)
 			continue;
 
 		/*
@@ -2939,7 +2939,7 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *vha, int defer)
 			qla2x00_set_fcport_state(fcport, FCS_DEVICE_LOST);
 			if (defer)
 				qla2x00_schedule_rport_del(vha, fcport, defer);
-			else if (vha->vp_idx == fcport->vp_idx)
+			else if (vha->vp_idx == fcport->vha->vp_idx)
 				qla2x00_schedule_rport_del(vha, fcport, defer);
 		}
 	}

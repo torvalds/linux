@@ -134,7 +134,7 @@ qla2x00_mark_vp_devices_dead(scsi_qla_host_t *vha)
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
 		ql_dbg(ql_dbg_vport, vha, 0xa001,
 		    "Marking port dead, loop_id=0x%04x : %x.\n",
-		    fcport->loop_id, fcport->vp_idx);
+		    fcport->loop_id, fcport->vha->vp_idx);
 
 		qla2x00_mark_device_lost(vha, fcport, 0, 0);
 		qla2x00_set_fcport_state(fcport, FCS_UNCONFIGURED);

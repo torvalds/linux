@@ -2461,7 +2461,7 @@ qla24xx_abort_command(srb_t *sp)
 	abt->port_id[0] = fcport->d_id.b.al_pa;
 	abt->port_id[1] = fcport->d_id.b.area;
 	abt->port_id[2] = fcport->d_id.b.domain;
-	abt->vp_index = fcport->vp_idx;
+	abt->vp_index = fcport->vha->vp_idx;
 
 	abt->req_que_no = cpu_to_le16(req->id);
 
@@ -2537,7 +2537,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	tsk->p.tsk.port_id[0] = fcport->d_id.b.al_pa;
 	tsk->p.tsk.port_id[1] = fcport->d_id.b.area;
 	tsk->p.tsk.port_id[2] = fcport->d_id.b.domain;
-	tsk->p.tsk.vp_index = fcport->vp_idx;
+	tsk->p.tsk.vp_index = fcport->vha->vp_idx;
 	if (type == TCF_LUN_RESET) {
 		int_to_scsilun(l, &tsk->p.tsk.lun);
 		host_to_fcp_swap((uint8_t *)&tsk->p.tsk.lun,
