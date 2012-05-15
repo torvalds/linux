@@ -277,22 +277,6 @@ static void recover_list_del(struct dlm_rsb *r)
 	dlm_put_rsb(r);
 }
 
-static struct dlm_rsb *recover_list_find(struct dlm_ls *ls, uint64_t id)
-{
-	struct dlm_rsb *r = NULL;
-
-	spin_lock(&ls->ls_recover_list_lock);
-
-	list_for_each_entry(r, &ls->ls_recover_list, res_recover_list) {
-		if (id == (unsigned long) r)
-			goto out;
-	}
-	r = NULL;
- out:
-	spin_unlock(&ls->ls_recover_list_lock);
-	return r;
-}
-
 static void recover_list_clear(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r, *s;
@@ -311,6 +295,94 @@ static void recover_list_clear(struct dlm_ls *ls)
 		ls->ls_recover_list_count = 0;
 	}
 	spin_unlock(&ls->ls_recover_list_lock);
+}
+
+static int recover_idr_empty(struct dlm_ls *ls)
+{
+	int empty = 1;
+
+	spin_lock(&ls->ls_recover_idr_lock);
+	if (ls->ls_recover_list_count)
+		empty = 0;
+	spin_unlock(&ls->ls_recover_idr_lock);
+
+	return empty;
+}
+
+static int recover_idr_add(struct dlm_rsb *r)
+{
+	struct dlm_ls *ls = r->res_ls;
+	int rv, id;
+
+	rv = idr_pre_get(&ls->ls_recover_idr, GFP_NOFS);
+	if (!rv)
+		return -ENOMEM;
+
+	spin_lock(&ls->ls_recover_idr_lock);
+	if (r->res_id) {
+		spin_unlock(&ls->ls_recover_idr_lock);
+		return -1;
+	}
+	rv = idr_get_new_above(&ls->ls_recover_idr, r, 1, &id);
+	if (rv) {
+		spin_unlock(&ls->ls_recover_idr_lock);
+		return rv;
+	}
+	r->res_id = id;
+	ls->ls_recover_list_count++;
+	dlm_hold_rsb(r);
+	spin_unlock(&ls->ls_recover_idr_lock);
+	return 0;
+}
+
+static void recover_idr_del(struct dlm_rsb *r)
+{
+	struct dlm_ls *ls = r->res_ls;
+
+	spin_lock(&ls->ls_recover_idr_lock);
+	idr_remove(&ls->ls_recover_idr, r->res_id);
+	r->res_id = 0;
+	ls->ls_recover_list_count--;
+	spin_unlock(&ls->ls_recover_idr_lock);
+
+	dlm_put_rsb(r);
+}
+
+static struct dlm_rsb *recover_idr_find(struct dlm_ls *ls, uint64_t id)
+{
+	struct dlm_rsb *r;
+
+	spin_lock(&ls->ls_recover_idr_lock);
+	r = idr_find(&ls->ls_recover_idr, (int)id);
+	spin_unlock(&ls->ls_recover_idr_lock);
+	return r;
+}
+
+static int recover_idr_clear_rsb(int id, void *p, void *data)
+{
+	struct dlm_ls *ls = data;
+	struct dlm_rsb *r = p;
+
+	r->res_id = 0;
+	r->res_recover_locks_count = 0;
+	ls->ls_recover_list_count--;
+
+	dlm_put_rsb(r);
+	return 0;
+}
+
+static void recover_idr_clear(struct dlm_ls *ls)
+{
+	spin_lock(&ls->ls_recover_idr_lock);
+	idr_for_each(&ls->ls_recover_idr, recover_idr_clear_rsb, ls);
+	idr_remove_all(&ls->ls_recover_idr);
+
+	if (ls->ls_recover_list_count != 0) {
+		log_error(ls, "warning: recover_list_count %d",
+			  ls->ls_recover_list_count);
+		ls->ls_recover_list_count = 0;
+	}
+	spin_unlock(&ls->ls_recover_idr_lock);
 }
 
 
@@ -408,7 +480,7 @@ static int recover_master(struct dlm_rsb *r, unsigned int *count)
 		set_new_master(r);
 		error = 0;
 	} else {
-		recover_list_add(r);
+		recover_idr_add(r);
 		error = dlm_send_rcom_lookup(r, dir_nodeid);
 	}
 
@@ -493,10 +565,10 @@ int dlm_recover_masters(struct dlm_ls *ls)
 
 	log_debug(ls, "dlm_recover_masters %u of %u", count, total);
 
-	error = dlm_wait_function(ls, &recover_list_empty);
+	error = dlm_wait_function(ls, &recover_idr_empty);
  out:
 	if (error)
-		recover_list_clear(ls);
+		recover_idr_clear(ls);
 	return error;
 }
 
@@ -505,7 +577,7 @@ int dlm_recover_master_reply(struct dlm_ls *ls, struct dlm_rcom *rc)
 	struct dlm_rsb *r;
 	int ret_nodeid, new_master;
 
-	r = recover_list_find(ls, rc->rc_id);
+	r = recover_idr_find(ls, rc->rc_id);
 	if (!r) {
 		log_error(ls, "dlm_recover_master_reply no id %llx",
 			  (unsigned long long)rc->rc_id);
@@ -524,9 +596,9 @@ int dlm_recover_master_reply(struct dlm_ls *ls, struct dlm_rcom *rc)
 	r->res_nodeid = new_master;
 	set_new_master(r);
 	unlock_rsb(r);
-	recover_list_del(r);
+	recover_idr_del(r);
 
-	if (recover_list_empty(ls))
+	if (recover_idr_empty(ls))
 		wake_up(&ls->ls_wait_general);
  out:
 	return 0;

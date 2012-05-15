@@ -288,6 +288,7 @@ struct dlm_rsb {
 	int			res_nodeid;
 	int			res_master_nodeid;
 	int			res_dir_nodeid;
+	int			res_id;		/* for ls_recover_idr */
 	uint32_t                res_lvbseq;
 	uint32_t		res_hash;
 	uint32_t		res_bucket;	/* rsbtbl */
@@ -587,6 +588,8 @@ struct dlm_ls {
 	struct list_head	ls_recover_list;
 	spinlock_t		ls_recover_list_lock;
 	int			ls_recover_list_count;
+	struct idr		ls_recover_idr;
+	spinlock_t		ls_recover_idr_lock;
 	wait_queue_head_t	ls_wait_general;
 	struct mutex		ls_clear_proc_locks;
 

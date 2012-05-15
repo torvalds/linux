@@ -565,6 +565,8 @@ static int new_lockspace(const char *name, const char *cluster,
 
 	INIT_LIST_HEAD(&ls->ls_recover_list);
 	spin_lock_init(&ls->ls_recover_list_lock);
+	idr_init(&ls->ls_recover_idr);
+	spin_lock_init(&ls->ls_recover_idr_lock);
 	ls->ls_recover_list_count = 0;
 	ls->ls_local_handle = ls;
 	init_waitqueue_head(&ls->ls_wait_general);
@@ -636,6 +638,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	spin_lock(&lslist_lock);
 	list_del(&ls->ls_list);
 	spin_unlock(&lslist_lock);
+	idr_destroy(&ls->ls_recover_idr);
 	kfree(ls->ls_recover_buf);
  out_lkbfree:
 	idr_destroy(&ls->ls_lkbidr);

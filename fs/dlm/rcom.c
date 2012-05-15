@@ -325,7 +325,7 @@ int dlm_send_rcom_lookup(struct dlm_rsb *r, int dir_nodeid)
 	if (error)
 		goto out;
 	memcpy(rc->rc_buf, r->res_name, r->res_length);
-	rc->rc_id = (unsigned long) r;
+	rc->rc_id = (unsigned long) r->res_id;
 
 	send_rcom(ls, mh, rc);
  out:
