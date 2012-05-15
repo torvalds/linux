@@ -19,34 +19,27 @@ ifeq ($(CONFIG_SPARC32),y)
 # sparc32
 #
 
-#
-# Uncomment the first KBUILD_CFLAGS if you are doing kgdb source level
-# debugging of the kernel to get the proper debugging information.
-
-AS             := $(AS) -32
-LDFLAGS        := -m elf32_sparc
 CHECKFLAGS     += -D__sparc__
+LDFLAGS        := -m elf32_sparc
 export BITS    := 32
 UTS_MACHINE    := sparc
 
-#KBUILD_CFLAGS += -g -pipe -fcall-used-g5 -fcall-used-g7
-KBUILD_CFLAGS += -m32 -mcpu=v8 -pipe -mno-fpu -fcall-used-g5 -fcall-used-g7
-KBUILD_AFLAGS += -m32 -Wa,-Av8
+KBUILD_CFLAGS  += -m32 -mcpu=v8 -pipe -mno-fpu -fcall-used-g5 -fcall-used-g7
+KBUILD_AFLAGS  += -m32 -Wa,-Av8
 
 else
 #####
 # sparc64
 #
 
-CHECKFLAGS      += -D__sparc__ -D__sparc_v9__ -D__arch64__ -m64
+CHECKFLAGS    += -D__sparc__ -D__sparc_v9__ -D__arch64__ -m64
+LDFLAGS       := -m elf64_sparc
+export BITS   := 64
+UTS_MACHINE   := sparc64
 
-LDFLAGS              := -m elf64_sparc
-export BITS          := 64
-UTS_MACHINE          := sparc64
-
-KBUILD_CFLAGS += -m64 -pipe -mno-fpu -mcpu=ultrasparc -mcmodel=medlow   \
-                 -ffixed-g4 -ffixed-g5 -fcall-used-g7 -Wno-sign-compare \
-                 -Wa,--undeclared-regs
+KBUILD_CFLAGS += -m64 -pipe -mno-fpu -mcpu=ultrasparc -mcmodel=medlow
+KBUILD_CFLAGS += -ffixed-g4 -ffixed-g5 -fcall-used-g7 -Wno-sign-compare
+KBUILD_CFLAGS += -Wa,--undeclared-regs
 KBUILD_CFLAGS += $(call cc-option,-mtune=ultrasparc3)
 KBUILD_AFLAGS += -m64 -mcpu=ultrasparc -Wa,--undeclared-regs
 
@@ -66,10 +59,6 @@ libs-y                 += arch/sparc/prom/
 libs-y                 += arch/sparc/lib/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/sparc/oprofile/
-
-ifdef CONFIG_KALLSYMS
-export kallsyms.o := .tmp_kallsyms2.o
-endif
 
 boot := arch/sparc/boot
 
