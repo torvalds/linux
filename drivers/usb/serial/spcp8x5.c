@@ -425,7 +425,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	if (i < 0)
 		dev_err(&port->dev, "Set UART format %#x failed (error = %d)\n",
 			uartdata, i);
-	dbg("0x21:0x40:0:0  %d", i);
+	dev_dbg(&port->dev, "0x21:0x40:0:0  %d\n", i);
 
 	if (cflag & CRTSCTS) {
 		/* enable hardware flow control */
@@ -569,15 +569,19 @@ static int spcp8x5_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	dbg("%s (%d) cmd = 0x%04x", __func__, port->number, cmd);
+
+	dev_dbg(&port->dev, "%s (%d) cmd = 0x%04x\n", __func__,
+		port->number, cmd);
 
 	switch (cmd) {
 	case TIOCMIWAIT:
-		dbg("%s (%d) TIOCMIWAIT", __func__,  port->number);
+		dev_dbg(&port->dev, "%s (%d) TIOCMIWAIT\n", __func__,
+			port->number);
 		return spcp8x5_wait_modem_info(port, arg);
 
 	default:
-		dbg("%s not supported = 0x%04x", __func__, cmd);
+		dev_dbg(&port->dev, "%s not supported = 0x%04x", __func__,
+			cmd);
 		break;
 	}
 
