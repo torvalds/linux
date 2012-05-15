@@ -384,6 +384,8 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	if (ret)
 		goto out;
 
+	crtc->base.properties = &crtc->properties;
+
 	list_add_tail(&crtc->head, &dev->mode_config.crtc_list);
 	dev->mode_config.num_crtc++;
 
@@ -3141,6 +3143,21 @@ static int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
 	return ret;
 }
 
+static int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
+				      struct drm_property *property,
+				      uint64_t value)
+{
+	int ret = -EINVAL;
+	struct drm_crtc *crtc = obj_to_crtc(obj);
+
+	if (crtc->funcs->set_property)
+		ret = crtc->funcs->set_property(crtc, property, value);
+	if (!ret)
+		drm_object_property_set_value(obj, property, value);
+
+	return ret;
+}
+
 int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv)
 {
@@ -3238,6 +3255,9 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 	case DRM_MODE_OBJECT_CONNECTOR:
 		ret = drm_mode_connector_set_obj_prop(arg_obj, property,
 						      arg->value);
+		break;
+	case DRM_MODE_OBJECT_CRTC:
+		ret = drm_mode_crtc_set_obj_prop(arg_obj, property, arg->value);
 		break;
 	}
 

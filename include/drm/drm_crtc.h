@@ -306,7 +306,8 @@ struct drm_plane;
  * @mode_fixup: fixup proposed mode
  * @mode_set: set the desired mode on the CRTC
  * @gamma_set: specify color ramp for CRTC
- * @destroy: deinit and free object.
+ * @destroy: deinit and free object
+ * @set_property: called when a property is changed
  *
  * The drm_crtc_funcs structure is the central CRTC management structure
  * in the DRM.  Each CRTC controls one or more connectors (note that the name
@@ -350,6 +351,9 @@ struct drm_crtc_funcs {
 	int (*page_flip)(struct drm_crtc *crtc,
 			 struct drm_framebuffer *fb,
 			 struct drm_pending_vblank_event *event);
+
+	int (*set_property)(struct drm_crtc *crtc,
+			    struct drm_property *property, uint64_t val);
 };
 
 /**
@@ -369,6 +373,7 @@ struct drm_crtc_funcs {
  * @framedur_ns: precise line timing
  * @pixeldur_ns: precise pixel timing
  * @helper_private: mid-layer private data
+ * @properties: property tracking for this CRTC
  *
  * Each CRTC may have one or more connectors associated with it.  This structure
  * allows the CRTC to be controlled.
@@ -404,6 +409,8 @@ struct drm_crtc {
 
 	/* if you are using the helper */
 	void *helper_private;
+
+	struct drm_object_properties properties;
 };
 
 
