@@ -813,7 +813,8 @@ err_revision:
 		mc13xxx_add_subdevice(mc13xxx, "%s-adc");
 
 	if (mc13xxx->flags & MC13XXX_USE_CODEC)
-		mc13xxx_add_subdevice(mc13xxx, "%s-codec");
+		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-codec",
+					pdata->codec, sizeof(*pdata->codec));
 
 	if (mc13xxx->flags & MC13XXX_USE_RTC)
 		mc13xxx_add_subdevice(mc13xxx, "%s-rtc");
