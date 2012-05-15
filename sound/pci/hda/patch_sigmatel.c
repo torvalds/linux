@@ -4365,10 +4365,18 @@ static int stac92xx_init(struct hda_codec *codec)
 		hda_nid_t nid = spec->pwr_nids[i];
 		int pinctl, def_conf;
 
+		def_conf = snd_hda_codec_get_pincfg(codec, nid);
+		def_conf = get_defcfg_connect(def_conf);
+		if (def_conf == AC_JACK_PORT_NONE) {
+			/* power off unused ports */
+			stac_toggle_power_map(codec, nid, 0);
+			continue;
+		}
 		/* power on when no jack detection is available */
 		/* or when the VREF is used for controlling LED */
 		if (!spec->hp_detect ||
-		    spec->vref_mute_led_nid == nid) {
+		    spec->vref_mute_led_nid == nid ||
+		    !is_jack_detectable(codec, nid)) {
 			stac_toggle_power_map(codec, nid, 1);
 			continue;
 		}
@@ -4383,15 +4391,6 @@ static int stac92xx_init(struct hda_codec *codec)
 		 * referenced VREF to act quirky.
 		 */
 		if (pinctl & AC_PINCTL_IN_EN) {
-			stac_toggle_power_map(codec, nid, 1);
-			continue;
-		}
-		def_conf = snd_hda_codec_get_pincfg(codec, nid);
-		def_conf = get_defcfg_connect(def_conf);
-		/* skip any ports that don't have jacks since presence
- 		 * detection is useless */
-		if (def_conf != AC_JACK_PORT_NONE &&
-		    !is_jack_detectable(codec, nid)) {
 			stac_toggle_power_map(codec, nid, 1);
 			continue;
 		}
