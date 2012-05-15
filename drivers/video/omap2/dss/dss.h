@@ -395,7 +395,8 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 
 void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high);
 void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
-		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge);
+		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge,
+		bool manual_update);
 int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 		bool ilace, bool replication,
 		const struct omap_video_timings *mgr_timings);
