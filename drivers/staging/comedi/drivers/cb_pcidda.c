@@ -204,18 +204,6 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	 },
 };
 
-static DEFINE_PCI_DEVICE_TABLE(cb_pcidda_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0020) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0021) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0022) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0023) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0024) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0025) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, cb_pcidda_pci_table);
-
 /*
  * Useful for shorthand access to the particular board structure
  */
@@ -252,9 +240,6 @@ struct cb_pcidda_private {
  */
 #define devpriv ((struct cb_pcidda_private *)dev->private)
 
-static int cb_pcidda_attach(struct comedi_device *dev,
-			    struct comedi_devconfig *it);
-static int cb_pcidda_detach(struct comedi_device *dev);
 /* static int cb_pcidda_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data); */
 static int cb_pcidda_ao_winsn(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
@@ -271,19 +256,6 @@ static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
 					  unsigned int address);
 static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
 				unsigned int range);
-
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static struct comedi_driver driver_cb_pcidda = {
-	.driver_name = "cb_pcidda",
-	.module = THIS_MODULE,
-	.attach = cb_pcidda_attach,
-	.detach = cb_pcidda_detach,
-};
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -871,47 +843,42 @@ static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
 			       fine_gain_channel(channel), fine_gain);
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-static int __devinit driver_cb_pcidda_pci_probe(struct pci_dev *dev,
-						const struct pci_device_id *ent)
+static struct comedi_driver cb_pcidda_driver = {
+	.driver_name	= "cb_pcidda",
+	.module		= THIS_MODULE,
+	.attach		= cb_pcidda_attach,
+	.detach		= cb_pcidda_detach,
+};
+
+static int __devinit cb_pcidda_pci_probe(struct pci_dev *dev,
+					 const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &driver_cb_pcidda);
+	return comedi_pci_auto_config(dev, &cb_pcidda_driver);
 }
 
-static void __devexit driver_cb_pcidda_pci_remove(struct pci_dev *dev)
+static void __devexit cb_pcidda_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_cb_pcidda_pci_driver = {
-	.id_table = cb_pcidda_pci_table,
-	.probe = &driver_cb_pcidda_pci_probe,
-	.remove = __devexit_p(&driver_cb_pcidda_pci_remove)
+static DEFINE_PCI_DEVICE_TABLE(cb_pcidda_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0020) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0021) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0022) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0023) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0024) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0025) },
+	{ 0 }
 };
+MODULE_DEVICE_TABLE(pci, cb_pcidda_pci_table);
 
-static int __init driver_cb_pcidda_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_cb_pcidda);
-	if (retval < 0)
-		return retval;
-
-	driver_cb_pcidda_pci_driver.name = (char *)driver_cb_pcidda.driver_name;
-	return pci_register_driver(&driver_cb_pcidda_pci_driver);
-}
-
-static void __exit driver_cb_pcidda_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_cb_pcidda_pci_driver);
-	comedi_driver_unregister(&driver_cb_pcidda);
-}
-
-module_init(driver_cb_pcidda_init_module);
-module_exit(driver_cb_pcidda_cleanup_module);
+static struct pci_driver cb_pcidda_pci_driver = {
+	.name		= "cb_pcidda",
+	.id_table	= cb_pcidda_pci_table,
+	.probe		= cb_pcidda_pci_probe,
+	.remove		= __devexit_p(cb_pcidda_pci_remove),
+};
+module_comedi_pci_driver(cb_pcidda_driver, cb_pcidda_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
