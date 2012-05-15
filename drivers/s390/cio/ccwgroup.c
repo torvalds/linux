@@ -1,7 +1,7 @@
 /*
  *  bus driver for ccwgroup
  *
- *  Copyright IBM Corp. 2002, 2009
+ *  Copyright IBM Corp. 2002, 2012
  *
  *  Author(s): Arnd Bergmann (arndb@de.ibm.com)
  *	       Cornelia Huck (cornelia.huck@de.ibm.com)
@@ -291,14 +291,15 @@ static int __is_valid_bus_id(char bus_id[CCW_BUS_ID_SIZE])
 }
 
 /**
- * ccwgroup_create_from_string() - create and register a ccw group device
- * @root: parent device for the new device
+ * ccwgroup_create_dev() - create and register a ccw group device
+ * @parent: parent device for the new device
  * @creator_id: identifier of creating driver
  * @cdrv: ccw driver of slave devices
+ * @gdrv: driver for the new group device
  * @num_devices: number of slave devices
  * @buf: buffer containing comma separated bus ids of slave devices
  *
- * Create and register a new ccw group device as a child of @root. Slave
+ * Create and register a new ccw group device as a child of @parent. Slave
  * devices are obtained from the list of bus ids given in @buf and must all
  * belong to @cdrv.
  * Returns:
@@ -306,9 +307,9 @@ static int __is_valid_bus_id(char bus_id[CCW_BUS_ID_SIZE])
  * Context:
  *  non-atomic
  */
-int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
-				struct ccw_driver *cdrv, int num_devices,
-				const char *buf)
+int ccwgroup_create_dev(struct device *parent, unsigned int creator_id,
+			struct ccw_driver *cdrv, struct ccwgroup_driver *gdrv,
+			int num_devices, const char *buf)
 {
 	struct ccwgroup_device *gdev;
 	int rc, i;
@@ -323,10 +324,13 @@ int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
 	atomic_set(&gdev->onoff, 0);
 	mutex_init(&gdev->reg_mutex);
 	mutex_lock(&gdev->reg_mutex);
-	gdev->creator_id = creator_id;
+	if (gdrv)
+		gdev->creator_id = gdrv->driver_id;
+	else
+		gdev->creator_id = creator_id;
 	gdev->count = num_devices;
 	gdev->dev.bus = &ccwgroup_bus_type;
-	gdev->dev.parent = root;
+	gdev->dev.parent = parent;
 	gdev->dev.release = ccwgroup_release;
 	device_initialize(&gdev->dev);
 
@@ -373,6 +377,13 @@ int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
 
 	dev_set_name(&gdev->dev, "%s", dev_name(&gdev->cdev[0]->dev));
 	gdev->dev.groups = ccwgroup_attr_groups;
+
+	if (gdrv) {
+		gdev->dev.driver = &gdrv->driver;
+		rc = gdrv->setup ? gdrv->setup(gdev) : 0;
+		if (rc)
+			goto error;
+	}
 	rc = device_add(&gdev->dev);
 	if (rc)
 		goto error;
@@ -396,6 +407,31 @@ error:
 	mutex_unlock(&gdev->reg_mutex);
 	put_device(&gdev->dev);
 	return rc;
+}
+EXPORT_SYMBOL(ccwgroup_create_dev);
+
+/**
+ * ccwgroup_create_from_string() - create and register a ccw group device
+ * @root: parent device for the new device
+ * @creator_id: identifier of creating driver
+ * @cdrv: ccw driver of slave devices
+ * @num_devices: number of slave devices
+ * @buf: buffer containing comma separated bus ids of slave devices
+ *
+ * Create and register a new ccw group device as a child of @root. Slave
+ * devices are obtained from the list of bus ids given in @buf and must all
+ * belong to @cdrv.
+ * Returns:
+ *  %0 on success and an error code on failure.
+ * Context:
+ *  non-atomic
+ */
+int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
+				struct ccw_driver *cdrv, int num_devices,
+				const char *buf)
+{
+	return ccwgroup_create_dev(root, creator_id, cdrv, NULL,
+				   num_devices, buf);
 }
 EXPORT_SYMBOL(ccwgroup_create_from_string);
 
