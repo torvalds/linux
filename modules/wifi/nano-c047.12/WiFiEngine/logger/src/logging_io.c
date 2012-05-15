@@ -143,7 +143,7 @@ int log_to_text_file(const char *path,int append) {
 #define PROCEDURE_NUMBER 3
 /*----------------------------------------------------------------------------*/
 void logger_io_init(void) {
-#if !(DE_TRACE_MODE & CFG_DYNAMIC_BUFFER)  
+#if !(DE_TRACE_MODE & CFG_DYNAMIC_BUFFER)
   logger_init(&logger, log_buf, DE_LOG_SIZE);
   DE_TRACE2(TR_INITIALIZE, "Binary log initiated; %d bytes in static buffer\n",DE_LOG_SIZE);
 #else
@@ -184,7 +184,7 @@ prep_new_file(const char *path, int max)
         file = de_fopen(name, DE_FRDONLY | DE_FSD_PATH_ONLY);
         if(de_f_is_open(file)) {
             de_fclose(file);
-        } else { 
+        } else {
             DE_TRACE_STRING(TR_INITIALIZE, "log file %s opened for writing\n",name);
             DE_SNPRINTF(nr_at_rsp, sizeof(nr_at_rsp), "%s",name);
             return de_fopen(name, DE_FCREATE | DE_FWRONLY | DE_FSD_PATH_ONLY);

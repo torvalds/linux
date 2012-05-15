@@ -7,7 +7,7 @@
 #include "os.h"
 #include "hmac.h"
 
-/**************************** sha.h ****************************/ 
+/**************************** sha.h ****************************/
 /******************* See RFC 4634 for details ******************/
 /*Description:This file implements the Secure Hash Signature Standard algorithms as defined in the National Institute of Standards
 	and Technology Federal Information Processing Standards Publication (FIPS PUB) 180-1 published on April 17, 1995, 180-2
@@ -126,7 +126,7 @@ static void SHA256ProcessMessageBlock(SHA256Context *context)
 
 	for (t = 16; t < 64; t++)
 		W[t] = SHA256_sigma1(W[t-2]) + W[t-7] + SHA256_sigma0(W[t-15]) + W[t-16];
-	
+
 	os_memcpy(v, context->Intermediate_Hash, 8*sizeof(v[0]));
 	for (t = 0; t < 64; t++)
 	{

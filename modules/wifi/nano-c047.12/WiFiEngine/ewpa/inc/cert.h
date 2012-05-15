@@ -60,15 +60,15 @@
 
 
 
-#define SIGN_LEN               		48  
-#define PUBKEY_LEN             		48  
-#define PUBKEY2_LEN             		49  
-#define SECKEY_LEN             		24  
-#define DIGEST_LEN             		32  
-#define HMAC_LEN                        	20  
+#define SIGN_LEN               		48
+#define PUBKEY_LEN             		48
+#define PUBKEY2_LEN             		49
+#define SECKEY_LEN             		24
+#define DIGEST_LEN             		32
+#define HMAC_LEN                        	20
 #define PRF_OUTKEY_LEN			48
 
-#define X509_CERT_SIGN_LEN        57  
+#define X509_CERT_SIGN_LEN        57
 
 #define KD_HMAC_OUTKEY_LEN	96
 
@@ -83,13 +83,13 @@
 #define ECDSA_ECDH_OID          "1.2.840.10045.2.1"
 
 
-typedef struct _WOID 
+typedef struct _WOID
 {
     const char*     pszOIDName;
     unsigned short  usOIDLen;
     unsigned short  usParLen;
-    unsigned short  bOID[MAX_BYTE_DATA_LEN];        
-    unsigned short  bParameter[MAX_BYTE_DATA_LEN];  
+    unsigned short  bOID[MAX_BYTE_DATA_LEN];
+    unsigned short  bParameter[MAX_BYTE_DATA_LEN];
 } WOID, *PWOID;
 
 
@@ -97,16 +97,16 @@ typedef struct _WOID
 
 #define X509_TIME_LEN       15
 typedef struct _pov_x {
-    //struct  
+    //struct
     //{
-        unsigned long not_before;   
-        unsigned long not_after;    
+        unsigned long not_before;
+        unsigned long not_after;
     //};
-    //struct  
+    //struct
     //{
         unsigned long Length;
-        unsigned char Xnot_before[X509_TIME_LEN + 1];    
-        unsigned char Xnot_after[X509_TIME_LEN + 1];     
+        unsigned char Xnot_before[X509_TIME_LEN + 1];
+        unsigned char Xnot_after[X509_TIME_LEN + 1];
     //};
 } pov_x_t;
 
@@ -119,21 +119,21 @@ unsigned char                  lVersion;
 unsigned char                  vVersion;
 unsigned char                  verpad;
 
-unsigned char                  tPrivateKey;                   
-unsigned char                  lPrivateKey;                   
+unsigned char                  tPrivateKey;
+unsigned char                  lPrivateKey;
 unsigned char                  prikeypad[2];
-unsigned char                  vPrivateKey[MAX_BYTE_DATA_LEN];   
+unsigned char                  vPrivateKey[MAX_BYTE_DATA_LEN];
 
 unsigned char                  tSPrivateKeyAlgorithm;
 unsigned char                  lSPrivateKeyAlgorithm;
-unsigned char                  tOID;                              
-unsigned char                  lOID;                          
-unsigned char                  vOID[MAX_BYTE_DATA_LEN];           
+unsigned char                  tOID;
+unsigned char                  lOID;
+unsigned char                  vOID[MAX_BYTE_DATA_LEN];
 
-unsigned char                  tSPubkey;  
-unsigned char                  lSPubkey;  
-unsigned char                  tPubkey;    
-unsigned char                  lPubkey;    
+unsigned char                  tSPubkey;
+unsigned char                  lSPubkey;
+unsigned char                  tPubkey;
+unsigned char                  lPubkey;
 unsigned char                  vPubkey[MAX_BYTE_DATA_LEN];
 }private_key;
 

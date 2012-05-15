@@ -12,8 +12,8 @@
 #endif
 
 typedef struct {
-	unsigned int *x;                
-	unsigned int *y;                
+	unsigned int *x;
+	unsigned int *y;
 } Point;
 typedef Point *PointTable;
 
@@ -31,7 +31,7 @@ int ECC_Init(void);
 				unsigned int *OSLen,unsigned char *DString);
  int OctetStringToPriKey(const unsigned char *OString, unsigned int OSLen,
 				unsigned int *piPrivateKey,int *piLenOfPriKey);
- 
+
  int PubKeyToOctetString(Point *poPublicKey,unsigned int OSBuffSize,
 				 unsigned int *OSLen,unsigned char *DString);
  int ecc192_genkey(unsigned char *priv_key, unsigned char *pub_key);

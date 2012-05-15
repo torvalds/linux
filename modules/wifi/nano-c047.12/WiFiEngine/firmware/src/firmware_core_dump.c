@@ -29,16 +29,16 @@ static de_file_ref_t prep_new_core_file(struct dump_s *s)
     int i;
     de_file_ref_t file;
 
-    for(i=1 ; i <= DE_COREDUMP_MAX_COUNT ; i++) 
+    for(i=1 ; i <= DE_COREDUMP_MAX_COUNT ; i++)
     {
         DE_SNPRINTF(name, sizeof(name), CORE_FILE_NAME, i);
         file = de_fopen(name, DE_FRDONLY );
-        if(de_f_is_open(file)) 
+        if(de_f_is_open(file))
         {
             de_fclose(file);
-        } 
+        }
         else
-        { 
+        {
             s->nr = i;
             return de_fopen(name, DE_FCREATE|DE_FWRONLY|DE_FTRUNC);
         }
@@ -88,18 +88,18 @@ int core_dump_append(void *ctx, void *data, size_t len)
     }
 
     if( s->cache )
-	 { 
+	 {
 		 /* Coredump cache must be larger then each packet */
        DE_ASSERT(len < DE_COREDUMP_CACHE_SIZE);
        if(s->cache_off + len >= DE_COREDUMP_CACHE_SIZE)
-		 { 
+		 {
           s->written += de_fwrite(s->file, s->cache, s->cache_off);
           s->cache_off = 0;
        }
 
        DE_MEMCPY(s->cache + s->cache_off, data, len);
        s->cache_off += len;
-    } else { 
+    } else {
        s->written += de_fwrite(s->file, (char*)data, len);
     }
 
@@ -124,7 +124,7 @@ int core_dump_abort(void **ctx)
 
     de_fclose(s->file);
 
-    if(s->written < s->expected_size) 
+    if(s->written < s->expected_size)
     {
         DE_TRACE_INT(TR_ALL, "coredump aborted at size %d\n", s->written);
     }
@@ -144,10 +144,10 @@ int core_dump_complete(void **ctx)
        return 0;
     }
 
-    if( s->cache) 
-    { 
-       if(s->cache_off > 0) 
-       { 
+    if( s->cache)
+    {
+       if(s->cache_off > 0)
+       {
           s->written += de_fwrite(s->file, s->cache, s->cache_off);
        }
        DriverEnvironment_Free(s->cache);
@@ -155,14 +155,14 @@ int core_dump_complete(void **ctx)
 
     de_fclose(s->file);
 
-    if(s->written < s->expected_size) 
+    if(s->written < s->expected_size)
     {
-        DE_TRACE_INT2(TR_ALL, "coredump wrote short, expected %d but found %d\n", 
+        DE_TRACE_INT2(TR_ALL, "coredump wrote short, expected %d but found %d\n",
               s->expected_size, s->written);
     }
     DE_SNPRINTF(name, sizeof(name), LOG_FILE_NAME, s->nr, s->objId, s->errCode);
     log_to_file(name,0);
-    
+
     /* This will complete the coredump */
     /* No more calls to _write|_abort|_complete will be done if ctx==NULL */
     *ctx = NULL;

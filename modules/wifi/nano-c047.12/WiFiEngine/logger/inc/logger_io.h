@@ -9,7 +9,7 @@ void logger_io_init(void);
 /*! Push whatever is in to log buffer to file
  * @param path WIFI_ENGINE_LOG_FILE1_PATH - WIFI_ENGINE_LOG_FILE5_PATH
  * @param append to file or truncate
- * @return 1 on successfull write (also on empty buf), 
+ * @return 1 on successfull write (also on empty buf),
  *         0 on failure (file access not supported, error, disk full, ...)
  */
 int log_to_file(const char *path, int append);

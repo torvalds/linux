@@ -23,12 +23,12 @@ int set_interface(char* name);
 /*
  *   Print data sent to and from target (good for debuging and verification)
  */
-void enable_debug(void); 
+void enable_debug(void);
 
 
 
 #ifdef __cplusplus
 } /* extern "C" */
-#endif 
+#endif
 
-#endif 
+#endif

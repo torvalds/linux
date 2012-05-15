@@ -5,8 +5,8 @@ Copyright (c) 2010 by Nanoradio AB
 This software is copyrighted by and is the sole property of Nanoradio AB.
 All rights, title, ownership, or other interests in the
 software remain the property of Nanoradio AB.  This software may
-only be used in accordance with the corresponding license agreement. 
-Any unauthorized use, duplication, transmission, distribution, or disclosure 
+only be used in accordance with the corresponding license agreement.
+Any unauthorized use, duplication, transmission, distribution, or disclosure
 of this software is expressly forbidden.
 
 This Copyright notice may not be removed or modified without prior written
@@ -220,30 +220,30 @@ static void file_seek(
       int offset)
 {
 
-    if ( axf->seek > offset ) 
+    if ( axf->seek > offset )
     {
         de_fclose(axf->fh);
 
         axf->fh = de_fopen(axf->path, DE_FRDONLY);
-        
+
         DE_BUG_ON(!de_f_is_open(axf->fh), "file_seek failed to reopen file!");
-        
+
         axf->seek = 0;
     }
 
-    while ( axf->seek < offset) 
+    while ( axf->seek < offset)
     {
         int read;
         char tmp[256];
         int read_size = sizeof(tmp);
-        
+
         if( offset - axf->seek < read_size )
         {
             read_size = 1;
         }
 
         read = de_fread(axf->fh, tmp, read_size);
-        
+
         if (read <= 0) break;
         axf->seek += read;
     }
@@ -282,13 +282,13 @@ static void axf_destroy(struct axf_hlpr *axf) {
         DriverEnvironment_Free(axf->ehdr);
         axf->ehdr = NULL;
     }
-    
+
     if ( axf->phdr != NULL )
     {
         DriverEnvironment_Free(axf->phdr);
         axf->phdr = NULL;
     }
-    
+
     if (axf->shdr != NULL )
     {
         DriverEnvironment_Free(axf->shdr);
@@ -366,7 +366,7 @@ static int axf_fw_init(struct axf_hlpr *axf, struct arch_dep *arch) {
 
     do {
         axf->fh = de_fopen(axf->path, DE_FRDONLY);
-        
+
         if (!de_f_is_open(axf->fh)) {
             return 0;
         }
@@ -705,11 +705,11 @@ static int axf_read_mib_table(struct axf_hlpr *axf)
     return 0;
 }
 
-/*! 
+/*!
  * Will read and pars an axf firmware image into a buffer, this to prepare for
  * fast recovery.
  *
- * Will do assert if firmware image is larger then buffer, this to prevent 
+ * Will do assert if firmware image is larger then buffer, this to prevent
  * loading of incomplete firmware image.
  *
  * @return bytes loaded into buffer, 0 on no file.
@@ -744,18 +744,18 @@ static int read_axf_into_mem(const char *path, void *buf, size_t buf_len)
     return ret;
 }
 
-/*! 
- * Will read a pre compiled firmware image with data headers and all into a 
+/*!
+ * Will read a pre compiled firmware image with data headers and all into a
  * buffer, this is to save space on filesystem and to prepare for fast recovery.
  *
- * Will do assert if firmware image is larger then buffer, this to prevent 
+ * Will do assert if firmware image is larger then buffer, this to prevent
  * loading of incomplete firmware image.
  *
  * @return bytes loaded into buffer, 0 on no file.
  */
 static int read_bin_into_mem(
-      const char *path, 
-      void *buf, 
+      const char *path,
+      void *buf,
       size_t buf_len)
 {
     int read, read2;
@@ -763,7 +763,7 @@ static int read_bin_into_mem(
     char tmp;
 
     fh = de_fopen(path, DE_FRDONLY);
-    if (!de_f_is_open(fh)) 
+    if (!de_f_is_open(fh))
     {
         return 0;
     }
@@ -783,15 +783,15 @@ static int read_bin_into_mem(
 G L O B A L   F U N C T I O N S
 *****************************************************************************/
 int nr_read_firmware(
-      const char *filename, 
-      void *buf, 
+      const char *filename,
+      void *buf,
       size_t buf_len)
 {
     int ret;
     ret = read_axf_into_mem(filename, buf, buf_len);
     if(ret < 0)
         ret = read_bin_into_mem(filename, buf, buf_len);
-    return ret;       
+    return ret;
 }
 
 /* Local Variables: */
