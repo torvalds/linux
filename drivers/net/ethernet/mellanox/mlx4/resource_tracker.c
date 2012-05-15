@@ -179,6 +179,16 @@ struct res_counter {
 	int			port;
 };
 
+enum res_xrcdn_states {
+	RES_XRCD_BUSY = RES_ANY_BUSY,
+	RES_XRCD_ALLOCATED,
+};
+
+struct res_xrcdn {
+	struct res_common	com;
+	int			port;
+};
+
 /* For Debug uses */
 static const char *ResourceType(enum mlx4_resource rt)
 {
@@ -191,6 +201,7 @@ static const char *ResourceType(enum mlx4_resource rt)
 	case RES_MAC: return  "RES_MAC";
 	case RES_EQ: return "RES_EQ";
 	case RES_COUNTER: return "RES_COUNTER";
+	case RES_XRCD: return "RES_XRCD";
 	default: return "Unknown resource type !!!";
 	};
 }
@@ -448,6 +459,20 @@ static struct res_common *alloc_counter_tr(int id)
 	return &ret->com;
 }
 
+static struct res_common *alloc_xrcdn_tr(int id)
+{
+	struct res_xrcdn *ret;
+
+	ret = kzalloc(sizeof *ret, GFP_KERNEL);
+	if (!ret)
+		return NULL;
+
+	ret->com.res_id = id;
+	ret->com.state = RES_XRCD_ALLOCATED;
+
+	return &ret->com;
+}
+
 static struct res_common *alloc_tr(int id, enum mlx4_resource type, int slave,
 				   int extra)
 {
@@ -478,7 +503,9 @@ static struct res_common *alloc_tr(int id, enum mlx4_resource type, int slave,
 	case RES_COUNTER:
 		ret = alloc_counter_tr(id);
 		break;
-
+	case RES_XRCD:
+		ret = alloc_xrcdn_tr(id);
+		break;
 	default:
 		return NULL;
 	}
@@ -601,6 +628,16 @@ static int remove_counter_ok(struct res_counter *res)
 	return 0;
 }
 
+static int remove_xrcdn_ok(struct res_xrcdn *res)
+{
+	if (res->com.state == RES_XRCD_BUSY)
+		return -EBUSY;
+	else if (res->com.state != RES_XRCD_ALLOCATED)
+		return -EPERM;
+
+	return 0;
+}
+
 static int remove_cq_ok(struct res_cq *res)
 {
 	if (res->com.state == RES_CQ_BUSY)
@@ -640,6 +677,8 @@ static int remove_ok(struct res_common *res, enum mlx4_resource type, int extra)
 		return remove_eq_ok((struct res_eq *)res);
 	case RES_COUNTER:
 		return remove_counter_ok((struct res_counter *)res);
+	case RES_XRCD:
+		return remove_xrcdn_ok((struct res_xrcdn *)res);
 	default:
 		return -EINVAL;
 	}
@@ -1246,6 +1285,50 @@ static int vlan_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 	return 0;
 }
 
+static int counter_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
+			     u64 in_param, u64 *out_param)
+{
+	u32 index;
+	int err;
+
+	if (op != RES_OP_RESERVE)
+		return -EINVAL;
+
+	err = __mlx4_counter_alloc(dev, &index);
+	if (err)
+		return err;
+
+	err = add_res_range(dev, slave, index, 1, RES_COUNTER, 0);
+	if (err)
+		__mlx4_counter_free(dev, index);
+	else
+		set_param_l(out_param, index);
+
+	return err;
+}
+
+static int xrcdn_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
+			   u64 in_param, u64 *out_param)
+{
+	u32 xrcdn;
+	int err;
+
+	if (op != RES_OP_RESERVE)
+		return -EINVAL;
+
+	err = __mlx4_xrcd_alloc(dev, &xrcdn);
+	if (err)
+		return err;
+
+	err = add_res_range(dev, slave, xrcdn, 1, RES_XRCD, 0);
+	if (err)
+		__mlx4_xrcd_free(dev, xrcdn);
+	else
+		set_param_l(out_param, xrcdn);
+
+	return err;
+}
+
 int mlx4_ALLOC_RES_wrapper(struct mlx4_dev *dev, int slave,
 			   struct mlx4_vhcr *vhcr,
 			   struct mlx4_cmd_mailbox *inbox,
@@ -1289,6 +1372,16 @@ int mlx4_ALLOC_RES_wrapper(struct mlx4_dev *dev, int slave,
 	case RES_VLAN:
 		err = vlan_alloc_res(dev, slave, vhcr->op_modifier, alop,
 				    vhcr->in_param, &vhcr->out_param);
+		break;
+
+	case RES_COUNTER:
+		err = counter_alloc_res(dev, slave, vhcr->op_modifier, alop,
+					vhcr->in_param, &vhcr->out_param);
+		break;
+
+	case RES_XRCD:
+		err = xrcdn_alloc_res(dev, slave, vhcr->op_modifier, alop,
+				      vhcr->in_param, &vhcr->out_param);
 		break;
 
 	default:
@@ -1473,6 +1566,44 @@ static int vlan_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 	return 0;
 }
 
+static int counter_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
+			    u64 in_param, u64 *out_param)
+{
+	int index;
+	int err;
+
+	if (op != RES_OP_RESERVE)
+		return -EINVAL;
+
+	index = get_param_l(&in_param);
+	err = rem_res_range(dev, slave, index, 1, RES_COUNTER, 0);
+	if (err)
+		return err;
+
+	__mlx4_counter_free(dev, index);
+
+	return err;
+}
+
+static int xrcdn_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
+			  u64 in_param, u64 *out_param)
+{
+	int xrcdn;
+	int err;
+
+	if (op != RES_OP_RESERVE)
+		return -EINVAL;
+
+	xrcdn = get_param_l(&in_param);
+	err = rem_res_range(dev, slave, xrcdn, 1, RES_XRCD, 0);
+	if (err)
+		return err;
+
+	__mlx4_xrcd_free(dev, xrcdn);
+
+	return err;
+}
+
 int mlx4_FREE_RES_wrapper(struct mlx4_dev *dev, int slave,
 			  struct mlx4_vhcr *vhcr,
 			  struct mlx4_cmd_mailbox *inbox,
@@ -1517,6 +1648,15 @@ int mlx4_FREE_RES_wrapper(struct mlx4_dev *dev, int slave,
 		err = vlan_free_res(dev, slave, vhcr->op_modifier, alop,
 				   vhcr->in_param, &vhcr->out_param);
 		break;
+
+	case RES_COUNTER:
+		err = counter_free_res(dev, slave, vhcr->op_modifier, alop,
+				       vhcr->in_param, &vhcr->out_param);
+		break;
+
+	case RES_XRCD:
+		err = xrcdn_free_res(dev, slave, vhcr->op_modifier, alop,
+				     vhcr->in_param, &vhcr->out_param);
 
 	default:
 		break;
@@ -3032,6 +3172,64 @@ static void rem_slave_eqs(struct mlx4_dev *dev, int slave)
 	spin_unlock_irq(mlx4_tlock(dev));
 }
 
+static void rem_slave_counters(struct mlx4_dev *dev, int slave)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
+	struct list_head *counter_list =
+		&tracker->slave_list[slave].res_list[RES_COUNTER];
+	struct res_counter *counter;
+	struct res_counter *tmp;
+	int err;
+	int index;
+
+	err = move_all_busy(dev, slave, RES_COUNTER);
+	if (err)
+		mlx4_warn(dev, "rem_slave_counters: Could not move all counters to "
+			  "busy for slave %d\n", slave);
+
+	spin_lock_irq(mlx4_tlock(dev));
+	list_for_each_entry_safe(counter, tmp, counter_list, com.list) {
+		if (counter->com.owner == slave) {
+			index = counter->com.res_id;
+			radix_tree_delete(&tracker->res_tree[RES_COUNTER], index);
+			list_del(&counter->com.list);
+			kfree(counter);
+			__mlx4_counter_free(dev, index);
+		}
+	}
+	spin_unlock_irq(mlx4_tlock(dev));
+}
+
+static void rem_slave_xrcdns(struct mlx4_dev *dev, int slave)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
+	struct list_head *xrcdn_list =
+		&tracker->slave_list[slave].res_list[RES_XRCD];
+	struct res_xrcdn *xrcd;
+	struct res_xrcdn *tmp;
+	int err;
+	int xrcdn;
+
+	err = move_all_busy(dev, slave, RES_XRCD);
+	if (err)
+		mlx4_warn(dev, "rem_slave_xrcdns: Could not move all xrcdns to "
+			  "busy for slave %d\n", slave);
+
+	spin_lock_irq(mlx4_tlock(dev));
+	list_for_each_entry_safe(xrcd, tmp, xrcdn_list, com.list) {
+		if (xrcd->com.owner == slave) {
+			xrcdn = xrcd->com.res_id;
+			radix_tree_delete(&tracker->res_tree[RES_XRCD], xrcdn);
+			list_del(&xrcd->com.list);
+			kfree(xrcd);
+			__mlx4_xrcd_free(dev, xrcdn);
+		}
+	}
+	spin_unlock_irq(mlx4_tlock(dev));
+}
+
 void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -3045,5 +3243,7 @@ void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave)
 	rem_slave_mrs(dev, slave);
 	rem_slave_eqs(dev, slave);
 	rem_slave_mtts(dev, slave);
+	rem_slave_counters(dev, slave);
+	rem_slave_xrcdns(dev, slave);
 	mutex_unlock(&priv->mfunc.master.res_tracker.slave_list[slave].mutex);
 }
