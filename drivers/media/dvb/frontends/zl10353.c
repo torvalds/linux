@@ -525,7 +525,7 @@ static int zl10353_read_snr(struct dvb_frontend *fe, u16 *snr)
 		zl10353_dump_regs(fe);
 
 	_snr = zl10353_read_register(state, SNR);
-	*snr = (_snr << 8) | _snr;
+	*snr = 10 * _snr / 8;
 
 	return 0;
 }
