@@ -34,6 +34,9 @@
 
 #define EXYNOS4_PA_JPEG			0x11840000
 
+/* x = 0...1 */
+#define EXYNOS4_PA_FIMC_LITE(x)		(0x12390000 + ((x) * 0x10000))
+
 #define EXYNOS4_PA_G2D			0x12800000
 
 #define EXYNOS4_PA_I2S0			0x03830000

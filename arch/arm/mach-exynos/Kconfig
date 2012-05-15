@@ -61,6 +61,7 @@ config SOC_EXYNOS5250
 	bool "SAMSUNG EXYNOS5250"
 	default y
 	depends on ARCH_EXYNOS5
+	select SAMSUNG_DMADEV
 	help
 	  Enable EXYNOS5250 SoC support
 
@@ -70,7 +71,7 @@ config EXYNOS4_MCT
 	help
 	  Use MCT (Multi Core Timer) as kernel timers
 
-config EXYNOS4_DEV_DMA
+config EXYNOS_DEV_DMA
 	bool
 	help
 	  Compile in amba device definitions for DMA controller
@@ -79,6 +80,11 @@ config EXYNOS4_DEV_AHCI
 	bool
 	help
 	  Compile in platform device definitions for AHCI
+
+config EXYNOS_DEV_DRM
+	bool
+	help
+	  Compile in platform device definitions for core DRM device
 
 config EXYNOS4_SETUP_FIMD0
 	bool
@@ -161,7 +167,7 @@ config EXYNOS4_SETUP_USB_PHY
 	help
 	  Common setup code for USB PHY controller
 
-config EXYNOS4_SETUP_SPI
+config EXYNOS_SETUP_SPI
 	bool
 	help
 	  Common setup code for SPI GPIO configurations.
@@ -223,7 +229,7 @@ config MACH_ARMLEX4210
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
 	select EXYNOS4_DEV_AHCI
-	select EXYNOS4_DEV_DMA
+	select EXYNOS_DEV_DMA
 	select EXYNOS4_SETUP_SDHCI
 	help
 	  Machine support for Samsung ARMLEX4210 based on EXYNOS4210
@@ -350,7 +356,7 @@ config MACH_SMDK4212
 	select SAMSUNG_DEV_KEYPAD
 	select SAMSUNG_DEV_PWM
 	select EXYNOS_DEV_SYSMMU
-	select EXYNOS4_DEV_DMA
+	select EXYNOS_DEV_DMA
 	select EXYNOS4_SETUP_I2C1
 	select EXYNOS4_SETUP_I2C3
 	select EXYNOS4_SETUP_I2C7

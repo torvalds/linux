@@ -313,7 +313,7 @@ static int exynos4_pm_suspend(void)
 	tmp &= ~S5P_CENTRAL_LOWPWR_CFG;
 	__raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
 
-	if (soc_is_exynos4212()) {
+	if (soc_is_exynos4212() || soc_is_exynos4412()) {
 		tmp = __raw_readl(S5P_CENTRAL_SEQ_OPTION);
 		tmp &= ~(S5P_USE_STANDBYWFI_ISP_ARM |
 			 S5P_USE_STANDBYWFE_ISP_ARM);
