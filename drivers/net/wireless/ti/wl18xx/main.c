@@ -1098,7 +1098,7 @@ static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap = {
 		},
 };
 
-int __devinit wl18xx_probe(struct platform_device *pdev)
+static int __devinit wl18xx_probe(struct platform_device *pdev)
 {
 	struct wl1271 *wl;
 	struct ieee80211_hw *hw;
