@@ -46,12 +46,12 @@ static void navman_read_int_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-		    __func__, status);
+		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
+			__func__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d",
-		    __func__, status);
+		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+			__func__, status);
 		goto exit;
 	}
 
@@ -78,7 +78,8 @@ static int navman_open(struct tty_struct *tty, struct usb_serial_port *port)
 	int result = 0;
 
 	if (port->interrupt_in_urb) {
-		dbg("%s - adding interrupt input for treo", __func__);
+		dev_dbg(&port->dev, "%s - adding interrupt input for treo\n",
+			__func__);
 		result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 		if (result)
 			dev_err(&port->dev,
