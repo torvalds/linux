@@ -2819,7 +2819,7 @@ void drm_property_destroy(struct drm_device *dev, struct drm_property *property)
 }
 EXPORT_SYMBOL(drm_property_destroy);
 
-int drm_connector_attach_property(struct drm_connector *connector,
+void drm_connector_attach_property(struct drm_connector *connector,
 			       struct drm_property *property, uint64_t init_val)
 {
 	int i;
@@ -2828,13 +2828,13 @@ int drm_connector_attach_property(struct drm_connector *connector,
 		if (connector->property_ids[i] == 0) {
 			connector->property_ids[i] = property->base.id;
 			connector->property_values[i] = init_val;
-			break;
+			return;
 		}
 	}
 
-	if (i == DRM_CONNECTOR_MAX_PROPERTY)
-		return -EINVAL;
-	return 0;
+	WARN(1, "Failed to attach connector property. Please increase "
+		"DRM_CONNECTOR_MAX_PROPERTY by 1 for each time you see this "
+		"message\n");
 }
 EXPORT_SYMBOL(drm_connector_attach_property);
 

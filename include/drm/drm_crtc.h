@@ -910,8 +910,8 @@ extern int drmfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);
 extern void drm_crtc_probe_connector_modes(struct drm_device *dev, int maxX, int maxY);
 extern bool drm_crtc_in_use(struct drm_crtc *crtc);
 
-extern int drm_connector_attach_property(struct drm_connector *connector,
-				      struct drm_property *property, uint64_t init_val);
+extern void drm_connector_attach_property(struct drm_connector *connector,
+					  struct drm_property *property, uint64_t init_val);
 extern struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 						const char *name, int num_values);
 extern struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
