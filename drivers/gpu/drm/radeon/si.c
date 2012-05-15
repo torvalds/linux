@@ -2265,6 +2265,7 @@ static int si_gpu_soft_reset(struct radeon_device *rdev)
 		      SOFT_RESET_GDS |
 		      SOFT_RESET_PA |
 		      SOFT_RESET_SC |
+		      SOFT_RESET_BCI |
 		      SOFT_RESET_SPI |
 		      SOFT_RESET_SX |
 		      SOFT_RESET_TC |
