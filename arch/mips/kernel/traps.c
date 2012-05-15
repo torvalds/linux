@@ -1490,7 +1490,6 @@ void *set_vi_handler(int n, vi_handler_t addr)
 	return set_vi_srs_handler(n, addr, 0);
 }
 
-extern void cpu_cache_init(void);
 extern void tlb_init(void);
 extern void flush_tlb_handlers(void);
 
@@ -1517,7 +1516,7 @@ static int __init ulri_disable(char *s)
 }
 __setup("noulri", ulri_disable);
 
-void __cpuinit per_cpu_trap_init(void)
+void __cpuinit per_cpu_trap_init(bool is_boot_cpu)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned int status_set = ST0_CU0;
@@ -1616,7 +1615,9 @@ void __cpuinit per_cpu_trap_init(void)
 #ifdef CONFIG_MIPS_MT_SMTC
 	if (bootTC) {
 #endif /* CONFIG_MIPS_MT_SMTC */
-		cpu_cache_init();
+		/* Boot CPU's cache setup in setup_arch(). */
+		if (!is_boot_cpu)
+			cpu_cache_init();
 		tlb_init();
 #ifdef CONFIG_MIPS_MT_SMTC
 	} else if (!secondaryTC) {
@@ -1693,7 +1694,7 @@ void __init trap_init(void)
 
 	if (board_ebase_setup)
 		board_ebase_setup();
-	per_cpu_trap_init();
+	per_cpu_trap_init(true);
 
 	/*
 	 * Copy the generic exception handlers to their final destination.

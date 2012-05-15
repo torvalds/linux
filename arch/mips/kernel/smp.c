@@ -106,7 +106,7 @@ asmlinkage __cpuinit void start_secondary(void)
 #endif /* CONFIG_MIPS_MT_SMTC */
 	cpu_probe();
 	cpu_report();
-	per_cpu_trap_init();
+	per_cpu_trap_init(false);
 	mips_clockevent_init();
 	mp_ops->init_secondary();
 
