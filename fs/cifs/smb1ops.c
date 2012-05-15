@@ -18,8 +18,49 @@
  */
 
 #include "cifsglob.h"
+#include "cifsproto.h"
+#include "cifs_debug.h"
+
+/*
+ * An NT cancel request header looks just like the original request except:
+ *
+ * The Command is SMB_COM_NT_CANCEL
+ * The WordCount is zeroed out
+ * The ByteCount is zeroed out
+ *
+ * This function mangles an existing request buffer into a
+ * SMB_COM_NT_CANCEL request and then sends it.
+ */
+static int
+send_nt_cancel(struct TCP_Server_Info *server, void *buf,
+	       struct mid_q_entry *mid)
+{
+	int rc = 0;
+	struct smb_hdr *in_buf = (struct smb_hdr *)buf;
+
+	/* -4 for RFC1001 length and +2 for BCC field */
+	in_buf->smb_buf_length = cpu_to_be32(sizeof(struct smb_hdr) - 4  + 2);
+	in_buf->Command = SMB_COM_NT_CANCEL;
+	in_buf->WordCount = 0;
+	put_bcc(0, in_buf);
+
+	mutex_lock(&server->srv_mutex);
+	rc = cifs_sign_smb(in_buf, server, &mid->sequence_number);
+	if (rc) {
+		mutex_unlock(&server->srv_mutex);
+		return rc;
+	}
+	rc = smb_send(server, in_buf, be32_to_cpu(in_buf->smb_buf_length));
+	mutex_unlock(&server->srv_mutex);
+
+	cFYI(1, "issued NT_CANCEL for mid %u, rc = %d",
+		in_buf->Mid, rc);
+
+	return rc;
+}
 
 struct smb_version_operations smb1_operations = {
+	.send_cancel = send_nt_cancel,
 };
 
 struct smb_version_values smb1_values = {

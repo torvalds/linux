@@ -154,7 +154,12 @@ enum smb_version {
 	Smb_1 = 1,
 };
 
+struct mid_q_entry;
+struct TCP_Server_Info;
+
 struct smb_version_operations {
+	int (*send_cancel)(struct TCP_Server_Info *, void *,
+			   struct mid_q_entry *);
 };
 
 struct smb_version_values {
@@ -718,7 +723,6 @@ static inline void cifs_stats_bytes_read(struct cifs_tcon *tcon,
 
 #endif
 
-struct mid_q_entry;
 
 /*
  * This is the prototype for the mid receive function. This function is for
