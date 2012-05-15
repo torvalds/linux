@@ -210,8 +210,6 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_netbiosname, "netbiosname=%s" },
 	{ Opt_servern, "servern=%s" },
 	{ Opt_ver, "ver=%s" },
-	{ Opt_ver, "vers=%s" },
-	{ Opt_ver, "version=%s" },
 	{ Opt_sec, "sec=%s" },
 	{ Opt_cache, "cache=%s" },
 
@@ -1874,8 +1872,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (strnicmp(string, "cifs", 4) == 0 ||
-			    strnicmp(string, "1", 1) == 0) {
+			if (strnicmp(string, "1", 1) == 0) {
 				/* This is the default */
 				break;
 			}
