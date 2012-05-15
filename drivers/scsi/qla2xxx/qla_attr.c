@@ -1956,6 +1956,9 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 
 	if (IS_CNA_CAPABLE(ha))
 		speed = FC_PORTSPEED_10GBIT;
+	else if (IS_QLA2031(ha))
+		speed = FC_PORTSPEED_16GBIT | FC_PORTSPEED_8GBIT |
+		    FC_PORTSPEED_4GBIT;
 	else if (IS_QLA25XX(ha))
 		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |
 		    FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
