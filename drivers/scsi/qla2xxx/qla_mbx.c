@@ -4549,7 +4549,7 @@ qla2x00_port_logout(scsi_qla_host_t *vha, struct fc_port *fcport)
 	}
 
 
-	ql_dbg(ql_dbg_mbx, vha, 0x113c, "Done %s.\n",  __func__);
+	ql_dbg(ql_dbg_mbx, vha, 0x113c, "Entering %s.\n",  __func__);
 
 	/* Perform Implicit LOGO. */
 	mcp->mb[0] = MBC_PORT_LOGOUT;
