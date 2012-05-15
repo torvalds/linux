@@ -5,7 +5,7 @@
 sromrev=3
 vendid=0x14e4
 devid=0x432f
-boardtype=0x50C
+boardtype=0x50C
 boardrev=0x32
 
 boardflags=0x200
