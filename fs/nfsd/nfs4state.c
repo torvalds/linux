@@ -1201,11 +1201,31 @@ same_clid(clientid_t *cl1, clientid_t *cl2)
 	return (cl1->cl_boot == cl2->cl_boot) && (cl1->cl_id == cl2->cl_id);
 }
 
+static bool groups_equal(struct group_info *g1, struct group_info *g2)
+{
+	int i;
+
+	if (g1->ngroups != g2->ngroups)
+		return false;
+	for (i=0; i<g1->ngroups; i++)
+		if (GROUP_AT(g1, i) != GROUP_AT(g2, i))
+			return false;
+	return true;
+}
+
 /* XXX what about NGROUP */
 static int
 same_creds(struct svc_cred *cr1, struct svc_cred *cr2)
 {
-	return cr1->cr_uid == cr2->cr_uid;
+	if ((cr1->cr_uid != cr2->cr_uid)
+		|| (cr1->cr_gid != cr2->cr_gid)
+		|| !groups_equal(cr1->cr_group_info, cr2->cr_group_info))
+		return false;
+	if (cr1->cr_principal == cr2->cr_principal)
+		return true;
+	if (!cr1->cr_principal || !cr2->cr_principal)
+		return false;
+	return 0 == strcmp(cr1->cr_principal, cr1->cr_principal);
 }
 
 static void gen_clid(struct nfs4_client *clp)
