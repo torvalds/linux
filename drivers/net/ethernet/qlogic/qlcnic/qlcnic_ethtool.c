@@ -1232,7 +1232,12 @@ qlcnic_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 		dump->len = fw_dump->tmpl_hdr->size + fw_dump->size;
 	else
 		dump->len = 0;
-	dump->flag = fw_dump->tmpl_hdr->drv_cap_mask;
+
+	if (!fw_dump->enable)
+		dump->flag = ETH_FW_DUMP_DISABLE;
+	else
+		dump->flag = fw_dump->tmpl_hdr->drv_cap_mask;
+
 	dump->version = adapter->fw_version;
 	return 0;
 }
