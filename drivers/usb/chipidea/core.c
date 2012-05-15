@@ -195,7 +195,7 @@ static int hw_device_init(struct ci13xxx *ci, void __iomem *base)
 		ffs_nr(DCCPARAMS_DEN);
 	ci->hw_ep_max = reg * 2;   /* cache hw ENDPT_MAX */
 
-	if (ci->hw_ep_max == 0 || ci->hw_ep_max > ENDPT_MAX)
+	if (ci->hw_ep_max > ENDPT_MAX)
 		return -ENODEV;
 
 	dev_dbg(ci->dev, "ChipIdea HDRC found, lpm: %d; cap: %p op: %p\n",
