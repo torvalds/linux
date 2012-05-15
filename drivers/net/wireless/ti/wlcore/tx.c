@@ -148,10 +148,10 @@ u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			return wl->system_hlid;
 
 		hdr = (struct ieee80211_hdr *)skb->data;
-		if (ieee80211_is_mgmt(hdr->frame_control))
-			return wlvif->ap.global_hlid;
-		else
+		if (is_multicast_ether_addr(ieee80211_get_DA(hdr)))
 			return wlvif->ap.bcast_hlid;
+		else
+			return wlvif->ap.global_hlid;
 	}
 }
 
