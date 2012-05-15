@@ -275,7 +275,7 @@ static void exynos4_restore_pll(void)
 
 static struct subsys_interface exynos4_pm_interface = {
 	.name		= "exynos4_pm",
-	.subsys		= &exynos4_subsys,
+	.subsys		= &exynos_subsys,
 	.add_dev	= exynos4_pm_add,
 };
 

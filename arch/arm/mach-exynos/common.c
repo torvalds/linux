@@ -565,30 +565,18 @@ void __init exynos5_init_irq(void)
 	s5p_init_irq(NULL, 0);
 }
 
-struct bus_type exynos4_subsys = {
-	.name		= "exynos4-core",
-	.dev_name	= "exynos4-core",
-};
-
-struct bus_type exynos5_subsys = {
-	.name		= "exynos5-core",
-	.dev_name	= "exynos5-core",
+struct bus_type exynos_subsys = {
+	.name		= "exynos-core",
+	.dev_name	= "exynos-core",
 };
 
 static struct device exynos4_dev = {
-	.bus	= &exynos4_subsys,
-};
-
-static struct device exynos5_dev = {
-	.bus	= &exynos5_subsys,
+	.bus	= &exynos_subsys,
 };
 
 static int __init exynos_core_init(void)
 {
-	if (soc_is_exynos5250())
-		return subsys_system_register(&exynos5_subsys, NULL);
-	else
-		return subsys_system_register(&exynos4_subsys, NULL);
+	return subsys_system_register(&exynos_subsys, NULL);
 }
 core_initcall(exynos_core_init);
 
@@ -675,10 +663,7 @@ static int __init exynos_init(void)
 {
 	printk(KERN_INFO "EXYNOS: Initializing architecture\n");
 
-	if (soc_is_exynos5250())
-		return device_register(&exynos5_dev);
-	else
-		return device_register(&exynos4_dev);
+	return device_register(&exynos4_dev);
 }
 
 /* uart registration process */
