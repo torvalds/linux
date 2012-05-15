@@ -744,7 +744,7 @@ get_a_page:
 		i_size_write(inode, size);
 	inode->i_mtime = inode->i_atime = CURRENT_TIME;
 	mark_inode_dirty(inode);
-	return err;
+	return 0;
 
 unlock_out:
 	unlock_page(page);
