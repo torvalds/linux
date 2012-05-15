@@ -3844,4 +3844,17 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_vif *vif,
  */
 int ieee80211_ave_rssi(struct ieee80211_vif *vif);
 
+/* Extra debugging macros */
+
+#ifdef CONFIG_MAC80211_HT_DEBUG
+#define ht_vdbg(fmt, ...)			\
+	pr_debug(fmt, ##__VA_ARGS__)
+#else
+#define ht_vdbg(fmt, ...)			\
+do {						\
+	if (0)					\
+		pr_debug(fmt, ##__VA_ARGS__);	\
+} while (0)
+#endif
+
 #endif /* MAC80211_H */
