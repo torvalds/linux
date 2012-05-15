@@ -842,6 +842,11 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 		hdlc = 1;
 	}
 	if (fifo->bch) {
+		if (test_bit(FLG_RX_OFF, &fifo->bch->Flags)) {
+			fifo->bch->dropcnt += len;
+			spin_unlock(&hw->lock);
+			return;
+		}
 		maxlen = bchannel_get_rxbuf(fifo->bch, len);
 		rx_skb = fifo->bch->rx_skb;
 		if (maxlen < 0) {

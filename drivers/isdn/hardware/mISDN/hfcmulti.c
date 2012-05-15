@@ -2224,8 +2224,11 @@ next_frame:
 	HFC_wait_nodebug(hc);
 
 	/* ignore if rx is off BUT change fifo (above) to start pending TX */
-	if (hc->chan[ch].rx_off)
+	if (hc->chan[ch].rx_off) {
+		if (bch)
+			bch->dropcnt += poll; /* not exact but fair enough */
 		return;
+	}
 
 	if (dch || test_bit(FLG_HDLC, &bch->Flags)) {
 		f1 = HFC_inb_nodebug(hc, A_F1);
@@ -3575,10 +3578,10 @@ channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
 		ret = mISDN_ctrl_bchannel(bch, cq);
-		cq->op |= MISDN_CTRL_HFC_OP | MISDN_CTRL_HW_FEATURES_OP |
-			  MISDN_CTRL_RX_OFF;
+		cq->op |= MISDN_CTRL_HFC_OP | MISDN_CTRL_HW_FEATURES_OP;
 		break;
 	case MISDN_CTRL_RX_OFF: /* turn off / on rx stream */
+		ret = mISDN_ctrl_bchannel(bch, cq);
 		hc->chan[bch->slot].rx_off = !!cq->p1;
 		if (!hc->chan[bch->slot].rx_off) {
 			/* reset fifo on rx on */

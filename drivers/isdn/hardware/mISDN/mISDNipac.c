@@ -936,6 +936,11 @@ hscx_empty_fifo(struct hscx_hw *hscx, u8 count)
 	int maxlen;
 
 	pr_debug("%s: B%1d %d\n", hscx->ip->name, hscx->bch.nr, count);
+	if (test_bit(FLG_RX_OFF, &hscx->bch.Flags)) {
+		hscx->bch.dropcnt += count;
+		hscx_cmdr(hscx, 0x80); /* RMC */
+		return;
+	}
 	maxlen = bchannel_get_rxbuf(&hscx->bch, count);
 	if (maxlen < 0) {
 		hscx_cmdr(hscx, 0x80); /* RMC */

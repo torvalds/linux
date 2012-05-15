@@ -475,6 +475,11 @@ W6692_empty_Bfifo(struct w6692_ch *wch, int count)
 			skb_trim(wch->bch.rx_skb, 0);
 		return;
 	}
+	if (test_bit(FLG_RX_OFF, &wch->bch.Flags)) {
+		wch->bch.dropcnt += count;
+		WriteW6692B(wch, W_B_CMDR, W_B_CMDR_RACK | W_B_CMDR_RACT);
+		return;
+	}
 	maxlen = bchannel_get_rxbuf(&wch->bch, count);
 	if (maxlen < 0) {
 		WriteW6692B(wch, W_B_CMDR, W_B_CMDR_RACK | W_B_CMDR_RACT);

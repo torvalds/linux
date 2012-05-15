@@ -429,6 +429,11 @@ isar_rcv_frame(struct isar_ch *ch)
 		ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
 		return;
 	}
+	if (test_bit(FLG_RX_OFF, &ch->bch.Flags)) {
+		ch->bch.dropcnt += ch->is->clsb;
+		ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
+		return;
+	}
 	switch (ch->bch.state) {
 	case ISDN_P_NONE:
 		pr_debug("%s: ISAR protocol 0 spurious IIS_RDATA %x/%x/%x\n",

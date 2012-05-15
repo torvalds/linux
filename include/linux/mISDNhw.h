@@ -73,6 +73,8 @@
 #define FLG_LL_CONN		25
 #define FLG_DTMFSEND		26
 #define FLG_TX_EMPTY		27
+/* stop sending received data upstream */
+#define FLG_RX_OFF		28
 /* workq events */
 #define FLG_RECVQUEUE		30
 #define	FLG_PHCHANGE		31
@@ -173,6 +175,7 @@ struct bchannel {
 	int			err_crc;
 	int			err_tx;
 	int			err_rx;
+	int			dropcnt;
 };
 
 extern int	mISDN_initdchannel(struct dchannel *, int, void *);

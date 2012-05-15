@@ -408,13 +408,18 @@ hdlc_empty_fifo(struct bchannel *bch, int count)
 	struct fritzcard *fc = bch->hw;
 
 	pr_debug("%s: %s %d\n", fc->name, __func__, count);
-	cnt = bchannel_get_rxbuf(bch, count);
-	if (cnt < 0) {
-		pr_warning("%s.B%d: No bufferspace for %d bytes\n",
-			   fc->name, bch->nr, count);
-		return;
+	if (test_bit(FLG_RX_OFF, &bch->Flags)) {
+		p = NULL;
+		bch->dropcnt += count;
+	} else {
+		cnt = bchannel_get_rxbuf(bch, count);
+		if (cnt < 0) {
+			pr_warning("%s.B%d: No bufferspace for %d bytes\n",
+				   fc->name, bch->nr, count);
+			return;
+		}
+		p = skb_put(bch->rx_skb, count);
 	}
-	p = skb_put(bch->rx_skb, count);
 	ptr = (u32 *)p;
 	if (fc->type == AVM_FRITZ_PCIV2)
 		addr = fc->addr + (bch->nr == 2 ?
@@ -426,11 +431,13 @@ hdlc_empty_fifo(struct bchannel *bch, int count)
 	cnt = 0;
 	while (cnt < count) {
 		val = le32_to_cpu(inl(addr));
-		put_unaligned(val, ptr);
-		ptr++;
+		if (p) {
+			put_unaligned(val, ptr);
+			ptr++;
+		}
 		cnt += 4;
 	}
-	if (debug & DEBUG_HW_BFIFO) {
+	if (p && (debug & DEBUG_HW_BFIFO)) {
 		snprintf(fc->log, LOG_SIZE, "B%1d-recv %s %d ",
 			 bch->nr, fc->name, count);
 		print_hex_dump_bytes(fc->log, DUMP_PREFIX_OFFSET, p, count);

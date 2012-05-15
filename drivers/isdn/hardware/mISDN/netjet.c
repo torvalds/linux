@@ -386,6 +386,10 @@ read_dma(struct tiger_ch *bc, u32 idx, int cnt)
 			bc->bch.nr, idx);
 	}
 	bc->lastrx = idx;
+	if (test_bit(FLG_RX_OFF, &bc->bch.Flags)) {
+		bc->bch.dropcnt += cnt;
+		return;
+	}
 	stat = bchannel_get_rxbuf(&bc->bch, cnt);
 	/* only transparent use the count here, HDLC overun is detected later */
 	if (stat == ENOMEM) {

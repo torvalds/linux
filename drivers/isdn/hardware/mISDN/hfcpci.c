@@ -572,6 +572,11 @@ hfcpci_empty_fifo_trans(struct bchannel *bch, struct bzfifo *rxbz,
 	fcnt_tx = B_FIFO_SIZE - fcnt_tx;
 	/* remaining bytes to send (bytes in tx-fifo) */
 
+	if (test_bit(FLG_RX_OFF, &bch->Flags)) {
+		bch->dropcnt += fcnt_rx;
+		*z2r = cpu_to_le16(new_z2);
+		return;
+	}
 	maxlen = bchannel_get_rxbuf(bch, fcnt_rx);
 	if (maxlen < 0) {
 		pr_warning("B%d: No bufferspace for %d bytes\n",

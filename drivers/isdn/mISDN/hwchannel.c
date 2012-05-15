@@ -142,6 +142,8 @@ mISDN_clear_bchannel(struct bchannel *ch)
 	test_and_clear_bit(FLG_ACTIVE, &ch->Flags);
 	test_and_clear_bit(FLG_FILLEMPTY, &ch->Flags);
 	test_and_clear_bit(FLG_TX_EMPTY, &ch->Flags);
+	test_and_clear_bit(FLG_RX_OFF, &ch->Flags);
+	ch->dropcnt = 0;
 	ch->minlen = ch->init_minlen;
 	ch->next_minlen = ch->init_minlen;
 	ch->maxlen = ch->init_maxlen;
@@ -167,7 +169,8 @@ mISDN_ctrl_bchannel(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = MISDN_CTRL_RX_BUFFER | MISDN_CTRL_FILL_EMPTY;
+		cq->op = MISDN_CTRL_RX_BUFFER | MISDN_CTRL_FILL_EMPTY |
+			 MISDN_CTRL_RX_OFF;
 		break;
 	case MISDN_CTRL_FILL_EMPTY:
 		if (cq->p1) {
@@ -176,6 +179,15 @@ mISDN_ctrl_bchannel(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 		} else {
 			test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
 		}
+		break;
+	case MISDN_CTRL_RX_OFF:
+		/* read back dropped byte count */
+		cq->p2 = bch->dropcnt;
+		if (cq->p1)
+			test_and_set_bit(FLG_RX_OFF, &bch->Flags);
+		else
+			test_and_clear_bit(FLG_RX_OFF, &bch->Flags);
+		bch->dropcnt = 0;
 		break;
 	case MISDN_CTRL_RX_BUFFER:
 		if (cq->p2 > MISDN_CTRL_RX_SIZE_IGNORE)
