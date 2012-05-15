@@ -434,8 +434,8 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		goto out;
 	else {
 		card->info.mac_bits  = 0;
-		if (card->discipline.ccwgdriver) {
-			card->discipline.ccwgdriver->remove(card->gdev);
+		if (card->discipline) {
+			card->discipline->remove(card->gdev);
 			qeth_core_free_discipline(card);
 		}
 	}
@@ -444,7 +444,7 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 	if (rc)
 		goto out;
 
-	rc = card->discipline.ccwgdriver->probe(card->gdev);
+	rc = card->discipline->setup(card->gdev);
 out:
 	mutex_unlock(&card->discipline_mutex);
 	return rc ? rc : count;
