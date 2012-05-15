@@ -22,8 +22,6 @@
  *
  */
 
-#include "smiapp-debug.h"
-
 #include <linux/delay.h>
 #include <linux/i2c.h>
 

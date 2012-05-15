@@ -22,8 +22,6 @@
  *
  */
 
-#include "smiapp/smiapp-debug.h"
-
 #include <linux/gcd.h>
 #include <linux/lcm.h>
 #include <linux/module.h>

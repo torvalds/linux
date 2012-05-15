@@ -26,8 +26,6 @@
  *
  */
 
-#include "smiapp-debug.h"
-
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
