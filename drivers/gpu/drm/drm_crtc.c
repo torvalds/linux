@@ -1425,11 +1425,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	}
 	connector = obj_to_connector(obj);
 
-	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
-		if (connector->properties.ids[i] != 0) {
-			props_count++;
-		}
-	}
+	props_count = connector->properties.count;
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
 		if (connector->encoder_ids[i] != 0) {
@@ -1482,21 +1478,19 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 		copied = 0;
 		prop_ptr = (uint32_t __user *)(unsigned long)(out_resp->props_ptr);
 		prop_values = (uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr);
-		for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
-			if (connector->properties.ids[i] != 0) {
-				if (put_user(connector->properties.ids[i],
-					     prop_ptr + copied)) {
-					ret = -EFAULT;
-					goto out;
-				}
-
-				if (put_user(connector->properties.values[i],
-					     prop_values + copied)) {
-					ret = -EFAULT;
-					goto out;
-				}
-				copied++;
+		for (i = 0; i < connector->properties.count; i++) {
+			if (put_user(connector->properties.ids[i],
+				     prop_ptr + copied)) {
+				ret = -EFAULT;
+				goto out;
 			}
+
+			if (put_user(connector->properties.values[i],
+				     prop_values + copied)) {
+				ret = -EFAULT;
+				goto out;
+			}
+			copied++;
 		}
 	}
 	out_resp->count_props = props_count;
@@ -2845,19 +2839,19 @@ void drm_object_attach_property(struct drm_mode_object *obj,
 				struct drm_property *property,
 				uint64_t init_val)
 {
-	int i;
+	int count = obj->properties->count;
 
-	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
-		if (obj->properties->ids[i] == 0) {
-			obj->properties->ids[i] = property->base.id;
-			obj->properties->values[i] = init_val;
-			return;
-		}
+	if (count == DRM_OBJECT_MAX_PROPERTY) {
+		WARN(1, "Failed to attach object property (type: 0x%x). Please "
+			"increase DRM_OBJECT_MAX_PROPERTY by 1 for each time "
+			"you see this message on the same object type.\n",
+			obj->type);
+		return;
 	}
 
-	WARN(1, "Failed to attach object property (type: 0x%x). Please "
-		"increase DRM_OBJECT_MAX_PROPERTY by 1 for each time you see "
-		"this message on the same object type.\n", obj->type);
+	obj->properties->ids[count] = property->base.id;
+	obj->properties->values[count] = init_val;
+	obj->properties->count++;
 }
 EXPORT_SYMBOL(drm_object_attach_property);
 
@@ -2866,7 +2860,7 @@ int drm_object_property_set_value(struct drm_mode_object *obj,
 {
 	int i;
 
-	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
+	for (i = 0; i < obj->properties->count; i++) {
 		if (obj->properties->ids[i] == property->base.id) {
 			obj->properties->values[i] = val;
 			return 0;
@@ -2882,7 +2876,7 @@ int drm_object_property_get_value(struct drm_mode_object *obj,
 {
 	int i;
 
-	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
+	for (i = 0; i < obj->properties->count; i++) {
 		if (obj->properties->ids[i] == property->base.id) {
 			*val = obj->properties->values[i];
 			return 0;
@@ -3174,11 +3168,7 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	/* Assume [ prop, 0, prop ] won't happen (if we ever delete properties,
-	 * we need to remove the gap inside the array). */
-	for (props_count = 0; props_count < DRM_OBJECT_MAX_PROPERTY &&
-		obj->properties->ids[props_count] != 0; props_count++)
-		;
+	props_count = obj->properties->count;
 
 	/* This ioctl is called twice, once to determine how much space is
 	 * needed, and the 2nd time to fill it. */
@@ -3228,11 +3218,11 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 	if (!arg_obj->properties)
 		goto out;
 
-	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++)
+	for (i = 0; i < arg_obj->properties->count; i++)
 		if (arg_obj->properties->ids[i] == arg->prop_id)
 			break;
 
-	if (i == DRM_OBJECT_MAX_PROPERTY)
+	if (i == arg_obj->properties->count)
 		goto out;
 
 	prop_obj = drm_mode_object_find(dev, arg->prop_id,
