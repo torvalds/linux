@@ -1968,10 +1968,9 @@ S:	Maintained
 F:	drivers/net/ethernet/ti/cpmac.c
 
 CPU FREQUENCY DRIVERS
-M:	Dave Jones <davej@redhat.com>
+M:	Rafael J. Wysocki <rjw@sisk.pl>
 L:	cpufreq@vger.kernel.org
-W:	http://www.codemonkey.org.uk/projects/cpufreq/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davej/cpufreq.git
+L:	linux-pm@vger.kernel.org
 S:	Maintained
 F:	drivers/cpufreq/
 F:	include/linux/cpufreq.h
@@ -2321,9 +2320,9 @@ S:	Supported
 F:	drivers/acpi/dock.c
 
 DOCUMENTATION
-M:	Randy Dunlap <rdunlap@xenotime.net>
+M:	Rob Landley <rob@landley.net>
 L:	linux-doc@vger.kernel.org
-T:	quilt http://xenotime.net/kernel-doc-patches/current/
+T:	TBD
 S:	Maintained
 F:	Documentation/
 
@@ -3599,6 +3598,7 @@ S:	Supported
 F:	drivers/net/wireless/iwlegacy/
 
 INTEL WIRELESS WIFI LINK (iwlwifi)
+M:	Johannes Berg <johannes.berg@intel.com>
 M:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
@@ -4043,6 +4043,7 @@ F:	Documentation/scsi/53c700.txt
 F:	drivers/scsi/53c700*
 
 LED SUBSYSTEM
+M:	Bryan Wu <bryan.wu@canonical.com>
 M:	Richard Purdie <rpurdie@rpsys.net>
 S:	Maintained
 F:	drivers/leds/
@@ -5898,11 +5899,11 @@ F:	Documentation/scsi/st.txt
 F:	drivers/scsi/st*
 
 SCTP PROTOCOL
-M:	Vlad Yasevich <vladislav.yasevich@hp.com>
+M:	Vlad Yasevich <vyasevich@gmail.com>
 M:	Sridhar Samudrala <sri@us.ibm.com>
 L:	linux-sctp@vger.kernel.org
 W:	http://lksctp.sourceforge.net
-S:	Supported
+S:	Maintained
 F:	Documentation/networking/sctp.txt
 F:	include/linux/sctp.h
 F:	include/net/sctp/
@@ -7585,8 +7586,8 @@ F:	Documentation/filesystems/xfs.txt
 F:	fs/xfs/
 
 XILINX AXI ETHERNET DRIVER
-M:	Ariane Keller <ariane.keller@tik.ee.ethz.ch>
-M:	Daniel Borkmann <daniel.borkmann@tik.ee.ethz.ch>
+M:	Anirudha Sarangi <anirudh@xilinx.com>
+M:	John Linn <John.Linn@xilinx.com>
 S:	Maintained
 F:	drivers/net/ethernet/xilinx/xilinx_axienet*
 

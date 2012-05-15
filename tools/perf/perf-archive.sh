@@ -29,13 +29,14 @@ if [ ! -s $BUILDIDS ] ; then
 fi
 
 MANIFEST=$(mktemp /tmp/perf-archive-manifest.XXXXXX)
+PERF_BUILDID_LINKDIR=$(readlink -f $PERF_BUILDID_DIR)/
 
 cut -d ' ' -f 1 $BUILDIDS | \
 while read build_id ; do
 	linkname=$PERF_BUILDID_DIR.build-id/${build_id:0:2}/${build_id:2}
 	filename=$(readlink -f $linkname)
 	echo ${linkname#$PERF_BUILDID_DIR} >> $MANIFEST
-	echo ${filename#$PERF_BUILDID_DIR} >> $MANIFEST
+	echo ${filename#$PERF_BUILDID_LINKDIR} >> $MANIFEST
 done
 
 tar cfj $PERF_DATA.tar.bz2 -C $PERF_BUILDID_DIR -T $MANIFEST

@@ -3640,8 +3640,38 @@ struct security_operations smack_ops = {
 };
 
 
-static __init void init_smack_know_list(void)
+static __init void init_smack_known_list(void)
 {
+	/*
+	 * Initialize CIPSO locks
+	 */
+	spin_lock_init(&smack_known_huh.smk_cipsolock);
+	spin_lock_init(&smack_known_hat.smk_cipsolock);
+	spin_lock_init(&smack_known_star.smk_cipsolock);
+	spin_lock_init(&smack_known_floor.smk_cipsolock);
+	spin_lock_init(&smack_known_invalid.smk_cipsolock);
+	spin_lock_init(&smack_known_web.smk_cipsolock);
+	/*
+	 * Initialize rule list locks
+	 */
+	mutex_init(&smack_known_huh.smk_rules_lock);
+	mutex_init(&smack_known_hat.smk_rules_lock);
+	mutex_init(&smack_known_floor.smk_rules_lock);
+	mutex_init(&smack_known_star.smk_rules_lock);
+	mutex_init(&smack_known_invalid.smk_rules_lock);
+	mutex_init(&smack_known_web.smk_rules_lock);
+	/*
+	 * Initialize rule lists
+	 */
+	INIT_LIST_HEAD(&smack_known_huh.smk_rules);
+	INIT_LIST_HEAD(&smack_known_hat.smk_rules);
+	INIT_LIST_HEAD(&smack_known_star.smk_rules);
+	INIT_LIST_HEAD(&smack_known_floor.smk_rules);
+	INIT_LIST_HEAD(&smack_known_invalid.smk_rules);
+	INIT_LIST_HEAD(&smack_known_web.smk_rules);
+	/*
+	 * Create the known labels list
+	 */
 	list_add(&smack_known_huh.list, &smack_known_list);
 	list_add(&smack_known_hat.list, &smack_known_list);
 	list_add(&smack_known_star.list, &smack_known_list);
@@ -3676,16 +3706,8 @@ static __init int smack_init(void)
 	cred = (struct cred *) current->cred;
 	cred->security = tsp;
 
-	/* initialize the smack_know_list */
-	init_smack_know_list();
-	/*
-	 * Initialize locks
-	 */
-	spin_lock_init(&smack_known_huh.smk_cipsolock);
-	spin_lock_init(&smack_known_hat.smk_cipsolock);
-	spin_lock_init(&smack_known_star.smk_cipsolock);
-	spin_lock_init(&smack_known_floor.smk_cipsolock);
-	spin_lock_init(&smack_known_invalid.smk_cipsolock);
+	/* initialize the smack_known_list */
+	init_smack_known_list();
 
 	/*
 	 * Register with LSM

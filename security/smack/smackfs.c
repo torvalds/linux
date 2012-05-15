@@ -1614,20 +1614,6 @@ static int __init init_smk_fs(void)
 	smk_cipso_doi();
 	smk_unlbl_ambient(NULL);
 
-	mutex_init(&smack_known_floor.smk_rules_lock);
-	mutex_init(&smack_known_hat.smk_rules_lock);
-	mutex_init(&smack_known_huh.smk_rules_lock);
-	mutex_init(&smack_known_invalid.smk_rules_lock);
-	mutex_init(&smack_known_star.smk_rules_lock);
-	mutex_init(&smack_known_web.smk_rules_lock);
-
-	INIT_LIST_HEAD(&smack_known_floor.smk_rules);
-	INIT_LIST_HEAD(&smack_known_hat.smk_rules);
-	INIT_LIST_HEAD(&smack_known_huh.smk_rules);
-	INIT_LIST_HEAD(&smack_known_invalid.smk_rules);
-	INIT_LIST_HEAD(&smack_known_star.smk_rules);
-	INIT_LIST_HEAD(&smack_known_web.smk_rules);
-
 	return err;
 }
 

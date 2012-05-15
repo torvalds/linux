@@ -1135,7 +1135,7 @@ static void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc 
 	}
 	if (rdev->flags & RADEON_IS_AGP) {
 		size_bf = mc->gtt_start;
-		size_af = 0xFFFFFFFF - mc->gtt_end + 1;
+		size_af = 0xFFFFFFFF - mc->gtt_end;
 		if (size_bf > size_af) {
 			if (mc->mc_vram_size > size_bf) {
 				dev_warn(rdev->dev, "limiting VRAM\n");
@@ -1149,7 +1149,7 @@ static void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc 
 				mc->real_vram_size = size_af;
 				mc->mc_vram_size = size_af;
 			}
-			mc->vram_start = mc->gtt_end;
+			mc->vram_start = mc->gtt_end + 1;
 		}
 		mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
 		dev_info(rdev->dev, "VRAM: %lluM 0x%08llX - 0x%08llX (%lluM used)\n",

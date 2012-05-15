@@ -2920,6 +2920,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	 * not the JPEG end of frame ('ff d9').
 	 */
 
+	/* count the packets and their size */
+	sd->npkt++;
+	sd->pktsz += len;
+
 /*fixme: assumption about the following code:
  *	- there can be only one marker in a packet
  */
@@ -2941,10 +2945,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			return;
 		data += i;
 	}
-
-	/* count the packets and their size */
-	sd->npkt++;
-	sd->pktsz += len;
 
 	/* search backwards if there is a marker in the packet */
 	for (i = len - 1; --i >= 0; ) {

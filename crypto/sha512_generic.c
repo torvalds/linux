@@ -174,7 +174,7 @@ sha512_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 	index = sctx->count[0] & 0x7f;
 
 	/* Update number of bytes */
-	if (!(sctx->count[0] += len))
+	if ((sctx->count[0] += len) < len)
 		sctx->count[1]++;
 
         part_len = 128 - index;

@@ -29,6 +29,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/page.h>
 #include <asm/param.h>
 #include <asm/pdc.h>
 #include <asm/led.h>

@@ -235,15 +235,15 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 		 */
 		if (open->op_createmode == NFS4_CREATE_EXCLUSIVE && status == 0)
 			open->op_bmval[1] = (FATTR4_WORD1_TIME_ACCESS |
-						FATTR4_WORD1_TIME_MODIFY);
+							FATTR4_WORD1_TIME_MODIFY);
 	} else {
 		status = nfsd_lookup(rqstp, current_fh,
 				     open->op_fname.data, open->op_fname.len, resfh);
 		fh_unlock(current_fh);
-		if (status)
-			goto out;
-		status = nfsd_check_obj_isreg(resfh);
 	}
+	if (status)
+		goto out;
+	status = nfsd_check_obj_isreg(resfh);
 	if (status)
 		goto out;
 
@@ -841,6 +841,7 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	      struct nfsd4_setattr *setattr)
 {
 	__be32 status = nfs_ok;
+	int err;
 
 	if (setattr->sa_iattr.ia_valid & ATTR_SIZE) {
 		nfs4_lock_state();
@@ -852,9 +853,9 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			return status;
 		}
 	}
-	status = fh_want_write(&cstate->current_fh);
-	if (status)
-		return status;
+	err = fh_want_write(&cstate->current_fh);
+	if (err)
+		return nfserrno(err);
 	status = nfs_ok;
 
 	status = check_attr_support(rqstp, cstate, setattr->sa_bmval,

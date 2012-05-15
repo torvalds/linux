@@ -1349,7 +1349,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 	}
 
 	/* RSS might be usable on VFs even if it is disabled on the PF */
-	efx->rss_spread = (efx->n_rx_channels > 1 ?
+	efx->rss_spread = ((efx->n_rx_channels > 1 || !efx_sriov_wanted(efx)) ?
 			   efx->n_rx_channels : efx_vf_size(efx));
 
 	return 0;

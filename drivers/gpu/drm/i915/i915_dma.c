@@ -1701,6 +1701,9 @@ void i915_update_gfx_val(struct drm_i915_private *dev_priv)
 	unsigned long diffms;
 	u32 count;
 
+	if (dev_priv->info->gen != 5)
+		return;
+
 	getrawmonotonic(&now);
 	diff1 = timespec_sub(now, dev_priv->last_time2);
 
@@ -2121,12 +2124,14 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	setup_timer(&dev_priv->hangcheck_timer, i915_hangcheck_elapsed,
 		    (unsigned long) dev);
 
-	spin_lock(&mchdev_lock);
-	i915_mch_dev = dev_priv;
-	dev_priv->mchdev_lock = &mchdev_lock;
-	spin_unlock(&mchdev_lock);
+	if (IS_GEN5(dev)) {
+		spin_lock(&mchdev_lock);
+		i915_mch_dev = dev_priv;
+		dev_priv->mchdev_lock = &mchdev_lock;
+		spin_unlock(&mchdev_lock);
 
-	ips_ping_for_i915_load();
+		ips_ping_for_i915_load();
+	}
 
 	return 0;
 

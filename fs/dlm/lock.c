@@ -1737,6 +1737,18 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 		return 1;
 
 	/*
+	 * Even if the convert is compat with all granted locks,
+	 * QUECVT forces it behind other locks on the convert queue.
+	 */
+
+	if (now && conv && (lkb->lkb_exflags & DLM_LKF_QUECVT)) {
+		if (list_empty(&r->res_convertqueue))
+			return 1;
+		else
+			goto out;
+	}
+
+	/*
 	 * The NOORDER flag is set to avoid the standard vms rules on grant
 	 * order.
 	 */

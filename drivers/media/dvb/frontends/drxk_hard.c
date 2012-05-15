@@ -1526,8 +1526,10 @@ static int scu_command(struct drxk_state *state,
 	dprintk(1, "\n");
 
 	if ((cmd == 0) || ((parameterLen > 0) && (parameter == NULL)) ||
-	    ((resultLen > 0) && (result == NULL)))
-		goto error;
+	    ((resultLen > 0) && (result == NULL))) {
+		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
+		return status;
+	}
 
 	mutex_lock(&state->mutex);
 

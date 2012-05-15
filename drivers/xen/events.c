@@ -274,7 +274,7 @@ static unsigned int cpu_from_evtchn(unsigned int evtchn)
 
 static bool pirq_check_eoi_map(unsigned irq)
 {
-	return test_bit(irq, pirq_eoi_map);
+	return test_bit(pirq_from_irq(irq), pirq_eoi_map);
 }
 
 static bool pirq_needs_eoi_flag(unsigned irq)

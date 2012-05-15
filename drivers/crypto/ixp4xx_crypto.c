@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/gfp.h>
+#include <linux/module.h>
 
 #include <crypto/ctr.h>
 #include <crypto/des.h>
