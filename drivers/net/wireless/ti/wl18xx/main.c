@@ -596,7 +596,7 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 			WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN;
 
 		/* PG 1.0 has some problems with MCS_13, so disable it */
-		wl->ht_cap.mcs.rx_mask[1] &= ~BIT(5);
+		wl->ht_cap[IEEE80211_BAND_2GHZ].mcs.rx_mask[1] &= ~BIT(5);
 
 		/* TODO: need to blocksize alignment for RX/TX separately? */
 		break;
@@ -1086,7 +1086,7 @@ static struct ieee80211_sta_ht_cap wl18xx_siso20_ht_cap = {
 };
 
 /* HT cap appropriate for MIMO rates in 20mhz channel */
-static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap = {
+static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_2ghz = {
 	.cap = IEEE80211_HT_CAP_SGI_20,
 	.ht_supported = true,
 	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
@@ -1094,6 +1094,18 @@ static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap = {
 	.mcs = {
 		.rx_mask = { 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, },
 		.rx_highest = cpu_to_le16(144),
+		.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
+		},
+};
+
+static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_5ghz = {
+	.cap = IEEE80211_HT_CAP_SGI_20,
+	.ht_supported = true,
+	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
+	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
+	.mcs = {
+		.rx_mask = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		.rx_highest = cpu_to_le16(72),
 		.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
 		},
 };
@@ -1127,13 +1139,25 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	wl->static_data_priv_len = sizeof(struct wl18xx_static_data_priv);
 
 	if (!strcmp(ht_mode_param, "wide")) {
-		memcpy(&wl->ht_cap, &wl18xx_siso40_ht_cap,
+		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
+		       &wl18xx_siso40_ht_cap,
+		       sizeof(wl18xx_siso40_ht_cap));
+		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
+		       &wl18xx_siso40_ht_cap,
 		       sizeof(wl18xx_siso40_ht_cap));
 	} else if (!strcmp(ht_mode_param, "mimo")) {
-		memcpy(&wl->ht_cap, &wl18xx_mimo_ht_cap,
-		       sizeof(wl18xx_mimo_ht_cap));
+		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
+		       &wl18xx_mimo_ht_cap_2ghz,
+		       sizeof(wl18xx_mimo_ht_cap_2ghz));
+		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
+		       &wl18xx_mimo_ht_cap_5ghz,
+		       sizeof(wl18xx_mimo_ht_cap_5ghz));
 	} else if (!strcmp(ht_mode_param, "siso20")) {
-		memcpy(&wl->ht_cap, &wl18xx_siso20_ht_cap,
+		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
+		       &wl18xx_siso20_ht_cap,
+		       sizeof(wl18xx_siso20_ht_cap));
+		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
+		       &wl18xx_siso20_ht_cap,
 		       sizeof(wl18xx_siso20_ht_cap));
 	} else {
 		wl1271_error("invalid ht_mode '%s'", ht_mode_param);

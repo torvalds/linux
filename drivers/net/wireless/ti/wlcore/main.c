@@ -5031,12 +5031,14 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	 */
 	memcpy(&wl->bands[IEEE80211_BAND_2GHZ], &wl1271_band_2ghz,
 	       sizeof(wl1271_band_2ghz));
-	memcpy(&wl->bands[IEEE80211_BAND_2GHZ].ht_cap, &wl->ht_cap,
-	       sizeof(wl->ht_cap));
+	memcpy(&wl->bands[IEEE80211_BAND_2GHZ].ht_cap,
+	       &wl->ht_cap[IEEE80211_BAND_2GHZ],
+	       sizeof(*wl->ht_cap));
 	memcpy(&wl->bands[IEEE80211_BAND_5GHZ], &wl1271_band_5ghz,
 	       sizeof(wl1271_band_5ghz));
-	memcpy(&wl->bands[IEEE80211_BAND_5GHZ].ht_cap, &wl->ht_cap,
-	       sizeof(wl->ht_cap));
+	memcpy(&wl->bands[IEEE80211_BAND_5GHZ].ht_cap,
+	       &wl->ht_cap[IEEE80211_BAND_5GHZ],
+	       sizeof(*wl->ht_cap));
 
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 		&wl->bands[IEEE80211_BAND_2GHZ];

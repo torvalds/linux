@@ -368,7 +368,7 @@ struct wl1271 {
 	u8 hw_min_ht_rate;
 
 	/* HW HT (11n) capabilities */
-	struct ieee80211_sta_ht_cap ht_cap;
+	struct ieee80211_sta_ht_cap ht_cap[IEEE80211_NUM_BANDS];
 
 	/* size of the private FW status data */
 	size_t fw_status_priv_len;
