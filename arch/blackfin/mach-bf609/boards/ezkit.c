@@ -642,7 +642,7 @@ static struct platform_device bfin_sdh_device = {
 };
 #endif
 
-#if defined(CONFIG_MTD_BFIN_BF60x) || defined(CONFIG_MTD_BFIN_BF60x_MODULE)
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 static struct mtd_partition ezkit_partitions[] = {
 	{
 		.name       = "bootloader(nor)",
@@ -671,7 +671,7 @@ int bf609_nor_flash_init(struct platform_device *dev)
 	peripheral_request_list(pins, "smc0");
 
 	bfin_write32(SMC_GCTL, CONFIG_SMC_GCTL_VAL);
-	bfin_write32(SMC_B0CTL, 0x01002001);
+	bfin_write32(SMC_B0CTL, 0x01002011);
 	bfin_write32(SMC_B0TIM, 0x08170977);
 	bfin_write32(SMC_B0ETIM, 0x00092231);
 	return 0;
@@ -691,7 +691,7 @@ static struct resource ezkit_flash_resource = {
 };
 
 static struct platform_device ezkit_flash_device = {
-	.name          = "bf60x-flash",
+	.name          = "physmap-flash",
 	.id            = 0,
 	.dev = {
 		.platform_data = &ezkit_flash_data,
@@ -1256,7 +1256,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bfin_device_gpiokeys,
 #endif
 
-#if defined(CONFIG_MTD_BFIN_BF60x) || defined(CONFIG_MTD_BFIN_BF60x_MODULE)
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&ezkit_flash_device,
 #endif
 #if defined(CONFIG_SND_BF6XX_I2S) || defined(CONFIG_SND_BF6XX_I2S_MODULE)
