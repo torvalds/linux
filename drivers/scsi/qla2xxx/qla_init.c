@@ -2185,7 +2185,7 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	    nv->id[2] != 'P' || nv->id[3] != ' ' || nv->nvram_version < 1) {
 		/* Reset NVRAM data. */
 		ql_log(ql_log_warn, vha, 0x0064,
-		    "Inconisistent NVRAM "
+		    "Inconsistent NVRAM "
 		    "detected: checksum=0x%x id=%c version=0x%x.\n",
 		    chksum, nv->id[0], nv->nvram_version);
 		ql_log(ql_log_warn, vha, 0x0065,
@@ -4279,7 +4279,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	    nv->nvram_version < __constant_cpu_to_le16(ICB_VERSION)) {
 		/* Reset NVRAM data. */
 		ql_log(ql_log_warn, vha, 0x006b,
-		    "Inconisistent NVRAM detected: checksum=0x%x id=%c "
+		    "Inconsistent NVRAM detected: checksum=0x%x id=%c "
 		    "version=0x%x.\n", chksum, nv->id[0], nv->nvram_version);
 		ql_log(ql_log_warn, vha, 0x006c,
 		    "Falling back to functioning (yet invalid -- WWPN) "
@@ -5029,7 +5029,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	    nv->nvram_version < __constant_cpu_to_le16(ICB_VERSION)) {
 		/* Reset NVRAM data. */
 		ql_log(ql_log_info, vha, 0x0073,
-		    "Inconisistent NVRAM detected: checksum=0x%x id=%c "
+		    "Inconsistent NVRAM detected: checksum=0x%x id=%c "
 		    "version=0x%x.\n", chksum, nv->id[0],
 		    le16_to_cpu(nv->nvram_version));
 		ql_log(ql_log_info, vha, 0x0074,
