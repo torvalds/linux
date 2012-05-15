@@ -72,7 +72,7 @@
 #define FLG_LL_OK		24
 #define FLG_LL_CONN		25
 #define FLG_DTMFSEND		26
-
+#define FLG_TX_EMPTY		27
 /* workq events */
 #define FLG_RECVQUEUE		30
 #define	FLG_PHCHANGE		31
@@ -142,6 +142,7 @@ extern int	create_l1(struct dchannel *, dchannel_l1callback *);
 struct layer1;
 extern int	l1_event(struct layer1 *, u_int);
 
+#define MISDN_BCH_FILL_SIZE	4
 
 struct bchannel {
 	struct mISDNchannel	ch;
@@ -153,6 +154,7 @@ struct bchannel {
 	int			slot;	/* multiport card channel slot */
 	struct timer_list	timer;
 	/* receive data */
+	u8			fill[MISDN_BCH_FILL_SIZE];
 	struct sk_buff		*rx_skb;
 	unsigned short		maxlen;
 	unsigned short		init_maxlen; /* initial value */

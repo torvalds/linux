@@ -30,7 +30,7 @@
 #include "ipac.h"
 
 
-#define AVMFRITZ_REV	"2.2"
+#define AVMFRITZ_REV	"2.3"
 
 static int AVM_cnt;
 static int debug;
@@ -442,19 +442,26 @@ hdlc_fill_fifo(struct bchannel *bch)
 {
 	struct fritzcard *fc = bch->hw;
 	struct hdlc_hw *hdlc;
-	int count, fs, cnt = 0;
+	int count, fs, cnt = 0, idx, fillempty = 0;
 	u8 *p;
 	u32 *ptr, val, addr;
 
-	hdlc = &fc->hdlc[(bch->nr - 1) & 1];
-	if (!bch->tx_skb)
-		return;
-	count = bch->tx_skb->len - bch->tx_idx;
-	if (count <= 0)
-		return;
+	idx = (bch->nr - 1) & 1;
+	hdlc = &fc->hdlc[idx];
 	fs = (fc->type == AVM_FRITZ_PCIV2) ?
 		HDLC_FIFO_SIZE_V2 : HDLC_FIFO_SIZE_V1;
-	p = bch->tx_skb->data + bch->tx_idx;
+	if (!bch->tx_skb) {
+		if (!test_bit(FLG_TX_EMPTY, &bch->Flags))
+			return;
+		count = fs;
+		p = bch->fill;
+		fillempty = 1;
+	} else {
+		count = bch->tx_skb->len - bch->tx_idx;
+		if (count <= 0)
+			return;
+		p = bch->tx_skb->data + bch->tx_idx;
+	}
 	hdlc->ctrl.sr.cmd &= ~HDLC_CMD_XME;
 	if (count > fs) {
 		count = fs;
@@ -462,10 +469,14 @@ hdlc_fill_fifo(struct bchannel *bch)
 		if (test_bit(FLG_HDLC, &bch->Flags))
 			hdlc->ctrl.sr.cmd |= HDLC_CMD_XME;
 	}
-	pr_debug("%s: %s %d/%d/%d", fc->name, __func__, count,
-		 bch->tx_idx, bch->tx_skb->len);
 	ptr = (u32 *)p;
-	bch->tx_idx += count;
+	if (fillempty) {
+		pr_debug("%s.B%d: %d/%d/%d", fc->name, bch->nr, count,
+			 bch->tx_idx, bch->tx_skb->len);
+		bch->tx_idx += count;
+	} else {
+		pr_debug("%s.B%d: fillempty %d\n", fc->name, bch->nr, count);
+	}
 	hdlc->ctrl.sr.xml = ((count == fs) ? 0 : count);
 	if (fc->type == AVM_FRITZ_PCIV2) {
 		__write_ctrl_pciv2(fc, hdlc, bch->nr);
@@ -475,13 +486,21 @@ hdlc_fill_fifo(struct bchannel *bch)
 		__write_ctrl_pci(fc, hdlc, bch->nr);
 		addr = fc->addr + CHIP_WINDOW;
 	}
-	while (cnt < count) {
-		val = get_unaligned(ptr);
-		outl(cpu_to_le32(val), addr);
-		ptr++;
-		cnt += 4;
+	if (fillempty) {
+		while (cnt < count) {
+			/* all bytes the same - no worry about endian */
+			outl(*ptr, addr);
+			cnt += 4;
+		}
+	} else {
+		while (cnt < count) {
+			val = get_unaligned(ptr);
+			outl(cpu_to_le32(val), addr);
+			ptr++;
+			cnt += 4;
+		}
 	}
-	if (debug & DEBUG_HW_BFIFO) {
+	if ((debug & DEBUG_HW_BFIFO) && !fillempty) {
 		snprintf(fc->log, LOG_SIZE, "B%1d-send %s %d ",
 			 bch->nr, fc->name, count);
 		print_hex_dump_bytes(fc->log, DUMP_PREFIX_OFFSET, p, count);
@@ -496,8 +515,12 @@ HDLC_irq_xpr(struct bchannel *bch)
 	} else {
 		if (bch->tx_skb)
 			dev_kfree_skb(bch->tx_skb);
-		if (get_next_bframe(bch))
+		if (get_next_bframe(bch)) {
 			hdlc_fill_fifo(bch);
+			test_and_clear_bit(FLG_TX_EMPTY, &bch->Flags);
+		} else if (test_bit(FLG_TX_EMPTY, &bch->Flags)) {
+			hdlc_fill_fifo(bch);
+		}
 	}
 }
 
@@ -561,6 +584,8 @@ handle_tx:
 		if (bch->tx_skb && bch->tx_skb->len) {
 			if (!test_bit(FLG_TRANSPARENT, &bch->Flags))
 				bch->tx_idx = 0;
+		} else if (test_bit(FLG_FILLEMPTY, &bch->Flags)) {
+			test_and_set_bit(FLG_TX_EMPTY, &bch->Flags);
 		}
 		hdlc->ctrl.sr.xml = 0;
 		hdlc->ctrl.sr.cmd |= HDLC_CMD_XRS;
@@ -882,7 +907,6 @@ open_bchannel(struct fritzcard *fc, struct channel_req *rq)
 	bch = &fc->bch[rq->adr.channel - 1];
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
 		return -EBUSY; /* b-channel can be only open once */
-	test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
 	bch->ch.protocol = rq->protocol;
 	rq->ch = &bch->ch;
 	return 0;

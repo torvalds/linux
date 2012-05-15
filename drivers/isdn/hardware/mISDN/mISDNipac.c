@@ -969,22 +969,28 @@ hscx_fill_fifo(struct hscx_hw *hscx)
 	int count, more;
 	u8 *p;
 
-	if (!hscx->bch.tx_skb)
-		return;
-	count = hscx->bch.tx_skb->len - hscx->bch.tx_idx;
-	if (count <= 0)
-		return;
-	p = hscx->bch.tx_skb->data + hscx->bch.tx_idx;
-
-	more = test_bit(FLG_TRANSPARENT, &hscx->bch.Flags) ? 1 : 0;
-	if (count > hscx->fifo_size) {
+	if (!hscx->bch.tx_skb) {
+		if (!test_bit(FLG_TX_EMPTY, &hscx->bch.Flags))
+			return;
 		count = hscx->fifo_size;
 		more = 1;
-	}
-	pr_debug("%s: B%1d %d/%d/%d\n", hscx->ip->name, hscx->bch.nr, count,
-		 hscx->bch.tx_idx, hscx->bch.tx_skb->len);
-	hscx->bch.tx_idx += count;
+		p = hscx->log;
+		memset(p, hscx->bch.fill[0], count);
+	} else {
+		count = hscx->bch.tx_skb->len - hscx->bch.tx_idx;
+		if (count <= 0)
+			return;
+		p = hscx->bch.tx_skb->data + hscx->bch.tx_idx;
 
+		more = test_bit(FLG_TRANSPARENT, &hscx->bch.Flags) ? 1 : 0;
+		if (count > hscx->fifo_size) {
+			count = hscx->fifo_size;
+			more = 1;
+		}
+		pr_debug("%s: B%1d %d/%d/%d\n", hscx->ip->name, hscx->bch.nr,
+			 count, hscx->bch.tx_idx, hscx->bch.tx_skb->len);
+		hscx->bch.tx_idx += count;
+	}
 	if (hscx->ip->type & IPAC_TYPE_IPACX)
 		hscx->ip->write_fifo(hscx->ip->hw,
 				     hscx->off + IPACX_XFIFOB, p, count);
@@ -995,7 +1001,7 @@ hscx_fill_fifo(struct hscx_hw *hscx)
 	}
 	hscx_cmdr(hscx, more ? 0x08 : 0x0a);
 
-	if (hscx->bch.debug & DEBUG_HW_BFIFO) {
+	if (hscx->bch.tx_skb && (hscx->bch.debug & DEBUG_HW_BFIFO)) {
 		snprintf(hscx->log, 64, "B%1d-send %s %d ",
 			 hscx->bch.nr, hscx->ip->name, count);
 		print_hex_dump_bytes(hscx->log, DUMP_PREFIX_OFFSET, p, count);
@@ -1010,8 +1016,12 @@ hscx_xpr(struct hscx_hw *hx)
 	} else {
 		if (hx->bch.tx_skb)
 			dev_kfree_skb(hx->bch.tx_skb);
-		if (get_next_bframe(&hx->bch))
+		if (get_next_bframe(&hx->bch)) {
 			hscx_fill_fifo(hx);
+			test_and_clear_bit(FLG_TX_EMPTY, &hx->bch.Flags);
+		} else if (test_bit(FLG_TX_EMPTY, &hx->bch.Flags)) {
+			hscx_fill_fifo(hx);
+		}
 	}
 }
 
@@ -1128,7 +1138,9 @@ ipac_irq(struct hscx_hw *hx, u8 ista)
 
 	if (istab & IPACX_B_XDU) {
 		if (test_bit(FLG_TRANSPARENT, &hx->bch.Flags)) {
-			hscx_fill_fifo(hx);
+			if (test_bit(FLG_FILLEMPTY, &hx->bch.Flags))
+				test_and_set_bit(FLG_TX_EMPTY, &hx->bch.Flags);
+			hscx_xpr(hx);
 			return;
 		}
 		pr_debug("%s: B%1d XDU error at len %d\n", hx->ip->name,

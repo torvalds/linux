@@ -585,15 +585,24 @@ isar_fill_fifo(struct isar_ch *ch)
 	u8 msb;
 	u8 *ptr;
 
-	pr_debug("%s: ch%d  tx_skb %p tx_idx %d\n",
-		 ch->is->name, ch->bch.nr, ch->bch.tx_skb, ch->bch.tx_idx);
-	if (!ch->bch.tx_skb)
-		return;
-	count = ch->bch.tx_skb->len - ch->bch.tx_idx;
-	if (count <= 0)
-		return;
+	pr_debug("%s: ch%d  tx_skb %d tx_idx %d\n", ch->is->name, ch->bch.nr,
+		 ch->bch.tx_skb ? ch->bch.tx_skb->len : -1, ch->bch.tx_idx);
 	if (!(ch->is->bstat &
 	      (ch->dpath == 1 ? BSTAT_RDM1 : BSTAT_RDM2)))
+		return;
+	if (!ch->bch.tx_skb) {
+		if (!test_bit(FLG_TX_EMPTY, &ch->bch.Flags) ||
+		    (ch->bch.state != ISDN_P_B_RAW))
+			return;
+		count = ch->mml;
+		/* use the card buffer */
+		memset(ch->is->buf, ch->bch.fill[0], count);
+		send_mbox(ch->is, SET_DPS(ch->dpath) | ISAR_HIS_SDATA,
+			  0, count, ch->is->buf);
+		return;
+	}
+	count = ch->bch.tx_skb->len - ch->bch.tx_idx;
+	if (count <= 0)
 		return;
 	if (count > ch->mml) {
 		msb = 0;
@@ -673,9 +682,9 @@ sel_bch_isar(struct isar_hw *isar, u8 dpath)
 static void
 send_next(struct isar_ch *ch)
 {
-	pr_debug("%s: %s ch%d tx_skb %p tx_idx %d\n",
-		 ch->is->name, __func__, ch->bch.nr,
-		 ch->bch.tx_skb, ch->bch.tx_idx);
+	pr_debug("%s: %s ch%d tx_skb %d tx_idx %d\n", ch->is->name, __func__,
+		 ch->bch.nr, ch->bch.tx_skb ? ch->bch.tx_skb->len : -1,
+		 ch->bch.tx_idx);
 	if (ch->bch.state == ISDN_P_B_T30_FAX) {
 		if (ch->cmd == PCTRL_CMD_FTH) {
 			if (test_bit(FLG_LASTDATA, &ch->bch.Flags)) {
@@ -693,6 +702,9 @@ send_next(struct isar_ch *ch)
 		dev_kfree_skb(ch->bch.tx_skb);
 	if (get_next_bframe(&ch->bch)) {
 		isar_fill_fifo(ch);
+		test_and_clear_bit(FLG_TX_EMPTY, &ch->bch.Flags);
+	} else if (test_bit(FLG_TX_EMPTY, &ch->bch.Flags)) {
+		isar_fill_fifo(ch);
 	} else {
 		if (test_and_clear_bit(FLG_DLEETX, &ch->bch.Flags)) {
 			if (test_and_clear_bit(FLG_LASTDATA,
@@ -707,6 +719,8 @@ send_next(struct isar_ch *ch)
 			} else {
 				deliver_status(ch, HW_MOD_CONNECT);
 			}
+		} else if (test_bit(FLG_FILLEMPTY, &ch->bch.Flags)) {
+			test_and_set_bit(FLG_TX_EMPTY, &ch->bch.Flags);
 		}
 	}
 }
@@ -1638,7 +1652,6 @@ isar_open(struct isar_hw *isar, struct channel_req *rq)
 	bch = &isar->ch[rq->adr.channel - 1].bch;
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
 		return -EBUSY; /* b-channel can be only open once */
-	test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
 	bch->ch.protocol = rq->protocol;
 	rq->ch = &bch->ch;
 	return 0;

@@ -3576,7 +3576,7 @@ channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 	case MISDN_CTRL_GETOP:
 		ret = mISDN_ctrl_bchannel(bch, cq);
 		cq->op |= MISDN_CTRL_HFC_OP | MISDN_CTRL_HW_FEATURES_OP |
-			  MISDN_CTRL_RX_OFF | MISDN_CTRL_FILL_EMPTY;
+			  MISDN_CTRL_RX_OFF;
 		break;
 	case MISDN_CTRL_RX_OFF: /* turn off / on rx stream */
 		hc->chan[bch->slot].rx_off = !!cq->p1;
@@ -3591,11 +3591,10 @@ channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 			printk(KERN_DEBUG "%s: RX_OFF request (nr=%d off=%d)\n",
 			       __func__, bch->nr, hc->chan[bch->slot].rx_off);
 		break;
-	case MISDN_CTRL_FILL_EMPTY: /* fill fifo, if empty */
-		test_and_set_bit(FLG_FILLEMPTY, &bch->Flags);
-		if (debug & DEBUG_HFCMULTI_MSG)
-			printk(KERN_DEBUG "%s: FILL_EMPTY request (nr=%d "
-			       "off=%d)\n", __func__, bch->nr, !!cq->p1);
+	case MISDN_CTRL_FILL_EMPTY:
+		ret = mISDN_ctrl_bchannel(bch, cq);
+		hc->silence = bch->fill[0];
+		memset(hc->silence_data, hc->silence, sizeof(hc->silence_data));
 		break;
 	case MISDN_CTRL_HW_FEATURES: /* fill features structure */
 		if (debug & DEBUG_HFCMULTI_MSG)
@@ -4118,7 +4117,6 @@ open_bchannel(struct hfc_multi *hc, struct dchannel *dch,
 	}
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
 		return -EBUSY; /* b-channel can be only open once */
-	test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
 	bch->ch.protocol = rq->protocol;
 	hc->chan[ch].rx_off = 0;
 	rq->ch = &bch->ch;

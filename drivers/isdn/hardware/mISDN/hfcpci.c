@@ -565,11 +565,6 @@ hfcpci_empty_fifo_trans(struct bchannel *bch, struct bzfifo *rxbz,
 	if (new_z2 >= (B_FIFO_SIZE + B_SUB_VAL))
 		new_z2 -= B_FIFO_SIZE;	/* buffer wrap */
 
-	if (fcnt_rx > MAX_DATA_SIZE) {	/* flush, if oversized */
-		*z2r = cpu_to_le16(new_z2);		/* new position */
-		return;
-	}
-
 	fcnt_tx = le16_to_cpu(*z2t) - le16_to_cpu(*z1t);
 	if (fcnt_tx <= 0)
 		fcnt_tx += B_FIFO_SIZE;
@@ -761,9 +756,14 @@ hfcpci_fill_fifo(struct bchannel *bch)
 
 	if ((bch->debug & DEBUG_HW_BCHANNEL) && !(bch->debug & DEBUG_HW_BFIFO))
 		printk(KERN_DEBUG "%s\n", __func__);
-	if ((!bch->tx_skb) || bch->tx_skb->len <= 0)
-		return;
-	count = bch->tx_skb->len - bch->tx_idx;
+	if ((!bch->tx_skb) || bch->tx_skb->len == 0) {
+		if (!test_bit(FLG_FILLEMPTY, &bch->Flags) &&
+		    !test_bit(FLG_TRANSPARENT, &bch->Flags))
+			return;
+		count = HFCPCI_FILLEMPTY;
+	} else {
+		count = bch->tx_skb->len - bch->tx_idx;
+	}
 	if ((bch->nr & 2) && (!hc->hw.bswapped)) {
 		bz = &((union fifo_area *)(hc->hw.fifos))->b_chans.txbz_b2;
 		bdata = ((union fifo_area *)(hc->hw.fifos))->b_chans.txdat_b2;
@@ -782,16 +782,10 @@ hfcpci_fill_fifo(struct bchannel *bch)
 		fcnt = le16_to_cpu(*z2t) - le16_to_cpu(*z1t);
 		if (fcnt <= 0)
 			fcnt += B_FIFO_SIZE;
-		/* fcnt contains available bytes in fifo */
-		fcnt = B_FIFO_SIZE - fcnt;
-		/* remaining bytes to send (bytes in fifo) */
-
-		/* "fill fifo if empty" feature */
-		if (test_bit(FLG_FILLEMPTY, &bch->Flags) && !fcnt) {
-			/* printk(KERN_DEBUG "%s: buffer empty, so we have "
-			   "underrun\n", __func__); */
-			/* fill buffer, to prevent future underrun */
-			count = HFCPCI_FILLEMPTY;
+		if (test_bit(FLG_FILLEMPTY, &bch->Flags)) {
+			/* fcnt contains available bytes in fifo */
+			if (count > fcnt)
+				count = fcnt;
 			new_z1 = le16_to_cpu(*z1t) + count;
 			/* new buffer Position */
 			if (new_z1 >= (B_FIFO_SIZE + B_SUB_VAL))
@@ -803,17 +797,20 @@ hfcpci_fill_fifo(struct bchannel *bch)
 				printk(KERN_DEBUG "hfcpci_FFt fillempty "
 				       "fcnt(%d) maxl(%d) nz1(%x) dst(%p)\n",
 				       fcnt, maxlen, new_z1, dst);
-			fcnt += count;
 			if (maxlen > count)
 				maxlen = count;		/* limit size */
-			memset(dst, 0x2a, maxlen);	/* first copy */
+			memset(dst, bch->fill[0], maxlen); /* first copy */
 			count -= maxlen;		/* remaining bytes */
 			if (count) {
 				dst = bdata;		/* start of buffer */
-				memset(dst, 0x2a, count);
+				memset(dst, bch->fill[0], count);
 			}
 			*z1t = cpu_to_le16(new_z1);	/* now send data */
+			return;
 		}
+		/* fcnt contains available bytes in fifo */
+		fcnt = B_FIFO_SIZE - fcnt;
+		/* remaining bytes to send (bytes in fifo) */
 
 	next_t_frame:
 		count = bch->tx_skb->len - bch->tx_idx;
@@ -1531,24 +1528,7 @@ deactivate_bchannel(struct bchannel *bch)
 static int
 channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 {
-	int	ret = 0;
-
-	switch (cq->op) {
-	case MISDN_CTRL_GETOP:
-		ret = mISDN_ctrl_bchannel(bch, cq);
-		cq->op |= MISDN_CTRL_FILL_EMPTY;
-		break;
-	case MISDN_CTRL_FILL_EMPTY: /* fill fifo, if empty */
-		test_and_set_bit(FLG_FILLEMPTY, &bch->Flags);
-		if (debug & DEBUG_HW_OPEN)
-			printk(KERN_DEBUG "%s: FILL_EMPTY request (nr=%d "
-			       "off=%d)\n", __func__, bch->nr, !!cq->p1);
-		break;
-	default:
-		ret = mISDN_ctrl_bchannel(bch, cq);
-		break;
-	}
-	return ret;
+	return mISDN_ctrl_bchannel(bch, cq);
 }
 static int
 hfc_bctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
@@ -1964,7 +1944,6 @@ open_bchannel(struct hfc_pci *hc, struct channel_req *rq)
 	bch = &hc->bch[rq->adr.channel - 1];
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
 		return -EBUSY; /* b-channel can be only open once */
-	test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
 	bch->ch.protocol = rq->protocol;
 	rq->ch = &bch->ch; /* TODO: E-channel */
 	if (!try_module_get(THIS_MODULE))

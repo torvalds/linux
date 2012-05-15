@@ -140,6 +140,8 @@ mISDN_clear_bchannel(struct bchannel *ch)
 	test_and_clear_bit(FLG_TX_BUSY, &ch->Flags);
 	test_and_clear_bit(FLG_TX_NEXT, &ch->Flags);
 	test_and_clear_bit(FLG_ACTIVE, &ch->Flags);
+	test_and_clear_bit(FLG_FILLEMPTY, &ch->Flags);
+	test_and_clear_bit(FLG_TX_EMPTY, &ch->Flags);
 	ch->minlen = ch->init_minlen;
 	ch->next_minlen = ch->init_minlen;
 	ch->maxlen = ch->init_maxlen;
@@ -165,7 +167,15 @@ mISDN_ctrl_bchannel(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = MISDN_CTRL_RX_BUFFER;
+		cq->op = MISDN_CTRL_RX_BUFFER | MISDN_CTRL_FILL_EMPTY;
+		break;
+	case MISDN_CTRL_FILL_EMPTY:
+		if (cq->p1) {
+			memset(bch->fill, cq->p2 & 0xff, MISDN_BCH_FILL_SIZE);
+			test_and_set_bit(FLG_FILLEMPTY, &bch->Flags);
+		} else {
+			test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
+		}
 		break;
 	case MISDN_CTRL_RX_BUFFER:
 		if (cq->p2 > MISDN_CTRL_RX_SIZE_IGNORE)

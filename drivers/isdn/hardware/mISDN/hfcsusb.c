@@ -491,7 +491,6 @@ open_bchannel(struct hfcsusb *hw, struct channel_req *rq)
 	bch = &hw->bch[rq->adr.channel - 1];
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
 		return -EBUSY; /* b-channel can be only open once */
-	test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
 	bch->ch.protocol = rq->protocol;
 	rq->ch = &bch->ch;
 
@@ -806,24 +805,7 @@ hfcsusb_ph_command(struct hfcsusb *hw, u_char command)
 static int
 channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 {
-	int	ret = 0;
-
-	switch (cq->op) {
-	case MISDN_CTRL_GETOP:
-		ret = mISDN_ctrl_bchannel(bch, cq);
-		cq->op |= MISDN_CTRL_FILL_EMPTY;
-		break;
-	case MISDN_CTRL_FILL_EMPTY: /* fill fifo, if empty */
-		test_and_set_bit(FLG_FILLEMPTY, &bch->Flags);
-		if (debug & DEBUG_HW_OPEN)
-			printk(KERN_DEBUG "%s: FILL_EMPTY request (nr=%d "
-			       "off=%d)\n", __func__, bch->nr, !!cq->p1);
-		break;
-	default:
-		ret = mISDN_ctrl_bchannel(bch, cq);
-		break;
-	}
-	return ret;
+	return mISDN_ctrl_bchannel(bch, cq);
 }
 
 /* collect data from incoming interrupt or isochron USB data */
@@ -1183,8 +1165,8 @@ tx_iso_complete(struct urb *urb)
 	int k, tx_offset, num_isoc_packets, sink, remain, current_len,
 		errcode, hdlc, i;
 	int *tx_idx;
-	int frame_complete, fifon, status;
-	__u8 threshbit;
+	int frame_complete, fifon, status, fillempty = 0;
+	__u8 threshbit, *p;
 
 	spin_lock(&hw->lock);
 	if (fifo->stop_gracefull) {
@@ -1202,6 +1184,9 @@ tx_iso_complete(struct urb *urb)
 		tx_skb = fifo->bch->tx_skb;
 		tx_idx = &fifo->bch->tx_idx;
 		hdlc = test_bit(FLG_HDLC, &fifo->bch->Flags);
+		if (!tx_skb && !hdlc &&
+		    test_bit(FLG_FILLEMPTY, &fifo->bch->Flags))
+			fillempty = 1;
 	} else {
 		printk(KERN_DEBUG "%s: %s: neither BCH nor DCH\n",
 		       hw->name, __func__);
@@ -1260,6 +1245,8 @@ tx_iso_complete(struct urb *urb)
 			/* Generate next ISO Packets */
 			if (tx_skb)
 				remain = tx_skb->len - *tx_idx;
+			else if (fillempty)
+				remain = 15; /* > not complete */
 			else
 				remain = 0;
 
@@ -1290,15 +1277,20 @@ tx_iso_complete(struct urb *urb)
 				}
 
 				/* copy tx data to iso-urb buffer */
-				memcpy(context_iso_urb->buffer + tx_offset + 1,
-				       (tx_skb->data + *tx_idx), current_len);
-				*tx_idx += current_len;
-
+				p = context_iso_urb->buffer + tx_offset + 1;
+				if (fillempty) {
+					memset(p, fifo->bch->fill[0],
+					       current_len);
+				} else {
+					memcpy(p, (tx_skb->data + *tx_idx),
+					       current_len);
+					*tx_idx += current_len;
+				}
 				urb->iso_frame_desc[k].offset = tx_offset;
 				urb->iso_frame_desc[k].length = current_len + 1;
 
 				/* USB data log for every D ISO out */
-				if ((fifon == HFCUSB_D_RX) &&
+				if ((fifon == HFCUSB_D_RX) && !fillempty &&
 				    (debug & DBG_HFC_USB_VERBOSE)) {
 					printk(KERN_DEBUG
 					       "%s: %s (%d/%d) offs(%d) len(%d) ",

@@ -533,22 +533,31 @@ static void
 fill_dma(struct tiger_ch *bc)
 {
 	struct tiger_hw *card = bc->bch.hw;
-	int count, i;
-	u32 m, v;
+	int count, i, fillempty = 0;
+	u32 m, v, n = 0;
 	u8  *p;
 
 	if (bc->free == 0)
 		return;
-	count = bc->bch.tx_skb->len - bc->bch.tx_idx;
-	if (count <= 0)
-		return;
-	pr_debug("%s: %s B%1d %d/%d/%d/%d state %x idx %d/%d\n", card->name,
-		 __func__, bc->bch.nr, count, bc->free, bc->bch.tx_idx,
-		 bc->bch.tx_skb->len, bc->txstate, bc->idx, card->send.idx);
+	if (!bc->bch.tx_skb) {
+		if (!test_bit(FLG_TX_EMPTY, &bc->bch.Flags))
+			return;
+		fillempty = 1;
+		count = card->send.size >> 1;
+		p = bc->bch.fill;
+	} else {
+		count = bc->bch.tx_skb->len - bc->bch.tx_idx;
+		if (count <= 0)
+			return;
+		pr_debug("%s: %s B%1d %d/%d/%d/%d state %x idx %d/%d\n",
+			 card->name, __func__, bc->bch.nr, count, bc->free,
+			 bc->bch.tx_idx, bc->bch.tx_skb->len, bc->txstate,
+			 bc->idx, card->send.idx);
+		p = bc->bch.tx_skb->data + bc->bch.tx_idx;
+	}
 	if (bc->txstate & (TX_IDLE | TX_INIT | TX_UNDERRUN))
 		resync(bc, card);
-	p = bc->bch.tx_skb->data + bc->bch.tx_idx;
-	if (test_bit(FLG_HDLC, &bc->bch.Flags)) {
+	if (test_bit(FLG_HDLC, &bc->bch.Flags) && !fillempty) {
 		count = isdnhdlc_encode(&bc->hsend, p, count, &i,
 					bc->hsbuf, bc->free);
 		pr_debug("%s: B%1d hdlc encoded %d in %d\n", card->name,
@@ -559,17 +568,33 @@ fill_dma(struct tiger_ch *bc)
 	} else {
 		if (count > bc->free)
 			count = bc->free;
-		bc->bch.tx_idx += count;
+		if (!fillempty)
+			bc->bch.tx_idx += count;
 		bc->free -= count;
 	}
 	m = (bc->bch.nr & 1) ? 0xffffff00 : 0xffff00ff;
-	for (i = 0; i < count; i++) {
-		if (bc->idx >= card->send.size)
-			bc->idx = 0;
-		v = card->send.start[bc->idx];
-		v &= m;
-		v |= (bc->bch.nr & 1) ? (u32)(p[i]) : ((u32)(p[i])) << 8;
-		card->send.start[bc->idx++] = v;
+	if (fillempty) {
+		n = p[0];
+		if (!(bc->bch.nr & 1))
+			n <<= 8;
+		for (i = 0; i < count; i++) {
+			if (bc->idx >= card->send.size)
+				bc->idx = 0;
+			v = card->send.start[bc->idx];
+			v &= m;
+			v |= n;
+			card->send.start[bc->idx++] = v;
+		}
+	} else {
+		for (i = 0; i < count; i++) {
+			if (bc->idx >= card->send.size)
+				bc->idx = 0;
+			v = card->send.start[bc->idx];
+			v &= m;
+			n = p[i];
+			v |= (bc->bch.nr & 1) ? n : n << 8;
+			card->send.start[bc->idx++] = v;
+		}
 	}
 	if (debug & DEBUG_HW_BFIFO) {
 		snprintf(card->log, LOG_SIZE, "B%1d-send %s %d ",
@@ -584,17 +609,26 @@ fill_dma(struct tiger_ch *bc)
 static int
 bc_next_frame(struct tiger_ch *bc)
 {
+	int ret = 1;
+
 	if (bc->bch.tx_skb && bc->bch.tx_idx < bc->bch.tx_skb->len) {
 		fill_dma(bc);
 	} else {
 		if (bc->bch.tx_skb)
 			dev_kfree_skb(bc->bch.tx_skb);
-		if (get_next_bframe(&bc->bch))
+		if (get_next_bframe(&bc->bch)) {
 			fill_dma(bc);
-		else
-			return 0;
+			test_and_clear_bit(FLG_TX_EMPTY, &bc->bch.Flags);
+		} else if (test_bit(FLG_TX_EMPTY, &bc->bch.Flags)) {
+			fill_dma(bc);
+		} else if (test_bit(FLG_FILLEMPTY, &bc->bch.Flags)) {
+			test_and_set_bit(FLG_TX_EMPTY, &bc->bch.Flags);
+			ret = 0;
+		} else {
+			ret = 0;
+		}
 	}
-	return 1;
+	return ret;
 }
 
 static void

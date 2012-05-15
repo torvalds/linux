@@ -498,16 +498,22 @@ static void
 W6692_fill_Bfifo(struct w6692_ch *wch)
 {
 	struct w6692_hw *card = wch->bch.hw;
-	int count;
+	int count, fillempty = 0;
 	u8 *ptr, cmd = W_B_CMDR_RACT | W_B_CMDR_XMS;
 
 	pr_debug("%s: fill Bfifo\n", card->name);
-	if (!wch->bch.tx_skb)
-		return;
-	count = wch->bch.tx_skb->len - wch->bch.tx_idx;
-	if (count <= 0)
-		return;
-	ptr = wch->bch.tx_skb->data + wch->bch.tx_idx;
+	if (!wch->bch.tx_skb) {
+		if (!test_bit(FLG_TX_EMPTY, &wch->bch.Flags))
+			return;
+		ptr = wch->bch.fill;
+		count = W_B_FIFO_THRESH;
+		fillempty = 1;
+	} else {
+		count = wch->bch.tx_skb->len - wch->bch.tx_idx;
+		if (count <= 0)
+			return;
+		ptr = wch->bch.tx_skb->data + wch->bch.tx_idx;
+	}
 	if (count > W_B_FIFO_THRESH)
 		count = W_B_FIFO_THRESH;
 	else if (test_bit(FLG_HDLC, &wch->bch.Flags))
@@ -516,9 +522,16 @@ W6692_fill_Bfifo(struct w6692_ch *wch)
 	pr_debug("%s: fill Bfifo%d/%d\n", card->name,
 		 count, wch->bch.tx_idx);
 	wch->bch.tx_idx += count;
-	outsb(wch->addr + W_B_XFIFO, ptr, count);
+	if (fillempty) {
+		while (count > 0) {
+			outsb(wch->addr + W_B_XFIFO, ptr, MISDN_BCH_FILL_SIZE);
+			count -= MISDN_BCH_FILL_SIZE;
+		}
+	} else {
+		outsb(wch->addr + W_B_XFIFO, ptr, count);
+	}
 	WriteW6692B(wch, W_B_CMDR, cmd);
-	if (debug & DEBUG_HW_DFIFO) {
+	if ((debug & DEBUG_HW_BFIFO) && !fillempty) {
 		snprintf(card->log, 63, "B%1d-send %s %d ",
 			 wch->bch.nr, card->name, count);
 		print_hex_dump_bytes(card->log, DUMP_PREFIX_OFFSET, ptr, count);
@@ -637,8 +650,12 @@ send_next(struct w6692_ch *wch)
 	} else {
 		if (wch->bch.tx_skb)
 			dev_kfree_skb(wch->bch.tx_skb);
-		if (get_next_bframe(&wch->bch))
+		if (get_next_bframe(&wch->bch)) {
 			W6692_fill_Bfifo(wch);
+			test_and_clear_bit(FLG_TX_EMPTY, &wch->bch.Flags);
+		} else if (test_bit(FLG_TX_EMPTY, &wch->bch.Flags)) {
+			W6692_fill_Bfifo(wch);
+		}
 	}
 }
 
@@ -727,8 +744,8 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 				 wch->bch.nr, star);
 		}
 		if (star & W_B_STAR_XDOW) {
-			pr_debug("%s: B%d XDOW proto=%x\n", card->name,
-				 wch->bch.nr, wch->bch.state);
+			pr_warning("%s: B%d XDOW proto=%x\n", card->name,
+				   wch->bch.nr, wch->bch.state);
 #ifdef ERROR_STATISTIC
 			wch->bch.err_xdu++;
 #endif
@@ -741,20 +758,21 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 			}
 		}
 		send_next(wch);
-		if (stat & W_B_EXI_XDUN)
+		if (star & W_B_STAR_XDOW)
 			return; /* handle XDOW only once */
 	}
 	if (stat & W_B_EXI_XDUN) {
-		pr_debug("%s: B%d XDUN proto=%x\n", card->name,
-			 wch->bch.nr, wch->bch.state);
+		pr_warning("%s: B%d XDUN proto=%x\n", card->name,
+			   wch->bch.nr, wch->bch.state);
 #ifdef ERROR_STATISTIC
 		wch->bch.err_xdu++;
 #endif
-		WriteW6692B(wch, W_B_CMDR, W_B_CMDR_XRST | W_B_CMDR_RACT);
-		/* resend */
+		/* resend - no XRST needed */
 		if (wch->bch.tx_skb) {
 			if (!test_bit(FLG_TRANSPARENT, &wch->bch.Flags))
 				wch->bch.tx_idx = 0;
+		} else if (test_bit(FLG_FILLEMPTY, &wch->bch.Flags)) {
+			test_and_set_bit(FLG_TX_EMPTY, &wch->bch.Flags);
 		}
 		send_next(wch);
 	}
@@ -993,7 +1011,6 @@ open_bchannel(struct w6692_hw *card, struct channel_req *rq)
 	bch = &card->bc[rq->adr.channel - 1].bch;
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
 		return -EBUSY; /* b-channel can be only open once */
-	test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
 	bch->ch.protocol = rq->protocol;
 	rq->ch = &bch->ch;
 	return 0;
