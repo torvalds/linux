@@ -21,21 +21,21 @@ frontswap_ops funcs appropriately and the functions it provides must
 conform to certain policies as follows:
 
 An "init" prepares the device to receive frontswap pages associated
-with the specified swap device number (aka "type").  A "put_page" will
+with the specified swap device number (aka "type").  A "store" will
 copy the page to transcendent memory and associate it with the type and
-offset associated with the page. A "get_page" will copy the page, if found,
+offset associated with the page. A "load" will copy the page, if found,
 from transcendent memory into kernel memory, but will NOT remove the page
 from from transcendent memory.  An "invalidate_page" will remove the page
 from transcendent memory and an "invalidate_area" will remove ALL pages
 associated with the swap type (e.g., like swapoff) and notify the "device"
-to refuse further puts with that swap type.
+to refuse further stores with that swap type.
 
-Once a page is successfully put, a matching get on the page will normally
+Once a page is successfully stored, a matching load on the page will normally
 succeed.  So when the kernel finds itself in a situation where it needs
-to swap out a page, it first attempts to use frontswap.  If the put returns
+to swap out a page, it first attempts to use frontswap.  If the store returns
 success, the data has been successfully saved to transcendent memory and
 a disk write and, if the data is later read back, a disk read are avoided.
-If a put returns failure, transcendent memory has rejected the data, and the
+If a store returns failure, transcendent memory has rejected the data, and the
 page can be written to swap as usual.
 
 If a backend chooses, frontswap can be configured as a "writethrough
@@ -44,18 +44,18 @@ in swap device writes is lost (and also a non-trivial performance advantage)
 in order to allow the backend to arbitrarily "reclaim" space used to
 store frontswap pages to more completely manage its memory usage.
 
-Note that if a page is put and the page already exists in transcendent memory
-(a "duplicate" put), either the put succeeds and the data is overwritten,
-or the put fails AND the page is invalidated.  This ensures stale data may
+Note that if a page is stored and the page already exists in transcendent memory
+(a "duplicate" store), either the store succeeds and the data is overwritten,
+or the store fails AND the page is invalidated.  This ensures stale data may
 never be obtained from frontswap.
 
 If properly configured, monitoring of frontswap is done via debugfs in
 the /sys/kernel/debug/frontswap directory.  The effectiveness of
 frontswap can be measured (across all swap devices) with:
 
-failed_puts	- how many put attempts have failed
-gets		- how many gets were attempted (all should succeed)
-succ_puts	- how many put attempts have succeeded
+failed_stores	- how many store attempts have failed
+loads		- how many loads were attempted (all should succeed)
+succ_stores	- how many store attempts have succeeded
 invalidates	- how many invalidates were attempted
 
 A backend implementation may provide additional metrics.
@@ -125,7 +125,7 @@ nothingness and the only overhead is a few extra bytes per swapon'ed
 swap device.  If CONFIG_FRONTSWAP is enabled but no frontswap "backend"
 registers, there is one extra global variable compared to zero for
 every swap page read or written.  If CONFIG_FRONTSWAP is enabled
-AND a frontswap backend registers AND the backend fails every "put"
+AND a frontswap backend registers AND the backend fails every "store"
 request (i.e. provides no memory despite claiming it might),
 CPU overhead is still negligible -- and since every frontswap fail
 precedes a swap page write-to-disk, the system is highly likely
@@ -159,13 +159,13 @@ entirely dynamic and random.
 
 Whenever a swap-device is swapon'd frontswap_init() is called,
 passing the swap device number (aka "type") as a parameter.
-This notifies frontswap to expect attempts to "put" swap pages
+This notifies frontswap to expect attempts to "store" swap pages
 associated with that number.
 
 Whenever the swap subsystem is readying a page to write to a swap
-device (c.f swap_writepage()), frontswap_put_page is called.  Frontswap
+device (c.f swap_writepage()), frontswap_store is called.  Frontswap
 consults with the frontswap backend and if the backend says it does NOT
-have room, frontswap_put_page returns -1 and the kernel swaps the page
+have room, frontswap_store returns -1 and the kernel swaps the page
 to the swap device as normal.  Note that the response from the frontswap
 backend is unpredictable to the kernel; it may choose to never accept a
 page, it could accept every ninth page, or it might accept every
@@ -177,7 +177,7 @@ corresponding to the page offset on the swap device to which it would
 otherwise have written the data.
 
 When the swap subsystem needs to swap-in a page (swap_readpage()),
-it first calls frontswap_get_page() which checks the frontswap_map to
+it first calls frontswap_load() which checks the frontswap_map to
 see if the page was earlier accepted by the frontswap backend.  If
 it was, the page of data is filled from the frontswap backend and
 the swap-in is complete.  If not, the normal swap-in code is
@@ -185,7 +185,7 @@ executed to obtain the page of data from the real swap device.
 
 So every time the frontswap backend accepts a page, a swap device read
 and (potentially) a swap device write are replaced by a "frontswap backend
-put" and (possibly) a "frontswap backend get", which are presumably much
+store" and (possibly) a "frontswap backend loads", which are presumably much
 faster.
 
 4) Can't frontswap be configured as a "special" swap device that is
@@ -215,8 +215,8 @@ that are inappropriate for a RAM-oriented device including delaying
 the write of some pages for a significant amount of time.  Synchrony is
 required to ensure the dynamicity of the backend and to avoid thorny race
 conditions that would unnecessarily and greatly complicate frontswap
-and/or the block I/O subsystem.  That said, only the initial "put"
-and "get" operations need be synchronous.  A separate asynchronous thread
+and/or the block I/O subsystem.  That said, only the initial "store"
+and "load" operations need be synchronous.  A separate asynchronous thread
 is free to manipulate the pages stored by frontswap.  For example,
 the "remotification" thread in RAMster uses standard asynchronous
 kernel sockets to move compressed frontswap pages to a remote machine.
@@ -229,7 +229,7 @@ choose to accept pages only until host-swapping might be imminent,
 then force guests to do their own swapping.
 
 There is a downside to the transcendent memory specifications for
-frontswap:  Since any "put" might fail, there must always be a real
+frontswap:  Since any "store" might fail, there must always be a real
 slot on a real swap device to swap the page.  Thus frontswap must be
 implemented as a "shadow" to every swapon'd device with the potential
 capability of holding every page that the swap device might have held
@@ -240,16 +240,16 @@ installation, frontswap is useless.  Swapless portable devices
 can still use frontswap but a backend for such devices must configure
 some kind of "ghost" swap device and ensure that it is never used.
 
-5) Why this weird definition about "duplicate puts"?  If a page
-   has been previously successfully put, can't it always be
+5) Why this weird definition about "duplicate stores"?  If a page
+   has been previously successfully stored, can't it always be
    successfully overwritten?
 
 Nearly always it can, but no, sometimes it cannot.  Consider an example
 where data is compressed and the original 4K page has been compressed
 to 1K.  Now an attempt is made to overwrite the page with data that
 is non-compressible and so would take the entire 4K.  But the backend
-has no more space.  In this case, the put must be rejected.  Whenever
-frontswap rejects a put that would overwrite, it also must invalidate
+has no more space.  In this case, the store must be rejected.  Whenever
+frontswap rejects a store that would overwrite, it also must invalidate
 the old data and ensure that it is no longer accessible.  Since the
 swap subsystem then writes the new data to the read swap device,
 this is the correct course of action to ensure coherency.

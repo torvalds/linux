@@ -39,7 +39,7 @@ bool frontswap_enabled __read_mostly;
 EXPORT_SYMBOL(frontswap_enabled);
 
 /*
- * If enabled, frontswap_put will return failure even on success.  As
+ * If enabled, frontswap_store will return failure even on success.  As
  * a result, the swap subsystem will always write the page to swap, in
  * effect converting frontswap into a writethrough cache.  In this mode,
  * there is no direct reduction in swap writes, but a frontswap backend
@@ -54,27 +54,27 @@ static bool frontswap_writethrough_enabled __read_mostly;
  * properly configured).  These are for information only so are not protected
  * against increment races.
  */
-static u64 frontswap_gets;
-static u64 frontswap_succ_puts;
-static u64 frontswap_failed_puts;
+static u64 frontswap_loads;
+static u64 frontswap_succ_stores;
+static u64 frontswap_failed_stores;
 static u64 frontswap_invalidates;
 
-static inline void inc_frontswap_gets(void) {
-	frontswap_gets++;
+static inline void inc_frontswap_loads(void) {
+	frontswap_loads++;
 }
-static inline void inc_frontswap_succ_puts(void) {
-	frontswap_succ_puts++;
+static inline void inc_frontswap_succ_stores(void) {
+	frontswap_succ_stores++;
 }
-static inline void inc_frontswap_failed_puts(void) {
-	frontswap_failed_puts++;
+static inline void inc_frontswap_failed_stores(void) {
+	frontswap_failed_stores++;
 }
 static inline void inc_frontswap_invalidates(void) {
 	frontswap_invalidates++;
 }
 #else
-static inline void inc_frontswap_gets(void) { }
-static inline void inc_frontswap_succ_puts(void) { }
-static inline void inc_frontswap_failed_puts(void) { }
+static inline void inc_frontswap_loads(void) { }
+static inline void inc_frontswap_succ_stores(void) { }
+static inline void inc_frontswap_failed_stores(void) { }
 static inline void inc_frontswap_invalidates(void) { }
 #endif
 /*
@@ -116,13 +116,13 @@ void __frontswap_init(unsigned type)
 EXPORT_SYMBOL(__frontswap_init);
 
 /*
- * "Put" data from a page to frontswap and associate it with the page's
+ * "Store" data from a page to frontswap and associate it with the page's
  * swaptype and offset.  Page must be locked and in the swap cache.
  * If frontswap already contains a page with matching swaptype and
  * offset, the frontswap implmentation may either overwrite the data and
  * return success or invalidate the page from frontswap and return failure.
  */
-int __frontswap_put_page(struct page *page)
+int __frontswap_store(struct page *page)
 {
 	int ret = -1, dup = 0;
 	swp_entry_t entry = { .val = page_private(page), };
@@ -134,10 +134,10 @@ int __frontswap_put_page(struct page *page)
 	BUG_ON(sis == NULL);
 	if (frontswap_test(sis, offset))
 		dup = 1;
-	ret = (*frontswap_ops.put_page)(type, offset, page);
+	ret = (*frontswap_ops.store)(type, offset, page);
 	if (ret == 0) {
 		frontswap_set(sis, offset);
-		inc_frontswap_succ_puts();
+		inc_frontswap_succ_stores();
 		if (!dup)
 			atomic_inc(&sis->frontswap_pages);
 	} else if (dup) {
@@ -147,22 +147,22 @@ int __frontswap_put_page(struct page *page)
 		 */
 		frontswap_clear(sis, offset);
 		atomic_dec(&sis->frontswap_pages);
-		inc_frontswap_failed_puts();
+		inc_frontswap_failed_stores();
 	} else
-		inc_frontswap_failed_puts();
+		inc_frontswap_failed_stores();
 	if (frontswap_writethrough_enabled)
 		/* report failure so swap also writes to swap device */
 		ret = -1;
 	return ret;
 }
-EXPORT_SYMBOL(__frontswap_put_page);
+EXPORT_SYMBOL(__frontswap_store);
 
 /*
  * "Get" data from frontswap associated with swaptype and offset that were
  * specified when the data was put to frontswap and use it to fill the
  * specified page with data. Page must be locked and in the swap cache.
  */
-int __frontswap_get_page(struct page *page)
+int __frontswap_load(struct page *page)
 {
 	int ret = -1;
 	swp_entry_t entry = { .val = page_private(page), };
@@ -173,12 +173,12 @@ int __frontswap_get_page(struct page *page)
 	BUG_ON(!PageLocked(page));
 	BUG_ON(sis == NULL);
 	if (frontswap_test(sis, offset))
-		ret = (*frontswap_ops.get_page)(type, offset, page);
+		ret = (*frontswap_ops.load)(type, offset, page);
 	if (ret == 0)
-		inc_frontswap_gets();
+		inc_frontswap_loads();
 	return ret;
 }
-EXPORT_SYMBOL(__frontswap_get_page);
+EXPORT_SYMBOL(__frontswap_load);
 
 /*
  * Invalidate any data from frontswap associated with the specified swaptype
@@ -301,10 +301,10 @@ static int __init init_frontswap(void)
 	struct dentry *root = debugfs_create_dir("frontswap", NULL);
 	if (root == NULL)
 		return -ENXIO;
-	debugfs_create_u64("gets", S_IRUGO, root, &frontswap_gets);
-	debugfs_create_u64("succ_puts", S_IRUGO, root, &frontswap_succ_puts);
-	debugfs_create_u64("failed_puts", S_IRUGO, root,
-				&frontswap_failed_puts);
+	debugfs_create_u64("loads", S_IRUGO, root, &frontswap_loads);
+	debugfs_create_u64("succ_stores", S_IRUGO, root, &frontswap_succ_stores);
+	debugfs_create_u64("failed_stores", S_IRUGO, root,
+				&frontswap_failed_stores);
 	debugfs_create_u64("invalidates", S_IRUGO,
 				root, &frontswap_invalidates);
 #endif
