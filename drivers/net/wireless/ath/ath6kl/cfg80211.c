@@ -576,6 +576,9 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	vif->nw_type = vif->next_mode;
 
+	/* enable enhanced bmiss detection if applicable */
+	ath6kl_cfg80211_sta_bmiss_enhance(vif, true);
+
 	if (vif->wdev.iftype == NL80211_IFTYPE_P2P_CLIENT)
 		nw_subtype = SUBTYPE_P2PCLIENT;
 
@@ -1511,6 +1514,9 @@ static int ath6kl_cfg80211_change_iface(struct wiphy *wiphy,
 			return -EINVAL;
 		}
 	}
+
+	/* need to clean up enhanced bmiss detection fw state */
+	ath6kl_cfg80211_sta_bmiss_enhance(vif, false);
 
 set_iface_type:
 	switch (type) {
@@ -2616,6 +2622,30 @@ static int ath6kl_set_channel(struct wiphy *wiphy, struct net_device *dev,
 	vif->next_ch_band = chan->band;
 
 	return 0;
+}
+
+void ath6kl_cfg80211_sta_bmiss_enhance(struct ath6kl_vif *vif, bool enable)
+{
+	int err;
+
+	if (WARN_ON(!test_bit(WMI_READY, &vif->ar->flag)))
+		return;
+
+	if (vif->nw_type != INFRA_NETWORK)
+		return;
+
+	if (!test_bit(ATH6KL_FW_CAPABILITY_BMISS_ENHANCE,
+		      vif->ar->fw_capabilities))
+		return;
+
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s fw bmiss enhance\n",
+		   enable ? "enable" : "disable");
+
+	err = ath6kl_wmi_sta_bmiss_enhance_cmd(vif->ar->wmi,
+					       vif->fw_vif_idx, enable);
+	if (err)
+		ath6kl_err("failed to %s enhanced bmiss detection: %d\n",
+			   enable ? "enable" : "disable", err);
 }
 
 static int ath6kl_get_rsn_capab(struct cfg80211_beacon_data *beacon,
