@@ -2008,6 +2008,8 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 	int r;
 
 	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	if (!track)
+		return -ENOMEM;
 	r100_cs_track_clear(p->rdev, track);
 	p->track = track;
 	do {
