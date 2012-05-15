@@ -339,3 +339,8 @@ ql_log_pci(uint32_t, struct pci_dev *pdev, int32_t, const char *fmt, ...);
 #define ql_dbg_misc	0x00010000 /* For dumping everything that is not
 				    * not covered by upper categories
 				    */
+#define ql_dbg_verbose	0x00008000 /* More verbosity for each level
+				    * This is to be used with other levels where
+				    * more verbosity is required. It might not
+				    * be applicable to all the levels.
+				    */

@@ -649,12 +649,12 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	if (ha->flags.eeh_busy) {
 		if (ha->flags.pci_channel_io_perm_failure) {
-			ql_dbg(ql_dbg_io, vha, 0x3001,
+			ql_dbg(ql_dbg_aer, vha, 0x9010,
 			    "PCI Channel IO permanent failure, exiting "
 			    "cmd=%p.\n", cmd);
 			cmd->result = DID_NO_CONNECT << 16;
 		} else {
-			ql_dbg(ql_dbg_io, vha, 0x3002,
+			ql_dbg(ql_dbg_aer, vha, 0x9011,
 			    "EEH_Busy, Requeuing the cmd=%p.\n", cmd);
 			cmd->result = DID_REQUEUE << 16;
 		}
@@ -664,7 +664,7 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
 		cmd->result = rval;
-		ql_dbg(ql_dbg_io, vha, 0x3003,
+		ql_dbg(ql_dbg_io + ql_dbg_verbose, vha, 0x3003,
 		    "fc_remote_port_chkready failed for cmd=%p, rval=0x%x.\n",
 		    cmd, rval);
 		goto qc24_fail_command;
@@ -3689,10 +3689,9 @@ qla2x00_do_dpc(void *data)
 
 		ha->dpc_active = 1;
 
-		ql_dbg(ql_dbg_dpc, base_vha, 0x4001,
-		    "DPC handler waking up.\n");
-		ql_dbg(ql_dbg_dpc, base_vha, 0x4002,
-		    "dpc_flags=0x%lx.\n", base_vha->dpc_flags);
+		ql_dbg(ql_dbg_dpc + ql_dbg_verbose, base_vha, 0x4001,
+		    "DPC handler waking up, dpc_flags=0x%lx.\n",
+		    base_vha->dpc_flags);
 
 		qla2x00_do_work(base_vha);
 

@@ -2960,9 +2960,8 @@ qla82xx_need_qsnt_handler(scsi_qla_host_t *vha)
 			 * changing the state to DEV_READY
 			 */
 			ql_log(ql_log_info, vha, 0xb023,
-			    "%s : QUIESCENT TIMEOUT.\n", QLA2XXX_DRIVER_NAME);
-			ql_log(ql_log_info, vha, 0xb024,
-			    "DRV_ACTIVE:%d DRV_STATE:%d.\n",
+			    "%s : QUIESCENT TIMEOUT DRV_ACTIVE:%d "
+			    "DRV_STATE:%d.\n", QLA2XXX_DRIVER_NAME,
 			    drv_active, drv_state);
 			qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
 			    QLA82XX_DEV_READY);

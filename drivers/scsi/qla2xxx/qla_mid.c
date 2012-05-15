@@ -295,10 +295,8 @@ qla2x00_vp_abort_isp(scsi_qla_host_t *vha)
 static int
 qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 {
-	ql_dbg(ql_dbg_dpc, vha, 0x4012,
-	    "Entering %s.\n", __func__);
-	ql_dbg(ql_dbg_dpc, vha, 0x4013,
-	    "vp_flags: 0x%lx.\n", vha->vp_flags);
+	ql_dbg(ql_dbg_dpc + ql_dbg_verbose, vha, 0x4012,
+	    "Entering %s vp_flags: 0x%lx.\n", __func__, vha->vp_flags);
 
 	qla2x00_do_work(vha);
 
@@ -348,7 +346,7 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 		}
 	}
 
-	ql_dbg(ql_dbg_dpc, vha, 0x401c,
+	ql_dbg(ql_dbg_dpc + ql_dbg_verbose, vha, 0x401c,
 	    "Exiting %s.\n", __func__);
 	return 0;
 }
