@@ -603,33 +603,24 @@ static int __devinit lm3533_i2c_probe(struct i2c_client *i2c,
 
 	dev_dbg(&i2c->dev, "%s\n", __func__);
 
-	lm3533 = kzalloc(sizeof(*lm3533), GFP_KERNEL);
+	lm3533 = devm_kzalloc(&i2c->dev, sizeof(*lm3533), GFP_KERNEL);
 	if (!lm3533)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, lm3533);
 
-	lm3533->regmap = regmap_init_i2c(i2c, &regmap_config);
-	if (IS_ERR(lm3533->regmap)) {
-		ret = PTR_ERR(lm3533->regmap);
-		goto err_regmap;
-	}
+	lm3533->regmap = devm_regmap_init_i2c(i2c, &regmap_config);
+	if (IS_ERR(lm3533->regmap))
+		return PTR_ERR(lm3533->regmap);
 
 	lm3533->dev = &i2c->dev;
 	lm3533->irq = i2c->irq;
 
 	ret = lm3533_device_init(lm3533);
 	if (ret)
-		goto err_dev;
+		return ret;
 
 	return 0;
-
-err_dev:
-	regmap_exit(lm3533->regmap);
-err_regmap:
-	kfree(lm3533);
-
-	return ret;
 }
 
 static int __devexit lm3533_i2c_remove(struct i2c_client *i2c)
@@ -639,9 +630,6 @@ static int __devexit lm3533_i2c_remove(struct i2c_client *i2c)
 	dev_dbg(&i2c->dev, "%s\n", __func__);
 
 	lm3533_device_exit(lm3533);
-	regmap_exit(lm3533->regmap);
-
-	kfree(lm3533);
 
 	return 0;
 }
