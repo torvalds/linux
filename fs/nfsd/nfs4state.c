@@ -1177,6 +1177,7 @@ static int copy_cred(struct svc_cred *target, struct svc_cred *source)
 			return -ENOMEM;
 	} else
 		target->cr_principal = NULL;
+	target->cr_flavor = source->cr_flavor;
 	target->cr_uid = source->cr_uid;
 	target->cr_gid = source->cr_gid;
 	target->cr_group_info = source->cr_group_info;
@@ -1213,11 +1214,11 @@ static bool groups_equal(struct group_info *g1, struct group_info *g2)
 	return true;
 }
 
-/* XXX what about NGROUP */
 static int
 same_creds(struct svc_cred *cr1, struct svc_cred *cr2)
 {
-	if ((cr1->cr_uid != cr2->cr_uid)
+	if ((cr1->cr_flavor != cr2->cr_flavor)
+		|| (cr1->cr_uid != cr2->cr_uid)
 		|| (cr1->cr_gid != cr2->cr_gid)
 		|| !groups_equal(cr1->cr_group_info, cr2->cr_group_info))
 		return false;
@@ -1299,7 +1300,6 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 	rpc_init_wait_queue(&clp->cl_cb_waitq, "Backchannel slot table");
 	copy_verf(clp, verf);
 	rpc_copy_addr((struct sockaddr *) &clp->cl_addr, sa);
-	clp->cl_flavor = rqstp->rq_flavor;
 	gen_confirm(clp);
 	clp->cl_cb_session = NULL;
 	return clp;
