@@ -338,13 +338,12 @@ EXPORT_SYMBOL_GPL(__mlx4_unregister_mac);
 void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 {
 	u64 out_param;
-	int err;
 
 	if (mlx4_is_mfunc(dev)) {
 		set_param_l(&out_param, port);
-		err = mlx4_cmd_imm(dev, mac, &out_param, RES_MAC,
-				   RES_OP_RESERVE_AND_MAP, MLX4_CMD_FREE_RES,
-				   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+		(void) mlx4_cmd_imm(dev, mac, &out_param, RES_MAC,
+				    RES_OP_RESERVE_AND_MAP, MLX4_CMD_FREE_RES,
+				    MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 		return;
 	}
 	__mlx4_unregister_mac(dev, port, mac);

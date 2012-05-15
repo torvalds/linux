@@ -1254,7 +1254,6 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_slave_state *slave_state = priv->mfunc.master.slave_state;
 	u32 reply;
-	u32 slave_status = 0;
 	u8 is_going_down = 0;
 	int i;
 
@@ -1274,10 +1273,8 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		}
 		/*check if we are in the middle of FLR process,
 		if so return "retry" status to the slave*/
-		if (MLX4_COMM_CMD_FLR == slave_state[slave].last_cmd) {
-			slave_status = MLX4_DELAY_RESET_SLAVE;
+		if (MLX4_COMM_CMD_FLR == slave_state[slave].last_cmd)
 			goto inform_slave_state;
-		}
 
 		/* write the version in the event field */
 		reply |= mlx4_comm_get_version();

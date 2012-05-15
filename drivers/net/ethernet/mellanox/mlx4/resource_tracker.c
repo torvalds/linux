@@ -2536,7 +2536,7 @@ int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 	struct mlx4_qp qp; /* dummy for calling attach/detach */
 	u8 *gid = inbox->buf;
 	enum mlx4_protocol prot = (vhcr->in_modifier >> 28) & 0x7;
-	int err, err1;
+	int err;
 	int qpn;
 	struct res_qp *rqp;
 	int attach = vhcr->op_modifier;
@@ -2571,7 +2571,7 @@ int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 
 ex_rem:
 	/* ignore error return below, already in error */
-	err1 = rem_mcg_res(dev, slave, rqp, gid, prot, type);
+	(void) rem_mcg_res(dev, slave, rqp, gid, prot, type);
 ex_put:
 	put_res(dev, slave, qpn, RES_QP);
 
@@ -2604,13 +2604,12 @@ static void detach_qp(struct mlx4_dev *dev, int slave, struct res_qp *rqp)
 {
 	struct res_gid *rgid;
 	struct res_gid *tmp;
-	int err;
 	struct mlx4_qp qp; /* dummy for calling attach/detach */
 
 	list_for_each_entry_safe(rgid, tmp, &rqp->mcg_list, list) {
 		qp.qpn = rqp->local_qpn;
-		err = mlx4_qp_detach_common(dev, &qp, rgid->gid, rgid->prot,
-					    rgid->steer);
+		(void) mlx4_qp_detach_common(dev, &qp, rgid->gid, rgid->prot,
+					     rgid->steer);
 		list_del(&rgid->list);
 		kfree(rgid);
 	}
