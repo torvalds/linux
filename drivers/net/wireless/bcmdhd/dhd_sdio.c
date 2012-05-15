@@ -1481,9 +1481,9 @@ dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 		dhd_os_sdunlock(bus->dhd);
 #endif /* DHD_DEBUG */
 	} else if (pending == TRUE) {
-		/* possibly fw hangs so never responsed back */
-		DHD_ERROR(("%s: pending or timeout \n", __FUNCTION__));
-		return -ETIMEDOUT;
+		/* signal pending */
+		DHD_ERROR(("%s: signal pending\n", __FUNCTION__));
+		return -EINTR;
 	} else {
 		DHD_CTL(("%s: resumed for unknown reason?\n", __FUNCTION__));
 #ifdef DHD_DEBUG
