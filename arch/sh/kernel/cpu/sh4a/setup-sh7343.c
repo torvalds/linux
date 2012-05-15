@@ -56,7 +56,7 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type           = PORT_SCIF,
-	.irq            = SCIx_IRQ_MUXED(evt2irq(0xC40)),
+	.irqs           = SCIx_IRQ_MUXED(evt2irq(0xC40)),
 };
 
 static struct platform_device scif2_device = {
