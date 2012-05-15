@@ -3159,11 +3159,11 @@ qla82xx_check_md_needed(scsi_qla_host_t *vha)
 				    "Firmware version differs "
 				    "Previous version: %d:%d:%d - "
 				    "New version: %d:%d:%d\n",
+				    fw_major_version, fw_minor_version,
+				    fw_subminor_version,
 				    ha->fw_major_version,
 				    ha->fw_minor_version,
-				    ha->fw_subminor_version,
-				    fw_major_version, fw_minor_version,
-				    fw_subminor_version);
+				    ha->fw_subminor_version);
 				/* Release MiniDump resources */
 				qla82xx_md_free(vha);
 				/* ALlocate MiniDump resources */
