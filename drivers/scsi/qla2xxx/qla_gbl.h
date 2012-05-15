@@ -383,6 +383,8 @@ extern int qla2x00_request_irqs(struct qla_hw_data *, struct rsp_que *);
 extern void qla2x00_free_irqs(scsi_qla_host_t *);
 
 extern int qla2x00_get_data_rate(scsi_qla_host_t *);
+extern char *qla2x00_get_link_speed_str(struct qla_hw_data *);
+
 /*
  * Global Function Prototypes in qla_sup.c source file.
  */

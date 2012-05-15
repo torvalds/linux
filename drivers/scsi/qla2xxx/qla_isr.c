@@ -309,6 +309,28 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 		    "IDC failed to post ACK.\n");
 }
 
+#define LS_UNKNOWN	2
+char *
+qla2x00_get_link_speed_str(struct qla_hw_data *ha)
+{
+	static char *link_speeds[] = {"1", "2", "?", "4", "8", "16", "10"};
+	char *link_speed;
+	int fw_speed = ha->link_data_rate;
+
+	if (IS_QLA2100(ha) || IS_QLA2200(ha))
+		link_speed = link_speeds[0];
+	else if (fw_speed == 0x13)
+		link_speed = link_speeds[6];
+	else {
+		link_speed = link_speeds[LS_UNKNOWN];
+		if (fw_speed < 6)
+			link_speed =
+			    link_speeds[fw_speed];
+	}
+
+	return link_speed;
+}
+
 /**
  * qla2x00_async_event() - Process aynchronous events.
  * @ha: SCSI driver HA context
@@ -317,9 +339,6 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 void
 qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 {
-#define LS_UNKNOWN	2
-	static char *link_speeds[] = { "1", "2", "?", "4", "8", "16", "10" };
-	char		*link_speed;
 	uint16_t	handle_cnt;
 	uint16_t	cnt, mbx;
 	uint32_t	handles[5];
@@ -479,20 +498,14 @@ skip_rio:
 		break;
 
 	case MBA_LOOP_UP:		/* Loop Up Event */
-		if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
-			link_speed = link_speeds[0];
+		if (IS_QLA2100(ha) || IS_QLA2200(ha))
 			ha->link_data_rate = PORT_SPEED_1GB;
-		} else {
-			link_speed = link_speeds[LS_UNKNOWN];
-			if (mb[1] < 6)
-				link_speed = link_speeds[mb[1]];
-			else if (mb[1] == 0x13)
-				link_speed = link_speeds[6];
+		else
 			ha->link_data_rate = mb[1];
-		}
 
 		ql_dbg(ql_dbg_async, vha, 0x500a,
-		    "LOOP UP detected (%s Gbps).\n", link_speed);
+		    "LOOP UP detected (%s Gbps).\n",
+		    qla2x00_get_link_speed_str(ha));
 
 		vha->flags.management_server_logged_in = 0;
 		qla2x00_post_aen_work(vha, FCH_EVT_LINKUP, ha->link_data_rate);
@@ -638,6 +651,8 @@ skip_rio:
 			ql_dbg(ql_dbg_async, vha, 0x5010,
 			    "Port unavailable %04x %04x %04x.\n",
 			    mb[1], mb[2], mb[3]);
+			ql_log(ql_log_warn, vha, 0x505e,
+			    "Link is offline.\n");
 
 			if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 				atomic_set(&vha->loop_state, LOOP_DOWN);
@@ -676,6 +691,9 @@ skip_rio:
 		ql_dbg(ql_dbg_async, vha, 0x5012,
 		    "Port database changed %04x %04x %04x.\n",
 		    mb[1], mb[2], mb[3]);
+		ql_log(ql_log_warn, vha, 0x505f,
+		    "Link is operational (%s Gbps).\n",
+		    qla2x00_get_link_speed_str(ha));
 
 		/*
 		 * Mark all devices as missing so we will login again.

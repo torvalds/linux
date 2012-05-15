@@ -19,7 +19,7 @@
  * | Queue Command and IO tracing |       0x3030       | 0x3006,0x3008  |
  * |                              |                    | 0x302d-0x302e  |
  * | DPC Thread                   |       0x401c       | 0x4002,0x4013  |
- * | Async Events                 |       0x505d       | 0x502b-0x502f  |
+ * | Async Events                 |       0x505f       | 0x502b-0x502f  |
  * |                              |                    | 0x5047,0x5052  |
  * | Timer Routines               |       0x6011       |                |
  * | User Space Interactions      |       0x709f       | 0x7018,0x702e, |
