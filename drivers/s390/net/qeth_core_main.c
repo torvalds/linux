@@ -4739,13 +4739,6 @@ static struct ccw_driver qeth_ccw_driver = {
 	.remove = ccwgroup_remove_ccwdev,
 };
 
-static int qeth_core_driver_group(const char *buf, struct device *root_dev,
-				unsigned long driver_id)
-{
-	return ccwgroup_create_from_string(root_dev, driver_id,
-					   &qeth_ccw_driver, 3, buf);
-}
-
 int qeth_core_hardsetup_card(struct qeth_card *card)
 {
 	int retries = 0;
@@ -5074,6 +5067,15 @@ void qeth_core_free_discipline(struct qeth_card *card)
 	card->discipline.ccwgdriver = NULL;
 }
 
+static const struct device_type qeth_generic_devtype = {
+	.name = "qeth_generic",
+	.groups = qeth_generic_attr_groups,
+};
+static const struct device_type qeth_osn_devtype = {
+	.name = "qeth_osn",
+	.groups = qeth_osn_attr_groups,
+};
+
 static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card;
@@ -5128,17 +5130,16 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	}
 
 	if (card->info.type == QETH_CARD_TYPE_OSN)
-		rc = qeth_core_create_osn_attributes(dev);
+		gdev->dev.type = &qeth_osn_devtype;
 	else
-		rc = qeth_core_create_device_attributes(dev);
-	if (rc)
-		goto err_dbf;
+		gdev->dev.type = &qeth_generic_devtype;
+
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_OSN:
 	case QETH_CARD_TYPE_OSM:
 		rc = qeth_core_load_discipline(card, QETH_DISCIPLINE_LAYER2);
 		if (rc)
-			goto err_attr;
+			goto err_dbf;
 		rc = card->discipline.ccwgdriver->probe(card->gdev);
 		if (rc)
 			goto err_disc;
@@ -5157,11 +5158,6 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 
 err_disc:
 	qeth_core_free_discipline(card);
-err_attr:
-	if (card->info.type == QETH_CARD_TYPE_OSN)
-		qeth_core_remove_osn_attributes(dev);
-	else
-		qeth_core_remove_device_attributes(dev);
 err_dbf:
 	debug_unregister(card->debug);
 err_card:
@@ -5177,12 +5173,6 @@ static void qeth_core_remove_device(struct ccwgroup_device *gdev)
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 
 	QETH_DBF_TEXT(SETUP, 2, "removedv");
-
-	if (card->info.type == QETH_CARD_TYPE_OSN) {
-		qeth_core_remove_osn_attributes(&gdev->dev);
-	} else {
-		qeth_core_remove_device_attributes(&gdev->dev);
-	}
 
 	if (card->discipline.ccwgdriver) {
 		card->discipline.ccwgdriver->remove(gdev);
@@ -5286,7 +5276,7 @@ static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
 		.name = "qeth",
 	},
 	.driver_id = 0xD8C5E3C8,
-	.probe = qeth_core_probe_device,
+	.setup = qeth_core_probe_device,
 	.remove = qeth_core_remove_device,
 	.set_online = qeth_core_set_online,
 	.set_offline = qeth_core_set_offline,
@@ -5298,19 +5288,17 @@ static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
 	.restore = qeth_core_restore,
 };
 
-static ssize_t
-qeth_core_driver_group_store(struct device_driver *ddrv, const char *buf,
-			   size_t count)
+static ssize_t qeth_core_driver_group_store(struct device_driver *ddrv,
+					    const char *buf, size_t count)
 {
 	int err;
-	err = qeth_core_driver_group(buf, qeth_core_root_dev,
-					qeth_core_ccwgroup_driver.driver_id);
-	if (err)
-		return err;
-	else
-		return count;
-}
 
+	err = ccwgroup_create_dev(qeth_core_root_dev,
+				  qeth_core_ccwgroup_driver.driver_id,
+				  &qeth_core_ccwgroup_driver, 3, buf);
+
+	return err ? err : count;
+}
 static DRIVER_ATTR(group, 0200, NULL, qeth_core_driver_group_store);
 
 static struct {

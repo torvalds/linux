@@ -843,14 +843,13 @@ static inline int qeth_is_diagass_supported(struct qeth_card *card,
 
 extern struct ccwgroup_driver qeth_l2_ccwgroup_driver;
 extern struct ccwgroup_driver qeth_l3_ccwgroup_driver;
+extern const struct attribute_group *qeth_generic_attr_groups[];
+extern const struct attribute_group *qeth_osn_attr_groups[];
+
 const char *qeth_get_cardname_short(struct qeth_card *);
 int qeth_realloc_buffer_pool(struct qeth_card *, int);
 int qeth_core_load_discipline(struct qeth_card *, enum qeth_discipline_id);
 void qeth_core_free_discipline(struct qeth_card *);
-int qeth_core_create_device_attributes(struct device *);
-void qeth_core_remove_device_attributes(struct device *);
-int qeth_core_create_osn_attributes(struct device *);
-void qeth_core_remove_osn_attributes(struct device *);
 void qeth_buffer_reclaim_work(struct work_struct *);
 
 /* exports for qeth discipline device drivers */
