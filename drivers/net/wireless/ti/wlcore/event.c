@@ -156,6 +156,15 @@ static int wl1271_event_process(struct wl1271 *wl)
 		 */
 		ieee80211_queue_delayed_work(wl->hw, &wl->connection_loss_work,
 					     msecs_to_jiffies(delay));
+
+		wl12xx_for_each_wlvif_sta(wl, wlvif) {
+			vif = wl12xx_wlvif_to_vif(wlvif);
+
+			ieee80211_cqm_rssi_notify(
+					vif,
+					NL80211_CQM_RSSI_BEACON_LOSS_EVENT,
+					GFP_KERNEL);
+		}
 	}
 
 	if (vector & REGAINED_BSS_EVENT_ID) {
