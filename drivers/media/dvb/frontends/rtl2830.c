@@ -404,8 +404,48 @@ err:
 
 static int rtl2830_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	*snr = 0;
+	struct rtl2830_priv *priv = fe->demodulator_priv;
+	int ret, hierarchy, constellation;
+	u8 buf[2], tmp;
+	u16 tmp16;
+#define CONSTELLATION_NUM 3
+#define HIERARCHY_NUM 4
+	static const u32 snr_constant[CONSTELLATION_NUM][HIERARCHY_NUM] = {
+		{ 70705899, 70705899, 70705899, 70705899 },
+		{ 82433173, 82433173, 87483115, 94445660 },
+		{ 92888734, 92888734, 95487525, 99770748 },
+	};
+
+	/* reports SNR in resolution of 0.1 dB */
+
+	ret = rtl2830_rd_reg(priv, 0x33c, &tmp);
+	if (ret)
+		goto err;
+
+	constellation = (tmp >> 2) & 0x03; /* [3:2] */
+	if (constellation > CONSTELLATION_NUM - 1)
+		goto err;
+
+	hierarchy = (tmp >> 4) & 0x07; /* [6:4] */
+	if (hierarchy > HIERARCHY_NUM - 1)
+		goto err;
+
+	ret = rtl2830_rd_regs(priv, 0x40c, buf, 2);
+	if (ret)
+		goto err;
+
+	tmp16 = buf[0] << 8 | buf[1];
+
+	if (tmp16)
+		*snr = (snr_constant[constellation][hierarchy] -
+				intlog10(tmp16)) / ((1 << 24) / 100);
+	else
+		*snr = 0;
+
 	return 0;
+err:
+	dbg("%s: failed=%d", __func__, ret);
+	return ret;
 }
 
 static int rtl2830_read_ber(struct dvb_frontend *fe, u32 *ber)
