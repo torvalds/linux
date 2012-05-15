@@ -191,7 +191,6 @@ static void sun_fd_set_dma_count(int length)
 
 static void sun_fd_enable_dma(void)
 {
-	pdma_vaddr = pdma_vaddr;
 	pdma_base = pdma_vaddr;
 	pdma_areasize = pdma_size;
 }
