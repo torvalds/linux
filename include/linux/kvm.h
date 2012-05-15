@@ -616,6 +616,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_KVMCLOCK_CTRL 76
 #define KVM_CAP_SIGNAL_MSI 77
 #define KVM_CAP_PPC_GET_SMMU_INFO 78
+#define KVM_CAP_S390_COW 79
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

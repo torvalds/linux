@@ -28,6 +28,7 @@
 #include <asm/pgtable.h>
 #include <asm/nmi.h>
 #include <asm/switch_to.h>
+#include <asm/sclp.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -139,6 +140,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_NR_VCPUS:
 	case KVM_CAP_MAX_VCPUS:
 		r = KVM_MAX_VCPUS;
+		break;
+	case KVM_CAP_S390_COW:
+		r = sclp_get_fac85() & 0x2;
 		break;
 	default:
 		r = 0;
