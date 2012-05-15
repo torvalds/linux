@@ -15,10 +15,13 @@
 #include <linux/ctype.h>
 #include <linux/dcache.h>
 
+#include <asm/cio.h>
 #include <asm/ccwdev.h>
 #include <asm/ccwgroup.h>
 
-#define CCW_BUS_ID_SIZE		20
+#include "device.h"
+
+#define CCW_BUS_ID_SIZE		10
 
 /* In Linux 2.4, we had a channel device layer called "chandev"
  * that did all sorts of obscure stuff for networking devices.
@@ -254,9 +257,10 @@ static int __ccwgroup_create_symlinks(struct ccwgroup_device *gdev)
 	return 0;
 }
 
-static int __get_next_bus_id(const char **buf, char *bus_id)
+static int __get_next_id(const char **buf, struct ccw_dev_id *id)
 {
-	int rc, len;
+	unsigned int cssid, ssid, devno;
+	int ret = 0, len;
 	char *start, *end;
 
 	start = (char *)*buf;
@@ -271,50 +275,42 @@ static int __get_next_bus_id(const char **buf, char *bus_id)
 		len = end - start + 1;
 		end++;
 	}
-	if (len < CCW_BUS_ID_SIZE) {
-		strlcpy(bus_id, start, len);
-		rc = 0;
+	if (len <= CCW_BUS_ID_SIZE) {
+		if (sscanf(start, "%2x.%1x.%04x", &cssid, &ssid, &devno) != 3)
+			ret = -EINVAL;
 	} else
-		rc = -EINVAL;
+		ret = -EINVAL;
+
+	if (!ret) {
+		id->ssid = ssid;
+		id->devno = devno;
+	}
 	*buf = end;
-	return rc;
-}
-
-static int __is_valid_bus_id(char bus_id[CCW_BUS_ID_SIZE])
-{
-	int cssid, ssid, devno;
-
-	/* Must be of form %x.%x.%04x */
-	if (sscanf(bus_id, "%x.%1x.%04x", &cssid, &ssid, &devno) != 3)
-		return 0;
-	return 1;
+	return ret;
 }
 
 /**
  * ccwgroup_create_dev() - create and register a ccw group device
  * @parent: parent device for the new device
  * @creator_id: identifier of creating driver
- * @cdrv: ccw driver of slave devices
  * @gdrv: driver for the new group device
  * @num_devices: number of slave devices
  * @buf: buffer containing comma separated bus ids of slave devices
  *
  * Create and register a new ccw group device as a child of @parent. Slave
- * devices are obtained from the list of bus ids given in @buf and must all
- * belong to @cdrv.
+ * devices are obtained from the list of bus ids given in @buf.
  * Returns:
  *  %0 on success and an error code on failure.
  * Context:
  *  non-atomic
  */
 int ccwgroup_create_dev(struct device *parent, unsigned int creator_id,
-			struct ccw_driver *cdrv, struct ccwgroup_driver *gdrv,
-			int num_devices, const char *buf)
+			struct ccwgroup_driver *gdrv, int num_devices,
+			const char *buf)
 {
 	struct ccwgroup_device *gdev;
+	struct ccw_dev_id dev_id;
 	int rc, i;
-	char tmp_bus_id[CCW_BUS_ID_SIZE];
-	const char *curr_buf;
 
 	gdev = kzalloc(sizeof(*gdev) + num_devices * sizeof(gdev->cdev[0]),
 		       GFP_KERNEL);
@@ -334,22 +330,18 @@ int ccwgroup_create_dev(struct device *parent, unsigned int creator_id,
 	gdev->dev.release = ccwgroup_release;
 	device_initialize(&gdev->dev);
 
-	curr_buf = buf;
-	for (i = 0; i < num_devices && curr_buf; i++) {
-		rc = __get_next_bus_id(&curr_buf, tmp_bus_id);
+	for (i = 0; i < num_devices && buf; i++) {
+		rc = __get_next_id(&buf, &dev_id);
 		if (rc != 0)
 			goto error;
-		if (!__is_valid_bus_id(tmp_bus_id)) {
-			rc = -EINVAL;
-			goto error;
-		}
-		gdev->cdev[i] = get_ccwdev_by_busid(cdrv, tmp_bus_id);
+		gdev->cdev[i] = get_ccwdev_by_dev_id(&dev_id);
 		/*
 		 * All devices have to be of the same type in
 		 * order to be grouped.
 		 */
-		if (!gdev->cdev[i]
-		    || gdev->cdev[i]->id.driver_info !=
+		if (!gdev->cdev[i] || !gdev->cdev[i]->drv ||
+		    gdev->cdev[i]->drv != gdev->cdev[0]->drv ||
+		    gdev->cdev[i]->id.driver_info !=
 		    gdev->cdev[0]->id.driver_info) {
 			rc = -EINVAL;
 			goto error;
@@ -365,12 +357,12 @@ int ccwgroup_create_dev(struct device *parent, unsigned int creator_id,
 		spin_unlock_irq(gdev->cdev[i]->ccwlock);
 	}
 	/* Check for sufficient number of bus ids. */
-	if (i < num_devices && !curr_buf) {
+	if (i < num_devices) {
 		rc = -EINVAL;
 		goto error;
 	}
 	/* Check for trailing stuff. */
-	if (i == num_devices && strlen(curr_buf) > 0) {
+	if (i == num_devices && strlen(buf) > 0) {
 		rc = -EINVAL;
 		goto error;
 	}
@@ -430,8 +422,7 @@ int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
 				struct ccw_driver *cdrv, int num_devices,
 				const char *buf)
 {
-	return ccwgroup_create_dev(root, creator_id, cdrv, NULL,
-				   num_devices, buf);
+	return ccwgroup_create_dev(root, creator_id, NULL, num_devices, buf);
 }
 EXPORT_SYMBOL(ccwgroup_create_from_string);
 

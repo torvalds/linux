@@ -66,8 +66,8 @@ struct ccwgroup_driver {
 extern int  ccwgroup_driver_register   (struct ccwgroup_driver *cdriver);
 extern void ccwgroup_driver_unregister (struct ccwgroup_driver *cdriver);
 int ccwgroup_create_dev(struct device *root, unsigned int creator_id,
-			struct ccw_driver *cdrv, struct ccwgroup_driver *gdrv,
-			int num_devices, const char *buf);
+			struct ccwgroup_driver *gdrv, int num_devices,
+			const char *buf);
 int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
 				struct ccw_driver *cdrv, int num_devices,
 				const char *buf);
