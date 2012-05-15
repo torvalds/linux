@@ -483,6 +483,7 @@ int drm_connector_init(struct drm_device *dev,
 	if (ret)
 		goto out;
 
+	connector->base.properties = &connector->properties;
 	connector->dev = dev;
 	connector->funcs = funcs;
 	connector->connector_type = connector_type;
@@ -1424,8 +1425,8 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	}
 	connector = obj_to_connector(obj);
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_PROPERTY; i++) {
-		if (connector->property_ids[i] != 0) {
+	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
+		if (connector->properties.ids[i] != 0) {
 			props_count++;
 		}
 	}
@@ -1481,15 +1482,15 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 		copied = 0;
 		prop_ptr = (uint32_t __user *)(unsigned long)(out_resp->props_ptr);
 		prop_values = (uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr);
-		for (i = 0; i < DRM_CONNECTOR_MAX_PROPERTY; i++) {
-			if (connector->property_ids[i] != 0) {
-				if (put_user(connector->property_ids[i],
+		for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
+			if (connector->properties.ids[i] != 0) {
+				if (put_user(connector->properties.ids[i],
 					     prop_ptr + copied)) {
 					ret = -EFAULT;
 					goto out;
 				}
 
-				if (put_user(connector->property_values[i],
+				if (put_user(connector->properties.values[i],
 					     prop_values + copied)) {
 					ret = -EFAULT;
 					goto out;
@@ -2824,16 +2825,16 @@ void drm_connector_attach_property(struct drm_connector *connector,
 {
 	int i;
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_PROPERTY; i++) {
-		if (connector->property_ids[i] == 0) {
-			connector->property_ids[i] = property->base.id;
-			connector->property_values[i] = init_val;
+	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
+		if (connector->properties.ids[i] == 0) {
+			connector->properties.ids[i] = property->base.id;
+			connector->properties.values[i] = init_val;
 			return;
 		}
 	}
 
 	WARN(1, "Failed to attach connector property. Please increase "
-		"DRM_CONNECTOR_MAX_PROPERTY by 1 for each time you see this "
+		"DRM_OBJECT_MAX_PROPERTY by 1 for each time you see this "
 		"message\n");
 }
 EXPORT_SYMBOL(drm_connector_attach_property);
@@ -2843,14 +2844,14 @@ int drm_connector_property_set_value(struct drm_connector *connector,
 {
 	int i;
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_PROPERTY; i++) {
-		if (connector->property_ids[i] == property->base.id) {
-			connector->property_values[i] = value;
+	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
+		if (connector->properties.ids[i] == property->base.id) {
+			connector->properties.values[i] = value;
 			break;
 		}
 	}
 
-	if (i == DRM_CONNECTOR_MAX_PROPERTY)
+	if (i == DRM_OBJECT_MAX_PROPERTY)
 		return -EINVAL;
 	return 0;
 }
@@ -2861,14 +2862,14 @@ int drm_connector_property_get_value(struct drm_connector *connector,
 {
 	int i;
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_PROPERTY; i++) {
-		if (connector->property_ids[i] == property->base.id) {
-			*val = connector->property_values[i];
+	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
+		if (connector->properties.ids[i] == property->base.id) {
+			*val = connector->properties.values[i];
 			break;
 		}
 	}
 
-	if (i == DRM_CONNECTOR_MAX_PROPERTY)
+	if (i == DRM_OBJECT_MAX_PROPERTY)
 		return -EINVAL;
 	return 0;
 }
@@ -3113,12 +3114,12 @@ int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
 	}
 	connector = obj_to_connector(obj);
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_PROPERTY; i++) {
-		if (connector->property_ids[i] == out_resp->prop_id)
+	for (i = 0; i < DRM_OBJECT_MAX_PROPERTY; i++) {
+		if (connector->properties.ids[i] == out_resp->prop_id)
 			break;
 	}
 
-	if (i == DRM_CONNECTOR_MAX_PROPERTY) {
+	if (i == DRM_OBJECT_MAX_PROPERTY) {
 		goto out;
 	}
 

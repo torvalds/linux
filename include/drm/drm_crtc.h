@@ -36,6 +36,7 @@
 struct drm_device;
 struct drm_mode_set;
 struct drm_framebuffer;
+struct drm_object_properties;
 
 
 #define DRM_MODE_OBJECT_CRTC 0xcccccccc
@@ -50,6 +51,13 @@ struct drm_framebuffer;
 struct drm_mode_object {
 	uint32_t id;
 	uint32_t type;
+	struct drm_object_properties *properties;
+};
+
+#define DRM_OBJECT_MAX_PROPERTY 16
+struct drm_object_properties {
+	uint32_t ids[DRM_OBJECT_MAX_PROPERTY];
+	uint64_t values[DRM_OBJECT_MAX_PROPERTY];
 };
 
 /*
@@ -451,7 +459,6 @@ struct drm_encoder_funcs {
 };
 
 #define DRM_CONNECTOR_MAX_UMODES 16
-#define DRM_CONNECTOR_MAX_PROPERTY 16
 #define DRM_CONNECTOR_LEN 32
 #define DRM_CONNECTOR_MAX_ENCODER 3
 
@@ -520,8 +527,7 @@ enum drm_connector_force {
  * @funcs: connector control functions
  * @user_modes: user added mode list
  * @edid_blob_ptr: DRM property containing EDID if present
- * @property_ids: property tracking for this connector
- * @property_values: value pointers or data for properties
+ * @properties: property tracking for this connector
  * @polled: a %DRM_CONNECTOR_POLL_<foo> value for core driven polling
  * @dpms: current dpms state
  * @helper_private: mid-layer private data
@@ -565,8 +571,7 @@ struct drm_connector {
 
 	struct list_head user_modes;
 	struct drm_property_blob *edid_blob_ptr;
-	u32 property_ids[DRM_CONNECTOR_MAX_PROPERTY];
-	uint64_t property_values[DRM_CONNECTOR_MAX_PROPERTY];
+	struct drm_object_properties properties;
 
 	uint8_t polled; /* DRM_CONNECTOR_POLL_* */
 
