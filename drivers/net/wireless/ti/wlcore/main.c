@@ -3968,6 +3968,10 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (!is_ap && (changed & BSS_CHANGED_ASSOC))
 		cancel_delayed_work_sync(&wl->connection_loss_work);
 
+	if (is_ap && (changed & BSS_CHANGED_BEACON_ENABLED) &&
+	    !bss_conf->enable_beacon)
+		wl1271_tx_flush(wl);
+
 	mutex_lock(&wl->mutex);
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
