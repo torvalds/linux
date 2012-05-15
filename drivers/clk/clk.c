@@ -903,7 +903,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (rate == clk->rate)
 		goto out;
 
-	if ((clk->flags & CLK_SET_RATE_GATE) && __clk_is_enabled(clk)) {
+	if ((clk->flags & CLK_SET_RATE_GATE) && clk->prepare_count) {
 		ret = -EBUSY;
 		goto out;
 	}
