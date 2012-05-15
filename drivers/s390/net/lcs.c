@@ -2432,17 +2432,15 @@ static ssize_t lcs_driver_group_store(struct device_driver *ddrv,
 }
 static DRIVER_ATTR(group, 0200, NULL, lcs_driver_group_store);
 
-static struct attribute *lcs_group_attrs[] = {
+static struct attribute *lcs_drv_attrs[] = {
 	&driver_attr_group.attr,
 	NULL,
 };
-
-static struct attribute_group lcs_group_attr_group = {
-	.attrs = lcs_group_attrs,
+static struct attribute_group lcs_drv_attr_group = {
+	.attrs = lcs_drv_attrs,
 };
-
-static const struct attribute_group *lcs_group_attr_groups[] = {
-	&lcs_group_attr_group,
+static const struct attribute_group *lcs_drv_attr_groups[] = {
+	&lcs_drv_attr_group,
 	NULL,
 };
 
@@ -2466,7 +2464,7 @@ __init lcs_init_module(void)
 	rc = ccw_driver_register(&lcs_ccw_driver);
 	if (rc)
 		goto ccw_err;
-	lcs_group_driver.driver.groups = lcs_group_attr_groups;
+	lcs_group_driver.driver.groups = lcs_drv_attr_groups;
 	rc = ccwgroup_driver_register(&lcs_group_driver);
 	if (rc)
 		goto ccwgroup_err;
@@ -2492,8 +2490,6 @@ __exit lcs_cleanup_module(void)
 {
 	pr_info("Terminating lcs module.\n");
 	LCS_DBF_TEXT(0, trace, "cleanup");
-	driver_remove_file(&lcs_group_driver.driver,
-			   &driver_attr_group);
 	ccwgroup_driver_unregister(&lcs_group_driver);
 	ccw_driver_unregister(&lcs_ccw_driver);
 	root_device_unregister(lcs_root_dev);
