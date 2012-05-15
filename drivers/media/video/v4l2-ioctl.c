@@ -281,6 +281,9 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO(VIDIOC_UNSUBSCRIBE_EVENT, 0),
 	IOCTL_INFO(VIDIOC_CREATE_BUFS, INFO_FL_PRIO),
 	IOCTL_INFO(VIDIOC_PREPARE_BUF, 0),
+	IOCTL_INFO(VIDIOC_ENUM_DV_TIMINGS, 0),
+	IOCTL_INFO(VIDIOC_QUERY_DV_TIMINGS, 0),
+	IOCTL_INFO(VIDIOC_DV_TIMINGS_CAP, 0),
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
@@ -367,6 +370,34 @@ static inline void dbgrect(struct video_device *vfd, char *s,
 	dbgarg2("%sRect start at %dx%d, size=%dx%d\n", s, r->left, r->top,
 						r->width, r->height);
 };
+
+static void dbgtimings(struct video_device *vfd,
+			const struct v4l2_dv_timings *p)
+{
+	switch (p->type) {
+	case V4L2_DV_BT_656_1120:
+		dbgarg2("bt-656/1120:interlaced=%d,"
+				" pixelclock=%lld,"
+				" width=%d, height=%d, polarities=%x,"
+				" hfrontporch=%d, hsync=%d,"
+				" hbackporch=%d, vfrontporch=%d,"
+				" vsync=%d, vbackporch=%d,"
+				" il_vfrontporch=%d, il_vsync=%d,"
+				" il_vbackporch=%d, standards=%x, flags=%x\n",
+				p->bt.interlaced, p->bt.pixelclock,
+				p->bt.width, p->bt.height,
+				p->bt.polarities, p->bt.hfrontporch,
+				p->bt.hsync, p->bt.hbackporch,
+				p->bt.vfrontporch, p->bt.vsync,
+				p->bt.vbackporch, p->bt.il_vfrontporch,
+				p->bt.il_vsync, p->bt.il_vbackporch,
+				p->bt.standards, p->bt.flags);
+		break;
+	default:
+		dbgarg2("Unknown type %d!\n", p->type);
+		break;
+	}
+}
 
 static inline void v4l_print_pix_fmt(struct video_device *vfd,
 						struct v4l2_pix_format *fmt)
@@ -1916,25 +1947,13 @@ static long __video_do_ioctl(struct file *file,
 	{
 		struct v4l2_dv_timings *p = arg;
 
+		dbgtimings(vfd, p);
 		switch (p->type) {
 		case V4L2_DV_BT_656_1120:
-			dbgarg2("bt-656/1120:interlaced=%d, pixelclock=%lld,"
-				" width=%d, height=%d, polarities=%x,"
-				" hfrontporch=%d, hsync=%d, hbackporch=%d,"
-				" vfrontporch=%d, vsync=%d, vbackporch=%d,"
-				" il_vfrontporch=%d, il_vsync=%d,"
-				" il_vbackporch=%d\n",
-				p->bt.interlaced, p->bt.pixelclock,
-				p->bt.width, p->bt.height, p->bt.polarities,
-				p->bt.hfrontporch, p->bt.hsync,
-				p->bt.hbackporch, p->bt.vfrontporch,
-				p->bt.vsync, p->bt.vbackporch,
-				p->bt.il_vfrontporch, p->bt.il_vsync,
-				p->bt.il_vbackporch);
 			ret = ops->vidioc_s_dv_timings(file, fh, p);
 			break;
 		default:
-			dbgarg2("Unknown type %d!\n", p->type);
+			ret = -EINVAL;
 			break;
 		}
 		break;
@@ -1944,29 +1963,60 @@ static long __video_do_ioctl(struct file *file,
 		struct v4l2_dv_timings *p = arg;
 
 		ret = ops->vidioc_g_dv_timings(file, fh, p);
+		if (!ret)
+			dbgtimings(vfd, p);
+		break;
+	}
+	case VIDIOC_ENUM_DV_TIMINGS:
+	{
+		struct v4l2_enum_dv_timings *p = arg;
+
+		if (!ops->vidioc_enum_dv_timings)
+			break;
+
+		ret = ops->vidioc_enum_dv_timings(file, fh, p);
 		if (!ret) {
-			switch (p->type) {
-			case V4L2_DV_BT_656_1120:
-				dbgarg2("bt-656/1120:interlaced=%d,"
-					" pixelclock=%lld,"
-					" width=%d, height=%d, polarities=%x,"
-					" hfrontporch=%d, hsync=%d,"
-					" hbackporch=%d, vfrontporch=%d,"
-					" vsync=%d, vbackporch=%d,"
-					" il_vfrontporch=%d, il_vsync=%d,"
-					" il_vbackporch=%d\n",
-					p->bt.interlaced, p->bt.pixelclock,
-					p->bt.width, p->bt.height,
-					p->bt.polarities, p->bt.hfrontporch,
-					p->bt.hsync, p->bt.hbackporch,
-					p->bt.vfrontporch, p->bt.vsync,
-					p->bt.vbackporch, p->bt.il_vfrontporch,
-					p->bt.il_vsync, p->bt.il_vbackporch);
-				break;
-			default:
-				dbgarg2("Unknown type %d!\n", p->type);
-				break;
-			}
+			dbgarg(cmd, "index=%d: ", p->index);
+			dbgtimings(vfd, &p->timings);
+		}
+		break;
+	}
+	case VIDIOC_QUERY_DV_TIMINGS:
+	{
+		struct v4l2_dv_timings *p = arg;
+
+		if (!ops->vidioc_query_dv_timings)
+			break;
+
+		ret = ops->vidioc_query_dv_timings(file, fh, p);
+		if (!ret)
+			dbgtimings(vfd, p);
+		break;
+	}
+	case VIDIOC_DV_TIMINGS_CAP:
+	{
+		struct v4l2_dv_timings_cap *p = arg;
+
+		if (!ops->vidioc_dv_timings_cap)
+			break;
+
+		ret = ops->vidioc_dv_timings_cap(file, fh, p);
+		if (ret)
+			break;
+		switch (p->type) {
+		case V4L2_DV_BT_656_1120:
+			dbgarg(cmd,
+			       "type=%d, width=%u-%u, height=%u-%u, "
+			       "pixelclock=%llu-%llu, standards=%x, capabilities=%x ",
+			       p->type,
+			       p->bt.min_width, p->bt.max_width,
+			       p->bt.min_height, p->bt.max_height,
+			       p->bt.min_pixelclock, p->bt.max_pixelclock,
+			       p->bt.standards, p->bt.capabilities);
+			break;
+		default:
+			dbgarg(cmd, "unknown type ");
+			break;
 		}
 		break;
 	}
@@ -2215,7 +2265,9 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 			err = -EFAULT;
 		goto out_array_args;
 	}
-	if (err < 0)
+	/* VIDIOC_QUERY_DV_TIMINGS can return an error, but still have valid
+	   results that must be returned. */
+	if (err < 0 && cmd != VIDIOC_QUERY_DV_TIMINGS)
 		goto out;
 
 out_array_args:

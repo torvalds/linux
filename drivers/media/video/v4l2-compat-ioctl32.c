@@ -1023,6 +1023,9 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOC_UNSUBSCRIBE_EVENT:
 	case VIDIOC_CREATE_BUFS32:
 	case VIDIOC_PREPARE_BUF32:
+	case VIDIOC_ENUM_DV_TIMINGS:
+	case VIDIOC_QUERY_DV_TIMINGS:
+	case VIDIOC_DV_TIMINGS_CAP:
 		ret = do_video_ioctl(file, cmd, arg);
 		break;
 
