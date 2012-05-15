@@ -65,11 +65,6 @@
 #include "aic3262_codec_ops.h"
 #include "tlv320aic3262_default_fw.h"
 
-#if 0
-#define	DBG(x...)	printk(KERN_INFO x)
-#else
-#define	DBG(x...)
-#endif
 
 #ifdef AIC3262_TiLoad
 extern int aic3262_driver_init(struct snd_soc_codec *codec);
@@ -96,7 +91,7 @@ static u32 aic3262_reg_ctl;
  * This function reprograms the clock dividers etc. this flag can be used to
  * disable this when the clock dividers are programmed by pps config file
  */
-static int soc_static_freq_config = 1;
+//static int soc_static_freq_config = 1;
 
 /******************************************************************************
 			 Macros
@@ -169,9 +164,9 @@ static int __new_control_info(struct snd_kcontrol *kcontrol,struct snd_ctl_elem_
 	return 0;
 }
 
-static long debug_level = 0;
-module_param(debug_level, int, 0);
-MODULE_PARM_DESC(debug_level, "Debug level for printing");
+//static long debug_level = 0;
+//module_param(debug_level, int, 0);
+//MODULE_PARM_DESC(debug_level, "Debug level for printing");
 
 /*
  *----------------------------------------------------------------------------
@@ -212,7 +207,7 @@ static int __new_control_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static ssize_t debug_level_show(struct device *dev, 
+/*static ssize_t debug_level_show(struct device *dev, 
 		struct device_attribute *attr,
 		char *buf, size_t count)
 {
@@ -228,9 +223,9 @@ static ssize_t debug_level_set(struct device *dev,
 	if(ret)
 		return ret;
 	return count;
-}
+}*/  //sxj
 
-static DEVICE_ATTR(debug_level,0644, debug_level_show, debug_level_set);
+//static DEVICE_ATTR(debug_level,0644, debug_level_show, debug_level_set);
 
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -6350, 50, 0);
 static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -1200, 50, 0);
@@ -1097,8 +1092,8 @@ static int aic3262_test_put(struct snd_kcontrol *kcontrol,
 static int aic3262_set_mode_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct aic3262_priv *priv_ds = snd_soc_codec_get_drvdata(codec);
+	//struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	//struct aic3262_priv *priv_ds = snd_soc_codec_get_drvdata(codec);
 
 	return 0;
 }
@@ -1843,7 +1838,7 @@ static void aic3262_accessory_work(struct work_struct *work)
 }
 
 /* audio interrupt handler */
-static irqreturn_t aic3262_audio_handler(int irq, void *data)
+/*static irqreturn_t aic3262_audio_handler(int irq, void *data)
 {
 	struct snd_soc_codec *codec = data;
 	struct aic3262_priv *aic3262 = snd_soc_codec_get_drvdata(codec);
@@ -1852,7 +1847,7 @@ static irqreturn_t aic3262_audio_handler(int irq, void *data)
 			msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
-}
+}*/ //sxj
 
 /*
  *----------------------------------------------------------------------------
@@ -2069,6 +2064,9 @@ static int aic3262_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	codec = codec_dai->codec;
 	aic3262 = snd_soc_codec_get_drvdata(codec);
 	switch (freq) {
+		case AIC3262_FREQ_11289600:
+			aic3262->sysclk = freq;
+			return 0;
 		case AIC3262_FREQ_12000000:
 			aic3262->sysclk = freq;
 			return 0;
@@ -2338,11 +2336,9 @@ static int aic3262_codec_probe(struct snd_soc_codec *codec)
 	int ret = 0;
 	struct aic3262 *control;
 	struct aic3262_priv *aic3262; 
-	struct aic3262_jack_data *jack;
+	//struct aic3262_jack_data *jack;
 	if(codec == NULL)
 		dev_err(codec->dev,"codec pointer is NULL. \n");
-
-	DBG("aic3262_codec_probe is ok\n"); //sxj
 
 	#ifdef AIC3262_PROC	
 	aic3262_proc_init();
@@ -2371,9 +2367,9 @@ static int aic3262_codec_probe(struct snd_soc_codec *codec)
 		ret = -ENOMEM;
 		goto work_err;
 	}
-	ret = device_create_file(codec->dev, &dev_attr_debug_level);
+	/*ret = device_create_file(codec->dev, &dev_attr_debug_level);	
 	if (ret)                                                      	
-		dev_info(codec->dev, "Failed to add debug_level sysfs \n");	
+		dev_info(codec->dev, "Failed to add debug_level sysfs \n");*/	//sxj
 	INIT_DELAYED_WORK(&aic3262->delayed_work, aic3262_accessory_work);
 
 	mutex_init(&aic3262->mutex);
@@ -2422,11 +2418,11 @@ static int aic3262_codec_probe(struct snd_soc_codec *codec)
 	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,"tlv320aic3262_fw_v1.bin", codec->dev, GFP_KERNEL,codec, aic3262_firmware_load);
 	
 	aic3262_codec = codec;
-	DBG("%s end of aic3262_codec_probe\n",__FILE__); //sxj
+	
 	return 0;
-irq_err:
-	switch_dev_unregister(&jack->sdev);
-reg_err:
+//irq_err:
+//	switch_dev_unregister(&jack->sdev);
+//reg_err:			//sxj
 work_err:
 	kfree(aic3262);
 	return 0;	
@@ -2444,7 +2440,7 @@ static int aic3262_codec_remove(struct snd_soc_codec *codec)
 	/* power down chip */
 	struct aic3262_priv *aic3262 = snd_soc_codec_get_drvdata(codec);
 	struct aic3262 *control = codec->control_data;
-	struct aic3262_jack_data *jack = &aic3262->hs_jack;
+	//struct aic3262_jack_data *jack = &aic3262->hs_jack;	//sxj
 
 	aic3262_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -2461,7 +2457,7 @@ static int aic3262_codec_remove(struct snd_soc_codec *codec)
 		release_firmware(aic3262->cur_fw);
 	}
 	/* destroy workqueue for jac dev */
-	switch_dev_unregister(&jack->sdev);
+	//switch_dev_unregister(&jack->sdev);	//sxj
 	destroy_workqueue(aic3262->workqueue);
 
 	kfree(aic3262);
@@ -2600,7 +2596,7 @@ MODULE_LICENSE("GPL");
 	aic3262_write(aic3262_codec, 0x3f, 0xc0);
 	aic3262_write(aic3262_codec, 0x40, 0x00);
 
-}*/
+}
 
 
 static void AP_to_speaker(void)
@@ -2643,7 +2639,7 @@ static void AP_to_speaker(void)
 	aic3262_codec_write(aic3262_codec, AIC3262_PASI_DAC_DP_SETUP, 0xc0);
 	aic3262_codec_write(aic3262_codec, AIC3262_DAC_MVOL_CONF, 0x00);
 
-}
+}*/
 
 
 static void AP_to_headphone(void)
@@ -2685,7 +2681,7 @@ static void AP_to_headphone(void)
 
 }
 
-static void record_in1lr(void)
+/*static void record_in1lr(void)
 {
 	printk("record in1lr\n");
 
@@ -2734,11 +2730,11 @@ static void record_in2lr(void)
 	aic3262_codec_write(aic3262_codec, MAKE_REG(0,0,127), 0x00);
 	aic3262_codec_write(aic3262_codec, AIC3262_RESET_REG, 0x01);
 
-}
+}*/
 
 static void test_playback(void)
 {
-	int ret;
+	
 	printk("test palyback start\n");
 
 	AP_to_headphone( );
