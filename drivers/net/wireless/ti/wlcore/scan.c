@@ -605,7 +605,9 @@ wl12xx_scan_sched_scan_ssid_list(struct wl1271 *wl,
 					continue;
 
 				for (j = 0; j < cmd->n_ssids; j++)
-					if (!memcmp(req->ssids[i].ssid,
+					if ((req->ssids[i].ssid_len ==
+					     req->ssids[j].ssid_len) &&
+					    !memcmp(req->ssids[i].ssid,
 						   cmd->ssids[j].ssid,
 						   req->ssids[i].ssid_len)) {
 						cmd->ssids[j].type =
