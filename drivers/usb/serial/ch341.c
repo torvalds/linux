@@ -577,7 +577,7 @@ static int ch341_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static int ch341_resume(struct usb_serial *serial)
+static int ch341_reset_resume(struct usb_serial *serial)
 {
 	struct ch341_private *priv;
 
@@ -607,7 +607,7 @@ static struct usb_serial_driver ch341_device = {
 	.tiocmset          = ch341_tiocmset,
 	.read_int_callback = ch341_read_int_callback,
 	.attach            = ch341_attach,
-	.resume            = ch341_resume,
+	.resume            = ch341_reset_resume,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
