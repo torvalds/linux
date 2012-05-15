@@ -46,7 +46,7 @@
 #define PIO_INT_STAT_OFFSET          (0x214)
 #define PIO_INT_CTRL_OFFSET          (0x210)
 
-#define PIO_PN_DAT_OFFSET(n)         ((n)*0x24 + 0x10) 
+#define PIO_PN_DAT_OFFSET(n)         ((n)*0x24 + 0x10)
 //#define PIOI_DATA                    (0x130)
 #define PIOH_DATA                    (0x10c)
 #define PIOI_CFG3_OFFSET             (0x12c)
