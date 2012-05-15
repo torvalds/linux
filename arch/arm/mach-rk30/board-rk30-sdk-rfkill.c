@@ -2,7 +2,7 @@
  * Copyright (C) 2010 ROCKCHIP, Inc.
  * Author: roger_chen <cz@rock-chips.com>
  *
- * This program is the bluetooth device bcm4330's driver,
+ * This program is the bluetooth device bcm4329's driver,
  *
  */
 
@@ -32,17 +32,41 @@
 #define DBG(x...)
 #endif
 
-#define BT_WAKE_HOST_SUPPORT 1
+// IO Configuration for RK29
+#ifdef CONFIG_ARCH_RK29
 
-struct bt_ctrl
-{
-    struct rfkill *bt_rfk;
-#if BT_WAKE_HOST_SUPPORT
-    struct timer_list tl;
-    bool b_HostWake;
-    struct wake_lock bt_wakelock;
+#define WIFI_BT_POWER_TOGGLE	1
+#define BT_WAKE_HOST_SUPPORT	0
+
+
+#define BT_GPIO_POWER           RK29_PIN5_PD6
+#define IOMUX_BT_GPIO_POWER     rk29_mux_api_set(GPIO5D6_SDMMC1PWREN_NAME, GPIO5H_GPIO5D6);
+#define BT_GPIO_RESET          	RK29_PIN6_PC4
+#define IOMUX_BT_GPIO_RESET
+
+#ifdef CONFIG_BT_HCIBCM4325
+#define BT_GPIO_WAKE_UP         RK29_PIN6_PC5
+#define IOMUX_BT_GPIO_WAKE_UP()
 #endif
-};
+
+#if BT_WAKE_HOST_SUPPORT
+
+#define BT_GPIO_WAKE_UP_HOST
+#define IOMUX_BT_GPIO_WAKE_UP_HOST()
+
+#define BT_WAKE_LOCK_TIMEOUT    10 //s
+
+//bt cts paired to uart rts
+#define UART_RTS                RK29_PIN2_PA7
+#define IOMUX_UART_RTS_GPIO     rk29_mux_api_set(GPIO2A7_UART2RTSN_NAME, GPIO2L_GPIO2A7);
+#define IOMUX_UART_RTS          rk29_mux_api_set(GPIO2A7_UART2RTSN_NAME, GPIO2L_UART2_RTS_N);
+#endif
+
+// IO Configuration for RK30
+#elif defined (CONFIG_ARCH_RK30)
+
+#define WIFI_BT_POWER_TOGGLE    0
+#define BT_WAKE_HOST_SUPPORT	1
 
 #ifdef CONFIG_RK903
 #define BT_GPIO_POWER           RK30_PIN3_PC7
@@ -71,6 +95,18 @@ struct bt_ctrl
 #define IOMUX_UART_RTS          rk29_mux_api_set(GPIO1A3_UART0RTSN_NAME, GPIO1A_UART0_RTS_N);
 #endif
 
+#endif
+
+struct bt_ctrl
+{
+    struct rfkill *bt_rfk;
+#if BT_WAKE_HOST_SUPPORT
+    struct timer_list tl;
+    bool b_HostWake;
+    struct wake_lock bt_wakelock;
+#endif
+};
+
 static const char bt_name[] = 
 #if defined(CONFIG_RKWIFI)
     #if defined(CONFIG_RKWIFI_26M)
@@ -87,8 +123,10 @@ static const char bt_name[] =
 #endif
 ;
 
-//extern int rk29sdk_bt_power_state;
-//extern int rk29sdk_wifi_power_state;
+#if WIFI_BT_POWER_TOGGLE
+extern int rk29sdk_bt_power_state;
+extern int rk29sdk_wifi_power_state;
+#endif
 
 struct bt_ctrl gBtCtrl;
     
@@ -202,42 +240,40 @@ static int bcm4329_set_block(void *data, bool blocked)
     	DBG("%s---blocked :%d\n", __FUNCTION__, blocked);
 
         IOMUX_BT_GPIO_POWER;
-#ifdef CONFIG_RK903
         IOMUX_BT_GPIO_RESET;
-#endif
 
-    	if (false == blocked) {
+    	if (false == blocked) { 
        		gpio_set_value(BT_GPIO_POWER, GPIO_HIGH);  /* bt power on */
-#ifdef CONFIG_RK903            
+#ifdef BT_GPIO_RESET            
             gpio_set_value(BT_GPIO_RESET, GPIO_LOW);
             mdelay(20);
     		gpio_set_value(BT_GPIO_RESET, GPIO_HIGH);  /* bt reset deactive*/
 #endif
     		mdelay(20);
         
-#if BT_WAKE_HOST_SUPPORT     
-//            btWakeupHostLock();
-#endif         
         	pr_info("bt turn on power\n");
     	}
     	else {
-#if BT_WAKE_HOST_SUPPORT     
-//            btWakeupHostUnlock();
+#if WIFI_BT_POWER_TOGGLE
+		if (!rk29sdk_wifi_power_state) {
 #endif
-//    		if (!rk29sdk_wifi_power_state) {
-    			gpio_set_value(BT_GPIO_POWER, GPIO_LOW);  /* bt power off */
-        		mdelay(20);	
-        		pr_info("bt shut off power\n");
-//    		}else {
-//    			pr_info("bt shouldn't shut off power, wifi is using it!\n");
-//    		}
-#ifdef CONFIG_RK903
+			gpio_set_value(BT_GPIO_POWER, GPIO_LOW);  /* bt power off */
+    		mdelay(20);	
+    		pr_info("bt shut off power\n");
+#if WIFI_BT_POWER_TOGGLE
+		}else {
+			pr_info("bt shouldn't shut off power, wifi is using it!\n");
+		}
+#endif
+#ifdef BT_GPIO_RESET
     		gpio_set_value(BT_GPIO_RESET, GPIO_LOW);  /* bt reset active*/
     		mdelay(20);
 #endif
     	}
 
-//    	rk29sdk_bt_power_state = !blocked;
+#if WIFI_BT_POWER_TOGGLE
+    	rk29sdk_bt_power_state = !blocked;
+#endif
     	return 0;
 }
 
@@ -278,7 +314,7 @@ static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 	}
 	
 	gpio_request(BT_GPIO_POWER, NULL);
-#ifdef CONFIG_RK903
+#ifdef BT_GPIO_RESET
 	gpio_request(BT_GPIO_RESET, NULL);
 #endif
 #ifdef CONFIG_BT_HCIBCM4325
@@ -364,7 +400,7 @@ static void __exit bcm4329_mod_exit(void)
 
 module_init(bcm4329_mod_init);
 module_exit(bcm4329_mod_exit);
-MODULE_DESCRIPTION("bcm4330 Bluetooth driver");
+MODULE_DESCRIPTION("bcm4329 Bluetooth driver");
 MODULE_AUTHOR("roger_chen cz@rock-chips.com, cmy@rock-chips.com");
 MODULE_LICENSE("GPL");
 
