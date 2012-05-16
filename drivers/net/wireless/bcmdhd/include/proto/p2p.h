@@ -21,7 +21,7 @@
  *
  * Fundamental types and constants relating to WFA P2P (aka WiFi Direct)
  *
- * $Id: p2p.h 311270 2012-01-28 00:11:54Z $
+ * $Id: p2p.h 326276 2012-04-06 23:16:42Z $
  */
 
 #ifndef _P2P_H_

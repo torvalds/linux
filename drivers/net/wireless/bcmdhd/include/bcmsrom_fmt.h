@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsrom_fmt.h 326494 2012-04-09 13:29:57Z $
+ * $Id: bcmsrom_fmt.h 327439 2012-04-13 17:44:48Z $
  */
 
 #ifndef	_bcmsrom_fmt_h_
@@ -482,6 +482,7 @@
 
 #define	SROM11_2G_MAXP			0
 #define	SROM11_2G_PA			1
+#define	SROM11_RXGAINS1			4
 #define	SROM11_RXGAINS			5
 #define	SROM11_5GB1B0_MAXP		6
 #define	SROM11_5GB3B2_MAXP		7

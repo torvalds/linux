@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h 326733 2012-04-10 18:54:41Z $
+ * $Id: wlioctl.h 328096 2012-04-17 23:07:20Z $
  */
 
 #ifndef _wlioctl_h_
@@ -38,8 +38,18 @@
 #include <bcmwifi_channels.h>
 #include <bcmwifi_rates.h>
 
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 #include <bcm_mpool_pub.h>
 #include <bcmcdc.h>
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
+
+/*  LINUX_POSTMOGRIFY_REMOVAL: undefined during compile phase, so its
+ *  a no-op for most cases. For hybrid and other open source releases,
+ *  its defined during a second pass and mogrified out for distribution.
+ */
+
+
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 
 #ifndef INTF_NAME_SIZ
 #define INTF_NAME_SIZ	16
@@ -88,6 +98,7 @@ typedef struct wl_sa_query {
 	struct ether_addr 	da;
 } wl_sa_query_t;
 
+#endif /*  LINUX_POSTMOGRIFY_REMOVAL */
 
 /* require default structure packing */
 #define BWL_DEFAULT_PACKING
@@ -121,7 +132,6 @@ typedef struct wl_bss_info_107 {
 	uint32		ie_length;		/* byte length of Information Elements */
 	/* variable length Information Elements */
 } wl_bss_info_107_t;
-#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 /*
  * Per-BSS information structure.
@@ -166,6 +176,8 @@ typedef struct wl_bss_info_108 {
 	/* Add new fields here */
 	/* variable length Information Elements */
 } wl_bss_info_108_t;
+
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 #define	WL_BSS_INFO_VERSION	109		/* current version of wl_bss_info struct */
 
@@ -218,6 +230,8 @@ typedef struct wl_bss_info {
 
 /* bssinfo flag for nbss_cap */
 #define VHT_BI_SGI_80MHZ			0x00000100
+
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 
 typedef struct wl_bsscfg {
 	uint32	wsec;
@@ -286,10 +300,14 @@ struct wl_clm_dload_info {
 };
 typedef struct wl_clm_dload_info wl_clm_dload_info_t;
 
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
+
 typedef struct wlc_ssid {
 	uint32		SSID_len;
 	uchar		SSID[32];
 } wlc_ssid_t;
+
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 
 #define MAX_PREFERRED_AP_NUM     5
 typedef struct wlc_fastssidinfo {
@@ -302,7 +320,6 @@ typedef BWL_PRE_PACKED_STRUCT struct wnm_url {
 	uint8   data[1];
 } BWL_POST_PACKED_STRUCT wnm_url_t;
 
-#ifndef LINUX_POSTMOGRIFY_REMOVAL
 typedef struct chan_scandata {
 	uint8		txpower;
 	uint8		pad;
@@ -332,7 +349,6 @@ typedef struct wl_extdscan_params {
 } wl_extdscan_params_t;
 
 #define WL_EXTDSCAN_PARAMS_FIXED_SIZE 	(sizeof(wl_extdscan_params_t) - sizeof(chan_scandata_t))
-#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 #define WL_BSSTYPE_INFRA 1
 #define WL_BSSTYPE_INDEP 0
@@ -402,6 +418,7 @@ typedef struct wl_iscan_params {
 
 /* 3 fields + size of wl_scan_params, not including variable length array */
 #define WL_ISCAN_PARAMS_FIXED_SIZE (OFFSETOF(wl_iscan_params_t, params) + sizeof(wlc_ssid_t))
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 typedef struct wl_scan_results {
 	uint32 buflen;
@@ -410,6 +427,7 @@ typedef struct wl_scan_results {
 	wl_bss_info_t bss_info[1];
 } wl_scan_results_t;
 
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 /* size of wl_scan_results not including variable length array */
 #define WL_SCAN_RESULTS_FIXED_SIZE (sizeof(wl_scan_results_t) - sizeof(wl_bss_info_t))
 
@@ -473,6 +491,7 @@ typedef struct wl_probe_params {
 	struct ether_addr bssid;
 	struct ether_addr mac;
 } wl_probe_params_t;
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 #define WL_MAXRATES_IN_SET		16	/* max # of rates in a rateset */
 typedef struct wl_rateset {
@@ -519,6 +538,8 @@ typedef struct wl_join_params {
 					 * of the wl_assoc_params_t struct when it does present.
 					 */
 } wl_join_params_t;
+
+#ifndef  LINUX_POSTMOGRIFY_REMOVAL
 #define WL_JOIN_PARAMS_FIXED_SIZE 	(OFFSETOF(wl_join_params_t, params) + \
 					 WL_ASSOC_PARAMS_FIXED_SIZE)
 /* scan params for extended join */
@@ -708,7 +729,11 @@ typedef struct {
 #define ITFR_HOME_CHANNEL	2	/* home channel has interference */
 #define ITFR_NOISY_ENVIRONMENT	4	/* noisy environemnt so feature stopped */
 
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
+
 #define WLC_CNTRY_BUF_SZ	4		/* Country string is 3 bytes + NUL */
+
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 
 typedef struct wl_country {
 	char country_abbrev[WLC_CNTRY_BUF_SZ];	/* nul-terminated country code used in
@@ -821,6 +846,7 @@ typedef enum sup_auth_status {
 	WLC_SUP_KEYXCHANGE_WAIT_G1,	/* Waiting to receive handshake msg G1 */
 	WLC_SUP_KEYXCHANGE_PREP_G2	/* Preparing to send handshake msg G2 */
 } sup_auth_status_t;
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 /* Enumerate crypto algorithms */
 #define	CRYPTO_ALGO_OFF			0
@@ -957,6 +983,7 @@ typedef struct _pmkid_cand_list {
 	pmkid_cand_t	pmkid_cand[1];
 } pmkid_cand_list_t;
 
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 typedef struct wl_assoc_info {
 	uint32		req_len;
 	uint32		resp_len;
@@ -969,7 +996,6 @@ typedef struct wl_assoc_info {
 /* flags */
 #define WLC_ASSOC_REQ_IS_REASSOC 0x01 /* assoc req was actually a reassoc */
 
-#ifndef LINUX_POSTMOGRIFY_REMOVAL
 typedef struct wl_led_info {
 	uint32      index;      /* led index */
 	uint32      behavior;
@@ -1051,7 +1077,6 @@ typedef struct {
 } link_val_t;
 
 #define BCM_MAC_STATUS_INDICATION	(0x40010200L)
-#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 typedef struct {
 	uint16			ver;		/* version of this struct */
@@ -1100,6 +1125,8 @@ typedef struct {
 #define WLC_TXFILTER_OVERRIDE_DISABLED  0
 #define WLC_TXFILTER_OVERRIDE_ENABLED   1
 
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
+
 /* Used to get specific STA parameters */
 typedef struct {
 	uint32	val;
@@ -1125,6 +1152,7 @@ struct maclist {
 	struct ether_addr ea[1];	/* variable length array of MAC addresses */
 };
 
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 /* get pkt count struct passed through ioctl */
 typedef struct get_pktcnt {
 	uint rx_good_pkt;
@@ -1193,6 +1221,8 @@ typedef struct {
 #define WL_IOCTL_ACTION_MASK			0x7e
 #define WL_IOCTL_ACTION_OVL_SHIFT		1
 
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
+
 /* Linux network driver ioctl encoding */
 typedef struct wl_ioctl {
 	uint cmd;	/* common ioctl definition */
@@ -1202,6 +1232,8 @@ typedef struct wl_ioctl {
 	uint used;	/* bytes read or written (optional) */
 	uint needed;	/* bytes needed (optional) */
 } wl_ioctl_t;
+
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 
 /* reference to wl_ioctl_t struct used by usermode driver */
 #define ioctl_subtype	set		/* subtype param */
@@ -1267,6 +1299,7 @@ typedef struct wlc_iov_trx_s {
 #else
 #define WLC_IOCTL_VERSION	1
 #endif /* D11AC_IOTYPES */
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 #define	WLC_IOCTL_MAXLEN		8192	/* max length ioctl buffer required */
 #define	WLC_IOCTL_SMLEN			256	/* "small" length ioctl buffer required */
@@ -1422,6 +1455,8 @@ typedef struct wlc_iov_trx_s {
 #define WLC_GET_LAZYWDS				138
 #define WLC_SET_LAZYWDS				139
 #define WLC_GET_BANDLIST			140
+
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 #define WLC_GET_BAND				141
 #define WLC_SET_BAND				142
 #define WLC_SCB_DEAUTHENTICATE			143
@@ -1461,7 +1496,9 @@ typedef struct wlc_iov_trx_s {
 /* #define WLC_DUMP_PHYREGS			177 */ /* no longer supported */
 #define WLC_GET_PROTECTION_CONTROL		178
 #define WLC_SET_PROTECTION_CONTROL		179
+#endif /* LINUX_POSTMOGRIFY_REMOVAL  */
 #define WLC_GET_PHYLIST				180
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 #define WLC_ENCRYPT_STRENGTH			181	/* ndis only */
 #define WLC_DECRYPT_STATUS			182	/* ndis only */
 #define WLC_GET_KEY_SEQ				183
@@ -1482,7 +1519,9 @@ typedef struct wlc_iov_trx_s {
 /* #define WLC_GET_GMODE_PROTECTION_CTS		198 */ /* no longer supported */
 /* #define WLC_SET_GMODE_PROTECTION_CTS		199 */ /* no longer supported */
 #define WLC_SET_WSEC_TEST			200
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 #define WLC_SCB_DEAUTHENTICATE_FOR_REASON	201
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 #define WLC_TKIP_COUNTERMEASURES		202
 #define WLC_GET_PIOMODE				203
 #define WLC_SET_PIOMODE				204
@@ -1498,6 +1537,7 @@ typedef struct wlc_iov_trx_s {
 #define WLC_START_CHANNEL_QA			214
 #define WLC_GET_CHANNEL_SEL			215
 #define WLC_START_CHANNEL_SEL			216
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 #define WLC_GET_VALID_CHANNELS			217
 #define WLC_GET_FAKEFRAG			218
 #define WLC_SET_FAKEFRAG			219
@@ -1518,6 +1558,9 @@ typedef struct wlc_iov_trx_s {
 /* #define WLC_GET_GLACIAL_TIMER		234 */ /* no longer supported */
 #define WLC_GET_KEY_PRIMARY			235
 #define WLC_SET_KEY_PRIMARY			236
+
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
+
 /* #define WLC_DUMP_RADIOREGS			237 */ /* no longer supported */
 #define WLC_GET_ACI_ARGS			238
 #define WLC_SET_ACI_ARGS			239
@@ -1543,8 +1586,10 @@ typedef struct wlc_iov_trx_s {
 #define WLC_LEGACY_LINK_BEHAVIOR		259
 #define WLC_GET_CHANNELS_IN_COUNTRY		260
 #define WLC_GET_COUNTRY_LIST			261
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 #define WLC_GET_VAR				262	/* get value of named variable */
 #define WLC_SET_VAR				263	/* set named variable to value */
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 #define WLC_NVRAM_GET				264	/* deprecated */
 #define WLC_NVRAM_SET				265
 #define WLC_NVRAM_DUMP				266
@@ -1671,6 +1716,7 @@ typedef struct {
 #define WL_AUTH_OPEN_SYSTEM		0	/* d11 open authentication */
 #define WL_AUTH_SHARED_KEY		1	/* d11 shared authentication */
 #define WL_AUTH_OPEN_SHARED     	2   /* try open, then shared if open failed w/rc 13 */
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 /* Bit masks for radio disabled status - returned by WL_GET_RADIO */
 #define WL_RADIO_SW_DISABLE		(1<<0)
@@ -1686,6 +1732,7 @@ typedef struct {
 #define WL_TXPWR_OVERRIDE	(1U<<31)
 #define WL_TXPWR_NEG   (1U<<30)
 
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 #define WL_PHY_PAVARS_LEN	32	/* Phy type, Band range, chain, a1[0], b0[0], b1[0] ... */
 
 #define WL_PHY_PAVAR_VER	1	/* pavars version */
@@ -1746,6 +1793,7 @@ typedef struct wl_po {
 #define WL_CHAN_FREQ_RANGE_5G_BAND3     4
 
 #define WL_CHAN_FREQ_RANGE_5G_4BAND    	5
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 /* phy types (returned by WLC_GET_PHYTPE) */
 #define	WLC_PHY_TYPE_A		0
@@ -1760,6 +1808,13 @@ typedef struct wl_po {
 #define WLC_PHY_TYPE_AC		11
 #define	WLC_PHY_TYPE_NULL	0xf
 
+/* Values for PM */
+#define PM_OFF	0
+#define PM_MAX	1
+#define PM_FAST 2
+#define PM_FORCE_OFF 3 		/* use this bit to force PM off even bt is active */
+
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 /* MAC list modes */
 #define WLC_MACMODE_DISABLED	0	/* MAC list disabled */
 #define WLC_MACMODE_DENY	1	/* Deny specified (i.e. allow unspecified) */
@@ -1858,12 +1913,6 @@ typedef struct wl_po {
 /* when sgi_tx==WLC_SGI_ALL, bypass rate selection, enable sgi for all mcs */
 #define WLC_SGI_ALL				0x02
 
-/* Values for PM */
-#define PM_OFF	0
-#define PM_MAX	1
-#define PM_FAST 2
-#define PM_FORCE_OFF 3 		/* use this bit to force PM off even bt is active */
-
 #define LISTEN_INTERVAL			10
 /* interference mitigation options */
 #define	INTERFERE_OVRRIDE_OFF	-1	/* interference override off */
@@ -1951,7 +2000,6 @@ typedef struct wl_sampledata {
 	uint32 flag;	/* bit def */
 } wl_sampledata_t;
 
-#ifndef LINUX_POSTMOGRIFY_REMOVAL
 /* wl_radar_args_t */
 typedef struct {
 	int npulses; 	/* required number of pulses at n * t_int */
@@ -2629,7 +2677,6 @@ typedef struct wl_txchain_pwr_offsets {
 #define WL_BTC_FLAG_ECI                  (1 << 6)
 #define WL_BTC_FLAG_LIGHT                (1 << 7)
 #define WL_BTC_FLAG_PARALLEL             (1 << 8)
-#endif /* !defined(LINUX_POSTMOGRIFY_REMOVAL) */
 
 /* Message levels */
 #define WL_ERROR_VAL		0x00000001
@@ -2796,6 +2843,7 @@ typedef struct wl_txchain_pwr_offsets {
 struct tsinfo_arg {
 	uint8 octets[3];
 };
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 #define	NFIFO			6	/* # tx/rx fifopairs */
 
@@ -3042,6 +3090,7 @@ typedef struct {
 	uint32  cso_passthrough; /* hw cso required but passthrough */
 } wl_cnt_t;
 
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 typedef struct {
 	uint16  version;    /* see definition of WL_CNT_T_VERSION */
 	uint16  length;     /* length of entire structure */
@@ -3271,8 +3320,6 @@ typedef struct {
 	uint32  rxmpdu_stbc;    /* count for stbc received */
 } wl_cnt_ver_six_t;
 
-
-#ifndef LINUX_POSTMOGRIFY_REMOVAL
 #define	WL_DELTA_STATS_T_VERSION	1	/* current version of wl_delta_stats_t struct */
 
 typedef struct {
@@ -3336,6 +3383,7 @@ typedef struct {
 
 } wl_wme_cnt_t;
 
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 struct wl_msglevel2 {
 	uint32 low;
 	uint32 high;
@@ -3354,7 +3402,6 @@ typedef struct wl_mkeep_alive_pkt {
 #define WL_MKEEP_ALIVE_FIXED_LEN	OFFSETOF(wl_mkeep_alive_pkt_t, data)
 #define WL_MKEEP_ALIVE_PRECISION	500
 
-#ifndef LINUX_POSTMOGRIFY_REMOVAL
 #ifdef WLBA
 
 #define WLC_BA_CNT_VERSION  1   /* current version of wlc_ba_cnt_t */
@@ -3590,7 +3637,6 @@ typedef struct wl_chan_switch {
 	chanspec_t chspec;	/* chanspec */
 	uint8 reg;		/* regulatory class */
 } wl_chan_switch_t;
-#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 /* Roaming trigger definitions for WLC_SET_ROAM_TRIGGER.
  *
@@ -3739,10 +3785,13 @@ typedef struct wl_pfn {
 #define PNO_SCAN_MIN_FW_SEC	10			/* min time scan time in SEC */
 #define WL_PFN_HIDDEN_MASK		0x4
 
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
+
 /* TCP Checksum Offload defines */
 #define TOE_TX_CSUM_OL		0x00000001
 #define TOE_RX_CSUM_OL		0x00000002
 
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 /* TCP Checksum Offload error injection for testing */
 #define TOE_ERRTEST_TX_CSUM	0x00000001
 #define TOE_ERRTEST_RX_CSUM	0x00000002
@@ -4259,11 +4308,16 @@ typedef struct {
 #define OVERLAY_DOWNLOAD_CHUNKSIZE	1024
 #endif /* DONGLEOVERLAYS */
 
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
+
 /* no default structure packing */
 #include <packed_section_end.h>
 
 /* require strict packing */
 #include <packed_section_start.h>
+
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
+
 /* Structures and constants used for "vndr_ie" IOVar interface */
 #define VNDR_IE_CMD_LEN		4	/* length of the set command string:
 					 * "add", "del" (+ NUL)
@@ -4353,9 +4407,12 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 } BWL_POST_PACKED_STRUCT txfailinfo_t;
 #endif /* WLMEDIA_TXFAILEVENT */
 
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
+
 /* no strict structure packing */
 #include <packed_section_end.h>
 
+#ifndef LINUX_POSTMOGRIFY_REMOVAL
 /* Global ASSERT Logging */
 #define ASSERTLOG_CUR_VER	0x0100
 #define MAX_ASSRTSTR_LEN	64
@@ -4730,6 +4787,13 @@ typedef struct wl_nic_ifq {
 	uint bsscfgidx;
 	char ifname[BCM_MSG_IFNAME_MAX];
 } wl_nic_ifq_t;
+
+/* data mode */
+/* nic_dm iovar */
+typedef struct wl_nic_dm {
+	uint8 enab;
+	chanspec_t chspec;
+} wl_nic_dm_t;
 #endif /* WLNIC */
 
 /* RFAWARE def */
@@ -4999,4 +5063,5 @@ typedef struct powersel_params {
 	uint8		pwr_sel_exp_time; /* Time lapse for expiry of database */
 } powersel_params_t;
 
+#endif /* LINUX_POSTMOGRIFY_REMOVAL */
 #endif /* _wlioctl_h_ */

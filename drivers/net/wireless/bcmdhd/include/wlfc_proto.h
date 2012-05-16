@@ -18,7 +18,7 @@
 *      Notwithstanding the above, under no circumstances may you combine this
 * software in any way with any other Broadcom software provided under a license
 * other than the GPL, without Broadcom's express prior written consent.
-* $Id: wlfc_proto.h 322519 2012-03-21 01:15:45Z $
+* $Id: wlfc_proto.h 328114 2012-04-18 00:02:46Z $
 *
 */
 #ifndef __wlfc_proto_definitions_h__
@@ -64,7 +64,9 @@
 	 ---------------------------------------------------------------------------
 	|  15  |   1  | interface ID             | NIC period start
 	 ---------------------------------------------------------------------------
-	|  16  |   7  | interface ID             | NIC period end
+	|  16  |   1  | interface ID             | NIC period end
+	 ---------------------------------------------------------------------------
+	|  17  |   3  | (ifid, txs)              | Action frame tx status
 	 ---------------------------------------------------------------------------
 	| 255  |  N/A |  N/A                     | FILLER - This is a special type
 	|      |      |                          | that has no length or value.
@@ -93,6 +95,7 @@
 
 #define WLFC_CTL_TYPE_NIC_PRD_START		15
 #define WLFC_CTL_TYPE_NIC_PRD_END		16
+#define WLFC_CTL_TYPE_AF_TXS			17
 
 #define WLFC_CTL_TYPE_FILLER			255
 
@@ -114,7 +117,8 @@
 #define WLFC_CTL_VALUE_LEN_REQUEST_PACKET	3	/* credit, MAC-handle, prec_bitmap */
 
 #define WLFC_CTL_VALUE_LEN_NIC_PRD_START	1
-#define WLFC_CTL_VALUE_LEN_NIC_PRD_END		7
+#define WLFC_CTL_VALUE_LEN_NIC_PRD_END		1
+#define WLFC_CTL_VALUE_LEN_AF_TXS		3
 
 
 #define WLFC_PKTID_GEN_MASK		0x80000000

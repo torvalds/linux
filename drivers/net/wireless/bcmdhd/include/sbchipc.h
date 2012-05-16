@@ -5,7 +5,7 @@
  * JTAG, 0/1/2 UARTs, clock frequency control, a watchdog interrupt timer,
  * GPIO interface, extbus, and support for serial and parallel flashes.
  *
- * $Id: sbchipc.h 325465 2012-04-03 11:16:11Z $
+ * $Id: sbchipc.h 328358 2012-04-18 23:14:31Z $
  *
  * Copyright (C) 1999-2012, Broadcom Corporation
  * 
@@ -2128,14 +2128,12 @@ typedef volatile struct {
 #define RES4360_REGULATOR          0
 #define RES4360_ILP_AVAIL          1
 #define RES4360_ILP_REQ            2
-#define RES4360_XTAL_PU            3
-#define RES4360_ALP_AVAIL          4
-#define RES4360_BBPLLPWRSW_PU      5
-#define RES4360_HT_AVAIL           6
-#define RES4360_OTP_PU             7
-#define RES4360_USBLDO_PU          8
-#define RES4360_USBPLL_PWRSW_PU    9
-#define RES4360_LQ_AVAIL           10
+#define RES4360_XTAL_LDO_PU        3
+#define RES4360_XTAL_PU            4
+#define RES4360_ALP_AVAIL          5
+#define RES4360_BBPLLPWRSW_PU      6
+#define RES4360_HT_AVAIL           7
+#define RES4360_OTP_PU             8
 
 #define CST4360_XTAL_40MZ                  0x00000001
 #define CST4360_SFLASH                     0x00000002

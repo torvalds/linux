@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsrom_tbl.h 326655 2012-04-10 05:23:43Z $
+ * $Id: bcmsrom_tbl.h 327694 2012-04-16 13:22:24Z $
  */
 
 #ifndef	_bcmsrom_tbl_h_
@@ -495,6 +495,12 @@ static const sromvar_t pci_sromvars[] = {
 	{"temps_hysteresis",	0xfffff800,	0,		SROM11_PHYCAL_TEMPDELTA, 0xf000},
 	{"measpower1", 		0xfffff800,	SRFL_PRHEX,	SROM11_MPWR_1_AND_2, 	0x007f},
 	{"measpower2",		0xfffff800, 	SRFL_PRHEX,	SROM11_MPWR_1_AND_2, 	0x3f80},
+	{"pdoffset40ma0",      	0xfffff800,	0,		SROM11_PDOFF_40M_A0,   	0xffff},
+	{"pdoffset40ma1",      	0xfffff800,	0,		SROM11_PDOFF_40M_A1,   	0xffff},
+	{"pdoffset40ma2",      	0xfffff800,	0,		SROM11_PDOFF_40M_A2,   	0xffff},
+	{"pdoffset80ma0",      	0xfffff800,	0,		SROM11_PDOFF_80M_A0,   	0xffff},
+	{"pdoffset80ma1",      	0xfffff800,	0,		SROM11_PDOFF_80M_A1,   	0xffff},
+	{"pdoffset80ma2",      	0xfffff800,	0,		SROM11_PDOFF_80M_A2,   	0xffff},
 
 	{"subband5gver",	0xfffff800, 	SRFL_PRHEX,	SROM11_SUBBAND5GVER, 	0xffff},
 
@@ -555,26 +561,39 @@ static const sromvar_t pci_sromvars[] = {
 	{"pcieingress_war",	0xfffff800,	0,	SROM11_PCIEINGRESS_WAR,	0xf},
 	{"sar2g",       	0xfffff800,	0,	SROM11_SAR,          	0x00ff},
 	{"sar5g",           	0xfffff800,	0,	SROM11_SAR,		0xff00},
-	{"noiselvl2ga0",	0xfffff800,	0,	SROM11_NOISELVL_2G,	0x001f},
-	{"noiselvl2ga1",	0xfffff800,	0,	SROM11_NOISELVL_2G,	0x03e0},
-	{"noiselvl2ga2",	0xfffff800,	0,	SROM11_NOISELVL_2G,	0x7c00},
-	{"noiselvl5gla0",	0xfffff800,	0,	SROM11_NOISELVL_5GL,	0x001f},
-	{"noiselvl5gla1",	0xfffff800,	0,	SROM11_NOISELVL_5GL,	0x03e0},
-	{"noiselvl5gla2",	0xfffff800,	0,	SROM11_NOISELVL_5GL,	0x7c00},
-	{"noiselvl5gma0",	0xfffff800,	0,	SROM11_NOISELVL_5GM,	0x001f},
-	{"noiselvl5gma1",	0xfffff800,	0,	SROM11_NOISELVL_5GM,	0x03e0},
-	{"noiselvl5gma2",	0xfffff800,	0,	SROM11_NOISELVL_5GM,	0x7c00},
-	{"noiselvl5gha0",	0xfffff800,	0,	SROM11_NOISELVL_5GH,	0x001f},
-	{"noiselvl5gha1",	0xfffff800,	0,	SROM11_NOISELVL_5GH,	0x03e0},
-	{"noiselvl5gha2",	0xfffff800,	0,	SROM11_NOISELVL_5GH,	0x7c00},
-	{"noiselvl5gua0",	0xfffff800,	0,	SROM11_NOISELVL_5GU,	0x001f},
-	{"noiselvl5gua1",	0xfffff800,	0,	SROM11_NOISELVL_5GU,	0x03e0},
-	{"noiselvl5gua2",	0xfffff800,	0,	SROM11_NOISELVL_5GU,	0x7c00},
-	{"rxgainerr2g",	0xfffff800, SRFL_PRHEX,		SROM11_RXGAINERR_2G,	0xffff},
-	{"rxgainerr5g",	0xfffff800, SRFL_PRHEX|SRFL_ARRAY, SROM11_RXGAINERR_5GL, 0xffff},
-	{"",		0xfffff800, SRFL_PRHEX|SRFL_ARRAY, SROM11_RXGAINERR_5GM, 0xffff},
-	{"",		0xfffff800, SRFL_PRHEX|SRFL_ARRAY, SROM11_RXGAINERR_5GH, 0xffff},
-	{"",		0xfffff800, SRFL_PRHEX,		   SROM11_RXGAINERR_5GU, 0xffff},
+
+	{"noiselvl2ga0",	0xfffff800,	0,		SROM11_NOISELVL_2G,	0x001f},
+	{"noiselvl2ga1",	0xfffff800,	0,		SROM11_NOISELVL_2G,	0x03e0},
+	{"noiselvl2ga2",	0xfffff800,	0,		SROM11_NOISELVL_2G,	0x7c00},
+	{"noiselvl5ga0",	0xfffff800,	SRFL_ARRAY,	SROM11_NOISELVL_5GL,	0x001f},
+	{"",			0xfffff800,	SRFL_ARRAY,	SROM11_NOISELVL_5GM,	0x001f},
+	{"",			0xfffff800,	SRFL_ARRAY,	SROM11_NOISELVL_5GH,	0x001f},
+	{"",			0xfffff800,	0,		SROM11_NOISELVL_5GU,	0x001f},
+	{"noiselvl5ga1",	0xfffff800,	SRFL_ARRAY,	SROM11_NOISELVL_5GL,	0x03e0},
+	{"",			0xfffff800,	SRFL_ARRAY,	SROM11_NOISELVL_5GM,	0x03e0},
+	{"",			0xfffff800,	SRFL_ARRAY,	SROM11_NOISELVL_5GH,	0x03e0},
+	{"",			0xfffff800,	0,		SROM11_NOISELVL_5GU,	0x03e0},
+	{"noiselvl5ga2",	0xfffff800,	SRFL_ARRAY,	SROM11_NOISELVL_5GL,	0x7c00},
+	{"",			0xfffff800,	SRFL_ARRAY,	SROM11_NOISELVL_5GM,	0x7c00},
+	{"",			0xfffff800,	SRFL_ARRAY,	SROM11_NOISELVL_5GH,	0x7c00},
+	{"",			0xfffff800,	0,		SROM11_NOISELVL_5GU,	0x7c00},
+
+	{"rxgainerr2ga0", 	0xfffff800, 	0,    		SROM11_RXGAINERR_2G,    0x003f},
+	{"rxgainerr2ga1", 	0xfffff800, 	0,    		SROM11_RXGAINERR_2G,    0x07c0},
+	{"rxgainerr2ga2", 	0xfffff800, 	0,    		SROM11_RXGAINERR_2G,    0xf800},
+	{"rxgainerr5ga0",      	0xfffff800, 	SRFL_ARRAY,    	SROM11_RXGAINERR_5GL,   0x003f},
+	{"",      		0xfffff800, 	SRFL_ARRAY,    	SROM11_RXGAINERR_5GM,   0x003f},
+	{"",      		0xfffff800, 	SRFL_ARRAY,    	SROM11_RXGAINERR_5GH,   0x003f},
+	{"",      		0xfffff800, 	0,    		SROM11_RXGAINERR_5GU,   0x003f},
+	{"rxgainerr5ga1",      	0xfffff800, 	SRFL_ARRAY,    	SROM11_RXGAINERR_5GL,   0x07c0},
+	{"",      		0xfffff800, 	SRFL_ARRAY,    	SROM11_RXGAINERR_5GM,   0x07c0},
+	{"",      		0xfffff800, 	SRFL_ARRAY,    	SROM11_RXGAINERR_5GH,   0x07c0},
+	{"",      		0xfffff800, 	0,    		SROM11_RXGAINERR_5GU,   0x07c0},
+	{"rxgainerr5ga2",      	0xfffff800, 	SRFL_ARRAY,    	SROM11_RXGAINERR_5GL,   0xf800},
+	{"",      		0xfffff800, 	SRFL_ARRAY,    	SROM11_RXGAINERR_5GM,   0xf800},
+	{"",      		0xfffff800, 	SRFL_ARRAY,    	SROM11_RXGAINERR_5GH,   0xf800},
+	{"",      		0xfffff800, 	0,    		SROM11_RXGAINERR_5GU,   0xf800},
+
 	{NULL,		0,		0,		0,			0}
 };
 
@@ -625,6 +644,12 @@ static const sromvar_t perpath_pci_sromvars[] = {
 	{"pa2ga",	0xfffff800,	SRFL_PRHEX | SRFL_ARRAY, SROM11_2G_PA,		0xffff},
 	{"",		0xfffff800,	SRFL_PRHEX | SRFL_ARRAY, SROM11_2G_PA + 1,	0xffff},
 	{"",		0xfffff800,	SRFL_PRHEX,		 SROM11_2G_PA + 2,	0xffff},
+	{"rxgains5gmelnagaina",	0xfffff800,	0,		 SROM11_RXGAINS1,	0x0007},
+	{"rxgains5gmtrisoa",	0xfffff800,	0,		 SROM11_RXGAINS1,	0x0078},
+	{"rxgains5gmtrelnabypa", 0xfffff800,	0,		 SROM11_RXGAINS1,	0x0080},
+	{"rxgains5ghelnagaina",	0xfffff800,	0,		 SROM11_RXGAINS1,	0x0700},
+	{"rxgains5ghtrisoa",	0xfffff800,	0,		 SROM11_RXGAINS1,	0x7800},
+	{"rxgains5ghtrelnabypa", 0xfffff800,	0,		 SROM11_RXGAINS1,	0x8000},
 	{"rxgains2gelnagaina",	0xfffff800,	0,		 SROM11_RXGAINS,	0x0007},
 	{"rxgains2gtrisoa",	0xfffff800,	0,		 SROM11_RXGAINS,	0x0078},
 	{"rxgains2gtrelnabypa",	0xfffff800,	0,		 SROM11_RXGAINS,	0x0080},
@@ -850,9 +875,10 @@ static const cis_tuple_t cis_hnbuvars[] = {
 	"2sb40and80hr5ghpo 2sb20in40lrpo 2sb20in80and160lr5glpo 2sb40and80lr5glpo "
 	"2sb20in80and160lr5gmpo 2sb40and80lr5gmpo 2sb20in80and160lr5ghpo 2sb40and80lr5ghpo "
 	"2dot11agduphrpo 2dot11agduplrpo"},
-	{HNBU_NOISELVL,		0xfffff800, 11, "2noiselvl2g 2noiselvl5gl 2noiselvl5gm "
-	"2noiselvl5gh 2noiselvl5gu"},
-	{HNBU_RXGAIN_ERR,	0xfffff800, 11, "2rxgainerr2g 2*4rxgainerr5g"},
+	{HNBU_NOISELVL,		0xfffff800, 16, "1noiselvl2ga0 1noiselvl2ga1 1noiselvl2ga2 "
+	"1*4noiselvl5ga0 1*4noiselvl5ga1 1*4noiselvl5ga2"},
+	{HNBU_RXGAIN_ERR,	0xfffff800, 16, "1rxgainerr2ga0 1rxgainerr2ga1 1rxgainerr2ga2 "
+	"1*4rxgainerr5ga0 1*4rxgainerr5ga1 1*4rxgainerr5ga2"},
 	{HNBU_AGBGA,		0xfffff800, 7, "1agbg0 1agbg1 1agbg2 1aga0 1aga1 1aga2"},
 	{HNBU_UUID, 		0xffffffff, 17,	"16uuid"},
 	{HNBU_WOWLGPIO,		0xffffffff, 2,  "1wowl_gpio"},

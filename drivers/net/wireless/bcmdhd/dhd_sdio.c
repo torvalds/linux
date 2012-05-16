@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 325483 2012-04-03 13:22:22Z $
+ * $Id: dhd_sdio.c 329638 2012-04-26 05:41:43Z $
  */
 
 #include <typedefs.h>
@@ -327,6 +327,8 @@ typedef struct dhd_bus {
 	bool		_slpauto;
 	bool		_oobwakeup;
 	bool		_srenab;
+	bool        readframes;
+	bool        reqbussleep;
 } dhd_bus_t;
 
 /* clkstate */
@@ -596,10 +598,17 @@ static bool
 dhdsdio_sr_cap(dhd_bus_t *bus)
 {
 	bool cap = FALSE;
-	uint32 min = 0, core_capext;
-
-	core_capext = bcmsdh_reg_read(bus->sdh, CORE_CAPEXT_ADDR, 4);
-	if (!(core_capext & CORE_CAPEXT_SR_SUPPORTED_MASK) && !(bus->sih->chip == BCM4324_CHIP_ID))
+	uint32 min = 0, core_capext, addr, data;
+	if (bus->sih->chip == BCM4324_CHIP_ID) {
+			addr = SI_ENUM_BASE + OFFSETOF(chipcregs_t, chipcontrol_addr);
+			data = SI_ENUM_BASE + OFFSETOF(chipcregs_t, chipcontrol_data);
+			bcmsdh_reg_write(bus->sdh, addr, 4, 3);
+			core_capext = bcmsdh_reg_read(bus->sdh, data, 4);
+	} else {
+			core_capext = bcmsdh_reg_read(bus->sdh, CORE_CAPEXT_ADDR, 4);
+			core_capext = (core_capext & CORE_CAPEXT_SR_SUPPORTED_MASK);
+	}
+	if (!(core_capext))
 		return FALSE;
 
 	min = bcmsdh_reg_read(bus->sdh, MIN_RSRC_ADDR, 4);
@@ -4328,8 +4337,11 @@ dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
+	bus->readframes = TRUE;
+
 	if (!KSO_ENAB(bus)) {
 		DHD_ERROR(("%s: KSO off\n", __FUNCTION__));
+		bus->readframes = FALSE;
 		return 0;
 	}
 
@@ -4897,6 +4909,13 @@ deliver:
 	if (bus->rxskip)
 		rxseq--;
 	bus->rx_seq = rxseq;
+
+	if (bus->reqbussleep)
+	{
+	    dhdsdio_bussleep(bus, TRUE);
+		bus->reqbussleep = FALSE;
+	}
+	bus->readframes = FALSE;
 
 	return rxcount;
 }
@@ -5696,8 +5715,12 @@ dhd_bus_watchdog(dhd_pub_t *dhdp)
 			bus->idlecount = 0;
 			if (bus->activity) {
 				bus->activity = FALSE;
-				if (SLPAUTO_ENAB(bus))
-					dhdsdio_bussleep(bus, TRUE);
+				if (SLPAUTO_ENAB(bus)) {
+					if (!bus->readframes)
+						dhdsdio_bussleep(bus, TRUE);
+					else
+						bus->reqbussleep = TRUE;
+				}
 				else
 					dhdsdio_clkctl(bus, CLK_NONE, FALSE);
 			}

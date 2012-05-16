@@ -18,7 +18,7 @@
 *      Notwithstanding the above, under no circumstances may you combine this
 * software in any way with any other Broadcom software provided under a license
 * other than the GPL, without Broadcom's express prior written consent.
-* $Id: dhd_wlfc.h 322459 2012-03-20 22:36:07Z $
+* $Id: dhd_wlfc.h 328424 2012-04-19 05:23:09Z $
 *
 */
 #ifndef __wlfc_host_driver_definitions_h__
@@ -93,12 +93,13 @@ typedef struct wlfc_hanger {
 #define WLFC_STATE_CLOSE	2
 
 #define WLFC_PSQ_PREC_COUNT		((AC_COUNT + 1) * 2) /* 2 for each AC traffic and bc/mc */
-#define WLFC_PSQ_LEN			64
-#define WLFC_SENDQ_LEN			256
+#define WLFC_PSQ_LEN			256
+#define WLFC_SENDQ_LEN			128
 
-#define WLFC_FLOWCONTROL_DELTA		8
-#define WLFC_FLOWCONTROL_HIWATER	(WLFC_PSQ_LEN - WLFC_FLOWCONTROL_DELTA)
-#define WLFC_FLOWCONTROL_LOWATER	(WLFC_FLOWCONTROL_HIWATER - WLFC_FLOWCONTROL_DELTA)
+
+#define WLFC_FLOWCONTROL_HIWATER	128
+#define WLFC_FLOWCONTROL_LOWATER	64
+
 
 typedef struct wlfc_mac_descriptor {
 	uint8 occupied;

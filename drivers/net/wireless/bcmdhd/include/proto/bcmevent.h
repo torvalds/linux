@@ -191,6 +191,7 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 #define WLC_E_LAST			94	
 
 
+
 typedef struct {
 	uint event;
 	const char *name;

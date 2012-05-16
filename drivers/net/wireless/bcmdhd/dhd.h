@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 327089 2012-04-12 02:05:07Z $
+ * $Id: dhd.h 329678 2012-04-26 08:51:32Z $
  */
 
 /****************
@@ -218,6 +218,11 @@ typedef struct dhd_pub {
 #endif /* PNO_SUPPORT */
 	int dtim_skip;         /* dtim skip , default 0 means wake each dtim */
 
+#ifdef PKT_FILTER_SUPPORT
+	int early_suspended;	/* Early suspend status */
+	int dhcp_in_progress;	/* DHCP period */
+#endif
+
 	/* Pkt filter defination */
 	char * pktfilter[100];
 	int pktfilter_count;
@@ -225,6 +230,12 @@ typedef struct dhd_pub {
 	wl_country_t dhd_cspec;		/* Current Locale info */
 	char eventmask[WL_EVENTING_MASK_LEN];
 	int	op_mode;				/* STA, HostAPD, WFD, SoftAP */
+
+/* Set this to 1 to use a seperate interface (p2p0) for p2p operations.
+ *  For ICS MR1 releases it should be disable to be compatable with ICS MR1 Framework
+ *  see target dhd-cdc-sdmmc-panda-cfg80211-icsmr1-gpl-debug in Makefile
+ */
+/* #define WL_ENABLE_P2P_IF		1 */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_HAS_WAKELOCK)
 	struct wake_lock wakelock[WAKE_LOCK_MAX];
