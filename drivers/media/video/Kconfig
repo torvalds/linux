@@ -1013,6 +1013,17 @@ config OV3640_FIXEDFOCUS
 	bool "OV3640 fixed focus"
 endchoice
 
+config SOC_CAMERA_OV3660
+	tristate "ov3660 camera support for rockchip"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov3660 camera driver for rockchip
+	  
+config OV3660_USER_DEFINED_SERIES
+	depends on SOC_CAMERA_OV3660
+	bool "OV3660 user defined init series"
+	default n
+
 config SOC_CAMERA_OV5642
 	tristate "ov5642 camera support for rockchip"
 	depends on SOC_CAMERA && I2C
