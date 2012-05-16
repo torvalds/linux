@@ -146,8 +146,8 @@ GLOBAL(trampoline_pgd)		.space	PAGE_SIZE
 	.balign	8
 GLOBAL(trampoline_header)
 	tr_start:		.space	8
-	GLOBAL(tr_cr4)		.space	4
 	GLOBAL(tr_efer)		.space	8
+	GLOBAL(tr_cr4)		.space	4
 END(trampoline_header)
 
 #include "trampoline_common.S"

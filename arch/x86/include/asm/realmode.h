@@ -35,9 +35,8 @@ struct trampoline_header {
 	u32 gdt_base;
 #else
 	u64 start;
+	u64 efer;
 	u32 cr4;
-	u32 efer_low;
-	u32 efer_high;
 #endif
 };
 

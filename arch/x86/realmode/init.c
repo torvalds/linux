@@ -22,7 +22,7 @@ void __init setup_real_mode(void)
 	size_t size = PAGE_ALIGN(real_mode_blob_end - real_mode_blob);
 #ifdef CONFIG_X86_64
 	u64 *trampoline_pgd;
-	u32 efer_low, efer_high;
+	u64 efer;
 #endif
 
 	/* Has to be in very low memory so we can execute real-mode AP code. */
@@ -70,9 +70,8 @@ void __init setup_real_mode(void)
 	 * Some AMD processors will #GP(0) if EFER.LMA is set in WRMSR
 	 * so we need to mask it out.
 	 */
-	rdmsr(MSR_EFER, efer_low, efer_high);
-	trampoline_header->efer_low  = efer_low & ~EFER_LMA;
-	trampoline_header->efer_high = efer_high;
+	rdmsrl(MSR_EFER, efer);
+	trampoline_header->efer = efer & ~EFER_LMA;
 
 	trampoline_header->start = (u64) secondary_startup_64;
 	trampoline_cr4_features = &trampoline_header->cr4;
