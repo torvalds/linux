@@ -303,14 +303,17 @@ extern const struct mesh_config default_mesh_config;
 extern const struct mesh_setup default_mesh_setup;
 int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev,
-			 const struct mesh_setup *setup,
+			 struct mesh_setup *setup,
 			 const struct mesh_config *conf);
 int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev,
-		       const struct mesh_setup *setup,
+		       struct mesh_setup *setup,
 		       const struct mesh_config *conf);
 int cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 			struct net_device *dev);
+int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
+			   struct wireless_dev *wdev, int freq,
+			   enum nl80211_channel_type channel_type);
 
 /* MLME */
 int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,

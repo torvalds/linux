@@ -65,6 +65,9 @@ const struct mesh_config default_mesh_config = {
 };
 
 const struct mesh_setup default_mesh_setup = {
+	/* cfg80211_join_mesh() will pick a channel if needed */
+	.channel = NULL,
+	.channel_type = NL80211_CHAN_NO_HT,
 	.sync_method = IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET,
 	.path_sel_proto = IEEE80211_PATH_PROTOCOL_HWMP,
 	.path_metric = IEEE80211_PATH_METRIC_AIRTIME,
@@ -75,7 +78,7 @@ const struct mesh_setup default_mesh_setup = {
 
 int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev,
-			 const struct mesh_setup *setup,
+			 struct mesh_setup *setup,
 			 const struct mesh_config *conf)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -101,6 +104,51 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	if (!rdev->ops->join_mesh)
 		return -EOPNOTSUPP;
 
+	if (!setup->channel) {
+		/* if no channel explicitly given, use preset channel */
+		setup->channel = wdev->preset_chan;
+		setup->channel_type = wdev->preset_chantype;
+	}
+
+	if (!setup->channel) {
+		/* if we don't have that either, use the first usable channel */
+		enum ieee80211_band band;
+
+		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+			struct ieee80211_supported_band *sband;
+			struct ieee80211_channel *chan;
+			int i;
+
+			sband = rdev->wiphy.bands[band];
+			if (!sband)
+				continue;
+
+			for (i = 0; i < sband->n_channels; i++) {
+				chan = &sband->channels[i];
+				if (chan->flags & (IEEE80211_CHAN_NO_IBSS |
+						   IEEE80211_CHAN_PASSIVE_SCAN |
+						   IEEE80211_CHAN_DISABLED |
+						   IEEE80211_CHAN_RADAR))
+					continue;
+				setup->channel = chan;
+				break;
+			}
+
+			if (setup->channel)
+				break;
+		}
+
+		/* no usable channel ... */
+		if (!setup->channel)
+			return -EINVAL;
+
+		setup->channel_type = NL80211_CHAN_NO_HT;
+	}
+
+	if (!cfg80211_can_beacon_sec_chan(&rdev->wiphy, setup->channel,
+					  setup->channel_type))
+		return -EINVAL;
+
 	err = rdev->ops->join_mesh(&rdev->wiphy, dev, conf, setup);
 	if (!err) {
 		memcpy(wdev->ssid, setup->mesh_id, setup->mesh_id_len);
@@ -112,7 +160,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 
 int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev,
-		       const struct mesh_setup *setup,
+		       struct mesh_setup *setup,
 		       const struct mesh_config *conf)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -123,6 +171,45 @@ int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	wdev_unlock(wdev);
 
 	return err;
+}
+
+int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
+			   struct wireless_dev *wdev, int freq,
+			   enum nl80211_channel_type channel_type)
+{
+	struct ieee80211_channel *channel;
+
+	/*
+	 * Workaround for libertas (only!), it puts the interface
+	 * into mesh mode but doesn't implement join_mesh. Instead,
+	 * it is configured via sysfs and then joins the mesh when
+	 * you set the channel. Note that the libertas mesh isn't
+	 * compatible with 802.11 mesh.
+	 */
+	if (!rdev->ops->join_mesh) {
+		int err;
+
+		if (!netif_running(wdev->netdev))
+			return -ENETDOWN;
+		wdev_lock(wdev);
+		err = cfg80211_set_freq(rdev, wdev, freq, channel_type);
+		wdev_unlock(wdev);
+
+		return err;
+	}
+
+	if (wdev->mesh_id_len)
+		return -EBUSY;
+
+	channel = rdev_freq_to_chan(rdev, freq, channel_type);
+	if (!channel || !cfg80211_can_beacon_sec_chan(&rdev->wiphy,
+						      channel,
+						      channel_type)) {
+		return -EINVAL;
+	}
+	wdev->preset_chan = channel;
+	wdev->preset_chantype = channel_type;
+	return 0;
 }
 
 void cfg80211_notify_new_peer_candidate(struct net_device *dev,

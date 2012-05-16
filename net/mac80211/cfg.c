@@ -1598,6 +1598,12 @@ static int ieee80211_join_mesh(struct wiphy *wiphy, struct net_device *dev,
 	err = copy_mesh_setup(ifmsh, setup);
 	if (err)
 		return err;
+
+	err = ieee80211_set_channel(wiphy, dev, setup->channel,
+				    setup->channel_type);
+	if (err)
+		return err;
+
 	ieee80211_start_mesh(sdata);
 
 	return 0;

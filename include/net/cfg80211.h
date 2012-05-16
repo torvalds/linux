@@ -831,6 +831,8 @@ struct mesh_config {
 
 /**
  * struct mesh_setup - 802.11s mesh setup configuration
+ * @channel: the channel to start the mesh network on
+ * @channel_type: the channel type to use
  * @mesh_id: the mesh ID
  * @mesh_id_len: length of the mesh ID, at least 1 and at most 32 bytes
  * @sync_method: which synchronization method to use
@@ -845,6 +847,8 @@ struct mesh_config {
  * These parameters are fixed when the mesh is created.
  */
 struct mesh_setup {
+	struct ieee80211_channel *channel;
+	enum nl80211_channel_type channel_type;
 	const u8 *mesh_id;
 	u8 mesh_id_len;
 	u8 sync_method;
