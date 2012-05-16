@@ -844,7 +844,6 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 				      struct ieee80211_channel_switch *ch_switch)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
-	const struct iwl_channel_info *ch_info;
 	struct ieee80211_conf *conf = &hw->conf;
 	struct ieee80211_channel *channel = ch_switch->channel;
 	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
@@ -880,12 +879,6 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	ch = channel->hw_value;
 	if (le16_to_cpu(ctx->active.channel) == ch)
 		goto out;
-
-	ch_info = iwl_get_channel_info(priv, channel->band, ch);
-	if (!is_channel_valid(ch_info)) {
-		IWL_DEBUG_MAC80211(priv, "invalid channel\n");
-		goto out;
-	}
 
 	priv->current_ht_config.smps = conf->smps_mode;
 

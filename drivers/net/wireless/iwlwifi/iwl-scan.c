@@ -534,7 +534,6 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 {
 	struct ieee80211_channel *chan;
 	const struct ieee80211_supported_band *sband;
-	const struct iwl_channel_info *ch_info;
 	u16 passive_dwell = 0;
 	u16 active_dwell = 0;
 	int added, i;
@@ -559,16 +558,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 		channel = chan->hw_value;
 		scan_ch->channel = cpu_to_le16(channel);
 
-		ch_info = iwl_get_channel_info(priv, band, channel);
-		if (!is_channel_valid(ch_info)) {
-			IWL_DEBUG_SCAN(priv,
-				       "Channel %d is INVALID for this band.\n",
-				       channel);
-			continue;
-		}
-
-		if (!is_active || is_channel_passive(ch_info) ||
-		    (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN))
+		if (!is_active || (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN))
 			scan_ch->type = SCAN_CHANNEL_TYPE_PASSIVE;
 		else
 			scan_ch->type = SCAN_CHANNEL_TYPE_ACTIVE;
