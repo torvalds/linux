@@ -177,7 +177,7 @@
 		       0x58000000 0x02000000>;	/* GART aperture */
 	};
 
-	emc {
+	memory-controller@0x7000f400 {
 		compatible = "nvidia,tegra20-emc";
 		reg = <0x7000f400 0x200>;
 		#address-cells = <1>;

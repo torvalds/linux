@@ -334,7 +334,7 @@
 		};
 	};
 
-	emc {
+	memory-controller@0x7000f400 {
 		emc-table@190000 {
 			reg = <190000>;
 			compatible = "nvidia,tegra20-emc-table";
