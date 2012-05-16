@@ -2715,6 +2715,14 @@ static inline void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn) {
 		hci_conn_enter_active_mode(conn, BT_POWER_FORCE_ACTIVE_OFF);
 
+		hci_dev_lock(hdev);
+		if (test_bit(HCI_MGMT, &hdev->dev_flags) &&
+		    !test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
+			mgmt_device_connected(hdev, &conn->dst, conn->type,
+					      conn->dst_type, 0, NULL, 0,
+					      conn->dev_class);
+		hci_dev_unlock(hdev);
+
 		/* Send to upper protocol */
 		l2cap_recv_acldata(conn, skb, flags);
 		return;

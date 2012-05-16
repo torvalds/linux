@@ -195,6 +195,7 @@ struct bt_sock {
 	struct list_head accept_q;
 	struct sock *parent;
 	u32 defer_setup;
+	bool suspended;
 };
 
 struct bt_sock_list {

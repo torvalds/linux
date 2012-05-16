@@ -596,10 +596,14 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 			sk->sk_state = BT_CONFIG;
 			chan->state = BT_CONFIG;
 
-		/* or for ACL link, under defer_setup time */
-		} else if (sk->sk_state == BT_CONNECT2 &&
-					bt_sk(sk)->defer_setup) {
-			err = l2cap_chan_check_security(chan);
+		/* or for ACL link */
+		} else if ((sk->sk_state == BT_CONNECT2 &&
+			   bt_sk(sk)->defer_setup) ||
+			   sk->sk_state == BT_CONNECTED) {
+			if (!l2cap_chan_check_security(chan))
+				bt_sk(sk)->suspended = true;
+			else
+				sk->sk_state_change(sk);
 		} else {
 			err = -EINVAL;
 		}
