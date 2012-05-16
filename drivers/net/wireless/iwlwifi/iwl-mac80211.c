@@ -417,8 +417,6 @@ int iwlagn_mac_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	if (ret)
 		goto error;
 
-	device_set_wakeup_enable(priv->trans->dev, true);
-
 	iwl_trans_wowlan_suspend(priv->trans);
 
 	goto out;
@@ -485,8 +483,6 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 	priv->wowlan = false;
 
-	device_set_wakeup_enable(priv->trans->dev, false);
-
 	iwlagn_prepare_restart(priv);
 
 	memset((void *)&ctx->active, 0, sizeof(ctx->active));
@@ -501,6 +497,12 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	return 1;
 }
 
+static void iwlagn_mac_set_wakeup(struct ieee80211_hw *hw, bool enabled)
+{
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
+
+	device_set_wakeup_enable(priv->trans->dev, enabled);
+}
 #endif
 
 void iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
@@ -1581,6 +1583,7 @@ struct ieee80211_ops iwlagn_hw_ops = {
 #ifdef CONFIG_PM_SLEEP
 	.suspend = iwlagn_mac_suspend,
 	.resume = iwlagn_mac_resume,
+	.set_wakeup = iwlagn_mac_set_wakeup,
 #endif
 	.add_interface = iwlagn_mac_add_interface,
 	.remove_interface = iwlagn_mac_remove_interface,
