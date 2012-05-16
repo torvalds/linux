@@ -700,7 +700,7 @@ static int check_sv(const struct ubi_volume *vol,
 
 bad:
 	ubi_err("bad scanning information, error %d", err);
-	ubi_dbg_dump_sv(sv);
+	ubi_dump_sv(sv);
 	ubi_dump_vol_info(vol);
 	return -EINVAL;
 }

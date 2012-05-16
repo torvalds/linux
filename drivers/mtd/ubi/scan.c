@@ -231,7 +231,7 @@ static int validate_vid_hdr(const struct ubi_vid_hdr *vid_hdr,
 bad:
 	ubi_err("inconsistent VID header at PEB %d", pnum);
 	ubi_dump_vid_hdr(vid_hdr);
-	ubi_dbg_dump_sv(sv);
+	ubi_dump_sv(sv);
 	return -EINVAL;
 }
 
@@ -1584,17 +1584,17 @@ static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 bad_seb:
 	ubi_err("bad scanning information about LEB %d", seb->lnum);
 	ubi_dbg_dump_seb(seb, 0);
-	ubi_dbg_dump_sv(sv);
+	ubi_dump_sv(sv);
 	goto out;
 
 bad_sv:
 	ubi_err("bad scanning information about volume %d", sv->vol_id);
-	ubi_dbg_dump_sv(sv);
+	ubi_dump_sv(sv);
 	goto out;
 
 bad_vid_hdr:
 	ubi_err("bad scanning information about volume %d", sv->vol_id);
-	ubi_dbg_dump_sv(sv);
+	ubi_dump_sv(sv);
 	ubi_dump_vid_hdr(vidh);
 
 out:
