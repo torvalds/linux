@@ -27,9 +27,7 @@ struct ceph_connection_operations {
 	/* authorize an outgoing connection */
 	struct ceph_auth_handshake *(*get_authorizer) (
 				struct ceph_connection *con,
-				void **buf, int *len, int *proto,
-				void **reply_buf, int *reply_len,
-				int force_new);
+			       int *proto, int force_new);
 	int (*verify_authorizer_reply) (struct ceph_connection *con, int len);
 	int (*invalidate_authorizer)(struct ceph_connection *con);
 
