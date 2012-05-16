@@ -512,9 +512,9 @@ static void hci_deactivate_target(struct nfc_dev *nfc_dev,
 {
 }
 
-static int hci_data_exchange(struct nfc_dev *nfc_dev, struct nfc_target *target,
-			     struct sk_buff *skb, data_exchange_cb_t cb,
-			     void *cb_context)
+static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
+			  struct sk_buff *skb, data_exchange_cb_t cb,
+			  void *cb_context)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 	int r;
@@ -580,7 +580,7 @@ static struct nfc_ops hci_nfc_ops = {
 	.stop_poll = hci_stop_poll,
 	.activate_target = hci_activate_target,
 	.deactivate_target = hci_deactivate_target,
-	.data_exchange = hci_data_exchange,
+	.im_transceive = hci_transceive,
 	.check_presence = hci_check_presence,
 };
 

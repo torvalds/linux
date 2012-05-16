@@ -1691,9 +1691,9 @@ error:
 	return 0;
 }
 
-static int pn533_data_exchange(struct nfc_dev *nfc_dev,
-			       struct nfc_target *target, struct sk_buff *skb,
-			       data_exchange_cb_t cb, void *cb_context)
+static int pn533_transceive(struct nfc_dev *nfc_dev,
+			    struct nfc_target *target, struct sk_buff *skb,
+			    data_exchange_cb_t cb, void *cb_context)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	struct pn533_frame *out_frame, *in_frame;
@@ -1853,7 +1853,7 @@ struct nfc_ops pn533_nfc_ops = {
 	.stop_poll = pn533_stop_poll,
 	.activate_target = pn533_activate_target,
 	.deactivate_target = pn533_deactivate_target,
-	.data_exchange = pn533_data_exchange,
+	.im_transceive = pn533_transceive,
 };
 
 static int pn533_probe(struct usb_interface *interface,

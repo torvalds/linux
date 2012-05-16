@@ -413,27 +413,30 @@ int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
 		goto error;
 	}
 
-	if (dev->active_target == NULL) {
+	if (dev->rf_mode == NFC_RF_INITIATOR && dev->active_target != NULL) {
+		if (dev->active_target->idx != target_idx) {
+			rc = -EADDRNOTAVAIL;
+			kfree_skb(skb);
+			goto error;
+		}
+
+		if (dev->ops->check_presence)
+			del_timer_sync(&dev->check_pres_timer);
+
+		rc = dev->ops->im_transceive(dev, dev->active_target, skb, cb,
+					     cb_context);
+
+		if (!rc && dev->ops->check_presence)
+			mod_timer(&dev->check_pres_timer, jiffies +
+				  msecs_to_jiffies(NFC_CHECK_PRES_FREQ_MS));
+	} else if (dev->rf_mode == NFC_RF_TARGET && dev->ops->tm_send != NULL) {
+		rc = dev->ops->tm_send(dev, skb);
+	} else {
 		rc = -ENOTCONN;
 		kfree_skb(skb);
 		goto error;
 	}
 
-	if (dev->active_target->idx != target_idx) {
-		rc = -EADDRNOTAVAIL;
-		kfree_skb(skb);
-		goto error;
-	}
-
-	if (dev->ops->check_presence)
-		del_timer_sync(&dev->check_pres_timer);
-
-	rc = dev->ops->data_exchange(dev, dev->active_target, skb, cb,
-				     cb_context);
-
-	if (!rc && dev->ops->check_presence)
-		mod_timer(&dev->check_pres_timer, jiffies +
-			  msecs_to_jiffies(NFC_CHECK_PRES_FREQ_MS));
 
 error:
 	device_unlock(&dev->dev);
@@ -727,7 +730,7 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 	struct nfc_dev *dev;
 
 	if (!ops->start_poll || !ops->stop_poll || !ops->activate_target ||
-	    !ops->deactivate_target || !ops->data_exchange)
+	    !ops->deactivate_target || !ops->im_transceive)
 		return NULL;
 
 	if (!supported_protocols)

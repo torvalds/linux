@@ -522,9 +522,9 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev,
 	}
 }
 
-static int nci_data_exchange(struct nfc_dev *nfc_dev, struct nfc_target *target,
-			     struct sk_buff *skb,
-			     data_exchange_cb_t cb, void *cb_context)
+static int nci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
+			  struct sk_buff *skb,
+			  data_exchange_cb_t cb, void *cb_context)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	int rc;
@@ -557,7 +557,7 @@ static struct nfc_ops nci_nfc_ops = {
 	.stop_poll = nci_stop_poll,
 	.activate_target = nci_activate_target,
 	.deactivate_target = nci_deactivate_target,
-	.data_exchange = nci_data_exchange,
+	.im_transceive = nci_transceive,
 };
 
 /* ---- Interface to NCI drivers ---- */
