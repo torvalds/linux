@@ -19,20 +19,33 @@
 #include <asm/gpio.h>
 #include <asm/dma.h>
 #include <asm/dpmc.h>
+#include <asm/pm.h>
 
+#ifdef CONFIG_BF60x
+struct bfin_cpu_pm_fns *bfin_cpu_pm;
+#endif
 
 void bfin_pm_suspend_standby_enter(void)
 {
+#ifndef CONFIG_BF60x
 	bfin_pm_standby_setup();
-
-#ifdef CONFIG_PM_BFIN_SLEEP_DEEPER
-	sleep_deeper(bfin_sic_iwr[0], bfin_sic_iwr[1], bfin_sic_iwr[2]);
-#else
-	sleep_mode(bfin_sic_iwr[0], bfin_sic_iwr[1], bfin_sic_iwr[2]);
 #endif
 
-	bfin_pm_standby_restore();
+#ifdef CONFIG_BF60x
+	bfin_cpu_pm->enter(PM_SUSPEND_STANDBY);
+#else
+# ifdef CONFIG_PM_BFIN_SLEEP_DEEPER
+	sleep_deeper(bfin_sic_iwr[0], bfin_sic_iwr[1], bfin_sic_iwr[2]);
+# else
+	sleep_mode(bfin_sic_iwr[0], bfin_sic_iwr[1], bfin_sic_iwr[2]);
+# endif
+#endif
 
+#ifndef CONFIG_BF60x
+	bfin_pm_standby_restore();
+#endif
+
+#ifndef CONFIG_BF60x
 #ifdef SIC_IWR0
 	bfin_write_SIC_IWR0(IWR_DISABLE_ALL);
 # ifdef SIC_IWR1
@@ -51,6 +64,8 @@ void bfin_pm_suspend_standby_enter(void)
 # endif
 #else
 	bfin_write_SIC_IWR(IWR_DISABLE_ALL);
+#endif
+
 #endif
 }
 
@@ -83,10 +98,13 @@ int bf53x_resume_l1_mem(unsigned char *memptr)
 }
 
 #if defined(CONFIG_BFIN_EXTMEM_WRITEBACK) || defined(CONFIG_BFIN_L2_WRITEBACK)
+# ifdef CONFIG_BF60x
+__attribute__((l1_text))
+# endif
 static void flushinv_all_dcache(void)
 {
-	u32 way, bank, subbank, set;
-	u32 status, addr;
+	register u32 way, bank, subbank, set;
+	register u32 status, addr;
 	u32 dmem_ctl = bfin_read_DMEM_CONTROL();
 
 	for (bank = 0; bank < 2; ++bank) {
@@ -133,7 +151,11 @@ int bfin_pm_suspend_mem_enter(void)
 		return -ENOMEM;
 	}
 
+#ifndef CONFIG_BF60x
 	wakeup = bfin_read_VR_CTL() & ~FREQ;
+#else
+
+#endif
 	wakeup |= SCKELOW;
 
 #ifdef CONFIG_PM_BFIN_WAKE_PH6
@@ -159,7 +181,11 @@ int bfin_pm_suspend_mem_enter(void)
 	_disable_icplb();
 	bf53x_suspend_l1_mem(memptr);
 
+#ifndef CONFIG_BF60x
 	do_hibernate(wakeup | vr_wakeup);	/* See you later! */
+#else
+	bfin_cpu_pm->enter(PM_SUSPEND_MEM);
+#endif
 
 	bf53x_resume_l1_mem(memptr);
 
