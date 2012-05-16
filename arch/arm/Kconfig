@@ -46,6 +46,14 @@ config ARM
 config ARM_HAS_SG_CHAIN
 	bool
 
+config NEED_SG_DMA_LENGTH
+	bool
+
+config ARM_DMA_USE_IOMMU
+	select NEED_SG_DMA_LENGTH
+	select ARM_HAS_SG_CHAIN
+	bool
+
 config HAVE_PWM
 	bool
 
