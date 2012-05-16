@@ -130,7 +130,7 @@ static int iwl_rx_queue_space(const struct iwl_rx_queue *q)
  * iwl_rx_queue_update_write_ptr - Update the write pointer for the RX queue
  */
 void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
-			struct iwl_rx_queue *q)
+				   struct iwl_rx_queue *q)
 {
 	unsigned long flags;
 	u32 reg;
@@ -201,9 +201,7 @@ static inline __le32 iwlagn_dma_addr2rbd_ptr(dma_addr_t dma_addr)
  */
 static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
-
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
@@ -253,9 +251,7 @@ static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
  */
 static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 {
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
-
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
@@ -278,8 +274,7 @@ static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 			gfp_mask |= __GFP_COMP;
 
 		/* Alloc a new receive buffer */
-		page = alloc_pages(gfp_mask,
-				  trans_pcie->rx_page_order);
+		page = alloc_pages(gfp_mask, trans_pcie->rx_page_order);
 		if (!page) {
 			if (net_ratelimit())
 				IWL_DEBUG_INFO(trans, "alloc_pages failed, "
@@ -315,9 +310,10 @@ static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 		BUG_ON(rxb->page);
 		rxb->page = page;
 		/* Get physical address of the RB */
-		rxb->page_dma = dma_map_page(trans->dev, page, 0,
-				PAGE_SIZE << trans_pcie->rx_page_order,
-				DMA_FROM_DEVICE);
+		rxb->page_dma =
+			dma_map_page(trans->dev, page, 0,
+				     PAGE_SIZE << trans_pcie->rx_page_order,
+				     DMA_FROM_DEVICE);
 		/* dma address must be no more than 36 bits */
 		BUG_ON(rxb->page_dma & ~DMA_BIT_MASK(36));
 		/* and also 256 byte aligned! */
@@ -465,8 +461,8 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 	if (rxb->page != NULL) {
 		rxb->page_dma =
 			dma_map_page(trans->dev, rxb->page, 0,
-				PAGE_SIZE << trans_pcie->rx_page_order,
-				DMA_FROM_DEVICE);
+				     PAGE_SIZE << trans_pcie->rx_page_order,
+				     DMA_FROM_DEVICE);
 		list_add_tail(&rxb->list, &rxq->rx_free);
 		rxq->free_count++;
 	} else
@@ -546,12 +542,12 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
 	if (trans->cfg->internal_wimax_coex &&
 	    (!(iwl_read_prph(trans, APMG_CLK_CTRL_REG) &
-			APMS_CLK_VAL_MRB_FUNC_MODE) ||
+			     APMS_CLK_VAL_MRB_FUNC_MODE) ||
 	     (iwl_read_prph(trans, APMG_PS_CTRL_REG) &
-			APMG_PS_CTRL_VAL_RESET_REQ))) {
-		struct iwl_trans_pcie *trans_pcie;
+			    APMG_PS_CTRL_VAL_RESET_REQ))) {
+		struct iwl_trans_pcie *trans_pcie =
+			IWL_TRANS_GET_PCIE_TRANS(trans);
 
-		trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 		iwl_op_mode_wimax_active(trans->op_mode);
 		wake_up(&trans->wait_command_queue);
@@ -567,6 +563,8 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 /* tasklet for iwlagn interrupt */
 void iwl_irq_tasklet(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
 	u32 inta = 0;
 	u32 handled = 0;
 	unsigned long flags;
@@ -574,10 +572,6 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 #ifdef CONFIG_IWLWIFI_DEBUG
 	u32 inta_mask;
 #endif
-
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
-
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
@@ -593,7 +587,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 	 * interrupt coalescing can still be achieved.
 	 */
 	iwl_write32(trans, CSR_INT,
-		trans_pcie->inta | ~trans_pcie->inta_mask);
+		    trans_pcie->inta | ~trans_pcie->inta_mask);
 
 	inta = trans_pcie->inta;
 
@@ -602,7 +596,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		/* just for debug */
 		inta_mask = iwl_read32(trans, CSR_INT_MASK);
 		IWL_DEBUG_ISR(trans, "inta 0x%08x, enabled 0x%08x\n",
-				inta, inta_mask);
+			      inta, inta_mask);
 	}
 #endif
 
@@ -651,7 +645,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 
 		hw_rfkill = iwl_is_rfkill_set(trans);
 		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
-				hw_rfkill ? "disable radio" : "enable radio");
+			 hw_rfkill ? "disable radio" : "enable radio");
 
 		isr_stats->rfkill++;
 
@@ -693,7 +687,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 	 * Rx "responses" (frame-received notification), and other
 	 * notifications from uCode come through here*/
 	if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX |
-			CSR_INT_BIT_RX_PERIODIC)) {
+		    CSR_INT_BIT_RX_PERIODIC)) {
 		IWL_DEBUG_ISR(trans, "Rx interrupt\n");
 		if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX)) {
 			handled |= (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX);
@@ -733,7 +727,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		 */
 		if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX))
 			iwl_write8(trans, CSR_INT_PERIODIC_REG,
-				    CSR_INT_PERIODIC_ENA);
+				   CSR_INT_PERIODIC_ENA);
 
 		isr_stats->rx++;
 	}
@@ -782,8 +776,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 /* Free dram table */
 void iwl_free_isr_ict(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (trans_pcie->ict_tbl) {
 		dma_free_coherent(trans->dev, ICT_SIZE,
@@ -802,8 +795,7 @@ void iwl_free_isr_ict(struct iwl_trans *trans)
  */
 int iwl_alloc_isr_ict(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	trans_pcie->ict_tbl =
 		dma_alloc_coherent(trans->dev, ICT_SIZE,
@@ -837,10 +829,9 @@ int iwl_alloc_isr_ict(struct iwl_trans *trans)
  */
 void iwl_reset_ict(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 val;
 	unsigned long flags;
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (!trans_pcie->ict_tbl)
 		return;
@@ -868,9 +859,7 @@ void iwl_reset_ict(struct iwl_trans *trans)
 /* Device is going down disable ict interrupt usage */
 void iwl_disable_ict(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
-
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	unsigned long flags;
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
@@ -934,7 +923,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	if (likely(inta))
 		tasklet_schedule(&trans_pcie->irq_tasklet);
 	else if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
-			!trans_pcie->inta)
+		 !trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 
  unplugged:
@@ -945,7 +934,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	/* re-enable interrupts here since we don't have anything to service. */
 	/* only Re-enable if disabled by irq  and no schedules tasklet. */
 	if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
-		!trans_pcie->inta)
+	    !trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
@@ -1036,7 +1025,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 
 	inta = (0xff & val) | ((0xff00 & val) << 16);
 	IWL_DEBUG_ISR(trans, "ISR inta 0x%08x, enabled 0x%08x ict 0x%08x\n",
-			inta, inta_mask, val);
+		      inta, inta_mask, val);
 
 	inta &= trans_pcie->inta_mask;
 	trans_pcie->inta |= inta;

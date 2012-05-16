@@ -313,7 +313,7 @@ void iwl_bg_rx_replenish(struct work_struct *data);
 void iwl_irq_tasklet(struct iwl_trans *trans);
 void iwlagn_rx_replenish(struct iwl_trans *trans);
 void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
-			struct iwl_rx_queue *q);
+				   struct iwl_rx_queue *q);
 
 /*****************************************************
 * ICT
@@ -328,7 +328,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data);
 * TX / HCMD
 ******************************************************/
 void iwl_txq_update_write_ptr(struct iwl_trans *trans,
-			struct iwl_tx_queue *txq);
+			      struct iwl_tx_queue *txq);
 int iwlagn_txq_attach_buf_to_tfd(struct iwl_trans *trans,
 				 struct iwl_tx_queue *txq,
 				 dma_addr_t addr, u16 len, u8 reset);
@@ -337,8 +337,8 @@ int iwl_trans_pcie_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 void iwl_tx_cmd_complete(struct iwl_trans *trans,
 			 struct iwl_rx_cmd_buffer *rxb, int handler_status);
 void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
-					   struct iwl_tx_queue *txq,
-					   u16 byte_cnt);
+				       struct iwl_tx_queue *txq,
+				       u16 byte_cnt);
 void iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans, int queue);
 void iwl_trans_set_wr_ptrs(struct iwl_trans *trans, int txq_id, u32 index);
 void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
