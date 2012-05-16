@@ -653,11 +653,11 @@ static void prepare_write_keepalive(struct ceph_connection *con)
  * Connection negotiation.
  */
 
-static struct ceph_auth_handshake *prepare_connect_authorizer(struct ceph_connection *con)
+static struct ceph_auth_handshake *get_connect_authorizer(struct ceph_connection *con,
+						int *auth_proto)
 {
 	void *auth_buf;
 	int auth_len;
-	int auth_protocol;
 	struct ceph_auth_handshake *auth;
 
 	if (!con->ops->get_authorizer) {
@@ -671,8 +671,7 @@ static struct ceph_auth_handshake *prepare_connect_authorizer(struct ceph_connec
 
 	mutex_unlock(&con->mutex);
 
-	auth_protocol = CEPH_AUTH_UNKNOWN;
-	auth = con->ops->get_authorizer(con, &auth_protocol, con->auth_retry);
+	auth = con->ops->get_authorizer(con, auth_proto, con->auth_retry);
 
 	mutex_lock(&con->mutex);
 
@@ -686,7 +685,6 @@ static struct ceph_auth_handshake *prepare_connect_authorizer(struct ceph_connec
 	con->auth_reply_buf = auth->authorizer_reply_buf;
 	con->auth_reply_buf_len = auth->authorizer_reply_buf_len;
 
-	con->out_connect.authorizer_protocol = cpu_to_le32(auth_protocol);
 	con->out_connect.authorizer_len = cpu_to_le32(auth_len);
 
 	if (auth_len)
@@ -712,6 +710,7 @@ static int prepare_write_connect(struct ceph_connection *con)
 {
 	unsigned global_seq = get_global_seq(con->msgr, 0);
 	int proto;
+	int auth_proto;
 	struct ceph_auth_handshake *auth;
 
 	switch (con->peer_name.type) {
@@ -739,9 +738,11 @@ static int prepare_write_connect(struct ceph_connection *con)
 	con->out_connect.flags = 0;
 
 	ceph_con_out_kvec_add(con, sizeof (con->out_connect), &con->out_connect);
-	auth = prepare_connect_authorizer(con);
+	auth_proto = CEPH_AUTH_UNKNOWN;
+	auth = get_connect_authorizer(con, &auth_proto);
 	if (IS_ERR(auth))
 		return PTR_ERR(auth);
+	con->out_connect.authorizer_protocol = cpu_to_le32(auth_proto);
 
 	con->out_more = 0;
 	set_bit(WRITE_PENDING, &con->state);
