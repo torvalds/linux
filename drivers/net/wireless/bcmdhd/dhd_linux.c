@@ -3931,13 +3931,10 @@ dhd_os_ioctl_resp_wait(dhd_pub_t *pub, uint *condition, bool *pending)
 	 * Can be changed by another processor.
 	 */
 	smp_mb();
-	while (!(*condition) && (!signal_pending(current) && timeout)) {
+	while (!(*condition) && timeout) {
 		timeout = schedule_timeout(timeout);
 		smp_mb();
 	}
-
-	if (signal_pending(current))
-		*pending = TRUE;
 
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&dhd->ioctl_resp_wait, &wait);
