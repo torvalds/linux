@@ -250,7 +250,8 @@ static IIO_DEVICE_ATTR(operating_mode,
 static s32 hmc5843_set_meas_conf(struct i2c_client *client,
 				      u8 meas_conf)
 {
-	struct hmc5843_data *data = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct hmc5843_data *data = iio_priv(indio_dev);
 	u8 reg_val;
 	reg_val = (meas_conf & MEAS_CONF_MASK) |  (data->rate << RATE_OFFSET);
 	return i2c_smbus_write_byte_data(client, HMC5843_CONFIG_REG_A, reg_val);
@@ -272,7 +273,7 @@ static ssize_t hmc5843_set_measurement_configuration(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
-	struct hmc5843_data *data = i2c_get_clientdata(client);
+	struct hmc5843_data *data = iio_priv(indio_dev);
 	unsigned long meas_conf = 0;
 	int error = strict_strtoul(buf, 10, &meas_conf);
 	if (error)
@@ -314,7 +315,8 @@ static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("0.5 1 2 5 10 20 50");
 static s32 hmc5843_set_rate(struct i2c_client *client,
 				u8 rate)
 {
-	struct hmc5843_data *data = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct hmc5843_data *data = iio_priv(indio_dev);
 	u8 reg_val;
 
 	reg_val = (data->meas_conf) |  (rate << RATE_OFFSET);
@@ -600,8 +602,12 @@ static int hmc5843_suspend(struct device *dev)
 
 static int hmc5843_resume(struct device *dev)
 {
-	struct hmc5843_data *data = i2c_get_clientdata(to_i2c_client(dev));
-	hmc5843_configure(to_i2c_client(dev), data->operating_mode);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct hmc5843_data *data = iio_priv(indio_dev);
+
+	hmc5843_configure(client, data->operating_mode);
+
 	return 0;
 }
 
