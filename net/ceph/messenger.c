@@ -653,7 +653,7 @@ static void prepare_write_keepalive(struct ceph_connection *con)
  * Connection negotiation.
  */
 
-static int prepare_connect_authorizer(struct ceph_connection *con)
+static struct ceph_auth_handshake *prepare_connect_authorizer(struct ceph_connection *con)
 {
 	void *auth_buf;
 	int auth_len;
@@ -664,7 +664,7 @@ static int prepare_connect_authorizer(struct ceph_connection *con)
 		con->out_connect.authorizer_protocol = CEPH_AUTH_UNKNOWN;
 		con->out_connect.authorizer_len = 0;
 
-		return 0;
+		return NULL;
 	}
 
 	/* Can't hold the mutex while getting authorizer */
@@ -677,9 +677,9 @@ static int prepare_connect_authorizer(struct ceph_connection *con)
 	mutex_lock(&con->mutex);
 
 	if (IS_ERR(auth))
-		return PTR_ERR(auth);
+		return auth;
 	if (test_bit(CLOSED, &con->state) || test_bit(OPENING, &con->state))
-		return -EAGAIN;
+		return ERR_PTR(-EAGAIN);
 
 	auth_buf = auth->authorizer_buf;
 	auth_len = auth->authorizer_buf_len;
@@ -692,7 +692,7 @@ static int prepare_connect_authorizer(struct ceph_connection *con)
 	if (auth_len)
 		ceph_con_out_kvec_add(con, auth_len, auth_buf);
 
-	return 0;
+	return auth;
 }
 
 /*
@@ -712,7 +712,7 @@ static int prepare_write_connect(struct ceph_connection *con)
 {
 	unsigned global_seq = get_global_seq(con->msgr, 0);
 	int proto;
-	int ret;
+	struct ceph_auth_handshake *auth;
 
 	switch (con->peer_name.type) {
 	case CEPH_ENTITY_TYPE_MON:
@@ -739,9 +739,9 @@ static int prepare_write_connect(struct ceph_connection *con)
 	con->out_connect.flags = 0;
 
 	ceph_con_out_kvec_add(con, sizeof (con->out_connect), &con->out_connect);
-	ret = prepare_connect_authorizer(con);
-	if (ret)
-		return ret;
+	auth = prepare_connect_authorizer(con);
+	if (IS_ERR(auth))
+		return PTR_ERR(auth);
 
 	con->out_more = 0;
 	set_bit(WRITE_PENDING, &con->state);
