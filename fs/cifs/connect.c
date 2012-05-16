@@ -102,7 +102,7 @@ enum {
 	Opt_srcaddr, Opt_prefixpath,
 	Opt_iocharset, Opt_sockopt,
 	Opt_netbiosname, Opt_servern,
-	Opt_ver, Opt_sec,
+	Opt_ver, Opt_sec, Opt_cache,
 
 	/* Mount options to be ignored */
 	Opt_ignore,
@@ -213,6 +213,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_ver, "vers=%s" },
 	{ Opt_ver, "version=%s" },
 	{ Opt_sec, "sec=%s" },
+	{ Opt_cache, "cache=%s" },
 
 	{ Opt_ignore, "cred" },
 	{ Opt_ignore, "credentials" },
@@ -259,6 +260,21 @@ static const match_table_t cifs_secflavor_tokens = {
 	{ Opt_sec_none, "none" },
 
 	{ Opt_sec_err, NULL }
+};
+
+/* cache flavors */
+enum {
+	Opt_cache_loose,
+	Opt_cache_strict,
+	Opt_cache_none,
+	Opt_cache_err
+};
+
+static const match_table_t cifs_cacheflavor_tokens = {
+	{ Opt_cache_loose, "loose" },
+	{ Opt_cache_strict, "strict" },
+	{ Opt_cache_none, "none" },
+	{ Opt_cache_err, NULL }
 };
 
 static int ip_connect(struct TCP_Server_Info *server);
@@ -1186,6 +1202,31 @@ static int cifs_parse_security_flavors(char *value,
 }
 
 static int
+cifs_parse_cache_flavor(char *value, struct smb_vol *vol)
+{
+	substring_t args[MAX_OPT_ARGS];
+
+	switch (match_token(value, cifs_cacheflavor_tokens, args)) {
+	case Opt_cache_loose:
+		vol->direct_io = false;
+		vol->strict_io = false;
+		break;
+	case Opt_cache_strict:
+		vol->direct_io = false;
+		vol->strict_io = true;
+		break;
+	case Opt_cache_none:
+		vol->direct_io = true;
+		vol->strict_io = false;
+		break;
+	default:
+		cERROR(1, "bad cache= option: %s", value);
+		return 1;
+	}
+	return 0;
+}
+
+static int
 cifs_parse_mount_options(const char *mountdata, const char *devname,
 			 struct smb_vol *vol)
 {
@@ -1414,10 +1455,12 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->seal = 1;
 			break;
 		case Opt_direct:
-			vol->direct_io = 1;
+			vol->direct_io = true;
+			vol->strict_io = false;
 			break;
 		case Opt_strictcache:
-			vol->strict_io = 1;
+			vol->direct_io = false;
+			vol->strict_io = true;
 			break;
 		case Opt_noac:
 			printk(KERN_WARNING "CIFS: Mount option noac not "
@@ -1836,6 +1879,14 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				goto out_nomem;
 
 			if (cifs_parse_security_flavors(string, vol) != 0)
+				goto cifs_parse_mount_err;
+			break;
+		case Opt_cache:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (cifs_parse_cache_flavor(string, vol) != 0)
 				goto cifs_parse_mount_err;
 			break;
 		default:
