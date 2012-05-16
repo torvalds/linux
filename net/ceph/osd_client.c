@@ -664,10 +664,10 @@ static void put_osd(struct ceph_osd *osd)
 {
 	dout("put_osd %p %d -> %d\n", osd, atomic_read(&osd->o_ref),
 	     atomic_read(&osd->o_ref) - 1);
-	if (atomic_dec_and_test(&osd->o_ref)) {
+	if (atomic_dec_and_test(&osd->o_ref) && osd->o_auth.authorizer) {
 		struct ceph_auth_client *ac = osd->o_osdc->client->monc.auth;
 
-		if (osd->o_auth.authorizer)
+		if (ac->ops && ac->ops->destroy_authorizer)
 			ac->ops->destroy_authorizer(ac, osd->o_auth.authorizer);
 		kfree(osd);
 	}
@@ -2119,10 +2119,11 @@ static int get_authorizer(struct ceph_connection *con,
 	int ret = 0;
 
 	if (force_new && auth->authorizer) {
-		ac->ops->destroy_authorizer(ac, auth->authorizer);
+		if (ac->ops && ac->ops->destroy_authorizer)
+			ac->ops->destroy_authorizer(ac, auth->authorizer);
 		auth->authorizer = NULL;
 	}
-	if (auth->authorizer == NULL) {
+	if (!auth->authorizer && ac->ops && ac->ops->create_authorizer) {
 		ret = ac->ops->create_authorizer(ac, CEPH_ENTITY_TYPE_OSD, auth);
 		if (ret)
 			return ret;
@@ -2144,6 +2145,10 @@ static int verify_authorizer_reply(struct ceph_connection *con, int len)
 	struct ceph_osd_client *osdc = o->o_osdc;
 	struct ceph_auth_client *ac = osdc->client->monc.auth;
 
+	/*
+	 * XXX If ac->ops or ac->ops->verify_authorizer_reply is null,
+	 * XXX which do we do:  succeed or fail?
+	 */
 	return ac->ops->verify_authorizer_reply(ac, o->o_auth.authorizer, len);
 }
 
@@ -2153,7 +2158,7 @@ static int invalidate_authorizer(struct ceph_connection *con)
 	struct ceph_osd_client *osdc = o->o_osdc;
 	struct ceph_auth_client *ac = osdc->client->monc.auth;
 
-	if (ac->ops->invalidate_authorizer)
+	if (ac->ops && ac->ops->invalidate_authorizer)
 		ac->ops->invalidate_authorizer(ac, CEPH_ENTITY_TYPE_OSD);
 
 	return ceph_monc_validate_auth(&osdc->client->monc);
