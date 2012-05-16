@@ -1166,8 +1166,8 @@ static int parse_txq_params(struct nlattr *tb[],
 static bool nl80211_can_set_dev_channel(struct wireless_dev *wdev)
 {
 	/*
-	 * You can only set the channel explicitly for AP, mesh
-	 * and WDS type interfaces; all others have their channel
+	 * You can only set the channel explicitly for AP and
+	 * mesh type interfaces; all others have their channel
 	 * managed via their respective "establish a connection"
 	 * command (connect, join, ...)
 	 *
@@ -1180,7 +1180,6 @@ static bool nl80211_can_set_dev_channel(struct wireless_dev *wdev)
 	 */
 	return !wdev ||
 		wdev->iftype == NL80211_IFTYPE_AP ||
-		wdev->iftype == NL80211_IFTYPE_WDS ||
 		wdev->iftype == NL80211_IFTYPE_MESH_POINT ||
 		wdev->iftype == NL80211_IFTYPE_MONITOR ||
 		wdev->iftype == NL80211_IFTYPE_P2P_GO;
