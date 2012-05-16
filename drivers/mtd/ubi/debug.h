@@ -63,7 +63,7 @@ void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
 void ubi_dump_vol_info(const struct ubi_volume *vol);
 void ubi_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx);
 void ubi_dump_sv(const struct ubi_scan_volume *sv);
-void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type);
+void ubi_dump_seb(const struct ubi_scan_leb *seb, int type);
 void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
 int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len);
 int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
@@ -198,8 +198,8 @@ ubi_dump_vol_info(const struct ubi_volume *vol)                      { return; }
 static inline void
 ubi_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)       { return; }
 static inline void ubi_dump_sv(const struct ubi_scan_volume *sv)     { return; }
-static inline void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb,
-				    int type)                        { return; }
+static inline void ubi_dump_seb(const struct ubi_scan_leb *seb,
+				int type)                            { return; }
 static inline void
 ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req)              { return; }
 static inline void

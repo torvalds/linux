@@ -190,11 +190,11 @@ void ubi_dump_sv(const struct ubi_scan_volume *sv)
 }
 
 /**
- * ubi_dbg_dump_seb - dump a &struct ubi_scan_leb object.
+ * ubi_dump_seb - dump a &struct ubi_scan_leb object.
  * @seb: the object to dump
  * @type: object type: 0 - not corrupted, 1 - corrupted
  */
-void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type)
+void ubi_dump_seb(const struct ubi_scan_leb *seb, int type)
 {
 	printk(KERN_DEBUG "eraseblock scanning information dump:\n");
 	printk(KERN_DEBUG "\tec       %d\n", seb->ec);

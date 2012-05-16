@@ -510,7 +510,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 		if (seb->sqnum == sqnum && sqnum != 0) {
 			ubi_err("two LEBs with same sequence number %llu",
 				sqnum);
-			ubi_dbg_dump_seb(seb, 0);
+			ubi_dump_seb(seb, 0);
 			ubi_dump_vid_hdr(vid_hdr);
 			return -EINVAL;
 		}
@@ -1583,7 +1583,7 @@ static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 
 bad_seb:
 	ubi_err("bad scanning information about LEB %d", seb->lnum);
-	ubi_dbg_dump_seb(seb, 0);
+	ubi_dump_seb(seb, 0);
 	ubi_dump_sv(sv);
 	goto out;
 
