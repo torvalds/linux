@@ -61,11 +61,9 @@ static int make_idx_node(struct ubifs_info *c, struct ubifs_idx_node *idx,
 	}
 	ubifs_prepare_node(c, idx, len, 0);
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
 	znode->lnum = lnum;
 	znode->offs = offs;
 	znode->len = len;
-#endif
 
 	err = insert_old_idx_znode(c, znode);
 
@@ -456,11 +454,9 @@ static int layout_in_empty_space(struct ubifs_info *c)
 
 		offs = buf_offs + used;
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
 		znode->lnum = lnum;
 		znode->offs = offs;
 		znode->len = len;
-#endif
 
 		/* Update the parent */
 		zp = znode->parent;
@@ -536,10 +532,8 @@ static int layout_in_empty_space(struct ubifs_info *c)
 		break;
 	}
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
 	c->dbg->new_ihead_lnum = lnum;
 	c->dbg->new_ihead_offs = buf_offs;
-#endif
 
 	return 0;
 }
@@ -881,13 +875,11 @@ static int write_index(struct ubifs_info *c)
 		}
 		offs = buf_offs + used;
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
 		if (lnum != znode->lnum || offs != znode->offs ||
 		    len != znode->len) {
 			ubifs_err("inconsistent znode posn");
 			return -EINVAL;
 		}
-#endif
 
 		/* Grab some stuff from znode while we still can */
 		cnext = znode->cnext;
@@ -982,13 +974,11 @@ static int write_index(struct ubifs_info *c)
 		break;
 	}
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
 	if (lnum != c->dbg->new_ihead_lnum ||
 	    buf_offs != c->dbg->new_ihead_offs) {
 		ubifs_err("inconsistent ihead");
 		return -EINVAL;
 	}
-#endif
 
 	c->ihead_lnum = lnum;
 	c->ihead_offs = buf_offs;

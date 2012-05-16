@@ -34,8 +34,6 @@
 #include <linux/random.h>
 #include "ubifs.h"
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
-
 static DEFINE_SPINLOCK(dbg_lock);
 
 static const char *get_key_fmt(int fmt)
@@ -3189,5 +3187,3 @@ void ubifs_debugging_exit(struct ubifs_info *c)
 {
 	kfree(c->dbg);
 }
-
-#endif /* CONFIG_UBIFS_FS_DEBUG */

@@ -130,7 +130,6 @@ static int create_default_filesystem(struct ubifs_info *c)
 	 * orphan node.
 	 */
 	orph_lebs = UBIFS_MIN_ORPH_LEBS;
-#ifdef CONFIG_UBIFS_FS_DEBUG
 	if (c->leb_cnt - min_leb_cnt > 1)
 		/*
 		 * For debugging purposes it is better to have at least 2
@@ -138,7 +137,6 @@ static int create_default_filesystem(struct ubifs_info *c)
 		 * consolidations and would be stressed more.
 		 */
 		orph_lebs += 1;
-#endif
 
 	main_lebs = c->leb_cnt - UBIFS_SB_LEBS - UBIFS_MST_LEBS - log_lebs;
 	main_lebs -= orph_lebs;

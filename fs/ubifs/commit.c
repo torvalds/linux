@@ -496,7 +496,9 @@ int ubifs_gc_should_commit(struct ubifs_info *c)
 	return ret;
 }
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
+/*
+ * Everything below is related to debugging.
+ */
 
 /**
  * struct idx_node - hold index nodes during index tree traversal.
@@ -734,5 +736,3 @@ out_free:
 		err = -EINVAL;
 	return err;
 }
-
-#endif /* CONFIG_UBIFS_FS_DEBUG */

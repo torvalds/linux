@@ -30,11 +30,7 @@
 #include <linux/random.h>
 #include "ubifs.h"
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
 static int dbg_populate_lsave(struct ubifs_info *c);
-#else
-#define dbg_populate_lsave(c) 0
-#endif
 
 /**
  * first_dirty_cnode - find first dirty cnode.
@@ -1497,7 +1493,9 @@ void ubifs_lpt_free(struct ubifs_info *c, int wr_only)
 	kfree(c->lpt_nod_buf);
 }
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
+/*
+ * Everything below is related to debugging.
+ */
 
 /**
  * dbg_is_all_ff - determine if a buffer contains only 0xFF bytes.
@@ -2046,5 +2044,3 @@ static int dbg_populate_lsave(struct ubifs_info *c)
 
 	return 1;
 }
-
-#endif /* CONFIG_UBIFS_FS_DEBUG */

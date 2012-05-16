@@ -2080,8 +2080,6 @@ out:
 	return err;
 }
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
-
 /**
  * dbg_chk_pnode - check a pnode.
  * @c: the UBIFS file-system description object
@@ -2274,5 +2272,3 @@ int dbg_check_lpt_nodes(struct ubifs_info *c, struct ubifs_cnode *cnode,
 	}
 	return 0;
 }
-
-#endif /* CONFIG_UBIFS_FS_DEBUG */

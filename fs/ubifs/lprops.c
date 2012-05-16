@@ -846,7 +846,9 @@ const struct ubifs_lprops *ubifs_fast_find_frdi_idx(struct ubifs_info *c)
 	return lprops;
 }
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
+/*
+ * Everything below is related to debugging.
+ */
 
 /**
  * dbg_check_cats - check category heaps and lists.
@@ -1315,5 +1317,3 @@ int dbg_check_lprops(struct ubifs_info *c)
 out:
 	return err;
 }
-
-#endif /* CONFIG_UBIFS_FS_DEBUG */

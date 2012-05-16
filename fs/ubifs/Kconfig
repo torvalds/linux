@@ -35,20 +35,3 @@ config UBIFS_FS_ZLIB
 	default y
 	help
 	  Zlib compresses better than LZO but it is slower. Say 'Y' if unsure.
-
-# Debugging-related stuff
-config UBIFS_FS_DEBUG
-	bool "Enable debugging support"
-	depends on UBIFS_FS
-	select DEBUG_FS
-	select KALLSYMS
-	help
-	  This option enables UBIFS debugging support. It makes sure various
-	  assertions, self-checks, debugging messages and test modes are compiled
-	  in (this all is compiled out otherwise). Assertions are light-weight
-	  and this option also enables them. Self-checks, debugging messages and
-	  test modes are switched off by default. Thus, it is safe and actually
-	  recommended to have debugging support enabled, and it should not slow
-	  down UBIFS. You can then further enable / disable individual  debugging
-	  features using UBIFS module parameters and the corresponding sysfs
-	  interfaces.
