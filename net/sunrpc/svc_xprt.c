@@ -976,7 +976,7 @@ void svc_close_net(struct svc_serv *serv, struct net *net)
 	svc_clear_pools(serv, net);
 	/*
 	 * At this point the sp_sockets lists will stay empty, since
-	 * svc_enqueue will not add new entries without taking the
+	 * svc_xprt_enqueue will not add new entries without taking the
 	 * sp_lock and checking XPT_BUSY.
 	 */
 	svc_clear_list(&serv->sv_tempsocks, net);
