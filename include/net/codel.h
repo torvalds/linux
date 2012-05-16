@@ -205,7 +205,7 @@ static codel_time_t codel_control_law(codel_time_t t,
 
 
 static bool codel_should_drop(const struct sk_buff *skb,
-			      unsigned int *backlog,
+			      struct Qdisc *sch,
 			      struct codel_vars *vars,
 			      struct codel_params *params,
 			      struct codel_stats *stats,
@@ -219,13 +219,13 @@ static bool codel_should_drop(const struct sk_buff *skb,
 	}
 
 	vars->ldelay = now - codel_get_enqueue_time(skb);
-	*backlog -= qdisc_pkt_len(skb);
+	sch->qstats.backlog -= qdisc_pkt_len(skb);
 
 	if (unlikely(qdisc_pkt_len(skb) > stats->maxpacket))
 		stats->maxpacket = qdisc_pkt_len(skb);
 
 	if (codel_time_before(vars->ldelay, params->target) ||
-	    *backlog <= stats->maxpacket) {
+	    sch->qstats.backlog <= stats->maxpacket) {
 		/* went below - stay below for at least interval */
 		vars->first_above_time = 0;
 		return false;
@@ -249,8 +249,7 @@ static struct sk_buff *codel_dequeue(struct Qdisc *sch,
 				     struct codel_params *params,
 				     struct codel_vars *vars,
 				     struct codel_stats *stats,
-				     codel_skb_dequeue_t dequeue_func,
-				     u32 *backlog)
+				     codel_skb_dequeue_t dequeue_func)
 {
 	struct sk_buff *skb = dequeue_func(vars, sch);
 	codel_time_t now;
@@ -261,7 +260,7 @@ static struct sk_buff *codel_dequeue(struct Qdisc *sch,
 		return skb;
 	}
 	now = codel_get_time();
-	drop = codel_should_drop(skb, backlog, vars, params, stats, now);
+	drop = codel_should_drop(skb, sch, vars, params, stats, now);
 	if (vars->dropping) {
 		if (!drop) {
 			/* sojourn time below target - leave dropping state */
@@ -292,7 +291,7 @@ static struct sk_buff *codel_dequeue(struct Qdisc *sch,
 				qdisc_drop(skb, sch);
 				stats->drop_count++;
 				skb = dequeue_func(vars, sch);
-				if (!codel_should_drop(skb, backlog,
+				if (!codel_should_drop(skb, sch,
 						       vars, params, stats, now)) {
 					/* leave dropping state */
 					vars->dropping = false;
@@ -313,7 +312,7 @@ static struct sk_buff *codel_dequeue(struct Qdisc *sch,
 			stats->drop_count++;
 
 			skb = dequeue_func(vars, sch);
-			drop = codel_should_drop(skb, backlog, vars, params,
+			drop = codel_should_drop(skb, sch, vars, params,
 						 stats, now);
 		}
 		vars->dropping = true;

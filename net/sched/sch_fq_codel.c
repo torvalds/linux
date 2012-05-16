@@ -217,13 +217,14 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch)
  */
 static struct sk_buff *dequeue(struct codel_vars *vars, struct Qdisc *sch)
 {
+	struct fq_codel_sched_data *q = qdisc_priv(sch);
 	struct fq_codel_flow *flow;
 	struct sk_buff *skb = NULL;
 
 	flow = container_of(vars, struct fq_codel_flow, cvars);
 	if (flow->head) {
 		skb = dequeue_head(flow);
-		sch->qstats.backlog -= qdisc_pkt_len(skb);
+		q->backlogs[flow - q->flows] -= qdisc_pkt_len(skb);
 		sch->q.qlen--;
 	}
 	return skb;
@@ -256,7 +257,7 @@ begin:
 	prev_ecn_mark = q->cstats.ecn_mark;
 
 	skb = codel_dequeue(sch, &q->cparams, &flow->cvars, &q->cstats,
-			    dequeue, &q->backlogs[flow - q->flows]);
+			    dequeue);
 
 	flow->dropped += q->cstats.drop_count - prev_drop_count;
 	flow->dropped += q->cstats.ecn_mark - prev_ecn_mark;
