@@ -3359,11 +3359,14 @@ void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 				 const u8 *frame, size_t len,
 				 int freq, int sig_dbm, gfp_t gfp);
 
-/*
+/**
  * cfg80211_can_beacon_sec_chan - test if ht40 on extension channel can be used
  * @wiphy: the wiphy
  * @chan: main channel
  * @channel_type: HT mode
+ *
+ * This function returns true if there is no secondary channel or the secondary
+ * channel can be used for beaconing (i.e. is not a radar channel etc.)
  */
 bool cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
 				  struct ieee80211_channel *chan,

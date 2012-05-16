@@ -82,8 +82,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	local->oper_channel = chan;
 	channel_type = ifibss->channel_type;
-	if (channel_type > NL80211_CHAN_HT20 &&
-	    !cfg80211_can_beacon_sec_chan(local->hw.wiphy, chan, channel_type))
+	if (!cfg80211_can_beacon_sec_chan(local->hw.wiphy, chan, channel_type))
 		channel_type = NL80211_CHAN_HT20;
 	if (!ieee80211_set_channel_type(local, sdata, channel_type)) {
 		/* can only fail due to HT40+/- mismatch */
