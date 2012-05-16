@@ -656,8 +656,6 @@ static void prepare_write_keepalive(struct ceph_connection *con)
 static struct ceph_auth_handshake *get_connect_authorizer(struct ceph_connection *con,
 						int *auth_proto)
 {
-	void *auth_buf;
-	int auth_len;
 	struct ceph_auth_handshake *auth;
 
 	if (!con->ops->get_authorizer) {
@@ -680,15 +678,9 @@ static struct ceph_auth_handshake *get_connect_authorizer(struct ceph_connection
 	if (test_bit(CLOSED, &con->state) || test_bit(OPENING, &con->state))
 		return ERR_PTR(-EAGAIN);
 
-	auth_buf = auth->authorizer_buf;
-	auth_len = auth->authorizer_buf_len;
 	con->auth_reply_buf = auth->authorizer_reply_buf;
 	con->auth_reply_buf_len = auth->authorizer_reply_buf_len;
 
-	con->out_connect.authorizer_len = cpu_to_le32(auth_len);
-
-	if (auth_len)
-		ceph_con_out_kvec_add(con, auth_len, auth_buf);
 
 	return auth;
 }
@@ -737,12 +729,20 @@ static int prepare_write_connect(struct ceph_connection *con)
 	con->out_connect.protocol_version = cpu_to_le32(proto);
 	con->out_connect.flags = 0;
 
-	ceph_con_out_kvec_add(con, sizeof (con->out_connect), &con->out_connect);
 	auth_proto = CEPH_AUTH_UNKNOWN;
 	auth = get_connect_authorizer(con, &auth_proto);
 	if (IS_ERR(auth))
 		return PTR_ERR(auth);
+
 	con->out_connect.authorizer_protocol = cpu_to_le32(auth_proto);
+	con->out_connect.authorizer_len = auth ?
+		cpu_to_le32(auth->authorizer_buf_len) : 0;
+
+	ceph_con_out_kvec_add(con, sizeof (con->out_connect),
+					&con->out_connect);
+	if (auth && auth->authorizer_buf_len)
+		ceph_con_out_kvec_add(con, auth->authorizer_buf_len,
+					auth->authorizer_buf);
 
 	con->out_more = 0;
 	set_bit(WRITE_PENDING, &con->state);
