@@ -465,6 +465,8 @@ extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 /* asynchronous read support */
 struct cifs_readdata {
 	struct kref			refcount;
+	struct list_head		list;
+	struct completion		done;
 	struct cifsFileInfo		*cfile;
 	struct address_space		*mapping;
 	__u64				offset;
