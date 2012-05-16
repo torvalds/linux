@@ -860,20 +860,6 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl_vif *vif, u8 reason,
 		}
 	}
 
-	/*
-	 * Send a disconnect command to target when a disconnect event is
-	 * received with reason code other than 3 (DISCONNECT_CMD - disconnect
-	 * request from host) to make the firmware stop trying to connect even
-	 * after giving disconnect event. There will be one more disconnect
-	 * event for this disconnect command with reason code DISCONNECT_CMD
-	 * which will be notified to cfg80211.
-	 */
-
-	if (reason != DISCONNECT_CMD) {
-		ath6kl_wmi_disconnect_cmd(ar->wmi, vif->fw_vif_idx);
-		return;
-	}
-
 	clear_bit(CONNECT_PEND, &vif->flags);
 
 	if (vif->sme_state == SME_CONNECTING) {
@@ -883,11 +869,22 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl_vif *vif, u8 reason,
 					WLAN_STATUS_UNSPECIFIED_FAILURE,
 					GFP_KERNEL);
 	} else if (vif->sme_state == SME_CONNECTED) {
-		cfg80211_disconnected(vif->ndev, reason,
+		cfg80211_disconnected(vif->ndev, proto_reason,
 				      NULL, 0, GFP_KERNEL);
 	}
 
 	vif->sme_state = SME_DISCONNECTED;
+
+	/*
+	 * Send a disconnect command to target when a disconnect event is
+	 * received with reason code other than 3 (DISCONNECT_CMD - disconnect
+	 * request from host) to make the firmware stop trying to connect even
+	 * after giving disconnect event. There will be one more disconnect
+	 * event for this disconnect command with reason code DISCONNECT_CMD
+	 * which won't be notified to cfg80211.
+	 */
+	if (reason != DISCONNECT_CMD)
+		ath6kl_wmi_disconnect_cmd(ar->wmi, vif->fw_vif_idx);
 }
 
 static int ath6kl_set_probed_ssids(struct ath6kl *ar,
