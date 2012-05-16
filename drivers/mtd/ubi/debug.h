@@ -61,7 +61,7 @@ void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
 #define dbg_bld(fmt, ...) ubi_dbg_msg("bld", fmt, ##__VA_ARGS__)
 
 void ubi_dump_vol_info(const struct ubi_volume *vol);
-void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx);
+void ubi_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx);
 void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv);
 void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type);
 void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
@@ -196,7 +196,7 @@ static inline int ubi_dbg_is_erase_failure(const struct ubi_device *ubi)
 static inline void
 ubi_dump_vol_info(const struct ubi_volume *vol)                      { return; }
 static inline void
-ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)   { return; }
+ubi_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)       { return; }
 static inline void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv) { return; }
 static inline void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb,
 				    int type)                        { return; }

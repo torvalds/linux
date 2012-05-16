@@ -139,11 +139,11 @@ void ubi_dump_vol_info(const struct ubi_volume *vol)
 }
 
 /**
- * ubi_dbg_dump_vtbl_record - dump a &struct ubi_vtbl_record object.
+ * ubi_dump_vtbl_record - dump a &struct ubi_vtbl_record object.
  * @r: the object to dump
  * @idx: volume table index
  */
-void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
+void ubi_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
 {
 	int name_len = be16_to_cpu(r->name_len);
 

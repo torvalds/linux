@@ -197,7 +197,7 @@ static int vtbl_check(const struct ubi_device *ubi,
 		if (be32_to_cpu(vtbl[i].crc) != crc) {
 			ubi_err("bad CRC at record %u: %#08x, not %#08x",
 				 i, crc, be32_to_cpu(vtbl[i].crc));
-			ubi_dbg_dump_vtbl_record(&vtbl[i], i);
+			ubi_dump_vtbl_record(&vtbl[i], i);
 			return 1;
 		}
 
@@ -277,8 +277,8 @@ static int vtbl_check(const struct ubi_device *ubi,
 			    !strncmp(vtbl[i].name, vtbl[n].name, len1)) {
 				ubi_err("volumes %d and %d have the same name"
 					" \"%s\"", i, n, vtbl[i].name);
-				ubi_dbg_dump_vtbl_record(&vtbl[i], i);
-				ubi_dbg_dump_vtbl_record(&vtbl[n], n);
+				ubi_dump_vtbl_record(&vtbl[i], i);
+				ubi_dump_vtbl_record(&vtbl[n], n);
 				return -EINVAL;
 			}
 		}
@@ -288,7 +288,7 @@ static int vtbl_check(const struct ubi_device *ubi,
 
 bad:
 	ubi_err("volume table check failed: record %d, error %d", i, err);
-	ubi_dbg_dump_vtbl_record(&vtbl[i], i);
+	ubi_dump_vtbl_record(&vtbl[i], i);
 	return -EINVAL;
 }
 
