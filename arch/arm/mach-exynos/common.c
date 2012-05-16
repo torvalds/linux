@@ -568,7 +568,11 @@ void __init combiner_init(void __iomem *combiner_base, struct device_node *np)
 
 	for (i = 0; i < max_nr; i++) {
 		combiner_init_one(i, combiner_base + (i >> 2) * 0x10);
-		irq = np ? irq_of_parse_and_map(np, i) : IRQ_SPI(i);
+		irq = IRQ_SPI(i);
+#ifdef CONFIG_OF
+		if (np)
+			irq = irq_of_parse_and_map(np, i);
+#endif
 		combiner_cascade_irq(i, irq);
 	}
 }
