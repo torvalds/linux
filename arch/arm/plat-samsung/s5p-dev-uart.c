@@ -1,6 +1,5 @@
-/* linux/arch/arm/plat-s5p/dev-uart.c
- *
- * Copyright (c) 2009 Samsung Electronics Co., Ltd.
+/*
+ * Copyright (c) 2009,2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *
  * Base S5P UART resource and device definitions
@@ -14,6 +13,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/ioport.h>
 #include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
@@ -26,86 +26,38 @@
  /* Serial port registrations */
 
 static struct resource s5p_uart0_resource[] = {
-	[0] = {
-		.start	= S5P_PA_UART0,
-		.end	= S5P_PA_UART0 + S5P_SZ_UART - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_UART0,
-		.end	= IRQ_UART0,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(S5P_PA_UART0, S5P_SZ_UART),
+	[1] = DEFINE_RES_IRQ(IRQ_UART0),
 };
 
 static struct resource s5p_uart1_resource[] = {
-	[0] = {
-		.start	= S5P_PA_UART1,
-		.end	= S5P_PA_UART1 + S5P_SZ_UART - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_UART1,
-		.end	= IRQ_UART1,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(S5P_PA_UART1, S5P_SZ_UART),
+	[1] = DEFINE_RES_IRQ(IRQ_UART1),
 };
 
 static struct resource s5p_uart2_resource[] = {
-	[0] = {
-		.start	= S5P_PA_UART2,
-		.end	= S5P_PA_UART2 + S5P_SZ_UART - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_UART2,
-		.end	= IRQ_UART2,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(S5P_PA_UART2, S5P_SZ_UART),
+	[1] = DEFINE_RES_IRQ(IRQ_UART2),
 };
 
 static struct resource s5p_uart3_resource[] = {
 #if CONFIG_SERIAL_SAMSUNG_UARTS > 3
-	[0] = {
-		.start	= S5P_PA_UART3,
-		.end	= S5P_PA_UART3 + S5P_SZ_UART - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_UART3,
-		.end	= IRQ_UART3,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(S5P_PA_UART3, S5P_SZ_UART),
+	[1] = DEFINE_RES_IRQ(IRQ_UART3),
 #endif
 };
 
 static struct resource s5p_uart4_resource[] = {
 #if CONFIG_SERIAL_SAMSUNG_UARTS > 4
-	[0] = {
-		.start	= S5P_PA_UART4,
-		.end	= S5P_PA_UART4 + S5P_SZ_UART - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_UART4,
-		.end	= IRQ_UART4,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(S5P_PA_UART4, S5P_SZ_UART),
+	[1] = DEFINE_RES_IRQ(IRQ_UART4),
 #endif
 };
 
 static struct resource s5p_uart5_resource[] = {
 #if CONFIG_SERIAL_SAMSUNG_UARTS > 5
-	[0] = {
-		.start	= S5P_PA_UART5,
-		.end	= S5P_PA_UART5 + S5P_SZ_UART - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_UART5,
-		.end	= IRQ_UART5,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(S5P_PA_UART5, S5P_SZ_UART),
+	[1] = DEFINE_RES_IRQ(IRQ_UART5),
 #endif
 };
 

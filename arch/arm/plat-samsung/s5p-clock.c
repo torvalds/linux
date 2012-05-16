@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-s5p/clock.c
- *
+/*
  * Copyright 2009 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *
