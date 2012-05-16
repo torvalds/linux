@@ -40,9 +40,9 @@ QUICK_TRANSFER用于快速传输，同时可指定半双工或全双工，
 */
 
 //#define QUICK_TRANSFER         
-
 #if 0
 #define DBG   printk
+//#define PRINT_TRANS_DATA
 #else
 #define DBG(x...)
 #endif
@@ -129,6 +129,17 @@ void rk29_lcd_spim_spin_unlock(void)
 }
 #endif
 
+#if defined(PRINT_TRANS_DATA)
+static void printk_transfer_data(unsigned char *buf, int len)
+{
+	int i = 0;
+	for(i=0; i<len; i++)
+		printk("0x%x,",*buf++);
+
+	printk("\n");
+
+}
+#endif
 
 static void spi_dump_regs(struct rk29xx_spi *dws) {
 	DBG("MRST SPI0 registers:\n");
@@ -337,8 +348,10 @@ static int null_reader(struct rk29xx_spi *dws)
 
 static int u8_writer(struct rk29xx_spi *dws)
 {	
-	spi_dump_regs(dws);
+	//spi_dump_regs(dws)
+#if defined(PRINT_TRANS_DATA)
 	DBG("tx: 0x%02x\n", *(u8 *)(dws->tx));
+#endif
 	if ((rk29xx_readw(dws, SPIM_SR) & SR_TF_FULL)
 		|| (dws->tx == dws->tx_end))
 		return 0;
@@ -351,11 +364,13 @@ static int u8_writer(struct rk29xx_spi *dws)
 
 static int u8_reader(struct rk29xx_spi *dws)
 {
-    spi_dump_regs(dws);
+    //spi_dump_regs(dws);
 	while (!(rk29xx_readw(dws, SPIM_SR) & SR_RF_EMPT)
 		&& (dws->rx < dws->rx_end)) {
 		*(u8 *)(dws->rx) = rk29xx_readw(dws, SPIM_RXDR) & 0xFFU;
+#if defined(PRINT_TRANS_DATA)
 		DBG("rx: 0x%02x\n", *(u8 *)(dws->rx));
+#endif
 		++dws->rx;
 	}
 
@@ -364,7 +379,10 @@ static int u8_reader(struct rk29xx_spi *dws)
 }
 
 static int u16_writer(struct rk29xx_spi *dws)
-{
+{	
+#if defined(PRINT_TRANS_DATA)
+	DBG("tx: 0x%04x\n", *(u16 *)(dws->tx));
+#endif
 	if ((rk29xx_readw(dws, SPIM_SR) & SR_TF_FULL)
 		|| (dws->tx == dws->tx_end))
 		return 0;
@@ -384,7 +402,9 @@ static int u16_reader(struct rk29xx_spi *dws)
 		&& (dws->rx < dws->rx_end)) {
 		temp = rk29xx_readw(dws, SPIM_RXDR);
 		*(u16 *)(dws->rx) = temp;
-		//DBG("rx: 0x%04x\n", *(u16 *)(dws->rx));
+#if defined(PRINT_TRANS_DATA)
+		DBG("rx: 0x%04x\n", *(u16 *)(dws->rx));
+#endif
 		dws->rx += 2;
 	}
 
@@ -421,16 +441,29 @@ static void rk29_spi_dma_rxcb(void *buf_id,
 	if (res == RK29_RES_OK)
 		dws->state &= ~RXBUSY;
 	else
-		dev_err(&dws->master->dev, "DmaAbrtRx-%d, size: %d,res=%d\n", res, size,res);
+		dev_err(&dws->master->dev, "error:DmaAbrtRx-%d, size: %d,res=%d\n", res, size,res);
 
-	/* If the other done */
-	//if (!(dws->state & TXBUSY))
-	//	complete(&dws->rx_completion);
+	//copy data from dma to transfer buf
+	if(dws->cur_transfer && (dws->cur_transfer->rx_buf != NULL))
+	{
+		memcpy(dws->cur_transfer->rx_buf, dws->buffer_rx_dma, dws->cur_transfer->len);
+		
+		#if defined(PRINT_TRANS_DATA)
+		printk("dma rx:");
+		printk_transfer_data(dws->cur_transfer->rx_buf, dws->cur_transfer->len);
+		#endif
+	}
 	
 	spin_unlock_irqrestore(&dws->lock, flags);
 	
-	//DMA could not lose intterupt
-	transfer_complete(dws);
+	/* If the other done */
+	if (!(dws->state & TXBUSY))
+	{
+		//complete(&dws->xfer_completion);	
+		DBG("func: %s, line: %d,dma transfer complete\n", __FUNCTION__, __LINE__);
+		//DMA could not lose intterupt
+		transfer_complete(dws);
+	}
 
 }
 
@@ -447,16 +480,19 @@ static void rk29_spi_dma_txcb(void *buf_id,
 	if (res == RK29_RES_OK)
 		dws->state &= ~TXBUSY;
 	else
-		dev_err(&dws->master->dev, "DmaAbrtTx-%d, size: %d,res=%d \n", res, size,res);
-
-	/* If the other done */
-	//if (!(dws->state & RXBUSY)) 
-	//	complete(&dws->tx_completion);
+		dev_err(&dws->master->dev, "error:DmaAbrtTx-%d, size: %d,res=%d \n", res, size,res);
 
 	spin_unlock_irqrestore(&dws->lock, flags);
 	
-	//DMA could not lose intterupt
-	transfer_complete(dws);
+	/* If the other done */
+	if (!(dws->state & RXBUSY)) 
+	{
+		//complete(&dws->xfer_completion);
+		
+		DBG("func: %s, line: %d,dma transfer complete\n", __FUNCTION__, __LINE__);
+		//DMA could not lose intterupt
+		transfer_complete(dws);
+	}
 
 }
 
@@ -550,13 +586,6 @@ static int map_dma_buffers(struct rk29xx_spi *dws)
 	if(dws->cur_transfer->tx_buf)
 	{
 		memcpy(dws->buffer_tx_dma,dws->cur_transfer->tx_buf,dws->cur_transfer->len);
-		dws->cur_transfer->tx_buf = dws->buffer_tx_dma;	
-	}
-
-	if(dws->cur_transfer->rx_buf)
-	{
-		//memcpy(dws->buffer_rx_dma,dws->cur_transfer->rx_buf,dws->cur_transfer->len);
-		dws->cur_transfer->rx_buf = dws->buffer_rx_dma;	
 	}
 	
 	dws->cur_transfer->tx_dma = dws->tx_dma;
@@ -581,7 +610,7 @@ static void giveback(struct rk29xx_spi *dws)
 	dws->dma_mapped = 0;
 	
 	/*it is important to close intterrupt*/
-	spi_umask_intr(dws, 0);
+	spi_mask_intr(dws, 0xff);
 	rk29xx_writew(dws, SPIM_DMACR, 0);
 	
 	queue_work(dws->workqueue, &dws->pump_messages);
@@ -597,6 +626,8 @@ static void giveback(struct rk29xx_spi *dws)
 	msg->state = NULL;
 	if (msg->complete)
 		msg->complete(msg->context);
+
+	DBG("%s ok\n",__func__);
 
 }
 
@@ -701,7 +732,9 @@ static irqreturn_t rk29xx_spi_irq(int irq, void *dev_id)
 /* Must be called inside pump_transfers() */
 static void poll_transfer(struct rk29xx_spi *dws)
 {
+#if defined(PRINT_TRANS_DATA)
 	DBG("%s\n",__func__);
+#endif
 	while (dws->write(dws)) {
 		wait_till_not_busy(dws);
 		dws->read(dws);
@@ -797,7 +830,7 @@ static void pump_transfers(unsigned long data)
 		if (transfer->speed_hz != speed) {
 			speed = transfer->speed_hz;
 			if (speed > clk_get_rate(dws->clock_spim)) {
-				dev_err(&dws->master->dev, "MRST SPI0: unsupported"
+				dev_err(&dws->master->dev, "MRST SPI0: unsupported "
 					"freq: %dHz\n", speed);
 				message->status = -EIO;
 				goto early_exit;
@@ -862,7 +895,8 @@ static void pump_transfers(unsigned long data)
 		else
 			chip->tmode = SPI_TMOD_TO;
 
-		cr0 &= ~(0x3 << SPI_MODE_OFFSET);
+		cr0 &= ~(0x3 << SPI_MODE_OFFSET);		
+		cr0 &= ~(0x3 << SPI_TMOD_OFFSET);
 		cr0 |= (chip->tmode << SPI_TMOD_OFFSET);
 	} 
 
@@ -894,10 +928,10 @@ static void pump_transfers(unsigned long data)
 	 *	2. clk_div is changed
 	 *	3. control value changes
 	 */
-	if (rk29xx_readw(dws, SPIM_CTRLR0) != cr0 || cs_change || clk_div || imask) {
+	if ((rk29xx_readl(dws, SPIM_CTRLR0) != cr0) || cs_change || clk_div || imask) {
 		spi_enable_chip(dws, 0);
-		if (rk29xx_readw(dws, SPIM_CTRLR0) != cr0)
-			rk29xx_writew(dws, SPIM_CTRLR0, cr0);
+		if (rk29xx_readl(dws, SPIM_CTRLR0) != cr0)
+			rk29xx_writel(dws, SPIM_CTRLR0, cr0);
 
 		spi_set_clk(dws, clk_div ? clk_div : chip->clk_div);		
 		spi_chip_sel(dws, spi->chip_select);
@@ -1012,7 +1046,7 @@ static void dma_transfer(struct rk29xx_spi *dws)
 		if (transfer->speed_hz != speed) {
 			speed = transfer->speed_hz;
 			if (speed > clk_get_rate(dws->clock_spim)) {
-				dev_err(&dws->master->dev, "MRST SPI0: unsupported"
+				dev_err(&dws->master->dev, "MRST SPI0: unsupported "
 					"freq: %dHz\n", speed);
 				message->status = -EIO;
 				goto err_out;
@@ -1071,6 +1105,7 @@ static void dma_transfer(struct rk29xx_spi *dws)
 			chip->tmode = SPI_TMOD_TO;
 
 		cr0 &= ~(0x3 << SPI_MODE_OFFSET);
+		cr0 &= ~(0x3 << SPI_TMOD_OFFSET);
 		cr0 |= (chip->tmode << SPI_TMOD_OFFSET);
 	}
 
@@ -1080,12 +1115,11 @@ static void dma_transfer(struct rk29xx_spi *dws)
 	 *	2. clk_div is changed
 	 *	3. control value changes
 	 */
-	if (rk29xx_readw(dws, SPIM_CTRLR0) != cr0 || cs_change || clk_div) {
+	if ((rk29xx_readl(dws, SPIM_CTRLR0) != cr0) || cs_change || clk_div) {
 		spi_enable_chip(dws, 0);
-		if (rk29xx_readw(dws, SPIM_CTRLR0) != cr0) {
-			rk29xx_writew(dws, SPIM_CTRLR0, cr0);
+		if (rk29xx_readl(dws, SPIM_CTRLR0) != cr0) {
+			rk29xx_writel(dws, SPIM_CTRLR0, cr0);
 		}
-
 		spi_set_clk(dws, clk_div ? clk_div : chip->clk_div);		
 		spi_chip_sel(dws, spi->chip_select);
 		/* Set the interrupt mask, for poll mode just diable all int */
@@ -1098,7 +1132,7 @@ static void dma_transfer(struct rk29xx_spi *dws)
 		if (transfer->rx_buf != NULL) {
 			dmacr |= SPI_DMACR_RX_ENABLE;
 			rk29xx_writew(dws, SPIM_DMARDLR, 0);
-			rk29xx_writew(dws, SPIM_CTRLR1, transfer->len-1);
+			rk29xx_writew(dws, SPIM_CTRLR1, transfer->len-1);	
 		}
 		rk29xx_writew(dws, SPIM_DMACR, dmacr);
 		spi_enable_chip(dws, 1);
@@ -1108,10 +1142,22 @@ static void dma_transfer(struct rk29xx_spi *dws)
 
 	//INIT_COMPLETION(dws->xfer_completion);
 
-	spi_dump_regs(dws);
-	DBG("dws->tx_dmach: %d, dws->rx_dmach: %d, transfer->tx_dma: 0x%x\n", dws->tx_dmach, dws->rx_dmach, (unsigned int)transfer->tx_dma);
-	if (transfer->tx_buf != NULL) {
-		dws->state |= TXBUSY;
+	//spi_dump_regs(dws);
+	
+	DBG("dws->tx_dmach: %d, dws->rx_dmach: %d, dws->tx_dma: 0x%x,dws->rx_dma: 0x%x\n", dws->tx_dmach, dws->rx_dmach, (unsigned int)dws->tx_dma,(unsigned int)dws->rx_dma);	
+	DBG("dws->buffer_tx_dma: 0x%p, dws->buffer_rx_dma: 0x%p,dws->dma_width=%d\n", dws->buffer_tx_dma, dws->buffer_rx_dma,dws->dma_width);	
+
+	if (transfer->tx_buf != NULL)		
+		dws->state |= TXBUSY;	
+	if (transfer->rx_buf != NULL) 
+		dws->state |= RXBUSY;
+
+	if (transfer->tx_buf != NULL) {	
+		DBG("%s:start dma tx,dws->state=0x%x\n",__func__,dws->state);
+		#if defined(PRINT_TRANS_DATA)
+		printk("dma tx:");
+		printk_transfer_data(dws->buffer_tx_dma, dws->cur_transfer->len);
+		#endif
 		/*if (transfer->len & 0x3) {
 			burst = 1;
 		}
@@ -1119,7 +1165,7 @@ static void dma_transfer(struct rk29xx_spi *dws)
 			burst = 4;
 		}
 		if (rk29_dma_config(dws->tx_dmach, burst)) {*/
-		if (rk29_dma_config(dws->tx_dmach, 1, 1)) {//there is not dma burst but bitwide, set it 1 alwayss
+		if (rk29_dma_config(dws->tx_dmach, dws->dma_width, 1)) {//there is not dma burst but bitwide, set it 1 alwayss
 			dev_err(&dws->master->dev, "function: %s, line: %d\n", __FUNCTION__, __LINE__);
 			goto err_out;
 		}
@@ -1127,7 +1173,7 @@ static void dma_transfer(struct rk29xx_spi *dws)
 		rk29_dma_ctrl(dws->tx_dmach, RK29_DMAOP_FLUSH);	
 		
 		iRet = rk29_dma_enqueue(dws->tx_dmach, (void *)dws,
-					transfer->tx_dma, transfer->len);
+					dws->tx_dma, transfer->len);
 		if (iRet) {
 			dev_err(&dws->master->dev, "function: %s, line: %d, iRet: %d(dws->tx_dmach: %d, transfer->tx_dma: 0x%x)\n", __FUNCTION__, __LINE__, iRet, 
 				dws->tx_dmach, (unsigned int)transfer->tx_dma);
@@ -1142,9 +1188,9 @@ static void dma_transfer(struct rk29xx_spi *dws)
 
 	//wait_till_not_busy(dws);
 	
-	if (transfer->rx_buf != NULL) {
-		dws->state |= RXBUSY;
-		if (rk29_dma_config(dws->rx_dmach, 1, 1)) {
+	if (transfer->rx_buf != NULL) {			
+		DBG("%s:start dma rx,dws->state=0x%x\n",__func__,dws->state);
+		if (rk29_dma_config(dws->rx_dmach, dws->dma_width, 1)) {
 			dev_err(&dws->master->dev, "function: %s, line: %d\n", __FUNCTION__, __LINE__);
 			goto err_out;
 		}
@@ -1152,7 +1198,7 @@ static void dma_transfer(struct rk29xx_spi *dws)
 		rk29_dma_ctrl(dws->rx_dmach, RK29_DMAOP_FLUSH);	
 		
 		iRet = rk29_dma_enqueue(dws->rx_dmach, (void *)dws,
-					transfer->rx_dma, transfer->len);
+					dws->rx_dma, transfer->len);
 		if (iRet) {
 			dev_err(&dws->master->dev, "function: %s, line: %d\n", __FUNCTION__, __LINE__);
 			goto err_out;
@@ -1163,6 +1209,8 @@ static void dma_transfer(struct rk29xx_spi *dws)
 			goto err_out;
 		}
 	}
+	
+	//wait_till_not_busy(dws);
 	
 	return;
 
@@ -1178,21 +1226,21 @@ static void pump_messages(struct work_struct *work)
 		container_of(work, struct rk29xx_spi, pump_messages);
 	unsigned long flags;
 
-	DBG(KERN_INFO "pump_messages\n");
+	DBG(KERN_INFO "pump_messages,line=%d\n",__LINE__);
 	
 	/* Lock queue and check for queue work */
 	spin_lock_irqsave(&dws->lock, flags);
 	if (list_empty(&dws->queue) || dws->run == QUEUE_STOPPED) {
 		dws->busy = 0;
 		spin_unlock_irqrestore(&dws->lock, flags);
-		mutex_unlock(&dws->dma_lock);
+		DBG("%s:line=%d,list_empty\n",__func__,__LINE__);
 		return;
 	}
 
 	/* Make sure we are not already running a message */
 	if (dws->cur_msg) {
-		spin_unlock_irqrestore(&dws->lock, flags);
-		mutex_unlock(&dws->dma_lock);
+		spin_unlock_irqrestore(&dws->lock, flags);		
+		DBG("%s:line=%d,dws->cur_msg\n",__func__,__LINE__);
 		return;
 	}
 
@@ -1208,6 +1256,7 @@ static void pump_messages(struct work_struct *work)
 	dws->cur_chip = spi_get_ctldata(dws->cur_msg->spi);
     	dws->prev_chip = NULL; //每个pump message时强制更新cs dxj
 
+	
 	/* Mark as busy and launch transfers */
 	tasklet_schedule(&dws->pump_transfers);
 	dws->busy = 1;
@@ -1491,8 +1540,8 @@ static int rk29xx_pump_transfers(struct rk29xx_spi *dws, int mode)
 	 *	3. control value changes
 	 */
 	spi_enable_chip(dws, 0);
-	if (rk29xx_readw(dws, SPIM_CTRLR0) != cr0)
-		rk29xx_writew(dws, SPIM_CTRLR0, cr0);
+	if (rk29xx_readl(dws, SPIM_CTRLR0) != cr0)
+		rk29xx_writel(dws, SPIM_CTRLR0, cr0);
 
     DBG(KERN_INFO "clk_div: 0x%x, chip->clk_div: 0x%x\n", clk_div, chip->clk_div);
 	spi_set_clk(dws, clk_div ? clk_div : chip->clk_div);		
@@ -1912,6 +1961,9 @@ static int __init rk29xx_spim_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "clk_get for spi fail(%p)\n", dws->clock_spim);
 		return PTR_ERR(dws->clock_spim);
 	}
+
+	dws->pclk = clk_get(&pdev->dev, "pclk_spi");
+	clk_enable(dws->pclk);
 	
 	mutex_init(&dws->dma_lock);
 	
@@ -2017,8 +2069,11 @@ static void __exit rk29xx_spim_remove(struct platform_device *pdev)
 	if (status != 0)
 		dev_err(&dws->master->dev, "rk29xx_spi_remove: workqueue will not "
 			"complete, message memory not freed\n");
-	clk_put(dws->clock_spim);
+	
 	clk_disable(dws->clock_spim);
+	clk_put(dws->clock_spim);
+	clk_disable(dws->pclk);
+	clk_put(dws->pclk);
 	spi_enable_chip(dws, 0);
 	/* Disable clk */
 	spi_set_clk(dws, 0);
@@ -2048,6 +2103,7 @@ static int rk29xx_spim_suspend(struct platform_device *pdev, pm_message_t mesg)
  	{
 		pdata->io_fix_leakage_bug( );
 	}
+	clk_disable(dws->pclk);
 	return 0;
 }
 
@@ -2057,7 +2113,8 @@ static int rk29xx_spim_resume(struct platform_device *pdev)
 	struct rk29xx_spi *dws = spi_master_get_devdata(master);
 	struct rk29xx_spi_platform_data *pdata = pdev->dev.platform_data;
 	int ret;
-	
+
+	clk_enable(dws->pclk);
 	clk_enable(dws->clock_spim);	
 	spi_hw_init(dws);
 	ret = start_queue(dws);

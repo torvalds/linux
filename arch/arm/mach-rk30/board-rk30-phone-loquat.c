@@ -781,7 +781,7 @@ static struct plat_sc8800 sc8800_plat_data = {
 };
 static struct rk29xx_spi_chip sc8800_spi_chip = {
 	//.poll_mode = 1,
-	.enable_dma = 0,
+	.enable_dma = 1,
 };
 
 #endif

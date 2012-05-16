@@ -132,6 +132,7 @@ struct rk29xx_spi {
 	u32         irq_polarity;
 	u32			fifo_len;	/* depth of the FIFO buffer */
 	struct clk		*clock_spim;	/* clk apb */
+	struct clk		*pclk;
 	struct platform_device	*pdev;
 	
 	/* Driver message queue */
