@@ -37,7 +37,6 @@
 #include <linux/netdevice.h>
 #include <linux/hwmon.h>
 
-#ifdef CONFIG_IXGBE_HWMON
 /* hwmon callback functions */
 static ssize_t ixgbe_hwmon_show_location(struct device *dev,
 					 struct device_attribute *attr,
@@ -241,5 +240,4 @@ err:
 exit:
 	return rc;
 }
-#endif /* CONFIG_IXGBE_HWMON */
 
