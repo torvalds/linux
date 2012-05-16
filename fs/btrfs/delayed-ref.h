@@ -195,11 +195,6 @@ int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
 int btrfs_find_ref_cluster(struct btrfs_trans_handle *trans,
 			   struct list_head *cluster, u64 search_start);
 
-struct seq_list {
-	struct list_head list;
-	u64 seq;
-};
-
 static inline u64 inc_delayed_seq(struct btrfs_delayed_ref_root *delayed_refs)
 {
 	assert_spin_locked(&delayed_refs->lock);

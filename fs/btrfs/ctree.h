@@ -3098,4 +3098,11 @@ void btrfs_reada_detach(void *handle);
 int btree_readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 			 u64 start, int err);
 
+/* delayed seq elem */
+struct seq_list {
+	struct list_head list;
+	u64 seq;
+	u32 flags;
+};
+
 #endif
