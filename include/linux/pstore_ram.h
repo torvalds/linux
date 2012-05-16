@@ -1,5 +1,5 @@
-#ifndef __RAMOOPS_H
-#define __RAMOOPS_H
+#ifndef __LINUX_PSTORE_RAM_H__
+#define __LINUX_PSTORE_RAM_H__
 
 /*
  * Ramoops platform data

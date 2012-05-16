@@ -5,3 +5,6 @@
 obj-y += pstore.o
 
 pstore-objs += inode.o platform.o
+
+ramoops-objs += ram.o
+obj-$(CONFIG_PSTORE_RAM)	+= ramoops.o

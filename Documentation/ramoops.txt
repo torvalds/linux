@@ -38,7 +38,7 @@ Setting the ramoops parameters can be done in 2 different manners:
  2. Use a platform device and set the platform data. The parameters can then
  be set through that platform data. An example of doing that is:
 
-#include <linux/ramoops.h>
+#include <linux/pstore_ram.h>
 [...]
 
 static struct ramoops_platform_data ramoops_data = {

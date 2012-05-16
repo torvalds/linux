@@ -585,15 +585,6 @@ config DEVPORT
 
 source "drivers/s390/char/Kconfig"
 
-config RAMOOPS
-	tristate "Log panic/oops to a RAM buffer"
-	depends on HAS_IOMEM
-	depends on PSTORE
-	default n
-	help
-	  This enables panic and oops messages to be logged to a circular
-	  buffer in RAM where it can be read back at some later point.
-
 config MSM_SMD_PKT
 	bool "Enable device interface for some SMD packet ports"
 	default n
