@@ -1258,13 +1258,9 @@ static int dma_set_runtime_config(struct dma_chan *chan,
 	cctl |= burst << PL080_CONTROL_DB_SIZE_SHIFT;
 
 	if (plchan->runtime_direction == DMA_DEV_TO_MEM) {
-		plchan->src_cctl = pl08x_cctl(cctl) | PL080_CONTROL_DST_INCR |
-			pl08x_select_bus(plchan->cd->periph_buses,
-					 pl08x->mem_buses);
+		plchan->src_cctl = pl08x_cctl(cctl);
 	} else {
-		plchan->dst_cctl = pl08x_cctl(cctl) | PL080_CONTROL_SRC_INCR |
-			pl08x_select_bus(pl08x->mem_buses,
-					 plchan->cd->periph_buses);
+		plchan->dst_cctl = pl08x_cctl(cctl);
 	}
 
 	dev_dbg(&pl08x->adev->dev,
@@ -1451,6 +1447,8 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	struct scatterlist *sg;
 	dma_addr_t slave_addr;
 	int ret, tmp;
+	u8 src_buses, dst_buses;
+	u32 cctl;
 
 	dev_dbg(&pl08x->adev->dev, "%s prepare transaction of %d bytes from %s\n",
 			__func__, sg_dma_len(sgl), plchan->name);
@@ -1474,17 +1472,23 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	txd->direction = direction;
 
 	if (direction == DMA_MEM_TO_DEV) {
-		txd->cctl = plchan->dst_cctl;
+		cctl = plchan->dst_cctl | PL080_CONTROL_SRC_INCR;
 		slave_addr = plchan->cfg.dst_addr;
+		src_buses = pl08x->mem_buses;
+		dst_buses = plchan->cd->periph_buses;
 	} else if (direction == DMA_DEV_TO_MEM) {
-		txd->cctl = plchan->src_cctl;
+		cctl = plchan->src_cctl | PL080_CONTROL_DST_INCR;
 		slave_addr = plchan->cfg.src_addr;
+		src_buses = plchan->cd->periph_buses;
+		dst_buses = pl08x->mem_buses;
 	} else {
 		pl08x_free_txd(pl08x, txd);
 		dev_err(&pl08x->adev->dev,
 			"%s direction unsupported\n", __func__);
 		return NULL;
 	}
+
+	txd->cctl = cctl | pl08x_select_bus(src_buses, dst_buses);
 
 	if (plchan->cfg.device_fc)
 		tmp = (direction == DMA_MEM_TO_DEV) ? PL080_FLOW_MEM2PER_PER :
@@ -1785,10 +1789,8 @@ static void pl08x_dma_slave_init(struct pl08x_dma_chan *chan)
 	chan->name = chan->cd->bus_id;
 	chan->cfg.src_addr = chan->cd->addr;
 	chan->cfg.dst_addr = chan->cd->addr;
-	chan->src_cctl = cctl | PL080_CONTROL_DST_INCR |
-		pl08x_select_bus(chan->cd->periph_buses, chan->host->mem_buses);
-	chan->dst_cctl = cctl | PL080_CONTROL_SRC_INCR |
-		pl08x_select_bus(chan->host->mem_buses, chan->cd->periph_buses);
+	chan->src_cctl = cctl;
+	chan->dst_cctl = cctl;
 }
 
 /*
