@@ -921,7 +921,11 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		if (nla_put_u32(msg, i, NL80211_CMD_SET_WIPHY_NETNS))
 			goto nla_put_failure;
 	}
-	CMD(set_channel, SET_CHANNEL);
+	if (dev->ops->set_channel || dev->ops->start_ap) {
+		i++;
+		if (nla_put_u32(msg, i, NL80211_CMD_SET_CHANNEL))
+			goto nla_put_failure;
+	}
 	CMD(set_wds_peer, SET_WDS_PEER);
 	if (dev->wiphy.flags & WIPHY_FLAG_SUPPORTS_TDLS) {
 		CMD(tdls_mgmt, TDLS_MGMT);
@@ -1170,6 +1174,9 @@ static bool nl80211_can_set_dev_channel(struct wireless_dev *wdev)
 	 * Monitors are special as they are normally slaved to
 	 * whatever else is going on, so they behave as though
 	 * you tried setting the wiphy channel itself.
+	 *
+	 * For AP/GO modes, it's only for compatibility, you can
+	 * also give the channel to the start-AP command.
 	 */
 	return !wdev ||
 		wdev->iftype == NL80211_IFTYPE_AP ||
@@ -1204,6 +1211,7 @@ static int __nl80211_set_channel(struct cfg80211_registered_device *rdev,
 				 struct wireless_dev *wdev,
 				 struct genl_info *info)
 {
+	struct ieee80211_channel *channel;
 	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 	u32 freq;
 	int result;
@@ -1221,7 +1229,25 @@ static int __nl80211_set_channel(struct cfg80211_registered_device *rdev,
 	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
 
 	mutex_lock(&rdev->devlist_mtx);
-	if (wdev) {
+	if (wdev) switch (wdev->iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+		if (wdev->beacon_interval) {
+			result = -EBUSY;
+			break;
+		}
+		channel = rdev_freq_to_chan(rdev, freq, channel_type);
+		if (!channel || !cfg80211_can_beacon_sec_chan(&rdev->wiphy,
+							      channel,
+							      channel_type)) {
+			result = -EINVAL;
+			break;
+		}
+		wdev->preset_chan = channel;
+		wdev->preset_chantype = channel_type;
+		result = 0;
+		break;
+	default:
 		wdev_lock(wdev);
 		result = cfg80211_set_freq(rdev, wdev, freq, channel_type);
 		wdev_unlock(wdev);
@@ -2298,6 +2324,29 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 		params.inactivity_timeout = nla_get_u16(
 			info->attrs[NL80211_ATTR_INACTIVITY_TIMEOUT]);
 	}
+
+	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
+		enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
+
+		if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE] &&
+		    !nl80211_valid_channel_type(info, &channel_type))
+			return -EINVAL;
+
+		params.channel = rdev_freq_to_chan(rdev,
+			nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]),
+			channel_type);
+		if (!params.channel)
+			return -EINVAL;
+		params.channel_type = channel_type;
+	} else if (wdev->preset_chan) {
+		params.channel = wdev->preset_chan;
+		params.channel_type = wdev->preset_chantype;
+	} else
+		return -EINVAL;
+
+	if (!cfg80211_can_beacon_sec_chan(&rdev->wiphy, params.channel,
+					  params.channel_type))
+		return -EINVAL;
 
 	err = rdev->ops->start_ap(&rdev->wiphy, dev, &params);
 	if (!err)

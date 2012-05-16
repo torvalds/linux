@@ -823,6 +823,11 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (old)
 		return -EALREADY;
 
+	err = ieee80211_set_channel(wiphy, dev, params->channel,
+				    params->channel_type);
+	if (err)
+		return err;
+
 	/*
 	 * Apply control port protocol, this allows us to
 	 * not encrypt dynamic WEP control frames.
