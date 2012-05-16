@@ -23,6 +23,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/err.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
@@ -138,7 +139,7 @@ static irqreturn_t twl6040_irq_thread(int irq, void *data)
 
 int twl6040_irq_init(struct twl6040 *twl6040)
 {
-	int i, nr_irqs, ret;
+	int i, nr_irqs, irq_base, ret;
 	u8 val;
 
 	mutex_init(&twl6040->irq_mutex);
@@ -149,8 +150,16 @@ int twl6040_irq_init(struct twl6040 *twl6040)
 	twl6040_reg_write(twl6040, TWL6040_REG_INTMR, TWL6040_ALLINT_MSK);
 
 	nr_irqs = ARRAY_SIZE(twl6040_irqs);
+
+	irq_base = irq_alloc_descs(-1, 0, nr_irqs, 0);
+	if (IS_ERR_VALUE(irq_base)) {
+		dev_err(twl6040->dev, "Fail to allocate IRQ descs\n");
+		return irq_base;
+	}
+	twl6040->irq_base = irq_base;
+
 	/* Register them with genirq */
-	for (i = twl6040->irq_base; i < twl6040->irq_base + nr_irqs; i++) {
+	for (i = irq_base; i < irq_base + nr_irqs; i++) {
 		irq_set_chip_data(i, twl6040);
 		irq_set_chip_and_handler(i, &twl6040_irq_chip,
 					 handle_level_irq);

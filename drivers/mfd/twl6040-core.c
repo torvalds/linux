@@ -515,7 +515,7 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 	}
 
 	/* In order to operate correctly we need valid interrupt config */
-	if (!client->irq || !pdata->irq_base) {
+	if (!client->irq) {
 		dev_err(&client->dev, "Invalid IRQ configuration\n");
 		return -EINVAL;
 	}
@@ -552,7 +552,6 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 
 	twl6040->dev = &client->dev;
 	twl6040->irq = client->irq;
-	twl6040->irq_base = pdata->irq_base;
 
 	mutex_init(&twl6040->mutex);
 	mutex_init(&twl6040->io_mutex);
