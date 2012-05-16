@@ -464,6 +464,7 @@ extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 
 /* asynchronous read support */
 struct cifs_readdata {
+	struct kref			refcount;
 	struct cifsFileInfo		*cfile;
 	struct address_space		*mapping;
 	__u64				offset;
@@ -478,6 +479,7 @@ struct cifs_readdata {
 	struct kvec			iov[1];
 };
 
+void cifs_readdata_release(struct kref *refcount);
 int cifs_async_readv(struct cifs_readdata *rdata);
 
 /* asynchronous write support */

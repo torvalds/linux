@@ -1635,12 +1635,15 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	rdata->iov[0].iov_base = smb;
 	rdata->iov[0].iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
 
+	kref_get(&rdata->refcount);
 	rc = cifs_call_async(tcon->ses->server, rdata->iov, 1,
 			     cifs_readv_receive, cifs_readv_callback,
 			     rdata, false);
 
 	if (rc == 0)
 		cifs_stats_inc(&tcon->num_reads);
+	else
+		kref_put(&rdata->refcount, cifs_readdata_release);
 
 	cifs_small_buf_release(smb);
 	return rc;

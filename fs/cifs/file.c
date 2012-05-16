@@ -2347,16 +2347,22 @@ cifs_readdata_alloc(unsigned int nr_vecs, work_func_t complete)
 	rdata = kzalloc(sizeof(*rdata) +
 			sizeof(struct kvec) * nr_vecs, GFP_KERNEL);
 	if (rdata != NULL) {
+		kref_init(&rdata->refcount);
 		INIT_WORK(&rdata->work, complete);
 		INIT_LIST_HEAD(&rdata->pages);
 	}
 	return rdata;
 }
 
-static void
-cifs_readdata_free(struct cifs_readdata *rdata)
+void
+cifs_readdata_release(struct kref *refcount)
 {
-	cifsFileInfo_put(rdata->cfile);
+	struct cifs_readdata *rdata = container_of(refcount,
+					struct cifs_readdata, refcount);
+
+	if (rdata->cfile)
+		cifsFileInfo_put(rdata->cfile);
+
 	kfree(rdata);
 }
 
@@ -2651,7 +2657,7 @@ cifs_readv_complete(struct work_struct *work)
 
 		page_cache_release(page);
 	}
-	cifs_readdata_free(rdata);
+	kref_put(&rdata->refcount, cifs_readdata_release);
 }
 
 static int
@@ -2837,9 +2843,8 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		}
 
 		spin_lock(&cifs_file_list_lock);
-		cifsFileInfo_get(open_file);
 		spin_unlock(&cifs_file_list_lock);
-		rdata->cfile = open_file;
+		rdata->cfile = cifsFileInfo_get(open_file);
 		rdata->mapping = mapping;
 		rdata->offset = offset;
 		rdata->bytes = bytes;
@@ -2864,9 +2869,11 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 				unlock_page(page);
 				page_cache_release(page);
 			}
-			cifs_readdata_free(rdata);
+			kref_put(&rdata->refcount, cifs_readdata_release);
 			break;
 		}
+
+		kref_put(&rdata->refcount, cifs_readdata_release);
 	}
 
 	return rc;
