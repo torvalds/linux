@@ -1436,13 +1436,10 @@ static int
 cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
 	int length, len;
-	unsigned int data_offset, remaining, data_len;
+	unsigned int data_offset, data_len;
 	struct cifs_readdata *rdata = mid->callback_data;
 	char *buf = server->smallbuf;
 	unsigned int buflen = get_rfc1002_length(buf) + 4;
-	u64 eof;
-	pgoff_t eof_index;
-	struct page *page, *tpage;
 
 	cFYI(1, "%s: mid=%llu offset=%llu bytes=%u", __func__,
 		mid->mid, rdata->offset, rdata->bytes);
@@ -1525,64 +1522,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	}
 
 	/* marshal up the page array */
-	len = 0;
-	remaining = data_len;
-	rdata->nr_iov = 1;
-
-	/* determine the eof that the server (probably) has */
-	eof = CIFS_I(rdata->mapping->host)->server_eof;
-	eof_index = eof ? (eof - 1) >> PAGE_CACHE_SHIFT : 0;
-	cFYI(1, "eof=%llu eof_index=%lu", eof, eof_index);
-
-	list_for_each_entry_safe(page, tpage, &rdata->pages, lru) {
-		if (remaining >= PAGE_CACHE_SIZE) {
-			/* enough data to fill the page */
-			rdata->iov[rdata->nr_iov].iov_base = kmap(page);
-			rdata->iov[rdata->nr_iov].iov_len = PAGE_CACHE_SIZE;
-			cFYI(1, "%u: idx=%lu iov_base=%p iov_len=%zu",
-				rdata->nr_iov, page->index,
-				rdata->iov[rdata->nr_iov].iov_base,
-				rdata->iov[rdata->nr_iov].iov_len);
-			++rdata->nr_iov;
-			len += PAGE_CACHE_SIZE;
-			remaining -= PAGE_CACHE_SIZE;
-		} else if (remaining > 0) {
-			/* enough for partial page, fill and zero the rest */
-			rdata->iov[rdata->nr_iov].iov_base = kmap(page);
-			rdata->iov[rdata->nr_iov].iov_len = remaining;
-			cFYI(1, "%u: idx=%lu iov_base=%p iov_len=%zu",
-				rdata->nr_iov, page->index,
-				rdata->iov[rdata->nr_iov].iov_base,
-				rdata->iov[rdata->nr_iov].iov_len);
-			memset(rdata->iov[rdata->nr_iov].iov_base + remaining,
-				'\0', PAGE_CACHE_SIZE - remaining);
-			++rdata->nr_iov;
-			len += remaining;
-			remaining = 0;
-		} else if (page->index > eof_index) {
-			/*
-			 * The VFS will not try to do readahead past the
-			 * i_size, but it's possible that we have outstanding
-			 * writes with gaps in the middle and the i_size hasn't
-			 * caught up yet. Populate those with zeroed out pages
-			 * to prevent the VFS from repeatedly attempting to
-			 * fill them until the writes are flushed.
-			 */
-			zero_user(page, 0, PAGE_CACHE_SIZE);
-			list_del(&page->lru);
-			lru_cache_add_file(page);
-			flush_dcache_page(page);
-			SetPageUptodate(page);
-			unlock_page(page);
-			page_cache_release(page);
-		} else {
-			/* no need to hold page hostage */
-			list_del(&page->lru);
-			lru_cache_add_file(page);
-			unlock_page(page);
-			page_cache_release(page);
-		}
-	}
+	len = rdata->marshal_iov(rdata, data_len);
+	data_len -= len;
 
 	/* issue the read if we have any iovecs left to fill */
 	if (rdata->nr_iov > 1) {
@@ -1598,7 +1539,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	rdata->bytes = length;
 
 	cFYI(1, "total_read=%u buflen=%u remaining=%u", server->total_read,
-		buflen, remaining);
+		buflen, data_len);
 
 	/* discard anything left over */
 	if (server->total_read < buflen)
