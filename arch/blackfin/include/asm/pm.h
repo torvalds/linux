@@ -9,7 +9,6 @@
 #ifndef __PM_H__
 #define __PM_H__
 
-#include <mach/pm.h>
 #include <linux/suspend.h>
 
 struct bfin_cpu_pm_fns {

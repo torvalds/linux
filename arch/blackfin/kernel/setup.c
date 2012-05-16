@@ -32,6 +32,9 @@
 #include <asm/early_printk.h>
 #include <asm/irq_handler.h>
 #include <asm/pda.h>
+#ifdef CONFIG_BF60x
+#include <mach/pm.h>
+#endif
 
 u16 _bfin_swrst;
 EXPORT_SYMBOL(_bfin_swrst);
