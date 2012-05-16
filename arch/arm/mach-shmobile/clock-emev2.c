@@ -40,6 +40,7 @@
 #define USIB2SCLKDIV 0x65c
 #define USIB3SCLKDIV 0x660
 #define STI_CLKSEL 0x688
+#define SMU_GENERAL_REG0 0x7c0
 
 /* not pretty, but hey */
 static void __iomem *smu_base;
@@ -48,6 +49,11 @@ static void emev2_smu_write(unsigned long value, int offs)
 {
 	BUG_ON(!smu_base || (offs >= PAGE_SIZE));
 	iowrite32(value, smu_base + offs);
+}
+
+void emev2_set_boot_vector(unsigned long value)
+{
+	emev2_smu_write(value, SMU_GENERAL_REG0);
 }
 
 static struct clk_mapping smu_mapping = {
@@ -194,6 +200,18 @@ static struct clk_lookup lookups[] = {
 void __init emev2_clock_init(void)
 {
 	int k, ret = 0;
+	static int is_setup;
+
+	/* yuck, this is ugly as hell, but the non-smp case of clocks
+	 * code is now designed to rely on ioremap() instead of static
+	 * entity maps. in the case of smp we need access to the SMU
+	 * register earlier than ioremap() is actually working without
+	 * any static maps. to enable SMP in ugly but with dynamic
+	 * mappings we have to call emev2_clock_init() from different
+	 * places depending on UP and SMP...
+	 */
+	if (is_setup++)
+		return;
 
 	smu_base = ioremap(EMEV2_SMU_BASE, PAGE_SIZE);
 	BUG_ON(!smu_base);

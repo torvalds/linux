@@ -27,6 +27,7 @@
 #include <asm/hardware/gic.h>
 
 MACHINE_START(KZM9D, "kzm9d")
+	.map_io		= emev2_map_io,
 	.init_early	= emev2_add_early_devices,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= emev2_init_irq,
