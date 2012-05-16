@@ -609,7 +609,7 @@ int perf_evlist__create_maps(struct perf_evlist *evlist,
 	if (evlist->threads == NULL)
 		return -1;
 
-	if (!perf_target__no_cpu(target))
+	if (perf_target__has_cpu(target))
 		evlist->cpus = cpu_map__new(target->cpu_list);
 	else
 		evlist->cpus = cpu_map__dummy_new();
