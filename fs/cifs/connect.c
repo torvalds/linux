@@ -1244,6 +1244,8 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	char *string = NULL;
 	char *tmp_end, *value;
 	char delim;
+	bool cache_specified = false;
+	static bool cache_warned = false;
 
 	separator[0] = ',';
 	separator[1] = 0;
@@ -1455,6 +1457,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->seal = 1;
 			break;
 		case Opt_direct:
+			cache_specified = true;
 			vol->direct_io = true;
 			vol->strict_io = false;
 			cERROR(1, "The \"directio\" option will be removed in "
@@ -1462,6 +1465,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				  "option.");
 			break;
 		case Opt_strictcache:
+			cache_specified = true;
 			vol->direct_io = false;
 			vol->strict_io = true;
 			cERROR(1, "The \"strictcache\" option will be removed "
@@ -1888,6 +1892,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				goto cifs_parse_mount_err;
 			break;
 		case Opt_cache:
+			cache_specified = true;
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
@@ -1937,6 +1942,14 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	else if (override_gid == 1)
 		printk(KERN_NOTICE "CIFS: ignoring forcegid mount option "
 				   "specified with no gid= option.\n");
+
+	/* FIXME: remove this block in 3.7 */
+	if (!cache_specified && !cache_warned) {
+		cache_warned = true;
+		printk(KERN_NOTICE "CIFS: no cache= option specified, using "
+				   "\"cache=loose\". This default will change "
+				   "to \"cache=strict\" in 3.7.\n");
+	}
 
 	kfree(mountdata_copy);
 	return 0;
