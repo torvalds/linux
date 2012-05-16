@@ -3839,6 +3839,13 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 
 /*---------------------- USB 3.0 Link PM functions ------------------------*/
 
+/* Service interval in nanoseconds = 2^(bInterval - 1) * 125us * 1000ns / 1us */
+static unsigned long long xhci_service_interval_to_ns(
+		struct usb_endpoint_descriptor *desc)
+{
+	return (1 << (desc->bInterval - 1)) * 125 * 1000;
+}
+
 static u16 xhci_get_timeout_no_hub_lpm(struct usb_device *udev,
 		enum usb3_link_state state)
 {
@@ -3881,12 +3888,112 @@ static u16 xhci_get_timeout_no_hub_lpm(struct usb_device *udev,
 	return USB3_LPM_DISABLED;
 }
 
+/* Returns the hub-encoded U1 timeout value.
+ * The U1 timeout should be the maximum of the following values:
+ *  - For control endpoints, U1 system exit latency (SEL) * 3
+ *  - For bulk endpoints, U1 SEL * 5
+ *  - For interrupt endpoints:
+ *    - Notification EPs, U1 SEL * 3
+ *    - Periodic EPs, max(105% of bInterval, U1 SEL * 2)
+ *  - For isochronous endpoints, max(105% of bInterval, U1 SEL * 2)
+ */
+static u16 xhci_calculate_intel_u1_timeout(struct usb_device *udev,
+		struct usb_endpoint_descriptor *desc)
+{
+	unsigned long long timeout_ns;
+	int ep_type;
+	int intr_type;
+
+	ep_type = usb_endpoint_type(desc);
+	switch (ep_type) {
+	case USB_ENDPOINT_XFER_CONTROL:
+		timeout_ns = udev->u1_params.sel * 3;
+		break;
+	case USB_ENDPOINT_XFER_BULK:
+		timeout_ns = udev->u1_params.sel * 5;
+		break;
+	case USB_ENDPOINT_XFER_INT:
+		intr_type = usb_endpoint_interrupt_type(desc);
+		if (intr_type == USB_ENDPOINT_INTR_NOTIFICATION) {
+			timeout_ns = udev->u1_params.sel * 3;
+			break;
+		}
+		/* Otherwise the calculation is the same as isoc eps */
+	case USB_ENDPOINT_XFER_ISOC:
+		timeout_ns = xhci_service_interval_to_ns(desc);
+		timeout_ns = DIV_ROUND_UP(timeout_ns * 105, 100);
+		if (timeout_ns < udev->u1_params.sel * 2)
+			timeout_ns = udev->u1_params.sel * 2;
+		break;
+	default:
+		return 0;
+	}
+
+	/* The U1 timeout is encoded in 1us intervals. */
+	timeout_ns = DIV_ROUND_UP(timeout_ns, 1000);
+	/* Don't return a timeout of zero, because that's USB3_LPM_DISABLED. */
+	if (timeout_ns == USB3_LPM_DISABLED)
+		timeout_ns++;
+
+	/* If the necessary timeout value is bigger than what we can set in the
+	 * USB 3.0 hub, we have to disable hub-initiated U1.
+	 */
+	if (timeout_ns <= USB3_LPM_U1_MAX_TIMEOUT)
+		return timeout_ns;
+	dev_dbg(&udev->dev, "Hub-initiated U1 disabled "
+			"due to long timeout %llu ms\n", timeout_ns);
+	return xhci_get_timeout_no_hub_lpm(udev, USB3_LPM_U1);
+}
+
+/* Returns the hub-encoded U2 timeout value.
+ * The U2 timeout should be the maximum of:
+ *  - 10 ms (to avoid the bandwidth impact on the scheduler)
+ *  - largest bInterval of any active periodic endpoint (to avoid going
+ *    into lower power link states between intervals).
+ *  - the U2 Exit Latency of the device
+ */
+static u16 xhci_calculate_intel_u2_timeout(struct usb_device *udev,
+		struct usb_endpoint_descriptor *desc)
+{
+	unsigned long long timeout_ns;
+	unsigned long long u2_del_ns;
+
+	timeout_ns = 10 * 1000 * 1000;
+
+	if ((usb_endpoint_xfer_int(desc) || usb_endpoint_xfer_isoc(desc)) &&
+			(xhci_service_interval_to_ns(desc) > timeout_ns))
+		timeout_ns = xhci_service_interval_to_ns(desc);
+
+	u2_del_ns = udev->bos->ss_cap->bU2DevExitLat * 1000;
+	if (u2_del_ns > timeout_ns)
+		timeout_ns = u2_del_ns;
+
+	/* The U2 timeout is encoded in 256us intervals */
+	timeout_ns = DIV_ROUND_UP(timeout_ns, 256 * 1000);
+	/* If the necessary timeout value is bigger than what we can set in the
+	 * USB 3.0 hub, we have to disable hub-initiated U2.
+	 */
+	if (timeout_ns <= USB3_LPM_U2_MAX_TIMEOUT)
+		return timeout_ns;
+	dev_dbg(&udev->dev, "Hub-initiated U2 disabled "
+			"due to long timeout %llu ms\n", timeout_ns);
+	return xhci_get_timeout_no_hub_lpm(udev, USB3_LPM_U2);
+}
+
 static u16 xhci_call_host_update_timeout_for_endpoint(struct xhci_hcd *xhci,
 		struct usb_device *udev,
 		struct usb_endpoint_descriptor *desc,
 		enum usb3_link_state state,
 		u16 *timeout)
 {
+	if (state == USB3_LPM_U1) {
+		if (xhci->quirks & XHCI_INTEL_HOST)
+			return xhci_calculate_intel_u1_timeout(udev, desc);
+	} else {
+		if (xhci->quirks & XHCI_INTEL_HOST)
+			return xhci_calculate_intel_u2_timeout(udev, desc);
+	}
+
 	return USB3_LPM_DISABLED;
 }
 
@@ -3932,10 +4039,36 @@ static int xhci_update_timeout_for_interface(struct xhci_hcd *xhci,
 	return 0;
 }
 
+static int xhci_check_intel_tier_policy(struct usb_device *udev,
+		enum usb3_link_state state)
+{
+	struct usb_device *parent;
+	unsigned int num_hubs;
+
+	if (state == USB3_LPM_U2)
+		return 0;
+
+	/* Don't enable U1 if the device is on a 2nd tier hub or lower. */
+	for (parent = udev->parent, num_hubs = 0; parent->parent;
+			parent = parent->parent)
+		num_hubs++;
+
+	if (num_hubs < 2)
+		return 0;
+
+	dev_dbg(&udev->dev, "Disabling U1 link state for device"
+			" below second-tier hub.\n");
+	dev_dbg(&udev->dev, "Plug device into first-tier hub "
+			"to decrease power consumption.\n");
+	return -E2BIG;
+}
+
 static int xhci_check_tier_policy(struct xhci_hcd *xhci,
 		struct usb_device *udev,
 		enum usb3_link_state state)
 {
+	if (xhci->quirks & XHCI_INTEL_HOST)
+		return xhci_check_intel_tier_policy(udev, state);
 	return -EINVAL;
 }
 
