@@ -59,8 +59,6 @@ struct persistent_ram_zone {
 
 	char *old_log;
 	size_t old_log_size;
-	size_t old_log_footer_size;
-	bool early;
 };
 
 int persistent_ram_early_init(struct persistent_ram *ram);
