@@ -35,6 +35,11 @@ extern void bfin_setup_cpudata(unsigned int cpu);
 
 extern unsigned long get_cclk(void);
 extern unsigned long get_sclk(void);
+#ifdef CONFIG_BF60x
+extern unsigned long get_sclk0(void);
+extern unsigned long get_sclk1(void);
+extern unsigned long get_dramclk(void);
+#endif
 extern unsigned long sclk_to_usecs(unsigned long sclk);
 extern unsigned long usecs_to_sclk(unsigned long usecs);
 
