@@ -667,8 +667,8 @@ static void put_osd(struct ceph_osd *osd)
 	if (atomic_dec_and_test(&osd->o_ref)) {
 		struct ceph_auth_client *ac = osd->o_osdc->client->monc.auth;
 
-		if (osd->o_authorizer)
-			ac->ops->destroy_authorizer(ac, osd->o_authorizer);
+		if (osd->o_auth.authorizer)
+			ac->ops->destroy_authorizer(ac, osd->o_auth.authorizer);
 		kfree(osd);
 	}
 }
@@ -2117,27 +2117,27 @@ static int get_authorizer(struct ceph_connection *con,
 	struct ceph_auth_client *ac = osdc->client->monc.auth;
 	int ret = 0;
 
-	if (force_new && o->o_authorizer) {
-		ac->ops->destroy_authorizer(ac, o->o_authorizer);
-		o->o_authorizer = NULL;
+	if (force_new && o->o_auth.authorizer) {
+		ac->ops->destroy_authorizer(ac, o->o_auth.authorizer);
+		o->o_auth.authorizer = NULL;
 	}
-	if (o->o_authorizer == NULL) {
+	if (o->o_auth.authorizer == NULL) {
 		ret = ac->ops->create_authorizer(
 			ac, CEPH_ENTITY_TYPE_OSD,
-			&o->o_authorizer,
-			&o->o_authorizer_buf,
-			&o->o_authorizer_buf_len,
-			&o->o_authorizer_reply_buf,
-			&o->o_authorizer_reply_buf_len);
+			&o->o_auth.authorizer,
+			&o->o_auth.authorizer_buf,
+			&o->o_auth.authorizer_buf_len,
+			&o->o_auth.authorizer_reply_buf,
+			&o->o_auth.authorizer_reply_buf_len);
 		if (ret)
 			return ret;
 	}
 
 	*proto = ac->protocol;
-	*buf = o->o_authorizer_buf;
-	*len = o->o_authorizer_buf_len;
-	*reply_buf = o->o_authorizer_reply_buf;
-	*reply_len = o->o_authorizer_reply_buf_len;
+	*buf = o->o_auth.authorizer_buf;
+	*len = o->o_auth.authorizer_buf_len;
+	*reply_buf = o->o_auth.authorizer_reply_buf;
+	*reply_len = o->o_auth.authorizer_reply_buf_len;
 	return 0;
 }
 
@@ -2148,7 +2148,7 @@ static int verify_authorizer_reply(struct ceph_connection *con, int len)
 	struct ceph_osd_client *osdc = o->o_osdc;
 	struct ceph_auth_client *ac = osdc->client->monc.auth;
 
-	return ac->ops->verify_authorizer_reply(ac, o->o_authorizer, len);
+	return ac->ops->verify_authorizer_reply(ac, o->o_auth.authorizer, len);
 }
 
 static int invalidate_authorizer(struct ceph_connection *con)

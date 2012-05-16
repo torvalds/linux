@@ -14,6 +14,14 @@
 struct ceph_auth_client;
 struct ceph_authorizer;
 
+struct ceph_auth_handshake {
+	struct ceph_authorizer *authorizer;
+	void *authorizer_buf;
+	size_t authorizer_buf_len;
+	void *authorizer_reply_buf;
+	size_t authorizer_reply_buf_len;
+};
+
 struct ceph_auth_client_ops {
 	const char *name;
 
