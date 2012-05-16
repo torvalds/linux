@@ -497,7 +497,7 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 
 	/* Rx interrupt, but nothing sent from uCode */
 	if (i == r)
-		IWL_DEBUG_RX(trans, "r = %d, i = %d\n", r, i);
+		IWL_DEBUG_RX(trans, "HW = SW = %d\n", r);
 
 	/* calculate total frames need to be restock after handling RX */
 	total_empty = r - rxq->write_actual;
@@ -513,8 +513,8 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 		rxb = rxq->queue[i];
 		rxq->queue[i] = NULL;
 
-		IWL_DEBUG_RX(trans, "rxbuf: r = %d, i = %d (%p)\n", rxb);
-
+		IWL_DEBUG_RX(trans, "rxbuf: HW = %d, SW = %d (%p)\n",
+			     r, i, rxb);
 		iwl_rx_handle_rxbuf(trans, rxb);
 
 		i = (i + 1) & RX_QUEUE_MASK;
