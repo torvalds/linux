@@ -738,9 +738,7 @@ struct r600_ih {
 	struct radeon_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr;
-	unsigned		rptr_offs;
 	unsigned		wptr;
-	unsigned		wptr_old;
 	unsigned		ring_size;
 	uint64_t		gpu_addr;
 	uint32_t		ptr_mask;
