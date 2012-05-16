@@ -35,26 +35,19 @@ struct isl_pmic {
 	struct mutex		mtx;
 };
 
-static int isl6271a_get_voltage(struct regulator_dev *dev)
+static int isl6271a_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct isl_pmic *pmic = rdev_get_drvdata(dev);
-	int idx, data;
+	int idx;
 
 	mutex_lock(&pmic->mtx);
 
 	idx = i2c_smbus_read_byte(pmic->client);
-	if (idx < 0) {
+	if (idx < 0)
 		dev_err(&pmic->client->dev, "Error getting voltage\n");
-		data = idx;
-		goto out;
-	}
 
-	/* Convert the data from chip to microvolts */
-	data = ISL6271A_VOLTAGE_MIN + (ISL6271A_VOLTAGE_STEP * (idx & 0xf));
-
-out:
 	mutex_unlock(&pmic->mtx);
-	return data;
+	return idx;
 }
 
 static int isl6271a_set_voltage(struct regulator_dev *dev,
@@ -84,7 +77,7 @@ static int isl6271a_set_voltage(struct regulator_dev *dev,
 }
 
 static struct regulator_ops isl_core_ops = {
-	.get_voltage	= isl6271a_get_voltage,
+	.get_voltage_sel = isl6271a_get_voltage_sel,
 	.set_voltage	= isl6271a_set_voltage,
 	.list_voltage	= regulator_list_voltage_linear,
 };
