@@ -1012,6 +1012,8 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 		rx_status.flag |= RX_FLAG_40MHZ;
 	if (rate_n_flags & RATE_MCS_SGI_MSK)
 		rx_status.flag |= RX_FLAG_SHORT_GI;
+	if (rate_n_flags & RATE_MCS_GF_MSK)
+		rx_status.flag |= RX_FLAG_HT_GF;
 
 	iwlagn_pass_packet_to_mac80211(priv, header, len, ampdu_status,
 				    rxb, &rx_status);

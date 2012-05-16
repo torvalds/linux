@@ -38,6 +38,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 
+#include <net/ieee80211_radiotap.h>
 #include <net/mac80211.h>
 
 #include <asm/div64.h>
@@ -154,6 +155,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		    IEEE80211_HW_SCAN_WHILE_IDLE;
 
 	hw->offchannel_tx_hw_queue = IWL_AUX_QUEUE;
+	hw->radiotap_mcs_details |= IEEE80211_RADIOTAP_MCS_HAVE_FMT;
 
 	/*
 	 * Including the following line will crash some AP's.  This
