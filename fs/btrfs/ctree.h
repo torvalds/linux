@@ -3114,4 +3114,9 @@ struct seq_list {
 	u32 flags;
 };
 
+void btrfs_get_tree_mod_seq(struct btrfs_fs_info *fs_info,
+			    struct seq_list *elem);
+void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
+			    struct seq_list *elem);
+
 #endif
