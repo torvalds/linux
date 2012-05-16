@@ -155,22 +155,9 @@
     2 depca's in a PC).
 
     ************************************************************************
-    Support for MCA EtherWORKS cards added 11-3-98.
+    Support for MCA EtherWORKS cards added 11-3-98. (MCA since deleted)
     Verified to work with up to 2 DE212 cards in a system (although not
       fully stress-tested).
-
-    Currently known bugs/limitations:
-
-    Note:  with the MCA stuff as a module, it trusts the MCA configuration,
-           not the command line for IRQ and memory address.  You can
-           specify them if you want, but it will throw your values out.
-           You still have to pass the IO address it was configured as
-           though.
-
-    ************************************************************************
-    TO DO:
-    ------
-
 
     Revision History
     ----------------
@@ -260,10 +247,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/dma.h>
-
-#ifdef CONFIG_MCA
-#include <linux/mca.h>
-#endif
 
 #ifdef CONFIG_EISA
 #include <linux/eisa.h>
@@ -360,44 +343,6 @@ static struct eisa_driver depca_eisa_driver = {
 };
 #endif
 
-#ifdef CONFIG_MCA
-/*
-** Adapter ID for the MCA EtherWORKS DE210/212 adapter
-*/
-#define DE210_ID 0x628d
-#define DE212_ID 0x6def
-
-static short depca_mca_adapter_ids[] = {
-	DE210_ID,
-	DE212_ID,
-	0x0000
-};
-
-static char *depca_mca_adapter_name[] = {
-	"DEC EtherWORKS MC Adapter (DE210)",
-	"DEC EtherWORKS MC Adapter (DE212)",
-	NULL
-};
-
-static enum depca_type depca_mca_adapter_type[] = {
-	de210,
-	de212,
-	0
-};
-
-static int depca_mca_probe (struct device *);
-
-static struct mca_driver depca_mca_driver = {
-	.id_table = depca_mca_adapter_ids,
-	.driver   = {
-		.name   = depca_string,
-		.bus    = &mca_bus_type,
-		.probe  = depca_mca_probe,
-		.remove = __devexit_p(depca_device_remove),
-	},
-};
-#endif
-
 static int depca_isa_probe (struct platform_device *);
 
 static int __devexit depca_isa_remove(struct platform_device *pdev)
@@ -464,8 +409,7 @@ struct depca_private {
 	char adapter_name[DEPCA_STRLEN];	/* /proc/ioports string                  */
 	enum depca_type adapter;		/* Adapter type */
 	enum {
-                DEPCA_BUS_MCA = 1,
-                DEPCA_BUS_ISA,
+                DEPCA_BUS_ISA = 1,
                 DEPCA_BUS_EISA,
         } depca_bus;	        /* type of bus */
 	struct depca_init init_block;	/* Shadow Initialization block            */
@@ -624,12 +568,6 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 	       dev_name(device), depca_signature[lp->adapter], ioaddr);
 
 	switch (lp->depca_bus) {
-#ifdef CONFIG_MCA
-	case DEPCA_BUS_MCA:
-		printk(" (MCA slot %d)", to_mca_device(device)->slot + 1);
-		break;
-#endif
-
 #ifdef CONFIG_EISA
 	case DEPCA_BUS_EISA:
 		printk(" (EISA slot %d)", to_eisa_device(device)->slot);
@@ -661,10 +599,7 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 	if (nicsr & BUF) {
 		nicsr &= ~BS;	/* DEPCA RAM in top 32k */
 		netRAM -= 32;
-
-		/* Only EISA/ISA needs start address to be re-computed */
-		if (lp->depca_bus != DEPCA_BUS_MCA)
-			mem_start += 0x8000;
+		mem_start += 0x8000;
 	}
 
 	if ((mem_len = (NUM_RX_DESC * (sizeof(struct depca_rx_desc) + RX_BUFF_SZ) + NUM_TX_DESC * (sizeof(struct depca_tx_desc) + TX_BUFF_SZ) + sizeof(struct depca_init)))
@@ -1325,130 +1260,6 @@ static int __init depca_common_init (u_long ioaddr, struct net_device **devp)
 	return status;
 }
 
-#ifdef CONFIG_MCA
-/*
-** Microchannel bus I/O device probe
-*/
-static int __init depca_mca_probe(struct device *device)
-{
-	unsigned char pos[2];
-	unsigned char where;
-	unsigned long iobase, mem_start;
-	int irq, err;
-	struct mca_device *mdev = to_mca_device (device);
-	struct net_device *dev;
-	struct depca_private *lp;
-
-	/*
-	** Search for the adapter.  If an address has been given, search
-	** specifically for the card at that address.  Otherwise find the
-	** first card in the system.
-	*/
-
-	pos[0] = mca_device_read_stored_pos(mdev, 2);
-	pos[1] = mca_device_read_stored_pos(mdev, 3);
-
-	/*
-	** IO of card is handled by bits 1 and 2 of pos0.
-	**
-	**    bit2 bit1    IO
-	**       0    0    0x2c00
-	**       0    1    0x2c10
-	**       1    0    0x2c20
-	**       1    1    0x2c30
-	*/
-	where = (pos[0] & 6) >> 1;
-	iobase = 0x2c00 + (0x10 * where);
-
-	/*
-	** Found the adapter we were looking for. Now start setting it up.
-	**
-	** First work on decoding the IRQ.  It's stored in the lower 4 bits
-	** of pos1.  Bits are as follows (from the ADF file):
-	**
-	**      Bits
-	**   3   2   1   0    IRQ
-	**   --------------------
-	**   0   0   1   0     5
-	**   0   0   0   1     9
-	**   0   1   0   0    10
-	**   1   0   0   0    11
-	*/
-	where = pos[1] & 0x0f;
-	switch (where) {
-	case 1:
-		irq = 9;
-		break;
-	case 2:
-		irq = 5;
-		break;
-	case 4:
-		irq = 10;
-		break;
-	case 8:
-		irq = 11;
-		break;
-	default:
-		printk("%s: mca_probe IRQ error.  You should never get here (%d).\n", mdev->name, where);
-		return -EINVAL;
-	}
-
-	/*
-	** Shared memory address of adapter is stored in bits 3-5 of pos0.
-	** They are mapped as follows:
-	**
-	**    Bit
-	**   5  4  3       Memory Addresses
-	**   0  0  0       C0000-CFFFF (64K)
-	**   1  0  0       C8000-CFFFF (32K)
-	**   0  0  1       D0000-DFFFF (64K)
-	**   1  0  1       D8000-DFFFF (32K)
-	**   0  1  0       E0000-EFFFF (64K)
-	**   1  1  0       E8000-EFFFF (32K)
-	*/
-	where = (pos[0] & 0x18) >> 3;
-	mem_start = 0xc0000 + (where * 0x10000);
-	if (pos[0] & 0x20) {
-		mem_start += 0x8000;
-	}
-
-	/* claim the slot */
-	strncpy(mdev->name, depca_mca_adapter_name[mdev->index],
-		sizeof(mdev->name));
-	mca_device_set_claim(mdev, 1);
-
-        /*
-	** Get everything allocated and initialized...  (almost just
-	** like the ISA and EISA probes)
-	*/
-	irq = mca_device_transform_irq(mdev, irq);
-	iobase = mca_device_transform_ioport(mdev, iobase);
-
-	if ((err = depca_common_init (iobase, &dev)))
-		goto out_unclaim;
-
-	dev->irq = irq;
-	dev->base_addr = iobase;
-	lp = netdev_priv(dev);
-	lp->depca_bus = DEPCA_BUS_MCA;
-	lp->adapter = depca_mca_adapter_type[mdev->index];
-	lp->mem_start = mem_start;
-
-	if ((err = depca_hw_init(dev, device)))
-		goto out_free;
-
-	return 0;
-
- out_free:
-	free_netdev (dev);
-	release_region (iobase, DEPCA_TOTAL_SIZE);
- out_unclaim:
-	mca_device_set_claim(mdev, 0);
-
-	return err;
-}
-#endif
-
 /*
 ** ISA bus I/O device probe
 */
@@ -2059,15 +1870,10 @@ static int __init depca_module_init (void)
 {
 	int err = 0;
 
-#ifdef CONFIG_MCA
-	err = mca_register_driver(&depca_mca_driver);
-	if (err)
-		goto err;
-#endif
 #ifdef CONFIG_EISA
 	err = eisa_driver_register(&depca_eisa_driver);
 	if (err)
-		goto err_mca;
+		goto err_eisa;
 #endif
 	err = platform_driver_register(&depca_isa_driver);
 	if (err)
@@ -2079,11 +1885,6 @@ static int __init depca_module_init (void)
 err_eisa:
 #ifdef CONFIG_EISA
 	eisa_driver_unregister(&depca_eisa_driver);
-err_mca:
-#endif
-#ifdef CONFIG_MCA
-	mca_unregister_driver(&depca_mca_driver);
-err:
 #endif
 	return err;
 }
@@ -2091,9 +1892,6 @@ err:
 static void __exit depca_module_exit (void)
 {
 	int i;
-#ifdef CONFIG_MCA
-        mca_unregister_driver (&depca_mca_driver);
-#endif
 #ifdef CONFIG_EISA
         eisa_driver_unregister (&depca_eisa_driver);
 #endif

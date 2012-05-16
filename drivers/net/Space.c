@@ -133,22 +133,9 @@ static struct devprobe2 eisa_probes[] __initdata = {
 	{NULL, 0},
 };
 
-static struct devprobe2 mca_probes[] __initdata = {
-#ifdef CONFIG_NE2_MCA
-	{ne2_probe, 0},
-#endif
-#ifdef CONFIG_ELMC		/* 3c523 */
-	{elmc_probe, 0},
-#endif
-#ifdef CONFIG_ELMC_II		/* 3c527 */
-	{mc32_probe, 0},
-#endif
-	{NULL, 0},
-};
-
 /*
  * ISA probes that touch addresses < 0x400 (including those that also
- * look for EISA/PCI/MCA cards in addition to ISA cards).
+ * look for EISA/PCI cards in addition to ISA cards).
  */
 static struct devprobe2 isa_probes[] __initdata = {
 #if defined(CONFIG_HP100) && defined(CONFIG_ISA)	/* ISA, EISA */
@@ -278,7 +265,6 @@ static void __init ethif_probe2(int unit)
 
 	(void)(	probe_list2(unit, m68k_probes, base_addr == 0) &&
 		probe_list2(unit, eisa_probes, base_addr == 0) &&
-		probe_list2(unit, mca_probes, base_addr == 0) &&
 		probe_list2(unit, isa_probes, base_addr == 0) &&
 		probe_list2(unit, parport_probes, base_addr == 0));
 }
