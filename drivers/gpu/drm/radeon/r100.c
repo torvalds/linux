@@ -567,43 +567,27 @@ void r100_hpd_init(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
 	struct drm_connector *connector;
+	unsigned enable = 0;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-		switch (radeon_connector->hpd.hpd) {
-		case RADEON_HPD_1:
-			rdev->irq.hpd[0] = true;
-			break;
-		case RADEON_HPD_2:
-			rdev->irq.hpd[1] = true;
-			break;
-		default:
-			break;
-		}
+		enable |= 1 << radeon_connector->hpd.hpd;
 		radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 	}
-	if (rdev->irq.installed)
-		r100_irq_set(rdev);
+	radeon_irq_kms_enable_hpd(rdev, enable);
 }
 
 void r100_hpd_fini(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
 	struct drm_connector *connector;
+	unsigned disable = 0;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-		switch (radeon_connector->hpd.hpd) {
-		case RADEON_HPD_1:
-			rdev->irq.hpd[0] = false;
-			break;
-		case RADEON_HPD_2:
-			rdev->irq.hpd[1] = false;
-			break;
-		default:
-			break;
-		}
+		disable |= 1 << radeon_connector->hpd.hpd;
 	}
+	radeon_irq_kms_disable_hpd(rdev, disable);
 }
 
 /*
@@ -782,7 +766,6 @@ int r100_irq_process(struct radeon_device *rdev)
 		/* gui idle interrupt */
 		if (status & RADEON_GUI_IDLE_STAT) {
 			rdev->irq.gui_idle_acked = true;
-			rdev->pm.gui_idle = true;
 			wake_up(&rdev->irq.idle_queue);
 		}
 		/* Vertical blank interrupts */

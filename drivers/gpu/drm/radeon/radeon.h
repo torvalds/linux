@@ -615,21 +615,20 @@ union radeon_irq_stat_regs {
 #define RADEON_MAX_AFMT_BLOCKS 6
 
 struct radeon_irq {
-	bool		installed;
-	bool		sw_int[RADEON_NUM_RINGS];
-	bool		crtc_vblank_int[RADEON_MAX_CRTCS];
-	bool		pflip[RADEON_MAX_CRTCS];
-	wait_queue_head_t	vblank_queue;
-	bool            hpd[RADEON_MAX_HPD_PINS];
-	bool            gui_idle;
-	bool            gui_idle_acked;
-	wait_queue_head_t	idle_queue;
-	bool		afmt[RADEON_MAX_AFMT_BLOCKS];
-	spinlock_t sw_lock;
-	int sw_refcount[RADEON_NUM_RINGS];
-	union radeon_irq_stat_regs stat_regs;
-	spinlock_t pflip_lock[RADEON_MAX_CRTCS];
-	int pflip_refcount[RADEON_MAX_CRTCS];
+	bool				installed;
+	spinlock_t			lock;
+	bool				sw_int[RADEON_NUM_RINGS];
+	int				sw_refcount[RADEON_NUM_RINGS];
+	bool				crtc_vblank_int[RADEON_MAX_CRTCS];
+	bool				pflip[RADEON_MAX_CRTCS];
+	int				pflip_refcount[RADEON_MAX_CRTCS];
+	wait_queue_head_t		vblank_queue;
+	bool				hpd[RADEON_MAX_HPD_PINS];
+	bool				gui_idle;
+	bool				gui_idle_acked;
+	wait_queue_head_t		idle_queue;
+	bool				afmt[RADEON_MAX_AFMT_BLOCKS];
+	union radeon_irq_stat_regs	stat_regs;
 };
 
 int radeon_irq_kms_init(struct radeon_device *rdev);
@@ -638,6 +637,11 @@ void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev, int ring);
 void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev, int ring);
 void radeon_irq_kms_pflip_irq_get(struct radeon_device *rdev, int crtc);
 void radeon_irq_kms_pflip_irq_put(struct radeon_device *rdev, int crtc);
+void radeon_irq_kms_enable_afmt(struct radeon_device *rdev, int block);
+void radeon_irq_kms_disable_afmt(struct radeon_device *rdev, int block);
+void radeon_irq_kms_enable_hpd(struct radeon_device *rdev, unsigned hpd_mask);
+void radeon_irq_kms_disable_hpd(struct radeon_device *rdev, unsigned hpd_mask);
+int radeon_irq_kms_wait_gui_idle(struct radeon_device *rdev);
 
 /*
  * CP & rings.
@@ -1062,7 +1066,6 @@ struct radeon_pm {
 	int			active_crtc_count;
 	int			req_vblank;
 	bool			vblank_sync;
-	bool			gui_idle;
 	fixed20_12		max_bandwidth;
 	fixed20_12		igp_sideport_mclk;
 	fixed20_12		igp_system_mclk;
