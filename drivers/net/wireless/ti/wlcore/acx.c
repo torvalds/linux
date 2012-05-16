@@ -1756,8 +1756,9 @@ int wl1271_acx_set_rx_filter(struct wl1271 *wl, u8 index, bool enable,
 	WARN_ON(enable && !filter);
 	WARN_ON(index >= WL1271_MAX_RX_FILTERS);
 
-	wl1271_debug(DEBUG_ACX, "acx set rx filter idx: %d enable: %d"
-		     "filter: 0x%x", index, enable, (unsigned int)filter);
+	wl1271_debug(DEBUG_ACX,
+		     "acx set rx filter idx: %d enable: %d filter: %p",
+		     index, enable, filter);
 
 	if (enable) {
 		fields_size = wl1271_rx_filter_get_fields_size(filter);
