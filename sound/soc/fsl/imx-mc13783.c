@@ -37,14 +37,6 @@ static int imx_mc13783_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 
-	ret = snd_soc_dai_set_fmt(codec_dai, FMT_SSI);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_dai_set_fmt(cpu_dai, FMT_SSI);
-	if (ret)
-		return ret;
-
 	ret = snd_soc_dai_set_tdm_slot(codec_dai, 0xfffffffc, 0xfffffffc,
 					4, 16);
 	if (ret)
@@ -75,6 +67,7 @@ static struct snd_soc_dai_link imx_mc13783_dai_mc13783[] = {
 		.platform_name	 = "imx-pcm-audio.0",
 		.ops		 = &imx_mc13783_hifi_ops,
 		.symmetric_rates = 1,
+		.dai_fmt 	 = FMT_SSI,
 	},
 };
 
