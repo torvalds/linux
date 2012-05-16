@@ -45,19 +45,19 @@
 #define ATMCI_DMA_THRESHOLD	16
 
 enum {
-	EVENT_CMD_COMPLETE = 0,
+	EVENT_CMD_RDY = 0,
 	EVENT_XFER_COMPLETE,
-	EVENT_DATA_COMPLETE,
+	EVENT_NOTBUSY,
 	EVENT_DATA_ERROR,
 };
 
 enum atmel_mci_state {
 	STATE_IDLE = 0,
 	STATE_SENDING_CMD,
-	STATE_SENDING_DATA,
-	STATE_DATA_BUSY,
+	STATE_DATA_XFER,
+	STATE_WAITING_NOTBUSY,
 	STATE_SENDING_STOP,
-	STATE_DATA_ERROR,
+	STATE_END_REQUEST,
 };
 
 enum atmci_xfer_dir {
@@ -709,7 +709,6 @@ static void atmci_pdc_complete(struct atmel_mci *host)
 	if (host->data) {
 		atmci_set_pending(host, EVENT_XFER_COMPLETE);
 		tasklet_schedule(&host->tasklet);
-		atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
 	}
 }
 
@@ -835,7 +834,7 @@ atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 		iflags |= ATMCI_ENDRX | ATMCI_RXBUFF;
 	} else {
 		dir = DMA_TO_DEVICE;
-		iflags |= ATMCI_ENDTX | ATMCI_TXBUFE;
+		iflags |= ATMCI_ENDTX | ATMCI_TXBUFE | ATMCI_BLKE;
 	}
 
 	/* Set BLKLEN */
@@ -975,8 +974,7 @@ static void atmci_stop_transfer(struct atmel_mci *host)
  */
 static void atmci_stop_transfer_pdc(struct atmel_mci *host)
 {
-	atmci_set_pending(host, EVENT_XFER_COMPLETE);
-	atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
+	atmci_writel(host, ATMEL_PDC_PTCR, ATMEL_PDC_RXTDIS | ATMEL_PDC_TXTDIS);
 }
 
 static void atmci_stop_transfer_dma(struct atmel_mci *host)
@@ -1012,6 +1010,7 @@ static void atmci_start_request(struct atmel_mci *host,
 
 	host->pending_events = 0;
 	host->completed_events = 0;
+	host->cmd_status = 0;
 	host->data_status = 0;
 
 	if (host->need_reset) {
@@ -1029,7 +1028,7 @@ static void atmci_start_request(struct atmel_mci *host,
 
 	iflags = atmci_readl(host, ATMCI_IMR);
 	if (iflags & ~(ATMCI_SDIOIRQA | ATMCI_SDIOIRQB))
-		dev_warn(&slot->mmc->class_dev, "WARNING: IMR=0x%08x\n",
+		dev_dbg(&slot->mmc->class_dev, "WARNING: IMR=0x%08x\n",
 				iflags);
 
 	if (unlikely(test_and_clear_bit(ATMCI_CARD_NEED_INIT, &slot->flags))) {
@@ -1367,19 +1366,6 @@ static void atmci_command_complete(struct atmel_mci *host,
 		cmd->error = -EIO;
 	else
 		cmd->error = 0;
-
-	if (cmd->error) {
-		dev_dbg(&host->pdev->dev,
-			"command error: status=0x%08x\n", status);
-
-		if (cmd->data) {
-			host->stop_transfer(host);
-			host->data = NULL;
-			atmci_writel(host, ATMCI_IDR, ATMCI_NOTBUSY
-					| ATMCI_TXRDY | ATMCI_RXRDY
-					| ATMCI_DATA_ERROR_FLAGS);
-		}
-	}
 }
 
 static void atmci_detect_change(unsigned long data)
@@ -1442,22 +1428,20 @@ static void atmci_detect_change(unsigned long data)
 					break;
 				case STATE_SENDING_CMD:
 					mrq->cmd->error = -ENOMEDIUM;
-					if (!mrq->data)
-						break;
-					/* fall through */
-				case STATE_SENDING_DATA:
+					if (mrq->data)
+						host->stop_transfer(host);
+					break;
+				case STATE_DATA_XFER:
 					mrq->data->error = -ENOMEDIUM;
 					host->stop_transfer(host);
 					break;
-				case STATE_DATA_BUSY:
-				case STATE_DATA_ERROR:
-					if (mrq->data->error == -EINPROGRESS)
-						mrq->data->error = -ENOMEDIUM;
-					if (!mrq->stop)
-						break;
-					/* fall through */
+				case STATE_WAITING_NOTBUSY:
+					mrq->data->error = -ENOMEDIUM;
+					break;
 				case STATE_SENDING_STOP:
 					mrq->stop->error = -ENOMEDIUM;
+					break;
+				case STATE_END_REQUEST:
 					break;
 				}
 
@@ -1486,7 +1470,6 @@ static void atmci_tasklet_func(unsigned long priv)
 	struct atmel_mci	*host = (struct atmel_mci *)priv;
 	struct mmc_request	*mrq = host->mrq;
 	struct mmc_data		*data = host->data;
-	struct mmc_command	*cmd = host->cmd;
 	enum atmel_mci_state	state = host->state;
 	enum atmel_mci_state	prev_state;
 	u32			status;
@@ -1508,101 +1491,164 @@ static void atmci_tasklet_func(unsigned long priv)
 			break;
 
 		case STATE_SENDING_CMD:
+			/*
+			 * Command has been sent, we are waiting for command
+			 * ready. Then we have three next states possible:
+			 * END_REQUEST by default, WAITING_NOTBUSY if it's a
+			 * command needing it or DATA_XFER if there is data.
+			 */
 			if (!atmci_test_and_clear_pending(host,
-						EVENT_CMD_COMPLETE))
+						EVENT_CMD_RDY))
 				break;
 
 			host->cmd = NULL;
-			atmci_set_completed(host, EVENT_CMD_COMPLETE);
+			atmci_set_completed(host, EVENT_CMD_RDY);
 			atmci_command_complete(host, mrq->cmd);
-			if (!mrq->data || cmd->error) {
-				atmci_request_end(host, host->mrq);
-				goto unlock;
-			}
+			if (mrq->data) {
+				/*
+				 * If there is a command error don't start
+				 * data transfer.
+				 */
+				if (mrq->cmd->error) {
+					host->stop_transfer(host);
+					host->data = NULL;
+					atmci_writel(host, ATMCI_IDR,
+					             ATMCI_TXRDY | ATMCI_RXRDY
+					             | ATMCI_DATA_ERROR_FLAGS);
+					state = STATE_END_REQUEST;
+				} else
+					state = STATE_DATA_XFER;
+			} else if ((!mrq->data) && (mrq->cmd->flags & MMC_RSP_BUSY)) {
+				atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
+				state = STATE_WAITING_NOTBUSY;
+			} else
+				state = STATE_END_REQUEST;
 
-			prev_state = state = STATE_SENDING_DATA;
-			/* fall through */
+			break;
 
-		case STATE_SENDING_DATA:
+		case STATE_DATA_XFER:
 			if (atmci_test_and_clear_pending(host,
 						EVENT_DATA_ERROR)) {
-				host->stop_transfer(host);
-				if (data->stop)
-					atmci_send_stop_cmd(host, data);
-				state = STATE_DATA_ERROR;
+				atmci_set_completed(host, EVENT_DATA_ERROR);
+				state = STATE_END_REQUEST;
 				break;
 			}
 
+			/*
+			 * A data transfer is in progress. The event expected
+			 * to move to the next state depends of data transfer
+			 * type (PDC or DMA). Once transfer done we can move
+			 * to the next step which is WAITING_NOTBUSY in write
+			 * case and directly SENDING_STOP in read case.
+			 */
 			if (!atmci_test_and_clear_pending(host,
 						EVENT_XFER_COMPLETE))
 				break;
 
 			atmci_set_completed(host, EVENT_XFER_COMPLETE);
-			prev_state = state = STATE_DATA_BUSY;
-			/* fall through */
 
-		case STATE_DATA_BUSY:
-			if (!atmci_test_and_clear_pending(host,
-						EVENT_DATA_COMPLETE))
-				break;
-
-			host->data = NULL;
-			atmci_set_completed(host, EVENT_DATA_COMPLETE);
-			status = host->data_status;
-			if (unlikely(status & ATMCI_DATA_ERROR_FLAGS)) {
-				if (status & ATMCI_DTOE) {
-					dev_dbg(&host->pdev->dev,
-							"data timeout error\n");
-					data->error = -ETIMEDOUT;
-				} else if (status & ATMCI_DCRCE) {
-					dev_dbg(&host->pdev->dev,
-							"data CRC error\n");
-					data->error = -EILSEQ;
-				} else {
-					dev_dbg(&host->pdev->dev,
-						"data FIFO error (status=%08x)\n",
-						status);
-					data->error = -EIO;
-				}
+			if (host->data->flags & MMC_DATA_WRITE) {
+				atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
+				state = STATE_WAITING_NOTBUSY;
+			} else if (host->mrq->stop) {
+				atmci_writel(host, ATMCI_IER, ATMCI_CMDRDY);
+				atmci_send_stop_cmd(host, data);
+				state = STATE_SENDING_STOP;
 			} else {
+				host->data = NULL;
 				data->bytes_xfered = data->blocks * data->blksz;
 				data->error = 0;
-				atmci_writel(host, ATMCI_IDR, ATMCI_DATA_ERROR_FLAGS);
+				state = STATE_END_REQUEST;
 			}
+			break;
 
-			if (!data->stop) {
-				atmci_request_end(host, host->mrq);
-				goto unlock;
-			}
+		case STATE_WAITING_NOTBUSY:
+			/*
+			 * We can be in the state for two reasons: a command
+			 * requiring waiting not busy signal (stop command
+			 * included) or a write operation. In the latest case,
+			 * we need to send a stop command.
+			 */
+			if (!atmci_test_and_clear_pending(host,
+						EVENT_NOTBUSY))
+				break;
 
-			prev_state = state = STATE_SENDING_STOP;
-			if (!data->error)
-				atmci_send_stop_cmd(host, data);
-			/* fall through */
+			atmci_set_completed(host, EVENT_NOTBUSY);
+
+			if (host->data) {
+				/*
+				 * For some commands such as CMD53, even if
+				 * there is data transfer, there is no stop
+				 * command to send.
+				 */
+				if (host->mrq->stop) {
+					atmci_writel(host, ATMCI_IER,
+					             ATMCI_CMDRDY);
+					atmci_send_stop_cmd(host, data);
+					state = STATE_SENDING_STOP;
+				} else {
+					host->data = NULL;
+					data->bytes_xfered = data->blocks
+					                     * data->blksz;
+					data->error = 0;
+					state = STATE_END_REQUEST;
+				}
+			} else
+				state = STATE_END_REQUEST;
+			break;
 
 		case STATE_SENDING_STOP:
+			/*
+			 * In this state, it is important to set host->data to
+			 * NULL (which is tested in the waiting notbusy state)
+			 * in order to go to the end request state instead of
+			 * sending stop again.
+			 */
 			if (!atmci_test_and_clear_pending(host,
-						EVENT_CMD_COMPLETE))
+						EVENT_CMD_RDY))
 				break;
 
 			host->cmd = NULL;
+			host->data = NULL;
+			data->bytes_xfered = data->blocks * data->blksz;
+			data->error = 0;
 			atmci_command_complete(host, mrq->stop);
+			if (mrq->stop->error) {
+				host->stop_transfer(host);
+				atmci_writel(host, ATMCI_IDR,
+				             ATMCI_TXRDY | ATMCI_RXRDY
+				             | ATMCI_DATA_ERROR_FLAGS);
+				state = STATE_END_REQUEST;
+			} else {
+				atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
+				state = STATE_WAITING_NOTBUSY;
+			}
+			break;
+
+		case STATE_END_REQUEST:
+			atmci_writel(host, ATMCI_IDR, ATMCI_TXRDY | ATMCI_RXRDY
+			                   | ATMCI_DATA_ERROR_FLAGS);
+			status = host->data_status;
+			if (unlikely(status)) {
+				host->stop_transfer(host);
+				host->data = NULL;
+				if (status & ATMCI_DTOE) {
+					data->error = -ETIMEDOUT;
+				} else if (status & ATMCI_DCRCE) {
+					data->error = -EILSEQ;
+				} else {
+					data->error = -EIO;
+				}
+			}
+
 			atmci_request_end(host, host->mrq);
-			goto unlock;
-
-		case STATE_DATA_ERROR:
-			if (!atmci_test_and_clear_pending(host,
-						EVENT_XFER_COMPLETE))
-				break;
-
-			state = STATE_DATA_BUSY;
+			state = STATE_IDLE;
 			break;
 		}
 	} while (state != prev_state);
 
 	host->state = state;
 
-unlock:
 	spin_unlock(&host->lock);
 }
 
@@ -1655,9 +1701,6 @@ static void atmci_read_data_pio(struct atmel_mci *host)
 						| ATMCI_DATA_ERROR_FLAGS));
 			host->data_status = status;
 			data->bytes_xfered += nbytes;
-			smp_wmb();
-			atmci_set_pending(host, EVENT_DATA_ERROR);
-			tasklet_schedule(&host->tasklet);
 			return;
 		}
 	} while (status & ATMCI_RXRDY);
@@ -1726,9 +1769,6 @@ static void atmci_write_data_pio(struct atmel_mci *host)
 						| ATMCI_DATA_ERROR_FLAGS));
 			host->data_status = status;
 			data->bytes_xfered += nbytes;
-			smp_wmb();
-			atmci_set_pending(host, EVENT_DATA_ERROR);
-			tasklet_schedule(&host->tasklet);
 			return;
 		}
 	} while (status & ATMCI_TXRDY);
@@ -1744,16 +1784,6 @@ done:
 	data->bytes_xfered += nbytes;
 	smp_wmb();
 	atmci_set_pending(host, EVENT_XFER_COMPLETE);
-}
-
-static void atmci_cmd_interrupt(struct atmel_mci *host, u32 status)
-{
-	atmci_writel(host, ATMCI_IDR, ATMCI_CMDRDY);
-
-	host->cmd_status = status;
-	smp_wmb();
-	atmci_set_pending(host, EVENT_CMD_COMPLETE);
-	tasklet_schedule(&host->tasklet);
 }
 
 static void atmci_sdio_interrupt(struct atmel_mci *host, u32 status)
@@ -1784,8 +1814,9 @@ static irqreturn_t atmci_interrupt(int irq, void *dev_id)
 
 		if (pending & ATMCI_DATA_ERROR_FLAGS) {
 			atmci_writel(host, ATMCI_IDR, ATMCI_DATA_ERROR_FLAGS
-					| ATMCI_RXRDY | ATMCI_TXRDY);
-			pending &= atmci_readl(host, ATMCI_IMR);
+					| ATMCI_RXRDY | ATMCI_TXRDY
+					| ATMCI_ENDRX | ATMCI_ENDTX
+					| ATMCI_RXBUFF | ATMCI_TXBUFE);
 
 			host->data_status = status;
 			smp_wmb();
@@ -1843,23 +1874,38 @@ static irqreturn_t atmci_interrupt(int irq, void *dev_id)
 			}
 		}
 
-
-		if (pending & ATMCI_NOTBUSY) {
-			atmci_writel(host, ATMCI_IDR,
-					ATMCI_DATA_ERROR_FLAGS | ATMCI_NOTBUSY);
-			if (!host->data_status)
-				host->data_status = status;
+		/*
+		 * First mci IPs, so mainly the ones having pdc, have some
+		 * issues with the notbusy signal. You can't get it after
+		 * data transmission if you have not sent a stop command.
+		 * The appropriate workaround is to use the BLKE signal.
+		 */
+		if (pending & ATMCI_BLKE) {
+			atmci_writel(host, ATMCI_IDR, ATMCI_BLKE);
 			smp_wmb();
-			atmci_set_pending(host, EVENT_DATA_COMPLETE);
+			atmci_set_pending(host, EVENT_NOTBUSY);
 			tasklet_schedule(&host->tasklet);
 		}
+
+		if (pending & ATMCI_NOTBUSY) {
+			atmci_writel(host, ATMCI_IDR, ATMCI_NOTBUSY);
+			smp_wmb();
+			atmci_set_pending(host, EVENT_NOTBUSY);
+			tasklet_schedule(&host->tasklet);
+		}
+
 		if (pending & ATMCI_RXRDY)
 			atmci_read_data_pio(host);
 		if (pending & ATMCI_TXRDY)
 			atmci_write_data_pio(host);
 
-		if (pending & ATMCI_CMDRDY)
-			atmci_cmd_interrupt(host, status);
+		if (pending & ATMCI_CMDRDY) {
+			atmci_writel(host, ATMCI_IDR, ATMCI_CMDRDY);
+			host->cmd_status = status;
+			smp_wmb();
+			atmci_set_pending(host, EVENT_CMD_RDY);
+			tasklet_schedule(&host->tasklet);
+		}
 
 		if (pending & (ATMCI_SDIOIRQA | ATMCI_SDIOIRQB))
 			atmci_sdio_interrupt(host, status);
