@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/gpio-em.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/io.h>
@@ -156,6 +157,203 @@ static struct platform_device sti_device = {
 	.num_resources	= ARRAY_SIZE(sti_resources),
 };
 
+
+/* GIO */
+static struct gpio_em_config gio0_config = {
+	.gpio_base = 0,
+	.irq_base = EMEV2_GPIO_IRQ(0),
+	.number_of_pins = 32,
+};
+
+static struct resource gio0_resources[] = {
+	[0] = {
+		.name	= "GIO_000",
+		.start	= 0xe0050000,
+		.end	= 0xe005002b,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "GIO_000",
+		.start	= 0xe0050040,
+		.end	= 0xe005005f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= 99,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= 100,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device gio0_device = {
+	.name		= "em_gio",
+	.id		= 0,
+	.resource	= gio0_resources,
+	.num_resources	= ARRAY_SIZE(gio0_resources),
+	.dev		= {
+		.platform_data	= &gio0_config,
+	},
+};
+
+static struct gpio_em_config gio1_config = {
+	.gpio_base = 32,
+	.irq_base = EMEV2_GPIO_IRQ(32),
+	.number_of_pins = 32,
+};
+
+static struct resource gio1_resources[] = {
+	[0] = {
+		.name	= "GIO_032",
+		.start	= 0xe0050080,
+		.end	= 0xe00500ab,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "GIO_032",
+		.start	= 0xe00500c0,
+		.end	= 0xe00500df,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= 101,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= 102,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device gio1_device = {
+	.name		= "em_gio",
+	.id		= 1,
+	.resource	= gio1_resources,
+	.num_resources	= ARRAY_SIZE(gio1_resources),
+	.dev		= {
+		.platform_data	= &gio1_config,
+	},
+};
+
+static struct gpio_em_config gio2_config = {
+	.gpio_base = 64,
+	.irq_base = EMEV2_GPIO_IRQ(64),
+	.number_of_pins = 32,
+};
+
+static struct resource gio2_resources[] = {
+	[0] = {
+		.name	= "GIO_064",
+		.start	= 0xe0050100,
+		.end	= 0xe005012b,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "GIO_064",
+		.start	= 0xe0050140,
+		.end	= 0xe005015f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= 103,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= 104,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device gio2_device = {
+	.name		= "em_gio",
+	.id		= 2,
+	.resource	= gio2_resources,
+	.num_resources	= ARRAY_SIZE(gio2_resources),
+	.dev		= {
+		.platform_data	= &gio2_config,
+	},
+};
+
+static struct gpio_em_config gio3_config = {
+	.gpio_base = 96,
+	.irq_base = EMEV2_GPIO_IRQ(96),
+	.number_of_pins = 32,
+};
+
+static struct resource gio3_resources[] = {
+	[0] = {
+		.name	= "GIO_096",
+		.start	= 0xe0050100,
+		.end	= 0xe005012b,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "GIO_096",
+		.start	= 0xe0050140,
+		.end	= 0xe005015f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= 105,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= 106,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device gio3_device = {
+	.name		= "em_gio",
+	.id		= 3,
+	.resource	= gio3_resources,
+	.num_resources	= ARRAY_SIZE(gio3_resources),
+	.dev		= {
+		.platform_data	= &gio3_config,
+	},
+};
+
+static struct gpio_em_config gio4_config = {
+	.gpio_base = 128,
+	.irq_base = EMEV2_GPIO_IRQ(128),
+	.number_of_pins = 31,
+};
+
+static struct resource gio4_resources[] = {
+	[0] = {
+		.name	= "GIO_128",
+		.start	= 0xe0050200,
+		.end	= 0xe005022b,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "GIO_128",
+		.start	= 0xe0050240,
+		.end	= 0xe005025f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= 107,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= 108,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device gio4_device = {
+	.name		= "em_gio",
+	.id		= 4,
+	.resource	= gio4_resources,
+	.num_resources	= ARRAY_SIZE(gio4_resources),
+	.dev		= {
+		.platform_data	= &gio4_config,
+	},
+};
+
 static struct platform_device *emev2_early_devices[] __initdata = {
 	&uart0_device,
 	&uart1_device,
@@ -165,6 +363,11 @@ static struct platform_device *emev2_early_devices[] __initdata = {
 
 static struct platform_device *emev2_late_devices[] __initdata = {
 	&sti_device,
+	&gio0_device,
+	&gio1_device,
+	&gio2_device,
+	&gio3_device,
+	&gio4_device,
 };
 
 void __init emev2_add_standard_devices(void)

@@ -13,4 +13,7 @@ extern void emev2_secondary_init(unsigned int cpu);
 extern int emev2_boot_secondary(unsigned int cpu);
 extern void emev2_smp_prepare_cpus(void);
 
+#define EMEV2_GPIO_BASE 200
+#define EMEV2_GPIO_IRQ(n) (EMEV2_GPIO_BASE + (n))
+
 #endif /* __ASM_EMEV2_H__ */
