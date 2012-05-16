@@ -630,6 +630,13 @@ static void setgain(struct gspca_dev *gspca_dev)
 	case SENSOR_OV7630: {
 		__u8 i2c[] = {0xa0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10};
 
+		/*
+		 * The ov7630's gain is weird, at 32 the gain drops to the
+		 * same level as at 16, so skip 32-47 (of the 0-63 scale).
+		 */
+		if (sd->sensor == SENSOR_OV7630 && gain >= 32)
+			gain += 16;
+
 		i2c[1] = sensor_data[sd->sensor].sensor_addr;
 		i2c[3] = gain;
 		i2c_w(gspca_dev, i2c);
@@ -1017,8 +1024,11 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 		gspca_dev->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 					V4L2_CID_GAIN, 0, 31, 1, 15);
 		break;
-	case SENSOR_HV7131D:
 	case SENSOR_OV7630:
+		gspca_dev->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+					V4L2_CID_GAIN, 0, 47, 1, 31);
+		break;
+	case SENSOR_HV7131D:
 		gspca_dev->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 					V4L2_CID_GAIN, 0, 63, 1, 31);
 		break;
