@@ -8,7 +8,7 @@ Required properties:
 - interrupts : Should contain MC General interrupt.
 
 Example:
-	mc {
+	memory-controller@0x7000f000 {
 		compatible = "nvidia,tegra20-mc";
 		reg = <0x7000f000 0x024
 		       0x7000f03c 0x3c4>;
