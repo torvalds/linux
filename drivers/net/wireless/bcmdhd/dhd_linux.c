@@ -4426,12 +4426,12 @@ int net_os_set_packet_filter(struct net_device *dev, int val)
 	return dhd_os_set_packet_filter(&dhd->pub, val);
 }
 
-void
+int
 dhd_dev_init_ioctl(struct net_device *dev)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 
-	dhd_preinit_ioctls(&dhd->pub);
+	return dhd_preinit_ioctls(&dhd->pub);
 }
 
 #ifdef PNO_SUPPORT
