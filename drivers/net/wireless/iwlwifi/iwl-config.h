@@ -143,7 +143,7 @@ enum iwl_led_mode {
  * @chain_noise_scale: default chain noise scale used for gain computation
  * @wd_timeout: TX queues watchdog timeout
  * @max_event_log_size: size of event log buffer size for ucode event logging
- * @shadow_reg_enable: HW shadhow register bit
+ * @shadow_reg_enable: HW shadow register support
  * @hd_v2: v2 of enhanced sensitivity value, used for 2000 series and up
  * @no_idle_support: do not support idle mode
  */

@@ -829,6 +829,7 @@ static int iwl_nic_init(struct iwl_trans *trans)
 	if (trans->cfg->base_params->shadow_reg_enable) {
 		/* enable shadow regs in HW */
 		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL, 0x800FFFFF);
+		IWL_DEBUG_INFO(trans, "Enabling shadow registers in device\n");
 	}
 
 	return 0;
