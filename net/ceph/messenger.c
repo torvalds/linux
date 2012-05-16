@@ -658,6 +658,7 @@ static int prepare_connect_authorizer(struct ceph_connection *con)
 	void *auth_buf;
 	int auth_len;
 	int auth_protocol;
+	int ret;
 
 	if (!con->ops->get_authorizer) {
 		con->out_connect.authorizer_protocol = CEPH_AUTH_UNKNOWN;
@@ -673,10 +674,13 @@ static int prepare_connect_authorizer(struct ceph_connection *con)
 	auth_buf = NULL;
 	auth_len = 0;
 	auth_protocol = CEPH_AUTH_UNKNOWN;
-	con->ops->get_authorizer(con, &auth_buf, &auth_len, &auth_protocol,
-				&con->auth_reply_buf, &con->auth_reply_buf_len,
-				con->auth_retry);
+	ret = con->ops->get_authorizer(con, &auth_buf, &auth_len,
+				&auth_protocol, &con->auth_reply_buf,
+				&con->auth_reply_buf_len, con->auth_retry);
 	mutex_lock(&con->mutex);
+
+	if (ret)
+		return ret;
 
 	if (test_bit(CLOSED, &con->state) || test_bit(OPENING, &con->state))
 		return -EAGAIN;
