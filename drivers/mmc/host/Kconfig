@@ -278,10 +278,13 @@ choice
 	  Choose which driver to use for the Atmel MCI Silicon
 
 config MMC_AT91
-	tristate "AT91 SD/MMC Card Interface support"
+	tristate "AT91 SD/MMC Card Interface support (DEPRECATED)"
 	depends on ARCH_AT91
 	help
-	  This selects the AT91 MCI controller.
+	  This selects the AT91 MCI controller. This driver will
+	  be removed soon (for more information have a look to
+	  Documentation/feature-removal-schedule.txt). Please use
+	  MMC_ATMEL_MCI.
 
 	  If unsure, say N.
 
