@@ -3406,16 +3406,14 @@ static int get_authorizer(struct ceph_connection *con,
 	int ret = 0;
 
 	if (force_new && auth->authorizer) {
-		ac->ops->destroy_authorizer(ac, auth->authorizer);
+		if (ac->ops && ac->ops->destroy_authorizer)
+			ac->ops->destroy_authorizer(ac, auth->authorizer);
 		auth->authorizer = NULL;
 	}
-	if (auth->authorizer == NULL) {
-		if (ac->ops->create_authorizer) {
-			ret = ac->ops->create_authorizer(ac,
-						CEPH_ENTITY_TYPE_MDS, auth);
-			if (ret)
-				return ret;
-		}
+	if (!auth->authorizer && ac->ops && ac->ops->create_authorizer) {
+		ret = ac->ops->create_authorizer(ac, CEPH_ENTITY_TYPE_MDS, auth);
+		if (ret)
+			return ret;
 	}
 
 	*proto = ac->protocol;
