@@ -845,6 +845,8 @@ static int usb_serial_probe(struct usb_interface *interface,
 			module_put(type->driver.owner);
 			return -EIO;
 		}
+		dev_info(&interface->dev, "The \"generic\" usb-serial driver is only for testing and one-off prototypes.\n");
+		dev_info(&interface->dev, "Tell linux-usb@vger.kernel.org to add your device to a proper driver.\n");
 	}
 #endif
 	if (!num_ports) {
