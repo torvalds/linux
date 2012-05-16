@@ -450,7 +450,7 @@ unsigned int bt_sock_poll(struct file *file, struct socket *sock, poll_table *wa
 			sk->sk_state == BT_CONFIG)
 		return mask;
 
-	if (sock_writeable(sk))
+	if (!bt_sk(sk)->suspended && sock_writeable(sk))
 		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
 	else
 		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);

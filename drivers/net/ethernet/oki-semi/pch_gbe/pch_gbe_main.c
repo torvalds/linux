@@ -640,14 +640,11 @@ static void pch_gbe_mac_set_pause_packet(struct pch_gbe_hw *hw)
  */
 static int pch_gbe_alloc_queues(struct pch_gbe_adapter *adapter)
 {
-	int size;
-
-	size = (int)sizeof(struct pch_gbe_tx_ring);
-	adapter->tx_ring = kzalloc(size, GFP_KERNEL);
+	adapter->tx_ring = kzalloc(sizeof(*adapter->tx_ring), GFP_KERNEL);
 	if (!adapter->tx_ring)
 		return -ENOMEM;
-	size = (int)sizeof(struct pch_gbe_rx_ring);
-	adapter->rx_ring = kzalloc(size, GFP_KERNEL);
+
+	adapter->rx_ring = kzalloc(sizeof(*adapter->rx_ring), GFP_KERNEL);
 	if (!adapter->rx_ring) {
 		kfree(adapter->tx_ring);
 		return -ENOMEM;
@@ -1162,7 +1159,6 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 	struct sk_buff *tmp_skb;
 	unsigned int frame_ctrl;
 	unsigned int ring_num;
-	unsigned long flags;
 
 	/*-- Set frame control --*/
 	frame_ctrl = 0;
@@ -1211,14 +1207,14 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 			}
 		}
 	}
-	spin_lock_irqsave(&tx_ring->tx_lock, flags);
+
 	ring_num = tx_ring->next_to_use;
 	if (unlikely((ring_num + 1) == tx_ring->count))
 		tx_ring->next_to_use = 0;
 	else
 		tx_ring->next_to_use = ring_num + 1;
 
-	spin_unlock_irqrestore(&tx_ring->tx_lock, flags);
+
 	buffer_info = &tx_ring->buffer_info[ring_num];
 	tmp_skb = buffer_info->skb;
 
@@ -1518,7 +1514,7 @@ pch_gbe_alloc_rx_buffers_pool(struct pch_gbe_adapter *adapter,
 						&rx_ring->rx_buff_pool_logic,
 						GFP_KERNEL);
 	if (!rx_ring->rx_buff_pool) {
-		pr_err("Unable to allocate memory for the receive poll buffer\n");
+		pr_err("Unable to allocate memory for the receive pool buffer\n");
 		return -ENOMEM;
 	}
 	memset(rx_ring->rx_buff_pool, 0, size);
@@ -1637,15 +1633,17 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 	pr_debug("called pch_gbe_unmap_and_free_tx_resource() %d count\n",
 		 cleaned_count);
 	/* Recover from running out of Tx resources in xmit_frame */
+	spin_lock(&tx_ring->tx_lock);
 	if (unlikely(cleaned && (netif_queue_stopped(adapter->netdev)))) {
 		netif_wake_queue(adapter->netdev);
 		adapter->stats.tx_restart_count++;
 		pr_debug("Tx wake queue\n");
 	}
-	spin_lock(&adapter->tx_queue_lock);
+
 	tx_ring->next_to_clean = i;
-	spin_unlock(&adapter->tx_queue_lock);
+
 	pr_debug("next_to_clean : %d\n", tx_ring->next_to_clean);
+	spin_unlock(&tx_ring->tx_lock);
 	return cleaned;
 }
 
@@ -2037,7 +2035,6 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 		return -ENOMEM;
 	}
 	spin_lock_init(&adapter->hw.miim_lock);
-	spin_lock_init(&adapter->tx_queue_lock);
 	spin_lock_init(&adapter->stats_lock);
 	spin_lock_init(&adapter->ethtool_lock);
 	atomic_set(&adapter->irq_sem, 0);
@@ -2142,10 +2139,10 @@ static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			 tx_ring->next_to_use, tx_ring->next_to_clean);
 		return NETDEV_TX_BUSY;
 	}
-	spin_unlock_irqrestore(&tx_ring->tx_lock, flags);
 
 	/* CRC,ITAG no support */
 	pch_gbe_tx_queue(adapter, tx_ring, skb);
+	spin_unlock_irqrestore(&tx_ring->tx_lock, flags);
 	return NETDEV_TX_OK;
 }
 
