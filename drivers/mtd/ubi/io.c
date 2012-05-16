@@ -272,7 +272,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 	}
 
 	if (ubi_dbg_is_write_failure(ubi)) {
-		dbg_err("cannot write %d bytes to PEB %d:%d "
+		ubi_err("cannot write %d bytes to PEB %d:%d "
 			"(emulated)", len, pnum, offset);
 		dump_stack();
 		return -EIO;
@@ -387,7 +387,7 @@ retry:
 		return err;
 
 	if (ubi_dbg_is_erase_failure(ubi)) {
-		dbg_err("cannot erase PEB %d (emulated)", pnum);
+		ubi_err("cannot erase PEB %d (emulated)", pnum);
 		return -EIO;
 	}
 
@@ -895,40 +895,40 @@ static int validate_vid_hdr(const struct ubi_device *ubi,
 	int usable_leb_size = ubi->leb_size - data_pad;
 
 	if (copy_flag != 0 && copy_flag != 1) {
-		dbg_err("bad copy_flag");
+		ubi_err("bad copy_flag");
 		goto bad;
 	}
 
 	if (vol_id < 0 || lnum < 0 || data_size < 0 || used_ebs < 0 ||
 	    data_pad < 0) {
-		dbg_err("negative values");
+		ubi_err("negative values");
 		goto bad;
 	}
 
 	if (vol_id >= UBI_MAX_VOLUMES && vol_id < UBI_INTERNAL_VOL_START) {
-		dbg_err("bad vol_id");
+		ubi_err("bad vol_id");
 		goto bad;
 	}
 
 	if (vol_id < UBI_INTERNAL_VOL_START && compat != 0) {
-		dbg_err("bad compat");
+		ubi_err("bad compat");
 		goto bad;
 	}
 
 	if (vol_id >= UBI_INTERNAL_VOL_START && compat != UBI_COMPAT_DELETE &&
 	    compat != UBI_COMPAT_RO && compat != UBI_COMPAT_PRESERVE &&
 	    compat != UBI_COMPAT_REJECT) {
-		dbg_err("bad compat");
+		ubi_err("bad compat");
 		goto bad;
 	}
 
 	if (vol_type != UBI_VID_DYNAMIC && vol_type != UBI_VID_STATIC) {
-		dbg_err("bad vol_type");
+		ubi_err("bad vol_type");
 		goto bad;
 	}
 
 	if (data_pad >= ubi->leb_size / 2) {
-		dbg_err("bad data_pad");
+		ubi_err("bad data_pad");
 		goto bad;
 	}
 
@@ -940,45 +940,45 @@ static int validate_vid_hdr(const struct ubi_device *ubi,
 		 * mapped logical eraseblocks.
 		 */
 		if (used_ebs == 0) {
-			dbg_err("zero used_ebs");
+			ubi_err("zero used_ebs");
 			goto bad;
 		}
 		if (data_size == 0) {
-			dbg_err("zero data_size");
+			ubi_err("zero data_size");
 			goto bad;
 		}
 		if (lnum < used_ebs - 1) {
 			if (data_size != usable_leb_size) {
-				dbg_err("bad data_size");
+				ubi_err("bad data_size");
 				goto bad;
 			}
 		} else if (lnum == used_ebs - 1) {
 			if (data_size == 0) {
-				dbg_err("bad data_size at last LEB");
+				ubi_err("bad data_size at last LEB");
 				goto bad;
 			}
 		} else {
-			dbg_err("too high lnum");
+			ubi_err("too high lnum");
 			goto bad;
 		}
 	} else {
 		if (copy_flag == 0) {
 			if (data_crc != 0) {
-				dbg_err("non-zero data CRC");
+				ubi_err("non-zero data CRC");
 				goto bad;
 			}
 			if (data_size != 0) {
-				dbg_err("non-zero data_size");
+				ubi_err("non-zero data_size");
 				goto bad;
 			}
 		} else {
 			if (data_size == 0) {
-				dbg_err("zero data_size of copy");
+				ubi_err("zero data_size of copy");
 				goto bad;
 			}
 		}
 		if (used_ebs != 0) {
-			dbg_err("bad used_ebs");
+			ubi_err("bad used_ebs");
 			goto bad;
 		}
 	}

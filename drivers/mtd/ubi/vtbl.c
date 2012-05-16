@@ -225,7 +225,7 @@ static int vtbl_check(const struct ubi_device *ubi,
 
 		n = ubi->leb_size % alignment;
 		if (data_pad != n) {
-			dbg_err("bad data_pad, has to be %d", n);
+			ubi_err("bad data_pad, has to be %d", n);
 			err = 6;
 			goto bad;
 		}
@@ -241,7 +241,7 @@ static int vtbl_check(const struct ubi_device *ubi,
 		}
 
 		if (reserved_pebs > ubi->good_peb_count) {
-			dbg_err("too large reserved_pebs %d, good PEBs %d",
+			ubi_err("too large reserved_pebs %d, good PEBs %d",
 				reserved_pebs, ubi->good_peb_count);
 			err = 9;
 			goto bad;
@@ -815,7 +815,7 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_scan_info *si)
 	} else {
 		if (sv->leb_count > UBI_LAYOUT_VOLUME_EBS) {
 			/* This must not happen with proper UBI images */
-			dbg_err("too many LEBs (%d) in layout volume",
+			ubi_err("too many LEBs (%d) in layout volume",
 				sv->leb_count);
 			return -EINVAL;
 		}

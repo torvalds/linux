@@ -221,7 +221,7 @@ out_free:
 	kfree(desc);
 out_put_ubi:
 	ubi_put_device(ubi);
-	dbg_err("cannot open device %d, volume %d, error %d",
+	ubi_err("cannot open device %d, volume %d, error %d",
 		ubi_num, vol_id, err);
 	return ERR_PTR(err);
 }

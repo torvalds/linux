@@ -223,7 +223,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 			}
 
 		if (vol_id == UBI_VOL_NUM_AUTO) {
-			dbg_err("out of volume IDs");
+			ubi_err("out of volume IDs");
 			err = -ENFILE;
 			goto out_unlock;
 		}
@@ -237,7 +237,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	/* Ensure that this volume does not exist */
 	err = -EEXIST;
 	if (ubi->volumes[vol_id]) {
-		dbg_err("volume %d already exists", vol_id);
+		ubi_err("volume %d already exists", vol_id);
 		goto out_unlock;
 	}
 
@@ -246,7 +246,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 		if (ubi->volumes[i] &&
 		    ubi->volumes[i]->name_len == req->name_len &&
 		    !strcmp(ubi->volumes[i]->name, req->name)) {
-			dbg_err("volume \"%s\" exists (ID %d)", req->name, i);
+			ubi_err("volume \"%s\" exists (ID %d)", req->name, i);
 			goto out_unlock;
 		}
 
@@ -257,9 +257,9 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 
 	/* Reserve physical eraseblocks */
 	if (vol->reserved_pebs > ubi->avail_pebs) {
-		dbg_err("not enough PEBs, only %d available", ubi->avail_pebs);
+		ubi_err("not enough PEBs, only %d available", ubi->avail_pebs);
 		if (ubi->corr_peb_count)
-			dbg_err("%d PEBs are corrupted and not used",
+			ubi_err("%d PEBs are corrupted and not used",
 				ubi->corr_peb_count);
 		err = -ENOSPC;
 		goto out_unlock;
@@ -495,7 +495,7 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 
 	if (vol->vol_type == UBI_STATIC_VOLUME &&
 	    reserved_pebs < vol->used_ebs) {
-		dbg_err("too small size %d, %d LEBs contain data",
+		ubi_err("too small size %d, %d LEBs contain data",
 			reserved_pebs, vol->used_ebs);
 		return -EINVAL;
 	}
@@ -524,10 +524,10 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 	if (pebs > 0) {
 		spin_lock(&ubi->volumes_lock);
 		if (pebs > ubi->avail_pebs) {
-			dbg_err("not enough PEBs: requested %d, available %d",
+			ubi_err("not enough PEBs: requested %d, available %d",
 				pebs, ubi->avail_pebs);
 			if (ubi->corr_peb_count)
-				dbg_err("%d PEBs are corrupted and not used",
+				ubi_err("%d PEBs are corrupted and not used",
 					ubi->corr_peb_count);
 			spin_unlock(&ubi->volumes_lock);
 			err = -ENOSPC;
@@ -762,7 +762,7 @@ static int self_check_volume(struct ubi_device *ubi, int vol_id)
 	}
 
 	if (vol->upd_marker && vol->corrupted) {
-		dbg_err("update marker and corrupted simultaneously");
+		ubi_err("update marker and corrupted simultaneously");
 		goto fail;
 	}
 

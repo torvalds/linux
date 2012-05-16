@@ -35,8 +35,6 @@ void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
 	}                                                                    \
 } while (0)
 
-#define dbg_err(fmt, ...) ubi_err(fmt, ##__VA_ARGS__)
-
 #define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)  \
 		print_hex_dump(l, ps, pt, r, g, b, len, a)
 

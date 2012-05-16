@@ -197,7 +197,7 @@ static int validate_vid_hdr(const struct ubi_vid_hdr *vid_hdr,
 		 */
 
 		if (vol_id != sv->vol_id) {
-			dbg_err("inconsistent vol_id");
+			ubi_err("inconsistent vol_id");
 			goto bad;
 		}
 
@@ -207,17 +207,17 @@ static int validate_vid_hdr(const struct ubi_vid_hdr *vid_hdr,
 			sv_vol_type = UBI_VID_DYNAMIC;
 
 		if (vol_type != sv_vol_type) {
-			dbg_err("inconsistent vol_type");
+			ubi_err("inconsistent vol_type");
 			goto bad;
 		}
 
 		if (used_ebs != sv->used_ebs) {
-			dbg_err("inconsistent used_ebs");
+			ubi_err("inconsistent used_ebs");
 			goto bad;
 		}
 
 		if (data_pad != sv->data_pad) {
-			dbg_err("inconsistent data_pad");
+			ubi_err("inconsistent data_pad");
 			goto bad;
 		}
 	}
@@ -369,7 +369,7 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
 			if (err == UBI_IO_BITFLIPS)
 				bitflips = 1;
 			else {
-				dbg_err("VID of PEB %d header is bad, but it "
+				ubi_err("VID of PEB %d header is bad, but it "
 					"was OK earlier, err %d", pnum, err);
 				if (err > 0)
 					err = -EIO;
