@@ -15,7 +15,7 @@ Child device nodes describe the memory settings for different configurations and
 
 Example:
 
-	emc@7000f400 {
+	memory-controller@7000f400 {
 		#address-cells = < 1 >;
 		#size-cells = < 0 >;
 		compatible = "nvidia,tegra20-emc";
