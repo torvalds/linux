@@ -155,18 +155,12 @@ struct ubi_work {
 	int torture;
 };
 
-#ifdef CONFIG_MTD_UBI_DEBUG
 static int paranoid_check_ec(struct ubi_device *ubi, int pnum, int ec);
 static int paranoid_check_in_wl_tree(const struct ubi_device *ubi,
 				     struct ubi_wl_entry *e,
 				     struct rb_root *root);
 static int paranoid_check_in_pq(const struct ubi_device *ubi,
 				struct ubi_wl_entry *e);
-#else
-#define paranoid_check_ec(ubi, pnum, ec) 0
-#define paranoid_check_in_wl_tree(ubi, e, root)
-#define paranoid_check_in_pq(ubi, e) 0
-#endif
 
 /**
  * wl_tree_add - add a wear-leveling entry to a WL RB-tree.
@@ -1526,8 +1520,6 @@ void ubi_wl_close(struct ubi_device *ubi)
 	kfree(ubi->lookuptbl);
 }
 
-#ifdef CONFIG_MTD_UBI_DEBUG
-
 /**
  * paranoid_check_ec - make sure that the erase counter of a PEB is correct.
  * @ubi: UBI device description object
@@ -1624,5 +1616,3 @@ static int paranoid_check_in_pq(const struct ubi_device *ubi,
 	dump_stack();
 	return -EINVAL;
 }
-
-#endif /* CONFIG_MTD_UBI_DEBUG */

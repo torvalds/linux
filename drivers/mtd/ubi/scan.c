@@ -88,11 +88,7 @@
 #include <linux/random.h>
 #include "ubi.h"
 
-#ifdef CONFIG_MTD_UBI_DEBUG
 static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si);
-#else
-#define paranoid_check_si(ubi, si) 0
-#endif
 
 /* Temporary variables used during scanning */
 static struct ubi_ec_hdr *ech;
@@ -1329,8 +1325,6 @@ void ubi_scan_destroy_si(struct ubi_scan_info *si)
 	kfree(si);
 }
 
-#ifdef CONFIG_MTD_UBI_DEBUG
-
 /**
  * paranoid_check_si - check the scanning information.
  * @ubi: UBI device description object
@@ -1601,5 +1595,3 @@ out:
 	dump_stack();
 	return -EINVAL;
 }
-
-#endif /* CONFIG_MTD_UBI_DEBUG */
