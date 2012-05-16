@@ -922,6 +922,7 @@ static int batadv_check_unicast_ttvn(struct bat_priv *bat_priv,
 	struct hard_iface *primary_if;
 	struct unicast_packet *unicast_packet;
 	bool tt_poss_change;
+	int is_old_ttvn;
 
 	/* I could need to modify it */
 	if (skb_cow(skb, sizeof(struct unicast_packet)) < 0)
@@ -945,7 +946,8 @@ static int batadv_check_unicast_ttvn(struct bat_priv *bat_priv,
 	}
 
 	/* Check whether I have to reroute the packet */
-	if (seq_before(unicast_packet->ttvn, curr_ttvn) || tt_poss_change) {
+	is_old_ttvn = batadv_seq_before(unicast_packet->ttvn, curr_ttvn);
+	if (is_old_ttvn || tt_poss_change) {
 		/* check if there is enough data before accessing it */
 		if (pskb_may_pull(skb, sizeof(struct unicast_packet) +
 				  ETH_HLEN) < 0)

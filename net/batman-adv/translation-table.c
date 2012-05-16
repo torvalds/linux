@@ -1930,7 +1930,7 @@ static bool batadv_tt_check_roam_count(struct bat_priv *bat_priv,
 					 ROAMING_MAX_TIME))
 			continue;
 
-		if (!atomic_dec_not_zero(&tt_roam_node->counter))
+		if (!batadv_atomic_dec_not_zero(&tt_roam_node->counter))
 			/* Sorry, you roamed too many times! */
 			goto unlock;
 		ret = true;
@@ -2162,7 +2162,7 @@ int batadv_tt_append_diff(struct bat_priv *bat_priv,
 
 	/* if the changes have been sent often enough */
 	if ((tt_num_changes < 0) &&
-	    (!atomic_dec_not_zero(&bat_priv->tt_ogm_append_cnt))) {
+	    (!batadv_atomic_dec_not_zero(&bat_priv->tt_ogm_append_cnt))) {
 		batadv_tt_realloc_packet_buff(packet_buff, packet_buff_len,
 					      packet_min_len, packet_min_len);
 		tt_num_changes = 0;

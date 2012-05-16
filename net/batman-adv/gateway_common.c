@@ -97,9 +97,9 @@ static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 
 	ret = kstrtol(buff, 10, &ldown);
 	if (ret) {
-		bat_err(net_dev,
-			"Download speed of gateway mode invalid: %s\n",
-			buff);
+		batadv_err(net_dev,
+			   "Download speed of gateway mode invalid: %s\n",
+			   buff);
 		return false;
 	}
 
@@ -122,9 +122,9 @@ static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 
 		ret = kstrtol(slash_ptr + 1, 10, &lup);
 		if (ret) {
-			bat_err(net_dev,
-				"Upload speed of gateway mode invalid: %s\n",
-				slash_ptr + 1);
+			batadv_err(net_dev,
+				   "Upload speed of gateway mode invalid: %s\n",
+				   slash_ptr + 1);
 			return false;
 		}
 
@@ -164,13 +164,13 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 		return count;
 
 	batadv_gw_deselect(bat_priv);
-	bat_info(net_dev,
-		 "Changing gateway bandwidth from: '%i' to: '%ld' (propagating: %d%s/%d%s)\n",
-		 atomic_read(&bat_priv->gw_bandwidth), gw_bandwidth_tmp,
-		 (down > 2048 ? down / 1024 : down),
-		 (down > 2048 ? "MBit" : "KBit"),
-		 (up > 2048 ? up / 1024 : up),
-		 (up > 2048 ? "MBit" : "KBit"));
+	batadv_info(net_dev,
+		    "Changing gateway bandwidth from: '%i' to: '%ld' (propagating: %d%s/%d%s)\n",
+		    atomic_read(&bat_priv->gw_bandwidth), gw_bandwidth_tmp,
+		    (down > 2048 ? down / 1024 : down),
+		    (down > 2048 ? "MBit" : "KBit"),
+		    (up > 2048 ? up / 1024 : up),
+		    (up > 2048 ? "MBit" : "KBit"));
 
 	atomic_set(&bat_priv->gw_bandwidth, gw_bandwidth_tmp);
 

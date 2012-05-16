@@ -197,7 +197,7 @@ void batadv_gw_election(struct bat_priv *bat_priv)
 	if (atomic_read(&bat_priv->gw_mode) != GW_MODE_CLIENT)
 		goto out;
 
-	if (!atomic_dec_not_zero(&bat_priv->gw_reselect))
+	if (!batadv_atomic_dec_not_zero(&bat_priv->gw_reselect))
 		goto out;
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);

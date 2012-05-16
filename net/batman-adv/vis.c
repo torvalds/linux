@@ -424,8 +424,8 @@ static struct vis_info *batadv_add_packet(struct bat_priv *bat_priv,
 
 	if (old_info) {
 		old_packet = (struct vis_packet *)old_info->skb_packet->data;
-		if (!seq_after(ntohl(vis_packet->seqno),
-			       ntohl(old_packet->seqno))) {
+		if (!batadv_seq_after(ntohl(vis_packet->seqno),
+				      ntohl(old_packet->seqno))) {
 			if (old_packet->seqno == vis_packet->seqno) {
 				batadv_recv_list_add(bat_priv,
 						     &old_info->recv_list,

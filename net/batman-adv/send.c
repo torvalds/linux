@@ -141,7 +141,7 @@ int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
 	struct bcast_packet *bcast_packet;
 	struct sk_buff *newskb;
 
-	if (!atomic_dec_not_zero(&bat_priv->bcast_queue_left)) {
+	if (!batadv_atomic_dec_not_zero(&bat_priv->bcast_queue_left)) {
 		batadv_dbg(DBG_BATMAN, bat_priv, "bcast packet queue full\n");
 		goto out;
 	}

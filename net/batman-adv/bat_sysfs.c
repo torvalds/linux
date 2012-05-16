@@ -191,18 +191,17 @@ static int batadv_store_bool_attr(char *buff, size_t count,
 		enabled = 0;
 
 	if (enabled < 0) {
-		bat_info(net_dev,
-			 "%s: Invalid parameter received: %s\n",
-			 attr_name, buff);
+		batadv_info(net_dev, "%s: Invalid parameter received: %s\n",
+			    attr_name, buff);
 		return -EINVAL;
 	}
 
 	if (atomic_read(attr) == enabled)
 		return count;
 
-	bat_info(net_dev, "%s: Changing from: %s to: %s\n", attr_name,
-		 atomic_read(attr) == 1 ? "enabled" : "disabled",
-		 enabled == 1 ? "enabled" : "disabled");
+	batadv_info(net_dev, "%s: Changing from: %s to: %s\n", attr_name,
+		    atomic_read(attr) == 1 ? "enabled" : "disabled",
+		    enabled == 1 ? "enabled" : "disabled");
 
 	atomic_set(attr, (unsigned int)enabled);
 	return count;
@@ -235,29 +234,28 @@ static int batadv_store_uint_attr(const char *buff, size_t count,
 
 	ret = kstrtoul(buff, 10, &uint_val);
 	if (ret) {
-		bat_info(net_dev,
-			 "%s: Invalid parameter received: %s\n",
-			 attr_name, buff);
+		batadv_info(net_dev, "%s: Invalid parameter received: %s\n",
+			    attr_name, buff);
 		return -EINVAL;
 	}
 
 	if (uint_val < min) {
-		bat_info(net_dev, "%s: Value is too small: %lu min: %u\n",
-			 attr_name, uint_val, min);
+		batadv_info(net_dev, "%s: Value is too small: %lu min: %u\n",
+			    attr_name, uint_val, min);
 		return -EINVAL;
 	}
 
 	if (uint_val > max) {
-		bat_info(net_dev, "%s: Value is too big: %lu max: %u\n",
-			 attr_name, uint_val, max);
+		batadv_info(net_dev, "%s: Value is too big: %lu max: %u\n",
+			    attr_name, uint_val, max);
 		return -EINVAL;
 	}
 
 	if (atomic_read(attr) == uint_val)
 		return count;
 
-	bat_info(net_dev, "%s: Changing from: %i to: %lu\n",
-		 attr_name, atomic_read(attr), uint_val);
+	batadv_info(net_dev, "%s: Changing from: %i to: %lu\n",
+		    attr_name, atomic_read(attr), uint_val);
 
 	atomic_set(attr, uint_val);
 	return count;
@@ -299,6 +297,7 @@ static ssize_t batadv_store_vis_mode(struct kobject *kobj,
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	unsigned long val;
 	int ret, vis_mode_tmp = -1;
+	const char *old_mode, *new_mode;
 
 	ret = kstrtoul(buff, 10, &val);
 
@@ -315,19 +314,27 @@ static ssize_t batadv_store_vis_mode(struct kobject *kobj,
 		if (buff[count - 1] == '\n')
 			buff[count - 1] = '\0';
 
-		bat_info(net_dev,
-			 "Invalid parameter for 'vis mode' setting received: %s\n",
-			 buff);
+		batadv_info(net_dev,
+			    "Invalid parameter for 'vis mode' setting received: %s\n",
+			    buff);
 		return -EINVAL;
 	}
 
 	if (atomic_read(&bat_priv->vis_mode) == vis_mode_tmp)
 		return count;
 
-	bat_info(net_dev, "Changing vis mode from: %s to: %s\n",
-		 atomic_read(&bat_priv->vis_mode) == VIS_TYPE_CLIENT_UPDATE ?
-		 "client" : "server", vis_mode_tmp == VIS_TYPE_CLIENT_UPDATE ?
-		 "client" : "server");
+	if (atomic_read(&bat_priv->vis_mode) == VIS_TYPE_CLIENT_UPDATE)
+		old_mode =  "client";
+	else
+		old_mode = "server";
+
+	if (vis_mode_tmp == VIS_TYPE_CLIENT_UPDATE)
+		new_mode =  "client";
+	else
+		new_mode = "server";
+
+	batadv_info(net_dev, "Changing vis mode from: %s to: %s\n", old_mode,
+		    new_mode);
 
 	atomic_set(&bat_priv->vis_mode, (unsigned int)vis_mode_tmp);
 	return count;
@@ -391,9 +398,9 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 		gw_mode_tmp = GW_MODE_SERVER;
 
 	if (gw_mode_tmp < 0) {
-		bat_info(net_dev,
-			 "Invalid parameter for 'gw mode' setting received: %s\n",
-			 buff);
+		batadv_info(net_dev,
+			    "Invalid parameter for 'gw mode' setting received: %s\n",
+			    buff);
 		return -EINVAL;
 	}
 
@@ -412,8 +419,8 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 		break;
 	}
 
-	bat_info(net_dev, "Changing gw mode from: %s to: %s\n",
-		 curr_gw_mode_str, buff);
+	batadv_info(net_dev, "Changing gw mode from: %s to: %s\n",
+		    curr_gw_mode_str, buff);
 
 	batadv_gw_deselect(bat_priv);
 	atomic_set(&bat_priv->gw_mode, (unsigned int)gw_mode_tmp);
@@ -500,8 +507,8 @@ int batadv_sysfs_add_meshif(struct net_device *dev)
 	bat_priv->mesh_obj = kobject_create_and_add(SYSFS_IF_MESH_SUBDIR,
 						    batif_kobject);
 	if (!bat_priv->mesh_obj) {
-		bat_err(dev, "Can't add sysfs directory: %s/%s\n", dev->name,
-			SYSFS_IF_MESH_SUBDIR);
+		batadv_err(dev, "Can't add sysfs directory: %s/%s\n", dev->name,
+			   SYSFS_IF_MESH_SUBDIR);
 		goto out;
 	}
 
@@ -509,9 +516,9 @@ int batadv_sysfs_add_meshif(struct net_device *dev)
 		err = sysfs_create_file(bat_priv->mesh_obj,
 					&((*bat_attr)->attr));
 		if (err) {
-			bat_err(dev, "Can't add sysfs file: %s/%s/%s\n",
-				dev->name, SYSFS_IF_MESH_SUBDIR,
-				((*bat_attr)->attr).name);
+			batadv_err(dev, "Can't add sysfs file: %s/%s/%s\n",
+				   dev->name, SYSFS_IF_MESH_SUBDIR,
+				   ((*bat_attr)->attr).name);
 			goto rem_attr;
 		}
 	}
@@ -669,17 +676,17 @@ int batadv_sysfs_add_hardif(struct kobject **hardif_obj, struct net_device *dev)
 						    hardif_kobject);
 
 	if (!*hardif_obj) {
-		bat_err(dev, "Can't add sysfs directory: %s/%s\n", dev->name,
-			SYSFS_IF_BAT_SUBDIR);
+		batadv_err(dev, "Can't add sysfs directory: %s/%s\n", dev->name,
+			   SYSFS_IF_BAT_SUBDIR);
 		goto out;
 	}
 
 	for (bat_attr = batadv_batman_attrs; *bat_attr; ++bat_attr) {
 		err = sysfs_create_file(*hardif_obj, &((*bat_attr)->attr));
 		if (err) {
-			bat_err(dev, "Can't add sysfs file: %s/%s/%s\n",
-				dev->name, SYSFS_IF_BAT_SUBDIR,
-				((*bat_attr)->attr).name);
+			batadv_err(dev, "Can't add sysfs file: %s/%s/%s\n",
+				   dev->name, SYSFS_IF_BAT_SUBDIR,
+				   ((*bat_attr)->attr).name);
 			goto rem_attr;
 		}
 	}

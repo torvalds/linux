@@ -360,8 +360,8 @@ int batadv_debugfs_add_meshif(struct net_device *dev)
 					  bat_priv->debug_dir,
 					  dev, &(*bat_debug)->fops);
 		if (!file) {
-			bat_err(dev, "Can't add debugfs file: %s/%s\n",
-				dev->name, ((*bat_debug)->attr).name);
+			batadv_err(dev, "Can't add debugfs file: %s/%s\n",
+				   dev->name, ((*bat_debug)->attr).name);
 			goto rem_attr;
 		}
 	}

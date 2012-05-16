@@ -373,7 +373,7 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 
 	/* own packet should always be scheduled */
 	if (!own_packet) {
-		if (!atomic_dec_not_zero(&bat_priv->batman_queue_left)) {
+		if (!batadv_atomic_dec_not_zero(&bat_priv->batman_queue_left)) {
 			batadv_dbg(DBG_BATMAN, bat_priv,
 				   "batman packet queue full\n");
 			goto out;
