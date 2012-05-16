@@ -499,10 +499,10 @@ static int fimc_capture_open(struct file *file)
 		if (ret < 0) {
 			dev_err(&fimc->pdev->dev,
 				"Video pipeline initialization failed\n");
+			clear_bit(ST_CAPT_BUSY, &fimc->state);
 			pm_runtime_put_sync(&fimc->pdev->dev);
 			fimc->vid_cap.refcnt--;
 			v4l2_fh_release(file);
-			clear_bit(ST_CAPT_BUSY, &fimc->state);
 			return ret;
 		}
 		ret = fimc_capture_ctrls_create(fimc);

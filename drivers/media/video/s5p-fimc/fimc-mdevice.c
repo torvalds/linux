@@ -193,9 +193,13 @@ int __fimc_pipeline_shutdown(struct fimc_pipeline *p)
 
 int fimc_pipeline_shutdown(struct fimc_pipeline *p)
 {
-	struct media_entity *me = &p->subdevs[IDX_SENSOR]->entity;
+	struct media_entity *me;
 	int ret;
 
+	if (!p || !p->subdevs[IDX_SENSOR])
+		return -EINVAL;
+
+	me = &p->subdevs[IDX_SENSOR]->entity;
 	mutex_lock(&me->parent->graph_mutex);
 	ret = __fimc_pipeline_shutdown(p);
 	mutex_unlock(&me->parent->graph_mutex);
