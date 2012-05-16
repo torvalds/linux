@@ -1684,9 +1684,6 @@ static int ieee80211_set_channel(struct wiphy *wiphy,
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata = NULL;
-	struct ieee80211_channel *old_oper;
-	enum nl80211_channel_type old_oper_type;
-	enum nl80211_channel_type old_vif_oper_type= NL80211_CHAN_NO_HT;
 
 	if (netdev)
 		sdata = IEEE80211_DEV_TO_SUB_IF(netdev);
@@ -1704,24 +1701,13 @@ static int ieee80211_set_channel(struct wiphy *wiphy,
 		break;
 	}
 
-	if (sdata)
-		old_vif_oper_type = sdata->vif.bss_conf.channel_type;
-	old_oper_type = local->_oper_channel_type;
-
 	if (!ieee80211_set_channel_type(local, sdata, channel_type))
 		return -EBUSY;
 
-	old_oper = local->oper_channel;
 	local->oper_channel = chan;
 
-	/* Update driver if changes were actually made. */
-	if ((old_oper != local->oper_channel) ||
-	    (old_oper_type != local->_oper_channel_type))
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
-
-	if (sdata && sdata->vif.type != NL80211_IFTYPE_MONITOR &&
-	    old_vif_oper_type != sdata->vif.bss_conf.channel_type)
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_HT);
+	/* auto-detects changes */
+	ieee80211_hw_config(local, 0);
 
 	return 0;
 }
