@@ -37,8 +37,6 @@
 void iwl_connection_init_rx_config(struct iwl_priv *priv,
 				   struct iwl_rxon_context *ctx)
 {
-	const struct iwl_channel_info *ch_info;
-
 	memset(&ctx->staging, 0, sizeof(ctx->staging));
 
 	if (!ctx->vif) {
@@ -80,14 +78,8 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 		ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 #endif
 
-	ch_info = iwl_get_channel_info(priv, priv->band,
-				       le16_to_cpu(ctx->active.channel));
-
-	if (!ch_info)
-		ch_info = &priv->channel_info[0];
-
-	ctx->staging.channel = cpu_to_le16(ch_info->channel);
-	priv->band = ch_info->band;
+	ctx->staging.channel = cpu_to_le16(priv->hw->conf.channel->hw_value);
+	priv->band = priv->hw->conf.channel->band;
 
 	iwl_set_flags_for_band(priv, ctx, priv->band, ctx->vif);
 
