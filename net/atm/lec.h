@@ -142,7 +142,6 @@ struct lec_priv {
 	int itfnum;				/* e.g. 2 for lec2, 5 for lec5 */
 	struct lane2_ops *lane2_ops;		/* can be NULL for LANE v1 */
 	int is_proxy;				/* bridge between ATM and Ethernet */
-	int is_trdev;				/* Device type, 0 = Ethernet, 1 = TokenRing */
 };
 
 struct lec_vcc_priv {

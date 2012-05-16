@@ -141,23 +141,6 @@ static inline struct sk_buff *ip_finish_skb(struct sock *sk, struct flowi4 *fl4)
 extern int		ip4_datagram_connect(struct sock *sk, 
 					     struct sockaddr *uaddr, int addr_len);
 
-/*
- *	Map a multicast IP onto multicast MAC for type Token Ring.
- *      This conforms to RFC1469 Option 2 Multicasting i.e.
- *      using a functional address to transmit / receive 
- *      multicast packets.
- */
-
-static inline void ip_tr_mc_map(__be32 addr, char *buf)
-{
-	buf[0]=0xC0;
-	buf[1]=0x00;
-	buf[2]=0x00;
-	buf[3]=0x04;
-	buf[4]=0x00;
-	buf[5]=0x00;
-}
-
 struct ip_reply_arg {
 	struct kvec iov[1];   
 	int	    flags;

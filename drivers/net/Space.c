@@ -29,7 +29,6 @@
  */
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/trdevice.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/netlink.h>
@@ -284,46 +283,6 @@ static void __init ethif_probe2(int unit)
 		probe_list2(unit, parport_probes, base_addr == 0));
 }
 
-#ifdef CONFIG_TR
-/* Token-ring device probe */
-extern int ibmtr_probe_card(struct net_device *);
-extern struct net_device *smctr_probe(int unit);
-
-static struct devprobe2 tr_probes2[] __initdata = {
-#ifdef CONFIG_SMCTR
-	{smctr_probe, 0},
-#endif
-	{NULL, 0},
-};
-
-static __init int trif_probe(int unit)
-{
-	int err = -ENODEV;
-#ifdef CONFIG_IBMTR
-	struct net_device *dev = alloc_trdev(0);
-	if (!dev)
-		return -ENOMEM;
-
-	sprintf(dev->name, "tr%d", unit);
-	netdev_boot_setup_check(dev);
-	err = ibmtr_probe_card(dev);
-	if (err)
-		free_netdev(dev);
-#endif
-	return err;
-}
-
-static void __init trif_probe2(int unit)
-{
-	unsigned long base_addr = netdev_boot_base("tr", unit);
-
-	if (base_addr == 1)
-		return;
-	probe_list2(unit, tr_probes2, base_addr == 0);
-}
-#endif
-
-
 /*  Statically configured drivers -- order matters here. */
 static int __init net_olddevs_init(void)
 {
@@ -332,11 +291,6 @@ static int __init net_olddevs_init(void)
 #ifdef CONFIG_SBNI
 	for (num = 0; num < 8; ++num)
 		sbni_probe(num);
-#endif
-#ifdef CONFIG_TR
-	for (num = 0; num < 8; ++num)
-		if (!trif_probe(num))
-			trif_probe2(num);
 #endif
 	for (num = 0; num < 8; ++num)
 		ethif_probe2(num);

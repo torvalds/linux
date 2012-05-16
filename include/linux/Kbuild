@@ -186,7 +186,6 @@ header-y += if_pppox.h
 header-y += if_slip.h
 header-y += if_strip.h
 header-y += if_team.h
-header-y += if_tr.h
 header-y += if_tun.h
 header-y += if_tunnel.h
 header-y += if_vlan.h
