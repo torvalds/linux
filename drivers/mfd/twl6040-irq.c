@@ -25,6 +25,8 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/irq.h>
+#include <linux/of.h>
+#include <linux/irqdomain.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/twl6040.h>
@@ -139,6 +141,7 @@ static irqreturn_t twl6040_irq_thread(int irq, void *data)
 
 int twl6040_irq_init(struct twl6040 *twl6040)
 {
+	struct device_node *node = twl6040->dev->of_node;
 	int i, nr_irqs, irq_base, ret;
 	u8 val;
 
@@ -157,6 +160,9 @@ int twl6040_irq_init(struct twl6040 *twl6040)
 		return irq_base;
 	}
 	twl6040->irq_base = irq_base;
+
+	irq_domain_add_legacy(node, ARRAY_SIZE(twl6040_irqs), irq_base, 0,
+			      &irq_domain_simple_ops, NULL);
 
 	/* Register them with genirq */
 	for (i = irq_base; i < irq_base + nr_irqs; i++) {

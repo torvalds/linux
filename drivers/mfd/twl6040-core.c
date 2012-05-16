@@ -29,6 +29,10 @@
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
+#include <linux/of_gpio.h>
+#include <linux/of_platform.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -505,11 +509,12 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 				     const struct i2c_device_id *id)
 {
 	struct twl6040_platform_data *pdata = client->dev.platform_data;
+	struct device_node *node = client->dev.of_node;
 	struct twl6040 *twl6040;
 	struct mfd_cell *cell = NULL;
 	int irq, ret, children = 0;
 
-	if (!pdata) {
+	if (!pdata && !node) {
 		dev_err(&client->dev, "Platform data is missing\n");
 		return -EINVAL;
 	}
@@ -560,9 +565,13 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 	twl6040->rev = twl6040_reg_read(twl6040, TWL6040_REG_ASICREV);
 
 	/* ERRATA: Automatic power-up is not possible in ES1.0 */
-	if (twl6040_get_revid(twl6040) > TWL6040_REV_ES1_0)
-		twl6040->audpwron = pdata->audpwron_gpio;
-	else
+	if (twl6040_get_revid(twl6040) > TWL6040_REV_ES1_0) {
+		if (pdata)
+			twl6040->audpwron = pdata->audpwron_gpio;
+		else
+			twl6040->audpwron = of_get_named_gpio(node,
+						"ti,audpwron-gpio", 0);
+	} else
 		twl6040->audpwron = -EINVAL;
 
 	if (gpio_is_valid(twl6040->audpwron)) {
@@ -602,13 +611,13 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 	twl6040_codec_rsrc[0].end = irq;
 	cell->resources = twl6040_codec_rsrc;
 	cell->num_resources = ARRAY_SIZE(twl6040_codec_rsrc);
-	if (pdata->codec) {
+	if (pdata && pdata->codec) {
 		cell->platform_data = pdata->codec;
 		cell->pdata_size = sizeof(*pdata->codec);
 	}
 	children++;
 
-	if (pdata->vibra) {
+	if ((pdata && pdata->vibra) || of_find_node_by_name(node, "vibra")) {
 		irq = twl6040->irq_base + TWL6040_IRQ_VIB;
 
 		cell = &twl6040->cells[children];
@@ -618,8 +627,10 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 		cell->resources = twl6040_vibra_rsrc;
 		cell->num_resources = ARRAY_SIZE(twl6040_vibra_rsrc);
 
-		cell->platform_data = pdata->vibra;
-		cell->pdata_size = sizeof(*pdata->vibra);
+		if (pdata && pdata->vibra) {
+			cell->platform_data = pdata->vibra;
+			cell->pdata_size = sizeof(*pdata->vibra);
+		}
 		children++;
 	}
 
