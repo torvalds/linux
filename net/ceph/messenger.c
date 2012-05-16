@@ -697,6 +697,7 @@ static int prepare_write_connect(struct ceph_connection *con)
 {
 	unsigned global_seq = get_global_seq(con->msgr, 0);
 	int proto;
+	int ret;
 
 	switch (con->peer_name.type) {
 	case CEPH_ENTITY_TYPE_MON:
@@ -723,11 +724,14 @@ static int prepare_write_connect(struct ceph_connection *con)
 	con->out_connect.flags = 0;
 
 	ceph_con_out_kvec_add(con, sizeof (con->out_connect), &con->out_connect);
+	ret = prepare_connect_authorizer(con);
+	if (ret)
+		return ret;
 
 	con->out_more = 0;
 	set_bit(WRITE_PENDING, &con->state);
 
-	return prepare_connect_authorizer(con);
+	return 0;
 }
 
 /*
