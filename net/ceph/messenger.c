@@ -656,19 +656,29 @@ static void prepare_write_keepalive(struct ceph_connection *con)
 static int prepare_connect_authorizer(struct ceph_connection *con)
 {
 	void *auth_buf;
-	int auth_len = 0;
-	int auth_protocol = 0;
+	int auth_len;
+	int auth_protocol;
+
+	if (!con->ops->get_authorizer) {
+		con->out_connect.authorizer_protocol = CEPH_AUTH_UNKNOWN;
+		con->out_connect.authorizer_len = 0;
+
+		return 0;
+	}
+
+	/* Can't hold the mutex while getting authorizer */
 
 	mutex_unlock(&con->mutex);
-	if (con->ops->get_authorizer)
-		con->ops->get_authorizer(con, &auth_buf, &auth_len,
-					 &auth_protocol, &con->auth_reply_buf,
-					 &con->auth_reply_buf_len,
-					 con->auth_retry);
+
+	auth_buf = NULL;
+	auth_len = 0;
+	auth_protocol = CEPH_AUTH_UNKNOWN;
+	con->ops->get_authorizer(con, &auth_buf, &auth_len, &auth_protocol,
+				&con->auth_reply_buf, &con->auth_reply_buf_len,
+				con->auth_retry);
 	mutex_lock(&con->mutex);
 
-	if (test_bit(CLOSED, &con->state) ||
-	    test_bit(OPENING, &con->state))
+	if (test_bit(CLOSED, &con->state) || test_bit(OPENING, &con->state))
 		return -EAGAIN;
 
 	con->out_connect.authorizer_protocol = cpu_to_le32(auth_protocol);
