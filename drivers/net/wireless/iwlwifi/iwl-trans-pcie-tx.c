@@ -209,7 +209,7 @@ static void iwlagn_unmap_tfd(struct iwl_trans *trans, struct iwl_cmd_meta *meta,
 }
 
 /**
- * iwlagn_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
+ * iwl_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
  * @trans - transport private data
  * @txq - tx queue
  * @dma_dir - the direction of the DMA mapping
@@ -217,8 +217,8 @@ static void iwlagn_unmap_tfd(struct iwl_trans *trans, struct iwl_cmd_meta *meta,
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
-void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
-			 enum dma_data_direction dma_dir)
+void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
+		      enum dma_data_direction dma_dir)
 {
 	struct iwl_tfd *tfd_tmp = txq->tfds;
 
@@ -979,7 +979,7 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 
 		iwlagn_txq_inval_byte_cnt_tbl(trans, txq);
 
-		iwlagn_txq_free_tfd(trans, txq, DMA_TO_DEVICE);
+		iwl_txq_free_tfd(trans, txq, DMA_TO_DEVICE);
 		freed++;
 	}
 
