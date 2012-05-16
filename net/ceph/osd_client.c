@@ -2113,9 +2113,7 @@ static void put_osd_con(struct ceph_connection *con)
  * managed separately.  Caller must *not* attempt to free it.
  */
 static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
-					void **buf, int *len, int *proto,
-					void **reply_buf, int *reply_len,
-					int force_new)
+					int *proto, int force_new)
 {
 	struct ceph_osd *o = con->private;
 	struct ceph_osd_client *osdc = o->o_osdc;
@@ -2133,12 +2131,7 @@ static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
 		if (ret)
 			return ERR_PTR(ret);
 	}
-
 	*proto = ac->protocol;
-	*buf = auth->authorizer_buf;
-	*len = auth->authorizer_buf_len;
-	*reply_buf = auth->authorizer_reply_buf;
-	*reply_len = auth->authorizer_reply_buf_len;
 
 	return auth;
 }
