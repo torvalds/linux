@@ -49,9 +49,17 @@ static const struct snd_pcm_hardware rockchip_pcm_hardware = {
 				    SNDRV_PCM_FMTBIT_S16_LE,
 	.channels_min		= 2,
 	.channels_max		= 8,
+#ifdef CONFIG_RK_SRAM_DMA
+	.buffer_bytes_max	= 48*1024,
+#else
 	.buffer_bytes_max	= 128*1024,
+#endif
 	.period_bytes_min	= 64,  ///PAGE_SIZE,
+#ifdef CONFIG_RK_SRAM_DMA
+	.period_bytes_max	= 4096*4,
+#else
 	.period_bytes_max	= 2048*4,///PAGE_SIZE*2,
+#endif
 	.periods_min		= 3,///2,
 	.periods_max		= 128,
 	.fifo_size		= 16,
@@ -492,6 +500,11 @@ static struct snd_pcm_ops rockchip_pcm_ops = {
 	.mmap		= rockchip_pcm_mmap,
 };
 
+#ifdef CONFIG_ARCH_RK30
+#define SRAM_DMA_PHYS	(dma_addr_t)(RK30_IMEM_PHYS + 16*1024)
+#define SRAM_DMA_START	(RK30_IMEM_NONCACHED + 16*1024)
+#endif
+
 static int rockchip_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 {
 	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
@@ -503,6 +516,12 @@ static int rockchip_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	buf->dev.type = SNDRV_DMA_TYPE_DEV;
 	buf->dev.dev = pcm->card->dev;
 	buf->private_data = NULL;
+#ifdef CONFIG_RK_SRAM_DMA
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		buf->area = SRAM_DMA_START;
+		buf->addr = SRAM_DMA_PHYS;
+	} else
+#endif
 	buf->area = dma_alloc_writecombine(pcm->card->dev, size,
 					   &buf->addr, GFP_KERNEL);
 	if (!buf->area)

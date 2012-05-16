@@ -132,4 +132,8 @@ config RK_DEBUG_UART
 	help
 	  Select a UART for debugging. -1 disable.
 
+config RK_SRAM_DMA
+	bool "Sound playback DMA buffer in internal SRAM"
+	depends on ARCH_RK30
+
 endif
