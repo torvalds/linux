@@ -1457,10 +1457,16 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		case Opt_direct:
 			vol->direct_io = true;
 			vol->strict_io = false;
+			cERROR(1, "The \"directio\" option will be removed in "
+				  "3.7. Please switch to the \"cache=none\" "
+				  "option.");
 			break;
 		case Opt_strictcache:
 			vol->direct_io = false;
 			vol->strict_io = true;
+			cERROR(1, "The \"strictcache\" option will be removed "
+				"in 3.7. Please switch to the \"cache=strict\" "
+				"option.");
 			break;
 		case Opt_noac:
 			printk(KERN_WARNING "CIFS: Mount option noac not "
