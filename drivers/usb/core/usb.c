@@ -1015,9 +1015,7 @@ static int __init usb_init(void)
 	if (retval)
 		goto out;
 
-	retval = usb_acpi_register();
-	if (retval)
-		goto acpi_register_failed;
+	usb_acpi_register();
 	retval = bus_register(&usb_bus_type);
 	if (retval)
 		goto bus_register_failed;
@@ -1053,7 +1051,6 @@ bus_notifier_failed:
 	bus_unregister(&usb_bus_type);
 bus_register_failed:
 	usb_acpi_unregister();
-acpi_register_failed:
 	usb_debugfs_cleanup();
 out:
 	return retval;
