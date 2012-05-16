@@ -2784,12 +2784,12 @@ static struct clk_lookup clks[] = {
 	CLK1(gpio4),
 	
 	/*************************aclk_lcdc0***********************/
-	CLK1(aclk_vio0),
+	//CLK1(aclk_vio0),
 	CLK1(aclk_cif0),
 	CLK1(aclk_ipp),
 
 	/*************************aclk_lcdc0***********************/
-	CLK1(aclk_vio1),
+	//CLK1(aclk_vio1),
 	CLK1(aclk_cif1),
 	CLK1(aclk_rga),
 	/************************power domain**********************/
@@ -2808,100 +2808,250 @@ static struct clk_lookup clks[] = {
 };
 static void __init rk30_init_enable_clocks(void)
 {
-/**************************************/
-	clk_enable_nolock(&pd_peri);
-	clk_enable_nolock(&pd_display);
-	clk_enable_nolock(&pd_dbg);
-/****************clocks*****************/
-	//ddr pll
-	clk_enable_nolock(&clk_ddr);
+		//clk_enable_nolock(&xin24m);
+		//clk_enable_nolock(&xin27m);
+		//clk_enable_nolock(&clk_12m);
+		//clk_enable_nolock(&arm_pll_clk);
+		//clk_enable_nolock(&ddr_pll_clk);
+		//clk_enable_nolock(&codec_pll_clk);
+		//clk_enable_nolock(&general_pll_clk);
+		//clk_enable_nolock(&clk_ddr);
+		
+		clk_enable_nolock(&clk_cpu);
+		clk_enable_nolock(&core_periph);
+		clk_enable_nolock(&aclk_cpu);
+		clk_enable_nolock(&hclk_cpu);
+		clk_enable_nolock(&pclk_cpu);
+		clk_enable_nolock(&atclk_cpu);
+	
+		#if 0
+		clk_enable_nolock(&clk_i2s_pll);
+		clk_enable_nolock(&clk_i2s0_div);
+		clk_enable_nolock(&clk_i2s0_frac_div);
+		clk_enable_nolock(&clk_i2s0);
+		clk_enable_nolock(&clk_hclk_i2s_8ch);
+	
+		clk_enable_nolock(&clk_i2s1_div);
+		clk_enable_nolock(&clk_i2s1_frac_div);
+		clk_enable_nolock(&clk_i2s1);
+		clk_enable_nolock(&clk_hclk_i2s0_2ch);
+	
+		clk_enable_nolock(&clk_i2s2_div);
+		clk_enable_nolock(&clk_i2s2_frac_div);
+		clk_enable_nolock(&clk_i2s2);
+		clk_enable_nolock(&clk_hclk_i2s1_2ch);
+	
+		clk_enable_nolock(&clk_spdif_div);
+		clk_enable_nolock(&clk_spdif_frac_div);
+		clk_enable_nolock(&clk_spdif);
+		clk_enable_nolock(&clk_hclk_spdif);
+		#endif
+		clk_enable_nolock(&aclk_periph);
+		clk_enable_nolock(&pclk_periph);
+		clk_enable_nolock(&hclk_periph);
 
+		#if 0
+		clk_enable_nolock(&clk_spi0);
+		clk_enable_nolock(&clk_pclk_spi0);
+		
+		clk_enable_nolock(&clk_spi1);
+		clk_enable_nolock(&clk_pclk_spi1);
+		clk_enable_nolock(&clk_saradc);
+		clk_enable_nolock(&clk_pclk_saradc);
+		clk_enable_nolock(&clk_tsadc);
+		clk_enable_nolock(&clk_pclk_tsadc);
+		#endif	
+		#if 0
+		clk_enable_nolock(&clk_otgphy0);
+		clk_enable_nolock(&clk_otgphy1);
+		clk_enable_nolock(&clk_hclk_usb_peri);
+		clk_enable_nolock(&clk_hclk_otg0);
+		clk_enable_nolock(&clk_hclk_otg1);
+		#endif
+		#if 0
+		clk_enable_nolock(&clk_smc);
+		clk_enable_nolock(&clk_aclk_smc);
+	
+		clk_enable_nolock(&clk_sdmmc);
+		clk_enable_nolock(&clk_hclk_sdmmc);
+		clk_enable_nolock(&clk_sdio);
+		clk_enable_nolock(&clk_hclk_sdio);
+	
+		clk_enable_nolock(&clk_emmc);
+		clk_enable_nolock(&clk_hclk_emmc);
+	
+		#endif
+		
+	#if CONFIG_RK_DEBUG_UART == 0
+		clk_enable_nolock(&clk_uart0);
+		clk_enable_nolock(&clk_pclk_uart0);
+	#elif CONFIG_RK_DEBUG_UART == 1
+		clk_enable_nolock(&clk_uart1);
+		clk_enable_nolock(&clk_pclk_uart1);
 
-	//apll 
-/*
-	clk_enable_nolock(&core_periph);
-	clk_enable_nolock(&hclk_cpu);
-	clk_enable_nolock(&pclk_cpu);
-	clk_enable_nolock(&atclk_cpu);
-*/
-	//usb
-	clk_enable_nolock(&clk_otgphy0);
-	clk_enable_nolock(&clk_otgphy1);
-	clk_enable_nolock(&clk_hclk_otg0);
-	clk_enable_nolock(&clk_hclk_otg1);
+	#elif CONFIG_RK_DEBUG_UART == 2
+		clk_enable_nolock(&clk_uart2);
+		clk_enable_nolock(&clk_pclk_uart2);
 
+	#elif CONFIG_RK_DEBUG_UART == 3
+		clk_enable_nolock(&clk_uart3);
+		clk_enable_nolock(&clk_pclk_uart3);
 
-	//periph clk
-	clk_enable_nolock(&clk_periph_src);
-	clk_enable_nolock(&hclk_periph);
-	clk_enable_nolock(&pclk_periph);
-
-	//uart
-	#if 1
-	clk_enable_nolock(&clk_pclk_uart1);
-	clk_enable_nolock(&clk_uart1_frac_div);
 	#endif
+
+		#if 1
+		clk_enable_nolock(&clk_timer0);
+		clk_enable_nolock(&clk_pclk_timer0);
+		
+		clk_enable_nolock(&clk_timer1);
+		clk_enable_nolock(&clk_pclk_timer1);
+		
+		clk_enable_nolock(&clk_timer2);
+		clk_enable_nolock(&clk_pclk_timer2);
+		#endif
+		#if 0
+		clk_enable_nolock(&rmii_clkin);
+		clk_enable_nolock(&clk_mac_pll_div);
+		clk_enable_nolock(&clk_mac_ref);
+		clk_enable_nolock(&clk_mii_tx);
+		#endif
+		
+		#if 0
+		clk_enable_nolock(&clk_hsadc_pll_div);
+		clk_enable_nolock(&clk_hsadc_frac_div);
+		clk_enable_nolock(&clk_hsadc_ext);
+		clk_enable_nolock(&clk_hsadc);
+		clk_enable_nolock(&clk_hclk_hsadc);
+		#endif
+
+		#if 0
+		clk_enable_nolock(&aclk_lcdc0_ipp_parent);
+		clk_enable_nolock(&aclk_lcdc1_rga_parent);
 	
-
-	// timer ???
-	clk_enable_nolock(&clk_timer0);
-	clk_enable_nolock(&clk_timer1);
-	clk_enable_nolock(&clk_timer2);
-	clk_enable_nolock(&clk_pclk_timer0);
-	clk_enable_nolock(&clk_pclk_timer1);
-	clk_enable_nolock(&clk_pclk_timer2);
-
-
-
-	// aclk cpu
-	clk_enable_nolock(&clk_dma1);
-	clk_enable_nolock(&clk_l2mem_con);
-	clk_enable_nolock(&clk_intmem);
-	clk_enable_nolock(&clk_aclk_strc_sys);
-	//hclk cpu
-	clk_enable_nolock(&clk_rom);
-	clk_enable_nolock(&clk_hclk_cpubus);
-	clk_enable_nolock(&clk_hclk_ahb2apb);
-	//clk_enable_nolock(&clk_hclk_vio_bus);
-	//pclk_cpu
-	clk_enable_nolock(&clk_tzpc);
-	clk_enable_nolock(&clk_pclk_ddrupctl);
-	clk_enable_nolock(&clk_pclk_ddrpubl);
+		clk_enable_nolock(&dclk_lcdc0_div);
+		clk_enable_nolock(&dclk_lcdc1_div);
+		
+		clk_enable_nolock(&dclk_lcdc0);
+		clk_enable_nolock(&clk_aclk_lcdc0);
+		clk_enable_nolock(&clk_hclk_lcdc0);
+		
+		clk_enable_nolock(&dclk_lcdc1);
+		clk_enable_nolock(&clk_aclk_lcdc1);
+		clk_enable_nolock(&clk_hclk_lcdc1);
+		
+		clk_enable_nolock(&cif_out_pll);
+		clk_enable_nolock(&cif0_out_div);
+		clk_enable_nolock(&cif1_out_div);
+		
+		clk_enable_nolock(&cif0_out);
+		clk_enable_nolock(&clk_hclk_cif0);
+		
+		clk_enable_nolock(&cif1_out);
+		clk_enable_nolock(&clk_hclk_cif1);
 	
-	clk_enable_nolock(&clk_dbg);
-	clk_enable_nolock(&clk_grf);
-	clk_enable_nolock(&clk_pmu);
-
-	//hclk periph
-	clk_enable_nolock(&clk_hclk_peri_axi_matrix);
-	clk_enable_nolock(&clk_hclk_peri_ahb_arbi);
-	clk_enable_nolock(&clk_hclk_emem_peri);
-	clk_enable_nolock(&clk_nandc);
-
-	//aclk periph
-	clk_enable_nolock(&clk_dma2);
-	clk_enable_nolock(&clk_aclk_peri_niu);
-	clk_enable_nolock(&clk_aclk_cpu_peri);
-	clk_enable_nolock(&clk_aclk_peri_axi_matrix);
-	//pclk periph
-	clk_enable_nolock(&clk_pclk_peri_axi_matrix);
-
-	#if 0
-	clk_enable_nolock(&clk_hclk_hdmi);
-	clk_enable_nolock(&clk_hclk_rga);
-	clk_enable_nolock(&clk_hclk_ipp);
-	clk_enable_nolock(&clk_hclk_cif1);
-	clk_enable_nolock(&clk_hclk_cif0);
+		clk_enable_nolock(&clk_hclk_ipp);
+		clk_enable_nolock(&clk_hclk_rga);
+		clk_enable_nolock(&clk_hclk_hdmi);
 	
-	clk_enable_nolock(&cif1_out);
-	clk_enable_nolock(&cif0_out);
-	clk_enable_nolock(&cif1_in);
-	clk_enable_nolock(&cif0_in);
-#endif
-
+		clk_enable_nolock(&pclkin_cif0);
+		clk_enable_nolock(&inv_cif0);
+		clk_enable_nolock(&cif0_in);
+		clk_enable_nolock(&pclkin_cif1);
+		clk_enable_nolock(&inv_cif1);
+		clk_enable_nolock(&cif1_in);
+		//CLK(NULL, "aclk_lcdc0",	&aclk_lcdc0),
+		//CLK(NULL, "aclk_lcdc1",	&aclk_lcdc1),
+		clk_enable_nolock(&aclk_vepu);
+		clk_enable_nolock(&hclk_vepu);
+		clk_enable_nolock(&aclk_vdpu);
+		clk_enable_nolock(&hclk_vdpu);
+		clk_enable_nolock(&clk_gpu);
+		#endif	
 	
-
-
+		clk_enable_nolock(&clk_dma1);
+		clk_enable_nolock(&clk_l2mem_con);
+		clk_enable_nolock(&clk_intmem);
+	
+		clk_enable_nolock(&clk_aclk_strc_sys);
+	
+		/*************************hclk_cpu***********************/
+	
+		clk_enable_nolock(&clk_rom);
+	
+		clk_enable_nolock(&clk_hclk_cpubus);
+		clk_enable_nolock(&clk_hclk_ahb2apb);
+		clk_enable_nolock(&clk_hclk_vio_bus);
+	
+		/*************************pclk_cpu***********************/
+		
+		//clk_enable_nolock(&clk_pwm01);//pwm 0¡¢1
+		#if 0
+	
+	
+		clk_enable_nolock(&clk_i2c0);
+		clk_enable_nolock(&clk_i2c1);
+		
+		clk_enable_nolock(&clk_gpio0);
+		clk_enable_nolock(&clk_gpio1);
+		clk_enable_nolock(&clk_gpio2);
+		clk_enable_nolock(&clk_gpio6);
+		clk_enable_nolock(&clk_efuse);
+		#endif
+		clk_enable_nolock(&clk_tzpc);
+		
+		//CLK1(pclk_uart0),
+		//CLK1(pclk_uart1),
+		clk_enable_nolock(&clk_pclk_ddrupctl);
+		clk_enable_nolock(&clk_pclk_ddrpubl);
+		clk_enable_nolock(&clk_dbg);
+		clk_enable_nolock(&clk_grf);
+		clk_enable_nolock(&clk_pmu);
+	
+		/*************************aclk_periph***********************/
+	
+		clk_enable_nolock(&clk_dma2);
+		//CLK1(aclk_smc),
+		clk_enable_nolock(&clk_aclk_peri_niu);
+		clk_enable_nolock(&clk_aclk_cpu_peri);
+		clk_enable_nolock(&clk_aclk_peri_axi_matrix);
+	
+		/*************************hclk_periph***********************/
+		clk_enable_nolock(&clk_hclk_peri_axi_matrix);
+		clk_enable_nolock(&clk_hclk_peri_ahb_arbi);
+		clk_enable_nolock(&clk_hclk_emem_peri);
+		clk_enable_nolock(&clk_hclk_mac);
+		clk_enable_nolock(&clk_nandc);
+		//CLK1(hclk_usb_peri),
+		//CLK1(hclk_usbotg0),
+		//CLK1(hclk_usbotg1),
+		//CLK1(hclk_hsadc),
+		clk_enable_nolock(&clk_hclk_pidfilter);
+		
+		/*************************pclk_periph***********************/
+		clk_enable_nolock(&clk_pclk_peri_axi_matrix);
+		//clk_enable_nolock(&clk_pwm23);
+	
+		//clk_enable_nolock(&clk_wdt);
+		
+		#if 0
+		
+		clk_enable_nolock(&clk_i2c2);
+		clk_enable_nolock(&clk_i2c3);
+		clk_enable_nolock(&clk_i2c4);
+		
+		clk_enable_nolock(&clk_gpio3);
+		clk_enable_nolock(&clk_gpio4);
+		#endif
+		/*************************aclk_lcdc0***********************/
+		//clk_enable_nolock(&clk_aclk_vio0);
+		//clk_enable_nolock(&clk_aclk_cif0);
+		//clk_enable_nolock(&clk_aclk_ipp);
+	
+		/*************************aclk_lcdc0***********************/
+		//clk_enable_nolock(&clk_aclk_vio1);
+		//clk_enable_nolock(&clk_aclk_cif1);
+		//clk_enable_nolock(&clk_aclk_rga);
+		/************************power domain**********************/
 }
 static void periph_clk_set_init(void)
 {
@@ -3209,7 +3359,7 @@ static void dump_regs(struct seq_file *s)
 
 }
 
-static void clk_dump_regs(void)
+void rk30_clk_dump_regs(void)
 {
 	int i=0;
 	printk("\nPLL(id=0 apll,id=1,dpll,id=2,cpll,id=3 cpll)\n");
@@ -3238,7 +3388,7 @@ static void clk_dump_regs(void)
 
 	for(i=0;i<CRU_SOFTRSTS_CON_CNT;i++)
 	{
-		printk("CLKGATE%d 	  :%x\n",i,cru_readl(CRU_SOFTRSTS_CON(i)));
+		printk("SOFTRST%d 	  :%x\n",i,cru_readl(CRU_SOFTRSTS_CON(i)));
 	}
 	printk("CRU MISC    :%x\n",cru_readl(CRU_MISC_CON));
 	printk("GLB_CNT_TH  :%x\n",cru_readl(CRU_GLB_CNT_TH));

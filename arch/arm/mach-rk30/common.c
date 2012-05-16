@@ -123,6 +123,7 @@ void __init rk30_init_irq(void)
 #endif
 	rk30_gpio_init();
 }
+int __init clk_disable_unused(void);
 
 void __init rk30_map_io(void)
 {
@@ -133,6 +134,7 @@ void __init rk30_map_io(void)
 	board_clock_init();
 	rk30_l2_cache_init();
 	ddr_init(DDR_TYPE, DDR_FREQ);
+	clk_disable_unused();
 	rk30_iomux_init();
 	rk30_boot_mode_init();
 }
