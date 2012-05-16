@@ -107,6 +107,7 @@ config MACH_MARZEN
 config MACH_KZM9D
 	bool "KZM9D board"
 	depends on ARCH_EMEV2
+	select USE_OF
 
 comment "SH-Mobile System Configuration"
 
