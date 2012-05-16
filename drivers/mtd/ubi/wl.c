@@ -414,8 +414,8 @@ retry:
 	prot_queue_add(ubi, e);
 	spin_unlock(&ubi->wl_lock);
 
-	err = ubi_dbg_check_all_ff(ubi, e->pnum, ubi->vid_hdr_aloffset,
-				   ubi->peb_size - ubi->vid_hdr_aloffset);
+	err = ubi_self_check_all_ff(ubi, e->pnum, ubi->vid_hdr_aloffset,
+				    ubi->peb_size - ubi->vid_hdr_aloffset);
 	if (err) {
 		ubi_err("new PEB %d does not contain all 0xFF bytes", e->pnum);
 		return err;

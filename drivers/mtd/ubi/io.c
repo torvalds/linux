@@ -98,6 +98,8 @@ static int self_check_ec_hdr(const struct ubi_device *ubi, int pnum,
 static int self_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum);
 static int self_check_vid_hdr(const struct ubi_device *ubi, int pnum,
 			      const struct ubi_vid_hdr *vid_hdr);
+static int self_check_write(struct ubi_device *ubi, const void *buf, int pnum,
+			    int offset, int len);
 
 /**
  * ubi_io_read - read data from a physical eraseblock.
@@ -254,7 +256,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		return err;
 
 	/* The area we are writing to has to contain all 0xFF bytes */
-	err = ubi_dbg_check_all_ff(ubi, pnum, offset, len);
+	err = ubi_self_check_all_ff(ubi, pnum, offset, len);
 	if (err)
 		return err;
 
@@ -289,7 +291,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		ubi_assert(written == len);
 
 	if (!err) {
-		err = ubi_dbg_check_write(ubi, buf, pnum, offset, len);
+		err = self_check_write(ubi, buf, pnum, offset, len);
 		if (err)
 			return err;
 
@@ -300,7 +302,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		offset += len;
 		len = ubi->peb_size - offset;
 		if (len)
-			err = ubi_dbg_check_all_ff(ubi, pnum, offset, len);
+			err = ubi_self_check_all_ff(ubi, pnum, offset, len);
 	}
 
 	return err;
@@ -382,7 +384,7 @@ retry:
 		return -EIO;
 	}
 
-	err = ubi_dbg_check_all_ff(ubi, pnum, 0, ubi->peb_size);
+	err = ubi_self_check_all_ff(ubi, pnum, 0, ubi->peb_size);
 	if (err)
 		return err;
 
@@ -1316,7 +1318,7 @@ exit:
 }
 
 /**
- * ubi_dbg_check_write - make sure write succeeded.
+ * self_check_write - make sure write succeeded.
  * @ubi: UBI device description object
  * @buf: buffer with data which were written
  * @pnum: physical eraseblock number the data were written to
@@ -1327,8 +1329,8 @@ exit:
  * the original data buffer - the data have to match. Returns zero if the data
  * match and a negative error code if not or in case of failure.
  */
-int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
-			int offset, int len)
+static int self_check_write(struct ubi_device *ubi, const void *buf, int pnum,
+			    int offset, int len)
 {
 	int err, i;
 	size_t read;
@@ -1382,7 +1384,7 @@ out_free:
 }
 
 /**
- * ubi_dbg_check_all_ff - check that a region of flash is empty.
+ * ubi_self_check_all_ff - check that a region of flash is empty.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to check
  * @offset: the starting offset within the physical eraseblock to check
@@ -1392,7 +1394,7 @@ out_free:
  * @offset of the physical eraseblock @pnum, and a negative error code if not
  * or if an error occurred.
  */
-int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
+int ubi_self_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 {
 	size_t read;
 	int err;
