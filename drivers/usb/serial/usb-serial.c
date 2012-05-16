@@ -1176,8 +1176,10 @@ static int usb_serial_reset_resume(struct usb_interface *intf)
 	serial->suspending = 0;
 	if (serial->type->reset_resume)
 		rv = serial->type->reset_resume(serial);
-	else
-		rv = usb_serial_generic_resume(serial);
+	else {
+		rv = -EOPNOTSUPP;
+		intf->needs_binding = 1;
+	}
 
 	return rv;
 }
