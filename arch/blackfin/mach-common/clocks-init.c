@@ -33,6 +33,8 @@ void init_clocks(void)
 	 * in the middle of reprogramming things, and that'll screw us up.
 	 * For example, any automatic DMAs left by U-Boot for splash screens.
 	 */
+
+#if 0
 	size_t i;
 	for (i = 0; i < MAX_DMA_CHANNELS; ++i) {
 		struct dma_register *dma = dma_io_base_addr[i];
@@ -93,4 +95,6 @@ void init_clocks(void)
 #endif
 	do_sync();
 	bfin_read16(0);
+
+#endif
 }
