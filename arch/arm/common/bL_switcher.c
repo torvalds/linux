@@ -15,7 +15,11 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/cpu_pm.h>
+#include <linux/cpumask.h>
 #include <linux/workqueue.h>
+#include <linux/clockchips.h>
+#include <linux/hrtimer.h>
+#include <linux/tick.h>
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/irqchip/arm-gic.h>
@@ -122,6 +126,8 @@ static int bL_switchpoint(unsigned long _arg)
 static int bL_switch_to(unsigned int new_cluster_id)
 {
 	unsigned int mpidr, cpuid, clusterid, ob_cluster, ib_cluster, this_cpu;
+	struct tick_device *tdev;
+	enum clock_event_mode tdev_mode;
 	int ret;
 
 	mpidr = read_mpidr();
@@ -167,6 +173,14 @@ static int bL_switch_to(unsigned int new_cluster_id)
 	 */
 	arch_send_wakeup_ipi_mask(cpumask_of(this_cpu));
 
+	tdev = tick_get_device(this_cpu);
+	if (tdev && !cpumask_equal(tdev->evtdev->cpumask, cpumask_of(this_cpu)))
+		tdev = NULL;
+	if (tdev) {
+		tdev_mode = tdev->evtdev->mode;
+		clockevents_set_mode(tdev->evtdev, CLOCK_EVT_MODE_SHUTDOWN);
+	}
+
 	ret = cpu_pm_enter();
 
 	/* we can not tolerate errors at this point */
@@ -197,6 +211,12 @@ static int bL_switch_to(unsigned int new_cluster_id)
 	mcpm_cpu_powered_up();
 
 	ret = cpu_pm_exit();
+
+	if (tdev) {
+		clockevents_set_mode(tdev->evtdev, tdev_mode);
+		clockevents_program_event(tdev->evtdev,
+					  tdev->evtdev->next_event, 1);
+	}
 
 	local_fiq_enable();
 	local_irq_enable();
