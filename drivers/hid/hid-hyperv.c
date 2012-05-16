@@ -516,11 +516,12 @@ static int mousevsc_probe(struct hv_device *device,
 
 	sprintf(hid_dev->name, "%s", "Microsoft Vmbus HID-compliant Mouse");
 
+	hid_set_drvdata(hid_dev, device);
+
 	ret = hid_add_device(hid_dev);
 	if (ret)
 		goto probe_err1;
 
-	hid_set_drvdata(hid_dev, device);
 
 	ret = hid_parse(hid_dev);
 	if (ret) {
