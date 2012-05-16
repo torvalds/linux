@@ -836,12 +836,12 @@ static void __ap_flush_queue(struct ap_device *ap_dev)
 	list_for_each_entry_safe(ap_msg, next, &ap_dev->pendingq, list) {
 		list_del_init(&ap_msg->list);
 		ap_dev->pendingq_count--;
-		ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
+		ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
 	}
 	list_for_each_entry_safe(ap_msg, next, &ap_dev->requestq, list) {
 		list_del_init(&ap_msg->list);
 		ap_dev->requestq_count--;
-		ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
+		ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
 	}
 }
 
@@ -1329,7 +1329,7 @@ static int ap_poll_read(struct ap_device *ap_dev, unsigned long *flags)
 				continue;
 			list_del_init(&ap_msg->list);
 			ap_dev->pendingq_count--;
-			ap_dev->drv->receive(ap_dev, ap_msg, ap_dev->reply);
+			ap_msg->receive(ap_dev, ap_msg, ap_dev->reply);
 			break;
 		}
 		if (ap_dev->queue_count > 0)
@@ -1450,10 +1450,10 @@ static int __ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_ms
 			return -EBUSY;
 		case AP_RESPONSE_REQ_FAC_NOT_INST:
 		case AP_RESPONSE_MESSAGE_TOO_BIG:
-			ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-EINVAL));
+			ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-EINVAL));
 			return -EINVAL;
 		default:	/* Device is gone. */
-			ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
+			ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
 			return -ENODEV;
 		}
 	} else {
@@ -1471,6 +1471,10 @@ void ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_msg)
 	unsigned long flags;
 	int rc;
 
+	/* For asynchronous message handling a valid receive-callback
+	 * is required. */
+	BUG_ON(!ap_msg->receive);
+
 	spin_lock_bh(&ap_dev->lock);
 	if (!ap_dev->unregistered) {
 		/* Make room on the queue by polling for finished requests. */
@@ -1482,7 +1486,7 @@ void ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_msg)
 		if (rc == -ENODEV)
 			ap_dev->unregistered = 1;
 	} else {
-		ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
+		ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
 		rc = -ENODEV;
 	}
 	spin_unlock_bh(&ap_dev->lock);
