@@ -9,6 +9,8 @@
  *	2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/icmp.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -120,7 +122,6 @@ static int l2tp_ip_recv(struct sk_buff *skb)
 	struct l2tp_session *session;
 	struct l2tp_tunnel *tunnel = NULL;
 	int length;
-	int offset;
 
 	/* Point to L2TP header */
 	optr = ptr = skb->data;
@@ -155,14 +156,8 @@ static int l2tp_ip_recv(struct sk_buff *skb)
 		if (!pskb_may_pull(skb, length))
 			goto discard;
 
-		printk(KERN_DEBUG "%s: ip recv: ", tunnel->name);
-
-		offset = 0;
-		do {
-			printk(" %02X", ptr[offset]);
-		} while (++offset < length);
-
-		printk("\n");
+		pr_debug("%s: ip recv\n", tunnel->name);
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, ptr, length);
 	}
 
 	l2tp_recv_common(session, skb, ptr, optr, 0, skb->len, tunnel->recv_payload_hook);
@@ -593,7 +588,7 @@ static int __init l2tp_ip_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "L2TP IP encapsulation support (L2TPv3)\n");
+	pr_info("L2TP IP encapsulation support (L2TPv3)\n");
 
 	err = proto_register(&l2tp_ip_prot, 1);
 	if (err != 0)

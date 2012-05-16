@@ -14,6 +14,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <net/sock.h>
 #include <net/genetlink.h>
 #include <net/udp.h>
@@ -902,7 +904,7 @@ static int l2tp_nl_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "L2TP netlink interface\n");
+	pr_info("L2TP netlink interface\n");
 	err = genl_register_family_with_ops(&l2tp_nl_family, l2tp_nl_ops,
 					    ARRAY_SIZE(l2tp_nl_ops));
 

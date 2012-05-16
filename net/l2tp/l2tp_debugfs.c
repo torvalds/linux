@@ -9,6 +9,8 @@
  *	2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/socket.h>
@@ -325,11 +327,11 @@ static int __init l2tp_debugfs_init(void)
 	if (tunnels == NULL)
 		rc = -EIO;
 
-	printk(KERN_INFO "L2TP debugfs support\n");
+	pr_info("L2TP debugfs support\n");
 
 out:
 	if (rc)
-		printk(KERN_WARNING "l2tp debugfs: unable to init\n");
+		pr_warn("unable to init\n");
 
 	return rc;
 }

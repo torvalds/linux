@@ -261,17 +261,36 @@ static inline void l2tp_session_dec_refcount_1(struct l2tp_session *session)
 }
 
 #ifdef L2TP_REFCNT_DEBUG
-#define l2tp_session_inc_refcount(_s) do { \
-		printk(KERN_DEBUG "l2tp_session_inc_refcount: %s:%d %s: cnt=%d\n", __func__, __LINE__, (_s)->name, atomic_read(&_s->ref_count)); \
-		l2tp_session_inc_refcount_1(_s);				\
-	} while (0)
-#define l2tp_session_dec_refcount(_s) do { \
-		printk(KERN_DEBUG "l2tp_session_dec_refcount: %s:%d %s: cnt=%d\n", __func__, __LINE__, (_s)->name, atomic_read(&_s->ref_count)); \
-		l2tp_session_dec_refcount_1(_s);				\
-	} while (0)
+#define l2tp_session_inc_refcount(_s)					\
+do {									\
+	pr_debug("l2tp_session_inc_refcount: %s:%d %s: cnt=%d\n",	\
+		 __func__, __LINE__, (_s)->name,			\
+		 atomic_read(&_s->ref_count));				\
+	l2tp_session_inc_refcount_1(_s);				\
+} while (0)
+#define l2tp_session_dec_refcount(_s)					\
+do {									\
+	pr_debug("l2tp_session_dec_refcount: %s:%d %s: cnt=%d\n",	\
+		 __func__, __LINE__, (_s)->name,			\
+		 atomic_read(&_s->ref_count));				\
+	l2tp_session_dec_refcount_1(_s);				\
+} while (0)
 #else
 #define l2tp_session_inc_refcount(s) l2tp_session_inc_refcount_1(s)
 #define l2tp_session_dec_refcount(s) l2tp_session_dec_refcount_1(s)
 #endif
+
+#define l2tp_printk(ptr, type, func, fmt, ...)				\
+do {									\
+	if (((ptr)->debug) & (type))					\
+		func(fmt, ##__VA_ARGS__);				\
+} while (0)
+
+#define l2tp_warn(ptr, type, fmt, ...)					\
+	l2tp_printk(ptr, type, pr_warn, fmt, ##__VA_ARGS__)
+#define l2tp_info(ptr, type, fmt, ...)					\
+	l2tp_printk(ptr, type, pr_info, fmt, ##__VA_ARGS__)
+#define l2tp_dbg(ptr, type, fmt, ...)					\
+	l2tp_printk(ptr, type, pr_debug, fmt, ##__VA_ARGS__)
 
 #endif /* _L2TP_CORE_H_ */

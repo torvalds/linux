@@ -18,6 +18,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/list.h>
@@ -86,12 +88,6 @@
 /* Default trace flags */
 #define L2TP_DEFAULT_DEBUG_FLAGS	0
 
-#define PRINTK(_mask, _type, _lvl, _fmt, args...)			\
-	do {								\
-		if ((_mask) & (_type))					\
-			printk(_lvl "L2TP: " _fmt, ##args);		\
-	} while (0)
-
 /* Private data stored for received packets in the skb.
  */
 struct l2tp_skb_cb {
@@ -141,14 +137,20 @@ static inline void l2tp_tunnel_dec_refcount_1(struct l2tp_tunnel *tunnel)
 		l2tp_tunnel_free(tunnel);
 }
 #ifdef L2TP_REFCNT_DEBUG
-#define l2tp_tunnel_inc_refcount(_t) do { \
-		printk(KERN_DEBUG "l2tp_tunnel_inc_refcount: %s:%d %s: cnt=%d\n", __func__, __LINE__, (_t)->name, atomic_read(&_t->ref_count)); \
-		l2tp_tunnel_inc_refcount_1(_t);				\
-	} while (0)
-#define l2tp_tunnel_dec_refcount(_t) do { \
-		printk(KERN_DEBUG "l2tp_tunnel_dec_refcount: %s:%d %s: cnt=%d\n", __func__, __LINE__, (_t)->name, atomic_read(&_t->ref_count)); \
-		l2tp_tunnel_dec_refcount_1(_t);				\
-	} while (0)
+#define l2tp_tunnel_inc_refcount(_t)					\
+do {									\
+	pr_debug("l2tp_tunnel_inc_refcount: %s:%d %s: cnt=%d\n",	\
+		 __func__, __LINE__, (_t)->name,			\
+		 atomic_read(&_t->ref_count));				\
+	l2tp_tunnel_inc_refcount_1(_t);					\
+} while (0)
+#define l2tp_tunnel_dec_refcount(_t)
+do {									\
+	pr_debug("l2tp_tunnel_dec_refcount: %s:%d %s: cnt=%d\n",	\
+		 __func__, __LINE__, (_t)->name,			\
+		 atomic_read(&_t->ref_count));				\
+	l2tp_tunnel_dec_refcount_1(_t);					\
+} while (0)
 #else
 #define l2tp_tunnel_inc_refcount(t) l2tp_tunnel_inc_refcount_1(t)
 #define l2tp_tunnel_dec_refcount(t) l2tp_tunnel_dec_refcount_1(t)
@@ -337,10 +339,10 @@ static void l2tp_recv_queue_skb(struct l2tp_session *session, struct sk_buff *sk
 	skb_queue_walk_safe(&session->reorder_q, skbp, tmp) {
 		if (L2TP_SKB_CB(skbp)->ns > ns) {
 			__skb_queue_before(&session->reorder_q, skbp, skb);
-			PRINTK(session->debug, L2TP_MSG_SEQ, KERN_DEBUG,
-			       "%s: pkt %hu, inserted before %hu, reorder_q len=%d\n",
-			       session->name, ns, L2TP_SKB_CB(skbp)->ns,
-			       skb_queue_len(&session->reorder_q));
+			l2tp_dbg(session, L2TP_MSG_SEQ,
+				 "%s: pkt %hu, inserted before %hu, reorder_q len=%d\n",
+				 session->name, ns, L2TP_SKB_CB(skbp)->ns,
+				 skb_queue_len(&session->reorder_q));
 			u64_stats_update_begin(&sstats->syncp);
 			sstats->rx_oos_packets++;
 			u64_stats_update_end(&sstats->syncp);
@@ -386,8 +388,8 @@ static void l2tp_recv_dequeue_skb(struct l2tp_session *session, struct sk_buff *
 		else
 			session->nr &= 0xffffff;
 
-		PRINTK(session->debug, L2TP_MSG_SEQ, KERN_DEBUG,
-		       "%s: updated nr to %hu\n", session->name, session->nr);
+		l2tp_dbg(session, L2TP_MSG_SEQ, "%s: updated nr to %hu\n",
+			 session->name, session->nr);
 	}
 
 	/* call private receive handler */
@@ -422,12 +424,11 @@ start:
 			sstats->rx_seq_discards++;
 			sstats->rx_errors++;
 			u64_stats_update_end(&sstats->syncp);
-			PRINTK(session->debug, L2TP_MSG_SEQ, KERN_DEBUG,
-			       "%s: oos pkt %u len %d discarded (too old), "
-			       "waiting for %u, reorder_q_len=%d\n",
-			       session->name, L2TP_SKB_CB(skb)->ns,
-			       L2TP_SKB_CB(skb)->length, session->nr,
-			       skb_queue_len(&session->reorder_q));
+			l2tp_dbg(session, L2TP_MSG_SEQ,
+				 "%s: oos pkt %u len %d discarded (too old), waiting for %u, reorder_q_len=%d\n",
+				 session->name, L2TP_SKB_CB(skb)->ns,
+				 L2TP_SKB_CB(skb)->length, session->nr,
+				 skb_queue_len(&session->reorder_q));
 			session->reorder_skip = 1;
 			__skb_unlink(skb, &session->reorder_q);
 			kfree_skb(skb);
@@ -438,20 +439,19 @@ start:
 
 		if (L2TP_SKB_CB(skb)->has_seq) {
 			if (session->reorder_skip) {
-				PRINTK(session->debug, L2TP_MSG_SEQ, KERN_DEBUG,
-				       "%s: advancing nr to next pkt: %u -> %u",
-				       session->name, session->nr,
-				       L2TP_SKB_CB(skb)->ns);
+				l2tp_dbg(session, L2TP_MSG_SEQ,
+					 "%s: advancing nr to next pkt: %u -> %u",
+					 session->name, session->nr,
+					 L2TP_SKB_CB(skb)->ns);
 				session->reorder_skip = 0;
 				session->nr = L2TP_SKB_CB(skb)->ns;
 			}
 			if (L2TP_SKB_CB(skb)->ns != session->nr) {
-				PRINTK(session->debug, L2TP_MSG_SEQ, KERN_DEBUG,
-				       "%s: holding oos pkt %u len %d, "
-				       "waiting for %u, reorder_q_len=%d\n",
-				       session->name, L2TP_SKB_CB(skb)->ns,
-				       L2TP_SKB_CB(skb)->length, session->nr,
-				       skb_queue_len(&session->reorder_q));
+				l2tp_dbg(session, L2TP_MSG_SEQ,
+					 "%s: holding oos pkt %u len %d, waiting for %u, reorder_q_len=%d\n",
+					 session->name, L2TP_SKB_CB(skb)->ns,
+					 L2TP_SKB_CB(skb)->length, session->nr,
+					 skb_queue_len(&session->reorder_q));
 				goto out;
 			}
 		}
@@ -595,9 +595,10 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 	/* Parse and check optional cookie */
 	if (session->peer_cookie_len > 0) {
 		if (memcmp(ptr, &session->peer_cookie[0], session->peer_cookie_len)) {
-			PRINTK(tunnel->debug, L2TP_MSG_DATA, KERN_INFO,
-			       "%s: cookie mismatch (%u/%u). Discarding.\n",
-			       tunnel->name, tunnel->tunnel_id, session->session_id);
+			l2tp_info(tunnel, L2TP_MSG_DATA,
+				  "%s: cookie mismatch (%u/%u). Discarding.\n",
+				  tunnel->name, tunnel->tunnel_id,
+				  session->session_id);
 			u64_stats_update_begin(&sstats->syncp);
 			sstats->rx_cookie_discards++;
 			u64_stats_update_end(&sstats->syncp);
@@ -626,9 +627,9 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 			L2TP_SKB_CB(skb)->ns = ns;
 			L2TP_SKB_CB(skb)->has_seq = 1;
 
-			PRINTK(session->debug, L2TP_MSG_SEQ, KERN_DEBUG,
-			       "%s: recv data ns=%u, nr=%u, session nr=%u\n",
-			       session->name, ns, nr, session->nr);
+			l2tp_dbg(session, L2TP_MSG_SEQ,
+				 "%s: recv data ns=%u, nr=%u, session nr=%u\n",
+				 session->name, ns, nr, session->nr);
 		}
 	} else if (session->l2specific_type == L2TP_L2SPECTYPE_DEFAULT) {
 		u32 l2h = ntohl(*(__be32 *) ptr);
@@ -640,9 +641,9 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 			L2TP_SKB_CB(skb)->ns = ns;
 			L2TP_SKB_CB(skb)->has_seq = 1;
 
-			PRINTK(session->debug, L2TP_MSG_SEQ, KERN_DEBUG,
-			       "%s: recv data ns=%u, session nr=%u\n",
-			       session->name, ns, session->nr);
+			l2tp_dbg(session, L2TP_MSG_SEQ,
+				 "%s: recv data ns=%u, session nr=%u\n",
+				 session->name, ns, session->nr);
 		}
 	}
 
@@ -655,9 +656,9 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		 * configure it so.
 		 */
 		if ((!session->lns_mode) && (!session->send_seq)) {
-			PRINTK(session->debug, L2TP_MSG_SEQ, KERN_INFO,
-			       "%s: requested to enable seq numbers by LNS\n",
-			       session->name);
+			l2tp_info(session, L2TP_MSG_SEQ,
+				  "%s: requested to enable seq numbers by LNS\n",
+				  session->name);
 			session->send_seq = -1;
 			l2tp_session_set_header_len(session, tunnel->version);
 		}
@@ -666,9 +667,9 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		 * If user has configured mandatory sequence numbers, discard.
 		 */
 		if (session->recv_seq) {
-			PRINTK(session->debug, L2TP_MSG_SEQ, KERN_WARNING,
-			       "%s: recv data has no seq numbers when required. "
-			       "Discarding\n", session->name);
+			l2tp_warn(session, L2TP_MSG_SEQ,
+				  "%s: recv data has no seq numbers when required. Discarding.\n",
+				  session->name);
 			u64_stats_update_begin(&sstats->syncp);
 			sstats->rx_seq_discards++;
 			u64_stats_update_end(&sstats->syncp);
@@ -681,15 +682,15 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		 * LAC is broken. Discard the frame.
 		 */
 		if ((!session->lns_mode) && (session->send_seq)) {
-			PRINTK(session->debug, L2TP_MSG_SEQ, KERN_INFO,
-			       "%s: requested to disable seq numbers by LNS\n",
-			       session->name);
+			l2tp_info(session, L2TP_MSG_SEQ,
+				  "%s: requested to disable seq numbers by LNS\n",
+				  session->name);
 			session->send_seq = 0;
 			l2tp_session_set_header_len(session, tunnel->version);
 		} else if (session->send_seq) {
-			PRINTK(session->debug, L2TP_MSG_SEQ, KERN_WARNING,
-			       "%s: recv data has no seq numbers when required. "
-			       "Discarding\n", session->name);
+			l2tp_warn(session, L2TP_MSG_SEQ,
+				  "%s: recv data has no seq numbers when required. Discarding.\n",
+				  session->name);
 			u64_stats_update_begin(&sstats->syncp);
 			sstats->rx_seq_discards++;
 			u64_stats_update_end(&sstats->syncp);
@@ -749,12 +750,11 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 				u64_stats_update_begin(&sstats->syncp);
 				sstats->rx_seq_discards++;
 				u64_stats_update_end(&sstats->syncp);
-				PRINTK(session->debug, L2TP_MSG_SEQ, KERN_DEBUG,
-				       "%s: oos pkt %u len %d discarded, "
-				       "waiting for %u, reorder_q_len=%d\n",
-				       session->name, L2TP_SKB_CB(skb)->ns,
-				       L2TP_SKB_CB(skb)->length, session->nr,
-				       skb_queue_len(&session->reorder_q));
+				l2tp_dbg(session, L2TP_MSG_SEQ,
+					 "%s: oos pkt %u len %d discarded, waiting for %u, reorder_q_len=%d\n",
+					 session->name, L2TP_SKB_CB(skb)->ns,
+					 L2TP_SKB_CB(skb)->length, session->nr,
+					 skb_queue_len(&session->reorder_q));
 				goto discard;
 			}
 			skb_queue_tail(&session->reorder_q, skb);
@@ -800,7 +800,6 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 	unsigned char *ptr, *optr;
 	u16 hdrflags;
 	u32 tunnel_id, session_id;
-	int offset;
 	u16 version;
 	int length;
 	struct l2tp_stats *tstats;
@@ -813,8 +812,9 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 
 	/* Short packet? */
 	if (!pskb_may_pull(skb, L2TP_HDR_SIZE_SEQ)) {
-		PRINTK(tunnel->debug, L2TP_MSG_DATA, KERN_INFO,
-		       "%s: recv short packet (len=%d)\n", tunnel->name, skb->len);
+		l2tp_info(tunnel, L2TP_MSG_DATA,
+			  "%s: recv short packet (len=%d)\n",
+			  tunnel->name, skb->len);
 		goto error;
 	}
 
@@ -824,14 +824,8 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 		if (!pskb_may_pull(skb, length))
 			goto error;
 
-		printk(KERN_DEBUG "%s: recv: ", tunnel->name);
-
-		offset = 0;
-		do {
-			printk(" %02X", skb->data[offset]);
-		} while (++offset < length);
-
-		printk("\n");
+		pr_debug("%s: recv\n", tunnel->name);
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, skb->data, length);
 	}
 
 	/* Point to L2TP header */
@@ -843,9 +837,9 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 	/* Check protocol version */
 	version = hdrflags & L2TP_HDR_VER_MASK;
 	if (version != tunnel->version) {
-		PRINTK(tunnel->debug, L2TP_MSG_DATA, KERN_INFO,
-		       "%s: recv protocol version mismatch: got %d expected %d\n",
-		       tunnel->name, version, tunnel->version);
+		l2tp_info(tunnel, L2TP_MSG_DATA,
+			  "%s: recv protocol version mismatch: got %d expected %d\n",
+			  tunnel->name, version, tunnel->version);
 		goto error;
 	}
 
@@ -854,8 +848,9 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 
 	/* If type is control packet, it is handled by userspace. */
 	if (hdrflags & L2TP_HDRFLAG_T) {
-		PRINTK(tunnel->debug, L2TP_MSG_DATA, KERN_DEBUG,
-		       "%s: recv control packet, len=%d\n", tunnel->name, length);
+		l2tp_dbg(tunnel, L2TP_MSG_DATA,
+			 "%s: recv control packet, len=%d\n",
+			 tunnel->name, length);
 		goto error;
 	}
 
@@ -883,9 +878,9 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 	session = l2tp_session_find(tunnel->l2tp_net, tunnel, session_id);
 	if (!session || !session->recv_skb) {
 		/* Not found? Pass to userspace to deal with */
-		PRINTK(tunnel->debug, L2TP_MSG_DATA, KERN_INFO,
-		       "%s: no session found (%u/%u). Passing up.\n",
-		       tunnel->name, tunnel_id, session_id);
+		l2tp_info(tunnel, L2TP_MSG_DATA,
+			  "%s: no session found (%u/%u). Passing up.\n",
+			  tunnel->name, tunnel_id, session_id);
 		goto error;
 	}
 
@@ -925,8 +920,8 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	if (tunnel == NULL)
 		goto pass_up;
 
-	PRINTK(tunnel->debug, L2TP_MSG_DATA, KERN_DEBUG,
-	       "%s: received %d bytes\n", tunnel->name, skb->len);
+	l2tp_dbg(tunnel, L2TP_MSG_DATA, "%s: received %d bytes\n",
+		 tunnel->name, skb->len);
 
 	if (l2tp_udp_recv_core(tunnel, skb, tunnel->recv_payload_hook))
 		goto pass_up_put;
@@ -968,8 +963,8 @@ static int l2tp_build_l2tpv2_header(struct l2tp_session *session, void *buf)
 		*bufp++ = 0;
 		session->ns++;
 		session->ns &= 0xffff;
-		PRINTK(session->debug, L2TP_MSG_SEQ, KERN_DEBUG,
-		       "%s: updated ns to %u\n", session->name, session->ns);
+		l2tp_dbg(session, L2TP_MSG_SEQ, "%s: updated ns to %u\n",
+			 session->name, session->ns);
 	}
 
 	return bufp - optr;
@@ -1005,8 +1000,9 @@ static int l2tp_build_l2tpv3_header(struct l2tp_session *session, void *buf)
 				l2h = 0x40000000 | session->ns;
 				session->ns++;
 				session->ns &= 0xffffff;
-				PRINTK(session->debug, L2TP_MSG_SEQ, KERN_DEBUG,
-				       "%s: updated ns to %u\n", session->name, session->ns);
+				l2tp_dbg(session, L2TP_MSG_SEQ,
+					 "%s: updated ns to %u\n",
+					 session->name, session->ns);
 			}
 
 			*((__be32 *) bufp) = htonl(l2h);
@@ -1029,27 +1025,19 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 
 	/* Debug */
 	if (session->send_seq)
-		PRINTK(session->debug, L2TP_MSG_DATA, KERN_DEBUG,
-		       "%s: send %Zd bytes, ns=%u\n", session->name,
-		       data_len, session->ns - 1);
+		l2tp_dbg(session, L2TP_MSG_DATA, "%s: send %Zd bytes, ns=%u\n",
+			 session->name, data_len, session->ns - 1);
 	else
-		PRINTK(session->debug, L2TP_MSG_DATA, KERN_DEBUG,
-		       "%s: send %Zd bytes\n", session->name, data_len);
+		l2tp_dbg(session, L2TP_MSG_DATA, "%s: send %Zd bytes\n",
+			 session->name, data_len);
 
 	if (session->debug & L2TP_MSG_DATA) {
-		int i;
 		int uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
 		unsigned char *datap = skb->data + uhlen;
 
-		printk(KERN_DEBUG "%s: xmit:", session->name);
-		for (i = 0; i < (len - uhlen); i++) {
-			printk(" %02X", *datap++);
-			if (i == 31) {
-				printk(" ...");
-				break;
-			}
-		}
-		printk("\n");
+		pr_debug("%s: xmit\n", session->name);
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+				     datap, min_t(size_t, 32, len - uhlen));
 	}
 
 	/* Queue the packet to IP for output */
@@ -1248,8 +1236,7 @@ static void l2tp_tunnel_destruct(struct sock *sk)
 	if (tunnel == NULL)
 		goto end;
 
-	PRINTK(tunnel->debug, L2TP_MSG_CONTROL, KERN_INFO,
-	       "%s: closing...\n", tunnel->name);
+	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: closing...\n", tunnel->name);
 
 	/* Close all sessions */
 	l2tp_tunnel_closeall(tunnel);
@@ -1291,8 +1278,8 @@ static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 
 	BUG_ON(tunnel == NULL);
 
-	PRINTK(tunnel->debug, L2TP_MSG_CONTROL, KERN_INFO,
-	       "%s: closing all sessions...\n", tunnel->name);
+	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: closing all sessions...\n",
+		  tunnel->name);
 
 	write_lock_bh(&tunnel->hlist_lock);
 	for (hash = 0; hash < L2TP_HASH_SIZE; hash++) {
@@ -1300,8 +1287,8 @@ again:
 		hlist_for_each_safe(walk, tmp, &tunnel->session_hlist[hash]) {
 			session = hlist_entry(walk, struct l2tp_session, hlist);
 
-			PRINTK(session->debug, L2TP_MSG_CONTROL, KERN_INFO,
-			       "%s: closing session\n", session->name);
+			l2tp_info(session, L2TP_MSG_CONTROL,
+				  "%s: closing session\n", session->name);
 
 			hlist_del_init(&session->hlist);
 
@@ -1354,8 +1341,7 @@ static void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
 	BUG_ON(atomic_read(&tunnel->ref_count) != 0);
 	BUG_ON(tunnel->sock != NULL);
 
-	PRINTK(tunnel->debug, L2TP_MSG_CONTROL, KERN_INFO,
-	       "%s: free...\n", tunnel->name);
+	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: free...\n", tunnel->name);
 
 	/* Remove from tunnel list */
 	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
@@ -1536,7 +1522,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 		err = -EBADF;
 		sock = sockfd_lookup(fd, &err);
 		if (!sock) {
-			printk(KERN_ERR "tunl %hu: sockfd_lookup(fd=%d) returned %d\n",
+			pr_err("tunl %hu: sockfd_lookup(fd=%d) returned %d\n",
 			       tunnel_id, fd, err);
 			goto err;
 		}
@@ -1552,7 +1538,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	case L2TP_ENCAPTYPE_UDP:
 		err = -EPROTONOSUPPORT;
 		if (sk->sk_protocol != IPPROTO_UDP) {
-			printk(KERN_ERR "tunl %hu: fd %d wrong protocol, got %d, expected %d\n",
+			pr_err("tunl %hu: fd %d wrong protocol, got %d, expected %d\n",
 			       tunnel_id, fd, sk->sk_protocol, IPPROTO_UDP);
 			goto err;
 		}
@@ -1560,7 +1546,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	case L2TP_ENCAPTYPE_IP:
 		err = -EPROTONOSUPPORT;
 		if (sk->sk_protocol != IPPROTO_L2TP) {
-			printk(KERN_ERR "tunl %hu: fd %d wrong protocol, got %d, expected %d\n",
+			pr_err("tunl %hu: fd %d wrong protocol, got %d, expected %d\n",
 			       tunnel_id, fd, sk->sk_protocol, IPPROTO_L2TP);
 			goto err;
 		}
@@ -1868,7 +1854,7 @@ static int __init l2tp_init(void)
 	if (rc)
 		goto out;
 
-	printk(KERN_INFO "L2TP core driver, %s\n", L2TP_DRV_VERSION);
+	pr_info("L2TP core driver, %s\n", L2TP_DRV_VERSION);
 
 out:
 	return rc;
