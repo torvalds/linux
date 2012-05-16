@@ -255,27 +255,27 @@ const char *dbg_get_key_dump(const struct ubifs_info *c,
 			     const union ubifs_key *key);
 const char *dbg_snprintf_key(const struct ubifs_info *c,
 			     const union ubifs_key *key, char *buffer, int len);
-void dbg_dump_inode(struct ubifs_info *c, const struct inode *inode);
-void dbg_dump_node(const struct ubifs_info *c, const void *node);
-void dbg_dump_lpt_node(const struct ubifs_info *c, void *node, int lnum,
-		       int offs);
-void dbg_dump_budget_req(const struct ubifs_budget_req *req);
-void dbg_dump_lstats(const struct ubifs_lp_stats *lst);
-void dbg_dump_budg(struct ubifs_info *c, const struct ubifs_budg_info *bi);
-void dbg_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp);
-void dbg_dump_lprops(struct ubifs_info *c);
-void dbg_dump_lpt_info(struct ubifs_info *c);
-void dbg_dump_leb(const struct ubifs_info *c, int lnum);
-void dbg_dump_sleb(const struct ubifs_info *c,
-		   const struct ubifs_scan_leb *sleb, int offs);
-void dbg_dump_znode(const struct ubifs_info *c,
-		    const struct ubifs_znode *znode);
-void dbg_dump_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat);
-void dbg_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
-		    struct ubifs_nnode *parent, int iip);
-void dbg_dump_tnc(struct ubifs_info *c);
-void dbg_dump_index(struct ubifs_info *c);
-void dbg_dump_lpt_lebs(const struct ubifs_info *c);
+void ubifs_dump_inode(struct ubifs_info *c, const struct inode *inode);
+void ubifs_dump_node(const struct ubifs_info *c, const void *node);
+void ubifs_dump_budget_req(const struct ubifs_budget_req *req);
+void ubifs_dump_lstats(const struct ubifs_lp_stats *lst);
+void ubifs_dump_budg(struct ubifs_info *c, const struct ubifs_budg_info *bi);
+void ubifs_dump_lprop(const struct ubifs_info *c,
+		      const struct ubifs_lprops *lp);
+void ubifs_dump_lprops(struct ubifs_info *c);
+void ubifs_dump_lpt_info(struct ubifs_info *c);
+void ubifs_dump_leb(const struct ubifs_info *c, int lnum);
+void ubifs_dump_sleb(const struct ubifs_info *c,
+		     const struct ubifs_scan_leb *sleb, int offs);
+void ubifs_dump_znode(const struct ubifs_info *c,
+		      const struct ubifs_znode *znode);
+void ubifs_dump_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap,
+		     int cat);
+void ubifs_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
+		      struct ubifs_nnode *parent, int iip);
+void ubifs_dump_tnc(struct ubifs_info *c);
+void ubifs_dump_index(struct ubifs_info *c);
+void ubifs_dump_lpt_lebs(const struct ubifs_info *c);
 
 int dbg_walk_index(struct ubifs_info *c, dbg_leaf_callback leaf_cb,
 		   dbg_znode_callback znode_cb, void *priv);
@@ -371,42 +371,39 @@ static inline const char *
 dbg_snprintf_key(const struct ubifs_info *c,
 		 const union ubifs_key *key, char *buffer,
 		 int len)                                         { return ""; }
-static inline void dbg_dump_inode(struct ubifs_info *c,
-				  const struct inode *inode)      { return; }
-static inline void dbg_dump_node(const struct ubifs_info *c,
-				 const void *node)                { return; }
-static inline void dbg_dump_lpt_node(const struct ubifs_info *c,
-				     void *node, int lnum,
-				     int offs)                    { return; }
+static inline void ubifs_dump_inode(struct ubifs_info *c,
+				    const struct inode *inode)    { return; }
+static inline void ubifs_dump_node(const struct ubifs_info *c,
+				   const void *node)              { return; }
 static inline void
-dbg_dump_budget_req(const struct ubifs_budget_req *req)           { return; }
+ubifs_dump_budget_req(const struct ubifs_budget_req *req)         { return; }
 static inline void
-dbg_dump_lstats(const struct ubifs_lp_stats *lst)                 { return; }
+ubifs_dump_lstats(const struct ubifs_lp_stats *lst)               { return; }
 static inline void
-dbg_dump_budg(struct ubifs_info *c,
+ubifs_dump_budg(struct ubifs_info *c,
 	      const struct ubifs_budg_info *bi)                   { return; }
-static inline void dbg_dump_lprop(const struct ubifs_info *c,
-				  const struct ubifs_lprops *lp)  { return; }
-static inline void dbg_dump_lprops(struct ubifs_info *c)          { return; }
-static inline void dbg_dump_lpt_info(struct ubifs_info *c)        { return; }
-static inline void dbg_dump_leb(const struct ubifs_info *c,
-				int lnum)                         { return; }
+static inline void ubifs_dump_lprop(const struct ubifs_info *c,
+				    const struct ubifs_lprops *lp){ return; }
+static inline void ubifs_dump_lprops(struct ubifs_info *c)        { return; }
+static inline void ubifs_dump_lpt_info(struct ubifs_info *c)      { return; }
+static inline void ubifs_dump_leb(const struct ubifs_info *c,
+				  int lnum)                       { return; }
 static inline void
-dbg_dump_sleb(const struct ubifs_info *c,
-	      const struct ubifs_scan_leb *sleb, int offs)        { return; }
+ubifs_dump_sleb(const struct ubifs_info *c,
+		const struct ubifs_scan_leb *sleb, int offs)      { return; }
 static inline void
-dbg_dump_znode(const struct ubifs_info *c,
-	       const struct ubifs_znode *znode)                   { return; }
-static inline void dbg_dump_heap(struct ubifs_info *c,
-				 struct ubifs_lpt_heap *heap,
-				 int cat)                         { return; }
-static inline void dbg_dump_pnode(struct ubifs_info *c,
-				  struct ubifs_pnode *pnode,
-				  struct ubifs_nnode *parent,
-				  int iip)                        { return; }
-static inline void dbg_dump_tnc(struct ubifs_info *c)             { return; }
-static inline void dbg_dump_index(struct ubifs_info *c)           { return; }
-static inline void dbg_dump_lpt_lebs(const struct ubifs_info *c)  { return; }
+ubifs_dump_znode(const struct ubifs_info *c,
+		 const struct ubifs_znode *znode)                 { return; }
+static inline void ubifs_dump_heap(struct ubifs_info *c,
+				   struct ubifs_lpt_heap *heap,
+				   int cat)                       { return; }
+static inline void ubifs_dump_pnode(struct ubifs_info *c,
+				    struct ubifs_pnode *pnode,
+				    struct ubifs_nnode *parent,
+				    int iip)                      { return; }
+static inline void ubifs_dump_tnc(struct ubifs_info *c)           { return; }
+static inline void ubifs_dump_index(struct ubifs_info *c)         { return; }
+static inline void ubifs_dump_lpt_lebs(const struct ubifs_info *c){ return; }
 
 static inline int dbg_walk_index(struct ubifs_info *c,
 				 dbg_leaf_callback leaf_cb,

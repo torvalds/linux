@@ -475,7 +475,7 @@ static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
 
 failed:
 	ubifs_err("bad superblock, error %d", err);
-	dbg_dump_node(c, sup);
+	ubifs_dump_node(c, sup);
 	return -EINVAL;
 }
 

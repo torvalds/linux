@@ -363,11 +363,11 @@ out_free:
 	ubifs_err("failed to recover master node");
 	if (mst1) {
 		dbg_err("dumping first master node");
-		dbg_dump_node(c, mst1);
+		ubifs_dump_node(c, mst1);
 	}
 	if (mst2) {
 		dbg_err("dumping second master node");
-		dbg_dump_node(c, mst2);
+		ubifs_dump_node(c, mst2);
 	}
 	vfree(buf2);
 	vfree(buf1);
@@ -1139,8 +1139,8 @@ static int grab_empty_leb(struct ubifs_info *c)
 	lnum = ubifs_find_free_leb_for_idx(c);
 	if (lnum < 0) {
 		dbg_err("could not find an empty LEB");
-		dbg_dump_lprops(c);
-		dbg_dump_budg(c, &c->bi);
+		ubifs_dump_lprops(c);
+		ubifs_dump_budg(c, &c->bi);
 		return lnum;
 	}
 

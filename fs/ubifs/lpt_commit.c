@@ -327,8 +327,8 @@ no_space:
 	ubifs_err("LPT out of space");
 	dbg_err("LPT out of space at LEB %d:%d needing %d, done_ltab %d, "
 		"done_lsave %d", lnum, offs, len, done_ltab, done_lsave);
-	dbg_dump_lpt_info(c);
-	dbg_dump_lpt_lebs(c);
+	ubifs_dump_lpt_info(c);
+	ubifs_dump_lpt_lebs(c);
 	dump_stack();
 	return err;
 }
@@ -555,8 +555,8 @@ no_space:
 	ubifs_err("LPT out of space mismatch");
 	dbg_err("LPT out of space mismatch at LEB %d:%d needing %d, done_ltab "
 		"%d, done_lsave %d", lnum, offs, len, done_ltab, done_lsave);
-	dbg_dump_lpt_info(c);
-	dbg_dump_lpt_lebs(c);
+	ubifs_dump_lpt_info(c);
+	ubifs_dump_lpt_lebs(c);
 	dump_stack();
 	return err;
 }
@@ -1769,8 +1769,8 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
 	if (free < c->lpt_sz) {
 		dbg_err("LPT space error: free %lld lpt_sz %lld",
 			free, c->lpt_sz);
-		dbg_dump_lpt_info(c);
-		dbg_dump_lpt_lebs(c);
+		ubifs_dump_lpt_info(c);
+		ubifs_dump_lpt_lebs(c);
 		dump_stack();
 		return -EINVAL;
 	}
@@ -1860,8 +1860,8 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 			err = -EINVAL;
 		}
 		if (err) {
-			dbg_dump_lpt_info(c);
-			dbg_dump_lpt_lebs(c);
+			ubifs_dump_lpt_info(c);
+			ubifs_dump_lpt_lebs(c);
 			dump_stack();
 		}
 		d->chk_lpt_sz2 = d->chk_lpt_sz;
@@ -1880,7 +1880,7 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 }
 
 /**
- * dbg_dump_lpt_leb - dump an LPT LEB.
+ * ubifs_dump_lpt_leb - dump an LPT LEB.
  * @c: UBIFS file-system description object
  * @lnum: LEB number to dump
  *
@@ -1986,13 +1986,13 @@ out:
 }
 
 /**
- * dbg_dump_lpt_lebs - dump LPT lebs.
+ * ubifs_dump_lpt_lebs - dump LPT lebs.
  * @c: UBIFS file-system description object
  *
  * This function dumps all LPT LEBs. The caller has to make sure the LPT is
  * locked.
  */
-void dbg_dump_lpt_lebs(const struct ubifs_info *c)
+void ubifs_dump_lpt_lebs(const struct ubifs_info *c)
 {
 	int i;
 

@@ -340,7 +340,7 @@ static int lnc_add(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 	err = ubifs_validate_entry(c, dent);
 	if (err) {
 		dump_stack();
-		dbg_dump_node(c, dent);
+		ubifs_dump_node(c, dent);
 		return err;
 	}
 
@@ -373,7 +373,7 @@ static int lnc_add_directly(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 	err = ubifs_validate_entry(c, node);
 	if (err) {
 		dump_stack();
-		dbg_dump_node(c, node);
+		ubifs_dump_node(c, node);
 		return err;
 	}
 
@@ -1733,7 +1733,7 @@ out_err:
 	err = -EINVAL;
 out:
 	ubifs_err("bad node at LEB %d:%d", zbr->lnum, zbr->offs);
-	dbg_dump_node(c, buf);
+	ubifs_dump_node(c, buf);
 	dump_stack();
 	return err;
 }
@@ -2403,7 +2403,7 @@ static int tnc_delete(struct ubifs_info *c, struct ubifs_znode *znode, int n)
 
 	err = ubifs_add_dirt(c, zbr->lnum, zbr->len);
 	if (err) {
-		dbg_dump_znode(c, znode);
+		ubifs_dump_znode(c, znode);
 		return err;
 	}
 
@@ -2649,7 +2649,7 @@ int ubifs_tnc_remove_range(struct ubifs_info *c, union ubifs_key *from_key,
 			err = ubifs_add_dirt(c, znode->zbranch[i].lnum,
 					     znode->zbranch[i].len);
 			if (err) {
-				dbg_dump_znode(c, znode);
+				ubifs_dump_znode(c, znode);
 				goto out_unlock;
 			}
 			dbg_tnck(key, "removing key ");
@@ -3335,7 +3335,7 @@ out_dump:
 		  (unsigned long)inode->i_ino, size,
 		  ((loff_t)block) << UBIFS_BLOCK_SHIFT);
 	mutex_unlock(&c->tnc_mutex);
-	dbg_dump_inode(c, inode);
+	ubifs_dump_inode(c, inode);
 	dump_stack();
 	return -EINVAL;
 

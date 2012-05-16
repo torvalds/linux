@@ -54,9 +54,9 @@ static int make_idx_node(struct ubifs_info *c, struct ubifs_idx_node *idx,
 		br->len = cpu_to_le32(zbr->len);
 		if (!zbr->lnum || !zbr->len) {
 			ubifs_err("bad ref in znode");
-			dbg_dump_znode(c, znode);
+			ubifs_dump_znode(c, znode);
 			if (zbr->znode)
-				dbg_dump_znode(c, zbr->znode);
+				ubifs_dump_znode(c, zbr->znode);
 		}
 	}
 	ubifs_prepare_node(c, idx, len, 0);
@@ -388,8 +388,8 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 				 * option which forces in-the-gaps is enabled.
 				 */
 				ubifs_warn("out of space");
-				dbg_dump_budg(c, &c->bi);
-				dbg_dump_lprops(c);
+				ubifs_dump_budg(c, &c->bi);
+				ubifs_dump_lprops(c);
 			}
 			/* Try to commit anyway */
 			err = 0;
@@ -864,9 +864,9 @@ static int write_index(struct ubifs_info *c)
 			br->len = cpu_to_le32(zbr->len);
 			if (!zbr->lnum || !zbr->len) {
 				ubifs_err("bad ref in znode");
-				dbg_dump_znode(c, znode);
+				ubifs_dump_znode(c, znode);
 				if (zbr->znode)
-					dbg_dump_znode(c, zbr->znode);
+					ubifs_dump_znode(c, zbr->znode);
 			}
 		}
 		len = ubifs_idx_node_sz(c, znode->child_cnt);

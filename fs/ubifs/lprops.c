@@ -1002,7 +1002,7 @@ out:
 	if (err) {
 		dbg_msg("failed cat %d hpos %d err %d", cat, i, err);
 		dump_stack();
-		dbg_dump_heap(c, heap, cat);
+		ubifs_dump_heap(c, heap, cat);
 	}
 }
 
@@ -1109,8 +1109,8 @@ static int scan_check_cb(struct ubifs_info *c,
 	if (IS_ERR(sleb)) {
 		ret = PTR_ERR(sleb);
 		if (ret == -EUCLEAN) {
-			dbg_dump_lprops(c);
-			dbg_dump_budg(c, &c->bi);
+			ubifs_dump_lprops(c);
+			ubifs_dump_budg(c, &c->bi);
 		}
 		goto out;
 	}
@@ -1237,7 +1237,7 @@ out_print:
 	ubifs_err("bad accounting of LEB %d: free %d, dirty %d flags %#x, "
 		  "should be free %d, dirty %d",
 		  lnum, lp->free, lp->dirty, lp->flags, free, dirty);
-	dbg_dump_leb(c, lnum);
+	ubifs_dump_leb(c, lnum);
 out_destroy:
 	ubifs_scan_destroy(sleb);
 	ret = -EINVAL;

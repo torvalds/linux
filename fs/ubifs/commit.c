@@ -715,13 +715,13 @@ out:
 
 out_dump:
 	dbg_err("dumping index node (iip=%d)", i->iip);
-	dbg_dump_node(c, idx);
+	ubifs_dump_node(c, idx);
 	list_del(&i->list);
 	kfree(i);
 	if (!list_empty(&list)) {
 		i = list_entry(list.prev, struct idx_node, list);
 		dbg_err("dumping parent index node");
-		dbg_dump_node(c, &i->idx);
+		ubifs_dump_node(c, &i->idx);
 	}
 out_free:
 	while (!list_empty(&list)) {

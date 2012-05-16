@@ -241,7 +241,7 @@ static int validate_master(const struct ubifs_info *c)
 
 out:
 	ubifs_err("bad master node at offset %d error %d", c->mst_offs, err);
-	dbg_dump_node(c, c->mst_node);
+	ubifs_dump_node(c, c->mst_node);
 	return -EINVAL;
 }
 
@@ -317,7 +317,7 @@ int ubifs_read_master(struct ubifs_info *c)
 		if (c->leb_cnt < old_leb_cnt ||
 		    c->leb_cnt < UBIFS_MIN_LEB_CNT) {
 			ubifs_err("bad leb_cnt on master node");
-			dbg_dump_node(c, c->mst_node);
+			ubifs_dump_node(c, c->mst_node);
 			return -EINVAL;
 		}
 

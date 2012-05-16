@@ -101,7 +101,7 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 			if (!quiet) {
 				ubifs_err("bad pad node at LEB %d:%d",
 					  lnum, offs);
-				dbg_dump_node(c, pad);
+				ubifs_dump_node(c, pad);
 			}
 			return SCANNED_A_BAD_PAD_NODE;
 		}

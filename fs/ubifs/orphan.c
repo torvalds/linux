@@ -569,7 +569,7 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		if (snod->type != UBIFS_ORPH_NODE) {
 			ubifs_err("invalid node type %d in orphan area at "
 				  "%d:%d", snod->type, sleb->lnum, snod->offs);
-			dbg_dump_node(c, snod->node);
+			ubifs_dump_node(c, snod->node);
 			return -EINVAL;
 		}
 
@@ -597,7 +597,7 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 				ubifs_err("out of order commit number %llu in "
 					  "orphan node at %d:%d",
 					  cmt_no, sleb->lnum, snod->offs);
-				dbg_dump_node(c, snod->node);
+				ubifs_dump_node(c, snod->node);
 				return -EINVAL;
 			}
 			dbg_rcvry("out of date LEB %d", sleb->lnum);

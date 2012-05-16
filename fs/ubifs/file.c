@@ -97,7 +97,7 @@ static int read_block(struct inode *inode, void *addr, unsigned int block,
 dump:
 	ubifs_err("bad data node (block %u, inode %lu)",
 		  block, inode->i_ino);
-	dbg_dump_node(c, dn);
+	ubifs_dump_node(c, dn);
 	return -EINVAL;
 }
 

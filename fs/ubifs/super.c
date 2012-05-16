@@ -246,8 +246,8 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 
 out_invalid:
 	ubifs_err("inode %lu validation failed, error %d", inode->i_ino, err);
-	dbg_dump_node(c, ino);
-	dbg_dump_inode(c, inode);
+	ubifs_dump_node(c, ino);
+	ubifs_dump_inode(c, inode);
 	err = -EINVAL;
 out_ino:
 	kfree(ino);
@@ -1147,8 +1147,8 @@ static int check_free_space(struct ubifs_info *c)
 	ubifs_assert(c->dark_wm > 0);
 	if (c->lst.total_free + c->lst.total_dirty < c->dark_wm) {
 		ubifs_err("insufficient free space to mount in R/W mode");
-		dbg_dump_budg(c, &c->bi);
-		dbg_dump_lprops(c);
+		ubifs_dump_budg(c, &c->bi);
+		ubifs_dump_lprops(c);
 		return -ENOSPC;
 	}
 	return 0;

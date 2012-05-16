@@ -686,7 +686,7 @@ out:
 
 out_dump:
 	ubifs_err("bad node is at LEB %d:%d", lnum, snod->offs);
-	dbg_dump_node(c, snod->node);
+	ubifs_dump_node(c, snod->node);
 	ubifs_scan_destroy(sleb);
 	return -EINVAL;
 }
@@ -958,7 +958,7 @@ out:
 out_dump:
 	ubifs_err("log error detected while replaying the log at LEB %d:%d",
 		  lnum, offs + snod->offs);
-	dbg_dump_node(c, snod->node);
+	ubifs_dump_node(c, snod->node);
 	ubifs_scan_destroy(sleb);
 	return -EINVAL;
 }
