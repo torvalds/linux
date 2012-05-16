@@ -91,6 +91,11 @@ struct atmel_mci_dma {
  * @regs: Pointer to MMIO registers.
  * @sg: Scatterlist entry currently being processed by PIO or PDC code.
  * @pio_offset: Offset into the current scatterlist entry.
+ * @buffer: Buffer used if we don't have the r/w proof capability. We
+ *      don't have the time to switch pdc buffers so we have to use only
+ *      one buffer for the full transaction.
+ * @buf_size: size of the buffer.
+ * @phys_buf_addr: buffer address needed for pdc.
  * @cur_slot: The slot which is currently using the controller.
  * @mrq: The request currently being processed on @cur_slot,
  *	or NULL if the controller is idle.
@@ -166,6 +171,9 @@ struct atmel_mci {
 
 	struct scatterlist	*sg;
 	unsigned int		pio_offset;
+	unsigned int		*buffer;
+	unsigned int		buf_size;
+	dma_addr_t		buf_phys_addr;
 
 	struct atmel_mci_slot	*cur_slot;
 	struct mmc_request	*mrq;
@@ -480,6 +488,11 @@ err:
 	dev_err(&mmc->class_dev, "failed to initialize debugfs for slot\n");
 }
 
+static inline unsigned int atmci_get_version(struct atmel_mci *host)
+{
+	return atmci_readl(host, ATMCI_VERSION) & 0x00000fff;
+}
+
 static inline unsigned int atmci_ns_to_clocks(struct atmel_mci *host,
 					unsigned int ns)
 {
@@ -603,6 +616,7 @@ static void atmci_pdc_set_single_buf(struct atmel_mci *host,
 	enum atmci_xfer_dir dir, enum atmci_pdc_buf buf_nb)
 {
 	u32 pointer_reg, counter_reg;
+	unsigned int buf_size;
 
 	if (dir == XFER_RECEIVE) {
 		pointer_reg = ATMEL_PDC_RPR;
@@ -617,8 +631,15 @@ static void atmci_pdc_set_single_buf(struct atmel_mci *host,
 		counter_reg += ATMEL_PDC_SCND_BUF_OFF;
 	}
 
-	atmci_writel(host, pointer_reg, sg_dma_address(host->sg));
-	if (host->data_size <= sg_dma_len(host->sg)) {
+	if (!host->caps.has_rwproof) {
+		buf_size = host->buf_size;
+		atmci_writel(host, pointer_reg, host->buf_phys_addr);
+	} else {
+		buf_size = sg_dma_len(host->sg);
+		atmci_writel(host, pointer_reg, sg_dma_address(host->sg));
+	}
+
+	if (host->data_size <= buf_size) {
 		if (host->data_size & 0x3) {
 			/* If size is different from modulo 4, transfer bytes */
 			atmci_writel(host, counter_reg, host->data_size);
@@ -670,7 +691,15 @@ static void atmci_pdc_cleanup(struct atmel_mci *host)
  */
 static void atmci_pdc_complete(struct atmel_mci *host)
 {
+	int transfer_size = host->data->blocks * host->data->blksz;
+
 	atmci_writel(host, ATMEL_PDC_PTCR, ATMEL_PDC_RXTDIS | ATMEL_PDC_TXTDIS);
+
+	if ((!host->caps.has_rwproof)
+	    && (host->data->flags & MMC_DATA_READ))
+		sg_copy_from_buffer(host->data->sg, host->data->sg_len,
+		                    host->buffer, transfer_size);
+
 	atmci_pdc_cleanup(host);
 
 	/*
@@ -818,6 +847,12 @@ atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 	/* Configure PDC */
 	host->data_size = data->blocks * data->blksz;
 	sg_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, dir);
+
+	if ((!host->caps.has_rwproof)
+	    && (host->data->flags & MMC_DATA_WRITE))
+		sg_copy_to_buffer(host->data->sg, host->data->sg_len,
+		                  host->buffer, host->data_size);
+
 	if (host->data_size)
 		atmci_pdc_set_both_buf(host,
 			((dir == DMA_FROM_DEVICE) ? XFER_RECEIVE : XFER_TRANSMIT));
@@ -1877,13 +1912,26 @@ static int __init atmci_init_slot(struct atmel_mci *host,
 		mmc->caps |= MMC_CAP_SDIO_IRQ;
 	if (host->caps.has_highspeed)
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
-	if (slot_data->bus_width >= 4)
+	/*
+	 * Without the read/write proof capability, it is strongly suggested to
+	 * use only one bit for data to prevent fifo underruns and overruns
+	 * which will corrupt data.
+	 */
+	if ((slot_data->bus_width >= 4) && host->caps.has_rwproof)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
-	mmc->max_segs = 64;
-	mmc->max_req_size = 32768 * 512;
-	mmc->max_blk_size = 32768;
-	mmc->max_blk_count = 512;
+	if (atmci_get_version(host) < 0x200) {
+		mmc->max_segs = 256;
+		mmc->max_blk_size = 4095;
+		mmc->max_blk_count = 256;
+		mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
+		mmc->max_seg_size = mmc->max_blk_size * mmc->max_segs;
+	} else {
+		mmc->max_segs = 64;
+		mmc->max_req_size = 32768 * 512;
+		mmc->max_blk_size = 32768;
+		mmc->max_blk_count = 512;
+	}
 
 	/* Assume card is present initially */
 	set_bit(ATMCI_CARD_PRESENT, &slot->flags);
@@ -2005,11 +2053,6 @@ static bool atmci_configure_dma(struct atmel_mci *host)
 		host->dma_conf.device_fc = false;
 		return true;
 	}
-}
-
-static inline unsigned int atmci_get_version(struct atmel_mci *host)
-{
-	return atmci_readl(host, ATMCI_VERSION) & 0x00000fff;
 }
 
 /*
@@ -2138,19 +2181,36 @@ static int __init atmci_probe(struct platform_device *pdev)
 	if (pdata->slot[0].bus_width) {
 		ret = atmci_init_slot(host, &pdata->slot[0],
 				0, ATMCI_SDCSEL_SLOT_A, ATMCI_SDIOIRQA);
-		if (!ret)
+		if (!ret) {
 			nr_slots++;
+			host->buf_size = host->slot[0]->mmc->max_req_size;
+		}
 	}
 	if (pdata->slot[1].bus_width) {
 		ret = atmci_init_slot(host, &pdata->slot[1],
 				1, ATMCI_SDCSEL_SLOT_B, ATMCI_SDIOIRQB);
-		if (!ret)
+		if (!ret) {
 			nr_slots++;
+			if (host->slot[1]->mmc->max_req_size > host->buf_size)
+				host->buf_size =
+					host->slot[1]->mmc->max_req_size;
+		}
 	}
 
 	if (!nr_slots) {
 		dev_err(&pdev->dev, "init failed: no slot defined\n");
 		goto err_init_slot;
+	}
+
+	if (!host->caps.has_rwproof) {
+		host->buffer = dma_alloc_coherent(&pdev->dev, host->buf_size,
+		                                  &host->buf_phys_addr,
+						  GFP_KERNEL);
+		if (!host->buffer) {
+			ret = -ENOMEM;
+			dev_err(&pdev->dev, "buffer allocation failed\n");
+			goto err_init_slot;
+		}
 	}
 
 	dev_info(&pdev->dev,
@@ -2178,6 +2238,10 @@ static int __exit atmci_remove(struct platform_device *pdev)
 	unsigned int		i;
 
 	platform_set_drvdata(pdev, NULL);
+
+	if (host->buffer)
+		dma_free_coherent(&pdev->dev, host->buf_size,
+		                  host->buffer, host->buf_phys_addr);
 
 	for (i = 0; i < ATMCI_MAX_NR_SLOTS; i++) {
 		if (host->slot[i])
