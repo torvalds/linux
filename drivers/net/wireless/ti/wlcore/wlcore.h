@@ -252,6 +252,7 @@ struct wl1271 {
 
 	/* Hardware recovery work */
 	struct work_struct recovery_work;
+	bool watchdog_recovery;
 
 	/* Pointer that holds DMA-friendly block for the mailbox */
 	struct event_mailbox *mbox;
