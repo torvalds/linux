@@ -579,9 +579,6 @@ extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
 
-/* Prepare to copy thread state - unlazy all lazy state */
-extern void prepare_to_copy(struct task_struct *tsk);
-
 unsigned long get_wchan(struct task_struct *p);
 
 /*

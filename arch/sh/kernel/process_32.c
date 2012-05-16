@@ -155,15 +155,6 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 }
 EXPORT_SYMBOL(dump_fpu);
 
-/*
- * This gets called before we allocate a new thread and copy
- * the current task into it.
- */
-void prepare_to_copy(struct task_struct *tsk)
-{
-	unlazy_fpu(tsk, task_pt_regs(tsk));
-}
-
 asmlinkage void ret_from_fork(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,

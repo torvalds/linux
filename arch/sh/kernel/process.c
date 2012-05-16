@@ -6,8 +6,15 @@
 struct kmem_cache *task_xstate_cachep = NULL;
 unsigned int xstate_size;
 
+/*
+ * this gets called so that we can store lazy state into memory and copy the
+ * current task into the new thread.
+ */
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
+#ifdef CONFIG_SUPERH32
+	unlazy_fpu(src, task_pt_regs(src));
+#endif
 	*dst = *src;
 
 	if (src->thread.xstate) {

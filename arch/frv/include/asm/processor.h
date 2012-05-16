@@ -103,8 +103,6 @@ do {							\
 	__frame->sp	= (_usp);			\
 } while(0)
 
-extern void prepare_to_copy(struct task_struct *tsk);
-
 /* Free all resources held by a thread. */
 static inline void release_thread(struct task_struct *dead_task)
 {

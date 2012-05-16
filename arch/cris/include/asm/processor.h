@@ -50,10 +50,6 @@ struct task_struct;
 #define task_pt_regs(task) user_regs(task_thread_info(task))
 #define current_regs() task_pt_regs(current)
 
-static inline void prepare_to_copy(struct task_struct *tsk)
-{
-}
-
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 unsigned long get_wchan(struct task_struct *p);
