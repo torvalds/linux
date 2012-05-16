@@ -4,7 +4,6 @@
 #include <linux/mtd/physmap.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/orion_spi.h>
 #include <linux/serial_reg.h>
 #include <mach/kirkwood.h>
 #include "common.h"

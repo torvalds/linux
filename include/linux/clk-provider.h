@@ -312,6 +312,8 @@ struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
  */
 struct clk *clk_register(struct device *dev, struct clk_hw *hw);
 
+void clk_unregister(struct clk *clk);
+
 /* helper functions */
 const char *__clk_get_name(struct clk *clk);
 struct clk_hw *__clk_get_hw(struct clk *clk);

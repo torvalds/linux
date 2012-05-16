@@ -903,7 +903,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (rate == clk->rate)
 		goto out;
 
-	if ((clk->flags & CLK_SET_RATE_GATE) && __clk_is_enabled(clk)) {
+	if ((clk->flags & CLK_SET_RATE_GATE) && clk->prepare_count) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -1419,6 +1419,15 @@ fail_out:
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(clk_register);
+
+/**
+ * clk_unregister - unregister a currently registered clock
+ * @clk: clock to unregister
+ *
+ * Currently unimplemented.
+ */
+void clk_unregister(struct clk *clk) {}
+EXPORT_SYMBOL_GPL(clk_unregister);
 
 /***        clk rate change notifiers        ***/
 
