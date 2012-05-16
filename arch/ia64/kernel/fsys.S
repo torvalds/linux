@@ -559,11 +559,15 @@ ENTRY(fsys_getcpu)
 	;;
 	tnat.nz p7,p0 = r33			// I guard against NaT argument
 (p7)    br.cond.spnt.few .fail_einval		// B
+	;;
+	cmp.ne p6,p0=r32,r0
+	cmp.ne p7,p0=r33,r0
+	;;
 #ifdef CONFIG_NUMA
 	movl r17=cpu_to_node_map
 	;;
-EX(.fail_efault, probe.w.fault r32, 3)		// M This takes 5 cycles
-EX(.fail_efault, probe.w.fault r33, 3)		// M This takes 5 cycles
+EX(.fail_efault, (p6) probe.w.fault r32, 3)		// M This takes 5 cycles
+EX(.fail_efault, (p7) probe.w.fault r33, 3)		// M This takes 5 cycles
 	shladd r18=r3,1,r17
 	;;
 	ld2 r20=[r18]				// r20 = cpu_to_node_map[cpu]
@@ -573,20 +577,20 @@ EX(.fail_efault, probe.w.fault r33, 3)		// M This takes 5 cycles
 (p8)	br.spnt.many fsys_fallback_syscall
 	;;
 	;;
-EX(.fail_efault, st4 [r32] = r3)
-EX(.fail_efault, st2 [r33] = r20)
+EX(.fail_efault, (p6) st4 [r32] = r3)
+EX(.fail_efault, (p7) st2 [r33] = r20)
 	mov r8=0
 	;;
 #else
-EX(.fail_efault, probe.w.fault r32, 3)		// M This takes 5 cycles
-EX(.fail_efault, probe.w.fault r33, 3)		// M This takes 5 cycles
+EX(.fail_efault, (p6) probe.w.fault r32, 3)		// M This takes 5 cycles
+EX(.fail_efault, (p7) probe.w.fault r33, 3)		// M This takes 5 cycles
 	and r2 = TIF_ALLWORK_MASK,r2
 	;;
 	cmp.ne p8,p0=0,r2
 (p8)	br.spnt.many fsys_fallback_syscall
 	;;
-EX(.fail_efault, st4 [r32] = r3)
-EX(.fail_efault, st2 [r33] = r0)
+EX(.fail_efault, (p6) st4 [r32] = r3)
+EX(.fail_efault, (p7) st2 [r33] = r0)
 	mov r8=0
 	;;
 #endif
