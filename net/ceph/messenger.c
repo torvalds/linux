@@ -686,7 +686,6 @@ static int prepare_connect_authorizer(struct ceph_connection *con)
 static void prepare_write_banner(struct ceph_messenger *msgr,
 				 struct ceph_connection *con)
 {
-	ceph_con_out_kvec_reset(con);
 	ceph_con_out_kvec_add(con, strlen(CEPH_BANNER), CEPH_BANNER);
 	ceph_con_out_kvec_add(con, sizeof (msgr->my_enc_addr),
 					&msgr->my_enc_addr);
@@ -726,10 +725,9 @@ static int prepare_write_connect(struct ceph_messenger *msgr,
 	con->out_connect.protocol_version = cpu_to_le32(proto);
 	con->out_connect.flags = 0;
 
+	ceph_con_out_kvec_reset(con);
 	if (include_banner)
 		prepare_write_banner(msgr, con);
-	else
-		ceph_con_out_kvec_reset(con);
 	ceph_con_out_kvec_add(con, sizeof (con->out_connect), &con->out_connect);
 
 	con->out_more = 0;
