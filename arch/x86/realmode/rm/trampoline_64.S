@@ -125,4 +125,29 @@ ENTRY(startup_64)
 	# Now jump into the kernel using virtual addresses
 	jmpq	*tr_start(%rip)
 
+	.section ".rodata","a"
+	# Duplicate the global descriptor table
+	# so the kernel can live anywhere
+	.balign	16
+	.globl tr_gdt
+tr_gdt:
+	.short	tr_gdt_end - tr_gdt - 1	# gdt limit
+	.long	pa_tr_gdt
+	.short	0
+	.quad	0x00cf9b000000ffff	# __KERNEL32_CS
+	.quad	0x00af9b000000ffff	# __KERNEL_CS
+	.quad	0x00cf93000000ffff	# __KERNEL_DS
+tr_gdt_end:
+
+	.bss
+	.balign	PAGE_SIZE
+GLOBAL(trampoline_pgd)		.space	PAGE_SIZE
+
+	.balign	8
+GLOBAL(trampoline_header)
+	tr_start:		.space	8
+	GLOBAL(tr_cr4)		.space	4
+	GLOBAL(tr_efer)		.space	8
+END(trampoline_header)
+
 #include "trampoline_common.S"
