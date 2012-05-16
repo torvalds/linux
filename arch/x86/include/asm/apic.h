@@ -463,9 +463,7 @@ static inline void ack_APIC_irq(void)
 	 * ack_APIC_irq() actually gets compiled as a single instruction
 	 * ... yummie.
 	 */
-
-	/* Docs say use 0 for future compatibility */
-	apic_write(APIC_EOI, 0);
+	apic_write(APIC_EOI, APIC_EOI_ACK);
 }
 
 static inline unsigned default_get_apic_id(unsigned long x)
