@@ -502,12 +502,12 @@ static void fimc_md_unregister_entities(struct fimc_md *fmd)
  * @source: the source entity to create links to all fimc entities from
  * @sensor: sensor subdev linked to FIMC[fimc_id] entity, may be null
  * @pad: the source entity pad index
- * @fimc_id: index of the fimc device for which link should be enabled
+ * @link_mask: bitmask of the fimc devices for which link should be enabled
  */
 static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 					    struct media_entity *source,
 					    struct v4l2_subdev *sensor,
-					    int pad, int fimc_id)
+					    int pad, int link_mask)
 {
 	struct fimc_sensor_info *s_info;
 	struct media_entity *sink;
@@ -524,7 +524,7 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 		if (!fmd->fimc[i]->variant->has_cam_if)
 			continue;
 
-		flags = (i == fimc_id) ? MEDIA_LNK_FL_ENABLED : 0;
+		flags = ((1 << i) & link_mask) ? MEDIA_LNK_FL_ENABLED : 0;
 
 		sink = &fmd->fimc[i]->vid_cap.subdev.entity;
 		ret = media_entity_create_link(source, pad, sink,
@@ -556,7 +556,10 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 		if (!fmd->fimc_lite[i])
 			continue;
 
-		flags = (i == fimc_id) ? MEDIA_LNK_FL_ENABLED : 0;
+		if (link_mask & (1 << (i + FIMC_MAX_DEVS)))
+			flags = MEDIA_LNK_FL_ENABLED;
+		else
+			flags = 0;
 
 		sink = &fmd->fimc_lite[i]->subdev.entity;
 		ret = media_entity_create_link(source, pad, sink,
@@ -618,9 +621,8 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 	struct s5p_fimc_isp_info *pdata;
 	struct fimc_sensor_info *s_info;
 	struct media_entity *source, *sink;
-	int i, pad, fimc_id = 0;
-	int ret = 0;
-	u32 flags;
+	int i, pad, fimc_id = 0, ret = 0;
+	u32 flags, link_mask = 0;
 
 	for (i = 0; i < fmd->num_sensors; i++) {
 		if (fmd->sensor[i].subdev == NULL)
@@ -672,19 +674,20 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 		if (source == NULL)
 			continue;
 
+		link_mask = 1 << fimc_id++;
 		ret = __fimc_md_create_fimc_sink_links(fmd, source, sensor,
-						       pad, fimc_id++);
+						       pad, link_mask);
 	}
 
-	fimc_id = 0;
 	for (i = 0; i < ARRAY_SIZE(fmd->csis); i++) {
 		if (fmd->csis[i].sd == NULL)
 			continue;
 		source = &fmd->csis[i].sd->entity;
 		pad = CSIS_PAD_SOURCE;
 
+		link_mask = 1 << fimc_id++;
 		ret = __fimc_md_create_fimc_sink_links(fmd, source, NULL,
-						       pad, fimc_id++);
+						       pad, link_mask);
 	}
 
 	/* Create immutable links between each FIMC's subdev and video node */
