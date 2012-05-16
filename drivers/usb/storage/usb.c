@@ -265,7 +265,7 @@ void fill_inquiry_response(struct us_data *us, unsigned char *data,
 		return;
 
 	memset(data+8, ' ', 28);
-	if(data[0]&0x20) { /* USB device currently not connected. Return
+	if (data[0]&0x20) { /* USB device currently not connected. Return
 			      peripheral qualifier 001b ("...however, the
 			      physical device is not currently connected
 			      to this logical unit") and leave vendor and
@@ -298,7 +298,7 @@ static int usb_stor_control_thread(void * __us)
 	struct us_data *us = (struct us_data *)__us;
 	struct Scsi_Host *host = us_to_host(us);
 
-	for(;;) {
+	for (;;) {
 		US_DEBUGP("*** thread sleeping.\n");
 		if (wait_for_completion_interruptible(&us->cmnd_ready))
 			break;
