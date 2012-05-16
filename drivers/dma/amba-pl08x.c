@@ -239,8 +239,7 @@ struct pl08x_dma_chan {
 	struct tasklet_struct tasklet;
 	const char *name;
 	const struct pl08x_channel_data *cd;
-	dma_addr_t src_addr;
-	dma_addr_t dst_addr;
+	struct dma_slave_config cfg;
 	u32 src_cctl;
 	u32 dst_cctl;
 	enum dma_transfer_direction runtime_direction;
@@ -1245,6 +1244,8 @@ static int dma_set_runtime_config(struct dma_chan *chan,
 		return -EINVAL;
 	}
 
+	plchan->cfg = *config;
+
 	cctl |= width << PL080_CONTROL_SWIDTH_SHIFT;
 	cctl |= width << PL080_CONTROL_DWIDTH_SHIFT;
 
@@ -1263,12 +1264,10 @@ static int dma_set_runtime_config(struct dma_chan *chan,
 	plchan->device_fc = config->device_fc;
 
 	if (plchan->runtime_direction == DMA_DEV_TO_MEM) {
-		plchan->src_addr = config->src_addr;
 		plchan->src_cctl = pl08x_cctl(cctl) | PL080_CONTROL_DST_INCR |
 			pl08x_select_bus(plchan->cd->periph_buses,
 					 pl08x->mem_buses);
 	} else {
-		plchan->dst_addr = config->dst_addr;
 		plchan->dst_cctl = pl08x_cctl(cctl) | PL080_CONTROL_SRC_INCR |
 			pl08x_select_bus(pl08x->mem_buses,
 					 plchan->cd->periph_buses);
@@ -1482,10 +1481,10 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 
 	if (direction == DMA_MEM_TO_DEV) {
 		txd->cctl = plchan->dst_cctl;
-		slave_addr = plchan->dst_addr;
+		slave_addr = plchan->cfg.dst_addr;
 	} else if (direction == DMA_DEV_TO_MEM) {
 		txd->cctl = plchan->src_cctl;
-		slave_addr = plchan->src_addr;
+		slave_addr = plchan->cfg.src_addr;
 	} else {
 		pl08x_free_txd(pl08x, txd);
 		dev_err(&pl08x->adev->dev,
@@ -1790,8 +1789,8 @@ static void pl08x_dma_slave_init(struct pl08x_dma_chan *chan)
 
 	chan->slave = true;
 	chan->name = chan->cd->bus_id;
-	chan->src_addr = chan->cd->addr;
-	chan->dst_addr = chan->cd->addr;
+	chan->cfg.src_addr = chan->cd->addr;
+	chan->cfg.dst_addr = chan->cd->addr;
 	chan->src_cctl = cctl | PL080_CONTROL_DST_INCR |
 		pl08x_select_bus(chan->cd->periph_buses, chan->host->mem_buses);
 	chan->dst_cctl = cctl | PL080_CONTROL_SRC_INCR |
