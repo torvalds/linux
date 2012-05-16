@@ -1285,24 +1285,24 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 	err = 1;
 	key_read(c, &dent1->key, &key);
 	if (keys_cmp(c, &zbr1->key, &key)) {
-		dbg_err("1st entry at %d:%d has key %s", zbr1->lnum,
-			zbr1->offs, dbg_snprintf_key(c, &key, key_buf,
-						     DBG_KEY_BUF_LEN));
-		dbg_err("but it should have key %s according to tnc",
-			dbg_snprintf_key(c, &zbr1->key, key_buf,
-					 DBG_KEY_BUF_LEN));
+		ubifs_err("1st entry at %d:%d has key %s", zbr1->lnum,
+			  zbr1->offs, dbg_snprintf_key(c, &key, key_buf,
+						       DBG_KEY_BUF_LEN));
+		ubifs_err("but it should have key %s according to tnc",
+			  dbg_snprintf_key(c, &zbr1->key, key_buf,
+					   DBG_KEY_BUF_LEN));
 		ubifs_dump_node(c, dent1);
 		goto out_free;
 	}
 
 	key_read(c, &dent2->key, &key);
 	if (keys_cmp(c, &zbr2->key, &key)) {
-		dbg_err("2nd entry at %d:%d has key %s", zbr1->lnum,
-			zbr1->offs, dbg_snprintf_key(c, &key, key_buf,
-						     DBG_KEY_BUF_LEN));
-		dbg_err("but it should have key %s according to tnc",
-			dbg_snprintf_key(c, &zbr2->key, key_buf,
-					 DBG_KEY_BUF_LEN));
+		ubifs_err("2nd entry at %d:%d has key %s", zbr1->lnum,
+			  zbr1->offs, dbg_snprintf_key(c, &key, key_buf,
+						       DBG_KEY_BUF_LEN));
+		ubifs_err("but it should have key %s according to tnc",
+			  dbg_snprintf_key(c, &zbr2->key, key_buf,
+					   DBG_KEY_BUF_LEN));
 		ubifs_dump_node(c, dent2);
 		goto out_free;
 	}
@@ -1316,10 +1316,10 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 		goto out_free;
 	}
 	if (cmp == 0 && nlen1 == nlen2)
-		dbg_err("2 xent/dent nodes with the same name");
+		ubifs_err("2 xent/dent nodes with the same name");
 	else
-		dbg_err("bad order of colliding key %s",
-			dbg_snprintf_key(c, &key, key_buf, DBG_KEY_BUF_LEN));
+		ubifs_err("bad order of colliding key %s",
+			  dbg_snprintf_key(c, &key, key_buf, DBG_KEY_BUF_LEN));
 
 	ubifs_msg("first node at %d:%d\n", zbr1->lnum, zbr1->offs);
 	ubifs_dump_node(c, dent1);

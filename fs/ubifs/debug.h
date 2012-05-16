@@ -159,10 +159,6 @@ struct ubifs_global_debug_info {
 	}                                                                      \
 } while (0)
 
-#define dbg_err(fmt, ...) do {                                                 \
-	ubifs_err(fmt, ##__VA_ARGS__);                                         \
-} while (0)
-
 #define ubifs_dbg_msg(type, fmt, ...) \
 	pr_debug("UBIFS DBG " type ": " fmt "\n", ##__VA_ARGS__)
 

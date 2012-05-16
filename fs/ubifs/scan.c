@@ -109,8 +109,8 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 		/* Make the node pads to 8-byte boundary */
 		if ((node_len + pad_len) & 7) {
 			if (!quiet)
-				dbg_err("bad padding length %d - %d",
-					offs, offs + node_len + pad_len);
+				ubifs_err("bad padding length %d - %d",
+					  offs, offs + node_len + pad_len);
 			return SCANNED_A_BAD_PAD_NODE;
 		}
 
@@ -245,7 +245,7 @@ void ubifs_scanned_corruption(const struct ubifs_info *c, int lnum, int offs,
 	len = c->leb_size - offs;
 	if (len > 8192)
 		len = 8192;
-	dbg_err("first %d bytes from LEB %d:%d", len, lnum, offs);
+	ubifs_err("first %d bytes from LEB %d:%d", len, lnum, offs);
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 4, buf, len, 1);
 }
 
@@ -300,16 +300,16 @@ struct ubifs_scan_leb *ubifs_scan(const struct ubifs_info *c, int lnum,
 
 		switch (ret) {
 		case SCANNED_GARBAGE:
-			dbg_err("garbage");
+			ubifs_err("garbage");
 			goto corrupted;
 		case SCANNED_A_NODE:
 			break;
 		case SCANNED_A_CORRUPT_NODE:
 		case SCANNED_A_BAD_PAD_NODE:
-			dbg_err("bad node");
+			ubifs_err("bad node");
 			goto corrupted;
 		default:
-			dbg_err("unknown");
+			ubifs_err("unknown");
 			err = -EINVAL;
 			goto error;
 		}
