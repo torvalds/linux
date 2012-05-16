@@ -109,10 +109,10 @@ void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
 #ifdef CONFIG_MTD_UBI_DEBUG
 
 /**
- * ubi_dbg_dump_vol_info- dump volume information.
+ * ubi_dump_vol_info - dump volume information.
  * @vol: UBI volume description object
  */
-void ubi_dbg_dump_vol_info(const struct ubi_volume *vol)
+void ubi_dump_vol_info(const struct ubi_volume *vol)
 {
 	printk(KERN_DEBUG "Volume information dump:\n");
 	printk(KERN_DEBUG "\tvol_id          %d\n", vol->vol_id);
