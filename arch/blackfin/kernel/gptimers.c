@@ -23,7 +23,11 @@
 		printk(KERN_DEBUG "%s:%s:%i: Assertion failed: " #expr "\n", __FILE__, __func__, __LINE__);
 #endif
 
-#define BFIN_TIMER_NUM_GROUP  (BFIN_TIMER_OCTET(MAX_BLACKFIN_GPTIMERS - 1) + 1)
+#ifndef CONFIG_BF60x
+# define BFIN_TIMER_NUM_GROUP  (BFIN_TIMER_OCTET(MAX_BLACKFIN_GPTIMERS - 1) + 1)
+#else
+# define BFIN_TIMER_NUM_GROUP  1
+#endif
 
 static struct bfin_gptimer_regs * const timer_regs[MAX_BLACKFIN_GPTIMERS] =
 {
@@ -158,6 +162,74 @@ uint32_t get_gptimer_count(unsigned int timer_id)
 }
 EXPORT_SYMBOL(get_gptimer_count);
 
+#ifdef CONFIG_BF60x
+void set_gptimer_delay(unsigned int timer_id, uint32_t delay)
+{
+	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	bfin_write(&timer_regs[timer_id]->delay, delay);
+	SSYNC();
+}
+EXPORT_SYMBOL(set_gptimer_delay);
+
+uint32_t get_gptimer_delay(unsigned int timer_id)
+{
+	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	return bfin_read(&timer_regs[timer_id]->delay);
+}
+EXPORT_SYMBOL(get_gptimer_delay);
+#endif
+
+#ifdef CONFIG_BF60x
+int get_gptimer_intr(unsigned int timer_id)
+{
+	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	return !!(bfin_read(&group_regs[BFIN_TIMER_OCTET(timer_id)]->data_ilat) & timil_mask[timer_id]);
+}
+EXPORT_SYMBOL(get_gptimer_intr);
+
+void clear_gptimer_intr(unsigned int timer_id)
+{
+	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	bfin_write(&group_regs[BFIN_TIMER_OCTET(timer_id)]->data_ilat, timil_mask[timer_id]);
+}
+EXPORT_SYMBOL(clear_gptimer_intr);
+
+int get_gptimer_over(unsigned int timer_id)
+{
+	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	return !!(bfin_read(&group_regs[BFIN_TIMER_OCTET(timer_id)]->stat_ilat) & tovf_mask[timer_id]);
+}
+EXPORT_SYMBOL(get_gptimer_over);
+
+void clear_gptimer_over(unsigned int timer_id)
+{
+	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	bfin_write(&group_regs[BFIN_TIMER_OCTET(timer_id)]->stat_ilat, tovf_mask[timer_id]);
+}
+EXPORT_SYMBOL(clear_gptimer_over);
+
+int get_gptimer_run(unsigned int timer_id)
+{
+	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	return !!(bfin_read(&group_regs[BFIN_TIMER_OCTET(timer_id)]->run) & trun_mask[timer_id]);
+}
+EXPORT_SYMBOL(get_gptimer_run);
+
+uint32_t get_gptimer_status(unsigned int group)
+{
+	tassert(group < BFIN_TIMER_NUM_GROUP);
+	return bfin_read(&group_regs[group]->data_ilat);
+}
+EXPORT_SYMBOL(get_gptimer_status);
+
+void set_gptimer_status(unsigned int group, uint32_t value)
+{
+	tassert(group < BFIN_TIMER_NUM_GROUP);
+	bfin_write(&group_regs[group]->data_ilat, value);
+	SSYNC();
+}
+EXPORT_SYMBOL(set_gptimer_status);
+#else
 uint32_t get_gptimer_status(unsigned int group)
 {
 	tassert(group < BFIN_TIMER_NUM_GROUP);
@@ -212,6 +284,7 @@ int get_gptimer_run(unsigned int timer_id)
 	return !!(read_gptimer_status(timer_id) & trun_mask[timer_id]);
 }
 EXPORT_SYMBOL(get_gptimer_run);
+#endif
 
 void set_gptimer_config(unsigned int timer_id, uint16_t config)
 {
@@ -231,6 +304,12 @@ EXPORT_SYMBOL(get_gptimer_config);
 void enable_gptimers(uint16_t mask)
 {
 	int i;
+#ifdef CONFIG_BF60x
+	uint16_t imask;
+	imask = bfin_read16(TIMER_DATA_IMSK);
+	imask &= ~mask;
+	bfin_write16(TIMER_DATA_IMSK, imask);
+#endif
 	tassert((mask & ~BLACKFIN_GPTIMER_IDMASK) == 0);
 	for (i = 0; i < BFIN_TIMER_NUM_GROUP; ++i) {
 		bfin_write(&group_regs[i]->enable, mask & 0xFF);
@@ -255,10 +334,12 @@ void disable_gptimers(uint16_t mask)
 {
 	int i;
 	_disable_gptimers(mask);
+#ifndef CONFIG_BF60x
 	for (i = 0; i < MAX_BLACKFIN_GPTIMERS; ++i)
 		if (mask & (1 << i))
 			bfin_write(&group_regs[BFIN_TIMER_OCTET(i)]->status, trun_mask[i]);
 	SSYNC();
+#endif
 }
 EXPORT_SYMBOL(disable_gptimers);
 
