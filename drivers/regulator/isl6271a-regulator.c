@@ -50,25 +50,15 @@ static int isl6271a_get_voltage_sel(struct regulator_dev *dev)
 	return idx;
 }
 
-static int isl6271a_set_voltage(struct regulator_dev *dev,
-				int minuV, int maxuV,
-				unsigned *selector)
+static int isl6271a_set_voltage_sel(struct regulator_dev *dev,
+				    unsigned selector)
 {
 	struct isl_pmic *pmic = rdev_get_drvdata(dev);
-	int err, data;
-
-	if (minuV < ISL6271A_VOLTAGE_MIN || minuV > ISL6271A_VOLTAGE_MAX)
-		return -EINVAL;
-	if (maxuV < ISL6271A_VOLTAGE_MIN || maxuV > ISL6271A_VOLTAGE_MAX)
-		return -EINVAL;
-
-	data = DIV_ROUND_UP(minuV - ISL6271A_VOLTAGE_MIN,
-			    ISL6271A_VOLTAGE_STEP);
-	*selector = data;
+	int err;
 
 	mutex_lock(&pmic->mtx);
 
-	err = i2c_smbus_write_byte(pmic->client, data);
+	err = i2c_smbus_write_byte(pmic->client, selector);
 	if (err < 0)
 		dev_err(&pmic->client->dev, "Error setting voltage\n");
 
@@ -78,8 +68,9 @@ static int isl6271a_set_voltage(struct regulator_dev *dev,
 
 static struct regulator_ops isl_core_ops = {
 	.get_voltage_sel = isl6271a_get_voltage_sel,
-	.set_voltage	= isl6271a_set_voltage,
+	.set_voltage_sel = isl6271a_set_voltage_sel,
 	.list_voltage	= regulator_list_voltage_linear,
+	.map_voltage	= regulator_map_voltage_linear,
 };
 
 static int isl6271a_get_fixed_voltage(struct regulator_dev *dev)
