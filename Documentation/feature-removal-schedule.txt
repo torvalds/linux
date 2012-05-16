@@ -440,6 +440,19 @@ Who:	Hans Verkuil <hans.verkuil@cisco.com>
 
 ----------------------------
 
+What:	CONFIG_CFG80211_WEXT
+When:	as soon as distributions ship new wireless tools, ie. wpa_supplicant 1.0
+	and NetworkManager/connman/etc. that are able to use nl80211
+Why:	Wireless extensions are deprecated, and userland tools are moving to
+	using nl80211. New drivers are no longer using wireless extensions,
+	and while there might still be old drivers, both new drivers and new
+	userland no longer needs them and they can't be used for an feature
+	developed in the past couple of years. As such, compatibility with
+	wireless extensions in new drivers will be removed.
+Who:	Johannes Berg <johannes@sipsolutions.net>
+
+----------------------------
+
 What:	g_file_storage driver
 When:	3.8
 Why:	This driver has been superseded by g_mass_storage.

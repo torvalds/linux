@@ -114,7 +114,6 @@ config CFG80211_WEXT
 	bool "cfg80211 wireless extensions compatibility"
 	depends on CFG80211
 	select WEXT_CORE
-	default y
 	help
 	  Enable this option if you need old userspace for wireless
 	  extensions with cfg80211-based drivers.
