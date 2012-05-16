@@ -903,7 +903,9 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  * the reader-accessible portions of the linked structure.
  */
 #define RCU_INIT_POINTER(p, v) \
-		p = (typeof(*v) __force __rcu *)(v)
+	do { \
+		p = (typeof(*v) __force __rcu *)(v); \
+	} while (0)
 
 /**
  * RCU_POINTER_INITIALIZER() - statically initialize an RCU protected pointer
