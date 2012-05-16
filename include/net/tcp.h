@@ -263,14 +263,14 @@ extern int tcp_memory_pressure;
  * and worry about wraparound (automatic with unsigned arithmetic).
  */
 
-static inline int before(__u32 seq1, __u32 seq2)
+static inline bool before(__u32 seq1, __u32 seq2)
 {
         return (__s32)(seq1-seq2) < 0;
 }
 #define after(seq2, seq1) 	before(seq1, seq2)
 
 /* is s2<=s1<=s3 ? */
-static inline int between(__u32 seq1, __u32 seq2, __u32 seq3)
+static inline bool between(__u32 seq1, __u32 seq2, __u32 seq3)
 {
 	return seq3 - seq2 >= seq1 - seq2;
 }
@@ -305,7 +305,7 @@ static inline void tcp_synq_overflow(struct sock *sk)
 }
 
 /* syncookies: no recent synqueue overflow on this listening socket? */
-static inline int tcp_synq_no_recent_overflow(const struct sock *sk)
+static inline bool tcp_synq_no_recent_overflow(const struct sock *sk)
 {
 	unsigned long last_overflow = tcp_sk(sk)->rx_opt.ts_recent_stamp;
 	return time_after(jiffies, last_overflow + TCP_TIMEOUT_FALLBACK);
@@ -383,7 +383,7 @@ extern struct sock * tcp_check_req(struct sock *sk,struct sk_buff *skb,
 				   struct request_sock **prev);
 extern int tcp_child_process(struct sock *parent, struct sock *child,
 			     struct sk_buff *skb);
-extern int tcp_use_frto(struct sock *sk);
+extern bool tcp_use_frto(struct sock *sk);
 extern void tcp_enter_frto(struct sock *sk);
 extern void tcp_enter_loss(struct sock *sk, int how);
 extern void tcp_clear_retrans(struct tcp_sock *tp);
@@ -470,7 +470,7 @@ static inline __u32 cookie_v6_init_sequence(struct sock *sk,
 
 extern void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
 				      int nonagle);
-extern int tcp_may_send_now(struct sock *sk);
+extern bool tcp_may_send_now(struct sock *sk);
 extern int tcp_retransmit_skb(struct sock *, struct sk_buff *);
 extern void tcp_retransmit_timer(struct sock *sk);
 extern void tcp_xmit_retransmit_queue(struct sock *);
@@ -484,9 +484,9 @@ extern int tcp_write_wakeup(struct sock *);
 extern void tcp_send_fin(struct sock *sk);
 extern void tcp_send_active_reset(struct sock *sk, gfp_t priority);
 extern int tcp_send_synack(struct sock *);
-extern int tcp_syn_flood_action(struct sock *sk,
-				const struct sk_buff *skb,
-				const char *proto);
+extern bool tcp_syn_flood_action(struct sock *sk,
+				 const struct sk_buff *skb,
+				 const char *proto);
 extern void tcp_push_one(struct sock *, unsigned int mss_now);
 extern void tcp_send_ack(struct sock *sk);
 extern void tcp_send_delayed_ack(struct sock *sk);
@@ -794,12 +794,12 @@ static inline int tcp_is_sack(const struct tcp_sock *tp)
 	return tp->rx_opt.sack_ok;
 }
 
-static inline int tcp_is_reno(const struct tcp_sock *tp)
+static inline bool tcp_is_reno(const struct tcp_sock *tp)
 {
 	return !tcp_is_sack(tp);
 }
 
-static inline int tcp_is_fack(const struct tcp_sock *tp)
+static inline bool tcp_is_fack(const struct tcp_sock *tp)
 {
 	return tp->rx_opt.sack_ok & TCP_FACK_ENABLED;
 }
@@ -901,7 +901,7 @@ static inline u32 tcp_wnd_end(const struct tcp_sock *tp)
 {
 	return tp->snd_una + tp->snd_wnd;
 }
-extern int tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight);
+extern bool tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight);
 
 static inline void tcp_minshall_update(struct tcp_sock *tp, unsigned int mss,
 				       const struct sk_buff *skb)
@@ -944,7 +944,7 @@ static inline __sum16 __tcp_checksum_complete(struct sk_buff *skb)
 	return __skb_checksum_complete(skb);
 }
 
-static inline int tcp_checksum_complete(struct sk_buff *skb)
+static inline bool tcp_checksum_complete(struct sk_buff *skb)
 {
 	return !skb_csum_unnecessary(skb) &&
 		__tcp_checksum_complete(skb);
@@ -974,12 +974,12 @@ static inline void tcp_prequeue_init(struct tcp_sock *tp)
  *
  * NOTE: is this not too big to inline?
  */
-static inline int tcp_prequeue(struct sock *sk, struct sk_buff *skb)
+static inline bool tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	if (sysctl_tcp_low_latency || !tp->ucopy.task)
-		return 0;
+		return false;
 
 	__skb_queue_tail(&tp->ucopy.prequeue, skb);
 	tp->ucopy.memory += skb->truesize;
@@ -1003,7 +1003,7 @@ static inline int tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 						  (3 * tcp_rto_min(sk)) / 4,
 						  TCP_RTO_MAX);
 	}
-	return 1;
+	return true;
 }
 
 
@@ -1108,28 +1108,28 @@ static inline int tcp_fin_time(const struct sock *sk)
 	return fin_timeout;
 }
 
-static inline int tcp_paws_check(const struct tcp_options_received *rx_opt,
-				 int paws_win)
+static inline bool tcp_paws_check(const struct tcp_options_received *rx_opt,
+				  int paws_win)
 {
 	if ((s32)(rx_opt->ts_recent - rx_opt->rcv_tsval) <= paws_win)
-		return 1;
+		return true;
 	if (unlikely(get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_24DAYS))
-		return 1;
+		return true;
 	/*
 	 * Some OSes send SYN and SYNACK messages with tsval=0 tsecr=0,
 	 * then following tcp messages have valid values. Ignore 0 value,
 	 * or else 'negative' tsval might forbid us to accept their packets.
 	 */
 	if (!rx_opt->ts_recent)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
-static inline int tcp_paws_reject(const struct tcp_options_received *rx_opt,
-				  int rst)
+static inline bool tcp_paws_reject(const struct tcp_options_received *rx_opt,
+				   int rst)
 {
 	if (tcp_paws_check(rx_opt, 0))
-		return 0;
+		return false;
 
 	/* RST segments are not recommended to carry timestamp,
 	   and, if they do, it is recommended to ignore PAWS because
@@ -1144,8 +1144,8 @@ static inline int tcp_paws_reject(const struct tcp_options_received *rx_opt,
 	   However, we can relax time bounds for RST segments to MSL.
 	 */
 	if (rst && get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_MSL)
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 static inline void tcp_mib_init(struct net *net)
@@ -1383,7 +1383,7 @@ static inline void tcp_unlink_write_queue(struct sk_buff *skb, struct sock *sk)
 	__skb_unlink(skb, &sk->sk_write_queue);
 }
 
-static inline int tcp_write_queue_empty(struct sock *sk)
+static inline bool tcp_write_queue_empty(struct sock *sk)
 {
 	return skb_queue_empty(&sk->sk_write_queue);
 }
@@ -1440,7 +1440,7 @@ static inline void tcp_highest_sack_combine(struct sock *sk,
 /* Determines whether this is a thin stream (which may suffer from
  * increased latency). Used to trigger latency-reducing mechanisms.
  */
-static inline unsigned int tcp_stream_is_thin(struct tcp_sock *tp)
+static inline bool tcp_stream_is_thin(struct tcp_sock *tp)
 {
 	return tp->packets_out < 4 && !tcp_in_initial_slowstart(tp);
 }
