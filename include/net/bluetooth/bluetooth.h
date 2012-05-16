@@ -194,8 +194,12 @@ struct bt_sock {
 	bdaddr_t    dst;
 	struct list_head accept_q;
 	struct sock *parent;
-	u32 defer_setup;
-	bool suspended;
+	unsigned long flags;
+};
+
+enum {
+	BT_SK_DEFER_SETUP,
+	BT_SK_SUSPEND,
 };
 
 struct bt_sock_list {
