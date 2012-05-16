@@ -1252,7 +1252,7 @@ static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
 
 	leaf = btrfs_alloc_free_block(trans, root, root->leafsize, 0,
 				      BTRFS_TREE_LOG_OBJECTID, NULL,
-				      0, 0, 0, 0);
+				      0, 0, 0);
 	if (IS_ERR(leaf)) {
 		kfree(root);
 		return ERR_CAST(leaf);
