@@ -138,7 +138,7 @@ static irqreturn_t twl6040_irq_thread(int irq, void *data)
 
 int twl6040_irq_init(struct twl6040 *twl6040)
 {
-	int cur_irq, ret;
+	int i, nr_irqs, ret;
 	u8 val;
 
 	mutex_init(&twl6040->irq_mutex);
@@ -148,21 +148,20 @@ int twl6040_irq_init(struct twl6040 *twl6040)
 	twl6040->irq_masks_cache = TWL6040_ALLINT_MSK;
 	twl6040_reg_write(twl6040, TWL6040_REG_INTMR, TWL6040_ALLINT_MSK);
 
+	nr_irqs = ARRAY_SIZE(twl6040_irqs);
 	/* Register them with genirq */
-	for (cur_irq = twl6040->irq_base;
-	     cur_irq < twl6040->irq_base + ARRAY_SIZE(twl6040_irqs);
-	     cur_irq++) {
-		irq_set_chip_data(cur_irq, twl6040);
-		irq_set_chip_and_handler(cur_irq, &twl6040_irq_chip,
+	for (i = twl6040->irq_base; i < twl6040->irq_base + nr_irqs; i++) {
+		irq_set_chip_data(i, twl6040);
+		irq_set_chip_and_handler(i, &twl6040_irq_chip,
 					 handle_level_irq);
-		irq_set_nested_thread(cur_irq, 1);
+		irq_set_nested_thread(i, 1);
 
 		/* ARM needs us to explicitly flag the IRQ as valid
 		 * and will set them noprobe when we do so. */
 #ifdef CONFIG_ARM
-		set_irq_flags(cur_irq, IRQF_VALID);
+		set_irq_flags(i, IRQF_VALID);
 #else
-		irq_set_noprobe(cur_irq);
+		irq_set_noprobe(i);
 #endif
 	}
 
