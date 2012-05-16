@@ -83,15 +83,10 @@ static int isl6271a_set_voltage(struct regulator_dev *dev,
 	return err;
 }
 
-static int isl6271a_list_voltage(struct regulator_dev *dev, unsigned selector)
-{
-	return ISL6271A_VOLTAGE_MIN + (ISL6271A_VOLTAGE_STEP * selector);
-}
-
 static struct regulator_ops isl_core_ops = {
 	.get_voltage	= isl6271a_get_voltage,
 	.set_voltage	= isl6271a_set_voltage,
-	.list_voltage	= isl6271a_list_voltage,
+	.list_voltage	= regulator_list_voltage_linear,
 };
 
 static int isl6271a_get_fixed_voltage(struct regulator_dev *dev)
@@ -119,6 +114,8 @@ static const struct regulator_desc isl_rd[] = {
 		.ops		= &isl_core_ops,
 		.type		= REGULATOR_VOLTAGE,
 		.owner		= THIS_MODULE,
+		.min_uV		= ISL6271A_VOLTAGE_MIN,
+		.uV_step	= ISL6271A_VOLTAGE_STEP,
 	}, {
 		.name		= "LDO1",
 		.id		= 1,
