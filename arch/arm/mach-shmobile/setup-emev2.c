@@ -22,9 +22,11 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/gpio-em.h>
+#include <linux/of_platform.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/io.h>
+#include <linux/of_irq.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/emev2.h>
@@ -381,9 +383,14 @@ void __init emev2_add_standard_devices(void)
 			     ARRAY_SIZE(emev2_late_devices));
 }
 
-void __init emev2_add_early_devices(void)
+void __init emev2_init_delay(void)
 {
 	shmobile_setup_delay(533, 1, 3); /* Cortex-A9 @ 533MHz */
+}
+
+void __init emev2_add_early_devices(void)
+{
+	emev2_init_delay();
 
 	early_platform_add_devices(emev2_early_devices,
 				   ARRAY_SIZE(emev2_early_devices));
@@ -405,3 +412,41 @@ void __init emev2_init_irq(void)
 	/* Use GIC to handle interrupts */
 	gic_init(0, 29, gic_dist_base, gic_cpu_base);
 }
+
+#ifdef CONFIG_USE_OF
+static const struct of_dev_auxdata emev2_auxdata_lookup[] __initconst = {
+	{ }
+};
+
+void __init emev2_add_standard_devices_dt(void)
+{
+	of_platform_populate(NULL, of_default_bus_match_table,
+			     emev2_auxdata_lookup, NULL);
+}
+
+static const struct of_device_id emev2_dt_irq_match[] = {
+	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
+	{},
+};
+
+static const char *emev2_boards_compat_dt[] __initdata = {
+	"renesas,emev2",
+	NULL,
+};
+
+void __init emev2_init_irq_dt(void)
+{
+	of_irq_init(emev2_dt_irq_match);
+}
+
+DT_MACHINE_START(EMEV2_DT, "Generic Emma Mobile EV2 (Flattened Device Tree)")
+	.init_early	= emev2_init_delay,
+	.nr_irqs	= NR_IRQS_LEGACY,
+	.init_irq	= emev2_init_irq_dt,
+	.handle_irq	= gic_handle_irq,
+	.init_machine	= emev2_add_standard_devices_dt,
+	.timer		= &shmobile_timer,
+	.dt_compat	= emev2_boards_compat_dt,
+MACHINE_END
+
+#endif /* CONFIG_USE_OF */
