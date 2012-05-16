@@ -303,7 +303,9 @@ static inline bool key_is_instantiated(const struct key *key)
 				   rwsem_is_locked(&((struct key *)(KEY))->sem)))
 
 #define rcu_assign_keypointer(KEY, PAYLOAD)				\
-	(rcu_assign_pointer((KEY)->payload.rcudata, PAYLOAD))
+do {									\
+	rcu_assign_pointer((KEY)->payload.rcudata, (PAYLOAD));		\
+} while (0)
 
 #ifdef CONFIG_SYSCTL
 extern ctl_table key_sysctls[];
