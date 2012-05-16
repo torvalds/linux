@@ -479,7 +479,7 @@ config MFD_S5M_CORE
 config MFD_WM8400
 	bool "Support Wolfson Microelectronics WM8400"
 	select MFD_CORE
-	depends on I2C
+	depends on I2C=y
 	select REGMAP_I2C
 	help
 	  Support for the Wolfson Microelecronics WM8400 PMIC and audio
