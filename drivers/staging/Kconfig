@@ -130,4 +130,6 @@ source "drivers/staging/ramster/Kconfig"
 
 source "drivers/staging/ozwpan/Kconfig"
 
+source "drivers/staging/ccg/Kconfig"
+
 endif # STAGING
