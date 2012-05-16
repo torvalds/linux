@@ -202,7 +202,7 @@ static ssize_t hmc5843_set_operating_mode(struct device *dev,
 	s32 status;
 	int error;
 	mutex_lock(&data->lock);
-	error = strict_strtoul(buf, 10, &operating_mode);
+	error = kstrtoul(buf, 10, &operating_mode);
 	if (error) {
 		count = error;
 		goto exit;
@@ -275,7 +275,7 @@ static ssize_t hmc5843_set_measurement_configuration(struct device *dev,
 	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
 	struct hmc5843_data *data = iio_priv(indio_dev);
 	unsigned long meas_conf = 0;
-	int error = strict_strtoul(buf, 10, &meas_conf);
+	int error = kstrtoul(buf, 10, &meas_conf);
 	if (error)
 		return error;
 	mutex_lock(&data->lock);
@@ -425,7 +425,7 @@ static ssize_t set_range(struct device *dev,
 	unsigned long range = 0;
 	int error;
 	mutex_lock(&data->lock);
-	error = strict_strtoul(buf, 10, &range);
+	error = kstrtoul(buf, 10, &range);
 	if (error) {
 		count = error;
 		goto exit;
