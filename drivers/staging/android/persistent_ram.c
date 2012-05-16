@@ -384,28 +384,6 @@ static int persistent_ram_buffer_map(phys_addr_t start, phys_addr_t size,
 	return 0;
 }
 
-static int __init persistent_ram_buffer_init(const char *name,
-		struct persistent_ram_zone *prz)
-{
-	int i;
-	struct persistent_ram *ram;
-	struct persistent_ram_descriptor *desc;
-	phys_addr_t start;
-
-	list_for_each_entry(ram, &persistent_ram_list, node) {
-		start = ram->start;
-		for (i = 0; i < ram->num_descs; i++) {
-			desc = &ram->descs[i];
-			if (!strcmp(desc->name, name))
-				return persistent_ram_buffer_map(start,
-						desc->size, prz);
-			start += desc->size;
-		}
-	}
-
-	return -EINVAL;
-}
-
 static int __init persistent_ram_post_init(struct persistent_ram_zone *prz, bool ecc)
 {
 	int ret;
@@ -478,6 +456,29 @@ err:
 	return ERR_PTR(ret);
 }
 
+#ifndef MODULE
+static int __init persistent_ram_buffer_init(const char *name,
+		struct persistent_ram_zone *prz)
+{
+	int i;
+	struct persistent_ram *ram;
+	struct persistent_ram_descriptor *desc;
+	phys_addr_t start;
+
+	list_for_each_entry(ram, &persistent_ram_list, node) {
+		start = ram->start;
+		for (i = 0; i < ram->num_descs; i++) {
+			desc = &ram->descs[i];
+			if (!strcmp(desc->name, name))
+				return persistent_ram_buffer_map(start,
+						desc->size, prz);
+			start += desc->size;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static  __init
 struct persistent_ram_zone *__persistent_ram_init(struct device *dev, bool ecc)
 {
@@ -528,3 +529,4 @@ int __init persistent_ram_early_init(struct persistent_ram *ram)
 
 	return 0;
 }
+#endif
