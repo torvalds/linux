@@ -537,6 +537,7 @@ wl1271_scan_sched_scan_channels(struct wl1271 *wl,
 /* Returns the scan type to be used or a negative value on error */
 static int
 wl12xx_scan_sched_scan_ssid_list(struct wl1271 *wl,
+				 struct wl12xx_vif *wlvif,
 				 struct cfg80211_sched_scan_request *req)
 {
 	struct wl1271_cmd_sched_scan_ssid_list *cmd = NULL;
@@ -565,6 +566,7 @@ wl12xx_scan_sched_scan_ssid_list(struct wl1271 *wl,
 		goto out;
 	}
 
+	cmd->role_id = wlvif->dev_role_id;
 	if (!n_match_ssids) {
 		/* No filter, with ssids */
 		type = SCAN_SSID_FILTER_DISABLED;
@@ -652,6 +654,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	if (!cfg)
 		return -ENOMEM;
 
+	cfg->role_id = wlvif->dev_role_id;
 	cfg->rssi_threshold = c->rssi_threshold;
 	cfg->snr_threshold  = c->snr_threshold;
 	cfg->n_probe_reqs = c->num_probe_reqs;
@@ -669,7 +672,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 		cfg->intervals[i] = cpu_to_le32(req->interval);
 
 	cfg->ssid_len = 0;
-	ret = wl12xx_scan_sched_scan_ssid_list(wl, req);
+	ret = wl12xx_scan_sched_scan_ssid_list(wl, wlvif, req);
 	if (ret < 0)
 		goto out;
 
@@ -741,6 +744,7 @@ int wl1271_scan_sched_scan_start(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	if (!start)
 		return -ENOMEM;
 
+	start->role_id = wlvif->dev_role_id;
 	start->tag = WL1271_SCAN_DEFAULT_TAG;
 
 	ret = wl1271_cmd_send(wl, CMD_START_PERIODIC_SCAN, start,
@@ -762,7 +766,7 @@ void wl1271_scan_sched_scan_results(struct wl1271 *wl)
 	ieee80211_sched_scan_results(wl->hw);
 }
 
-void wl1271_scan_sched_scan_stop(struct wl1271 *wl)
+void wl1271_scan_sched_scan_stop(struct wl1271 *wl,  struct wl12xx_vif *wlvif)
 {
 	struct wl1271_cmd_sched_scan_stop *stop;
 	int ret = 0;
@@ -776,6 +780,7 @@ void wl1271_scan_sched_scan_stop(struct wl1271 *wl)
 		return;
 	}
 
+	stop->role_id = wlvif->dev_role_id;
 	stop->tag = WL1271_SCAN_DEFAULT_TAG;
 
 	ret = wl1271_cmd_send(wl, CMD_STOP_PERIODIC_SCAN, stop,
