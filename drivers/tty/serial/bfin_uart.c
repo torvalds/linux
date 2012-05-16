@@ -1,7 +1,7 @@
 /*
  * Blackfin On-Chip Serial Driver
  *
- * Copyright 2006-2010 Analog Devices Inc.
+ * Copyright 2006-2011 Analog Devices Inc.
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *
@@ -35,10 +35,6 @@
 #include <asm/portmux.h>
 #include <asm/cacheflush.h>
 #include <asm/dma.h>
-
-#define port_membase(uart)     (((struct bfin_serial_port *)(uart))->port.membase)
-#define get_lsr_cache(uart)    (((struct bfin_serial_port *)(uart))->lsr)
-#define put_lsr_cache(uart, v) (((struct bfin_serial_port *)(uart))->lsr = (v))
 #include <asm/bfin_serial.h>
 
 #ifdef CONFIG_SERIAL_BFIN_MODULE
@@ -166,7 +162,7 @@ static void bfin_serial_stop_tx(struct uart_port *port)
 	uart->tx_count = 0;
 	uart->tx_done = 1;
 #else
-#ifdef CONFIG_BF54x
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF60x)
 	/* Clear TFI bit */
 	UART_PUT_LSR(uart, TFI);
 #endif
@@ -337,7 +333,7 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 	struct circ_buf *xmit = &uart->port.state->xmit;
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&uart->port)) {
-#ifdef CONFIG_BF54x
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF60x)
 		/* Clear TFI bit */
 		UART_PUT_LSR(uart, TFI);
 #endif
@@ -877,11 +873,10 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	ier = UART_GET_IER(uart);
 	UART_DISABLE_INTS(uart);
 
-	/* Set DLAB in LCR to Access DLL and DLH */
+	/* Set DLAB in LCR to Access CLK */
 	UART_SET_DLAB(uart);
 
-	UART_PUT_DLL(uart, quot & 0xFF);
-	UART_PUT_DLH(uart, (quot >> 8) & 0xFF);
+	UART_PUT_CLK(uart, quot);
 	SSYNC();
 
 	/* Clear DLAB in LCR to Access THR RBR IER */
@@ -959,12 +954,12 @@ static void bfin_serial_set_ldisc(struct uart_port *port, int ld)
 	switch (ld) {
 	case N_IRDA:
 		val = UART_GET_GCTL(uart);
-		val |= (IREN | RPOLC);
+		val |= (UMOD_IRDA | RPOLC);
 		UART_PUT_GCTL(uart, val);
 		break;
 	default:
 		val = UART_GET_GCTL(uart);
-		val &= ~(IREN | RPOLC);
+		val &= ~(UMOD_MASK | RPOLC);
 		UART_PUT_GCTL(uart, val);
 	}
 }
@@ -975,10 +970,10 @@ static void bfin_serial_reset_irda(struct uart_port *port)
 	unsigned short val;
 
 	val = UART_GET_GCTL(uart);
-	val &= ~(IREN | RPOLC);
+	val &= ~(UMOD_MASK | RPOLC);
 	UART_PUT_GCTL(uart, val);
 	SSYNC();
-	val |= (IREN | RPOLC);
+	val |= (UMOD_IRDA | RPOLC);
 	UART_PUT_GCTL(uart, val);
 	SSYNC();
 }
@@ -1075,7 +1070,7 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 	status = UART_GET_IER(uart) & (ERBFI | ETBEI);
 	if (status == (ERBFI | ETBEI)) {
 		/* ok, the port was enabled */
-		u16 lcr, dlh, dll;
+		u16 lcr, clk;
 
 		lcr = UART_GET_LCR(uart);
 
@@ -1100,16 +1095,15 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 			*bits = 8;
 			break;
 		}
-		/* Set DLAB in LCR to Access DLL and DLH */
+		/* Set DLAB in LCR to Access CLK */
 		UART_SET_DLAB(uart);
 
-		dll = UART_GET_DLL(uart);
-		dlh = UART_GET_DLH(uart);
+		clk = UART_GET_CLK(uart);
 
 		/* Clear DLAB in LCR to Access THR RBR IER */
 		UART_CLEAR_DLAB(uart);
 
-		*baud = get_sclk() / (16*(dll | dlh << 8));
+		*baud = get_sclk() / (16*clk);
 	}
 	pr_debug("%s:baud = %d, parity = %c, bits= %d\n", __func__, *baud, *parity, *bits);
 }
