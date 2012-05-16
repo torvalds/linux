@@ -483,6 +483,7 @@ struct ubi_device {
  * struct ubi_ainf_peb - attach information about a physical eraseblock.
  * @ec: erase counter (%UBI_UNKNOWN if it is unknown)
  * @pnum: physical eraseblock number
+ * @vol_id: ID of the volume this LEB belongs to
  * @lnum: logical eraseblock number
  * @scrub: if this physical eraseblock needs scrubbing
  * @copy_flag: this LEB is a copy (@copy_flag is set in VID header of this LEB)
@@ -492,11 +493,13 @@ struct ubi_device {
  * @u.list: link in one of the eraseblock lists
  *
  * One object of this type is allocated for each physical eraseblock when
- * attaching an MTD device.
+ * attaching an MTD device. Note, if this PEB does not belong to any LEB /
+ * volume, the @vol_id and @lnum fields are initialized to %UBI_UNKNOWN.
  */
 struct ubi_ainf_peb {
 	int ec;
 	int pnum;
+	int vol_id;
 	int lnum;
 	unsigned int scrub:1;
 	unsigned int copy_flag:1;

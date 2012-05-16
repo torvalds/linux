@@ -99,12 +99,16 @@ static struct ubi_vid_hdr *vidh;
  * add_to_list - add physical eraseblock to a list.
  * @ai: attaching information
  * @pnum: physical eraseblock number to add
+ * @vol_id: the last used volume id for the PEB
+ * @lnum: the last used LEB number for the PEB
  * @ec: erase counter of the physical eraseblock
  * @to_head: if not zero, add to the head of the list
  * @list: the list to add to
  *
  * This function allocates a 'struct ubi_ainf_peb' object for physical
  * eraseblock @pnum and adds it to the "free", "erase", or "alien" lists.
+ * It stores the @lnum and @vol_id alongside, which can both be
+ * %UBI_UNKNOWN if they are not available, not readable, or not assigned.
  * If @to_head is not zero, PEB will be added to the head of the list, which
  * basically means it will be processed first later. E.g., we add corrupted
  * PEBs (corrupted due to power cuts) to the head of the erase list to make
@@ -112,8 +116,8 @@ static struct ubi_vid_hdr *vidh;
  * returns zero in case of success and a negative error code in case of
  * failure.
  */
-static int add_to_list(struct ubi_attach_info *ai, int pnum, int ec,
-		       int to_head, struct list_head *list)
+static int add_to_list(struct ubi_attach_info *ai, int pnum, int vol_id,
+		       int lnum, int ec, int to_head, struct list_head *list)
 {
 	struct ubi_ainf_peb *aeb;
 
@@ -132,6 +136,8 @@ static int add_to_list(struct ubi_attach_info *ai, int pnum, int ec,
 		return -ENOMEM;
 
 	aeb->pnum = pnum;
+	aeb->vol_id = vol_id;
+	aeb->lnum = lnum;
 	aeb->ec = ec;
 	if (to_head)
 		list_add(&aeb->u.list, list);
@@ -530,13 +536,16 @@ int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
 			if (err)
 				return err;
 
-			err = add_to_list(ai, aeb->pnum, aeb->ec, cmp_res & 4,
+			err = add_to_list(ai, aeb->pnum, aeb->vol_id,
+					  aeb->lnum, aeb->ec, cmp_res & 4,
 					  &ai->erase);
 			if (err)
 				return err;
 
 			aeb->ec = ec;
 			aeb->pnum = pnum;
+			aeb->vol_id = vol_id;
+			aeb->lnum = lnum;
 			aeb->scrub = ((cmp_res & 2) || bitflips);
 			aeb->copy_flag = vid_hdr->copy_flag;
 			aeb->sqnum = sqnum;
@@ -551,8 +560,8 @@ int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
 			 * This logical eraseblock is older than the one found
 			 * previously.
 			 */
-			return add_to_list(ai, pnum, ec, cmp_res & 4,
-					   &ai->erase);
+			return add_to_list(ai, pnum, vol_id, lnum, ec,
+					   cmp_res & 4, &ai->erase);
 		}
 	}
 
@@ -571,6 +580,7 @@ int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
 
 	aeb->ec = ec;
 	aeb->pnum = pnum;
+	aeb->vol_id = vol_id;
 	aeb->lnum = lnum;
 	aeb->scrub = bitflips;
 	aeb->copy_flag = vid_hdr->copy_flag;
@@ -834,12 +844,12 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		break;
 	case UBI_IO_FF:
 		ai->empty_peb_count += 1;
-		return add_to_list(ai, pnum, UBI_UNKNOWN, 0,
-				   &ai->erase);
+		return add_to_list(ai, pnum, UBI_UNKNOWN, UBI_UNKNOWN,
+				   UBI_UNKNOWN, 0, &ai->erase);
 	case UBI_IO_FF_BITFLIPS:
 		ai->empty_peb_count += 1;
-		return add_to_list(ai, pnum, UBI_UNKNOWN, 1,
-				   &ai->erase);
+		return add_to_list(ai, pnum, UBI_UNKNOWN, UBI_UNKNOWN,
+				   UBI_UNKNOWN, 1, &ai->erase);
 	case UBI_IO_BAD_HDR_EBADMSG:
 	case UBI_IO_BAD_HDR:
 		/*
@@ -950,7 +960,8 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			return err;
 		else if (!err)
 			/* This corruption is caused by a power cut */
-			err = add_to_list(ai, pnum, ec, 1, &ai->erase);
+			err = add_to_list(ai, pnum, UBI_UNKNOWN,
+					  UBI_UNKNOWN, ec, 1, &ai->erase);
 		else
 			/* This is an unexpected corruption */
 			err = add_corrupted(ai, pnum, ec);
@@ -958,15 +969,18 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			return err;
 		goto adjust_mean_ec;
 	case UBI_IO_FF_BITFLIPS:
-		err = add_to_list(ai, pnum, ec, 1, &ai->erase);
+		err = add_to_list(ai, pnum, UBI_UNKNOWN, UBI_UNKNOWN,
+				  ec, 1, &ai->erase);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
 	case UBI_IO_FF:
 		if (ec_err)
-			err = add_to_list(ai, pnum, ec, 1, &ai->erase);
+			err = add_to_list(ai, pnum, UBI_UNKNOWN,
+					  UBI_UNKNOWN, ec, 1, &ai->erase);
 		else
-			err = add_to_list(ai, pnum, ec, 0, &ai->free);
+			err = add_to_list(ai, pnum, UBI_UNKNOWN,
+					  UBI_UNKNOWN, ec, 0, &ai->free);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
@@ -985,7 +999,8 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		case UBI_COMPAT_DELETE:
 			ubi_msg("\"delete\" compatible internal volume %d:%d"
 				" found, will remove it", vol_id, lnum);
-			err = add_to_list(ai, pnum, ec, 1, &ai->erase);
+			err = add_to_list(ai, pnum, vol_id, lnum,
+					  ec, 1, &ai->erase);
 			if (err)
 				return err;
 			return 0;
@@ -1000,7 +1015,8 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		case UBI_COMPAT_PRESERVE:
 			ubi_msg("\"preserve\" compatible internal volume %d:%d"
 				" found", vol_id, lnum);
-			err = add_to_list(ai, pnum, ec, 0, &ai->alien);
+			err = add_to_list(ai, pnum, vol_id, lnum,
+					  ec, 0, &ai->alien);
 			if (err)
 				return err;
 			return 0;
