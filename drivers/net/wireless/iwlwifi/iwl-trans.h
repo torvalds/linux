@@ -280,6 +280,8 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
 
 #define MAX_NO_RECLAIM_CMDS	6
 
+#define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
+
 /*
  * Maximum number of HW queues the transport layer
  * currently supports

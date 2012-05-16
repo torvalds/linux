@@ -78,8 +78,6 @@
 /* FIXME: need to abstract out TX command (once we know what it looks like) */
 #include "iwl-commands.h"
 
-#define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
-
 #define SCD_QUEUECHAIN_SEL_ALL(trans, trans_pcie)	\
 	(((1<<trans->cfg->base_params->num_of_queues) - 1) &\
 	(~(1<<(trans_pcie)->cmd_queue)))
