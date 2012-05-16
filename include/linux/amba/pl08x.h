@@ -47,7 +47,8 @@ enum {
  * devices with static assignments
  * @muxval: a number usually used to poke into some mux regiser to
  * mux in the signal to this channel
- * @cctl_opt: default options for the channel control register
+ * @cctl_memcpy: options for the channel control register for memcpy
+ *  *** not used for slave channels ***
  * @addr: source/target address in physical memory for this DMA channel,
  * can be the address of a FIFO register for burst requests for example.
  * This can be left undefined if the PrimeCell API is used for configuring
@@ -62,7 +63,7 @@ struct pl08x_channel_data {
 	int min_signal;
 	int max_signal;
 	u32 muxval;
-	u32 cctl;
+	u32 cctl_memcpy;
 	dma_addr_t addr;
 	bool single;
 	u8 periph_buses;
