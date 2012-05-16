@@ -38,10 +38,10 @@ static inline bool iwl_have_debug_level(u32 level)
 }
 
 void __iwl_err(struct device *dev, bool rfkill_prefix, bool only_trace,
-		const char *fmt, ...);
-void __iwl_warn(struct device *dev, const char *fmt, ...);
-void __iwl_info(struct device *dev, const char *fmt, ...);
-void __iwl_crit(struct device *dev, const char *fmt, ...);
+		const char *fmt, ...) __printf(4, 5);
+void __iwl_warn(struct device *dev, const char *fmt, ...) __printf(2, 3);
+void __iwl_info(struct device *dev, const char *fmt, ...) __printf(2, 3);
+void __iwl_crit(struct device *dev, const char *fmt, ...) __printf(2, 3);
 
 /* No matter what is m (priv, bus, trans), this will work */
 #define IWL_ERR(m, f, a...) __iwl_err((m)->dev, false, false, f, ## a)
@@ -52,9 +52,9 @@ void __iwl_crit(struct device *dev, const char *fmt, ...);
 #if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
 void __iwl_dbg(struct device *dev,
 	       u32 level, bool limit, const char *function,
-	       const char *fmt, ...);
+	       const char *fmt, ...) __printf(5, 6);
 #else
-static inline void
+__printf(5, 6) static inline void
 __iwl_dbg(struct device *dev,
 	  u32 level, bool limit, const char *function,
 	  const char *fmt, ...)
