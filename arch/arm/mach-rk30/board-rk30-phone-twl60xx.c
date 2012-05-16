@@ -80,6 +80,8 @@
 #define LDO7_CFG_TRANS 0x75
 #define LDO7_CFG_STATE 0x76
 #define LDO7_CFG_VOLTAGE 0x77
+#define CLK32KG_CFG_STATE  0x11
+#define CLK32KAUDIO_CFG_STATE 0x14
 static inline int twl_reg_read(unsigned base, unsigned slave_subgp)
 {
 	u8 value;
@@ -106,12 +108,16 @@ int tps80032_pre_init(void){
 	
 	twl_reg_write(PREQ1_RES_ASS_A,TWL_MODULE_PM_SLAVE_RES,0x0b);
 	twl_reg_write(PREQ1_RES_ASS_B,TWL_MODULE_PM_SLAVE_RES,0x10);
-	twl_reg_write(PREQ1_RES_ASS_C,TWL_MODULE_PM_SLAVE_RES,0x2f);
+	twl_reg_write(PREQ1_RES_ASS_C,TWL_MODULE_PM_SLAVE_RES,0x27);
+	twl_reg_write(PHOENIX_MSK_TRANSITION,TWL_MODULE_PM_MASTER,0x00);
 	twl_reg_write(PHOENIX_SENS_TRANSITION,TWL_MODULE_PM_MASTER,0xc0);   //set pmu enter sleep on a preq1 rising edge
 	
 	twl_reg_write(SMPS1_CFG_STATE,TWL_MODULE_PM_RECEIVER,0x01);   //set state
 	twl_reg_write(SMPS2_CFG_STATE,TWL_MODULE_PM_RECEIVER,0x01);
 	twl_reg_write(LDO7_CFG_STATE,TWL_MODULE_PM_RECEIVER,0x01);
+
+	twl_reg_write(CLK32KG_CFG_STATE,TWL_MODULE_PM_SLAVE_RES,0x01);  //set clk32kg on when we use
+	twl_reg_write(CLK32KAUDIO_CFG_STATE,TWL_MODULE_PM_SLAVE_RES,0x01);  //set clk32kaudio on when we use
 	
 //	twl_reg_write(LDO5_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03);   //set ldo5 is disabled when in sleep mode 
 //	twl_reg_write(LDO7_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03);   //set ldo7 is disabled when in sleep mode
