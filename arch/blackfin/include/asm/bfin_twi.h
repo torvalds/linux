@@ -10,6 +10,7 @@
 #define __ASM_BFIN_TWI_H__
 
 #include <linux/types.h>
+#include <linux/i2c.h>
 
 /*
  * All Blackfin system MMRs are padded to 32bits even if the register
