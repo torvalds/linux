@@ -140,6 +140,7 @@ enum{
 #define CSC_PARA_C8_H	0xa0
 #define CSC_PARA_C8_L	0xa4
 #define CSC_PARA_C9_H	0xa8
+#define CSC_PARA_C9_L	0xac
 #define CSC_PARA_C10_H	0xac
 #define CSC_PARA_C10_L	0xb4
 #define CSC_PARA_C11_H	0xb8

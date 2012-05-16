@@ -293,17 +293,14 @@ static char coeff_csc[][24] = {
 
 static void rk30_hdmi_config_csc(struct rk30_hdmi_video_para *vpara)
 {
-	int i, temp, mode;
+	int i, mode;
 	char *coeff = NULL;
-	
+		
 	if( ((vpara->input_color == VIDEO_INPUT_COLOR_RGB) && (vpara->output_color == VIDEO_OUTPUT_RGB444)) ||
 		((vpara->input_color == VIDEO_INPUT_COLOR_YCBCR) && (vpara->output_color != VIDEO_OUTPUT_RGB444) ))
 	{
-		HDMIWrReg(AV_CTRL2, v_CSC_ENABLE(0));
-		HDMIWrReg(CSC_CONFIG1, v_CSC_MODE(CSC_MODE_AUTO) | v_CSC_BRSWAP_DIABLE(1));
 		return;
 	}
-	
 	switch(vpara->vic)
 	{
 		case HDMI_720x480i_60Hz_4_3:
@@ -333,7 +330,7 @@ static void rk30_hdmi_config_csc(struct rk30_hdmi_video_para *vpara)
 	
 	coeff = coeff_csc[mode];
 	
-	HDMIMskReg(temp, CSC_CONFIG1, m_CSC_MODE, v_CSC_MODE(CSC_MODE_MANUAL));
+	HDMIWrReg(CSC_CONFIG1, v_CSC_MODE(CSC_MODE_MANUAL) | v_CSC_BRSWAP_DIABLE(1));
 	
 	for(i = 0; i < 24; i++)
 		HDMIWrReg(CSC_PARA_C0_H + i*4, coeff[i]);
@@ -341,7 +338,6 @@ static void rk30_hdmi_config_csc(struct rk30_hdmi_video_para *vpara)
 	HDMIWrReg(AV_CTRL2, v_CSC_ENABLE(1));
 }
 
-//int rk30_hdmi_config_video(int vic, int output_color, int output_mode)
 int rk30_hdmi_config_video(struct rk30_hdmi_video_para *vpara)
 {
 	int value;
@@ -565,6 +561,9 @@ int rk30_hdmi_removed(void)
 		HDMIWrReg(INTR_MASK2, 0);
 		HDMIWrReg(INTR_MASK3, 0);
 		HDMIWrReg(INTR_MASK4, 0);
+		// Disable color space convertion
+		HDMIWrReg(AV_CTRL2, v_CSC_ENABLE(0));
+		HDMIWrReg(CSC_CONFIG1, v_CSC_MODE(CSC_MODE_AUTO) | v_CSC_BRSWAP_DIABLE(1));
 		rk30_hdmi_set_pwr_mode(PWR_SAVE_MODE_A);
 	}	
 	return HDMI_ERROR_SUCESS;
