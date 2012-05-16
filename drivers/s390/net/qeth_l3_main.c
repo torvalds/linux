@@ -976,57 +976,6 @@ static inline u8 qeth_l3_get_qeth_hdr_flags6(int cast_type)
 	return ct | QETH_CAST_UNICAST;
 }
 
-static int qeth_l3_send_setadp_mode(struct qeth_card *card, __u32 command,
-					__u32 mode)
-{
-	int rc;
-	struct qeth_cmd_buffer *iob;
-	struct qeth_ipa_cmd *cmd;
-
-	QETH_CARD_TEXT(card, 4, "adpmode");
-
-	iob = qeth_get_adapter_cmd(card, command,
-				   sizeof(struct qeth_ipacmd_setadpparms));
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
-	cmd->data.setadapterparms.data.mode = mode;
-	rc = qeth_send_ipa_cmd(card, iob, qeth_default_setadapterparms_cb,
-			       NULL);
-	return rc;
-}
-
-static int qeth_l3_setadapter_hstr(struct qeth_card *card)
-{
-	int rc;
-
-	QETH_CARD_TEXT(card, 4, "adphstr");
-
-	if (qeth_adp_supported(card, IPA_SETADP_SET_BROADCAST_MODE)) {
-		rc = qeth_l3_send_setadp_mode(card,
-					IPA_SETADP_SET_BROADCAST_MODE,
-					card->options.broadcast_mode);
-		if (rc)
-			QETH_DBF_MESSAGE(2, "couldn't set broadcast mode on "
-				   "device %s: x%x\n",
-				   CARD_BUS_ID(card), rc);
-		rc = qeth_l3_send_setadp_mode(card,
-					IPA_SETADP_ALTER_MAC_ADDRESS,
-					card->options.macaddr_mode);
-		if (rc)
-			QETH_DBF_MESSAGE(2, "couldn't set macaddr mode on "
-				   "device %s: x%x\n", CARD_BUS_ID(card), rc);
-		return rc;
-	}
-	if (card->options.broadcast_mode == QETH_TR_BROADCAST_LOCAL)
-		QETH_DBF_MESSAGE(2, "set adapter parameters not available "
-			   "to set broadcast mode, using ALLRINGS "
-			   "on device %s:\n", CARD_BUS_ID(card));
-	if (card->options.macaddr_mode == QETH_TR_MACADDR_CANONICAL)
-		QETH_DBF_MESSAGE(2, "set adapter parameters not available "
-			   "to set macaddr mode, using NONCANONICAL "
-			   "on device %s:\n", CARD_BUS_ID(card));
-	return 0;
-}
-
 static int qeth_l3_setadapter_parms(struct qeth_card *card)
 {
 	int rc;
@@ -1051,10 +1000,6 @@ static int qeth_l3_setadapter_parms(struct qeth_card *card)
 			dev_warn(&card->gdev->dev, "Reading the adapter MAC"
 				" address failed\n");
 	}
-
-	if ((card->info.link_type == QETH_LINK_TYPE_HSTR) ||
-	    (card->info.link_type == QETH_LINK_TYPE_LANE_TR))
-		rc = qeth_l3_setadapter_hstr(card);
 
 	return rc;
 }
