@@ -119,19 +119,6 @@ config CFG80211_WEXT
 	  Enable this option if you need old userspace for wireless
 	  extensions with cfg80211-based drivers.
 
-config WIRELESS_EXT_SYSFS
-	bool "Wireless extensions sysfs files"
-	depends on WEXT_CORE && SYSFS
-	help
-	  This option enables the deprecated wireless statistics
-	  files in /sys/class/net/*/wireless/. The same information
-	  is available via the ioctls as well.
-
-	  Say N. If you know you have ancient tools requiring it,
-	  like very old versions of hal (prior to 0.5.12 release),
-	  say Y and update the tools as soon as possible as this
-	  option will be removed soon.
-
 config LIB80211
 	tristate "Common routines for IEEE802.11 drivers"
 	default n
