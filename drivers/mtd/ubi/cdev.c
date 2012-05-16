@@ -644,7 +644,7 @@ static int verify_mkvol_req(const struct ubi_device *ubi,
 
 bad:
 	dbg_err("bad volume creation request");
-	ubi_dbg_dump_mkvol_req(req);
+	ubi_dump_mkvol_req(req);
 	return err;
 }
 

@@ -207,10 +207,10 @@ void ubi_dump_seb(const struct ubi_scan_leb *seb, int type)
 }
 
 /**
- * ubi_dbg_dump_mkvol_req - dump a &struct ubi_mkvol_req object.
+ * ubi_dump_mkvol_req - dump a &struct ubi_mkvol_req object.
  * @req: the object to dump
  */
-void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req)
+void ubi_dump_mkvol_req(const struct ubi_mkvol_req *req)
 {
 	char nm[17];
 
