@@ -819,9 +819,6 @@ static int fimc_cap_g_fmt_mplane(struct file *file, void *fh,
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return -EINVAL;
-
 	return fimc_fill_format(&ctx->d_frame, f);
 }
 
@@ -833,9 +830,6 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
 	struct v4l2_mbus_framefmt mf;
 	struct fimc_fmt *ffmt = NULL;
-
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return -EINVAL;
 
 	if (pix->pixelformat == V4L2_PIX_FMT_JPEG) {
 		fimc_capture_try_format(ctx, &pix->width, &pix->height,
@@ -888,8 +882,6 @@ static int fimc_capture_set_format(struct fimc_dev *fimc, struct v4l2_format *f)
 	struct fimc_fmt *s_fmt = NULL;
 	int ret, i;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return -EINVAL;
 	if (vb2_is_busy(&fimc->vid_cap.vbq))
 		return -EBUSY;
 
