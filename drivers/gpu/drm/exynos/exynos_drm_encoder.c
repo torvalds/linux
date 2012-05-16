@@ -172,19 +172,12 @@ static void exynos_drm_encoder_commit(struct drm_encoder *encoder)
 		manager_ops->commit(manager->dev);
 }
 
-static struct drm_crtc *
-exynos_drm_encoder_get_crtc(struct drm_encoder *encoder)
-{
-	return encoder->crtc;
-}
-
 static struct drm_encoder_helper_funcs exynos_encoder_helper_funcs = {
 	.dpms		= exynos_drm_encoder_dpms,
 	.mode_fixup	= exynos_drm_encoder_mode_fixup,
 	.mode_set	= exynos_drm_encoder_mode_set,
 	.prepare	= exynos_drm_encoder_prepare,
 	.commit		= exynos_drm_encoder_commit,
-	.get_crtc	= exynos_drm_encoder_get_crtc,
 };
 
 static void exynos_drm_encoder_destroy(struct drm_encoder *encoder)
