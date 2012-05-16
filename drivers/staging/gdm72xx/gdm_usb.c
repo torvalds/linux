@@ -17,12 +17,6 @@
 #include <linux/usb.h>
 #include <asm/byteorder.h>
 
-#ifdef CONFIG_WIMAX_GDM72XX_USB_PM
-#ifndef CONFIG_USB_SUSPEND
-#error "USB host doesn't support USB Selective Suspend."
-#endif
-#endif
-
 #include "gdm_usb.h"
 #include "gdm_wimax.h"
 #include "usb_boot.h"

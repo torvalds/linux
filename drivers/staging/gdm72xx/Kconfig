@@ -38,7 +38,7 @@ if WIMAX_GDM72XX_USB
 
 config WIMAX_GDM72XX_USB_PM
 	bool "Enable power managerment support"
-	default n
+	depends on USB_SUSPEND
 
 endif # WIMAX_GDM72XX_USB
 
