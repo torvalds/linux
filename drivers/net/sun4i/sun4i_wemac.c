@@ -60,7 +60,8 @@
  * Transmit timeout, default 5 seconds.
  */
 static int 	watchdog = 5000;
-unsigned char 	mac_addr[6] = {0x00};
+static unsigned char mac_addr[6] = {0x00};
+static char *mac_addr_param = ":";
 module_param(watchdog, int, 0400);
 MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
 
@@ -870,9 +871,16 @@ unsigned int wemac_powerup(struct net_device *ndev )
 	emac_setup(ndev);
 
 	/* set mac_address to chip */
-	if(SCRIPT_PARSER_OK != script_parser_fetch("dynamic", "MAC", (int *)emac_mac, 3)){
+	if (strlen(mac_addr_param) == 17) {
+		int i;
+		char* p = mac_addr_param;
+		printk(KERN_INFO "MAC address: %s\n", mac_addr_param);
+
+		for(i=0; i<6; i++, p++)
+			mac_addr[i] = simple_strtoul(p, &p, 16);
+	} else if(SCRIPT_PARSER_OK != script_parser_fetch("dynamic", "MAC", (int *)emac_mac, 3)){
 		printk(KERN_WARNING "emac MAC isn't valid!\n");
-	}else{
+	} else {
 		emac_mac[12]='\0';
 		for(i=0; i<6; i++){
 			char emac_tmp[3]=":::";
@@ -2037,18 +2045,6 @@ static struct platform_driver wemac_driver = {
 	.resume  = wemac_drv_resume,
 };
 
-static int __init set_mac_addr(char *str)
-{
-	int i;
-	char* p = str;
-
-	for(i=0;i<6;i++,p++)
-		mac_addr[i] = simple_strtoul(p, &p, 16);
-
-	return 0;
-}
-__setup("set_mac_addr", set_mac_addr);
-
 static int __init wemac_init(void)
 {
 	int emac_used = 0;
@@ -2089,3 +2085,8 @@ MODULE_AUTHOR("chenlm");
 MODULE_DESCRIPTION("Davicom wemac network driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:wemac");
+
+#undef MODULE_PARAM_PREFIX
+#define MODULE_PARAM_PREFIX /* empty */
+module_param_named(mac_addr, mac_addr_param, charp, 0);
+MODULE_PARM_DESC(mac_addr, "MAC address");
