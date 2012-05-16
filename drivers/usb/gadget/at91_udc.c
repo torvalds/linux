@@ -475,7 +475,7 @@ static int at91_ep_enable(struct usb_ep *_ep,
 	unsigned long	flags;
 
 	if (!_ep || !ep
-			|| !desc || ep->desc
+			|| !desc || ep->ep.desc
 			|| _ep->name == ep0name
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| (maxpacket = usb_endpoint_maxp(desc)) == 0
