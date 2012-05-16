@@ -215,7 +215,7 @@ ap_queue_interruption_control(ap_qid_t qid, void *ind)
 	register struct ap_queue_status reg1_out asm ("1");
 	register void *reg2 asm ("2") = ind;
 	asm volatile(
-		".long 0xb2af0000"		/* PQAP(RAPQ) */
+		".long 0xb2af0000"		/* PQAP(AQIC) */
 		: "+d" (reg0), "+d" (reg1_in), "=d" (reg1_out), "+d" (reg2)
 		:
 		: "cc" );
@@ -232,7 +232,7 @@ __ap_query_functions(ap_qid_t qid, unsigned int *functions)
 	register unsigned long reg2 asm ("2");
 
 	asm volatile(
-		".long 0xb2af0000\n"
+		".long 0xb2af0000\n"		/* PQAP(TAPQ) */
 		"0:\n"
 		EX_TABLE(0b, 0b)
 		: "+d" (reg0), "+d" (reg1), "=d" (reg2)
@@ -391,7 +391,7 @@ __ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length,
 		reg0 |= 0x400000UL;
 
 	asm volatile (
-		"0: .long 0xb2ad0042\n"		/* DQAP */
+		"0: .long 0xb2ad0042\n"		/* NQAP */
 		"   brc   2,0b"
 		: "+d" (reg0), "=d" (reg1), "+d" (reg2), "+d" (reg3)
 		: "d" (reg4), "d" (reg5), "m" (*(msgblock *) msg)
@@ -450,7 +450,7 @@ __ap_recv(ap_qid_t qid, unsigned long long *psmid, void *msg, size_t length)
 
 
 	asm volatile(
-		"0: .long 0xb2ae0064\n"
+		"0: .long 0xb2ae0064\n"		/* DQAP */
 		"   brc   6,0b\n"
 		: "+d" (reg0), "=d" (reg1), "+d" (reg2),
 		"+d" (reg4), "+d" (reg5), "+d" (reg6), "+d" (reg7),
