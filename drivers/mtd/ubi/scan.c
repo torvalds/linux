@@ -88,7 +88,7 @@
 #include <linux/random.h>
 #include "ubi.h"
 
-static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si);
+static int self_check_si(struct ubi_device *ubi, struct ubi_scan_info *si);
 
 /* Temporary variables used during scanning */
 static struct ubi_ec_hdr *ech;
@@ -1218,7 +1218,7 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 		if (seb->ec == UBI_SCAN_UNKNOWN_EC)
 			seb->ec = si->mean_ec;
 
-	err = paranoid_check_si(ubi, si);
+	err = self_check_si(ubi, si);
 	if (err)
 		goto out_vidh;
 
@@ -1326,14 +1326,14 @@ void ubi_scan_destroy_si(struct ubi_scan_info *si)
 }
 
 /**
- * paranoid_check_si - check the scanning information.
+ * self_check_si - check the scanning information.
  * @ubi: UBI device description object
  * @si: scanning information
  *
  * This function returns zero if the scanning information is all right, and a
  * negative error code if not or if an error occurred.
  */
-static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
+static int self_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 {
 	int pnum, err, vols_found = 0;
 	struct rb_node *rb1, *rb2;

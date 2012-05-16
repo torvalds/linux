@@ -155,12 +155,11 @@ struct ubi_work {
 	int torture;
 };
 
-static int paranoid_check_ec(struct ubi_device *ubi, int pnum, int ec);
-static int paranoid_check_in_wl_tree(const struct ubi_device *ubi,
-				     struct ubi_wl_entry *e,
-				     struct rb_root *root);
-static int paranoid_check_in_pq(const struct ubi_device *ubi,
-				struct ubi_wl_entry *e);
+static int self_check_ec(struct ubi_device *ubi, int pnum, int ec);
+static int self_check_in_wl_tree(const struct ubi_device *ubi,
+				 struct ubi_wl_entry *e, struct rb_root *root);
+static int self_check_in_pq(const struct ubi_device *ubi,
+			    struct ubi_wl_entry *e);
 
 /**
  * wl_tree_add - add a wear-leveling entry to a WL RB-tree.
@@ -404,7 +403,7 @@ retry:
 	else
 		e = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF/2);
 
-	paranoid_check_in_wl_tree(ubi, e, &ubi->free);
+	self_check_in_wl_tree(ubi, e, &ubi->free);
 
 	/*
 	 * Move the physical eraseblock to the protection queue where it will
@@ -441,7 +440,7 @@ static int prot_queue_del(struct ubi_device *ubi, int pnum)
 	if (!e)
 		return -ENODEV;
 
-	if (paranoid_check_in_pq(ubi, e))
+	if (self_check_in_pq(ubi, e))
 		return -ENODEV;
 
 	list_del(&e->u.list);
@@ -467,7 +466,7 @@ static int sync_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 
 	dbg_wl("erase PEB %d, old EC %llu", e->pnum, ec);
 
-	err = paranoid_check_ec(ubi, e->pnum, e->ec);
+	err = self_check_ec(ubi, e->pnum, e->ec);
 	if (err)
 		return -EINVAL;
 
@@ -667,7 +666,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			       e1->ec, e2->ec);
 			goto out_cancel;
 		}
-		paranoid_check_in_wl_tree(ubi, e1, &ubi->used);
+		self_check_in_wl_tree(ubi, e1, &ubi->used);
 		rb_erase(&e1->u.rb, &ubi->used);
 		dbg_wl("move PEB %d EC %d to PEB %d EC %d",
 		       e1->pnum, e1->ec, e2->pnum, e2->ec);
@@ -676,12 +675,12 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		scrubbing = 1;
 		e1 = rb_entry(rb_first(&ubi->scrub), struct ubi_wl_entry, u.rb);
 		e2 = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF);
-		paranoid_check_in_wl_tree(ubi, e1, &ubi->scrub);
+		self_check_in_wl_tree(ubi, e1, &ubi->scrub);
 		rb_erase(&e1->u.rb, &ubi->scrub);
 		dbg_wl("scrub PEB %d to PEB %d", e1->pnum, e2->pnum);
 	}
 
-	paranoid_check_in_wl_tree(ubi, e2, &ubi->free);
+	self_check_in_wl_tree(ubi, e2, &ubi->free);
 	rb_erase(&e2->u.rb, &ubi->free);
 	ubi->move_from = e1;
 	ubi->move_to = e2;
@@ -1128,13 +1127,13 @@ retry:
 		return 0;
 	} else {
 		if (in_wl_tree(e, &ubi->used)) {
-			paranoid_check_in_wl_tree(ubi, e, &ubi->used);
+			self_check_in_wl_tree(ubi, e, &ubi->used);
 			rb_erase(&e->u.rb, &ubi->used);
 		} else if (in_wl_tree(e, &ubi->scrub)) {
-			paranoid_check_in_wl_tree(ubi, e, &ubi->scrub);
+			self_check_in_wl_tree(ubi, e, &ubi->scrub);
 			rb_erase(&e->u.rb, &ubi->scrub);
 		} else if (in_wl_tree(e, &ubi->erroneous)) {
-			paranoid_check_in_wl_tree(ubi, e, &ubi->erroneous);
+			self_check_in_wl_tree(ubi, e, &ubi->erroneous);
 			rb_erase(&e->u.rb, &ubi->erroneous);
 			ubi->erroneous_peb_count -= 1;
 			ubi_assert(ubi->erroneous_peb_count >= 0);
@@ -1201,7 +1200,7 @@ retry:
 	}
 
 	if (in_wl_tree(e, &ubi->used)) {
-		paranoid_check_in_wl_tree(ubi, e, &ubi->used);
+		self_check_in_wl_tree(ubi, e, &ubi->used);
 		rb_erase(&e->u.rb, &ubi->used);
 	} else {
 		int err;
@@ -1521,7 +1520,7 @@ void ubi_wl_close(struct ubi_device *ubi)
 }
 
 /**
- * paranoid_check_ec - make sure that the erase counter of a PEB is correct.
+ * self_check_ec - make sure that the erase counter of a PEB is correct.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to check
  * @ec: the erase counter to check
@@ -1530,7 +1529,7 @@ void ubi_wl_close(struct ubi_device *ubi)
  * is equivalent to @ec, and a negative error code if not or if an error
  * occurred.
  */
-static int paranoid_check_ec(struct ubi_device *ubi, int pnum, int ec)
+static int self_check_ec(struct ubi_device *ubi, int pnum, int ec)
 {
 	int err;
 	long long read_ec;
@@ -1552,7 +1551,7 @@ static int paranoid_check_ec(struct ubi_device *ubi, int pnum, int ec)
 
 	read_ec = be64_to_cpu(ec_hdr->ec);
 	if (ec != read_ec) {
-		ubi_err("paranoid check failed for PEB %d", pnum);
+		ubi_err("self-check failed for PEB %d", pnum);
 		ubi_err("read EC is %lld, should be %d", read_ec, ec);
 		dump_stack();
 		err = 1;
@@ -1565,7 +1564,7 @@ out_free:
 }
 
 /**
- * paranoid_check_in_wl_tree - check that wear-leveling entry is in WL RB-tree.
+ * self_check_in_wl_tree - check that wear-leveling entry is in WL RB-tree.
  * @ubi: UBI device description object
  * @e: the wear-leveling entry to check
  * @root: the root of the tree
@@ -1573,9 +1572,8 @@ out_free:
  * This function returns zero if @e is in the @root RB-tree and %-EINVAL if it
  * is not.
  */
-static int paranoid_check_in_wl_tree(const struct ubi_device *ubi,
-				     struct ubi_wl_entry *e,
-				     struct rb_root *root)
+static int self_check_in_wl_tree(const struct ubi_device *ubi,
+				 struct ubi_wl_entry *e, struct rb_root *root)
 {
 	if (!ubi->dbg->chk_gen)
 		return 0;
@@ -1583,22 +1581,22 @@ static int paranoid_check_in_wl_tree(const struct ubi_device *ubi,
 	if (in_wl_tree(e, root))
 		return 0;
 
-	ubi_err("paranoid check failed for PEB %d, EC %d, RB-tree %p ",
+	ubi_err("self-check failed for PEB %d, EC %d, RB-tree %p ",
 		e->pnum, e->ec, root);
 	dump_stack();
 	return -EINVAL;
 }
 
 /**
- * paranoid_check_in_pq - check if wear-leveling entry is in the protection
+ * self_check_in_pq - check if wear-leveling entry is in the protection
  *                        queue.
  * @ubi: UBI device description object
  * @e: the wear-leveling entry to check
  *
  * This function returns zero if @e is in @ubi->pq and %-EINVAL if it is not.
  */
-static int paranoid_check_in_pq(const struct ubi_device *ubi,
-				struct ubi_wl_entry *e)
+static int self_check_in_pq(const struct ubi_device *ubi,
+			    struct ubi_wl_entry *e)
 {
 	struct ubi_wl_entry *p;
 	int i;
@@ -1611,7 +1609,7 @@ static int paranoid_check_in_pq(const struct ubi_device *ubi,
 			if (p == e)
 				return 0;
 
-	ubi_err("paranoid check failed for PEB %d, EC %d, Protect queue",
+	ubi_err("self-check failed for PEB %d, EC %d, Protect queue",
 		e->pnum, e->ec);
 	dump_stack();
 	return -EINVAL;

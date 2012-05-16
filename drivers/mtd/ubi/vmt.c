@@ -29,7 +29,7 @@
 #include <linux/export.h>
 #include "ubi.h"
 
-static int paranoid_check_volumes(struct ubi_device *ubi);
+static int self_check_volumes(struct ubi_device *ubi);
 
 static ssize_t vol_attribute_show(struct device *dev,
 				  struct device_attribute *attr, char *buf);
@@ -356,8 +356,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	spin_unlock(&ubi->volumes_lock);
 
 	ubi_volume_notify(ubi, vol, UBI_VOLUME_ADDED);
-	if (paranoid_check_volumes(ubi))
-		dbg_err("check failed while creating volume %d", vol_id);
+	self_check_volumes(ubi);
 	return err;
 
 out_sysfs:
@@ -457,8 +456,8 @@ int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl)
 	spin_unlock(&ubi->volumes_lock);
 
 	ubi_volume_notify(ubi, vol, UBI_VOLUME_REMOVED);
-	if (!no_vtbl && paranoid_check_volumes(ubi))
-		dbg_err("check failed while removing volume %d", vol_id);
+	if (!no_vtbl)
+		self_check_volumes(ubi);
 
 	return err;
 
@@ -584,8 +583,7 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 	}
 
 	ubi_volume_notify(ubi, vol, UBI_VOLUME_RESIZED);
-	if (paranoid_check_volumes(ubi))
-		dbg_err("check failed while re-sizing volume %d", vol_id);
+	self_check_volumes(ubi);
 	return err;
 
 out_acc:
@@ -634,8 +632,8 @@ int ubi_rename_volumes(struct ubi_device *ubi, struct list_head *rename_list)
 		}
 	}
 
-	if (!err && paranoid_check_volumes(ubi))
-		;
+	if (!err)
+		self_check_volumes(ubi);
 	return err;
 }
 
@@ -682,8 +680,7 @@ int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol)
 		return err;
 	}
 
-	if (paranoid_check_volumes(ubi))
-		dbg_err("check failed while adding volume %d", vol_id);
+	self_check_volumes(ubi);
 	return err;
 
 out_cdev:
@@ -709,13 +706,13 @@ void ubi_free_volume(struct ubi_device *ubi, struct ubi_volume *vol)
 }
 
 /**
- * paranoid_check_volume - check volume information.
+ * self_check_volume - check volume information.
  * @ubi: UBI device description object
  * @vol_id: volume ID
  *
  * Returns zero if volume is all right and a a negative error code if not.
  */
-static int paranoid_check_volume(struct ubi_device *ubi, int vol_id)
+static int self_check_volume(struct ubi_device *ubi, int vol_id)
 {
 	int idx = vol_id2idx(ubi, vol_id);
 	int reserved_pebs, alignment, data_pad, vol_type, name_len, upd_marker;
@@ -847,7 +844,7 @@ static int paranoid_check_volume(struct ubi_device *ubi, int vol_id)
 	return 0;
 
 fail:
-	ubi_err("paranoid check failed for volume %d", vol_id);
+	ubi_err("self-check failed for volume %d", vol_id);
 	if (vol)
 		ubi_dump_vol_info(vol);
 	ubi_dump_vtbl_record(&ubi->vtbl[vol_id], vol_id);
@@ -857,12 +854,12 @@ fail:
 }
 
 /**
- * paranoid_check_volumes - check information about all volumes.
+ * self_check_volumes - check information about all volumes.
  * @ubi: UBI device description object
  *
  * Returns zero if volumes are all right and a a negative error code if not.
  */
-static int paranoid_check_volumes(struct ubi_device *ubi)
+static int self_check_volumes(struct ubi_device *ubi)
 {
 	int i, err = 0;
 
@@ -870,7 +867,7 @@ static int paranoid_check_volumes(struct ubi_device *ubi)
 		return 0;
 
 	for (i = 0; i < ubi->vtbl_slots; i++) {
-		err = paranoid_check_volume(ubi, i);
+		err = self_check_volume(ubi, i);
 		if (err)
 			break;
 	}

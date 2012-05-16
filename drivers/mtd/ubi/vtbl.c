@@ -62,7 +62,7 @@
 #include <asm/div64.h>
 #include "ubi.h"
 
-static void paranoid_vtbl_check(const struct ubi_device *ubi);
+static void self_vtbl_check(const struct ubi_device *ubi);
 
 /* Empty volume table record */
 static struct ubi_vtbl_record empty_vtbl_record;
@@ -107,7 +107,7 @@ int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
 			return err;
 	}
 
-	paranoid_vtbl_check(ubi);
+	self_vtbl_check(ubi);
 	return 0;
 }
 
@@ -855,16 +855,16 @@ out_free:
 }
 
 /**
- * paranoid_vtbl_check - check volume table.
+ * self_vtbl_check - check volume table.
  * @ubi: UBI device description object
  */
-static void paranoid_vtbl_check(const struct ubi_device *ubi)
+static void self_vtbl_check(const struct ubi_device *ubi)
 {
 	if (!ubi->dbg->chk_gen)
 		return;
 
 	if (vtbl_check(ubi, ubi->vtbl)) {
-		ubi_err("paranoid check failed");
+		ubi_err("self-check failed");
 		BUG();
 	}
 }
