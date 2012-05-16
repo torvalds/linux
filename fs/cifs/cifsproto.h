@@ -476,8 +476,6 @@ struct cifs_readdata {
 	struct kvec			iov[1];
 };
 
-struct cifs_readdata *cifs_readdata_alloc(unsigned int nr_pages);
-void cifs_readdata_free(struct cifs_readdata *rdata);
 int cifs_async_readv(struct cifs_readdata *rdata);
 
 /* asynchronous write support */
