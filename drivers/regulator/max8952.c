@@ -181,7 +181,8 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
 
-	max8952 = kzalloc(sizeof(struct max8952_data), GFP_KERNEL);
+	max8952 = devm_kzalloc(&client->dev, sizeof(struct max8952_data),
+			       GFP_KERNEL);
 	if (!max8952)
 		return -ENOMEM;
 
@@ -198,7 +199,7 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 	if (IS_ERR(max8952->rdev)) {
 		ret = PTR_ERR(max8952->rdev);
 		dev_err(max8952->dev, "regulator init failed (%d)\n", ret);
-		goto err_reg;
+		return ret;
 	}
 
 	max8952->en = !!(pdata->reg_data.constraints.boot_on);
@@ -295,10 +296,6 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, max8952);
 
 	return 0;
-
-err_reg:
-	kfree(max8952);
-	return ret;
 }
 
 static int __devexit max8952_pmic_remove(struct i2c_client *client)
@@ -312,8 +309,6 @@ static int __devexit max8952_pmic_remove(struct i2c_client *client)
 	gpio_free(pdata->gpio_vid0);
 	gpio_free(pdata->gpio_vid1);
 	gpio_free(pdata->gpio_en);
-
-	kfree(max8952);
 	return 0;
 }
 
