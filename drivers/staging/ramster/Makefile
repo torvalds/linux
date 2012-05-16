@@ -1,1 +1,1 @@
-obj-$(CONFIG_RAMSTER)	+=	zcache-main.o tmem.o r2net.o cluster/
+obj-$(CONFIG_RAMSTER)	+=	zcache-main.o tmem.o r2net.o xvmalloc.o cluster/

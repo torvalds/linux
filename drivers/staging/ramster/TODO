@@ -1,5 +1,7 @@
 For this staging driver, RAMster duplicates code from drivers/staging/zcache
-then incorporates changes to the local copy of the code.
+then incorporates changes to the local copy of the code.  For V5, it also
+directly incorporates the soon-to-be-removed drivers/staging/zram/xvmalloc.[ch]
+as all testing has been done with xvmalloc rather than the new zsmalloc.
 Before RAMster can be promoted from staging, the zcache and RAMster drivers
 should be either merged or reorganized to separate out common code.
 

@@ -1,8 +1,8 @@
 config RAMSTER
 	bool "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
-	depends on (CLEANCACHE || FRONTSWAP) && CONFIGFS_FS=y && !ZCACHE && CRYPTO=y && !HIGHMEM && NET
-	select ZSMALLOC
-	select CRYPTO_LZO
+	depends on (CLEANCACHE || FRONTSWAP) && CONFIGFS_FS=y && !ZCACHE && !XVMALLOC && !HIGHMEM && NET
+	select LZO_COMPRESS
+	select LZO_DECOMPRESS
 	default n
 	help
 	  RAMster allows RAM on other machines in a cluster to be utilized
