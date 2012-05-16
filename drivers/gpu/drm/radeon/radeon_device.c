@@ -731,8 +731,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	radeon_mutex_init(&rdev->cs_mutex);
 	mutex_init(&rdev->ring_lock);
 	mutex_init(&rdev->dc_hw_i2c_mutex);
-	if (rdev->family >= CHIP_R600)
-		spin_lock_init(&rdev->ih.lock);
+	atomic_set(&rdev->ih.lock, 0);
 	mutex_init(&rdev->gem.mutex);
 	mutex_init(&rdev->pm.mutex);
 	init_rwsem(&rdev->pm.mclk_lock);
