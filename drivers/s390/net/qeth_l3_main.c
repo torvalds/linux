@@ -2073,7 +2073,7 @@ static int qeth_l3_verify_vlan_dev(struct net_device *dev,
 		struct net_device *netdev;
 
 		rcu_read_lock();
-		netdev = __vlan_find_dev_deep(dev, vid);
+		netdev = __vlan_find_dev_deep(card->dev, vid);
 		rcu_read_unlock();
 		if (netdev == dev) {
 			rc = QETH_VLAN_CARD;
@@ -3602,9 +3602,9 @@ static int qeth_l3_ip_event(struct notifier_block *this,
 		return NOTIFY_DONE;
 
 	card = qeth_l3_get_card_from_dev(dev);
-	QETH_CARD_TEXT(card, 3, "ipevent");
 	if (!card)
 		return NOTIFY_DONE;
+	QETH_CARD_TEXT(card, 3, "ipevent");
 
 	addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV4);
 	if (addr != NULL) {
