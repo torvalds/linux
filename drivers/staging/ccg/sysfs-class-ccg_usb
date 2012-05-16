@@ -22,7 +22,9 @@ KernelVersion:	3.4
 Contact:	linux-usb@vger.kernel.org
 Description:
 		A comma-separated list of USB function names to be activated
-		in this ccg gadget.
+		in this ccg gadget. It includes both the functions provided
+		in-kernel by the ccg gadget and the functions provided from
+		userspace through FunctionFS.
 
 What:		/sys/class/ccg_usb/ccgX/enable
 Date:		May 2012
@@ -57,6 +59,34 @@ KernelVersion:	3.4
 Contact:	linux-usb@vger.kernel.org
 Description:
 		Maximum number of the /dev/ttyGS<X> interface the driver uses.
+
+What:		/sys/class/ccg_usb/ccgX/f_fs
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		The /sys/class/ccg_usb/ccgX/f_fs subdirectory
+		corresponds to the gadget's FunctionFS driver.
+
+What:		/sys/class/ccg_usb/ccgX/f_fs/user_functions
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		A comma-separeted list of USB function names to be supported
+		from userspace. No other userspace FunctionFS functions can
+		be supported than listed here. However, the actual activation
+		of these functions is still done through
+		/sys/class/ccg_usb/ccgX/functions, where it is possible
+		to specify any subset (including maximum and empty) of
+		/sys/class/ccg_usb/ccgX/f_fs/user_functions.
+
+What:		/sys/class/ccg_usb/ccgX/f_fs/max_user_functions
+Date:		May 2012
+KernelVersion:	3.4
+Contact:	linux-usb@vger.kernel.org
+Description:
+		Maximum number of USB functions to be supported from userspace.
 
 What:		/sys/class/ccg_usb/ccgX/f_rndis
 Date:		May 2012

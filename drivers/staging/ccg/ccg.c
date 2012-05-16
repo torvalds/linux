@@ -58,7 +58,7 @@
 #include "../../usb/gadget/u_ether.c"
 #include "../../usb/gadget/f_fs.c"
 
-MODULE_AUTHOR("Mike Lockwood");
+MODULE_AUTHOR("Mike Lockwood, Andrzej Pietrasiewicz");
 MODULE_DESCRIPTION("Configurable Composite USB Gadget");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
@@ -68,6 +68,7 @@ static const char longname[] = "Configurable Composite Gadget";
 /* Default vendor and product IDs, overridden by userspace */
 #define VENDOR_ID		0x1d6b /* Linux Foundation */
 #define PRODUCT_ID		0x0107
+#define GFS_MAX_DEVS		10
 
 struct ccg_usb_function {
 	char *name;
@@ -97,6 +98,14 @@ struct ccg_usb_function {
 			   const struct usb_ctrlrequest *);
 };
 
+struct ffs_obj {
+	const char *name;
+	bool mounted;
+	bool desc_ready;
+	bool used;
+	struct ffs_data *ffs_data;
+};
+
 struct ccg_dev {
 	struct ccg_usb_function **functions;
 	struct list_head enabled_functions;
@@ -108,6 +117,10 @@ struct ccg_dev {
 	bool connected;
 	bool sw_connected;
 	struct work_struct work;
+
+	unsigned int max_func_num;
+	unsigned int func_num;
+	struct ffs_obj ffs_tab[GFS_MAX_DEVS];
 };
 
 static struct class *ccg_class;
@@ -115,6 +128,7 @@ static struct ccg_dev *_ccg_dev;
 static int ccg_bind_config(struct usb_configuration *c);
 static void ccg_unbind_config(struct usb_configuration *c);
 
+static char func_names_buf[256];
 
 static struct usb_device_descriptor device_desc = {
 	.bLength              = sizeof(device_desc),
@@ -165,6 +179,272 @@ static void ccg_work(struct work_struct *data)
 
 /*-------------------------------------------------------------------------*/
 /* Supported functions initialization */
+
+static struct ffs_obj *functionfs_find_dev(struct ccg_dev *dev,
+					   const char *dev_name)
+{
+	int i;
+
+	for (i = 0; i < dev->max_func_num; i++)
+		if (strcmp(dev->ffs_tab[i].name, dev_name) == 0)
+			return &dev->ffs_tab[i];
+
+	return NULL;
+}
+
+static bool functionfs_all_ready(struct ccg_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < dev->max_func_num; i++)
+		if (dev->ffs_tab[i].used && !dev->ffs_tab[i].desc_ready)
+			return false;
+
+	return true;
+}
+
+static int functionfs_ready_callback(struct ffs_data *ffs)
+{
+	struct ffs_obj *ffs_obj;
+	int ret;
+
+	mutex_lock(&_ccg_dev->mutex);
+
+	ffs_obj = ffs->private_data;
+	if (!ffs_obj) {
+		ret = -EINVAL;
+		goto done;
+	}
+	if (WARN_ON(ffs_obj->desc_ready)) {
+		ret = -EBUSY;
+		goto done;
+	}
+	ffs_obj->ffs_data = ffs;
+
+	if (functionfs_all_ready(_ccg_dev)) {
+		ret = -EBUSY;
+		goto done;
+	}
+	ffs_obj->desc_ready = true;
+
+done:
+	mutex_unlock(&_ccg_dev->mutex);
+	return ret;
+}
+
+static void reset_usb(struct ccg_dev *dev)
+{
+	/* Cancel pending control requests */
+	usb_ep_dequeue(dev->cdev->gadget->ep0, dev->cdev->req);
+	usb_remove_config(dev->cdev, &ccg_config_driver);
+	dev->enabled = false;
+	usb_gadget_disconnect(dev->cdev->gadget);
+}
+
+static void functionfs_closed_callback(struct ffs_data *ffs)
+{
+	struct ffs_obj *ffs_obj;
+
+	mutex_lock(&_ccg_dev->mutex);
+
+	ffs_obj = ffs->private_data;
+	if (!ffs_obj)
+		goto done;
+
+	ffs_obj->desc_ready = false;
+
+	if (_ccg_dev->enabled)
+		reset_usb(_ccg_dev);
+
+done:
+	mutex_unlock(&_ccg_dev->mutex);
+}
+
+static void *functionfs_acquire_dev_callback(const char *dev_name)
+{
+	struct ffs_obj *ffs_dev;
+
+	mutex_lock(&_ccg_dev->mutex);
+
+	ffs_dev = functionfs_find_dev(_ccg_dev, dev_name);
+	if (!ffs_dev) {
+		ffs_dev = ERR_PTR(-ENODEV);
+		goto done;
+	}
+
+	if (ffs_dev->mounted) {
+		ffs_dev = ERR_PTR(-EBUSY);
+		goto done;
+	}
+	ffs_dev->mounted = true;
+
+done:
+	mutex_unlock(&_ccg_dev->mutex);
+	return ffs_dev;
+}
+
+static void functionfs_release_dev_callback(struct ffs_data *ffs_data)
+{
+	struct ffs_obj *ffs_dev;
+
+	mutex_lock(&_ccg_dev->mutex);
+
+	ffs_dev = ffs_data->private_data;
+	if (ffs_dev)
+		ffs_dev->mounted = false;
+
+	mutex_unlock(&_ccg_dev->mutex);
+}
+
+static int functionfs_function_init(struct ccg_usb_function *f,
+				struct usb_composite_dev *cdev)
+{
+	return functionfs_init();
+}
+
+static void functionfs_function_cleanup(struct ccg_usb_function *f)
+{
+	functionfs_cleanup();
+}
+
+static int functionfs_function_bind_config(struct ccg_usb_function *f,
+					   struct usb_configuration *c)
+{
+	struct ccg_dev *dev = _ccg_dev;
+	int i, ret;
+
+	for (i = dev->max_func_num; i--; ) {
+		if (!dev->ffs_tab[i].used)
+			continue;
+		ret = functionfs_bind(dev->ffs_tab[i].ffs_data, c->cdev);
+		if (unlikely(ret < 0)) {
+			while (++i < dev->max_func_num)
+				functionfs_unbind(dev->ffs_tab[i].ffs_data);
+			return ret;
+		}
+	}
+
+	for (i = dev->max_func_num; i--; ) {
+		if (!dev->ffs_tab[i].used)
+			continue;
+		ret = functionfs_bind_config(c->cdev, c,
+					     dev->ffs_tab[i].ffs_data);
+		if (unlikely(ret < 0))
+			return ret;
+	}
+
+	return 0;
+}
+
+static void functionfs_function_unbind_config(struct ccg_usb_function *f,
+					      struct usb_configuration *c)
+{
+	struct ccg_dev *dev = _ccg_dev;
+	int i;
+
+	for (i = dev->max_func_num; i--; )
+		if (dev->ffs_tab[i].ffs_data)
+			functionfs_unbind(dev->ffs_tab[i].ffs_data);
+}
+
+static ssize_t functionfs_user_functions_show(struct device *_dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct ccg_dev *dev = _ccg_dev;
+	char *buff = buf;
+	int i;
+
+	mutex_lock(&dev->mutex);
+
+	for (i = 0; i < dev->max_func_num; i++)
+		buff += snprintf(buff, PAGE_SIZE + buf - buff, "%s,",
+				 dev->ffs_tab[i].name);
+
+	mutex_unlock(&dev->mutex);
+
+	if (buff != buf)
+		*(buff - 1) = '\n';
+	return buff - buf;
+}
+
+static ssize_t functionfs_user_functions_store(struct device *_dev,
+					       struct device_attribute *attr,
+					       const char *buff, size_t size)
+{
+	struct ccg_dev *dev = _ccg_dev;
+	char *name, *b;
+	ssize_t ret = size;
+	int i;
+
+	buff = skip_spaces(buff);
+	if (!*buff)
+		return -EINVAL;
+
+	mutex_lock(&dev->mutex);
+
+	if (dev->enabled) {
+		ret = -EBUSY;
+		goto end;
+	}
+
+	for (i = 0; i < dev->max_func_num; i++)
+		if (dev->ffs_tab[i].mounted) {
+			ret = -EBUSY;
+			goto end;
+		}
+
+	strlcpy(func_names_buf, buff, sizeof(func_names_buf));
+	b = strim(func_names_buf);
+
+	/* replace the list of functions */
+	dev->max_func_num = 0;
+	while (b) {
+		name = strsep(&b, ",");
+		if (dev->max_func_num == GFS_MAX_DEVS) {
+			ret = -ENOSPC;
+			goto end;
+		}
+		if (functionfs_find_dev(dev, name)) {
+			ret = -EEXIST;
+			continue;
+		}
+		dev->ffs_tab[dev->max_func_num++].name = name;
+	}
+
+end:
+	mutex_unlock(&dev->mutex);
+	return ret;
+}
+
+static DEVICE_ATTR(user_functions, S_IRUGO | S_IWUSR,
+		   functionfs_user_functions_show,
+		   functionfs_user_functions_store);
+
+static ssize_t functionfs_max_user_functions_show(struct device *_dev,
+						  struct device_attribute *attr,
+						  char *buf)
+{
+	return sprintf(buf, "%d", GFS_MAX_DEVS);
+}
+
+static DEVICE_ATTR(max_user_functions, S_IRUGO,
+		   functionfs_max_user_functions_show, NULL);
+
+static struct device_attribute *functionfs_function_attributes[] = {
+	&dev_attr_user_functions,
+	&dev_attr_max_user_functions,
+	NULL
+};
+
+static struct ccg_usb_function functionfs_function = {
+	.name		= "fs",
+	.init		= functionfs_function_init,
+	.cleanup	= functionfs_function_cleanup,
+	.bind_config	= functionfs_function_bind_config,
+	.unbind_config  = functionfs_function_unbind_config,
+	.attributes	= functionfs_function_attributes,
+};
 
 #define MAX_ACM_INSTANCES 4
 struct acm_function_config {
@@ -495,6 +775,7 @@ static struct ccg_usb_function mass_storage_function = {
 };
 
 static struct ccg_usb_function *supported_functions[] = {
+	&functionfs_function,
 	&acm_function,
 	&rndis_function,
 	&mass_storage_function,
@@ -629,11 +910,15 @@ functions_show(struct device *pdev, struct device_attribute *attr, char *buf)
 	struct ccg_dev *dev = dev_get_drvdata(pdev);
 	struct ccg_usb_function *f;
 	char *buff = buf;
+	int i;
 
 	mutex_lock(&dev->mutex);
 
 	list_for_each_entry(f, &dev->enabled_functions, enabled_list)
 		buff += sprintf(buff, "%s,", f->name);
+	for (i = 0; i < dev->max_func_num; i++)
+		if (dev->ffs_tab[i].used)
+			buff += sprintf(buff, "%s", dev->ffs_tab[i].name);
 
 	mutex_unlock(&dev->mutex);
 
@@ -649,7 +934,8 @@ functions_store(struct device *pdev, struct device_attribute *attr,
 	struct ccg_dev *dev = dev_get_drvdata(pdev);
 	char *name;
 	char buf[256], *b;
-	int err;
+	int err, i;
+	bool functionfs_enabled;
 
 	buff = skip_spaces(buff);
 	if (!*buff)
@@ -663,16 +949,34 @@ functions_store(struct device *pdev, struct device_attribute *attr,
 	}
 
 	INIT_LIST_HEAD(&dev->enabled_functions);
+	functionfs_enabled = false;
+	for (i = 0; i < dev->max_func_num; i++)
+		dev->ffs_tab[i].used = false;
 
 	strlcpy(buf, buff, sizeof(buf));
 	b = strim(buf);
 
 	while (b) {
+		struct ffs_obj *user_func;
+
 		name = strsep(&b, ",");
-		if (name) {
+		/* handle FunctionFS implicitly */
+		if (!strcmp(name, functionfs_function.name)) {
+			pr_err("ccg_usb: Cannot explicitly enable '%s'", name);
+			continue;
+		}
+		user_func = functionfs_find_dev(dev, name);
+		if (user_func)
+			name = functionfs_function.name;
+		err = 0;
+		if (!user_func || !functionfs_enabled)
 			err = ccg_enable_function(dev, name);
-			if (err)
-				pr_err("ccg_usb: Cannot enable '%s'", name);
+		if (err)
+			pr_err("ccg_usb: Cannot enable '%s'", name);
+		else if (user_func) {
+			user_func->used = true;
+			dev->func_num++;
+			functionfs_enabled = true;
 		}
 	}
 
@@ -696,8 +1000,12 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 	int enabled = 0;
 
 	mutex_lock(&dev->mutex);
-
 	sscanf(buff, "%d", &enabled);
+	if (enabled && dev->func_num && !functionfs_all_ready(dev)) {
+		mutex_unlock(&dev->mutex);
+		return -ENODEV;
+	}
+
 	if (enabled && !dev->enabled) {
 		int ret;
 
@@ -721,11 +1029,7 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 			usb_remove_config(cdev, &ccg_config_driver);
 		}
 	} else if (!enabled && dev->enabled) {
-		usb_gadget_disconnect(cdev->gadget);
-		/* Cancel pending control requests */
-		usb_ep_dequeue(cdev->gadget->ep0, cdev->req);
-		usb_remove_config(cdev, &ccg_config_driver);
-		dev->enabled = false;
+		reset_usb(dev);
 	} else {
 		pr_err("ccg_usb: already %s\n",
 			dev->enabled ? "enabled" : "disabled");
