@@ -549,7 +549,7 @@ static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id)
 static irqreturn_t bfin_serial_dma_rx_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
-	unsigned short irqstat;
+	unsigned int irqstat;
 	int x_pos, pos;
 
 	spin_lock(&uart->rx_lock);
@@ -582,7 +582,7 @@ static irqreturn_t bfin_serial_dma_rx_int(int irq, void *dev_id)
 static unsigned int bfin_serial_tx_empty(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
-	unsigned short lsr;
+	unsigned int lsr;
 
 	lsr = UART_GET_LSR(uart);
 	if (lsr & TEMT)
@@ -741,7 +741,7 @@ static int bfin_serial_startup(struct uart_port *port)
 		}
 
 		/* CTS RTS PINs are negative assertive. */
-		UART_PUT_MCR(uart, ACTS);
+		UART_PUT_MCR(uart, UART_GET_MCR(uart) | ACTS);
 		UART_SET_IER(uart, EDSSI);
 	}
 #endif
@@ -799,7 +799,7 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
 	unsigned long flags;
 	unsigned int baud, quot;
-	unsigned short val, ier, lcr = 0;
+	unsigned int ier, lcr = 0;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS8:
@@ -871,6 +871,7 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* Disable UART */
 	ier = UART_GET_IER(uart);
+	UART_PUT_GCTL(uart, UART_GET_GCTL(uart) & ~UCEN);
 	UART_DISABLE_INTS(uart);
 
 	/* Set DLAB in LCR to Access CLK */
@@ -882,14 +883,11 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* Clear DLAB in LCR to Access THR RBR IER */
 	UART_CLEAR_DLAB(uart);
 
-	UART_PUT_LCR(uart, lcr);
+	UART_PUT_LCR(uart, (UART_GET_LCR(uart) & ~LCR_MASK) | lcr);
 
 	/* Enable UART */
 	UART_ENABLE_INTS(uart, ier);
-
-	val = UART_GET_GCTL(uart);
-	val |= UCEN;
-	UART_PUT_GCTL(uart, val);
+	UART_PUT_GCTL(uart, UART_GET_GCTL(uart) | UCEN);
 
 	/* Port speed changed, update the per-port timeout. */
 	uart_update_timeout(port, termios->c_cflag, baud);
@@ -949,7 +947,7 @@ bfin_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 static void bfin_serial_set_ldisc(struct uart_port *port, int ld)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
-	unsigned short val;
+	unsigned int val;
 
 	switch (ld) {
 	case N_IRDA:
@@ -967,7 +965,7 @@ static void bfin_serial_set_ldisc(struct uart_port *port, int ld)
 static void bfin_serial_reset_irda(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
-	unsigned short val;
+	unsigned int val;
 
 	val = UART_GET_GCTL(uart);
 	val &= ~(UMOD_MASK | RPOLC);
@@ -1065,7 +1063,7 @@ static void __init
 bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 			   int *parity, int *bits)
 {
-	unsigned short status;
+	unsigned int status;
 
 	status = UART_GET_IER(uart) & (ERBFI | ETBEI);
 	if (status == (ERBFI | ETBEI)) {
