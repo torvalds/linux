@@ -70,11 +70,11 @@
 
 #include "iwl-drv.h"
 #include "iwl-trans.h"
-#include "iwl-trans-pcie-int.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-eeprom.h"
 #include "iwl-agn-hw.h"
+#include "internal.h"
 /* FIXME: need to abstract out TX command (once we know what it looks like) */
 #include "iwl-commands.h"
 

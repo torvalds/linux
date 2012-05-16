@@ -36,7 +36,7 @@
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
 #include "iwl-op-mode.h"
-#include "iwl-trans-pcie-int.h"
+#include "internal.h"
 /* FIXME: need to abstract out TX command (once we know what it looks like) */
 #include "iwl-commands.h"
 

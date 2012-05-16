@@ -32,7 +32,7 @@
 
 #include "iwl-prph.h"
 #include "iwl-io.h"
-#include "iwl-trans-pcie-int.h"
+#include "internal.h"
 #include "iwl-op-mode.h"
 
 #ifdef CONFIG_IWLWIFI_IDI

@@ -68,10 +68,11 @@
 #include <linux/pci-aspm.h>
 
 #include "iwl-trans.h"
-#include "iwl-cfg.h"
 #include "iwl-drv.h"
 #include "iwl-trans.h"
-#include "iwl-trans-pcie-int.h"
+
+#include "cfg.h"
+#include "internal.h"
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
 	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \

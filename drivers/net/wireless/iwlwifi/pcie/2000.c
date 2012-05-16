@@ -27,8 +27,8 @@
 #include <linux/module.h>
 #include <linux/stringify.h>
 #include "iwl-config.h"
-#include "iwl-cfg.h"
 #include "iwl-agn-hw.h"
+#include "cfg.h"
 #include "iwl-commands.h" /* needed for BT for now */
 
 /* Highest firmware API version supported */
