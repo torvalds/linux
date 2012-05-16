@@ -1413,15 +1413,12 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 			"unable to misc_register %s, minor %d\n",
 			chip->vendor.miscdev.name,
 			chip->vendor.miscdev.minor);
-		put_device(chip->dev);
-		return NULL;
+		goto put_device;
 	}
 
 	if (sysfs_create_group(&dev->kobj, chip->vendor.attr_group)) {
 		misc_deregister(&chip->vendor.miscdev);
-		put_device(chip->dev);
-
-		return NULL;
+		goto put_device;
 	}
 
 	chip->bios_dir = tpm_bios_log_setup(devname);
@@ -1433,6 +1430,8 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 
 	return chip;
 
+put_device:
+	put_device(chip->dev);
 out_free:
 	kfree(chip);
 	kfree(devname);
