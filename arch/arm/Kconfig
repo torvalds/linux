@@ -373,12 +373,12 @@ config ARCH_HIGHBANK
 	  Support for the Calxeda Highbank SoC based boards.
 
 config ARCH_CLPS711X
-	bool "Cirrus Logic CLPS711x/EP721x-based"
+	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
 	select CPU_ARM720T
 	select ARCH_USES_GETTIMEOFFSET
 	select NEED_MACH_MEMORY_H
 	help
-	  Support for Cirrus Logic 711x/721x based boards.
+	  Support for Cirrus Logic 711x/721x/731x based boards.
 
 config ARCH_CNS3XXX
 	bool "Cavium Networks CNS3XXX family"
