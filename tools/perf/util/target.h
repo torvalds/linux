@@ -11,6 +11,7 @@ struct perf_target {
 	const char   *uid_str;
 	uid_t	     uid;
 	bool	     system_wide;
+	bool	     uses_mmap;
 };
 
 enum perf_target_errno {

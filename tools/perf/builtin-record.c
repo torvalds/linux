@@ -754,6 +754,9 @@ static struct perf_record record = {
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
 		.freq		     = 1000,
+		.target		     = {
+			.uses_mmap   = true,
+		},
 	},
 	.write_mode = WRITE_FORCE,
 	.file_new   = true,

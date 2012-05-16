@@ -1162,6 +1162,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		.freq		     = 1000, /* 1 KHz */
 		.mmap_pages	     = 128,
 		.sym_pcnt_filter     = 5,
+		.target		     = {
+			.uses_mmap   = true,
+		},
 	};
 	char callchain_default_opt[] = "fractal,0.5,callee";
 	const struct option options[] = {
