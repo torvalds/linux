@@ -180,7 +180,7 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk_register_clkdev(clk[sdhc1_ipg_gate], "sdhc1", NULL);
 	clk_register_clkdev(clk[sdhc2_ipg_gate], "sdhc2", NULL);
 
-	mxc_timer_init(NULL, MX21_IO_ADDRESS(MX21_GPT1_BASE_ADDR),
-			MX21_INT_GPT1);
+	mxc_timer_init(MX21_IO_ADDRESS(MX21_GPT1_BASE_ADDR), MX21_INT_GPT1);
+
 	return 0;
 }

@@ -263,8 +263,7 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[ssi1_baud_gate], "bitrate" , "imx-ssi.0");
 	clk_register_clkdev(clk[ssi2_baud_gate], "bitrate" , "imx-ssi.1");
 
-	mxc_timer_init(NULL, MX27_IO_ADDRESS(MX27_GPT1_BASE_ADDR),
-			MX27_INT_GPT1);
+	mxc_timer_init(MX27_IO_ADDRESS(MX27_GPT1_BASE_ADDR), MX27_INT_GPT1);
 
 	clk_prepare_enable(clk[emi_ahb_gate]);
 

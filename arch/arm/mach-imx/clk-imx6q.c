@@ -433,7 +433,7 @@ int __init mx6q_clocks_init(void)
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 	irq = irq_of_parse_and_map(np, 0);
-	mxc_timer_init(NULL, base, irq);
+	mxc_timer_init(base, irq);
 
 	return 0;
 }

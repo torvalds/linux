@@ -50,6 +50,7 @@
 #include <linux/irq.h>
 #include <linux/clockchips.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 
 #include <mach/hardware.h>
 #include <asm/mach/time.h>
@@ -201,8 +202,16 @@ static int __init epit_clockevent_init(struct clk *timer_clk)
 	return 0;
 }
 
-void __init epit_timer_init(struct clk *timer_clk, void __iomem *base, int irq)
+void __init epit_timer_init(void __iomem *base, int irq)
 {
+	struct clk *timer_clk;
+
+	timer_clk = clk_get_sys("imx-epit.0", NULL);
+	if (IS_ERR(timer_clk)) {
+		pr_err("i.MX epit: unable to get clk\n");
+		return;
+	}
+
 	clk_prepare_enable(timer_clk);
 
 	timer_base = base;
