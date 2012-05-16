@@ -350,7 +350,8 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
 		if (pixm)
 			sizes[i] = max(size, pixm->plane_fmt[i].sizeimage);
 		else
-			sizes[i] = size;
+			sizes[i] = max_t(u32, size, frame->payload[i]);
+
 		allocators[i] = ctx->fimc_dev->alloc_ctx;
 	}
 
@@ -924,10 +925,10 @@ static int fimc_capture_set_format(struct fimc_dev *fimc, struct v4l2_format *f)
 		pix->width  = mf->width;
 		pix->height = mf->height;
 	}
+
 	fimc_adjust_mplane_format(ff->fmt, pix->width, pix->height, pix);
 	for (i = 0; i < ff->fmt->colplanes; i++)
-		ff->payload[i] =
-			(pix->width * pix->height * ff->fmt->depth[i]) / 8;
+		ff->payload[i] = pix->plane_fmt[i].sizeimage;
 
 	set_frame_bounds(ff, pix->width, pix->height);
 	/* Reset the composition rectangle if not yet configured */
