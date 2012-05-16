@@ -78,6 +78,9 @@ struct atmel_mci_caps {
 	bool    has_highspeed;
 	bool    has_rwproof;
 	bool	has_odd_clk_div;
+	bool	has_bad_data_ordering;
+	bool	need_reset_after_xfer;
+	bool	need_blksz_mul_4;
 };
 
 struct atmel_mci_dma {
@@ -121,6 +124,7 @@ struct atmel_mci_dma {
  * @queue: List of slots waiting for access to the controller.
  * @need_clock_update: Update the clock rate before the next request.
  * @need_reset: Reset controller before next request.
+ * @timer: Timer to balance the data timeout error flag which cannot rise.
  * @mode_reg: Value of the MR register.
  * @cfg_reg: Value of the CFG register.
  * @bus_hz: The rate of @mck in Hz. This forms the basis for MMC bus
@@ -197,6 +201,7 @@ struct atmel_mci {
 
 	bool			need_clock_update;
 	bool			need_reset;
+	struct timer_list	timer;
 	u32			mode_reg;
 	u32			cfg_reg;
 	unsigned long		bus_hz;
@@ -493,6 +498,27 @@ static inline unsigned int atmci_get_version(struct atmel_mci *host)
 	return atmci_readl(host, ATMCI_VERSION) & 0x00000fff;
 }
 
+static void atmci_timeout_timer(unsigned long data)
+{
+	struct atmel_mci *host;
+
+	host = (struct atmel_mci *)data;
+
+	dev_dbg(&host->pdev->dev, "software timeout\n");
+
+	if (host->mrq->cmd->data) {
+		host->mrq->cmd->data->error = -ETIMEDOUT;
+		host->data = NULL;
+	} else {
+		host->mrq->cmd->error = -ETIMEDOUT;
+		host->cmd = NULL;
+	}
+	host->need_reset = 1;
+	host->state = STATE_END_REQUEST;
+	smp_wmb();
+	tasklet_schedule(&host->tasklet);
+}
+
 static inline unsigned int atmci_ns_to_clocks(struct atmel_mci *host,
 					unsigned int ns)
 {
@@ -692,13 +718,18 @@ static void atmci_pdc_cleanup(struct atmel_mci *host)
 static void atmci_pdc_complete(struct atmel_mci *host)
 {
 	int transfer_size = host->data->blocks * host->data->blksz;
+	int i;
 
 	atmci_writel(host, ATMEL_PDC_PTCR, ATMEL_PDC_RXTDIS | ATMEL_PDC_TXTDIS);
 
 	if ((!host->caps.has_rwproof)
-	    && (host->data->flags & MMC_DATA_READ))
+	    && (host->data->flags & MMC_DATA_READ)) {
+		if (host->caps.has_bad_data_ordering)
+			for (i = 0; i < transfer_size; i++)
+				host->buffer[i] = swab32(host->buffer[i]);
 		sg_copy_from_buffer(host->data->sg, host->data->sg_len,
 		                    host->buffer, transfer_size);
+	}
 
 	atmci_pdc_cleanup(host);
 
@@ -819,6 +850,7 @@ atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 	u32 iflags, tmp;
 	unsigned int sg_len;
 	enum dma_data_direction dir;
+	int i;
 
 	data->error = -EINPROGRESS;
 
@@ -848,9 +880,13 @@ atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 	sg_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, dir);
 
 	if ((!host->caps.has_rwproof)
-	    && (host->data->flags & MMC_DATA_WRITE))
+	    && (host->data->flags & MMC_DATA_WRITE)) {
 		sg_copy_to_buffer(host->data->sg, host->data->sg_len,
 		                  host->buffer, host->data_size);
+		if (host->caps.has_bad_data_ordering)
+			for (i = 0; i < host->data_size; i++)
+				host->buffer[i] = swab32(host->buffer[i]);
+	}
 
 	if (host->data_size)
 		atmci_pdc_set_both_buf(host,
@@ -1013,7 +1049,7 @@ static void atmci_start_request(struct atmel_mci *host,
 	host->cmd_status = 0;
 	host->data_status = 0;
 
-	if (host->need_reset) {
+	if (host->need_reset || host->caps.need_reset_after_xfer) {
 		iflags = atmci_readl(host, ATMCI_IMR);
 		iflags &= (ATMCI_SDIOIRQA | ATMCI_SDIOIRQB);
 		atmci_writel(host, ATMCI_CR, ATMCI_CR_SWRST);
@@ -1077,6 +1113,8 @@ static void atmci_start_request(struct atmel_mci *host,
 	 * prepared yet.)
 	 */
 	atmci_writel(host, ATMCI_IER, iflags);
+
+	mod_timer(&host->timer, jiffies +  msecs_to_jiffies(2000));
 }
 
 static void atmci_queue_request(struct atmel_mci *host,
@@ -1342,6 +1380,8 @@ static void atmci_request_end(struct atmel_mci *host, struct mmc_request *mrq)
 		host->state = STATE_IDLE;
 	}
 
+	del_timer(&host->timer);
+
 	spin_unlock(&host->lock);
 	mmc_request_done(prev_mmc, mrq);
 	spin_lock(&host->lock);
@@ -1364,7 +1404,12 @@ static void atmci_command_complete(struct atmel_mci *host,
 		cmd->error = -EILSEQ;
 	else if (status & (ATMCI_RINDE | ATMCI_RDIRE | ATMCI_RENDE))
 		cmd->error = -EIO;
-	else
+	else if (host->mrq->data && (host->mrq->data->blksz & 3)) {
+		if (host->caps.need_blksz_mul_4) {
+			cmd->error = -EINVAL;
+			host->need_reset = 1;
+		}
+	} else
 		cmd->error = 0;
 }
 
@@ -2121,6 +2166,9 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 	host->caps.has_highspeed = 0;
 	host->caps.has_rwproof = 0;
 	host->caps.has_odd_clk_div = 0;
+	host->caps.has_bad_data_ordering = 1;
+	host->caps.need_reset_after_xfer = 1;
+	host->caps.need_blksz_mul_4 = 1;
 
 	/* keep only major version number */
 	switch (version & 0xf00) {
@@ -2140,7 +2188,11 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 		host->caps.has_highspeed = 1;
 	case 0x200:
 		host->caps.has_rwproof = 1;
+		host->caps.need_blksz_mul_4 = 0;
 	case 0x100:
+		host->caps.has_bad_data_ordering = 0;
+		host->caps.need_reset_after_xfer = 0;
+	case 0x0:
 		break;
 	default:
 		host->caps.has_pdc = 0;
@@ -2258,6 +2310,8 @@ static int __init atmci_probe(struct platform_device *pdev)
 			goto err_init_slot;
 		}
 	}
+
+	setup_timer(&host->timer, atmci_timeout_timer, (unsigned long)host);
 
 	dev_info(&pdev->dev,
 			"Atmel MCI controller at 0x%08lx irq %d, %u slots\n",
