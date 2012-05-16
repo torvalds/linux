@@ -2115,29 +2115,25 @@ static int get_authorizer(struct ceph_connection *con,
 	struct ceph_osd *o = con->private;
 	struct ceph_osd_client *osdc = o->o_osdc;
 	struct ceph_auth_client *ac = osdc->client->monc.auth;
+	struct ceph_auth_handshake *auth = &o->o_auth;
 	int ret = 0;
 
-	if (force_new && o->o_auth.authorizer) {
-		ac->ops->destroy_authorizer(ac, o->o_auth.authorizer);
-		o->o_auth.authorizer = NULL;
+	if (force_new && auth->authorizer) {
+		ac->ops->destroy_authorizer(ac, auth->authorizer);
+		auth->authorizer = NULL;
 	}
-	if (o->o_auth.authorizer == NULL) {
-		ret = ac->ops->create_authorizer(
-			ac, CEPH_ENTITY_TYPE_OSD,
-			&o->o_auth.authorizer,
-			&o->o_auth.authorizer_buf,
-			&o->o_auth.authorizer_buf_len,
-			&o->o_auth.authorizer_reply_buf,
-			&o->o_auth.authorizer_reply_buf_len);
+	if (auth->authorizer == NULL) {
+		ret = ac->ops->create_authorizer(ac, CEPH_ENTITY_TYPE_OSD, auth);
 		if (ret)
 			return ret;
 	}
 
 	*proto = ac->protocol;
-	*buf = o->o_auth.authorizer_buf;
-	*len = o->o_auth.authorizer_buf_len;
-	*reply_buf = o->o_auth.authorizer_reply_buf;
-	*reply_len = o->o_auth.authorizer_reply_buf_len;
+	*buf = auth->authorizer_buf;
+	*len = auth->authorizer_buf_len;
+	*reply_buf = auth->authorizer_reply_buf;
+	*reply_len = auth->authorizer_reply_buf_len;
+
 	return 0;
 }
 
