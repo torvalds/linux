@@ -455,7 +455,6 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl5000_channel_switch_cmd cmd;
-	const struct iwl_channel_info *ch_info;
 	u32 switch_time_in_usec, ucode_switch_time;
 	u16 ch;
 	u32 tsf_low;
@@ -505,14 +504,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	}
 	IWL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
 		      cmd.switch_time);
-	ch_info = iwl_get_channel_info(priv, priv->band, ch);
-	if (ch_info)
-		cmd.expect_beacon = is_channel_radar(ch_info);
-	else {
-		IWL_ERR(priv, "invalid channel switch from %u to %u\n",
-			ctx->active.channel, ch);
-		return -EFAULT;
-	}
+	cmd.expect_beacon = ch_switch->channel->flags & IEEE80211_CHAN_RADAR;
 
 	return iwl_dvm_send_cmd(priv, &hcmd);
 }
@@ -654,7 +646,6 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl6000_channel_switch_cmd cmd;
-	const struct iwl_channel_info *ch_info;
 	u32 switch_time_in_usec, ucode_switch_time;
 	u16 ch;
 	u32 tsf_low;
@@ -704,14 +695,7 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	}
 	IWL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
 		      cmd.switch_time);
-	ch_info = iwl_get_channel_info(priv, priv->band, ch);
-	if (ch_info)
-		cmd.expect_beacon = is_channel_radar(ch_info);
-	else {
-		IWL_ERR(priv, "invalid channel switch from %u to %u\n",
-			ctx->active.channel, ch);
-		return -EFAULT;
-	}
+	cmd.expect_beacon = ch_switch->channel->flags & IEEE80211_CHAN_RADAR;
 
 	return iwl_dvm_send_cmd(priv, &hcmd);
 }
