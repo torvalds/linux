@@ -607,7 +607,7 @@ static struct usb_serial_driver ch341_device = {
 	.tiocmset          = ch341_tiocmset,
 	.read_int_callback = ch341_read_int_callback,
 	.attach            = ch341_attach,
-	.resume            = ch341_reset_resume,
+	.reset_resume      = ch341_reset_resume,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
