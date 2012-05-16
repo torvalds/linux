@@ -385,7 +385,7 @@ out:
 	if (err == -ENOSPC) {
 		/* This are some budgeting problems, print useful information */
 		down_write(&c->commit_sem);
-		dbg_dump_stack();
+		dump_stack();
 		dbg_dump_budg(c, &c->bi);
 		dbg_dump_lprops(c);
 		cmt_retries = dbg_check_lprops(c);

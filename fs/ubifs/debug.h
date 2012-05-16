@@ -149,7 +149,7 @@ struct ubifs_global_debug_info {
 	if (unlikely(!(expr))) {                                               \
 		printk(KERN_CRIT "UBIFS assert failed in %s at %u (pid %d)\n", \
 		       __func__, __LINE__, current->pid);                      \
-		dbg_dump_stack();                                              \
+		dump_stack();                                                  \
 	}                                                                      \
 } while (0)
 
@@ -160,8 +160,6 @@ struct ubifs_global_debug_info {
 		ubifs_assert(0);                                               \
 	}                                                                      \
 } while (0)
-
-#define dbg_dump_stack() dump_stack()
 
 #define dbg_err(fmt, ...) do {                                                 \
 	ubifs_err(fmt, ##__VA_ARGS__);                                         \
@@ -341,7 +339,6 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c);
 		printk(KERN_DEBUG fmt "\n", ##__VA_ARGS__); \
 } while (0)
 
-#define dbg_dump_stack()
 #define ubifs_assert_cmt_locked(c)
 
 #define dbg_msg(fmt, ...)       ubifs_dbg_msg(fmt, ##__VA_ARGS__)

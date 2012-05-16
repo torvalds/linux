@@ -339,7 +339,7 @@ static int lnc_add(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 
 	err = ubifs_validate_entry(c, dent);
 	if (err) {
-		dbg_dump_stack();
+		dump_stack();
 		dbg_dump_node(c, dent);
 		return err;
 	}
@@ -372,7 +372,7 @@ static int lnc_add_directly(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 
 	err = ubifs_validate_entry(c, node);
 	if (err) {
-		dbg_dump_stack();
+		dump_stack();
 		dbg_dump_node(c, node);
 		return err;
 	}
@@ -1734,7 +1734,7 @@ out_err:
 out:
 	ubifs_err("bad node at LEB %d:%d", zbr->lnum, zbr->offs);
 	dbg_dump_node(c, buf);
-	dbg_dump_stack();
+	dump_stack();
 	return err;
 }
 
@@ -1775,7 +1775,7 @@ int ubifs_tnc_bulk_read(struct ubifs_info *c, struct bu_info *bu)
 	if (err && err != -EBADMSG) {
 		ubifs_err("failed to read from LEB %d:%d, error %d",
 			  lnum, offs, err);
-		dbg_dump_stack();
+		dump_stack();
 		dbg_tnck(&bu->key, "key ");
 		return err;
 	}
@@ -3336,7 +3336,7 @@ out_dump:
 		  ((loff_t)block) << UBIFS_BLOCK_SHIFT);
 	mutex_unlock(&c->tnc_mutex);
 	dbg_dump_inode(c, inode);
-	dbg_dump_stack();
+	dump_stack();
 	return -EINVAL;
 
 out_unlock:

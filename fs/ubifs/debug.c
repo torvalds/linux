@@ -1160,7 +1160,7 @@ int dbg_check_synced_i_size(const struct ubifs_info *c, struct inode *inode)
 			  "is clean", ui->ui_size, ui->synced_i_size);
 		ubifs_err("i_ino %lu, i_mode %#x, i_size %lld", inode->i_ino,
 			  inode->i_mode, i_size_read(inode));
-		dbg_dump_stack();
+		dump_stack();
 		err = -EINVAL;
 	}
 	spin_unlock(&ui->ui_lock);

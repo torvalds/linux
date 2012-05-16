@@ -926,7 +926,7 @@ static int check_lpt_crc(void *buf, int len)
 	if (crc != calc_crc) {
 		ubifs_err("invalid crc in LPT node: crc %hx calc %hx", crc,
 			  calc_crc);
-		dbg_dump_stack();
+		dump_stack();
 		return -EINVAL;
 	}
 	return 0;
@@ -949,7 +949,7 @@ static int check_lpt_type(uint8_t **addr, int *pos, int type)
 	if (node_type != type) {
 		ubifs_err("invalid type (%d) in LPT node type %d", node_type,
 			  type);
-		dbg_dump_stack();
+		dump_stack();
 		return -EINVAL;
 	}
 	return 0;
@@ -1247,7 +1247,7 @@ int ubifs_read_nnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip)
 
 out:
 	ubifs_err("error %d reading nnode at %d:%d", err, lnum, offs);
-	dbg_dump_stack();
+	dump_stack();
 	kfree(nnode);
 	return err;
 }
@@ -1313,7 +1313,7 @@ static int read_pnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip)
 out:
 	ubifs_err("error %d reading pnode at %d:%d", err, lnum, offs);
 	dbg_dump_pnode(c, pnode, parent, iip);
-	dbg_dump_stack();
+	dump_stack();
 	dbg_msg("calc num: %d", calc_pnode_num_from_parent(c, parent, iip));
 	kfree(pnode);
 	return err;

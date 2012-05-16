@@ -1001,7 +1001,7 @@ void dbg_check_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat,
 out:
 	if (err) {
 		dbg_msg("failed cat %d hpos %d err %d", cat, i, err);
-		dbg_dump_stack();
+		dump_stack();
 		dbg_dump_heap(c, heap, cat);
 	}
 }

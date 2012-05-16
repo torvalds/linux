@@ -109,7 +109,7 @@ int ubifs_leb_read(const struct ubifs_info *c, int lnum, void *buf, int offs,
 	if (err && (err != -EBADMSG || even_ebadmsg)) {
 		ubifs_err("reading %d bytes from LEB %d:%d failed, error %d",
 			  len, lnum, offs, err);
-		dbg_dump_stack();
+		dump_stack();
 	}
 	return err;
 }
@@ -130,7 +130,7 @@ int ubifs_leb_write(struct ubifs_info *c, int lnum, const void *buf, int offs,
 		ubifs_err("writing %d bytes to LEB %d:%d failed, error %d",
 			  len, lnum, offs, err);
 		ubifs_ro_mode(c, err);
-		dbg_dump_stack();
+		dump_stack();
 	}
 	return err;
 }
@@ -151,7 +151,7 @@ int ubifs_leb_change(struct ubifs_info *c, int lnum, const void *buf, int len,
 		ubifs_err("changing %d bytes in LEB %d failed, error %d",
 			  len, lnum, err);
 		ubifs_ro_mode(c, err);
-		dbg_dump_stack();
+		dump_stack();
 	}
 	return err;
 }
@@ -170,7 +170,7 @@ int ubifs_leb_unmap(struct ubifs_info *c, int lnum)
 	if (err) {
 		ubifs_err("unmap LEB %d failed, error %d", lnum, err);
 		ubifs_ro_mode(c, err);
-		dbg_dump_stack();
+		dump_stack();
 	}
 	return err;
 }
@@ -189,7 +189,7 @@ int ubifs_leb_map(struct ubifs_info *c, int lnum, int dtype)
 	if (err) {
 		ubifs_err("mapping LEB %d failed, error %d", lnum, err);
 		ubifs_ro_mode(c, err);
-		dbg_dump_stack();
+		dump_stack();
 	}
 	return err;
 }
@@ -202,7 +202,7 @@ int ubifs_is_mapped(const struct ubifs_info *c, int lnum)
 	if (err < 0) {
 		ubifs_err("ubi_is_mapped failed for LEB %d, error %d",
 			  lnum, err);
-		dbg_dump_stack();
+		dump_stack();
 	}
 	return err;
 }
@@ -295,7 +295,7 @@ out:
 	if (!quiet) {
 		ubifs_err("bad node at LEB %d:%d", lnum, offs);
 		dbg_dump_node(c, buf);
-		dbg_dump_stack();
+		dump_stack();
 	}
 	return err;
 }
@@ -842,7 +842,7 @@ out:
 	ubifs_err("cannot write %d bytes to LEB %d:%d, error %d",
 		  len, wbuf->lnum, wbuf->offs, err);
 	dbg_dump_node(c, buf);
-	dbg_dump_stack();
+	dump_stack();
 	dbg_dump_leb(c, wbuf->lnum);
 	return err;
 }
@@ -961,7 +961,7 @@ int ubifs_read_node_wbuf(struct ubifs_wbuf *wbuf, void *buf, int type, int len,
 out:
 	ubifs_err("bad node at LEB %d:%d", lnum, offs);
 	dbg_dump_node(c, buf);
-	dbg_dump_stack();
+	dump_stack();
 	return -EINVAL;
 }
 
@@ -1018,7 +1018,7 @@ out:
 	ubifs_err("bad node at LEB %d:%d, LEB mapping status %d", lnum, offs,
 		  ubi_is_mapped(c->ubi, lnum));
 	dbg_dump_node(c, buf);
-	dbg_dump_stack();
+	dump_stack();
 	return -EINVAL;
 }
 
