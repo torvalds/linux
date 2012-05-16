@@ -261,7 +261,7 @@ EXPORT_SYMBOL_GPL(usb_stor_post_reset);
 void fill_inquiry_response(struct us_data *us, unsigned char *data,
 		unsigned int data_len)
 {
-	if (data_len<36) // You lose.
+	if (data_len<36) /* You lose. */
 		return;
 
 	memset(data+8, ' ', 28);
