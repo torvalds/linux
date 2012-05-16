@@ -78,7 +78,6 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("iwlagn");
 
 void iwl_update_chain_flags(struct iwl_priv *priv)
 {
@@ -2344,24 +2343,25 @@ static int __init iwl_init(void)
 		goto error_rc_register;
 	}
 
-	ret = iwl_pci_register_driver();
-	if (ret)
-		goto error_pci_register;
+	ret = iwl_opmode_register("iwldvm", &iwl_dvm_ops);
+	if (ret) {
+		pr_err("Unable to register op_mode: %d\n", ret);
+		goto error_opmode_register;
+	}
 	return ret;
 
-error_pci_register:
+error_opmode_register:
 	iwlagn_rate_control_unregister();
 error_rc_register:
 	kmem_cache_destroy(iwl_tx_cmd_pool);
 	return ret;
 }
+module_init(iwl_init);
 
 static void __exit iwl_exit(void)
 {
-	iwl_pci_unregister_driver();
+	iwl_opmode_deregister("iwldvm");
 	iwlagn_rate_control_unregister();
 	kmem_cache_destroy(iwl_tx_cmd_pool);
 }
-
 module_exit(iwl_exit);
-module_init(iwl_init);
