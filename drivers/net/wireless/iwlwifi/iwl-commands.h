@@ -197,9 +197,6 @@ enum {
  *
  *****************************************************************************/
 
-/* iwl_cmd_header flags value */
-#define IWL_CMD_FAILED_MSK 0x40
-
 /**
  * iwlagn rate_n_flags bit fields
  *
