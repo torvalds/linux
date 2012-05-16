@@ -1262,7 +1262,8 @@ static struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
 
 
 #ifdef CONFIG_PM
-int wl1271_validate_wowlan_pattern(struct cfg80211_wowlan_trig_pkt_pattern *p)
+static int
+wl1271_validate_wowlan_pattern(struct cfg80211_wowlan_trig_pkt_pattern *p)
 {
 	int num_fields = 0, in_field = 0, fields_size = 0;
 	int i, pattern_len = 0;
@@ -1405,7 +1406,7 @@ void wl1271_rx_filter_flatten_fields(struct wl12xx_rx_filter *filter,
  * Allocates an RX filter returned through f
  * which needs to be freed using rx_filter_free()
  */
-int wl1271_convert_wowlan_pattern_to_rx_filter(
+static int wl1271_convert_wowlan_pattern_to_rx_filter(
 	struct cfg80211_wowlan_trig_pkt_pattern *p,
 	struct wl12xx_rx_filter **f)
 {
@@ -4820,7 +4821,7 @@ static struct bin_attribute fwlog_attr = {
 	.read = wl1271_sysfs_read_fwlog,
 };
 
-void wl1271_connection_loss_work(struct work_struct *work)
+static void wl1271_connection_loss_work(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 	struct wl1271 *wl;
