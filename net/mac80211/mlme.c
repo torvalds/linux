@@ -3530,10 +3530,3 @@ void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 	cfg80211_cqm_rssi_notify(sdata->dev, rssi_event, gfp);
 }
 EXPORT_SYMBOL(ieee80211_cqm_rssi_notify);
-
-unsigned char ieee80211_get_operstate(struct ieee80211_vif *vif)
-{
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	return sdata->dev->operstate;
-}
-EXPORT_SYMBOL(ieee80211_get_operstate);
