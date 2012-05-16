@@ -2346,6 +2346,7 @@ static int nfs_compare_super(struct super_block *sb, void *data)
 	return nfs_compare_mount_options(sb, server, mntflags);
 }
 
+#ifdef CONFIG_NFS_FSCACHE
 static void nfs_get_cache_cookie(struct super_block *sb,
 				 struct nfs_parsed_mount_data *parsed,
 				 struct nfs_clone_mount *cloned)
@@ -2366,6 +2367,13 @@ static void nfs_get_cache_cookie(struct super_block *sb,
 
 	nfs_fscache_get_super_cookie(sb, uniq, ulen);
 }
+#else
+static void nfs_get_cache_cookie(struct super_block *sb,
+				 struct nfs_parsed_mount_data *parsed,
+				 struct nfs_clone_mount *cloned)
+{
+}
+#endif
 
 static int nfs_bdi_register(struct nfs_server *server)
 {
