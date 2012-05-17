@@ -1037,13 +1037,6 @@ static char *iscsi_check_valuelist_for_support(
 			tmp2 = strchr(acceptor_values, ',');
 			if (tmp2)
 				*tmp2 = '\0';
-			if (!acceptor_values || !proposer_values) {
-				if (tmp1)
-					*tmp1 = ',';
-				if (tmp2)
-					*tmp2 = ',';
-				return NULL;
-			}
 			if (!strcmp(acceptor_values, proposer_values)) {
 				if (tmp2)
 					*tmp2 = ',';
@@ -1053,8 +1046,6 @@ static char *iscsi_check_valuelist_for_support(
 				*tmp2++ = ',';
 
 			acceptor_values = tmp2;
-			if (!acceptor_values)
-				break;
 		} while (acceptor_values);
 		if (tmp1)
 			*tmp1++ = ',';
