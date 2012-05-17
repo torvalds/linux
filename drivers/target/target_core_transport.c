@@ -2927,6 +2927,38 @@ static int transport_generic_cmd_sequencer(
 		size = (cdb[7] << 8) | cdb[8];
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
+	case ATA_16:
+		/* Only support ATA passthrough to pSCSI backends.. */
+		if (!passthrough)
+			goto out_unsupported_cdb;
+
+		/* T_LENGTH */
+		switch (cdb[2] & 0x3) {
+		case 0x0:
+			sectors = 0;
+			break;
+		case 0x1:
+			sectors = (((cdb[1] & 0x1) ? cdb[3] : 0) << 8) | cdb[4];
+			break;
+		case 0x2:
+			sectors = (((cdb[1] & 0x1) ? cdb[5] : 0) << 8) | cdb[6];
+			break;
+		case 0x3:
+			pr_err("T_LENGTH=0x3 not supported for ATA_16\n");
+			goto out_invalid_cdb_field;
+		}
+
+		/* BYTE_BLOCK */
+		if (cdb[2] & 0x4) {
+			/* BLOCK T_TYPE: 512 or sector */
+			size = sectors * ((cdb[2] & 0x10) ?
+				dev->se_sub_dev->se_dev_attrib.block_size : 512);
+		} else {
+			/* BYTE */
+			size = sectors;
+		}
+		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
+		break;
 	default:
 		pr_warn("TARGET_CORE[%s]: Unsupported SCSI Opcode"
 			" 0x%02x, sending CHECK_CONDITION.\n",
