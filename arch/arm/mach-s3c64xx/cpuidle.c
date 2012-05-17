@@ -51,33 +51,28 @@ static int s3c64xx_enter_idle(struct cpuidle_device *dev,
 	return index;
 }
 
-static struct cpuidle_state s3c64xx_cpuidle_set[] = {
-	[0] = {
-		.enter			= s3c64xx_enter_idle,
-		.exit_latency		= 1,
-		.target_residency	= 1,
-		.flags			= CPUIDLE_FLAG_TIME_VALID,
-		.name			= "IDLE",
-		.desc			= "System active, ARM gated",
-	},
-};
+static DEFINE_PER_CPU(struct cpuidle_device, s3c64xx_cpuidle_device);
 
 static struct cpuidle_driver s3c64xx_cpuidle_driver = {
-	.name		= "s3c64xx_cpuidle",
-	.owner		= THIS_MODULE,
-	.state_count	= ARRAY_SIZE(s3c64xx_cpuidle_set),
-};
-
-static struct cpuidle_device s3c64xx_cpuidle_device = {
-	.state_count	= ARRAY_SIZE(s3c64xx_cpuidle_set),
+	.name	= "s3c64xx_cpuidle",
+	.owner  = THIS_MODULE,
+	.states = {
+		{
+			.enter            = s3c64xx_enter_idle,
+			.exit_latency     = 1,
+			.target_residency = 1,
+			.flags            = CPUIDLE_FLAG_TIME_VALID,
+			.name             = "IDLE",
+			.desc             = "System active, ARM gated",
+		},
+	},
+	.state_count = 1,
 };
 
 static int __init s3c64xx_init_cpuidle(void)
 {
 	int ret;
 
-	memcpy(s3c64xx_cpuidle_driver.states, s3c64xx_cpuidle_set,
-	       sizeof(s3c64xx_cpuidle_set));
 	cpuidle_register_driver(&s3c64xx_cpuidle_driver);
 
 	ret = cpuidle_register_device(&s3c64xx_cpuidle_device);
