@@ -673,6 +673,7 @@ static void __init u8500_cryp1_hash1_init(struct device *parent)
 static struct platform_device *snowball_platform_devs[] __initdata = {
 	&snowball_led_dev,
 	&snowball_key_dev,
+	&snowball_sbnet_dev,
 	&ab8500_device,
 };
 
