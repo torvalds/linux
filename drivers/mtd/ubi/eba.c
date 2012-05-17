@@ -1217,7 +1217,7 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	int i, j, err, num_volumes;
 	struct ubi_scan_volume *sv;
 	struct ubi_volume *vol;
-	struct ubi_scan_leb *seb;
+	struct ubi_ainf_peb *seb;
 	struct rb_node *rb;
 
 	dbg_eba("initialize EBA sub-system");

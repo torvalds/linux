@@ -25,7 +25,7 @@
 #define UBI_SCAN_UNKNOWN_EC (-1)
 
 /**
- * struct ubi_scan_leb - scanning information about a physical eraseblock.
+ * struct ubi_ainf_peb - scanning information about a physical eraseblock.
  * @ec: erase counter (%UBI_SCAN_UNKNOWN_EC if it is unknown)
  * @pnum: physical eraseblock number
  * @lnum: logical eraseblock number
@@ -33,13 +33,13 @@
  * @copy_flag: this LEB is a copy (@copy_flag is set in VID header of this LEB)
  * @sqnum: sequence number
  * @u: unions RB-tree or @list links
- * @u.rb: link in the per-volume RB-tree of &struct ubi_scan_leb objects
+ * @u.rb: link in the per-volume RB-tree of &struct ubi_ainf_peb objects
  * @u.list: link in one of the eraseblock lists
  *
  * One object of this type is allocated for each physical eraseblock during
  * scanning.
  */
-struct ubi_scan_leb {
+struct ubi_ainf_peb {
 	int ec;
 	int pnum;
 	int lnum;
@@ -68,7 +68,7 @@ struct ubi_scan_leb {
  * @compat: compatibility flags of this volume
  * @rb: link in the volume RB-tree
  * @root: root of the RB-tree containing all the eraseblock belonging to this
- *        volume (&struct ubi_scan_leb objects)
+ *        volume (&struct ubi_ainf_peb objects)
  *
  * One object of this type is allocated for each volume during scanning.
  */
@@ -109,7 +109,7 @@ struct ubi_scan_volume {
  * @mean_ec: mean erase counter value
  * @ec_sum: a temporary variable used when calculating @mean_ec
  * @ec_count: a temporary variable used when calculating @mean_ec
- * @scan_leb_slab: slab cache for &struct ubi_scan_leb objects
+ * @scan_leb_slab: slab cache for &struct ubi_ainf_peb objects
  *
  * This data structure contains the result of scanning and may be used by other
  * UBI sub-systems to build final UBI data structures, further error-recovery
@@ -149,7 +149,7 @@ struct ubi_vid_hdr;
  * @list: the list to move to
  */
 static inline void ubi_scan_move_to_list(struct ubi_scan_volume *sv,
-					 struct ubi_scan_leb *seb,
+					 struct ubi_ainf_peb *seb,
 					 struct list_head *list)
 {
 		rb_erase(&seb->u.rb, &sv->root);
@@ -161,10 +161,10 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 		      int bitflips);
 struct ubi_scan_volume *ubi_scan_find_sv(const struct ubi_scan_info *si,
 					 int vol_id);
-struct ubi_scan_leb *ubi_scan_find_seb(const struct ubi_scan_volume *sv,
+struct ubi_ainf_peb *ubi_scan_find_seb(const struct ubi_scan_volume *sv,
 				       int lnum);
 void ubi_scan_rm_volume(struct ubi_scan_info *si, struct ubi_scan_volume *sv);
-struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
+struct ubi_ainf_peb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 					   struct ubi_scan_info *si);
 int ubi_scan_erase_peb(struct ubi_device *ubi, const struct ubi_scan_info *si,
 		       int pnum, int ec);

@@ -303,7 +303,7 @@ static int create_vtbl(struct ubi_device *ubi, struct ubi_scan_info *si,
 {
 	int err, tries = 0;
 	struct ubi_vid_hdr *vid_hdr;
-	struct ubi_scan_leb *new_seb;
+	struct ubi_ainf_peb *new_seb;
 
 	ubi_msg("create volume table (copy #%d)", copy + 1);
 
@@ -378,7 +378,7 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 {
 	int err;
 	struct rb_node *rb;
-	struct ubi_scan_leb *seb;
+	struct ubi_ainf_peb *seb;
 	struct ubi_vtbl_record *leb[UBI_LAYOUT_VOLUME_EBS] = { NULL, NULL };
 	int leb_corrupted[UBI_LAYOUT_VOLUME_EBS] = {1, 1};
 

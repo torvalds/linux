@@ -29,7 +29,7 @@
  * objects which are kept in volume RB-tree with root at the @volumes field.
  * The RB-tree is indexed by the volume ID.
  *
- * Scanned logical eraseblocks are represented by &struct ubi_scan_leb objects.
+ * Scanned logical eraseblocks are represented by &struct ubi_ainf_peb objects.
  * These objects are kept in per-volume RB-trees with the root at the
  * corresponding &struct ubi_scan_volume object. To put it differently, we keep
  * an RB-tree of per-volume objects and each of these objects is the root of
@@ -113,7 +113,7 @@ static struct ubi_vid_hdr *vidh;
 static int add_to_list(struct ubi_scan_info *si, int pnum, int ec, int to_head,
 		       struct list_head *list)
 {
-	struct ubi_scan_leb *seb;
+	struct ubi_ainf_peb *seb;
 
 	if (list == &si->free) {
 		dbg_bld("add to free: PEB %d, EC %d", pnum, ec);
@@ -150,7 +150,7 @@ static int add_to_list(struct ubi_scan_info *si, int pnum, int ec, int to_head,
  */
 static int add_corrupted(struct ubi_scan_info *si, int pnum, int ec)
 {
-	struct ubi_scan_leb *seb;
+	struct ubi_ainf_peb *seb;
 
 	dbg_bld("add to corrupted: PEB %d, EC %d", pnum, ec);
 
@@ -310,7 +310,7 @@ static struct ubi_scan_volume *add_volume(struct ubi_scan_info *si, int vol_id,
  *     o bit 2 is cleared: the older LEB is not corrupted;
  *     o bit 2 is set: the older LEB is corrupted.
  */
-static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
+static int compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *seb,
 			int pnum, const struct ubi_vid_hdr *vid_hdr)
 {
 	void *buf;
@@ -447,7 +447,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 	int err, vol_id, lnum;
 	unsigned long long sqnum;
 	struct ubi_scan_volume *sv;
-	struct ubi_scan_leb *seb;
+	struct ubi_ainf_peb *seb;
 	struct rb_node **p, *parent = NULL;
 
 	vol_id = be32_to_cpu(vid_hdr->vol_id);
@@ -473,7 +473,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 		int cmp_res;
 
 		parent = *p;
-		seb = rb_entry(parent, struct ubi_scan_leb, u.rb);
+		seb = rb_entry(parent, struct ubi_ainf_peb, u.rb);
 		if (lnum != seb->lnum) {
 			if (lnum < seb->lnum)
 				p = &(*p)->rb_left;
@@ -622,14 +622,14 @@ struct ubi_scan_volume *ubi_scan_find_sv(const struct ubi_scan_info *si,
  * This function returns a pointer to the scanning logical eraseblock or %NULL
  * if there are no data about it in the scanning volume information.
  */
-struct ubi_scan_leb *ubi_scan_find_seb(const struct ubi_scan_volume *sv,
+struct ubi_ainf_peb *ubi_scan_find_seb(const struct ubi_scan_volume *sv,
 				       int lnum)
 {
-	struct ubi_scan_leb *seb;
+	struct ubi_ainf_peb *seb;
 	struct rb_node *p = sv->root.rb_node;
 
 	while (p) {
-		seb = rb_entry(p, struct ubi_scan_leb, u.rb);
+		seb = rb_entry(p, struct ubi_ainf_peb, u.rb);
 
 		if (lnum == seb->lnum)
 			return seb;
@@ -651,12 +651,12 @@ struct ubi_scan_leb *ubi_scan_find_seb(const struct ubi_scan_volume *sv,
 void ubi_scan_rm_volume(struct ubi_scan_info *si, struct ubi_scan_volume *sv)
 {
 	struct rb_node *rb;
-	struct ubi_scan_leb *seb;
+	struct ubi_ainf_peb *seb;
 
 	dbg_bld("remove scanning information about volume %d", sv->vol_id);
 
 	while ((rb = rb_first(&sv->root))) {
-		seb = rb_entry(rb, struct ubi_scan_leb, u.rb);
+		seb = rb_entry(rb, struct ubi_ainf_peb, u.rb);
 		rb_erase(&seb->u.rb, &sv->root);
 		list_add_tail(&seb->u.list, &si->erase);
 	}
@@ -725,14 +725,14 @@ out_free:
  * This function returns scanning physical eraseblock information in case of
  * success and an error code in case of failure.
  */
-struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
+struct ubi_ainf_peb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 					   struct ubi_scan_info *si)
 {
 	int err = 0;
-	struct ubi_scan_leb *seb, *tmp_seb;
+	struct ubi_ainf_peb *seb, *tmp_seb;
 
 	if (!list_empty(&si->free)) {
-		seb = list_entry(si->free.next, struct ubi_scan_leb, u.list);
+		seb = list_entry(si->free.next, struct ubi_ainf_peb, u.list);
 		list_del(&seb->u.list);
 		dbg_bld("return free PEB %d, EC %d", seb->pnum, seb->ec);
 		return seb;
@@ -1075,7 +1075,7 @@ adjust_mean_ec:
  */
 static int check_what_we_have(struct ubi_device *ubi, struct ubi_scan_info *si)
 {
-	struct ubi_scan_leb *seb;
+	struct ubi_ainf_peb *seb;
 	int max_corr, peb_count;
 
 	peb_count = ubi->peb_count - si->bad_peb_count - si->alien_peb_count;
@@ -1148,7 +1148,7 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 	int err, pnum;
 	struct rb_node *rb1, *rb2;
 	struct ubi_scan_volume *sv;
-	struct ubi_scan_leb *seb;
+	struct ubi_ainf_peb *seb;
 	struct ubi_scan_info *si;
 
 	si = kzalloc(sizeof(struct ubi_scan_info), GFP_KERNEL);
@@ -1163,7 +1163,7 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 
 	err = -ENOMEM;
 	si->scan_leb_slab = kmem_cache_create("ubi_scan_leb_slab",
-					      sizeof(struct ubi_scan_leb),
+					      sizeof(struct ubi_ainf_peb),
 					      0, 0, NULL);
 	if (!si->scan_leb_slab)
 		goto out_si;
@@ -1246,7 +1246,7 @@ out_si:
  */
 static void destroy_sv(struct ubi_scan_info *si, struct ubi_scan_volume *sv)
 {
-	struct ubi_scan_leb *seb;
+	struct ubi_ainf_peb *seb;
 	struct rb_node *this = sv->root.rb_node;
 
 	while (this) {
@@ -1255,7 +1255,7 @@ static void destroy_sv(struct ubi_scan_info *si, struct ubi_scan_volume *sv)
 		else if (this->rb_right)
 			this = this->rb_right;
 		else {
-			seb = rb_entry(this, struct ubi_scan_leb, u.rb);
+			seb = rb_entry(this, struct ubi_ainf_peb, u.rb);
 			this = rb_parent(this);
 			if (this) {
 				if (this->rb_left == &seb->u.rb)
@@ -1276,7 +1276,7 @@ static void destroy_sv(struct ubi_scan_info *si, struct ubi_scan_volume *sv)
  */
 void ubi_scan_destroy_si(struct ubi_scan_info *si)
 {
-	struct ubi_scan_leb *seb, *seb_tmp;
+	struct ubi_ainf_peb *seb, *seb_tmp;
 	struct ubi_scan_volume *sv;
 	struct rb_node *rb;
 
@@ -1338,7 +1338,7 @@ static int self_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 	int pnum, err, vols_found = 0;
 	struct rb_node *rb1, *rb2;
 	struct ubi_scan_volume *sv;
-	struct ubi_scan_leb *seb, *last_seb;
+	struct ubi_ainf_peb *seb, *last_seb;
 	uint8_t *buf;
 
 	if (!ubi->dbg->chk_gen)

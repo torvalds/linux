@@ -1385,7 +1385,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	int err, i;
 	struct rb_node *rb1, *rb2;
 	struct ubi_scan_volume *sv;
-	struct ubi_scan_leb *seb, *tmp;
+	struct ubi_ainf_peb *seb, *tmp;
 	struct ubi_wl_entry *e;
 
 	ubi->used = ubi->erroneous = ubi->free = ubi->scrub = RB_ROOT;
