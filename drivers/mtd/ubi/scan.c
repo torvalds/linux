@@ -425,7 +425,7 @@ out_free_vidh:
 }
 
 /**
- * ubi_scan_add_used - add physical eraseblock to the attaching information.
+ * ubi_add_to_av - add physical eraseblock to the attaching information.
  * @ubi: UBI device description object
  * @ai: attaching information
  * @pnum: the physical eraseblock number
@@ -440,9 +440,8 @@ out_free_vidh:
  * to be picked, while the older one has to be dropped. This function returns
  * zero in case of success and a negative error code in case of failure.
  */
-int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *ai,
-		      int pnum, int ec, const struct ubi_vid_hdr *vid_hdr,
-		      int bitflips)
+int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
+		  int ec, const struct ubi_vid_hdr *vid_hdr, int bitflips)
 {
 	int err, vol_id, lnum;
 	unsigned long long sqnum;
@@ -1016,7 +1015,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	if (ec_err)
 		ubi_warn("valid VID header but corrupted EC header at PEB %d",
 			 pnum);
-	err = ubi_scan_add_used(ubi, ai, pnum, ec, vidh, bitflips);
+	err = ubi_add_to_av(ubi, ai, pnum, ec, vidh, bitflips);
 	if (err)
 		return err;
 

@@ -157,9 +157,8 @@ static inline void ubi_scan_move_to_list(struct ubi_ainf_volume *av,
 		list_add_tail(&aeb->u.list, list);
 }
 
-int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *ai,
-		      int pnum, int ec, const struct ubi_vid_hdr *vid_hdr,
-		      int bitflips);
+int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
+		  int ec, const struct ubi_vid_hdr *vid_hdr, int bitflips);
 struct ubi_ainf_volume *ubi_scan_find_av(const struct ubi_attach_info *ai,
 					 int vol_id);
 void ubi_scan_rm_volume(struct ubi_attach_info *ai, struct ubi_ainf_volume *av);

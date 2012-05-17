@@ -338,10 +338,9 @@ retry:
 
 	/*
 	 * And add it to the attaching information. Don't delete the old version
-	 * of this LEB as it will be deleted and freed in 'ubi_scan_add_used()'.
+	 * of this LEB as it will be deleted and freed in 'ubi_add_to_av()'.
 	 */
-	err = ubi_scan_add_used(ubi, ai, new_aeb->pnum, new_aeb->ec,
-				vid_hdr, 0);
+	err = ubi_add_to_av(ubi, ai, new_aeb->pnum, new_aeb->ec, vid_hdr, 0);
 	kfree(new_aeb);
 	ubi_free_vid_hdr(ubi, vid_hdr);
 	return err;
@@ -428,7 +427,7 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 			 * aeb->scrub). If the data is not OK, the contents of
 			 * the PEB will be recovered from the second copy, and
 			 * aeb->scrub will be cleared in
-			 * 'ubi_scan_add_used()'.
+			 * 'ubi_add_to_av()'.
 			 */
 			aeb->scrub = 1;
 		else if (err)
