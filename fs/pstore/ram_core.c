@@ -23,8 +23,8 @@
 #include <linux/rslib.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/pstore_ram.h>
 #include <asm/page.h>
-#include "persistent_ram.h"
 
 struct persistent_ram_buffer {
 	uint32_t    sig;
