@@ -109,7 +109,7 @@ static enum hrtimer_restart flash_off_func(struct hrtimer *timer);
 
 static struct  flash_timer flash_off_timer;
 //for user defined if user want to customize the series , zyc
-#if CONFIG_NT99250_USER_DEFINED_SERIES
+#ifdef CONFIG_NT99250_USER_DEFINED_SERIES
 #include "NT99250_user_series.c"
 #else
 /* init 352X288 SVGA */
@@ -1590,7 +1590,6 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FLASH);
 	if (qctrl)
         sensor->info_priv.flash = qctrl->default_value;
-	hrtimer_init(&(flash_off_timer.timer), CLOCK_MONOTONIC, HRTIMER_MODE_REL);
     flash_off_timer.icd = icd;
 	flash_off_timer.timer.function = flash_off_func;
     #endif
@@ -2868,6 +2867,7 @@ static int sensor_probe(struct i2c_client *client,
         kfree(sensor);
 		sensor = NULL;
     }
+	hrtimer_init(&(flash_off_timer.timer), CLOCK_MONOTONIC, HRTIMER_MODE_REL);
     SENSOR_DG("\n%s..%s..%d  ret = %x \n",__FUNCTION__,__FILE__,__LINE__,ret);
     return ret;
 }

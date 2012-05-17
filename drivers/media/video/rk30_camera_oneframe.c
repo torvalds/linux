@@ -38,7 +38,6 @@
 #include <mach/io.h>
 #include <plat/ipp.h>
 #include <mach/rk30_camera.h>
-#include <linux/regulator/machine.h>
 #include <mach/cru.h>
 #include <mach/pmu.h>
 
@@ -334,6 +333,8 @@ struct rk_camera_dev
 	rk29_camera_sensor_cb_s icd_cb;
 	struct rk_camera_frmivalinfo icd_frmival[2];
  //   atomic_t to_process_frames;
+    bool timer_get_fps;
+    struct videobuf_queue *video_vq;
 };
 
 static const struct v4l2_queryctrl rk_camera_controls[] =
@@ -356,34 +357,6 @@ static const char *rk_cam_driver_description = "RK_Camera";
 
 static int rk_camera_s_stream(struct soc_camera_device *icd, int enable);
 
-static void rk_cif_poweroff(struct rk_camera_dev *pcdev)
-{
-    struct regulator *ldo_18,*ldo_28;
-	ldo_28 = regulator_get(NULL, "ldo7");	// vcc28_cif
-	ldo_18 = regulator_get(NULL, "ldo1");	// vcc18_cif
-	
-	regulator_disable(ldo_28);
-	regulator_put(ldo_28);
-	regulator_disable(ldo_18);
-	regulator_put(ldo_18);
-	mdelay(500);
-}
-static void rk_cif_poweron(struct rk_camera_dev *pcdev)
-{
-    struct regulator *ldo_18,*ldo_28;
-	ldo_28 = regulator_get(NULL, "ldo7");	// vcc28_cif
-	ldo_18 = regulator_get(NULL, "ldo1");	// vcc18_cif
-	regulator_set_voltage(ldo_28, 2800000, 2800000);
-	regulator_enable(ldo_28);
-//	printk("%s set ldo7 vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo_28);
-
-	regulator_set_voltage(ldo_18, 1800000, 1800000);
-//	regulator_set_suspend_voltage(ldo, 1800000);
-	regulator_enable(ldo_18);
-//	printk("%s set ldo1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
-	regulator_put(ldo_18);
-}
 
 /*
  *  Videobuf operations
@@ -434,6 +407,7 @@ static int rk_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 			pcdev->camera_work_count = *count;
 		}
 	}
+    pcdev->video_vq = vq;
     RKCAMERA_DG("%s..%d.. videobuf size:%d, vipmem_buf size:%d, count:%d \n",__FUNCTION__,__LINE__, *size,pcdev->vipmem_size, *count);
 
     return 0;
@@ -1794,7 +1768,11 @@ static void rk_camera_reinit_work(struct work_struct *work)
 	struct rk_camera_work *camera_work = container_of(work, struct rk_camera_work, work);
 	struct rk_camera_dev *pcdev = camera_work->pcdev;
     struct videobuf_buffer	*tmp_vb;
-		sd = soc_camera_to_subdev(pcdev->icd);
+    struct soc_camera_link *tmp_soc_cam_link;
+    int index = 0;
+	unsigned long flags = 0;
+    sd = soc_camera_to_subdev(pcdev->icd);
+    tmp_soc_cam_link = to_soc_camera_link(pcdev->icd);
 	//dump regs
 	{
 		RKCAMERA_DG("CIF_CIF_CTRL = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_CTRL));
@@ -1814,19 +1792,35 @@ static void rk_camera_reinit_work(struct work_struct *work)
     	RKCAMERA_DG("CIF_CIF_FRM0_ADDR_UV = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRM0_ADDR_UV));
     	RKCAMERA_DG("CIF_CIF_FRAME_STATUS = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS));
 	}
+	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)&(~ENABLE_CAPTURE)));
+    #if 0
     while (!list_empty(&pcdev->capture)) {
-        printk("wake up video buffer!!!\n");
         tmp_vb = list_entry(pcdev->capture.next, struct videobuf_buffer, queue);
-    	if (tmp_vb && (tmp_vb->state == VIDEOBUF_QUEUED)) 
+    	if (tmp_vb/* && (tmp_vb->state == VIDEOBUF_QUEUED)*/) 
          {
-        	list_del_init(&(tmp_vb->queue));
+            printk("wake up video buffer index = %d ,state = %d, !!!\n",tmp_vb->i,tmp_vb->state);
             tmp_vb->state = VIDEOBUF_ERROR;
-
-    	    wake_up_all(&tmp_vb->done);
+        	list_del_init(&(tmp_vb->queue));
+    	    wake_up(&tmp_vb->done);
     	}
     }
-	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)&(~ENABLE_CAPTURE)));
-    rk_cif_poweroff(pcdev);
+    #else
+    	spin_lock_irqsave(pcdev->video_vq->irqlock, flags);
+    	for (index = 0; index < VIDEO_MAX_FRAME; index++) {
+    		if (NULL == pcdev->video_vq->bufs[index])
+    			continue;
+    		if (pcdev->video_vq->bufs[index]->state == VIDEOBUF_QUEUED) {
+    			list_del_init(&pcdev->video_vq->bufs[index]->queue);
+    			pcdev->video_vq->bufs[index]->state = VIDEOBUF_NEEDS_INIT;
+    			wake_up_all(&pcdev->video_vq->bufs[index]->done);
+                printk("wake up video buffer index = %d  !!!\n",index);
+    		}
+    	}
+    	spin_unlock_irqrestore(pcdev->video_vq->irqlock, flags);
+
+    #endif
+   // rk_cif_poweroff(pcdev);
+    tmp_soc_cam_link->power(pcdev->icd->pdev,0);
     if(IS_CIF0()){
    	//	write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)|MASK_RST_CIF0|RQUEST_RST_CIF0 ));
         
@@ -1834,7 +1828,7 @@ static void rk_camera_reinit_work(struct work_struct *work)
 
 		pmu_set_idle_request(IDLE_REQ_VIO, true);
 		cru_set_soft_reset(SOFT_RST_CIF0, true);
-		udelay(300);
+		udelay(50);
 		cru_set_soft_reset(SOFT_RST_CIF0, false);
 		pmu_set_idle_request(IDLE_REQ_VIO, false);
 
@@ -1845,13 +1839,14 @@ static void rk_camera_reinit_work(struct work_struct *work)
        // write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)&(~RQUEST_RST_CIF1)) | MASK_RST_CIF1);
 	 	pmu_set_idle_request(IDLE_REQ_VIO, true);
 		cru_set_soft_reset(SOFT_RST_CIF1, true);
-		udelay(300);
+		udelay(50);
 		cru_set_soft_reset(SOFT_RST_CIF1, false);
 		pmu_set_idle_request(IDLE_REQ_VIO, false);  
    
     }
-    rk_cif_poweron(pcdev);
-
+   // rk_cif_poweron(pcdev);
+    tmp_soc_cam_link->power(pcdev->icd->pdev,1);
+   #if 0
 	control = to_soc_camera_control(pcdev->icd);
 	sd = dev_get_drvdata(control);
 	ret = v4l2_subdev_call(sd,core, init, 1);
@@ -1864,9 +1859,7 @@ static void rk_camera_reinit_work(struct work_struct *work)
 	ret |= v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
 
 	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)|ENABLE_CAPTURE));
-
-
-
+    #endif
 	RKCAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor now! ret:0x%x\n",ret);
 }
 static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
@@ -1875,14 +1868,18 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
 	struct rk_camera_timer *fps_timer = container_of(timer, struct rk_camera_timer, timer);
 	struct rk_camera_dev *pcdev = fps_timer->pcdev;
     int rec_flag,i;
-    
+    static unsigned int last_fps = 0;
+    struct soc_camera_link *tmp_soc_cam_link;
+    tmp_soc_cam_link = to_soc_camera_link(pcdev->icd);
+
 	RKCAMERA_DG("rk_camera_fps_func fps:0x%x\n",pcdev->fps);
-	if (pcdev->fps < 2) {
+	if ((pcdev->fps < 2) || (last_fps == pcdev->fps)) {
 		RKCAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor delay!\n");
 		pcdev->camera_reinit_work.pcdev = pcdev;
-		INIT_WORK(&(pcdev->camera_reinit_work.work), rk_camera_reinit_work);
+		//INIT_WORK(&(pcdev->camera_reinit_work.work), rk_camera_reinit_work);
 		queue_work(pcdev->camera_wq,&(pcdev->camera_reinit_work.work));
-	} else {
+	} else if(!pcdev->timer_get_fps) {
+	    pcdev->timer_get_fps = true;
 	    for (i=0; i<2; i++) {
             if (pcdev->icd == pcdev->icd_frmival[i].icd) {
                 fival_nxt = pcdev->icd_frmival[i].fival_list;                
@@ -1942,8 +1939,10 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
             }
         }
 	}
-
-	return HRTIMER_NORESTART;
+    last_fps = pcdev->fps ;
+    pcdev->fps_timer.timer.node.expires= ktime_add_us(pcdev->fps_timer.timer.node.expires, ktime_to_us(ktime_set(2, 0)));
+	//return HRTIMER_NORESTART;
+    return HRTIMER_RESTART;
 }
 static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 {
@@ -1959,6 +1958,7 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 		pcdev->fps = 0;
 		hrtimer_cancel(&(pcdev->fps_timer.timer));
 		pcdev->fps_timer.pcdev = pcdev;
+        pcdev->timer_get_fps = false;
 //		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(3, 0),HRTIMER_MODE_REL);
 		cif_ctrl_val |= ENABLE_CAPTURE;
         	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);

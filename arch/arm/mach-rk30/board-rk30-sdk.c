@@ -41,6 +41,7 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <linux/fb.h>
+#include <linux/regulator/machine.h>
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -207,15 +208,43 @@
  * author: ddl@rock-chips.com
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK29
-#define CONFIG_SENSOR_POWER_IOCTL_USR	   0
+#define CONFIG_SENSOR_POWER_IOCTL_USR	   1 //define this refer to your board layout
 #define CONFIG_SENSOR_RESET_IOCTL_USR	   0
 #define CONFIG_SENSOR_POWERDOWN_IOCTL_USR	   0
 #define CONFIG_SENSOR_FLASH_IOCTL_USR	   0
 
+static void rk_cif_power(int on)
+{
+    struct regulator *ldo_18,*ldo_28;
+	ldo_28 = regulator_get(NULL, "ldo7");	// vcc28_cif
+	ldo_18 = regulator_get(NULL, "ldo1");	// vcc18_cif
+
+    if(on == 0){	
+    	regulator_disable(ldo_28);
+    	regulator_put(ldo_28);
+    	regulator_disable(ldo_18);
+    	regulator_put(ldo_18);
+    	mdelay(500);
+        }
+    else{
+    	regulator_set_voltage(ldo_28, 2800000, 2800000);
+    	regulator_enable(ldo_28);
+    //	printk("%s set ldo7 vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo_28));
+    	regulator_put(ldo_28);
+
+    	regulator_set_voltage(ldo_18, 1800000, 1800000);
+    //	regulator_set_suspend_voltage(ldo, 1800000);
+    	regulator_enable(ldo_18);
+    //	printk("%s set ldo1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
+    	regulator_put(ldo_18);
+        }
+}
+
 #if CONFIG_SENSOR_POWER_IOCTL_USR
 static int sensor_power_usr_cb (struct rk29camera_gpio_res *res,int on)
 {
-	#error "CONFIG_SENSOR_POWER_IOCTL_USR is 1, sensor_power_usr_cb function must be writed!!";
+	//#error "CONFIG_SENSOR_POWER_IOCTL_USR is 1, sensor_power_usr_cb function must be writed!!";
+    rk_cif_power(on);
 }
 #endif
 

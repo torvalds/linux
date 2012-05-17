@@ -122,7 +122,7 @@ static enum hrtimer_restart flash_off_func(struct hrtimer *timer);
 
 static struct  flash_timer flash_off_timer;
 //for user defined if user want to customize the series , zyc
-#if CONFIG_MT9T111_USER_DEFINED_SERIES
+#ifdef CONFIG_MT9T111_USER_DEFINED_SERIES
 #include "mt9t111_user_series.c"
 #else
 
@@ -6845,7 +6845,6 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	{
         	sensor->info_priv.flash = qctrl->default_value;
 	}
-	hrtimer_init(&(flash_off_timer.timer), CLOCK_MONOTONIC, HRTIMER_MODE_REL);
     flash_off_timer.icd = icd;
 	flash_off_timer.timer.function = flash_off_func;
     #endif
@@ -8427,6 +8426,7 @@ static int sensor_probe(struct i2c_client *client,
         kfree(sensor);
 		sensor = NULL;
     }
+	hrtimer_init(&(flash_off_timer.timer), CLOCK_MONOTONIC, HRTIMER_MODE_REL);
     SENSOR_DG("\n%s..%s..%d  ret = %x \n",__FUNCTION__,__FILE__,__LINE__,ret);
     return ret;
 }
