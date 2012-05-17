@@ -147,6 +147,18 @@ void bfin_deepsleep(unsigned long mask)
 			"idle;" \
 			: : \
 			);
+#ifdef CONFIG_BFIN_PM_WAKEUP_TIME_BENCH
+	__asm__ __volatile__(
+		"%0 = 0;"
+		"CYCLES = %0;"
+		"CYCLES2 = %0;"
+		"%0 = SYSCFG;"
+		"BITSET(%0, 1);"
+		"SYSCFG = %0;"
+		: "=d,a" (dpm0_ctl) :
+	);
+#endif
+
 }
 
 __attribute__((l1_text))

@@ -53,6 +53,16 @@
 #define PM_SYS_PUSH16(n, x)     _PM_PUSH(n, x, w, SYSMMR_BASE)
 #define PM_SYS_POP16(n, x)      _PM_POP(n, x, w, SYSMMR_BASE)
 
+	.macro bfin_init_pm_bench_cycles
+#ifdef CONFIG_BFIN_PM_WAKEUP_TIME_BENCH
+	R4 = 0;
+	CYCLES = R4;
+	CYCLES2 = R4;
+	R4 = SYSCFG;
+	BITSET(R4, 1);
+	SYSCFG = R4;
+#endif
+	.endm
 
 	.macro bfin_cpu_reg_save
 	/*
@@ -98,8 +108,10 @@
 	r7 = RETI;
 	[--sp] = RETS;
 	[--sp] = ASTAT;
+#ifndef CONFIG_BFIN_PM_WAKEUP_TIME_BENCH
 	[--sp] = CYCLES;
 	[--sp] = CYCLES2;
+#endif
 	[--sp] = SYSCFG;
 	[--sp] = RETX;
 	[--sp] = SEQSTAT;
@@ -115,8 +127,10 @@
 	SEQSTAT = [sp++];
 	RETX = [sp++];
 	SYSCFG = [sp++];
+#ifndef CONFIG_BFIN_PM_WAKEUP_TIME_BENCH
 	CYCLES2 = [sp++];
 	CYCLES = [sp++];
+#endif
 	ASTAT = [sp++];
 	RETS = [sp++];
 

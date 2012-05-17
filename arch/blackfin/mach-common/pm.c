@@ -247,9 +247,39 @@ static int bfin_pm_enter(suspend_state_t state)
 	return 0;
 }
 
+#ifdef CONFIG_BFIN_PM_WAKEUP_TIME_BENCH
+void bfin_pm_end(void)
+{
+	u32 cycle, cycle2;
+	u64 usec64;
+	u32 usec;
+
+	__asm__ __volatile__ (
+		"1: %0 = CYCLES2\n"
+		"%1 = CYCLES\n"
+		"%2 = CYCLES2\n"
+		"CC = %2 == %0\n"
+		"if ! CC jump 1b\n"
+		: "=d,a" (cycle2), "=d,a" (cycle), "=d,a" (usec) : : "CC"
+	);
+
+	usec64 = ((u64)cycle2 << 32) + cycle;
+	do_div(usec64, get_cclk() / USEC_PER_SEC);
+	usec = usec64;
+	if (usec == 0)
+		usec = 1;
+
+	pr_info("PM: resume of kernel completes after  %ld msec %03ld usec\n",
+		usec / USEC_PER_MSEC, usec % USEC_PER_MSEC);
+}
+#endif
+
 static const struct platform_suspend_ops bfin_pm_ops = {
 	.enter = bfin_pm_enter,
 	.valid	= bfin_pm_valid,
+#ifdef CONFIG_BFIN_PM_WAKEUP_TIME_BENCH
+	.end = bfin_pm_end,
+#endif
 };
 
 static int __init bfin_pm_init(void)

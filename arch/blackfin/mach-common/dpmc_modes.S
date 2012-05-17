@@ -42,6 +42,9 @@ ENTRY(_sleep_mode)
 	BITCLR (R7, 5);
 	w[p0] = R7.L;
 	IDLE;
+
+	bfin_init_pm_bench_cycles;
+
 	call _test_pll_locked;
 
 	RETS = [SP++];
@@ -74,6 +77,9 @@ ENTRY(_hibernate_mode)
 
 	/* Finally, we climb into our cave to hibernate */
 	W[P3] = R4.L;
+
+	bfin_init_pm_bench_cycles;
+
 	CLI R2;
 	IDLE;
 .Lforever:
@@ -157,6 +163,8 @@ ENTRY(_sleep_deeper)
 
 	SSYNC;
 	IDLE;
+
+	bfin_init_pm_bench_cycles;
 
 	call _test_pll_locked;
 

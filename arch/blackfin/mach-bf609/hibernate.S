@@ -24,6 +24,9 @@ ENTRY(_enter_hibernate)
 	P0.L = LO(DPM0_CTL);
 	R3.H = HI(0x00000010);
 	R3.L = LO(0x00000010);
+
+	bfin_init_pm_bench_cycles;
+
 	[P0] = R3;
 
 	SSYNC;
