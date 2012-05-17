@@ -40,9 +40,6 @@ struct rc5t583_regulator_info {
 	uint8_t			disc_bit;
 	uint8_t			deepsleep_reg;
 
-	/* Chip constraints on regulator behavior */
-	int			max_uV;
-
 	/* Regulator specific turn-on delay  and voltage settling time*/
 	int			enable_uv_per_us;
 	int			change_uv_per_us;
@@ -106,7 +103,6 @@ static struct regulator_ops rc5t583_ops = {
 	.reg_disc_reg	= RC5T583_REG_##_disc_reg,		\
 	.disc_bit	= _disc_bit,				\
 	.deepsleep_reg	= RC5T583_REG_##_id##DAC_DS,		\
-	.max_uV		= _max_mv * 1000,			\
 	.enable_uv_per_us = _enable_mv * 1000,			\
 	.change_uv_per_us = 40 * 1000,				\
 	.deepsleep_id	= RC5T583_DS_##_id,			\
