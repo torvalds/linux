@@ -329,6 +329,25 @@ void comedi_pci_driver_unregister(struct comedi_driver *, struct pci_driver *);
 	module_driver(__comedi_driver, comedi_pci_driver_register, \
 			comedi_pci_driver_unregister, &(__pci_driver))
 
+struct usb_driver;
+
+int comedi_usb_driver_register(struct comedi_driver *, struct usb_driver *);
+void comedi_usb_driver_unregister(struct comedi_driver *, struct usb_driver *);
+
+/**
+ * module_comedi_usb_driver() - Helper macro for registering a comedi USB driver
+ * @__comedi_driver: comedi_driver struct
+ * @__usb_driver: usb_driver struct
+ *
+ * Helper macro for comedi USB drivers which do not do anything special
+ * in module init/exit. This eliminates a lot of boilerplate. Each
+ * module may only use this macro once, and calling it replaces
+ * module_init() and module_exit()
+ */
+#define module_comedi_usb_driver(__comedi_driver, __usb_driver) \
+	module_driver(__comedi_driver, comedi_usb_driver_register, \
+			comedi_usb_driver_unregister, &(__usb_driver))
+
 void init_polling(void);
 void cleanup_polling(void);
 void start_polling(struct comedi_device *);
