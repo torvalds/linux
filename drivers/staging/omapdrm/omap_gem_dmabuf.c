@@ -50,6 +50,9 @@ static struct sg_table *omap_gem_map_dma_buf(
 	sg_set_page(sg->sgl, pfn_to_page(PFN_DOWN(paddr)), obj->size, 0);
 	sg_dma_address(sg->sgl) = paddr;
 
+	/* this should be after _get_paddr() to ensure we have pages attached */
+	omap_gem_dma_sync(obj, dir);
+
 out:
 	if (ret)
 		return ERR_PTR(ret);
@@ -104,6 +107,7 @@ static void *omap_gem_dmabuf_kmap_atomic(struct dma_buf *buffer,
 	struct drm_gem_object *obj = buffer->priv;
 	struct page **pages;
 	omap_gem_get_pages(obj, &pages, false);
+	omap_gem_cpu_sync(obj, page_num);
 	return kmap_atomic(pages[page_num]);
 }
 
@@ -119,6 +123,7 @@ static void *omap_gem_dmabuf_kmap(struct dma_buf *buffer,
 	struct drm_gem_object *obj = buffer->priv;
 	struct page **pages;
 	omap_gem_get_pages(obj, &pages, false);
+	omap_gem_cpu_sync(obj, page_num);
 	return kmap(pages[page_num]);
 }
 
@@ -131,6 +136,48 @@ static void omap_gem_dmabuf_kunmap(struct dma_buf *buffer,
 	kunmap(pages[page_num]);
 }
 
+/*
+ * TODO maybe we can split up drm_gem_mmap to avoid duplicating
+ * some here.. or at least have a drm_dmabuf_mmap helper.
+ */
+static int omap_gem_dmabuf_mmap(struct dma_buf *buffer,
+		struct vm_area_struct *vma)
+{
+	struct drm_gem_object *obj = buffer->priv;
+	int ret = 0;
+
+	if (WARN_ON(!obj->filp))
+		return -EINVAL;
+
+	/* Check for valid size. */
+	if (omap_gem_mmap_size(obj) < vma->vm_end - vma->vm_start) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (!obj->dev->driver->gem_vm_ops) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	vma->vm_flags |= VM_RESERVED | VM_IO | VM_PFNMAP | VM_DONTEXPAND;
+	vma->vm_ops = obj->dev->driver->gem_vm_ops;
+	vma->vm_private_data = obj;
+	vma->vm_page_prot =  pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
+
+	/* Take a ref for this mapping of the object, so that the fault
+	 * handler can dereference the mmap offset's pointer to the object.
+	 * This reference is cleaned up by the corresponding vm_close
+	 * (which should happen whether the vma was created by this call, or
+	 * by a vm_open due to mremap or partial unmap or whatever).
+	 */
+	vma->vm_ops->open(vma);
+
+out_unlock:
+
+	return omap_gem_mmap_obj(obj, vma);
+}
+
 struct dma_buf_ops omap_dmabuf_ops = {
 		.map_dma_buf = omap_gem_map_dma_buf,
 		.unmap_dma_buf = omap_gem_unmap_dma_buf,
@@ -141,6 +188,7 @@ struct dma_buf_ops omap_dmabuf_ops = {
 		.kunmap_atomic = omap_gem_dmabuf_kunmap_atomic,
 		.kmap = omap_gem_dmabuf_kmap,
 		.kunmap = omap_gem_dmabuf_kunmap,
+		.mmap = omap_gem_dmabuf_mmap,
 };
 
 struct dma_buf * omap_gem_prime_export(struct drm_device *dev,

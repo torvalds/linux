@@ -197,8 +197,11 @@ int omap_framebuffer_replace(struct drm_framebuffer *a,
 			pa->paddr = 0;
 		}
 
-		if (pb && !ret)
+		if (pb && !ret) {
 			ret = omap_gem_get_paddr(pb->bo, &pb->paddr, true);
+			if (!ret)
+				omap_gem_dma_sync(pb->bo, DMA_TO_DEVICE);
+		}
 	}
 
 	if (ret) {
