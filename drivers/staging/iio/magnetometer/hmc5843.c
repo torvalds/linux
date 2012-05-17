@@ -343,12 +343,13 @@ static s32 hmc5843_set_rate(struct i2c_client *client,
 	struct hmc5843_data *data = iio_priv(indio_dev);
 	u8 reg_val;
 
-	reg_val = (data->meas_conf) |  (rate << HMC5843_RATE_OFFSET);
 	if (rate >= HMC5843_RATE_NOT_USED) {
 		dev_err(&client->dev,
 			"data output rate is not supported\n");
 		return -EINVAL;
 	}
+
+	reg_val = data->meas_conf | (rate << HMC5843_RATE_OFFSET);
 	return i2c_smbus_write_byte_data(client, HMC5843_CONFIG_REG_A, reg_val);
 }
 
