@@ -146,7 +146,7 @@ struct ubi_vid_hdr;
  * ubi_move_aeb_to_list - move a PEB from the volume tree to a list.
  *
  * @av: volume attaching information
- * @aeb: scanning eraseblock information
+ * @aeb: attaching eraseblock information
  * @list: the list to move to
  */
 static inline void ubi_move_aeb_to_list(struct ubi_ainf_volume *av,

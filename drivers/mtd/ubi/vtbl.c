@@ -37,16 +37,15 @@
  * LEB 1. This scheme guarantees recoverability from unclean reboots.
  *
  * In this UBI implementation the on-flash volume table does not contain any
- * information about how many data static volumes contain. This information may
- * be found from the scanning data.
+ * information about how much data static volumes contain.
  *
  * But it would still be beneficial to store this information in the volume
  * table. For example, suppose we have a static volume X, and all its physical
  * eraseblocks became bad for some reasons. Suppose we are attaching the
- * corresponding MTD device, the scanning has found no logical eraseblocks
+ * corresponding MTD device, for some reason we find no logical eraseblocks
  * corresponding to the volume X. According to the volume table volume X does
  * exist. So we don't know whether it is just empty or all its physical
- * eraseblocks went bad. So we cannot alarm the user about this corruption.
+ * eraseblocks went bad. So we cannot alarm the user properly.
  *
  * The volume table also stores so-called "update marker", which is used for
  * volume updates. Before updating the volume, the update marker is set, and
@@ -702,16 +701,16 @@ bad:
 }
 
 /**
- * check_scanning_info - check that attaching information.
+ * check_attaching_info - check that attaching information.
  * @ubi: UBI device description object
  * @ai: attaching information
  *
  * Even though we protect on-flash data by CRC checksums, we still don't trust
  * the media. This function ensures that attaching information is consistent to
- * the information read from the volume table. Returns zero if the scanning
+ * the information read from the volume table. Returns zero if the attaching
  * information is OK and %-EINVAL if it is not.
  */
-static int check_scanning_info(const struct ubi_device *ubi,
+static int check_attaching_info(const struct ubi_device *ubi,
 			       struct ubi_attach_info *ai)
 {
 	int err, i;
@@ -719,15 +718,14 @@ static int check_scanning_info(const struct ubi_device *ubi,
 	struct ubi_volume *vol;
 
 	if (ai->vols_found > UBI_INT_VOL_COUNT + ubi->vtbl_slots) {
-		ubi_err("scanning found %d volumes, maximum is %d + %d",
+		ubi_err("found %d volumes while attaching, maximum is %d + %d",
 			ai->vols_found, UBI_INT_VOL_COUNT, ubi->vtbl_slots);
 		return -EINVAL;
 	}
 
 	if (ai->highest_vol_id >= ubi->vtbl_slots + UBI_INT_VOL_COUNT &&
 	    ai->highest_vol_id < UBI_INTERNAL_VOL_START) {
-		ubi_err("too large volume ID %d found by scanning",
-			ai->highest_vol_id);
+		ubi_err("too large volume ID %d found", ai->highest_vol_id);
 		return -EINVAL;
 	}
 
@@ -749,7 +747,7 @@ static int check_scanning_info(const struct ubi_device *ubi,
 				continue;
 
 			/*
-			 * During scanning we found a volume which does not
+			 * During attaching we found a volume which does not
 			 * exist according to the information in the volume
 			 * table. This must have happened due to an unclean
 			 * reboot while the volume was being removed. Discard
@@ -839,7 +837,7 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	 * Make sure that the attaching information is consistent to the
 	 * information stored in the volume table.
 	 */
-	err = check_scanning_info(ubi, ai);
+	err = check_attaching_info(ubi, ai);
 	if (err)
 		goto out_free;
 

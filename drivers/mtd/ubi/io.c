@@ -513,8 +513,7 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	 * It is important to first invalidate the EC header, and then the VID
 	 * header. Otherwise a power cut may lead to valid EC header and
 	 * invalid VID header, in which case UBI will treat this PEB as
-	 * corrupted and will try to preserve it, and print scary warnings (see
-	 * the header comment in scan.c for more information).
+	 * corrupted and will try to preserve it, and print scary warnings.
 	 */
 	addr = (loff_t)pnum * ubi->peb_size;
 	err = mtd_write(ubi->mtd, addr, 4, &written, (void *)&data);

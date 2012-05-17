@@ -27,10 +27,6 @@
  * module load parameters or the kernel boot parameters. If MTD devices were
  * specified, UBI does not attach any MTD device, but it is possible to do
  * later using the "UBI control device".
- *
- * At the moment we only attach UBI devices by scanning, which will become a
- * bottleneck when flashes reach certain large size. Then one may improve UBI
- * and add other methods, although it does not seem to be easy to do.
  */
 
 #include <linux/err.h>
@@ -790,11 +786,11 @@ static int io_init(struct ubi_device *ubi)
 	ubi_msg("data offset:                %d", ubi->leb_start);
 
 	/*
-	 * Note, ideally, we have to initialize ubi->bad_peb_count here. But
+	 * Note, ideally, we have to initialize @ubi->bad_peb_count here. But
 	 * unfortunately, MTD does not provide this information. We should loop
 	 * over all physical eraseblocks and invoke mtd->block_is_bad() for
-	 * each physical eraseblock. So, we skip ubi->bad_peb_count
-	 * uninitialized and initialize it after scanning.
+	 * each physical eraseblock. So, we leave @ubi->bad_peb_count
+	 * uninitialized so far.
 	 */
 
 	return 0;
@@ -805,7 +801,7 @@ static int io_init(struct ubi_device *ubi)
  * @ubi: UBI device description object
  * @vol_id: ID of the volume to re-size
  *
- * This function re-sizes the volume marked by the @UBI_VTBL_AUTORESIZE_FLG in
+ * This function re-sizes the volume marked by the %UBI_VTBL_AUTORESIZE_FLG in
  * the volume table to the largest possible size. See comments in ubi-header.h
  * for more description of the flag. Returns zero in case of success and a
  * negative error code in case of failure.

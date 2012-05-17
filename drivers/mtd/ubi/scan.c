@@ -19,21 +19,21 @@
  */
 
 /*
- * UBI scanning sub-system.
+ * UBI attaching sub-system.
  *
- * This sub-system is responsible for scanning the flash media, checking UBI
- * headers and providing complete information about the UBI flash image.
+ * This sub-system is responsible for attaching MTD devices and it also
+ * implements flash media scanning.
  *
  * The attaching information is represented by a &struct ubi_attach_info'
- * object. Information about found volumes is represented by
- * &struct ubi_ainf_volume objects which are kept in volume RB-tree with root
- * at the @volumes field. The RB-tree is indexed by the volume ID.
+ * object. Information about volumes is represented by &struct ubi_ainf_volume
+ * objects which are kept in volume RB-tree with root at the @volumes field.
+ * The RB-tree is indexed by the volume ID.
  *
- * Scanned logical eraseblocks are represented by &struct ubi_ainf_peb objects.
- * These objects are kept in per-volume RB-trees with the root at the
- * corresponding &struct ubi_ainf_volume object. To put it differently, we keep
- * an RB-tree of per-volume objects and each of these objects is the root of
- * RB-tree of per-eraseblock objects.
+ * Logical eraseblocks are represented by &struct ubi_ainf_peb objects. These
+ * objects are kept in per-volume RB-trees with the root at the corresponding
+ * &struct ubi_ainf_volume object. To put it differently, we keep an RB-tree of
+ * per-volume objects and each of these objects is the root of RB-tree of
+ * per-LEB objects.
  *
  * Corrupted physical eraseblocks are put to the @corr list, free physical
  * eraseblocks are put to the @free list and the physical eraseblock to be
@@ -51,28 +51,29 @@
  *
  * 1. Corruptions caused by power cuts. These are expected corruptions and UBI
  * tries to handle them gracefully, without printing too many warnings and
- * error messages. The idea is that we do not lose important data in these case
- * - we may lose only the data which was being written to the media just before
- * the power cut happened, and the upper layers (e.g., UBIFS) are supposed to
- * handle such data losses (e.g., by using the FS journal).
+ * error messages. The idea is that we do not lose important data in these
+ * cases - we may lose only the data which were being written to the media just
+ * before the power cut happened, and the upper layers (e.g., UBIFS) are
+ * supposed to handle such data losses (e.g., by using the FS journal).
  *
  * When UBI detects a corruption (CRC-32 mismatch) in a PEB, and it looks like
  * the reason is a power cut, UBI puts this PEB to the @erase list, and all
  * PEBs in the @erase list are scheduled for erasure later.
  *
  * 2. Unexpected corruptions which are not caused by power cuts. During
- * scanning, such PEBs are put to the @corr list and UBI preserves them.
+ * attaching, such PEBs are put to the @corr list and UBI preserves them.
  * Obviously, this lessens the amount of available PEBs, and if at some  point
  * UBI runs out of free PEBs, it switches to R/O mode. UBI also loudly informs
  * about such PEBs every time the MTD device is attached.
  *
  * However, it is difficult to reliably distinguish between these types of
- * corruptions and UBI's strategy is as follows. UBI assumes corruption type 2
- * if the VID header is corrupted and the data area does not contain all 0xFFs,
- * and there were no bit-flips or integrity errors while reading the data area.
- * Otherwise UBI assumes corruption type 1. So the decision criteria are as
- * follows.
- *   o If the data area contains only 0xFFs, there is no data, and it is safe
+ * corruptions and UBI's strategy is as follows (in case of attaching by
+ * scanning). UBI assumes corruption type 2 if the VID header is corrupted and
+ * the data area does not contain all 0xFFs, and there were no bit-flips or
+ * integrity errors (e.g., ECC errors in case of NAND) while reading the data
+ * area.  Otherwise UBI assumes corruption type 1. So the decision criteria
+ * are as follows.
+ *   o If the data area contains only 0xFFs, there are no data, and it is safe
  *     to just erase this PEB - this is corruption type 1.
  *   o If the data area has bit-flips or data integrity errors (ECC errors on
  *     NAND), it is probably a PEB which was being erased when power cut
@@ -102,7 +103,8 @@ static struct ubi_vid_hdr *vidh;
  * @to_head: if not zero, add to the head of the list
  * @list: the list to add to
  *
- * This function adds physical eraseblock @pnum to free, erase, or alien lists.
+ * This function allocates a 'struct ubi_ainf_peb' object for physical
+ * eraseblock @pnum and adds it to the "free", "erase", or "alien" lists.
  * If @to_head is not zero, PEB will be added to the head of the list, which
  * basically means it will be processed first later. E.g., we add corrupted
  * PEBs (corrupted due to power cuts) to the head of the erase list to make
@@ -144,9 +146,10 @@ static int add_to_list(struct ubi_attach_info *ai, int pnum, int ec,
  * @pnum: physical eraseblock number to add
  * @ec: erase counter of the physical eraseblock
  *
- * This function adds corrupted physical eraseblock @pnum to the 'corr' list.
- * The corruption was presumably not caused by a power cut. Returns zero in
- * case of success and a negative error code in case of failure.
+ * This function allocates a 'struct ubi_ainf_peb' object for a corrupted
+ * physical eraseblock @pnum and adds it to the 'corr' list.  The corruption
+ * was presumably not caused by a power cut. Returns zero in case of success
+ * and a negative error code in case of failure.
  */
 static int add_corrupted(struct ubi_attach_info *ai, int pnum, int ec)
 {
@@ -241,8 +244,8 @@ bad:
  * If the volume corresponding to the @vid_hdr logical eraseblock is already
  * present in the attaching information, this function does nothing. Otherwise
  * it adds corresponding volume to the attaching information. Returns a pointer
- * to the scanning volume object in case of success and a negative error code
- * in case of failure.
+ * to the allocated "av" object in case of success and a negative error code in
+ * case of failure.
  */
 static struct ubi_ainf_volume *add_volume(struct ubi_attach_info *ai,
 					  int vol_id, int pnum,
@@ -425,7 +428,7 @@ out_free_vidh:
 }
 
 /**
- * ubi_add_to_av - add physical eraseblock to the attaching information.
+ * ubi_add_to_av - add used physical eraseblock to the attaching information.
  * @ubi: UBI device description object
  * @ai: attaching information
  * @pnum: the physical eraseblock number
@@ -692,8 +695,8 @@ out_free:
  * the lists, writes the EC header if it is needed, and removes it from the
  * list.
  *
- * This function returns scanning physical eraseblock information in case of
- * success and an error code in case of failure.
+ * This function returns a pointer to the "aeb" of the found free PEB in case
+ * of success and an error code in case of failure.
  */
 struct ubi_ainf_peb *ubi_early_get_peb(struct ubi_device *ubi,
 				       struct ubi_attach_info *ai)
@@ -793,16 +796,18 @@ out_unlock:
 }
 
 /**
- * process_eb - read, check UBI headers, and add them to attaching information.
+ * scan_peb - scan and process UBI headers of a PEB.
  * @ubi: UBI device description object
  * @ai: attaching information
  * @pnum: the physical eraseblock number
  *
- * This function returns a zero if the physical eraseblock was successfully
- * handled and a negative error code in case of failure.
+ * This function reads UBI headers of PEB @pnum, checks them, and adds
+ * information about this PEB to the corresponding list or RB-tree in the
+ * "attaching info" structure. Returns zero if the physical eraseblock was
+ * successfully handled and a negative error code in case of failure.
  */
-static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *ai,
-		      int pnum)
+static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
+		    int pnum)
 {
 	long long uninitialized_var(ec);
 	int err, bitflips = 0, vol_id, ec_err = 0;
@@ -814,11 +819,6 @@ static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	if (err < 0)
 		return err;
 	else if (err) {
-		/*
-		 * FIXME: this is actually duty of the I/O sub-system to
-		 * initialize this, but MTD does not provide enough
-		 * information.
-		 */
 		ai->bad_peb_count += 1;
 		return 0;
 	}
@@ -1033,18 +1033,17 @@ adjust_mean_ec:
 }
 
 /**
- * check_what_we_have - check what PEB were found by scanning.
+ * late_analysis - analyze the overall situation with PEB.
  * @ubi: UBI device description object
  * @ai: attaching information
  *
- * This is a helper function which takes a look what PEBs were found by
- * scanning, and decides whether the flash is empty and should be formatted and
- * whether there are too many corrupted PEBs and we should not attach this
- * MTD device. Returns zero if we should proceed with attaching the MTD device,
- * and %-EINVAL if we should not.
+ * This is a helper function which takes a look what PEBs we have after we
+ * gather information about all of them ("ai" is compete). It decides whether
+ * the flash is empty and should be formatted of whether there are too many
+ * corrupted PEBs and we should not attach this MTD device. Returns zero if we
+ * should proceed with attaching the MTD device, and %-EINVAL if we should not.
  */
-static int check_what_we_have(struct ubi_device *ubi,
-			      struct ubi_attach_info *ai)
+static int late_analysis(struct ubi_device *ubi, struct ubi_attach_info *ai)
 {
 	struct ubi_ainf_peb *aeb;
 	int max_corr, peb_count;
@@ -1112,7 +1111,8 @@ static int check_what_we_have(struct ubi_device *ubi,
  * @ubi: UBI device description object
  *
  * This function does full scanning of an MTD device and returns complete
- * information about it. In case of failure, an error code is returned.
+ * information about it in form of a "struct ubi_attach_info" object. In case
+ * of failure, an error code is returned.
  */
 struct ubi_attach_info *ubi_scan(struct ubi_device *ubi)
 {
@@ -1151,7 +1151,7 @@ struct ubi_attach_info *ubi_scan(struct ubi_device *ubi)
 		cond_resched();
 
 		dbg_gen("process PEB %d", pnum);
-		err = process_eb(ubi, ai, pnum);
+		err = scan_peb(ubi, ai, pnum);
 		if (err < 0)
 			goto out_vidh;
 	}
@@ -1162,7 +1162,7 @@ struct ubi_attach_info *ubi_scan(struct ubi_device *ubi)
 	if (ai->ec_count)
 		ai->mean_ec = div_u64(ai->ec_sum, ai->ec_count);
 
-	err = check_what_we_have(ubi, ai);
+	err = late_analysis(ubi, ai);
 	if (err)
 		goto out_vidh;
 
@@ -1208,12 +1208,11 @@ out_ai:
 }
 
 /**
- * destroy_av - free the scanning volume information
- * @av: scanning volume information
+ * destroy_av - free volume attaching information.
+ * @av: volume attaching information
  * @ai: attaching information
  *
- * This function destroys the volume RB-tree (@av->root) and the scanning
- * volume information.
+ * This function destroys the volume attaching information.
  */
 static void destroy_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av)
 {
