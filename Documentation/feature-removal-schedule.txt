@@ -574,6 +574,13 @@ Why:	Remount currently allows changing bound subsystems and
 
 ----------------------------
 
+What:  xt_recent rev 0
+When:  2013
+Who:   Pablo Neira Ayuso <pablo@netfilter.org>
+Files: net/netfilter/xt_recent.c
+
+----------------------------
+
 What:	KVM debugfs statistics
 When:	2013
 Why:	KVM tracepoints provide mostly equivalent information in a much more
