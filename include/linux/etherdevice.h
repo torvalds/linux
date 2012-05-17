@@ -18,8 +18,6 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  *
- *	WARNING: This move may well be temporary. This file will get merged with others RSN.
- *
  */
 #ifndef _LINUX_ETHERDEVICE_H
 #define _LINUX_ETHERDEVICE_H
@@ -159,7 +157,7 @@ static inline void eth_hw_addr_random(struct net_device *dev)
  * @addr1: Pointer to a six-byte array containing the Ethernet address
  * @addr2: Pointer other six-byte array containing the Ethernet address
  *
- * Compare two ethernet addresses, returns 0 if equal, non-zero otherwise.
+ * Compare two Ethernet addresses, returns 0 if equal, non-zero otherwise.
  * Unlike memcmp(), it doesn't return a value suitable for sorting.
  */
 static inline unsigned compare_ether_addr(const u8 *addr1, const u8 *addr2)
@@ -176,7 +174,7 @@ static inline unsigned compare_ether_addr(const u8 *addr1, const u8 *addr2)
  * @addr1: Pointer to a six-byte array containing the Ethernet address
  * @addr2: Pointer other six-byte array containing the Ethernet address
  *
- * Compare two ethernet addresses, returns true if equal
+ * Compare two Ethernet addresses, returns true if equal
  */
 static inline bool ether_addr_equal(const u8 *addr1, const u8 *addr2)
 {
@@ -197,13 +195,13 @@ static inline unsigned long zap_last_2bytes(unsigned long value)
  * @addr1: Pointer to an array of 8 bytes
  * @addr2: Pointer to an other array of 8 bytes
  *
- * Compare two ethernet addresses, returns true if equal, false otherwise.
+ * Compare two Ethernet addresses, returns true if equal, false otherwise.
  *
  * The function doesn't need any conditional branches and possibly uses
  * word memory accesses on CPU allowing cheap unaligned memory reads.
- * arrays = { byte1, byte2, byte3, byte4, byte6, byte7, pad1, pad2}
+ * arrays = { byte1, byte2, byte3, byte4, byte5, byte6, pad1, pad2 }
  *
- * Please note that alignment of addr1 & addr2 is only guaranted to be 16 bits.
+ * Please note that alignment of addr1 & addr2 are only guaranteed to be 16 bits.
  */
 
 static inline bool ether_addr_equal_64bits(const u8 addr1[6+2],
@@ -257,7 +255,7 @@ static inline bool is_etherdev_addr(const struct net_device *dev,
  * @a: Pointer to Ethernet header
  * @b: Pointer to Ethernet header
  *
- * Compare two ethernet headers, returns 0 if equal.
+ * Compare two Ethernet headers, returns 0 if equal.
  * This assumes that the network header (i.e., IP header) is 4-byte
  * aligned OR the platform can handle unaligned access.  This is the
  * case for all packets coming into netif_receive_skb or similar
