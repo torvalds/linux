@@ -282,6 +282,8 @@ static int omap_mbox_startup(struct omap_mbox *mbox)
 		}
 		mbox->rxq = mq;
 		mq->mbox = mbox;
+
+		omap_mbox_enable_irq(mbox, IRQ_RX);
 	}
 	mutex_unlock(&mbox_configured_lock);
 	return 0;
@@ -305,6 +307,7 @@ static void omap_mbox_fini(struct omap_mbox *mbox)
 	mutex_lock(&mbox_configured_lock);
 
 	if (!--mbox->use_count) {
+		omap_mbox_disable_irq(mbox, IRQ_RX);
 		free_irq(mbox->irq, mbox);
 		tasklet_kill(&mbox->txq->tasklet);
 		flush_work_sync(&mbox->rxq->work);
@@ -338,12 +341,14 @@ struct omap_mbox *omap_mbox_get(const char *name, struct notifier_block *nb)
 	if (!mbox)
 		return ERR_PTR(-ENOENT);
 
-	ret = omap_mbox_startup(mbox);
-	if (ret)
-		return ERR_PTR(-ENODEV);
-
 	if (nb)
 		blocking_notifier_chain_register(&mbox->notifier, nb);
+
+	ret = omap_mbox_startup(mbox);
+	if (ret) {
+		blocking_notifier_chain_unregister(&mbox->notifier, nb);
+		return ERR_PTR(-ENODEV);
+	}
 
 	return mbox;
 }
