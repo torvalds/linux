@@ -38,19 +38,9 @@ struct max8925_regulator_info {
 	struct i2c_client	*i2c;
 	struct max8925_chip	*chip;
 
-	int	max_uV;
 	int	vol_reg;
 	int	enable_reg;
 };
-
-static inline int check_range(struct max8925_regulator_info *info,
-			      int min_uV, int max_uV)
-{
-	if (min_uV < info->desc.min_uV || min_uV > info->max_uV)
-		return -EINVAL;
-
-	return 0;
-}
 
 static int max8925_set_voltage_sel(struct regulator_dev *rdev,
 				   unsigned int selector)
@@ -177,7 +167,6 @@ static struct regulator_ops max8925_regulator_ldo_ops = {
 		.min_uV = min * 1000,				\
 		.uV_step = step * 1000,				\
 	},							\
-	.max_uV		= max * 1000,				\
 	.vol_reg	= MAX8925_SDV##_id,			\
 	.enable_reg	= MAX8925_SDCTL##_id,			\
 }
@@ -194,7 +183,6 @@ static struct regulator_ops max8925_regulator_ldo_ops = {
 		.min_uV = min * 1000,				\
 		.uV_step = step * 1000,				\
 	},							\
-	.max_uV		= max * 1000,				\
 	.vol_reg	= MAX8925_LDOVOUT##_id,			\
 	.enable_reg	= MAX8925_LDOCTL##_id,			\
 }
