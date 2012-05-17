@@ -294,6 +294,7 @@ struct rk_camera_dev
 	struct soc_camera_device *icd;
 
 	//************must modify start************/
+	struct clk *pd_cif;
 	struct clk *aclk_cif;
     struct clk *hclk_cif;
     struct clk *cif_clk_in;
@@ -334,6 +335,7 @@ struct rk_camera_dev
 	struct rk_camera_frmivalinfo icd_frmival[2];
  //   atomic_t to_process_frames;
     bool timer_get_fps;
+    unsigned int reinit_times; 
     struct videobuf_queue *video_vq;
 };
 
@@ -797,7 +799,8 @@ static int rk_camera_activate(struct rk_camera_dev *pcdev, struct soc_camera_dev
         err = -ENOENT;
         goto RK_CAMERA_ACTIVE_ERR;
         }
-    
+
+	clk_enable(pcdev->pd_cif);
 	clk_enable(pcdev->aclk_cif);
 
 	clk_enable(pcdev->hclk_cif);
@@ -860,6 +863,7 @@ static void rk_camera_deactivate(struct rk_camera_dev *pcdev)
 	clk_disable(pcdev->hclk_cif);
 	clk_disable(pcdev->cif_clk_in);
 	clk_disable(pcdev->cif_clk_out);
+	clk_disable(pcdev->pd_cif);
     return;
 }
 
@@ -1793,73 +1797,76 @@ static void rk_camera_reinit_work(struct work_struct *work)
     	RKCAMERA_DG("CIF_CIF_FRAME_STATUS = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS));
 	}
 	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)&(~ENABLE_CAPTURE)));
-    #if 0
-    while (!list_empty(&pcdev->capture)) {
-        tmp_vb = list_entry(pcdev->capture.next, struct videobuf_buffer, queue);
-    	if (tmp_vb/* && (tmp_vb->state == VIDEOBUF_QUEUED)*/) 
-         {
-            printk("wake up video buffer index = %d ,state = %d, !!!\n",tmp_vb->i,tmp_vb->state);
-            tmp_vb->state = VIDEOBUF_ERROR;
-        	list_del_init(&(tmp_vb->queue));
-    	    wake_up(&tmp_vb->done);
-    	}
-    }
-    #else
-    	spin_lock_irqsave(pcdev->video_vq->irqlock, flags);
-    	for (index = 0; index < VIDEO_MAX_FRAME; index++) {
-    		if (NULL == pcdev->video_vq->bufs[index])
-    			continue;
-    		if (pcdev->video_vq->bufs[index]->state == VIDEOBUF_QUEUED) {
-    			list_del_init(&pcdev->video_vq->bufs[index]->queue);
-    			pcdev->video_vq->bufs[index]->state = VIDEOBUF_NEEDS_INIT;
-    			wake_up_all(&pcdev->video_vq->bufs[index]->done);
-                printk("wake up video buffer index = %d  !!!\n",index);
-    		}
-    	}
-    	spin_unlock_irqrestore(pcdev->video_vq->irqlock, flags);
+    if(pcdev->reinit_times++ > 0)  
+        {
+        	RKCAMERA_DG("the reinit times = %d\n",pcdev->reinit_times);
+            #if 0
+            while (!list_empty(&pcdev->capture)) {
+                tmp_vb = list_entry(pcdev->capture.next, struct videobuf_buffer, queue);
+            	if (tmp_vb/* && (tmp_vb->state == VIDEOBUF_QUEUED)*/) 
+                 {
+                    printk("wake up video buffer index = %d ,state = %d, !!!\n",tmp_vb->i,tmp_vb->state);
+                    tmp_vb->state = VIDEOBUF_ERROR;
+                	list_del_init(&(tmp_vb->queue));
+            	    wake_up(&tmp_vb->done);
+            	}
+            }
+            #else
+            	spin_lock_irqsave(pcdev->video_vq->irqlock, flags);
+            	for (index = 0; index < VIDEO_MAX_FRAME; index++) {
+            		if (NULL == pcdev->video_vq->bufs[index])
+            			continue;
+            		if (pcdev->video_vq->bufs[index]->state == VIDEOBUF_QUEUED) {
+            			list_del_init(&pcdev->video_vq->bufs[index]->queue);
+            			pcdev->video_vq->bufs[index]->state = VIDEOBUF_NEEDS_INIT;
+            			wake_up_all(&pcdev->video_vq->bufs[index]->done);
+                        printk("wake up video buffer index = %d  !!!\n",index);
+            		}
+            	}
+            	spin_unlock_irqrestore(pcdev->video_vq->irqlock, flags);
+            
+            #endif
+        }else{ //the first time,just reinit sensor ,don't wake up vb
+           // rk_cif_poweroff(pcdev);
+        	RKCAMERA_DG("first time to reinit\n");
+            tmp_soc_cam_link->power(pcdev->icd->pdev,0);
+            if(IS_CIF0()){
+           	//	write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)|MASK_RST_CIF0|RQUEST_RST_CIF0 ));
+                
+          	//	write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)&(~RQUEST_RST_CIF0)) | MASK_RST_CIF0);
 
-    #endif
-   // rk_cif_poweroff(pcdev);
-    tmp_soc_cam_link->power(pcdev->icd->pdev,0);
-    if(IS_CIF0()){
-   	//	write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)|MASK_RST_CIF0|RQUEST_RST_CIF0 ));
-        
-  	//	write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)&(~RQUEST_RST_CIF0)) | MASK_RST_CIF0);
+        		pmu_set_idle_request(IDLE_REQ_VIO, true);
+        		cru_set_soft_reset(SOFT_RST_CIF0, true);
+        		udelay(50);
+        		cru_set_soft_reset(SOFT_RST_CIF0, false);
+        		pmu_set_idle_request(IDLE_REQ_VIO, false);
 
-		pmu_set_idle_request(IDLE_REQ_VIO, true);
-		cru_set_soft_reset(SOFT_RST_CIF0, true);
-		udelay(50);
-		cru_set_soft_reset(SOFT_RST_CIF0, false);
-		pmu_set_idle_request(IDLE_REQ_VIO, false);
+        	    printk("clean cru register reset cif0 0x%x\n",read_cru_reg(CRU_CIF_RST_REG30));
 
-	    printk("clean cru register reset cif0 0x%x\n",read_cru_reg(CRU_CIF_RST_REG30));
+            }else{
+               // write_cru_reg(CRU_CIF_RST_REG30,MASK_RST_CIF1|RQUEST_RST_CIF1 | (read_cru_reg(CRU_CIF_RST_REG30)));
+               // write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)&(~RQUEST_RST_CIF1)) | MASK_RST_CIF1);
+        	 	pmu_set_idle_request(IDLE_REQ_VIO, true);
+        		cru_set_soft_reset(SOFT_RST_CIF1, true);
+        		udelay(50);
+        		cru_set_soft_reset(SOFT_RST_CIF1, false);
+        		pmu_set_idle_request(IDLE_REQ_VIO, false);  
+           
+            }
+           // rk_cif_poweron(pcdev);
+            tmp_soc_cam_link->power(pcdev->icd->pdev,1);
+        	control = to_soc_camera_control(pcdev->icd);
+        	sd = dev_get_drvdata(control);
+        	ret = v4l2_subdev_call(sd,core, init, 1);
 
-    }else{
-       // write_cru_reg(CRU_CIF_RST_REG30,MASK_RST_CIF1|RQUEST_RST_CIF1 | (read_cru_reg(CRU_CIF_RST_REG30)));
-       // write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)&(~RQUEST_RST_CIF1)) | MASK_RST_CIF1);
-	 	pmu_set_idle_request(IDLE_REQ_VIO, true);
-		cru_set_soft_reset(SOFT_RST_CIF1, true);
-		udelay(50);
-		cru_set_soft_reset(SOFT_RST_CIF1, false);
-		pmu_set_idle_request(IDLE_REQ_VIO, false);  
-   
-    }
-   // rk_cif_poweron(pcdev);
-    tmp_soc_cam_link->power(pcdev->icd->pdev,1);
-   #if 0
-	control = to_soc_camera_control(pcdev->icd);
-	sd = dev_get_drvdata(control);
-	ret = v4l2_subdev_call(sd,core, init, 1);
-
-	mf.width = pcdev->icd->user_width;
-	mf.height = pcdev->icd->user_height;
-	xlate = soc_camera_xlate_by_fourcc(pcdev->icd, pcdev->icd->current_fmt->host_fmt->fourcc);	
-	mf.code = xlate->code;
-
-	ret |= v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
-
+        	mf.width = pcdev->icd->user_width;
+        	mf.height = pcdev->icd->user_height;
+        	xlate = soc_camera_xlate_by_fourcc(pcdev->icd, pcdev->icd->current_fmt->host_fmt->fourcc);	
+        	mf.code = xlate->code;
+        	ret |= v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+            
+            }
 	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)|ENABLE_CAPTURE));
-    #endif
 	RKCAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor now! ret:0x%x\n",ret);
 }
 static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
@@ -1940,7 +1947,7 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
         }
 	}
     last_fps = pcdev->fps ;
-    pcdev->fps_timer.timer.node.expires= ktime_add_us(pcdev->fps_timer.timer.node.expires, ktime_to_us(ktime_set(2, 0)));
+    pcdev->fps_timer.timer.node.expires= ktime_add_us(pcdev->fps_timer.timer.node.expires, ktime_to_us(ktime_set(1, 0)));
 	//return HRTIMER_NORESTART;
     return HRTIMER_RESTART;
 }
@@ -1959,15 +1966,17 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 		hrtimer_cancel(&(pcdev->fps_timer.timer));
 		pcdev->fps_timer.pcdev = pcdev;
         pcdev->timer_get_fps = false;
+        pcdev->reinit_times  = 0;
 //		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(3, 0),HRTIMER_MODE_REL);
 		cif_ctrl_val |= ENABLE_CAPTURE;
         	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
-		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(2, 0),HRTIMER_MODE_REL);
+		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(1, 0),HRTIMER_MODE_REL);
 	} else {
         cif_ctrl_val &= ~ENABLE_CAPTURE;
     	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
 		ret = hrtimer_cancel(&pcdev->fps_timer.timer);
 		flush_workqueue((pcdev->camera_wq));
+        flush_work(&(pcdev->camera_reinit_work.work));
 		RKCAMERA_DG("STREAM_OFF cancel timer and flush work:0x%x \n", ret);
 	}
     //must be reinit,or will be somthing wrong in irq process.
@@ -2278,6 +2287,7 @@ static int rk_camera_probe(struct platform_device *pdev)
     /*config output clk*/ // must modify start
     if(IS_CIF0()){
      //   printk("it is cif 0!!!!!!!1\n");
+        pcdev->pd_cif = clk_get(NULL, "pd_cif0");
         pcdev->aclk_cif = clk_get(NULL, "aclk_cif0");
         pcdev->hclk_cif = clk_get(NULL, "hclk_cif0");
         pcdev->cif_clk_in = clk_get(NULL, "cif0_in");
@@ -2286,6 +2296,7 @@ static int rk_camera_probe(struct platform_device *pdev)
     }
     else{
     //    printk("it is cif 1!!!!!!!1\n");
+        pcdev->pd_cif = clk_get(NULL, "pd_cif1");
         pcdev->aclk_cif = clk_get(NULL, "aclk_cif1");
         pcdev->hclk_cif = clk_get(NULL, "hclk_cif1");
         pcdev->cif_clk_in = clk_get(NULL, "cif1_in");
@@ -2293,7 +2304,7 @@ static int rk_camera_probe(struct platform_device *pdev)
         
         rk_camera_cif_iomux(1);
         }
-    if(!pcdev->aclk_cif || !pcdev->hclk_cif || !pcdev->cif_clk_in || !pcdev->cif_clk_out){
+    if(IS_ERR(pcdev->pd_cif) || IS_ERR(pcdev->aclk_cif) || IS_ERR(pcdev->hclk_cif) || IS_ERR(pcdev->cif_clk_in) || IS_ERR(pcdev->cif_clk_out)){
         RKCAMERA_TR(KERN_ERR "failed to get cif clock source\n");
         err = -ENOENT;
         goto exit_reqmem_vip;
