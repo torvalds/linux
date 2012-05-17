@@ -281,9 +281,14 @@ static ssize_t hmc5843_set_measurement_configuration(struct device *dev,
 	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
 	struct hmc5843_data *data = iio_priv(indio_dev);
 	unsigned long meas_conf = 0;
-	int error = kstrtoul(buf, 10, &meas_conf);
+	int error;
+
+	error = kstrtoul(buf, 10, &meas_conf);
 	if (error)
 		return error;
+	if (meas_conf >= HMC5843_MEAS_CONF_NOT_USED)
+		return -EINVAL;
+
 	mutex_lock(&data->lock);
 
 	dev_dbg(dev, "set mode to %lu\n", meas_conf);
