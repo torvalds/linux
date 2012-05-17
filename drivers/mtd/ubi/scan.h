@@ -167,8 +167,6 @@ struct ubi_ainf_peb *ubi_scan_find_aeb(const struct ubi_ainf_volume *av,
 void ubi_scan_rm_volume(struct ubi_attach_info *ai, struct ubi_ainf_volume *av);
 struct ubi_ainf_peb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 					   struct ubi_attach_info *ai);
-int ubi_scan_erase_peb(struct ubi_device *ubi, const struct ubi_attach_info *ai,
-		       int pnum, int ec);
 struct ubi_attach_info *ubi_scan(struct ubi_device *ubi);
 void ubi_scan_destroy_ai(struct ubi_attach_info *ai);
 
