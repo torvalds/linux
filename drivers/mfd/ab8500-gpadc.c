@@ -584,7 +584,7 @@ static int __devinit ab8500_gpadc_probe(struct platform_device *pdev)
 
 	gpadc->irq = platform_get_irq_byname(pdev, "SW_CONV_END");
 	if (gpadc->irq < 0) {
-		dev_err(gpadc->dev, "failed to get platform irq-%d\n",
+		dev_err(&pdev->dev, "failed to get platform irq-%d\n",
 			gpadc->irq);
 		ret = gpadc->irq;
 		goto fail;
