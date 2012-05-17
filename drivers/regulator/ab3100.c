@@ -304,39 +304,6 @@ static int ab3100_get_voltage_regulator(struct regulator_dev *reg)
 	return abreg->typ_voltages[regval];
 }
 
-static int ab3100_get_best_voltage_index(struct regulator_dev *reg,
-				   int min_uV, int max_uV)
-{
-	struct ab3100_regulator *abreg = reg->reg_data;
-	int i;
-	int bestmatch;
-	int bestindex;
-
-	/*
-	 * Locate the minimum voltage fitting the criteria on
-	 * this regulator. The switchable voltages are not
-	 * in strict falling order so we need to check them
-	 * all for the best match.
-	 */
-	bestmatch = INT_MAX;
-	bestindex = -1;
-	for (i = 0; i < abreg->voltages_len; i++) {
-		if (abreg->typ_voltages[i] <= max_uV &&
-		    abreg->typ_voltages[i] >= min_uV &&
-		    abreg->typ_voltages[i] < bestmatch) {
-			bestmatch = abreg->typ_voltages[i];
-			bestindex = i;
-		}
-	}
-
-	if (bestindex < 0) {
-		dev_warn(&reg->dev, "requested %d<=x<=%d uV, out of range!\n",
-			 min_uV, max_uV);
-		return -EINVAL;
-	}
-	return bestindex;
-}
-
 static int ab3100_set_voltage_regulator_sel(struct regulator_dev *reg,
 					    unsigned selector)
 {
@@ -383,7 +350,7 @@ static int ab3100_set_suspend_voltage_regulator(struct regulator_dev *reg,
 		return -EINVAL;
 
 	/* LDO E and BUCK have special suspend voltages you can set */
-	bestindex = ab3100_get_best_voltage_index(reg, uV, uV);
+	bestindex = regulator_map_voltage_iterate(reg, uV, uV);
 
 	err = abx500_get_register_interruptible(abreg->dev, 0,
 						targetreg, &regval);
