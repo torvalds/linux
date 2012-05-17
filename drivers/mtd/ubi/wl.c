@@ -1385,7 +1385,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 	int err, i;
 	struct rb_node *rb1, *rb2;
 	struct ubi_ainf_volume *sv;
-	struct ubi_ainf_peb *seb, *tmp;
+	struct ubi_ainf_peb *aeb, *tmp;
 	struct ubi_wl_entry *e;
 
 	ubi->used = ubi->erroneous = ubi->free = ubi->scrub = RB_ROOT;
@@ -1406,15 +1406,15 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 		INIT_LIST_HEAD(&ubi->pq[i]);
 	ubi->pq_head = 0;
 
-	list_for_each_entry_safe(seb, tmp, &si->erase, u.list) {
+	list_for_each_entry_safe(aeb, tmp, &si->erase, u.list) {
 		cond_resched();
 
 		e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
 		if (!e)
 			goto out_free;
 
-		e->pnum = seb->pnum;
-		e->ec = seb->ec;
+		e->pnum = aeb->pnum;
+		e->ec = aeb->ec;
 		ubi->lookuptbl[e->pnum] = e;
 		if (schedule_erase(ubi, e, 0)) {
 			kmem_cache_free(ubi_wl_entry_slab, e);
@@ -1422,32 +1422,32 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 		}
 	}
 
-	list_for_each_entry(seb, &si->free, u.list) {
+	list_for_each_entry(aeb, &si->free, u.list) {
 		cond_resched();
 
 		e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
 		if (!e)
 			goto out_free;
 
-		e->pnum = seb->pnum;
-		e->ec = seb->ec;
+		e->pnum = aeb->pnum;
+		e->ec = aeb->ec;
 		ubi_assert(e->ec >= 0);
 		wl_tree_add(e, &ubi->free);
 		ubi->lookuptbl[e->pnum] = e;
 	}
 
 	ubi_rb_for_each_entry(rb1, sv, &si->volumes, rb) {
-		ubi_rb_for_each_entry(rb2, seb, &sv->root, u.rb) {
+		ubi_rb_for_each_entry(rb2, aeb, &sv->root, u.rb) {
 			cond_resched();
 
 			e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
 			if (!e)
 				goto out_free;
 
-			e->pnum = seb->pnum;
-			e->ec = seb->ec;
+			e->pnum = aeb->pnum;
+			e->ec = aeb->ec;
 			ubi->lookuptbl[e->pnum] = e;
-			if (!seb->scrub) {
+			if (!aeb->scrub) {
 				dbg_wl("add PEB %d EC %d to the used tree",
 				       e->pnum, e->ec);
 				wl_tree_add(e, &ubi->used);

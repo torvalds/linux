@@ -146,15 +146,15 @@ struct ubi_vid_hdr;
  * ubi_scan_move_to_list - move a PEB from the volume tree to a list.
  *
  * @sv: volume scanning information
- * @seb: scanning eraseblock information
+ * @aeb: scanning eraseblock information
  * @list: the list to move to
  */
 static inline void ubi_scan_move_to_list(struct ubi_ainf_volume *sv,
-					 struct ubi_ainf_peb *seb,
+					 struct ubi_ainf_peb *aeb,
 					 struct list_head *list)
 {
-		rb_erase(&seb->u.rb, &sv->root);
-		list_add_tail(&seb->u.list, list);
+		rb_erase(&aeb->u.rb, &sv->root);
+		list_add_tail(&aeb->u.list, list);
 }
 
 int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *si,
@@ -162,7 +162,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *si,
 		      int bitflips);
 struct ubi_ainf_volume *ubi_scan_find_sv(const struct ubi_attach_info *si,
 					 int vol_id);
-struct ubi_ainf_peb *ubi_scan_find_seb(const struct ubi_ainf_volume *sv,
+struct ubi_ainf_peb *ubi_scan_find_aeb(const struct ubi_ainf_volume *sv,
 				       int lnum);
 void ubi_scan_rm_volume(struct ubi_attach_info *si, struct ubi_ainf_volume *sv);
 struct ubi_ainf_peb *ubi_scan_get_free_peb(struct ubi_device *ubi,

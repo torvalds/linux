@@ -1217,7 +1217,7 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 	int i, j, err, num_volumes;
 	struct ubi_ainf_volume *sv;
 	struct ubi_volume *vol;
-	struct ubi_ainf_peb *seb;
+	struct ubi_ainf_peb *aeb;
 	struct rb_node *rb;
 
 	dbg_eba("initialize EBA sub-system");
@@ -1250,14 +1250,14 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 		if (!sv)
 			continue;
 
-		ubi_rb_for_each_entry(rb, seb, &sv->root, u.rb) {
-			if (seb->lnum >= vol->reserved_pebs)
+		ubi_rb_for_each_entry(rb, aeb, &sv->root, u.rb) {
+			if (aeb->lnum >= vol->reserved_pebs)
 				/*
 				 * This may happen in case of an unclean reboot
 				 * during re-size.
 				 */
-				ubi_scan_move_to_list(sv, seb, &si->erase);
-			vol->eba_tbl[seb->lnum] = seb->pnum;
+				ubi_scan_move_to_list(sv, aeb, &si->erase);
+			vol->eba_tbl[aeb->lnum] = aeb->pnum;
 		}
 	}
 

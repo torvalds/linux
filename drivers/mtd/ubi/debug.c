@@ -188,19 +188,19 @@ void ubi_dump_sv(const struct ubi_ainf_volume *sv)
 }
 
 /**
- * ubi_dump_seb - dump a &struct ubi_ainf_peb object.
- * @seb: the object to dump
+ * ubi_dump_aeb - dump a &struct ubi_ainf_peb object.
+ * @aeb: the object to dump
  * @type: object type: 0 - not corrupted, 1 - corrupted
  */
-void ubi_dump_seb(const struct ubi_ainf_peb *seb, int type)
+void ubi_dump_aeb(const struct ubi_ainf_peb *aeb, int type)
 {
 	printk(KERN_DEBUG "eraseblock scanning information dump:\n");
-	printk(KERN_DEBUG "\tec       %d\n", seb->ec);
-	printk(KERN_DEBUG "\tpnum     %d\n", seb->pnum);
+	printk(KERN_DEBUG "\tec       %d\n", aeb->ec);
+	printk(KERN_DEBUG "\tpnum     %d\n", aeb->pnum);
 	if (type == 0) {
-		printk(KERN_DEBUG "\tlnum     %d\n", seb->lnum);
-		printk(KERN_DEBUG "\tscrub    %d\n", seb->scrub);
-		printk(KERN_DEBUG "\tsqnum    %llu\n", seb->sqnum);
+		printk(KERN_DEBUG "\tlnum     %d\n", aeb->lnum);
+		printk(KERN_DEBUG "\tscrub    %d\n", aeb->scrub);
+		printk(KERN_DEBUG "\tsqnum    %llu\n", aeb->sqnum);
 	}
 }
 
