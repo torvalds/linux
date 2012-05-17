@@ -435,7 +435,7 @@ config BFIN_KERNEL_CLOCK
 
 config PLL_BYPASS
 	bool "Bypass PLL"
-	depends on BFIN_KERNEL_CLOCK
+	depends on BFIN_KERNEL_CLOCK && (!BF60x)
 	default n
 
 config CLKIN_HALF
@@ -454,7 +454,7 @@ config VCO_MULT
 	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN527_EZKIT_V2 || BFIN548_EZKIT || BFIN548_BLUETECHNIX_CM || BFIN538_EZKIT)
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if (BFIN537_BLUETECHNIX_CM_E || BFIN537_BLUETECHNIX_CM_U || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
-	default "20" if BFIN561_EZKIT
+	default "20" if (BFIN561_EZKIT || BF609)
 	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD || BFIN518F_EZBRD)
 	default "25" if BFIN527_AD7160EVAL
 	help
@@ -486,11 +486,44 @@ config SCLK_DIV
 	int "System Clock Divider"
 	depends on BFIN_KERNEL_CLOCK
 	range 1 15
-	default 5
+	default 4
 	help
-	  This sets the frequency of the system clock (including SDRAM or DDR).
+	  This sets the frequency of the system clock (including SDRAM or DDR) on
+	  !BF60x else it set the clock for system buses and provides the
+	  source from which SCLK0 and SCLK1 are derived.
 	  This can be between 1 and 15
 	  System Clock = (PLL frequency) / (this setting)
+
+config SCLK0_DIV
+	int "System Clock0 Divider"
+	depends on BFIN_KERNEL_CLOCK && BF60x
+	range 1 15
+	default 1
+	help
+	  This sets the frequency of the system clock0 for PVP and all other
+	  peripherals not clocked by SCLK1.
+	  This can be between 1 and 15
+	  System Clock0 = (System Clock) / (this setting)
+
+config SCLK1_DIV
+	int "System Clock1 Divider"
+	depends on BFIN_KERNEL_CLOCK && BF60x
+	range 1 15
+	default 1
+	help
+	  This sets the frequency of the system clock1 (including SPORT, SPI and ACM).
+	  This can be between 1 and 15
+	  System Clock1 = (System Clock) / (this setting)
+
+config DCLK_DIV
+	int "DDR Clock Divider"
+	depends on BFIN_KERNEL_CLOCK && BF60x
+	range 1 15
+	default 2
+	help
+	  This sets the frequency of the DDR memory.
+	  This can be between 1 and 15
+	  DDR Clock = (PLL frequency) / (this setting)
 
 choice
 	prompt "DDR SDRAM Chip Type"
@@ -507,7 +540,7 @@ endchoice
 
 choice
 	prompt "DDR/SDRAM Timing"
-	depends on BFIN_KERNEL_CLOCK
+	depends on BFIN_KERNEL_CLOCK && !BF60x
 	default BFIN_KERNEL_CLOCK_MEMINIT_CALC
 	help
 	  This option allows you to specify Blackfin SDRAM/DDR Timing parameters
@@ -589,6 +622,7 @@ config MAX_VCO_HZ
 	default 600000000 if BF548
 	default 533333333 if BF549
 	default 600000000 if BF561
+	default 800000000 if BF609
 
 config MIN_VCO_HZ
 	int
@@ -596,6 +630,7 @@ config MIN_VCO_HZ
 
 config MAX_SCLK_HZ
 	int
+	default 200000000 if BF609
 	default 133333333
 
 config MIN_SCLK_HZ

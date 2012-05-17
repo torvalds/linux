@@ -351,7 +351,7 @@ static struct clk dclk = {
 	.rate       = 500000000,
 	.mask       = CGU0_DIV_DSEL_MASK,
 	.shift       = CGU0_DIV_DSEL_SHIFT,
-	.parent     = &pll_clk,
+	.parent     = &sys_clkin,
 	.ops	    = &sys_clk_ops,
 };
 

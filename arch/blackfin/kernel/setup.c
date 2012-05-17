@@ -892,9 +892,6 @@ void __init setup_arch(char **cmdline_p)
 {
 	u32 mmr;
 	unsigned long sclk, cclk;
-#ifdef CONFIG_BF60x
-	struct clk *clk;
-#endif
 
 	native_machine_early_platform_add_devices();
 
@@ -959,24 +956,8 @@ void __init setup_arch(char **cmdline_p)
 					~HYST_NONEGPIO_MASK) | HYST_NONEGPIO);
 #endif
 
-#ifdef CONFIG_BF60x
-	clk = clk_get(NULL, "CCLK");
-	if (!IS_ERR(clk)) {
-		cclk = clk_get_rate(clk);
-		clk_put(clk);
-	} else
-		cclk = 0;
-
-	clk = clk_get(NULL, "SCLK0");
-	if (!IS_ERR(clk)) {
-		sclk = clk_get_rate(clk);
-		clk_put(clk);
-	} else
-		sclk = 0;
-#else
 	cclk = get_cclk();
 	sclk = get_sclk();
-#endif
 
 	if ((ANOMALY_05000273 || ANOMALY_05000274) && (cclk >> 1) < sclk)
 		panic("ANOMALY 05000273 or 05000274: CCLK must be >= 2*SCLK");
@@ -1062,8 +1043,13 @@ void __init setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "Blackfin Linux support by http://blackfin.uclinux.org/\n");
 
+#ifdef CONFIG_BF60x
+	printk(KERN_INFO "Processor Speed: %lu MHz core clock, %lu MHz SCLk, %lu MHz SCLK0, %lu MHz SCLK1 and %lu MHz DCLK\n",
+		cclk / 1000000, sclk / 1000000, get_sclk0() / 1000000, get_sclk1() / 1000000, get_dclk() / 1000000);
+#else
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu MHz System Clock\n",
 	       cclk / 1000000, sclk / 1000000);
+#endif
 
 	setup_bootmem_allocator();
 
