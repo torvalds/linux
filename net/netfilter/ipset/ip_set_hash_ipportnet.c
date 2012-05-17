@@ -619,6 +619,7 @@ hash_ipportnet_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	struct ip_set_hash *h;
 	u32 hashsize = IPSET_DEFAULT_HASHSIZE, maxelem = IPSET_DEFAULT_MAXELEM;
 	u8 hbits;
+	size_t hsize;
 
 	if (!(set->family == NFPROTO_IPV4 || set->family == NFPROTO_IPV6))
 		return -IPSET_ERR_INVALID_FAMILY;
@@ -648,9 +649,12 @@ hash_ipportnet_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	h->timeout = IPSET_NO_TIMEOUT;
 
 	hbits = htable_bits(hashsize);
-	h->table = ip_set_alloc(
-			sizeof(struct htable)
-			+ jhash_size(hbits) * sizeof(struct hbucket));
+	hsize = htable_size(hbits);
+	if (hsize == 0) {
+		kfree(h);
+		return -ENOMEM;
+	}
+	h->table = ip_set_alloc(hsize);
 	if (!h->table) {
 		kfree(h);
 		return -ENOMEM;

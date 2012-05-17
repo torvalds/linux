@@ -588,23 +588,19 @@ _GLOBAL(ret_from_except_lite)
 fast_exc_return_irq:
 restore:
 	/*
-	 * This is the main kernel exit path, we first check if we
-	 * have to change our interrupt state.
+	 * This is the main kernel exit path. First we check if we
+	 * are about to re-enable interrupts
 	 */
 	ld	r5,SOFTE(r1)
 	lbz	r6,PACASOFTIRQEN(r13)
-	cmpwi	cr1,r5,0
-	cmpw	cr0,r5,r6
-	beq	cr0,4f
+	cmpwi	cr0,r5,0
+	beq	restore_irq_off
 
-	/* We do, handle disable first, which is easy */
-	bne	cr1,3f;
- 	li	r0,0
-	stb	r0,PACASOFTIRQEN(r13);
-	TRACE_DISABLE_INTS
-	b	4f
+	/* We are enabling, were we already enabled ? Yes, just return */
+	cmpwi	cr0,r6,1
+	beq	cr0,do_restore
 
-3:	/*
+	/*
 	 * We are about to soft-enable interrupts (we are hard disabled
 	 * at this point). We check if there's anything that needs to
 	 * be replayed first.
@@ -626,7 +622,7 @@ restore_no_replay:
 	/*
 	 * Final return path. BookE is handled in a different file
 	 */
-4:
+do_restore:
 #ifdef CONFIG_PPC_BOOK3E
 	b	.exception_return_book3e
 #else
@@ -700,6 +696,25 @@ fast_exception_return:
 #endif /* CONFIG_PPC_BOOK3E */
 
 	/*
+	 * We are returning to a context with interrupts soft disabled.
+	 *
+	 * However, we may also about to hard enable, so we need to
+	 * make sure that in this case, we also clear PACA_IRQ_HARD_DIS
+	 * or that bit can get out of sync and bad things will happen
+	 */
+restore_irq_off:
+	ld	r3,_MSR(r1)
+	lbz	r7,PACAIRQHAPPENED(r13)
+	andi.	r0,r3,MSR_EE
+	beq	1f
+	rlwinm	r7,r7,0,~PACA_IRQ_HARD_DIS
+	stb	r7,PACAIRQHAPPENED(r13)
+1:	li	r0,0
+	stb	r0,PACASOFTIRQEN(r13);
+	TRACE_DISABLE_INTS
+	b	do_restore
+
+	/*
 	 * Something did happen, check if a re-emit is needed
 	 * (this also clears paca->irq_happened)
 	 */
@@ -748,6 +763,9 @@ restore_check_irq_replay:
 #endif /* CONFIG_PPC_BOOK3E */
 1:	b	.ret_from_except /* What else to do here ? */
  
+
+
+3:
 do_work:
 #ifdef CONFIG_PREEMPT
 	andi.	r0,r3,MSR_PR	/* Returning to user mode? */
@@ -767,16 +785,6 @@ do_work:
 	SOFT_DISABLE_INTS(r3,r4)
 1:	bl	.preempt_schedule_irq
 
-	/* Hard-disable interrupts again (and update PACA) */
-#ifdef CONFIG_PPC_BOOK3E
-	wrteei	0
-#else
-	ld	r10,PACAKMSR(r13) /* Get kernel MSR without EE */
-	mtmsrd	r10,1
-#endif /* CONFIG_PPC_BOOK3E */
-	li	r0,PACA_IRQ_HARD_DIS
-	stb	r0,PACAIRQHAPPENED(r13)
-
 	/* Re-test flags and eventually loop */
 	clrrdi	r9,r1,THREAD_SHIFT
 	ld	r4,TI_FLAGS(r9)
@@ -786,14 +794,6 @@ do_work:
 
 user_work:
 #endif /* CONFIG_PREEMPT */
-
-	/* Enable interrupts */
-#ifdef CONFIG_PPC_BOOK3E
-	wrteei	1
-#else
-	ori	r10,r10,MSR_EE
-	mtmsrd	r10,1
-#endif /* CONFIG_PPC_BOOK3E */
 
 	andi.	r0,r4,_TIF_NEED_RESCHED
 	beq	1f

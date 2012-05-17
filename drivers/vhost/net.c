@@ -24,6 +24,7 @@
 #include <linux/if_arp.h>
 #include <linux/if_tun.h>
 #include <linux/if_macvlan.h>
+#include <linux/if_vlan.h>
 
 #include <net/sock.h>
 
@@ -286,8 +287,12 @@ static int peek_head_len(struct sock *sk)
 
 	spin_lock_irqsave(&sk->sk_receive_queue.lock, flags);
 	head = skb_peek(&sk->sk_receive_queue);
-	if (likely(head))
+	if (likely(head)) {
 		len = head->len;
+		if (vlan_tx_tag_present(head))
+			len += VLAN_HLEN;
+	}
+
 	spin_unlock_irqrestore(&sk->sk_receive_queue.lock, flags);
 	return len;
 }

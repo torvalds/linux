@@ -678,7 +678,7 @@ static struct clk exynos5_clk_pdma1 = {
 	.name		= "dma",
 	.devname	= "dma-pl330.1",
 	.enable		= exynos5_clk_ip_fsys_ctrl,
-	.ctrlbit	= (1 << 1),
+	.ctrlbit	= (1 << 2),
 };
 
 static struct clk exynos5_clk_mdma1 = {

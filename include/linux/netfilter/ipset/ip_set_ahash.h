@@ -99,6 +99,22 @@ struct ip_set_hash {
 #endif
 };
 
+static size_t
+htable_size(u8 hbits)
+{
+	size_t hsize;
+
+	/* We must fit both into u32 in jhash and size_t */
+	if (hbits > 31)
+		return 0;
+	hsize = jhash_size(hbits);
+	if ((((size_t)-1) - sizeof(struct htable))/sizeof(struct hbucket)
+	    < hsize)
+		return 0;
+
+	return hsize * sizeof(struct hbucket) + sizeof(struct htable);
+}
+
 /* Compute htable_bits from the user input parameter hashsize */
 static u8
 htable_bits(u32 hashsize)

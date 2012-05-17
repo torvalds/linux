@@ -230,16 +230,12 @@ static void pch_gpio_setup(struct pch_gpio *chip)
 
 static int pch_irq_type(struct irq_data *d, unsigned int type)
 {
-	u32 im;
-	u32 __iomem *im_reg;
-	u32 ien;
-	u32 im_pos;
-	int ch;
-	unsigned long flags;
-	u32 val;
-	int irq = d->irq;
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct pch_gpio *chip = gc->private;
+	u32 im, im_pos, val;
+	u32 __iomem *im_reg;
+	unsigned long flags;
+	int ch, irq = d->irq;
 
 	ch = irq - chip->irq_base;
 	if (irq <= chip->irq_base + 7) {
@@ -270,30 +266,22 @@ static int pch_irq_type(struct irq_data *d, unsigned int type)
 	case IRQ_TYPE_LEVEL_LOW:
 		val = PCH_LEVEL_L;
 		break;
-	case IRQ_TYPE_PROBE:
-		goto end;
 	default:
-		dev_warn(chip->dev, "%s: unknown type(%dd)",
-			__func__, type);
-		goto end;
+		goto unlock;
 	}
 
 	/* Set interrupt mode */
 	im = ioread32(im_reg) & ~(PCH_IM_MASK << (im_pos * 4));
 	iowrite32(im | (val << (im_pos * 4)), im_reg);
 
-	/* iclr */
-	iowrite32(BIT(ch), &chip->reg->iclr);
+	/* And the handler */
+	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
+		__irq_set_handler_locked(d->irq, handle_level_irq);
+	else if (type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
+		__irq_set_handler_locked(d->irq, handle_edge_irq);
 
-	/* IMASKCLR */
-	iowrite32(BIT(ch), &chip->reg->imaskclr);
-
-	/* Enable interrupt */
-	ien = ioread32(&chip->reg->ien);
-	iowrite32(ien | BIT(ch), &chip->reg->ien);
-end:
+unlock:
 	spin_unlock_irqrestore(&chip->spinlock, flags);
-
 	return 0;
 }
 
@@ -313,18 +301,24 @@ static void pch_irq_mask(struct irq_data *d)
 	iowrite32(1 << (d->irq - chip->irq_base), &chip->reg->imask);
 }
 
+static void pch_irq_ack(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct pch_gpio *chip = gc->private;
+
+	iowrite32(1 << (d->irq - chip->irq_base), &chip->reg->iclr);
+}
+
 static irqreturn_t pch_gpio_handler(int irq, void *dev_id)
 {
 	struct pch_gpio *chip = dev_id;
 	u32 reg_val = ioread32(&chip->reg->istatus);
-	int i;
-	int ret = IRQ_NONE;
+	int i, ret = IRQ_NONE;
 
 	for (i = 0; i < gpio_pins[chip->ioh]; i++) {
 		if (reg_val & BIT(i)) {
 			dev_dbg(chip->dev, "%s:[%d]:irq=%d  status=0x%x\n",
 				__func__, i, irq, reg_val);
-			iowrite32(BIT(i), &chip->reg->iclr);
 			generic_handle_irq(chip->irq_base + i);
 			ret = IRQ_HANDLED;
 		}
@@ -343,6 +337,7 @@ static __devinit void pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
 	gc->private = chip;
 	ct = gc->chip_types;
 
+	ct->chip.irq_ack = pch_irq_ack;
 	ct->chip.irq_mask = pch_irq_mask;
 	ct->chip.irq_unmask = pch_irq_unmask;
 	ct->chip.irq_set_type = pch_irq_type;
@@ -357,6 +352,7 @@ static int __devinit pch_gpio_probe(struct pci_dev *pdev,
 	s32 ret;
 	struct pch_gpio *chip;
 	int irq_base;
+	u32 msk;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
@@ -408,8 +404,13 @@ static int __devinit pch_gpio_probe(struct pci_dev *pdev,
 	}
 	chip->irq_base = irq_base;
 
+	/* Mask all interrupts, but enable them */
+	msk = (1 << gpio_pins[chip->ioh]) - 1;
+	iowrite32(msk, &chip->reg->imask);
+	iowrite32(msk, &chip->reg->ien);
+
 	ret = request_irq(pdev->irq, pch_gpio_handler,
-			     IRQF_SHARED, KBUILD_MODNAME, chip);
+			  IRQF_SHARED, KBUILD_MODNAME, chip);
 	if (ret != 0) {
 		dev_err(&pdev->dev,
 			"%s request_irq failed\n", __func__);
@@ -418,8 +419,6 @@ static int __devinit pch_gpio_probe(struct pci_dev *pdev,
 
 	pch_gpio_alloc_generic_chip(chip, irq_base, gpio_pins[chip->ioh]);
 
-	/* Initialize interrupt ien register */
-	iowrite32(0, &chip->reg->ien);
 end:
 	return 0;
 

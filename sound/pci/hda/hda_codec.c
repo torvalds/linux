@@ -5444,10 +5444,6 @@ int snd_hda_suspend(struct hda_bus *bus)
 	list_for_each_entry(codec, &bus->codec_list, list) {
 		if (hda_codec_is_power_on(codec))
 			hda_call_codec_suspend(codec);
-		else /* forcibly change the power to D3 even if not used */
-			hda_set_power_state(codec,
-					    codec->afg ? codec->afg : codec->mfg,
-					    AC_PWRST_D3);
 		if (codec->patch_ops.post_suspend)
 			codec->patch_ops.post_suspend(codec);
 	}
