@@ -25,7 +25,7 @@
 #define UBI_SCAN_UNKNOWN_EC (-1)
 
 /**
- * struct ubi_ainf_peb - scanning information about a physical eraseblock.
+ * struct ubi_ainf_peb - attach information about a physical eraseblock.
  * @ec: erase counter (%UBI_SCAN_UNKNOWN_EC if it is unknown)
  * @pnum: physical eraseblock number
  * @lnum: logical eraseblock number
@@ -36,8 +36,8 @@
  * @u.rb: link in the per-volume RB-tree of &struct ubi_ainf_peb objects
  * @u.list: link in one of the eraseblock lists
  *
- * One object of this type is allocated for each physical eraseblock during
- * scanning.
+ * One object of this type is allocated for each physical eraseblock when
+ * attaching an MTD device.
  */
 struct ubi_ainf_peb {
 	int ec;
@@ -53,7 +53,7 @@ struct ubi_ainf_peb {
 };
 
 /**
- * struct ubi_ainf_volume - scanning information about a volume.
+ * struct ubi_ainf_volume - attaching information about a volume.
  * @vol_id: volume ID
  * @highest_lnum: highest logical eraseblock number in this volume
  * @leb_count: number of logical eraseblocks in this volume
@@ -70,7 +70,8 @@ struct ubi_ainf_peb {
  * @root: root of the RB-tree containing all the eraseblock belonging to this
  *        volume (&struct ubi_ainf_peb objects)
  *
- * One object of this type is allocated for each volume during scanning.
+ * One object of this type is allocated for each volume when attaching an MTD
+ * device.
  */
 struct ubi_ainf_volume {
 	int vol_id;
@@ -86,7 +87,7 @@ struct ubi_ainf_volume {
 };
 
 /**
- * struct ubi_attach_info - UBI scanning information.
+ * struct ubi_attach_info - MTD device attaching information.
  * @volumes: root of the volume RB-tree
  * @corr: list of corrupted physical eraseblocks
  * @free: list of free physical eraseblocks
@@ -100,7 +101,7 @@ struct ubi_ainf_volume {
  * @bad_peb_count: count of bad physical eraseblocks
  * @maybe_bad_peb_count: count of bad physical eraseblocks which are not marked
  *                       as bad yet, but which look like bad
- * @vols_found: number of volumes found during scanning
+ * @vols_found: number of volumes found
  * @highest_vol_id: highest volume ID
  * @is_empty: flag indicating whether the MTD device is empty or not
  * @min_ec: lowest erase counter value
@@ -111,9 +112,9 @@ struct ubi_ainf_volume {
  * @ec_count: a temporary variable used when calculating @mean_ec
  * @scan_leb_slab: slab cache for &struct ubi_ainf_peb objects
  *
- * This data structure contains the result of scanning and may be used by other
- * UBI sub-systems to build final UBI data structures, further error-recovery
- * and so on.
+ * This data structure contains the result of attaching an MTD device and may
+ * be used by other UBI sub-systems to build final UBI data structures, further
+ * error-recovery and so on.
  */
 struct ubi_attach_info {
 	struct rb_root volumes;
