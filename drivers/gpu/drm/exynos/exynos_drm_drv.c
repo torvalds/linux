@@ -40,6 +40,7 @@
 #include "exynos_drm_plane.h"
 #include "exynos_drm_vidi.h"
 #include "exynos_drm_dmabuf.h"
+#include "exynos_drm_g2d.h"
 
 #define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
@@ -148,9 +149,16 @@ static int exynos_drm_unload(struct drm_device *dev)
 
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
+	struct drm_exynos_file_private *file_priv;
+
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
+	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
+	if (!file_priv)
+		return -ENOMEM;
+
 	drm_prime_init_file_private(&file->prime);
+	file->driver_priv = file_priv;
 
 	return exynos_drm_subdrv_open(dev, file);
 }
@@ -217,6 +225,12 @@ static struct drm_ioctl_desc exynos_ioctls[] = {
 			DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_VIDI_CONNECTION,
 			vidi_connection_ioctl, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_GET_VER,
+			exynos_g2d_get_ver_ioctl, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_SET_CMDLIST,
+			exynos_g2d_set_cmdlist_ioctl, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_EXEC,
+			exynos_g2d_exec_ioctl, DRM_UNLOCKED | DRM_AUTH),
 };
 
 static const struct file_operations exynos_drm_driver_fops = {
@@ -317,6 +331,12 @@ static int __init exynos_drm_init(void)
 		goto out_vidi;
 #endif
 
+#ifdef CONFIG_DRM_EXYNOS_G2D
+	ret = platform_driver_register(&g2d_driver);
+	if (ret < 0)
+		goto out_g2d;
+#endif
+
 	ret = platform_driver_register(&exynos_drm_platform_driver);
 	if (ret < 0)
 		goto out;
@@ -324,6 +344,11 @@ static int __init exynos_drm_init(void)
 	return 0;
 
 out:
+#ifdef CONFIG_DRM_EXYNOS_G2D
+	platform_driver_unregister(&g2d_driver);
+out_g2d:
+#endif
+
 #ifdef CONFIG_DRM_EXYNOS_VIDI
 out_vidi:
 	platform_driver_unregister(&vidi_driver);
@@ -350,6 +375,10 @@ static void __exit exynos_drm_exit(void)
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
 	platform_driver_unregister(&exynos_drm_platform_driver);
+
+#ifdef CONFIG_DRM_EXYNOS_G2D
+	platform_driver_unregister(&g2d_driver);
+#endif
 
 #ifdef CONFIG_DRM_EXYNOS_HDMI
 	platform_driver_unregister(&exynos_drm_common_hdmi_driver);

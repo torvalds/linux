@@ -33,3 +33,9 @@ config DRM_EXYNOS_VIDI
 	depends on DRM_EXYNOS
 	help
 	  Choose this option if you want to use Exynos VIDI for DRM.
+
+config DRM_EXYNOS_G2D
+	bool "Exynos DRM G2D"
+	depends on DRM_EXYNOS
+	help
+	  Choose this option if you want to use Exynos G2D for DRM.

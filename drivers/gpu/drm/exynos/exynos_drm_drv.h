@@ -209,6 +209,18 @@ struct exynos_drm_manager {
 	struct exynos_drm_display_ops *display_ops;
 };
 
+struct exynos_drm_g2d_private {
+	struct device		*dev;
+	struct list_head	inuse_cmdlist;
+	struct list_head	event_list;
+	struct list_head	gem_list;
+	unsigned int		gem_nr;
+};
+
+struct drm_exynos_file_private {
+	struct exynos_drm_g2d_private	*g2d_priv;
+};
+
 /*
  * Exynos drm private structure.
  */
@@ -291,4 +303,5 @@ extern struct platform_driver hdmi_driver;
 extern struct platform_driver mixer_driver;
 extern struct platform_driver exynos_drm_common_hdmi_driver;
 extern struct platform_driver vidi_driver;
+extern struct platform_driver g2d_driver;
 #endif
