@@ -39,8 +39,13 @@
 #define VPU_REG_NUM_PP                      (41)
 // client type: decoder plus post-process£º101 registers, size 404B
 #define VPU_REG_NUM_DEC_PP                  (VPU_REG_NUM_DEC+VPU_REG_NUM_PP)
-// client type: encoder only£º96 registers, size 384B
+#if defined(CONFIG_ARCH_RK29)
+// client type: encoder only:  96 registers, size 384B for rk29
 #define VPU_REG_NUM_ENC                     (96)
+#elif defined(CONFIG_ARCH_RK30)
+// client type: encoder only: 164 registers, size 384B for rk30
+#define VPU_REG_NUM_ENC                     (164)
+#endif
 
 typedef enum VPU_CLIENT_TYPE {
     VPU_ENC                 = 0x0,

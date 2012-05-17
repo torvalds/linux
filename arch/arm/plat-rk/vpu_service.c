@@ -57,12 +57,21 @@
 
 #define REG_NUM_DEC 				(60)
 #define REG_NUM_PP				(41)
+#if defined(CONFIG_ARCH_RK29)
 #define REG_NUM_ENC 				(96)
+#elif defined(CONFIG_ARCH_RK30)
+#define REG_NUM_ENC 				(164)
+#endif
 #define REG_NUM_DEC_PP				(REG_NUM_DEC+REG_NUM_PP)
 #define SIZE_REG(reg)				((reg)*4)
 
 #define DEC_IO_SIZE 				((100 + 1) * 4) /* bytes */
+#if defined(CONFIG_ARCH_RK29)
 #define ENC_IO_SIZE 				(96 * 4)	/* bytes */
+#elif defined(CONFIG_ARCH_RK30)
+#define ENC_IO_SIZE 				(164 * 4)	/* bytes */
+#endif
+#define REG_NUM_DEC_PP				(REG_NUM_DEC+REG_NUM_PP)
 static const u16 dec_hw_ids[] = { 0x8190, 0x8170, 0x9170, 0x9190, 0x6731 };
 #if defined(CONFIG_ARCH_RK29)
 static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270 };
