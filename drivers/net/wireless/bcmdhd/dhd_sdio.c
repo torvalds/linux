@@ -5373,7 +5373,7 @@ dhdsdio_pktgen_init(dhd_bus_t *bus)
 
 	/* Default to per-watchdog burst with 10s print time */
 	bus->pktgen_freq = 1;
-	bus->pktgen_print = 10000 / dhd_watchdog_ms;
+	bus->pktgen_print = dhd_watchdog_ms ? 10000 / dhd_watchdog_ms : 0;
 	bus->pktgen_count = (dhd_pktgen * dhd_watchdog_ms + 999) / 1000;
 
 	/* Default to echo mode */
