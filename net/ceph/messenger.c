@@ -1409,7 +1409,9 @@ static int process_connect(struct ceph_connection *con)
 		       ceph_pr_addr(&con->peer_addr.in_addr));
 		reset_connection(con);
 		ceph_con_out_kvec_reset(con);
-		prepare_write_connect(con);
+		ret = prepare_write_connect(con);
+		if (ret < 0)
+			return ret;
 		prepare_read_connect(con);
 
 		/* Tell ceph about it. */
@@ -1433,7 +1435,9 @@ static int process_connect(struct ceph_connection *con)
 		     le32_to_cpu(con->in_connect.connect_seq));
 		con->connect_seq = le32_to_cpu(con->in_connect.connect_seq);
 		ceph_con_out_kvec_reset(con);
-		prepare_write_connect(con);
+		ret = prepare_write_connect(con);
+		if (ret < 0)
+			return ret;
 		prepare_read_connect(con);
 		break;
 
@@ -1448,7 +1452,9 @@ static int process_connect(struct ceph_connection *con)
 		get_global_seq(con->msgr,
 			       le32_to_cpu(con->in_connect.global_seq));
 		ceph_con_out_kvec_reset(con);
-		prepare_write_connect(con);
+		ret = prepare_write_connect(con);
+		if (ret < 0)
+			return ret;
 		prepare_read_connect(con);
 		break;
 
@@ -1854,7 +1860,9 @@ more:
 	if (con->sock == NULL) {
 		ceph_con_out_kvec_reset(con);
 		prepare_write_banner(con);
-		prepare_write_connect(con);
+		ret = prepare_write_connect(con);
+		if (ret < 0)
+			goto out;
 		prepare_read_banner(con);
 		set_bit(CONNECTING, &con->state);
 		clear_bit(NEGOTIATING, &con->state);
