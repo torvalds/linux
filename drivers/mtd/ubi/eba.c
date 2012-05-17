@@ -1256,7 +1256,7 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *ai)
 				 * This may happen in case of an unclean reboot
 				 * during re-size.
 				 */
-				ubi_scan_move_to_list(av, aeb, &ai->erase);
+				ubi_move_aeb_to_list(av, aeb, &ai->erase);
 			vol->eba_tbl[aeb->lnum] = aeb->pnum;
 		}
 	}

@@ -143,13 +143,13 @@ struct ubi_device;
 struct ubi_vid_hdr;
 
 /*
- * ubi_scan_move_to_list - move a PEB from the volume tree to a list.
+ * ubi_move_aeb_to_list - move a PEB from the volume tree to a list.
  *
  * @av: volume attaching information
  * @aeb: scanning eraseblock information
  * @list: the list to move to
  */
-static inline void ubi_scan_move_to_list(struct ubi_ainf_volume *av,
+static inline void ubi_move_aeb_to_list(struct ubi_ainf_volume *av,
 					 struct ubi_ainf_peb *aeb,
 					 struct list_head *list)
 {
