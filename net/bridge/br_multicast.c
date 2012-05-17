@@ -460,8 +460,8 @@ static struct sk_buff *br_ip6_multicast_alloc_query(struct net_bridge *br,
 	hopopt[3] = 2;				/* Length of RA Option */
 	hopopt[4] = 0;				/* Type = 0x0000 (MLD) */
 	hopopt[5] = 0;
-	hopopt[6] = IPV6_TLV_PAD0;		/* Pad0 */
-	hopopt[7] = IPV6_TLV_PAD0;		/* Pad0 */
+	hopopt[6] = IPV6_TLV_PAD1;		/* Pad1 */
+	hopopt[7] = IPV6_TLV_PAD1;		/* Pad1 */
 
 	skb_put(skb, sizeof(*ip6h) + 8);
 

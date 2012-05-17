@@ -558,7 +558,7 @@ static int check_hbh_len(struct sk_buff *skb)
 		int optlen = nh[off + 1] + 2;
 
 		switch (nh[off]) {
-		case IPV6_TLV_PAD0:
+		case IPV6_TLV_PAD1:
 			optlen = 1;
 			break;
 

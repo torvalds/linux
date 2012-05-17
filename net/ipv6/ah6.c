@@ -127,7 +127,7 @@ static int zero_out_mutable_opts(struct ipv6_opt_hdr *opthdr)
 
 		switch (opt[off]) {
 
-		case IPV6_TLV_PAD0:
+		case IPV6_TLV_PAD1:
 			optlen = 1;
 			break;
 		default:
@@ -171,7 +171,7 @@ static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *des
 
 		switch (opt[off]) {
 
-		case IPV6_TLV_PAD0:
+		case IPV6_TLV_PAD1:
 			optlen = 1;
 			break;
 		default:

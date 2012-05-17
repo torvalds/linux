@@ -397,7 +397,7 @@ static int tcf_csum_ipv6_hopopts(struct ipv6_opt_hdr *ip6xh,
 
 	while (len > 1) {
 		switch (xh[off]) {
-		case IPV6_TLV_PAD0:
+		case IPV6_TLV_PAD1:
 			optlen = 1;
 			break;
 		case IPV6_TLV_JUMBO:

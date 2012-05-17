@@ -75,7 +75,7 @@ int ipv6_find_tlv(struct sk_buff *skb, int offset, int type)
 			return offset;
 
 		switch (opttype) {
-		case IPV6_TLV_PAD0:
+		case IPV6_TLV_PAD1:
 			optlen = 1;
 			break;
 		default:
@@ -156,7 +156,7 @@ static int ip6_parse_tlv(struct tlvtype_proc *procs, struct sk_buff *skb)
 		int i;
 
 		switch (nh[off]) {
-		case IPV6_TLV_PAD0:
+		case IPV6_TLV_PAD1:
 			optlen = 1;
 			break;
 

@@ -46,7 +46,7 @@ static inline void *mip6_padn(__u8 *data, __u8 padlen)
 	if (!data)
 		return NULL;
 	if (padlen == 1) {
-		data[0] = IPV6_TLV_PAD0;
+		data[0] = IPV6_TLV_PAD1;
 	} else if (padlen > 1) {
 		data[0] = IPV6_TLV_PADN;
 		data[1] = padlen - 2;
