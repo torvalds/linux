@@ -682,7 +682,7 @@ out_free:
 }
 
 /**
- * ubi_scan_get_free_peb - get a free physical eraseblock.
+ * ubi_early_get_peb - get a free physical eraseblock.
  * @ubi: UBI device description object
  * @ai: attaching information
  *
@@ -695,8 +695,8 @@ out_free:
  * This function returns scanning physical eraseblock information in case of
  * success and an error code in case of failure.
  */
-struct ubi_ainf_peb *ubi_scan_get_free_peb(struct ubi_device *ubi,
-					   struct ubi_attach_info *ai)
+struct ubi_ainf_peb *ubi_early_get_peb(struct ubi_device *ubi,
+				       struct ubi_attach_info *ai)
 {
 	int err = 0;
 	struct ubi_ainf_peb *aeb, *tmp_aeb;

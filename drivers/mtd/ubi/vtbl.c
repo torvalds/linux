@@ -312,7 +312,7 @@ static int create_vtbl(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		return -ENOMEM;
 
 retry:
-	new_aeb = ubi_scan_get_free_peb(ubi, ai);
+	new_aeb = ubi_early_get_peb(ubi, ai);
 	if (IS_ERR(new_aeb)) {
 		err = PTR_ERR(new_aeb);
 		goto out_free;
