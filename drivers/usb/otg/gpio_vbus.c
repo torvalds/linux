@@ -53,8 +53,7 @@ struct gpio_vbus_data {
  * edges might be workable.
  */
 #define VBUS_IRQ_FLAGS \
-	( IRQF_SAMPLE_RANDOM | IRQF_SHARED \
-	| IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING )
+	(IRQF_SHARED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)
 
 
 /* interface to regulator framework */
@@ -280,7 +279,7 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 	if (res) {
 		irq = res->start;
 		res->flags &= IRQF_TRIGGER_MASK;
-		res->flags |= IRQF_SAMPLE_RANDOM | IRQF_SHARED;
+		res->flags |= IRQF_SHARED;
 	} else
 		irq = gpio_to_irq(gpio);
 
