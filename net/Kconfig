@@ -296,7 +296,7 @@ config NET_TCPPROBE
 	module will be called tcp_probe.
 
 config NET_DROP_MONITOR
-	boolean "Network packet drop alerting service"
+	tristate "Network packet drop alerting service"
 	depends on INET && EXPERIMENTAL && TRACEPOINTS
 	---help---
 	This feature provides an alerting service to userspace in the
