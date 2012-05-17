@@ -2023,16 +2023,6 @@ config EISA
 
 source "drivers/eisa/Kconfig"
 
-config MCA
-	bool "MCA support"
-	---help---
-	  MicroChannel Architecture is found in some IBM PS/2 machines and
-	  laptops.  It is a bus system similar to PCI or ISA. See
-	  <file:Documentation/mca.txt> (and especially the web page given
-	  there) before attempting to build an MCA bus kernel.
-
-source "drivers/mca/Kconfig"
-
 config SCx200
 	tristate "NatSemi SCx200 support"
 	---help---

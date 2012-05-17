@@ -19,8 +19,6 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 
-#include <linux/mca.h>
-
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
 #endif
@@ -282,16 +280,6 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 
 	__this_cpu_add(nmi_stats.unknown, 1);
 
-#ifdef CONFIG_MCA
-	/*
-	 * Might actually be able to figure out what the guilty party
-	 * is:
-	 */
-	if (MCA_bus) {
-		mca_handle_nmi();
-		return;
-	}
-#endif
 	pr_emerg("Uhhuh. NMI received for unknown reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
 

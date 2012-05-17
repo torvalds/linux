@@ -846,13 +846,7 @@ Your cooperation is appreciated.
 		    ...
 		 31 = /dev/tap15	16th Ethertap device
 
- 36 block	MCA ESDI hard disk
-		  0 = /dev/eda		First ESDI disk whole disk
-		 64 = /dev/edb		Second ESDI disk whole disk
-		    ...
-
-		Partitions are handled in the same way as IDE disks
-		(see major number 3).
+ 36 block	OBSOLETE (was MCA ESDI hard disk)
 
  37 char	IDE tape
 		  0 = /dev/ht0		First IDE tape

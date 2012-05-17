@@ -3316,12 +3316,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aegl/linux.git
 S:	Maintained
 F:	arch/ia64/
 
-IBM MCA SCSI SUBSYSTEM DRIVER
-M:	Michael Lang <langa2@kph.uni-mainz.de>
-W:	http://www.uni-mainz.de/~langm000/linux.html
-S:	Maintained
-F:	drivers/scsi/ibmmca.c
-
 IBM Power Linux RAID adapter
 M:	Brian King <brking@us.ibm.com>
 S:	Supported
@@ -4417,13 +4411,6 @@ W:	http://www.monstr.eu/fdt/
 T:	git git://git.monstr.eu/linux-2.6-microblaze.git
 S:	Supported
 F:	arch/microblaze/
-
-MICROCHANNEL ARCHITECTURE (MCA)
-M:	James Bottomley <James.Bottomley@HansenPartnership.com>
-S:	Maintained
-F:	Documentation/mca.txt
-F:	drivers/mca/
-F:	include/linux/mca*
 
 MICROTEK X6 SCANNER
 M:	Oliver Neukum <oliver@neukum.name>
