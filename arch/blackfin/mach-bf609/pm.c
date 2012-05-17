@@ -138,7 +138,6 @@ void bfin_deepsleep(unsigned long mask)
 
 	bfin_write32(DPM0_WAKE_EN, 0x10);
 	bfin_write32(DPM0_WAKE_POL, 0x10);
-	dpm0_ctl = bfin_read32(DPM0_CTL);
 	dpm0_ctl = 0x00000008;
 	bfin_write32(DPM0_CTL, dpm0_ctl);
 	SSYNC();
@@ -149,13 +148,13 @@ void bfin_deepsleep(unsigned long mask)
 			);
 #ifdef CONFIG_BFIN_PM_WAKEUP_TIME_BENCH
 	__asm__ __volatile__(
-		"%0 = 0;"
-		"CYCLES = %0;"
-		"CYCLES2 = %0;"
-		"%0 = SYSCFG;"
-		"BITSET(%0, 1);"
-		"SYSCFG = %0;"
-		: "=d,a" (dpm0_ctl) :
+		"R0 = 0;"
+		"CYCLES = R0;"
+		"CYCLES2 = R0;"
+		"R0 = SYSCFG;"
+		"BITSET(R0, 1);"
+		"SYSCFG = R0;"
+		: : : "R0"
 	);
 #endif
 
