@@ -3332,6 +3332,11 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 	}
 	crtc = obj_to_crtc(obj);
 
+	if (crtc->funcs->gamma_set == NULL) {
+		ret = -ENOSYS;
+		goto out;
+	}
+
 	/* memcpy into gamma store */
 	if (crtc_lut->gamma_size != crtc->gamma_size) {
 		ret = -EINVAL;
