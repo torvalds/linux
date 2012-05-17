@@ -1203,7 +1203,7 @@ out_vidh:
 out_ech:
 	kfree(ech);
 out_ai:
-	ubi_scan_destroy_ai(ai);
+	ubi_destroy_ai(ai);
 	return ERR_PTR(err);
 }
 
@@ -1242,10 +1242,10 @@ static void destroy_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av)
 }
 
 /**
- * ubi_scan_destroy_ai - destroy attaching information.
+ * ubi_destroy_ai - destroy attaching information.
  * @ai: attaching information
  */
-void ubi_scan_destroy_ai(struct ubi_attach_info *ai)
+void ubi_destroy_ai(struct ubi_attach_info *ai)
 {
 	struct ubi_ainf_peb *aeb, *aeb_tmp;
 	struct ubi_ainf_volume *av;
