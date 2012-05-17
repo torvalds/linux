@@ -5835,7 +5835,7 @@ static int WriteGPIO(struct drxk_state *state)
 		}
 		if (state->UIO_mask & 0x0002) { /* UIO-2 */
 			/* write to io pad configuration register - output mode */
-			status = write16(state, SIO_PDR_SMA_TX_CFG__A, state->m_GPIOCfg);
+			status = write16(state, SIO_PDR_SMA_RX_CFG__A, state->m_GPIOCfg);
 			if (status < 0)
 				goto error;
 
@@ -5854,7 +5854,7 @@ static int WriteGPIO(struct drxk_state *state)
 		}
 		if (state->UIO_mask & 0x0004) { /* UIO-3 */
 			/* write to io pad configuration register - output mode */
-			status = write16(state, SIO_PDR_SMA_TX_CFG__A, state->m_GPIOCfg);
+			status = write16(state, SIO_PDR_GPIO_CFG__A, state->m_GPIOCfg);
 			if (status < 0)
 				goto error;
 
