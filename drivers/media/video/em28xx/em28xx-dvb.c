@@ -336,6 +336,8 @@ struct drxk_config pctv_520e_drxk = {
 	.single_master = 1,
 	.microcode_name = "dvb-demod-drxk-pctv.fw",
 	.chunk_size = 58,
+	.antenna_dvbt = true, /* disable LNA */
+	.antenna_gpio = (1 << 2), /* disable LNA */
 };
 
 static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
