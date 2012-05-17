@@ -618,7 +618,7 @@ end_io:
 done:
 	sdio_writeb(func, 0x00, 0x10, &ret);	/* PCRRT */
 	if (!phy_dev->netdev)
-		register_wimax_device(phy_dev);
+		register_wimax_device(phy_dev, &func->dev);
 }
 
 static int gdm_sdio_receive(void *priv_dev,

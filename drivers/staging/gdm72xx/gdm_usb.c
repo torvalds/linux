@@ -624,7 +624,7 @@ static int gdm_usb_probe(struct usb_interface *intf,
 	INIT_WORK(&udev->pm_ws, do_pm_control);
 #endif /* CONFIG_WIMAX_GDM72XX_USB_PM */
 
-	ret = register_wimax_device(phy_dev);
+	ret = register_wimax_device(phy_dev, &intf->dev);
 
 out:
 	if (ret) {

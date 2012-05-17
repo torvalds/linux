@@ -943,7 +943,7 @@ static struct net_device_ops gdm_netdev_ops = {
 	.ndo_do_ioctl			= gdm_wimax_ioctl,
 };
 
-int register_wimax_device(struct phy_dev *phy_dev)
+int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev)
 {
 	struct nic *nic = NULL;
 	struct net_device *dev;
@@ -957,6 +957,7 @@ int register_wimax_device(struct phy_dev *phy_dev)
 		return -ENOMEM;
 	}
 
+	SET_NETDEV_DEV(dev, pdev);
 	dev->mtu = 1400;
 	dev->netdev_ops = &gdm_netdev_ops;
 	dev->flags &= ~IFF_MULTICAST;
