@@ -52,6 +52,12 @@
 #define ALUA_DEFAULT_TRANS_DELAY_MSECS			0
 #define ALUA_MAX_TRANS_DELAY_MSECS			30000 /* 30 seconds */
 /*
+ * Used for the recommended application client implict transition timeout
+ * in seconds, returned by the REPORT_TARGET_PORT_GROUPS w/ extended header.
+ */
+#define ALUA_DEFAULT_IMPLICT_TRANS_SECS			0
+#define ALUA_MAX_IMPLICT_TRANS_SECS			255
+/*
  * Used by core_alua_update_tpg_primary_metadata() and
  * core_alua_update_tpg_secondary_metadata()
  */
@@ -106,6 +112,10 @@ extern ssize_t core_alua_store_nonop_delay_msecs(struct t10_alua_tg_pt_gp *,
 extern ssize_t core_alua_show_trans_delay_msecs(struct t10_alua_tg_pt_gp *,
 					char *);
 extern ssize_t core_alua_store_trans_delay_msecs(struct t10_alua_tg_pt_gp *,
+					const char *, size_t);
+extern ssize_t core_alua_show_implict_trans_secs(struct t10_alua_tg_pt_gp *,
+					char *);
+extern ssize_t core_alua_store_implict_trans_secs(struct t10_alua_tg_pt_gp *,
 					const char *, size_t);
 extern ssize_t core_alua_show_preferred_bit(struct t10_alua_tg_pt_gp *,
 					char *);
