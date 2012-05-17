@@ -21,6 +21,7 @@
 #ifndef _V4L2_SUBDEV_H
 #define _V4L2_SUBDEV_H
 
+#include <linux/types.h>
 #include <linux/v4l2-subdev.h>
 #include <media/media-entity.h>
 #include <media/v4l2-common.h>
@@ -45,6 +46,7 @@ struct v4l2_fh;
 struct v4l2_subdev;
 struct v4l2_subdev_fh;
 struct tuner_setup;
+struct v4l2_mbus_frame_desc;
 
 /* decode_vbi_line */
 struct v4l2_decode_vbi_line {
@@ -224,6 +226,36 @@ struct v4l2_subdev_audio_ops {
 	int (*s_i2s_clock_freq)(struct v4l2_subdev *sd, u32 freq);
 	int (*s_routing)(struct v4l2_subdev *sd, u32 input, u32 output, u32 config);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
+};
+
+/* Indicates the @length field specifies maximum data length. */
+#define V4L2_MBUS_FRAME_DESC_FL_LEN_MAX		(1U << 0)
+/* Indicates user defined data format, i.e. non standard frame format. */
+#define V4L2_MBUS_FRAME_DESC_FL_BLOB		(1U << 1)
+
+/**
+ * struct v4l2_mbus_frame_desc_entry - media bus frame description structure
+ * @flags: V4L2_MBUS_FRAME_DESC_FL_* flags
+ * @pixelcode: media bus pixel code, valid if FRAME_DESC_FL_BLOB is not set
+ * @length: number of octets per frame, valid for compressed or unspecified
+ *          formats
+ */
+struct v4l2_mbus_frame_desc_entry {
+	u16 flags;
+	u32 pixelcode;
+	u32 length;
+};
+
+#define V4L2_FRAME_DESC_ENTRY_MAX	4
+
+/**
+ * struct v4l2_mbus_frame_desc - media bus data frame description
+ * @entry: frame descriptors array
+ * @num_entries: number of entries in @entry array
+ */
+struct v4l2_mbus_frame_desc {
+	struct v4l2_mbus_frame_desc_entry entry[V4L2_FRAME_DESC_ENTRY_MAX];
+	unsigned short num_entries;
 };
 
 /*
@@ -461,6 +493,12 @@ struct v4l2_subdev_ir_ops {
 				struct v4l2_subdev_ir_parameters *params);
 };
 
+/**
+ * struct v4l2_subdev_pad_ops - v4l2-subdev pad level operations
+ * @get_frame_desc: get the current low level media bus frame parameters.
+ * @get_frame_desc: set the low level media bus frame parameters, @fd array
+ *                  may be adjusted by the subdev driver to device capabilities.
+ */
 struct v4l2_subdev_pad_ops {
 	int (*enum_mbus_code)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 			      struct v4l2_subdev_mbus_code_enum *code);
@@ -489,6 +527,10 @@ struct v4l2_subdev_pad_ops {
 			     struct v4l2_subdev_format *source_fmt,
 			     struct v4l2_subdev_format *sink_fmt);
 #endif /* CONFIG_MEDIA_CONTROLLER */
+	int (*get_frame_desc)(struct v4l2_subdev *sd, unsigned int pad,
+			      struct v4l2_mbus_frame_desc *fd);
+	int (*set_frame_desc)(struct v4l2_subdev *sd, unsigned int pad,
+			      struct v4l2_mbus_frame_desc *fd);
 };
 
 struct v4l2_subdev_ops {
