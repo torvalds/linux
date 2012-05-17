@@ -57,7 +57,7 @@ MODULE_PARM_DESC(dump_oops,
 		"set to 1 to dump oopses, 0 to only dump panics (default 1)");
 
 struct ramoops_context {
-	void *virt_addr;
+	struct persistent_ram_zone **przs;
 	phys_addr_t phys_addr;
 	unsigned long size;
 	size_t record_size;
@@ -85,26 +85,45 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 				   struct pstore_info *psi)
 {
 	ssize_t size;
-	char *rambuf;
 	struct ramoops_context *cxt = psi->data;
+	struct persistent_ram_zone *prz;
 
 	if (cxt->read_count >= cxt->max_count)
 		return -EINVAL;
+
 	*id = cxt->read_count++;
+	prz = cxt->przs[*id];
+
 	/* Only supports dmesg output so far. */
 	*type = PSTORE_TYPE_DMESG;
 	/* TODO(kees): Bogus time for the moment. */
 	time->tv_sec = 0;
 	time->tv_nsec = 0;
 
-	rambuf = cxt->virt_addr + (*id * cxt->record_size);
-	size = strnlen(rambuf, cxt->record_size);
+	size = persistent_ram_old_size(prz);
 	*buf = kmalloc(size, GFP_KERNEL);
 	if (*buf == NULL)
 		return -ENOMEM;
-	memcpy(*buf, rambuf, size);
+	memcpy(*buf, persistent_ram_old(prz), size);
 
 	return size;
+}
+
+static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz)
+{
+	char *hdr;
+	struct timeval timestamp;
+	size_t len;
+
+	do_gettimeofday(&timestamp);
+	hdr = kasprintf(GFP_ATOMIC, RAMOOPS_KERNMSG_HDR "%lu.%lu\n",
+		(long)timestamp.tv_sec, (long)timestamp.tv_usec);
+	WARN_ON_ONCE(!hdr);
+	len = hdr ? strlen(hdr) : 0;
+	persistent_ram_write(prz, hdr, len);
+	kfree(hdr);
+
+	return len;
 }
 
 static int ramoops_pstore_write(enum pstore_type_id type,
@@ -113,11 +132,9 @@ static int ramoops_pstore_write(enum pstore_type_id type,
 				unsigned int part,
 				size_t size, struct pstore_info *psi)
 {
-	char *buf;
-	size_t res;
-	struct timeval timestamp;
 	struct ramoops_context *cxt = psi->data;
-	size_t available = cxt->record_size;
+	struct persistent_ram_zone *prz = cxt->przs[cxt->count];
+	size_t hlen;
 
 	/* Currently ramoops is designed to only store dmesg dumps. */
 	if (type != PSTORE_TYPE_DMESG)
@@ -142,22 +159,10 @@ static int ramoops_pstore_write(enum pstore_type_id type,
 	if (part != 1)
 		return -ENOSPC;
 
-	buf = cxt->virt_addr + (cxt->count * cxt->record_size);
-
-	res = sprintf(buf, "%s", RAMOOPS_KERNMSG_HDR);
-	buf += res;
-	available -= res;
-
-	do_gettimeofday(&timestamp);
-	res = sprintf(buf, "%lu.%lu\n", (long)timestamp.tv_sec, (long)timestamp.tv_usec);
-	buf += res;
-	available -= res;
-
-	if (size > available)
-		size = available;
-
-	memcpy(buf, cxt->pstore.buf, size);
-	memset(buf + size, '\0', available - size);
+	hlen = ramoops_write_kmsg_hdr(prz);
+	if (size + hlen > prz->buffer_size)
+		size = prz->buffer_size - hlen;
+	persistent_ram_write(prz, cxt->pstore.buf, size);
 
 	cxt->count = (cxt->count + 1) % cxt->max_count;
 
@@ -167,14 +172,12 @@ static int ramoops_pstore_write(enum pstore_type_id type,
 static int ramoops_pstore_erase(enum pstore_type_id type, u64 id,
 				struct pstore_info *psi)
 {
-	char *buf;
 	struct ramoops_context *cxt = psi->data;
 
 	if (id >= cxt->max_count)
 		return -EINVAL;
 
-	buf = cxt->virt_addr + (id * cxt->record_size);
-	memset(buf, '\0', cxt->record_size);
+	persistent_ram_free_old(cxt->przs[id]);
 
 	return 0;
 }
@@ -192,9 +195,11 @@ static struct ramoops_context oops_cxt = {
 
 static int __init ramoops_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct ramoops_platform_data *pdata = pdev->dev.platform_data;
 	struct ramoops_context *cxt = &oops_cxt;
 	int err = -EINVAL;
+	int i;
 
 	/* Only a single ramoops area allowed at a time, so fail extra
 	 * probes.
@@ -232,8 +237,28 @@ static int __init ramoops_probe(struct platform_device *pdev)
 	cxt->record_size = pdata->record_size;
 	cxt->dump_oops = pdata->dump_oops;
 
+	cxt->przs = kzalloc(sizeof(*cxt->przs) * cxt->max_count, GFP_KERNEL);
+	if (!cxt->przs) {
+		err = -ENOMEM;
+		dev_err(dev, "failed to initialize a prz array\n");
+		goto fail_out;
+	}
+
+	for (i = 0; i < cxt->max_count; i++) {
+		size_t sz = cxt->record_size;
+		phys_addr_t start = cxt->phys_addr + sz * i;
+
+		cxt->przs[i] = persistent_ram_new(start, sz, 0);
+		if (IS_ERR(cxt->przs[i])) {
+			err = PTR_ERR(cxt->przs[i]);
+			dev_err(dev, "failed to request mem region (0x%zx@0x%llx): %d\n",
+				sz, (unsigned long long)start, err);
+			goto fail_przs;
+		}
+	}
+
 	cxt->pstore.data = cxt;
-	cxt->pstore.bufsize = cxt->record_size;
+	cxt->pstore.bufsize = cxt->przs[0]->buffer_size;
 	cxt->pstore.buf = kmalloc(cxt->pstore.bufsize, GFP_KERNEL);
 	spin_lock_init(&cxt->pstore.buf_lock);
 	if (!cxt->pstore.buf) {
@@ -241,23 +266,10 @@ static int __init ramoops_probe(struct platform_device *pdev)
 		goto fail_clear;
 	}
 
-	if (!request_mem_region(cxt->phys_addr, cxt->size, "ramoops")) {
-		pr_err("request mem region (0x%lx@0x%llx) failed\n",
-			cxt->size, (unsigned long long)cxt->phys_addr);
-		err = -EINVAL;
-		goto fail_buf;
-	}
-
-	cxt->virt_addr = ioremap(cxt->phys_addr,  cxt->size);
-	if (!cxt->virt_addr) {
-		pr_err("ioremap failed\n");
-		goto fail_mem_region;
-	}
-
 	err = pstore_register(&cxt->pstore);
 	if (err) {
 		pr_err("registering with pstore failed\n");
-		goto fail_iounmap;
+		goto fail_buf;
 	}
 
 	/*
@@ -275,15 +287,15 @@ static int __init ramoops_probe(struct platform_device *pdev)
 
 	return 0;
 
-fail_iounmap:
-	iounmap(cxt->virt_addr);
-fail_mem_region:
-	release_mem_region(cxt->phys_addr, cxt->size);
 fail_buf:
 	kfree(cxt->pstore.buf);
 fail_clear:
 	cxt->pstore.bufsize = 0;
 	cxt->max_count = 0;
+fail_przs:
+	for (i = 0; cxt->przs[i]; i++)
+		persistent_ram_free(cxt->przs[i]);
+	kfree(cxt->przs);
 fail_out:
 	return err;
 }
