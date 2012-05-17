@@ -327,6 +327,8 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 		goto err_otg;
 	}
 
+	device_init_wakeup(&pdev->dev, pdata->wakeup);
+
 	return 0;
 err_otg:
 	regulator_put(gpio_vbus->vbus_draw);
@@ -348,6 +350,7 @@ static int __exit gpio_vbus_remove(struct platform_device *pdev)
 	struct gpio_vbus_mach_info *pdata = pdev->dev.platform_data;
 	int gpio = pdata->gpio_vbus;
 
+	device_init_wakeup(&pdev->dev, 0);
 	cancel_delayed_work_sync(&gpio_vbus->work);
 	regulator_put(gpio_vbus->vbus_draw);
 
@@ -364,6 +367,33 @@ static int __exit gpio_vbus_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int gpio_vbus_pm_suspend(struct device *dev)
+{
+	struct gpio_vbus_data *gpio_vbus = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(gpio_vbus->irq);
+
+	return 0;
+}
+
+static int gpio_vbus_pm_resume(struct device *dev)
+{
+	struct gpio_vbus_data *gpio_vbus = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(gpio_vbus->irq);
+
+	return 0;
+}
+
+static const struct dev_pm_ops gpio_vbus_dev_pm_ops = {
+	.suspend	= gpio_vbus_pm_suspend,
+	.resume		= gpio_vbus_pm_resume,
+};
+#endif
+
 /* NOTE:  the gpio-vbus device may *NOT* be hotplugged */
 
 MODULE_ALIAS("platform:gpio-vbus");
@@ -372,6 +402,9 @@ static struct platform_driver gpio_vbus_driver = {
 	.driver = {
 		.name  = "gpio-vbus",
 		.owner = THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm = &gpio_vbus_dev_pm_ops,
+#endif
 	},
 	.remove  = __exit_p(gpio_vbus_remove),
 };
