@@ -20,6 +20,8 @@
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/regulator/ab8500.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 /*
  * Interrupt register offsets
@@ -1205,11 +1207,20 @@ static struct attribute_group ab9540_attr_group = {
 	.attrs	= ab9540_sysfs_entries,
 };
 
+static const struct of_device_id ab8500_match[] = {
+	{
+		.compatible = "stericsson,ab8500",
+		.data = (void *)AB8500_VERSION_AB8500,
+	},
+	{},
+};
+
 static int __devinit ab8500_probe(struct platform_device *pdev)
 {
 	struct ab8500_platform_data *plat = dev_get_platdata(&pdev->dev);
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
-	enum ab8500_version version = platid->driver_data;
+	enum ab8500_version version = AB8500_VERSION_UNDEFINED;
+	struct device_node *np = pdev->dev.of_node;
 	struct ab8500 *ab8500;
 	struct resource *resource;
 	int ret;
@@ -1222,6 +1233,14 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 
 	if (plat)
 		ab8500->irq_base = plat->irq_base;
+	else if (np)
+		ret = of_property_read_u32(np, "stericsson,irq-base", &ab8500->irq_base);
+
+	if (!ab8500->irq_base) {
+		dev_info(&pdev->dev, "couldn't find irq-base\n");
+		ret = -EINVAL;
+		goto out_free_ab8500;
+	}
 
 	ab8500->dev = &pdev->dev;
 
@@ -1242,6 +1261,12 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 	atomic_set(&ab8500->transfer_ongoing, 0);
 
 	platform_set_drvdata(pdev, ab8500);
+
+	if (platid)
+		version = platid->driver_data;
+	else if (np)
+		version = (unsigned int)
+			of_match_device(ab8500_match, &pdev->dev)->data;
 
 	if (version != AB8500_VERSION_UNDEFINED)
 		ab8500->version = version;
@@ -1348,29 +1373,32 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 			goto out_removeirq;
 	}
 
-	ret = mfd_add_devices(ab8500->dev, 0, abx500_common_devs,
-			      ARRAY_SIZE(abx500_common_devs), NULL,
-			      ab8500->irq_base);
+	if (!np) {
+		ret = mfd_add_devices(ab8500->dev, 0, abx500_common_devs,
+				ARRAY_SIZE(abx500_common_devs), NULL,
+				ab8500->irq_base);
 
-	if (ret)
-		goto out_freeirq;
+		if (ret)
+			goto out_freeirq;
 
-	if (is_ab9540(ab8500))
-		ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
-			      ARRAY_SIZE(ab9540_devs), NULL,
-			      ab8500->irq_base);
-	else
-		ret = mfd_add_devices(ab8500->dev, 0, ab8500_devs,
-			      ARRAY_SIZE(ab8500_devs), NULL,
-			      ab8500->irq_base);
+		if (is_ab9540(ab8500))
+			ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
+					ARRAY_SIZE(ab9540_devs), NULL,
+					ab8500->irq_base);
+		else
+			ret = mfd_add_devices(ab8500->dev, 0, ab8500_devs,
+					ARRAY_SIZE(ab8500_devs), NULL,
+					ab8500->irq_base);
+		if (ret)
+			goto out_freeirq;
 
-	if (is_ab9540(ab8500) || is_ab8505(ab8500))
-		ret = mfd_add_devices(ab8500->dev, 0, ab9540_ab8505_devs,
-			      ARRAY_SIZE(ab9540_ab8505_devs), NULL,
-			      ab8500->irq_base);
-
-	if (ret)
-		goto out_freeirq;
+		if (is_ab9540(ab8500) || is_ab8505(ab8500))
+			ret = mfd_add_devices(ab8500->dev, 0, ab9540_ab8505_devs,
+					ARRAY_SIZE(ab9540_ab8505_devs), NULL,
+					ab8500->irq_base);
+		if (ret)
+			goto out_freeirq;
+	}
 
 	if (!no_bm) {
 		/* Add battery management devices */
@@ -1440,6 +1468,7 @@ static struct platform_driver ab8500_core_driver = {
 	.driver = {
 		.name = "ab8500-core",
 		.owner = THIS_MODULE,
+		.of_match_table = ab8500_match,
 	},
 	.probe	= ab8500_probe,
 	.remove	= __devexit_p(ab8500_remove),
