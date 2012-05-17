@@ -1400,7 +1400,7 @@ cifs_readv_discard(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 
 		length = cifs_read_from_socket(server, server->bigbuf,
 				min_t(unsigned int, remaining,
-					CIFSMaxBufSize + max_header_size()));
+				    CIFSMaxBufSize + MAX_HEADER_SIZE(server)));
 		if (length < 0)
 			return length;
 		server->total_read += length;
@@ -1449,9 +1449,10 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	 * can if there's not enough data. At this point, we've read down to
 	 * the Mid.
 	 */
-	len = min_t(unsigned int, buflen, read_rsp_size()) - header_size() + 1;
+	len = min_t(unsigned int, buflen, read_rsp_size()) -
+							HEADER_SIZE(server) + 1;
 
-	rdata->iov[0].iov_base = buf + header_size() - 1;
+	rdata->iov[0].iov_base = buf + HEADER_SIZE(server) - 1;
 	rdata->iov[0].iov_len = len;
 
 	length = cifs_readv_from_socket(server, rdata->iov, 1, len);

@@ -177,7 +177,12 @@ struct smb_version_values {
 	__u32		exclusive_lock_type;
 	__u32		shared_lock_type;
 	__u32		unlock_lock_type;
+	size_t		header_size;
+	size_t		max_header_size;
 };
+
+#define HEADER_SIZE(server) (server->vals->header_size)
+#define MAX_HEADER_SIZE(server) (server->vals->max_header_size)
 
 struct smb_vol {
 	char *username;
@@ -372,18 +377,6 @@ has_credits(struct TCP_Server_Info *server, int *credits)
 	num = *credits;
 	spin_unlock(&server->req_lock);
 	return num > 0;
-}
-
-static inline size_t
-header_size(void)
-{
-	return sizeof(struct smb_hdr);
-}
-
-static inline size_t
-max_header_size(void)
-{
-	return MAX_CIFS_HDR_SIZE;
 }
 
 /*

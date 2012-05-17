@@ -79,4 +79,6 @@ struct smb_version_values smb1_values = {
 	.exclusive_lock_type = 0,
 	.shared_lock_type = LOCKING_ANDX_SHARED_LOCK,
 	.unlock_lock_type = 0,
+	.header_size = sizeof(struct smb_hdr),
+	.max_header_size = MAX_CIFS_HDR_SIZE,
 };

@@ -568,7 +568,7 @@ allocate_buffers(struct TCP_Server_Info *server)
 		}
 	} else if (server->large_buf) {
 		/* we are reusing a dirty large buf, clear its start */
-		memset(server->bigbuf, 0, header_size());
+		memset(server->bigbuf, 0, HEADER_SIZE(server));
 	}
 
 	if (!server->smallbuf) {
@@ -582,7 +582,7 @@ allocate_buffers(struct TCP_Server_Info *server)
 		/* beginning of smb buffer is cleared in our buf_get */
 	} else {
 		/* if existing small buf clear beginning */
-		memset(server->smallbuf, 0, header_size());
+		memset(server->smallbuf, 0, HEADER_SIZE(server));
 	}
 
 	return true;
@@ -953,7 +953,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	unsigned int pdu_length = get_rfc1002_length(buf);
 
 	/* make sure this will fit in a large buffer */
-	if (pdu_length > CIFSMaxBufSize + max_header_size() - 4) {
+	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server) - 4) {
 		cERROR(1, "SMB response too long (%u bytes)",
 			pdu_length);
 		cifs_reconnect(server);
@@ -969,8 +969,8 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	}
 
 	/* now read the rest */
-	length = cifs_read_from_socket(server, buf + header_size() - 1,
-				       pdu_length - header_size() + 1 + 4);
+	length = cifs_read_from_socket(server, buf + HEADER_SIZE(server) - 1,
+				pdu_length - HEADER_SIZE(server) + 1 + 4);
 	if (length < 0)
 		return length;
 	server->total_read += length;
@@ -1044,7 +1044,7 @@ cifs_demultiplex_thread(void *p)
 			continue;
 
 		/* make sure we have enough to get to the MID */
-		if (pdu_length < header_size() - 1 - 4) {
+		if (pdu_length < HEADER_SIZE(server) - 1 - 4) {
 			cERROR(1, "SMB response too short (%u bytes)",
 				pdu_length);
 			cifs_reconnect(server);
@@ -1054,7 +1054,7 @@ cifs_demultiplex_thread(void *p)
 
 		/* read down to the MID */
 		length = cifs_read_from_socket(server, buf + 4,
-					       header_size() - 1 - 4);
+					       HEADER_SIZE(server) - 1 - 4);
 		if (length < 0)
 			continue;
 		server->total_read += length;
@@ -1079,7 +1079,8 @@ cifs_demultiplex_thread(void *p)
 		} else if (!is_valid_oplock_break(buf, server)) {
 			cERROR(1, "No task to wake, unknown frame received! "
 				   "NumMids %d", atomic_read(&midCount));
-			cifs_dump_mem("Received Data is: ", buf, header_size());
+			cifs_dump_mem("Received Data is: ", buf,
+				      HEADER_SIZE(server));
 #ifdef CONFIG_CIFS_DEBUG2
 			cifs_dump_detail(buf);
 			cifs_dump_mids(server);
