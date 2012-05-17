@@ -514,7 +514,7 @@ cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 	return map_smb_to_linux_error(mid->resp_buf, log_error);
 }
 
-static int
+int
 cifs_setup_request(struct cifs_ses *ses, struct kvec *iov,
 		   unsigned int nvec, struct mid_q_entry **ret_mid)
 {
@@ -577,7 +577,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 
 	mutex_lock(&ses->server->srv_mutex);
 
-	rc = cifs_setup_request(ses, iov, n_vec, &midQ);
+	rc = ses->server->ops->setup_request(ses, iov, n_vec, &midQ);
 	if (rc) {
 		mutex_unlock(&ses->server->srv_mutex);
 		cifs_small_buf_release(buf);
@@ -640,7 +640,8 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	else
 		*pRespBufType = CIFS_SMALL_BUFFER;
 
-	rc = cifs_check_receive(midQ, ses->server, flags & CIFS_LOG_ERROR);
+	rc = ses->server->ops->check_receive(midQ, ses->server,
+					     flags & CIFS_LOG_ERROR);
 
 	/* mark it so buf will not be freed by delete_mid */
 	if ((flags & CIFS_NO_RESP) == 0)
