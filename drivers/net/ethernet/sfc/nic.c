@@ -298,7 +298,7 @@ efx_free_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 /**************************************************************************
  *
  * Generic buffer handling
- * These buffers are used for interrupt status and MAC stats
+ * These buffers are used for interrupt status, MAC stats, etc.
  *
  **************************************************************************/
 

@@ -94,7 +94,8 @@ struct efx_special_buffer {
  * struct efx_tx_buffer - buffer state for a TX descriptor
  * @skb: When @flags & %EFX_TX_BUF_SKB, the associated socket buffer to be
  *	freed when descriptor completes
- * @tsoh: When @flags & %EFX_TX_BUF_TSOH, the associated TSO header structure.
+ * @heap_buf: When @flags & %EFX_TX_BUF_HEAP, the associated heap buffer to be
+ *	freed when descriptor completes.
  * @dma_addr: DMA address of the fragment.
  * @flags: Flags for allocation and DMA mapping type
  * @len: Length of this fragment.
@@ -104,7 +105,7 @@ struct efx_special_buffer {
 struct efx_tx_buffer {
 	union {
 		const struct sk_buff *skb;
-		struct efx_tso_header *tsoh;
+		void *heap_buf;
 	};
 	dma_addr_t dma_addr;
 	unsigned short flags;
@@ -113,7 +114,7 @@ struct efx_tx_buffer {
 };
 #define EFX_TX_BUF_CONT		1	/* not last descriptor of packet */
 #define EFX_TX_BUF_SKB		2	/* buffer is last part of skb */
-#define EFX_TX_BUF_TSOH		4	/* buffer is TSO header */
+#define EFX_TX_BUF_HEAP		4	/* buffer was allocated with kmalloc() */
 #define EFX_TX_BUF_MAP_SINGLE	8	/* buffer was mapped with dma_map_single() */
 
 /**
@@ -134,6 +135,7 @@ struct efx_tx_buffer {
  * @channel: The associated channel
  * @core_txq: The networking core TX queue structure
  * @buffer: The software buffer ring
+ * @tsoh_page: Array of pages of TSO header buffers
  * @txd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
  * @initialised: Has hardware queue been initialised?
@@ -157,9 +159,6 @@ struct efx_tx_buffer {
  *	variable indicates that the queue is full.  This is to
  *	avoid cache-line ping-pong between the xmit path and the
  *	completion path.
- * @tso_headers_free: A list of TSO headers allocated for this TX queue
- *	that are not in use, and so available for new TSO sends. The list
- *	is protected by the TX queue lock.
  * @tso_bursts: Number of times TSO xmit invoked by kernel
  * @tso_long_headers: Number of packets with headers too long for standard
  *	blocks
@@ -176,6 +175,7 @@ struct efx_tx_queue {
 	struct efx_channel *channel;
 	struct netdev_queue *core_txq;
 	struct efx_tx_buffer *buffer;
+	struct efx_buffer *tsoh_page;
 	struct efx_special_buffer txd;
 	unsigned int ptr_mask;
 	bool initialised;
@@ -188,7 +188,6 @@ struct efx_tx_queue {
 	unsigned int insert_count ____cacheline_aligned_in_smp;
 	unsigned int write_count;
 	unsigned int old_read_count;
-	struct efx_tso_header *tso_headers_free;
 	unsigned int tso_bursts;
 	unsigned int tso_long_headers;
 	unsigned int tso_packets;

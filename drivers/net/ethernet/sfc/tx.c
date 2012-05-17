@@ -47,51 +47,16 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 		netif_vdbg(tx_queue->efx, tx_done, tx_queue->efx->net_dev,
 			   "TX queue %d transmission id %x complete\n",
 			   tx_queue->queue, tx_queue->read_count);
+	} else if (buffer->flags & EFX_TX_BUF_HEAP) {
+		kfree(buffer->heap_buf);
 	}
 
-	buffer->flags &= EFX_TX_BUF_TSOH;
+	buffer->len = 0;
+	buffer->flags = 0;
 }
-
-/**
- * struct efx_tso_header - a DMA mapped buffer for packet headers
- * @next: Linked list of free ones.
- *	The list is protected by the TX queue lock.
- * @dma_unmap_len: Length to unmap for an oversize buffer, or 0.
- * @dma_addr: The DMA address of the header below.
- *
- * This controls the memory used for a TSO header.  Use TSOH_DATA()
- * to find the packet header data.  Use TSOH_SIZE() to calculate the
- * total size required for a given packet header length.  TSO headers
- * in the free list are exactly %TSOH_STD_SIZE bytes in size.
- */
-struct efx_tso_header {
-	union {
-		struct efx_tso_header *next;
-		size_t unmap_len;
-	};
-	dma_addr_t dma_addr;
-};
 
 static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 			       struct sk_buff *skb);
-static void efx_fini_tso(struct efx_tx_queue *tx_queue);
-static void efx_tsoh_heap_free(struct efx_tx_queue *tx_queue,
-			       struct efx_tso_header *tsoh);
-
-static void efx_tsoh_free(struct efx_tx_queue *tx_queue,
-			  struct efx_tx_buffer *buffer)
-{
-	if (buffer->flags & EFX_TX_BUF_TSOH) {
-		if (likely(!buffer->tsoh->unmap_len)) {
-			buffer->tsoh->next = tx_queue->tso_headers_free;
-			tx_queue->tso_headers_free = buffer->tsoh;
-		} else {
-			efx_tsoh_heap_free(tx_queue, buffer->tsoh);
-		}
-		buffer->flags &= ~EFX_TX_BUF_TSOH;
-	}
-}
-
 
 static inline unsigned
 efx_max_tx_len(struct efx_nic *efx, dma_addr_t dma_addr)
@@ -245,7 +210,6 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 		do {
 			insert_ptr = tx_queue->insert_count & tx_queue->ptr_mask;
 			buffer = &tx_queue->buffer[insert_ptr];
-			efx_tsoh_free(tx_queue, buffer);
 			EFX_BUG_ON_PARANOID(buffer->flags);
 			EFX_BUG_ON_PARANOID(buffer->len);
 			EFX_BUG_ON_PARANOID(buffer->unmap_len);
@@ -309,7 +273,6 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 		insert_ptr = tx_queue->insert_count & tx_queue->ptr_mask;
 		buffer = &tx_queue->buffer[insert_ptr];
 		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
-		buffer->len = 0;
 	}
 
 	/* Free the fragment we were mid-way through pushing */
@@ -352,7 +315,6 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 		}
 
 		efx_dequeue_buffer(tx_queue, buffer, pkts_compl, bytes_compl);
-		buffer->len = 0;
 
 		++tx_queue->read_count;
 		read_ptr = tx_queue->read_count & tx_queue->ptr_mask;
@@ -495,6 +457,21 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	}
 }
 
+/* Size of page-based TSO header buffers.  Larger blocks must be
+ * allocated from the heap.
+ */
+#define TSOH_STD_SIZE	128
+#define TSOH_PER_PAGE	(PAGE_SIZE / TSOH_STD_SIZE)
+
+/* At most half the descriptors in the queue at any time will refer to
+ * a TSO header buffer, since they must always be followed by a
+ * payload descriptor referring to an skb.
+ */
+static unsigned int efx_tsoh_page_count(struct efx_tx_queue *tx_queue)
+{
+	return DIV_ROUND_UP(tx_queue->ptr_mask + 1, 2 * TSOH_PER_PAGE);
+}
+
 int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 {
 	struct efx_nic *efx = tx_queue->efx;
@@ -516,14 +493,27 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 	if (!tx_queue->buffer)
 		return -ENOMEM;
 
+	if (tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD) {
+		tx_queue->tsoh_page =
+			kcalloc(efx_tsoh_page_count(tx_queue),
+				sizeof(tx_queue->tsoh_page[0]), GFP_KERNEL);
+		if (!tx_queue->tsoh_page) {
+			rc = -ENOMEM;
+			goto fail1;
+		}
+	}
+
 	/* Allocate hardware ring */
 	rc = efx_nic_probe_tx(tx_queue);
 	if (rc)
-		goto fail;
+		goto fail2;
 
 	return 0;
 
- fail:
+fail2:
+	kfree(tx_queue->tsoh_page);
+	tx_queue->tsoh_page = NULL;
+fail1:
 	kfree(tx_queue->buffer);
 	tx_queue->buffer = NULL;
 	return rc;
@@ -559,7 +549,6 @@ void efx_release_tx_buffers(struct efx_tx_queue *tx_queue)
 		unsigned int pkts_compl = 0, bytes_compl = 0;
 		buffer = &tx_queue->buffer[tx_queue->read_count & tx_queue->ptr_mask];
 		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
-		buffer->len = 0;
 
 		++tx_queue->read_count;
 	}
@@ -580,19 +569,26 @@ void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 	efx_nic_fini_tx(tx_queue);
 
 	efx_release_tx_buffers(tx_queue);
-
-	/* Free up TSO header cache */
-	efx_fini_tso(tx_queue);
 }
 
 void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
 {
+	int i;
+
 	if (!tx_queue->buffer)
 		return;
 
 	netif_dbg(tx_queue->efx, drv, tx_queue->efx->net_dev,
 		  "destroying TX queue %d\n", tx_queue->queue);
 	efx_nic_remove_tx(tx_queue);
+
+	if (tx_queue->tsoh_page) {
+		for (i = 0; i < efx_tsoh_page_count(tx_queue); i++)
+			efx_nic_free_buffer(tx_queue->efx,
+					    &tx_queue->tsoh_page[i]);
+		kfree(tx_queue->tsoh_page);
+		tx_queue->tsoh_page = NULL;
+	}
 
 	kfree(tx_queue->buffer);
 	tx_queue->buffer = NULL;
@@ -615,17 +611,6 @@ void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
 #else
 #define TSOH_OFFSET	NET_IP_ALIGN
 #endif
-
-#define TSOH_BUFFER(tsoh)	((u8 *)(tsoh + 1) + TSOH_OFFSET)
-
-/* Total size of struct efx_tso_header, buffer and padding */
-#define TSOH_SIZE(hdr_len)					\
-	(sizeof(struct efx_tso_header) + TSOH_OFFSET + hdr_len)
-
-/* Size of blocks on free list.  Larger blocks must be allocated from
- * the heap.
- */
-#define TSOH_STD_SIZE		128
 
 #define PTR_DIFF(p1, p2)  ((u8 *)(p1) - (u8 *)(p2))
 #define ETH_HDR_LEN(skb)  (skb_network_header(skb) - (skb)->data)
@@ -699,91 +684,43 @@ static __be16 efx_tso_check_protocol(struct sk_buff *skb)
 	return protocol;
 }
 
-
-/*
- * Allocate a page worth of efx_tso_header structures, and string them
- * into the tx_queue->tso_headers_free linked list. Return 0 or -ENOMEM.
- */
-static int efx_tsoh_block_alloc(struct efx_tx_queue *tx_queue)
+static u8 *efx_tsoh_get_buffer(struct efx_tx_queue *tx_queue,
+			       struct efx_tx_buffer *buffer, unsigned int len)
 {
-	struct device *dma_dev = &tx_queue->efx->pci_dev->dev;
-	struct efx_tso_header *tsoh;
-	dma_addr_t dma_addr;
-	u8 *base_kva, *kva;
+	u8 *result;
 
-	base_kva = dma_alloc_coherent(dma_dev, PAGE_SIZE, &dma_addr, GFP_ATOMIC);
-	if (base_kva == NULL) {
-		netif_err(tx_queue->efx, tx_err, tx_queue->efx->net_dev,
-			  "Unable to allocate page for TSO headers\n");
-		return -ENOMEM;
+	EFX_BUG_ON_PARANOID(buffer->len);
+	EFX_BUG_ON_PARANOID(buffer->flags);
+	EFX_BUG_ON_PARANOID(buffer->unmap_len);
+
+	if (likely(len <= TSOH_STD_SIZE - TSOH_OFFSET)) {
+		unsigned index =
+			(tx_queue->insert_count & tx_queue->ptr_mask) / 2;
+		struct efx_buffer *page_buf =
+			&tx_queue->tsoh_page[index / TSOH_PER_PAGE];
+		unsigned offset =
+			TSOH_STD_SIZE * (index % TSOH_PER_PAGE) + TSOH_OFFSET;
+
+		if (unlikely(!page_buf->addr) &&
+		    efx_nic_alloc_buffer(tx_queue->efx, page_buf, PAGE_SIZE))
+			return NULL;
+
+		result = (u8 *)page_buf->addr + offset;
+		buffer->dma_addr = page_buf->dma_addr + offset;
+		buffer->flags = EFX_TX_BUF_CONT;
+	} else {
+		tx_queue->tso_long_headers++;
+
+		buffer->heap_buf = kmalloc(TSOH_OFFSET + len, GFP_ATOMIC);
+		if (unlikely(!buffer->heap_buf))
+			return NULL;
+		result = (u8 *)buffer->heap_buf + TSOH_OFFSET;
+		buffer->flags = EFX_TX_BUF_CONT | EFX_TX_BUF_HEAP;
 	}
 
-	/* dma_alloc_coherent() allocates pages. */
-	EFX_BUG_ON_PARANOID(dma_addr & (PAGE_SIZE - 1u));
+	buffer->len = len;
 
-	for (kva = base_kva; kva < base_kva + PAGE_SIZE; kva += TSOH_STD_SIZE) {
-		tsoh = (struct efx_tso_header *)kva;
-		tsoh->dma_addr = dma_addr + (TSOH_BUFFER(tsoh) - base_kva);
-		tsoh->next = tx_queue->tso_headers_free;
-		tx_queue->tso_headers_free = tsoh;
-	}
-
-	return 0;
-}
-
-
-/* Free up a TSO header, and all others in the same page. */
-static void efx_tsoh_block_free(struct efx_tx_queue *tx_queue,
-				struct efx_tso_header *tsoh,
-				struct device *dma_dev)
-{
-	struct efx_tso_header **p;
-	unsigned long base_kva;
-	dma_addr_t base_dma;
-
-	base_kva = (unsigned long)tsoh & PAGE_MASK;
-	base_dma = tsoh->dma_addr & PAGE_MASK;
-
-	p = &tx_queue->tso_headers_free;
-	while (*p != NULL) {
-		if (((unsigned long)*p & PAGE_MASK) == base_kva)
-			*p = (*p)->next;
-		else
-			p = &(*p)->next;
-	}
-
-	dma_free_coherent(dma_dev, PAGE_SIZE, (void *)base_kva, base_dma);
-}
-
-static struct efx_tso_header *
-efx_tsoh_heap_alloc(struct efx_tx_queue *tx_queue, size_t header_len)
-{
-	struct efx_tso_header *tsoh;
-
-	tsoh = kmalloc(TSOH_SIZE(header_len), GFP_ATOMIC | GFP_DMA);
-	if (unlikely(!tsoh))
-		return NULL;
-
-	tsoh->dma_addr = dma_map_single(&tx_queue->efx->pci_dev->dev,
-					TSOH_BUFFER(tsoh), header_len,
-					DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(&tx_queue->efx->pci_dev->dev,
-				       tsoh->dma_addr))) {
-		kfree(tsoh);
-		return NULL;
-	}
-
-	tsoh->unmap_len = header_len;
-	return tsoh;
-}
-
-static void
-efx_tsoh_heap_free(struct efx_tx_queue *tx_queue, struct efx_tso_header *tsoh)
-{
-	dma_unmap_single(&tx_queue->efx->pci_dev->dev,
-			 tsoh->dma_addr, tsoh->unmap_len,
-			 DMA_TO_DEVICE);
-	kfree(tsoh);
+	return result;
 }
 
 /**
@@ -814,7 +751,6 @@ static void efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 				    tx_queue->read_count >=
 				    efx->txq_entries);
 
-		efx_tsoh_free(tx_queue, buffer);
 		EFX_BUG_ON_PARANOID(buffer->len);
 		EFX_BUG_ON_PARANOID(buffer->unmap_len);
 		EFX_BUG_ON_PARANOID(buffer->flags);
@@ -846,53 +782,42 @@ static void efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
  * a single fragment, and we know it doesn't cross a page boundary.  It
  * also allows us to not worry about end-of-packet etc.
  */
-static void efx_tso_put_header(struct efx_tx_queue *tx_queue,
-			       struct efx_tso_header *tsoh, unsigned len)
+static int efx_tso_put_header(struct efx_tx_queue *tx_queue,
+			      struct efx_tx_buffer *buffer, u8 *header)
 {
-	struct efx_tx_buffer *buffer;
-
-	buffer = &tx_queue->buffer[tx_queue->insert_count & tx_queue->ptr_mask];
-	efx_tsoh_free(tx_queue, buffer);
-	EFX_BUG_ON_PARANOID(buffer->len);
-	EFX_BUG_ON_PARANOID(buffer->unmap_len);
-	EFX_BUG_ON_PARANOID(buffer->flags);
-	buffer->len = len;
-	buffer->dma_addr = tsoh->dma_addr;
-	buffer->tsoh = tsoh;
-	buffer->flags = EFX_TX_BUF_TSOH | EFX_TX_BUF_CONT;
+	if (unlikely(buffer->flags & EFX_TX_BUF_HEAP)) {
+		buffer->dma_addr = dma_map_single(&tx_queue->efx->pci_dev->dev,
+						  header, buffer->len,
+						  DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(&tx_queue->efx->pci_dev->dev,
+					       buffer->dma_addr))) {
+			kfree(buffer->heap_buf);
+			buffer->len = 0;
+			buffer->flags = 0;
+			return -ENOMEM;
+		}
+		buffer->unmap_len = buffer->len;
+		buffer->flags |= EFX_TX_BUF_MAP_SINGLE;
+	}
 
 	++tx_queue->insert_count;
+	return 0;
 }
 
 
-/* Remove descriptors put into a tx_queue. */
+/* Remove buffers put into a tx_queue.  None of the buffers must have
+ * an skb attached.
+ */
 static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 {
 	struct efx_tx_buffer *buffer;
-	dma_addr_t unmap_addr;
 
 	/* Work backwards until we hit the original insert pointer value */
 	while (tx_queue->insert_count != tx_queue->write_count) {
 		--tx_queue->insert_count;
 		buffer = &tx_queue->buffer[tx_queue->insert_count &
 					   tx_queue->ptr_mask];
-		efx_tsoh_free(tx_queue, buffer);
-		EFX_BUG_ON_PARANOID(buffer->flags & EFX_TX_BUF_SKB);
-		if (buffer->unmap_len) {
-			unmap_addr = (buffer->dma_addr + buffer->len -
-				      buffer->unmap_len);
-			if (buffer->flags & EFX_TX_BUF_MAP_SINGLE)
-				dma_unmap_single(&tx_queue->efx->pci_dev->dev,
-						 unmap_addr, buffer->unmap_len,
-						 DMA_TO_DEVICE);
-			else
-				dma_unmap_page(&tx_queue->efx->pci_dev->dev,
-					       unmap_addr, buffer->unmap_len,
-					       DMA_TO_DEVICE);
-			buffer->unmap_len = 0;
-		}
-		buffer->len = 0;
-		buffer->flags = 0;
+		efx_dequeue_buffer(tx_queue, buffer, NULL, NULL);
 	}
 }
 
@@ -1014,35 +939,24 @@ static void tso_fill_packet_with_fragment(struct efx_tx_queue *tx_queue,
  * @st:			TSO state
  *
  * Generate a new header and prepare for the new packet.  Return 0 on
- * success, or -1 if failed to alloc header.
+ * success, or -%ENOMEM if failed to alloc header.
  */
 static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 				const struct sk_buff *skb,
 				struct tso_state *st)
 {
-	struct efx_tso_header *tsoh;
+	struct efx_tx_buffer *buffer =
+		&tx_queue->buffer[tx_queue->insert_count & tx_queue->ptr_mask];
 	struct tcphdr *tsoh_th;
 	unsigned ip_length;
 	u8 *header;
+	int rc;
 
-	/* Allocate a DMA-mapped header buffer. */
-	if (likely(TSOH_SIZE(st->header_len) <= TSOH_STD_SIZE)) {
-		if (tx_queue->tso_headers_free == NULL) {
-			if (efx_tsoh_block_alloc(tx_queue))
-				return -1;
-		}
-		EFX_BUG_ON_PARANOID(!tx_queue->tso_headers_free);
-		tsoh = tx_queue->tso_headers_free;
-		tx_queue->tso_headers_free = tsoh->next;
-		tsoh->unmap_len = 0;
-	} else {
-		tx_queue->tso_long_headers++;
-		tsoh = efx_tsoh_heap_alloc(tx_queue, st->header_len);
-		if (unlikely(!tsoh))
-			return -1;
-	}
+	/* Allocate and insert a DMA-mapped header buffer. */
+	header = efx_tsoh_get_buffer(tx_queue, buffer, st->header_len);
+	if (!header)
+		return -ENOMEM;
 
-	header = TSOH_BUFFER(tsoh);
 	tsoh_th = (struct tcphdr *)(header + SKB_TCP_OFF(skb));
 
 	/* Copy and update the headers. */
@@ -1078,11 +992,12 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 		tsoh_iph->payload_len = htons(ip_length - sizeof(*tsoh_iph));
 	}
 
+	rc = efx_tso_put_header(tx_queue, buffer, header);
+	if (unlikely(rc))
+		return rc;
+
 	st->packet_space = skb_shinfo(skb)->gso_size;
 	++tx_queue->tso_packets;
-
-	/* Form a descriptor for this header. */
-	efx_tso_put_header(tx_queue, tsoh, st->header_len);
 
 	return 0;
 }
@@ -1181,24 +1096,4 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 
 	efx_enqueue_unwind(tx_queue);
 	return NETDEV_TX_OK;
-}
-
-
-/*
- * Free up all TSO datastructures associated with tx_queue. This
- * routine should be called only once the tx_queue is both empty and
- * will no longer be used.
- */
-static void efx_fini_tso(struct efx_tx_queue *tx_queue)
-{
-	unsigned i;
-
-	if (tx_queue->buffer) {
-		for (i = 0; i <= tx_queue->ptr_mask; ++i)
-			efx_tsoh_free(tx_queue, &tx_queue->buffer[i]);
-	}
-
-	while (tx_queue->tso_headers_free != NULL)
-		efx_tsoh_block_free(tx_queue, tx_queue->tso_headers_free,
-				    &tx_queue->efx->pci_dev->dev);
 }
