@@ -242,6 +242,7 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 	struct gpio_vbus_data *gpio_vbus;
 	struct resource *res;
 	int err, gpio, irq;
+	unsigned long irqflags;
 
 	if (!pdata || !gpio_is_valid(pdata->gpio_vbus))
 		return -EINVAL;
@@ -278,10 +279,11 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res) {
 		irq = res->start;
-		res->flags &= IRQF_TRIGGER_MASK;
-		res->flags |= IRQF_SHARED;
-	} else
+		irqflags = (res->flags & IRQF_TRIGGER_MASK) | IRQF_SHARED;
+	} else {
 		irq = gpio_to_irq(gpio);
+		irqflags = VBUS_IRQ_FLAGS;
+	}
 
 	gpio_vbus->irq = irq;
 
@@ -299,8 +301,7 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 		gpio_direction_output(gpio, pdata->gpio_pullup_inverted);
 	}
 
-	err = request_irq(irq, gpio_vbus_irq, VBUS_IRQ_FLAGS,
-		"vbus_detect", pdev);
+	err = request_irq(irq, gpio_vbus_irq, irqflags, "vbus_detect", pdev);
 	if (err) {
 		dev_err(&pdev->dev, "can't request irq %i, err: %d\n",
 			irq, err);
