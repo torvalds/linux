@@ -13,6 +13,7 @@ chrp	Common Hardware Reference Platform
 cortina	Cortina Systems, Inc.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
 denx	Denx Software Engineering
+emmicro	EM Microelectronic
 epson	Seiko Epson Corp.
 est	ESTeem Wireless Modems
 fsl	Freescale Semiconductor
