@@ -96,8 +96,7 @@ static struct i2c_board_info __initdata i2c_devices_3ds[] = {
 
 static int lcd_power_gpio = -ENXIO;
 
-static int mc9s08dz60_gpiochip_match(struct gpio_chip *chip,
-						     const void *data)
+static int mc9s08dz60_gpiochip_match(struct gpio_chip *chip, void *data)
 {
 	return !strcmp(chip->label, data);
 }
