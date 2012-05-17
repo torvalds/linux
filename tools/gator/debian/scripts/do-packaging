@@ -16,6 +16,11 @@ do
 		OPT_SIGN=y
 		continue
 	fi
+	if [ "$OPT" == "--no-git-clean" ]
+	then
+		OPT_NO_GIT_CLEAN=y
+		continue
+	fi
 	echo $0: Unknown option: "$OPT" 1>&2
 	exit 1
 done
@@ -25,9 +30,18 @@ done
 # Clean working dirctory
 #
 
-git reset --hard HEAD
-git clean -dfx ..
+if [ ! $OPT_NO_GIT_CLEAN ]
+then
+	git reset --hard HEAD
+	git clean -dfx ../..
+fi
+git checkout debian/changelog
 
+if [ ! -d module ]
+then
+	mkdir module
+	cp -a ../../drivers/gator/* module/
+fi
 
 #
 # Update changelog
@@ -59,7 +73,10 @@ sed -i -e "s%CHANGE_MSG%$CHANGE_MSG%" debian/changelog
 
 echo $CHANGE_MSG
 
-VERSION="$(sed -n '1s/.*(\(.*\)).*/\1/p' debian/changelog)"
+FULL_VERSION="$(sed -n '1s/.*(\(.*\)).*/\1/p' debian/changelog)"
+VERSION="$(echo $FULL_VERSION | sed 's/\([0-9.]*\).*/\1/')"
+sed "s/__VERSION__/$VERSION/g" debian/dkms.conf.in > debian/dkms.conf
+sed "s/__VERSION__/$VERSION/g" debian/gator-module-dkms.install.in > debian/gator-module-dkms.install
 
 
 #
@@ -69,7 +86,7 @@ VERSION="$(sed -n '1s/.*(\(.*\)).*/\1/p' debian/changelog)"
 if [ $OPT_COMMIT ]
 then
 	git add debian/changelog
-	git commit -s -m "gator-$VERSION: Automated packaging"
+	git commit -s -m "gator-$FULL_VERSION: Automated packaging"
 fi
 
 

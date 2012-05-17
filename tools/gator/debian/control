@@ -26,3 +26,13 @@ Depends: ${misc:Depends}, gdbserver (>= 6.8), openssh-server | ssh-server, gator
 Description: ARM DS-5 target dependencies
  This meta-package depends on all components required to receive
  full ARM DS-5 experience.
+
+Package: gator-module-dkms
+Architecture: armhf
+Section: kernel
+Depends: ${misc:Depends}, dkms (>= 1.95), make
+Description: ARM Streamline gator module - dkms version
+ The target-side kernel module gathering data for ARM Streamline
+ Performance Analyzer.
+ .
+ This package contains the source to be built with dkms.

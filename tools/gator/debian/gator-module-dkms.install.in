@@ -1,0 +1,2 @@
+module/* /usr/src/gator-module-__VERSION__/
+debian/dkms.conf /usr/src/gator-module-__VERSION__/
