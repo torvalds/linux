@@ -4,6 +4,7 @@
 
 menuconfig WIMAX_GDM72XX
 	tristate "GCT GDM72xx WiMAX support"
+	depends on NET
 	help
 	  Support for the GCT GDM72xx WiMAX chip
 
