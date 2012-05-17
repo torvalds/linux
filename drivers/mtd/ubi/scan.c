@@ -585,15 +585,15 @@ int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
 }
 
 /**
- * ubi_scan_find_av - find volume in the attaching information.
+ * ubi_find_av - find volume in the attaching information.
  * @ai: attaching information
  * @vol_id: the requested volume ID
  *
  * This function returns a pointer to the volume description or %NULL if there
  * are no data about this volume in the attaching information.
  */
-struct ubi_ainf_volume *ubi_scan_find_av(const struct ubi_attach_info *ai,
-					 int vol_id)
+struct ubi_ainf_volume *ubi_find_av(const struct ubi_attach_info *ai,
+				    int vol_id)
 {
 	struct ubi_ainf_volume *av;
 	struct rb_node *p = ai->volumes.rb_node;

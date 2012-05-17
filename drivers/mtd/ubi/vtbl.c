@@ -591,7 +591,7 @@ static int init_volumes(struct ubi_device *ubi,
 		}
 
 		/* Static volumes only */
-		av = ubi_scan_find_av(ai, i);
+		av = ubi_find_av(ai, i);
 		if (!av) {
 			/*
 			 * No eraseblocks belonging to this volume found. We
@@ -734,7 +734,7 @@ static int check_scanning_info(const struct ubi_device *ubi,
 	for (i = 0; i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++) {
 		cond_resched();
 
-		av = ubi_scan_find_av(ai, i);
+		av = ubi_find_av(ai, i);
 		vol = ubi->volumes[i];
 		if (!vol) {
 			if (av)
@@ -794,7 +794,7 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	ubi->vtbl_size = ubi->vtbl_slots * UBI_VTBL_RECORD_SIZE;
 	ubi->vtbl_size = ALIGN(ubi->vtbl_size, ubi->min_io_size);
 
-	av = ubi_scan_find_av(ai, UBI_LAYOUT_VOLUME_ID);
+	av = ubi_find_av(ai, UBI_LAYOUT_VOLUME_ID);
 	if (!av) {
 		/*
 		 * No logical eraseblocks belonging to the layout volume were
