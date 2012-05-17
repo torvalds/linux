@@ -57,19 +57,21 @@ cifs_dump_mem(char *label, void *data, int length)
 	}
 }
 
-#ifdef CONFIG_CIFS_DEBUG2
 void cifs_dump_detail(void *buf)
 {
+#ifdef CONFIG_CIFS_DEBUG2
 	struct smb_hdr *smb = (struct smb_hdr *)buf;
 
 	cERROR(1, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d",
 		  smb->Command, smb->Status.CifsError,
 		  smb->Flags, smb->Flags2, smb->Mid, smb->Pid);
 	cERROR(1, "smb buf %p len %d", smb, smbCalcSize(smb));
+#endif /* CONFIG_CIFS_DEBUG2 */
 }
 
 void cifs_dump_mids(struct TCP_Server_Info *server)
 {
+#ifdef CONFIG_CIFS_DEBUG2
 	struct list_head *tmp;
 	struct mid_q_entry *mid_entry;
 
@@ -102,8 +104,8 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 		}
 	}
 	spin_unlock(&GlobalMid_Lock);
-}
 #endif /* CONFIG_CIFS_DEBUG2 */
+}
 
 #ifdef CONFIG_PROC_FS
 static int cifs_debug_data_proc_show(struct seq_file *m, void *v)

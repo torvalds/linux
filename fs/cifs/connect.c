@@ -783,25 +783,6 @@ is_smb_response(struct TCP_Server_Info *server, unsigned char type)
 	return false;
 }
 
-static struct mid_q_entry *
-find_mid(struct TCP_Server_Info *server, char *buffer)
-{
-	struct smb_hdr *buf = (struct smb_hdr *)buffer;
-	struct mid_q_entry *mid;
-
-	spin_lock(&GlobalMid_Lock);
-	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
-		if (mid->mid == buf->Mid &&
-		    mid->mid_state == MID_REQUEST_SUBMITTED &&
-		    le16_to_cpu(mid->command) == buf->Command) {
-			spin_unlock(&GlobalMid_Lock);
-			return mid;
-		}
-	}
-	spin_unlock(&GlobalMid_Lock);
-	return NULL;
-}
-
 void
 dequeue_mid(struct mid_q_entry *mid, bool malformed)
 {
@@ -986,7 +967,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	 * 48 bytes is enough to display the header and a little bit
 	 * into the payload for debugging purposes.
 	 */
-	length = checkSMB(buf, server->total_read);
+	length = server->ops->check_message(buf, server->total_read);
 	if (length != 0)
 		cifs_dump_mem("Bad SMB: ", buf,
 			min_t(unsigned int, server->total_read, 48));
@@ -1059,7 +1040,7 @@ cifs_demultiplex_thread(void *p)
 			continue;
 		server->total_read += length;
 
-		mid_entry = find_mid(server, buf);
+		mid_entry = server->ops->find_mid(server, buf);
 
 		if (!mid_entry || !mid_entry->receive)
 			length = standard_receive3(server, mid_entry);
@@ -1076,13 +1057,13 @@ cifs_demultiplex_thread(void *p)
 		if (mid_entry != NULL) {
 			if (!mid_entry->multiRsp || mid_entry->multiEnd)
 				mid_entry->callback(mid_entry);
-		} else if (!is_valid_oplock_break(buf, server)) {
+		} else if (!server->ops->is_oplock_break(buf, server)) {
 			cERROR(1, "No task to wake, unknown frame received! "
 				   "NumMids %d", atomic_read(&midCount));
 			cifs_dump_mem("Received Data is: ", buf,
 				      HEADER_SIZE(server));
 #ifdef CONFIG_CIFS_DEBUG2
-			cifs_dump_detail(buf);
+			server->ops->dump_detail(buf);
 			cifs_dump_mids(server);
 #endif /* CIFS_DEBUG2 */
 

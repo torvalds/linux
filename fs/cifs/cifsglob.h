@@ -175,6 +175,12 @@ struct smb_version_operations {
 	unsigned int (*read_data_length)(char *);
 	/* map smb to linux error */
 	int (*map_error)(char *, bool);
+	/* find mid corresponding to the response message */
+	struct mid_q_entry * (*find_mid)(struct TCP_Server_Info *, char *);
+	void (*dump_detail)(void *);
+	/* verify the message */
+	int (*check_message)(char *, unsigned int);
+	bool (*is_oplock_break)(char *, struct TCP_Server_Info *);
 };
 
 struct smb_version_values {
