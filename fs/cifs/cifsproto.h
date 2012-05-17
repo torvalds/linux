@@ -90,9 +90,6 @@ extern int SendReceiveBlockingLock(const unsigned int xid,
 			struct smb_hdr *in_buf ,
 			struct smb_hdr *out_buf,
 			int *bytes_returned);
-extern void cifs_add_credits(struct TCP_Server_Info *server,
-			     const unsigned int add);
-extern void cifs_set_credits(struct TCP_Server_Info *server, const int val);
 extern int checkSMB(char *buf, unsigned int length);
 extern bool is_valid_oplock_break(char *, struct TCP_Server_Info *);
 extern bool backup_cred(struct cifs_sb_info *);

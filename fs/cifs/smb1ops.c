@@ -100,11 +100,39 @@ cifs_find_mid(struct TCP_Server_Info *server, char *buffer)
 	return NULL;
 }
 
+static void
+cifs_add_credits(struct TCP_Server_Info *server, const unsigned int add)
+{
+	spin_lock(&server->req_lock);
+	server->credits += add;
+	server->in_flight--;
+	spin_unlock(&server->req_lock);
+	wake_up(&server->request_q);
+}
+
+static void
+cifs_set_credits(struct TCP_Server_Info *server, const int val)
+{
+	spin_lock(&server->req_lock);
+	server->credits = val;
+	server->oplocks = val > 1 ? enable_oplocks : false;
+	spin_unlock(&server->req_lock);
+}
+
+static int *
+cifs_get_credits_field(struct TCP_Server_Info *server)
+{
+	return &server->credits;
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
 	.setup_request = cifs_setup_request,
 	.check_receive = cifs_check_receive,
+	.add_credits = cifs_add_credits,
+	.set_credits = cifs_set_credits,
+	.get_credits_field = cifs_get_credits_field,
 	.read_data_offset = cifs_read_data_offset,
 	.read_data_length = cifs_read_data_length,
 	.map_error = map_smb_to_linux_error,

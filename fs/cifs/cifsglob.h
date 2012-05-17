@@ -169,6 +169,9 @@ struct smb_version_operations {
 	/* check response: verify signature, map error */
 	int (*check_receive)(struct mid_q_entry *, struct TCP_Server_Info *,
 			     bool);
+	void (*add_credits)(struct TCP_Server_Info *, const unsigned int);
+	void (*set_credits)(struct TCP_Server_Info *, const int);
+	int * (*get_credits_field)(struct TCP_Server_Info *);
 	/* data offset from read response message */
 	unsigned int (*read_data_offset)(char *);
 	/* data length from read response message */
@@ -372,16 +375,6 @@ in_flight(struct TCP_Server_Info *server)
 	return num;
 }
 
-static inline int*
-get_credits_field(struct TCP_Server_Info *server)
-{
-	/*
-	 * This will change to switch statement when we reserve slots for echos
-	 * and oplock breaks.
-	 */
-	return &server->credits;
-}
-
 static inline bool
 has_credits(struct TCP_Server_Info *server, int *credits)
 {
@@ -390,6 +383,18 @@ has_credits(struct TCP_Server_Info *server, int *credits)
 	num = *credits;
 	spin_unlock(&server->req_lock);
 	return num > 0;
+}
+
+static inline void
+add_credits(struct TCP_Server_Info *server, const unsigned int add)
+{
+	server->ops->add_credits(server, add);
+}
+
+static inline void
+set_credits(struct TCP_Server_Info *server, const int val)
+{
+	server->ops->set_credits(server, val);
 }
 
 /*

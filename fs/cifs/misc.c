@@ -653,22 +653,3 @@ backup_cred(struct cifs_sb_info *cifs_sb)
 
 	return false;
 }
-
-void
-cifs_add_credits(struct TCP_Server_Info *server, const unsigned int add)
-{
-	spin_lock(&server->req_lock);
-	server->credits += add;
-	server->in_flight--;
-	spin_unlock(&server->req_lock);
-	wake_up(&server->request_q);
-}
-
-void
-cifs_set_credits(struct TCP_Server_Info *server, const int val)
-{
-	spin_lock(&server->req_lock);
-	server->credits = val;
-	server->oplocks = val > 1 ? enable_oplocks : false;
-	spin_unlock(&server->req_lock);
-}
