@@ -18,9 +18,12 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
+#include <linux/of.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/ab8500.h>
+#include <linux/slab.h>
 
 /**
  * struct ab8500_regulator_info - ab8500 regulator information
@@ -790,11 +793,56 @@ static __devinit int ab8500_regulator_register(struct platform_device *pdev,
 	return 0;
 }
 
+static struct of_regulator_match ab8500_regulator_matches[] = {
+	{ .name	= "LDO-AUX1",    .driver_data = (void *) AB8500_LDO_AUX1, },
+	{ .name	= "LDO-AUX2",    .driver_data = (void *) AB8500_LDO_AUX2, },
+	{ .name	= "LDO-AUX3",    .driver_data = (void *) AB8500_LDO_AUX3, },
+	{ .name	= "LDO-INTCORE", .driver_data = (void *) AB8500_LDO_INTCORE, },
+	{ .name	= "LDO-TVOUT",   .driver_data = (void *) AB8500_LDO_TVOUT, },
+	{ .name = "LDO-USB",     .driver_data = (void *) AB8500_LDO_USB, },
+	{ .name = "LDO-AUDIO",   .driver_data = (void *) AB8500_LDO_AUDIO, },
+	{ .name	= "LDO-ANAMIC1", .driver_data = (void *) AB8500_LDO_ANAMIC1, },
+	{ .name	= "LDO-ANAMIC2", .driver_data = (void *) AB8500_LDO_ANAMIC2, },
+	{ .name	= "LDO-DMIC",    .driver_data = (void *) AB8500_LDO_DMIC, },
+	{ .name	= "LDO-ANA",     .driver_data = (void *) AB8500_LDO_ANA, },
+};
+
+static __devinit int
+ab8500_regulator_of_probe(struct platform_device *pdev, struct device_node *np)
+{
+	int err, i;
+
+	for (i = 0; i < ARRAY_SIZE(ab8500_regulator_info); i++) {
+		err = ab8500_regulator_register(
+			pdev, ab8500_regulator_matches[i].init_data,
+			i, ab8500_regulator_matches[i].of_node);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_platform_data *pdata;
+	struct device_node *np = pdev->dev.of_node;
 	int i, err;
+
+	if (np) {
+		err = of_regulator_match(&pdev->dev, np,
+					ab8500_regulator_matches,
+					ARRAY_SIZE(ab8500_regulator_matches));
+		if (err < 0) {
+			dev_err(&pdev->dev,
+				"Error parsing regulator init data: %d\n", err);
+			return err;
+		}
+
+		err = ab8500_regulator_of_probe(pdev, np);
+		return err;
+	}
 
 	if (!ab8500) {
 		dev_err(&pdev->dev, "null mfd parent\n");
@@ -858,12 +906,18 @@ static __devexit int ab8500_regulator_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id ab8500_regulator_match[] = {
+        { .compatible = "stericsson,ab8500-regulator", },
+        {}
+};
+
 static struct platform_driver ab8500_regulator_driver = {
 	.probe = ab8500_regulator_probe,
 	.remove = __devexit_p(ab8500_regulator_remove),
 	.driver         = {
 		.name   = "ab8500-regulator",
 		.owner  = THIS_MODULE,
+		.of_match_table = ab8500_regulator_match,
 	},
 };
 
