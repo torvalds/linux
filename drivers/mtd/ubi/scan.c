@@ -25,13 +25,13 @@
  * headers and providing complete information about the UBI flash image.
  *
  * The scanning information is represented by a &struct ubi_scan_info' object.
- * Information about found volumes is represented by &struct ubi_scan_volume
+ * Information about found volumes is represented by &struct ubi_ainf_volume
  * objects which are kept in volume RB-tree with root at the @volumes field.
  * The RB-tree is indexed by the volume ID.
  *
  * Scanned logical eraseblocks are represented by &struct ubi_ainf_peb objects.
  * These objects are kept in per-volume RB-trees with the root at the
- * corresponding &struct ubi_scan_volume object. To put it differently, we keep
+ * corresponding &struct ubi_ainf_volume object. To put it differently, we keep
  * an RB-tree of per-volume objects and each of these objects is the root of
  * RB-tree of per-eraseblock objects.
  *
@@ -180,7 +180,7 @@ static int add_corrupted(struct ubi_scan_info *si, int pnum, int ec)
  * headers of the same volume.
  */
 static int validate_vid_hdr(const struct ubi_vid_hdr *vid_hdr,
-			    const struct ubi_scan_volume *sv, int pnum)
+			    const struct ubi_ainf_volume *sv, int pnum)
 {
 	int vol_type = vid_hdr->vol_type;
 	int vol_id = be32_to_cpu(vid_hdr->vol_id);
@@ -244,11 +244,11 @@ bad:
  * to the scanning volume object in case of success and a negative error code
  * in case of failure.
  */
-static struct ubi_scan_volume *add_volume(struct ubi_scan_info *si, int vol_id,
+static struct ubi_ainf_volume *add_volume(struct ubi_scan_info *si, int vol_id,
 					  int pnum,
 					  const struct ubi_vid_hdr *vid_hdr)
 {
-	struct ubi_scan_volume *sv;
+	struct ubi_ainf_volume *sv;
 	struct rb_node **p = &si->volumes.rb_node, *parent = NULL;
 
 	ubi_assert(vol_id == be32_to_cpu(vid_hdr->vol_id));
@@ -256,7 +256,7 @@ static struct ubi_scan_volume *add_volume(struct ubi_scan_info *si, int vol_id,
 	/* Walk the volume RB-tree to look if this volume is already present */
 	while (*p) {
 		parent = *p;
-		sv = rb_entry(parent, struct ubi_scan_volume, rb);
+		sv = rb_entry(parent, struct ubi_ainf_volume, rb);
 
 		if (vol_id == sv->vol_id)
 			return sv;
@@ -268,7 +268,7 @@ static struct ubi_scan_volume *add_volume(struct ubi_scan_info *si, int vol_id,
 	}
 
 	/* The volume is absent - add it */
-	sv = kmalloc(sizeof(struct ubi_scan_volume), GFP_KERNEL);
+	sv = kmalloc(sizeof(struct ubi_ainf_volume), GFP_KERNEL);
 	if (!sv)
 		return ERR_PTR(-ENOMEM);
 
@@ -446,7 +446,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 {
 	int err, vol_id, lnum;
 	unsigned long long sqnum;
-	struct ubi_scan_volume *sv;
+	struct ubi_ainf_volume *sv;
 	struct ubi_ainf_peb *seb;
 	struct rb_node **p, *parent = NULL;
 
@@ -593,14 +593,14 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
  * This function returns a pointer to the volume description or %NULL if there
  * are no data about this volume in the scanning information.
  */
-struct ubi_scan_volume *ubi_scan_find_sv(const struct ubi_scan_info *si,
+struct ubi_ainf_volume *ubi_scan_find_sv(const struct ubi_scan_info *si,
 					 int vol_id)
 {
-	struct ubi_scan_volume *sv;
+	struct ubi_ainf_volume *sv;
 	struct rb_node *p = si->volumes.rb_node;
 
 	while (p) {
-		sv = rb_entry(p, struct ubi_scan_volume, rb);
+		sv = rb_entry(p, struct ubi_ainf_volume, rb);
 
 		if (vol_id == sv->vol_id)
 			return sv;
@@ -622,7 +622,7 @@ struct ubi_scan_volume *ubi_scan_find_sv(const struct ubi_scan_info *si,
  * This function returns a pointer to the scanning logical eraseblock or %NULL
  * if there are no data about it in the scanning volume information.
  */
-struct ubi_ainf_peb *ubi_scan_find_seb(const struct ubi_scan_volume *sv,
+struct ubi_ainf_peb *ubi_scan_find_seb(const struct ubi_ainf_volume *sv,
 				       int lnum)
 {
 	struct ubi_ainf_peb *seb;
@@ -648,7 +648,7 @@ struct ubi_ainf_peb *ubi_scan_find_seb(const struct ubi_scan_volume *sv,
  * @si: scanning information
  * @sv: the volume scanning information to delete
  */
-void ubi_scan_rm_volume(struct ubi_scan_info *si, struct ubi_scan_volume *sv)
+void ubi_scan_rm_volume(struct ubi_scan_info *si, struct ubi_ainf_volume *sv)
 {
 	struct rb_node *rb;
 	struct ubi_ainf_peb *seb;
@@ -1147,7 +1147,7 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 {
 	int err, pnum;
 	struct rb_node *rb1, *rb2;
-	struct ubi_scan_volume *sv;
+	struct ubi_ainf_volume *sv;
 	struct ubi_ainf_peb *seb;
 	struct ubi_scan_info *si;
 
@@ -1244,7 +1244,7 @@ out_si:
  * This function destroys the volume RB-tree (@sv->root) and the scanning
  * volume information.
  */
-static void destroy_sv(struct ubi_scan_info *si, struct ubi_scan_volume *sv)
+static void destroy_sv(struct ubi_scan_info *si, struct ubi_ainf_volume *sv)
 {
 	struct ubi_ainf_peb *seb;
 	struct rb_node *this = sv->root.rb_node;
@@ -1277,7 +1277,7 @@ static void destroy_sv(struct ubi_scan_info *si, struct ubi_scan_volume *sv)
 void ubi_scan_destroy_si(struct ubi_scan_info *si)
 {
 	struct ubi_ainf_peb *seb, *seb_tmp;
-	struct ubi_scan_volume *sv;
+	struct ubi_ainf_volume *sv;
 	struct rb_node *rb;
 
 	list_for_each_entry_safe(seb, seb_tmp, &si->alien, u.list) {
@@ -1305,7 +1305,7 @@ void ubi_scan_destroy_si(struct ubi_scan_info *si)
 		else if (rb->rb_right)
 			rb = rb->rb_right;
 		else {
-			sv = rb_entry(rb, struct ubi_scan_volume, rb);
+			sv = rb_entry(rb, struct ubi_ainf_volume, rb);
 
 			rb = rb_parent(rb);
 			if (rb) {
@@ -1337,7 +1337,7 @@ static int self_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 {
 	int pnum, err, vols_found = 0;
 	struct rb_node *rb1, *rb2;
-	struct ubi_scan_volume *sv;
+	struct ubi_ainf_volume *sv;
 	struct ubi_ainf_peb *seb, *last_seb;
 	uint8_t *buf;
 

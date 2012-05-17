@@ -53,7 +53,7 @@ struct ubi_ainf_peb {
 };
 
 /**
- * struct ubi_scan_volume - scanning information about a volume.
+ * struct ubi_ainf_volume - scanning information about a volume.
  * @vol_id: volume ID
  * @highest_lnum: highest logical eraseblock number in this volume
  * @leb_count: number of logical eraseblocks in this volume
@@ -72,7 +72,7 @@ struct ubi_ainf_peb {
  *
  * One object of this type is allocated for each volume during scanning.
  */
-struct ubi_scan_volume {
+struct ubi_ainf_volume {
 	int vol_id;
 	int highest_lnum;
 	int leb_count;
@@ -148,7 +148,7 @@ struct ubi_vid_hdr;
  * @seb: scanning eraseblock information
  * @list: the list to move to
  */
-static inline void ubi_scan_move_to_list(struct ubi_scan_volume *sv,
+static inline void ubi_scan_move_to_list(struct ubi_ainf_volume *sv,
 					 struct ubi_ainf_peb *seb,
 					 struct list_head *list)
 {
@@ -159,11 +159,11 @@ static inline void ubi_scan_move_to_list(struct ubi_scan_volume *sv,
 int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 		      int pnum, int ec, const struct ubi_vid_hdr *vid_hdr,
 		      int bitflips);
-struct ubi_scan_volume *ubi_scan_find_sv(const struct ubi_scan_info *si,
+struct ubi_ainf_volume *ubi_scan_find_sv(const struct ubi_scan_info *si,
 					 int vol_id);
-struct ubi_ainf_peb *ubi_scan_find_seb(const struct ubi_scan_volume *sv,
+struct ubi_ainf_peb *ubi_scan_find_seb(const struct ubi_ainf_volume *sv,
 				       int lnum);
-void ubi_scan_rm_volume(struct ubi_scan_info *si, struct ubi_scan_volume *sv);
+void ubi_scan_rm_volume(struct ubi_scan_info *si, struct ubi_ainf_volume *sv);
 struct ubi_ainf_peb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 					   struct ubi_scan_info *si);
 int ubi_scan_erase_peb(struct ubi_device *ubi, const struct ubi_scan_info *si,

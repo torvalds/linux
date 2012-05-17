@@ -171,10 +171,10 @@ void ubi_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
 }
 
 /**
- * ubi_dump_sv - dump a &struct ubi_scan_volume object.
+ * ubi_dump_sv - dump a &struct ubi_ainf_volume object.
  * @sv: the object to dump
  */
-void ubi_dump_sv(const struct ubi_scan_volume *sv)
+void ubi_dump_sv(const struct ubi_ainf_volume *sv)
 {
 	printk(KERN_DEBUG "Volume scanning information dump:\n");
 	printk(KERN_DEBUG "\tvol_id         %d\n", sv->vol_id);
