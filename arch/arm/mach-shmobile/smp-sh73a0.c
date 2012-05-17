@@ -42,7 +42,13 @@ static void __iomem *scu_base_addr(void)
 static DEFINE_SPINLOCK(scu_lock);
 static unsigned long tmp;
 
+#ifdef CONFIG_HAVE_ARM_TWD
 static DEFINE_TWD_LOCAL_TIMER(twd_local_timer, 0xf0000600, 29);
+void __init sh73a0_register_twd(void)
+{
+	twd_local_timer_register(&twd_local_timer);
+}
+#endif
 
 static void modify_scu_cpu_psr(unsigned long set, unsigned long clr)
 {
@@ -62,7 +68,6 @@ unsigned int __init sh73a0_get_core_count(void)
 {
 	void __iomem *scu_base = scu_base_addr();
 
-	shmobile_twd_init(&twd_local_timer);
 	return scu_get_core_count(scu_base);
 }
 
