@@ -596,11 +596,11 @@ static int attach_by_scanning(struct ubi_device *ubi)
 	if (err)
 		goto out_ai;
 
-	err = ubi_wl_init_scan(ubi, ai);
+	err = ubi_wl_init(ubi, ai);
 	if (err)
 		goto out_vtbl;
 
-	err = ubi_eba_init_scan(ubi, ai);
+	err = ubi_eba_init(ubi, ai);
 	if (err)
 		goto out_wl;
 

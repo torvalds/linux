@@ -1167,7 +1167,7 @@ out_unlock_leb:
  * print_rsvd_warning - warn about not having enough reserved PEBs.
  * @ubi: UBI device description object
  *
- * This is a helper function for 'ubi_eba_init_scan()' which is called when UBI
+ * This is a helper function for 'ubi_eba_init()' which is called when UBI
  * cannot reserve enough PEBs for bad block handling. This function makes a
  * decision whether we have to print a warning or not. The algorithm is as
  * follows:
@@ -1205,14 +1205,14 @@ static void print_rsvd_warning(struct ubi_device *ubi,
 }
 
 /**
- * ubi_eba_init_scan - initialize the EBA sub-system using attaching information.
+ * ubi_eba_init - initialize the EBA sub-system using attaching information.
  * @ubi: UBI device description object
  * @ai: attaching information
  *
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *ai)
+int ubi_eba_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 {
 	int i, j, err, num_volumes;
 	struct ubi_ainf_volume *av;
