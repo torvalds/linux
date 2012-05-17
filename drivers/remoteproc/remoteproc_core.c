@@ -279,15 +279,64 @@ rproc_load_segments(struct rproc *rproc, const u8 *elf_data, size_t len)
 	return ret;
 }
 
+int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
+{
+	struct rproc *rproc = rvdev->rproc;
+	struct device *dev = rproc->dev;
+	struct rproc_vring *rvring = &rvdev->vring[i];
+	dma_addr_t dma;
+	void *va;
+	int ret, size, notifyid;
+
+	/* actual size of vring (in bytes) */
+	size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
+
+	if (!idr_pre_get(&rproc->notifyids, GFP_KERNEL)) {
+		dev_err(dev, "idr_pre_get failed\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * Allocate non-cacheable memory for the vring. In the future
+	 * this call will also configure the IOMMU for us
+	 * TODO: let the rproc know the da of this vring
+	 */
+	va = dma_alloc_coherent(dev, size, &dma, GFP_KERNEL);
+	if (!va) {
+		dev_err(dev, "dma_alloc_coherent failed\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Assign an rproc-wide unique index for this vring
+	 * TODO: assign a notifyid for rvdev updates as well
+	 * TODO: let the rproc know the notifyid of this vring
+	 * TODO: support predefined notifyids (via resource table)
+	 */
+	ret = idr_get_new(&rproc->notifyids, rvring, &notifyid);
+	if (ret) {
+		dev_err(dev, "idr_get_new failed: %d\n", ret);
+		dma_free_coherent(dev, size, va, dma);
+		return ret;
+	}
+
+	dev_dbg(dev, "vring%d: va %p dma %x size %x idr %d\n", i, va,
+					dma, size, notifyid);
+
+	rvring->va = va;
+	rvring->dma = dma;
+	rvring->notifyid = notifyid;
+
+	return 0;
+}
+
 static int
-__rproc_handle_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
+rproc_parse_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 {
 	struct rproc *rproc = rvdev->rproc;
 	struct device *dev = rproc->dev;
 	struct fw_rsc_vdev_vring *vring = &rsc->vring[i];
-	dma_addr_t dma;
-	void *va;
-	int ret, size, notifyid;
+	struct rproc_vring *rvring = &rvdev->vring[i];
 
 	dev_dbg(dev, "vdev rsc: vring%d: da %x, qsz %d, align %d\n",
 				i, vring->da, vring->num, vring->align);
@@ -305,62 +354,20 @@ __rproc_handle_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 		return -EINVAL;
 	}
 
-	/* actual size of vring (in bytes) */
-	size = PAGE_ALIGN(vring_size(vring->num, vring->align));
-
-	if (!idr_pre_get(&rproc->notifyids, GFP_KERNEL)) {
-		dev_err(dev, "idr_pre_get failed\n");
-		return -ENOMEM;
-	}
-
-	/*
-	 * Allocate non-cacheable memory for the vring. In the future
-	 * this call will also configure the IOMMU for us
-	 */
-	va = dma_alloc_coherent(dev, size, &dma, GFP_KERNEL);
-	if (!va) {
-		dev_err(dev, "dma_alloc_coherent failed\n");
-		return -EINVAL;
-	}
-
-	/* assign an rproc-wide unique index for this vring */
-	/* TODO: assign a notifyid for rvdev updates as well */
-	ret = idr_get_new(&rproc->notifyids, &rvdev->vring[i], &notifyid);
-	if (ret) {
-		dev_err(dev, "idr_get_new failed: %d\n", ret);
-		dma_free_coherent(dev, size, va, dma);
-		return ret;
-	}
-
-	/* let the rproc know the da and notifyid of this vring */
-	/* TODO: expose this to remote processor */
-	vring->da = dma;
-	vring->notifyid = notifyid;
-
-	dev_dbg(dev, "vring%d: va %p dma %x size %x idr %d\n", i, va,
-					dma, size, notifyid);
-
-	rvdev->vring[i].len = vring->num;
-	rvdev->vring[i].align = vring->align;
-	rvdev->vring[i].va = va;
-	rvdev->vring[i].dma = dma;
-	rvdev->vring[i].notifyid = notifyid;
-	rvdev->vring[i].rvdev = rvdev;
+	rvring->len = vring->num;
+	rvring->align = vring->align;
+	rvring->rvdev = rvdev;
 
 	return 0;
 }
 
-static void __rproc_free_vrings(struct rproc_vdev *rvdev, int i)
+void rproc_free_vring(struct rproc_vring *rvring)
 {
-	struct rproc *rproc = rvdev->rproc;
+	int size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
+	struct rproc *rproc = rvring->rvdev->rproc;
 
-	for (i--; i >= 0; i--) {
-		struct rproc_vring *rvring = &rvdev->vring[i];
-		int size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
-
-		dma_free_coherent(rproc->dev, size, rvring->va, rvring->dma);
-		idr_remove(&rproc->notifyids, rvring->notifyid);
-	}
+	dma_free_coherent(rproc->dev, size, rvring->va, rvring->dma);
+	idr_remove(&rproc->notifyids, rvring->notifyid);
 }
 
 /**
@@ -425,11 +432,11 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 
 	rvdev->rproc = rproc;
 
-	/* allocate the vrings */
+	/* parse the vrings */
 	for (i = 0; i < rsc->num_of_vrings; i++) {
-		ret = __rproc_handle_vring(rvdev, rsc, i);
+		ret = rproc_parse_vring(rvdev, rsc, i);
 		if (ret)
-			goto free_vrings;
+			goto free_rvdev;
 	}
 
 	/* remember the device features */
@@ -440,12 +447,11 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 	/* it is now safe to add the virtio device */
 	ret = rproc_add_virtio_dev(rvdev, rsc->id);
 	if (ret)
-		goto free_vrings;
+		goto free_rvdev;
 
 	return 0;
 
-free_vrings:
-	__rproc_free_vrings(rvdev, i);
+free_rvdev:
 	kfree(rvdev);
 	return ret;
 }
@@ -1264,17 +1270,10 @@ EXPORT_SYMBOL(rproc_shutdown);
 void rproc_release(struct kref *kref)
 {
 	struct rproc *rproc = container_of(kref, struct rproc, refcount);
-	struct rproc_vdev *rvdev, *rvtmp;
 
 	dev_info(rproc->dev, "removing %s\n", rproc->name);
 
 	rproc_delete_debug_dir(rproc);
-
-	/* clean up remote vdev entries */
-	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node) {
-		__rproc_free_vrings(rvdev, RVDEV_NUM_VRINGS);
-		list_del(&rvdev->node);
-	}
 
 	/*
 	 * At this point no one holds a reference to rproc anymore,
@@ -1546,7 +1545,7 @@ EXPORT_SYMBOL(rproc_free);
  */
 int rproc_unregister(struct rproc *rproc)
 {
-	struct rproc_vdev *rvdev;
+	struct rproc_vdev *rvdev, *tmp;
 
 	if (!rproc)
 		return -EINVAL;
@@ -1555,7 +1554,7 @@ int rproc_unregister(struct rproc *rproc)
 	wait_for_completion(&rproc->firmware_loading_complete);
 
 	/* clean up remote vdev entries */
-	list_for_each_entry(rvdev, &rproc->rvdevs, node)
+	list_for_each_entry_safe(rvdev, tmp, &rproc->rvdevs, node)
 		rproc_remove_virtio_dev(rvdev);
 
 	/* the rproc is downref'ed as soon as it's removed from the klist */

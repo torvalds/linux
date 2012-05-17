@@ -41,4 +41,6 @@ void rproc_create_debug_dir(struct rproc *rproc);
 void rproc_init_debugfs(void);
 void rproc_exit_debugfs(void);
 
+void rproc_free_vring(struct rproc_vring *rvring);
+int rproc_alloc_vring(struct rproc_vdev *rvdev, int i);
 #endif /* REMOTEPROC_INTERNAL_H */

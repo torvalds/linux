@@ -77,14 +77,17 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	struct rproc_vring *rvring;
 	struct virtqueue *vq;
 	void *addr;
-	int len, size;
+	int len, size, ret;
 
 	/* we're temporarily limited to two virtqueues per rvdev */
 	if (id >= ARRAY_SIZE(rvdev->vring))
 		return ERR_PTR(-EINVAL);
 
-	rvring = &rvdev->vring[id];
+	ret = rproc_alloc_vring(rvdev, id);
+	if (ret)
+		return ERR_PTR(ret);
 
+	rvring = &rvdev->vring[id];
 	addr = rvring->va;
 	len = rvring->len;
 
@@ -103,6 +106,7 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 					rproc_virtio_notify, callback, name);
 	if (!vq) {
 		dev_err(rproc->dev, "vring_new_virtqueue %s failed\n", name);
+		rproc_free_vring(rvring);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -125,6 +129,7 @@ static void rproc_virtio_del_vqs(struct virtio_device *vdev)
 		rvring = vq->priv;
 		rvring->vq = NULL;
 		vring_del_virtqueue(vq);
+		rproc_free_vring(rvring);
 	}
 }
 
@@ -228,7 +233,11 @@ static struct virtio_config_ops rproc_virtio_config_ops = {
 static void rproc_vdev_release(struct device *dev)
 {
 	struct virtio_device *vdev = dev_to_virtio(dev);
+	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct rproc *rproc = vdev_to_rproc(vdev);
+
+	list_del(&rvdev->node);
+	kfree(rvdev);
 
 	kref_put(&rproc->refcount, rproc_release);
 }
