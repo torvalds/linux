@@ -245,7 +245,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		memset(&sel, 0, sizeof(sel));
 		sel.which = crop->which;
 		sel.pad = crop->pad;
-		sel.target = V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL;
+		sel.target = V4L2_SUBDEV_SEL_TGT_CROP;
 
 		rval = v4l2_subdev_call(
 			sd, pad, get_selection, subdev_fh, &sel);
@@ -274,7 +274,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		memset(&sel, 0, sizeof(sel));
 		sel.which = crop->which;
 		sel.pad = crop->pad;
-		sel.target = V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL;
+		sel.target = V4L2_SUBDEV_SEL_TGT_CROP;
 		sel.r = crop->rect;
 
 		rval = v4l2_subdev_call(

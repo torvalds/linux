@@ -289,9 +289,9 @@
       &v4l2-rect; by the coordinates of the top left corner and the rectangle
       size. Both the coordinates and sizes are expressed in pixels.</para>
 
-      <para>As for pad formats, drivers store try and active
-      rectangles for the selection targets of ACTUAL type <xref
-      linkend="v4l2-subdev-selection-targets">.</xref></para>
+      <para>As for pad formats, drivers store try and active rectangles for
+      the selection targets <xref
+      linkend="v4l2-subdev-selection-targets" />.</para>
 
       <para>On sink pads, cropping is applied relative to the
       current pad format. The pad format represents the image size as
@@ -308,7 +308,7 @@
       <para>Scaling support is optional. When supported by a subdev,
       the crop rectangle on the subdev's sink pad is scaled to the
       size configured using the &VIDIOC-SUBDEV-S-SELECTION; IOCTL
-      using <constant>V4L2_SUBDEV_SEL_COMPOSE_ACTUAL</constant>
+      using <constant>V4L2_SUBDEV_SEL_TGT_COMPOSE</constant>
       selection target on the same pad. If the subdev supports scaling
       but not composing, the top and left values are not used and must
       always be set to zero.</para>
@@ -333,22 +333,22 @@
       <title>Types of selection targets</title>
 
       <section>
-	<title>ACTUAL targets</title>
+	<title>Actual targets</title>
 
-	<para>ACTUAL targets reflect the actual hardware configuration
-	at any point of time. There is a BOUNDS target
-	corresponding to every ACTUAL.</para>
+	<para>Actual targets (without a postfix) reflect the actual
+	hardware configuration at any point of time. There is a BOUNDS
+	target corresponding to every actual target.</para>
       </section>
 
       <section>
 	<title>BOUNDS targets</title>
 
-	<para>BOUNDS targets is the smallest rectangle that contains
-	all valid ACTUAL rectangles. It may not be possible to set the
-	ACTUAL rectangle as large as the BOUNDS rectangle, however.
-	This may be because e.g. a sensor's pixel array is not
-	rectangular but cross-shaped or round. The maximum size may
-	also be smaller than the BOUNDS rectangle.</para>
+	<para>BOUNDS targets is the smallest rectangle that contains all
+	valid actual rectangles. It may not be possible to set the actual
+	rectangle as large as the BOUNDS rectangle, however. This may be
+	because e.g. a sensor's pixel array is not rectangular but
+	cross-shaped or round. The maximum size may also be smaller than the
+	BOUNDS rectangle.</para>
       </section>
 
     </section>

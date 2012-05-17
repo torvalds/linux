@@ -1960,7 +1960,7 @@ static int preview_get_selection(struct v4l2_subdev *sd,
 		preview_try_crop(prev, format, &sel->r);
 		break;
 
-	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
+	case V4L2_SUBDEV_SEL_TGT_CROP:
 		sel->r = *__preview_get_crop(prev, fh, sel->which);
 		break;
 
@@ -1988,7 +1988,7 @@ static int preview_set_selection(struct v4l2_subdev *sd,
 	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	if (sel->target != V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL ||
+	if (sel->target != V4L2_SUBDEV_SEL_TGT_CROP ||
 	    sel->pad != PREV_PAD_SINK)
 		return -EINVAL;
 

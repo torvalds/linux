@@ -1259,7 +1259,7 @@ static int resizer_get_selection(struct v4l2_subdev *sd,
 		resizer_calc_ratios(res, &sel->r, format_source, &ratio);
 		break;
 
-	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
+	case V4L2_SUBDEV_SEL_TGT_CROP:
 		sel->r = *__resizer_get_crop(res, fh, sel->which);
 		resizer_calc_ratios(res, &sel->r, format_source, &ratio);
 		break;
@@ -1293,7 +1293,7 @@ static int resizer_set_selection(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format_sink, *format_source;
 	struct resizer_ratio ratio;
 
-	if (sel->target != V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL ||
+	if (sel->target != V4L2_SUBDEV_SEL_TGT_CROP ||
 	    sel->pad != RESZ_PAD_SINK)
 		return -EINVAL;
 

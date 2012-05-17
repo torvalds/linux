@@ -128,14 +128,19 @@ struct v4l2_subdev_frame_interval_enum {
 #define V4L2_SUBDEV_SEL_FLAG_KEEP_CONFIG		(1 << 2)
 
 /* active cropping area */
-#define V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL			0x0000
+#define V4L2_SUBDEV_SEL_TGT_CROP			0x0000
 /* cropping bounds */
 #define V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS			0x0002
 /* current composing area */
-#define V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL		0x0100
+#define V4L2_SUBDEV_SEL_TGT_COMPOSE			0x0100
 /* composing bounds */
 #define V4L2_SUBDEV_SEL_TGT_COMPOSE_BOUNDS		0x0102
 
+/* backward compatibility definitions */
+#define V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL \
+	V4L2_SUBDEV_SEL_TGT_CROP
+#define V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL \
+	V4L2_SUBDEV_SEL_TGT_COMPOSE
 
 /**
  * struct v4l2_subdev_selection - selection info

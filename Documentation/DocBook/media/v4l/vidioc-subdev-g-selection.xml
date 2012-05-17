@@ -72,10 +72,10 @@
     <section>
       <title>Types of selection targets</title>
 
-      <para>There are two types of selection targets: actual and bounds.
-      The ACTUAL targets are the targets which configure the hardware.
-      The BOUNDS target will return a rectangle that contain all
-      possible ACTUAL rectangles.</para>
+      <para>There are two types of selection targets: actual and bounds. The
+      actual targets are the targets which configure the hardware. The BOUNDS
+      target will return a rectangle that contain all possible actual
+      rectangles.</para>
     </section>
 
     <section>
@@ -93,7 +93,7 @@
         &cs-def;
 	<tbody valign="top">
 	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL</constant></entry>
+	    <entry><constant>V4L2_SUBDEV_SEL_TGT_CROP</constant></entry>
 	    <entry>0x0000</entry>
 	    <entry>Actual crop. Defines the cropping
 	    performed by the processing step.</entry>
@@ -104,7 +104,7 @@
 	    <entry>Bounds of the crop rectangle.</entry>
 	  </row>
 	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL</constant></entry>
+	    <entry><constant>V4L2_SUBDEV_SEL_TGT_COMPOSE</constant></entry>
 	    <entry>0x0100</entry>
 	    <entry>Actual compose rectangle. Used to configure scaling
 	    on sink pads and composition on source pads.</entry>
