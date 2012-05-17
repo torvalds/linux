@@ -888,6 +888,22 @@ void __init native_machine_early_platform_add_devices(void)
 {
 }
 
+#ifdef CONFIG_BF60x
+static inline u_long bfin_get_clk(char *name)
+{
+	struct clk *clk;
+	u_long clk_rate;
+
+	clk = clk_get(NULL, name);
+	if (IS_ERR(clk))
+		return 0;
+
+	clk_rate = clk_get_rate(clk);
+	clk_put(clk);
+	return clk_rate;
+}
+#endif
+
 void __init setup_arch(char **cmdline_p)
 {
 	u32 mmr;
@@ -1045,7 +1061,7 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_BF60x
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock, %lu MHz SCLk, %lu MHz SCLK0, %lu MHz SCLK1 and %lu MHz DCLK\n",
-		cclk / 1000000, sclk / 1000000, get_sclk0() / 1000000, get_sclk1() / 1000000, get_dclk() / 1000000);
+		cclk / 1000000, bfin_get_clk("SYSCLK") / 1000000, get_sclk0() / 1000000, get_sclk1() / 1000000, get_dclk() / 1000000);
 #else
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu MHz System Clock\n",
 	       cclk / 1000000, sclk / 1000000);
@@ -1146,16 +1162,7 @@ static u_long get_vco(void)
 u_long get_cclk(void)
 {
 #ifdef CONFIG_BF60x
-	struct clk *cclk;
-	u_long cclk_rate;
-
-	cclk = clk_get(NULL, "CCLK");
-	if (IS_ERR(cclk))
-		return 0;
-
-	cclk_rate = clk_get_rate(cclk);
-	clk_put(cclk);
-	return cclk_rate;
+	return bfin_get_clk("CCLK");
 #else
 	static u_long cached_cclk_pll_div, cached_cclk;
 	u_long csel, ssel;
@@ -1184,53 +1191,26 @@ EXPORT_SYMBOL(get_cclk);
 /* Get the bf60x clock of SCLK0 domain */
 u_long get_sclk0(void)
 {
-	struct clk *sclk0;
-	u_long sclk0_rate;
-
-	sclk0 = clk_get(NULL, "SCLK0");
-	if (IS_ERR(sclk0))
-		return 0;
-
-	sclk0_rate = clk_get_rate(sclk0);
-	clk_put(sclk0);
-	return sclk0_rate;
+	return bfin_get_clk("SCLK0");
 }
 EXPORT_SYMBOL(get_sclk0);
 
 /* Get the bf60x clock of SCLK1 domain */
 u_long get_sclk1(void)
 {
-	struct clk *sclk1;
-	u_long sclk1_rate;
-
-	sclk1 = clk_get(NULL, "SCLK1");
-	if (IS_ERR(sclk1))
-		return 0;
-
-	sclk1_rate = clk_get_rate(sclk1);
-	clk_put(sclk1);
-	return sclk1_rate;
+	return bfin_get_clk("SCLK1");
 }
 EXPORT_SYMBOL(get_sclk1);
 
 /* Get the bf60x DRAM clock */
 u_long get_dclk(void)
 {
-	struct clk *dclk;
-	u_long dclk_rate;
-
-	dclk = clk_get(NULL, "DCLK");
-	if (IS_ERR(dclk))
-		return 0;
-
-	dclk_rate = clk_get_rate(dclk);
-	clk_put(dclk);
-	return dclk_rate;
+	return bfin_get_clk("DCLK");
 }
 EXPORT_SYMBOL(get_dclk);
 #endif
 
-/* Get the System clock */
+/* Get the default system clock */
 u_long get_sclk(void)
 {
 #ifdef CONFIG_BF60x
