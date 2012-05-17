@@ -476,8 +476,8 @@ static void terratec_h5_init(struct em28xx *dev)
 static void pctv_520e_init(struct em28xx *dev)
 {
 	/*
-	 * Init TDA8295(?) analog demodulator. Looks like I2C traffic to
-	 * digital demodulator and tuner are routed via TDA8295.
+	 * Init AVF4910B analog decoder. Looks like I2C traffic to
+	 * digital demodulator and tuner are routed via AVF4910B.
 	 */
 	int i;
 	struct {
