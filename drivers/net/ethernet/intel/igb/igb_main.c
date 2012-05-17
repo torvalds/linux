@@ -7147,6 +7147,9 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba)
 
 			/* watchdog timer= +-1000 usec in 32usec intervals */
 			reg |= (1000 >> 5);
+
+			/* Disable BMC-to-OS Watchdog Enable */
+			reg &= ~E1000_DMACR_DC_BMC2OSW_EN;
 			wr32(E1000_DMACR, reg);
 
 			/*
