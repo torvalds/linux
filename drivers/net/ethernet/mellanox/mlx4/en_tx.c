@@ -525,14 +525,17 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct sk_buff *sk
 
 u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
-	u16 vlan_tag = 0;
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	u16 rings_p_up = priv->mdev->profile.num_tx_rings_p_up;
+	u8 up = 0;
 
-	if (vlan_tx_tag_present(skb)) {
-		vlan_tag = vlan_tx_tag_get(skb);
-		return MLX4_EN_NUM_TX_RINGS + (vlan_tag >> 13);
-	}
+	if (dev->num_tc)
+		return skb_tx_hash(dev, skb);
 
-	return skb_tx_hash(dev, skb);
+	if (vlan_tx_tag_present(skb))
+		up = vlan_tx_tag_get(skb) >> VLAN_PRIO_SHIFT;
+
+	return __skb_tx_hash(dev, skb, rings_p_up) + up * rings_p_up;
 }
 
 static void mlx4_bf_copy(void __iomem *dst, unsigned long *src, unsigned bytecnt)

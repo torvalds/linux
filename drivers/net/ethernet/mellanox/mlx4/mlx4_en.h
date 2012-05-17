@@ -111,9 +111,7 @@ enum {
 #define MLX4_EN_MIN_TX_SIZE	(4096 / TXBB_SIZE)
 
 #define MLX4_EN_SMALL_PKT_SIZE		64
-#define MLX4_EN_NUM_TX_RINGS		8
-#define MLX4_EN_NUM_PPP_RINGS		8
-#define MAX_TX_RINGS			(MLX4_EN_NUM_TX_RINGS + MLX4_EN_NUM_PPP_RINGS)
+#define MLX4_EN_MAX_TX_RING_P_UP	32
 #define MLX4_EN_NUM_UP			8
 #define MLX4_EN_DEF_TX_RING_SIZE	512
 #define MLX4_EN_DEF_RX_RING_SIZE  	1024
@@ -339,6 +337,7 @@ struct mlx4_en_profile {
 	u32 active_ports;
 	u32 small_pkt_int;
 	u8 no_reset;
+	u8 num_tx_rings_p_up;
 	struct mlx4_en_port_profile prof[MLX4_MAX_PORTS + 1];
 };
 
@@ -477,9 +476,9 @@ struct mlx4_en_priv {
 	u16 num_frags;
 	u16 log_rx_info;
 
-	struct mlx4_en_tx_ring tx_ring[MAX_TX_RINGS];
+	struct mlx4_en_tx_ring *tx_ring;
 	struct mlx4_en_rx_ring rx_ring[MAX_RX_RINGS];
-	struct mlx4_en_cq tx_cq[MAX_TX_RINGS];
+	struct mlx4_en_cq *tx_cq;
 	struct mlx4_en_cq rx_cq[MAX_RX_RINGS];
 	struct work_struct mcast_task;
 	struct work_struct mac_task;
