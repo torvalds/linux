@@ -348,6 +348,7 @@ static int __exit gpio_vbus_remove(struct platform_device *pdev)
 	struct gpio_vbus_mach_info *pdata = pdev->dev.platform_data;
 	int gpio = pdata->gpio_vbus;
 
+	cancel_delayed_work_sync(&gpio_vbus->work);
 	regulator_put(gpio_vbus->vbus_draw);
 
 	usb_set_transceiver(NULL);
