@@ -38,7 +38,7 @@ static void udl_usb_disconnect(struct usb_interface *interface)
 	drm_unplug_dev(dev);
 }
 
-static struct vm_operations_struct udl_gem_vm_ops = {
+static const struct vm_operations_struct udl_gem_vm_ops = {
 	.fault = udl_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,

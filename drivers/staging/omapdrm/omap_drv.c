@@ -726,7 +726,7 @@ static void dev_irq_uninstall(struct drm_device *dev)
 	DBG("irq_uninstall: dev=%p", dev);
 }
 
-static struct vm_operations_struct omap_gem_vm_ops = {
+static const struct vm_operations_struct omap_gem_vm_ops = {
 	.fault = omap_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,

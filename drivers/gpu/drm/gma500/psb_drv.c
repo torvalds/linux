@@ -595,7 +595,7 @@ static const struct dev_pm_ops psb_pm_ops = {
 	.runtime_idle = psb_runtime_idle,
 };
 
-static struct vm_operations_struct psb_gem_vm_ops = {
+static const struct vm_operations_struct psb_gem_vm_ops = {
 	.fault = psb_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
