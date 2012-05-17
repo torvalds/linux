@@ -845,7 +845,7 @@ EXPORT_SYMBOL_GPL(gpio_request);
 u32 gpio_request_ex(char *main_name, const char *sub_name)  //设备申请GPIO函数扩展接口
 {
     user_gpio_set_t    *gpio_list=NULL;
-    user_gpio_set_t     one_gpio;
+    user_gpio_set_t     one_gpio = {"",0};
        __u32               gpio_handle;
     __s32               gpio_count;
 
