@@ -65,15 +65,7 @@ module_param_named(dbg_level, rk30_battery_dbg_level, int, 0644);
 #define    NUM_USBCHARGE_IDENTIFY_TIMES      ((USBCHARGE_IDENTIFY_TIMES * 1000) / TIMER_MS_COUNTS)	//充电满状态持续时间长度
 
 #define BAT_2V5_VALUE	                                     2500
-#define BATT_MAX_VOL_VALUE                              8284 //   4180               	//满电时的电池电压	 
-#define BATT_ZERO_VOL_VALUE                            6800 //    3500              	//关机时的电池电压
-#define BATT_NOMAL_VOL_VALUE                         7600 //  3800               
 
-//定义ADC采样分压电阻，以实际值为准，单位K
-#define BAT_PULL_UP_R                                         300  ////200
-
-#define BAT_PULL_DOWN_R                                    100// 200
-#define adc_to_voltage(adc_val)                           ((adc_val * BAT_2V5_VALUE * (BAT_PULL_UP_R + BAT_PULL_DOWN_R)) / (1024 * BAT_PULL_DOWN_R))
 #define BATT_NUM                                                   52
 #define BATT_FILENAME "/data/bat_last_capacity.dat"
 
@@ -87,6 +79,16 @@ struct batt_vol_cal{
 };
 
 #ifdef CONFIG_BATTERY_RK30_VOL3V8
+
+#define BATT_MAX_VOL_VALUE                             4120               	//满电时的电池电压	 
+#define BATT_ZERO_VOL_VALUE                            3400              	//关机时的电池电压
+#define BATT_NOMAL_VOL_VALUE                         3800               
+
+//定义ADC采样分压电阻，以实际值为准，单位K
+
+#define BAT_PULL_UP_R                                         200
+
+#define BAT_PULL_DOWN_R                                   200
 
 static struct batt_vol_cal  batt_table[BATT_NUM] = {
 	{0,3400,3520},{1,3420,3525},{2,3420,3575},{3,3475,3600},{5,3505,3620},{7,3525,3644},
@@ -103,6 +105,16 @@ static struct batt_vol_cal  batt_table[BATT_NUM] = {
 /*******************************************************************************/
 
 #else
+#define BATT_MAX_VOL_VALUE                              8284              	//满电时的电池电压	 
+#define BATT_ZERO_VOL_VALUE                             6800            	//关机时的电池电压
+#define BATT_NOMAL_VOL_VALUE                          7600                
+
+//定义ADC采样分压电阻，以实际值为准，单位K
+
+#define BAT_PULL_UP_R                                         300  
+
+#define BAT_PULL_DOWN_R                                    100
+
 static struct batt_vol_cal  batt_table[BATT_NUM] = {
 	{0,6800,7400},    {1,6840,7440},     {2,6880,7480},     {3,6950,7450},       {5,7010,7510},    {7,7050,7550},
 	{9,7080,7580},    {11,7104,7604},   {13,7140,7640},   {15,7160,7660},      {17,7220,7720},
@@ -117,6 +129,9 @@ static struct batt_vol_cal  batt_table[BATT_NUM] = {
 
 };
 #endif
+
+#define adc_to_voltage(adc_val)                           ((adc_val * BAT_2V5_VALUE * (BAT_PULL_UP_R + BAT_PULL_DOWN_R)) / (1024 * BAT_PULL_DOWN_R))
+
 /********************************************************************************/
 
 extern int dwc_vbus_status(void);
