@@ -614,11 +614,11 @@ struct ubi_ainf_volume *ubi_find_av(const struct ubi_attach_info *ai,
 }
 
 /**
- * ubi_scan_rm_volume - delete attaching information about a volume.
+ * ubi_remove_av - delete attaching information about a volume.
  * @ai: attaching information
  * @av: the volume attaching information to delete
  */
-void ubi_scan_rm_volume(struct ubi_attach_info *ai, struct ubi_ainf_volume *av)
+void ubi_remove_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av)
 {
 	struct rb_node *rb;
 	struct ubi_ainf_peb *aeb;

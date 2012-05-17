@@ -738,7 +738,7 @@ static int check_scanning_info(const struct ubi_device *ubi,
 		vol = ubi->volumes[i];
 		if (!vol) {
 			if (av)
-				ubi_scan_rm_volume(ai, av);
+				ubi_remove_av(ai, av);
 			continue;
 		}
 
@@ -756,7 +756,7 @@ static int check_scanning_info(const struct ubi_device *ubi,
 			 * these eraseblocks.
 			 */
 			ubi_msg("finish volume %d removal", av->vol_id);
-			ubi_scan_rm_volume(ai, av);
+			ubi_remove_av(ai, av);
 		} else if (av) {
 			err = check_av(vol, av);
 			if (err)
