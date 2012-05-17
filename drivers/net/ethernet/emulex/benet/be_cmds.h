@@ -189,6 +189,8 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 #define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
 #define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
+#define OPCODE_COMMON_GET_EXT_FAT_CAPABILITES		125
+#define OPCODE_COMMON_SET_EXT_FAT_CAPABILITES		126
 #define OPCODE_COMMON_GET_MAC_LIST			147
 #define OPCODE_COMMON_SET_MAC_LIST			148
 #define OPCODE_COMMON_GET_HSW_CONFIG			152
@@ -1602,6 +1604,56 @@ static inline void *be_erx_stats_from_cmd(struct be_adapter *adapter)
 	}
 }
 
+
+/************** get fat capabilites *******************/
+#define MAX_MODULES 27
+#define MAX_MODES 4
+#define MODE_UART 0
+#define FW_LOG_LEVEL_DEFAULT 48
+#define FW_LOG_LEVEL_FATAL 64
+
+struct ext_fat_mode {
+	u8 mode;
+	u8 rsvd0;
+	u16 port_mask;
+	u32 dbg_lvl;
+	u64 fun_mask;
+} __packed;
+
+struct ext_fat_modules {
+	u8 modules_str[32];
+	u32 modules_id;
+	u32 num_modes;
+	struct ext_fat_mode trace_lvl[MAX_MODES];
+} __packed;
+
+struct be_fat_conf_params {
+	u32 max_log_entries;
+	u32 log_entry_size;
+	u8 log_type;
+	u8 max_log_funs;
+	u8 max_log_ports;
+	u8 rsvd0;
+	u32 supp_modes;
+	u32 num_modules;
+	struct ext_fat_modules module[MAX_MODULES];
+} __packed;
+
+struct be_cmd_req_get_ext_fat_caps {
+	struct be_cmd_req_hdr hdr;
+	u32 parameter_type;
+};
+
+struct be_cmd_resp_get_ext_fat_caps {
+	struct be_cmd_resp_hdr hdr;
+	struct be_fat_conf_params get_params;
+};
+
+struct be_cmd_req_set_ext_fat_caps {
+	struct be_cmd_req_hdr hdr;
+	struct be_fat_conf_params set_params;
+};
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
@@ -1707,4 +1759,9 @@ extern int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
 extern int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid,
 			u32 domain, u16 intf_id);
 extern int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter);
+extern int be_cmd_get_ext_fat_capabilites(struct be_adapter *adapter,
+					  struct be_dma_mem *cmd);
+extern int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
+					  struct be_dma_mem *cmd,
+					  struct be_fat_conf_params *cfgs);
 

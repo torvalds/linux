@@ -3403,9 +3403,43 @@ bool be_is_wol_supported(struct be_adapter *adapter)
 		!be_is_wol_excluded(adapter)) ? true : false;
 }
 
+u32 be_get_fw_log_level(struct be_adapter *adapter)
+{
+	struct be_dma_mem extfat_cmd;
+	struct be_fat_conf_params *cfgs;
+	int status;
+	u32 level = 0;
+	int j;
+
+	memset(&extfat_cmd, 0, sizeof(struct be_dma_mem));
+	extfat_cmd.size = sizeof(struct be_cmd_resp_get_ext_fat_caps);
+	extfat_cmd.va = pci_alloc_consistent(adapter->pdev, extfat_cmd.size,
+					     &extfat_cmd.dma);
+
+	if (!extfat_cmd.va) {
+		dev_err(&adapter->pdev->dev, "%s: Memory allocation failure\n",
+			__func__);
+		goto err;
+	}
+
+	status = be_cmd_get_ext_fat_capabilites(adapter, &extfat_cmd);
+	if (!status) {
+		cfgs = (struct be_fat_conf_params *)(extfat_cmd.va +
+						sizeof(struct be_cmd_resp_hdr));
+		for (j = 0; j < cfgs->module[0].num_modes; j++) {
+			if (cfgs->module[0].trace_lvl[j].mode == MODE_UART)
+				level = cfgs->module[0].trace_lvl[j].dbg_lvl;
+		}
+	}
+	pci_free_consistent(adapter->pdev, extfat_cmd.size, extfat_cmd.va,
+			    extfat_cmd.dma);
+err:
+	return level;
+}
 static int be_get_initial_config(struct be_adapter *adapter)
 {
 	int status;
+	u32 level;
 
 	status = be_cmd_query_fw_cfg(adapter, &adapter->port_num,
 			&adapter->function_mode, &adapter->function_caps);
@@ -3442,6 +3476,9 @@ static int be_get_initial_config(struct be_adapter *adapter)
 
 	if (be_is_wol_supported(adapter))
 		adapter->wol = true;
+
+	level = be_get_fw_log_level(adapter);
+	adapter->msg_enable = level <= FW_LOG_LEVEL_DEFAULT ? NETIF_MSG_HW : 0;
 
 	return 0;
 }

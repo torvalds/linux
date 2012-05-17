@@ -421,6 +421,7 @@ struct be_adapter {
 	bool wol;
 	u32 max_pmac_cnt;	/* Max secondary UC MACs programmable */
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
+	u32 msg_enable;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)
@@ -603,4 +604,6 @@ extern void be_parse_stats(struct be_adapter *adapter);
 extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 extern bool be_is_wol_supported(struct be_adapter *adapter);
 extern bool be_pause_supported(struct be_adapter *adapter);
+extern u32 be_get_fw_log_level(struct be_adapter *adapter);
+
 #endif				/* BE_H */

@@ -2589,4 +2589,60 @@ err:
 	mutex_unlock(&adapter->mbox_lock);
 	pci_free_consistent(adapter->pdev, cmd.size, cmd.va, cmd.dma);
 	return status;
+
+}
+int be_cmd_get_ext_fat_capabilites(struct be_adapter *adapter,
+				   struct be_dma_mem *cmd)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_ext_fat_caps *req;
+	int status;
+
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
+
+	wrb = wrb_from_mbox(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = cmd->va;
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_GET_EXT_FAT_CAPABILITES,
+			       cmd->size, wrb, cmd);
+	req->parameter_type = cpu_to_le32(1);
+
+	status = be_mbox_notify_wait(adapter);
+err:
+	mutex_unlock(&adapter->mbox_lock);
+	return status;
+}
+
+int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
+				   struct be_dma_mem *cmd,
+				   struct be_fat_conf_params *configs)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_set_ext_fat_caps *req;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = cmd->va;
+	memcpy(&req->set_params, configs, sizeof(struct be_fat_conf_params));
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_SET_EXT_FAT_CAPABILITES,
+			       cmd->size, wrb, cmd);
+
+	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
 }
