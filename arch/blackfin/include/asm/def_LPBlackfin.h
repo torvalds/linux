@@ -3,7 +3,7 @@
  *
  * Copyright 2005-2008 Analog Devices Inc.
  *
- * Licensed under the ADI BSD license or GPL-2 (or later).
+ * Licensed under the Clear BSD license or GPL-2 (or later).
  */
 
 #ifndef _DEF_LPBLACKFIN_H
