@@ -3755,13 +3755,13 @@ static void __exit pg_cleanup(void)
 {
 	struct pktgen_thread *t;
 	struct list_head *q, *n;
-	struct list_head list;
+	LIST_HEAD(list);
 
 	/* Stop all interfaces & threads */
 	pktgen_exiting = true;
 
 	mutex_lock(&pktgen_thread_lock);
-	list_splice(&list, &pktgen_threads);
+	list_splice_init(&pktgen_threads, &list);
 	mutex_unlock(&pktgen_thread_lock);
 
 	list_for_each_safe(q, n, &list) {
