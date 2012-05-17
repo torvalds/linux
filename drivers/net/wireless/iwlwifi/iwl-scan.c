@@ -966,8 +966,10 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	set_bit(STATUS_SCAN_HW, &priv->status);
 
 	ret = iwlagn_set_pan_params(priv);
-	if (ret)
+	if (ret) {
+		clear_bit(STATUS_SCAN_HW, &priv->status);
 		return ret;
+	}
 
 	ret = iwl_dvm_send_cmd(priv, &cmd);
 	if (ret) {
