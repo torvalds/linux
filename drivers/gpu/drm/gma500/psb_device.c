@@ -353,7 +353,7 @@ static int psb_chip_setup(struct drm_device *dev)
 }
 
 /* Not exactly an erratum more an irritation */
-static int psb_chip_errata(struct drm_device *dev)
+static void psb_chip_errata(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	psb_lid_timer_init(dev_priv);
