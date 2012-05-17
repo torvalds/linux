@@ -66,11 +66,29 @@ cifs_compare_fids(struct cifsFileInfo *ob1, struct cifsFileInfo *ob2)
 	return ob1->netfid == ob2->netfid;
 }
 
+static unsigned int
+cifs_read_data_offset(char *buf)
+{
+	READ_RSP *rsp = (READ_RSP *)buf;
+	return le16_to_cpu(rsp->DataOffset);
+}
+
+static unsigned int
+cifs_read_data_length(char *buf)
+{
+	READ_RSP *rsp = (READ_RSP *)buf;
+	return (le16_to_cpu(rsp->DataLengthHigh) << 16) +
+	       le16_to_cpu(rsp->DataLength);
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
 	.setup_request = cifs_setup_request,
 	.check_receive = cifs_check_receive,
+	.read_data_offset = cifs_read_data_offset,
+	.read_data_length = cifs_read_data_length,
+	.map_error = map_smb_to_linux_error,
 };
 
 struct smb_version_values smb1_values = {
@@ -81,4 +99,5 @@ struct smb_version_values smb1_values = {
 	.unlock_lock_type = 0,
 	.header_size = sizeof(struct smb_hdr),
 	.max_header_size = MAX_CIFS_HDR_SIZE,
+	.read_rsp_size = sizeof(READ_RSP),
 };
