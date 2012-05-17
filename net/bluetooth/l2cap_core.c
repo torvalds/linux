@@ -2381,7 +2381,11 @@ static inline int l2cap_ertm_init(struct l2cap_chan *chan)
 	if (err < 0)
 		return err;
 
-	return l2cap_seq_list_init(&chan->retrans_list, chan->remote_tx_win);
+	err = l2cap_seq_list_init(&chan->retrans_list, chan->remote_tx_win);
+	if (err < 0)
+		l2cap_seq_list_free(&chan->srej_list);
+
+	return err;
 }
 
 static inline __u8 l2cap_select_mode(__u8 mode, __u16 remote_feat_mask)
