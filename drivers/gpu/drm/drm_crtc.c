@@ -608,6 +608,7 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	if (ret)
 		goto out;
 
+	plane->base.properties = &plane->properties;
 	plane->dev = dev;
 	plane->funcs = funcs;
 	plane->format_types = kmalloc(sizeof(uint32_t) * format_count,
@@ -3199,6 +3200,21 @@ static int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
 	return ret;
 }
 
+static int drm_mode_plane_set_obj_prop(struct drm_mode_object *obj,
+				      struct drm_property *property,
+				      uint64_t value)
+{
+	int ret = -EINVAL;
+	struct drm_plane *plane = obj_to_plane(obj);
+
+	if (plane->funcs->set_property)
+		ret = plane->funcs->set_property(plane, property, value);
+	if (!ret)
+		drm_object_property_set_value(obj, property, value);
+
+	return ret;
+}
+
 int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv)
 {
@@ -3299,6 +3315,9 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 		break;
 	case DRM_MODE_OBJECT_CRTC:
 		ret = drm_mode_crtc_set_obj_prop(arg_obj, property, arg->value);
+		break;
+	case DRM_MODE_OBJECT_PLANE:
+		ret = drm_mode_plane_set_obj_prop(arg_obj, property, arg->value);
 		break;
 	}
 
