@@ -189,7 +189,7 @@ void drm_vblank_cleanup(struct drm_device *dev)
 	if (dev->num_crtcs == 0)
 		return;
 
-	del_timer(&dev->vblank_disable_timer);
+	del_timer_sync(&dev->vblank_disable_timer);
 
 	vblank_disable_fn((unsigned long)dev);
 
