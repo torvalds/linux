@@ -27,12 +27,7 @@ static int s3c64xx_enter_idle(struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv,
 			      int index)
 {
-	struct timeval before, after;
 	unsigned long tmp;
-	int idle_time;
-
-	local_irq_disable();
-	do_gettimeofday(&before);
 
 	/* Setup PWRCFG to enter idle mode */
 	tmp = __raw_readl(S3C64XX_PWR_CFG);
@@ -42,12 +37,6 @@ static int s3c64xx_enter_idle(struct cpuidle_device *dev,
 
 	cpu_do_idle();
 
-	do_gettimeofday(&after);
-	local_irq_enable();
-	idle_time = (after.tv_sec - before.tv_sec) * USEC_PER_SEC +
-		    (after.tv_usec - before.tv_usec);
-
-	dev->last_residency = idle_time;
 	return index;
 }
 
@@ -56,6 +45,7 @@ static DEFINE_PER_CPU(struct cpuidle_device, s3c64xx_cpuidle_device);
 static struct cpuidle_driver s3c64xx_cpuidle_driver = {
 	.name	= "s3c64xx_cpuidle",
 	.owner  = THIS_MODULE,
+	.en_core_tk_irqen = 1,
 	.states = {
 		{
 			.enter            = s3c64xx_enter_idle,
