@@ -451,21 +451,23 @@ static void fimc_lite_clear_event_counters(struct fimc_lite *fimc)
 static int fimc_lite_open(struct file *file)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
-	int ret = v4l2_fh_open(file);
-
-	if (ret)
-		return ret;
+	int ret;
 
 	set_bit(ST_FLITE_IN_USE, &fimc->state);
-	pm_runtime_get_sync(&fimc->pdev->dev);
+	ret = pm_runtime_get_sync(&fimc->pdev->dev);
+	if (ret < 0)
+		return ret;
 
 	if (++fimc->ref_count != 1 || fimc->out_path != FIMC_IO_DMA)
+		return 0;
+
+	ret = v4l2_fh_open(file);
+	if (ret < 0)
 		return ret;
 
 	ret = fimc_pipeline_initialize(&fimc->pipeline, &fimc->vfd->entity,
 				       true);
 	if (ret < 0) {
-		v4l2_err(fimc->vfd, "Video pipeline initialization failed\n");
 		pm_runtime_put_sync(&fimc->pdev->dev);
 		fimc->ref_count--;
 		v4l2_fh_release(file);

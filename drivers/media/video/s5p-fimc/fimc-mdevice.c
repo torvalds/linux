@@ -741,8 +741,8 @@ static void fimc_md_put_clocks(struct fimc_md *fmd)
 }
 
 static int __fimc_md_set_camclk(struct fimc_md *fmd,
-					 struct fimc_sensor_info *s_info,
-					 bool on)
+				struct fimc_sensor_info *s_info,
+				bool on)
 {
 	struct s5p_fimc_isp_info *pdata = s_info->pdata;
 	struct fimc_camclk_info *camclk;
@@ -751,12 +751,10 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 	if (WARN_ON(pdata->clk_id >= FIMC_MAX_CAMCLKS) || fmd == NULL)
 		return -EINVAL;
 
-	if (s_info->clk_on == on)
-		return 0;
 	camclk = &fmd->camclk[pdata->clk_id];
 
-	dbg("camclk %d, f: %lu, clk: %p, on: %d",
-	    pdata->clk_id, pdata->clk_frequency, camclk, on);
+	dbg("camclk %d, f: %lu, use_count: %d, on: %d",
+	    pdata->clk_id, pdata->clk_frequency, camclk->use_count, on);
 
 	if (on) {
 		if (camclk->use_count > 0 &&
@@ -767,11 +765,9 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 			clk_set_rate(camclk->clock, pdata->clk_frequency);
 			camclk->frequency = pdata->clk_frequency;
 			ret = clk_enable(camclk->clock);
+			dbg("Enabled camclk %d: f: %lu", pdata->clk_id,
+			    clk_get_rate(camclk->clock));
 		}
-		s_info->clk_on = 1;
-		dbg("Enabled camclk %d: f: %lu", pdata->clk_id,
-		    clk_get_rate(camclk->clock));
-
 		return ret;
 	}
 
@@ -780,7 +776,6 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 
 	if (--camclk->use_count == 0) {
 		clk_disable(camclk->clock);
-		s_info->clk_on = 0;
 		dbg("Disabled camclk %d", pdata->clk_id);
 	}
 	return ret;
@@ -796,8 +791,6 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
  * devices to which sensors can be attached, either directly or through
  * the MIPI CSI receiver. The clock is allowed here to be used by
  * multiple sensors concurrently if they use same frequency.
- * The per sensor subdev clk_on attribute helps to synchronize accesses
- * to the sclk_cam clocks from the video and media device nodes.
  * This function should only be called when the graph mutex is held.
  */
 int fimc_md_set_camclk(struct v4l2_subdev *sd, bool on)

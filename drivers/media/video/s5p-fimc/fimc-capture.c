@@ -480,37 +480,39 @@ static int fimc_capture_set_default_format(struct fimc_dev *fimc);
 static int fimc_capture_open(struct file *file)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	int ret = v4l2_fh_open(file);
-
-	if (ret)
-		return ret;
+	int ret;
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
 
-	/* Return if the corresponding video mem2mem node is already opened. */
 	if (fimc_m2m_active(fimc))
 		return -EBUSY;
 
 	set_bit(ST_CAPT_BUSY, &fimc->state);
-	pm_runtime_get_sync(&fimc->pdev->dev);
+	ret = pm_runtime_get_sync(&fimc->pdev->dev);
+	if (ret < 0)
+		return ret;
 
-	if (++fimc->vid_cap.refcnt == 1) {
-		ret = fimc_pipeline_initialize(&fimc->pipeline,
-			       &fimc->vid_cap.vfd->entity, true);
-		if (ret < 0) {
-			dev_err(&fimc->pdev->dev,
-				"Video pipeline initialization failed\n");
-			clear_bit(ST_CAPT_BUSY, &fimc->state);
-			pm_runtime_put_sync(&fimc->pdev->dev);
-			fimc->vid_cap.refcnt--;
-			v4l2_fh_release(file);
-			return ret;
-		}
-		ret = fimc_capture_ctrls_create(fimc);
+	ret = v4l2_fh_open(file);
+	if (ret)
+		return ret;
 
-		if (!ret && !fimc->vid_cap.user_subdev_api)
-			ret = fimc_capture_set_default_format(fimc);
+	if (++fimc->vid_cap.refcnt != 1)
+		return 0;
+
+	ret = fimc_pipeline_initialize(&fimc->pipeline,
+				       &fimc->vid_cap.vfd->entity, true);
+	if (ret < 0) {
+		clear_bit(ST_CAPT_BUSY, &fimc->state);
+		pm_runtime_put_sync(&fimc->pdev->dev);
+		fimc->vid_cap.refcnt--;
+		v4l2_fh_release(file);
+		return ret;
 	}
+	ret = fimc_capture_ctrls_create(fimc);
+
+	if (!ret && !fimc->vid_cap.user_subdev_api)
+		ret = fimc_capture_set_default_format(fimc);
+
 	return ret;
 }
 
