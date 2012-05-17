@@ -2180,11 +2180,24 @@ static void __d40_set_prio_rt(struct d40_chan *d40c, int dev_type, bool src)
 {
 	bool realtime = d40c->dma_cfg.realtime;
 	bool highprio = d40c->dma_cfg.high_priority;
-	u32 prioreg = highprio ? D40_DREG_PSEG1 : D40_DREG_PCEG1;
 	u32 rtreg = realtime ? D40_DREG_RSEG1 : D40_DREG_RCEG1;
 	u32 event = D40_TYPE_TO_EVENT(dev_type);
 	u32 group = D40_TYPE_TO_GROUP(dev_type);
 	u32 bit = 1 << event;
+	u32 prioreg;
+
+	/*
+	 * Due to a hardware bug, in some cases a logical channel triggered by
+	 * a high priority destination event line can generate extra packet
+	 * transactions.
+	 *
+	 * The workaround is to not set the high priority level for the
+	 * destination event lines that trigger logical channels.
+	 */
+	if (!src && chan_is_logical(d40c))
+		highprio = false;
+
+	prioreg = highprio ? D40_DREG_PSEG1 : D40_DREG_PCEG1;
 
 	/* Destination event lines are stored in the upper halfword */
 	if (!src)
