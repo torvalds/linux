@@ -103,6 +103,18 @@ static const int hmc5843_regval_to_nanoscale[] = {
 	6173, 7692, 10309, 12821, 18868, 21739, 25641, 35714
 };
 
+/*
+ * From the datasheet:
+ * Value	| Sensor input field range (Ga)	| Gain (counts/milli-Gauss)
+ * 0		| (+-)0.7			| 1620
+ * 1		| (+-)1.0			| 1300
+ * 2		| (+-)1.5			| 970
+ * 3		| (+-)2.0			| 780
+ * 4		| (+-)3.2			| 530
+ * 5		| (+-)3.8			| 460
+ * 6		| (+-)4.5			| 390
+ * 7		| (+-)6.5			| 280
+ */
 static const int regval_to_input_field_mg[] = {
 	700,
 	1000,
@@ -113,6 +125,19 @@ static const int regval_to_input_field_mg[] = {
 	4500,
 	6500
 };
+
+/*
+ * From the datasheet:
+ * Value	| Data output rate (Hz)
+ * 0		| 0.5
+ * 1		| 1
+ * 2		| 2
+ * 3		| 5
+ * 4		| 10 (default)
+ * 5		| 20
+ * 6		| 50
+ * 7		| Not used
+ */
 static const char * const regval_to_samp_freq[] = {
 	"0.5",
 	"1",
@@ -130,18 +155,16 @@ static const unsigned short normal_i2c[] = { HMC5843_I2C_ADDRESS,
 /* Each client has this additional data */
 struct hmc5843_data {
 	struct mutex lock;
-	u8		rate;
-	u8		meas_conf;
-	u8		operating_mode;
-	u8		range;
+	u8 rate;
+	u8 meas_conf;
+	u8 operating_mode;
+	u8 range;
 };
 
-static void hmc5843_init_client(struct i2c_client *client);
-
+/* The lower two bits contain the current conversion mode */
 static s32 hmc5843_configure(struct i2c_client *client,
 				       u8 operating_mode)
 {
-	/* The lower two bits contain the current conversion mode */
 	return i2c_smbus_write_byte_data(client,
 					HMC5843_MODE_REG,
 					operating_mode & HMC5843_MODE_MASK);
@@ -166,23 +189,22 @@ static int hmc5843_read_measurement(struct iio_dev *indio_dev,
 	if (result < 0)
 		return -EINVAL;
 
-	*val	= (s16)swab16((u16)result);
+	*val = (s16)swab16((u16)result);
 	return IIO_VAL_INT;
 }
 
-
 /*
- * From the datasheet
+ * From the datasheet:
  * 0 - Continuous-Conversion Mode: In continuous-conversion mode, the
- * device continuously performs conversions and places the result in the
- * data register.
+ *     device continuously performs conversions and places the result in
+ *     the data register.
  *
- * 1 - Single-Conversion Mode : device performs a single measurement,
- *  sets RDY high and returned to sleep mode
+ * 1 - Single-Conversion Mode : Device performs a single measurement,
+ *     sets RDY high and returns to sleep mode.
  *
- * 2 - Idle Mode :  Device is placed in idle mode.
+ * 2 - Idle Mode : Device is placed in idle mode.
  *
- * 3 - Sleep Mode. Device is placed in sleep mode.
+ * 3 - Sleep Mode : Device is placed in sleep mode.
  *
  */
 static ssize_t hmc5843_show_operating_mode(struct device *dev,
@@ -206,13 +228,14 @@ static ssize_t hmc5843_set_operating_mode(struct device *dev,
 	unsigned long operating_mode = 0;
 	s32 status;
 	int error;
+
 	mutex_lock(&data->lock);
 	error = kstrtoul(buf, 10, &operating_mode);
 	if (error) {
 		count = error;
 		goto exit;
 	}
-	dev_dbg(dev, "set Conversion mode to %lu\n", operating_mode);
+	dev_dbg(dev, "set conversion mode to %lu\n", operating_mode);
 	if (operating_mode > HMC5843_MODE_SLEEP) {
 		count = -EINVAL;
 		goto exit;
@@ -230,6 +253,7 @@ exit:
 	mutex_unlock(&data->lock);
 	return count;
 }
+
 static IIO_DEVICE_ATTR(operating_mode,
 			S_IWUSR | S_IRUGO,
 			hmc5843_show_operating_mode,
@@ -239,17 +263,19 @@ static IIO_DEVICE_ATTR(operating_mode,
 /*
  * API for setting the measurement configuration to
  * Normal, Positive bias and Negative bias
- * From the datasheet
  *
- * Normal measurement configuration (default): In normal measurement
- * configuration the device follows normal measurement flow. Pins BP and BN
- * are left floating and high impedance.
+ * From the datasheet:
+ * 0 - Normal measurement configuration (default): In normal measurement
+ *     configuration the device follows normal measurement flow. Pins BP
+ *     and BN are left floating and high impedance.
  *
- * Positive bias configuration: In positive bias configuration, a positive
- * current is forced across the resistive load on pins BP and BN.
+ * 1 - Positive bias configuration: In positive bias configuration, a
+ *     positive current is forced across the resistive load on pins BP
+ *     and BN.
  *
- * Negative bias configuration. In negative bias configuration, a negative
- * current is forced across the resistive load on pins BP and BN.
+ * 2 - Negative bias configuration. In negative bias configuration, a
+ *     negative current is forced across the resistive load on pins BP
+ *     and BN.
  *
  */
 static s32 hmc5843_set_meas_conf(struct i2c_client *client,
@@ -290,8 +316,7 @@ static ssize_t hmc5843_set_measurement_configuration(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
-
-	dev_dbg(dev, "set mode to %lu\n", meas_conf);
+	dev_dbg(dev, "set measurement configuration to %lu\n", meas_conf);
 	if (hmc5843_set_meas_conf(client, meas_conf)) {
 		count = -EINVAL;
 		goto exit;
@@ -302,25 +327,13 @@ exit:
 	mutex_unlock(&data->lock);
 	return count;
 }
+
 static IIO_DEVICE_ATTR(meas_conf,
 			S_IWUSR | S_IRUGO,
 			hmc5843_show_measurement_configuration,
 			hmc5843_set_measurement_configuration,
 			0);
 
-/*
- * From Datasheet
- * The table shows the minimum data output
- * Value	| Minimum data output rate(Hz)
- * 0		| 0.5
- * 1		| 1
- * 2		| 2
- * 3		| 5
- * 4		| 10 (default)
- * 5		| 20
- * 6		| 50
- * 7		| Not used
- */
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("0.5 1 2 5 10 20 50");
 
 static s32 hmc5843_set_rate(struct i2c_client *client,
@@ -333,7 +346,7 @@ static s32 hmc5843_set_rate(struct i2c_client *client,
 	reg_val = (data->meas_conf) |  (rate << HMC5843_RATE_OFFSET);
 	if (rate >= HMC5843_RATE_NOT_USED) {
 		dev_err(&client->dev,
-			"This data output rate is not supported\n");
+			"data output rate is not supported\n");
 		return -EINVAL;
 	}
 	return i2c_smbus_write_byte_data(client, HMC5843_CONFIG_REG_A, reg_val);
@@ -392,31 +405,19 @@ static ssize_t show_sampling_frequency(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	s32 rate;
 
-	rate = i2c_smbus_read_byte_data(client,  this_attr->address);
+	rate = i2c_smbus_read_byte_data(client, this_attr->address);
 	if (rate < 0)
 		return rate;
 	rate = (rate & HMC5843_RATE_BITMASK) >> HMC5843_RATE_OFFSET;
 	return sprintf(buf, "%s\n", regval_to_samp_freq[rate]);
 }
+
 static IIO_DEVICE_ATTR(sampling_frequency,
 			S_IWUSR | S_IRUGO,
 			show_sampling_frequency,
 			set_sampling_frequency,
 			HMC5843_CONFIG_REG_A);
 
-/*
- * From Datasheet
- *	Nominal gain settings
- * Value	| Sensor Input Field Range(Ga)	| Gain(counts/ milli-gauss)
- *0		|(+-)0.7			|1620
- *1		|(+-)1.0			|1300
- *2		|(+-)1.5			|970
- *3		|(+-)2.0			|780
- *4		|(+-)3.2			|530
- *5		|(+-)3.8			|460
- *6		|(+-)4.5			|390
- *7		|(+-)6.5			|280
- */
 static ssize_t show_range(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -440,6 +441,7 @@ static ssize_t set_range(struct device *dev,
 	struct hmc5843_data *data = iio_priv(indio_dev);
 	unsigned long range = 0;
 	int error;
+
 	mutex_lock(&data->lock);
 	error = kstrtoul(buf, 10, &range);
 	if (error) {
@@ -461,8 +463,8 @@ static ssize_t set_range(struct device *dev,
 exit:
 	mutex_unlock(&data->lock);
 	return count;
-
 }
+
 static IIO_DEVICE_ATTR(in_magn_range,
 			S_IWUSR | S_IRUGO,
 			show_range,
@@ -537,7 +539,7 @@ static int hmc5843_detect(struct i2c_client *client,
 	return 0;
 }
 
-/* Called when we have found a new HMC5843. */
+/* Called when we have found a new HMC5843 */
 static void hmc5843_init_client(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
@@ -548,6 +550,7 @@ static void hmc5843_init_client(struct i2c_client *client)
 	hmc5843_configure(client, data->operating_mode);
 	i2c_smbus_write_byte_data(client, HMC5843_CONFIG_REG_B, data->range);
 	mutex_init(&data->lock);
+
 	pr_info("HMC5843 initialized\n");
 }
 
@@ -577,8 +580,6 @@ static int hmc5843_probe(struct i2c_client *client,
 	data->operating_mode = HMC5843_MODE_CONVERSION_CONTINUOUS;
 
 	i2c_set_clientdata(client, indio_dev);
-
-	/* Initialize the HMC5843 chip */
 	hmc5843_init_client(client);
 
 	indio_dev->info = &hmc5843_info;
@@ -587,10 +588,13 @@ static int hmc5843_probe(struct i2c_client *client,
 	indio_dev->num_channels = ARRAY_SIZE(hmc5843_channels);
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+
 	err = iio_device_register(indio_dev);
 	if (err)
 		goto exit_free2;
+
 	return 0;
+
 exit_free2:
 	iio_device_free(indio_dev);
 exit:
