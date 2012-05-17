@@ -308,8 +308,8 @@ efx_free_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
 			 unsigned int len)
 {
-	buffer->addr = pci_alloc_consistent(efx->pci_dev, len,
-					    &buffer->dma_addr);
+	buffer->addr = dma_alloc_coherent(&efx->pci_dev->dev, len,
+					  &buffer->dma_addr, GFP_ATOMIC);
 	if (!buffer->addr)
 		return -ENOMEM;
 	buffer->len = len;
@@ -320,8 +320,8 @@ int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
 void efx_nic_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer)
 {
 	if (buffer->addr) {
-		pci_free_consistent(efx->pci_dev, buffer->len,
-				    buffer->addr, buffer->dma_addr);
+		dma_free_coherent(&efx->pci_dev->dev, buffer->len,
+				  buffer->addr, buffer->dma_addr);
 		buffer->addr = NULL;
 	}
 }

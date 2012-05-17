@@ -100,7 +100,7 @@ struct efx_special_buffer {
  * @len: Length of this fragment.
  *	This field is zero when the queue slot is empty.
  * @continuation: True if this fragment is not the end of a packet.
- * @unmap_single: True if pci_unmap_single should be used.
+ * @unmap_single: True if dma_unmap_single should be used.
  * @unmap_len: Length of this fragment to unmap
  */
 struct efx_tx_buffer {
