@@ -332,13 +332,15 @@ static void _disable_gptimers(uint16_t mask)
 
 void disable_gptimers(uint16_t mask)
 {
+#ifndef CONFIG_BF60x
 	int i;
 	_disable_gptimers(mask);
-#ifndef CONFIG_BF60x
 	for (i = 0; i < MAX_BLACKFIN_GPTIMERS; ++i)
 		if (mask & (1 << i))
 			bfin_write(&group_regs[BFIN_TIMER_OCTET(i)]->status, trun_mask[i]);
 	SSYNC();
+#else
+	_disable_gptimers(mask);
 #endif
 }
 EXPORT_SYMBOL(disable_gptimers);

@@ -105,6 +105,8 @@ static struct platform_device bfin_rotary_device = {
 #if defined(CONFIG_STMMAC_ETH) || defined(CONFIG_STMMAC_ETH_MODULE)
 #include <linux/stmmac.h>
 
+static unsigned short pins[] = P_RMII0;
+
 static struct stmmac_mdio_bus_data phy_private_data = {
 	.bus_id = 0,
 	.phy_mask = 1,
@@ -1283,7 +1285,6 @@ static int __init ezkit_init(void)
 				ARRAY_SIZE(bfin_i2c_board_info1));
 
 #if defined(CONFIG_STMMAC_ETH) || defined(CONFIG_STMMAC_ETH_MODULE)
-	unsigned short pins[] = P_RMII0;
 	if (!peripheral_request_list(pins, "emac0"))
 		printk(KERN_ERR "%s(): request emac pins failed\n", __func__);
 #endif

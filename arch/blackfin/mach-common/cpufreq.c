@@ -111,6 +111,7 @@ static unsigned int bfin_getfreq_khz(unsigned int cpu)
 	return get_cclk() / 1000;
 }
 
+#ifdef CONFIG_BF60x
 unsigned long cpu_set_cclk(int cpu, unsigned long new)
 {
 	struct clk *clk;
@@ -124,11 +125,15 @@ unsigned long cpu_set_cclk(int cpu, unsigned long new)
 	clk_put(clk);
 	return ret;
 }
+#endif
 
 static int bfin_target(struct cpufreq_policy *poli,
 			unsigned int target_freq, unsigned int relation)
 {
-	unsigned int index, plldiv, cpu;
+#ifndef CONFIG_BF60x
+	unsigned int plldiv;
+#endif
+	unsigned int index, cpu;
 	unsigned long flags, cclk_hz;
 	struct cpufreq_freqs freqs;
 	static unsigned long lpj_ref;
