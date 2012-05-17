@@ -34,4 +34,11 @@ config COMMON_CLK_DEBUG
 	  clk_flags, clk_prepare_count, clk_enable_count &
 	  clk_notifier_count.
 
+config COMMON_CLK_WM831X
+	tristate "Clock driver for WM831x/2x PMICs"
+	depends on MFD_WM831X
+	---help---
+          Supports the clocking subsystem of the WM831x/2x series of
+	  PMICs from Wolfson Microlectronics.
+
 endmenu
