@@ -24,10 +24,10 @@
  * This sub-system is responsible for scanning the flash media, checking UBI
  * headers and providing complete information about the UBI flash image.
  *
- * The scanning information is represented by a &struct ubi_attach_info' object.
- * Information about found volumes is represented by &struct ubi_ainf_volume
- * objects which are kept in volume RB-tree with root at the @volumes field.
- * The RB-tree is indexed by the volume ID.
+ * The attaching information is represented by a &struct ubi_attach_info'
+ * object. Information about found volumes is represented by
+ * &struct ubi_ainf_volume objects which are kept in volume RB-tree with root
+ * at the @volumes field. The RB-tree is indexed by the volume ID.
  *
  * Scanned logical eraseblocks are represented by &struct ubi_ainf_peb objects.
  * These objects are kept in per-volume RB-trees with the root at the
@@ -88,7 +88,7 @@
 #include <linux/random.h>
 #include "ubi.h"
 
-static int self_check_si(struct ubi_device *ubi, struct ubi_attach_info *si);
+static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai);
 
 /* Temporary variables used during scanning */
 static struct ubi_ec_hdr *ech;
@@ -96,7 +96,7 @@ static struct ubi_vid_hdr *vidh;
 
 /**
  * add_to_list - add physical eraseblock to a list.
- * @si: scanning information
+ * @ai: attaching information
  * @pnum: physical eraseblock number to add
  * @ec: erase counter of the physical eraseblock
  * @to_head: if not zero, add to the head of the list
@@ -110,22 +110,22 @@ static struct ubi_vid_hdr *vidh;
  * returns zero in case of success and a negative error code in case of
  * failure.
  */
-static int add_to_list(struct ubi_attach_info *si, int pnum, int ec,
+static int add_to_list(struct ubi_attach_info *ai, int pnum, int ec,
 		       int to_head, struct list_head *list)
 {
 	struct ubi_ainf_peb *aeb;
 
-	if (list == &si->free) {
+	if (list == &ai->free) {
 		dbg_bld("add to free: PEB %d, EC %d", pnum, ec);
-	} else if (list == &si->erase) {
+	} else if (list == &ai->erase) {
 		dbg_bld("add to erase: PEB %d, EC %d", pnum, ec);
-	} else if (list == &si->alien) {
+	} else if (list == &ai->alien) {
 		dbg_bld("add to alien: PEB %d, EC %d", pnum, ec);
-		si->alien_peb_count += 1;
+		ai->alien_peb_count += 1;
 	} else
 		BUG();
 
-	aeb = kmem_cache_alloc(si->scan_leb_slab, GFP_KERNEL);
+	aeb = kmem_cache_alloc(ai->scan_leb_slab, GFP_KERNEL);
 	if (!aeb)
 		return -ENOMEM;
 
@@ -140,7 +140,7 @@ static int add_to_list(struct ubi_attach_info *si, int pnum, int ec,
 
 /**
  * add_corrupted - add a corrupted physical eraseblock.
- * @si: scanning information
+ * @ai: attaching information
  * @pnum: physical eraseblock number to add
  * @ec: erase counter of the physical eraseblock
  *
@@ -148,20 +148,20 @@ static int add_to_list(struct ubi_attach_info *si, int pnum, int ec,
  * The corruption was presumably not caused by a power cut. Returns zero in
  * case of success and a negative error code in case of failure.
  */
-static int add_corrupted(struct ubi_attach_info *si, int pnum, int ec)
+static int add_corrupted(struct ubi_attach_info *ai, int pnum, int ec)
 {
 	struct ubi_ainf_peb *aeb;
 
 	dbg_bld("add to corrupted: PEB %d, EC %d", pnum, ec);
 
-	aeb = kmem_cache_alloc(si->scan_leb_slab, GFP_KERNEL);
+	aeb = kmem_cache_alloc(ai->scan_leb_slab, GFP_KERNEL);
 	if (!aeb)
 		return -ENOMEM;
 
-	si->corr_peb_count += 1;
+	ai->corr_peb_count += 1;
 	aeb->pnum = pnum;
 	aeb->ec = ec;
-	list_add(&aeb->u.list, &si->corr);
+	list_add(&aeb->u.list, &ai->corr);
 	return 0;
 }
 
@@ -232,24 +232,24 @@ bad:
 }
 
 /**
- * add_volume - add volume to the scanning information.
- * @si: scanning information
+ * add_volume - add volume to the attaching information.
+ * @ai: attaching information
  * @vol_id: ID of the volume to add
  * @pnum: physical eraseblock number
  * @vid_hdr: volume identifier header
  *
  * If the volume corresponding to the @vid_hdr logical eraseblock is already
- * present in the scanning information, this function does nothing. Otherwise
- * it adds corresponding volume to the scanning information. Returns a pointer
+ * present in the attaching information, this function does nothing. Otherwise
+ * it adds corresponding volume to the attaching information. Returns a pointer
  * to the scanning volume object in case of success and a negative error code
  * in case of failure.
  */
-static struct ubi_ainf_volume *add_volume(struct ubi_attach_info *si,
+static struct ubi_ainf_volume *add_volume(struct ubi_attach_info *ai,
 					  int vol_id, int pnum,
 					  const struct ubi_vid_hdr *vid_hdr)
 {
 	struct ubi_ainf_volume *sv;
-	struct rb_node **p = &si->volumes.rb_node, *parent = NULL;
+	struct rb_node **p = &ai->volumes.rb_node, *parent = NULL;
 
 	ubi_assert(vol_id == be32_to_cpu(vid_hdr->vol_id));
 
@@ -280,12 +280,12 @@ static struct ubi_ainf_volume *add_volume(struct ubi_attach_info *si,
 	sv->compat = vid_hdr->compat;
 	sv->vol_type = vid_hdr->vol_type == UBI_VID_DYNAMIC ? UBI_DYNAMIC_VOLUME
 							    : UBI_STATIC_VOLUME;
-	if (vol_id > si->highest_vol_id)
-		si->highest_vol_id = vol_id;
+	if (vol_id > ai->highest_vol_id)
+		ai->highest_vol_id = vol_id;
 
 	rb_link_node(&sv->rb, parent, p);
-	rb_insert_color(&sv->rb, &si->volumes);
-	si->vols_found += 1;
+	rb_insert_color(&sv->rb, &ai->volumes);
+	ai->vols_found += 1;
 	dbg_bld("added volume %d", vol_id);
 	return sv;
 }
@@ -425,9 +425,9 @@ out_free_vidh:
 }
 
 /**
- * ubi_scan_add_used - add physical eraseblock to the scanning information.
+ * ubi_scan_add_used - add physical eraseblock to the attaching information.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: attaching information
  * @pnum: the physical eraseblock number
  * @ec: erase counter
  * @vid_hdr: the volume identifier header
@@ -440,7 +440,7 @@ out_free_vidh:
  * to be picked, while the older one has to be dropped. This function returns
  * zero in case of success and a negative error code in case of failure.
  */
-int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *si,
+int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		      int pnum, int ec, const struct ubi_vid_hdr *vid_hdr,
 		      int bitflips)
 {
@@ -457,12 +457,12 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *si,
 	dbg_bld("PEB %d, LEB %d:%d, EC %d, sqnum %llu, bitflips %d",
 		pnum, vol_id, lnum, ec, sqnum, bitflips);
 
-	sv = add_volume(si, vol_id, pnum, vid_hdr);
+	sv = add_volume(ai, vol_id, pnum, vid_hdr);
 	if (IS_ERR(sv))
 		return PTR_ERR(sv);
 
-	if (si->max_sqnum < sqnum)
-		si->max_sqnum = sqnum;
+	if (ai->max_sqnum < sqnum)
+		ai->max_sqnum = sqnum;
 
 	/*
 	 * Walk the RB-tree of logical eraseblocks of volume @vol_id to look
@@ -528,8 +528,8 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *si,
 			if (err)
 				return err;
 
-			err = add_to_list(si, aeb->pnum, aeb->ec, cmp_res & 4,
-					  &si->erase);
+			err = add_to_list(ai, aeb->pnum, aeb->ec, cmp_res & 4,
+					  &ai->erase);
 			if (err)
 				return err;
 
@@ -549,21 +549,21 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *si,
 			 * This logical eraseblock is older than the one found
 			 * previously.
 			 */
-			return add_to_list(si, pnum, ec, cmp_res & 4,
-					   &si->erase);
+			return add_to_list(ai, pnum, ec, cmp_res & 4,
+					   &ai->erase);
 		}
 	}
 
 	/*
 	 * We've met this logical eraseblock for the first time, add it to the
-	 * scanning information.
+	 * attaching information.
 	 */
 
 	err = validate_vid_hdr(vid_hdr, sv, pnum);
 	if (err)
 		return err;
 
-	aeb = kmem_cache_alloc(si->scan_leb_slab, GFP_KERNEL);
+	aeb = kmem_cache_alloc(ai->scan_leb_slab, GFP_KERNEL);
 	if (!aeb)
 		return -ENOMEM;
 
@@ -586,18 +586,18 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *si,
 }
 
 /**
- * ubi_scan_find_sv - find volume in the scanning information.
- * @si: scanning information
+ * ubi_scan_find_sv - find volume in the attaching information.
+ * @ai: attaching information
  * @vol_id: the requested volume ID
  *
  * This function returns a pointer to the volume description or %NULL if there
- * are no data about this volume in the scanning information.
+ * are no data about this volume in the attaching information.
  */
-struct ubi_ainf_volume *ubi_scan_find_sv(const struct ubi_attach_info *si,
+struct ubi_ainf_volume *ubi_scan_find_sv(const struct ubi_attach_info *ai,
 					 int vol_id)
 {
 	struct ubi_ainf_volume *sv;
-	struct rb_node *p = si->volumes.rb_node;
+	struct rb_node *p = ai->volumes.rb_node;
 
 	while (p) {
 		sv = rb_entry(p, struct ubi_ainf_volume, rb);
@@ -615,8 +615,8 @@ struct ubi_ainf_volume *ubi_scan_find_sv(const struct ubi_attach_info *si,
 }
 
 /**
- * ubi_scan_find_aeb - find LEB in the volume scanning information.
- * @sv: a pointer to the volume scanning information
+ * ubi_scan_find_aeb - find LEB in the volume attaching information.
+ * @sv: a pointer to the volume attaching information
  * @lnum: the requested logical eraseblock
  *
  * This function returns a pointer to the scanning logical eraseblock or %NULL
@@ -644,32 +644,32 @@ struct ubi_ainf_peb *ubi_scan_find_aeb(const struct ubi_ainf_volume *sv,
 }
 
 /**
- * ubi_scan_rm_volume - delete scanning information about a volume.
- * @si: scanning information
- * @sv: the volume scanning information to delete
+ * ubi_scan_rm_volume - delete attaching information about a volume.
+ * @ai: attaching information
+ * @sv: the volume attaching information to delete
  */
-void ubi_scan_rm_volume(struct ubi_attach_info *si, struct ubi_ainf_volume *sv)
+void ubi_scan_rm_volume(struct ubi_attach_info *ai, struct ubi_ainf_volume *sv)
 {
 	struct rb_node *rb;
 	struct ubi_ainf_peb *aeb;
 
-	dbg_bld("remove scanning information about volume %d", sv->vol_id);
+	dbg_bld("remove attaching information about volume %d", sv->vol_id);
 
 	while ((rb = rb_first(&sv->root))) {
 		aeb = rb_entry(rb, struct ubi_ainf_peb, u.rb);
 		rb_erase(&aeb->u.rb, &sv->root);
-		list_add_tail(&aeb->u.list, &si->erase);
+		list_add_tail(&aeb->u.list, &ai->erase);
 	}
 
-	rb_erase(&sv->rb, &si->volumes);
+	rb_erase(&sv->rb, &ai->volumes);
 	kfree(sv);
-	si->vols_found -= 1;
+	ai->vols_found -= 1;
 }
 
 /**
  * ubi_scan_erase_peb - erase a physical eraseblock.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: attaching information
  * @pnum: physical eraseblock number to erase;
  * @ec: erase counter value to write (%UBI_SCAN_UNKNOWN_EC if it is unknown)
  *
@@ -679,7 +679,7 @@ void ubi_scan_rm_volume(struct ubi_attach_info *si, struct ubi_ainf_volume *sv)
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-int ubi_scan_erase_peb(struct ubi_device *ubi, const struct ubi_attach_info *si,
+int ubi_scan_erase_peb(struct ubi_device *ubi, const struct ubi_attach_info *ai,
 		       int pnum, int ec)
 {
 	int err;
@@ -714,7 +714,7 @@ out_free:
 /**
  * ubi_scan_get_free_peb - get a free physical eraseblock.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: attaching information
  *
  * This function returns a free physical eraseblock. It is supposed to be
  * called on the UBI initialization stages when the wear-leveling sub-system is
@@ -726,13 +726,13 @@ out_free:
  * success and an error code in case of failure.
  */
 struct ubi_ainf_peb *ubi_scan_get_free_peb(struct ubi_device *ubi,
-					   struct ubi_attach_info *si)
+					   struct ubi_attach_info *ai)
 {
 	int err = 0;
 	struct ubi_ainf_peb *aeb, *tmp_aeb;
 
-	if (!list_empty(&si->free)) {
-		aeb = list_entry(si->free.next, struct ubi_ainf_peb, u.list);
+	if (!list_empty(&ai->free)) {
+		aeb = list_entry(ai->free.next, struct ubi_ainf_peb, u.list);
 		list_del(&aeb->u.list);
 		dbg_bld("return free PEB %d, EC %d", aeb->pnum, aeb->ec);
 		return aeb;
@@ -744,11 +744,11 @@ struct ubi_ainf_peb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 	 * so forth. We don't want to take care about bad eraseblocks here -
 	 * they'll be handled later.
 	 */
-	list_for_each_entry_safe(aeb, tmp_aeb, &si->erase, u.list) {
+	list_for_each_entry_safe(aeb, tmp_aeb, &ai->erase, u.list) {
 		if (aeb->ec == UBI_SCAN_UNKNOWN_EC)
-			aeb->ec = si->mean_ec;
+			aeb->ec = ai->mean_ec;
 
-		err = ubi_scan_erase_peb(ubi, si, aeb->pnum, aeb->ec+1);
+		err = ubi_scan_erase_peb(ubi, ai, aeb->pnum, aeb->ec+1);
 		if (err)
 			continue;
 
@@ -823,15 +823,15 @@ out_unlock:
 }
 
 /**
- * process_eb - read, check UBI headers, and add them to scanning information.
+ * process_eb - read, check UBI headers, and add them to attaching information.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: attaching information
  * @pnum: the physical eraseblock number
  *
  * This function returns a zero if the physical eraseblock was successfully
  * handled and a negative error code in case of failure.
  */
-static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *si,
+static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		      int pnum)
 {
 	long long uninitialized_var(ec);
@@ -849,7 +849,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *si,
 		 * initialize this, but MTD does not provide enough
 		 * information.
 		 */
-		si->bad_peb_count += 1;
+		ai->bad_peb_count += 1;
 		return 0;
 	}
 
@@ -863,13 +863,13 @@ static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *si,
 		bitflips = 1;
 		break;
 	case UBI_IO_FF:
-		si->empty_peb_count += 1;
-		return add_to_list(si, pnum, UBI_SCAN_UNKNOWN_EC, 0,
-				   &si->erase);
+		ai->empty_peb_count += 1;
+		return add_to_list(ai, pnum, UBI_SCAN_UNKNOWN_EC, 0,
+				   &ai->erase);
 	case UBI_IO_FF_BITFLIPS:
-		si->empty_peb_count += 1;
-		return add_to_list(si, pnum, UBI_SCAN_UNKNOWN_EC, 1,
-				   &si->erase);
+		ai->empty_peb_count += 1;
+		return add_to_list(ai, pnum, UBI_SCAN_UNKNOWN_EC, 1,
+				   &ai->erase);
 	case UBI_IO_BAD_HDR_EBADMSG:
 	case UBI_IO_BAD_HDR:
 		/*
@@ -953,7 +953,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *si,
 			 * PEB, bit it is not marked as bad yet. This may also
 			 * be a result of power cut during erasure.
 			 */
-			si->maybe_bad_peb_count += 1;
+			ai->maybe_bad_peb_count += 1;
 	case UBI_IO_BAD_HDR:
 		if (ec_err)
 			/*
@@ -980,23 +980,23 @@ static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *si,
 			return err;
 		else if (!err)
 			/* This corruption is caused by a power cut */
-			err = add_to_list(si, pnum, ec, 1, &si->erase);
+			err = add_to_list(ai, pnum, ec, 1, &ai->erase);
 		else
 			/* This is an unexpected corruption */
-			err = add_corrupted(si, pnum, ec);
+			err = add_corrupted(ai, pnum, ec);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
 	case UBI_IO_FF_BITFLIPS:
-		err = add_to_list(si, pnum, ec, 1, &si->erase);
+		err = add_to_list(ai, pnum, ec, 1, &ai->erase);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
 	case UBI_IO_FF:
 		if (ec_err)
-			err = add_to_list(si, pnum, ec, 1, &si->erase);
+			err = add_to_list(ai, pnum, ec, 1, &ai->erase);
 		else
-			err = add_to_list(si, pnum, ec, 0, &si->free);
+			err = add_to_list(ai, pnum, ec, 0, &ai->free);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
@@ -1015,7 +1015,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *si,
 		case UBI_COMPAT_DELETE:
 			ubi_msg("\"delete\" compatible internal volume %d:%d"
 				" found, will remove it", vol_id, lnum);
-			err = add_to_list(si, pnum, ec, 1, &si->erase);
+			err = add_to_list(ai, pnum, ec, 1, &ai->erase);
 			if (err)
 				return err;
 			return 0;
@@ -1030,7 +1030,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *si,
 		case UBI_COMPAT_PRESERVE:
 			ubi_msg("\"preserve\" compatible internal volume %d:%d"
 				" found", vol_id, lnum);
-			err = add_to_list(si, pnum, ec, 0, &si->alien);
+			err = add_to_list(ai, pnum, ec, 0, &ai->alien);
 			if (err)
 				return err;
 			return 0;
@@ -1045,18 +1045,18 @@ static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *si,
 	if (ec_err)
 		ubi_warn("valid VID header but corrupted EC header at PEB %d",
 			 pnum);
-	err = ubi_scan_add_used(ubi, si, pnum, ec, vidh, bitflips);
+	err = ubi_scan_add_used(ubi, ai, pnum, ec, vidh, bitflips);
 	if (err)
 		return err;
 
 adjust_mean_ec:
 	if (!ec_err) {
-		si->ec_sum += ec;
-		si->ec_count += 1;
-		if (ec > si->max_ec)
-			si->max_ec = ec;
-		if (ec < si->min_ec)
-			si->min_ec = ec;
+		ai->ec_sum += ec;
+		ai->ec_count += 1;
+		if (ec > ai->max_ec)
+			ai->max_ec = ec;
+		if (ec < ai->min_ec)
+			ai->min_ec = ec;
 	}
 
 	return 0;
@@ -1065,7 +1065,7 @@ adjust_mean_ec:
 /**
  * check_what_we_have - check what PEB were found by scanning.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: attaching information
  *
  * This is a helper function which takes a look what PEBs were found by
  * scanning, and decides whether the flash is empty and should be formatted and
@@ -1074,12 +1074,12 @@ adjust_mean_ec:
  * and %-EINVAL if we should not.
  */
 static int check_what_we_have(struct ubi_device *ubi,
-			      struct ubi_attach_info *si)
+			      struct ubi_attach_info *ai)
 {
 	struct ubi_ainf_peb *aeb;
 	int max_corr, peb_count;
 
-	peb_count = ubi->peb_count - si->bad_peb_count - si->alien_peb_count;
+	peb_count = ubi->peb_count - ai->bad_peb_count - ai->alien_peb_count;
 	max_corr = peb_count / 20 ?: 8;
 
 	/*
@@ -1087,11 +1087,11 @@ static int check_what_we_have(struct ubi_device *ubi,
 	 * unclean reboots. However, many of them may indicate some problems
 	 * with the flash HW or driver.
 	 */
-	if (si->corr_peb_count) {
+	if (ai->corr_peb_count) {
 		ubi_err("%d PEBs are corrupted and preserved",
-			si->corr_peb_count);
+			ai->corr_peb_count);
 		printk(KERN_ERR "Corrupted PEBs are:");
-		list_for_each_entry(aeb, &si->corr, u.list)
+		list_for_each_entry(aeb, &ai->corr, u.list)
 			printk(KERN_CONT " %d", aeb->pnum);
 		printk(KERN_CONT "\n");
 
@@ -1099,13 +1099,13 @@ static int check_what_we_have(struct ubi_device *ubi,
 		 * If too many PEBs are corrupted, we refuse attaching,
 		 * otherwise, only print a warning.
 		 */
-		if (si->corr_peb_count >= max_corr) {
+		if (ai->corr_peb_count >= max_corr) {
 			ubi_err("too many corrupted PEBs, refusing");
 			return -EINVAL;
 		}
 	}
 
-	if (si->empty_peb_count + si->maybe_bad_peb_count == peb_count) {
+	if (ai->empty_peb_count + ai->maybe_bad_peb_count == peb_count) {
 		/*
 		 * All PEBs are empty, or almost all - a couple PEBs look like
 		 * they may be bad PEBs which were not marked as bad yet.
@@ -1121,8 +1121,8 @@ static int check_what_we_have(struct ubi_device *ubi,
 		 * 2. Flash contains non-UBI data and we do not want to format
 		 *    it and destroy possibly important information.
 		 */
-		if (si->maybe_bad_peb_count <= 2) {
-			si->is_empty = 1;
+		if (ai->maybe_bad_peb_count <= 2) {
+			ai->is_empty = 1;
 			ubi_msg("empty MTD device detected");
 			get_random_bytes(&ubi->image_seq,
 					 sizeof(ubi->image_seq));
@@ -1150,28 +1150,28 @@ struct ubi_attach_info *ubi_scan(struct ubi_device *ubi)
 	struct rb_node *rb1, *rb2;
 	struct ubi_ainf_volume *sv;
 	struct ubi_ainf_peb *aeb;
-	struct ubi_attach_info *si;
+	struct ubi_attach_info *ai;
 
-	si = kzalloc(sizeof(struct ubi_attach_info), GFP_KERNEL);
-	if (!si)
+	ai = kzalloc(sizeof(struct ubi_attach_info), GFP_KERNEL);
+	if (!ai)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&si->corr);
-	INIT_LIST_HEAD(&si->free);
-	INIT_LIST_HEAD(&si->erase);
-	INIT_LIST_HEAD(&si->alien);
-	si->volumes = RB_ROOT;
+	INIT_LIST_HEAD(&ai->corr);
+	INIT_LIST_HEAD(&ai->free);
+	INIT_LIST_HEAD(&ai->erase);
+	INIT_LIST_HEAD(&ai->alien);
+	ai->volumes = RB_ROOT;
 
 	err = -ENOMEM;
-	si->scan_leb_slab = kmem_cache_create("ubi_scan_leb_slab",
+	ai->scan_leb_slab = kmem_cache_create("ubi_scan_leb_slab",
 					      sizeof(struct ubi_ainf_peb),
 					      0, 0, NULL);
-	if (!si->scan_leb_slab)
-		goto out_si;
+	if (!ai->scan_leb_slab)
+		goto out_ai;
 
 	ech = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
 	if (!ech)
-		goto out_si;
+		goto out_ai;
 
 	vidh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
 	if (!vidh)
@@ -1181,7 +1181,7 @@ struct ubi_attach_info *ubi_scan(struct ubi_device *ubi)
 		cond_resched();
 
 		dbg_gen("process PEB %d", pnum);
-		err = process_eb(ubi, si, pnum);
+		err = process_eb(ubi, ai, pnum);
 		if (err < 0)
 			goto out_vidh;
 	}
@@ -1189,10 +1189,10 @@ struct ubi_attach_info *ubi_scan(struct ubi_device *ubi)
 	dbg_msg("scanning is finished");
 
 	/* Calculate mean erase counter */
-	if (si->ec_count)
-		si->mean_ec = div_u64(si->ec_sum, si->ec_count);
+	if (ai->ec_count)
+		ai->mean_ec = div_u64(ai->ec_sum, ai->ec_count);
 
-	err = check_what_we_have(ubi, si);
+	err = check_what_we_have(ubi, ai);
 	if (err)
 		goto out_vidh;
 
@@ -1200,52 +1200,52 @@ struct ubi_attach_info *ubi_scan(struct ubi_device *ubi)
 	 * In case of unknown erase counter we use the mean erase counter
 	 * value.
 	 */
-	ubi_rb_for_each_entry(rb1, sv, &si->volumes, rb) {
+	ubi_rb_for_each_entry(rb1, sv, &ai->volumes, rb) {
 		ubi_rb_for_each_entry(rb2, aeb, &sv->root, u.rb)
 			if (aeb->ec == UBI_SCAN_UNKNOWN_EC)
-				aeb->ec = si->mean_ec;
+				aeb->ec = ai->mean_ec;
 	}
 
-	list_for_each_entry(aeb, &si->free, u.list) {
+	list_for_each_entry(aeb, &ai->free, u.list) {
 		if (aeb->ec == UBI_SCAN_UNKNOWN_EC)
-			aeb->ec = si->mean_ec;
+			aeb->ec = ai->mean_ec;
 	}
 
-	list_for_each_entry(aeb, &si->corr, u.list)
+	list_for_each_entry(aeb, &ai->corr, u.list)
 		if (aeb->ec == UBI_SCAN_UNKNOWN_EC)
-			aeb->ec = si->mean_ec;
+			aeb->ec = ai->mean_ec;
 
-	list_for_each_entry(aeb, &si->erase, u.list)
+	list_for_each_entry(aeb, &ai->erase, u.list)
 		if (aeb->ec == UBI_SCAN_UNKNOWN_EC)
-			aeb->ec = si->mean_ec;
+			aeb->ec = ai->mean_ec;
 
-	err = self_check_si(ubi, si);
+	err = self_check_ai(ubi, ai);
 	if (err)
 		goto out_vidh;
 
 	ubi_free_vid_hdr(ubi, vidh);
 	kfree(ech);
 
-	return si;
+	return ai;
 
 out_vidh:
 	ubi_free_vid_hdr(ubi, vidh);
 out_ech:
 	kfree(ech);
-out_si:
-	ubi_scan_destroy_si(si);
+out_ai:
+	ubi_scan_destroy_ai(ai);
 	return ERR_PTR(err);
 }
 
 /**
  * destroy_sv - free the scanning volume information
  * @sv: scanning volume information
- * @si: scanning information
+ * @ai: attaching information
  *
  * This function destroys the volume RB-tree (@sv->root) and the scanning
  * volume information.
  */
-static void destroy_sv(struct ubi_attach_info *si, struct ubi_ainf_volume *sv)
+static void destroy_sv(struct ubi_attach_info *ai, struct ubi_ainf_volume *sv)
 {
 	struct ubi_ainf_peb *aeb;
 	struct rb_node *this = sv->root.rb_node;
@@ -1265,41 +1265,41 @@ static void destroy_sv(struct ubi_attach_info *si, struct ubi_ainf_volume *sv)
 					this->rb_right = NULL;
 			}
 
-			kmem_cache_free(si->scan_leb_slab, aeb);
+			kmem_cache_free(ai->scan_leb_slab, aeb);
 		}
 	}
 	kfree(sv);
 }
 
 /**
- * ubi_scan_destroy_si - destroy scanning information.
- * @si: scanning information
+ * ubi_scan_destroy_ai - destroy attaching information.
+ * @ai: attaching information
  */
-void ubi_scan_destroy_si(struct ubi_attach_info *si)
+void ubi_scan_destroy_ai(struct ubi_attach_info *ai)
 {
 	struct ubi_ainf_peb *aeb, *aeb_tmp;
 	struct ubi_ainf_volume *sv;
 	struct rb_node *rb;
 
-	list_for_each_entry_safe(aeb, aeb_tmp, &si->alien, u.list) {
+	list_for_each_entry_safe(aeb, aeb_tmp, &ai->alien, u.list) {
 		list_del(&aeb->u.list);
-		kmem_cache_free(si->scan_leb_slab, aeb);
+		kmem_cache_free(ai->scan_leb_slab, aeb);
 	}
-	list_for_each_entry_safe(aeb, aeb_tmp, &si->erase, u.list) {
+	list_for_each_entry_safe(aeb, aeb_tmp, &ai->erase, u.list) {
 		list_del(&aeb->u.list);
-		kmem_cache_free(si->scan_leb_slab, aeb);
+		kmem_cache_free(ai->scan_leb_slab, aeb);
 	}
-	list_for_each_entry_safe(aeb, aeb_tmp, &si->corr, u.list) {
+	list_for_each_entry_safe(aeb, aeb_tmp, &ai->corr, u.list) {
 		list_del(&aeb->u.list);
-		kmem_cache_free(si->scan_leb_slab, aeb);
+		kmem_cache_free(ai->scan_leb_slab, aeb);
 	}
-	list_for_each_entry_safe(aeb, aeb_tmp, &si->free, u.list) {
+	list_for_each_entry_safe(aeb, aeb_tmp, &ai->free, u.list) {
 		list_del(&aeb->u.list);
-		kmem_cache_free(si->scan_leb_slab, aeb);
+		kmem_cache_free(ai->scan_leb_slab, aeb);
 	}
 
 	/* Destroy the volume RB-tree */
-	rb = si->volumes.rb_node;
+	rb = ai->volumes.rb_node;
 	while (rb) {
 		if (rb->rb_left)
 			rb = rb->rb_left;
@@ -1316,25 +1316,25 @@ void ubi_scan_destroy_si(struct ubi_attach_info *si)
 					rb->rb_right = NULL;
 			}
 
-			destroy_sv(si, sv);
+			destroy_sv(ai, sv);
 		}
 	}
 
-	if (si->scan_leb_slab)
-		kmem_cache_destroy(si->scan_leb_slab);
+	if (ai->scan_leb_slab)
+		kmem_cache_destroy(ai->scan_leb_slab);
 
-	kfree(si);
+	kfree(ai);
 }
 
 /**
- * self_check_si - check the scanning information.
+ * self_check_ai - check the attaching information.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: attaching information
  *
- * This function returns zero if the scanning information is all right, and a
+ * This function returns zero if the attaching information is all right, and a
  * negative error code if not or if an error occurred.
  */
-static int self_check_si(struct ubi_device *ubi, struct ubi_attach_info *si)
+static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai)
 {
 	int pnum, err, vols_found = 0;
 	struct rb_node *rb1, *rb2;
@@ -1346,16 +1346,16 @@ static int self_check_si(struct ubi_device *ubi, struct ubi_attach_info *si)
 		return 0;
 
 	/*
-	 * At first, check that scanning information is OK.
+	 * At first, check that attaching information is OK.
 	 */
-	ubi_rb_for_each_entry(rb1, sv, &si->volumes, rb) {
+	ubi_rb_for_each_entry(rb1, sv, &ai->volumes, rb) {
 		int leb_count = 0;
 
 		cond_resched();
 
 		vols_found += 1;
 
-		if (si->is_empty) {
+		if (ai->is_empty) {
 			ubi_err("bad is_empty flag");
 			goto bad_sv;
 		}
@@ -1373,9 +1373,9 @@ static int self_check_si(struct ubi_device *ubi, struct ubi_attach_info *si)
 			goto bad_sv;
 		}
 
-		if (sv->vol_id > si->highest_vol_id) {
+		if (sv->vol_id > ai->highest_vol_id) {
 			ubi_err("highest_vol_id is %d, but vol_id %d is there",
-				si->highest_vol_id, sv->vol_id);
+				ai->highest_vol_id, sv->vol_id);
 			goto out;
 		}
 
@@ -1402,15 +1402,15 @@ static int self_check_si(struct ubi_device *ubi, struct ubi_attach_info *si)
 				goto bad_aeb;
 			}
 
-			if (aeb->ec < si->min_ec) {
-				ubi_err("bad si->min_ec (%d), %d found",
-					si->min_ec, aeb->ec);
+			if (aeb->ec < ai->min_ec) {
+				ubi_err("bad ai->min_ec (%d), %d found",
+					ai->min_ec, aeb->ec);
 				goto bad_aeb;
 			}
 
-			if (aeb->ec > si->max_ec) {
-				ubi_err("bad si->max_ec (%d), %d found",
-					si->max_ec, aeb->ec);
+			if (aeb->ec > ai->max_ec) {
+				ubi_err("bad ai->max_ec (%d), %d found",
+					ai->max_ec, aeb->ec);
 				goto bad_aeb;
 			}
 
@@ -1455,14 +1455,14 @@ static int self_check_si(struct ubi_device *ubi, struct ubi_attach_info *si)
 		}
 	}
 
-	if (vols_found != si->vols_found) {
-		ubi_err("bad si->vols_found %d, should be %d",
-			si->vols_found, vols_found);
+	if (vols_found != ai->vols_found) {
+		ubi_err("bad ai->vols_found %d, should be %d",
+			ai->vols_found, vols_found);
 		goto out;
 	}
 
-	/* Check that scanning information is correct */
-	ubi_rb_for_each_entry(rb1, sv, &si->volumes, rb) {
+	/* Check that attaching information is correct */
+	ubi_rb_for_each_entry(rb1, sv, &ai->volumes, rb) {
 		last_aeb = NULL;
 		ubi_rb_for_each_entry(rb2, aeb, &sv->root, u.rb) {
 			int vol_type;
@@ -1548,20 +1548,20 @@ static int self_check_si(struct ubi_device *ubi, struct ubi_attach_info *si)
 			buf[pnum] = 1;
 	}
 
-	ubi_rb_for_each_entry(rb1, sv, &si->volumes, rb)
+	ubi_rb_for_each_entry(rb1, sv, &ai->volumes, rb)
 		ubi_rb_for_each_entry(rb2, aeb, &sv->root, u.rb)
 			buf[aeb->pnum] = 1;
 
-	list_for_each_entry(aeb, &si->free, u.list)
+	list_for_each_entry(aeb, &ai->free, u.list)
 		buf[aeb->pnum] = 1;
 
-	list_for_each_entry(aeb, &si->corr, u.list)
+	list_for_each_entry(aeb, &ai->corr, u.list)
 		buf[aeb->pnum] = 1;
 
-	list_for_each_entry(aeb, &si->erase, u.list)
+	list_for_each_entry(aeb, &ai->erase, u.list)
 		buf[aeb->pnum] = 1;
 
-	list_for_each_entry(aeb, &si->alien, u.list)
+	list_for_each_entry(aeb, &ai->alien, u.list)
 		buf[aeb->pnum] = 1;
 
 	err = 0;
@@ -1577,18 +1577,18 @@ static int self_check_si(struct ubi_device *ubi, struct ubi_attach_info *si)
 	return 0;
 
 bad_aeb:
-	ubi_err("bad scanning information about LEB %d", aeb->lnum);
+	ubi_err("bad attaching information about LEB %d", aeb->lnum);
 	ubi_dump_aeb(aeb, 0);
 	ubi_dump_sv(sv);
 	goto out;
 
 bad_sv:
-	ubi_err("bad scanning information about volume %d", sv->vol_id);
+	ubi_err("bad attaching information about volume %d", sv->vol_id);
 	ubi_dump_sv(sv);
 	goto out;
 
 bad_vid_hdr:
-	ubi_err("bad scanning information about volume %d", sv->vol_id);
+	ubi_err("bad attaching information about volume %d", sv->vol_id);
 	ubi_dump_sv(sv);
 	ubi_dump_vid_hdr(vidh);
 

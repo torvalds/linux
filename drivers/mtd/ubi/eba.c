@@ -1182,13 +1182,13 @@ out_unlock_leb:
  * reported by real users.
  */
 static void print_rsvd_warning(struct ubi_device *ubi,
-			       struct ubi_attach_info *si)
+			       struct ubi_attach_info *ai)
 {
 	/*
 	 * The 1 << 18 (256KiB) number is picked randomly, just a reasonably
 	 * large number to distinguish between newly flashed and used images.
 	 */
-	if (si->max_sqnum > (1 << 18)) {
+	if (ai->max_sqnum > (1 << 18)) {
 		int min = ubi->beb_rsvd_level / 10;
 
 		if (!min)
@@ -1205,14 +1205,14 @@ static void print_rsvd_warning(struct ubi_device *ubi,
 }
 
 /**
- * ubi_eba_init_scan - initialize the EBA sub-system using scanning information.
+ * ubi_eba_init_scan - initialize the EBA sub-system using attaching information.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: attaching information
  *
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
+int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *ai)
 {
 	int i, j, err, num_volumes;
 	struct ubi_ainf_volume *sv;
@@ -1226,7 +1226,7 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 	mutex_init(&ubi->alc_mutex);
 	ubi->ltree = RB_ROOT;
 
-	ubi->global_sqnum = si->max_sqnum + 1;
+	ubi->global_sqnum = ai->max_sqnum + 1;
 	num_volumes = ubi->vtbl_slots + UBI_INT_VOL_COUNT;
 
 	for (i = 0; i < num_volumes; i++) {
@@ -1246,7 +1246,7 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 		for (j = 0; j < vol->reserved_pebs; j++)
 			vol->eba_tbl[j] = UBI_LEB_UNMAPPED;
 
-		sv = ubi_scan_find_sv(si, idx2vol_id(ubi, i));
+		sv = ubi_scan_find_sv(ai, idx2vol_id(ubi, i));
 		if (!sv)
 			continue;
 
@@ -1256,7 +1256,7 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 				 * This may happen in case of an unclean reboot
 				 * during re-size.
 				 */
-				ubi_scan_move_to_list(sv, aeb, &si->erase);
+				ubi_scan_move_to_list(sv, aeb, &ai->erase);
 			vol->eba_tbl[aeb->lnum] = aeb->pnum;
 		}
 	}
@@ -1279,7 +1279,7 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 		if (ubi->avail_pebs < ubi->beb_rsvd_level) {
 			/* No enough free physical eraseblocks */
 			ubi->beb_rsvd_pebs = ubi->avail_pebs;
-			print_rsvd_warning(ubi, si);
+			print_rsvd_warning(ubi, ai);
 		} else
 			ubi->beb_rsvd_pebs = ubi->beb_rsvd_level;
 

@@ -1373,14 +1373,14 @@ static void cancel_pending(struct ubi_device *ubi)
 }
 
 /**
- * ubi_wl_init_scan - initialize the WL sub-system using scanning information.
+ * ubi_wl_init_scan - initialize the WL sub-system using attaching information.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: attaching information
  *
  * This function returns zero in case of success, and a negative error code in
  * case of failure.
  */
-int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
+int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_attach_info *ai)
 {
 	int err, i;
 	struct rb_node *rb1, *rb2;
@@ -1392,7 +1392,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 	spin_lock_init(&ubi->wl_lock);
 	mutex_init(&ubi->move_mutex);
 	init_rwsem(&ubi->work_sem);
-	ubi->max_ec = si->max_ec;
+	ubi->max_ec = ai->max_ec;
 	INIT_LIST_HEAD(&ubi->works);
 
 	sprintf(ubi->bgt_name, UBI_BGT_NAME_PATTERN, ubi->ubi_num);
@@ -1406,7 +1406,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 		INIT_LIST_HEAD(&ubi->pq[i]);
 	ubi->pq_head = 0;
 
-	list_for_each_entry_safe(aeb, tmp, &si->erase, u.list) {
+	list_for_each_entry_safe(aeb, tmp, &ai->erase, u.list) {
 		cond_resched();
 
 		e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
@@ -1422,7 +1422,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 		}
 	}
 
-	list_for_each_entry(aeb, &si->free, u.list) {
+	list_for_each_entry(aeb, &ai->free, u.list) {
 		cond_resched();
 
 		e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
@@ -1436,7 +1436,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 		ubi->lookuptbl[e->pnum] = e;
 	}
 
-	ubi_rb_for_each_entry(rb1, sv, &si->volumes, rb) {
+	ubi_rb_for_each_entry(rb1, sv, &ai->volumes, rb) {
 		ubi_rb_for_each_entry(rb2, aeb, &sv->root, u.rb) {
 			cond_resched();
 

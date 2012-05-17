@@ -291,14 +291,14 @@ bad:
 /**
  * create_vtbl - create a copy of volume table.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: attaching information
  * @copy: number of the volume table copy
  * @vtbl: contents of the volume table
  *
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-static int create_vtbl(struct ubi_device *ubi, struct ubi_attach_info *si,
+static int create_vtbl(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		       int copy, void *vtbl)
 {
 	int err, tries = 0;
@@ -312,7 +312,7 @@ static int create_vtbl(struct ubi_device *ubi, struct ubi_attach_info *si,
 		return -ENOMEM;
 
 retry:
-	new_aeb = ubi_scan_get_free_peb(ubi, si);
+	new_aeb = ubi_scan_get_free_peb(ubi, ai);
 	if (IS_ERR(new_aeb)) {
 		err = PTR_ERR(new_aeb);
 		goto out_free;
@@ -324,7 +324,7 @@ retry:
 	vid_hdr->data_size = vid_hdr->used_ebs =
 			     vid_hdr->data_pad = cpu_to_be32(0);
 	vid_hdr->lnum = cpu_to_be32(copy);
-	vid_hdr->sqnum = cpu_to_be64(++si->max_sqnum);
+	vid_hdr->sqnum = cpu_to_be64(++ai->max_sqnum);
 
 	/* The EC header is already there, write the VID header */
 	err = ubi_io_write_vid_hdr(ubi, new_aeb->pnum, vid_hdr);
@@ -337,10 +337,10 @@ retry:
 		goto write_error;
 
 	/*
-	 * And add it to the scanning information. Don't delete the old version
+	 * And add it to the attaching information. Don't delete the old version
 	 * of this LEB as it will be deleted and freed in 'ubi_scan_add_used()'.
 	 */
-	err = ubi_scan_add_used(ubi, si, new_aeb->pnum, new_aeb->ec,
+	err = ubi_scan_add_used(ubi, ai, new_aeb->pnum, new_aeb->ec,
 				vid_hdr, 0);
 	kfree(new_aeb);
 	ubi_free_vid_hdr(ubi, vid_hdr);
@@ -352,7 +352,7 @@ write_error:
 		 * Probably this physical eraseblock went bad, try to pick
 		 * another one.
 		 */
-		list_add(&new_aeb->u.list, &si->erase);
+		list_add(&new_aeb->u.list, &ai->erase);
 		goto retry;
 	}
 	kfree(new_aeb);
@@ -365,15 +365,15 @@ out_free:
 /**
  * process_lvol - process the layout volume.
  * @ubi: UBI device description object
- * @si: scanning information
- * @sv: layout volume scanning information
+ * @ai: attaching information
+ * @sv: layout volume attaching information
  *
  * This function is responsible for reading the layout volume, ensuring it is
  * not corrupted, and recovering from corruptions if needed. Returns volume
  * table in case of success and a negative error code in case of failure.
  */
 static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
-					    struct ubi_attach_info *si,
+					    struct ubi_attach_info *ai,
 					    struct ubi_ainf_volume *sv)
 {
 	int err;
@@ -449,7 +449,7 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 						  ubi->vtbl_size);
 		if (leb_corrupted[1]) {
 			ubi_warn("volume table copy #2 is corrupted");
-			err = create_vtbl(ubi, si, 1, leb[0]);
+			err = create_vtbl(ubi, ai, 1, leb[0]);
 			if (err)
 				goto out_free;
 			ubi_msg("volume table was restored");
@@ -472,7 +472,7 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 		}
 
 		ubi_warn("volume table copy #1 is corrupted");
-		err = create_vtbl(ubi, si, 0, leb[1]);
+		err = create_vtbl(ubi, ai, 0, leb[1]);
 		if (err)
 			goto out_free;
 		ubi_msg("volume table was restored");
@@ -490,13 +490,13 @@ out_free:
 /**
  * create_empty_lvol - create empty layout volume.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: attaching information
  *
  * This function returns volume table contents in case of success and a
  * negative error code in case of failure.
  */
 static struct ubi_vtbl_record *create_empty_lvol(struct ubi_device *ubi,
-						 struct ubi_attach_info *si)
+						 struct ubi_attach_info *ai)
 {
 	int i;
 	struct ubi_vtbl_record *vtbl;
@@ -511,7 +511,7 @@ static struct ubi_vtbl_record *create_empty_lvol(struct ubi_device *ubi,
 	for (i = 0; i < UBI_LAYOUT_VOLUME_EBS; i++) {
 		int err;
 
-		err = create_vtbl(ubi, si, i, vtbl);
+		err = create_vtbl(ubi, ai, i, vtbl);
 		if (err) {
 			vfree(vtbl);
 			return ERR_PTR(err);
@@ -524,7 +524,7 @@ static struct ubi_vtbl_record *create_empty_lvol(struct ubi_device *ubi,
 /**
  * init_volumes - initialize volume information for existing volumes.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: scanning information
  * @vtbl: volume table
  *
  * This function allocates volume description objects for existing volumes.
@@ -532,7 +532,7 @@ static struct ubi_vtbl_record *create_empty_lvol(struct ubi_device *ubi,
  * failure.
  */
 static int init_volumes(struct ubi_device *ubi,
-			const struct ubi_attach_info *si,
+			const struct ubi_attach_info *ai,
 			const struct ubi_vtbl_record *vtbl)
 {
 	int i, reserved_pebs = 0;
@@ -592,7 +592,7 @@ static int init_volumes(struct ubi_device *ubi,
 		}
 
 		/* Static volumes only */
-		sv = ubi_scan_find_sv(si, i);
+		sv = ubi_scan_find_sv(ai, i);
 		if (!sv) {
 			/*
 			 * No eraseblocks belonging to this volume found. We
@@ -661,11 +661,11 @@ static int init_volumes(struct ubi_device *ubi,
 }
 
 /**
- * check_sv - check volume scanning information.
+ * check_sv - check volume attaching information.
  * @vol: UBI volume description object
- * @sv: volume scanning information
+ * @sv: volume attaching information
  *
- * This function returns zero if the volume scanning information is consistent
+ * This function returns zero if the volume attaching information is consistent
  * to the data read from the volume tabla, and %-EINVAL if not.
  */
 static int check_sv(const struct ubi_volume *vol,
@@ -696,50 +696,50 @@ static int check_sv(const struct ubi_volume *vol,
 	return 0;
 
 bad:
-	ubi_err("bad scanning information, error %d", err);
+	ubi_err("bad attaching information, error %d", err);
 	ubi_dump_sv(sv);
 	ubi_dump_vol_info(vol);
 	return -EINVAL;
 }
 
 /**
- * check_scanning_info - check that scanning information.
+ * check_scanning_info - check that attaching information.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: attaching information
  *
  * Even though we protect on-flash data by CRC checksums, we still don't trust
- * the media. This function ensures that scanning information is consistent to
+ * the media. This function ensures that attaching information is consistent to
  * the information read from the volume table. Returns zero if the scanning
  * information is OK and %-EINVAL if it is not.
  */
 static int check_scanning_info(const struct ubi_device *ubi,
-			       struct ubi_attach_info *si)
+			       struct ubi_attach_info *ai)
 {
 	int err, i;
 	struct ubi_ainf_volume *sv;
 	struct ubi_volume *vol;
 
-	if (si->vols_found > UBI_INT_VOL_COUNT + ubi->vtbl_slots) {
+	if (ai->vols_found > UBI_INT_VOL_COUNT + ubi->vtbl_slots) {
 		ubi_err("scanning found %d volumes, maximum is %d + %d",
-			si->vols_found, UBI_INT_VOL_COUNT, ubi->vtbl_slots);
+			ai->vols_found, UBI_INT_VOL_COUNT, ubi->vtbl_slots);
 		return -EINVAL;
 	}
 
-	if (si->highest_vol_id >= ubi->vtbl_slots + UBI_INT_VOL_COUNT &&
-	    si->highest_vol_id < UBI_INTERNAL_VOL_START) {
+	if (ai->highest_vol_id >= ubi->vtbl_slots + UBI_INT_VOL_COUNT &&
+	    ai->highest_vol_id < UBI_INTERNAL_VOL_START) {
 		ubi_err("too large volume ID %d found by scanning",
-			si->highest_vol_id);
+			ai->highest_vol_id);
 		return -EINVAL;
 	}
 
 	for (i = 0; i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++) {
 		cond_resched();
 
-		sv = ubi_scan_find_sv(si, i);
+		sv = ubi_scan_find_sv(ai, i);
 		vol = ubi->volumes[i];
 		if (!vol) {
 			if (sv)
-				ubi_scan_rm_volume(si, sv);
+				ubi_scan_rm_volume(ai, sv);
 			continue;
 		}
 
@@ -757,7 +757,7 @@ static int check_scanning_info(const struct ubi_device *ubi,
 			 * these eraseblocks.
 			 */
 			ubi_msg("finish volume %d removal", sv->vol_id);
-			ubi_scan_rm_volume(si, sv);
+			ubi_scan_rm_volume(ai, sv);
 		} else if (sv) {
 			err = check_sv(vol, sv);
 			if (err)
@@ -771,13 +771,13 @@ static int check_scanning_info(const struct ubi_device *ubi,
 /**
  * ubi_read_volume_table - read the volume table.
  * @ubi: UBI device description object
- * @si: scanning information
+ * @ai: attaching information
  *
  * This function reads volume table, checks it, recover from errors if needed,
  * or creates it if needed. Returns zero in case of success and a negative
  * error code in case of failure.
  */
-int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *si)
+int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *ai)
 {
 	int i, err;
 	struct ubi_ainf_volume *sv;
@@ -795,7 +795,7 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *si)
 	ubi->vtbl_size = ubi->vtbl_slots * UBI_VTBL_RECORD_SIZE;
 	ubi->vtbl_size = ALIGN(ubi->vtbl_size, ubi->min_io_size);
 
-	sv = ubi_scan_find_sv(si, UBI_LAYOUT_VOLUME_ID);
+	sv = ubi_scan_find_sv(ai, UBI_LAYOUT_VOLUME_ID);
 	if (!sv) {
 		/*
 		 * No logical eraseblocks belonging to the layout volume were
@@ -805,8 +805,8 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *si)
 		 * But if flash is not empty this must be a corruption or the
 		 * MTD device just contains garbage.
 		 */
-		if (si->is_empty) {
-			ubi->vtbl = create_empty_lvol(ubi, si);
+		if (ai->is_empty) {
+			ubi->vtbl = create_empty_lvol(ubi, ai);
 			if (IS_ERR(ubi->vtbl))
 				return PTR_ERR(ubi->vtbl);
 		} else {
@@ -821,7 +821,7 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *si)
 			return -EINVAL;
 		}
 
-		ubi->vtbl = process_lvol(ubi, si, sv);
+		ubi->vtbl = process_lvol(ubi, ai, sv);
 		if (IS_ERR(ubi->vtbl))
 			return PTR_ERR(ubi->vtbl);
 	}
@@ -832,15 +832,15 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *si)
 	 * The layout volume is OK, initialize the corresponding in-RAM data
 	 * structures.
 	 */
-	err = init_volumes(ubi, si, ubi->vtbl);
+	err = init_volumes(ubi, ai, ubi->vtbl);
 	if (err)
 		goto out_free;
 
 	/*
-	 * Make sure that the scanning information is consistent to the
+	 * Make sure that the attaching information is consistent to the
 	 * information stored in the volume table.
 	 */
-	err = check_scanning_info(ubi, si);
+	err = check_scanning_info(ubi, ai);
 	if (err)
 		goto out_free;
 

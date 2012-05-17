@@ -583,32 +583,32 @@ static void free_internal_volumes(struct ubi_device *ubi)
 static int attach_by_scanning(struct ubi_device *ubi)
 {
 	int err;
-	struct ubi_attach_info *si;
+	struct ubi_attach_info *ai;
 
-	si = ubi_scan(ubi);
-	if (IS_ERR(si))
-		return PTR_ERR(si);
+	ai = ubi_scan(ubi);
+	if (IS_ERR(ai))
+		return PTR_ERR(ai);
 
-	ubi->bad_peb_count = si->bad_peb_count;
+	ubi->bad_peb_count = ai->bad_peb_count;
 	ubi->good_peb_count = ubi->peb_count - ubi->bad_peb_count;
-	ubi->corr_peb_count = si->corr_peb_count;
-	ubi->max_ec = si->max_ec;
-	ubi->mean_ec = si->mean_ec;
-	ubi_msg("max. sequence number:       %llu", si->max_sqnum);
+	ubi->corr_peb_count = ai->corr_peb_count;
+	ubi->max_ec = ai->max_ec;
+	ubi->mean_ec = ai->mean_ec;
+	ubi_msg("max. sequence number:       %llu", ai->max_sqnum);
 
-	err = ubi_read_volume_table(ubi, si);
+	err = ubi_read_volume_table(ubi, ai);
 	if (err)
-		goto out_si;
+		goto out_ai;
 
-	err = ubi_wl_init_scan(ubi, si);
+	err = ubi_wl_init_scan(ubi, ai);
 	if (err)
 		goto out_vtbl;
 
-	err = ubi_eba_init_scan(ubi, si);
+	err = ubi_eba_init_scan(ubi, ai);
 	if (err)
 		goto out_wl;
 
-	ubi_scan_destroy_si(si);
+	ubi_scan_destroy_ai(ai);
 	return 0;
 
 out_wl:
@@ -616,8 +616,8 @@ out_wl:
 out_vtbl:
 	free_internal_volumes(ubi);
 	vfree(ubi->vtbl);
-out_si:
-	ubi_scan_destroy_si(si);
+out_ai:
+	ubi_scan_destroy_ai(ai);
 	return err;
 }
 

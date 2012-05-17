@@ -176,7 +176,7 @@ void ubi_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
  */
 void ubi_dump_sv(const struct ubi_ainf_volume *sv)
 {
-	printk(KERN_DEBUG "Volume scanning information dump:\n");
+	printk(KERN_DEBUG "Volume attaching information dump:\n");
 	printk(KERN_DEBUG "\tvol_id         %d\n", sv->vol_id);
 	printk(KERN_DEBUG "\thighest_lnum   %d\n", sv->highest_lnum);
 	printk(KERN_DEBUG "\tleb_count      %d\n", sv->leb_count);
@@ -194,7 +194,7 @@ void ubi_dump_sv(const struct ubi_ainf_volume *sv)
  */
 void ubi_dump_aeb(const struct ubi_ainf_peb *aeb, int type)
 {
-	printk(KERN_DEBUG "eraseblock scanning information dump:\n");
+	printk(KERN_DEBUG "eraseblock attaching information dump:\n");
 	printk(KERN_DEBUG "\tec       %d\n", aeb->ec);
 	printk(KERN_DEBUG "\tpnum     %d\n", aeb->pnum);
 	if (type == 0) {
