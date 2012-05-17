@@ -293,6 +293,12 @@ struct sk_buff *build_skb(void *data, unsigned int frag_size)
 }
 EXPORT_SYMBOL(build_skb);
 
+struct netdev_alloc_cache {
+	struct page *page;
+	unsigned int offset;
+};
+static DEFINE_PER_CPU(struct netdev_alloc_cache, netdev_alloc_cache);
+
 /**
  *	__netdev_alloc_skb - allocate an skbuff for rx on a specific device
  *	@dev: network device to receive on
@@ -310,8 +316,32 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 		unsigned int length, gfp_t gfp_mask)
 {
 	struct sk_buff *skb;
+	unsigned int fragsz = SKB_DATA_ALIGN(length + NET_SKB_PAD) +
+			      SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
-	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, NUMA_NO_NODE);
+	if (fragsz <= PAGE_SIZE && !(gfp_mask & __GFP_WAIT)) {
+		struct netdev_alloc_cache *nc;
+		void *data = NULL;
+
+		nc = &get_cpu_var(netdev_alloc_cache);
+		if (!nc->page) {
+refill:			nc->page = alloc_page(gfp_mask);
+			nc->offset = 0;
+		}
+		if (likely(nc->page)) {
+			if (nc->offset + fragsz > PAGE_SIZE) {
+				put_page(nc->page);
+				goto refill;
+			}
+			data = page_address(nc->page) + nc->offset;
+			nc->offset += fragsz;
+			get_page(nc->page);
+		}
+		put_cpu_var(netdev_alloc_cache);
+		skb = data ? build_skb(data, fragsz) : NULL;
+	} else {
+		skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, NUMA_NO_NODE);
+	}
 	if (likely(skb)) {
 		skb_reserve(skb, NET_SKB_PAD);
 		skb->dev = dev;
