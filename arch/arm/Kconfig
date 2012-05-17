@@ -101,14 +101,6 @@ config EISA
 config SBUS
 	bool
 
-config MCA
-	bool
-	help
-	  MicroChannel Architecture is found in some IBM PS/2 machines and
-	  laptops.  It is a bus system similar to PCI or ISA. See
-	  <file:Documentation/mca.txt> (and especially the web page given
-	  there) before attempting to build an MCA bus kernel.
-
 config STACKTRACE_SUPPORT
 	bool
 	default y
