@@ -416,6 +416,7 @@ int mwifiex_uap_set_channel(struct mwifiex_private *priv, int channel)
 	if (!bss_cfg)
 		return -ENOMEM;
 
+	mwifiex_set_sys_config_invalid_data(bss_cfg);
 	bss_cfg->band_cfg = BAND_CONFIG_MANUAL;
 	bss_cfg->channel = channel;
 
