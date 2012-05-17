@@ -300,7 +300,7 @@ nouveau_display_create(struct drm_device *dev)
 		disp->color_vibrance_property->values[1] = 200; /* -100..+100 */
 	}
 
-	dev->mode_config.funcs = (void *)&nouveau_mode_config_funcs;
+	dev->mode_config.funcs = &nouveau_mode_config_funcs;
 	dev->mode_config.fb_base = pci_resource_start(dev->pdev, 1);
 
 	dev->mode_config.min_width = 0;

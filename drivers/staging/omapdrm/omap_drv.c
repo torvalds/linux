@@ -58,7 +58,7 @@ static void omap_fb_output_poll_changed(struct drm_device *dev)
 	}
 }
 
-static struct drm_mode_config_funcs omap_mode_config_funcs = {
+static const struct drm_mode_config_funcs omap_mode_config_funcs = {
 	.fb_create = omap_framebuffer_create,
 	.output_poll_changed = omap_fb_output_poll_changed,
 };

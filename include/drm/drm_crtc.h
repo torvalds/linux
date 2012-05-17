@@ -767,7 +767,7 @@ struct drm_mode_config {
 
 	int min_width, min_height;
 	int max_width, max_height;
-	struct drm_mode_config_funcs *funcs;
+	const struct drm_mode_config_funcs *funcs;
 	resource_size_t fb_base;
 
 	/* output poll support */

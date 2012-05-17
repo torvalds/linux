@@ -191,7 +191,7 @@ static void exynos_drm_output_poll_changed(struct drm_device *dev)
 		drm_fb_helper_hotplug_event(fb_helper);
 }
 
-static struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {
+static const struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {
 	.fb_create = exynos_user_fb_create,
 	.output_poll_changed = exynos_drm_output_poll_changed,
 };
