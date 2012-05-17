@@ -729,6 +729,16 @@
 #define VLEV_130		0x00F0	/* VLEV = 1.30 V (-5% - +10% Accuracy) */
 #endif
 
+#ifdef CONFIG_BF60x
+#define PA15WE			0x00000001 /* Allow Wake-Up from PA15 */
+#define PB15WE			0x00000002 /* Allow Wake-Up from PB15 */
+#define PC15WE			0x00000004 /* Allow Wake-Up from PC15 */
+#define PD06WE			0x00000008 /* Allow Wake-Up from PD06(ETH0_PHYINT) */
+#define PE12WE			0x00000010 /* Allow Wake-Up from PE12(ETH1_PHYINT, PUSH BUTTON) */
+#define PG04WE			0x00000020 /* Allow Wake-Up from PG04(CAN0_RX) */
+#define PG13WE			0x00000040 /* Allow Wake-Up from PG13 */
+#define USBWE			0x00000080 /* Allow Wake-Up from (USB) */
+#else
 #define WAKE			0x0100	/* Enable RTC/Reset Wakeup From Hibernate */
 #define CANWE			0x0200	/* Enable CAN Wakeup From Hibernate */
 #define PHYWE			0x0400	/* Enable PHY Wakeup From Hibernate */
@@ -744,7 +754,7 @@
 #else
 #define USBWE			0x0800	/* Enable USB Wakeup From Hibernate */
 #endif
-
+#endif
 
 #ifndef __ASSEMBLY__
 

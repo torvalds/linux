@@ -212,6 +212,65 @@ void bfin_hibernate(unsigned long mask)
 void bf609_cpu_pm_enter(suspend_state_t state)
 {
 	int error;
+	unsigned long wakeup = 0;
+	unsigned long wakeup_pol = 0;
+
+#ifdef CONFIG_PM_BFIN_WAKE_PA15
+	wakeup |= PA15WE;
+# if CONFIG_PM_BFIN_WAKE_PA15_POL
+	wakeup_pol |= PA15WE;
+# endif
+#endif
+
+#ifdef CONFIG_PM_BFIN_WAKE_PB15
+	wakeup |= PB15WE;
+# if CONFIG_PM_BFIN_WAKE_PA15_POL
+	wakeup_pol |= PB15WE;
+# endif
+#endif
+
+#ifdef CONFIG_PM_BFIN_WAKE_PC15
+	wakeup |= PC15WE;
+# if CONFIG_PM_BFIN_WAKE_PC15_POL
+	wakeup_pol |= PC15WE;
+# endif
+#endif
+
+#ifdef CONFIG_PM_BFIN_WAKE_PD06
+	wakeup |= PD06WE;
+# if CONFIG_PM_BFIN_WAKE_PD06_POL
+	wakeup_pol |= PD06WE;
+# endif
+#endif
+
+#ifdef CONFIG_PM_BFIN_WAKE_PE12
+	wakeup |= PE12WE;
+# if CONFIG_PM_BFIN_WAKE_PE12_POL
+	wakeup_pol |= PE12WE;
+# endif
+#endif
+
+#ifdef CONFIG_PM_BFIN_WAKE_PG04
+	wakeup |= PG04WE;
+# if CONFIG_PM_BFIN_WAKE_PG04_POL
+	wakeup_pol |= PG04WE;
+# endif
+#endif
+
+#ifdef CONFIG_PM_BFIN_WAKE_PG13
+	wakeup |= PG13WE;
+# if CONFIG_PM_BFIN_WAKE_PG13_POL
+	wakeup_pol |= PG13WE;
+# endif
+#endif
+
+#ifdef CONFIG_PM_BFIN_WAKE_USB
+	wakeup |= USBWE;
+# if CONFIG_PM_BFIN_WAKE_USB_POL
+	wakeup_pol |= USBWE;
+# endif
+#endif
+
 	error = irq_set_irq_wake(255, 1);
 	if(error < 0)
 		printk(KERN_DEBUG "Unable to get irq wake\n");
@@ -220,9 +279,9 @@ void bf609_cpu_pm_enter(suspend_state_t state)
 		printk(KERN_DEBUG "Unable to get irq wake\n");
 
 	if (state == PM_SUSPEND_STANDBY)
-		bfin_deepsleep(0xffff);
+		bfin_deepsleep(wakeup);
 	else {
-		bfin_hibernate(0xffff);
+		bfin_hibernate(wakeup);
 	}
 }
 
@@ -263,26 +322,8 @@ static int __init bf609_init_pm(void)
 {
 	int irq;
 	int error;
-	error = gpio_request(GPIO_PG4, "gpiopg4");
-	if (error < 0) {
-		printk(KERN_DEBUG "failed to request GPIO %d, error %d\n",
-				GPIO_PG4, error);
-	}
 
-	irq = gpio_to_irq(GPIO_PG4);
-	if (irq < 0) {
-		error = irq;
-		printk(KERN_DEBUG "Unable to get irq number for GPIO %d, error %d\n",
-				GPIO_PG4, error);
-	}
-
-	printk(KERN_DEBUG "%s gpio %d irq %d\n", __func__, GPIO_PG4, irq);
-
-	error = request_irq(irq, test_isr, IRQF_TRIGGER_FALLING | IRQF_NO_SUSPEND, "gpiopg4", NULL);
-	if(error < 0)
-		printk(KERN_DEBUG "Unable to get irq\n");
-
-#if 1
+#if CONFIG_PM_BFIN_WAKE_PE12
 	irq = gpio_to_irq(GPIO_PE12);
 	if (irq < 0) {
 		error = irq;

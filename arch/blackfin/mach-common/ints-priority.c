@@ -437,7 +437,7 @@ static void bfin_internal_unmask_irq_chip(struct irq_data *d)
 }
 #endif
 
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && !defined(CONFIG_BF60x)
 int bfin_internal_set_wake(unsigned int irq, unsigned int state)
 {
 	u32 bank, bit, wakeup = 0;
@@ -496,6 +496,7 @@ static int bfin_internal_set_wake_chip(struct irq_data *d, unsigned int state)
 	return bfin_internal_set_wake(d->irq, state);
 }
 #else
+# define bfin_internal_set_wake(irq, state)
 # define bfin_internal_set_wake_chip NULL
 #endif
 

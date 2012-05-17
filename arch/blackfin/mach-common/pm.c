@@ -153,9 +153,6 @@ int bfin_pm_suspend_mem_enter(void)
 
 #ifndef CONFIG_BF60x
 	wakeup = bfin_read_VR_CTL() & ~FREQ;
-#else
-
-#endif
 	wakeup |= SCKELOW;
 
 #ifdef CONFIG_PM_BFIN_WAKE_PH6
@@ -163,6 +160,7 @@ int bfin_pm_suspend_mem_enter(void)
 #endif
 #ifdef CONFIG_PM_BFIN_WAKE_GP
 	wakeup |= GPWE;
+#endif
 #endif
 
 	ret = blackfin_dma_suspend();

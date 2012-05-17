@@ -1256,7 +1256,7 @@ config ARCH_SUSPEND_POSSIBLE
 
 choice
 	prompt "Standby Power Saving Mode"
-	depends on PM
+	depends on PM && !BF60x
 	default PM_BFIN_SLEEP_DEEPER
 config  PM_BFIN_SLEEP_DEEPER
 	bool "Sleep Deeper"
@@ -1310,6 +1310,118 @@ config PM_BFIN_WAKE_GP
 	  wake-up upon detection of an active low signal on the /GPW (PH7) pin.
 	  On ADSP-BF549 this option enables the the same functionality on the
 	  /MRXON pin also PH7.
+
+config PM_BFIN_WAKE_PA15
+	bool "Allow Wake-Up from PA15"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PA15 Wake-Up
+
+config PM_BFIN_WAKE_PA15_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PA15
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_PB15
+	bool "Allow Wake-Up from PB15"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PB15 Wake-Up
+
+config PM_BFIN_WAKE_PB15_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PB15
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_PC15
+	bool "Allow Wake-Up from PC15"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PC15 Wake-Up
+
+config PM_BFIN_WAKE_PC15_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PC15
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_PD06
+	bool "Allow Wake-Up from PD06(ETH0_PHYINT)"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PD06(ETH0_PHYINT) Wake-up
+
+config PM_BFIN_WAKE_PD06_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PD06
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_PE12
+	bool "Allow Wake-Up from PE12(ETH1_PHYINT, PUSH BUTTON)"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PE12(ETH1_PHYINT, PUSH BUTTON) Wake-up
+
+config PM_BFIN_WAKE_PE12_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PE12
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_PG04
+	bool "Allow Wake-Up from PG04(CAN0_RX)"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PG04(CAN0_RX) Wake-up
+
+config PM_BFIN_WAKE_PG04_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PG04
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_PG13
+	bool "Allow Wake-Up from PG13"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PG13 Wake-Up
+
+config PM_BFIN_WAKE_PG13_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PG13
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_USB
+	bool "Allow Wake-Up from (USB)"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable (USB) Wake-up
+
+config PM_BFIN_WAKE_USB_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_USB
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
 
 endmenu
 
