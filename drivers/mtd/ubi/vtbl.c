@@ -298,7 +298,7 @@ bad:
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-static int create_vtbl(struct ubi_device *ubi, struct ubi_scan_info *si,
+static int create_vtbl(struct ubi_device *ubi, struct ubi_attach_info *si,
 		       int copy, void *vtbl)
 {
 	int err, tries = 0;
@@ -373,7 +373,7 @@ out_free:
  * table in case of success and a negative error code in case of failure.
  */
 static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
-					    struct ubi_scan_info *si,
+					    struct ubi_attach_info *si,
 					    struct ubi_ainf_volume *sv)
 {
 	int err;
@@ -496,7 +496,7 @@ out_free:
  * negative error code in case of failure.
  */
 static struct ubi_vtbl_record *create_empty_lvol(struct ubi_device *ubi,
-						 struct ubi_scan_info *si)
+						 struct ubi_attach_info *si)
 {
 	int i;
 	struct ubi_vtbl_record *vtbl;
@@ -531,7 +531,8 @@ static struct ubi_vtbl_record *create_empty_lvol(struct ubi_device *ubi,
  * Returns zero in case of success and a negative error code in case of
  * failure.
  */
-static int init_volumes(struct ubi_device *ubi, const struct ubi_scan_info *si,
+static int init_volumes(struct ubi_device *ubi,
+			const struct ubi_attach_info *si,
 			const struct ubi_vtbl_record *vtbl)
 {
 	int i, reserved_pebs = 0;
@@ -712,7 +713,7 @@ bad:
  * information is OK and %-EINVAL if it is not.
  */
 static int check_scanning_info(const struct ubi_device *ubi,
-			       struct ubi_scan_info *si)
+			       struct ubi_attach_info *si)
 {
 	int err, i;
 	struct ubi_ainf_volume *sv;
@@ -776,7 +777,7 @@ static int check_scanning_info(const struct ubi_device *ubi,
  * or creates it if needed. Returns zero in case of success and a negative
  * error code in case of failure.
  */
-int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_scan_info *si)
+int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *si)
 {
 	int i, err;
 	struct ubi_ainf_volume *sv;

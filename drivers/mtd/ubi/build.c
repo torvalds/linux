@@ -583,7 +583,7 @@ static void free_internal_volumes(struct ubi_device *ubi)
 static int attach_by_scanning(struct ubi_device *ubi)
 {
 	int err;
-	struct ubi_scan_info *si;
+	struct ubi_attach_info *si;
 
 	si = ubi_scan(ubi);
 	if (IS_ERR(si))

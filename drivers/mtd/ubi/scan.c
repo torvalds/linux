@@ -24,7 +24,7 @@
  * This sub-system is responsible for scanning the flash media, checking UBI
  * headers and providing complete information about the UBI flash image.
  *
- * The scanning information is represented by a &struct ubi_scan_info' object.
+ * The scanning information is represented by a &struct ubi_attach_info' object.
  * Information about found volumes is represented by &struct ubi_ainf_volume
  * objects which are kept in volume RB-tree with root at the @volumes field.
  * The RB-tree is indexed by the volume ID.
@@ -88,7 +88,7 @@
 #include <linux/random.h>
 #include "ubi.h"
 
-static int self_check_si(struct ubi_device *ubi, struct ubi_scan_info *si);
+static int self_check_si(struct ubi_device *ubi, struct ubi_attach_info *si);
 
 /* Temporary variables used during scanning */
 static struct ubi_ec_hdr *ech;
@@ -110,8 +110,8 @@ static struct ubi_vid_hdr *vidh;
  * returns zero in case of success and a negative error code in case of
  * failure.
  */
-static int add_to_list(struct ubi_scan_info *si, int pnum, int ec, int to_head,
-		       struct list_head *list)
+static int add_to_list(struct ubi_attach_info *si, int pnum, int ec,
+		       int to_head, struct list_head *list)
 {
 	struct ubi_ainf_peb *seb;
 
@@ -148,7 +148,7 @@ static int add_to_list(struct ubi_scan_info *si, int pnum, int ec, int to_head,
  * The corruption was presumably not caused by a power cut. Returns zero in
  * case of success and a negative error code in case of failure.
  */
-static int add_corrupted(struct ubi_scan_info *si, int pnum, int ec)
+static int add_corrupted(struct ubi_attach_info *si, int pnum, int ec)
 {
 	struct ubi_ainf_peb *seb;
 
@@ -244,8 +244,8 @@ bad:
  * to the scanning volume object in case of success and a negative error code
  * in case of failure.
  */
-static struct ubi_ainf_volume *add_volume(struct ubi_scan_info *si, int vol_id,
-					  int pnum,
+static struct ubi_ainf_volume *add_volume(struct ubi_attach_info *si,
+					  int vol_id, int pnum,
 					  const struct ubi_vid_hdr *vid_hdr)
 {
 	struct ubi_ainf_volume *sv;
@@ -440,7 +440,7 @@ out_free_vidh:
  * to be picked, while the older one has to be dropped. This function returns
  * zero in case of success and a negative error code in case of failure.
  */
-int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
+int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *si,
 		      int pnum, int ec, const struct ubi_vid_hdr *vid_hdr,
 		      int bitflips)
 {
@@ -593,7 +593,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
  * This function returns a pointer to the volume description or %NULL if there
  * are no data about this volume in the scanning information.
  */
-struct ubi_ainf_volume *ubi_scan_find_sv(const struct ubi_scan_info *si,
+struct ubi_ainf_volume *ubi_scan_find_sv(const struct ubi_attach_info *si,
 					 int vol_id)
 {
 	struct ubi_ainf_volume *sv;
@@ -648,7 +648,7 @@ struct ubi_ainf_peb *ubi_scan_find_seb(const struct ubi_ainf_volume *sv,
  * @si: scanning information
  * @sv: the volume scanning information to delete
  */
-void ubi_scan_rm_volume(struct ubi_scan_info *si, struct ubi_ainf_volume *sv)
+void ubi_scan_rm_volume(struct ubi_attach_info *si, struct ubi_ainf_volume *sv)
 {
 	struct rb_node *rb;
 	struct ubi_ainf_peb *seb;
@@ -679,7 +679,7 @@ void ubi_scan_rm_volume(struct ubi_scan_info *si, struct ubi_ainf_volume *sv)
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-int ubi_scan_erase_peb(struct ubi_device *ubi, const struct ubi_scan_info *si,
+int ubi_scan_erase_peb(struct ubi_device *ubi, const struct ubi_attach_info *si,
 		       int pnum, int ec)
 {
 	int err;
@@ -726,7 +726,7 @@ out_free:
  * success and an error code in case of failure.
  */
 struct ubi_ainf_peb *ubi_scan_get_free_peb(struct ubi_device *ubi,
-					   struct ubi_scan_info *si)
+					   struct ubi_attach_info *si)
 {
 	int err = 0;
 	struct ubi_ainf_peb *seb, *tmp_seb;
@@ -831,7 +831,7 @@ out_unlock:
  * This function returns a zero if the physical eraseblock was successfully
  * handled and a negative error code in case of failure.
  */
-static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
+static int process_eb(struct ubi_device *ubi, struct ubi_attach_info *si,
 		      int pnum)
 {
 	long long uninitialized_var(ec);
@@ -1073,7 +1073,8 @@ adjust_mean_ec:
  * MTD device. Returns zero if we should proceed with attaching the MTD device,
  * and %-EINVAL if we should not.
  */
-static int check_what_we_have(struct ubi_device *ubi, struct ubi_scan_info *si)
+static int check_what_we_have(struct ubi_device *ubi,
+			      struct ubi_attach_info *si)
 {
 	struct ubi_ainf_peb *seb;
 	int max_corr, peb_count;
@@ -1143,15 +1144,15 @@ static int check_what_we_have(struct ubi_device *ubi, struct ubi_scan_info *si)
  * This function does full scanning of an MTD device and returns complete
  * information about it. In case of failure, an error code is returned.
  */
-struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
+struct ubi_attach_info *ubi_scan(struct ubi_device *ubi)
 {
 	int err, pnum;
 	struct rb_node *rb1, *rb2;
 	struct ubi_ainf_volume *sv;
 	struct ubi_ainf_peb *seb;
-	struct ubi_scan_info *si;
+	struct ubi_attach_info *si;
 
-	si = kzalloc(sizeof(struct ubi_scan_info), GFP_KERNEL);
+	si = kzalloc(sizeof(struct ubi_attach_info), GFP_KERNEL);
 	if (!si)
 		return ERR_PTR(-ENOMEM);
 
@@ -1244,7 +1245,7 @@ out_si:
  * This function destroys the volume RB-tree (@sv->root) and the scanning
  * volume information.
  */
-static void destroy_sv(struct ubi_scan_info *si, struct ubi_ainf_volume *sv)
+static void destroy_sv(struct ubi_attach_info *si, struct ubi_ainf_volume *sv)
 {
 	struct ubi_ainf_peb *seb;
 	struct rb_node *this = sv->root.rb_node;
@@ -1274,7 +1275,7 @@ static void destroy_sv(struct ubi_scan_info *si, struct ubi_ainf_volume *sv)
  * ubi_scan_destroy_si - destroy scanning information.
  * @si: scanning information
  */
-void ubi_scan_destroy_si(struct ubi_scan_info *si)
+void ubi_scan_destroy_si(struct ubi_attach_info *si)
 {
 	struct ubi_ainf_peb *seb, *seb_tmp;
 	struct ubi_ainf_volume *sv;
@@ -1333,7 +1334,7 @@ void ubi_scan_destroy_si(struct ubi_scan_info *si)
  * This function returns zero if the scanning information is all right, and a
  * negative error code if not or if an error occurred.
  */
-static int self_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
+static int self_check_si(struct ubi_device *ubi, struct ubi_attach_info *si)
 {
 	int pnum, err, vols_found = 0;
 	struct rb_node *rb1, *rb2;

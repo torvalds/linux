@@ -1182,7 +1182,7 @@ out_unlock_leb:
  * reported by real users.
  */
 static void print_rsvd_warning(struct ubi_device *ubi,
-			       struct ubi_scan_info *si)
+			       struct ubi_attach_info *si)
 {
 	/*
 	 * The 1 << 18 (256KiB) number is picked randomly, just a reasonably
@@ -1212,7 +1212,7 @@ static void print_rsvd_warning(struct ubi_device *ubi,
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
+int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 {
 	int i, j, err, num_volumes;
 	struct ubi_ainf_volume *sv;

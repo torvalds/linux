@@ -1380,7 +1380,7 @@ static void cancel_pending(struct ubi_device *ubi)
  * This function returns zero in case of success, and a negative error code in
  * case of failure.
  */
-int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
+int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_attach_info *si)
 {
 	int err, i;
 	struct rb_node *rb1, *rb2;

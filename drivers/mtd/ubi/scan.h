@@ -86,7 +86,7 @@ struct ubi_ainf_volume {
 };
 
 /**
- * struct ubi_scan_info - UBI scanning information.
+ * struct ubi_attach_info - UBI scanning information.
  * @volumes: root of the volume RB-tree
  * @corr: list of corrupted physical eraseblocks
  * @free: list of free physical eraseblocks
@@ -115,7 +115,7 @@ struct ubi_ainf_volume {
  * UBI sub-systems to build final UBI data structures, further error-recovery
  * and so on.
  */
-struct ubi_scan_info {
+struct ubi_attach_info {
 	struct rb_root volumes;
 	struct list_head corr;
 	struct list_head free;
@@ -156,19 +156,19 @@ static inline void ubi_scan_move_to_list(struct ubi_ainf_volume *sv,
 		list_add_tail(&seb->u.list, list);
 }
 
-int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
+int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *si,
 		      int pnum, int ec, const struct ubi_vid_hdr *vid_hdr,
 		      int bitflips);
-struct ubi_ainf_volume *ubi_scan_find_sv(const struct ubi_scan_info *si,
+struct ubi_ainf_volume *ubi_scan_find_sv(const struct ubi_attach_info *si,
 					 int vol_id);
 struct ubi_ainf_peb *ubi_scan_find_seb(const struct ubi_ainf_volume *sv,
 				       int lnum);
-void ubi_scan_rm_volume(struct ubi_scan_info *si, struct ubi_ainf_volume *sv);
+void ubi_scan_rm_volume(struct ubi_attach_info *si, struct ubi_ainf_volume *sv);
 struct ubi_ainf_peb *ubi_scan_get_free_peb(struct ubi_device *ubi,
-					   struct ubi_scan_info *si);
-int ubi_scan_erase_peb(struct ubi_device *ubi, const struct ubi_scan_info *si,
+					   struct ubi_attach_info *si);
+int ubi_scan_erase_peb(struct ubi_device *ubi, const struct ubi_attach_info *si,
 		       int pnum, int ec);
-struct ubi_scan_info *ubi_scan(struct ubi_device *ubi);
-void ubi_scan_destroy_si(struct ubi_scan_info *si);
+struct ubi_attach_info *ubi_scan(struct ubi_device *ubi);
+void ubi_scan_destroy_si(struct ubi_attach_info *si);
 
 #endif /* !__UBI_SCAN_H__ */
