@@ -404,7 +404,6 @@ pl08x_get_phy_channel(struct pl08x_driver_data *pl08x,
 		return NULL;
 	}
 
-	pm_runtime_get_sync(&pl08x->adev->dev);
 	return ch;
 }
 
@@ -417,8 +416,6 @@ static inline void pl08x_put_phy_channel(struct pl08x_driver_data *pl08x,
 
 	/* Stop the channel and clear its interrupts */
 	pl08x_terminate_phy_chan(pl08x, ch);
-
-	pm_runtime_put(&pl08x->adev->dev);
 
 	/* Mark it as free */
 	ch->serving = NULL;
@@ -1851,9 +1848,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		goto out_no_pl08x;
 	}
 
-	pm_runtime_set_active(&adev->dev);
-	pm_runtime_enable(&adev->dev);
-
 	/* Initialize memcpy engine */
 	dma_cap_set(DMA_MEMCPY, pl08x->memcpy.cap_mask);
 	pl08x->memcpy.dev = &adev->dev;
@@ -2007,7 +2001,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		 amba_part(adev), amba_rev(adev),
 		 (unsigned long long)adev->res.start, adev->irq[0]);
 
-	pm_runtime_put(&adev->dev);
 	return 0;
 
 out_no_slave_reg:
@@ -2026,9 +2019,6 @@ out_no_ioremap:
 	dma_pool_destroy(pl08x->pool);
 out_no_lli_pool:
 out_no_platdata:
-	pm_runtime_put(&adev->dev);
-	pm_runtime_disable(&adev->dev);
-
 	kfree(pl08x);
 out_no_pl08x:
 	amba_release_regions(adev);
