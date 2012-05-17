@@ -116,7 +116,7 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 	 * doing a write per register.
 	 */
 	for (i = 0; i < data->chip->num_regs; i++) {
-		ret = regmap_read(map, chip->mask_base + (i * map->reg_stride
+		ret = regmap_read(map, chip->status_base + (i * map->reg_stride
 				   * data->irq_reg_stride),
 				   &data->status_buf[i]);
 
