@@ -2,6 +2,8 @@
     Author: Shubhrajyoti Datta <shubhrajyoti@ti.com>
     Acknowledgement: Jonathan Cameron <jic23@cam.ac.uk> for valuable inputs.
 
+    Support for HMC5883 and HMC5883L by Peter Meerwald <pmeerw@pmeerw.net>.
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -44,6 +46,11 @@
 #define HMC5843_ID_REG_B			0x0B
 #define HMC5843_ID_REG_C			0x0C
 
+enum hmc5843_ids {
+	HMC5843_ID,
+	HMC5883_ID,
+	HMC5883L_ID,
+};
 
 /*
  * Beware: identification of the HMC5883 is still "H43";
@@ -103,8 +110,16 @@ static const int hmc5843_regval_to_nanoscale[] = {
 	6173, 7692, 10309, 12821, 18868, 21739, 25641, 35714
 };
 
+static const int hmc5883_regval_to_nanoscale[] = {
+	7812, 9766, 13021, 16287, 24096, 27701, 32573, 45662
+};
+
+static const int hmc5883l_regval_to_nanoscale[] = {
+	7299, 9174, 12195, 15152, 22727, 25641, 30303, 43478
+};
+
 /*
- * From the datasheet:
+ * From the HMC5843 datasheet:
  * Value	| Sensor input field range (Ga)	| Gain (counts/milli-Gauss)
  * 0		| (+-)0.7			| 1620
  * 1		| (+-)1.0			| 1300
@@ -114,43 +129,74 @@ static const int hmc5843_regval_to_nanoscale[] = {
  * 5		| (+-)3.8			| 460
  * 6		| (+-)4.5			| 390
  * 7		| (+-)6.5			| 280
+ *
+ * From the HMC5883 datasheet:
+ * Value	| Recommended sensor field range (Ga)	| Gain (counts/Gauss)
+ * 0		| (+-)0.9				| 1280
+ * 1		| (+-)1.2				| 1024
+ * 2		| (+-)1.9				| 768
+ * 3		| (+-)2.5				| 614
+ * 4		| (+-)4.0				| 415
+ * 5		| (+-)4.6				| 361
+ * 6		| (+-)5.5				| 307
+ * 7		| (+-)7.9				| 219
+ *
+ * From the HMC5883L datasheet:
+ * Value	| Recommended sensor field range (Ga)	| Gain (LSB/Gauss)
+ * 0		| (+-)0.88				| 1370
+ * 1		| (+-)1.3				| 1090
+ * 2		| (+-)1.9				| 820
+ * 3		| (+-)2.5				| 660
+ * 4		| (+-)4.0				| 440
+ * 5		| (+-)4.7				| 390
+ * 6		| (+-)5.6				| 330
+ * 7		| (+-)8.1				| 230
  */
 static const int hmc5843_regval_to_input_field_mga[] = {
-	700,
-	1000,
-	1500,
-	2000,
-	3200,
-	3800,
-	4500,
-	6500
+	700, 1000, 1500, 2000, 3200, 3800, 4500, 6500
+};
+
+static const int hmc5883_regval_to_input_field_mga[] = {
+	900, 1200, 1900, 2500, 4000, 4600, 5500, 7900
+};
+
+static const int hmc5883l_regval_to_input_field_mga[] = {
+	880, 1300, 1900, 2500, 4000, 4700, 5600, 8100
 };
 
 /*
  * From the datasheet:
- * Value	| Data output rate (Hz)
- * 0		| 0.5
- * 1		| 1
- * 2		| 2
- * 3		| 5
- * 4		| 10 (default)
- * 5		| 20
- * 6		| 50
- * 7		| Not used
+ * Value	| HMC5843		| HMC5883/HMC5883L
+ *		| Data output rate (Hz)	| Data output rate (Hz)
+ * 0		| 0.5			| 0.75
+ * 1		| 1			| 1.5
+ * 2		| 2			| 3
+ * 3		| 5			| 7.5
+ * 4		| 10 (default)		| 15
+ * 5		| 20			| 30
+ * 6		| 50			| 75
+ * 7		| Not used		| Not used
  */
 static const char * const hmc5843_regval_to_sample_freq[] = {
-	"0.5",
-	"1",
-	"2",
-	"5",
-	"10",
-	"20",
-	"50",
+	"0.5", "1", "2", "5", "10", "20", "50",
+};
+
+static const char * const hmc5883_regval_to_sample_freq[] = {
+	"0.75", "1.5", "3", "7.5", "15", "30", "75",
 };
 
 /* Addresses to scan: 0x1E */
 static const unsigned short normal_i2c[] = { HMC5843_I2C_ADDRESS,
 					     I2C_CLIENT_END };
+
+/* Describe chip variants */
+struct hmc5843_chip_info {
+	const struct iio_chan_spec *channels;
+	int num_channels;
+	const char * const *regval_to_sample_freq;
+	const int *regval_to_input_field_mga;
+	const int *regval_to_nanoscale;
+};
 
 /* Each client has this additional data */
 struct hmc5843_data {
@@ -159,6 +205,7 @@ struct hmc5843_data {
 	u8 meas_conf;
 	u8 operating_mode;
 	u8 range;
+	const struct hmc5843_chip_info *variant;
 };
 
 /* The lower two bits contain the current conversion mode */
@@ -334,7 +381,27 @@ static IIO_DEVICE_ATTR(meas_conf,
 			hmc5843_set_measurement_configuration,
 			0);
 
-static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("0.5 1 2 5 10 20 50");
+static ssize_t hmc5843_show_sampling_frequencies_available(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct hmc5843_data *data = iio_priv(indio_dev);
+	ssize_t total_n = 0;
+	int i;
+
+	for (i = 0; i < HMC5843_RATE_NOT_USED; i++) {
+		ssize_t n = sprintf(buf, "%s ", data->variant->regval_to_sample_freq[i]);
+		buf += n;
+		total_n += n;
+	}
+	/* replace trailing space by newline */
+	buf[-1] = '\n';
+
+	return total_n;
+}
+
+static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(hmc5843_show_sampling_frequencies_available);
 
 static s32 hmc5843_set_rate(struct i2c_client *client,
 				u8 rate)
@@ -356,12 +423,11 @@ static s32 hmc5843_set_rate(struct i2c_client *client,
 static int hmc5843_check_sampling_frequency(struct hmc5843_data *data,
 						const char *buf)
 {
-	const char * const *samp_freq = hmc5843_regval_to_sample_freq;
+	const char * const *samp_freq = data->variant->regval_to_sample_freq;
 	int i;
 
 	for (i = 0; i < HMC5843_RATE_NOT_USED; i++) {
-		if (strncmp(buf, samp_freq[i],
-			strlen(samp_freq[i])) == 0)
+		if (sysfs_streq(buf, samp_freq[i]))
 			return i;
 	}
 
@@ -404,13 +470,14 @@ static ssize_t hmc5843_show_sampling_frequency(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	struct hmc5843_data *data = iio_priv(indio_dev);
 	s32 rate;
 
 	rate = i2c_smbus_read_byte_data(client, this_attr->address);
 	if (rate < 0)
 		return rate;
 	rate = (rate & HMC5843_RATE_BITMASK) >> HMC5843_RATE_OFFSET;
-	return sprintf(buf, "%s\n", hmc5843_regval_to_sample_freq[rate]);
+	return sprintf(buf, "%s\n", data->variant->regval_to_sample_freq[rate]);
 }
 
 static IIO_DEVICE_ATTR(sampling_frequency,
@@ -428,7 +495,7 @@ static ssize_t hmc5843_show_range_gain(struct device *dev,
 	struct hmc5843_data *data = iio_priv(indio_dev);
 
 	range = data->range;
-	return sprintf(buf, "%d\n", hmc5843_regval_to_input_field_mga[range]);
+	return sprintf(buf, "%d\n", data->variant->regval_to_input_field_mga[range]);
 }
 
 static ssize_t hmc5843_set_range_gain(struct device *dev,
@@ -486,7 +553,7 @@ static int hmc5843_read_raw(struct iio_dev *indio_dev,
 						val);
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
-		*val2 = hmc5843_regval_to_nanoscale[data->range];
+		*val2 = data->variant->regval_to_nanoscale[data->range];
 		return IIO_VAL_INT_PLUS_NANO;
 	};
 	return -EINVAL;
@@ -508,17 +575,50 @@ static const struct iio_chan_spec hmc5843_channels[] = {
 	HMC5843_CHANNEL(Z, HMC5843_DATA_OUT_Z_MSB_REG),
 };
 
+static const struct iio_chan_spec hmc5883_channels[] = {
+	HMC5843_CHANNEL(X, HMC5843_DATA_OUT_X_MSB_REG),
+	HMC5843_CHANNEL(Y, HMC5883_DATA_OUT_Y_MSB_REG),
+	HMC5843_CHANNEL(Z, HMC5883_DATA_OUT_Z_MSB_REG),
+};
+
 static struct attribute *hmc5843_attributes[] = {
 	&iio_dev_attr_meas_conf.dev_attr.attr,
 	&iio_dev_attr_operating_mode.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_dev_attr_in_magn_range.dev_attr.attr,
-	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	NULL
 };
 
 static const struct attribute_group hmc5843_group = {
 	.attrs = hmc5843_attributes,
+};
+
+static const struct hmc5843_chip_info hmc5843_chip_info_tbl[] = {
+	[HMC5843_ID] = {
+		.channels = hmc5843_channels,
+		.num_channels = ARRAY_SIZE(hmc5843_channels),
+		.regval_to_sample_freq = hmc5843_regval_to_sample_freq,
+		.regval_to_input_field_mga =
+			hmc5843_regval_to_input_field_mga,
+		.regval_to_nanoscale = hmc5843_regval_to_nanoscale,
+	},
+	[HMC5883_ID] = {
+		.channels = hmc5883_channels,
+		.num_channels = ARRAY_SIZE(hmc5883_channels),
+		.regval_to_sample_freq = hmc5883_regval_to_sample_freq,
+		.regval_to_input_field_mga =
+			hmc5883_regval_to_input_field_mga,
+		.regval_to_nanoscale = hmc5883_regval_to_nanoscale,
+	},
+	[HMC5883L_ID] = {
+		.channels = hmc5883_channels,
+		.num_channels = ARRAY_SIZE(hmc5883_channels),
+		.regval_to_sample_freq = hmc5883_regval_to_sample_freq,
+		.regval_to_input_field_mga =
+			hmc5883l_regval_to_input_field_mga,
+		.regval_to_nanoscale = hmc5883l_regval_to_nanoscale,
+	},
 };
 
 static int hmc5843_detect(struct i2c_client *client,
@@ -540,19 +640,23 @@ static int hmc5843_detect(struct i2c_client *client,
 	return 0;
 }
 
-/* Called when we have found a new HMC5843 */
-static void hmc5843_init_client(struct i2c_client *client)
+/* Called when we have found a new HMC58X3 */
+static void hmc5843_init_client(struct i2c_client *client,
+				const struct i2c_device_id *id)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct hmc5843_data *data = iio_priv(indio_dev);
 
+	data->variant = &hmc5843_chip_info_tbl[id->driver_data];
+	indio_dev->channels = data->variant->channels;
+	indio_dev->num_channels = data->variant->num_channels;
 	hmc5843_set_meas_conf(client, data->meas_conf);
 	hmc5843_set_rate(client, data->rate);
 	hmc5843_configure(client, data->operating_mode);
 	i2c_smbus_write_byte_data(client, HMC5843_CONFIG_REG_B, data->range);
 	mutex_init(&data->lock);
 
-	pr_info("HMC5843 initialized\n");
+	pr_info("%s initialized\n", id->name);
 }
 
 static const struct iio_info hmc5843_info = {
@@ -581,12 +685,10 @@ static int hmc5843_probe(struct i2c_client *client,
 	data->operating_mode = HMC5843_MODE_CONVERSION_CONTINUOUS;
 
 	i2c_set_clientdata(client, indio_dev);
-	hmc5843_init_client(client);
+	hmc5843_init_client(client, id);
 
 	indio_dev->info = &hmc5843_info;
 	indio_dev->name = id->name;
-	indio_dev->channels = hmc5843_channels;
-	indio_dev->num_channels = ARRAY_SIZE(hmc5843_channels);
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -639,7 +741,9 @@ static SIMPLE_DEV_PM_OPS(hmc5843_pm_ops, hmc5843_suspend, hmc5843_resume);
 #endif
 
 static const struct i2c_device_id hmc5843_id[] = {
-	{ "hmc5843", 0 },
+	{ "hmc5843", HMC5843_ID },
+	{ "hmc5883", HMC5883_ID },
+	{ "hmc5883l", HMC5883L_ID },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hmc5843_id);
@@ -658,5 +762,5 @@ static struct i2c_driver hmc5843_driver = {
 module_i2c_driver(hmc5843_driver);
 
 MODULE_AUTHOR("Shubhrajyoti Datta <shubhrajyoti@ti.com");
-MODULE_DESCRIPTION("HMC5843 driver");
+MODULE_DESCRIPTION("HMC5843/5883/5883L driver");
 MODULE_LICENSE("GPL");
