@@ -366,7 +366,7 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 	int attr_cnt = 0;
 	int opt_cnt = 0;
 	int i;
-	int ret = 0;
+	int ret;
 
 	/* We shouldn't get called more than once for the same connector */
 	BUG_ON(device_is_registered(&connector->kdev));

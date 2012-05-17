@@ -220,18 +220,18 @@ int drm_load_edid_firmware(struct drm_connector *connector)
 {
 	char *connector_name = drm_get_connector_name(connector);
 	char *edidname = edid_firmware, *last, *colon;
-	int ret = 0;
+	int ret;
 
 	if (*edidname == '\0')
-		return ret;
+		return 0;
 
 	colon = strchr(edidname, ':');
 	if (colon != NULL) {
 		if (strncmp(connector_name, edidname, colon - edidname))
-			return ret;
+			return 0;
 		edidname = colon + 1;
 		if (*edidname == '\0')
-			return ret;
+			return 0;
 	}
 
 	last = edidname + strlen(edidname) - 1;

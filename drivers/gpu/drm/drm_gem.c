@@ -328,7 +328,7 @@ drm_gem_create_mmap_offset(struct drm_gem_object *obj)
 	struct drm_gem_mm *mm = dev->mm_private;
 	struct drm_map_list *list;
 	struct drm_local_map *map;
-	int ret = 0;
+	int ret;
 
 	/* Set the object up for mmap'ing */
 	list = &obj->map_list;
