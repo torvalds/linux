@@ -85,14 +85,6 @@
  */
 #define HMC5843_RATE_OFFSET			0x02
 #define HMC5843_RATE_BITMASK			0x1C
-#define RATE_5					0x00
-#define RATE_10					0x01
-#define RATE_20					0x02
-#define RATE_50					0x03
-#define RATE_100				0x04
-#define RATE_200				0x05
-#define RATE_500				0x06
-
 #define HMC5843_RATE_NOT_USED			0x07
 
 /*
@@ -342,6 +334,21 @@ static s32 hmc5843_set_rate(struct i2c_client *client,
 	return i2c_smbus_write_byte_data(client, HMC5843_CONFIG_REG_A, reg_val);
 }
 
+static int hmc5843_check_sampling_frequency(struct hmc5843_data *data,
+						const char *buf)
+{
+	const char * const *samp_freq = regval_to_samp_freq;
+	int i;
+
+	for (i = 0; i < HMC5843_RATE_NOT_USED; i++) {
+		if (strncmp(buf, samp_freq[i],
+			strlen(samp_freq[i])) == 0)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
 static ssize_t set_sampling_frequency(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t count)
@@ -350,27 +357,17 @@ static ssize_t set_sampling_frequency(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
 	struct hmc5843_data *data = iio_priv(indio_dev);
-	unsigned long rate = 0;
+	int rate;
 
-	if (strncmp(buf, "0.5" , 3) == 0)
-		rate = RATE_5;
-	else if (strncmp(buf, "1" , 1) == 0)
-		rate = RATE_10;
-	else if (strncmp(buf, "2", 1) == 0)
-		rate = RATE_20;
-	else if (strncmp(buf, "5", 1) == 0)
-		rate = RATE_50;
-	else if (strncmp(buf, "10", 2) == 0)
-		rate = RATE_100;
-	else if (strncmp(buf, "20" , 2) == 0)
-		rate = RATE_200;
-	else if (strncmp(buf, "50" , 2) == 0)
-		rate = RATE_500;
-	else
-		return -EINVAL;
+	rate = hmc5843_check_sampling_frequency(data, buf);
+	if (rate < 0) {
+		dev_err(&client->dev,
+			"sampling frequency is not supported\n");
+		return rate;
+	}
 
 	mutex_lock(&data->lock);
-	dev_dbg(dev, "set rate to %lu\n", rate);
+	dev_dbg(dev, "set rate to %d\n", rate);
 	if (hmc5843_set_rate(client, rate)) {
 		count = -EINVAL;
 		goto exit;
