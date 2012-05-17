@@ -44,6 +44,13 @@ enum mode_set_atomic {
 	ENTER_ATOMIC_MODE_SET,
 };
 
+/**
+ * drm_crtc_helper_funcs - helper operations for CRTCs
+ * @mode_fixup: try to fixup proposed mode for this connector
+ * @mode_set: set this mode
+ *
+ * The helper operations are called by the mid-layer CRTC helper.
+ */
 struct drm_crtc_helper_funcs {
 	/*
 	 * Control power levels on the CRTC.  If the mode passed in is
@@ -76,6 +83,13 @@ struct drm_crtc_helper_funcs {
 	void (*disable)(struct drm_crtc *crtc);
 };
 
+/**
+ * drm_encoder_helper_funcs - helper operations for encoders
+ * @mode_fixup: try to fixup proposed mode for this connector
+ * @mode_set: set this mode
+ *
+ * The helper operations are called by the mid-layer CRTC helper.
+ */
 struct drm_encoder_helper_funcs {
 	void (*dpms)(struct drm_encoder *encoder, int mode);
 	void (*save)(struct drm_encoder *encoder);
@@ -97,6 +111,13 @@ struct drm_encoder_helper_funcs {
 	void (*disable)(struct drm_encoder *encoder);
 };
 
+/**
+ * drm_connector_helper_funcs - helper operations for connectors
+ * @get_modes: get mode list for this connector
+ * @mode_valid: is this mode valid on the given connector?
+ *
+ * The helper operations are called by the mid-layer CRTC helper.
+ */
 struct drm_connector_helper_funcs {
 	int (*get_modes)(struct drm_connector *connector);
 	int (*mode_valid)(struct drm_connector *connector,

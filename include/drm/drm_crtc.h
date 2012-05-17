@@ -294,20 +294,16 @@ struct drm_plane;
 
 /**
  * drm_crtc_funcs - control CRTCs for a given device
- * @reset: reset CRTC after state has been invalidate (e.g. resume)
- * @dpms: control display power levels
  * @save: save CRTC state
- * @resore: restore CRTC state
- * @lock: lock the CRTC
- * @unlock: unlock the CRTC
- * @shadow_allocate: allocate shadow pixmap
- * @shadow_create: create shadow pixmap for rotation support
- * @shadow_destroy: free shadow pixmap
- * @mode_fixup: fixup proposed mode
- * @mode_set: set the desired mode on the CRTC
+ * @restore: restore CRTC state
+ * @reset: reset CRTC after state has been invalidate (e.g. resume)
+ * @cursor_set: setup the cursor
+ * @cursor_move: move the cursor
  * @gamma_set: specify color ramp for CRTC
  * @destroy: deinit and free object
  * @set_property: called when a property is changed
+ * @set_config: apply a new CRTC configuration
+ * @page_flip: initiate a page flip
  *
  * The drm_crtc_funcs structure is the central CRTC management structure
  * in the DRM.  Each CRTC controls one or more connectors (note that the name
@@ -420,11 +416,8 @@ struct drm_crtc {
  * @save: save connector state
  * @restore: restore connector state
  * @reset: reset connector after state has been invalidate (e.g. resume)
- * @mode_valid: is this mode valid on the given connector?
- * @mode_fixup: try to fixup proposed mode for this connector
- * @mode_set: set this mode
  * @detect: is this connector active?
- * @get_modes: get mode list for this connector
+ * @fill_modes: fill mode list for this connector
  * @set_property: property for this connector may need update
  * @destroy: make object go away
  * @force: notify the driver the connector is forced on

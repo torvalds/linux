@@ -363,7 +363,7 @@ EXPORT_SYMBOL(drm_framebuffer_cleanup);
  * @funcs: callbacks for the new CRTC
  *
  * LOCKING:
- * Caller must hold mode config lock.
+ * Takes mode_config lock.
  *
  * Inits a new object created as base part of an driver crtc object.
  *
