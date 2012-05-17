@@ -933,6 +933,10 @@ extern struct drm_property *drm_property_create_enum(struct drm_device *dev, int
 					 const char *name,
 					 const struct drm_prop_enum_list *props,
 					 int num_values);
+struct drm_property *drm_property_create_bitmask(struct drm_device *dev,
+					 int flags, const char *name,
+					 const struct drm_prop_enum_list *props,
+					 int num_values);
 struct drm_property *drm_property_create_range(struct drm_device *dev, int flags,
 					 const char *name,
 					 uint64_t min, uint64_t max);

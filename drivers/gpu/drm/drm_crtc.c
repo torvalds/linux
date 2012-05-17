@@ -2748,6 +2748,34 @@ struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
 }
 EXPORT_SYMBOL(drm_property_create_enum);
 
+struct drm_property *drm_property_create_bitmask(struct drm_device *dev,
+					 int flags, const char *name,
+					 const struct drm_prop_enum_list *props,
+					 int num_values)
+{
+	struct drm_property *property;
+	int i, ret;
+
+	flags |= DRM_MODE_PROP_BITMASK;
+
+	property = drm_property_create(dev, flags, name, num_values);
+	if (!property)
+		return NULL;
+
+	for (i = 0; i < num_values; i++) {
+		ret = drm_property_add_enum(property, i,
+				      props[i].type,
+				      props[i].name);
+		if (ret) {
+			drm_property_destroy(dev, property);
+			return NULL;
+		}
+	}
+
+	return property;
+}
+EXPORT_SYMBOL(drm_property_create_bitmask);
+
 struct drm_property *drm_property_create_range(struct drm_device *dev, int flags,
 					 const char *name,
 					 uint64_t min, uint64_t max)
@@ -2772,7 +2800,14 @@ int drm_property_add_enum(struct drm_property *property, int index,
 {
 	struct drm_property_enum *prop_enum;
 
-	if (!(property->flags & DRM_MODE_PROP_ENUM))
+	if (!(property->flags & (DRM_MODE_PROP_ENUM | DRM_MODE_PROP_BITMASK)))
+		return -EINVAL;
+
+	/*
+	 * Bitmask enum properties have the additional constraint of values
+	 * from 0 to 63
+	 */
+	if ((property->flags & DRM_MODE_PROP_BITMASK) && (value > 63))
 		return -EINVAL;
 
 	if (!list_empty(&property->enum_blob_list)) {
@@ -2918,7 +2953,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	}
 	property = obj_to_property(obj);
 
-	if (property->flags & DRM_MODE_PROP_ENUM) {
+	if (property->flags & (DRM_MODE_PROP_ENUM | DRM_MODE_PROP_BITMASK)) {
 		list_for_each_entry(prop_enum, &property->enum_blob_list, head)
 			enum_count++;
 	} else if (property->flags & DRM_MODE_PROP_BLOB) {
@@ -2943,7 +2978,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	}
 	out_resp->count_values = value_count;
 
-	if (property->flags & DRM_MODE_PROP_ENUM) {
+	if (property->flags & (DRM_MODE_PROP_ENUM | DRM_MODE_PROP_BITMASK)) {
 		if ((out_resp->count_enum_blobs >= enum_count) && enum_count) {
 			copied = 0;
 			enum_ptr = (struct drm_mode_property_enum __user *)(unsigned long)out_resp->enum_blob_ptr;
@@ -3098,6 +3133,12 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 		if (value < property->values[0] || value > property->values[1])
 			return false;
 		return true;
+	} else if (property->flags & DRM_MODE_PROP_BITMASK) {
+		int i;
+		__u64 valid_mask = 0;
+		for (i = 0; i < property->num_values; i++)
+			valid_mask |= (1ULL << property->values[i]);
+		return !(value & ~valid_mask);
 	} else {
 		int i;
 		for (i = 0; i < property->num_values; i++)
