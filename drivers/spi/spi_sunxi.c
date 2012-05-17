@@ -1578,7 +1578,7 @@ static int spi_sunxi_resume(struct platform_device *pdev)
 #define spi_sunxi_resume	NULL
 #endif /* CONFIG_PM */
 
-static struct platform_driver spi_sunxi_driver = {
+static struct platform_driver __refdata spi_sunxi_driver = {
 	.driver = {
 #if defined CONFIG_ARCH_SUN4I
 		.name	= "sun4i-spi",
