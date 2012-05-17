@@ -162,6 +162,8 @@ size_t omap_gem_mmap_size(struct drm_gem_object *obj);
 
 struct dma_buf * omap_gem_prime_export(struct drm_device *dev,
 		struct drm_gem_object *obj, int flags);
+struct drm_gem_object * omap_gem_prime_import(struct drm_device *dev,
+		struct dma_buf *buffer);
 
 static inline int align_pitch(int pitch, int width, int bpp)
 {

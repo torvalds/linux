@@ -196,3 +196,25 @@ struct dma_buf * omap_gem_prime_export(struct drm_device *dev,
 {
 	return dma_buf_export(obj, &omap_dmabuf_ops, obj->size, 0600);
 }
+
+struct drm_gem_object * omap_gem_prime_import(struct drm_device *dev,
+		struct dma_buf *buffer)
+{
+	struct drm_gem_object *obj;
+
+	/* is this one of own objects? */
+	if (buffer->ops == &omap_dmabuf_ops) {
+		obj = buffer->priv;
+		/* is it from our device? */
+		if (obj->dev == dev) {
+			drm_gem_object_reference(obj);
+			return obj;
+		}
+	}
+
+	/*
+	 * TODO add support for importing buffers from other devices..
+	 * for now we don't need this but would be nice to add eventually
+	 */
+	return ERR_PTR(-EINVAL);
+}
