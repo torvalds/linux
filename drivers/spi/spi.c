@@ -507,6 +507,7 @@ spi_register_board_info(struct spi_board_info const *info, unsigned n)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(spi_register_board_info);
 
 /*-------------------------------------------------------------------------*/
 
