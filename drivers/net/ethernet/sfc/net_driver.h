@@ -91,29 +91,30 @@ struct efx_special_buffer {
 };
 
 /**
- * struct efx_tx_buffer - An Efx TX buffer
- * @skb: The associated socket buffer.
- *	Set only on the final fragment of a packet; %NULL for all other
- *	fragments.  When this fragment completes, then we can free this
- *	skb.
- * @tsoh: The associated TSO header structure, or %NULL if this
- *	buffer is not a TSO header.
+ * struct efx_tx_buffer - buffer state for a TX descriptor
+ * @skb: When @flags & %EFX_TX_BUF_SKB, the associated socket buffer to be
+ *	freed when descriptor completes
+ * @tsoh: When @flags & %EFX_TX_BUF_TSOH, the associated TSO header structure.
  * @dma_addr: DMA address of the fragment.
+ * @flags: Flags for allocation and DMA mapping type
  * @len: Length of this fragment.
  *	This field is zero when the queue slot is empty.
- * @continuation: True if this fragment is not the end of a packet.
- * @unmap_single: True if dma_unmap_single should be used.
  * @unmap_len: Length of this fragment to unmap
  */
 struct efx_tx_buffer {
-	const struct sk_buff *skb;
-	struct efx_tso_header *tsoh;
+	union {
+		const struct sk_buff *skb;
+		struct efx_tso_header *tsoh;
+	};
 	dma_addr_t dma_addr;
+	unsigned short flags;
 	unsigned short len;
-	bool continuation;
-	bool unmap_single;
 	unsigned short unmap_len;
 };
+#define EFX_TX_BUF_CONT		1	/* not last descriptor of packet */
+#define EFX_TX_BUF_SKB		2	/* buffer is last part of skb */
+#define EFX_TX_BUF_TSOH		4	/* buffer is TSO header */
+#define EFX_TX_BUF_MAP_SINGLE	8	/* buffer was mapped with dma_map_single() */
 
 /**
  * struct efx_tx_queue - An Efx TX queue
