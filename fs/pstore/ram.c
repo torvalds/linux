@@ -56,12 +56,18 @@ module_param(dump_oops, int, 0600);
 MODULE_PARM_DESC(dump_oops,
 		"set to 1 to dump oopses, 0 to only dump panics (default 1)");
 
+static int ramoops_ecc;
+module_param_named(ecc, ramoops_ecc, int, 0600);
+MODULE_PARM_DESC(ramoops_ecc,
+		"set to 1 to enable ECC support");
+
 struct ramoops_context {
 	struct persistent_ram_zone **przs;
 	phys_addr_t phys_addr;
 	unsigned long size;
 	size_t record_size;
 	int dump_oops;
+	bool ecc;
 	unsigned int count;
 	unsigned int max_count;
 	unsigned int read_count;
@@ -236,6 +242,7 @@ static int __init ramoops_probe(struct platform_device *pdev)
 	cxt->phys_addr = pdata->mem_address;
 	cxt->record_size = pdata->record_size;
 	cxt->dump_oops = pdata->dump_oops;
+	cxt->ecc = pdata->ecc;
 
 	cxt->przs = kzalloc(sizeof(*cxt->przs) * cxt->max_count, GFP_KERNEL);
 	if (!cxt->przs) {
@@ -248,7 +255,7 @@ static int __init ramoops_probe(struct platform_device *pdev)
 		size_t sz = cxt->record_size;
 		phys_addr_t start = cxt->phys_addr + sz * i;
 
-		cxt->przs[i] = persistent_ram_new(start, sz, 0);
+		cxt->przs[i] = persistent_ram_new(start, sz, cxt->ecc);
 		if (IS_ERR(cxt->przs[i])) {
 			err = PTR_ERR(cxt->przs[i]);
 			dev_err(dev, "failed to request mem region (0x%zx@0x%llx): %d\n",
@@ -281,9 +288,10 @@ static int __init ramoops_probe(struct platform_device *pdev)
 	record_size = pdata->record_size;
 	dump_oops = pdata->dump_oops;
 
-	pr_info("attached 0x%lx@0x%llx (%ux0x%zx)\n",
+	pr_info("attached 0x%lx@0x%llx (%ux0x%zx), ecc: %s\n",
 		cxt->size, (unsigned long long)cxt->phys_addr,
-		cxt->max_count, cxt->record_size);
+		cxt->max_count, cxt->record_size,
+		ramoops_ecc ? "on" : "off");
 
 	return 0;
 
@@ -347,6 +355,7 @@ static int __init ramoops_init(void)
 		dummy_data->mem_address = mem_address;
 		dummy_data->record_size = record_size;
 		dummy_data->dump_oops = dump_oops;
+		dummy_data->ecc = ramoops_ecc;
 		dummy = platform_create_bundle(&ramoops_driver, ramoops_probe,
 			NULL, 0, dummy_data,
 			sizeof(struct ramoops_platform_data));

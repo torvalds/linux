@@ -30,6 +30,11 @@ variable while setting 0 in that variable dumps only the panics.
 The module uses a counter to record multiple dumps but the counter gets reset
 on restart (i.e. new dumps after the restart will overwrite old ones).
 
+Ramoops also supports software ECC protection of persistent memory regions.
+This might be useful when a hardware reset was used to bring the machine back
+to life (i.e. a watchdog triggered). In such cases, RAM may be somewhat
+corrupt, but usually it is restorable.
+
 2. Setting the parameters
 
 Setting the ramoops parameters can be done in 2 different manners:
@@ -46,6 +51,7 @@ static struct ramoops_platform_data ramoops_data = {
         .mem_address            = <...>,
         .record_size            = <...>,
         .dump_oops              = <...>,
+        .ecc                    = <...>,
 };
 
 static struct platform_device ramoops_dev = {
