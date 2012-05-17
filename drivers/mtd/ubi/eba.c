@@ -1215,7 +1215,7 @@ static void print_rsvd_warning(struct ubi_device *ubi,
 int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *ai)
 {
 	int i, j, err, num_volumes;
-	struct ubi_ainf_volume *sv;
+	struct ubi_ainf_volume *av;
 	struct ubi_volume *vol;
 	struct ubi_ainf_peb *aeb;
 	struct rb_node *rb;
@@ -1246,17 +1246,17 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_attach_info *ai)
 		for (j = 0; j < vol->reserved_pebs; j++)
 			vol->eba_tbl[j] = UBI_LEB_UNMAPPED;
 
-		sv = ubi_scan_find_sv(ai, idx2vol_id(ubi, i));
-		if (!sv)
+		av = ubi_scan_find_av(ai, idx2vol_id(ubi, i));
+		if (!av)
 			continue;
 
-		ubi_rb_for_each_entry(rb, aeb, &sv->root, u.rb) {
+		ubi_rb_for_each_entry(rb, aeb, &av->root, u.rb) {
 			if (aeb->lnum >= vol->reserved_pebs)
 				/*
 				 * This may happen in case of an unclean reboot
 				 * during re-size.
 				 */
-				ubi_scan_move_to_list(sv, aeb, &ai->erase);
+				ubi_scan_move_to_list(av, aeb, &ai->erase);
 			vol->eba_tbl[aeb->lnum] = aeb->pnum;
 		}
 	}

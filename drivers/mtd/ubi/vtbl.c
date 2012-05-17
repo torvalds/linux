@@ -366,7 +366,7 @@ out_free:
  * process_lvol - process the layout volume.
  * @ubi: UBI device description object
  * @ai: attaching information
- * @sv: layout volume attaching information
+ * @av: layout volume attaching information
  *
  * This function is responsible for reading the layout volume, ensuring it is
  * not corrupted, and recovering from corruptions if needed. Returns volume
@@ -374,7 +374,7 @@ out_free:
  */
 static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 					    struct ubi_attach_info *ai,
-					    struct ubi_ainf_volume *sv)
+					    struct ubi_ainf_volume *av)
 {
 	int err;
 	struct rb_node *rb;
@@ -410,7 +410,7 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 	dbg_gen("check layout volume");
 
 	/* Read both LEB 0 and LEB 1 into memory */
-	ubi_rb_for_each_entry(rb, aeb, &sv->root, u.rb) {
+	ubi_rb_for_each_entry(rb, aeb, &av->root, u.rb) {
 		leb[aeb->lnum] = vzalloc(ubi->vtbl_size);
 		if (!leb[aeb->lnum]) {
 			err = -ENOMEM;
@@ -536,7 +536,7 @@ static int init_volumes(struct ubi_device *ubi,
 			const struct ubi_vtbl_record *vtbl)
 {
 	int i, reserved_pebs = 0;
-	struct ubi_ainf_volume *sv;
+	struct ubi_ainf_volume *av;
 	struct ubi_volume *vol;
 
 	for (i = 0; i < ubi->vtbl_slots; i++) {
@@ -592,8 +592,8 @@ static int init_volumes(struct ubi_device *ubi,
 		}
 
 		/* Static volumes only */
-		sv = ubi_scan_find_sv(ai, i);
-		if (!sv) {
+		av = ubi_scan_find_av(ai, i);
+		if (!av) {
 			/*
 			 * No eraseblocks belonging to this volume found. We
 			 * don't actually know whether this static volume is
@@ -605,22 +605,22 @@ static int init_volumes(struct ubi_device *ubi,
 			continue;
 		}
 
-		if (sv->leb_count != sv->used_ebs) {
+		if (av->leb_count != av->used_ebs) {
 			/*
 			 * We found a static volume which misses several
 			 * eraseblocks. Treat it as corrupted.
 			 */
 			ubi_warn("static volume %d misses %d LEBs - corrupted",
-				 sv->vol_id, sv->used_ebs - sv->leb_count);
+				 av->vol_id, av->used_ebs - av->leb_count);
 			vol->corrupted = 1;
 			continue;
 		}
 
-		vol->used_ebs = sv->used_ebs;
+		vol->used_ebs = av->used_ebs;
 		vol->used_bytes =
 			(long long)(vol->used_ebs - 1) * vol->usable_leb_size;
-		vol->used_bytes += sv->last_data_size;
-		vol->last_eb_bytes = sv->last_data_size;
+		vol->used_bytes += av->last_data_size;
+		vol->last_eb_bytes = av->last_data_size;
 	}
 
 	/* And add the layout volume */
@@ -661,35 +661,35 @@ static int init_volumes(struct ubi_device *ubi,
 }
 
 /**
- * check_sv - check volume attaching information.
+ * check_av - check volume attaching information.
  * @vol: UBI volume description object
- * @sv: volume attaching information
+ * @av: volume attaching information
  *
  * This function returns zero if the volume attaching information is consistent
  * to the data read from the volume tabla, and %-EINVAL if not.
  */
-static int check_sv(const struct ubi_volume *vol,
-		    const struct ubi_ainf_volume *sv)
+static int check_av(const struct ubi_volume *vol,
+		    const struct ubi_ainf_volume *av)
 {
 	int err;
 
-	if (sv->highest_lnum >= vol->reserved_pebs) {
+	if (av->highest_lnum >= vol->reserved_pebs) {
 		err = 1;
 		goto bad;
 	}
-	if (sv->leb_count > vol->reserved_pebs) {
+	if (av->leb_count > vol->reserved_pebs) {
 		err = 2;
 		goto bad;
 	}
-	if (sv->vol_type != vol->vol_type) {
+	if (av->vol_type != vol->vol_type) {
 		err = 3;
 		goto bad;
 	}
-	if (sv->used_ebs > vol->reserved_pebs) {
+	if (av->used_ebs > vol->reserved_pebs) {
 		err = 4;
 		goto bad;
 	}
-	if (sv->data_pad != vol->data_pad) {
+	if (av->data_pad != vol->data_pad) {
 		err = 5;
 		goto bad;
 	}
@@ -697,7 +697,7 @@ static int check_sv(const struct ubi_volume *vol,
 
 bad:
 	ubi_err("bad attaching information, error %d", err);
-	ubi_dump_sv(sv);
+	ubi_dump_av(av);
 	ubi_dump_vol_info(vol);
 	return -EINVAL;
 }
@@ -716,7 +716,7 @@ static int check_scanning_info(const struct ubi_device *ubi,
 			       struct ubi_attach_info *ai)
 {
 	int err, i;
-	struct ubi_ainf_volume *sv;
+	struct ubi_ainf_volume *av;
 	struct ubi_volume *vol;
 
 	if (ai->vols_found > UBI_INT_VOL_COUNT + ubi->vtbl_slots) {
@@ -735,18 +735,18 @@ static int check_scanning_info(const struct ubi_device *ubi,
 	for (i = 0; i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++) {
 		cond_resched();
 
-		sv = ubi_scan_find_sv(ai, i);
+		av = ubi_scan_find_av(ai, i);
 		vol = ubi->volumes[i];
 		if (!vol) {
-			if (sv)
-				ubi_scan_rm_volume(ai, sv);
+			if (av)
+				ubi_scan_rm_volume(ai, av);
 			continue;
 		}
 
 		if (vol->reserved_pebs == 0) {
 			ubi_assert(i < ubi->vtbl_slots);
 
-			if (!sv)
+			if (!av)
 				continue;
 
 			/*
@@ -756,10 +756,10 @@ static int check_scanning_info(const struct ubi_device *ubi,
 			 * reboot while the volume was being removed. Discard
 			 * these eraseblocks.
 			 */
-			ubi_msg("finish volume %d removal", sv->vol_id);
-			ubi_scan_rm_volume(ai, sv);
-		} else if (sv) {
-			err = check_sv(vol, sv);
+			ubi_msg("finish volume %d removal", av->vol_id);
+			ubi_scan_rm_volume(ai, av);
+		} else if (av) {
+			err = check_av(vol, av);
 			if (err)
 				return err;
 		}
@@ -780,7 +780,7 @@ static int check_scanning_info(const struct ubi_device *ubi,
 int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *ai)
 {
 	int i, err;
-	struct ubi_ainf_volume *sv;
+	struct ubi_ainf_volume *av;
 
 	empty_vtbl_record.crc = cpu_to_be32(0xf116c36b);
 
@@ -795,8 +795,8 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	ubi->vtbl_size = ubi->vtbl_slots * UBI_VTBL_RECORD_SIZE;
 	ubi->vtbl_size = ALIGN(ubi->vtbl_size, ubi->min_io_size);
 
-	sv = ubi_scan_find_sv(ai, UBI_LAYOUT_VOLUME_ID);
-	if (!sv) {
+	av = ubi_scan_find_av(ai, UBI_LAYOUT_VOLUME_ID);
+	if (!av) {
 		/*
 		 * No logical eraseblocks belonging to the layout volume were
 		 * found. This could mean that the flash is just empty. In
@@ -814,14 +814,14 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *ai)
 			return -EINVAL;
 		}
 	} else {
-		if (sv->leb_count > UBI_LAYOUT_VOLUME_EBS) {
+		if (av->leb_count > UBI_LAYOUT_VOLUME_EBS) {
 			/* This must not happen with proper UBI images */
 			ubi_err("too many LEBs (%d) in layout volume",
-				sv->leb_count);
+				av->leb_count);
 			return -EINVAL;
 		}
 
-		ubi->vtbl = process_lvol(ubi, ai, sv);
+		ubi->vtbl = process_lvol(ubi, ai, av);
 		if (IS_ERR(ubi->vtbl))
 			return PTR_ERR(ubi->vtbl);
 	}

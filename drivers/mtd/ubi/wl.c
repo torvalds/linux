@@ -1384,7 +1384,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_attach_info *ai)
 {
 	int err, i;
 	struct rb_node *rb1, *rb2;
-	struct ubi_ainf_volume *sv;
+	struct ubi_ainf_volume *av;
 	struct ubi_ainf_peb *aeb, *tmp;
 	struct ubi_wl_entry *e;
 
@@ -1436,8 +1436,8 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_attach_info *ai)
 		ubi->lookuptbl[e->pnum] = e;
 	}
 
-	ubi_rb_for_each_entry(rb1, sv, &ai->volumes, rb) {
-		ubi_rb_for_each_entry(rb2, aeb, &sv->root, u.rb) {
+	ubi_rb_for_each_entry(rb1, av, &ai->volumes, rb) {
+		ubi_rb_for_each_entry(rb2, aeb, &av->root, u.rb) {
 			cond_resched();
 
 			e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);

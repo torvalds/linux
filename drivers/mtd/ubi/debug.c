@@ -171,20 +171,20 @@ void ubi_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
 }
 
 /**
- * ubi_dump_sv - dump a &struct ubi_ainf_volume object.
- * @sv: the object to dump
+ * ubi_dump_av - dump a &struct ubi_ainf_volume object.
+ * @av: the object to dump
  */
-void ubi_dump_sv(const struct ubi_ainf_volume *sv)
+void ubi_dump_av(const struct ubi_ainf_volume *av)
 {
 	printk(KERN_DEBUG "Volume attaching information dump:\n");
-	printk(KERN_DEBUG "\tvol_id         %d\n", sv->vol_id);
-	printk(KERN_DEBUG "\thighest_lnum   %d\n", sv->highest_lnum);
-	printk(KERN_DEBUG "\tleb_count      %d\n", sv->leb_count);
-	printk(KERN_DEBUG "\tcompat         %d\n", sv->compat);
-	printk(KERN_DEBUG "\tvol_type       %d\n", sv->vol_type);
-	printk(KERN_DEBUG "\tused_ebs       %d\n", sv->used_ebs);
-	printk(KERN_DEBUG "\tlast_data_size %d\n", sv->last_data_size);
-	printk(KERN_DEBUG "\tdata_pad       %d\n", sv->data_pad);
+	printk(KERN_DEBUG "\tvol_id         %d\n", av->vol_id);
+	printk(KERN_DEBUG "\thighest_lnum   %d\n", av->highest_lnum);
+	printk(KERN_DEBUG "\tleb_count      %d\n", av->leb_count);
+	printk(KERN_DEBUG "\tcompat         %d\n", av->compat);
+	printk(KERN_DEBUG "\tvol_type       %d\n", av->vol_type);
+	printk(KERN_DEBUG "\tused_ebs       %d\n", av->used_ebs);
+	printk(KERN_DEBUG "\tlast_data_size %d\n", av->last_data_size);
+	printk(KERN_DEBUG "\tdata_pad       %d\n", av->data_pad);
 }
 
 /**
