@@ -39,6 +39,7 @@ struct gpio_vbus_data {
 	unsigned		mA;
 	struct delayed_work	work;
 	int			vbus;
+	int			irq;
 };
 
 
@@ -173,12 +174,11 @@ static int gpio_vbus_set_peripheral(struct usb_otg *otg,
 	struct gpio_vbus_data *gpio_vbus;
 	struct gpio_vbus_mach_info *pdata;
 	struct platform_device *pdev;
-	int gpio, irq;
+	int gpio;
 
 	gpio_vbus = container_of(otg->phy, struct gpio_vbus_data, phy);
 	pdev = to_platform_device(gpio_vbus->dev);
 	pdata = gpio_vbus->dev->platform_data;
-	irq = gpio_to_irq(pdata->gpio_vbus);
 	gpio = pdata->gpio_pullup;
 
 	if (!gadget) {
@@ -203,7 +203,7 @@ static int gpio_vbus_set_peripheral(struct usb_otg *otg,
 
 	/* initialize connection state */
 	gpio_vbus->vbus = 0; /* start with disconnected */
-	gpio_vbus_irq(irq, pdev);
+	gpio_vbus_irq(gpio_vbus->irq, pdev);
 	return 0;
 }
 
@@ -284,6 +284,8 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 	} else
 		irq = gpio_to_irq(gpio);
 
+	gpio_vbus->irq = irq;
+
 	/* if data line pullup is in use, initialize it to "not pulling up" */
 	gpio = pdata->gpio_pullup;
 	if (gpio_is_valid(gpio)) {
@@ -350,7 +352,7 @@ static int __exit gpio_vbus_remove(struct platform_device *pdev)
 
 	usb_set_transceiver(NULL);
 
-	free_irq(gpio_to_irq(gpio), pdev);
+	free_irq(gpio_vbus->irq, pdev);
 	if (gpio_is_valid(pdata->gpio_pullup))
 		gpio_free(pdata->gpio_pullup);
 	gpio_free(gpio);
