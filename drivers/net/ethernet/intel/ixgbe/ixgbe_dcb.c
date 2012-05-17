@@ -231,16 +231,32 @@ void ixgbe_dcb_unpack_prio(struct ixgbe_dcb_config *cfg, int direction,
 	}
 }
 
+static u8 ixgbe_dcb_get_tc_from_up(struct ixgbe_dcb_config *cfg,
+				   int direction, u8 up)
+{
+	struct tc_configuration *tc_config = &cfg->tc_config[0];
+	u8 prio_mask = 1 << up;
+	u8 tc;
+
+	/*
+	 * Test for TCs 7 through 1 and report the first match we find.  If
+	 * we find no match we can assume that the TC is 0 since the TC must
+	 * be set for all user priorities
+	 */
+	for (tc = MAX_TRAFFIC_CLASS - 1; tc; tc--) {
+		if (prio_mask & tc_config[tc].path[direction].up_to_tc_bitmap)
+			break;
+	}
+
+	return tc;
+}
+
 void ixgbe_dcb_unpack_map(struct ixgbe_dcb_config *cfg, int direction, u8 *map)
 {
-	int i, up;
-	unsigned long bitmap;
+	u8 up;
 
-	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
-		bitmap = cfg->tc_config[i].path[direction].up_to_tc_bitmap;
-		for_each_set_bit(up, &bitmap, MAX_USER_PRIORITY)
-			map[up] = i;
-	}
+	for (up = 0; up < MAX_USER_PRIORITY; up++)
+		map[up] = ixgbe_dcb_get_tc_from_up(cfg, direction, up);
 }
 
 /**
