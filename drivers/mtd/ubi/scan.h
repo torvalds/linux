@@ -162,8 +162,6 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		      int bitflips);
 struct ubi_ainf_volume *ubi_scan_find_av(const struct ubi_attach_info *ai,
 					 int vol_id);
-struct ubi_ainf_peb *ubi_scan_find_aeb(const struct ubi_ainf_volume *av,
-				       int lnum);
 void ubi_scan_rm_volume(struct ubi_attach_info *ai, struct ubi_ainf_volume *av);
 struct ubi_ainf_peb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 					   struct ubi_attach_info *ai);

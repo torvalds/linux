@@ -615,35 +615,6 @@ struct ubi_ainf_volume *ubi_scan_find_av(const struct ubi_attach_info *ai,
 }
 
 /**
- * ubi_scan_find_aeb - find LEB in the volume attaching information.
- * @av: a pointer to the volume attaching information
- * @lnum: the requested logical eraseblock
- *
- * This function returns a pointer to the scanning logical eraseblock or %NULL
- * if there are no data about it in the scanning volume information.
- */
-struct ubi_ainf_peb *ubi_scan_find_aeb(const struct ubi_ainf_volume *av,
-				       int lnum)
-{
-	struct ubi_ainf_peb *aeb;
-	struct rb_node *p = av->root.rb_node;
-
-	while (p) {
-		aeb = rb_entry(p, struct ubi_ainf_peb, u.rb);
-
-		if (lnum == aeb->lnum)
-			return aeb;
-
-		if (lnum > aeb->lnum)
-			p = p->rb_left;
-		else
-			p = p->rb_right;
-	}
-
-	return NULL;
-}
-
-/**
  * ubi_scan_rm_volume - delete attaching information about a volume.
  * @ai: attaching information
  * @av: the volume attaching information to delete
