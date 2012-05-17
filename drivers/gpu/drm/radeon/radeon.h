@@ -617,11 +617,9 @@ union radeon_irq_stat_regs {
 struct radeon_irq {
 	bool				installed;
 	spinlock_t			lock;
-	bool				sw_int[RADEON_NUM_RINGS];
-	int				sw_refcount[RADEON_NUM_RINGS];
+	atomic_t			ring_int[RADEON_NUM_RINGS];
 	bool				crtc_vblank_int[RADEON_MAX_CRTCS];
-	bool				pflip[RADEON_MAX_CRTCS];
-	int				pflip_refcount[RADEON_MAX_CRTCS];
+	atomic_t			pflip[RADEON_MAX_CRTCS];
 	wait_queue_head_t		vblank_queue;
 	bool				hpd[RADEON_MAX_HPD_PINS];
 	bool				gui_idle;
