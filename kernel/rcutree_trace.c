@@ -218,8 +218,7 @@ static const struct file_operations rcudata_csv_fops = {
 
 static void print_one_rcu_node_boost(struct seq_file *m, struct rcu_node *rnp)
 {
-	seq_printf(m,  "%d:%d tasks=%c%c%c%c kt=%c ntb=%lu neb=%lu nnb=%lu "
-		   "j=%04x bt=%04x\n",
+	seq_printf(m, "%d:%d tasks=%c%c%c%c kt=%c ntb=%lu neb=%lu nnb=%lu ",
 		   rnp->grplo, rnp->grphi,
 		   "T."[list_empty(&rnp->blkd_tasks)],
 		   "N."[!rnp->gp_tasks],
@@ -227,11 +226,11 @@ static void print_one_rcu_node_boost(struct seq_file *m, struct rcu_node *rnp)
 		   "B."[!rnp->boost_tasks],
 		   convert_kthread_status(rnp->boost_kthread_status),
 		   rnp->n_tasks_boosted, rnp->n_exp_boosts,
-		   rnp->n_normal_boosts,
+		   rnp->n_normal_boosts);
+	seq_printf(m, "j=%04x bt=%04x\n",
 		   (int)(jiffies & 0xffff),
 		   (int)(rnp->boost_time & 0xffff));
-	seq_printf(m, "%s: nt=%lu egt=%lu bt=%lu nb=%lu ny=%lu nos=%lu\n",
-		   "     balk",
+	seq_printf(m, "    balk: nt=%lu egt=%lu bt=%lu nb=%lu ny=%lu nos=%lu\n",
 		   rnp->n_balk_blkd_tasks,
 		   rnp->n_balk_exp_gp_tasks,
 		   rnp->n_balk_boost_tasks,
@@ -287,11 +286,11 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 	struct rcu_node *rnp;
 
 	gpnum = rsp->gpnum;
-	seq_printf(m, "%s: c=%lu g=%lu s=%d jfq=%ld j=%x "
-		      "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld/%ld\n",
+	seq_printf(m, "%s: c=%lu g=%lu s=%d jfq=%ld j=%x ",
 		   rsp->name, rsp->completed, gpnum, rsp->fqs_state,
 		   (long)(rsp->jiffies_force_qs - jiffies),
-		   (int)(jiffies & 0xffff),
+		   (int)(jiffies & 0xffff));
+	seq_printf(m, "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld/%ld\n",
 		   rsp->n_force_qs, rsp->n_force_qs_ngp,
 		   rsp->n_force_qs - rsp->n_force_qs_ngp,
 		   rsp->n_force_qs_lh, rsp->qlen_lazy, rsp->qlen);
@@ -378,16 +377,16 @@ static const struct file_operations rcugp_fops = {
 
 static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
 {
-	seq_printf(m, "%3d%cnp=%ld "
-		   "qsp=%ld rpq=%ld cbr=%ld cng=%ld "
-		   "gpc=%ld gps=%ld nf=%ld nn=%ld\n",
+	seq_printf(m, "%3d%cnp=%ld ",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
-		   rdp->n_rcu_pending,
+		   rdp->n_rcu_pending);
+	seq_printf(m, "qsp=%ld rpq=%ld cbr=%ld cng=%ld ",
 		   rdp->n_rp_qs_pending,
 		   rdp->n_rp_report_qs,
 		   rdp->n_rp_cb_ready,
-		   rdp->n_rp_cpu_needs_gp,
+		   rdp->n_rp_cpu_needs_gp);
+	seq_printf(m, "gpc=%ld gps=%ld nf=%ld nn=%ld\n",
 		   rdp->n_rp_gp_completed,
 		   rdp->n_rp_gp_started,
 		   rdp->n_rp_need_fqs,

@@ -49,8 +49,7 @@
 #include <asm/byteorder.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and "
-	      "Josh Triplett <josh@freedesktop.org>");
+MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@freedesktop.org>");
 
 static int nreaders = -1;	/* # reader threads, defaults to 2*ncpus */
 static int nfakewriters = 4;	/* # fake writer threads */
@@ -1200,27 +1199,27 @@ rcu_torture_printk(char *page)
 	}
 	cnt += sprintf(&page[cnt], "%s%s ", torture_type, TORTURE_FLAG);
 	cnt += sprintf(&page[cnt],
-		       "rtc: %p ver: %lu tfle: %d rta: %d rtaf: %d rtf: %d "
-		       "rtmbe: %d rtbke: %ld rtbre: %ld "
-		       "rtbf: %ld rtb: %ld nt: %ld "
-		       "onoff: %ld/%ld:%ld/%ld "
-		       "barrier: %ld/%ld:%ld",
+		       "rtc: %p ver: %lu tfle: %d rta: %d rtaf: %d rtf: %d ",
 		       rcu_torture_current,
 		       rcu_torture_current_version,
 		       list_empty(&rcu_torture_freelist),
 		       atomic_read(&n_rcu_torture_alloc),
 		       atomic_read(&n_rcu_torture_alloc_fail),
-		       atomic_read(&n_rcu_torture_free),
+		       atomic_read(&n_rcu_torture_free));
+	cnt += sprintf(&page[cnt], "rtmbe: %d rtbke: %ld rtbre: %ld ",
 		       atomic_read(&n_rcu_torture_mberror),
 		       n_rcu_torture_boost_ktrerror,
-		       n_rcu_torture_boost_rterror,
+		       n_rcu_torture_boost_rterror);
+	cnt += sprintf(&page[cnt], "rtbf: %ld rtb: %ld nt: %ld ",
 		       n_rcu_torture_boost_failure,
 		       n_rcu_torture_boosts,
-		       n_rcu_torture_timers,
+		       n_rcu_torture_timers);
+	cnt += sprintf(&page[cnt], "onoff: %ld/%ld:%ld/%ld ",
 		       n_online_successes,
 		       n_online_attempts,
 		       n_offline_successes,
-		       n_offline_attempts,
+		       n_offline_attempts);
+	cnt += sprintf(&page[cnt], "barrier: %ld/%ld:%ld",
 		       n_barrier_successes,
 		       n_barrier_attempts,
 		       n_rcu_torture_barrier_error);
@@ -1462,8 +1461,7 @@ rcu_torture_shutdown(void *arg)
 		delta = shutdown_time - jiffies_snap;
 		if (verbose)
 			printk(KERN_ALERT "%s" TORTURE_FLAG
-			       "rcu_torture_shutdown task: %lu "
-			       "jiffies remaining\n",
+			       "rcu_torture_shutdown task: %lu jiffies remaining\n",
 			       torture_type, delta);
 		schedule_timeout_interruptible(delta);
 		jiffies_snap = ACCESS_ONCE(jiffies);
@@ -1515,8 +1513,7 @@ rcu_torture_onoff(void *arg)
 			if (cpu_down(cpu) == 0) {
 				if (verbose)
 					printk(KERN_ALERT "%s" TORTURE_FLAG
-					       "rcu_torture_onoff task: "
-					       "offlined %d\n",
+					       "rcu_torture_onoff task: offlined %d\n",
 					       torture_type, cpu);
 				n_offline_successes++;
 			}
@@ -1529,8 +1526,7 @@ rcu_torture_onoff(void *arg)
 			if (cpu_up(cpu) == 0) {
 				if (verbose)
 					printk(KERN_ALERT "%s" TORTURE_FLAG
-					       "rcu_torture_onoff task: "
-					       "onlined %d\n",
+					       "rcu_torture_onoff task: onlined %d\n",
 					       torture_type, cpu);
 				n_online_successes++;
 			}
@@ -1952,8 +1948,7 @@ rcu_torture_init(void)
 		return -EINVAL;
 	}
 	if (cur_ops->fqs == NULL && fqs_duration != 0) {
-		printk(KERN_ALERT "rcu-torture: ->fqs NULL and non-zero "
-				  "fqs_duration, fqs disabled.\n");
+		printk(KERN_ALERT "rcu-torture: ->fqs NULL and non-zero fqs_duration, fqs disabled.\n");
 		fqs_duration = 0;
 	}
 	if (cur_ops->init)

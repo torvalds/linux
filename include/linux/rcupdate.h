@@ -427,8 +427,7 @@ extern int rcu_my_thread_group_empty(void);
 static inline void rcu_preempt_sleep_check(void)
 {
 	rcu_lockdep_assert(!lock_is_held(&rcu_lock_map),
-			   "Illegal context switch in RCU read-side "
-			   "critical section");
+			   "Illegal context switch in RCU read-side critical section");
 }
 #else /* #ifdef CONFIG_PROVE_RCU */
 static inline void rcu_preempt_sleep_check(void)
