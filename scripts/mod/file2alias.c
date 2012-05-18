@@ -156,7 +156,7 @@ static void device_id_check(const char *modname, const char *device_id,
 }
 
 /* USB is special because the bcdDevice can be matched against a numeric range */
-/* Looks like "usb:vNpNdNdcNdscNdpNicNiscNipN" */
+/* Looks like "usb:vNpNdNdcNdscNdpNicNiscNipNinN" */
 static void do_usb_entry(struct usb_device_id *id,
 			 unsigned int bcdDevice_initial, int bcdDevice_initial_digits,
 			 unsigned char range_lo, unsigned char range_hi,
@@ -210,6 +210,9 @@ static void do_usb_entry(struct usb_device_id *id,
 	ADD(alias, "ip",
 	    id->match_flags&USB_DEVICE_ID_MATCH_INT_PROTOCOL,
 	    id->bInterfaceProtocol);
+	ADD(alias, "in",
+	    id->match_flags&USB_DEVICE_ID_MATCH_INT_NUMBER,
+	    id->bInterfaceNumber);
 
 	add_wildcard(alias);
 	buf_printf(&mod->dev_table_buf,
