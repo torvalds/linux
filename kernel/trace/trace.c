@@ -4759,7 +4759,8 @@ static ssize_t
 rb_simple_read(struct file *filp, char __user *ubuf,
 	       size_t cnt, loff_t *ppos)
 {
-	struct ring_buffer *buffer = filp->private_data;
+	struct trace_array *tr = filp->private_data;
+	struct ring_buffer *buffer = tr->buffer;
 	char buf[64];
 	int r;
 
@@ -4777,7 +4778,8 @@ static ssize_t
 rb_simple_write(struct file *filp, const char __user *ubuf,
 		size_t cnt, loff_t *ppos)
 {
-	struct ring_buffer *buffer = filp->private_data;
+	struct trace_array *tr = filp->private_data;
+	struct ring_buffer *buffer = tr->buffer;
 	unsigned long val;
 	int ret;
 
@@ -4864,7 +4866,7 @@ static __init int tracer_init_debugfs(void)
 			  &trace_clock_fops);
 
 	trace_create_file("tracing_on", 0644, d_tracer,
-			    global_trace.buffer, &rb_simple_fops);
+			    &global_trace, &rb_simple_fops);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 	trace_create_file("dyn_ftrace_total_info", 0444, d_tracer,

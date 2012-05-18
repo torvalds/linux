@@ -291,7 +291,7 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 	if (mkdir_p(filename, 0755))
 		goto out_free;
 
-	snprintf(filename + len, sizeof(filename) - len, "/%s", sbuild_id);
+	snprintf(filename + len, size - len, "/%s", sbuild_id);
 
 	if (access(filename, F_OK)) {
 		if (is_kallsyms) {

@@ -2,9 +2,9 @@
  * MDIO bus driver for the Xilinx Axi Ethernet device
  *
  * Copyright (c) 2009 Secret Lab Technologies, Ltd.
- * Copyright (c) 2010 Xilinx, Inc. All rights reserved.
- * Copyright (c) 2012 Daniel Borkmann, <daniel.borkmann@tik.ee.ethz.ch>
- * Copyright (c) 2012 Ariane Keller, <ariane.keller@tik.ee.ethz.ch>
+ * Copyright (c) 2010 - 2011 Michal Simek <monstr@monstr.eu>
+ * Copyright (c) 2010 - 2011 PetaLogix
+ * Copyright (c) 2010 - 2012 Xilinx, Inc. All rights reserved.
  */
 
 #include <linux/of_address.h>

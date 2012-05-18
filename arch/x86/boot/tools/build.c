@@ -205,8 +205,13 @@ int main(int argc, char ** argv)
 	put_unaligned_le32(file_sz, &buf[pe_header + 0x50]);
 
 #ifdef CONFIG_X86_32
-	/* Address of entry point */
-	put_unaligned_le32(i, &buf[pe_header + 0x28]);
+	/*
+	 * Address of entry point.
+	 *
+	 * The EFI stub entry point is +16 bytes from the start of
+	 * the .text section.
+	 */
+	put_unaligned_le32(i + 16, &buf[pe_header + 0x28]);
 
 	/* .text size */
 	put_unaligned_le32(file_sz, &buf[pe_header + 0xb0]);
@@ -217,9 +222,11 @@ int main(int argc, char ** argv)
 	/*
 	 * Address of entry point. startup_32 is at the beginning and
 	 * the 64-bit entry point (startup_64) is always 512 bytes
-	 * after.
+	 * after. The EFI stub entry point is 16 bytes after that, as
+	 * the first instruction allows legacy loaders to jump over
+	 * the EFI stub initialisation
 	 */
-	put_unaligned_le32(i + 512, &buf[pe_header + 0x28]);
+	put_unaligned_le32(i + 528, &buf[pe_header + 0x28]);
 
 	/* .text size */
 	put_unaligned_le32(file_sz, &buf[pe_header + 0xc0]);

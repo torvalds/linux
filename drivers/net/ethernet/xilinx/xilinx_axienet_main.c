@@ -4,9 +4,9 @@
  * Copyright (c) 2008 Nissin Systems Co., Ltd.,  Yoshio Kashiwagi
  * Copyright (c) 2005-2008 DLA Systems,  David H. Lynch Jr. <dhlii@dlasys.net>
  * Copyright (c) 2008-2009 Secret Lab Technologies Ltd.
- * Copyright (c) 2010 Xilinx, Inc. All rights reserved.
- * Copyright (c) 2012 Daniel Borkmann, <daniel.borkmann@tik.ee.ethz.ch>
- * Copyright (c) 2012 Ariane Keller, <ariane.keller@tik.ee.ethz.ch>
+ * Copyright (c) 2010 - 2011 Michal Simek <monstr@monstr.eu>
+ * Copyright (c) 2010 - 2011 PetaLogix
+ * Copyright (c) 2010 - 2012 Xilinx, Inc. All rights reserved.
  *
  * This is a driver for the Xilinx Axi Ethernet which is used in the Virtex6
  * and Spartan6.
