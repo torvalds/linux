@@ -34,6 +34,8 @@ config ARM
 	select CPU_PM if (SUSPEND || CPU_IDLE)
 	select GENERIC_PCI_IOMAP
 	select HAVE_BPF_JIT if NET
+	select KTIME_SCALAR
+	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -56,22 +58,6 @@ config SYS_SUPPORTS_APM_EMULATION
 
 config GENERIC_GPIO
 	bool
-
-config ARCH_USES_GETTIMEOFFSET
-	bool
-	default n
-
-config GENERIC_CLOCKEVENTS
-	bool
-
-config GENERIC_CLOCKEVENTS_BROADCAST
-	bool
-	depends on GENERIC_CLOCKEVENTS
-	default y if SMP
-
-config KTIME_SCALAR
-	bool
-	default y
 
 config HAVE_TCM
 	bool
