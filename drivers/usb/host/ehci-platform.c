@@ -75,8 +75,6 @@ static const struct hc_driver ehci_platform_hc_driver = {
 	.relinquish_port	= ehci_relinquish_port,
 	.port_handed_over	= ehci_port_handed_over,
 
-	.update_device		= ehci_update_device,
-
 	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
 };
 
