@@ -805,9 +805,11 @@ static int ibm_configure_device(struct pci_func *func)
 		}
 	}
 	if (!(flag) && (func->dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)) {
+		int max;
 		pci_read_config_byte(func->dev, PCI_SECONDARY_BUS, &bus);
 		child = pci_add_new_bus(func->dev->bus, func->dev, bus);
-		pci_do_scan_bus(child);
+		max = pci_do_scan_bus(child);
+		pci_bus_update_busn_res_end(child, max);
 	}
 
 	return 0;
