@@ -26,6 +26,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/random.h>
 
 #define PRINT_PREF KERN_INFO "mtd_speedtest: "
 
@@ -47,25 +48,13 @@ static int ebcnt;
 static int pgcnt;
 static int goodebcnt;
 static struct timeval start, finish;
-static unsigned long next = 1;
-
-static inline unsigned int simple_rand(void)
-{
-	next = next * 1103515245 + 12345;
-	return (unsigned int)((next / 65536) % 32768);
-}
-
-static inline void simple_srand(unsigned long seed)
-{
-	next = seed;
-}
 
 static void set_random_data(unsigned char *buf, size_t len)
 {
 	size_t i;
 
 	for (i = 0; i < len; ++i)
-		buf[i] = simple_rand();
+		buf[i] = random32();
 }
 
 static int erase_eraseblock(int ebnum)
@@ -407,7 +396,6 @@ static int __init mtd_speedtest_init(void)
 		goto out;
 	}
 
-	simple_srand(1);
 	set_random_data(iobuf, mtd->erasesize);
 
 	err = scan_for_bad_eraseblocks();
