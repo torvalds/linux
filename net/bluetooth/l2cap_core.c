@@ -791,9 +791,11 @@ static inline void __unpack_control(struct l2cap_chan *chan,
 	if (test_bit(FLAG_EXT_CTRL, &chan->flags)) {
 		__unpack_extended_control(get_unaligned_le32(skb->data),
 					  &bt_cb(skb)->control);
+		skb_pull(skb, L2CAP_EXT_CTRL_SIZE);
 	} else {
 		__unpack_enhanced_control(get_unaligned_le16(skb->data),
 					  &bt_cb(skb)->control);
+		skb_pull(skb, L2CAP_ENH_CTRL_SIZE);
 	}
 }
 
@@ -4820,27 +4822,39 @@ static inline int l2cap_data_channel_sframe(struct l2cap_chan *chan, u32 rx_cont
 	return 0;
 }
 
-static int l2cap_ertm_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
+static int l2cap_rx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
+		    struct sk_buff *skb, u8 event)
 {
-	u32 control;
-	u16 req_seq;
-	int len, next_tx_seq_offset, req_seq_offset;
+	/* Placeholder */
+	return -ENOTSUPP;
+}
+
+static int l2cap_stream_rx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
+			   struct sk_buff *skb)
+{
+	/* Placeholder */
+	return -ENOTSUPP;
+}
+
+static int l2cap_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
+{
+	struct l2cap_ctrl *control = &bt_cb(skb)->control;
+	u16 len;
+	u8 event;
 
 	__unpack_control(chan, skb);
 
-	control = __get_control(chan, skb->data);
-	skb_pull(skb, __ctrl_size(chan));
 	len = skb->len;
 
 	/*
 	 * We can just drop the corrupted I-frame here.
 	 * Receiver will miss it and start proper recovery
-	 * procedures and ask retransmission.
+	 * procedures and ask for retransmission.
 	 */
 	if (l2cap_check_fcs(chan, skb))
 		goto drop;
 
-	if (__is_sar_start(chan, control) && !__is_sframe(chan, control))
+	if (!control->sframe && control->sar == L2CAP_SAR_START)
 		len -= L2CAP_SDULEN_SIZE;
 
 	if (chan->fcs == L2CAP_FCS_CRC16)
@@ -4851,34 +4865,57 @@ static int l2cap_ertm_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
 		goto drop;
 	}
 
-	req_seq = __get_reqseq(chan, control);
+	if (!control->sframe) {
+		int err;
 
-	req_seq_offset = __seq_offset(chan, req_seq, chan->expected_ack_seq);
+		BT_DBG("iframe sar %d, reqseq %d, final %d, txseq %d",
+		       control->sar, control->reqseq, control->final,
+		       control->txseq);
 
-	next_tx_seq_offset = __seq_offset(chan, chan->next_tx_seq,
-						chan->expected_ack_seq);
-
-	/* check for invalid req-seq */
-	if (req_seq_offset > next_tx_seq_offset) {
-		l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
-		goto drop;
-	}
-
-	if (!__is_sframe(chan, control)) {
-		if (len < 0) {
-			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
+		/* Validate F-bit - F=0 always valid, F=1 only
+		 * valid in TX WAIT_F
+		 */
+		if (control->final && chan->tx_state != L2CAP_TX_STATE_WAIT_F)
 			goto drop;
+
+		if (chan->mode != L2CAP_MODE_STREAMING) {
+			event = L2CAP_EV_RECV_IFRAME;
+			err = l2cap_rx(chan, control, skb, event);
+		} else {
+			err = l2cap_stream_rx(chan, control, skb);
 		}
 
-		l2cap_data_channel_iframe(chan, control, skb);
+		if (err)
+			l2cap_send_disconn_req(chan->conn, chan,
+					       ECONNRESET);
 	} else {
+		const u8 rx_func_to_event[4] = {
+			L2CAP_EV_RECV_RR, L2CAP_EV_RECV_REJ,
+			L2CAP_EV_RECV_RNR, L2CAP_EV_RECV_SREJ
+		};
+
+		/* Only I-frames are expected in streaming mode */
+		if (chan->mode == L2CAP_MODE_STREAMING)
+			goto drop;
+
+		BT_DBG("sframe reqseq %d, final %d, poll %d, super %d",
+		       control->reqseq, control->final, control->poll,
+		       control->super);
+
 		if (len != 0) {
 			BT_ERR("%d", len);
 			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
 			goto drop;
 		}
 
-		l2cap_data_channel_sframe(chan, control, skb);
+		/* Validate F and P bits */
+		if (control->final && (control->poll ||
+				       chan->tx_state != L2CAP_TX_STATE_WAIT_F))
+			goto drop;
+
+		event = rx_func_to_event[control->super];
+		if (l2cap_rx(chan, control, skb, event))
+			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
 	}
 
 	return 0;
@@ -4891,9 +4928,6 @@ drop:
 static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk_buff *skb)
 {
 	struct l2cap_chan *chan;
-	u32 control;
-	u16 tx_seq;
-	int len;
 
 	chan = l2cap_get_chan_by_scid(conn, cid);
 	if (!chan) {
@@ -4923,44 +4957,8 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		break;
 
 	case L2CAP_MODE_ERTM:
-		l2cap_ertm_data_rcv(chan, skb);
-
-		goto done;
-
 	case L2CAP_MODE_STREAMING:
-		control = __get_control(chan, skb->data);
-		skb_pull(skb, __ctrl_size(chan));
-		len = skb->len;
-
-		if (l2cap_check_fcs(chan, skb))
-			goto drop;
-
-		if (__is_sar_start(chan, control))
-			len -= L2CAP_SDULEN_SIZE;
-
-		if (chan->fcs == L2CAP_FCS_CRC16)
-			len -= L2CAP_FCS_SIZE;
-
-		if (len > chan->mps || len < 0 || __is_sframe(chan, control))
-			goto drop;
-
-		tx_seq = __get_txseq(chan, control);
-
-		if (chan->expected_tx_seq != tx_seq) {
-			/* Frame(s) missing - must discard partial SDU */
-			kfree_skb(chan->sdu);
-			chan->sdu = NULL;
-			chan->sdu_last_frag = NULL;
-			chan->sdu_len = 0;
-
-			/* TODO: Notify userland of missing data */
-		}
-
-		chan->expected_tx_seq = __next_seq(chan, tx_seq);
-
-		if (l2cap_reassemble_sdu(chan, skb, control) == -EMSGSIZE)
-			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
-
+		l2cap_data_rcv(chan, skb);
 		goto done;
 
 	default:
