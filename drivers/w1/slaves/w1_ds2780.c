@@ -60,29 +60,15 @@ int w1_ds2780_io(struct device *dev, char *buf, int addr, size_t count,
 	if (!dev)
 		return -ENODEV;
 
-	mutex_lock(&sl->master->mutex);
+	mutex_lock(&sl->master->bus_mutex);
 
 	ret = w1_ds2780_do_io(dev, buf, addr, count, io);
 
-	mutex_unlock(&sl->master->mutex);
+	mutex_unlock(&sl->master->bus_mutex);
 
 	return ret;
 }
 EXPORT_SYMBOL(w1_ds2780_io);
-
-int w1_ds2780_io_nolock(struct device *dev, char *buf, int addr, size_t count,
-			int io)
-{
-	int ret;
-
-	if (!dev)
-		return -ENODEV;
-
-	ret = w1_ds2780_do_io(dev, buf, addr, count, io);
-
-	return ret;
-}
-EXPORT_SYMBOL(w1_ds2780_io_nolock);
 
 int w1_ds2780_eeprom_cmd(struct device *dev, int addr, int cmd)
 {
@@ -91,14 +77,14 @@ int w1_ds2780_eeprom_cmd(struct device *dev, int addr, int cmd)
 	if (!dev)
 		return -EINVAL;
 
-	mutex_lock(&sl->master->mutex);
+	mutex_lock(&sl->master->bus_mutex);
 
 	if (w1_reset_select_slave(sl) == 0) {
 		w1_write_8(sl->master, cmd);
 		w1_write_8(sl->master, addr);
 	}
 
-	mutex_unlock(&sl->master->mutex);
+	mutex_unlock(&sl->master->bus_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(w1_ds2780_eeprom_cmd);

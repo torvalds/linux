@@ -66,7 +66,7 @@ static ssize_t w1_counter_read(struct device *device,
 	wrbuf[0]	= 0xA5;
 	wrbuf[1]	= rom_addr & 0xFF;
 	wrbuf[2]	= rom_addr >> 8;
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->bus_mutex);
 	if (!w1_reset_select_slave(sl)) {
 		w1_write_block(dev, wrbuf, 3);
 		read_byte_count = 0;
@@ -124,7 +124,7 @@ static ssize_t w1_counter_read(struct device *device,
 	} else {
 		c -= snprintf(out_buf + PAGE_SIZE - c, c, "Connection error");
 	}
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->bus_mutex);
 	return PAGE_SIZE - c;
 }
 

@@ -52,11 +52,11 @@ static int _read_reg(struct w1_slave *sl, u8 address, unsigned char* buf)
 	if (!buf)
 		return -EINVAL;
 
-	mutex_lock(&sl->master->mutex);
+	mutex_lock(&sl->master->bus_mutex);
 	dev_dbg(&sl->dev, "mutex locked");
 
 	if (w1_reset_select_slave(sl)) {
-		mutex_unlock(&sl->master->mutex);
+		mutex_unlock(&sl->master->bus_mutex);
 		return -EIO;
 	}
 
@@ -66,7 +66,7 @@ static int _read_reg(struct w1_slave *sl, u8 address, unsigned char* buf)
 	w1_write_block(sl->master, wrbuf, 3);
 	*buf = w1_read_8(sl->master);
 
-	mutex_unlock(&sl->master->mutex);
+	mutex_unlock(&sl->master->bus_mutex);
 	dev_dbg(&sl->dev, "mutex unlocked");
 	return 1;
 }
@@ -165,7 +165,7 @@ static ssize_t w1_f29_write_output(
 		return -EFAULT;
 
 	dev_dbg(&sl->dev, "locking mutex for write_output");
-	mutex_lock(&sl->master->mutex);
+	mutex_lock(&sl->master->bus_mutex);
 	dev_dbg(&sl->dev, "mutex locked");
 
 	if (w1_reset_select_slave(sl))
@@ -200,14 +200,14 @@ static ssize_t w1_f29_write_output(
 		/* read the result of the READ_PIO_REGS command */
 		if (w1_read_8(sl->master) == *buf) {
 			/* success! */
-			mutex_unlock(&sl->master->mutex);
+			mutex_unlock(&sl->master->bus_mutex);
 			dev_dbg(&sl->dev,
 				"mutex unlocked, retries:%d", retries);
 			return 1;
 		}
 	}
 error:
-	mutex_unlock(&sl->master->mutex);
+	mutex_unlock(&sl->master->bus_mutex);
 	dev_dbg(&sl->dev, "mutex unlocked in error, retries:%d", retries);
 
 	return -EIO;
@@ -228,7 +228,7 @@ static ssize_t w1_f29_write_activity(
 	if (count != 1 || off != 0)
 		return -EFAULT;
 
-	mutex_lock(&sl->master->mutex);
+	mutex_lock(&sl->master->bus_mutex);
 
 	if (w1_reset_select_slave(sl))
 		goto error;
@@ -236,7 +236,7 @@ static ssize_t w1_f29_write_activity(
 	while (retries--) {
 		w1_write_8(sl->master, W1_F29_FUNC_RESET_ACTIVITY_LATCHES);
 		if (w1_read_8(sl->master) == W1_F29_SUCCESS_CONFIRM_BYTE) {
-			mutex_unlock(&sl->master->mutex);
+			mutex_unlock(&sl->master->bus_mutex);
 			return 1;
 		}
 		if (w1_reset_resume_command(sl->master))
@@ -244,7 +244,7 @@ static ssize_t w1_f29_write_activity(
 	}
 
 error:
-	mutex_unlock(&sl->master->mutex);
+	mutex_unlock(&sl->master->bus_mutex);
 	return -EIO;
 }
 
@@ -263,7 +263,7 @@ static ssize_t w1_f29_write_status_control(
 	if (count != 1 || off != 0)
 		return -EFAULT;
 
-	mutex_lock(&sl->master->mutex);
+	mutex_lock(&sl->master->bus_mutex);
 
 	if (w1_reset_select_slave(sl))
 		goto error;
@@ -285,12 +285,12 @@ static ssize_t w1_f29_write_status_control(
 		w1_write_block(sl->master, w1_buf, 3);
 		if (w1_read_8(sl->master) == *buf) {
 			/* success! */
-			mutex_unlock(&sl->master->mutex);
+			mutex_unlock(&sl->master->bus_mutex);
 			return 1;
 		}
 	}
 error:
-	mutex_unlock(&sl->master->mutex);
+	mutex_unlock(&sl->master->bus_mutex);
 
 	return -EIO;
 }

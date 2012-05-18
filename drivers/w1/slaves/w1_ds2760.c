@@ -31,7 +31,7 @@ static int w1_ds2760_io(struct device *dev, char *buf, int addr, size_t count,
 	if (!dev)
 		return 0;
 
-	mutex_lock(&sl->master->mutex);
+	mutex_lock(&sl->master->bus_mutex);
 
 	if (addr > DS2760_DATA_SIZE || addr < 0) {
 		count = 0;
@@ -54,7 +54,7 @@ static int w1_ds2760_io(struct device *dev, char *buf, int addr, size_t count,
 	}
 
 out:
-	mutex_unlock(&sl->master->mutex);
+	mutex_unlock(&sl->master->bus_mutex);
 
 	return count;
 }
@@ -76,14 +76,14 @@ static int w1_ds2760_eeprom_cmd(struct device *dev, int addr, int cmd)
 	if (!dev)
 		return -EINVAL;
 
-	mutex_lock(&sl->master->mutex);
+	mutex_lock(&sl->master->bus_mutex);
 
 	if (w1_reset_select_slave(sl) == 0) {
 		w1_write_8(sl->master, cmd);
 		w1_write_8(sl->master, addr);
 	}
 
-	mutex_unlock(&sl->master->mutex);
+	mutex_unlock(&sl->master->bus_mutex);
 	return 0;
 }
 

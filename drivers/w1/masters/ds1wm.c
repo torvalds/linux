@@ -334,7 +334,9 @@ static void ds1wm_search(void *data, struct w1_master *master_dev,
 			return;
 		}
 
+		mutex_lock(&master_dev->bus_mutex);
 		if (ds1wm_reset(ds1wm_data)) {
+			mutex_unlock(&master_dev->bus_mutex);
 			dev_dbg(&ds1wm_data->pdev->dev,
 				"pass: %d reset error (or no slaves)\n", pass);
 			break;
@@ -387,6 +389,7 @@ static void ds1wm_search(void *data, struct w1_master *master_dev,
 
 		}
 		if (ds1wm_data->read_error) {
+			mutex_unlock(&master_dev->bus_mutex);
 			dev_err(&ds1wm_data->pdev->dev,
 				"pass: %d read error, retrying\n", pass);
 			break;
@@ -400,6 +403,7 @@ static void ds1wm_search(void *data, struct w1_master *master_dev,
 		dev_dbg(&ds1wm_data->pdev->dev,
 			"pass: %d resetting bus\n", pass);
 		ds1wm_reset(ds1wm_data);
+		mutex_unlock(&master_dev->bus_mutex);
 		if ((r_prime & ((u64)1 << 63)) && (d & ((u64)1 << 63))) {
 			dev_err(&ds1wm_data->pdev->dev,
 				"pass: %d bus error, retrying\n", pass);

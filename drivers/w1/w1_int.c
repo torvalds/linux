@@ -76,6 +76,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 
 	INIT_LIST_HEAD(&dev->slist);
 	mutex_init(&dev->mutex);
+	mutex_init(&dev->bus_mutex);
 
 	memcpy(&dev->dev, device, sizeof(struct device));
 	dev_set_name(&dev->dev, "w1_bus_master%u", dev->id);
