@@ -348,7 +348,7 @@ static int ndisc_constructor(struct neighbour *neigh)
 	struct net_device *dev = neigh->dev;
 	struct inet6_dev *in6_dev;
 	struct neigh_parms *parms;
-	int is_multicast = ipv6_addr_is_multicast(addr);
+	bool is_multicast = ipv6_addr_is_multicast(addr);
 
 	in6_dev = in6_dev_get(dev);
 	if (in6_dev == NULL) {
@@ -725,7 +725,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 	struct inet6_dev *idev = NULL;
 	struct neighbour *neigh;
 	int dad = ipv6_addr_any(saddr);
-	int inc;
+	bool inc;
 	int is_router = -1;
 
 	if (ipv6_addr_is_multicast(&msg->target)) {

@@ -9,7 +9,7 @@
  * find out if nexthdr is a well-known extension header or a protocol
  */
 
-int ipv6_ext_hdr(u8 nexthdr)
+bool ipv6_ext_hdr(u8 nexthdr)
 {
 	/*
 	 * find out if nexthdr is an extension header or a protocol

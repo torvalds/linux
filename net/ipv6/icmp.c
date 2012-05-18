@@ -131,7 +131,7 @@ void icmpv6_param_prob(struct sk_buff *skb, u8 code, int pos)
  *	--ANK (980726)
  */
 
-static int is_ineligible(struct sk_buff *skb)
+static bool is_ineligible(const struct sk_buff *skb)
 {
 	int ptr = (u8 *)(ipv6_hdr(skb) + 1) - skb->data;
 	int len = skb->len - ptr;
@@ -139,11 +139,11 @@ static int is_ineligible(struct sk_buff *skb)
 	__be16 frag_off;
 
 	if (len < 0)
-		return 1;
+		return true;
 
 	ptr = ipv6_skip_exthdr(skb, ptr, &nexthdr, &frag_off);
 	if (ptr < 0)
-		return 0;
+		return false;
 	if (nexthdr == IPPROTO_ICMPV6) {
 		u8 _type, *tp;
 		tp = skb_header_pointer(skb,
@@ -151,9 +151,9 @@ static int is_ineligible(struct sk_buff *skb)
 			sizeof(_type), &_type);
 		if (tp == NULL ||
 		    !(*tp & ICMPV6_INFOMSG_MASK))
-			return 1;
+			return true;
 	}
-	return 0;
+	return false;
 }
 
 /*
@@ -208,14 +208,14 @@ static inline bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
  *	highest-order two bits set to 10
  */
 
-static __inline__ int opt_unrec(struct sk_buff *skb, __u32 offset)
+static bool opt_unrec(struct sk_buff *skb, __u32 offset)
 {
 	u8 _optval, *op;
 
 	offset += skb_network_offset(skb);
 	op = skb_header_pointer(skb, offset, sizeof(_optval), &_optval);
 	if (op == NULL)
-		return 1;
+		return true;
 	return (*op & 0xC0) == 0x80;
 }
 

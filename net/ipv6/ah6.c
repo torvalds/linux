@@ -113,7 +113,7 @@ static inline struct scatterlist *ah_req_sg(struct crypto_ahash *ahash,
 			     __alignof__(struct scatterlist));
 }
 
-static int zero_out_mutable_opts(struct ipv6_opt_hdr *opthdr)
+static bool zero_out_mutable_opts(struct ipv6_opt_hdr *opthdr)
 {
 	u8 *opt = (u8 *)opthdr;
 	int len = ipv6_optlen(opthdr);
@@ -145,10 +145,10 @@ static int zero_out_mutable_opts(struct ipv6_opt_hdr *opthdr)
 		len -= optlen;
 	}
 	if (len == 0)
-		return 1;
+		return true;
 
 bad:
-	return 0;
+	return false;
 }
 
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
