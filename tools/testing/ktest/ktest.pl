@@ -66,6 +66,7 @@ my %default = (
 
 my $ktest_config;
 my $version;
+my $have_version = 0;
 my $machine;
 my $ssh_user;
 my $tmpdir;
@@ -1702,10 +1703,12 @@ sub install {
 
 sub get_version {
     # get the release name
+    return if ($have_version);
     doprint "$make kernelrelease ... ";
     $version = `$make kernelrelease | tail -1`;
     chomp($version);
     doprint "$version\n";
+    $have_version = 1;
 }
 
 sub start_monitor_and_boot {
@@ -1828,6 +1831,9 @@ sub build {
     my $save_no_reboot = $no_reboot;
     $no_reboot = 1;
 
+    # Calculate a new version from here.
+    $have_version = 0;
+
     if (defined($pre_build)) {
 	my $ret = run_command $pre_build;
 	if (!$ret && defined($pre_build_die) &&
@@ -1887,6 +1893,9 @@ sub build {
     undef $redirect;
 
     if (defined($post_build)) {
+	# Because a post build may change the kernel version
+	# do it now.
+	get_version;
 	my $ret = run_command $post_build;
 	if (!$ret && defined($post_build_die) &&
 	    $post_build_die) {
@@ -3473,6 +3482,8 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     # Do not reboot on failing test options
     $no_reboot = 1;
     $reboot_success = 0;
+
+    $have_version = 0;
 
     $iteration = $i;
 
