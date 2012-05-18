@@ -213,21 +213,6 @@ static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
 	fps = div64_u64(1000000000000llu,ft);
 	screen->ft = 1000/fps;
     	printk("%s: dclk:%lu>>fps:%d ",lcdc_dev->driver.name,clk_get_rate(lcdc_dev->dclk),fps);
-    	if(initscreen)
-    	{
-        	if(screen->lcdc_aclk)
-		{
-			ret = clk_set_rate(lcdc_dev->aclk, screen->lcdc_aclk);
-			if(ret)
-			{
-           	 		printk(KERN_ERR ">>>>>> set lcdc%d aclk  rate failed\n",lcdc_dev->id);
-        		}
-			
-        		clk_enable(lcdc_dev->aclk);
-			printk("aclk:%lu\n",clk_get_rate(lcdc_dev->aclk));
-        	}
-        	
-	}
 
     	if(screen->init)
     	{
