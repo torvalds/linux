@@ -432,6 +432,13 @@ config DVB_RTL2830
 	help
 	  Say Y when you want to support this frontend.
 
+config DVB_RTL2832
+	tristate "Realtek RTL2832 DVB-T"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Say Y when you want to support this frontend.
+
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
 
