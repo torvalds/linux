@@ -160,7 +160,7 @@ int32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
     }
     else
     {
-        dah = msg->dst.act_h;
+        dah = msg->src.act_h;
     }
     
     msg->dst.act_h = dah;
