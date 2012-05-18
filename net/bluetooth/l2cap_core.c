@@ -1643,17 +1643,14 @@ static void l2cap_monitor_timeout(struct work_struct *work)
 
 	l2cap_chan_lock(chan);
 
-	if (chan->retry_count >= chan->remote_max_tx) {
-		l2cap_send_disconn_req(chan->conn, chan, ECONNABORTED);
+	if (!chan->conn) {
 		l2cap_chan_unlock(chan);
 		l2cap_chan_put(chan);
 		return;
 	}
 
-	chan->retry_count++;
-	__set_monitor_timer(chan);
+	l2cap_tx(chan, 0, 0, L2CAP_EV_MONITOR_TO);
 
-	l2cap_send_rr_or_rnr(chan, L2CAP_CTRL_POLL);
 	l2cap_chan_unlock(chan);
 	l2cap_chan_put(chan);
 }
@@ -1667,13 +1664,13 @@ static void l2cap_retrans_timeout(struct work_struct *work)
 
 	l2cap_chan_lock(chan);
 
-	chan->retry_count = 1;
-	__set_monitor_timer(chan);
+	if (!chan->conn) {
+		l2cap_chan_unlock(chan);
+		l2cap_chan_put(chan);
+		return;
+	}
 
-	set_bit(CONN_WAIT_F, &chan->conn_state);
-
-	l2cap_send_rr_or_rnr(chan, L2CAP_CTRL_POLL);
-
+	l2cap_tx(chan, 0, 0, L2CAP_EV_RETRANS_TO);
 	l2cap_chan_unlock(chan);
 	l2cap_chan_put(chan);
 }
