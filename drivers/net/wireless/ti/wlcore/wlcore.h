@@ -378,6 +378,9 @@ struct wl1271 {
 
 	/* the current channel type */
 	enum nl80211_channel_type channel_type;
+
+	/* mutex for protecting the tx_flush function */
+	struct mutex flush_mutex;
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);

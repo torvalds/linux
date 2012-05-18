@@ -187,6 +187,7 @@ struct wl1271_tx_hw_res_if {
 enum wlcore_queue_stop_reason {
 	WLCORE_QUEUE_STOP_REASON_WATERMARK,
 	WLCORE_QUEUE_STOP_REASON_FW_RESTART,
+	WLCORE_QUEUE_STOP_REASON_FLUSH,
 };
 
 static inline int wl1271_tx_get_queue(int queue)

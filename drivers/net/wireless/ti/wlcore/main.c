@@ -5148,6 +5148,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size)
 	wl->state = WL1271_STATE_OFF;
 	wl->fw_type = WL12XX_FW_TYPE_NONE;
 	mutex_init(&wl->mutex);
+	mutex_init(&wl->flush_mutex);
 
 	order = get_order(WL1271_AGGR_BUFFER_SIZE);
 	wl->aggr_buf = (u8 *)__get_free_pages(GFP_KERNEL, order);
