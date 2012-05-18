@@ -474,8 +474,29 @@ static int rtl2830_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 static int rtl2830_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
-	*strength = 0;
+	struct rtl2830_priv *priv = fe->demodulator_priv;
+	int ret;
+	u8 buf[2];
+	u16 if_agc_raw, if_agc;
+
+	ret = rtl2830_rd_regs(priv, 0x359, buf, 2);
+	if (ret)
+		goto err;
+
+	if_agc_raw = (buf[0] << 8 | buf[1]) & 0x3fff;
+
+	if (if_agc_raw & (1 << 9))
+		if_agc = -(~(if_agc_raw - 1) & 0x1ff);
+	else
+		if_agc = if_agc_raw;
+
+	*strength = (u8) (55 - if_agc / 182);
+	*strength |= *strength << 8;
+
 	return 0;
+err:
+	dbg("%s: failed=%d", __func__, ret);
+	return ret;
 }
 
 static struct dvb_frontend_ops rtl2830_ops;
