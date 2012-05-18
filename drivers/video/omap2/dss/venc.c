@@ -415,6 +415,7 @@ static const struct venc_config *venc_timings_to_config(
 		return &venc_config_ntsc_trm;
 
 	BUG();
+	return NULL;
 }
 
 static int venc_power_on(struct omap_dss_device *dssdev)

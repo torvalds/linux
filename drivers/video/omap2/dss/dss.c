@@ -325,6 +325,7 @@ void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
 		break;
 	default:
 		BUG();
+		return;
 	}
 
 	dss_feat_get_reg_field(FEAT_REG_DISPC_CLK_SWITCH, &start, &end);
@@ -358,6 +359,7 @@ void dss_select_dsi_clk_source(int dsi_module,
 		break;
 	default:
 		BUG();
+		return;
 	}
 
 	pos = dsi_module == 0 ? 1 : 10;
@@ -393,6 +395,7 @@ void dss_select_lcd_clk_source(enum omap_channel channel,
 		break;
 	default:
 		BUG();
+		return;
 	}
 
 	pos = channel == OMAP_DSS_CHANNEL_LCD ? 0 : 12;

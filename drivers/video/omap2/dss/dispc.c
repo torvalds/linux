@@ -407,6 +407,7 @@ u32 dispc_mgr_get_vsync_irq(enum omap_channel channel)
 		return DISPC_IRQ_EVSYNC_ODD | DISPC_IRQ_EVSYNC_EVEN;
 	default:
 		BUG();
+		return 0;
 	}
 }
 
@@ -421,6 +422,7 @@ u32 dispc_mgr_get_framedone_irq(enum omap_channel channel)
 		return 0;
 	default:
 		BUG();
+		return 0;
 	}
 }
 
@@ -739,7 +741,7 @@ static void dispc_ovl_set_color_mode(enum omap_plane plane,
 		case OMAP_DSS_COLOR_XRGB16_1555:
 			m = 0xf; break;
 		default:
-			BUG(); break;
+			BUG(); return;
 		}
 	} else {
 		switch (color_mode) {
@@ -776,7 +778,7 @@ static void dispc_ovl_set_color_mode(enum omap_plane plane,
 		case OMAP_DSS_COLOR_XRGB16_1555:
 			m = 0xf; break;
 		default:
-			BUG(); break;
+			BUG(); return;
 		}
 	}
 
@@ -820,6 +822,7 @@ void dispc_ovl_set_channel_out(enum omap_plane plane, enum omap_channel channel)
 			break;
 		default:
 			BUG();
+			return;
 		}
 
 		val = FLD_MOD(val, chan, shift, shift);
@@ -847,6 +850,7 @@ static enum omap_channel dispc_ovl_get_channel_out(enum omap_plane plane)
 		break;
 	default:
 		BUG();
+		return 0;
 	}
 
 	val = dispc_read_reg(DISPC_OVL_ATTRIBUTES(plane));
@@ -1209,6 +1213,7 @@ static void dispc_ovl_set_accu_uv(enum omap_plane plane,
 		break;
 	default:
 		BUG();
+		return;
 	}
 
 	switch (color_mode) {
@@ -1224,6 +1229,7 @@ static void dispc_ovl_set_accu_uv(enum omap_plane plane,
 		break;
 	default:
 		BUG();
+		return;
 	}
 
 	accu_val = &accu_table[idx];
@@ -1339,6 +1345,7 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane plane,
 		break;
 	default:
 		BUG();
+		return;
 	}
 
 	if (out_width != orig_width)
@@ -1466,6 +1473,7 @@ static int color_mode_to_bpp(enum omap_color_mode color_mode)
 		return 32;
 	default:
 		BUG();
+		return 0;
 	}
 }
 
@@ -1479,6 +1487,7 @@ static s32 pixinc(int pixels, u8 ps)
 		return 1 - (-pixels + 1) * ps;
 	else
 		BUG();
+		return 0;
 }
 
 static void calc_vrfb_rotation_offset(u8 rotation, bool mirror,
@@ -1562,6 +1571,7 @@ static void calc_vrfb_rotation_offset(u8 rotation, bool mirror,
 
 	default:
 		BUG();
+		return;
 	}
 }
 
@@ -1717,6 +1727,7 @@ static void calc_dma_rotation_offset(u8 rotation, bool mirror,
 
 	default:
 		BUG();
+		return;
 	}
 }
 
@@ -2106,6 +2117,11 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	if (fieldmode)
 		field_offset = 1;
 
+	offset0 = 0;
+	offset1 = 0;
+	row_inc = 0;
+	pix_inc = 0;
+
 	if (oi->rotation_type == OMAP_DSS_ROT_DMA)
 		calc_dma_rotation_offset(oi->rotation, oi->mirror,
 				oi->screen_width, in_width, frame_height,
@@ -2316,8 +2332,10 @@ bool dispc_mgr_is_enabled(enum omap_channel channel)
 		return !!REG_GET(DISPC_CONTROL, 1, 1);
 	else if (channel == OMAP_DSS_CHANNEL_LCD2)
 		return !!REG_GET(DISPC_CONTROL2, 0, 0);
-	else
+	else {
 		BUG();
+		return false;
+	}
 }
 
 void dispc_mgr_enable(enum omap_channel channel, bool enable)
@@ -2593,8 +2611,10 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 	DSSDBG("channel %d xres %u yres %u\n", channel, timings->x_res,
 			timings->y_res);
 
-	if (!dispc_mgr_timings_ok(channel, timings))
+	if (!dispc_mgr_timings_ok(channel, timings)) {
 		BUG();
+		return;
+	}
 
 	if (dispc_mgr_is_lcd(channel)) {
 		_dispc_mgr_set_lcd_timings(channel, timings->hsw, timings->hfp,
@@ -2658,6 +2678,7 @@ unsigned long dispc_fclk_rate(void)
 		break;
 	default:
 		BUG();
+		return 0;
 	}
 
 	return r;
@@ -2688,6 +2709,7 @@ unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 		break;
 	default:
 		BUG();
+		return 0;
 	}
 
 	return r / lcd;
@@ -2720,6 +2742,7 @@ unsigned long dispc_mgr_pclk_rate(enum omap_channel channel)
 			return hdmi_get_pixel_clock();
 		default:
 			BUG();
+			return 0;
 		}
 	}
 }

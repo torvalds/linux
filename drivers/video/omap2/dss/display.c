@@ -304,6 +304,7 @@ int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
 		return 24;
 	default:
 		BUG();
+		return 0;
 	}
 }
 EXPORT_SYMBOL(omapdss_default_get_recommended_bpp);
@@ -347,6 +348,7 @@ bool dss_use_replication(struct omap_dss_device *dssdev,
 		break;
 	default:
 		BUG();
+		return false;
 	}
 
 	return bpp > 16;

@@ -446,6 +446,7 @@ u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
 		return 16;
 	default:
 		BUG();
+		return 0;
 	}
 }
 
@@ -2003,6 +2004,7 @@ static unsigned dsi_get_line_buf_size(struct platform_device *dsidev)
 		return 1365 * 3;	/* 1365x24 bits */
 	default:
 		BUG();
+		return 0;
 	}
 }
 
@@ -2415,6 +2417,7 @@ static void dsi_config_tx_fifo(struct platform_device *dsidev,
 		if (add + size > 4) {
 			DSSERR("Illegal FIFO configuration\n");
 			BUG();
+			return;
 		}
 
 		v = FLD_VAL(add, 2, 0) | FLD_VAL(size, 7, 4);
@@ -2447,6 +2450,7 @@ static void dsi_config_rx_fifo(struct platform_device *dsidev,
 		if (add + size > 4) {
 			DSSERR("Illegal FIFO configuration\n");
 			BUG();
+			return;
 		}
 
 		v = FLD_VAL(add, 2, 0) | FLD_VAL(size, 7, 4);
@@ -2588,6 +2592,7 @@ static int dsi_sync_vc(struct platform_device *dsidev, int channel)
 		return dsi_sync_vc_l4(dsidev, channel);
 	default:
 		BUG();
+		return -EINVAL;
 	}
 }
 
@@ -3156,6 +3161,7 @@ static int dsi_vc_generic_send_read_request(struct omap_dss_device *dssdev,
 		data = reqdata[0] | (reqdata[1] << 8);
 	} else {
 		BUG();
+		return -EINVAL;
 	}
 
 	r = dsi_vc_send_short(dsidev, channel, data_type, data, 0);
@@ -3270,7 +3276,6 @@ static int dsi_vc_read_rx_fifo(struct platform_device *dsidev, int channel,
 		goto err;
 	}
 
-	BUG();
 err:
 	DSSERR("dsi_vc_read_rx_fifo(ch %d type %s) failed\n", channel,
 		type == DSS_DSI_CONTENT_GENERIC ? "GENERIC" : "DCS");
@@ -3879,6 +3884,7 @@ static int dsi_proto_config(struct omap_dss_device *dssdev)
 		break;
 	default:
 		BUG();
+		return -EINVAL;
 	}
 
 	r = dsi_read_reg(dsidev, DSI_CTRL);
@@ -4119,6 +4125,7 @@ int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 			break;
 		default:
 			BUG();
+			return -EINVAL;
 		};
 
 		dsi_if_enable(dsidev, false);
