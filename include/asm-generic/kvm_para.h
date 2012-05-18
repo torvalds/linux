@@ -1,6 +1,7 @@
 #ifndef _ASM_GENERIC_KVM_PARA_H
 #define _ASM_GENERIC_KVM_PARA_H
 
+#ifdef __KERNEL__
 
 /*
  * This function is used by architectures that support kvm to avoid issuing
@@ -15,5 +16,7 @@ static inline unsigned int kvm_arch_para_features(void)
 {
 	return 0;
 }
+
+#endif	/* _KERNEL__ */
 
 #endif
