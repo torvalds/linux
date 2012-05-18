@@ -24,6 +24,7 @@
 #include <asm/ipl.h>
 #include <asm/diag.h>
 #include <asm/asm-offsets.h>
+#include <asm/os_info.h>
 
 typedef void (*relocate_kernel_t)(kimage_entry_t *, unsigned long);
 
@@ -114,8 +115,13 @@ static void crash_map_pages(int enable)
 	       size % KEXEC_CRASH_MEM_ALIGN);
 	if (enable)
 		vmem_add_mapping(crashk_res.start, size);
-	else
+	else {
 		vmem_remove_mapping(crashk_res.start, size);
+		if (size)
+			os_info_crashkernel_add(crashk_res.start, size);
+		else
+			os_info_crashkernel_add(0, 0);
+	}
 }
 
 /*
