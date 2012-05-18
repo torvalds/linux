@@ -1232,7 +1232,9 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 
-	return fsi_hw_startup(fsi, fsi_stream_get(fsi, substream), dai->dev);
+	fsi->rate = 0;
+
+	return 0;
 }
 
 static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
@@ -1240,7 +1242,6 @@ static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 
-	fsi_hw_shutdown(fsi, dai->dev);
 	fsi->rate = 0;
 }
 
@@ -1254,11 +1255,13 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		fsi_stream_init(fsi, io, substream);
+		fsi_hw_startup(fsi, io, dai->dev);
 		ret = fsi_stream_transfer(io);
 		if (0 == ret)
 			fsi_stream_start(fsi, io);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+		fsi_hw_shutdown(fsi, dai->dev);
 		fsi_stream_stop(fsi, io);
 		fsi_stream_quit(fsi, io);
 		break;
