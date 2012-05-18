@@ -2239,17 +2239,67 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 
 static void l2cap_send_srej(struct l2cap_chan *chan, u16 txseq)
 {
-	/* Placeholder */
+	struct l2cap_ctrl control;
+	u16 seq;
+
+	BT_DBG("chan %p, txseq %d", chan, txseq);
+
+	memset(&control, 0, sizeof(control));
+	control.sframe = 1;
+	control.super = L2CAP_SUPER_SREJ;
+
+	for (seq = chan->expected_tx_seq; seq != txseq;
+	     seq = __next_seq(chan, seq)) {
+		if (!l2cap_ertm_seq_in_queue(&chan->srej_q, seq)) {
+			control.reqseq = seq;
+			l2cap_send_sframe(chan, &control);
+			l2cap_seq_list_append(&chan->srej_list, seq);
+		}
+	}
+
+	chan->expected_tx_seq = __next_seq(chan, txseq);
 }
 
 static void l2cap_send_srej_tail(struct l2cap_chan *chan)
 {
-	/* Placeholder */
+	struct l2cap_ctrl control;
+
+	BT_DBG("chan %p", chan);
+
+	if (chan->srej_list.tail == L2CAP_SEQ_LIST_CLEAR)
+		return;
+
+	memset(&control, 0, sizeof(control));
+	control.sframe = 1;
+	control.super = L2CAP_SUPER_SREJ;
+	control.reqseq = chan->srej_list.tail;
+	l2cap_send_sframe(chan, &control);
 }
 
 static void l2cap_send_srej_list(struct l2cap_chan *chan, u16 txseq)
 {
-	/* Placeholder */
+	struct l2cap_ctrl control;
+	u16 initial_head;
+	u16 seq;
+
+	BT_DBG("chan %p, txseq %d", chan, txseq);
+
+	memset(&control, 0, sizeof(control));
+	control.sframe = 1;
+	control.super = L2CAP_SUPER_SREJ;
+
+	/* Capture initial list head to allow only one pass through the list. */
+	initial_head = chan->srej_list.head;
+
+	do {
+		seq = l2cap_seq_list_pop(&chan->srej_list);
+		if (seq == txseq || seq == L2CAP_SEQ_LIST_CLEAR)
+			break;
+
+		control.reqseq = seq;
+		l2cap_send_sframe(chan, &control);
+		l2cap_seq_list_append(&chan->srej_list, seq);
+	} while (chan->srej_list.head != initial_head);
 }
 
 static void l2cap_process_reqseq(struct l2cap_chan *chan, u16 reqseq)
