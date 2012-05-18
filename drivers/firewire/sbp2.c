@@ -1296,10 +1296,7 @@ static struct fw_driver sbp2_driver = {
 static void sbp2_unmap_scatterlist(struct device *card_device,
 				   struct sbp2_command_orb *orb)
 {
-	if (scsi_sg_count(orb->cmd))
-		dma_unmap_sg(card_device, scsi_sglist(orb->cmd),
-			     scsi_sg_count(orb->cmd),
-			     orb->cmd->sc_data_direction);
+	scsi_dma_unmap(orb->cmd);
 
 	if (orb->request.misc & cpu_to_be32(COMMAND_ORB_PAGE_TABLE_PRESENT))
 		dma_unmap_single(card_device, orb->page_table_bus,
@@ -1405,9 +1402,8 @@ static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
 	struct scatterlist *sg = scsi_sglist(orb->cmd);
 	int i, n;
 
-	n = dma_map_sg(device->card->device, sg, scsi_sg_count(orb->cmd),
-		       orb->cmd->sc_data_direction);
-	if (n == 0)
+	n = scsi_dma_map(orb->cmd);
+	if (n <= 0)
 		goto fail;
 
 	/*
@@ -1453,8 +1449,7 @@ static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
 	return 0;
 
  fail_page_table:
-	dma_unmap_sg(device->card->device, scsi_sglist(orb->cmd),
-		     scsi_sg_count(orb->cmd), orb->cmd->sc_data_direction);
+	scsi_dma_unmap(orb->cmd);
  fail:
 	return -ENOMEM;
 }
