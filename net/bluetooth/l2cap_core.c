@@ -73,6 +73,9 @@ static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data);
 static void l2cap_send_disconn_req(struct l2cap_conn *conn,
 				   struct l2cap_chan *chan, int err);
 
+static int l2cap_tx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
+		    struct sk_buff_head *skbs, u8 event);
+
 /* ---- L2CAP channels ---- */
 
 static struct l2cap_chan *__l2cap_get_chan_by_dcid(struct l2cap_conn *conn, u16 cid)
@@ -222,6 +225,19 @@ static inline void l2cap_chan_set_err(struct l2cap_chan *chan, int err)
 	lock_sock(sk);
 	__l2cap_chan_set_err(chan, err);
 	release_sock(sk);
+}
+
+static struct sk_buff *l2cap_ertm_seq_in_queue(struct sk_buff_head *head,
+					       u16 seq)
+{
+	struct sk_buff *skb;
+
+	skb_queue_walk(head, skb) {
+		if (bt_cb(skb)->control.txseq == seq)
+			return skb;
+	}
+
+	return NULL;
 }
 
 /* ---- L2CAP sequence number lists ---- */
@@ -2120,16 +2136,15 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 		if (err)
 			break;
 
-		if (chan->mode == L2CAP_MODE_ERTM && chan->tx_send_head == NULL)
-			chan->tx_send_head = seg_queue.next;
-		skb_queue_splice_tail_init(&seg_queue, &chan->tx_q);
-
-		if (chan->mode == L2CAP_MODE_ERTM)
-			err = l2cap_ertm_send(chan);
-		else
+		if (chan->mode == L2CAP_MODE_ERTM) {
+			err = l2cap_tx(chan, 0, &seg_queue,
+				       L2CAP_EV_DATA_REQUEST);
+		} else {
+			skb_queue_splice_tail_init(&seg_queue, &chan->tx_q);
 			l2cap_streaming_send(chan);
+		}
 
-		if (err >= 0)
+		if (!err)
 			err = len;
 
 		/* If the skbs were not queued for sending, they'll still be in
@@ -2141,6 +2156,229 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 	default:
 		BT_DBG("bad state %1.1x", chan->mode);
 		err = -EBADFD;
+	}
+
+	return err;
+}
+
+static void l2cap_process_reqseq(struct l2cap_chan *chan, u16 reqseq)
+{
+	struct sk_buff *acked_skb;
+	u16 ackseq;
+
+	BT_DBG("chan %p, reqseq %d", chan, reqseq);
+
+	if (chan->unacked_frames == 0 || reqseq == chan->expected_ack_seq)
+		return;
+
+	BT_DBG("expected_ack_seq %d, unacked_frames %d",
+	       chan->expected_ack_seq, chan->unacked_frames);
+
+	for (ackseq = chan->expected_ack_seq; ackseq != reqseq;
+	     ackseq = __next_seq(chan, ackseq)) {
+
+		acked_skb = l2cap_ertm_seq_in_queue(&chan->tx_q, ackseq);
+		if (acked_skb) {
+			skb_unlink(acked_skb, &chan->tx_q);
+			kfree_skb(acked_skb);
+			chan->unacked_frames--;
+		}
+	}
+
+	chan->expected_ack_seq = reqseq;
+
+	if (chan->unacked_frames == 0)
+		__clear_retrans_timer(chan);
+
+	BT_DBG("unacked_frames %d", (int) chan->unacked_frames);
+}
+
+static void l2cap_abort_rx_srej_sent(struct l2cap_chan *chan)
+{
+	BT_DBG("chan %p", chan);
+
+	chan->expected_tx_seq = chan->buffer_seq;
+	l2cap_seq_list_clear(&chan->srej_list);
+	skb_queue_purge(&chan->srej_q);
+	chan->rx_state = L2CAP_RX_STATE_RECV;
+}
+
+static int l2cap_tx_state_xmit(struct l2cap_chan *chan,
+			       struct l2cap_ctrl *control,
+			       struct sk_buff_head *skbs, u8 event)
+{
+	int err = 0;
+
+	BT_DBG("chan %p, control %p, skbs %p, event %d", chan, control, skbs,
+	       event);
+
+	switch (event) {
+	case L2CAP_EV_DATA_REQUEST:
+		if (chan->tx_send_head == NULL)
+			chan->tx_send_head = skb_peek(skbs);
+
+		skb_queue_splice_tail_init(skbs, &chan->tx_q);
+		l2cap_ertm_send(chan);
+		break;
+	case L2CAP_EV_LOCAL_BUSY_DETECTED:
+		BT_DBG("Enter LOCAL_BUSY");
+		set_bit(CONN_LOCAL_BUSY, &chan->conn_state);
+
+		if (chan->rx_state == L2CAP_RX_STATE_SREJ_SENT) {
+			/* The SREJ_SENT state must be aborted if we are to
+			 * enter the LOCAL_BUSY state.
+			 */
+			l2cap_abort_rx_srej_sent(chan);
+		}
+
+		l2cap_send_ack(chan);
+
+		break;
+	case L2CAP_EV_LOCAL_BUSY_CLEAR:
+		BT_DBG("Exit LOCAL_BUSY");
+		clear_bit(CONN_LOCAL_BUSY, &chan->conn_state);
+
+		if (test_bit(CONN_RNR_SENT, &chan->conn_state)) {
+			struct l2cap_ctrl local_control;
+
+			memset(&local_control, 0, sizeof(local_control));
+			local_control.sframe = 1;
+			local_control.super = L2CAP_SUPER_RR;
+			local_control.poll = 1;
+			local_control.reqseq = chan->buffer_seq;
+			l2cap_send_sframe(chan, 0);
+
+			chan->retry_count = 1;
+			__set_monitor_timer(chan);
+			chan->tx_state = L2CAP_TX_STATE_WAIT_F;
+		}
+		break;
+	case L2CAP_EV_RECV_REQSEQ_AND_FBIT:
+		l2cap_process_reqseq(chan, control->reqseq);
+		break;
+	case L2CAP_EV_EXPLICIT_POLL:
+		l2cap_send_rr_or_rnr(chan, 1);
+		chan->retry_count = 1;
+		__set_monitor_timer(chan);
+		__clear_ack_timer(chan);
+		chan->tx_state = L2CAP_TX_STATE_WAIT_F;
+		break;
+	case L2CAP_EV_RETRANS_TO:
+		l2cap_send_rr_or_rnr(chan, 1);
+		chan->retry_count = 1;
+		__set_monitor_timer(chan);
+		chan->tx_state = L2CAP_TX_STATE_WAIT_F;
+		break;
+	case L2CAP_EV_RECV_FBIT:
+		/* Nothing to process */
+		break;
+	default:
+		break;
+	}
+
+	return err;
+}
+
+static int l2cap_tx_state_wait_f(struct l2cap_chan *chan,
+				 struct l2cap_ctrl *control,
+				 struct sk_buff_head *skbs, u8 event)
+{
+	int err = 0;
+
+	BT_DBG("chan %p, control %p, skbs %p, event %d", chan, control, skbs,
+	       event);
+
+	switch (event) {
+	case L2CAP_EV_DATA_REQUEST:
+		if (chan->tx_send_head == NULL)
+			chan->tx_send_head = skb_peek(skbs);
+		/* Queue data, but don't send. */
+		skb_queue_splice_tail_init(skbs, &chan->tx_q);
+		break;
+	case L2CAP_EV_LOCAL_BUSY_DETECTED:
+		BT_DBG("Enter LOCAL_BUSY");
+		set_bit(CONN_LOCAL_BUSY, &chan->conn_state);
+
+		if (chan->rx_state == L2CAP_RX_STATE_SREJ_SENT) {
+			/* The SREJ_SENT state must be aborted if we are to
+			 * enter the LOCAL_BUSY state.
+			 */
+			l2cap_abort_rx_srej_sent(chan);
+		}
+
+		l2cap_send_ack(chan);
+
+		break;
+	case L2CAP_EV_LOCAL_BUSY_CLEAR:
+		BT_DBG("Exit LOCAL_BUSY");
+		clear_bit(CONN_LOCAL_BUSY, &chan->conn_state);
+
+		if (test_bit(CONN_RNR_SENT, &chan->conn_state)) {
+			struct l2cap_ctrl local_control;
+			memset(&local_control, 0, sizeof(local_control));
+			local_control.sframe = 1;
+			local_control.super = L2CAP_SUPER_RR;
+			local_control.poll = 1;
+			local_control.reqseq = chan->buffer_seq;
+			l2cap_send_sframe(chan, 0);
+
+			chan->retry_count = 1;
+			__set_monitor_timer(chan);
+			chan->tx_state = L2CAP_TX_STATE_WAIT_F;
+		}
+		break;
+	case L2CAP_EV_RECV_REQSEQ_AND_FBIT:
+		l2cap_process_reqseq(chan, control->reqseq);
+
+		/* Fall through */
+
+	case L2CAP_EV_RECV_FBIT:
+		if (control && control->final) {
+			__clear_monitor_timer(chan);
+			if (chan->unacked_frames > 0)
+				__set_retrans_timer(chan);
+			chan->retry_count = 0;
+			chan->tx_state = L2CAP_TX_STATE_XMIT;
+			BT_DBG("recv fbit tx_state 0x2.2%x", chan->tx_state);
+		}
+		break;
+	case L2CAP_EV_EXPLICIT_POLL:
+		/* Ignore */
+		break;
+	case L2CAP_EV_MONITOR_TO:
+		if (chan->max_tx == 0 || chan->retry_count < chan->max_tx) {
+			l2cap_send_rr_or_rnr(chan, 1);
+			__set_monitor_timer(chan);
+			chan->retry_count++;
+		} else {
+			l2cap_send_disconn_req(chan->conn, chan, ECONNABORTED);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return err;
+}
+
+static int l2cap_tx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
+		    struct sk_buff_head *skbs, u8 event)
+{
+	int err = 0;
+
+	BT_DBG("chan %p, control %p, skbs %p, event %d, state %d",
+	       chan, control, skbs, event, chan->tx_state);
+
+	switch (chan->tx_state) {
+	case L2CAP_TX_STATE_XMIT:
+		err = l2cap_tx_state_xmit(chan, control, skbs, event);
+		break;
+	case L2CAP_TX_STATE_WAIT_F:
+		err = l2cap_tx_state_wait_f(chan, control, skbs, event);
+		break;
+	default:
+		/* Ignore event */
+		break;
 	}
 
 	return err;
