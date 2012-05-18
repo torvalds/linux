@@ -246,7 +246,7 @@ static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
 	int newid;
 
 	do {
-		if (!idr_pre_get(idr, GFP_KERNEL))
+		if (!idr_pre_get(idr, lock ? GFP_KERNEL : GFP_ATOMIC))
 			return -ENOMEM;
 		if (lock)
 			spin_lock_irq(&rhp->lock);
