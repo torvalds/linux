@@ -24,8 +24,6 @@
 
 #include "../ipack.h"
 
-#define TPCI200_SHORTNAME "TPCI200"
-
 #define TPCI200_NB_SLOT               0x4
 #define TPCI200_NB_BAR                0x6
 
