@@ -355,6 +355,8 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 		}
 
 		dimm = kzalloc(sizeof(**mci->dimms), GFP_KERNEL);
+		if (!dimm)
+			goto error;
 		mci->dimms[off] = dimm;
 		dimm->mci = mci;
 
