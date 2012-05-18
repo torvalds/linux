@@ -2815,8 +2815,6 @@ struct tg3_rx_prodring_set {
 	struct ring_info		*rx_jmb_buffers;
 	dma_addr_t			rx_std_mapping;
 	dma_addr_t			rx_jmb_mapping;
-	void				*rx_page_addr;
-	unsigned int			rx_page_size;
 };
 
 #define TG3_IRQ_MAX_VECS_RSS		5
