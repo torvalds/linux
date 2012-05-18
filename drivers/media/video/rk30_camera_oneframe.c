@@ -305,6 +305,7 @@ struct rk_camera_dev
 	int frame_inval;           /* ddl@rock-chips.com : The first frames is invalidate  */
 	unsigned int irq;
 	unsigned int fps;
+    unsigned int last_fps;
 	unsigned int pixfmt;
 	//for ipp	
 	unsigned int vipmem_phybase;
@@ -1356,7 +1357,7 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
     
     /* ddl@rock-chips.com: sensor init code transmit in here after open */
     if (pcdev->icd_init == 0) {
-        v4l2_subdev_call(sd,core, init, 0);        
+        v4l2_subdev_call(sd,core, init, 0); 
         pcdev->icd_init = 1;
     }
     stream_on = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
@@ -1369,7 +1370,6 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
 	mf.colorspace	= pix->colorspace;
 	mf.code		= xlate->code;
 	ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
-
 	if (mf.code != xlate->code)
 		return -EINVAL;
 	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
@@ -1778,6 +1778,7 @@ static void rk_camera_reinit_work(struct work_struct *work)
 	unsigned long flags = 0;
     sd = soc_camera_to_subdev(pcdev->icd);
     tmp_soc_cam_link = to_soc_camera_link(pcdev->icd);
+   // return;
 	//dump regs
 	{
 		RKCAMERA_DG("CIF_CIF_CTRL = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_CTRL));
@@ -1876,13 +1877,13 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
 	struct rk_camera_timer *fps_timer = container_of(timer, struct rk_camera_timer, timer);
 	struct rk_camera_dev *pcdev = fps_timer->pcdev;
     int rec_flag,i;
-    static unsigned int last_fps = 0;
+   // static unsigned int last_fps = 0;
     struct soc_camera_link *tmp_soc_cam_link;
     tmp_soc_cam_link = to_soc_camera_link(pcdev->icd);
 
 	RKCAMERA_DG("rk_camera_fps_func fps:0x%x\n",pcdev->fps);
-	if ((pcdev->fps < 2) || (last_fps == pcdev->fps)) {
-		RKCAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor delay!\n");
+	if ((pcdev->fps < 2) || (pcdev->last_fps == pcdev->fps)) {
+		RKCAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor delay,last fps = %d!\n",pcdev->last_fps);
 		pcdev->camera_reinit_work.pcdev = pcdev;
 		//INIT_WORK(&(pcdev->camera_reinit_work.work), rk_camera_reinit_work);
 		queue_work(pcdev->camera_wq,&(pcdev->camera_reinit_work.work));
@@ -1947,7 +1948,7 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
             }
         }
 	}
-    last_fps = pcdev->fps ;
+    pcdev->last_fps = pcdev->fps ;
     pcdev->fps_timer.timer.node.expires= ktime_add_us(pcdev->fps_timer.timer.node.expires, ktime_to_us(ktime_set(1, 0)));
 	//return HRTIMER_NORESTART;
     return HRTIMER_RESTART;
@@ -1964,6 +1965,7 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 	cif_ctrl_val = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
 	if (enable) {
 		pcdev->fps = 0;
+        pcdev->last_fps = 0;
 		hrtimer_cancel(&(pcdev->fps_timer.timer));
 		pcdev->fps_timer.pcdev = pcdev;
         pcdev->timer_get_fps = false;
@@ -1971,7 +1973,7 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 //		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(3, 0),HRTIMER_MODE_REL);
 		cif_ctrl_val |= ENABLE_CAPTURE;
         	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
-		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(1, 0),HRTIMER_MODE_REL);
+		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(10, 0),HRTIMER_MODE_REL);
 	} else {
         cif_ctrl_val &= ~ENABLE_CAPTURE;
     	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
