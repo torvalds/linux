@@ -201,13 +201,14 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *v0.x.8 : temp version,reinit capture list when setup video buf.
 *v0.x.9 : 1. add the case of IPP unsupportted ,just cropped by CIF(not do the scale) this version. 
           2. flush workqueue when releas buffer
-*v0.x.10: 1. reset cif and wake up vb when cif have't receive data in a fixed time(now setted as 2 secs) so that app can
+*v0.x.a: 1. reset cif and wake up vb when cif have't receive data in a fixed time(now setted as 2 secs) so that app can
              be quitted
           2. when the flash is on ,flash off in a fixed time to prevent from flash light too hot.
           3. when front and back camera are the same sensor,and one has the flash ,other is not,flash can't work corrrectly ,fix it
           4. add  menu configs for convineuent to customize sensor series
+*v0.x.b:  specify the version is  NOT sure stable.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 10)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0xb)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -1778,7 +1779,6 @@ static void rk_camera_reinit_work(struct work_struct *work)
 	unsigned long flags = 0;
     sd = soc_camera_to_subdev(pcdev->icd);
     tmp_soc_cam_link = to_soc_camera_link(pcdev->icd);
-   // return;
 	//dump regs
 	{
 		RKCAMERA_DG("CIF_CIF_CTRL = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_CTRL));
@@ -1882,7 +1882,7 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
     tmp_soc_cam_link = to_soc_camera_link(pcdev->icd);
 
 	RKCAMERA_DG("rk_camera_fps_func fps:0x%x\n",pcdev->fps);
-	if ((pcdev->fps < 2) || (pcdev->last_fps == pcdev->fps)) {
+	if ((pcdev->fps < 1) || (pcdev->last_fps == pcdev->fps)) {
 		RKCAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor delay,last fps = %d!\n",pcdev->last_fps);
 		pcdev->camera_reinit_work.pcdev = pcdev;
 		//INIT_WORK(&(pcdev->camera_reinit_work.work), rk_camera_reinit_work);
@@ -1949,7 +1949,7 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
         }
 	}
     pcdev->last_fps = pcdev->fps ;
-    pcdev->fps_timer.timer.node.expires= ktime_add_us(pcdev->fps_timer.timer.node.expires, ktime_to_us(ktime_set(1, 0)));
+    pcdev->fps_timer.timer.node.expires= ktime_add_us(pcdev->fps_timer.timer.node.expires, ktime_to_us(ktime_set(3, 0)));
 	//return HRTIMER_NORESTART;
     return HRTIMER_RESTART;
 }
@@ -1973,7 +1973,7 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 //		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(3, 0),HRTIMER_MODE_REL);
 		cif_ctrl_val |= ENABLE_CAPTURE;
         	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
-		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(10, 0),HRTIMER_MODE_REL);
+		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(3, 0),HRTIMER_MODE_REL);
 	} else {
         cif_ctrl_val &= ~ENABLE_CAPTURE;
     	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
