@@ -3602,7 +3602,7 @@ gro_result_t napi_frags_finish(struct napi_struct *napi, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(napi_frags_finish);
 
-struct sk_buff *napi_frags_skb(struct napi_struct *napi)
+static struct sk_buff *napi_frags_skb(struct napi_struct *napi)
 {
 	struct sk_buff *skb = napi->skb;
 	struct ethhdr *eth;
@@ -3637,7 +3637,6 @@ struct sk_buff *napi_frags_skb(struct napi_struct *napi)
 out:
 	return skb;
 }
-EXPORT_SYMBOL(napi_frags_skb);
 
 gro_result_t napi_gro_frags(struct napi_struct *napi)
 {
