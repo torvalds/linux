@@ -121,7 +121,7 @@ static int qp_release(struct inode *inode, struct file *file)
 		printk(KERN_INFO "%s null qpd?\n", __func__);
 		return 0;
 	}
-	kfree(qpd->buf);
+	vfree(qpd->buf);
 	kfree(qpd);
 	return 0;
 }
@@ -145,7 +145,7 @@ static int qp_open(struct inode *inode, struct file *file)
 	spin_unlock_irq(&qpd->devp->lock);
 
 	qpd->bufsize = count * 128;
-	qpd->buf = kmalloc(qpd->bufsize, GFP_KERNEL);
+	qpd->buf = vmalloc(qpd->bufsize);
 	if (!qpd->buf) {
 		ret = -ENOMEM;
 		goto err1;

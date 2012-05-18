@@ -1413,6 +1413,24 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		return 0;
 	}
 
+	/*
+	 * Log interesting failures.
+	 */
+	switch (status) {
+	case CPL_ERR_CONN_RESET:
+	case CPL_ERR_CONN_TIMEDOUT:
+		break;
+	default:
+		printk(KERN_INFO MOD "Active open failure - "
+		       "atid %u status %u errno %d %pI4:%u->%pI4:%u\n",
+		       atid, status, status2errno(status),
+		       &ep->com.local_addr.sin_addr.s_addr,
+		       ntohs(ep->com.local_addr.sin_port),
+		       &ep->com.remote_addr.sin_addr.s_addr,
+		       ntohs(ep->com.remote_addr.sin_port));
+		break;
+	}
+
 	connect_reply_upcall(ep, status2errno(status));
 	state_set(&ep->com, DEAD);
 
