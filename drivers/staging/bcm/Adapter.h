@@ -7,8 +7,7 @@
 #define MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES 256
 #include "Debug.h"
 
-struct _LEADER
-{
+struct _LEADER {
 	USHORT 	Vcid;
 	USHORT 	PLength;
 	UCHAR  	Status;
@@ -16,16 +15,14 @@ struct _LEADER
 }__attribute__((packed));
 typedef struct _LEADER LEADER,*PLEADER;
 
-struct _PACKETTOSEND
-{
+struct _PACKETTOSEND {
 	LEADER	Leader;
 	UCHAR	ucPayload;
 }__attribute__((packed));
 typedef struct _PACKETTOSEND PACKETTOSEND, *PPACKETTOSEND;
 
 
-struct _CONTROL_PACKET
-{
+struct _CONTROL_PACKET {
 	PVOID	ControlBuff;
 	UINT	ControlBuffLen;
 	struct _CONTROL_PACKET* next;
@@ -33,8 +30,7 @@ struct _CONTROL_PACKET
 typedef struct _CONTROL_PACKET CONTROL_PACKET,*PCONTROL_PACKET;
 
 
-struct link_request
-{
+struct link_request {
 	LEADER	Leader;
 	UCHAR	szData[4];
 }__attribute__((packed));
@@ -42,8 +38,7 @@ typedef struct link_request LINK_REQUEST, *PLINK_REQUEST;
 
 
 //classification extension is added
-typedef struct _ADD_CONNECTION
-{
+typedef struct _ADD_CONNECTION {
     ULONG 		SrcIpAddressCount;
     ULONG 		SrcIpAddress[MAX_CONNECTIONS];
     ULONG 		SrcIpMask[MAX_CONNECTIONS];
@@ -63,8 +58,7 @@ typedef struct _ADD_CONNECTION
 } ADD_CONNECTION,*PADD_CONNECTION;
 
 
-typedef struct _CLASSIFICATION_RULE
-{
+typedef struct _CLASSIFICATION_RULE {
 	UCHAR		ucIPSrcAddrLen;
 	UCHAR       ucIPSrcAddr[32];
 	UCHAR		ucIPDestAddrLen;
@@ -76,8 +70,7 @@ typedef struct _CLASSIFICATION_RULE
 	USHORT		usVcid;
 } CLASSIFICATION_RULE,*PCLASSIFICATION_RULE;
 
-typedef struct _CLASSIFICATION_ONLY
-{
+typedef struct _CLASSIFICATION_ONLY {
     USHORT 		usVcid;
     ULONG  		DestIpAddress;
     ULONG  		DestIpMask;
@@ -93,34 +86,28 @@ typedef struct _CLASSIFICATION_ONLY
 #define MAX_PROTOCOL_LENGTH   32
 #define IPV6_ADDRESS_SIZEINBYTES 0x10
 
-typedef union _U_IP_ADDRESS
-{
-    struct
-	{
+typedef union _U_IP_ADDRESS {
+    struct {
 		ULONG				ulIpv4Addr[MAX_IP_RANGE_LENGTH];//Source Ip Address Range
 		ULONG               ulIpv4Mask[MAX_IP_RANGE_LENGTH];//Source Ip Mask Address Range
 	};
-	struct
-	{
+	struct {
 		ULONG				ulIpv6Addr[MAX_IP_RANGE_LENGTH * 4];//Source Ip Address Range
 		ULONG               ulIpv6Mask[MAX_IP_RANGE_LENGTH * 4];//Source Ip Mask Address Range
 
 	};
-	struct
-	{
+	struct {
 		UCHAR				ucIpv4Address[MAX_IP_RANGE_LENGTH * IP_LENGTH_OF_ADDRESS];
 		UCHAR				ucIpv4Mask[MAX_IP_RANGE_LENGTH * IP_LENGTH_OF_ADDRESS];
 	};
-	struct
-	{
+	struct {
 		UCHAR				ucIpv6Address[MAX_IP_RANGE_LENGTH * IPV6_ADDRESS_SIZEINBYTES];
 		UCHAR				ucIpv6Mask[MAX_IP_RANGE_LENGTH * IPV6_ADDRESS_SIZEINBYTES];
 	};
 }U_IP_ADDRESS;
 struct _packet_info;
 
-typedef struct _S_HDR_SUPRESSION_CONTEXTINFO
-{
+typedef struct _S_HDR_SUPRESSION_CONTEXTINFO {
 
 	UCHAR      ucaHdrSupressionInBuf[MAX_PHS_LENGTHS]; //Intermediate buffer to accumulate pkt Header for PHS
 	UCHAR      ucaHdrSupressionOutBuf[MAX_PHS_LENGTHS + PHSI_LEN]; //Intermediate buffer containing pkt Header after PHS
@@ -128,8 +115,7 @@ typedef struct _S_HDR_SUPRESSION_CONTEXTINFO
 }S_HDR_SUPRESSION_CONTEXTINFO;
 
 
-typedef struct _S_CLASSIFIER_RULE
-{
+typedef struct _S_CLASSIFIER_RULE {
 	ULONG			ulSFID;
 	UCHAR           ucReserved[2];
 	B_UINT16        uiClassifierRuleIndex;
@@ -183,8 +169,7 @@ typedef struct _S_CLASSIFIER_RULE
 }S_CLASSIFIER_RULE;
 //typedef struct _S_CLASSIFIER_RULE S_CLASSIFIER_RULE;
 
-typedef struct _S_FRAGMENTED_PACKET_INFO
-{
+typedef struct _S_FRAGMENTED_PACKET_INFO {
 	BOOLEAN				bUsed;
 	ULONG		        ulSrcIpAddress;
 	USHORT 				usIpIdentification;
@@ -192,8 +177,7 @@ typedef struct _S_FRAGMENTED_PACKET_INFO
 	BOOLEAN				bOutOfOrderFragment;
 }S_FRAGMENTED_PACKET_INFO,*PS_FRAGMENTED_PACKET_INFO;
 
-struct _packet_info
-{
+struct _packet_info {
 	//classification extension Rule
    	ULONG			ulSFID;
    	USHORT			usVCID_Value;
@@ -232,15 +216,12 @@ struct _packet_info
 	UINT			uiPendedLast;
 	UCHAR			ucIpVersion;
 
-	union
-	{
-		struct
-		{
+	union {
+		struct {
 			struct sk_buff*	   FirstTxQueue;
 			struct sk_buff*	   LastTxQueue;
 		};
-		struct
-		{
+		struct {
 			struct sk_buff*	   ControlHead;
 			struct sk_buff*	   ControlTail;
 		};
@@ -267,8 +248,7 @@ struct _packet_info
 typedef struct _packet_info PacketInfo;
 
 
-typedef struct _PER_TARANG_DATA
-{
+typedef struct _PER_TARANG_DATA {
     struct _PER_TARANG_DATA * next;
     struct _MINI_ADAPTER * Adapter;
     struct sk_buff*     RxAppControlHead;
@@ -282,8 +262,7 @@ typedef struct _PER_TARANG_DATA
 
 
 #ifdef REL_4_1
-typedef struct _TARGET_PARAMS
-{
+typedef struct _TARGET_PARAMS {
       B_UINT32 m_u32CfgVersion;
 
       // Scanning Related Params
@@ -365,8 +344,7 @@ typedef struct _TARGET_PARAMS
 } STARGETPARAMS, *PSTARGETPARAMS;
 #endif
 
-typedef struct _STTARGETDSXBUFFER
-{
+typedef struct _STTARGETDSXBUFFER {
     ULONG ulTargetDsxBuffer;
     B_UINT16 tid;
     BOOLEAN valid;
@@ -379,8 +357,7 @@ typedef INT (*FP_FLASH_WRITE_STATUS)(struct _MINI_ADAPTER*,UINT,PVOID);
 /**
 Driver adapter data structure
 */
-struct _MINI_ADAPTER
-{
+struct _MINI_ADAPTER {
 	struct _MINI_ADAPTER *next;
 	struct net_device	*dev;
 	u32			msg_enable;
@@ -584,8 +561,7 @@ struct _ETH_HEADER_STRUC {
 typedef struct _ETH_HEADER_STRUC ETH_HEADER_STRUC, *PETH_HEADER_STRUC;
 
 
-typedef struct FirmwareInfo
-{
+typedef struct FirmwareInfo {
 	void __user *	pvMappedFirmwareAddress;
 	ULONG		u32FirmwareLength;
 	ULONG		u32StartingAddress;
@@ -599,8 +575,7 @@ typedef struct _cntl_pkt{
 }cntl_pkt;
 typedef LINK_REQUEST CONTROL_MESSAGE;
 
-typedef struct _DDR_SETTING
-{
+typedef struct _DDR_SETTING {
 	UINT ulRegAddress;
 	UINT ulRegValue;
 }DDR_SETTING, *PDDR_SETTING;
@@ -638,8 +613,7 @@ InitAdapter(PMINI_ADAPTER psAdapter);
 #define EP6 5
 
 
-typedef enum eInterface_setting
-{
+typedef enum eInterface_setting {
 	DEFAULT_SETTING_0  = 0,
 	ALTERNATE_SETTING_1 = 1,
 }INTERFACE_SETTING;
