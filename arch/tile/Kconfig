@@ -13,6 +13,7 @@ config TILE
 	select GENERIC_IRQ_SHOW
 	select SYS_HYPERVISOR
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select GENERIC_CLOCKEVENTS
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
@@ -44,9 +45,6 @@ config NEED_PER_CPU_PAGE_FIRST_CHUNK
 	def_bool y
 
 config SYS_SUPPORTS_HUGETLBFS
-	def_bool y
-
-config GENERIC_CLOCKEVENTS
 	def_bool y
 
 # FIXME: tilegx can implement a more efficient rwsem.
