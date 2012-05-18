@@ -159,7 +159,8 @@ static inline void eth_hw_addr_random(struct net_device *dev)
  * @addr1: Pointer to a six-byte array containing the Ethernet address
  * @addr2: Pointer other six-byte array containing the Ethernet address
  *
- * Compare two ethernet addresses, returns 0 if equal
+ * Compare two ethernet addresses, returns 0 if equal, non-zero otherwise.
+ * Unlike memcmp(), it doesn't return a value suitable for sorting.
  */
 static inline unsigned compare_ether_addr(const u8 *addr1, const u8 *addr2)
 {
@@ -184,10 +185,10 @@ static inline unsigned long zap_last_2bytes(unsigned long value)
  * @addr1: Pointer to an array of 8 bytes
  * @addr2: Pointer to an other array of 8 bytes
  *
- * Compare two ethernet addresses, returns 0 if equal.
- * Same result than "memcmp(addr1, addr2, ETH_ALEN)" but without conditional
- * branches, and possibly long word memory accesses on CPU allowing cheap
- * unaligned memory reads.
+ * Compare two ethernet addresses, returns 0 if equal, non-zero otherwise.
+ * Unlike memcmp(), it doesn't return a value suitable for sorting.
+ * The function doesn't need any conditional branches and possibly uses
+ * word memory accesses on CPU allowing cheap unaligned memory reads.
  * arrays = { byte1, byte2, byte3, byte4, byte6, byte7, pad1, pad2}
  *
  * Please note that alignment of addr1 & addr2 is only guaranted to be 16 bits.

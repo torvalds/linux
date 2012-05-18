@@ -8,13 +8,16 @@
 #include <cpu/dma-sh4a.h>
 
 #else /* CONFIG_CPU_SH4A */
+
+#include <linux/sh_intc.h>
+
 /*
  * SH7750/SH7751/SH7760
  */
-#define DMTE0_IRQ	34
-#define DMTE4_IRQ	44
-#define DMTE6_IRQ	46
-#define DMAE0_IRQ	38
+#define DMTE0_IRQ	evt2irq(0x640)
+#define DMTE4_IRQ	evt2irq(0x780)
+#define DMTE6_IRQ	evt2irq(0x7c0)
+#define DMAE0_IRQ	evt2irq(0x6c0)
 
 #define SH_DMAC_BASE0	0xffa00000
 #define SH_DMAC_BASE1	0xffa00070

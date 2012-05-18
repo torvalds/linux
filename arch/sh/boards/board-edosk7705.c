@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/smc91x.h>
+#include <linux/sh_intc.h>
 #include <asm/machvec.h>
 #include <asm/sizes.h>
 
@@ -20,7 +21,7 @@
 #define SMC_IO_OFFSET	0x300
 #define SMC_IOADDR	(SMC_IOBASE + SMC_IO_OFFSET)
 
-#define ETHERNET_IRQ	0x09
+#define ETHERNET_IRQ	evt2irq(0x320)
 
 static void __init sh_edosk7705_init_irq(void)
 {

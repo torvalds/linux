@@ -2044,7 +2044,7 @@ int vt_do_kdskled(int console, int cmd, unsigned long arg, int perm)
 		kbd->default_ledflagstate = ((arg >> 4) & 7);
 		set_leds();
                 spin_unlock_irqrestore(&kbd_event_lock, flags);
-		break;
+		return 0;
 
 	/* the ioctls below only set the lights, not the functions */
 	/* for those, see KDGKBLED and KDSKBLED above */

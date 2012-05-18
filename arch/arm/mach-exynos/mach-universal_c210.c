@@ -40,6 +40,7 @@
 #include <plat/pd.h>
 #include <plat/regs-fb-v4.h>
 #include <plat/fimc-core.h>
+#include <plat/s5p-time.h>
 #include <plat/camport.h>
 #include <plat/mipi_csis.h>
 
@@ -1063,6 +1064,7 @@ static void __init universal_map_io(void)
 	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(universal_uartcfgs, ARRAY_SIZE(universal_uartcfgs));
+	s5p_set_timer_source(S5P_PWM2, S5P_PWM4);
 }
 
 static void s5p_tv_setup(void)
@@ -1113,7 +1115,7 @@ MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
 	.map_io		= universal_map_io,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= universal_machine_init,
-	.timer		= &exynos4_timer,
+	.timer		= &s5p_timer,
 	.reserve        = &universal_reserve,
 	.restart	= exynos4_restart,
 MACHINE_END

@@ -584,7 +584,6 @@ struct pch_gbe_hw_stats {
 /**
  * struct pch_gbe_adapter - board specific private data structure
  * @stats_lock:	Spinlock structure for status
- * @tx_queue_lock:	Spinlock structure for transmit
  * @ethtool_lock:	Spinlock structure for ethtool
  * @irq_sem:		Semaphore for interrupt
  * @netdev:		Pointer of network device structure
@@ -609,7 +608,6 @@ struct pch_gbe_hw_stats {
 
 struct pch_gbe_adapter {
 	spinlock_t stats_lock;
-	spinlock_t tx_queue_lock;
 	spinlock_t ethtool_lock;
 	atomic_t irq_sem;
 	struct net_device *netdev;

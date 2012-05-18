@@ -18,7 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/sh_timer.h>
 #include <linux/sh_dma.h>
-
+#include <linux/sh_intc.h>
 #include <cpu/dma-register.h>
 #include <cpu/sh7757.h>
 
@@ -45,7 +45,7 @@ static struct plat_sci_port scif3_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xB80)),
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xb80)),
 };
 
 static struct platform_device scif3_device = {
@@ -86,7 +86,7 @@ static struct resource tmu0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 28,
+		.start	= evt2irq(0x580),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -114,7 +114,7 @@ static struct resource tmu1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 29,
+		.start	= evt2irq(0x5a0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -136,7 +136,7 @@ static struct resource spi0_resources[] = {
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	},
 	[1] = {
-		.start	= 86,
+		.start	= evt2irq(0xcc0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -466,8 +466,8 @@ static struct resource sh7757_dmae0_resources[] = {
 	},
 	{
 		.name	= "error_irq",
-		.start	= 34,
-		.end	= 34,
+		.start	= evt2irq(0x640),
+		.end	= evt2irq(0x640),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
 	},
 };
@@ -488,56 +488,56 @@ static struct resource sh7757_dmae1_resources[] = {
 	},
 	{
 		.name	= "error_irq",
-		.start	= 34,
-		.end	= 34,
+		.start	= evt2irq(0x640),
+		.end	= evt2irq(0x640),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
 	},
 	{
 		/* IRQ for channels 4 */
-		.start	= 46,
-		.end	= 46,
+		.start	= evt2irq(0x7c0),
+		.end	= evt2irq(0x7c0),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
 	},
 	{
 		/* IRQ for channels 5 */
-		.start	= 46,
-		.end	= 46,
+		.start	= evt2irq(0x7c0),
+		.end	= evt2irq(0x7c0),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
 	},
 	{
 		/* IRQ for channels 6 */
-		.start	= 88,
-		.end	= 88,
+		.start	= evt2irq(0xd00),
+		.end	= evt2irq(0xd00),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
 	},
 	{
 		/* IRQ for channels 7 */
-		.start	= 88,
-		.end	= 88,
+		.start	= evt2irq(0xd00),
+		.end	= evt2irq(0xd00),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
 	},
 	{
 		/* IRQ for channels 8 */
-		.start	= 88,
-		.end	= 88,
+		.start	= evt2irq(0xd00),
+		.end	= evt2irq(0xd00),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
 	},
 	{
 		/* IRQ for channels 9 */
-		.start	= 88,
-		.end	= 88,
+		.start	= evt2irq(0xd00),
+		.end	= evt2irq(0xd00),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
 	},
 	{
 		/* IRQ for channels 10 */
-		.start	= 88,
-		.end	= 88,
+		.start	= evt2irq(0xd00),
+		.end	= evt2irq(0xd00),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
 	},
 	{
 		/* IRQ for channels 11 */
-		.start	= 88,
-		.end	= 88,
+		.start	= evt2irq(0xd00),
+		.end	= evt2irq(0xd00),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
 	},
 };
@@ -558,20 +558,20 @@ static struct resource sh7757_dmae2_resources[] = {
 	},
 	{
 		.name	= "error_irq",
-		.start	= 323,
-		.end	= 323,
+		.start	= evt2irq(0x2a60),
+		.end	= evt2irq(0x2a60),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channels 12 to 16 */
-		.start	= 272,
-		.end	= 276,
+		.start	= evt2irq(0x2400),
+		.end	= evt2irq(0x2480),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channel 17 */
-		.start	= 279,
-		.end	= 279,
+		.start	= evt2irq(0x24e0),
+		.end	= evt2irq(0x24e0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -592,20 +592,20 @@ static struct resource sh7757_dmae3_resources[] = {
 	},
 	{
 		.name	= "error_irq",
-		.start	= 324,
-		.end	= 324,
+		.start	= evt2irq(0x2a80),
+		.end	= evt2irq(0x2a80),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channels 18 to 22 */
-		.start	= 280,
-		.end	= 284,
+		.start	= evt2irq(0x2500),
+		.end	= evt2irq(0x2580),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channel 23 */
-		.start	= 288,
-		.end	= 288,
+		.start	= evt2irq(0x2600),
+		.end	= evt2irq(0x2600),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -668,7 +668,7 @@ static struct resource spi1_resources[] = {
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_8BIT,
 	},
 	{
-		.start	= 54,
+		.start	= evt2irq(0x8c0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -687,7 +687,7 @@ static struct resource rspi_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= 220,
+		.start	= evt2irq(0x1d80),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -706,8 +706,8 @@ static struct resource usb_ehci_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 57,
-		.end	= 57,
+		.start	= evt2irq(0x920),
+		.end	= evt2irq(0x920),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -730,8 +730,8 @@ static struct resource usb_ohci_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 57,
-		.end	= 57,
+		.start	= evt2irq(0x920),
+		.end	= evt2irq(0x920),
 		.flags	= IORESOURCE_IRQ,
 	},
 };

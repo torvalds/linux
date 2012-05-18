@@ -321,7 +321,7 @@ static int queue_userspace_packet(int dp_ifindex, struct sk_buff *skb,
 			return -ENOMEM;
 
 		nskb = __vlan_put_tag(nskb, vlan_tx_tag_get(nskb));
-		if (!skb)
+		if (!nskb)
 			return -ENOMEM;
 
 		nskb->vlan_tci = 0;
@@ -421,6 +421,19 @@ static int validate_sample(const struct nlattr *attr,
 	return validate_actions(actions, key, depth + 1);
 }
 
+static int validate_tp_port(const struct sw_flow_key *flow_key)
+{
+	if (flow_key->eth.type == htons(ETH_P_IP)) {
+		if (flow_key->ipv4.tp.src && flow_key->ipv4.tp.dst)
+			return 0;
+	} else if (flow_key->eth.type == htons(ETH_P_IPV6)) {
+		if (flow_key->ipv6.tp.src && flow_key->ipv6.tp.dst)
+			return 0;
+	}
+
+	return -EINVAL;
+}
+
 static int validate_set(const struct nlattr *a,
 			const struct sw_flow_key *flow_key)
 {
@@ -462,18 +475,13 @@ static int validate_set(const struct nlattr *a,
 		if (flow_key->ip.proto != IPPROTO_TCP)
 			return -EINVAL;
 
-		if (!flow_key->ipv4.tp.src || !flow_key->ipv4.tp.dst)
-			return -EINVAL;
-
-		break;
+		return validate_tp_port(flow_key);
 
 	case OVS_KEY_ATTR_UDP:
 		if (flow_key->ip.proto != IPPROTO_UDP)
 			return -EINVAL;
 
-		if (!flow_key->ipv4.tp.src || !flow_key->ipv4.tp.dst)
-			return -EINVAL;
-		break;
+		return validate_tp_port(flow_key);
 
 	default:
 		return -EINVAL;
@@ -1641,10 +1649,9 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	reply = ovs_vport_cmd_build_info(vport, info->snd_pid, info->snd_seq,
 					 OVS_VPORT_CMD_NEW);
 	if (IS_ERR(reply)) {
-		err = PTR_ERR(reply);
 		netlink_set_err(init_net.genl_sock, 0,
-				ovs_dp_vport_multicast_group.id, err);
-		return 0;
+				ovs_dp_vport_multicast_group.id, PTR_ERR(reply));
+		goto exit_unlock;
 	}
 
 	genl_notify(reply, genl_info_net(info), info->snd_pid,

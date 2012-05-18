@@ -19,6 +19,7 @@
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_timer.h>
+#include <linux/sh_intc.h>
 #include <cpu/serial.h>
 
 enum {
@@ -95,7 +96,7 @@ static struct resource rtc_resources[] = {
 		.flags  = IORESOURCE_IO,
 	},
 	[1] =	{
-		.start	= 20,
+		.start	= evt2irq(0x480),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -114,7 +115,7 @@ static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_TE | SCSCR_RE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCI,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x4E0)),
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x4e0)),
 	.ops		= &sh770x_sci_port_ops,
 	.regshift	= 1,
 };
@@ -184,7 +185,7 @@ static struct resource tmu0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 16,
+		.start	= evt2irq(0x400),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -212,7 +213,7 @@ static struct resource tmu1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 17,
+		.start	= evt2irq(0x420),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -239,7 +240,7 @@ static struct resource tmu2_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 18,
+		.start	= evt2irq(0x440),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
