@@ -146,9 +146,7 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 	struct tps65910_board *board_info;
 	unsigned int prop;
 	const struct of_device_id *match;
-	unsigned int prop_array[TPS6591X_MAX_NUM_GPIO];
 	int ret = 0;
-	int idx;
 
 	match = of_match_device(tps65910_of_match, &client->dev);
 	if (!match) {
@@ -177,21 +175,8 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 	else if (*chip_id == TPS65911)
 		dev_warn(&client->dev, "VMBCH2-Threshold not specified");
 
-	ret = of_property_read_u32_array(np, "ti,en-gpio-sleep",
-				   prop_array, TPS6591X_MAX_NUM_GPIO);
-	if (!ret)
-		for (idx = 0; idx < ARRAY_SIZE(prop_array); idx++)
-			board_info->en_gpio_sleep[idx] = (prop_array[idx] != 0);
-	else if (ret != -EINVAL) {
-		dev_err(&client->dev,
-			"error reading property ti,en-gpio-sleep: %d\n.", ret);
-		return NULL;
-	}
-
-
 	board_info->irq = client->irq;
 	board_info->irq_base = -1;
-	board_info->gpio_base = -1;
 
 	return board_info;
 }
