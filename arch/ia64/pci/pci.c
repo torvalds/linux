@@ -384,7 +384,7 @@ pci_acpi_scan_root(struct acpi_pci_root *root)
 		return NULL;
 	}
 
-	pbus->subordinate = pci_scan_child_bus(pbus);
+	pbus->busn_res.end = pci_scan_child_bus(pbus);
 	return pbus;
 
 out3:

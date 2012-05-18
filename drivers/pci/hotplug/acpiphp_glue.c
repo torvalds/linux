@@ -100,11 +100,11 @@ static int post_dock_fixups(struct notifier_block *nb, unsigned long val,
 			PCI_PRIMARY_BUS,
 			&buses);
 
-	if (((buses >> 8) & 0xff) != bus->secondary) {
+	if (((buses >> 8) & 0xff) != bus->busn_res.start) {
 		buses = (buses & 0xff000000)
 			| ((unsigned int)(bus->primary)     <<  0)
-			| ((unsigned int)(bus->secondary)   <<  8)
-			| ((unsigned int)(bus->subordinate) << 16);
+			| ((unsigned int)(bus->busn_res.start)   <<  8)
+			| ((unsigned int)(bus->busn_res.end) << 16);
 		pci_write_config_dword(bus->self, PCI_PRIMARY_BUS, buses);
 	}
 	return NOTIFY_OK;
@@ -692,7 +692,7 @@ static unsigned char acpiphp_max_busnr(struct pci_bus *bus)
 	 * bus->subordinate value because it could have
 	 * padding in it.
 	 */
-	max = bus->secondary;
+	max = bus->busn_res.start;
 
 	list_for_each(tmp, &bus->children) {
 		n = pci_bus_max_busnr(pci_bus_b(tmp));

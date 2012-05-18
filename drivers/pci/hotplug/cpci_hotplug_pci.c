@@ -292,8 +292,8 @@ int __ref cpci_configure_slot(struct slot *slot)
 		    (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)) {
 			/* Find an unused bus number for the new bridge */
 			struct pci_bus *child;
-			unsigned char busnr, start = parent->secondary;
-			unsigned char end = parent->subordinate;
+			unsigned char busnr, start = parent->busn_res.start;
+			unsigned char end = parent->busn_res.end;
 
 			for (busnr = start; busnr <= end; busnr++) {
 				if (!pci_find_bus(pci_domain_nr(parent),
@@ -312,7 +312,7 @@ int __ref cpci_configure_slot(struct slot *slot)
 				pci_dev_put(dev);
 				continue;
 			}
-			child->subordinate = pci_do_scan_bus(child);
+			child->busn_res.end = pci_do_scan_bus(child);
 			pci_bus_size_bridges(child);
 		}
 		pci_dev_put(dev);

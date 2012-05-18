@@ -37,8 +37,8 @@
 static int __ref pciehp_add_bridge(struct pci_dev *dev)
 {
 	struct pci_bus *parent = dev->bus;
-	int pass, busnr, start = parent->secondary;
-	int end = parent->subordinate;
+	int pass, busnr, start = parent->busn_res.start;
+	int end = parent->busn_res.end;
 
 	for (busnr = start; busnr <= end; busnr++) {
 		if (!pci_find_bus(pci_domain_nr(parent), busnr))

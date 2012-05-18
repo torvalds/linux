@@ -329,7 +329,7 @@ int __init pcibios_init(void)
 			 */
 			bus = pci_scan_bus(0, controller->ops, controller);
 			controller->root_bus = bus;
-			controller->last_busno = bus->subordinate;
+			controller->last_busno = bus->busn_res.end;
 		}
 	}
 
@@ -366,7 +366,7 @@ int __init pcibios_init(void)
 				 */
 				if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI &&
 					(PCI_SLOT(dev->devfn) == 0)) {
-					next_bus = dev->subordinate;
+					next_bus = dev->busn_res.end;
 					controllers[i].mem_resources[0] =
 						*next_bus->resource[0];
 					controllers[i].mem_resources[1] =

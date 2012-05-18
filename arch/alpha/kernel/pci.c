@@ -359,7 +359,7 @@ common_init_pci(void)
 					hose, &resources);
 		hose->bus = bus;
 		hose->need_domain_info = need_domain_info;
-		next_busno = bus->subordinate + 1;
+		next_busno = bus->busn_res.end + 1;
 		/* Don't allow 8-bit bus number overflow inside the hose -
 		   reserve some space for bridges. */ 
 		if (next_busno > 224) {
