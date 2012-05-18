@@ -2665,37 +2665,40 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 {
 	unsigned xtot, ytot;
 	unsigned long ht, vt;
+	struct omap_video_timings t = *timings;
 
-	DSSDBG("channel %d xres %u yres %u\n", channel, timings->x_res,
-			timings->y_res);
+	DSSDBG("channel %d xres %u yres %u\n", channel, t.x_res, t.y_res);
 
-	if (!dispc_mgr_timings_ok(channel, timings)) {
+	if (!dispc_mgr_timings_ok(channel, &t)) {
 		BUG();
 		return;
 	}
 
 	if (dispc_mgr_is_lcd(channel)) {
-		_dispc_mgr_set_lcd_timings(channel, timings->hsw, timings->hfp,
-				timings->hbp, timings->vsw, timings->vfp,
-				timings->vbp);
+		_dispc_mgr_set_lcd_timings(channel, t.hsw, t.hfp, t.hbp, t.vsw,
+				t.vfp, t.vbp);
 
-		xtot = timings->x_res + timings->hfp + timings->hsw +
-				timings->hbp;
-		ytot = timings->y_res + timings->vfp + timings->vsw +
-				timings->vbp;
+		xtot = t.x_res + t.hfp + t.hsw + t.hbp;
+		ytot = t.y_res + t.vfp + t.vsw + t.vbp;
 
 		ht = (timings->pixel_clock * 1000) / xtot;
 		vt = (timings->pixel_clock * 1000) / xtot / ytot;
 
 		DSSDBG("pck %u\n", timings->pixel_clock);
 		DSSDBG("hsw %d hfp %d hbp %d vsw %d vfp %d vbp %d\n",
-			timings->hsw, timings->hfp, timings->hbp,
-			timings->vsw, timings->vfp, timings->vbp);
+			t.hsw, t.hfp, t.hbp, t.vsw, t.vfp, t.vbp);
 
 		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
+	} else {
+		enum dss_hdmi_venc_clk_source_select source;
+
+		source = dss_get_hdmi_venc_clk_source();
+
+		if (source == DSS_VENC_TV_CLK)
+			t.y_res /= 2;
 	}
 
-	dispc_mgr_set_size(channel, timings->x_res, timings->y_res);
+	dispc_mgr_set_size(channel, t.x_res, t.y_res);
 }
 
 static void dispc_mgr_set_lcd_divisor(enum omap_channel channel, u16 lck_div,
