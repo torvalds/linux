@@ -148,7 +148,7 @@ static struct mutex	wl_softap_lock;
 #include <bcmsdbus.h>
 extern void dhd_customer_gpio_wlan_ctrl(int onoff);
 extern uint dhd_dev_reset(struct net_device *dev, uint8 flag);
-extern void dhd_dev_init_ioctl(struct net_device *dev);
+extern int dhd_dev_init_ioctl(struct net_device *dev);
 
 uint wl_msg_level = WL_ERROR_VAL;
 
