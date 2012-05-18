@@ -755,7 +755,7 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 			if (!child)
 				goto out;
 			child->primary = primary;
-			child->busn_res.end = subordinate;
+			pci_bus_insert_busn_res(child, secondary, subordinate);
 			child->bridge_ctl = bctl;
 		}
 
@@ -793,6 +793,7 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 			child = pci_add_new_bus(bus, dev, ++max);
 			if (!child)
 				goto out;
+			pci_bus_insert_busn_res(child, max, 0xff);
 		}
 		buses = (buses & 0xff000000)
 		      | ((unsigned int)(child->primary)     <<  0)
@@ -864,7 +865,7 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 		/*
 		 * Set the subordinate bus number to its real value.
 		 */
-		child->busn_res.end = max;
+		pci_bus_update_busn_res_end(child, max);
 		pci_write_config_byte(dev, PCI_SUBORDINATE_BUS, max);
 	}
 
