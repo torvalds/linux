@@ -21,10 +21,11 @@
 /*
  * flags format
  *
- * 0x000000BA
+ * 0x00000CBA
  *
  * A:  inversion
  * B:  format mode
+ * C:  chip specific
  */
 
 /* A: clock inversion */
@@ -39,6 +40,9 @@
 #define SH_FSI_FMT_DAI		(0 << 4)
 #define SH_FSI_FMT_SPDIF	(1 << 4)
 
+/* C: chip specific */
+#define SH_FSI_OPTION_MASK	0x00000F00
+#define SH_FSI_ENABLE_STREAM_MODE	(1 << 8) /* for 16bit data */
 
 /*
  * set_rate return value
