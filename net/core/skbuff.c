@@ -300,6 +300,40 @@ struct netdev_alloc_cache {
 static DEFINE_PER_CPU(struct netdev_alloc_cache, netdev_alloc_cache);
 
 /**
+ * netdev_alloc_frag - allocate a page fragment
+ * @fragsz: fragment size
+ *
+ * Allocates a frag from a page for receive buffer.
+ * Uses GFP_ATOMIC allocations.
+ */
+void *netdev_alloc_frag(unsigned int fragsz)
+{
+	struct netdev_alloc_cache *nc;
+	void *data = NULL;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	nc = &__get_cpu_var(netdev_alloc_cache);
+	if (unlikely(!nc->page)) {
+refill:
+		nc->page = alloc_page(GFP_ATOMIC | __GFP_COLD);
+		nc->offset = 0;
+	}
+	if (likely(nc->page)) {
+		if (nc->offset + fragsz > PAGE_SIZE) {
+			put_page(nc->page);
+			goto refill;
+		}
+		data = page_address(nc->page) + nc->offset;
+		nc->offset += fragsz;
+		get_page(nc->page);
+	}
+	local_irq_restore(flags);
+	return data;
+}
+EXPORT_SYMBOL(netdev_alloc_frag);
+
+/**
  *	__netdev_alloc_skb - allocate an skbuff for rx on a specific device
  *	@dev: network device to receive on
  *	@length: length to allocate
@@ -313,32 +347,20 @@ static DEFINE_PER_CPU(struct netdev_alloc_cache, netdev_alloc_cache);
  *	%NULL is returned if there is no free memory.
  */
 struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
-		unsigned int length, gfp_t gfp_mask)
+				   unsigned int length, gfp_t gfp_mask)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	unsigned int fragsz = SKB_DATA_ALIGN(length + NET_SKB_PAD) +
 			      SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	if (fragsz <= PAGE_SIZE && !(gfp_mask & __GFP_WAIT)) {
-		struct netdev_alloc_cache *nc;
-		void *data = NULL;
+		void *data = netdev_alloc_frag(fragsz);
 
-		nc = &get_cpu_var(netdev_alloc_cache);
-		if (!nc->page) {
-refill:			nc->page = alloc_page(gfp_mask);
-			nc->offset = 0;
+		if (likely(data)) {
+			skb = build_skb(data, fragsz);
+			if (unlikely(!skb))
+				put_page(virt_to_head_page(data));
 		}
-		if (likely(nc->page)) {
-			if (nc->offset + fragsz > PAGE_SIZE) {
-				put_page(nc->page);
-				goto refill;
-			}
-			data = page_address(nc->page) + nc->offset;
-			nc->offset += fragsz;
-			get_page(nc->page);
-		}
-		put_cpu_var(netdev_alloc_cache);
-		skb = data ? build_skb(data, fragsz) : NULL;
 	} else {
 		skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, NUMA_NO_NODE);
 	}
@@ -359,28 +381,6 @@ void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
 	skb->truesize += truesize;
 }
 EXPORT_SYMBOL(skb_add_rx_frag);
-
-/**
- *	dev_alloc_skb - allocate an skbuff for receiving
- *	@length: length to allocate
- *
- *	Allocate a new &sk_buff and assign it a usage count of one. The
- *	buffer has unspecified headroom built in. Users should allocate
- *	the headroom they think they need without accounting for the
- *	built in space. The built in space is used for optimisations.
- *
- *	%NULL is returned if there is no free memory. Although this function
- *	allocates memory it can be called from an interrupt.
- */
-struct sk_buff *dev_alloc_skb(unsigned int length)
-{
-	/*
-	 * There is more code here than it seems:
-	 * __dev_alloc_skb is an inline
-	 */
-	return __dev_alloc_skb(length, GFP_ATOMIC);
-}
-EXPORT_SYMBOL(dev_alloc_skb);
 
 static void skb_drop_list(struct sk_buff **listp)
 {
