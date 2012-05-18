@@ -50,9 +50,9 @@ static unsigned long gator_protocol_version = 16;
 
 #if (GATOR_PERF_SUPPORT) && (!(GATOR_PERF_PMU_SUPPORT))
 #ifndef CONFIG_PERF_EVENTS
-#error gator requires the kernel to have CONFIG_PERF_EVENTS defined to support pmu hardware counters
+#warning gator requires the kernel to have CONFIG_PERF_EVENTS defined to support pmu hardware counters
 #elif !defined CONFIG_HW_PERF_EVENTS
-#error gator requires the kernel to have CONFIG_HW_PERF_EVENTS defined to support pmu hardware counters
+#warning gator requires the kernel to have CONFIG_HW_PERF_EVENTS defined to support pmu hardware counters
 #endif
 #endif
 
