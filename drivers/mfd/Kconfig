@@ -623,7 +623,7 @@ config MFD_MC13783
 	tristate
 
 config MFD_MC13XXX
-	tristate "Support Freescale MC13783 and MC13892"
+	tristate
 	depends on SPI_MASTER || I2C
 	select MFD_CORE
 	select MFD_MC13783
@@ -633,23 +633,21 @@ config MFD_MC13XXX
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
-if MFD_MC13XXX
-
 config MFD_MC13XXX_SPI
-	tristate "MC13xxx SPI interface" if SPI_MASTER
-	default SPI_MASTER
+	tristate "Freescale MC13783 and MC13892 SPI interface"
+	depends on SPI_MASTER
 	select REGMAP_SPI
+	select MFD_MC13XXX
 	help
 	  Select this if your MC13xxx is connected via an SPI bus.
 
 config MFD_MC13XXX_I2C
-	tristate "MC13xxx I2C interface" if I2C
-	default I2C
+	tristate "Freescale MC13892 I2C interface"
+	depends on I2C
 	select REGMAP_I2C
+	select MFD_MC13XXX
 	help
 	  Select this if your MC13xxx is connected via an I2C bus.
-
-endif
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
