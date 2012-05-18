@@ -179,6 +179,7 @@ static unsigned omapfb_get_vrfb_offset(const struct omapfb_info *ofbi, int rot)
 		break;
 	default:
 		BUG();
+		return 0;
 	}
 
 	offset *= vrfb->bytespp;
