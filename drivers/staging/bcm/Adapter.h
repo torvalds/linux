@@ -12,26 +12,26 @@ struct _LEADER {
 	USHORT	PLength;
 	UCHAR	Status;
 	UCHAR	Unused[3];
-} __attribute__((packed));
+} __packed;
 typedef struct _LEADER LEADER, *PLEADER;
 
 struct _PACKETTOSEND {
 	LEADER	Leader;
 	UCHAR	ucPayload;
-} __attribute__((packed));
+} __packed;
 typedef struct _PACKETTOSEND PACKETTOSEND, *PPACKETTOSEND;
 
 struct _CONTROL_PACKET {
 	PVOID	ControlBuff;
 	UINT	ControlBuffLen;
 	struct _CONTROL_PACKET *next;
-} __attribute__((packed));
+} __packed;
 typedef struct _CONTROL_PACKET CONTROL_PACKET, *PCONTROL_PACKET;
 
 struct link_request {
 	LEADER	Leader;
 	UCHAR	szData[4];
-} __attribute__((packed));
+} __packed;
 typedef struct link_request LINK_REQUEST, *PLINK_REQUEST;
 
 /* classification extension is added */
@@ -534,14 +534,14 @@ struct _ETH_HEADER_STRUC {
 	UCHAR	au8DestinationAddress[6];
 	UCHAR	au8SourceAddress[6];
 	USHORT	u16Etype;
-} __attribute__((packed));
+} __packed;
 typedef struct _ETH_HEADER_STRUC ETH_HEADER_STRUC, *PETH_HEADER_STRUC;
 
 typedef struct FirmwareInfo {
 	void	__user *pvMappedFirmwareAddress;
 	ULONG	u32FirmwareLength;
 	ULONG	u32StartingAddress;
-} __attribute__((packed)) FIRMWARE_INFO, *PFIRMWARE_INFO;
+} __packed FIRMWARE_INFO, *PFIRMWARE_INFO;
 
 /* holds the value of net_device structure.. */
 extern struct net_device *gblpnetdev;
