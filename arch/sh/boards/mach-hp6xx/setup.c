@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
+#include <linux/sh_intc.h>
 #include <sound/sh_dac_audio.h>
 #include <asm/hd64461.h>
 #include <asm/io.h>
@@ -35,7 +36,7 @@ static struct resource cf_ide_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	[2] = {
-		.start = 77,
+		.start = evt2irq(0xba0),
 		.flags = IORESOURCE_IRQ,
 	},
 };
