@@ -2411,7 +2411,6 @@ EXPORT_SYMBOL(scsi_target_resume);
  *	(which must be a legal transition).  When the device is in this
  *	state, all commands are deferred until the scsi lld reenables
  *	the device with scsi_device_unblock or device_block_tmo fires.
- *	This routine assumes the host_lock is held on entry.
  */
 int
 scsi_internal_device_block(struct scsi_device *sdev)
@@ -2455,8 +2454,7 @@ EXPORT_SYMBOL_GPL(scsi_internal_device_block);
  * Notes:       
  *	This routine transitions the device to the SDEV_RUNNING state
  *	or to one of the offline states (which must be a legal transition)
- *	allowing the midlayer to goose the queue for this device. This
- *	routine assumes the host_lock is held upon entry.
+ *	allowing the midlayer to goose the queue for this device.
  */
 int
 scsi_internal_device_unblock(struct scsi_device *sdev,
