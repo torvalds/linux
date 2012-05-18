@@ -136,7 +136,6 @@ struct s3c_hsotg_ep {
  * @driver: USB gadget driver
  * @plat: The platform specific configuration data.
  * @regs: The memory area mapped for accessing registers.
- * @regs_res: The resource that was allocated when claiming register space.
  * @irq: The IRQ number we are using
  * @supplies: Definition of USB power supplies
  * @dedicated_fifos: Set if the hardware has dedicated IN-EP fifos.
@@ -158,7 +157,6 @@ struct s3c_hsotg {
 	struct s3c_hsotg_plat	 *plat;
 
 	void __iomem		*regs;
-	struct resource		*regs_res;
 	int			irq;
 	struct clk		*clk;
 
@@ -3477,7 +3475,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	hsotg = kzalloc(sizeof(struct s3c_hsotg), GFP_KERNEL);
+	hsotg = devm_kzalloc(&pdev->dev, sizeof(struct s3c_hsotg), GFP_KERNEL);
 	if (!hsotg) {
 		dev_err(dev, "cannot get memory\n");
 		return -ENOMEM;
@@ -3489,46 +3487,33 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	hsotg->clk = clk_get(&pdev->dev, "otg");
 	if (IS_ERR(hsotg->clk)) {
 		dev_err(dev, "cannot get otg clock\n");
-		ret = PTR_ERR(hsotg->clk);
-		goto err_mem;
+		return PTR_ERR(hsotg->clk);
 	}
 
 	platform_set_drvdata(pdev, hsotg);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "cannot find register resource 0\n");
-		ret = -EINVAL;
-		goto err_clk;
-	}
 
-	hsotg->regs_res = request_mem_region(res->start, resource_size(res),
-					     dev_name(dev));
-	if (!hsotg->regs_res) {
-		dev_err(dev, "cannot reserve registers\n");
-		ret = -ENOENT;
-		goto err_clk;
-	}
-
-	hsotg->regs = ioremap(res->start, resource_size(res));
+	hsotg->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!hsotg->regs) {
 		dev_err(dev, "cannot map registers\n");
 		ret = -ENXIO;
-		goto err_regs_res;
+		goto err_clk;
 	}
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
 		dev_err(dev, "cannot find IRQ\n");
-		goto err_regs;
+		goto err_clk;
 	}
 
 	hsotg->irq = ret;
 
-	ret = request_irq(ret, s3c_hsotg_irq, 0, dev_name(dev), hsotg);
+	ret = devm_request_irq(&pdev->dev, hsotg->irq, s3c_hsotg_irq, 0,
+				dev_name(dev), hsotg);
 	if (ret < 0) {
 		dev_err(dev, "cannot claim IRQ\n");
-		goto err_regs;
+		goto err_clk;
 	}
 
 	dev_info(dev, "regs %p, irq %d\n", hsotg->regs, hsotg->irq);
@@ -3558,7 +3543,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 				 hsotg->supplies);
 	if (ret) {
 		dev_err(dev, "failed to request supplies: %d\n", ret);
-		goto err_irq;
+		goto err_clk;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
@@ -3642,19 +3627,11 @@ err_ep_mem:
 err_supplies:
 	s3c_hsotg_phy_disable(hsotg);
 	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
-err_irq:
-	free_irq(hsotg->irq, hsotg);
-err_regs:
-	iounmap(hsotg->regs);
 
-err_regs_res:
-	release_resource(hsotg->regs_res);
-	kfree(hsotg->regs_res);
 err_clk:
 	clk_disable_unprepare(hsotg->clk);
 	clk_put(hsotg->clk);
-err_mem:
-	kfree(hsotg);
+
 	return ret;
 }
 
@@ -3674,12 +3651,6 @@ static int __devexit s3c_hsotg_remove(struct platform_device *pdev)
 		/* should have been done already by driver model core */
 		usb_gadget_unregister_driver(hsotg->driver);
 	}
-
-	free_irq(hsotg->irq, hsotg);
-	iounmap(hsotg->regs);
-
-	release_resource(hsotg->regs_res);
-	kfree(hsotg->regs_res);
 
 	s3c_hsotg_phy_disable(hsotg);
 	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
