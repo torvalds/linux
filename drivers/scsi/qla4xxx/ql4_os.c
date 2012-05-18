@@ -82,6 +82,20 @@ MODULE_PARM_DESC(ql4xsess_recovery_tmo,
 		" Target Session Recovery Timeout.\n"
 		"\t\t  Default: 120 sec.");
 
+int ql4xmdcapmask = 0x1F;
+module_param(ql4xmdcapmask, int, S_IRUGO);
+MODULE_PARM_DESC(ql4xmdcapmask,
+		 " Set the Minidump driver capture mask level.\n"
+		 "\t\t  Default is 0x1F.\n"
+		 "\t\t  Can be set to 0x3, 0x7, 0xF, 0x1F, 0x3F, 0x7F");
+
+int ql4xenablemd = 1;
+module_param(ql4xenablemd, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ql4xenablemd,
+		 " Set to enable minidump.\n"
+		 "\t\t  0 - disable minidump\n"
+		 "\t\t  1 - enable minidump (Default)");
+
 static int qla4xxx_wait_for_hba_online(struct scsi_qla_host *ha);
 /*
  * SCSI host template entry points
@@ -2265,6 +2279,9 @@ static void qla4xxx_mem_free(struct scsi_qla_host *ha)
 		dma_free_coherent(&ha->pdev->dev, ha->queues_len, ha->queues,
 				  ha->queues_dma);
 
+	 if (ha->fw_dump)
+		vfree(ha->fw_dump);
+
 	ha->queues_len = 0;
 	ha->queues = NULL;
 	ha->queues_dma = 0;
@@ -2274,6 +2291,8 @@ static void qla4xxx_mem_free(struct scsi_qla_host *ha)
 	ha->response_dma = 0;
 	ha->shadow_regs = NULL;
 	ha->shadow_regs_dma = 0;
+	ha->fw_dump = NULL;
+	ha->fw_dump_size = 0;
 
 	/* Free srb pool. */
 	if (ha->srb_mempool)
@@ -5068,6 +5087,8 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 
 	set_bit(AF_INIT_DONE, &ha->flags);
 
+	qla4_8xxx_alloc_sysfs_attr(ha);
+
 	printk(KERN_INFO
 	       " QLogic iSCSI HBA Driver version: %s\n"
 	       "  QLogic ISP%04x @ %s, host#=%ld, fw=%02d.%02d.%02d.%02d\n",
@@ -5194,6 +5215,7 @@ static void __devexit qla4xxx_remove_adapter(struct pci_dev *pdev)
 		iscsi_boot_destroy_kset(ha->boot_kset);
 
 	qla4xxx_destroy_fw_ddb_session(ha);
+	qla4_8xxx_free_sysfs_attr(ha);
 
 	scsi_remove_host(ha->host);
 

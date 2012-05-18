@@ -270,6 +270,79 @@ mbox_exit:
 	return status;
 }
 
+/**
+ * qla4xxx_get_minidump_template - Get the firmware template
+ * @ha: Pointer to host adapter structure.
+ * @phys_addr: dma address for template
+ *
+ * Obtain the minidump template from firmware during initialization
+ * as it may not be available when minidump is desired.
+ **/
+int qla4xxx_get_minidump_template(struct scsi_qla_host *ha,
+				  dma_addr_t phys_addr)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	int status;
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	mbox_cmd[0] = MBOX_CMD_MINIDUMP;
+	mbox_cmd[1] = MINIDUMP_GET_TMPLT_SUBCOMMAND;
+	mbox_cmd[2] = LSDW(phys_addr);
+	mbox_cmd[3] = MSDW(phys_addr);
+	mbox_cmd[4] = ha->fw_dump_tmplt_size;
+	mbox_cmd[5] = 0;
+
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 2, &mbox_cmd[0],
+					 &mbox_sts[0]);
+	if (status != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				  "scsi%ld: %s: Cmd = %08X, mbx[0] = 0x%04x, mbx[1] = 0x%04x\n",
+				  ha->host_no, __func__, mbox_cmd[0],
+				  mbox_sts[0], mbox_sts[1]));
+	}
+	return status;
+}
+
+/**
+ * qla4xxx_req_template_size - Get minidump template size from firmware.
+ * @ha: Pointer to host adapter structure.
+ **/
+int qla4xxx_req_template_size(struct scsi_qla_host *ha)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	int status;
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	mbox_cmd[0] = MBOX_CMD_MINIDUMP;
+	mbox_cmd[1] = MINIDUMP_GET_SIZE_SUBCOMMAND;
+
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 8, &mbox_cmd[0],
+					 &mbox_sts[0]);
+	if (status == QLA_SUCCESS) {
+		ha->fw_dump_tmplt_size = mbox_sts[1];
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				  "%s: sts[0]=0x%04x, template  size=0x%04x, size_cm_02=0x%04x, size_cm_04=0x%04x, size_cm_08=0x%04x, size_cm_10=0x%04x, size_cm_FF=0x%04x, version=0x%04x\n",
+				  __func__, mbox_sts[0], mbox_sts[1],
+				  mbox_sts[2], mbox_sts[3], mbox_sts[4],
+				  mbox_sts[5], mbox_sts[6], mbox_sts[7]));
+		if (ha->fw_dump_tmplt_size == 0)
+			status = QLA_ERROR;
+	} else {
+		ql4_printk(KERN_WARNING, ha,
+			   "%s: Error sts[0]=0x%04x, mbx[1]=0x%04x\n",
+			   __func__, mbox_sts[0], mbox_sts[1]);
+		status = QLA_ERROR;
+	}
+
+	return status;
+}
+
 void qla4xxx_mailbox_premature_completion(struct scsi_qla_host *ha)
 {
 	set_bit(AF_FW_RECOVERY, &ha->flags);
