@@ -1760,10 +1760,114 @@ static int l2cap_ertm_send(struct l2cap_chan *chan)
 	return sent;
 }
 
+static void l2cap_ertm_resend(struct l2cap_chan *chan)
+{
+	struct l2cap_ctrl control;
+	struct sk_buff *skb;
+	struct sk_buff *tx_skb;
+	u16 seq;
+
+	BT_DBG("chan %p", chan);
+
+	if (test_bit(CONN_REMOTE_BUSY, &chan->conn_state))
+		return;
+
+	while (chan->retrans_list.head != L2CAP_SEQ_LIST_CLEAR) {
+		seq = l2cap_seq_list_pop(&chan->retrans_list);
+
+		skb = l2cap_ertm_seq_in_queue(&chan->tx_q, seq);
+		if (!skb) {
+			BT_DBG("Error: Can't retransmit seq %d, frame missing",
+				seq);
+			continue;
+		}
+
+		bt_cb(skb)->control.retries++;
+		control = bt_cb(skb)->control;
+
+		if (chan->max_tx != 0 &&
+		    bt_cb(skb)->control.retries > chan->max_tx) {
+			BT_DBG("Retry limit exceeded (%d)", chan->max_tx);
+			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
+			l2cap_seq_list_clear(&chan->retrans_list);
+			break;
+		}
+
+		control.reqseq = chan->buffer_seq;
+		if (test_and_clear_bit(CONN_SEND_FBIT, &chan->conn_state))
+			control.final = 1;
+		else
+			control.final = 0;
+
+		if (skb_cloned(skb)) {
+			/* Cloned sk_buffs are read-only, so we need a
+			 * writeable copy
+			 */
+			tx_skb = skb_copy(skb, GFP_ATOMIC);
+		} else {
+			tx_skb = skb_clone(skb, GFP_ATOMIC);
+		}
+
+		if (!tx_skb) {
+			l2cap_seq_list_clear(&chan->retrans_list);
+			break;
+		}
+
+		/* Update skb contents */
+		if (test_bit(FLAG_EXT_CTRL, &chan->flags)) {
+			put_unaligned_le32(__pack_extended_control(&control),
+					   tx_skb->data + L2CAP_HDR_SIZE);
+		} else {
+			put_unaligned_le16(__pack_enhanced_control(&control),
+					   tx_skb->data + L2CAP_HDR_SIZE);
+		}
+
+		if (chan->fcs == L2CAP_FCS_CRC16) {
+			u16 fcs = crc16(0, (u8 *) tx_skb->data, tx_skb->len);
+			put_unaligned_le16(fcs, skb_put(tx_skb,
+							L2CAP_FCS_SIZE));
+		}
+
+		l2cap_do_send(chan, tx_skb);
+
+		BT_DBG("Resent txseq %d", control.txseq);
+
+		chan->last_acked_seq = chan->buffer_seq;
+	}
+}
+
 static void l2cap_retransmit_all(struct l2cap_chan *chan,
 				 struct l2cap_ctrl *control)
 {
-	/* Placeholder */
+	struct sk_buff *skb;
+
+	BT_DBG("chan %p, control %p", chan, control);
+
+	if (control->poll)
+		set_bit(CONN_SEND_FBIT, &chan->conn_state);
+
+	l2cap_seq_list_clear(&chan->retrans_list);
+
+	if (test_bit(CONN_REMOTE_BUSY, &chan->conn_state))
+		return;
+
+	if (chan->unacked_frames) {
+		skb_queue_walk(&chan->tx_q, skb) {
+			if (bt_cb(skb)->control.txseq == control->reqseq ||
+				skb == chan->tx_send_head)
+				break;
+		}
+
+		skb_queue_walk_from(&chan->tx_q, skb) {
+			if (skb == chan->tx_send_head)
+				break;
+
+			l2cap_seq_list_append(&chan->retrans_list,
+					      bt_cb(skb)->control.txseq);
+		}
+
+		l2cap_ertm_resend(chan);
+	}
 }
 
 static void l2cap_send_ack(struct l2cap_chan *chan)
