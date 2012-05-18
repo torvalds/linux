@@ -225,7 +225,11 @@ static void vicam_dostream(struct work_struct *work)
 		goto exit;
 	}
 
-	while (!gspca_dev->frozen && gspca_dev->dev && gspca_dev->streaming) {
+	while (gspca_dev->dev && gspca_dev->streaming) {
+#ifdef CONFIG_PM
+		if (gspca_dev->frozen)
+			break;
+#endif
 		ret = vicam_read_frame(gspca_dev, buffer, frame_sz);
 		if (ret < 0)
 			break;

@@ -232,7 +232,11 @@ static void sq905_dostream(struct work_struct *work)
 	frame_sz = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].sizeimage
 			+ FRAME_HEADER_LEN;
 
-	while (!gspca_dev->frozen && gspca_dev->dev && gspca_dev->streaming) {
+	while (gspca_dev->dev && gspca_dev->streaming) {
+#ifdef CONFIG_PM
+		if (gspca_dev->frozen)
+			break;
+#endif
 		/* request some data and then read it until we have
 		 * a complete frame. */
 		bytes_left = frame_sz;

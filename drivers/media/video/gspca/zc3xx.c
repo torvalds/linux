@@ -5946,8 +5946,11 @@ static void transfer_update(struct work_struct *work)
 		msleep(100);
 
 		mutex_lock(&gspca_dev->usb_lock);
-		if (gspca_dev->frozen || !gspca_dev->dev ||
-					 !gspca_dev->streaming)
+#ifdef CONFIG_PM
+		if (gspca_dev->frozen)
+			goto err;
+#endif
+		if (!gspca_dev->dev || !gspca_dev->streaming)
 			goto err;
 
 		/* Bit 0 of register 11 indicates FIFO overflow */

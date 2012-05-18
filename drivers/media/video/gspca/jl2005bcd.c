@@ -335,7 +335,11 @@ static void jl2005c_dostream(struct work_struct *work)
 		goto quit_stream;
 	}
 
-	while (!gspca_dev->frozen && gspca_dev->dev && gspca_dev->streaming) {
+	while (gspca_dev->dev && gspca_dev->streaming) {
+#ifdef CONFIG_PM
+		if (gspca_dev->frozen)
+			break;
+#endif
 		/* Check if this is a new frame. If so, start the frame first */
 		if (!header_read) {
 			mutex_lock(&gspca_dev->usb_lock);
