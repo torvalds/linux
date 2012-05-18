@@ -1157,9 +1157,6 @@ static int omap_gpio_runtime_suspend(struct device *dev)
 
 	spin_lock_irqsave(&bank->lock, flags);
 
-	if (!bank->enabled_non_wakeup_gpios)
-		goto update_gpio_context_count;
-
 	/*
 	 * Only edges can generate a wakeup event to the PRCM.
 	 *
@@ -1179,6 +1176,9 @@ static int omap_gpio_runtime_suspend(struct device *dev)
 	if (wake_hi)
 		__raw_writel(wake_hi | bank->context.risingdetect,
 			     bank->base + bank->regs->risingdetect);
+
+	if (!bank->enabled_non_wakeup_gpios)
+		goto update_gpio_context_count;
 
 	if (bank->power_mode != OFF_MODE) {
 		bank->power_mode = 0;
@@ -1238,8 +1238,7 @@ static int omap_gpio_runtime_resume(struct device *dev)
 	if (bank->get_context_loss_count) {
 		context_lost_cnt_after =
 			bank->get_context_loss_count(bank->dev);
-		if (context_lost_cnt_after != bank->context_loss_count ||
-						!context_lost_cnt_after) {
+		if (context_lost_cnt_after != bank->context_loss_count) {
 			omap_gpio_restore_context(bank);
 		} else {
 			spin_unlock_irqrestore(&bank->lock, flags);
