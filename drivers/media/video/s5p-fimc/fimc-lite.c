@@ -1510,7 +1510,7 @@ static int fimc_lite_suspend(struct device *dev)
 		return 0;
 
 	ret = fimc_lite_stop_capture(fimc, suspend);
-	if (ret)
+	if (ret < 0 || !fimc_lite_active(fimc))
 		return ret;
 
 	return fimc_pipeline_shutdown(&fimc->pipeline);
