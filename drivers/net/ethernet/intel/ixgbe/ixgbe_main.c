@@ -4549,10 +4549,16 @@ static int ixgbe_setup_all_tx_resources(struct ixgbe_adapter *adapter)
 		err = ixgbe_setup_tx_resources(adapter->tx_ring[i]);
 		if (!err)
 			continue;
+
 		e_err(probe, "Allocation for Tx Queue %u failed\n", i);
-		break;
+		goto err_setup_tx;
 	}
 
+	return 0;
+err_setup_tx:
+	/* rewind the index freeing the rings as we go */
+	while (i--)
+		ixgbe_free_tx_resources(adapter->tx_ring[i]);
 	return err;
 }
 
@@ -4627,10 +4633,16 @@ static int ixgbe_setup_all_rx_resources(struct ixgbe_adapter *adapter)
 		err = ixgbe_setup_rx_resources(adapter->rx_ring[i]);
 		if (!err)
 			continue;
+
 		e_err(probe, "Allocation for Rx Queue %u failed\n", i);
-		break;
+		goto err_setup_rx;
 	}
 
+	return 0;
+err_setup_rx:
+	/* rewind the index freeing the rings as we go */
+	while (i--)
+		ixgbe_free_rx_resources(adapter->rx_ring[i]);
 	return err;
 }
 
@@ -4791,10 +4803,10 @@ static int ixgbe_open(struct net_device *netdev)
 	return 0;
 
 err_req_irq:
-err_setup_rx:
 	ixgbe_free_all_rx_resources(adapter);
-err_setup_tx:
+err_setup_rx:
 	ixgbe_free_all_tx_resources(adapter);
+err_setup_tx:
 	ixgbe_reset(adapter);
 
 	return err;
