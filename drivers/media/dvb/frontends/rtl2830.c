@@ -374,6 +374,115 @@ err:
 	return ret;
 }
 
+static int rtl2830_get_frontend(struct dvb_frontend *fe)
+{
+	struct rtl2830_priv *priv = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	int ret;
+	u8 buf[3];
+
+	ret = rtl2830_rd_regs(priv, 0x33c, buf, 2);
+	if (ret)
+		goto err;
+
+	ret = rtl2830_rd_reg(priv, 0x351, &buf[2]);
+	if (ret)
+		goto err;
+
+	dbg("%s: TPS=%02x %02x %02x", __func__, buf[0], buf[1], buf[2]);
+
+	switch ((buf[0] >> 2) & 3) {
+	case 0:
+		c->modulation = QPSK;
+		break;
+	case 1:
+		c->modulation = QAM_16;
+		break;
+	case 2:
+		c->modulation = QAM_64;
+		break;
+	}
+
+	switch ((buf[2] >> 2) & 1) {
+	case 0:
+		c->transmission_mode = TRANSMISSION_MODE_2K;
+		break;
+	case 1:
+		c->transmission_mode = TRANSMISSION_MODE_8K;
+	}
+
+	switch ((buf[2] >> 0) & 3) {
+	case 0:
+		c->guard_interval = GUARD_INTERVAL_1_32;
+		break;
+	case 1:
+		c->guard_interval = GUARD_INTERVAL_1_16;
+		break;
+	case 2:
+		c->guard_interval = GUARD_INTERVAL_1_8;
+		break;
+	case 3:
+		c->guard_interval = GUARD_INTERVAL_1_4;
+		break;
+	}
+
+	switch ((buf[0] >> 4) & 7) {
+	case 0:
+		c->hierarchy = HIERARCHY_NONE;
+		break;
+	case 1:
+		c->hierarchy = HIERARCHY_1;
+		break;
+	case 2:
+		c->hierarchy = HIERARCHY_2;
+		break;
+	case 3:
+		c->hierarchy = HIERARCHY_4;
+		break;
+	}
+
+	switch ((buf[1] >> 3) & 7) {
+	case 0:
+		c->code_rate_HP = FEC_1_2;
+		break;
+	case 1:
+		c->code_rate_HP = FEC_2_3;
+		break;
+	case 2:
+		c->code_rate_HP = FEC_3_4;
+		break;
+	case 3:
+		c->code_rate_HP = FEC_5_6;
+		break;
+	case 4:
+		c->code_rate_HP = FEC_7_8;
+		break;
+	}
+
+	switch ((buf[1] >> 0) & 7) {
+	case 0:
+		c->code_rate_LP = FEC_1_2;
+		break;
+	case 1:
+		c->code_rate_LP = FEC_2_3;
+		break;
+	case 2:
+		c->code_rate_LP = FEC_3_4;
+		break;
+	case 3:
+		c->code_rate_LP = FEC_5_6;
+		break;
+	case 4:
+		c->code_rate_LP = FEC_7_8;
+		break;
+	}
+
+	return 0;
+err:
+	dbg("%s: failed=%d", __func__, ret);
+	return ret;
+}
+
 static int rtl2830_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct rtl2830_priv *priv = fe->demodulator_priv;
@@ -622,6 +731,7 @@ static struct dvb_frontend_ops rtl2830_ops = {
 	.get_tune_settings = rtl2830_get_tune_settings,
 
 	.set_frontend = rtl2830_set_frontend,
+	.get_frontend = rtl2830_get_frontend,
 
 	.read_status = rtl2830_read_status,
 	.read_snr = rtl2830_read_snr,
