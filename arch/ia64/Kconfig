@@ -33,6 +33,8 @@ config IA64
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_IOMAP
+	select ARCH_CLOCKSOURCE_DATA
+	select GENERIC_TIME_VSYSCALL
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -88,10 +90,6 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config GENERIC_TIME_VSYSCALL
-	bool
-	default y
-
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool y
 
@@ -105,9 +103,6 @@ config DMI
 config EFI
 	bool
 	default y
-
-config ARCH_CLOCKSOURCE_DATA
-	def_bool y
 
 config SCHED_OMIT_FRAME_POINTER
 	bool
