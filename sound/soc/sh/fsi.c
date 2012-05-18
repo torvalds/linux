@@ -1217,8 +1217,8 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 	 * FSI2 chip can select it.
 	 */
 	if (fsi_ver >= 2) {
-		fsi_reg_write(fsi, OUT_DMAC,	(1 << 4));
-		fsi_reg_write(fsi, IN_DMAC,	(1 << 4));
+		fsi_reg_write(fsi, OUT_DMAC,	VDMD_BACK);
+		fsi_reg_write(fsi, IN_DMAC,	VDMD_BACK);
 	}
 
 	/* irq clear */
