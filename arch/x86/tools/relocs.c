@@ -56,7 +56,11 @@ static const char * const sym_regex_kernel[S_NSYMTYPES] = {
  * as absolute (typically defined outside any section in the linker script.)
  */
 	[S_REL] =
-	"^(__init_begin|__init_end|_end)$"
+	"^(__init_(begin|end)|"
+	"__x86_cpu_dev_(start|end)|"
+	"(__parainstructions|__alt_instructions)(|_end)|"
+	"(__iommu_table|__apicdrivers|__smp_locks)(|_end)|"
+	"_end)$"
 };
 
 
