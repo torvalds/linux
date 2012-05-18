@@ -140,6 +140,8 @@
  * @list: a link in the list of pending works
  * @func: worker function
  * @e: physical eraseblock to erase
+ * @vol_id: the volume ID on which this erasure is being performed
+ * @lnum: the logical eraseblock number
  * @torture: if the physical eraseblock has to be tortured
  *
  * The @func pointer points to the worker function. If the @cancel argument is
@@ -152,6 +154,8 @@ struct ubi_work {
 	int (*func)(struct ubi_device *ubi, struct ubi_work *wrk, int cancel);
 	/* The below fields are only relevant to erasure works */
 	struct ubi_wl_entry *e;
+	int vol_id;
+	int lnum;
 	int torture;
 };
 
@@ -579,13 +583,15 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
  * schedule_erase - schedule an erase work.
  * @ubi: UBI device description object
  * @e: the WL entry of the physical eraseblock to erase
+ * @vol_id: the volume ID that last used this PEB
+ * @lnum: the last used logical eraseblock number for the PEB
  * @torture: if the physical eraseblock has to be tortured
  *
  * This function returns zero in case of success and a %-ENOMEM in case of
  * failure.
  */
 static int schedule_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
-			  int torture)
+			  int vol_id, int lnum, int torture)
 {
 	struct ubi_work *wl_wrk;
 
@@ -598,6 +604,8 @@ static int schedule_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 
 	wl_wrk->func = &erase_worker;
 	wl_wrk->e = e;
+	wl_wrk->vol_id = vol_id;
+	wl_wrk->lnum = lnum;
 	wl_wrk->torture = torture;
 
 	schedule_ubi_work(ubi, wl_wrk);
@@ -798,7 +806,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	ubi->move_to_put = ubi->wl_scheduled = 0;
 	spin_unlock(&ubi->wl_lock);
 
-	err = schedule_erase(ubi, e1, 0);
+	err = schedule_erase(ubi, e1, vol_id, lnum, 0);
 	if (err) {
 		kmem_cache_free(ubi_wl_entry_slab, e1);
 		if (e2)
@@ -813,7 +821,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		 */
 		dbg_wl("PEB %d (LEB %d:%d) was put meanwhile, erase",
 		       e2->pnum, vol_id, lnum);
-		err = schedule_erase(ubi, e2, 0);
+		err = schedule_erase(ubi, e2, vol_id, lnum, 0);
 		if (err) {
 			kmem_cache_free(ubi_wl_entry_slab, e2);
 			goto out_ro;
@@ -852,7 +860,7 @@ out_not_moved:
 	spin_unlock(&ubi->wl_lock);
 
 	ubi_free_vid_hdr(ubi, vid_hdr);
-	err = schedule_erase(ubi, e2, torture);
+	err = schedule_erase(ubi, e2, vol_id, lnum, torture);
 	if (err) {
 		kmem_cache_free(ubi_wl_entry_slab, e2);
 		goto out_ro;
@@ -971,6 +979,8 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 {
 	struct ubi_wl_entry *e = wl_wrk->e;
 	int pnum = e->pnum, err, need;
+	int vol_id = wl_wrk->vol_id;
+	int lnum = wl_wrk->lnum;
 
 	if (cancel) {
 		dbg_wl("cancel erasure of PEB %d EC %d", pnum, e->ec);
@@ -979,7 +989,8 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 		return 0;
 	}
 
-	dbg_wl("erase PEB %d EC %d", pnum, e->ec);
+	dbg_wl("erase PEB %d EC %d LEB %d:%d",
+	       pnum, e->ec, wl_wrk->vol_id, wl_wrk->lnum);
 
 	err = sync_erase(ubi, e, wl_wrk->torture);
 	if (!err) {
@@ -1009,7 +1020,7 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 		int err1;
 
 		/* Re-schedule the LEB for erasure */
-		err1 = schedule_erase(ubi, e, 0);
+		err1 = schedule_erase(ubi, e, vol_id, lnum, 0);
 		if (err1) {
 			err = err1;
 			goto out_ro;
@@ -1077,6 +1088,8 @@ out_ro:
 /**
  * ubi_wl_put_peb - return a PEB to the wear-leveling sub-system.
  * @ubi: UBI device description object
+ * @vol_id: the volume ID that last used this PEB
+ * @lnum: the last used logical eraseblock number for the PEB
  * @pnum: physical eraseblock to return
  * @torture: if this physical eraseblock has to be tortured
  *
@@ -1085,7 +1098,8 @@ out_ro:
  * occurred to this @pnum and it has to be tested. This function returns zero
  * in case of success, and a negative error code in case of failure.
  */
-int ubi_wl_put_peb(struct ubi_device *ubi, int pnum, int torture)
+int ubi_wl_put_peb(struct ubi_device *ubi, int vol_id, int lnum,
+		   int pnum, int torture)
 {
 	int err;
 	struct ubi_wl_entry *e;
@@ -1151,7 +1165,7 @@ retry:
 	}
 	spin_unlock(&ubi->wl_lock);
 
-	err = schedule_erase(ubi, e, torture);
+	err = schedule_erase(ubi, e, vol_id, lnum, torture);
 	if (err) {
 		spin_lock(&ubi->wl_lock);
 		wl_tree_add(e, &ubi->used);
@@ -1416,7 +1430,7 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 		e->pnum = aeb->pnum;
 		e->ec = aeb->ec;
 		ubi->lookuptbl[e->pnum] = e;
-		if (schedule_erase(ubi, e, 0)) {
+		if (schedule_erase(ubi, e, aeb->vol_id, aeb->lnum, 0)) {
 			kmem_cache_free(ubi_wl_entry_slab, e);
 			goto out_free;
 		}
