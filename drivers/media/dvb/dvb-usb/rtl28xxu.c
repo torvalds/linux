@@ -1156,6 +1156,7 @@ enum rtl28xxu_usb_table_entry {
 	RTL2831U_14AA_0161,
 	RTL2832U_0CCD_00A9,
 	RTL2832U_1F4D_B803,
+	RTL2832U_0CCD_00B3,
 };
 
 static struct usb_device_id rtl28xxu_table[] = {
@@ -1172,6 +1173,8 @@ static struct usb_device_id rtl28xxu_table[] = {
 		USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_T_STICK_BLACK_REV1)},
 	[RTL2832U_1F4D_B803] = {
 		USB_DEVICE(USB_VID_GTEK, USB_PID_DELOCK_USB2_DVBT)},
+	[RTL2832U_0CCD_00B3] = {
+		USB_DEVICE(USB_VID_TERRATEC, USB_PID_NOXON_DAB_STICK)},
 	{} /* terminating entry */
 };
 
@@ -1285,7 +1288,7 @@ static struct dvb_usb_device_properties rtl28xxu_properties[] = {
 
 		.i2c_algo = &rtl28xxu_i2c_algo,
 
-		.num_device_descs = 2,
+		.num_device_descs = 3,
 		.devices = {
 			{
 				.name = "Terratec Cinergy T Stick Black",
@@ -1297,6 +1300,12 @@ static struct dvb_usb_device_properties rtl28xxu_properties[] = {
 				.name = "G-Tek Electronics Group Lifeview LV5TDLX DVB-T",
 				.warm_ids = {
 					&rtl28xxu_table[RTL2832U_1F4D_B803],
+				},
+			},
+			{
+				.name = "NOXON DAB/DAB+ USB dongle",
+				.warm_ids = {
+					&rtl28xxu_table[RTL2832U_0CCD_00B3],
 				},
 			},
 		}
