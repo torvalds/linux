@@ -243,7 +243,7 @@ static void rk29_adc_battery_charge_disable(struct rk29_adc_battery_data *bat)
 static int rk29_adc_battery_get_charge_level(struct rk29_adc_battery_data *bat)
 {
 	int charge_on = 0;
-//	struct rk29_adc_battery_platform_data *pdata = bat->pdata;
+	struct rk29_adc_battery_platform_data *pdata = bat->pdata;
 
 #if defined (CONFIG_BATTERY_RK29_AC_CHARGE)
 	if (pdata->dc_det_pin != INVALID_GPIO){
@@ -1137,10 +1137,12 @@ static irqreturn_t rk29_adc_battery_low_wakeup(int irq,void *dev_id)
 static int rk29_adc_battery_probe(struct platform_device *pdev)
 {
 	int    ret;
+	int    irq;
+	int    irq_flag;
 	struct adc_client                   *client;
 	struct rk29_adc_battery_data          *data;
 	struct rk29_adc_battery_platform_data *pdata = pdev->dev.platform_data;
-	
+
 	//printk("%s--%d:\n",__FUNCTION__,__LINE__);
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL) {
