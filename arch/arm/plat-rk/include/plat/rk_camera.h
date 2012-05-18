@@ -46,6 +46,7 @@
 #define RK29_CAM_SENSOR_OV2659 ov2659
 #define RK29_CAM_SENSOR_OV7690 ov7690
 #define RK29_CAM_SENSOR_OV3640 ov3640
+#define RK29_CAM_SENSOR_OV3660 ov3660
 #define RK29_CAM_SENSOR_OV5640 ov5640
 #define RK29_CAM_SENSOR_OV5642 ov5642
 #define RK29_CAM_SENSOR_S5K6AA s5k6aa
@@ -71,6 +72,7 @@
 #define RK29_CAM_SENSOR_NAME_OV2659 "ov2659"
 #define RK29_CAM_SENSOR_NAME_OV7690 "ov7690"
 #define RK29_CAM_SENSOR_NAME_OV3640 "ov3640"
+#define RK29_CAM_SENSOR_NAME_OV3660 "ov3660"
 #define RK29_CAM_SENSOR_NAME_OV5640 "ov5640"
 #define RK29_CAM_SENSOR_NAME_OV5642 "ov5642"
 #define RK29_CAM_SENSOR_NAME_S5K6AA "s5k6aa"
@@ -96,6 +98,7 @@
 #define ov2659_FULL_RESOLUTION     0x200000           // 2 megapixel
 #define ov7690_FULL_RESOLUTION     0x300000           // 2 megapixel
 #define ov3640_FULL_RESOLUTION     0x300000           // 3 megapixel
+#define ov3660_FULL_RESOLUTION     0x300000           // 3 megapixel
 #define ov5640_FULL_RESOLUTION     0x500000           // 5 megapixel
 #define ov5642_FULL_RESOLUTION     0x500000           // 5 megapixel
 #define s5k6aa_FULL_RESOLUTION     0x130000           // 1.3 megapixel
