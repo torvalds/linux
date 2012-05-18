@@ -160,6 +160,12 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 	return pmd_k;
 }
 
+#ifdef CONFIG_SH_STORE_QUEUES
+#define __FAULT_ADDR_LIMIT	P3_ADDR_MAX
+#else
+#define __FAULT_ADDR_LIMIT	VMALLOC_END
+#endif
+
 /*
  * Handle a fault on the vmalloc or module mapping area
  */
@@ -170,7 +176,7 @@ static noinline int vmalloc_fault(unsigned long address)
 	pte_t *pte_k;
 
 	/* Make sure we are in vmalloc/module/P3 area: */
-	if (!(address >= P3SEG && address < P3_ADDR_MAX))
+	if (!(address >= VMALLOC_START && address < __FAULT_ADDR_LIMIT))
 		return -1;
 
 	/*
