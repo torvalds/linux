@@ -1013,6 +1013,8 @@ static void sge_intr_handler(struct adapter *adapter)
 		{ ERR_INVALID_CIDX_INC,
 		  "SGE GTS CIDX increment too large", -1, 0 },
 		{ ERR_CPL_OPCODE_0, "SGE received 0-length CPL", -1, 0 },
+		{ F_DBFIFO_LP_INT, NULL, -1, 0 },
+		{ F_DBFIFO_HP_INT, NULL, -1, 0 },
 		{ ERR_DROPPED_DB, "SGE doorbell dropped", -1, 0 },
 		{ ERR_DATA_CPL_ON_HIGH_QID1 | ERR_DATA_CPL_ON_HIGH_QID0,
 		  "SGE IQID > 1023 received CPL for FL", -1, 0 },
@@ -1041,6 +1043,12 @@ static void sge_intr_handler(struct adapter *adapter)
 		t4_write_reg(adapter, SGE_INT_CAUSE1, v);
 		t4_write_reg(adapter, SGE_INT_CAUSE2, v >> 32);
 	}
+
+	err = t4_read_reg(adapter, A_SGE_INT_CAUSE3);
+	if (err & (F_DBFIFO_HP_INT|F_DBFIFO_LP_INT))
+		t4_db_full(adapter);
+	if (err & F_ERR_DROPPED_DB)
+		t4_db_dropped(adapter);
 
 	if (t4_handle_intr_status(adapter, SGE_INT_CAUSE3, sge_intr_info) ||
 	    v != 0)
@@ -1513,6 +1521,7 @@ void t4_intr_enable(struct adapter *adapter)
 		     ERR_BAD_DB_PIDX2 | ERR_BAD_DB_PIDX1 |
 		     ERR_BAD_DB_PIDX0 | ERR_ING_CTXT_PRIO |
 		     ERR_EGR_CTXT_PRIO | INGRESS_SIZE_ERR |
+		     F_DBFIFO_HP_INT | F_DBFIFO_LP_INT |
 		     EGRESS_SIZE_ERR);
 	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE), PF_INTR_MASK);
 	t4_set_reg_field(adapter, PL_INT_MAP0, 0, 1 << pf);

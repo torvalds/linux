@@ -2415,6 +2415,12 @@ void t4_sge_init(struct adapter *adap)
 			 RXPKTCPLMODE |
 			 (STAT_LEN == 128 ? EGRSTATUSPAGESIZE : 0));
 
+	t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
+			V_HP_INT_THRESH(5) | V_LP_INT_THRESH(5),
+			V_HP_INT_THRESH(5) | V_LP_INT_THRESH(5));
+	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_ENABLE_DROP,
+			F_ENABLE_DROP);
+
 	for (i = v = 0; i < 32; i += 4)
 		v |= (PAGE_SHIFT - 10) << i;
 	t4_write_reg(adap, SGE_HOST_PAGE_SIZE, v);

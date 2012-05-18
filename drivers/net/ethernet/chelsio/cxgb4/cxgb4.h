@@ -504,6 +504,8 @@ struct adapter {
 	void **tid_release_head;
 	spinlock_t tid_release_lock;
 	struct work_struct tid_release_task;
+	struct work_struct db_full_task;
+	struct work_struct db_drop_task;
 	bool tid_release_task_busy;
 
 	struct dentry *debugfs_root;
@@ -719,4 +721,6 @@ int t4_ctrl_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int eqid);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
+void t4_db_full(struct adapter *adapter);
+void t4_db_dropped(struct adapter *adapter);
 #endif /* __CXGB4_H__ */

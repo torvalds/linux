@@ -163,6 +163,12 @@ enum cxgb4_state {
 	CXGB4_STATE_DETACH
 };
 
+enum cxgb4_control {
+	CXGB4_CONTROL_DB_FULL,
+	CXGB4_CONTROL_DB_EMPTY,
+	CXGB4_CONTROL_DB_DROP,
+};
+
 struct pci_dev;
 struct l2t_data;
 struct net_device;
@@ -225,6 +231,7 @@ struct cxgb4_uld_info {
 int cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
+unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo);
 unsigned int cxgb4_port_chan(const struct net_device *dev);
 unsigned int cxgb4_port_viid(const struct net_device *dev);
 unsigned int cxgb4_port_idx(const struct net_device *dev);

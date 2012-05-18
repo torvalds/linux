@@ -2366,6 +2366,16 @@ unsigned int cxgb4_port_chan(const struct net_device *dev)
 }
 EXPORT_SYMBOL(cxgb4_port_chan);
 
+unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo)
+{
+	struct adapter *adap = netdev2adap(dev);
+	u32 v;
+
+	v = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
+	return lpfifo ? G_LP_COUNT(v) : G_HP_COUNT(v);
+}
+EXPORT_SYMBOL(cxgb4_dbfifo_count);
+
 /**
  *	cxgb4_port_viid - get the VI id of a port
  *	@dev: the net device for the port
@@ -2445,6 +2455,69 @@ static bool netevent_registered;
 static struct notifier_block cxgb4_netevent_nb = {
 	.notifier_call = netevent_cb
 };
+
+static void notify_rdma_uld(struct adapter *adap, enum cxgb4_control cmd)
+{
+	mutex_lock(&uld_mutex);
+	if (adap->uld_handle[CXGB4_ULD_RDMA])
+		ulds[CXGB4_ULD_RDMA].control(adap->uld_handle[CXGB4_ULD_RDMA],
+				cmd);
+	mutex_unlock(&uld_mutex);
+}
+
+static void process_db_full(struct work_struct *work)
+{
+	struct adapter *adap;
+	static int delay = 1000;
+	u32 v;
+
+	adap = container_of(work, struct adapter, db_full_task);
+
+
+	/* stop LLD queues */
+
+	notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
+	do {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(usecs_to_jiffies(delay));
+		v = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
+		if (G_LP_COUNT(v) == 0 && G_HP_COUNT(v) == 0)
+			break;
+	} while (1);
+	notify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
+
+
+	/*
+	 * The more we get db full interrupts, the more we'll delay
+	 * in re-enabling db rings on queues, capped off at 200ms.
+	 */
+	delay = min(delay << 1, 200000);
+
+	/* resume LLD queues */
+}
+
+static void process_db_drop(struct work_struct *work)
+{
+	struct adapter *adap;
+	adap = container_of(work, struct adapter, db_drop_task);
+
+
+	/*
+	 * sync the PIDX values in HW and SW for LLD queues.
+	 */
+
+	notify_rdma_uld(adap, CXGB4_CONTROL_DB_DROP);
+}
+
+void t4_db_full(struct adapter *adap)
+{
+	schedule_work(&adap->db_full_task);
+}
+
+void t4_db_dropped(struct adapter *adap)
+{
+	schedule_work(&adap->db_drop_task);
+}
 
 static void uld_attach(struct adapter *adap, unsigned int uld)
 {
@@ -2649,6 +2722,8 @@ static void cxgb_down(struct adapter *adapter)
 {
 	t4_intr_disable(adapter);
 	cancel_work_sync(&adapter->tid_release_task);
+	cancel_work_sync(&adapter->db_full_task);
+	cancel_work_sync(&adapter->db_drop_task);
 	adapter->tid_release_task_busy = false;
 	adapter->tid_release_head = NULL;
 
@@ -3601,6 +3676,8 @@ static int __devinit init_one(struct pci_dev *pdev,
 	spin_lock_init(&adapter->tid_release_lock);
 
 	INIT_WORK(&adapter->tid_release_task, process_tid_release_list);
+	INIT_WORK(&adapter->db_full_task, process_db_full);
+	INIT_WORK(&adapter->db_drop_task, process_db_drop);
 
 	err = t4_prep_adapter(adapter);
 	if (err)
