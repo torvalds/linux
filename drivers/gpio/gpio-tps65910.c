@@ -20,6 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/tps65910.h>
+#include <linux/of_device.h>
 
 struct tps65910_gpio {
 	struct gpio_chip gpio_chip;
@@ -81,6 +82,37 @@ static int tps65910_gpio_input(struct gpio_chip *gc, unsigned offset)
 						GPIO_CFG_MASK);
 }
 
+#ifdef CONFIG_OF
+static struct tps65910_board *tps65910_parse_dt_for_gpio(struct device *dev,
+		struct tps65910 *tps65910, int chip_ngpio)
+{
+	struct tps65910_board *tps65910_board = tps65910->of_plat_data;
+	unsigned int prop_array[TPS6591X_MAX_NUM_GPIO];
+	int ngpio = min(chip_ngpio, TPS6591X_MAX_NUM_GPIO);
+	int ret;
+	int idx;
+
+	tps65910_board->gpio_base = -1;
+	ret = of_property_read_u32_array(tps65910->dev->of_node,
+			"ti,en-gpio-sleep", prop_array, ngpio);
+	if (ret < 0) {
+		dev_dbg(dev, "ti,en-gpio-sleep not specified\n");
+		return tps65910_board;
+	}
+
+	for (idx = 0; idx < ngpio; idx++)
+		tps65910_board->en_gpio_sleep[idx] = (prop_array[idx] != 0);
+
+	return tps65910_board;
+}
+#else
+static struct tps65910_board *tps65910_parse_dt_for_gpio(struct device *dev,
+		struct tps65910 *tps65910, int chip_ngpio)
+{
+	return NULL;
+}
+#endif
+
 static int __devinit tps65910_gpio_probe(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910 = dev_get_drvdata(pdev->dev.parent);
@@ -121,6 +153,10 @@ static int __devinit tps65910_gpio_probe(struct platform_device *pdev)
 		tps65910_gpio->gpio_chip.base = pdata->gpio_base;
 	else
 		tps65910_gpio->gpio_chip.base = -1;
+
+	if (!pdata && tps65910->dev->of_node)
+		pdata = tps65910_parse_dt_for_gpio(&pdev->dev, tps65910,
+			tps65910_gpio->gpio_chip.ngpio);
 
 	if (!pdata)
 		goto skip_init;
