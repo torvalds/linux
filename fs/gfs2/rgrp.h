@@ -29,14 +29,6 @@ extern void gfs2_free_clones(struct gfs2_rgrpd *rgd);
 extern int gfs2_rgrp_go_lock(struct gfs2_holder *gh);
 extern void gfs2_rgrp_go_unlock(struct gfs2_holder *gh);
 
-extern struct gfs2_qadata *gfs2_qadata_get(struct gfs2_inode *ip);
-static inline void gfs2_qadata_put(struct gfs2_inode *ip)
-{
-	BUG_ON(ip->i_qadata == NULL);
-	kfree(ip->i_qadata);
-	ip->i_qadata = NULL;
-}
-
 extern int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested);
 extern void gfs2_inplace_release(struct gfs2_inode *ip);
 

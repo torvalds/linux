@@ -1007,25 +1007,6 @@ out:
 }
 
 /**
- * gfs2_qadata_get - get the struct gfs2_qadata structure for an inode
- * @ip: the incore GFS2 inode structure
- *
- * Returns: the struct gfs2_qadata
- */
-
-struct gfs2_qadata *gfs2_qadata_get(struct gfs2_inode *ip)
-{
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	int error;
-	BUG_ON(ip->i_qadata != NULL);
-	ip->i_qadata = kzalloc(sizeof(struct gfs2_qadata), GFP_NOFS);
-	error = gfs2_rindex_update(sdp);
-	if (error)
-		fs_warn(sdp, "rindex update returns %d\n", error);
-	return ip->i_qadata;
-}
-
-/**
  * try_rgrp_fit - See if a given reservation will fit in a given RG
  * @rgd: the RG data
  * @ip: the inode
