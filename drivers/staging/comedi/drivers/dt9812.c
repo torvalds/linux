@@ -1111,9 +1111,9 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int dt9812_detach(struct comedi_device *dev)
+static void dt9812_detach(struct comedi_device *dev)
 {
-	return 0;
+	/* Nothing to cleanup */
 }
 
 static struct comedi_driver dt9812_comedi_driver = {

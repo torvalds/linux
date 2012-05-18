@@ -1223,24 +1223,18 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-static int pcmmio_detach(struct comedi_device *dev)
+static void pcmmio_detach(struct comedi_device *dev)
 {
 	int i;
 
-	printk(KERN_INFO "comedi%d: %s: remove\n", dev->minor,
-		dev->driver->driver_name);
 	if (dev->iobase)
 		release_region(dev->iobase, thisboard->total_iosize);
-
 	for (i = 0; i < MAX_ASICS; ++i) {
 		if (devpriv && devpriv->asics[i].irq)
 			free_irq(devpriv->asics[i].irq, dev);
 	}
-
 	if (devpriv && devpriv->sprivs)
 		kfree(devpriv->sprivs);
-
-	return 0;
 }
 
 static const struct pcmmio_board pcmmio_boards[] = {

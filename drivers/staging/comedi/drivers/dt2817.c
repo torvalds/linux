@@ -159,14 +159,10 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int dt2817_detach(struct comedi_device *dev)
+static void dt2817_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: dt2817: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, DT2817_SIZE);
-
-	return 0;
 }
 
 static struct comedi_driver dt2817_driver = {

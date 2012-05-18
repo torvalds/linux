@@ -227,13 +227,10 @@ static int pcmda12_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int pcmda12_detach(struct comedi_device *dev)
+static void pcmda12_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO
-	       "comedi%d: %s: remove\n", dev->minor, dev->driver->driver_name);
 	if (dev->iobase)
 		release_region(dev->iobase, IOSIZE);
-	return 0;
 }
 
 static const struct pcmda12_board pcmda12_boards[] = {

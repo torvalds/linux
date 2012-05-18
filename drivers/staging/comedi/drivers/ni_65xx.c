@@ -111,7 +111,7 @@ static inline unsigned Filter_Enable(unsigned port)
 
 static int ni_65xx_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it);
-static int ni_65xx_detach(struct comedi_device *dev);
+static void ni_65xx_detach(struct comedi_device *dev);
 static struct comedi_driver driver_ni_65xx = {
 	.driver_name = "ni_65xx",
 	.module = THIS_MODULE,
@@ -784,7 +784,7 @@ static int ni_65xx_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int ni_65xx_detach(struct comedi_device *dev)
+static void ni_65xx_detach(struct comedi_device *dev)
 {
 	if (private(dev) && private(dev)->mite
 	    && private(dev)->mite->daq_io_addr) {
@@ -792,10 +792,8 @@ static int ni_65xx_detach(struct comedi_device *dev)
 		       private(dev)->mite->daq_io_addr +
 		       Master_Interrupt_Control);
 	}
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (private(dev)) {
 		unsigned i;
 		for (i = 0; i < dev->n_subdevices; ++i) {
@@ -805,7 +803,6 @@ static int ni_65xx_detach(struct comedi_device *dev)
 		if (private(dev)->mite)
 			mite_unsetup(private(dev)->mite);
 	}
-	return 0;
 }
 
 static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot)

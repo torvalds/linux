@@ -1079,15 +1079,10 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 }
 #endif /* DO_COMEDI_DRIVER_REGISTER */
 
-
-int das08_common_detach(struct comedi_device *dev)
+void das08_common_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: das08: remove\n", dev->minor);
-
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 4);
-
-	/*  deallocate ioports for non-pcmcia, non-pci boards */
 	if ((thisboard->bustype != pcmcia) && (thisboard->bustype != pci)) {
 		if (dev->iobase)
 			release_region(dev->iobase, thisboard->iosize);
@@ -1102,8 +1097,6 @@ int das08_common_detach(struct comedi_device *dev)
 		}
 	}
 #endif
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(das08_common_detach);
 

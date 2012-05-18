@@ -148,11 +148,9 @@ static int mpc8260cpm_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int mpc8260cpm_detach(struct comedi_device *dev)
+static void mpc8260cpm_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: mpc8260cpm: remove\n", dev->minor);
-
-	return 0;
+	/* Nothing to cleanup */
 }
 
 static struct comedi_driver mpc8260cpm_driver = {

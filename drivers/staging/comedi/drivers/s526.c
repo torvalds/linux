@@ -938,14 +938,10 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-static int s526_detach(struct comedi_device *dev)
+static void s526_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: s526: remove\n", dev->minor);
-
 	if (dev->iobase > 0)
 		release_region(dev->iobase, S526_IOSIZE);
-
-	return 0;
 }
 
 static struct comedi_driver s526_driver = {

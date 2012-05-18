@@ -458,7 +458,7 @@ static inline const struct ni_660x_board *board(struct comedi_device *dev)
 
 static int ni_660x_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it);
-static int ni_660x_detach(struct comedi_device *dev);
+static void ni_660x_detach(struct comedi_device *dev);
 static void init_tio_chip(struct comedi_device *dev, int chipset);
 static void ni_660x_select_pfi_output(struct comedi_device *dev,
 				      unsigned pfi_channel,
@@ -1188,14 +1188,10 @@ static int ni_660x_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int ni_660x_detach(struct comedi_device *dev)
+static void ni_660x_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: ni_660x: remove\n", dev->minor);
-
-	/* Free irq */
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->private) {
 		if (private(dev)->counter_dev)
 			ni_gpct_device_destroy(private(dev)->counter_dev);
@@ -1204,7 +1200,6 @@ static int ni_660x_detach(struct comedi_device *dev)
 			mite_unsetup(private(dev)->mite);
 		}
 	}
-	return 0;
 }
 
 static int

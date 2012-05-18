@@ -315,16 +315,12 @@ static int multiq3_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int multiq3_detach(struct comedi_device *dev)
+static void multiq3_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: multiq3: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, MULTIQ3_SIZE);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
-	return 0;
 }
 
 static struct comedi_driver multiq3_driver = {

@@ -417,13 +417,11 @@ static int dev_8255_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int dev_8255_detach(struct comedi_device *dev)
+static void dev_8255_detach(struct comedi_device *dev)
 {
 	int i;
 	unsigned long iobase;
 	struct comedi_subdevice *s;
-
-	printk(KERN_INFO "comedi%d: 8255: remove\n", dev->minor);
 
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = dev->subdevices + i;
@@ -433,8 +431,6 @@ static int dev_8255_detach(struct comedi_device *dev)
 		}
 		subdev_8255_cleanup(dev, s);
 	}
-
-	return 0;
 }
 
 static struct comedi_driver dev_8255_driver = {

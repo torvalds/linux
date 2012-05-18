@@ -937,35 +937,19 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int pci230_detach(struct comedi_device *dev)
+static void pci230_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: amplc_pci230: remove\n", dev->minor);
-
 	if (dev->subdevices && thisboard->have_dio)
-		/* Clean up dio subdevice. */
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (devpriv) {
 		if (devpriv->pci_dev) {
 			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
-
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
-
-	return 0;
 }
 
 static int get_resources(struct comedi_device *dev, unsigned int res_mask,

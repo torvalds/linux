@@ -406,14 +406,10 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int atao_detach(struct comedi_device *dev)
+static void atao_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: atao: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, ATAO_SIZE);
-
-	return 0;
 }
 
 static const struct atao_board atao_boards[] = {

@@ -176,7 +176,7 @@ struct pc236_private {
  * the device code.
  */
 static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int pc236_detach(struct comedi_device *dev);
+static void pc236_detach(struct comedi_device *dev);
 static struct comedi_driver driver_amplc_pc236 = {
 	.driver_name = PC236_DRIVER_NAME,
 	.module = THIS_MODULE,
@@ -477,21 +477,10 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int pc236_detach(struct comedi_device *dev)
+static void pc236_detach(struct comedi_device *dev)
 {
-	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor,
-	       PC236_DRIVER_NAME);
 	if (devpriv)
 		pc236_intr_disable(dev);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->subdevices)
@@ -511,11 +500,6 @@ static int pc236_detach(struct comedi_device *dev)
 #endif
 		}
 	}
-	if (dev->board_name) {
-		printk(KERN_INFO "comedi%d: %s removed\n",
-		       dev->minor, dev->board_name);
-	}
-	return 0;
 }
 
 /*

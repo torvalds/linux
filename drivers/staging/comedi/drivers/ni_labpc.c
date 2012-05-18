@@ -805,13 +805,10 @@ static int labpc_find_device(struct comedi_device *dev, int bus, int slot)
 }
 #endif
 
-int labpc_common_detach(struct comedi_device *dev)
+void labpc_common_detach(struct comedi_device *dev)
 {
-	printk(KERN_ERR "comedi%d: ni_labpc: detach\n", dev->minor);
-
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
-
 #ifdef CONFIG_ISA_DMA_API
 	/* only free stuff if it has been allocated by _attach */
 	kfree(devpriv->dma_buffer);
@@ -826,8 +823,6 @@ int labpc_common_detach(struct comedi_device *dev)
 	if (devpriv->mite)
 		mite_unsetup(devpriv->mite);
 #endif
-
-	return 0;
 };
 EXPORT_SYMBOL_GPL(labpc_common_detach);
 

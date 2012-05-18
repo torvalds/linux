@@ -195,7 +195,7 @@ found:
 	return 1;
 }
 
-static int pcidio_detach(struct comedi_device *dev)
+static void pcidio_detach(struct comedi_device *dev)
 {
 	if (devpriv) {
 		if (devpriv->pci_dev) {
@@ -209,7 +209,6 @@ static int pcidio_detach(struct comedi_device *dev)
 		for (i = 0; i < thisboard->n_8255; i++)
 			subdev_8255_cleanup(dev, dev->subdevices + i);
 	}
-	return 0;
 }
 
 static struct comedi_driver cb_pcidio_driver = {

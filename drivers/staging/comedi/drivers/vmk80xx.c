@@ -1250,32 +1250,16 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 	return 0;
 }
 
-static int vmk80xx_detach(struct comedi_device *cdev)
+static void vmk80xx_detach(struct comedi_device *dev)
 {
-	struct vmk80xx_usb *dev;
-	int minor;
+	struct vmk80xx_usb *usb = dev->private;
 
-	if (!cdev)
-		return -EFAULT;
-
-	dev = cdev->private;
-	if (!dev)
-		return -EFAULT;
-
-	down(&dev->limit_sem);
-
-	cdev->private = NULL;
-	dev->attached = 0;
-
-	minor = cdev->minor;
-
-	printk(KERN_INFO
-	       "comedi%d: vmk80xx: board #%d [%s] detached from comedi\n",
-	       minor, dev->count, dev->board.name);
-
-	up(&dev->limit_sem);
-
-	return 0;
+	if (usb) {
+		down(&usb->limit_sem);
+		dev->private = NULL;
+		usb->attached = 0;
+		up(&usb->limit_sem);
+	}
 }
 
 static int vmk80xx_probe(struct usb_interface *intf,

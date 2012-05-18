@@ -181,15 +181,10 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int poc_detach(struct comedi_device *dev)
+static void poc_detach(struct comedi_device *dev)
 {
-	/* only free stuff if it has been allocated by _attach */
 	if (dev->iobase)
 		release_region(dev->iobase, this_board->iosize);
-
-	printk(KERN_INFO "comedi%d: dac02: remove\n", dev->minor);
-
-	return 0;
 }
 
 static const struct boarddef_struct boards[] = {

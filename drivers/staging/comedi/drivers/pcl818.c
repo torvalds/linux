@@ -1634,42 +1634,6 @@ static int rtc_setfreq_irq(int freq)
 }
 #endif
 
-/*
-==============================================================================
-  Free any resources that we have claimed
-*/
-static void free_resources(struct comedi_device *dev)
-{
-	/* printk("free_resource()\n"); */
-	if (dev->private) {
-		pcl818_ai_cancel(dev, devpriv->sub_ai);
-		pcl818_reset(dev);
-		if (devpriv->dma)
-			free_dma(devpriv->dma);
-		if (devpriv->dmabuf[0])
-			free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
-		if (devpriv->dmabuf[1])
-			free_pages(devpriv->dmabuf[1], devpriv->dmapages[1]);
-#ifdef unused
-		if (devpriv->rtc_irq)
-			free_irq(devpriv->rtc_irq, dev);
-		if ((devpriv->dma_rtc) && (RTC_lock == 1)) {
-			if (devpriv->rtc_iobase)
-				release_region(devpriv->rtc_iobase,
-					       devpriv->rtc_iosize);
-		}
-		if (devpriv->dma_rtc)
-			RTC_lock--;
-#endif
-	}
-
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, devpriv->io_range);
-	/* printk("free_resource() end\n"); */
-}
-
 static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
@@ -1960,11 +1924,33 @@ no_dma:
 	return 0;
 }
 
-static int pcl818_detach(struct comedi_device *dev)
+static void pcl818_detach(struct comedi_device *dev)
 {
-	/*   printk("comedi%d: pcl818: remove\n", dev->minor); */
-	free_resources(dev);
-	return 0;
+	if (dev->private) {
+		pcl818_ai_cancel(dev, devpriv->sub_ai);
+		pcl818_reset(dev);
+		if (devpriv->dma)
+			free_dma(devpriv->dma);
+		if (devpriv->dmabuf[0])
+			free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
+		if (devpriv->dmabuf[1])
+			free_pages(devpriv->dmabuf[1], devpriv->dmapages[1]);
+#ifdef unused
+		if (devpriv->rtc_irq)
+			free_irq(devpriv->rtc_irq, dev);
+		if ((devpriv->dma_rtc) && (RTC_lock == 1)) {
+			if (devpriv->rtc_iobase)
+				release_region(devpriv->rtc_iobase,
+					       devpriv->rtc_iosize);
+		}
+		if (devpriv->dma_rtc)
+			RTC_lock--;
+#endif
+	}
+	if (dev->irq)
+		free_irq(dev->irq, dev);
+	if (dev->iobase)
+		release_region(dev->iobase, devpriv->io_range);
 }
 
 static const struct pcl818_board boardtypes[] = {

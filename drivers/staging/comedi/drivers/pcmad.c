@@ -139,17 +139,12 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int pcmad_detach(struct comedi_device *dev)
+static void pcmad_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pcmad: remove\n", dev->minor);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->iobase)
 		release_region(dev->iobase, PCMAD_SIZE);
-
-	return 0;
 }
 
 static const struct pcmad_board_struct pcmad_boards[] = {

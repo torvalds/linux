@@ -372,17 +372,12 @@ static int parport_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int parport_detach(struct comedi_device *dev)
+static void parport_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: parport: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, PARPORT_SIZE);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
-	return 0;
 }
 
 static struct comedi_driver parport_driver = {

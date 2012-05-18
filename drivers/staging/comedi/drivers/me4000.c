@@ -2304,10 +2304,8 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int me4000_detach(struct comedi_device *dev)
+static void me4000_detach(struct comedi_device *dev)
 {
-	CALL_PDEBUG("In me4000_detach()\n");
-
 	if (info) {
 		if (info->pci_dev_p) {
 			reset_board(dev);
@@ -2316,8 +2314,6 @@ static int me4000_detach(struct comedi_device *dev)
 			pci_dev_put(info->pci_dev_p);
 		}
 	}
-
-	return 0;
 }
 
 static struct comedi_driver me4000_driver = {

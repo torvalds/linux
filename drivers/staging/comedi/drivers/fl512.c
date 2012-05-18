@@ -174,12 +174,10 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-static int fl512_detach(struct comedi_device *dev)
+static void fl512_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, FL512_SIZE);
-	printk(KERN_INFO "comedi%d: fl512: dummy i detach\n", dev->minor);
-	return 0;
 }
 
 static struct comedi_driver fl512_driver = {

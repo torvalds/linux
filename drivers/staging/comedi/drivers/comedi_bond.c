@@ -332,30 +332,6 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-static void doDevUnconfig(struct comedi_device *dev)
-{
-	unsigned long devs_closed = 0;
-
-	if (devpriv) {
-		while (devpriv->ndevs-- && devpriv->devs) {
-			struct BondedDevice *bdev;
-
-			bdev = devpriv->devs[devpriv->ndevs];
-			if (!bdev)
-				continue;
-			if (!(devs_closed & (0x1 << bdev->minor))) {
-				comedi_close(bdev->dev);
-				devs_closed |= (0x1 << bdev->minor);
-			}
-			kfree(bdev);
-		}
-		kfree(devpriv->devs);
-		devpriv->devs = NULL;
-		kfree(devpriv);
-		dev->private = NULL;
-	}
-}
-
 static int bonding_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
@@ -406,11 +382,28 @@ static int bonding_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int bonding_detach(struct comedi_device *dev)
+static void bonding_detach(struct comedi_device *dev)
 {
-	LOG_MSG("comedi%d: remove\n", dev->minor);
-	doDevUnconfig(dev);
-	return 0;
+	unsigned long devs_closed = 0;
+
+	if (devpriv) {
+		while (devpriv->ndevs-- && devpriv->devs) {
+			struct BondedDevice *bdev;
+
+			bdev = devpriv->devs[devpriv->ndevs];
+			if (!bdev)
+				continue;
+			if (!(devs_closed & (0x1 << bdev->minor))) {
+				comedi_close(bdev->dev);
+				devs_closed |= (0x1 << bdev->minor);
+			}
+			kfree(bdev);
+		}
+		kfree(devpriv->devs);
+		devpriv->devs = NULL;
+		kfree(devpriv);
+		dev->private = NULL;
+	}
 }
 
 static const struct BondingBoard bondingBoards[] = {

@@ -134,25 +134,19 @@ static int adl_pci7296_attach(struct comedi_device *dev,
 	return -EIO;
 }
 
-static int adl_pci7296_detach(struct comedi_device *dev)
+static void adl_pci7296_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pci7432: remove\n", dev->minor);
-
 	if (devpriv && devpriv->pci_dev) {
 		if (dev->iobase)
 			comedi_pci_disable(devpriv->pci_dev);
 		pci_dev_put(devpriv->pci_dev);
 	}
-	/*  detach four 8255 digital io subdevices */
 	if (dev->subdevices) {
 		subdev_8255_cleanup(dev, dev->subdevices + 0);
 		subdev_8255_cleanup(dev, dev->subdevices + 1);
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
 		subdev_8255_cleanup(dev, dev->subdevices + 3);
-
 	}
-
-	return 0;
 }
 
 static struct comedi_driver adl_pci7296_driver = {

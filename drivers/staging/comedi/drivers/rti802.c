@@ -129,14 +129,10 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int rti802_detach(struct comedi_device *dev)
+static void rti802_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: rti802: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, RTI802_SIZE);
-
-	return 0;
 }
 
 static struct comedi_driver rti802_driver = {

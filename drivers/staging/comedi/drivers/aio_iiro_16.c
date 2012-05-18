@@ -149,14 +149,10 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int aio_iiro_16_detach(struct comedi_device *dev)
+static void aio_iiro_16_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: aio_iiro_16: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, AIO_IIRO_16_SIZE);
-
-	return 0;
 }
 
 static struct comedi_driver aio_iiro_16_driver = {

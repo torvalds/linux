@@ -330,17 +330,13 @@ static int pci6208_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int pci6208_detach(struct comedi_device *dev)
+static void pci6208_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pci6208: remove\n", dev->minor);
-
 	if (devpriv && devpriv->pci_dev) {
 		if (dev->iobase)
 			comedi_pci_disable(devpriv->pci_dev);
 		pci_dev_put(devpriv->pci_dev);
 	}
-
-	return 0;
 }
 
 static struct comedi_driver adl_pci6208_driver = {

@@ -926,7 +926,7 @@ out:
 	return result;
 }
 
-static int jr3_pci_detach(struct comedi_device *dev)
+static void jr3_pci_detach(struct comedi_device *dev)
 {
 	int i;
 	struct jr3_pci_dev_private *devpriv = dev->private;
@@ -938,16 +938,13 @@ static int jr3_pci_detach(struct comedi_device *dev)
 			for (i = 0; i < devpriv->n_channels; i++)
 				kfree(dev->subdevices[i].private);
 		}
-
 		if (devpriv->iobase)
 			iounmap((void *)devpriv->iobase);
 		if (devpriv->pci_enabled)
 			comedi_pci_disable(devpriv->pci_dev);
-
 		if (devpriv->pci_dev)
 			pci_dev_put(devpriv->pci_dev);
 	}
-	return 0;
 }
 
 static struct comedi_driver jr3_pci_driver = {

@@ -150,7 +150,6 @@ struct board_private_struct {
 	unsigned long registers;	/* set by probe */
 	unsigned long dio_registers;
 	char attached_to_8255;	/* boolean */
-	char attached_successfully;	/* boolean */
 	/* would be useful for a PCI device */
 	struct pci_dev *pci_dev;
 
@@ -283,44 +282,24 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	devpriv->attached_successfully = 1;
-
 	printk("attached\n");
 
 	return 1;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int detach(struct comedi_device *dev)
+static void detach(struct comedi_device *dev)
 {
 	if (devpriv) {
-
 		if (dev->subdevices && devpriv->attached_to_8255) {
-			/* de-register us from the 8255 driver */
 			subdev_8255_cleanup(dev, dev->subdevices + 2);
 			devpriv->attached_to_8255 = 0;
 		}
-
 		if (devpriv->pci_dev) {
 			if (devpriv->registers)
 				comedi_pci_disable(devpriv->pci_dev);
 			pci_dev_put(devpriv->pci_dev);
 		}
-
-		if (devpriv->attached_successfully && thisboard)
-			printk("comedi%d: %s: detached\n", dev->minor,
-			       thisboard->name);
-
 	}
-
-	return 0;
 }
 
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,

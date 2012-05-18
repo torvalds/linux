@@ -944,11 +944,10 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int dt3000_detach(struct comedi_device *dev)
+static void dt3000_detach(struct comedi_device *dev)
 {
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (devpriv) {
 		if (devpriv->pci_dev) {
 			if (devpriv->phys_addr)
@@ -958,8 +957,6 @@ static int dt3000_detach(struct comedi_device *dev)
 		if (devpriv->io_addr)
 			iounmap(devpriv->io_addr);
 	}
-
-	return 0;
 }
 
 static struct comedi_driver dt3000_driver = {

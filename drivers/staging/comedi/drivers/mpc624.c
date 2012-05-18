@@ -379,14 +379,10 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-static int mpc624_detach(struct comedi_device *dev)
+static void mpc624_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: mpc624: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, MPC624_SIZE);
-
-	return 0;
 }
 
 static struct comedi_driver mpc624_driver = {

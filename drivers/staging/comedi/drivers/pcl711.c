@@ -591,17 +591,12 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int pcl711_detach(struct comedi_device *dev)
+static void pcl711_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pcl711: remove\n", dev->minor);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->iobase)
 		release_region(dev->iobase, PCL711_SIZE);
-
-	return 0;
 }
 
 static const struct pcl711_board boardtypes[] = {

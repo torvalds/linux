@@ -1007,25 +1007,19 @@ static int icp_multi_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int icp_multi_detach(struct comedi_device *dev)
+static void icp_multi_detach(struct comedi_device *dev)
 {
 	if (dev->private)
 		if (devpriv->valid)
 			icp_multi_reset(dev);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->private && devpriv->io_addr)
 		iounmap(devpriv->io_addr);
-
 	if (dev->private && devpriv->card)
 		pci_card_free(devpriv->card);
-
 	if (--pci_list_builded == 0)
 		pci_card_list_cleanup(PCI_VENDOR_ID_ICP);
-
-	return 0;
 }
 
 static const struct boardtype boardtypes[] = {

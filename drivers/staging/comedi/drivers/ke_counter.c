@@ -219,16 +219,13 @@ found:
 	return 0;
 }
 
-static int cnt_detach(struct comedi_device *dev)
+static void cnt_detach(struct comedi_device *dev)
 {
 	if (devpriv && devpriv->pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(devpriv->pcidev);
 		pci_dev_put(devpriv->pcidev);
 	}
-	printk(KERN_INFO "comedi%d: " CNT_DRIVER_NAME " remove\n",
-	       dev->minor);
-	return 0;
 }
 
 static struct comedi_driver ke_counter_driver = {

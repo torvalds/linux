@@ -1312,7 +1312,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static int s626_detach(struct comedi_device *dev)
+static void s626_detach(struct comedi_device *dev)
 {
 	if (devpriv) {
 		/* stop ai_command */
@@ -1336,20 +1336,14 @@ static int s626_detach(struct comedi_device *dev)
 
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-
 		if (devpriv->base_addr)
 			iounmap(devpriv->base_addr);
-
 		if (devpriv->pdev) {
 			if (devpriv->got_regions)
 				comedi_pci_disable(devpriv->pdev);
 			pci_dev_put(devpriv->pdev);
 		}
 	}
-
-	DEBUG("s626_detach: S626 detached!\n");
-
-	return 0;
 }
 
 /*

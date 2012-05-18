@@ -1026,40 +1026,6 @@ static int set_rtc_irq_bit(unsigned char bit)
 }
 #endif
 
-/*
-==============================================================================
-  Free any resources that we have claimed
-*/
-static void free_resources(struct comedi_device *dev)
-{
-	/* printk("free_resource()\n"); */
-	if (dev->private) {
-		pcl816_ai_cancel(dev, devpriv->sub_ai);
-		pcl816_reset(dev);
-		if (devpriv->dma)
-			free_dma(devpriv->dma);
-		if (devpriv->dmabuf[0])
-			free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
-		if (devpriv->dmabuf[1])
-			free_pages(devpriv->dmabuf[1], devpriv->dmapages[1]);
-#ifdef unused
-		if (devpriv->rtc_irq)
-			free_irq(devpriv->rtc_irq, dev);
-		if ((devpriv->dma_rtc) && (RTC_lock == 1)) {
-			if (devpriv->rtc_iobase)
-				release_region(devpriv->rtc_iobase,
-					       devpriv->rtc_iosize);
-		}
-#endif
-	}
-
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, this_board->io_range);
-	/* printk("free_resource() end\n"); */
-}
-
 static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
@@ -1285,15 +1251,35 @@ case COMEDI_SUBD_DO:
 	return 0;
 }
 
-static int pcl816_detach(struct comedi_device *dev)
+static void pcl816_detach(struct comedi_device *dev)
 {
-	DEBUG(printk(KERN_INFO "comedi%d: pcl816: remove\n", dev->minor);)
-	    free_resources(dev);
+	if (dev->private) {
+		pcl816_ai_cancel(dev, devpriv->sub_ai);
+		pcl816_reset(dev);
+		if (devpriv->dma)
+			free_dma(devpriv->dma);
+		if (devpriv->dmabuf[0])
+			free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
+		if (devpriv->dmabuf[1])
+			free_pages(devpriv->dmabuf[1], devpriv->dmapages[1]);
+#ifdef unused
+		if (devpriv->rtc_irq)
+			free_irq(devpriv->rtc_irq, dev);
+		if ((devpriv->dma_rtc) && (RTC_lock == 1)) {
+			if (devpriv->rtc_iobase)
+				release_region(devpriv->rtc_iobase,
+					       devpriv->rtc_iosize);
+		}
+#endif
+	}
+	if (dev->irq)
+		free_irq(dev->irq, dev);
+	if (dev->iobase)
+		release_region(dev->iobase, this_board->io_range);
 #ifdef unused
 	if (devpriv->dma_rtc)
 		RTC_lock--;
 #endif
-	return 0;
 }
 
 static const struct pcl816_board boardtypes[] = {

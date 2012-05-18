@@ -264,11 +264,9 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int pci20xxx_detach(struct comedi_device *dev)
+static void pci20xxx_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pci20xxx: remove\n", dev->minor);
-
-	return 0;
+	/* Nothing to cleanup */
 }
 
 /* pci20006m */

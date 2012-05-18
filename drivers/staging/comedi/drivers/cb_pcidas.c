@@ -726,26 +726,12 @@ found:
 	return 1;
 }
 
-/*
- * cb_pcidas_detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int cb_pcidas_detach(struct comedi_device *dev)
+static void cb_pcidas_detach(struct comedi_device *dev)
 {
-
 	if (devpriv) {
 		if (devpriv->s5933_config) {
-			/*  disable and clear interrupts on amcc s5933 */
 			outl(INTCSR_INBOX_INTR_STATUS,
 			     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
-#ifdef CB_PCIDAS_DEBUG
-			dev_dbg(dev->hw_dev, "detaching, incsr is 0x%x\n",
-				inl(devpriv->s5933_config + AMCC_OP_REG_INTCSR));
-#endif
 		}
 	}
 	if (dev->irq)
@@ -757,8 +743,6 @@ static int cb_pcidas_detach(struct comedi_device *dev)
 			comedi_pci_disable(devpriv->pci_dev);
 		pci_dev_put(devpriv->pci_dev);
 	}
-
-	return 0;
 }
 
 /*

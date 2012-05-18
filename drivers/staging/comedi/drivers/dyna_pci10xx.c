@@ -387,14 +387,12 @@ found:
 	return 1;
 }
 
-static int dyna_pci10xx_detach(struct comedi_device *dev)
+static void dyna_pci10xx_detach(struct comedi_device *dev)
 {
 	if (devpriv && devpriv->pci_dev) {
 		comedi_pci_disable(devpriv->pci_dev);
 		mutex_destroy(&devpriv->mutex);
 	}
-
-	return 0;
 }
 
 static struct comedi_driver dyna_pci10xx_driver = {

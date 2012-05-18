@@ -314,17 +314,13 @@ static int adl_pci8164_attach(struct comedi_device *dev,
 	return -EIO;
 }
 
-static int adl_pci8164_detach(struct comedi_device *dev)
+static void adl_pci8164_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pci8164: remove\n", dev->minor);
-
 	if (devpriv && devpriv->pci_dev) {
 		if (dev->iobase)
 			comedi_pci_disable(devpriv->pci_dev);
 		pci_dev_put(devpriv->pci_dev);
 	}
-
-	return 0;
 }
 
 static struct comedi_driver adl_pci8164_driver = {

@@ -1081,29 +1081,11 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int rtd_detach(struct comedi_device *dev)
+static void rtd_detach(struct comedi_device *dev)
 {
 #ifdef USE_DMA
 	int index;
 #endif
-
-	DPRINTK("comedi%d: rtd520: removing (%ld ints)\n",
-		dev->minor, (devpriv ? devpriv->intCount : 0L));
-	if (devpriv && devpriv->lcfg) {
-		DPRINTK
-		    ("(int status 0x%x, overrun status 0x%x, fifo status 0x%x)...\n",
-		     0xffff & RtdInterruptStatus(dev),
-		     0xffff & RtdInterruptOverrunStatus(dev),
-		     (0xffff & RtdFifoStatus(dev)) ^ 0x6666);
-	}
 
 	if (devpriv) {
 		/* Shut down any board ops by resetting it */
@@ -1141,37 +1123,24 @@ static int rtd_detach(struct comedi_device *dev)
 			devpriv->dma0Chain = NULL;
 		}
 #endif /* USE_DMA */
-
-		/* release IRQ */
 		if (dev->irq) {
-			/* disable interrupt controller */
 			RtdPlxInterruptWrite(dev, RtdPlxInterruptRead(dev)
 					     & ~(ICS_PLIE | ICS_DMA0_E |
 						 ICS_DMA1_E));
 			free_irq(dev->irq, dev);
 		}
-
-		/* release all regions that were allocated */
 		if (devpriv->las0)
 			iounmap(devpriv->las0);
-
 		if (devpriv->las1)
 			iounmap(devpriv->las1);
-
 		if (devpriv->lcfg)
 			iounmap(devpriv->lcfg);
-
 		if (devpriv->pci_dev) {
 			if (devpriv->got_regions)
 				comedi_pci_disable(devpriv->pci_dev);
-
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
-
-	printk(KERN_INFO "comedi%d: rtd520: removed.\n", dev->minor);
-
-	return 0;
 }
 
 /*

@@ -806,7 +806,7 @@ found:
 	return 0;
 }
 
-static int me_detach(struct comedi_device *dev)
+static void me_detach(struct comedi_device *dev)
 {
 	if (dev_private) {
 		if (dev_private->me_regbase) {
@@ -818,11 +818,9 @@ static int me_detach(struct comedi_device *dev)
 		if (dev_private->pci_device) {
 			if (dev_private->plx_regbase_size)
 				comedi_pci_disable(dev_private->pci_device);
-
 			pci_dev_put(dev_private->pci_device);
 		}
 	}
-	return 0;
 }
 
 static struct comedi_driver me_daq_driver = {

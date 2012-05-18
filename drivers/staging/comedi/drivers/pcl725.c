@@ -89,14 +89,10 @@ static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int pcl725_detach(struct comedi_device *dev)
+static void pcl725_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pcl725: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, PCL725_SIZE);
-
-	return 0;
 }
 
 static struct comedi_driver pcl725_driver = {

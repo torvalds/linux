@@ -829,22 +829,15 @@ static int atmio16d_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int atmio16d_detach(struct comedi_device *dev)
+static void atmio16d_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: atmio16d: remove\n", dev->minor);
-
 	if (dev->subdevices && boardtype->has_8255)
 		subdev_8255_cleanup(dev, dev->subdevices + 3);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	reset_atmio16d(dev);
-
 	if (dev->iobase)
 		release_region(dev->iobase, ATMIO16D_SIZE);
-
-	return 0;
 }
 
 static const struct atmio16_board_t atmio16_boards[] = {

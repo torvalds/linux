@@ -571,16 +571,12 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int dt2811_detach(struct comedi_device *dev)
+static void dt2811_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: dt2811: remove\n", dev->minor);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->iobase)
 		release_region(dev->iobase, DT2811_SIZE);
-
-	return 0;
 }
 
 static const struct dt2811_board boardtypes[] = {

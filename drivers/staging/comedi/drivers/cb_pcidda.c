@@ -374,19 +374,8 @@ found:
 	return 1;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int cb_pcidda_detach(struct comedi_device *dev)
+static void cb_pcidda_detach(struct comedi_device *dev)
 {
-/*
- * Deallocate the I/O ports.
- */
 	if (devpriv) {
 		if (devpriv->pci_dev) {
 			if (devpriv->dac)
@@ -394,13 +383,10 @@ static int cb_pcidda_detach(struct comedi_device *dev)
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
-	/*  cleanup 8255 */
 	if (dev->subdevices) {
 		subdev_8255_cleanup(dev, dev->subdevices + 1);
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
 	}
-
-	return 0;
 }
 
 /*

@@ -1573,13 +1573,11 @@ static void init_6143(struct comedi_device *dev)
 	ni_writew(devpriv->ai_calib_source, Calibration_Channel_6143);
 }
 
-/* cleans up allocated resources */
-static int pcimio_detach(struct comedi_device *dev)
+static void pcimio_detach(struct comedi_device *dev)
 {
 	mio_common_detach(dev);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->private) {
 		mite_free_ring(devpriv->ai_mite_ring);
 		mite_free_ring(devpriv->ao_mite_ring);
@@ -1589,8 +1587,6 @@ static int pcimio_detach(struct comedi_device *dev)
 		if (devpriv->mite)
 			mite_unsetup(devpriv->mite);
 	}
-
-	return 0;
 }
 
 static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)

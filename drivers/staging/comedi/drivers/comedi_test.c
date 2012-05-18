@@ -494,14 +494,10 @@ static int waveform_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int waveform_detach(struct comedi_device *dev)
+static void waveform_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: comedi_test: remove\n", dev->minor);
-
 	if (dev->private)
 		waveform_ai_cancel(dev, dev->read_subdev);
-
-	return 0;
 }
 
 static const struct waveform_board waveform_boards[] = {

@@ -1331,7 +1331,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void free_resources(struct comedi_device *dev)
+static void dt282x_detach(struct comedi_device *dev)
 {
 	if (dev->irq)
 		free_irq(dev->irq, dev);
@@ -1347,15 +1347,6 @@ static void free_resources(struct comedi_device *dev)
 		if (devpriv->dma[1].buf)
 			free_page((unsigned long)devpriv->dma[1].buf);
 	}
-}
-
-static int dt282x_detach(struct comedi_device *dev)
-{
-	printk(KERN_INFO "comedi%d: dt282x: remove\n", dev->minor);
-
-	free_resources(dev);
-
-	return 0;
 }
 
 static const struct dt282x_board boardtypes[] = {

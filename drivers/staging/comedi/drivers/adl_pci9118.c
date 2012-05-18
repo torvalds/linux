@@ -2353,7 +2353,7 @@ static int pci9118_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci9118_detach(struct comedi_device *dev)
+static void pci9118_detach(struct comedi_device *dev)
 {
 	if (dev->private) {
 		if (devpriv->valid)
@@ -2373,8 +2373,6 @@ static int pci9118_detach(struct comedi_device *dev)
 			free_pages((unsigned long)devpriv->dmabuf_virt[1],
 				   devpriv->dmabuf_pages[1]);
 	}
-
-	return 0;
 }
 
 static const struct boardtype boardtypes[] = {

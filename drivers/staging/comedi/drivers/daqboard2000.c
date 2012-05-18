@@ -836,14 +836,12 @@ out:
 	return result;
 }
 
-static int daqboard2000_detach(struct comedi_device *dev)
+static void daqboard2000_detach(struct comedi_device *dev)
 {
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (devpriv) {
 		if (devpriv->daq)
 			iounmap(devpriv->daq);
@@ -855,7 +853,6 @@ static int daqboard2000_detach(struct comedi_device *dev)
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
-	return 0;
 }
 
 static struct comedi_driver daqboard2000_driver = {

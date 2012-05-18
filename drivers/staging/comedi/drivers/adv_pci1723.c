@@ -431,22 +431,17 @@ static int pci1723_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci1723_detach(struct comedi_device *dev)
+static void pci1723_detach(struct comedi_device *dev)
 {
-	printk(KERN_ERR "comedi%d: pci1723: remove\n", dev->minor);
-
 	if (dev->private) {
 		if (devpriv->valid)
 			pci1723_reset(dev);
-
 		if (devpriv->pcidev) {
 			if (dev->iobase)
 				comedi_pci_disable(devpriv->pcidev);
 			pci_dev_put(devpriv->pcidev);
 		}
 	}
-
-	return 0;
 }
 
 static struct comedi_driver adv_pci1723_driver = {

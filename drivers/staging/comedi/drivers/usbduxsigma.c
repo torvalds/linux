@@ -2801,37 +2801,17 @@ static int usbduxsigma_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int usbduxsigma_detach(struct comedi_device *dev)
+static void usbduxsigma_detach(struct comedi_device *dev)
 {
-	struct usbduxsub *usbduxsub_tmp;
+	struct usbduxsub *usb = dev->private;
 
-	if (!dev) {
-		printk(KERN_ERR
-		       "comedi? usbduxsigma detach: dev=NULL\n");
-		return -EFAULT;
+	if (usb) {
+		down(&usb->sem);
+		dev->private = NULL;
+		usb->attached = 0;
+		usb->comedidev = NULL;
+		up(&usb->sem);
 	}
-
-	usbduxsub_tmp = dev->private;
-	if (!usbduxsub_tmp) {
-		printk(KERN_ERR
-		       "comedi?: usbduxsigma detach: private=NULL\n");
-		return -EFAULT;
-	}
-
-	dev_dbg(&usbduxsub_tmp->interface->dev,
-		"comedi%d: detach usb device\n",
-		dev->minor);
-
-	down(&usbduxsub_tmp->sem);
-	/* Don't allow detach to free the private structure */
-	/* It's one entry of of usbduxsub[] */
-	dev->private = NULL;
-	usbduxsub_tmp->attached = 0;
-	usbduxsub_tmp->comedidev = NULL;
-	dev_info(&usbduxsub_tmp->interface->dev,
-		"comedi%d: successfully detached.\n", dev->minor);
-	up(&usbduxsub_tmp->sem);
-	return 0;
 }
 
 /* main driver struct */

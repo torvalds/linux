@@ -2823,36 +2823,17 @@ static int usbdux_attach_usb(struct comedi_device *dev,
 	return ret;
 }
 
-static int usbdux_detach(struct comedi_device *dev)
+static void usbdux_detach(struct comedi_device *dev)
 {
-	struct usbduxsub *usbduxsub_tmp;
+	struct usbduxsub *usb = dev->private;
 
-	if (!dev) {
-		printk(KERN_ERR
-		       "comedi?: usbdux: detach without dev variable...\n");
-		return -EFAULT;
+	if (usb) {
+		down(&usb->sem);
+		dev->private = NULL;
+		usb->attached = 0;
+		usb->comedidev = NULL;
+		up(&usb->sem);
 	}
-
-	usbduxsub_tmp = dev->private;
-	if (!usbduxsub_tmp) {
-		printk(KERN_ERR
-		       "comedi?: usbdux: detach without ptr to usbduxsub[]\n");
-		return -EFAULT;
-	}
-
-	dev_dbg(&usbduxsub_tmp->interface->dev, "comedi%d: detach usb device\n",
-		dev->minor);
-
-	down(&usbduxsub_tmp->sem);
-	/* Don't allow detach to free the private structure */
-	/* It's one entry of of usbduxsub[] */
-	dev->private = NULL;
-	usbduxsub_tmp->attached = 0;
-	usbduxsub_tmp->comedidev = NULL;
-	dev_dbg(&usbduxsub_tmp->interface->dev,
-		"comedi%d: detach: successfully removed\n", dev->minor);
-	up(&usbduxsub_tmp->sem);
-	return 0;
 }
 
 /* main driver struct */

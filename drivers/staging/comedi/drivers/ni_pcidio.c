@@ -1307,7 +1307,7 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int nidio_detach(struct comedi_device *dev)
+static void nidio_detach(struct comedi_device *dev)
 {
 	int i;
 
@@ -1315,10 +1315,8 @@ static int nidio_detach(struct comedi_device *dev)
 		for (i = 0; i < this_board->n_8255; i++)
 			subdev_8255_cleanup(dev, dev->subdevices + i);
 	}
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (devpriv) {
 		if (devpriv->di_mite_ring) {
 			mite_free_ring(devpriv->di_mite_ring);
@@ -1327,7 +1325,6 @@ static int nidio_detach(struct comedi_device *dev)
 		if (devpriv->mite)
 			mite_unsetup(devpriv->mite);
 	}
-	return 0;
 }
 
 static struct comedi_driver ni_pcidio_driver = {

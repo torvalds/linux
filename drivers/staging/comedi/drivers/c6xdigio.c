@@ -397,10 +397,6 @@ static void board_init(struct comedi_device *dev)
 
 }
 
-/* static void board_halt(struct comedi_device *dev) { */
-/* C6X_pwmInit(dev->iobase); */
-/* } */
-
 /*
    options[0] - I/O port
    options[1] - irq
@@ -490,22 +486,13 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int c6xdigio_detach(struct comedi_device *dev)
+static void c6xdigio_detach(struct comedi_device *dev)
 {
-	/* board_halt(dev);  may not need this */
-
-	printk(KERN_DEBUG "comedi%d: c6xdigio: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, C6XDIGIO_SIZE);
-
-	/*  Not using IRQ so I am not sure if I need this */
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	pnp_unregister_driver(&c6xdigio_pnp_driver);
-
-	return 0;
 }
 
 static struct comedi_driver c6xdigio_driver = {

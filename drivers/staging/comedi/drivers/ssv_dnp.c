@@ -239,20 +239,14 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-static int dnp_detach(struct comedi_device *dev)
+static void dnp_detach(struct comedi_device *dev)
 {
-	/* configure all ports as input (default)                            */
 	outb(PAMR, CSCIR);
 	outb(0x00, CSCDR);
 	outb(PBMR, CSCIR);
 	outb(0x00, CSCDR);
 	outb(PCMR, CSCIR);
 	outb((inb(CSCDR) & 0xAA), CSCDR);
-
-	/* announce that we are finished                                     */
-	printk(KERN_INFO "comedi%d: dnp: remove\n", dev->minor);
-
-	return 0;
 }
 
 static const struct dnp_board dnp_boards[] = {

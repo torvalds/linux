@@ -273,7 +273,7 @@ static int pcm3724_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int pcm3724_detach(struct comedi_device *dev)
+static void pcm3724_detach(struct comedi_device *dev)
 {
 	int i;
 
@@ -283,8 +283,6 @@ static int pcm3724_detach(struct comedi_device *dev)
 	}
 	if (dev->iobase)
 		release_region(dev->iobase, this_board->io_range);
-
-	return 0;
 }
 
 static const struct pcm3724_board boardtypes[] = {

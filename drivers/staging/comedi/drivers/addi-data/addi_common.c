@@ -1839,50 +1839,22 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function name     : static int i_ADDI_Detach(struct comedi_device *dev)           |
-|                                        									 |
-|                                            						         |
-+----------------------------------------------------------------------------+
-| Task              : Deallocates resources of the addi_common driver        |
-|			  Free the DMA buffers, unregister irq.				     |
-|                     										                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev									 |
-|                     														 |
-|                                                 					         |
-+----------------------------------------------------------------------------+
-| Return Value      : 0             					                     |
-|                    													     |
-+----------------------------------------------------------------------------+
-*/
-
-static int i_ADDI_Detach(struct comedi_device *dev)
+static void i_ADDI_Detach(struct comedi_device *dev)
 {
-
 	if (dev->private) {
-		if (devpriv->b_ValidDriver) {
+		if (devpriv->b_ValidDriver)
 			i_ADDI_Reset(dev);
-		}
-
-		if (dev->irq) {
+		if (dev->irq)
 			free_irq(dev->irq, dev);
-		}
-
-		if ((this_board->pc_EepromChip == NULL)
-			|| (strcmp(this_board->pc_EepromChip,
-					ADDIDATA_9054) != 0)) {
-			if (devpriv->allocated) {
+		if ((this_board->pc_EepromChip == NULL) ||
+		    (strcmp(this_board->pc_EepromChip, ADDIDATA_9054) != 0)) {
+			if (devpriv->allocated)
 				i_pci_card_free(devpriv->amcc);
-			}
-
 			if (devpriv->ul_DmaBufferVirtual[0]) {
 				free_pages((unsigned long)devpriv->
 					ul_DmaBufferVirtual[0],
 					devpriv->ui_DmaBufferPages[0]);
 			}
-
 			if (devpriv->ul_DmaBufferVirtual[1]) {
 				free_pages((unsigned long)devpriv->
 					ul_DmaBufferVirtual[1],
@@ -1890,20 +1862,14 @@ static int i_ADDI_Detach(struct comedi_device *dev)
 			}
 		} else {
 			iounmap(devpriv->dw_AiBase);
-
-			if (devpriv->allocated) {
+			if (devpriv->allocated)
 				i_pci_card_free(devpriv->amcc);
-			}
 		}
-
 		if (pci_list_builded) {
-			/* v_pci_card_list_cleanup(PCI_VENDOR_ID_AMCC); */
 			v_pci_card_list_cleanup(this_board->i_VendorId);
 			pci_list_builded = 0;
 		}
 	}
-
-	return 0;
 }
 
 /*

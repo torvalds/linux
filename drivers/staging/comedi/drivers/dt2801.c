@@ -693,12 +693,10 @@ out:
 	return ret;
 }
 
-static int dt2801_detach(struct comedi_device *dev)
+static void dt2801_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, DT2801_IOSIZE);
-
-	return 0;
 }
 
 static struct comedi_driver dt2801_driver = {

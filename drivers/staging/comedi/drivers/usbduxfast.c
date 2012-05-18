@@ -1726,43 +1726,19 @@ static int usbduxfast_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int usbduxfast_detach(struct comedi_device *dev)
+static void usbduxfast_detach(struct comedi_device *dev)
 {
-	struct usbduxfastsub_s *udfs;
+	struct usbduxfastsub_s *usb = dev->private;
 
-	if (!dev) {
-		printk(KERN_ERR "comedi?: usbduxfast: detach without dev "
-		       "variable...\n");
-		return -EFAULT;
+	if (usb) {
+		down(&usb->sem);
+		down(&start_stop_sem);
+		dev->private = NULL;
+		usb->attached = 0;
+		usb->comedidev = NULL;
+		up(&start_stop_sem);
+		up(&usb->sem);
 	}
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: usbduxfast: detach usb device\n",
-	       dev->minor);
-#endif
-
-	udfs = dev->private;
-	if (!udfs) {
-		printk(KERN_ERR "comedi?: usbduxfast: detach without ptr to "
-		       "usbduxfastsub[]\n");
-		return -EFAULT;
-	}
-
-	down(&udfs->sem);
-	down(&start_stop_sem);
-	/*
-	 * Don't allow detach to free the private structure
-	 * It's one entry of of usbduxfastsub[]
-	 */
-	dev->private = NULL;
-	udfs->attached = 0;
-	udfs->comedidev = NULL;
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: usbduxfast: detach: successfully "
-	       "removed\n", dev->minor);
-#endif
-	up(&start_stop_sem);
-	up(&udfs->sem);
-	return 0;
 }
 
 /*

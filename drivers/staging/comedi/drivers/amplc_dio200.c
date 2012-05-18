@@ -493,7 +493,7 @@ struct dio200_subdev_intr {
  */
 static int dio200_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it);
-static int dio200_detach(struct comedi_device *dev);
+static void dio200_detach(struct comedi_device *dev);
 static struct comedi_driver driver_amplc_dio200 = {
 	.driver_name = DIO200_DRIVER_NAME,
 	.module = THIS_MODULE,
@@ -1518,21 +1518,10 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int dio200_detach(struct comedi_device *dev)
+static void dio200_detach(struct comedi_device *dev)
 {
 	const struct dio200_layout_struct *layout;
 	unsigned n;
-
-	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor,
-	       DIO200_DRIVER_NAME);
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
@@ -1570,11 +1559,6 @@ static int dio200_detach(struct comedi_device *dev)
 #endif
 		}
 	}
-	if (dev->board_name)
-		printk(KERN_INFO "comedi%d: %s removed\n",
-		       dev->minor, dev->board_name);
-
-	return 0;
 }
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");

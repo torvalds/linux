@@ -1522,13 +1522,10 @@ pci224_attach_pci(struct comedi_device *dev, struct pci_dev *pci_dev)
 	return pci224_attach_common(dev, pci_dev, NULL);
 }
 
-static int pci224_detach(struct comedi_device *dev)
+static void pci224_detach(struct comedi_device *dev)
 {
-	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor, DRIVER_NAME);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->subdevices) {
 		struct comedi_subdevice *s;
 
@@ -1543,16 +1540,9 @@ static int pci224_detach(struct comedi_device *dev)
 		if (devpriv->pci_dev) {
 			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
-
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
-	if (dev->board_name) {
-		printk(KERN_INFO "comedi%d: %s removed\n",
-		       dev->minor, dev->board_name);
-	}
-
-	return 0;
 }
 
 static struct comedi_driver amplc_pci224_driver = {

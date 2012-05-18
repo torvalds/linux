@@ -484,7 +484,7 @@ static int unioxx5_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int unioxx5_detach(struct comedi_device *dev)
+static void unioxx5_detach(struct comedi_device *dev)
 {
 	int i;
 	struct comedi_subdevice *subdev;
@@ -496,8 +496,6 @@ static int unioxx5_detach(struct comedi_device *dev)
 		release_region(usp->usp_iobase, UNIOXX5_SIZE);
 		kfree(subdev->private);
 	}
-
-	return 0;
 }
 
 static struct comedi_driver unioxx5_driver = {

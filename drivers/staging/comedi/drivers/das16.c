@@ -1362,15 +1362,11 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int das16_detach(struct comedi_device *dev)
+static void das16_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: das16: remove\n", dev->minor);
-
 	das16_reset(dev);
-
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 4);
-
 	if (devpriv) {
 		int i;
 		for (i = 0; i < 2; i++) {
@@ -1385,10 +1381,8 @@ static int das16_detach(struct comedi_device *dev)
 		kfree(devpriv->user_ai_range_table);
 		kfree(devpriv->user_ao_range_table);
 	}
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->iobase) {
 		if (thisboard->size < 0x400) {
 			release_region(dev->iobase, thisboard->size);
@@ -1398,8 +1392,6 @@ static int das16_detach(struct comedi_device *dev)
 				       thisboard->size & 0x3ff);
 		}
 	}
-
-	return 0;
 }
 
 static const struct das16_board das16_boards[] = {

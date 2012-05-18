@@ -1210,7 +1210,7 @@ static int pci_dio_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci_dio_detach(struct comedi_device *dev)
+static void pci_dio_detach(struct comedi_device *dev)
 {
 	int i, j;
 	struct comedi_subdevice *s;
@@ -1219,20 +1219,14 @@ static int pci_dio_detach(struct comedi_device *dev)
 	if (dev->private) {
 		if (devpriv->valid)
 			pci_dio_reset(dev);
-
-
-		/* This shows the silliness of using this kind of
-		 * scheme for numbering subdevices.  Don't do it.  --ds */
 		subdev = 0;
 		for (i = 0; i < MAX_DI_SUBDEVS; i++) {
 			if (this_board->sdi[i].chans)
 				subdev++;
-
 		}
 		for (i = 0; i < MAX_DO_SUBDEVS; i++) {
 			if (this_board->sdo[i].chans)
 				subdev++;
-
 		}
 		for (i = 0; i < MAX_DIO_SUBDEVG; i++) {
 			for (j = 0; j < this_board->sdio[i].regs; j++) {
@@ -1241,37 +1235,27 @@ static int pci_dio_detach(struct comedi_device *dev)
 				subdev++;
 			}
 		}
-
 		if (this_board->boardid.chans)
 			subdev++;
-
 		for (i = 0; i < MAX_8254_SUBDEVS; i++)
 			if (this_board->s8254[i].chans)
 				subdev++;
-
 		for (i = 0; i < dev->n_subdevices; i++) {
 			s = dev->subdevices + i;
 			s->private = NULL;
 		}
-
 		if (devpriv->pcidev) {
 			if (dev->iobase)
 				comedi_pci_disable(devpriv->pcidev);
-
 			pci_dev_put(devpriv->pcidev);
 		}
-
 		if (devpriv->prev)
 			devpriv->prev->next = devpriv->next;
 		else
 			pci_priv = devpriv->next;
-
 		if (devpriv->next)
 			devpriv->next->prev = devpriv->prev;
-
 	}
-
-	return 0;
 }
 
 static struct comedi_driver adv_pci_dio_driver = {

@@ -703,23 +703,16 @@ static int das16m1_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int das16m1_detach(struct comedi_device *dev)
+static void das16m1_detach(struct comedi_device *dev)
 {
-
-/* das16m1_reset(dev); */
-
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 3);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->iobase) {
 		release_region(dev->iobase, DAS16M1_SIZE);
 		release_region(dev->iobase + DAS16M1_82C55, DAS16M1_SIZE2);
 	}
-
-	return 0;
 }
 
 static const struct das16m1_board das16m1_boards[] = {

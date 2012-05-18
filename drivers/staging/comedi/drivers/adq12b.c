@@ -324,16 +324,11 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int adq12b_detach(struct comedi_device *dev)
+static void adq12b_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, ADQ12B_SIZE);
-
 	kfree(devpriv);
-
-	printk(KERN_INFO "comedi%d: adq12b: removed\n", dev->minor);
-
-	return 0;
 }
 
 static const struct adq12b_board adq12b_boards[] = {

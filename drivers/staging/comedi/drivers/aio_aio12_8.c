@@ -209,12 +209,11 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int aio_aio12_8_detach(struct comedi_device *dev)
+static void aio_aio12_8_detach(struct comedi_device *dev)
 {
 	subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (dev->iobase)
 		release_region(dev->iobase, 24);
-	return 0;
 }
 
 static struct comedi_driver aio_aio12_8_driver = {

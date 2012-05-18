@@ -189,7 +189,7 @@ struct comedi_driver {
 	const char *driver_name;
 	struct module *module;
 	int (*attach) (struct comedi_device *, struct comedi_devconfig *);
-	int (*detach) (struct comedi_device *);
+	void (*detach) (struct comedi_device *);
 	int (*attach_pci) (struct comedi_device *, struct pci_dev *);
 	int (*attach_usb) (struct comedi_device *, struct usb_interface *);
 

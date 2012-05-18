@@ -1551,7 +1551,7 @@ static int pci1710_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci1710_detach(struct comedi_device *dev)
+static void pci1710_detach(struct comedi_device *dev)
 {
 	if (dev->private) {
 		if (devpriv->valid)
@@ -1561,12 +1561,9 @@ static int pci1710_detach(struct comedi_device *dev)
 		if (devpriv->pcidev) {
 			if (dev->iobase)
 				comedi_pci_disable(devpriv->pcidev);
-
 			pci_dev_put(devpriv->pcidev);
 		}
 	}
-
-	return 0;
 }
 
 static struct comedi_driver adv_pci1710_driver = {

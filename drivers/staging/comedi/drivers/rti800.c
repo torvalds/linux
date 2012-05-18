@@ -443,17 +443,12 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int rti800_detach(struct comedi_device *dev)
+static void rti800_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: rti800: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, RTI800_SIZE);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
-	return 0;
 }
 
 static const struct rti800_board boardtypes[] = {

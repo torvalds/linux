@@ -848,18 +848,16 @@ static int serial2002_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int serial2002_detach(struct comedi_device *dev)
+static void serial2002_detach(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
 	int i;
 
-	dev_dbg(dev->hw_dev, "comedi%d: remove\n", dev->minor);
 	for (i = 0; i < 5; i++) {
 		s = &dev->subdevices[i];
 		kfree(s->maxdata_list);
 		kfree(s->range_table_list);
 	}
-	return 0;
 }
 
 static const struct serial2002_board serial2002_boards[] = {

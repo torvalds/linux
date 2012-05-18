@@ -767,9 +767,8 @@ static int das1800_attach(struct comedi_device *dev,
 	return 0;
 };
 
-static int das1800_detach(struct comedi_device *dev)
+static void das1800_detach(struct comedi_device *dev)
 {
-	/* only free stuff if it has been allocated by _attach */
 	if (dev->iobase)
 		release_region(dev->iobase, DAS1800_SIZE);
 	if (dev->irq)
@@ -784,11 +783,6 @@ static int das1800_detach(struct comedi_device *dev)
 		kfree(devpriv->ai_buf0);
 		kfree(devpriv->ai_buf1);
 	}
-
-	dev_dbg(dev->hw_dev, "comedi%d: %s: remove\n", dev->minor,
-		dev->driver->driver_name);
-
-	return 0;
 };
 
 /* probes and checks das-1800 series board type

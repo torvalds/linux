@@ -169,17 +169,13 @@ static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return -EIO;
 }
 
-static int contec_detach(struct comedi_device *dev)
+static void contec_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: contec: remove\n", dev->minor);
-
 	if (devpriv && devpriv->pci_dev) {
 		if (dev->iobase)
 			comedi_pci_disable(devpriv->pci_dev);
 		pci_dev_put(devpriv->pci_dev);
 	}
-
-	return 0;
 }
 
 static struct comedi_driver contec_pci_dio_driver = {

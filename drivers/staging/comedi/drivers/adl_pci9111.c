@@ -1382,29 +1382,19 @@ found:
 	return 0;
 }
 
-/*  Detach */
-
-static int pci9111_detach(struct comedi_device *dev)
+static void pci9111_detach(struct comedi_device *dev)
 {
-	/*  Reset device */
-
 	if (dev->private != NULL) {
 		if (dev_private->is_valid)
 			pci9111_reset(dev);
-
 	}
-	/*  Release previously allocated irq */
-
 	if (dev->irq != 0)
 		free_irq(dev->irq, dev);
-
 	if (dev_private != NULL && dev_private->pci_device != NULL) {
 		if (dev->iobase)
 			comedi_pci_disable(dev_private->pci_device);
 		pci_dev_put(dev_private->pci_device);
 	}
-
-	return 0;
 }
 
 static struct comedi_driver adl_pci9111_driver = {

@@ -1614,14 +1614,9 @@ no_dma:
 	return 0;
 }
 
-static int pcl812_detach(struct comedi_device *dev)
+static void pcl812_detach(struct comedi_device *dev)
 {
-
-#ifdef PCL812_EXTDEBUG
-	printk(KERN_DEBUG "comedi%d: pcl812: remove\n", dev->minor);
-#endif
 	free_resources(dev);
-	return 0;
 }
 
 static const struct pcl812_board boardtypes[] = {

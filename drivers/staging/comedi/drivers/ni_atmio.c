@@ -497,19 +497,15 @@ static int ni_atmio_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int ni_atmio_detach(struct comedi_device *dev)
+static void ni_atmio_detach(struct comedi_device *dev)
 {
 	mio_common_detach(dev);
-
 	if (dev->iobase)
 		release_region(dev->iobase, NI_SIZE);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (devpriv->isapnp_dev)
 		pnp_device_detach(devpriv->isapnp_dev);
-
-	return 0;
 }
 
 static struct comedi_driver ni_atmio_driver = {

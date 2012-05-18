@@ -873,17 +873,12 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 };
 
-static int a2150_detach(struct comedi_device *dev)
+static void a2150_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: %s: remove\n", dev->minor, dev->driver->driver_name);
-
-	/* only free stuff if it has been allocated by _attach */
 	if (dev->iobase) {
-		/*  put board in power-down mode */
 		outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
 		release_region(dev->iobase, A2150_SIZE);
 	}
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
@@ -891,8 +886,6 @@ static int a2150_detach(struct comedi_device *dev)
 			free_dma(devpriv->dma);
 		kfree(devpriv->dma_buffer);
 	}
-
-	return 0;
 };
 
 static struct comedi_driver ni_at_a2150_driver = {

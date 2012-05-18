@@ -908,24 +908,18 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-static int pcmuio_detach(struct comedi_device *dev)
+static void pcmuio_detach(struct comedi_device *dev)
 {
 	int i;
 
-	dev_dbg(dev->hw_dev, "comedi%d: %s: remove\n", dev->minor,
-		dev->driver->driver_name);
 	if (dev->iobase)
 		release_region(dev->iobase, ASIC_IOSIZE * thisboard->num_asics);
-
 	for (i = 0; i < MAX_ASICS; ++i) {
 		if (devpriv->asics[i].irq)
 			free_irq(devpriv->asics[i].irq, dev);
 	}
-
 	if (devpriv && devpriv->sprivs)
 		kfree(devpriv->sprivs);
-
-	return 0;
 }
 
 static const struct pcmuio_board pcmuio_boards[] = {

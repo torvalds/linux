@@ -133,14 +133,10 @@ static int pcm3730_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int pcm3730_detach(struct comedi_device *dev)
+static void pcm3730_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pcm3730: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, PCM3730_SIZE);
-
-	return 0;
 }
 
 static struct comedi_driver pcm3730_driver = {

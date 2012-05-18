@@ -1790,15 +1790,7 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int detach(struct comedi_device *dev)
+static void detach(struct comedi_device *dev)
 {
 	unsigned int i;
 
@@ -1860,8 +1852,6 @@ static int detach(struct comedi_device *dev)
 	}
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 4);
-
-	return 0;
 }
 
 static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,

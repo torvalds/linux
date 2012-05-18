@@ -150,17 +150,13 @@ static int adl_pci7230_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int adl_pci7230_detach(struct comedi_device *dev)
+static void adl_pci7230_detach(struct comedi_device *dev)
 {
-	printk(KERN_DEBUG "comedi%d: pci7230: remove\n", dev->minor);
-
 	if (devpriv && devpriv->pci_dev) {
 		if (dev->iobase)
 			comedi_pci_disable(devpriv->pci_dev);
 		pci_dev_put(devpriv->pci_dev);
 	}
-
-	return 0;
 }
 
 static struct comedi_driver adl_pci7230_driver = {

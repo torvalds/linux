@@ -664,11 +664,9 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return init_hpdi(dev);
 }
 
-static int hpdi_detach(struct comedi_device *dev)
+static void hpdi_detach(struct comedi_device *dev)
 {
 	unsigned int i;
-
-	printk(KERN_WARNING "comedi%d: gsc_hpdi: remove\n", dev->minor);
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
@@ -702,7 +700,6 @@ static int hpdi_detach(struct comedi_device *dev)
 			comedi_pci_disable(priv(dev)->hw_dev);
 		pci_dev_put(priv(dev)->hw_dev);
 	}
-	return 0;
 }
 
 static int dio_config_block_size(struct comedi_device *dev, unsigned int *data)

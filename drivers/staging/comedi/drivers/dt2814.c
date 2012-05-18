@@ -361,17 +361,12 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int dt2814_detach(struct comedi_device *dev)
+static void dt2814_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: dt2814: remove\n", dev->minor);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->iobase)
 		release_region(dev->iobase, DT2814_SIZE);
-
-	return 0;
 }
 
 static struct comedi_driver dt2814_driver = {
