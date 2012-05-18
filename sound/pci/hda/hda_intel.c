@@ -1266,8 +1266,10 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 
 	spin_lock(&chip->reg_lock);
 
-	if (chip->disabled)
+	if (chip->disabled) {
+		spin_unlock(&chip->reg_lock);
 		return IRQ_NONE;
+	}
 
 	status = azx_readl(chip, INTSTS);
 	if (status == 0) {
