@@ -2799,17 +2799,6 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	int ret;
 	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
 
-	/*
-	 * A role set to GEM cipher requires different Tx settings (namely
-	 * spare blocks). Note when we are in this mode so the HW can adjust.
-	 */
-	if (key_type == KEY_GEM) {
-		if (action == KEY_ADD_OR_REPLACE)
-			wlvif->is_gem = true;
-		else if (action == KEY_REMOVE)
-			wlvif->is_gem = false;
-	}
-
 	if (is_ap) {
 		struct wl1271_station *wl_sta;
 		u8 hlid;

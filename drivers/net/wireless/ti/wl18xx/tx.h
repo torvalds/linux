@@ -25,7 +25,8 @@
 #include "../wlcore/wlcore.h"
 
 #define WL18XX_TX_HW_BLOCK_SPARE        1
-#define WL18XX_TX_HW_GEM_BLOCK_SPARE    2
+/* for special cases - namely, TKIP and GEM */
+#define WL18XX_TX_HW_EXTRA_BLOCK_SPARE  2
 #define WL18XX_TX_HW_BLOCK_SIZE         268
 
 #define WL18XX_TX_STATUS_DESC_ID_MASK    0x7F

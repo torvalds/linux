@@ -75,6 +75,7 @@ struct wlcore_ops {
 	int (*debugfs_init)(struct wl1271 *wl, struct dentry *rootdir);
 	int (*handle_static_data)(struct wl1271 *wl,
 				  struct wl1271_static_data *static_data);
+	int (*get_spare_blocks)(struct wl1271 *wl, bool is_gem);
 };
 
 enum wlcore_partitions {
@@ -353,10 +354,6 @@ struct wl1271 {
 	u32 num_tx_desc;
 	/* number of RX descriptors the HW supports. */
 	u32 num_rx_desc;
-
-	/* spare Tx blocks for normal/GEM operating modes */
-	u32 normal_tx_spare;
-	u32 gem_tx_spare;
 
 	/* translate HW Tx rates to standard rate-indices */
 	const u8 **band_rate_to_idx;

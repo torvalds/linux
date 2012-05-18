@@ -167,4 +167,13 @@ wlcore_handle_static_data(struct wl1271 *wl, void *static_data)
 	return 0;
 }
 
+static inline int
+wlcore_hw_get_spare_blocks(struct wl1271 *wl, bool is_gem)
+{
+	if (!wl->ops->get_spare_blocks)
+		BUG_ON(1);
+
+	return wl->ops->get_spare_blocks(wl, is_gem);
+}
+
 #endif

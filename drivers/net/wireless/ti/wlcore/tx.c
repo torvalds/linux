@@ -187,27 +187,23 @@ EXPORT_SYMBOL(wlcore_calc_packet_alignment);
 
 static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			      struct sk_buff *skb, u32 extra, u32 buf_offset,
-			      u8 hlid)
+			      u8 hlid, bool is_gem)
 {
 	struct wl1271_tx_hw_descr *desc;
 	u32 total_len = skb->len + sizeof(struct wl1271_tx_hw_descr) + extra;
 	u32 total_blocks;
 	int id, ret = -EBUSY, ac;
-	u32 spare_blocks = wl->normal_tx_spare;
-	bool is_dummy = false;
+	u32 spare_blocks;
 
 	if (buf_offset + total_len > WL1271_AGGR_BUFFER_SIZE)
 		return -EAGAIN;
+
+	spare_blocks = wlcore_hw_get_spare_blocks(wl, is_gem);
 
 	/* allocate free identifier for the packet */
 	id = wl1271_alloc_tx_id(wl, skb);
 	if (id < 0)
 		return id;
-
-	if (unlikely(wl12xx_is_dummy_packet(wl, skb)))
-		is_dummy = true;
-	else if (wlvif->is_gem)
-		spare_blocks = wl->gem_tx_spare;
 
 	total_blocks = wlcore_hw_calc_tx_blocks(wl, total_len, spare_blocks);
 
@@ -230,7 +226,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 		wl->tx_allocated_pkts[ac]++;
 
-		if (!is_dummy && wlvif &&
+		if (!wl12xx_is_dummy_packet(wl, skb) && wlvif &&
 		    wlvif->bss_type == BSS_TYPE_AP_BSS &&
 		    test_bit(hlid, wlvif->ap.sta_hlid_map))
 			wl->links[hlid].allocated_pkts++;
@@ -349,6 +345,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	u32 total_len;
 	u8 hlid;
 	bool is_dummy;
+	bool is_gem = false;
 
 	if (!skb)
 		return -EINVAL;
@@ -377,6 +374,8 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				return ret;
 			wlvif->default_key = idx;
 		}
+
+		is_gem = (cipher == WL1271_CIPHER_SUITE_GEM);
 	}
 	hlid = wl12xx_tx_get_hlid(wl, wlvif, skb);
 	if (hlid == WL12XX_INVALID_LINK_ID) {
@@ -384,7 +383,8 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		return -EINVAL;
 	}
 
-	ret = wl1271_tx_allocate(wl, wlvif, skb, extra, buf_offset, hlid);
+	ret = wl1271_tx_allocate(wl, wlvif, skb, extra, buf_offset, hlid,
+				 is_gem);
 	if (ret < 0)
 		return ret;
 

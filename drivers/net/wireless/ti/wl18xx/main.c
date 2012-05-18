@@ -874,7 +874,7 @@ static int wl18xx_hw_init(struct wl1271 *wl)
 
 	ret = wl18xx_acx_host_if_cfg_bitmap(wl, host_cfg_bitmap,
 					    sdio_align_size,
-					    WL18XX_TX_HW_BLOCK_SPARE,
+					    WL18XX_TX_HW_EXTRA_BLOCK_SPARE,
 					    WL18XX_HOST_IF_LEN_SIZE_FIELD);
 	if (ret < 0)
 		return ret;
@@ -1034,6 +1034,12 @@ static int wl18xx_handle_static_data(struct wl1271 *wl,
 	return 0;
 }
 
+static int wl18xx_get_spare_blocks(struct wl1271 *wl, bool is_gem)
+{
+	/* TODO: dynamically change to extra only when we have GEM or TKIP */
+	return WL18XX_TX_HW_EXTRA_BLOCK_SPARE;
+}
+
 static struct wlcore_ops wl18xx_ops = {
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
@@ -1056,6 +1062,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.get_mac	= wl18xx_get_mac,
 	.debugfs_init	= wl18xx_debugfs_add_files,
 	.handle_static_data	= wl18xx_handle_static_data,
+	.get_spare_blocks = wl18xx_get_spare_blocks,
 };
 
 /* HT cap appropriate for wide channels */
@@ -1129,8 +1136,6 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	wl->rtable = wl18xx_rtable;
 	wl->num_tx_desc = 32;
 	wl->num_rx_desc = 16;
-	wl->normal_tx_spare = WL18XX_TX_HW_BLOCK_SPARE;
-	wl->gem_tx_spare = WL18XX_TX_HW_GEM_BLOCK_SPARE;
 	wl->band_rate_to_idx = wl18xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL18XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL18XX_CONF_HW_RXTX_RATE_MCS0;
