@@ -227,6 +227,24 @@ static inline void l2cap_chan_set_err(struct l2cap_chan *chan, int err)
 	release_sock(sk);
 }
 
+static void __set_retrans_timer(struct l2cap_chan *chan)
+{
+	if (!delayed_work_pending(&chan->monitor_timer) &&
+	    chan->retrans_timeout) {
+		l2cap_set_timer(chan, &chan->retrans_timer,
+				msecs_to_jiffies(chan->retrans_timeout));
+	}
+}
+
+static void __set_monitor_timer(struct l2cap_chan *chan)
+{
+	__clear_retrans_timer(chan);
+	if (chan->monitor_timeout) {
+		l2cap_set_timer(chan, &chan->monitor_timer,
+				msecs_to_jiffies(chan->monitor_timeout));
+	}
+}
+
 static struct sk_buff *l2cap_ertm_seq_in_queue(struct sk_buff_head *head,
 					       u16 seq)
 {
@@ -1619,7 +1637,7 @@ int __l2cap_wait_ack(struct sock *sk)
 static void l2cap_monitor_timeout(struct work_struct *work)
 {
 	struct l2cap_chan *chan = container_of(work, struct l2cap_chan,
-							monitor_timer.work);
+					       monitor_timer.work);
 
 	BT_DBG("chan %p", chan);
 
@@ -1643,7 +1661,7 @@ static void l2cap_monitor_timeout(struct work_struct *work)
 static void l2cap_retrans_timeout(struct work_struct *work)
 {
 	struct l2cap_chan *chan = container_of(work, struct l2cap_chan,
-							retrans_timer.work);
+					       retrans_timer.work);
 
 	BT_DBG("chan %p", chan);
 
