@@ -103,6 +103,22 @@ enum c4iw_rdev_flags {
 	T4_FATAL_ERROR = (1<<0),
 };
 
+struct c4iw_stat {
+	u64 total;
+	u64 cur;
+	u64 max;
+};
+
+struct c4iw_stats {
+	struct mutex lock;
+	struct c4iw_stat qid;
+	struct c4iw_stat pd;
+	struct c4iw_stat stag;
+	struct c4iw_stat pbl;
+	struct c4iw_stat rqt;
+	struct c4iw_stat ocqp;
+};
+
 struct c4iw_rdev {
 	struct c4iw_resource resource;
 	unsigned long qpshift;
@@ -117,6 +133,7 @@ struct c4iw_rdev {
 	struct cxgb4_lld_info lldi;
 	unsigned long oc_mw_pa;
 	void __iomem *oc_mw_kva;
+	struct c4iw_stats stats;
 };
 
 static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)

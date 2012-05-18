@@ -190,6 +190,9 @@ static int c4iw_deallocate_pd(struct ib_pd *pd)
 	PDBG("%s ibpd %p pdid 0x%x\n", __func__, pd, php->pdid);
 	c4iw_put_resource(&rhp->rdev.resource.pdid_fifo, php->pdid,
 			  &rhp->rdev.resource.pdid_fifo_lock);
+	mutex_lock(&rhp->rdev.stats.lock);
+	rhp->rdev.stats.pd.cur--;
+	mutex_unlock(&rhp->rdev.stats.lock);
 	kfree(php);
 	return 0;
 }
@@ -222,6 +225,11 @@ static struct ib_pd *c4iw_allocate_pd(struct ib_device *ibdev,
 			return ERR_PTR(-EFAULT);
 		}
 	}
+	mutex_lock(&rhp->rdev.stats.lock);
+	rhp->rdev.stats.pd.cur++;
+	if (rhp->rdev.stats.pd.cur > rhp->rdev.stats.pd.max)
+		rhp->rdev.stats.pd.max = rhp->rdev.stats.pd.cur;
+	mutex_unlock(&rhp->rdev.stats.lock);
 	PDBG("%s pdid 0x%0x ptr 0x%p\n", __func__, pdid, php);
 	return &php->ibpd;
 }

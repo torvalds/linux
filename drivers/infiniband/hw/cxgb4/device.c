@@ -240,6 +240,62 @@ static const struct file_operations stag_debugfs_fops = {
 	.llseek  = default_llseek,
 };
 
+static int stats_show(struct seq_file *seq, void *v)
+{
+	struct c4iw_dev *dev = seq->private;
+
+	seq_printf(seq, " Object: %10s %10s %10s\n", "Total", "Current", "Max");
+	seq_printf(seq, "     PDID: %10llu %10llu %10llu\n",
+			dev->rdev.stats.pd.total, dev->rdev.stats.pd.cur,
+			dev->rdev.stats.pd.max);
+	seq_printf(seq, "      QID: %10llu %10llu %10llu\n",
+			dev->rdev.stats.qid.total, dev->rdev.stats.qid.cur,
+			dev->rdev.stats.qid.max);
+	seq_printf(seq, "   TPTMEM: %10llu %10llu %10llu\n",
+			dev->rdev.stats.stag.total, dev->rdev.stats.stag.cur,
+			dev->rdev.stats.stag.max);
+	seq_printf(seq, "   PBLMEM: %10llu %10llu %10llu\n",
+			dev->rdev.stats.pbl.total, dev->rdev.stats.pbl.cur,
+			dev->rdev.stats.pbl.max);
+	seq_printf(seq, "   RQTMEM: %10llu %10llu %10llu\n",
+			dev->rdev.stats.rqt.total, dev->rdev.stats.rqt.cur,
+			dev->rdev.stats.rqt.max);
+	seq_printf(seq, "  OCQPMEM: %10llu %10llu %10llu\n",
+			dev->rdev.stats.ocqp.total, dev->rdev.stats.ocqp.cur,
+			dev->rdev.stats.ocqp.max);
+	return 0;
+}
+
+static int stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, stats_show, inode->i_private);
+}
+
+static ssize_t stats_clear(struct file *file, const char __user *buf,
+		size_t count, loff_t *pos)
+{
+	struct c4iw_dev *dev = ((struct seq_file *)file->private_data)->private;
+
+	mutex_lock(&dev->rdev.stats.lock);
+	dev->rdev.stats.pd.max = 0;
+	dev->rdev.stats.qid.max = 0;
+	dev->rdev.stats.stag.max = 0;
+	dev->rdev.stats.pbl.max = 0;
+	dev->rdev.stats.rqt.max = 0;
+	dev->rdev.stats.ocqp.max = 0;
+	mutex_unlock(&dev->rdev.stats.lock);
+	return count;
+}
+
+static const struct file_operations stats_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = stats_open,
+	.release = single_release,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.write   = stats_clear,
+};
+
 static int setup_debugfs(struct c4iw_dev *devp)
 {
 	struct dentry *de;
@@ -256,6 +312,12 @@ static int setup_debugfs(struct c4iw_dev *devp)
 				 (void *)devp, &stag_debugfs_fops);
 	if (de && de->d_inode)
 		de->d_inode->i_size = 4096;
+
+	de = debugfs_create_file("stats", S_IWUSR, devp->debugfs_root,
+			(void *)devp, &stats_debugfs_fops);
+	if (de && de->d_inode)
+		de->d_inode->i_size = 4096;
+
 	return 0;
 }
 
@@ -269,9 +331,13 @@ void c4iw_release_dev_ucontext(struct c4iw_rdev *rdev,
 	list_for_each_safe(pos, nxt, &uctx->qpids) {
 		entry = list_entry(pos, struct c4iw_qid_list, entry);
 		list_del_init(&entry->entry);
-		if (!(entry->qid & rdev->qpmask))
+		if (!(entry->qid & rdev->qpmask)) {
 			c4iw_put_resource(&rdev->resource.qid_fifo, entry->qid,
-					  &rdev->resource.qid_fifo_lock);
+					&rdev->resource.qid_fifo_lock);
+			mutex_lock(&rdev->stats.lock);
+			rdev->stats.qid.cur -= rdev->qpmask + 1;
+			mutex_unlock(&rdev->stats.lock);
+		}
 		kfree(entry);
 	}
 
@@ -331,6 +397,13 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		err = -EINVAL;
 		goto err1;
 	}
+
+	rdev->stats.pd.total = T4_MAX_NUM_PD;
+	rdev->stats.stag.total = rdev->lldi.vr->stag.size;
+	rdev->stats.pbl.total = rdev->lldi.vr->pbl.size;
+	rdev->stats.rqt.total = rdev->lldi.vr->rq.size;
+	rdev->stats.ocqp.total = rdev->lldi.vr->ocq.size;
+	rdev->stats.qid.total = rdev->lldi.vr->qp.size;
 
 	err = c4iw_init_resource(rdev, c4iw_num_stags(rdev), T4_MAX_NUM_PD);
 	if (err) {
@@ -440,6 +513,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	idr_init(&devp->qpidr);
 	idr_init(&devp->mmidr);
 	spin_lock_init(&devp->lock);
+	mutex_init(&devp->rdev.stats.lock);
 
 	if (c4iw_debugfs_root) {
 		devp->debugfs_root = debugfs_create_dir(
