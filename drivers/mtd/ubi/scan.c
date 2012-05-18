@@ -644,7 +644,7 @@ void ubi_remove_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av)
  * @ubi: UBI device description object
  * @ai: attaching information
  * @pnum: physical eraseblock number to erase;
- * @ec: erase counter value to write (%UBI_SCAN_UNKNOWN_EC if it is unknown)
+ * @ec: erase counter value to write (%UBI_UNKNOWN if it is unknown)
  *
  * This function erases physical eraseblock 'pnum', and writes the erase
  * counter header to it. This function should only be used on UBI device
@@ -718,7 +718,7 @@ struct ubi_ainf_peb *ubi_early_get_peb(struct ubi_device *ubi,
 	 * they'll be handled later.
 	 */
 	list_for_each_entry_safe(aeb, tmp_aeb, &ai->erase, u.list) {
-		if (aeb->ec == UBI_SCAN_UNKNOWN_EC)
+		if (aeb->ec == UBI_UNKNOWN)
 			aeb->ec = ai->mean_ec;
 
 		err = early_erase_peb(ubi, ai, aeb->pnum, aeb->ec+1);
@@ -834,11 +834,11 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		break;
 	case UBI_IO_FF:
 		ai->empty_peb_count += 1;
-		return add_to_list(ai, pnum, UBI_SCAN_UNKNOWN_EC, 0,
+		return add_to_list(ai, pnum, UBI_UNKNOWN, 0,
 				   &ai->erase);
 	case UBI_IO_FF_BITFLIPS:
 		ai->empty_peb_count += 1;
-		return add_to_list(ai, pnum, UBI_SCAN_UNKNOWN_EC, 1,
+		return add_to_list(ai, pnum, UBI_UNKNOWN, 1,
 				   &ai->erase);
 	case UBI_IO_BAD_HDR_EBADMSG:
 	case UBI_IO_BAD_HDR:
@@ -848,7 +848,7 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		 * moved and EC be re-created.
 		 */
 		ec_err = err;
-		ec = UBI_SCAN_UNKNOWN_EC;
+		ec = UBI_UNKNOWN;
 		bitflips = 1;
 		break;
 	default:
@@ -1172,21 +1172,21 @@ static struct ubi_attach_info *scan_all(struct ubi_device *ubi)
 	 */
 	ubi_rb_for_each_entry(rb1, av, &ai->volumes, rb) {
 		ubi_rb_for_each_entry(rb2, aeb, &av->root, u.rb)
-			if (aeb->ec == UBI_SCAN_UNKNOWN_EC)
+			if (aeb->ec == UBI_UNKNOWN)
 				aeb->ec = ai->mean_ec;
 	}
 
 	list_for_each_entry(aeb, &ai->free, u.list) {
-		if (aeb->ec == UBI_SCAN_UNKNOWN_EC)
+		if (aeb->ec == UBI_UNKNOWN)
 			aeb->ec = ai->mean_ec;
 	}
 
 	list_for_each_entry(aeb, &ai->corr, u.list)
-		if (aeb->ec == UBI_SCAN_UNKNOWN_EC)
+		if (aeb->ec == UBI_UNKNOWN)
 			aeb->ec = ai->mean_ec;
 
 	list_for_each_entry(aeb, &ai->erase, u.list)
-		if (aeb->ec == UBI_SCAN_UNKNOWN_EC)
+		if (aeb->ec == UBI_UNKNOWN)
 			aeb->ec = ai->mean_ec;
 
 	err = self_check_ai(ubi, ai);

@@ -21,12 +21,15 @@
 #ifndef __UBI_SCAN_H__
 #define __UBI_SCAN_H__
 
-/* The erase counter value for this physical eraseblock is unknown */
-#define UBI_SCAN_UNKNOWN_EC (-1)
+/*
+ * When a field of the attaching information has this value - its real value is
+ * unknown.
+ */
+#define UBI_UNKNOWN (-1)
 
 /**
  * struct ubi_ainf_peb - attach information about a physical eraseblock.
- * @ec: erase counter (%UBI_SCAN_UNKNOWN_EC if it is unknown)
+ * @ec: erase counter (%UBI_UNKNOWN if it is unknown)
  * @pnum: physical eraseblock number
  * @lnum: logical eraseblock number
  * @scrub: if this physical eraseblock needs scrubbing
