@@ -821,6 +821,8 @@ static int tcm_qla2xxx_setup_nacl_from_rport(
 	return 0;
 }
 
+static void tcm_qla2xxx_clear_sess_lookup(struct tcm_qla2xxx_lport *,
+			struct tcm_qla2xxx_nacl *, struct qla_tgt_sess *);
 /*
  * Expected to be called with struct qla_hw_data->hardware_lock held
  */
@@ -842,6 +844,16 @@ static void tcm_qla2xxx_clear_nacl_from_fcport_map(struct qla_tgt_sess *sess)
 
 	pr_debug("Removed from fcport_map: %p for WWNN: 0x%016LX, port_id: 0x%06x\n",
 	    se_nacl, nacl->nport_wwnn, nacl->nport_id);
+	/*
+	 * Now clear the se_nacl and session pointers from our HW lport lookup
+	 * table mapping for this initiator's fabric S_ID and LOOP_ID entries.
+	 *
+	 * This is done ahead of callbacks into tcm_qla2xxx_free_session() ->
+	 * target_wait_for_sess_cmds() before the session waits for outstanding
+	 * I/O to complete, to avoid a race between session shutdown execution
+	 * and incoming ATIOs or TMRs picking up a stale se_node_act reference.
+	 */
+	tcm_qla2xxx_clear_sess_lookup(lport, nacl, sess);
 }
 
 static void tcm_qla2xxx_release_session(struct kref *kref)
@@ -1409,6 +1421,25 @@ static void tcm_qla2xxx_set_sess_by_loop_id(
 	    nacl->qla_tgt_sess, new_se_nacl, new_se_nacl->initiatorname);
 }
 
+/*
+ * Should always be called with qla_hw_data->hardware_lock held.
+ */
+static void tcm_qla2xxx_clear_sess_lookup(struct tcm_qla2xxx_lport *lport,
+		struct tcm_qla2xxx_nacl *nacl, struct qla_tgt_sess *sess)
+{
+	struct se_session *se_sess = sess->se_sess;
+	unsigned char be_sid[3];
+
+	be_sid[0] = sess->s_id.b.domain;
+	be_sid[1] = sess->s_id.b.area;
+	be_sid[2] = sess->s_id.b.al_pa;
+
+	tcm_qla2xxx_set_sess_by_s_id(lport, NULL, nacl, se_sess,
+				sess, be_sid);
+	tcm_qla2xxx_set_sess_by_loop_id(lport, NULL, nacl, se_sess,
+				sess, sess->loop_id);
+}
+
 static void tcm_qla2xxx_free_session(struct qla_tgt_sess *sess)
 {
 	struct qla_tgt *tgt = sess->tgt;
@@ -1417,8 +1448,6 @@ static void tcm_qla2xxx_free_session(struct qla_tgt_sess *sess)
 	struct se_node_acl *se_nacl;
 	struct tcm_qla2xxx_lport *lport;
 	struct tcm_qla2xxx_nacl *nacl;
-	unsigned char be_sid[3];
-	unsigned long flags;
 
 	BUG_ON(in_interrupt());
 
@@ -1438,21 +1467,6 @@ static void tcm_qla2xxx_free_session(struct qla_tgt_sess *sess)
 		return;
 	}
 	target_wait_for_sess_cmds(se_sess, 0);
-	/*
-	 * And now clear the se_nacl and session pointers from our HW lport
-	 * mappings for fabric S_ID and LOOP_ID.
-	 */
-	memset(&be_sid, 0, 3);
-	be_sid[0] = sess->s_id.b.domain;
-	be_sid[1] = sess->s_id.b.area;
-	be_sid[2] = sess->s_id.b.al_pa;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	tcm_qla2xxx_set_sess_by_s_id(lport, NULL, nacl, se_sess,
-			sess, be_sid);
-	tcm_qla2xxx_set_sess_by_loop_id(lport, NULL, nacl, se_sess,
-			sess, sess->loop_id);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	transport_deregister_session_configfs(sess->se_sess);
 	transport_deregister_session(sess->se_sess);
