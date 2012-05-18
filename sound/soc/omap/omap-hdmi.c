@@ -106,7 +106,7 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 	hdmi_rsrc = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!hdmi_rsrc) {
 		dev_err(&pdev->dev, "Cannot obtain IORESOURCE_MEM HDMI\n");
-		return -EINVAL;
+		return -ENODEV;
 	}
 
 	omap_hdmi_dai_dma_params.port_addr =  hdmi_rsrc->start
@@ -115,7 +115,7 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 	hdmi_rsrc = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!hdmi_rsrc) {
 		dev_err(&pdev->dev, "Cannot obtain IORESOURCE_DMA HDMI\n");
-		return -EINVAL;
+		return -ENODEV;
 	}
 
 	omap_hdmi_dai_dma_params.dma_req =  hdmi_rsrc->start;
