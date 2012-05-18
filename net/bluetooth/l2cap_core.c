@@ -4613,7 +4613,38 @@ static void l2cap_handle_srej(struct l2cap_chan *chan,
 static void l2cap_handle_rej(struct l2cap_chan *chan,
 			     struct l2cap_ctrl *control)
 {
-	/* Placeholder */
+	struct sk_buff *skb;
+
+	BT_DBG("chan %p, control %p", chan, control);
+
+	if (control->reqseq == chan->next_tx_seq) {
+		BT_DBG("Invalid reqseq %d, disconnecting", control->reqseq);
+		l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
+		return;
+	}
+
+	skb = l2cap_ertm_seq_in_queue(&chan->tx_q, control->reqseq);
+
+	if (chan->max_tx && skb &&
+	    bt_cb(skb)->control.retries >= chan->max_tx) {
+		BT_DBG("Retry limit exceeded (%d)", chan->max_tx);
+		l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
+		return;
+	}
+
+	clear_bit(CONN_REMOTE_BUSY, &chan->conn_state);
+
+	l2cap_pass_to_tx(chan, control);
+
+	if (control->final) {
+		if (!test_and_clear_bit(CONN_REJ_ACT, &chan->conn_state))
+			l2cap_retransmit_all(chan, control);
+	} else {
+		l2cap_retransmit_all(chan, control);
+		l2cap_ertm_send(chan);
+		if (chan->tx_state == L2CAP_TX_STATE_WAIT_F)
+			set_bit(CONN_REJ_ACT, &chan->conn_state);
+	}
 }
 
 static u8 l2cap_classify_txseq(struct l2cap_chan *chan, u16 txseq)
