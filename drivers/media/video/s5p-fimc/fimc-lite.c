@@ -1086,9 +1086,9 @@ static int fimc_lite_subdev_get_selection(struct v4l2_subdev *sd,
 	struct fimc_lite *fimc = v4l2_get_subdevdata(sd);
 	struct flite_frame *f = &fimc->inp_frame;
 
-	if ((sel->target != V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL &&
-	     sel->target != V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS) ||
-	    sel->pad != FLITE_SD_PAD_SINK)
+	if ((sel->target != V4L2_SEL_TGT_CROP &&
+	     sel->target != V4L2_SEL_TGT_CROP_BOUNDS) ||
+	     sel->pad != FLITE_SD_PAD_SINK)
 		return -EINVAL;
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
@@ -1097,7 +1097,7 @@ static int fimc_lite_subdev_get_selection(struct v4l2_subdev *sd,
 	}
 
 	mutex_lock(&fimc->lock);
-	if (sel->target == V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL) {
+	if (sel->target == V4L2_SEL_TGT_CROP) {
 		sel->r = f->rect;
 	} else {
 		sel->r.left = 0;
@@ -1122,8 +1122,7 @@ static int fimc_lite_subdev_set_selection(struct v4l2_subdev *sd,
 	struct flite_frame *f = &fimc->inp_frame;
 	int ret = 0;
 
-	if (sel->target != V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL ||
-	    sel->pad != FLITE_SD_PAD_SINK)
+	if (sel->target != V4L2_SEL_TGT_CROP || sel->pad != FLITE_SD_PAD_SINK)
 		return -EINVAL;
 
 	mutex_lock(&fimc->lock);

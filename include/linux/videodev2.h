@@ -64,6 +64,7 @@
 #include <linux/compiler.h>
 #include <linux/ioctl.h>
 #include <linux/types.h>
+#include <linux/v4l2-common.h>
 
 /*
  * Common stuff for both V4L1 and V4L2
@@ -764,31 +765,11 @@ struct v4l2_crop {
 #define V4L2_SEL_FLAG_GE	0x00000001
 #define V4L2_SEL_FLAG_LE	0x00000002
 
-/* Selection targets */
-
-/* Current cropping area */
-#define V4L2_SEL_TGT_CROP		0x0000
-/* Default cropping area */
-#define V4L2_SEL_TGT_CROP_DEFAULT	0x0001
-/* Cropping bounds */
-#define V4L2_SEL_TGT_CROP_BOUNDS	0x0002
-/* Current composing area */
-#define V4L2_SEL_TGT_COMPOSE		0x0100
-/* Default composing area */
-#define V4L2_SEL_TGT_COMPOSE_DEFAULT	0x0101
-/* Composing bounds */
-#define V4L2_SEL_TGT_COMPOSE_BOUNDS	0x0102
-/* Current composing area plus all padding pixels */
-#define V4L2_SEL_TGT_COMPOSE_PADDED	0x0103
-
-/* Backward compatibility definitions */
-#define V4L2_SEL_TGT_CROP_ACTIVE	V4L2_SEL_TGT_CROP
-#define V4L2_SEL_TGT_COMPOSE_ACTIVE	V4L2_SEL_TGT_COMPOSE
-
 /**
  * struct v4l2_selection - selection info
  * @type:	buffer type (do not use *_MPLANE types)
- * @target:	selection target, used to choose one of possible rectangles
+ * @target:	Selection target, used to choose one of possible rectangles;
+ *		defined in v4l2-common.h; V4L2_SEL_TGT_* .
  * @flags:	constraints flags
  * @r:		coordinates of selection window
  * @reserved:	for future use, rounds structure size to 64 bytes, set to zero
