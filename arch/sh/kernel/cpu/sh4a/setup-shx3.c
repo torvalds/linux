@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/sh_timer.h>
+#include <linux/sh_intc.h>
 #include <cpu/shx3.h>
 #include <asm/mmzone.h>
 
@@ -32,7 +33,10 @@ static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { 40, 41, 43, 42 },
+	.irqs		= { evt2irq(0x700),
+			    evt2irq(0x720),
+			    evt2irq(0x760),
+			    evt2irq(0x740) },
 };
 
 static struct platform_device scif0_device = {
@@ -49,7 +53,10 @@ static struct plat_sci_port scif1_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { 44, 45, 47, 46 },
+	.irqs		= { evt2irq(0x780),
+			    evt2irq(0x7a0),
+			    evt2irq(0x7e0),
+			    evt2irq(0x7c0) },
 };
 
 static struct platform_device scif1_device = {
@@ -66,7 +73,10 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { 52, 53, 55, 54 },
+	.irqs		= { evt2irq(0x880),
+			    evt2irq(0x8a0),
+			    evt2irq(0x8e0),
+			    evt2irq(0x8c0) },
 };
 
 static struct platform_device scif2_device = {
@@ -90,7 +100,7 @@ static struct resource tmu0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 16,
+		.start	= evt2irq(0x400),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -118,7 +128,7 @@ static struct resource tmu1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 17,
+		.start	= evt2irq(0x420),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -145,7 +155,7 @@ static struct resource tmu2_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 18,
+		.start	= evt2irq(0x440),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -172,7 +182,7 @@ static struct resource tmu3_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 19,
+		.start	= evt2irq(0x460),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -199,7 +209,7 @@ static struct resource tmu4_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 20,
+		.start	= evt2irq(0x480),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -226,7 +236,7 @@ static struct resource tmu5_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 21,
+		.start	= evt2irq(0x4a0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
