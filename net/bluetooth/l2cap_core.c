@@ -2761,16 +2761,20 @@ static void l2cap_add_opt_efs(void **ptr, struct l2cap_chan *chan)
 static void l2cap_ack_timeout(struct work_struct *work)
 {
 	struct l2cap_chan *chan = container_of(work, struct l2cap_chan,
-							ack_timer.work);
+					       ack_timer.work);
+	u16 frames_to_ack;
 
 	BT_DBG("chan %p", chan);
 
 	l2cap_chan_lock(chan);
 
-	l2cap_send_ack(chan);
+	frames_to_ack = __seq_offset(chan, chan->buffer_seq,
+				     chan->last_acked_seq);
+
+	if (frames_to_ack)
+		l2cap_send_rr_or_rnr(chan, 0);
 
 	l2cap_chan_unlock(chan);
-
 	l2cap_chan_put(chan);
 }
 
