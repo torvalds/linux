@@ -29,6 +29,7 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
+#include <linux/kthread.h>
 #include <mach/iomux.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
@@ -2492,11 +2493,18 @@ static struct platform_driver rk_camera_driver =
     .remove		= __devexit_p(rk_camera_remove),
 };
 
+static int rk_camera_init_async(void *unused)
+{
+    RKCAMERA_DG("%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
+    platform_driver_register(&rk_camera_driver);
+    return 0;
+}
 
 static int __devinit rk_camera_init(void)
 {
     RKCAMERA_DG("%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
-    return platform_driver_register(&rk_camera_driver);
+    kthread_run(rk_camera_init_async, NULL, "rk_camera_init");
+    return 0;
 }
 
 static void __exit rk_camera_exit(void)
