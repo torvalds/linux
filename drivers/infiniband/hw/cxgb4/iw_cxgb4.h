@@ -120,6 +120,7 @@ struct c4iw_stats {
 	u64  db_full;
 	u64  db_empty;
 	u64  db_drop;
+	u64  db_state_transitions;
 };
 
 struct c4iw_rdev {
@@ -212,6 +213,7 @@ struct c4iw_dev {
 	struct mutex db_mutex;
 	struct dentry *debugfs_root;
 	enum db_state db_state;
+	int qpcnt;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
@@ -271,11 +273,25 @@ static inline int insert_handle_nolock(struct c4iw_dev *rhp, struct idr *idr,
 	return _insert_handle(rhp, idr, handle, id, 0);
 }
 
+static inline void _remove_handle(struct c4iw_dev *rhp, struct idr *idr,
+				   u32 id, int lock)
+{
+	if (lock)
+		spin_lock_irq(&rhp->lock);
+	idr_remove(idr, id);
+	if (lock)
+		spin_unlock_irq(&rhp->lock);
+}
+
 static inline void remove_handle(struct c4iw_dev *rhp, struct idr *idr, u32 id)
 {
-	spin_lock_irq(&rhp->lock);
-	idr_remove(idr, id);
-	spin_unlock_irq(&rhp->lock);
+	_remove_handle(rhp, idr, id, 1);
+}
+
+static inline void remove_handle_nolock(struct c4iw_dev *rhp,
+					 struct idr *idr, u32 id)
+{
+	_remove_handle(rhp, idr, id, 0);
 }
 
 struct c4iw_pd {
@@ -843,5 +859,7 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe);
 extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
 extern int c4iw_max_read_depth;
+extern int db_fc_threshold;
+
 
 #endif

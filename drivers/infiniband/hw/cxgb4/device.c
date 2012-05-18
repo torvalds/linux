@@ -246,6 +246,8 @@ static const struct file_operations stag_debugfs_fops = {
 	.llseek  = default_llseek,
 };
 
+static char *db_state_str[] = {"NORMAL", "FLOW_CONTROL", "RECOVERY"};
+
 static int stats_show(struct seq_file *seq, void *v)
 {
 	struct c4iw_dev *dev = seq->private;
@@ -272,6 +274,9 @@ static int stats_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "  DB FULL: %10llu\n", dev->rdev.stats.db_full);
 	seq_printf(seq, " DB EMPTY: %10llu\n", dev->rdev.stats.db_empty);
 	seq_printf(seq, "  DB DROP: %10llu\n", dev->rdev.stats.db_drop);
+	seq_printf(seq, " DB State: %s Transitions %llu\n",
+		   db_state_str[dev->db_state],
+		   dev->rdev.stats.db_state_transitions);
 	return 0;
 }
 
@@ -295,6 +300,7 @@ static ssize_t stats_clear(struct file *file, const char __user *buf,
 	dev->rdev.stats.db_full = 0;
 	dev->rdev.stats.db_empty = 0;
 	dev->rdev.stats.db_drop = 0;
+	dev->rdev.stats.db_state_transitions = 0;
 	mutex_unlock(&dev->rdev.stats.lock);
 	return count;
 }
@@ -677,8 +683,11 @@ static int disable_qp_db(int id, void *p, void *data)
 static void stop_queues(struct uld_ctx *ctx)
 {
 	spin_lock_irq(&ctx->dev->lock);
-	ctx->dev->db_state = FLOW_CONTROL;
-	idr_for_each(&ctx->dev->qpidr, disable_qp_db, NULL);
+	if (ctx->dev->db_state == NORMAL) {
+		ctx->dev->rdev.stats.db_state_transitions++;
+		ctx->dev->db_state = FLOW_CONTROL;
+		idr_for_each(&ctx->dev->qpidr, disable_qp_db, NULL);
+	}
 	spin_unlock_irq(&ctx->dev->lock);
 }
 
@@ -693,9 +702,165 @@ static int enable_qp_db(int id, void *p, void *data)
 static void resume_queues(struct uld_ctx *ctx)
 {
 	spin_lock_irq(&ctx->dev->lock);
-	ctx->dev->db_state = NORMAL;
-	idr_for_each(&ctx->dev->qpidr, enable_qp_db, NULL);
+	if (ctx->dev->qpcnt <= db_fc_threshold &&
+	    ctx->dev->db_state == FLOW_CONTROL) {
+		ctx->dev->db_state = NORMAL;
+		ctx->dev->rdev.stats.db_state_transitions++;
+		idr_for_each(&ctx->dev->qpidr, enable_qp_db, NULL);
+	}
 	spin_unlock_irq(&ctx->dev->lock);
+}
+
+struct qp_list {
+	unsigned idx;
+	struct c4iw_qp **qps;
+};
+
+static int add_and_ref_qp(int id, void *p, void *data)
+{
+	struct qp_list *qp_listp = data;
+	struct c4iw_qp *qp = p;
+
+	c4iw_qp_add_ref(&qp->ibqp);
+	qp_listp->qps[qp_listp->idx++] = qp;
+	return 0;
+}
+
+static int count_qps(int id, void *p, void *data)
+{
+	unsigned *countp = data;
+	(*countp)++;
+	return 0;
+}
+
+static void deref_qps(struct qp_list qp_list)
+{
+	int idx;
+
+	for (idx = 0; idx < qp_list.idx; idx++)
+		c4iw_qp_rem_ref(&qp_list.qps[idx]->ibqp);
+}
+
+static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
+{
+	int idx;
+	int ret;
+
+	for (idx = 0; idx < qp_list->idx; idx++) {
+		struct c4iw_qp *qp = qp_list->qps[idx];
+
+		ret = cxgb4_sync_txq_pidx(qp->rhp->rdev.lldi.ports[0],
+					  qp->wq.sq.qid,
+					  t4_sq_host_wq_pidx(&qp->wq),
+					  t4_sq_wq_size(&qp->wq));
+		if (ret) {
+			printk(KERN_ERR MOD "%s: Fatal error - "
+			       "DB overflow recovery failed - "
+			       "error syncing SQ qid %u\n",
+			       pci_name(ctx->lldi.pdev), qp->wq.sq.qid);
+			return;
+		}
+
+		ret = cxgb4_sync_txq_pidx(qp->rhp->rdev.lldi.ports[0],
+					  qp->wq.rq.qid,
+					  t4_rq_host_wq_pidx(&qp->wq),
+					  t4_rq_wq_size(&qp->wq));
+
+		if (ret) {
+			printk(KERN_ERR MOD "%s: Fatal error - "
+			       "DB overflow recovery failed - "
+			       "error syncing RQ qid %u\n",
+			       pci_name(ctx->lldi.pdev), qp->wq.rq.qid);
+			return;
+		}
+
+		/* Wait for the dbfifo to drain */
+		while (cxgb4_dbfifo_count(qp->rhp->rdev.lldi.ports[0], 1) > 0) {
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(usecs_to_jiffies(10));
+		}
+	}
+}
+
+static void recover_queues(struct uld_ctx *ctx)
+{
+	int count = 0;
+	struct qp_list qp_list;
+	int ret;
+
+	/* lock out kernel db ringers */
+	mutex_lock(&ctx->dev->db_mutex);
+
+	/* put all queues in to recovery mode */
+	spin_lock_irq(&ctx->dev->lock);
+	ctx->dev->db_state = RECOVERY;
+	ctx->dev->rdev.stats.db_state_transitions++;
+	idr_for_each(&ctx->dev->qpidr, disable_qp_db, NULL);
+	spin_unlock_irq(&ctx->dev->lock);
+
+	/* slow everybody down */
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	schedule_timeout(usecs_to_jiffies(1000));
+
+	/* Wait for the dbfifo to completely drain. */
+	while (cxgb4_dbfifo_count(ctx->dev->rdev.lldi.ports[0], 1) > 0) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(usecs_to_jiffies(10));
+	}
+
+	/* flush the SGE contexts */
+	ret = cxgb4_flush_eq_cache(ctx->dev->rdev.lldi.ports[0]);
+	if (ret) {
+		printk(KERN_ERR MOD "%s: Fatal error - DB overflow recovery failed\n",
+		       pci_name(ctx->lldi.pdev));
+		goto out;
+	}
+
+	/* Count active queues so we can build a list of queues to recover */
+	spin_lock_irq(&ctx->dev->lock);
+	idr_for_each(&ctx->dev->qpidr, count_qps, &count);
+
+	qp_list.qps = kzalloc(count * sizeof *qp_list.qps, GFP_ATOMIC);
+	if (!qp_list.qps) {
+		printk(KERN_ERR MOD "%s: Fatal error - DB overflow recovery failed\n",
+		       pci_name(ctx->lldi.pdev));
+		spin_unlock_irq(&ctx->dev->lock);
+		goto out;
+	}
+	qp_list.idx = 0;
+
+	/* add and ref each qp so it doesn't get freed */
+	idr_for_each(&ctx->dev->qpidr, add_and_ref_qp, &qp_list);
+
+	spin_unlock_irq(&ctx->dev->lock);
+
+	/* now traverse the list in a safe context to recover the db state*/
+	recover_lost_dbs(ctx, &qp_list);
+
+	/* we're almost done!  deref the qps and clean up */
+	deref_qps(qp_list);
+	kfree(qp_list.qps);
+
+	/* Wait for the dbfifo to completely drain again */
+	while (cxgb4_dbfifo_count(ctx->dev->rdev.lldi.ports[0], 1) > 0) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(usecs_to_jiffies(10));
+	}
+
+	/* resume the queues */
+	spin_lock_irq(&ctx->dev->lock);
+	if (ctx->dev->qpcnt > db_fc_threshold)
+		ctx->dev->db_state = FLOW_CONTROL;
+	else {
+		ctx->dev->db_state = NORMAL;
+		idr_for_each(&ctx->dev->qpidr, enable_qp_db, NULL);
+	}
+	ctx->dev->rdev.stats.db_state_transitions++;
+	spin_unlock_irq(&ctx->dev->lock);
+
+out:
+	/* start up kernel db ringers again */
+	mutex_unlock(&ctx->dev->db_mutex);
 }
 
 static int c4iw_uld_control(void *handle, enum cxgb4_control control, ...)
@@ -716,8 +881,7 @@ static int c4iw_uld_control(void *handle, enum cxgb4_control control, ...)
 		mutex_unlock(&ctx->dev->rdev.stats.lock);
 		break;
 	case CXGB4_CONTROL_DB_DROP:
-		printk(KERN_WARNING MOD "%s: Fatal DB DROP\n",
-		       pci_name(ctx->lldi.pdev));
+		recover_queues(ctx);
 		mutex_lock(&ctx->dev->rdev.stats.lock);
 		ctx->dev->rdev.stats.db_drop++;
 		mutex_unlock(&ctx->dev->rdev.stats.lock);
