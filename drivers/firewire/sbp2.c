@@ -207,9 +207,8 @@ static const struct device *lu_dev(const struct sbp2_logical_unit *lu)
 #define SBP2_MAX_CDB_SIZE		16
 
 /*
- * The default maximum s/g segment size of a FireWire controller is
- * usually 0x10000, but SBP-2 only allows 0xffff. Since buffers have to
- * be quadlet-aligned, we set the length limit to 0xffff & ~3.
+ * The maximum SBP-2 data buffer size is 0xffff.  We quadlet-align this
+ * for compatibility with earlier versions of this driver.
  */
 #define SBP2_MAX_SEG_SIZE		0xfffc
 
@@ -1530,7 +1529,10 @@ static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
 
 	sdev->allow_restart = 1;
 
-	/* SBP-2 requires quadlet alignment of the data buffers. */
+	/*
+	 * SBP-2 does not require any alignment, but we set it anyway
+	 * for compatibility with earlier versions of this driver.
+	 */
 	blk_queue_update_dma_alignment(sdev->request_queue, 4 - 1);
 
 	if (lu->tgt->workarounds & SBP2_WORKAROUND_INQUIRY_36)
