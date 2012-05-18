@@ -1741,9 +1741,10 @@ static void l2cap_retransmit_one_frame(struct l2cap_chan *chan, u16 tx_seq)
 static int l2cap_ertm_send(struct l2cap_chan *chan)
 {
 	struct sk_buff *skb, *tx_skb;
-	u16 fcs;
-	u32 control;
-	int nsent = 0;
+	struct l2cap_ctrl *control;
+	int sent = 0;
+
+	BT_DBG("chan %p", chan);
 
 	if (chan->state != BT_CONNECTED)
 		return -ENOTCONN;
@@ -1751,61 +1752,57 @@ static int l2cap_ertm_send(struct l2cap_chan *chan)
 	if (test_bit(CONN_REMOTE_BUSY, &chan->conn_state))
 		return 0;
 
-	while ((skb = chan->tx_send_head) && (!l2cap_tx_window_full(chan))) {
+	while (chan->tx_send_head &&
+	       chan->unacked_frames < chan->remote_tx_win &&
+	       chan->tx_state == L2CAP_TX_STATE_XMIT) {
 
-		if (bt_cb(skb)->control.retries == chan->remote_max_tx &&
-		    chan->remote_max_tx) {
-			l2cap_send_disconn_req(chan->conn, chan, ECONNABORTED);
-			break;
-		}
+		skb = chan->tx_send_head;
 
-		tx_skb = skb_clone(skb, GFP_ATOMIC);
-
-		bt_cb(skb)->control.retries++;
-
-		control = __get_control(chan, tx_skb->data + L2CAP_HDR_SIZE);
-		control &= __get_sar_mask(chan);
+		bt_cb(skb)->control.retries = 1;
+		control = &bt_cb(skb)->control;
 
 		if (test_and_clear_bit(CONN_SEND_FBIT, &chan->conn_state))
-			control |= __set_ctrl_final(chan);
+			control->final = 1;
 
-		control |= __set_reqseq(chan, chan->buffer_seq);
-		control |= __set_txseq(chan, chan->next_tx_seq);
-		control |= __set_ctrl_sar(chan, bt_cb(skb)->control.sar);
+		control->reqseq = chan->buffer_seq;
+		chan->last_acked_seq = chan->buffer_seq;
+		control->txseq = chan->next_tx_seq;
 
-		__put_control(chan, control, tx_skb->data + L2CAP_HDR_SIZE);
+		__pack_control(chan, control, skb);
 
 		if (chan->fcs == L2CAP_FCS_CRC16) {
-			fcs = crc16(0, (u8 *)skb->data,
-						tx_skb->len - L2CAP_FCS_SIZE);
-			put_unaligned_le16(fcs, skb->data +
-						tx_skb->len - L2CAP_FCS_SIZE);
+			u16 fcs = crc16(0, (u8 *) skb->data, skb->len);
+			put_unaligned_le16(fcs, skb_put(skb, L2CAP_FCS_SIZE));
 		}
 
-		l2cap_do_send(chan, tx_skb);
+		/* Clone after data has been modified. Data is assumed to be
+		   read-only (for locking purposes) on cloned sk_buffs.
+		 */
+		tx_skb = skb_clone(skb, GFP_KERNEL);
+
+		if (!tx_skb)
+			break;
 
 		__set_retrans_timer(chan);
 
-		bt_cb(skb)->control.txseq = chan->next_tx_seq;
-
 		chan->next_tx_seq = __next_seq(chan, chan->next_tx_seq);
-
-		if (bt_cb(skb)->control.retries == 1) {
-			chan->unacked_frames++;
-
-			if (!nsent++)
-				__clear_ack_timer(chan);
-		}
-
+		chan->unacked_frames++;
 		chan->frames_sent++;
+		sent++;
 
 		if (skb_queue_is_last(&chan->tx_q, skb))
 			chan->tx_send_head = NULL;
 		else
 			chan->tx_send_head = skb_queue_next(&chan->tx_q, skb);
+
+		l2cap_do_send(chan, tx_skb);
+		BT_DBG("Sent txseq %d", (int)control->txseq);
 	}
 
-	return nsent;
+	BT_DBG("Sent %d, %d unacked, %d in ERTM queue", sent,
+	       (int) chan->unacked_frames, skb_queue_len(&chan->tx_q));
+
+	return sent;
 }
 
 static int l2cap_retransmit_frames(struct l2cap_chan *chan)
@@ -2009,7 +2006,11 @@ static struct sk_buff *l2cap_create_iframe_pdu(struct l2cap_chan *chan,
 	lh->cid = cpu_to_le16(chan->dcid);
 	lh->len = cpu_to_le16(len + (hlen - L2CAP_HDR_SIZE));
 
-	__put_control(chan, 0, skb_put(skb, __ctrl_size(chan)));
+	/* Control header is populated later */
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		put_unaligned_le32(0, skb_put(skb, L2CAP_EXT_CTRL_SIZE));
+	else
+		put_unaligned_le16(0, skb_put(skb, L2CAP_ENH_CTRL_SIZE));
 
 	if (sdulen)
 		put_unaligned_le16(sdulen, skb_put(skb, L2CAP_SDULEN_SIZE));
@@ -2020,9 +2021,7 @@ static struct sk_buff *l2cap_create_iframe_pdu(struct l2cap_chan *chan,
 		return ERR_PTR(err);
 	}
 
-	if (chan->fcs == L2CAP_FCS_CRC16)
-		put_unaligned_le16(0, skb_put(skb, L2CAP_FCS_SIZE));
-
+	bt_cb(skb)->control.fcs = chan->fcs;
 	bt_cb(skb)->control.retries = 0;
 	return skb;
 }
