@@ -36,6 +36,9 @@ struct wl18xx_priv {
 	u8 last_fw_rls_idx;
 
 	u8 board_type;
+
+	/* number of VIFs requiring extra spare mem-blocks */
+	int extra_spare_vif_count;
 };
 
 #define WL18XX_FW_MAX_TX_STATUS_DESC 33

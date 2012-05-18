@@ -76,6 +76,10 @@ struct wlcore_ops {
 	int (*handle_static_data)(struct wl1271 *wl,
 				  struct wl1271_static_data *static_data);
 	int (*get_spare_blocks)(struct wl1271 *wl, bool is_gem);
+	int (*set_key)(struct wl1271 *wl, enum set_key_cmd cmd,
+		       struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta,
+		       struct ieee80211_key_conf *key_conf);
 };
 
 enum wlcore_partitions {
@@ -387,6 +391,10 @@ int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
 int __devexit wlcore_remove(struct platform_device *pdev);
 struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size);
 int wlcore_free_hw(struct wl1271 *wl);
+int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
+		   struct ieee80211_vif *vif,
+		   struct ieee80211_sta *sta,
+		   struct ieee80211_key_conf *key_conf);
 
 /* Firmware image load chunk size */
 #define CHUNK_SIZE	16384

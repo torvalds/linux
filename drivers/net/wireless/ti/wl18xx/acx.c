@@ -32,6 +32,10 @@ int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
 	struct wl18xx_acx_host_config_bitmap *bitmap_conf;
 	int ret;
 
+	wl1271_debug(DEBUG_ACX, "acx cfg bitmap %d blk %d spare %d field %d",
+		     host_cfg_bitmap, sdio_blk_size, extra_mem_blks,
+		     len_field_size);
+
 	bitmap_conf = kzalloc(sizeof(*bitmap_conf), GFP_KERNEL);
 	if (!bitmap_conf) {
 		ret = -ENOMEM;

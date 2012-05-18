@@ -1369,6 +1369,14 @@ static int wl12xx_get_spare_blocks(struct wl1271 *wl, bool is_gem)
 	return WL12XX_TX_HW_BLOCK_SPARE_DEFAULT;
 }
 
+static int wl12xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
+			  struct ieee80211_vif *vif,
+			  struct ieee80211_sta *sta,
+			  struct ieee80211_key_conf *key_conf)
+{
+	return wlcore_set_key(wl, cmd, vif, sta, key_conf);
+}
+
 static struct wlcore_ops wl12xx_ops = {
 	.identify_chip		= wl12xx_identify_chip,
 	.identify_fw		= wl12xx_identify_fw,
@@ -1393,6 +1401,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.ap_get_mimo_wide_rate_mask = NULL,
 	.debugfs_init		= wl12xx_debugfs_add_files,
 	.get_spare_blocks	= wl12xx_get_spare_blocks,
+	.set_key		= wl12xx_set_key,
 };
 
 static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {

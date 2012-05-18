@@ -2883,12 +2883,21 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	return 0;
 }
 
-static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+static int wlcore_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_sta *sta,
 			     struct ieee80211_key_conf *key_conf)
 {
 	struct wl1271 *wl = hw->priv;
+
+	return wlcore_hw_set_key(wl, cmd, vif, sta, key_conf);
+}
+
+int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
+		   struct ieee80211_vif *vif,
+		   struct ieee80211_sta *sta,
+		   struct ieee80211_key_conf *key_conf)
+{
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret;
 	u32 tx_seq_32 = 0;
@@ -2999,6 +3008,7 @@ out_unlock:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wlcore_set_key);
 
 static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
@@ -4643,7 +4653,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.prepare_multicast = wl1271_op_prepare_multicast,
 	.configure_filter = wl1271_op_configure_filter,
 	.tx = wl1271_op_tx,
-	.set_key = wl1271_op_set_key,
+	.set_key = wlcore_op_set_key,
 	.hw_scan = wl1271_op_hw_scan,
 	.cancel_hw_scan = wl1271_op_cancel_hw_scan,
 	.sched_scan_start = wl1271_op_sched_scan_start,

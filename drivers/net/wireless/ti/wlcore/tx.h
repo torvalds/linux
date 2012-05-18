@@ -188,6 +188,7 @@ enum wlcore_queue_stop_reason {
 	WLCORE_QUEUE_STOP_REASON_WATERMARK,
 	WLCORE_QUEUE_STOP_REASON_FW_RESTART,
 	WLCORE_QUEUE_STOP_REASON_FLUSH,
+	WLCORE_QUEUE_STOP_REASON_SPARE_BLK, /* 18xx specific */
 };
 
 static inline int wl1271_tx_get_queue(int queue)

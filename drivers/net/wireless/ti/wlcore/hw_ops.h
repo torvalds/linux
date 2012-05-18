@@ -176,4 +176,16 @@ wlcore_hw_get_spare_blocks(struct wl1271 *wl, bool is_gem)
 	return wl->ops->get_spare_blocks(wl, is_gem);
 }
 
+static inline int
+wlcore_hw_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
+		  struct ieee80211_vif *vif,
+		  struct ieee80211_sta *sta,
+		  struct ieee80211_key_conf *key_conf)
+{
+	if (!wl->ops->set_key)
+		BUG_ON(1);
+
+	return wl->ops->set_key(wl, cmd, vif, sta, key_conf);
+}
+
 #endif
