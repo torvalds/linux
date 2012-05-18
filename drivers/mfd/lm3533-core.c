@@ -567,7 +567,7 @@ static bool lm3533_readable_register(struct device *dev, unsigned int reg)
 static bool lm3533_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case 0x34:		/* zone */
+	case 0x34 ... 0x36:	/* zone */
 	case 0x37 ... 0x38:	/* adc */
 	case 0xb0 ... 0xb1:	/* fault */
 		return true;
