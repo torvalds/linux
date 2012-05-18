@@ -984,8 +984,10 @@ static int pppoe_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (skb) {
 		total_len = min_t(size_t, total_len, skb->len);
 		error = skb_copy_datagram_iovec(skb, 0, m->msg_iov, total_len);
-		if (error == 0)
-			error = total_len;
+		if (error == 0) {
+			consume_skb(skb);
+			return total_len;
+		}
 	}
 
 	kfree_skb(skb);

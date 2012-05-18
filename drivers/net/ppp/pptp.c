@@ -209,7 +209,7 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		}
 		if (skb->sk)
 			skb_set_owner_w(new_skb, skb->sk);
-		kfree_skb(skb);
+		consume_skb(skb);
 		skb = new_skb;
 	}
 
