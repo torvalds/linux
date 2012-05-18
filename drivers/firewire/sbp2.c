@@ -1564,8 +1564,6 @@ static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
 	if (lu->tgt->workarounds & SBP2_WORKAROUND_128K_MAX_TRANS)
 		blk_queue_max_hw_sectors(sdev->request_queue, 128 * 1024 / 512);
 
-	blk_queue_max_segment_size(sdev->request_queue, SBP2_MAX_SEG_SIZE);
-
 	return 0;
 }
 
