@@ -65,13 +65,10 @@ struct igb_adapter;
 #define MAX_Q_VECTORS                      8
 
 /* Transmit and receive queues */
-#define IGB_MAX_RX_QUEUES		((adapter->vfs_allocated_count ? 2 : \
-					(hw->mac.type > e1000_82575 ? 8 : 4)))
-#define IGB_MAX_RX_QUEUES_I210             4
+#define IGB_MAX_RX_QUEUES                  8
+#define IGB_MAX_RX_QUEUES_82575            4
 #define IGB_MAX_RX_QUEUES_I211             2
-#define IGB_MAX_TX_QUEUES                  16
-#define IGB_MAX_TX_QUEUES_I210             4
-#define IGB_MAX_TX_QUEUES_I211             2
+#define IGB_MAX_TX_QUEUES                  8
 #define IGB_MAX_VF_MC_ENTRIES              30
 #define IGB_MAX_VF_FUNCTIONS               8
 #define IGB_MAX_VFTA_ENTRIES               128
