@@ -231,3 +231,12 @@ config SND_SOC_LITTLEMILL
 	select SND_SAMSUNG_I2S
 	select MFD_WM8994
 	select SND_SOC_WM8994
+
+config SND_SOC_SMDK_I2S_STUB
+	tristate "SoC I2S Audio support for boards without external codec chip"
+	depends on SND_SOC_SAMSUNG
+	select SND_SAMSUNG_I2S
+	select SND_SOC_I2S_STUB
+	help
+	  Say Y if you want to add support for SoC audio on boards without
+	  exteral codec chip.
