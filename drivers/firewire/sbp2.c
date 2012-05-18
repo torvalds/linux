@@ -1163,7 +1163,8 @@ static int sbp2_probe(struct device *dev)
 
 	shost->max_cmd_len = SBP2_MAX_CDB_SIZE;
 
-	if (scsi_add_host(shost, &unit->device) < 0)
+	if (scsi_add_host_with_dma(shost, &unit->device,
+				   device->card->device) < 0)
 		goto fail_shost_put;
 
 	/* implicit directory ID */
