@@ -1155,6 +1155,7 @@ enum rtl28xxu_usb_table_entry {
 	RTL2831U_14AA_0160,
 	RTL2831U_14AA_0161,
 	RTL2832U_0CCD_00A9,
+	RTL2832U_1F4D_B803,
 };
 
 static struct usb_device_id rtl28xxu_table[] = {
@@ -1169,6 +1170,8 @@ static struct usb_device_id rtl28xxu_table[] = {
 	/* RTL2832U */
 	[RTL2832U_0CCD_00A9] = {
 		USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_T_STICK_BLACK_REV1)},
+	[RTL2832U_1F4D_B803] = {
+		USB_DEVICE(USB_VID_GTEK, USB_PID_DELOCK_USB2_DVBT)},
 	{} /* terminating entry */
 };
 
@@ -1282,12 +1285,18 @@ static struct dvb_usb_device_properties rtl28xxu_properties[] = {
 
 		.i2c_algo = &rtl28xxu_i2c_algo,
 
-		.num_device_descs = 1,
+		.num_device_descs = 2,
 		.devices = {
 			{
 				.name = "Terratec Cinergy T Stick Black",
 				.warm_ids = {
 					&rtl28xxu_table[RTL2832U_0CCD_00A9],
+				},
+			},
+			{
+				.name = "G-Tek Electronics Group Lifeview LV5TDLX DVB-T",
+				.warm_ids = {
+					&rtl28xxu_table[RTL2832U_1F4D_B803],
 				},
 			},
 		}
