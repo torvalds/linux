@@ -898,6 +898,7 @@ static int __init dino_probe(struct parisc_device *dev)
 	LIST_HEAD(resources);
 	struct pci_bus *bus;
 	unsigned long hpa = dev->hpa.start;
+	int max;
 
 	name = "Dino";
 	if (is_card_dino(&dev->id)) {
@@ -983,6 +984,10 @@ static int __init dino_probe(struct parisc_device *dev)
 	if (dino_dev->hba.gmmio_space.flags)
 		pci_add_resource(&resources, &dino_dev->hba.gmmio_space);
 
+	dino_dev->hba.bus_num.start = dino_current_bus;
+	dino_dev->hba.bus_num.end = 255;
+	dino_dev->hba.bus_num.flags = IORESOURCE_BUS;
+	pci_add_resource(&resources, &dino_dev->hba.bus_num);
 	/*
 	** It's not used to avoid chicken/egg problems
 	** with configuration accessor functions.
@@ -998,12 +1003,13 @@ static int __init dino_probe(struct parisc_device *dev)
 		return 0;
 	}
 
-	bus->busn_res.end = pci_scan_child_bus(bus);
+	max = pci_scan_child_bus(bus);
+	pci_bus_update_busn_res_end(bus, max);
 
 	/* This code *depends* on scanning being single threaded
 	 * if it isn't, this global bus number count will fail
 	 */
-	dino_current_bus = bus->busn_res.end + 1;
+	dino_current_bus = max + 1;
 	pci_bus_assign_resources(bus);
 	pci_bus_add_devices(bus);
 	return 0;
