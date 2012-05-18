@@ -135,10 +135,6 @@ unsigned long get_wchan(struct task_struct *p);
 #define	KSTK_EIP(tsk)	((tsk)->thread.frame0->pc)
 #define	KSTK_ESP(tsk)	((tsk)->thread.frame0->sp)
 
-/* Allocation and freeing of basic task resources. */
-extern struct task_struct *alloc_task_struct_node(int node);
-extern void free_task_struct(struct task_struct *p);
-
 #define cpu_relax()    barrier()
 
 /* data cache prefetch */
