@@ -865,7 +865,7 @@ static void wl1271_recovery_work(struct work_struct *work)
 	}
 
 	/* Prevent spurious TX during FW restart */
-	ieee80211_stop_queues(wl->hw);
+	wlcore_stop_queues(wl, WLCORE_QUEUE_STOP_REASON_FW_RESTART);
 
 	if (wl->sched_scanning) {
 		ieee80211_sched_scan_stopped(wl->hw);
@@ -890,7 +890,7 @@ static void wl1271_recovery_work(struct work_struct *work)
 	 * Its safe to enable TX now - the queues are stopped after a request
 	 * to restart the HW.
 	 */
-	ieee80211_wake_queues(wl->hw);
+	wlcore_wake_queues(wl, WLCORE_QUEUE_STOP_REASON_FW_RESTART);
 	return;
 out_unlock:
 	mutex_unlock(&wl->mutex);
@@ -1107,9 +1107,16 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 
-	/* queue the packet */
+	/*
+	 * drop the packet if the link is invalid or the queue is stopped
+	 * for any reason but watermark. Watermark is a "soft"-stop so we
+	 * allow these packets through.
+	 */
 	if (hlid == WL12XX_INVALID_LINK_ID ||
-	    (wlvif && !test_bit(hlid, wlvif->links_map))) {
+	    (wlvif && !test_bit(hlid, wlvif->links_map)) ||
+	     (wlcore_is_queue_stopped(wl, q) &&
+	      !wlcore_is_queue_stopped_by_reason(wl, q,
+			WLCORE_QUEUE_STOP_REASON_WATERMARK))) {
 		wl1271_debug(DEBUG_TX, "DROP skb hlid %d q %d", hlid, q);
 		ieee80211_free_txskb(hw, skb);
 		goto out;
@@ -1127,8 +1134,8 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 */
 	if (wl->tx_queue_count[q] >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
 		wl1271_debug(DEBUG_TX, "op_tx: stopping queues for q %d", q);
-		ieee80211_stop_queue(wl->hw, mapping);
-		set_bit(q, &wl->stopped_queues_map);
+		wlcore_stop_queue_locked(wl, q,
+					 WLCORE_QUEUE_STOP_REASON_WATERMARK);
 	}
 
 	/*
@@ -1711,7 +1718,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	cancel_delayed_work_sync(&wl->connection_loss_work);
 
 	/* let's notify MAC80211 about the remaining pending TX frames */
-	wl12xx_tx_reset(wl, true);
+	wl12xx_tx_reset(wl);
 	mutex_lock(&wl->mutex);
 
 	wl1271_power_off(wl);

@@ -443,18 +443,15 @@ u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set,
 
 void wl1271_handle_tx_low_watermark(struct wl1271 *wl)
 {
-	unsigned long flags;
 	int i;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
-		if (test_bit(i, &wl->stopped_queues_map) &&
+		if (wlcore_is_queue_stopped_by_reason(wl, i,
+			WLCORE_QUEUE_STOP_REASON_WATERMARK) &&
 		    wl->tx_queue_count[i] <= WL1271_TX_QUEUE_LOW_WATERMARK) {
 			/* firmware buffer has space, restart queues */
-			spin_lock_irqsave(&wl->wl_lock, flags);
-			ieee80211_wake_queue(wl->hw,
-					     wl1271_tx_get_mac80211_queue(i));
-			clear_bit(i, &wl->stopped_queues_map);
-			spin_unlock_irqrestore(&wl->wl_lock, flags);
+			wlcore_wake_queue(wl, i,
+					  WLCORE_QUEUE_STOP_REASON_WATERMARK);
 		}
 	}
 }
@@ -963,7 +960,7 @@ void wl12xx_tx_reset_wlvif(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 }
 /* caller must hold wl->mutex and TX must be stopped */
-void wl12xx_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
+void wl12xx_tx_reset(struct wl1271 *wl)
 {
 	int i;
 	struct sk_buff *skb;
@@ -978,15 +975,12 @@ void wl12xx_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 			wl->tx_queue_count[i] = 0;
 	}
 
-	wl->stopped_queues_map = 0;
-
 	/*
 	 * Make sure the driver is at a consistent state, in case this
 	 * function is called from a context other than interface removal.
 	 * This call will always wake the TX queues.
 	 */
-	if (reset_tx_queues)
-		wl1271_handle_tx_low_watermark(wl);
+	wl1271_handle_tx_low_watermark(wl);
 
 	for (i = 0; i < wl->num_tx_desc; i++) {
 		if (wl->tx_frames[i] == NULL)
@@ -1059,4 +1053,95 @@ u32 wl1271_tx_min_rate_get(struct wl1271 *wl, u32 rate_set)
 		return 0;
 
 	return BIT(__ffs(rate_set));
+}
+
+void wlcore_stop_queue_locked(struct wl1271 *wl, u8 queue,
+			      enum wlcore_queue_stop_reason reason)
+{
+	bool stopped = !!wl->queue_stop_reasons[queue];
+
+	/* queue should not be stopped for this reason */
+	WARN_ON(test_and_set_bit(reason, &wl->queue_stop_reasons[queue]));
+
+	if (stopped)
+		return;
+
+	ieee80211_stop_queue(wl->hw, wl1271_tx_get_mac80211_queue(queue));
+}
+
+void wlcore_stop_queue(struct wl1271 *wl, u8 queue,
+		       enum wlcore_queue_stop_reason reason)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	wlcore_stop_queue_locked(wl, queue, reason);
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+}
+
+void wlcore_wake_queue(struct wl1271 *wl, u8 queue,
+		       enum wlcore_queue_stop_reason reason)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&wl->wl_lock, flags);
+
+	/* queue should not be clear for this reason */
+	WARN_ON(!test_and_clear_bit(reason, &wl->queue_stop_reasons[queue]));
+
+	if (wl->queue_stop_reasons[queue])
+		goto out;
+
+	ieee80211_wake_queue(wl->hw, wl1271_tx_get_mac80211_queue(queue));
+
+out:
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+}
+
+void wlcore_stop_queues(struct wl1271 *wl,
+			enum wlcore_queue_stop_reason reason)
+{
+	int i;
+
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		wlcore_stop_queue(wl, i, reason);
+}
+
+void wlcore_wake_queues(struct wl1271 *wl,
+			enum wlcore_queue_stop_reason reason)
+{
+	int i;
+
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		wlcore_wake_queue(wl, i, reason);
+}
+
+void wlcore_reset_stopped_queues(struct wl1271 *wl)
+{
+	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&wl->wl_lock, flags);
+
+	for (i = 0; i < NUM_TX_QUEUES; i++) {
+		if (!wl->queue_stop_reasons[i])
+			continue;
+
+		wl->queue_stop_reasons[i] = 0;
+		ieee80211_wake_queue(wl->hw,
+				     wl1271_tx_get_mac80211_queue(i));
+	}
+
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+}
+
+bool wlcore_is_queue_stopped_by_reason(struct wl1271 *wl, u8 queue,
+			     enum wlcore_queue_stop_reason reason)
+{
+	return test_bit(reason, &wl->queue_stop_reasons[queue]);
+}
+
+bool wlcore_is_queue_stopped(struct wl1271 *wl, u8 queue)
+{
+	return !!wl->queue_stop_reasons[queue];
 }
