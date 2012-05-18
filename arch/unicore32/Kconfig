@@ -25,9 +25,6 @@ config HAVE_PWM
 config GENERIC_GPIO
 	def_bool y
 
-config GENERIC_CLOCKEVENTS
-	bool
-
 config GENERIC_CSUM
 	def_bool y
 
