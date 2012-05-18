@@ -42,6 +42,7 @@ enum scsi_device_state {
 				 * originate in the mid-layer) */
 	SDEV_OFFLINE,		/* Device offlined (by error handling or
 				 * user request */
+	SDEV_TRANSPORT_OFFLINE,	/* Offlined by transport class error handler */
 	SDEV_BLOCK,		/* Device blocked by scsi lld.  No
 				 * scsi commands from user or midlayer
 				 * should be issued to the scsi
@@ -421,6 +422,7 @@ static inline unsigned int sdev_id(struct scsi_device *sdev)
 static inline int scsi_device_online(struct scsi_device *sdev)
 {
 	return (sdev->sdev_state != SDEV_OFFLINE &&
+		sdev->sdev_state != SDEV_TRANSPORT_OFFLINE &&
 		sdev->sdev_state != SDEV_DEL);
 }
 static inline int scsi_device_blocked(struct scsi_device *sdev)
