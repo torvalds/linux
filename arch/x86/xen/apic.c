@@ -1,8 +1,11 @@
 #include <linux/init.h>
+
 #include <asm/x86_init.h>
 #include <asm/apic.h>
-#include <xen/interface/physdev.h>
 #include <asm/xen/hypercall.h>
+
+#include <xen/xen.h>
+#include <xen/interface/physdev.h>
 
 unsigned int xen_io_apic_read(unsigned apic, unsigned reg)
 {
