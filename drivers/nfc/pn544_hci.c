@@ -232,7 +232,7 @@ static int pn544_hci_i2c_write(struct i2c_client *client, u8 *buf, int len)
 
 static int check_crc(u8 *buf, int buflen)
 {
-	u8 len;
+	int len;
 	u16 crc;
 
 	len = buf[0] + 1;
