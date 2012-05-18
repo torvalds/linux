@@ -1836,9 +1836,10 @@ struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent,
 
 	pci_add_resource(&resources, &ioport_resource);
 	pci_add_resource(&resources, &iomem_resource);
+	pci_add_resource(&resources, &busn_resource);
 	b = pci_create_root_bus(parent, bus, ops, sysdata, &resources);
 	if (b)
-		b->busn_res.end = pci_scan_child_bus(b);
+		pci_scan_child_bus(b);
 	else
 		pci_free_resource_list(&resources);
 	return b;
@@ -1853,9 +1854,10 @@ struct pci_bus * __devinit pci_scan_bus(int bus, struct pci_ops *ops,
 
 	pci_add_resource(&resources, &ioport_resource);
 	pci_add_resource(&resources, &iomem_resource);
+	pci_add_resource(&resources, &busn_resource);
 	b = pci_create_root_bus(NULL, bus, ops, sysdata, &resources);
 	if (b) {
-		b->busn_res.end = pci_scan_child_bus(b);
+		pci_scan_child_bus(b);
 		pci_bus_add_devices(b);
 	} else {
 		pci_free_resource_list(&resources);
