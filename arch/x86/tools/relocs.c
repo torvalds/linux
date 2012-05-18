@@ -570,9 +570,13 @@ static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym),
 			Elf32_Sym *sym;
 			unsigned r_type;
 			const char *symname;
+			int shn_abs;
+
 			rel = &sec->reltab[j];
 			sym = &sh_symtab[ELF32_R_SYM(rel->r_info)];
 			r_type = ELF32_R_TYPE(rel->r_info);
+
+			shn_abs = sym->st_shndx == SHN_ABS;
 
 			switch (r_type) {
 			case R_386_NONE:
@@ -589,7 +593,7 @@ static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym),
 				symname = sym_name(sym_strtab, sym);
 				if (!use_real_mode)
 					goto bad;
-				if (sym->st_shndx == SHN_ABS) {
+				if (shn_abs) {
 					if (is_reloc(S_ABS, symname))
 						break;
 					else if (!is_reloc(S_SEG, symname))
@@ -605,7 +609,7 @@ static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym),
 
 			case R_386_32:
 				symname = sym_name(sym_strtab, sym);
-				if (sym->st_shndx == SHN_ABS) {
+				if (shn_abs) {
 					if (is_reloc(S_ABS, symname))
 						break;
 					else if (!is_reloc(S_REL, symname))
@@ -623,7 +627,8 @@ static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym),
 				break;
 			bad:
 				symname = sym_name(sym_strtab, sym);
-				die("Invalid %s relocation: %s\n",
+				die("Invalid %s %s relocation: %s\n",
+				    shn_abs ? "absolute" : "relative",
 				    rel_type(r_type), symname);
 			}
 		}
