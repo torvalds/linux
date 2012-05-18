@@ -322,6 +322,9 @@ static int rtl2831u_frontend_attach(struct dvb_usb_adapter *adap)
 	 * since there is some demod params needed to set according to tuner.
 	 */
 
+	/* demod needs some time to wake up */
+	msleep(20);
+
 	/* open demod I2C gate */
 	ret = rtl28xxu_ctrl_msg(adap->dev, &req_gate);
 	if (ret)
