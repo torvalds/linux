@@ -209,14 +209,17 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 {
 	struct tps65910 *tps65910;
 	struct tps65910_board *pmic_plat_data;
+	struct tps65910_board *of_pmic_plat_data = NULL;
 	struct tps65910_platform_data *init_data;
 	int ret = 0;
 	int chip_id = id->driver_data;
 
 	pmic_plat_data = dev_get_platdata(&i2c->dev);
 
-	if (!pmic_plat_data && i2c->dev.of_node)
+	if (!pmic_plat_data && i2c->dev.of_node) {
 		pmic_plat_data = tps65910_parse_dt(i2c, &chip_id);
+		of_pmic_plat_data = pmic_plat_data;
+	}
 
 	if (!pmic_plat_data)
 		return -EINVAL;
@@ -229,6 +232,7 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 	if (tps65910 == NULL)
 		return -ENOMEM;
 
+	tps65910->of_plat_data = of_pmic_plat_data;
 	i2c_set_clientdata(i2c, tps65910);
 	tps65910->dev = &i2c->dev;
 	tps65910->i2c_client = i2c;
