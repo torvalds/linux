@@ -22,6 +22,7 @@ config MICROBLAZE
 	select GENERIC_PCI_IOMAP
 	select GENERIC_CPU_DEVICES
 	select GENERIC_ATOMIC64
+	select GENERIC_CLOCKEVENTS
 
 config SWAP
 	def_bool n
@@ -48,12 +49,6 @@ config GENERIC_HWEIGHT
 	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
-	def_bool y
-
-config GENERIC_TIME_VSYSCALL
-	def_bool n
-
-config GENERIC_CLOCKEVENTS
 	def_bool y
 
 config GENERIC_GPIO
