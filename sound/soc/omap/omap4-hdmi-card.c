@@ -27,7 +27,7 @@
 #include <asm/mach-types.h>
 #include <video/omapdss.h>
 
-#define DRV_NAME "omap4-hdmi-audio"
+#define DRV_NAME "omap-hdmi-audio"
 
 static int omap4_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params)
@@ -65,10 +65,10 @@ static struct snd_soc_ops omap4_hdmi_dai_ops = {
 static struct snd_soc_dai_link omap4_hdmi_dai = {
 	.name = "HDMI",
 	.stream_name = "HDMI",
-	.cpu_dai_name = "hdmi-audio-dai",
+	.cpu_dai_name = "omap-hdmi-audio-dai",
 	.platform_name = "omap-pcm-audio",
-	.codec_name = "omapdss_hdmi",
-	.codec_dai_name = "hdmi-audio-codec",
+	.codec_name = "hdmi-audio-codec",
+	.codec_dai_name = "omap-hdmi-hifi",
 	.ops = &omap4_hdmi_dai_ops,
 };
 
@@ -106,7 +106,7 @@ static int __devexit omap4_hdmi_remove(struct platform_device *pdev)
 
 static struct platform_driver omap4_hdmi_driver = {
 	.driver = {
-		.name = "omap4-hdmi-audio",
+		.name = DRV_NAME,
 		.owner = THIS_MODULE,
 	},
 	.probe = omap4_hdmi_probe,

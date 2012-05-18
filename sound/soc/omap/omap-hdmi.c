@@ -35,7 +35,7 @@
 #include "omap-pcm.h"
 #include "omap-hdmi.h"
 
-#define DRV_NAME "hdmi-audio-dai"
+#define DRV_NAME "omap-hdmi-audio-dai"
 
 static struct omap_pcm_dma_data omap_hdmi_dai_dma_params = {
 	.name = "HDMI playback",
