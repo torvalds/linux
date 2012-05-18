@@ -37,9 +37,8 @@
 
 #define DRV_NAME "omap-hdmi-audio-dai"
 
-static struct omap_pcm_dma_data omap_hdmi_dai_dma_params = {
-	.name = "HDMI playback",
-	.sync_mode = OMAP_DMA_SYNC_PACKET,
+struct hdmi_priv {
+	struct omap_pcm_dma_data dma_params;
 };
 
 static int omap_hdmi_dai_startup(struct snd_pcm_substream *substream,
@@ -62,23 +61,24 @@ static int omap_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params,
 				    struct snd_soc_dai *dai)
 {
+	struct hdmi_priv *priv = snd_soc_dai_get_drvdata(dai);
 	int err = 0;
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		omap_hdmi_dai_dma_params.packet_size = 16;
+		priv->dma_params.packet_size = 16;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		omap_hdmi_dai_dma_params.packet_size = 32;
+		priv->dma_params.packet_size = 32;
 		break;
 	default:
 		err = -EINVAL;
 	}
 
-	omap_hdmi_dai_dma_params.data_type = OMAP_DMA_DATA_TYPE_S32;
+	priv->dma_params.data_type = OMAP_DMA_DATA_TYPE_S32;
 
 	snd_soc_dai_set_dma_data(dai, substream,
-				 &omap_hdmi_dai_dma_params);
+				 &priv->dma_params);
 
 	return err;
 }
@@ -102,6 +102,13 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *hdmi_rsrc;
+	struct hdmi_priv *hdmi_data;
+
+	hdmi_data = devm_kzalloc(&pdev->dev, sizeof(*hdmi_data), GFP_KERNEL);
+	if (hdmi_data == NULL) {
+		dev_err(&pdev->dev, "Cannot allocate memory for HDMI data\n");
+		return -ENOMEM;
+	}
 
 	hdmi_rsrc = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!hdmi_rsrc) {
@@ -109,7 +116,7 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	omap_hdmi_dai_dma_params.port_addr =  hdmi_rsrc->start
+	hdmi_data->dma_params.port_addr =  hdmi_rsrc->start
 		+ OMAP_HDMI_AUDIO_DMA_PORT;
 
 	hdmi_rsrc = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -118,8 +125,11 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	omap_hdmi_dai_dma_params.dma_req =  hdmi_rsrc->start;
+	hdmi_data->dma_params.dma_req =  hdmi_rsrc->start;
+	hdmi_data->dma_params.name = "HDMI playback";
+	hdmi_data->dma_params.sync_mode = OMAP_DMA_SYNC_PACKET;
 
+	dev_set_drvdata(&pdev->dev, hdmi_data);
 	ret = snd_soc_register_dai(&pdev->dev, &omap_hdmi_dai);
 	return ret;
 }
