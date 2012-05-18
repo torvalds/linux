@@ -948,7 +948,8 @@ static struct usb_driver rtl8150_driver = {
 	.disconnect	= rtl8150_disconnect,
 	.id_table	= rtl8150_table,
 	.suspend	= rtl8150_suspend,
-	.resume		= rtl8150_resume
+	.resume		= rtl8150_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(rtl8150_driver);

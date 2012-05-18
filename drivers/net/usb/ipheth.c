@@ -554,6 +554,7 @@ static struct usb_driver ipheth_driver = {
 	.probe =	ipheth_probe,
 	.disconnect =	ipheth_disconnect,
 	.id_table =	ipheth_table,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(ipheth_driver);

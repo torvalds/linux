@@ -1662,6 +1662,7 @@ static struct usb_driver rtl8187_driver = {
 	.id_table	= rtl8187_table,
 	.probe		= rtl8187_probe,
 	.disconnect	= __devexit_p(rtl8187_disconnect),
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(rtl8187_driver);
