@@ -117,6 +117,9 @@ struct c4iw_stats {
 	struct c4iw_stat pbl;
 	struct c4iw_stat rqt;
 	struct c4iw_stat ocqp;
+	u64  db_full;
+	u64  db_empty;
+	u64  db_drop;
 };
 
 struct c4iw_rdev {
@@ -192,6 +195,12 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 	return wr_waitp->ret;
 }
 
+enum db_state {
+	NORMAL = 0,
+	FLOW_CONTROL = 1,
+	RECOVERY = 2
+};
+
 struct c4iw_dev {
 	struct ib_device ibdev;
 	struct c4iw_rdev rdev;
@@ -200,7 +209,9 @@ struct c4iw_dev {
 	struct idr qpidr;
 	struct idr mmidr;
 	spinlock_t lock;
+	struct mutex db_mutex;
 	struct dentry *debugfs_root;
+	enum db_state db_state;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
@@ -228,8 +239,8 @@ static inline struct c4iw_mr *get_mhp(struct c4iw_dev *rhp, u32 mmid)
 	return idr_find(&rhp->mmidr, mmid);
 }
 
-static inline int insert_handle(struct c4iw_dev *rhp, struct idr *idr,
-				void *handle, u32 id)
+static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
+				 void *handle, u32 id, int lock)
 {
 	int ret;
 	int newid;
@@ -237,13 +248,27 @@ static inline int insert_handle(struct c4iw_dev *rhp, struct idr *idr,
 	do {
 		if (!idr_pre_get(idr, GFP_KERNEL))
 			return -ENOMEM;
-		spin_lock_irq(&rhp->lock);
+		if (lock)
+			spin_lock_irq(&rhp->lock);
 		ret = idr_get_new_above(idr, handle, id, &newid);
 		BUG_ON(newid != id);
-		spin_unlock_irq(&rhp->lock);
+		if (lock)
+			spin_unlock_irq(&rhp->lock);
 	} while (ret == -EAGAIN);
 
 	return ret;
+}
+
+static inline int insert_handle(struct c4iw_dev *rhp, struct idr *idr,
+				void *handle, u32 id)
+{
+	return _insert_handle(rhp, idr, handle, id, 1);
+}
+
+static inline int insert_handle_nolock(struct c4iw_dev *rhp, struct idr *idr,
+				       void *handle, u32 id)
+{
+	return _insert_handle(rhp, idr, handle, id, 0);
 }
 
 static inline void remove_handle(struct c4iw_dev *rhp, struct idr *idr, u32 id)
@@ -370,6 +395,8 @@ struct c4iw_qp_attributes {
 	struct c4iw_ep *llp_stream_handle;
 	u8 layer_etype;
 	u8 ecode;
+	u16 sq_db_inc;
+	u16 rq_db_inc;
 };
 
 struct c4iw_qp {
@@ -444,6 +471,8 @@ static inline void insert_mmap(struct c4iw_ucontext *ucontext,
 
 enum c4iw_qp_attr_mask {
 	C4IW_QP_ATTR_NEXT_STATE = 1 << 0,
+	C4IW_QP_ATTR_SQ_DB = 1<<1,
+	C4IW_QP_ATTR_RQ_DB = 1<<2,
 	C4IW_QP_ATTR_ENABLE_RDMA_READ = 1 << 7,
 	C4IW_QP_ATTR_ENABLE_RDMA_WRITE = 1 << 8,
 	C4IW_QP_ATTR_ENABLE_RDMA_BIND = 1 << 9,

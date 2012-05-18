@@ -44,6 +44,12 @@ MODULE_DESCRIPTION("Chelsio T4 RDMA Driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
+struct uld_ctx {
+	struct list_head entry;
+	struct cxgb4_lld_info lldi;
+	struct c4iw_dev *dev;
+};
+
 static LIST_HEAD(uld_ctx_list);
 static DEFINE_MUTEX(dev_mutex);
 
@@ -263,6 +269,9 @@ static int stats_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "  OCQPMEM: %10llu %10llu %10llu\n",
 			dev->rdev.stats.ocqp.total, dev->rdev.stats.ocqp.cur,
 			dev->rdev.stats.ocqp.max);
+	seq_printf(seq, "  DB FULL: %10llu\n", dev->rdev.stats.db_full);
+	seq_printf(seq, " DB EMPTY: %10llu\n", dev->rdev.stats.db_empty);
+	seq_printf(seq, "  DB DROP: %10llu\n", dev->rdev.stats.db_drop);
 	return 0;
 }
 
@@ -283,6 +292,9 @@ static ssize_t stats_clear(struct file *file, const char __user *buf,
 	dev->rdev.stats.pbl.max = 0;
 	dev->rdev.stats.rqt.max = 0;
 	dev->rdev.stats.ocqp.max = 0;
+	dev->rdev.stats.db_full = 0;
+	dev->rdev.stats.db_empty = 0;
+	dev->rdev.stats.db_drop = 0;
 	mutex_unlock(&dev->rdev.stats.lock);
 	return count;
 }
@@ -443,12 +455,6 @@ static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 	c4iw_destroy_resource(&rdev->resource);
 }
 
-struct uld_ctx {
-	struct list_head entry;
-	struct cxgb4_lld_info lldi;
-	struct c4iw_dev *dev;
-};
-
 static void c4iw_dealloc(struct uld_ctx *ctx)
 {
 	c4iw_rdev_close(&ctx->dev->rdev);
@@ -514,6 +520,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	idr_init(&devp->mmidr);
 	spin_lock_init(&devp->lock);
 	mutex_init(&devp->rdev.stats.lock);
+	mutex_init(&devp->db_mutex);
 
 	if (c4iw_debugfs_root) {
 		devp->debugfs_root = debugfs_create_dir(
@@ -659,11 +666,76 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 	return 0;
 }
 
+static int disable_qp_db(int id, void *p, void *data)
+{
+	struct c4iw_qp *qp = p;
+
+	t4_disable_wq_db(&qp->wq);
+	return 0;
+}
+
+static void stop_queues(struct uld_ctx *ctx)
+{
+	spin_lock_irq(&ctx->dev->lock);
+	ctx->dev->db_state = FLOW_CONTROL;
+	idr_for_each(&ctx->dev->qpidr, disable_qp_db, NULL);
+	spin_unlock_irq(&ctx->dev->lock);
+}
+
+static int enable_qp_db(int id, void *p, void *data)
+{
+	struct c4iw_qp *qp = p;
+
+	t4_enable_wq_db(&qp->wq);
+	return 0;
+}
+
+static void resume_queues(struct uld_ctx *ctx)
+{
+	spin_lock_irq(&ctx->dev->lock);
+	ctx->dev->db_state = NORMAL;
+	idr_for_each(&ctx->dev->qpidr, enable_qp_db, NULL);
+	spin_unlock_irq(&ctx->dev->lock);
+}
+
+static int c4iw_uld_control(void *handle, enum cxgb4_control control, ...)
+{
+	struct uld_ctx *ctx = handle;
+
+	switch (control) {
+	case CXGB4_CONTROL_DB_FULL:
+		stop_queues(ctx);
+		mutex_lock(&ctx->dev->rdev.stats.lock);
+		ctx->dev->rdev.stats.db_full++;
+		mutex_unlock(&ctx->dev->rdev.stats.lock);
+		break;
+	case CXGB4_CONTROL_DB_EMPTY:
+		resume_queues(ctx);
+		mutex_lock(&ctx->dev->rdev.stats.lock);
+		ctx->dev->rdev.stats.db_empty++;
+		mutex_unlock(&ctx->dev->rdev.stats.lock);
+		break;
+	case CXGB4_CONTROL_DB_DROP:
+		printk(KERN_WARNING MOD "%s: Fatal DB DROP\n",
+		       pci_name(ctx->lldi.pdev));
+		mutex_lock(&ctx->dev->rdev.stats.lock);
+		ctx->dev->rdev.stats.db_drop++;
+		mutex_unlock(&ctx->dev->rdev.stats.lock);
+		break;
+	default:
+		printk(KERN_WARNING MOD "%s: unknown control cmd %u\n",
+		       pci_name(ctx->lldi.pdev), control);
+		break;
+	}
+	return 0;
+}
+
 static struct cxgb4_uld_info c4iw_uld_info = {
 	.name = DRV_NAME,
 	.add = c4iw_uld_add,
 	.rx_handler = c4iw_uld_rx_handler,
 	.state_change = c4iw_uld_state_change,
+	.control = c4iw_uld_control,
 };
 
 static int __init c4iw_init_module(void)
