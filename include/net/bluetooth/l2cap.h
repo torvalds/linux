@@ -419,11 +419,6 @@ struct l2cap_seq_list {
 #define L2CAP_SEQ_LIST_CLEAR	0xFFFF
 #define L2CAP_SEQ_LIST_TAIL	0x8000
 
-struct srej_list {
-	__u16	tx_seq;
-	struct list_head list;
-};
-
 struct l2cap_chan {
 	struct sock *sk;
 
@@ -475,14 +470,12 @@ struct l2cap_chan {
 	__u16		expected_ack_seq;
 	__u16		expected_tx_seq;
 	__u16		buffer_seq;
-	__u16		buffer_seq_srej;
 	__u16		srej_save_reqseq;
 	__u16		last_acked_seq;
 	__u16		frames_sent;
 	__u16		unacked_frames;
 	__u8		retry_count;
 	__u16		srej_queue_next;
-	__u8		num_acked;
 	__u16		sdu_len;
 	struct sk_buff	*sdu;
 	struct sk_buff	*sdu_last_frag;
@@ -515,7 +508,6 @@ struct l2cap_chan {
 	struct sk_buff_head	srej_q;
 	struct l2cap_seq_list	srej_list;
 	struct l2cap_seq_list	retrans_list;
-	struct list_head	srej_l;
 
 	struct list_head	list;
 	struct list_head	global_l;

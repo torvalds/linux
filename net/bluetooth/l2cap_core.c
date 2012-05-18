@@ -534,8 +534,6 @@ static void l2cap_chan_del(struct l2cap_chan *chan, int err)
 	skb_queue_purge(&chan->tx_q);
 
 	if (chan->mode == L2CAP_MODE_ERTM) {
-		struct srej_list *l, *tmp;
-
 		__clear_retrans_timer(chan);
 		__clear_monitor_timer(chan);
 		__clear_ack_timer(chan);
@@ -544,10 +542,6 @@ static void l2cap_chan_del(struct l2cap_chan *chan, int err)
 
 		l2cap_seq_list_free(&chan->srej_list);
 		l2cap_seq_list_free(&chan->retrans_list);
-		list_for_each_entry_safe(l, tmp, &chan->srej_l, list) {
-			list_del(&l->list);
-			kfree(l);
-		}
 	}
 }
 
@@ -1658,25 +1652,6 @@ static void l2cap_retrans_timeout(struct work_struct *work)
 	l2cap_chan_put(chan);
 }
 
-static void l2cap_drop_acked_frames(struct l2cap_chan *chan)
-{
-	struct sk_buff *skb;
-
-	while ((skb = skb_peek(&chan->tx_q)) &&
-			chan->unacked_frames) {
-		if (bt_cb(skb)->control.txseq == chan->expected_ack_seq)
-			break;
-
-		skb = skb_dequeue(&chan->tx_q);
-		kfree_skb(skb);
-
-		chan->unacked_frames--;
-	}
-
-	if (!chan->unacked_frames)
-		__clear_retrans_timer(chan);
-}
-
 static int l2cap_streaming_send(struct l2cap_chan *chan,
 				struct sk_buff_head *skbs)
 {
@@ -1716,53 +1691,6 @@ static int l2cap_streaming_send(struct l2cap_chan *chan,
 	}
 
 	return 0;
-}
-
-static void l2cap_retransmit_one_frame(struct l2cap_chan *chan, u16 tx_seq)
-{
-	struct sk_buff *skb, *tx_skb;
-	u16 fcs;
-	u32 control;
-
-	skb = skb_peek(&chan->tx_q);
-	if (!skb)
-		return;
-
-	while (bt_cb(skb)->control.txseq != tx_seq) {
-		if (skb_queue_is_last(&chan->tx_q, skb))
-			return;
-
-		skb = skb_queue_next(&chan->tx_q, skb);
-	}
-
-	if (bt_cb(skb)->control.retries == chan->remote_max_tx &&
-	    chan->remote_max_tx) {
-		l2cap_send_disconn_req(chan->conn, chan, ECONNABORTED);
-		return;
-	}
-
-	tx_skb = skb_clone(skb, GFP_ATOMIC);
-	bt_cb(skb)->control.retries++;
-
-	control = __get_control(chan, tx_skb->data + L2CAP_HDR_SIZE);
-	control &= __get_sar_mask(chan);
-
-	if (test_and_clear_bit(CONN_SEND_FBIT, &chan->conn_state))
-		control |= __set_ctrl_final(chan);
-
-	control |= __set_reqseq(chan, chan->buffer_seq);
-	control |= __set_txseq(chan, tx_seq);
-
-	__put_control(chan, control, tx_skb->data + L2CAP_HDR_SIZE);
-
-	if (chan->fcs == L2CAP_FCS_CRC16) {
-		fcs = crc16(0, (u8 *)tx_skb->data,
-						tx_skb->len - L2CAP_FCS_SIZE);
-		put_unaligned_le16(fcs,
-				tx_skb->data + tx_skb->len - L2CAP_FCS_SIZE);
-	}
-
-	l2cap_do_send(chan, tx_skb);
 }
 
 static int l2cap_ertm_send(struct l2cap_chan *chan)
@@ -1866,18 +1794,6 @@ static void l2cap_send_ack(struct l2cap_chan *chan)
 {
 	__clear_ack_timer(chan);
 	__l2cap_send_ack(chan);
-}
-
-static void l2cap_send_srejtail(struct l2cap_chan *chan)
-{
-	struct srej_list *tail;
-	u32 control;
-
-	control = __set_ctrl_super(chan, L2CAP_SUPER_SREJ);
-	control |= __set_ctrl_final(chan);
-
-	tail = list_entry((&chan->srej_l)->prev, struct srej_list, list);
-	control |= __set_reqseq(chan, tail->tx_seq);
 }
 
 static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan,
@@ -2639,7 +2555,6 @@ static inline int l2cap_ertm_init(struct l2cap_chan *chan)
 	chan->expected_ack_seq = 0;
 	chan->unacked_frames = 0;
 	chan->buffer_seq = 0;
-	chan->num_acked = 0;
 	chan->frames_sent = 0;
 	chan->last_acked_seq = 0;
 	chan->sdu = NULL;
@@ -2660,7 +2575,6 @@ static inline int l2cap_ertm_init(struct l2cap_chan *chan)
 
 	skb_queue_head_init(&chan->srej_q);
 
-	INIT_LIST_HEAD(&chan->srej_l);
 	err = l2cap_seq_list_init(&chan->srej_list, chan->tx_win);
 	if (err < 0)
 		return err;
@@ -4277,41 +4191,6 @@ static inline void l2cap_send_i_or_rr_or_rnr(struct l2cap_chan *chan)
 	}
 }
 
-static int l2cap_add_to_srej_queue(struct l2cap_chan *chan, struct sk_buff *skb, u16 tx_seq, u8 sar)
-{
-	struct sk_buff *next_skb;
-	int tx_seq_offset, next_tx_seq_offset;
-
-	bt_cb(skb)->control.txseq = tx_seq;
-	bt_cb(skb)->control.sar = sar;
-
-	next_skb = skb_peek(&chan->srej_q);
-
-	tx_seq_offset = __seq_offset(chan, tx_seq, chan->buffer_seq);
-
-	while (next_skb) {
-		if (bt_cb(next_skb)->control.txseq == tx_seq)
-			return -EINVAL;
-
-		next_tx_seq_offset = __seq_offset(chan,
-			bt_cb(next_skb)->control.txseq, chan->buffer_seq);
-
-		if (next_tx_seq_offset > tx_seq_offset) {
-			__skb_queue_before(&chan->srej_q, next_skb, skb);
-			return 0;
-		}
-
-		if (skb_queue_is_last(&chan->srej_q, next_skb))
-			next_skb = NULL;
-		else
-			next_skb = skb_queue_next(&chan->srej_q, next_skb);
-	}
-
-	__skb_queue_tail(&chan->srej_q, skb);
-
-	return 0;
-}
-
 static void append_skb_frag(struct sk_buff *skb,
 			struct sk_buff *new_frag, struct sk_buff **last_frag)
 {
@@ -4455,377 +4334,6 @@ void l2cap_chan_busy(struct l2cap_chan *chan, int busy)
 		else
 			l2cap_ertm_exit_local_busy(chan);
 	}
-}
-
-static void l2cap_check_srej_gap(struct l2cap_chan *chan, u16 tx_seq)
-{
-	struct sk_buff *skb;
-	u32 control;
-
-	while ((skb = skb_peek(&chan->srej_q)) &&
-			!test_bit(CONN_LOCAL_BUSY, &chan->conn_state)) {
-		int err;
-
-		if (bt_cb(skb)->control.txseq != tx_seq)
-			break;
-
-		skb = skb_dequeue(&chan->srej_q);
-		control = __set_ctrl_sar(chan, bt_cb(skb)->control.sar);
-
-		if (err < 0) {
-			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
-			break;
-		}
-
-		chan->buffer_seq_srej = __next_seq(chan, chan->buffer_seq_srej);
-		tx_seq = __next_seq(chan, tx_seq);
-	}
-}
-
-static void l2cap_resend_srejframe(struct l2cap_chan *chan, u16 tx_seq)
-{
-	struct srej_list *l, *tmp;
-	u32 control;
-
-	list_for_each_entry_safe(l, tmp, &chan->srej_l, list) {
-		if (l->tx_seq == tx_seq) {
-			list_del(&l->list);
-			kfree(l);
-			return;
-		}
-		control = __set_ctrl_super(chan, L2CAP_SUPER_SREJ);
-		control |= __set_reqseq(chan, l->tx_seq);
-		list_del(&l->list);
-		list_add_tail(&l->list, &chan->srej_l);
-	}
-}
-
-static int l2cap_send_srejframe(struct l2cap_chan *chan, u16 tx_seq)
-{
-	struct srej_list *new;
-	u32 control;
-
-	while (tx_seq != chan->expected_tx_seq) {
-		control = __set_ctrl_super(chan, L2CAP_SUPER_SREJ);
-		control |= __set_reqseq(chan, chan->expected_tx_seq);
-		l2cap_seq_list_append(&chan->srej_list, chan->expected_tx_seq);
-
-		new = kzalloc(sizeof(struct srej_list), GFP_ATOMIC);
-		if (!new)
-			return -ENOMEM;
-
-		new->tx_seq = chan->expected_tx_seq;
-
-		chan->expected_tx_seq = __next_seq(chan, chan->expected_tx_seq);
-
-		list_add_tail(&new->list, &chan->srej_l);
-	}
-
-	chan->expected_tx_seq = __next_seq(chan, chan->expected_tx_seq);
-
-	return 0;
-}
-
-static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u32 rx_control, struct sk_buff *skb)
-{
-	u16 tx_seq = __get_txseq(chan, rx_control);
-	u16 req_seq = __get_reqseq(chan, rx_control);
-	u8 sar = __get_ctrl_sar(chan, rx_control);
-	int tx_seq_offset, expected_tx_seq_offset;
-	int num_to_ack = (chan->tx_win/6) + 1;
-	int err = 0;
-
-	BT_DBG("chan %p len %d tx_seq %d rx_control 0x%8.8x", chan, skb->len,
-							tx_seq, rx_control);
-
-	if (__is_ctrl_final(chan, rx_control) &&
-			test_bit(CONN_WAIT_F, &chan->conn_state)) {
-		__clear_monitor_timer(chan);
-		if (chan->unacked_frames > 0)
-			__set_retrans_timer(chan);
-		clear_bit(CONN_WAIT_F, &chan->conn_state);
-	}
-
-	chan->expected_ack_seq = req_seq;
-	l2cap_drop_acked_frames(chan);
-
-	tx_seq_offset = __seq_offset(chan, tx_seq, chan->buffer_seq);
-
-	/* invalid tx_seq */
-	if (tx_seq_offset >= chan->tx_win) {
-		l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
-		goto drop;
-	}
-
-	if (test_bit(CONN_LOCAL_BUSY, &chan->conn_state)) {
-		if (!test_bit(CONN_RNR_SENT, &chan->conn_state))
-			l2cap_send_ack(chan);
-		goto drop;
-	}
-
-	if (tx_seq == chan->expected_tx_seq)
-		goto expected;
-
-	if (test_bit(CONN_SREJ_SENT, &chan->conn_state)) {
-		struct srej_list *first;
-
-		first = list_first_entry(&chan->srej_l,
-				struct srej_list, list);
-		if (tx_seq == first->tx_seq) {
-			l2cap_add_to_srej_queue(chan, skb, tx_seq, sar);
-			l2cap_check_srej_gap(chan, tx_seq);
-
-			list_del(&first->list);
-			kfree(first);
-
-			if (list_empty(&chan->srej_l)) {
-				chan->buffer_seq = chan->buffer_seq_srej;
-				clear_bit(CONN_SREJ_SENT, &chan->conn_state);
-				l2cap_send_ack(chan);
-				BT_DBG("chan %p, Exit SREJ_SENT", chan);
-			}
-		} else {
-			struct srej_list *l;
-
-			/* duplicated tx_seq */
-			if (l2cap_add_to_srej_queue(chan, skb, tx_seq, sar) < 0)
-				goto drop;
-
-			list_for_each_entry(l, &chan->srej_l, list) {
-				if (l->tx_seq == tx_seq) {
-					l2cap_resend_srejframe(chan, tx_seq);
-					return 0;
-				}
-			}
-
-			err = l2cap_send_srejframe(chan, tx_seq);
-			if (err < 0) {
-				l2cap_send_disconn_req(chan->conn, chan, -err);
-				return err;
-			}
-		}
-	} else {
-		expected_tx_seq_offset = __seq_offset(chan,
-				chan->expected_tx_seq, chan->buffer_seq);
-
-		/* duplicated tx_seq */
-		if (tx_seq_offset < expected_tx_seq_offset)
-			goto drop;
-
-		set_bit(CONN_SREJ_SENT, &chan->conn_state);
-
-		BT_DBG("chan %p, Enter SREJ", chan);
-
-		INIT_LIST_HEAD(&chan->srej_l);
-		chan->buffer_seq_srej = chan->buffer_seq;
-
-		__skb_queue_head_init(&chan->srej_q);
-		l2cap_add_to_srej_queue(chan, skb, tx_seq, sar);
-
-		/* Set P-bit only if there are some I-frames to ack. */
-		if (__clear_ack_timer(chan))
-			set_bit(CONN_SEND_PBIT, &chan->conn_state);
-
-		err = l2cap_send_srejframe(chan, tx_seq);
-		if (err < 0) {
-			l2cap_send_disconn_req(chan->conn, chan, -err);
-			return err;
-		}
-	}
-	return 0;
-
-expected:
-	chan->expected_tx_seq = __next_seq(chan, chan->expected_tx_seq);
-
-	if (test_bit(CONN_SREJ_SENT, &chan->conn_state)) {
-		bt_cb(skb)->control.txseq = tx_seq;
-		bt_cb(skb)->control.sar = sar;
-		__skb_queue_tail(&chan->srej_q, skb);
-		return 0;
-	}
-
-	chan->buffer_seq = __next_seq(chan, chan->buffer_seq);
-
-	if (err < 0) {
-		l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
-		return err;
-	}
-
-	if (__is_ctrl_final(chan, rx_control)) {
-		if (!test_and_clear_bit(CONN_REJ_ACT, &chan->conn_state))
-			l2cap_retransmit_frames(chan);
-	}
-
-
-	chan->num_acked = (chan->num_acked + 1) % num_to_ack;
-	if (chan->num_acked == num_to_ack - 1)
-		l2cap_send_ack(chan);
-	else
-		__set_ack_timer(chan);
-
-	return 0;
-
-drop:
-	kfree_skb(skb);
-	return 0;
-}
-
-static inline void l2cap_data_channel_rrframe(struct l2cap_chan *chan, u32 rx_control)
-{
-	BT_DBG("chan %p, req_seq %d ctrl 0x%8.8x", chan,
-				__get_reqseq(chan, rx_control), rx_control);
-
-	chan->expected_ack_seq = __get_reqseq(chan, rx_control);
-	l2cap_drop_acked_frames(chan);
-
-	if (__is_ctrl_poll(chan, rx_control)) {
-		set_bit(CONN_SEND_FBIT, &chan->conn_state);
-		if (test_bit(CONN_SREJ_SENT, &chan->conn_state)) {
-			if (test_bit(CONN_REMOTE_BUSY, &chan->conn_state) &&
-					(chan->unacked_frames > 0))
-				__set_retrans_timer(chan);
-
-			clear_bit(CONN_REMOTE_BUSY, &chan->conn_state);
-			l2cap_send_srejtail(chan);
-		} else {
-			l2cap_send_i_or_rr_or_rnr(chan);
-		}
-
-	} else if (__is_ctrl_final(chan, rx_control)) {
-		clear_bit(CONN_REMOTE_BUSY, &chan->conn_state);
-
-		if (!test_and_clear_bit(CONN_REJ_ACT, &chan->conn_state))
-			l2cap_retransmit_frames(chan);
-
-	} else {
-		if (test_bit(CONN_REMOTE_BUSY, &chan->conn_state) &&
-				(chan->unacked_frames > 0))
-			__set_retrans_timer(chan);
-
-		clear_bit(CONN_REMOTE_BUSY, &chan->conn_state);
-		if (test_bit(CONN_SREJ_SENT, &chan->conn_state))
-			l2cap_send_ack(chan);
-		else
-			l2cap_ertm_send(chan);
-	}
-}
-
-static inline void l2cap_data_channel_rejframe(struct l2cap_chan *chan, u32 rx_control)
-{
-	u16 tx_seq = __get_reqseq(chan, rx_control);
-
-	BT_DBG("chan %p, req_seq %d ctrl 0x%8.8x", chan, tx_seq, rx_control);
-
-	clear_bit(CONN_REMOTE_BUSY, &chan->conn_state);
-
-	chan->expected_ack_seq = tx_seq;
-	l2cap_drop_acked_frames(chan);
-
-	if (__is_ctrl_final(chan, rx_control)) {
-		if (!test_and_clear_bit(CONN_REJ_ACT, &chan->conn_state))
-			l2cap_retransmit_frames(chan);
-	} else {
-		l2cap_retransmit_frames(chan);
-
-		if (test_bit(CONN_WAIT_F, &chan->conn_state))
-			set_bit(CONN_REJ_ACT, &chan->conn_state);
-	}
-}
-static inline void l2cap_data_channel_srejframe(struct l2cap_chan *chan, u32 rx_control)
-{
-	u16 tx_seq = __get_reqseq(chan, rx_control);
-
-	BT_DBG("chan %p, req_seq %d ctrl 0x%8.8x", chan, tx_seq, rx_control);
-
-	clear_bit(CONN_REMOTE_BUSY, &chan->conn_state);
-
-	if (__is_ctrl_poll(chan, rx_control)) {
-		chan->expected_ack_seq = tx_seq;
-		l2cap_drop_acked_frames(chan);
-
-		set_bit(CONN_SEND_FBIT, &chan->conn_state);
-		l2cap_retransmit_one_frame(chan, tx_seq);
-
-		l2cap_ertm_send(chan);
-
-		if (test_bit(CONN_WAIT_F, &chan->conn_state)) {
-			chan->srej_save_reqseq = tx_seq;
-			set_bit(CONN_SREJ_ACT, &chan->conn_state);
-		}
-	} else if (__is_ctrl_final(chan, rx_control)) {
-		if (test_bit(CONN_SREJ_ACT, &chan->conn_state) &&
-				chan->srej_save_reqseq == tx_seq)
-			clear_bit(CONN_SREJ_ACT, &chan->conn_state);
-		else
-			l2cap_retransmit_one_frame(chan, tx_seq);
-	} else {
-		l2cap_retransmit_one_frame(chan, tx_seq);
-		if (test_bit(CONN_WAIT_F, &chan->conn_state)) {
-			chan->srej_save_reqseq = tx_seq;
-			set_bit(CONN_SREJ_ACT, &chan->conn_state);
-		}
-	}
-}
-
-static inline void l2cap_data_channel_rnrframe(struct l2cap_chan *chan, u32 rx_control)
-{
-	u16 tx_seq = __get_reqseq(chan, rx_control);
-
-	BT_DBG("chan %p, req_seq %d ctrl 0x%8.8x", chan, tx_seq, rx_control);
-
-	set_bit(CONN_REMOTE_BUSY, &chan->conn_state);
-	chan->expected_ack_seq = tx_seq;
-	l2cap_drop_acked_frames(chan);
-
-	if (__is_ctrl_poll(chan, rx_control))
-		set_bit(CONN_SEND_FBIT, &chan->conn_state);
-
-	if (!test_bit(CONN_SREJ_SENT, &chan->conn_state)) {
-		__clear_retrans_timer(chan);
-		if (__is_ctrl_poll(chan, rx_control))
-			l2cap_send_rr_or_rnr(chan, L2CAP_CTRL_FINAL);
-		return;
-	}
-
-	if (__is_ctrl_poll(chan, rx_control)) {
-		l2cap_send_srejtail(chan);
-	} else {
-		rx_control = __set_ctrl_super(chan, L2CAP_SUPER_RR);
-	}
-}
-
-static inline int l2cap_data_channel_sframe(struct l2cap_chan *chan, u32 rx_control, struct sk_buff *skb)
-{
-	BT_DBG("chan %p rx_control 0x%8.8x len %d", chan, rx_control, skb->len);
-
-	if (__is_ctrl_final(chan, rx_control) &&
-			test_bit(CONN_WAIT_F, &chan->conn_state)) {
-		__clear_monitor_timer(chan);
-		if (chan->unacked_frames > 0)
-			__set_retrans_timer(chan);
-		clear_bit(CONN_WAIT_F, &chan->conn_state);
-	}
-
-	switch (__get_ctrl_super(chan, rx_control)) {
-	case L2CAP_SUPER_RR:
-		l2cap_data_channel_rrframe(chan, rx_control);
-		break;
-
-	case L2CAP_SUPER_REJ:
-		l2cap_data_channel_rejframe(chan, rx_control);
-		break;
-
-	case L2CAP_SUPER_SREJ:
-		l2cap_data_channel_srejframe(chan, rx_control);
-		break;
-
-	case L2CAP_SUPER_RNR:
-		l2cap_data_channel_rnrframe(chan, rx_control);
-		break;
-	}
-
-	kfree_skb(skb);
-	return 0;
 }
 
 static u8 l2cap_classify_txseq(struct l2cap_chan *chan, u16 txseq)
