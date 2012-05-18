@@ -410,40 +410,58 @@ dbx500_regulator_info[DB8500_NUM_REGULATORS] = {
 	},
 };
 
+static __devinit int db8500_regulator_register(struct platform_device *pdev,
+					struct regulator_init_data *init_data,
+					int id,
+					struct device_node *np)
+{
+	struct dbx500_regulator_info *info;
+	struct regulator_config config = { };
+	int err;
+
+	/* assign per-regulator data */
+	info = &dbx500_regulator_info[id];
+	info->dev = &pdev->dev;
+
+	config.dev = &pdev->dev;
+	config.init_data = init_data;
+	config.driver_data = info;
+	config.of_node = np;
+
+	/* register with the regulator framework */
+	info->rdev = regulator_register(&info->desc, &config);
+	if (IS_ERR(info->rdev)) {
+		err = PTR_ERR(info->rdev);
+		dev_err(&pdev->dev, "failed to register %s: err %i\n",
+			info->desc.name, err);
+
+		/* if failing, unregister all earlier regulators */
+		while (--id >= 0) {
+			info = &dbx500_regulator_info[id];
+			regulator_unregister(info->rdev);
+		}
+		return err;
+	}
+
+	dev_dbg(rdev_get_dev(info->rdev),
+		"regulator-%s-probed\n", info->desc.name);
+
+	return 0;
+}
+
 static int __devinit db8500_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_init_data *db8500_init_data =
 					dev_get_platdata(&pdev->dev);
-	struct regulator_config config = { };
 	int i, err;
 
 	/* register all regulators */
 	for (i = 0; i < ARRAY_SIZE(dbx500_regulator_info); i++) {
-		struct dbx500_regulator_info *info;
-		struct regulator_init_data *init_data = &db8500_init_data[i];
-
-		/* assign per-regulator data */
-		info = &dbx500_regulator_info[i];
-		info->dev = &pdev->dev;
-
-		config.dev = &pdev->dev;
-		config.init_data = init_data;
-		config.driver_data = info;
-
-		/* register with the regulator framework */
-		info->rdev = regulator_register(&info->desc, &config);
-		if (IS_ERR(info->rdev)) {
-			err = PTR_ERR(info->rdev);
-			dev_err(&pdev->dev, "failed to register %s: err %i\n",
-				info->desc.name, err);
-
-			/* if failing, unregister all earlier regulators */
-			while (--i >= 0) {
-				info = &dbx500_regulator_info[i];
-				regulator_unregister(info->rdev);
-			}
+		err = db8500_regulator_register(pdev,
+						&db8500_init_data[i],
+						i, NULL);
+		if (err)
 			return err;
-		}
 
 		dev_dbg(rdev_get_dev(info->rdev),
 			"regulator-%s-probed\n", info->desc.name);
@@ -451,8 +469,7 @@ static int __devinit db8500_regulator_probe(struct platform_device *pdev)
 	err = ux500_regulator_debug_init(pdev,
 					 dbx500_regulator_info,
 					 ARRAY_SIZE(dbx500_regulator_info));
-
-	return err;
+	return 0;
 }
 
 static int __exit db8500_regulator_remove(struct platform_device *pdev)
