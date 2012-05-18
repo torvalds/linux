@@ -381,6 +381,9 @@ static int rtl2830_get_frontend(struct dvb_frontend *fe)
 	int ret;
 	u8 buf[3];
 
+	if (priv->sleeping)
+		return 0;
+
 	ret = rtl2830_rd_regs(priv, 0x33c, buf, 2);
 	if (ret)
 		goto err;
@@ -525,6 +528,9 @@ static int rtl2830_read_snr(struct dvb_frontend *fe, u16 *snr)
 		{ 92888734, 92888734, 95487525, 99770748 },
 	};
 
+	if (priv->sleeping)
+		return 0;
+
 	/* reports SNR in resolution of 0.1 dB */
 
 	ret = rtl2830_rd_reg(priv, 0x33c, &tmp);
@@ -563,6 +569,9 @@ static int rtl2830_read_ber(struct dvb_frontend *fe, u32 *ber)
 	int ret;
 	u8 buf[2];
 
+	if (priv->sleeping)
+		return 0;
+
 	ret = rtl2830_rd_regs(priv, 0x34e, buf, 2);
 	if (ret)
 		goto err;
@@ -587,6 +596,9 @@ static int rtl2830_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	int ret;
 	u8 buf[2];
 	u16 if_agc_raw, if_agc;
+
+	if (priv->sleeping)
+		return 0;
 
 	ret = rtl2830_rd_regs(priv, 0x359, buf, 2);
 	if (ret)
