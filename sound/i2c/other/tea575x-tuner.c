@@ -71,6 +71,9 @@ static void snd_tea575x_write(struct snd_tea575x *tea, unsigned int val)
 	u16 l;
 	u8 data;
 
+	if (tea->ops->write_val)
+		return tea->ops->write_val(tea, val);
+
 	tea->ops->set_direction(tea, 1);
 	udelay(16);
 
@@ -93,6 +96,9 @@ static u32 snd_tea575x_read(struct snd_tea575x *tea)
 {
 	u16 l, rdata;
 	u32 data = 0;
+
+	if (tea->ops->read_val)
+		return tea->ops->read_val(tea);
 
 	tea->ops->set_direction(tea, 0);
 	tea->ops->set_pins(tea, 0);
