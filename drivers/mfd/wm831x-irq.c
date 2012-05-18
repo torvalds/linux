@@ -413,22 +413,25 @@ static int wm831x_irq_set_type(struct irq_data *data, unsigned int type)
 	 * do the update here as we can be called with the bus lock
 	 * held.
 	 */
+	wm831x->gpio_level_low[irq] = false;
+	wm831x->gpio_level_high[irq] = false;
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:
 		wm831x->gpio_update[irq] = 0x10000 | WM831X_GPN_INT_MODE;
-		wm831x->gpio_level[irq] = false;
 		break;
 	case IRQ_TYPE_EDGE_RISING:
 		wm831x->gpio_update[irq] = 0x10000 | WM831X_GPN_POL;
-		wm831x->gpio_level[irq] = false;
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
 		wm831x->gpio_update[irq] = 0x10000;
-		wm831x->gpio_level[irq] = false;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 		wm831x->gpio_update[irq] = 0x10000 | WM831X_GPN_POL;
-		wm831x->gpio_level[irq] = true;
+		wm831x->gpio_level_high[irq] = true;
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+		wm831x->gpio_update[irq] = 0x10000;
+		wm831x->gpio_level_low[irq] = true;
 		break;
 	default:
 		return -EINVAL;
@@ -517,9 +520,20 @@ static irqreturn_t wm831x_irq_thread(int irq, void *data)
 		 * status.  This is sucky but improves interoperability.
 		 */
 		if (primary == WM831X_GP_INT &&
-		    wm831x->gpio_level[i - WM831X_IRQ_GPIO_1]) {
+		    wm831x->gpio_level_high[i - WM831X_IRQ_GPIO_1]) {
 			ret = wm831x_reg_read(wm831x, WM831X_GPIO_LEVEL);
 			while (ret & 1 << (i - WM831X_IRQ_GPIO_1)) {
+				handle_nested_irq(irq_find_mapping(wm831x->irq_domain,
+								   i));
+				ret = wm831x_reg_read(wm831x,
+						      WM831X_GPIO_LEVEL);
+			}
+		}
+
+		if (primary == WM831X_GP_INT &&
+		    wm831x->gpio_level_low[i - WM831X_IRQ_GPIO_1]) {
+			ret = wm831x_reg_read(wm831x, WM831X_GPIO_LEVEL);
+			while (!(ret & 1 << (i - WM831X_IRQ_GPIO_1))) {
 				handle_nested_irq(irq_find_mapping(wm831x->irq_domain,
 								   i));
 				ret = wm831x_reg_read(wm831x,
