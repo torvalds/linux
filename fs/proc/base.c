@@ -2177,16 +2177,16 @@ static struct dentry *proc_map_files_lookup(struct inode *dir,
 		goto out;
 
 	result = ERR_PTR(-EACCES);
-	if (lock_trace(task))
+	if (!ptrace_may_access(task, PTRACE_MODE_READ))
 		goto out_put_task;
 
 	result = ERR_PTR(-ENOENT);
 	if (dname_to_vma_addr(dentry, &vm_start, &vm_end))
-		goto out_unlock;
+		goto out_put_task;
 
 	mm = get_task_mm(task);
 	if (!mm)
-		goto out_unlock;
+		goto out_put_task;
 
 	down_read(&mm->mmap_sem);
 	vma = find_exact_vma(mm, vm_start, vm_end);
@@ -2198,8 +2198,6 @@ static struct dentry *proc_map_files_lookup(struct inode *dir,
 out_no_vma:
 	up_read(&mm->mmap_sem);
 	mmput(mm);
-out_unlock:
-	unlock_trace(task);
 out_put_task:
 	put_task_struct(task);
 out:
@@ -2233,7 +2231,7 @@ proc_map_files_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		goto out;
 
 	ret = -EACCES;
-	if (lock_trace(task))
+	if (!ptrace_may_access(task, PTRACE_MODE_READ))
 		goto out_put_task;
 
 	ret = 0;
@@ -2241,12 +2239,12 @@ proc_map_files_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	case 0:
 		ino = inode->i_ino;
 		if (filldir(dirent, ".", 1, 0, ino, DT_DIR) < 0)
-			goto out_unlock;
+			goto out_put_task;
 		filp->f_pos++;
 	case 1:
 		ino = parent_ino(dentry);
 		if (filldir(dirent, "..", 2, 1, ino, DT_DIR) < 0)
-			goto out_unlock;
+			goto out_put_task;
 		filp->f_pos++;
 	default:
 	{
@@ -2257,7 +2255,7 @@ proc_map_files_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 		mm = get_task_mm(task);
 		if (!mm)
-			goto out_unlock;
+			goto out_put_task;
 		down_read(&mm->mmap_sem);
 
 		nr_files = 0;
@@ -2287,7 +2285,7 @@ proc_map_files_readdir(struct file *filp, void *dirent, filldir_t filldir)
 					flex_array_free(fa);
 				up_read(&mm->mmap_sem);
 				mmput(mm);
-				goto out_unlock;
+				goto out_put_task;
 			}
 			for (i = 0, vma = mm->mmap, pos = 2; vma;
 					vma = vma->vm_next) {
@@ -2332,8 +2330,6 @@ proc_map_files_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	}
 	}
 
-out_unlock:
-	unlock_trace(task);
 out_put_task:
 	put_task_struct(task);
 out:
