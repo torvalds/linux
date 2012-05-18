@@ -45,7 +45,6 @@
 #include <linux/kref.h>
 #include <linux/timer.h>
 #include <linux/io.h>
-#include <linux/kfifo.h>
 
 #include <asm/byteorder.h>
 
@@ -79,13 +78,22 @@ static inline void *cplhdr(struct sk_buff *skb)
 	return skb->data;
 }
 
+#define C4IW_ID_TABLE_F_RANDOM 1       /* Pseudo-randomize the id's returned */
+#define C4IW_ID_TABLE_F_EMPTY  2       /* Table is initially empty */
+
+struct c4iw_id_table {
+	u32 flags;
+	u32 start;              /* logical minimal id */
+	u32 last;               /* hint for find */
+	u32 max;
+	spinlock_t lock;
+	unsigned long *table;
+};
+
 struct c4iw_resource {
-	struct kfifo tpt_fifo;
-	spinlock_t tpt_fifo_lock;
-	struct kfifo qid_fifo;
-	spinlock_t qid_fifo_lock;
-	struct kfifo pdid_fifo;
-	spinlock_t pdid_fifo_lock;
+	struct c4iw_id_table tpt_table;
+	struct c4iw_id_table qid_table;
+	struct c4iw_id_table pdid_table;
 };
 
 struct c4iw_qid_list {
@@ -107,6 +115,7 @@ struct c4iw_stat {
 	u64 total;
 	u64 cur;
 	u64 max;
+	u64 fail;
 };
 
 struct c4iw_stats {
@@ -253,7 +262,7 @@ static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
 		if (lock)
 			spin_lock_irq(&rhp->lock);
 		ret = idr_get_new_above(idr, handle, id, &newid);
-		BUG_ON(newid != id);
+		BUG_ON(!ret && newid != id);
 		if (lock)
 			spin_unlock_irq(&rhp->lock);
 	} while (ret == -EAGAIN);
@@ -755,14 +764,20 @@ static inline int compute_wscale(int win)
 	return wscale;
 }
 
+u32 c4iw_id_alloc(struct c4iw_id_table *alloc);
+void c4iw_id_free(struct c4iw_id_table *alloc, u32 obj);
+int c4iw_id_table_alloc(struct c4iw_id_table *alloc, u32 start, u32 num,
+			u32 reserved, u32 flags);
+void c4iw_id_table_free(struct c4iw_id_table *alloc);
+
 typedef int (*c4iw_handler_func)(struct c4iw_dev *dev, struct sk_buff *skb);
 
 int c4iw_ep_redirect(void *ctx, struct dst_entry *old, struct dst_entry *new,
 		     struct l2t_entry *l2t);
 void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qpid,
 		   struct c4iw_dev_ucontext *uctx);
-u32 c4iw_get_resource(struct kfifo *fifo, spinlock_t *lock);
-void c4iw_put_resource(struct kfifo *fifo, u32 entry, spinlock_t *lock);
+u32 c4iw_get_resource(struct c4iw_id_table *id_table);
+void c4iw_put_resource(struct c4iw_id_table *id_table, u32 entry);
 int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt, u32 nr_pdid);
 int c4iw_init_ctrl_qp(struct c4iw_rdev *rdev);
 int c4iw_pblpool_create(struct c4iw_rdev *rdev);

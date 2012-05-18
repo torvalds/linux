@@ -252,25 +252,26 @@ static int stats_show(struct seq_file *seq, void *v)
 {
 	struct c4iw_dev *dev = seq->private;
 
-	seq_printf(seq, " Object: %10s %10s %10s\n", "Total", "Current", "Max");
-	seq_printf(seq, "     PDID: %10llu %10llu %10llu\n",
+	seq_printf(seq, "   Object: %10s %10s %10s %10s\n", "Total", "Current",
+		   "Max", "Fail");
+	seq_printf(seq, "     PDID: %10llu %10llu %10llu %10llu\n",
 			dev->rdev.stats.pd.total, dev->rdev.stats.pd.cur,
-			dev->rdev.stats.pd.max);
-	seq_printf(seq, "      QID: %10llu %10llu %10llu\n",
+			dev->rdev.stats.pd.max, dev->rdev.stats.pd.fail);
+	seq_printf(seq, "      QID: %10llu %10llu %10llu %10llu\n",
 			dev->rdev.stats.qid.total, dev->rdev.stats.qid.cur,
-			dev->rdev.stats.qid.max);
-	seq_printf(seq, "   TPTMEM: %10llu %10llu %10llu\n",
+			dev->rdev.stats.qid.max, dev->rdev.stats.qid.fail);
+	seq_printf(seq, "   TPTMEM: %10llu %10llu %10llu %10llu\n",
 			dev->rdev.stats.stag.total, dev->rdev.stats.stag.cur,
-			dev->rdev.stats.stag.max);
-	seq_printf(seq, "   PBLMEM: %10llu %10llu %10llu\n",
+			dev->rdev.stats.stag.max, dev->rdev.stats.stag.fail);
+	seq_printf(seq, "   PBLMEM: %10llu %10llu %10llu %10llu\n",
 			dev->rdev.stats.pbl.total, dev->rdev.stats.pbl.cur,
-			dev->rdev.stats.pbl.max);
-	seq_printf(seq, "   RQTMEM: %10llu %10llu %10llu\n",
+			dev->rdev.stats.pbl.max, dev->rdev.stats.pbl.fail);
+	seq_printf(seq, "   RQTMEM: %10llu %10llu %10llu %10llu\n",
 			dev->rdev.stats.rqt.total, dev->rdev.stats.rqt.cur,
-			dev->rdev.stats.rqt.max);
-	seq_printf(seq, "  OCQPMEM: %10llu %10llu %10llu\n",
+			dev->rdev.stats.rqt.max, dev->rdev.stats.rqt.fail);
+	seq_printf(seq, "  OCQPMEM: %10llu %10llu %10llu %10llu\n",
 			dev->rdev.stats.ocqp.total, dev->rdev.stats.ocqp.cur,
-			dev->rdev.stats.ocqp.max);
+			dev->rdev.stats.ocqp.max, dev->rdev.stats.ocqp.fail);
 	seq_printf(seq, "  DB FULL: %10llu\n", dev->rdev.stats.db_full);
 	seq_printf(seq, " DB EMPTY: %10llu\n", dev->rdev.stats.db_empty);
 	seq_printf(seq, "  DB DROP: %10llu\n", dev->rdev.stats.db_drop);
@@ -292,11 +293,17 @@ static ssize_t stats_clear(struct file *file, const char __user *buf,
 
 	mutex_lock(&dev->rdev.stats.lock);
 	dev->rdev.stats.pd.max = 0;
+	dev->rdev.stats.pd.fail = 0;
 	dev->rdev.stats.qid.max = 0;
+	dev->rdev.stats.qid.fail = 0;
 	dev->rdev.stats.stag.max = 0;
+	dev->rdev.stats.stag.fail = 0;
 	dev->rdev.stats.pbl.max = 0;
+	dev->rdev.stats.pbl.fail = 0;
 	dev->rdev.stats.rqt.max = 0;
+	dev->rdev.stats.rqt.fail = 0;
 	dev->rdev.stats.ocqp.max = 0;
+	dev->rdev.stats.ocqp.fail = 0;
 	dev->rdev.stats.db_full = 0;
 	dev->rdev.stats.db_empty = 0;
 	dev->rdev.stats.db_drop = 0;
@@ -350,8 +357,8 @@ void c4iw_release_dev_ucontext(struct c4iw_rdev *rdev,
 		entry = list_entry(pos, struct c4iw_qid_list, entry);
 		list_del_init(&entry->entry);
 		if (!(entry->qid & rdev->qpmask)) {
-			c4iw_put_resource(&rdev->resource.qid_fifo, entry->qid,
-					&rdev->resource.qid_fifo_lock);
+			c4iw_put_resource(&rdev->resource.qid_table,
+					  entry->qid);
 			mutex_lock(&rdev->stats.lock);
 			rdev->stats.qid.cur -= rdev->qpmask + 1;
 			mutex_unlock(&rdev->stats.lock);
