@@ -6596,6 +6596,31 @@ static void ixgbe_validate_rtr(struct ixgbe_adapter *adapter, u8 tc)
 }
 
 /**
+ * ixgbe_set_prio_tc_map - Configure netdev prio tc map
+ * @adapter: Pointer to adapter struct
+ *
+ * Populate the netdev user priority to tc map
+ */
+static void ixgbe_set_prio_tc_map(struct ixgbe_adapter *adapter)
+{
+	struct net_device *dev = adapter->netdev;
+	struct ixgbe_dcb_config *dcb_cfg = &adapter->dcb_cfg;
+	struct ieee_ets *ets = adapter->ixgbe_ieee_ets;
+	u8 prio;
+
+	for (prio = 0; prio < MAX_USER_PRIORITY; prio++) {
+		u8 tc = 0;
+
+		if (adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE)
+			tc = ixgbe_dcb_get_tc_from_up(dcb_cfg, 0, prio);
+		else if (ets)
+			tc = ets->prio_tc[prio];
+
+		netdev_set_prio_tc_map(dev, prio, tc);
+	}
+}
+
+/**
  * ixgbe_setup_tc - configure net_device for multiple traffic classes
  *
  * @netdev: net device to configure
@@ -6633,6 +6658,8 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 
 	if (tc) {
 		netdev_set_num_tc(dev, tc);
+		ixgbe_set_prio_tc_map(adapter);
+
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
 		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 
@@ -6642,6 +6669,7 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 		}
 	} else {
 		netdev_reset_tc(dev);
+
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
 			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
 

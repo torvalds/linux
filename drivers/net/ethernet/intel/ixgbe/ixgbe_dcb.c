@@ -228,8 +228,7 @@ void ixgbe_dcb_unpack_prio(struct ixgbe_dcb_config *cfg, int direction,
 		ptype[tc] = tc_config[tc].path[direction].prio_type;
 }
 
-static u8 ixgbe_dcb_get_tc_from_up(struct ixgbe_dcb_config *cfg,
-				   int direction, u8 up)
+u8 ixgbe_dcb_get_tc_from_up(struct ixgbe_dcb_config *cfg, int direction, u8 up)
 {
 	struct tc_configuration *tc_config = &cfg->tc_config[0];
 	u8 prio_mask = 1 << up;
