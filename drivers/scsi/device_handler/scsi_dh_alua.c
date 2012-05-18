@@ -178,7 +178,8 @@ done:
  * submit_rtpg - Issue a REPORT TARGET GROUP STATES command
  * @sdev: sdev the command should be sent to
  */
-static unsigned submit_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
+static unsigned submit_rtpg(struct scsi_device *sdev, struct alua_dh_data *h,
+			    bool rtpg_ext_hdr_req)
 {
 	struct request *rq;
 	int err = SCSI_DH_RES_TEMP_UNAVAIL;
@@ -189,7 +190,10 @@ static unsigned submit_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 
 	/* Prepare the command. */
 	rq->cmd[0] = MAINTENANCE_IN;
-	rq->cmd[1] = MI_REPORT_TARGET_PGS | MI_EXT_HDR_PARAM_FMT;
+	if (rtpg_ext_hdr_req)
+		rq->cmd[1] = MI_REPORT_TARGET_PGS | MI_EXT_HDR_PARAM_FMT;
+	else
+		rq->cmd[1] = MI_REPORT_TARGET_PGS;
 	rq->cmd[6] = (h->bufflen >> 24) & 0xff;
 	rq->cmd[7] = (h->bufflen >> 16) & 0xff;
 	rq->cmd[8] = (h->bufflen >>  8) & 0xff;
@@ -522,6 +526,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 	int len, k, off, valid_states = 0;
 	unsigned char *ucp;
 	unsigned err;
+	bool rtpg_ext_hdr_req = 1;
 	unsigned long expiry, interval = 1000;
 	unsigned int tpg_desc_tbl_off;
 	unsigned char orig_transition_tmo;
@@ -532,13 +537,28 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 		expiry = round_jiffies_up(jiffies + h->transition_tmo * HZ);
 
  retry:
-	err = submit_rtpg(sdev, h);
+	err = submit_rtpg(sdev, h, rtpg_ext_hdr_req);
 
 	if (err == SCSI_DH_IO && h->senselen > 0) {
 		err = scsi_normalize_sense(h->sense, SCSI_SENSE_BUFFERSIZE,
 					   &sense_hdr);
 		if (!err)
 			return SCSI_DH_IO;
+
+		/*
+		 * submit_rtpg() has failed on existing arrays
+		 * when requesting extended header info, and
+		 * the array doesn't support extended headers,
+		 * even though it shouldn't according to T10.
+		 * The retry without rtpg_ext_hdr_req set
+		 * handles this.
+		 */
+		if (rtpg_ext_hdr_req == 1 &&
+		    sense_hdr.sense_key == ILLEGAL_REQUEST &&
+		    sense_hdr.asc == 0x24 && sense_hdr.ascq == 0) {
+			rtpg_ext_hdr_req = 0;
+			goto retry;
+		}
 
 		err = alua_check_sense(sdev, &sense_hdr);
 		if (err == ADD_TO_MLQUEUE && time_before(jiffies, expiry))
