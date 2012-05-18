@@ -443,6 +443,7 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	    (1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ) |
 	    (1ull << IB_USER_VERBS_CMD_CREATE_QP) |
 	    (1ull << IB_USER_VERBS_CMD_MODIFY_QP) |
+	    (1ull << IB_USER_VERBS_CMD_QUERY_QP) |
 	    (1ull << IB_USER_VERBS_CMD_POLL_CQ) |
 	    (1ull << IB_USER_VERBS_CMD_DESTROY_QP) |
 	    (1ull << IB_USER_VERBS_CMD_POST_SEND) |
@@ -465,6 +466,7 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.destroy_ah = c4iw_ah_destroy;
 	dev->ibdev.create_qp = c4iw_create_qp;
 	dev->ibdev.modify_qp = c4iw_ib_modify_qp;
+	dev->ibdev.query_qp = c4iw_ib_query_qp;
 	dev->ibdev.destroy_qp = c4iw_destroy_qp;
 	dev->ibdev.create_cq = c4iw_create_cq;
 	dev->ibdev.destroy_cq = c4iw_destroy_cq;

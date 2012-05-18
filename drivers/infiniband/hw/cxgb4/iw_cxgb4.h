@@ -551,6 +551,23 @@ static inline int c4iw_convert_state(enum ib_qp_state ib_state)
 	}
 }
 
+static inline int to_ib_qp_state(int c4iw_qp_state)
+{
+	switch (c4iw_qp_state) {
+	case C4IW_QP_STATE_IDLE:
+		return IB_QPS_INIT;
+	case C4IW_QP_STATE_RTS:
+		return IB_QPS_RTS;
+	case C4IW_QP_STATE_CLOSING:
+		return IB_QPS_SQD;
+	case C4IW_QP_STATE_TERMINATE:
+		return IB_QPS_SQE;
+	case C4IW_QP_STATE_ERROR:
+		return IB_QPS_ERR;
+	}
+	return IB_QPS_ERR;
+}
+
 static inline u32 c4iw_ib_to_tpt_access(int a)
 {
 	return (a & IB_ACCESS_REMOTE_WRITE ? FW_RI_MEM_ACCESS_REM_WRITE : 0) |
@@ -846,6 +863,8 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd,
 			     struct ib_udata *udata);
 int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				 int attr_mask, struct ib_udata *udata);
+int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
+		     int attr_mask, struct ib_qp_init_attr *init_attr);
 struct ib_qp *c4iw_get_qp(struct ib_device *dev, int qpn);
 u32 c4iw_rqtpool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_rqtpool_free(struct c4iw_rdev *rdev, u32 addr, int size);

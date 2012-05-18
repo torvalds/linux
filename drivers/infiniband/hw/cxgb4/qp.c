@@ -1711,3 +1711,14 @@ struct ib_qp *c4iw_get_qp(struct ib_device *dev, int qpn)
 	PDBG("%s ib_dev %p qpn 0x%x\n", __func__, dev, qpn);
 	return (struct ib_qp *)get_qhp(to_c4iw_dev(dev), qpn);
 }
+
+int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
+		     int attr_mask, struct ib_qp_init_attr *init_attr)
+{
+	struct c4iw_qp *qhp = to_c4iw_qp(ibqp);
+
+	memset(attr, 0, sizeof *attr);
+	memset(init_attr, 0, sizeof *init_attr);
+	attr->qp_state = to_ib_qp_state(qhp->attr.state);
+	return 0;
+}
