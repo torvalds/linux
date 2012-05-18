@@ -17,6 +17,8 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/db8500-prcmu.h>
+#include <linux/regulator/of_regulator.h>
+#include <linux/of.h>
 #include <linux/module.h>
 #include "dbx500-prcmu.h"
 
@@ -449,23 +451,77 @@ static __devinit int db8500_regulator_register(struct platform_device *pdev,
 	return 0;
 }
 
+static struct of_regulator_match db8500_regulator_matches[] = {
+	{ .name	= "db8500-vape",          .driver_data = (void *) DB8500_REGULATOR_VAPE, },
+	{ .name	= "db8500-varm",          .driver_data = (void *) DB8500_REGULATOR_VARM, },
+	{ .name	= "db8500-vmodem",        .driver_data = (void *) DB8500_REGULATOR_VMODEM, },
+	{ .name	= "db8500-vpll",          .driver_data = (void *) DB8500_REGULATOR_VPLL, },
+	{ .name	= "db8500-vsmps1",        .driver_data = (void *) DB8500_REGULATOR_VSMPS1, },
+	{ .name	= "db8500-vsmps2",        .driver_data = (void *) DB8500_REGULATOR_VSMPS2, },
+	{ .name	= "db8500-vsmps3",        .driver_data = (void *) DB8500_REGULATOR_VSMPS3, },
+	{ .name	= "db8500-vrf1",          .driver_data = (void *) DB8500_REGULATOR_VRF1, },
+	{ .name	= "db8500-sva-mmdsp",     .driver_data = (void *) DB8500_REGULATOR_SWITCH_SVAMMDSP, },
+	{ .name	= "db8500-sva-mmdsp-ret", .driver_data = (void *) DB8500_REGULATOR_SWITCH_SVAMMDSPRET, },
+	{ .name	= "db8500-sva-pipe",      .driver_data = (void *) DB8500_REGULATOR_SWITCH_SVAPIPE, },
+	{ .name	= "db8500-sia-mmdsp",     .driver_data = (void *) DB8500_REGULATOR_SWITCH_SIAMMDSP, },
+	{ .name	= "db8500-sia-mmdsp-ret", .driver_data = (void *) DB8500_REGULATOR_SWITCH_SIAMMDSPRET, },
+	{ .name	= "db8500-sia-pipe",      .driver_data = (void *) DB8500_REGULATOR_SWITCH_SIAPIPE, },
+	{ .name	= "db8500-sga",           .driver_data = (void *) DB8500_REGULATOR_SWITCH_SGA, },
+	{ .name	= "db8500-b2r2-mcde",     .driver_data = (void *) DB8500_REGULATOR_SWITCH_B2R2_MCDE, },
+	{ .name	= "db8500-esram12",       .driver_data = (void *) DB8500_REGULATOR_SWITCH_ESRAM12, },
+	{ .name	= "db8500-esram12-ret",   .driver_data = (void *) DB8500_REGULATOR_SWITCH_ESRAM12RET, },
+	{ .name	= "db8500-esram34",       .driver_data = (void *) DB8500_REGULATOR_SWITCH_ESRAM34, },
+	{ .name	= "db8500-esram34-ret",   .driver_data = (void *) DB8500_REGULATOR_SWITCH_ESRAM34RET, },
+};
+
+static __devinit int
+db8500_regulator_of_probe(struct platform_device *pdev,
+			struct device_node *np)
+{
+	int i, err;
+
+	for (i = 0; i < ARRAY_SIZE(dbx500_regulator_info); i++) {
+		err = db8500_regulator_register(
+			pdev, db8500_regulator_matches[i].init_data,
+			i, db8500_regulator_matches[i].of_node);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int __devinit db8500_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_init_data *db8500_init_data =
 					dev_get_platdata(&pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
 	int i, err;
 
 	/* register all regulators */
-	for (i = 0; i < ARRAY_SIZE(dbx500_regulator_info); i++) {
-		err = db8500_regulator_register(pdev,
-						&db8500_init_data[i],
-						i, NULL);
+	if (np) {
+		err = of_regulator_match(&pdev->dev, np,
+					db8500_regulator_matches,
+					ARRAY_SIZE(db8500_regulator_matches));
+		if (err < 0) {
+			dev_err(&pdev->dev,
+				"Error parsing regulator init data: %d\n", err);
+			return err;
+		}
+
+		err = db8500_regulator_of_probe(pdev, np);
 		if (err)
 			return err;
-
-		dev_dbg(rdev_get_dev(info->rdev),
-			"regulator-%s-probed\n", info->desc.name);
+	} else {
+		for (i = 0; i < ARRAY_SIZE(dbx500_regulator_info); i++) {
+			err = db8500_regulator_register(pdev,
+							&db8500_init_data[i],
+							i, NULL);
+			if (err)
+				return err;
+		}
 	}
+
 	err = ux500_regulator_debug_init(pdev,
 					 dbx500_regulator_info,
 					 ARRAY_SIZE(dbx500_regulator_info));
@@ -491,10 +547,16 @@ static int __exit db8500_regulator_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id db8500_prcmu_regulator_match[] = {
+        { .compatible = "stericsson,db8500-prcmu-regulator", },
+        {}
+};
+
 static struct platform_driver db8500_regulator_driver = {
 	.driver = {
 		.name = "db8500-prcmu-regulators",
 		.owner = THIS_MODULE,
+		.of_match_table = db8500_prcmu_regulator_match,
 	},
 	.probe = db8500_regulator_probe,
 	.remove = __exit_p(db8500_regulator_remove),
