@@ -17,6 +17,7 @@ config OPENRISC
 	select GENERIC_IOMAP
 	select GENERIC_CPU_DEVICES
 	select GENERIC_ATOMIC64
+	select GENERIC_CLOCKEVENTS
 
 config MMU
 	def_bool y
@@ -44,9 +45,6 @@ config NO_IOPORT
 	def_bool y
 
 config GENERIC_GPIO
-	def_bool y
-
-config GENERIC_CLOCKEVENTS
 	def_bool y
 
 config TRACE_IRQFLAGS_SUPPORT
