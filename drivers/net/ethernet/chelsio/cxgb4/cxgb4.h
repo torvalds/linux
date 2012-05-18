@@ -723,4 +723,7 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 void t4_db_full(struct adapter *adapter);
 void t4_db_dropped(struct adapter *adapter);
+int t4_mem_win_read_len(struct adapter *adap, u32 addr, __be32 *data, int len);
+int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
+			 u32 addr, u32 val);
 #endif /* __CXGB4_H__ */
