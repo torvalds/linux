@@ -211,8 +211,7 @@ struct fsi_priv {
 	struct fsi_stream playback;
 	struct fsi_stream capture;
 
-	u32 do_fmt;
-	u32 di_fmt;
+	u32 fmt;
 
 	int chan_num:16;
 	int clk_master:1;
@@ -1191,8 +1190,8 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 	fsi_reg_write(fsi, CKG2, data);
 
 	/* set format */
-	fsi_reg_write(fsi, DO_FMT, fsi->do_fmt);
-	fsi_reg_write(fsi, DI_FMT, fsi->di_fmt);
+	fsi_reg_write(fsi, DO_FMT, fsi->fmt);
+	fsi_reg_write(fsi, DI_FMT, fsi->fmt);
 
 	/* spdif ? */
 	if (fsi_is_spdif(fsi)) {
@@ -1270,23 +1269,18 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 static int fsi_set_fmt_dai(struct fsi_priv *fsi, unsigned int fmt)
 {
-	u32 data = 0;
-
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		data = CR_I2S;
+		fsi->fmt = CR_I2S;
 		fsi->chan_num = 2;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		data = CR_PCM;
+		fsi->fmt = CR_PCM;
 		fsi->chan_num = 2;
 		break;
 	default:
 		return -EINVAL;
 	}
-
-	fsi->do_fmt = data;
-	fsi->di_fmt = data;
 
 	return 0;
 }
@@ -1294,17 +1288,13 @@ static int fsi_set_fmt_dai(struct fsi_priv *fsi, unsigned int fmt)
 static int fsi_set_fmt_spdif(struct fsi_priv *fsi)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
-	u32 data = 0;
 
 	if (fsi_version(master) < 2)
 		return -EINVAL;
 
-	data = CR_BWS_16 | CR_DTMD_SPDIF_PCM | CR_PCM;
+	fsi->fmt = CR_BWS_16 | CR_DTMD_SPDIF_PCM | CR_PCM;
 	fsi->chan_num = 2;
 	fsi->spdif = 1;
-
-	fsi->do_fmt = data;
-	fsi->di_fmt = data;
 
 	return 0;
 }
