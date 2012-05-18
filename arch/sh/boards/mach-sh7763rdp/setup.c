@@ -18,6 +18,7 @@
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/sh_eth.h>
+#include <linux/sh_intc.h>
 #include <mach/sh7763rdp.h>
 #include <asm/sh7760fb.h>
 
@@ -67,7 +68,7 @@ static struct platform_device sh7763rdp_nor_flash_device = {
  * SH-Ether
  *
  * SH Ether of SH7763 has multi IRQ handling.
- * (57,58,59 -> 57)
+ * (0x920,0x940,0x960 -> 0x920)
  */
 static struct resource sh_eth_resources[] = {
 	{
@@ -79,7 +80,7 @@ static struct resource sh_eth_resources[] = {
 		.end    = 0xFEE01FFF,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = 57,   /* irq number */
+		.start  = evt2irq(0x920),   /* irq number */
 		.flags  = IORESOURCE_IRQ,
 	},
 };
