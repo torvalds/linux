@@ -1052,8 +1052,16 @@ static int sci_request_irq(struct sci_port *port)
 		if (SCIx_IRQ_IS_MUXED(port)) {
 			i = SCIx_MUX_IRQ;
 			irq = up->irq;
-		} else
+		} else {
 			irq = port->cfg->irqs[i];
+
+			/*
+			 * Certain port types won't support all of the
+			 * available interrupt sources.
+			 */
+			if (unlikely(!irq))
+				continue;
+		}
 
 		desc = sci_irq_desc + i;
 		port->irqstr[j] = kasprintf(GFP_KERNEL, "%s:%s",
@@ -1094,6 +1102,15 @@ static void sci_free_irq(struct sci_port *port)
 	 * IRQ first.
 	 */
 	for (i = 0; i < SCIx_NR_IRQS; i++) {
+		unsigned int irq = port->cfg->irqs[i];
+
+		/*
+		 * Certain port types won't support all of the available
+		 * interrupt sources.
+		 */
+		if (unlikely(!irq))
+			continue;
+
 		free_irq(port->cfg->irqs[i], port);
 		kfree(port->irqstr[i]);
 
