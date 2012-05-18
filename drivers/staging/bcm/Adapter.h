@@ -244,7 +244,7 @@ typedef struct _PER_TARANG_DATA {
 	struct _MINI_ADAPTER	*Adapter;
 	struct sk_buff		*RxAppControlHead;
 	struct sk_buff		*RxAppControlTail;
-	volatile INT		AppCtrlQueueLen;
+	volatile int		AppCtrlQueueLen;
 	BOOLEAN			MacTracingEnabled;
 	BOOLEAN			bApplicationToExit;
 	S_MIBS_DROPPED_APP_CNTRL_MESSAGES	stDroppedAppCntrlMsgs;
@@ -338,9 +338,9 @@ typedef struct _STTARGETDSXBUFFER {
 	BOOLEAN		valid;
 } STTARGETDSXBUFFER, *PSTTARGETDSXBUFFER;
 
-typedef INT (*FP_FLASH_WRITE)(struct _MINI_ADAPTER *, UINT, PVOID);
+typedef int (*FP_FLASH_WRITE)(struct _MINI_ADAPTER *, UINT, PVOID);
 
-typedef INT (*FP_FLASH_WRITE_STATUS)(struct _MINI_ADAPTER *, UINT, PVOID);
+typedef int (*FP_FLASH_WRITE_STATUS)(struct _MINI_ADAPTER *, UINT, PVOID);
 
 /*
  * Driver adapter data structure
@@ -351,7 +351,7 @@ struct _MINI_ADAPTER {
 	u32			msg_enable;
 	CHAR			*caDsxReqResp;
 	atomic_t		ApplicationRunning;
-	volatile INT		CtrlQueueLen;
+	volatile int		CtrlQueueLen;
 	atomic_t		AppCtrlQueueLen;
 	BOOLEAN			AppCtrlQueueOverFlow;
 	atomic_t		CurrentApplicationCount;
@@ -425,7 +425,7 @@ struct _MINI_ADAPTER {
 	BOOLEAN			DeviceAccess;
 	BOOLEAN			bIsAutoCorrectEnabled;
 	BOOLEAN			bDDRInitDone;
-	INT			DDRSetting;
+	int			DDRSetting;
 	ULONG			ulPowerSaveMode;
 	spinlock_t		txtransmitlock;
 	B_UINT8			txtransmit_running;
@@ -447,14 +447,14 @@ struct _MINI_ADAPTER {
 	int (*bcm_file_readback_from_chip)(PVOID,
 					struct file *,
 					unsigned int);
-	INT (*interface_rdm)(PVOID,
+	int (*interface_rdm)(PVOID,
 			UINT,
 			PVOID,
-			INT);
-	INT (*interface_wrm)(PVOID,
+			int);
+	int (*interface_wrm)(PVOID,
 			UINT,
 			PVOID,
-			INT);
+			int);
 	int (*interface_transmit)(PVOID, PVOID , UINT);
 	BOOLEAN			IdleMode;
 	BOOLEAN			bDregRequestSentInIdleMode;
@@ -512,7 +512,7 @@ struct _MINI_ADAPTER {
 	BOOLEAN			bSigCorrupted;
 	/* this should be set who so ever want to change the Headers. after Wrtie it should be reset immediately. */
 	BOOLEAN			bHeaderChangeAllowed;
-	INT			SelectedChip;
+	int			SelectedChip;
 	BOOLEAN			bEndPointHalted;
 	/* while bFlashRawRead will be true, Driver  ignore map lay out and consider flash as of without any map. */
 	BOOLEAN			bFlashRawRead;
@@ -556,7 +556,7 @@ typedef struct _DDR_SETTING {
 	UINT ulRegValue;
 } DDR_SETTING, *PDDR_SETTING;
 typedef DDR_SETTING DDR_SET_NODE, *PDDR_SET_NODE;
-INT InitAdapter(PMINI_ADAPTER psAdapter);
+int InitAdapter(PMINI_ADAPTER psAdapter);
 
 /* =====================================================================
  * Beceem vendor request codes for EP0
