@@ -4399,7 +4399,7 @@ static int l2cap_check_fcs(struct l2cap_chan *chan,  struct sk_buff *skb)
 	return 0;
 }
 
-static inline void l2cap_send_i_or_rr_or_rnr(struct l2cap_chan *chan)
+static void l2cap_send_i_or_rr_or_rnr(struct l2cap_chan *chan)
 {
 	struct l2cap_ctrl control;
 
