@@ -1107,14 +1107,14 @@ static int late_analysis(struct ubi_device *ubi, struct ubi_attach_info *ai)
 }
 
 /**
- * ubi_scan - scan an MTD device.
+ * scan_all - scan entire MTD device.
  * @ubi: UBI device description object
  *
  * This function does full scanning of an MTD device and returns complete
  * information about it in form of a "struct ubi_attach_info" object. In case
  * of failure, an error code is returned.
  */
-struct ubi_attach_info *ubi_scan(struct ubi_device *ubi)
+static struct ubi_attach_info *scan_all(struct ubi_device *ubi)
 {
 	int err, pnum;
 	struct rb_node *rb1, *rb2;
@@ -1205,6 +1205,54 @@ out_ech:
 out_ai:
 	ubi_destroy_ai(ai);
 	return ERR_PTR(err);
+}
+
+/**
+ * ubi_attach - attach an MTD device.
+ * @ubi: UBI device descriptor
+ *
+ * This function returns zero in case of success and a negative error code in
+ * case of failure.
+ */
+int ubi_attach(struct ubi_device *ubi)
+{
+	int err;
+	struct ubi_attach_info *ai;
+
+	ai = scan_all(ubi);
+	if (IS_ERR(ai))
+		return PTR_ERR(ai);
+
+	ubi->bad_peb_count = ai->bad_peb_count;
+	ubi->good_peb_count = ubi->peb_count - ubi->bad_peb_count;
+	ubi->corr_peb_count = ai->corr_peb_count;
+	ubi->max_ec = ai->max_ec;
+	ubi->mean_ec = ai->mean_ec;
+	ubi_msg("max. sequence number:       %llu", ai->max_sqnum);
+
+	err = ubi_read_volume_table(ubi, ai);
+	if (err)
+		goto out_ai;
+
+	err = ubi_wl_init(ubi, ai);
+	if (err)
+		goto out_vtbl;
+
+	err = ubi_eba_init(ubi, ai);
+	if (err)
+		goto out_wl;
+
+	ubi_destroy_ai(ai);
+	return 0;
+
+out_wl:
+	ubi_wl_close(ubi);
+out_vtbl:
+	ubi_free_internal_volumes(ubi);
+	vfree(ubi->vtbl);
+out_ai:
+	ubi_destroy_ai(ai);
+	return err;
 }
 
 /**

@@ -164,7 +164,7 @@ struct ubi_ainf_volume *ubi_find_av(const struct ubi_attach_info *ai,
 void ubi_remove_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av);
 struct ubi_ainf_peb *ubi_early_get_peb(struct ubi_device *ubi,
 				       struct ubi_attach_info *ai);
-struct ubi_attach_info *ubi_scan(struct ubi_device *ubi);
+int ubi_attach(struct ubi_device *ubi);
 void ubi_destroy_ai(struct ubi_attach_info *ai);
 
 #endif /* !__UBI_SCAN_H__ */
