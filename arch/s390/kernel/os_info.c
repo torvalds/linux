@@ -138,7 +138,6 @@ static void os_info_old_init(void)
 		goto fail_free;
 	os_info_old_alloc(OS_INFO_VMCOREINFO, 1);
 	os_info_old_alloc(OS_INFO_REIPL_BLOCK, 1);
-	os_info_old_alloc(OS_INFO_INIT_FN, PAGE_SIZE);
 	pr_info("crashkernel: addr=0x%lx size=%lu\n",
 		(unsigned long) os_info_old->crashkernel_addr,
 		(unsigned long) os_info_old->crashkernel_size);
