@@ -41,4 +41,4 @@ obj-$(CONFIG_SND_OMAP_SOC_OMAP3_PANDORA) += snd-soc-omap3pandora.o
 obj-$(CONFIG_SND_OMAP_SOC_OMAP3_BEAGLE) += snd-soc-omap3beagle.o
 obj-$(CONFIG_SND_OMAP_SOC_ZOOM2) += snd-soc-zoom2.o
 obj-$(CONFIG_SND_OMAP_SOC_IGEP0020) += snd-soc-igep0020.o
-obj-$(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) += snd-soc-omap4-hdmi.o
+obj-$(CONFIG_SND_OMAP_SOC_OMAP_HDMI) += snd-soc-omap4-hdmi.o
