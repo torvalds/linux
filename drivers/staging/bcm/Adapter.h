@@ -351,8 +351,6 @@ struct _MINI_ADAPTER {
 	u32			msg_enable;
 	CHAR			*caDsxReqResp;
 	atomic_t		ApplicationRunning;
-	int			CtrlQueueLen;
-	atomic_t		AppCtrlQueueLen;
 	BOOLEAN			AppCtrlQueueOverFlow;
 	atomic_t		CurrentApplicationCount;
 	atomic_t		RegisteredApplicationCount;
