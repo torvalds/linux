@@ -321,6 +321,10 @@ static void _fsi_master_mask_set(struct fsi_master *master,
 /*
  *		basic function
  */
+static int fsi_version(struct fsi_master *master)
+{
+	return master->core->ver;
+}
 
 static struct fsi_master *fsi_get_master(struct fsi_priv *fsi)
 {
@@ -629,11 +633,6 @@ static void fsi_spdif_clk_ctrl(struct fsi_priv *fsi, int enable)
 	struct fsi_master *master = fsi_get_master(fsi);
 	u32 mask, val;
 
-	if (master->core->ver < 2) {
-		pr_err("fsi: register access err (%s)\n", __func__);
-		return;
-	}
-
 	mask = BP | SE;
 	val = enable ? mask : 0;
 
@@ -648,9 +647,7 @@ static void fsi_spdif_clk_ctrl(struct fsi_priv *fsi, int enable)
 static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
 			      long rate, int enable)
 {
-	struct fsi_master *master = fsi_get_master(fsi);
 	set_rate_func set_rate = fsi_get_info_set_rate(fsi);
-	int fsi_ver = master->core->ver;
 	int ret;
 
 	if (!set_rate)
@@ -682,10 +679,7 @@ static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
 			data |= (0x3 << 12);
 			break;
 		case SH_FSI_ACKMD_32:
-			if (fsi_ver < 2)
-				dev_err(dev, "unsupported ACKMD\n");
-			else
-				data |= (0x4 << 12);
+			data |= (0x4 << 12);
 			break;
 		}
 
@@ -708,10 +702,7 @@ static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
 			data |= (0x4 << 8);
 			break;
 		case SH_FSI_BPFMD_16:
-			if (fsi_ver < 2)
-				dev_err(dev, "unsupported ACKMD\n");
-			else
-				data |= (0x7 << 8);
+			data |= (0x7 << 8);
 			break;
 		}
 
@@ -1177,7 +1168,6 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 			  struct device *dev)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
-	int fsi_ver = master->core->ver;
 	u32 flags = fsi_get_info_flags(fsi);
 	u32 data = 0;
 
@@ -1216,7 +1206,7 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 	 * FSI driver assumed that data package is in-back.
 	 * FSI2 chip can select it.
 	 */
-	if (fsi_ver >= 2) {
+	if (fsi_version(master) >= 2) {
 		fsi_reg_write(fsi, OUT_DMAC,	VDMD_BACK);
 		fsi_reg_write(fsi, IN_DMAC,	VDMD_BACK);
 	}
@@ -1306,7 +1296,7 @@ static int fsi_set_fmt_spdif(struct fsi_priv *fsi)
 	struct fsi_master *master = fsi_get_master(fsi);
 	u32 data = 0;
 
-	if (master->core->ver < 2)
+	if (fsi_version(master) < 2)
 		return -EINVAL;
 
 	data = CR_BWS_16 | CR_DTMD_SPDIF_PCM | CR_PCM;
