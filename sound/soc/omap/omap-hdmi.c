@@ -51,6 +51,7 @@ struct hdmi_priv {
 static int omap_hdmi_dai_startup(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
+	struct hdmi_priv *priv = snd_soc_dai_get_drvdata(dai);
 	int err;
 	/*
 	 * Make sure that the period bytes are multiple of the DMA packet size.
@@ -58,9 +59,15 @@ static int omap_hdmi_dai_startup(struct snd_pcm_substream *substream,
 	 */
 	err = snd_pcm_hw_constraint_step(substream->runtime, 0,
 				 SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 128);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(dai->dev, "could not apply constraint\n");
 		return err;
+	}
 
+	if (!priv->dssdev->driver->audio_supported(priv->dssdev)) {
+		dev_err(dai->dev, "audio not supported\n");
+		return -ENODEV;
+	}
 	return 0;
 }
 
