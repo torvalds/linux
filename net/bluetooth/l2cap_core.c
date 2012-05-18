@@ -1772,28 +1772,54 @@ static int l2cap_retransmit_frames(struct l2cap_chan *chan)
 	return ret;
 }
 
-static void __l2cap_send_ack(struct l2cap_chan *chan)
-{
-	u32 control = 0;
-
-	control |= __set_reqseq(chan, chan->buffer_seq);
-
-	if (test_bit(CONN_LOCAL_BUSY, &chan->conn_state)) {
-		control |= __set_ctrl_super(chan, L2CAP_SUPER_RNR);
-		set_bit(CONN_RNR_SENT, &chan->conn_state);
-		return;
-	}
-
-	if (l2cap_ertm_send(chan) > 0)
-		return;
-
-	control |= __set_ctrl_super(chan, L2CAP_SUPER_RR);
-}
-
 static void l2cap_send_ack(struct l2cap_chan *chan)
 {
-	__clear_ack_timer(chan);
-	__l2cap_send_ack(chan);
+	struct l2cap_ctrl control;
+	u16 frames_to_ack = __seq_offset(chan, chan->buffer_seq,
+					 chan->last_acked_seq);
+	int threshold;
+
+	BT_DBG("chan %p last_acked_seq %d buffer_seq %d",
+	       chan, chan->last_acked_seq, chan->buffer_seq);
+
+	memset(&control, 0, sizeof(control));
+	control.sframe = 1;
+
+	if (test_bit(CONN_LOCAL_BUSY, &chan->conn_state) &&
+	    chan->rx_state == L2CAP_RX_STATE_RECV) {
+		__clear_ack_timer(chan);
+		control.super = L2CAP_SUPER_RNR;
+		control.reqseq = chan->buffer_seq;
+		l2cap_send_sframe(chan, &control);
+	} else {
+		if (!test_bit(CONN_REMOTE_BUSY, &chan->conn_state)) {
+			l2cap_ertm_send(chan);
+			/* If any i-frames were sent, they included an ack */
+			if (chan->buffer_seq == chan->last_acked_seq)
+				frames_to_ack = 0;
+		}
+
+		/* Ack now if the tx window is 3/4ths full.
+		 * Calculate without mul or div
+		 */
+		threshold = chan->tx_win;
+		threshold += threshold << 1;
+		threshold >>= 2;
+
+		BT_DBG("frames_to_ack %d, threshold %d", (int)frames_to_ack,
+		       threshold);
+
+		if (frames_to_ack >= threshold) {
+			__clear_ack_timer(chan);
+			control.super = L2CAP_SUPER_RR;
+			control.reqseq = chan->buffer_seq;
+			l2cap_send_sframe(chan, &control);
+			frames_to_ack = 0;
+		}
+
+		if (frames_to_ack)
+			__set_ack_timer(chan);
+	}
 }
 
 static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan,
@@ -2539,7 +2565,7 @@ static void l2cap_ack_timeout(struct work_struct *work)
 
 	l2cap_chan_lock(chan);
 
-	__l2cap_send_ack(chan);
+	l2cap_send_ack(chan);
 
 	l2cap_chan_unlock(chan);
 
