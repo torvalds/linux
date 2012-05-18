@@ -2770,6 +2770,12 @@ F:	Documentation/firmware_class/
 F:	drivers/base/firmware*.c
 F:	include/linux/firmware.h
 
+FLOPPY DRIVER
+M:	Jiri Kosina <jkosina@suse.cz>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/floppy.git
+S:	Odd fixes
+F:	drivers/block/floppy.c
+
 FPU EMULATOR
 M:	Bill Metzenthen <billm@melbpc.org.au>
 W:	http://floatingpoint.sourceforge.net/emulator/index.html
