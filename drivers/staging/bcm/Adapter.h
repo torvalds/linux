@@ -244,7 +244,7 @@ typedef struct _PER_TARANG_DATA {
 	struct _MINI_ADAPTER	*Adapter;
 	struct sk_buff		*RxAppControlHead;
 	struct sk_buff		*RxAppControlTail;
-	volatile int		AppCtrlQueueLen;
+	int			AppCtrlQueueLen;
 	BOOLEAN			MacTracingEnabled;
 	BOOLEAN			bApplicationToExit;
 	S_MIBS_DROPPED_APP_CNTRL_MESSAGES	stDroppedAppCntrlMsgs;
@@ -351,7 +351,7 @@ struct _MINI_ADAPTER {
 	u32			msg_enable;
 	CHAR			*caDsxReqResp;
 	atomic_t		ApplicationRunning;
-	volatile int		CtrlQueueLen;
+	int			CtrlQueueLen;
 	atomic_t		AppCtrlQueueLen;
 	BOOLEAN			AppCtrlQueueOverFlow;
 	atomic_t		CurrentApplicationCount;
