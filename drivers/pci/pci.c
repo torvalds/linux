@@ -136,30 +136,6 @@ void __iomem *pci_ioremap_bar(struct pci_dev *pdev, int bar)
 EXPORT_SYMBOL_GPL(pci_ioremap_bar);
 #endif
 
-#if 0
-/**
- * pci_max_busnr - returns maximum PCI bus number
- *
- * Returns the highest PCI bus number present in the system global list of
- * PCI buses.
- */
-unsigned char __devinit
-pci_max_busnr(void)
-{
-	struct pci_bus *bus = NULL;
-	unsigned char max, n;
-
-	max = 0;
-	while ((bus = pci_find_next_bus(bus)) != NULL) {
-		n = pci_bus_max_busnr(bus);
-		if(n > max)
-			max = n;
-	}
-	return max;
-}
-
-#endif  /*  0  */
-
 #define PCI_FIND_CAP_TTL	48
 
 static int __pci_find_next_cap_ttl(struct pci_bus *bus, unsigned int devfn,
