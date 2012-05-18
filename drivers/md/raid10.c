@@ -3189,7 +3189,7 @@ static void calc_sectors(struct r10conf *conf, sector_t size)
 	if (conf->far_offset)
 		conf->stride = 1 << conf->chunk_shift;
 	else {
-		sector_div(size, conf->near_copies);
+		sector_div(size, conf->far_copies);
 		conf->stride = size << conf->chunk_shift;
 	}
 }
