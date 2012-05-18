@@ -15,6 +15,7 @@ config TMS320C6X
 	select IRQ_DOMAIN
 	select OF
 	select OF_EARLY_FLATTREE
+	select GENERIC_CLOCKEVENTS
 
 config MMU
 	def_bool n
@@ -42,12 +43,6 @@ config GENERIC_CALIBRATE_DELAY
 
 config GENERIC_HWEIGHT
 	def_bool y
-
-config GENERIC_CLOCKEVENTS
-	def_bool y
-
-config GENERIC_CLOCKEVENTS_BROADCAST
-	bool
 
 config GENERIC_BUG
 	def_bool y
