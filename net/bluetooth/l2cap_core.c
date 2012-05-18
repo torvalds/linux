@@ -392,6 +392,9 @@ struct l2cap_chan *l2cap_chan_create(void)
 
 	atomic_set(&chan->refcnt, 1);
 
+	/* This flag is cleared in l2cap_chan_ready() */
+	set_bit(CONF_NOT_COMPLETE, &chan->conf_state);
+
 	BT_DBG("chan %p", chan);
 
 	return chan;
@@ -509,8 +512,7 @@ static void l2cap_chan_del(struct l2cap_chan *chan, int err)
 
 	release_sock(sk);
 
-	if (!(test_bit(CONF_OUTPUT_DONE, &chan->conf_state) &&
-			test_bit(CONF_INPUT_DONE, &chan->conf_state)))
+	if (test_bit(CONF_NOT_COMPLETE, &chan->conf_state))
 		return;
 
 	skb_queue_purge(&chan->tx_q);
@@ -923,6 +925,7 @@ static void l2cap_chan_ready(struct l2cap_chan *chan)
 
 	BT_DBG("sk %p, parent %p", sk, parent);
 
+	/* This clears all conf flags, including CONF_NOT_COMPLETE */
 	chan->conf_state = 0;
 	__clear_chan_timer(chan);
 
