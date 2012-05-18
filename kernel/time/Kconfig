@@ -33,3 +33,38 @@ config GENERIC_CLOCKEVENTS_BUILD
 
 config GENERIC_CLOCKEVENTS_MIN_ADJUST
 	bool
+
+# Options selectable by arch Kconfig
+
+# Watchdog function for clocksources to detect instabilities
+config CLOCKSOURCE_WATCHDOG
+	bool
+
+# Architecture has extra clocksource data
+config ARCH_CLOCKSOURCE_DATA
+	bool
+
+# Timekeeping vsyscall support
+config GENERIC_TIME_VSYSCALL
+	bool
+
+# ktime_t scalar 64bit nsec representation
+config KTIME_SCALAR
+	bool
+
+# Old style timekeeping
+config ARCH_USES_GETTIMEOFFSET
+	bool
+
+# The generic clock events infrastructure
+config GENERIC_CLOCKEVENTS
+	bool
+
+# Clockevents broadcasting infrastructure
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+	depends on GENERIC_CLOCKEVENTS
+
+# Generic update of CMOS clock
+config GENERIC_CMOS_UPDATE
+	bool
