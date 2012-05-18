@@ -1009,6 +1009,12 @@ config HAVE_PWM
 choice
 	prompt "Uncached DMA region"
 	default DMA_UNCACHED_1M
+config DMA_UNCACHED_32M
+	bool "Enable 32M DMA region"
+config DMA_UNCACHED_16M
+	bool "Enable 16M DMA region"
+config DMA_UNCACHED_8M
+	bool "Enable 8M DMA region"
 config DMA_UNCACHED_4M
 	bool "Enable 4M DMA region"
 config DMA_UNCACHED_2M
