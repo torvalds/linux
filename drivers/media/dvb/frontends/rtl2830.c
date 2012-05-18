@@ -450,8 +450,20 @@ err:
 
 static int rtl2830_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	*ber = 0;
+	struct rtl2830_priv *priv = fe->demodulator_priv;
+	int ret;
+	u8 buf[2];
+
+	ret = rtl2830_rd_regs(priv, 0x34e, buf, 2);
+	if (ret)
+		goto err;
+
+	*ber = buf[0] << 8 | buf[1];
+
 	return 0;
+err:
+	dbg("%s: failed=%d", __func__, ret);
+	return ret;
 }
 
 static int rtl2830_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
