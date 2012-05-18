@@ -81,6 +81,7 @@ static void __iomem *imx3_ioremap_caller(unsigned long phys_addr, size_t size,
 
 void __init imx3_init_l2x0(void)
 {
+#ifdef CONFIG_CACHE_L2X0
 	void __iomem *l2x0_base;
 	void __iomem *clkctl_base;
 
@@ -110,6 +111,7 @@ void __init imx3_init_l2x0(void)
 	}
 
 	l2x0_init(l2x0_base, 0x00030024, 0x00000000);
+#endif
 }
 
 #ifdef CONFIG_SOC_IMX31
