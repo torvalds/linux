@@ -30,6 +30,7 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
+#include <video/omapdss.h>
 
 #include <plat/dma.h>
 #include "omap-pcm.h"
@@ -39,6 +40,7 @@
 
 struct hdmi_priv {
 	struct omap_pcm_dma_data dma_params;
+	struct omap_dss_device *dssdev;
 };
 
 static int omap_hdmi_dai_startup(struct snd_pcm_substream *substream,
@@ -55,6 +57,14 @@ static int omap_hdmi_dai_startup(struct snd_pcm_substream *substream,
 		return err;
 
 	return 0;
+}
+
+static int omap_hdmi_dai_prepare(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct hdmi_priv *priv = snd_soc_dai_get_drvdata(dai);
+
+	return priv->dssdev->driver->audio_enable(priv->dssdev);
 }
 
 static int omap_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
@@ -83,6 +93,37 @@ static int omap_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	return err;
 }
 
+static int omap_hdmi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
+				struct snd_soc_dai *dai)
+{
+	struct hdmi_priv *priv = snd_soc_dai_get_drvdata(dai);
+	int err = 0;
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		err = priv->dssdev->driver->audio_start(priv->dssdev);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		priv->dssdev->driver->audio_stop(priv->dssdev);
+		break;
+	default:
+		err = -EINVAL;
+	}
+	return err;
+}
+
+static void omap_hdmi_dai_shutdown(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct hdmi_priv *priv = snd_soc_dai_get_drvdata(dai);
+
+	priv->dssdev->driver->audio_disable(priv->dssdev);
+}
+
 static const struct snd_soc_dai_ops omap_hdmi_dai_ops = {
 	.startup	= omap_hdmi_dai_startup,
 	.hw_params	= omap_hdmi_dai_hw_params,
@@ -103,6 +144,7 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 	int ret;
 	struct resource *hdmi_rsrc;
 	struct hdmi_priv *hdmi_data;
+	bool hdmi_dev_found = false;
 
 	hdmi_data = devm_kzalloc(&pdev->dev, sizeof(*hdmi_data), GFP_KERNEL);
 	if (hdmi_data == NULL) {
@@ -129,14 +171,49 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 	hdmi_data->dma_params.name = "HDMI playback";
 	hdmi_data->dma_params.sync_mode = OMAP_DMA_SYNC_PACKET;
 
+	/*
+	 * TODO: We assume that there is only one DSS HDMI device. Future
+	 * OMAP implementations may support more than one HDMI devices and
+	 * we should provided separate audio support for all of them.
+	 */
+	/* Find an HDMI device. */
+	for_each_dss_dev(hdmi_data->dssdev) {
+		omap_dss_get_device(hdmi_data->dssdev);
+
+		if (!hdmi_data->dssdev->driver) {
+			omap_dss_put_device(hdmi_data->dssdev);
+			continue;
+		}
+
+		if (hdmi_data->dssdev->type == OMAP_DISPLAY_TYPE_HDMI) {
+			hdmi_dev_found = true;
+			break;
+		}
+	}
+
+	if (!hdmi_dev_found) {
+		dev_err(&pdev->dev, "no driver for HDMI display found\n");
+		return -ENODEV;
+	}
+
 	dev_set_drvdata(&pdev->dev, hdmi_data);
 	ret = snd_soc_register_dai(&pdev->dev, &omap_hdmi_dai);
+
 	return ret;
 }
 
 static int __devexit omap_hdmi_remove(struct platform_device *pdev)
 {
+	struct hdmi_priv *hdmi_data = dev_get_drvdata(&pdev->dev);
+
 	snd_soc_unregister_dai(&pdev->dev);
+
+	if (hdmi_data == NULL) {
+		dev_err(&pdev->dev, "cannot obtain HDMi data\n");
+		return -ENODEV;
+	}
+
+	omap_dss_put_device(hdmi_data->dssdev);
 	return 0;
 }
 
