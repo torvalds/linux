@@ -56,7 +56,7 @@ static const char * const sym_regex_kernel[S_NSYMTYPES] = {
  * as absolute (typically defined outside any section in the linker script.)
  */
 	[S_REL] =
-	"^_end$",
+	"^(__init_begin|__init_end|_end)$"
 };
 
 
