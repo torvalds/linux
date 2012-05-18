@@ -30,11 +30,13 @@ config SPARC
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select GENERIC_PCI_IOMAP
 	select HAVE_NMI_WATCHDOG if SPARC64
+	select GENERIC_CMOS_UPDATE
 
 config SPARC32
 	def_bool !64BIT
 	select GENERIC_ATOMIC64
 	select CLZ_TAB
+	select ARCH_USES_GETTIMEOFFSET
 
 config SPARC64
 	def_bool 64BIT
@@ -61,6 +63,7 @@ config SPARC64
 	select IRQ_PREFLOW_FASTEOI
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select HAVE_C_RECORDMCOUNT
+	select GENERIC_CLOCKEVENTS
 
 config ARCH_DEFCONFIG
 	string
@@ -72,18 +75,6 @@ config BITS
 	int
 	default 32 if SPARC32
 	default 64 if SPARC64
-
-config ARCH_USES_GETTIMEOFFSET
-	bool
-	default y if SPARC32
-
-config GENERIC_CMOS_UPDATE
-	bool
-	default y
-
-config GENERIC_CLOCKEVENTS
-	bool
-	default y if SPARC64
 
 config IOMMU_HELPER
 	bool
