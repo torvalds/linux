@@ -1046,7 +1046,7 @@ out:
 
 int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
-	int ret, extra;
+	int ret, extra = 0;
 	u16 fc;
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct sk_buff *skb;
@@ -1085,7 +1085,8 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	/* encryption space */
 	switch (wlvif->encryption_type) {
 	case KEY_TKIP:
-		extra = WL1271_EXTRA_SPACE_TKIP;
+		if (wl->quirks & WLCORE_QUIRK_TKIP_HEADER_SPACE)
+			extra = WL1271_EXTRA_SPACE_TKIP;
 		break;
 	case KEY_AES:
 		extra = WL1271_EXTRA_SPACE_AES;

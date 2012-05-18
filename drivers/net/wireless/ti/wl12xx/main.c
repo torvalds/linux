@@ -625,7 +625,8 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		wl1271_warning("chip id 0x%x (1271 PG10) support is obsolete",
 			       wl->chip.id);
 
-		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS;
+		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS |
+			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
 		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
 		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
 		memcpy(&wl->conf.mem, &wl12xx_default_priv_conf.mem_wl127x,
@@ -640,7 +641,8 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1271 PG20)",
 			     wl->chip.id);
 
-		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS;
+		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS |
+			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
 		wl->plt_fw_name = WL127X_PLT_FW_NAME;
 		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
 		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
@@ -660,7 +662,8 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		wl->mr_fw_name = WL128X_FW_NAME_MULTI;
 
 		/* wl128x requires TX blocksize alignment */
-		wl->quirks |= WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN;
+		wl->quirks |= WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN |
+			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
 
 		break;
 	case CHIP_ID_1283_PG10:

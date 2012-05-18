@@ -358,7 +358,8 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	/* TODO: handle dummy packets on multi-vifs */
 	is_dummy = wl12xx_is_dummy_packet(wl, skb);
 
-	if (info->control.hw_key &&
+	if ((wl->quirks & WLCORE_QUIRK_TKIP_HEADER_SPACE) &&
+	    info->control.hw_key &&
 	    info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP)
 		extra = WL1271_EXTRA_SPACE_TKIP;
 
@@ -852,7 +853,8 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	skb_pull(skb, sizeof(struct wl1271_tx_hw_descr));
 
 	/* remove TKIP header space if present */
-	if (info->control.hw_key &&
+	if ((wl->quirks & WLCORE_QUIRK_TKIP_HEADER_SPACE) &&
+	    info->control.hw_key &&
 	    info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 		int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 		memmove(skb->data + WL1271_EXTRA_SPACE_TKIP, skb->data,
@@ -1001,7 +1003,8 @@ void wl12xx_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 			 */
 			info = IEEE80211_SKB_CB(skb);
 			skb_pull(skb, sizeof(struct wl1271_tx_hw_descr));
-			if (info->control.hw_key &&
+			if ((wl->quirks & WLCORE_QUIRK_TKIP_HEADER_SPACE) &&
+			    info->control.hw_key &&
 			    info->control.hw_key->cipher ==
 			    WLAN_CIPHER_SUITE_TKIP) {
 				int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
