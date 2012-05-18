@@ -11,8 +11,6 @@
 
 #include <linux/device.h>
 
-#define IPACK_BOARD_NAME_SIZE			16
-#define IPACK_IRQ_NAME_SIZE			50
 #define IPACK_IDPROM_OFFSET_I			0x01
 #define IPACK_IDPROM_OFFSET_P			0x03
 #define IPACK_IDPROM_OFFSET_A			0x05
@@ -64,8 +62,6 @@ struct ipack_addr_space {
  * by the carrier board throught bus->ops.
  */
 struct ipack_device {
-	char board_name[IPACK_BOARD_NAME_SIZE];
-	char bus_name[IPACK_BOARD_NAME_SIZE];
 	unsigned int bus_nr;
 	unsigned int slot;
 	unsigned int irq;

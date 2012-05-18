@@ -112,10 +112,10 @@
  *
  */
 struct slot_irq {
-	int          vector;
-	int         (*handler)(void *);
-	void         *arg;
-	char         name[IPACK_IRQ_NAME_SIZE];
+	int		vector;
+	int		(*handler)(void *);
+	void		*arg;
+	const char	*name;
 };
 
 /**

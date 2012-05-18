@@ -371,9 +371,7 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 
 #ifdef CONFIG_SYSFS
 
-static struct ipack_device *tpci200_slot_register(const char *board_name,
-						  int size,
-						  unsigned int tpci200_number,
+static struct ipack_device *tpci200_slot_register(unsigned int tpci200_number,
 						  unsigned int slot_position)
 {
 	int found = 0;
@@ -437,7 +435,7 @@ static ssize_t tpci200_store_board(struct device *pdev, const char *buf,
 	if (dev != NULL)
 		return -EBUSY;
 
-	dev = tpci200_slot_register(buf, count, card->number, slot);
+	dev = tpci200_slot_register(card->number, slot);
 	if (dev == NULL)
 		return -ENODEV;
 
@@ -450,7 +448,7 @@ static ssize_t tpci200_show_board(struct device *pdev, char *buf, int slot)
 	struct ipack_device *dev = card->slots[slot].dev;
 
 	if (dev != NULL)
-		return snprintf(buf, PAGE_SIZE, "%s\n", dev->board_name);
+		return snprintf(buf, PAGE_SIZE, "%s\n", dev_name(&dev->dev));
 	else
 		return snprintf(buf, PAGE_SIZE, "none\n");
 }
@@ -975,17 +973,7 @@ static int tpci200_request_irq(struct ipack_device *dev, int vector,
 	slot_irq->vector = vector;
 	slot_irq->handler = handler;
 	slot_irq->arg = arg;
-	if (dev->board_name) {
-		if (strlen(dev->board_name) > IPACK_IRQ_NAME_SIZE) {
-			pr_warning("Slot [%s %d:%d] IRQ name too long (%d char > %d char MAX). Will be truncated!\n",
-				   TPCI200_SHORTNAME, dev->bus_nr, dev->slot,
-				   (int)strlen(dev->board_name),
-				   IPACK_IRQ_NAME_SIZE);
-		}
-		strncpy(slot_irq->name, dev->board_name, IPACK_IRQ_NAME_SIZE-1);
-	} else {
-		strcpy(slot_irq->name, "Unknown");
-	}
+	slot_irq->name = dev_name(&dev->dev);
 
 	tpci200->slots[dev->slot].irq = slot_irq;
 	res = __tpci200_request_irq(tpci200, dev);
