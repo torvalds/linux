@@ -836,6 +836,7 @@ struct tps65910 {
 	int irq_base;
 	int irq_num;
 	u32 irq_mask;
+	struct irq_domain *domain;
 };
 
 struct tps65910_platform_data {
