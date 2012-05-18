@@ -169,8 +169,8 @@ static noinline int vmalloc_fault(unsigned long address)
 	pmd_t *pmd_k;
 	pte_t *pte_k;
 
-	/* Make sure we are in vmalloc/module area: */
-	if (!is_vmalloc_addr((void *)address))
+	/* Make sure we are in vmalloc/module/P3 area: */
+	if (!(address >= P3SEG && address < P3_ADDR_MAX))
 		return -1;
 
 	/*

@@ -94,7 +94,7 @@ extern void __clear_fixmap(enum fixed_addresses idx, pgprot_t flags);
  * at the top of mem..
  */
 #ifdef CONFIG_SUPERH32
-#define FIXADDR_TOP	(P3_ADDR_MAX - PAGE_SIZE)
+#define FIXADDR_TOP	(P4SEG - PAGE_SIZE)
 #else
 #define FIXADDR_TOP	((unsigned long)(-PAGE_SIZE))
 #endif
