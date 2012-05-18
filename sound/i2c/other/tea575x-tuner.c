@@ -37,8 +37,8 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Routines for control of TEA5757/5759 Philips AM/FM radio tuner chips");
 MODULE_LICENSE("GPL");
 
-#define FREQ_LO		 (76U * 16000)
-#define FREQ_HI		(108U * 16000)
+#define FREQ_LO		((tea->tea5759 ? 760 :  875) * 1600U)
+#define FREQ_HI		((tea->tea5759 ? 910 : 1080) * 1600U)
 
 /*
  * definitions
