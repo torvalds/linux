@@ -258,6 +258,9 @@ config SND_SOC_CX20442
 	tristate
 	depends on TTY
 
+config SND_SOC_I2S_STUB
+	tristate
+
 config SND_SOC_JZ4740_CODEC
 	select REGMAP_MMIO
 	tristate
