@@ -215,6 +215,7 @@ static void android_disable(struct android_dev *dev)
 		usb_ep_dequeue(cdev->gadget->ep0, cdev->req);
 		usb_remove_config(cdev, &android_config_driver);
 	}
+}
 
 /*-------------------------------------------------------------------------*/
 /* Supported functions initialization */
