@@ -49,13 +49,11 @@ struct ipack_addr_space {
 /**
  *	struct ipack_device
  *
- *	@board_name: IP mezzanine board name
- *	@bus_name: IP carrier board name
  *	@bus_nr: IP bus number where the device is plugged
  *	@slot: Slot where the device is plugged in the carrier board
  *	@irq: IRQ vector
  *	@driver: Pointer to the ipack_driver that manages the device
- *	@ops: Carrier board operations to access the device
+ *	@bus: ipack_bus_device where the device is plugged to.
  *	@id_space: Virtual address to ID space.
  *	@io_space: Virtual address to IO space.
  *	@mem_space: Virtual address to MEM space.
@@ -63,7 +61,7 @@ struct ipack_addr_space {
  *
  * Warning: Direct access to mapped memory is possible but the endianness
  * is not the same with PCI carrier or VME carrier. The endianness is managed
- * by the carrier board throught @ops.
+ * by the carrier board throught bus->ops.
  */
 struct ipack_device {
 	char board_name[IPACK_BOARD_NAME_SIZE];
@@ -72,14 +70,14 @@ struct ipack_device {
 	unsigned int slot;
 	unsigned int irq;
 	struct ipack_driver *driver;
-	struct ipack_bus_ops *ops;
+	struct ipack_bus_device *bus;
 	struct ipack_addr_space id_space;
 	struct ipack_addr_space io_space;
 	struct ipack_addr_space mem_space;
 	struct device dev;
 };
 
-/*
+/**
  *	struct ipack_driver_ops -- callbacks to mezzanine driver for installing/removing one device
  *
  *	@match: Match function
@@ -94,35 +92,15 @@ struct ipack_driver_ops {
 };
 
 /**
- *	struct ipack_driver -- Specific data to each mezzanine board driver
+ *	struct ipack_driver -- Specific data to each ipack board driver
  *
  *	@driver: Device driver kernel representation
  *	@ops: Mezzanine driver operations specific for the ipack bus.
  */
 struct ipack_driver {
-	struct module *owner;
 	struct device_driver driver;
 	struct ipack_driver_ops *ops;
 };
-
-/*
- *	ipack_driver_register -- Register a new mezzanine driver
- *
- * Called by the mezzanine driver to register itself as a driver
- * that can manage ipack devices.
- */
-
-int ipack_driver_register(struct ipack_driver *edrv);
-void ipack_driver_unregister(struct ipack_driver *edrv);
-
-/*
- *	ipack_device_register -- register a new mezzanine device
- *
- * Register a new ipack device (mezzanine device). The call is done by
- * the carrier device driver.
- */
-int ipack_device_register(struct ipack_device *dev);
-void ipack_device_unregister(struct ipack_device *dev);
 
 /**
  *	struct ipack_bus_ops - available operations on a bridge module
@@ -159,24 +137,51 @@ struct ipack_bus_ops {
  *	@dev: pointer to carrier device
  *	@slots: number of slots available
  *	@bus_nr: ipack bus number
- *	@vector: IRQ base vector. IRQ vectors are $vector + $slot_number
+ *	@ops: bus operations for the mezzanine drivers
  */
 struct ipack_bus_device {
-	struct device *dev;
+	struct device *parent;
 	int slots;
 	int bus_nr;
-	int vector;
+	struct ipack_bus_ops *ops;
 };
 
 /**
  *	ipack_bus_register -- register a new ipack bus
  *
- * The carrier board device driver should call this function to register itself
- * as available bus in ipack.
+ * @parent: pointer to the parent device, if any.
+ * @slots: number of slots available in the bus device.
+ * @ops: bus operations for the mezzanine drivers.
+ *
+ * The carrier board device should call this function to register itself as
+ * available bus device in ipack.
  */
-int ipack_bus_register(struct ipack_bus_device *bus);
+struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
+					    struct ipack_bus_ops *ops);
 
 /**
  *	ipack_bus_unregister -- unregister an ipack bus
  */
 int ipack_bus_unregister(struct ipack_bus_device *bus);
+
+/**
+ *	ipack_driver_register -- Register a new driver
+ *
+ * Called by a ipack driver to register itself as a driver
+ * that can manage ipack devices.
+ */
+int ipack_driver_register(struct ipack_driver *edrv, struct module *owner, char *name);
+void ipack_driver_unregister(struct ipack_driver *edrv);
+
+/**
+ *	ipack_device_register -- register a new mezzanine device
+ *
+ * @bus: ipack bus device it is plugged to.
+ * @slot: slot position in the bus device.
+ * @irqv: IRQ vector for the mezzanine.
+ *
+ * Register a new ipack device (mezzanine device). The call is done by
+ * the carrier device driver.
+ */
+struct ipack_device *ipack_device_register(struct ipack_bus_device *bus, int slot, int irqv);
+void ipack_device_unregister(struct ipack_device *dev);

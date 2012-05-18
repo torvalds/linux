@@ -151,7 +151,7 @@ struct tpci200_infos {
 	void __iomem			*ioidint_space;
 	void __iomem			*mem8_space;
 	spinlock_t			access_lock;
-	struct ipack_bus_device		drv;
+	struct ipack_bus_device		*ipack_bus;
 };
 struct tpci200_board {
 	struct list_head	list;

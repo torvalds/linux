@@ -73,7 +73,8 @@ static inline void ipoctal_write_io_reg(struct ipoctal *ipoctal,
 	unsigned long offset;
 
 	offset = ((void __iomem *) dest) - ipoctal->dev->io_space.address;
-	ipoctal->dev->ops->write8(ipoctal->dev, IPACK_IO_SPACE, offset, value);
+	ipoctal->dev->bus->ops->write8(ipoctal->dev, IPACK_IO_SPACE, offset,
+				       value);
 }
 
 static inline void ipoctal_write_cr_cmd(struct ipoctal *ipoctal,
@@ -90,7 +91,8 @@ static inline unsigned char ipoctal_read_io_reg(struct ipoctal *ipoctal,
 	unsigned char value;
 
 	offset = ((void __iomem *) src) - ipoctal->dev->io_space.address;
-	ipoctal->dev->ops->read8(ipoctal->dev, IPACK_IO_SPACE, offset, &value);
+	ipoctal->dev->bus->ops->read8(ipoctal->dev, IPACK_IO_SPACE, offset,
+				      &value);
 	return value;
 }
 
@@ -341,12 +343,12 @@ static int ipoctal_check_model(struct ipack_device *dev, unsigned char *id)
 	unsigned char manufacturerID;
 	unsigned char board_id;
 
-	dev->ops->read8(dev, IPACK_ID_SPACE,
+	dev->bus->ops->read8(dev, IPACK_ID_SPACE,
 			IPACK_IDPROM_OFFSET_MANUFACTURER_ID, &manufacturerID);
 	if (manufacturerID != IP_OCTAL_MANUFACTURER_ID)
 		return -ENODEV;
 
-	dev->ops->read8(dev, IPACK_ID_SPACE,
+	dev->bus->ops->read8(dev, IPACK_ID_SPACE,
 			IPACK_IDPROM_OFFSET_MODEL, (unsigned char *)&board_id);
 
 	switch (board_id) {
@@ -376,7 +378,8 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	char name[20];
 	unsigned char board_id;
 
-	res = ipoctal->dev->ops->map_space(ipoctal->dev, 0, IPACK_ID_SPACE);
+	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev, 0,
+						IPACK_ID_SPACE);
 	if (res) {
 		pr_err("Unable to map slot [%d:%d] ID space!\n", bus_nr, slot);
 		return res;
@@ -384,18 +387,20 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 	res = ipoctal_check_model(ipoctal->dev, &board_id);
 	if (res) {
-		ipoctal->dev->ops->unmap_space(ipoctal->dev, IPACK_ID_SPACE);
+		ipoctal->dev->bus->ops->unmap_space(ipoctal->dev,
+						    IPACK_ID_SPACE);
 		goto out_unregister_id_space;
 	}
 	ipoctal->board_id = board_id;
 
-	res = ipoctal->dev->ops->map_space(ipoctal->dev, 0, IPACK_IO_SPACE);
+	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev, 0,
+						IPACK_IO_SPACE);
 	if (res) {
 		pr_err("Unable to map slot [%d:%d] IO space!\n", bus_nr, slot);
 		goto out_unregister_id_space;
 	}
 
-	res = ipoctal->dev->ops->map_space(ipoctal->dev,
+	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev,
 					   0x8000, IPACK_MEM_SPACE);
 	if (res) {
 		pr_err("Unable to map slot [%d:%d] MEM space!\n", bus_nr, slot);
@@ -434,9 +439,9 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	 * Depending of the carrier these addresses are accesible or not.
 	 * More info in the datasheet.
 	 */
-	ipoctal->dev->ops->request_irq(ipoctal->dev, vector,
+	ipoctal->dev->bus->ops->request_irq(ipoctal->dev, vector,
 				       ipoctal_irq_handler, ipoctal);
-	ipoctal->dev->ops->write8(ipoctal->dev, IPACK_ID_SPACE, 0, vector);
+	ipoctal->dev->bus->ops->write8(ipoctal->dev, IPACK_ID_SPACE, 0, vector);
 
 	/* Register the TTY device */
 
@@ -502,11 +507,11 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	return 0;
 
 out_unregister_slot_unmap:
-	ipoctal->dev->ops->unmap_space(ipoctal->dev, IPACK_ID_SPACE);
+	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_ID_SPACE);
 out_unregister_io_space:
-	ipoctal->dev->ops->unmap_space(ipoctal->dev, IPACK_IO_SPACE);
+	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_IO_SPACE);
 out_unregister_id_space:
-	ipoctal->dev->ops->unmap_space(ipoctal->dev, IPACK_MEM_SPACE);
+	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_MEM_SPACE);
 	return res;
 }
 
@@ -799,13 +804,20 @@ static int ipoctal_match(struct ipack_device *dev)
 	int res;
 	unsigned char board_id;
 
-	res = dev->ops->map_space(dev, 0, IPACK_ID_SPACE);
+	if ((!dev->bus->ops) || (!dev->bus->ops->map_space) ||
+	    (!dev->bus->ops->unmap_space))
+		return 0;
+
+	res = dev->bus->ops->map_space(dev, 0, IPACK_ID_SPACE);
 	if (res)
-		return res;
+		return 0;
 
 	res = ipoctal_check_model(dev, &board_id);
-	dev->ops->unmap_space(dev, IPACK_ID_SPACE);
-	return res;
+	dev->bus->ops->unmap_space(dev, IPACK_ID_SPACE);
+	if (!res)
+		return 1;
+
+	return 0;
 }
 
 static int ipoctal_probe(struct ipack_device *dev)
@@ -843,8 +855,8 @@ static void __ipoctal_remove(struct ipoctal *ipoctal)
 	put_tty_driver(ipoctal->tty_drv);
 
 	/* Tell the carrier board to free all the resources for this device */
-	if (ipoctal->dev->ops->remove_device != NULL)
-		ipoctal->dev->ops->remove_device(ipoctal->dev);
+	if (ipoctal->dev->bus->ops->remove_device != NULL)
+		ipoctal->dev->bus->ops->remove_device(ipoctal->dev);
 
 	list_del(&ipoctal->list);
 	kfree(ipoctal);
@@ -868,11 +880,8 @@ static struct ipack_driver_ops ipoctal_drv_ops = {
 
 static int __init ipoctal_init(void)
 {
-	driver.owner = THIS_MODULE;
 	driver.ops = &ipoctal_drv_ops;
-	driver.driver.name = KBUILD_MODNAME;
-	ipack_driver_register(&driver);
-	return 0;
+	return ipack_driver_register(&driver, THIS_MODULE, KBUILD_MODNAME);
 }
 
 static void __exit ipoctal_exit(void)

@@ -13,6 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include "ipack.h"
 
 #define to_ipack_dev(device) container_of(device, struct ipack_device, dev)
@@ -28,13 +29,19 @@ struct ipack_busmap {
 };
 static struct ipack_busmap busmap;
 
+static void ipack_device_release(struct device *dev)
+{
+	struct ipack_device *device = to_ipack_dev(dev);
+	kfree(device);
+}
+
 static int ipack_bus_match(struct device *device, struct device_driver *driver)
 {
 	int ret;
 	struct ipack_device *dev = to_ipack_dev(device);
 	struct ipack_driver *drv = to_ipack_driver(driver);
 
-	if (!drv->ops->match)
+	if ((!drv->ops) || (!drv->ops->match))
 		return -EINVAL;
 
 	ret = drv->ops->match(dev);
@@ -92,16 +99,27 @@ error_find_busnum:
 	return busnum;
 }
 
-int ipack_bus_register(struct ipack_bus_device *bus)
+struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
+					    struct ipack_bus_ops *ops)
 {
 	int bus_nr;
+	struct ipack_bus_device *bus;
+
+	bus = kzalloc(sizeof(struct ipack_bus_device), GFP_KERNEL);
+	if (!bus)
+		return NULL;
 
 	bus_nr = ipack_assign_bus_number();
-	if (bus_nr < 0)
-		return -1;
+	if (bus_nr < 0) {
+		kfree(bus);
+		return NULL;
+	}
 
 	bus->bus_nr = bus_nr;
-	return 0;
+	bus->parent = parent;
+	bus->slots = slots;
+	bus->ops = ops;
+	return bus;
 }
 EXPORT_SYMBOL_GPL(ipack_bus_register);
 
@@ -110,12 +128,16 @@ int ipack_bus_unregister(struct ipack_bus_device *bus)
 	mutex_lock(&ipack_mutex);
 	clear_bit(bus->bus_nr, busmap.busmap);
 	mutex_unlock(&ipack_mutex);
+	kfree(bus);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ipack_bus_unregister);
 
-int ipack_driver_register(struct ipack_driver *edrv)
+int ipack_driver_register(struct ipack_driver *edrv, struct module *owner,
+			  char *name)
 {
+	edrv->driver.owner = owner;
+	edrv->driver.name = name;
 	edrv->driver.bus = &ipack_bus_type;
 	return driver_register(&edrv->driver);
 }
@@ -127,26 +149,35 @@ void ipack_driver_unregister(struct ipack_driver *edrv)
 }
 EXPORT_SYMBOL_GPL(ipack_driver_unregister);
 
-static void ipack_device_release(struct device *dev)
-{
-}
-
-int ipack_device_register(struct ipack_device *dev)
+struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
+					   int slot, int irqv)
 {
 	int ret;
+	struct ipack_device *dev;
+
+	dev = kzalloc(sizeof(struct ipack_device), GFP_KERNEL);
+	if (!dev)
+		return NULL;
 
 	dev->dev.bus = &ipack_bus_type;
 	dev->dev.release = ipack_device_release;
+	dev->dev.parent = bus->parent;
+	dev->slot = slot;
+	dev->bus_nr = bus->bus_nr;
+	dev->irq = irqv;
+	dev->bus = bus;
 	dev_set_name(&dev->dev,
-		     "%s.%u.%u", dev->board_name, dev->bus_nr, dev->slot);
+		     "ipack-dev.%u.%u", dev->bus_nr, dev->slot);
 
 	ret = device_register(&dev->dev);
 	if (ret < 0) {
 		pr_err("error registering the device.\n");
 		dev->driver->ops->remove(dev);
+		kfree(dev);
+		return NULL;
 	}
 
-	return ret;
+	return dev;
 }
 EXPORT_SYMBOL_GPL(ipack_device_register);
 

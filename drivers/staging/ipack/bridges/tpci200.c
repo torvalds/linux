@@ -407,53 +407,22 @@ static struct ipack_device *tpci200_slot_register(const char *board_name,
 		goto err_unlock;
 	}
 
-	dev = kzalloc(sizeof(struct ipack_device), GFP_KERNEL);
-	if (dev == NULL) {
-		pr_info("Slot [%s %d:%d] Unable to allocate memory for new slot !\n",
-			TPCI200_SHORTNAME,
-			tpci200_number, slot_position);
-		goto err_unlock;
-	}
-
-	if (size > IPACK_BOARD_NAME_SIZE) {
-		pr_warning("Slot [%s %d:%d] name (%s) too long (%d > %d). Will be truncated!\n",
-			   TPCI200_SHORTNAME, tpci200_number, slot_position,
-			   board_name, (int)strlen(board_name),
-			   IPACK_BOARD_NAME_SIZE);
-
-		size = IPACK_BOARD_NAME_SIZE;
-	}
-
-	strncpy(dev->board_name, board_name, size-1);
-	dev->board_name[size-1] = '\0';
-	dev->bus_nr = tpci200->info->drv.bus_nr;
-	dev->slot = slot_position;
 	/*
 	 * Give the same IRQ number as the slot number.
 	 * The TPCI200 has assigned his own two IRQ by PCI bus driver
 	 */
-	dev->irq = slot_position;
+	dev = ipack_device_register(tpci200->info->ipack_bus,
+				    slot_position, slot_position);
+	if (dev == NULL) {
+		pr_info("Slot [%d:%d] Unable to register an ipack device\n",
+			tpci200_number, slot_position);
+		goto err_unlock;
+	}
 
-	dev->id_space.address = NULL;
-	dev->id_space.size = 0;
-	dev->io_space.address = NULL;
-	dev->io_space.size = 0;
-	dev->mem_space.address = NULL;
-	dev->mem_space.size = 0;
-
-	/* Give the operations structure */
-	dev->ops = &tpci200_bus_ops;
 	tpci200->slots[slot_position].dev = dev;
-
-	if (ipack_device_register(dev) < 0)
-		goto err_unregister;
-
 	mutex_unlock(&tpci200->mutex);
 	return dev;
 
-err_unregister:
-	tpci200_slot_unregister(dev);
-	kfree(dev);
 err_unlock:
 	mutex_unlock(&tpci200->mutex);
 	return NULL;
@@ -874,7 +843,6 @@ static int tpci200_slot_unregister(struct ipack_device *dev)
 
 	ipack_device_unregister(dev);
 	tpci200->slots[dev->slot].dev = NULL;
-	kfree(dev);
 	mutex_unlock(&tpci200->mutex);
 
 	return 0;
@@ -1116,20 +1084,20 @@ static int tpci200_pciprobe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	tpci200->info->drv.dev = &pdev->dev;
-	tpci200->info->drv.slots = TPCI200_NB_SLOT;
-
-	/* Register the bus in the industry pack driver */
-	ret = ipack_bus_register(&tpci200->info->drv);
-	if (ret < 0) {
+	/* Register the carrier in the industry pack bus driver */
+	tpci200->info->ipack_bus = ipack_bus_register(&pdev->dev,
+						      TPCI200_NB_SLOT,
+						      &tpci200_bus_ops);
+	if (!tpci200->info->ipack_bus) {
 		pr_err("error registering the carrier on ipack driver\n");
 		tpci200_uninstall(tpci200);
 		kfree(tpci200->info);
 		kfree(tpci200);
 		return -EFAULT;
 	}
+
 	/* save the bus number given by ipack to logging purpose */
-	tpci200->number = tpci200->info->drv.bus_nr;
+	tpci200->number = tpci200->info->ipack_bus->bus_nr;
 	dev_set_drvdata(&pdev->dev, tpci200);
 	/* add the registered device in an internal linked list */
 	list_add_tail(&tpci200->list, &tpci200_list);
@@ -1141,7 +1109,8 @@ static void __tpci200_pci_remove(struct tpci200_board *tpci200)
 	tpci200_uninstall(tpci200);
 	tpci200_remove_sysfs_files(tpci200);
 	list_del(&tpci200->list);
-	ipack_bus_unregister(&tpci200->info->drv);
+	ipack_bus_unregister(tpci200->info->ipack_bus);
+	kfree(tpci200->info);
 	kfree(tpci200);
 }
 
