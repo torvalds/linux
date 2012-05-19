@@ -17,14 +17,6 @@
 #include <linux/device.h>
 #include <asm-generic/dma.h>
 
-#ifdef CONFIG_NR_DMA_CHANNELS
-#  define MAX_DMA_CHANNELS	(CONFIG_NR_DMA_CHANNELS)
-#elif defined(CONFIG_NR_ONCHIP_DMA_CHANNELS)
-#  define MAX_DMA_CHANNELS	(CONFIG_NR_ONCHIP_DMA_CHANNELS)
-#else
-#  define MAX_DMA_CHANNELS	0
-#endif
-
 /*
  * Read and write modes can mean drastically different things depending on the
  * channel configuration. Consult your DMAC documentation and module
