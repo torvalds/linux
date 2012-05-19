@@ -93,12 +93,11 @@ obj-$(CONFIG_AB3100_CORE)	+= ab3100-core.o
 obj-$(CONFIG_AB3100_OTP)	+= ab3100-otp.o
 obj-$(CONFIG_AB5500_CORE)	+= ab5500-core.o
 obj-$(CONFIG_AB5500_DEBUG)	+= ab5500-debugfs.o
-obj-$(CONFIG_AB8500_CORE)	+= ab8500-core.o ab8500-sysctrl.o
 obj-$(CONFIG_AB8500_DEBUG)	+= ab8500-debugfs.o
 obj-$(CONFIG_AB8500_GPADC)	+= ab8500-gpadc.o
 obj-$(CONFIG_MFD_DB8500_PRCMU)	+= db8500-prcmu.o
-# ab8500-i2c need to come after db8500-prcmu (which provides the channel)
-obj-$(CONFIG_AB8500_I2C_CORE)	+= ab8500-i2c.o
+# ab8500-core need to come after db8500-prcmu (which provides the channel)
+obj-$(CONFIG_AB8500_CORE)	+= ab8500-core.o ab8500-sysctrl.o
 obj-$(CONFIG_MFD_DB5500_PRCMU)	+= db5500-prcmu.o
 obj-$(CONFIG_MFD_TIMBERDALE)    += timberdale.o
 obj-$(CONFIG_PMIC_ADP5520)	+= adp5520.o

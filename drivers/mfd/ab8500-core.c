@@ -18,6 +18,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
+#include <linux/mfd/dbx500-prcmu.h>
 #include <linux/regulator/ab8500.h>
 
 /*
@@ -136,6 +137,41 @@ static const char ab8500_version_str[][7] = {
 	[AB8500_VERSION_AB9540] = "AB9540",
 	[AB8500_VERSION_AB8540] = "AB8540",
 };
+
+static int ab8500_i2c_write(struct ab8500 *ab8500, u16 addr, u8 data)
+{
+	int ret;
+
+	ret = prcmu_abb_write((u8)(addr >> 8), (u8)(addr & 0xFF), &data, 1);
+	if (ret < 0)
+		dev_err(ab8500->dev, "prcmu i2c error %d\n", ret);
+	return ret;
+}
+
+static int ab8500_i2c_write_masked(struct ab8500 *ab8500, u16 addr, u8 mask,
+	u8 data)
+{
+	int ret;
+
+	ret = prcmu_abb_write_masked((u8)(addr >> 8), (u8)(addr & 0xFF), &data,
+		&mask, 1);
+	if (ret < 0)
+		dev_err(ab8500->dev, "prcmu i2c error %d\n", ret);
+	return ret;
+}
+
+static int ab8500_i2c_read(struct ab8500 *ab8500, u16 addr)
+{
+	int ret;
+	u8 data;
+
+	ret = prcmu_abb_read((u8)(addr >> 8), (u8)(addr & 0xFF), &data, 1);
+	if (ret < 0) {
+		dev_err(ab8500->dev, "prcmu i2c error %d\n", ret);
+		return ret;
+	}
+	return (int)data;
+}
 
 static int ab8500_get_chip_id(struct device *dev)
 {
@@ -1169,19 +1205,43 @@ static struct attribute_group ab9540_attr_group = {
 	.attrs	= ab9540_sysfs_entries,
 };
 
-int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
+static int __devinit ab8500_probe(struct platform_device *pdev)
 {
-	struct ab8500_platform_data *plat = dev_get_platdata(ab8500->dev);
+	struct ab8500_platform_data *plat = dev_get_platdata(&pdev->dev);
+	const struct platform_device_id *platid = platform_get_device_id(pdev);
+	enum ab8500_version version = platid->driver_data;
+	struct ab8500 *ab8500;
+	struct resource *resource;
 	int ret;
 	int i;
 	u8 value;
 
+	ab8500 = kzalloc(sizeof *ab8500, GFP_KERNEL);
+	if (!ab8500)
+		return -ENOMEM;
+
 	if (plat)
 		ab8500->irq_base = plat->irq_base;
+
+	ab8500->dev = &pdev->dev;
+
+	resource = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!resource) {
+		ret = -ENODEV;
+		goto out_free_ab8500;
+	}
+
+	ab8500->irq = resource->start;
+
+	ab8500->read = ab8500_i2c_read;
+	ab8500->write = ab8500_i2c_write;
+	ab8500->write_masked = ab8500_i2c_write_masked;
 
 	mutex_init(&ab8500->lock);
 	mutex_init(&ab8500->irq_lock);
 	atomic_set(&ab8500->transfer_ongoing, 0);
+
+	platform_set_drvdata(pdev, ab8500);
 
 	if (version != AB8500_VERSION_UNDEFINED)
 		ab8500->version = version;
@@ -1189,7 +1249,7 @@ int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
 		ret = get_register_interruptible(ab8500, AB8500_MISC,
 			AB8500_IC_NAME_REG, &value);
 		if (ret < 0)
-			return ret;
+			goto out_free_ab8500;
 
 		ab8500->version = value;
 	}
@@ -1197,7 +1257,7 @@ int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
 	ret = get_register_interruptible(ab8500, AB8500_MISC,
 		AB8500_REV_REG, &value);
 	if (ret < 0)
-		return ret;
+		goto out_free_ab8500;
 
 	ab8500->chip_id = value;
 
@@ -1342,12 +1402,16 @@ out_freeoldmask:
 	kfree(ab8500->oldmask);
 out_freemask:
 	kfree(ab8500->mask);
+out_free_ab8500:
+	kfree(ab8500);
 
 	return ret;
 }
 
-int __devexit ab8500_exit(struct ab8500 *ab8500)
+static int __devexit ab8500_remove(struct platform_device *pdev)
 {
+	struct ab8500 *ab8500 = platform_get_drvdata(pdev);
+
 	if (is_ab9540(ab8500))
 		sysfs_remove_group(&ab8500->dev->kobj, &ab9540_attr_group);
 	else
@@ -1359,9 +1423,40 @@ int __devexit ab8500_exit(struct ab8500 *ab8500)
 	}
 	kfree(ab8500->oldmask);
 	kfree(ab8500->mask);
+	kfree(ab8500);
 
 	return 0;
 }
+
+static const struct platform_device_id ab8500_id[] = {
+	{ "ab8500-core", AB8500_VERSION_AB8500 },
+	{ "ab8505-i2c", AB8500_VERSION_AB8505 },
+	{ "ab9540-i2c", AB8500_VERSION_AB9540 },
+	{ "ab8540-i2c", AB8500_VERSION_AB8540 },
+	{ }
+};
+
+static struct platform_driver ab8500_core_driver = {
+	.driver = {
+		.name = "ab8500-core",
+		.owner = THIS_MODULE,
+	},
+	.probe	= ab8500_probe,
+	.remove	= __devexit_p(ab8500_remove),
+	.id_table = ab8500_id,
+};
+
+static int __init ab8500_core_init(void)
+{
+	return platform_driver_register(&ab8500_core_driver);
+}
+
+static void __exit ab8500_core_exit(void)
+{
+	platform_driver_unregister(&ab8500_core_driver);
+}
+arch_initcall(ab8500_core_init);
+module_exit(ab8500_core_exit);
 
 MODULE_AUTHOR("Mattias Wallin, Srinidhi Kasagar, Rabin Vincent");
 MODULE_DESCRIPTION("AB8500 MFD core");
