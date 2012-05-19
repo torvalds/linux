@@ -24,6 +24,9 @@ extern void s3c2416_init_clocks(int xtal);
 extern  int s3c2416_baseclk_add(void);
 
 extern void s3c2416_restart(char mode, const char *cmd);
+
+extern struct syscore_ops s3c2416_irq_syscore_ops;
+
 #else
 #define s3c2416_init_clocks NULL
 #define s3c2416_init_uarts NULL
