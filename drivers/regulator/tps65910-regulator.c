@@ -1183,25 +1183,25 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pmic->desc = kcalloc(pmic->num_regulators,
+	pmic->desc = devm_kzalloc(&pdev->dev, pmic->num_regulators *
 			sizeof(struct regulator_desc), GFP_KERNEL);
 	if (!pmic->desc) {
-		err = -ENOMEM;
-		goto err_out;
+		dev_err(&pdev->dev, "Memory alloc fails for desc\n");
+		return -ENOMEM;
 	}
 
-	pmic->info = kcalloc(pmic->num_regulators,
+	pmic->info = devm_kzalloc(&pdev->dev, pmic->num_regulators *
 			sizeof(struct tps_info *), GFP_KERNEL);
 	if (!pmic->info) {
-		err = -ENOMEM;
-		goto err_free_desc;
+		dev_err(&pdev->dev, "Memory alloc fails for info\n");
+		return -ENOMEM;
 	}
 
-	pmic->rdev = kcalloc(pmic->num_regulators,
+	pmic->rdev = devm_kzalloc(&pdev->dev, pmic->num_regulators *
 			sizeof(struct regulator_dev *), GFP_KERNEL);
 	if (!pmic->rdev) {
-		err = -ENOMEM;
-		goto err_free_info;
+		dev_err(&pdev->dev, "Memory alloc fails for rdev\n");
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < pmic->num_regulators && i < TPS65910_NUM_REGS;
@@ -1279,12 +1279,6 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 err_unregister_regulator:
 	while (--i >= 0)
 		regulator_unregister(pmic->rdev[i]);
-	kfree(pmic->rdev);
-err_free_info:
-	kfree(pmic->info);
-err_free_desc:
-	kfree(pmic->desc);
-err_out:
 	return err;
 }
 
@@ -1296,9 +1290,6 @@ static int __devexit tps65910_remove(struct platform_device *pdev)
 	for (i = 0; i < pmic->num_regulators; i++)
 		regulator_unregister(pmic->rdev[i]);
 
-	kfree(pmic->rdev);
-	kfree(pmic->info);
-	kfree(pmic->desc);
 	return 0;
 }
 
