@@ -113,6 +113,8 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 		(usp - sigframe_size);
 	DBG(2,"sys_rt_sigreturn: frame is %p\n", frame);
 
+	regs->orig_r28 = 1; /* no restarts for sigreturn */
+
 #ifdef CONFIG_64BIT
 	compat_frame = (struct compat_rt_sigframe __user *)frame;
 	
@@ -462,6 +464,9 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 static inline void
 syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 {
+	if (regs->orig_r28)
+		return;
+	regs->orig_r28 = 1; /* no more restarts */
 	/* Check the return code */
 	switch (regs->gr[28]) {
 	case -ERESTART_RESTARTBLOCK:
@@ -482,8 +487,6 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 		 * we have to do is fiddle the return pointer.
 		 */
 		regs->gr[31] -= 8; /* delayed branching */
-		/* Preserve original r28. */
-		regs->gr[28] = regs->orig_r28;
 		break;
 	}
 }
@@ -491,6 +494,9 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 static inline void
 insert_restart_trampoline(struct pt_regs *regs)
 {
+	if (regs->orig_r28)
+		return;
+	regs->orig_r28 = 1; /* no more restarts */
 	switch(regs->gr[28]) {
 	case -ERESTART_RESTARTBLOCK: {
 		/* Restart the system call - no handlers present */
@@ -525,9 +531,6 @@ insert_restart_trampoline(struct pt_regs *regs)
 		flush_user_icache_range(regs->gr[30], regs->gr[30] + 4);
 
 		regs->gr[31] = regs->gr[30] + 8;
-		/* Preserve original r28. */
-		regs->gr[28] = regs->orig_r28;
-
 		return;
 	}
 	case -ERESTARTNOHAND:
@@ -539,9 +542,6 @@ insert_restart_trampoline(struct pt_regs *regs)
 		 * slot of the branch external instruction.
 		 */
 		regs->gr[31] -= 8;
-		/* Preserve original r28. */
-		regs->gr[28] = regs->orig_r28;
-
 		return;
 	}
 	default:
