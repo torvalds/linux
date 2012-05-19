@@ -496,7 +496,7 @@ static int __devinit acquire_resources(struct gpmi_nand_data *this)
 	if (ret)
 		goto exit_dma_channels;
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	pinctrl = devm_pinctrl_get_select_default(&this->pdev->dev);
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(pinctrl);
 		goto exit_pin;
