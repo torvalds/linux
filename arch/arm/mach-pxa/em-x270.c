@@ -1085,10 +1085,7 @@ static void __init em_x270_userspace_consumers_init(void)
 /* DA9030 related initializations */
 #define REGULATOR_CONSUMER(_name, _dev_name, _supply)		        \
 	static struct regulator_consumer_supply _name##_consumers[] = {	\
-		{							\
-			.dev_name = _dev_name,				\
-			.supply = _supply,				\
-		},							\
+		REGULATOR_SUPPLY(_supply, _dev_name),			\
 	}
 
 REGULATOR_CONSUMER(ldo3, "reg-userspace-consumer.0", "vcc gps");

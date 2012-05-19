@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/input/navpoint.h>
 #include <linux/lcd.h>
 #include <linux/mfd/htc-egpio.h>
 #include <linux/mfd/asic3.h>
@@ -117,7 +118,7 @@ static unsigned long hx4700_pin_config[] __initdata = {
 	GPIO113_I2S_SYSCLK,
 
 	/* SSP 1 (NavPoint) */
-	GPIO23_SSP1_SCLK,
+	GPIO23_SSP1_SCLK_IN,
 	GPIO24_SSP1_SFRM,
 	GPIO25_SSP1_TXD,
 	GPIO26_SSP1_RXD,
@@ -132,6 +133,9 @@ static unsigned long hx4700_pin_config[] __initdata = {
 	GPIO12_GPIO | WAKEUP_ON_EDGE_RISE,	/* ASIC3_IRQ */
 	GPIO13_GPIO,	/* W3220_IRQ */
 	GPIO14_GPIO,	/* nWLAN_IRQ */
+
+	/* HX4700 specific output GPIOs */
+	GPIO102_GPIO | MFP_LPM_DRIVE_LOW,	/* SYNAPTICS_POWER_ON */
 
 	GPIO10_GPIO,	/* GSM_IRQ */
 	GPIO13_GPIO,	/* CPLD_IRQ */
@@ -184,6 +188,23 @@ static struct platform_device gpio_keys = {
 		.platform_data = &gpio_keys_data,
 	},
 	.id   = -1,
+};
+
+/*
+ * Synaptics NavPoint connected to SSP1
+ */
+
+static struct navpoint_platform_data navpoint_platform_data = {
+	.port	= 1,
+	.gpio	= GPIO102_HX4700_SYNAPTICS_POWER_ON,
+};
+
+static struct platform_device navpoint = {
+	.name	= "navpoint",
+	.id	= -1,
+	.dev = {
+		.platform_data = &navpoint_platform_data,
+	},
 };
 
 /*
@@ -685,12 +706,8 @@ static struct platform_device power_supply = {
  */
 
 static struct regulator_consumer_supply bq24022_consumers[] = {
-	{
-		.supply = "vbus_draw",
-	},
-	{
-		.supply = "ac_draw",
-	},
+	REGULATOR_SUPPLY("vbus_draw", NULL),
+	REGULATOR_SUPPLY("ac_draw", NULL),
 };
 
 static struct regulator_init_data bq24022_init_data = {
@@ -769,9 +786,8 @@ static struct platform_device strataflash = {
  * Maxim MAX1587A on PI2C
  */
 
-static struct regulator_consumer_supply max1587a_consumer = {
-	.supply = "vcc_core",
-};
+static struct regulator_consumer_supply max1587a_consumer =
+	REGULATOR_SUPPLY("vcc_core", NULL);
 
 static struct regulator_init_data max1587a_v3_info = {
 	.constraints = {
@@ -833,6 +849,7 @@ static struct platform_device audio = {
 static struct platform_device *devices[] __initdata = {
 	&asic3,
 	&gpio_keys,
+	&navpoint,
 	&backlight,
 	&w3220,
 	&hx4700_lcd,

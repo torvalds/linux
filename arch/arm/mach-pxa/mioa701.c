@@ -582,9 +582,7 @@ static struct wm97xx_pdata mioa701_wm97xx_pdata = {
  * Voltage regulation
  */
 static struct regulator_consumer_supply max1586_consumers[] = {
-	{
-		.supply = "vcc_core",
-	}
+	REGULATOR_SUPPLY("vcc_core", NULL),
 };
 
 static struct regulator_init_data max1586_v3_info = {
