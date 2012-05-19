@@ -2189,36 +2189,20 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		}
 	}
 	unconf = find_unconfirmed_client_by_str(dname, strhashval);
+	if (unconf)
+		expire_client(unconf);
 	status = nfserr_jukebox;
+	new = create_client(clname, dname, rqstp, &clverifier);
+	if (new == NULL)
+		goto out;
 	if (!conf) {
 		/* case 4: placed first, because it's the normal case */
-		if (unconf)
-			expire_client(unconf);
-		new = create_client(clname, dname, rqstp, &clverifier);
-		if (new == NULL)
-			goto out;
 		gen_clid(new);
 	} else if (same_verf(&conf->cl_verifier, &clverifier)) {
 		/* case 1: probable callback update */
-		if (unconf) {
-			/* Note this is removing unconfirmed {*x***},
-			 * which is stronger than RFC recommended {vxc**}.
-			 * This has the advantage that there is at most
-			 * one {*x***} in either list at any time.
-			 */
-			expire_client(unconf);
-		}
-		new = create_client(clname, dname, rqstp, &clverifier);
-		if (new == NULL)
-			goto out;
 		copy_clid(new, conf);
 	} else { /* conf && !same_verf(): */
 		/* cases 2, 3: probable client reboot: */
-		if (unconf)
-			expire_client(unconf);
-		new = create_client(clname, dname, rqstp, &clverifier);
-		if (new == NULL)
-			goto out;
 		gen_clid(new);
 	}
 	/*
