@@ -170,7 +170,8 @@ enum sony_nc_rfkill {
 static int sony_rfkill_handle;
 static struct rfkill *sony_rfkill_devices[N_SONY_RFKILL];
 static int sony_rfkill_address[N_SONY_RFKILL] = {0x300, 0x500, 0x700, 0x900};
-static void sony_nc_rfkill_setup(struct acpi_device *device);
+static int sony_nc_rfkill_setup(struct acpi_device *device,
+		unsigned int handle);
 static void sony_nc_rfkill_cleanup(void);
 static void sony_nc_rfkill_update(void);
 
@@ -1313,7 +1314,10 @@ static void sony_nc_function_setup(struct acpi_device *device,
 			break;
 		case 0x0124:
 		case 0x0135:
-			sony_nc_rfkill_setup(device);
+			result = sony_nc_rfkill_setup(device, handle);
+			if (result)
+				pr_err("couldn't set up rfkill support (%d)\n",
+						result);
 			break;
 		case 0x0137:
 		case 0x0143:
@@ -1577,37 +1581,46 @@ static void sony_nc_rfkill_update(void)
 	}
 }
 
-static void sony_nc_rfkill_setup(struct acpi_device *device)
+static int sony_nc_rfkill_setup(struct acpi_device *device,
+		unsigned int handle)
 {
 	u64 offset;
 	int i;
 	unsigned char buffer[32] = { 0 };
 
-	offset = sony_find_snc_handle(0x124);
-	if (offset == -1) {
-		offset = sony_find_snc_handle(0x135);
-		if (offset == -1)
-			return;
-		else
-			sony_rfkill_handle = 0x135;
-	} else
-		sony_rfkill_handle = 0x124;
-	dprintk("Found rkfill handle: 0x%.4x\n", sony_rfkill_handle);
+	offset = sony_find_snc_handle(handle);
+	sony_rfkill_handle = handle;
 
 	i = sony_nc_buffer_call(sony_nc_acpi_handle, "SN06", &offset, buffer,
 			32);
 	if (i < 0)
-		return;
+		return i;
 
-	/* the buffer is filled with magic numbers describing the devices
-	 * available, 0xff terminates the enumeration
+	/* The buffer is filled with magic numbers describing the devices
+	 * available, 0xff terminates the enumeration.
+	 * Known codes:
+	 *	0x00 WLAN
+	 *	0x10 BLUETOOTH
+	 *	0x20 WWAN GPRS-EDGE
+	 *	0x21 WWAN HSDPA
+	 *	0x22 WWAN EV-DO
+	 *	0x23 WWAN GPS
+	 *	0x25 Gobi WWAN no GPS
+	 *	0x26 Gobi WWAN + GPS
+	 *	0x28 Gobi WWAN no GPS
+	 *	0x29 Gobi WWAN + GPS
+	 *	0x30 WIMAX
+	 *	0x50 Gobi WWAN no GPS
+	 *	0x51 Gobi WWAN + GPS
+	 *	0x70 no SIM card slot
+	 *	0x71 SIM card slot
 	 */
 	for (i = 0; i < ARRAY_SIZE(buffer); i++) {
 
 		if (buffer[i] == 0xff)
 			break;
 
-		dprintk("Radio devices, looking at 0x%.2x\n", buffer[i]);
+		dprintk("Radio devices, found 0x%.2x\n", buffer[i]);
 
 		if (buffer[i] == 0 && !sony_rfkill_devices[SONY_WIFI])
 			sony_nc_setup_rfkill(device, SONY_WIFI);
@@ -1615,13 +1628,15 @@ static void sony_nc_rfkill_setup(struct acpi_device *device)
 		if (buffer[i] == 0x10 && !sony_rfkill_devices[SONY_BLUETOOTH])
 			sony_nc_setup_rfkill(device, SONY_BLUETOOTH);
 
-		if ((0xf0 & buffer[i]) == 0x20 &&
+		if (((0xf0 & buffer[i]) == 0x20 ||
+					(0xf0 & buffer[i]) == 0x50) &&
 				!sony_rfkill_devices[SONY_WWAN])
 			sony_nc_setup_rfkill(device, SONY_WWAN);
 
 		if (buffer[i] == 0x30 && !sony_rfkill_devices[SONY_WIMAX])
 			sony_nc_setup_rfkill(device, SONY_WIMAX);
 	}
+	return 0;
 }
 
 /* Keyboard backlight feature */
