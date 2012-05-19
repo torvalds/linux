@@ -2229,59 +2229,49 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 
 	if (STALE_CLIENTID(clid))
 		return nfserr_stale_clientid;
-	/* 
-	 * XXX The Duplicate Request Cache (DRC) has been checked (??)
-	 * We get here on a DRC miss.
-	 */
-
 	nfs4_lock_state();
 
 	conf = find_confirmed_client(clid);
 	unconf = find_unconfirmed_client(clid);
-
+	/*
+	 * We try hard to give out unique clientid's, so if we get an
+	 * attempt to confirm the same clientid with a different cred,
+	 * there's a bug somewhere.  Let's charitably assume it's our
+	 * bug.
+	 */
+	status = nfserr_serverfault;
+	if (unconf && !same_creds(&unconf->cl_cred, &rqstp->rq_cred))
+		goto out;
+	if (conf && !same_creds(&conf->cl_cred, &rqstp->rq_cred))
+		goto out;
 	/* cases below refer to rfc 3530 section 14.2.34: */
-	status = nfserr_clid_inuse;
 	if (conf && unconf && same_verf(&confirm, &unconf->cl_confirm)) {
 		/* case 1: callback update */
-		if (!same_creds(&conf->cl_cred, &rqstp->rq_cred))
-			status = nfserr_clid_inuse;
-		else {
-			nfsd4_change_callback(conf, &unconf->cl_cb_conn);
-			nfsd4_probe_callback(conf);
-			expire_client(unconf);
-			status = nfs_ok;
-		}
+		nfsd4_change_callback(conf, &unconf->cl_cb_conn);
+		nfsd4_probe_callback(conf);
+		expire_client(unconf);
+		status = nfs_ok;
 	} else if (conf && !unconf) {
-		/* case 2: probable retransmit: */
-		if (!same_creds(&conf->cl_cred, &rqstp->rq_cred))
-			status = nfserr_clid_inuse;
-		else
-			status = nfs_ok;
+		status = nfs_ok;
 	} else if (!conf && unconf
 			&& same_verf(&unconf->cl_confirm, &confirm)) {
 		/* case 3: normal case; new or rebooted client */
-		if (!same_creds(&unconf->cl_cred, &rqstp->rq_cred)) {
-			status = nfserr_clid_inuse;
-		} else {
-			unsigned int hash =
-				clientstr_hashval(unconf->cl_recdir);
-			conf = find_confirmed_client_by_str(unconf->cl_recdir,
-							    hash);
-			if (conf) {
-				nfsd4_client_record_remove(conf);
-				expire_client(conf);
-			}
-			move_to_confirmed(unconf);
-			conf = unconf;
-			nfsd4_probe_callback(conf);
-			status = nfs_ok;
+		unsigned int hash = clientstr_hashval(unconf->cl_recdir);
+		conf = find_confirmed_client_by_str(unconf->cl_recdir, hash);
+		if (conf) {
+			nfsd4_client_record_remove(conf);
+			expire_client(conf);
 		}
+		move_to_confirmed(unconf);
+		conf = unconf;
+		nfsd4_probe_callback(conf);
+		status = nfs_ok;
 	} else if ((!conf || !same_verf(&conf->cl_confirm, &confirm))
 	    && (!unconf || !same_verf(&unconf->cl_confirm, &confirm))) {
 		/* case 4: client hasn't noticed we rebooted yet? */
 		status = nfserr_stale_clientid;
 	}
-
+out:
 	nfs4_unlock_state();
 	return status;
 }
