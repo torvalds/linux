@@ -334,7 +334,7 @@ static int dbgp_control_msg(unsigned devnum, int requesttype,
 	int ret;
 
 	read = (requesttype & USB_DIR_IN) != 0;
-	if (size > (read ? DBGP_MAX_PACKET:0))
+	if (size > (read ? DBGP_MAX_PACKET : 0))
 		return -1;
 
 	/* Compute the control message */
