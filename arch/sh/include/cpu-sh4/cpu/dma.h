@@ -14,13 +14,4 @@
 #define SH_DMAC_BASE0	0xffa00000
 #define SH_DMAC_BASE1	0xffa00070
 
-/* Definitions for the SuperH DMAC */
-#define TM_BURST	0x00000080
-#define TS_8		0x00000010
-#define TS_16		0x00000020
-#define TS_32		0x00000030
-#define TS_64		0x00000000
-
-#define DMAOR_COD	0x00000008
-
 #endif /* __ASM_CPU_SH4_DMA_H */

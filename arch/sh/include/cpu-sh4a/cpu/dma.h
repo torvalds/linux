@@ -77,9 +77,4 @@
 #define SH_DMARS_BASE0	0xFC809000
 #endif
 
-#define REQ_HE		0x000000C0
-#define REQ_H		0x00000080
-#define REQ_LE		0x00000040
-#define TM_BURST	0x00000020
-
 #endif /* __ASM_SH_CPU_SH4_DMA_SH7780_H */

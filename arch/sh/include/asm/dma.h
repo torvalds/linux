@@ -15,7 +15,6 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/device.h>
-#include <cpu/dma.h>
 #include <asm-generic/dma.h>
 
 #ifdef CONFIG_NR_DMA_CHANNELS

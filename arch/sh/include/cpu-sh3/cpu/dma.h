@@ -15,11 +15,4 @@
 #define DMTE0_IRQ	evt2irq(0x800)
 #define DMTE4_IRQ	evt2irq(0xb80)
 
-/* Definitions for the SuperH DMAC */
-#define TM_BURST	0x00000020
-#define TS_8		0x00000000
-#define TS_16		0x00000008
-#define TS_32		0x00000010
-#define TS_128		0x00000018
-
 #endif /* __ASM_CPU_SH3_DMA_H */
