@@ -2344,9 +2344,8 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			nfsd4_probe_callback(conf);
 			status = nfs_ok;
 		}
-	} else if ((!conf || (conf && !same_verf(&conf->cl_confirm, &confirm)))
-	    && (!unconf || (unconf && !same_verf(&unconf->cl_confirm,
-				    				&confirm)))) {
+	} else if ((!conf || !same_verf(&conf->cl_confirm, &confirm))
+	    && (!unconf || !same_verf(&unconf->cl_confirm, &confirm))) {
 		/*
 		 * RFC 3530 14.2.34 CASE 4:
 		 * Client probably hasn't noticed that we rebooted yet.
