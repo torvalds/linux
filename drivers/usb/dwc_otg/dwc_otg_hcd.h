@@ -379,6 +379,8 @@ typedef struct dwc_otg_hcd {
 	/* Tasket to do a reset */
 	struct tasklet_struct   *reset_tasklet;
 
+	spinlock_t global_lock;
+
 #ifdef DEBUG
 	uint32_t 		frrem_samples;
 	uint64_t 		frrem_accum;
@@ -498,7 +500,7 @@ static inline void dwc_otg_hcd_qh_remove_and_free (dwc_otg_hcd_t *_hcd,
  * @return Returns the memory allocate or NULL on error. */
 static inline dwc_otg_qh_t *dwc_otg_hcd_qh_alloc (void)
 {
-	return (dwc_otg_qh_t *) kmalloc (sizeof(dwc_otg_qh_t), GFP_KERNEL);
+	return (dwc_otg_qh_t *) kmalloc (sizeof(dwc_otg_qh_t), GFP_ATOMIC);//GFP_KERNEL
 }
 
 extern dwc_otg_qtd_t *dwc_otg_hcd_qtd_create (struct urb *urb);
@@ -509,7 +511,7 @@ extern int dwc_otg_hcd_qtd_add (dwc_otg_qtd_t *qtd, dwc_otg_hcd_t *dwc_otg_hcd);
  * @return Returns the memory allocate or NULL on error. */
 static inline dwc_otg_qtd_t *dwc_otg_hcd_qtd_alloc (void)
 {
-	return (dwc_otg_qtd_t *) kmalloc (sizeof(dwc_otg_qtd_t), GFP_KERNEL);
+	return (dwc_otg_qtd_t *) kmalloc (sizeof(dwc_otg_qtd_t), GFP_ATOMIC);//GFP_KERNEL
 }
 
 /** Frees the memory for a QTD structure.  QTD should already be removed from

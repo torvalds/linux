@@ -392,7 +392,6 @@ static void kill_urbs_in_qh_list(dwc_otg_hcd_t *_hcd, struct list_head *_qh_list
 	struct list_head	*qtd_item;
 	dwc_otg_qtd_t		*qtd;
 	struct urb 		*urb;
-	struct usb_host_endpoint *ep;
 
 	list_for_each(qh_item, _qh_list) {
 		qh = list_entry(qh_item, dwc_otg_qh_t, qh_list_entry);
@@ -401,22 +400,11 @@ static void kill_urbs_in_qh_list(dwc_otg_hcd_t *_hcd, struct list_head *_qh_list
 		     qtd_item = qh->qtd_list.next) {
 			qtd = list_entry(qtd_item, dwc_otg_qtd_t, qtd_list_entry);
 			if (qtd->urb != NULL) {
-			urb = qtd->urb;
-			ep = qtd->urb->ep;
+    			urb = qtd->urb;
 			    // 20110415 yk 
 			    // urb will be re entry to ep->urb_list if use ETIMEOUT
-				dwc_otg_hcd_complete_urb(_hcd, qtd->urb,
-							 -ETIMEDOUT);//ESHUTDOWN
-							 
-			//if(!list_empty(&ep->urb_list))
-    		DWC_PRINT("%s: urb %p, device %d, ep %d %s, status=%d\n",
-    			  __func__, urb, usb_pipedevice(urb->pipe),
-    			  usb_pipeendpoint(urb->pipe),
-    			  usb_pipein(urb->pipe) ? "IN" : "OUT", urb->unlinked);
-    			  
-		if (!urb->unlinked)
-		    urb->unlinked = -ESHUTDOWN;
-		    
+				dwc_otg_hcd_complete_urb(_hcd, urb,
+							 -ESHUTDOWN);//ETIMEDOUT,ENOENT
 			}
 			dwc_otg_hcd_qtd_remove_and_free(qtd);
 		}
@@ -486,9 +474,11 @@ static int32_t dwc_otg_hcd_disconnect_cb( void *_p )
                 
 		dwc_otg_disable_host_interrupts( dwc_otg_hcd->core_if );
         }
-                
+               
+	spin_lock(&dwc_otg_hcd->global_lock); 
 	/* Respond with an error status to all URBs in the schedule. */
 	kill_all_urbs(dwc_otg_hcd);
+	spin_unlock(&dwc_otg_hcd->global_lock); 
 
 	if (dwc_otg_is_host_mode(dwc_otg_hcd->core_if)) {
 		/* Clean up any host channels that were in use. */
@@ -694,6 +684,9 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 
 	/* Initialize the DWC OTG HCD. */
 	dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
+
+	spin_lock_init(&dwc_otg_hcd->global_lock);
+
 	dwc_otg_hcd->core_if = otg_dev->core_if;
 	otg_dev->hcd = dwc_otg_hcd;
     
@@ -884,6 +877,8 @@ int __devinit host11_hcd_init(struct device *dev)
 #else
         dwc_otg_hcd->host_enabled = 0;
 #endif
+
+	spin_lock_init(&dwc_otg_hcd->global_lock);
 
 
         /* Register the HCD CIL Callbacks */
@@ -1078,6 +1073,7 @@ int __devinit host20_hcd_init(struct device *dev)
         dwc_otg_hcd->host_enabled = 0;
 #endif
 
+	spin_lock_init(&dwc_otg_hcd->global_lock);
 
         /* Register the HCD CIL Callbacks */
         dwc_otg_cil_register_hcd_callbacks(otg_dev->core_if, 
@@ -1243,10 +1239,12 @@ int dwc_otg_hcd_start(struct usb_hcd *_hcd)
 {
     dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (_hcd);
     dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
+	unsigned long flags;
 	
   	struct usb_bus *bus;
 
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD START\n");
+	local_irq_save(flags);
 
 	bus = hcd_to_bus(_hcd);
 	_hcd->state = HC_STATE_RUNNING;
@@ -1285,6 +1283,7 @@ int dwc_otg_hcd_start(struct usb_hcd *_hcd)
 	}
 	hcd_reinit(dwc_otg_hcd);
 out:
+    local_irq_restore(flags);
 
 	return 0;
 }
@@ -1502,20 +1501,20 @@ int dwc_otg_hcd_urb_enqueue(struct usb_hcd *_hcd,
 	int retval;
 	dwc_otg_hcd_t * dwc_otg_hcd = hcd_to_dwc_otg_hcd(_hcd);
 	dwc_otg_qtd_t * qtd;
-#if 0
-	retval = usb_hcd_link_urb_to_ep(_hcd, _urb);
-	if (retval)
-	{
-		DWC_PRINT("%s, usb_hcd_link_urb_to_ep error\n", __func__);
-		return retval;
-	}
-#endif
+
+    if(atomic_read(&_urb->use_count)>1){
+        retval = -EPERM;
+        dump_stack();
+        DWC_PRINT("%s urb %p already in queue, qtd %p, count%d\n", __func__, _urb, _urb->hcpriv, atomic_read(&_urb->use_count));
+        goto out;
+    }
 #ifdef DEBUG
 	    if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
 		dump_urb_info(_urb, "dwc_otg_hcd_urb_enqueue");
 	}
 #endif	/*  */
     if (!dwc_otg_hcd->flags.b.port_connect_status) {
+		DWC_ERROR("DWC OTG No longer connected\n");
 	    /* No longer connected. */
 		retval =  -ENODEV;
 		goto out;
@@ -1544,7 +1543,6 @@ int dwc_otg_hcd_urb_enqueue(struct usb_hcd *_hcd,
 			 DWC_SOF_INTR_MASK);
 #endif
 out:
-
 	return retval;
 }
 
@@ -1556,26 +1554,33 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 	dwc_otg_hcd_t * dwc_otg_hcd;
 	dwc_otg_qtd_t * urb_qtd;
 	dwc_otg_qh_t * qh;
-	struct usb_host_endpoint *_ep = _urb->ep;//dwc_urb_to_endpoint(_urb);
-	//int retval;
+	struct usb_host_endpoint *_ep;
 
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD URB Dequeue\n");
-	local_irq_save(flags);
-	urb_qtd = (dwc_otg_qtd_t *) _urb->hcpriv;
+	
+	if(((uint32_t)_urb&0xf0000000)==0)
+		DWC_PRINT("%s urb is %p\n", __func__, _urb);
+		
+    _ep = dwc_urb_to_endpoint(_urb);
 	if(_ep==NULL)
 	{
 		DWC_PRINT("%s=====================================================\n",__func__);
 		DWC_PRINT("urb->ep is null\n");
 		return -1;
 	}
-	qh = (dwc_otg_qh_t *) _ep->hcpriv;
-	if(urb_qtd == NULL)
+		
+	urb_qtd = (dwc_otg_qtd_t *) _urb->hcpriv;
+	if(((uint32_t)urb_qtd&0xf0000000) == 0)
 	{
-		DWC_PRINT("%s,urb_qtd is null\n",__func__);
-		goto urb_qtd_null;
-		//return -1;
+		DWC_PRINT("%s,urb_qtd is %p urb %p, count %d\n",__func__, urb_qtd, _urb, atomic_read(&_urb->use_count));
+        if((atomic_read(&_urb->use_count)) == 0)
+            return 0;
+        else
+		    return -1;
 	}
+	qh = (dwc_otg_qh_t *) _ep->hcpriv;
 	dwc_otg_hcd = hcd_to_dwc_otg_hcd(_hcd);
+	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 
 #ifdef DEBUG
     if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
@@ -1590,6 +1595,7 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
     if (urb_qtd == qh->qtd_in_process) {
 	    /* The QTD is in process (it has been assigned to a channel). */
 	    if (dwc_otg_hcd->flags.b.port_connect_status) {
+            DWC_PRINT("%s urb %p in process\n", __func__, _urb);
 
 		    /*
 		     * If still connected (i.e. in host mode), halt the
@@ -1616,10 +1622,8 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 		dwc_otg_hcd_qh_remove(dwc_otg_hcd, qh);
 	}
 	
-	local_irq_restore(flags);
-urb_qtd_null:
 	_urb->hcpriv = NULL;
-	//usb_hcd_unlink_urb_from_ep(_hcd, _urb);
+	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
     /* Higher layer software sets URB status. */
 	usb_hcd_giveback_urb(_hcd, _urb, _status);
 	if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
@@ -1637,8 +1641,11 @@ void dwc_otg_hcd_endpoint_disable(struct usb_hcd *_hcd,
 				  struct usb_host_endpoint *_ep)
 				  
 {
+	unsigned long flags;
 	dwc_otg_qh_t *qh;
 	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(_hcd);
+
+	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD EP DISABLE: _bEndpointAddress=0x%02x, "
 		    "endpoint=%d\n", _ep->desc.bEndpointAddress,
@@ -1658,6 +1665,8 @@ void dwc_otg_hcd_endpoint_disable(struct usb_hcd *_hcd,
 		_ep->hcpriv = NULL;
 	}
 
+	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
+
 	return;
 }
 
@@ -1668,8 +1677,17 @@ void dwc_otg_hcd_endpoint_disable(struct usb_hcd *_hcd,
  * This function is called by the USB core when an interrupt occurs */
 irqreturn_t dwc_otg_hcd_irq(struct usb_hcd *_hcd)
 {
+	irqreturn_t result;
+	unsigned long flags;
 	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (_hcd);
-	return IRQ_RETVAL(dwc_otg_hcd_handle_intr(dwc_otg_hcd));
+
+	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
+
+	result = IRQ_RETVAL(dwc_otg_hcd_handle_intr(dwc_otg_hcd));
+
+	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
+
+	return result;
 }
 
 /** Creates Status Change bitmap for the root hub and root port. The bitmap is
@@ -2228,6 +2246,7 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
 			    u16 _wLength)
 {
 	int retval = 0;
+	unsigned long flags;
 
         dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (_hcd);
         dwc_otg_core_if_t *core_if = hcd_to_dwc_otg_hcd (_hcd)->core_if;
@@ -2235,6 +2254,7 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
 	hprt0_data_t hprt0 = {.d32 = 0};
 
 	uint32_t port_status;
+	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 
 	switch (_typeReq) {
 	case ClearHubFeature:
@@ -2491,11 +2511,13 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
                                 hprt0.b.prtrst = 1;
                                 dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
                         }
+            spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 			/* Clear reset bit in 10ms (FS/LS) or 50ms (HS) */
 			// kever @rk 20110712
 			// can not use mdelay(60) while irq disable
 			//MDELAY (60);
 			msleep(60);
+            spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 			hprt0.b.prtrst = 0;
 			dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
 			break;
@@ -2628,6 +2650,7 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
 		break;
 	}
 
+	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 	return retval;
 }
 
@@ -3240,7 +3263,9 @@ __acquires(_hcd->lock)
 
 	_urb->status = _status;
 	_urb->hcpriv = NULL;
+	spin_unlock(&_hcd->global_lock);
 	usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(_hcd), _urb, _status);
+	spin_lock(&_hcd->global_lock);
 }
 
 void dwc_otg_clear_halt(struct urb *_urb)

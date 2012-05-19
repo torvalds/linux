@@ -145,7 +145,6 @@ void dwc_otg_hcd_qh_init(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, struct urb *_ur
 	_qh->maxp = usb_maxpacket(_urb->dev, _urb->pipe, !(usb_pipein(_urb->pipe)));
 	INIT_LIST_HEAD(&_qh->qtd_list);
 	INIT_LIST_HEAD(&_qh->qh_list_entry);
-	_qh->channel = NULL;
 
 	/* FS/LS Enpoint on HS Hub 
 	 * NOT virtual root hub */
@@ -645,7 +644,6 @@ int dwc_otg_hcd_qtd_add (dwc_otg_qtd_t *_qtd,
 
 	struct urb *urb = _qtd->urb;
 
-
 	/*
 	 * Get the QH which holds the QTD-list to insert to. Create QH if it
 	 * doesn't exist.
@@ -660,15 +658,15 @@ int dwc_otg_hcd_qtd_add (dwc_otg_qtd_t *_qtd,
 		}
 		ep->hcpriv = qh;
 	}
-
-	local_irq_save(flags);	
+    spin_lock_irqsave(&_dwc_otg_hcd->global_lock, flags);
 	retval = dwc_otg_hcd_qh_add(_dwc_otg_hcd, qh);
 	if (retval == 0) {
 		list_add_tail(&_qtd->qtd_list_entry, &qh->qtd_list);
 	}
 
+    spin_unlock_irqrestore(&_dwc_otg_hcd->global_lock, flags);
+
  done:
-	local_irq_restore(flags);
 	return retval;
 }
 

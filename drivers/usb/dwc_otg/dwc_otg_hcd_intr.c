@@ -482,17 +482,17 @@ int32_t dwc_otg_hcd_handle_port_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 int32_t dwc_otg_hcd_handle_hc_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 {
 	int retval = 0;
-	haint_data_t haint;
+	volatile haint_data_t haint;
 	int hcnum;
 	struct list_head 	*qh_entry;
 	dwc_otg_qh_t 		*qh;
+	int i;
 
 	/* Clear appropriate bits in HCINTn to clear the interrupt bit in
 	 * GINTSTS */
 
 	haint.d32 = dwc_otg_read_host_all_channels_intr(_dwc_otg_hcd->core_if);
 #if 0
-	int i;
 	for (i = 0; i < _dwc_otg_hcd->core_if->core_params->host_channels; i++) {
 		if (haint.b2.chint & (1 << i))
 			retval |= dwc_otg_hcd_handle_hc_n_intr(_dwc_otg_hcd, i);
@@ -511,23 +511,31 @@ int32_t dwc_otg_hcd_handle_hc_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 		qh_entry = qh_entry->next;
 		if(qh->qh_state != QH_QUEUED)
 		continue;
+		if(qh->channel == NULL){
+		    DWC_PRINT("%s channel NULL 1\n", __func__);
+		    break;
+		}
 		hcnum = qh->channel->hc_num;
 		if (haint.b2.chint & (1 << hcnum)) {
 			retval |= dwc_otg_hcd_handle_hc_n_intr (_dwc_otg_hcd, hcnum);
 		}
 	}
 	
+	haint.d32 = dwc_otg_read_host_all_channels_intr(_dwc_otg_hcd->core_if);
 	qh_entry = _dwc_otg_hcd->non_periodic_sched_active.next;
 	 while (&_dwc_otg_hcd->non_periodic_sched_active != qh_entry){
 		qh = list_entry(qh_entry, dwc_otg_qh_t, qh_list_entry);
 		qh_entry = qh_entry->next;
+		if(qh->channel == NULL){
+		    DWC_PRINT("%s channel NULL 2\n", __func__);
+		    break;
+		}
 		hcnum = qh->channel->hc_num;
 		if (haint.b2.chint & (1 << hcnum)) {
 			retval |= dwc_otg_hcd_handle_hc_n_intr (_dwc_otg_hcd, hcnum);
 		}
 	}
 	haint.d32 = dwc_otg_read_host_all_channels_intr(_dwc_otg_hcd->core_if);
-	int i;
 	for (i = 0; i < _dwc_otg_hcd->core_if->core_params->host_channels; i++) {
 		if (haint.b2.chint & (1 << i))
 			retval |= dwc_otg_hcd_handle_hc_n_intr(_dwc_otg_hcd, i);
@@ -814,10 +822,15 @@ static void release_channel(dwc_otg_hcd_t *_hcd,
 	int free_qtd;
 	int continue_trans = 1;
 
-    if((!_qtd)|(_qtd->urb == NULL))
-    {
+    if(((uint32_t) _qtd & 0xf0000000)==0){
+        DWC_PRINT("%s qtd %p, status %d\n", __func__, _qtd, _halt_status);
         goto cleanup;
     }
+    if(((uint32_t) _qtd->urb & 0xf0000000)==0){
+        DWC_PRINT("%s urb %p, status %d\n", __func__, _qtd->urb, _halt_status);
+        goto cleanup;
+    }
+        
 	DWC_DEBUGPL(DBG_HCDV, "  %s: channel %d, halt_status %d\n",
 		    __func__, _hc->hc_num, _halt_status);
 	switch (_halt_status) {
@@ -1459,6 +1472,7 @@ static int32_t handle_hc_babble_intr(dwc_otg_hcd_t *_hcd,
 {
 	DWC_DEBUGPL(DBG_HCD, "--Host Channel %d Interrupt: "
 		    "Babble Error--\n", _hc->hc_num);
+    DWC_PRINT("%s \n", __func__);
 	if (_hc->ep_type != DWC_OTG_EP_TYPE_ISOC) {
 		dwc_otg_hcd_complete_urb(_hcd, _qtd->urb, -EOVERFLOW);
 		halt_channel(_hcd, _hc, _qtd, DWC_OTG_HC_XFER_BABBLE_ERR);
@@ -1555,6 +1569,7 @@ static int32_t handle_hc_xacterr_intr(dwc_otg_hcd_t *_hcd,
     
     if((_qtd==NULL)||(_qtd->urb == NULL))
     {
+		DWC_PRINT("%s qtd->urb %p NULL\n", __func__, _qtd);
         goto out;
     }
 	switch (usb_pipetype(_qtd->urb->pipe)) {
@@ -1874,7 +1889,6 @@ int32_t dwc_otg_hcd_handle_hc_n_intr (dwc_otg_hcd_t *_dwc_otg_hcd, uint32_t _num
 	hc = _dwc_otg_hcd->hc_ptr_array[_num];
 	hc_regs = _dwc_otg_hcd->core_if->host_if->hc_regs[_num];
 	qtd = list_entry(hc->qh->qtd_list.next, dwc_otg_qtd_t, qtd_list_entry);
-
 	hcint.d32 = dwc_read_reg32(&hc_regs->hcint);
 	hcintmsk.d32 = dwc_read_reg32(&hc_regs->hcintmsk);
 	DWC_DEBUGPL(DBG_HCDV, "  hcint 0x%08x, hcintmsk 0x%08x, hcint&hcintmsk 0x%08x\n",

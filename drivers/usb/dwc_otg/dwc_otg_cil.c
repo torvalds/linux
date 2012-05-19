@@ -904,7 +904,6 @@ void dwc_otg_core_host_init(dwc_otg_core_if_t *_core_if)
 	fifosize_data_t		ptxfifosize;
 	int			i;
 	hcchar_data_t		hcchar;
-	hcfg_data_t		hcfg;
 	dwc_otg_hc_regs_t	*hc_regs;
 	int			num_channels;
 	gotgctl_data_t	gotgctl = {.d32 = 0};

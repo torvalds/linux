@@ -1583,8 +1583,8 @@ void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	/* pass ownership to the completion handler */
 	urb->status = status;
-	urb->complete (urb);
 	atomic_dec (&urb->use_count);
+	urb->complete (urb);
 	if (unlikely(atomic_read(&urb->reject)))
 		wake_up (&usb_kill_urb_queue);
 	usb_put_urb (urb);
