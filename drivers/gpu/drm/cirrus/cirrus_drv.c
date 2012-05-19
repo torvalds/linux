@@ -84,8 +84,10 @@ static struct pci_driver cirrus_pci_driver = {
 
 static int __init cirrus_init(void)
 {
+#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && cirrus_modeset == -1)
 		return -EINVAL;
+#endif
 
 	if (cirrus_modeset == 0)
 		return -EINVAL;
