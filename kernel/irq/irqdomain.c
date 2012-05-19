@@ -1,3 +1,5 @@
+#define pr_fmt(fmt)  "irq: " fmt
+
 #include <linux/debugfs.h>
 #include <linux/hardirq.h>
 #include <linux/interrupt.h>
@@ -67,7 +69,7 @@ static void irq_domain_add(struct irq_domain *domain)
 	mutex_lock(&irq_domain_mutex);
 	list_add(&domain->link, &irq_domain_list);
 	mutex_unlock(&irq_domain_mutex);
-	pr_debug("irq: Allocated domain of type %d @0x%p\n",
+	pr_debug("Allocated domain of type %d @0x%p\n",
 		 domain->revmap_type, domain);
 }
 
@@ -117,7 +119,7 @@ void irq_domain_remove(struct irq_domain *domain)
 
 	mutex_unlock(&irq_domain_mutex);
 
-	pr_debug("irq: Removed domain of type %d @0x%p\n",
+	pr_debug("Removed domain of type %d @0x%p\n",
 		 domain->revmap_type, domain);
 
 	irq_domain_free(domain);
@@ -321,7 +323,7 @@ EXPORT_SYMBOL_GPL(irq_find_host);
  */
 void irq_set_default_host(struct irq_domain *domain)
 {
-	pr_debug("irq: Default domain set to @0x%p\n", domain);
+	pr_debug("Default domain set to @0x%p\n", domain);
 
 	irq_default_domain = domain;
 }
@@ -335,7 +337,7 @@ static int irq_setup_virq(struct irq_domain *domain, unsigned int virq,
 	irq_data->hwirq = hwirq;
 	irq_data->domain = domain;
 	if (domain->ops->map(domain, virq, hwirq)) {
-		pr_debug("irq: -> mapping failed, freeing\n");
+		pr_debug("irq-%i==>hwirq-0x%lx mapping failed\n", virq, hwirq);
 		irq_data->domain = NULL;
 		irq_data->hwirq = 0;
 		return -1;
@@ -366,7 +368,7 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 
 	virq = irq_alloc_desc_from(1, 0);
 	if (!virq) {
-		pr_debug("irq: create_direct virq allocation failed\n");
+		pr_debug("create_direct virq allocation failed\n");
 		return 0;
 	}
 	if (virq >= domain->revmap_data.nomap.max_irq) {
@@ -375,7 +377,7 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 		irq_free_desc(virq);
 		return 0;
 	}
-	pr_debug("irq: create_direct obtained virq %d\n", virq);
+	pr_debug("create_direct obtained virq %d\n", virq);
 
 	if (irq_setup_virq(domain, virq, virq)) {
 		irq_free_desc(virq);
@@ -402,23 +404,23 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 	unsigned int hint;
 	int virq;
 
-	pr_debug("irq: irq_create_mapping(0x%p, 0x%lx)\n", domain, hwirq);
+	pr_debug("irq_create_mapping(0x%p, 0x%lx)\n", domain, hwirq);
 
 	/* Look for default domain if nececssary */
 	if (domain == NULL)
 		domain = irq_default_domain;
 	if (domain == NULL) {
-		printk(KERN_WARNING "irq_create_mapping called for"
-		       " NULL domain, hwirq=%lx\n", hwirq);
+		pr_warning("irq_create_mapping called for"
+			   " NULL domain, hwirq=%lx\n", hwirq);
 		WARN_ON(1);
 		return 0;
 	}
-	pr_debug("irq: -> using domain @%p\n", domain);
+	pr_debug("-> using domain @%p\n", domain);
 
 	/* Check if mapping already exists */
 	virq = irq_find_mapping(domain, hwirq);
 	if (virq) {
-		pr_debug("irq: -> existing mapping on virq %d\n", virq);
+		pr_debug("-> existing mapping on virq %d\n", virq);
 		return virq;
 	}
 
@@ -434,7 +436,7 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 	if (virq <= 0)
 		virq = irq_alloc_desc_from(1, 0);
 	if (virq <= 0) {
-		pr_debug("irq: -> virq allocation failed\n");
+		pr_debug("-> virq allocation failed\n");
 		return 0;
 	}
 
@@ -444,7 +446,7 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 		return 0;
 	}
 
-	pr_debug("irq: irq %lu on domain %s mapped to virtual irq %u\n",
+	pr_debug("irq %lu on domain %s mapped to virtual irq %u\n",
 		hwirq, domain->of_node ? domain->of_node->full_name : "null", virq);
 
 	return virq;
@@ -473,8 +475,8 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 		if (intsize > 0)
 			return intspec[0];
 #endif
-		printk(KERN_WARNING "irq: no irq domain found for %s !\n",
-		       controller->full_name);
+		pr_warning("no irq domain found for %s !\n",
+			   controller->full_name);
 		return 0;
 	}
 
