@@ -41,6 +41,12 @@ config ARCH_R8A7779
 	select ARM_GIC
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 
+config ARCH_EMEV2
+	bool "Emma Mobile EV2"
+	select CPU_V7
+	select ARM_GIC
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+
 comment "SH-Mobile Board Type"
 
 config MACH_G3EVM
@@ -97,6 +103,11 @@ config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
 	select ARCH_REQUIRE_GPIOLIB
+
+config MACH_KZM9D
+	bool "KZM9D board"
+	depends on ARCH_EMEV2
+	select USE_OF
 
 comment "SH-Mobile System Configuration"
 
