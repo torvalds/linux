@@ -2195,16 +2195,11 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	new = create_client(clname, dname, rqstp, &clverifier);
 	if (new == NULL)
 		goto out;
-	if (!conf) {
-		/* case 4: placed first, because it's the normal case */
-		gen_clid(new);
-	} else if (same_verf(&conf->cl_verifier, &clverifier)) {
+	if (conf && same_verf(&conf->cl_verifier, &clverifier))
 		/* case 1: probable callback update */
 		copy_clid(new, conf);
-	} else { /* conf && !same_verf(): */
-		/* cases 2, 3: probable client reboot: */
+	else /* case 4 (new client) or cases 2, 3 (client reboot): */
 		gen_clid(new);
-	}
 	/*
 	 * XXX: we should probably set this at creation time, and check
 	 * for consistent minorversion use throughout:
