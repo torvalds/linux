@@ -152,6 +152,9 @@ static int sony_nc_thermal_setup(struct platform_device *pd);
 static void sony_nc_thermal_cleanup(struct platform_device *pd);
 static void sony_nc_thermal_resume(void);
 
+static int sony_nc_lid_resume_setup(struct platform_device *pd);
+static void sony_nc_lid_resume_cleanup(struct platform_device *pd);
+
 enum sony_nc_rfkill {
 	SONY_WIFI,
 	SONY_BLUETOOTH,
@@ -1286,6 +1289,12 @@ static void sony_nc_function_setup(struct acpi_device *device,
 				pr_err("couldn't set up battery care function (%d)\n",
 						result);
 			break;
+		case 0x0119:
+			result = sony_nc_lid_resume_setup(pf_device);
+			if (result)
+				pr_err("couldn't set up lid resume function (%d)\n",
+						result);
+			break;
 		case 0x0122:
 			result = sony_nc_thermal_setup(pf_device);
 			if (result)
@@ -1332,6 +1341,9 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 		case 0x0136:
 		case 0x013f:
 			sony_nc_battery_care_cleanup(pd);
+			break;
+		case 0x0119:
+			sony_nc_lid_resume_cleanup(pd);
 			break;
 		case 0x0122:
 			sony_nc_thermal_cleanup(pd);
@@ -2104,6 +2116,134 @@ static void sony_nc_thermal_resume(void)
 
 	if (status != th_handle->mode)
 		sony_nc_thermal_mode_set(th_handle->mode);
+}
+
+/* resume on LID open */
+struct snc_lid_resume_control {
+	struct device_attribute attrs[3];
+	unsigned int status;
+};
+static struct snc_lid_resume_control *lid_ctl;
+
+static ssize_t sony_nc_lid_resume_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buffer, size_t count)
+{
+	unsigned int result, pos;
+	unsigned long value;
+	if (count > 31)
+		return -EINVAL;
+
+	if (kstrtoul(buffer, 10, &value) || value > 1)
+		return -EINVAL;
+
+	/* the value we have to write to SNC is a bitmask:
+	 * +--------------+
+	 * | S3 | S4 | S5 |
+	 * +--------------+
+	 *   2    1    0
+	 */
+	if (strcmp(attr->attr.name, "lid_resume_S3") == 0)
+		pos = 2;
+	else if (strcmp(attr->attr.name, "lid_resume_S4") == 0)
+		pos = 1;
+	else if (strcmp(attr->attr.name, "lid_resume_S5") == 0)
+		pos = 0;
+	else
+               return -EINVAL;
+
+	if (value)
+		value = lid_ctl->status | (1 << pos);
+	else
+		value = lid_ctl->status & ~(1 << pos);
+
+	if (sony_call_snc_handle(0x0119, value << 0x10 | 0x0100, &result))
+		return -EIO;
+
+	lid_ctl->status = value;
+
+	return count;
+}
+
+static ssize_t sony_nc_lid_resume_show(struct device *dev,
+				       struct device_attribute *attr, char *buffer)
+{
+	unsigned int pos;
+
+	if (strcmp(attr->attr.name, "lid_resume_S3") == 0)
+		pos = 2;
+	else if (strcmp(attr->attr.name, "lid_resume_S4") == 0)
+		pos = 1;
+	else if (strcmp(attr->attr.name, "lid_resume_S5") == 0)
+		pos = 0;
+	else
+		return -EINVAL;
+	       
+	return snprintf(buffer, PAGE_SIZE, "%d\n",
+			(lid_ctl->status >> pos) & 0x01);
+}
+
+static int sony_nc_lid_resume_setup(struct platform_device *pd)
+{
+	unsigned int result;
+	int i;
+
+	if (sony_call_snc_handle(0x0119, 0x0000, &result))
+		return -EIO;
+
+	lid_ctl = kzalloc(sizeof(struct snc_lid_resume_control), GFP_KERNEL);
+	if (!lid_ctl)
+		return -ENOMEM;
+
+	lid_ctl->status = result & 0x7;
+
+	sysfs_attr_init(&lid_ctl->attrs[0].attr);
+	lid_ctl->attrs[0].attr.name = "lid_resume_S3";
+	lid_ctl->attrs[0].attr.mode = S_IRUGO | S_IWUSR;
+	lid_ctl->attrs[0].show = sony_nc_lid_resume_show;
+	lid_ctl->attrs[0].store = sony_nc_lid_resume_store;
+
+	sysfs_attr_init(&lid_ctl->attrs[1].attr);
+	lid_ctl->attrs[1].attr.name = "lid_resume_S4";
+	lid_ctl->attrs[1].attr.mode = S_IRUGO | S_IWUSR;
+	lid_ctl->attrs[1].show = sony_nc_lid_resume_show;
+	lid_ctl->attrs[1].store = sony_nc_lid_resume_store;
+
+	sysfs_attr_init(&lid_ctl->attrs[2].attr);
+	lid_ctl->attrs[2].attr.name = "lid_resume_S5";
+	lid_ctl->attrs[2].attr.mode = S_IRUGO | S_IWUSR;
+	lid_ctl->attrs[2].show = sony_nc_lid_resume_show;
+	lid_ctl->attrs[2].store = sony_nc_lid_resume_store;
+
+	for (i = 0; i < 3; i++) {
+		result = device_create_file(&pd->dev, &lid_ctl->attrs[i]);
+		if (result)
+			goto liderror;
+	}
+
+	return 0;
+
+liderror:
+	for (; i > 0; i--)
+		device_remove_file(&pd->dev, &lid_ctl->attrs[i]);
+
+	kfree(lid_ctl);
+	lid_ctl = NULL;
+
+	return result;
+}
+
+static void sony_nc_lid_resume_cleanup(struct platform_device *pd)
+{
+	int i;
+
+	if (lid_ctl) {
+		for (i = 0; i < 3; i++)
+			device_remove_file(&pd->dev, &lid_ctl->attrs[i]);
+
+		kfree(lid_ctl);
+		lid_ctl = NULL;
+	}
 }
 
 static void sony_nc_backlight_ng_read_limits(int handle,
