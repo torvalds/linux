@@ -21,6 +21,7 @@
 #include <linux/mfd/max8997.h>
 #include <linux/lcd.h>
 #include <linux/rfkill-gpio.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
@@ -499,6 +500,9 @@ static void __init origen_ohci_init(void)
 	exynos4_ohci_set_platdata(pdata);
 }
 
+/* USB OTG */
+static struct s3c_hsotg_plat origen_hsotg_pdata;
+
 static struct gpio_keys_button origen_gpio_keys_table[] = {
 	{
 		.code			= KEY_MENU,
@@ -655,6 +659,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_i2c0,
 	&s3c_device_rtc,
+	&s3c_device_usb_hsotg,
 	&s3c_device_wdt,
 	&s5p_device_ehci,
 	&s5p_device_fimc0,
@@ -744,6 +749,7 @@ static void __init origen_machine_init(void)
 
 	origen_ehci_init();
 	origen_ohci_init();
+	s3c_hsotg_set_platdata(&origen_hsotg_pdata);
 	clk_xusbxti.rate = 24000000;
 
 	s5p_tv_setup();
