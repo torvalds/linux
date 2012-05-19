@@ -349,7 +349,7 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	bool slow;
 
 	if (addr_len)
-		*addr_len=sizeof(struct sockaddr_in6);
+		*addr_len = sizeof(struct sockaddr_in6);
 
 	if (flags & MSG_ERRQUEUE)
 		return ipv6_recv_error(sk, msg, len);
@@ -1379,7 +1379,7 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 	 * do checksum of UDP packets sent as multiple IP fragments.
 	 */
 	offset = skb_checksum_start_offset(skb);
-	csum = skb_checksum(skb, offset, skb->len- offset, 0);
+	csum = skb_checksum(skb, offset, skb->len - offset, 0);
 	offset += skb->csum_offset;
 	*(__sum16 *)(skb->data + offset) = csum_fold(csum);
 	skb->ip_summed = CHECKSUM_NONE;
