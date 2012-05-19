@@ -9,20 +9,17 @@
 #define DMTE4_IRQ	evt2irq(0xb80)
 #define DMAE0_IRQ	evt2irq(0xbc0)	/* DMA Error IRQ*/
 #define SH_DMAC_BASE0	0xFE008020
-#define SH_DMARS_BASE0	0xFE009000
 #elif defined(CONFIG_CPU_SUBTYPE_SH7722)
 #define DMTE0_IRQ	evt2irq(0x800)
 #define DMTE4_IRQ	evt2irq(0xb80)
 #define DMAE0_IRQ	evt2irq(0xbc0)	/* DMA Error IRQ*/
 #define SH_DMAC_BASE0	0xFE008020
-#define SH_DMARS_BASE0	0xFE009000
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763) || \
 	defined(CONFIG_CPU_SUBTYPE_SH7764)
 #define DMTE0_IRQ	evt2irq(0x640)
 #define DMTE4_IRQ	evt2irq(0x780)
 #define DMAE0_IRQ	evt2irq(0x6c0)
 #define SH_DMAC_BASE0	0xFF608020
-#define SH_DMARS_BASE0	0xFF609000
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723)
 #define DMTE0_IRQ	evt2irq(0x800)	/* DMAC0A*/
 #define DMTE4_IRQ	evt2irq(0xb80)	/* DMAC0B */
@@ -35,7 +32,6 @@
 #define DMAE1_IRQ	evt2irq(0xb40)	/* DMA Error IRQ*/
 #define SH_DMAC_BASE0	0xFE008020
 #define SH_DMAC_BASE1	0xFDC08020
-#define SH_DMARS_BASE0	0xFDC09000
 #elif defined(CONFIG_CPU_SUBTYPE_SH7724)
 #define DMTE0_IRQ	evt2irq(0x800)	/* DMAC0A*/
 #define DMTE4_IRQ	evt2irq(0xb80)	/* DMAC0B */
@@ -48,8 +44,6 @@
 #define DMAE1_IRQ	evt2irq(0xb40)	/* DMA Error IRQ*/
 #define SH_DMAC_BASE0	0xFE008020
 #define SH_DMAC_BASE1	0xFDC08020
-#define SH_DMARS_BASE0	0xFE009000
-#define SH_DMARS_BASE1	0xFDC09000
 #elif defined(CONFIG_CPU_SUBTYPE_SH7780)
 #define DMTE0_IRQ	evt2irq(0x640)
 #define DMTE4_IRQ	evt2irq(0x780)
@@ -61,7 +55,6 @@
 #define DMAE0_IRQ	evt2irq(0x6c0)	/* DMA Error IRQ */
 #define SH_DMAC_BASE0	0xFC808020
 #define SH_DMAC_BASE1	0xFC818020
-#define SH_DMARS_BASE0	0xFC809000
 #else /* SH7785 */
 #define DMTE0_IRQ	evt2irq(0x620)
 #define DMTE4_IRQ	evt2irq(0x6a0)
@@ -74,7 +67,6 @@
 #define DMAE1_IRQ	evt2irq(0x940)	/* DMA Error IRQ1 */
 #define SH_DMAC_BASE0	0xFC808020
 #define SH_DMAC_BASE1	0xFCC08020
-#define SH_DMARS_BASE0	0xFC809000
 #endif
 
 #endif /* __ASM_SH_CPU_SH4_DMA_SH7780_H */
