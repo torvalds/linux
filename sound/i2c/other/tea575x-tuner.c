@@ -120,9 +120,9 @@ static u32 snd_tea575x_read(struct snd_tea575x *tea)
 	return data;
 }
 
-static u32 snd_tea575x_get_freq(struct snd_tea575x *tea)
+static u32 snd_tea575x_val_to_freq(struct snd_tea575x *tea, u32 val)
 {
-	u32 freq = snd_tea575x_read(tea) & TEA575X_BIT_FREQ_MASK;
+	u32 freq = val & TEA575X_BIT_FREQ_MASK;
 
 	if (freq == 0)
 		return freq;
@@ -137,6 +137,11 @@ static u32 snd_tea575x_get_freq(struct snd_tea575x *tea)
 		freq -= TEA575X_FMIF;
 
 	return clamp(freq * 16, FREQ_LO, FREQ_HI); /* from kHz */
+}
+
+static u32 snd_tea575x_get_freq(struct snd_tea575x *tea)
+{
+	return snd_tea575x_val_to_freq(tea, snd_tea575x_read(tea));
 }
 
 static void snd_tea575x_set_freq(struct snd_tea575x *tea)
@@ -156,6 +161,7 @@ static void snd_tea575x_set_freq(struct snd_tea575x *tea)
 	tea->val &= ~TEA575X_BIT_FREQ_MASK;
 	tea->val |= freq & TEA575X_BIT_FREQ_MASK;
 	snd_tea575x_write(tea, tea->val);
+	tea->freq = snd_tea575x_val_to_freq(tea, tea->val);
 }
 
 /*
