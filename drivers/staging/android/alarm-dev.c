@@ -237,7 +237,6 @@ from_old_alarm_set:
 
 	default:
 		rv = -EINVAL;
-		goto err1;
 	}
 err1:
 	return rv;
