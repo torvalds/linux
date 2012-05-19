@@ -352,7 +352,6 @@ static int ehci_reset (struct ehci_hcd *ehci)
 	if (ehci->debug)
 		dbgp_external_startup();
 
-	ehci->command = ehci_readl(ehci, &ehci->regs->command);
 	ehci->port_c_suspend = ehci->suspended_ports =
 			ehci->resuming_ports = 0;
 	return retval;
