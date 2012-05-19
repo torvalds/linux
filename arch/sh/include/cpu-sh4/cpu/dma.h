@@ -1,14 +1,6 @@
 #ifndef __ASM_CPU_SH4_DMA_H
 #define __ASM_CPU_SH4_DMA_H
 
-/* SH7751/7760/7780 DMA IRQ sources */
-
-#ifdef CONFIG_CPU_SH4A
-
-#include <cpu/dma-sh4a.h>
-
-#else /* CONFIG_CPU_SH4A */
-
 #include <linux/sh_intc.h>
 
 /*
@@ -21,6 +13,7 @@
 
 #define SH_DMAC_BASE0	0xffa00000
 #define SH_DMAC_BASE1	0xffa00070
+
 /* Definitions for the SuperH DMAC */
 #define TM_BURST	0x00000080
 #define TS_8		0x00000010
@@ -29,7 +22,5 @@
 #define TS_64		0x00000000
 
 #define DMAOR_COD	0x00000008
-
-#endif
 
 #endif /* __ASM_CPU_SH4_DMA_H */
