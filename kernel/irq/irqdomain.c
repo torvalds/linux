@@ -56,6 +56,12 @@ static struct irq_domain *irq_domain_alloc(struct device_node *of_node,
 	return domain;
 }
 
+static void irq_domain_free(struct irq_domain *domain)
+{
+	of_node_put(domain->of_node);
+	kfree(domain);
+}
+
 static void irq_domain_add(struct irq_domain *domain)
 {
 	mutex_lock(&irq_domain_mutex);
@@ -63,6 +69,58 @@ static void irq_domain_add(struct irq_domain *domain)
 	mutex_unlock(&irq_domain_mutex);
 	pr_debug("irq: Allocated domain of type %d @0x%p\n",
 		 domain->revmap_type, domain);
+}
+
+/**
+ * irq_domain_remove() - Remove an irq domain.
+ * @domain: domain to remove
+ *
+ * This routine is used to remove an irq domain. The caller must ensure
+ * that all mappings within the domain have been disposed of prior to
+ * use, depending on the revmap type.
+ */
+void irq_domain_remove(struct irq_domain *domain)
+{
+	mutex_lock(&irq_domain_mutex);
+
+	switch (domain->revmap_type) {
+	case IRQ_DOMAIN_MAP_LEGACY:
+		/*
+		 * Legacy domains don't manage their own irq_desc
+		 * allocations, we expect the caller to handle irq_desc
+		 * freeing on their own.
+		 */
+		break;
+	case IRQ_DOMAIN_MAP_TREE:
+		/*
+		 * radix_tree_delete() takes care of destroying the root
+		 * node when all entries are removed. Shout if there are
+		 * any mappings left.
+		 */
+		WARN_ON(domain->revmap_data.tree.height);
+		break;
+	case IRQ_DOMAIN_MAP_LINEAR:
+		kfree(domain->revmap_data.linear.revmap);
+		domain->revmap_data.linear.size = 0;
+		break;
+	case IRQ_DOMAIN_MAP_NOMAP:
+		break;
+	}
+
+	list_del(&domain->link);
+
+	/*
+	 * If the going away domain is the default one, reset it.
+	 */
+	if (unlikely(irq_default_domain == domain))
+		irq_set_default_host(NULL);
+
+	mutex_unlock(&irq_domain_mutex);
+
+	pr_debug("irq: Removed domain of type %d @0x%p\n",
+		 domain->revmap_type, domain);
+
+	irq_domain_free(domain);
 }
 
 static unsigned int irq_domain_legacy_revmap(struct irq_domain *domain,
@@ -117,8 +175,7 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 
 		if (WARN_ON(!irq_data || irq_data->domain)) {
 			mutex_unlock(&irq_domain_mutex);
-			of_node_put(domain->of_node);
-			kfree(domain);
+			irq_domain_free(domain);
 			return NULL;
 		}
 	}
