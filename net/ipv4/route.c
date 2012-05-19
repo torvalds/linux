@@ -3408,9 +3408,15 @@ struct ip_rt_acct __percpu *ip_rt_acct __read_mostly;
 static __initdata unsigned long rhash_entries;
 static int __init set_rhash_entries(char *str)
 {
+	ssize_t ret;
+
 	if (!str)
 		return 0;
-	rhash_entries = simple_strtoul(str, &str, 0);
+
+	ret = kstrtoul(str, 0, &rhash_entries);
+	if (ret)
+		return 0;
+
 	return 1;
 }
 __setup("rhash_entries=", set_rhash_entries);

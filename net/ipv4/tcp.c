@@ -3462,9 +3462,15 @@ extern struct tcp_congestion_ops tcp_reno;
 static __initdata unsigned long thash_entries;
 static int __init set_thash_entries(char *str)
 {
+	ssize_t ret;
+
 	if (!str)
 		return 0;
-	thash_entries = simple_strtoul(str, &str, 0);
+
+	ret = kstrtoul(str, 0, &thash_entries);
+	if (ret)
+		return 0;
+
 	return 1;
 }
 __setup("thash_entries=", set_thash_entries);
