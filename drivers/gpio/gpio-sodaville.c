@@ -224,7 +224,7 @@ static int __devinit sdv_gpio_probe(struct pci_dev *pdev,
 
 	ret = bgpio_init(&sd->bgpio, &pdev->dev, 4,
 			sd->gpio_pub_base + GPINR, sd->gpio_pub_base + GPOUTR,
-			NULL, sd->gpio_pub_base + GPOER, NULL, false);
+			NULL, sd->gpio_pub_base + GPOER, NULL, 0);
 	if (ret)
 		goto unmap;
 	sd->bgpio.gc.ngpio = SDV_NUM_PUB_GPIOS;
