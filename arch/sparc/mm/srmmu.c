@@ -105,20 +105,8 @@ void *srmmu_nocache_pool;
 void *srmmu_nocache_bitmap;
 static struct bit_map srmmu_nocache_map;
 
-static inline int srmmu_pte_none(pte_t pte)
-{ return !(pte_val(pte) & 0xFFFFFFF); }
-
 static inline int srmmu_pmd_none(pmd_t pmd)
 { return !(pmd_val(pmd) & 0xFFFFFFF); }
-
-static inline pte_t srmmu_pte_wrprotect(pte_t pte)
-{ return __pte(pte_val(pte) & ~SRMMU_WRITE);}
-
-static inline pte_t srmmu_pte_mkclean(pte_t pte)
-{ return __pte(pte_val(pte) & ~SRMMU_DIRTY);}
-
-static inline pte_t srmmu_pte_mkold(pte_t pte)
-{ return __pte(pte_val(pte) & ~SRMMU_REF);}
 
 /* XXX should we hyper_flush_whole_icache here - Anton */
 static inline void srmmu_ctxd_set(ctxd_t *ctxp, pgd_t *pgdp)
@@ -147,13 +135,6 @@ void pmd_populate(struct mm_struct *mm, pmd_t *pmdp, struct page *ptep)
 		ptp += (SRMMU_REAL_PTRS_PER_PTE*sizeof(pte_t) >> 4);
 	}
 }
-
-static inline pte_t srmmu_pte_modify(pte_t pte, pgprot_t newprot)
-{ return __pte((pte_val(pte) & SRMMU_CHG_MASK) | pgprot_val(newprot)); }
-
-/* to find an entry in a top-level page table... */
-static inline pgd_t *srmmu_pgd_offset(struct mm_struct * mm, unsigned long address)
-{ return mm->pgd + (address >> SRMMU_PGDIR_SHIFT); }
 
 /* Find an entry in the third-level page table.. */ 
 pte_t *pte_offset_kernel(pmd_t * dir, unsigned long address)
@@ -803,13 +784,6 @@ static unsigned long __init map_spbank(unsigned long vbase, int sp_entry)
 		vstart += SRMMU_PGDIR_SIZE; pstart += SRMMU_PGDIR_SIZE;
 	}
 	return vstart;
-}
-
-static inline void memprobe_error(char *msg)
-{
-	prom_printf(msg);
-	prom_printf("Halting now...\n");
-	prom_halt();
 }
 
 static inline void map_kernel(void)
