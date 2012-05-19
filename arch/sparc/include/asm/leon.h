@@ -44,29 +44,6 @@
 #define LEON_IRQMASK_R		0x0000fffe	/* bit 15- 1 of lregs.irqmask */
 #define LEON_IRQPRIO_R		0xfffe0000	/* bit 31-17 of lregs.irqmask */
 
-/* leon uart register definitions */
-#define LEON_OFF_UDATA	0x0
-#define LEON_OFF_USTAT	0x4
-#define LEON_OFF_UCTRL	0x8
-#define LEON_OFF_USCAL	0xc
-
-#define LEON_UCTRL_RE	0x01
-#define LEON_UCTRL_TE	0x02
-#define LEON_UCTRL_RI	0x04
-#define LEON_UCTRL_TI	0x08
-#define LEON_UCTRL_PS	0x10
-#define LEON_UCTRL_PE	0x20
-#define LEON_UCTRL_FL	0x40
-#define LEON_UCTRL_LB	0x80
-
-#define LEON_USTAT_DR	0x01
-#define LEON_USTAT_TS	0x02
-#define LEON_USTAT_TH	0x04
-#define LEON_USTAT_BR	0x08
-#define LEON_USTAT_OV	0x10
-#define LEON_USTAT_PE	0x20
-#define LEON_USTAT_FE	0x40
-
 #define LEON_MCFG2_SRAMDIS		0x00002000
 #define LEON_MCFG2_SDRAMEN		0x00004000
 #define LEON_MCFG2_SRAMBANKSZ		0x00001e00	/* [12-9] */
@@ -76,8 +53,6 @@
 
 #define LEON_TCNT0_MASK	0x7fffff
 
-#define LEON_USTAT_ERROR (LEON_USTAT_OV | LEON_USTAT_PE | LEON_USTAT_FE)
-/* no break yet */
 
 #define ASI_LEON3_SYSCTRL		0x02
 #define ASI_LEON3_SYSCTRL_ICFG		0x08
