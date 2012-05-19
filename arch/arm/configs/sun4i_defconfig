@@ -245,6 +245,7 @@ CONFIG_MMU=y
 # CONFIG_ARCH_W90X900 is not set
 # CONFIG_ARCH_NUC93X is not set
 # CONFIG_ARCH_TEGRA is not set
+# CONFIG_ARCH_SUN3I is not set
 CONFIG_ARCH_SUN4I=y
 # CONFIG_ARCH_SUN5I is not set
 # CONFIG_ARCH_PNX4008 is not set
@@ -272,6 +273,11 @@ CONFIG_ARCH_SUN4I=y
 #
 # System MMU
 #
+
+#
+# Allwinner A1x options
+#
+# CONFIG_TEGRA_FPGA is not set
 
 #
 # Processor Type
@@ -458,7 +464,7 @@ CONFIG_INET_LRO=y
 CONFIG_TCP_CONG_CUBIC=y
 CONFIG_DEFAULT_TCP_CONG="cubic"
 # CONFIG_IPV6 is not set
-CONFIG_ANDROID_PARANOID_NETWORK=y
+# CONFIG_ANDROID_PARANOID_NETWORK is not set
 CONFIG_NET_ACTIVITY_STATS=y
 CONFIG_NETWORK_SECMARK=y
 # CONFIG_NETFILTER is not set
@@ -654,7 +660,40 @@ CONFIG_SCSI_LOWLEVEL=y
 # CONFIG_SCSI_DEBUG is not set
 # CONFIG_SCSI_DH is not set
 # CONFIG_SCSI_OSD_INITIATOR is not set
-# CONFIG_ATA is not set
+CONFIG_ATA=y
+# CONFIG_ATA_NONSTANDARD is not set
+CONFIG_ATA_VERBOSE_ERROR=y
+CONFIG_SATA_PMP=y
+
+#
+# Controllers with non-SFF native interface
+#
+CONFIG_SATA_AHCI_PLATFORM=y
+CONFIG_SW_SATA_AHCI_PLATFORM=m
+CONFIG_ATA_SFF=y
+
+#
+# SFF controllers with custom DMA interface
+#
+CONFIG_ATA_BMDMA=y
+
+#
+# SATA SFF controllers with BMDMA
+#
+# CONFIG_SATA_MV is not set
+
+#
+# PATA SFF controllers with BMDMA
+#
+# CONFIG_PATA_ARASAN_CF is not set
+
+#
+# PIO-only SFF controllers
+#
+
+#
+# Generic fallback / legacy drivers
+#
 # CONFIG_MD is not set
 # CONFIG_TARGET_CORE is not set
 CONFIG_NETDEVICES=y
@@ -1792,7 +1831,6 @@ CONFIG_HAVE_ARCH_KGDB=y
 CONFIG_STRICT_DEVMEM=y
 # CONFIG_DEBUG_USER is not set
 # CONFIG_DEBUG_LL is not set
-CONFIG_EARLY_PRINTK=y
 # CONFIG_OC_ETM is not set
 
 #
