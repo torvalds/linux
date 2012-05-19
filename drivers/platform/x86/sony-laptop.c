@@ -1213,7 +1213,7 @@ static int sony_nc_rfkill_set(void *data, bool blocked)
 	int argument = sony_rfkill_address[(long) data] + 0x100;
 
 	if (!blocked)
-		argument |= 0xff0000;
+		argument |= 0x030000;
 
 	return sony_call_snc_handle(sony_rfkill_handle, argument, &result);
 }
@@ -1230,7 +1230,7 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 	enum rfkill_type type;
 	const char *name;
 	int result;
-	bool hwblock;
+	bool hwblock, swblock;
 
 	switch (nc_type) {
 	case SONY_WIFI:
@@ -1258,8 +1258,21 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 	if (!rfk)
 		return -ENOMEM;
 
-	sony_call_snc_handle(sony_rfkill_handle, 0x200, &result);
+	if (sony_call_snc_handle(sony_rfkill_handle, 0x200, &result) < 0) {
+		rfkill_destroy(rfk);
+		return -1;
+	}
 	hwblock = !(result & 0x1);
+
+	if (sony_call_snc_handle(sony_rfkill_handle,
+				sony_rfkill_address[nc_type],
+				&result) < 0) {
+		rfkill_destroy(rfk);
+		return -1;
+	}
+	swblock = !(result & 0x2);
+
+	rfkill_init_sw_state(rfk, swblock);
 	rfkill_set_hw_state(rfk, hwblock);
 
 	err = rfkill_register(rfk);
@@ -1295,7 +1308,7 @@ static void sony_nc_rfkill_update(void)
 
 		sony_call_snc_handle(sony_rfkill_handle, argument, &result);
 		rfkill_set_states(sony_rfkill_devices[i],
-				  !(result & 0xf), false);
+				  !(result & 0x2), false);
 	}
 }
 
