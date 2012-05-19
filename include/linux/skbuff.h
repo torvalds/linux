@@ -562,6 +562,11 @@ extern void kfree_skb(struct sk_buff *skb);
 extern void consume_skb(struct sk_buff *skb);
 extern void	       __kfree_skb(struct sk_buff *skb);
 extern struct kmem_cache *skbuff_head_cache;
+
+extern void kfree_skb_partial(struct sk_buff *skb, bool head_stolen);
+extern bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
+			     bool *fragstolen, int *delta_truesize);
+
 extern struct sk_buff *__alloc_skb(unsigned int size,
 				   gfp_t priority, int fclone, int node);
 extern struct sk_buff *build_skb(void *data, unsigned int frag_size);
