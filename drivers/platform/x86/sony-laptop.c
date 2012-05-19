@@ -159,6 +159,10 @@ static void sony_nc_lid_resume_cleanup(struct platform_device *pd);
 static int sony_nc_highspeed_charging_setup(struct platform_device *pd);
 static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd);
 
+static int sony_nc_touchpad_setup(struct platform_device *pd,
+				  unsigned int handle);
+static void sony_nc_touchpad_cleanup(struct platform_device *pd);
+
 enum sony_nc_rfkill {
 	SONY_WIFI,
 	SONY_BLUETOOTH,
@@ -1290,6 +1294,14 @@ static void sony_nc_function_setup(struct acpi_device *device,
 			/* setup hotkeys */
 			sony_call_snc_handle(handle, 0x100, &result);
 			break;
+		case 0x0105:
+		case 0x0148:
+			/* touchpad enable/disable */
+			result = sony_nc_touchpad_setup(pf_device, handle);
+			if (result)
+				pr_err("couldn't set up touchpad control function (%d)\n",
+						result);
+			break;
 		case 0x0115:
 		case 0x0136:
 		case 0x013f:
@@ -1359,6 +1371,10 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 			continue;
 
 		switch (handle) {
+		case 0x0105:
+		case 0x0148:
+			sony_nc_touchpad_cleanup(pd);
+			break;
 		case 0x0115:
 		case 0x0136:
 		case 0x013f:
@@ -2373,6 +2389,81 @@ static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd)
 		device_remove_file(&pd->dev, hsc_handle);
 		kfree(hsc_handle);
 		hsc_handle = NULL;
+	}
+}
+
+/* Touchpad enable/disable */
+struct touchpad_control {
+	struct device_attribute attr;
+	int handle;
+};
+static struct touchpad_control *tp_ctl;
+
+static ssize_t sony_nc_touchpad_store(struct device *dev,
+		struct device_attribute *attr, const char *buffer, size_t count)
+{
+	unsigned int result;
+	unsigned long value;
+
+	if (count > 31)
+		return -EINVAL;
+
+	if (kstrtoul(buffer, 10, &value) || value > 1)
+		return -EINVAL;
+
+	/* sysfs: 0 disabled, 1 enabled
+	 * EC: 0 enabled, 1 disabled
+	 */
+	if (sony_call_snc_handle(tp_ctl->handle,
+				(!value << 0x10) | 0x100, &result))
+		return -EIO;
+
+	return count;
+}
+
+static ssize_t sony_nc_touchpad_show(struct device *dev,
+		struct device_attribute *attr, char *buffer)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(tp_ctl->handle, 0x000, &result))
+		return -EINVAL;
+
+	return snprintf(buffer, PAGE_SIZE, "%d\n", !(result & 0x01));
+}
+
+static int sony_nc_touchpad_setup(struct platform_device *pd,
+		unsigned int handle)
+{
+	int ret = 0;
+
+	tp_ctl = kzalloc(sizeof(struct touchpad_control), GFP_KERNEL);
+	if (!tp_ctl)
+		return -ENOMEM;
+
+	tp_ctl->handle = handle;
+
+	sysfs_attr_init(&tp_ctl->attr.attr);
+	tp_ctl->attr.attr.name = "touchpad";
+	tp_ctl->attr.attr.mode = S_IRUGO | S_IWUSR;
+	tp_ctl->attr.show = sony_nc_touchpad_show;
+	tp_ctl->attr.store = sony_nc_touchpad_store;
+
+	ret = device_create_file(&pd->dev, &tp_ctl->attr);
+	if (ret) {
+		kfree(tp_ctl);
+		tp_ctl = NULL;
+	}
+
+	return ret;
+}
+
+static void sony_nc_touchpad_cleanup(struct platform_device *pd)
+{
+	if (tp_ctl) {
+		device_remove_file(&pd->dev, &tp_ctl->attr);
+		kfree(tp_ctl);
+		tp_ctl = NULL;
 	}
 }
 
