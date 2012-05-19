@@ -334,54 +334,23 @@ static hda_nid_t *lookup_conn_list(struct snd_array *array, hda_nid_t nid)
 	return NULL;
 }
 
-/**
- * snd_hda_get_conn_list - get connection list
- * @codec: the HDA codec
- * @nid: NID to parse
- * @listp: the pointer to store NID list
- *
- * Parses the connection list of the given widget and stores the list
- * of NIDs.
- *
- * Returns the number of connections, or a negative error code.
- */
-int snd_hda_get_conn_list(struct hda_codec *codec, hda_nid_t nid,
-			  const hda_nid_t **listp)
+/* read the connection and add to the cache */
+static int read_and_add_raw_conns(struct hda_codec *codec, hda_nid_t nid)
 {
-	struct snd_array *array = &codec->conn_lists;
-	int len, err;
 	hda_nid_t list[HDA_MAX_CONNECTIONS];
-	hda_nid_t *p;
-	bool added = false;
+	int len;
 
- again:
-	/* if the connection-list is already cached, read it */
-	p = lookup_conn_list(array, nid);
-	if (p) {
-		if (listp)
-			*listp = p + 2;
-		return p[1];
-	}
-	if (snd_BUG_ON(added))
-		return -EINVAL;
-
-	/* read the connection and add to the cache */
-	len = snd_hda_get_raw_connections(codec, nid, list, HDA_MAX_CONNECTIONS);
+	len = snd_hda_get_raw_connections(codec, nid, list, ARRAY_SIZE(list));
 	if (len < 0)
 		return len;
-	err = snd_hda_override_conn_list(codec, nid, len, list);
-	if (err < 0)
-		return err;
-	added = true;
-	goto again;
+	return snd_hda_override_conn_list(codec, nid, len, list);
 }
-EXPORT_SYMBOL_HDA(snd_hda_get_conn_list);
 
 /**
  * snd_hda_get_connections - copy connection list
  * @codec: the HDA codec
  * @nid: NID to parse
- * @conn_list: connection list array
+ * @conn_list: connection list array; when NULL, checks only the size
  * @max_conns: max. number of connections to store
  *
  * Parses the connection list of the given widget and stores the list
@@ -390,21 +359,41 @@ EXPORT_SYMBOL_HDA(snd_hda_get_conn_list);
  * Returns the number of connections, or a negative error code.
  */
 int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
-			     hda_nid_t *conn_list, int max_conns)
+			    hda_nid_t *conn_list, int max_conns)
 {
-	const hda_nid_t *list;
-	int len = snd_hda_get_conn_list(codec, nid, &list);
+	struct snd_array *array = &codec->conn_lists;
+	int len;
+	hda_nid_t *p;
+	bool added = false;
 
-	if (len <= 0)
-		return len;
-	if (len > max_conns) {
-		snd_printk(KERN_ERR "hda_codec: "
-			   "Too many connections %d for NID 0x%x\n",
-			   len, nid);
-		return -EINVAL;
+ again:
+	mutex_lock(&codec->hash_mutex);
+	len = -1;
+	/* if the connection-list is already cached, read it */
+	p = lookup_conn_list(array, nid);
+	if (p) {
+		len = p[1];
+		if (conn_list && len > max_conns) {
+			snd_printk(KERN_ERR "hda_codec: "
+				   "Too many connections %d for NID 0x%x\n",
+				   len, nid);
+			mutex_unlock(&codec->hash_mutex);
+			return -EINVAL;
+		}
+		if (conn_list && len)
+			memcpy(conn_list, p + 2, len * sizeof(hda_nid_t));
 	}
-	memcpy(conn_list, list, len * sizeof(hda_nid_t));
-	return len;
+	mutex_unlock(&codec->hash_mutex);
+	if (len >= 0)
+		return len;
+	if (snd_BUG_ON(added))
+		return -EINVAL;
+
+	len = read_and_add_raw_conns(codec, nid);
+	if (len < 0)
+		return len;
+	added = true;
+	goto again;
 }
 EXPORT_SYMBOL_HDA(snd_hda_get_connections);
 
@@ -543,6 +532,7 @@ int snd_hda_override_conn_list(struct hda_codec *codec, hda_nid_t nid, int len,
 	hda_nid_t *p;
 	int i, old_used;
 
+	mutex_lock(&codec->hash_mutex);
 	p = lookup_conn_list(array, nid);
 	if (p)
 		*p = -1; /* invalidate the old entry */
@@ -553,10 +543,12 @@ int snd_hda_override_conn_list(struct hda_codec *codec, hda_nid_t nid, int len,
 	for (i = 0; i < len; i++)
 		if (!add_conn_list(array, list[i]))
 			goto error_add;
+	mutex_unlock(&codec->hash_mutex);
 	return 0;
 
  error_add:
 	array->used = old_used;
+	mutex_unlock(&codec->hash_mutex);
 	return -ENOMEM;
 }
 EXPORT_SYMBOL_HDA(snd_hda_override_conn_list);

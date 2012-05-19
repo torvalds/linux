@@ -485,7 +485,7 @@ static void activate_output_mix(struct hda_codec *codec, struct nid_path *path,
 
 	if (!path)
 		return;
-	num = snd_hda_get_conn_list(codec, mix_nid, NULL);
+	num = snd_hda_get_num_conns(codec, mix_nid);
 	for (i = 0; i < num; i++) {
 		if (i == idx)
 			val = AMP_IN_UNMUTE(i);

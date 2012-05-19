@@ -349,7 +349,7 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 	nid = get_capsrc(spec, adc_idx);
 
 	/* no selection? */
-	num_conns = snd_hda_get_conn_list(codec, nid, NULL);
+	num_conns = snd_hda_get_num_conns(codec, nid);
 	if (num_conns <= 1)
 		return 1;
 
@@ -2543,7 +2543,6 @@ static int alc_auto_fill_adc_caps(struct hda_codec *codec)
 	nid = codec->start_nid;
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
 		hda_nid_t src;
-		const hda_nid_t *list;
 		unsigned int caps = get_wcaps(codec, nid);
 		int type = get_wcaps_type(caps);
 
@@ -2554,6 +2553,7 @@ static int alc_auto_fill_adc_caps(struct hda_codec *codec)
 		src = nid;
 		for (;;) {
 			int n;
+			hda_nid_t conn_nid;
 			type = get_wcaps_type(get_wcaps(codec, src));
 			if (type == AC_WID_PIN)
 				break;
@@ -2561,13 +2561,14 @@ static int alc_auto_fill_adc_caps(struct hda_codec *codec)
 				cap_nids[nums] = src;
 				break;
 			}
-			n = snd_hda_get_conn_list(codec, src, &list);
+			n = snd_hda_get_num_conns(codec, src);
 			if (n > 1) {
 				cap_nids[nums] = src;
 				break;
 			} else if (n != 1)
 				break;
-			src = *list;
+			if (snd_hda_get_connections(codec, src, &src, 1) != 1)
+				break;
 		}
 		if (++nums >= max_nums)
 			break;
@@ -2708,7 +2709,7 @@ static void alc_auto_init_analog_input(struct hda_codec *codec)
 
 	/* mute all loopback inputs */
 	if (spec->mixer_nid) {
-		int nums = snd_hda_get_conn_list(codec, spec->mixer_nid, NULL);
+		int nums = snd_hda_get_num_conns(codec, spec->mixer_nid);
 		for (i = 0; i < nums; i++)
 			snd_hda_codec_write(codec, spec->mixer_nid, 0,
 					    AC_VERB_SET_AMP_GAIN_MUTE,
@@ -3338,7 +3339,7 @@ static int alc_auto_add_sw_ctl(struct hda_codec *codec,
 	if (wid_type == AC_WID_PIN || wid_type == AC_WID_AUD_OUT) {
 		type = ALC_CTL_WIDGET_MUTE;
 		val = HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT);
-	} else if (snd_hda_get_conn_list(codec, nid, NULL) == 1) {
+	} else if (snd_hda_get_num_conns(codec, nid) == 1) {
 		type = ALC_CTL_WIDGET_MUTE;
 		val = HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_INPUT);
 	} else {
@@ -3898,7 +3899,7 @@ static void alc_remove_invalid_adc_nids(struct hda_codec *codec)
 	nums = 0;
 	for (n = 0; n < spec->num_adc_nids; n++) {
 		hda_nid_t cap = spec->private_capsrc_nids[n];
-		int num_conns = snd_hda_get_conn_list(codec, cap, NULL);
+		int num_conns = snd_hda_get_num_conns(codec, cap);
 		for (i = 0; i < imux->num_items; i++) {
 			hda_nid_t pin = spec->imux_pins[i];
 			if (pin) {
@@ -4027,7 +4028,7 @@ static void select_or_unmute_capsrc(struct hda_codec *codec, hda_nid_t cap,
 	if (get_wcaps_type(get_wcaps(codec, cap)) == AC_WID_AUD_MIX) {
 		snd_hda_codec_amp_stereo(codec, cap, HDA_INPUT, idx,
 					 HDA_AMP_MUTE, 0);
-	} else if (snd_hda_get_conn_list(codec, cap, NULL) > 1) {
+	} else if (snd_hda_get_num_conns(codec, cap) > 1) {
 		snd_hda_codec_write_cache(codec, cap, 0,
 					  AC_VERB_SET_CONNECT_SEL, idx);
 	}
