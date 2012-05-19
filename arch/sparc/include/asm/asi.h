@@ -112,6 +112,20 @@
 
 #define ASI_M_ACTION       0x4c   /* Breakpoint Action Register (GNU/Viking) */
 
+/* LEON ASI */
+#define ASI_LEON_NOCACHE        0x01
+
+#define ASI_LEON_DCACHE_MISS    0x01
+
+#define ASI_LEON_CACHEREGS      0x02
+#define ASI_LEON_IFLUSH         0x10
+#define ASI_LEON_DFLUSH         0x11
+
+#define ASI_LEON_MMUFLUSH       0x18
+#define ASI_LEON_MMUREGS        0x19
+#define ASI_LEON_BYPASS         0x1c
+#define ASI_LEON_FLUSH_PAGE     0x10
+
 /* V9 Architecture mandary ASIs. */
 #define ASI_N			0x04 /* Nucleus				*/
 #define ASI_NL			0x0c /* Nucleus, little endian		*/
