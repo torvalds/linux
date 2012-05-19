@@ -162,4 +162,25 @@ config TEGRA_IOMMU_SMMU
 	  space through the SMMU (System Memory Management Unit)
 	  hardware included on Tegra SoCs.
 
+config EXYNOS_IOMMU
+	bool "Exynos IOMMU Support"
+	depends on ARCH_EXYNOS && EXYNOS_DEV_SYSMMU
+	select IOMMU_API
+	help
+	  Support for the IOMMU(System MMU) of Samsung Exynos application
+	  processor family. This enables H/W multimedia accellerators to see
+	  non-linear physical memory chunks as a linear memory in their
+	  address spaces
+
+	  If unsure, say N here.
+
+config EXYNOS_IOMMU_DEBUG
+	bool "Debugging log for Exynos IOMMU"
+	depends on EXYNOS_IOMMU
+	help
+	  Select this to see the detailed log message that shows what
+	  happens in the IOMMU driver
+
+	  Say N unless you need kernel log message for IOMMU debugging
+
 endif # IOMMU_SUPPORT

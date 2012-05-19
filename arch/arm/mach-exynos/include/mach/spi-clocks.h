@@ -11,6 +11,6 @@
 #define __ASM_ARCH_SPI_CLKS_H __FILE__
 
 /* Must source from SCLK_SPI */
-#define EXYNOS4_SPI_SRCCLK_SCLK		0
+#define EXYNOS_SPI_SRCCLK_SCLK		0
 
 #endif /* __ASM_ARCH_SPI_CLKS_H */
