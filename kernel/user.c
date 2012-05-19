@@ -27,7 +27,7 @@ struct user_namespace init_user_ns = {
 		.extent[0] = {
 			.first = 0,
 			.lower_first = 0,
-			.count = 4294967295,
+			.count = 4294967295U,
 		},
 	},
 	.gid_map = {
@@ -35,7 +35,7 @@ struct user_namespace init_user_ns = {
 		.extent[0] = {
 			.first = 0,
 			.lower_first = 0,
-			.count = 4294967295,
+			.count = 4294967295U,
 		},
 	},
 	.kref = {
