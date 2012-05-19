@@ -870,8 +870,8 @@ static int sony_find_snc_handle(int handle)
 	int i;
 
 	/* not initialized yet, return early */
-	if (!handles)
-		return -1;
+	if (!handles || !handle)
+		return -EINVAL;
 
 	for (i = 0; i < 0x10; i++) {
 		if (handles->cap[i] == handle) {
@@ -881,7 +881,7 @@ static int sony_find_snc_handle(int handle)
 		}
 	}
 	dprintk("handle 0x%.4x not found\n", handle);
-	return -1;
+	return -EINVAL;
 }
 
 static int sony_call_snc_handle(int handle, int argument, int *result)
@@ -890,7 +890,7 @@ static int sony_call_snc_handle(int handle, int argument, int *result)
 	int offset = sony_find_snc_handle(handle);
 
 	if (offset < 0)
-		return -1;
+		return offset;
 
 	arg = offset | argument;
 	ret = sony_nc_int_call(sony_nc_acpi_handle, "SN07", &arg, result);
