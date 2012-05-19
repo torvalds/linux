@@ -65,6 +65,11 @@ config PINCTRL_PXA3xx
 	bool
 	select PINMUX
 
+config PINCTRL_FALCON
+	bool
+	depends on SOC_FALCON
+	depends on PINCTRL_LANTIQ
+
 config PINCTRL_MMP2
 	bool "MMP2 pin controller driver"
 	depends on ARCH_MMP

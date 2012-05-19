@@ -20,6 +20,7 @@ config SOC_XWAY
 
 config SOC_FALCON
 	bool "FALCON"
+	select PINCTRL_FALCON
 
 endchoice
 
