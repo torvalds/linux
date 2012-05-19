@@ -2212,15 +2212,10 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		if (new == NULL)
 			goto out;
 		copy_clid(new, conf);
-	} else if (!unconf) {
-		/* case 2: probable client reboot: */
-		new = create_client(clname, dname, rqstp, &clverifier);
-		if (new == NULL)
-			goto out;
-		gen_clid(new);
-	} else {
-		/* case 3: probable client reboot: */
-		expire_client(unconf);
+	} else { /* conf && !same_verf(): */
+		/* cases 2, 3: probable client reboot: */
+		if (unconf)
+			expire_client(unconf);
 		new = create_client(clname, dname, rqstp, &clverifier);
 		if (new == NULL)
 			goto out;
