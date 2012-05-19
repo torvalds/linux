@@ -439,7 +439,7 @@ give_sigsegv:
  * OK, we're invoking a handler.
  */	
 
-static long
+static void
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		struct pt_regs *regs, int in_syscall)
 {
@@ -449,7 +449,7 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	
 	/* Set up the stack frame */
 	if (!setup_rt_frame(sig, ka, info, oldset, regs, in_syscall))
-		return 0;
+		return;
 
 	signal_delivered(sig, info, ka, regs, 
 		test_thread_flag(TIF_SINGLESTEP) ||
@@ -457,8 +457,6 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 
 	DBG(1,KERN_DEBUG "do_signal: Exit (success), regs->gr[28] = %ld\n",
 		regs->gr[28]);
-
-	return 1;
 }
 
 static inline void
@@ -570,30 +568,17 @@ do_signal(struct pt_regs *regs, long in_syscall)
 	DBG(1,"\ndo_signal: regs=0x%p, sr7 %#lx, in_syscall=%d\n",
 	       regs, regs->sr[7], in_syscall);
 
-	/* Everyone else checks to see if they are in kernel mode at
-	   this point and exits if that's the case.  I'm not sure why
-	   we would be called in that case, but for some reason we
-	   are. */
-
-	/* May need to force signal if handle_signal failed to deliver */
-	while (1) {
-		signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-		DBG(3,"do_signal: signr = %d, regs->gr[28] = %ld\n", signr, regs->gr[28]); 
+	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
+	DBG(3,"do_signal: signr = %d, regs->gr[28] = %ld\n", signr, regs->gr[28]); 
 	
-		if (signr <= 0)
-		  break;
-		
+	if (signr > 0) {
 		/* Restart a system call if necessary. */
 		if (in_syscall)
 			syscall_restart(regs, &ka);
 
-		/* Whee!  Actually deliver the signal.  If the
-		   delivery failed, we need to continue to iterate in
-		   this loop so we can deliver the SIGSEGV... */
-		if (handle_signal(signr, &info, &ka, regs, in_syscall))
-			return;
+		handle_signal(signr, &info, &ka, regs, in_syscall);
+		return;
 	}
-	/* end of while(1) looping forever if we can't force a signal */
 
 	/* Did we come from a system call? */
 	if (in_syscall)
