@@ -713,8 +713,13 @@ static union acpi_object *__call_snc_method(acpi_handle handle, char *method,
 		params.count = 1;
 		params.pointer = &in;
 		status = acpi_evaluate_object(handle, method, &params, &output);
-	} else
+		dprintk("__call_snc_method: [%s:0x%.8x%.8x]\n", method,
+				(unsigned int)(*value >> 32),
+				(unsigned int)*value & 0xffffffff);
+	} else {
 		status = acpi_evaluate_object(handle, method, NULL, &output);
+		dprintk("__call_snc_method: [%s]\n", method);
+	}
 
 	if (ACPI_FAILURE(status)) {
 		pr_err("Failed to evaluate [%s]\n", method);
