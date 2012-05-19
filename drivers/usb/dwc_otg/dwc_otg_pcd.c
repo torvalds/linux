@@ -1794,15 +1794,10 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
 static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
 {
     dwc_otg_pcd_t * _pcd = (dwc_otg_pcd_t *)pdata;
-    dwc_otg_core_if_t *core_if = GET_CORE_IF(_pcd);
-    gotgctl_data_t    gctrl;
-    dctl_data_t dctl = {.d32=0};
-    //dsts_data_t           gsts;
 	unsigned long flags;
-	local_irq_save(flags);
-#ifdef CONFIG_ARCH_RK30
     unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
-#endif
+
+	local_irq_save(flags);
     _pcd->check_vbus_timer.expires = jiffies + (HZ); /* 1 s */
     if((usbgrf_status &(1<<20)) == 0){  // id low
     
@@ -1915,6 +1910,55 @@ int dwc_otg_check_dpdm(void)
 out:
     return bus_status;
 }
+#endif
+#ifdef CONFIG_ARCH_RK30
+int dwc_otg_check_dpdm(void)
+{
+	static uint8_t * reg_base = 0;
+    volatile unsigned int * otg_dctl;
+    volatile unsigned int * otg_gotgctl;
+    volatile unsigned int * otg_hprt0;
+    int bus_status = 0;
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON2);
+    
+    // softreset & clockgate 
+    *(unsigned int*)(RK30_CRU_BASE+0x120) = ((7<<5)<<16)|(7<<5);    // otg0 phy clkgate
+    udelay(3);
+    *(unsigned int*)(RK30_CRU_BASE+0x120) = ((7<<5)<<16)|(0<<5);    // otg0 phy clkgate
+    dsb();
+    *(unsigned int*)(RK30_CRU_BASE+0xd4) = ((1<<5)<<16);    // otg0 phy clkgate
+    *(unsigned int*)(RK30_CRU_BASE+0xe4) = ((1<<13)<<16);   // otg0 hclk clkgate
+    *(unsigned int*)(RK30_CRU_BASE+0xe0) = ((3<<5)<<16);    // hclk usb clkgate
+    
+    // exit phy suspend 
+        *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
+    
+    // soft connect
+    if(reg_base == 0){
+        reg_base = ioremap(RK30_USBOTG20_PHYS,USBOTG_SIZE);
+        if(!reg_base){
+            bus_status = -1;
+            goto out;
+        }
+    }
+    mdelay(105);
+    printk("regbase %p 0x%x, otg_phy_con%p, 0x%x\n",
+        reg_base, *(reg_base), otg_phy_con1, *otg_phy_con1);
+    otg_dctl = (unsigned int * )(reg_base+0x804);
+    otg_gotgctl = (unsigned int * )(reg_base);
+    otg_hprt0 = (unsigned int * )(reg_base + DWC_OTG_HOST_PORT_REGS_OFFSET);
+    if(*otg_gotgctl &(1<<19)){
+        bus_status = 1;
+        *otg_dctl &= ~2;
+        mdelay(50);    // delay about 10ms
+    // check dp,dm
+        if((*otg_hprt0 & 0xc00)==0xc00)
+            bus_status = 2;
+    }
+out:
+    return bus_status;
+}
+
 EXPORT_SYMBOL(dwc_otg_check_dpdm);
 #endif
 void dwc_otg_pcd_start_vbus_timer( dwc_otg_pcd_t * _pcd )
