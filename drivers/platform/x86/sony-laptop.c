@@ -155,6 +155,9 @@ static void sony_nc_thermal_resume(void);
 static int sony_nc_lid_resume_setup(struct platform_device *pd);
 static void sony_nc_lid_resume_cleanup(struct platform_device *pd);
 
+static int sony_nc_highspeed_charging_setup(struct platform_device *pd);
+static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd);
+
 enum sony_nc_rfkill {
 	SONY_WIFI,
 	SONY_BLUETOOTH,
@@ -1301,6 +1304,12 @@ static void sony_nc_function_setup(struct acpi_device *device,
 				pr_err("couldn't set up thermal profile function (%d)\n",
 						result);
 			break;
+		case 0x0131:
+			result = sony_nc_highspeed_charging_setup(pf_device);
+			if (result)
+				pr_err("couldn't set up high speed charging function (%d)\n",
+				       result);
+			break;
 		case 0x0124:
 		case 0x0135:
 			sony_nc_rfkill_setup(device);
@@ -1347,6 +1356,9 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 			break;
 		case 0x0122:
 			sony_nc_thermal_cleanup(pd);
+			break;
+		case 0x0131:
+			sony_nc_highspeed_charging_cleanup(pd);
 			break;
 		case 0x0124:
 		case 0x0135:
@@ -2243,6 +2255,80 @@ static void sony_nc_lid_resume_cleanup(struct platform_device *pd)
 
 		kfree(lid_ctl);
 		lid_ctl = NULL;
+	}
+}
+
+/* High speed charging function */
+static struct device_attribute *hsc_handle;
+
+static ssize_t sony_nc_highspeed_charging_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	unsigned int result;
+	unsigned long value;
+
+	if (count > 31)
+		return -EINVAL;
+
+	if (kstrtoul(buffer, 10, &value) || value > 1)
+		return -EINVAL;
+
+	if (sony_call_snc_handle(0x0131, value << 0x10 | 0x0200, &result))
+		return -EIO;
+
+	return count;
+}
+
+static ssize_t sony_nc_highspeed_charging_show(struct device *dev,
+		struct device_attribute *attr, char *buffer)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(0x0131, 0x0100, &result))
+		return -EIO;
+
+	return snprintf(buffer, PAGE_SIZE, "%d\n", result & 0x01);
+}
+
+static int sony_nc_highspeed_charging_setup(struct platform_device *pd)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(0x0131, 0x0000, &result) || !(result & 0x01)) {
+		/* some models advertise the handle but have no implementation
+		 * for it
+		 */
+		pr_info("No High Speed Charging capability found\n");
+		return 0;
+	}
+
+	hsc_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	if (!hsc_handle)
+		return -ENOMEM;
+
+	sysfs_attr_init(&hsc_handle->attr);
+	hsc_handle->attr.name = "battery_highspeed_charging";
+	hsc_handle->attr.mode = S_IRUGO | S_IWUSR;
+	hsc_handle->show = sony_nc_highspeed_charging_show;
+	hsc_handle->store = sony_nc_highspeed_charging_store;
+
+	result = device_create_file(&pd->dev, hsc_handle);
+	if (result) {
+		kfree(hsc_handle);
+		hsc_handle = NULL;
+		return result;
+	}
+
+	return 0;
+}
+
+static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd)
+{
+	if (hsc_handle) {
+		device_remove_file(&pd->dev, hsc_handle);
+		kfree(hsc_handle);
+		hsc_handle = NULL;
 	}
 }
 
