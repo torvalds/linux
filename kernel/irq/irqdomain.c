@@ -217,6 +217,7 @@ EXPORT_SYMBOL_GPL(irq_domain_add_legacy);
 /**
  * irq_domain_add_linear() - Allocate and register a legacy revmap irq_domain.
  * @of_node: pointer to interrupt controller's device tree node.
+ * @size: Number of interrupts in the domain.
  * @ops: map/unmap domain callbacks
  * @host_data: Controller private data pointer
  */
