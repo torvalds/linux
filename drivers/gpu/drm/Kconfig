@@ -172,6 +172,13 @@ config DRM_VIA
 	  Choose this option if you have a Via unichrome or compatible video
 	  chipset. If M is selected the module will be called via.
 
+config DRM_MALI
+	tristate "Mali DRM supprt"
+	depends on DRM
+	help
+	  Choose this option if you have a Mali 200 or Mali 400 gpu
+	  If M is selected the module will be called mali_drm.
+
 config DRM_SAVAGE
 	tristate "Savage video cards"
 	depends on DRM && PCI
