@@ -20,6 +20,18 @@
 int leon_flush_during_switch = 1;
 int srmmu_swprobe_trace;
 
+static inline unsigned long leon_get_ctable_ptr(void)
+{
+	unsigned int retval;
+
+	__asm__ __volatile__("lda [%1] %2, %0\n\t" :
+			     "=r" (retval) :
+			     "r" (SRMMU_CTXTBL_PTR),
+			     "i" (ASI_LEON_MMUREGS));
+	return (retval & SRMMU_CTX_PMASK) << 4;
+}
+
+
 unsigned long srmmu_swprobe(unsigned long vaddr, unsigned long *paddr)
 {
 
@@ -35,10 +47,10 @@ unsigned long srmmu_swprobe(unsigned long vaddr, unsigned long *paddr)
 	if (srmmu_swprobe_trace)
 		printk(KERN_INFO "swprobe: trace on\n");
 
-	ctxtbl = srmmu_get_ctable_ptr();
+	ctxtbl = leon_get_ctable_ptr();
 	if (!(ctxtbl)) {
 		if (srmmu_swprobe_trace)
-			printk(KERN_INFO "swprobe: srmmu_get_ctable_ptr returned 0=>0\n");
+			printk(KERN_INFO "swprobe: leon_get_ctable_ptr returned 0=>0\n");
 		return 0;
 	}
 	if (!_pfn_valid(PFN(ctxtbl))) {
