@@ -317,7 +317,6 @@ static int tea575x_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static const struct v4l2_file_operations tea575x_fops = {
-	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= video_ioctl2,
 	.open           = v4l2_fh_open,
 	.release        = v4l2_fh_release,
@@ -337,7 +336,6 @@ static const struct v4l2_ioctl_ops tea575x_ioctl_ops = {
 };
 
 static const struct video_device tea575x_radio = {
-	.fops           = &tea575x_fops,
 	.ioctl_ops 	= &tea575x_ioctl_ops,
 	.release        = video_device_release_empty,
 };
@@ -349,7 +347,7 @@ static const struct v4l2_ctrl_ops tea575x_ctrl_ops = {
 /*
  * initialize all the tea575x chips
  */
-int snd_tea575x_init(struct snd_tea575x *tea)
+int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner)
 {
 	int retval;
 
@@ -374,6 +372,9 @@ int snd_tea575x_init(struct snd_tea575x *tea)
 	tea->vd.lock = &tea->mutex;
 	tea->vd.v4l2_dev = tea->v4l2_dev;
 	tea->vd.ctrl_handler = &tea->ctrl_handler;
+	tea->fops = tea575x_fops;
+	tea->fops.owner = owner;
+	tea->vd.fops = &tea->fops;
 	set_bit(V4L2_FL_USE_FH_PRIO, &tea->vd.flags);
 	/* disable hw_freq_seek if we can't use it */
 	if (tea->cannot_read_data)
