@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-s5p/clock.c
- *
+/*
  * Copyright 2009 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *
@@ -68,6 +67,11 @@ struct clk clk_fout_bpll = {
 	.id		= -1,
 };
 
+struct clk clk_fout_bpll_div2 = {
+	.name		= "fout_bpll_div2",
+	.id		= -1,
+};
+
 /* CPLL clock output */
 
 struct clk clk_fout_cpll = {
@@ -80,6 +84,11 @@ struct clk clk_fout_cpll = {
 */
 struct clk clk_fout_mpll = {
 	.name		= "fout_mpll",
+	.id		= -1,
+};
+
+struct clk clk_fout_mpll_div2 = {
+	.name		= "fout_mpll_div2",
 	.id		= -1,
 };
 
@@ -126,6 +135,16 @@ struct clksrc_sources clk_src_bpll = {
 	.nr_sources	= ARRAY_SIZE(clk_src_bpll_list),
 };
 
+static struct clk *clk_src_bpll_fout_list[] = {
+	[0] = &clk_fout_bpll_div2,
+	[1] = &clk_fout_bpll,
+};
+
+struct clksrc_sources clk_src_bpll_fout = {
+	.sources	= clk_src_bpll_fout_list,
+	.nr_sources	= ARRAY_SIZE(clk_src_bpll_fout_list),
+};
+
 /* Possible clock sources for CPLL Mux */
 static struct clk *clk_src_cpll_list[] = {
 	[0] = &clk_fin_cpll,
@@ -146,6 +165,16 @@ static struct clk *clk_src_mpll_list[] = {
 struct clksrc_sources clk_src_mpll = {
 	.sources	= clk_src_mpll_list,
 	.nr_sources	= ARRAY_SIZE(clk_src_mpll_list),
+};
+
+static struct clk *clk_src_mpll_fout_list[] = {
+	[0] = &clk_fout_mpll_div2,
+	[1] = &clk_fout_mpll,
+};
+
+struct clksrc_sources clk_src_mpll_fout = {
+	.sources	= clk_src_mpll_fout_list,
+	.nr_sources	= ARRAY_SIZE(clk_src_mpll_fout_list),
 };
 
 /* Possible clock sources for EPLL Mux */

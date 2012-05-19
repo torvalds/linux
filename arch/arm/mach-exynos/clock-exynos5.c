@@ -165,11 +165,29 @@ static struct clksrc_clk exynos5_clk_sclk_apll = {
 	.reg_div = { .reg = EXYNOS5_CLKDIV_CPU0, .shift = 24, .size = 3 },
 };
 
+static struct clksrc_clk exynos5_clk_mout_bpll_fout = {
+	.clk	= {
+		.name		= "mout_bpll_fout",
+	},
+	.sources = &clk_src_bpll_fout,
+	.reg_src = { .reg = EXYNOS5_PLL_DIV2_SEL, .shift = 0, .size = 1 },
+};
+
+static struct clk *exynos5_clk_src_bpll_list[] = {
+	[0] = &clk_fin_bpll,
+	[1] = &exynos5_clk_mout_bpll_fout.clk,
+};
+
+static struct clksrc_sources exynos5_clk_src_bpll = {
+	.sources	= exynos5_clk_src_bpll_list,
+	.nr_sources	= ARRAY_SIZE(exynos5_clk_src_bpll_list),
+};
+
 static struct clksrc_clk exynos5_clk_mout_bpll = {
 	.clk	= {
 		.name		= "mout_bpll",
 	},
-	.sources = &clk_src_bpll,
+	.sources = &exynos5_clk_src_bpll,
 	.reg_src = { .reg = EXYNOS5_CLKSRC_CDREX, .shift = 0, .size = 1 },
 };
 
@@ -207,11 +225,29 @@ static struct clksrc_clk exynos5_clk_mout_epll = {
 	.reg_src = { .reg = EXYNOS5_CLKSRC_TOP2, .shift = 12, .size = 1 },
 };
 
+static struct clksrc_clk exynos5_clk_mout_mpll_fout = {
+	.clk	= {
+		.name		= "mout_mpll_fout",
+	},
+	.sources = &clk_src_mpll_fout,
+	.reg_src = { .reg = EXYNOS5_PLL_DIV2_SEL, .shift = 4, .size = 1 },
+};
+
+static struct clk *exynos5_clk_src_mpll_list[] = {
+	[0] = &clk_fin_mpll,
+	[1] = &exynos5_clk_mout_mpll_fout.clk,
+};
+
+static struct clksrc_sources exynos5_clk_src_mpll = {
+	.sources	= exynos5_clk_src_mpll_list,
+	.nr_sources	= ARRAY_SIZE(exynos5_clk_src_mpll_list),
+};
+
 struct clksrc_clk exynos5_clk_mout_mpll = {
 	.clk = {
 		.name		= "mout_mpll",
 	},
-	.sources = &clk_src_mpll,
+	.sources = &exynos5_clk_src_mpll,
 	.reg_src = { .reg = EXYNOS5_CLKSRC_CORE1, .shift = 8, .size = 1 },
 };
 
@@ -473,6 +509,11 @@ static struct clk exynos5_init_clocks_off[] = {
 		.parent		= &exynos5_clk_aclk_66.clk,
 		.enable		= exynos5_clk_ip_peris_ctrl,
 		.ctrlbit	= (1 << 20),
+	}, {
+		.name		= "watchdog",
+		.parent		= &exynos5_clk_aclk_66.clk,
+		.enable		= exynos5_clk_ip_peris_ctrl,
+		.ctrlbit	= (1 << 19),
 	}, {
 		.name		= "hsmmc",
 		.devname	= "exynos4-sdhci.0",
@@ -1031,10 +1072,12 @@ static struct clksrc_clk *exynos5_sysclks[] = {
 	&exynos5_clk_mout_apll,
 	&exynos5_clk_sclk_apll,
 	&exynos5_clk_mout_bpll,
+	&exynos5_clk_mout_bpll_fout,
 	&exynos5_clk_mout_bpll_user,
 	&exynos5_clk_mout_cpll,
 	&exynos5_clk_mout_epll,
 	&exynos5_clk_mout_mpll,
+	&exynos5_clk_mout_mpll_fout,
 	&exynos5_clk_mout_mpll_user,
 	&exynos5_clk_vpllsrc,
 	&exynos5_clk_sclk_vpll,
@@ -1098,7 +1141,9 @@ static struct clk *exynos5_clks[] __initdata = {
 	&exynos5_clk_sclk_hdmi27m,
 	&exynos5_clk_sclk_hdmiphy,
 	&clk_fout_bpll,
+	&clk_fout_bpll_div2,
 	&clk_fout_cpll,
+	&clk_fout_mpll_div2,
 	&exynos5_clk_armclk,
 };
 
@@ -1263,8 +1308,10 @@ void __init_or_cpufreq exynos5_setup_clocks(void)
 
 	clk_fout_apll.ops = &exynos5_fout_apll_ops;
 	clk_fout_bpll.rate = bpll;
+	clk_fout_bpll_div2.rate = bpll >> 1;
 	clk_fout_cpll.rate = cpll;
 	clk_fout_mpll.rate = mpll;
+	clk_fout_mpll_div2.rate = mpll >> 1;
 	clk_fout_epll.rate = epll;
 	clk_fout_vpll.rate = vpll;
 

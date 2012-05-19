@@ -19,6 +19,9 @@
 #include <linux/serial_core.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/export.h>
+#include <linux/irqdomain.h>
+#include <linux/of_address.h>
 
 #include <asm/proc-fns.h>
 #include <asm/exception.h>
@@ -265,12 +268,12 @@ static struct map_desc exynos5_iodesc[] __initdata = {
 	}, {
 		.virtual	= (unsigned long)S5P_VA_GIC_CPU,
 		.pfn		= __phys_to_pfn(EXYNOS5_PA_GIC_CPU),
-		.length		= SZ_64K,
+		.length		= SZ_8K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_GIC_DIST,
 		.pfn		= __phys_to_pfn(EXYNOS5_PA_GIC_DIST),
-		.length		= SZ_64K,
+		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	},
 };
@@ -399,6 +402,7 @@ struct combiner_chip_data {
 	void __iomem *base;
 };
 
+static struct irq_domain *combiner_irq_domain;
 static struct combiner_chip_data combiner_data[MAX_COMBINER_NR];
 
 static inline void __iomem *combiner_base(struct irq_data *data)
@@ -411,14 +415,14 @@ static inline void __iomem *combiner_base(struct irq_data *data)
 
 static void combiner_mask_irq(struct irq_data *data)
 {
-	u32 mask = 1 << (data->irq % 32);
+	u32 mask = 1 << (data->hwirq % 32);
 
 	__raw_writel(mask, combiner_base(data) + COMBINER_ENABLE_CLEAR);
 }
 
 static void combiner_unmask_irq(struct irq_data *data)
 {
-	u32 mask = 1 << (data->irq % 32);
+	u32 mask = 1 << (data->hwirq % 32);
 
 	__raw_writel(mask, combiner_base(data) + COMBINER_ENABLE_SET);
 }
@@ -474,49 +478,127 @@ static void __init combiner_cascade_irq(unsigned int combiner_nr, unsigned int i
 	irq_set_chained_handler(irq, combiner_handle_cascade_irq);
 }
 
-static void __init combiner_init(unsigned int combiner_nr, void __iomem *base,
-			  unsigned int irq_start)
+static void __init combiner_init_one(unsigned int combiner_nr,
+				     void __iomem *base)
 {
-	unsigned int i;
-	unsigned int max_nr;
-
-	if (soc_is_exynos5250())
-		max_nr = EXYNOS5_MAX_COMBINER_NR;
-	else
-		max_nr = EXYNOS4_MAX_COMBINER_NR;
-
-	if (combiner_nr >= max_nr)
-		BUG();
-
 	combiner_data[combiner_nr].base = base;
-	combiner_data[combiner_nr].irq_offset = irq_start;
+	combiner_data[combiner_nr].irq_offset = irq_find_mapping(
+		combiner_irq_domain, combiner_nr * MAX_IRQ_IN_COMBINER);
 	combiner_data[combiner_nr].irq_mask = 0xff << ((combiner_nr % 4) << 3);
 
 	/* Disable all interrupts */
-
 	__raw_writel(combiner_data[combiner_nr].irq_mask,
 		     base + COMBINER_ENABLE_CLEAR);
+}
 
-	/* Setup the Linux IRQ subsystem */
+#ifdef CONFIG_OF
+static int combiner_irq_domain_xlate(struct irq_domain *d,
+				     struct device_node *controller,
+				     const u32 *intspec, unsigned int intsize,
+				     unsigned long *out_hwirq,
+				     unsigned int *out_type)
+{
+	if (d->of_node != controller)
+		return -EINVAL;
 
-	for (i = irq_start; i < combiner_data[combiner_nr].irq_offset
-				+ MAX_IRQ_IN_COMBINER; i++) {
-		irq_set_chip_and_handler(i, &combiner_chip, handle_level_irq);
-		irq_set_chip_data(i, &combiner_data[combiner_nr]);
-		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
+	if (intsize < 2)
+		return -EINVAL;
+
+	*out_hwirq = intspec[0] * MAX_IRQ_IN_COMBINER + intspec[1];
+	*out_type = 0;
+
+	return 0;
+}
+#else
+static int combiner_irq_domain_xlate(struct irq_domain *d,
+				     struct device_node *controller,
+				     const u32 *intspec, unsigned int intsize,
+				     unsigned long *out_hwirq,
+				     unsigned int *out_type)
+{
+	return -EINVAL;
+}
+#endif
+
+static int combiner_irq_domain_map(struct irq_domain *d, unsigned int irq,
+				   irq_hw_number_t hw)
+{
+	irq_set_chip_and_handler(irq, &combiner_chip, handle_level_irq);
+	irq_set_chip_data(irq, &combiner_data[hw >> 3]);
+	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+
+	return 0;
+}
+
+static struct irq_domain_ops combiner_irq_domain_ops = {
+	.xlate	= combiner_irq_domain_xlate,
+	.map	= combiner_irq_domain_map,
+};
+
+void __init combiner_init(void __iomem *combiner_base, struct device_node *np)
+{
+	int i, irq, irq_base;
+	unsigned int max_nr, nr_irq;
+
+	if (np) {
+		if (of_property_read_u32(np, "samsung,combiner-nr", &max_nr)) {
+			pr_warning("%s: number of combiners not specified, "
+				"setting default as %d.\n",
+				__func__, EXYNOS4_MAX_COMBINER_NR);
+			max_nr = EXYNOS4_MAX_COMBINER_NR;
+		}
+	} else {
+		max_nr = soc_is_exynos5250() ? EXYNOS5_MAX_COMBINER_NR :
+						EXYNOS4_MAX_COMBINER_NR;
+	}
+	nr_irq = max_nr * MAX_IRQ_IN_COMBINER;
+
+	irq_base = irq_alloc_descs(COMBINER_IRQ(0, 0), 1, nr_irq, 0);
+	if (IS_ERR_VALUE(irq_base)) {
+		irq_base = COMBINER_IRQ(0, 0);
+		pr_warning("%s: irq desc alloc failed. Continuing with %d as linux irq base\n", __func__, irq_base);
+	}
+
+	combiner_irq_domain = irq_domain_add_legacy(np, nr_irq, irq_base, 0,
+				&combiner_irq_domain_ops, &combiner_data);
+	if (WARN_ON(!combiner_irq_domain)) {
+		pr_warning("%s: irq domain init failed\n", __func__);
+		return;
+	}
+
+	for (i = 0; i < max_nr; i++) {
+		combiner_init_one(i, combiner_base + (i >> 2) * 0x10);
+		irq = np ? irq_of_parse_and_map(np, i) : IRQ_SPI(i);
+		combiner_cascade_irq(i, irq);
 	}
 }
 
 #ifdef CONFIG_OF
+int __init combiner_of_init(struct device_node *np, struct device_node *parent)
+{
+	void __iomem *combiner_base;
+
+	combiner_base = of_iomap(np, 0);
+	if (!combiner_base) {
+		pr_err("%s: failed to map combiner registers\n", __func__);
+		return -ENXIO;
+	}
+
+	combiner_init(combiner_base, np);
+
+	return 0;
+}
+
 static const struct of_device_id exynos4_dt_irq_match[] = {
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
+	{ .compatible = "samsung,exynos4210-combiner",
+			.data = combiner_of_init, },
 	{},
 };
 #endif
 
 void __init exynos4_init_irq(void)
 {
-	int irq;
 	unsigned int gic_bank_offset;
 
 	gic_bank_offset = soc_is_exynos4412() ? 0x4000 : 0x8000;
@@ -528,12 +610,8 @@ void __init exynos4_init_irq(void)
 		of_irq_init(exynos4_dt_irq_match);
 #endif
 
-	for (irq = 0; irq < EXYNOS4_MAX_COMBINER_NR; irq++) {
-
-		combiner_init(irq, (void __iomem *)S5P_VA_COMBINER(irq),
-				COMBINER_IRQ(irq, 0));
-		combiner_cascade_irq(irq, IRQ_SPI(irq));
-	}
+	if (!of_have_populated_dt())
+		combiner_init(S5P_VA_COMBINER_BASE, NULL);
 
 	/*
 	 * The parameters of s5p_init_irq() are for VIC init.
@@ -545,18 +623,9 @@ void __init exynos4_init_irq(void)
 
 void __init exynos5_init_irq(void)
 {
-	int irq;
-
 #ifdef CONFIG_OF
 	of_irq_init(exynos4_dt_irq_match);
 #endif
-
-	for (irq = 0; irq < EXYNOS5_MAX_COMBINER_NR; irq++) {
-		combiner_init(irq, (void __iomem *)S5P_VA_COMBINER(irq),
-				COMBINER_IRQ(irq, 0));
-		combiner_cascade_irq(irq, IRQ_SPI(irq));
-	}
-
 	/*
 	 * The parameters of s5p_init_irq() are for VIC init.
 	 * Theses parameters should be NULL and 0 because EXYNOS4
@@ -565,30 +634,18 @@ void __init exynos5_init_irq(void)
 	s5p_init_irq(NULL, 0);
 }
 
-struct bus_type exynos4_subsys = {
-	.name		= "exynos4-core",
-	.dev_name	= "exynos4-core",
-};
-
-struct bus_type exynos5_subsys = {
-	.name		= "exynos5-core",
-	.dev_name	= "exynos5-core",
+struct bus_type exynos_subsys = {
+	.name		= "exynos-core",
+	.dev_name	= "exynos-core",
 };
 
 static struct device exynos4_dev = {
-	.bus	= &exynos4_subsys,
-};
-
-static struct device exynos5_dev = {
-	.bus	= &exynos5_subsys,
+	.bus	= &exynos_subsys,
 };
 
 static int __init exynos_core_init(void)
 {
-	if (soc_is_exynos5250())
-		return subsys_system_register(&exynos5_subsys, NULL);
-	else
-		return subsys_system_register(&exynos4_subsys, NULL);
+	return subsys_system_register(&exynos_subsys, NULL);
 }
 core_initcall(exynos_core_init);
 
@@ -675,10 +732,7 @@ static int __init exynos_init(void)
 {
 	printk(KERN_INFO "EXYNOS: Initializing architecture\n");
 
-	if (soc_is_exynos5250())
-		return device_register(&exynos5_dev);
-	else
-		return device_register(&exynos4_dev);
+	return device_register(&exynos4_dev);
 }
 
 /* uart registration process */
