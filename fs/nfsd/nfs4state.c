@@ -2243,7 +2243,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 	status = nfserr_clid_inuse;
 	if (conf && unconf && same_verf(&confirm, &unconf->cl_confirm)) {
 		/* case 1: callback update */
-		if (!same_creds(&conf->cl_cred, &unconf->cl_cred))
+		if (!same_creds(&conf->cl_cred, &rqstp->rq_cred))
 			status = nfserr_clid_inuse;
 		else {
 			nfsd4_change_callback(conf, &unconf->cl_cb_conn);
