@@ -3,6 +3,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-anysee.o \
 			rc-apac-viewcomp.o \
 			rc-asus-pc39.o \
+			rc-asus-ps3-100.o \
 			rc-ati-tv-wonder-hd-600.o \
 			rc-ati-x10.o \
 			rc-avermedia-a16d.o \
