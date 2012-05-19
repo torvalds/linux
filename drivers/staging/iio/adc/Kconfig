@@ -149,7 +149,7 @@ config MAX1363_RING_BUFFER
 	bool "Maxim max1363: use ring buffer"
 	depends on MAX1363
 	select IIO_BUFFER
-	select IIO_SW_RING
+	select IIO_KFIFO_BUF
 	help
 	  Say yes here to include ring buffer support in the MAX1363
 	  ADC driver.
