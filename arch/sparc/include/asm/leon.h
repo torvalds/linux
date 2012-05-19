@@ -240,18 +240,11 @@ static inline int sparc_leon3_cpuid(void)
 #define LEON2_CFG_SSIZE_MASK 0x00007000UL
 
 #ifndef __ASSEMBLY__
+struct vm_area_struct;
+
 extern unsigned long srmmu_swprobe(unsigned long vaddr, unsigned long *paddr);
 extern void leon_flush_icache_all(void);
 extern void leon_flush_dcache_all(void);
-extern void leon_flush_cache_all(void);
-extern void leon_flush_tlb_all(void);
-extern int leon_flush_during_switch;
-extern int leon_flush_needed(void);
-
-struct vm_area_struct;
-extern void leon_flush_icache_all(void);
-extern void leon_flush_dcache_all(void);
-extern void leon_flush_pcache_all(struct vm_area_struct *vma, unsigned long page);
 extern void leon_flush_cache_all(void);
 extern void leon_flush_tlb_all(void);
 extern int leon_flush_during_switch;
@@ -286,15 +279,9 @@ extern void leon_update_virq_handling(unsigned int virq,
 extern void leon_init_timers(void);
 extern void leon_trans_init(struct device_node *dp);
 extern void leon_node_init(struct device_node *dp, struct device_node ***nextp);
-extern void leon_init_IRQ(void);
-extern void leon_init(void);
-extern unsigned long srmmu_swprobe(unsigned long vaddr, unsigned long *paddr);
 extern void init_leon(void);
 extern void poke_leonsparc(void);
 extern void leon3_getCacheRegs(struct leon3_cacheregs *regs);
-extern int leon_flush_needed(void);
-extern void leon_switch_mm(void);
-extern int srmmu_swprobe_trace;
 extern int leon3_ticker_irq;
 
 #ifdef CONFIG_SMP
