@@ -144,6 +144,7 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs, struct sk_buff *skb)
 	const unsigned char *nh = skb_network_header(skb);
 	int off = skb_network_header_len(skb);
 	int len = (skb_transport_header(skb)[1] + 1) << 3;
+	int padlen = 0;
 
 	if (skb_transport_offset(skb) + len > skb_headlen(skb))
 		goto bad;
@@ -158,6 +159,9 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs, struct sk_buff *skb)
 		switch (nh[off]) {
 		case IPV6_TLV_PAD1:
 			optlen = 1;
+			padlen++;
+			if (padlen > 7)
+				goto bad;
 			break;
 
 		case IPV6_TLV_PADN:
@@ -166,7 +170,8 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs, struct sk_buff *skb)
 			 * of 8. 7 is therefore the highest valid value.
 			 * See also RFC 4942, Section 2.1.9.5.
 			 */
-			if (optlen > 7)
+			padlen += optlen;
+			if (padlen > 7)
 				goto bad;
 			/* RFC 4942 recommends receiving hosts to
 			 * actively check PadN payload to contain
@@ -195,11 +200,19 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs, struct sk_buff *skb)
 				if (ip6_tlvopt_unknown(skb, off) == 0)
 					return false;
 			}
+			padlen = 0;
 			break;
 		}
 		off += optlen;
 		len -= optlen;
 	}
+	/* This case will not be caught by above check since its padding
+	 * length is smaller than 7:
+	 * 1 byte NH + 1 byte Length + 6 bytes Padding
+	 */
+	if ((padlen == 6) && ((off - skb_network_header_len(skb)) == 8))
+		goto bad;
+
 	if (len == 0)
 		return true;
 bad:
