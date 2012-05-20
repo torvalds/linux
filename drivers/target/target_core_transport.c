@@ -68,7 +68,6 @@ struct kmem_cache *t10_alua_tg_pt_gp_mem_cache;
 
 static int transport_generic_write_pending(struct se_cmd *);
 static int transport_processing_thread(void *param);
-static int __transport_execute_tasks(struct se_device *dev, struct se_cmd *);
 static void transport_complete_task_attr(struct se_cmd *cmd);
 static void transport_handle_queue_full(struct se_cmd *cmd,
 		struct se_device *dev);
@@ -742,65 +741,6 @@ static void target_add_to_state_list(struct se_cmd *cmd)
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 }
 
-static void __target_add_to_execute_list(struct se_cmd *cmd)
-{
-	struct se_device *dev = cmd->se_dev;
-	bool head_of_queue = false;
-
-	if (!list_empty(&cmd->execute_list))
-		return;
-
-	if (dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED &&
-	    cmd->sam_task_attr == MSG_HEAD_TAG)
-		head_of_queue = true;
-
-	if (head_of_queue)
-		list_add(&cmd->execute_list, &dev->execute_list);
-	else
-		list_add_tail(&cmd->execute_list, &dev->execute_list);
-
-	atomic_inc(&dev->execute_tasks);
-
-	if (cmd->state_active)
-		return;
-
-	if (head_of_queue)
-		list_add(&cmd->state_list, &dev->state_list);
-	else
-		list_add_tail(&cmd->state_list, &dev->state_list);
-
-	cmd->state_active = true;
-}
-
-static void target_add_to_execute_list(struct se_cmd *cmd)
-{
-	unsigned long flags;
-	struct se_device *dev = cmd->se_dev;
-
-	spin_lock_irqsave(&dev->execute_task_lock, flags);
-	__target_add_to_execute_list(cmd);
-	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
-}
-
-void __target_remove_from_execute_list(struct se_cmd *cmd)
-{
-	list_del_init(&cmd->execute_list);
-	atomic_dec(&cmd->se_dev->execute_tasks);
-}
-
-static void target_remove_from_execute_list(struct se_cmd *cmd)
-{
-	struct se_device *dev = cmd->se_dev;
-	unsigned long flags;
-
-	if (WARN_ON(list_empty(&cmd->execute_list)))
-		return;
-
-	spin_lock_irqsave(&dev->execute_task_lock, flags);
-	__target_remove_from_execute_list(cmd);
-	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
-}
-
 /*
  * Handle QUEUE_FULL / -EAGAIN and -ENOMEM status
  */
@@ -874,8 +814,7 @@ void transport_dump_dev_state(
 		break;
 	}
 
-	*bl += sprintf(b + *bl, "  Execute/Max Queue Depth: %d/%d",
-		atomic_read(&dev->execute_tasks), dev->queue_depth);
+	*bl += sprintf(b + *bl, "  Max Queue Depth: %d", dev->queue_depth);
 	*bl += sprintf(b + *bl, "  SectorSize: %u  HwMaxSectors: %u\n",
 		dev->se_sub_dev->se_dev_attrib.block_size,
 		dev->se_sub_dev->se_dev_attrib.hw_max_sectors);
@@ -1222,7 +1161,6 @@ struct se_device *transport_add_device_to_core_hba(
 	INIT_LIST_HEAD(&dev->dev_list);
 	INIT_LIST_HEAD(&dev->dev_sep_list);
 	INIT_LIST_HEAD(&dev->dev_tmr_list);
-	INIT_LIST_HEAD(&dev->execute_list);
 	INIT_LIST_HEAD(&dev->delayed_cmd_list);
 	INIT_LIST_HEAD(&dev->state_list);
 	INIT_LIST_HEAD(&dev->qf_cmd_list);
@@ -1382,7 +1320,6 @@ void transport_init_se_cmd(
 	INIT_LIST_HEAD(&cmd->se_qf_node);
 	INIT_LIST_HEAD(&cmd->se_queue_node);
 	INIT_LIST_HEAD(&cmd->se_cmd_list);
-	INIT_LIST_HEAD(&cmd->execute_list);
 	INIT_LIST_HEAD(&cmd->state_list);
 	init_completion(&cmd->transport_lun_fe_stop_comp);
 	init_completion(&cmd->transport_lun_stop_comp);
@@ -1926,152 +1863,92 @@ queue_full:
 }
 EXPORT_SYMBOL(transport_generic_request_failure);
 
-/*
- * Called from Fabric Module context from transport_execute_tasks()
- *
- * The return of this function determins if the tasks from struct se_cmd
- * get added to the execution queue in transport_execute_tasks(),
- * or are added to the delayed or ordered lists here.
- */
-static inline int transport_execute_task_attr(struct se_cmd *cmd)
+static void __target_execute_cmd(struct se_cmd *cmd)
 {
-	if (cmd->se_dev->dev_task_attr_type != SAM_TASK_ATTR_EMULATED)
-		return 1;
+	int error;
+
+	spin_lock_irq(&cmd->t_state_lock);
+	cmd->transport_state |= (CMD_T_BUSY|CMD_T_SENT);
+	spin_unlock_irq(&cmd->t_state_lock);
+
+	if (cmd->execute_cmd)
+		error = cmd->execute_cmd(cmd);
+	else {
+		error = cmd->se_dev->transport->execute_cmd(cmd, cmd->t_data_sg,
+				cmd->t_data_nents, cmd->data_direction);
+	}
+
+	if (error) {
+		spin_lock_irq(&cmd->t_state_lock);
+		cmd->transport_state &= ~(CMD_T_BUSY|CMD_T_SENT);
+		spin_unlock_irq(&cmd->t_state_lock);
+
+		transport_generic_request_failure(cmd);
+	}
+}
+
+static void target_execute_cmd(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+
+	if (transport_cmd_check_stop(cmd, 0, TRANSPORT_PROCESSING))
+		return;
+
+	if (dev->dev_task_attr_type != SAM_TASK_ATTR_EMULATED)
+		goto execute;
+
 	/*
 	 * Check for the existence of HEAD_OF_QUEUE, and if true return 1
 	 * to allow the passed struct se_cmd list of tasks to the front of the list.
 	 */
-	 if (cmd->sam_task_attr == MSG_HEAD_TAG) {
-		pr_debug("Added HEAD_OF_QUEUE for CDB:"
-			" 0x%02x, se_ordered_id: %u\n",
-			cmd->t_task_cdb[0],
-			cmd->se_ordered_id);
-		return 1;
-	} else if (cmd->sam_task_attr == MSG_ORDERED_TAG) {
-		atomic_inc(&cmd->se_dev->dev_ordered_sync);
+	switch (cmd->sam_task_attr) {
+	case MSG_HEAD_TAG:
+		pr_debug("Added HEAD_OF_QUEUE for CDB: 0x%02x, "
+			 "se_ordered_id: %u\n",
+			 cmd->t_task_cdb[0], cmd->se_ordered_id);
+		goto execute;
+	case MSG_ORDERED_TAG:
+		atomic_inc(&dev->dev_ordered_sync);
 		smp_mb__after_atomic_inc();
 
-		pr_debug("Added ORDERED for CDB: 0x%02x to ordered"
-				" list, se_ordered_id: %u\n",
-				cmd->t_task_cdb[0],
-				cmd->se_ordered_id);
+		pr_debug("Added ORDERED for CDB: 0x%02x to ordered list, "
+			 " se_ordered_id: %u\n",
+			 cmd->t_task_cdb[0], cmd->se_ordered_id);
+
 		/*
-		 * Add ORDERED command to tail of execution queue if
-		 * no other older commands exist that need to be
-		 * completed first.
+		 * Execute an ORDERED command if no other older commands
+		 * exist that need to be completed first.
 		 */
-		if (!atomic_read(&cmd->se_dev->simple_cmds))
-			return 1;
-	} else {
+		if (!atomic_read(&dev->simple_cmds))
+			goto execute;
+		break;
+	default:
 		/*
 		 * For SIMPLE and UNTAGGED Task Attribute commands
 		 */
-		atomic_inc(&cmd->se_dev->simple_cmds);
+		atomic_inc(&dev->simple_cmds);
 		smp_mb__after_atomic_inc();
+		break;
 	}
-	/*
-	 * Otherwise if one or more outstanding ORDERED task attribute exist,
-	 * add the dormant task(s) built for the passed struct se_cmd to the
-	 * execution queue and become in Active state for this struct se_device.
-	 */
-	if (atomic_read(&cmd->se_dev->dev_ordered_sync) != 0) {
-		/*
-		 * Otherwise, add cmd w/ tasks to delayed cmd queue that
-		 * will be drained upon completion of HEAD_OF_QUEUE task.
-		 */
-		spin_lock(&cmd->se_dev->delayed_cmd_lock);
+
+	if (atomic_read(&dev->dev_ordered_sync) != 0) {
+		spin_lock(&dev->delayed_cmd_lock);
 		cmd->se_cmd_flags |= SCF_DELAYED_CMD_FROM_SAM_ATTR;
-		list_add_tail(&cmd->se_delayed_node,
-				&cmd->se_dev->delayed_cmd_list);
-		spin_unlock(&cmd->se_dev->delayed_cmd_lock);
+		list_add_tail(&cmd->se_delayed_node, &dev->delayed_cmd_list);
+		spin_unlock(&dev->delayed_cmd_lock);
 
 		pr_debug("Added CDB: 0x%02x Task Attr: 0x%02x to"
 			" delayed CMD list, se_ordered_id: %u\n",
 			cmd->t_task_cdb[0], cmd->sam_task_attr,
 			cmd->se_ordered_id);
-		/*
-		 * Return zero to let transport_execute_tasks() know
-		 * not to add the delayed tasks to the execution list.
-		 */
-		return 0;
+		return;
 	}
+
+execute:
 	/*
 	 * Otherwise, no ORDERED task attributes exist..
 	 */
-	return 1;
-}
-
-/*
- * Called from fabric module context in transport_generic_new_cmd() and
- * transport_generic_process_write()
- */
-static void transport_execute_tasks(struct se_cmd *cmd)
-{
-	int add_tasks;
-	struct se_device *se_dev = cmd->se_dev;
-	/*
-	 * Call transport_cmd_check_stop() to see if a fabric exception
-	 * has occurred that prevents execution.
-	 */
-	if (!transport_cmd_check_stop(cmd, 0, TRANSPORT_PROCESSING)) {
-		/*
-		 * Check for SAM Task Attribute emulation and HEAD_OF_QUEUE
-		 * attribute for the tasks of the received struct se_cmd CDB
-		 */
-		add_tasks = transport_execute_task_attr(cmd);
-		if (add_tasks) {
-			__transport_execute_tasks(se_dev, cmd);
-			return;
-		}
-	}
-	__transport_execute_tasks(se_dev, NULL);
-}
-
-static int __transport_execute_tasks(struct se_device *dev, struct se_cmd *new_cmd)
-{
-	int error;
-	struct se_cmd *cmd = NULL;
-	unsigned long flags;
-
-check_depth:
-	spin_lock_irq(&dev->execute_task_lock);
-	if (new_cmd != NULL)
-		__target_add_to_execute_list(new_cmd);
-
-	if (list_empty(&dev->execute_list)) {
-		spin_unlock_irq(&dev->execute_task_lock);
-		return 0;
-	}
-	cmd = list_first_entry(&dev->execute_list, struct se_cmd, execute_list);
-	__target_remove_from_execute_list(cmd);
-	spin_unlock_irq(&dev->execute_task_lock);
-
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	cmd->transport_state |= CMD_T_BUSY;
-	cmd->transport_state |= CMD_T_SENT;
-
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	if (cmd->execute_cmd)
-		error = cmd->execute_cmd(cmd);
-	else {
-		error = dev->transport->execute_cmd(cmd, cmd->t_data_sg,
-				cmd->t_data_nents, cmd->data_direction);
-	}
-
-	if (error != 0) {
-		spin_lock_irqsave(&cmd->t_state_lock, flags);
-		cmd->transport_state &= ~CMD_T_BUSY;
-		cmd->transport_state &= ~CMD_T_SENT;
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-		transport_generic_request_failure(cmd);
-	}
-
-	new_cmd = NULL;
-	goto check_depth;
-
-	return 0;
+	__target_execute_cmd(cmd);
 }
 
 /*
@@ -2130,14 +2007,39 @@ out:
 }
 
 /*
+ * Process all commands up to the last received ORDERED task attribute which
+ * requires another blocking boundary
+ */
+static void target_restart_delayed_cmds(struct se_device *dev)
+{
+	for (;;) {
+		struct se_cmd *cmd;
+
+		spin_lock(&dev->delayed_cmd_lock);
+		if (list_empty(&dev->delayed_cmd_list)) {
+			spin_unlock(&dev->delayed_cmd_lock);
+			break;
+		}
+
+		cmd = list_entry(dev->delayed_cmd_list.next,
+				 struct se_cmd, se_delayed_node);
+		list_del(&cmd->se_delayed_node);
+		spin_unlock(&dev->delayed_cmd_lock);
+
+		__target_execute_cmd(cmd);
+
+		if (cmd->sam_task_attr == MSG_ORDERED_TAG)
+			break;
+	}
+}
+
+/*
  * Called from I/O completion to determine which dormant/delayed
  * and ordered cmds need to have their tasks added to the execution queue.
  */
 static void transport_complete_task_attr(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct se_cmd *cmd_p, *cmd_tmp;
-	int new_active_tasks = 0;
 
 	if (cmd->sam_task_attr == MSG_SIMPLE_TAG) {
 		atomic_dec(&dev->simple_cmds);
@@ -2159,38 +2061,8 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 		pr_debug("Incremented dev_cur_ordered_id: %u for ORDERED:"
 			" %u\n", dev->dev_cur_ordered_id, cmd->se_ordered_id);
 	}
-	/*
-	 * Process all commands up to the last received
-	 * ORDERED task attribute which requires another blocking
-	 * boundary
-	 */
-	spin_lock(&dev->delayed_cmd_lock);
-	list_for_each_entry_safe(cmd_p, cmd_tmp,
-			&dev->delayed_cmd_list, se_delayed_node) {
 
-		list_del(&cmd_p->se_delayed_node);
-		spin_unlock(&dev->delayed_cmd_lock);
-
-		pr_debug("Calling add_tasks() for"
-			" cmd_p: 0x%02x Task Attr: 0x%02x"
-			" Dormant -> Active, se_ordered_id: %u\n",
-			cmd_p->t_task_cdb[0],
-			cmd_p->sam_task_attr, cmd_p->se_ordered_id);
-
-		target_add_to_execute_list(cmd_p);
-		new_active_tasks++;
-
-		spin_lock(&dev->delayed_cmd_lock);
-		if (cmd_p->sam_task_attr == MSG_ORDERED_TAG)
-			break;
-	}
-	spin_unlock(&dev->delayed_cmd_lock);
-	/*
-	 * If new tasks have become active, wake up the transport thread
-	 * to do the processing of the Active tasks.
-	 */
-	if (new_active_tasks != 0)
-		wake_up_interruptible(&dev->dev_queue_obj.thread_wq);
+	target_restart_delayed_cmds(dev);
 }
 
 static void transport_complete_qf(struct se_cmd *cmd)
@@ -2612,15 +2484,13 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	 *
 	 * The command will be added to the execution queue after its write
 	 * data has arrived.
-	 */
-	if (cmd->data_direction == DMA_TO_DEVICE) {
-		target_add_to_state_list(cmd);
-		return transport_generic_write_pending(cmd);
-	}
-	/*
+	 *
 	 * Everything else but a WRITE, add the command to the execution queue.
 	 */
-	transport_execute_tasks(cmd);
+	target_add_to_state_list(cmd);
+	if (cmd->data_direction == DMA_TO_DEVICE)
+		return transport_generic_write_pending(cmd);
+	target_execute_cmd(cmd);
 	return 0;
 
 out_fail:
@@ -2636,7 +2506,7 @@ EXPORT_SYMBOL(transport_generic_new_cmd);
  */
 void transport_generic_process_write(struct se_cmd *cmd)
 {
-	transport_execute_tasks(cmd);
+	target_execute_cmd(cmd);
 }
 EXPORT_SYMBOL(transport_generic_process_write);
 
@@ -2872,12 +2742,8 @@ static int transport_lun_wait_for_tasks(struct se_cmd *cmd, struct se_lun *lun)
 	    (cmd->transport_state & CMD_T_SENT)) {
 		if (!target_stop_cmd(cmd, &flags))
 			ret++;
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-	} else {
-		spin_unlock_irqrestore(&cmd->t_state_lock,
-				flags);
-		target_remove_from_execute_list(cmd);
 	}
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	pr_debug("ConfigFS: cmd: %p stop tasks ret:"
 			" %d\n", cmd, ret);

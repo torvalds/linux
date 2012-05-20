@@ -295,9 +295,6 @@ static void core_tmr_drain_state_list(
 
 		list_move_tail(&cmd->state_list, &drain_task_list);
 		cmd->state_active = false;
-
-		if (!list_empty(&cmd->execute_list))
-			__target_remove_from_execute_list(cmd);
 	}
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 

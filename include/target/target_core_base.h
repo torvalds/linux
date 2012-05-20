@@ -572,7 +572,6 @@ struct se_cmd {
 	struct scatterlist	*t_bidi_data_sg;
 	unsigned int		t_bidi_data_nents;
 
-	struct list_head	execute_list;
 	struct list_head	state_list;
 	bool			state_active;
 
@@ -777,7 +776,6 @@ struct se_device {
 	/* Active commands on this virtual SE device */
 	atomic_t		simple_cmds;
 	atomic_t		dev_ordered_id;
-	atomic_t		execute_tasks;
 	atomic_t		dev_ordered_sync;
 	atomic_t		dev_qf_count;
 	struct se_obj		dev_obj;
@@ -803,7 +801,6 @@ struct se_device {
 	struct task_struct	*process_thread;
 	struct work_struct	qf_work_queue;
 	struct list_head	delayed_cmd_list;
-	struct list_head	execute_list;
 	struct list_head	state_list;
 	struct list_head	qf_cmd_list;
 	/* Pointer to associated SE HBA */
