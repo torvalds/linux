@@ -1090,6 +1090,10 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 	}
 
 	regulators = of_find_node_by_name(np, "regulators");
+	if (!regulators) {
+		dev_err(&pdev->dev, "regulator node not found\n");
+		return NULL;
+	}
 
 	switch (tps65910_chip_id(tps65910)) {
 	case TPS65910:
