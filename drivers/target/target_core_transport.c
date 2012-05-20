@@ -2446,7 +2446,7 @@ static int transport_generic_cmd_sequencer(
 			goto out_unsupported_cdb;
 		size = transport_get_size(sectors, cdb, cmd);
 		cmd->t_task_lba = transport_lba_21(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		break;
 	case READ_10:
 		sectors = transport_get_sectors_10(cdb, cmd, &sector_ret);
@@ -2454,7 +2454,7 @@ static int transport_generic_cmd_sequencer(
 			goto out_unsupported_cdb;
 		size = transport_get_size(sectors, cdb, cmd);
 		cmd->t_task_lba = transport_lba_32(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		break;
 	case READ_12:
 		sectors = transport_get_sectors_12(cdb, cmd, &sector_ret);
@@ -2462,7 +2462,7 @@ static int transport_generic_cmd_sequencer(
 			goto out_unsupported_cdb;
 		size = transport_get_size(sectors, cdb, cmd);
 		cmd->t_task_lba = transport_lba_32(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		break;
 	case READ_16:
 		sectors = transport_get_sectors_16(cdb, cmd, &sector_ret);
@@ -2470,7 +2470,7 @@ static int transport_generic_cmd_sequencer(
 			goto out_unsupported_cdb;
 		size = transport_get_size(sectors, cdb, cmd);
 		cmd->t_task_lba = transport_lba_64(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		break;
 	case WRITE_6:
 		sectors = transport_get_sectors_6(cdb, cmd, &sector_ret);
@@ -2478,7 +2478,7 @@ static int transport_generic_cmd_sequencer(
 			goto out_unsupported_cdb;
 		size = transport_get_size(sectors, cdb, cmd);
 		cmd->t_task_lba = transport_lba_21(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		break;
 	case WRITE_10:
 	case WRITE_VERIFY:
@@ -2489,7 +2489,7 @@ static int transport_generic_cmd_sequencer(
 		cmd->t_task_lba = transport_lba_32(cdb);
 		if (cdb[1] & 0x8)
 			cmd->se_cmd_flags |= SCF_FUA;
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		break;
 	case WRITE_12:
 		sectors = transport_get_sectors_12(cdb, cmd, &sector_ret);
@@ -2499,7 +2499,7 @@ static int transport_generic_cmd_sequencer(
 		cmd->t_task_lba = transport_lba_32(cdb);
 		if (cdb[1] & 0x8)
 			cmd->se_cmd_flags |= SCF_FUA;
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		break;
 	case WRITE_16:
 		sectors = transport_get_sectors_16(cdb, cmd, &sector_ret);
@@ -2509,7 +2509,7 @@ static int transport_generic_cmd_sequencer(
 		cmd->t_task_lba = transport_lba_64(cdb);
 		if (cdb[1] & 0x8)
 			cmd->se_cmd_flags |= SCF_FUA;
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		break;
 	case XDWRITEREAD_10:
 		if ((cmd->data_direction != DMA_TO_DEVICE) ||
@@ -2520,7 +2520,7 @@ static int transport_generic_cmd_sequencer(
 			goto out_unsupported_cdb;
 		size = transport_get_size(sectors, cdb, cmd);
 		cmd->t_task_lba = transport_lba_32(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 
 		/*
 		 * Do now allow BIDI commands for passthrough mode.
@@ -2548,7 +2548,7 @@ static int transport_generic_cmd_sequencer(
 			 * XDWRITE_READ_32 logic.
 			 */
 			cmd->t_task_lba = transport_lba_64_ext(cdb);
-			cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
+			cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 
 			/*
 			 * Do now allow BIDI commands for passthrough mode.
@@ -2578,7 +2578,6 @@ static int transport_generic_cmd_sequencer(
 			}
 
 			cmd->t_task_lba = get_unaligned_be64(&cdb[12]);
-			cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 
 			if (target_check_write_same_discard(&cdb[10], dev) < 0)
 				goto out_unsupported_cdb;
@@ -2608,25 +2607,20 @@ static int transport_generic_cmd_sequencer(
 			/* GPCMD_SEND_KEY from multi media commands */
 			size = (cdb[8] << 8) + cdb[9];
 		}
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case MODE_SELECT:
 		size = cdb[4];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case MODE_SELECT_10:
 		size = (cdb[7] << 8) + cdb[8];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case MODE_SENSE:
 		size = cdb[4];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		if (!passthrough)
 			cmd->execute_cmd = target_emulate_modesense;
 		break;
 	case MODE_SENSE_10:
 		size = (cdb[7] << 8) + cdb[8];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		if (!passthrough)
 			cmd->execute_cmd = target_emulate_modesense;
 		break;
@@ -2635,39 +2629,32 @@ static int transport_generic_cmd_sequencer(
 	case LOG_SELECT:
 	case LOG_SENSE:
 		size = (cdb[7] << 8) + cdb[8];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case READ_BLOCK_LIMITS:
 		size = READ_BLOCK_LEN;
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case GPCMD_GET_CONFIGURATION:
 	case GPCMD_READ_FORMAT_CAPACITIES:
 	case GPCMD_READ_DISC_INFO:
 	case GPCMD_READ_TRACK_RZONE_INFO:
 		size = (cdb[7] << 8) + cdb[8];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case PERSISTENT_RESERVE_IN:
 		if (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
 			cmd->execute_cmd = target_scsi3_emulate_pr_in;
 		size = (cdb[7] << 8) + cdb[8];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case PERSISTENT_RESERVE_OUT:
 		if (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
 			cmd->execute_cmd = target_scsi3_emulate_pr_out;
 		size = (cdb[7] << 8) + cdb[8];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case GPCMD_MECHANISM_STATUS:
 	case GPCMD_READ_DVD_STRUCTURE:
 		size = (cdb[8] << 8) + cdb[9];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case READ_POSITION:
 		size = READ_POSITION_LEN;
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case MAINTENANCE_OUT:
 		if (dev->transport->get_device_type(dev) != TYPE_ROM) {
@@ -2687,7 +2674,6 @@ static int transport_generic_cmd_sequencer(
 			/* GPCMD_REPORT_KEY from multi media commands */
 			size = (cdb[8] << 8) + cdb[9];
 		}
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case INQUIRY:
 		size = (cdb[3] << 8) + cdb[4];
@@ -2697,17 +2683,14 @@ static int transport_generic_cmd_sequencer(
 		 */
 		if (cmd->se_dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
 			cmd->sam_task_attr = MSG_HEAD_TAG;
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		if (!passthrough)
 			cmd->execute_cmd = target_emulate_inquiry;
 		break;
 	case READ_BUFFER:
 		size = (cdb[6] << 16) + (cdb[7] << 8) + cdb[8];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case READ_CAPACITY:
 		size = READ_CAP_LEN;
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		if (!passthrough)
 			cmd->execute_cmd = target_emulate_readcapacity;
 		break;
@@ -2715,7 +2698,6 @@ static int transport_generic_cmd_sequencer(
 	case SECURITY_PROTOCOL_IN:
 	case SECURITY_PROTOCOL_OUT:
 		size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case SERVICE_ACTION_IN:
 		switch (cmd->t_task_cdb[1] & 0x1f) {
@@ -2741,38 +2723,31 @@ static int transport_generic_cmd_sequencer(
 	case WRITE_ATTRIBUTE:
 		size = (cdb[10] << 24) | (cdb[11] << 16) |
 		       (cdb[12] << 8) | cdb[13];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case RECEIVE_DIAGNOSTIC:
 	case SEND_DIAGNOSTIC:
 		size = (cdb[3] << 8) | cdb[4];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 /* #warning FIXME: Figure out correct GPCMD_READ_CD blocksize. */
 #if 0
 	case GPCMD_READ_CD:
 		sectors = (cdb[6] << 16) + (cdb[7] << 8) + cdb[8];
 		size = (2336 * sectors);
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 #endif
 	case READ_TOC:
 		size = cdb[8];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case REQUEST_SENSE:
 		size = cdb[4];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		if (!passthrough)
 			cmd->execute_cmd = target_emulate_request_sense;
 		break;
 	case READ_ELEMENT_STATUS:
 		size = 65536 * cdb[7] + 256 * cdb[8] + cdb[9];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case WRITE_BUFFER:
 		size = (cdb[6] << 16) + (cdb[7] << 8) + cdb[8];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case RESERVE:
 	case RESERVE_10:
@@ -2794,7 +2769,6 @@ static int transport_generic_cmd_sequencer(
 		 */
 		if (su_dev->t10_pr.res_type != SPC_PASSTHROUGH)
 			cmd->execute_cmd = target_scsi2_reservation_reserve;
-		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 		break;
 	case RELEASE:
 	case RELEASE_10:
@@ -2809,7 +2783,6 @@ static int transport_generic_cmd_sequencer(
 
 		if (su_dev->t10_pr.res_type != SPC_PASSTHROUGH)
 			cmd->execute_cmd = target_scsi2_reservation_release;
-		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 		break;
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
@@ -2827,7 +2800,6 @@ static int transport_generic_cmd_sequencer(
 			goto out_unsupported_cdb;
 
 		size = transport_get_size(sectors, cdb, cmd);
-		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 
 		if (passthrough)
 			break;
@@ -2844,7 +2816,6 @@ static int transport_generic_cmd_sequencer(
 		break;
 	case UNMAP:
 		size = get_unaligned_be16(&cdb[7]);
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		if (!passthrough)
 			cmd->execute_cmd = target_emulate_unmap;
 		break;
@@ -2861,7 +2832,6 @@ static int transport_generic_cmd_sequencer(
 		}
 
 		cmd->t_task_lba = get_unaligned_be64(&cdb[2]);
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 
 		if (target_check_write_same_discard(&cdb[1], dev) < 0)
 			goto out_unsupported_cdb;
@@ -2881,7 +2851,6 @@ static int transport_generic_cmd_sequencer(
 		}
 
 		cmd->t_task_lba = get_unaligned_be32(&cdb[2]);
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		/*
 		 * Follow sbcr26 with WRITE_SAME (10) and check for the existence
 		 * of byte 1 bit 3 UNMAP instead of original reserved field
@@ -2900,7 +2869,6 @@ static int transport_generic_cmd_sequencer(
 	case TEST_UNIT_READY:
 	case VERIFY:
 	case WRITE_FILEMARKS:
-		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 		if (!passthrough)
 			cmd->execute_cmd = target_emulate_noop;
 		break;
@@ -2909,7 +2877,6 @@ static int transport_generic_cmd_sequencer(
 	case GPCMD_LOAD_UNLOAD:
 	case GPCMD_SET_SPEED:
 	case MOVE_MEDIUM:
-		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 		break;
 	case REPORT_LUNS:
 		cmd->execute_cmd = target_report_luns;
@@ -2920,11 +2887,9 @@ static int transport_generic_cmd_sequencer(
 		 */
 		if (cmd->se_dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
 			cmd->sam_task_attr = MSG_HEAD_TAG;
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case GET_EVENT_STATUS_NOTIFICATION:
 		size = (cdb[7] << 8) | cdb[8];
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case ATA_16:
 		/* Only support ATA passthrough to pSCSI backends.. */
@@ -2956,7 +2921,6 @@ static int transport_generic_cmd_sequencer(
 			/* BYTE */
 			size = sectors;
 		}
-		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	default:
 		pr_warn("TARGET_CORE[%s]: Unsupported SCSI Opcode"
@@ -2983,7 +2947,7 @@ static int transport_generic_cmd_sequencer(
 		}
 		/*
 		 * Reject READ_* or WRITE_* with overflow/underflow for
-		 * type SCF_SCSI_DATA_SG_IO_CDB.
+		 * type SCF_SCSI_DATA_CDB.
 		 */
 		if (dev->se_sub_dev->se_dev_attrib.block_size != 512)  {
 			pr_err("Failing OVERFLOW/UNDERFLOW for LBA op"
@@ -3003,7 +2967,7 @@ static int transport_generic_cmd_sequencer(
 		cmd->data_length = size;
 	}
 
-	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
+	if (cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) {
 		if (sectors > su_dev->se_dev_attrib.fabric_max_sectors) {
 			printk_ratelimited(KERN_ERR "SCSI OP %02xh with too"
 				" big sectors %u exceeds fabric_max_sectors:"
@@ -3022,7 +2986,7 @@ static int transport_generic_cmd_sequencer(
 
 	/* reject any command that we don't have a handler for */
 	if (!(passthrough || cmd->execute_cmd ||
-	     (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB)))
+	     (cmd->se_cmd_flags & SCF_SCSI_DATA_CDB)))
 		goto out_unsupported_cdb;
 
 	return 0;
@@ -3357,31 +3321,27 @@ int transport_generic_map_mem_to_cmd(
 	if (!sgl || !sgl_count)
 		return 0;
 
-	if ((cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) ||
-	    (cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB)) {
-		/*
-		 * Reject SCSI data overflow with map_mem_to_cmd() as incoming
-		 * scatterlists already have been set to follow what the fabric
-		 * passes for the original expected data transfer length.
-		 */
-		if (cmd->se_cmd_flags & SCF_OVERFLOW_BIT) {
-			pr_warn("Rejecting SCSI DATA overflow for fabric using"
-				" SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC\n");
-			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-			cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-			return -EINVAL;
-		}
-
-		cmd->t_data_sg = sgl;
-		cmd->t_data_nents = sgl_count;
-
-		if (sgl_bidi && sgl_bidi_count) {
-			cmd->t_bidi_data_sg = sgl_bidi;
-			cmd->t_bidi_data_nents = sgl_bidi_count;
-		}
-		cmd->se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
+	/*
+	 * Reject SCSI data overflow with map_mem_to_cmd() as incoming
+	 * scatterlists already have been set to follow what the fabric
+	 * passes for the original expected data transfer length.
+	 */
+	if (cmd->se_cmd_flags & SCF_OVERFLOW_BIT) {
+		pr_warn("Rejecting SCSI DATA overflow for fabric using"
+			" SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC\n");
+		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+		return -EINVAL;
 	}
 
+	cmd->t_data_sg = sgl;
+	cmd->t_data_nents = sgl_count;
+
+	if (sgl_bidi && sgl_bidi_count) {
+		cmd->t_bidi_data_sg = sgl_bidi;
+		cmd->t_bidi_data_nents = sgl_bidi_count;
+	}
+	cmd->se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
 	return 0;
 }
 EXPORT_SYMBOL(transport_generic_map_mem_to_cmd);
@@ -3453,7 +3413,7 @@ transport_generic_get_mem(struct se_cmd *cmd)
 	cmd->t_data_nents = nents;
 	sg_init_table(cmd->t_data_sg, nents);
 
-	zero_flag = cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB ? 0 : __GFP_ZERO;
+	zero_flag = cmd->se_cmd_flags & SCF_SCSI_DATA_CDB ? 0 : __GFP_ZERO;
 
 	while (length) {
 		u32 page_len = min_t(u32, length, PAGE_SIZE);
@@ -3500,8 +3460,7 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	}
 
 	/* Workaround for handling zero-length control CDBs */
-	if ((cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB) &&
-	    !cmd->data_length) {
+	if (!(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) && !cmd->data_length) {
 		spin_lock_irq(&cmd->t_state_lock);
 		cmd->t_state = TRANSPORT_COMPLETE;
 		cmd->transport_state |= CMD_T_ACTIVE;
@@ -3519,7 +3478,7 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		return 0;
 	}
 
-	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
+	if (cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) {
 		struct se_dev_attrib *attr = &dev->se_sub_dev->se_dev_attrib;
 
 		if (transport_cmd_get_valid_sectors(cmd) < 0)

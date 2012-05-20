@@ -1042,7 +1042,7 @@ static int pscsi_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
 	memcpy(pt->pscsi_cdb, cmd->t_task_cdb,
 		scsi_command_size(cmd->t_task_cdb));
 
-	if (cmd->se_cmd_flags & SCF_SCSI_NON_DATA_CDB) {
+	if (!sgl) {
 		req = blk_get_request(pdv->pdv_sd->request_queue,
 				(data_direction == DMA_TO_DEVICE),
 				GFP_KERNEL);
