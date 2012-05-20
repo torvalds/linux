@@ -595,8 +595,8 @@ config THRUSTMASTER_FF
 config HID_WACOM
 	tristate "Wacom Bluetooth devices support"
 	depends on BT_HIDP
+	depends on LEDS_CLASS
 	select POWER_SUPPLY
-	select LEDS_CLASS
 	---help---
 	Support for Wacom Graphire Bluetooth and Intuos4 WL tablets.
 
