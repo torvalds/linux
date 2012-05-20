@@ -367,7 +367,7 @@ static umode_t lm3533_attr_is_visible(struct kobject *kobj,
 	struct device_attribute *dattr = to_dev_attr(attr);
 	struct lm3533_device_attribute *lattr = to_lm3533_dev_attr(dattr);
 	enum lm3533_attribute_type type = lattr->type;
-	mode_t mode = attr->mode;
+	umode_t mode = attr->mode;
 
 	if (!lm3533->have_backlights && type == LM3533_ATTR_TYPE_BACKLIGHT)
 		mode = 0;
