@@ -2658,26 +2658,8 @@ static int transport_generic_cmd_sequencer(
 			size = (cdb[8] << 8) + cdb[9];
 		}
 		break;
-	case MODE_SELECT:
-		size = cdb[4];
-		break;
-	case MODE_SELECT_10:
-		size = (cdb[7] << 8) + cdb[8];
-		break;
-	case MODE_SENSE:
-		size = cdb[4];
-		if (!passthrough)
-			cmd->execute_cmd = target_emulate_modesense;
-		break;
-	case MODE_SENSE_10:
-		size = (cdb[7] << 8) + cdb[8];
-		if (!passthrough)
-			cmd->execute_cmd = target_emulate_modesense;
-		break;
 	case GPCMD_READ_BUFFER_CAPACITY:
 	case GPCMD_SEND_OPC:
-	case LOG_SELECT:
-	case LOG_SENSE:
 		size = (cdb[7] << 8) + cdb[8];
 		break;
 	case READ_BLOCK_LIMITS:
@@ -2687,16 +2669,6 @@ static int transport_generic_cmd_sequencer(
 	case GPCMD_READ_FORMAT_CAPACITIES:
 	case GPCMD_READ_DISC_INFO:
 	case GPCMD_READ_TRACK_RZONE_INFO:
-		size = (cdb[7] << 8) + cdb[8];
-		break;
-	case PERSISTENT_RESERVE_IN:
-		if (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
-			cmd->execute_cmd = target_scsi3_emulate_pr_in;
-		size = (cdb[7] << 8) + cdb[8];
-		break;
-	case PERSISTENT_RESERVE_OUT:
-		if (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
-			cmd->execute_cmd = target_scsi3_emulate_pr_out;
 		size = (cdb[7] << 8) + cdb[8];
 		break;
 	case GPCMD_MECHANISM_STATUS:
@@ -2725,17 +2697,6 @@ static int transport_generic_cmd_sequencer(
 			size = (cdb[8] << 8) + cdb[9];
 		}
 		break;
-	case INQUIRY:
-		size = (cdb[3] << 8) + cdb[4];
-		/*
-		 * Do implict HEAD_OF_QUEUE processing for INQUIRY.
-		 * See spc4r17 section 5.3
-		 */
-		if (cmd->se_dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
-			cmd->sam_task_attr = MSG_HEAD_TAG;
-		if (!passthrough)
-			cmd->execute_cmd = target_emulate_inquiry;
-		break;
 	case READ_BUFFER:
 		size = (cdb[6] << 16) + (cdb[7] << 8) + cdb[8];
 		break;
@@ -2745,10 +2706,6 @@ static int transport_generic_cmd_sequencer(
 			cmd->execute_cmd = target_emulate_readcapacity;
 		break;
 	case READ_MEDIA_SERIAL_NUMBER:
-	case SECURITY_PROTOCOL_IN:
-	case SECURITY_PROTOCOL_OUT:
-		size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
-		break;
 	case SERVICE_ACTION_IN:
 		switch (cmd->t_task_cdb[1] & 0x1f) {
 		case SAI_READ_CAPACITY_16:
@@ -2767,16 +2724,8 @@ static int transport_generic_cmd_sequencer(
 		/*FALLTHROUGH*/
 	case ACCESS_CONTROL_IN:
 	case ACCESS_CONTROL_OUT:
-	case EXTENDED_COPY:
-	case READ_ATTRIBUTE:
-	case RECEIVE_COPY_RESULTS:
-	case WRITE_ATTRIBUTE:
 		size = (cdb[10] << 24) | (cdb[11] << 16) |
 		       (cdb[12] << 8) | cdb[13];
-		break;
-	case RECEIVE_DIAGNOSTIC:
-	case SEND_DIAGNOSTIC:
-		size = (cdb[3] << 8) | cdb[4];
 		break;
 /* #warning FIXME: Figure out correct GPCMD_READ_CD blocksize. */
 #if 0
@@ -2788,51 +2737,8 @@ static int transport_generic_cmd_sequencer(
 	case READ_TOC:
 		size = cdb[8];
 		break;
-	case REQUEST_SENSE:
-		size = cdb[4];
-		if (!passthrough)
-			cmd->execute_cmd = target_emulate_request_sense;
-		break;
 	case READ_ELEMENT_STATUS:
 		size = 65536 * cdb[7] + 256 * cdb[8] + cdb[9];
-		break;
-	case WRITE_BUFFER:
-		size = (cdb[6] << 16) + (cdb[7] << 8) + cdb[8];
-		break;
-	case RESERVE:
-	case RESERVE_10:
-		/*
-		 * The SPC-2 RESERVE does not contain a size in the SCSI CDB.
-		 * Assume the passthrough or $FABRIC_MOD will tell us about it.
-		 */
-		if (cdb[0] == RESERVE_10)
-			size = (cdb[7] << 8) | cdb[8];
-		else
-			size = cmd->data_length;
-
-		/*
-		 * Setup the legacy emulated handler for SPC-2 and
-		 * >= SPC-3 compatible reservation handling (CRH=1)
-		 * Otherwise, we assume the underlying SCSI logic is
-		 * is running in SPC_PASSTHROUGH, and wants reservations
-		 * emulation disabled.
-		 */
-		if (su_dev->t10_pr.res_type != SPC_PASSTHROUGH)
-			cmd->execute_cmd = target_scsi2_reservation_reserve;
-		break;
-	case RELEASE:
-	case RELEASE_10:
-		/*
-		 * The SPC-2 RELEASE does not contain a size in the SCSI CDB.
-		 * Assume the passthrough or $FABRIC_MOD will tell us about it.
-		*/
-		if (cdb[0] == RELEASE_10)
-			size = (cdb[7] << 8) | cdb[8];
-		else
-			size = cmd->data_length;
-
-		if (su_dev->t10_pr.res_type != SPC_PASSTHROUGH)
-			cmd->execute_cmd = target_scsi2_reservation_release;
 		break;
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
@@ -2916,7 +2822,6 @@ static int transport_generic_cmd_sequencer(
 	case SEEK_10:
 	case SPACE:
 	case START_STOP:
-	case TEST_UNIT_READY:
 	case VERIFY:
 	case WRITE_FILEMARKS:
 		if (!passthrough)
@@ -2927,16 +2832,6 @@ static int transport_generic_cmd_sequencer(
 	case GPCMD_LOAD_UNLOAD:
 	case GPCMD_SET_SPEED:
 	case MOVE_MEDIUM:
-		break;
-	case REPORT_LUNS:
-		cmd->execute_cmd = target_report_luns;
-		size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
-		/*
-		 * Do implict HEAD_OF_QUEUE processing for REPORT_LUNS
-		 * See spc4r17 section 5.3
-		 */
-		if (cmd->se_dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
-			cmd->sam_task_attr = MSG_HEAD_TAG;
 		break;
 	case GET_EVENT_STATUS_NOTIFICATION:
 		size = (cdb[7] << 8) | cdb[8];
@@ -2973,10 +2868,9 @@ static int transport_generic_cmd_sequencer(
 		}
 		break;
 	default:
-		pr_warn("TARGET_CORE[%s]: Unsupported SCSI Opcode"
-			" 0x%02x, sending CHECK_CONDITION.\n",
-			cmd->se_tfo->get_fabric_name(), cdb[0]);
-		goto out_unsupported_cdb;
+		ret = spc_parse_cdb(cmd, &size, passthrough);
+		if (ret)
+			return ret;
 	}
 
 	ret = target_cmd_size_check(cmd, size);
