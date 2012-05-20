@@ -179,6 +179,8 @@ void __init imx31_soc_init(void)
 	mxc_register_gpio("imx31-gpio", 1, MX31_GPIO2_BASE_ADDR, SZ_16K, MX31_INT_GPIO2, 0);
 	mxc_register_gpio("imx31-gpio", 2, MX31_GPIO3_BASE_ADDR, SZ_16K, MX31_INT_GPIO3, 0);
 
+	pinctrl_provide_dummies();
+
 	if (to_version == 1) {
 		strncpy(imx31_sdma_pdata.fw_name, "sdma-imx31-to1.bin",
 			strlen(imx31_sdma_pdata.fw_name));
