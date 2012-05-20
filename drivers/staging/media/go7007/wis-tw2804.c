@@ -21,27 +21,16 @@
 #include <linux/videodev2.h>
 #include <linux/ioctl.h>
 #include <linux/slab.h>
-#include <media/v4l2-subdev.h>
-#include <media/v4l2-device.h>
 
 #include "wis-i2c.h"
 
 struct wis_tw2804 {
-	struct v4l2_subdev sd;
-	u8 channel:2;
-	u8 input:1;
-	u8 update:1;
-	u8 auto_gain:1;
-	u8 ckil:1;
+	int channel;
 	int norm;
-	u8 brightness;
-	u8 contrast;
-	u8 saturation;
-	u8 hue;
-	u8 gain;
-	u8 cr_gain;
-	u8 r_balance;
-	u8 b_balance;
+	int brightness;
+	int contrast;
+	int saturation;
+	int hue;
 };
 
 static u8 global_registers[] = {
@@ -52,7 +41,6 @@ static u8 global_registers[] = {
 	0x3d, 0x80,
 	0x3e, 0x82,
 	0x3f, 0x82,
-	0x78, 0x0f,
 	0xff, 0xff, /* Terminator (reg 0xff does not exist) */
 };
 
@@ -115,358 +103,29 @@ static u8 channel_registers[] = {
 	0xff, 0xff, /* Terminator (reg 0xff does not exist) */
 };
 
-static s32 write_reg(struct i2c_client *client, u8 reg, u8 value, u8 channel)
+static int write_reg(struct i2c_client *client, u8 reg, u8 value, int channel)
 {
 	return i2c_smbus_write_byte_data(client, reg | (channel << 6), value);
 }
 
-static int write_regs(struct i2c_client *client, u8 *regs, u8 channel)
+static int write_regs(struct i2c_client *client, u8 *regs, int channel)
 {
 	int i;
 
 	for (i = 0; regs[i] != 0xff; i += 2)
 		if (i2c_smbus_write_byte_data(client,
 				regs[i] | (channel << 6), regs[i + 1]) < 0)
-			return -EINVAL;
+			return -1;
 	return 0;
 }
-
-static s32 read_reg(struct i2c_client *client, u8 reg, u8 channel)
-{
-	return i2c_smbus_read_byte_data(client, (reg) | (channel << 6));
-}
-
-static inline struct wis_tw2804 *to_state(struct v4l2_subdev *sd)
-{
-	return container_of(sd, struct wis_tw2804, sd);
-}
-
-static int tw2804_log_status(struct v4l2_subdev *sd)
-{
-	struct wis_tw2804 *state = to_state(sd);
-	v4l2_info(sd, "Standard: %s\n", state->norm == V4L2_STD_NTSC ? "NTSC" :
-					state->norm == V4L2_STD_PAL ? "PAL" : "unknown");
-	v4l2_info(sd, "Channel: %d\n", state->channel);
-	v4l2_info(sd, "Input: %d\n", state->input);
-	v4l2_info(sd, "Brightness: %d\n", state->brightness);
-	v4l2_info(sd, "Contrast: %d\n", state->contrast);
-	v4l2_info(sd, "Saturation: %d\n", state->saturation);
-	v4l2_info(sd, "Hue: %d\n", state->hue);
-	return 0;
-}
-
-static int tw2804_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *query)
-{
-	static const u32 user_ctrls[] = {
-		V4L2_CID_USER_CLASS,
-		V4L2_CID_BRIGHTNESS,
-		V4L2_CID_CONTRAST,
-		V4L2_CID_SATURATION,
-		V4L2_CID_HUE,
-		V4L2_CID_AUTOGAIN,
-		V4L2_CID_COLOR_KILLER,
-		V4L2_CID_GAIN,
-		V4L2_CID_CHROMA_GAIN,
-		V4L2_CID_BLUE_BALANCE,
-		V4L2_CID_RED_BALANCE,
-		0
-	};
-
-	static const u32 *ctrl_classes[] = {
-		user_ctrls,
-		NULL
-	};
-
-	query->id = v4l2_ctrl_next(ctrl_classes, query->id);
-
-	switch (query->id) {
-	case V4L2_CID_USER_CLASS:
-		return v4l2_ctrl_query_fill(query, 0, 0, 0, 0);
-	case V4L2_CID_BRIGHTNESS:
-		return v4l2_ctrl_query_fill(query, 0, 255, 1, 128);
-	case V4L2_CID_CONTRAST:
-		return v4l2_ctrl_query_fill(query, 0, 255, 1, 128);
-	case V4L2_CID_SATURATION:
-		return v4l2_ctrl_query_fill(query, 0, 255, 1, 128);
-	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill(query, 0, 255, 1, 128);
-	case V4L2_CID_AUTOGAIN:
-		return v4l2_ctrl_query_fill(query, 0, 1, 1, 0);
-	case V4L2_CID_COLOR_KILLER:
-		return v4l2_ctrl_query_fill(query, 0, 1, 1, 0);
-	case V4L2_CID_GAIN:
-		return v4l2_ctrl_query_fill(query, 0, 255, 1, 128);
-	case V4L2_CID_CHROMA_GAIN:
-		return v4l2_ctrl_query_fill(query, 0, 255, 1, 128);
-	case V4L2_CID_BLUE_BALANCE:
-		return v4l2_ctrl_query_fill(query, 0, 255, 1, 122);
-	case V4L2_CID_RED_BALANCE:
-		return v4l2_ctrl_query_fill(query, 0, 255, 1, 122);
-	default:
-		return -EINVAL;
-	}
-}
-
-s32 get_ctrl_addr(int ctrl)
-{
-	switch (ctrl) {
-	case V4L2_CID_BRIGHTNESS:
-		return 0x12;
-	case V4L2_CID_CONTRAST:
-		return 0x11;
-	case V4L2_CID_SATURATION:
-		return 0x10;
-	case V4L2_CID_HUE:
-		return 0x0f;
-	case V4L2_CID_AUTOGAIN:
-		return 0x02;
-	case V4L2_CID_COLOR_KILLER:
-		return 0x14;
-	case V4L2_CID_GAIN:
-		return 0x3c;
-	case V4L2_CID_CHROMA_GAIN:
-		return 0x3d;
-	case V4L2_CID_RED_BALANCE:
-		return 0x3f;
-	case V4L2_CID_BLUE_BALANCE:
-		return 0x3e;
-	default:
-		return -EINVAL;
-	}
-}
-
-static int tw2804_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct wis_tw2804 *state = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	s32 addr = get_ctrl_addr(ctrl->id);
-	s32 val = 0;
-
-	if (addr == -EINVAL)
-		return -EINVAL;
-
-	if (state->update) {
-		val = read_reg(client, addr, ctrl->id == V4L2_CID_GAIN ||
-					ctrl->id == V4L2_CID_CHROMA_GAIN ||
-					ctrl->id == V4L2_CID_RED_BALANCE ||
-					ctrl->id == V4L2_CID_BLUE_BALANCE ? 0 : state->channel);
-		if (val < 0)
-			return val;
-	}
-
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		if (state->update)
-			state->brightness = val;
-		ctrl->value = state->brightness;
-		break;
-	case V4L2_CID_CONTRAST:
-		if (state->update)
-			state->contrast = val;
-		ctrl->value = state->contrast;
-		break;
-	case V4L2_CID_SATURATION:
-		if (state->update)
-			state->saturation = val;
-		ctrl->value = state->saturation;
-		break;
-	case V4L2_CID_HUE:
-		if (state->update)
-			state->hue = val;
-		ctrl->value = state->hue;
-		break;
-	case V4L2_CID_AUTOGAIN:
-		if (state->update)
-			state->auto_gain = val & (1<<7) ? 1 : 0;
-		ctrl->value = state->auto_gain;
-		break;
-	case V4L2_CID_COLOR_KILLER:
-		if (state->update)
-			state->ckil = (val & 0x03) == 0x03 ? 1 : 0;
-		ctrl->value = state->ckil;
-		break;
-	case V4L2_CID_GAIN:
-		if (state->update)
-			state->gain = val;
-		ctrl->value = state->gain;
-		break;
-	case V4L2_CID_CHROMA_GAIN:
-		if (state->update)
-			state->cr_gain = val;
-		ctrl->value = state->cr_gain;
-		break;
-	case V4L2_CID_RED_BALANCE:
-		if (state->update)
-			state->r_balance = val;
-		ctrl->value = state->r_balance;
-		break;
-	case V4L2_CID_BLUE_BALANCE:
-		if (state->update)
-			state->b_balance = val;
-		ctrl->value = state->b_balance;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	state->update = 0;
-	return 0;
-}
-
-static int tw2804_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct wis_tw2804 *dec = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	s32 reg = 0;
-	s32 addr = get_ctrl_addr(ctrl->id);
-
-	if (addr == -EINVAL)
-		return -EINVAL;
-
-	switch (ctrl->id) {
-	case V4L2_CID_AUTOGAIN:
-		reg = read_reg(client, addr, dec->channel);
-		if (reg > 0) {
-			if (ctrl->value == 0)
-				ctrl->value = reg & ~(1<<7);
-			else
-				ctrl->value = reg | 1<<7;
-		} else
-			return reg;
-		break;
-	case V4L2_CID_COLOR_KILLER:
-		reg = read_reg(client, addr, dec->channel);
-		if (reg > 0)
-			ctrl->value = (reg & ~(0x03)) | (ctrl->value == 0 ? 0x02 : 0x03);
-		else
-			return reg;
-		break;
-	default:
-		break;
-	}
-
-	ctrl->value = ctrl->value > 255 ? 255 : (ctrl->value < 0 ? 0 : ctrl->value);
-	reg = write_reg(client, addr, (u8)ctrl->value, ctrl->id == V4L2_CID_GAIN ||
-						ctrl->id == V4L2_CID_CHROMA_GAIN ||
-						ctrl->id == V4L2_CID_RED_BALANCE ||
-						ctrl->id == V4L2_CID_BLUE_BALANCE ? 0 : dec->channel);
-
-	if (reg < 0) {
-		v4l2_err(&dec->sd, "Can`t set_ctrl value:id=%d;value=%d\n", ctrl->id, ctrl->value);
-		return reg;
-	}
-
-	dec->update = 1;
-	return tw2804_g_ctrl(sd, ctrl);
-}
-
-static int tw2804_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
-{
-	struct wis_tw2804 *dec = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	u8 regs[] = {
-		0x01, norm&V4L2_STD_NTSC ? 0xc4 : 0x84,
-		0x09, norm&V4L2_STD_NTSC ? 0x07 : 0x04,
-		0x0a, norm&V4L2_STD_NTSC ? 0xf0 : 0x20,
-		0x0b, norm&V4L2_STD_NTSC ? 0x07 : 0x04,
-		0x0c, norm&V4L2_STD_NTSC ? 0xf0 : 0x20,
-		0x0d, norm&V4L2_STD_NTSC ? 0x40 : 0x4a,
-		0x16, norm&V4L2_STD_NTSC ? 0x00 : 0x40,
-		0x17, norm&V4L2_STD_NTSC ? 0x00 : 0x40,
-		0x20, norm&V4L2_STD_NTSC ? 0x07 : 0x0f,
-		0x21, norm&V4L2_STD_NTSC ? 0x07 : 0x0f,
-		0xff, 0xff,
-	};
-	write_regs(client, regs, dec->channel);
-	dec->norm = norm;
-	return 0;
-}
-
-static const struct v4l2_subdev_core_ops tw2804_core_ops = {
-	.log_status = tw2804_log_status,
-	.g_ctrl = tw2804_g_ctrl,
-	.s_ctrl = tw2804_s_ctrl,
-	.queryctrl = tw2804_queryctrl,
-	.s_std = tw2804_s_std,
-};
-
-static int tw2804_s_video_routing(struct v4l2_subdev *sd, u32 input, u32 output,
-	u32 config)
-{
-	struct wis_tw2804 *dec = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	s32 reg = 0;
-
-	if (0 > input || input > 1)
-		return -EINVAL;
-
-	if (input == dec->input && !dec->update)
-		return 0;
-
-	reg = read_reg(client, 0x22, dec->channel);
-
-	if (reg >= 0) {
-		if (input == 0)
-			reg &= ~(1<<2);
-		else
-			reg |= 1<<2;
-		reg = write_reg(client, 0x22, (u8)reg, dec->channel);
-	}
-
-	if (reg >= 0) {
-		dec->input = input;
-		dec->update = 0;
-	} else
-		return reg;
-	return 0;
-}
-
-static int tw2804_s_mbus_fmt(struct v4l2_subdev *sd,
-	struct v4l2_mbus_framefmt *fmt)
-{
-	/*TODO need select between 3fmt:
-	 * bt_656,
-	 * bt_601_8bit,
-	 * bt_656_dual,
-	 */
-	return 0;
-}
-
-int tw2804_s_stream(struct v4l2_subdev *sd, int enable)
-{
-	struct wis_tw2804 *dec = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u32 reg = read_reg(client, 0x78, 0);
-
-	if (enable == 1)
-		write_reg(client, 0x78, reg & ~(1<<dec->channel), 0);
-	else
-		write_reg(client, 0x78, reg | (1<<dec->channel), 0);
-
-	return 0;
-}
-
-static const struct v4l2_subdev_video_ops tw2804_video_ops = {
-	.s_routing = tw2804_s_video_routing,
-	.s_mbus_fmt = tw2804_s_mbus_fmt,
-	.s_stream = tw2804_s_stream,
-};
-
-static const struct v4l2_subdev_ops tw2804_ops = {
-	.core = &tw2804_core_ops,
-	.video = &tw2804_video_ops,
-};
 
 static int wis_tw2804_command(struct i2c_client *client,
 				unsigned int cmd, void *arg)
 {
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct wis_tw2804 *dec = to_state(sd);
-	int *input;
+	struct wis_tw2804 *dec = i2c_get_clientdata(client);
 
 	if (cmd == DECODER_SET_CHANNEL) {
-		input = arg;
+		int *input = arg;
 
 		if (*input < 0 || *input > 3) {
 			printk(KERN_ERR "wis-tw2804: channel %d is not "
@@ -495,6 +154,139 @@ static int wis_tw2804_command(struct i2c_client *client,
 				"channel number is set\n", cmd);
 		return 0;
 	}
+
+	switch (cmd) {
+	case VIDIOC_S_STD:
+	{
+		v4l2_std_id *input = arg;
+		u8 regs[] = {
+			0x01, *input & V4L2_STD_NTSC ? 0xc4 : 0x84,
+			0x09, *input & V4L2_STD_NTSC ? 0x07 : 0x04,
+			0x0a, *input & V4L2_STD_NTSC ? 0xf0 : 0x20,
+			0x0b, *input & V4L2_STD_NTSC ? 0x07 : 0x04,
+			0x0c, *input & V4L2_STD_NTSC ? 0xf0 : 0x20,
+			0x0d, *input & V4L2_STD_NTSC ? 0x40 : 0x4a,
+			0x16, *input & V4L2_STD_NTSC ? 0x00 : 0x40,
+			0x17, *input & V4L2_STD_NTSC ? 0x00 : 0x40,
+			0x20, *input & V4L2_STD_NTSC ? 0x07 : 0x0f,
+			0x21, *input & V4L2_STD_NTSC ? 0x07 : 0x0f,
+			0xff,	0xff,
+		};
+		write_regs(client, regs, dec->channel);
+		dec->norm = *input;
+		break;
+	}
+	case VIDIOC_QUERYCTRL:
+	{
+		struct v4l2_queryctrl *ctrl = arg;
+
+		switch (ctrl->id) {
+		case V4L2_CID_BRIGHTNESS:
+			ctrl->type = V4L2_CTRL_TYPE_INTEGER;
+			strncpy(ctrl->name, "Brightness", sizeof(ctrl->name));
+			ctrl->minimum = 0;
+			ctrl->maximum = 255;
+			ctrl->step = 1;
+			ctrl->default_value = 128;
+			ctrl->flags = 0;
+			break;
+		case V4L2_CID_CONTRAST:
+			ctrl->type = V4L2_CTRL_TYPE_INTEGER;
+			strncpy(ctrl->name, "Contrast", sizeof(ctrl->name));
+			ctrl->minimum = 0;
+			ctrl->maximum = 255;
+			ctrl->step = 1;
+			ctrl->default_value = 128;
+			ctrl->flags = 0;
+			break;
+		case V4L2_CID_SATURATION:
+			ctrl->type = V4L2_CTRL_TYPE_INTEGER;
+			strncpy(ctrl->name, "Saturation", sizeof(ctrl->name));
+			ctrl->minimum = 0;
+			ctrl->maximum = 255;
+			ctrl->step = 1;
+			ctrl->default_value = 128;
+			ctrl->flags = 0;
+			break;
+		case V4L2_CID_HUE:
+			ctrl->type = V4L2_CTRL_TYPE_INTEGER;
+			strncpy(ctrl->name, "Hue", sizeof(ctrl->name));
+			ctrl->minimum = 0;
+			ctrl->maximum = 255;
+			ctrl->step = 1;
+			ctrl->default_value = 128;
+			ctrl->flags = 0;
+			break;
+		}
+		break;
+	}
+	case VIDIOC_S_CTRL:
+	{
+		struct v4l2_control *ctrl = arg;
+
+		switch (ctrl->id) {
+		case V4L2_CID_BRIGHTNESS:
+			if (ctrl->value > 255)
+				dec->brightness = 255;
+			else if (ctrl->value < 0)
+				dec->brightness = 0;
+			else
+				dec->brightness = ctrl->value;
+			write_reg(client, 0x12, dec->brightness, dec->channel);
+			break;
+		case V4L2_CID_CONTRAST:
+			if (ctrl->value > 255)
+				dec->contrast = 255;
+			else if (ctrl->value < 0)
+				dec->contrast = 0;
+			else
+				dec->contrast = ctrl->value;
+			write_reg(client, 0x11, dec->contrast, dec->channel);
+			break;
+		case V4L2_CID_SATURATION:
+			if (ctrl->value > 255)
+				dec->saturation = 255;
+			else if (ctrl->value < 0)
+				dec->saturation = 0;
+			else
+				dec->saturation = ctrl->value;
+			write_reg(client, 0x10, dec->saturation, dec->channel);
+			break;
+		case V4L2_CID_HUE:
+			if (ctrl->value > 255)
+				dec->hue = 255;
+			else if (ctrl->value < 0)
+				dec->hue = 0;
+			else
+				dec->hue = ctrl->value;
+			write_reg(client, 0x0f, dec->hue, dec->channel);
+			break;
+		}
+		break;
+	}
+	case VIDIOC_G_CTRL:
+	{
+		struct v4l2_control *ctrl = arg;
+
+		switch (ctrl->id) {
+		case V4L2_CID_BRIGHTNESS:
+			ctrl->value = dec->brightness;
+			break;
+		case V4L2_CID_CONTRAST:
+			ctrl->value = dec->contrast;
+			break;
+		case V4L2_CID_SATURATION:
+			ctrl->value = dec->saturation;
+			break;
+		case V4L2_CID_HUE:
+			ctrl->value = dec->hue;
+			break;
+		}
+		break;
+	}
+	default:
+		break;
+	}
 	return 0;
 }
 
@@ -503,28 +295,21 @@ static int wis_tw2804_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct wis_tw2804 *dec;
-	struct v4l2_subdev *sd;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	dec = kzalloc(sizeof(struct wis_tw2804), GFP_KERNEL);
-
+	dec = kmalloc(sizeof(struct wis_tw2804), GFP_KERNEL);
 	if (dec == NULL)
 		return -ENOMEM;
-	sd = &dec->sd;
-	dec->update = 1;
+
 	dec->channel = -1;
 	dec->norm = V4L2_STD_NTSC;
 	dec->brightness = 128;
 	dec->contrast = 128;
 	dec->saturation = 128;
 	dec->hue = 128;
-	dec->gain = 128;
-	dec->cr_gain = 128;
-	dec->b_balance = 122;
-	dec->r_balance = 122;
-	v4l2_i2c_subdev_init(sd, client, &tw2804_ops);
+	i2c_set_clientdata(client, dec);
 
 	printk(KERN_DEBUG "wis-tw2804: creating TW2804 at address %d on %s\n",
 		client->addr, adapter->name);
@@ -534,10 +319,9 @@ static int wis_tw2804_probe(struct i2c_client *client,
 
 static int wis_tw2804_remove(struct i2c_client *client)
 {
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct wis_tw2804 *dec = i2c_get_clientdata(client);
 
-	v4l2_device_unregister_subdev(sd);
-	kfree(to_state(sd));
+	kfree(dec);
 	return 0;
 }
 

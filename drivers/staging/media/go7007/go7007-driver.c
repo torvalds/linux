@@ -173,11 +173,6 @@ static int go7007_init_encoder(struct go7007 *go)
 		go7007_write_addr(go, 0x3c82, 0x0001);
 		go7007_write_addr(go, 0x3c80, 0x00fe);
 	}
-	if (go->board_id == GO7007_BOARDID_ADLINK_MPG24) {
-		/* set GPIO5 to be an output, currently low */
-		go7007_write_addr(go, 0x3c82, 0x0000);
-		go7007_write_addr(go, 0x3c80, 0x00df);
-	}
 	return 0;
 }
 
@@ -197,23 +192,17 @@ int go7007_reset_encoder(struct go7007 *go)
 /*
  * Attempt to instantiate an I2C client by ID, probably loading a module.
  */
-static int init_i2c_module(struct i2c_adapter *adapter, const struct go_i2c *const i2c)
+static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
+			   int addr)
 {
 	struct go7007 *go = i2c_get_adapdata(adapter);
 	struct v4l2_device *v4l2_dev = &go->v4l2_dev;
-	struct i2c_board_info info;
 
-	memset(&info, 0, sizeof(info));
-	strlcpy(info.type, i2c->type, sizeof(info.type));
-	info.addr = i2c->addr;
-
-	if (i2c->id == I2C_DRIVERID_WIS_TW2804)
-		info.flags |= I2C_CLIENT_TEN;
-	if (v4l2_i2c_new_subdev_board(v4l2_dev, adapter, &info, NULL))
+	if (v4l2_i2c_new_subdev(v4l2_dev, adapter, type, addr, NULL))
 		return 0;
 
-	printk(KERN_INFO "go7007: probing for module i2c:%s failed\n", i2c->type);
-	return -EINVAL;
+	printk(KERN_INFO "go7007: probing for module i2c:%s failed\n", type);
+	return -1;
 }
 
 /*
@@ -249,7 +238,9 @@ int go7007_register_encoder(struct go7007 *go)
 	}
 	if (go->i2c_adapter_online) {
 		for (i = 0; i < go->board_info->num_i2c_devs; ++i)
-			init_i2c_module(&go->i2c_adapter, &go->board_info->i2c_devs[i]);
+			init_i2c_module(&go->i2c_adapter,
+					go->board_info->i2c_devs[i].type,
+					go->board_info->i2c_devs[i].addr);
 		if (go->board_id == GO7007_BOARDID_ADLINK_MPG24)
 			i2c_clients_command(&go->i2c_adapter,
 				DECODER_SET_CHANNEL, &go->channel_number);
@@ -580,7 +571,7 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 	struct go7007 *go;
 	int i;
 
-	go = kzalloc(sizeof(struct go7007), GFP_KERNEL);
+	go = kmalloc(sizeof(struct go7007), GFP_KERNEL);
 	if (go == NULL)
 		return NULL;
 	go->dev = dev;

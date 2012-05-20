@@ -88,7 +88,7 @@ struct go7007_board_info {
 	int audio_bclk_div;
 	int audio_main_div;
 	int num_i2c_devs;
-	struct go_i2c {
+	struct {
 		const char *type;
 		int id;
 		int addr;

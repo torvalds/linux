@@ -5,24 +5,6 @@ Todo:
 	  and added to the build.
 	- testing?
 	- handle churn in v4l layer.
-	- Some features for wis-tw2804 subdev control (comb filter,motion detector sensitive & mask,more over...)
-	- go7007-v4l2.c need rewrite with new v4l2 style without nonstandart IO controls (set detector & bitrate)
-
-05/05/2012 3.4.0-rc+:
-Changes:
-  - When go7007 reset device, i2c was not worked (need rewrite GPIO5)
-  - As wis2804 has i2c_addr=0x00/*really*/, so Need set I2C_CLIENT_TEN flag for validity
-  - Some main nonzero initialization, rewrites with kzalloc instead kmalloc
-  - STATUS_SHUTDOWN was placed in incorrect place, so if firmware wasn`t loaded, we
-    failed v4l2_device_unregister with kernel panic (OOPS)
-  - Some new v4l2 style features as call_all(...s_stream...) for using subdev calls
-  - wis-tw2804.ko module code was incompatible with 3.4.x branch in initialization v4l2_subdev parts.
-    now i2c_get_clientdata(...) contains v4l2_subdev struct instead non standart wis_tw2804 struct
-
-Adds:
-  - Additional chipset wis2804 controls with: gain,auto gain,inputs[0,1],color kill,chroma gain,gain balances,
-    for all 4 channels (from tw2804.pdf)
-  - Power control for each 4 ADC up when s_stream(...,1), down otherwise in wis-tw2804 module
 
 Please send patchs to Greg Kroah-Hartman <greg@kroah.com> and Cc: Ross
 Cohen <rcohen@snurgle.org> as well.
