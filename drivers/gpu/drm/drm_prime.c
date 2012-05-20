@@ -68,6 +68,7 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 {
 	struct drm_gem_object *obj;
 	void *buf;
+	int ret;
 
 	obj = drm_gem_object_lookup(dev, file_priv, handle);
 	if (!obj)
@@ -100,6 +101,17 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 		obj->export_dma_buf = buf;
 		*prime_fd = dma_buf_fd(buf, flags);
 	}
+	/* if we've exported this buffer the cheat and add it to the import list
+	 * so we get the correct handle back
+	 */
+	ret = drm_prime_add_imported_buf_handle(&file_priv->prime,
+			obj->export_dma_buf, handle);
+	if (ret) {
+		drm_gem_object_unreference_unlocked(obj);
+		mutex_unlock(&file_priv->prime.lock);
+		return ret;
+	}
+
 	mutex_unlock(&file_priv->prime.lock);
 	return 0;
 }
