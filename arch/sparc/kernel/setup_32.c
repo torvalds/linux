@@ -229,6 +229,8 @@ static void __init per_cpu_patch(void)
 		*(unsigned int *) (addr + 0) = insns[0];
 		*(unsigned int *) (addr + 4) = insns[1];
 		*(unsigned int *) (addr + 8) = insns[2];
+
+		p++;
 	}
 #ifdef CONFIG_SMP
 	local_ops->cache_all();
