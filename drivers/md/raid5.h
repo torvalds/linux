@@ -385,6 +385,12 @@ struct r5conf {
 	short			generation; /* increments with every reshape */
 	unsigned long		reshape_checkpoint; /* Time we last updated
 						     * metadata */
+	long long		min_offset_diff; /* minimum difference between
+						  * data_offset and
+						  * new_data_offset across all
+						  * devices.  May be negative,
+						  * but is closest to zero.
+						  */
 
 	struct list_head	handle_list; /* stripes needing handling */
 	struct list_head	hold_list; /* preread ready stripes */
