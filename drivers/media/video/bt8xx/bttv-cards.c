@@ -3649,7 +3649,7 @@ void __devinit bttv_init_tuner(struct bttv *btv)
 		struct tuner_setup tun_setup;
 
 		/* Load tuner module before issuing tuner config call! */
-		if (bttv_tvcards[btv->c.type].has_radio)
+		if (btv->has_radio)
 			v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
 				&btv->c.i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_RADIO));
@@ -3664,7 +3664,7 @@ void __devinit bttv_init_tuner(struct bttv *btv)
 		tun_setup.type = btv->tuner_type;
 		tun_setup.addr = addr;
 
-		if (bttv_tvcards[btv->c.type].has_radio)
+		if (btv->has_radio)
 			tun_setup.mode_mask |= T_RADIO;
 
 		bttv_call_all(btv, tuner, s_type_addr, &tun_setup);
