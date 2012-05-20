@@ -122,6 +122,24 @@ loop:
 	cur_trans->delayed_refs.flushing = 0;
 	cur_trans->delayed_refs.run_delayed_start = 0;
 	cur_trans->delayed_refs.seq = 1;
+
+	/*
+	 * although the tree mod log is per file system and not per transaction,
+	 * the log must never go across transaction boundaries.
+	 */
+	smp_mb();
+	if (!list_empty(&fs_info->tree_mod_seq_list)) {
+		printk(KERN_ERR "btrfs: tree_mod_seq_list not empty when "
+			"creating a fresh transaction\n");
+		WARN_ON(1);
+	}
+	if (!RB_EMPTY_ROOT(&fs_info->tree_mod_log)) {
+		printk(KERN_ERR "btrfs: tree_mod_log rb tree not empty when "
+			"creating a fresh transaction\n");
+		WARN_ON(1);
+	}
+	atomic_set(&fs_info->tree_mod_seq, 0);
+
 	init_waitqueue_head(&cur_trans->delayed_refs.seq_wait);
 	spin_lock_init(&cur_trans->commit_lock);
 	spin_lock_init(&cur_trans->delayed_refs.lock);
