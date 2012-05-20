@@ -3561,7 +3561,7 @@ finish:
 			if (test_and_clear_bit(R5_MadeGood, &dev->flags)) {
 				rdev = conf->disks[i].rdev;
 				rdev_clear_badblocks(rdev, sh->sector,
-						     STRIPE_SECTORS);
+						     STRIPE_SECTORS, 0);
 				rdev_dec_pending(rdev, conf->mddev);
 			}
 			if (test_and_clear_bit(R5_MadeGoodRepl, &dev->flags)) {
@@ -3570,7 +3570,7 @@ finish:
 					/* rdev have been moved down */
 					rdev = conf->disks[i].rdev;
 				rdev_clear_badblocks(rdev, sh->sector,
-						     STRIPE_SECTORS);
+						     STRIPE_SECTORS, 0);
 				rdev_dec_pending(rdev, conf->mddev);
 			}
 		}
@@ -5505,10 +5505,14 @@ static int raid5_start_reshape(struct mddev *mddev)
 	if (!check_stripe_cache(mddev))
 		return -ENOSPC;
 
-	rdev_for_each(rdev, mddev)
+	rdev_for_each(rdev, mddev) {
+		/* Don't support changing data_offset yet */
+		if (rdev->new_data_offset != rdev->data_offset)
+			return -EINVAL;
 		if (!test_bit(In_sync, &rdev->flags)
 		    && !test_bit(Faulty, &rdev->flags))
 			spares++;
+	}
 
 	if (spares - mddev->degraded < mddev->delta_disks - conf->max_degraded)
 		/* Not enough devices even to make a degraded array

@@ -55,6 +55,7 @@ struct md_rdev {
 	int		sb_loaded;
 	__u64		sb_events;
 	sector_t	data_offset;	/* start of data in array */
+	sector_t	new_data_offset;/* only relevant while reshaping */
 	sector_t 	sb_start;	/* offset of the super block (in 512byte sectors) */
 	int		sb_size;	/* bytes in the superblock */
 	int		preferred_minor;	/* autorun support */
@@ -193,8 +194,9 @@ static inline int is_badblock(struct md_rdev *rdev, sector_t s, int sectors,
 	return 0;
 }
 extern int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
-			      int acknowledged);
-extern int rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors);
+			      int is_new);
+extern int rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
+				int is_new);
 extern void md_ack_all_badblocks(struct badblocks *bb);
 
 struct mddev {
@@ -592,6 +594,7 @@ extern void md_write_start(struct mddev *mddev, struct bio *bi);
 extern void md_write_end(struct mddev *mddev);
 extern void md_done_sync(struct mddev *mddev, int blocks, int ok);
 extern void md_error(struct mddev *mddev, struct md_rdev *rdev);
+extern void md_finish_reshape(struct mddev *mddev);
 
 extern int mddev_congested(struct mddev *mddev, int bits);
 extern void md_flush_request(struct mddev *mddev, struct bio *bio);

@@ -233,7 +233,10 @@ struct mdp_superblock_1 {
 	__le32	delta_disks;	/* change in number of raid_disks		*/
 	__le32	new_layout;	/* new layout					*/
 	__le32	new_chunk;	/* new chunk size (512byte sectors)		*/
-	__u8	pad1[128-124];	/* set to 0 when written */
+	__le32  new_offset;	/* signed number to add to data_offset in new
+				 * layout.  0 == no-change.  This can be
+				 * different on each device in the array.
+				 */
 
 	/* constant this-device information - 64 bytes */
 	__le64	data_offset;	/* sector start of data, often 0 */
@@ -285,11 +288,14 @@ struct mdp_superblock_1 {
 					    * of devices, but is going
 					    * backwards anyway.
 					    */
+#define	MD_FEATURE_NEW_OFFSET		64 /* new_offset must be honoured */
 #define	MD_FEATURE_ALL			(MD_FEATURE_BITMAP_OFFSET	\
 					|MD_FEATURE_RECOVERY_OFFSET	\
 					|MD_FEATURE_RESHAPE_ACTIVE	\
 					|MD_FEATURE_BAD_BLOCKS		\
 					|MD_FEATURE_REPLACEMENT		\
-					|MD_FEATURE_RESHAPE_BACKWARDS)
+					|MD_FEATURE_RESHAPE_BACKWARDS	\
+					|MD_FEATURE_NEW_OFFSET		\
+					)
 
 #endif 
