@@ -551,7 +551,7 @@ int ubi_leb_erase(struct ubi_volume_desc *desc, int lnum)
 	if (err)
 		return err;
 
-	return ubi_wl_flush(ubi);
+	return ubi_wl_flush(ubi, vol->vol_id, lnum);
 }
 EXPORT_SYMBOL_GPL(ubi_leb_erase);
 
@@ -703,6 +703,33 @@ int ubi_sync(int ubi_num)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ubi_sync);
+
+/**
+ * ubi_flush - flush UBI work queue.
+ * @ubi_num: UBI device to flush work queue
+ * @vol_id: volume id to flush for
+ * @lnum: logical eraseblock number to flush for
+ *
+ * This function executes all pending works for a particular volume id / logical
+ * eraseblock number pair. If either value is set to %UBI_ALL, then it acts as
+ * a wildcard for all of the corresponding volume numbers or logical
+ * eraseblock numbers. It returns zero in case of success and a negative error
+ * code in case of failure.
+ */
+int ubi_flush(int ubi_num, int vol_id, int lnum)
+{
+	struct ubi_device *ubi;
+	int err = 0;
+
+	ubi = ubi_get_device(ubi_num);
+	if (!ubi)
+		return -ENODEV;
+
+	err = ubi_wl_flush(ubi, vol_id, lnum);
+	ubi_put_device(ubi);
+	return err;
+}
+EXPORT_SYMBOL_GPL(ubi_flush);
 
 BLOCKING_NOTIFIER_HEAD(ubi_notifiers);
 

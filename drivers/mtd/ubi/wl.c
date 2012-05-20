@@ -1241,44 +1241,55 @@ retry:
 /**
  * ubi_wl_flush - flush all pending works.
  * @ubi: UBI device description object
+ * @vol_id: the volume id to flush for
+ * @lnum: the logical eraseblock number to flush for
  *
- * This function returns zero in case of success and a negative error code in
- * case of failure.
+ * This function executes all pending works for a particular volume id /
+ * logical eraseblock number pair. If either value is set to %UBI_ALL, then it
+ * acts as a wildcard for all of the corresponding volume numbers or logical
+ * eraseblock numbers. It returns zero in case of success and a negative error
+ * code in case of failure.
  */
-int ubi_wl_flush(struct ubi_device *ubi)
+int ubi_wl_flush(struct ubi_device *ubi, int vol_id, int lnum)
 {
-	int err;
+	int err = 0;
+	int found = 1;
 
 	/*
 	 * Erase while the pending works queue is not empty, but not more than
 	 * the number of currently pending works.
 	 */
-	dbg_wl("flush (%d pending works)", ubi->works_count);
-	while (ubi->works_count) {
-		err = do_work(ubi);
-		if (err)
-			return err;
-	}
+	dbg_wl("flush pending work for LEB %d:%d (%d pending works)",
+	       vol_id, lnum, ubi->works_count);
 
-	/*
-	 * Make sure all the works which have been done in parallel are
-	 * finished.
-	 */
 	down_write(&ubi->work_sem);
-	up_write(&ubi->work_sem);
+	while (found) {
+		struct ubi_work *wrk;
+		found = 0;
 
-	/*
-	 * And in case last was the WL worker and it canceled the LEB
-	 * movement, flush again.
-	 */
-	while (ubi->works_count) {
-		dbg_wl("flush more (%d pending works)", ubi->works_count);
-		err = do_work(ubi);
-		if (err)
-			return err;
+		spin_lock(&ubi->wl_lock);
+		list_for_each_entry(wrk, &ubi->works, list) {
+			if ((vol_id == UBI_ALL || wrk->vol_id == vol_id) &&
+			    (lnum == UBI_ALL || wrk->lnum == lnum)) {
+				list_del(&wrk->list);
+				ubi->works_count -= 1;
+				ubi_assert(ubi->works_count >= 0);
+				spin_unlock(&ubi->wl_lock);
+
+				err = wrk->func(ubi, wrk, 0);
+				if (err)
+					goto out;
+				spin_lock(&ubi->wl_lock);
+				found = 1;
+				break;
+			}
+		}
+		spin_unlock(&ubi->wl_lock);
 	}
 
-	return 0;
+out:
+	up_write(&ubi->work_sem);
+	return err;
 }
 
 /**

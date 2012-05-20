@@ -280,7 +280,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	 * Finish all pending erases because there may be some LEBs belonging
 	 * to the same volume ID.
 	 */
-	err = ubi_wl_flush(ubi);
+	err = ubi_wl_flush(ubi, vol_id, UBI_ALL);
 	if (err)
 		goto out_acc;
 
