@@ -490,6 +490,7 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 	config.dev = &client->dev;
 	config.init_data = pdata->reg_init_data;
 	config.driver_data = tps;
+	config.of_node = client->dev.of_node;
 
 	/* Register the regulators */
 	rdev = regulator_register(&tps->desc, &config);
