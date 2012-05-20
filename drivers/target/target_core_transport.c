@@ -1418,6 +1418,10 @@ int target_setup_cmd_from_cdb(
 	struct se_cmd *cmd,
 	unsigned char *cdb)
 {
+	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
+	u32 pr_reg_type = 0;
+	u8 alua_ascq = 0;
+	unsigned long flags;
 	int ret;
 
 	transport_generic_prepare_cdb(cdb);
@@ -1457,6 +1461,58 @@ int target_setup_cmd_from_cdb(
 	 * Copy the original CDB into cmd->
 	 */
 	memcpy(cmd->t_task_cdb, cdb, scsi_command_size(cdb));
+
+	/*
+	 * Check for an existing UNIT ATTENTION condition
+	 */
+	if (core_scsi3_ua_check(cmd, cdb) < 0) {
+		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+		cmd->scsi_sense_reason = TCM_CHECK_CONDITION_UNIT_ATTENTION;
+		return -EINVAL;
+	}
+
+	ret = su_dev->t10_alua.alua_state_check(cmd, cdb, &alua_ascq);
+	if (ret != 0) {
+		/*
+		 * Set SCSI additional sense code (ASC) to 'LUN Not Accessible';
+		 * The ALUA additional sense code qualifier (ASCQ) is determined
+		 * by the ALUA primary or secondary access state..
+		 */
+		if (ret > 0) {
+			pr_debug("[%s]: ALUA TG Port not available, "
+				"SenseKey: NOT_READY, ASC/ASCQ: "
+				"0x04/0x%02x\n",
+				cmd->se_tfo->get_fabric_name(), alua_ascq);
+
+			transport_set_sense_codes(cmd, 0x04, alua_ascq);
+			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+			cmd->scsi_sense_reason = TCM_CHECK_CONDITION_NOT_READY;
+			return -EINVAL;
+		}
+		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+		return -EINVAL;
+	}
+
+	/*
+	 * Check status for SPC-3 Persistent Reservations
+	 */
+	if (su_dev->t10_pr.pr_ops.t10_reservation_check(cmd, &pr_reg_type)) {
+		if (su_dev->t10_pr.pr_ops.t10_seq_non_holder(
+					cmd, cdb, pr_reg_type) != 0) {
+			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+			cmd->se_cmd_flags |= SCF_SCSI_RESERVATION_CONFLICT;
+			cmd->scsi_status = SAM_STAT_RESERVATION_CONFLICT;
+			cmd->scsi_sense_reason = TCM_RESERVATION_CONFLICT;
+			return -EBUSY;
+		}
+		/*
+		 * This means the CDB is allowed for the SCSI Initiator port
+		 * when said port is *NOT* holding the legacy SPC-2 or
+		 * SPC-3 Persistent Reservation.
+		 */
+	}
+
 	/*
 	 * Setup the received CDB based on SCSI defined opcodes and
 	 * perform unit attention, persistent reservations and ALUA
@@ -1466,6 +1522,11 @@ int target_setup_cmd_from_cdb(
 	ret = transport_generic_cmd_sequencer(cmd, cdb);
 	if (ret < 0)
 		return ret;
+
+	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	cmd->se_cmd_flags |= SCF_SUPPORTED_SAM_OPCODE;
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+
 	/*
 	 * Check for SAM Task Attribute Emulation
 	 */
@@ -1887,15 +1948,6 @@ static inline unsigned long long transport_lba_64_ext(unsigned char *cdb)
 	__v2 = (cdb[16] << 24) | (cdb[17] << 16) | (cdb[18] << 8) | cdb[19];
 
 	return ((unsigned long long)__v2) | (unsigned long long)__v1 << 32;
-}
-
-static void transport_set_supported_SAM_opcode(struct se_cmd *se_cmd)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&se_cmd->t_state_lock, flags);
-	se_cmd->se_cmd_flags |= SCF_SUPPORTED_SAM_OPCODE;
-	spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 }
 
 /*
@@ -2370,74 +2422,15 @@ static int target_check_write_same_discard(unsigned char *flags, struct se_devic
 	return 0;
 }
 
-/*	transport_generic_cmd_sequencer():
- *
- *	Generic Command Sequencer that should work for most DAS transport
- *	drivers.
- *
- *	Called from target_setup_cmd_from_cdb() in the $FABRIC_MOD
- *	RX Thread.
- *
- *	FIXME: Need to support other SCSI OPCODES where as well.
- */
 static int transport_generic_cmd_sequencer(
 	struct se_cmd *cmd,
 	unsigned char *cdb)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_subsystem_dev *su_dev = dev->se_sub_dev;
-	int ret = 0, sector_ret = 0, passthrough;
-	u32 sectors = 0, size = 0, pr_reg_type = 0;
+	int sector_ret = 0, passthrough;
+	u32 sectors = 0, size = 0;
 	u16 service_action;
-	u8 alua_ascq = 0;
-	/*
-	 * Check for an existing UNIT ATTENTION condition
-	 */
-	if (core_scsi3_ua_check(cmd, cdb) < 0) {
-		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		cmd->scsi_sense_reason = TCM_CHECK_CONDITION_UNIT_ATTENTION;
-		return -EINVAL;
-	}
-	/*
-	 * Check status of Asymmetric Logical Unit Assignment port
-	 */
-	ret = su_dev->t10_alua.alua_state_check(cmd, cdb, &alua_ascq);
-	if (ret != 0) {
-		/*
-		 * Set SCSI additional sense code (ASC) to 'LUN Not Accessible';
-		 * The ALUA additional sense code qualifier (ASCQ) is determined
-		 * by the ALUA primary or secondary access state..
-		 */
-		if (ret > 0) {
-			pr_debug("[%s]: ALUA TG Port not available,"
-				" SenseKey: NOT_READY, ASC/ASCQ: 0x04/0x%02x\n",
-				cmd->se_tfo->get_fabric_name(), alua_ascq);
-
-			transport_set_sense_codes(cmd, 0x04, alua_ascq);
-			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-			cmd->scsi_sense_reason = TCM_CHECK_CONDITION_NOT_READY;
-			return -EINVAL;
-		}
-		goto out_invalid_cdb_field;
-	}
-	/*
-	 * Check status for SPC-3 Persistent Reservations
-	 */
-	if (su_dev->t10_pr.pr_ops.t10_reservation_check(cmd, &pr_reg_type) != 0) {
-		if (su_dev->t10_pr.pr_ops.t10_seq_non_holder(
-					cmd, cdb, pr_reg_type) != 0) {
-			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-			cmd->se_cmd_flags |= SCF_SCSI_RESERVATION_CONFLICT;
-			cmd->scsi_status = SAM_STAT_RESERVATION_CONFLICT;
-			cmd->scsi_sense_reason = TCM_RESERVATION_CONFLICT;
-			return -EBUSY;
-		}
-		/*
-		 * This means the CDB is allowed for the SCSI Initiator port
-		 * when said port is *NOT* holding the legacy SPC-2 or
-		 * SPC-3 Persistent Reservation.
-		 */
-	}
 
 	/*
 	 * If we operate in passthrough mode we skip most CDB emulation and
@@ -2992,7 +2985,7 @@ static int transport_generic_cmd_sequencer(
 		 * Reject READ_* or WRITE_* with overflow/underflow for
 		 * type SCF_SCSI_DATA_SG_IO_CDB.
 		 */
-		if (!ret && (dev->se_sub_dev->se_dev_attrib.block_size != 512))  {
+		if (dev->se_sub_dev->se_dev_attrib.block_size != 512)  {
 			pr_err("Failing OVERFLOW/UNDERFLOW for LBA op"
 				" CDB on non 512-byte sector setup subsystem"
 				" plugin: %s\n", dev->transport->name);
@@ -3032,8 +3025,7 @@ static int transport_generic_cmd_sequencer(
 	     (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB)))
 		goto out_unsupported_cdb;
 
-	transport_set_supported_SAM_opcode(cmd);
-	return ret;
+	return 0;
 
 out_unsupported_cdb:
 	cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
@@ -3967,10 +3959,7 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		return false;
 	}
-	/*
-	 * Only perform a possible wait_for_tasks if SCF_SUPPORTED_SAM_OPCODE
-	 * has been set in transport_set_supported_SAM_opcode().
-	 */
+
 	if (!(cmd->se_cmd_flags & SCF_SUPPORTED_SAM_OPCODE) &&
 	    !(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
