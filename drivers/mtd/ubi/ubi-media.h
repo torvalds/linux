@@ -298,8 +298,8 @@ struct ubi_vid_hdr {
 #define UBI_INT_VOL_COUNT 1
 
 /*
- * Starting ID of internal volumes. There is reserved room for 4096 internal
- * volumes.
+ * Starting ID of internal volumes: 0x7fffefff.
+ * There is reserved room for 4096 internal volumes.
  */
 #define UBI_INTERNAL_VOL_START (0x7FFFFFFF - 4096)
 
