@@ -413,9 +413,9 @@ int setup_signal_stack_sc(unsigned long stack_top, int sig,
 
 	PT_REGS_SP(regs) = (unsigned long) frame;
 	PT_REGS_IP(regs) = (unsigned long) ka->sa.sa_handler;
-	PT_REGS_EAX(regs) = (unsigned long) sig;
-	PT_REGS_EDX(regs) = (unsigned long) 0;
-	PT_REGS_ECX(regs) = (unsigned long) 0;
+	PT_REGS_AX(regs) = (unsigned long) sig;
+	PT_REGS_DX(regs) = (unsigned long) 0;
+	PT_REGS_CX(regs) = (unsigned long) 0;
 
 	if ((current->ptrace & PT_DTRACE) && (current->ptrace & PT_PTRACED))
 		ptrace_notify(SIGTRAP);
@@ -463,9 +463,9 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 
 	PT_REGS_SP(regs) = (unsigned long) frame;
 	PT_REGS_IP(regs) = (unsigned long) ka->sa.sa_handler;
-	PT_REGS_EAX(regs) = (unsigned long) sig;
-	PT_REGS_EDX(regs) = (unsigned long) &frame->info;
-	PT_REGS_ECX(regs) = (unsigned long) &frame->uc;
+	PT_REGS_AX(regs) = (unsigned long) sig;
+	PT_REGS_DX(regs) = (unsigned long) &frame->info;
+	PT_REGS_CX(regs) = (unsigned long) &frame->uc;
 
 	if ((current->ptrace & PT_DTRACE) && (current->ptrace & PT_PTRACED))
 		ptrace_notify(SIGTRAP);
@@ -573,17 +573,17 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	}
 
 	PT_REGS_SP(regs) = (unsigned long) frame;
-	PT_REGS_RDI(regs) = sig;
+	PT_REGS_DI(regs) = sig;
 	/* In case the signal handler was declared without prototypes */
-	PT_REGS_RAX(regs) = 0;
+	PT_REGS_AX(regs) = 0;
 
 	/*
 	 * This also works for non SA_SIGINFO handlers because they expect the
 	 * next argument after the signal number on the stack.
 	 */
-	PT_REGS_RSI(regs) = (unsigned long) &frame->info;
-	PT_REGS_RDX(regs) = (unsigned long) &frame->uc;
-	PT_REGS_RIP(regs) = (unsigned long) ka->sa.sa_handler;
+	PT_REGS_SI(regs) = (unsigned long) &frame->info;
+	PT_REGS_DX(regs) = (unsigned long) &frame->uc;
+	PT_REGS_IP(regs) = (unsigned long) ka->sa.sa_handler;
  out:
 	return err;
 }
