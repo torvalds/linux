@@ -3970,13 +3970,13 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 			 * to check again.
 			 */
 			spin_lock_irq(&conf->device_lock);
-			if (mddev->delta_disks < 0
+			if (mddev->reshape_backwards
 			    ? logical_sector < conf->reshape_progress
 			    : logical_sector >= conf->reshape_progress) {
 				disks = conf->previous_raid_disks;
 				previous = 1;
 			} else {
-				if (mddev->delta_disks < 0
+				if (mddev->reshape_backwards
 				    ? logical_sector < conf->reshape_safe
 				    : logical_sector >= conf->reshape_safe) {
 					spin_unlock_irq(&conf->device_lock);
@@ -4009,7 +4009,7 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 				 */
 				int must_retry = 0;
 				spin_lock_irq(&conf->device_lock);
-				if (mddev->delta_disks < 0
+				if (mddev->reshape_backwards
 				    ? logical_sector >= conf->reshape_progress
 				    : logical_sector < conf->reshape_progress)
 					/* mismatch, need to try again */
@@ -4108,11 +4108,11 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 
 	if (sector_nr == 0) {
 		/* If restarting in the middle, skip the initial sectors */
-		if (mddev->delta_disks < 0 &&
+		if (mddev->reshape_backwards &&
 		    conf->reshape_progress < raid5_size(mddev, 0, 0)) {
 			sector_nr = raid5_size(mddev, 0, 0)
 				- conf->reshape_progress;
-		} else if (mddev->delta_disks >= 0 &&
+		} else if (!mddev->reshape_backwards &&
 			   conf->reshape_progress > 0)
 			sector_nr = conf->reshape_progress;
 		sector_div(sector_nr, new_data_disks);
@@ -4147,7 +4147,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 	sector_div(readpos, data_disks);
 	safepos = conf->reshape_safe;
 	sector_div(safepos, data_disks);
-	if (mddev->delta_disks < 0) {
+	if (mddev->reshape_backwards) {
 		writepos -= min_t(sector_t, reshape_sectors, writepos);
 		readpos += reshape_sectors;
 		safepos += reshape_sectors;
@@ -4174,7 +4174,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 	 * Maybe that number should be configurable, but I'm not sure it is
 	 * worth it.... maybe it could be a multiple of safemode_delay???
 	 */
-	if ((mddev->delta_disks < 0
+	if ((mddev->reshape_backwards
 	     ? (safepos > writepos && readpos < writepos)
 	     : (safepos < writepos && readpos > writepos)) ||
 	    time_after(jiffies, conf->reshape_checkpoint + 10*HZ)) {
@@ -4195,7 +4195,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 		sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 	}
 
-	if (mddev->delta_disks < 0) {
+	if (mddev->reshape_backwards) {
 		BUG_ON(conf->reshape_progress == 0);
 		stripe_addr = writepos;
 		BUG_ON((mddev->dev_sectors &
@@ -4239,7 +4239,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 		list_add(&sh->lru, &stripes);
 	}
 	spin_lock_irq(&conf->device_lock);
-	if (mddev->delta_disks < 0)
+	if (mddev->reshape_backwards)
 		conf->reshape_progress -= reshape_sectors * new_data_disks;
 	else
 		conf->reshape_progress += reshape_sectors * new_data_disks;
@@ -5008,7 +5008,7 @@ static int run(struct mddev *mddev)
 				       mdname(mddev));
 				return -EINVAL;
 			}
-		} else if (mddev->delta_disks < 0
+		} else if (mddev->reshape_backwards
 		    ? (here_new * mddev->new_chunk_sectors <=
 		       here_old * mddev->chunk_sectors)
 		    : (here_new * mddev->new_chunk_sectors >=
@@ -5535,7 +5535,7 @@ static int raid5_start_reshape(struct mddev *mddev)
 	conf->chunk_sectors = mddev->new_chunk_sectors;
 	conf->prev_algo = conf->algorithm;
 	conf->algorithm = mddev->new_layout;
-	if (mddev->delta_disks < 0)
+	if (mddev->reshape_backwards)
 		conf->reshape_progress = raid5_size(mddev, 0, 0);
 	else
 		conf->reshape_progress = 0;
@@ -5663,6 +5663,7 @@ static void raid5_finish_reshape(struct mddev *mddev)
 		mddev->chunk_sectors = conf->chunk_sectors;
 		mddev->reshape_position = MaxSector;
 		mddev->delta_disks = 0;
+		mddev->reshape_backwards = 0;
 	}
 }
 

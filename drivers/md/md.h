@@ -262,6 +262,7 @@ struct mddev {
 	sector_t			reshape_position;
 	int				delta_disks, new_level, new_layout;
 	int				new_chunk_sectors;
+	int				reshape_backwards;
 
 	atomic_t			plug_cnt;	/* If device is expecting
 							 * more bios soon.

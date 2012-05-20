@@ -607,6 +607,7 @@ void mddev_init(struct mddev *mddev)
 	init_waitqueue_head(&mddev->sb_wait);
 	init_waitqueue_head(&mddev->recovery_wait);
 	mddev->reshape_position = MaxSector;
+	mddev->reshape_backwards = 0;
 	mddev->resync_min = 0;
 	mddev->resync_max = MaxSector;
 	mddev->level = LEVEL_NONE;
@@ -1185,6 +1186,7 @@ static int super_90_validate(struct mddev *mddev, struct md_rdev *rdev)
 		mddev->events = ev1;
 		mddev->bitmap_info.offset = 0;
 		mddev->bitmap_info.default_offset = MD_SB_BYTES >> 9;
+		mddev->reshape_backwards = 0;
 
 		if (mddev->minor_version >= 91) {
 			mddev->reshape_position = sb->reshape_position;
@@ -1192,6 +1194,8 @@ static int super_90_validate(struct mddev *mddev, struct md_rdev *rdev)
 			mddev->new_level = sb->new_level;
 			mddev->new_layout = sb->new_layout;
 			mddev->new_chunk_sectors = sb->new_chunk >> 9;
+			if (mddev->delta_disks < 0)
+				mddev->reshape_backwards = 1;
 		} else {
 			mddev->reshape_position = MaxSector;
 			mddev->delta_disks = 0;
@@ -1645,7 +1649,8 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 		mddev->events = ev1;
 		mddev->bitmap_info.offset = 0;
 		mddev->bitmap_info.default_offset = 1024 >> 9;
-		
+		mddev->reshape_backwards = 0;
+
 		mddev->recovery_cp = le64_to_cpu(sb->resync_offset);
 		memcpy(mddev->uuid, sb->set_uuid, 16);
 
@@ -1662,6 +1667,11 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 			mddev->new_level = le32_to_cpu(sb->new_level);
 			mddev->new_layout = le32_to_cpu(sb->new_layout);
 			mddev->new_chunk_sectors = le32_to_cpu(sb->new_chunk);
+			if (mddev->delta_disks < 0 ||
+			    (mddev->delta_disks == 0 &&
+			     (le32_to_cpu(sb->feature_map)
+			      & MD_FEATURE_RESHAPE_BACKWARDS)))
+				mddev->reshape_backwards = 1;
 		} else {
 			mddev->reshape_position = MaxSector;
 			mddev->delta_disks = 0;
@@ -1781,6 +1791,10 @@ static void super_1_sync(struct mddev *mddev, struct md_rdev *rdev)
 		sb->delta_disks = cpu_to_le32(mddev->delta_disks);
 		sb->new_level = cpu_to_le32(mddev->new_level);
 		sb->new_chunk = cpu_to_le32(mddev->new_chunk_sectors);
+		if (mddev->delta_disks == 0 &&
+		    mddev->reshape_backwards)
+			sb->feature_map
+				|= cpu_to_le32(MD_FEATURE_RESHAPE_BACKWARDS);
 	}
 
 	if (rdev->badblocks.count == 0)
@@ -3419,6 +3433,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 		mddev->new_chunk_sectors = mddev->chunk_sectors;
 		mddev->raid_disks -= mddev->delta_disks;
 		mddev->delta_disks = 0;
+		mddev->reshape_backwards = 0;
 		module_put(pers->owner);
 		printk(KERN_WARNING "md: %s: %s would not accept array\n",
 		       mdname(mddev), clevel);
@@ -3492,6 +3507,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 	mddev->layout = mddev->new_layout;
 	mddev->chunk_sectors = mddev->new_chunk_sectors;
 	mddev->delta_disks = 0;
+	mddev->reshape_backwards = 0;
 	mddev->degraded = 0;
 	if (mddev->pers->sync_request == NULL) {
 		/* this is now an array without redundancy, so
@@ -3585,6 +3601,7 @@ raid_disks_store(struct mddev *mddev, const char *buf, size_t len)
 		int olddisks = mddev->raid_disks - mddev->delta_disks;
 		mddev->delta_disks = n - olddisks;
 		mddev->raid_disks = n;
+		mddev->reshape_backwards = (mddev->delta_disks < 0);
 	} else
 		mddev->raid_disks = n;
 	return rv ? rv : len;
@@ -4436,6 +4453,7 @@ reshape_position_store(struct mddev *mddev, const char *buf, size_t len)
 		return -EINVAL;
 	mddev->reshape_position = new;
 	mddev->delta_disks = 0;
+	mddev->reshape_backwards = 0;
 	mddev->new_level = mddev->level;
 	mddev->new_layout = mddev->layout;
 	mddev->new_chunk_sectors = mddev->chunk_sectors;
@@ -4445,6 +4463,42 @@ reshape_position_store(struct mddev *mddev, const char *buf, size_t len)
 static struct md_sysfs_entry md_reshape_position =
 __ATTR(reshape_position, S_IRUGO|S_IWUSR, reshape_position_show,
        reshape_position_store);
+
+static ssize_t
+reshape_direction_show(struct mddev *mddev, char *page)
+{
+	return sprintf(page, "%s\n",
+		       mddev->reshape_backwards ? "backwards" : "forwards");
+}
+
+static ssize_t
+reshape_direction_store(struct mddev *mddev, const char *buf, size_t len)
+{
+	int backwards = 0;
+	if (cmd_match(buf, "forwards"))
+		backwards = 0;
+	else if (cmd_match(buf, "backwards"))
+		backwards = 1;
+	else
+		return -EINVAL;
+	if (mddev->reshape_backwards == backwards)
+		return len;
+
+	/* check if we are allowed to change */
+	if (mddev->delta_disks)
+		return -EBUSY;
+
+	if (mddev->persistent &&
+	    mddev->major_version == 0)
+		return -EINVAL;
+
+	mddev->reshape_backwards = backwards;
+	return len;
+}
+
+static struct md_sysfs_entry md_reshape_direction =
+__ATTR(reshape_direction, S_IRUGO|S_IWUSR, reshape_direction_show,
+       reshape_direction_store);
 
 static ssize_t
 array_size_show(struct mddev *mddev, char *page)
@@ -4501,6 +4555,7 @@ static struct attribute *md_default_attrs[] = {
 	&md_safe_delay.attr,
 	&md_array_state.attr,
 	&md_reshape_position.attr,
+	&md_reshape_direction.attr,
 	&md_array_size.attr,
 	&max_corr_read_errors.attr,
 	NULL,
@@ -5064,6 +5119,7 @@ static void md_clean(struct mddev *mddev)
 	mddev->events = 0;
 	mddev->can_decrease_events = 0;
 	mddev->delta_disks = 0;
+	mddev->reshape_backwards = 0;
 	mddev->new_level = LEVEL_NONE;
 	mddev->new_layout = 0;
 	mddev->new_chunk_sectors = 0;
@@ -5888,6 +5944,7 @@ static int set_array_info(struct mddev * mddev, mdu_array_info_t *info)
 	mddev->new_chunk_sectors = mddev->chunk_sectors;
 	mddev->new_layout = mddev->layout;
 	mddev->delta_disks = 0;
+	mddev->reshape_backwards = 0;
 
 	return 0;
 }
@@ -5953,10 +6010,16 @@ static int update_raid_disks(struct mddev *mddev, int raid_disks)
 	if (mddev->sync_thread || mddev->reshape_position != MaxSector)
 		return -EBUSY;
 	mddev->delta_disks = raid_disks - mddev->raid_disks;
+	if (mddev->delta_disks < 0)
+		mddev->reshape_backwards = 1;
+	else if (mddev->delta_disks > 0)
+		mddev->reshape_backwards = 0;
 
 	rv = mddev->pers->check_reshape(mddev);
-	if (rv < 0)
+	if (rv < 0) {
 		mddev->delta_disks = 0;
+		mddev->reshape_backwards = 0;
+	}
 	return rv;
 }
 
