@@ -572,7 +572,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 			return -EIO;
 		*std = vip->std = newstd;
 		if (oldstd != *std) {
-			if (V4L2_STD_NTSC & (*std))
+			if (V4L2_STD_525_60 & (*std))
 				vip->format = formats_60[0];
 			else
 				vip->format = formats_50[0];
@@ -581,7 +581,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 	}
 
 	if (oldstd != *std) {
-		if (V4L2_STD_NTSC & (*std))
+		if (V4L2_STD_525_60 & (*std))
 			vip->format = formats_60[0];
 		else
 			vip->format = formats_50[0];
@@ -804,7 +804,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	if (V4L2_PIX_FMT_UYVY != f->fmt.pix.pixelformat)
 		return -EINVAL;
 
-	if (V4L2_STD_NTSC & vip->std)
+	if (V4L2_STD_525_60 & vip->std)
 		interlace_lim = 240;
 	else
 		interlace_lim = 288;
