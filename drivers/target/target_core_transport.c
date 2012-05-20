@@ -1343,7 +1343,7 @@ static inline void transport_generic_prepare_cdb(
 	}
 }
 
-static int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
+int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 {
 	struct se_device *dev = cmd->se_dev;
 
@@ -1469,7 +1469,6 @@ int target_setup_cmd_from_cdb(
 	u32 pr_reg_type = 0;
 	u8 alua_ascq = 0;
 	unsigned long flags;
-	unsigned int size;
 	int ret;
 
 	transport_generic_prepare_cdb(cdb);
@@ -1561,11 +1560,7 @@ int target_setup_cmd_from_cdb(
 		 */
 	}
 
-	ret = cmd->se_dev->transport->parse_cdb(cmd, &size);
-	if (ret < 0)
-		return ret;
-
-	ret = target_cmd_size_check(cmd, size);
+	ret = cmd->se_dev->transport->parse_cdb(cmd);
 	if (ret < 0)
 		return ret;
 
@@ -2163,32 +2158,6 @@ out:
 	return -1;
 }
 
-static inline long long transport_dev_end_lba(struct se_device *dev)
-{
-	return dev->transport->get_blocks(dev) + 1;
-}
-
-static int transport_cmd_get_valid_sectors(struct se_cmd *cmd)
-{
-	struct se_device *dev = cmd->se_dev;
-	u32 sectors;
-
-	if (dev->transport->get_device_type(dev) != TYPE_DISK)
-		return 0;
-
-	sectors = (cmd->data_length / dev->se_sub_dev->se_dev_attrib.block_size);
-
-	if ((cmd->t_task_lba + sectors) > transport_dev_end_lba(dev)) {
-		pr_err("LBA: %llu Sectors: %u exceeds"
-			" transport_dev_end_lba(): %llu\n",
-			cmd->t_task_lba, sectors,
-			transport_dev_end_lba(dev));
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /*
  * Called from I/O completion to determine which dormant/delayed
  * and ordered cmds need to have their tasks added to the execution queue.
@@ -2632,7 +2601,6 @@ out:
  */
 int transport_generic_new_cmd(struct se_cmd *cmd)
 {
-	struct se_device *dev = cmd->se_dev;
 	int ret = 0;
 
 	/*
@@ -2664,17 +2632,6 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		INIT_WORK(&cmd->work, target_complete_ok_work);
 		queue_work(target_completion_wq, &cmd->work);
 		return 0;
-	}
-
-	if (cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) {
-		struct se_dev_attrib *attr = &dev->se_sub_dev->se_dev_attrib;
-
-		if (transport_cmd_get_valid_sectors(cmd) < 0)
-			return -EINVAL;
-
-		BUG_ON(cmd->data_length % attr->block_size);
-		BUG_ON(DIV_ROUND_UP(cmd->data_length, attr->block_size) >
-			attr->hw_max_sectors);
 	}
 
 	atomic_inc(&cmd->t_fe_count);

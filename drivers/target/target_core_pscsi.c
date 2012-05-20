@@ -1022,469 +1022,52 @@ fail:
 	return -ENOMEM;
 }
 
-static inline u32 pscsi_get_sectors_6(
-	unsigned char *cdb,
-	struct se_cmd *cmd,
-	int *ret)
+static int pscsi_parse_cdb(struct se_cmd *cmd)
 {
-	struct se_device *dev = cmd->se_dev;
-
-	/*
-	 * Assume TYPE_DISK for non struct se_device objects.
-	 * Use 8-bit sector value.
-	 */
-	if (!dev)
-		goto type_disk;
-
-	/*
-	 * Use 24-bit allocation length for TYPE_TAPE.
-	 */
-	if (dev->transport->get_device_type(dev) == TYPE_TAPE)
-		return (u32)(cdb[2] << 16) + (cdb[3] << 8) + cdb[4];
-
-	/*
-	 * Everything else assume TYPE_DISK Sector CDB location.
-	 * Use 8-bit sector value.  SBC-3 says:
-	 *
-	 *   A TRANSFER LENGTH field set to zero specifies that 256
-	 *   logical blocks shall be written.  Any other value
-	 *   specifies the number of logical blocks that shall be
-	 *   written.
-	 */
-type_disk:
-	return cdb[4] ? : 256;
-}
-
-static inline u32 pscsi_get_sectors_10(
-	unsigned char *cdb,
-	struct se_cmd *cmd,
-	int *ret)
-{
-	struct se_device *dev = cmd->se_dev;
-
-	/*
-	 * Assume TYPE_DISK for non struct se_device objects.
-	 * Use 16-bit sector value.
-	 */
-	if (!dev)
-		goto type_disk;
-
-	/*
-	 * XXX_10 is not defined in SSC, throw an exception
-	 */
-	if (dev->transport->get_device_type(dev) == TYPE_TAPE) {
-		*ret = -EINVAL;
-		return 0;
-	}
-
-	/*
-	 * Everything else assume TYPE_DISK Sector CDB location.
-	 * Use 16-bit sector value.
-	 */
-type_disk:
-	return (u32)(cdb[7] << 8) + cdb[8];
-}
-
-static inline u32 pscsi_get_sectors_12(
-	unsigned char *cdb,
-	struct se_cmd *cmd,
-	int *ret)
-{
-	struct se_device *dev = cmd->se_dev;
-
-	/*
-	 * Assume TYPE_DISK for non struct se_device objects.
-	 * Use 32-bit sector value.
-	 */
-	if (!dev)
-		goto type_disk;
-
-	/*
-	 * XXX_12 is not defined in SSC, throw an exception
-	 */
-	if (dev->transport->get_device_type(dev) == TYPE_TAPE) {
-		*ret = -EINVAL;
-		return 0;
-	}
-
-	/*
-	 * Everything else assume TYPE_DISK Sector CDB location.
-	 * Use 32-bit sector value.
-	 */
-type_disk:
-	return (u32)(cdb[6] << 24) + (cdb[7] << 16) + (cdb[8] << 8) + cdb[9];
-}
-
-static inline u32 pscsi_get_sectors_16(
-	unsigned char *cdb,
-	struct se_cmd *cmd,
-	int *ret)
-{
-	struct se_device *dev = cmd->se_dev;
-
-	/*
-	 * Assume TYPE_DISK for non struct se_device objects.
-	 * Use 32-bit sector value.
-	 */
-	if (!dev)
-		goto type_disk;
-
-	/*
-	 * Use 24-bit allocation length for TYPE_TAPE.
-	 */
-	if (dev->transport->get_device_type(dev) == TYPE_TAPE)
-		return (u32)(cdb[12] << 16) + (cdb[13] << 8) + cdb[14];
-
-type_disk:
-	return (u32)(cdb[10] << 24) + (cdb[11] << 16) +
-		    (cdb[12] << 8) + cdb[13];
-}
-
-/*
- * Used for VARIABLE_LENGTH_CDB WRITE_32 and READ_32 variants
- */
-static inline u32 pscsi_get_sectors_32(
-	unsigned char *cdb,
-	struct se_cmd *cmd,
-	int *ret)
-{
-	/*
-	 * Assume TYPE_DISK for non struct se_device objects.
-	 * Use 32-bit sector value.
-	 */
-	return (u32)(cdb[28] << 24) + (cdb[29] << 16) +
-		    (cdb[30] << 8) + cdb[31];
-
-}
-
-static inline u32 pscsi_get_lba_21(unsigned char *cdb)
-{
-	return ((cdb[1] & 0x1f) << 16) | (cdb[2] << 8) | cdb[3];
-}
-
-static inline u32 pscsi_get_lba_32(unsigned char *cdb)
-{
-	return (cdb[2] << 24) | (cdb[3] << 16) | (cdb[4] << 8) | cdb[5];
-}
-
-static inline unsigned long long pscsi_get_lba_64(unsigned char *cdb)
-{
-	unsigned int __v1, __v2;
-
-	__v1 = (cdb[2] << 24) | (cdb[3] << 16) | (cdb[4] << 8) | cdb[5];
-	__v2 = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
-
-	return ((unsigned long long)__v2) | (unsigned long long)__v1 << 32;
-}
-
-/*
- * For VARIABLE_LENGTH_CDB w/ 32 byte extended CDBs
- */
-static inline unsigned long long pscsi_get_lba_64_ext(unsigned char *cdb)
-{
-	unsigned int __v1, __v2;
-
-	__v1 = (cdb[12] << 24) | (cdb[13] << 16) | (cdb[14] << 8) | cdb[15];
-	__v2 = (cdb[16] << 24) | (cdb[17] << 16) | (cdb[18] << 8) | cdb[19];
-
-	return ((unsigned long long)__v2) | (unsigned long long)__v1 << 32;
-}
-
-
-static inline u32 pscsi_get_size(
-	u32 sectors,
-	unsigned char *cdb,
-	struct se_cmd *cmd)
-{
-	struct se_device *dev = cmd->se_dev;
-
-	if (dev->transport->get_device_type(dev) == TYPE_TAPE) {
-		if (cdb[1] & 1) { /* sectors */
-			return dev->se_sub_dev->se_dev_attrib.block_size * sectors;
-		} else /* bytes */
-			return sectors;
-	}
-
-	pr_debug("Returning block_size: %u, sectors: %u == %u for"
-		" %s object\n", dev->se_sub_dev->se_dev_attrib.block_size,
-		sectors, dev->se_sub_dev->se_dev_attrib.block_size * sectors,
-		dev->transport->name);
-
-	return dev->se_sub_dev->se_dev_attrib.block_size * sectors;
-}
-
-static int pscsi_parse_cdb(struct se_cmd *cmd, unsigned int *size)
-{
-	struct se_device *dev = cmd->se_dev;
-	struct se_subsystem_dev *su_dev = dev->se_sub_dev;
 	unsigned char *cdb = cmd->t_task_cdb;
-	int sector_ret = 0;
-	u32 sectors = 0;
-	u16 service_action;
+	unsigned int dummy_size;
 	int ret;
 
-	if (cmd->se_cmd_flags & SCF_BIDI)
-		goto out_unsupported_cdb;
-
-	switch (cdb[0]) {
-	case READ_6:
-		sectors = pscsi_get_sectors_6(cdb, cmd, &sector_ret);
-		if (sector_ret)
-			goto out_unsupported_cdb;
-		*size = pscsi_get_size(sectors, cdb, cmd);
-		cmd->t_task_lba = pscsi_get_lba_21(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		break;
-	case READ_10:
-		sectors = pscsi_get_sectors_10(cdb, cmd, &sector_ret);
-		if (sector_ret)
-			goto out_unsupported_cdb;
-		*size = pscsi_get_size(sectors, cdb, cmd);
-		cmd->t_task_lba = pscsi_get_lba_32(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		break;
-	case READ_12:
-		sectors = pscsi_get_sectors_12(cdb, cmd, &sector_ret);
-		if (sector_ret)
-			goto out_unsupported_cdb;
-		*size = pscsi_get_size(sectors, cdb, cmd);
-		cmd->t_task_lba = pscsi_get_lba_32(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		break;
-	case READ_16:
-		sectors = pscsi_get_sectors_16(cdb, cmd, &sector_ret);
-		if (sector_ret)
-			goto out_unsupported_cdb;
-		*size = pscsi_get_size(sectors, cdb, cmd);
-		cmd->t_task_lba = pscsi_get_lba_64(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		break;
-	case WRITE_6:
-		sectors = pscsi_get_sectors_6(cdb, cmd, &sector_ret);
-		if (sector_ret)
-			goto out_unsupported_cdb;
-		*size = pscsi_get_size(sectors, cdb, cmd);
-		cmd->t_task_lba = pscsi_get_lba_21(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		break;
-	case WRITE_10:
-	case WRITE_VERIFY:
-		sectors = pscsi_get_sectors_10(cdb, cmd, &sector_ret);
-		if (sector_ret)
-			goto out_unsupported_cdb;
-		*size = pscsi_get_size(sectors, cdb, cmd);
-		cmd->t_task_lba = pscsi_get_lba_32(cdb);
-		if (cdb[1] & 0x8)
-			cmd->se_cmd_flags |= SCF_FUA;
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		break;
-	case WRITE_12:
-		sectors = pscsi_get_sectors_12(cdb, cmd, &sector_ret);
-		if (sector_ret)
-			goto out_unsupported_cdb;
-		*size = pscsi_get_size(sectors, cdb, cmd);
-		cmd->t_task_lba = pscsi_get_lba_32(cdb);
-		if (cdb[1] & 0x8)
-			cmd->se_cmd_flags |= SCF_FUA;
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		break;
-	case WRITE_16:
-		sectors = pscsi_get_sectors_16(cdb, cmd, &sector_ret);
-		if (sector_ret)
-			goto out_unsupported_cdb;
-		*size = pscsi_get_size(sectors, cdb, cmd);
-		cmd->t_task_lba = pscsi_get_lba_64(cdb);
-		if (cdb[1] & 0x8)
-			cmd->se_cmd_flags |= SCF_FUA;
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		break;
-	case VARIABLE_LENGTH_CMD:
-		service_action = get_unaligned_be16(&cdb[8]);
-		switch (service_action) {
-		case WRITE_SAME_32:
-			sectors = pscsi_get_sectors_32(cdb, cmd, &sector_ret);
-			if (sector_ret)
-				goto out_unsupported_cdb;
-
-			if (!sectors) {
-				pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not"
-				       " supported\n");
-				goto out_invalid_cdb_field;
-			}
-
-			*size = pscsi_get_size(1, cdb, cmd);
-			cmd->t_task_lba = get_unaligned_be64(&cdb[12]);
-			break;
-		default:
-			pr_err("VARIABLE_LENGTH_CMD service action"
-				" 0x%04x not supported\n", service_action);
-			goto out_unsupported_cdb;
-		}
-		break;
-	case GPCMD_READ_BUFFER_CAPACITY:
-	case GPCMD_SEND_OPC:
-		*size = (cdb[7] << 8) + cdb[8];
-		break;
-	case READ_BLOCK_LIMITS:
-		*size = READ_BLOCK_LEN;
-		break;
-	case GPCMD_GET_CONFIGURATION:
-	case GPCMD_READ_FORMAT_CAPACITIES:
-	case GPCMD_READ_DISC_INFO:
-	case GPCMD_READ_TRACK_RZONE_INFO:
-		*size = (cdb[7] << 8) + cdb[8];
-		break;
-	case GPCMD_MECHANISM_STATUS:
-	case GPCMD_READ_DVD_STRUCTURE:
-		*size = (cdb[8] << 8) + cdb[9];
-		break;
-	case READ_POSITION:
-		*size = READ_POSITION_LEN;
-		break;
-	case READ_BUFFER:
-		*size = (cdb[6] << 16) + (cdb[7] << 8) + cdb[8];
-		break;
-	case READ_CAPACITY:
-		*size = READ_CAP_LEN;
-		break;
-	case READ_MEDIA_SERIAL_NUMBER:
-	case SERVICE_ACTION_IN:
-	case ACCESS_CONTROL_IN:
-	case ACCESS_CONTROL_OUT:
-		*size = (cdb[10] << 24) | (cdb[11] << 16) |
-		       (cdb[12] << 8) | cdb[13];
-		break;
-	case READ_TOC:
-		*size = cdb[8];
-		break;
-	case READ_ELEMENT_STATUS:
-		*size = 65536 * cdb[7] + 256 * cdb[8] + cdb[9];
-		break;
-	case SYNCHRONIZE_CACHE:
-	case SYNCHRONIZE_CACHE_16:
-		/*
-		 * Extract LBA and range to be flushed for emulated SYNCHRONIZE_CACHE
-		 */
-		if (cdb[0] == SYNCHRONIZE_CACHE) {
-			sectors = pscsi_get_sectors_10(cdb, cmd, &sector_ret);
-			cmd->t_task_lba = pscsi_get_lba_32(cdb);
-		} else {
-			sectors = pscsi_get_sectors_16(cdb, cmd, &sector_ret);
-			cmd->t_task_lba = pscsi_get_lba_64(cdb);
-		}
-		if (sector_ret)
-			goto out_unsupported_cdb;
-
-		*size = pscsi_get_size(sectors, cdb, cmd);
-		break;
-	case UNMAP:
-		*size = get_unaligned_be16(&cdb[7]);
-		break;
-	case WRITE_SAME_16:
-		sectors = pscsi_get_sectors_16(cdb, cmd, &sector_ret);
-		if (sector_ret)
-			goto out_unsupported_cdb;
-
-		if (!sectors) {
-			pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not supported\n");
-			goto out_invalid_cdb_field;
-		}
-
-		*size = pscsi_get_size(1, cdb, cmd);
-		cmd->t_task_lba = get_unaligned_be64(&cdb[2]);
-		break;
-	case WRITE_SAME:
-		sectors = pscsi_get_sectors_10(cdb, cmd, &sector_ret);
-		if (sector_ret)
-			goto out_unsupported_cdb;
-
-		if (!sectors) {
-			pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not supported\n");
-			goto out_invalid_cdb_field;
-		}
-
-		*size = pscsi_get_size(1, cdb, cmd);
-		cmd->t_task_lba = get_unaligned_be32(&cdb[2]);
-		break;
-	case ALLOW_MEDIUM_REMOVAL:
-	case ERASE:
-	case REZERO_UNIT:
-	case SEEK_10:
-	case SPACE:
-	case START_STOP:
-	case VERIFY:
-	case WRITE_FILEMARKS:
-	case GPCMD_CLOSE_TRACK:
-	case INITIALIZE_ELEMENT_STATUS:
-	case GPCMD_LOAD_UNLOAD:
-	case GPCMD_SET_SPEED:
-	case MOVE_MEDIUM:
-		*size = 0;
-		break;
-	case GET_EVENT_STATUS_NOTIFICATION:
-		*size = (cdb[7] << 8) | cdb[8];
-		break;
-	case ATA_16:
-		switch (cdb[2] & 0x3) {		/* T_LENGTH */
-		case 0x0:
-			sectors = 0;
-			break;
-		case 0x1:
-			sectors = (((cdb[1] & 0x1) ? cdb[3] : 0) << 8) | cdb[4];
-			break;
-		case 0x2:
-			sectors = (((cdb[1] & 0x1) ? cdb[5] : 0) << 8) | cdb[6];
-			break;
-		case 0x3:
-			pr_err("T_LENGTH=0x3 not supported for ATA_16\n");
-			goto out_invalid_cdb_field;
-		}
-
-		/* BYTE_BLOCK */
-		if (cdb[2] & 0x4) {
-			/* BLOCK T_TYPE: 512 or sector */
-			*size = sectors * ((cdb[2] & 0x10) ?
-				dev->se_sub_dev->se_dev_attrib.block_size : 512);
-		} else {
-			/* BYTE */
-			*size = sectors;
-		}
-		break;
-	default:
-		ret = spc_parse_cdb(cmd, size, true);
-		if (ret)
-			return ret;
+	if (cmd->se_cmd_flags & SCF_BIDI) {
+		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+		return -EINVAL;
 	}
 
-	if (cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) {
-		if (sectors > su_dev->se_dev_attrib.fabric_max_sectors) {
-			printk_ratelimited(KERN_ERR "SCSI OP %02xh with too"
-				" big sectors %u exceeds fabric_max_sectors:"
-				" %u\n", cdb[0], sectors,
-				su_dev->se_dev_attrib.fabric_max_sectors);
-			goto out_invalid_cdb_field;
-		}
-		if (sectors > su_dev->se_dev_attrib.hw_max_sectors) {
-			printk_ratelimited(KERN_ERR "SCSI OP %02xh with too"
-				" big sectors %u exceeds backend hw_max_sectors:"
-				" %u\n", cdb[0], sectors,
-				su_dev->se_dev_attrib.hw_max_sectors);
-			goto out_invalid_cdb_field;
-		}
+	/*
+	 * For REPORT LUNS we always need to emulate the respone, and for everything
+	 * related to persistent reservations and ALUA we might optionally use our
+	 * handlers before passing on the command to the physical hardware.
+	 */
+	switch (cdb[0]) {
+	case REPORT_LUNS:
+	case PERSISTENT_RESERVE_IN:
+	case PERSISTENT_RESERVE_OUT:
+	case RELEASE:
+	case RELEASE_10:
+	case RESERVE:
+	case RESERVE_10:
+		ret = spc_parse_cdb(cmd, &dummy_size);
+		if (ret)
+			return ret;
+		break;
+	case READ_6:
+	case READ_10:
+	case READ_12:
+	case READ_16:
+	case WRITE_6:
+	case WRITE_10:
+	case WRITE_12:
+	case WRITE_16:
+	case WRITE_VERIFY:
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		break;
+	default:
+		break;
 	}
 
 	return 0;
-
-out_unsupported_cdb:
-	cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-	cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
-	return -EINVAL;
-out_invalid_cdb_field:
-	cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-	cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-	return -EINVAL;
 }
-
 
 static int pscsi_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
 		u32 sgl_nents, enum dma_data_direction data_direction)
