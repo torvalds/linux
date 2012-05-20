@@ -1345,6 +1345,55 @@ static inline void transport_generic_prepare_cdb(
 
 static int transport_generic_cmd_sequencer(struct se_cmd *, unsigned char *);
 
+static int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
+{
+	struct se_device *dev = cmd->se_dev;
+
+	if (cmd->unknown_data_length) {
+		cmd->data_length = size;
+	} else if (size != cmd->data_length) {
+		pr_warn("TARGET_CORE[%s]: Expected Transfer Length:"
+			" %u does not match SCSI CDB Length: %u for SAM Opcode:"
+			" 0x%02x\n", cmd->se_tfo->get_fabric_name(),
+				cmd->data_length, size, cmd->t_task_cdb[0]);
+
+		cmd->cmd_spdtl = size;
+
+		if (cmd->data_direction == DMA_TO_DEVICE) {
+			pr_err("Rejecting underflow/overflow"
+					" WRITE data\n");
+			goto out_invalid_cdb_field;
+		}
+		/*
+		 * Reject READ_* or WRITE_* with overflow/underflow for
+		 * type SCF_SCSI_DATA_CDB.
+		 */
+		if (dev->se_sub_dev->se_dev_attrib.block_size != 512)  {
+			pr_err("Failing OVERFLOW/UNDERFLOW for LBA op"
+				" CDB on non 512-byte sector setup subsystem"
+				" plugin: %s\n", dev->transport->name);
+			/* Returns CHECK_CONDITION + INVALID_CDB_FIELD */
+			goto out_invalid_cdb_field;
+		}
+
+		if (size > cmd->data_length) {
+			cmd->se_cmd_flags |= SCF_OVERFLOW_BIT;
+			cmd->residual_count = (size - cmd->data_length);
+		} else {
+			cmd->se_cmd_flags |= SCF_UNDERFLOW_BIT;
+			cmd->residual_count = (cmd->data_length - size);
+		}
+		cmd->data_length = size;
+	}
+
+	return 0;
+
+out_invalid_cdb_field:
+	cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+	cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+	return -EINVAL;
+}
+
 /*
  * Used by fabric modules containing a local struct se_cmd within their
  * fabric dependent per I/O descriptor.
@@ -2431,6 +2480,7 @@ static int transport_generic_cmd_sequencer(
 	int sector_ret = 0, passthrough;
 	u32 sectors = 0, size = 0;
 	u16 service_action;
+	int ret;
 
 	/*
 	 * If we operate in passthrough mode we skip most CDB emulation and
@@ -2929,43 +2979,9 @@ static int transport_generic_cmd_sequencer(
 		goto out_unsupported_cdb;
 	}
 
-	if (cmd->unknown_data_length)
-		cmd->data_length = size;
-
-	if (size != cmd->data_length) {
-		pr_warn("TARGET_CORE[%s]: Expected Transfer Length:"
-			" %u does not match SCSI CDB Length: %u for SAM Opcode:"
-			" 0x%02x\n", cmd->se_tfo->get_fabric_name(),
-				cmd->data_length, size, cdb[0]);
-
-		cmd->cmd_spdtl = size;
-
-		if (cmd->data_direction == DMA_TO_DEVICE) {
-			pr_err("Rejecting underflow/overflow"
-					" WRITE data\n");
-			goto out_invalid_cdb_field;
-		}
-		/*
-		 * Reject READ_* or WRITE_* with overflow/underflow for
-		 * type SCF_SCSI_DATA_CDB.
-		 */
-		if (dev->se_sub_dev->se_dev_attrib.block_size != 512)  {
-			pr_err("Failing OVERFLOW/UNDERFLOW for LBA op"
-				" CDB on non 512-byte sector setup subsystem"
-				" plugin: %s\n", dev->transport->name);
-			/* Returns CHECK_CONDITION + INVALID_CDB_FIELD */
-			goto out_invalid_cdb_field;
-		}
-
-		if (size > cmd->data_length) {
-			cmd->se_cmd_flags |= SCF_OVERFLOW_BIT;
-			cmd->residual_count = (size - cmd->data_length);
-		} else {
-			cmd->se_cmd_flags |= SCF_UNDERFLOW_BIT;
-			cmd->residual_count = (cmd->data_length - size);
-		}
-		cmd->data_length = size;
-	}
+	ret = target_cmd_size_check(cmd, size);
+	if (ret)
+		return ret;
 
 	if (cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) {
 		if (sectors > su_dev->se_dev_attrib.fabric_max_sectors) {
