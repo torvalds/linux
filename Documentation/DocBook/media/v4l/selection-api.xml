@@ -91,7 +91,7 @@ top/left corner at position <constant> (0,0) </constant>.  The rectangle's
 coordinates are expressed in pixels.</para>
 
 <para>The top left corner, width and height of the source rectangle, that is
-the area actually sampled, is given by the <constant> V4L2_SEL_TGT_CROP_ACTIVE
+the area actually sampled, is given by the <constant> V4L2_SEL_TGT_CROP
 </constant> target. It uses the same coordinate system as <constant>
 V4L2_SEL_TGT_CROP_BOUNDS </constant>. The active cropping area must lie
 completely inside the capture boundaries. The driver may further adjust the
@@ -111,7 +111,7 @@ height are equal to the image size set by <constant> VIDIOC_S_FMT </constant>.
 </para>
 
 <para>The part of a buffer into which the image is inserted by the hardware is
-controlled by the <constant> V4L2_SEL_TGT_COMPOSE_ACTIVE </constant> target.
+controlled by the <constant> V4L2_SEL_TGT_COMPOSE </constant> target.
 The rectangle's coordinates are also expressed in the same coordinate system as
 the bounds rectangle. The composing rectangle must lie completely inside bounds
 rectangle. The driver must adjust the composing rectangle to fit to the
@@ -125,7 +125,7 @@ bounding rectangle.</para>
 
 <para>The part of a buffer that is modified by the hardware is given by
 <constant> V4L2_SEL_TGT_COMPOSE_PADDED </constant>. It contains all pixels
-defined using <constant> V4L2_SEL_TGT_COMPOSE_ACTIVE </constant> plus all
+defined using <constant> V4L2_SEL_TGT_COMPOSE </constant> plus all
 padding data modified by hardware during insertion process. All pixels outside
 this rectangle <emphasis>must not</emphasis> be changed by the hardware. The
 content of pixels that lie inside the padded area but outside active area is
@@ -153,7 +153,7 @@ specified using <constant> VIDIOC_S_FMT </constant> ioctl.</para>
 
 <para>The top left corner, width and height of the source rectangle, that is
 the area from which image date are processed by the hardware, is given by the
-<constant> V4L2_SEL_TGT_CROP_ACTIVE </constant>. Its coordinates are expressed
+<constant> V4L2_SEL_TGT_CROP </constant>. Its coordinates are expressed
 in in the same coordinate system as the bounds rectangle. The active cropping
 area must lie completely inside the crop boundaries and the driver may further
 adjust the requested size and/or position according to hardware
@@ -165,7 +165,7 @@ bounding rectangle.</para>
 
 <para>The part of a video signal or graphics display where the image is
 inserted by the hardware is controlled by <constant>
-V4L2_SEL_TGT_COMPOSE_ACTIVE </constant> target.  The rectangle's coordinates
+V4L2_SEL_TGT_COMPOSE </constant> target.  The rectangle's coordinates
 are expressed in pixels. The composing rectangle must lie completely inside the
 bounds rectangle.  The driver must adjust the area to fit to the bounding
 limits.  Moreover, the driver can perform other adjustments according to
@@ -184,7 +184,7 @@ such a padded area is driver-dependent feature not covered by this document.
 Driver developers are encouraged to keep padded rectangle equal to active one.
 The padded target is accessed by the <constant> V4L2_SEL_TGT_COMPOSE_PADDED
 </constant> identifier.  It must contain all pixels from the <constant>
-V4L2_SEL_TGT_COMPOSE_ACTIVE </constant> target.</para>
+V4L2_SEL_TGT_COMPOSE </constant> target.</para>
 
    </section>
 
@@ -193,8 +193,8 @@ V4L2_SEL_TGT_COMPOSE_ACTIVE </constant> target.</para>
      <title>Scaling control</title>
 
 <para>An application can detect if scaling is performed by comparing the width
-and the height of rectangles obtained using <constant> V4L2_SEL_TGT_CROP_ACTIVE
-</constant> and <constant> V4L2_SEL_TGT_COMPOSE_ACTIVE </constant> targets. If
+and the height of rectangles obtained using <constant> V4L2_SEL_TGT_CROP
+</constant> and <constant> V4L2_SEL_TGT_COMPOSE </constant> targets. If
 these are not equal then the scaling is applied. The application can compute
 the scaling ratios using these values.</para>
 
@@ -252,7 +252,7 @@ area)</para>
 	ret = ioctl(fd, &VIDIOC-G-SELECTION;, &amp;sel);
 	if (ret)
 		exit(-1);
-	sel.target = V4L2_SEL_TGT_CROP_ACTIVE;
+	sel.target = V4L2_SEL_TGT_CROP;
 	ret = ioctl(fd, &VIDIOC-S-SELECTION;, &amp;sel);
 	if (ret)
 		exit(-1);
@@ -281,7 +281,7 @@ area)</para>
 	r.left = sel.r.width / 4;
 	r.top = sel.r.height / 4;
 	sel.r = r;
-	sel.target = V4L2_SEL_TGT_COMPOSE_ACTIVE;
+	sel.target = V4L2_SEL_TGT_COMPOSE;
 	sel.flags = V4L2_SEL_FLAG_LE;
 	ret = ioctl(fd, &VIDIOC-S-SELECTION;, &amp;sel);
 	if (ret)
@@ -298,11 +298,11 @@ V4L2_BUF_TYPE_VIDEO_OUTPUT </constant> for other devices</para>
 
 	&v4l2-selection; compose = {
 		.type = V4L2_BUF_TYPE_VIDEO_OUTPUT,
-		.target = V4L2_SEL_TGT_COMPOSE_ACTIVE,
+		.target = V4L2_SEL_TGT_COMPOSE,
 	};
 	&v4l2-selection; crop = {
 		.type = V4L2_BUF_TYPE_VIDEO_OUTPUT,
-		.target = V4L2_SEL_TGT_CROP_ACTIVE,
+		.target = V4L2_SEL_TGT_CROP,
 	};
 	double hscale, vscale;
 

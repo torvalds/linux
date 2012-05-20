@@ -871,7 +871,7 @@ static int fimc_lite_g_selection(struct file *file, void *fh,
 		sel->r.height = f->f_height;
 		return 0;
 
-	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+	case V4L2_SEL_TGT_COMPOSE:
 		sel->r = f->rect;
 		return 0;
 	}
@@ -888,7 +888,7 @@ static int fimc_lite_s_selection(struct file *file, void *fh,
 	unsigned long flags;
 
 	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE ||
-	    sel->target != V4L2_SEL_TGT_COMPOSE_ACTIVE)
+	    sel->target != V4L2_SEL_TGT_COMPOSE)
 		return -EINVAL;
 
 	fimc_lite_try_compose(fimc, &rect);

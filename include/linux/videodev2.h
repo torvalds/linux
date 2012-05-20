@@ -767,19 +767,23 @@ struct v4l2_crop {
 /* Selection targets */
 
 /* Current cropping area */
-#define V4L2_SEL_TGT_CROP_ACTIVE	0x0000
+#define V4L2_SEL_TGT_CROP		0x0000
 /* Default cropping area */
 #define V4L2_SEL_TGT_CROP_DEFAULT	0x0001
 /* Cropping bounds */
 #define V4L2_SEL_TGT_CROP_BOUNDS	0x0002
 /* Current composing area */
-#define V4L2_SEL_TGT_COMPOSE_ACTIVE	0x0100
+#define V4L2_SEL_TGT_COMPOSE		0x0100
 /* Default composing area */
 #define V4L2_SEL_TGT_COMPOSE_DEFAULT	0x0101
 /* Composing bounds */
 #define V4L2_SEL_TGT_COMPOSE_BOUNDS	0x0102
 /* Current composing area plus all padding pixels */
 #define V4L2_SEL_TGT_COMPOSE_PADDED	0x0103
+
+/* Backward compatibility definitions */
+#define V4L2_SEL_TGT_CROP_ACTIVE	V4L2_SEL_TGT_CROP
+#define V4L2_SEL_TGT_COMPOSE_ACTIVE	V4L2_SEL_TGT_COMPOSE
 
 /**
  * struct v4l2_selection - selection info
