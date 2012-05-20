@@ -21,8 +21,6 @@ extern char reboot_command[];
  */
 extern unsigned char boot_cpu_id;
 
-extern unsigned long empty_bad_page;
-extern unsigned long empty_bad_page_table;
 extern unsigned long empty_zero_page;
 
 extern int serial_console;
