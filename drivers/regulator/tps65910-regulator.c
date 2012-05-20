@@ -1071,7 +1071,8 @@ static struct of_regulator_match tps65911_matches[] = {
 };
 
 static struct tps65910_board *tps65910_parse_dt_reg_data(
-				struct platform_device *pdev)
+		struct platform_device *pdev,
+		struct of_regulator_match **tps65910_reg_matches)
 {
 	struct tps65910_board *pmic_plat_data;
 	struct tps65910 *tps65910 = dev_get_drvdata(pdev->dev.parent);
@@ -1116,6 +1117,8 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 		return NULL;
 	}
 
+	*tps65910_reg_matches = matches;
+
 	for (idx = 0; idx < count; idx++) {
 		if (!matches[idx].init_data || !matches[idx].of_node)
 			continue;
@@ -1133,8 +1136,10 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 }
 #else
 static inline struct tps65910_board *tps65910_parse_dt_reg_data(
-				struct platform_device *pdev)
+			struct platform_device *pdev,
+			struct of_regulator_match **tps65910_reg_matches)
 {
+	*tps65910_reg_matches = NULL;
 	return 0;
 }
 #endif
@@ -1148,11 +1153,13 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct tps65910_reg *pmic;
 	struct tps65910_board *pmic_plat_data;
+	struct of_regulator_match *tps65910_reg_matches = NULL;
 	int i, err;
 
 	pmic_plat_data = dev_get_platdata(tps65910->dev);
 	if (!pmic_plat_data && tps65910->dev->of_node)
-		pmic_plat_data = tps65910_parse_dt_reg_data(pdev);
+		pmic_plat_data = tps65910_parse_dt_reg_data(pdev,
+						&tps65910_reg_matches);
 
 	if (!pmic_plat_data) {
 		dev_err(&pdev->dev, "Platform data not found\n");
@@ -1265,10 +1272,8 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 		config.driver_data = pmic;
 		config.regmap = tps65910->regmap;
 
-#ifdef CONFIG_OF
-		config.of_node = of_find_node_by_name(tps65910->dev->of_node,
-							info->name);
-#endif
+		if (tps65910_reg_matches)
+			config.of_node = tps65910_reg_matches[i].of_node;
 
 		rdev = regulator_register(&pmic->desc[i], &config);
 		if (IS_ERR(rdev)) {
