@@ -1438,7 +1438,6 @@ static int __devinit pch_spi_pd_probe(struct platform_device *plat_dev)
 		plat_dev->id, data->io_remap_addr);
 
 	/* initialize members of SPI master */
-	master->bus_num = -1;
 	master->num_chipselect = PCH_MAX_CS;
 	master->setup = pch_spi_setup;
 	master->transfer = pch_spi_transfer;

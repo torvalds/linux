@@ -466,9 +466,6 @@ static int __init spi_ppc4xx_of_probe(struct platform_device *op)
 	bbp->master->setup = spi_ppc4xx_setup;
 	bbp->master->cleanup = spi_ppc4xx_cleanup;
 
-	/* Allocate bus num dynamically. */
-	bbp->master->bus_num = -1;
-
 	/* the spi->mode bits understood by this driver: */
 	bbp->master->mode_bits =
 		SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LSB_FIRST;
