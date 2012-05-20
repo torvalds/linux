@@ -36,7 +36,7 @@ static void isku_profile_activated(struct isku_device *isku, uint new_profile)
 static int isku_receive(struct usb_device *usb_dev, uint command,
 		void *buf, uint size)
 {
-	return roccat_common_receive(usb_dev, command, buf, size);
+	return roccat_common2_receive(usb_dev, command, buf, size);
 }
 
 static int isku_get_actual_profile(struct usb_device *usb_dev)
@@ -56,7 +56,7 @@ static int isku_set_actual_profile(struct usb_device *usb_dev, int new_profile)
 	buf.command = ISKU_COMMAND_ACTUAL_PROFILE;
 	buf.size = sizeof(struct isku_actual_profile);
 	buf.actual_profile = new_profile;
-	return roccat_common_send_with_status(usb_dev,
+	return roccat_common2_send_with_status(usb_dev,
 			ISKU_COMMAND_ACTUAL_PROFILE, &buf,
 			sizeof(struct isku_actual_profile));
 }
@@ -154,7 +154,7 @@ static ssize_t isku_sysfs_write(struct file *fp, struct kobject *kobj,
 		return -EINVAL;
 
 	mutex_lock(&isku->isku_lock);
-	retval = roccat_common_send_with_status(usb_dev, command,
+	retval = roccat_common2_send_with_status(usb_dev, command,
 			(void *)buf, real_size);
 	mutex_unlock(&isku->isku_lock);
 

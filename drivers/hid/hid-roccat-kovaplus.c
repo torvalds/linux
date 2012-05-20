@@ -47,7 +47,7 @@ static int kovaplus_send_control(struct usb_device *usb_dev, uint value,
 		enum kovaplus_control_requests request)
 {
 	int retval;
-	struct roccat_common_control control;
+	struct roccat_common2_control control;
 
 	if ((request == KOVAPLUS_CONTROL_REQUEST_PROFILE_SETTINGS ||
 			request == KOVAPLUS_CONTROL_REQUEST_PROFILE_BUTTONS) &&
@@ -58,8 +58,8 @@ static int kovaplus_send_control(struct usb_device *usb_dev, uint value,
 	control.value = value;
 	control.request = request;
 
-	retval = roccat_common_send(usb_dev, ROCCAT_COMMON_COMMAND_CONTROL,
-			&control, sizeof(struct roccat_common_control));
+	retval = roccat_common2_send(usb_dev, ROCCAT_COMMON_COMMAND_CONTROL,
+			&control, sizeof(struct roccat_common2_control));
 
 	return retval;
 }
@@ -73,7 +73,7 @@ static int kovaplus_select_profile(struct usb_device *usb_dev, uint number,
 static int kovaplus_get_info(struct usb_device *usb_dev,
 		struct kovaplus_info *buf)
 {
-	return roccat_common_receive(usb_dev, KOVAPLUS_COMMAND_INFO,
+	return roccat_common2_receive(usb_dev, KOVAPLUS_COMMAND_INFO,
 			buf, sizeof(struct kovaplus_info));
 }
 
@@ -87,14 +87,14 @@ static int kovaplus_get_profile_settings(struct usb_device *usb_dev,
 	if (retval)
 		return retval;
 
-	return roccat_common_receive(usb_dev, KOVAPLUS_COMMAND_PROFILE_SETTINGS,
+	return roccat_common2_receive(usb_dev, KOVAPLUS_COMMAND_PROFILE_SETTINGS,
 			buf, sizeof(struct kovaplus_profile_settings));
 }
 
 static int kovaplus_set_profile_settings(struct usb_device *usb_dev,
 		struct kovaplus_profile_settings const *settings)
 {
-	return roccat_common_send_with_status(usb_dev,
+	return roccat_common2_send_with_status(usb_dev,
 			KOVAPLUS_COMMAND_PROFILE_SETTINGS,
 			settings, sizeof(struct kovaplus_profile_settings));
 }
@@ -109,14 +109,14 @@ static int kovaplus_get_profile_buttons(struct usb_device *usb_dev,
 	if (retval)
 		return retval;
 
-	return roccat_common_receive(usb_dev, KOVAPLUS_COMMAND_PROFILE_BUTTONS,
+	return roccat_common2_receive(usb_dev, KOVAPLUS_COMMAND_PROFILE_BUTTONS,
 			buf, sizeof(struct kovaplus_profile_buttons));
 }
 
 static int kovaplus_set_profile_buttons(struct usb_device *usb_dev,
 		struct kovaplus_profile_buttons const *buttons)
 {
-	return roccat_common_send_with_status(usb_dev,
+	return roccat_common2_send_with_status(usb_dev,
 			KOVAPLUS_COMMAND_PROFILE_BUTTONS,
 			buttons, sizeof(struct kovaplus_profile_buttons));
 }
@@ -127,7 +127,7 @@ static int kovaplus_get_actual_profile(struct usb_device *usb_dev)
 	struct kovaplus_actual_profile buf;
 	int retval;
 
-	retval = roccat_common_receive(usb_dev, KOVAPLUS_COMMAND_ACTUAL_PROFILE,
+	retval = roccat_common2_receive(usb_dev, KOVAPLUS_COMMAND_ACTUAL_PROFILE,
 			&buf, sizeof(struct kovaplus_actual_profile));
 
 	return retval ? retval : buf.actual_profile;
@@ -142,7 +142,7 @@ static int kovaplus_set_actual_profile(struct usb_device *usb_dev,
 	buf.size = sizeof(struct kovaplus_actual_profile);
 	buf.actual_profile = new_profile;
 
-	return roccat_common_send_with_status(usb_dev,
+	return roccat_common2_send_with_status(usb_dev,
 			KOVAPLUS_COMMAND_ACTUAL_PROFILE,
 			&buf, sizeof(struct kovaplus_actual_profile));
 }

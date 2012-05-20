@@ -44,7 +44,7 @@ static ssize_t savu_sysfs_read(struct file *fp, struct kobject *kobj,
 		return -EINVAL;
 
 	mutex_lock(&savu->savu_lock);
-	retval = roccat_common_receive(usb_dev, command, buf, real_size);
+	retval = roccat_common2_receive(usb_dev, command, buf, real_size);
 	mutex_unlock(&savu->savu_lock);
 
 	return retval ? retval : real_size;
@@ -64,7 +64,7 @@ static ssize_t savu_sysfs_write(struct file *fp, struct kobject *kobj,
 		return -EINVAL;
 
 	mutex_lock(&savu->savu_lock);
-	retval = roccat_common_send_with_status(usb_dev, command,
+	retval = roccat_common2_send_with_status(usb_dev, command,
 			(void *)buf, real_size);
 	mutex_unlock(&savu->savu_lock);
 

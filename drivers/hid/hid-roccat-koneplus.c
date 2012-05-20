@@ -39,7 +39,7 @@ static void koneplus_profile_activated(struct koneplus_device *koneplus,
 static int koneplus_send_control(struct usb_device *usb_dev, uint value,
 		enum koneplus_control_requests request)
 {
-	struct roccat_common_control control;
+	struct roccat_common2_control control;
 
 	if ((request == KONEPLUS_CONTROL_REQUEST_PROFILE_SETTINGS ||
 			request == KONEPLUS_CONTROL_REQUEST_PROFILE_BUTTONS) &&
@@ -50,15 +50,15 @@ static int koneplus_send_control(struct usb_device *usb_dev, uint value,
 	control.value = value;
 	control.request = request;
 
-	return roccat_common_send_with_status(usb_dev,
+	return roccat_common2_send_with_status(usb_dev,
 			ROCCAT_COMMON_COMMAND_CONTROL,
-			&control, sizeof(struct roccat_common_control));
+			&control, sizeof(struct roccat_common2_control));
 }
 
 static int koneplus_get_info(struct usb_device *usb_dev,
 		struct koneplus_info *buf)
 {
-	return roccat_common_receive(usb_dev, KONEPLUS_COMMAND_INFO,
+	return roccat_common2_receive(usb_dev, KONEPLUS_COMMAND_INFO,
 			buf, sizeof(struct koneplus_info));
 }
 
@@ -72,14 +72,14 @@ static int koneplus_get_profile_settings(struct usb_device *usb_dev,
 	if (retval)
 		return retval;
 
-	return roccat_common_receive(usb_dev, KONEPLUS_COMMAND_PROFILE_SETTINGS,
+	return roccat_common2_receive(usb_dev, KONEPLUS_COMMAND_PROFILE_SETTINGS,
 			buf, sizeof(struct koneplus_profile_settings));
 }
 
 static int koneplus_set_profile_settings(struct usb_device *usb_dev,
 		struct koneplus_profile_settings const *settings)
 {
-	return roccat_common_send_with_status(usb_dev,
+	return roccat_common2_send_with_status(usb_dev,
 			KONEPLUS_COMMAND_PROFILE_SETTINGS,
 			settings, sizeof(struct koneplus_profile_settings));
 }
@@ -94,14 +94,14 @@ static int koneplus_get_profile_buttons(struct usb_device *usb_dev,
 	if (retval)
 		return retval;
 
-	return roccat_common_receive(usb_dev, KONEPLUS_COMMAND_PROFILE_BUTTONS,
+	return roccat_common2_receive(usb_dev, KONEPLUS_COMMAND_PROFILE_BUTTONS,
 			buf, sizeof(struct koneplus_profile_buttons));
 }
 
 static int koneplus_set_profile_buttons(struct usb_device *usb_dev,
 		struct koneplus_profile_buttons const *buttons)
 {
-	return roccat_common_send_with_status(usb_dev,
+	return roccat_common2_send_with_status(usb_dev,
 			KONEPLUS_COMMAND_PROFILE_BUTTONS,
 			buttons, sizeof(struct koneplus_profile_buttons));
 }
@@ -112,7 +112,7 @@ static int koneplus_get_actual_profile(struct usb_device *usb_dev)
 	struct koneplus_actual_profile buf;
 	int retval;
 
-	retval = roccat_common_receive(usb_dev, KONEPLUS_COMMAND_ACTUAL_PROFILE,
+	retval = roccat_common2_receive(usb_dev, KONEPLUS_COMMAND_ACTUAL_PROFILE,
 			&buf, sizeof(struct koneplus_actual_profile));
 
 	return retval ? retval : buf.actual_profile;
@@ -127,7 +127,7 @@ static int koneplus_set_actual_profile(struct usb_device *usb_dev,
 	buf.size = sizeof(struct koneplus_actual_profile);
 	buf.actual_profile = new_profile;
 
-	return roccat_common_send_with_status(usb_dev,
+	return roccat_common2_send_with_status(usb_dev,
 			KONEPLUS_COMMAND_ACTUAL_PROFILE,
 			&buf, sizeof(struct koneplus_actual_profile));
 }
@@ -149,7 +149,7 @@ static ssize_t koneplus_sysfs_read(struct file *fp, struct kobject *kobj,
 		return -EINVAL;
 
 	mutex_lock(&koneplus->koneplus_lock);
-	retval = roccat_common_receive(usb_dev, command, buf, real_size);
+	retval = roccat_common2_receive(usb_dev, command, buf, real_size);
 	mutex_unlock(&koneplus->koneplus_lock);
 
 	if (retval)
@@ -172,7 +172,7 @@ static ssize_t koneplus_sysfs_write(struct file *fp, struct kobject *kobj,
 		return -EINVAL;
 
 	mutex_lock(&koneplus->koneplus_lock);
-	retval = roccat_common_send_with_status(usb_dev, command,
+	retval = roccat_common2_send_with_status(usb_dev, command,
 			buf, real_size);
 	mutex_unlock(&koneplus->koneplus_lock);
 
