@@ -109,8 +109,6 @@ The following bits are safe to be set inside the guest:
 
   MSR_EE
   MSR_RI
-  MSR_CR
-  MSR_ME
 
 If any other bit changes in the MSR, please still use mtmsr(d).
 

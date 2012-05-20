@@ -122,7 +122,7 @@ kvm_emulate_mtmsrd_len:
 	.long (kvm_emulate_mtmsrd_end - kvm_emulate_mtmsrd) / 4
 
 
-#define MSR_SAFE_BITS (MSR_EE | MSR_CE | MSR_ME | MSR_RI)
+#define MSR_SAFE_BITS (MSR_EE | MSR_RI)
 #define MSR_CRITICAL_BITS ~MSR_SAFE_BITS
 
 .global kvm_emulate_mtmsr
