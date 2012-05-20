@@ -105,7 +105,6 @@ unsigned long cmdline_memory_size __initdata = 0;
 
 /* which CPU booted us (0xff = not set) */
 unsigned char boot_cpu_id = 0xff; /* 0xff will make it into DATA section... */
-unsigned char boot_cpu_id4; /* boot_cpu_id << 2 */
 
 static void
 prom_console_write(struct console *con, const char *s, unsigned n)

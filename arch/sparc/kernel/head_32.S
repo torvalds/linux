@@ -819,10 +819,7 @@ continue_boot:
 		mov	%g0, %g3
 		stub	%g3, [%g2 + %lo(boot_cpu_id)]
 
-1:		/* boot_cpu_id set. calculate boot_cpu_id4 = boot_cpu_id*4 */
-		sll	%g3, 2, %g3
-		sethi	%hi(boot_cpu_id4), %g2
-		stub	%g3, [%g2 + %lo(boot_cpu_id4)]
+1:		sll	%g3, 2, %g3
 
 		/* Initialize the uwinmask value for init task just in case.
 		 * But first make current_set[boot_cpu_id] point to something useful.
