@@ -25,6 +25,9 @@
 #include <linux/types.h>
 #include <mtd/ubi-user.h>
 
+/* All voumes/LEBs */
+#define UBI_ALL -1
+
 /*
  * enum ubi_open_mode - UBI volume open mode constants.
  *
