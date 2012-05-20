@@ -227,16 +227,14 @@ static void __init per_cpu_patch(void)
 			prom_halt();
 		}
 		*(unsigned int *) (addr + 0) = insns[0];
+		flushi(addr + 0);
 		*(unsigned int *) (addr + 4) = insns[1];
+		flushi(addr + 4);
 		*(unsigned int *) (addr + 8) = insns[2];
+		flushi(addr + 8);
 
 		p++;
 	}
-#ifdef CONFIG_SMP
-	local_ops->cache_all();
-#else
-	sparc32_cachetlb_ops->cache_all();
-#endif
 }
 
 enum sparc_cpu sparc_cpu_model;
@@ -340,12 +338,10 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.context = (unsigned long) NO_CONTEXT;
 	init_task.thread.kregs = &fake_swapper_regs;
 
-	paging_init();
-
-	/* Now that we have the cache ops hooked up, we can patch
-	 * instructions.
-	 */
+	/* Run-time patch instructions to match the cpu model */
 	per_cpu_patch();
+
+	paging_init();
 
 	smp_setup_cpu_possible_map();
 }
