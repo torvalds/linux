@@ -64,6 +64,64 @@ int roccat_common_send(struct usb_device *usb_dev, uint report_id,
 }
 EXPORT_SYMBOL_GPL(roccat_common_send);
 
+enum roccat_common_control_states {
+	ROCCAT_COMMON_CONTROL_STATUS_OVERLOAD = 0,
+	ROCCAT_COMMON_CONTROL_STATUS_OK = 1,
+	ROCCAT_COMMON_CONTROL_STATUS_INVALID = 2,
+	ROCCAT_COMMON_CONTROL_STATUS_WAIT = 3,
+};
+
+static int roccat_common_receive_control_status(struct usb_device *usb_dev)
+{
+	int retval;
+	struct roccat_common_control control;
+
+	do {
+		msleep(50);
+		retval = roccat_common_receive(usb_dev,
+				ROCCAT_COMMON_COMMAND_CONTROL,
+				&control, sizeof(struct roccat_common_control));
+
+		if (retval)
+			return retval;
+
+		switch (control.value) {
+		case ROCCAT_COMMON_CONTROL_STATUS_OK:
+			return 0;
+		case ROCCAT_COMMON_CONTROL_STATUS_WAIT:
+			msleep(500);
+			continue;
+		case ROCCAT_COMMON_CONTROL_STATUS_INVALID:
+
+		case ROCCAT_COMMON_CONTROL_STATUS_OVERLOAD:
+			/* seems to be critical - replug necessary */
+			return -EINVAL;
+		default:
+			dev_err(&usb_dev->dev,
+					"roccat_common_receive_control_status: "
+					"unknown response value 0x%x\n",
+					control.value);
+			return -EINVAL;
+		}
+
+	} while (1);
+}
+
+int roccat_common_send_with_status(struct usb_device *usb_dev,
+		uint command, void const *buf, uint size)
+{
+	int retval;
+
+	retval = roccat_common_send(usb_dev, command, buf, size);
+	if (retval)
+		return retval;
+
+	msleep(100);
+
+	return roccat_common_receive_control_status(usb_dev);
+}
+EXPORT_SYMBOL_GPL(roccat_common_send_with_status);
+
 MODULE_AUTHOR("Stefan Achatz");
 MODULE_DESCRIPTION("USB Roccat common driver");
 MODULE_LICENSE("GPL v2");

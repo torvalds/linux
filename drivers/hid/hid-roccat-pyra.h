@@ -20,18 +20,7 @@ struct pyra_b {
 	uint8_t unknown; /* 1 */
 } __attribute__ ((__packed__));
 
-struct pyra_control {
-	uint8_t command; /* PYRA_COMMAND_CONTROL */
-	/*
-	 * value is profile number for request_settings and request_buttons
-	 * 1 if status ok for request_status
-	 */
-	uint8_t value; /* Range 0-4 */
-	uint8_t request;
-} __attribute__ ((__packed__));
-
 enum pyra_control_requests {
-	PYRA_CONTROL_REQUEST_STATUS = 0x00,
 	PYRA_CONTROL_REQUEST_PROFILE_SETTINGS = 0x10,
 	PYRA_CONTROL_REQUEST_PROFILE_BUTTONS = 0x20
 };
@@ -75,7 +64,6 @@ struct pyra_info {
 } __attribute__ ((__packed__));
 
 enum pyra_commands {
-	PYRA_COMMAND_CONTROL = 0x4,
 	PYRA_COMMAND_SETTINGS = 0x5,
 	PYRA_COMMAND_PROFILE_SETTINGS = 0x6,
 	PYRA_COMMAND_PROFILE_BUTTONS = 0x7,

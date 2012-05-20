@@ -25,13 +25,6 @@ struct isku_control {
 	uint8_t request;
 } __packed;
 
-enum isku_control_values {
-	ISKU_CONTROL_VALUE_STATUS_OVERLOAD = 0,
-	ISKU_CONTROL_VALUE_STATUS_OK = 1,
-	ISKU_CONTROL_VALUE_STATUS_INVALID = 2,
-	ISKU_CONTROL_VALUE_STATUS_WAIT = 3,
-};
-
 struct isku_actual_profile {
 	uint8_t command; /* ISKU_COMMAND_ACTUAL_PROFILE */
 	uint8_t size; /* always 3 */

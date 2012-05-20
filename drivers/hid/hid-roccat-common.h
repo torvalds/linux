@@ -15,9 +15,21 @@
 #include <linux/usb.h>
 #include <linux/types.h>
 
+enum roccat_common_commands {
+	ROCCAT_COMMON_COMMAND_CONTROL = 0x4,
+};
+
+struct roccat_common_control {
+	uint8_t command;
+	uint8_t value;
+	uint8_t request; /* always 0 on requesting write check */
+} __packed;
+
 int roccat_common_receive(struct usb_device *usb_dev, uint report_id,
 		void *data, uint size);
 int roccat_common_send(struct usb_device *usb_dev, uint report_id,
 		void const *data, uint size);
+int roccat_common_send_with_status(struct usb_device *usb_dev,
+		uint command, void const *buf, uint size);
 
 #endif

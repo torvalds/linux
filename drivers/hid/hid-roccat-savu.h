@@ -23,27 +23,9 @@ enum {
 	SAVU_SIZE_INFO = 0x08,
 };
 
-struct savu_control {
-	uint8_t command; /* SAVU_COMMAND_CONTROL */
-	/*
-	 * value is profile number in range 0-4 for requesting settings and buttons
-	 * 1 if status ok for requesting status
-	 */
-	uint8_t value;
-	uint8_t request;
-} __packed;
-
 enum savu_control_requests {
-	SAVU_CONTROL_REQUEST_WRITE_CHECK = 0x00,
 	SAVU_CONTROL_REQUEST_GENERAL = 0x80,
 	SAVU_CONTROL_REQUEST_BUTTONS = 0x90,
-};
-
-enum savu_control_values {
-	SAVU_CONTROL_REQUEST_WRITE_CHECK_OVERLOAD = 0,
-	SAVU_CONTROL_REQUEST_WRITE_CHECK_OK = 1,
-	SAVU_CONTROL_REQUEST_WRITE_CHECK_INVALID = 2,
-	SAVU_CONTROL_REQUEST_WRITE_CHECK_WAIT = 3,
 };
 
 enum savu_commands {

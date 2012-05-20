@@ -27,50 +27,6 @@
 
 static struct class *savu_class;
 
-static int savu_receive_control_status(struct usb_device *usb_dev)
-{
-	int retval;
-	struct savu_control control;
-
-	do {
-		msleep(50);
-		retval = roccat_common_receive(usb_dev, SAVU_COMMAND_CONTROL,
-				&control, sizeof(struct savu_control));
-
-		if (retval)
-			return retval;
-
-		switch (control.value) {
-		case SAVU_CONTROL_REQUEST_WRITE_CHECK_OK:
-			return 0;
-		case SAVU_CONTROL_REQUEST_WRITE_CHECK_WAIT:
-			continue;
-		case SAVU_CONTROL_REQUEST_WRITE_CHECK_INVALID:
-		/* seems to be critical - replug necessary */
-		case SAVU_CONTROL_REQUEST_WRITE_CHECK_OVERLOAD:
-			return -EINVAL;
-		default:
-			hid_err(usb_dev, "savu_receive_control_status: "
-					"unknown response value 0x%x\n",
-					control.value);
-			return -EINVAL;
-		}
-
-	} while (1);
-}
-
-static int savu_send(struct usb_device *usb_dev, uint command,
-		void const *buf, uint size)
-{
-	int retval;
-
-	retval = roccat_common_send(usb_dev, command, buf, size);
-	if (retval)
-		return retval;
-
-	return savu_receive_control_status(usb_dev);
-}
-
 static ssize_t savu_sysfs_read(struct file *fp, struct kobject *kobj,
 		char *buf, loff_t off, size_t count,
 		size_t real_size, uint command)
@@ -108,7 +64,8 @@ static ssize_t savu_sysfs_write(struct file *fp, struct kobject *kobj,
 		return -EINVAL;
 
 	mutex_lock(&savu->savu_lock);
-	retval = savu_send(usb_dev, command, (void *)buf, real_size);
+	retval = roccat_common_send_with_status(usb_dev, command,
+			(void *)buf, real_size);
 	mutex_unlock(&savu->savu_lock);
 
 	return retval ? retval : real_size;
