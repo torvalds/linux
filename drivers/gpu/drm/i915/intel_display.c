@@ -2911,6 +2911,17 @@ static struct intel_pch_pll *intel_get_pch_pll(struct intel_crtc *intel_crtc, u3
 		goto prepare;
 	}
 
+	if (HAS_PCH_IBX(dev_priv->dev)) {
+		/* Ironlake PCH has a fixed PLL->PCH pipe mapping. */
+		i = intel_crtc->pipe;
+		pll = &dev_priv->pch_plls[i];
+
+		DRM_DEBUG_KMS("CRTC:%d using pre-allocated PCH PLL %x\n",
+			      intel_crtc->base.base.id, pll->pll_reg);
+
+		goto found;
+	}
+
 	for (i = 0; i < dev_priv->num_pch_pll; i++) {
 		pll = &dev_priv->pch_plls[i];
 
