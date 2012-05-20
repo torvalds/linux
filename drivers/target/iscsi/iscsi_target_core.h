@@ -481,6 +481,7 @@ struct iscsi_tmr_req {
 	bool			task_reassign:1;
 	u32			ref_cmd_sn;
 	u32			exp_data_sn;
+	struct iscsi_cmd	*ref_cmd;
 	struct iscsi_conn_recovery *conn_recovery;
 	struct se_tmr_req	*se_tmr_req;
 };

@@ -483,11 +483,8 @@ struct se_tmr_req {
 	int			call_transport;
 	/* Reference to ITT that Task Mgmt should be performed */
 	u32			ref_task_tag;
-	/* 64-bit encoded SAM LUN from $FABRIC_MOD TMR header */
-	u64			ref_task_lun;
 	void 			*fabric_tmr_ptr;
 	struct se_cmd		*task_cmd;
-	struct se_cmd		*ref_cmd;
 	struct se_device	*tmr_dev;
 	struct se_lun		*tmr_lun;
 	struct list_head	tmr_list;
