@@ -840,6 +840,7 @@ out_bios:
 out_display_early:
 	engine->display.late_takedown(dev);
 out:
+	vga_switcheroo_unregister_client(dev->pdev);
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 	return ret;
 }
@@ -895,6 +896,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 
 	nouveau_irq_fini(dev);
 
+	vga_switcheroo_unregister_client(dev->pdev);
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 }
 
