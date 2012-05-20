@@ -653,6 +653,7 @@ static struct se_subsystem_api iblock_template = {
 	.allocate_virtdevice	= iblock_allocate_virtdevice,
 	.create_virtdevice	= iblock_create_virtdevice,
 	.free_device		= iblock_free_device,
+	.parse_cdb		= sbc_parse_cdb,
 	.execute_cmd		= iblock_execute_cmd,
 	.do_discard		= iblock_do_discard,
 	.do_sync_cache		= iblock_emulate_sync_cache,

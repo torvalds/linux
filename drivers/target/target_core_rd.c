@@ -468,6 +468,7 @@ static struct se_subsystem_api rd_mcp_template = {
 	.allocate_virtdevice	= rd_allocate_virtdevice,
 	.create_virtdevice	= rd_create_virtdevice,
 	.free_device		= rd_free_device,
+	.parse_cdb		= sbc_parse_cdb,
 	.execute_cmd		= rd_execute_cmd,
 	.check_configfs_dev_params = rd_check_configfs_dev_params,
 	.set_configfs_dev_params = rd_set_configfs_dev_params,

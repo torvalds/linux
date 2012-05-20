@@ -152,6 +152,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size, bool passthrough)
 			cmd->sam_task_attr = MSG_HEAD_TAG;
 		break;
 	case TEST_UNIT_READY:
+		*size = 0;
 		if (!passthrough)
 			cmd->execute_cmd = target_emulate_noop;
 		break;

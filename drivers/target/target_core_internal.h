@@ -96,9 +96,6 @@ int	core_tpg_post_addlun(struct se_portal_group *, struct se_lun *,
 struct se_lun *core_tpg_pre_dellun(struct se_portal_group *, u32 unpacked_lun);
 int	core_tpg_post_dellun(struct se_portal_group *, struct se_lun *);
 
-/* target_core_spc.c */
-int	spc_parse_cdb(struct se_cmd *cmd, unsigned int *size, bool passthrough);
-
 /* target_core_transport.c */
 extern struct kmem_cache *se_tmr_req_cache;
 

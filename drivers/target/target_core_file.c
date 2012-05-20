@@ -561,6 +561,7 @@ static struct se_subsystem_api fileio_template = {
 	.allocate_virtdevice	= fd_allocate_virtdevice,
 	.create_virtdevice	= fd_create_virtdevice,
 	.free_device		= fd_free_device,
+	.parse_cdb		= sbc_parse_cdb,
 	.execute_cmd		= fd_execute_cmd,
 	.do_sync_cache		= fd_emulate_sync_cache,
 	.check_configfs_dev_params = fd_check_configfs_dev_params,

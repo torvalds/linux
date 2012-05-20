@@ -24,6 +24,8 @@ struct se_subsystem_api {
 				struct se_subsystem_dev *, void *);
 	void (*free_device)(void *);
 	int (*transport_complete)(struct se_cmd *cmd, struct scatterlist *);
+
+	int (*parse_cdb)(struct se_cmd *cmd, unsigned int *size);
 	int (*execute_cmd)(struct se_cmd *, struct scatterlist *, u32,
 			enum dma_data_direction);
 	int (*do_discard)(struct se_device *, sector_t, u32);
@@ -48,6 +50,9 @@ struct se_device *transport_add_device_to_core_hba(struct se_hba *,
 		void *, struct se_dev_limits *, const char *, const char *);
 
 void	target_complete_cmd(struct se_cmd *, u8);
+
+int	sbc_parse_cdb(struct se_cmd *cmd, unsigned int *size);
+int	spc_parse_cdb(struct se_cmd *cmd, unsigned int *size, bool passthrough);
 
 void	transport_set_vpd_proto_id(struct t10_vpd *, unsigned char *);
 int	transport_set_vpd_assoc(struct t10_vpd *, unsigned char *);
