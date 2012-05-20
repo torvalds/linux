@@ -418,7 +418,9 @@ struct kvm_vcpu_arch {
 	ulong mcsrr1;
 	ulong mcsr;
 	u32 dec;
+#ifdef CONFIG_BOOKE
 	u32 decar;
+#endif
 	u32 tbl;
 	u32 tbu;
 	u32 tcr;

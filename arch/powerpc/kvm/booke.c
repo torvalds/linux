@@ -1267,6 +1267,11 @@ void kvmppc_decrementer_func(unsigned long data)
 {
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
 
+	if (vcpu->arch.tcr & TCR_ARE) {
+		vcpu->arch.dec = vcpu->arch.decar;
+		kvmppc_emulate_dec(vcpu);
+	}
+
 	kvmppc_set_tsr_bits(vcpu, TSR_DIS);
 }
 
