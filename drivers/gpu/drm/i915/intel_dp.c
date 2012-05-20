@@ -1148,11 +1148,10 @@ static void ironlake_edp_panel_off(struct intel_dp *intel_dp)
 
 	DRM_DEBUG_KMS("Turn eDP power off\n");
 
-	WARN(intel_dp->want_panel_vdd, "Cannot turn power off while VDD is on\n");
-	ironlake_panel_vdd_off_sync(intel_dp); /* finish any pending work */
+	WARN(!intel_dp->want_panel_vdd, "Need VDD to turn off panel\n");
 
 	pp = ironlake_get_pp_control(dev_priv);
-	pp &= ~(POWER_TARGET_ON | EDP_FORCE_VDD | PANEL_POWER_RESET | EDP_BLC_ENABLE);
+	pp &= ~(POWER_TARGET_ON | PANEL_POWER_RESET | EDP_BLC_ENABLE);
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
 
@@ -1260,18 +1259,16 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
+
+	/* Make sure the panel is off before trying to change the mode. But also
+	 * ensure that we have vdd while we switch off the panel. */
+	ironlake_edp_panel_vdd_on(intel_dp);
 	ironlake_edp_backlight_off(intel_dp);
 	ironlake_edp_panel_off(intel_dp);
 
-	/* Wake up the sink first */
-	ironlake_edp_panel_vdd_on(intel_dp);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_link_down(intel_dp);
 	ironlake_edp_panel_vdd_off(intel_dp, false);
-
-	/* Make sure the panel is off before trying to
-	 * change the mode
-	 */
 }
 
 static void intel_dp_commit(struct drm_encoder *encoder)
@@ -1303,10 +1300,11 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
 
 	if (mode != DRM_MODE_DPMS_ON) {
+		/* Switching the panel off requires vdd. */
+		ironlake_edp_panel_vdd_on(intel_dp);
 		ironlake_edp_backlight_off(intel_dp);
 		ironlake_edp_panel_off(intel_dp);
 
-		ironlake_edp_panel_vdd_on(intel_dp);
 		intel_dp_sink_dpms(intel_dp, mode);
 		intel_dp_link_down(intel_dp);
 		ironlake_edp_panel_vdd_off(intel_dp, false);
