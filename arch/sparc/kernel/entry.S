@@ -254,6 +254,11 @@ smp4m_ticker:
 	WRITE_PAUSE
 	RESTORE_ALL
 
+#define GET_PROCESSOR4M_ID(reg)	\
+	rd	%tbr, %reg;	\
+	srl	%reg, 12, %reg;	\
+	and	%reg, 3, %reg;
+
 	/* Here is where we check for possible SMP IPI passed to us
 	 * on some level other than 15 which is the NMI and only used
 	 * for cross calls.  That has a separate entry point below.

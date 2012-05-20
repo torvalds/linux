@@ -6,16 +6,6 @@
 #ifndef _SPARC_ASMMACRO_H
 #define _SPARC_ASMMACRO_H
 
-#include <asm/asi.h>
-
-#define GET_PROCESSOR4M_ID(reg) \
-	rd	%tbr, %reg; \
-	srl	%reg, 12, %reg; \
-	and	%reg, 3, %reg;
-
-#define GET_PROCESSOR4D_ID(reg) \
-	lda	[%g0] ASI_M_VIKING_TMP1, %reg;
-
 /* All trap entry points _must_ begin with this macro or else you
  * lose.  It makes sure the kernel has a proper window so that
  * c-code can be called.
