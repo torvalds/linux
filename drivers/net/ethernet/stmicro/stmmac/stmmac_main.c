@@ -1640,7 +1640,7 @@ static const struct file_operations stmmac_rings_status_fops = {
 	.open = stmmac_sysfs_ring_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = seq_release,
+	.release = single_release,
 };
 
 static int stmmac_sysfs_dma_cap_read(struct seq_file *seq, void *v)
@@ -1712,7 +1712,7 @@ static const struct file_operations stmmac_dma_cap_fops = {
 	.open = stmmac_sysfs_dma_cap_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = seq_release,
+	.release = single_release,
 };
 
 static int stmmac_init_fs(struct net_device *dev)
