@@ -1101,7 +1101,7 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 		matches = tps65911_matches;
 		break;
 	default:
-		pr_err("Invalid tps chip version\n");
+		dev_err(&pdev->dev, "Invalid tps chip version\n");
 		return NULL;
 	}
 
@@ -1150,12 +1150,16 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 	if (!pmic_plat_data && tps65910->dev->of_node)
 		pmic_plat_data = tps65910_parse_dt_reg_data(pdev);
 
-	if (!pmic_plat_data)
+	if (!pmic_plat_data) {
+		dev_err(&pdev->dev, "Platform data not found\n");
 		return -EINVAL;
+	}
 
 	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
-	if (!pmic)
+	if (!pmic) {
+		dev_err(&pdev->dev, "Memory allocation failed for pmic\n");
 		return -ENOMEM;
+	}
 
 	mutex_init(&pmic->mutex);
 	pmic->mfd = tps65910;
@@ -1179,7 +1183,7 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 		info = tps65911_regs;
 		break;
 	default:
-		pr_err("Invalid tps chip version\n");
+		dev_err(&pdev->dev, "Invalid tps chip version\n");
 		return -ENODEV;
 	}
 
