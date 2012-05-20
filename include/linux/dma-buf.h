@@ -98,6 +98,9 @@ struct dma_buf_ops {
 	void (*kunmap)(struct dma_buf *, unsigned long, void *);
 
 	int (*mmap)(struct dma_buf *, struct vm_area_struct *vma);
+
+	void *(*vmap)(struct dma_buf *);
+	void (*vunmap)(struct dma_buf *, void *vaddr);
 };
 
 /**
@@ -176,6 +179,8 @@ void dma_buf_kunmap(struct dma_buf *, unsigned long, void *);
 
 int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
 		 unsigned long);
+void *dma_buf_vmap(struct dma_buf *);
+void dma_buf_vunmap(struct dma_buf *, void *vaddr);
 #else
 
 static inline struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
@@ -263,6 +268,15 @@ static inline int dma_buf_mmap(struct dma_buf *dmabuf,
 			       unsigned long pgoff)
 {
 	return -ENODEV;
+}
+
+static inline void *dma_buf_vmap(struct dma_buf *dmabuf)
+{
+	return NULL;
+}
+
+static inline void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
+{
 }
 #endif /* CONFIG_DMA_SHARED_BUFFER */
 
