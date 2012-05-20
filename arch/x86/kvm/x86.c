@@ -6304,7 +6304,7 @@ void kvm_arch_free_memslot(struct kvm_memory_slot *free,
 
 	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
 		if (!dont || free->arch.lpage_info[i] != dont->arch.lpage_info[i]) {
-			vfree(free->arch.lpage_info[i]);
+			kvm_kvfree(free->arch.lpage_info[i]);
 			free->arch.lpage_info[i] = NULL;
 		}
 	}
@@ -6323,7 +6323,7 @@ int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
 				      slot->base_gfn, level) + 1;
 
 		slot->arch.lpage_info[i] =
-			vzalloc(lpages * sizeof(*slot->arch.lpage_info[i]));
+			kvm_kvzalloc(lpages * sizeof(*slot->arch.lpage_info[i]));
 		if (!slot->arch.lpage_info[i])
 			goto out_free;
 

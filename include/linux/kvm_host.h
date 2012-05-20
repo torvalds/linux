@@ -535,6 +535,9 @@ int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu);
 
 void kvm_free_physmem(struct kvm *kvm);
 
+void *kvm_kvzalloc(unsigned long size);
+void kvm_kvfree(const void *addr);
+
 #ifndef __KVM_HAVE_ARCH_VM_ALLOC
 static inline struct kvm *kvm_arch_alloc_vm(void)
 {

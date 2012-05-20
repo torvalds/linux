@@ -520,7 +520,7 @@ out_err_nodisable:
  * Avoid using vmalloc for a small buffer.
  * Should not be used when the size is statically known.
  */
-static void *kvm_kvzalloc(unsigned long size)
+void *kvm_kvzalloc(unsigned long size)
 {
 	if (size > PAGE_SIZE)
 		return vzalloc(size);
@@ -528,7 +528,7 @@ static void *kvm_kvzalloc(unsigned long size)
 		return kzalloc(size, GFP_KERNEL);
 }
 
-static void kvm_kvfree(const void *addr)
+void kvm_kvfree(const void *addr)
 {
 	if (is_vmalloc_addr(addr))
 		vfree(addr);
