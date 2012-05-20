@@ -413,6 +413,7 @@ static int lg216x_set_ensemble(struct lg216x_state *state, int id)
 		reg = 0x0400;
 		break;
 	case LG2161:
+	default:
 		reg = 0x0500;
 		break;
 	}
@@ -1321,19 +1322,20 @@ fail:
 
 static int lg216x_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
+#if 0
 	struct lg216x_state *state = fe->demodulator_priv;
 	int ret;
-#if 0
+
 	ret = lg216x_read_rs_err_count(state,
 				       &fe->dtv_property_cache.atscmh_rs_err);
 	if (lg_fail(ret))
 		goto fail;
 
 	*ucblocks = fe->dtv_property_cache.atscmh_rs_err;
+fail:
 #else
 	*ucblocks = 0;
 #endif
-fail:
 	return 0;
 }
 
