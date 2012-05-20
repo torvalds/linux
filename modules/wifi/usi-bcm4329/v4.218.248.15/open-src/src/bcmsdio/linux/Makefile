@@ -73,7 +73,7 @@ IFLAGS := -I$(LINUXDIR)/include -I$(LINUXDIR)/include/asm/mach-default -I. -I$(S
 
 WFLAGS := -Wall -Wstrict-prototypes
 ifeq (,$(findstring 2.4.18,$(LINUXVER)))
-WFLAGS += -Werror
+#WFLAGS += -Werror
 endif
 
 CFILES:= bcmsdh_linux.c linux_osl.c bcmsdh.c
