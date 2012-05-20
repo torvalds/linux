@@ -34,13 +34,14 @@ struct r10conf {
 					       */
 		int		chunk_shift; /* shift from chunks to sectors */
 		sector_t	chunk_mask;
-	} geo;
+	} prev, geo;
 	int			copies;	      /* near_copies * far_copies.
 					       * must be <= raid_disks
 					       */
 
 	sector_t		dev_sectors;  /* temp copy of
 					       * mddev->dev_sectors */
+	sector_t		reshape_progress;
 
 	struct list_head	retry_list;
 	/* queue pending writes and submit them on unplug */
@@ -147,5 +148,10 @@ enum r10bio_state {
  */
 	R10BIO_MadeGood,
 	R10BIO_WriteError,
+/* During a reshape we might be performing IO on the
+ * 'previous' part of the array, in which case this
+ * flag is set
+ */
+	R10BIO_Previous,
 };
 #endif
