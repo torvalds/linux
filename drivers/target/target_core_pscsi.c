@@ -1022,6 +1022,30 @@ fail:
 	return -ENOMEM;
 }
 
+/*
+ * Clear a lun set in the cdb if the initiator talking to use spoke
+ * and old standards version, as we can't assume the underlying device
+ * won't choke up on it.
+ */
+static inline void pscsi_clear_cdb_lun(unsigned char *cdb)
+{
+	switch (cdb[0]) {
+	case READ_10: /* SBC - RDProtect */
+	case READ_12: /* SBC - RDProtect */
+	case READ_16: /* SBC - RDProtect */
+	case SEND_DIAGNOSTIC: /* SPC - SELF-TEST Code */
+	case VERIFY: /* SBC - VRProtect */
+	case VERIFY_16: /* SBC - VRProtect */
+	case WRITE_VERIFY: /* SBC - VRProtect */
+	case WRITE_VERIFY_12: /* SBC - VRProtect */
+	case MAINTENANCE_IN: /* SPC - Parameter Data Format for SA RTPG */
+		break;
+	default:
+		cdb[1] &= 0x1f; /* clear logical unit number */
+		break;
+	}
+}
+
 static int pscsi_parse_cdb(struct se_cmd *cmd)
 {
 	unsigned char *cdb = cmd->t_task_cdb;
@@ -1033,6 +1057,8 @@ static int pscsi_parse_cdb(struct se_cmd *cmd)
 		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
 		return -EINVAL;
 	}
+
+	pscsi_clear_cdb_lun(cdb);
 
 	/*
 	 * For REPORT LUNS we always need to emulate the respone, and for everything

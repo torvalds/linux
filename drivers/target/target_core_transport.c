@@ -1315,34 +1315,6 @@ out:
 }
 EXPORT_SYMBOL(transport_add_device_to_core_hba);
 
-/*	transport_generic_prepare_cdb():
- *
- *	Since the Initiator sees iSCSI devices as LUNs,  the SCSI CDB will
- *	contain the iSCSI LUN in bits 7-5 of byte 1 as per SAM-2.
- *	The point of this is since we are mapping iSCSI LUNs to
- *	SCSI Target IDs having a non-zero LUN in the CDB will throw the
- *	devices and HBAs for a loop.
- */
-static inline void transport_generic_prepare_cdb(
-	unsigned char *cdb)
-{
-	switch (cdb[0]) {
-	case READ_10: /* SBC - RDProtect */
-	case READ_12: /* SBC - RDProtect */
-	case READ_16: /* SBC - RDProtect */
-	case SEND_DIAGNOSTIC: /* SPC - SELF-TEST Code */
-	case VERIFY: /* SBC - VRProtect */
-	case VERIFY_16: /* SBC - VRProtect */
-	case WRITE_VERIFY: /* SBC - VRProtect */
-	case WRITE_VERIFY_12: /* SBC - VRProtect */
-	case MAINTENANCE_IN: /* SPC - Parameter Data Format for SA RTPG */
-		break;
-	default:
-		cdb[1] &= 0x1f; /* clear logical unit number */
-		break;
-	}
-}
-
 int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -1471,7 +1443,6 @@ int target_setup_cmd_from_cdb(
 	unsigned long flags;
 	int ret;
 
-	transport_generic_prepare_cdb(cdb);
 	/*
 	 * Ensure that the received CDB is less than the max (252 + 8) bytes
 	 * for VARIABLE_LENGTH_CMD
