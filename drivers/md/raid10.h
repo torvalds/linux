@@ -14,32 +14,33 @@ struct mirror_info {
 struct r10conf {
 	struct mddev		*mddev;
 	struct mirror_info	*mirrors;
-	int			raid_disks;
 	spinlock_t		device_lock;
 
 	/* geometry */
-	int			near_copies;  /* number of copies laid out
+	struct geom {
+		int		raid_disks;
+		int		near_copies;  /* number of copies laid out
 					       * raid0 style */
-	int 			far_copies;   /* number of copies laid out
+		int		far_copies;   /* number of copies laid out
 					       * at large strides across drives
 					       */
-	int			far_offset;   /* far_copies are offset by 1
+		int		far_offset;   /* far_copies are offset by 1
 					       * stripe instead of many
 					       */
-	int			copies;	      /* near_copies * far_copies.
-					       * must be <= raid_disks
-					       */
-	sector_t		stride;	      /* distance between far copies.
+		sector_t	stride;	      /* distance between far copies.
 					       * This is size / far_copies unless
 					       * far_offset, in which case it is
 					       * 1 stripe.
 					       */
+		int		chunk_shift; /* shift from chunks to sectors */
+		sector_t	chunk_mask;
+	} geo;
+	int			copies;	      /* near_copies * far_copies.
+					       * must be <= raid_disks
+					       */
 
 	sector_t		dev_sectors;  /* temp copy of
 					       * mddev->dev_sectors */
-
-	int			chunk_shift; /* shift from chunks to sectors */
-	sector_t		chunk_mask;
 
 	struct list_head	retry_list;
 	/* queue pending writes and submit them on unplug */
