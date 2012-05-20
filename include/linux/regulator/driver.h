@@ -170,6 +170,7 @@ enum regulator_type {
  *
  * @min_uV: Voltage given by the lowest selector (if linear mapping)
  * @uV_step: Voltage increase with each selector (if linear mapping)
+ * @volt_table: Voltage mapping table (if table based mapping)
  *
  * @vsel_reg: Register for selector when using regulator_regmap_X_voltage_
  * @vsel_mask: Mask for register bitfield used for selector
@@ -188,6 +189,8 @@ struct regulator_desc {
 
 	unsigned int min_uV;
 	unsigned int uV_step;
+
+	const unsigned int *volt_table;
 
 	unsigned int vsel_reg;
 	unsigned int vsel_mask;
@@ -270,6 +273,8 @@ int rdev_get_id(struct regulator_dev *rdev);
 int regulator_mode_to_status(unsigned int);
 
 int regulator_list_voltage_linear(struct regulator_dev *rdev,
+				  unsigned int selector);
+int regulator_list_voltage_table(struct regulator_dev *rdev,
 				  unsigned int selector);
 int regulator_map_voltage_linear(struct regulator_dev *rdev,
 				  int min_uV, int max_uV);
