@@ -346,17 +346,14 @@ static void bitbang_work(struct work_struct *work)
 			if (t->delay_usecs)
 				udelay(t->delay_usecs);
 
-			if (!cs_change)
-				continue;
-			if (t->transfer_list.next == &m->transfers)
-				break;
-
-			/* sometimes a short mid-message deselect of the chip
-			 * may be needed to terminate a mode or command
-			 */
-			ndelay(nsecs);
-			bitbang->chipselect(spi, BITBANG_CS_INACTIVE);
-			ndelay(nsecs);
+			if (cs_change && !list_is_last(&t->transfer_list, &m->transfers)) {
+				/* sometimes a short mid-message deselect of the chip
+				 * may be needed to terminate a mode or command
+				 */
+				ndelay(nsecs);
+				bitbang->chipselect(spi, BITBANG_CS_INACTIVE);
+				ndelay(nsecs);
+			}
 		}
 
 		m->status = status;
