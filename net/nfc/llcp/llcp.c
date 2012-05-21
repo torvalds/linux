@@ -477,16 +477,16 @@ static struct nfc_llcp_sock *nfc_llcp_connecting_sock_get(struct nfc_llcp_local 
 	sk_for_each(sk, node, &local->connecting_sockets.head) {
 		llcp_sock = nfc_llcp_sock(sk);
 
-		if (llcp_sock->ssap == ssap)
+		if (llcp_sock->ssap == ssap) {
+			sock_hold(&llcp_sock->sk);
 			goto out;
+		}
 	}
 
 	llcp_sock = NULL;
 
 out:
 	read_unlock(&local->connecting_sockets.lock);
-
-	sock_hold(&llcp_sock->sk);
 
 	return llcp_sock;
 }
