@@ -127,22 +127,6 @@ Some examples of using the structure to:
   p.addr2           = (uint64_t) end_range;
   p.condition_value = 0;
 
-- set a watchpoint in server processors (BookS)
-
-  p.version         = 1;
-  p.trigger_type    = PPC_BREAKPOINT_TRIGGER_RW;
-  p.addr_mode       = PPC_BREAKPOINT_MODE_RANGE_INCLUSIVE;
-  or
-  p.addr_mode       = PPC_BREAKPOINT_MODE_EXACT;
-
-  p.condition_mode  = PPC_BREAKPOINT_CONDITION_NONE;
-  p.addr            = (uint64_t) begin_range;
-  /* For PPC_BREAKPOINT_MODE_RANGE_INCLUSIVE addr2 needs to be specified, where
-   * addr2 - addr <= 8 Bytes.
-   */
-  p.addr2           = (uint64_t) end_range;
-  p.condition_value = 0;
-
 3. PTRACE_DELHWDEBUG
 
 Takes an integer which identifies an existing breakpoint or watchpoint
