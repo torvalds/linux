@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/debugfs.h>
+#include <linux/vmalloc.h>
 
 #include <rdma/ib_verbs.h>
 
