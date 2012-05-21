@@ -54,7 +54,7 @@
 #include "gadget.h"
 #include "io.h"
 
-static void dwc3_ep0_do_control_status(struct dwc3 *dwc, u32 epnum);
+static void __dwc3_ep0_do_control_status(struct dwc3 *dwc, struct dwc3_ep *dep);
 static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
 		struct dwc3_ep *dep, struct dwc3_request *req);
 
@@ -160,7 +160,7 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 		dwc->delayed_status = false;
 
 		if (dwc->ep0state == EP0_STATUS_PHASE)
-			dwc3_ep0_do_control_status(dwc, 1);
+			__dwc3_ep0_do_control_status(dwc, dwc->eps[1]);
 		else
 			dev_dbg(dwc->dev, "too early for delayed status\n");
 	}
@@ -875,10 +875,8 @@ static int dwc3_ep0_start_control_status(struct dwc3_ep *dep)
 			dwc->ctrl_req_addr, 0, type);
 }
 
-static void dwc3_ep0_do_control_status(struct dwc3 *dwc, u32 epnum)
+static void __dwc3_ep0_do_control_status(struct dwc3 *dwc, struct dwc3_ep *dep)
 {
-	struct dwc3_ep		*dep = dwc->eps[epnum];
-
 	if (dwc->resize_fifos) {
 		dev_dbg(dwc->dev, "starting to resize fifos\n");
 		dwc3_gadget_resize_tx_fifos(dwc);
@@ -886,6 +884,14 @@ static void dwc3_ep0_do_control_status(struct dwc3 *dwc, u32 epnum)
 	}
 
 	WARN_ON(dwc3_ep0_start_control_status(dep));
+}
+
+static void dwc3_ep0_do_control_status(struct dwc3 *dwc,
+		const struct dwc3_event_depevt *event)
+{
+	struct dwc3_ep		*dep = dwc->eps[event->endpoint_number];
+
+	__dwc3_ep0_do_control_status(dwc, dep);
 }
 
 static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
@@ -988,7 +994,7 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 			return;
 		}
 
-		dwc3_ep0_do_control_status(dwc, event->endpoint_number);
+		dwc3_ep0_do_control_status(dwc, event);
 	}
 }
 
