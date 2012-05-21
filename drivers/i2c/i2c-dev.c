@@ -52,6 +52,12 @@ struct i2c_dev {
 	struct i2c_adapter *adap;
 	struct device *dev;
 };
+struct i2c_msg_old{
+        __u16 addr;
+        __u16 flags;
+        __u16 len;
+        __u8 *buf;
+};
 
 #define I2C_MINORS	256
 static LIST_HEAD(i2c_dev_list);
@@ -232,7 +238,41 @@ static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 
 	return result;
 }
+static int copy_i2c_msg_from_user(struct i2c_rdwr_ioctl_data rdwr_arg, struct i2c_msg *rdwr_pa)
+{
+        int i;
+#if 0
+	if (copy_from_user(rdwr_pa, rdwr_arg.msgs,
+			   rdwr_arg.nmsgs * sizeof(struct i2c_msg))) {
+#else
+        if(1) {
+#endif
+	        struct i2c_msg_old *rdwr_pa_old;
 
+
+	        rdwr_pa_old = kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg_old), GFP_KERNEL);
+	        if (!rdwr_pa_old)
+		        return -ENOMEM;
+	        if (copy_from_user(rdwr_pa_old, rdwr_arg.msgs,
+			        rdwr_arg.nmsgs * sizeof(struct i2c_msg_old))) {
+		        kfree(rdwr_pa_old);
+		        return -EFAULT;
+                }else{
+                        for(i = 0; i < rdwr_arg.nmsgs; i++){
+                                rdwr_pa[i].addr = rdwr_pa_old[i].addr;
+                                rdwr_pa[i].flags = rdwr_pa_old[i].flags;
+                                rdwr_pa[i].len = rdwr_pa_old[i].len;
+                                rdwr_pa[i].buf = rdwr_pa_old[i].buf;
+                        }
+                        kfree(rdwr_pa_old);
+                        return 0;
+                
+                }
+        }
+
+        return 0;
+
+}
 static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 		unsigned long arg)
 {
@@ -254,13 +294,15 @@ static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 	rdwr_pa = kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg), GFP_KERNEL);
 	if (!rdwr_pa)
 		return -ENOMEM;
-
-	if (copy_from_user(rdwr_pa, rdwr_arg.msgs,
-			   rdwr_arg.nmsgs * sizeof(struct i2c_msg))) {
+#ifdef CONFIG_PLAT_RK
+	if ((res = copy_i2c_msg_from_user(rdwr_arg, rdwr_pa)) < 0) {
 		kfree(rdwr_pa);
-		return -EFAULT;
+		return res;
 	}
-
+#else
+        if (copy_from_user(rdwr_pa, rdwr_arg.msgs,
+                        rdwr_arg.nmsgs * sizeof(struct i2c_msg))) {
+#endif
 	data_ptrs = kmalloc(rdwr_arg.nmsgs * sizeof(u8 __user *), GFP_KERNEL);
 	if (data_ptrs == NULL) {
 		kfree(rdwr_pa);
@@ -282,6 +324,7 @@ static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 			res = PTR_ERR(rdwr_pa[i].buf);
 			break;
 		}
+                rdwr_pa[i].scl_rate = 100 * 1000;
 	}
 	if (res < 0) {
 		int j;
@@ -291,8 +334,16 @@ static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 		kfree(rdwr_pa);
 		return res;
 	}
+#ifdef CONFIG_PLAT_RK
+        for(i = 0; i < rdwr_arg.nmsgs; i++){
+	        res = i2c_transfer(client->adapter, &rdwr_pa[i], 1);
+                if(res < 0)
+                        break;
+        }
+#else
+        res = i2c_transfer(client->adapter, rdwr_pa, rdwr_arg.nmsgs);
 
-	res = i2c_transfer(client->adapter, rdwr_pa, rdwr_arg.nmsgs);
+#endif
 	while (i-- > 0) {
 		if (res >= 0 && (rdwr_pa[i].flags & I2C_M_RD)) {
 			if (copy_to_user(data_ptrs[i], rdwr_pa[i].buf,
