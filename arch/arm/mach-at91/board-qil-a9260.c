@@ -155,12 +155,12 @@ static void __init ek_add_device_nand(void)
 /*
  * MCI (SD/MMC)
  */
-static struct at91_mmc_data __initdata ek_mmc_data = {
-	.slot_b		= 0,
-	.wire4		= 1,
-	.det_pin	= -EINVAL,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata ek_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= -EINVAL,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 /*
@@ -244,7 +244,7 @@ static void __init ek_board_init(void)
 	/* Ethernet */
 	at91_add_device_eth(&ek_macb_data);
 	/* MMC */
-	at91_add_device_mmc(0, &ek_mmc_data);
+	at91_add_device_mci(0, &ek_mci0_data);
 	/* Push Buttons */
 	ek_add_device_buttons();
 	/* LEDs */

@@ -132,12 +132,12 @@ static struct atmel_nand_data __initdata afeb9260_nand_data = {
 /*
  * MCI (SD/MMC)
  */
-static struct at91_mmc_data __initdata afeb9260_mmc_data = {
-	.det_pin 	= AT91_PIN_PC9,
-	.wp_pin 	= AT91_PIN_PC4,
-	.slot_b		= 1,
-	.wire4		= 1,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata afeb9260_mci0_data = {
+	.slot[1] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PC9,
+		.wp_pin		= AT91_PIN_PC4,
+	},
 };
 
 
@@ -198,7 +198,7 @@ static void __init afeb9260_board_init(void)
 	at91_set_B_periph(AT91_PIN_PA10, 0);	/* ETX2 */
 	at91_set_B_periph(AT91_PIN_PA11, 0);	/* ETX3 */
 	/* MMC */
-	at91_add_device_mmc(0, &afeb9260_mmc_data);
+	at91_add_device_mci(0, &afeb9260_mci0_data);
 	/* I2C */
 	at91_add_device_i2c(afeb9260_i2c_devices,
 			ARRAY_SIZE(afeb9260_i2c_devices));

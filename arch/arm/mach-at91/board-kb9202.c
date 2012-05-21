@@ -68,12 +68,12 @@ static struct at91_udc_data __initdata kb9202_udc_data = {
 	.pullup_pin	= AT91_PIN_PB22,
 };
 
-static struct at91_mmc_data __initdata kb9202_mmc_data = {
-	.det_pin	= AT91_PIN_PB2,
-	.slot_b		= 0,
-	.wire4		= 1,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata kb9202_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PB2,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 static struct mtd_partition __initdata kb9202_nand_partition[] = {
@@ -120,7 +120,7 @@ static void __init kb9202_board_init(void)
 	/* USB Device */
 	at91_add_device_udc(&kb9202_udc_data);
 	/* MMC */
-	at91_add_device_mmc(0, &kb9202_mmc_data);
+	at91_add_device_mci(0, &kb9202_mci0_data);
 	/* I2C */
 	at91_add_device_i2c(NULL, 0);
 	/* SPI */

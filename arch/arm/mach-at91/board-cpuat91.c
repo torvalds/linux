@@ -77,11 +77,12 @@ static struct at91_udc_data __initdata cpuat91_udc_data = {
 	.pullup_pin	= AT91_PIN_PC14,
 };
 
-static struct at91_mmc_data __initdata cpuat91_mmc_data = {
-	.det_pin	= AT91_PIN_PC2,
-	.wire4		= 1,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata cpuat91_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PC2,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 static struct physmap_flash_data cpuat91_flash_data = {
@@ -167,7 +168,7 @@ static void __init cpuat91_board_init(void)
 	/* USB Device */
 	at91_add_device_udc(&cpuat91_udc_data);
 	/* MMC */
-	at91_add_device_mmc(0, &cpuat91_mmc_data);
+	at91_add_device_mci(0, &cpuat91_mci0_data);
 	/* I2C */
 	at91_add_device_i2c(NULL, 0);
 	/* Platform devices */

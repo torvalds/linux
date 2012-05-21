@@ -76,12 +76,12 @@ static struct at91_cf_data __initdata dk_cf_data = {
 };
 
 #ifndef CONFIG_MTD_AT91_DATAFLASH_CARD
-static struct at91_mmc_data __initdata dk_mmc_data = {
-	.slot_b		= 0,
-	.wire4		= 1,
-	.det_pin	= -EINVAL,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata dk_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= -EINVAL,
+		.wp_pin		= -EINVAL,
+	},
 };
 #endif
 
@@ -207,7 +207,7 @@ static void __init dk_board_init(void)
 #else
 	/* MMC */
 	at91_set_gpio_output(AT91_PIN_PB7, 1);	/* this MMC card slot can optionally use SPI signaling (CS3). */
-	at91_add_device_mmc(0, &dk_mmc_data);
+	at91_add_device_mci(0, &dk_mci0_data);
 #endif
 	/* NAND */
 	at91_add_device_nand(&dk_nand_data);

@@ -63,12 +63,12 @@ static struct at91_usbh_data __initdata ecb_at91usbh_data = {
 	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
-static struct at91_mmc_data __initdata ecb_at91mmc_data = {
-	.slot_b		= 0,
-	.wire4		= 1,
-	.det_pin	= -EINVAL,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata ecbat91_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= -EINVAL,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 
@@ -160,7 +160,7 @@ static void __init ecb_at91board_init(void)
 	at91_add_device_i2c(NULL, 0);
 
 	/* MMC */
-	at91_add_device_mmc(0, &ecb_at91mmc_data);
+	at91_add_device_mci(0, &ecbat91_mci0_data);
 
 	/* SPI */
 	at91_add_device_spi(ecb_at91spi_devices, ARRAY_SIZE(ecb_at91spi_devices));

@@ -137,11 +137,12 @@ static struct spi_board_info neocore926_spi_devices[] = {
 /*
  * MCI (SD/MMC)
  */
-static struct at91_mmc_data __initdata neocore926_mmc_data = {
-	.wire4		= 1,
-	.det_pin	= AT91_PIN_PE18,
-	.wp_pin		= AT91_PIN_PE19,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata neocore926_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PE18,
+		.wp_pin		= AT91_PIN_PE19,
+	},
 };
 
 
@@ -353,7 +354,7 @@ static void __init neocore926_board_init(void)
 	neocore926_add_device_ts();
 
 	/* MMC */
-	at91_add_device_mmc(1, &neocore926_mmc_data);
+	at91_add_device_mci(0, &neocore926_mci0_data);
 
 	/* Ethernet */
 	at91_add_device_eth(&neocore926_macb_data);

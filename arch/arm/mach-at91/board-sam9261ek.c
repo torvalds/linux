@@ -339,11 +339,12 @@ static struct spi_board_info ek_spi_devices[] = {
  * MCI (SD/MMC)
  * det_pin, wp_pin and vcc_pin are not connected
  */
-static struct at91_mmc_data __initdata ek_mmc_data = {
-	.wire4		= 1,
-	.det_pin	= -EINVAL,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= -EINVAL,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 #endif /* CONFIG_SPI_ATMEL_* */
@@ -597,7 +598,7 @@ static void __init ek_board_init(void)
 	at91_add_device_ssc(AT91SAM9261_ID_SSC1, ATMEL_SSC_TX);
 #else
 	/* MMC */
-	at91_add_device_mmc(0, &ek_mmc_data);
+	at91_add_device_mci(0, &mci0_data);
 #endif
 	/* LCD Controller */
 	at91_add_device_lcdc(&ek_lcdc_data);

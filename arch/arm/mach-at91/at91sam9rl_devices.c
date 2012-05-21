@@ -161,9 +161,9 @@ void __init at91_add_device_usba(struct usba_platform_data *data) {}
  *  MMC / SD
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_MMC_AT91) || defined(CONFIG_MMC_AT91_MODULE)
+#if IS_ENABLED(CONFIG_MMC_ATMELMCI)
 static u64 mmc_dmamask = DMA_BIT_MASK(32);
-static struct at91_mmc_data mmc_data;
+static struct mci_platform_data mmc_data;
 
 static struct resource mmc_resources[] = {
 	[0] = {
@@ -179,7 +179,7 @@ static struct resource mmc_resources[] = {
 };
 
 static struct platform_device at91sam9rl_mmc_device = {
-	.name		= "at91_mci",
+	.name		= "atmel_mci",
 	.id		= -1,
 	.dev		= {
 				.dma_mask		= &mmc_dmamask,
@@ -190,40 +190,40 @@ static struct platform_device at91sam9rl_mmc_device = {
 	.num_resources	= ARRAY_SIZE(mmc_resources),
 };
 
-void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data)
+void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data)
 {
 	if (!data)
 		return;
 
-	/* input/irq */
-	if (gpio_is_valid(data->det_pin)) {
-		at91_set_gpio_input(data->det_pin, 1);
-		at91_set_deglitch(data->det_pin, 1);
+	if (data->slot[0].bus_width) {
+		/* input/irq */
+		if (gpio_is_valid(data->slot[0].detect_pin)) {
+			at91_set_gpio_input(data->slot[0].detect_pin, 1);
+			at91_set_deglitch(data->slot[0].detect_pin, 1);
+		}
+		if (gpio_is_valid(data->slot[0].wp_pin))
+			at91_set_gpio_input(data->slot[0].wp_pin, 1);
+
+		/* CLK */
+		at91_set_A_periph(AT91_PIN_PA2, 0);
+
+		/* CMD */
+		at91_set_A_periph(AT91_PIN_PA1, 1);
+
+		/* DAT0, maybe DAT1..DAT3 */
+		at91_set_A_periph(AT91_PIN_PA0, 1);
+		if (data->slot[0].bus_width == 4) {
+			at91_set_A_periph(AT91_PIN_PA3, 1);
+			at91_set_A_periph(AT91_PIN_PA4, 1);
+			at91_set_A_periph(AT91_PIN_PA5, 1);
+		}
+
+		mmc_data = *data;
+		platform_device_register(&at91sam9rl_mmc_device);
 	}
-	if (gpio_is_valid(data->wp_pin))
-		at91_set_gpio_input(data->wp_pin, 1);
-	if (gpio_is_valid(data->vcc_pin))
-		at91_set_gpio_output(data->vcc_pin, 0);
-
-	/* CLK */
-	at91_set_A_periph(AT91_PIN_PA2, 0);
-
-	/* CMD */
-	at91_set_A_periph(AT91_PIN_PA1, 1);
-
-	/* DAT0, maybe DAT1..DAT3 */
-	at91_set_A_periph(AT91_PIN_PA0, 1);
-	if (data->wire4) {
-		at91_set_A_periph(AT91_PIN_PA3, 1);
-		at91_set_A_periph(AT91_PIN_PA4, 1);
-		at91_set_A_periph(AT91_PIN_PA5, 1);
-	}
-
-	mmc_data = *data;
-	platform_device_register(&at91sam9rl_mmc_device);
 }
 #else
-void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data) {}
+void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data) {}
 #endif
 
 

@@ -55,12 +55,12 @@ static struct at91_udc_data __initdata eco920_udc_data = {
 	.pullup_pin	= AT91_PIN_PB13,
 };
 
-static struct at91_mmc_data __initdata eco920_mmc_data = {
-	.slot_b		= 0,
-	.wire4		= 0,
-	.det_pin	= -EINVAL,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata eco920_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 1,
+		.detect_pin	= -EINVAL,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 static struct physmap_flash_data eco920_flash_data = {
@@ -103,7 +103,7 @@ static void __init eco920_board_init(void)
 	at91_add_device_usbh(&eco920_usbh_data);
 	at91_add_device_udc(&eco920_udc_data);
 
-	at91_add_device_mmc(0, &eco920_mmc_data);
+	at91_add_device_mci(0, &eco920_mci0_data);
 	platform_device_register(&eco920_flash);
 
 	at91_ramc_write(0, AT91_SMC_CSR(7),	AT91_SMC_RWHOLD_(1)

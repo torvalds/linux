@@ -310,12 +310,12 @@ static void __init cpu9krea_add_device_buttons(void)
 /*
  * MCI (SD/MMC)
  */
-static struct at91_mmc_data __initdata cpu9krea_mmc_data = {
-	.slot_b		= 0,
-	.wire4		= 1,
-	.det_pin	= AT91_PIN_PA29,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata cpu9krea_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PA29,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 static void __init cpu9krea_board_init(void)
@@ -357,7 +357,7 @@ static void __init cpu9krea_board_init(void)
 	/* Ethernet */
 	at91_add_device_eth(&cpu9krea_macb_data);
 	/* MMC */
-	at91_add_device_mmc(0, &cpu9krea_mmc_data);
+	at91_add_device_mci(0, &cpu9krea_mci0_data);
 	/* I2C */
 	at91_add_device_i2c(cpu9krea_i2c_devices,
 		ARRAY_SIZE(cpu9krea_i2c_devices));

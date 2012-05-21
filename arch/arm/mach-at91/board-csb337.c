@@ -86,12 +86,12 @@ static struct at91_cf_data __initdata csb337_cf_data = {
 	.rst_pin	= AT91_PIN_PD2,
 };
 
-static struct at91_mmc_data __initdata csb337_mmc_data = {
-	.det_pin	= AT91_PIN_PD5,
-	.slot_b		= 0,
-	.wire4		= 1,
-	.wp_pin		= AT91_PIN_PD6,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata csb337_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PD5,
+		.wp_pin		= AT91_PIN_PD6,
+	},
 };
 
 static struct spi_board_info csb337_spi_devices[] = {
@@ -239,7 +239,7 @@ static void __init csb337_board_init(void)
 	/* SPI */
 	at91_add_device_spi(csb337_spi_devices, ARRAY_SIZE(csb337_spi_devices));
 	/* MMC */
-	at91_add_device_mmc(0, &csb337_mmc_data);
+	at91_add_device_mci(0, &csb337_mci0_data);
 	/* NOR flash */
 	platform_device_register(&csb_flash);
 	/* LEDs */
