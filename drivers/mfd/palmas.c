@@ -472,6 +472,7 @@ static const struct i2c_device_id palmas_i2c_id[] = {
 	{ "twl6035", },
 	{ "twl6037", },
 	{ "tps65913", },
+	{ /* end */ }
 };
 MODULE_DEVICE_TABLE(i2c, palmas_i2c_id);
 
