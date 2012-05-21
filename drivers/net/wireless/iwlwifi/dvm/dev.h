@@ -635,7 +635,6 @@ enum iwl_scan_type {
  * @rx_chains_num: Number of RX chains
  * @valid_tx_ant: usable antennas for TX
  * @valid_rx_ant: usable antennas for RX
- * @ht40_channel: is 40MHz width possible: BIT(IEEE80211_BAND_XXX)
  * @sku: sku read from EEPROM
  * @ct_kill_threshold: temperature threshold - in hw dependent unit
  * @ct_kill_exit_threshold: when to reeable the device - in hw dependent unit
@@ -648,7 +647,6 @@ struct iwl_hw_params {
 	u8  rx_chains_num;
 	u8  valid_tx_ant;
 	u8  valid_rx_ant;
-	u8  ht40_channel;
 	bool use_rts_for_aggregation;
 	u16 sku;
 	u32 ct_kill_threshold;

@@ -1157,16 +1157,19 @@ static void iwl_init_ht_hw_capab(const struct iwl_priv *priv,
 	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 
 	ht_info->cap = 0;
+	ht_info->ht_supported = false;
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
+
+	if (!priv->cfg->ht_params)
+		return;
 
 	ht_info->ht_supported = true;
 
-	if (priv->cfg->ht_params &&
-	    priv->cfg->ht_params->ht_greenfield_support)
+	if (priv->cfg->ht_params->ht_greenfield_support)
 		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
-	if (priv->hw_params.ht40_channel & BIT(band)) {
+	if (priv->cfg->ht_params->ht40_bands & BIT(band)) {
 		ht_info->cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 		ht_info->cap |= IEEE80211_HT_CAP_SGI_40;
 		ht_info->mcs.rx_mask[4] = 0x01;

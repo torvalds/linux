@@ -171,8 +171,6 @@ static const struct iwl_sensitivity_ranges iwl1000_sensitivity = {
 
 static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
-
 	iwl1000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
@@ -244,8 +242,6 @@ static const struct iwl_sensitivity_ranges iwl2000_sensitivity = {
 
 static void iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
-
 	iwl2000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
@@ -389,9 +385,6 @@ static void iwl5000_set_ct_threshold(struct iwl_priv *priv)
 
 static void iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
-					BIT(IEEE80211_BAND_5GHZ);
-
 	iwl5000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
@@ -400,9 +393,6 @@ static void iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 
 static void iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 {
-	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
-					BIT(IEEE80211_BAND_5GHZ);
-
 	iwl5150_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
@@ -594,9 +584,6 @@ static const struct iwl_sensitivity_ranges iwl6000_sensitivity = {
 
 static void iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
-					BIT(IEEE80211_BAND_5GHZ);
-
 	iwl6000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
