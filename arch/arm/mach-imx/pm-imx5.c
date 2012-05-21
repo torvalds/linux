@@ -166,3 +166,8 @@ void __init imx51_pm_init(void)
 	if (!ret)
 		suspend_set_ops(&mx5_suspend_ops);
 }
+
+void __init imx53_pm_init(void)
+{
+	imx5_pm_common_init();
+}
