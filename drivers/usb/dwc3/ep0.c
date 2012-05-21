@@ -900,7 +900,7 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 	dwc->setup_packet_pending = true;
 
 	/*
-	 * This part is very tricky: If we has just handled
+	 * This part is very tricky: If we have just handled
 	 * XferNotReady(Setup) and we're now expecting a
 	 * XferComplete but, instead, we receive another
 	 * XferNotReady(Setup), we should STALL and restart
