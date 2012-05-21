@@ -501,7 +501,9 @@ static void virtnet_napi_enable(struct virtnet_info *vi)
 	 * We synchronize against interrupts via NAPI_STATE_SCHED */
 	if (napi_schedule_prep(&vi->napi)) {
 		virtqueue_disable_cb(vi->rvq);
+		local_bh_disable();
 		__napi_schedule(&vi->napi);
+		local_bh_enable();
 	}
 }
 

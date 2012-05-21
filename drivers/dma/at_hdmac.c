@@ -245,7 +245,9 @@ atc_chain_complete(struct at_dma_chan *atchan, struct at_desc *desc)
 	dev_vdbg(chan2dev(&atchan->chan_common),
 		"descriptor %u complete\n", txd->cookie);
 
-	dma_cookie_complete(txd);
+	/* mark the descriptor as complete for non cyclic cases only */
+	if (!atc_chan_is_cyclic(atchan))
+		dma_cookie_complete(txd);
 
 	/* move children to free_list */
 	list_splice_init(&desc->tx_list, &atchan->free_list);

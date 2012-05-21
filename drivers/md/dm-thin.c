@@ -1632,6 +1632,21 @@ static int bind_control_target(struct pool *pool, struct dm_target *ti)
 	pool->low_water_blocks = pt->low_water_blocks;
 	pool->pf = pt->pf;
 
+	/*
+	 * If discard_passdown was enabled verify that the data device
+	 * supports discards.  Disable discard_passdown if not; otherwise
+	 * -EOPNOTSUPP will be returned.
+	 */
+	if (pt->pf.discard_passdown) {
+		struct request_queue *q = bdev_get_queue(pt->data_dev->bdev);
+		if (!q || !blk_queue_discard(q)) {
+			char buf[BDEVNAME_SIZE];
+			DMWARN("Discard unsupported by data device (%s): Disabling discard passdown.",
+			       bdevname(pt->data_dev->bdev, buf));
+			pool->pf.discard_passdown = 0;
+		}
+	}
+
 	return 0;
 }
 
@@ -1986,19 +2001,6 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		ti->error = "Discard support cannot be disabled once enabled";
 		r = -EINVAL;
 		goto out_flags_changed;
-	}
-
-	/*
-	 * If discard_passdown was enabled verify that the data device
-	 * supports discards.  Disable discard_passdown if not; otherwise
-	 * -EOPNOTSUPP will be returned.
-	 */
-	if (pf.discard_passdown) {
-		struct request_queue *q = bdev_get_queue(data_dev->bdev);
-		if (!q || !blk_queue_discard(q)) {
-			DMWARN("Discard unsupported by data device: Disabling discard passdown.");
-			pf.discard_passdown = 0;
-		}
 	}
 
 	pt->pool = pool;
@@ -2385,7 +2387,7 @@ static int pool_status(struct dm_target *ti, status_type_t type,
 		       (unsigned long long)pt->low_water_blocks);
 
 		count = !pool->pf.zero_new_blocks + !pool->pf.discard_enabled +
-			!pool->pf.discard_passdown;
+			!pt->pf.discard_passdown;
 		DMEMIT("%u ", count);
 
 		if (!pool->pf.zero_new_blocks)
@@ -2394,7 +2396,7 @@ static int pool_status(struct dm_target *ti, status_type_t type,
 		if (!pool->pf.discard_enabled)
 			DMEMIT("ignore_discard ");
 
-		if (!pool->pf.discard_passdown)
+		if (!pt->pf.discard_passdown)
 			DMEMIT("no_discard_passdown ");
 
 		break;
