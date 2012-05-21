@@ -26,8 +26,7 @@ struct event_symbol {
 #ifdef PARSER_DEBUG
 extern int parse_events_debug;
 #endif
-int parse_events_parse(struct list_head *list, struct list_head *list_tmp,
-		       int *idx);
+int parse_events_parse(struct list_head *list, int *idx);
 
 #define CHW(x) .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_##x
 #define CSW(x) .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_##x
@@ -358,20 +357,30 @@ const char *__event_name(int type, u64 config)
 	return "unknown";
 }
 
-static int add_event(struct list_head *list, int *idx,
+static int add_event(struct list_head **_list, int *idx,
 		     struct perf_event_attr *attr, char *name)
 {
 	struct perf_evsel *evsel;
+	struct list_head *list = *_list;
+
+	if (!list) {
+		list = malloc(sizeof(*list));
+		if (!list)
+			return -ENOMEM;
+		INIT_LIST_HEAD(list);
+	}
 
 	event_attr_init(attr);
 
 	evsel = perf_evsel__new(attr, (*idx)++);
-	if (!evsel)
+	if (!evsel) {
+		free(list);
 		return -ENOMEM;
-
-	list_add_tail(&evsel->node, list);
+	}
 
 	evsel->name = strdup(name);
+	list_add_tail(&evsel->node, list);
+	*_list = list;
 	return 0;
 }
 
@@ -393,7 +402,7 @@ static int parse_aliases(char *str, const char *names[][MAX_ALIASES], int size)
 	return -1;
 }
 
-int parse_events_add_cache(struct list_head *list, int *idx,
+int parse_events_add_cache(struct list_head **list, int *idx,
 			   char *type, char *op_result1, char *op_result2)
 {
 	struct perf_event_attr attr;
@@ -454,7 +463,7 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 	return add_event(list, idx, &attr, name);
 }
 
-static int add_tracepoint(struct list_head *list, int *idx,
+static int add_tracepoint(struct list_head **list, int *idx,
 			  char *sys_name, char *evt_name)
 {
 	struct perf_event_attr attr;
@@ -491,7 +500,7 @@ static int add_tracepoint(struct list_head *list, int *idx,
 	return add_event(list, idx, &attr, name);
 }
 
-static int add_tracepoint_multi(struct list_head *list, int *idx,
+static int add_tracepoint_multi(struct list_head **list, int *idx,
 				char *sys_name, char *evt_name)
 {
 	char evt_path[MAXPATHLEN];
@@ -522,7 +531,7 @@ static int add_tracepoint_multi(struct list_head *list, int *idx,
 	return ret;
 }
 
-int parse_events_add_tracepoint(struct list_head *list, int *idx,
+int parse_events_add_tracepoint(struct list_head **list, int *idx,
 				char *sys, char *event)
 {
 	int ret;
@@ -566,7 +575,7 @@ parse_breakpoint_type(const char *type, struct perf_event_attr *attr)
 	return 0;
 }
 
-int parse_events_add_breakpoint(struct list_head *list, int *idx,
+int parse_events_add_breakpoint(struct list_head **list, int *idx,
 				void *ptr, char *type)
 {
 	struct perf_event_attr attr;
@@ -645,7 +654,7 @@ static int config_attr(struct perf_event_attr *attr,
 	return 0;
 }
 
-int parse_events_add_numeric(struct list_head *list, int *idx,
+int parse_events_add_numeric(struct list_head **list, int *idx,
 			     unsigned long type, unsigned long config,
 			     struct list_head *head_config)
 {
@@ -663,7 +672,7 @@ int parse_events_add_numeric(struct list_head *list, int *idx,
 			 (char *) __event_name(type, config));
 }
 
-int parse_events_add_pmu(struct list_head *list, int *idx,
+int parse_events_add_pmu(struct list_head **list, int *idx,
 			 char *name, struct list_head *head_config)
 {
 	struct perf_event_attr attr;
@@ -696,7 +705,7 @@ void parse_events_update_lists(struct list_head *list_event,
 	 * list, for next event definition.
 	 */
 	list_splice_tail(list_event, list_all);
-	INIT_LIST_HEAD(list_event);
+	free(list_event);
 }
 
 int parse_events_modifier(struct list_head *list, char *str)
@@ -774,7 +783,7 @@ int parse_events(struct perf_evlist *evlist, const char *str, int unset __used)
 #ifdef PARSER_DEBUG
 	parse_events_debug = 1;
 #endif
-	ret = parse_events_parse(&list, &list_tmp, &idx);
+	ret = parse_events_parse(&list, &idx);
 
 	parse_events__flush_buffer(buffer);
 	parse_events__delete_buffer(buffer);
