@@ -592,12 +592,6 @@ extern void usb_autopm_put_interface_async(struct usb_interface *intf);
 extern void usb_autopm_get_interface_no_resume(struct usb_interface *intf);
 extern void usb_autopm_put_interface_no_suspend(struct usb_interface *intf);
 
-extern int usb_disable_lpm(struct usb_device *udev);
-extern void usb_enable_lpm(struct usb_device *udev);
-/* Same as above, but these functions lock/unlock the bandwidth_mutex. */
-extern int usb_unlocked_disable_lpm(struct usb_device *udev);
-extern void usb_unlocked_enable_lpm(struct usb_device *udev);
-
 static inline void usb_mark_last_busy(struct usb_device *udev)
 {
 	pm_runtime_mark_last_busy(&udev->dev);
@@ -628,6 +622,12 @@ static inline void usb_autopm_put_interface_no_suspend(
 static inline void usb_mark_last_busy(struct usb_device *udev)
 { }
 #endif
+
+extern int usb_disable_lpm(struct usb_device *udev);
+extern void usb_enable_lpm(struct usb_device *udev);
+/* Same as above, but these functions lock/unlock the bandwidth_mutex. */
+extern int usb_unlocked_disable_lpm(struct usb_device *udev);
+extern void usb_unlocked_enable_lpm(struct usb_device *udev);
 
 /*-------------------------------------------------------------------------*/
 

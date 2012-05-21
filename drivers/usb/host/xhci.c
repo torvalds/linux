@@ -3837,8 +3837,43 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 	return 0;
 }
 
+int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	int		ret;
+
+	ret = xhci_usb2_software_lpm_test(hcd, udev);
+	if (!ret) {
+		xhci_dbg(xhci, "software LPM test succeed\n");
+		if (xhci->hw_lpm_support == 1) {
+			udev->usb2_hw_lpm_capable = 1;
+			ret = xhci_set_usb2_hardware_lpm(hcd, udev, 1);
+			if (!ret)
+				udev->usb2_hw_lpm_enabled = 1;
+		}
+	}
+
+	return 0;
+}
+
+#else
+
+int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
+				struct usb_device *udev, int enable)
+{
+	return 0;
+}
+
+int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	return 0;
+}
+
+#endif /* CONFIG_USB_SUSPEND */
+
 /*---------------------- USB 3.0 Link PM functions ------------------------*/
 
+#ifdef CONFIG_PM
 /* Service interval in nanoseconds = 2^(bInterval - 1) * 125us * 1000ns / 1us */
 static unsigned long long xhci_service_interval_to_ns(
 		struct usb_endpoint_descriptor *desc)
@@ -3921,7 +3956,7 @@ static u16 xhci_calculate_intel_u1_timeout(struct usb_device *udev,
 		/* Otherwise the calculation is the same as isoc eps */
 	case USB_ENDPOINT_XFER_ISOC:
 		timeout_ns = xhci_service_interval_to_ns(desc);
-		timeout_ns = DIV_ROUND_UP(timeout_ns * 105, 100);
+		timeout_ns = DIV_ROUND_UP_ULL(timeout_ns * 105, 100);
 		if (timeout_ns < udev->u1_params.sel * 2)
 			timeout_ns = udev->u1_params.sel * 2;
 		break;
@@ -3930,7 +3965,7 @@ static u16 xhci_calculate_intel_u1_timeout(struct usb_device *udev,
 	}
 
 	/* The U1 timeout is encoded in 1us intervals. */
-	timeout_ns = DIV_ROUND_UP(timeout_ns, 1000);
+	timeout_ns = DIV_ROUND_UP_ULL(timeout_ns, 1000);
 	/* Don't return a timeout of zero, because that's USB3_LPM_DISABLED. */
 	if (timeout_ns == USB3_LPM_DISABLED)
 		timeout_ns++;
@@ -3969,7 +4004,7 @@ static u16 xhci_calculate_intel_u2_timeout(struct usb_device *udev,
 		timeout_ns = u2_del_ns;
 
 	/* The U2 timeout is encoded in 256us intervals */
-	timeout_ns = DIV_ROUND_UP(timeout_ns, 256 * 1000);
+	timeout_ns = DIV_ROUND_UP_ULL(timeout_ns, 256 * 1000);
 	/* If the necessary timeout value is bigger than what we can set in the
 	 * USB 3.0 hub, we have to disable hub-initiated U2.
 	 */
@@ -4287,41 +4322,22 @@ int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 		return ret;
 	return 0;
 }
+#else /* CONFIG_PM */
+
+int xhci_enable_usb3_lpm_timeout(struct usb_hcd *hcd,
+			struct usb_device *udev, enum usb3_link_state state)
+{
+	return USB3_LPM_DISABLED;
+}
+
+int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
+			struct usb_device *udev, enum usb3_link_state state)
+{
+	return 0;
+}
+#endif	/* CONFIG_PM */
+
 /*-------------------------------------------------------------------------*/
-
-int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
-{
-	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	int		ret;
-
-	ret = xhci_usb2_software_lpm_test(hcd, udev);
-	if (!ret) {
-		xhci_dbg(xhci, "software LPM test succeed\n");
-		if (xhci->hw_lpm_support == 1) {
-			udev->usb2_hw_lpm_capable = 1;
-			ret = xhci_set_usb2_hardware_lpm(hcd, udev, 1);
-			if (!ret)
-				udev->usb2_hw_lpm_enabled = 1;
-		}
-	}
-
-	return 0;
-}
-
-#else
-
-int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
-				struct usb_device *udev, int enable)
-{
-	return 0;
-}
-
-int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
-{
-	return 0;
-}
-
-#endif /* CONFIG_USB_SUSPEND */
 
 /* Once a hub descriptor is fetched for a device, we need to update the xHC's
  * internal data structures for the device.
