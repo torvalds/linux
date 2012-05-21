@@ -95,7 +95,6 @@ enum mx3_cpu_pwr_mode {
 };
 
 extern void mx3_cpu_lp_set(enum mx3_cpu_pwr_mode mode);
-extern void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode);
 extern void imx_print_silicon_rev(const char *cpu, int srev);
 
 void avic_handle_irq(struct pt_regs *);
@@ -146,8 +145,10 @@ extern void imx6q_clock_map_io(void);
 
 #ifdef CONFIG_PM
 extern void imx6q_pm_init(void);
+extern void imx51_pm_init(void);
 #else
 static inline void imx6q_pm_init(void) {}
+static inline void imx51_pm_init(void) {}
 #endif
 
 #ifdef CONFIG_NEON
