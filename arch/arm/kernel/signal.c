@@ -589,6 +589,8 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 	 */
 	block_sigmask(ka, sig);
 
+	tracehook_signal_handler(sig, info, ka, regs, 0);
+
 	return 0;
 }
 

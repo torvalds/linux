@@ -143,30 +143,14 @@ static void __init intcp_map_io(void)
 	iotable_init(intcp_io_desc, ARRAY_SIZE(intcp_io_desc));
 }
 
-static struct fpga_irq_data cic_irq_data = {
-	.base		= INTCP_VA_CIC_BASE,
-	.irq_start	= IRQ_CIC_START,
-	.chip.name	= "CIC",
-};
-
-static struct fpga_irq_data pic_irq_data = {
-	.base		= INTCP_VA_PIC_BASE,
-	.irq_start	= IRQ_PIC_START,
-	.chip.name	= "PIC",
-};
-
-static struct fpga_irq_data sic_irq_data = {
-	.base		= INTCP_VA_SIC_BASE,
-	.irq_start	= IRQ_SIC_START,
-	.chip.name	= "SIC",
-};
-
 static void __init intcp_init_irq(void)
 {
-	u32 pic_mask, sic_mask;
+	u32 pic_mask, cic_mask, sic_mask;
 
+	/* These masks are for the HW IRQ registers */
 	pic_mask = ~((~0u) << (11 - IRQ_PIC_START));
 	pic_mask |= (~((~0u) << (29 - 22))) << 22;
+	cic_mask = ~((~0u) << (1 + IRQ_CIC_END - IRQ_CIC_START));
 	sic_mask = ~((~0u) << (1 + IRQ_SIC_END - IRQ_SIC_START));
 
 	/*
@@ -179,12 +163,14 @@ static void __init intcp_init_irq(void)
 	writel(sic_mask, INTCP_VA_SIC_BASE + IRQ_ENABLE_CLEAR);
 	writel(sic_mask, INTCP_VA_SIC_BASE + FIQ_ENABLE_CLEAR);
 
-	fpga_irq_init(-1, pic_mask, &pic_irq_data);
+	fpga_irq_init(INTCP_VA_PIC_BASE, "PIC", IRQ_PIC_START,
+		      -1, pic_mask, NULL);
 
-	fpga_irq_init(-1, ~((~0u) << (1 + IRQ_CIC_END - IRQ_CIC_START)),
-		&cic_irq_data);
+	fpga_irq_init(INTCP_VA_CIC_BASE, "CIC", IRQ_CIC_START,
+		      -1, cic_mask, NULL);
 
-	fpga_irq_init(IRQ_CP_CPPLDINT, sic_mask, &sic_irq_data);
+	fpga_irq_init(INTCP_VA_SIC_BASE, "SIC", IRQ_SIC_START,
+		      IRQ_CP_CPPLDINT, sic_mask, NULL);
 }
 
 /*
@@ -467,6 +453,7 @@ MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	.nr_irqs	= NR_IRQS_INTEGRATOR_CP,
 	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq,
+	.handle_irq	= fpga_handle_irq,
 	.timer		= &cp_timer,
 	.init_machine	= intcp_init,
 	.restart	= integrator_restart,

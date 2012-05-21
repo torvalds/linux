@@ -27,11 +27,6 @@ static inline struct platform_device *mxs_add_platform_device(
 			name, id, res, num_resources, data, size_data, 0);
 }
 
-int __init mxs_add_amba_device(const struct amba_device *dev);
-
-/* duart */
-int __init mxs_add_duart(const struct amba_device *dev);
-
 /* auart */
 struct mxs_auart_data {
 	int id;

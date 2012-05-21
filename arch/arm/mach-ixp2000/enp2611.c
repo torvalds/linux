@@ -141,13 +141,6 @@ static struct pci_ops enp2611_pci_ops = {
 	.write  = enp2611_pci_write_config
 };
 
-static struct pci_bus * __init enp2611_pci_scan_bus(int nr,
-						struct pci_sys_data *sys)
-{
-	return pci_scan_root_bus(NULL, sys->busnr, &enp2611_pci_ops, sys,
-				 &sys->resources);
-}
-
 static int __init enp2611_pci_map_irq(const struct pci_dev *dev, u8 slot,
 	u8 pin)
 {
@@ -180,9 +173,9 @@ static int __init enp2611_pci_map_irq(const struct pci_dev *dev, u8 slot,
 
 struct hw_pci enp2611_pci __initdata = {
 	.nr_controllers	= 1,
+	.ops		= &enp2611_pci_ops,
 	.setup		= enp2611_pci_setup,
 	.preinit	= enp2611_pci_preinit,
-	.scan		= enp2611_pci_scan_bus,
 	.map_irq	= enp2611_pci_map_irq,
 };
 
