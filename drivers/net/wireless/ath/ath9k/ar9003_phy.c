@@ -373,7 +373,7 @@ static void ar9003_hw_spur_ofdm_work(struct ath_hw *ah,
 			else
 				spur_subchannel_sd = 0;
 
-			spur_freq_sd = (freq_offset << 9) / 11;
+			spur_freq_sd = ((freq_offset + 10) << 9) / 11;
 
 		} else {
 			if (REG_READ_FIELD(ah, AR_PHY_GEN_CTRL,
@@ -382,7 +382,7 @@ static void ar9003_hw_spur_ofdm_work(struct ath_hw *ah,
 			else
 				spur_subchannel_sd = 1;
 
-			spur_freq_sd = (freq_offset << 9) / 11;
+			spur_freq_sd = ((freq_offset - 10) << 9) / 11;
 
 		}
 
@@ -694,7 +694,7 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	ar9003_hw_override_ini(ah);
 	ar9003_hw_set_channel_regs(ah, chan);
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
-	ath9k_hw_apply_txpower(ah, chan);
+	ath9k_hw_apply_txpower(ah, chan, false);
 
 	if (AR_SREV_9462(ah)) {
 		if (REG_READ_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_0,

@@ -731,6 +731,7 @@ static void intel_sdvo_get_dtd_from_mode(struct intel_sdvo_dtd *dtd,
 	uint16_t width, height;
 	uint16_t h_blank_len, h_sync_len, v_blank_len, v_sync_len;
 	uint16_t h_sync_offset, v_sync_offset;
+	int mode_clock;
 
 	width = mode->crtc_hdisplay;
 	height = mode->crtc_vdisplay;
@@ -745,7 +746,11 @@ static void intel_sdvo_get_dtd_from_mode(struct intel_sdvo_dtd *dtd,
 	h_sync_offset = mode->crtc_hsync_start - mode->crtc_hblank_start;
 	v_sync_offset = mode->crtc_vsync_start - mode->crtc_vblank_start;
 
-	dtd->part1.clock = mode->clock / 10;
+	mode_clock = mode->clock;
+	mode_clock /= intel_mode_get_pixel_multiplier(mode) ?: 1;
+	mode_clock /= 10;
+	dtd->part1.clock = mode_clock;
+
 	dtd->part1.h_active = width & 0xff;
 	dtd->part1.h_blank = h_blank_len & 0xff;
 	dtd->part1.h_high = (((width >> 8) & 0xf) << 4) |
@@ -996,7 +1001,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	struct intel_sdvo *intel_sdvo = to_intel_sdvo(encoder);
 	u32 sdvox;
 	struct intel_sdvo_in_out_map in_out;
-	struct intel_sdvo_dtd input_dtd;
+	struct intel_sdvo_dtd input_dtd, output_dtd;
 	int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
 	int rate;
 
@@ -1021,20 +1026,13 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 					  intel_sdvo->attached_output))
 		return;
 
-	/* We have tried to get input timing in mode_fixup, and filled into
-	 * adjusted_mode.
-	 */
-	if (intel_sdvo->is_tv || intel_sdvo->is_lvds) {
-		input_dtd = intel_sdvo->input_dtd;
-	} else {
-		/* Set the output timing to the screen */
-		if (!intel_sdvo_set_target_output(intel_sdvo,
-						  intel_sdvo->attached_output))
-			return;
-
-		intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
-		(void) intel_sdvo_set_output_timing(intel_sdvo, &input_dtd);
-	}
+	/* lvds has a special fixed output timing. */
+	if (intel_sdvo->is_lvds)
+		intel_sdvo_get_dtd_from_mode(&output_dtd,
+					     intel_sdvo->sdvo_lvds_fixed_mode);
+	else
+		intel_sdvo_get_dtd_from_mode(&output_dtd, mode);
+	(void) intel_sdvo_set_output_timing(intel_sdvo, &output_dtd);
 
 	/* Set the input timing to the screen. Assume always input 0. */
 	if (!intel_sdvo_set_target_input(intel_sdvo))
@@ -1052,6 +1050,10 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	    !intel_sdvo_set_tv_format(intel_sdvo))
 		return;
 
+	/* We have tried to get input timing in mode_fixup, and filled into
+	 * adjusted_mode.
+	 */
+	intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
 	(void) intel_sdvo_set_input_timing(intel_sdvo, &input_dtd);
 
 	switch (pixel_multiplier) {
@@ -1218,7 +1220,13 @@ static bool intel_sdvo_get_capabilities(struct intel_sdvo *intel_sdvo, struct in
 
 static int intel_sdvo_supports_hotplug(struct intel_sdvo *intel_sdvo)
 {
+	struct drm_device *dev = intel_sdvo->base.base.dev;
 	u8 response[2];
+
+	/* HW Erratum: SDVO Hotplug is broken on all i945G chips, there's noise
+	 * on the line. */
+	if (IS_I945G(dev) || IS_I945GM(dev))
+		return false;
 
 	return intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_HOT_PLUG_SUPPORT,
 				    &response, 2) && response[0];

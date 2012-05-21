@@ -1111,9 +1111,12 @@ msi_only:
 		adapter->flags |= IGB_FLAG_HAS_MSI;
 out:
 	/* Notify the stack of the (possibly) reduced queue counts. */
+	rtnl_lock();
 	netif_set_real_num_tx_queues(adapter->netdev, adapter->num_tx_queues);
-	return netif_set_real_num_rx_queues(adapter->netdev,
-					    adapter->num_rx_queues);
+	err = netif_set_real_num_rx_queues(adapter->netdev,
+		adapter->num_rx_queues);
+	rtnl_unlock();
+	return err;
 }
 
 /**
@@ -2771,8 +2774,6 @@ void igb_configure_tx_ring(struct igb_adapter *adapter,
 
 	txdctl |= E1000_TXDCTL_QUEUE_ENABLE;
 	wr32(E1000_TXDCTL(reg_idx), txdctl);
-
-	netdev_tx_reset_queue(txring_txq(ring));
 }
 
 /**
@@ -3281,6 +3282,8 @@ static void igb_clean_tx_ring(struct igb_ring *tx_ring)
 		buffer_info = &tx_ring->tx_buffer_info[i];
 		igb_unmap_and_free_tx_resource(tx_ring, buffer_info);
 	}
+
+	netdev_tx_reset_queue(txring_txq(tx_ring));
 
 	size = sizeof(struct igb_tx_buffer) * tx_ring->count;
 	memset(tx_ring->tx_buffer_info, 0, size);
@@ -6796,18 +6799,7 @@ static int igb_resume(struct device *dev)
 	pci_enable_wake(pdev, PCI_D3hot, 0);
 	pci_enable_wake(pdev, PCI_D3cold, 0);
 
-	if (!rtnl_is_locked()) {
-		/*
-		 * shut up ASSERT_RTNL() warning in
-		 * netif_set_real_num_tx/rx_queues.
-		 */
-		rtnl_lock();
-		err = igb_init_interrupt_scheme(adapter);
-		rtnl_unlock();
-	} else {
-		err = igb_init_interrupt_scheme(adapter);
-	}
-	if (err) {
+	if (igb_init_interrupt_scheme(adapter)) {
 		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
 	}

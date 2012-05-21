@@ -1445,6 +1445,13 @@ enum {
 	ALC_FIXUP_ACT_BUILD,
 };
 
+static void alc_apply_pincfgs(struct hda_codec *codec,
+			      const struct alc_pincfg *cfg)
+{
+	for (; cfg->nid; cfg++)
+		snd_hda_codec_set_pincfg(codec, cfg->nid, cfg->val);
+}
+
 static void alc_apply_fixup(struct hda_codec *codec, int action)
 {
 	struct alc_spec *spec = codec->spec;
@@ -1478,9 +1485,7 @@ static void alc_apply_fixup(struct hda_codec *codec, int action)
 			snd_printdd(KERN_INFO "hda_codec: %s: "
 				    "Apply pincfg for %s\n",
 				    codec->chip_name, modelname);
-			for (; cfg->nid; cfg++)
-				snd_hda_codec_set_pincfg(codec, cfg->nid,
-							 cfg->val);
+			alc_apply_pincfgs(codec, cfg);
 			break;
 		case ALC_FIXUP_VERBS:
 			if (action != ALC_FIXUP_ACT_PROBE || !fix->v.verbs)
@@ -4861,6 +4866,7 @@ enum {
 	ALC260_FIXUP_GPIO1_TOGGLE,
 	ALC260_FIXUP_REPLACER,
 	ALC260_FIXUP_HP_B1900,
+	ALC260_FIXUP_KN1,
 };
 
 static void alc260_gpio1_automute(struct hda_codec *codec)
@@ -4885,6 +4891,36 @@ static void alc260_fixup_gpio1_toggle(struct hda_codec *codec,
 		snd_hda_jack_detect_enable(codec, 0x0f, ALC_HP_EVENT);
 		spec->unsol_event = alc_sku_unsol_event;
 		add_verb(codec->spec, alc_gpio1_init_verbs);
+	}
+}
+
+static void alc260_fixup_kn1(struct hda_codec *codec,
+			     const struct alc_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+	static const struct alc_pincfg pincfgs[] = {
+		{ 0x0f, 0x02214000 }, /* HP/speaker */
+		{ 0x12, 0x90a60160 }, /* int mic */
+		{ 0x13, 0x02a19000 }, /* ext mic */
+		{ 0x18, 0x01446000 }, /* SPDIF out */
+		/* disable bogus I/O pins */
+		{ 0x10, 0x411111f0 },
+		{ 0x11, 0x411111f0 },
+		{ 0x14, 0x411111f0 },
+		{ 0x15, 0x411111f0 },
+		{ 0x16, 0x411111f0 },
+		{ 0x17, 0x411111f0 },
+		{ 0x19, 0x411111f0 },
+		{ }
+	};
+
+	switch (action) {
+	case ALC_FIXUP_ACT_PRE_PROBE:
+		alc_apply_pincfgs(codec, pincfgs);
+		break;
+	case ALC_FIXUP_ACT_PROBE:
+		spec->init_amp = ALC_INIT_NONE;
+		break;
 	}
 }
 
@@ -4938,7 +4974,11 @@ static const struct alc_fixup alc260_fixups[] = {
 		.v.func = alc260_fixup_gpio1_toggle,
 		.chained = true,
 		.chain_id = ALC260_FIXUP_COEF,
-	}
+	},
+	[ALC260_FIXUP_KN1] = {
+		.type = ALC_FIXUP_FUNC,
+		.v.func = alc260_fixup_kn1,
+	},
 };
 
 static const struct snd_pci_quirk alc260_fixup_tbl[] = {
@@ -4948,6 +4988,7 @@ static const struct snd_pci_quirk alc260_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x280a, "HP dc5750", ALC260_FIXUP_HP_DC5750),
 	SND_PCI_QUIRK(0x103c, 0x30ba, "HP Presario B1900", ALC260_FIXUP_HP_B1900),
 	SND_PCI_QUIRK(0x1509, 0x4540, "Favorit 100XS", ALC260_FIXUP_GPIO1),
+	SND_PCI_QUIRK(0x152d, 0x0729, "Quanta KN1", ALC260_FIXUP_KN1),
 	SND_PCI_QUIRK(0x161f, 0x2057, "Replacer 672V", ALC260_FIXUP_REPLACER),
 	SND_PCI_QUIRK(0x1631, 0xc017, "PB V7900", ALC260_FIXUP_COEF),
 	{}
@@ -5364,6 +5405,8 @@ static const struct snd_pci_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0142, "Acer Aspire 7730G",
 		      ALC882_FIXUP_ACER_ASPIRE_4930G),
 	SND_PCI_QUIRK(0x1025, 0x0155, "Packard-Bell M5120", ALC882_FIXUP_PB_M5210),
+	SND_PCI_QUIRK(0x1025, 0x021e, "Acer Aspire 5739G",
+		      ALC882_FIXUP_ACER_ASPIRE_4930G),
 	SND_PCI_QUIRK(0x1025, 0x0259, "Acer Aspire 5935", ALC889_FIXUP_DAC_ROUTE),
 	SND_PCI_QUIRK(0x1025, 0x026b, "Acer Aspire 8940G", ALC882_FIXUP_ACER_ASPIRE_8930G),
 	SND_PCI_QUIRK(0x1025, 0x0296, "Acer Aspire 7736z", ALC882_FIXUP_ACER_ASPIRE_7736),
@@ -5397,6 +5440,7 @@ static const struct snd_pci_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x4a00, "Macbook 5,2", ALC889_FIXUP_IMAC91_VREF),
 
 	SND_PCI_QUIRK(0x1071, 0x8258, "Evesham Voyaeger", ALC882_FIXUP_EAPD),
+	SND_PCI_QUIRK(0x1462, 0x7350, "MSI-7350", ALC889_FIXUP_CD),
 	SND_PCI_QUIRK_VENDOR(0x1462, "MSI", ALC882_FIXUP_GPIO3),
 	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte EP45-DS3", ALC889_FIXUP_CD),
 	SND_PCI_QUIRK(0x147b, 0x107a, "Abit AW9D-MAX", ALC882_FIXUP_ABIT_AW9D_MAX),
@@ -5597,12 +5641,12 @@ static int patch_alc262(struct hda_codec *codec)
 	snd_hda_codec_write(codec, 0x1a, 0, AC_VERB_SET_PROC_COEF, tmp | 0x80);
 	}
 #endif
-	alc_auto_parse_customize_define(codec);
-
 	alc_fix_pll_init(codec, 0x20, 0x0a, 10);
 
 	alc_pick_fixup(codec, NULL, alc262_fixup_tbl, alc262_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
+
+	alc_auto_parse_customize_define(codec);
 
 	/* automatic parse from the BIOS config */
 	err = alc262_parse_auto_config(codec);
@@ -6068,6 +6112,7 @@ static const struct alc_fixup alc269_fixups[] = {
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x1586, "HP", ALC269_FIXUP_MIC2_MUTE_LED),
+	SND_PCI_QUIRK(0x1043, 0x1427, "Asus Zenbook UX31E", ALC269VB_FIXUP_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
 	SND_PCI_QUIRK(0x1043, 0x16e3, "ASUS UX50", ALC269_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x831a, "ASUS P901", ALC269_FIXUP_STEREO_DMIC),
@@ -6207,8 +6252,6 @@ static int patch_alc269(struct hda_codec *codec)
 
 	spec->mixer_nid = 0x0b;
 
-	alc_auto_parse_customize_define(codec);
-
 	err = alc_codec_rename_from_preset(codec);
 	if (err < 0)
 		goto error;
@@ -6240,6 +6283,8 @@ static int patch_alc269(struct hda_codec *codec)
 	alc_pick_fixup(codec, alc269_fixup_models,
 		       alc269_fixup_tbl, alc269_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
+
+	alc_auto_parse_customize_define(codec);
 
 	/* automatic parse from the BIOS config */
 	err = alc269_parse_auto_config(codec);
@@ -6817,8 +6862,6 @@ static int patch_alc662(struct hda_codec *codec)
 	/* handle multiple HPs as is */
 	spec->parse_flags = HDA_PINCFG_NO_HP_FIXUP;
 
-	alc_auto_parse_customize_define(codec);
-
 	alc_fix_pll_init(codec, 0x20, 0x04, 15);
 
 	err = alc_codec_rename_from_preset(codec);
@@ -6835,6 +6878,9 @@ static int patch_alc662(struct hda_codec *codec)
 	alc_pick_fixup(codec, alc662_fixup_models,
 		       alc662_fixup_tbl, alc662_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
+
+	alc_auto_parse_customize_define(codec);
+
 	/* automatic parse from the BIOS config */
 	err = alc662_parse_auto_config(codec);
 	if (err < 0)

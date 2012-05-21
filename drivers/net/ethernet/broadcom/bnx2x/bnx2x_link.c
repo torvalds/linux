@@ -942,17 +942,17 @@ static int bnx2x_ets_e3b0_sp_pri_to_cos_set(const struct link_params *params,
 	const u8 max_num_of_cos = (port) ? DCBX_E3B0_MAX_NUM_COS_PORT1 :
 		DCBX_E3B0_MAX_NUM_COS_PORT0;
 
+	if (pri >= max_num_of_cos) {
+		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_sp_pri_to_cos_set invalid "
+		   "parameter Illegal strict priority\n");
+	    return -EINVAL;
+	}
+
 	if (sp_pri_to_cos[pri] != DCBX_INVALID_COS) {
 		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_sp_pri_to_cos_set invalid "
 				   "parameter There can't be two COS's with "
 				   "the same strict pri\n");
 		return -EINVAL;
-	}
-
-	if (pri > max_num_of_cos) {
-		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_sp_pri_to_cos_set invalid "
-		   "parameter Illegal strict priority\n");
-	    return -EINVAL;
 	}
 
 	sp_pri_to_cos[pri] = cos_entry;

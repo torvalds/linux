@@ -668,12 +668,19 @@ cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 			return 0;
 		else {
 			/*
-			 * Forcibly invalidate automounting directory inodes
-			 * (remote DFS directories) so to have them
-			 * instantiated again for automount
+			 * If the inode wasn't known to be a dfs entry when
+			 * the dentry was instantiated, such as when created
+			 * via ->readdir(), it needs to be set now since the
+			 * attributes will have been updated by
+			 * cifs_revalidate_dentry().
 			 */
-			if (IS_AUTOMOUNT(direntry->d_inode))
-				return 0;
+			if (IS_AUTOMOUNT(direntry->d_inode) &&
+			   !(direntry->d_flags & DCACHE_NEED_AUTOMOUNT)) {
+				spin_lock(&direntry->d_lock);
+				direntry->d_flags |= DCACHE_NEED_AUTOMOUNT;
+				spin_unlock(&direntry->d_lock);
+			}
+
 			return 1;
 		}
 	}

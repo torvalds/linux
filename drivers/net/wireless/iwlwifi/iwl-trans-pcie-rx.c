@@ -374,8 +374,9 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 	if (WARN_ON(!rxb))
 		return;
 
+	rxcb.truesize = PAGE_SIZE << hw_params(trans).rx_page_order;
 	dma_unmap_page(trans->dev, rxb->page_dma,
-		       PAGE_SIZE << hw_params(trans).rx_page_order,
+		       rxcb.truesize,
 		       DMA_FROM_DEVICE);
 
 	rxcb._page = rxb->page;
