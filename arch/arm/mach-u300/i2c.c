@@ -146,9 +146,6 @@ static struct ab3100_platform_data ab3100_plf_data = {
 				.min_uV = 1800000,
 				.max_uV = 1800000,
 				.valid_modes_mask = REGULATOR_MODE_NORMAL,
-				.valid_ops_mask =
-				REGULATOR_CHANGE_VOLTAGE |
-				REGULATOR_CHANGE_STATUS,
 				.always_on = 1,
 				.boot_on = 1,
 			},
@@ -160,9 +157,6 @@ static struct ab3100_platform_data ab3100_plf_data = {
 				.min_uV = 2500000,
 				.max_uV = 2500000,
 				.valid_modes_mask = REGULATOR_MODE_NORMAL,
-				.valid_ops_mask =
-				REGULATOR_CHANGE_VOLTAGE |
-				REGULATOR_CHANGE_STATUS,
 				.always_on = 1,
 				.boot_on = 1,
 			},
@@ -230,8 +224,7 @@ static struct ab3100_platform_data ab3100_plf_data = {
 				.max_uV = 1800000,
 				.valid_modes_mask = REGULATOR_MODE_NORMAL,
 				.valid_ops_mask =
-				REGULATOR_CHANGE_VOLTAGE |
-				REGULATOR_CHANGE_STATUS,
+				REGULATOR_CHANGE_VOLTAGE,
 				.always_on = 1,
 				.boot_on = 1,
 			},

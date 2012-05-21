@@ -215,6 +215,8 @@ static const match_table_t cifs_mount_option_tokens = {
 
 	{ Opt_ignore, "cred" },
 	{ Opt_ignore, "credentials" },
+	{ Opt_ignore, "cred=%s" },
+	{ Opt_ignore, "credentials=%s" },
 	{ Opt_ignore, "guest" },
 	{ Opt_ignore, "rw" },
 	{ Opt_ignore, "ro" },
@@ -2183,6 +2185,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	tcp_ses->session_estab = false;
 	tcp_ses->sequence_number = 0;
 	tcp_ses->lstrp = jiffies;
+	spin_lock_init(&tcp_ses->req_lock);
 	INIT_LIST_HEAD(&tcp_ses->tcp_ses_list);
 	INIT_LIST_HEAD(&tcp_ses->smb_ses_list);
 	INIT_DELAYED_WORK(&tcp_ses->echo, cifs_echo_request);
@@ -3228,10 +3231,6 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 
 	cifs_sb->mnt_uid = pvolume_info->linux_uid;
 	cifs_sb->mnt_gid = pvolume_info->linux_gid;
-	if (pvolume_info->backupuid_specified)
-		cifs_sb->mnt_backupuid = pvolume_info->backupuid;
-	if (pvolume_info->backupgid_specified)
-		cifs_sb->mnt_backupgid = pvolume_info->backupgid;
 	cifs_sb->mnt_file_mode = pvolume_info->file_mode;
 	cifs_sb->mnt_dir_mode = pvolume_info->dir_mode;
 	cFYI(1, "file mode: 0x%hx  dir mode: 0x%hx",
@@ -3262,10 +3261,14 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_RWPIDFORWARD;
 	if (pvolume_info->cifs_acl)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_ACL;
-	if (pvolume_info->backupuid_specified)
+	if (pvolume_info->backupuid_specified) {
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_BACKUPUID;
-	if (pvolume_info->backupgid_specified)
+		cifs_sb->mnt_backupuid = pvolume_info->backupuid;
+	}
+	if (pvolume_info->backupgid_specified) {
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_BACKUPGID;
+		cifs_sb->mnt_backupgid = pvolume_info->backupgid;
+	}
 	if (pvolume_info->override_uid)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_UID;
 	if (pvolume_info->override_gid)
@@ -3614,22 +3617,6 @@ cifs_get_volume_info(char *mount_data, const char *devname)
 	return volume_info;
 }
 
-/* make sure ra_pages is a multiple of rsize */
-static inline unsigned int
-cifs_ra_pages(struct cifs_sb_info *cifs_sb)
-{
-	unsigned int reads;
-	unsigned int rsize_pages = cifs_sb->rsize / PAGE_CACHE_SIZE;
-
-	if (rsize_pages >= default_backing_dev_info.ra_pages)
-		return default_backing_dev_info.ra_pages;
-	else if (rsize_pages == 0)
-		return rsize_pages;
-
-	reads = default_backing_dev_info.ra_pages / rsize_pages;
-	return reads * rsize_pages;
-}
-
 int
 cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 {
@@ -3717,7 +3704,7 @@ try_mount_again:
 	cifs_sb->rsize = cifs_negotiate_rsize(tcon, volume_info);
 
 	/* tune readahead according to rsize */
-	cifs_sb->bdi.ra_pages = cifs_ra_pages(cifs_sb);
+	cifs_sb->bdi.ra_pages = cifs_sb->rsize / PAGE_CACHE_SIZE;
 
 remote_path_check:
 #ifdef CONFIG_CIFS_DFS_UPCALL

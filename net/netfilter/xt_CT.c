@@ -227,7 +227,7 @@ static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 	}
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-	if (info->timeout) {
+	if (info->timeout[0]) {
 		typeof(nf_ct_timeout_find_get_hook) timeout_find_get;
 		struct nf_conn_timeout *timeout_ext;
 

@@ -574,9 +574,6 @@ extern struct ixgbe_info ixgbe_82599_info;
 extern struct ixgbe_info ixgbe_X540_info;
 #ifdef CONFIG_IXGBE_DCB
 extern const struct dcbnl_rtnl_ops dcbnl_ops;
-extern int ixgbe_copy_dcb_cfg(struct ixgbe_dcb_config *src_dcb_cfg,
-                              struct ixgbe_dcb_config *dst_dcb_cfg,
-                              int tc_max);
 #endif
 
 extern char ixgbe_driver_name[];

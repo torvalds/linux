@@ -5094,10 +5094,9 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 	nfs4_construct_boot_verifier(clp, &verifier);
 
 	args.id_len = scnprintf(args.id, sizeof(args.id),
-				"%s/%s.%s/%u",
+				"%s/%s/%u",
 				clp->cl_ipaddr,
-				init_utsname()->nodename,
-				init_utsname()->domainname,
+				clp->cl_rpcclient->cl_nodename,
 				clp->cl_rpcclient->cl_auth->au_flavor);
 
 	res.server_scope = kzalloc(sizeof(struct server_scope), GFP_KERNEL);

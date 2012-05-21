@@ -197,7 +197,7 @@ struct rpc_clnt *nfs4_create_sec_client(struct rpc_clnt *clnt, struct inode *ino
 	rpc_authflavor_t flavor;
 
 	flavor = nfs4_negotiate_security(inode, name);
-	if (flavor < 0)
+	if ((int)flavor < 0)
 		return ERR_PTR(flavor);
 
 	clone = rpc_clone_client(clnt);

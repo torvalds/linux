@@ -43,4 +43,37 @@ static inline unsigned long has_zero(unsigned long a)
 	return ((a - REPEAT_BYTE(0x01)) & ~a) & REPEAT_BYTE(0x80);
 }
 
+/*
+ * Load an unaligned word from kernel space.
+ *
+ * In the (very unlikely) case of the word being a page-crosser
+ * and the next page not being mapped, take the exception and
+ * return zeroes in the non-existing part.
+ */
+static inline unsigned long load_unaligned_zeropad(const void *addr)
+{
+	unsigned long ret, dummy;
+
+	asm(
+		"1:\tmov %2,%0\n"
+		"2:\n"
+		".section .fixup,\"ax\"\n"
+		"3:\t"
+		"lea %2,%1\n\t"
+		"and %3,%1\n\t"
+		"mov (%1),%0\n\t"
+		"leal %2,%%ecx\n\t"
+		"andl %4,%%ecx\n\t"
+		"shll $3,%%ecx\n\t"
+		"shr %%cl,%0\n\t"
+		"jmp 2b\n"
+		".previous\n"
+		_ASM_EXTABLE(1b, 3b)
+		:"=&r" (ret),"=&c" (dummy)
+		:"m" (*(unsigned long *)addr),
+		 "i" (-sizeof(unsigned long)),
+		 "i" (sizeof(unsigned long)-1));
+	return ret;
+}
+
 #endif /* _ASM_WORD_AT_A_TIME_H */
