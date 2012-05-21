@@ -1362,7 +1362,7 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 		goto err_core_alloc;
 	}
 
-	ret = ath6kl_core_init(ar);
+	ret = ath6kl_core_init(ar, ATH6KL_HTC_TYPE_MBOX);
 	if (ret) {
 		ath6kl_err("Failed to init ath6kl core\n");
 		goto err_core_alloc;

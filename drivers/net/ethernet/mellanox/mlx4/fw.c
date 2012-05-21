@@ -1164,9 +1164,8 @@ int mlx4_INIT_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 		if (err)
 			return err;
-		priv->mfunc.master.slave_state[slave].init_port_mask |=
-			(1 << port);
 	}
+	priv->mfunc.master.slave_state[slave].init_port_mask |= (1 << port);
 	++priv->mfunc.master.init_port_ref[port];
 	return 0;
 }

@@ -13,8 +13,6 @@
 
 #include <linux/if.h>
 #include <linux/if_arp.h>
-#include <linux/if_tr.h>
-#include <linux/trdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/ctype.h>
@@ -676,8 +674,6 @@ struct qeth_card_options {
 	struct qeth_ipa_info adp; /*Adapter parameters*/
 	struct qeth_routing_info route6;
 	struct qeth_ipa_info ipa6;
-	int broadcast_mode;
-	int macaddr_mode;
 	int fake_broadcast;
 	int add_hhlen;
 	int layer2;

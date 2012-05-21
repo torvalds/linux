@@ -610,17 +610,20 @@ type_pf_head(struct ip_set *set, struct sk_buff *skb)
 	nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
 	if (!nested)
 		goto nla_put_failure;
-	NLA_PUT_NET32(skb, IPSET_ATTR_HASHSIZE,
-		      htonl(jhash_size(h->table->htable_bits)));
-	NLA_PUT_NET32(skb, IPSET_ATTR_MAXELEM, htonl(h->maxelem));
+	if (nla_put_net32(skb, IPSET_ATTR_HASHSIZE,
+			  htonl(jhash_size(h->table->htable_bits))) ||
+	    nla_put_net32(skb, IPSET_ATTR_MAXELEM, htonl(h->maxelem)))
+		goto nla_put_failure;
 #ifdef IP_SET_HASH_WITH_NETMASK
-	if (h->netmask != HOST_MASK)
-		NLA_PUT_U8(skb, IPSET_ATTR_NETMASK, h->netmask);
+	if (h->netmask != HOST_MASK &&
+	    nla_put_u8(skb, IPSET_ATTR_NETMASK, h->netmask))
+		goto nla_put_failure;
 #endif
-	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1));
-	NLA_PUT_NET32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize));
-	if (with_timeout(h->timeout))
-		NLA_PUT_NET32(skb, IPSET_ATTR_TIMEOUT, htonl(h->timeout));
+	if (nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1)) ||
+	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)) ||
+	    (with_timeout(h->timeout) &&
+	     nla_put_net32(skb, IPSET_ATTR_TIMEOUT, htonl(h->timeout))))
+		goto nla_put_failure;
 	ipset_nest_end(skb, nested);
 
 	return 0;

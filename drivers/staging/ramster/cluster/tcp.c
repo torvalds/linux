@@ -2106,7 +2106,7 @@ static int r2net_open_listening_sock(__be32 addr, __be16 port)
 	r2net_listen_sock = sock;
 	INIT_WORK(&r2net_listen_work, r2net_accept_many);
 
-	sock->sk->sk_reuse = 1;
+	sock->sk->sk_reuse = SK_CAN_REUSE;
 	ret = sock->ops->bind(sock, (struct sockaddr *)&sin, sizeof(sin));
 	if (ret < 0) {
 		printk(KERN_ERR "ramster: Error %d while binding socket at "

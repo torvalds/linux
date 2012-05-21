@@ -313,7 +313,7 @@ static int run_filter(struct tap_filter *filter, const struct sk_buff *skb)
 
 	/* Exact match */
 	for (i = 0; i < filter->count; i++)
-		if (!compare_ether_addr(eh->h_dest, filter->addr[i]))
+		if (ether_addr_equal(eh->h_dest, filter->addr[i]))
 			return 1;
 
 	/* Inexact match (multicast only) */

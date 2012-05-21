@@ -321,8 +321,8 @@ config AU1000_FIR
 	  Say M to build a module; it will be called au1k_ir.ko
 
 config SMC_IRCC_FIR
-	tristate "SMSC IrCC (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && IRDA && ISA_DMA_API
+	tristate "SMSC IrCC"
+	depends on IRDA && ISA_DMA_API
 	help
 	  Say Y here if you want to build support for the SMC Infrared
 	  Communications Controller.  It is used in a wide variety of

@@ -40,6 +40,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -460,7 +462,7 @@ void ath5k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	}
 
 	if (iter_data->need_set_hw_addr && iter_data->hw_macaddr)
-		if (compare_ether_addr(iter_data->hw_macaddr, mac) == 0)
+		if (ether_addr_equal(iter_data->hw_macaddr, mac))
 			iter_data->need_set_hw_addr = false;
 
 	if (!iter_data->any_assoc) {
@@ -1168,7 +1170,7 @@ ath5k_check_ibss_tsf(struct ath5k_hw *ah, struct sk_buff *skb,
 
 	if (ieee80211_is_beacon(mgmt->frame_control) &&
 	    le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS &&
-	    memcmp(mgmt->bssid, common->curbssid, ETH_ALEN) == 0) {
+	    ether_addr_equal(mgmt->bssid, common->curbssid)) {
 		/*
 		 * Received an IBSS beacon with the same BSSID. Hardware *must*
 		 * have updated the local TSF. We have to work around various
@@ -1232,7 +1234,7 @@ ath5k_update_beacon_rssi(struct ath5k_hw *ah, struct sk_buff *skb, int rssi)
 
 	/* only beacons from our BSSID */
 	if (!ieee80211_is_beacon(mgmt->frame_control) ||
-	    memcmp(mgmt->bssid, common->curbssid, ETH_ALEN) != 0)
+	    !ether_addr_equal(mgmt->bssid, common->curbssid))
 		return;
 
 	ewma_add(&ah->ah_beacon_rssi_avg, rssi);
@@ -3037,4 +3039,24 @@ ath5k_set_beacon_filter(struct ieee80211_hw *hw, bool enable)
 		rfilt &= ~AR5K_RX_FILTER_BEACON;
 	ath5k_hw_set_rx_filter(ah, rfilt);
 	ah->filter_flags = rfilt;
+}
+
+void _ath5k_printk(const struct ath5k_hw *ah, const char *level,
+		   const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	if (ah && ah->hw)
+		printk("%s" pr_fmt("%s: %pV"),
+		       level, wiphy_name(ah->hw->wiphy), &vaf);
+	else
+		printk("%s" pr_fmt("%pV"), level, &vaf);
+
+	va_end(args);
 }

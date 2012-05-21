@@ -628,6 +628,40 @@ brcms_c_country_aggregate_map(struct brcms_cm_info *wlc_cm, const char *ccode,
 	return false;
 }
 
+/*
+ * Indicates whether the country provided is valid to pass
+ * to cfg80211 or not.
+ *
+ * returns true if valid; false if not.
+ */
+static bool brcms_c_country_valid(const char *ccode)
+{
+	/*
+	 * only allow ascii alpha uppercase for the first 2
+	 * chars.
+	 */
+	if (!((0x80 & ccode[0]) == 0 && ccode[0] >= 0x41 && ccode[0] <= 0x5A &&
+	      (0x80 & ccode[1]) == 0 && ccode[1] >= 0x41 && ccode[1] <= 0x5A &&
+	      ccode[2] == '\0'))
+		return false;
+
+	/*
+	 * do not match ISO 3166-1 user assigned country codes
+	 * that may be in the driver table
+	 */
+	if (!strcmp("AA", ccode) ||        /* AA */
+	    !strcmp("ZZ", ccode) ||        /* ZZ */
+	    ccode[0] == 'X' ||             /* XA - XZ */
+	    (ccode[0] == 'Q' &&            /* QM - QZ */
+	     (ccode[1] >= 'M' && ccode[1] <= 'Z')))
+		return false;
+
+	if (!strcmp("NA", ccode))
+		return false;
+
+	return true;
+}
+
 /* Lookup a country info structure from a null terminated country
  * abbreviation and regrev directly with no translation.
  */
@@ -1089,7 +1123,7 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 
 	/* store the country code for passing up as a regulatory hint */
 	ccode = getvar(wlc->hw->sih, BRCMS_SROM_CCODE);
-	if (ccode)
+	if (ccode && brcms_c_country_valid(ccode))
 		strncpy(wlc->pub->srom_ccode, ccode, BRCM_CNTRY_BUF_SZ - 1);
 
 	/*

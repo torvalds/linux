@@ -62,10 +62,12 @@ struct nfc_ops {
 	int (*data_exchange)(struct nfc_dev *dev, u32 target_idx,
 			     struct sk_buff *skb, data_exchange_cb_t cb,
 			     void *cb_context);
+	int (*check_presence)(struct nfc_dev *dev, u32 target_idx);
 };
 
 #define NFC_TARGET_IDX_ANY -1
 #define NFC_MAX_GT_LEN 48
+#define NFC_TARGET_IDX_NONE 0xffffffff
 
 struct nfc_target {
 	u32 idx;
@@ -78,6 +80,8 @@ struct nfc_target {
 	u8 sensb_res[NFC_SENSB_RES_MAXSIZE];
 	u8 sensf_res_len;
 	u8 sensf_res[NFC_SENSF_RES_MAXSIZE];
+	u8 hci_reader_gate;
+	u8 logical_idx;
 };
 
 struct nfc_genl_data {
@@ -86,7 +90,8 @@ struct nfc_genl_data {
 };
 
 struct nfc_dev {
-	unsigned idx;
+	unsigned int idx;
+	u32 target_next_idx;
 	struct nfc_target *targets;
 	int n_targets;
 	int targets_generation;
@@ -94,7 +99,7 @@ struct nfc_dev {
 	struct device dev;
 	bool dev_up;
 	bool polling;
-	bool remote_activated;
+	u32 activated_target_idx;
 	bool dep_link_up;
 	u32 dep_rf_mode;
 	struct nfc_genl_data genl_data;
@@ -102,6 +107,10 @@ struct nfc_dev {
 
 	int tx_headroom;
 	int tx_tailroom;
+
+	struct timer_list check_pres_timer;
+	struct workqueue_struct *check_pres_wq;
+	struct work_struct check_pres_work;
 
 	struct nfc_ops *ops;
 };
@@ -181,6 +190,7 @@ int nfc_set_remote_general_bytes(struct nfc_dev *dev,
 
 int nfc_targets_found(struct nfc_dev *dev,
 		      struct nfc_target *targets, int ntargets);
+int nfc_target_lost(struct nfc_dev *dev, u32 target_idx);
 
 int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 		       u8 comm_mode, u8 rf_mode);

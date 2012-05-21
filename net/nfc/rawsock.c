@@ -92,6 +92,12 @@ static int rawsock_connect(struct socket *sock, struct sockaddr *_addr,
 		goto error;
 	}
 
+	if (addr->target_idx > dev->target_next_idx - 1 ||
+	    addr->target_idx < dev->target_next_idx - dev->n_targets) {
+		rc = -EINVAL;
+		goto error;
+	}
+
 	rc = nfc_activate_target(dev, addr->target_idx, addr->nfc_protocol);
 	if (rc)
 		goto put_dev;

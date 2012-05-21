@@ -976,57 +976,6 @@ static inline u8 qeth_l3_get_qeth_hdr_flags6(int cast_type)
 	return ct | QETH_CAST_UNICAST;
 }
 
-static int qeth_l3_send_setadp_mode(struct qeth_card *card, __u32 command,
-					__u32 mode)
-{
-	int rc;
-	struct qeth_cmd_buffer *iob;
-	struct qeth_ipa_cmd *cmd;
-
-	QETH_CARD_TEXT(card, 4, "adpmode");
-
-	iob = qeth_get_adapter_cmd(card, command,
-				   sizeof(struct qeth_ipacmd_setadpparms));
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
-	cmd->data.setadapterparms.data.mode = mode;
-	rc = qeth_send_ipa_cmd(card, iob, qeth_default_setadapterparms_cb,
-			       NULL);
-	return rc;
-}
-
-static int qeth_l3_setadapter_hstr(struct qeth_card *card)
-{
-	int rc;
-
-	QETH_CARD_TEXT(card, 4, "adphstr");
-
-	if (qeth_adp_supported(card, IPA_SETADP_SET_BROADCAST_MODE)) {
-		rc = qeth_l3_send_setadp_mode(card,
-					IPA_SETADP_SET_BROADCAST_MODE,
-					card->options.broadcast_mode);
-		if (rc)
-			QETH_DBF_MESSAGE(2, "couldn't set broadcast mode on "
-				   "device %s: x%x\n",
-				   CARD_BUS_ID(card), rc);
-		rc = qeth_l3_send_setadp_mode(card,
-					IPA_SETADP_ALTER_MAC_ADDRESS,
-					card->options.macaddr_mode);
-		if (rc)
-			QETH_DBF_MESSAGE(2, "couldn't set macaddr mode on "
-				   "device %s: x%x\n", CARD_BUS_ID(card), rc);
-		return rc;
-	}
-	if (card->options.broadcast_mode == QETH_TR_BROADCAST_LOCAL)
-		QETH_DBF_MESSAGE(2, "set adapter parameters not available "
-			   "to set broadcast mode, using ALLRINGS "
-			   "on device %s:\n", CARD_BUS_ID(card));
-	if (card->options.macaddr_mode == QETH_TR_MACADDR_CANONICAL)
-		QETH_DBF_MESSAGE(2, "set adapter parameters not available "
-			   "to set macaddr mode, using NONCANONICAL "
-			   "on device %s:\n", CARD_BUS_ID(card));
-	return 0;
-}
-
 static int qeth_l3_setadapter_parms(struct qeth_card *card)
 {
 	int rc;
@@ -1051,10 +1000,6 @@ static int qeth_l3_setadapter_parms(struct qeth_card *card)
 			dev_warn(&card->gdev->dev, "Reading the adapter MAC"
 				" address failed\n");
 	}
-
-	if ((card->info.link_type == QETH_LINK_TYPE_HSTR) ||
-	    (card->info.link_type == QETH_LINK_TYPE_LANE_TR))
-		rc = qeth_l3_setadapter_hstr(card);
 
 	return rc;
 }
@@ -1671,10 +1616,7 @@ qeth_diags_trace(struct qeth_card *card, enum qeth_diags_trace_cmds diags_cmd)
 static void qeth_l3_get_mac_for_ipm(__u32 ipm, char *mac,
 				struct net_device *dev)
 {
-	if (dev->type == ARPHRD_IEEE802_TR)
-		ip_tr_mc_map(ipm, mac);
-	else
-		ip_eth_mc_map(ipm, mac);
+	ip_eth_mc_map(ipm, mac);
 }
 
 static void qeth_l3_add_mc(struct qeth_card *card, struct in_device *in4_dev)
@@ -1922,8 +1864,6 @@ static inline int qeth_l3_rebuild_skb(struct qeth_card *card,
 #endif
 			case __constant_htons(ETH_P_IP):
 				ip_hdr = (struct iphdr *)skb->data;
-				(card->dev->type == ARPHRD_IEEE802_TR) ?
-				ip_tr_mc_map(ip_hdr->daddr, tg_addr):
 				ip_eth_mc_map(ip_hdr->daddr, tg_addr);
 				break;
 			default:
@@ -1959,12 +1899,7 @@ static inline int qeth_l3_rebuild_skb(struct qeth_card *card,
 				tg_addr, "FAKELL", card->dev->addr_len);
 	}
 
-#ifdef CONFIG_TR
-	if (card->dev->type == ARPHRD_IEEE802_TR)
-		skb->protocol = tr_type_trans(skb, card->dev);
-	else
-#endif
-		skb->protocol = eth_type_trans(skb, card->dev);
+	skb->protocol = eth_type_trans(skb, card->dev);
 
 	if (hdr->hdr.l3.ext_flags &
 	    (QETH_HDR_EXT_VLAN_FRAME | QETH_HDR_EXT_INCLUDE_VLAN_TAG)) {
@@ -2138,7 +2073,7 @@ static int qeth_l3_verify_vlan_dev(struct net_device *dev,
 		struct net_device *netdev;
 
 		rcu_read_lock();
-		netdev = __vlan_find_dev_deep(dev, vid);
+		netdev = __vlan_find_dev_deep(card->dev, vid);
 		rcu_read_unlock();
 		if (netdev == dev) {
 			rc = QETH_VLAN_CARD;
@@ -2883,13 +2818,7 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 			hdr->hdr.l3.flags &= ~QETH_HDR_PASSTHRU;
 		memcpy(hdr->hdr.l3.dest_addr, pkey, 16);
 	} else {
-		/* passthrough */
-		if ((skb->dev->type == ARPHRD_IEEE802_TR) &&
-			!memcmp(skb->data + sizeof(struct qeth_hdr) +
-			sizeof(__u16), skb->dev->broadcast, 6)) {
-			hdr->hdr.l3.flags = QETH_CAST_BROADCAST |
-						QETH_HDR_PASSTHRU;
-		} else if (!memcmp(skb->data + sizeof(struct qeth_hdr),
+		if (!memcmp(skb->data + sizeof(struct qeth_hdr),
 			    skb->dev->broadcast, 6)) {
 			/* broadcast? */
 			hdr->hdr.l3.flags = QETH_CAST_BROADCAST |
@@ -3031,10 +2960,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_pull(new_skb, ETH_HLEN);
 	} else {
 		if (ipv == 4) {
-			if (card->dev->type == ARPHRD_IEEE802_TR)
-				skb_pull(new_skb, TR_HLEN);
-			else
-				skb_pull(new_skb, ETH_HLEN);
+			skb_pull(new_skb, ETH_HLEN);
 		}
 
 		if (ipv != 4 && vlan_tx_tag_present(new_skb)) {
@@ -3318,12 +3244,8 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	    card->info.type == QETH_CARD_TYPE_OSX) {
 		if ((card->info.link_type == QETH_LINK_TYPE_LANE_TR) ||
 		    (card->info.link_type == QETH_LINK_TYPE_HSTR)) {
-#ifdef CONFIG_TR
-			card->dev = alloc_trdev(0);
-#endif
-			if (!card->dev)
-				return -ENODEV;
-			card->dev->netdev_ops = &qeth_l3_netdev_ops;
+			pr_info("qeth_l3: ignoring TR device\n");
+			return -ENODEV;
 		} else {
 			card->dev = alloc_etherdev(0);
 			if (!card->dev)
@@ -3680,9 +3602,9 @@ static int qeth_l3_ip_event(struct notifier_block *this,
 		return NOTIFY_DONE;
 
 	card = qeth_l3_get_card_from_dev(dev);
-	QETH_CARD_TEXT(card, 3, "ipevent");
 	if (!card)
 		return NOTIFY_DONE;
+	QETH_CARD_TEXT(card, 3, "ipevent");
 
 	addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV4);
 	if (addr != NULL) {

@@ -63,6 +63,7 @@
 
 #include <linux/interrupt.h>
 #include "iwl-debug.h"
+#include "iwl-devtrace.h"
 
 #define __iwl_fn(fn)						\
 void __iwl_ ##fn(struct device *dev, const char *fmt, ...)	\

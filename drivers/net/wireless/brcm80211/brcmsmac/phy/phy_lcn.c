@@ -207,8 +207,7 @@ static const iqcal_gain_params_lcnphy *tbl_iqcal_gainparams_lcnphy[1] = {
 };
 
 static const u16 iqcal_gainparams_numgains_lcnphy[1] = {
-	sizeof(tbl_iqcal_gainparams_lcnphy_2G) /
-	sizeof(*tbl_iqcal_gainparams_lcnphy_2G),
+	ARRAY_SIZE(tbl_iqcal_gainparams_lcnphy_2G),
 };
 
 static const struct lcnphy_sfo_cfg lcnphy_sfo_cfg[] = {

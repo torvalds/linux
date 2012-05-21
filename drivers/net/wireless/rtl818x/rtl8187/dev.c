@@ -294,6 +294,7 @@ static void rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		hdr->retry = cpu_to_le32((info->control.rates[0].count - 1) << 8);
 		hdr->tx_duration =
 			ieee80211_generic_frame_duration(dev, priv->vif,
+							 info->band,
 							 skb->len, txrate);
 		buf = hdr;
 

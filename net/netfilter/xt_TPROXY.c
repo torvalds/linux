@@ -282,10 +282,10 @@ tproxy_tg6_v1(struct sk_buff *skb, const struct xt_action_param *par)
 	struct sock *sk;
 	const struct in6_addr *laddr;
 	__be16 lport;
-	int thoff;
+	int thoff = 0;
 	int tproto;
 
-	tproto = ipv6_find_hdr(skb, &thoff, -1, NULL);
+	tproto = ipv6_find_hdr(skb, &thoff, -1, NULL, NULL);
 	if (tproto < 0) {
 		pr_debug("unable to find transport header in IPv6 packet, dropping\n");
 		return NF_DROP;

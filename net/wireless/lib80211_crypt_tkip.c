@@ -360,12 +360,9 @@ static int lib80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	struct scatterlist sg;
 
 	if (tkey->flags & IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) {
-		if (net_ratelimit()) {
-			struct ieee80211_hdr *hdr =
-			    (struct ieee80211_hdr *)skb->data;
-			printk(KERN_DEBUG ": TKIP countermeasures: dropped "
-			       "TX packet to %pM\n", hdr->addr1);
-		}
+		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+		net_dbg_ratelimited("TKIP countermeasures: dropped TX packet to %pM\n",
+				    hdr->addr1);
 		return -1;
 	}
 
@@ -420,10 +417,8 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	hdr = (struct ieee80211_hdr *)skb->data;
 
 	if (tkey->flags & IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) {
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG ": TKIP countermeasures: dropped "
-			       "received packet from %pM\n", hdr->addr2);
-		}
+		net_dbg_ratelimited("TKIP countermeasures: dropped received packet from %pM\n",
+				    hdr->addr2);
 		return -1;
 	}
 
@@ -433,10 +428,8 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TKIP: received packet without ExtIV"
-			       " flag from %pM\n", hdr->addr2);
-		}
+		net_dbg_ratelimited("TKIP: received packet without ExtIV flag from %pM\n",
+				    hdr->addr2);
 		return -2;
 	}
 	keyidx >>= 6;
@@ -446,11 +439,8 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -6;
 	}
 	if (!tkey->key_set) {
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TKIP: received packet from %pM"
-			       " with keyid=%d that does not have a configured"
-			       " key\n", hdr->addr2, keyidx);
-		}
+		net_dbg_ratelimited("TKIP: received packet from %pM with keyid=%d that does not have a configured key\n",
+				    hdr->addr2, keyidx);
 		return -3;
 	}
 	iv16 = (pos[0] << 8) | pos[2];
@@ -459,12 +449,9 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (tkip_replay_check(iv32, iv16, tkey->rx_iv32, tkey->rx_iv16)) {
 #ifdef CONFIG_LIB80211_DEBUG
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TKIP: replay detected: STA=%pM"
-			       " previous TSC %08x%04x received TSC "
-			       "%08x%04x\n", hdr->addr2,
-			       tkey->rx_iv32, tkey->rx_iv16, iv32, iv16);
-		}
+		net_dbg_ratelimited("TKIP: replay detected: STA=%pM previous TSC %08x%04x received TSC %08x%04x\n",
+				    hdr->addr2, tkey->rx_iv32, tkey->rx_iv16,
+				    iv32, iv16);
 #endif
 		tkey->dot11RSNAStatsTKIPReplays++;
 		return -4;
@@ -481,11 +468,8 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	crypto_blkcipher_setkey(tkey->rx_tfm_arc4, rc4key, 16);
 	sg_init_one(&sg, pos, plen + 4);
 	if (crypto_blkcipher_decrypt(&desc, &sg, &sg, plen + 4)) {
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG ": TKIP: failed to decrypt "
-			       "received packet from %pM\n",
-			       hdr->addr2);
-		}
+		net_dbg_ratelimited("TKIP: failed to decrypt received packet from %pM\n",
+				    hdr->addr2);
 		return -7;
 	}
 
@@ -501,10 +485,8 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			tkey->rx_phase1_done = 0;
 		}
 #ifdef CONFIG_LIB80211_DEBUG
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TKIP: ICV error detected: STA="
-			       "%pM\n", hdr->addr2);
-		}
+		net_dbg_ratelimited("TKIP: ICV error detected: STA=%pM\n",
+				    hdr->addr2);
 #endif
 		tkey->dot11RSNAStatsTKIPICVErrors++;
 		return -5;

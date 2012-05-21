@@ -47,7 +47,7 @@ static void *didd_callback(void *context, DESCRIPTOR *adapter,
 /*
  * connect to didd
  */
-static int DIVA_INIT_FUNCTION connect_didd(void)
+static int __init connect_didd(void)
 {
 	int x = 0;
 	int dadapter = 0;
@@ -79,7 +79,7 @@ static int DIVA_INIT_FUNCTION connect_didd(void)
 /*
  * disconnect from didd
  */
-static void DIVA_EXIT_FUNCTION disconnect_didd(void)
+static void __exit disconnect_didd(void)
 {
 	IDI_SYNC_REQ req;
 
@@ -92,7 +92,7 @@ static void DIVA_EXIT_FUNCTION disconnect_didd(void)
 /*
  * init
  */
-int DIVA_INIT_FUNCTION diddfunc_init(void)
+int __init diddfunc_init(void)
 {
 	diva_didd_load_time_init();
 
@@ -107,7 +107,7 @@ int DIVA_INIT_FUNCTION diddfunc_init(void)
 /*
  * finit
  */
-void DIVA_EXIT_FUNCTION diddfunc_finit(void)
+void __exit diddfunc_finit(void)
 {
 	DbgDeregister();
 	disconnect_didd();

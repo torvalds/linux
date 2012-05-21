@@ -1431,6 +1431,7 @@ F:	include/linux/backlight.h
 BATMAN ADVANCED
 M:	Marek Lindner <lindner_marek@yahoo.de>
 M:	Simon Wunderlich <siwu@hrz.tu-chemnitz.de>
+M:	Antonio Quartulli <ordex@autistici.org>
 L:	b.a.t.m.a.n@lists.open-mesh.org
 W:	http://www.open-mesh.org/
 S:	Maintained
@@ -3518,12 +3519,6 @@ M:	Deepak Saxena <dsaxena@plexity.net>
 S:	Maintained
 F:	drivers/char/hw_random/ixp4xx-rng.c
 
-INTEL IXP2000 ETHERNET DRIVER
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/ethernet/xscale/ixp2000/
-
 INTEL ETHERNET DRIVERS (e100/e1000/e1000e/igb/igbvf/ixgb/ixgbe/ixgbevf)
 M:	Jeff Kirsher <jeffrey.t.kirsher@intel.com>
 M:	Jesse Brandeburg <jesse.brandeburg@intel.com>
@@ -5208,7 +5203,7 @@ S:	Maintained
 F:	include/linux/personality.h
 
 PHONET PROTOCOL
-M:	Remi Denis-Courmont <remi.denis-courmont@nokia.com>
+M:	Remi Denis-Courmont <courmisch@gmail.com>
 S:	Supported
 F:	Documentation/networking/phonet.txt
 F:	include/linux/phonet.h
@@ -6676,6 +6671,16 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/soc/codecs/twl4030*
 
+TI WILINK WIRELESS DRIVERS
+M:	Luciano Coelho <coelho@ti.com>
+L:	linux-wireless@vger.kernel.org
+W:	http://wireless.kernel.org/en/users/Drivers/wl12xx
+W:	http://wireless.kernel.org/en/users/Drivers/wl1251
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/luca/wl12xx.git
+S:	Maintained
+F:	drivers/net/wireless/ti/
+F:	include/linux/wl12xx.h
+
 TIPC NETWORK LAYER
 M:	Jon Maloy <jon.maloy@ericsson.com>
 M:	Allan Stephens <allan.stephens@windriver.com>
@@ -7431,23 +7436,6 @@ WISTRON LAPTOP BUTTON DRIVER
 M:	Miloslav Trmac <mitr@volny.cz>
 S:	Maintained
 F:	drivers/input/misc/wistron_btns.c
-
-WL1251 WIRELESS DRIVER
-M:	Luciano Coelho <coelho@ti.com>
-L:	linux-wireless@vger.kernel.org
-W:	http://wireless.kernel.org/en/users/Drivers/wl1251
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
-S:	Maintained
-F:	drivers/net/wireless/wl1251/*
-
-WL1271 WIRELESS DRIVER
-M:	Luciano Coelho <coelho@ti.com>
-L:	linux-wireless@vger.kernel.org
-W:	http://wireless.kernel.org/en/users/Drivers/wl12xx
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/luca/wl12xx.git
-S:	Maintained
-F:	drivers/net/wireless/wl12xx/
-F:	include/linux/wl12xx.h
 
 WL3501 WIRELESS PCMCIA CARD DRIVER
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>

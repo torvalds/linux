@@ -129,4 +129,3 @@ void tipc_handler_stop(void)
 
 	kmem_cache_destroy(tipc_queue_item_cache);
 }
-

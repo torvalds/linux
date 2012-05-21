@@ -907,6 +907,101 @@ mwifiex_cmd_pcie_host_spec(struct mwifiex_private *priv,
 }
 
 /*
+ * This function prepares command for event subscription, configuration
+ * and query. Events can be subscribed or unsubscribed. Current subscribed
+ * events can be queried. Also, current subscribed events are reported in
+ * every FW response.
+ */
+static int
+mwifiex_cmd_802_11_subsc_evt(struct mwifiex_private *priv,
+			     struct host_cmd_ds_command *cmd,
+			     struct mwifiex_ds_misc_subsc_evt *subsc_evt_cfg)
+{
+	struct host_cmd_ds_802_11_subsc_evt *subsc_evt = &cmd->params.subsc_evt;
+	struct mwifiex_ie_types_rssi_threshold *rssi_tlv;
+	u16 event_bitmap;
+	u8 *pos;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_802_11_SUBSCRIBE_EVENT);
+	cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_802_11_subsc_evt) +
+				S_DS_GEN);
+
+	subsc_evt->action = cpu_to_le16(subsc_evt_cfg->action);
+	dev_dbg(priv->adapter->dev, "cmd: action: %d\n", subsc_evt_cfg->action);
+
+	/*For query requests, no configuration TLV structures are to be added.*/
+	if (subsc_evt_cfg->action == HostCmd_ACT_GEN_GET)
+		return 0;
+
+	subsc_evt->events = cpu_to_le16(subsc_evt_cfg->events);
+
+	event_bitmap = subsc_evt_cfg->events;
+	dev_dbg(priv->adapter->dev, "cmd: event bitmap : %16x\n",
+		event_bitmap);
+
+	if (((subsc_evt_cfg->action == HostCmd_ACT_BITWISE_CLR) ||
+	     (subsc_evt_cfg->action == HostCmd_ACT_BITWISE_SET)) &&
+	    (event_bitmap == 0)) {
+		dev_dbg(priv->adapter->dev, "Error: No event specified "
+			"for bitwise action type\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Append TLV structures for each of the specified events for
+	 * subscribing or re-configuring. This is not required for
+	 * bitwise unsubscribing request.
+	 */
+	if (subsc_evt_cfg->action == HostCmd_ACT_BITWISE_CLR)
+		return 0;
+
+	pos = ((u8 *)subsc_evt) +
+			sizeof(struct host_cmd_ds_802_11_subsc_evt);
+
+	if (event_bitmap & BITMASK_BCN_RSSI_LOW) {
+		rssi_tlv = (struct mwifiex_ie_types_rssi_threshold *) pos;
+
+		rssi_tlv->header.type = cpu_to_le16(TLV_TYPE_RSSI_LOW);
+		rssi_tlv->header.len =
+		    cpu_to_le16(sizeof(struct mwifiex_ie_types_rssi_threshold) -
+				sizeof(struct mwifiex_ie_types_header));
+		rssi_tlv->abs_value = subsc_evt_cfg->bcn_l_rssi_cfg.abs_value;
+		rssi_tlv->evt_freq = subsc_evt_cfg->bcn_l_rssi_cfg.evt_freq;
+
+		dev_dbg(priv->adapter->dev, "Cfg Beacon Low Rssi event, "
+			"RSSI:-%d dBm, Freq:%d\n",
+			subsc_evt_cfg->bcn_l_rssi_cfg.abs_value,
+			subsc_evt_cfg->bcn_l_rssi_cfg.evt_freq);
+
+		pos += sizeof(struct mwifiex_ie_types_rssi_threshold);
+		le16_add_cpu(&cmd->size,
+			     sizeof(struct mwifiex_ie_types_rssi_threshold));
+	}
+
+	if (event_bitmap & BITMASK_BCN_RSSI_HIGH) {
+		rssi_tlv = (struct mwifiex_ie_types_rssi_threshold *) pos;
+
+		rssi_tlv->header.type = cpu_to_le16(TLV_TYPE_RSSI_HIGH);
+		rssi_tlv->header.len =
+		    cpu_to_le16(sizeof(struct mwifiex_ie_types_rssi_threshold) -
+				sizeof(struct mwifiex_ie_types_header));
+		rssi_tlv->abs_value = subsc_evt_cfg->bcn_h_rssi_cfg.abs_value;
+		rssi_tlv->evt_freq = subsc_evt_cfg->bcn_h_rssi_cfg.evt_freq;
+
+		dev_dbg(priv->adapter->dev, "Cfg Beacon High Rssi event, "
+			"RSSI:-%d dBm, Freq:%d\n",
+			subsc_evt_cfg->bcn_h_rssi_cfg.abs_value,
+			subsc_evt_cfg->bcn_h_rssi_cfg.evt_freq);
+
+		pos += sizeof(struct mwifiex_ie_types_rssi_threshold);
+		le16_add_cpu(&cmd->size,
+			     sizeof(struct mwifiex_ie_types_rssi_threshold));
+	}
+
+	return 0;
+}
+
+/*
  * This function prepares the commands before sending them to the firmware.
  *
  * This is a generic function which calls specific command preparation
@@ -1086,6 +1181,9 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_PCIE_DESC_DETAILS:
 		ret = mwifiex_cmd_pcie_host_spec(priv, cmd_ptr, cmd_action);
 		break;
+	case HostCmd_CMD_802_11_SUBSCRIBE_EVENT:
+		ret = mwifiex_cmd_802_11_subsc_evt(priv, cmd_ptr, data_buf);
+		break;
 	default:
 		dev_err(priv->adapter->dev,
 			"PREP_CMD: unknown cmd- %#x\n", cmd_no);
@@ -1195,7 +1293,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 	if (ret)
 		return -1;
 
-	if (first_sta) {
+	if (first_sta && (priv->adapter->iface_type != MWIFIEX_USB)) {
 		/* Enable auto deep sleep */
 		auto_ds.auto_ds = DEEP_SLEEP_ON;
 		auto_ds.idle_time = DEEP_SLEEP_IDLE_TIME;

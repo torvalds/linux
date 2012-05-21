@@ -66,6 +66,7 @@ head-y                 += arch/sparc/kernel/init_task.o
 
 core-y                 += arch/sparc/kernel/
 core-y                 += arch/sparc/mm/ arch/sparc/math-emu/
+core-y                 += arch/sparc/net/
 
 libs-y                 += arch/sparc/prom/
 libs-y                 += arch/sparc/lib/

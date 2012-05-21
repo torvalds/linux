@@ -544,14 +544,11 @@ static void svc_check_conn_limits(struct svc_serv *serv)
 		struct svc_xprt *xprt = NULL;
 		spin_lock_bh(&serv->sv_lock);
 		if (!list_empty(&serv->sv_tempsocks)) {
-			if (net_ratelimit()) {
-				/* Try to help the admin */
-				printk(KERN_NOTICE "%s: too many open  "
-				       "connections, consider increasing %s\n",
-				       serv->sv_name, serv->sv_maxconn ?
-				       "the max number of connections." :
-				       "the number of threads.");
-			}
+			/* Try to help the admin */
+			net_notice_ratelimited("%s: too many open connections, consider increasing the %s\n",
+					       serv->sv_name, serv->sv_maxconn ?
+					       "max number of connections" :
+					       "number of threads");
 			/*
 			 * Always select the oldest connection. It's not fair,
 			 * but so is life

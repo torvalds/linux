@@ -21,13 +21,6 @@
 /* Maximum number of LEC interfaces (tweakable) */
 #define MAX_LEC_ITF 48
 
-/*
- * From the total of MAX_LEC_ITF, last NUM_TR_DEVS are reserved for Token Ring.
- * E.g. if MAX_LEC_ITF = 48 and NUM_TR_DEVS = 8, then lec0-lec39 are for
- * Ethernet ELANs and lec40-lec47 are for Token Ring ELANS.
- */
-#define NUM_TR_DEVS 8
-
 typedef enum {
 	l_set_mac_addr,
 	l_del_mac_addr,

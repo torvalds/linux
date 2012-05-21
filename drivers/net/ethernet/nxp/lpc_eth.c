@@ -990,10 +990,10 @@ static int __lpc_handle_recv(struct net_device *ndev, int budget)
 			ndev->stats.rx_errors++;
 		} else {
 			/* Packet is good */
-			skb = dev_alloc_skb(len + 8);
-			if (!skb)
+			skb = dev_alloc_skb(len);
+			if (!skb) {
 				ndev->stats.rx_dropped++;
-			else {
+			} else {
 				prdbuf = skb_put(skb, len);
 
 				/* Copy packet from buffer */

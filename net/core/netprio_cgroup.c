@@ -9,6 +9,8 @@
  * Authors:	Neil Horman <nhorman@tuxdriver.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -88,7 +90,7 @@ static void extend_netdev_table(struct net_device *dev, u32 new_len)
 	old_priomap  = rtnl_dereference(dev->priomap);
 
 	if (!new_priomap) {
-		printk(KERN_WARNING "Unable to alloc new priomap!\n");
+		pr_warn("Unable to alloc new priomap!\n");
 		return;
 	}
 
@@ -136,7 +138,7 @@ static struct cgroup_subsys_state *cgrp_create(struct cgroup *cgrp)
 
 	ret = get_prioidx(&cs->prioidx);
 	if (ret != 0) {
-		printk(KERN_WARNING "No space in priority index array\n");
+		pr_warn("No space in priority index array\n");
 		kfree(cs);
 		return ERR_PTR(ret);
 	}

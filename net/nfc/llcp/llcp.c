@@ -307,6 +307,8 @@ static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 	u8 *gb_cur, *version_tlv, version, version_length;
 	u8 *lto_tlv, lto, lto_length;
 	u8 *wks_tlv, wks_length;
+	u8 *miux_tlv, miux_length;
+	__be16 miux;
 	u8 gb_len = 0;
 
 	version = LLCP_VERSION_11;
@@ -316,13 +318,18 @@ static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 
 	/* 1500 ms */
 	lto = 150;
-	lto_tlv = nfc_llcp_build_tlv(LLCP_TLV_VERSION, &lto, 1, &lto_length);
+	lto_tlv = nfc_llcp_build_tlv(LLCP_TLV_LTO, &lto, 1, &lto_length);
 	gb_len += lto_length;
 
 	pr_debug("Local wks 0x%lx\n", local->local_wks);
 	wks_tlv = nfc_llcp_build_tlv(LLCP_TLV_WKS, (u8 *)&local->local_wks, 2,
 				     &wks_length);
 	gb_len += wks_length;
+
+	miux = cpu_to_be16(LLCP_MAX_MIUX);
+	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0,
+				      &miux_length);
+	gb_len += miux_length;
 
 	gb_len += ARRAY_SIZE(llcp_magic);
 
@@ -344,6 +351,9 @@ static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 
 	memcpy(gb_cur, wks_tlv, wks_length);
 	gb_cur += wks_length;
+
+	memcpy(gb_cur, miux_tlv, miux_length);
+	gb_cur += miux_length;
 
 	kfree(version_tlv);
 	kfree(lto_tlv);
@@ -388,6 +398,9 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 	skb = skb_dequeue(&local->tx_queue);
 	if (skb != NULL) {
 		pr_debug("Sending pending skb\n");
+		print_hex_dump(KERN_DEBUG, "LLCP Tx: ", DUMP_PREFIX_OFFSET,
+			       16, 1, skb->data, skb->len, true);
+
 		nfc_data_exchange(local->dev, local->target_idx,
 				  skb, nfc_llcp_recv, local);
 	} else {
@@ -425,7 +438,7 @@ static u8 nfc_llcp_nr(struct sk_buff *pdu)
 
 static void nfc_llcp_set_nrns(struct nfc_llcp_sock *sock, struct sk_buff *pdu)
 {
-	pdu->data[2] = (sock->send_n << 4) | (sock->recv_n % 16);
+	pdu->data[2] = (sock->send_n << 4) | (sock->recv_n);
 	sock->send_n = (sock->send_n + 1) % 16;
 	sock->recv_ack_n = (sock->recv_n - 1) % 16;
 }
@@ -813,6 +826,10 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 	ssap = nfc_llcp_ssap(skb);
 
 	pr_debug("ptype 0x%x dsap 0x%x ssap 0x%x\n", ptype, dsap, ssap);
+
+	if (ptype != LLCP_PDU_SYMM)
+		print_hex_dump(KERN_DEBUG, "LLCP Rx: ", DUMP_PREFIX_OFFSET,
+			       16, 1, skb->data, skb->len, true);
 
 	switch (ptype) {
 	case LLCP_PDU_SYMM:

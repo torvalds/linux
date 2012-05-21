@@ -173,6 +173,7 @@ struct p54_common {
 	struct sk_buff_head tx_pending;
 	struct sk_buff_head tx_queue;
 	struct mutex conf_mutex;
+	bool registered;
 
 	/* memory management (as seen by the firmware) */
 	u32 rx_start;

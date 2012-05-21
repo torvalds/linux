@@ -1306,7 +1306,7 @@ static void mlx4_cleanup_counters_table(struct mlx4_dev *dev)
 	mlx4_bitmap_cleanup(&mlx4_priv(dev)->counters_bitmap);
 }
 
-int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx)
+int __mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
@@ -1319,12 +1319,43 @@ int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx)
 
 	return 0;
 }
+
+int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx)
+{
+	u64 out_param;
+	int err;
+
+	if (mlx4_is_mfunc(dev)) {
+		err = mlx4_cmd_imm(dev, 0, &out_param, RES_COUNTER,
+				   RES_OP_RESERVE, MLX4_CMD_ALLOC_RES,
+				   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+		if (!err)
+			*idx = get_param_l(&out_param);
+
+		return err;
+	}
+	return __mlx4_counter_alloc(dev, idx);
+}
 EXPORT_SYMBOL_GPL(mlx4_counter_alloc);
 
-void mlx4_counter_free(struct mlx4_dev *dev, u32 idx)
+void __mlx4_counter_free(struct mlx4_dev *dev, u32 idx)
 {
 	mlx4_bitmap_free(&mlx4_priv(dev)->counters_bitmap, idx);
 	return;
+}
+
+void mlx4_counter_free(struct mlx4_dev *dev, u32 idx)
+{
+	u64 in_param;
+
+	if (mlx4_is_mfunc(dev)) {
+		set_param_l(&in_param, idx);
+		mlx4_cmd(dev, in_param, RES_COUNTER, RES_OP_RESERVE,
+			 MLX4_CMD_FREE_RES, MLX4_CMD_TIME_CLASS_A,
+			 MLX4_CMD_WRAPPED);
+		return;
+	}
+	__mlx4_counter_free(dev, idx);
 }
 EXPORT_SYMBOL_GPL(mlx4_counter_free);
 
@@ -1865,7 +1896,6 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 				mlx4_err(dev, "Failed to enable sriov,"
 					 "continuing without sriov enabled"
 					 " (err = %d).\n", err);
-				num_vfs = 0;
 				err = 0;
 			} else {
 				mlx4_warn(dev, "Running in master mode\n");
@@ -2022,7 +2052,7 @@ err_cmd:
 	mlx4_cmd_cleanup(dev);
 
 err_sriov:
-	if (num_vfs && (dev->flags & MLX4_FLAG_SRIOV))
+	if (dev->flags & MLX4_FLAG_SRIOV)
 		pci_disable_sriov(pdev);
 
 err_rel_own:
@@ -2070,6 +2100,10 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 			mlx4_CLOSE_PORT(dev, p);
 		}
 
+		if (mlx4_is_master(dev))
+			mlx4_free_resource_tracker(dev,
+						   RES_TR_FREE_SLAVES_ONLY);
+
 		mlx4_cleanup_counters_table(dev);
 		mlx4_cleanup_mcg_table(dev);
 		mlx4_cleanup_qp_table(dev);
@@ -2082,7 +2116,8 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 		mlx4_cleanup_pd_table(dev);
 
 		if (mlx4_is_master(dev))
-			mlx4_free_resource_tracker(dev);
+			mlx4_free_resource_tracker(dev,
+						   RES_TR_FREE_STRUCTS_ONLY);
 
 		iounmap(priv->kar);
 		mlx4_uar_free(dev, &priv->driver_uar);
@@ -2099,7 +2134,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 
 		if (dev->flags & MLX4_FLAG_MSI_X)
 			pci_disable_msix(pdev);
-		if (num_vfs && (dev->flags & MLX4_FLAG_SRIOV)) {
+		if (dev->flags & MLX4_FLAG_SRIOV) {
 			mlx4_warn(dev, "Disabling sriov\n");
 			pci_disable_sriov(pdev);
 		}

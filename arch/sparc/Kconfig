@@ -30,6 +30,7 @@ config SPARC
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select GENERIC_PCI_IOMAP
 	select HAVE_NMI_WATCHDOG if SPARC64
+	select HAVE_BPF_JIT
 
 config SPARC32
 	def_bool !64BIT

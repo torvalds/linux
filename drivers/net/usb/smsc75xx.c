@@ -508,10 +508,9 @@ static int smsc75xx_link_reset(struct usbnet *dev)
 	u16 lcladv, rmtadv;
 	int ret;
 
-	/* read and write to clear phy interrupt status */
-	ret = smsc75xx_mdio_read(dev->net, mii->phy_id, PHY_INT_SRC);
-	check_warn_return(ret, "Error reading PHY_INT_SRC");
-	smsc75xx_mdio_write(dev->net, mii->phy_id, PHY_INT_SRC, 0xffff);
+	/* write to clear phy interrupt status */
+	smsc75xx_mdio_write(dev->net, mii->phy_id, PHY_INT_SRC,
+		PHY_INT_SRC_CLEAR_ALL);
 
 	ret = smsc75xx_write_reg(dev, INT_STS, INT_STS_CLEAR_ALL);
 	check_warn_return(ret, "Error writing INT_STS");
@@ -904,15 +903,20 @@ static int smsc75xx_reset(struct usbnet *dev)
 
 	netif_dbg(dev, ifup, dev->net, "ID_REV = 0x%08x", buf);
 
-	/* Configure GPIO pins as LED outputs */
-	ret = smsc75xx_read_reg(dev, LED_GPIO_CFG, &buf);
-	check_warn_return(ret, "Failed to read LED_GPIO_CFG: %d", ret);
+	ret = smsc75xx_read_reg(dev, E2P_CMD, &buf);
+	check_warn_return(ret, "Failed to read E2P_CMD: %d", ret);
 
-	buf &= ~(LED_GPIO_CFG_LED2_FUN_SEL | LED_GPIO_CFG_LED10_FUN_SEL);
-	buf |= LED_GPIO_CFG_LEDGPIO_EN | LED_GPIO_CFG_LED2_FUN_SEL;
+	/* only set default GPIO/LED settings if no EEPROM is detected */
+	if (!(buf & E2P_CMD_LOADED)) {
+		ret = smsc75xx_read_reg(dev, LED_GPIO_CFG, &buf);
+		check_warn_return(ret, "Failed to read LED_GPIO_CFG: %d", ret);
 
-	ret = smsc75xx_write_reg(dev, LED_GPIO_CFG, buf);
-	check_warn_return(ret, "Failed to write LED_GPIO_CFG: %d", ret);
+		buf &= ~(LED_GPIO_CFG_LED2_FUN_SEL | LED_GPIO_CFG_LED10_FUN_SEL);
+		buf |= LED_GPIO_CFG_LEDGPIO_EN | LED_GPIO_CFG_LED2_FUN_SEL;
+
+		ret = smsc75xx_write_reg(dev, LED_GPIO_CFG, buf);
+		check_warn_return(ret, "Failed to write LED_GPIO_CFG: %d", ret);
+	}
 
 	ret = smsc75xx_write_reg(dev, FLOW, 0);
 	check_warn_return(ret, "Failed to write FLOW: %d", ret);
