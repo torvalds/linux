@@ -116,47 +116,37 @@
  * POSIX.1 2.4: an empty pathname is invalid (ENOENT).
  * PATH_MAX includes the nul terminator --RR.
  */
-static int do_getname(const char __user *filename, char *page)
-{
-	int retval;
-	unsigned long len = PATH_MAX;
-
-	if (!segment_eq(get_fs(), KERNEL_DS)) {
-		if ((unsigned long) filename >= TASK_SIZE)
-			return -EFAULT;
-		if (TASK_SIZE - (unsigned long) filename < PATH_MAX)
-			len = TASK_SIZE - (unsigned long) filename;
-	}
-
-	retval = strncpy_from_user(page, filename, len);
-	if (retval > 0) {
-		if (retval < len)
-			return 0;
-		return -ENAMETOOLONG;
-	} else if (!retval)
-		retval = -ENOENT;
-	return retval;
-}
-
 static char *getname_flags(const char __user *filename, int flags, int *empty)
 {
-	char *result = __getname();
-	int retval;
+	char *result = __getname(), *err;
+	int len;
 
-	if (!result)
+	if (unlikely(!result))
 		return ERR_PTR(-ENOMEM);
 
-	retval = do_getname(filename, result);
-	if (retval < 0) {
-		if (retval == -ENOENT && empty)
+	len = strncpy_from_user(result, filename, PATH_MAX);
+	err = ERR_PTR(len);
+	if (unlikely(len < 0))
+		goto error;
+
+	/* The empty path is special. */
+	if (unlikely(!len)) {
+		if (empty)
 			*empty = 1;
-		if (retval != -ENOENT || !(flags & LOOKUP_EMPTY)) {
-			__putname(result);
-			return ERR_PTR(retval);
-		}
+		err = ERR_PTR(-ENOENT);
+		if (!(flags & LOOKUP_EMPTY))
+			goto error;
 	}
-	audit_getname(result);
-	return result;
+
+	err = ERR_PTR(-ENAMETOOLONG);
+	if (likely(len < PATH_MAX)) {
+		audit_getname(result);
+		return result;
+	}
+
+error:
+	__putname(result);
+	return err;
 }
 
 char *getname(const char __user * filename)
