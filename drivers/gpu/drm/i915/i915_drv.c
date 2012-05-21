@@ -345,6 +345,13 @@ static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_VGA_DEVICE(0x0162, &intel_ivybridge_d_info), /* GT2 desktop */
 	INTEL_VGA_DEVICE(0x015a, &intel_ivybridge_d_info), /* GT1 server */
 	INTEL_VGA_DEVICE(0x016a, &intel_ivybridge_d_info), /* GT2 server */
+	INTEL_VGA_DEVICE(0x0402, &intel_haswell_d_info), /* GT1 desktop */
+	INTEL_VGA_DEVICE(0x0412, &intel_haswell_d_info), /* GT2 desktop */
+	INTEL_VGA_DEVICE(0x040a, &intel_haswell_d_info), /* GT1 server */
+	INTEL_VGA_DEVICE(0x041a, &intel_haswell_d_info), /* GT2 server */
+	INTEL_VGA_DEVICE(0x0406, &intel_haswell_m_info), /* GT1 mobile */
+	INTEL_VGA_DEVICE(0x0416, &intel_haswell_m_info), /* GT2 mobile */
+	INTEL_VGA_DEVICE(0x0c16, &intel_haswell_d_info), /* SDV */
 	{0, 0, 0}
 };
 
@@ -407,9 +414,11 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 	if (i915_semaphores >= 0)
 		return i915_semaphores;
 
+#ifdef CONFIG_INTEL_IOMMU
 	/* Enable semaphores on SNB when IO remapping is off */
-	if (INTEL_INFO(dev)->gen == 6)
-		return !intel_iommu_enabled;
+	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped)
+		return false;
+#endif
 
 	return 1;
 }
@@ -622,15 +631,16 @@ static int i915_drm_thaw(struct drm_device *dev)
 
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		if (HAS_PCH_SPLIT(dev))
+			ironlake_init_pch_refclk(dev);
+
 		mutex_lock(&dev->struct_mutex);
 		dev_priv->mm.suspended = 0;
 
 		error = i915_gem_init_hw(dev);
 		mutex_unlock(&dev->struct_mutex);
 
-		if (HAS_PCH_SPLIT(dev))
-			ironlake_init_pch_refclk(dev);
-
+		intel_modeset_init_hw(dev);
 		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
 
@@ -638,9 +648,6 @@ static int i915_drm_thaw(struct drm_device *dev)
 		mutex_lock(&dev->mode_config.mutex);
 		drm_helper_resume_force_mode(dev);
 		mutex_unlock(&dev->mode_config.mutex);
-
-		if (IS_IRONLAKE_M(dev))
-			ironlake_enable_rc6(dev);
 	}
 
 	intel_opregion_init(dev);
@@ -886,15 +893,15 @@ int i915_reset(struct drm_device *dev)
 	 */
 	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
 			!dev_priv->mm.suspended) {
+		struct intel_ring_buffer *ring;
+		int i;
+
 		dev_priv->mm.suspended = 0;
 
 		i915_gem_init_swizzling(dev);
 
-		dev_priv->ring[RCS].init(&dev_priv->ring[RCS]);
-		if (HAS_BSD(dev))
-		    dev_priv->ring[VCS].init(&dev_priv->ring[VCS]);
-		if (HAS_BLT(dev))
-		    dev_priv->ring[BCS].init(&dev_priv->ring[BCS]);
+		for_each_ring(ring, dev_priv, i)
+			ring->init(ring);
 
 		i915_gem_init_ppgtt(dev);
 

@@ -168,7 +168,7 @@ i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj, *next;
 	bool lists_empty;
-	int ret,i;
+	int ret;
 
 	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
 		       list_empty(&dev_priv->mm.flushing_list) &&
@@ -178,17 +178,13 @@ i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 
 	trace_i915_gem_evict_everything(dev, purgeable_only);
 
-	ret = i915_gpu_idle(dev);
-	if (ret)
-		return ret;
-
 	/* The gpu_idle will flush everything in the write domain to the
 	 * active list. Then we must move everything off the active list
 	 * with retire requests.
 	 */
-	for (i = 0; i < I915_NUM_RINGS; i++)
-		if (WARN_ON(!list_empty(&dev_priv->ring[i].gpu_write_list)))
-			return -EBUSY;
+	ret = i915_gpu_idle(dev);
+	if (ret)
+		return ret;
 
 	i915_gem_retire_requests(dev);
 
@@ -203,5 +199,5 @@ i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 		}
 	}
 
-	return ret;
+	return 0;
 }

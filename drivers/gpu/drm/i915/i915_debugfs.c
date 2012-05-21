@@ -699,13 +699,13 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	struct drm_device *dev = error_priv->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error = error_priv->error;
+	struct intel_ring_buffer *ring;
 	int i, j, page, offset, elt;
 
 	if (!error) {
 		seq_printf(m, "no error state collected\n");
 		return 0;
 	}
-
 
 	seq_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
 		   error->time.tv_usec);
@@ -722,11 +722,8 @@ static int i915_error_state(struct seq_file *m, void *unused)
 		seq_printf(m, "DONE_REG: 0x%08x\n", error->done_reg);
 	}
 
-	i915_ring_error_state(m, dev, error, RCS);
-	if (HAS_BLT(dev))
-		i915_ring_error_state(m, dev, error, BCS);
-	if (HAS_BSD(dev))
-		i915_ring_error_state(m, dev, error, VCS);
+	for_each_ring(ring, dev_priv, i)
+		i915_ring_error_state(m, dev, error, i);
 
 	if (error->active_bo)
 		print_error_buffers(m, "Active",

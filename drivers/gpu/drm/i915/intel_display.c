@@ -784,6 +784,17 @@ intel_find_pll_g4x_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 	return true;
 }
 
+static void ironlake_wait_for_vblank(struct drm_device *dev, int pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 frame, frame_reg = PIPEFRAME(pipe);
+
+	frame = I915_READ(frame_reg);
+
+	if (wait_for(I915_READ_NOTRACE(frame_reg) != frame, 50))
+		DRM_DEBUG_KMS("vblank wait timed out\n");
+}
+
 /**
  * intel_wait_for_vblank - wait for vblank on a given pipe
  * @dev: drm device
@@ -796,6 +807,11 @@ void intel_wait_for_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipestat_reg = PIPESTAT(pipe);
+
+	if (INTEL_INFO(dev)->gen >= 5) {
+		ironlake_wait_for_vblank(dev, pipe);
+		return;
+	}
 
 	/* Clear existing vblank status. Note this will clear any other
 	 * sticky status fields as well.
@@ -849,15 +865,20 @@ void intel_wait_for_pipe_off(struct drm_device *dev, int pipe)
 			     100))
 			DRM_DEBUG_KMS("pipe_off wait timed out\n");
 	} else {
-		u32 last_line;
+		u32 last_line, line_mask;
 		int reg = PIPEDSL(pipe);
 		unsigned long timeout = jiffies + msecs_to_jiffies(100);
 
+		if (IS_GEN2(dev))
+			line_mask = DSL_LINEMASK_GEN2;
+		else
+			line_mask = DSL_LINEMASK_GEN3;
+
 		/* Wait for the display line to settle */
 		do {
-			last_line = I915_READ(reg) & DSL_LINEMASK;
+			last_line = I915_READ(reg) & line_mask;
 			mdelay(5);
-		} while (((I915_READ(reg) & DSL_LINEMASK) != last_line) &&
+		} while (((I915_READ(reg) & line_mask) != last_line) &&
 			 time_after(timeout, jiffies));
 		if (time_after(jiffies, timeout))
 			DRM_DEBUG_KMS("pipe_off wait timed out\n");
@@ -895,6 +916,11 @@ static void assert_pch_pll(struct drm_i915_private *dev_priv,
 	u32 val;
 	bool cur_state;
 
+	if (HAS_PCH_LPT(dev_priv->dev)) {
+		DRM_DEBUG_DRIVER("LPT detected: skipping PCH PLL test\n");
+		return;
+	}
+
 	if (!intel_crtc->pch_pll) {
 		WARN(1, "asserting PCH PLL enabled with no PLL\n");
 		return;
@@ -927,9 +953,16 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 	u32 val;
 	bool cur_state;
 
-	reg = FDI_TX_CTL(pipe);
-	val = I915_READ(reg);
-	cur_state = !!(val & FDI_TX_ENABLE);
+	if (IS_HASWELL(dev_priv->dev)) {
+		/* On Haswell, DDI is used instead of FDI_TX_CTL */
+		reg = DDI_FUNC_CTL(pipe);
+		val = I915_READ(reg);
+		cur_state = !!(val & PIPE_DDI_FUNC_ENABLE);
+	} else {
+		reg = FDI_TX_CTL(pipe);
+		val = I915_READ(reg);
+		cur_state = !!(val & FDI_TX_ENABLE);
+	}
 	WARN(cur_state != state,
 	     "FDI TX state assertion failure (expected %s, current %s)\n",
 	     state_string(state), state_string(cur_state));
@@ -944,9 +977,14 @@ static void assert_fdi_rx(struct drm_i915_private *dev_priv,
 	u32 val;
 	bool cur_state;
 
-	reg = FDI_RX_CTL(pipe);
-	val = I915_READ(reg);
-	cur_state = !!(val & FDI_RX_ENABLE);
+	if (IS_HASWELL(dev_priv->dev) && pipe > 0) {
+			DRM_ERROR("Attempting to enable FDI_RX on Haswell pipe > 0\n");
+			return;
+	} else {
+		reg = FDI_RX_CTL(pipe);
+		val = I915_READ(reg);
+		cur_state = !!(val & FDI_RX_ENABLE);
+	}
 	WARN(cur_state != state,
 	     "FDI RX state assertion failure (expected %s, current %s)\n",
 	     state_string(state), state_string(cur_state));
@@ -964,6 +1002,10 @@ static void assert_fdi_tx_pll_enabled(struct drm_i915_private *dev_priv,
 	if (dev_priv->info->gen == 5)
 		return;
 
+	/* On Haswell, DDI ports are responsible for the FDI PLL setup */
+	if (IS_HASWELL(dev_priv->dev))
+		return;
+
 	reg = FDI_TX_CTL(pipe);
 	val = I915_READ(reg);
 	WARN(!(val & FDI_TX_PLL_ENABLE), "FDI TX PLL assertion failure, should be active but is disabled\n");
@@ -975,6 +1017,10 @@ static void assert_fdi_rx_pll_enabled(struct drm_i915_private *dev_priv,
 	int reg;
 	u32 val;
 
+	if (IS_HASWELL(dev_priv->dev) && pipe > 0) {
+		DRM_ERROR("Attempting to enable FDI on Haswell with pipe > 0\n");
+		return;
+	}
 	reg = FDI_RX_CTL(pipe);
 	val = I915_READ(reg);
 	WARN(!(val & FDI_RX_PLL_ENABLE), "FDI RX PLL assertion failure, should be active but is disabled\n");
@@ -1079,6 +1125,11 @@ static void assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 	bool enabled;
+
+	if (HAS_PCH_LPT(dev_priv->dev)) {
+		DRM_DEBUG_DRIVER("LPT does not has PCH refclk, skipping check\n");
+		return;
+	}
 
 	val = I915_READ(PCH_DREF_CONTROL);
 	enabled = !!(val & (DREF_SSC_SOURCE_MASK | DREF_NONSPREAD_SOURCE_MASK |
@@ -1278,6 +1329,69 @@ static void intel_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	POSTING_READ(reg);
 }
 
+/* SBI access */
+static void
+intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->dpio_lock, flags);
+	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_READY) == 0,
+				100)) {
+		DRM_ERROR("timeout waiting for SBI to become ready\n");
+		goto out_unlock;
+	}
+
+	I915_WRITE(SBI_ADDR,
+			(reg << 16));
+	I915_WRITE(SBI_DATA,
+			value);
+	I915_WRITE(SBI_CTL_STAT,
+			SBI_BUSY |
+			SBI_CTL_OP_CRWR);
+
+	if (wait_for((I915_READ(SBI_CTL_STAT) & (SBI_READY | SBI_RESPONSE_SUCCESS)) == 0,
+				100)) {
+		DRM_ERROR("timeout waiting for SBI to complete write transaction\n");
+		goto out_unlock;
+	}
+
+out_unlock:
+	spin_unlock_irqrestore(&dev_priv->dpio_lock, flags);
+}
+
+static u32
+intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg)
+{
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&dev_priv->dpio_lock, flags);
+	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_READY) == 0,
+				100)) {
+		DRM_ERROR("timeout waiting for SBI to become ready\n");
+		goto out_unlock;
+	}
+
+	I915_WRITE(SBI_ADDR,
+			(reg << 16));
+	I915_WRITE(SBI_CTL_STAT,
+			SBI_BUSY |
+			SBI_CTL_OP_CRRD);
+
+	if (wait_for((I915_READ(SBI_CTL_STAT) & (SBI_READY | SBI_RESPONSE_SUCCESS)) == 0,
+				100)) {
+		DRM_ERROR("timeout waiting for SBI to complete read transaction\n");
+		goto out_unlock;
+	}
+
+	value = I915_READ(SBI_DATA);
+
+out_unlock:
+	spin_unlock_irqrestore(&dev_priv->dpio_lock, flags);
+	return value;
+}
+
 /**
  * intel_enable_pch_pll - enable PCH PLL
  * @dev_priv: i915 private structure
@@ -1289,14 +1403,18 @@ static void intel_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 static void intel_enable_pch_pll(struct intel_crtc *intel_crtc)
 {
 	struct drm_i915_private *dev_priv = intel_crtc->base.dev->dev_private;
-	struct intel_pch_pll *pll = intel_crtc->pch_pll;
+	struct intel_pch_pll *pll;
 	int reg;
 	u32 val;
 
-	/* PCH only available on ILK+ */
+	/* PCH PLLs only available on ILK, SNB and IVB */
 	BUG_ON(dev_priv->info->gen < 5);
-	BUG_ON(pll == NULL);
-	BUG_ON(pll->refcount == 0);
+	pll = intel_crtc->pch_pll;
+	if (pll == NULL)
+		return;
+
+	if (WARN_ON(pll->refcount == 0))
+		return;
 
 	DRM_DEBUG_KMS("enable PCH PLL %x (active %d, on? %d)for crtc %d\n",
 		      pll->pll_reg, pll->active, pll->on,
@@ -1334,13 +1452,18 @@ static void intel_disable_pch_pll(struct intel_crtc *intel_crtc)
 	if (pll == NULL)
 	       return;
 
-	BUG_ON(pll->refcount == 0);
+	if (WARN_ON(pll->refcount == 0))
+		return;
 
 	DRM_DEBUG_KMS("disable PCH PLL %x (active %d, on? %d) for crtc %d\n",
 		      pll->pll_reg, pll->active, pll->on,
 		      intel_crtc->base.base.id);
 
-	BUG_ON(pll->active == 0);
+	if (WARN_ON(pll->active == 0)) {
+		assert_pch_pll_disabled(dev_priv, intel_crtc);
+		return;
+	}
+
 	if (--pll->active) {
 		assert_pch_pll_enabled(dev_priv, intel_crtc);
 		return;
@@ -1378,6 +1501,10 @@ static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
 	assert_fdi_tx_enabled(dev_priv, pipe);
 	assert_fdi_rx_enabled(dev_priv, pipe);
 
+	if (IS_HASWELL(dev_priv->dev) && pipe > 0) {
+		DRM_ERROR("Attempting to enable transcoder on Haswell with pipe > 0\n");
+		return;
+	}
 	reg = TRANSCONF(pipe);
 	val = I915_READ(reg);
 	pipeconf_val = I915_READ(PIPECONF(pipe));
@@ -1896,16 +2023,10 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return 0;
 	}
 
-	switch (intel_crtc->plane) {
-	case 0:
-	case 1:
-		break;
-	case 2:
-		if (IS_IVYBRIDGE(dev))
-			break;
-		/* fall through otherwise */
-	default:
-		DRM_ERROR("no plane for crtc\n");
+	if(intel_crtc->plane > dev_priv->num_pipe) {
+		DRM_ERROR("no plane for crtc: plane %d, num_pipes %d\n",
+				intel_crtc->plane,
+				dev_priv->num_pipe);
 		return -EINVAL;
 	}
 
@@ -2426,14 +2547,18 @@ static void ironlake_fdi_pll_enable(struct drm_crtc *crtc)
 	POSTING_READ(reg);
 	udelay(200);
 
-	/* Enable CPU FDI TX PLL, always on for Ironlake */
-	reg = FDI_TX_CTL(pipe);
-	temp = I915_READ(reg);
-	if ((temp & FDI_TX_PLL_ENABLE) == 0) {
-		I915_WRITE(reg, temp | FDI_TX_PLL_ENABLE);
+	/* On Haswell, the PLL configuration for ports and pipes is handled
+	 * separately, as part of DDI setup */
+	if (!IS_HASWELL(dev)) {
+		/* Enable CPU FDI TX PLL, always on for Ironlake */
+		reg = FDI_TX_CTL(pipe);
+		temp = I915_READ(reg);
+		if ((temp & FDI_TX_PLL_ENABLE) == 0) {
+			I915_WRITE(reg, temp | FDI_TX_PLL_ENABLE);
 
-		POSTING_READ(reg);
-		udelay(100);
+			POSTING_READ(reg);
+			udelay(100);
+		}
 	}
 }
 
@@ -2532,6 +2657,22 @@ static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
 		if (encoder->base.crtc != crtc)
 			continue;
 
+		/* On Haswell, LPT PCH handles the VGA connection via FDI, and Haswell
+		 * CPU handles all others */
+		if (IS_HASWELL(dev)) {
+			/* It is still unclear how this will work on PPT, so throw up a warning */
+			WARN_ON(!HAS_PCH_LPT(dev));
+
+			if (encoder->type == DRM_MODE_ENCODER_DAC) {
+				DRM_DEBUG_KMS("Haswell detected DAC encoder, assuming is PCH\n");
+				return true;
+			} else {
+				DRM_DEBUG_KMS("Haswell detected encoder %d, assuming is CPU\n",
+						encoder->type);
+				return false;
+			}
+		}
+
 		switch (encoder->type) {
 		case INTEL_OUTPUT_EDP:
 			if (!intel_encoder_is_pch_edp(&encoder->base))
@@ -2541,6 +2682,97 @@ static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
 	}
 
 	return true;
+}
+
+/* Program iCLKIP clock to the desired frequency */
+static void lpt_program_iclkip(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 divsel, phaseinc, auxdiv, phasedir = 0;
+	u32 temp;
+
+	/* It is necessary to ungate the pixclk gate prior to programming
+	 * the divisors, and gate it back when it is done.
+	 */
+	I915_WRITE(PIXCLK_GATE, PIXCLK_GATE_GATE);
+
+	/* Disable SSCCTL */
+	intel_sbi_write(dev_priv, SBI_SSCCTL6,
+				intel_sbi_read(dev_priv, SBI_SSCCTL6) |
+					SBI_SSCCTL_DISABLE);
+
+	/* 20MHz is a corner case which is out of range for the 7-bit divisor */
+	if (crtc->mode.clock == 20000) {
+		auxdiv = 1;
+		divsel = 0x41;
+		phaseinc = 0x20;
+	} else {
+		/* The iCLK virtual clock root frequency is in MHz,
+		 * but the crtc->mode.clock in in KHz. To get the divisors,
+		 * it is necessary to divide one by another, so we
+		 * convert the virtual clock precision to KHz here for higher
+		 * precision.
+		 */
+		u32 iclk_virtual_root_freq = 172800 * 1000;
+		u32 iclk_pi_range = 64;
+		u32 desired_divisor, msb_divisor_value, pi_value;
+
+		desired_divisor = (iclk_virtual_root_freq / crtc->mode.clock);
+		msb_divisor_value = desired_divisor / iclk_pi_range;
+		pi_value = desired_divisor % iclk_pi_range;
+
+		auxdiv = 0;
+		divsel = msb_divisor_value - 2;
+		phaseinc = pi_value;
+	}
+
+	/* This should not happen with any sane values */
+	WARN_ON(SBI_SSCDIVINTPHASE_DIVSEL(divsel) &
+		~SBI_SSCDIVINTPHASE_DIVSEL_MASK);
+	WARN_ON(SBI_SSCDIVINTPHASE_DIR(phasedir) &
+		~SBI_SSCDIVINTPHASE_INCVAL_MASK);
+
+	DRM_DEBUG_KMS("iCLKIP clock: found settings for %dKHz refresh rate: auxdiv=%x, divsel=%x, phasedir=%x, phaseinc=%x\n",
+			crtc->mode.clock,
+			auxdiv,
+			divsel,
+			phasedir,
+			phaseinc);
+
+	/* Program SSCDIVINTPHASE6 */
+	temp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE6);
+	temp &= ~SBI_SSCDIVINTPHASE_DIVSEL_MASK;
+	temp |= SBI_SSCDIVINTPHASE_DIVSEL(divsel);
+	temp &= ~SBI_SSCDIVINTPHASE_INCVAL_MASK;
+	temp |= SBI_SSCDIVINTPHASE_INCVAL(phaseinc);
+	temp |= SBI_SSCDIVINTPHASE_DIR(phasedir);
+	temp |= SBI_SSCDIVINTPHASE_PROPAGATE;
+
+	intel_sbi_write(dev_priv,
+			SBI_SSCDIVINTPHASE6,
+			temp);
+
+	/* Program SSCAUXDIV */
+	temp = intel_sbi_read(dev_priv, SBI_SSCAUXDIV6);
+	temp &= ~SBI_SSCAUXDIV_FINALDIV2SEL(1);
+	temp |= SBI_SSCAUXDIV_FINALDIV2SEL(auxdiv);
+	intel_sbi_write(dev_priv,
+			SBI_SSCAUXDIV6,
+			temp);
+
+
+	/* Enable modulator and associated divider */
+	temp = intel_sbi_read(dev_priv, SBI_SSCCTL6);
+	temp &= ~SBI_SSCCTL_DISABLE;
+	intel_sbi_write(dev_priv,
+			SBI_SSCCTL6,
+			temp);
+
+	/* Wait for initialization time */
+	udelay(24);
+
+	I915_WRITE(PIXCLK_GATE, PIXCLK_GATE_UNGATE);
 }
 
 /*
@@ -2559,12 +2791,17 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	u32 reg, temp;
 
+	assert_transcoder_disabled(dev_priv, pipe);
+
 	/* For PCH output, training FDI link */
 	dev_priv->display.fdi_link_train(crtc);
 
 	intel_enable_pch_pll(intel_crtc);
 
-	if (HAS_PCH_CPT(dev)) {
+	if (HAS_PCH_LPT(dev)) {
+		DRM_DEBUG_KMS("LPT detected: programming iCLKIP\n");
+		lpt_program_iclkip(crtc);
+	} else if (HAS_PCH_CPT(dev)) {
 		u32 sel;
 
 		temp = I915_READ(PCH_DPLL_SEL);
@@ -2601,7 +2838,8 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	I915_WRITE(TRANS_VSYNC(pipe),  I915_READ(VSYNC(pipe)));
 	I915_WRITE(TRANS_VSYNCSHIFT(pipe),  I915_READ(VSYNCSHIFT(pipe)));
 
-	intel_fdi_normal_train(crtc);
+	if (!IS_HASWELL(dev))
+		intel_fdi_normal_train(crtc);
 
 	/* For PCH DP, enable TRANS_DP_CTL */
 	if (HAS_PCH_CPT(dev) &&
@@ -2671,6 +2909,17 @@ static struct intel_pch_pll *intel_get_pch_pll(struct intel_crtc *intel_crtc, u3
 		DRM_DEBUG_KMS("CRTC:%d reusing existing PCH PLL %x\n",
 			      intel_crtc->base.base.id, pll->pll_reg);
 		goto prepare;
+	}
+
+	if (HAS_PCH_IBX(dev_priv->dev)) {
+		/* Ironlake PCH has a fixed PLL->PCH pipe mapping. */
+		i = intel_crtc->pipe;
+		pll = &dev_priv->pch_plls[i];
+
+		DRM_DEBUG_KMS("CRTC:%d using pre-allocated PCH PLL %x\n",
+			      intel_crtc->base.base.id, pll->pll_reg);
+
+		goto found;
 	}
 
 	for (i = 0; i < dev_priv->num_pch_pll; i++) {
@@ -3120,8 +3369,7 @@ void intel_encoder_commit(struct drm_encoder *encoder)
 {
 	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
 	struct drm_device *dev = encoder->dev;
-	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
-	struct intel_crtc *intel_crtc = to_intel_crtc(intel_encoder->base.crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 
 	/* lvds has its own version of commit see intel_lvds_commit */
 	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
@@ -4312,8 +4560,12 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
 	drm_mode_debug_printmodeline(mode);
 
-	/* CPU eDP is the only output that doesn't need a PCH PLL of its own */
-	if (!is_cpu_edp) {
+	/* CPU eDP is the only output that doesn't need a PCH PLL of its own on
+	 * pre-Haswell/LPT generation */
+	if (HAS_PCH_LPT(dev)) {
+		DRM_DEBUG_KMS("LPT detected: no PLL for pipe %d necessary\n",
+				pipe);
+	} else if (!is_cpu_edp) {
 		struct intel_pch_pll *pll;
 
 		pll = intel_get_pch_pll(intel_crtc, dpll, fp);
@@ -4472,6 +4724,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	ret = intel_pipe_set_base(crtc, x, y, old_fb);
 
 	intel_update_watermarks(dev);
+
+	intel_update_linetime_watermarks(dev, pipe, adjusted_mode);
 
 	return ret;
 }
@@ -5538,6 +5792,9 @@ void intel_mark_busy(struct drm_device *dev, struct drm_i915_gem_object *obj)
 		mod_timer(&dev_priv->idle_timer, jiffies +
 			  msecs_to_jiffies(GPU_IDLE_TIMEOUT));
 
+	if (obj == NULL)
+		return;
+
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (!crtc->fb)
 			continue;
@@ -5987,6 +6244,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup_pending;
 
 	intel_disable_fbc(dev);
+	intel_mark_busy(dev, obj);
 	mutex_unlock(&dev->struct_mutex);
 
 	trace_i915_flip_request(intel_crtc->plane, obj);
@@ -6015,10 +6273,11 @@ static void intel_sanitize_modesetting(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg, val;
+	int i;
 
 	/* Clear any frame start delays used for debugging left by the BIOS */
-	for_each_pipe(pipe) {
-		reg = PIPECONF(pipe);
+	for_each_pipe(i) {
+		reg = PIPECONF(i);
 		I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
 	}
 
@@ -6238,7 +6497,26 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 	intel_crt_init(dev);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_HASWELL(dev)) {
+		int found;
+
+		/* Haswell uses DDI functions to detect digital outputs */
+		found = I915_READ(DDI_BUF_CTL_A) & DDI_INIT_DISPLAY_DETECTED;
+		/* DDI A only supports eDP */
+		if (found)
+			intel_ddi_init(dev, PORT_A);
+
+		/* DDI B, C and D detection is indicated by the SFUSE_STRAP
+		 * register */
+		found = I915_READ(SFUSE_STRAP);
+
+		if (found & SFUSE_STRAP_DDIB_DETECTED)
+			intel_ddi_init(dev, PORT_B);
+		if (found & SFUSE_STRAP_DDIC_DETECTED)
+			intel_ddi_init(dev, PORT_C);
+		if (found & SFUSE_STRAP_DDID_DETECTED)
+			intel_ddi_init(dev, PORT_D);
+	} else if (HAS_PCH_SPLIT(dev)) {
 		int found;
 
 		if (I915_READ(HDMIB) & PORT_DETECTED) {
@@ -6467,6 +6745,9 @@ static void intel_init_display(struct drm_device *dev)
 			/* FIXME: detect B0+ stepping and use auto training */
 			dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
 			dev_priv->display.write_eld = ironlake_write_eld;
+		} else if (IS_HASWELL(dev)) {
+			dev_priv->display.fdi_link_train = hsw_fdi_link_train;
+			dev_priv->display.write_eld = ironlake_write_eld;
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_VALLEYVIEW(dev)) {
@@ -6634,6 +6915,7 @@ void intel_modeset_init_hw(struct drm_device *dev)
 
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_enable_drps(dev);
+		ironlake_enable_rc6(dev);
 		intel_init_emon(dev);
 	}
 
@@ -6665,6 +6947,8 @@ void intel_modeset_init(struct drm_device *dev)
 
 	intel_init_pm(dev);
 
+	intel_prepare_ddi(dev);
+
 	intel_init_display(dev);
 
 	if (IS_GEN2(dev)) {
@@ -6695,8 +6979,6 @@ void intel_modeset_init(struct drm_device *dev)
 	i915_disable_vga(dev);
 	intel_setup_outputs(dev);
 
-	intel_modeset_init_hw(dev);
-
 	INIT_WORK(&dev_priv->idle_work, intel_idle_update);
 	setup_timer(&dev_priv->idle_timer, intel_gpu_idle_timer,
 		    (unsigned long)dev);
@@ -6704,8 +6986,7 @@ void intel_modeset_init(struct drm_device *dev)
 
 void intel_modeset_gem_init(struct drm_device *dev)
 {
-	if (IS_IRONLAKE_M(dev))
-		ironlake_enable_rc6(dev);
+	intel_modeset_init_hw(dev);
 
 	intel_setup_overlay(dev);
 }

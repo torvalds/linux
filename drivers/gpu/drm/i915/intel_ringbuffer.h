@@ -119,6 +119,12 @@ struct  intel_ring_buffer {
 	void *private;
 };
 
+static inline bool
+intel_ring_initialized(struct intel_ring_buffer *ring)
+{
+	return ring->obj != NULL;
+}
+
 static inline unsigned
 intel_ring_flag(struct intel_ring_buffer *ring)
 {

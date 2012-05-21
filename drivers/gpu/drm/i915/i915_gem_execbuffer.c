@@ -967,11 +967,14 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 			obj->pending_gpu_write = true;
 			list_move_tail(&obj->gpu_write_list,
 				       &ring->gpu_write_list);
-			intel_mark_busy(ring->dev, obj);
+			if (obj->pin_count) /* check for potential scanout */
+				intel_mark_busy(ring->dev, obj);
 		}
 
 		trace_i915_gem_object_change_domain(obj, old_read, old_write);
 	}
+
+	intel_mark_busy(ring->dev, NULL);
 }
 
 static void
@@ -1061,21 +1064,18 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		ring = &dev_priv->ring[RCS];
 		break;
 	case I915_EXEC_BSD:
-		if (!HAS_BSD(dev)) {
-			DRM_DEBUG("execbuf with invalid ring (BSD)\n");
-			return -EINVAL;
-		}
 		ring = &dev_priv->ring[VCS];
 		break;
 	case I915_EXEC_BLT:
-		if (!HAS_BLT(dev)) {
-			DRM_DEBUG("execbuf with invalid ring (BLT)\n");
-			return -EINVAL;
-		}
 		ring = &dev_priv->ring[BCS];
 		break;
 	default:
 		DRM_DEBUG("execbuf with unknown ring: %d\n",
+			  (int)(args->flags & I915_EXEC_RING_MASK));
+		return -EINVAL;
+	}
+	if (!intel_ring_initialized(ring)) {
+		DRM_DEBUG("execbuf with invalid ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
 		return -EINVAL;
 	}

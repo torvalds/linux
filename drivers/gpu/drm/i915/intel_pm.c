@@ -1803,8 +1803,7 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		enabled |= 2;
 	}
 
-	/* IVB has 3 pipes */
-	if (IS_IVYBRIDGE(dev) &&
+	if ((dev_priv->num_pipe == 3) &&
 	    g4x_compute_wm0(dev, 2,
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
@@ -1882,6 +1881,33 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		   (fbc_wm << WM1_LP_FBC_SHIFT) |
 		   (plane_wm << WM1_LP_SR_SHIFT) |
 		   cursor_wm);
+}
+
+static void
+haswell_update_linetime_wm(struct drm_device *dev, int pipe,
+				 struct drm_display_mode *mode)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 temp;
+
+	temp = I915_READ(PIPE_WM_LINETIME(pipe));
+	temp &= ~PIPE_WM_LINETIME_MASK;
+
+	/* The WM are computed with base on how long it takes to fill a single
+	 * row at the given clock rate, multiplied by 8.
+	 * */
+	temp |= PIPE_WM_LINETIME_TIME(
+		((mode->crtc_hdisplay * 1000) / mode->clock) * 8);
+
+	/* IPS watermarks are only used by pipe A, and are ignored by
+	 * pipes B and C.  They are calculated similarly to the common
+	 * linetime values, except that we are using CD clock frequency
+	 * in MHz instead of pixel rate for the division.
+	 *
+	 * This is a placeholder for the IPS watermark calculation code.
+	 */
+
+	I915_WRITE(PIPE_WM_LINETIME(pipe), temp);
 }
 
 static bool
@@ -2077,6 +2103,15 @@ void intel_update_watermarks(struct drm_device *dev)
 
 	if (dev_priv->display.update_wm)
 		dev_priv->display.update_wm(dev);
+}
+
+void intel_update_linetime_watermarks(struct drm_device *dev,
+		int pipe, struct drm_display_mode *mode)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->display.update_linetime_wm)
+		dev_priv->display.update_linetime_wm(dev, pipe, mode);
 }
 
 void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
@@ -2291,6 +2326,7 @@ int intel_enable_rc6(const struct drm_device *dev)
 
 void gen6_enable_rps(struct drm_i915_private *dev_priv)
 {
+	struct intel_ring_buffer *ring;
 	u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 	u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 	u32 pcu_mbox, rc6_mask = 0;
@@ -2325,8 +2361,8 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000);
 	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25);
 
-	for (i = 0; i < I915_NUM_RINGS; i++)
-		I915_WRITE(RING_MAX_IDLE(dev_priv->ring[i].mmio_base), 10);
+	for_each_ring(ring, dev_priv, i)
+		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
 
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 	I915_WRITE(GEN6_RC1e_THRESHOLD, 1000);
@@ -3560,6 +3596,37 @@ void intel_sanitize_pm(struct drm_device *dev)
 		dev_priv->display.sanitize_pm(dev);
 }
 
+/* Starting with Haswell, we have different power wells for
+ * different parts of the GPU. This attempts to enable them all.
+ */
+void intel_init_power_wells(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long power_wells[] = {
+		HSW_PWR_WELL_CTL1,
+		HSW_PWR_WELL_CTL2,
+		HSW_PWR_WELL_CTL4
+	};
+	int i;
+
+	if (!IS_HASWELL(dev))
+		return;
+
+	mutex_lock(&dev->struct_mutex);
+
+	for (i = 0; i < ARRAY_SIZE(power_wells); i++) {
+		int well = I915_READ(power_wells[i]);
+
+		if ((well & HSW_PWR_WELL_STATE) == 0) {
+			I915_WRITE(power_wells[i], well & HSW_PWR_WELL_ENABLE);
+			if (wait_for(I915_READ(power_wells[i] & HSW_PWR_WELL_STATE), 20))
+				DRM_ERROR("Error enabling power well %lx\n", power_wells[i]);
+		}
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+}
+
 /* Set up chip specific power management-related functions */
 void intel_init_pm(struct drm_device *dev)
 {
@@ -3655,6 +3722,18 @@ void intel_init_pm(struct drm_device *dev)
 			}
 			dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
 			dev_priv->display.sanitize_pm = gen6_sanitize_pm;
+		} else if (IS_HASWELL(dev)) {
+			if (SNB_READ_WM0_LATENCY()) {
+				dev_priv->display.update_wm = sandybridge_update_wm;
+				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
+				dev_priv->display.update_linetime_wm = haswell_update_linetime_wm;
+			} else {
+				DRM_DEBUG_KMS("Failed to read display plane latency. "
+					      "Disable CxSR\n");
+				dev_priv->display.update_wm = NULL;
+			}
+			dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
+			dev_priv->display.sanitize_pm = gen6_sanitize_pm;
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_VALLEYVIEW(dev)) {
@@ -3708,5 +3787,10 @@ void intel_init_pm(struct drm_device *dev)
 		else
 			dev_priv->display.get_fifo_size = i830_get_fifo_size;
 	}
+
+	/* We attempt to init the necessary power wells early in the initialization
+	 * time, so the subsystems that expect power to be enabled can work.
+	 */
+	intel_init_power_wells(dev);
 }
 

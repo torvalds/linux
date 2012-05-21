@@ -280,15 +280,28 @@ struct dip_infoframe {
 			uint16_t bottom_bar_start;
 			uint16_t left_bar_end;
 			uint16_t right_bar_start;
-		} avi;
+		} __attribute__ ((packed)) avi;
 		struct {
 			uint8_t vn[8];
 			uint8_t pd[16];
 			uint8_t sdi;
-		} spd;
+		} __attribute__ ((packed)) spd;
 		uint8_t payload[27];
 	} __attribute__ ((packed)) body;
 } __attribute__((packed));
+
+struct intel_hdmi {
+	struct intel_encoder base;
+	u32 sdvox_reg;
+	int ddc_bus;
+	int ddi_port;
+	uint32_t color_range;
+	bool has_hdmi_sink;
+	bool has_audio;
+	enum hdmi_force_audio force_audio;
+	void (*write_infoframe)(struct drm_encoder *encoder,
+				struct dip_infoframe *frame);
+};
 
 static inline struct drm_crtc *
 intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
@@ -329,7 +342,11 @@ extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
-void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
+extern struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
+extern void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
+			    struct drm_display_mode *adjusted_mode);
+extern void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder);
+extern void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
 extern bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg,
 			    bool is_sdvob);
 extern void intel_dvo_init(struct drm_device *dev);
@@ -446,12 +463,17 @@ extern void intel_init_clock_gating(struct drm_device *dev);
 extern void intel_write_eld(struct drm_encoder *encoder,
 			    struct drm_display_mode *mode);
 extern void intel_cpt_verify_modeset(struct drm_device *dev, int pipe);
+extern void intel_prepare_ddi(struct drm_device *dev);
+extern void hsw_fdi_link_train(struct drm_crtc *crtc);
+extern void intel_ddi_init(struct drm_device *dev, enum port port);
 
 /* For use by IVB LP watermark workaround in intel_sprite.c */
 extern void intel_update_watermarks(struct drm_device *dev);
 extern void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
 					   uint32_t sprite_width,
 					   int pixel_size);
+extern void intel_update_linetime_watermarks(struct drm_device *dev, int pipe,
+			 struct drm_display_mode *mode);
 
 extern int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
@@ -474,5 +496,10 @@ extern void gen6_enable_rps(struct drm_i915_private *dev_priv);
 extern void gen6_update_ring_freq(struct drm_i915_private *dev_priv);
 extern void gen6_disable_rps(struct drm_device *dev);
 extern void intel_init_emon(struct drm_device *dev);
+
+extern void intel_ddi_dpms(struct drm_encoder *encoder, int mode);
+extern void intel_ddi_mode_set(struct drm_encoder *encoder,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode);
 
 #endif /* __INTEL_DRV_H__ */
