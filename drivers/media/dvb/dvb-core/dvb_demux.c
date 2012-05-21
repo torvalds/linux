@@ -50,6 +50,11 @@ module_param(dvb_demux_speedcheck, int, 0644);
 MODULE_PARM_DESC(dvb_demux_speedcheck,
 		"enable transport stream speed check");
 
+static int dvb_demux_feed_err_pkts = 1;
+module_param(dvb_demux_feed_err_pkts, int, 0644);
+MODULE_PARM_DESC(dvb_demux_feed_err_pkts,
+		 "when set to 0, drop packets with the TEI bit set (1 by default)");
+
 #define dprintk_tscheck(x...) do {                              \
 		if (dvb_demux_tscheck && printk_ratelimit())    \
 			printk(x);                              \
@@ -426,14 +431,18 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 		};
 	};
 
+	if (buf[1] & 0x80) {
+		dprintk_tscheck("TEI detected. "
+				"PID=0x%x data1=0x%x\n",
+				pid, buf[1]);
+		/* data in this packet cant be trusted - drop it unless
+		 * module option dvb_demux_feed_err_pkts is set */
+		if (!dvb_demux_feed_err_pkts)
+			return;
+	} else /* if TEI bit is set, pid may be wrong- skip pkt counter */
 	if (demux->cnt_storage && dvb_demux_tscheck) {
 		/* check pkt counter */
 		if (pid < MAX_PID) {
-			if (buf[1] & 0x80)
-				dprintk_tscheck("TEI detected. "
-						"PID=0x%x data1=0x%x\n",
-						pid, buf[1]);
-
 			if ((buf[3] & 0xf) != demux->cnt_storage[pid])
 				dprintk_tscheck("TS packet counter mismatch. "
 						"PID=0x%x expected 0x%x "
