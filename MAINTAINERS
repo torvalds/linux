@@ -7035,6 +7035,14 @@ W:	http://pegasus2.sourceforge.net/
 S:	Maintained
 F:	drivers/net/usb/pegasus.*
 
+USB PHY LAYER
+M:	Felipe Balbi <balbi@ti.com>
+L:	linux-usb@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
+S:	Maintained
+F:	drivers/usb/phy/
+F:	drivers/usb/otg/
+
 USB PRINTER DRIVER (usblp)
 M:	Pete Zaitcev <zaitcev@redhat.com>
 L:	linux-usb@vger.kernel.org
