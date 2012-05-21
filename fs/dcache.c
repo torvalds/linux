@@ -192,6 +192,7 @@ static inline int dentry_string_cmp(const unsigned char *cs, const unsigned char
 
 static inline int dentry_cmp(const struct dentry *dentry, const unsigned char *ct, unsigned tcount)
 {
+	const unsigned char *cs;
 	/*
 	 * Be careful about RCU walk racing with rename:
 	 * use ACCESS_ONCE to fetch the name pointer.
@@ -208,7 +209,9 @@ static inline int dentry_cmp(const struct dentry *dentry, const unsigned char *c
 	 * early because the data cannot match (there can
 	 * be no NUL in the ct/tcount data)
 	 */
-	return dentry_string_cmp(ACCESS_ONCE(dentry->d_name.name), ct, tcount);
+	cs = ACCESS_ONCE(dentry->d_name.name);
+	smp_read_barrier_depends();
+	return dentry_string_cmp(cs, ct, tcount);
 }
 
 static void __d_free(struct rcu_head *head)
@@ -1271,6 +1274,13 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	if (!dentry)
 		return NULL;
 
+	/*
+	 * We guarantee that the inline name is always NUL-terminated.
+	 * This way the memcpy() done by the name switching in rename
+	 * will still always have a NUL at the end, even if we might
+	 * be overwriting an internal NUL character
+	 */
+	dentry->d_iname[DNAME_INLINE_LEN-1] = 0;
 	if (name->len > DNAME_INLINE_LEN-1) {
 		dname = kmalloc(name->len + 1, GFP_KERNEL);
 		if (!dname) {
@@ -1280,12 +1290,15 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	} else  {
 		dname = dentry->d_iname;
 	}	
-	dentry->d_name.name = dname;
 
 	dentry->d_name.len = name->len;
 	dentry->d_name.hash = name->hash;
 	memcpy(dname, name->name, name->len);
 	dname[name->len] = 0;
+
+	/* Make sure we always see the terminating NUL character */
+	smp_wmb();
+	dentry->d_name.name = dname;
 
 	dentry->d_count = 1;
 	dentry->d_flags = 0;
