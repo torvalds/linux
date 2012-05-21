@@ -2269,10 +2269,10 @@ int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
 /**
  * prcmu_ac_wake_req - should be called whenever ARM wants to wakeup Modem
  */
-void prcmu_ac_wake_req(void)
+int prcmu_ac_wake_req(void)
 {
 	u32 val;
-	u32 status;
+	int ret = 0;
 
 	mutex_lock(&mb0_transfer.ac_wake_lock);
 
@@ -2282,39 +2282,32 @@ void prcmu_ac_wake_req(void)
 
 	atomic_set(&ac_wake_req_state, 1);
 
-retry:
-	writel((val | PRCM_HOSTACCESS_REQ_HOSTACCESS_REQ), PRCM_HOSTACCESS_REQ);
+	/*
+	 * Force Modem Wake-up before hostaccess_req ping-pong.
+	 * It prevents Modem to enter in Sleep while acking the hostaccess
+	 * request. The 31us delay has been calculated by HWI.
+	 */
+	val |= PRCM_HOSTACCESS_REQ_WAKE_REQ;
+	writel(val, PRCM_HOSTACCESS_REQ);
+
+	udelay(31);
+
+	val |= PRCM_HOSTACCESS_REQ_HOSTACCESS_REQ;
+	writel(val, PRCM_HOSTACCESS_REQ);
 
 	if (!wait_for_completion_timeout(&mb0_transfer.ac_wake_work,
 			msecs_to_jiffies(5000))) {
+#if defined(CONFIG_DBX500_PRCMU_DEBUG)
+		db8500_prcmu_debug_dump(__func__, true, true);
+#endif
 		pr_crit("prcmu: %s timed out (5 s) waiting for a reply.\n",
 			__func__);
-		goto unlock_and_return;
-	}
-
-	/*
-	 * The modem can generate an AC_WAKE_ACK, and then still go to sleep.
-	 * As a workaround, we wait, and then check that the modem is indeed
-	 * awake (in terms of the value of the PRCM_MOD_AWAKE_STATUS
-	 * register, which may not be the whole truth).
-	 */
-	udelay(400);
-	status = (readl(PRCM_MOD_AWAKE_STATUS) & BITS(0, 2));
-	if (status != (PRCM_MOD_AWAKE_STATUS_PRCM_MOD_AAPD_AWAKE |
-			PRCM_MOD_AWAKE_STATUS_PRCM_MOD_COREPD_AWAKE)) {
-		pr_err("prcmu: %s received ack, but modem not awake (0x%X).\n",
-			__func__, status);
-		udelay(1200);
-		writel(val, PRCM_HOSTACCESS_REQ);
-		if (wait_for_completion_timeout(&mb0_transfer.ac_wake_work,
-				msecs_to_jiffies(5000)))
-			goto retry;
-		pr_crit("prcmu: %s timed out (5 s) waiting for AC_SLEEP_ACK.\n",
-			__func__);
+		ret = -EFAULT;
 	}
 
 unlock_and_return:
 	mutex_unlock(&mb0_transfer.ac_wake_lock);
+	return ret;
 }
 
 /**

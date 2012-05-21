@@ -345,7 +345,7 @@ static inline u16 prcmu_get_reset_code(void)
 	return db8500_prcmu_get_reset_code();
 }
 
-void prcmu_ac_wake_req(void);
+int prcmu_ac_wake_req(void);
 void prcmu_ac_sleep_req(void);
 static inline void prcmu_modem_reset(void)
 {
@@ -533,7 +533,10 @@ static inline u16 prcmu_get_reset_code(void)
 	return 0;
 }
 
-static inline void prcmu_ac_wake_req(void) {}
+static inline int prcmu_ac_wake_req(void)
+{
+	return 0;
+}
 
 static inline void prcmu_ac_sleep_req(void) {}
 

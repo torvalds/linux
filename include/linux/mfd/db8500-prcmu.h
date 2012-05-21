@@ -530,7 +530,7 @@ int db8500_prcmu_stop_temp_sense(void);
 int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size);
 int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size);
 
-void prcmu_ac_wake_req(void);
+int prcmu_ac_wake_req(void);
 void prcmu_ac_sleep_req(void);
 void db8500_prcmu_modem_reset(void);
 
@@ -680,7 +680,10 @@ static inline int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
 	return -ENOSYS;
 }
 
-static inline void prcmu_ac_wake_req(void) {}
+static inline int prcmu_ac_wake_req(void)
+{
+	return 0;
+}
 
 static inline void prcmu_ac_sleep_req(void) {}
 
