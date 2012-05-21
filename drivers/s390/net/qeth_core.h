@@ -707,7 +707,16 @@ struct qeth_discipline {
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
 	int (*recover)(void *ptr);
-	struct ccwgroup_driver *ccwgdriver;
+	int (*setup) (struct ccwgroup_device *);
+	void (*remove) (struct ccwgroup_device *);
+	int (*set_online) (struct ccwgroup_device *);
+	int (*set_offline) (struct ccwgroup_device *);
+	void (*shutdown)(struct ccwgroup_device *);
+	int (*prepare) (struct ccwgroup_device *);
+	void (*complete) (struct ccwgroup_device *);
+	int (*freeze)(struct ccwgroup_device *);
+	int (*thaw) (struct ccwgroup_device *);
+	int (*restore)(struct ccwgroup_device *);
 };
 
 struct qeth_vlan_vid {
@@ -771,7 +780,7 @@ struct qeth_card {
 	struct qeth_perf_stats perf_stats;
 	int read_or_write_problem;
 	struct qeth_osn_info osn_info;
-	struct qeth_discipline discipline;
+	struct qeth_discipline *discipline;
 	atomic_t force_alloc_skb;
 	struct service_level qeth_service_level;
 	struct qdio_ssqd_desc ssqd;
@@ -837,16 +846,15 @@ static inline int qeth_is_diagass_supported(struct qeth_card *card,
 	return card->info.diagass_support & (__u32)cmd;
 }
 
-extern struct ccwgroup_driver qeth_l2_ccwgroup_driver;
-extern struct ccwgroup_driver qeth_l3_ccwgroup_driver;
+extern struct qeth_discipline qeth_l2_discipline;
+extern struct qeth_discipline qeth_l3_discipline;
+extern const struct attribute_group *qeth_generic_attr_groups[];
+extern const struct attribute_group *qeth_osn_attr_groups[];
+
 const char *qeth_get_cardname_short(struct qeth_card *);
 int qeth_realloc_buffer_pool(struct qeth_card *, int);
 int qeth_core_load_discipline(struct qeth_card *, enum qeth_discipline_id);
 void qeth_core_free_discipline(struct qeth_card *);
-int qeth_core_create_device_attributes(struct device *);
-void qeth_core_remove_device_attributes(struct device *);
-int qeth_core_create_osn_attributes(struct device *);
-void qeth_core_remove_osn_attributes(struct device *);
 void qeth_buffer_reclaim_work(struct work_struct *);
 
 /* exports for qeth discipline device drivers */

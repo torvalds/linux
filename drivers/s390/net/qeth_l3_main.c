@@ -3298,12 +3298,6 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 	qeth_l3_create_device_attributes(&gdev->dev);
 	card->options.layer2 = 0;
 	card->info.hwtrap = 0;
-	card->discipline.start_poll = qeth_qdio_start_poll;
-	card->discipline.input_handler = (qdio_handler_t *)
-		qeth_qdio_input_handler;
-	card->discipline.output_handler = (qdio_handler_t *)
-		qeth_qdio_output_handler;
-	card->discipline.recover = qeth_l3_recover;
 	return 0;
 }
 
@@ -3578,8 +3572,12 @@ out:
 	return rc;
 }
 
-struct ccwgroup_driver qeth_l3_ccwgroup_driver = {
-	.probe = qeth_l3_probe_device,
+struct qeth_discipline qeth_l3_discipline = {
+	.start_poll = qeth_qdio_start_poll,
+	.input_handler = (qdio_handler_t *) qeth_qdio_input_handler,
+	.output_handler = (qdio_handler_t *) qeth_qdio_output_handler,
+	.recover = qeth_l3_recover,
+	.setup = qeth_l3_probe_device,
 	.remove = qeth_l3_remove_device,
 	.set_online = qeth_l3_set_online,
 	.set_offline = qeth_l3_set_offline,
@@ -3588,7 +3586,7 @@ struct ccwgroup_driver qeth_l3_ccwgroup_driver = {
 	.thaw = qeth_l3_pm_resume,
 	.restore = qeth_l3_pm_resume,
 };
-EXPORT_SYMBOL_GPL(qeth_l3_ccwgroup_driver);
+EXPORT_SYMBOL_GPL(qeth_l3_discipline);
 
 static int qeth_l3_ip_event(struct notifier_block *this,
 			    unsigned long event, void *ptr)

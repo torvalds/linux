@@ -226,6 +226,8 @@ out:
 	return -ENOMEM;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+
 static void pcpu_free_lowcore(struct pcpu *pcpu)
 {
 	pcpu_sigp_retry(pcpu, sigp_set_prefix, 0);
@@ -246,6 +248,8 @@ static void pcpu_free_lowcore(struct pcpu *pcpu)
 		free_pages((unsigned long) pcpu->lowcore, LC_ORDER);
 	}
 }
+
+#endif /* CONFIG_HOTPLUG_CPU */
 
 static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 {

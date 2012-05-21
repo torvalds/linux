@@ -2040,9 +2040,16 @@ static struct attribute * lcs_attrs[] = {
 	&dev_attr_recover.attr,
 	NULL,
 };
-
 static struct attribute_group lcs_attr_group = {
 	.attrs = lcs_attrs,
+};
+static const struct attribute_group *lcs_attr_groups[] = {
+	&lcs_attr_group,
+	NULL,
+};
+static const struct device_type lcs_devtype = {
+	.name = "lcs",
+	.groups = lcs_attr_groups,
 };
 
 /**
@@ -2052,7 +2059,6 @@ static int
 lcs_probe_device(struct ccwgroup_device *ccwgdev)
 {
 	struct lcs_card *card;
-	int ret;
 
 	if (!get_device(&ccwgdev->dev))
 		return -ENODEV;
@@ -2064,12 +2070,6 @@ lcs_probe_device(struct ccwgroup_device *ccwgdev)
 		put_device(&ccwgdev->dev);
                 return -ENOMEM;
         }
-	ret = sysfs_create_group(&ccwgdev->dev.kobj, &lcs_attr_group);
-	if (ret) {
-		lcs_free_card(card);
-		put_device(&ccwgdev->dev);
-		return ret;
-        }
 	dev_set_drvdata(&ccwgdev->dev, card);
 	ccwgdev->cdev[0]->handler = lcs_irq;
 	ccwgdev->cdev[1]->handler = lcs_irq;
@@ -2078,7 +2078,9 @@ lcs_probe_device(struct ccwgroup_device *ccwgdev)
 	card->thread_start_mask = 0;
 	card->thread_allowed_mask = 0;
 	card->thread_running_mask = 0;
-        return 0;
+	ccwgdev->dev.type = &lcs_devtype;
+
+	return 0;
 }
 
 static int
@@ -2306,9 +2308,9 @@ lcs_remove_device(struct ccwgroup_device *ccwgdev)
 	}
 	if (card->dev)
 		unregister_netdev(card->dev);
-	sysfs_remove_group(&ccwgdev->dev.kobj, &lcs_attr_group);
 	lcs_cleanup_card(card);
 	lcs_free_card(card);
+	dev_set_drvdata(&ccwgdev->dev, NULL);
 	put_device(&ccwgdev->dev);
 }
 
@@ -2393,9 +2395,7 @@ static struct ccwgroup_driver lcs_group_driver = {
 		.owner	= THIS_MODULE,
 		.name	= "lcs",
 	},
-	.max_slaves  = 2,
-	.driver_id   = 0xD3C3E2,
-	.probe       = lcs_probe_device,
+	.setup	     = lcs_probe_device,
 	.remove      = lcs_remove_device,
 	.set_online  = lcs_new_device,
 	.set_offline = lcs_shutdown_device,
@@ -2406,30 +2406,24 @@ static struct ccwgroup_driver lcs_group_driver = {
 	.restore     = lcs_restore,
 };
 
-static ssize_t
-lcs_driver_group_store(struct device_driver *ddrv, const char *buf,
-		       size_t count)
+static ssize_t lcs_driver_group_store(struct device_driver *ddrv,
+				      const char *buf, size_t count)
 {
 	int err;
-	err = ccwgroup_create_from_string(lcs_root_dev,
-					  lcs_group_driver.driver_id,
-					  &lcs_ccw_driver, 2, buf);
+	err = ccwgroup_create_dev(lcs_root_dev, &lcs_group_driver, 2, buf);
 	return err ? err : count;
 }
-
 static DRIVER_ATTR(group, 0200, NULL, lcs_driver_group_store);
 
-static struct attribute *lcs_group_attrs[] = {
+static struct attribute *lcs_drv_attrs[] = {
 	&driver_attr_group.attr,
 	NULL,
 };
-
-static struct attribute_group lcs_group_attr_group = {
-	.attrs = lcs_group_attrs,
+static struct attribute_group lcs_drv_attr_group = {
+	.attrs = lcs_drv_attrs,
 };
-
-static const struct attribute_group *lcs_group_attr_groups[] = {
-	&lcs_group_attr_group,
+static const struct attribute_group *lcs_drv_attr_groups[] = {
+	&lcs_drv_attr_group,
 	NULL,
 };
 
@@ -2453,7 +2447,7 @@ __init lcs_init_module(void)
 	rc = ccw_driver_register(&lcs_ccw_driver);
 	if (rc)
 		goto ccw_err;
-	lcs_group_driver.driver.groups = lcs_group_attr_groups;
+	lcs_group_driver.driver.groups = lcs_drv_attr_groups;
 	rc = ccwgroup_driver_register(&lcs_group_driver);
 	if (rc)
 		goto ccwgroup_err;
@@ -2479,8 +2473,6 @@ __exit lcs_cleanup_module(void)
 {
 	pr_info("Terminating lcs module.\n");
 	LCS_DBF_TEXT(0, trace, "cleanup");
-	driver_remove_file(&lcs_group_driver.driver,
-			   &driver_attr_group);
 	ccwgroup_driver_unregister(&lcs_group_driver);
 	ccw_driver_unregister(&lcs_ccw_driver);
 	root_device_unregister(lcs_root_dev);

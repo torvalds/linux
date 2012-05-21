@@ -217,7 +217,7 @@ config COMPAT
 	def_bool y
 	prompt "Kernel support for 31 bit emulation"
 	depends on 64BIT
-	select COMPAT_BINFMT_ELF
+	select COMPAT_BINFMT_ELF if BINFMT_ELF
 	select ARCH_WANT_OLD_COMPAT_IPC
 	help
 	  Select this option if you want to enable your system kernel to
@@ -234,6 +234,25 @@ config KEYS_COMPAT
 config AUDIT_ARCH
 	def_bool y
 
+config HAVE_MARCH_Z900_FEATURES
+	def_bool n
+
+config HAVE_MARCH_Z990_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z900_FEATURES
+
+config HAVE_MARCH_Z9_109_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z990_FEATURES
+
+config HAVE_MARCH_Z10_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z9_109_FEATURES
+
+config HAVE_MARCH_Z196_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z10_FEATURES
+
 comment "Code generation options"
 
 choice
@@ -249,6 +268,7 @@ config MARCH_G5
 
 config MARCH_Z900
 	bool "IBM zSeries model z800 and z900"
+	select HAVE_MARCH_Z900_FEATURES if 64BIT
 	help
 	  Select this to enable optimizations for model z800/z900 (2064 and
 	  2066 series). This will enable some optimizations that are not
@@ -256,6 +276,7 @@ config MARCH_Z900
 
 config MARCH_Z990
 	bool "IBM zSeries model z890 and z990"
+	select HAVE_MARCH_Z990_FEATURES if 64BIT
 	help
 	  Select this to enable optimizations for model z890/z990 (2084 and
 	  2086 series). The kernel will be slightly faster but will not work
@@ -263,6 +284,7 @@ config MARCH_Z990
 
 config MARCH_Z9_109
 	bool "IBM System z9"
+	select HAVE_MARCH_Z9_109_FEATURES if 64BIT
 	help
 	  Select this to enable optimizations for IBM System z9 (2094 and
 	  2096 series). The kernel will be slightly faster but will not work
@@ -270,6 +292,7 @@ config MARCH_Z9_109
 
 config MARCH_Z10
 	bool "IBM System z10"
+	select HAVE_MARCH_Z10_FEATURES if 64BIT
 	help
 	  Select this to enable optimizations for IBM System z10 (2097 and
 	  2098 series). The kernel will be slightly faster but will not work
@@ -277,6 +300,7 @@ config MARCH_Z10
 
 config MARCH_Z196
 	bool "IBM zEnterprise 114 and 196"
+	select HAVE_MARCH_Z196_FEATURES if 64BIT
 	help
 	  Select this to enable optimizations for IBM zEnterprise 114 and 196
 	  (2818 and 2817 series). The kernel will be slightly faster but will
@@ -405,33 +429,6 @@ config CHSC_SCH
 	  If unsure, say N.
 
 comment "Misc"
-
-config IPL
-	def_bool y
-	prompt "Builtin IPL record support"
-	help
-	  If you want to use the produced kernel to IPL directly from a
-	  device, you have to merge a bootsector specific to the device
-	  into the first bytes of the kernel. You will have to select the
-	  IPL device.
-
-choice
-	prompt "IPL method generated into head.S"
-	depends on IPL
-	default IPL_VM
-	help
-	  Select "tape" if you want to IPL the image from a Tape.
-
-	  Select "vm_reader" if you are running under VM/ESA and want
-	  to IPL the image from the emulated card reader.
-
-config IPL_TAPE
-	bool "tape"
-
-config IPL_VM
-	bool "vm_reader"
-
-endchoice
 
 source "fs/Kconfig.binfmt"
 
@@ -569,7 +566,7 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "kernel crash dumps"
-	depends on 64BIT
+	depends on 64BIT && SMP
 	select KEXEC
 	help
 	  Generate crash dump after being started by kexec.
