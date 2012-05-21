@@ -3648,6 +3648,10 @@ static void __devinit hauppauge_eeprom(struct bttv *btv)
 			bttv_tvcards[BTTV_BOARD_HAUPPAUGE_IMPACTVCB].name);
 		btv->c.type = BTTV_BOARD_HAUPPAUGE_IMPACTVCB;
 	}
+
+	/* The 61334 needs the msp3410 to do the radio demod to get sound */
+	if (tv.model == 61334)
+		btv->radio_uses_msp_demodulator = 1;
 }
 
 static int terratec_active_radio_upgrade(struct bttv *btv)
