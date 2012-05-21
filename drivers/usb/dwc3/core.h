@@ -495,7 +495,7 @@ enum dwc3_device_state {
 #define DWC3_TRB_SIZE_MASK	(0x00ffffff)
 #define DWC3_TRB_SIZE_LENGTH(n)	((n) & DWC3_TRB_SIZE_MASK)
 #define DWC3_TRB_SIZE_PCM1(n)	(((n) & 0x03) << 24)
-#define DWC3_TRB_SIZE_TRBSTS(n)	(((n) & (0x0f << 28) >> 28))
+#define DWC3_TRB_SIZE_TRBSTS(n)	(((n) & (0x0f << 28)) >> 28)
 
 #define DWC3_TRBSTS_OK			0
 #define DWC3_TRBSTS_MISSED_ISOC		1
