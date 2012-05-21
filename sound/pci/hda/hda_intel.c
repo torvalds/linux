@@ -2566,6 +2566,8 @@ static struct snd_pci_quirk probe_mask_list[] __devinitdata = {
 	/* forced codec slots */
 	SND_PCI_QUIRK(0x1043, 0x1262, "ASUS W5Fm", 0x103),
 	SND_PCI_QUIRK(0x1046, 0x1262, "ASUS W5F", 0x103),
+	/* WinFast VP200 H (Teradici) user reported broken communication */
+	SND_PCI_QUIRK(0x3a21, 0x040d, "WinFast VP200 H", 0x101),
 	{}
 };
 
@@ -3154,7 +3156,7 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 MODULE_DEVICE_TABLE(pci, azx_ids);
 
 /* pci_driver definition */
-static struct pci_driver driver = {
+static struct pci_driver azx_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = azx_ids,
 	.probe = azx_probe,
@@ -3165,15 +3167,4 @@ static struct pci_driver driver = {
 #endif
 };
 
-static int __init alsa_card_azx_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_azx_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_azx_init)
-module_exit(alsa_card_azx_exit)
+module_pci_driver(azx_driver);

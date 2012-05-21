@@ -2862,7 +2862,7 @@ snd_azf3328_resume(struct pci_dev *pci)
 #endif /* CONFIG_PM */
 
 
-static struct pci_driver driver = {
+static struct pci_driver azf3328_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_azf3328_ids,
 	.probe = snd_azf3328_probe,
@@ -2873,23 +2873,4 @@ static struct pci_driver driver = {
 #endif
 };
 
-static int __init
-alsa_card_azf3328_init(void)
-{
-	int err;
-	snd_azf3328_dbgcallenter();
-	err = pci_register_driver(&driver);
-	snd_azf3328_dbgcallleave();
-	return err;
-}
-
-static void __exit
-alsa_card_azf3328_exit(void)
-{
-	snd_azf3328_dbgcallenter();
-	pci_unregister_driver(&driver);
-	snd_azf3328_dbgcallleave();
-}
-
-module_init(alsa_card_azf3328_init)
-module_exit(alsa_card_azf3328_exit)
+module_pci_driver(azf3328_driver);

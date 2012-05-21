@@ -2294,7 +2294,7 @@ static void __devexit snd_ali_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver ali5451_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_ali_ids,
 	.probe = snd_ali_probe,
@@ -2305,15 +2305,4 @@ static struct pci_driver driver = {
 #endif
 };                                
 
-static int __init alsa_card_ali_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_ali_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_ali_init)
-module_exit(alsa_card_ali_exit)
+module_pci_driver(ali5451_driver);
