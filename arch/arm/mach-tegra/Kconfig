@@ -87,13 +87,6 @@ config MACH_SEABOARD
 	 also be included for some of the derivative boards that
 	 have large similarities with the seaboard design.
 
-config MACH_TEGRA_DT
-	bool "Generic Tegra20 board (FDT support)"
-	depends on ARCH_TEGRA_2x_SOC
-	select USE_OF
-	help
-	  Support for generic NVIDIA Tegra20 boards using Flattened Device Tree
-
 config MACH_TRIMSLICE
        bool "TrimSlice board"
        depends on ARCH_TEGRA_2x_SOC
