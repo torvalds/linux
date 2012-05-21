@@ -6916,12 +6916,6 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
 		.subvendor    = 0x17de,
 		.subdevice    = 0x7128,
-		.driver_data  = SAA7134_BOARD_ASUSTeK_TIGER_3IN1,
-	}, {
-		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x17de,
-		.subdevice    = 0x7128,
 		.driver_data  = SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG,
 	}, {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
