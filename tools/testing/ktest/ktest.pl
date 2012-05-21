@@ -39,6 +39,7 @@ my %default = (
     "CLEAR_LOG"			=> 0,
     "BISECT_MANUAL"		=> 0,
     "BISECT_SKIP"		=> 1,
+    "MIN_CONFIG_TYPE"		=> "boot",
     "SUCCESS_LINE"		=> "login:",
     "DETECT_TRIPLE_FAULT"	=> 1,
     "NO_INSTALL"		=> 0,
@@ -107,6 +108,7 @@ my $minconfig;
 my $start_minconfig;
 my $start_minconfig_defined;
 my $output_minconfig;
+my $minconfig_type;
 my $ignore_config;
 my $ignore_errors;
 my $addconfig;
@@ -206,6 +208,7 @@ my %option_map = (
     "MIN_CONFIG"		=> \$minconfig,
     "OUTPUT_MIN_CONFIG"		=> \$output_minconfig,
     "START_MIN_CONFIG"		=> \$start_minconfig,
+    "MIN_CONFIG_TYPE"		=> \$minconfig_type,
     "IGNORE_CONFIG"		=> \$ignore_config,
     "TEST"			=> \$run_test,
     "ADD_CONFIG"		=> \$addconfig,
@@ -3128,6 +3131,12 @@ sub test_this_config {
 sub make_min_config {
     my ($i) = @_;
 
+    my $type = $minconfig_type;
+    if ($type ne "boot" && $type ne "test") {
+	fail "Invalid MIN_CONFIG_TYPE '$minconfig_type'\n" .
+	    " make_min_config works only with 'boot' and 'test'\n" and return;
+    }
+
     if (!defined($output_minconfig)) {
 	fail "OUTPUT_MIN_CONFIG not defined" and return;
     }
@@ -3287,6 +3296,11 @@ sub make_min_config {
 	build "oldconfig" or $failed = 1;
 	if (!$failed) {
 		start_monitor_and_boot or $failed = 1;
+
+		if ($type eq "test" && !$failed) {
+		    do_run_test or $failed = 1;
+		}
+
 		end_monitor;
 	}
 
