@@ -4,7 +4,9 @@
  * Parse symbolic events/counts passed in as options:
  */
 
+#include <linux/list.h>
 #include <stdbool.h>
+#include "types.h"
 #include "../../../include/linux/perf_event.h"
 #include "types.h"
 
@@ -86,6 +88,7 @@ void parse_events_update_lists(struct list_head *list_event,
 void parse_events_error(struct list_head *list_all,
 			struct list_head *list_event,
 			int *idx, char const *msg);
+int parse_events__test(void);
 
 void print_events(const char *event_glob);
 void print_events_type(u8 type);
