@@ -686,19 +686,6 @@ __fa526_cache_on:
 		mcr	p15, 0, r0, c8, c7, 0	@ flush UTLB
 		mov	pc, r12
 
-__arm6_mmu_cache_on:
-		mov	r12, lr
-		mov	r6, #CB_BITS | 0x12	@ U
-		bl	__setup_mmu
-		mov	r0, #0
-		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
-		mcr	p15, 0, r0, c5, c0, 0	@ invalidate whole TLB v3
-		mov	r0, #0x30
-		bl	__common_mmu_cache_on
-		mov	r0, #0
-		mcr	p15, 0, r0, c5, c0, 0	@ invalidate whole TLB v3
-		mov	pc, r12
-
 __common_mmu_cache_on:
 #ifndef CONFIG_THUMB2_KERNEL
 #ifndef DEBUG
@@ -763,16 +750,6 @@ call_cache_fn:	adr	r12, proc_types
 		.align	2
 		.type	proc_types,#object
 proc_types:
-		.word	0x41560600		@ ARM6/610
-		.word	0xffffffe0
-		W(b)	__arm6_mmu_cache_off	@ works, but slow
-		W(b)	__arm6_mmu_cache_off
-		mov	pc, lr
- THUMB(		nop				)
-@		b	__arm6_mmu_cache_on		@ untested
-@		b	__arm6_mmu_cache_off
-@		b	__armv3_mmu_cache_flush
-
 		.word	0x00000000		@ old ARM ID
 		.word	0x0000f000
 		mov	pc, lr
@@ -784,8 +761,10 @@ proc_types:
 
 		.word	0x41007000		@ ARM7/710
 		.word	0xfff8fe00
-		W(b)	__arm7_mmu_cache_off
-		W(b)	__arm7_mmu_cache_off
+		mov	pc, lr
+ THUMB(		nop				)
+		mov	pc, lr
+ THUMB(		nop				)
 		mov	pc, lr
  THUMB(		nop				)
 
@@ -983,21 +962,6 @@ __armv7_mmu_cache_off:
 		mcr	p15, 0, r0, c7, c10, 4	@ DSB
 		mcr	p15, 0, r0, c7, c5, 4	@ ISB
 		mov	pc, r12
-
-__arm6_mmu_cache_off:
-		mov	r0, #0x00000030		@ ARM6 control reg.
-		b	__armv3_mmu_cache_off
-
-__arm7_mmu_cache_off:
-		mov	r0, #0x00000070		@ ARM7 control reg.
-		b	__armv3_mmu_cache_off
-
-__armv3_mmu_cache_off:
-		mcr	p15, 0, r0, c1, c0, 0	@ turn MMU and cache off
-		mov	r0, #0
-		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
-		mcr	p15, 0, r0, c5, c0, 0	@ invalidate whole TLB v3
-		mov	pc, lr
 
 /*
  * Clean and flush the cache to maintain consistency.

@@ -23,30 +23,12 @@
  * CPU_NAME - the prefix for CPU related functions
  */
 
-#ifdef CONFIG_CPU_ARM610
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm6
-# endif
-#endif
-
 #ifdef CONFIG_CPU_ARM7TDMI
 # ifdef CPU_NAME
 #  undef  MULTI_CPU
 #  define MULTI_CPU
 # else
 #  define CPU_NAME cpu_arm7tdmi
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM710
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm7
 # endif
 #endif
 
