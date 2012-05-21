@@ -3603,7 +3603,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto no_journal;
 	}
 
-	if (ext4_blocks_count(es) > 0xffffffffULL &&
+	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_64BIT) &&
 	    !jbd2_journal_set_features(EXT4_SB(sb)->s_journal, 0, 0,
 				       JBD2_FEATURE_INCOMPAT_64BIT)) {
 		ext4_msg(sb, KERN_ERR, "Failed to set 64-bit journal feature");
