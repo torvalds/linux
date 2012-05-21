@@ -149,7 +149,7 @@ endif
 
 ### --- END CONFIGURATION SECTION ---
 
-BASIC_CFLAGS = -Iutil/include -Iarch/$(ARCH)/include -I$(OUTPUT)/util -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
+BASIC_CFLAGS = -Iutil/include -Iarch/$(ARCH)/include -I$(OUTPUT)/util -I$(EVENT_PARSE_DIR) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
 BASIC_LDFLAGS =
 
 # Guard against environment variables
@@ -177,6 +177,17 @@ $(OUTPUT)python/perf.so: $(PYRF_OBJS) $(PYTHON_EXT_SRCS) $(PYTHON_EXT_DEPS)
 #
 
 SCRIPTS = $(patsubst %.sh,%,$(SCRIPT_SH))
+
+EVENT_PARSE_DIR = ../lib/traceevent/
+
+ifeq ("$(origin O)", "command line")
+	EP_PATH=$(OUTPUT)/
+else
+	EP_PATH=$(EVENT_PARSE_DIR)/
+endif
+
+LIBPARSEVENT = $(EP_PATH)libtraceevent.a
+EP_LIB := -L$(EP_PATH) -ltraceevent
 
 #
 # Single 'perf' binary right now:
@@ -300,6 +311,7 @@ LIB_H += util/cpumap.h
 LIB_H += util/top.h
 LIB_H += $(ARCH_INCLUDE)
 LIB_H += util/cgroup.h
+LIB_H += $(EVENT_PARSE_DIR)event-parse.h
 LIB_H += util/target.h
 
 LIB_OBJS += $(OUTPUT)util/abspath.o
@@ -398,7 +410,7 @@ BUILTIN_OBJS += $(OUTPUT)builtin-kvm.o
 BUILTIN_OBJS += $(OUTPUT)builtin-test.o
 BUILTIN_OBJS += $(OUTPUT)builtin-inject.o
 
-PERFLIBS = $(LIB_FILE)
+PERFLIBS = $(LIB_FILE) $(LIBPARSEVENT)
 
 # Files needed for the python binding, perf.so
 # pyrf is just an internal name needed for all those wrappers.
@@ -806,6 +818,10 @@ $(sort $(dir $(DIRECTORY_DEPS))):
 
 $(LIB_FILE): $(LIB_OBJS)
 	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $(LIB_OBJS)
+
+# libparsevent.a
+$(LIBPARSEVENT):
+	make -C $(EVENT_PARSE_DIR) $(COMMAND_O) libtraceevent.a
 
 help:
 	@echo 'Perf make targets:'
