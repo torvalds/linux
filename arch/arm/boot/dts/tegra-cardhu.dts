@@ -144,7 +144,6 @@
 
 	sdhci@78000600 {
 		status = "okay";
-		support-8bit;
 		bus-width = <8>;
 	};
 
