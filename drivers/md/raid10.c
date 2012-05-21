@@ -3164,12 +3164,40 @@ raid10_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 	return size << conf->chunk_shift;
 }
 
+static void calc_sectors(struct r10conf *conf, sector_t size)
+{
+	/* Calculate the number of sectors-per-device that will
+	 * actually be used, and set conf->dev_sectors and
+	 * conf->stride
+	 */
+
+	size = size >> conf->chunk_shift;
+	sector_div(size, conf->far_copies);
+	size = size * conf->raid_disks;
+	sector_div(size, conf->near_copies);
+	/* 'size' is now the number of chunks in the array */
+	/* calculate "used chunks per device" */
+	size = size * conf->copies;
+
+	/* We need to round up when dividing by raid_disks to
+	 * get the stride size.
+	 */
+	size = DIV_ROUND_UP_SECTOR_T(size, conf->raid_disks);
+
+	conf->dev_sectors = size << conf->chunk_shift;
+
+	if (conf->far_offset)
+		conf->stride = 1 << conf->chunk_shift;
+	else {
+		sector_div(size, conf->far_copies);
+		conf->stride = size << conf->chunk_shift;
+	}
+}
 
 static struct r10conf *setup_conf(struct mddev *mddev)
 {
 	struct r10conf *conf = NULL;
 	int nc, fc, fo;
-	sector_t stride, size;
 	int err = -EINVAL;
 
 	if (mddev->new_chunk_sectors < (PAGE_SIZE >> 9) ||
@@ -3219,28 +3247,7 @@ static struct r10conf *setup_conf(struct mddev *mddev)
 	if (!conf->r10bio_pool)
 		goto out;
 
-	size = mddev->dev_sectors >> conf->chunk_shift;
-	sector_div(size, fc);
-	size = size * conf->raid_disks;
-	sector_div(size, nc);
-	/* 'size' is now the number of chunks in the array */
-	/* calculate "used chunks per device" in 'stride' */
-	stride = size * conf->copies;
-
-	/* We need to round up when dividing by raid_disks to
-	 * get the stride size.
-	 */
-	stride += conf->raid_disks - 1;
-	sector_div(stride, conf->raid_disks);
-
-	conf->dev_sectors = stride << conf->chunk_shift;
-
-	if (fo)
-		stride = 1;
-	else
-		sector_div(stride, fc);
-	conf->stride = stride << conf->chunk_shift;
-
+	calc_sectors(conf, mddev->dev_sectors);
 
 	spin_lock_init(&conf->device_lock);
 	INIT_LIST_HEAD(&conf->retry_list);
@@ -3468,7 +3475,8 @@ static int raid10_resize(struct mddev *mddev, sector_t sectors)
 		mddev->recovery_cp = oldsize;
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	}
-	mddev->dev_sectors = sectors;
+	calc_sectors(conf, sectors);
+	mddev->dev_sectors = conf->dev_sectors;
 	mddev->resync_max_sectors = size;
 	return 0;
 }

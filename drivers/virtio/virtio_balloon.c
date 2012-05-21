@@ -390,6 +390,7 @@ static void __devexit virtballoon_remove(struct virtio_device *vdev)
 	/* There might be pages left in the balloon: free them. */
 	while (vb->num_pages)
 		leak_balloon(vb, vb->num_pages);
+	update_balloon_size(vb);
 
 	/* Now we reset the device so we can clean up the queues. */
 	vdev->config->reset(vdev);
