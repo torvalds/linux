@@ -153,7 +153,6 @@ static struct platform_device *seaboard_devices[] __initdata = {
 	&seaboard_gpio_keys_device,
 	&tegra_i2s_device1,
 	&tegra_das_device,
-	&tegra_pcm_device,
 	&seaboard_audio_device,
 };
 

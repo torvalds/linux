@@ -81,6 +81,8 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 	void *from;
 	void *to = NULL;
 
+	if (cmd->aborted)
+		return 0;
 	ep = fc_seq_exch(cmd->seq);
 	lport = ep->lp;
 	cmd->seq = lport->tt.seq_start_next(cmd->seq);

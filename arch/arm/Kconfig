@@ -338,6 +338,7 @@ config ARCH_AT91
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
 	select IRQ_DOMAIN
+	select NEED_MACH_IO_H if PCCARD
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
 	  AT91SAM9 processors.
@@ -1184,6 +1185,15 @@ config MULTI_IRQ_HANDLER
 if !MMU
 source "arch/arm/Kconfig-nommu"
 endif
+
+config ARM_ERRATA_326103
+	bool "ARM errata: FSR write bit incorrect on a SWP to read-only memory"
+	depends on CPU_V6
+	help
+	  Executing a SWP instruction to read-only memory does not set bit 11
+	  of the FSR on the ARM 1136 prior to r1p0. This causes the kernel to
+	  treat the access as a read, preventing a COW from occurring and
+	  causing the faulting task to livelock.
 
 config ARM_ERRATA_411920
 	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"

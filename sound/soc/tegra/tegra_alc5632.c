@@ -1,16 +1,17 @@
 /*
-* tegra_alc5632.c  --  Toshiba AC100(PAZ00) machine ASoC driver
-*
-* Copyright (C) 2011 The AC100 Kernel Team <ac100@lists.lauchpad.net>
-*
-* Authors:  Leon Romanovsky <leon@leon.nu>
-*           Andrey Danin <danindrey@mail.ru>
-*           Marc Dietrich <marvin24@gmx.de>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*/
+ * tegra_alc5632.c  --  Toshiba AC100(PAZ00) machine ASoC driver
+ *
+ * Copyright (C) 2011 The AC100 Kernel Team <ac100@lists.lauchpad.net>
+ * Copyright (C) 2012 - NVIDIA, Inc.
+ *
+ * Authors:  Leon Romanovsky <leon@leon.nu>
+ *           Andrey Danin <danindrey@mail.ru>
+ *           Marc Dietrich <marvin24@gmx.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
 
 #include <asm/mach-types.h>
 
@@ -28,9 +29,6 @@
 
 #include "../codecs/alc5632.h"
 
-#include "tegra_das.h"
-#include "tegra_i2s.h"
-#include "tegra_pcm.h"
 #include "tegra_asoc_utils.h"
 
 #define DRV_NAME "tegra-alc5632"
@@ -39,7 +37,6 @@
 
 struct tegra_alc5632 {
 	struct tegra_asoc_utils_data util_data;
-	struct platform_device *pcm_dev;
 	int gpio_requested;
 	int gpio_hp_det;
 };
@@ -140,7 +137,6 @@ static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link tegra_alc5632_dai = {
 	.name = "ALC5632",
 	.stream_name = "ALC5632 PCM",
-	.platform_name = "tegra-pcm-audio",
 	.codec_dai_name = "alc5632-hifi",
 	.init = tegra_alc5632_asoc_init,
 	.ops = &tegra_alc5632_asoc_ops,
@@ -179,8 +175,6 @@ static __devinit int tegra_alc5632_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, alc5632);
 
-	alc5632->pcm_dev = ERR_PTR(-EINVAL);
-
 	if (!(pdev->dev.of_node)) {
 		dev_err(&pdev->dev, "Must be instantiated using device tree\n");
 		ret = -EINVAL;
@@ -214,18 +208,11 @@ static __devinit int tegra_alc5632_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	alc5632->pcm_dev = platform_device_register_simple(
-		"tegra-pcm-audio", -1, NULL, 0);
-	if (IS_ERR(alc5632->pcm_dev)) {
-		dev_err(&pdev->dev,
-			"Can't instantiate tegra-pcm-audio\n");
-		ret = PTR_ERR(alc5632->pcm_dev);
-		goto err;
-	}
+	tegra_alc5632_dai.platform_of_node = tegra_alc5632_dai.cpu_dai_of_node;
 
 	ret = tegra_asoc_utils_init(&alc5632->util_data, &pdev->dev);
 	if (ret)
-		goto err_unregister;
+		goto err;
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
@@ -238,9 +225,6 @@ static __devinit int tegra_alc5632_probe(struct platform_device *pdev)
 
 err_fini_utils:
 	tegra_asoc_utils_fini(&alc5632->util_data);
-err_unregister:
-	if (!IS_ERR(alc5632->pcm_dev))
-		platform_device_unregister(alc5632->pcm_dev);
 err:
 	return ret;
 }
@@ -259,8 +243,6 @@ static int __devexit tegra_alc5632_remove(struct platform_device *pdev)
 	snd_soc_unregister_card(card);
 
 	tegra_asoc_utils_fini(&machine->util_data);
-	if (!IS_ERR(machine->pcm_dev))
-		platform_device_unregister(machine->pcm_dev);
 
 	return 0;
 }

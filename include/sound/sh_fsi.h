@@ -84,16 +84,4 @@ struct sh_fsi_platform_info {
 	struct sh_fsi_port_info port_b;
 };
 
-/*
- * for fsi-ak4642
- */
-struct fsi_ak4642_info {
-	const char *name;
-	const char *card;
-	const char *cpu_dai;
-	const char *codec;
-	const char *platform;
-	int id;
-};
-
 #endif /* __SOUND_FSI_H */

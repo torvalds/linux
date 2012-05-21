@@ -200,7 +200,7 @@ static inline u64 atomic64_add_return(u64 i, atomic64_t *v)
  * @u: ...unless v is equal to u.
  *
  * Atomically adds @a to @v, so long as @v was not already @u.
- * Returns the old value of @v.
+ * Returns non-zero if @v was not @u, and zero otherwise.
  */
 static inline u64 atomic64_add_unless(atomic64_t *v, u64 a, u64 u)
 {

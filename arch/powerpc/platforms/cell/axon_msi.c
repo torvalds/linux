@@ -114,7 +114,7 @@ static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
 		pr_devel("axon_msi: woff %x roff %x msi %x\n",
 			  write_offset, msic->read_offset, msi);
 
-		if (msi < NR_IRQS && irq_get_chip_data(msi) == msic) {
+		if (msi < nr_irqs && irq_get_chip_data(msi) == msic) {
 			generic_handle_irq(msi);
 			msic->fifo_virt[idx] = cpu_to_le32(0xffffffff);
 		} else {
@@ -276,9 +276,6 @@ static int axon_msi_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (rc)
 		return rc;
 
-	/* We rely on being able to stash a virq in a u16 */
-	BUILD_BUG_ON(NR_IRQS > 65536);
-
 	list_for_each_entry(entry, &dev->msi_list, list) {
 		virq = irq_create_direct_mapping(msic->irq_domain);
 		if (virq == NO_IRQ) {
@@ -392,7 +389,8 @@ static int axon_msi_probe(struct platform_device *device)
 	}
 	memset(msic->fifo_virt, 0xff, MSIC_FIFO_SIZE_BYTES);
 
-	msic->irq_domain = irq_domain_add_nomap(dn, &msic_host_ops, msic);
+	/* We rely on being able to stash a virq in a u16, so limit irqs to < 65536 */
+	msic->irq_domain = irq_domain_add_nomap(dn, 65536, &msic_host_ops, msic);
 	if (!msic->irq_domain) {
 		printk(KERN_ERR "axon_msi: couldn't allocate irq_domain for %s\n",
 		       dn->full_name);

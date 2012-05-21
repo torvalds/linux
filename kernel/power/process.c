@@ -16,6 +16,7 @@
 #include <linux/freezer.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/kmod.h>
 
 /* 
  * Timeout for stopping processes
@@ -122,6 +123,10 @@ int freeze_processes(void)
 {
 	int error;
 
+	error = __usermodehelper_disable(UMH_FREEZING);
+	if (error)
+		return error;
+
 	if (!pm_freezing)
 		atomic_inc(&system_freezing_cnt);
 
@@ -130,6 +135,7 @@ int freeze_processes(void)
 	error = try_to_freeze_tasks(true);
 	if (!error) {
 		printk("done.");
+		__usermodehelper_set_disable_depth(UMH_DISABLED);
 		oom_killer_disable();
 	}
 	printk("\n");
@@ -186,6 +192,8 @@ void thaw_processes(void)
 		__thaw_task(p);
 	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
+
+	usermodehelper_enable();
 
 	schedule();
 	printk("done.\n");

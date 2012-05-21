@@ -197,12 +197,6 @@ static int restart_write_file(struct b43legacy_wldev *dev, const char *buf, size
 
 #undef fappend
 
-static int b43legacy_debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t b43legacy_debugfs_read(struct file *file, char __user *userbuf,
 				size_t count, loff_t *ppos)
 {
@@ -331,7 +325,7 @@ out_unlock:
 		.read	= _read,				\
 		.write	= _write,				\
 		.fops	= {					\
-			.open	= b43legacy_debugfs_open,		\
+			.open	= simple_open,				\
 			.read	= b43legacy_debugfs_read,		\
 			.write	= b43legacy_debugfs_write,		\
 			.llseek = generic_file_llseek,			\

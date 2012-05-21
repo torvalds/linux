@@ -24,7 +24,7 @@
 
 /***************************************************************************/
 
-#ifdef CONFIG_SPI_COLDFIRE_QSPI
+#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 
 static void __init m528x_qspi_init(void)
 {
@@ -32,7 +32,7 @@ static void __init m528x_qspi_init(void)
 	__raw_writeb(0x07, MCFGPIO_PQSPAR);
 }
 
-#endif /* CONFIG_SPI_COLDFIRE_QSPI */
+#endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
 
 /***************************************************************************/
 
@@ -98,7 +98,7 @@ void __init config_BSP(char *commandp, int size)
 	mach_sched_init = hw_timer_init;
 	m528x_uarts_init();
 	m528x_fec_init();
-#ifdef CONFIG_SPI_COLDFIRE_QSPI
+#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	m528x_qspi_init();
 #endif
 }

@@ -1431,7 +1431,10 @@ void devm_regulator_put(struct regulator *regulator)
 
 	rc = devres_destroy(regulator->dev, devm_regulator_release,
 			    devm_regulator_match, regulator);
-	WARN_ON(rc);
+	if (rc == 0)
+		regulator_put(regulator);
+	else
+		WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_regulator_put);
 
@@ -2992,14 +2995,14 @@ void regulator_unregister(struct regulator_dev *rdev)
 	if (rdev == NULL)
 		return;
 
+	if (rdev->supply)
+		regulator_put(rdev->supply);
 	mutex_lock(&regulator_list_mutex);
 	debugfs_remove_recursive(rdev->debugfs);
 	flush_work_sync(&rdev->disable_work.work);
 	WARN_ON(rdev->open_count);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
-	if (rdev->supply)
-		regulator_put(rdev->supply);
 	kfree(rdev->constraints);
 	device_unregister(&rdev->dev);
 	mutex_unlock(&regulator_list_mutex);

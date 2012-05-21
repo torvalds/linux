@@ -1174,7 +1174,7 @@ out:
 
 bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu)
 {
-	return irqchip_in_kernel(vcpu->kcm) == (vcpu->arch.apic != NULL);
+	return irqchip_in_kernel(vcpu->kvm) == (vcpu->arch.apic != NULL);
 }
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)

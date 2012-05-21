@@ -436,11 +436,11 @@ nouveau_ioctl_fifo_alloc(struct drm_device *dev, void *data,
 	}
 
 	if (dev_priv->card_type < NV_C0) {
-		init->subchan[0].handle = NvSw;
-		init->subchan[0].grclass = NV_SW;
-		init->nr_subchan = 1;
-	} else {
-		init->nr_subchan = 0;
+		init->subchan[0].handle = 0x00000000;
+		init->subchan[0].grclass = 0x0000;
+		init->subchan[1].handle = NvSw;
+		init->subchan[1].grclass = NV_SW;
+		init->nr_subchan = 2;
 	}
 
 	/* Named memory object area */

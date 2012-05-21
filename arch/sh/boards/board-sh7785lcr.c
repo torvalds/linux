@@ -28,6 +28,7 @@
 #include <cpu/sh7785.h>
 #include <asm/heartbeat.h>
 #include <asm/clock.h>
+#include <asm/bl_bit.h>
 
 /*
  * NOTE: This board has 2 physical memory maps.

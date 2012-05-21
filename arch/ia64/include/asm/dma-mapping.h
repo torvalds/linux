@@ -23,23 +23,29 @@ extern void machvec_dma_sync_single(struct device *, dma_addr_t, size_t,
 extern void machvec_dma_sync_sg(struct device *, struct scatterlist *, int,
 				enum dma_data_direction);
 
-static inline void *dma_alloc_coherent(struct device *dev, size_t size,
-				       dma_addr_t *daddr, gfp_t gfp)
+#define dma_alloc_coherent(d,s,h,f)	dma_alloc_attrs(d,s,h,f,NULL)
+
+static inline void *dma_alloc_attrs(struct device *dev, size_t size,
+				    dma_addr_t *daddr, gfp_t gfp,
+				    struct dma_attrs *attrs)
 {
 	struct dma_map_ops *ops = platform_dma_get_ops(dev);
 	void *caddr;
 
-	caddr = ops->alloc_coherent(dev, size, daddr, gfp);
+	caddr = ops->alloc(dev, size, daddr, gfp, attrs);
 	debug_dma_alloc_coherent(dev, size, *daddr, caddr);
 	return caddr;
 }
 
-static inline void dma_free_coherent(struct device *dev, size_t size,
-				     void *caddr, dma_addr_t daddr)
+#define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
+
+static inline void dma_free_attrs(struct device *dev, size_t size,
+				  void *caddr, dma_addr_t daddr,
+				  struct dma_attrs *attrs)
 {
 	struct dma_map_ops *ops = platform_dma_get_ops(dev);
 	debug_dma_free_coherent(dev, size, caddr, daddr);
-	ops->free_coherent(dev, size, caddr, daddr);
+	ops->free(dev, size, caddr, daddr, attrs);
 }
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)

@@ -57,9 +57,9 @@ static int max_real_irqs;
 
 static DEFINE_RAW_SPINLOCK(pmac_pic_lock);
 
-#define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
-static unsigned long ppc_lost_interrupts[NR_MASK_WORDS];
-static unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
+/* The max irq number this driver deals with is 128; see max_irqs */
+static DECLARE_BITMAP(ppc_lost_interrupts, 128);
+static DECLARE_BITMAP(ppc_cached_irq_mask, 128);
 static int pmac_irq_cascade = -1;
 static struct irq_domain *pmac_pic_host;
 

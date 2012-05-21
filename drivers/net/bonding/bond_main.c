@@ -891,9 +891,15 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 
 	switch (bond->params.fail_over_mac) {
 	case BOND_FOM_ACTIVE:
-		if (new_active)
+		if (new_active) {
 			memcpy(bond->dev->dev_addr,  new_active->dev->dev_addr,
 			       new_active->dev->addr_len);
+			write_unlock_bh(&bond->curr_slave_lock);
+			read_unlock(&bond->lock);
+			call_netdevice_notifiers(NETDEV_CHANGEADDR, bond->dev);
+			read_lock(&bond->lock);
+			write_lock_bh(&bond->curr_slave_lock);
+		}
 		break;
 	case BOND_FOM_FOLLOW:
 		/*
@@ -1438,8 +1444,9 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	struct sk_buff *skb = *pskb;
 	struct slave *slave;
 	struct bonding *bond;
-	void (*recv_probe)(struct sk_buff *, struct bonding *,
+	int (*recv_probe)(struct sk_buff *, struct bonding *,
 				struct slave *);
+	int ret = RX_HANDLER_ANOTHER;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
@@ -1458,8 +1465,12 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 		struct sk_buff *nskb = skb_clone(skb, GFP_ATOMIC);
 
 		if (likely(nskb)) {
-			recv_probe(nskb, bond, slave);
+			ret = recv_probe(nskb, bond, slave);
 			dev_kfree_skb(nskb);
+			if (ret == RX_HANDLER_CONSUMED) {
+				consume_skb(skb);
+				return ret;
+			}
 		}
 	}
 
@@ -1481,7 +1492,7 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 		memcpy(eth_hdr(skb)->h_dest, bond->dev->dev_addr, ETH_ALEN);
 	}
 
-	return RX_HANDLER_ANOTHER;
+	return ret;
 }
 
 /* enslave device <slave> to bond device <master> */
@@ -2027,6 +2038,9 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	write_unlock_bh(&bond->lock);
 	unblock_netpoll_tx();
+
+	if (bond->slave_cnt == 0)
+		call_netdevice_notifiers(NETDEV_CHANGEADDR, bond->dev);
 
 	bond_compute_features(bond);
 	if (!(bond_dev->features & NETIF_F_VLAN_CHALLENGED) &&
@@ -2714,7 +2728,7 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 	}
 }
 
-static void bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
+static int bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
 			 struct slave *slave)
 {
 	struct arphdr *arp;
@@ -2722,7 +2736,7 @@ static void bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
 	__be32 sip, tip;
 
 	if (skb->protocol != __cpu_to_be16(ETH_P_ARP))
-		return;
+		return RX_HANDLER_ANOTHER;
 
 	read_lock(&bond->lock);
 
@@ -2767,6 +2781,7 @@ static void bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
 
 out_unlock:
 	read_unlock(&bond->lock);
+	return RX_HANDLER_ANOTHER;
 }
 
 /*
@@ -3001,7 +3016,11 @@ static void bond_ab_arp_commit(struct bonding *bond, int delta_in_ticks)
 					   trans_start + delta_in_ticks)) ||
 			    bond->curr_active_slave != slave) {
 				slave->link = BOND_LINK_UP;
-				bond->current_arp_slave = NULL;
+				if (bond->current_arp_slave) {
+					bond_set_slave_inactive_flags(
+						bond->current_arp_slave);
+					bond->current_arp_slave = NULL;
+				}
 
 				pr_info("%s: link status definitely up for interface %s.\n",
 					bond->dev->name, slave->dev->name);
@@ -3695,17 +3714,52 @@ static void bond_set_multicast_list(struct net_device *bond_dev)
 	read_unlock(&bond->lock);
 }
 
-static int bond_neigh_setup(struct net_device *dev, struct neigh_parms *parms)
+static int bond_neigh_init(struct neighbour *n)
 {
-	struct bonding *bond = netdev_priv(dev);
+	struct bonding *bond = netdev_priv(n->dev);
 	struct slave *slave = bond->first_slave;
+	const struct net_device_ops *slave_ops;
+	struct neigh_parms parms;
+	int ret;
 
-	if (slave) {
-		const struct net_device_ops *slave_ops
-			= slave->dev->netdev_ops;
-		if (slave_ops->ndo_neigh_setup)
-			return slave_ops->ndo_neigh_setup(slave->dev, parms);
-	}
+	if (!slave)
+		return 0;
+
+	slave_ops = slave->dev->netdev_ops;
+
+	if (!slave_ops->ndo_neigh_setup)
+		return 0;
+
+	parms.neigh_setup = NULL;
+	parms.neigh_cleanup = NULL;
+	ret = slave_ops->ndo_neigh_setup(slave->dev, &parms);
+	if (ret)
+		return ret;
+
+	/*
+	 * Assign slave's neigh_cleanup to neighbour in case cleanup is called
+	 * after the last slave has been detached.  Assumes that all slaves
+	 * utilize the same neigh_cleanup (true at this writing as only user
+	 * is ipoib).
+	 */
+	n->parms->neigh_cleanup = parms.neigh_cleanup;
+
+	if (!parms.neigh_setup)
+		return 0;
+
+	return parms.neigh_setup(n);
+}
+
+/*
+ * The bonding ndo_neigh_setup is called at init time beofre any
+ * slave exists. So we must declare proxy setup function which will
+ * be used at run time to resolve the actual slave neigh param setup.
+ */
+static int bond_neigh_setup(struct net_device *dev,
+			    struct neigh_parms *parms)
+{
+	parms->neigh_setup   = bond_neigh_init;
+
 	return 0;
 }
 

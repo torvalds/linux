@@ -225,13 +225,13 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	fix_processor_context();
 
 	do_fpu_end();
+	x86_platform.restore_sched_clock_state();
 	mtrr_bp_restore();
 }
 
 /* Needed by apm.c */
 void restore_processor_state(void)
 {
-	x86_platform.restore_sched_clock_state();
 	__restore_processor_state(&saved_context);
 }
 #ifdef CONFIG_X86_32

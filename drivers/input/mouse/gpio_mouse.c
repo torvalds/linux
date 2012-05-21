@@ -12,9 +12,9 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/input-polldev.h>
+#include <linux/gpio.h>
 #include <linux/gpio_mouse.h>
 
-#include <asm/gpio.h>
 
 /*
  * Timer function which is run every scan_ms ms when the device is opened.

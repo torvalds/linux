@@ -10,6 +10,7 @@
 #error "Cannot use generic cmpxchg on SMP"
 #endif
 
+#include <linux/types.h>
 #include <linux/irqflags.h>
 
 #ifndef xchg

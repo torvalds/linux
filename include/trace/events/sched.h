@@ -295,7 +295,7 @@ TRACE_EVENT(sched_process_exec,
 	TP_fast_assign(
 		__assign_str(filename, bprm->filename);
 		__entry->pid		= p->pid;
-		__entry->old_pid	= p->pid;
+		__entry->old_pid	= old_pid;
 	),
 
 	TP_printk("filename=%s pid=%d old_pid=%d", __get_str(filename),

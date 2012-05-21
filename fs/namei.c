@@ -1407,18 +1407,9 @@ static inline int can_lookup(struct inode *inode)
  */
 #ifdef CONFIG_DCACHE_WORD_ACCESS
 
-#ifdef CONFIG_64BIT
+#include <asm/word-at-a-time.h>
 
-/*
- * Jan Achrenius on G+: microoptimized version of
- * the simpler "(mask & ONEBYTES) * ONEBYTES >> 56"
- * that works for the bytemasks without having to
- * mask them first.
- */
-static inline long count_masked_bytes(unsigned long mask)
-{
-	return mask*0x0001020304050608ul >> 56;
-}
+#ifdef CONFIG_64BIT
 
 static inline unsigned int fold_hash(unsigned long hash)
 {
@@ -1427,15 +1418,6 @@ static inline unsigned int fold_hash(unsigned long hash)
 }
 
 #else	/* 32-bit case */
-
-/* Carl Chatfield / Jan Achrenius G+ version for 32-bit */
-static inline long count_masked_bytes(long mask)
-{
-	/* (000000 0000ff 00ffff ffffff) -> ( 1 1 2 3 ) */
-	long a = (0x0ff0001+mask) >> 23;
-	/* Fix the 1 for 00 case */
-	return a & mask;
-}
 
 #define fold_hash(x) (x)
 
@@ -1447,7 +1429,7 @@ unsigned int full_name_hash(const unsigned char *name, unsigned int len)
 	unsigned long hash = 0;
 
 	for (;;) {
-		a = *(unsigned long *)name;
+		a = load_unaligned_zeropad(name);
 		if (len < sizeof(unsigned long))
 			break;
 		hash += a;
@@ -1464,17 +1446,6 @@ done:
 }
 EXPORT_SYMBOL(full_name_hash);
 
-#define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
-#define ONEBYTES	REPEAT_BYTE(0x01)
-#define SLASHBYTES	REPEAT_BYTE('/')
-#define HIGHBITS	REPEAT_BYTE(0x80)
-
-/* Return the high bit set in the first byte that is a zero */
-static inline unsigned long has_zero(unsigned long a)
-{
-	return ((a - ONEBYTES) & ~a) & HIGHBITS;
-}
-
 /*
  * Calculate the length and hash of the path component, and
  * return the length of the component;
@@ -1488,9 +1459,9 @@ static inline unsigned long hash_name(const char *name, unsigned int *hashp)
 	do {
 		hash = (hash + a) * 9;
 		len += sizeof(unsigned long);
-		a = *(unsigned long *)(name+len);
+		a = load_unaligned_zeropad(name+len);
 		/* Do we have any NUL or '/' bytes in this word? */
-		mask = has_zero(a) | has_zero(a ^ SLASHBYTES);
+		mask = has_zero(a) | has_zero(a ^ REPEAT_BYTE('/'));
 	} while (!mask);
 
 	/* The mask *below* the first high bit set */

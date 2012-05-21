@@ -735,6 +735,7 @@ __nf_conntrack_alloc(struct net *net, u16 zone,
 
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 out_free:
+	atomic_dec(&net->ct.count);
 	kmem_cache_free(net->ct.nf_conntrack_cachep, ct);
 	return ERR_PTR(-ENOMEM);
 #endif
@@ -1591,7 +1592,7 @@ static int nf_conntrack_init_net(struct net *net)
 	return 0;
 
 err_timeout:
-	nf_conntrack_timeout_fini(net);
+	nf_conntrack_ecache_fini(net);
 err_ecache:
 	nf_conntrack_tstamp_fini(net);
 err_tstamp:

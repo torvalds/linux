@@ -22,7 +22,7 @@
 
 /***************************************************************************/
 
-#ifdef CONFIG_SPI_COLDFIRE_QSPI
+#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 
 static void __init m523x_qspi_init(void)
 {
@@ -36,7 +36,7 @@ static void __init m523x_qspi_init(void)
 	writew(par, MCFGPIO_PAR_TIMER);
 }
 
-#endif /* CONFIG_SPI_COLDFIRE_QSPI */
+#endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
 
 /***************************************************************************/
 
@@ -58,7 +58,7 @@ void __init config_BSP(char *commandp, int size)
 {
 	mach_sched_init = hw_timer_init;
 	m523x_fec_init();
-#ifdef CONFIG_SPI_COLDFIRE_QSPI
+#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	m523x_qspi_init();
 #endif
 }

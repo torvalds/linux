@@ -63,7 +63,8 @@ enum kgdb_bptype {
 	BP_HARDWARE_BREAKPOINT,
 	BP_WRITE_WATCHPOINT,
 	BP_READ_WATCHPOINT,
-	BP_ACCESS_WATCHPOINT
+	BP_ACCESS_WATCHPOINT,
+	BP_POKE_BREAKPOINT,
 };
 
 enum kgdb_bpstate {
@@ -207,8 +208,8 @@ extern void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc);
 
 /* Optional functions. */
 extern int kgdb_validate_break_address(unsigned long addr);
-extern int kgdb_arch_set_breakpoint(unsigned long addr, char *saved_instr);
-extern int kgdb_arch_remove_breakpoint(unsigned long addr, char *bundle);
+extern int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt);
+extern int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt);
 
 /**
  *	kgdb_arch_late - Perform any architecture specific initalization.

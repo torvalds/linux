@@ -73,7 +73,7 @@ static void uvesafb_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *ns
 	struct uvesafb_task *utask;
 	struct uvesafb_ktask *task;
 
-	if (!cap_raised(current_cap(), CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN))
 		return;
 
 	if (msg->seq >= UVESAFB_TASKS_MAX)
@@ -815,8 +815,15 @@ static int __devinit uvesafb_vbe_init(struct fb_info *info)
 	par->pmi_setpal = pmi_setpal;
 	par->ypan = ypan;
 
-	if (par->pmi_setpal || par->ypan)
-		uvesafb_vbe_getpmi(task, par);
+	if (par->pmi_setpal || par->ypan) {
+		if (__supported_pte_mask & _PAGE_NX) {
+			par->pmi_setpal = par->ypan = 0;
+			printk(KERN_WARNING "uvesafb: NX protection is actively."
+				"We have better not to use the PMI.\n");
+		} else {
+			uvesafb_vbe_getpmi(task, par);
+		}
+	}
 #else
 	/* The protected mode interface is not available on non-x86. */
 	par->pmi_setpal = par->ypan = 0;

@@ -14,6 +14,9 @@
 #include <linux/smsc911x.h>
 #include <linux/interrupt.h>
 
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
+
 #include <plat/gpmc.h>
 #include <plat/gpmc-smsc911x.h>
 
@@ -117,11 +120,17 @@ static struct platform_device *zoom_devices[] __initdata = {
 	&zoom_debugboard_serial_device,
 };
 
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x.0"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x.0"),
+};
+
 int __init zoom_debugboard_init(void)
 {
 	if (!omap_zoom_debugboard_detect())
 		return 0;
 
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 	zoom_init_smsc911x();
 	zoom_init_quaduart();
 	return platform_add_devices(zoom_devices, ARRAY_SIZE(zoom_devices));

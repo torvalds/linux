@@ -1,18 +1,31 @@
+config SND_SOC_FSL_SSI
+	tristate
+
+config SND_SOC_FSL_UTILS
+	tristate
+
+menuconfig SND_POWERPC_SOC
+	tristate "SoC Audio for Freescale PowerPC CPUs"
+	depends on FSL_SOC
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the PowerPC CPUs.
+
+if SND_POWERPC_SOC
+
 config SND_MPC52xx_DMA
 	tristate
 
-# ASoC platform support for the Freescale PowerPC SOCs that have an SSI and
-# an Elo DMA controller, such as the MPC8610 and P1022.  You will still need to
-# select a platform driver and a codec driver.
-config SND_SOC_POWERPC_SSI
+config SND_SOC_POWERPC_DMA
 	tristate
-	depends on FSL_SOC
 
 config SND_SOC_MPC8610_HPCD
 	tristate "ALSA SoC support for the Freescale MPC8610 HPCD board"
 	# I2C is necessary for the CS4270 driver
 	depends on MPC8610_HPCD && I2C
-	select SND_SOC_POWERPC_SSI
+	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_UTILS
+	select SND_SOC_POWERPC_DMA
 	select SND_SOC_CS4270
 	select SND_SOC_CS4270_VD33_ERRATA
 	default y if MPC8610_HPCD
@@ -23,7 +36,9 @@ config SND_SOC_P1022_DS
 	tristate "ALSA SoC support for the Freescale P1022 DS board"
 	# I2C is necessary for the WM8776 driver
 	depends on P1022_DS && I2C
-	select SND_SOC_POWERPC_SSI
+	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_UTILS
+	select SND_SOC_POWERPC_DMA
 	select SND_SOC_WM8776
 	default y if P1022_DS
 	help
@@ -65,3 +80,103 @@ config SND_MPC52xx_SOC_EFIKA
 	help
 	  Say Y if you want to add support for sound on the Efika.
 
+endif # SND_POWERPC_SOC
+
+menuconfig SND_IMX_SOC
+	tristate "SoC Audio for Freescale i.MX CPUs"
+	depends on ARCH_MXC
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the i.MX CPUs.
+
+if SND_IMX_SOC
+
+config SND_SOC_IMX_SSI
+	tristate
+
+config SND_SOC_IMX_PCM
+	tristate
+
+config SND_SOC_IMX_PCM_FIQ
+	tristate
+	select FIQ
+	select SND_SOC_IMX_PCM
+
+config SND_SOC_IMX_PCM_DMA
+	tristate
+	select SND_SOC_DMAENGINE_PCM
+	select SND_SOC_IMX_PCM
+
+config SND_SOC_IMX_AUDMUX
+	tristate
+
+config SND_MXC_SOC_WM1133_EV1
+	tristate "Audio on the the i.MX31ADS with WM1133-EV1 fitted"
+	depends on MACH_MX31ADS_WM1133_EV1 && EXPERIMENTAL
+	select SND_SOC_WM8350
+	select SND_SOC_IMX_PCM_FIQ
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_SSI
+	help
+	  Enable support for audio on the i.MX31ADS with the WM1133-EV1
+	  PMIC board with WM8835x fitted.
+
+config SND_SOC_MX27VIS_AIC32X4
+	tristate "SoC audio support for Visstrim M10 boards"
+	depends on MACH_IMX27_VISSTRIM_M10 && I2C
+	select SND_SOC_TLV320AIC32X4
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_SSI
+	help
+	  Say Y if you want to add support for SoC audio on Visstrim SM10
+	  board with TLV320AIC32X4 codec.
+
+config SND_SOC_PHYCORE_AC97
+	tristate "SoC Audio support for Phytec phyCORE (and phyCARD) boards"
+	depends on MACH_PCM043 || MACH_PCA100
+	select SND_SOC_AC97_BUS
+	select SND_SOC_WM9712
+	select SND_SOC_IMX_PCM_FIQ
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_SSI
+	help
+	  Say Y if you want to add support for SoC audio on Phytec phyCORE
+	  and phyCARD boards in AC97 mode
+
+config SND_SOC_EUKREA_TLV320
+	tristate "Eukrea TLV320"
+	depends on MACH_EUKREA_MBIMX27_BASEBOARD \
+		|| MACH_EUKREA_MBIMXSD25_BASEBOARD \
+		|| MACH_EUKREA_MBIMXSD35_BASEBOARD \
+		|| MACH_EUKREA_MBIMXSD51_BASEBOARD
+	depends on I2C
+	select SND_SOC_TLV320AIC23
+	select SND_SOC_IMX_PCM_FIQ
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_SSI
+	help
+	  Enable I2S based access to the TLV320AIC23B codec attached
+	  to the SSI interface
+
+config SND_SOC_IMX_SGTL5000
+	tristate "SoC Audio support for i.MX boards with sgtl5000"
+	depends on OF && I2C
+	select SND_SOC_SGTL5000
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_UTILS
+	help
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  a sgtl5000 codec.
+
+config SND_SOC_IMX_MC13783
+	tristate "SoC Audio support for I.MX boards with mc13783"
+	depends on MFD_MC13783
+	select SND_SOC_IMX_SSI
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_MC13783
+	select SND_SOC_IMX_PCM_DMA
+
+endif # SND_IMX_SOC

@@ -398,6 +398,17 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 			return ret;
 	}
 
+
+	if (IS_GEN6(dev)) {
+		/* From the Sandybridge PRM, volume 1 part 3, page 24:
+		 * "If this bit is set, STCunit will have LRA as replacement
+		 *  policy. [...] This bit must be reset.  LRA replacement
+		 *  policy is not supported."
+		 */
+		I915_WRITE(CACHE_MODE_0,
+			   CM0_STC_EVICT_DISABLE_LRA_SNB << CM0_MASK_SHIFT);
+	}
+
 	if (INTEL_INFO(dev)->gen >= 6) {
 		I915_WRITE(INSTPM,
 			   INSTPM_FORCE_ORDERING << 16 | INSTPM_FORCE_ORDERING);
@@ -626,7 +637,7 @@ gen6_ring_get_seqno(struct intel_ring_buffer *ring)
 	/* Workaround to force correct ordering between irq and seqno writes on
 	 * ivb (and maybe also on snb) by reading from a CS register (like
 	 * ACTHD) before reading the status page. */
-	if (IS_GEN7(dev))
+	if (IS_GEN6(dev) || IS_GEN7(dev))
 		intel_ring_get_active_head(ring);
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
@@ -1038,7 +1049,7 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	 * of the buffer.
 	 */
 	ring->effective_size = ring->size;
-	if (IS_I830(ring->dev))
+	if (IS_I830(ring->dev) || IS_845G(ring->dev))
 		ring->effective_size -= 128;
 
 	return 0;

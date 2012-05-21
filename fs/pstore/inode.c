@@ -52,12 +52,6 @@ struct pstore_private {
 	char	data[];
 };
 
-static int pstore_file_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t pstore_file_read(struct file *file, char __user *userbuf,
 						size_t count, loff_t *ppos)
 {
@@ -67,7 +61,7 @@ static ssize_t pstore_file_read(struct file *file, char __user *userbuf,
 }
 
 static const struct file_operations pstore_file_operations = {
-	.open	= pstore_file_open,
+	.open	= simple_open,
 	.read	= pstore_file_read,
 	.llseek	= default_llseek,
 };

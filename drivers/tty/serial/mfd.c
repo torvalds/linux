@@ -127,11 +127,6 @@ static inline void serial_out(struct uart_hsu_port *up, int offset, int value)
 
 #define HSU_REGS_BUFSIZE	1024
 
-static int hsu_show_regs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
 
 static ssize_t port_show_regs(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
@@ -231,14 +226,14 @@ static ssize_t dma_show_regs(struct file *file, char __user *user_buf,
 
 static const struct file_operations port_regs_ops = {
 	.owner		= THIS_MODULE,
-	.open		= hsu_show_regs_open,
+	.open		= simple_open,
 	.read		= port_show_regs,
 	.llseek		= default_llseek,
 };
 
 static const struct file_operations dma_regs_ops = {
 	.owner		= THIS_MODULE,
-	.open		= hsu_show_regs_open,
+	.open		= simple_open,
 	.read		= dma_show_regs,
 	.llseek		= default_llseek,
 };

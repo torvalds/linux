@@ -83,8 +83,9 @@
 
 #define MLX4_EN_WATCHDOG_TIMEOUT	(15 * HZ)
 
-#define MLX4_EN_ALLOC_ORDER	2
-#define MLX4_EN_ALLOC_SIZE	(PAGE_SIZE << MLX4_EN_ALLOC_ORDER)
+/* Use the maximum between 16384 and a single page */
+#define MLX4_EN_ALLOC_SIZE	PAGE_ALIGN(16384)
+#define MLX4_EN_ALLOC_ORDER	get_order(MLX4_EN_ALLOC_SIZE)
 
 #define MLX4_EN_MAX_LRO_DESCRIPTORS	32
 

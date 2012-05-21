@@ -4,8 +4,8 @@
  * GPL v2 Only
  */
 
-#ifndef __ATMEL_NAND_H__
-#define __ATMEL_NAND_H__
+#ifndef __ATMEL_H__
+#define __ATMEL_H__
 
 #include <linux/mtd/nand.h>
 
@@ -24,4 +24,4 @@ struct atmel_nand_data {
 	unsigned int	num_parts;
 };
 
-#endif /* __ATMEL_NAND_H__ */
+#endif /* __ATMEL_H__ */

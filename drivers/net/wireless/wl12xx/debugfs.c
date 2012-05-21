@@ -63,7 +63,7 @@ static ssize_t name## _read(struct file *file, char __user *userbuf,	\
 									\
 static const struct file_operations name## _ops = {			\
 	.read = name## _read,						\
-	.open = wl1271_open_file_generic,				\
+	.open = simple_open,						\
 	.llseek	= generic_file_llseek,					\
 };
 
@@ -96,7 +96,7 @@ static ssize_t sub## _ ##name## _read(struct file *file,		\
 									\
 static const struct file_operations sub## _ ##name## _ops = {		\
 	.read = sub## _ ##name## _read,					\
-	.open = wl1271_open_file_generic,				\
+	.open = simple_open,						\
 	.llseek	= generic_file_llseek,					\
 };
 
@@ -124,12 +124,6 @@ static void wl1271_debugfs_update_stats(struct wl1271 *wl)
 
 out:
 	mutex_unlock(&wl->mutex);
-}
-
-static int wl1271_open_file_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
 }
 
 DEBUGFS_FWSTATS_FILE(tx, internal_desc_overflow, "%u");
@@ -243,7 +237,7 @@ static ssize_t tx_queue_len_read(struct file *file, char __user *userbuf,
 
 static const struct file_operations tx_queue_len_ops = {
 	.read = tx_queue_len_read,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -289,7 +283,7 @@ static ssize_t gpio_power_write(struct file *file,
 static const struct file_operations gpio_power_ops = {
 	.read = gpio_power_read,
 	.write = gpio_power_write,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -308,7 +302,7 @@ static ssize_t start_recovery_write(struct file *file,
 
 static const struct file_operations start_recovery_ops = {
 	.write = start_recovery_write,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -372,7 +366,7 @@ out:
 static const struct file_operations dynamic_ps_timeout_ops = {
 	.read = dynamic_ps_timeout_read,
 	.write = dynamic_ps_timeout_write,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -441,7 +435,7 @@ out:
 static const struct file_operations forced_ps_ops = {
 	.read = forced_ps_read,
 	.write = forced_ps_write,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -483,7 +477,7 @@ static ssize_t split_scan_timeout_write(struct file *file,
 static const struct file_operations split_scan_timeout_ops = {
 	.read = split_scan_timeout_read,
 	.write = split_scan_timeout_write,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -566,7 +560,7 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 
 static const struct file_operations driver_state_ops = {
 	.read = driver_state_read,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -675,7 +669,7 @@ static ssize_t vifs_state_read(struct file *file, char __user *user_buf,
 
 static const struct file_operations vifs_state_ops = {
 	.read = vifs_state_read,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -733,7 +727,7 @@ static ssize_t dtim_interval_write(struct file *file,
 static const struct file_operations dtim_interval_ops = {
 	.read = dtim_interval_read,
 	.write = dtim_interval_write,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -791,7 +785,7 @@ static ssize_t suspend_dtim_interval_write(struct file *file,
 static const struct file_operations suspend_dtim_interval_ops = {
 	.read = suspend_dtim_interval_read,
 	.write = suspend_dtim_interval_write,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -849,7 +843,7 @@ static ssize_t beacon_interval_write(struct file *file,
 static const struct file_operations beacon_interval_ops = {
 	.read = beacon_interval_read,
 	.write = beacon_interval_write,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -904,7 +898,7 @@ static ssize_t rx_streaming_interval_read(struct file *file,
 static const struct file_operations rx_streaming_interval_ops = {
 	.read = rx_streaming_interval_read,
 	.write = rx_streaming_interval_write,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -959,7 +953,7 @@ static ssize_t rx_streaming_always_read(struct file *file,
 static const struct file_operations rx_streaming_always_ops = {
 	.read = rx_streaming_always_read,
 	.write = rx_streaming_always_write,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -1003,7 +997,7 @@ out:
 
 static const struct file_operations beacon_filtering_ops = {
 	.write = beacon_filtering_write,
-	.open = wl1271_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 

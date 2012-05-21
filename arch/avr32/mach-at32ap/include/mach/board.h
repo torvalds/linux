@@ -7,7 +7,7 @@
 #include <linux/types.h>
 #include <linux/serial.h>
 #include <linux/platform_data/macb.h>
-#include <linux/platform_data/atmel_nand.h>
+#include <linux/platform_data/atmel.h>
 
 #define GPIO_PIN_NONE	(-1)
 
