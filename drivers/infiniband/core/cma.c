@@ -1218,13 +1218,13 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	}
 	if (!conn_id) {
 		ret = -ENOMEM;
-		goto out;
+		goto err1;
 	}
 
 	mutex_lock_nested(&conn_id->handler_mutex, SINGLE_DEPTH_NESTING);
 	ret = cma_acquire_dev(conn_id);
 	if (ret)
-		goto release_conn_id;
+		goto err2;
 
 	conn_id->cm_id.ib = cm_id;
 	cm_id->context = conn_id;
@@ -1236,31 +1236,33 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	 */
 	atomic_inc(&conn_id->refcount);
 	ret = conn_id->id.event_handler(&conn_id->id, &event);
-	if (!ret) {
-		/*
-		 * Acquire mutex to prevent user executing rdma_destroy_id()
-		 * while we're accessing the cm_id.
-		 */
-		mutex_lock(&lock);
-		if (cma_comp(conn_id, RDMA_CM_CONNECT) && (conn_id->id.qp_type != IB_QPT_UD))
-			ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
-		mutex_unlock(&lock);
-		mutex_unlock(&conn_id->handler_mutex);
-		cma_deref_id(conn_id);
-		goto out;
-	}
-	cma_deref_id(conn_id);
+	if (ret)
+		goto err3;
 
+	/*
+	 * Acquire mutex to prevent user executing rdma_destroy_id()
+	 * while we're accessing the cm_id.
+	 */
+	mutex_lock(&lock);
+	if (cma_comp(conn_id, RDMA_CM_CONNECT) && (conn_id->id.qp_type != IB_QPT_UD))
+		ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
+	mutex_unlock(&lock);
+	mutex_unlock(&conn_id->handler_mutex);
+	mutex_unlock(&listen_id->handler_mutex);
+	cma_deref_id(conn_id);
+	return 0;
+
+err3:
+	cma_deref_id(conn_id);
 	/* Destroy the CM ID by returning a non-zero value. */
 	conn_id->cm_id.ib = NULL;
-
-release_conn_id:
+err2:
 	cma_exch(conn_id, RDMA_CM_DESTROYING);
 	mutex_unlock(&conn_id->handler_mutex);
-	rdma_destroy_id(&conn_id->id);
-
-out:
+err1:
 	mutex_unlock(&listen_id->handler_mutex);
+	if (conn_id)
+		rdma_destroy_id(&conn_id->id);
 	return ret;
 }
 

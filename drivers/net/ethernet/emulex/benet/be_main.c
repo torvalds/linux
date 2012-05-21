@@ -2103,10 +2103,17 @@ static uint be_num_rss_want(struct be_adapter *adapter)
 static void be_msix_enable(struct be_adapter *adapter)
 {
 #define BE_MIN_MSIX_VECTORS		1
-	int i, status, num_vec;
+	int i, status, num_vec, num_roce_vec = 0;
 
 	/* If RSS queues are not used, need a vec for default RX Q */
 	num_vec = min(be_num_rss_want(adapter), num_online_cpus());
+	if (be_roce_supported(adapter)) {
+		num_roce_vec = min_t(u32, MAX_ROCE_MSIX_VECTORS,
+					(num_online_cpus() + 1));
+		num_roce_vec = min(num_roce_vec, MAX_ROCE_EQS);
+		num_vec += num_roce_vec;
+		num_vec = min(num_vec, MAX_MSIX_VECTORS);
+	}
 	num_vec = max(num_vec, BE_MIN_MSIX_VECTORS);
 
 	for (i = 0; i < num_vec; i++)
@@ -2123,7 +2130,17 @@ static void be_msix_enable(struct be_adapter *adapter)
 	}
 	return;
 done:
-	adapter->num_msix_vec = num_vec;
+	if (be_roce_supported(adapter)) {
+		if (num_vec > num_roce_vec) {
+			adapter->num_msix_vec = num_vec - num_roce_vec;
+			adapter->num_msix_roce_vec =
+				num_vec - adapter->num_msix_vec;
+		} else {
+			adapter->num_msix_vec = num_vec;
+			adapter->num_msix_roce_vec = 0;
+		}
+	} else
+		adapter->num_msix_vec = num_vec;
 	return;
 }
 
@@ -2282,6 +2299,8 @@ static int be_close(struct net_device *netdev)
 	struct be_eq_obj *eqo;
 	int i;
 
+	be_roce_dev_close(adapter);
+
 	be_async_mcc_disable(adapter);
 
 	if (!lancer_chip(adapter))
@@ -2390,6 +2409,7 @@ static int be_open(struct net_device *netdev)
 	if (!status)
 		be_link_status_update(adapter, link_status);
 
+	be_roce_dev_open(adapter);
 	return 0;
 err:
 	be_close(adapter->netdev);
@@ -3122,6 +3142,24 @@ static void be_unmap_pci_bars(struct be_adapter *adapter)
 		iounmap(adapter->csr);
 	if (adapter->db)
 		iounmap(adapter->db);
+	if (adapter->roce_db.base)
+		pci_iounmap(adapter->pdev, adapter->roce_db.base);
+}
+
+static int lancer_roce_map_pci_bars(struct be_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	u8 __iomem *addr;
+
+	addr = pci_iomap(pdev, 2, 0);
+	if (addr == NULL)
+		return -ENOMEM;
+
+	adapter->roce_db.base = addr;
+	adapter->roce_db.io_addr = pci_resource_start(pdev, 2);
+	adapter->roce_db.size = 8192;
+	adapter->roce_db.total_size = pci_resource_len(pdev, 2);
+	return 0;
 }
 
 static int be_map_pci_bars(struct be_adapter *adapter)
@@ -3130,11 +3168,18 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 	int db_reg;
 
 	if (lancer_chip(adapter)) {
-		addr = ioremap_nocache(pci_resource_start(adapter->pdev, 0),
-			pci_resource_len(adapter->pdev, 0));
-		if (addr == NULL)
-			return -ENOMEM;
-		adapter->db = addr;
+		if (be_type_2_3(adapter)) {
+			addr = ioremap_nocache(
+					pci_resource_start(adapter->pdev, 0),
+					pci_resource_len(adapter->pdev, 0));
+			if (addr == NULL)
+				return -ENOMEM;
+			adapter->db = addr;
+		}
+		if (adapter->if_type == SLI_INTF_TYPE_3) {
+			if (lancer_roce_map_pci_bars(adapter))
+				goto pci_map_err;
+		}
 		return 0;
 	}
 
@@ -3159,13 +3204,18 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 	if (addr == NULL)
 		goto pci_map_err;
 	adapter->db = addr;
-
+	if (adapter->sli_family == SKYHAWK_SLI_FAMILY) {
+		adapter->roce_db.size = 4096;
+		adapter->roce_db.io_addr =
+				pci_resource_start(adapter->pdev, db_reg);
+		adapter->roce_db.total_size =
+				pci_resource_len(adapter->pdev, db_reg);
+	}
 	return 0;
 pci_map_err:
 	be_unmap_pci_bars(adapter);
 	return -ENOMEM;
 }
-
 
 static void be_ctrl_cleanup(struct be_adapter *adapter)
 {
@@ -3272,6 +3322,8 @@ static void __devexit be_remove(struct pci_dev *pdev)
 	if (!adapter)
 		return;
 
+	be_roce_dev_remove(adapter);
+
 	unregister_netdev(adapter->netdev);
 
 	be_clear(adapter);
@@ -3350,17 +3402,27 @@ static int be_dev_family_check(struct be_adapter *adapter)
 		break;
 	case BE_DEVICE_ID2:
 	case OC_DEVICE_ID2:
-	case OC_DEVICE_ID5:
 		adapter->generation = BE_GEN3;
 		break;
 	case OC_DEVICE_ID3:
 	case OC_DEVICE_ID4:
 		pci_read_config_dword(pdev, SLI_INTF_REG_OFFSET, &sli_intf);
+		adapter->if_type = (sli_intf & SLI_INTF_IF_TYPE_MASK) >>
+						SLI_INTF_IF_TYPE_SHIFT;
 		if_type = (sli_intf & SLI_INTF_IF_TYPE_MASK) >>
 						SLI_INTF_IF_TYPE_SHIFT;
-
 		if (((sli_intf & SLI_INTF_VALID_MASK) != SLI_INTF_VALID) ||
-			if_type != 0x02) {
+			!be_type_2_3(adapter)) {
+			dev_err(&pdev->dev, "SLI_INTF reg val is not valid\n");
+			return -EINVAL;
+		}
+		adapter->sli_family = ((sli_intf & SLI_INTF_FAMILY_MASK) >>
+					 SLI_INTF_FAMILY_SHIFT);
+		adapter->generation = BE_GEN3;
+		break;
+	case OC_DEVICE_ID5:
+		pci_read_config_dword(pdev, SLI_INTF_REG_OFFSET, &sli_intf);
+		if ((sli_intf & SLI_INTF_VALID_MASK) != SLI_INTF_VALID) {
 			dev_err(&pdev->dev, "SLI_INTF reg val is not valid\n");
 			return -EINVAL;
 		}
@@ -3619,6 +3681,8 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	status = register_netdev(netdev);
 	if (status != 0)
 		goto unsetup;
+
+	be_roce_dev_add(adapter);
 
 	dev_info(&pdev->dev, "%s: %s port %d\n", netdev->name, nic_name(pdev),
 		adapter->port_num);

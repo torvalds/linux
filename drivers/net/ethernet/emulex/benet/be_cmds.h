@@ -1056,6 +1056,7 @@ struct be_cmd_resp_modify_eq_delay {
 /* The HW can come up in either of the following multi-channel modes
  * based on the skew/IPL.
  */
+#define RDMA_ENABLED				0x4
 #define FLEX10_MODE				0x400
 #define VNIC_MODE				0x20000
 #define UMC_ENABLED				0x1000000

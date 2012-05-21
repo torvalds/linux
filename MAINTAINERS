@@ -3631,7 +3631,7 @@ S:	Maintained
 F:	drivers/net/ethernet/icplus/ipg.*
 
 IPATH DRIVER
-M:	Mike Marciniszyn <infinipath@qlogic.com>
+M:	Mike Marciniszyn <infinipath@intel.com>
 L:	linux-rdma@vger.kernel.org
 S:	Maintained
 F:	drivers/infiniband/hw/ipath/
@@ -5455,7 +5455,7 @@ L:	rtc-linux@googlegroups.com
 S:	Maintained
 
 QIB DRIVER
-M:	Mike Marciniszyn <infinipath@qlogic.com>
+M:	Mike Marciniszyn <infinipath@intel.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/qib/
