@@ -1371,6 +1371,8 @@ static void pn533_stop_poll(struct nfc_dev *nfc_dev)
 
 	/* prevent pn533_start_poll_complete to issue a new poll meanwhile */
 	usb_kill_urb(dev->in_urb);
+
+	pn533_poll_reset_mod_list(dev);
 }
 
 static int pn533_activate_target_nfcdep(struct pn533 *dev)
