@@ -190,24 +190,32 @@ SYSCALL_DEFINE2(fstat, unsigned int, fd, struct __old_kernel_stat __user *, stat
 
 #endif /* __ARCH_WANT_OLD_STAT */
 
+#if BITS_PER_LONG == 32
+#  define choose_32_64(a,b) a
+#else
+#  define choose_32_64(a,b) b
+#endif
+
+#define valid_dev(x)  choose_32_64(old_valid_dev,new_valid_dev)(x)
+#define encode_dev(x) choose_32_64(old_encode_dev,new_encode_dev)(x)
+
+#ifndef INIT_STRUCT_STAT_PADDING
+#  define INIT_STRUCT_STAT_PADDING(st) memset(&st, 0, sizeof(st))
+#endif
+
 static int cp_new_stat(struct kstat *stat, struct stat __user *statbuf)
 {
 	struct stat tmp;
 
-#if BITS_PER_LONG == 32
-	if (!old_valid_dev(stat->dev) || !old_valid_dev(stat->rdev))
+	if (!valid_dev(stat->dev) || !valid_dev(stat->rdev))
 		return -EOVERFLOW;
-#else
-	if (!new_valid_dev(stat->dev) || !new_valid_dev(stat->rdev))
+#if BITS_PER_LONG == 32
+	if (stat->size > MAX_NON_LFS)
 		return -EOVERFLOW;
 #endif
 
-	memset(&tmp, 0, sizeof(tmp));
-#if BITS_PER_LONG == 32
-	tmp.st_dev = old_encode_dev(stat->dev);
-#else
-	tmp.st_dev = new_encode_dev(stat->dev);
-#endif
+	INIT_STRUCT_STAT_PADDING(tmp);
+	tmp.st_dev = encode_dev(stat->dev);
 	tmp.st_ino = stat->ino;
 	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
 		return -EOVERFLOW;
@@ -217,15 +225,7 @@ static int cp_new_stat(struct kstat *stat, struct stat __user *statbuf)
 		return -EOVERFLOW;
 	SET_UID(tmp.st_uid, stat->uid);
 	SET_GID(tmp.st_gid, stat->gid);
-#if BITS_PER_LONG == 32
-	tmp.st_rdev = old_encode_dev(stat->rdev);
-#else
-	tmp.st_rdev = new_encode_dev(stat->rdev);
-#endif
-#if BITS_PER_LONG == 32
-	if (stat->size > MAX_NON_LFS)
-		return -EOVERFLOW;
-#endif	
+	tmp.st_rdev = encode_dev(stat->rdev);
 	tmp.st_size = stat->size;
 	tmp.st_atime = stat->atime.tv_sec;
 	tmp.st_mtime = stat->mtime.tv_sec;
@@ -327,11 +327,15 @@ SYSCALL_DEFINE3(readlink, const char __user *, path, char __user *, buf,
 /* ---------- LFS-64 ----------- */
 #ifdef __ARCH_WANT_STAT64
 
+#ifndef INIT_STRUCT_STAT64_PADDING
+#  define INIT_STRUCT_STAT64_PADDING(st) memset(&st, 0, sizeof(st))
+#endif
+
 static long cp_new_stat64(struct kstat *stat, struct stat64 __user *statbuf)
 {
 	struct stat64 tmp;
 
-	memset(&tmp, 0, sizeof(struct stat64));
+	INIT_STRUCT_STAT64_PADDING(tmp);
 #ifdef CONFIG_MIPS
 	/* mips has weird padding, so we don't get 64 bits there */
 	if (!new_valid_dev(stat->dev) || !new_valid_dev(stat->rdev))
