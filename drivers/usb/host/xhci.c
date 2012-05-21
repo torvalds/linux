@@ -3956,7 +3956,7 @@ static u16 xhci_calculate_intel_u1_timeout(struct usb_device *udev,
 		/* Otherwise the calculation is the same as isoc eps */
 	case USB_ENDPOINT_XFER_ISOC:
 		timeout_ns = xhci_service_interval_to_ns(desc);
-		timeout_ns = DIV_ROUND_UP(timeout_ns * 105, 100);
+		timeout_ns = DIV_ROUND_UP_ULL(timeout_ns * 105, 100);
 		if (timeout_ns < udev->u1_params.sel * 2)
 			timeout_ns = udev->u1_params.sel * 2;
 		break;
@@ -3965,7 +3965,7 @@ static u16 xhci_calculate_intel_u1_timeout(struct usb_device *udev,
 	}
 
 	/* The U1 timeout is encoded in 1us intervals. */
-	timeout_ns = DIV_ROUND_UP(timeout_ns, 1000);
+	timeout_ns = DIV_ROUND_UP_ULL(timeout_ns, 1000);
 	/* Don't return a timeout of zero, because that's USB3_LPM_DISABLED. */
 	if (timeout_ns == USB3_LPM_DISABLED)
 		timeout_ns++;
@@ -4004,7 +4004,7 @@ static u16 xhci_calculate_intel_u2_timeout(struct usb_device *udev,
 		timeout_ns = u2_del_ns;
 
 	/* The U2 timeout is encoded in 256us intervals */
-	timeout_ns = DIV_ROUND_UP(timeout_ns, 256 * 1000);
+	timeout_ns = DIV_ROUND_UP_ULL(timeout_ns, 256 * 1000);
 	/* If the necessary timeout value is bigger than what we can set in the
 	 * USB 3.0 hub, we have to disable hub-initiated U2.
 	 */
