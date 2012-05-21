@@ -85,7 +85,7 @@ ENTRY(wakeup_start)
 
 	/* Check we really have everything... */
 	movl	end_signature, %eax
-	cmpl	$WAKEUP_END_SIGNATURE, %eax
+	cmpl	$REALMODE_END_SIGNATURE, %eax
 	jne	bogus_real_magic
 
 	/* Call the C code */
@@ -175,7 +175,3 @@ GLOBAL(wakeup_idt)
 	.long	0		/* address */
 	.word	0
 END(wakeup_idt)
-
-	.section ".signature","a"
-end_signature:
-	.long	WAKEUP_END_SIGNATURE

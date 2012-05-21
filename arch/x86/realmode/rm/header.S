@@ -7,6 +7,8 @@
 #include <linux/linkage.h>
 #include <asm/page_types.h>
 
+#include "realmode.h"
+	
 	.section ".header", "a"
 
 	.balign	16
@@ -30,3 +32,10 @@ GLOBAL(real_mode_header)
 	.long	pa_machine_real_restart_asm
 #endif
 END(real_mode_header)
+
+	/* End signature, used to verify integrity */
+	.section ".signature","a"
+	.balign 4
+GLOBAL(end_signature)
+	.long	REALMODE_END_SIGNATURE
+END(end_signature)

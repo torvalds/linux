@@ -13,4 +13,9 @@
 
 #endif /* __ASSEMBLY__ */
 
+/*
+ * Signature at the end of the realmode region
+ */
+#define REALMODE_END_SIGNATURE	0x65a22c82
+
 #endif /* ARCH_X86_REALMODE_RM_REALMODE_H */
