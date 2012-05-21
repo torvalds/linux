@@ -214,6 +214,5 @@ static void __init sh7763rdp_setup(char **cmdline_p)
 static struct sh_machine_vector mv_sh7763rdp __initmv = {
 	.mv_name = "sh7763drp",
 	.mv_setup = sh7763rdp_setup,
-	.mv_nr_irqs = 112,
 	.mv_init_irq = init_sh7763rdp_IRQ,
 };

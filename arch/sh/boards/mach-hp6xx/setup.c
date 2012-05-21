@@ -169,8 +169,6 @@ device_initcall(hp6xx_devices_setup);
 static struct sh_machine_vector mv_hp6xx __initmv = {
 	.mv_name = "hp6xx",
 	.mv_setup = hp6xx_setup,
-	/* IRQ's : CPU(64) + CCHIP(16) + FREE_TO_USE(6) */
-	.mv_nr_irqs = HD64461_IRQBASE + HD64461_IRQ_NUM + 6,
 	/* Enable IRQ0 -> IRQ3 in IRQ_MODE */
 	.mv_init_irq = hp6xx_init_irq,
 };
