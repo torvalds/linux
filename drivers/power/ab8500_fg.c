@@ -2570,6 +2570,11 @@ static int ab8500_fg_suspend(struct platform_device *pdev,
 	struct ab8500_fg *di = platform_get_drvdata(pdev);
 
 	flush_delayed_work(&di->fg_periodic_work);
+	flush_work(&di->fg_work);
+	flush_work(&di->fg_acc_cur_work);
+	flush_delayed_work(&di->fg_reinit_work);
+	flush_delayed_work(&di->fg_low_bat_work);
+	flush_delayed_work(&di->fg_check_hw_failure_work);
 
 	/*
 	 * If the FG is enabled we will disable it before going to suspend

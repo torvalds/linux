@@ -2866,6 +2866,17 @@ static int ab8500_charger_suspend(struct platform_device *pdev,
 	if (delayed_work_pending(&di->check_hw_failure_work))
 		cancel_delayed_work(&di->check_hw_failure_work);
 
+	flush_delayed_work(&di->attach_work);
+	flush_delayed_work(&di->usb_charger_attached_work);
+	flush_delayed_work(&di->ac_charger_attached_work);
+	flush_delayed_work(&di->check_usbchgnotok_work);
+	flush_delayed_work(&di->check_vbat_work);
+	flush_delayed_work(&di->kick_wd_work);
+
+	flush_work(&di->usb_link_status_work);
+	flush_work(&di->ac_work);
+	flush_work(&di->detect_usb_type_work);
+
 	return 0;
 }
 #else
