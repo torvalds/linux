@@ -1169,7 +1169,7 @@ static int sd_check_switch_mode(struct rtsx_chip *chip, u8 mode,
 		RTSX_DEBUGP("func_group4_mask = 0x%02x\n", buf[0x07]);
 	} else {
 		/* Maximum current consumption, check whether current is acceptable;
-		 * bit[511:496] = 0x0000 means some error happaned.
+		 * bit[511:496] = 0x0000 means some error happened.
 		 */
 		u16 cc = ((u16)buf[0] << 8) | buf[1];
 		RTSX_DEBUGP("Maximum current consumption: %dmA\n", cc);
