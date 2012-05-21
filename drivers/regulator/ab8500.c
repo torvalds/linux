@@ -256,14 +256,7 @@ static int ab8500_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 					     unsigned int new_sel)
 {
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
-	int ret;
 
-	/* If the regulator isn't on, it won't take time here */
-	ret = ab8500_regulator_is_enabled(rdev);
-	if (ret < 0)
-		return ret;
-	if (!ret)
-		return 0;
 	return info->delay;
 }
 
