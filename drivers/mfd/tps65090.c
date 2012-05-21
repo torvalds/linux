@@ -78,17 +78,6 @@ static struct mfd_cell tps65090s[] = {
 	},
 };
 
-struct tps65090 {
-	struct mutex		lock;
-	struct device		*dev;
-	struct i2c_client	*client;
-	struct regmap		*rmap;
-	struct irq_chip		irq_chip;
-	struct mutex		irq_lock;
-	int			irq_base;
-	unsigned int		id;
-};
-
 int tps65090_write(struct device *dev, int reg, uint8_t val)
 {
 	struct tps65090 *tps = dev_get_drvdata(dev);
