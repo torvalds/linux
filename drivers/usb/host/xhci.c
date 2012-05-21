@@ -3837,8 +3837,43 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 	return 0;
 }
 
+int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	int		ret;
+
+	ret = xhci_usb2_software_lpm_test(hcd, udev);
+	if (!ret) {
+		xhci_dbg(xhci, "software LPM test succeed\n");
+		if (xhci->hw_lpm_support == 1) {
+			udev->usb2_hw_lpm_capable = 1;
+			ret = xhci_set_usb2_hardware_lpm(hcd, udev, 1);
+			if (!ret)
+				udev->usb2_hw_lpm_enabled = 1;
+		}
+	}
+
+	return 0;
+}
+
+#else
+
+int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
+				struct usb_device *udev, int enable)
+{
+	return 0;
+}
+
+int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	return 0;
+}
+
+#endif /* CONFIG_USB_SUSPEND */
+
 /*---------------------- USB 3.0 Link PM functions ------------------------*/
 
+#ifdef CONFIG_PM
 /* Service interval in nanoseconds = 2^(bInterval - 1) * 125us * 1000ns / 1us */
 static unsigned long long xhci_service_interval_to_ns(
 		struct usb_endpoint_descriptor *desc)
@@ -4287,41 +4322,22 @@ int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 		return ret;
 	return 0;
 }
+#else /* CONFIG_PM */
+
+int xhci_enable_usb3_lpm_timeout(struct usb_hcd *hcd,
+			struct usb_device *udev, enum usb3_link_state state)
+{
+	return USB3_LPM_DISABLED;
+}
+
+int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
+			struct usb_device *udev, enum usb3_link_state state)
+{
+	return 0;
+}
+#endif	/* CONFIG_PM */
+
 /*-------------------------------------------------------------------------*/
-
-int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
-{
-	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	int		ret;
-
-	ret = xhci_usb2_software_lpm_test(hcd, udev);
-	if (!ret) {
-		xhci_dbg(xhci, "software LPM test succeed\n");
-		if (xhci->hw_lpm_support == 1) {
-			udev->usb2_hw_lpm_capable = 1;
-			ret = xhci_set_usb2_hardware_lpm(hcd, udev, 1);
-			if (!ret)
-				udev->usb2_hw_lpm_enabled = 1;
-		}
-	}
-
-	return 0;
-}
-
-#else
-
-int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
-				struct usb_device *udev, int enable)
-{
-	return 0;
-}
-
-int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
-{
-	return 0;
-}
-
-#endif /* CONFIG_USB_SUSPEND */
 
 /* Once a hub descriptor is fetched for a device, we need to update the xHC's
  * internal data structures for the device.
