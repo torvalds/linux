@@ -4549,8 +4549,12 @@ static int ipr_ata_slave_alloc(struct scsi_device *sdev)
 	ENTER;
 	if (sdev->sdev_target)
 		sata_port = sdev->sdev_target->hostdata;
-	if (sata_port)
+	if (sata_port) {
 		rc = ata_sas_port_init(sata_port->ap);
+		if (rc == 0)
+			rc = ata_sas_sync_probe(sata_port->ap);
+	}
+
 	if (rc)
 		ipr_slave_destroy(sdev);
 

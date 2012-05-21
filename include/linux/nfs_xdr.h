@@ -312,6 +312,11 @@ struct nfs4_layoutreturn {
 	int rpc_status;
 };
 
+struct stateowner_id {
+	__u64	create_time;
+	__u32	uniquifier;
+};
+
 /*
  * Arguments to the open call.
  */
@@ -321,7 +326,7 @@ struct nfs_openargs {
 	int			open_flags;
 	fmode_t			fmode;
 	__u64                   clientid;
-	__u64                   id;
+	struct stateowner_id	id;
 	union {
 		struct {
 			struct iattr *  attrs;    /* UNCHECKED, GUARDED */

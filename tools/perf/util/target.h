@@ -11,6 +11,7 @@ struct perf_target {
 	const char   *uid_str;
 	uid_t	     uid;
 	bool	     system_wide;
+	bool	     uses_mmap;
 };
 
 enum perf_target_errno {
@@ -46,19 +47,19 @@ enum perf_target_errno perf_target__parse_uid(struct perf_target *target);
 int perf_target__strerror(struct perf_target *target, int errnum, char *buf,
 			  size_t buflen);
 
-static inline bool perf_target__no_task(struct perf_target *target)
+static inline bool perf_target__has_task(struct perf_target *target)
 {
-	return !target->pid && !target->tid && !target->uid_str;
+	return target->tid || target->pid || target->uid_str;
 }
 
-static inline bool perf_target__no_cpu(struct perf_target *target)
+static inline bool perf_target__has_cpu(struct perf_target *target)
 {
-	return !target->system_wide && !target->cpu_list;
+	return target->system_wide || target->cpu_list;
 }
 
 static inline bool perf_target__none(struct perf_target *target)
 {
-	return perf_target__no_task(target) && perf_target__no_cpu(target);
+	return !perf_target__has_task(target) && !perf_target__has_cpu(target);
 }
 
 #endif /* _PERF_TARGET_H */

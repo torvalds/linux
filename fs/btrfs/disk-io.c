@@ -383,16 +383,15 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 		if (test_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags))
 			break;
 
-		if (!failed_mirror) {
-			failed = 1;
-			printk(KERN_ERR "failed mirror was %d\n", eb->failed_mirror);
-			failed_mirror = eb->failed_mirror;
-		}
-
 		num_copies = btrfs_num_copies(&root->fs_info->mapping_tree,
 					      eb->start, eb->len);
 		if (num_copies == 1)
 			break;
+
+		if (!failed_mirror) {
+			failed = 1;
+			failed_mirror = eb->read_mirror;
+		}
 
 		mirror_num++;
 		if (mirror_num == failed_mirror)
@@ -564,7 +563,7 @@ struct extent_buffer *find_eb_for_page(struct extent_io_tree *tree,
 }
 
 static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
-			       struct extent_state *state)
+			       struct extent_state *state, int mirror)
 {
 	struct extent_io_tree *tree;
 	u64 found_start;
@@ -589,6 +588,7 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	if (!reads_done)
 		goto err;
 
+	eb->read_mirror = mirror;
 	if (test_bit(EXTENT_BUFFER_IOERR, &eb->bflags)) {
 		ret = -EIO;
 		goto err;
@@ -652,7 +652,7 @@ static int btree_io_failed_hook(struct page *page, int failed_mirror)
 
 	eb = (struct extent_buffer *)page->private;
 	set_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
-	eb->failed_mirror = failed_mirror;
+	eb->read_mirror = failed_mirror;
 	if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
 		btree_readahead_hook(root, eb, eb->start, -EIO);
 	return -EIO;	/* we fixed nothing */
@@ -2254,9 +2254,9 @@ int open_ctree(struct super_block *sb,
 		goto fail_sb_buffer;
 	}
 
-	if (sectorsize < PAGE_SIZE) {
-		printk(KERN_WARNING "btrfs: Incompatible sector size "
-		       "found on %s\n", sb->s_id);
+	if (sectorsize != PAGE_SIZE) {
+		printk(KERN_WARNING "btrfs: Incompatible sector size(%lu) "
+		       "found on %s\n", (unsigned long)sectorsize, sb->s_id);
 		goto fail_sb_buffer;
 	}
 
