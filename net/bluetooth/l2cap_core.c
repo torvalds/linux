@@ -1693,9 +1693,6 @@ static int l2cap_streaming_send(struct l2cap_chan *chan,
 
 	BT_DBG("chan %p, skbs %p", chan, skbs);
 
-	if (chan->state != BT_CONNECTED)
-		return -ENOTCONN;
-
 	skb_queue_splice_tail_init(skbs, &chan->tx_q);
 
 	while (!skb_queue_empty(&chan->tx_q)) {
