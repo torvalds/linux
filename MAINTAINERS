@@ -5128,18 +5128,12 @@ F:	Documentation/powerpc/eeh-pci-error-recovery.txt
 PCI SUBSYSTEM
 M:	Bjorn Helgaas <bhelgaas@google.com>
 L:	linux-pci@vger.kernel.org
-Q:	http://patchwork.kernel.org/project/linux-pci/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jbarnes/pci.git
+Q:	http://patchwork.ozlabs.org/project/linux-pci/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/helgaas/linux.git
 S:	Supported
 F:	Documentation/PCI/
 F:	drivers/pci/
 F:	include/linux/pci*
-
-PCI HOTPLUG
-M:	Bjorn Helgaas <bhelgaas@google.com>
-L:	linux-pci@vger.kernel.org
-S:	Supported
-F:	drivers/pci/hotplug
 
 PCMCIA SUBSYSTEM
 P:	Linux PCMCIA Team

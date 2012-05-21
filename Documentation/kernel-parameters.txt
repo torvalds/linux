@@ -2161,6 +2161,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				on: Turn realloc on
 		realloc		same as realloc=on
 		noari		do not use PCIe ARI.
+		pcie_scan_all	Scan all possible PCIe devices.  Otherwise we
+				only look for one device below a PCIe downstream
+				port.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.

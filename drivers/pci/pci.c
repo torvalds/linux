@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
+#include <asm-generic/pci-bridge.h>
 #include <asm/setup.h>
 #include "pci.h"
 
@@ -3164,17 +3165,11 @@ static int pci_parent_bus_reset(struct pci_dev *dev, int probe)
 	return 0;
 }
 
-static int pci_dev_reset(struct pci_dev *dev, int probe)
+static int __pci_dev_reset(struct pci_dev *dev, int probe)
 {
 	int rc;
 
 	might_sleep();
-
-	if (!probe) {
-		pci_cfg_access_lock(dev);
-		/* block PM suspend, driver probe, etc. */
-		device_lock(&dev->dev);
-	}
 
 	rc = pci_dev_specific_reset(dev, probe);
 	if (rc != -ENOTTY)
@@ -3194,14 +3189,27 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
 
 	rc = pci_parent_bus_reset(dev, probe);
 done:
+	return rc;
+}
+
+static int pci_dev_reset(struct pci_dev *dev, int probe)
+{
+	int rc;
+
+	if (!probe) {
+		pci_cfg_access_lock(dev);
+		/* block PM suspend, driver probe, etc. */
+		device_lock(&dev->dev);
+	}
+
+	rc = __pci_dev_reset(dev, probe);
+
 	if (!probe) {
 		device_unlock(&dev->dev);
 		pci_cfg_access_unlock(dev);
 	}
-
 	return rc;
 }
-
 /**
  * __pci_reset_function - reset a PCI device function
  * @dev: PCI device to reset
@@ -3246,7 +3254,7 @@ EXPORT_SYMBOL_GPL(__pci_reset_function);
  */
 int __pci_reset_function_locked(struct pci_dev *dev)
 {
-	return pci_dev_reset(dev, 1);
+	return __pci_dev_reset(dev, 0);
 }
 EXPORT_SYMBOL_GPL(__pci_reset_function_locked);
 
@@ -3893,6 +3901,8 @@ static int __init pci_setup(char *str)
 				pcie_bus_config = PCIE_BUS_PERFORMANCE;
 			} else if (!strncmp(str, "pcie_bus_peer2peer", 18)) {
 				pcie_bus_config = PCIE_BUS_PEER2PEER;
+			} else if (!strncmp(str, "pcie_scan_all", 13)) {
+				pci_add_flags(PCI_SCAN_ALL_PCIE_DEVS);
 			} else {
 				printk(KERN_ERR "PCI: Unknown option `%s'\n",
 						str);
