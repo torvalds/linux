@@ -645,6 +645,8 @@ static void venc_set_timings(struct omap_dss_device *dssdev,
 		/* turn the venc off and on to get new timings to use */
 		venc_panel_disable(dssdev);
 		venc_panel_enable(dssdev);
+	} else {
+		dss_mgr_set_timings(dssdev->manager, timings);
 	}
 }
 
