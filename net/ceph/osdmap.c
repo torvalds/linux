@@ -883,8 +883,12 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		pglen = ceph_decode_32(p);
 
 		if (pglen) {
-			/* insert */
 			ceph_decode_need(p, end, pglen*sizeof(u32), bad);
+
+			/* removing existing (if any) */
+			(void) __remove_pg_mapping(&map->pg_temp, pgid);
+
+			/* insert */
 			pg = kmalloc(sizeof(*pg) + sizeof(u32)*pglen, GFP_NOFS);
 			if (!pg) {
 				err = -ENOMEM;
