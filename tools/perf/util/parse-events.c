@@ -23,6 +23,9 @@ struct event_symbol {
 	const char	*alias;
 };
 
+#ifdef PARSER_DEBUG
+extern int parse_events_debug;
+#endif
 int parse_events_parse(struct list_head *list, struct list_head *list_tmp,
 		       int *idx);
 
@@ -768,6 +771,9 @@ int parse_events(struct perf_evlist *evlist, const char *str, int unset __used)
 
 	buffer = parse_events__scan_string(str);
 
+#ifdef PARSER_DEBUG
+	parse_events_debug = 1;
+#endif
 	ret = parse_events_parse(&list, &list_tmp, &idx);
 
 	parse_events__flush_buffer(buffer);
