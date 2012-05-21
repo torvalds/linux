@@ -17,6 +17,7 @@
 
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
+#include <linux/regmap.h>
 
 enum wm8994_type {
 	WM8994 = 0,
@@ -26,7 +27,6 @@ enum wm8994_type {
 
 struct regulator_dev;
 struct regulator_bulk_data;
-struct regmap;
 
 #define WM8994_NUM_GPIO_REGS 11
 #define WM8994_NUM_LDO_REGS   2
@@ -94,17 +94,17 @@ static inline int wm8994_request_irq(struct wm8994 *wm8994, int irq,
 				     irq_handler_t handler, const char *name,
 				     void *data)
 {
-	if (!wm8994->irq_base)
+	if (!wm8994->irq_data)
 		return -EINVAL;
-	return request_threaded_irq(wm8994->irq_base + irq, NULL, handler,
-				    IRQF_TRIGGER_RISING, name,
+	return request_threaded_irq(regmap_irq_get_virq(wm8994->irq_data, irq),
+				    NULL, handler, IRQF_TRIGGER_RISING, name,
 				    data);
 }
 static inline void wm8994_free_irq(struct wm8994 *wm8994, int irq, void *data)
 {
-	if (!wm8994->irq_base)
+	if (!wm8994->irq_data)
 		return;
-	free_irq(wm8994->irq_base + irq, data);
+	free_irq(regmap_irq_get_virq(wm8994->irq_data, irq), data);
 }
 
 int wm8994_irq_init(struct wm8994 *wm8994);
