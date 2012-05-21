@@ -39,6 +39,7 @@
 #include <linux/mutex.h>
 
 #include "iwl-fw.h"
+#include "iwl-eeprom-parse.h"
 #include "iwl-csr.h"
 #include "iwl-debug.h"
 #include "iwl-agn-hw.h"
@@ -46,7 +47,6 @@
 #include "iwl-notif-wait.h"
 #include "iwl-trans.h"
 
-#include "eeprom.h"
 #include "led.h"
 #include "power.h"
 #include "rs.h"
@@ -89,33 +89,6 @@
 #define IWL_NUM_SCAN_RATES         (2)
 
 /*
- * One for each channel, holds all channel setup data
- * Some of the fields (e.g. eeprom and flags/max_power_avg) are redundant
- *     with one another!
- */
-struct iwl_channel_info {
-	struct iwl_eeprom_channel eeprom;	/* EEPROM regulatory limit */
-	struct iwl_eeprom_channel ht40_eeprom;	/* EEPROM regulatory limit for
-						 * HT40 channel */
-
-	u8 channel;	  /* channel number */
-	u8 flags;	  /* flags copied from EEPROM */
-	s8 max_power_avg; /* (dBm) regul. eeprom, normal Tx, any rate */
-	s8 curr_txpow;	  /* (dBm) regulatory/spectrum/user (not h/w) limit */
-	s8 min_power;	  /* always 0 */
-	s8 scan_power;	  /* (dBm) regul. eeprom, direct scans, any rate */
-
-	u8 group_index;	  /* 0-4, maps channel to group1/2/3/4/5 */
-	u8 band_index;	  /* 0-4, maps channel to band1/2/3/4/5 */
-	enum ieee80211_band band;
-
-	/* HT40 channel info */
-	s8 ht40_max_power_avg;	/* (dBm) regul. eeprom, normal Tx, any rate */
-	u8 ht40_flags;		/* flags copied from EEPROM */
-	u8 ht40_extension_channel; /* HT_IE_EXT_CHANNEL_* */
-};
-
-/*
  * Minimum number of queues. MAX_NUM is defined in hw specific files.
  * Set the minimum to accommodate
  *  - 4 standard TX queues
@@ -153,29 +126,6 @@ union iwl_ht_rate_supp {
 		u8 mimo_rate;
 	};
 };
-
-#define CFG_HT_RX_AMPDU_FACTOR_8K   (0x0)
-#define CFG_HT_RX_AMPDU_FACTOR_16K  (0x1)
-#define CFG_HT_RX_AMPDU_FACTOR_32K  (0x2)
-#define CFG_HT_RX_AMPDU_FACTOR_64K  (0x3)
-#define CFG_HT_RX_AMPDU_FACTOR_DEF  CFG_HT_RX_AMPDU_FACTOR_64K
-#define CFG_HT_RX_AMPDU_FACTOR_MAX  CFG_HT_RX_AMPDU_FACTOR_64K
-#define CFG_HT_RX_AMPDU_FACTOR_MIN  CFG_HT_RX_AMPDU_FACTOR_8K
-
-/*
- * Maximal MPDU density for TX aggregation
- * 4 - 2us density
- * 5 - 4us density
- * 6 - 8us density
- * 7 - 16us density
- */
-#define CFG_HT_MPDU_DENSITY_2USEC   (0x4)
-#define CFG_HT_MPDU_DENSITY_4USEC   (0x5)
-#define CFG_HT_MPDU_DENSITY_8USEC   (0x6)
-#define CFG_HT_MPDU_DENSITY_16USEC  (0x7)
-#define CFG_HT_MPDU_DENSITY_DEF CFG_HT_MPDU_DENSITY_4USEC
-#define CFG_HT_MPDU_DENSITY_MAX CFG_HT_MPDU_DENSITY_16USEC
-#define CFG_HT_MPDU_DENSITY_MIN     (0x1)
 
 struct iwl_ht_config {
 	bool single_chain_sufficient;
@@ -446,23 +396,6 @@ enum {
 	MEASUREMENT_ACTIVE = (1 << 1),
 };
 
-enum iwl_nvm_type {
-	NVM_DEVICE_TYPE_EEPROM = 0,
-	NVM_DEVICE_TYPE_OTP,
-};
-
-/*
- * Two types of OTP memory access modes
- *   IWL_OTP_ACCESS_ABSOLUTE - absolute address mode,
- * 			        based on physical memory addressing
- *   IWL_OTP_ACCESS_RELATIVE - relative address mode,
- * 			       based on logical memory addressing
- */
-enum iwl_access_mode {
-	IWL_OTP_ACCESS_ABSOLUTE,
-	IWL_OTP_ACCESS_RELATIVE,
-};
-
 /* reply_tx_statistics (for _agn devices) */
 struct reply_tx_error_statistics {
 	u32 pp_delay;
@@ -633,8 +566,6 @@ enum iwl_scan_type {
  *
  * @tx_chains_num: Number of TX chains
  * @rx_chains_num: Number of RX chains
- * @valid_tx_ant: usable antennas for TX
- * @valid_rx_ant: usable antennas for RX
  * @sku: sku read from EEPROM
  * @ct_kill_threshold: temperature threshold - in hw dependent unit
  * @ct_kill_exit_threshold: when to reeable the device - in hw dependent unit
@@ -645,8 +576,6 @@ enum iwl_scan_type {
 struct iwl_hw_params {
 	u8  tx_chains_num;
 	u8  rx_chains_num;
-	u8  valid_tx_ant;
-	u8  valid_rx_ant;
 	bool use_rts_for_aggregation;
 	u16 sku;
 	u32 ct_kill_threshold;
@@ -662,9 +591,6 @@ struct iwl_lib_ops {
 				  struct ieee80211_channel_switch *ch_switch);
 	/* device specific configuration */
 	void (*nic_config)(struct iwl_priv *priv);
-
-	/* eeprom operations (as defined in eeprom.h) */
-	struct iwl_eeprom_ops eeprom_ops;
 
 	/* temperature */
 	void (*temperature)(struct iwl_priv *priv);
@@ -734,8 +660,6 @@ struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_hw *hw;
-	struct ieee80211_channel *ieee_channels;
-	struct ieee80211_rate *ieee_rates;
 
 	struct list_head calib_results;
 
@@ -753,8 +677,6 @@ struct iwl_priv {
 				       struct iwl_device_cmd *cmd);
 
 	struct iwl_notif_wait_data notif_wait;
-
-	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
 	/* spectrum measurement report caching */
 	struct iwl_spectrum_notification measure_report;
@@ -785,11 +707,6 @@ struct iwl_priv {
 	int reload_count;
 	bool ucode_loaded;
 	bool init_ucode_run;		/* Don't run init uCode again */
-
-	/* we allocate array of iwl_channel_info for NIC's valid channels.
-	 *    Access via channel # using indirect index array */
-	struct iwl_channel_info *channel_info;	/* channel info array */
-	u8 channel_count;	/* # of channels */
 
 	u8 plcp_delta_threshold;
 
@@ -950,10 +867,8 @@ struct iwl_priv {
 
 	struct delayed_work scan_check;
 
-	/* TX Power */
+	/* TX Power settings */
 	s8 tx_power_user_lmt;
-	s8 tx_power_device_lmt;
-	s8 tx_power_lmt_in_half_dbm; /* max tx power in half-dBm format */
 	s8 tx_power_next;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -964,9 +879,10 @@ struct iwl_priv {
 	void *wowlan_sram;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
-	/* eeprom -- this is in the card's little endian byte order */
-	u8 *eeprom;
-	enum iwl_nvm_type nvm_device_type;
+	struct iwl_eeprom_data *eeprom_data;
+	/* eeprom blob for debugfs/testmode */
+	u8 *eeprom_blob;
+	size_t eeprom_blob_size;
 
 	struct work_struct txpower_work;
 	u32 calib_disabled;
@@ -1032,38 +948,6 @@ static inline int iwl_is_any_associated(struct iwl_priv *priv)
 		if (iwl_is_associated_ctx(ctx))
 			return true;
 	return false;
-}
-
-static inline int is_channel_valid(const struct iwl_channel_info *ch_info)
-{
-	if (ch_info == NULL)
-		return 0;
-	return (ch_info->flags & EEPROM_CHANNEL_VALID) ? 1 : 0;
-}
-
-static inline int is_channel_radar(const struct iwl_channel_info *ch_info)
-{
-	return (ch_info->flags & EEPROM_CHANNEL_RADAR) ? 1 : 0;
-}
-
-static inline u8 is_channel_a_band(const struct iwl_channel_info *ch_info)
-{
-	return ch_info->band == IEEE80211_BAND_5GHZ;
-}
-
-static inline u8 is_channel_bg_band(const struct iwl_channel_info *ch_info)
-{
-	return ch_info->band == IEEE80211_BAND_2GHZ;
-}
-
-static inline int is_channel_passive(const struct iwl_channel_info *ch)
-{
-	return (!(ch->flags & EEPROM_CHANNEL_ACTIVE)) ? 1 : 0;
-}
-
-static inline int is_channel_ibss(const struct iwl_channel_info *ch)
-{
-	return ((ch->flags & EEPROM_CHANNEL_IBSS)) ? 1 : 0;
 }
 
 #endif				/* __iwl_dev_h__ */

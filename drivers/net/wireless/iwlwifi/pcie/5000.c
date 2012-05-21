@@ -72,6 +72,18 @@ static const struct iwl_ht_params iwl5000_ht_params = {
 	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
 };
 
+static const struct iwl_eeprom_params iwl5000_eeprom_params = {
+	.regulatory_bands = {
+		EEPROM_REG_BAND_1_CHANNELS,
+		EEPROM_REG_BAND_2_CHANNELS,
+		EEPROM_REG_BAND_3_CHANNELS,
+		EEPROM_REG_BAND_4_CHANNELS,
+		EEPROM_REG_BAND_5_CHANNELS,
+		EEPROM_REG_BAND_24_HT40_CHANNELS,
+		EEPROM_REG_BAND_52_HT40_CHANNELS
+	},
+};
+
 #define IWL_DEVICE_5000						\
 	.fw_name_pre = IWL5000_FW_PRE,				\
 	.ucode_api_max = IWL5000_UCODE_API_MAX,			\
@@ -83,6 +95,7 @@ static const struct iwl_ht_params iwl5000_ht_params = {
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,	\
 	.base_params = &iwl5000_base_params,			\
+	.eeprom_params = &iwl5000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK
 
 const struct iwl_cfg iwl5300_agn_cfg = {
@@ -129,6 +142,7 @@ const struct iwl_cfg iwl5350_agn_cfg = {
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
 	.base_params = &iwl5000_base_params,
+	.eeprom_params = &iwl5000_eeprom_params,
 	.ht_params = &iwl5000_ht_params,
 	.led_mode = IWL_LED_BLINK,
 	.internal_wimax_coex = true,
@@ -145,6 +159,7 @@ const struct iwl_cfg iwl5350_agn_cfg = {
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,	\
 	.base_params = &iwl5000_base_params,			\
+	.eeprom_params = &iwl5000_eeprom_params,		\
 	.no_xtal_calib = true,					\
 	.led_mode = IWL_LED_BLINK,				\
 	.internal_wimax_coex = true

@@ -29,10 +29,47 @@
  */
 #include "iwl-io.h"
 #include "iwl-prph.h"
+#include "iwl-eeprom-parse.h"
 
 #include "agn.h"
 #include "dev.h"
 #include "commands.h"
+
+
+#define EEPROM_RF_CONFIG_TYPE_MAX      0x3
+
+static void iwl_rf_config(struct iwl_priv *priv)
+{
+	u16 radio_cfg = priv->eeprom_data->radio_cfg;
+
+	/* write radio config values to register */
+	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <= EEPROM_RF_CONFIG_TYPE_MAX) {
+		u32 reg_val =
+			EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <<
+				CSR_HW_IF_CONFIG_REG_POS_PHY_TYPE |
+			EEPROM_RF_CFG_STEP_MSK(radio_cfg) <<
+				CSR_HW_IF_CONFIG_REG_POS_PHY_STEP |
+			EEPROM_RF_CFG_DASH_MSK(radio_cfg) <<
+				CSR_HW_IF_CONFIG_REG_POS_PHY_DASH;
+
+		iwl_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
+				  CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE |
+				  CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
+				  CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH, reg_val);
+
+		IWL_INFO(priv, "Radio type=0x%x-0x%x-0x%x\n",
+			 EEPROM_RF_CFG_TYPE_MSK(radio_cfg),
+			 EEPROM_RF_CFG_STEP_MSK(radio_cfg),
+			 EEPROM_RF_CFG_DASH_MSK(radio_cfg));
+	} else {
+		WARN_ON(1);
+	}
+
+	/* set CSR_HW_CONFIG_REG for uCode use */
+	iwl_set_bit(priv->trans, CSR_HW_IF_CONFIG_REG,
+		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
+		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
+}
 
 /*
  * 1000 series
@@ -180,17 +217,6 @@ static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 struct iwl_lib_ops iwl1000_lib = {
 	.set_hw_params = iwl1000_hw_set_hw_params,
 	.nic_config = iwl1000_nic_config,
-	.eeprom_ops = {
-		.regulatory_bands = {
-			EEPROM_REG_BAND_1_CHANNELS,
-			EEPROM_REG_BAND_2_CHANNELS,
-			EEPROM_REG_BAND_3_CHANNELS,
-			EEPROM_REG_BAND_4_CHANNELS,
-			EEPROM_REG_BAND_5_CHANNELS,
-			EEPROM_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_REGULATORY_BAND_NO_HT40,
-		},
-	},
 	.temperature = iwlagn_temperature,
 };
 
@@ -251,36 +277,12 @@ static void iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 struct iwl_lib_ops iwl2000_lib = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.nic_config = iwl2000_nic_config,
-	.eeprom_ops = {
-		.regulatory_bands = {
-			EEPROM_REG_BAND_1_CHANNELS,
-			EEPROM_REG_BAND_2_CHANNELS,
-			EEPROM_REG_BAND_3_CHANNELS,
-			EEPROM_REG_BAND_4_CHANNELS,
-			EEPROM_REG_BAND_5_CHANNELS,
-			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_REGULATORY_BAND_NO_HT40,
-		},
-		.enhanced_txpower = true,
-	},
 	.temperature = iwlagn_temperature,
 };
 
 struct iwl_lib_ops iwl2030_lib = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.nic_config = iwl2000_nic_config,
-	.eeprom_ops = {
-		.regulatory_bands = {
-			EEPROM_REG_BAND_1_CHANNELS,
-			EEPROM_REG_BAND_2_CHANNELS,
-			EEPROM_REG_BAND_3_CHANNELS,
-			EEPROM_REG_BAND_4_CHANNELS,
-			EEPROM_REG_BAND_5_CHANNELS,
-			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_REGULATORY_BAND_NO_HT40,
-		},
-		.enhanced_txpower = true,
-	},
 	.temperature = iwlagn_temperature,
 };
 
@@ -357,11 +359,9 @@ static struct iwl_sensitivity_ranges iwl5150_sensitivity = {
 static s32 iwl_temp_calib_to_offset(struct iwl_priv *priv)
 {
 	u16 temperature, voltage;
-	__le16 *temp_calib = (__le16 *)iwl_eeprom_query_addr(priv,
-				EEPROM_KELVIN_TEMPERATURE);
 
-	temperature = le16_to_cpu(temp_calib[0]);
-	voltage = le16_to_cpu(temp_calib[1]);
+	temperature = le16_to_cpu(priv->eeprom_data->kelvin_temperature);
+	voltage = le16_to_cpu(priv->eeprom_data->kelvin_voltage);
 
 	/* offset = temp - volt / coeff */
 	return (s32)(temperature -
@@ -478,17 +478,6 @@ struct iwl_lib_ops iwl5000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.nic_config = iwl5000_nic_config,
-	.eeprom_ops = {
-		.regulatory_bands = {
-			EEPROM_REG_BAND_1_CHANNELS,
-			EEPROM_REG_BAND_2_CHANNELS,
-			EEPROM_REG_BAND_3_CHANNELS,
-			EEPROM_REG_BAND_4_CHANNELS,
-			EEPROM_REG_BAND_5_CHANNELS,
-			EEPROM_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_REG_BAND_52_HT40_CHANNELS
-		},
-	},
 	.temperature = iwlagn_temperature,
 };
 
@@ -496,17 +485,6 @@ struct iwl_lib_ops iwl5150_lib = {
 	.set_hw_params = iwl5150_hw_set_hw_params,
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.nic_config = iwl5000_nic_config,
-	.eeprom_ops = {
-		.regulatory_bands = {
-			EEPROM_REG_BAND_1_CHANNELS,
-			EEPROM_REG_BAND_2_CHANNELS,
-			EEPROM_REG_BAND_3_CHANNELS,
-			EEPROM_REG_BAND_4_CHANNELS,
-			EEPROM_REG_BAND_5_CHANNELS,
-			EEPROM_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_REG_BAND_52_HT40_CHANNELS
-		},
-	},
 	.temperature = iwl5150_temperature,
 };
 
@@ -541,13 +519,13 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 		break;
 	case IWL_DEVICE_FAMILY_6050:
 		/* Indicate calibration version to uCode. */
-		if (iwl_eeprom_calib_version(priv) >= 6)
+		if (priv->eeprom_data->calib_version >= 6)
 			iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
 					CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
 		break;
 	case IWL_DEVICE_FAMILY_6150:
 		/* Indicate calibration version to uCode. */
-		if (iwl_eeprom_calib_version(priv) >= 6)
+		if (priv->eeprom_data->calib_version >= 6)
 			iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
 					CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
 		iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
@@ -658,18 +636,6 @@ struct iwl_lib_ops iwl6000_lib = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.nic_config = iwl6000_nic_config,
-	.eeprom_ops = {
-		.regulatory_bands = {
-			EEPROM_REG_BAND_1_CHANNELS,
-			EEPROM_REG_BAND_2_CHANNELS,
-			EEPROM_REG_BAND_3_CHANNELS,
-			EEPROM_REG_BAND_4_CHANNELS,
-			EEPROM_REG_BAND_5_CHANNELS,
-			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_REG_BAND_52_HT40_CHANNELS
-		},
-		.enhanced_txpower = true,
-	},
 	.temperature = iwlagn_temperature,
 };
 
@@ -677,17 +643,5 @@ struct iwl_lib_ops iwl6030_lib = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.nic_config = iwl6000_nic_config,
-	.eeprom_ops = {
-		.regulatory_bands = {
-			EEPROM_REG_BAND_1_CHANNELS,
-			EEPROM_REG_BAND_2_CHANNELS,
-			EEPROM_REG_BAND_3_CHANNELS,
-			EEPROM_REG_BAND_4_CHANNELS,
-			EEPROM_REG_BAND_5_CHANNELS,
-			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_REG_BAND_52_HT40_CHANNELS
-		},
-		.enhanced_txpower = true,
-	},
 	.temperature = iwlagn_temperature,
 };

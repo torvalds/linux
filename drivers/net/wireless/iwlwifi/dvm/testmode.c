@@ -534,9 +534,9 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		break;
 
 	case IWL_TM_CMD_APP2DEV_GET_EEPROM:
-		if (priv->eeprom) {
+		if (priv->eeprom_blob) {
 			skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
-				priv->cfg->base_params->eeprom_size + 20);
+				priv->eeprom_blob_size + 20);
 			if (!skb) {
 				IWL_ERR(priv, "Memory allocation fail\n");
 				return -ENOMEM;
@@ -544,15 +544,15 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 			if (nla_put_u32(skb, IWL_TM_ATTR_COMMAND,
 					IWL_TM_CMD_DEV2APP_EEPROM_RSP) ||
 			    nla_put(skb, IWL_TM_ATTR_EEPROM,
-				    priv->cfg->base_params->eeprom_size,
-				    priv->eeprom))
+				    priv->eeprom_blob_size,
+				    priv->eeprom_blob))
 				goto nla_put_failure;
 			status = cfg80211_testmode_reply(skb);
 			if (status < 0)
 				IWL_ERR(priv, "Error sending msg : %d\n",
 					status);
 		} else
-			return -EFAULT;
+			return -ENODATA;
 		break;
 
 	case IWL_TM_CMD_APP2DEV_FIXRATE_REQ:

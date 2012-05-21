@@ -44,13 +44,14 @@
 
 #include <asm/div64.h>
 
+#include "iwl-eeprom-read.h"
+#include "iwl-eeprom-parse.h"
 #include "iwl-io.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "iwl-drv.h"
 #include "iwl-modparams.h"
 
-#include "eeprom.h"
 #include "dev.h"
 #include "calib.h"
 #include "agn.h"
@@ -180,7 +181,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 		rate = info->control.rates[0].idx;
 
 	priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
-					      priv->hw_params.valid_tx_ant);
+					      priv->eeprom_data->valid_tx_ant);
 	rate_flags = iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
 
 	/* In mac80211, rates for 5 GHz start at 0 */
@@ -814,7 +815,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 	ieee80211_wake_queues(priv->hw);
 
 	/* Configure Tx antenna selection based on H/W config */
-	iwlagn_send_tx_ant_config(priv, priv->hw_params.valid_tx_ant);
+	iwlagn_send_tx_ant_config(priv, priv->eeprom_data->valid_tx_ant);
 
 	if (iwl_is_associated_ctx(ctx) && !priv->wowlan) {
 		struct iwl_rxon_cmd *active_rxon =
@@ -938,8 +939,6 @@ void iwl_down(struct iwl_priv *priv)
 	/* Clear out all status bits but a few that are stable across reset */
 	priv->status &= test_bit(STATUS_RF_KILL_HW, &priv->status) <<
 				STATUS_RF_KILL_HW |
-			test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
-				STATUS_GEO_CONFIGURED |
 			test_bit(STATUS_FW_ERROR, &priv->status) <<
 				STATUS_FW_ERROR |
 			test_bit(STATUS_EXIT_PENDING, &priv->status) <<
@@ -1126,227 +1125,14 @@ void iwl_cancel_deferred_work(struct iwl_priv *priv)
 	del_timer_sync(&priv->ucode_trace);
 }
 
-static void iwl_init_hw_rates(struct ieee80211_rate *rates)
-{
-	int i;
-
-	for (i = 0; i < IWL_RATE_COUNT_LEGACY; i++) {
-		rates[i].bitrate = iwl_rates[i].ieee * 5;
-		rates[i].hw_value = i; /* Rate scaling will work on indexes */
-		rates[i].hw_value_short = i;
-		rates[i].flags = 0;
-		if ((i >= IWL_FIRST_CCK_RATE) && (i <= IWL_LAST_CCK_RATE)) {
-			/*
-			 * If CCK != 1M then set short preamble rate flag.
-			 */
-			rates[i].flags |=
-				(iwl_rates[i].plcp == IWL_RATE_1M_PLCP) ?
-					0 : IEEE80211_RATE_SHORT_PREAMBLE;
-		}
-	}
-}
-
-#define MAX_BIT_RATE_40_MHZ 150 /* Mbps */
-#define MAX_BIT_RATE_20_MHZ 72 /* Mbps */
-static void iwl_init_ht_hw_capab(const struct iwl_priv *priv,
-			      struct ieee80211_sta_ht_cap *ht_info,
-			      enum ieee80211_band band)
-{
-	u16 max_bit_rate = 0;
-	u8 rx_chains_num = priv->hw_params.rx_chains_num;
-	u8 tx_chains_num = priv->hw_params.tx_chains_num;
-
-	ht_info->cap = 0;
-	ht_info->ht_supported = false;
-	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-
-	if (!priv->cfg->ht_params)
-		return;
-
-	ht_info->ht_supported = true;
-
-	if (priv->cfg->ht_params->ht_greenfield_support)
-		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
-	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
-	max_bit_rate = MAX_BIT_RATE_20_MHZ;
-	if (priv->cfg->ht_params->ht40_bands & BIT(band)) {
-		ht_info->cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-		ht_info->cap |= IEEE80211_HT_CAP_SGI_40;
-		ht_info->mcs.rx_mask[4] = 0x01;
-		max_bit_rate = MAX_BIT_RATE_40_MHZ;
-	}
-
-	if (iwlwifi_mod_params.amsdu_size_8K)
-		ht_info->cap |= IEEE80211_HT_CAP_MAX_AMSDU;
-
-	ht_info->ampdu_factor = CFG_HT_RX_AMPDU_FACTOR_DEF;
-	ht_info->ampdu_density = CFG_HT_MPDU_DENSITY_DEF;
-
-	ht_info->mcs.rx_mask[0] = 0xFF;
-	if (rx_chains_num >= 2)
-		ht_info->mcs.rx_mask[1] = 0xFF;
-	if (rx_chains_num >= 3)
-		ht_info->mcs.rx_mask[2] = 0xFF;
-
-	/* Highest supported Rx data rate */
-	max_bit_rate *= rx_chains_num;
-	WARN_ON(max_bit_rate & ~IEEE80211_HT_MCS_RX_HIGHEST_MASK);
-	ht_info->mcs.rx_highest = cpu_to_le16(max_bit_rate);
-
-	/* Tx MCS capabilities */
-	ht_info->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
-	if (tx_chains_num != rx_chains_num) {
-		ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
-		ht_info->mcs.tx_params |= ((tx_chains_num - 1) <<
-				IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
-	}
-}
-
-/**
- * iwl_init_geos - Initialize mac80211's geo/channel info based from eeprom
- */
-static int iwl_init_geos(struct iwl_priv *priv)
-{
-	struct iwl_channel_info *ch;
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_channel *channels;
-	struct ieee80211_channel *geo_ch;
-	struct ieee80211_rate *rates;
-	int i = 0;
-	s8 max_tx_power = IWLAGN_TX_POWER_TARGET_POWER_MIN;
-
-	if (priv->bands[IEEE80211_BAND_2GHZ].n_bitrates ||
-	    priv->bands[IEEE80211_BAND_5GHZ].n_bitrates) {
-		IWL_DEBUG_INFO(priv, "Geography modes already initialized.\n");
-		set_bit(STATUS_GEO_CONFIGURED, &priv->status);
-		return 0;
-	}
-
-	channels = kcalloc(priv->channel_count,
-			   sizeof(struct ieee80211_channel), GFP_KERNEL);
-	if (!channels)
-		return -ENOMEM;
-
-	rates = kcalloc(IWL_RATE_COUNT_LEGACY, sizeof(struct ieee80211_rate),
-			GFP_KERNEL);
-	if (!rates) {
-		kfree(channels);
-		return -ENOMEM;
-	}
-
-	/* 5.2GHz channels start after the 2.4GHz channels */
-	sband = &priv->bands[IEEE80211_BAND_5GHZ];
-	sband->channels = &channels[ARRAY_SIZE(iwl_eeprom_band_1)];
-	/* just OFDM */
-	sband->bitrates = &rates[IWL_FIRST_OFDM_RATE];
-	sband->n_bitrates = IWL_RATE_COUNT_LEGACY - IWL_FIRST_OFDM_RATE;
-
-	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE)
-		iwl_init_ht_hw_capab(priv, &sband->ht_cap,
-					 IEEE80211_BAND_5GHZ);
-
-	sband = &priv->bands[IEEE80211_BAND_2GHZ];
-	sband->channels = channels;
-	/* OFDM & CCK */
-	sband->bitrates = rates;
-	sband->n_bitrates = IWL_RATE_COUNT_LEGACY;
-
-	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE)
-		iwl_init_ht_hw_capab(priv, &sband->ht_cap,
-					 IEEE80211_BAND_2GHZ);
-
-	priv->ieee_channels = channels;
-	priv->ieee_rates = rates;
-
-	for (i = 0;  i < priv->channel_count; i++) {
-		ch = &priv->channel_info[i];
-
-		/* FIXME: might be removed if scan is OK */
-		if (!is_channel_valid(ch))
-			continue;
-
-		sband =  &priv->bands[ch->band];
-
-		geo_ch = &sband->channels[sband->n_channels++];
-
-		geo_ch->center_freq =
-			ieee80211_channel_to_frequency(ch->channel, ch->band);
-		geo_ch->max_power = ch->max_power_avg;
-		geo_ch->max_antenna_gain = 0xff;
-		geo_ch->hw_value = ch->channel;
-
-		if (is_channel_valid(ch)) {
-			if (!(ch->flags & EEPROM_CHANNEL_IBSS))
-				geo_ch->flags |= IEEE80211_CHAN_NO_IBSS;
-
-			if (!(ch->flags & EEPROM_CHANNEL_ACTIVE))
-				geo_ch->flags |= IEEE80211_CHAN_PASSIVE_SCAN;
-
-			if (ch->flags & EEPROM_CHANNEL_RADAR)
-				geo_ch->flags |= IEEE80211_CHAN_RADAR;
-
-			geo_ch->flags |= ch->ht40_extension_channel;
-
-			if (ch->max_power_avg > max_tx_power)
-				max_tx_power = ch->max_power_avg;
-		} else {
-			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
-		}
-
-		IWL_DEBUG_INFO(priv, "Channel %d Freq=%d[%sGHz] %s flag=0x%X\n",
-				ch->channel, geo_ch->center_freq,
-				is_channel_a_band(ch) ?  "5.2" : "2.4",
-				geo_ch->flags & IEEE80211_CHAN_DISABLED ?
-				"restricted" : "valid",
-				 geo_ch->flags);
-	}
-
-	priv->tx_power_device_lmt = max_tx_power;
-	priv->tx_power_user_lmt = max_tx_power;
-	priv->tx_power_next = max_tx_power;
-
-	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
-	     priv->hw_params.sku & EEPROM_SKU_CAP_BAND_52GHZ) {
-		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
-			"Please send your %s to maintainer.\n",
-			priv->trans->hw_id_str);
-		priv->hw_params.sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
-	}
-
-	if (iwlwifi_mod_params.disable_5ghz)
-		priv->bands[IEEE80211_BAND_5GHZ].n_channels = 0;
-
-	IWL_INFO(priv, "Tunable channels: %d 802.11bg, %d 802.11a channels\n",
-		   priv->bands[IEEE80211_BAND_2GHZ].n_channels,
-		   priv->bands[IEEE80211_BAND_5GHZ].n_channels);
-
-	set_bit(STATUS_GEO_CONFIGURED, &priv->status);
-
-	return 0;
-}
-
-/*
- * iwl_free_geos - undo allocations in iwl_init_geos
- */
-static void iwl_free_geos(struct iwl_priv *priv)
-{
-	kfree(priv->ieee_channels);
-	kfree(priv->ieee_rates);
-	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
-}
-
 static int iwl_init_drv(struct iwl_priv *priv)
 {
-	int ret;
-
 	spin_lock_init(&priv->sta_lock);
 
 	mutex_init(&priv->mutex);
 
 	INIT_LIST_HEAD(&priv->calib_results);
 
-	priv->ieee_channels = NULL;
-	priv->ieee_rates = NULL;
 	priv->band = IEEE80211_BAND_2GHZ;
 
 	priv->plcp_delta_threshold =
@@ -1377,31 +1163,11 @@ static int iwl_init_drv(struct iwl_priv *priv)
 		priv->dynamic_frag_thresh = BT_FRAG_THRESHOLD_DEF;
 	}
 
-	ret = iwl_init_channel_map(priv);
-	if (ret) {
-		IWL_ERR(priv, "initializing regulatory failed: %d\n", ret);
-		goto err;
-	}
-
-	ret = iwl_init_geos(priv);
-	if (ret) {
-		IWL_ERR(priv, "initializing geos failed: %d\n", ret);
-		goto err_free_channel_map;
-	}
-	iwl_init_hw_rates(priv->ieee_rates);
-
 	return 0;
-
-err_free_channel_map:
-	iwl_free_channel_map(priv);
-err:
-	return ret;
 }
 
 static void iwl_uninit_drv(struct iwl_priv *priv)
 {
-	iwl_free_geos(priv);
-	iwl_free_channel_map(priv);
 	kfree(priv->scan_cmd);
 	kfree(priv->beacon_cmd);
 	kfree(rcu_dereference_raw(priv->noa_data));
@@ -1458,6 +1224,42 @@ static void iwl_option_config(struct iwl_priv *priv)
 #else
 	IWL_INFO(priv, "CONFIG_IWLWIFI_P2P disabled\n");
 #endif
+}
+
+static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
+{
+	u16 radio_cfg;
+
+	priv->hw_params.sku = priv->eeprom_data->sku;
+
+	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE &&
+	    !priv->cfg->ht_params) {
+		IWL_ERR(priv, "Invalid 11n configuration\n");
+		return -EINVAL;
+	}
+
+	if (!priv->hw_params.sku) {
+		IWL_ERR(priv, "Invalid device sku\n");
+		return -EINVAL;
+	}
+
+	IWL_INFO(priv, "Device SKU: 0x%X\n", priv->hw_params.sku);
+
+	radio_cfg = priv->eeprom_data->radio_cfg;
+
+	priv->hw_params.tx_chains_num =
+		num_of_ant(priv->eeprom_data->valid_tx_ant);
+	if (priv->cfg->rx_with_siso_diversity)
+		priv->hw_params.rx_chains_num = 1;
+	else
+		priv->hw_params.rx_chains_num =
+			num_of_ant(priv->eeprom_data->valid_rx_ant);
+
+	IWL_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
+		 priv->eeprom_data->valid_tx_ant,
+		 priv->eeprom_data->valid_rx_ant);
+
+	return 0;
 }
 
 static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
@@ -1605,25 +1407,33 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		goto out_free_hw;
 
 	/* Read the EEPROM */
-	if (iwl_eeprom_init(priv, priv->trans->hw_rev)) {
+	if (iwl_read_eeprom(priv->trans, &priv->eeprom_blob,
+			    &priv->eeprom_blob_size)) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
 		goto out_free_hw;
 	}
+
 	/* Reset chip to save power until we load uCode during "up". */
 	iwl_trans_stop_hw(priv->trans, false);
 
-	if (iwl_eeprom_check_version(priv))
+	priv->eeprom_data = iwl_parse_eeprom_data(priv->trans->dev, priv->cfg,
+						  priv->eeprom_blob,
+						  priv->eeprom_blob_size);
+	if (!priv->eeprom_data)
+		goto out_free_eeprom_blob;
+
+	if (iwl_eeprom_check_version(priv->eeprom_data, priv->trans))
 		goto out_free_eeprom;
 
 	if (iwl_eeprom_init_hw_params(priv))
 		goto out_free_eeprom;
 
 	/* extract MAC Address */
-	iwl_eeprom_get_mac(priv, priv->addresses[0].addr);
+	memcpy(priv->addresses[0].addr, priv->eeprom_data->hw_addr, ETH_ALEN);
 	IWL_DEBUG_INFO(priv, "MAC address: %pM\n", priv->addresses[0].addr);
 	priv->hw->wiphy->addresses = priv->addresses;
 	priv->hw->wiphy->n_addresses = 1;
-	num_mac = iwl_eeprom_query16(priv, EEPROM_NUM_MAC_ADDRESS);
+	num_mac = priv->eeprom_data->n_hw_addrs;
 	if (num_mac > 1) {
 		memcpy(priv->addresses[1].addr, priv->addresses[0].addr,
 		       ETH_ALEN);
@@ -1717,8 +1527,10 @@ out_destroy_workqueue:
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
 	iwl_uninit_drv(priv);
+out_free_eeprom_blob:
+	kfree(priv->eeprom_blob);
 out_free_eeprom:
-	iwl_eeprom_free(priv);
+	iwl_free_eeprom_data(priv->eeprom_data);
 out_free_hw:
 	ieee80211_free_hw(priv->hw);
 out:
@@ -1743,7 +1555,8 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 	priv->ucode_loaded = false;
 	iwl_trans_stop_device(priv->trans);
 
-	iwl_eeprom_free(priv);
+	kfree(priv->eeprom_blob);
+	iwl_free_eeprom_data(priv->eeprom_data);
 
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->workqueue);

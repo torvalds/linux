@@ -117,6 +117,19 @@ static const struct iwl_bt_params iwl2030_bt_params = {
 	.bt_session_2 = true,
 };
 
+static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
+	.regulatory_bands = {
+		EEPROM_REG_BAND_1_CHANNELS,
+		EEPROM_REG_BAND_2_CHANNELS,
+		EEPROM_REG_BAND_3_CHANNELS,
+		EEPROM_REG_BAND_4_CHANNELS,
+		EEPROM_REG_BAND_5_CHANNELS,
+		EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
+		EEPROM_REGULATORY_BAND_NO_HT40,
+	},
+	.enhanced_txpower = true,
+};
+
 #define IWL_DEVICE_2000						\
 	.fw_name_pre = IWL2000_FW_PRE,				\
 	.ucode_api_max = IWL2000_UCODE_API_MAX,			\
@@ -128,6 +141,7 @@ static const struct iwl_bt_params iwl2030_bt_params = {
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.base_params = &iwl2000_base_params,			\
+	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE
@@ -156,6 +170,7 @@ const struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
+	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
@@ -178,6 +193,7 @@ const struct iwl_cfg iwl2030_2bgn_cfg = {
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.base_params = &iwl2000_base_params,			\
+	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
@@ -208,6 +224,7 @@ const struct iwl_cfg iwl105_bgn_d_cfg = {
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
+	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\

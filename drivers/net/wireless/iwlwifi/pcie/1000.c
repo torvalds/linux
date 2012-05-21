@@ -74,6 +74,18 @@ static const struct iwl_ht_params iwl1000_ht_params = {
 	.ht40_bands = BIT(IEEE80211_BAND_2GHZ),
 };
 
+static const struct iwl_eeprom_params iwl1000_eeprom_params = {
+	.regulatory_bands = {
+		EEPROM_REG_BAND_1_CHANNELS,
+		EEPROM_REG_BAND_2_CHANNELS,
+		EEPROM_REG_BAND_3_CHANNELS,
+		EEPROM_REG_BAND_4_CHANNELS,
+		EEPROM_REG_BAND_5_CHANNELS,
+		EEPROM_REG_BAND_24_HT40_CHANNELS,
+		EEPROM_REGULATORY_BAND_NO_HT40,
+	}
+};
+
 #define IWL_DEVICE_1000						\
 	.fw_name_pre = IWL1000_FW_PRE,				\
 	.ucode_api_max = IWL1000_UCODE_API_MAX,			\
@@ -85,6 +97,7 @@ static const struct iwl_ht_params iwl1000_ht_params = {
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
 	.base_params = &iwl1000_base_params,			\
+	.eeprom_params = &iwl1000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK
 
 const struct iwl_cfg iwl1000_bgn_cfg = {
@@ -109,6 +122,7 @@ const struct iwl_cfg iwl1000_bg_cfg = {
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
 	.base_params = &iwl1000_base_params,			\
+	.eeprom_params = &iwl1000_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true
 

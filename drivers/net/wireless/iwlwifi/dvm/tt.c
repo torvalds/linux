@@ -36,7 +36,6 @@
 #include "iwl-modparams.h"
 #include "iwl-debug.h"
 #include "agn.h"
-#include "eeprom.h"
 #include "dev.h"
 #include "commands.h"
 #include "tt.h"

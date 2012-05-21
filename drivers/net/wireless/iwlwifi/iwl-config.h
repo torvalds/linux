@@ -194,6 +194,24 @@ struct iwl_ht_params {
 	u8 ht40_bands;
 };
 
+/*
+ * information on how to parse the EEPROM
+ */
+#define EEPROM_REG_BAND_1_CHANNELS		0x08
+#define EEPROM_REG_BAND_2_CHANNELS		0x26
+#define EEPROM_REG_BAND_3_CHANNELS		0x42
+#define EEPROM_REG_BAND_4_CHANNELS		0x5C
+#define EEPROM_REG_BAND_5_CHANNELS		0x74
+#define EEPROM_REG_BAND_24_HT40_CHANNELS	0x82
+#define EEPROM_REG_BAND_52_HT40_CHANNELS	0x92
+#define EEPROM_6000_REG_BAND_24_HT40_CHANNELS	0x80
+#define EEPROM_REGULATORY_BAND_NO_HT40		0
+
+struct iwl_eeprom_params {
+	const u8 regulatory_bands[7];
+	bool enhanced_txpower;
+};
+
 /**
  * struct iwl_cfg
  * @name: Offical name of the device
@@ -246,6 +264,7 @@ struct iwl_cfg {
 	/* params likely to change within a device family */
 	const struct iwl_ht_params *ht_params;
 	const struct iwl_bt_params *bt_params;
+	const struct iwl_eeprom_params *eeprom_params;
 	const bool need_temp_offset_calib; /* if used set to true */
 	const bool no_xtal_calib;
 	enum iwl_led_mode led_mode;

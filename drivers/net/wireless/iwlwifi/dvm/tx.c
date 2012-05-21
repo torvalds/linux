@@ -186,7 +186,8 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	rate_idx = info->control.rates[0].idx;
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS ||
 			(rate_idx < 0) || (rate_idx > IWL_RATE_COUNT_LEGACY))
-		rate_idx = rate_lowest_index(&priv->bands[info->band],
+		rate_idx = rate_lowest_index(
+				&priv->eeprom_data->bands[info->band],
 				info->control.sta);
 	/* For 5 GHZ band, remap mac80211 rate indices into driver indices */
 	if (info->band == IEEE80211_BAND_5GHZ)
@@ -206,10 +207,11 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	     priv->bt_full_concurrent) {
 		/* operated as 1x1 in full concurrency mode */
 		priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
-				first_antenna(priv->hw_params.valid_tx_ant));
+				first_antenna(priv->eeprom_data->valid_tx_ant));
 	} else
-		priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
-						priv->hw_params.valid_tx_ant);
+		priv->mgmt_tx_ant = iwl_toggle_tx_ant(
+					priv, priv->mgmt_tx_ant,
+					priv->eeprom_data->valid_tx_ant);
 	rate_flags |= iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
 
 	/* Set the rate in the TX cmd */

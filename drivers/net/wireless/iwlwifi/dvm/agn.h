@@ -92,7 +92,6 @@ extern struct iwl_lib_ops iwl6030_lib;
 #define STATUS_CT_KILL		1
 #define STATUS_ALIVE		2
 #define STATUS_READY		3
-#define STATUS_GEO_CONFIGURED	4
 #define STATUS_EXIT_PENDING	5
 #define STATUS_STATISTICS	6
 #define STATUS_SCANNING		7
@@ -443,10 +442,8 @@ static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 
 static inline int iwl_is_ready(struct iwl_priv *priv)
 {
-	/* The adapter is 'ready' if READY and GEO_CONFIGURED bits are
-	 * set but EXIT_PENDING is not */
+	/* The adapter is 'ready' if READY EXIT_PENDING is not set */
 	return test_bit(STATUS_READY, &priv->status) &&
-	       test_bit(STATUS_GEO_CONFIGURED, &priv->status) &&
 	       !test_bit(STATUS_EXIT_PENDING, &priv->status);
 }
 

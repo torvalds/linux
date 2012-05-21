@@ -136,6 +136,19 @@ static const struct iwl_bt_params iwl6000_bt_params = {
 	.bt_sco_disable = true,
 };
 
+static const struct iwl_eeprom_params iwl6000_eeprom_params = {
+	.regulatory_bands = {
+		EEPROM_REG_BAND_1_CHANNELS,
+		EEPROM_REG_BAND_2_CHANNELS,
+		EEPROM_REG_BAND_3_CHANNELS,
+		EEPROM_REG_BAND_4_CHANNELS,
+		EEPROM_REG_BAND_5_CHANNELS,
+		EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
+		EEPROM_REG_BAND_52_HT40_CHANNELS
+	},
+	.enhanced_txpower = true,
+};
+
 #define IWL_DEVICE_6005						\
 	.fw_name_pre = IWL6005_FW_PRE,				\
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,		\
@@ -147,6 +160,7 @@ static const struct iwl_bt_params iwl6000_bt_params = {
 	.eeprom_ver = EEPROM_6005_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6005_TX_POWER_VERSION,	\
 	.base_params = &iwl6000_g2_base_params,			\
+	.eeprom_params = &iwl6000_eeprom_params,		\
 	.need_temp_offset_calib = true,				\
 	.led_mode = IWL_LED_RF_STATE
 
@@ -202,6 +216,7 @@ const struct iwl_cfg iwl6005_2agn_mow2_cfg = {
 	.eeprom_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
 	.base_params = &iwl6000_g2_base_params,			\
 	.bt_params = &iwl6000_bt_params,			\
+	.eeprom_params = &iwl6000_eeprom_params,		\
 	.need_temp_offset_calib = true,				\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.adv_pm = true						\
@@ -274,6 +289,7 @@ const struct iwl_cfg iwl130_bg_cfg = {
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,	\
 	.base_params = &iwl6000_base_params,			\
+	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK
 
 const struct iwl_cfg iwl6000i_2agn_cfg = {
@@ -304,6 +320,7 @@ const struct iwl_cfg iwl6000i_2bg_cfg = {
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,	\
 	.base_params = &iwl6050_base_params,			\
+	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK,				\
 	.internal_wimax_coex = true
 
@@ -328,6 +345,7 @@ const struct iwl_cfg iwl6050_2abg_cfg = {
 	.eeprom_ver = EEPROM_6150_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6150_TX_POWER_VERSION,	\
 	.base_params = &iwl6050_base_params,			\
+	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK,				\
 	.internal_wimax_coex = true
 
@@ -354,6 +372,7 @@ const struct iwl_cfg iwl6000_3agn_cfg = {
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
 	.base_params = &iwl6000_base_params,
+	.eeprom_params = &iwl6000_eeprom_params,
 	.ht_params = &iwl6000_ht_params,
 	.led_mode = IWL_LED_BLINK,
 };

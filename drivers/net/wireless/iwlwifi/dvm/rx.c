@@ -33,7 +33,6 @@
 #include <net/mac80211.h>
 #include <asm/unaligned.h>
 #include "iwl-io.h"
-#include "eeprom.h"
 #include "dev.h"
 #include "calib.h"
 #include "agn.h"

@@ -177,17 +177,23 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 	if (!ctx->ht.enabled || !ctx->ht.is_40mhz)
 		return false;
 
-	/*
-	 * We do not check for IEEE80211_HT_CAP_SUP_WIDTH_20_40
-	 * the bit will not set if it is pure 40MHz case
-	 */
-	if (ht_cap && !ht_cap->ht_supported)
-		return false;
-
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	if (priv->disable_ht40)
 		return false;
 #endif
+
+	/*
+	 * Remainder of this function checks ht_cap, but if it's
+	 * NULL then we can do HT40 (special case for RXON)
+	 */
+	if (!ht_cap)
+		return true;
+
+	if (!ht_cap->ht_supported)
+		return false;
+
+	if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
+		return false;
 
 	return true;
 }
@@ -627,23 +633,23 @@ static void iwl_sta_fill_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	if (r >= IWL_FIRST_CCK_RATE && r <= IWL_LAST_CCK_RATE)
 		rate_flags |= RATE_MCS_CCK_MSK;
 
-	rate_flags |= first_antenna(priv->hw_params.valid_tx_ant) <<
+	rate_flags |= first_antenna(priv->eeprom_data->valid_tx_ant) <<
 				RATE_MCS_ANT_POS;
 	rate_n_flags = iwl_hw_set_rate_n_flags(iwl_rates[r].plcp, rate_flags);
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
 		link_cmd->rs_table[i].rate_n_flags = rate_n_flags;
 
 	link_cmd->general_params.single_stream_ant_msk =
-			first_antenna(priv->hw_params.valid_tx_ant);
+			first_antenna(priv->eeprom_data->valid_tx_ant);
 
 	link_cmd->general_params.dual_stream_ant_msk =
-		priv->hw_params.valid_tx_ant &
-		~first_antenna(priv->hw_params.valid_tx_ant);
+		priv->eeprom_data->valid_tx_ant &
+		~first_antenna(priv->eeprom_data->valid_tx_ant);
 	if (!link_cmd->general_params.dual_stream_ant_msk) {
 		link_cmd->general_params.dual_stream_ant_msk = ANT_AB;
-	} else if (num_of_ant(priv->hw_params.valid_tx_ant) == 2) {
+	} else if (num_of_ant(priv->eeprom_data->valid_tx_ant) == 2) {
 		link_cmd->general_params.dual_stream_ant_msk =
-			priv->hw_params.valid_tx_ant;
+			priv->eeprom_data->valid_tx_ant;
 	}
 
 	link_cmd->agg_params.agg_dis_start_th =

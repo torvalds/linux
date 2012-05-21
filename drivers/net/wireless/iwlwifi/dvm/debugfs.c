@@ -303,13 +303,13 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 	const u8 *ptr;
 	char *buf;
 	u16 eeprom_ver;
-	size_t eeprom_len = priv->cfg->base_params->eeprom_size;
+	size_t eeprom_len = priv->eeprom_blob_size;
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16)
 		return -ENODATA;
 
-	ptr = priv->eeprom;
+	ptr = priv->eeprom_blob;
 	if (!ptr)
 		return -ENOMEM;
 
@@ -318,11 +318,9 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
-	pos += scnprintf(buf + pos, buf_size - pos, "NVM Type: %s, "
-			"version: 0x%x\n",
-			(priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
-			 ? "OTP" : "EEPROM", eeprom_ver);
+	eeprom_ver = priv->eeprom_data->eeprom_version;
+	pos += scnprintf(buf + pos, buf_size - pos,
+			 "NVM version: 0x%x\n", eeprom_ver);
 	for (ofs = 0 ; ofs < eeprom_len ; ofs += 16) {
 		pos += scnprintf(buf + pos, buf_size - pos, "0x%.4x ", ofs);
 		hex_dump_to_buffer(ptr + ofs, 16 , 16, 2, buf + pos,
@@ -346,9 +344,6 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 	int pos = 0, i, bufsz = PAGE_SIZE;
 	char *buf;
 	ssize_t ret;
-
-	if (!test_bit(STATUS_GEO_CONFIGURED, &priv->status))
-		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
@@ -422,8 +417,6 @@ static ssize_t iwl_dbgfs_status_read(struct file *file,
 		test_bit(STATUS_ALIVE, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_READY:\t\t %d\n",
 		test_bit(STATUS_READY, &priv->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_GEO_CONFIGURED:\t %d\n",
-		test_bit(STATUS_GEO_CONFIGURED, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_EXIT_PENDING:\t %d\n",
 		test_bit(STATUS_EXIT_PENDING, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_STATISTICS:\t %d\n",
@@ -1337,17 +1330,17 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 	if (tx->tx_power.ant_a || tx->tx_power.ant_b || tx->tx_power.ant_c) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 			"tx power: (1/2 dB step)\n");
-		if ((priv->hw_params.valid_tx_ant & ANT_A) &&
+		if ((priv->eeprom_data->valid_tx_ant & ANT_A) &&
 		    tx->tx_power.ant_a)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna A:",
 					tx->tx_power.ant_a);
-		if ((priv->hw_params.valid_tx_ant & ANT_B) &&
+		if ((priv->eeprom_data->valid_tx_ant & ANT_B) &&
 		    tx->tx_power.ant_b)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna B:",
 					tx->tx_power.ant_b);
-		if ((priv->hw_params.valid_tx_ant & ANT_C) &&
+		if ((priv->eeprom_data->valid_tx_ant & ANT_C) &&
 		    tx->tx_power.ant_c)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna C:",

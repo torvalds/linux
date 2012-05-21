@@ -48,7 +48,6 @@
 #include "iwl-op-mode.h"
 #include "iwl-modparams.h"
 
-#include "eeprom.h"
 #include "dev.h"
 #include "calib.h"
 #include "agn.h"
@@ -238,12 +237,12 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
 
-	if (priv->bands[IEEE80211_BAND_2GHZ].n_channels)
+	if (priv->eeprom_data->bands[IEEE80211_BAND_2GHZ].n_channels)
 		priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
-			&priv->bands[IEEE80211_BAND_2GHZ];
-	if (priv->bands[IEEE80211_BAND_5GHZ].n_channels)
+			&priv->eeprom_data->bands[IEEE80211_BAND_2GHZ];
+	if (priv->eeprom_data->bands[IEEE80211_BAND_5GHZ].n_channels)
 		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
-			&priv->bands[IEEE80211_BAND_5GHZ];
+			&priv->eeprom_data->bands[IEEE80211_BAND_5GHZ];
 
 	hw->wiphy->hw_version = priv->trans->hw_id;
 
