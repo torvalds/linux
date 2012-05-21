@@ -291,7 +291,7 @@
 
 #define DWC3_DSTS_RXFIFOEMPTY		(1 << 17)
 
-#define DWC3_DSTS_SOFFN_MASK		(0x3ff << 3)
+#define DWC3_DSTS_SOFFN_MASK		(0x3fff << 3)
 #define DWC3_DSTS_SOFFN(n)		(((n) & DWC3_DSTS_SOFFN_MASK) >> 3)
 
 #define DWC3_DSTS_CONNECTSPD		(7 << 0)
