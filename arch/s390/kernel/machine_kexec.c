@@ -80,8 +80,8 @@ static void __do_machine_kdump(void *image)
 #ifdef CONFIG_CRASH_DUMP
 	int (*start_kdump)(int) = (void *)((struct kimage *) image)->start;
 
-	__load_psw_mask(PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA);
 	setup_regs();
+	__load_psw_mask(PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA);
 	start_kdump(1);
 #endif
 }
@@ -214,6 +214,7 @@ static void __machine_kexec(void *data)
 {
 	struct kimage *image = data;
 
+	__arch_local_irq_stosm(0x04); /* enable DAT */
 	pfault_fini();
 	tracing_off();
 	debug_locks_off();

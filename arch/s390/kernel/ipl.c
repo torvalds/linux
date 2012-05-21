@@ -1750,6 +1750,7 @@ static struct kobj_attribute on_restart_attr =
 
 static void __do_restart(void *ignore)
 {
+	__arch_local_irq_stosm(0x04); /* enable DAT */
 	smp_send_stop();
 #ifdef CONFIG_CRASH_DUMP
 	crash_kexec(NULL);
