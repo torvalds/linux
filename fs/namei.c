@@ -2249,37 +2249,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 
 			inode = path->dentry->d_inode;
 		}
-		error = -ENOENT;
-		if (!inode) {
-			path_to_nameidata(path, nd);
-			goto exit;
-		}
-
-		if (should_follow_link(inode, !symlink_ok)) {
-			if (nd->flags & LOOKUP_RCU) {
-				if (unlikely(unlazy_walk(nd, path->dentry))) {
-					error = -ECHILD;
-					goto exit;
-				}
-			}
-			BUG_ON(inode != path->dentry->d_inode);
-			return NULL;
-		}
-		path_to_nameidata(path, nd);
-		nd->inode = inode;
-
-		/* sayonara */
-		error = complete_walk(nd);
-		if (error)
-			return ERR_PTR(error);
-
-		error = -ENOTDIR;
-		if (nd->flags & LOOKUP_DIRECTORY) {
-			if (!nd->inode->i_op->lookup)
-				goto exit;
-		}
-		audit_inode(pathname, nd->path.dentry);
-		goto ok;
+		goto finish_lookup;
 	}
 
 	/* create side of things */
@@ -2360,6 +2330,8 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
 	inode = path->dentry->d_inode;
+finish_lookup:
+	/* we _can_ be in RCU mode here */
 	error = -ENOENT;
 	if (!inode) {
 		path_to_nameidata(path, nd);
