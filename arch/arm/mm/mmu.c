@@ -489,7 +489,8 @@ static void __init build_mem_type_table(void)
 	 */
 	for (i = 0; i < ARRAY_SIZE(mem_types); i++) {
 		mem_types[i].prot_pte |= PTE_EXT_AF;
-		mem_types[i].prot_sect |= PMD_SECT_AF;
+		if (mem_types[i].prot_sect)
+			mem_types[i].prot_sect |= PMD_SECT_AF;
 	}
 	kern_pgprot |= PTE_EXT_AF;
 	vecs_pgprot |= PTE_EXT_AF;
@@ -618,8 +619,8 @@ static void __init alloc_init_section(pud_t *pud, unsigned long addr,
 	}
 }
 
-static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
-	unsigned long phys, const struct mem_type *type)
+static void __init alloc_init_pud(pgd_t *pgd, unsigned long addr,
+	unsigned long end, unsigned long phys, const struct mem_type *type)
 {
 	pud_t *pud = pud_offset(pgd, addr);
 	unsigned long next;

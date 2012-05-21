@@ -140,12 +140,6 @@ struct pci_ops ixp23xx_pci_ops = {
 	.write	= ixp23xx_pci_write_config,
 };
 
-struct pci_bus *ixp23xx_pci_scan_bus(int nr, struct pci_sys_data *sysdata)
-{
-	return pci_scan_root_bus(NULL, sysdata->busnr, &ixp23xx_pci_ops,
-				 sysdata, &sysdata->resources);
-}
-
 int ixp23xx_pci_abort_handler(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
 	volatile unsigned long temp;

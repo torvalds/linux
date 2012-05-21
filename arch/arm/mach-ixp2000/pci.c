@@ -124,16 +124,10 @@ int ixp2000_pci_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 }
 
 
-static struct pci_ops ixp2000_pci_ops = {
+struct pci_ops ixp2000_pci_ops = {
 	.read	= ixp2000_pci_read_config,
 	.write	= ixp2000_pci_write_config
 };
-
-struct pci_bus *ixp2000_pci_scan_bus(int nr, struct pci_sys_data *sysdata)
-{
-	return pci_scan_root_bus(NULL, sysdata->busnr, &ixp2000_pci_ops,
-				 sysdata, &sysdata->resources);
-}
 
 
 int ixp2000_pci_abort_handler(unsigned long addr, unsigned int fsr, struct pt_regs *regs)

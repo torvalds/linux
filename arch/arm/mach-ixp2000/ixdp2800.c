@@ -246,10 +246,10 @@ static void __init ixdp2800_pci_postinit(void)
 
 struct __initdata hw_pci ixdp2800_pci __initdata = {
 	.nr_controllers	= 1,
+	.ops		= &ixp2000_pci_ops,
 	.setup		= ixdp2800_pci_setup,
 	.preinit	= ixdp2800_pci_preinit,
 	.postinit	= ixdp2800_pci_postinit,
-	.scan		= ixp2000_pci_scan_bus,
 	.map_irq	= ixdp2800_pci_map_irq,
 };
 

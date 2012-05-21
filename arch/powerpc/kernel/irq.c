@@ -330,13 +330,9 @@ void migrate_irqs(void)
 
 	alloc_cpumask_var(&mask, GFP_KERNEL);
 
-	for_each_irq(irq) {
+	for_each_irq_desc(irq, desc) {
 		struct irq_data *data;
 		struct irq_chip *chip;
-
-		desc = irq_to_desc(irq);
-		if (!desc)
-			continue;
 
 		data = irq_desc_get_irq_data(desc);
 		if (irqd_is_per_cpu(data))

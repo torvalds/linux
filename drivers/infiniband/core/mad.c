@@ -1854,6 +1854,8 @@ static bool generate_unmatched_resp(struct ib_mad_private *recv,
 		response->mad.mad.mad_hdr.method = IB_MGMT_METHOD_GET_RESP;
 		response->mad.mad.mad_hdr.status =
 			cpu_to_be16(IB_MGMT_MAD_STATUS_UNSUPPORTED_METHOD_ATTRIB);
+		if (recv->mad.mad.mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
+			response->mad.mad.mad_hdr.status |= IB_SMP_DIRECTION;
 
 		return true;
 	} else {
@@ -1869,6 +1871,7 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 	struct ib_mad_list_head *mad_list;
 	struct ib_mad_agent_private *mad_agent;
 	int port_num;
+	int ret = IB_MAD_RESULT_SUCCESS;
 
 	mad_list = (struct ib_mad_list_head *)(unsigned long)wc->wr_id;
 	qp_info = mad_list->mad_queue->qp_info;
@@ -1952,8 +1955,6 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 local:
 	/* Give driver "right of first refusal" on incoming MAD */
 	if (port_priv->device->process_mad) {
-		int ret;
-
 		ret = port_priv->device->process_mad(port_priv->device, 0,
 						     port_priv->port_num,
 						     wc, &recv->grh,
@@ -1981,7 +1982,8 @@ local:
 		 * or via recv_handler in ib_mad_complete_recv()
 		 */
 		recv = NULL;
-	} else if (generate_unmatched_resp(recv, response)) {
+	} else if ((ret & IB_MAD_RESULT_SUCCESS) &&
+		   generate_unmatched_resp(recv, response)) {
 		agent_send_response(&response->mad.mad, &recv->grh, wc,
 				    port_priv->device, port_num, qp_info->qp->qp_num);
 	}

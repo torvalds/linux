@@ -475,7 +475,6 @@ static struct hw_pci tegra_pcie_hw __initdata = {
 	.nr_controllers	= 2,
 	.setup		= tegra_pcie_setup,
 	.scan		= tegra_pcie_scan_bus,
-	.swizzle	= pci_std_swizzle,
 	.map_irq	= tegra_pcie_map_irq,
 };
 

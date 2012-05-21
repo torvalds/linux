@@ -73,8 +73,10 @@ loop:
 
 	cur_trans = root->fs_info->running_transaction;
 	if (cur_trans) {
-		if (cur_trans->aborted)
+		if (cur_trans->aborted) {
+			spin_unlock(&root->fs_info->trans_lock);
 			return cur_trans->aborted;
+		}
 		atomic_inc(&cur_trans->use_count);
 		atomic_inc(&cur_trans->num_writers);
 		cur_trans->num_joined++;
@@ -1400,6 +1402,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	ret = commit_fs_roots(trans, root);
 	if (ret) {
 		mutex_unlock(&root->fs_info->tree_log_mutex);
+		mutex_unlock(&root->fs_info->reloc_mutex);
 		goto cleanup_transaction;
 	}
 
@@ -1411,6 +1414,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	ret = commit_cowonly_roots(trans, root);
 	if (ret) {
 		mutex_unlock(&root->fs_info->tree_log_mutex);
+		mutex_unlock(&root->fs_info->reloc_mutex);
 		goto cleanup_transaction;
 	}
 

@@ -1422,6 +1422,9 @@ static int _ocp_softreset(struct omap_hwmod *oh)
 		goto dis_opt_clks;
 	_write_sysconfig(v, oh);
 
+	if (oh->class->sysc->srst_udelay)
+		udelay(oh->class->sysc->srst_udelay);
+
 	if (oh->class->sysc->sysc_flags & SYSS_HAS_RESET_STATUS)
 		omap_test_timeout((omap_hwmod_read(oh,
 						    oh->class->sysc->syss_offs)
@@ -1903,10 +1906,20 @@ void omap_hwmod_write(u32 v, struct omap_hwmod *oh, u16 reg_offs)
  */
 int omap_hwmod_softreset(struct omap_hwmod *oh)
 {
-	if (!oh)
+	u32 v;
+	int ret;
+
+	if (!oh || !(oh->_sysc_cache))
 		return -EINVAL;
 
-	return _ocp_softreset(oh);
+	v = oh->_sysc_cache;
+	ret = _set_softreset(oh, &v);
+	if (ret)
+		goto error;
+	_write_sysconfig(v, oh);
+
+error:
+	return ret;
 }
 
 /**

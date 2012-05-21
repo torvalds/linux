@@ -140,7 +140,6 @@ static int __init qnap_ts409_pci_map_irq(const struct pci_dev *dev, u8 slot,
 
 static struct hw_pci qnap_ts409_pci __initdata = {
 	.nr_controllers	= 2,
-	.swizzle	= pci_std_swizzle,
 	.setup		= orion5x_pci_sys_setup,
 	.scan		= orion5x_pci_sys_scan_bus,
 	.map_irq	= qnap_ts409_pci_map_irq,

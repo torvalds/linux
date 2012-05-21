@@ -327,9 +327,9 @@ static int ixdp2x01_pci_setup(int nr, struct pci_sys_data *sys)
 
 struct hw_pci ixdp2x01_pci __initdata = {
 	.nr_controllers	= 1,
+	.ops		= &ixp2000_pci_ops,
 	.setup		= ixdp2x01_pci_setup,
 	.preinit	= ixdp2x01_pci_preinit,
-	.scan		= ixp2000_pci_scan_bus,
 	.map_irq	= ixdp2x01_pci_map_irq,
 };
 

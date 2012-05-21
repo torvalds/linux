@@ -118,9 +118,9 @@ static void __init roadrunner_pci_preinit(void)
 
 static struct hw_pci roadrunner_pci __initdata = {
 	.nr_controllers	= 1,
+	.ops		= &ixp23xx_pci_ops,
 	.preinit	= roadrunner_pci_preinit,
 	.setup		= ixp23xx_pci_setup,
-	.scan		= ixp23xx_pci_scan_bus,
 	.map_irq	= roadrunner_map_irq,
 };
 

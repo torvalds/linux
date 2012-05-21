@@ -3478,8 +3478,11 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 			return false;
 	}
 
-	/* All interlaced capable intel hw wants timings in frames. */
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
+	/* All interlaced capable intel hw wants timings in frames. Note though
+	 * that intel_lvds_mode_fixup does some funny tricks with the crtc
+	 * timings, so we need to be careful not to clobber these.*/
+	if (!(adjusted_mode->private_flags & INTEL_MODE_CRTC_TIMINGS_SET))
+		drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	return true;
 }
@@ -7465,7 +7468,13 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 	OUT_RING(fb->pitches[0] | obj->tiling_mode);
 	OUT_RING(obj->gtt_offset);
 
-	pf = I915_READ(PF_CTL(intel_crtc->pipe)) & PF_ENABLE;
+	/* Contrary to the suggestions in the documentation,
+	 * "Enable Panel Fitter" does not seem to be required when page
+	 * flipping with a non-native mode, and worse causes a normal
+	 * modeset to fail.
+	 * pf = I915_READ(PF_CTL(intel_crtc->pipe)) & PF_ENABLE;
+	 */
+	pf = 0;
 	pipesrc = I915_READ(PIPESRC(intel_crtc->pipe)) & 0x0fff0fff;
 	OUT_RING(pf | pipesrc);
 	ADVANCE_LP_RING();
