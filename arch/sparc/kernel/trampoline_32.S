@@ -15,8 +15,8 @@
 #include <asm/contregs.h>
 #include <asm/thread_info.h>
 
-	.globl sun4m_cpu_startup, __smp4m_processor_id, __leon_processor_id
-	.globl sun4d_cpu_startup, __smp4d_processor_id
+	.globl sun4m_cpu_startup
+	.globl sun4d_cpu_startup
 
 	__CPUINIT
 	.align 4
@@ -93,24 +93,6 @@ smp_do_cpu_idle:
 
 	call	cpu_panic
 	 nop
-
-__smp4m_processor_id:
-	rd	%tbr, %g2
-	srl	%g2, 12, %g2
-	and	%g2, 3, %g2
-	retl
-	 mov	%g1, %o7
-
-__smp4d_processor_id:
-	lda	[%g0] ASI_M_VIKING_TMP1, %g2
-	retl
-	 mov	%g1, %o7
-
-__leon_processor_id:
-	rd     %asr17,%g2
-        srl    %g2,28,%g2
-	retl
-	 mov	%g1, %o7
 
 /* CPUID in bootbus can be found at PA 0xff0140000 */
 #define SUN4D_BOOTBUS_CPUID	0xf0140000

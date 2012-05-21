@@ -906,7 +906,7 @@ swapper_4m_tsb:
 	 * error and will instead write junk into the relocation and
 	 * you'll have an unbootable kernel.
 	 */
-#include "ttable.S"
+#include "ttable_64.S"
 
 ! 0x0000000000428000
 

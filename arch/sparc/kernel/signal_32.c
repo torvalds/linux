@@ -217,12 +217,9 @@ segv:
 /* Checks if the fp is valid */
 static inline int invalid_frame_pointer(void __user *fp, int fplen)
 {
-	if ((((unsigned long) fp) & 7) ||
-	    !__access_ok((unsigned long)fp, fplen) ||
-	    ((sparc_cpu_model == sun4 || sparc_cpu_model == sun4c) &&
-	     ((unsigned long) fp < 0xe0000000 && (unsigned long) fp >= 0x20000000)))
+	if ((((unsigned long) fp) & 7) || !__access_ok((unsigned long)fp, fplen))
 		return 1;
-	
+
 	return 0;
 }
 

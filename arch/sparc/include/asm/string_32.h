@@ -61,68 +61,7 @@ extern int memcmp(const void *,const void *,__kernel_size_t);
 extern __kernel_size_t strlen(const char *);
 
 #define __HAVE_ARCH_STRNCMP
-
-extern int __strncmp(const char *, const char *, __kernel_size_t);
-
-static inline int __constant_strncmp(const char *src, const char *dest, __kernel_size_t count)
-{
-	register int retval;
-	switch(count) {
-	case 0: return 0;
-	case 1: return (src[0] - dest[0]);
-	case 2: retval = (src[0] - dest[0]);
-		if(!retval && src[0])
-		  retval = (src[1] - dest[1]);
-		return retval;
-	case 3: retval = (src[0] - dest[0]);
-		if(!retval && src[0]) {
-		  retval = (src[1] - dest[1]);
-		  if(!retval && src[1])
-		    retval = (src[2] - dest[2]);
-		}
-		return retval;
-	case 4: retval = (src[0] - dest[0]);
-		if(!retval && src[0]) {
-		  retval = (src[1] - dest[1]);
-		  if(!retval && src[1]) {
-		    retval = (src[2] - dest[2]);
-		    if (!retval && src[2])
-		      retval = (src[3] - dest[3]);
-		  }
-		}
-		return retval;
-	case 5: retval = (src[0] - dest[0]);
-		if(!retval && src[0]) {
-		  retval = (src[1] - dest[1]);
-		  if(!retval && src[1]) {
-		    retval = (src[2] - dest[2]);
-		    if (!retval && src[2]) {
-		      retval = (src[3] - dest[3]);
-		      if (!retval && src[3])
-		        retval = (src[4] - dest[4]);
-		    }
-		  }
-		}
-		return retval;
-	default:
-		retval = (src[0] - dest[0]);
-		if(!retval && src[0]) {
-		  retval = (src[1] - dest[1]);
-		  if(!retval && src[1]) {
-		    retval = (src[2] - dest[2]);
-		    if(!retval && src[2])
-		      retval = __strncmp(src+3,dest+3,count-3);
-		  }
-		}
-		return retval;
-	}
-}
-
-#undef strncmp
-#define strncmp(__arg0, __arg1, __arg2)	\
-(__builtin_constant_p(__arg2) ?	\
- __constant_strncmp(__arg0, __arg1, __arg2) : \
- __strncmp(__arg0, __arg1, __arg2))
+extern int strncmp(const char *, const char *, __kernel_size_t);
 
 #endif /* !EXPORT_SYMTAB_STROPS */
 

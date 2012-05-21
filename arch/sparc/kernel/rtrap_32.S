@@ -128,13 +128,12 @@ rtrap_patch2:	and	%glob_tmp, 0xff, %glob_tmp
 
 		wr	%glob_tmp, 0x0, %wim
 
-				/* Here comes the architecture specific 
-				 * branch to the user stack checking routine
-				 * for return from traps.
-				 */
-				.globl	rtrap_mmu_patchme
-rtrap_mmu_patchme:	b	sun4c_rett_stackchk
-				 andcc	%fp, 0x7, %g0	
+	/* Here comes the architecture specific
+	 * branch to the user stack checking routine
+	 * for return from traps.
+	 */
+	b	srmmu_rett_stackchk
+	 andcc	%fp, 0x7, %g0
 
 ret_trap_userwins_ok:
 	LOAD_PT_PRIV(sp, t_psr, t_pc, t_npc)
@@ -224,69 +223,6 @@ ret_trap_user_stack_is_bolixed:
 
 	b	signal_p
 	 ld	[%curptr + TI_FLAGS], %g2
-
-sun4c_rett_stackchk:
-	be	1f
-	 and	%fp, 0xfff, %g1		! delay slot
-
-	b	ret_trap_user_stack_is_bolixed + 0x4
-	 wr	%t_wim, 0x0, %wim
-
-	/* See if we have to check the sanity of one page or two */
-1:
-	add	%g1, 0x38, %g1
-	sra	%fp, 29, %g2
-	add	%g2, 0x1, %g2
-	andncc	%g2, 0x1, %g0
-	be	1f
-	 andncc	%g1, 0xff8, %g0
-
-	/* %sp is in vma hole, yuck */
-	b	ret_trap_user_stack_is_bolixed + 0x4
-	 wr	%t_wim, 0x0, %wim
-
-1:
-	be	sun4c_rett_onepage	/* Only one page to check */
-	 lda	[%fp] ASI_PTE, %g2
-
-sun4c_rett_twopages:
-	add	%fp, 0x38, %g1
-	sra	%g1, 29, %g2
-	add	%g2, 0x1, %g2
-	andncc	%g2, 0x1, %g0
-	be	1f
-	 lda	[%g1] ASI_PTE, %g2
-
-	/* Second page is in vma hole */
-	b	ret_trap_user_stack_is_bolixed + 0x4
-	 wr	%t_wim, 0x0, %wim
-
-1:
-	srl	%g2, 29, %g2
-	andcc	%g2, 0x4, %g0
-	bne	sun4c_rett_onepage
-	 lda	[%fp] ASI_PTE, %g2
-
-	/* Second page has bad perms */
-	b	ret_trap_user_stack_is_bolixed + 0x4
-	 wr	%t_wim, 0x0, %wim
-
-sun4c_rett_onepage:
-	srl	%g2, 29, %g2
-	andcc	%g2, 0x4, %g0
-	bne,a	1f
-	 restore %g0, %g0, %g0
-
-	/* A page had bad page permissions, losing... */
-	b	ret_trap_user_stack_is_bolixed + 0x4
-	 wr	%t_wim, 0x0, %wim
-
-	/* Whee, things are ok, load the window and continue. */
-1:
-	LOAD_WINDOW(sp)
-
-	b	ret_trap_userwins_ok
-	 save	%g0, %g0, %g0
 
 	.globl	srmmu_rett_stackchk
 srmmu_rett_stackchk:
