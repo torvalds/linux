@@ -28,15 +28,6 @@ static int x2apic_apic_id_registered(void)
 	return 1;
 }
 
-/*
- * For now each logical cpu is in its own vector allocation domain.
- */
-static void x2apic_vector_allocation_domain(int cpu, struct cpumask *retmask)
-{
-	cpumask_clear(retmask);
-	cpumask_set_cpu(cpu, retmask);
-}
-
 static void
 __x2apic_send_IPI_dest(unsigned int apicid, int vector, unsigned int dest)
 {

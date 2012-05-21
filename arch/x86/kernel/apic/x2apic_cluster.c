@@ -98,34 +98,47 @@ static void x2apic_send_IPI_all(int vector)
 
 static unsigned int x2apic_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
-	/*
-	 * We're using fixed IRQ delivery, can only return one logical APIC ID.
-	 * May as well be the first.
-	 */
 	int cpu = cpumask_first(cpumask);
+	u32 dest = 0;
+	int i;
 
-	if ((unsigned)cpu < nr_cpu_ids)
-		return per_cpu(x86_cpu_to_logical_apicid, cpu);
-	else
+	if (cpu > nr_cpu_ids)
 		return BAD_APICID;
+
+	for_each_cpu_and(i, cpumask, per_cpu(cpus_in_cluster, cpu))
+		dest |= per_cpu(x86_cpu_to_logical_apicid, i);
+
+	return dest;
 }
 
 static unsigned int
 x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 			      const struct cpumask *andmask)
 {
-	int cpu;
+	u32 dest = 0;
+	u16 cluster;
+	int i;
 
-	/*
-	 * We're using fixed IRQ delivery, can only return one logical APIC ID.
-	 * May as well be the first.
-	 */
-	for_each_cpu_and(cpu, cpumask, andmask) {
-		if (cpumask_test_cpu(cpu, cpu_online_mask))
-			break;
+	for_each_cpu_and(i, cpumask, andmask) {
+		if (!cpumask_test_cpu(i, cpu_online_mask))
+			continue;
+		dest = per_cpu(x86_cpu_to_logical_apicid, i);
+		cluster = x2apic_cluster(i);
+		break;
 	}
 
-	return per_cpu(x86_cpu_to_logical_apicid, cpu);
+	if (!dest)
+		return BAD_APICID;
+
+	for_each_cpu_and(i, cpumask, andmask) {
+		if (!cpumask_test_cpu(i, cpu_online_mask))
+			continue;
+		if (cluster != x2apic_cluster(i))
+			continue;
+		dest |= per_cpu(x86_cpu_to_logical_apicid, i);
+	}
+
+	return dest;
 }
 
 static void init_x2apic_ldr(void)
@@ -208,6 +221,15 @@ static int x2apic_cluster_probe(void)
 		return 0;
 }
 
+/*
+ * Each x2apic cluster is an allocation domain.
+ */
+static void cluster_vector_allocation_domain(int cpu, struct cpumask *retmask)
+{
+	cpumask_clear(retmask);
+	cpumask_copy(retmask, per_cpu(cpus_in_cluster, cpu));
+}
+
 static struct apic apic_x2apic_cluster = {
 
 	.name				= "cluster x2apic",
@@ -225,7 +247,7 @@ static struct apic apic_x2apic_cluster = {
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,
 
-	.vector_allocation_domain	= x2apic_vector_allocation_domain,
+	.vector_allocation_domain	= cluster_vector_allocation_domain,
 	.init_apic_ldr			= init_x2apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
