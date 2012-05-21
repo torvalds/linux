@@ -268,11 +268,6 @@ int nfc_dep_link_down(struct nfc_dev *dev)
 		goto error;
 	}
 
-	if (dev->rf_mode == NFC_RF_TARGET) {
-		rc = -EOPNOTSUPP;
-		goto error;
-	}
-
 	rc = dev->ops->dep_link_down(dev);
 	if (!rc) {
 		dev->dep_link_up = false;
