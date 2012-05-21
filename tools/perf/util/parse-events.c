@@ -634,6 +634,9 @@ do {								\
 		 * attr->branch_sample_type = term->val.num;
 		 */
 		break;
+	case PARSE_EVENTS__TERM_TYPE_NAME:
+		CHECK_TYPE_VAL(STR);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -672,6 +675,23 @@ int parse_events_add_numeric(struct list_head **list, int *idx,
 			 (char *) __event_name(type, config));
 }
 
+static int parse_events__is_name_term(struct parse_events__term *term)
+{
+	return term->type_term == PARSE_EVENTS__TERM_TYPE_NAME;
+}
+
+static char *pmu_event_name(struct perf_event_attr *attr,
+			    struct list_head *head_terms)
+{
+	struct parse_events__term *term;
+
+	list_for_each_entry(term, head_terms, list)
+		if (parse_events__is_name_term(term))
+			return term->val.str;
+
+	return (char *) __event_name(PERF_TYPE_RAW, attr->config);
+}
+
 int parse_events_add_pmu(struct list_head **list, int *idx,
 			 char *name, struct list_head *head_config)
 {
@@ -693,7 +713,8 @@ int parse_events_add_pmu(struct list_head **list, int *idx,
 	if (perf_pmu__config(pmu, &attr, head_config))
 		return -EINVAL;
 
-	return add_event(list, idx, &attr, (char *) "pmu");
+	return add_event(list, idx, &attr,
+			 pmu_event_name(&attr, head_config));
 }
 
 void parse_events_update_lists(struct list_head *list_event,
