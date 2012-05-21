@@ -30,6 +30,7 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_auto_parser.h"
 
 #define WIDGET_CHIP_CTRL      0x15
 #define WIDGET_DSP_CTRL       0x16
@@ -239,8 +240,7 @@ enum get_set {
 static void init_output(struct hda_codec *codec, hda_nid_t pin, hda_nid_t dac)
 {
 	if (pin) {
-		snd_hda_codec_write(codec, pin, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+		snd_hda_set_pin_ctl(codec, pin, PIN_HP);
 		if (get_wcaps(codec, pin) & AC_WCAP_OUT_AMP)
 			snd_hda_codec_write(codec, pin, 0,
 					    AC_VERB_SET_AMP_GAIN_MUTE,
@@ -254,9 +254,8 @@ static void init_output(struct hda_codec *codec, hda_nid_t pin, hda_nid_t dac)
 static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
 {
 	if (pin) {
-		snd_hda_codec_write(codec, pin, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    PIN_VREF80);
+		snd_hda_set_pin_ctl(codec, pin, PIN_IN |
+				    snd_hda_get_default_vref(codec, pin));
 		if (get_wcaps(codec, pin) & AC_WCAP_IN_AMP)
 			snd_hda_codec_write(codec, pin, 0,
 					    AC_VERB_SET_AMP_GAIN_MUTE,
