@@ -35,7 +35,7 @@
 #include <linux/watchdog.h>	/* For watchdog specific items */
 #include <linux/init.h>		/* For __init/__exit/... */
 
-#include "watchdog_dev.h"	/* For watchdog_dev_register/... */
+#include "watchdog_core.h"	/* For watchdog_dev_register/... */
 
 /**
  * watchdog_register_device() - register a watchdog device
