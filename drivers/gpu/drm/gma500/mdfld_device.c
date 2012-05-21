@@ -531,6 +531,7 @@ const struct psb_ops mdfld_chip_ops = {
 	.crtcs = 3,
 	.lvds_mask = (1 << 1),
 	.hdmi_mask = (1 << 1),
+	.cursor_needs_phys = 0,
 	.sgx_offset = MRST_SGX_OFFSET,
 
 	.chip_setup = mdfld_chip_setup,

@@ -373,6 +373,7 @@ const struct psb_ops psb_chip_ops = {
 	.crtcs = 2,
 	.hdmi_mask = (1 << 0),
 	.lvds_mask = (1 << 1),
+	.cursor_needs_phys = 1,
 	.sgx_offset = PSB_SGX_OFFSET,
 	.chip_setup = psb_chip_setup,
 	.chip_teardown = psb_chip_teardown,

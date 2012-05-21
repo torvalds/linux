@@ -928,6 +928,7 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 				 uint32_t width, uint32_t height)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
 	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
@@ -935,8 +936,10 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	uint32_t temp;
 	size_t addr = 0;
 	struct gtt_range *gt;
+	struct gtt_range *cursor_gt = psb_intel_crtc->cursor_gt;
 	struct drm_gem_object *obj;
-	int ret;
+	void *tmp_dst, *tmp_src;
+	int ret, i, cursor_pages;
 
 	/* if we want to turn of the cursor ignore width and height */
 	if (!handle) {
@@ -985,10 +988,32 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 		return ret;
 	}
 
+	if (dev_priv->ops->cursor_needs_phys) {
+		if (cursor_gt == NULL) {
+			dev_err(dev->dev, "No hardware cursor mem available");
+			return -ENOMEM;
+		}
 
-	addr = gt->offset;	/* Or resource.start ??? */
+		/* Prevent overflow */
+		if (gt->npage > 4)
+			cursor_pages = 4;
+		else
+			cursor_pages = gt->npage;
 
-	psb_intel_crtc->cursor_addr = addr;
+		/* Copy the cursor to cursor mem */
+		tmp_dst = dev_priv->vram_addr + cursor_gt->offset;
+		for (i = 0; i < cursor_pages; i++) {
+			tmp_src = kmap(gt->pages[i]);
+			memcpy(tmp_dst, tmp_src, PAGE_SIZE);
+			kunmap(gt->pages[i]);
+			tmp_dst += PAGE_SIZE;
+		}
+
+		addr = psb_intel_crtc->cursor_addr;
+	} else {
+		addr = gt->offset;      /* Or resource.start ??? */
+		psb_intel_crtc->cursor_addr = addr;
+	}
 
 	temp = 0;
 	/* set the pipe for the cursor */
@@ -1213,6 +1238,9 @@ void psb_intel_crtc_destroy(struct drm_crtc *crtc)
 		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
 		psb_intel_crtc->cursor_obj = NULL;
 	}
+
+	if (psb_intel_crtc->cursor_gt != NULL)
+		psb_gtt_free_range(crtc->dev, psb_intel_crtc->cursor_gt);
 	kfree(psb_intel_crtc->crtc_state);
 	drm_crtc_cleanup(crtc);
 	kfree(psb_intel_crtc);
@@ -1241,13 +1269,33 @@ const struct drm_crtc_funcs psb_intel_crtc_funcs = {
  * Set the default value of cursor control and base register
  * to zero. This is a workaround for h/w defect on Oaktrail
  */
-static void psb_intel_cursor_init(struct drm_device *dev, int pipe)
+static void psb_intel_cursor_init(struct drm_device *dev,
+				  struct psb_intel_crtc *psb_intel_crtc)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 control[3] = { CURACNTR, CURBCNTR, CURCCNTR };
 	u32 base[3] = { CURABASE, CURBBASE, CURCBASE };
+	struct gtt_range *cursor_gt;
 
-	REG_WRITE(control[pipe], 0);
-	REG_WRITE(base[pipe], 0);
+	if (dev_priv->ops->cursor_needs_phys) {
+		/* Allocate 4 pages of stolen mem for a hardware cursor. That
+		 * is enough for the 64 x 64 ARGB cursors we support.
+		 */
+		cursor_gt = psb_gtt_alloc_range(dev, 4 * PAGE_SIZE, "cursor", 1);
+		if (!cursor_gt) {
+			psb_intel_crtc->cursor_gt = NULL;
+			goto out;
+		}
+		psb_intel_crtc->cursor_gt = cursor_gt;
+		psb_intel_crtc->cursor_addr = dev_priv->stolen_base +
+							cursor_gt->offset;
+	} else {
+		psb_intel_crtc->cursor_gt = NULL;
+	}
+
+out:
+	REG_WRITE(control[psb_intel_crtc->pipe], 0);
+	REG_WRITE(base[psb_intel_crtc->pipe], 0);
 }
 
 void psb_intel_crtc_init(struct drm_device *dev, int pipe,
@@ -1313,7 +1361,7 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	psb_intel_crtc->mode_set.connectors =
 	    (struct drm_connector **) (psb_intel_crtc + 1);
 	psb_intel_crtc->mode_set.num_connectors = 0;
-	psb_intel_cursor_init(dev, pipe);
+	psb_intel_cursor_init(dev, psb_intel_crtc);
 }
 
 int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
