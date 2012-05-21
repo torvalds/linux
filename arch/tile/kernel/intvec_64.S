@@ -647,6 +647,20 @@ STD_ENTRY(interrupt_return)
 	FEEDBACK_REENTER(interrupt_return)
 
 	/*
+	 * Use r33 to hold whether we have already loaded the callee-saves
+	 * into ptregs.  We don't want to do it twice in this loop, since
+	 * then we'd clobber whatever changes are made by ptrace, etc.
+	 */
+	{
+	 movei  r33, 0
+	 move   r32, sp
+	}
+
+	/* Get base of stack in r32. */
+	EXTRACT_THREAD_INFO(r32)
+
+.Lretry_work_pending:
+	/*
 	 * Disable interrupts so as to make sure we don't
 	 * miss an interrupt that sets any of the thread flags (like
 	 * need_resched or sigpending) between sampling and the iret.
@@ -655,9 +669,6 @@ STD_ENTRY(interrupt_return)
 	 */
 	IRQ_DISABLE(r20, r21)
 	TRACE_IRQS_OFF  /* Note: clobbers registers r0-r29 */
-
-	/* Get base of stack in r32; note r30/31 are used as arguments here. */
-	GET_THREAD_INFO(r32)
 
 
 	/* Check to see if there is any work to do before returning to user. */
@@ -674,16 +685,18 @@ STD_ENTRY(interrupt_return)
 
 	/*
 	 * Make sure we have all the registers saved for signal
-	 * handling or single-step.  Call out to C code to figure out
+	 * handling or notify-resume.  Call out to C code to figure out
 	 * exactly what we need to do for each flag bit, then if
 	 * necessary, reload the flags and recheck.
 	 */
-	push_extra_callee_saves r0
 	{
 	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
-	 jal    do_work_pending
+	 bnez   r33, 1f
 	}
-	bnez    r0, .Lresume_userspace
+	push_extra_callee_saves r0
+	movei   r33, 1
+1:	jal     do_work_pending
+	bnez    r0, .Lretry_work_pending
 
 	/*
 	 * In the NMI case we
@@ -968,11 +981,16 @@ handle_syscall:
 	shl16insli r20, r20, hw0(irq_stat + IRQ_CPUSTAT_SYSCALL_COUNT_OFFSET)
 	add     r20, r20, tp
 	ld4s    r21, r20
-	addi    r21, r21, 1
-	st4     r20, r21
+	{
+	 addi   r21, r21, 1
+	 move   r31, sp
+	}
+	{
+	 st4    r20, r21
+	 EXTRACT_THREAD_INFO(r31)
+	}
 
 	/* Trace syscalls, if requested. */
-	GET_THREAD_INFO(r31)
 	addi	r31, r31, THREAD_INFO_FLAGS_OFFSET
 	ld	r30, r31
 	andi    r30, r30, _TIF_SYSCALL_TRACE
