@@ -171,26 +171,6 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 	return cmd.handler_status;
 }
 
-static bool iwl_is_channel_extension(struct iwl_priv *priv,
-				     enum ieee80211_band band,
-				     u16 channel, u8 extension_chan_offset)
-{
-	const struct iwl_channel_info *ch_info;
-
-	ch_info = iwl_get_channel_info(priv, band, channel);
-	if (!is_channel_valid(ch_info))
-		return false;
-
-	if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_ABOVE)
-		return !(ch_info->ht40_extension_channel &
-					IEEE80211_CHAN_NO_HT40PLUS);
-	else if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_BELOW)
-		return !(ch_info->ht40_extension_channel &
-					IEEE80211_CHAN_NO_HT40MINUS);
-
-	return false;
-}
-
 bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx,
 			    struct ieee80211_sta_ht_cap *ht_cap)
@@ -210,9 +190,7 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 		return false;
 #endif
 
-	return iwl_is_channel_extension(priv, priv->band,
-			le16_to_cpu(ctx->staging.channel),
-			ctx->ht.extension_chan_offset);
+	return true;
 }
 
 static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
