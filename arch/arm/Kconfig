@@ -11,6 +11,7 @@ config ARM
 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_TRACEHOOK
 	select HAVE_KPROBES if !XIP_KERNEL
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
@@ -30,6 +31,8 @@ config ARM
 	select HAVE_HW_BREAKPOINT if (PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7))
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_GENERIC_HARDIRQS
+	select HARDIRQS_SW_RESEND
+	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select CPU_PM if (SUSPEND || CPU_IDLE)
 	select GENERIC_PCI_IOMAP
@@ -123,14 +126,6 @@ config LOCKDEP_SUPPORT
 	default y
 
 config TRACE_IRQFLAGS_SUPPORT
-	bool
-	default y
-
-config HARDIRQS_SW_RESEND
-	bool
-	default y
-
-config GENERIC_IRQ_PROBE
 	bool
 	default y
 
@@ -633,7 +628,6 @@ config ARCH_MMP
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
-	select TICK_ONESHOT
 	select PLAT_PXA
 	select SPARSE_IRQ
 	select GENERIC_ALLOCATOR
@@ -717,7 +711,6 @@ config ARCH_PXA
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
-	select TICK_ONESHOT
 	select PLAT_PXA
 	select SPARSE_IRQ
 	select AUTO_ZRELADDR
@@ -784,7 +777,6 @@ config ARCH_SA1100
 	select CPU_FREQ
 	select GENERIC_CLOCKEVENTS
 	select CLKDEV_LOOKUP
-	select TICK_ONESHOT
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_IDE
 	select NEED_MACH_MEMORY_H
@@ -1562,7 +1554,6 @@ config ARM_ARCH_TIMER
 config HAVE_ARM_TWD
 	bool
 	depends on SMP
-	select TICK_ONESHOT
 	help
 	  This options enables support for the ARM timer and watchdog unit
 
