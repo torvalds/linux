@@ -1,0 +1,22 @@
+#
+# Light sensors
+#
+menu "Light sensors"
+
+config SENSORS_LM3533
+	tristate "LM3533 ambient light sensor"
+	depends on MFD_LM3533
+	help
+	  If you say yes here you get support for the ambient light sensor
+	  interface on National Semiconductor / TI LM3533 Lighting Power
+	  chips.
+
+	  The sensor interface can be used to control the LEDs and backlights
+	  of the chip through defining five light zones and three sets of
+	  corresponding output-current values.
+
+	  The driver provides raw and mean adc readings along with the current
+	  light zone through sysfs. A threshold event can be generated on zone
+	  changes. The ALS-control output values can be set per zone for the
+	  three current output channels.
+endmenu
