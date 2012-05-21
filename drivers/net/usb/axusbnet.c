@@ -1264,6 +1264,8 @@ axusbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	net->watchdog_timeo = TX_TIMEOUT_JIFFIES;
 	net->ethtool_ops = &axusbnet_ethtool_ops;
 
+	info->flags |= FLAG_AVOID_UNLINK_URBS;
+
 	// allow device-specific bind/init procedures
 	// NOTE net->name still not usable ...
 	status = info->bind (dev, udev);
