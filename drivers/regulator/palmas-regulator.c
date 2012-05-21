@@ -775,9 +775,6 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 err_unregister_regulator:
 	while (--id >= 0)
 		regulator_unregister(pmic->rdev[id]);
-	kfree(pmic->rdev);
-	kfree(pmic->desc);
-	kfree(pmic);
 	return ret;
 }
 
@@ -788,10 +785,6 @@ static int __devexit palmas_remove(struct platform_device *pdev)
 
 	for (id = 0; id < PALMAS_NUM_REGS; id++)
 		regulator_unregister(pmic->rdev[id]);
-
-	kfree(pmic->rdev);
-	kfree(pmic->desc);
-	kfree(pmic);
 	return 0;
 }
 
