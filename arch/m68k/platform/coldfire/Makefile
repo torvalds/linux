@@ -32,5 +32,5 @@ obj-$(CONFIG_NETtel)	+= nettel.o
 obj-$(CONFIG_CLEOPATRA)	+= nettel.o
 obj-$(CONFIG_FIREBEE)	+= firebee.o
 
-obj-y			+= pinmux.o gpio.o
+obj-y			+= gpio.o
 extra-y := head.o
