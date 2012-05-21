@@ -2553,7 +2553,6 @@ static int alc_auto_fill_adc_caps(struct hda_codec *codec)
 		src = nid;
 		for (;;) {
 			int n;
-			hda_nid_t conn_nid;
 			type = get_wcaps_type(get_wcaps(codec, src));
 			if (type == AC_WID_PIN)
 				break;
