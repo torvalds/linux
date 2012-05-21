@@ -2358,15 +2358,17 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	if (error)
 		nd->flags |= LOOKUP_JUMPED;
 
+	BUG_ON(nd->flags & LOOKUP_RCU);
+	inode = path->dentry->d_inode;
 	error = -ENOENT;
-	if (!path->dentry->d_inode)
+	if (!inode)
 		goto exit_dput;
 
-	if (path->dentry->d_inode->i_op->follow_link)
+	if (inode->i_op->follow_link)
 		return NULL;
 
 	path_to_nameidata(path, nd);
-	nd->inode = path->dentry->d_inode;
+	nd->inode = inode;
 	/* Why this, you ask?  _Now_ we might have grown LOOKUP_JUMPED... */
 	error = complete_walk(nd);
 	if (error)
