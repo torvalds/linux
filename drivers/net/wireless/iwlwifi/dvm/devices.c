@@ -173,14 +173,6 @@ static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
 
-	priv->hw_params.tx_chains_num =
-		num_of_ant(priv->hw_params.valid_tx_ant);
-	if (priv->cfg->rx_with_siso_diversity)
-		priv->hw_params.rx_chains_num = 1;
-	else
-		priv->hw_params.rx_chains_num =
-			num_of_ant(priv->hw_params.valid_rx_ant);
-
 	iwl1000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
@@ -253,14 +245,6 @@ static const struct iwl_sensitivity_ranges iwl2000_sensitivity = {
 static void iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
-
-	priv->hw_params.tx_chains_num =
-		num_of_ant(priv->hw_params.valid_tx_ant);
-	if (priv->cfg->rx_with_siso_diversity)
-		priv->hw_params.rx_chains_num = 1;
-	else
-		priv->hw_params.rx_chains_num =
-			num_of_ant(priv->hw_params.valid_rx_ant);
 
 	iwl2000_set_ct_threshold(priv);
 
@@ -408,11 +392,6 @@ static void iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 
-	priv->hw_params.tx_chains_num =
-		num_of_ant(priv->hw_params.valid_tx_ant);
-	priv->hw_params.rx_chains_num =
-		num_of_ant(priv->hw_params.valid_rx_ant);
-
 	iwl5000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
@@ -423,11 +402,6 @@ static void iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 {
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
-
-	priv->hw_params.tx_chains_num =
-		num_of_ant(priv->hw_params.valid_tx_ant);
-	priv->hw_params.rx_chains_num =
-		num_of_ant(priv->hw_params.valid_rx_ant);
 
 	iwl5150_set_ct_threshold(priv);
 
@@ -622,14 +596,6 @@ static void iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
-
-	priv->hw_params.tx_chains_num =
-		num_of_ant(priv->hw_params.valid_tx_ant);
-	if (priv->cfg->rx_with_siso_diversity)
-		priv->hw_params.rx_chains_num = 1;
-	else
-		priv->hw_params.rx_chains_num =
-			num_of_ant(priv->hw_params.valid_rx_ant);
 
 	iwl6000_set_ct_threshold(priv);
 

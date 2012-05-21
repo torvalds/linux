@@ -285,6 +285,14 @@ int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 		return -EINVAL;
 	}
 
+	priv->hw_params.tx_chains_num =
+		num_of_ant(priv->hw_params.valid_tx_ant);
+	if (priv->cfg->rx_with_siso_diversity)
+		priv->hw_params.rx_chains_num = 1;
+	else
+		priv->hw_params.rx_chains_num =
+			num_of_ant(priv->hw_params.valid_rx_ant);
+
 	IWL_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
 		 priv->hw_params.valid_tx_ant, priv->hw_params.valid_rx_ant);
 
