@@ -2383,7 +2383,7 @@ common:
 out:
 	if (want_write)
 		mnt_drop_write(nd->path.mnt);
-	path_put(&nd->path);
+	terminate_walk(nd);
 	return filp;
 
 exit_mutex_unlock:
