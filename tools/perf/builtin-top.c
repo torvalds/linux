@@ -900,6 +900,9 @@ static void perf_top__start_counters(struct perf_top *top)
 			attr->read_format |= PERF_FORMAT_ID;
 		}
 
+		if (perf_target__has_cpu(&top->target))
+			attr->sample_type |= PERF_SAMPLE_CPU;
+
 		if (symbol_conf.use_callchain)
 			attr->sample_type |= PERF_SAMPLE_CALLCHAIN;
 
