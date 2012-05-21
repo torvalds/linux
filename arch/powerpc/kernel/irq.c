@@ -229,6 +229,19 @@ notrace void arch_local_irq_restore(unsigned long en)
 	 */
 	if (unlikely(irq_happened != PACA_IRQ_HARD_DIS))
 		__hard_irq_disable();
+#ifdef CONFIG_TRACE_IRQFLAG
+	else {
+		/*
+		 * We should already be hard disabled here. We had bugs
+		 * where that wasn't the case so let's dbl check it and
+		 * warn if we are wrong. Only do that when IRQ tracing
+		 * is enabled as mfmsr() can be costly.
+		 */
+		if (WARN_ON(mfmsr() & MSR_EE))
+			__hard_irq_disable();
+	}
+#endif /* CONFIG_TRACE_IRQFLAG */
+
 	set_soft_enabled(0);
 
 	/*
@@ -260,11 +273,17 @@ EXPORT_SYMBOL(arch_local_irq_restore);
  * if they are currently disabled. This is typically called before
  * schedule() or do_signal() when returning to userspace. We do it
  * in C to avoid the burden of dealing with lockdep etc...
+ *
+ * NOTE: This is called with interrupts hard disabled but not marked
+ * as such in paca->irq_happened, so we need to resync this.
  */
 void restore_interrupts(void)
 {
-	if (irqs_disabled())
+	if (irqs_disabled()) {
+		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 		local_irq_enable();
+	} else
+		__hard_irq_enable();
 }
 
 #endif /* CONFIG_PPC64 */
@@ -330,13 +349,9 @@ void migrate_irqs(void)
 
 	alloc_cpumask_var(&mask, GFP_KERNEL);
 
-	for_each_irq(irq) {
+	for_each_irq_desc(irq, desc) {
 		struct irq_data *data;
 		struct irq_chip *chip;
-
-		desc = irq_to_desc(irq);
-		if (!desc)
-			continue;
 
 		data = irq_desc_get_irq_data(desc);
 		if (irqd_is_per_cpu(data))
@@ -559,12 +574,6 @@ void do_softirq(void)
 
 	local_irq_restore(flags);
 }
-
-irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
-{
-	return d->hwirq;
-}
-EXPORT_SYMBOL_GPL(irqd_to_hwirq);
 
 irq_hw_number_t virq_to_hw(unsigned int virq)
 {

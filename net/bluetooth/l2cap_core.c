@@ -1308,6 +1308,7 @@ static void l2cap_monitor_timeout(struct work_struct *work)
 	if (chan->retry_count >= chan->remote_max_tx) {
 		l2cap_send_disconn_req(chan->conn, chan, ECONNABORTED);
 		l2cap_chan_unlock(chan);
+		l2cap_chan_put(chan);
 		return;
 	}
 
@@ -1316,6 +1317,7 @@ static void l2cap_monitor_timeout(struct work_struct *work)
 
 	l2cap_send_rr_or_rnr(chan, L2CAP_CTRL_POLL);
 	l2cap_chan_unlock(chan);
+	l2cap_chan_put(chan);
 }
 
 static void l2cap_retrans_timeout(struct work_struct *work)
@@ -1335,6 +1337,7 @@ static void l2cap_retrans_timeout(struct work_struct *work)
 	l2cap_send_rr_or_rnr(chan, L2CAP_CTRL_POLL);
 
 	l2cap_chan_unlock(chan);
+	l2cap_chan_put(chan);
 }
 
 static void l2cap_drop_acked_frames(struct l2cap_chan *chan)
@@ -4586,6 +4589,11 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 
 		if (!status && (chan->state == BT_CONNECTED ||
 						chan->state == BT_CONFIG)) {
+			struct sock *sk = chan->sk;
+
+			bt_sk(sk)->suspended = false;
+			sk->sk_state_change(sk);
+
 			l2cap_check_encryption(chan, encrypt);
 			l2cap_chan_unlock(chan);
 			continue;

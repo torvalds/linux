@@ -30,7 +30,7 @@
 
 /***************************************************************************/
 
-#ifdef CONFIG_SPI_COLDFIRE_QSPI
+#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 
 static void __init m532x_qspi_init(void)
 {
@@ -38,7 +38,7 @@ static void __init m532x_qspi_init(void)
 	writew(0x01f0, MCF_GPIO_PAR_QSPI);
 }
 
-#endif /* CONFIG_SPI_COLDFIRE_QSPI */
+#endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
 
 /***************************************************************************/
 
@@ -77,7 +77,7 @@ void __init config_BSP(char *commandp, int size)
 	mach_sched_init = hw_timer_init;
 	m532x_uarts_init();
 	m532x_fec_init();
-#ifdef CONFIG_SPI_COLDFIRE_QSPI
+#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	m532x_qspi_init();
 #endif
 

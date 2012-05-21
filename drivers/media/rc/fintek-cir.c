@@ -197,7 +197,7 @@ static int fintek_hw_detect(struct fintek_dev *fintek)
 	/*
 	 * Newer reviews of this chipset uses port 8 instead of 5
 	 */
-	if ((chip != 0x0408) || (chip != 0x0804))
+	if ((chip != 0x0408) && (chip != 0x0804))
 		fintek->logical_dev_cir = LOGICAL_DEV_CIR_REV2;
 	else
 		fintek->logical_dev_cir = LOGICAL_DEV_CIR_REV1;
@@ -514,16 +514,6 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 
 	spin_lock_init(&fintek->fintek_lock);
 
-	ret = -EBUSY;
-	/* now claim resources */
-	if (!request_region(fintek->cir_addr,
-			    fintek->cir_port_len, FINTEK_DRIVER_NAME))
-		goto failure;
-
-	if (request_irq(fintek->cir_irq, fintek_cir_isr, IRQF_SHARED,
-			FINTEK_DRIVER_NAME, (void *)fintek))
-		goto failure;
-
 	pnp_set_drvdata(pdev, fintek);
 	fintek->pdev = pdev;
 
@@ -557,6 +547,16 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	rdev->timeout = US_TO_NS(1000);
 	/* rx resolution is hardwired to 50us atm, 1, 25, 100 also possible */
 	rdev->rx_resolution = US_TO_NS(CIR_SAMPLE_PERIOD);
+
+	ret = -EBUSY;
+	/* now claim resources */
+	if (!request_region(fintek->cir_addr,
+			    fintek->cir_port_len, FINTEK_DRIVER_NAME))
+		goto failure;
+
+	if (request_irq(fintek->cir_irq, fintek_cir_isr, IRQF_SHARED,
+			FINTEK_DRIVER_NAME, (void *)fintek))
+		goto failure;
 
 	ret = rc_register_device(rdev);
 	if (ret)

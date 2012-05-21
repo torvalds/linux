@@ -114,14 +114,14 @@ static struct resource mcf_fec1_resources[] = {
 
 static struct platform_device mcf_fec1 = {
 	.name			= "fec",
-	.id			= 0,
+	.id			= 1,
 	.num_resources		= ARRAY_SIZE(mcf_fec1_resources),
 	.resource		= mcf_fec1_resources,
 };
 #endif /* MCFFEC_BASE1 */
 #endif /* CONFIG_FEC */
 
-#ifdef CONFIG_SPI_COLDFIRE_QSPI
+#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 /*
  *	The ColdFire QSPI module is an SPI protocol hardware block used
  *	on a number of different ColdFire CPUs.
@@ -274,7 +274,7 @@ static struct platform_device mcf_qspi = {
 	.resource		= mcf_qspi_resources,
 	.dev.platform_data	= &mcf_qspi_data,
 };
-#endif /* CONFIG_SPI_COLDFIRE_QSPI */
+#endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
 
 static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_uart,
@@ -284,7 +284,7 @@ static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_fec1,
 #endif
 #endif
-#ifdef CONFIG_SPI_COLDFIRE_QSPI
+#if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	&mcf_qspi,
 #endif
 };

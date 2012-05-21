@@ -492,7 +492,9 @@ static void virtnet_napi_enable(struct virtnet_info *vi)
 	 * We synchronize against interrupts via NAPI_STATE_SCHED */
 	if (napi_schedule_prep(&vi->napi)) {
 		virtqueue_disable_cb(vi->rvq);
+		local_bh_disable();
 		__napi_schedule(&vi->napi);
+		local_bh_enable();
 	}
 }
 
@@ -626,16 +628,15 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* This can happen with OOM and indirect buffers. */
 	if (unlikely(capacity < 0)) {
 		if (likely(capacity == -ENOMEM)) {
-			if (net_ratelimit()) {
+			if (net_ratelimit())
 				dev_warn(&dev->dev,
 					 "TX queue failure: out of memory\n");
-			} else {
+		} else {
 			dev->stats.tx_fifo_errors++;
 			if (net_ratelimit())
 				dev_warn(&dev->dev,
 					 "Unexpected TX queue failure: %d\n",
 					 capacity);
-			}
 		}
 		dev->stats.tx_dropped++;
 		kfree_skb(skb);

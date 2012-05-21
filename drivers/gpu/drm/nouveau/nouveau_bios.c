@@ -6156,10 +6156,14 @@ dcb_fake_connectors(struct nvbios *bios)
 
 	/* heuristic: if we ever get a non-zero connector field, assume
 	 * that all the indices are valid and we don't need fake them.
+	 *
+	 * and, as usual, a blacklist of boards with bad bios data..
 	 */
-	for (i = 0; i < dcbt->entries; i++) {
-		if (dcbt->entry[i].connector)
-			return;
+	if (!nv_match_device(bios->dev, 0x0392, 0x107d, 0x20a2)) {
+		for (i = 0; i < dcbt->entries; i++) {
+			if (dcbt->entry[i].connector)
+				return;
+		}
 	}
 
 	/* no useful connector info available, we need to make it up

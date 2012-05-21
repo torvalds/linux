@@ -4415,9 +4415,9 @@ static int stac92xx_init(struct hda_codec *codec)
 		def_conf = get_defcfg_connect(def_conf);
 		/* skip any ports that don't have jacks since presence
  		 * detection is useless */
-		if (def_conf != AC_JACK_PORT_COMPLEX) {
-			if (def_conf != AC_JACK_PORT_NONE)
-				stac_toggle_power_map(codec, nid, 1);
+		if (def_conf != AC_JACK_PORT_NONE &&
+		    !is_jack_detectable(codec, nid)) {
+			stac_toggle_power_map(codec, nid, 1);
 			continue;
 		}
 		if (enable_pin_detect(codec, nid, STAC_PWR_EVENT)) {
@@ -5063,12 +5063,11 @@ static void stac92xx_update_led_status(struct hda_codec *codec, int enabled)
 	if (spec->gpio_led_polarity)
 		muted = !muted;
 
-	/*polarity defines *not* muted state level*/
 	if (!spec->vref_mute_led_nid) {
 		if (muted)
-			spec->gpio_data &= ~spec->gpio_led; /* orange */
+			spec->gpio_data |= spec->gpio_led;
 		else
-			spec->gpio_data |= spec->gpio_led; /* white */
+			spec->gpio_data &= ~spec->gpio_led;
 		stac_gpio_set(codec, spec->gpio_mask,
 				spec->gpio_dir, spec->gpio_data);
 	} else {

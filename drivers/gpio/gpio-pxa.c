@@ -64,6 +64,7 @@ struct pxa_gpio_chip {
 	unsigned long	irq_mask;
 	unsigned long	irq_edge_rise;
 	unsigned long	irq_edge_fall;
+	int (*set_wake)(unsigned int gpio, unsigned int on);
 
 #ifdef CONFIG_PM
 	unsigned long	saved_gplr;
@@ -269,7 +270,8 @@ static void pxa_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 				(value ? GPSR_OFFSET : GPCR_OFFSET));
 }
 
-static int __devinit pxa_init_gpio_chip(int gpio_end)
+static int __devinit pxa_init_gpio_chip(int gpio_end,
+					int (*set_wake)(unsigned int, unsigned int))
 {
 	int i, gpio, nbanks = gpio_to_bank(gpio_end) + 1;
 	struct pxa_gpio_chip *chips;
@@ -285,6 +287,7 @@ static int __devinit pxa_init_gpio_chip(int gpio_end)
 
 		sprintf(chips[i].label, "gpio-%d", i);
 		chips[i].regbase = gpio_reg_base + BANK_OFF(i);
+		chips[i].set_wake = set_wake;
 
 		c->base  = gpio;
 		c->label = chips[i].label;
@@ -412,6 +415,17 @@ static void pxa_mask_muxed_gpio(struct irq_data *d)
 	writel_relaxed(gfer, c->regbase + GFER_OFFSET);
 }
 
+static int pxa_gpio_set_wake(struct irq_data *d, unsigned int on)
+{
+	int gpio = pxa_irq_to_gpio(d->irq);
+	struct pxa_gpio_chip *c = gpio_to_pxachip(gpio);
+
+	if (c->set_wake)
+		return c->set_wake(gpio, on);
+	else
+		return 0;
+}
+
 static void pxa_unmask_muxed_gpio(struct irq_data *d)
 {
 	int gpio = pxa_irq_to_gpio(d->irq);
@@ -427,6 +441,7 @@ static struct irq_chip pxa_muxed_gpio_chip = {
 	.irq_mask	= pxa_mask_muxed_gpio,
 	.irq_unmask	= pxa_unmask_muxed_gpio,
 	.irq_set_type	= pxa_gpio_irq_type,
+	.irq_set_wake	= pxa_gpio_set_wake,
 };
 
 static int pxa_gpio_nums(void)
@@ -471,6 +486,7 @@ static int __devinit pxa_gpio_probe(struct platform_device *pdev)
 	struct pxa_gpio_chip *c;
 	struct resource *res;
 	struct clk *clk;
+	struct pxa_gpio_platform_data *info;
 	int gpio, irq, ret;
 	int irq0 = 0, irq1 = 0, irq_mux, gpio_offset = 0;
 
@@ -516,7 +532,8 @@ static int __devinit pxa_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize GPIO chips */
-	pxa_init_gpio_chip(pxa_last_gpio);
+	info = dev_get_platdata(&pdev->dev);
+	pxa_init_gpio_chip(pxa_last_gpio, info ? info->gpio_set_wake : NULL);
 
 	/* clear all GPIO edge detects */
 	for_each_gpio_chip(gpio, c) {

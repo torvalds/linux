@@ -67,7 +67,11 @@ static int internal_create_group(struct kobject *kobj, int update,
 	/* Updates may happen before the object has been instantiated */
 	if (unlikely(update && !kobj->sd))
 		return -EINVAL;
-
+	if (!grp->attrs) {
+		WARN(1, "sysfs: attrs not set by subsystem for group: %s/%s\n",
+			kobj->name, grp->name ? "" : grp->name);
+		return -EINVAL;
+	}
 	if (grp->name) {
 		error = sysfs_create_subdir(kobj, grp->name, &sd);
 		if (error)

@@ -452,12 +452,14 @@ static struct samsung_gpio_cfg s3c24xx_gpiocfg_banka = {
 };
 #endif
 
+#if defined(CONFIG_ARCH_EXYNOS4) || defined(CONFIG_ARCH_EXYNOS5)
 static struct samsung_gpio_cfg exynos_gpio_cfg = {
 	.set_pull	= exynos_gpio_setpull,
 	.get_pull	= exynos_gpio_getpull,
 	.set_config	= samsung_gpio_setcfg_4bit,
 	.get_config	= samsung_gpio_getcfg_4bit,
 };
+#endif
 
 #if defined(CONFIG_CPU_S5P6440) || defined(CONFIG_CPU_S5P6450)
 static struct samsung_gpio_cfg s5p64x0_gpio_cfg_rbank = {
@@ -2123,8 +2125,8 @@ static struct samsung_gpio_chip s5pv210_gpios_4bit[] = {
  * uses the above macro and depends on the banks being listed in order here.
  */
 
-static struct samsung_gpio_chip exynos4_gpios_1[] = {
 #ifdef CONFIG_ARCH_EXYNOS4
+static struct samsung_gpio_chip exynos4_gpios_1[] = {
 	{
 		.chip	= {
 			.base	= EXYNOS4_GPA0(0),
@@ -2222,11 +2224,11 @@ static struct samsung_gpio_chip exynos4_gpios_1[] = {
 			.label	= "GPF3",
 		},
 	},
-#endif
 };
+#endif
 
-static struct samsung_gpio_chip exynos4_gpios_2[] = {
 #ifdef CONFIG_ARCH_EXYNOS4
+static struct samsung_gpio_chip exynos4_gpios_2[] = {
 	{
 		.chip	= {
 			.base	= EXYNOS4_GPJ0(0),
@@ -2367,11 +2369,11 @@ static struct samsung_gpio_chip exynos4_gpios_2[] = {
 			.to_irq	= samsung_gpiolib_to_irq,
 		},
 	},
-#endif
 };
+#endif
 
-static struct samsung_gpio_chip exynos4_gpios_3[] = {
 #ifdef CONFIG_ARCH_EXYNOS4
+static struct samsung_gpio_chip exynos4_gpios_3[] = {
 	{
 		.chip	= {
 			.base	= EXYNOS4_GPZ(0),
@@ -2379,11 +2381,11 @@ static struct samsung_gpio_chip exynos4_gpios_3[] = {
 			.label	= "GPZ",
 		},
 	},
-#endif
 };
+#endif
 
-static struct samsung_gpio_chip exynos5_gpios_1[] = {
 #ifdef CONFIG_ARCH_EXYNOS5
+static struct samsung_gpio_chip exynos5_gpios_1[] = {
 	{
 		.chip	= {
 			.base	= EXYNOS5_GPA0(0),
@@ -2541,11 +2543,11 @@ static struct samsung_gpio_chip exynos5_gpios_1[] = {
 			.to_irq	= samsung_gpiolib_to_irq,
 		},
 	},
-#endif
 };
+#endif
 
-static struct samsung_gpio_chip exynos5_gpios_2[] = {
 #ifdef CONFIG_ARCH_EXYNOS5
+static struct samsung_gpio_chip exynos5_gpios_2[] = {
 	{
 		.chip	= {
 			.base	= EXYNOS5_GPE0(0),
@@ -2602,11 +2604,11 @@ static struct samsung_gpio_chip exynos5_gpios_2[] = {
 
 		},
 	},
-#endif
 };
+#endif
 
-static struct samsung_gpio_chip exynos5_gpios_3[] = {
 #ifdef CONFIG_ARCH_EXYNOS5
+static struct samsung_gpio_chip exynos5_gpios_3[] = {
 	{
 		.chip	= {
 			.base	= EXYNOS5_GPV0(0),
@@ -2638,11 +2640,11 @@ static struct samsung_gpio_chip exynos5_gpios_3[] = {
 			.label	= "GPV4",
 		},
 	},
-#endif
 };
+#endif
 
-static struct samsung_gpio_chip exynos5_gpios_4[] = {
 #ifdef CONFIG_ARCH_EXYNOS5
+static struct samsung_gpio_chip exynos5_gpios_4[] = {
 	{
 		.chip	= {
 			.base	= EXYNOS5_GPZ(0),
@@ -2650,8 +2652,8 @@ static struct samsung_gpio_chip exynos5_gpios_4[] = {
 			.label	= "GPZ",
 		},
 	},
-#endif
 };
+#endif
 
 
 #if defined(CONFIG_ARCH_EXYNOS) && defined(CONFIG_OF)
@@ -2719,7 +2721,9 @@ static __init int samsung_gpiolib_init(void)
 {
 	struct samsung_gpio_chip *chip;
 	int i, nr_chips;
+#if defined(CONFIG_CPU_EXYNOS4210) || defined(CONFIG_SOC_EXYNOS5250)
 	void __iomem *gpio_base1, *gpio_base2, *gpio_base3, *gpio_base4;
+#endif
 	int group = 0;
 
 	samsung_gpiolib_set_cfg(samsung_gpio_cfgs, ARRAY_SIZE(samsung_gpio_cfgs));
@@ -2971,6 +2975,7 @@ static __init int samsung_gpiolib_init(void)
 
 	return 0;
 
+#if defined(CONFIG_CPU_EXYNOS4210) || defined(CONFIG_SOC_EXYNOS5250)
 err_ioremap4:
 	iounmap(gpio_base3);
 err_ioremap3:
@@ -2979,6 +2984,7 @@ err_ioremap2:
 	iounmap(gpio_base1);
 err_ioremap1:
 	return -ENOMEM;
+#endif
 }
 core_initcall(samsung_gpiolib_init);
 

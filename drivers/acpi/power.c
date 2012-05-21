@@ -631,7 +631,7 @@ int acpi_power_get_inferred_state(struct acpi_device *device, int *state)
 	 * We know a device's inferred power state when all the resources
 	 * required for a given D-state are 'on'.
 	 */
-	for (i = ACPI_STATE_D0; i < ACPI_STATE_D3; i++) {
+	for (i = ACPI_STATE_D0; i < ACPI_STATE_D3_HOT; i++) {
 		list = &device->power.states[i].resources;
 		if (list->count < 1)
 			continue;
@@ -660,7 +660,7 @@ int acpi_power_on_resources(struct acpi_device *device, int state)
 
 int acpi_power_transition(struct acpi_device *device, int state)
 {
-	int result;
+	int result = 0;
 
 	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3_COLD))
 		return -EINVAL;
@@ -679,8 +679,11 @@ int acpi_power_transition(struct acpi_device *device, int state)
 	 * (e.g. so the device doesn't lose power while transitioning).  Then,
 	 * we dereference all power resources used in the current list.
 	 */
-	result = acpi_power_on_list(&device->power.states[state].resources);
-	if (!result)
+	if (state < ACPI_STATE_D3_COLD)
+		result = acpi_power_on_list(
+			&device->power.states[state].resources);
+
+	if (!result && device->power.state < ACPI_STATE_D3_COLD)
 		acpi_power_off_list(
 			&device->power.states[device->power.state].resources);
 

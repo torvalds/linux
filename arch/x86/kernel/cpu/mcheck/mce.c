@@ -945,9 +945,10 @@ struct mce_info {
 	atomic_t		inuse;
 	struct task_struct	*t;
 	__u64			paddr;
+	int			restartable;
 } mce_info[MCE_INFO_MAX];
 
-static void mce_save_info(__u64 addr)
+static void mce_save_info(__u64 addr, int c)
 {
 	struct mce_info *mi;
 
@@ -955,6 +956,7 @@ static void mce_save_info(__u64 addr)
 		if (atomic_cmpxchg(&mi->inuse, 0, 1) == 0) {
 			mi->t = current;
 			mi->paddr = addr;
+			mi->restartable = c;
 			return;
 		}
 	}
@@ -1130,7 +1132,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 			mce_panic("Fatal machine check on current CPU", &m, msg);
 		if (worst == MCE_AR_SEVERITY) {
 			/* schedule action before return to userland */
-			mce_save_info(m.addr);
+			mce_save_info(m.addr, m.mcgstatus & MCG_STATUS_RIPV);
 			set_thread_flag(TIF_MCE_NOTIFY);
 		} else if (kill_it) {
 			force_sig(SIGBUS, current);
@@ -1179,7 +1181,13 @@ void mce_notify_process(void)
 
 	pr_err("Uncorrected hardware memory error in user-access at %llx",
 		 mi->paddr);
-	if (memory_failure(pfn, MCE_VECTOR, MF_ACTION_REQUIRED) < 0) {
+	/*
+	 * We must call memory_failure() here even if the current process is
+	 * doomed. We still need to mark the page as poisoned and alert any
+	 * other users of the page.
+	 */
+	if (memory_failure(pfn, MCE_VECTOR, MF_ACTION_REQUIRED) < 0 ||
+			   mi->restartable == 0) {
 		pr_err("Memory error not recovered");
 		force_sig(SIGBUS, current);
 	}

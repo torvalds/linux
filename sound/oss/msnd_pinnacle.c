@@ -1294,6 +1294,8 @@ static int __init calibrate_adc(WORD srate)
 
 static int upload_dsp_code(void)
 {
+	int ret = 0;
+
 	msnd_outb(HPBLKSEL_0, dev.io + HP_BLKS);
 #ifndef HAVE_DSPCODEH
 	INITCODESIZE = mod_firmware_load(INITCODEFILE, &INITCODE);
@@ -1312,7 +1314,8 @@ static int upload_dsp_code(void)
 	memcpy_toio(dev.base, PERMCODE, PERMCODESIZE);
 	if (msnd_upload_host(&dev, INITCODE, INITCODESIZE) < 0) {
 		printk(KERN_WARNING LOGNAME ": Error uploading to DSP\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out;
 	}
 #ifdef HAVE_DSPCODEH
 	printk(KERN_INFO LOGNAME ": DSP firmware uploaded (resident)\n");
@@ -1320,12 +1323,13 @@ static int upload_dsp_code(void)
 	printk(KERN_INFO LOGNAME ": DSP firmware uploaded\n");
 #endif
 
+out:
 #ifndef HAVE_DSPCODEH
 	vfree(INITCODE);
 	vfree(PERMCODE);
 #endif
 
-	return 0;
+	return ret;
 }
 
 #ifdef MSND_CLASSIC

@@ -79,10 +79,14 @@ static int tegra_spdif_show(struct seq_file *s, void *unused)
 	struct tegra_spdif *spdif = s->private;
 	int i;
 
+	clk_enable(spdif->clk_spdif_out);
+
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		u32 val = tegra_spdif_read(spdif, regs[i].offset);
 		seq_printf(s, "%s = %08x\n", regs[i].name, val);
 	}
+
+	clk_disable(spdif->clk_spdif_out);
 
 	return 0;
 }

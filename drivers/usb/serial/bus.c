@@ -60,8 +60,6 @@ static int usb_serial_device_probe(struct device *dev)
 		retval = -ENODEV;
 		goto exit;
 	}
-	if (port->dev_state != PORT_REGISTERING)
-		goto exit;
 
 	driver = port->serial->type;
 	if (driver->port_probe) {
@@ -97,9 +95,6 @@ static int usb_serial_device_remove(struct device *dev)
 	port = to_usb_serial_port(dev);
 	if (!port)
 		return -ENODEV;
-
-	if (port->dev_state != PORT_UNREGISTERING)
-		return retval;
 
 	device_remove_file(&port->dev, &dev_attr_port_number);
 
