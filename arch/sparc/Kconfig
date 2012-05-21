@@ -266,8 +266,6 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
-source "kernel/time/Kconfig"
-
 if SPARC64
 source "drivers/cpufreq/Kconfig"
 

@@ -631,8 +631,6 @@ config GPTMR0_CLOCKSOURCE
 	depends on !TICKSOURCE_GPTMR0
 endmenu
 
-source kernel/time/Kconfig
-
 comment "Misc"
 
 choice

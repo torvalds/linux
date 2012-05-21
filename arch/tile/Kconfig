@@ -136,8 +136,6 @@ config NR_CPUS
 	  smaller kernel memory footprint results from using a smaller
 	  value on chips with fewer tiles.
 
-source "kernel/time/Kconfig"
-
 source "kernel/Kconfig.hz"
 
 config KEXEC

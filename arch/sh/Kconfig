@@ -577,9 +577,6 @@ config SH_CLK_CPG_LEGACY
 	depends on SH_CLK_CPG
 	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE && \
 		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757
-
-source "kernel/time/Kconfig"
-
 endmenu
 
 menu "CPU Frequency scaling"

@@ -1459,8 +1459,6 @@ endmenu
 
 menu "Kernel Features"
 
-source "kernel/time/Kconfig"
-
 config HAVE_SMP
 	bool
 	help

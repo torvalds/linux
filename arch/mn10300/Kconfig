@@ -226,7 +226,6 @@ config MN10300_USING_JTAG
 	  single-stepping, which are taken over completely by the JTAG unit.
 
 source "kernel/Kconfig.hz"
-source "kernel/time/Kconfig"
 
 config MN10300_RTC
 	bool "Using MN10300 RTC"

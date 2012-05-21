@@ -183,7 +183,6 @@ endchoice
 source "mm/Kconfig"
 
 source "kernel/Kconfig.hz"
-source "kernel/time/Kconfig"
 
 config GENERIC_GPIO
 	bool "Generic GPIO support"

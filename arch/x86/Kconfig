@@ -241,8 +241,6 @@ config ZONE_DMA
 
 	  If unsure, say Y.
 
-source "kernel/time/Kconfig"
-
 config SMP
 	bool "Symmetric multi-processing support"
 	---help---

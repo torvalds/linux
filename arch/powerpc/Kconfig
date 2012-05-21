@@ -278,7 +278,6 @@ config HIGHMEM
 	bool "High memory support"
 	depends on PPC32
 
-source kernel/time/Kconfig
 source kernel/Kconfig.hz
 source kernel/Kconfig.preempt
 source "fs/Kconfig.binfmt"

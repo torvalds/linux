@@ -74,8 +74,6 @@ source "arch/microblaze/platform/Kconfig.platform"
 
 menu "Processor type and features"
 
-source "kernel/time/Kconfig"
-
 source "kernel/Kconfig.preempt"
 
 source "kernel/Kconfig.hz"

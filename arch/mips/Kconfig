@@ -2205,8 +2205,6 @@ config NR_CPUS
 	  performance should round up your number of processors to the next
 	  power of two.
 
-source "kernel/time/Kconfig"
-
 #
 # Timer Interrupt Frequency Configuration
 #

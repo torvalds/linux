@@ -131,8 +131,6 @@ menu "Base setup"
 
 comment "Processor type and features"
 
-source "kernel/time/Kconfig"
-
 config 64BIT
 	def_bool y
 	prompt "64 bit kernel"

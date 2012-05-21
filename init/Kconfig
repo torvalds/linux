@@ -387,6 +387,7 @@ config AUDIT_LOGINUID_IMMUTABLE
 	  but may not be backwards compatible with older init systems.
 
 source "kernel/irq/Kconfig"
+source "kernel/time/Kconfig"
 
 menu "RCU Subsystem"
 
