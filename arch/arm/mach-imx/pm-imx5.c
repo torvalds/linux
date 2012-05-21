@@ -12,10 +12,12 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <asm/cacheflush.h>
 #include <asm/system_misc.h>
 #include <asm/tlbflush.h>
 #include <mach/common.h>
+#include <mach/cpuidle.h>
 #include <mach/hardware.h>
 #include "crm-regs-imx5.h"
 
@@ -134,11 +136,47 @@ static const struct platform_suspend_ops mx5_suspend_ops = {
 	.enter = mx5_suspend_enter,
 };
 
+static inline int imx5_cpu_do_idle(void)
+{
+	int ret = tzic_enable_wake();
+
+	if (likely(!ret))
+		cpu_do_idle();
+
+	return ret;
+}
+
 static void imx5_pm_idle(void)
 {
-	if (likely(!tzic_enable_wake()))
-		cpu_do_idle();
+	imx5_cpu_do_idle();
 }
+
+static int imx5_cpuidle_enter(struct cpuidle_device *dev,
+				struct cpuidle_driver *drv, int idx)
+{
+	int ret;
+
+	ret = imx5_cpu_do_idle();
+	if (ret < 0)
+		return ret;
+
+	return idx;
+}
+
+static struct cpuidle_driver imx5_cpuidle_driver = {
+	.name			= "imx5_cpuidle",
+	.owner			= THIS_MODULE,
+	.en_core_tk_irqen	= 1,
+	.states[0]	= {
+		.enter			= imx5_cpuidle_enter,
+		.exit_latency		= 2,
+		.target_residency	= 1,
+		.flags			= CPUIDLE_FLAG_TIME_VALID,
+		.name			= "IMX5 SRPG",
+		.desc			= "CPU state retained,powered off",
+	},
+	.state_count		= 1,
+};
 
 static int __init imx5_pm_common_init(void)
 {
@@ -157,6 +195,7 @@ static int __init imx5_pm_common_init(void)
 	/* Set the registers to the default cpu idle state. */
 	mx5_cpu_lp_set(IMX5_DEFAULT_CPU_IDLE_STATE);
 
+	imx_cpuidle_init(&imx5_cpuidle_driver);
 	return 0;
 }
 
