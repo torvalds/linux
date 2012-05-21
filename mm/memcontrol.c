@@ -4507,6 +4507,12 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
 swap_buffers:
 	/* Swap primary and spare array */
 	thresholds->spare = thresholds->primary;
+	/* If all events are unregistered, free the spare array */
+	if (!new) {
+		kfree(thresholds->spare);
+		thresholds->spare = NULL;
+	}
+
 	rcu_assign_pointer(thresholds->primary, new);
 
 	/* To be sure that nobody uses thresholds */
@@ -5475,7 +5481,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
 	 *    part of thp split is not executed yet.
 	 */
 	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-		if (!mc.precharge) {
+		if (mc.precharge < HPAGE_PMD_NR) {
 			spin_unlock(&vma->vm_mm->page_table_lock);
 			return 0;
 		}
