@@ -1193,7 +1193,7 @@ static struct dentry *udf_get_parent(struct dentry *child)
 {
 	struct kernel_lb_addr tloc;
 	struct inode *inode = NULL;
-	struct qstr dotdot = {.name = "..", .len = 2};
+	struct qstr dotdot = QSTR_INIT("..", 2);
 	struct fileIdentDesc cfi;
 	struct udf_fileident_bh fibh;
 
