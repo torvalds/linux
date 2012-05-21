@@ -2201,6 +2201,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	int acc_mode = op->acc_mode;
 	struct file *filp;
 	struct inode *inode;
+	int symlink_ok = 0;
 	int error;
 
 	nd->flags &= ~LOOKUP_PARENT;
@@ -2232,7 +2233,6 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	}
 
 	if (!(open_flag & O_CREAT)) {
-		int symlink_ok = 0;
 		if (nd->last.name[nd->last.len])
 			nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 		if (open_flag & O_PATH && !(nd->flags & LOOKUP_FOLLOW))
@@ -2364,8 +2364,16 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	if (!inode)
 		goto exit_dput;
 
-	if (inode->i_op->follow_link)
+	if (should_follow_link(inode, !symlink_ok)) {
+		if (nd->flags & LOOKUP_RCU) {
+			if (unlikely(unlazy_walk(nd, path->dentry))) {
+				error = -ECHILD;
+				goto exit;
+			}
+		}
+		BUG_ON(inode != path->dentry->d_inode);
 		return NULL;
+	}
 
 	path_to_nameidata(path, nd);
 	nd->inode = inode;
