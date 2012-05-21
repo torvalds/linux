@@ -54,6 +54,7 @@ machine-$(CONFIG_BF548M) := bf548
 machine-$(CONFIG_BF549)  := bf548
 machine-$(CONFIG_BF549M) := bf548
 machine-$(CONFIG_BF561)  := bf561
+machine-$(CONFIG_BF609)  := bf609
 MACHINE := $(machine-y)
 export MACHINE
 
@@ -86,6 +87,7 @@ cpu-$(CONFIG_BF548M) := bf548m
 cpu-$(CONFIG_BF549)  := bf549
 cpu-$(CONFIG_BF549M) := bf549m
 cpu-$(CONFIG_BF561)  := bf561
+cpu-$(CONFIG_BF609)  := bf609
 
 rev-$(CONFIG_BF_REV_0_0)  := 0.0
 rev-$(CONFIG_BF_REV_0_1)  := 0.1

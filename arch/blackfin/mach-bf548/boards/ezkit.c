@@ -165,6 +165,7 @@ static struct bfin_rotary_platform_data bfin_rotary_data = {
 	.rotary_button_key = KEY_ENTER,
 	.debounce	   = 10,	/* 0..17 */
 	.mode		   = ROT_QUAD_ENC | ROT_DEBE,
+	.pm_wakeup	   = 1,
 };
 
 static struct resource bfin_rotary_resources[] = {
@@ -1251,6 +1252,8 @@ static struct platform_device bfin_capture_device = {
 #endif
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+static const u16 bfin_twi0_pins[] = {P_TWI0_SCL, P_TWI0_SDA, 0};
+
 static struct resource bfin_twi0_resource[] = {
 	[0] = {
 		.start = TWI0_REGBASE,
@@ -1269,9 +1272,14 @@ static struct platform_device i2c_bfin_twi0_device = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(bfin_twi0_resource),
 	.resource = bfin_twi0_resource,
+	.dev = {
+		.platform_data = &bfin_twi0_pins,
+	},
 };
 
 #if !defined(CONFIG_BF542)	/* The BF542 only has 1 TWI */
+static const u16 bfin_twi1_pins[] = {P_TWI1_SCL, P_TWI1_SDA, 0};
+
 static struct resource bfin_twi1_resource[] = {
 	[0] = {
 		.start = TWI1_REGBASE,
@@ -1290,6 +1298,9 @@ static struct platform_device i2c_bfin_twi1_device = {
 	.id = 1,
 	.num_resources = ARRAY_SIZE(bfin_twi1_resource),
 	.resource = bfin_twi1_resource,
+	.dev = {
+		.platform_data = &bfin_twi1_pins,
+	},
 };
 #endif
 #endif
