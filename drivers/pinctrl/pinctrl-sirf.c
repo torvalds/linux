@@ -1184,7 +1184,7 @@ out_no_gpio_remap:
 	return ret;
 }
 
-static const struct of_device_id pinmux_ids[]  = {
+static const struct of_device_id pinmux_ids[] __devinitconst = {
 	{ .compatible = "sirf,prima2-gpio-pinmux" },
 	{}
 };
