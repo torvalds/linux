@@ -246,9 +246,6 @@ config BQL
 	select DQL
 	default y
 
-config HAVE_BPF_JIT
-	bool
-
 config BPF_JIT
 	bool "enable BPF Just In Time compiler"
 	depends on HAVE_BPF_JIT
@@ -340,3 +337,7 @@ source "net/nfc/Kconfig"
 
 
 endif   # if NET
+
+# Used by archs to tell that they support BPF_JIT
+config HAVE_BPF_JIT
+	bool
