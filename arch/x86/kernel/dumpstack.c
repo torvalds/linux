@@ -27,8 +27,8 @@ static int die_counter;
 
 void printk_address(unsigned long address, int reliable)
 {
-	printk(" [<%p>] %s%pB\n", (void *) address,
-			reliable ? "" : "? ", (void *) address);
+	pr_cont(" [<%p>] %s%pB\n",
+		(void *)address, reliable ? "" : "? ", (void *)address);
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER

@@ -18,6 +18,8 @@
  *  use the vDSO.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -111,18 +113,13 @@ void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
 static void warn_bad_vsyscall(const char *level, struct pt_regs *regs,
 			      const char *message)
 {
-	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL, DEFAULT_RATELIMIT_BURST);
-	struct task_struct *tsk;
-
-	if (!show_unhandled_signals || !__ratelimit(&rs))
+	if (!show_unhandled_signals)
 		return;
 
-	tsk = current;
-
-	printk("%s%s[%d] %s ip:%lx cs:%lx sp:%lx ax:%lx si:%lx di:%lx\n",
-	       level, tsk->comm, task_pid_nr(tsk),
-	       message, regs->ip, regs->cs,
-	       regs->sp, regs->ax, regs->si, regs->di);
+	pr_notice_ratelimited("%s%s[%d] %s ip:%lx cs:%lx sp:%lx ax:%lx si:%lx di:%lx\n",
+			      level, current->comm, task_pid_nr(current),
+			      message, regs->ip, regs->cs,
+			      regs->sp, regs->ax, regs->si, regs->di);
 }
 
 static int addr_to_vsyscall_nr(unsigned long addr)

@@ -9,6 +9,9 @@
 /*
  * Handle hardware traps and faults.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/interrupt.h>
 #include <linux/kallsyms.h>
 #include <linux/spinlock.h>
@@ -143,12 +146,11 @@ trap_signal:
 #ifdef CONFIG_X86_64
 	if (show_unhandled_signals && unhandled_signal(tsk, signr) &&
 	    printk_ratelimit()) {
-		printk(KERN_INFO
-		       "%s[%d] trap %s ip:%lx sp:%lx error:%lx",
-		       tsk->comm, tsk->pid, str,
-		       regs->ip, regs->sp, error_code);
+		pr_info("%s[%d] trap %s ip:%lx sp:%lx error:%lx",
+			tsk->comm, tsk->pid, str,
+			regs->ip, regs->sp, error_code);
 		print_vma_addr(" in ", regs->ip);
-		printk("\n");
+		pr_cont("\n");
 	}
 #endif
 
@@ -269,12 +271,11 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
 			printk_ratelimit()) {
-		printk(KERN_INFO
-			"%s[%d] general protection ip:%lx sp:%lx error:%lx",
+		pr_info("%s[%d] general protection ip:%lx sp:%lx error:%lx",
 			tsk->comm, task_pid_nr(tsk),
 			regs->ip, regs->sp, error_code);
 		print_vma_addr(" in ", regs->ip);
-		printk("\n");
+		pr_cont("\n");
 	}
 
 	force_sig(SIGSEGV, tsk);
@@ -570,7 +571,7 @@ do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 	conditional_sti(regs);
 #if 0
 	/* No need to warn about this any longer. */
-	printk(KERN_INFO "Ignoring P6 Local APIC Spurious Interrupt Bug...\n");
+	pr_info("Ignoring P6 Local APIC Spurious Interrupt Bug...\n");
 #endif
 }
 

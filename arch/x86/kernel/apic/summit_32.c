@@ -26,6 +26,8 @@
  *
  */
 
+#define pr_fmt(fmt) "summit: %s: " fmt, __func__
+
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <asm/io.h>
@@ -235,8 +237,8 @@ static int summit_apic_id_registered(void)
 
 static void summit_setup_apic_routing(void)
 {
-	printk("Enabling APIC mode:  Summit.  Using %d I/O APICs\n",
-						nr_ioapics);
+	pr_info("Enabling APIC mode:  Summit.  Using %d I/O APICs\n",
+		nr_ioapics);
 }
 
 static int summit_cpu_present_to_apicid(int mps_cpu)
@@ -275,7 +277,7 @@ static unsigned int summit_cpu_mask_to_apicid(const struct cpumask *cpumask)
 		int new_apicid = early_per_cpu(x86_cpu_to_logical_apicid, cpu);
 
 		if (round && APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
-			printk("%s: Not a valid mask!\n", __func__);
+			pr_err("Not a valid mask!\n");
 			return BAD_APICID;
 		}
 		apicid |= new_apicid;
@@ -355,7 +357,7 @@ static int setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 		}
 	}
 	if (i == rio_table_hdr->num_rio_dev) {
-		printk(KERN_ERR "%s: Couldn't find owner Cyclone for Winnipeg!\n", __func__);
+		pr_err("Couldn't find owner Cyclone for Winnipeg!\n");
 		return last_bus;
 	}
 
@@ -366,7 +368,7 @@ static int setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 		}
 	}
 	if (i == rio_table_hdr->num_scal_dev) {
-		printk(KERN_ERR "%s: Couldn't find owner Twister for Cyclone!\n", __func__);
+		pr_err("Couldn't find owner Twister for Cyclone!\n");
 		return last_bus;
 	}
 
@@ -396,7 +398,7 @@ static int setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 		num_buses = 9;
 		break;
 	default:
-		printk(KERN_INFO "%s: Unsupported Winnipeg type!\n", __func__);
+		pr_info("Unsupported Winnipeg type!\n");
 		return last_bus;
 	}
 
@@ -411,13 +413,15 @@ static int build_detail_arrays(void)
 	int i, scal_detail_size, rio_detail_size;
 
 	if (rio_table_hdr->num_scal_dev > MAX_NUMNODES) {
-		printk(KERN_WARNING "%s: MAX_NUMNODES too low!  Defined as %d, but system has %d nodes.\n", __func__, MAX_NUMNODES, rio_table_hdr->num_scal_dev);
+		pr_warn("MAX_NUMNODES too low!  Defined as %d, but system has %d nodes\n",
+			MAX_NUMNODES, rio_table_hdr->num_scal_dev);
 		return 0;
 	}
 
 	switch (rio_table_hdr->version) {
 	default:
-		printk(KERN_WARNING "%s: Invalid Rio Grande Table Version: %d\n", __func__, rio_table_hdr->version);
+		pr_warn("Invalid Rio Grande Table Version: %d\n",
+			rio_table_hdr->version);
 		return 0;
 	case 2:
 		scal_detail_size = 11;
@@ -462,7 +466,7 @@ void setup_summit(void)
 		offset = *((unsigned short *)(ptr + offset));
 	}
 	if (!rio_table_hdr) {
-		printk(KERN_ERR "%s: Unable to locate Rio Grande Table in EBDA - bailing!\n", __func__);
+		pr_err("Unable to locate Rio Grande Table in EBDA - bailing!\n");
 		return;
 	}
 

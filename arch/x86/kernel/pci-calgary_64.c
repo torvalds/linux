@@ -22,6 +22,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#define pr_fmt(fmt) "Calgary: " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -245,7 +247,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
 		offset = iommu_area_alloc(tbl->it_map, tbl->it_size, 0,
 					  npages, 0, boundary_size, 0);
 		if (offset == ~0UL) {
-			printk(KERN_WARNING "Calgary: IOMMU full.\n");
+			pr_warn("IOMMU full\n");
 			spin_unlock_irqrestore(&tbl->it_lock, flags);
 			if (panic_on_overflow)
 				panic("Calgary: fix the allocator.\n");
@@ -271,8 +273,8 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 	entry = iommu_range_alloc(dev, tbl, npages);
 
 	if (unlikely(entry == DMA_ERROR_CODE)) {
-		printk(KERN_WARNING "Calgary: failed to allocate %u pages in "
-		       "iommu %p\n", npages, tbl);
+		pr_warn("failed to allocate %u pages in iommu %p\n",
+			npages, tbl);
 		return DMA_ERROR_CODE;
 	}
 
@@ -561,8 +563,7 @@ static void calgary_tce_cache_blast(struct iommu_table *tbl)
 		i++;
 	} while ((val & 0xff) != 0xff && i < 100);
 	if (i == 100)
-		printk(KERN_WARNING "Calgary: PCI bus not quiesced, "
-		       "continuing anyway\n");
+		pr_warn("PCI bus not quiesced, continuing anyway\n");
 
 	/* invalidate TCE cache */
 	target = calgary_reg(bbar, tar_offset(tbl->it_busno));
@@ -604,8 +605,7 @@ begin:
 		i++;
 	} while ((val64 & 0xff) != 0xff && i < 100);
 	if (i == 100)
-		printk(KERN_WARNING "CalIOC2: PCI bus not quiesced, "
-		       "continuing anyway\n");
+		pr_warn("CalIOC2: PCI bus not quiesced, continuing anyway\n");
 
 	/* 3. poll Page Migration DEBUG for SoftStopFault */
 	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_DEBUG);
@@ -617,8 +617,7 @@ begin:
 		if (++count < 100)
 			goto begin;
 		else {
-			printk(KERN_WARNING "CalIOC2: too many SoftStopFaults, "
-			       "aborting TCE cache flush sequence!\n");
+			pr_warn("CalIOC2: too many SoftStopFaults, aborting TCE cache flush sequence!\n");
 			return; /* pray for the best */
 		}
 	}
@@ -840,8 +839,8 @@ static void calgary_dump_error_regs(struct iommu_table *tbl)
 	plssr = be32_to_cpu(readl(target));
 
 	/* If no error, the agent ID in the CSR is not valid */
-	printk(KERN_EMERG "Calgary: DMA error on Calgary PHB 0x%x, "
-	       "0x%08x@CSR 0x%08x@PLSSR\n", tbl->it_busno, csr, plssr);
+	pr_emerg("DMA error on Calgary PHB 0x%x, 0x%08x@CSR 0x%08x@PLSSR\n",
+		 tbl->it_busno, csr, plssr);
 }
 
 static void calioc2_dump_error_regs(struct iommu_table *tbl)
@@ -867,22 +866,21 @@ static void calioc2_dump_error_regs(struct iommu_table *tbl)
 	target = calgary_reg(bbar, phboff | 0x800);
 	mck = be32_to_cpu(readl(target));
 
-	printk(KERN_EMERG "Calgary: DMA error on CalIOC2 PHB 0x%x\n",
-	       tbl->it_busno);
+	pr_emerg("DMA error on CalIOC2 PHB 0x%x\n", tbl->it_busno);
 
-	printk(KERN_EMERG "Calgary: 0x%08x@CSR 0x%08x@PLSSR 0x%08x@CSMR 0x%08x@MCK\n",
-	       csr, plssr, csmr, mck);
+	pr_emerg("0x%08x@CSR 0x%08x@PLSSR 0x%08x@CSMR 0x%08x@MCK\n",
+		 csr, plssr, csmr, mck);
 
 	/* dump rest of error regs */
-	printk(KERN_EMERG "Calgary: ");
+	pr_emerg("");
 	for (i = 0; i < ARRAY_SIZE(errregs); i++) {
 		/* err regs are at 0x810 - 0x870 */
 		erroff = (0x810 + (i * 0x10));
 		target = calgary_reg(bbar, phboff | erroff);
 		errregs[i] = be32_to_cpu(readl(target));
-		printk("0x%08x@0x%lx ", errregs[i], erroff);
+		pr_cont("0x%08x@0x%lx ", errregs[i], erroff);
 	}
-	printk("\n");
+	pr_cont("\n");
 
 	/* root complex status */
 	target = calgary_reg(bbar, phboff | PHB_ROOT_COMPLEX_STATUS);

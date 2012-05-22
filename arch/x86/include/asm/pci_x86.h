@@ -7,9 +7,13 @@
 #undef DEBUG
 
 #ifdef DEBUG
-#define DBG(x...) printk(x)
+#define DBG(fmt, ...) printk(fmt, ##__VA_ARGS__)
 #else
-#define DBG(x...)
+#define DBG(fmt, ...)				\
+do {						\
+	if (0)					\
+		printk(fmt, ##__VA_ARGS__);	\
+} while (0)
 #endif
 
 #define PCI_PROBE_BIOS		0x0001
