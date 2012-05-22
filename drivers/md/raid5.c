@@ -5559,9 +5559,6 @@ static int check_reshape(struct mddev *mddev)
 	    mddev->new_layout == mddev->layout &&
 	    mddev->new_chunk_sectors == mddev->chunk_sectors)
 		return 0; /* nothing to do */
-	if (mddev->bitmap)
-		/* Cannot grow a bitmap yet */
-		return -EBUSY;
 	if (has_failed(conf))
 		return -EINVAL;
 	if (mddev->delta_disks < 0) {
@@ -5595,6 +5592,9 @@ static int raid5_start_reshape(struct mddev *mddev)
 
 	if (!check_stripe_cache(mddev))
 		return -ENOSPC;
+
+	if (has_failed(conf))
+		return -EINVAL;
 
 	rdev_for_each(rdev, mddev) {
 		if (!test_bit(In_sync, &rdev->flags)
