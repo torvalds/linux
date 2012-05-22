@@ -39,7 +39,7 @@ void __init ux500_init_irq(void)
 	void __iomem *dist_base;
 	void __iomem *cpu_base;
 
-	if (cpu_is_u8500()) {
+	if (cpu_is_u8500_family()) {
 		dist_base = __io_address(U8500_GIC_DIST_BASE);
 		cpu_base = __io_address(U8500_GIC_CPU_BASE);
 	} else
@@ -56,7 +56,7 @@ void __init ux500_init_irq(void)
 	 * Init clocks here so that they are available for system timer
 	 * initialization.
 	 */
-	if (cpu_is_u8500())
+	if (cpu_is_u8500_family())
 		db8500_prcmu_early_init();
 	clk_init();
 }

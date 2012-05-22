@@ -36,7 +36,8 @@ void __init shmobile_setup_delay(unsigned int max_cpu_core_mhz,
 
 	unsigned int value = (1000000 * mult) / (HZ * div);
 
-	lpj_fine = max_cpu_core_mhz * value;
+	if (!preset_lpj)
+		preset_lpj = max_cpu_core_mhz * value;
 }
 
 static void __init shmobile_late_time_init(void)
