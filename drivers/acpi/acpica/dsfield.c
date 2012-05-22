@@ -53,10 +53,78 @@
 ACPI_MODULE_NAME("dsfield")
 
 /* Local prototypes */
+#ifdef ACPI_ASL_COMPILER
+#include "acdisasm.h"
+static acpi_status
+acpi_ds_create_external_region(acpi_status lookup_status,
+			       union acpi_parse_object *op,
+			       char *path,
+			       struct acpi_walk_state *walk_state,
+			       struct acpi_namespace_node **node);
+#endif
+
 static acpi_status
 acpi_ds_get_field_names(struct acpi_create_field_info *info,
 			struct acpi_walk_state *walk_state,
 			union acpi_parse_object *arg);
+
+#ifdef ACPI_ASL_COMPILER
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ds_create_external_region (i_aSL Disassembler only)
+ *
+ * PARAMETERS:  lookup_status   - Status from ns_lookup operation
+ *              Op              - Op containing the Field definition and args
+ *              Path            - Pathname of the region
+ *  `           walk_state      - Current method state
+ *              Node            - Where the new region node is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Add region to the external list if NOT_FOUND. Create a new
+ *              region node/object.
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_ds_create_external_region(acpi_status lookup_status,
+			       union acpi_parse_object *op,
+			       char *path,
+			       struct acpi_walk_state *walk_state,
+			       struct acpi_namespace_node **node)
+{
+	acpi_status status;
+	union acpi_operand_object *obj_desc;
+
+	if (lookup_status != AE_NOT_FOUND) {
+		return (lookup_status);
+	}
+
+	/*
+	 * Table disassembly:
+	 * operation_region not found. Generate an External for it, and
+	 * insert the name into the namespace.
+	 */
+	acpi_dm_add_to_external_list(op, path, ACPI_TYPE_REGION, 0);
+	status = acpi_ns_lookup(walk_state->scope_info, path, ACPI_TYPE_REGION,
+				ACPI_IMODE_LOAD_PASS1, ACPI_NS_SEARCH_PARENT,
+				walk_state, node);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	/* Must create and install a region object for the new node */
+
+	obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_REGION);
+	if (!obj_desc) {
+		return (AE_NO_MEMORY);
+	}
+
+	obj_desc->region.node = *node;
+	status = acpi_ns_attach_object(*node, obj_desc, ACPI_TYPE_REGION);
+	return (status);
+}
+#endif
 
 /*******************************************************************************
  *
@@ -413,12 +481,19 @@ acpi_ds_create_field(union acpi_parse_object *op,
 	/* First arg is the name of the parent op_region (must already exist) */
 
 	arg = op->common.value.arg;
+
 	if (!region_node) {
 		status =
 		    acpi_ns_lookup(walk_state->scope_info,
 				   arg->common.value.name, ACPI_TYPE_REGION,
 				   ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
 				   walk_state, &region_node);
+#ifdef ACPI_ASL_COMPILER
+		status = acpi_ds_create_external_region(status, arg,
+							arg->common.value.name,
+							walk_state,
+							&region_node);
+#endif
 		if (ACPI_FAILURE(status)) {
 			ACPI_ERROR_NAMESPACE(arg->common.value.name, status);
 			return_ACPI_STATUS(status);
@@ -591,6 +666,12 @@ acpi_ds_create_bank_field(union acpi_parse_object *op,
 				   arg->common.value.name, ACPI_TYPE_REGION,
 				   ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
 				   walk_state, &region_node);
+#ifdef ACPI_ASL_COMPILER
+		status = acpi_ds_create_external_region(status, arg,
+							arg->common.value.name,
+							walk_state,
+							&region_node);
+#endif
 		if (ACPI_FAILURE(status)) {
 			ACPI_ERROR_NAMESPACE(arg->common.value.name, status);
 			return_ACPI_STATUS(status);
