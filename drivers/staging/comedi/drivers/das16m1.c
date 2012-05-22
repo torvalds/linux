@@ -150,7 +150,6 @@ struct das16m1_private_struct {
 	unsigned int divisor2;	/*  divides master clock to obtain conversion speed */
 };
 #define devpriv ((struct das16m1_private_struct *)(dev->private))
-#define thisboard ((const struct das16m1_board *)(dev->board_ptr))
 
 static inline short munge_sample(short data)
 {
@@ -168,6 +167,7 @@ static void munge_sample_array(short *array, unsigned int num_elements)
 static int das16m1_cmd_test(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	const struct das16m1_board *board = comedi_board(dev);
 	unsigned int err = 0, tmp, i;
 
 	/* make sure triggers are valid */
@@ -225,8 +225,8 @@ static int das16m1_cmd_test(struct comedi_device *dev,
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < thisboard->ai_speed) {
-			cmd->convert_arg = thisboard->ai_speed;
+		if (cmd->convert_arg < board->ai_speed) {
+			cmd->convert_arg = board->ai_speed;
 			err++;
 		}
 	}
@@ -600,6 +600,7 @@ static int das16m1_irq_bits(unsigned int irq)
 static int das16m1_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	const struct das16m1_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int ret;
 	unsigned int irq;
@@ -611,7 +612,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
 	if (!request_region(iobase, DAS16M1_SIZE, dev->driver->driver_name)) {
 		comedi_error(dev, "I/O port conflict\n");
