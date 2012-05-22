@@ -7,6 +7,7 @@ config OPENRISC
 	def_bool y
 	select OF
 	select OF_EARLY_FLATTREE
+	select IRQ_DOMAIN
 	select HAVE_MEMBLOCK
 	select ARCH_WANT_OPTIONAL_GPIOLIB
         select HAVE_ARCH_TRACEHOOK
