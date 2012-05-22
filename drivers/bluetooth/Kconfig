@@ -228,6 +228,13 @@ config WIFI_MAC
 endchoice
 endif
 
+config BT_AUTOSLEEP
+	tristate "Bluetooth auto sleep"
+	depends on BT_HCIUART
+	help
+	  If the Bluetooth have no data transfer within three seconds, then 
+          it will automatically go to sleep until the arrival of new data
+
 config BT_ATH3K
 	tristate "Atheros firmware download driver"
 	depends on BT_HCIBTUSB

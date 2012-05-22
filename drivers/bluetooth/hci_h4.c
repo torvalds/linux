@@ -62,9 +62,6 @@ struct h4_struct {
 #define H4_W4_SCO_HDR		3
 #define H4_W4_DATA		4
 
-#ifdef CONFIG_BT_HCIBCM4325  
-extern int bcm4325_sleep(int bSleep);
-#endif
 
 /* Initialize protocol */
 static int h4_open(struct hci_uart *hu)
@@ -144,9 +141,6 @@ static inline int h4_check_data_len(struct h4_struct *h4, int len)
 		h4->rx_count = len;
 		return len;
 	}
-#ifdef CONFIG_BT_HCIBCM4325  
-	bcm4325_sleep(1);
-#endif	
 	h4->rx_state = H4_W4_PACKET_TYPE;
 	h4->rx_skb   = NULL;
 	h4->rx_count = 0;

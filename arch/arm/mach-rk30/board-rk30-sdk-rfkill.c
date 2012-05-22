@@ -40,6 +40,8 @@
 
 #define BT_WAKE_LOCK_TIMEOUT    10 //s
 
+#define BT_AUTO_SLEEP_TIMEOUT   3
+
 /*
  * IO Configuration for RK29
  */
@@ -132,6 +134,8 @@ extern int rk29sdk_wifi_power_state;
 #endif
 
 struct bt_ctrl gBtCtrl;
+struct timer_list bt_sleep_tl;
+
     
 #if BT_WAKE_HOST_SUPPORT
 void resetBtHostSleepTimer(void)
@@ -163,7 +167,7 @@ static void timer_hostSleep(unsigned long arg)
     btWakeupHostUnlock();
 }
 
-extern int bcm4325_sleep(int bSleep);
+void bcm4325_sleep(unsigned long bSleep);
 
 #ifdef CONFIG_PM
 static void rfkill_do_wakeup(struct work_struct *work)
@@ -179,7 +183,7 @@ static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t sta
 {
     DBG("%s\n",__FUNCTION__);
 
-#ifdef CONFIG_BT_HCIBCM4325
+#ifdef CONFIG_BT_AUTOSLEEP
     bcm4325_sleep(1);
 #endif
 
@@ -191,7 +195,6 @@ static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t sta
 
 #ifdef CONFIG_RFKILL_RESET
     extern void rfkill_set_block(struct rfkill *rfkill, bool blocked);
-    printk("rfkill_set_block\n");
     rfkill_set_block(gBtCtrl.bt_rfk, true);
 #endif
 
@@ -201,10 +204,6 @@ static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t sta
 static int bcm4329_rfkill_resume(struct platform_device *pdev)
 {  
     DBG("%s\n",__FUNCTION__);     
-
-#ifdef CONFIG_BT_HCIBCM4325
-    bcm4325_sleep(0);
-#endif
 
     DBG("delay 1s\n");
     schedule_delayed_work(&wakeup_work, HZ);
@@ -226,16 +225,22 @@ static irqreturn_t bcm4329_wake_host_irq(int irq, void *dev)
 }
 #endif
 
-int bcm4325_sleep(int bSleep)
+void bcm4325_sleep(unsigned long bSleep)
 {
-    DBG("************* bt enter sleep: %d ***************\n", bSleep);
-    //low represent bt device may enter sleep
-    //high represent bt device must be awake 
+    DBG("*** bt sleep: %d ***\n", bSleep);
+#ifdef CONFIG_BT_AUTOSLEEP
+    del_timer(&bt_sleep_tl);// cmy: 确保在唤醒BT时，不会因触发bt_sleep_tl而马上睡眠
+#endif
+
     IOMUX_BT_GPIO_WAKE_UP();
     gpio_set_value(BT_GPIO_WAKE_UP, bSleep?GPIO_LOW:GPIO_HIGH);
-    return 0;
+
+#ifdef CONFIG_BT_AUTOSLEEP
+    if(!bSleep)
+        mod_timer(&bt_sleep_tl, jiffies + BT_AUTO_SLEEP_TIMEOUT*HZ);//再重新设置超时值。
+#endif
 }
-  
+
 static int bcm4329_set_block(void *data, bool blocked)
 {
 	DBG("%s---blocked :%d\n", __FUNCTION__, blocked);
@@ -315,8 +320,14 @@ static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 	
 	gpio_request(BT_GPIO_POWER, NULL);
 	gpio_request(BT_GPIO_RESET, NULL);
-#ifdef CONFIG_BT_HCIBCM4325
 	gpio_request(BT_GPIO_WAKE_UP, NULL);
+    
+#ifdef CONFIG_BT_AUTOSLEEP
+    init_timer(&bt_sleep_tl);
+    bt_sleep_tl.expires = 0;
+    bt_sleep_tl.function = bcm4325_sleep;
+    bt_sleep_tl.data = 1;
+    add_timer(&bt_sleep_tl);
 #endif
 
 #if BT_WAKE_HOST_SUPPORT
@@ -355,11 +366,15 @@ static int __devexit bcm4329_rfkill_remove(struct platform_device *pdev)
 	if (gBtCtrl.bt_rfk)
 		rfkill_unregister(gBtCtrl.bt_rfk);
 	gBtCtrl.bt_rfk = NULL;
-#if BT_WAKE_HOST_SUPPORT	
+#if BT_WAKE_HOST_SUPPORT
     del_timer(&(gBtCtrl.tl));//删掉定时器
     btWakeupHostUnlock();
     wake_lock_destroy(&(gBtCtrl.bt_wakelock));
-#endif    
+#endif
+#ifdef CONFIG_BT_AUTOSLEEP
+    del_timer(&bt_sleep_tl);
+#endif
+
 	platform_set_drvdata(pdev, NULL);
 
 	DBG("Enter::%s,line=%d\n",__FUNCTION__,__LINE__);
