@@ -1162,7 +1162,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	struct perf_top top = {
 		.count_filter	     = 5,
 		.delay_secs	     = 2,
-		.freq		     = 1000, /* 1 KHz */
+		.freq		     = 4000, /* 4 KHz */
 		.mmap_pages	     = 128,
 		.sym_pcnt_filter     = 5,
 		.target		     = {

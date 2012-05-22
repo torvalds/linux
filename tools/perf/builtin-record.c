@@ -753,7 +753,7 @@ static struct perf_record record = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
-		.freq		     = 1000,
+		.freq		     = 4000,
 		.target		     = {
 			.uses_mmap   = true,
 		},
