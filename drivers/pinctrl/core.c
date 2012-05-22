@@ -61,7 +61,7 @@ static LIST_HEAD(pinctrl_maps);
 	list_for_each_entry(_maps_node_, &pinctrl_maps, node) \
 		for (_i_ = 0, _map_ = &_maps_node_->maps[_i_]; \
 			_i_ < _maps_node_->num_maps; \
-			i++, _map_ = &_maps_node_->maps[_i_])
+			_i_++, _map_ = &_maps_node_->maps[_i_])
 
 /**
  * pinctrl_provide_dummies() - indicate if pinctrl provides dummy state support
