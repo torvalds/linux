@@ -103,20 +103,25 @@ struct ceph_msg_pos {
 #define MAX_DELAY_INTERVAL	(5 * 60 * HZ)
 
 /*
- * ceph_connection state bit flags
+ * ceph_connection flag bits
  */
+
 #define LOSSYTX         0  /* we can close channel or drop messages on errors */
-#define CONNECTING	1
-#define NEGOTIATING	2
 #define KEEPALIVE_PENDING      3
 #define WRITE_PENDING	4  /* we have data ready to send */
+#define SOCK_CLOSED	11 /* socket state changed to closed */
+#define BACKOFF         15
+
+/*
+ * ceph_connection states
+ */
+#define CONNECTING	1
+#define NEGOTIATING	2
 #define STANDBY		8  /* no outgoing messages, socket closed.  we keep
 			    * the ceph_connection around to maintain shared
 			    * state with the peer. */
 #define CLOSED		10 /* we've closed the connection */
-#define SOCK_CLOSED	11 /* socket state changed to closed */
 #define OPENING         13 /* open connection w/ (possibly new) peer */
-#define BACKOFF         15
 
 /*
  * A single connection with another host.
@@ -133,7 +138,8 @@ struct ceph_connection {
 
 	struct ceph_messenger *msgr;
 	struct socket *sock;
-	unsigned long state;	/* connection state (see flags above) */
+	unsigned long flags;
+	unsigned long state;
 	const char *error_msg;  /* error message, if any */
 
 	struct ceph_entity_addr peer_addr; /* peer address */

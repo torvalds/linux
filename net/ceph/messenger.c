@@ -176,7 +176,7 @@ static void ceph_sock_write_space(struct sock *sk)
 	 * buffer. See net/ipv4/tcp_input.c:tcp_check_space()
 	 * and net/core/stream.c:sk_stream_write_space().
 	 */
-	if (test_bit(WRITE_PENDING, &con->state)) {
+	if (test_bit(WRITE_PENDING, &con->flags)) {
 		if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk)) {
 			dout("%s %p queueing write work\n", __func__, con);
 			clear_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
@@ -203,7 +203,7 @@ static void ceph_sock_state_change(struct sock *sk)
 		dout("%s TCP_CLOSE\n", __func__);
 	case TCP_CLOSE_WAIT:
 		dout("%s TCP_CLOSE_WAIT\n", __func__);
-		if (test_and_set_bit(SOCK_CLOSED, &con->state) == 0) {
+		if (test_and_set_bit(SOCK_CLOSED, &con->flags) == 0) {
 			if (test_bit(CONNECTING, &con->state))
 				con->error_msg = "connection failed";
 			else
@@ -395,9 +395,9 @@ void ceph_con_close(struct ceph_connection *con)
 	     ceph_pr_addr(&con->peer_addr.in_addr));
 	set_bit(CLOSED, &con->state);  /* in case there's queued work */
 	clear_bit(STANDBY, &con->state);  /* avoid connect_seq bump */
-	clear_bit(LOSSYTX, &con->state);  /* so we retry next connect */
-	clear_bit(KEEPALIVE_PENDING, &con->state);
-	clear_bit(WRITE_PENDING, &con->state);
+	clear_bit(LOSSYTX, &con->flags);  /* so we retry next connect */
+	clear_bit(KEEPALIVE_PENDING, &con->flags);
+	clear_bit(WRITE_PENDING, &con->flags);
 	mutex_lock(&con->mutex);
 	reset_connection(con);
 	con->peer_global_seq = 0;
@@ -614,7 +614,7 @@ static void prepare_write_message(struct ceph_connection *con)
 		prepare_write_message_footer(con);
 	}
 
-	set_bit(WRITE_PENDING, &con->state);
+	set_bit(WRITE_PENDING, &con->flags);
 }
 
 /*
@@ -635,7 +635,7 @@ static void prepare_write_ack(struct ceph_connection *con)
 				&con->out_temp_ack);
 
 	con->out_more = 1;  /* more will follow.. eventually.. */
-	set_bit(WRITE_PENDING, &con->state);
+	set_bit(WRITE_PENDING, &con->flags);
 }
 
 /*
@@ -646,7 +646,7 @@ static void prepare_write_keepalive(struct ceph_connection *con)
 	dout("prepare_write_keepalive %p\n", con);
 	con_out_kvec_reset(con);
 	con_out_kvec_add(con, sizeof (tag_keepalive), &tag_keepalive);
-	set_bit(WRITE_PENDING, &con->state);
+	set_bit(WRITE_PENDING, &con->flags);
 }
 
 /*
@@ -675,7 +675,7 @@ static struct ceph_auth_handshake *get_connect_authorizer(struct ceph_connection
 
 	if (IS_ERR(auth))
 		return auth;
-	if (test_bit(CLOSED, &con->state) || test_bit(OPENING, &con->state))
+	if (test_bit(CLOSED, &con->state) || test_bit(OPENING, &con->flags))
 		return ERR_PTR(-EAGAIN);
 
 	con->auth_reply_buf = auth->authorizer_reply_buf;
@@ -695,7 +695,7 @@ static void prepare_write_banner(struct ceph_connection *con)
 					&con->msgr->my_enc_addr);
 
 	con->out_more = 0;
-	set_bit(WRITE_PENDING, &con->state);
+	set_bit(WRITE_PENDING, &con->flags);
 }
 
 static int prepare_write_connect(struct ceph_connection *con)
@@ -745,7 +745,7 @@ static int prepare_write_connect(struct ceph_connection *con)
 					auth->authorizer_buf);
 
 	con->out_more = 0;
-	set_bit(WRITE_PENDING, &con->state);
+	set_bit(WRITE_PENDING, &con->flags);
 
 	return 0;
 }
@@ -1492,7 +1492,7 @@ static int process_connect(struct ceph_connection *con)
 			le32_to_cpu(con->in_reply.connect_seq));
 
 		if (con->in_reply.flags & CEPH_MSG_CONNECT_LOSSY)
-			set_bit(LOSSYTX, &con->state);
+			set_bit(LOSSYTX, &con->flags);
 
 		prepare_read_tag(con);
 		break;
@@ -1933,14 +1933,14 @@ do_next:
 			prepare_write_ack(con);
 			goto more;
 		}
-		if (test_and_clear_bit(KEEPALIVE_PENDING, &con->state)) {
+		if (test_and_clear_bit(KEEPALIVE_PENDING, &con->flags)) {
 			prepare_write_keepalive(con);
 			goto more;
 		}
 	}
 
 	/* Nothing to do! */
-	clear_bit(WRITE_PENDING, &con->state);
+	clear_bit(WRITE_PENDING, &con->flags);
 	dout("try_write nothing else to write.\n");
 	ret = 0;
 out:
@@ -2106,7 +2106,7 @@ static void con_work(struct work_struct *work)
 
 	mutex_lock(&con->mutex);
 restart:
-	if (test_and_clear_bit(BACKOFF, &con->state)) {
+	if (test_and_clear_bit(BACKOFF, &con->flags)) {
 		dout("con_work %p backing off\n", con);
 		if (queue_delayed_work(ceph_msgr_wq, &con->work,
 				       round_jiffies_relative(con->delay))) {
@@ -2135,7 +2135,7 @@ restart:
 		con_close_socket(con);
 	}
 
-	if (test_and_clear_bit(SOCK_CLOSED, &con->state))
+	if (test_and_clear_bit(SOCK_CLOSED, &con->flags))
 		goto fault;
 
 	ret = try_read(con);
@@ -2174,7 +2174,7 @@ static void ceph_fault(struct ceph_connection *con)
 	dout("fault %p state %lu to peer %s\n",
 	     con, con->state, ceph_pr_addr(&con->peer_addr.in_addr));
 
-	if (test_bit(LOSSYTX, &con->state)) {
+	if (test_bit(LOSSYTX, &con->flags)) {
 		dout("fault on LOSSYTX channel\n");
 		goto out;
 	}
@@ -2196,9 +2196,9 @@ static void ceph_fault(struct ceph_connection *con)
 	/* If there are no messages queued or keepalive pending, place
 	 * the connection in a STANDBY state */
 	if (list_empty(&con->out_queue) &&
-	    !test_bit(KEEPALIVE_PENDING, &con->state)) {
+	    !test_bit(KEEPALIVE_PENDING, &con->flags)) {
 		dout("fault %p setting STANDBY clearing WRITE_PENDING\n", con);
-		clear_bit(WRITE_PENDING, &con->state);
+		clear_bit(WRITE_PENDING, &con->flags);
 		set_bit(STANDBY, &con->state);
 	} else {
 		/* retry after a delay. */
@@ -2222,7 +2222,7 @@ static void ceph_fault(struct ceph_connection *con)
 			 * that when con_work restarts we schedule the
 			 * delay then.
 			 */
-			set_bit(BACKOFF, &con->state);
+			set_bit(BACKOFF, &con->flags);
 		}
 	}
 
@@ -2278,8 +2278,8 @@ static void clear_standby(struct ceph_connection *con)
 		mutex_lock(&con->mutex);
 		dout("clear_standby %p and ++connect_seq\n", con);
 		con->connect_seq++;
-		WARN_ON(test_bit(WRITE_PENDING, &con->state));
-		WARN_ON(test_bit(KEEPALIVE_PENDING, &con->state));
+		WARN_ON(test_bit(WRITE_PENDING, &con->flags));
+		WARN_ON(test_bit(KEEPALIVE_PENDING, &con->flags));
 		mutex_unlock(&con->mutex);
 	}
 }
@@ -2317,7 +2317,7 @@ void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 	/* if there wasn't anything waiting to send before, queue
 	 * new work */
 	clear_standby(con);
-	if (test_and_set_bit(WRITE_PENDING, &con->state) == 0)
+	if (test_and_set_bit(WRITE_PENDING, &con->flags) == 0)
 		queue_con(con);
 }
 EXPORT_SYMBOL(ceph_con_send);
@@ -2384,8 +2384,8 @@ void ceph_con_keepalive(struct ceph_connection *con)
 {
 	dout("con_keepalive %p\n", con);
 	clear_standby(con);
-	if (test_and_set_bit(KEEPALIVE_PENDING, &con->state) == 0 &&
-	    test_and_set_bit(WRITE_PENDING, &con->state) == 0)
+	if (test_and_set_bit(KEEPALIVE_PENDING, &con->flags) == 0 &&
+	    test_and_set_bit(WRITE_PENDING, &con->flags) == 0)
 		queue_con(con);
 }
 EXPORT_SYMBOL(ceph_con_keepalive);
