@@ -1032,11 +1032,11 @@ static int ufshcd_initialize_hba(struct ufs_hba *hba)
 		return -EIO;
 
 	/* Configure UTRL and UTMRL base address registers */
-	writel(hba->utrdl_dma_addr,
-	       (hba->mmio_base + REG_UTP_TRANSFER_REQ_LIST_BASE_L));
 	writel(lower_32_bits(hba->utrdl_dma_addr),
+	       (hba->mmio_base + REG_UTP_TRANSFER_REQ_LIST_BASE_L));
+	writel(upper_32_bits(hba->utrdl_dma_addr),
 	       (hba->mmio_base + REG_UTP_TRANSFER_REQ_LIST_BASE_H));
-	writel(hba->utmrdl_dma_addr,
+	writel(lower_32_bits(hba->utmrdl_dma_addr),
 	       (hba->mmio_base + REG_UTP_TASK_REQ_LIST_BASE_L));
 	writel(upper_32_bits(hba->utmrdl_dma_addr),
 	       (hba->mmio_base + REG_UTP_TASK_REQ_LIST_BASE_H));
@@ -1160,7 +1160,7 @@ static int ufshcd_task_req_compl(struct ufs_hba *hba, u32 index)
 		task_result = be32_to_cpu(task_rsp_upiup->header.dword_1);
 		task_result = ((task_result & MASK_TASK_RESPONSE) >> 8);
 
-		if (task_result != UPIU_TASK_MANAGEMENT_FUNC_COMPL ||
+		if (task_result != UPIU_TASK_MANAGEMENT_FUNC_COMPL &&
 		    task_result != UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED)
 			task_result = FAILED;
 	} else {

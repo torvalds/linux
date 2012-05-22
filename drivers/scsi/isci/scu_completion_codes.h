@@ -224,6 +224,7 @@
  * 32-bit value like we want, each immediate value must be cast to a u32.
  */
 #define SCU_TASK_DONE_GOOD                                  ((u32)0x00)
+#define SCU_TASK_DONE_TX_RAW_CMD_ERR                        ((u32)0x08)
 #define SCU_TASK_DONE_CRC_ERR                               ((u32)0x14)
 #define SCU_TASK_DONE_CHECK_RESPONSE                        ((u32)0x14)
 #define SCU_TASK_DONE_GEN_RESPONSE                          ((u32)0x15)
@@ -237,6 +238,7 @@
 #define SCU_TASK_DONE_LL_LF_TERM                            ((u32)0x1A)
 #define SCU_TASK_DONE_DATA_LEN_ERR                          ((u32)0x1A)
 #define SCU_TASK_DONE_LL_CL_TERM                            ((u32)0x1B)
+#define SCU_TASK_DONE_BREAK_RCVD                            ((u32)0x1B)
 #define SCU_TASK_DONE_LL_ABORT_ERR                          ((u32)0x1B)
 #define SCU_TASK_DONE_SEQ_INV_TYPE                          ((u32)0x1C)
 #define SCU_TASK_DONE_UNEXP_XR                              ((u32)0x1C)

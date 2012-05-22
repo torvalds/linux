@@ -192,22 +192,27 @@ static bool sci_controller_completion_queue_has_entries(struct isci_host *ihost)
 
 static bool sci_controller_isr(struct isci_host *ihost)
 {
-	if (sci_controller_completion_queue_has_entries(ihost)) {
+	if (sci_controller_completion_queue_has_entries(ihost))
 		return true;
-	} else {
-		/*
-		 * we have a spurious interrupt it could be that we have already
-		 * emptied the completion queue from a previous interrupt */
-		writel(SMU_ISR_COMPLETION, &ihost->smu_registers->interrupt_status);
 
-		/*
-		 * There is a race in the hardware that could cause us not to be notified
-		 * of an interrupt completion if we do not take this step.  We will mask
-		 * then unmask the interrupts so if there is another interrupt pending
-		 * the clearing of the interrupt source we get the next interrupt message. */
+	/* we have a spurious interrupt it could be that we have already
+	 * emptied the completion queue from a previous interrupt
+	 * FIXME: really!?
+	 */
+	writel(SMU_ISR_COMPLETION, &ihost->smu_registers->interrupt_status);
+
+	/* There is a race in the hardware that could cause us not to be
+	 * notified of an interrupt completion if we do not take this
+	 * step.  We will mask then unmask the interrupts so if there is
+	 * another interrupt pending the clearing of the interrupt
+	 * source we get the next interrupt message.
+	 */
+	spin_lock(&ihost->scic_lock);
+	if (test_bit(IHOST_IRQ_ENABLED, &ihost->flags)) {
 		writel(0xFF000000, &ihost->smu_registers->interrupt_mask);
 		writel(0, &ihost->smu_registers->interrupt_mask);
 	}
+	spin_unlock(&ihost->scic_lock);
 
 	return false;
 }
@@ -642,7 +647,6 @@ static void isci_host_start_complete(struct isci_host *ihost, enum sci_status co
 	if (completion_status != SCI_SUCCESS)
 		dev_info(&ihost->pdev->dev,
 			"controller start timed out, continuing...\n");
-	isci_host_change_state(ihost, isci_ready);
 	clear_bit(IHOST_START_PENDING, &ihost->flags);
 	wake_up(&ihost->eventq);
 }
@@ -657,12 +661,7 @@ int isci_host_scan_finished(struct Scsi_Host *shost, unsigned long time)
 
 	sas_drain_work(ha);
 
-	dev_dbg(&ihost->pdev->dev,
-		"%s: ihost->status = %d, time = %ld\n",
-		 __func__, isci_host_get_state(ihost), time);
-
 	return 1;
-
 }
 
 /**
@@ -704,14 +703,15 @@ static u32 sci_controller_get_suggested_start_timeout(struct isci_host *ihost)
 
 static void sci_controller_enable_interrupts(struct isci_host *ihost)
 {
-	BUG_ON(ihost->smu_registers == NULL);
+	set_bit(IHOST_IRQ_ENABLED, &ihost->flags);
 	writel(0, &ihost->smu_registers->interrupt_mask);
 }
 
 void sci_controller_disable_interrupts(struct isci_host *ihost)
 {
-	BUG_ON(ihost->smu_registers == NULL);
+	clear_bit(IHOST_IRQ_ENABLED, &ihost->flags);
 	writel(0xffffffff, &ihost->smu_registers->interrupt_mask);
+	readl(&ihost->smu_registers->interrupt_mask); /* flush */
 }
 
 static void sci_controller_enable_port_task_scheduler(struct isci_host *ihost)
@@ -822,7 +822,7 @@ static void sci_controller_initialize_unsolicited_frame_queue(struct isci_host *
 	       &ihost->scu_registers->sdma.unsolicited_frame_put_pointer);
 }
 
-static void sci_controller_transition_to_ready(struct isci_host *ihost, enum sci_status status)
+void sci_controller_transition_to_ready(struct isci_host *ihost, enum sci_status status)
 {
 	if (ihost->sm.current_state_id == SCIC_STARTING) {
 		/*
@@ -849,12 +849,46 @@ static bool is_phy_starting(struct isci_phy *iphy)
 	case SCI_PHY_SUB_AWAIT_SATA_POWER:
 	case SCI_PHY_SUB_AWAIT_SATA_PHY_EN:
 	case SCI_PHY_SUB_AWAIT_SATA_SPEED_EN:
+	case SCI_PHY_SUB_AWAIT_OSSP_EN:
 	case SCI_PHY_SUB_AWAIT_SIG_FIS_UF:
 	case SCI_PHY_SUB_FINAL:
 		return true;
 	default:
 		return false;
 	}
+}
+
+bool is_controller_start_complete(struct isci_host *ihost)
+{
+	int i;
+
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		struct isci_phy *iphy = &ihost->phys[i];
+		u32 state = iphy->sm.current_state_id;
+
+		/* in apc mode we need to check every phy, in
+		 * mpc mode we only need to check phys that have
+		 * been configured into a port
+		 */
+		if (is_port_config_apc(ihost))
+			/* pass */;
+		else if (!phy_get_non_dummy_port(iphy))
+			continue;
+
+		/* The controller start operation is complete iff:
+		 * - all links have been given an opportunity to start
+		 * - have no indication of a connected device
+		 * - have an indication of a connected device and it has
+		 *   finished the link training process.
+		 */
+		if ((iphy->is_in_link_training == false && state == SCI_PHY_INITIAL) ||
+		    (iphy->is_in_link_training == false && state == SCI_PHY_STOPPED) ||
+		    (iphy->is_in_link_training == true && is_phy_starting(iphy)) ||
+		    (ihost->port_agent.phy_ready_mask != ihost->port_agent.phy_configured_mask))
+			return false;
+	}
+
+	return true;
 }
 
 /**
@@ -877,36 +911,7 @@ static enum sci_status sci_controller_start_next_phy(struct isci_host *ihost)
 		return status;
 
 	if (ihost->next_phy_to_start >= SCI_MAX_PHYS) {
-		bool is_controller_start_complete = true;
-		u32 state;
-		u8 index;
-
-		for (index = 0; index < SCI_MAX_PHYS; index++) {
-			iphy = &ihost->phys[index];
-			state = iphy->sm.current_state_id;
-
-			if (!phy_get_non_dummy_port(iphy))
-				continue;
-
-			/* The controller start operation is complete iff:
-			 * - all links have been given an opportunity to start
-			 * - have no indication of a connected device
-			 * - have an indication of a connected device and it has
-			 *   finished the link training process.
-			 */
-			if ((iphy->is_in_link_training == false && state == SCI_PHY_INITIAL) ||
-			    (iphy->is_in_link_training == false && state == SCI_PHY_STOPPED) ||
-			    (iphy->is_in_link_training == true && is_phy_starting(iphy)) ||
-			    (ihost->port_agent.phy_ready_mask != ihost->port_agent.phy_configured_mask)) {
-				is_controller_start_complete = false;
-				break;
-			}
-		}
-
-		/*
-		 * The controller has successfully finished the start process.
-		 * Inform the SCI Core user and transition to the READY state. */
-		if (is_controller_start_complete == true) {
+		if (is_controller_start_complete(ihost)) {
 			sci_controller_transition_to_ready(ihost, SCI_SUCCESS);
 			sci_del_timer(&ihost->phy_timer);
 			ihost->phy_startup_timer_pending = false;
@@ -987,9 +992,8 @@ static enum sci_status sci_controller_start(struct isci_host *ihost,
 	u16 index;
 
 	if (ihost->sm.current_state_id != SCIC_INITIALIZED) {
-		dev_warn(&ihost->pdev->dev,
-			 "SCIC Controller start operation requested in "
-			 "invalid state\n");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -1053,9 +1057,8 @@ void isci_host_scan_start(struct Scsi_Host *shost)
 	spin_unlock_irq(&ihost->scic_lock);
 }
 
-static void isci_host_stop_complete(struct isci_host *ihost, enum sci_status completion_status)
+static void isci_host_stop_complete(struct isci_host *ihost)
 {
-	isci_host_change_state(ihost, isci_stopped);
 	sci_controller_disable_interrupts(ihost);
 	clear_bit(IHOST_STOP_PENDING, &ihost->flags);
 	wake_up(&ihost->eventq);
@@ -1074,6 +1077,32 @@ static void sci_controller_completion_handler(struct isci_host *ihost)
 	writel(0, &ihost->smu_registers->interrupt_mask);
 }
 
+void ireq_done(struct isci_host *ihost, struct isci_request *ireq, struct sas_task *task)
+{
+	task->lldd_task = NULL;
+	if (!test_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags) &&
+	    !(task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+		if (test_bit(IREQ_COMPLETE_IN_TARGET, &ireq->flags)) {
+			/* Normal notification (task_done) */
+			dev_dbg(&ihost->pdev->dev,
+				"%s: Normal - ireq/task = %p/%p\n",
+				__func__, ireq, task);
+
+			task->task_done(task);
+		} else {
+			dev_dbg(&ihost->pdev->dev,
+				"%s: Error - ireq/task = %p/%p\n",
+				__func__, ireq, task);
+
+			sas_task_abort(task);
+		}
+	}
+	if (test_and_clear_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags))
+		wake_up_all(&ihost->eventq);
+
+	if (!test_bit(IREQ_NO_AUTO_FREE_TAG, &ireq->flags))
+		isci_free_tag(ihost, ireq->io_tag);
+}
 /**
  * isci_host_completion_routine() - This function is the delayed service
  *    routine that calls the sci core library's completion handler. It's
@@ -1082,106 +1111,14 @@ static void sci_controller_completion_handler(struct isci_host *ihost)
  * @data: This parameter specifies the ISCI host object
  *
  */
-static void isci_host_completion_routine(unsigned long data)
+void isci_host_completion_routine(unsigned long data)
 {
 	struct isci_host *ihost = (struct isci_host *)data;
-	struct list_head    completed_request_list;
-	struct list_head    errored_request_list;
-	struct list_head    *current_position;
-	struct list_head    *next_position;
-	struct isci_request *request;
-	struct isci_request *next_request;
-	struct sas_task     *task;
 	u16 active;
 
-	INIT_LIST_HEAD(&completed_request_list);
-	INIT_LIST_HEAD(&errored_request_list);
-
 	spin_lock_irq(&ihost->scic_lock);
-
 	sci_controller_completion_handler(ihost);
-
-	/* Take the lists of completed I/Os from the host. */
-
-	list_splice_init(&ihost->requests_to_complete,
-			 &completed_request_list);
-
-	/* Take the list of errored I/Os from the host. */
-	list_splice_init(&ihost->requests_to_errorback,
-			 &errored_request_list);
-
 	spin_unlock_irq(&ihost->scic_lock);
-
-	/* Process any completions in the lists. */
-	list_for_each_safe(current_position, next_position,
-			   &completed_request_list) {
-
-		request = list_entry(current_position, struct isci_request,
-				     completed_node);
-		task = isci_request_access_task(request);
-
-		/* Normal notification (task_done) */
-		dev_dbg(&ihost->pdev->dev,
-			"%s: Normal - request/task = %p/%p\n",
-			__func__,
-			request,
-			task);
-
-		/* Return the task to libsas */
-		if (task != NULL) {
-
-			task->lldd_task = NULL;
-			if (!(task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
-
-				/* If the task is already in the abort path,
-				* the task_done callback cannot be called.
-				*/
-				task->task_done(task);
-			}
-		}
-
-		spin_lock_irq(&ihost->scic_lock);
-		isci_free_tag(ihost, request->io_tag);
-		spin_unlock_irq(&ihost->scic_lock);
-	}
-	list_for_each_entry_safe(request, next_request, &errored_request_list,
-				 completed_node) {
-
-		task = isci_request_access_task(request);
-
-		/* Use sas_task_abort */
-		dev_warn(&ihost->pdev->dev,
-			 "%s: Error - request/task = %p/%p\n",
-			 __func__,
-			 request,
-			 task);
-
-		if (task != NULL) {
-
-			/* Put the task into the abort path if it's not there
-			 * already.
-			 */
-			if (!(task->task_state_flags & SAS_TASK_STATE_ABORTED))
-				sas_task_abort(task);
-
-		} else {
-			/* This is a case where the request has completed with a
-			 * status such that it needed further target servicing,
-			 * but the sas_task reference has already been removed
-			 * from the request.  Since it was errored, it was not
-			 * being aborted, so there is nothing to do except free
-			 * it.
-			 */
-
-			spin_lock_irq(&ihost->scic_lock);
-			/* Remove the request from the remote device's list
-			* of pending requests.
-			*/
-			list_del_init(&request->dev_node);
-			isci_free_tag(ihost, request->io_tag);
-			spin_unlock_irq(&ihost->scic_lock);
-		}
-	}
 
 	/* the coalesence timeout doubles at each encoding step, so
 	 * update it based on the ilog2 value of the outstanding requests
@@ -1213,9 +1150,8 @@ static void isci_host_completion_routine(unsigned long data)
 static enum sci_status sci_controller_stop(struct isci_host *ihost, u32 timeout)
 {
 	if (ihost->sm.current_state_id != SCIC_READY) {
-		dev_warn(&ihost->pdev->dev,
-			 "SCIC Controller stop operation requested in "
-			 "invalid state\n");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -1241,7 +1177,7 @@ static enum sci_status sci_controller_reset(struct isci_host *ihost)
 	switch (ihost->sm.current_state_id) {
 	case SCIC_RESET:
 	case SCIC_READY:
-	case SCIC_STOPPED:
+	case SCIC_STOPPING:
 	case SCIC_FAILED:
 		/*
 		 * The reset operation is not a graceful cleanup, just
@@ -1250,13 +1186,50 @@ static enum sci_status sci_controller_reset(struct isci_host *ihost)
 		sci_change_state(&ihost->sm, SCIC_RESETTING);
 		return SCI_SUCCESS;
 	default:
-		dev_warn(&ihost->pdev->dev,
-			 "SCIC Controller reset operation requested in "
-			 "invalid state\n");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
 
+static enum sci_status sci_controller_stop_phys(struct isci_host *ihost)
+{
+	u32 index;
+	enum sci_status status;
+	enum sci_status phy_status;
+
+	status = SCI_SUCCESS;
+
+	for (index = 0; index < SCI_MAX_PHYS; index++) {
+		phy_status = sci_phy_stop(&ihost->phys[index]);
+
+		if (phy_status != SCI_SUCCESS &&
+		    phy_status != SCI_FAILURE_INVALID_STATE) {
+			status = SCI_FAILURE;
+
+			dev_warn(&ihost->pdev->dev,
+				 "%s: Controller stop operation failed to stop "
+				 "phy %d because of status %d.\n",
+				 __func__,
+				 ihost->phys[index].phy_index, phy_status);
+		}
+	}
+
+	return status;
+}
+
+
+/**
+ * isci_host_deinit - shutdown frame reception and dma
+ * @ihost: host to take down
+ *
+ * This is called in either the driver shutdown or the suspend path.  In
+ * the shutdown case libsas went through port teardown and normal device
+ * removal (i.e. physical links stayed up to service scsi_device removal
+ * commands).  In the suspend case we disable the hardware without
+ * notifying libsas of the link down events since we want libsas to
+ * remember the domain across the suspend/resume cycle
+ */
 void isci_host_deinit(struct isci_host *ihost)
 {
 	int i;
@@ -1264,17 +1237,6 @@ void isci_host_deinit(struct isci_host *ihost)
 	/* disable output data selects */
 	for (i = 0; i < isci_gpio_count(ihost); i++)
 		writel(SGPIO_HW_CONTROL, &ihost->scu_registers->peg0.sgpio.output_data_select[i]);
-
-	isci_host_change_state(ihost, isci_stopping);
-	for (i = 0; i < SCI_MAX_PORTS; i++) {
-		struct isci_port *iport = &ihost->ports[i];
-		struct isci_remote_device *idev, *d;
-
-		list_for_each_entry_safe(idev, d, &iport->remote_dev_list, node) {
-			if (test_bit(IDEV_ALLOCATED, &idev->flags))
-				isci_remote_device_stop(ihost, idev);
-		}
-	}
 
 	set_bit(IHOST_STOP_PENDING, &ihost->flags);
 
@@ -1284,12 +1246,21 @@ void isci_host_deinit(struct isci_host *ihost)
 
 	wait_for_stop(ihost);
 
+	/* phy stop is after controller stop to allow port and device to
+	 * go idle before shutting down the phys, but the expectation is
+	 * that i/o has been shut off well before we reach this
+	 * function.
+	 */
+	sci_controller_stop_phys(ihost);
+
 	/* disable sgpio: where the above wait should give time for the
 	 * enclosure to sample the gpios going inactive
 	 */
 	writel(0, &ihost->scu_registers->peg0.sgpio.interface_control);
 
+	spin_lock_irq(&ihost->scic_lock);
 	sci_controller_reset(ihost);
+	spin_unlock_irq(&ihost->scic_lock);
 
 	/* Cancel any/all outstanding port timers */
 	for (i = 0; i < ihost->logical_port_entries; i++) {
@@ -1326,29 +1297,6 @@ static void __iomem *smu_base(struct isci_host *isci_host)
 	int id = isci_host->id;
 
 	return pcim_iomap_table(pdev)[SCI_SMU_BAR * 2] + SCI_SMU_BAR_SIZE * id;
-}
-
-static void isci_user_parameters_get(struct sci_user_parameters *u)
-{
-	int i;
-
-	for (i = 0; i < SCI_MAX_PHYS; i++) {
-		struct sci_phy_user_params *u_phy = &u->phys[i];
-
-		u_phy->max_speed_generation = phy_gen;
-
-		/* we are not exporting these for now */
-		u_phy->align_insertion_frequency = 0x7f;
-		u_phy->in_connection_align_insertion_frequency = 0xff;
-		u_phy->notify_enable_spin_up_insertion_frequency = 0x33;
-	}
-
-	u->stp_inactivity_timeout = stp_inactive_to;
-	u->ssp_inactivity_timeout = ssp_inactive_to;
-	u->stp_max_occupancy_timeout = stp_max_occ_to;
-	u->ssp_max_occupancy_timeout = ssp_max_occ_to;
-	u->no_outbound_task_timeout = no_outbound_task_to;
-	u->max_concurr_spinup = max_concurr_spinup;
 }
 
 static void sci_controller_initial_state_enter(struct sci_base_state_machine *sm)
@@ -1510,32 +1458,6 @@ static void sci_controller_ready_state_exit(struct sci_base_state_machine *sm)
 	sci_controller_set_interrupt_coalescence(ihost, 0, 0);
 }
 
-static enum sci_status sci_controller_stop_phys(struct isci_host *ihost)
-{
-	u32 index;
-	enum sci_status status;
-	enum sci_status phy_status;
-
-	status = SCI_SUCCESS;
-
-	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		phy_status = sci_phy_stop(&ihost->phys[index]);
-
-		if (phy_status != SCI_SUCCESS &&
-		    phy_status != SCI_FAILURE_INVALID_STATE) {
-			status = SCI_FAILURE;
-
-			dev_warn(&ihost->pdev->dev,
-				 "%s: Controller stop operation failed to stop "
-				 "phy %d because of status %d.\n",
-				 __func__,
-				 ihost->phys[index].phy_index, phy_status);
-		}
-	}
-
-	return status;
-}
-
 static enum sci_status sci_controller_stop_ports(struct isci_host *ihost)
 {
 	u32 index;
@@ -1595,10 +1517,11 @@ static void sci_controller_stopping_state_enter(struct sci_base_state_machine *s
 {
 	struct isci_host *ihost = container_of(sm, typeof(*ihost), sm);
 
-	/* Stop all of the components for this controller */
-	sci_controller_stop_phys(ihost);
-	sci_controller_stop_ports(ihost);
 	sci_controller_stop_devices(ihost);
+	sci_controller_stop_ports(ihost);
+
+	if (!sci_controller_has_remote_devices_stopping(ihost))
+		isci_host_stop_complete(ihost);
 }
 
 static void sci_controller_stopping_state_exit(struct sci_base_state_machine *sm)
@@ -1624,6 +1547,9 @@ static void sci_controller_reset_hardware(struct isci_host *ihost)
 
 	/* The write to the UFQGP clears the UFQPR */
 	writel(0, &ihost->scu_registers->sdma.unsolicited_frame_get_pointer);
+
+	/* clear all interrupts */
+	writel(~SMU_INTERRUPT_STATUS_RESERVED_MASK, &ihost->smu_registers->interrupt_status);
 }
 
 static void sci_controller_resetting_state_enter(struct sci_base_state_machine *sm)
@@ -1655,58 +1581,8 @@ static const struct sci_base_state sci_controller_state_table[] = {
 		.enter_state = sci_controller_stopping_state_enter,
 		.exit_state = sci_controller_stopping_state_exit,
 	},
-	[SCIC_STOPPED] = {},
 	[SCIC_FAILED] = {}
 };
-
-static void sci_controller_set_default_config_parameters(struct isci_host *ihost)
-{
-	/* these defaults are overridden by the platform / firmware */
-	u16 index;
-
-	/* Default to APC mode. */
-	ihost->oem_parameters.controller.mode_type = SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE;
-
-	/* Default to APC mode. */
-	ihost->oem_parameters.controller.max_concurr_spin_up = 1;
-
-	/* Default to no SSC operation. */
-	ihost->oem_parameters.controller.do_enable_ssc = false;
-
-	/* Default to short cables on all phys. */
-	ihost->oem_parameters.controller.cable_selection_mask = 0;
-
-	/* Initialize all of the port parameter information to narrow ports. */
-	for (index = 0; index < SCI_MAX_PORTS; index++) {
-		ihost->oem_parameters.ports[index].phy_mask = 0;
-	}
-
-	/* Initialize all of the phy parameter information. */
-	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		/* Default to 3G (i.e. Gen 2). */
-		ihost->user_parameters.phys[index].max_speed_generation =
-			SCIC_SDS_PARM_GEN2_SPEED;
-
-		/* the frequencies cannot be 0 */
-		ihost->user_parameters.phys[index].align_insertion_frequency = 0x7f;
-		ihost->user_parameters.phys[index].in_connection_align_insertion_frequency = 0xff;
-		ihost->user_parameters.phys[index].notify_enable_spin_up_insertion_frequency = 0x33;
-
-		/*
-		 * Previous Vitesse based expanders had a arbitration issue that
-		 * is worked around by having the upper 32-bits of SAS address
-		 * with a value greater then the Vitesse company identifier.
-		 * Hence, usage of 0x5FCFFFFF. */
-		ihost->oem_parameters.phys[index].sas_address.low = 0x1 + ihost->id;
-		ihost->oem_parameters.phys[index].sas_address.high = 0x5FCFFFFF;
-	}
-
-	ihost->user_parameters.stp_inactivity_timeout = 5;
-	ihost->user_parameters.ssp_inactivity_timeout = 5;
-	ihost->user_parameters.stp_max_occupancy_timeout = 5;
-	ihost->user_parameters.ssp_max_occupancy_timeout = 20;
-	ihost->user_parameters.no_outbound_task_timeout = 2;
-}
 
 static void controller_timeout(unsigned long data)
 {
@@ -1724,7 +1600,7 @@ static void controller_timeout(unsigned long data)
 		sci_controller_transition_to_ready(ihost, SCI_FAILURE_TIMEOUT);
 	else if (sm->current_state_id == SCIC_STOPPING) {
 		sci_change_state(sm, SCIC_FAILED);
-		isci_host_stop_complete(ihost, SCI_FAILURE_TIMEOUT);
+		isci_host_stop_complete(ihost);
 	} else	/* / @todo Now what do we want to do in this case? */
 		dev_err(&ihost->pdev->dev,
 			"%s: Controller timer fired when controller was not "
@@ -1763,9 +1639,6 @@ static enum sci_status sci_controller_construct(struct isci_host *ihost,
 	ihost->invalid_phy_mask = 0;
 
 	sci_init_timer(&ihost->timer, controller_timeout);
-
-	/* Initialize the User and OEM parameters to default values. */
-	sci_controller_set_default_config_parameters(ihost);
 
 	return sci_controller_reset(ihost);
 }
@@ -1846,27 +1719,6 @@ int sci_oem_parameters_validate(struct sci_oem_params *oem, u8 version)
 	return 0;
 }
 
-static enum sci_status sci_oem_parameters_set(struct isci_host *ihost)
-{
-	u32 state = ihost->sm.current_state_id;
-	struct isci_pci_info *pci_info = to_pci_info(ihost->pdev);
-
-	if (state == SCIC_RESET ||
-	    state == SCIC_INITIALIZING ||
-	    state == SCIC_INITIALIZED) {
-		u8 oem_version = pci_info->orom ? pci_info->orom->hdr.version :
-			ISCI_ROM_VER_1_0;
-
-		if (sci_oem_parameters_validate(&ihost->oem_parameters,
-						oem_version))
-			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-
-		return SCI_SUCCESS;
-	}
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
 static u8 max_spin_up(struct isci_host *ihost)
 {
 	if (ihost->user_parameters.max_concurr_spinup)
@@ -1914,7 +1766,7 @@ static void power_control_timeout(unsigned long data)
 		ihost->power_control.phys_granted_power++;
 		sci_phy_consume_power_handler(iphy);
 
-		if (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
+		if (iphy->protocol == SAS_PROTOCOL_SSP) {
 			u8 j;
 
 			for (j = 0; j < SCI_MAX_PHYS; j++) {
@@ -1988,7 +1840,7 @@ void sci_controller_power_control_queue_insert(struct isci_host *ihost,
 				       sizeof(current_phy->frame_rcvd.iaf.sas_addr));
 
 			if (current_phy->sm.current_state_id == SCI_PHY_READY &&
-			    current_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS &&
+			    current_phy->protocol == SAS_PROTOCOL_SSP &&
 			    other == 0) {
 				sci_phy_consume_power_handler(iphy);
 				break;
@@ -2279,9 +2131,8 @@ static enum sci_status sci_controller_initialize(struct isci_host *ihost)
 	unsigned long i, state, val;
 
 	if (ihost->sm.current_state_id != SCIC_RESET) {
-		dev_warn(&ihost->pdev->dev,
-			 "SCIC Controller initialize operation requested "
-			 "in invalid state\n");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -2384,95 +2235,75 @@ static enum sci_status sci_controller_initialize(struct isci_host *ihost)
 	return result;
 }
 
-static enum sci_status sci_user_parameters_set(struct isci_host *ihost,
-					       struct sci_user_parameters *sci_parms)
+static int sci_controller_dma_alloc(struct isci_host *ihost)
 {
-	u32 state = ihost->sm.current_state_id;
+	struct device *dev = &ihost->pdev->dev;
+	size_t size;
+	int i;
 
-	if (state == SCIC_RESET ||
-	    state == SCIC_INITIALIZING ||
-	    state == SCIC_INITIALIZED) {
-		u16 index;
+	/* detect re-initialization */
+	if (ihost->completion_queue)
+		return 0;
 
-		/*
-		 * Validate the user parameters.  If they are not legal, then
-		 * return a failure.
-		 */
-		for (index = 0; index < SCI_MAX_PHYS; index++) {
-			struct sci_phy_user_params *user_phy;
+	size = SCU_MAX_COMPLETION_QUEUE_ENTRIES * sizeof(u32);
+	ihost->completion_queue = dmam_alloc_coherent(dev, size, &ihost->cq_dma,
+						      GFP_KERNEL);
+	if (!ihost->completion_queue)
+		return -ENOMEM;
 
-			user_phy = &sci_parms->phys[index];
+	size = ihost->remote_node_entries * sizeof(union scu_remote_node_context);
+	ihost->remote_node_context_table = dmam_alloc_coherent(dev, size, &ihost->rnc_dma,
+							       GFP_KERNEL);
 
-			if (!((user_phy->max_speed_generation <=
-						SCIC_SDS_PARM_MAX_SPEED) &&
-			      (user_phy->max_speed_generation >
-						SCIC_SDS_PARM_NO_SPEED)))
-				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+	if (!ihost->remote_node_context_table)
+		return -ENOMEM;
 
-			if (user_phy->in_connection_align_insertion_frequency <
-					3)
-				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+	size = ihost->task_context_entries * sizeof(struct scu_task_context),
+	ihost->task_context_table = dmam_alloc_coherent(dev, size, &ihost->tc_dma,
+							GFP_KERNEL);
+	if (!ihost->task_context_table)
+		return -ENOMEM;
 
-			if ((user_phy->in_connection_align_insertion_frequency <
-						3) ||
-			    (user_phy->align_insertion_frequency == 0) ||
-			    (user_phy->
-				notify_enable_spin_up_insertion_frequency ==
-						0))
-				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-		}
+	size = SCI_UFI_TOTAL_SIZE;
+	ihost->ufi_buf = dmam_alloc_coherent(dev, size, &ihost->ufi_dma, GFP_KERNEL);
+	if (!ihost->ufi_buf)
+		return -ENOMEM;
 
-		if ((sci_parms->stp_inactivity_timeout == 0) ||
-		    (sci_parms->ssp_inactivity_timeout == 0) ||
-		    (sci_parms->stp_max_occupancy_timeout == 0) ||
-		    (sci_parms->ssp_max_occupancy_timeout == 0) ||
-		    (sci_parms->no_outbound_task_timeout == 0))
-			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+	for (i = 0; i < SCI_MAX_IO_REQUESTS; i++) {
+		struct isci_request *ireq;
+		dma_addr_t dma;
 
-		memcpy(&ihost->user_parameters, sci_parms, sizeof(*sci_parms));
+		ireq = dmam_alloc_coherent(dev, sizeof(*ireq), &dma, GFP_KERNEL);
+		if (!ireq)
+			return -ENOMEM;
 
-		return SCI_SUCCESS;
+		ireq->tc = &ihost->task_context_table[i];
+		ireq->owning_controller = ihost;
+		ireq->request_daddr = dma;
+		ireq->isci_host = ihost;
+		ihost->reqs[i] = ireq;
 	}
 
-	return SCI_FAILURE_INVALID_STATE;
+	return 0;
 }
 
 static int sci_controller_mem_init(struct isci_host *ihost)
 {
-	struct device *dev = &ihost->pdev->dev;
-	dma_addr_t dma;
-	size_t size;
-	int err;
+	int err = sci_controller_dma_alloc(ihost);
 
-	size = SCU_MAX_COMPLETION_QUEUE_ENTRIES * sizeof(u32);
-	ihost->completion_queue = dmam_alloc_coherent(dev, size, &dma, GFP_KERNEL);
-	if (!ihost->completion_queue)
-		return -ENOMEM;
-
-	writel(lower_32_bits(dma), &ihost->smu_registers->completion_queue_lower);
-	writel(upper_32_bits(dma), &ihost->smu_registers->completion_queue_upper);
-
-	size = ihost->remote_node_entries * sizeof(union scu_remote_node_context);
-	ihost->remote_node_context_table = dmam_alloc_coherent(dev, size, &dma,
-							       GFP_KERNEL);
-	if (!ihost->remote_node_context_table)
-		return -ENOMEM;
-
-	writel(lower_32_bits(dma), &ihost->smu_registers->remote_node_context_lower);
-	writel(upper_32_bits(dma), &ihost->smu_registers->remote_node_context_upper);
-
-	size = ihost->task_context_entries * sizeof(struct scu_task_context),
-	ihost->task_context_table = dmam_alloc_coherent(dev, size, &dma, GFP_KERNEL);
-	if (!ihost->task_context_table)
-		return -ENOMEM;
-
-	ihost->task_context_dma = dma;
-	writel(lower_32_bits(dma), &ihost->smu_registers->host_task_table_lower);
-	writel(upper_32_bits(dma), &ihost->smu_registers->host_task_table_upper);
-
-	err = sci_unsolicited_frame_control_construct(ihost);
 	if (err)
 		return err;
+
+	writel(lower_32_bits(ihost->cq_dma), &ihost->smu_registers->completion_queue_lower);
+	writel(upper_32_bits(ihost->cq_dma), &ihost->smu_registers->completion_queue_upper);
+
+	writel(lower_32_bits(ihost->rnc_dma), &ihost->smu_registers->remote_node_context_lower);
+	writel(upper_32_bits(ihost->rnc_dma), &ihost->smu_registers->remote_node_context_upper);
+
+	writel(lower_32_bits(ihost->tc_dma), &ihost->smu_registers->host_task_table_lower);
+	writel(upper_32_bits(ihost->tc_dma), &ihost->smu_registers->host_task_table_upper);
+
+	sci_unsolicited_frame_control_construct(ihost);
 
 	/*
 	 * Inform the silicon as to the location of the UF headers and
@@ -2491,22 +2322,22 @@ static int sci_controller_mem_init(struct isci_host *ihost)
 	return 0;
 }
 
+/**
+ * isci_host_init - (re-)initialize hardware and internal (private) state
+ * @ihost: host to init
+ *
+ * Any public facing objects (like asd_sas_port, and asd_sas_phys), or
+ * one-time initialization objects like locks and waitqueues, are
+ * not touched (they are initialized in isci_host_alloc)
+ */
 int isci_host_init(struct isci_host *ihost)
 {
-	int err = 0, i;
+	int i, err;
 	enum sci_status status;
-	struct sci_user_parameters sci_user_params;
-	struct isci_pci_info *pci_info = to_pci_info(ihost->pdev);
 
-	spin_lock_init(&ihost->state_lock);
-	spin_lock_init(&ihost->scic_lock);
-	init_waitqueue_head(&ihost->eventq);
-
-	isci_host_change_state(ihost, isci_starting);
-
-	status = sci_controller_construct(ihost, scu_base(ihost),
-					  smu_base(ihost));
-
+	spin_lock_irq(&ihost->scic_lock);
+	status = sci_controller_construct(ihost, scu_base(ihost), smu_base(ihost));
+	spin_unlock_irq(&ihost->scic_lock);
 	if (status != SCI_SUCCESS) {
 		dev_err(&ihost->pdev->dev,
 			"%s: sci_controller_construct failed - status = %x\n",
@@ -2514,48 +2345,6 @@ int isci_host_init(struct isci_host *ihost)
 			status);
 		return -ENODEV;
 	}
-
-	ihost->sas_ha.dev = &ihost->pdev->dev;
-	ihost->sas_ha.lldd_ha = ihost;
-
-	/*
-	 * grab initial values stored in the controller object for OEM and USER
-	 * parameters
-	 */
-	isci_user_parameters_get(&sci_user_params);
-	status = sci_user_parameters_set(ihost, &sci_user_params);
-	if (status != SCI_SUCCESS) {
-		dev_warn(&ihost->pdev->dev,
-			 "%s: sci_user_parameters_set failed\n",
-			 __func__);
-		return -ENODEV;
-	}
-
-	/* grab any OEM parameters specified in orom */
-	if (pci_info->orom) {
-		status = isci_parse_oem_parameters(&ihost->oem_parameters,
-						   pci_info->orom,
-						   ihost->id);
-		if (status != SCI_SUCCESS) {
-			dev_warn(&ihost->pdev->dev,
-				 "parsing firmware oem parameters failed\n");
-			return -EINVAL;
-		}
-	}
-
-	status = sci_oem_parameters_set(ihost);
-	if (status != SCI_SUCCESS) {
-		dev_warn(&ihost->pdev->dev,
-				"%s: sci_oem_parameters_set failed\n",
-				__func__);
-		return -ENODEV;
-	}
-
-	tasklet_init(&ihost->completion_tasklet,
-		     isci_host_completion_routine, (unsigned long)ihost);
-
-	INIT_LIST_HEAD(&ihost->requests_to_complete);
-	INIT_LIST_HEAD(&ihost->requests_to_errorback);
 
 	spin_lock_irq(&ihost->scic_lock);
 	status = sci_controller_initialize(ihost);
@@ -2572,42 +2361,11 @@ int isci_host_init(struct isci_host *ihost)
 	if (err)
 		return err;
 
-	for (i = 0; i < SCI_MAX_PORTS; i++)
-		isci_port_init(&ihost->ports[i], ihost, i);
-
-	for (i = 0; i < SCI_MAX_PHYS; i++)
-		isci_phy_init(&ihost->phys[i], ihost, i);
-
 	/* enable sgpio */
 	writel(1, &ihost->scu_registers->peg0.sgpio.interface_control);
 	for (i = 0; i < isci_gpio_count(ihost); i++)
 		writel(SGPIO_HW_CONTROL, &ihost->scu_registers->peg0.sgpio.output_data_select[i]);
 	writel(0, &ihost->scu_registers->peg0.sgpio.vendor_specific_code);
-
-	for (i = 0; i < SCI_MAX_REMOTE_DEVICES; i++) {
-		struct isci_remote_device *idev = &ihost->devices[i];
-
-		INIT_LIST_HEAD(&idev->reqs_in_process);
-		INIT_LIST_HEAD(&idev->node);
-	}
-
-	for (i = 0; i < SCI_MAX_IO_REQUESTS; i++) {
-		struct isci_request *ireq;
-		dma_addr_t dma;
-
-		ireq = dmam_alloc_coherent(&ihost->pdev->dev,
-					   sizeof(struct isci_request), &dma,
-					   GFP_KERNEL);
-		if (!ireq)
-			return -ENOMEM;
-
-		ireq->tc = &ihost->task_context_table[i];
-		ireq->owning_controller = ihost;
-		spin_lock_init(&ireq->state_lock);
-		ireq->request_daddr = dma;
-		ireq->isci_host = ihost;
-		ihost->reqs[i] = ireq;
-	}
 
 	return 0;
 }
@@ -2654,7 +2412,7 @@ void sci_controller_link_down(struct isci_host *ihost, struct isci_port *iport,
 	}
 }
 
-static bool sci_controller_has_remote_devices_stopping(struct isci_host *ihost)
+bool sci_controller_has_remote_devices_stopping(struct isci_host *ihost)
 {
 	u32 index;
 
@@ -2680,7 +2438,7 @@ void sci_controller_remote_device_stopped(struct isci_host *ihost,
 	}
 
 	if (!sci_controller_has_remote_devices_stopping(ihost))
-		sci_change_state(&ihost->sm, SCIC_STOPPED);
+		isci_host_stop_complete(ihost);
 }
 
 void sci_controller_post_request(struct isci_host *ihost, u32 request)
@@ -2842,7 +2600,8 @@ enum sci_status sci_controller_start_io(struct isci_host *ihost,
 	enum sci_status status;
 
 	if (ihost->sm.current_state_id != SCIC_READY) {
-		dev_warn(&ihost->pdev->dev, "invalid state to start I/O");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -2866,22 +2625,26 @@ enum sci_status sci_controller_terminate_request(struct isci_host *ihost,
 	enum sci_status status;
 
 	if (ihost->sm.current_state_id != SCIC_READY) {
-		dev_warn(&ihost->pdev->dev,
-			 "invalid state to terminate request\n");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
-
 	status = sci_io_request_terminate(ireq);
-	if (status != SCI_SUCCESS)
-		return status;
 
-	/*
-	 * Utilize the original post context command and or in the POST_TC_ABORT
-	 * request sub-type.
-	 */
-	sci_controller_post_request(ihost,
-				    ireq->post_context | SCU_CONTEXT_COMMAND_REQUEST_POST_TC_ABORT);
-	return SCI_SUCCESS;
+	dev_dbg(&ihost->pdev->dev, "%s: status=%d; ireq=%p; flags=%lx\n",
+		__func__, status, ireq, ireq->flags);
+
+	if ((status == SCI_SUCCESS) &&
+	    !test_bit(IREQ_PENDING_ABORT, &ireq->flags) &&
+	    !test_and_set_bit(IREQ_TC_ABORT_POSTED, &ireq->flags)) {
+		/* Utilize the original post context command and or in the
+		 * POST_TC_ABORT request sub-type.
+		 */
+		sci_controller_post_request(
+			ihost, ireq->post_context |
+				SCU_CONTEXT_COMMAND_REQUEST_POST_TC_ABORT);
+	}
+	return status;
 }
 
 /**
@@ -2915,7 +2678,8 @@ enum sci_status sci_controller_complete_io(struct isci_host *ihost,
 		clear_bit(IREQ_ACTIVE, &ireq->flags);
 		return SCI_SUCCESS;
 	default:
-		dev_warn(&ihost->pdev->dev, "invalid state to complete I/O");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -2926,7 +2690,8 @@ enum sci_status sci_controller_continue_io(struct isci_request *ireq)
 	struct isci_host *ihost = ireq->owning_controller;
 
 	if (ihost->sm.current_state_id != SCIC_READY) {
-		dev_warn(&ihost->pdev->dev, "invalid state to continue I/O");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 

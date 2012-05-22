@@ -92,11 +92,11 @@ static dma_addr_t to_sgl_element_pair_dma(struct isci_host *ihost,
 	if (idx == 0) {
 		offset = (void *) &ireq->tc->sgl_pair_ab -
 			 (void *) &ihost->task_context_table[0];
-		return ihost->task_context_dma + offset;
+		return ihost->tc_dma + offset;
 	} else if (idx == 1) {
 		offset = (void *) &ireq->tc->sgl_pair_cd -
 			 (void *) &ihost->task_context_table[0];
-		return ihost->task_context_dma + offset;
+		return ihost->tc_dma + offset;
 	}
 
 	return sci_io_request_get_dma_addr(ireq, &ireq->sg_table[idx - 2]);
@@ -730,7 +730,7 @@ static enum sci_status sci_io_request_construct_basic_ssp(struct isci_request *i
 {
 	struct sas_task *task = isci_request_access_task(ireq);
 
-	ireq->protocol = SCIC_SSP_PROTOCOL;
+	ireq->protocol = SAS_PROTOCOL_SSP;
 
 	scu_ssp_io_request_construct_task_context(ireq,
 						  task->data_dir,
@@ -763,7 +763,7 @@ static enum sci_status sci_io_request_construct_basic_sata(struct isci_request *
 	bool copy = false;
 	struct sas_task *task = isci_request_access_task(ireq);
 
-	ireq->protocol = SCIC_STP_PROTOCOL;
+	ireq->protocol = SAS_PROTOCOL_STP;
 
 	copy = (task->data_dir == DMA_NONE) ? false : true;
 
@@ -863,6 +863,8 @@ sci_io_request_terminate(struct isci_request *ireq)
 
 	switch (state) {
 	case SCI_REQ_CONSTRUCTED:
+		/* Set to make sure no HW terminate posting is done: */
+		set_bit(IREQ_TC_ABORT_POSTED, &ireq->flags);
 		ireq->scu_status = SCU_TASK_DONE_TASK_ABORT;
 		ireq->sci_status = SCI_FAILURE_IO_TERMINATED;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
@@ -883,8 +885,7 @@ sci_io_request_terminate(struct isci_request *ireq)
 	case SCI_REQ_ATAPI_WAIT_PIO_SETUP:
 	case SCI_REQ_ATAPI_WAIT_D2H:
 	case SCI_REQ_ATAPI_WAIT_TC_COMP:
-		sci_change_state(&ireq->sm, SCI_REQ_ABORTING);
-		return SCI_SUCCESS;
+		/* Fall through and change state to ABORTING... */
 	case SCI_REQ_TASK_WAIT_TC_RESP:
 		/* The task frame was already confirmed to have been
 		 * sent by the SCU HW.  Since the state machine is
@@ -893,20 +894,21 @@ sci_io_request_terminate(struct isci_request *ireq)
 		 * and don't wait for the task response.
 		 */
 		sci_change_state(&ireq->sm, SCI_REQ_ABORTING);
-		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
-		return SCI_SUCCESS;
+		/* Fall through and handle like ABORTING... */
 	case SCI_REQ_ABORTING:
-		/* If a request has a termination requested twice, return
-		 * a failure indication, since HW confirmation of the first
-		 * abort is still outstanding.
+		if (!isci_remote_device_is_safe_to_abort(ireq->target_device))
+			set_bit(IREQ_PENDING_ABORT, &ireq->flags);
+		else
+			clear_bit(IREQ_PENDING_ABORT, &ireq->flags);
+		/* If the request is only waiting on the remote device
+		 * suspension, return SUCCESS so the caller will wait too.
 		 */
+		return SCI_SUCCESS;
 	case SCI_REQ_COMPLETED:
 	default:
 		dev_warn(&ireq->owning_controller->pdev->dev,
 			 "%s: SCIC IO Request requested to abort while in wrong "
-			 "state %d\n",
-			 __func__,
-			 ireq->sm.current_state_id);
+			 "state %d\n", __func__, ireq->sm.current_state_id);
 		break;
 	}
 
@@ -1070,7 +1072,7 @@ request_started_state_tc_event(struct isci_request *ireq,
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_UNEXP_SDBFIS):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_REG_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SDB_ERR):
-		if (ireq->protocol == SCIC_STP_PROTOCOL) {
+		if (ireq->protocol == SAS_PROTOCOL_STP) {
 			ireq->scu_status = SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
 					   SCU_COMPLETION_TL_STATUS_SHIFT;
 			ireq->sci_status = SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED;
@@ -2117,7 +2119,7 @@ static enum sci_status stp_request_udma_await_tc_event(struct isci_request *ireq
 		 */
 		if (ireq->stp.rsp.fis_type == FIS_REGD2H) {
 			sci_remote_device_suspend(ireq->target_device,
-				SCU_EVENT_SPECIFIC(SCU_NORMALIZE_COMPLETION_STATUS(completion_code)));
+						  SCI_SW_SUSPEND_NORMAL);
 
 			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
 			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
@@ -2138,13 +2140,6 @@ static enum sci_status stp_request_udma_await_tc_event(struct isci_request *ireq
 	/* TODO We can retry the command for SCU_TASK_DONE_CMD_LL_R_ERR
 	 * - this comes only for B0
 	 */
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_INV_FIS_LEN):
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_MAX_PLD_ERR):
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_LL_R_ERR):
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_CMD_LL_R_ERR):
-		sci_remote_device_suspend(ireq->target_device,
-			SCU_EVENT_SPECIFIC(SCU_NORMALIZE_COMPLETION_STATUS(completion_code)));
-		/* Fall through to the default case */
 	default:
 		/* All other completion status cause the IO to be complete. */
 		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
@@ -2262,14 +2257,150 @@ static enum sci_status atapi_data_tc_completion_handler(struct isci_request *ire
 	return status;
 }
 
+static int sci_request_smp_completion_status_is_tx_suspend(
+	unsigned int completion_status)
+{
+	switch (completion_status) {
+	case SCU_TASK_OPEN_REJECT_WRONG_DESTINATION:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_1:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_2:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_3:
+	case SCU_TASK_OPEN_REJECT_BAD_DESTINATION:
+	case SCU_TASK_OPEN_REJECT_ZONE_VIOLATION:
+		return 1;
+	}
+	return 0;
+}
+
+static int sci_request_smp_completion_status_is_tx_rx_suspend(
+	unsigned int completion_status)
+{
+	return 0; /* There are no Tx/Rx SMP suspend conditions. */
+}
+
+static int sci_request_ssp_completion_status_is_tx_suspend(
+	unsigned int completion_status)
+{
+	switch (completion_status) {
+	case SCU_TASK_DONE_TX_RAW_CMD_ERR:
+	case SCU_TASK_DONE_LF_ERR:
+	case SCU_TASK_OPEN_REJECT_WRONG_DESTINATION:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_1:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_2:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_3:
+	case SCU_TASK_OPEN_REJECT_BAD_DESTINATION:
+	case SCU_TASK_OPEN_REJECT_ZONE_VIOLATION:
+	case SCU_TASK_OPEN_REJECT_STP_RESOURCES_BUSY:
+	case SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED:
+	case SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED:
+		return 1;
+	}
+	return 0;
+}
+
+static int sci_request_ssp_completion_status_is_tx_rx_suspend(
+	unsigned int completion_status)
+{
+	return 0; /* There are no Tx/Rx SSP suspend conditions. */
+}
+
+static int sci_request_stpsata_completion_status_is_tx_suspend(
+	unsigned int completion_status)
+{
+	switch (completion_status) {
+	case SCU_TASK_DONE_TX_RAW_CMD_ERR:
+	case SCU_TASK_DONE_LL_R_ERR:
+	case SCU_TASK_DONE_LL_PERR:
+	case SCU_TASK_DONE_REG_ERR:
+	case SCU_TASK_DONE_SDB_ERR:
+	case SCU_TASK_OPEN_REJECT_WRONG_DESTINATION:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_1:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_2:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_3:
+	case SCU_TASK_OPEN_REJECT_BAD_DESTINATION:
+	case SCU_TASK_OPEN_REJECT_ZONE_VIOLATION:
+	case SCU_TASK_OPEN_REJECT_STP_RESOURCES_BUSY:
+	case SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED:
+	case SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED:
+		return 1;
+	}
+	return 0;
+}
+
+
+static int sci_request_stpsata_completion_status_is_tx_rx_suspend(
+	unsigned int completion_status)
+{
+	switch (completion_status) {
+	case SCU_TASK_DONE_LF_ERR:
+	case SCU_TASK_DONE_LL_SY_TERM:
+	case SCU_TASK_DONE_LL_LF_TERM:
+	case SCU_TASK_DONE_BREAK_RCVD:
+	case SCU_TASK_DONE_INV_FIS_LEN:
+	case SCU_TASK_DONE_UNEXP_FIS:
+	case SCU_TASK_DONE_UNEXP_SDBFIS:
+	case SCU_TASK_DONE_MAX_PLD_ERR:
+		return 1;
+	}
+	return 0;
+}
+
+static void sci_request_handle_suspending_completions(
+	struct isci_request *ireq,
+	u32 completion_code)
+{
+	int is_tx = 0;
+	int is_tx_rx = 0;
+
+	switch (ireq->protocol) {
+	case SAS_PROTOCOL_SMP:
+		is_tx = sci_request_smp_completion_status_is_tx_suspend(
+			completion_code);
+		is_tx_rx = sci_request_smp_completion_status_is_tx_rx_suspend(
+			completion_code);
+		break;
+	case SAS_PROTOCOL_SSP:
+		is_tx = sci_request_ssp_completion_status_is_tx_suspend(
+			completion_code);
+		is_tx_rx = sci_request_ssp_completion_status_is_tx_rx_suspend(
+			completion_code);
+		break;
+	case SAS_PROTOCOL_STP:
+		is_tx = sci_request_stpsata_completion_status_is_tx_suspend(
+			completion_code);
+		is_tx_rx =
+			sci_request_stpsata_completion_status_is_tx_rx_suspend(
+				completion_code);
+		break;
+	default:
+		dev_warn(&ireq->isci_host->pdev->dev,
+			 "%s: request %p has no valid protocol\n",
+			 __func__, ireq);
+		break;
+	}
+	if (is_tx || is_tx_rx) {
+		BUG_ON(is_tx && is_tx_rx);
+
+		sci_remote_node_context_suspend(
+			&ireq->target_device->rnc,
+			SCI_HW_SUSPEND,
+			(is_tx_rx) ? SCU_EVENT_TL_RNC_SUSPEND_TX_RX
+				   : SCU_EVENT_TL_RNC_SUSPEND_TX);
+	}
+}
+
 enum sci_status
 sci_io_request_tc_completion(struct isci_request *ireq,
-				  u32 completion_code)
+			     u32 completion_code)
 {
 	enum sci_base_request_states state;
 	struct isci_host *ihost = ireq->owning_controller;
 
 	state = ireq->sm.current_state_id;
+
+	/* Decode those completions that signal upcoming suspension events. */
+	sci_request_handle_suspending_completions(
+		ireq, SCU_GET_COMPLETION_TL_STATUS(completion_code));
 
 	switch (state) {
 	case SCI_REQ_STARTED:
@@ -2362,9 +2493,6 @@ static void isci_request_process_response_iu(
  * @request: This parameter is the completed isci_request object.
  * @response_ptr: This parameter specifies the service response for the I/O.
  * @status_ptr: This parameter specifies the exec status for the I/O.
- * @complete_to_host_ptr: This parameter specifies the action to be taken by
- *    the LLDD with respect to completing this request or forcing an abort
- *    condition on the I/O.
  * @open_rej_reason: This parameter specifies the encoded reason for the
  *    abandon-class reject.
  *
@@ -2375,14 +2503,12 @@ static void isci_request_set_open_reject_status(
 	struct sas_task *task,
 	enum service_response *response_ptr,
 	enum exec_status *status_ptr,
-	enum isci_completion_selection *complete_to_host_ptr,
 	enum sas_open_rej_reason open_rej_reason)
 {
 	/* Task in the target is done. */
 	set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
 	*response_ptr                     = SAS_TASK_UNDELIVERED;
 	*status_ptr                       = SAS_OPEN_REJECT;
-	*complete_to_host_ptr             = isci_perform_normal_io_completion;
 	task->task_status.open_rej_reason = open_rej_reason;
 }
 
@@ -2392,9 +2518,6 @@ static void isci_request_set_open_reject_status(
  * @request: This parameter is the completed isci_request object.
  * @response_ptr: This parameter specifies the service response for the I/O.
  * @status_ptr: This parameter specifies the exec status for the I/O.
- * @complete_to_host_ptr: This parameter specifies the action to be taken by
- *    the LLDD with respect to completing this request or forcing an abort
- *    condition on the I/O.
  *
  * none.
  */
@@ -2403,8 +2526,7 @@ static void isci_request_handle_controller_specific_errors(
 	struct isci_request *request,
 	struct sas_task *task,
 	enum service_response *response_ptr,
-	enum exec_status *status_ptr,
-	enum isci_completion_selection *complete_to_host_ptr)
+	enum exec_status *status_ptr)
 {
 	unsigned int cstatus;
 
@@ -2445,9 +2567,6 @@ static void isci_request_handle_controller_specific_errors(
 				*status_ptr = SAS_ABORTED_TASK;
 
 			set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-
-			*complete_to_host_ptr =
-				isci_perform_normal_io_completion;
 		} else {
 			/* Task in the target is not done. */
 			*response_ptr = SAS_TASK_UNDELIVERED;
@@ -2458,9 +2577,6 @@ static void isci_request_handle_controller_specific_errors(
 				*status_ptr = SAM_STAT_TASK_ABORTED;
 
 			clear_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-
-			*complete_to_host_ptr =
-				isci_perform_error_io_completion;
 		}
 
 		break;
@@ -2489,8 +2605,6 @@ static void isci_request_handle_controller_specific_errors(
 			*status_ptr = SAS_ABORTED_TASK;
 
 		set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-
-		*complete_to_host_ptr = isci_perform_normal_io_completion;
 		break;
 
 
@@ -2501,7 +2615,7 @@ static void isci_request_handle_controller_specific_errors(
 
 		isci_request_set_open_reject_status(
 			request, task, response_ptr, status_ptr,
-			complete_to_host_ptr, SAS_OREJ_WRONG_DEST);
+			SAS_OREJ_WRONG_DEST);
 		break;
 
 	case SCU_TASK_OPEN_REJECT_ZONE_VIOLATION:
@@ -2511,56 +2625,56 @@ static void isci_request_handle_controller_specific_errors(
 		 */
 		isci_request_set_open_reject_status(
 			request, task, response_ptr, status_ptr,
-			complete_to_host_ptr, SAS_OREJ_RESV_AB0);
+			SAS_OREJ_RESV_AB0);
 		break;
 
 	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_1:
 
 		isci_request_set_open_reject_status(
 			request, task, response_ptr, status_ptr,
-			complete_to_host_ptr, SAS_OREJ_RESV_AB1);
+			SAS_OREJ_RESV_AB1);
 		break;
 
 	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_2:
 
 		isci_request_set_open_reject_status(
 			request, task, response_ptr, status_ptr,
-			complete_to_host_ptr, SAS_OREJ_RESV_AB2);
+			SAS_OREJ_RESV_AB2);
 		break;
 
 	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_3:
 
 		isci_request_set_open_reject_status(
 			request, task, response_ptr, status_ptr,
-			complete_to_host_ptr, SAS_OREJ_RESV_AB3);
+			SAS_OREJ_RESV_AB3);
 		break;
 
 	case SCU_TASK_OPEN_REJECT_BAD_DESTINATION:
 
 		isci_request_set_open_reject_status(
 			request, task, response_ptr, status_ptr,
-			complete_to_host_ptr, SAS_OREJ_BAD_DEST);
+			SAS_OREJ_BAD_DEST);
 		break;
 
 	case SCU_TASK_OPEN_REJECT_STP_RESOURCES_BUSY:
 
 		isci_request_set_open_reject_status(
 			request, task, response_ptr, status_ptr,
-			complete_to_host_ptr, SAS_OREJ_STP_NORES);
+			SAS_OREJ_STP_NORES);
 		break;
 
 	case SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED:
 
 		isci_request_set_open_reject_status(
 			request, task, response_ptr, status_ptr,
-			complete_to_host_ptr, SAS_OREJ_EPROTO);
+			SAS_OREJ_EPROTO);
 		break;
 
 	case SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED:
 
 		isci_request_set_open_reject_status(
 			request, task, response_ptr, status_ptr,
-			complete_to_host_ptr, SAS_OREJ_CONN_RATE);
+			SAS_OREJ_CONN_RATE);
 		break;
 
 	case SCU_TASK_DONE_LL_R_ERR:
@@ -2592,95 +2706,12 @@ static void isci_request_handle_controller_specific_errors(
 		*response_ptr = SAS_TASK_UNDELIVERED;
 		*status_ptr = SAM_STAT_TASK_ABORTED;
 
-		if (task->task_proto == SAS_PROTOCOL_SMP) {
+		if (task->task_proto == SAS_PROTOCOL_SMP)
 			set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-
-			*complete_to_host_ptr = isci_perform_normal_io_completion;
-		} else {
+		else
 			clear_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-
-			*complete_to_host_ptr = isci_perform_error_io_completion;
-		}
 		break;
 	}
-}
-
-/**
- * isci_task_save_for_upper_layer_completion() - This function saves the
- *    request for later completion to the upper layer driver.
- * @host: This parameter is a pointer to the host on which the the request
- *    should be queued (either as an error or success).
- * @request: This parameter is the completed request.
- * @response: This parameter is the response code for the completed task.
- * @status: This parameter is the status code for the completed task.
- *
- * none.
- */
-static void isci_task_save_for_upper_layer_completion(
-	struct isci_host *host,
-	struct isci_request *request,
-	enum service_response response,
-	enum exec_status status,
-	enum isci_completion_selection task_notification_selection)
-{
-	struct sas_task *task = isci_request_access_task(request);
-
-	task_notification_selection
-		= isci_task_set_completion_status(task, response, status,
-						  task_notification_selection);
-
-	/* Tasks aborted specifically by a call to the lldd_abort_task
-	 * function should not be completed to the host in the regular path.
-	 */
-	switch (task_notification_selection) {
-
-	case isci_perform_normal_io_completion:
-		/* Normal notification (task_done) */
-
-		/* Add to the completed list. */
-		list_add(&request->completed_node,
-			 &host->requests_to_complete);
-
-		/* Take the request off the device's pending request list. */
-		list_del_init(&request->dev_node);
-		break;
-
-	case isci_perform_aborted_io_completion:
-		/* No notification to libsas because this request is
-		 * already in the abort path.
-		 */
-		/* Wake up whatever process was waiting for this
-		 * request to complete.
-		 */
-		WARN_ON(request->io_request_completion == NULL);
-
-		if (request->io_request_completion != NULL) {
-
-			/* Signal whoever is waiting that this
-			* request is complete.
-			*/
-			complete(request->io_request_completion);
-		}
-		break;
-
-	case isci_perform_error_io_completion:
-		/* Use sas_task_abort */
-		/* Add to the aborted list. */
-		list_add(&request->completed_node,
-			 &host->requests_to_errorback);
-		break;
-
-	default:
-		/* Add to the error to libsas list. */
-		list_add(&request->completed_node,
-			 &host->requests_to_errorback);
-		break;
-	}
-	dev_dbg(&host->pdev->dev,
-		"%s: %d - task = %p, response=%d (%d), status=%d (%d)\n",
-		__func__, task_notification_selection, task,
-		(task) ? task->task_status.resp : 0, response,
-		(task) ? task->task_status.stat : 0, status);
 }
 
 static void isci_process_stp_response(struct sas_task *task, struct dev_to_host_fis *fis)
@@ -2715,295 +2746,164 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	struct isci_remote_device *idev = request->target_device;
 	enum service_response response = SAS_TASK_UNDELIVERED;
 	enum exec_status status = SAS_ABORTED_TASK;
-	enum isci_request_status request_status;
-	enum isci_completion_selection complete_to_host
-		= isci_perform_normal_io_completion;
 
 	dev_dbg(&ihost->pdev->dev,
-		"%s: request = %p, task = %p,\n"
+		"%s: request = %p, task = %p, "
 		"task->data_dir = %d completion_status = 0x%x\n",
-		__func__,
-		request,
-		task,
-		task->data_dir,
-		completion_status);
+		__func__, request, task, task->data_dir, completion_status);
 
-	spin_lock(&request->state_lock);
-	request_status = request->status;
+	/* The request is done from an SCU HW perspective. */
 
-	/* Decode the request status.  Note that if the request has been
-	 * aborted by a task management function, we don't care
-	 * what the status is.
-	 */
-	switch (request_status) {
+	/* This is an active request being completed from the core. */
+	switch (completion_status) {
 
-	case aborted:
-		/* "aborted" indicates that the request was aborted by a task
-		 * management function, since once a task management request is
-		 * perfomed by the device, the request only completes because
-		 * of the subsequent driver terminate.
-		 *
-		 * Aborted also means an external thread is explicitly managing
-		 * this request, so that we do not complete it up the stack.
-		 *
-		 * The target is still there (since the TMF was successful).
-		 */
+	case SCI_IO_FAILURE_RESPONSE_VALID:
+		dev_dbg(&ihost->pdev->dev,
+			"%s: SCI_IO_FAILURE_RESPONSE_VALID (%p/%p)\n",
+			__func__, request, task);
+
+		if (sas_protocol_ata(task->task_proto)) {
+			isci_process_stp_response(task, &request->stp.rsp);
+		} else if (SAS_PROTOCOL_SSP == task->task_proto) {
+
+			/* crack the iu response buffer. */
+			resp_iu = &request->ssp.rsp;
+			isci_request_process_response_iu(task, resp_iu,
+							 &ihost->pdev->dev);
+
+		} else if (SAS_PROTOCOL_SMP == task->task_proto) {
+
+			dev_err(&ihost->pdev->dev,
+				"%s: SCI_IO_FAILURE_RESPONSE_VALID: "
+					"SAS_PROTOCOL_SMP protocol\n",
+				__func__);
+
+		} else
+			dev_err(&ihost->pdev->dev,
+				"%s: unknown protocol\n", __func__);
+
+		/* use the task status set in the task struct by the
+		* isci_request_process_response_iu call.
+		*/
 		set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
+		response = task->task_status.resp;
+		status = task->task_status.stat;
+		break;
+
+	case SCI_IO_SUCCESS:
+	case SCI_IO_SUCCESS_IO_DONE_EARLY:
+
 		response = SAS_TASK_COMPLETE;
+		status   = SAM_STAT_GOOD;
+		set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
+
+		if (completion_status == SCI_IO_SUCCESS_IO_DONE_EARLY) {
+
+			/* This was an SSP / STP / SATA transfer.
+			* There is a possibility that less data than
+			* the maximum was transferred.
+			*/
+			u32 transferred_length = sci_req_tx_bytes(request);
+
+			task->task_status.residual
+				= task->total_xfer_len - transferred_length;
+
+			/* If there were residual bytes, call this an
+			* underrun.
+			*/
+			if (task->task_status.residual != 0)
+				status = SAS_DATA_UNDERRUN;
+
+			dev_dbg(&ihost->pdev->dev,
+				"%s: SCI_IO_SUCCESS_IO_DONE_EARLY %d\n",
+				__func__, status);
+
+		} else
+			dev_dbg(&ihost->pdev->dev, "%s: SCI_IO_SUCCESS\n",
+				__func__);
+		break;
+
+	case SCI_IO_FAILURE_TERMINATED:
+
+		dev_dbg(&ihost->pdev->dev,
+			"%s: SCI_IO_FAILURE_TERMINATED (%p/%p)\n",
+			__func__, request, task);
+
+		/* The request was terminated explicitly. */
+		set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
+		response = SAS_TASK_UNDELIVERED;
 
 		/* See if the device has been/is being stopped. Note
-		 * that we ignore the quiesce state, since we are
-		 * concerned about the actual device state.
-		 */
+		* that we ignore the quiesce state, since we are
+		* concerned about the actual device state.
+		*/
+		if (!idev)
+			status = SAS_DEVICE_UNKNOWN;
+		else
+			status = SAS_ABORTED_TASK;
+		break;
+
+	case SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR:
+
+		isci_request_handle_controller_specific_errors(idev, request,
+							       task, &response,
+							       &status);
+		break;
+
+	case SCI_IO_FAILURE_REMOTE_DEVICE_RESET_REQUIRED:
+		/* This is a special case, in that the I/O completion
+		* is telling us that the device needs a reset.
+		* In order for the device reset condition to be
+		* noticed, the I/O has to be handled in the error
+		* handler.  Set the reset flag and cause the
+		* SCSI error thread to be scheduled.
+		*/
+		spin_lock_irqsave(&task->task_state_lock, task_flags);
+		task->task_state_flags |= SAS_TASK_NEED_DEV_RESET;
+		spin_unlock_irqrestore(&task->task_state_lock, task_flags);
+
+		/* Fail the I/O. */
+		response = SAS_TASK_UNDELIVERED;
+		status = SAM_STAT_TASK_ABORTED;
+
+		clear_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
+		break;
+
+	case SCI_FAILURE_RETRY_REQUIRED:
+
+		/* Fail the I/O so it can be retried. */
+		response = SAS_TASK_UNDELIVERED;
 		if (!idev)
 			status = SAS_DEVICE_UNKNOWN;
 		else
 			status = SAS_ABORTED_TASK;
 
-		complete_to_host = isci_perform_aborted_io_completion;
-		/* This was an aborted request. */
-
-		spin_unlock(&request->state_lock);
-		break;
-
-	case aborting:
-		/* aborting means that the task management function tried and
-		 * failed to abort the request. We need to note the request
-		 * as SAS_TASK_UNDELIVERED, so that the scsi mid layer marks the
-		 * target as down.
-		 *
-		 * Aborting also means an external thread is explicitly managing
-		 * this request, so that we do not complete it up the stack.
-		 */
 		set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-		response = SAS_TASK_UNDELIVERED;
-
-		if (!idev)
-			/* The device has been /is being stopped. Note that
-			 * we ignore the quiesce state, since we are
-			 * concerned about the actual device state.
-			 */
-			status = SAS_DEVICE_UNKNOWN;
-		else
-			status = SAS_PHY_DOWN;
-
-		complete_to_host = isci_perform_aborted_io_completion;
-
-		/* This was an aborted request. */
-
-		spin_unlock(&request->state_lock);
 		break;
 
-	case terminating:
-
-		/* This was an terminated request.  This happens when
-		 * the I/O is being terminated because of an action on
-		 * the device (reset, tear down, etc.), and the I/O needs
-		 * to be completed up the stack.
-		 */
-		set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-		response = SAS_TASK_UNDELIVERED;
-
-		/* See if the device has been/is being stopped. Note
-		 * that we ignore the quiesce state, since we are
-		 * concerned about the actual device state.
-		 */
-		if (!idev)
-			status = SAS_DEVICE_UNKNOWN;
-		else
-			status = SAS_ABORTED_TASK;
-
-		complete_to_host = isci_perform_aborted_io_completion;
-
-		/* This was a terminated request. */
-
-		spin_unlock(&request->state_lock);
-		break;
-
-	case dead:
-		/* This was a terminated request that timed-out during the
-		 * termination process.  There is no task to complete to
-		 * libsas.
-		 */
-		complete_to_host = isci_perform_normal_io_completion;
-		spin_unlock(&request->state_lock);
-		break;
 
 	default:
+		/* Catch any otherwise unhandled error codes here. */
+		dev_dbg(&ihost->pdev->dev,
+			"%s: invalid completion code: 0x%x - "
+				"isci_request = %p\n",
+			__func__, completion_status, request);
 
-		/* The request is done from an SCU HW perspective. */
-		request->status = completed;
+		response = SAS_TASK_UNDELIVERED;
 
-		spin_unlock(&request->state_lock);
+		/* See if the device has been/is being stopped. Note
+		* that we ignore the quiesce state, since we are
+		* concerned about the actual device state.
+		*/
+		if (!idev)
+			status = SAS_DEVICE_UNKNOWN;
+		else
+			status = SAS_ABORTED_TASK;
 
-		/* This is an active request being completed from the core. */
-		switch (completion_status) {
-
-		case SCI_IO_FAILURE_RESPONSE_VALID:
-			dev_dbg(&ihost->pdev->dev,
-				"%s: SCI_IO_FAILURE_RESPONSE_VALID (%p/%p)\n",
-				__func__,
-				request,
-				task);
-
-			if (sas_protocol_ata(task->task_proto)) {
-				isci_process_stp_response(task, &request->stp.rsp);
-			} else if (SAS_PROTOCOL_SSP == task->task_proto) {
-
-				/* crack the iu response buffer. */
-				resp_iu = &request->ssp.rsp;
-				isci_request_process_response_iu(task, resp_iu,
-								 &ihost->pdev->dev);
-
-			} else if (SAS_PROTOCOL_SMP == task->task_proto) {
-
-				dev_err(&ihost->pdev->dev,
-					"%s: SCI_IO_FAILURE_RESPONSE_VALID: "
-					"SAS_PROTOCOL_SMP protocol\n",
-					__func__);
-
-			} else
-				dev_err(&ihost->pdev->dev,
-					"%s: unknown protocol\n", __func__);
-
-			/* use the task status set in the task struct by the
-			 * isci_request_process_response_iu call.
-			 */
+		if (SAS_PROTOCOL_SMP == task->task_proto)
 			set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-			response = task->task_status.resp;
-			status = task->task_status.stat;
-			break;
-
-		case SCI_IO_SUCCESS:
-		case SCI_IO_SUCCESS_IO_DONE_EARLY:
-
-			response = SAS_TASK_COMPLETE;
-			status   = SAM_STAT_GOOD;
-			set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-
-			if (completion_status == SCI_IO_SUCCESS_IO_DONE_EARLY) {
-
-				/* This was an SSP / STP / SATA transfer.
-				 * There is a possibility that less data than
-				 * the maximum was transferred.
-				 */
-				u32 transferred_length = sci_req_tx_bytes(request);
-
-				task->task_status.residual
-					= task->total_xfer_len - transferred_length;
-
-				/* If there were residual bytes, call this an
-				 * underrun.
-				 */
-				if (task->task_status.residual != 0)
-					status = SAS_DATA_UNDERRUN;
-
-				dev_dbg(&ihost->pdev->dev,
-					"%s: SCI_IO_SUCCESS_IO_DONE_EARLY %d\n",
-					__func__,
-					status);
-
-			} else
-				dev_dbg(&ihost->pdev->dev,
-					"%s: SCI_IO_SUCCESS\n",
-					__func__);
-
-			break;
-
-		case SCI_IO_FAILURE_TERMINATED:
-			dev_dbg(&ihost->pdev->dev,
-				"%s: SCI_IO_FAILURE_TERMINATED (%p/%p)\n",
-				__func__,
-				request,
-				task);
-
-			/* The request was terminated explicitly.  No handling
-			 * is needed in the SCSI error handler path.
-			 */
-			set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-			response = SAS_TASK_UNDELIVERED;
-
-			/* See if the device has been/is being stopped. Note
-			 * that we ignore the quiesce state, since we are
-			 * concerned about the actual device state.
-			 */
-			if (!idev)
-				status = SAS_DEVICE_UNKNOWN;
-			else
-				status = SAS_ABORTED_TASK;
-
-			complete_to_host = isci_perform_normal_io_completion;
-			break;
-
-		case SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR:
-
-			isci_request_handle_controller_specific_errors(
-				idev, request, task, &response, &status,
-				&complete_to_host);
-
-			break;
-
-		case SCI_IO_FAILURE_REMOTE_DEVICE_RESET_REQUIRED:
-			/* This is a special case, in that the I/O completion
-			 * is telling us that the device needs a reset.
-			 * In order for the device reset condition to be
-			 * noticed, the I/O has to be handled in the error
-			 * handler.  Set the reset flag and cause the
-			 * SCSI error thread to be scheduled.
-			 */
-			spin_lock_irqsave(&task->task_state_lock, task_flags);
-			task->task_state_flags |= SAS_TASK_NEED_DEV_RESET;
-			spin_unlock_irqrestore(&task->task_state_lock, task_flags);
-
-			/* Fail the I/O. */
-			response = SAS_TASK_UNDELIVERED;
-			status = SAM_STAT_TASK_ABORTED;
-
-			complete_to_host = isci_perform_error_io_completion;
+		else
 			clear_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-			break;
-
-		case SCI_FAILURE_RETRY_REQUIRED:
-
-			/* Fail the I/O so it can be retried. */
-			response = SAS_TASK_UNDELIVERED;
-			if (!idev)
-				status = SAS_DEVICE_UNKNOWN;
-			else
-				status = SAS_ABORTED_TASK;
-
-			complete_to_host = isci_perform_normal_io_completion;
-			set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-			break;
-
-
-		default:
-			/* Catch any otherwise unhandled error codes here. */
-			dev_dbg(&ihost->pdev->dev,
-				 "%s: invalid completion code: 0x%x - "
-				 "isci_request = %p\n",
-				 __func__, completion_status, request);
-
-			response = SAS_TASK_UNDELIVERED;
-
-			/* See if the device has been/is being stopped. Note
-			 * that we ignore the quiesce state, since we are
-			 * concerned about the actual device state.
-			 */
-			if (!idev)
-				status = SAS_DEVICE_UNKNOWN;
-			else
-				status = SAS_ABORTED_TASK;
-
-			if (SAS_PROTOCOL_SMP == task->task_proto) {
-				set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-				complete_to_host = isci_perform_normal_io_completion;
-			} else {
-				clear_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
-				complete_to_host = isci_perform_error_io_completion;
-			}
-			break;
-		}
 		break;
 	}
 
@@ -3038,10 +2938,18 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 		break;
 	}
 
-	/* Put the completed request on the correct list */
-	isci_task_save_for_upper_layer_completion(ihost, request, response,
-						  status, complete_to_host
-						  );
+	spin_lock_irqsave(&task->task_state_lock, task_flags);
+
+	task->task_status.resp = response;
+	task->task_status.stat = status;
+
+	if (test_bit(IREQ_COMPLETE_IN_TARGET, &request->flags)) {
+		/* Normal notification (task_done) */
+		task->task_state_flags |= SAS_TASK_STATE_DONE;
+		task->task_state_flags &= ~(SAS_TASK_AT_INITIATOR |
+					    SAS_TASK_STATE_PENDING);
+	}
+	spin_unlock_irqrestore(&task->task_state_lock, task_flags);
 
 	/* complete the io request to the core. */
 	sci_controller_complete_io(ihost, request->target_device, request);
@@ -3051,6 +2959,8 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	 * task to recognize the already completed case.
 	 */
 	set_bit(IREQ_TERMINATED, &request->flags);
+
+	ireq_done(ihost, request, task);
 }
 
 static void sci_request_started_state_enter(struct sci_base_state_machine *sm)
@@ -3169,7 +3079,7 @@ sci_general_request_construct(struct isci_host *ihost,
 	sci_init_sm(&ireq->sm, sci_request_state_table, SCI_REQ_INIT);
 
 	ireq->target_device = idev;
-	ireq->protocol = SCIC_NO_PROTOCOL;
+	ireq->protocol = SAS_PROTOCOL_NONE;
 	ireq->saved_rx_frame_index = SCU_INVALID_FRAME_INDEX;
 
 	ireq->sci_status   = SCI_SUCCESS;
@@ -3193,7 +3103,7 @@ sci_io_request_construct(struct isci_host *ihost,
 
 	if (dev->dev_type == SAS_END_DEV)
 		/* pass */;
-	else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))
+	else if (dev_is_sata(dev))
 		memset(&ireq->stp.cmd, 0, sizeof(ireq->stp.cmd));
 	else if (dev_is_expander(dev))
 		/* pass */;
@@ -3215,10 +3125,15 @@ enum sci_status sci_task_request_construct(struct isci_host *ihost,
 	/* Build the common part of the request */
 	sci_general_request_construct(ihost, idev, ireq);
 
-	if (dev->dev_type == SAS_END_DEV ||
-	    dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
+	if (dev->dev_type == SAS_END_DEV || dev_is_sata(dev)) {
 		set_bit(IREQ_TMF, &ireq->flags);
 		memset(ireq->tc, 0, sizeof(struct scu_task_context));
+
+		/* Set the protocol indicator. */
+		if (dev_is_sata(dev))
+			ireq->protocol = SAS_PROTOCOL_STP;
+		else
+			ireq->protocol = SAS_PROTOCOL_SSP;
 	} else
 		status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
 
@@ -3311,7 +3226,7 @@ sci_io_request_construct_smp(struct device *dev,
 	if (!dma_map_sg(dev, sg, 1, DMA_TO_DEVICE))
 		return SCI_FAILURE;
 
-	ireq->protocol = SCIC_SMP_PROTOCOL;
+	ireq->protocol = SAS_PROTOCOL_SMP;
 
 	/* byte swap the smp request. */
 
@@ -3496,9 +3411,6 @@ static struct isci_request *isci_request_from_tag(struct isci_host *ihost, u16 t
 	ireq->io_request_completion = NULL;
 	ireq->flags = 0;
 	ireq->num_sg_entries = 0;
-	INIT_LIST_HEAD(&ireq->completed_node);
-	INIT_LIST_HEAD(&ireq->dev_node);
-	isci_request_change_state(ireq, allocated);
 
 	return ireq;
 }
@@ -3582,26 +3494,15 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		return status;
 	}
-
 	/* Either I/O started OK, or the core has signaled that
 	 * the device needs a target reset.
-	 *
-	 * In either case, hold onto the I/O for later.
-	 *
-	 * Update it's status and add it to the list in the
-	 * remote device object.
 	 */
-	list_add(&ireq->dev_node, &idev->reqs_in_process);
-
-	if (status == SCI_SUCCESS) {
-		isci_request_change_state(ireq, started);
-	} else {
+	if (status != SCI_SUCCESS) {
 		/* The request did not really start in the
 		 * hardware, so clear the request handle
 		 * here so no terminations will be done.
 		 */
 		set_bit(IREQ_TERMINATED, &ireq->flags);
-		isci_request_change_state(ireq, completed);
 	}
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
