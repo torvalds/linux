@@ -128,8 +128,10 @@ typedef struct bitmap_super_s {
 	__le32 chunksize;    /* 52  the bitmap chunk size in bytes */
 	__le32 daemon_sleep; /* 56  seconds between disk flushes */
 	__le32 write_behind; /* 60  number of outstanding write-behind writes */
+	__le32 sectors_reserved; /* 64 number of 512-byte sectors that are
+				  * reserved for the bitmap. */
 
-	__u8  pad[256 - 64]; /* set to zero */
+	__u8  pad[256 - 68]; /* set to zero */
 } bitmap_super_t;
 
 /* notes:
