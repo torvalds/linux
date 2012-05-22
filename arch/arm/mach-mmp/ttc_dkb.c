@@ -18,6 +18,7 @@
 #include <linux/i2c/pca953x.h>
 #include <linux/gpio.h>
 #include <linux/mfd/88pm860x.h>
+#include <linux/platform_data/mv_usb.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -26,6 +27,7 @@
 #include <mach/mfp-pxa910.h>
 #include <mach/pxa910.h>
 #include <mach/irqs.h>
+#include <mach/regs-usb.h>
 
 #include "common.h"
 
@@ -155,6 +157,26 @@ static struct i2c_board_info ttc_dkb_i2c_info[] = {
 	},
 };
 
+#ifdef CONFIG_USB_SUPPORT
+#if defined(CONFIG_USB_MV_UDC) || defined(CONFIG_USB_EHCI_MV_U2O)
+
+static char *pxa910_usb_clock_name[] = {
+	[0] = "U2OCLK",
+};
+
+static struct mv_usb_platform_data ttc_usb_pdata = {
+	.clknum		= 1,
+	.clkname	= pxa910_usb_clock_name,
+	.vbus		= NULL,
+	.mode		= MV_USB_MODE_OTG,
+	.otg_force_a_bus_req = 1,
+	.phy_init	= pxa_usb_phy_init,
+	.phy_deinit	= pxa_usb_phy_deinit,
+	.set_vbus	= NULL,
+};
+#endif
+#endif
+
 static void __init ttc_dkb_init(void)
 {
 	mfp_config(ARRAY_AND_SIZE(ttc_dkb_pin_config));
@@ -165,6 +187,21 @@ static void __init ttc_dkb_init(void)
 	/* off-chip devices */
 	pxa910_add_twsi(0, NULL, ARRAY_AND_SIZE(ttc_dkb_i2c_info));
 	platform_add_devices(ARRAY_AND_SIZE(ttc_dkb_devices));
+
+#ifdef CONFIG_USB_MV_UDC
+	pxa168_device_u2o.dev.platform_data = &ttc_usb_pdata;
+	platform_device_register(&pxa168_device_u2o);
+#endif
+
+#ifdef CONFIG_USB_EHCI_MV_U2O
+	pxa168_device_u2oehci.dev.platform_data = &ttc_usb_pdata;
+	platform_device_register(&pxa168_device_u2oehci);
+#endif
+
+#ifdef CONFIG_USB_MV_OTG
+	pxa168_device_u2ootg.dev.platform_data = &ttc_usb_pdata;
+	platform_device_register(&pxa168_device_u2ootg);
+#endif
 }
 
 MACHINE_START(TTC_DKB, "PXA910-based TTC_DKB Development Platform")

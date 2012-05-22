@@ -47,3 +47,14 @@ static inline void board_nand_init(struct mtd_partition *nand_parts,
 {
 }
 #endif
+
+#if defined(CONFIG_MTD_ONENAND_OMAP2) || \
+		defined(CONFIG_MTD_ONENAND_OMAP2_MODULE)
+extern void board_onenand_init(struct mtd_partition *nand_parts,
+					u8 nr_parts, u8 cs);
+#else
+static inline void board_onenand_init(struct mtd_partition *nand_parts,
+					u8 nr_parts, u8 cs)
+{
+}
+#endif

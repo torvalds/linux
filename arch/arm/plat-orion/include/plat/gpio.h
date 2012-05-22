@@ -19,6 +19,8 @@
  */
 void orion_gpio_set_unused(unsigned pin);
 void orion_gpio_set_blink(unsigned pin, int blink);
+int orion_gpio_led_blink_set(unsigned gpio, int state,
+	unsigned long *delay_on, unsigned long *delay_off);
 
 #define GPIO_INPUT_OK		(1 << 0)
 #define GPIO_OUTPUT_OK		(1 << 1)
