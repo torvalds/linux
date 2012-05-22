@@ -148,7 +148,7 @@ struct boardtype {
 struct icp_multi_private {
 	struct pcilst_struct *card;	/*  pointer to card */
 	char valid;		/*  card is usable */
-	void *io_addr;		/*  Pointer to mapped io address */
+	void __iomem *io_addr;		/*  Pointer to mapped io address */
 	resource_size_t phys_iobase;	/*  Physical io address */
 	unsigned int AdcCmdStatus;	/*  ADC Command/Status register */
 	unsigned int DacCmdStatus;	/*  DAC Command/Status register */
