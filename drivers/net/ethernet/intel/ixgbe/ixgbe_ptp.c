@@ -307,13 +307,14 @@ void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr)
 	    !(adapter->flags2 & IXGBE_FLAG2_PTP_PPS_ENABLED))
 		return;
 
-	switch (hw->mac.type) {
-	case ixgbe_mac_X540:
-		if (eicr & IXGBE_EICR_TIMESYNC)
+	if (unlikely(eicr & IXGBE_EICR_TIMESYNC)) {
+		switch (hw->mac.type) {
+		case ixgbe_mac_X540:
 			ptp_clock_event(adapter->ptp_clock, &event);
-		break;
-	default:
-		break;
+			break;
+		default:
+			break;
+		}
 	}
 }
 

@@ -790,12 +790,10 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		total_packets += tx_buffer->gso_segs;
 
 #ifdef CONFIG_IXGBE_PTP
-		if (unlikely(tx_buffer->tx_flags &
-			     IXGBE_TX_FLAGS_TSTAMP))
-			ixgbe_ptp_tx_hwtstamp(q_vector,
-					      tx_buffer->skb);
-
+		if (unlikely(tx_buffer->tx_flags & IXGBE_TX_FLAGS_TSTAMP))
+			ixgbe_ptp_tx_hwtstamp(q_vector, tx_buffer->skb);
 #endif
+
 		/* free the skb */
 		dev_kfree_skb_any(tx_buffer->skb);
 
