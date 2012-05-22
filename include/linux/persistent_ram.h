@@ -31,6 +31,11 @@ struct persistent_ram {
 	phys_addr_t	start;
 	phys_addr_t	size;
 
+	int ecc_block_size;
+	int ecc_size;
+	int ecc_symsize;
+	int ecc_poly;
+
 	int					num_descs;
 	struct persistent_ram_descriptor	*descs;
 
