@@ -1032,11 +1032,6 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 		goto err;
 	}
 
-	ret = bitmap_storage_alloc(&bitmap->storage, bitmap->chunks,
-				   !bitmap->mddev->bitmap_info.external);
-	if (ret)
-		goto err;
-
 	oldindex = ~0L;
 	offset = 0;
 	if (!bitmap->mddev->bitmap_info.external)
@@ -1782,6 +1777,12 @@ int bitmap_create(struct mddev *mddev)
 	if (!bitmap->bp)
 		goto error;
 
+	if (file || mddev->bitmap_info.offset) {
+		err = bitmap_storage_alloc(&bitmap->storage, bitmap->chunks,
+					   !mddev->bitmap_info.external);
+		if (err)
+			goto error;
+	}
 	printk(KERN_INFO "created bitmap (%lu pages) for device %s\n",
 		pages, bmname(bitmap));
 
