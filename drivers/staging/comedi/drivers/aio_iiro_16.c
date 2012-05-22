@@ -57,8 +57,6 @@ static const struct aio_iiro_16_board aio_iiro_16_boards[] = {
 	 .do_ = 16},
 };
 
-#define	thisboard	((const struct aio_iiro_16_board *) dev->board_ptr)
-
 struct aio_iiro_16_private {
 	int data;
 	struct pci_dev *pci_dev;
@@ -106,12 +104,13 @@ static int aio_iiro_16_dio_insn_bits_read(struct comedi_device *dev,
 static int aio_iiro_16_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
+	const struct aio_iiro_16_board *board = comedi_board(dev);
 	int iobase;
 	struct comedi_subdevice *s;
 
 	printk(KERN_INFO "comedi%d: aio_iiro_16: ", dev->minor);
 
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
 	iobase = it->options[0];
 
