@@ -98,6 +98,12 @@ enum {
 	MLX4_DEV_CAP_FLAG_SENSE_SUPPORT	= 1LL << 55
 };
 
+enum {
+	MLX4_DEV_CAP_FLAG2_RSS			= 1LL <<  0,
+	MLX4_DEV_CAP_FLAG2_RSS_TOP		= 1LL <<  1,
+	MLX4_DEV_CAP_FLAG2_RSS_XOR		= 1LL <<  2
+};
+
 #define MLX4_ATTR_EXTENDED_PORT_INFO	cpu_to_be16(0xff90)
 
 enum {
@@ -292,11 +298,13 @@ struct mlx4_caps {
 	u32			max_msg_sz;
 	u32			page_size_cap;
 	u64			flags;
+	u64			flags2;
 	u32			bmme_flags;
 	u32			reserved_lkey;
 	u16			stat_rate_support;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
 	int			max_gso_sz;
+	int			max_rss_tbl_sz;
 	int                     reserved_qps_cnt[MLX4_NUM_QP_REGION];
 	int			reserved_qps;
 	int                     reserved_qps_base[MLX4_NUM_QP_REGION];

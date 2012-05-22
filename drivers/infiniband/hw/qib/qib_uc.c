@@ -72,9 +72,9 @@ int qib_make_uc_req(struct qib_qp *qp)
 		goto done;
 	}
 
-	ohdr = &qp->s_hdr.u.oth;
+	ohdr = &qp->s_hdr->u.oth;
 	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
-		ohdr = &qp->s_hdr.u.l.oth;
+		ohdr = &qp->s_hdr->u.l.oth;
 
 	/* header size in 32-bit words LRH+BTH = (8+12)/4. */
 	hwords = 5;

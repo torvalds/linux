@@ -32,6 +32,7 @@
 #include <linux/u64_stats_sync.h>
 
 #include "be_hw.h"
+#include "be_roce.h"
 
 #define DRV_VER			"4.2.220u"
 #define DRV_NAME		"be2net"
@@ -102,7 +103,8 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MAX_RX_QS		(MAX_RSS_QS + 1) /* RSS qs + 1 def Rx */
 
 #define MAX_TX_QS		8
-#define MAX_MSIX_VECTORS	MAX_RSS_QS
+#define MAX_ROCE_EQS		5
+#define MAX_MSIX_VECTORS	(MAX_RSS_QS + MAX_ROCE_EQS) /* RSS qs + RoCE */
 #define BE_TX_BUDGET		256
 #define BE_NAPI_WEIGHT		64
 #define MAX_RX_POST		BE_NAPI_WEIGHT /* Frags posted at a time */
@@ -405,6 +407,17 @@ struct be_adapter {
 	u32 tx_fc;		/* Tx flow control */
 	bool stats_cmd_sent;
 	u8 generation;		/* BladeEngine ASIC generation */
+	u32 if_type;
+	struct {
+		u8 __iomem *base;	/* Door Bell */
+		u32 size;
+		u32 total_size;
+		u64 io_addr;
+	} roce_db;
+	u32 num_msix_roce_vec;
+	struct ocrdma_dev *ocrdma_dev;
+	struct list_head entry;
+
 	u32 flash_status;
 	struct completion flash_compl;
 
@@ -440,6 +453,10 @@ struct be_adapter {
 #define OFF				0
 #define lancer_chip(adapter)	((adapter->pdev->device == OC_DEVICE_ID3) || \
 				 (adapter->pdev->device == OC_DEVICE_ID4))
+
+#define be_roce_supported(adapter) ((adapter->if_type == SLI_INTF_TYPE_3 || \
+				adapter->sli_family == SKYHAWK_SLI_FAMILY) && \
+				(adapter->function_mode & RDMA_ENABLED))
 
 extern const struct ethtool_ops be_ethtool_ops;
 
@@ -597,6 +614,12 @@ static inline bool be_is_wol_excluded(struct be_adapter *adapter)
 	}
 }
 
+static inline bool be_type_2_3(struct be_adapter *adapter)
+{
+	return (adapter->if_type == SLI_INTF_TYPE_2 ||
+		adapter->if_type == SLI_INTF_TYPE_3) ? true : false;
+}
+
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
 extern void be_link_status_update(struct be_adapter *adapter, u8 link_status);
@@ -605,5 +628,17 @@ extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 extern bool be_is_wol_supported(struct be_adapter *adapter);
 extern bool be_pause_supported(struct be_adapter *adapter);
 extern u32 be_get_fw_log_level(struct be_adapter *adapter);
+
+/*
+ * internal function to initialize-cleanup roce device.
+ */
+extern void be_roce_dev_add(struct be_adapter *);
+extern void be_roce_dev_remove(struct be_adapter *);
+
+/*
+ * internal function to open-close roce device during ifup-ifdown.
+ */
+extern void be_roce_dev_open(struct be_adapter *);
+extern void be_roce_dev_close(struct be_adapter *);
 
 #endif				/* BE_H */

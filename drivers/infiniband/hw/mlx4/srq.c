@@ -59,7 +59,7 @@ static void mlx4_ib_srq_event(struct mlx4_srq *srq, enum mlx4_event type)
 			event.event = IB_EVENT_SRQ_ERR;
 			break;
 		default:
-			printk(KERN_WARNING "mlx4_ib: Unexpected event type %d "
+			pr_warn("Unexpected event type %d "
 			       "on SRQ %06x\n", type, srq->srqn);
 			return;
 		}

@@ -234,7 +234,8 @@ struct mlx4_wqe_mlx_seg {
 	u8			owner;
 	u8			reserved1[2];
 	u8			opcode;
-	u8			reserved2[3];
+	__be16			sched_prio;
+	u8			reserved2;
 	u8			size;
 	/*
 	 * [17]    VL15
