@@ -947,6 +947,44 @@ static struct platform_device bfin_crc1_device = {
 };
 #endif
 
+#if defined(CONFIG_CRYPTO_DEV_BFIN_CRC)
+#define BFIN_CRYPTO_CRC_NAME		"bfin-hmac-crc"
+#define BFIN_CRYPTO_CRC_POLY_DATA	0x5c5c5c5c
+
+static struct resource bfin_crypto_crc_resources[] = {
+	{
+		.start = REG_CRC0_CTL,
+		.end = REG_CRC0_REVID+4,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_CRC0_DCNTEXP,
+		.end = IRQ_CRC0_DCNTEXP,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_MEM_STREAM0_SRC_CRC0,
+		.end = CH_MEM_STREAM0_SRC_CRC0,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_MEM_STREAM0_DEST_CRC0,
+		.end = CH_MEM_STREAM0_DEST_CRC0,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device bfin_crypto_crc_device = {
+	.name = BFIN_CRYPTO_CRC_NAME,
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_crypto_crc_resources),
+	.resource = bfin_crypto_crc_resources,
+	.dev = {
+		.platform_data = (void *)BFIN_CRYPTO_CRC_POLY_DATA,
+	},
+};
+#endif
+
 #if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
 static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 	.model			= 7877,
@@ -1260,6 +1298,9 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #if defined(CONFIG_BFIN_CRC)
 	&bfin_crc0_device,
 	&bfin_crc1_device,
+#endif
+#if defined(CONFIG_CRYPTO_DEV_BFIN_CRC)
+	&bfin_crypto_crc_device,
 #endif
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
