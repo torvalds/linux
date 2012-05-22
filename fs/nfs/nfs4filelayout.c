@@ -1106,6 +1106,7 @@ transfer_commit_list(struct list_head *src, struct list_head *dst,
 	list_for_each_entry_safe(req, tmp, src, wb_list) {
 		if (!nfs_lock_request(req))
 			continue;
+		kref_get(&req->wb_kref);
 		if (cond_resched_lock(cinfo->lock))
 			list_safe_reset_next(req, tmp, wb_list);
 		nfs_request_remove_commit_list(req, cinfo);
