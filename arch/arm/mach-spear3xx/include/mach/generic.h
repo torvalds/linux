@@ -14,6 +14,7 @@
 #ifndef __MACH_GENERIC_H
 #define __MACH_GENERIC_H
 
+#include <linux/amba/pl08x.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
@@ -21,26 +22,15 @@
 #include <asm/mach/map.h>
 #include <plat/padmux.h>
 
-/* spear3xx declarations */
-/*
- * Each GPT has 2 timer channels
- * Following GPT channels will be used as clock source and clockevent
- */
-#define SPEAR_GPT0_BASE		SPEAR3XX_ML1_TMR_BASE
-#define SPEAR_GPT0_CHAN0_IRQ	SPEAR3XX_IRQ_CPU_GPT1_1
-#define SPEAR_GPT0_CHAN1_IRQ	SPEAR3XX_IRQ_CPU_GPT1_2
-
 /* Add spear3xx family device structure declarations here */
-extern struct amba_device spear3xx_gpio_device;
-extern struct amba_device spear3xx_uart_device;
 extern struct sys_timer spear3xx_timer;
+extern struct pl022_ssp_controller pl022_plat_data;
+extern struct pl08x_platform_data pl080_plat_data;
 
 /* Add spear3xx family function declarations here */
-void __init spear3xx_clk_init(void);
-void __init spear_setup_timer(void);
+void __init spear_setup_timer(resource_size_t base, int irq);
 void __init spear3xx_map_io(void);
-void __init spear3xx_init_irq(void);
-void __init spear3xx_init(void);
+void __init spear3xx_dt_init_irq(void);
 
 void spear_restart(char, const char *);
 
@@ -99,9 +89,6 @@ extern struct pmx_dev spear3xx_pmx_plgpio_45_46_49_50;
 
 /* spear300 declarations */
 #ifdef CONFIG_MACH_SPEAR300
-/* Add spear300 machine device structure declarations here */
-extern struct amba_device spear300_gpio1_device;
-
 /* pad mux modes */
 extern struct pmx_mode spear300_nand_mode;
 extern struct pmx_mode spear300_nor_mode;
@@ -133,16 +120,13 @@ extern struct pmx_dev spear300_pmx_telecom_sdhci_4bit;
 extern struct pmx_dev spear300_pmx_telecom_sdhci_8bit;
 extern struct pmx_dev spear300_pmx_gpio1;
 
-/* Add spear300 machine function declarations here */
-void __init spear300_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
-		u8 pmx_dev_count);
+/* Add spear300 machine declarations here */
+void __init spear300_clk_init(void);
 
 #endif /* CONFIG_MACH_SPEAR300 */
 
 /* spear310 declarations */
 #ifdef CONFIG_MACH_SPEAR310
-/* Add spear310 machine device structure declarations here */
-
 /* pad mux devices */
 extern struct pmx_dev spear310_pmx_emi_cs_0_1_4_5;
 extern struct pmx_dev spear310_pmx_emi_cs_2_3;
@@ -153,16 +137,13 @@ extern struct pmx_dev spear310_pmx_fsmc;
 extern struct pmx_dev spear310_pmx_rs485_0_1;
 extern struct pmx_dev spear310_pmx_tdm0;
 
-/* Add spear310 machine function declarations here */
-void __init spear310_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
-		u8 pmx_dev_count);
+/* Add spear310 machine declarations here */
+void __init spear310_clk_init(void);
 
 #endif /* CONFIG_MACH_SPEAR310 */
 
 /* spear320 declarations */
 #ifdef CONFIG_MACH_SPEAR320
-/* Add spear320 machine device structure declarations here */
-
 /* pad mux modes */
 extern struct pmx_mode spear320_auto_net_smii_mode;
 extern struct pmx_mode spear320_auto_net_mii_mode;
@@ -193,9 +174,8 @@ extern struct pmx_dev spear320_pmx_smii0;
 extern struct pmx_dev spear320_pmx_smii1;
 extern struct pmx_dev spear320_pmx_i2c1;
 
-/* Add spear320 machine function declarations here */
-void __init spear320_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
-		u8 pmx_dev_count);
+/* Add spear320 machine declarations here */
+void __init spear320_clk_init(void);
 
 #endif /* CONFIG_MACH_SPEAR320 */
 

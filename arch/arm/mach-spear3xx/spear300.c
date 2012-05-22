@@ -3,21 +3,62 @@
  *
  * SPEAr300 machine source file
  *
- * Copyright (C) 2009 ST Microelectronics
- * Viresh Kumar<viresh.kumar@st.com>
+ * Copyright (C) 2009-2012 ST Microelectronics
+ * Viresh Kumar <viresh.kumar@st.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/types.h>
-#include <linux/amba/pl061.h>
-#include <linux/ptrace.h>
-#include <asm/irq.h>
+#define pr_fmt(fmt) "SPEAr300: " fmt
+
+#include <linux/amba/pl08x.h>
+#include <linux/of_platform.h>
+#include <asm/hardware/vic.h>
+#include <asm/mach/arch.h>
 #include <plat/shirq.h>
 #include <mach/generic.h>
-#include <mach/hardware.h>
+#include <mach/spear.h>
+
+/* Base address of various IPs */
+#define SPEAR300_TELECOM_BASE		UL(0x50000000)
+
+/* Interrupt registers offsets and masks */
+#define SPEAR300_INT_ENB_MASK_REG	0x54
+#define SPEAR300_INT_STS_MASK_REG	0x58
+#define SPEAR300_IT_PERS_S_IRQ_MASK	(1 << 0)
+#define SPEAR300_IT_CHANGE_S_IRQ_MASK	(1 << 1)
+#define SPEAR300_I2S_IRQ_MASK		(1 << 2)
+#define SPEAR300_TDM_IRQ_MASK		(1 << 3)
+#define SPEAR300_CAMERA_L_IRQ_MASK	(1 << 4)
+#define SPEAR300_CAMERA_F_IRQ_MASK	(1 << 5)
+#define SPEAR300_CAMERA_V_IRQ_MASK	(1 << 6)
+#define SPEAR300_KEYBOARD_IRQ_MASK	(1 << 7)
+#define SPEAR300_GPIO1_IRQ_MASK		(1 << 8)
+
+#define SPEAR300_SHIRQ_RAS1_MASK	0x1FF
+
+#define SPEAR300_SOC_CONFIG_BASE	UL(0x99000000)
+
+
+/* SPEAr300 Virtual irq definitions */
+/* IRQs sharing IRQ_GEN_RAS_1 */
+#define SPEAR300_VIRQ_IT_PERS_S			(SPEAR3XX_VIRQ_START + 0)
+#define SPEAR300_VIRQ_IT_CHANGE_S		(SPEAR3XX_VIRQ_START + 1)
+#define SPEAR300_VIRQ_I2S			(SPEAR3XX_VIRQ_START + 2)
+#define SPEAR300_VIRQ_TDM			(SPEAR3XX_VIRQ_START + 3)
+#define SPEAR300_VIRQ_CAMERA_L			(SPEAR3XX_VIRQ_START + 4)
+#define SPEAR300_VIRQ_CAMERA_F			(SPEAR3XX_VIRQ_START + 5)
+#define SPEAR300_VIRQ_CAMERA_V			(SPEAR3XX_VIRQ_START + 6)
+#define SPEAR300_VIRQ_KEYBOARD			(SPEAR3XX_VIRQ_START + 7)
+#define SPEAR300_VIRQ_GPIO1			(SPEAR3XX_VIRQ_START + 8)
+
+/* IRQs sharing IRQ_GEN_RAS_3 */
+#define SPEAR300_IRQ_CLCD			SPEAR3XX_IRQ_GEN_RAS_3
+
+/* IRQs sharing IRQ_INTRCOMM_RAS_ARM */
+#define SPEAR300_IRQ_SDHCI			SPEAR3XX_IRQ_INTRCOMM_RAS_ARM
 
 /* pad multiplexing support */
 /* muxing registers */
@@ -423,45 +464,275 @@ static struct spear_shirq shirq_ras1 = {
 	},
 };
 
-/* Add spear300 specific devices here */
-/* arm gpio1 device registration */
-static struct pl061_platform_data gpio1_plat_data = {
-	.gpio_base	= 8,
-	.irq_base	= SPEAR300_GPIO1_INT_BASE,
+/* padmux devices to enable */
+static struct pmx_dev *spear300_evb_pmx_devs[] = {
+	/* spear3xx specific devices */
+	&spear3xx_pmx_i2c,
+	&spear3xx_pmx_ssp_cs,
+	&spear3xx_pmx_ssp,
+	&spear3xx_pmx_mii,
+	&spear3xx_pmx_uart0,
+
+	/* spear300 specific devices */
+	&spear300_pmx_fsmc_2_chips,
+	&spear300_pmx_clcd,
+	&spear300_pmx_telecom_sdhci_4bit,
+	&spear300_pmx_gpio1,
 };
 
-AMBA_APB_DEVICE(spear300_gpio1, "gpio1", 0, SPEAR300_GPIO_BASE,
-	{SPEAR300_VIRQ_GPIO1}, &gpio1_plat_data);
+/* DMAC platform data's slave info */
+struct pl08x_channel_data spear300_dma_info[] = {
+	{
+		.bus_id = "uart0_rx",
+		.min_signal = 2,
+		.max_signal = 2,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart0_tx",
+		.min_signal = 3,
+		.max_signal = 3,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ssp0_rx",
+		.min_signal = 8,
+		.max_signal = 8,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ssp0_tx",
+		.min_signal = 9,
+		.max_signal = 9,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "i2c_rx",
+		.min_signal = 10,
+		.max_signal = 10,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "i2c_tx",
+		.min_signal = 11,
+		.max_signal = 11,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "irda",
+		.min_signal = 12,
+		.max_signal = 12,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "adc",
+		.min_signal = 13,
+		.max_signal = 13,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "to_jpeg",
+		.min_signal = 14,
+		.max_signal = 14,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "from_jpeg",
+		.min_signal = 15,
+		.max_signal = 15,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras0_rx",
+		.min_signal = 0,
+		.max_signal = 0,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras0_tx",
+		.min_signal = 1,
+		.max_signal = 1,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras1_rx",
+		.min_signal = 2,
+		.max_signal = 2,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras1_tx",
+		.min_signal = 3,
+		.max_signal = 3,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras2_rx",
+		.min_signal = 4,
+		.max_signal = 4,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras2_tx",
+		.min_signal = 5,
+		.max_signal = 5,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras3_rx",
+		.min_signal = 6,
+		.max_signal = 6,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras3_tx",
+		.min_signal = 7,
+		.max_signal = 7,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras4_rx",
+		.min_signal = 8,
+		.max_signal = 8,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras4_tx",
+		.min_signal = 9,
+		.max_signal = 9,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras5_rx",
+		.min_signal = 10,
+		.max_signal = 10,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras5_tx",
+		.min_signal = 11,
+		.max_signal = 11,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras6_rx",
+		.min_signal = 12,
+		.max_signal = 12,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras6_tx",
+		.min_signal = 13,
+		.max_signal = 13,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras7_rx",
+		.min_signal = 14,
+		.max_signal = 14,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ras7_tx",
+		.min_signal = 15,
+		.max_signal = 15,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	},
+};
 
-/* spear300 routines */
-void __init spear300_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
-		u8 pmx_dev_count)
+/* Add SPEAr300 auxdata to pass platform data */
+static struct of_dev_auxdata spear300_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("arm,pl022", SPEAR3XX_ICM1_SSP_BASE, NULL,
+			&pl022_plat_data),
+	OF_DEV_AUXDATA("arm,pl080", SPEAR3XX_ICM3_DMA_BASE, NULL,
+			&pl080_plat_data),
+	{}
+};
+
+static void __init spear300_dt_init(void)
 {
-	int ret = 0;
+	int ret = -EINVAL;
 
-	/* call spear3xx family common init function */
-	spear3xx_init();
+	pl080_plat_data.slave_channels = spear300_dma_info;
+	pl080_plat_data.num_slave_channels = ARRAY_SIZE(spear300_dma_info);
+
+	of_platform_populate(NULL, of_default_bus_match_table,
+			spear300_auxdata_lookup, NULL);
 
 	/* shared irq registration */
 	shirq_ras1.regs.base = ioremap(SPEAR300_TELECOM_BASE, SZ_4K);
 	if (shirq_ras1.regs.base) {
 		ret = spear_shirq_register(&shirq_ras1);
 		if (ret)
-			printk(KERN_ERR "Error registering Shared IRQ\n");
+			pr_err("Error registering Shared IRQ\n");
 	}
 
-	/* pmx initialization */
-	pmx_driver.mode = pmx_mode;
-	pmx_driver.devs = pmx_devs;
-	pmx_driver.devs_count = pmx_dev_count;
+	if (of_machine_is_compatible("st,spear300-evb")) {
+		/* pmx initialization */
+		pmx_driver.mode = &spear300_photo_frame_mode;
+		pmx_driver.devs = spear300_evb_pmx_devs;
+		pmx_driver.devs_count = ARRAY_SIZE(spear300_evb_pmx_devs);
 
-	pmx_driver.base = ioremap(SPEAR300_SOC_CONFIG_BASE, SZ_4K);
-	if (pmx_driver.base) {
-		ret = pmx_register(&pmx_driver);
+		pmx_driver.base = ioremap(SPEAR300_SOC_CONFIG_BASE, SZ_4K);
+		if (pmx_driver.base) {
+			ret = pmx_register(&pmx_driver);
+			if (ret)
+				pr_err("padmux: registration failed. err no: %d\n",
+						ret);
+			/* Free Mapping, device selection already done */
+			iounmap(pmx_driver.base);
+		}
+
 		if (ret)
-			printk(KERN_ERR "padmux: registration failed. err no"
-					": %d\n", ret);
-		/* Free Mapping, device selection already done */
-		iounmap(pmx_driver.base);
+			pr_err("Initialization Failed");
 	}
 }
+
+static const char * const spear300_dt_board_compat[] = {
+	"st,spear300",
+	"st,spear300-evb",
+	NULL,
+};
+
+static void __init spear300_map_io(void)
+{
+	spear3xx_map_io();
+	spear300_clk_init();
+}
+
+DT_MACHINE_START(SPEAR300_DT, "ST SPEAr300 SoC with Flattened Device Tree")
+	.map_io		=	spear300_map_io,
+	.init_irq	=	spear3xx_dt_init_irq,
+	.handle_irq	=	vic_handle_irq,
+	.timer		=	&spear3xx_timer,
+	.init_machine	=	spear300_dt_init,
+	.restart	=	spear_restart,
+	.dt_compat	=	spear300_dt_board_compat,
+MACHINE_END

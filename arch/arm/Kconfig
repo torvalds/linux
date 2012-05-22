@@ -571,6 +571,7 @@ config ARCH_LPC32XX
 	select USB_ARCH_HAS_OHCI
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
+	select USE_OF
 	help
 	  Support for the NXP LPC32XX family of processors
 
@@ -606,6 +607,7 @@ config ARCH_MMP
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
+	select IRQ_DOMAIN
 	select PLAT_PXA
 	select SPARSE_IRQ
 	select GENERIC_ALLOCATOR

@@ -11,12 +11,112 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/clkdev.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/of_platform.h>
 #include <asm/mach-types.h>
 #include <plat/clock.h>
 #include <mach/misc_regs.h>
+#include <mach/spear.h>
+
+#define PLL1_CTR		(MISC_BASE + 0x008)
+#define PLL1_FRQ		(MISC_BASE + 0x00C)
+#define PLL1_MOD		(MISC_BASE + 0x010)
+#define PLL2_CTR		(MISC_BASE + 0x014)
+/* PLL_CTR register masks */
+#define PLL_ENABLE		2
+#define PLL_MODE_SHIFT		4
+#define PLL_MODE_MASK		0x3
+#define PLL_MODE_NORMAL		0
+#define PLL_MODE_FRACTION	1
+#define PLL_MODE_DITH_DSB	2
+#define PLL_MODE_DITH_SSB	3
+
+#define PLL2_FRQ		(MISC_BASE + 0x018)
+/* PLL FRQ register masks */
+#define PLL_DIV_N_SHIFT		0
+#define PLL_DIV_N_MASK		0xFF
+#define PLL_DIV_P_SHIFT		8
+#define PLL_DIV_P_MASK		0x7
+#define PLL_NORM_FDBK_M_SHIFT	24
+#define PLL_NORM_FDBK_M_MASK	0xFF
+#define PLL_DITH_FDBK_M_SHIFT	16
+#define PLL_DITH_FDBK_M_MASK	0xFFFF
+
+#define PLL2_MOD		(MISC_BASE + 0x01C)
+#define PLL_CLK_CFG		(MISC_BASE + 0x020)
+#define CORE_CLK_CFG		(MISC_BASE + 0x024)
+/* CORE CLK CFG register masks */
+#define PLL_HCLK_RATIO_SHIFT	10
+#define PLL_HCLK_RATIO_MASK	0x3
+#define HCLK_PCLK_RATIO_SHIFT	8
+#define HCLK_PCLK_RATIO_MASK	0x3
+
+#define PERIP_CLK_CFG		(MISC_BASE + 0x028)
+/* PERIP_CLK_CFG register masks */
+#define UART_CLK_SHIFT		4
+#define UART_CLK_MASK		0x1
+#define FIRDA_CLK_SHIFT		5
+#define FIRDA_CLK_MASK		0x3
+#define GPT0_CLK_SHIFT		8
+#define GPT1_CLK_SHIFT		11
+#define GPT2_CLK_SHIFT		12
+#define GPT_CLK_MASK		0x1
+#define AUX_CLK_PLL3_VAL	0
+#define AUX_CLK_PLL1_VAL	1
+
+#define PERIP1_CLK_ENB		(MISC_BASE + 0x02C)
+/* PERIP1_CLK_ENB register masks */
+#define UART_CLK_ENB		3
+#define SSP_CLK_ENB		5
+#define I2C_CLK_ENB		7
+#define JPEG_CLK_ENB		8
+#define FIRDA_CLK_ENB		10
+#define GPT1_CLK_ENB		11
+#define GPT2_CLK_ENB		12
+#define ADC_CLK_ENB		15
+#define RTC_CLK_ENB		17
+#define GPIO_CLK_ENB		18
+#define DMA_CLK_ENB		19
+#define SMI_CLK_ENB		21
+#define GMAC_CLK_ENB		23
+#define USBD_CLK_ENB		24
+#define USBH_CLK_ENB		25
+#define C3_CLK_ENB		31
+
+#define RAS_CLK_ENB		(MISC_BASE + 0x034)
+
+#define PRSC1_CLK_CFG		(MISC_BASE + 0x044)
+#define PRSC2_CLK_CFG		(MISC_BASE + 0x048)
+#define PRSC3_CLK_CFG		(MISC_BASE + 0x04C)
+/* gpt synthesizer register masks */
+#define GPT_MSCALE_SHIFT	0
+#define GPT_MSCALE_MASK		0xFFF
+#define GPT_NSCALE_SHIFT	12
+#define GPT_NSCALE_MASK		0xF
+
+#define AMEM_CLK_CFG		(MISC_BASE + 0x050)
+#define EXPI_CLK_CFG		(MISC_BASE + 0x054)
+#define CLCD_CLK_SYNT		(MISC_BASE + 0x05C)
+#define FIRDA_CLK_SYNT		(MISC_BASE + 0x060)
+#define UART_CLK_SYNT		(MISC_BASE + 0x064)
+#define GMAC_CLK_SYNT		(MISC_BASE + 0x068)
+#define RAS1_CLK_SYNT		(MISC_BASE + 0x06C)
+#define RAS2_CLK_SYNT		(MISC_BASE + 0x070)
+#define RAS3_CLK_SYNT		(MISC_BASE + 0x074)
+#define RAS4_CLK_SYNT		(MISC_BASE + 0x078)
+/* aux clk synthesiser register masks for irda to ras4 */
+#define AUX_SYNT_ENB		31
+#define AUX_EQ_SEL_SHIFT	30
+#define AUX_EQ_SEL_MASK		1
+#define AUX_EQ1_SEL		0
+#define AUX_EQ2_SEL		1
+#define AUX_XSCALE_SHIFT	16
+#define AUX_XSCALE_MASK		0xFFF
+#define AUX_YSCALE_SHIFT	0
+#define AUX_YSCALE_MASK		0xFFF
 
 /* root clks */
 /* 32 KHz oscillator clock */
@@ -411,6 +511,21 @@ static struct clk usbd_clk = {
 	.recalc = &follow_parent,
 };
 
+/* clock derived from usbh clk */
+/* usbh0 clock */
+static struct clk usbh0_clk = {
+	.flags = ALWAYS_ENABLED,
+	.pclk = &usbh_clk,
+	.recalc = &follow_parent,
+};
+
+/* usbh1 clock */
+static struct clk usbh1_clk = {
+	.flags = ALWAYS_ENABLED,
+	.pclk = &usbh_clk,
+	.recalc = &follow_parent,
+};
+
 /* clock derived from ahb clk */
 /* apb masks structure */
 static struct bus_clk_masks apb_masks = {
@@ -652,109 +767,126 @@ static struct clk pwm_clk = {
 
 /* array of all spear 3xx clock lookups */
 static struct clk_lookup spear_clk_lookups[] = {
-	{ .con_id = "apb_pclk",		.clk = &dummy_apb_pclk},
+	CLKDEV_INIT(NULL, "apb_pclk", &dummy_apb_pclk),
 	/* root clks */
-	{ .con_id = "osc_32k_clk",	.clk = &osc_32k_clk},
-	{ .con_id = "osc_24m_clk",	.clk = &osc_24m_clk},
+	CLKDEV_INIT(NULL, "osc_32k_clk", &osc_32k_clk),
+	CLKDEV_INIT(NULL, "osc_24m_clk", &osc_24m_clk),
 	/* clock derived from 32 KHz osc clk */
-	{ .dev_id = "rtc-spear",	.clk = &rtc_clk},
+	CLKDEV_INIT("fc900000.rtc", NULL, &rtc_clk),
 	/* clock derived from 24 MHz osc clk */
-	{ .con_id = "pll1_clk",		.clk = &pll1_clk},
-	{ .con_id = "pll3_48m_clk",	.clk = &pll3_48m_clk},
-	{ .dev_id = "wdt",		.clk = &wdt_clk},
+	CLKDEV_INIT(NULL, "pll1_clk", &pll1_clk),
+	CLKDEV_INIT(NULL, "pll3_48m_clk", &pll3_48m_clk),
+	CLKDEV_INIT("fc880000.wdt", NULL, &wdt_clk),
 	/* clock derived from pll1 clk */
-	{ .con_id = "cpu_clk",		.clk = &cpu_clk},
-	{ .con_id = "ahb_clk",		.clk = &ahb_clk},
-	{ .con_id = "uart_synth_clk",	.clk = &uart_synth_clk},
-	{ .con_id = "firda_synth_clk",	.clk = &firda_synth_clk},
-	{ .con_id = "gpt0_synth_clk",	.clk = &gpt0_synth_clk},
-	{ .con_id = "gpt1_synth_clk",	.clk = &gpt1_synth_clk},
-	{ .con_id = "gpt2_synth_clk",	.clk = &gpt2_synth_clk},
-	{ .dev_id = "uart",		.clk = &uart_clk},
-	{ .dev_id = "firda",		.clk = &firda_clk},
-	{ .dev_id = "gpt0",		.clk = &gpt0_clk},
-	{ .dev_id = "gpt1",		.clk = &gpt1_clk},
-	{ .dev_id = "gpt2",		.clk = &gpt2_clk},
+	CLKDEV_INIT(NULL, "cpu_clk", &cpu_clk),
+	CLKDEV_INIT(NULL, "ahb_clk", &ahb_clk),
+	CLKDEV_INIT(NULL, "uart_synth_clk", &uart_synth_clk),
+	CLKDEV_INIT(NULL, "firda_synth_clk", &firda_synth_clk),
+	CLKDEV_INIT(NULL, "gpt0_synth_clk", &gpt0_synth_clk),
+	CLKDEV_INIT(NULL, "gpt1_synth_clk", &gpt1_synth_clk),
+	CLKDEV_INIT(NULL, "gpt2_synth_clk", &gpt2_synth_clk),
+	CLKDEV_INIT("d0000000.serial", NULL, &uart_clk),
+	CLKDEV_INIT("firda", NULL, &firda_clk),
+	CLKDEV_INIT("gpt0", NULL, &gpt0_clk),
+	CLKDEV_INIT("gpt1", NULL, &gpt1_clk),
+	CLKDEV_INIT("gpt2", NULL, &gpt2_clk),
 	/* clock derived from pll3 clk */
-	{ .dev_id = "designware_udc",   .clk = &usbd_clk},
-	{ .con_id = "usbh_clk",		.clk = &usbh_clk},
+	CLKDEV_INIT("designware_udc", NULL, &usbd_clk),
+	CLKDEV_INIT(NULL, "usbh_clk", &usbh_clk),
+	/* clock derived from usbh clk */
+	CLKDEV_INIT(NULL, "usbh.0_clk", &usbh0_clk),
+	CLKDEV_INIT(NULL, "usbh.1_clk", &usbh1_clk),
 	/* clock derived from ahb clk */
-	{ .con_id = "apb_clk",		.clk = &apb_clk},
-	{ .dev_id = "i2c_designware.0",	.clk = &i2c_clk},
-	{ .dev_id = "dma",		.clk = &dma_clk},
-	{ .dev_id = "jpeg",		.clk = &jpeg_clk},
-	{ .dev_id = "gmac",		.clk = &gmac_clk},
-	{ .dev_id = "smi",		.clk = &smi_clk},
-	{ .dev_id = "c3",		.clk = &c3_clk},
+	CLKDEV_INIT(NULL, "apb_clk", &apb_clk),
+	CLKDEV_INIT("d0180000.i2c", NULL, &i2c_clk),
+	CLKDEV_INIT("fc400000.dma", NULL, &dma_clk),
+	CLKDEV_INIT("jpeg", NULL, &jpeg_clk),
+	CLKDEV_INIT("e0800000.eth", NULL, &gmac_clk),
+	CLKDEV_INIT("fc000000.flash", NULL, &smi_clk),
+	CLKDEV_INIT("c3", NULL, &c3_clk),
 	/* clock derived from apb clk */
-	{ .dev_id = "adc",		.clk = &adc_clk},
-	{ .dev_id = "ssp-pl022.0",	.clk = &ssp0_clk},
-	{ .dev_id = "gpio",		.clk = &gpio_clk},
+	CLKDEV_INIT("adc", NULL, &adc_clk),
+	CLKDEV_INIT("d0100000.spi", NULL, &ssp0_clk),
+	CLKDEV_INIT("fc980000.gpio", NULL, &gpio_clk),
 };
 
 /* array of all spear 300 clock lookups */
 #ifdef CONFIG_MACH_SPEAR300
 static struct clk_lookup spear300_clk_lookups[] = {
-	{ .dev_id = "clcd",		.clk = &clcd_clk},
-	{ .con_id = "fsmc",		.clk = &fsmc_clk},
-	{ .dev_id = "gpio1",		.clk = &gpio1_clk},
-	{ .dev_id = "keyboard",		.clk = &kbd_clk},
-	{ .dev_id = "sdhci",		.clk = &sdhci_clk},
+	CLKDEV_INIT("60000000.clcd", NULL, &clcd_clk),
+	CLKDEV_INIT("94000000.flash", NULL, &fsmc_clk),
+	CLKDEV_INIT("a9000000.gpio", NULL, &gpio1_clk),
+	CLKDEV_INIT("a0000000.kbd", NULL, &kbd_clk),
+	CLKDEV_INIT("70000000.sdhci", NULL, &sdhci_clk),
 };
+
+void __init spear300_clk_init(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(spear_clk_lookups); i++)
+		clk_register(&spear_clk_lookups[i]);
+
+	for (i = 0; i < ARRAY_SIZE(spear300_clk_lookups); i++)
+		clk_register(&spear300_clk_lookups[i]);
+
+	clk_init();
+}
 #endif
 
 /* array of all spear 310 clock lookups */
 #ifdef CONFIG_MACH_SPEAR310
 static struct clk_lookup spear310_clk_lookups[] = {
-	{ .con_id = "fsmc",		.clk = &fsmc_clk},
-	{ .con_id = "emi",		.clk = &emi_clk},
-	{ .dev_id = "uart1",		.clk = &uart1_clk},
-	{ .dev_id = "uart2",		.clk = &uart2_clk},
-	{ .dev_id = "uart3",		.clk = &uart3_clk},
-	{ .dev_id = "uart4",		.clk = &uart4_clk},
-	{ .dev_id = "uart5",		.clk = &uart5_clk},
+	CLKDEV_INIT("44000000.flash", NULL, &fsmc_clk),
+	CLKDEV_INIT(NULL, "emi", &emi_clk),
+	CLKDEV_INIT("b2000000.serial", NULL, &uart1_clk),
+	CLKDEV_INIT("b2080000.serial", NULL, &uart2_clk),
+	CLKDEV_INIT("b2100000.serial", NULL, &uart3_clk),
+	CLKDEV_INIT("b2180000.serial", NULL, &uart4_clk),
+	CLKDEV_INIT("b2200000.serial", NULL, &uart5_clk),
 };
+
+void __init spear310_clk_init(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(spear_clk_lookups); i++)
+		clk_register(&spear_clk_lookups[i]);
+
+	for (i = 0; i < ARRAY_SIZE(spear310_clk_lookups); i++)
+		clk_register(&spear310_clk_lookups[i]);
+
+	clk_init();
+}
 #endif
 
 /* array of all spear 320 clock lookups */
 #ifdef CONFIG_MACH_SPEAR320
 static struct clk_lookup spear320_clk_lookups[] = {
-	{ .dev_id = "clcd",		.clk = &clcd_clk},
-	{ .con_id = "fsmc",		.clk = &fsmc_clk},
-	{ .dev_id = "i2c_designware.1",	.clk = &i2c1_clk},
-	{ .con_id = "emi",		.clk = &emi_clk},
-	{ .dev_id = "pwm",		.clk = &pwm_clk},
-	{ .dev_id = "sdhci",		.clk = &sdhci_clk},
-	{ .dev_id = "c_can_platform.0",	.clk = &can0_clk},
-	{ .dev_id = "c_can_platform.1",	.clk = &can1_clk},
-	{ .dev_id = "ssp-pl022.1",	.clk = &ssp1_clk},
-	{ .dev_id = "ssp-pl022.2",	.clk = &ssp2_clk},
-	{ .dev_id = "uart1",		.clk = &uart1_clk},
-	{ .dev_id = "uart2",		.clk = &uart2_clk},
+	CLKDEV_INIT("90000000.clcd", NULL, &clcd_clk),
+	CLKDEV_INIT("4c000000.flash", NULL, &fsmc_clk),
+	CLKDEV_INIT("a7000000.i2c", NULL, &i2c1_clk),
+	CLKDEV_INIT(NULL, "emi", &emi_clk),
+	CLKDEV_INIT("pwm", NULL, &pwm_clk),
+	CLKDEV_INIT("70000000.sdhci", NULL, &sdhci_clk),
+	CLKDEV_INIT("c_can_platform.0", NULL, &can0_clk),
+	CLKDEV_INIT("c_can_platform.1", NULL, &can1_clk),
+	CLKDEV_INIT("a5000000.spi", NULL, &ssp1_clk),
+	CLKDEV_INIT("a6000000.spi", NULL, &ssp2_clk),
+	CLKDEV_INIT("a3000000.serial", NULL, &uart1_clk),
+	CLKDEV_INIT("a4000000.serial", NULL, &uart2_clk),
 };
-#endif
 
-void __init spear3xx_clk_init(void)
+void __init spear320_clk_init(void)
 {
-	int i, cnt;
-	struct clk_lookup *lookups;
-
-	if (machine_is_spear300()) {
-		cnt = ARRAY_SIZE(spear300_clk_lookups);
-		lookups = spear300_clk_lookups;
-	} else if (machine_is_spear310()) {
-		cnt = ARRAY_SIZE(spear310_clk_lookups);
-		lookups = spear310_clk_lookups;
-	} else {
-		cnt = ARRAY_SIZE(spear320_clk_lookups);
-		lookups = spear320_clk_lookups;
-	}
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spear_clk_lookups); i++)
 		clk_register(&spear_clk_lookups[i]);
 
-	for (i = 0; i < cnt; i++)
-		clk_register(&lookups[i]);
+	for (i = 0; i < ARRAY_SIZE(spear320_clk_lookups); i++)
+		clk_register(&spear320_clk_lookups[i]);
 
 	clk_init();
 }
+#endif

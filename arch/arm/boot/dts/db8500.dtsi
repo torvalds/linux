@@ -55,83 +55,101 @@
 
 		gpio0: gpio@8012e000 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8012e000 0x80>;
 			interrupts = <0 119 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <0>;
 		};
 
 		gpio1: gpio@8012e080 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8012e080 0x80>;
 			interrupts = <0 120 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <1>;
 		};
 
 		gpio2: gpio@8000e000 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8000e000 0x80>;
 			interrupts = <0 121 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <2>;
 		};
 
 		gpio3: gpio@8000e080 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8000e080 0x80>;
 			interrupts = <0 122 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <3>;
 		};
 
 		gpio4: gpio@8000e100 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8000e100 0x80>;
 			interrupts = <0 123 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <4>;
 		};
 
 		gpio5: gpio@8000e180 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8000e180 0x80>;
 			interrupts = <0 124 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <5>;
 		};
 
 		gpio6: gpio@8011e000 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8011e000 0x80>;
 			interrupts = <0 125 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <6>;
 		};
 
 		gpio7: gpio@8011e080 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8011e080 0x80>;
 			interrupts = <0 126 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <7>;
 		};
 
 		gpio8: gpio@a03fe000 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0xa03fe000 0x80>;
 			interrupts = <0 127 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <8>;
 		};
 
 		usb@a03e0000 {
@@ -153,7 +171,13 @@
 			reg = <0x80157000 0x1000>;
 			interrupts = <46 47>;
 			#address-cells = <1>;
-			#size-cells = <0>;
+			#size-cells = <1>;
+			ranges;
+
+				prcmu-timer-4@80157450 {
+				compatible = "stericsson,db8500-prcmu-timer-4";
+				reg = <0x80157450 0xC>;
+			};
 
 			ab8500@5 {
 				compatible = "stericsson,ab8500";
@@ -163,7 +187,7 @@
 		};
 
 		i2c@80004000 {
-			compatible = "stericsson,db8500-i2c", "stmicroelectronics,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
 			reg = <0x80004000 0x1000>;
 			interrupts = <0 21 0x4>;
 			#address-cells = <1>;
@@ -171,7 +195,7 @@
 		};
 
 		i2c@80122000 {
-			compatible = "stericsson,db8500-i2c", "stmicroelectronics,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
 			reg = <0x80122000 0x1000>;
 			interrupts = <0 22 0x4>;
 			#address-cells = <1>;
@@ -179,7 +203,7 @@
 		};
 
 		i2c@80128000 {
-			compatible = "stericsson,db8500-i2c", "stmicroelectronics,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
 			reg = <0x80128000 0x1000>;
 			interrupts = <0 55 0x4>;
 			#address-cells = <1>;
@@ -187,7 +211,7 @@
 		};
 
 		i2c@80110000 {
-			compatible = "stericsson,db8500-i2c", "stmicroelectronics,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
 			reg = <0x80110000 0x1000>;
 			interrupts = <0 12 0x4>;
 			#address-cells = <1>;
@@ -195,7 +219,7 @@
 		};
 
 		i2c@8012a000 {
-			compatible = "stericsson,db8500-i2c", "stmicroelectronics,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
 			reg = <0x8012a000 0x1000>;
 			interrupts = <0 51 0x4>;
 			#address-cells = <1>;
@@ -268,6 +292,15 @@
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80114000 0x1000>;
 			interrupts = <0 100 0x4>;
+			status = "disabled";
+		};
+
+		external-bus@50000000 {
+			compatible = "simple-bus";
+			reg = <0x50000000 0x4000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x50000000 0x4000000>;
 			status = "disabled";
 		};
 	};

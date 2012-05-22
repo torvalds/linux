@@ -69,15 +69,7 @@ static struct platform_device at_hdmac_device = {
 
 void __init at91_add_device_hdmac(void)
 {
-#if defined(CONFIG_OF)
-	struct device_node *of_node =
-		of_find_node_by_name(NULL, "dma-controller");
-
-	if (of_node)
-		of_node_put(of_node);
-	else
-#endif
-		platform_device_register(&at_hdmac_device);
+	platform_device_register(&at_hdmac_device);
 }
 #else
 void __init at91_add_device_hdmac(void) {}
@@ -1094,25 +1086,8 @@ static struct platform_device at91sam9g45_tcb1_device = {
 	.num_resources	= ARRAY_SIZE(tcb1_resources),
 };
 
-#if defined(CONFIG_OF)
-static struct of_device_id tcb_ids[] = {
-	{ .compatible = "atmel,at91rm9200-tcb" },
-	{ /*sentinel*/ }
-};
-#endif
-
 static void __init at91_add_device_tc(void)
 {
-#if defined(CONFIG_OF)
-	struct device_node *np;
-
-	np = of_find_matching_node(NULL, tcb_ids);
-	if (np) {
-		of_node_put(np);
-		return;
-	}
-#endif
-
 	platform_device_register(&at91sam9g45_tcb0_device);
 	platform_device_register(&at91sam9g45_tcb1_device);
 }
@@ -1763,6 +1738,9 @@ void __init at91_add_device_serial(void) {}
  */
 static int __init at91_add_standard_devices(void)
 {
+	if (of_have_populated_dt())
+		return 0;
+
 	at91_add_device_hdmac();
 	at91_add_device_rtc();
 	at91_add_device_rtt();

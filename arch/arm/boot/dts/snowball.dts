@@ -30,35 +30,35 @@
 			wakeup = <1>;
 			linux,code = <2>;
 			label = "userpb";
-			gpios = <&gpio1 0>;
+			gpios = <&gpio1 0 0>;
 		};
 		button@2 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <3>;
-			label = "userpb";
-			gpios = <&gpio4 23>;
+			label = "extkb1";
+			gpios = <&gpio4 23 0>;
 		};
 		button@3 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <4>;
-			label = "userpb";
-			gpios = <&gpio4 23>;
+			label = "extkb2";
+			gpios = <&gpio4 24 0>;
 		};
 		button@4 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <5>;
-			label = "userpb";
-			gpios = <&gpio5 1>;
+			label = "extkb3";
+			gpios = <&gpio5 1 0>;
 		};
 		button@5 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <6>;
-			label = "userpb";
-			gpios = <&gpio5 2>;
+			label = "extkb4";
+			gpios = <&gpio5 2 0>;
 		};
 	};
 
@@ -73,17 +73,19 @@
 	soc-u9500 {
 
 		external-bus@50000000 {
-			compatible = "simple-bus";
-			reg = <0x50000000 0x10000000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges;
+			status = "okay";
 
-			ethernet@50000000 {
-				compatible = "smsc,9111";
-				reg = <0x50000000 0x10000>;
-				interrupts = <12>;
+			ethernet@0 {
+				compatible = "smsc,lan9115";
+				reg = <0 0x10000>;
+				interrupts = <12 0x1>;
 				interrupt-parent = <&gpio4>;
+
+				reg-shift = <1>;
+				reg-io-width = <2>;
+				smsc,force-internal-phy;
+				smsc,irq-active-high;
+				smsc,irq-push-pull;
 			};
 		};
 

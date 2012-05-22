@@ -172,6 +172,10 @@ static struct mtd_partition __initdata ek_nand_partition[] = {
 		.offset	= MTDPART_OFS_NXTBLK,
 		.size	= SZ_128K,
 	}, {
+		.name	= "oftree",
+		.offset	= MTDPART_OFS_NXTBLK,
+		.size	= SZ_128K,
+	}, {
 		.name	= "kernel",
 		.offset	= MTDPART_OFS_NXTBLK,
 		.size	= 4 * SZ_1M,

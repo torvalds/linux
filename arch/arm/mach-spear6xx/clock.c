@@ -16,6 +16,112 @@
 #include <linux/kernel.h>
 #include <plat/clock.h>
 #include <mach/misc_regs.h>
+#include <mach/spear.h>
+
+#define PLL1_CTR		(MISC_BASE + 0x008)
+#define PLL1_FRQ		(MISC_BASE + 0x00C)
+#define PLL1_MOD		(MISC_BASE + 0x010)
+#define PLL2_CTR		(MISC_BASE + 0x014)
+/* PLL_CTR register masks */
+#define PLL_ENABLE		2
+#define PLL_MODE_SHIFT		4
+#define PLL_MODE_MASK		0x3
+#define PLL_MODE_NORMAL		0
+#define PLL_MODE_FRACTION	1
+#define PLL_MODE_DITH_DSB	2
+#define PLL_MODE_DITH_SSB	3
+
+#define PLL2_FRQ		(MISC_BASE + 0x018)
+/* PLL FRQ register masks */
+#define PLL_DIV_N_SHIFT		0
+#define PLL_DIV_N_MASK		0xFF
+#define PLL_DIV_P_SHIFT		8
+#define PLL_DIV_P_MASK		0x7
+#define PLL_NORM_FDBK_M_SHIFT	24
+#define PLL_NORM_FDBK_M_MASK	0xFF
+#define PLL_DITH_FDBK_M_SHIFT	16
+#define PLL_DITH_FDBK_M_MASK	0xFFFF
+
+#define PLL2_MOD		(MISC_BASE + 0x01C)
+#define PLL_CLK_CFG		(MISC_BASE + 0x020)
+#define CORE_CLK_CFG		(MISC_BASE + 0x024)
+/* CORE CLK CFG register masks */
+#define PLL_HCLK_RATIO_SHIFT	10
+#define PLL_HCLK_RATIO_MASK	0x3
+#define HCLK_PCLK_RATIO_SHIFT	8
+#define HCLK_PCLK_RATIO_MASK	0x3
+
+#define PERIP_CLK_CFG		(MISC_BASE + 0x028)
+/* PERIP_CLK_CFG register masks */
+#define CLCD_CLK_SHIFT		2
+#define CLCD_CLK_MASK		0x3
+#define UART_CLK_SHIFT		4
+#define UART_CLK_MASK		0x1
+#define FIRDA_CLK_SHIFT		5
+#define FIRDA_CLK_MASK		0x3
+#define GPT0_CLK_SHIFT		8
+#define GPT1_CLK_SHIFT		10
+#define GPT2_CLK_SHIFT		11
+#define GPT3_CLK_SHIFT		12
+#define GPT_CLK_MASK		0x1
+#define AUX_CLK_PLL3_VAL	0
+#define AUX_CLK_PLL1_VAL	1
+
+#define PERIP1_CLK_ENB		(MISC_BASE + 0x02C)
+/* PERIP1_CLK_ENB register masks */
+#define UART0_CLK_ENB		3
+#define UART1_CLK_ENB		4
+#define SSP0_CLK_ENB		5
+#define SSP1_CLK_ENB		6
+#define I2C_CLK_ENB		7
+#define JPEG_CLK_ENB		8
+#define FSMC_CLK_ENB		9
+#define FIRDA_CLK_ENB		10
+#define GPT2_CLK_ENB		11
+#define GPT3_CLK_ENB		12
+#define GPIO2_CLK_ENB		13
+#define SSP2_CLK_ENB		14
+#define ADC_CLK_ENB		15
+#define GPT1_CLK_ENB		11
+#define RTC_CLK_ENB		17
+#define GPIO1_CLK_ENB		18
+#define DMA_CLK_ENB		19
+#define SMI_CLK_ENB		21
+#define CLCD_CLK_ENB		22
+#define GMAC_CLK_ENB		23
+#define USBD_CLK_ENB		24
+#define USBH0_CLK_ENB		25
+#define USBH1_CLK_ENB		26
+
+#define PRSC1_CLK_CFG		(MISC_BASE + 0x044)
+#define PRSC2_CLK_CFG		(MISC_BASE + 0x048)
+#define PRSC3_CLK_CFG		(MISC_BASE + 0x04C)
+/* gpt synthesizer register masks */
+#define GPT_MSCALE_SHIFT	0
+#define GPT_MSCALE_MASK		0xFFF
+#define GPT_NSCALE_SHIFT	12
+#define GPT_NSCALE_MASK		0xF
+
+#define AMEM_CLK_CFG		(MISC_BASE + 0x050)
+#define EXPI_CLK_CFG		(MISC_BASE + 0x054)
+#define CLCD_CLK_SYNT		(MISC_BASE + 0x05C)
+#define FIRDA_CLK_SYNT		(MISC_BASE + 0x060)
+#define UART_CLK_SYNT		(MISC_BASE + 0x064)
+#define GMAC_CLK_SYNT		(MISC_BASE + 0x068)
+#define RAS1_CLK_SYNT		(MISC_BASE + 0x06C)
+#define RAS2_CLK_SYNT		(MISC_BASE + 0x070)
+#define RAS3_CLK_SYNT		(MISC_BASE + 0x074)
+#define RAS4_CLK_SYNT		(MISC_BASE + 0x078)
+/* aux clk synthesiser register masks for irda to ras4 */
+#define AUX_SYNT_ENB		31
+#define AUX_EQ_SEL_SHIFT	30
+#define AUX_EQ_SEL_MASK		1
+#define AUX_EQ1_SEL		0
+#define AUX_EQ2_SEL		1
+#define AUX_XSCALE_SHIFT	16
+#define AUX_XSCALE_MASK		0xFFF
+#define AUX_YSCALE_SHIFT	0
+#define AUX_YSCALE_MASK		0xFFF
 
 /* root clks */
 /* 32 KHz oscillator clock */
@@ -623,53 +729,53 @@ static struct clk dummy_apb_pclk;
 
 /* array of all spear 6xx clock lookups */
 static struct clk_lookup spear_clk_lookups[] = {
-	{ .con_id = "apb_pclk",		.clk = &dummy_apb_pclk},
+	CLKDEV_INIT(NULL, "apb_pclk", &dummy_apb_pclk),
 	/* root clks */
-	{ .con_id = "osc_32k_clk",	.clk = &osc_32k_clk},
-	{ .con_id = "osc_30m_clk",	.clk = &osc_30m_clk},
+	CLKDEV_INIT(NULL, "osc_32k_clk", &osc_32k_clk),
+	CLKDEV_INIT(NULL, "osc_30m_clk", &osc_30m_clk),
 	/* clock derived from 32 KHz os		 clk */
-	{ .dev_id = "rtc-spear",	.clk = &rtc_clk},
+	CLKDEV_INIT("rtc-spear", NULL, &rtc_clk),
 	/* clock derived from 30 MHz os		 clk */
-	{ .con_id = "pll1_clk",		.clk = &pll1_clk},
-	{ .con_id = "pll3_48m_clk",	.clk = &pll3_48m_clk},
-	{ .dev_id = "wdt",		.clk = &wdt_clk},
+	CLKDEV_INIT(NULL, "pll1_clk", &pll1_clk),
+	CLKDEV_INIT(NULL, "pll3_48m_clk", &pll3_48m_clk),
+	CLKDEV_INIT("wdt", NULL, &wdt_clk),
 	/* clock derived from pll1 clk */
-	{ .con_id = "cpu_clk",		.clk = &cpu_clk},
-	{ .con_id = "ahb_clk",		.clk = &ahb_clk},
-	{ .con_id = "uart_synth_clk",	.clk = &uart_synth_clk},
-	{ .con_id = "firda_synth_clk",	.clk = &firda_synth_clk},
-	{ .con_id = "clcd_synth_clk",	.clk = &clcd_synth_clk},
-	{ .con_id = "gpt0_synth_clk",	.clk = &gpt0_synth_clk},
-	{ .con_id = "gpt2_synth_clk",	.clk = &gpt2_synth_clk},
-	{ .con_id = "gpt3_synth_clk",	.clk = &gpt3_synth_clk},
-	{ .dev_id = "d0000000.serial",	.clk = &uart0_clk},
-	{ .dev_id = "d0080000.serial",	.clk = &uart1_clk},
-	{ .dev_id = "firda",		.clk = &firda_clk},
-	{ .dev_id = "clcd",		.clk = &clcd_clk},
-	{ .dev_id = "gpt0",		.clk = &gpt0_clk},
-	{ .dev_id = "gpt1",		.clk = &gpt1_clk},
-	{ .dev_id = "gpt2",		.clk = &gpt2_clk},
-	{ .dev_id = "gpt3",		.clk = &gpt3_clk},
+	CLKDEV_INIT(NULL, "cpu_clk", &cpu_clk),
+	CLKDEV_INIT(NULL, "ahb_clk", &ahb_clk),
+	CLKDEV_INIT(NULL, "uart_synth_clk", &uart_synth_clk),
+	CLKDEV_INIT(NULL, "firda_synth_clk", &firda_synth_clk),
+	CLKDEV_INIT(NULL, "clcd_synth_clk", &clcd_synth_clk),
+	CLKDEV_INIT(NULL, "gpt0_synth_clk", &gpt0_synth_clk),
+	CLKDEV_INIT(NULL, "gpt2_synth_clk", &gpt2_synth_clk),
+	CLKDEV_INIT(NULL, "gpt3_synth_clk", &gpt3_synth_clk),
+	CLKDEV_INIT("d0000000.serial", NULL, &uart0_clk),
+	CLKDEV_INIT("d0080000.serial", NULL, &uart1_clk),
+	CLKDEV_INIT("firda", NULL, &firda_clk),
+	CLKDEV_INIT("clcd", NULL, &clcd_clk),
+	CLKDEV_INIT("gpt0", NULL, &gpt0_clk),
+	CLKDEV_INIT("gpt1", NULL, &gpt1_clk),
+	CLKDEV_INIT("gpt2", NULL, &gpt2_clk),
+	CLKDEV_INIT("gpt3", NULL, &gpt3_clk),
 	/* clock derived from pll3 clk */
-	{ .dev_id = "designware_udc",	.clk = &usbd_clk},
-	{ .con_id = "usbh.0_clk",	.clk = &usbh0_clk},
-	{ .con_id = "usbh.1_clk",	.clk = &usbh1_clk},
+	CLKDEV_INIT("designware_udc", NULL, &usbd_clk),
+	CLKDEV_INIT(NULL, "usbh.0_clk", &usbh0_clk),
+	CLKDEV_INIT(NULL, "usbh.1_clk", &usbh1_clk),
 	/* clock derived from ahb clk */
-	{ .con_id = "apb_clk",		.clk = &apb_clk},
-	{ .dev_id = "d0200000.i2c",	.clk = &i2c_clk},
-	{ .dev_id = "dma",		.clk = &dma_clk},
-	{ .dev_id = "jpeg",		.clk = &jpeg_clk},
-	{ .dev_id = "gmac",		.clk = &gmac_clk},
-	{ .dev_id = "smi",		.clk = &smi_clk},
-	{ .dev_id = "fsmc-nand",	.clk = &fsmc_clk},
+	CLKDEV_INIT(NULL, "apb_clk", &apb_clk),
+	CLKDEV_INIT("d0200000.i2c", NULL, &i2c_clk),
+	CLKDEV_INIT("fc400000.dma", NULL, &dma_clk),
+	CLKDEV_INIT("jpeg", NULL, &jpeg_clk),
+	CLKDEV_INIT("gmac", NULL, &gmac_clk),
+	CLKDEV_INIT("fc000000.flash", NULL, &smi_clk),
+	CLKDEV_INIT("d1800000.flash", NULL, &fsmc_clk),
 	/* clock derived from apb clk */
-	{ .dev_id = "adc",		.clk = &adc_clk},
-	{ .dev_id = "ssp-pl022.0",	.clk = &ssp0_clk},
-	{ .dev_id = "ssp-pl022.1",	.clk = &ssp1_clk},
-	{ .dev_id = "ssp-pl022.2",	.clk = &ssp2_clk},
-	{ .dev_id = "f0100000.gpio",	.clk = &gpio0_clk},
-	{ .dev_id = "fc980000.gpio",	.clk = &gpio1_clk},
-	{ .dev_id = "d8100000.gpio",	.clk = &gpio2_clk},
+	CLKDEV_INIT("adc", NULL, &adc_clk),
+	CLKDEV_INIT("ssp-pl022.0", NULL, &ssp0_clk),
+	CLKDEV_INIT("ssp-pl022.1", NULL, &ssp1_clk),
+	CLKDEV_INIT("ssp-pl022.2", NULL, &ssp2_clk),
+	CLKDEV_INIT("f0100000.gpio", NULL, &gpio0_clk),
+	CLKDEV_INIT("fc980000.gpio", NULL, &gpio1_clk),
+	CLKDEV_INIT("d8100000.gpio", NULL, &gpio2_clk),
 };
 
 void __init spear6xx_clk_init(void)
