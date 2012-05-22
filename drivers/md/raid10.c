@@ -3786,8 +3786,6 @@ static int raid10_check_reshape(struct mddev *mddev)
 			/* not factor of array size */
 			return -EINVAL;
 
-	if (mddev->bitmap)
-		return -EBUSY;
 	if (!enough(conf, -1))
 		return -EINVAL;
 
@@ -3882,6 +3880,7 @@ static int raid10_start_reshape(struct mddev *mddev)
 	struct r10conf *conf = mddev->private;
 	struct md_rdev *rdev;
 	int spares = 0;
+	int ret;
 
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
 		return -EBUSY;
@@ -3943,6 +3942,14 @@ static int raid10_start_reshape(struct mddev *mddev)
 		conf->reshape_progress = 0;
 	spin_unlock_irq(&conf->device_lock);
 
+	if (mddev->delta_disks && mddev->bitmap) {
+		ret = bitmap_resize(mddev->bitmap,
+				    raid10_size(mddev, 0,
+						conf->geo.raid_disks),
+				    0, 0);
+		if (ret)
+			goto abort;
+	}
 	if (mddev->delta_disks > 0) {
 		rdev_for_each(rdev, mddev)
 			if (rdev->raid_disk < 0 &&
@@ -3982,22 +3989,26 @@ static int raid10_start_reshape(struct mddev *mddev)
 	mddev->sync_thread = md_register_thread(md_do_sync, mddev,
 						"reshape");
 	if (!mddev->sync_thread) {
-		mddev->recovery = 0;
-		spin_lock_irq(&conf->device_lock);
-		conf->geo = conf->prev;
-		mddev->raid_disks = conf->geo.raid_disks;
-		rdev_for_each(rdev, mddev)
-			rdev->new_data_offset = rdev->data_offset;
-		smp_wmb();
-		conf->reshape_progress = MaxSector;
-		mddev->reshape_position = MaxSector;
-		spin_unlock_irq(&conf->device_lock);
-		return -EAGAIN;
+		ret = -EAGAIN;
+		goto abort;
 	}
 	conf->reshape_checkpoint = jiffies;
 	md_wakeup_thread(mddev->sync_thread);
 	md_new_event(mddev);
 	return 0;
+
+abort:
+	mddev->recovery = 0;
+	spin_lock_irq(&conf->device_lock);
+	conf->geo = conf->prev;
+	mddev->raid_disks = conf->geo.raid_disks;
+	rdev_for_each(rdev, mddev)
+		rdev->new_data_offset = rdev->data_offset;
+	smp_wmb();
+	conf->reshape_progress = MaxSector;
+	mddev->reshape_position = MaxSector;
+	spin_unlock_irq(&conf->device_lock);
+	return ret;
 }
 
 /* Calculate the last device-address that could contain
