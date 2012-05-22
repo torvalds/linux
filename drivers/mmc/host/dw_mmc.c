@@ -617,14 +617,15 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot)
 	u32 div;
 
 	if (slot->clock != host->current_speed) {
-		if (host->bus_hz % slot->clock)
+		div = host->bus_hz / slot->clock;
+		if (host->bus_hz % slot->clock && host->bus_hz > slot->clock)
 			/*
 			 * move the + 1 after the divide to prevent
 			 * over-clocking the card.
 			 */
-			div = ((host->bus_hz / slot->clock) >> 1) + 1;
-		else
-			div = (host->bus_hz  / slot->clock) >> 1;
+			div += 1;
+
+		div = (host->bus_hz != slot->clock) ? DIV_ROUND_UP(div, 2) : 0;
 
 		dev_info(&slot->mmc->class_dev,
 			 "Bus speed (slot %d) = %dHz (slot req %dHz, actual %dHZ"
