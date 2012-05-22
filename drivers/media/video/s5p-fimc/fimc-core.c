@@ -153,7 +153,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:0 non-contiguous 2-planar, Y/CbCr",
+		.name		= "YUV 4:2:0 non-contig. 2p, Y/CbCr",
 		.fourcc		= V4L2_PIX_FMT_NV12M,
 		.color		= FIMC_FMT_YCBCR420,
 		.depth		= { 8, 4 },
@@ -161,7 +161,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:0 non-contiguous 3-planar, Y/Cb/Cr",
+		.name		= "YUV 4:2:0 non-contig. 3p, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV420M,
 		.color		= FIMC_FMT_YCBCR420,
 		.depth		= { 8, 2, 2 },
@@ -169,7 +169,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 3,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:0 non-contiguous 2-planar, Y/CbCr, tiled",
+		.name		= "YUV 4:2:0 non-contig. 2p, tiled",
 		.fourcc		= V4L2_PIX_FMT_NV12MT,
 		.color		= FIMC_FMT_YCBCR420,
 		.depth		= { 8, 4 },
