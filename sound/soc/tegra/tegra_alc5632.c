@@ -33,11 +33,8 @@
 
 #define DRV_NAME "tegra-alc5632"
 
-#define GPIO_HP_DET     BIT(0)
-
 struct tegra_alc5632 {
 	struct tegra_asoc_utils_data util_data;
-	int gpio_requested;
 	int gpio_hp_det;
 };
 
@@ -123,7 +120,6 @@ static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 		snd_soc_jack_add_gpios(&tegra_alc5632_hs_jack,
 						1,
 						&tegra_alc5632_hp_jack_gpio);
-		machine->gpio_requested |= GPIO_HP_DET;
 	}
 
 	snd_soc_dapm_force_enable_pin(dapm, "MICBIAS1");
@@ -236,11 +232,8 @@ static int __devexit tegra_alc5632_remove(struct platform_device *pdev)
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct tegra_alc5632 *machine = snd_soc_card_get_drvdata(card);
 
-	if (machine->gpio_requested & GPIO_HP_DET)
-		snd_soc_jack_free_gpios(&tegra_alc5632_hs_jack,
-					1,
-					&tegra_alc5632_hp_jack_gpio);
-	machine->gpio_requested = 0;
+	snd_soc_jack_free_gpios(&tegra_alc5632_hs_jack, 1,
+				&tegra_alc5632_hp_jack_gpio);
 
 	snd_soc_unregister_card(card);
 
