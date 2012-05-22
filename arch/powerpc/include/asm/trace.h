@@ -8,7 +8,7 @@
 
 struct pt_regs;
 
-TRACE_EVENT(irq_entry,
+DECLARE_EVENT_CLASS(ppc64_interrupt_class,
 
 	TP_PROTO(struct pt_regs *regs),
 
@@ -25,55 +25,32 @@ TRACE_EVENT(irq_entry,
 	TP_printk("pt_regs=%p", __entry->regs)
 );
 
-TRACE_EVENT(irq_exit,
+DEFINE_EVENT(ppc64_interrupt_class, irq_entry,
 
 	TP_PROTO(struct pt_regs *regs),
 
-	TP_ARGS(regs),
-
-	TP_STRUCT__entry(
-		__field(struct pt_regs *, regs)
-	),
-
-	TP_fast_assign(
-		__entry->regs = regs;
-	),
-
-	TP_printk("pt_regs=%p", __entry->regs)
+	TP_ARGS(regs)
 );
 
-TRACE_EVENT(timer_interrupt_entry,
+DEFINE_EVENT(ppc64_interrupt_class, irq_exit,
 
 	TP_PROTO(struct pt_regs *regs),
 
-	TP_ARGS(regs),
-
-	TP_STRUCT__entry(
-		__field(struct pt_regs *, regs)
-	),
-
-	TP_fast_assign(
-		__entry->regs = regs;
-	),
-
-	TP_printk("pt_regs=%p", __entry->regs)
+	TP_ARGS(regs)
 );
 
-TRACE_EVENT(timer_interrupt_exit,
+DEFINE_EVENT(ppc64_interrupt_class, timer_interrupt_entry,
 
 	TP_PROTO(struct pt_regs *regs),
 
-	TP_ARGS(regs),
+	TP_ARGS(regs)
+);
 
-	TP_STRUCT__entry(
-		__field(struct pt_regs *, regs)
-	),
+DEFINE_EVENT(ppc64_interrupt_class, timer_interrupt_exit,
 
-	TP_fast_assign(
-		__entry->regs = regs;
-	),
+	TP_PROTO(struct pt_regs *regs),
 
-	TP_printk("pt_regs=%p", __entry->regs)
+	TP_ARGS(regs)
 );
 
 #ifdef CONFIG_PPC_PSERIES
