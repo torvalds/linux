@@ -1694,9 +1694,8 @@ int bitmap_create(struct mddev *mddev)
 	bitmap->counts.chunkshift = (ffz(~mddev->bitmap_info.chunksize)
 			      - BITMAP_BLOCK_SHIFT);
 
-	chunks = (blocks + (1 << bitmap->counts.chunkshift) - 1) >>
-			bitmap->counts.chunkshift;
-	pages = (chunks + PAGE_COUNTER_RATIO - 1) / PAGE_COUNTER_RATIO;
+	chunks = DIV_ROUND_UP_SECTOR_T(blocks, 1 << bitmap->counts.chunkshift);
+	pages = DIV_ROUND_UP(chunks, PAGE_COUNTER_RATIO);
 
 	BUG_ON(!pages);
 
