@@ -3908,8 +3908,8 @@ static void nfs4_construct_boot_verifier(struct nfs_client *clp,
 {
 	__be32 verf[2];
 
-	verf[0] = htonl((u32)clp->cl_boot_time.tv_sec);
-	verf[1] = htonl((u32)clp->cl_boot_time.tv_nsec);
+	verf[0] = (__be32)clp->cl_boot_time.tv_sec;
+	verf[1] = (__be32)clp->cl_boot_time.tv_nsec;
 	memcpy(bootverf->data, verf, sizeof(bootverf->data));
 }
 
