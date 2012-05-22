@@ -162,8 +162,16 @@ int ipu_dp_set_global_alpha(struct ipu_dp *dp, bool enable, u8 alpha,
 		bool bg_chan);
 
 /*
+ * IPU CMOS Sensor Interface (csi) functions
+ */
+int ipu_csi_enable(struct ipu_soc *ipu, int csi);
+int ipu_csi_disable(struct ipu_soc *ipu, int csi);
+
+/*
  * IPU Sensor Multiple FIFO Controller (SMFC) functions
  */
+int ipu_smfc_enable(struct ipu_soc *ipu);
+int ipu_smfc_disable(struct ipu_soc *ipu);
 int ipu_smfc_map_channel(struct ipu_soc *ipu, int channel, int csi_id, int mipi_id);
 int ipu_smfc_set_burstsize(struct ipu_soc *ipu, int channel, int burstsize);
 
