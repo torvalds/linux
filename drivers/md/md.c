@@ -5139,7 +5139,8 @@ int md_run(struct mddev *mddev)
 		err = -EINVAL;
 		mddev->pers->stop(mddev);
 	}
-	if (err == 0 && mddev->pers->sync_request) {
+	if (err == 0 && mddev->pers->sync_request &&
+	    (mddev->bitmap_info.file || mddev->bitmap_info.offset)) {
 		err = bitmap_create(mddev);
 		if (err) {
 			printk(KERN_ERR "%s: failed to create bitmap (%d)\n",
@@ -7847,7 +7848,7 @@ void md_check_recovery(struct mddev *mddev)
 			goto unlock;
 
 		if (mddev->pers->sync_request) {
-			if (spares && mddev->bitmap && ! mddev->bitmap->file) {
+			if (spares) {
 				/* We are adding a device or devices to an array
 				 * which has the bitmap stored on all devices.
 				 * So make sure all bitmap pages get written
