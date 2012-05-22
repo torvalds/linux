@@ -1359,7 +1359,7 @@ static int smack_file_receive(struct file *file)
 }
 
 /**
- * smack_dentry_open - Smack dentry open processing
+ * smack_file_open - Smack dentry open processing
  * @file: the object
  * @cred: unused
  *
@@ -1367,7 +1367,7 @@ static int smack_file_receive(struct file *file)
  *
  * Returns 0
  */
-static int smack_dentry_open(struct file *file, const struct cred *cred)
+static int smack_file_open(struct file *file, const struct cred *cred)
 {
 	struct inode_smack *isp = file->f_path.dentry->d_inode->i_security;
 
@@ -3487,7 +3487,7 @@ struct security_operations smack_ops = {
 	.file_send_sigiotask = 		smack_file_send_sigiotask,
 	.file_receive = 		smack_file_receive,
 
-	.dentry_open =			smack_dentry_open,
+	.file_open =			smack_file_open,
 
 	.cred_alloc_blank =		smack_cred_alloc_blank,
 	.cred_free =			smack_cred_free,

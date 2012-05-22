@@ -304,7 +304,7 @@ void smack_log(char *subject_label, char *object_label,
 static inline void smk_ad_init(struct smk_audit_info *a, const char *func,
 			       char type)
 {
-	memset(a, 0, sizeof(*a));
+	memset(&a->sad, 0, sizeof(a->sad));
 	a->a.type = type;
 	a->a.smack_audit_data = &a->sad;
 	a->a.smack_audit_data->function = func;
