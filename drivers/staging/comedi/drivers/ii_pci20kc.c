@@ -135,15 +135,15 @@ options for PCI-20341M:
 #define PCI20341_SCANLIST		0x80	/* Channel/Gain Scan List */
 
 union pci20xxx_subdev_private {
-	void *iobase;
+	void __iomem *iobase;
 	struct {
-		void *iobase;
+		void __iomem *iobase;
 		const struct comedi_lrange *ao_range_list[2];
 					/* range of channels of ao module */
 		unsigned int last_data[2];
 	} pci20006;
 	struct {
-		void *iobase;
+		void __iomem *iobase;
 		int timebase;
 		int settling_time;
 		int ai_gain;
@@ -152,7 +152,7 @@ union pci20xxx_subdev_private {
 
 struct pci20xxx_private {
 
-	void *ioaddr;
+	void __iomem *ioaddr;
 	union pci20xxx_subdev_private subdev_private[PCI20000_MODULES];
 };
 
@@ -210,7 +210,7 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 
-	devpriv->ioaddr = (void *)(unsigned long)it->options[0];
+	devpriv->ioaddr = (void __iomem *)(unsigned long)it->options[0];
 	dev->board_name = "pci20kc";
 
 	/* Check PCI-20001 C-2A Carrier Board ID */
