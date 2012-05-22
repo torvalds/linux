@@ -364,15 +364,17 @@ int r600_audio_rate(struct radeon_device *rdev);
 uint8_t r600_audio_status_bits(struct radeon_device *rdev);
 uint8_t r600_audio_category_code(struct radeon_device *rdev);
 void r600_audio_fini(struct radeon_device *rdev);
-void r600_hdmi_init(struct drm_encoder *encoder);
 int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 /* r600 blit */
-int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages);
-void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
+int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages,
+			   struct radeon_sa_bo **vb);
+void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence,
+			 struct radeon_sa_bo *vb);
 void r600_kms_blit_copy(struct radeon_device *rdev,
 			u64 src_gpu_addr, u64 dst_gpu_addr,
-			unsigned num_gpu_pages);
+			unsigned num_gpu_pages,
+			struct radeon_sa_bo *vb);
 int r600_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*

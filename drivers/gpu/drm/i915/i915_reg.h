@@ -29,6 +29,9 @@
 
 #define _PORT(port, a, b) ((a) + (port)*((b)-(a)))
 
+#define _MASKED_BIT_ENABLE(a) (((a) << 16) | (a))
+#define _MASKED_BIT_DISABLE(a) ((a) << 16)
+
 /*
  * The Bridge device's PCI config space has information about the
  * fb aperture size and the amount of pre-reserved memory.
@@ -79,6 +82,7 @@
 #define  GRDOM_FULL	(0<<2)
 #define  GRDOM_RENDER	(1<<2)
 #define  GRDOM_MEDIA	(3<<2)
+#define  GRDOM_RESET_ENABLE (1<<0)
 
 #define GEN6_MBCUNIT_SNPCR	0x900c /* for LLC config */
 #define   GEN6_MBC_SNPCR_SHIFT	21
@@ -425,8 +429,6 @@
 #define ARB_MODE		0x04030
 #define   ARB_MODE_SWIZZLE_SNB	(1<<4)
 #define   ARB_MODE_SWIZZLE_IVB	(1<<5)
-#define   ARB_MODE_ENABLE(x)	GFX_MODE_ENABLE(x)
-#define   ARB_MODE_DISABLE(x)	GFX_MODE_DISABLE(x)
 #define RENDER_HWS_PGA_GEN7	(0x04080)
 #define RING_FAULT_REG(ring)	(0x4094 + 0x100*(ring)->id)
 #define DONE_REG		0x40b0
@@ -514,9 +516,6 @@
 #define   GFX_PSMI_GRANULARITY		(1<<10)
 #define   GFX_PPGTT_ENABLE		(1<<9)
 
-#define GFX_MODE_ENABLE(bit) (((bit) << 16) | (bit))
-#define GFX_MODE_DISABLE(bit) (((bit) << 16) | (0))
-
 #define SCPD0		0x0209c /* 915+ only */
 #define IER		0x020a0
 #define IIR		0x020a4
@@ -572,7 +571,6 @@
 #define LM_BURST_LENGTH     0x00000700
 #define LM_FIFO_WATERMARK   0x0000001F
 #define MI_ARB_STATE	0x020e4 /* 915+ only */
-#define   MI_ARB_MASK_SHIFT	  16	/* shift for enable bits */
 
 /* Make render/texture TLB fetches lower priorty than associated data
  *   fetches. This is not turned on by default
@@ -637,7 +635,6 @@
 #define   MI_ARB_DISPLAY_PRIORITY_B_A		(1 << 0)	/* display B > display A */
 
 #define CACHE_MODE_0	0x02120 /* 915+ only */
-#define   CM0_MASK_SHIFT          16
 #define   CM0_IZ_OPT_DISABLE      (1<<6)
 #define   CM0_ZR_OPT_DISABLE      (1<<5)
 #define	  CM0_STC_EVICT_DISABLE_LRA_SNB	(1<<5)
@@ -1700,9 +1697,12 @@
 /* Video Data Island Packet control */
 #define VIDEO_DIP_DATA		0x61178
 #define VIDEO_DIP_CTL		0x61170
+/* Pre HSW: */
 #define   VIDEO_DIP_ENABLE		(1 << 31)
 #define   VIDEO_DIP_PORT_B		(1 << 29)
 #define   VIDEO_DIP_PORT_C		(2 << 29)
+#define   VIDEO_DIP_PORT_D		(3 << 29)
+#define   VIDEO_DIP_PORT_MASK		(3 << 29)
 #define   VIDEO_DIP_ENABLE_AVI		(1 << 21)
 #define   VIDEO_DIP_ENABLE_VENDOR	(2 << 21)
 #define   VIDEO_DIP_ENABLE_SPD		(8 << 21)
@@ -1713,6 +1713,10 @@
 #define   VIDEO_DIP_FREQ_ONCE		(0 << 16)
 #define   VIDEO_DIP_FREQ_VSYNC		(1 << 16)
 #define   VIDEO_DIP_FREQ_2VSYNC		(2 << 16)
+#define   VIDEO_DIP_FREQ_MASK		(3 << 16)
+/* HSW and later: */
+#define   VIDEO_DIP_ENABLE_AVI_HSW	(1 << 12)
+#define   VIDEO_DIP_ENABLE_SPD_HSW	(1 << 0)
 
 /* Panel power sequencing */
 #define PP_STATUS	0x61200
@@ -2479,7 +2483,8 @@
 
 /* Pipe A */
 #define _PIPEADSL		0x70000
-#define   DSL_LINEMASK		0x00000fff
+#define   DSL_LINEMASK_GEN2	0x00000fff
+#define   DSL_LINEMASK_GEN3	0x00001fff
 #define _PIPEACONF		0x70008
 #define   PIPECONF_ENABLE	(1<<31)
 #define   PIPECONF_DISABLE	0
@@ -3224,11 +3229,14 @@
 #define DE_PCH_EVENT_IVB		(1<<28)
 #define DE_DP_A_HOTPLUG_IVB		(1<<27)
 #define DE_AUX_CHANNEL_A_IVB		(1<<26)
+#define DE_SPRITEC_FLIP_DONE_IVB	(1<<14)
+#define DE_PLANEC_FLIP_DONE_IVB		(1<<13)
+#define DE_PIPEC_VBLANK_IVB		(1<<10)
 #define DE_SPRITEB_FLIP_DONE_IVB	(1<<9)
-#define DE_SPRITEA_FLIP_DONE_IVB	(1<<4)
 #define DE_PLANEB_FLIP_DONE_IVB		(1<<8)
-#define DE_PLANEA_FLIP_DONE_IVB		(1<<3)
 #define DE_PIPEB_VBLANK_IVB		(1<<5)
+#define DE_SPRITEA_FLIP_DONE_IVB	(1<<4)
+#define DE_PLANEA_FLIP_DONE_IVB		(1<<3)
 #define DE_PIPEA_VBLANK_IVB		(1<<0)
 
 #define VLV_MASTER_IER			0x4400c /* Gunit master IER */
@@ -3402,15 +3410,15 @@
 
 #define _PCH_DPLL_A              0xc6014
 #define _PCH_DPLL_B              0xc6018
-#define PCH_DPLL(pipe) (pipe == 0 ?  _PCH_DPLL_A : _PCH_DPLL_B)
+#define _PCH_DPLL(pll) (pll == 0 ? _PCH_DPLL_A : _PCH_DPLL_B)
 
 #define _PCH_FPA0                0xc6040
 #define  FP_CB_TUNE		(0x3<<22)
 #define _PCH_FPA1                0xc6044
 #define _PCH_FPB0                0xc6048
 #define _PCH_FPB1                0xc604c
-#define PCH_FP0(pipe) (pipe == 0 ? _PCH_FPA0 : _PCH_FPB0)
-#define PCH_FP1(pipe) (pipe == 0 ? _PCH_FPA1 : _PCH_FPB1)
+#define _PCH_FP0(pll) (pll == 0 ? _PCH_FPA0 : _PCH_FPB0)
+#define _PCH_FP1(pll) (pll == 0 ? _PCH_FPA1 : _PCH_FPB1)
 
 #define PCH_DPLL_TEST           0xc606c
 
@@ -3519,6 +3527,42 @@
 	 _PIPE(pipe, VLV_VIDEO_DIP_DATA_A, VLV_VIDEO_DIP_DATA_B)
 #define VLV_TVIDEO_DIP_GCP(pipe) \
 	_PIPE(pipe, VLV_VIDEO_DIP_GDCP_PAYLOAD_A, VLV_VIDEO_DIP_GDCP_PAYLOAD_B)
+
+/* Haswell DIP controls */
+#define HSW_VIDEO_DIP_CTL_A		0x60200
+#define HSW_VIDEO_DIP_AVI_DATA_A	0x60220
+#define HSW_VIDEO_DIP_VS_DATA_A		0x60260
+#define HSW_VIDEO_DIP_SPD_DATA_A	0x602A0
+#define HSW_VIDEO_DIP_GMP_DATA_A	0x602E0
+#define HSW_VIDEO_DIP_VSC_DATA_A	0x60320
+#define HSW_VIDEO_DIP_AVI_ECC_A		0x60240
+#define HSW_VIDEO_DIP_VS_ECC_A		0x60280
+#define HSW_VIDEO_DIP_SPD_ECC_A		0x602C0
+#define HSW_VIDEO_DIP_GMP_ECC_A		0x60300
+#define HSW_VIDEO_DIP_VSC_ECC_A		0x60344
+#define HSW_VIDEO_DIP_GCP_A		0x60210
+
+#define HSW_VIDEO_DIP_CTL_B		0x61200
+#define HSW_VIDEO_DIP_AVI_DATA_B	0x61220
+#define HSW_VIDEO_DIP_VS_DATA_B		0x61260
+#define HSW_VIDEO_DIP_SPD_DATA_B	0x612A0
+#define HSW_VIDEO_DIP_GMP_DATA_B	0x612E0
+#define HSW_VIDEO_DIP_VSC_DATA_B	0x61320
+#define HSW_VIDEO_DIP_BVI_ECC_B		0x61240
+#define HSW_VIDEO_DIP_VS_ECC_B		0x61280
+#define HSW_VIDEO_DIP_SPD_ECC_B		0x612C0
+#define HSW_VIDEO_DIP_GMP_ECC_B		0x61300
+#define HSW_VIDEO_DIP_VSC_ECC_B		0x61344
+#define HSW_VIDEO_DIP_GCP_B		0x61210
+
+#define HSW_TVIDEO_DIP_CTL(pipe) \
+	 _PIPE(pipe, HSW_VIDEO_DIP_CTL_A, HSW_VIDEO_DIP_CTL_B)
+#define HSW_TVIDEO_DIP_AVI_DATA(pipe) \
+	 _PIPE(pipe, HSW_VIDEO_DIP_AVI_DATA_A, HSW_VIDEO_DIP_AVI_DATA_B)
+#define HSW_TVIDEO_DIP_SPD_DATA(pipe) \
+	 _PIPE(pipe, HSW_VIDEO_DIP_SPD_DATA_A, HSW_VIDEO_DIP_SPD_DATA_B)
+#define HSW_TVIDEO_DIP_GCP(pipe) \
+	_PIPE(pipe, HSW_VIDEO_DIP_GCP_A, HSW_VIDEO_DIP_GCP_B)
 
 #define _TRANS_HTOTAL_B          0xe1000
 #define _TRANS_HBLANK_B          0xe1004

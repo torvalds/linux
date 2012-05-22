@@ -1926,7 +1926,10 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 
 	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI) {
 		r600_hdmi_enable(encoder);
-		r600_hdmi_setmode(encoder, adjusted_mode);
+		if (ASIC_IS_DCE4(rdev))
+			evergreen_hdmi_setmode(encoder, adjusted_mode);
+		else
+			r600_hdmi_setmode(encoder, adjusted_mode);
 	}
 }
 
@@ -2081,6 +2084,7 @@ radeon_atom_ext_encoder_setup_ddc(struct drm_encoder *encoder)
 
 static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 {
+	struct radeon_device *rdev = encoder->dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 
@@ -2089,8 +2093,16 @@ static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 	    (radeon_encoder_get_dp_bridge_encoder_id(encoder) !=
 	     ENCODER_OBJECT_ID_NONE)) {
 		struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-		if (dig)
+		if (dig) {
 			dig->dig_encoder = radeon_atom_pick_dig_encoder(encoder);
+			if (radeon_encoder->active_device & ATOM_DEVICE_DFP_SUPPORT) {
+				if (rdev->family >= CHIP_R600)
+					dig->afmt = rdev->mode_info.afmt[dig->dig_encoder];
+				else
+					/* RS600/690/740 have only 1 afmt block */
+					dig->afmt = rdev->mode_info.afmt[0];
+			}
+		}
 	}
 
 	radeon_atom_output_lock(encoder, true);

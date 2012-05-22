@@ -30,6 +30,29 @@
 #include "atom.h"
 
 /*
+ * check if enc_priv stores radeon_encoder_atom_dig
+ */
+static bool radeon_dig_encoder(struct drm_encoder *encoder)
+{
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	switch (radeon_encoder->encoder_id) {
+	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
+	case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
+	case ENCODER_OBJECT_ID_INTERNAL_DDI:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+		return true;
+	}
+	return false;
+}
+
+/*
  * check if the chipset is supported
  */
 static int r600_audio_chipset_supported(struct radeon_device *rdev)
@@ -135,6 +158,8 @@ void r600_audio_update_hdmi(struct work_struct *work)
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		if (!radeon_dig_encoder(encoder))
+			continue;
 		if (changes || r600_hdmi_buffer_status_changed(encoder))
 			r600_hdmi_update_audio_settings(encoder);
 	}

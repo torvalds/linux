@@ -713,6 +713,14 @@ void r600_hpd_init(struct radeon_device *rdev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
+			/* don't try to enable hpd on eDP or LVDS avoid breaking the
+			 * aux dp channel on imac and help (but not completely fix)
+			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
+			 */
+			continue;
+		}
 		if (ASIC_IS_DCE3(rdev)) {
 			u32 tmp = DC_HPDx_CONNECTION_TIMER(0x9c4) | DC_HPDx_RX_INT_TIMER(0xfa);
 			if (ASIC_IS_DCE32(rdev))
@@ -2363,20 +2371,15 @@ int r600_copy_blit(struct radeon_device *rdev,
 		   unsigned num_gpu_pages,
 		   struct radeon_fence *fence)
 {
+	struct radeon_sa_bo *vb = NULL;
 	int r;
 
-	mutex_lock(&rdev->r600_blit.mutex);
-	rdev->r600_blit.vb_ib = NULL;
-	r = r600_blit_prepare_copy(rdev, num_gpu_pages);
+	r = r600_blit_prepare_copy(rdev, num_gpu_pages, &vb);
 	if (r) {
-		if (rdev->r600_blit.vb_ib)
-			radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
-		mutex_unlock(&rdev->r600_blit.mutex);
 		return r;
 	}
-	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages);
-	r600_blit_done_copy(rdev, fence);
-	mutex_unlock(&rdev->r600_blit.mutex);
+	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages, vb);
+	r600_blit_done_copy(rdev, fence, vb);
 	return 0;
 }
 
@@ -2557,10 +2560,6 @@ int r600_init(struct radeon_device *rdev)
 	if (r600_debugfs_mc_info_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for mc !\n");
 	}
-	/* This don't do much */
-	r = radeon_gem_init(rdev);
-	if (r)
-		return r;
 	/* Read BIOS */
 	if (!radeon_get_bios(rdev)) {
 		if (ASIC_IS_AVIVO(rdev))
@@ -2658,7 +2657,6 @@ void r600_fini(struct radeon_device *rdev)
 	r600_vram_scratch_fini(rdev);
 	radeon_agp_fini(rdev);
 	radeon_gem_fini(rdev);
-	radeon_semaphore_driver_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
@@ -2687,7 +2685,7 @@ void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 
 int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	struct radeon_ib *ib;
+	struct radeon_ib ib;
 	uint32_t scratch;
 	uint32_t tmp = 0;
 	unsigned i;
@@ -2705,18 +2703,18 @@ int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		DRM_ERROR("radeon: failed to get ib (%d).\n", r);
 		return r;
 	}
-	ib->ptr[0] = PACKET3(PACKET3_SET_CONFIG_REG, 1);
-	ib->ptr[1] = ((scratch - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
-	ib->ptr[2] = 0xDEADBEEF;
-	ib->length_dw = 3;
-	r = radeon_ib_schedule(rdev, ib);
+	ib.ptr[0] = PACKET3(PACKET3_SET_CONFIG_REG, 1);
+	ib.ptr[1] = ((scratch - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
+	ib.ptr[2] = 0xDEADBEEF;
+	ib.length_dw = 3;
+	r = radeon_ib_schedule(rdev, &ib);
 	if (r) {
 		radeon_scratch_free(rdev, scratch);
 		radeon_ib_free(rdev, &ib);
 		DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
 		return r;
 	}
-	r = radeon_fence_wait(ib->fence, false);
+	r = radeon_fence_wait(ib.fence, false);
 	if (r) {
 		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
 		return r;
@@ -2728,7 +2726,7 @@ int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		DRM_UDELAY(1);
 	}
 	if (i < rdev->usec_timeout) {
-		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib->fence->ring, i);
+		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib.fence->ring, i);
 	} else {
 		DRM_ERROR("radeon: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);

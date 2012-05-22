@@ -967,11 +967,14 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 			obj->pending_gpu_write = true;
 			list_move_tail(&obj->gpu_write_list,
 				       &ring->gpu_write_list);
-			intel_mark_busy(ring->dev, obj);
+			if (obj->pin_count) /* check for potential scanout */
+				intel_mark_busy(ring->dev, obj);
 		}
 
 		trace_i915_gem_object_change_domain(obj, old_read, old_write);
 	}
+
+	intel_mark_busy(ring->dev, NULL);
 }
 
 static void
@@ -1061,21 +1064,18 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		ring = &dev_priv->ring[RCS];
 		break;
 	case I915_EXEC_BSD:
-		if (!HAS_BSD(dev)) {
-			DRM_DEBUG("execbuf with invalid ring (BSD)\n");
-			return -EINVAL;
-		}
 		ring = &dev_priv->ring[VCS];
 		break;
 	case I915_EXEC_BLT:
-		if (!HAS_BLT(dev)) {
-			DRM_DEBUG("execbuf with invalid ring (BLT)\n");
-			return -EINVAL;
-		}
 		ring = &dev_priv->ring[BCS];
 		break;
 	default:
 		DRM_DEBUG("execbuf with unknown ring: %d\n",
+			  (int)(args->flags & I915_EXEC_RING_MASK));
+		return -EINVAL;
+	}
+	if (!intel_ring_initialized(ring)) {
+		DRM_DEBUG("execbuf with invalid ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
 		return -EINVAL;
 	}
@@ -1116,11 +1116,17 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			return -EINVAL;
 		}
 
+		if (INTEL_INFO(dev)->gen >= 5) {
+			DRM_DEBUG("clip rectangles are only valid on pre-gen5\n");
+			return -EINVAL;
+		}
+
 		if (args->num_cliprects > UINT_MAX / sizeof(*cliprects)) {
 			DRM_DEBUG("execbuf with %u cliprects\n",
 				  args->num_cliprects);
 			return -EINVAL;
 		}
+
 		cliprects = kmalloc(args->num_cliprects * sizeof(*cliprects),
 				    GFP_KERNEL);
 		if (cliprects == NULL) {
@@ -1225,9 +1231,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			 * so every billion or so execbuffers, we need to stall
 			 * the GPU in order to reset the counters.
 			 */
-			ret = i915_gpu_idle(dev, true);
+			ret = i915_gpu_idle(dev);
 			if (ret)
 				goto err;
+			i915_gem_retire_requests(dev);
 
 			BUG_ON(ring->sync_seqno[i]);
 		}

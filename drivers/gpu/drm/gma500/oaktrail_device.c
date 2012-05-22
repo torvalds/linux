@@ -187,6 +187,7 @@ static int oaktrail_save_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_save_area *regs = &dev_priv->regs;
+	struct psb_pipe *p = &regs->pipe[0];
 	int i;
 	u32 pp_stat;
 
@@ -201,24 +202,24 @@ static int oaktrail_save_display_registers(struct drm_device *dev)
 	regs->psb.saveCHICKENBIT = PSB_RVDC32(DSPCHICKENBIT);
 
 	/* Pipe & plane A info */
-	regs->psb.savePIPEACONF = PSB_RVDC32(PIPEACONF);
-	regs->psb.savePIPEASRC = PSB_RVDC32(PIPEASRC);
-	regs->psb.saveFPA0 = PSB_RVDC32(MRST_FPA0);
-	regs->psb.saveFPA1 = PSB_RVDC32(MRST_FPA1);
-	regs->psb.saveDPLL_A = PSB_RVDC32(MRST_DPLL_A);
-	regs->psb.saveHTOTAL_A = PSB_RVDC32(HTOTAL_A);
-	regs->psb.saveHBLANK_A = PSB_RVDC32(HBLANK_A);
-	regs->psb.saveHSYNC_A = PSB_RVDC32(HSYNC_A);
-	regs->psb.saveVTOTAL_A = PSB_RVDC32(VTOTAL_A);
-	regs->psb.saveVBLANK_A = PSB_RVDC32(VBLANK_A);
-	regs->psb.saveVSYNC_A = PSB_RVDC32(VSYNC_A);
+	p->conf = PSB_RVDC32(PIPEACONF);
+	p->src = PSB_RVDC32(PIPEASRC);
+	p->fp0 = PSB_RVDC32(MRST_FPA0);
+	p->fp1 = PSB_RVDC32(MRST_FPA1);
+	p->dpll = PSB_RVDC32(MRST_DPLL_A);
+	p->htotal = PSB_RVDC32(HTOTAL_A);
+	p->hblank = PSB_RVDC32(HBLANK_A);
+	p->hsync = PSB_RVDC32(HSYNC_A);
+	p->vtotal = PSB_RVDC32(VTOTAL_A);
+	p->vblank = PSB_RVDC32(VBLANK_A);
+	p->vsync = PSB_RVDC32(VSYNC_A);
 	regs->psb.saveBCLRPAT_A = PSB_RVDC32(BCLRPAT_A);
-	regs->psb.saveDSPACNTR = PSB_RVDC32(DSPACNTR);
-	regs->psb.saveDSPASTRIDE = PSB_RVDC32(DSPASTRIDE);
-	regs->psb.saveDSPAADDR = PSB_RVDC32(DSPABASE);
-	regs->psb.saveDSPASURF = PSB_RVDC32(DSPASURF);
-	regs->psb.saveDSPALINOFF = PSB_RVDC32(DSPALINOFF);
-	regs->psb.saveDSPATILEOFF = PSB_RVDC32(DSPATILEOFF);
+	p->cntr = PSB_RVDC32(DSPACNTR);
+	p->stride = PSB_RVDC32(DSPASTRIDE);
+	p->addr = PSB_RVDC32(DSPABASE);
+	p->surf = PSB_RVDC32(DSPASURF);
+	p->linoff = PSB_RVDC32(DSPALINOFF);
+	p->tileoff = PSB_RVDC32(DSPATILEOFF);
 
 	/* Save cursor regs */
 	regs->psb.saveDSPACURSOR_CTRL = PSB_RVDC32(CURACNTR);
@@ -227,7 +228,7 @@ static int oaktrail_save_display_registers(struct drm_device *dev)
 
 	/* Save palette (gamma) */
 	for (i = 0; i < 256; i++)
-		regs->psb.save_palette_a[i] = PSB_RVDC32(PALETTE_A + (i << 2));
+		p->palette[i] = PSB_RVDC32(PALETTE_A + (i << 2));
 
 	if (dev_priv->hdmi_priv)
 		oaktrail_hdmi_save(dev);
@@ -300,6 +301,7 @@ static int oaktrail_restore_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_save_area *regs = &dev_priv->regs;
+	struct psb_pipe *p = &regs->pipe[0];
 	u32 pp_stat;
 	int i;
 
@@ -317,21 +319,21 @@ static int oaktrail_restore_display_registers(struct drm_device *dev)
 	PSB_WVDC32(0x80000000, VGACNTRL);
 
 	/* set the plls */
-	PSB_WVDC32(regs->psb.saveFPA0, MRST_FPA0);
-	PSB_WVDC32(regs->psb.saveFPA1, MRST_FPA1);
+	PSB_WVDC32(p->fp0, MRST_FPA0);
+	PSB_WVDC32(p->fp1, MRST_FPA1);
 
 	/* Actually enable it */
-	PSB_WVDC32(regs->psb.saveDPLL_A, MRST_DPLL_A);
+	PSB_WVDC32(p->dpll, MRST_DPLL_A);
 	DRM_UDELAY(150);
 
 	/* Restore mode */
-	PSB_WVDC32(regs->psb.saveHTOTAL_A, HTOTAL_A);
-	PSB_WVDC32(regs->psb.saveHBLANK_A, HBLANK_A);
-	PSB_WVDC32(regs->psb.saveHSYNC_A, HSYNC_A);
-	PSB_WVDC32(regs->psb.saveVTOTAL_A, VTOTAL_A);
-	PSB_WVDC32(regs->psb.saveVBLANK_A, VBLANK_A);
-	PSB_WVDC32(regs->psb.saveVSYNC_A, VSYNC_A);
-	PSB_WVDC32(regs->psb.savePIPEASRC, PIPEASRC);
+	PSB_WVDC32(p->htotal, HTOTAL_A);
+	PSB_WVDC32(p->hblank, HBLANK_A);
+	PSB_WVDC32(p->hsync, HSYNC_A);
+	PSB_WVDC32(p->vtotal, VTOTAL_A);
+	PSB_WVDC32(p->vblank, VBLANK_A);
+	PSB_WVDC32(p->vsync, VSYNC_A);
+	PSB_WVDC32(p->src, PIPEASRC);
 	PSB_WVDC32(regs->psb.saveBCLRPAT_A, BCLRPAT_A);
 
 	/* Restore performance mode*/
@@ -339,16 +341,16 @@ static int oaktrail_restore_display_registers(struct drm_device *dev)
 
 	/* Enable the pipe*/
 	if (dev_priv->iLVDS_enable)
-		PSB_WVDC32(regs->psb.savePIPEACONF, PIPEACONF);
+		PSB_WVDC32(p->conf, PIPEACONF);
 
 	/* Set up the plane*/
-	PSB_WVDC32(regs->psb.saveDSPALINOFF, DSPALINOFF);
-	PSB_WVDC32(regs->psb.saveDSPASTRIDE, DSPASTRIDE);
-	PSB_WVDC32(regs->psb.saveDSPATILEOFF, DSPATILEOFF);
+	PSB_WVDC32(p->linoff, DSPALINOFF);
+	PSB_WVDC32(p->stride, DSPASTRIDE);
+	PSB_WVDC32(p->tileoff, DSPATILEOFF);
 
 	/* Enable the plane */
-	PSB_WVDC32(regs->psb.saveDSPACNTR, DSPACNTR);
-	PSB_WVDC32(regs->psb.saveDSPASURF, DSPASURF);
+	PSB_WVDC32(p->cntr, DSPACNTR);
+	PSB_WVDC32(p->surf, DSPASURF);
 
 	/* Enable Cursor A */
 	PSB_WVDC32(regs->psb.saveDSPACURSOR_CTRL, CURACNTR);
@@ -357,7 +359,7 @@ static int oaktrail_restore_display_registers(struct drm_device *dev)
 
 	/* Restore palette (gamma) */
 	for (i = 0; i < 256; i++)
-		PSB_WVDC32(regs->psb.save_palette_a[i], PALETTE_A + (i << 2));
+		PSB_WVDC32(p->palette[i], PALETTE_A + (i << 2));
 
 	if (dev_priv->hdmi_priv)
 		oaktrail_hdmi_restore(dev);
@@ -454,11 +456,65 @@ static int oaktrail_power_up(struct drm_device *dev)
 	return 0;
 }
 
+/* Oaktrail */
+static const struct psb_offset oaktrail_regmap[2] = {
+	{
+		.fp0 = MRST_FPA0,
+		.fp1 = MRST_FPA1,
+		.cntr = DSPACNTR,
+		.conf = PIPEACONF,
+		.src = PIPEASRC,
+		.dpll = MRST_DPLL_A,
+		.htotal = HTOTAL_A,
+		.hblank = HBLANK_A,
+		.hsync = HSYNC_A,
+		.vtotal = VTOTAL_A,
+		.vblank = VBLANK_A,
+		.vsync = VSYNC_A,
+		.stride = DSPASTRIDE,
+		.size = DSPASIZE,
+		.pos = DSPAPOS,
+		.surf = DSPASURF,
+		.addr = MRST_DSPABASE,
+		.status = PIPEASTAT,
+		.linoff = DSPALINOFF,
+		.tileoff = DSPATILEOFF,
+		.palette = PALETTE_A,
+	},
+	{
+		.fp0 = FPB0,
+		.fp1 = FPB1,
+		.cntr = DSPBCNTR,
+		.conf = PIPEBCONF,
+		.src = PIPEBSRC,
+		.dpll = DPLL_B,
+		.htotal = HTOTAL_B,
+		.hblank = HBLANK_B,
+		.hsync = HSYNC_B,
+		.vtotal = VTOTAL_B,
+		.vblank = VBLANK_B,
+		.vsync = VSYNC_B,
+		.stride = DSPBSTRIDE,
+		.size = DSPBSIZE,
+		.pos = DSPBPOS,
+		.surf = DSPBSURF,
+		.addr = DSPBBASE,
+		.status = PIPEBSTAT,
+		.linoff = DSPBLINOFF,
+		.tileoff = DSPBTILEOFF,
+		.palette = PALETTE_B,
+	},
+};
 
 static int oaktrail_chip_setup(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	int ret;
+	
+	if (pci_enable_msi(dev->pdev))
+		dev_warn(dev->dev, "Enabling MSI failed!\n");
+
+	dev_priv->regmap = oaktrail_regmap;
 
 	ret = mid_chip_setup(dev);
 	if (ret < 0)

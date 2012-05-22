@@ -401,12 +401,11 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 	int ret = init_ring_common(ring);
 
 	if (INTEL_INFO(dev)->gen > 3) {
-		int mode = VS_TIMER_DISPATCH << 16 | VS_TIMER_DISPATCH;
-		I915_WRITE(MI_MODE, mode);
+		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH));
 		if (IS_GEN7(dev))
 			I915_WRITE(GFX_MODE_GEN7,
-				   GFX_MODE_DISABLE(GFX_TLB_INVALIDATE_ALWAYS) |
-				   GFX_MODE_ENABLE(GFX_REPLAY_MODE));
+				   _MASKED_BIT_DISABLE(GFX_TLB_INVALIDATE_ALWAYS) |
+				   _MASKED_BIT_ENABLE(GFX_REPLAY_MODE));
 	}
 
 	if (INTEL_INFO(dev)->gen >= 5) {
@@ -415,18 +414,18 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 			return ret;
 	}
 
-	if (INTEL_INFO(dev)->gen >= 6) {
-		I915_WRITE(INSTPM,
-			   INSTPM_FORCE_ORDERING << 16 | INSTPM_FORCE_ORDERING);
-
+	if (IS_GEN6(dev)) {
 		/* From the Sandybridge PRM, volume 1 part 3, page 24:
 		 * "If this bit is set, STCunit will have LRA as replacement
 		 *  policy. [...] This bit must be reset.  LRA replacement
 		 *  policy is not supported."
 		 */
 		I915_WRITE(CACHE_MODE_0,
-			   CM0_STC_EVICT_DISABLE_LRA_SNB << CM0_MASK_SHIFT);
+			   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
 	}
+
+	if (INTEL_INFO(dev)->gen >= 6)
+		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
 	return ret;
 }
@@ -621,17 +620,18 @@ gen5_ring_get_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long flags;
 
 	if (!dev->irq_enabled)
 		return false;
 
-	spin_lock(&ring->irq_lock);
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (ring->irq_refcount++ == 0) {
 		dev_priv->gt_irq_mask &= ~ring->irq_enable_mask;
 		I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 		POSTING_READ(GTIMR);
 	}
-	spin_unlock(&ring->irq_lock);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
 	return true;
 }
@@ -641,14 +641,15 @@ gen5_ring_put_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long flags;
 
-	spin_lock(&ring->irq_lock);
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (--ring->irq_refcount == 0) {
 		dev_priv->gt_irq_mask |= ring->irq_enable_mask;
 		I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 		POSTING_READ(GTIMR);
 	}
-	spin_unlock(&ring->irq_lock);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 }
 
 static bool
@@ -656,17 +657,18 @@ i9xx_ring_get_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long flags;
 
 	if (!dev->irq_enabled)
 		return false;
 
-	spin_lock(&ring->irq_lock);
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (ring->irq_refcount++ == 0) {
 		dev_priv->irq_mask &= ~ring->irq_enable_mask;
 		I915_WRITE(IMR, dev_priv->irq_mask);
 		POSTING_READ(IMR);
 	}
-	spin_unlock(&ring->irq_lock);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
 	return true;
 }
@@ -676,14 +678,52 @@ i9xx_ring_put_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long flags;
 
-	spin_lock(&ring->irq_lock);
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (--ring->irq_refcount == 0) {
 		dev_priv->irq_mask |= ring->irq_enable_mask;
 		I915_WRITE(IMR, dev_priv->irq_mask);
 		POSTING_READ(IMR);
 	}
-	spin_unlock(&ring->irq_lock);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+}
+
+static bool
+i8xx_ring_get_irq(struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	if (!dev->irq_enabled)
+		return false;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	if (ring->irq_refcount++ == 0) {
+		dev_priv->irq_mask &= ~ring->irq_enable_mask;
+		I915_WRITE16(IMR, dev_priv->irq_mask);
+		POSTING_READ16(IMR);
+	}
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+
+	return true;
+}
+
+static void
+i8xx_ring_put_irq(struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	if (--ring->irq_refcount == 0) {
+		dev_priv->irq_mask |= ring->irq_enable_mask;
+		I915_WRITE16(IMR, dev_priv->irq_mask);
+		POSTING_READ16(IMR);
+	}
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 }
 
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
@@ -762,6 +802,7 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long flags;
 
 	if (!dev->irq_enabled)
 	       return false;
@@ -771,14 +812,14 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring)
 	 * blt/bsd rings on ivb. */
 	gen6_gt_force_wake_get(dev_priv);
 
-	spin_lock(&ring->irq_lock);
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (ring->irq_refcount++ == 0) {
 		I915_WRITE_IMR(ring, ~ring->irq_enable_mask);
 		dev_priv->gt_irq_mask &= ~ring->irq_enable_mask;
 		I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 		POSTING_READ(GTIMR);
 	}
-	spin_unlock(&ring->irq_lock);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
 	return true;
 }
@@ -788,15 +829,16 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long flags;
 
-	spin_lock(&ring->irq_lock);
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (--ring->irq_refcount == 0) {
 		I915_WRITE_IMR(ring, ~0);
 		dev_priv->gt_irq_mask |= ring->irq_enable_mask;
 		I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 		POSTING_READ(GTIMR);
 	}
-	spin_unlock(&ring->irq_lock);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
 	gen6_gt_force_wake_put(dev_priv);
 }
@@ -858,7 +900,6 @@ i915_dispatch_execbuffer(struct intel_ring_buffer *ring,
 
 static void cleanup_status_page(struct intel_ring_buffer *ring)
 {
-	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_object *obj;
 
 	obj = ring->status_page.obj;
@@ -869,14 +910,11 @@ static void cleanup_status_page(struct intel_ring_buffer *ring)
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 	ring->status_page.obj = NULL;
-
-	memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
 }
 
 static int init_status_page(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	int ret;
 
@@ -897,7 +935,6 @@ static int init_status_page(struct intel_ring_buffer *ring)
 	ring->status_page.gfx_addr = obj->gtt_offset;
 	ring->status_page.page_addr = kmap(obj->pages[0]);
 	if (ring->status_page.page_addr == NULL) {
-		memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
 		goto err_unpin;
 	}
 	ring->status_page.obj = obj;
@@ -930,7 +967,6 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	ring->size = 32 * PAGE_SIZE;
 
 	init_waitqueue_head(&ring->irq_queue);
-	spin_lock_init(&ring->irq_lock);
 
 	if (I915_NEED_GFX_HWS(dev)) {
 		ret = init_status_page(ring);
@@ -951,20 +987,14 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	if (ret)
 		goto err_unref;
 
-	ring->map.size = ring->size;
-	ring->map.offset = dev->agp->base + obj->gtt_offset;
-	ring->map.type = 0;
-	ring->map.flags = 0;
-	ring->map.mtrr = 0;
-
-	drm_core_ioremap_wc(&ring->map, dev);
-	if (ring->map.handle == NULL) {
+	ring->virtual_start = ioremap_wc(dev->agp->base + obj->gtt_offset,
+					 ring->size);
+	if (ring->virtual_start == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");
 		ret = -EINVAL;
 		goto err_unpin;
 	}
 
-	ring->virtual_start = ring->map.handle;
 	ret = ring->init(ring);
 	if (ret)
 		goto err_unmap;
@@ -980,7 +1010,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	return 0;
 
 err_unmap:
-	drm_core_ioremapfree(&ring->map, dev);
+	iounmap(ring->virtual_start);
 err_unpin:
 	i915_gem_object_unpin(obj);
 err_unref:
@@ -1008,7 +1038,7 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 
 	I915_WRITE_CTL(ring, 0);
 
-	drm_core_ioremapfree(&ring->map, ring->dev);
+	iounmap(ring->virtual_start);
 
 	i915_gem_object_unpin(ring->obj);
 	drm_gem_object_unreference(&ring->obj->base);
@@ -1022,7 +1052,7 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 
 static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
 {
-	unsigned int *virt;
+	uint32_t __iomem *virt;
 	int rem = ring->size - ring->tail;
 
 	if (ring->space < rem) {
@@ -1031,12 +1061,10 @@ static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
 			return ret;
 	}
 
-	virt = (unsigned int *)(ring->virtual_start + ring->tail);
-	rem /= 8;
-	while (rem--) {
-		*virt++ = MI_NOOP;
-		*virt++ = MI_NOOP;
-	}
+	virt = ring->virtual_start + ring->tail;
+	rem /= 4;
+	while (rem--)
+		iowrite32(MI_NOOP, virt++);
 
 	ring->tail = 0;
 	ring->space = ring_space(ring);
@@ -1057,9 +1085,11 @@ static int intel_ring_wait_seqno(struct intel_ring_buffer *ring, u32 seqno)
 	was_interruptible = dev_priv->mm.interruptible;
 	dev_priv->mm.interruptible = false;
 
-	ret = i915_wait_request(ring, seqno, true);
+	ret = i915_wait_request(ring, seqno);
 
 	dev_priv->mm.interruptible = was_interruptible;
+	if (!ret)
+		i915_gem_retire_requests_ring(ring);
 
 	return ret;
 }
@@ -1133,15 +1163,12 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 		return ret;
 
 	trace_i915_ring_wait_begin(ring);
-	if (drm_core_check_feature(dev, DRIVER_GEM))
-		/* With GEM the hangcheck timer should kick us out of the loop,
-		 * leaving it early runs the risk of corrupting GEM state (due
-		 * to running on almost untested codepaths). But on resume
-		 * timers don't work yet, so prevent a complete hang in that
-		 * case by choosing an insanely large timeout. */
-		end = jiffies + 60 * HZ;
-	else
-		end = jiffies + 3 * HZ;
+	/* With GEM the hangcheck timer should kick us out of the loop,
+	 * leaving it early runs the risk of corrupting GEM state (due
+	 * to running on almost untested codepaths). But on resume
+	 * timers don't work yet, so prevent a complete hang in that
+	 * case by choosing an insanely large timeout. */
+	end = jiffies + 60 * HZ;
 
 	do {
 		ring->head = I915_READ_HEAD(ring);
@@ -1193,7 +1220,11 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 
 void intel_ring_advance(struct intel_ring_buffer *ring)
 {
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+
 	ring->tail &= ring->size - 1;
+	if (dev_priv->stop_rings & intel_ring_flag(ring))
+		return;
 	ring->write_tail(ring, ring->tail);
 }
 
@@ -1318,8 +1349,13 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		else
 			ring->flush = gen4_render_ring_flush;
 		ring->get_seqno = ring_get_seqno;
-		ring->irq_get = i9xx_ring_get_irq;
-		ring->irq_put = i9xx_ring_put_irq;
+		if (IS_GEN2(dev)) {
+			ring->irq_get = i8xx_ring_get_irq;
+			ring->irq_put = i8xx_ring_put_irq;
+		} else {
+			ring->irq_get = i9xx_ring_get_irq;
+			ring->irq_put = i9xx_ring_put_irq;
+		}
 		ring->irq_enable_mask = I915_USER_INTERRUPT;
 	}
 	ring->write_tail = ring_write_tail;
@@ -1366,8 +1402,13 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	else
 		ring->flush = gen4_render_ring_flush;
 	ring->get_seqno = ring_get_seqno;
-	ring->irq_get = i9xx_ring_get_irq;
-	ring->irq_put = i9xx_ring_put_irq;
+	if (IS_GEN2(dev)) {
+		ring->irq_get = i8xx_ring_get_irq;
+		ring->irq_put = i8xx_ring_put_irq;
+	} else {
+		ring->irq_get = i9xx_ring_get_irq;
+		ring->irq_put = i9xx_ring_put_irq;
+	}
 	ring->irq_enable_mask = I915_USER_INTERRUPT;
 	ring->write_tail = ring_write_tail;
 	if (INTEL_INFO(dev)->gen >= 4)
@@ -1392,20 +1433,13 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	if (IS_I830(ring->dev))
 		ring->effective_size -= 128;
 
-	ring->map.offset = start;
-	ring->map.size = size;
-	ring->map.type = 0;
-	ring->map.flags = 0;
-	ring->map.mtrr = 0;
-
-	drm_core_ioremap_wc(&ring->map, dev);
-	if (ring->map.handle == NULL) {
+	ring->virtual_start = ioremap_wc(start, size);
+	if (ring->virtual_start == NULL) {
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
 		return -ENOMEM;
 	}
 
-	ring->virtual_start = (void __force __iomem *)ring->map.handle;
 	return 0;
 }
 

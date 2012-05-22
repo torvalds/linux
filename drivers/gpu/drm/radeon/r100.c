@@ -139,9 +139,9 @@ int r100_reloc_pitch_offset(struct radeon_cs_parser *p,
 		}
 
 		tmp |= tile_flags;
-		p->ib->ptr[idx] = (value & 0x3fc00000) | tmp;
+		p->ib.ptr[idx] = (value & 0x3fc00000) | tmp;
 	} else
-		p->ib->ptr[idx] = (value & 0xffc00000) | tmp;
+		p->ib.ptr[idx] = (value & 0xffc00000) | tmp;
 	return 0;
 }
 
@@ -156,7 +156,7 @@ int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 	volatile uint32_t *ib;
 	u32 idx_value;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	track = (struct r100_cs_track *)p->track;
 	c = radeon_get_ib_value(p, idx++) & 0x1F;
 	if (c > 16) {
@@ -1275,7 +1275,7 @@ void r100_cs_dump_packet(struct radeon_cs_parser *p,
 	unsigned i;
 	unsigned idx;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	idx = pkt->idx;
 	for (i = 0; i <= (pkt->count + 1); i++, idx++) {
 		DRM_INFO("ib[%d]=0x%08X\n", idx, ib[idx]);
@@ -1354,7 +1354,7 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	uint32_t header, h_idx, reg;
 	volatile uint32_t *ib;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 
 	/* parse the wait until */
 	r = r100_cs_packet_parse(p, &waitreloc, p->idx);
@@ -1533,7 +1533,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	u32 tile_flags = 0;
 	u32 idx_value;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	track = (struct r100_cs_track *)p->track;
 
 	idx_value = radeon_get_ib_value(p, idx);
@@ -1889,7 +1889,7 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 	volatile uint32_t *ib;
 	int r;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	idx = pkt->idx + 1;
 	track = (struct r100_cs_track *)p->track;
 	switch (pkt->opcode) {
@@ -2008,6 +2008,8 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 	int r;
 
 	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	if (!track)
+		return -ENOMEM;
 	r100_cs_track_clear(p->rdev, track);
 	p->track = track;
 	do {
@@ -3684,7 +3686,7 @@ void r100_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 
 int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	struct radeon_ib *ib;
+	struct radeon_ib ib;
 	uint32_t scratch;
 	uint32_t tmp = 0;
 	unsigned i;
@@ -3700,22 +3702,22 @@ int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	if (r) {
 		return r;
 	}
-	ib->ptr[0] = PACKET0(scratch, 0);
-	ib->ptr[1] = 0xDEADBEEF;
-	ib->ptr[2] = PACKET2(0);
-	ib->ptr[3] = PACKET2(0);
-	ib->ptr[4] = PACKET2(0);
-	ib->ptr[5] = PACKET2(0);
-	ib->ptr[6] = PACKET2(0);
-	ib->ptr[7] = PACKET2(0);
-	ib->length_dw = 8;
-	r = radeon_ib_schedule(rdev, ib);
+	ib.ptr[0] = PACKET0(scratch, 0);
+	ib.ptr[1] = 0xDEADBEEF;
+	ib.ptr[2] = PACKET2(0);
+	ib.ptr[3] = PACKET2(0);
+	ib.ptr[4] = PACKET2(0);
+	ib.ptr[5] = PACKET2(0);
+	ib.ptr[6] = PACKET2(0);
+	ib.ptr[7] = PACKET2(0);
+	ib.length_dw = 8;
+	r = radeon_ib_schedule(rdev, &ib);
 	if (r) {
 		radeon_scratch_free(rdev, scratch);
 		radeon_ib_free(rdev, &ib);
 		return r;
 	}
-	r = radeon_fence_wait(ib->fence, false);
+	r = radeon_fence_wait(ib.fence, false);
 	if (r) {
 		return r;
 	}

@@ -110,14 +110,18 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	 * when scaling is disabled.
 	 */
 	if (crtc_w != src_w || crtc_h != src_h) {
-		dev_priv->sprite_scaling_enabled = true;
-		intel_update_watermarks(dev);
-		intel_wait_for_vblank(dev, pipe);
+		if (!dev_priv->sprite_scaling_enabled) {
+			dev_priv->sprite_scaling_enabled = true;
+			intel_update_watermarks(dev);
+			intel_wait_for_vblank(dev, pipe);
+		}
 		sprscale = SPRITE_SCALE_ENABLE | (src_w << 16) | src_h;
 	} else {
-		dev_priv->sprite_scaling_enabled = false;
-		/* potentially re-enable LP watermarks */
-		intel_update_watermarks(dev);
+		if (dev_priv->sprite_scaling_enabled) {
+			dev_priv->sprite_scaling_enabled = false;
+			/* potentially re-enable LP watermarks */
+			intel_update_watermarks(dev);
+		}
 	}
 
 	I915_WRITE(SPRSTRIDE(pipe), fb->pitches[0]);
@@ -151,6 +155,9 @@ ivb_disable_plane(struct drm_plane *plane)
 	/* Activate double buffered register update */
 	I915_MODIFY_DISPBASE(SPRSURF(pipe), 0);
 	POSTING_READ(SPRSURF(pipe));
+
+	dev_priv->sprite_scaling_enabled = false;
+	intel_update_watermarks(dev);
 }
 
 static int
@@ -551,14 +558,13 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
 	struct drm_intel_sprite_colorkey *set = data;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mode_object *obj;
 	struct drm_plane *plane;
 	struct intel_plane *intel_plane;
 	int ret = 0;
 
-	if (!dev_priv)
-		return -EINVAL;
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
 
 	/* Make sure we don't try to enable both src & dest simultaneously */
 	if ((set->flags & (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE)) == (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE))
@@ -585,14 +591,13 @@ int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
 	struct drm_intel_sprite_colorkey *get = data;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mode_object *obj;
 	struct drm_plane *plane;
 	struct intel_plane *intel_plane;
 	int ret = 0;
 
-	if (!dev_priv)
-		return -EINVAL;
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
 
 	mutex_lock(&dev->mode_config.mutex);
 

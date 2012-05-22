@@ -747,18 +747,18 @@ static void intel_sdvo_get_dtd_from_mode(struct intel_sdvo_dtd *dtd,
 	uint16_t h_sync_offset, v_sync_offset;
 	int mode_clock;
 
-	width = mode->crtc_hdisplay;
-	height = mode->crtc_vdisplay;
+	width = mode->hdisplay;
+	height = mode->vdisplay;
 
 	/* do some mode translations */
-	h_blank_len = mode->crtc_hblank_end - mode->crtc_hblank_start;
-	h_sync_len = mode->crtc_hsync_end - mode->crtc_hsync_start;
+	h_blank_len = mode->htotal - mode->hdisplay;
+	h_sync_len = mode->hsync_end - mode->hsync_start;
 
-	v_blank_len = mode->crtc_vblank_end - mode->crtc_vblank_start;
-	v_sync_len = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	v_blank_len = mode->vtotal - mode->vdisplay;
+	v_sync_len = mode->vsync_end - mode->vsync_start;
 
-	h_sync_offset = mode->crtc_hsync_start - mode->crtc_hblank_start;
-	v_sync_offset = mode->crtc_vsync_start - mode->crtc_vblank_start;
+	h_sync_offset = mode->hsync_start - mode->hdisplay;
+	v_sync_offset = mode->vsync_start - mode->vdisplay;
 
 	mode_clock = mode->clock;
 	mode_clock /= intel_mode_get_pixel_multiplier(mode) ?: 1;
@@ -887,17 +887,24 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo)
 	};
 	uint8_t tx_rate = SDVO_HBUF_TX_VSYNC;
 	uint8_t set_buf_index[2] = { 1, 0 };
-	uint64_t *data = (uint64_t *)&avi_if;
+	uint8_t sdvo_data[4 + sizeof(avi_if.body.avi)];
+	uint64_t *data = (uint64_t *)sdvo_data;
 	unsigned i;
 
 	intel_dip_infoframe_csum(&avi_if);
+
+	/* sdvo spec says that the ecc is handled by the hw, and it looks like
+	 * we must not send the ecc field, either. */
+	memcpy(sdvo_data, &avi_if, 3);
+	sdvo_data[3] = avi_if.checksum;
+	memcpy(&sdvo_data[4], &avi_if.body, sizeof(avi_if.body.avi));
 
 	if (!intel_sdvo_set_value(intel_sdvo,
 				  SDVO_CMD_SET_HBUF_INDEX,
 				  set_buf_index, 2))
 		return false;
 
-	for (i = 0; i < sizeof(avi_if); i += 8) {
+	for (i = 0; i < sizeof(sdvo_data); i += 8) {
 		if (!intel_sdvo_set_value(intel_sdvo,
 					  SDVO_CMD_SET_HBUF_DATA,
 					  data, 8))
@@ -1577,9 +1584,6 @@ end:
 		if (newmode->type & DRM_MODE_TYPE_PREFERRED) {
 			intel_sdvo->sdvo_lvds_fixed_mode =
 				drm_mode_duplicate(connector->dev, newmode);
-
-			drm_mode_set_crtcinfo(intel_sdvo->sdvo_lvds_fixed_mode,
-					      0);
 
 			intel_sdvo->is_lvds = true;
 			break;

@@ -476,7 +476,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
-	dev_info(dev->dev, "allocated %dx%d fb\n",
+	dev_dbg(dev->dev, "allocated %dx%d fb\n",
 					psbfb->base.width, psbfb->base.height);
 
 	mutex_unlock(&dev->struct_mutex);
@@ -800,15 +800,20 @@ void psb_modeset_init(struct drm_device *dev)
 
 	if (dev_priv->ops->errata)
 	        dev_priv->ops->errata(dev);
+
+        dev_priv->modeset = true;
 }
 
 void psb_modeset_cleanup(struct drm_device *dev)
 {
-	mutex_lock(&dev->struct_mutex);
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	if (dev_priv->modeset) {
+		mutex_lock(&dev->struct_mutex);
 
-	drm_kms_helper_poll_fini(dev);
-	psb_fbdev_fini(dev);
-	drm_mode_config_cleanup(dev);
+		drm_kms_helper_poll_fini(dev);
+		psb_fbdev_fini(dev);
+		drm_mode_config_cleanup(dev);
 
-	mutex_unlock(&dev->struct_mutex);
+		mutex_unlock(&dev->struct_mutex);
+	}
 }

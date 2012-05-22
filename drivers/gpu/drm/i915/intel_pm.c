@@ -28,6 +28,8 @@
 #include <linux/cpufreq.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
+#include "../../../platform/x86/intel_ips.h"
+#include <linux/module.h>
 
 /* FBC, or Frame Buffer Compression, is a technique employed to compress the
  * framebuffer contents in-memory, aiming at reducing the required bandwidth
@@ -524,6 +526,113 @@ out_disable:
 	}
 }
 
+static void i915_pineview_get_mem_freq(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 tmp;
+
+	tmp = I915_READ(CLKCFG);
+
+	switch (tmp & CLKCFG_FSB_MASK) {
+	case CLKCFG_FSB_533:
+		dev_priv->fsb_freq = 533; /* 133*4 */
+		break;
+	case CLKCFG_FSB_800:
+		dev_priv->fsb_freq = 800; /* 200*4 */
+		break;
+	case CLKCFG_FSB_667:
+		dev_priv->fsb_freq =  667; /* 167*4 */
+		break;
+	case CLKCFG_FSB_400:
+		dev_priv->fsb_freq = 400; /* 100*4 */
+		break;
+	}
+
+	switch (tmp & CLKCFG_MEM_MASK) {
+	case CLKCFG_MEM_533:
+		dev_priv->mem_freq = 533;
+		break;
+	case CLKCFG_MEM_667:
+		dev_priv->mem_freq = 667;
+		break;
+	case CLKCFG_MEM_800:
+		dev_priv->mem_freq = 800;
+		break;
+	}
+
+	/* detect pineview DDR3 setting */
+	tmp = I915_READ(CSHRDDR3CTL);
+	dev_priv->is_ddr3 = (tmp & CSHRDDR3CTL_DDR3) ? 1 : 0;
+}
+
+static void i915_ironlake_get_mem_freq(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u16 ddrpll, csipll;
+
+	ddrpll = I915_READ16(DDRMPLL1);
+	csipll = I915_READ16(CSIPLL0);
+
+	switch (ddrpll & 0xff) {
+	case 0xc:
+		dev_priv->mem_freq = 800;
+		break;
+	case 0x10:
+		dev_priv->mem_freq = 1066;
+		break;
+	case 0x14:
+		dev_priv->mem_freq = 1333;
+		break;
+	case 0x18:
+		dev_priv->mem_freq = 1600;
+		break;
+	default:
+		DRM_DEBUG_DRIVER("unknown memory frequency 0x%02x\n",
+				 ddrpll & 0xff);
+		dev_priv->mem_freq = 0;
+		break;
+	}
+
+	dev_priv->r_t = dev_priv->mem_freq;
+
+	switch (csipll & 0x3ff) {
+	case 0x00c:
+		dev_priv->fsb_freq = 3200;
+		break;
+	case 0x00e:
+		dev_priv->fsb_freq = 3733;
+		break;
+	case 0x010:
+		dev_priv->fsb_freq = 4266;
+		break;
+	case 0x012:
+		dev_priv->fsb_freq = 4800;
+		break;
+	case 0x014:
+		dev_priv->fsb_freq = 5333;
+		break;
+	case 0x016:
+		dev_priv->fsb_freq = 5866;
+		break;
+	case 0x018:
+		dev_priv->fsb_freq = 6400;
+		break;
+	default:
+		DRM_DEBUG_DRIVER("unknown fsb frequency 0x%04x\n",
+				 csipll & 0x3ff);
+		dev_priv->fsb_freq = 0;
+		break;
+	}
+
+	if (dev_priv->fsb_freq == 3200) {
+		dev_priv->c_m = 0;
+	} else if (dev_priv->fsb_freq > 3200 && dev_priv->fsb_freq <= 4800) {
+		dev_priv->c_m = 1;
+	} else {
+		dev_priv->c_m = 2;
+	}
+}
+
 static const struct cxsr_latency cxsr_latency_table[] = {
 	{1, 0, 800, 400, 3382, 33382, 3983, 33983},    /* DDR2-400 SC */
 	{1, 0, 800, 667, 3354, 33354, 3807, 33807},    /* DDR2-667 SC */
@@ -562,7 +671,7 @@ static const struct cxsr_latency cxsr_latency_table[] = {
 	{0, 1, 400, 800, 6042, 36042, 6584, 36584},    /* DDR3-800 SC */
 };
 
-const struct cxsr_latency *intel_get_cxsr_latency(int is_desktop,
+static const struct cxsr_latency *intel_get_cxsr_latency(int is_desktop,
 							 int is_ddr3,
 							 int fsb,
 							 int mem)
@@ -1694,8 +1803,7 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		enabled |= 2;
 	}
 
-	/* IVB has 3 pipes */
-	if (IS_IVYBRIDGE(dev) &&
+	if ((dev_priv->num_pipe == 3) &&
 	    g4x_compute_wm0(dev, 2,
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
@@ -1773,6 +1881,33 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		   (fbc_wm << WM1_LP_FBC_SHIFT) |
 		   (plane_wm << WM1_LP_SR_SHIFT) |
 		   cursor_wm);
+}
+
+static void
+haswell_update_linetime_wm(struct drm_device *dev, int pipe,
+				 struct drm_display_mode *mode)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 temp;
+
+	temp = I915_READ(PIPE_WM_LINETIME(pipe));
+	temp &= ~PIPE_WM_LINETIME_MASK;
+
+	/* The WM are computed with base on how long it takes to fill a single
+	 * row at the given clock rate, multiplied by 8.
+	 * */
+	temp |= PIPE_WM_LINETIME_TIME(
+		((mode->crtc_hdisplay * 1000) / mode->clock) * 8);
+
+	/* IPS watermarks are only used by pipe A, and are ignored by
+	 * pipes B and C.  They are calculated similarly to the common
+	 * linetime values, except that we are using CD clock frequency
+	 * in MHz instead of pixel rate for the division.
+	 *
+	 * This is a placeholder for the IPS watermark calculation code.
+	 */
+
+	I915_WRITE(PIPE_WM_LINETIME(pipe), temp);
 }
 
 static bool
@@ -1968,6 +2103,15 @@ void intel_update_watermarks(struct drm_device *dev)
 
 	if (dev_priv->display.update_wm)
 		dev_priv->display.update_wm(dev);
+}
+
+void intel_update_linetime_watermarks(struct drm_device *dev,
+		int pipe, struct drm_display_mode *mode)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->display.update_linetime_wm)
+		dev_priv->display.update_linetime_wm(dev, pipe, mode);
 }
 
 void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
@@ -2182,6 +2326,7 @@ int intel_enable_rc6(const struct drm_device *dev)
 
 void gen6_enable_rps(struct drm_i915_private *dev_priv)
 {
+	struct intel_ring_buffer *ring;
 	u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 	u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 	u32 pcu_mbox, rc6_mask = 0;
@@ -2216,8 +2361,8 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000);
 	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25);
 
-	for (i = 0; i < I915_NUM_RINGS; i++)
-		I915_WRITE(RING_MAX_IDLE(dev_priv->ring[i].mmio_base), 10);
+	for_each_ring(ring, dev_priv, i)
+		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
 
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 	I915_WRITE(GEN6_RC1e_THRESHOLD, 1000);
@@ -2436,6 +2581,7 @@ static int ironlake_setup_rc6(struct drm_device *dev)
 void ironlake_enable_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
 	int ret;
 
 	/* rc6 disabled by default due to repeated reports of hanging during
@@ -2455,31 +2601,31 @@ void ironlake_enable_rc6(struct drm_device *dev)
 	 * GPU can automatically power down the render unit if given a page
 	 * to save state.
 	 */
-	ret = BEGIN_LP_RING(6);
+	ret = intel_ring_begin(ring, 6);
 	if (ret) {
 		ironlake_teardown_rc6(dev);
 		mutex_unlock(&dev->struct_mutex);
 		return;
 	}
 
-	OUT_RING(MI_SUSPEND_FLUSH | MI_SUSPEND_FLUSH_EN);
-	OUT_RING(MI_SET_CONTEXT);
-	OUT_RING(dev_priv->renderctx->gtt_offset |
-		 MI_MM_SPACE_GTT |
-		 MI_SAVE_EXT_STATE_EN |
-		 MI_RESTORE_EXT_STATE_EN |
-		 MI_RESTORE_INHIBIT);
-	OUT_RING(MI_SUSPEND_FLUSH);
-	OUT_RING(MI_NOOP);
-	OUT_RING(MI_FLUSH);
-	ADVANCE_LP_RING();
+	intel_ring_emit(ring, MI_SUSPEND_FLUSH | MI_SUSPEND_FLUSH_EN);
+	intel_ring_emit(ring, MI_SET_CONTEXT);
+	intel_ring_emit(ring, dev_priv->renderctx->gtt_offset |
+			MI_MM_SPACE_GTT |
+			MI_SAVE_EXT_STATE_EN |
+			MI_RESTORE_EXT_STATE_EN |
+			MI_RESTORE_INHIBIT);
+	intel_ring_emit(ring, MI_SUSPEND_FLUSH);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_emit(ring, MI_FLUSH);
+	intel_ring_advance(ring);
 
 	/*
 	 * Wait for the command parser to advance past MI_SET_CONTEXT. The HW
 	 * does an implicit flush, combined with MI_FLUSH above, it should be
 	 * safe to assume that renderctx is valid
 	 */
-	ret = intel_wait_ring_idle(LP_RING(dev_priv));
+	ret = intel_wait_ring_idle(ring);
 	if (ret) {
 		DRM_ERROR("failed to enable ironlake power power savings\n");
 		ironlake_teardown_rc6(dev);
@@ -2505,6 +2651,485 @@ static unsigned long intel_pxfreq(u32 vidfreq)
 	freq = ((div * 133333) / ((1<<post) * pre));
 
 	return freq;
+}
+
+static const struct cparams {
+	u16 i;
+	u16 t;
+	u16 m;
+	u16 c;
+} cparams[] = {
+	{ 1, 1333, 301, 28664 },
+	{ 1, 1066, 294, 24460 },
+	{ 1, 800, 294, 25192 },
+	{ 0, 1333, 276, 27605 },
+	{ 0, 1066, 276, 27605 },
+	{ 0, 800, 231, 23784 },
+};
+
+unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
+{
+	u64 total_count, diff, ret;
+	u32 count1, count2, count3, m = 0, c = 0;
+	unsigned long now = jiffies_to_msecs(jiffies), diff1;
+	int i;
+
+	diff1 = now - dev_priv->last_time1;
+
+	/* Prevent division-by-zero if we are asking too fast.
+	 * Also, we don't get interesting results if we are polling
+	 * faster than once in 10ms, so just return the saved value
+	 * in such cases.
+	 */
+	if (diff1 <= 10)
+		return dev_priv->chipset_power;
+
+	count1 = I915_READ(DMIEC);
+	count2 = I915_READ(DDREC);
+	count3 = I915_READ(CSIEC);
+
+	total_count = count1 + count2 + count3;
+
+	/* FIXME: handle per-counter overflow */
+	if (total_count < dev_priv->last_count1) {
+		diff = ~0UL - dev_priv->last_count1;
+		diff += total_count;
+	} else {
+		diff = total_count - dev_priv->last_count1;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cparams); i++) {
+		if (cparams[i].i == dev_priv->c_m &&
+		    cparams[i].t == dev_priv->r_t) {
+			m = cparams[i].m;
+			c = cparams[i].c;
+			break;
+		}
+	}
+
+	diff = div_u64(diff, diff1);
+	ret = ((m * diff) + c);
+	ret = div_u64(ret, 10);
+
+	dev_priv->last_count1 = total_count;
+	dev_priv->last_time1 = now;
+
+	dev_priv->chipset_power = ret;
+
+	return ret;
+}
+
+unsigned long i915_mch_val(struct drm_i915_private *dev_priv)
+{
+	unsigned long m, x, b;
+	u32 tsfs;
+
+	tsfs = I915_READ(TSFS);
+
+	m = ((tsfs & TSFS_SLOPE_MASK) >> TSFS_SLOPE_SHIFT);
+	x = I915_READ8(TR1);
+
+	b = tsfs & TSFS_INTR_MASK;
+
+	return ((m * x) / 127) - b;
+}
+
+static u16 pvid_to_extvid(struct drm_i915_private *dev_priv, u8 pxvid)
+{
+	static const struct v_table {
+		u16 vd; /* in .1 mil */
+		u16 vm; /* in .1 mil */
+	} v_table[] = {
+		{ 0, 0, },
+		{ 375, 0, },
+		{ 500, 0, },
+		{ 625, 0, },
+		{ 750, 0, },
+		{ 875, 0, },
+		{ 1000, 0, },
+		{ 1125, 0, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4250, 3125, },
+		{ 4375, 3250, },
+		{ 4500, 3375, },
+		{ 4625, 3500, },
+		{ 4750, 3625, },
+		{ 4875, 3750, },
+		{ 5000, 3875, },
+		{ 5125, 4000, },
+		{ 5250, 4125, },
+		{ 5375, 4250, },
+		{ 5500, 4375, },
+		{ 5625, 4500, },
+		{ 5750, 4625, },
+		{ 5875, 4750, },
+		{ 6000, 4875, },
+		{ 6125, 5000, },
+		{ 6250, 5125, },
+		{ 6375, 5250, },
+		{ 6500, 5375, },
+		{ 6625, 5500, },
+		{ 6750, 5625, },
+		{ 6875, 5750, },
+		{ 7000, 5875, },
+		{ 7125, 6000, },
+		{ 7250, 6125, },
+		{ 7375, 6250, },
+		{ 7500, 6375, },
+		{ 7625, 6500, },
+		{ 7750, 6625, },
+		{ 7875, 6750, },
+		{ 8000, 6875, },
+		{ 8125, 7000, },
+		{ 8250, 7125, },
+		{ 8375, 7250, },
+		{ 8500, 7375, },
+		{ 8625, 7500, },
+		{ 8750, 7625, },
+		{ 8875, 7750, },
+		{ 9000, 7875, },
+		{ 9125, 8000, },
+		{ 9250, 8125, },
+		{ 9375, 8250, },
+		{ 9500, 8375, },
+		{ 9625, 8500, },
+		{ 9750, 8625, },
+		{ 9875, 8750, },
+		{ 10000, 8875, },
+		{ 10125, 9000, },
+		{ 10250, 9125, },
+		{ 10375, 9250, },
+		{ 10500, 9375, },
+		{ 10625, 9500, },
+		{ 10750, 9625, },
+		{ 10875, 9750, },
+		{ 11000, 9875, },
+		{ 11125, 10000, },
+		{ 11250, 10125, },
+		{ 11375, 10250, },
+		{ 11500, 10375, },
+		{ 11625, 10500, },
+		{ 11750, 10625, },
+		{ 11875, 10750, },
+		{ 12000, 10875, },
+		{ 12125, 11000, },
+		{ 12250, 11125, },
+		{ 12375, 11250, },
+		{ 12500, 11375, },
+		{ 12625, 11500, },
+		{ 12750, 11625, },
+		{ 12875, 11750, },
+		{ 13000, 11875, },
+		{ 13125, 12000, },
+		{ 13250, 12125, },
+		{ 13375, 12250, },
+		{ 13500, 12375, },
+		{ 13625, 12500, },
+		{ 13750, 12625, },
+		{ 13875, 12750, },
+		{ 14000, 12875, },
+		{ 14125, 13000, },
+		{ 14250, 13125, },
+		{ 14375, 13250, },
+		{ 14500, 13375, },
+		{ 14625, 13500, },
+		{ 14750, 13625, },
+		{ 14875, 13750, },
+		{ 15000, 13875, },
+		{ 15125, 14000, },
+		{ 15250, 14125, },
+		{ 15375, 14250, },
+		{ 15500, 14375, },
+		{ 15625, 14500, },
+		{ 15750, 14625, },
+		{ 15875, 14750, },
+		{ 16000, 14875, },
+		{ 16125, 15000, },
+	};
+	if (dev_priv->info->is_mobile)
+		return v_table[pxvid].vm;
+	else
+		return v_table[pxvid].vd;
+}
+
+void i915_update_gfx_val(struct drm_i915_private *dev_priv)
+{
+	struct timespec now, diff1;
+	u64 diff;
+	unsigned long diffms;
+	u32 count;
+
+	if (dev_priv->info->gen != 5)
+		return;
+
+	getrawmonotonic(&now);
+	diff1 = timespec_sub(now, dev_priv->last_time2);
+
+	/* Don't divide by 0 */
+	diffms = diff1.tv_sec * 1000 + diff1.tv_nsec / 1000000;
+	if (!diffms)
+		return;
+
+	count = I915_READ(GFXEC);
+
+	if (count < dev_priv->last_count2) {
+		diff = ~0UL - dev_priv->last_count2;
+		diff += count;
+	} else {
+		diff = count - dev_priv->last_count2;
+	}
+
+	dev_priv->last_count2 = count;
+	dev_priv->last_time2 = now;
+
+	/* More magic constants... */
+	diff = diff * 1181;
+	diff = div_u64(diff, diffms * 10);
+	dev_priv->gfx_power = diff;
+}
+
+unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
+{
+	unsigned long t, corr, state1, corr2, state2;
+	u32 pxvid, ext_v;
+
+	pxvid = I915_READ(PXVFREQ_BASE + (dev_priv->cur_delay * 4));
+	pxvid = (pxvid >> 24) & 0x7f;
+	ext_v = pvid_to_extvid(dev_priv, pxvid);
+
+	state1 = ext_v;
+
+	t = i915_mch_val(dev_priv);
+
+	/* Revel in the empirically derived constants */
+
+	/* Correction factor in 1/100000 units */
+	if (t > 80)
+		corr = ((t * 2349) + 135940);
+	else if (t >= 50)
+		corr = ((t * 964) + 29317);
+	else /* < 50 */
+		corr = ((t * 301) + 1004);
+
+	corr = corr * ((150142 * state1) / 10000 - 78642);
+	corr /= 100000;
+	corr2 = (corr * dev_priv->corr);
+
+	state2 = (corr2 * state1) / 10000;
+	state2 /= 100; /* convert to mW */
+
+	i915_update_gfx_val(dev_priv);
+
+	return dev_priv->gfx_power + state2;
+}
+
+/* Global for IPS driver to get at the current i915 device */
+static struct drm_i915_private *i915_mch_dev;
+/*
+ * Lock protecting IPS related data structures
+ *   - i915_mch_dev
+ *   - dev_priv->max_delay
+ *   - dev_priv->min_delay
+ *   - dev_priv->fmax
+ *   - dev_priv->gpu_busy
+ */
+static DEFINE_SPINLOCK(mchdev_lock);
+
+/**
+ * i915_read_mch_val - return value for IPS use
+ *
+ * Calculate and return a value for the IPS driver to use when deciding whether
+ * we have thermal and power headroom to increase CPU or GPU power budget.
+ */
+unsigned long i915_read_mch_val(void)
+{
+	struct drm_i915_private *dev_priv;
+	unsigned long chipset_val, graphics_val, ret = 0;
+
+	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev)
+		goto out_unlock;
+	dev_priv = i915_mch_dev;
+
+	chipset_val = i915_chipset_val(dev_priv);
+	graphics_val = i915_gfx_val(dev_priv);
+
+	ret = chipset_val + graphics_val;
+
+out_unlock:
+	spin_unlock(&mchdev_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_read_mch_val);
+
+/**
+ * i915_gpu_raise - raise GPU frequency limit
+ *
+ * Raise the limit; IPS indicates we have thermal headroom.
+ */
+bool i915_gpu_raise(void)
+{
+	struct drm_i915_private *dev_priv;
+	bool ret = true;
+
+	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev) {
+		ret = false;
+		goto out_unlock;
+	}
+	dev_priv = i915_mch_dev;
+
+	if (dev_priv->max_delay > dev_priv->fmax)
+		dev_priv->max_delay--;
+
+out_unlock:
+	spin_unlock(&mchdev_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_gpu_raise);
+
+/**
+ * i915_gpu_lower - lower GPU frequency limit
+ *
+ * IPS indicates we're close to a thermal limit, so throttle back the GPU
+ * frequency maximum.
+ */
+bool i915_gpu_lower(void)
+{
+	struct drm_i915_private *dev_priv;
+	bool ret = true;
+
+	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev) {
+		ret = false;
+		goto out_unlock;
+	}
+	dev_priv = i915_mch_dev;
+
+	if (dev_priv->max_delay < dev_priv->min_delay)
+		dev_priv->max_delay++;
+
+out_unlock:
+	spin_unlock(&mchdev_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_gpu_lower);
+
+/**
+ * i915_gpu_busy - indicate GPU business to IPS
+ *
+ * Tell the IPS driver whether or not the GPU is busy.
+ */
+bool i915_gpu_busy(void)
+{
+	struct drm_i915_private *dev_priv;
+	bool ret = false;
+
+	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev)
+		goto out_unlock;
+	dev_priv = i915_mch_dev;
+
+	ret = dev_priv->busy;
+
+out_unlock:
+	spin_unlock(&mchdev_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_gpu_busy);
+
+/**
+ * i915_gpu_turbo_disable - disable graphics turbo
+ *
+ * Disable graphics turbo by resetting the max frequency and setting the
+ * current frequency to the default.
+ */
+bool i915_gpu_turbo_disable(void)
+{
+	struct drm_i915_private *dev_priv;
+	bool ret = true;
+
+	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev) {
+		ret = false;
+		goto out_unlock;
+	}
+	dev_priv = i915_mch_dev;
+
+	dev_priv->max_delay = dev_priv->fstart;
+
+	if (!ironlake_set_drps(dev_priv->dev, dev_priv->fstart))
+		ret = false;
+
+out_unlock:
+	spin_unlock(&mchdev_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_gpu_turbo_disable);
+
+/**
+ * Tells the intel_ips driver that the i915 driver is now loaded, if
+ * IPS got loaded first.
+ *
+ * This awkward dance is so that neither module has to depend on the
+ * other in order for IPS to do the appropriate communication of
+ * GPU turbo limits to i915.
+ */
+static void
+ips_ping_for_i915_load(void)
+{
+	void (*link)(void);
+
+	link = symbol_get(ips_link_to_i915_driver);
+	if (link) {
+		link();
+		symbol_put(ips_link_to_i915_driver);
+	}
+}
+
+void intel_gpu_ips_init(struct drm_i915_private *dev_priv)
+{
+	spin_lock(&mchdev_lock);
+	i915_mch_dev = dev_priv;
+	dev_priv->mchdev_lock = &mchdev_lock;
+	spin_unlock(&mchdev_lock);
+
+	ips_ping_for_i915_load();
+}
+
+void intel_gpu_ips_teardown(void)
+{
+	spin_lock(&mchdev_lock);
+	i915_mch_dev = NULL;
+	spin_unlock(&mchdev_lock);
 }
 
 void intel_init_emon(struct drm_device *dev)
@@ -2663,9 +3288,8 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
 
-	/* clear masked bit */
 	I915_WRITE(CACHE_MODE_0,
-		   CM0_STC_EVICT_DISABLE_LRA_SNB << CM0_MASK_SHIFT);
+		   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
 
 	I915_WRITE(GEN6_UCGCTL1,
 		   I915_READ(GEN6_UCGCTL1) |
@@ -2776,6 +3400,10 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	}
 
 	gen7_setup_fixed_func_scheduler(dev_priv);
+
+	/* WaDisable4x2SubspanOptimization */
+	I915_WRITE(CACHE_MODE_1,
+		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
 }
 
 static void valleyview_init_clock_gating(struct drm_device *dev)
@@ -2821,9 +3449,8 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 		intel_flush_display_plane(dev_priv, pipe);
 	}
 
-	I915_WRITE(CACHE_MODE_1, I915_READ(CACHE_MODE_1) |
-		   (PIXEL_SUBSPAN_COLLECT_OPT_DISABLE << 16) |
-		   PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
+	I915_WRITE(CACHE_MODE_1,
+		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
 }
 
 static void g4x_init_clock_gating(struct drm_device *dev)
@@ -2875,6 +3502,9 @@ static void gen3_init_clock_gating(struct drm_device *dev)
 	dstate |= DSTATE_PLL_D3_OFF | DSTATE_GFX_CLOCK_GATING |
 		DSTATE_DOT_CLOCK_GATING;
 	I915_WRITE(D_STATE, dstate);
+
+	if (IS_PINEVIEW(dev))
+		I915_WRITE(ECOSKPD, _MASKED_BIT_ENABLE(ECO_GATING_CX_ONLY));
 }
 
 static void i85x_init_clock_gating(struct drm_device *dev)
@@ -2931,6 +3561,72 @@ void intel_init_clock_gating(struct drm_device *dev)
 		dev_priv->display.init_pch_clock_gating(dev);
 }
 
+static void gen6_sanitize_pm(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 limits, delay, old;
+
+	gen6_gt_force_wake_get(dev_priv);
+
+	old = limits = I915_READ(GEN6_RP_INTERRUPT_LIMITS);
+	/* Make sure we continue to get interrupts
+	 * until we hit the minimum or maximum frequencies.
+	 */
+	limits &= ~(0x3f << 16 | 0x3f << 24);
+	delay = dev_priv->cur_delay;
+	if (delay < dev_priv->max_delay)
+		limits |= (dev_priv->max_delay & 0x3f) << 24;
+	if (delay > dev_priv->min_delay)
+		limits |= (dev_priv->min_delay & 0x3f) << 16;
+
+	if (old != limits) {
+		DRM_ERROR("Power management discrepancy: GEN6_RP_INTERRUPT_LIMITS expected %08x, was %08x\n",
+			  limits, old);
+		I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, limits);
+	}
+
+	gen6_gt_force_wake_put(dev_priv);
+}
+
+void intel_sanitize_pm(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->display.sanitize_pm)
+		dev_priv->display.sanitize_pm(dev);
+}
+
+/* Starting with Haswell, we have different power wells for
+ * different parts of the GPU. This attempts to enable them all.
+ */
+void intel_init_power_wells(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long power_wells[] = {
+		HSW_PWR_WELL_CTL1,
+		HSW_PWR_WELL_CTL2,
+		HSW_PWR_WELL_CTL4
+	};
+	int i;
+
+	if (!IS_HASWELL(dev))
+		return;
+
+	mutex_lock(&dev->struct_mutex);
+
+	for (i = 0; i < ARRAY_SIZE(power_wells); i++) {
+		int well = I915_READ(power_wells[i]);
+
+		if ((well & HSW_PWR_WELL_STATE) == 0) {
+			I915_WRITE(power_wells[i], well & HSW_PWR_WELL_ENABLE);
+			if (wait_for(I915_READ(power_wells[i] & HSW_PWR_WELL_STATE), 20))
+				DRM_ERROR("Error enabling power well %lx\n", power_wells[i]);
+		}
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+}
+
 /* Set up chip specific power management-related functions */
 void intel_init_pm(struct drm_device *dev)
 {
@@ -2952,6 +3648,12 @@ void intel_init_pm(struct drm_device *dev)
 		}
 		/* 855GM needs testing */
 	}
+
+	/* For cxsr */
+	if (IS_PINEVIEW(dev))
+		i915_pineview_get_mem_freq(dev);
+	else if (IS_GEN5(dev))
+		i915_ironlake_get_mem_freq(dev);
 
 	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(dev)) {
@@ -3007,6 +3709,7 @@ void intel_init_pm(struct drm_device *dev)
 				dev_priv->display.update_wm = NULL;
 			}
 			dev_priv->display.init_clock_gating = gen6_init_clock_gating;
+			dev_priv->display.sanitize_pm = gen6_sanitize_pm;
 		} else if (IS_IVYBRIDGE(dev)) {
 			/* FIXME: detect B0+ stepping and use auto training */
 			if (SNB_READ_WM0_LATENCY()) {
@@ -3018,6 +3721,19 @@ void intel_init_pm(struct drm_device *dev)
 				dev_priv->display.update_wm = NULL;
 			}
 			dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
+			dev_priv->display.sanitize_pm = gen6_sanitize_pm;
+		} else if (IS_HASWELL(dev)) {
+			if (SNB_READ_WM0_LATENCY()) {
+				dev_priv->display.update_wm = sandybridge_update_wm;
+				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
+				dev_priv->display.update_linetime_wm = haswell_update_linetime_wm;
+			} else {
+				DRM_DEBUG_KMS("Failed to read display plane latency. "
+					      "Disable CxSR\n");
+				dev_priv->display.update_wm = NULL;
+			}
+			dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
+			dev_priv->display.sanitize_pm = gen6_sanitize_pm;
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_VALLEYVIEW(dev)) {
@@ -3071,5 +3787,10 @@ void intel_init_pm(struct drm_device *dev)
 		else
 			dev_priv->display.get_fifo_size = i830_get_fifo_size;
 	}
+
+	/* We attempt to init the necessary power wells early in the initialization
+	 * time, so the subsystems that expect power to be enabled can work.
+	 */
+	intel_init_power_wells(dev);
 }
 

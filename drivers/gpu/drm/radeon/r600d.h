@@ -1057,12 +1057,6 @@
 #       define AFMT_AZ_FORMAT_WTRIG_ACK      (1 << 29)
 #       define AFMT_AZ_AUDIO_ENABLE_CHG_ACK  (1 << 30)
 
-#define DCE2_HDMI_OFFSET0		(0x7400 - 0x7400)
-#define DCE2_HDMI_OFFSET1		(0x7700 - 0x7400)
-/* DCE3.2 second instance starts at 0x7800 */
-#define DCE3_HDMI_OFFSET0		(0x7400 - 0x7400)
-#define DCE3_HDMI_OFFSET1		(0x7800 - 0x7400)
-
 /*
  * PM4
  */

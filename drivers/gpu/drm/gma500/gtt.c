@@ -416,7 +416,6 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	unsigned long stolen_size, vram_stolen_size;
 	unsigned i, num_pages;
 	unsigned pfn_base;
-	uint32_t dvmt_mode = 0;
 	struct psb_gtt *pg;
 
 	int ret = 0;
@@ -489,13 +488,8 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 
 	stolen_size = vram_stolen_size;
 
-	printk(KERN_INFO "Stolen memory information\n");
-	printk(KERN_INFO "       base in RAM: 0x%x\n", dev_priv->stolen_base);
-	printk(KERN_INFO "       size: %luK, calculated by (GTT RAM base) - (Stolen base), seems wrong\n",
-		vram_stolen_size/1024);
-	dvmt_mode = (dev_priv->gmch_ctrl >> 4) & 0x7;
-	printk(KERN_INFO "      the correct size should be: %dM(dvmt mode=%d)\n",
-		(dvmt_mode == 1) ? 1 : (2 << (dvmt_mode - 1)), dvmt_mode);
+	dev_dbg(dev->dev, "Stolen memory base 0x%x, size %luK\n",
+			dev_priv->stolen_base, vram_stolen_size / 1024);
 
 	if (resume && (gtt_pages != pg->gtt_pages) &&
 	    (stolen_size != pg->stolen_size)) {
@@ -532,7 +526,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 
 	pfn_base = dev_priv->stolen_base >> PAGE_SHIFT;
 	num_pages = vram_stolen_size >> PAGE_SHIFT;
-	printk(KERN_INFO"Set up %d stolen pages starting at 0x%08x, GTT offset %dK\n",
+	dev_dbg(dev->dev, "Set up %d stolen pages starting at 0x%08x, GTT offset %dK\n",
 		num_pages, pfn_base << PAGE_SHIFT, 0);
 	for (i = 0; i < num_pages; ++i) {
 		pte = psb_gtt_mask_pte(pfn_base + i, 0);

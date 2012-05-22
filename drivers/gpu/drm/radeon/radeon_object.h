@@ -146,6 +146,17 @@ extern struct radeon_bo_va *radeon_bo_va(struct radeon_bo *rbo,
 /*
  * sub allocation
  */
+
+static inline uint64_t radeon_sa_bo_gpu_addr(struct radeon_sa_bo *sa_bo)
+{
+	return sa_bo->manager->gpu_addr + sa_bo->soffset;
+}
+
+static inline void * radeon_sa_bo_cpu_addr(struct radeon_sa_bo *sa_bo)
+{
+	return sa_bo->manager->cpu_ptr + sa_bo->soffset;
+}
+
 extern int radeon_sa_bo_manager_init(struct radeon_device *rdev,
 				     struct radeon_sa_manager *sa_manager,
 				     unsigned size, u32 domain);
@@ -157,9 +168,15 @@ extern int radeon_sa_bo_manager_suspend(struct radeon_device *rdev,
 					struct radeon_sa_manager *sa_manager);
 extern int radeon_sa_bo_new(struct radeon_device *rdev,
 			    struct radeon_sa_manager *sa_manager,
-			    struct radeon_sa_bo *sa_bo,
-			    unsigned size, unsigned align);
+			    struct radeon_sa_bo **sa_bo,
+			    unsigned size, unsigned align, bool block);
 extern void radeon_sa_bo_free(struct radeon_device *rdev,
-			      struct radeon_sa_bo *sa_bo);
+			      struct radeon_sa_bo **sa_bo,
+			      struct radeon_fence *fence);
+#if defined(CONFIG_DEBUG_FS)
+extern void radeon_sa_bo_dump_debug_info(struct radeon_sa_manager *sa_manager,
+					 struct seq_file *m);
+#endif
+
 
 #endif

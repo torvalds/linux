@@ -604,7 +604,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	int r;
 	u32 idx_value;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	track = (struct r100_cs_track *)p->track;
 	idx_value = radeon_get_ib_value(p, idx);
 
@@ -1146,7 +1146,7 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 	unsigned idx;
 	int r;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	idx = pkt->idx + 1;
 	track = (struct r100_cs_track *)p->track;
 	switch(pkt->opcode) {

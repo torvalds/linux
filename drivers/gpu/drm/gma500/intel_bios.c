@@ -490,26 +490,8 @@ bool psb_intel_init_bios(struct drm_device *dev)
 void psb_intel_destroy_bios(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct drm_display_mode *sdvo_lvds_vbt_mode =
-				dev_priv->sdvo_lvds_vbt_mode;
-	struct drm_display_mode *lfp_lvds_vbt_mode =
-				dev_priv->lfp_lvds_vbt_mode;
-	struct bdb_lvds_backlight *lvds_bl =
-				dev_priv->lvds_bl;
 
-	/*free sdvo panel mode*/
-	if (sdvo_lvds_vbt_mode) {
-		dev_priv->sdvo_lvds_vbt_mode = NULL;
-		kfree(sdvo_lvds_vbt_mode);
-	}
-
-	if (lfp_lvds_vbt_mode) {
-		dev_priv->lfp_lvds_vbt_mode = NULL;
-		kfree(lfp_lvds_vbt_mode);
-	}
-
-	if (lvds_bl) {
-		dev_priv->lvds_bl = NULL;
-		kfree(lvds_bl);
-	}
+	kfree(dev_priv->sdvo_lvds_vbt_mode);
+	kfree(dev_priv->lfp_lvds_vbt_mode);
+	kfree(dev_priv->lvds_bl);
 }

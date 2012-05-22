@@ -637,7 +637,6 @@ int evergreen_blit_init(struct radeon_device *rdev)
 	if (rdev->r600_blit.shader_obj)
 		goto done;
 
-	mutex_init(&rdev->r600_blit.mutex);
 	rdev->r600_blit.state_offset = 0;
 
 	if (rdev->family < CHIP_CAYMAN)

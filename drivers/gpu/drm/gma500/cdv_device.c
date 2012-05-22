@@ -255,7 +255,7 @@ static int cdv_save_display_registers(struct drm_device *dev)
 	struct psb_save_area *regs = &dev_priv->regs;
 	struct drm_connector *connector;
 
-	dev_info(dev->dev, "Saving GPU registers.\n");
+	dev_dbg(dev->dev, "Saving GPU registers.\n");
 
 	pci_read_config_byte(dev->pdev, 0xF4, &regs->cdv.saveLBB);
 
@@ -485,10 +485,68 @@ static void cdv_hotplug_enable(struct drm_device *dev, bool on)
 	}	
 }
 
+/* Cedarview */
+static const struct psb_offset cdv_regmap[2] = {
+	{
+		.fp0 = FPA0,
+		.fp1 = FPA1,
+		.cntr = DSPACNTR,
+		.conf = PIPEACONF,
+		.src = PIPEASRC,
+		.dpll = DPLL_A,
+		.dpll_md = DPLL_A_MD,
+		.htotal = HTOTAL_A,
+		.hblank = HBLANK_A,
+		.hsync = HSYNC_A,
+		.vtotal = VTOTAL_A,
+		.vblank = VBLANK_A,
+		.vsync = VSYNC_A,
+		.stride = DSPASTRIDE,
+		.size = DSPASIZE,
+		.pos = DSPAPOS,
+		.base = DSPABASE,
+		.surf = DSPASURF,
+		.addr = DSPABASE,
+		.status = PIPEASTAT,
+		.linoff = DSPALINOFF,
+		.tileoff = DSPATILEOFF,
+		.palette = PALETTE_A,
+	},
+	{
+		.fp0 = FPB0,
+		.fp1 = FPB1,
+		.cntr = DSPBCNTR,
+		.conf = PIPEBCONF,
+		.src = PIPEBSRC,
+		.dpll = DPLL_B,
+		.dpll_md = DPLL_B_MD,
+		.htotal = HTOTAL_B,
+		.hblank = HBLANK_B,
+		.hsync = HSYNC_B,
+		.vtotal = VTOTAL_B,
+		.vblank = VBLANK_B,
+		.vsync = VSYNC_B,
+		.stride = DSPBSTRIDE,
+		.size = DSPBSIZE,
+		.pos = DSPBPOS,
+		.base = DSPBBASE,
+		.surf = DSPBSURF,
+		.addr = DSPBBASE,
+		.status = PIPEBSTAT,
+		.linoff = DSPBLINOFF,
+		.tileoff = DSPBTILEOFF,
+		.palette = PALETTE_B,
+	}
+};
+
 static int cdv_chip_setup(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	INIT_WORK(&dev_priv->hotplug_work, cdv_hotplug_work_func);
+
+	if (pci_enable_msi(dev->pdev))
+		dev_warn(dev->dev, "Enabling MSI failed!\n");
+	dev_priv->regmap = cdv_regmap;
 	cdv_get_core_freq(dev);
 	psb_intel_opregion_init(dev);
 	psb_intel_init_bios(dev);
