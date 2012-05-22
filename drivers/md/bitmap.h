@@ -172,21 +172,24 @@ struct bitmap_page {
 
 /* the main bitmap structure - one per mddev */
 struct bitmap {
-	struct bitmap_page *bp;
-	unsigned long pages; /* total number of pages in the bitmap */
-	unsigned long missing_pages; /* number of pages not yet allocated */
+
+	struct bitmap_counts {
+		spinlock_t lock;
+		struct bitmap_page *bp;
+		unsigned long pages;		/* total number of pages
+						 * in the bitmap */
+		unsigned long missing_pages;	/* number of pages
+						 * not yet allocated */
+		unsigned long chunkshift;	/* chunksize = 2^chunkshift
+						 * (for bitops) */
+		unsigned long chunks;		/* Total number of data
+						 * chunks for the array */
+	} counts;
 
 	struct mddev *mddev; /* the md device that the bitmap is for */
 
-	/* bitmap chunksize -- how much data does each bit represent? */
-	unsigned long chunkshift; /* chunksize = 2^(chunkshift+9) (for bitops) */
-	unsigned long chunks; /* total number of data chunks for the array */
-
 	__u64	events_cleared;
 	int need_sync;
-
-	/* bitmap spinlock */
-	spinlock_t lock;
 
 	struct bitmap_storage {
 		struct file *file;		/* backing disk file */
