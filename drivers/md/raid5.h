@@ -285,6 +285,7 @@ enum r5dev_flags {
 			 */
 	R5_Wantdrain,	/* dev->towrite needs to be drained */
 	R5_WantFUA,	/* Write should be FUA */
+	R5_SyncIO,	/* The IO is sync */
 	R5_WriteError,	/* got a write error - need to record it */
 	R5_MadeGood,	/* A bad block has been fixed by writing to it */
 	R5_ReadRepl,	/* Will/did read from replacement rather than orig */
