@@ -44,7 +44,7 @@
 #include <plat/usb.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
-#include <video/omap-panel-dvi.h>
+#include <video/omap-panel-tfp410.h>
 #include <plat/mcspi.h>
 
 #include <mach/hardware.h>
@@ -218,25 +218,6 @@ static void cm_t35_panel_disable_lcd(struct omap_dss_device *dssdev)
 	gpio_set_value(CM_T35_LCD_EN_GPIO, 0);
 }
 
-static int cm_t35_panel_enable_dvi(struct omap_dss_device *dssdev)
-{
-	if (lcd_enabled) {
-		printk(KERN_ERR "cannot enable DVI, LCD is enabled\n");
-		return -EINVAL;
-	}
-
-	gpio_set_value(CM_T35_DVI_EN_GPIO, 0);
-	dvi_enabled = 1;
-
-	return 0;
-}
-
-static void cm_t35_panel_disable_dvi(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(CM_T35_DVI_EN_GPIO, 1);
-	dvi_enabled = 0;
-}
-
 static int cm_t35_panel_enable_tv(struct omap_dss_device *dssdev)
 {
 	return 0;
@@ -260,15 +241,14 @@ static struct omap_dss_device cm_t35_lcd_device = {
 	.phy.dpi.data_lines	= 18,
 };
 
-static struct panel_dvi_platform_data dvi_panel = {
-	.platform_enable	= cm_t35_panel_enable_dvi,
-	.platform_disable	= cm_t35_panel_disable_dvi,
+static struct tfp410_platform_data dvi_panel = {
+	.power_down_gpio	= CM_T35_DVI_EN_GPIO,
 };
 
 static struct omap_dss_device cm_t35_dvi_device = {
 	.name			= "dvi",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "dvi",
+	.driver_name		= "tfp410",
 	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
 };
@@ -316,7 +296,6 @@ static struct spi_board_info cm_t35_lcd_spi_board_info[] __initdata = {
 static struct gpio cm_t35_dss_gpios[] __initdata = {
 	{ CM_T35_LCD_EN_GPIO, GPIOF_OUT_INIT_LOW,  "lcd enable"    },
 	{ CM_T35_LCD_BL_GPIO, GPIOF_OUT_INIT_LOW,  "lcd bl enable" },
-	{ CM_T35_DVI_EN_GPIO, GPIOF_OUT_INIT_HIGH, "dvi enable"    },
 };
 
 static void __init cm_t35_init_display(void)
@@ -335,7 +314,6 @@ static void __init cm_t35_init_display(void)
 
 	gpio_export(CM_T35_LCD_EN_GPIO, 0);
 	gpio_export(CM_T35_LCD_BL_GPIO, 0);
-	gpio_export(CM_T35_DVI_EN_GPIO, 0);
 
 	msleep(50);
 	gpio_set_value(CM_T35_LCD_EN_GPIO, 1);

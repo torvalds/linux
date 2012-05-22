@@ -336,8 +336,8 @@ config ARCH_AT91
 	select IRQ_DOMAIN
 	select NEED_MACH_IO_H if PCCARD
 	help
-	  This enables support for systems based on the Atmel AT91RM9200,
-	  AT91SAM9 processors.
+	  This enables support for systems based on Atmel
+	  AT91RM9200 and AT91SAM9* processors.
 
 config ARCH_BCMRING
 	bool "Broadcom BCMRING"
@@ -369,12 +369,12 @@ config ARCH_HIGHBANK
 	  Support for the Calxeda Highbank SoC based boards.
 
 config ARCH_CLPS711X
-	bool "Cirrus Logic CLPS711x/EP721x-based"
+	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
 	select CPU_ARM720T
 	select ARCH_USES_GETTIMEOFFSET
 	select NEED_MACH_MEMORY_H
 	help
-	  Support for Cirrus Logic 711x/721x based boards.
+	  Support for Cirrus Logic 711x/721x/731x based boards.
 
 config ARCH_CNS3XXX
 	bool "Cavium Networks CNS3XXX family"
@@ -523,28 +523,6 @@ config ARCH_IOP33X
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
-
-config ARCH_IXP23XX
- 	bool "IXP23XX-based"
-	depends on MMU
-	select CPU_XSC3
- 	select PCI
-	select ARCH_USES_GETTIMEOFFSET
-	select NEED_MACH_IO_H
-	select NEED_MACH_MEMORY_H
-	help
-	  Support for Intel's IXP23xx (XScale) family of processors.
-
-config ARCH_IXP2000
-	bool "IXP2400/2800-based"
-	depends on MMU
-	select CPU_XSCALE
-	select PCI
-	select ARCH_USES_GETTIMEOFFSET
-	select NEED_MACH_IO_H
-	select NEED_MACH_MEMORY_H
-	help
-	  Support for Intel's IXP2400/2800 (XScale) family of processors.
 
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
@@ -1038,10 +1016,6 @@ source "arch/arm/mach-iop33x/Kconfig"
 source "arch/arm/mach-iop13xx/Kconfig"
 
 source "arch/arm/mach-ixp4xx/Kconfig"
-
-source "arch/arm/mach-ixp2000/Kconfig"
-
-source "arch/arm/mach-ixp23xx/Kconfig"
 
 source "arch/arm/mach-kirkwood/Kconfig"
 

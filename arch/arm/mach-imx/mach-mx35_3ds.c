@@ -419,7 +419,7 @@ static void __init mx35pdk_timer_init(void)
 	mx35_clocks_init();
 }
 
-struct sys_timer mx35pdk_timer = {
+static struct sys_timer mx35pdk_timer = {
 	.init	= mx35pdk_timer_init,
 };
 

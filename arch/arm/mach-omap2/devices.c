@@ -42,7 +42,6 @@
 
 static int __init omap3_l3_init(void)
 {
-	int l;
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
 	char oh_name[L3_MODULES_MAX_LEN];
@@ -54,7 +53,7 @@ static int __init omap3_l3_init(void)
 	if (!(cpu_is_omap34xx()))
 		return -ENODEV;
 
-	l = snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main");
+	snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main");
 
 	oh = omap_hwmod_lookup(oh_name);
 
@@ -72,7 +71,7 @@ postcore_initcall(omap3_l3_init);
 
 static int __init omap4_l3_init(void)
 {
-	int l, i;
+	int i;
 	struct omap_hwmod *oh[3];
 	struct platform_device *pdev;
 	char oh_name[L3_MODULES_MAX_LEN];
@@ -89,7 +88,7 @@ static int __init omap4_l3_init(void)
 		return -ENODEV;
 
 	for (i = 0; i < L3_MODULES; i++) {
-		l = snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main_%d", i+1);
+		snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main_%d", i+1);
 
 		oh[i] = omap_hwmod_lookup(oh_name);
 		if (!(oh[i]))

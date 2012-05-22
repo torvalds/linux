@@ -42,7 +42,7 @@
 #include "common.h"
 #include <plat/usb.h>
 #include <plat/mmc.h>
-#include <video/omap-panel-dvi.h>
+#include <video/omap-panel-tfp410.h>
 
 #include "hsmmc.h"
 #include "control.h"
@@ -231,7 +231,7 @@ static struct platform_device omap_vwlan_device = {
 	},
 };
 
-struct wl12xx_platform_data omap_panda_wlan_data  __initdata = {
+static struct wl12xx_platform_data omap_panda_wlan_data  __initdata = {
 	/* PANDA ref clock is 38.4 MHz */
 	.board_ref_clock = 2,
 };
@@ -420,46 +420,21 @@ static struct omap_board_mux board_mux[] __initdata = {
 /* Display DVI */
 #define PANDA_DVI_TFP410_POWER_DOWN_GPIO	0
 
-static int omap4_panda_enable_dvi(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(dssdev->reset_gpio, 1);
-	return 0;
-}
-
-static void omap4_panda_disable_dvi(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(dssdev->reset_gpio, 0);
-}
-
 /* Using generic display panel */
-static struct panel_dvi_platform_data omap4_dvi_panel = {
-	.platform_enable	= omap4_panda_enable_dvi,
-	.platform_disable	= omap4_panda_disable_dvi,
-	.i2c_bus_num = 3,
+static struct tfp410_platform_data omap4_dvi_panel = {
+	.i2c_bus_num		= 3,
+	.power_down_gpio	= PANDA_DVI_TFP410_POWER_DOWN_GPIO,
 };
 
-struct omap_dss_device omap4_panda_dvi_device = {
+static struct omap_dss_device omap4_panda_dvi_device = {
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.name			= "dvi",
-	.driver_name		= "dvi",
+	.driver_name		= "tfp410",
 	.data			= &omap4_dvi_panel,
 	.phy.dpi.data_lines	= 24,
 	.reset_gpio		= PANDA_DVI_TFP410_POWER_DOWN_GPIO,
 	.channel		= OMAP_DSS_CHANNEL_LCD2,
 };
-
-int __init omap4_panda_dvi_init(void)
-{
-	int r;
-
-	/* Requesting TFP410 DVI GPIO and disabling it, at bootup */
-	r = gpio_request_one(omap4_panda_dvi_device.reset_gpio,
-				GPIOF_OUT_INIT_LOW, "DVI PD");
-	if (r)
-		pr_err("Failed to get DVI powerdown GPIO\n");
-
-	return r;
-}
 
 static struct gpio panda_hdmi_gpios[] = {
 	{ HDMI_GPIO_CT_CP_HPD, GPIOF_OUT_INIT_HIGH, "hdmi_gpio_ct_cp_hpd" },
@@ -509,13 +484,8 @@ static struct omap_dss_board_info omap4_panda_dss_data = {
 	.default_device	= &omap4_panda_dvi_device,
 };
 
-void __init omap4_panda_display_init(void)
+static void __init omap4_panda_display_init(void)
 {
-	int r;
-
-	r = omap4_panda_dvi_init();
-	if (r)
-		pr_err("error initializing panda DVI\n");
 
 	omap_display_init(&omap4_panda_dss_data);
 

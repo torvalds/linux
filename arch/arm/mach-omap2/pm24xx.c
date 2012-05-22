@@ -171,8 +171,6 @@ static int omap2_allow_mpu_retention(void)
 
 static void omap2_enter_mpu_retention(void)
 {
-	int only_idle = 0;
-
 	/* Putting MPU into the WFI state while a transfer is active
 	 * seems to cause the I2C block to timeout. Why? Good question. */
 	if (omap2_i2c_active())
@@ -195,7 +193,6 @@ static void omap2_enter_mpu_retention(void)
 
 		omap2_prm_write_mod_reg(OMAP_LOGICRETSTATE_MASK, MPU_MOD,
 						 OMAP2_PM_PWSTCTRL);
-		only_idle = 1;
 	}
 
 	omap2_sram_idle();

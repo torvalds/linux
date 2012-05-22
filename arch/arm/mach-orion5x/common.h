@@ -45,6 +45,7 @@ void orion5x_restart(char, const char *);
  */
 struct pci_bus;
 struct pci_sys_data;
+struct pci_dev;
 
 void orion5x_pcie_id(u32 *dev, u32 *rev);
 void orion5x_pci_disable(void);

@@ -59,25 +59,24 @@ static struct platform_device leds_gpio = {
 };
 
 /*
- * cpuidle C-states definition override from the default values.
- * The 'exit_latency' field is the sum of sleep and wake-up latencies.
- */
-static struct cpuidle_params rx51_cpuidle_params[] = {
-	/* C1 */
-	{110 + 162, 5 , 1},
-	/* C2 */
-	{106 + 180, 309, 1},
-	/* C3 */
-	{107 + 410, 46057, 0},
-	/* C4 */
-	{121 + 3374, 46057, 0},
-	/* C5 */
-	{855 + 1146, 46057, 1},
-	/* C6 */
-	{7580 + 4134, 484329, 0},
-	/* C7 */
-	{7505 + 15274, 484329, 1},
-};
+ * cpuidle C-states definition for rx51.
+ *
+ * The 'exit_latency' field is the sum of sleep
+ * and wake-up latencies.
+
+    ---------------------------------------------
+   | state |  exit_latency  |  target_residency  |
+    ---------------------------------------------
+   |  C1   |    110 + 162   |            5       |
+   |  C2   |    106 + 180   |          309       |
+   |  C3   |    107 + 410   |        46057       |
+   |  C4   |    121 + 3374  |        46057       |
+   |  C5   |    855 + 1146  |        46057       |
+   |  C6   |   7580 + 4134  |       484329       |
+   |  C7   |   7505 + 15274 |       484329       |
+    ---------------------------------------------
+
+*/
 
 extern void __init rx51_peripherals_init(void);
 
@@ -98,7 +97,6 @@ static void __init rx51_init(void)
 	struct omap_sdrc_params *sdrc_params;
 
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
-	omap3_pm_init_cpuidle(rx51_cpuidle_params);
 	omap_serial_init();
 
 	sdrc_params = nokia_get_sdram_timings();

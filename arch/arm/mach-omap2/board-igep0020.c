@@ -32,7 +32,7 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-dvi.h>
+#include <video/omap-panel-tfp410.h>
 #include <plat/onenand.h>
 
 #include "mux.h"
@@ -444,28 +444,15 @@ static struct twl4030_gpio_platform_data igep_twl4030_gpio_pdata = {
 	.setup		= igep_twl_gpio_setup,
 };
 
-static int igep2_enable_dvi(struct omap_dss_device *dssdev)
-{
-	gpio_direction_output(IGEP2_GPIO_DVI_PUP, 1);
-
-	return 0;
-}
-
-static void igep2_disable_dvi(struct omap_dss_device *dssdev)
-{
-	gpio_direction_output(IGEP2_GPIO_DVI_PUP, 0);
-}
-
-static struct panel_dvi_platform_data dvi_panel = {
-	.platform_enable	= igep2_enable_dvi,
-	.platform_disable	= igep2_disable_dvi,
-	.i2c_bus_num = 3,
+static struct tfp410_platform_data dvi_panel = {
+	.i2c_bus_num		= 3,
+	.power_down_gpio	= IGEP2_GPIO_DVI_PUP,
 };
 
 static struct omap_dss_device igep2_dvi_device = {
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.name			= "dvi",
-	.driver_name		= "dvi",
+	.driver_name		= "tfp410",
 	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
 };
@@ -479,14 +466,6 @@ static struct omap_dss_board_info igep2_dss_data = {
 	.devices	= igep2_dss_devices,
 	.default_device	= &igep2_dvi_device,
 };
-
-static void __init igep2_display_init(void)
-{
-	int err = gpio_request_one(IGEP2_GPIO_DVI_PUP, GPIOF_OUT_INIT_HIGH,
-				   "GPIO_DVI_PUP");
-	if (err)
-		pr_err("IGEP v2: Could not obtain gpio GPIO_DVI_PUP\n");
-}
 
 static struct platform_device *igep_devices[] __initdata = {
 	&igep_vwlan_device,
@@ -668,7 +647,6 @@ static void __init igep_init(void)
 
 	if (machine_is_igep0020()) {
 		omap_display_init(&igep2_dss_data);
-		igep2_display_init();
 		igep2_init_smsc911x();
 		usbhs_init(&igep2_usbhs_bdata);
 	} else {

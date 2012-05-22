@@ -683,7 +683,7 @@ static void __init pcm037_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-struct sys_timer pcm037_timer = {
+static struct sys_timer pcm037_timer = {
 	.init	= pcm037_timer_init,
 };
 
