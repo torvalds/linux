@@ -2600,7 +2600,8 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 		if (!disk->rdev ||
 		    !test_bit(In_sync, &disk->rdev->flags)) {
 			disk->head_position = 0;
-			if (disk->rdev)
+			if (disk->rdev &&
+			    (disk->rdev->saved_raid_disk < 0))
 				conf->fullsync = 1;
 		} else if (conf->last_used < 0)
 			/*
