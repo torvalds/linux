@@ -62,6 +62,36 @@ enum {
 	BAND_AN = 16,
 };
 
+#define MWIFIEX_WPA_PASSHPHRASE_LEN 64
+struct wpa_param {
+	u8 pairwise_cipher_wpa;
+	u8 pairwise_cipher_wpa2;
+	u8 group_cipher;
+	u32 length;
+	u8 passphrase[MWIFIEX_WPA_PASSHPHRASE_LEN];
+};
+
+#define KEY_MGMT_ON_HOST        0x03
+#define MWIFIEX_AUTH_MODE_AUTO  0xFF
+#define BAND_CONFIG_MANUAL      0x00
+struct mwifiex_uap_bss_param {
+	u8 channel;
+	u8 band_cfg;
+	u16 rts_threshold;
+	u16 frag_threshold;
+	u8 retry_limit;
+	struct mwifiex_802_11_ssid ssid;
+	u8 bcast_ssid_ctl;
+	u8 radio_ctl;
+	u8 dtim_period;
+	u16 beacon_period;
+	u16 auth_mode;
+	u16 protocol;
+	u16 key_mgmt;
+	u16 key_mgmt_operation;
+	struct wpa_param wpa_cfg;
+};
+
 enum {
 	ADHOC_IDLE,
 	ADHOC_STARTED,
@@ -268,6 +298,8 @@ struct mwifiex_ds_read_eeprom {
 };
 
 #define IEEE_MAX_IE_SIZE		256
+
+#define MWIFIEX_IE_HDR_SIZE	(sizeof(struct mwifiex_ie) - IEEE_MAX_IE_SIZE)
 
 struct mwifiex_ds_misc_gen_ie {
 	u32 type;

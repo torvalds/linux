@@ -1179,6 +1179,27 @@ static bool nl80211_can_set_dev_channel(struct wireless_dev *wdev)
 		wdev->iftype == NL80211_IFTYPE_P2P_GO;
 }
 
+static bool nl80211_valid_channel_type(struct genl_info *info,
+				       enum nl80211_channel_type *channel_type)
+{
+	enum nl80211_channel_type tmp;
+
+	if (!info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE])
+		return false;
+
+	tmp = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
+	if (tmp != NL80211_CHAN_NO_HT &&
+	    tmp != NL80211_CHAN_HT20 &&
+	    tmp != NL80211_CHAN_HT40PLUS &&
+	    tmp != NL80211_CHAN_HT40MINUS)
+		return false;
+
+	if (channel_type)
+		*channel_type = tmp;
+
+	return true;
+}
+
 static int __nl80211_set_channel(struct cfg80211_registered_device *rdev,
 				 struct wireless_dev *wdev,
 				 struct genl_info *info)
@@ -1193,15 +1214,9 @@ static int __nl80211_set_channel(struct cfg80211_registered_device *rdev,
 	if (!nl80211_can_set_dev_channel(wdev))
 		return -EOPNOTSUPP;
 
-	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
-		channel_type = nla_get_u32(info->attrs[
-				   NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
-		if (channel_type != NL80211_CHAN_NO_HT &&
-		    channel_type != NL80211_CHAN_HT20 &&
-		    channel_type != NL80211_CHAN_HT40PLUS &&
-		    channel_type != NL80211_CHAN_HT40MINUS)
-			return -EINVAL;
-	}
+	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE] &&
+	    !nl80211_valid_channel_type(info, &channel_type))
+		return -EINVAL;
 
 	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
 
@@ -2410,9 +2425,15 @@ static int parse_station_flags(struct genl_info *info,
 		return -EINVAL;
 	}
 
-	for (flag = 1; flag <= NL80211_STA_FLAG_MAX; flag++)
-		if (flags[flag])
+	for (flag = 1; flag <= NL80211_STA_FLAG_MAX; flag++) {
+		if (flags[flag]) {
 			params->sta_flags_set |= (1<<flag);
+
+			/* no longer support new API additions in old API */
+			if (flag > NL80211_STA_FLAG_MAX_OLD_API)
+				return -EINVAL;
+		}
+	}
 
 	return 0;
 }
@@ -4912,12 +4933,7 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
 		enum nl80211_channel_type channel_type;
 
-		channel_type = nla_get_u32(
-				info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
-		if (channel_type != NL80211_CHAN_NO_HT &&
-		    channel_type != NL80211_CHAN_HT20 &&
-		    channel_type != NL80211_CHAN_HT40MINUS &&
-		    channel_type != NL80211_CHAN_HT40PLUS)
+		if (!nl80211_valid_channel_type(info, &channel_type))
 			return -EINVAL;
 
 		if (channel_type != NL80211_CHAN_NO_HT &&
@@ -5485,15 +5501,9 @@ static int nl80211_remain_on_channel(struct sk_buff *skb,
 	    !(rdev->wiphy.flags & WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL))
 		return -EOPNOTSUPP;
 
-	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
-		channel_type = nla_get_u32(
-			info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
-		if (channel_type != NL80211_CHAN_NO_HT &&
-		    channel_type != NL80211_CHAN_HT20 &&
-		    channel_type != NL80211_CHAN_HT40PLUS &&
-		    channel_type != NL80211_CHAN_HT40MINUS)
-			return -EINVAL;
-	}
+	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE] &&
+	    !nl80211_valid_channel_type(info, &channel_type))
+		return -EINVAL;
 
 	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
 	chan = rdev_freq_to_chan(rdev, freq, channel_type);
@@ -5764,12 +5774,7 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
-		channel_type = nla_get_u32(
-			info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
-		if (channel_type != NL80211_CHAN_NO_HT &&
-		    channel_type != NL80211_CHAN_HT20 &&
-		    channel_type != NL80211_CHAN_HT40PLUS &&
-		    channel_type != NL80211_CHAN_HT40MINUS)
+		if (!nl80211_valid_channel_type(info, &channel_type))
 			return -EINVAL;
 		channel_type_valid = true;
 	}

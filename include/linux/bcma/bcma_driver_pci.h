@@ -87,6 +87,13 @@ struct pci_dev;
 #define BCMA_CORE_PCI_PCICFG2			0x0600	/* PCI config space 2 (rev >= 8) */
 #define BCMA_CORE_PCI_PCICFG3			0x0700	/* PCI config space 3 (rev >= 8) */
 #define BCMA_CORE_PCI_SPROM(wordoffset)		(0x0800 + ((wordoffset) * 2)) /* SPROM shadow area (72 bytes) */
+#define  BCMA_CORE_PCI_SPROM_PI_OFFSET		0	/* first word */
+#define   BCMA_CORE_PCI_SPROM_PI_MASK		0xf000	/* bit 15:12 */
+#define   BCMA_CORE_PCI_SPROM_PI_SHIFT		12	/* bit 15:12 */
+#define  BCMA_CORE_PCI_SPROM_MISC_CONFIG	5	/* word 5 */
+#define   BCMA_CORE_PCI_SPROM_L23READY_EXIT_NOPERST	0x8000	/* bit 15 */
+#define   BCMA_CORE_PCI_SPROM_CLKREQ_OFFSET_REV5	20	/* word 20 for srom rev <= 5 */
+#define   BCMA_CORE_PCI_SPROM_CLKREQ_ENB	0x0800	/* bit 11 */
 
 /* SBtoPCIx */
 #define BCMA_CORE_PCI_SBTOPCI_MEM		0x00000000
@@ -133,6 +140,7 @@ struct pci_dev;
 #define BCMA_CORE_PCI_DLLP_LRREG		0x120	/* Link Replay */
 #define BCMA_CORE_PCI_DLLP_LACKTOREG		0x124	/* Link Ack Timeout */
 #define BCMA_CORE_PCI_DLLP_PMTHRESHREG		0x128	/* Power Management Threshold */
+#define  BCMA_CORE_PCI_ASPMTIMER_EXTEND		0x01000000 /* > rev7: enable extend ASPM timer */
 #define BCMA_CORE_PCI_DLLP_RTRYWPREG		0x12C	/* Retry buffer write ptr */
 #define BCMA_CORE_PCI_DLLP_RTRYRPREG		0x130	/* Retry buffer Read ptr */
 #define BCMA_CORE_PCI_DLLP_RTRYPPREG		0x134	/* Retry buffer Purged ptr */
@@ -201,12 +209,15 @@ struct bcma_drv_pci {
 };
 
 /* Register access */
+#define pcicore_read16(pc, offset)		bcma_read16((pc)->core, offset)
 #define pcicore_read32(pc, offset)		bcma_read32((pc)->core, offset)
+#define pcicore_write16(pc, offset, val)	bcma_write16((pc)->core, offset, val)
 #define pcicore_write32(pc, offset, val)	bcma_write32((pc)->core, offset, val)
 
 extern void __devinit bcma_core_pci_init(struct bcma_drv_pci *pc);
 extern int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc,
 				 struct bcma_device *core, bool enable);
+extern void bcma_core_pci_extend_L1timer(struct bcma_drv_pci *pc, bool extend);
 
 extern int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev);
 extern int bcma_core_pci_plat_dev_init(struct pci_dev *dev);

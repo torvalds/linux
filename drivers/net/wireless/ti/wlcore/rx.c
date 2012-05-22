@@ -278,3 +278,39 @@ void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status *status)
 
 	wl12xx_rearm_rx_streaming(wl, active_hlids);
 }
+
+int wl1271_rx_filter_enable(struct wl1271 *wl,
+			    int index, bool enable,
+			    struct wl12xx_rx_filter *filter)
+{
+	int ret;
+
+	if (wl->rx_filter_enabled[index] == enable) {
+		wl1271_warning("Request to enable an already "
+			     "enabled rx filter %d", index);
+		return 0;
+	}
+
+	ret = wl1271_acx_set_rx_filter(wl, index, enable, filter);
+
+	if (ret) {
+		wl1271_error("Failed to %s rx data filter %d (err=%d)",
+			     enable ? "enable" : "disable", index, ret);
+		return ret;
+	}
+
+	wl->rx_filter_enabled[index] = enable;
+
+	return 0;
+}
+
+void wl1271_rx_filter_clear_all(struct wl1271 *wl)
+{
+	int i;
+
+	for (i = 0; i < WL1271_MAX_RX_FILTERS; i++) {
+		if (!wl->rx_filter_enabled[i])
+			continue;
+		wl1271_rx_filter_enable(wl, i, 0, NULL);
+	}
+}

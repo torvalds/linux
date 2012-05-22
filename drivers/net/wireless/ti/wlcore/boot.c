@@ -72,7 +72,7 @@ static int wlcore_boot_fw_version(struct wl1271 *wl)
 	struct wl1271_static_data *static_data;
 	int ret;
 
-	static_data = kmalloc(sizeof(*static_data), GFP_DMA);
+	static_data = kmalloc(sizeof(*static_data), GFP_KERNEL | GFP_DMA);
 	if (!static_data) {
 		wl1271_error("Couldn't allocate memory for static data!");
 		return -ENOMEM;
@@ -413,6 +413,7 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 
 	/* unmask required mbox events  */
 	wl->event_mask = BSS_LOSE_EVENT_ID |
+		REGAINED_BSS_EVENT_ID |
 		SCAN_COMPLETE_EVENT_ID |
 		ROLE_STOP_COMPLETE_EVENT_ID |
 		RSSI_SNR_TRIGGER_0_EVENT_ID |

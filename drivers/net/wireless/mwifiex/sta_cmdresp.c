@@ -944,6 +944,14 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_802_11_SUBSCRIBE_EVENT:
 		ret = mwifiex_ret_subsc_evt(priv, resp, data_buf);
 		break;
+	case HostCmd_CMD_UAP_SYS_CONFIG:
+		break;
+	case HostCmd_CMD_UAP_BSS_START:
+		priv->bss_started = 1;
+		break;
+	case HostCmd_CMD_UAP_BSS_STOP:
+		priv->bss_started = 0;
+		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",
 			resp->command);
