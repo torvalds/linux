@@ -56,8 +56,6 @@ unused.
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 #include "8255.h"
 #include "plx9052.h"
 

@@ -36,7 +36,6 @@ Configuration Options:
 
 #include "../comedidev.h"
 #include <linux/kernel.h>
-#include "comedi_pci.h"
 
 #define PCI7230_DI      0x00
 #define PCI7230_DO	    0x00

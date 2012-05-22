@@ -22,8 +22,6 @@
 
 #include "../../comedidev.h"
 
-#include "../comedi_pci.h"
-
 #ifdef PCI_SUPPORT_VER1
 #error     No support for 2.1.55 and older
 #endif

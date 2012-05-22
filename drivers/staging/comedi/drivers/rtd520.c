@@ -105,7 +105,6 @@ Configuration options:
 #include <linux/delay.h>
 
 #include "../comedidev.h"
-#include "comedi_pci.h"
 
 #define DRV_NAME "rtd520"
 

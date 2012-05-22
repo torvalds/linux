@@ -38,7 +38,6 @@
 */
 
 #include "../comedidev.h"
-#include "comedi_pci.h"
 #include <linux/mutex.h>
 
 #define PCI_VENDOR_ID_DYNALOG		0x10b5

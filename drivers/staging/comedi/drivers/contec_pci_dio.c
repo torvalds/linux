@@ -36,8 +36,6 @@ Configuration Options:
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 enum contec_model {
 	PIO1616L = 0,
 };

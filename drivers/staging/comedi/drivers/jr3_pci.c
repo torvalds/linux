@@ -49,7 +49,6 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/kernel.h>
-#include "comedi_pci.h"
 #include "jr3_pci.h"
 
 #define PCI_VENDOR_ID_JR3 0x1762

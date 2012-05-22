@@ -38,7 +38,6 @@ Configuration Options:
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include "comedi_fc.h"
-#include "comedi_pci.h"
 #include "8253.h"
 
 #define PCI8164_AXIS_X  0x00

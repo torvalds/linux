@@ -71,7 +71,6 @@ Configuration options:
 
 #include "amcc_s5933.h"
 #include "8253.h"
-#include "comedi_pci.h"
 #include "comedi_fc.h"
 
 #define PCI_VENDOR_ID_AMCC	0x10e8

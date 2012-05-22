@@ -193,7 +193,6 @@ for (or detection of) various hardware problems added by Ian Abbott.
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "comedi_pci.h"
 #include "8253.h"
 #include "8255.h"
 

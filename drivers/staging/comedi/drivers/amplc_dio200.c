@@ -210,8 +210,6 @@ order they appear in the channel list.
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 #include "8255.h"
 #include "8253.h"
 

@@ -40,8 +40,6 @@ Kolter Electronic PCI Counter Card.
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 #define CNT_DRIVER_NAME         "ke_counter"
 #define PCI_VENDOR_ID_KOLTER    0x1001
 #define CNT_CARD_DEVICE_ID      0x0014

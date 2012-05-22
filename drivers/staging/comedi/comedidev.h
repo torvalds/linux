@@ -40,6 +40,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/timer.h>
+#include <linux/pci.h>
 
 #include "comedi.h"
 
@@ -180,7 +181,6 @@ struct comedi_async {
 			unsigned int x);
 };
 
-struct pci_dev;
 struct usb_interface;
 
 struct comedi_driver {
@@ -310,7 +310,8 @@ int comedi_driver_unregister(struct comedi_driver *);
 	module_driver(__comedi_driver, comedi_driver_register, \
 			comedi_driver_unregister)
 
-struct pci_driver;
+int comedi_pci_enable(struct pci_dev *, const char *);
+void comedi_pci_disable(struct pci_dev *);
 
 int comedi_pci_driver_register(struct comedi_driver *, struct pci_driver *);
 void comedi_pci_driver_unregister(struct comedi_driver *, struct pci_driver *);

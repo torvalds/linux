@@ -77,7 +77,6 @@ analog triggering on 1602 series
 #include "8253.h"
 #include "8255.h"
 #include "amcc_s5933.h"
-#include "comedi_pci.h"
 #include "comedi_fc.h"
 
 #undef CB_PCIDAS_DEBUG		/*  disable debugging code */

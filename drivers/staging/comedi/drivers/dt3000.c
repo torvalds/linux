@@ -63,8 +63,6 @@ AO commands are not supported.
 #include "../comedidev.h"
 #include <linux/delay.h>
 
-#include "comedi_pci.h"
-
 #define PCI_VENDOR_ID_DT	0x1116
 
 static const struct comedi_lrange range_dt3000_ai = { 4, {

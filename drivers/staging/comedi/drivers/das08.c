@@ -55,7 +55,6 @@
 
 #include <linux/delay.h>
 
-#include "comedi_pci.h"
 #include "8255.h"
 #include "das08.h"
 

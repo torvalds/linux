@@ -108,8 +108,6 @@ Caveats:
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 #include "comedi_fc.h"
 #include "8253.h"
 

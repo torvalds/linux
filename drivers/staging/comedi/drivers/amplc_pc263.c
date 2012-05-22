@@ -46,8 +46,6 @@ The state of the outputs can be read.
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 #define PC263_DRIVER_NAME	"amplc_pc263"
 
 #ifdef CONFIG_COMEDI_AMPLC_PC263_ISA_MODULE

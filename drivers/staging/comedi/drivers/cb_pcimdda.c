@@ -86,8 +86,6 @@ Configuration Options:
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 #include "8255.h"
 
 /* device ids of the cards we support -- currently only 1 card supported */

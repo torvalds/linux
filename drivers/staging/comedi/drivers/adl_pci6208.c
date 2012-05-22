@@ -52,7 +52,6 @@ References:
  * options that are used with comedi_config.
  */
 #include "../comedidev.h"
-#include "comedi_pci.h"
 
 /* Board descriptions */
 struct pci6208_board {

@@ -11,7 +11,6 @@
 #define _ICP_MULTI_H_
 
 #include "../comedidev.h"
-#include "comedi_pci.h"
 
 /****************************************************************************/
 

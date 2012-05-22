@@ -49,7 +49,6 @@ support could be added to this driver.
 #include "../comedidev.h"
 #include <linux/delay.h>
 
-#include "comedi_pci.h"
 #include "plx9080.h"
 #include "comedi_fc.h"
 

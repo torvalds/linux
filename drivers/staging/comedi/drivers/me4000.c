@@ -58,7 +58,6 @@ broken.
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
-#include "comedi_pci.h"
 #include "me4000.h"
 #if 0
 /* file removed due to GPL incompatibility */

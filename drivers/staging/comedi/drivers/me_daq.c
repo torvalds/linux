@@ -54,8 +54,6 @@ from http://www.comedi.org
 #include <linux/sched.h>
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 /*#include "me2600_fw.h" */
 
 #define ME_DRIVER_NAME		"me_daq"

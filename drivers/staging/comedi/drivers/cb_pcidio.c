@@ -41,7 +41,6 @@ Passing a zero for an option is the same as leaving it unspecified.
 
 /*------------------------------ HEADER FILES ---------------------------------*/
 #include "../comedidev.h"
-#include "comedi_pci.h"
 #include "8255.h"
 
 /*-------------------------- MACROS and DATATYPES -----------------------------*/

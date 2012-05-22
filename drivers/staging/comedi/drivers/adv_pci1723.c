@@ -50,8 +50,6 @@ TODO:
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 #define PCI_VENDOR_ID_ADVANTECH		0x13fe	/* Advantech PCI vendor ID */
 
 /* hardware types of the cards */

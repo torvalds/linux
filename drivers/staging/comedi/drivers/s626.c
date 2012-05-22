@@ -74,8 +74,6 @@ INSN_CONFIG instructions:
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 #include "comedi_fc.h"
 #include "s626.h"
 
