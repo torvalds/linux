@@ -111,9 +111,9 @@ typedef __u16 bitmap_counter_t;
 
 /* use these for bitmap->flags and bitmap->sb->state bit-fields */
 enum bitmap_state {
-	BITMAP_STALE  = 0x002,  /* the bitmap file is out of date or had -EIO */
-	BITMAP_WRITE_ERROR = 0x004, /* A write error has occurred */
-	BITMAP_HOSTENDIAN = 0x8000,
+	BITMAP_STALE	   = 1,  /* the bitmap file is out of date or had -EIO */
+	BITMAP_WRITE_ERROR = 2, /* A write error has occurred */
+	BITMAP_HOSTENDIAN  =15,
 };
 
 /* the superblock at the front of the bitmap file -- little endian */
