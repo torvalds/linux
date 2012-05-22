@@ -110,8 +110,6 @@ struct atmio16_board_t {
 	int has_8255;
 };
 
-#define boardtype ((const struct atmio16_board_t *)dev->board_ptr)
-
 /* range structs */
 static const struct comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
 								       BIP_RANGE
@@ -693,6 +691,7 @@ static int atmio16d_dio_insn_config(struct comedi_device *dev,
 static int atmio16d_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
+	const struct atmio16_board_t *board = comedi_board(dev);
 	unsigned int irq;
 	unsigned long iobase;
 	int ret;
@@ -708,8 +707,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 	}
 	dev->iobase = iobase;
 
-	/* board name */
-	dev->board_name = boardtype->name;
+	dev->board_name = board->name;
 
 	ret = alloc_subdevices(dev, 4);
 	if (ret < 0)
@@ -811,7 +809,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 	/* 8255 subdevice */
 	s++;
-	if (boardtype->has_8255)
+	if (board->has_8255)
 		subdev_8255_init(dev, s, NULL, dev->iobase);
 	else
 		s->type = COMEDI_SUBD_UNUSED;
@@ -831,7 +829,9 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 static void atmio16d_detach(struct comedi_device *dev)
 {
-	if (dev->subdevices && boardtype->has_8255)
+	const struct atmio16_board_t *board = comedi_board(dev);
+
+	if (dev->subdevices && board->has_8255)
 		subdev_8255_cleanup(dev, dev->subdevices + 3);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
