@@ -34,7 +34,6 @@
 
 #include <linux/clk.h>
 #include <mach/sys_config.h>
-#include <mach/platform.h>
 #include "sw_ahci_platform.h"
 
 static struct scsi_host_template ahci_platform_sht = {
@@ -191,7 +190,7 @@ static int sw_ahci_start(struct device *dev, void __iomem *addr)
 
 	sw_ahci_phy_init((unsigned int)addr);
 
-	pio_hdle = gpio_request_ex(sw_ahci_para_name, sw_ahci_gpio_name);
+	pio_hdle = gpio_request_ex(sw_ahci_para_name, NULL);
 	if(pio_hdle)
 	{
 		gpio_write_one_pin_value(pio_hdle, 1, sw_ahci_gpio_name);
@@ -228,7 +227,7 @@ static void sw_ahci_stop(struct device *dev)
     	goto err1;
 	}
 
-	pio_hdle = gpio_request_ex(sw_ahci_para_name, sw_ahci_gpio_name);
+	pio_hdle = gpio_request_ex(sw_ahci_para_name, NULL);
 	if(pio_hdle)
 	{
 		gpio_write_one_pin_value(pio_hdle, 0, sw_ahci_gpio_name);
