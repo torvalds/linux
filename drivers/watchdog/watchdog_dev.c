@@ -65,6 +65,11 @@ static int watchdog_ping(struct watchdog_device *wddev)
 
 	mutex_lock(&wddev->lock);
 
+	if (test_bit(WDOG_UNREGISTERED, &wddev->status)) {
+		err = -ENODEV;
+		goto out_ping;
+	}
+
 	if (!watchdog_active(wddev))
 		goto out_ping;
 
@@ -93,6 +98,11 @@ static int watchdog_start(struct watchdog_device *wddev)
 
 	mutex_lock(&wddev->lock);
 
+	if (test_bit(WDOG_UNREGISTERED, &wddev->status)) {
+		err = -ENODEV;
+		goto out_start;
+	}
+
 	if (watchdog_active(wddev))
 		goto out_start;
 
@@ -120,6 +130,11 @@ static int watchdog_stop(struct watchdog_device *wddev)
 	int err = 0;
 
 	mutex_lock(&wddev->lock);
+
+	if (test_bit(WDOG_UNREGISTERED, &wddev->status)) {
+		err = -ENODEV;
+		goto out_stop;
+	}
 
 	if (!watchdog_active(wddev))
 		goto out_stop;
@@ -158,8 +173,14 @@ static int watchdog_get_status(struct watchdog_device *wddev,
 
 	mutex_lock(&wddev->lock);
 
+	if (test_bit(WDOG_UNREGISTERED, &wddev->status)) {
+		err = -ENODEV;
+		goto out_status;
+	}
+
 	*status = wddev->ops->status(wddev);
 
+out_status:
 	mutex_unlock(&wddev->lock);
 	return err;
 }
@@ -185,8 +206,14 @@ static int watchdog_set_timeout(struct watchdog_device *wddev,
 
 	mutex_lock(&wddev->lock);
 
+	if (test_bit(WDOG_UNREGISTERED, &wddev->status)) {
+		err = -ENODEV;
+		goto out_timeout;
+	}
+
 	err = wddev->ops->set_timeout(wddev, timeout);
 
+out_timeout:
 	mutex_unlock(&wddev->lock);
 	return err;
 }
@@ -210,8 +237,14 @@ static int watchdog_get_timeleft(struct watchdog_device *wddev,
 
 	mutex_lock(&wddev->lock);
 
+	if (test_bit(WDOG_UNREGISTERED, &wddev->status)) {
+		err = -ENODEV;
+		goto out_timeleft;
+	}
+
 	*timeleft = wddev->ops->get_timeleft(wddev);
 
+out_timeleft:
 	mutex_unlock(&wddev->lock);
 	return err;
 }
@@ -233,8 +266,14 @@ static int watchdog_ioctl_op(struct watchdog_device *wddev, unsigned int cmd,
 
 	mutex_lock(&wddev->lock);
 
+	if (test_bit(WDOG_UNREGISTERED, &wddev->status)) {
+		err = -ENODEV;
+		goto out_ioctl;
+	}
+
 	err = wddev->ops->ioctl(wddev, cmd, arg);
 
+out_ioctl:
 	mutex_unlock(&wddev->lock);
 	return err;
 }
@@ -398,6 +437,9 @@ static int watchdog_open(struct inode *inode, struct file *file)
 
 	file->private_data = wdd;
 
+	if (wdd->ops->ref)
+		wdd->ops->ref(wdd);
+
 	/* dev/watchdog is a virtual (and thus non-seekable) filesystem */
 	return nonseekable_open(inode, file);
 
@@ -434,7 +476,10 @@ static int watchdog_release(struct inode *inode, struct file *file)
 
 	/* If the watchdog was not stopped, send a keepalive ping */
 	if (err < 0) {
-		dev_crit(wdd->dev, "watchdog did not stop!\n");
+		mutex_lock(&wdd->lock);
+		if (!test_bit(WDOG_UNREGISTERED, &wdd->status))
+			dev_crit(wdd->dev, "watchdog did not stop!\n");
+		mutex_unlock(&wdd->lock);
 		watchdog_ping(wdd);
 	}
 
@@ -443,6 +488,10 @@ static int watchdog_release(struct inode *inode, struct file *file)
 
 	/* make sure that /dev/watchdog can be re-opened */
 	clear_bit(WDOG_DEV_OPEN, &wdd->status);
+
+	/* Note wdd may be gone after this, do not use after this! */
+	if (wdd->ops->unref)
+		wdd->ops->unref(wdd);
 
 	return 0;
 }
@@ -515,6 +564,10 @@ int watchdog_dev_register(struct watchdog_device *watchdog)
 
 int watchdog_dev_unregister(struct watchdog_device *watchdog)
 {
+	mutex_lock(&watchdog->lock);
+	set_bit(WDOG_UNREGISTERED, &watchdog->status);
+	mutex_unlock(&watchdog->lock);
+
 	cdev_del(&watchdog->cdev);
 	if (watchdog->id == 0) {
 		misc_deregister(&watchdog_miscdev);
