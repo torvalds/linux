@@ -440,10 +440,6 @@ static int __devinit max8997_muic_probe(struct platform_device *pdev)
 				"failed: irq request (IRQ: %d,"
 				" error :%d)\n",
 				muic_irq->irq, ret);
-
-			for (i = i - 1; i >= 0; i--)
-				free_irq(muic_irq->irq, info);
-
 			goto err_irq;
 		}
 	}
@@ -457,6 +453,8 @@ static int __devinit max8997_muic_probe(struct platform_device *pdev)
 	return ret;
 
 err_irq:
+	while (--i >= 0)
+		free_irq(pdata->irq_base + muic_irqs[i].irq, info);
 err_pdata:
 	kfree(info);
 err_kfree:
