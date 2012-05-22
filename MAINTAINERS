@@ -746,7 +746,10 @@ M:	Barry Song <baohua.song@csr.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-prima2/
-F:	drivers/dma/sirf-dma*
+F:	drivers/dma/sirf-dma.c
+F:	drivers/i2c/busses/i2c-sirf.c
+F:	drivers/pinctrl/pinctrl-sirf.c
+F:	drivers/spi/spi-sirf.c
 
 ARM/EBSA110 MACHINE SUPPORT
 M:	Russell King <linux@arm.linux.org.uk>
@@ -908,11 +911,12 @@ ARM/MAGICIAN MACHINE SUPPORT
 M:	Philipp Zabel <philipp.zabel@gmail.com>
 S:	Maintained
 
-ARM/Marvell Loki/Kirkwood/MV78xx0/Orion SOC support
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-M:	Nicolas Pitre <nico@fluxnic.net>
+ARM/Marvell Dove/Kirkwood/MV78xx0/Orion SOC support
+M:	Jason Cooper <jason@lakedaemon.net>
+M:	Andrew Lunn <andrew@lunn.ch>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Odd Fixes
+S:	Maintained
+F:	arch/arm/mach-dove/
 F:	arch/arm/mach-kirkwood/
 F:	arch/arm/mach-mv78xx0/
 F:	arch/arm/mach-orion5x/
@@ -1331,6 +1335,21 @@ M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
 F:	drivers/tty/serial/atmel_serial.c
 
+ATMEL DMA DRIVER
+M:	Nicolas Ferre <nicolas.ferre@atmel.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/dma/at_hdmac.c
+F:	drivers/dma/at_hdmac_regs.h
+F:	arch/arm/mach-at91/include/mach/at_hdmac.h
+
+ATMEL ISI DRIVER
+M:	Josh Wu <josh.wu@atmel.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+F:	drivers/media/video/atmel-isi.c
+F:	include/media/atmel-isi.h
+
 ATMEL LCDFB DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 L:	linux-fbdev@vger.kernel.org
@@ -1348,10 +1367,22 @@ M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
 F:	drivers/spi/spi-atmel.*
 
+ATMEL Timer Counter (TC) AND CLOCKSOURCE DRIVERS
+M:	Nicolas Ferre <nicolas.ferre@atmel.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/misc/atmel_tclib.c
+F:	drivers/clocksource/tcb_clksrc.c
+
+ATMEL TSADCC DRIVER
+M:	Josh Wu <josh.wu@atmel.com>
+L:	linux-input@vger.kernel.org
+S:	Supported
+F:	drivers/input/touchscreen/atmel_tsadcc.c
+
 ATMEL USBA UDC DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://avr32linux.org/twiki/bin/view/Main/AtmelUsbDeviceDriver
 S:	Supported
 F:	drivers/usb/gadget/atmel_usba_udc.*
 
