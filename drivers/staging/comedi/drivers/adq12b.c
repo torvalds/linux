@@ -125,8 +125,6 @@ struct adq12b_board {
 	int do_chans;
 };
 
-#define thisboard ((const struct adq12b_board *)dev->board_ptr)
-
 struct adq12b_private {
 	int unipolar;		/* option 2 of comedi_config (1 is iobase) */
 	int differential;	/* option 3 of comedi_config */
@@ -222,6 +220,7 @@ static int adq12b_do_insn_bits(struct comedi_device *dev,
 
 static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct adq12b_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	int unipolar, differential;
@@ -250,11 +249,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->iobase = iobase;
 
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
 /*
  * Allocate the private structure area.  alloc_private() is a
@@ -284,10 +279,10 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->type = COMEDI_SUBD_AI;
 	if (differential) {
 		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
-		s->n_chan = thisboard->ai_diff_chans;
+		s->n_chan = board->ai_diff_chans;
 	} else {
 		s->subdev_flags = SDF_READABLE | SDF_GROUND;
-		s->n_chan = thisboard->ai_se_chans;
+		s->n_chan = board->ai_se_chans;
 	}
 
 	if (unipolar)
@@ -295,7 +290,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	else
 		s->range_table = &range_adq12b_ai_bipolar;
 
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->maxdata = (1 << board->ai_bits) - 1;
 
 	s->len_chanlist = 4;	/* This is the maximum chanlist length that
 				   the board can handle */
@@ -305,7 +300,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* digital input subdevice */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
-	s->n_chan = thisboard->di_chans;
+	s->n_chan = board->di_chans;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_bits = adq12b_di_insn_bits;
@@ -314,7 +309,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* digital output subdevice */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = thisboard->do_chans;
+	s->n_chan = board->do_chans;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_bits = adq12b_do_insn_bits;
