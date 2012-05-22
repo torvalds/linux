@@ -118,7 +118,7 @@ static const struct s626_board s626_boards[] = {
 
 struct s626_private {
 	struct pci_dev *pdev;
-	void *base_addr;
+	void __iomem *base_addr;
 	int got_regions;
 	short allocatedBuf;
 	uint8_t ai_cmd_running;	/*  ai_cmd is running */
