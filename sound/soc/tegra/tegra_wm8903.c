@@ -28,8 +28,6 @@
  *
  */
 
-#include <asm/mach-types.h>
-
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -196,37 +194,6 @@ static const struct snd_soc_dapm_route harmony_audio_map[] = {
 	{"IN1L", NULL, "Mic Jack"},
 };
 
-static const struct snd_soc_dapm_route seaboard_audio_map[] = {
-	{"Headphone Jack", NULL, "HPOUTR"},
-	{"Headphone Jack", NULL, "HPOUTL"},
-	{"Int Spk", NULL, "ROP"},
-	{"Int Spk", NULL, "RON"},
-	{"Int Spk", NULL, "LOP"},
-	{"Int Spk", NULL, "LON"},
-	{"Mic Jack", NULL, "MICBIAS"},
-	{"IN1R", NULL, "Mic Jack"},
-};
-
-static const struct snd_soc_dapm_route kaen_audio_map[] = {
-	{"Headphone Jack", NULL, "HPOUTR"},
-	{"Headphone Jack", NULL, "HPOUTL"},
-	{"Int Spk", NULL, "ROP"},
-	{"Int Spk", NULL, "RON"},
-	{"Int Spk", NULL, "LOP"},
-	{"Int Spk", NULL, "LON"},
-	{"Mic Jack", NULL, "MICBIAS"},
-	{"IN2R", NULL, "Mic Jack"},
-};
-
-static const struct snd_soc_dapm_route aebl_audio_map[] = {
-	{"Headphone Jack", NULL, "HPOUTR"},
-	{"Headphone Jack", NULL, "HPOUTL"},
-	{"Int Spk", NULL, "LINEOUTR"},
-	{"Int Spk", NULL, "LINEOUTL"},
-	{"Mic Jack", NULL, "MICBIAS"},
-	{"IN1R", NULL, "Mic Jack"},
-};
-
 static const struct snd_kcontrol_new tegra_wm8903_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Int Spk"),
 };
@@ -377,19 +344,8 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 		tegra_wm8903_dai.platform_of_node =
 					tegra_wm8903_dai.cpu_dai_of_node;
 	} else {
-		if (machine_is_harmony()) {
-			card->dapm_routes = harmony_audio_map;
-			card->num_dapm_routes = ARRAY_SIZE(harmony_audio_map);
-		} else if (machine_is_seaboard()) {
-			card->dapm_routes = seaboard_audio_map;
-			card->num_dapm_routes = ARRAY_SIZE(seaboard_audio_map);
-		} else if (machine_is_kaen()) {
-			card->dapm_routes = kaen_audio_map;
-			card->num_dapm_routes = ARRAY_SIZE(kaen_audio_map);
-		} else {
-			card->dapm_routes = aebl_audio_map;
-			card->num_dapm_routes = ARRAY_SIZE(aebl_audio_map);
-		}
+		card->dapm_routes = harmony_audio_map;
+		card->num_dapm_routes = ARRAY_SIZE(harmony_audio_map);
 	}
 
 	if (gpio_is_valid(pdata->gpio_spkr_en)) {
