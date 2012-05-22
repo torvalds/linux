@@ -367,7 +367,7 @@ static void del_edac_device_from_global_list(struct edac_device_ctl_info
  *	structure, that needs to be polled for possible error events.
  *
  *	This operation is to acquire the list mutex lock
- *	(thus preventing insertion or deletion)
+ *	(thus preventing insertation or deletion)
  *	and then call the device's poll function IFF this device is
  *	running polled and there is a poll function defined.
  */

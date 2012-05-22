@@ -460,7 +460,7 @@ extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 /*
  * The no info errors are used when error overflows are reported.
  * There are a limited number of error logging registers that can
- * be exhausted.  When all registers are exhausted and an additional
+ * be exausted.  When all registers are exhausted and an additional
  * error occurs then an error overflow register records that an
  * error occurred and the type of error, but doesn't have any
  * further information.  The ce/ue versions make for cleaner
