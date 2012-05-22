@@ -157,8 +157,6 @@ struct atao_board {
 	int n_ao_chans;
 };
 
-#define thisboard ((struct atao_board *)dev->board_ptr)
-
 struct atao_private {
 
 	unsigned short cfg1;
@@ -335,6 +333,7 @@ static int atao_calib_insn_write(struct comedi_device *dev,
 
 static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct atao_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	int ao_unipolar;
@@ -352,9 +351,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->iobase = iobase;
 
-	/* dev->board_ptr = atao_probe(dev); */
-
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
 	if (alloc_private(dev, sizeof(struct atao_private)) < 0)
 		return -ENOMEM;
@@ -366,7 +363,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = thisboard->n_ao_chans;
+	s->n_chan = board->n_ao_chans;
 	s->maxdata = (1 << 12) - 1;
 	if (ao_unipolar)
 		s->range_table = &range_unipolar10;
