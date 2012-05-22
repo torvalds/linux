@@ -402,6 +402,7 @@ void mddev_resume(struct mddev *mddev)
 	wake_up(&mddev->sb_wait);
 	mddev->pers->quiesce(mddev, 0);
 
+	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
 	md_wakeup_thread(mddev->sync_thread); /* possibly kick off a reshape */
 }
@@ -3673,10 +3674,8 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 		del_timer_sync(&mddev->safemode_timer);
 	}
 	pers->run(mddev);
-	mddev_resume(mddev);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
-	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-	md_wakeup_thread(mddev->thread);
+	mddev_resume(mddev);
 	sysfs_notify(&mddev->kobj, NULL, "level");
 	md_new_event(mddev);
 	return rv;

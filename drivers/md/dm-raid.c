@@ -1252,9 +1252,9 @@ static void raid_resume(struct dm_target *ti)
 	if (!rs->bitmap_loaded) {
 		bitmap_load(&rs->md);
 		rs->bitmap_loaded = 1;
-	} else
-		md_wakeup_thread(rs->md.thread);
+	}
 
+	clear_bit(MD_RECOVERY_FROZEN, &rs->md.recovery);
 	mddev_resume(&rs->md);
 }
 
