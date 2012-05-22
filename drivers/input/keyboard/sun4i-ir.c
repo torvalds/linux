@@ -498,8 +498,10 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 		{
 			if(code_valid)  //the pre-key is released
 			{
+#if 0
 				input_report_key(ir_dev, ir_keycodes[(ir_code>>16)&0xff], 0);
 				input_sync(ir_dev);
+#endif
 				#ifdef DEBUG_IR_LEVEL1
 				printk("IR KEY UP\n");
 				#endif
