@@ -1399,7 +1399,7 @@ struct nfs_rpc_ops {
 				struct iattr *iattr);
 	struct nfs_client *
 		(*init_client) (struct nfs_client *, const struct rpc_timeout *,
-				const char *, rpc_authflavor_t, int);
+				const char *, rpc_authflavor_t);
 };
 
 /*
