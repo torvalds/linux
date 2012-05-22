@@ -78,8 +78,6 @@ struct nand_bbt_descr {
 #define NAND_BBT_LASTBLOCK	0x00000010
 /* The bbt is at the given page, else we must scan for the bbt */
 #define NAND_BBT_ABSPAGE	0x00000020
-/* The bbt is at the given page, else we must scan for the bbt */
-#define NAND_BBT_SEARCH		0x00000040
 /* bbt is stored per chip on multichip devices */
 #define NAND_BBT_PERCHIP	0x00000080
 /* bbt has a version counter at offset veroffs */
