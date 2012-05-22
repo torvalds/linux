@@ -133,15 +133,10 @@ static struct se_device *fd_create_virtdevice(
 		ret = PTR_ERR(dev_p);
 		goto fail;
 	}
-#if 0
-	if (di->no_create_file)
-		flags = O_RDWR | O_LARGEFILE;
-	else
-		flags = O_RDWR | O_CREAT | O_LARGEFILE;
-#else
+
+	/* O_DIRECT too? */
 	flags = O_RDWR | O_CREAT | O_LARGEFILE;
-#endif
-/*	flags |= O_DIRECT; */
+
 	/*
 	 * If fd_buffered_io=1 has not been set explicitly (the default),
 	 * use O_SYNC to force FILEIO writes to disk.
@@ -249,53 +244,33 @@ static void fd_free_device(void *p)
 	kfree(fd_dev);
 }
 
-static inline struct fd_request *FILE_REQ(struct se_task *task)
+static int fd_do_readv(struct se_cmd *cmd, struct scatterlist *sgl,
+		u32 sgl_nents)
 {
-	return container_of(task, struct fd_request, fd_task);
-}
-
-
-static struct se_task *
-fd_alloc_task(unsigned char *cdb)
-{
-	struct fd_request *fd_req;
-
-	fd_req = kzalloc(sizeof(struct fd_request), GFP_KERNEL);
-	if (!fd_req) {
-		pr_err("Unable to allocate struct fd_request\n");
-		return NULL;
-	}
-
-	return &fd_req->fd_task;
-}
-
-static int fd_do_readv(struct se_task *task)
-{
-	struct fd_request *req = FILE_REQ(task);
-	struct se_device *se_dev = req->fd_task.task_se_cmd->se_dev;
+	struct se_device *se_dev = cmd->se_dev;
 	struct fd_dev *dev = se_dev->dev_ptr;
 	struct file *fd = dev->fd_file;
-	struct scatterlist *sg = task->task_sg;
+	struct scatterlist *sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
-	loff_t pos = (task->task_lba *
+	loff_t pos = (cmd->t_task_lba *
 		      se_dev->se_sub_dev->se_dev_attrib.block_size);
 	int ret = 0, i;
 
-	iov = kzalloc(sizeof(struct iovec) * task->task_sg_nents, GFP_KERNEL);
+	iov = kzalloc(sizeof(struct iovec) * sgl_nents, GFP_KERNEL);
 	if (!iov) {
 		pr_err("Unable to allocate fd_do_readv iov[]\n");
 		return -ENOMEM;
 	}
 
-	for_each_sg(task->task_sg, sg, task->task_sg_nents, i) {
+	for_each_sg(sgl, sg, sgl_nents, i) {
 		iov[i].iov_len = sg->length;
 		iov[i].iov_base = sg_virt(sg);
 	}
 
 	old_fs = get_fs();
 	set_fs(get_ds());
-	ret = vfs_readv(fd, &iov[0], task->task_sg_nents, &pos);
+	ret = vfs_readv(fd, &iov[0], sgl_nents, &pos);
 	set_fs(old_fs);
 
 	kfree(iov);
@@ -305,10 +280,10 @@ static int fd_do_readv(struct se_task *task)
 	 * block_device.
 	 */
 	if (S_ISBLK(fd->f_dentry->d_inode->i_mode)) {
-		if (ret < 0 || ret != task->task_size) {
+		if (ret < 0 || ret != cmd->data_length) {
 			pr_err("vfs_readv() returned %d,"
 				" expecting %d for S_ISBLK\n", ret,
-				(int)task->task_size);
+				(int)cmd->data_length);
 			return (ret < 0 ? ret : -EINVAL);
 		}
 	} else {
@@ -322,38 +297,38 @@ static int fd_do_readv(struct se_task *task)
 	return 1;
 }
 
-static int fd_do_writev(struct se_task *task)
+static int fd_do_writev(struct se_cmd *cmd, struct scatterlist *sgl,
+		u32 sgl_nents)
 {
-	struct fd_request *req = FILE_REQ(task);
-	struct se_device *se_dev = req->fd_task.task_se_cmd->se_dev;
+	struct se_device *se_dev = cmd->se_dev;
 	struct fd_dev *dev = se_dev->dev_ptr;
 	struct file *fd = dev->fd_file;
-	struct scatterlist *sg = task->task_sg;
+	struct scatterlist *sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
-	loff_t pos = (task->task_lba *
+	loff_t pos = (cmd->t_task_lba *
 		      se_dev->se_sub_dev->se_dev_attrib.block_size);
 	int ret, i = 0;
 
-	iov = kzalloc(sizeof(struct iovec) * task->task_sg_nents, GFP_KERNEL);
+	iov = kzalloc(sizeof(struct iovec) * sgl_nents, GFP_KERNEL);
 	if (!iov) {
 		pr_err("Unable to allocate fd_do_writev iov[]\n");
 		return -ENOMEM;
 	}
 
-	for_each_sg(task->task_sg, sg, task->task_sg_nents, i) {
+	for_each_sg(sgl, sg, sgl_nents, i) {
 		iov[i].iov_len = sg->length;
 		iov[i].iov_base = sg_virt(sg);
 	}
 
 	old_fs = get_fs();
 	set_fs(get_ds());
-	ret = vfs_writev(fd, &iov[0], task->task_sg_nents, &pos);
+	ret = vfs_writev(fd, &iov[0], sgl_nents, &pos);
 	set_fs(old_fs);
 
 	kfree(iov);
 
-	if (ret < 0 || ret != task->task_size) {
+	if (ret < 0 || ret != cmd->data_length) {
 		pr_err("vfs_writev() returned %d\n", ret);
 		return (ret < 0 ? ret : -EINVAL);
 	}
@@ -361,9 +336,8 @@ static int fd_do_writev(struct se_task *task)
 	return 1;
 }
 
-static void fd_emulate_sync_cache(struct se_task *task)
+static void fd_emulate_sync_cache(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	struct fd_dev *fd_dev = dev->dev_ptr;
 	int immed = (cmd->t_task_cdb[1] & 0x2);
@@ -375,7 +349,7 @@ static void fd_emulate_sync_cache(struct se_task *task)
 	 * for this SYNCHRONIZE_CACHE op
 	 */
 	if (immed)
-		transport_complete_sync_cache(cmd, 1);
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
 
 	/*
 	 * Determine if we will be flushing the entire device.
@@ -395,33 +369,37 @@ static void fd_emulate_sync_cache(struct se_task *task)
 	if (ret != 0)
 		pr_err("FILEIO: vfs_fsync_range() failed: %d\n", ret);
 
-	if (!immed)
-		transport_complete_sync_cache(cmd, ret == 0);
+	if (immed)
+		return;
+
+	if (ret) {
+		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		target_complete_cmd(cmd, SAM_STAT_CHECK_CONDITION);
+	} else {
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
+	}
 }
 
-/*
- * WRITE Force Unit Access (FUA) emulation on a per struct se_task
- * LBA range basis..
- */
-static void fd_emulate_write_fua(struct se_cmd *cmd, struct se_task *task)
+static void fd_emulate_write_fua(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct fd_dev *fd_dev = dev->dev_ptr;
-	loff_t start = task->task_lba * dev->se_sub_dev->se_dev_attrib.block_size;
-	loff_t end = start + task->task_size;
+	loff_t start = cmd->t_task_lba *
+		dev->se_sub_dev->se_dev_attrib.block_size;
+	loff_t end = start + cmd->data_length;
 	int ret;
 
 	pr_debug("FILEIO: FUA WRITE LBA: %llu, bytes: %u\n",
-			task->task_lba, task->task_size);
+		cmd->t_task_lba, cmd->data_length);
 
 	ret = vfs_fsync_range(fd_dev->fd_file, start, end, 1);
 	if (ret != 0)
 		pr_err("FILEIO: vfs_fsync_range() failed: %d\n", ret);
 }
 
-static int fd_do_task(struct se_task *task)
+static int fd_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
+		u32 sgl_nents, enum dma_data_direction data_direction)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	int ret = 0;
 
@@ -429,10 +407,10 @@ static int fd_do_task(struct se_task *task)
 	 * Call vectorized fileio functions to map struct scatterlist
 	 * physical memory addresses to struct iovec virtual memory.
 	 */
-	if (task->task_data_direction == DMA_FROM_DEVICE) {
-		ret = fd_do_readv(task);
+	if (data_direction == DMA_FROM_DEVICE) {
+		ret = fd_do_readv(cmd, sgl, sgl_nents);
 	} else {
-		ret = fd_do_writev(task);
+		ret = fd_do_writev(cmd, sgl, sgl_nents);
 
 		if (ret > 0 &&
 		    dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0 &&
@@ -443,7 +421,7 @@ static int fd_do_task(struct se_task *task)
 			 * and return some sense data to let the initiator
 			 * know the FUA WRITE cache sync failed..?
 			 */
-			fd_emulate_write_fua(cmd, task);
+			fd_emulate_write_fua(cmd);
 		}
 
 	}
@@ -452,22 +430,9 @@ static int fd_do_task(struct se_task *task)
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		return ret;
 	}
-	if (ret) {
-		task->task_scsi_status = GOOD;
-		transport_complete_task(task, 1);
-	}
+	if (ret)
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return 0;
-}
-
-/*	fd_free_task(): (Part of se_subsystem_api_t template)
- *
- *
- */
-static void fd_free_task(struct se_task *task)
-{
-	struct fd_request *req = FILE_REQ(task);
-
-	kfree(req);
 }
 
 enum {
@@ -632,10 +597,8 @@ static struct se_subsystem_api fileio_template = {
 	.allocate_virtdevice	= fd_allocate_virtdevice,
 	.create_virtdevice	= fd_create_virtdevice,
 	.free_device		= fd_free_device,
-	.alloc_task		= fd_alloc_task,
-	.do_task		= fd_do_task,
+	.execute_cmd		= fd_execute_cmd,
 	.do_sync_cache		= fd_emulate_sync_cache,
-	.free_task		= fd_free_task,
 	.check_configfs_dev_params = fd_check_configfs_dev_params,
 	.set_configfs_dev_params = fd_set_configfs_dev_params,
 	.show_configfs_dev_params = fd_show_configfs_dev_params,
