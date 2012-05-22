@@ -330,6 +330,7 @@ header-y += scc.h
 header-y += sched.h
 header-y += screen_info.h
 header-y += sdla.h
+header-y += seccomp.h
 header-y += securebits.h
 header-y += selinux_netlink.h
 header-y += sem.h

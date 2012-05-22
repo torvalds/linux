@@ -26,6 +26,7 @@
 #include <linux/cache.h>
 #include <linux/audit.h>
 #include <net/dst.h>
+#include <net/flow.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
 #ifdef CONFIG_XFRM_STATISTICS

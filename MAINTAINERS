@@ -1733,6 +1733,7 @@ S:	Supported
 F:	include/linux/capability.h
 F:	security/capability.c
 F:	security/commoncap.c 
+F:	kernel/capability.c
 
 CELL BROADBAND ENGINE ARCHITECTURE
 M:	Arnd Bergmann <arnd@arndb.de>
@@ -5950,7 +5951,7 @@ SECURITY SUBSYSTEM
 M:	James Morris <james.l.morris@oracle.com>
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/linux-security.git
-W:	http://security.wiki.kernel.org/
+W:	http://kernsec.org/
 S:	Supported
 F:	security/
 
