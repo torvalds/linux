@@ -232,6 +232,29 @@ static inline int twl6030_mmc_card_detect(struct device *dev, int slot)
 	return -EIO;
 }
 #endif
+
+/******************gpadc channels*************************/
+#define GPADC_CH0 0  //Battery type, resistor value
+#define GPADC_CH1 1   //Battery temperature, NTC resistor value
+#define GPADC_CH2 2   //Audio accessory/general purpose
+#define GPADC_CH3 3   //Temperature with external diode/general
+#define GPADC_CH4 4   //Temperature measurement/general purpose
+#define GPADC_CH5 5   //General purpose
+#define GPADC_CH6 6   //General purpose
+#define GPADC_CH7 7    //System supply
+#define GPADC_CH8 8    //Backup battery
+#define GPADC_CH9 9   //External charger input
+#define GPADC_CH10 10  //VBUS
+#define GPADC_CH11 11   //VBUS DCDC output current
+#define GPADC_CH12 12    //Die temperature
+#define GPADC_CH13 13    //Die temperature
+#define GPADC_CH14 14    //USB ID line
+#define GPADC_CH15 15   //Test network
+#define GPADC_CH16 16    //Test network
+#define GPADC_CH17 17   //Battery charging current
+#define GPADC_CH18 18   //BATTERY VOLTAGE
+/*********************************************************/
+
 /*----------------------------------------------------------------------*/
 
 /*
