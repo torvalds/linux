@@ -132,6 +132,25 @@
 typedef int (*set_rate_func)(struct device *dev, int rate, int enable);
 
 /*
+ * bus options
+ *
+ * 0x000000BA
+ *
+ * A : sample widtht 16bit setting
+ * B : sample widtht 24bit setting
+ */
+
+#define SHIFT_16DATA		0
+#define SHIFT_24DATA		4
+
+#define PACKAGE_24BITBUS_BACK		0
+#define PACKAGE_24BITBUS_FRONT		1
+#define PACKAGE_16BITBUS_STREAM		2
+
+#define BUSOP_SET(s, a)	((a) << SHIFT_ ## s ## DATA)
+#define BUSOP_GET(s, a)	(((a) >> SHIFT_ ## s ## DATA) & 0xF)
+
+/*
  * FSI driver use below type name for variable
  *
  * xxx_num	: number of data
@@ -189,6 +208,11 @@ struct fsi_stream {
 	int oerr_num;
 
 	/*
+	 * bus options
+	 */
+	u32 bus_option;
+
+	/*
 	 * thse are initialized by fsi_handler_init()
 	 */
 	struct fsi_stream_handler *handler;
@@ -211,8 +235,7 @@ struct fsi_priv {
 	struct fsi_stream playback;
 	struct fsi_stream capture;
 
-	u32 do_fmt;
-	u32 di_fmt;
+	u32 fmt;
 
 	int chan_num:16;
 	int clk_master:1;
@@ -321,6 +344,10 @@ static void _fsi_master_mask_set(struct fsi_master *master,
 /*
  *		basic function
  */
+static int fsi_version(struct fsi_master *master)
+{
+	return master->core->ver;
+}
 
 static struct fsi_master *fsi_get_master(struct fsi_priv *fsi)
 {
@@ -495,6 +522,7 @@ static void fsi_stream_init(struct fsi_priv *fsi,
 	io->period_samples	= fsi_frame2sample(fsi, runtime->period_size);
 	io->period_pos		= 0;
 	io->sample_width	= samples_to_bytes(runtime, 1);
+	io->bus_option		= 0;
 	io->oerr_num	= -1; /* ignore 1st err */
 	io->uerr_num	= -1; /* ignore 1st err */
 	fsi_stream_handler_call(io, init, fsi, io);
@@ -522,6 +550,7 @@ static void fsi_stream_quit(struct fsi_priv *fsi, struct fsi_stream *io)
 	io->period_samples	= 0;
 	io->period_pos		= 0;
 	io->sample_width	= 0;
+	io->bus_option		= 0;
 	io->oerr_num	= 0;
 	io->uerr_num	= 0;
 	spin_unlock_irqrestore(&master->lock, flags);
@@ -581,6 +610,53 @@ static int fsi_stream_remove(struct fsi_priv *fsi)
 }
 
 /*
+ *	format/bus/dma setting
+ */
+static void fsi_format_bus_setup(struct fsi_priv *fsi, struct fsi_stream *io,
+				 u32 bus, struct device *dev)
+{
+	struct fsi_master *master = fsi_get_master(fsi);
+	int is_play = fsi_stream_is_play(fsi, io);
+	u32 fmt = fsi->fmt;
+
+	if (fsi_version(master) >= 2) {
+		u32 dma = 0;
+
+		/*
+		 * FSI2 needs DMA/Bus setting
+		 */
+		switch (bus) {
+		case PACKAGE_24BITBUS_FRONT:
+			fmt |= CR_BWS_24;
+			dma |= VDMD_FRONT;
+			dev_dbg(dev, "24bit bus / package in front\n");
+			break;
+		case PACKAGE_16BITBUS_STREAM:
+			fmt |= CR_BWS_16;
+			dma |= VDMD_STREAM;
+			dev_dbg(dev, "16bit bus / stream mode\n");
+			break;
+		case PACKAGE_24BITBUS_BACK:
+		default:
+			fmt |= CR_BWS_24;
+			dma |= VDMD_BACK;
+			dev_dbg(dev, "24bit bus / package in back\n");
+			break;
+		}
+
+		if (is_play)
+			fsi_reg_write(fsi, OUT_DMAC,	dma);
+		else
+			fsi_reg_write(fsi, IN_DMAC,	dma);
+	}
+
+	if (is_play)
+		fsi_reg_write(fsi, DO_FMT, fmt);
+	else
+		fsi_reg_write(fsi, DI_FMT, fmt);
+}
+
+/*
  *		irq function
  */
 
@@ -629,11 +705,6 @@ static void fsi_spdif_clk_ctrl(struct fsi_priv *fsi, int enable)
 	struct fsi_master *master = fsi_get_master(fsi);
 	u32 mask, val;
 
-	if (master->core->ver < 2) {
-		pr_err("fsi: register access err (%s)\n", __func__);
-		return;
-	}
-
 	mask = BP | SE;
 	val = enable ? mask : 0;
 
@@ -648,9 +719,7 @@ static void fsi_spdif_clk_ctrl(struct fsi_priv *fsi, int enable)
 static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
 			      long rate, int enable)
 {
-	struct fsi_master *master = fsi_get_master(fsi);
 	set_rate_func set_rate = fsi_get_info_set_rate(fsi);
-	int fsi_ver = master->core->ver;
 	int ret;
 
 	if (!set_rate)
@@ -682,10 +751,7 @@ static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
 			data |= (0x3 << 12);
 			break;
 		case SH_FSI_ACKMD_32:
-			if (fsi_ver < 2)
-				dev_err(dev, "unsupported ACKMD\n");
-			else
-				data |= (0x4 << 12);
+			data |= (0x4 << 12);
 			break;
 		}
 
@@ -708,10 +774,7 @@ static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
 			data |= (0x4 << 8);
 			break;
 		case SH_FSI_BPFMD_16:
-			if (fsi_ver < 2)
-				dev_err(dev, "unsupported ACKMD\n");
-			else
-				data |= (0x7 << 8);
+			data |= (0x7 << 8);
 			break;
 		}
 
@@ -728,11 +791,26 @@ static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
  */
 static void fsi_pio_push16(struct fsi_priv *fsi, u8 *_buf, int samples)
 {
-	u16 *buf = (u16 *)_buf;
+	u32 enable_stream = fsi_get_info_flags(fsi) & SH_FSI_ENABLE_STREAM_MODE;
 	int i;
 
-	for (i = 0; i < samples; i++)
-		fsi_reg_write(fsi, DODT, ((u32)*(buf + i) << 8));
+	if (enable_stream) {
+		/*
+		 * stream mode
+		 * see
+		 *	fsi_pio_push_init()
+		 */
+		u32 *buf = (u32 *)_buf;
+
+		for (i = 0; i < samples / 2; i++)
+			fsi_reg_write(fsi, DODT, buf[i]);
+	} else {
+		/* normal mode */
+		u16 *buf = (u16 *)_buf;
+
+		for (i = 0; i < samples; i++)
+			fsi_reg_write(fsi, DODT, ((u32)*(buf + i) << 8));
+	}
 }
 
 static void fsi_pio_pop16(struct fsi_priv *fsi, u8 *_buf, int samples)
@@ -872,12 +950,44 @@ static void fsi_pio_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
 		fsi_master_mask_set(master, CLK_RST, clk, (enable) ? clk : 0);
 }
 
+static int fsi_pio_push_init(struct fsi_priv *fsi, struct fsi_stream *io)
+{
+	u32 enable_stream = fsi_get_info_flags(fsi) & SH_FSI_ENABLE_STREAM_MODE;
+
+	/*
+	 * we can use 16bit stream mode
+	 * when "playback" and "16bit data"
+	 * and platform allows "stream mode"
+	 * see
+	 *	fsi_pio_push16()
+	 */
+	if (enable_stream)
+		io->bus_option = BUSOP_SET(24, PACKAGE_24BITBUS_BACK) |
+				 BUSOP_SET(16, PACKAGE_16BITBUS_STREAM);
+	else
+		io->bus_option = BUSOP_SET(24, PACKAGE_24BITBUS_BACK) |
+				 BUSOP_SET(16, PACKAGE_24BITBUS_BACK);
+	return 0;
+}
+
+static int fsi_pio_pop_init(struct fsi_priv *fsi, struct fsi_stream *io)
+{
+	/*
+	 * always 24bit bus, package back when "capture"
+	 */
+	io->bus_option = BUSOP_SET(24, PACKAGE_24BITBUS_BACK) |
+			 BUSOP_SET(16, PACKAGE_24BITBUS_BACK);
+	return 0;
+}
+
 static struct fsi_stream_handler fsi_pio_push_handler = {
+	.init		= fsi_pio_push_init,
 	.transfer	= fsi_pio_push,
 	.start_stop	= fsi_pio_start_stop,
 };
 
 static struct fsi_stream_handler fsi_pio_pop_handler = {
+	.init		= fsi_pio_pop_init,
 	.transfer	= fsi_pio_pop,
 	.start_stop	= fsi_pio_start_stop,
 };
@@ -918,6 +1028,13 @@ static int fsi_dma_init(struct fsi_priv *fsi, struct fsi_stream *io)
 	struct snd_soc_dai *dai = fsi_get_dai(io->substream);
 	enum dma_data_direction dir = fsi_stream_is_play(fsi, io) ?
 				DMA_TO_DEVICE : DMA_FROM_DEVICE;
+
+	/*
+	 * 24bit data : 24bit bus / package in back
+	 * 16bit data : 16bit bus / stream mode
+	 */
+	io->bus_option = BUSOP_SET(24, PACKAGE_24BITBUS_BACK) |
+			 BUSOP_SET(16, PACKAGE_16BITBUS_STREAM);
 
 	io->dma = dma_map_single(dai->dev, runtime->dma_area,
 				 snd_pcm_lib_buffer_bytes(io->substream), dir);
@@ -1055,25 +1172,9 @@ static int fsi_dma_transfer(struct fsi_priv *fsi, struct fsi_stream *io)
 static void fsi_dma_push_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
 				 int start)
 {
-	u32 bws;
-	u32 dma;
+	u32 enable = start ? DMA_ON : 0;
 
-	switch (io->sample_width * start) {
-	case 2:
-		bws = CR_BWS_16;
-		dma = VDMD_STREAM | DMA_ON;
-		break;
-	case 4:
-		bws = CR_BWS_24;
-		dma = VDMD_BACK | DMA_ON;
-		break;
-	default:
-		bws = 0;
-		dma = 0;
-	}
-
-	fsi_reg_mask_set(fsi, DO_FMT, CR_BWS_MASK, bws);
-	fsi_reg_write(fsi, OUT_DMAC, dma);
+	fsi_reg_mask_set(fsi, OUT_DMAC, DMA_ON, enable);
 }
 
 static int fsi_dma_probe(struct fsi_priv *fsi, struct fsi_stream *io)
@@ -1176,8 +1277,6 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 			  struct fsi_stream *io,
 			  struct device *dev)
 {
-	struct fsi_master *master = fsi_get_master(fsi);
-	int fsi_ver = master->core->ver;
 	u32 flags = fsi_get_info_flags(fsi);
 	u32 data = 0;
 
@@ -1200,10 +1299,6 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 
 	fsi_reg_write(fsi, CKG2, data);
 
-	/* set format */
-	fsi_reg_write(fsi, DO_FMT, fsi->do_fmt);
-	fsi_reg_write(fsi, DI_FMT, fsi->di_fmt);
-
 	/* spdif ? */
 	if (fsi_is_spdif(fsi)) {
 		fsi_spdif_clk_ctrl(fsi, 1);
@@ -1211,15 +1306,18 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 	}
 
 	/*
-	 * FIXME
-	 *
-	 * FSI driver assumed that data package is in-back.
-	 * FSI2 chip can select it.
+	 * get bus settings
 	 */
-	if (fsi_ver >= 2) {
-		fsi_reg_write(fsi, OUT_DMAC,	(1 << 4));
-		fsi_reg_write(fsi, IN_DMAC,	(1 << 4));
+	data = 0;
+	switch (io->sample_width) {
+	case 2:
+		data = BUSOP_GET(16, io->bus_option);
+		break;
+	case 4:
+		data = BUSOP_GET(24, io->bus_option);
+		break;
 	}
+	fsi_format_bus_setup(fsi, io, data, dev);
 
 	/* irq clear */
 	fsi_irq_disable(fsi, io);
@@ -1243,7 +1341,9 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 
-	return fsi_hw_startup(fsi, fsi_stream_get(fsi, substream), dai->dev);
+	fsi->rate = 0;
+
+	return 0;
 }
 
 static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
@@ -1251,7 +1351,6 @@ static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 
-	fsi_hw_shutdown(fsi, dai->dev);
 	fsi->rate = 0;
 }
 
@@ -1265,11 +1364,13 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		fsi_stream_init(fsi, io, substream);
+		fsi_hw_startup(fsi, io, dai->dev);
 		ret = fsi_stream_transfer(io);
 		if (0 == ret)
 			fsi_stream_start(fsi, io);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+		fsi_hw_shutdown(fsi, dai->dev);
 		fsi_stream_stop(fsi, io);
 		fsi_stream_quit(fsi, io);
 		break;
@@ -1280,23 +1381,18 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 static int fsi_set_fmt_dai(struct fsi_priv *fsi, unsigned int fmt)
 {
-	u32 data = 0;
-
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		data = CR_I2S;
+		fsi->fmt = CR_I2S;
 		fsi->chan_num = 2;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		data = CR_PCM;
+		fsi->fmt = CR_PCM;
 		fsi->chan_num = 2;
 		break;
 	default:
 		return -EINVAL;
 	}
-
-	fsi->do_fmt = data;
-	fsi->di_fmt = data;
 
 	return 0;
 }
@@ -1304,17 +1400,13 @@ static int fsi_set_fmt_dai(struct fsi_priv *fsi, unsigned int fmt)
 static int fsi_set_fmt_spdif(struct fsi_priv *fsi)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
-	u32 data = 0;
 
-	if (master->core->ver < 2)
+	if (fsi_version(master) < 2)
 		return -EINVAL;
 
-	data = CR_BWS_16 | CR_DTMD_SPDIF_PCM | CR_PCM;
+	fsi->fmt = CR_DTMD_SPDIF_PCM | CR_PCM;
 	fsi->chan_num = 2;
 	fsi->spdif = 1;
-
-	fsi->do_fmt = data;
-	fsi->di_fmt = data;
 
 	return 0;
 }
