@@ -1104,7 +1104,7 @@ struct server_owner {
 	char				major_id[NFS4_OPAQUE_LIMIT];
 };
 
-struct server_scope {
+struct nfs41_server_scope {
 	uint32_t			server_scope_sz;
 	char 				server_scope[NFS4_OPAQUE_LIMIT];
 };
@@ -1118,7 +1118,7 @@ struct nfs41_impl_id {
 struct nfs41_exchange_id_res {
 	struct nfs_client		*client;
 	u32				flags;
-	struct server_scope		*server_scope;
+	struct nfs41_server_scope	*server_scope;
 	struct nfs41_impl_id		*impl_id;
 };
 

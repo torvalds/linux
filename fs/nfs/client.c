@@ -237,6 +237,7 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
 		nfs_idmap_delete(clp);
 
 	rpc_destroy_wait_queue(&clp->cl_rpcwaitq);
+	kfree(clp->cl_serverscope);
 }
 
 /* idr_remove_all is not needed as all id's are removed by nfs_put_client */
@@ -305,7 +306,6 @@ static void nfs_free_client(struct nfs_client *clp)
 
 	put_net(clp->net);
 	kfree(clp->cl_hostname);
-	kfree(clp->server_scope);
 	kfree(clp->impl_id);
 	kfree(clp);
 
