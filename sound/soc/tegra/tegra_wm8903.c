@@ -50,12 +50,9 @@
 
 #define DRV_NAME "tegra-snd-wm8903"
 
-#define GPIO_HP_DET     BIT(4)
-
 struct tegra_wm8903 {
 	struct tegra_wm8903_platform_data pdata;
 	struct tegra_asoc_utils_data util_data;
-	int gpio_requested;
 };
 
 static int tegra_wm8903_hw_params(struct snd_pcm_substream *substream,
@@ -252,7 +249,6 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 		snd_soc_jack_add_gpios(&tegra_wm8903_hp_jack,
 					1,
 					&tegra_wm8903_hp_jack_gpio);
-		machine->gpio_requested |= GPIO_HP_DET;
 	}
 
 	snd_soc_jack_new(codec, "Mic Jack", SND_JACK_MICROPHONE,
@@ -458,10 +454,8 @@ static int __devexit tegra_wm8903_driver_remove(struct platform_device *pdev)
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 
-	if (machine->gpio_requested & GPIO_HP_DET)
-		snd_soc_jack_free_gpios(&tegra_wm8903_hp_jack,
-					1,
-					&tegra_wm8903_hp_jack_gpio);
+	snd_soc_jack_free_gpios(&tegra_wm8903_hp_jack, 1,
+				&tegra_wm8903_hp_jack_gpio);
 
 	snd_soc_unregister_card(card);
 
