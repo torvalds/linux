@@ -1877,6 +1877,8 @@ seqretry:
 		seq = raw_seqcount_begin(&dentry->d_seq);
 		if (dentry->d_parent != parent)
 			continue;
+		if (d_unhashed(dentry))
+			continue;
 		*seqp = seq;
 
 		if (unlikely(parent->d_flags & DCACHE_OP_COMPARE)) {
