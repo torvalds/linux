@@ -532,8 +532,7 @@ no_signal:
 	}
 
 	/* If there's no signal to deliver, we just restore the saved mask.  */
-	if (test_and_clear_thread_flag(TIF_RESTORE_SIGMASK))
-		set_current_blocked(&current->saved_sigmask);
+	restore_saved_sigmask();
 
 	if (current->ptrace & PT_SINGLESTEP)
 		task_pt_regs(current)->icountlevel = 1;

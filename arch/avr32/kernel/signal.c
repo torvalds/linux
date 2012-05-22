@@ -297,10 +297,7 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset, int syscall)
 
 	if (signr == 0) {
 		/* No signal to deliver -- put the saved sigmask back */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-		}
+		restore_saved_sigmask();
 		return 0;
 	}
 

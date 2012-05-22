@@ -339,11 +339,7 @@ void do_signal(struct pt_regs *regs)
 	if (signr <= 0) {
 		/* no signal to deliver so we just put the saved sigmask
 		 * back */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-		}
-
+		restore_saved_sigmask();
 	} else {		/* signr > 0 */
 		sigset_t *oldset;
 

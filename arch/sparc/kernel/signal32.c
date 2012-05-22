@@ -872,10 +872,7 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs)
 	/* If there's no signal to deliver, we just put the saved sigmask
 	 * back
 	 */
-	if (current_thread_info()->status & TS_RESTORE_SIGMASK) {
-		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-		set_current_blocked(&current->saved_sigmask);
-	}
+	restore_saved_sigmask();
 }
 
 struct sigstack32 {

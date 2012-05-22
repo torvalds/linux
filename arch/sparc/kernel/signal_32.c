@@ -576,10 +576,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	/* if there's no signal to deliver, we just put the saved sigmask
 	 * back
 	 */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		set_current_blocked(&current->saved_sigmask);
-	}
+	restore_saved_sigmask();
 }
 
 void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0,

@@ -663,11 +663,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 			set_thread_flag(TIF_SYSCALL_RESTARTSYS);
 	}
 
-	/* If there's no signal to deliver, we just put the saved sigmask
-	 * back.
-	 */
-	if (test_and_clear_thread_flag(TIF_RESTORE_SIGMASK))
-		set_current_blocked(&current->saved_sigmask);
+	restore_saved_sigmask();
 }
 
 asmlinkage void

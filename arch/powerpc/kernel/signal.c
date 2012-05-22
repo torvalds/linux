@@ -132,12 +132,8 @@ static int do_signal(struct pt_regs *regs)
 	check_syscall_restart(regs, &ka, signr > 0);
 
 	if (signr <= 0) {
-		struct thread_info *ti = current_thread_info();
 		/* No signal to deliver -- put the saved sigmask back */
-		if (ti->local_flags & _TLF_RESTORE_SIGMASK) {
-			ti->local_flags &= ~_TLF_RESTORE_SIGMASK;
-			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-		}
+		restore_saved_sigmask();
 		regs->trap = 0;
 		return 0;               /* no signals delivered */
 	}

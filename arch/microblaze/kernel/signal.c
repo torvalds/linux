@@ -381,10 +381,7 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 	 * If there's no signal to deliver, we just put the saved sigmask
 	 * back.
 	 */
-	if (current_thread_info()->status & TS_RESTORE_SIGMASK) {
-		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	restore_saved_sigmask();
 }
 
 void do_notify_resume(struct pt_regs *regs, int in_syscall)

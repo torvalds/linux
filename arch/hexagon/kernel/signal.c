@@ -259,10 +259,7 @@ no_signal:
 
 no_restart:
 	/* If there's no signal to deliver, put the saved sigmask back */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	restore_saved_sigmask();
 }
 
 void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)

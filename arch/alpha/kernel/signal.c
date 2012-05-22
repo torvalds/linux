@@ -572,9 +572,7 @@ do_signal(struct pt_regs * regs, struct switch_stack * sw,
 	}
 
 	/* If there's no signal to deliver, we just restore the saved mask.  */
-	if (test_and_clear_thread_flag(TIF_RESTORE_SIGMASK))
-		set_current_blocked(&current->saved_sigmask);
-
+	restore_saved_sigmask();
 	if (single_stepping)
 		ptrace_set_bpt(current);	/* re-set breakpoint */
 }

@@ -621,12 +621,7 @@ do_signal(struct pt_regs *regs, long in_syscall)
 	DBG(1,"do_signal: Exit (not delivered), regs->gr[28] = %ld\n", 
 		regs->gr[28]);
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
-
-	return;
+	restore_saved_sigmask();
 }
 
 void do_notify_resume(struct pt_regs *regs, long in_syscall)

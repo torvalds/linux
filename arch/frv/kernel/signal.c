@@ -536,11 +536,7 @@ no_signal:
 
 	/* if there's no signal to deliver, we just put the saved sigmask
 	 * back */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
-
+	restore_saved_sigmask();
 } /* end do_signal() */
 
 /*****************************************************************************/

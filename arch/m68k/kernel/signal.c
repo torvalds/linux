@@ -1182,10 +1182,7 @@ static void do_signal(struct pt_regs *regs)
 		handle_restart(regs, NULL, 0);
 
 	/* If there's no signal to deliver, we just restore the saved mask.  */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	restore_saved_sigmask();
 }
 
 void do_notify_resume(struct pt_regs *regs)

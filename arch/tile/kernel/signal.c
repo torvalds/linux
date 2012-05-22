@@ -350,10 +350,7 @@ void do_signal(struct pt_regs *regs)
 	}
 
 	/* If there's no signal to deliver, just put the saved sigmask back. */
-	if (current_thread_info()->status & TS_RESTORE_SIGMASK) {
-		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	restore_saved_sigmask();
 
 done:
 	/* Avoid double syscall restart if there are nested signals. */

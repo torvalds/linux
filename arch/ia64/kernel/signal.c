@@ -538,8 +538,5 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 
 	/* if there's no signal to deliver, we just put the saved sigmask
 	 * back */
-	if (current_thread_info()->status & TS_RESTORE_SIGMASK) {
-		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	restore_saved_sigmask();
 }
