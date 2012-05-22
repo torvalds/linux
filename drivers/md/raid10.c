@@ -1731,6 +1731,7 @@ static int raid10_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	if (!test_bit(Faulty, &rdev->flags) &&
 	    mddev->recovery_disabled != p->recovery_disabled &&
 	    (!p->replacement || p->replacement == rdev) &&
+	    number < conf->geo.raid_disks &&
 	    enough(conf, -1)) {
 		err = -EBUSY;
 		goto abort;
@@ -4485,6 +4486,18 @@ static void raid10_finish_reshape(struct mddev *mddev)
 		mddev->resync_max_sectors = size;
 		set_capacity(mddev->gendisk, mddev->array_sectors);
 		revalidate_disk(mddev->gendisk);
+	} else {
+		int d;
+		for (d = conf->geo.raid_disks ;
+		     d < conf->geo.raid_disks - mddev->delta_disks;
+		     d++) {
+			struct md_rdev *rdev = conf->mirrors[d].rdev;
+			if (rdev)
+				clear_bit(In_sync, &rdev->flags);
+			rdev = conf->mirrors[d].replacement;
+			if (rdev)
+				clear_bit(In_sync, &rdev->flags);
+		}
 	}
 	mddev->layout = mddev->new_layout;
 	mddev->chunk_sectors = 1 << conf->geo.chunk_shift;
