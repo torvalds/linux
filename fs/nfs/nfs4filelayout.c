@@ -302,7 +302,8 @@ static void filelayout_read_call_done(struct rpc_task *task, void *data)
 
 	dprintk("--> %s task->tk_status %d\n", __func__, task->tk_status);
 
-	if (test_bit(NFS_IOHDR_REDO, &rdata->header->flags))
+	if (test_bit(NFS_IOHDR_REDO, &rdata->header->flags) &&
+	    task->tk_status == 0)
 		return;
 
 	/* Note this may cause RPC to be resent */
@@ -399,7 +400,8 @@ static void filelayout_write_call_done(struct rpc_task *task, void *data)
 {
 	struct nfs_write_data *wdata = data;
 
-	if (test_bit(NFS_IOHDR_REDO, &wdata->header->flags))
+	if (test_bit(NFS_IOHDR_REDO, &wdata->header->flags) &&
+	    task->tk_status == 0)
 		return;
 
 	/* Note this may cause RPC to be resent */
