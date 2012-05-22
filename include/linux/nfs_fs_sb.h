@@ -88,7 +88,7 @@ struct nfs_client {
 	struct fscache_cookie	*fscache;	/* client index cache cookie */
 #endif
 
-	struct net		*net;
+	struct net		*cl_net;
 };
 
 /*

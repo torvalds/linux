@@ -629,7 +629,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 
 		mp_count = be32_to_cpup(p); /* multipath count */
 		for (j = 0; j < mp_count; j++) {
-			da = decode_ds_addr(NFS_SERVER(ino)->nfs_client->net,
+			da = decode_ds_addr(NFS_SERVER(ino)->nfs_client->cl_net,
 					    &stream, gfp_flags);
 			if (da)
 				list_add_tail(&da->da_node, &dsaddrs);

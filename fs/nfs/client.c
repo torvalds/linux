@@ -65,7 +65,7 @@ static DECLARE_WAIT_QUEUE_HEAD(nfs_client_active_wq);
 static int nfs_get_cb_ident_idr(struct nfs_client *clp, int minorversion)
 {
 	int ret = 0;
-	struct nfs_net *nn = net_generic(clp->net, nfs_net_id);
+	struct nfs_net *nn = net_generic(clp->cl_net, nfs_net_id);
 
 	if (clp->rpc_ops->version != 4 || minorversion != 0)
 		return ret;
@@ -174,7 +174,7 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	clp->cl_rpcclient = ERR_PTR(-EINVAL);
 
 	clp->cl_proto = cl_init->proto;
-	clp->net = get_net(cl_init->net);
+	clp->cl_net = get_net(cl_init->net);
 
 #ifdef CONFIG_NFS_V4
 	err = nfs_get_cb_ident_idr(clp, cl_init->minorversion);
@@ -252,7 +252,7 @@ void nfs_cleanup_cb_ident_idr(struct net *net)
 /* nfs_client_lock held */
 static void nfs_cb_idr_remove_locked(struct nfs_client *clp)
 {
-	struct nfs_net *nn = net_generic(clp->net, nfs_net_id);
+	struct nfs_net *nn = net_generic(clp->cl_net, nfs_net_id);
 
 	if (clp->cl_cb_ident)
 		idr_remove(&nn->cb_ident_idr, clp->cl_cb_ident);
@@ -305,7 +305,7 @@ static void nfs_free_client(struct nfs_client *clp)
 	if (clp->cl_machine_cred != NULL)
 		put_rpccred(clp->cl_machine_cred);
 
-	put_net(clp->net);
+	put_net(clp->cl_net);
 	kfree(clp->cl_hostname);
 	kfree(clp);
 
@@ -323,7 +323,7 @@ void nfs_put_client(struct nfs_client *clp)
 		return;
 
 	dprintk("--> nfs_put_client({%d})\n", atomic_read(&clp->cl_count));
-	nn = net_generic(clp->net, nfs_net_id);
+	nn = net_generic(clp->cl_net, nfs_net_id);
 
 	if (atomic_dec_and_lock(&clp->cl_count, &nn->nfs_client_lock)) {
 		list_del(&clp->cl_share_link);
@@ -661,7 +661,7 @@ static int nfs_create_rpc_client(struct nfs_client *clp,
 {
 	struct rpc_clnt		*clnt = NULL;
 	struct rpc_create_args args = {
-		.net		= clp->net,
+		.net		= clp->cl_net,
 		.protocol	= clp->cl_proto,
 		.address	= (struct sockaddr *)&clp->cl_addr,
 		.addrsize	= clp->cl_addrlen,
@@ -715,7 +715,7 @@ static int nfs_start_lockd(struct nfs_server *server)
 		.nfs_version	= clp->rpc_ops->version,
 		.noresvport	= server->flags & NFS_MOUNT_NORESVPORT ?
 					1 : 0,
-		.net		= clp->net,
+		.net		= clp->cl_net,
 	};
 
 	if (nlm_init.nfs_version > 3)
@@ -1060,7 +1060,7 @@ static void nfs_server_copy_userdata(struct nfs_server *target, struct nfs_serve
 static void nfs_server_insert_lists(struct nfs_server *server)
 {
 	struct nfs_client *clp = server->nfs_client;
-	struct nfs_net *nn = net_generic(clp->net, nfs_net_id);
+	struct nfs_net *nn = net_generic(clp->cl_net, nfs_net_id);
 
 	spin_lock(&nn->nfs_client_lock);
 	list_add_tail_rcu(&server->client_link, &clp->cl_superblocks);
@@ -1077,7 +1077,7 @@ static void nfs_server_remove_lists(struct nfs_server *server)
 
 	if (clp == NULL)
 		return;
-	nn = net_generic(clp->net, nfs_net_id);
+	nn = net_generic(clp->cl_net, nfs_net_id);
 	spin_lock(&nn->nfs_client_lock);
 	list_del_rcu(&server->client_link);
 	if (list_empty(&clp->cl_superblocks))
@@ -1486,7 +1486,7 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_client* mds_clp,
 		.rpc_ops = &nfs_v4_clientops,
 		.proto = ds_proto,
 		.minorversion = mds_clp->cl_minorversion,
-		.net = mds_clp->net,
+		.net = mds_clp->cl_net,
 	};
 	struct rpc_timeout ds_timeout;
 	struct nfs_client *clp;
@@ -1709,7 +1709,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 				rpc_protocol(parent_server->client),
 				parent_server->client->cl_timeout,
 				parent_client->cl_mvops->minor_version,
-				parent_client->net);
+				parent_client->cl_net);
 	if (error < 0)
 		goto error;
 

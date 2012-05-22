@@ -415,7 +415,7 @@ static int __nfs_idmap_register(struct dentry *dir,
 static void nfs_idmap_unregister(struct nfs_client *clp,
 				      struct rpc_pipe *pipe)
 {
-	struct net *net = clp->net;
+	struct net *net = clp->cl_net;
 	struct super_block *pipefs_sb;
 
 	pipefs_sb = rpc_get_sb_net(net);
@@ -429,7 +429,7 @@ static int nfs_idmap_register(struct nfs_client *clp,
 				   struct idmap *idmap,
 				   struct rpc_pipe *pipe)
 {
-	struct net *net = clp->net;
+	struct net *net = clp->cl_net;
 	struct super_block *pipefs_sb;
 	int err = 0;
 
