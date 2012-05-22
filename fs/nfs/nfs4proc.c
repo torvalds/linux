@@ -5102,30 +5102,30 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 
 	res.server_scope = kzalloc(sizeof(struct nfs41_server_scope),
 					GFP_KERNEL);
-	if (unlikely(!res.server_scope)) {
+	if (unlikely(res.server_scope == NULL)) {
 		status = -ENOMEM;
 		goto out;
 	}
 
 	res.impl_id = kzalloc(sizeof(struct nfs41_impl_id), GFP_KERNEL);
-	if (unlikely(!res.impl_id)) {
+	if (unlikely(res.impl_id == NULL)) {
 		status = -ENOMEM;
 		goto out_server_scope;
 	}
 
 	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
-	if (!status)
+	if (status == 0)
 		status = nfs4_check_cl_exchange_flags(clp->cl_exchange_flags);
 
-	if (!status) {
+	if (status == 0) {
 		/* use the most recent implementation id */
 		kfree(clp->cl_implid);
 		clp->cl_implid = res.impl_id;
 	} else
 		kfree(res.impl_id);
 
-	if (!status) {
-		if (clp->cl_serverscope &&
+	if (status == 0) {
+		if (clp->cl_serverscope != NULL &&
 		    !nfs41_same_server_scope(clp->cl_serverscope,
 					     res.server_scope)) {
 			dprintk("%s: server_scope mismatch detected\n",
@@ -5135,7 +5135,7 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 			clp->cl_serverscope = NULL;
 		}
 
-		if (!clp->cl_serverscope) {
+		if (clp->cl_serverscope == NULL) {
 			clp->cl_serverscope = res.server_scope;
 			goto out;
 		}
@@ -5144,7 +5144,7 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 out_server_scope:
 	kfree(res.server_scope);
 out:
-	if (clp->cl_implid)
+	if (clp->cl_implid != NULL)
 		dprintk("%s: Server Implementation ID: "
 			"domain: %s, name: %s, date: %llu,%u\n",
 			__func__, clp->cl_implid->domain, clp->cl_implid->name,
