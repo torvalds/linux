@@ -238,7 +238,7 @@ extern int nfs4_init_ds_session(struct nfs_client *clp);
 
 /* proc.c */
 void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
-extern int nfs_init_client(struct nfs_client *clp,
+extern struct nfs_client *nfs_init_client(struct nfs_client *clp,
 			   const struct rpc_timeout *timeparms,
 			   const char *ip_addr, rpc_authflavor_t authflavour,
 			   int noresvport);
@@ -373,7 +373,7 @@ void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,
 
 /* nfs4proc.c */
 extern void __nfs4_read_done_cb(struct nfs_read_data *);
-extern int nfs4_init_client(struct nfs_client *clp,
+extern struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 			    const struct rpc_timeout *timeparms,
 			    const char *ip_addr,
 			    rpc_authflavor_t authflavour,

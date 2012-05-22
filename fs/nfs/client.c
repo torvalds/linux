@@ -546,7 +546,6 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 	       int noresvport)
 {
 	struct nfs_client *clp, *new = NULL;
-	int error;
 	struct nfs_net *nn = net_generic(cl_init->net, nfs_net_id);
 
 	dprintk("--> nfs_get_client(%s,v%u)\n",
@@ -563,8 +562,13 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 				nfs_free_client(new);
 			return nfs_found_client(cl_init, clp);
 		}
-		if (new)
-			goto install_client;
+		if (new) {
+			list_add(&new->cl_share_link, &nn->nfs_client_list);
+			spin_unlock(&nn->nfs_client_lock);
+			return cl_init->rpc_ops->init_client(new,
+						timeparms, ip_addr,
+						authflavour, noresvport);
+		}
 
 		spin_unlock(&nn->nfs_client_lock);
 
@@ -574,21 +578,6 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 	dprintk("<-- nfs_get_client() Failed to find %s (%ld)\n",
 		cl_init->hostname ?: "", PTR_ERR(new));
 	return new;
-
-	/* install a new client and return with it unready */
-install_client:
-	clp = new;
-	list_add(&clp->cl_share_link, &nn->nfs_client_list);
-	spin_unlock(&nn->nfs_client_lock);
-
-	error = cl_init->rpc_ops->init_client(clp, timeparms, ip_addr,
-					      authflavour, noresvport);
-	if (error < 0) {
-		nfs_put_client(clp);
-		return ERR_PTR(error);
-	}
-	dprintk("--> nfs_get_client() = %p [new]\n", clp);
-	return clp;
 }
 
 /*
@@ -813,10 +802,19 @@ static int nfs_init_server_rpcclient(struct nfs_server *server,
 	return 0;
 }
 
-/*
- * Initialise an NFS2 or NFS3 client
+/**
+ * nfs_init_client - Initialise an NFS2 or NFS3 client
+ *
+ * @clp: nfs_client to initialise
+ * @timeparms: timeout parameters for underlying RPC transport
+ * @ip_addr: IP presentation address (not used)
+ * @authflavor: authentication flavor for underlying RPC transport
+ * @noresvport: set if RPC transport can use an ephemeral source port
+ *
+ * Returns pointer to an NFS client, or an ERR_PTR value.
  */
-int nfs_init_client(struct nfs_client *clp, const struct rpc_timeout *timeparms,
+struct nfs_client *nfs_init_client(struct nfs_client *clp,
+		    const struct rpc_timeout *timeparms,
 		    const char *ip_addr, rpc_authflavor_t authflavour,
 		    int noresvport)
 {
@@ -825,7 +823,7 @@ int nfs_init_client(struct nfs_client *clp, const struct rpc_timeout *timeparms,
 	if (clp->cl_cons_state == NFS_CS_READY) {
 		/* the client is already initialised */
 		dprintk("<-- nfs_init_client() = 0 [already %p]\n", clp);
-		return 0;
+		return clp;
 	}
 
 	/*
@@ -837,12 +835,13 @@ int nfs_init_client(struct nfs_client *clp, const struct rpc_timeout *timeparms,
 	if (error < 0)
 		goto error;
 	nfs_mark_client_ready(clp, NFS_CS_READY);
-	return 0;
+	return clp;
 
 error:
 	nfs_mark_client_ready(clp, error);
+	nfs_put_client(clp);
 	dprintk("<-- nfs_init_client() = xerror %d\n", error);
-	return error;
+	return ERR_PTR(error);
 }
 
 /*
@@ -1358,14 +1357,22 @@ static int nfs4_init_client_minor_version(struct nfs_client *clp)
 	return nfs4_init_callback(clp);
 }
 
-/*
- * Initialise an NFS4 client record
+/**
+ * nfs4_init_client - Initialise an NFS4 client record
+ *
+ * @clp: nfs_client to initialise
+ * @timeparms: timeout parameters for underlying RPC transport
+ * @ip_addr: callback IP address in presentation format
+ * @authflavor: authentication flavor for underlying RPC transport
+ * @noresvport: set if RPC transport can use an ephemeral source port
+ *
+ * Returns pointer to an NFS client, or an ERR_PTR value.
  */
-int nfs4_init_client(struct nfs_client *clp,
-		     const struct rpc_timeout *timeparms,
-		     const char *ip_addr,
-		     rpc_authflavor_t authflavour,
-		     int noresvport)
+struct nfs_client *nfs4_init_client(struct nfs_client *clp,
+				    const struct rpc_timeout *timeparms,
+				    const char *ip_addr,
+				    rpc_authflavor_t authflavour,
+				    int noresvport)
 {
 	char buf[INET6_ADDRSTRLEN + 1];
 	int error;
@@ -1373,7 +1380,7 @@ int nfs4_init_client(struct nfs_client *clp,
 	if (clp->cl_cons_state == NFS_CS_READY) {
 		/* the client is initialised already */
 		dprintk("<-- nfs4_init_client() = 0 [already %p]\n", clp);
-		return 0;
+		return clp;
 	}
 
 	/* Check NFS protocol revision and initialize RPC op vector */
@@ -1413,12 +1420,13 @@ int nfs4_init_client(struct nfs_client *clp,
 
 	if (!nfs4_has_session(clp))
 		nfs_mark_client_ready(clp, NFS_CS_READY);
-	return 0;
+	return clp;
 
 error:
 	nfs_mark_client_ready(clp, error);
+	nfs_put_client(clp);
 	dprintk("<-- nfs4_init_client() = xerror %d\n", error);
-	return error;
+	return ERR_PTR(error);
 }
 
 /*
