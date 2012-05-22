@@ -61,9 +61,6 @@ struct nfs_client {
 
 	struct rpc_wait_queue	cl_rpcwaitq;
 
-	/* used for the setclientid verifier */
-	struct timespec		cl_boot_time;
-
 	/* idmapper */
 	struct idmap *		cl_idmap;
 

@@ -64,6 +64,7 @@
 #include "iostat.h"
 #include "callback.h"
 #include "pnfs.h"
+#include "netns.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PROC
 
@@ -3903,8 +3904,8 @@ wait_on_recovery:
 	return -EAGAIN;
 }
 
-static void nfs4_construct_boot_verifier(struct nfs_client *clp,
-					 nfs4_verifier *bootverf)
+static void nfs4_init_boot_verifier(const struct nfs_client *clp,
+				    nfs4_verifier *bootverf)
 {
 	__be32 verf[2];
 
@@ -3914,8 +3915,9 @@ static void nfs4_construct_boot_verifier(struct nfs_client *clp,
 		verf[0] = 0;
 		verf[1] = (__be32)(NSEC_PER_SEC + 1);
 	} else {
-		verf[0] = (__be32)clp->cl_boot_time.tv_sec;
-		verf[1] = (__be32)clp->cl_boot_time.tv_nsec;
+		struct nfs_net *nn = net_generic(clp->cl_net, nfs_net_id);
+		verf[0] = (__be32)nn->boot_time.tv_sec;
+		verf[1] = (__be32)nn->boot_time.tv_nsec;
 	}
 	memcpy(bootverf->data, verf, sizeof(bootverf->data));
 }
@@ -3939,7 +3941,7 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 	int loop = 0;
 	int status;
 
-	nfs4_construct_boot_verifier(clp, &sc_verifier);
+	nfs4_init_boot_verifier(clp, &sc_verifier);
 
 	for(;;) {
 		rcu_read_lock();
@@ -5099,7 +5101,7 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 	dprintk("--> %s\n", __func__);
 	BUG_ON(clp == NULL);
 
-	nfs4_construct_boot_verifier(clp, &verifier);
+	nfs4_init_boot_verifier(clp, &verifier);
 
 	args.id_len = scnprintf(args.id, sizeof(args.id),
 				"%s/%s/%u",
