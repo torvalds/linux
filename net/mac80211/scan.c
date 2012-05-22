@@ -83,12 +83,13 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 
 	cbss = cfg80211_inform_bss_frame(local->hw.wiphy, channel,
 					 mgmt, len, signal, GFP_ATOMIC);
-
 	if (!cbss)
 		return NULL;
 
 	cbss->free_priv = ieee80211_rx_bss_free;
 	bss = (void *)cbss->priv;
+
+	bss->device_ts = rx_status->device_timestamp;
 
 	if (elems->parse_error) {
 		if (beacon)

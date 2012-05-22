@@ -1269,11 +1269,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 
 	bss_info_changed |= BSS_CHANGED_ASSOC;
-	/* set timing information */
-	bss_conf->beacon_int = cbss->beacon_interval;
-	bss_conf->last_tsf = cbss->tsf;
-
-	bss_info_changed |= BSS_CHANGED_BEACON_INT;
 	bss_info_changed |= ieee80211_handle_bss_capability(sdata,
 		bss_conf->assoc_capability, bss->has_erp_value, bss->erp_value);
 
@@ -3135,9 +3130,15 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 
 		memcpy(ifmgd->bssid, cbss->bssid, ETH_ALEN);
 
-		/* tell driver about BSSID and basic rates */
+		/* set timing information */
+		sdata->vif.bss_conf.beacon_int = cbss->beacon_interval;
+		sdata->vif.bss_conf.sync_tsf = cbss->tsf;
+		sdata->vif.bss_conf.sync_device_ts = bss->device_ts;
+
+		/* tell driver about BSSID, basic rates and timing */
 		ieee80211_bss_info_change_notify(sdata,
-			BSS_CHANGED_BSSID | BSS_CHANGED_BASIC_RATES);
+			BSS_CHANGED_BSSID | BSS_CHANGED_BASIC_RATES |
+			BSS_CHANGED_BEACON_INT);
 
 		if (assoc)
 			sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);

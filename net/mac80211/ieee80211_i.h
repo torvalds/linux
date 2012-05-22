@@ -85,6 +85,8 @@ struct ieee80211_bss {
 	size_t ssid_len;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 
+	u32 device_ts;
+
 	u8 dtim_period;
 
 	bool wmm_used;
