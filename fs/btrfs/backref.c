@@ -413,7 +413,7 @@ static int __add_inline_refs(struct btrfs_fs_info *fs_info,
 	 * enumerate all inline refs
 	 */
 	leaf = path->nodes[0];
-	slot = path->slots[0] - 1;
+	slot = path->slots[0];
 
 	item_size = btrfs_item_size_nr(leaf, slot);
 	BUG_ON(item_size < sizeof(*ei));
@@ -661,8 +661,9 @@ again:
 		struct extent_buffer *leaf;
 		int slot;
 
+		path->slots[0]--;
 		leaf = path->nodes[0];
-		slot = path->slots[0] - 1;
+		slot = path->slots[0];
 		btrfs_item_key_to_cpu(leaf, &key, slot);
 		if (key.objectid == bytenr &&
 		    key.type == BTRFS_EXTENT_ITEM_KEY) {
