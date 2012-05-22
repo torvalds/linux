@@ -127,6 +127,10 @@ struct ath6kl_fw_ie {
 	u8 data[0];
 };
 
+enum ath6kl_hw_flags {
+	ATH6KL_HW_FLAG_64BIT_RATES	= BIT(0),
+};
+
 #define ATH6KL_FW_API2_FILE "fw-2.bin"
 #define ATH6KL_FW_API3_FILE "fw-3.bin"
 
@@ -701,6 +705,8 @@ struct ath6kl {
 		u32 uarttx_pin;
 		u32 testscript_addr;
 		enum wmi_phy_cap cap;
+
+		u32 flags;
 
 		struct ath6kl_hw_fw {
 			const char *dir;
