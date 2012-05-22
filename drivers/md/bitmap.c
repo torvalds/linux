@@ -739,7 +739,6 @@ static void bitmap_file_unmap(struct bitmap *bitmap)
 	int pages;
 	struct bitmap_storage *store = &bitmap->storage;
 
-	spin_lock_irq(&bitmap->lock);
 	map = store->filemap;
 	store->filemap = NULL;
 	attr = store->filemap_attr;
@@ -748,7 +747,6 @@ static void bitmap_file_unmap(struct bitmap *bitmap)
 	store->file_pages = 0;
 	sb_page = store->sb_page;
 	store->sb_page = NULL;
-	spin_unlock_irq(&bitmap->lock);
 
 	while (pages--)
 		if (map[pages] != sb_page) /* 0 is sb_page, release it below */
@@ -764,10 +762,8 @@ static void bitmap_file_put(struct bitmap *bitmap)
 {
 	struct file *file;
 
-	spin_lock_irq(&bitmap->lock);
 	file = bitmap->storage.file;
 	bitmap->storage.file = NULL;
-	spin_unlock_irq(&bitmap->lock);
 
 	if (file)
 		wait_event(bitmap->write_wait,
@@ -809,10 +805,6 @@ static void bitmap_file_kick(struct bitmap *bitmap)
 			       "%s: disabling internal bitmap due to errors\n",
 			       bmname(bitmap));
 	}
-
-	bitmap_file_put(bitmap);
-
-	return;
 }
 
 enum bitmap_page_attr {
@@ -903,7 +895,8 @@ void bitmap_unplug(struct bitmap *bitmap)
 	int dirty, need_write;
 	int wait = 0;
 
-	if (!bitmap || !bitmap->storage.filemap)
+	if (!bitmap || !bitmap->storage.filemap ||
+	    test_bit(BITMAP_STALE, &bitmap->flags))
 		return;
 
 	/* look at each page to see if there are any set bits that need to be
@@ -1222,7 +1215,10 @@ void bitmap_daemon_work(struct mddev *mddev)
 	 * the first blocking holds the superblock and it has been updated.
 	 * We mustn't write any other blocks before the superblock.
 	 */
-	for (j = 0; j < bitmap->storage.file_pages; j++) {
+	for (j = 0;
+	     j < bitmap->storage.file_pages
+		     && !test_bit(BITMAP_STALE, &bitmap->flags);
+	     j++) {
 
 		if (test_page_attr(bitmap, j,
 				   BITMAP_PAGE_DIRTY))
@@ -1235,8 +1231,6 @@ void bitmap_daemon_work(struct mddev *mddev)
 			spin_unlock_irq(&bitmap->lock);
 			write_page(bitmap, bitmap->storage.filemap[j], 0);
 			spin_lock_irq(&bitmap->lock);
-			if (!bitmap->storage.filemap)
-				break;
 		}
 	}
 	spin_unlock_irq(&bitmap->lock);
