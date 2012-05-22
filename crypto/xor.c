@@ -63,7 +63,7 @@ static void
 do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 {
 	int speed;
-	unsigned long now;
+	unsigned long now, j;
 	int i, count, max;
 
 	tmpl->next = template_list;
@@ -76,9 +76,11 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 	 */
 	max = 0;
 	for (i = 0; i < 5; i++) {
-		now = jiffies;
+		j = jiffies;
 		count = 0;
-		while (jiffies == now) {
+		while ((now = jiffies) == j)
+			cpu_relax();
+		while (time_before(jiffies, now + 1)) {
 			mb(); /* prevent loop optimzation */
 			tmpl->do_2(BENCH_SIZE, b1, b2);
 			mb();
