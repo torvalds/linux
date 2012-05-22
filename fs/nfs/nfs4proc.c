@@ -3908,8 +3908,15 @@ static void nfs4_construct_boot_verifier(struct nfs_client *clp,
 {
 	__be32 verf[2];
 
-	verf[0] = (__be32)clp->cl_boot_time.tv_sec;
-	verf[1] = (__be32)clp->cl_boot_time.tv_nsec;
+	if (test_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state)) {
+		/* An impossible timestamp guarantees this value
+		 * will never match a generated boot time. */
+		verf[0] = 0;
+		verf[1] = (__be32)(NSEC_PER_SEC + 1);
+	} else {
+		verf[0] = (__be32)clp->cl_boot_time.tv_sec;
+		verf[1] = (__be32)clp->cl_boot_time.tv_nsec;
+	}
 	memcpy(bootverf->data, verf, sizeof(bootverf->data));
 }
 
