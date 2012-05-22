@@ -83,7 +83,7 @@ struct ramoops_context {
 	size_t console_size;
 	size_t ftrace_size;
 	int dump_oops;
-	int ecc_size;
+	struct persistent_ram_ecc_info ecc_info;
 	unsigned int max_dump_cnt;
 	unsigned int dump_write_cnt;
 	unsigned int dump_read_cnt;
@@ -322,7 +322,8 @@ static int ramoops_init_przs(struct device *dev, struct ramoops_context *cxt,
 	for (i = 0; i < cxt->max_dump_cnt; i++) {
 		size_t sz = cxt->record_size;
 
-		cxt->przs[i] = persistent_ram_new(*paddr, sz, 0, cxt->ecc_size);
+		cxt->przs[i] = persistent_ram_new(*paddr, sz, 0,
+						  &cxt->ecc_info);
 		if (IS_ERR(cxt->przs[i])) {
 			err = PTR_ERR(cxt->przs[i]);
 			dev_err(dev, "failed to request mem region (0x%zx@0x%llx): %d\n",
@@ -352,7 +353,7 @@ static int ramoops_init_prz(struct device *dev, struct ramoops_context *cxt,
 		return -ENOMEM;
 	}
 
-	*prz = persistent_ram_new(*paddr, sz, sig, cxt->ecc_size);
+	*prz = persistent_ram_new(*paddr, sz, sig, &cxt->ecc_info);
 	if (IS_ERR(*prz)) {
 		int err = PTR_ERR(*prz);
 
@@ -406,7 +407,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	cxt->console_size = pdata->console_size;
 	cxt->ftrace_size = pdata->ftrace_size;
 	cxt->dump_oops = pdata->dump_oops;
-	cxt->ecc_size = pdata->ecc_size;
+	cxt->ecc_info = pdata->ecc_info;
 
 	paddr = cxt->phys_addr;
 
@@ -464,9 +465,9 @@ static int ramoops_probe(struct platform_device *pdev)
 	record_size = pdata->record_size;
 	dump_oops = pdata->dump_oops;
 
-	pr_info("attached 0x%lx@0x%llx, ecc: %d\n",
+	pr_info("attached 0x%lx@0x%llx, ecc: %d/%d\n",
 		cxt->size, (unsigned long long)cxt->phys_addr,
-		cxt->ecc_size);
+		cxt->ecc_info.ecc_size, cxt->ecc_info.block_size);
 
 	return 0;
 
@@ -538,7 +539,7 @@ static void ramoops_register_dummy(void)
 	 * For backwards compatibility ramoops.ecc=1 means 16 bytes ECC
 	 * (using 1 byte for ECC isn't much of use anyway).
 	 */
-	dummy_data->ecc_size = ramoops_ecc == 1 ? 16 : ramoops_ecc;
+	dummy_data->ecc_info.ecc_size = ramoops_ecc == 1 ? 16 : ramoops_ecc;
 
 	dummy = platform_device_register_data(NULL, "ramoops", -1,
 			dummy_data, sizeof(struct ramoops_platform_data));
