@@ -400,19 +400,14 @@ static struct regulator_ops palmas_ops_smps = {
 	.map_voltage		= palmas_map_voltage_smps,
 };
 
-static int palmas_list_voltage_smps10(struct regulator_dev *dev,
-					unsigned selector)
-{
-	return 3750000 + (selector * 1250000);
-}
-
 static struct regulator_ops palmas_ops_smps10 = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
-	.list_voltage		= palmas_list_voltage_smps10,
+	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
 };
 
 static int palmas_is_enabled_ldo(struct regulator_dev *dev)
@@ -675,6 +670,8 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 			pmic->desc[id].vsel_mask = SMPS10_VSEL;
 			pmic->desc[id].enable_reg = PALMAS_SMPS10_STATUS;
 			pmic->desc[id].enable_mask = SMPS10_BOOST_EN;
+			pmic->desc[id].min_uV = 3750000;
+			pmic->desc[id].uV_step = 1250000;
 		}
 
 		pmic->desc[id].type = REGULATOR_VOLTAGE;
