@@ -519,7 +519,10 @@ static void __init igep_i2c_init(void)
 {
 	int ret;
 
-	omap3_pmic_get_config(&igep_twldata, TWL_COMMON_PDATA_USB, 0);
+	omap3_pmic_get_config(&igep_twldata, TWL_COMMON_PDATA_USB,
+			      TWL_COMMON_REGULATOR_VPLL2);
+	igep_twldata.vpll2->constraints.apply_uV = true;
+	igep_twldata.vpll2->constraints.name = "VDVI";
 
 	if (machine_is_igep0020()) {
 		/*
@@ -533,10 +536,7 @@ static void __init igep_i2c_init(void)
 
 		igep_twldata.keypad	= &igep2_keypad_pdata;
 		/* Get common pmic data */
-		omap3_pmic_get_config(&igep_twldata, TWL_COMMON_PDATA_AUDIO,
-				      TWL_COMMON_REGULATOR_VPLL2);
-		igep_twldata.vpll2->constraints.apply_uV = true;
-		igep_twldata.vpll2->constraints.name = "VDVI";
+		omap3_pmic_get_config(&igep_twldata, TWL_COMMON_PDATA_AUDIO, 0);
 	}
 
 	omap3_pmic_init("twl4030", &igep_twldata);

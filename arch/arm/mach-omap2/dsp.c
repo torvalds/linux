@@ -57,8 +57,9 @@ static int __init omap_dsp_init(void)
 
 	if (pdata->phys_mempool_base) {
 		pdata->phys_mempool_size = CONFIG_TIDSPBRIDGE_MEMPOOL_SIZE;
-		pr_info("%s: %x bytes @ %x\n", __func__,
-			pdata->phys_mempool_size, pdata->phys_mempool_base);
+		pr_info("%s: %llx bytes @ %llx\n", __func__,
+			(unsigned long long)pdata->phys_mempool_size,
+			(unsigned long long)pdata->phys_mempool_base);
 	}
 
 	pdev = platform_device_alloc("omap-dsp", -1);
