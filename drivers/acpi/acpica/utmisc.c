@@ -52,6 +52,34 @@ ACPI_MODULE_NAME("utmisc")
 
 /*******************************************************************************
  *
+ * FUNCTION:    ut_convert_backslashes
+ *
+ * PARAMETERS:  Pathname        - File pathname string to be converted
+ *
+ * RETURN:      Modifies the input Pathname
+ *
+ * DESCRIPTION: Convert all backslashes (0x5C) to forward slashes (0x2F) within
+ *              the entire input file pathname string.
+ *
+ ******************************************************************************/
+void ut_convert_backslashes(char *pathname)
+{
+
+	if (!pathname) {
+		return;
+	}
+
+	while (*pathname) {
+		if (*pathname == '\\') {
+			*pathname = '/';
+		}
+
+		pathname++;
+	}
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_validate_exception
  *
  * PARAMETERS:  Status       - The acpi_status code to be formatted
@@ -63,6 +91,7 @@ ACPI_MODULE_NAME("utmisc")
  *              an ASCII string.
  *
  ******************************************************************************/
+
 const char *acpi_ut_validate_exception(acpi_status status)
 {
 	u32 sub_status;
