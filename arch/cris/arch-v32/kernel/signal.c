@@ -59,19 +59,11 @@ void keep_debug_flags(unsigned long oldccs, unsigned long oldspc,
  * dummy arguments to be able to reach the regs argument.
  */
 int
-sys_sigsuspend(old_sigset_t mask, long r11, long r12, long r13, long mof,
-	       long srp, struct pt_regs *regs)
+sys_sigsuspend(old_sigset_t mask)
 {
-	mask &= _BLOCKABLE;
-	spin_lock_irq(&current->sighand->siglock);
-	current->saved_sigmask = current->blocked;
-	siginitset(&current->blocked, mask);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
-	return -ERESTARTNOHAND;
+	sigset_t blocked;
+	siginitset(&blocked, mask);
+	return sigsuspend(&blocked);
 }
 
 int

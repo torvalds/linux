@@ -244,17 +244,8 @@ static inline int restore_general_regs(struct pt_regs *regs,
 long sys_sigsuspend(old_sigset_t mask)
 {
 	sigset_t blocked;
-
-	current->saved_sigmask = current->blocked;
-
-	mask &= _BLOCKABLE;
 	siginitset(&blocked, mask);
-	set_current_blocked(&blocked);
-
- 	current->state = TASK_INTERRUPTIBLE;
- 	schedule();
-	set_restore_sigmask();
- 	return -ERESTARTNOHAND;
+	return sigsuspend(&blocked);
 }
 
 long sys_sigaction(int sig, struct old_sigaction __user *act,

@@ -288,15 +288,7 @@ asmlinkage int sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	uset = (compat_sigset_t __user *) regs.regs[4];
 	if (get_sigset(&newset, uset))
 		return -EFAULT;
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-
-	current->saved_sigmask = current->blocked;
-	set_current_blocked(&newset);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
-	return -ERESTARTNOHAND;
+	return sigsuspend(&newset);
 }
 
 asmlinkage int sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
@@ -313,15 +305,7 @@ asmlinkage int sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	uset = (compat_sigset_t __user *) regs.regs[4];
 	if (get_sigset(&newset, uset))
 		return -EFAULT;
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-
-	current->saved_sigmask = current->blocked;
-	set_current_blocked(&newset);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
-	return -ERESTARTNOHAND;
+	return sigsuspend(&newset);
 }
 
 SYSCALL_DEFINE3(32_sigaction, long, sig, const struct sigaction32 __user *, act,
