@@ -5503,12 +5503,18 @@ static int raid5_resize(struct mddev *mddev, sector_t sectors)
 	 * any io in the removed space completes, but it hardly seems
 	 * worth it.
 	 */
+	sector_t newsize;
 	sectors &= ~((sector_t)mddev->chunk_sectors - 1);
-	md_set_array_sectors(mddev, raid5_size(mddev, sectors,
-					       mddev->raid_disks));
-	if (mddev->array_sectors >
-	    raid5_size(mddev, sectors, mddev->raid_disks))
+	newsize = raid5_size(mddev, sectors, mddev->raid_disks);
+	if (mddev->external_size &&
+	    mddev->array_sectors > newsize)
 		return -EINVAL;
+	if (mddev->bitmap) {
+		int ret = bitmap_resize(mddev->bitmap, sectors, 0, 0);
+		if (ret)
+			return ret;
+	}
+	md_set_array_sectors(mddev, newsize);
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	revalidate_disk(mddev->gendisk);
 	if (sectors > mddev->dev_sectors &&

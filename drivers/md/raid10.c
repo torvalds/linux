@@ -3678,9 +3678,15 @@ static int raid10_resize(struct mddev *mddev, sector_t sectors)
 
 	oldsize = raid10_size(mddev, 0, 0);
 	size = raid10_size(mddev, sectors, 0);
-	md_set_array_sectors(mddev, size);
-	if (mddev->array_sectors > size)
+	if (mddev->external_size &&
+	    mddev->array_sectors > size)
 		return -EINVAL;
+	if (mddev->bitmap) {
+		int ret = bitmap_resize(mddev->bitmap, size, 0, 0);
+		if (ret)
+			return ret;
+	}
+	md_set_array_sectors(mddev, size);
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	revalidate_disk(mddev->gendisk);
 	if (sectors > mddev->dev_sectors &&

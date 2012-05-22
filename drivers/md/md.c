@@ -6153,11 +6153,7 @@ static int update_size(struct mddev *mddev, sector_t num_sectors)
 	 */
 	if (mddev->sync_thread)
 		return -EBUSY;
-	if (mddev->bitmap)
-		/* Sorry, cannot grow a bitmap yet, just remove it,
-		 * grow, and re-add.
-		 */
-		return -EBUSY;
+
 	rdev_for_each(rdev, mddev) {
 		sector_t avail = rdev->sectors;
 
