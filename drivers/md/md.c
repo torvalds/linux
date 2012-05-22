@@ -6618,6 +6618,9 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 	struct mddev *mddev = mddev_find(bdev->bd_dev);
 	int err;
 
+	if (!mddev)
+		return -ENODEV;
+
 	if (mddev->gendisk != bdev->bd_disk) {
 		/* we are racing with mddev_put which is discarding this
 		 * bd_disk.
