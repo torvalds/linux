@@ -40,16 +40,21 @@ gator-$(CONFIG_ARM) +=	gator_events_armv6.o \
 			gator_events_l2c-310.o \
 			gator_events_scorpion.o
 
-$(obj)/gator_main.o: gator_events.h
+$(obj)/gator_main.o: $(obj)/gator_events.h
 
 clean-files := gator_events.h
+
+# Note, in the recipe below we use "cd $(srctree) && cd $(src)" rather than
+# "cd $(srctree)/$(src)" because under DKMS  $(src) is an absolute path, and we
+# can't just use $(src) because for normal kernel builds this is relative to
+# $(srctree)
 
        chk_events.h = :
  quiet_chk_events.h = echo '  CHK     $@'
 silent_chk_events.h = :
-gator_events.h: FORCE
+$(obj)/gator_events.h: FORCE
 	@$($(quiet)chk_events.h)
-	$(Q)cd $(srctree)/$(src) ; $(CONFIG_SHELL) gator_events.sh $(objtree)/$(obj)/$@
+	$(Q)cd $(srctree) && cd $(src) ; $(CONFIG_SHELL) gator_events.sh $(abspath $@)
 
 else
 
