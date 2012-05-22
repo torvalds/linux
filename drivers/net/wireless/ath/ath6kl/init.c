@@ -1392,6 +1392,12 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 	    ar->version.target_ver == AR6003_HW_2_1_1_VERSION) {
 		ath6kl_err("temporary war to avoid sdio crc error\n");
 
+		param = 0x28;
+		address = GPIO_BASE_ADDRESS + GPIO_PIN9_ADDRESS;
+		status = ath6kl_bmi_reg_write(ar, address, param);
+		if (status)
+			return status;
+
 		param = 0x20;
 
 		address = GPIO_BASE_ADDRESS + GPIO_PIN10_ADDRESS;
