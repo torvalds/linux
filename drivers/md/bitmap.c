@@ -522,7 +522,7 @@ static int bitmap_new_disk_sb(struct bitmap *bitmap)
 	memcpy(sb->uuid, bitmap->mddev->uuid, 16);
 
 	bitmap->flags |= BITMAP_STALE;
-	sb->state |= cpu_to_le32(BITMAP_STALE);
+	sb->state = cpu_to_le32(bitmap->flags);
 	bitmap->events_cleared = bitmap->mddev->events;
 	sb->events_cleared = cpu_to_le64(bitmap->mddev->events);
 
@@ -617,7 +617,7 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 			       "-- forcing full recovery\n",
 			       bmname(bitmap), events,
 			       (unsigned long long) bitmap->mddev->events);
-			sb->state |= cpu_to_le32(BITMAP_STALE);
+			bitmap->flags |= BITMAP_STALE;
 		}
 	}
 
