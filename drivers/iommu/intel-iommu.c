@@ -42,6 +42,7 @@
 #include <linux/dmi.h>
 #include <linux/pci-ats.h>
 #include <linux/memblock.h>
+#include <asm/irq_remapping.h>
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
 
@@ -4082,7 +4083,7 @@ static int intel_iommu_domain_has_cap(struct iommu_domain *domain,
 	if (cap == IOMMU_CAP_CACHE_COHERENCY)
 		return dmar_domain->iommu_snooping;
 	if (cap == IOMMU_CAP_INTR_REMAP)
-		return intr_remapping_enabled;
+		return irq_remapping_enabled;
 
 	return 0;
 }

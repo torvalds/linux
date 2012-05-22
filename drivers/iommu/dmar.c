@@ -36,6 +36,7 @@
 #include <linux/tboot.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
+#include <asm/irq_remapping.h>
 #include <asm/iommu_table.h>
 
 #define PREFIX "DMAR: "
@@ -555,7 +556,7 @@ int __init detect_intel_iommu(void)
 
 		dmar = (struct acpi_table_dmar *) dmar_tbl;
 
-		if (ret && intr_remapping_enabled && cpu_has_x2apic &&
+		if (ret && irq_remapping_enabled && cpu_has_x2apic &&
 		    dmar->flags & 0x1)
 			printk(KERN_INFO
 			       "Queued invalidation will be enabled to support x2apic and Intr-remapping.\n");
@@ -1041,7 +1042,7 @@ static const char *dma_remap_fault_reasons[] =
 	"non-zero reserved fields in PTE",
 };
 
-static const char *intr_remap_fault_reasons[] =
+static const char *irq_remap_fault_reasons[] =
 {
 	"Detected reserved fields in the decoded interrupt-remapped request",
 	"Interrupt index exceeded the interrupt-remapping table size",
@@ -1056,10 +1057,10 @@ static const char *intr_remap_fault_reasons[] =
 
 const char *dmar_get_fault_reason(u8 fault_reason, int *fault_type)
 {
-	if (fault_reason >= 0x20 && (fault_reason <= 0x20 +
-				     ARRAY_SIZE(intr_remap_fault_reasons))) {
+	if (fault_reason >= 0x20 && (fault_reason - 0x20 <
+					ARRAY_SIZE(irq_remap_fault_reasons))) {
 		*fault_type = INTR_REMAP;
-		return intr_remap_fault_reasons[fault_reason - 0x20];
+		return irq_remap_fault_reasons[fault_reason - 0x20];
 	} else if (fault_reason < ARRAY_SIZE(dma_remap_fault_reasons)) {
 		*fault_type = DMA_REMAP;
 		return dma_remap_fault_reasons[fault_reason];
