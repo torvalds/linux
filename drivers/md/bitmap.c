@@ -1934,6 +1934,44 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 static struct md_sysfs_entry bitmap_location =
 __ATTR(location, S_IRUGO|S_IWUSR, location_show, location_store);
 
+/* 'bitmap/space' is the space available at 'location' for the
+ * bitmap.  This allows the kernel to know when it is safe to
+ * resize the bitmap to match a resized array.
+ */
+static ssize_t
+space_show(struct mddev *mddev, char *page)
+{
+	return sprintf(page, "%lu\n", mddev->bitmap_info.space);
+}
+
+static ssize_t
+space_store(struct mddev *mddev, const char *buf, size_t len)
+{
+	unsigned long sectors;
+	int rv;
+
+	rv = kstrtoul(buf, 10, &sectors);
+	if (rv)
+		return rv;
+
+	if (sectors == 0)
+		return -EINVAL;
+
+	if (mddev->bitmap &&
+	    sectors  < ((mddev->bitmap->file_pages - 1) * PAGE_SIZE
+			+ mddev->bitmap->last_page_size + 511) >> 9)
+		return -EFBIG; /* Bitmap is too big for this small space */
+
+	/* could make sure it isn't too big, but that isn't really
+	 * needed - user-space should be careful.
+	 */
+	mddev->bitmap_info.space = sectors;
+	return len;
+}
+
+static struct md_sysfs_entry bitmap_space =
+__ATTR(space, S_IRUGO|S_IWUSR, space_show, space_store);
+
 static ssize_t
 timeout_show(struct mddev *mddev, char *page)
 {
@@ -2109,6 +2147,7 @@ __ATTR(max_backlog_used, S_IRUGO | S_IWUSR,
 
 static struct attribute *md_bitmap_attrs[] = {
 	&bitmap_location.attr,
+	&bitmap_space.attr,
 	&bitmap_timeout.attr,
 	&bitmap_backlog.attr,
 	&bitmap_chunksize.attr,

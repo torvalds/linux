@@ -393,10 +393,13 @@ struct mddev {
 						 * For external metadata, offset
 						 * from start of device. 
 						 */
+		unsigned long		space; /* space available at this offset */
 		loff_t			default_offset; /* this is the offset to use when
 							 * hot-adding a bitmap.  It should
 							 * eventually be settable by sysfs.
 							 */
+		unsigned long		default_space; /* space available at
+							* default offset */
 		struct mutex		mutex;
 		unsigned long		chunksize;
 		unsigned long		daemon_sleep; /* how many jiffies between updates? */
