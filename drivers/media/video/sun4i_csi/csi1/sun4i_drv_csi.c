@@ -241,6 +241,18 @@ static struct csi_fmt *get_format(struct v4l2_format *f)
 	return &formats[k];
 };
 
+void static inline bsp_csi_int_clear_status(struct csi_dev *dev,__csi_int_t interrupt)
+{
+    W(dev->regs+CSI_REG_INT_STATUS, interrupt);
+}
+
+void static inline bsp_csi_set_buffer_address(struct csi_dev *dev,__csi_buf_t buf, u32 addr)
+{
+	//bufer0a +4 = buffer0b, bufer0a +8 = buffer1a
+    W(dev->regs+CSI_REG_BUF_0_A + (buf<<2), addr); 
+}
+
+
 static inline void csi_set_addr(struct csi_dev *dev,struct csi_buffer *buffer)
 {
 	

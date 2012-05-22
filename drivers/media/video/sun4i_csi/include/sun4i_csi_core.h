@@ -357,12 +357,8 @@ struct csi_dev {
 void  bsp_csi_open(struct csi_dev *dev);
 void  bsp_csi_close(struct csi_dev *dev);
 void  bsp_csi_configure(struct csi_dev *dev,__csi_conf_t *mode);
-void	inline  bsp_csi_set_buffer_address(struct csi_dev *dev,__csi_buf_t buf, u32 addr);
-u32		inline  bsp_csi_get_buffer_address(struct csi_dev *dev,__csi_buf_t buf);
 void  bsp_csi_double_buffer_enable(struct csi_dev *dev);
 void  bsp_csi_double_buffer_disable(struct csi_dev *dev);
-void	inline  bsp_csi_double_buffer_select_next(struct csi_dev *dev,__csi_double_buf_t type);
-void	inline  bsp_csi_double_buffer_get_status(struct csi_dev *dev,__csi_double_buf_status_t * status);
 void  bsp_csi_capture_video_start(struct csi_dev *dev);
 void  bsp_csi_capture_video_stop(struct csi_dev *dev);
 void  bsp_csi_capture_picture(struct csi_dev *dev);
@@ -371,7 +367,5 @@ void 	bsp_csi_set_size(struct csi_dev *dev, u32 length_h, u32 length_v, u32 buf_
 void 	bsp_csi_set_offset(struct csi_dev *dev,u32 start_h, u32 start_v);
 void  bsp_csi_int_enable(struct csi_dev *dev,__csi_int_t interrupt);
 void  bsp_csi_int_disable(struct csi_dev *dev,__csi_int_t interrupt);
-void 	inline 	bsp_csi_int_get_status(struct csi_dev *dev,__csi_int_status_t * status);
-void 	inline bsp_csi_int_clear_status(struct csi_dev *dev,__csi_int_t interrupt);
 
 #endif  /* _CSI_H_ */

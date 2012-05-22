@@ -37,13 +37,7 @@ void bsp_csi_configure(struct csi_dev *dev,__csi_conf_t *mode)
 }
 
 /* buffer */
-void inline bsp_csi_set_buffer_address(struct csi_dev *dev,__csi_buf_t buf, u32 addr)
-{
-	//bufer0a +4 = buffer0b, bufer0a +8 = buffer1a
-    W(dev->regs+CSI_REG_BUF_0_A + (buf<<2), addr); 
-}
-
-u32 inline bsp_csi_get_buffer_address(struct csi_dev *dev,__csi_buf_t buf)
+u32 static inline bsp_csi_get_buffer_address(struct csi_dev *dev,__csi_buf_t buf)
 {
 	u32 t;
 	t = R(dev->regs+CSI_REG_BUF_0_A + (buf<<2));
@@ -60,7 +54,7 @@ void bsp_csi_double_buffer_disable(struct csi_dev *dev)
     C(dev->regs+CSI_REG_BUF_CTRL, 0X1<<0);
 }
 
-void inline bsp_csi_double_buffer_select_next(struct csi_dev *dev,__csi_double_buf_t type)
+void static inline bsp_csi_double_buffer_select_next(struct csi_dev *dev,__csi_double_buf_t type)
 {
     if (CSI_BUF_A == type) {
         C(dev->regs+CSI_REG_BUF_CTRL, 0x1<<2);
@@ -69,7 +63,7 @@ void inline bsp_csi_double_buffer_select_next(struct csi_dev *dev,__csi_double_b
 	}
 }
 
-void inline bsp_csi_double_buffer_get_status(struct csi_dev *dev,__csi_double_buf_status_t * status)
+void static inline bsp_csi_double_buffer_get_status(struct csi_dev *dev,__csi_double_buf_status_t * status)
 {
     u32 t;
     t = R(dev->regs+CSI_REG_BUF_CTRL);
@@ -147,7 +141,7 @@ void bsp_csi_int_disable(struct csi_dev *dev,__csi_int_t interrupt)
     C(dev->regs+CSI_REG_INT_EN, interrupt);
 }
 
-void inline bsp_csi_int_get_status(struct csi_dev *dev,__csi_int_status_t * status)
+void static inline bsp_csi_int_get_status(struct csi_dev *dev,__csi_int_status_t * status)
 {
     u32 t;
     t = R(dev->regs+CSI_REG_INT_STATUS);
@@ -162,9 +156,3 @@ void inline bsp_csi_int_get_status(struct csi_dev *dev,__csi_int_status_t * stat
     status->vsync_trig		 = t&CSI_INT_VSYNC_TRIG;
 
 }
-
-void inline bsp_csi_int_clear_status(struct csi_dev *dev,__csi_int_t interrupt)
-{
-    W(dev->regs+CSI_REG_INT_STATUS, interrupt);
-}
-
