@@ -153,7 +153,7 @@ static int tegra_wm8903_event_int_spk(struct snd_soc_dapm_widget *w,
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 	struct tegra_wm8903_platform_data *pdata = &machine->pdata;
 
-	if (!(machine->gpio_requested & GPIO_SPKR_EN))
+	if (!gpio_is_valid(pdata->gpio_spkr_en))
 		return 0;
 
 	gpio_set_value_cansleep(pdata->gpio_spkr_en,
@@ -170,7 +170,7 @@ static int tegra_wm8903_event_hp(struct snd_soc_dapm_widget *w,
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 	struct tegra_wm8903_platform_data *pdata = &machine->pdata;
 
-	if (!(machine->gpio_requested & GPIO_HP_MUTE))
+	if (!gpio_is_valid(pdata->gpio_hp_mute))
 		return 0;
 
 	gpio_set_value_cansleep(pdata->gpio_hp_mute,
