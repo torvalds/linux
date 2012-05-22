@@ -23,9 +23,9 @@
  *
  * ulist = ulist_alloc();
  * ulist_add(ulist, root);
- * elem = NULL;
+ * ULIST_ITER_INIT(&uiter);
  *
- * while ((elem = ulist_next(ulist, elem)) {
+ * while ((elem = ulist_next(ulist, &uiter)) {
  * 	for (all child nodes n in elem)
  *		ulist_add(ulist, n);
  *	do something useful with the node;
@@ -188,33 +188,26 @@ EXPORT_SYMBOL(ulist_add);
 /**
  * ulist_next - iterate ulist
  * @ulist:	ulist to iterate
- * @prev:	previously returned element or %NULL to start iteration
+ * @uiter:	iterator variable, initialized with ULIST_ITER_INIT(&iterator)
  *
  * Note: locking must be provided by the caller. In case of rwlocks only read
  *       locking is needed
  *
- * This function is used to iterate an ulist. The iteration is started with
- * @prev = %NULL. It returns the next element from the ulist or %NULL when the
+ * This function is used to iterate an ulist.
+ * It returns the next element from the ulist or %NULL when the
  * end is reached. No guarantee is made with respect to the order in which
  * the elements are returned. They might neither be returned in order of
  * addition nor in ascending order.
  * It is allowed to call ulist_add during an enumeration. Newly added items
  * are guaranteed to show up in the running enumeration.
  */
-struct ulist_node *ulist_next(struct ulist *ulist, struct ulist_node *prev)
+struct ulist_node *ulist_next(struct ulist *ulist, struct ulist_iterator *uiter)
 {
-	int next;
-
 	if (ulist->nnodes == 0)
 		return NULL;
-
-	if (!prev)
-		return &ulist->nodes[0];
-
-	next = (prev - ulist->nodes) + 1;
-	if (next < 0 || next >= ulist->nnodes)
+	if (uiter->i < 0 || uiter->i >= ulist->nnodes)
 		return NULL;
 
-	return &ulist->nodes[next];
+	return &ulist->nodes[uiter->i++];
 }
 EXPORT_SYMBOL(ulist_next);

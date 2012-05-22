@@ -201,6 +201,7 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 	struct __prelim_ref *new_ref;
 	struct ulist *parents;
 	struct ulist_node *node;
+	struct ulist_iterator uiter;
 
 	parents = ulist_alloc(GFP_NOFS);
 	if (!parents)
@@ -225,11 +226,12 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 		}
 
 		/* we put the first parent into the ref at hand */
-		node = ulist_next(parents, NULL);
+		ULIST_ITER_INIT(&uiter);
+		node = ulist_next(parents, &uiter);
 		ref->parent = node ? node->val : 0;
 
 		/* additional parents require new refs being added here */
-		while ((node = ulist_next(parents, node))) {
+		while ((node = ulist_next(parents, &uiter))) {
 			new_ref = kmalloc(sizeof(*new_ref), GFP_NOFS);
 			if (!new_ref) {
 				ret = -ENOMEM;
@@ -788,6 +790,7 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 {
 	struct ulist *tmp;
 	struct ulist_node *node = NULL;
+	struct ulist_iterator uiter;
 	int ret;
 
 	tmp = ulist_alloc(GFP_NOFS);
@@ -799,6 +802,7 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 	}
 
+	ULIST_ITER_INIT(&uiter);
 	while (1) {
 		ret = find_parent_nodes(trans, fs_info, bytenr, seq,
 					tmp, *roots);
@@ -807,7 +811,7 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 			ulist_free(*roots);
 			return ret;
 		}
-		node = ulist_next(tmp, node);
+		node = ulist_next(tmp, &uiter);
 		if (!node)
 			break;
 		bytenr = node->val;
@@ -1176,6 +1180,8 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 	struct ulist_node *ref_node = NULL;
 	struct ulist_node *root_node = NULL;
 	struct seq_list seq_elem;
+	struct ulist_iterator ref_uiter;
+	struct ulist_iterator root_uiter;
 	struct btrfs_delayed_ref_root *delayed_refs = NULL;
 
 	pr_debug("resolving all inodes for extent %llu\n",
@@ -1201,12 +1207,14 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 	if (ret)
 		goto out;
 
-	while (!ret && (ref_node = ulist_next(refs, ref_node))) {
+	ULIST_ITER_INIT(&ref_uiter);
+	while (!ret && (ref_node = ulist_next(refs, &ref_uiter))) {
 		ret = btrfs_find_all_roots(trans, fs_info, ref_node->val, -1,
 						seq_elem.seq, &roots);
 		if (ret)
 			break;
-		while (!ret && (root_node = ulist_next(roots, root_node))) {
+		ULIST_ITER_INIT(&root_uiter);
+		while (!ret && (root_node = ulist_next(roots, &root_uiter))) {
 			pr_debug("root %llu references leaf %llu\n",
 					root_node->val, ref_node->val);
 			ret = iterate_leaf_refs(fs_info, ref_node->val,

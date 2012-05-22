@@ -24,6 +24,10 @@
  */
 #define ULIST_SIZE 16
 
+struct ulist_iterator {
+	int i;
+};
+
 /*
  * element of the list
  */
@@ -63,6 +67,9 @@ struct ulist *ulist_alloc(unsigned long gfp_mask);
 void ulist_free(struct ulist *ulist);
 int ulist_add(struct ulist *ulist, u64 val, unsigned long aux,
 	      unsigned long gfp_mask);
-struct ulist_node *ulist_next(struct ulist *ulist, struct ulist_node *prev);
+struct ulist_node *ulist_next(struct ulist *ulist,
+			      struct ulist_iterator *uiter);
+
+#define ULIST_ITER_INIT(uiter) ((uiter)->i = 0)
 
 #endif
