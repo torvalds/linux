@@ -49,9 +49,10 @@
 ACPI_MODULE_NAME("tbfadt")
 
 /* Local prototypes */
-static ACPI_INLINE void
+static void
 acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
-			     u8 space_id, u8 byte_width, u64 address);
+			     u8 space_id,
+			     u8 byte_width, u64 address, char *register_name);
 
 static void acpi_tb_convert_fadt(void);
 
@@ -182,10 +183,25 @@ static struct acpi_fadt_pm_info fadt_pm_info_table[] = {
  *
  ******************************************************************************/
 
-static ACPI_INLINE void
+static void
 acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
-			     u8 space_id, u8 byte_width, u64 address)
+			     u8 space_id,
+			     u8 byte_width, u64 address, char *register_name)
 {
+	u8 bit_width;
+
+	/* Bit width field in the GAS is only one byte long, 255 max */
+
+	bit_width = (u8)(byte_width * 8);
+
+	if (byte_width > 31) {	/* (31*8)=248 */
+		ACPI_ERROR((AE_INFO,
+			    "%s - 32-bit FADT register is too long (%u bytes, %u bits) "
+			    "to convert to GAS struct - 255 bits max, truncating",
+			    register_name, byte_width, (byte_width * 8)));
+
+		bit_width = 255;
+	}
 
 	/*
 	 * The 64-bit Address field is non-aligned in the byte packed
@@ -196,7 +212,7 @@ acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 	/* All other fields are byte-wide */
 
 	generic_address->space_id = space_id;
-	generic_address->bit_width = (u8)ACPI_MUL_8(byte_width);
+	generic_address->bit_width = bit_width;
 	generic_address->bit_offset = 0;
 	generic_address->access_width = 0;	/* Access width ANY */
 }
@@ -456,7 +472,8 @@ static void acpi_tb_convert_fadt(void)
 								   &acpi_gbl_FADT,
 								   fadt_info_table
 								   [i].length),
-						     (u64) address32);
+						     (u64) address32,
+						     fadt_info_table[i].name);
 		}
 	}
 }
@@ -670,7 +687,8 @@ static void acpi_tb_setup_fadt_registers(void)
 						     source64->address +
 						     (fadt_pm_info_table[i].
 						      register_num *
-						      pm1_register_byte_width));
+						      pm1_register_byte_width),
+						     "PmRegisters");
 		}
 	}
 }
