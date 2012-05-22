@@ -104,6 +104,12 @@ config HID_APPLE
 	Say Y here if you want support for keyboards of	Apple iBooks, PowerBooks,
 	MacBooks, MacBook Pros and Apple Aluminum.
 
+config HID_AUREAL
+	tristate "Aureal"
+	depends on USB_HID
+	---help---
+	Support for Aureal Cy se W-01RN Remote Controller and other Aureal derived remotes.
+
 config HID_BELKIN
 	tristate "Belkin Flip KVM and Wireless keyboard" if EXPERT
 	depends on USB_HID

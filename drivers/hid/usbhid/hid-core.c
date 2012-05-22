@@ -28,6 +28,7 @@
 #include <linux/input.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/string.h>
 
 #include <linux/usb.h>
 
@@ -86,8 +87,13 @@ static int hid_start_in(struct hid_device *hid)
 			!test_bit(HID_REPORTED_IDLE, &usbhid->iofl) &&
 			!test_and_set_bit(HID_IN_RUNNING, &usbhid->iofl)) {
 		rc = usb_submit_urb(usbhid->urbin, GFP_ATOMIC);
-		if (rc != 0)
+		if (rc != 0) {
 			clear_bit(HID_IN_RUNNING, &usbhid->iofl);
+			if (rc == -ENOSPC)
+				set_bit(HID_NO_BANDWIDTH, &usbhid->iofl);
+		} else {
+			clear_bit(HID_NO_BANDWIDTH, &usbhid->iofl);
+		}
 	}
 	spin_unlock_irqrestore(&usbhid->lock, flags);
 	return rc;
@@ -173,8 +179,10 @@ static void hid_io_error(struct hid_device *hid)
 
 	if (time_after(jiffies, usbhid->stop_retry)) {
 
-		/* Retries failed, so do a port reset */
-		if (!test_and_set_bit(HID_RESET_PENDING, &usbhid->iofl)) {
+		/* Retries failed, so do a port reset unless we lack bandwidth*/
+		if (test_bit(HID_NO_BANDWIDTH, &usbhid->iofl)
+		     && !test_and_set_bit(HID_RESET_PENDING, &usbhid->iofl)) {
+
 			schedule_work(&usbhid->reset_work);
 			goto done;
 		}
@@ -700,7 +708,7 @@ static int hid_get_class_descriptor(struct usb_device *dev, int ifnum,
 int usbhid_open(struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
-	int res;
+	int res = 0;
 
 	mutex_lock(&hid_open_mut);
 	if (!hid->open++) {
@@ -708,17 +716,27 @@ int usbhid_open(struct hid_device *hid)
 		/* the device must be awake to reliably request remote wakeup */
 		if (res < 0) {
 			hid->open--;
-			mutex_unlock(&hid_open_mut);
-			return -EIO;
+			res = -EIO;
+			goto done;
 		}
 		usbhid->intf->needs_remote_wakeup = 1;
-		if (hid_start_in(hid))
-			hid_io_error(hid);
- 
+		res = hid_start_in(hid);
+		if (res) {
+			if (res != -ENOSPC) {
+				hid_io_error(hid);
+				res = 0;
+			} else {
+				/* no use opening if resources are insufficient */
+				hid->open--;
+				res = -EBUSY;
+				usbhid->intf->needs_remote_wakeup = 0;
+			}
+		}
 		usb_autopm_put_interface(usbhid->intf);
 	}
+done:
 	mutex_unlock(&hid_open_mut);
-	return 0;
+	return res;
 }
 
 void usbhid_close(struct hid_device *hid)
@@ -1347,7 +1365,34 @@ static int hid_post_reset(struct usb_interface *intf)
 	struct usb_device *dev = interface_to_usbdev (intf);
 	struct hid_device *hid = usb_get_intfdata(intf);
 	struct usbhid_device *usbhid = hid->driver_data;
+	struct usb_host_interface *interface = intf->cur_altsetting;
 	int status;
+	char *rdesc;
+
+	/* Fetch and examine the HID report descriptor. If this
+	 * has changed, then rebind. Since usbcore's check of the
+	 * configuration descriptors passed, we already know that
+	 * the size of the HID report descriptor has not changed.
+	 */
+	rdesc = kmalloc(hid->rsize, GFP_KERNEL);
+	if (!rdesc) {
+		dbg_hid("couldn't allocate rdesc memory (post_reset)\n");
+		return 1;
+	}
+	status = hid_get_class_descriptor(dev,
+				interface->desc.bInterfaceNumber,
+				HID_DT_REPORT, rdesc, hid->rsize);
+	if (status < 0) {
+		dbg_hid("reading report descriptor failed (post_reset)\n");
+		kfree(rdesc);
+		return 1;
+	}
+	status = memcmp(rdesc, hid->rdesc, hid->rsize);
+	kfree(rdesc);
+	if (status != 0) {
+		dbg_hid("report descriptor changed\n");
+		return 1;
+	}
 
 	spin_lock_irq(&usbhid->lock);
 	clear_bit(HID_RESET_PENDING, &usbhid->iofl);
