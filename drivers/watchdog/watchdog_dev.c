@@ -61,13 +61,18 @@ static struct watchdog_device *old_wdd;
 
 static int watchdog_ping(struct watchdog_device *wddev)
 {
-	if (watchdog_active(wddev)) {
-		if (wddev->ops->ping)
-			return wddev->ops->ping(wddev);  /* ping the watchdog */
-		else
-			return wddev->ops->start(wddev); /* restart watchdog */
-	}
-	return 0;
+	int err = 0;
+
+	if (!watchdog_active(wddev))
+		goto out_ping;
+
+	if (wddev->ops->ping)
+		err = wddev->ops->ping(wddev);  /* ping the watchdog */
+	else
+		err = wddev->ops->start(wddev); /* restart watchdog */
+
+out_ping:
+	return err;
 }
 
 /*
@@ -81,16 +86,17 @@ static int watchdog_ping(struct watchdog_device *wddev)
 
 static int watchdog_start(struct watchdog_device *wddev)
 {
-	int err;
+	int err = 0;
 
-	if (!watchdog_active(wddev)) {
-		err = wddev->ops->start(wddev);
-		if (err < 0)
-			return err;
+	if (watchdog_active(wddev))
+		goto out_start;
 
+	err = wddev->ops->start(wddev);
+	if (err == 0)
 		set_bit(WDOG_ACTIVE, &wddev->status);
-	}
-	return 0;
+
+out_start:
+	return err;
 }
 
 /*
@@ -105,21 +111,111 @@ static int watchdog_start(struct watchdog_device *wddev)
 
 static int watchdog_stop(struct watchdog_device *wddev)
 {
-	int err = -EBUSY;
+	int err = 0;
+
+	if (!watchdog_active(wddev))
+		goto out_stop;
 
 	if (test_bit(WDOG_NO_WAY_OUT, &wddev->status)) {
 		dev_info(wddev->dev, "nowayout prevents watchdog being stopped!\n");
-		return err;
+		err = -EBUSY;
+		goto out_stop;
 	}
 
-	if (watchdog_active(wddev)) {
-		err = wddev->ops->stop(wddev);
-		if (err < 0)
-			return err;
-
+	err = wddev->ops->stop(wddev);
+	if (err == 0)
 		clear_bit(WDOG_ACTIVE, &wddev->status);
-	}
-	return 0;
+
+out_stop:
+	return err;
+}
+
+/*
+ *	watchdog_get_status: wrapper to get the watchdog status
+ *	@wddev: the watchdog device to get the status from
+ *	@status: the status of the watchdog device
+ *
+ *	Get the watchdog's status flags.
+ */
+
+static int watchdog_get_status(struct watchdog_device *wddev,
+							unsigned int *status)
+{
+	int err = 0;
+
+	*status = 0;
+	if (!wddev->ops->status)
+		return -EOPNOTSUPP;
+
+	*status = wddev->ops->status(wddev);
+
+	return err;
+}
+
+/*
+ *	watchdog_set_timeout: set the watchdog timer timeout
+ *	@wddev: the watchdog device to set the timeout for
+ *	@timeout: timeout to set in seconds
+ */
+
+static int watchdog_set_timeout(struct watchdog_device *wddev,
+							unsigned int timeout)
+{
+	int err;
+
+	if ((wddev->ops->set_timeout == NULL) ||
+	    !(wddev->info->options & WDIOF_SETTIMEOUT))
+		return -EOPNOTSUPP;
+
+	if ((wddev->max_timeout != 0) &&
+	    (timeout < wddev->min_timeout || timeout > wddev->max_timeout))
+		return -EINVAL;
+
+	err = wddev->ops->set_timeout(wddev, timeout);
+
+	return err;
+}
+
+/*
+ *	watchdog_get_timeleft: wrapper to get the time left before a reboot
+ *	@wddev: the watchdog device to get the remaining time from
+ *	@timeleft: the time that's left
+ *
+ *	Get the time before a watchdog will reboot (if not pinged).
+ */
+
+static int watchdog_get_timeleft(struct watchdog_device *wddev,
+							unsigned int *timeleft)
+{
+	int err = 0;
+
+	*timeleft = 0;
+	if (!wddev->ops->get_timeleft)
+		return -EOPNOTSUPP;
+
+	*timeleft = wddev->ops->get_timeleft(wddev);
+
+	return err;
+}
+
+/*
+ *	watchdog_ioctl_op: call the watchdog drivers ioctl op if defined
+ *	@wddev: the watchdog device to do the ioctl on
+ *	@cmd: watchdog command
+ *	@arg: argument pointer
+ */
+
+static int watchdog_ioctl_op(struct watchdog_device *wddev, unsigned int cmd,
+							unsigned long arg)
+{
+	int err;
+
+	if (!wddev->ops->ioctl)
+		return -ENOIOCTLCMD;
+
+	err = wddev->ops->ioctl(wddev, cmd, arg);
+
+	return err;
 }
 
 /*
@@ -183,18 +279,18 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 	unsigned int val;
 	int err;
 
-	if (wdd->ops->ioctl) {
-		err = wdd->ops->ioctl(wdd, cmd, arg);
-		if (err != -ENOIOCTLCMD)
-			return err;
-	}
+	err = watchdog_ioctl_op(wdd, cmd, arg);
+	if (err != -ENOIOCTLCMD)
+		return err;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, wdd->info,
 			sizeof(struct watchdog_info)) ? -EFAULT : 0;
 	case WDIOC_GETSTATUS:
-		val = wdd->ops->status ? wdd->ops->status(wdd) : 0;
+		err = watchdog_get_status(wdd, &val);
+		if (err)
+			return err;
 		return put_user(val, p);
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(wdd->bootstatus, p);
@@ -218,15 +314,9 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 		watchdog_ping(wdd);
 		return 0;
 	case WDIOC_SETTIMEOUT:
-		if ((wdd->ops->set_timeout == NULL) ||
-		    !(wdd->info->options & WDIOF_SETTIMEOUT))
-			return -EOPNOTSUPP;
 		if (get_user(val, p))
 			return -EFAULT;
-		if ((wdd->max_timeout != 0) &&
-		    (val < wdd->min_timeout || val > wdd->max_timeout))
-				return -EINVAL;
-		err = wdd->ops->set_timeout(wdd, val);
+		err = watchdog_set_timeout(wdd, val);
 		if (err < 0)
 			return err;
 		/* If the watchdog is active then we send a keepalive ping
@@ -240,10 +330,10 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 			return -EOPNOTSUPP;
 		return put_user(wdd->timeout, p);
 	case WDIOC_GETTIMELEFT:
-		if (!wdd->ops->get_timeleft)
-			return -EOPNOTSUPP;
-
-		return put_user(wdd->ops->get_timeleft(wdd), p);
+		err = watchdog_get_timeleft(wdd, &val);
+		if (err)
+			return err;
+		return put_user(val, p);
 	default:
 		return -ENOTTY;
 	}
