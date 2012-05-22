@@ -941,8 +941,8 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 			mdelay(20);
 
 		if (cmd->data) {
-			host->data = NULL;
 			dw_mci_stop_dma(host);
+			host->data = NULL;
 		}
 	}
 }
