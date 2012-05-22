@@ -1450,9 +1450,9 @@ static int __cpuinit __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 				 rdmsrl(msrs[i], val);
 
 				 /* CntP bit set? */
-				 if (val & BIT(62)) {
-					 val &= ~BIT(62);
-					 wrmsrl(msrs[i], val);
+				 if (val & BIT_64(62)) {
+					val &= ~BIT_64(62);
+					wrmsrl(msrs[i], val);
 				 }
 			 }
 
