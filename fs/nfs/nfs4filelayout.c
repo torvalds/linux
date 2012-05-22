@@ -101,9 +101,6 @@ static void filelayout_reset_write(struct nfs_write_data *data)
 							&hdr->pages,
 							hdr->completion_ops);
 	}
-	/* balance nfs_get_client in filelayout_write_pagelist */
-	nfs_put_client(data->ds_clp);
-	data->ds_clp     = NULL;
 }
 
 static void filelayout_reset_read(struct nfs_read_data *data)
@@ -125,9 +122,6 @@ static void filelayout_reset_read(struct nfs_read_data *data)
 							&hdr->pages,
 							hdr->completion_ops);
 	}
-	/* balance nfs_get_client in filelayout_read_pagelist */
-	nfs_put_client(data->ds_clp);
-	data->ds_clp = NULL;
 }
 
 static int filelayout_async_handle_error(struct rpc_task *task,
@@ -326,8 +320,7 @@ static void filelayout_read_release(void *data)
 {
 	struct nfs_read_data *rdata = data;
 
-	if (!test_bit(NFS_IOHDR_REDO, &rdata->header->flags))
-		nfs_put_client(rdata->ds_clp);
+	nfs_put_client(rdata->ds_clp);
 	rdata->header->mds_ops->rpc_release(data);
 }
 
@@ -424,8 +417,7 @@ static void filelayout_write_release(void *data)
 {
 	struct nfs_write_data *wdata = data;
 
-	if (!test_bit(NFS_IOHDR_REDO, &wdata->header->flags))
-		nfs_put_client(wdata->ds_clp);
+	nfs_put_client(wdata->ds_clp);
 	wdata->header->mds_ops->rpc_release(data);
 }
 
