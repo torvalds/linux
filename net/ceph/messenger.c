@@ -2087,12 +2087,6 @@ bad_tag:
  */
 static void queue_con(struct ceph_connection *con)
 {
-	if (test_bit(DEAD, &con->state)) {
-		dout("queue_con %p ignoring: DEAD\n",
-		     con);
-		return;
-	}
-
 	if (!con->ops->get(con)) {
 		dout("queue_con %p ref count 0\n", con);
 		return;
