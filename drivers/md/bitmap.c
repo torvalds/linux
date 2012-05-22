@@ -203,9 +203,13 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 
 		bdev = (rdev->meta_bdev) ? rdev->meta_bdev : rdev->bdev;
 
-		if (page->index == store->file_pages-1)
-			size = roundup(store->last_page_size,
+		if (page->index == store->file_pages-1) {
+			int last_page_size = store->bytes & (PAGE_SIZE-1);
+			if (last_page_size == 0)
+				last_page_size = PAGE_SIZE;
+			size = roundup(last_page_size,
 				       bdev_logical_block_size(bdev));
+		}
 		/* Just make sure we aren't corrupting data or
 		 * metadata
 		 */
@@ -973,6 +977,8 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 	if (!bitmap->mddev->bitmap_info.external)
 		bytes += sizeof(bitmap_super_t);
 
+	store->bytes = bytes;
+
 	num_pages = DIV_ROUND_UP(bytes, PAGE_SIZE);
 
 	if (file && i_size_read(file->f_mapping->host) < bytes) {
@@ -1041,8 +1047,6 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 				goto err;
 
 			oldindex = index;
-
-			store->last_page_size = count;
 
 			if (outofdate) {
 				/*
@@ -1965,9 +1969,7 @@ space_store(struct mddev *mddev, const char *buf, size_t len)
 		return -EINVAL;
 
 	if (mddev->bitmap &&
-	    sectors  < ((mddev->bitmap->storage.file_pages - 1)
-			      * PAGE_SIZE
-			+ mddev->bitmap->storage.last_page_size + 511) >> 9)
+	    sectors < (mddev->bitmap->storage.bytes + 511) >> 9)
 		return -EFBIG; /* Bitmap is too big for this small space */
 
 	/* could make sure it isn't too big, but that isn't really
