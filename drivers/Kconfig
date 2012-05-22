@@ -144,4 +144,8 @@ source "drivers/extcon/Kconfig"
 
 source "drivers/memory/Kconfig"
 
+source "drivers/iio/Kconfig"
+
+source "drivers/vme/Kconfig"
+
 endmenu

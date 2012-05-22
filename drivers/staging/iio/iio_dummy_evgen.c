@@ -22,8 +22,8 @@
 #include <linux/sysfs.h>
 
 #include "iio_dummy_evgen.h"
-#include "iio.h"
-#include "sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 /* Fiddly bit of faking and irq without hardware */
 #define IIO_EVENTGEN_NO 10

@@ -119,7 +119,7 @@ struct pkt_attrib {
 
 	u8	priority;
 	u8	encrypt;	/* when 0 indicate no encrypt. when non-zero,
-				 * indicate the encrypt algorith*/
+				 * indicate the encrypt algorithm*/
 	u8	iv_len;
 	u8	icv_len;
 	unsigned char iv[8];

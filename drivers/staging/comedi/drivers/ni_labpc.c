@@ -805,13 +805,10 @@ static int labpc_find_device(struct comedi_device *dev, int bus, int slot)
 }
 #endif
 
-int labpc_common_detach(struct comedi_device *dev)
+void labpc_common_detach(struct comedi_device *dev)
 {
-	printk(KERN_ERR "comedi%d: ni_labpc: detach\n", dev->minor);
-
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
-
 #ifdef CONFIG_ISA_DMA_API
 	/* only free stuff if it has been allocated by _attach */
 	kfree(devpriv->dma_buffer);
@@ -826,8 +823,6 @@ int labpc_common_detach(struct comedi_device *dev)
 	if (devpriv->mite)
 		mite_unsetup(devpriv->mite);
 #endif
-
-	return 0;
 };
 EXPORT_SYMBOL_GPL(labpc_common_detach);
 
@@ -2141,7 +2136,7 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 static int __devinit driver_labpc_pci_probe(struct pci_dev *dev,
 					    const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_labpc.driver_name);
+	return comedi_pci_auto_config(dev, &driver_labpc);
 }
 
 static void __devexit driver_labpc_pci_remove(struct pci_dev *dev)

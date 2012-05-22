@@ -11,7 +11,7 @@
 
    Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver
 
-   We want to tanks the Authors of those projects and the Ndiswrapper
+   We want to thanks the Authors of those projects and the Ndiswrapper
    project Authors.
 */
 
@@ -514,12 +514,12 @@ typedef struct r8180_priv
 	bool bDefaultAntenna1;
 	u8 SignalStrength;
 	long Stats_SignalStrength;
-	long LastSignalStrengthInPercent; // In percentange, used for smoothing, e.g. Moving Average.
+	long LastSignalStrengthInPercent; // In percentage, used for smoothing, e.g. Moving Average.
 	u8	 SignalQuality; // in 0-100 index.
 	long Stats_SignalQuality;
 	long RecvSignalPower; // in dBm.
 	long Stats_RecvSignalPower;
-	u8	 LastRxPktAntenna;	// +by amy 080312 Antenn which received the lasted packet. 0: Aux, 1:Main. Added by Roger, 2008.01.25.
+	u8	 LastRxPktAntenna;	// +by amy 080312 Antenna which received the lasted packet. 0: Aux, 1:Main. Added by Roger, 2008.01.25.
 	u32 AdRxOkCnt;
 	long AdRxSignalStrength;
 	u8 CurrAntennaIndex;			// Index to current Antenna (both Tx and Rx).
@@ -530,7 +530,7 @@ typedef struct r8180_priv
 	long AdRxSsThreshold;			// Signal strength threshold to switch antenna.
 	long AdMaxRxSsThreshold;			// Max value of AdRxSsThreshold.
 	bool bAdSwitchedChecking;		// TRUE if we shall shall check Rx signal strength for last time switching antenna.
-	long AdRxSsBeforeSwitched;		// Rx signal strength before we swithed antenna.
+	long AdRxSsBeforeSwitched;		// Rx signal strength before we switched antenna.
 	struct timer_list SwAntennaDiversityTimer;
 //by amy for antenna
 //{by amy 080312
@@ -553,7 +553,7 @@ typedef struct r8180_priv
 	bool				bDigMechanism; // TRUE if DIG is enabled, FALSE ow.
 	bool				bRegHighPowerMechanism; // For High Power Mechanism. 061010, by rcnjko.
 	u32					FalseAlarmRegValue;
-	u8					RegDigOfdmFaUpTh; // Upper threhold of OFDM false alarm, which is used in DIG.
+	u8					RegDigOfdmFaUpTh; // Upper threshold of OFDM false alarm, which is used in DIG.
 	u8					DIG_NumberFallbackVote;
 	u8					DIG_NumberUpgradeVote;
 	// For HW antenna diversity, added by Roger, 2008.01.30.

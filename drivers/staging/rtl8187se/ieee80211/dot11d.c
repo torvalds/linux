@@ -55,7 +55,7 @@ Dot11d_Reset(struct ieee80211_device *ieee)
 
 //
 //	Description:
-//		Update country IE from Beacon or Probe Resopnse
+//		Update country IE from Beacon or Probe Response
 //		and configure PHY for operation in the regulatory domain.
 //
 //	TODO:

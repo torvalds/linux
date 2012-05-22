@@ -275,11 +275,11 @@ bool init_firmware(struct net_device *dev)
 
 	/*
 	 * Download boot, main, and data image for System reset.
-	 * Download data image for firmware reseta
+	 * Download data image for firmware reset
 	 */
 	for(init_step = starting_state; init_step <= FW_INIT_STEP2_DATA; init_step++) {
 		/*
-		 * Open Image file, and map file to contineous memory if open file success.
+		 * Open image file, and map file to continuous memory if open file success.
 		 * or read image file from array. Default load from IMG file
 		 */
 		if(rst_opt == OPT_SYSTEM_RESET) {

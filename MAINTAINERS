@@ -3406,6 +3406,7 @@ IIO SUBSYSTEM AND DRIVERS
 M:	Jonathan Cameron <jic23@cam.ac.uk>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
+F:	drivers/iio/
 F:	drivers/staging/iio/
 
 IKANOS/ADI EAGLE ADSL USB DRIVER
@@ -3624,6 +3625,14 @@ L:	linux-wireless@vger.kernel.org
 S:	Supported
 W:	http://wireless.kernel.org/en/users/Drivers/iwmc3200wifi
 F:	drivers/net/wireless/iwmc3200wifi/
+
+INTEL MANAGEMENT ENGINE (mei)
+M:	Tomas Winkler <tomas.winkler@intel.com>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+F:	include/linux/mei.h
+F:	drivers/misc/mei/*
+F:	Documentation/mei/*
 
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
@@ -7349,6 +7358,18 @@ L:	openwrt-devel@lists.openwrt.org (subscribers-only)
 S:	Maintained
 F:	drivers/vlynq/vlynq.c
 F:	include/linux/vlynq.h
+
+VME SUBSYSTEM
+M:	Martyn Welch <martyn.welch@ge.com>
+M:	Manohar Vanga <manohar.vanga@cern.ch>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+L:	devel@driverdev.osuosl.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
+F:	Documentation/vme_api.txt
+F:	drivers/staging/vme/
+F:	drivers/vme/
+F:	include/linux/vme*
 
 VMWARE VMXNET3 ETHERNET DRIVER
 M:	Shreyas Bhatewara <sbhatewara@vmware.com>

@@ -353,7 +353,6 @@ struct rt_stats {
 	unsigned long rxrdu;
 	unsigned long rxok;
 	unsigned long rxframgment;
-	unsigned long rxcmdpkt[8];
 	unsigned long rxurberr;
 	unsigned long rxstaterr;
 	unsigned long rxdatacrcerr;
@@ -944,7 +943,7 @@ struct r8192_priv {
 	bool		bfsync_processing;
 	u32		rate_record;
 	u32		rateCountDiffRecord;
-	u32		ContiuneDiffCount;
+	u32		ContinueDiffCount;
 	bool		bswitch_fsync;
 	u8		framesync;
 	u32		framesyncC34;

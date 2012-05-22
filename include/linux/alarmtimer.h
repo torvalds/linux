@@ -76,4 +76,7 @@ static inline int alarmtimer_callback_running(struct alarm *timer)
 }
 
 
+/* Provide way to access the rtc device being used by alarmtimers */
+struct rtc_device *alarmtimer_get_rtcdev(void);
+
 #endif
