@@ -109,6 +109,7 @@ my $start_minconfig;
 my $start_minconfig_defined;
 my $output_minconfig;
 my $minconfig_type;
+my $use_output_minconfig;
 my $ignore_config;
 my $ignore_errors;
 my $addconfig;
@@ -209,6 +210,7 @@ my %option_map = (
     "OUTPUT_MIN_CONFIG"		=> \$output_minconfig,
     "START_MIN_CONFIG"		=> \$start_minconfig,
     "MIN_CONFIG_TYPE"		=> \$minconfig_type,
+    "USE_OUTPUT_MIN_CONFIG"	=> \$use_output_minconfig,
     "IGNORE_CONFIG"		=> \$ignore_config,
     "TEST"			=> \$run_test,
     "ADD_CONFIG"		=> \$addconfig,
@@ -3146,8 +3148,15 @@ sub make_min_config {
     # that instead.
     if (-f $output_minconfig && !$start_minconfig_defined) {
 	print "$output_minconfig exists\n";
-	if (read_yn " Use it as minconfig?") {
+	if (!defined($use_output_minconfig)) {
+	    if (read_yn " Use it as minconfig?") {
+		$start_minconfig = $output_minconfig;
+	    }
+	} elsif ($use_output_minconfig > 0) {
+	    doprint "Using $output_minconfig as MIN_CONFIG\n";
 	    $start_minconfig = $output_minconfig;
+	} else {
+	    doprint "Set to still use MIN_CONFIG as starting point\n";
 	}
     }
 
