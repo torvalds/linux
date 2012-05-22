@@ -251,7 +251,7 @@ acpi_remove_notify_handler(acpi_handle device,
 	}
 	/* Make sure all deferred tasks are completed */
 
-	acpi_os_wait_events_complete(NULL);
+	acpi_os_wait_events_complete();
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
@@ -699,7 +699,7 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 
 	/* Make sure all deferred tasks are completed */
 
-	acpi_os_wait_events_complete(NULL);
+	acpi_os_wait_events_complete();
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
 	if (ACPI_FAILURE(status)) {
