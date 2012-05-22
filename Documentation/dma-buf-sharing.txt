@@ -293,6 +293,17 @@ Access to a dma_buf from the kernel context involves three steps:
    Note that these calls need to always succeed. The exporter needs to complete
    any preparations that might fail in begin_cpu_access.
 
+   For some cases the overhead of kmap can be too high, a vmap interface
+   is introduced. This interface should be used very carefully, as vmalloc
+   space is a limited resources on many architectures.
+
+   Interfaces:
+      void *dma_buf_vmap(struct dma_buf *dmabuf)
+      void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
+
+   The vmap call can fail if there is no vmap support in the exporter, or if it
+   runs out of vmalloc space. Fallback to kmap should be implemented.
+
 3. Finish access
 
    When the importer is done accessing the range specified in begin_cpu_access,
