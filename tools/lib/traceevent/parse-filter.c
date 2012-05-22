@@ -1710,18 +1710,43 @@ static int test_num(struct event_format *event,
 
 static const char *get_field_str(struct filter_arg *arg, struct pevent_record *record)
 {
-	const char *val = record->data + arg->str.field->offset;
+	struct event_format *event;
+	struct pevent *pevent;
+	unsigned long long addr;
+	const char *val = NULL;
+	char hex[64];
 
-	/*
-	 * We need to copy the data since we can't be sure the field
-	 * is null terminated.
-	 */
-	if (*(val + arg->str.field->size - 1)) {
-		/* copy it */
-		memcpy(arg->str.buffer, val, arg->str.field->size);
-		/* the buffer is already NULL terminated */
-		val = arg->str.buffer;
+	/* If the field is not a string convert it */
+	if (arg->str.field->flags & FIELD_IS_STRING) {
+		val = record->data + arg->str.field->offset;
+
+		/*
+		 * We need to copy the data since we can't be sure the field
+		 * is null terminated.
+		 */
+		if (*(val + arg->str.field->size - 1)) {
+			/* copy it */
+			memcpy(arg->str.buffer, val, arg->str.field->size);
+			/* the buffer is already NULL terminated */
+			val = arg->str.buffer;
+		}
+
+	} else {
+		event = arg->str.field->event;
+		pevent = event->pevent;
+		addr = get_value(event, arg->str.field, record);
+
+		if (arg->str.field->flags & (FIELD_IS_POINTER | FIELD_IS_LONG))
+			/* convert to a kernel symbol */
+			val = pevent_find_function(pevent, addr);
+
+		if (val == NULL) {
+			/* just use the hex of the string name */
+			snprintf(hex, 64, "0x%llx", addr);
+			val = hex;
+		}
 	}
+
 	return val;
 }
 
