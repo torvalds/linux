@@ -401,8 +401,10 @@ static ssize_t ath6kl_fwlog_block_read(struct file *file,
 
 		ret = wait_for_completion_interruptible(
 			&ar->debug.fwlog_completion);
-		if (ret == -ERESTARTSYS)
+		if (ret == -ERESTARTSYS) {
+			vfree(buf);
 			return ret;
+		}
 
 		spin_lock(&ar->debug.fwlog_queue.lock);
 	}
@@ -1570,9 +1572,14 @@ static ssize_t ath6kl_bgscan_int_write(struct file *file,
 				size_t count, loff_t *ppos)
 {
 	struct ath6kl *ar = file->private_data;
+	struct ath6kl_vif *vif;
 	u16 bgscan_int;
 	char buf[32];
 	ssize_t len;
+
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
@@ -1584,6 +1591,8 @@ static ssize_t ath6kl_bgscan_int_write(struct file *file,
 
 	if (bgscan_int == 0)
 		bgscan_int = 0xffff;
+
+	vif->bg_scan_period = bgscan_int;
 
 	ath6kl_wmi_scanparams_cmd(ar->wmi, 0, 0, 0, bgscan_int, 0, 0, 0, 3,
 				  0, 0, 0);
@@ -1809,6 +1818,7 @@ int ath6kl_debug_init_fs(struct ath6kl *ar)
 void ath6kl_debug_cleanup(struct ath6kl *ar)
 {
 	skb_queue_purge(&ar->debug.fwlog_queue);
+	complete(&ar->debug.fwlog_completion);
 	kfree(ar->debug.roam_tbl);
 }
 

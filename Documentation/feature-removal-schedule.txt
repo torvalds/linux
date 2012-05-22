@@ -534,6 +534,18 @@ Who:	Kees Cook <keescook@chromium.org>
 
 ----------------------------
 
+What:	Removing the pn544 raw driver.
+When:	3.6
+Why:	With the introduction of the NFC HCI and SHDL kernel layers, pn544.c
+	is being replaced by pn544_hci.c which is accessible through the netlink
+	and socket NFC APIs. Moreover, pn544.c is outdated and does not seem to
+	work properly with the latest Android stacks.
+	Having 2 drivers for the same hardware is confusing and as such we
+	should only keep the one following the kernel NFC APIs.
+Who:	Samuel Ortiz <sameo@linux.intel.com>
+
+----------------------------
+
 What:	setitimer accepts user NULL pointer (value)
 When:	3.6
 Why:	setitimer is not returning -EFAULT if user pointer is NULL. This

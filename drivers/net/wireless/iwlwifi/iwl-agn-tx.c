@@ -590,11 +590,17 @@ turn_off:
 	spin_unlock_bh(&priv->sta_lock);
 
 	if (test_bit(txq_id, priv->agg_q_alloc)) {
-		/* If the transport didn't know that we wanted to start
-		 * agreggation, don't tell it that we want to stop them
+		/*
+		 * If the transport didn't know that we wanted to start
+		 * agreggation, don't tell it that we want to stop them.
+		 * This can happen when we don't get the addBA response on
+		 * time, or we hadn't time to drain the AC queues.
 		 */
-		if (agg_state != IWL_AGG_STARTING)
+		if (agg_state == IWL_AGG_ON)
 			iwl_trans_tx_agg_disable(priv->trans, txq_id);
+		else
+			IWL_DEBUG_TX_QUEUES(priv, "Don't disable tx agg: %d\n",
+					    agg_state);
 		iwlagn_dealloc_agg_txq(priv, txq_id);
 	}
 
@@ -1300,10 +1306,11 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 			   (u8 *) &ba_resp->sta_addr_lo32,
 			   ba_resp->sta_id);
 	IWL_DEBUG_TX_REPLY(priv, "TID = %d, SeqCtl = %d, bitmap = 0x%llx, "
-			   "scd_flow = %d, scd_ssn = %d\n",
+			   "scd_flow = %d, scd_ssn = %d sent:%d, acked:%d\n",
 			   ba_resp->tid, le16_to_cpu(ba_resp->seq_ctl),
 			   (unsigned long long)le64_to_cpu(ba_resp->bitmap),
-			   scd_flow, ba_resp_scd_ssn);
+			   scd_flow, ba_resp_scd_ssn, ba_resp->txed,
+			   ba_resp->txed_2_done);
 
 	/* Mark that the expected block-ack response arrived */
 	agg->wait_for_ba = false;
@@ -1319,8 +1326,6 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 		 */
 		ba_resp->txed = ba_resp->txed_2_done;
 	}
-	IWL_DEBUG_HT(priv, "agg frames sent:%d, acked:%d\n",
-			ba_resp->txed, ba_resp->txed_2_done);
 
 	priv->tid_data[sta_id][tid].next_reclaimed = ba_resp_scd_ssn;
 

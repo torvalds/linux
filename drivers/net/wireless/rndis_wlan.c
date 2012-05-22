@@ -505,9 +505,6 @@ static int rndis_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
 static int rndis_leave_ibss(struct wiphy *wiphy, struct net_device *dev);
 
-static int rndis_set_channel(struct wiphy *wiphy, struct net_device *dev,
-	struct ieee80211_channel *chan, enum nl80211_channel_type channel_type);
-
 static int rndis_add_key(struct wiphy *wiphy, struct net_device *netdev,
 			 u8 key_index, bool pairwise, const u8 *mac_addr,
 			 struct key_params *params);
@@ -549,7 +546,6 @@ static const struct cfg80211_ops rndis_config_ops = {
 	.disconnect = rndis_disconnect,
 	.join_ibss = rndis_join_ibss,
 	.leave_ibss = rndis_leave_ibss,
-	.set_channel = rndis_set_channel,
 	.add_key = rndis_add_key,
 	.del_key = rndis_del_key,
 	.set_default_key = rndis_set_default_key,
@@ -2396,16 +2392,6 @@ static int rndis_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	memset(priv->bssid, 0, ETH_ALEN);
 
 	return deauthenticate(usbdev);
-}
-
-static int rndis_set_channel(struct wiphy *wiphy, struct net_device *netdev,
-	struct ieee80211_channel *chan, enum nl80211_channel_type channel_type)
-{
-	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
-	struct usbnet *usbdev = priv->usbdev;
-
-	return set_channel(usbdev,
-			ieee80211_frequency_to_channel(chan->center_freq));
 }
 
 static int rndis_add_key(struct wiphy *wiphy, struct net_device *netdev,
