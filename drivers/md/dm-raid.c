@@ -603,7 +603,7 @@ static int read_disk_sb(struct md_rdev *rdev, int size)
 	if (!sync_page_io(rdev, 0, size, rdev->sb_page, READ, 1)) {
 		DMERR("Failed to read superblock of device at position %d",
 		      rdev->raid_disk);
-		set_bit(Faulty, &rdev->flags);
+		md_error(rdev->mddev, rdev);
 		return -EINVAL;
 	}
 
