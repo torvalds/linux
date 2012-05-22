@@ -1397,8 +1397,7 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 	ixgbe_rx_checksum(rx_ring, rx_desc, skb);
 
 #ifdef CONFIG_IXGBE_PTP
-	if (ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_TS))
-		ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector, skb);
+	ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
 #endif
 
 	if ((dev->features & NETIF_F_HW_VLAN_RX) &&

@@ -561,6 +561,7 @@ struct ixgbe_adapter {
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
+	int rx_hwtstamp_filter;
 	u32 base_incval;
 	u32 cycle_speed;
 #endif /* CONFIG_IXGBE_PTP */
@@ -718,6 +719,7 @@ extern void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_tx_hwtstamp(struct ixgbe_q_vector *q_vector,
 				  struct sk_buff *skb);
 extern void ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
+				  union ixgbe_adv_rx_desc *rx_desc,
 				  struct sk_buff *skb);
 extern int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 				    struct ifreq *ifr, int cmd);
