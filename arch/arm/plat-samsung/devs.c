@@ -30,6 +30,7 @@
 #include <linux/mmc/host.h>
 #include <linux/ioport.h>
 #include <linux/platform_data/s3c-hsudc.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <asm/irq.h>
 #include <asm/pmu.h>
@@ -57,7 +58,6 @@
 #include <plat/sdhci.h>
 #include <plat/ts.h>
 #include <plat/udc.h>
-#include <plat/udc-hs.h>
 #include <plat/usb-control.h>
 #include <plat/usb-phy.h>
 #include <plat/regs-iic.h>

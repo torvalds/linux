@@ -68,8 +68,6 @@ source "drivers/staging/octeon/Kconfig"
 
 source "drivers/staging/serqt_usb2/Kconfig"
 
-source "drivers/staging/quatech_usb2/Kconfig"
-
 source "drivers/staging/vt6655/Kconfig"
 
 source "drivers/staging/vt6656/Kconfig"
@@ -131,5 +129,7 @@ source "drivers/staging/telephony/Kconfig"
 source "drivers/staging/ramster/Kconfig"
 
 source "drivers/staging/ozwpan/Kconfig"
+
+source "drivers/staging/ccg/Kconfig"
 
 endif # STAGING

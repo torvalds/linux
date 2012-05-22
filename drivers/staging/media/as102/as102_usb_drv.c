@@ -375,7 +375,7 @@ static int as102_usb_probe(struct usb_interface *intf,
 
 	as102_dev = kzalloc(sizeof(struct as102_dev_t), GFP_KERNEL);
 	if (as102_dev == NULL) {
-		err("%s: kzalloc failed", __func__);
+		dev_err(&intf->dev, "%s: kzalloc failed\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -411,8 +411,9 @@ static int as102_usb_probe(struct usb_interface *intf,
 	ret = usb_register_dev(intf, &as102_usb_class_driver);
 	if (ret < 0) {
 		/* something prevented us from registering this driver */
-		err("%s: usb_register_dev() failed (errno = %d)",
-		    __func__, ret);
+		dev_err(&intf->dev,
+			"%s: usb_register_dev() failed (errno = %d)\n",
+			__func__, ret);
 		goto failed;
 	}
 

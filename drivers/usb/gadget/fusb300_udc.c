@@ -203,7 +203,7 @@ static int config_ep(struct fusb300_ep *ep,
 	struct fusb300 *fusb300 = ep->fusb300;
 	struct fusb300_ep_info info;
 
-	ep->desc = desc;
+	ep->ep.desc = desc;
 
 	info.interval = 0;
 	info.addrofs = 0;
@@ -443,7 +443,7 @@ static int fusb300_queue(struct usb_ep *_ep, struct usb_request *_req,
 	req->req.actual = 0;
 	req->req.status = -EINPROGRESS;
 
-	if (ep->desc == NULL) /* ep0 */
+	if (ep->ep.desc == NULL) /* ep0 */
 		ep0_queue(ep, req);
 	else if (request && !ep->stall)
 		enable_fifo_int(ep);

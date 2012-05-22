@@ -10,15 +10,12 @@
 #include <linux/pm_runtime.h>
 #include <linux/usb/msm_hsusb_hw.h>
 #include <linux/usb/ulpi.h>
+#include <linux/usb/gadget.h>
+#include <linux/usb/chipidea.h>
 
-#include "ci13xxx_udc.c"
+#include "ci.h"
 
-#define MSM_USB_BASE	(udc->regs)
-
-static irqreturn_t msm_udc_irq(int irq, void *data)
-{
-	return udc_irq();
-}
+#define MSM_USB_BASE	(udc->hw_bank.abs)
 
 static void ci13xxx_msm_notify_event(struct ci13xxx *udc, unsigned event)
 {
@@ -60,53 +57,40 @@ static struct ci13xxx_udc_driver ci13xxx_msm_udc_driver = {
 
 static int ci13xxx_msm_probe(struct platform_device *pdev)
 {
-	struct resource *res;
-	void __iomem *regs;
-	int irq;
+	struct platform_device *plat_ci;
 	int ret;
 
 	dev_dbg(&pdev->dev, "ci13xxx_msm_probe\n");
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get platform resource mem\n");
-		return -ENXIO;
-	}
-
-	regs = ioremap(res->start, resource_size(res));
-	if (!regs) {
-		dev_err(&pdev->dev, "ioremap failed\n");
+	plat_ci = platform_device_alloc("ci_hdrc", -1);
+	if (!plat_ci) {
+		dev_err(&pdev->dev, "can't allocate ci_hdrc platform device\n");
 		return -ENOMEM;
 	}
 
-	ret = udc_probe(&ci13xxx_msm_udc_driver, &pdev->dev, regs);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "udc_probe failed\n");
-		goto iounmap;
+	ret = platform_device_add_resources(plat_ci, pdev->resource,
+					    pdev->num_resources);
+	if (ret) {
+		dev_err(&pdev->dev, "can't add resources to platform device\n");
+		goto put_platform;
 	}
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "IRQ not found\n");
-		ret = -ENXIO;
-		goto udc_remove;
-	}
+	ret = platform_device_add_data(plat_ci, &ci13xxx_msm_udc_driver,
+				       sizeof(ci13xxx_msm_udc_driver));
+	if (ret)
+		goto put_platform;
 
-	ret = request_irq(irq, msm_udc_irq, IRQF_SHARED, pdev->name, pdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "request_irq failed\n");
-		goto udc_remove;
-	}
+	ret = platform_device_add(plat_ci);
+	if (ret)
+		goto put_platform;
 
 	pm_runtime_no_callbacks(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
 
-udc_remove:
-	udc_remove();
-iounmap:
-	iounmap(regs);
+put_platform:
+	platform_device_put(plat_ci);
 
 	return ret;
 }

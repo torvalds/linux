@@ -54,16 +54,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(ZYXEL_VENDOR_ID, BT_IGNITIONPRO_ID) },
 	{ }						/* Terminating entry */
 };
-
 MODULE_DEVICE_TABLE(usb, id_table);
-
-static struct usb_driver omninet_driver = {
-	.name =		"omninet",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table,
-};
-
 
 static struct usb_serial_driver zyxel_omninet_device = {
 	.driver = {
@@ -144,8 +135,6 @@ static int omninet_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct usb_serial_port	*wport;
 	int			result = 0;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	wport = serial->port[1];
 	tty_port_tty_set(&wport->port, tty);
 
@@ -160,7 +149,6 @@ static int omninet_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void omninet_close(struct usb_serial_port *port)
 {
-	dbg("%s - port %d", __func__, port->number);
 	usb_kill_urb(port->read_urb);
 }
 
@@ -177,8 +165,6 @@ static void omninet_read_bulk_callback(struct urb *urb)
 	int status = urb->status;
 	int result;
 	int i;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	if (status) {
 		dbg("%s - nonzero read bulk status received: %d",
@@ -224,8 +210,6 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 					wport->write_urb->transfer_buffer;
 
 	int			result;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	if (count == 0) {
 		dbg("%s - write request of 0 bytes", __func__);
@@ -289,8 +273,6 @@ static void omninet_write_bulk_callback(struct urb *urb)
 	struct usb_serial_port 	*port   =  urb->context;
 	int status = urb->status;
 
-	dbg("%s - port %0x", __func__, port->number);
-
 	set_bit(0, &port->write_urbs_free);
 	if (status) {
 		dbg("%s - nonzero write bulk status received: %d",
@@ -306,8 +288,6 @@ static void omninet_disconnect(struct usb_serial *serial)
 {
 	struct usb_serial_port *wport = serial->port[1];
 
-	dbg("%s", __func__);
-
 	usb_kill_urb(wport->write_urb);
 }
 
@@ -316,12 +296,10 @@ static void omninet_release(struct usb_serial *serial)
 {
 	struct usb_serial_port *port = serial->port[0];
 
-	dbg("%s", __func__);
-
 	kfree(usb_get_serial_port_data(port));
 }
 
-module_usb_serial_driver(omninet_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

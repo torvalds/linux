@@ -1826,6 +1826,12 @@ L:	linux-kernel@zh-kernel.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/zh_CN/
 
+CHIPIDEA USB HIGH SPEED DUAL ROLE CONTROLLER
+M:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/chipidea/
+
 CISCO VIC ETHERNET NIC DRIVER
 M:	Christian Benvenuti <benve@cisco.com>
 M:	Roopa Prabhu <roprabhu@cisco.com>
@@ -7052,6 +7058,14 @@ L:	netdev@vger.kernel.org
 W:	http://pegasus2.sourceforge.net/
 S:	Maintained
 F:	drivers/net/usb/pegasus.*
+
+USB PHY LAYER
+M:	Felipe Balbi <balbi@ti.com>
+L:	linux-usb@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
+S:	Maintained
+F:	drivers/usb/phy/
+F:	drivers/usb/otg/
 
 USB PRINTER DRIVER (usblp)
 M:	Pete Zaitcev <zaitcev@redhat.com>

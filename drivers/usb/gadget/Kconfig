@@ -123,13 +123,7 @@ config USB_GADGET_STORAGE_NUM_BUFFERS
 #   - discrete ones (including all PCI-only controllers)
 #   - debug/dummy gadget+hcd is last.
 #
-choice
-	prompt "USB Peripheral Controller"
-	help
-	   A USB device uses a controller to talk to its host.
-	   Systems should have only one such upstream link.
-	   Many controller drivers are platform-specific; these
-	   often need board-specific hooks.
+menu "USB Peripheral Controller"
 
 #
 # Integrated controllers
@@ -147,6 +141,17 @@ config USB_AT91
 	   dynamically linked module called "at91_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
+config USB_LPC32XX
+	tristate "LPC32XX USB Peripheral Controller"
+	depends on ARCH_LPC32XX
+	select USB_ISP1301
+	help
+	   This option selects the USB device controller in the LPC32xx SoC.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "lpc32xx_udc" and force all
+	   gadget drivers to also be dynamically linked.
+
 config USB_ATMEL_USBA
 	tristate "Atmel USBA"
 	select USB_GADGET_DUALSPEED
@@ -161,7 +166,7 @@ config USB_FSL_USB2
 	select USB_GADGET_DUALSPEED
 	select USB_FSL_MPH_DR_OF if OF
 	help
-	   Some of Freescale PowerPC processors have a High Speed
+	   Some of Freescale PowerPC and i.MX processors have a High Speed
 	   Dual-Role(DR) USB controller, which supports device mode.
 
 	   The number of programmable endpoints is different through
@@ -373,18 +378,6 @@ config USB_FSL_QE
 	   Set CONFIG_USB_GADGET to "m" to build this driver as a
 	   dynamically linked module called "fsl_qe_udc".
 
-config USB_CI13XXX_PCI
-	tristate "MIPS USB CI13xxx PCI UDC"
-	depends on PCI
-	select USB_GADGET_DUALSPEED
-	help
-	  MIPS USB IP core family device controller
-	  Currently it only supports IP part number CI13412
-
-	  Say "y" to link the driver statically, or "m" to build a
-	  dynamically linked module called "ci13xxx_udc" and force all
-	  gadget drivers to also be dynamically linked.
-
 config USB_NET2272
 	tristate "PLX NET2272"
 	select USB_GADGET_DUALSPEED
@@ -438,22 +431,6 @@ config USB_GOKU
 	   dynamically linked module called "goku_udc" and to force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_LANGWELL
-	tristate "Intel Langwell USB Device Controller"
-	depends on PCI
-	depends on !PHYS_ADDR_T_64BIT
-	select USB_GADGET_DUALSPEED
-	help
-	   Intel Langwell USB Device Controller is a High-Speed USB
-	   On-The-Go device controller.
-
-	   The number of programmable endpoints is different through
-	   controller revision.
-
-	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "langwell_udc" and force all
-	   gadget drivers to also be dynamically linked.
-
 config USB_EG20T
 	tristate "Intel EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7831) UDC"
 	depends on PCI
@@ -476,23 +453,6 @@ config USB_EG20T
 	  ML7831 is for general purpose use.
 	  ML7213/ML7831 is companion chip for Intel Atom E6xx series.
 	  ML7213/ML7831 is completely compatible for Intel EG20T PCH.
-
-config USB_CI13XXX_MSM
-	tristate "MIPS USB CI13xxx for MSM"
-	depends on ARCH_MSM
-	select USB_GADGET_DUALSPEED
-	select USB_MSM_OTG
-	help
-	  MSM SoC has chipidea USB controller.  This driver uses
-	  ci13xxx_udc core.
-	  This driver depends on OTG driver for PHY initialization,
-	  clock management, powering up VBUS, and power management.
-	  This driver is not supported on boards like trout which
-	  has an external PHY.
-
-	  Say "y" to link the driver statically, or "m" to build a
-	  dynamically linked module called "ci13xxx_msm" and force all
-	  gadget drivers to also be dynamically linked.
 
 #
 # LAST -- dummy/emulated controller
@@ -525,7 +485,7 @@ config USB_DUMMY_HCD
 # NOTE:  Please keep dummy_hcd LAST so that "real hardware" appears
 # first and will be selected by default.
 
-endchoice
+endmenu
 
 # Selected by UDC drivers that support high-speed operation.
 config USB_GADGET_DUALSPEED

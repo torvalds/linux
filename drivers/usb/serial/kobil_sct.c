@@ -81,17 +81,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(KOBIL_VENDOR_ID, KOBIL_KAAN_SIM_PRODUCT_ID) },
 	{ }			/* Terminating entry */
 };
-
-
 MODULE_DEVICE_TABLE(usb, id_table);
-
-static struct usb_driver kobil_driver = {
-	.name =		"kobil",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table,
-};
-
 
 static struct usb_serial_driver kobil_device = {
 	.driver = {
@@ -193,7 +183,6 @@ static int kobil_startup(struct usb_serial *serial)
 static void kobil_release(struct usb_serial *serial)
 {
 	int i;
-	dbg("%s - port %d", __func__, serial->port[0]->number);
 
 	for (i = 0; i < serial->num_ports; ++i)
 		kfree(usb_get_serial_port_data(serial->port[i]));
@@ -217,7 +206,6 @@ static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 	int transfer_buffer_length = 8;
 	int write_urb_transfer_buffer_length = 8;
 
-	dbg("%s - port %d", __func__, port->number);
 	priv = usb_get_serial_port_data(port);
 
 	/* allocate memory for transfer buffer */
@@ -327,8 +315,6 @@ static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void kobil_close(struct usb_serial_port *port)
 {
-	dbg("%s - port %d", __func__, port->number);
-
 	/* FIXME: Add rts/dtr methods */
 	if (port->write_urb) {
 		usb_poison_urb(port->write_urb);
@@ -348,8 +334,6 @@ static void kobil_read_int_callback(struct urb *urb)
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
 /*	char *dbg_data; */
-
-	dbg("%s - port %d", __func__, port->number);
 
 	if (status) {
 		dbg("%s - port %d Read int status not zero: %d",
@@ -474,7 +458,6 @@ static int kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 static int kobil_write_room(struct tty_struct *tty)
 {
-	/* dbg("%s - port %d", __func__, port->number); */
 	/* FIXME */
 	return 8;
 }
@@ -683,7 +666,7 @@ static int kobil_ioctl(struct tty_struct *tty,
 	}
 }
 
-module_usb_serial_driver(kobil_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

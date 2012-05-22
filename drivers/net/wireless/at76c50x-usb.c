@@ -1955,7 +1955,7 @@ static int at76_hw_scan(struct ieee80211_hw *hw,
 	ret = at76_set_card_command(priv->udev, CMD_SCAN, &scan, sizeof(scan));
 
 	if (ret < 0) {
-		err("CMD_SCAN failed: %d", ret);
+		wiphy_err(priv->hw->wiphy, "CMD_SCAN failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -2486,6 +2486,7 @@ static struct usb_driver at76_driver = {
 	.probe = at76_probe,
 	.disconnect = at76_disconnect,
 	.id_table = dev_table,
+	.disable_hub_initiated_lpm = 1,
 };
 
 static int __init at76_mod_init(void)

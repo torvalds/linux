@@ -10,10 +10,12 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-
-#include "ci13xxx_udc.c"
+#include <linux/interrupt.h>
+#include <linux/usb/gadget.h>
+#include <linux/usb/chipidea.h>
 
 /* driver name */
 #define UDC_DRIVER_NAME   "ci13xxx_pci"
@@ -21,25 +23,20 @@
 /******************************************************************************
  * PCI block
  *****************************************************************************/
-/**
- * ci13xxx_pci_irq: interrut handler
- * @irq:  irq number
- * @pdev: USB Device Controller interrupt source
- *
- * This function returns IRQ_HANDLED if the IRQ has been handled
- * This is an ISR don't trace, use attribute interface instead
- */
-static irqreturn_t ci13xxx_pci_irq(int irq, void *pdev)
-{
-	if (irq == 0) {
-		dev_err(&((struct pci_dev *)pdev)->dev, "Invalid IRQ0 usage!");
-		return IRQ_HANDLED;
-	}
-	return udc_irq();
-}
-
-static struct ci13xxx_udc_driver ci13xxx_pci_udc_driver = {
+struct ci13xxx_udc_driver pci_driver = {
 	.name		= UDC_DRIVER_NAME,
+	.capoffset	= DEF_CAPOFFSET,
+};
+
+struct ci13xxx_udc_driver langwell_pci_driver = {
+	.name		= UDC_DRIVER_NAME,
+	.capoffset	= 0,
+};
+
+struct ci13xxx_udc_driver penwell_pci_driver = {
+	.name		= UDC_DRIVER_NAME,
+	.capoffset	= 0,
+	.power_budget	= 200,
 };
 
 /**
@@ -54,11 +51,15 @@ static struct ci13xxx_udc_driver ci13xxx_pci_udc_driver = {
 static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *id)
 {
-	void __iomem *regs = NULL;
-	int retval = 0;
+	struct ci13xxx_udc_driver *driver = (void *)id->driver_data;
+	struct platform_device *plat_ci;
+	struct resource res[3];
+	int retval = 0, nres = 2;
 
-	if (id == NULL)
-		return -EINVAL;
+	if (!driver) {
+		dev_err(&pdev->dev, "device doesn't provide driver data\n");
+		return -ENODEV;
+	}
 
 	retval = pci_enable_device(pdev);
 	if (retval)
@@ -70,41 +71,50 @@ static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
 		goto disable_device;
 	}
 
-	retval = pci_request_regions(pdev, UDC_DRIVER_NAME);
-	if (retval)
-		goto disable_device;
-
-	/* BAR 0 holds all the registers */
-	regs = pci_iomap(pdev, 0, 0);
-	if (!regs) {
-		dev_err(&pdev->dev, "Error mapping memory!");
-		retval = -EFAULT;
-		goto release_regions;
-	}
-	pci_set_drvdata(pdev, (__force void *)regs);
-
+	pci_set_power_state(pdev, PCI_D0);
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
-	retval = udc_probe(&ci13xxx_pci_udc_driver, &pdev->dev, regs);
-	if (retval)
-		goto iounmap;
+	plat_ci = platform_device_alloc("ci_hdrc", -1);
+	if (!plat_ci) {
+		dev_err(&pdev->dev, "can't allocate ci_hdrc platform device\n");
+		retval = -ENOMEM;
+		goto disable_device;
+	}
 
-	/* our device does not have MSI capability */
+	memset(res, 0, sizeof(res));
+	res[0].start	= pci_resource_start(pdev, 0);
+	res[0].end	= pci_resource_end(pdev, 0);
+	res[0].flags	= IORESOURCE_MEM;
+	res[1].start	= pdev->irq;
+	res[1].flags	= IORESOURCE_IRQ;
 
-	retval = request_irq(pdev->irq, ci13xxx_pci_irq, IRQF_SHARED,
-			     UDC_DRIVER_NAME, pdev);
+	retval = platform_device_add_resources(plat_ci, res, nres);
+	if (retval) {
+		dev_err(&pdev->dev, "can't add resources to platform device\n");
+		goto put_platform;
+	}
+
+	retval = platform_device_add_data(plat_ci, driver, sizeof(*driver));
 	if (retval)
-		goto gadget_remove;
+		goto put_platform;
+
+	dma_set_coherent_mask(&plat_ci->dev, pdev->dev.coherent_dma_mask);
+	plat_ci->dev.dma_mask = pdev->dev.dma_mask;
+	plat_ci->dev.dma_parms = pdev->dev.dma_parms;
+	plat_ci->dev.parent = &pdev->dev;
+
+	pci_set_drvdata(pdev, plat_ci);
+
+	retval = platform_device_add(plat_ci);
+	if (retval)
+		goto put_platform;
 
 	return 0;
 
- gadget_remove:
-	udc_remove();
- iounmap:
-	pci_iounmap(pdev, regs);
- release_regions:
-	pci_release_regions(pdev);
+ put_platform:
+	pci_set_drvdata(pdev, NULL);
+	platform_device_put(plat_ci);
  disable_device:
 	pci_disable_device(pdev);
  done:
@@ -121,10 +131,10 @@ static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
  */
 static void __devexit ci13xxx_pci_remove(struct pci_dev *pdev)
 {
-	free_irq(pdev->irq, pdev);
-	udc_remove();
-	pci_iounmap(pdev, (__force void __iomem *)pci_get_drvdata(pdev));
-	pci_release_regions(pdev);
+	struct platform_device *plat_ci = pci_get_drvdata(pdev);
+
+	platform_device_unregister(plat_ci);
+	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 }
 
@@ -135,8 +145,22 @@ static void __devexit ci13xxx_pci_remove(struct pci_dev *pdev)
  * Check "pci.h" for details
  */
 static DEFINE_PCI_DEVICE_TABLE(ci13xxx_pci_id_table) = {
-	{ PCI_DEVICE(0x153F, 0x1004) },
-	{ PCI_DEVICE(0x153F, 0x1006) },
+	{
+		PCI_DEVICE(0x153F, 0x1004),
+		.driver_data = (kernel_ulong_t)&pci_driver,
+	},
+	{
+		PCI_DEVICE(0x153F, 0x1006),
+		.driver_data = (kernel_ulong_t)&pci_driver,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0811),
+		.driver_data = (kernel_ulong_t)&langwell_pci_driver,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0829),
+		.driver_data = (kernel_ulong_t)&penwell_pci_driver,
+	},
 	{ 0, 0, 0, 0, 0, 0, 0 /* end: all zeroes */ }
 };
 MODULE_DEVICE_TABLE(pci, ci13xxx_pci_id_table);
@@ -148,27 +172,7 @@ static struct pci_driver ci13xxx_pci_driver = {
 	.remove       =	__devexit_p(ci13xxx_pci_remove),
 };
 
-/**
- * ci13xxx_pci_init: module init
- *
- * Driver load
- */
-static int __init ci13xxx_pci_init(void)
-{
-	return pci_register_driver(&ci13xxx_pci_driver);
-}
-module_init(ci13xxx_pci_init);
-
-/**
- * ci13xxx_pci_exit: module exit
- *
- * Driver unload
- */
-static void __exit ci13xxx_pci_exit(void)
-{
-	pci_unregister_driver(&ci13xxx_pci_driver);
-}
-module_exit(ci13xxx_pci_exit);
+module_pci_driver(ci13xxx_pci_driver);
 
 MODULE_AUTHOR("MIPS - David Lopo <dlopo@chipidea.mips.com>");
 MODULE_DESCRIPTION("MIPS CI13XXX USB Peripheral Controller");

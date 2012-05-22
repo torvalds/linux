@@ -560,6 +560,7 @@ static struct usb_driver qmi_wwan_driver = {
 	.resume		      =	qmi_wwan_resume,
 	.reset_resume         = qmi_wwan_resume,
 	.supports_autosuspend = 1,
+	.disable_hub_initiated_lpm = 1,
 };
 
 static int __init qmi_wwan_init(void)

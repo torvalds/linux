@@ -690,6 +690,7 @@ static struct usb_driver mcs7830_driver = {
 	.suspend = usbnet_suspend,
 	.resume = usbnet_resume,
 	.reset_resume = mcs7830_reset_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(mcs7830_driver);

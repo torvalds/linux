@@ -295,7 +295,6 @@ struct pch_udc_ep {
 	struct pch_udc_data_dma_desc	*td_data;
 	struct pch_udc_dev		*dev;
 	unsigned long			offset_addr;
-	const struct usb_endpoint_descriptor	*desc;
 	struct list_head		queue;
 	unsigned			num:5,
 					in:1,
@@ -1705,7 +1704,7 @@ static int pch_udc_pcd_ep_enable(struct usb_ep *usbep,
 	if (!dev->driver || (dev->gadget.speed == USB_SPEED_UNKNOWN))
 		return -ESHUTDOWN;
 	spin_lock_irqsave(&dev->lock, iflags);
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->halted = 0;
 	pch_udc_ep_enable(ep, &ep->dev->cfg_data, desc);
 	ep->ep.maxpacket = usb_endpoint_maxp(desc);
@@ -1734,7 +1733,7 @@ static int pch_udc_pcd_ep_disable(struct usb_ep *usbep)
 
 	ep = container_of(usbep, struct pch_udc_ep, ep);
 	dev = ep->dev;
-	if ((usbep->name == ep0_string) || !ep->desc)
+	if ((usbep->name == ep0_string) || !ep->ep.desc)
 		return -EINVAL;
 
 	spin_lock_irqsave(&ep->dev->lock, iflags);
@@ -1742,7 +1741,6 @@ static int pch_udc_pcd_ep_disable(struct usb_ep *usbep)
 	ep->halted = 1;
 	pch_udc_ep_disable(ep);
 	pch_udc_disable_ep_interrupts(ep->dev, PCH_UDC_EPINT(ep->in, ep->num));
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	INIT_LIST_HEAD(&ep->queue);
 	spin_unlock_irqrestore(&ep->dev->lock, iflags);
@@ -1849,7 +1847,7 @@ static int pch_udc_pcd_queue(struct usb_ep *usbep, struct usb_request *usbreq,
 		return -EINVAL;
 	ep = container_of(usbep, struct pch_udc_ep, ep);
 	dev = ep->dev;
-	if (!ep->desc && ep->num)
+	if (!ep->ep.desc && ep->num)
 		return -EINVAL;
 	req = container_of(usbreq, struct pch_udc_request, req);
 	if (!list_empty(&req->queue))
@@ -1949,7 +1947,7 @@ static int pch_udc_pcd_dequeue(struct usb_ep *usbep,
 
 	ep = container_of(usbep, struct pch_udc_ep, ep);
 	dev = ep->dev;
-	if (!usbep || !usbreq || (!ep->desc && ep->num))
+	if (!usbep || !usbreq || (!ep->ep.desc && ep->num))
 		return ret;
 	req = container_of(usbreq, struct pch_udc_request, req);
 	spin_lock_irqsave(&ep->dev->lock, flags);
@@ -1988,7 +1986,7 @@ static int pch_udc_pcd_set_halt(struct usb_ep *usbep, int halt)
 		return -EINVAL;
 	ep = container_of(usbep, struct pch_udc_ep, ep);
 	dev = ep->dev;
-	if (!ep->desc && !ep->num)
+	if (!ep->ep.desc && !ep->num)
 		return -EINVAL;
 	if (!ep->dev->driver || (ep->dev->gadget.speed == USB_SPEED_UNKNOWN))
 		return -ESHUTDOWN;
@@ -2033,7 +2031,7 @@ static int pch_udc_pcd_set_wedge(struct usb_ep *usbep)
 		return -EINVAL;
 	ep = container_of(usbep, struct pch_udc_ep, ep);
 	dev = ep->dev;
-	if (!ep->desc && !ep->num)
+	if (!ep->ep.desc && !ep->num)
 		return -EINVAL;
 	if (!ep->dev->driver || (ep->dev->gadget.speed == USB_SPEED_UNKNOWN))
 		return -ESHUTDOWN;
@@ -2065,7 +2063,7 @@ static void pch_udc_pcd_fifo_flush(struct usb_ep *usbep)
 		return;
 
 	ep = container_of(usbep, struct pch_udc_ep, ep);
-	if (ep->desc || !ep->num)
+	if (ep->ep.desc || !ep->num)
 		pch_udc_ep_fifo_flush(ep, ep->in);
 }
 
@@ -3282,7 +3280,6 @@ static DEFINE_PCI_DEVICE_TABLE(pch_udc_pcidev_id) = {
 
 MODULE_DEVICE_TABLE(pci, pch_udc_pcidev_id);
 
-
 static struct pci_driver pch_udc_driver = {
 	.name =	KBUILD_MODNAME,
 	.id_table =	pch_udc_pcidev_id,
@@ -3293,17 +3290,7 @@ static struct pci_driver pch_udc_driver = {
 	.shutdown =	pch_udc_shutdown,
 };
 
-static int __init pch_udc_pci_init(void)
-{
-	return pci_register_driver(&pch_udc_driver);
-}
-module_init(pch_udc_pci_init);
-
-static void __exit pch_udc_pci_exit(void)
-{
-	pci_unregister_driver(&pch_udc_driver);
-}
-module_exit(pch_udc_pci_exit);
+module_pci_driver(pch_udc_driver);
 
 MODULE_DESCRIPTION("Intel EG20T USB Device Controller");
 MODULE_AUTHOR("LAPIS Semiconductor, <tomoya-linux@dsn.lapis-semi.com>");

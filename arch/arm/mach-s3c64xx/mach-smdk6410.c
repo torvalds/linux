@@ -30,6 +30,7 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/pwm_backlight.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #ifdef CONFIG_SMDK6410_WM1190_EV1
 #include <linux/mfd/wm8350/core.h>
@@ -72,7 +73,6 @@
 #include <plat/keypad.h>
 #include <plat/backlight.h>
 #include <plat/regs-fb-v4.h>
-#include <plat/udc-hs.h>
 
 #include "common.h"
 

@@ -51,7 +51,9 @@
 #include <linux/usb/gadget.h>
 
 /* Global constants */
+#define DWC3_EP0_BOUNCE_SIZE	512
 #define DWC3_ENDPOINTS_NUM	32
+#define DWC3_XHCI_RESOURCES_NUM	2
 
 #define DWC3_EVENT_BUFFERS_SIZE	PAGE_SIZE
 #define DWC3_EVENT_TYPE_MASK	0xfe
@@ -74,6 +76,16 @@
 #define DWC3_GEVNTCOUNT_MASK	0xfffc
 #define DWC3_GSNPSID_MASK	0xffff0000
 #define DWC3_GSNPSREV_MASK	0xffff
+
+/* DWC3 registers memory space boundries */
+#define DWC3_XHCI_REGS_START		0x0
+#define DWC3_XHCI_REGS_END		0x7fff
+#define DWC3_GLOBALS_REGS_START		0xc100
+#define DWC3_GLOBALS_REGS_END		0xc6ff
+#define DWC3_DEVICE_REGS_START		0xc700
+#define DWC3_DEVICE_REGS_END		0xcbff
+#define DWC3_OTG_REGS_START		0xcc00
+#define DWC3_OTG_REGS_END		0xccff
 
 /* Global Registers */
 #define DWC3_GSBUSCFG0		0xc100
@@ -183,6 +195,7 @@
 #define DWC3_GHWPARAMS1_EN_PWROPT_CLK	1
 
 /* Device Configuration Register */
+#define DWC3_DCFG_LPM_CAP	(1 << 22)
 #define DWC3_DCFG_DEVADDR(addr)	((addr) << 3)
 #define DWC3_DCFG_DEVADDR_MASK	DWC3_DCFG_DEVADDR(0x7f)
 
@@ -272,12 +285,14 @@
 #define DWC3_DGCMD_SET_ENDPOINT_NRDY	0x0c
 #define DWC3_DGCMD_RUN_SOC_BUS_LOOPBACK	0x10
 
+#define DWC3_DGCMD_STATUS(n)		(((n) >> 15) & 1)
+#define DWC3_DGCMD_CMDACT		(1 << 10)
+
 /* Device Endpoint Command Register */
 #define DWC3_DEPCMD_PARAM_SHIFT		16
 #define DWC3_DEPCMD_PARAM(x)		((x) << DWC3_DEPCMD_PARAM_SHIFT)
 #define DWC3_DEPCMD_GET_RSC_IDX(x)     (((x) >> DWC3_DEPCMD_PARAM_SHIFT) & 0x7f)
-#define DWC3_DEPCMD_STATUS_MASK		(0x0f << 12)
-#define DWC3_DEPCMD_STATUS(x)		(((x) & DWC3_DEPCMD_STATUS_MASK) >> 12)
+#define DWC3_DEPCMD_STATUS(x)		(((x) >> 15) & 1)
 #define DWC3_DEPCMD_HIPRI_FORCERM	(1 << 11)
 #define DWC3_DEPCMD_CMDACT		(1 << 10)
 #define DWC3_DEPCMD_CMDIOC		(1 << 8)
@@ -361,7 +376,6 @@ struct dwc3_ep {
 	dma_addr_t		trb_pool_dma;
 	u32			free_slot;
 	u32			busy_slot;
-	const struct usb_endpoint_descriptor *desc;
 	const struct usb_ss_ep_comp_descriptor *comp_desc;
 	struct dwc3		*dwc;
 
@@ -561,6 +575,11 @@ struct dwc3_request {
  * @setup_packet_pending: true when there's a Setup Packet in FIFO. Workaround
  * @needs_fifo_resize: not all users might want fifo resizing, flag it
  * @resize_fifos: tells us it's ok to reconfigure our TxFIFO sizes.
+ * @isoch_delay: wValue from Set Isochronous Delay request;
+ * @u2sel: parameter from Set SEL request.
+ * @u2pel: parameter from Set SEL request.
+ * @u1sel: parameter from Set SEL request.
+ * @u1pel: parameter from Set SEL request.
  * @ep0_next_event: hold the next expected event
  * @ep0state: state of endpoint zero
  * @link_state: link state
@@ -583,7 +602,7 @@ struct dwc3 {
 	struct device		*dev;
 
 	struct platform_device	*xhci;
-	struct resource		*res;
+	struct resource		xhci_resources[DWC3_XHCI_RESOURCES_NUM];
 
 	struct dwc3_event_buffer **ev_buffs;
 	struct dwc3_ep		*eps[DWC3_ENDPOINTS_NUM];
@@ -593,8 +612,6 @@ struct dwc3 {
 
 	void __iomem		*regs;
 	size_t			regs_size;
-
-	int			irq;
 
 	u32			num_event_buffers;
 	u32			u1u2;
@@ -609,6 +626,10 @@ struct dwc3 {
 #define DWC3_REVISION_185A	0x5533185a
 #define DWC3_REVISION_188A	0x5533188a
 #define DWC3_REVISION_190A	0x5533190a
+#define DWC3_REVISION_200A	0x5533200a
+#define DWC3_REVISION_202A	0x5533202a
+#define DWC3_REVISION_210A	0x5533210a
+#define DWC3_REVISION_220A	0x5533220a
 
 	unsigned		is_selfpowered:1;
 	unsigned		three_stage_setup:1;
@@ -625,7 +646,14 @@ struct dwc3 {
 	enum dwc3_link_state	link_state;
 	enum dwc3_device_state	dev_state;
 
+	u16			isoch_delay;
+	u16			u2sel;
+	u16			u2pel;
+	u8			u1sel;
+	u8			u1pel;
+
 	u8			speed;
+
 	void			*mem;
 
 	struct dwc3_hwparams	hwparams;

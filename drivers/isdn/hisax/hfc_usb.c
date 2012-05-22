@@ -1568,6 +1568,7 @@ static struct usb_driver hfc_drv = {
 	.id_table = hfcusb_idtab,
 	.probe = hfc_usb_probe,
 	.disconnect = hfc_usb_disconnect,
+	.disable_hub_initiated_lpm = 1,
 };
 
 static void __exit
