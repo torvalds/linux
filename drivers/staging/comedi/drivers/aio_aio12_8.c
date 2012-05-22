@@ -80,8 +80,6 @@ static const struct aio12_8_boardtype board_types[] = {
 	 .name = "aio_aio12_8"},
 };
 
-#define	thisboard	((const struct aio12_8_boardtype  *) dev->board_ptr)
-
 struct aio12_8_private {
 	unsigned int ao_readback[4];
 };
@@ -167,6 +165,7 @@ static const struct comedi_lrange range_aio_aio12_8 = {
 static int aio_aio12_8_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
+	const struct aio12_8_boardtype *board = comedi_board(dev);
 	int iobase;
 	struct comedi_subdevice *s;
 
@@ -176,7 +175,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 		return -EIO;
 	}
 
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
 	dev->iobase = iobase;
 
