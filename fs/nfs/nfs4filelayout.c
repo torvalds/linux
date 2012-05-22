@@ -85,15 +85,14 @@ filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
 static void filelayout_reset_write(struct nfs_write_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
-	struct inode *inode = hdr->inode;
 	struct rpc_task *task = &data->task;
 
 	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
 		dprintk("%s Reset task %5u for i/o through MDS "
 			"(req %s/%lld, %u bytes @ offset %llu)\n", __func__,
 			data->task.tk_pid,
-			inode->i_sb->s_id,
-			(long long)NFS_FILEID(inode),
+			hdr->inode->i_sb->s_id,
+			(long long)NFS_FILEID(hdr->inode),
 			data->args.count,
 			(unsigned long long)data->args.offset);
 
@@ -106,15 +105,14 @@ static void filelayout_reset_write(struct nfs_write_data *data)
 static void filelayout_reset_read(struct nfs_read_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
-	struct inode *inode = hdr->inode;
 	struct rpc_task *task = &data->task;
 
 	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
 		dprintk("%s Reset task %5u for i/o through MDS "
 			"(req %s/%lld, %u bytes @ offset %llu)\n", __func__,
 			data->task.tk_pid,
-			inode->i_sb->s_id,
-			(long long)NFS_FILEID(inode),
+			hdr->inode->i_sb->s_id,
+			(long long)NFS_FILEID(hdr->inode),
 			data->args.count,
 			(unsigned long long)data->args.offset);
 
