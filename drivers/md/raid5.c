@@ -5755,11 +5755,11 @@ static void raid5_finish_reshape(struct mddev *mddev)
 			     d < conf->raid_disks - mddev->delta_disks;
 			     d++) {
 				struct md_rdev *rdev = conf->disks[d].rdev;
-				if (rdev &&
-				    raid5_remove_disk(mddev, rdev) == 0) {
-					sysfs_unlink_rdev(mddev, rdev);
-					rdev->raid_disk = -1;
-				}
+				if (rdev)
+					clear_bit(In_sync, &rdev->flags);
+				rdev = conf->disks[d].replacement;
+				if (rdev)
+					clear_bit(In_sync, &rdev->flags);
 			}
 		}
 		mddev->layout = conf->algorithm;
