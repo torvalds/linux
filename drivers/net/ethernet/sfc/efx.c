@@ -630,6 +630,16 @@ static void efx_start_datapath(struct efx_nic *efx)
 	efx->rx_buffer_order = get_order(efx->rx_buffer_len +
 					 sizeof(struct efx_rx_page_state));
 
+	/* We must keep at least one descriptor in a TX ring empty.
+	 * We could avoid this when the queue size does not exactly
+	 * match the hardware ring size, but it's not that important.
+	 * Therefore we stop the queue when one more skb might fill
+	 * the ring completely.  We wake it when half way back to
+	 * empty.
+	 */
+	efx->txq_stop_thresh = efx->txq_entries - efx_tx_max_skb_descs(efx);
+	efx->txq_wake_thresh = efx->txq_stop_thresh / 2;
+
 	/* Initialise the channels */
 	efx_for_each_channel(channel, efx) {
 		efx_for_each_channel_tx_queue(tx_queue, channel)

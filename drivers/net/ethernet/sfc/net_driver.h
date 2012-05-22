@@ -665,6 +665,8 @@ struct vfdi_status;
  *	should be allocated for this NIC
  * @rxq_entries: Size of receive queues requested by user.
  * @txq_entries: Size of transmit queues requested by user.
+ * @txq_stop_thresh: TX queue fill level at or above which we stop it.
+ * @txq_wake_thresh: TX queue fill level at or below which we wake it.
  * @tx_dc_base: Base qword address in SRAM of TX queue descriptor caches
  * @rx_dc_base: Base qword address in SRAM of RX queue descriptor caches
  * @sram_lim_qw: Qword address limit of SRAM
@@ -775,6 +777,9 @@ struct efx_nic {
 
 	unsigned rxq_entries;
 	unsigned txq_entries;
+	unsigned int txq_stop_thresh;
+	unsigned int txq_wake_thresh;
+
 	unsigned tx_dc_base;
 	unsigned rx_dc_base;
 	unsigned sram_lim_qw;
