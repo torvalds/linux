@@ -737,10 +737,9 @@ static void bitmap_file_unmap(struct bitmap *bitmap)
 	struct page **map, *sb_page;
 	unsigned long *attr;
 	int pages;
-	unsigned long flags;
 	struct bitmap_storage *store = &bitmap->storage;
 
-	spin_lock_irqsave(&bitmap->lock, flags);
+	spin_lock_irq(&bitmap->lock);
 	map = store->filemap;
 	store->filemap = NULL;
 	attr = store->filemap_attr;
@@ -749,7 +748,7 @@ static void bitmap_file_unmap(struct bitmap *bitmap)
 	store->file_pages = 0;
 	sb_page = store->sb_page;
 	store->sb_page = NULL;
-	spin_unlock_irqrestore(&bitmap->lock, flags);
+	spin_unlock_irq(&bitmap->lock);
 
 	while (pages--)
 		if (map[pages] != sb_page) /* 0 is sb_page, release it below */
@@ -764,12 +763,11 @@ static void bitmap_file_unmap(struct bitmap *bitmap)
 static void bitmap_file_put(struct bitmap *bitmap)
 {
 	struct file *file;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bitmap->lock, flags);
+	spin_lock_irq(&bitmap->lock);
 	file = bitmap->storage.file;
 	bitmap->storage.file = NULL;
-	spin_unlock_irqrestore(&bitmap->lock, flags);
+	spin_unlock_irq(&bitmap->lock);
 
 	if (file)
 		wait_event(bitmap->write_wait,
@@ -901,7 +899,7 @@ static void bitmap_file_clear_bit(struct bitmap *bitmap, sector_t block)
  * sync the dirty pages of the bitmap file to disk */
 void bitmap_unplug(struct bitmap *bitmap)
 {
-	unsigned long i, flags;
+	unsigned long i;
 	int dirty, need_write;
 	int wait = 0;
 
@@ -911,9 +909,9 @@ void bitmap_unplug(struct bitmap *bitmap)
 	/* look at each page to see if there are any set bits that need to be
 	 * flushed out to disk */
 	for (i = 0; i < bitmap->storage.file_pages; i++) {
-		spin_lock_irqsave(&bitmap->lock, flags);
+		spin_lock_irq(&bitmap->lock);
 		if (!bitmap->storage.filemap) {
-			spin_unlock_irqrestore(&bitmap->lock, flags);
+			spin_unlock_irq(&bitmap->lock);
 			return;
 		}
 		dirty = test_page_attr(bitmap, i, BITMAP_PAGE_DIRTY);
@@ -924,7 +922,7 @@ void bitmap_unplug(struct bitmap *bitmap)
 			clear_page_attr(bitmap, i, BITMAP_PAGE_PENDING);
 		if (dirty)
 			wait = 1;
-		spin_unlock_irqrestore(&bitmap->lock, flags);
+		spin_unlock_irq(&bitmap->lock);
 
 		if (dirty || need_write)
 			write_page(bitmap, bitmap->storage.filemap[i], 0);
@@ -1129,7 +1127,6 @@ void bitmap_daemon_work(struct mddev *mddev)
 	struct bitmap *bitmap;
 	unsigned long j;
 	unsigned long nextpage;
-	unsigned long flags;
 	sector_t blocks;
 
 	/* Use a mutex to guard daemon_work against
@@ -1156,7 +1153,7 @@ void bitmap_daemon_work(struct mddev *mddev)
 	 * So set NEEDWRITE now, then after we make any last-minute changes
 	 * we will write it.
 	 */
-	spin_lock_irqsave(&bitmap->lock, flags);
+	spin_lock_irq(&bitmap->lock);
 	for (j = 0; j < bitmap->storage.file_pages; j++)
 		if (test_page_attr(bitmap, j,
 				   BITMAP_PAGE_PENDING)) {
@@ -1235,14 +1232,14 @@ void bitmap_daemon_work(struct mddev *mddev)
 				   BITMAP_PAGE_NEEDWRITE)) {
 			clear_page_attr(bitmap, j,
 					BITMAP_PAGE_NEEDWRITE);
-			spin_unlock_irqrestore(&bitmap->lock, flags);
+			spin_unlock_irq(&bitmap->lock);
 			write_page(bitmap, bitmap->storage.filemap[j], 0);
-			spin_lock_irqsave(&bitmap->lock, flags);
+			spin_lock_irq(&bitmap->lock);
 			if (!bitmap->storage.filemap)
 				break;
 		}
 	}
-	spin_unlock_irqrestore(&bitmap->lock, flags);
+	spin_unlock_irq(&bitmap->lock);
 
  done:
 	if (bitmap->allclean == 0)
@@ -1815,12 +1812,11 @@ EXPORT_SYMBOL_GPL(bitmap_load);
 void bitmap_status(struct seq_file *seq, struct bitmap *bitmap)
 {
 	unsigned long chunk_kb;
-	unsigned long flags;
 
 	if (!bitmap)
 		return;
 
-	spin_lock_irqsave(&bitmap->lock, flags);
+	spin_lock_irq(&bitmap->lock);
 	chunk_kb = bitmap->mddev->bitmap_info.chunksize >> 10;
 	seq_printf(seq, "bitmap: %lu/%lu pages [%luKB], "
 		   "%lu%s chunk",
@@ -1836,7 +1832,7 @@ void bitmap_status(struct seq_file *seq, struct bitmap *bitmap)
 	}
 
 	seq_printf(seq, "\n");
-	spin_unlock_irqrestore(&bitmap->lock, flags);
+	spin_unlock_irq(&bitmap->lock);
 }
 
 static ssize_t
