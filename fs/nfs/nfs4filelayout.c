@@ -199,8 +199,8 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 		 * layout is destroyed and a new valid layout is obtained.
 		 */
 		set_bit(NFS_LAYOUT_INVALID,
-				&NFS_I(state->inode)->layout->plh_flags);
-		pnfs_destroy_layout(NFS_I(state->inode));
+				&NFS_I(inode)->layout->plh_flags);
+		pnfs_destroy_layout(NFS_I(inode));
 		rpc_wake_up(&tbl->slot_tbl_waitq);
 		goto reset;
 	/* RPC connection errors */
@@ -214,7 +214,7 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
 		if (!filelayout_test_devid_invalid(devid))
-			_pnfs_return_layout(state->inode);
+			_pnfs_return_layout(inode);
 		filelayout_mark_devid_invalid(devid);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
 		nfs4_ds_disconnect(clp);
