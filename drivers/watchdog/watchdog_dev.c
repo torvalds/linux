@@ -63,6 +63,8 @@ static int watchdog_ping(struct watchdog_device *wddev)
 {
 	int err = 0;
 
+	mutex_lock(&wddev->lock);
+
 	if (!watchdog_active(wddev))
 		goto out_ping;
 
@@ -72,6 +74,7 @@ static int watchdog_ping(struct watchdog_device *wddev)
 		err = wddev->ops->start(wddev); /* restart watchdog */
 
 out_ping:
+	mutex_unlock(&wddev->lock);
 	return err;
 }
 
@@ -88,6 +91,8 @@ static int watchdog_start(struct watchdog_device *wddev)
 {
 	int err = 0;
 
+	mutex_lock(&wddev->lock);
+
 	if (watchdog_active(wddev))
 		goto out_start;
 
@@ -96,6 +101,7 @@ static int watchdog_start(struct watchdog_device *wddev)
 		set_bit(WDOG_ACTIVE, &wddev->status);
 
 out_start:
+	mutex_unlock(&wddev->lock);
 	return err;
 }
 
@@ -113,6 +119,8 @@ static int watchdog_stop(struct watchdog_device *wddev)
 {
 	int err = 0;
 
+	mutex_lock(&wddev->lock);
+
 	if (!watchdog_active(wddev))
 		goto out_stop;
 
@@ -127,6 +135,7 @@ static int watchdog_stop(struct watchdog_device *wddev)
 		clear_bit(WDOG_ACTIVE, &wddev->status);
 
 out_stop:
+	mutex_unlock(&wddev->lock);
 	return err;
 }
 
@@ -147,8 +156,11 @@ static int watchdog_get_status(struct watchdog_device *wddev,
 	if (!wddev->ops->status)
 		return -EOPNOTSUPP;
 
+	mutex_lock(&wddev->lock);
+
 	*status = wddev->ops->status(wddev);
 
+	mutex_unlock(&wddev->lock);
 	return err;
 }
 
@@ -171,8 +183,11 @@ static int watchdog_set_timeout(struct watchdog_device *wddev,
 	    (timeout < wddev->min_timeout || timeout > wddev->max_timeout))
 		return -EINVAL;
 
+	mutex_lock(&wddev->lock);
+
 	err = wddev->ops->set_timeout(wddev, timeout);
 
+	mutex_unlock(&wddev->lock);
 	return err;
 }
 
@@ -193,8 +208,11 @@ static int watchdog_get_timeleft(struct watchdog_device *wddev,
 	if (!wddev->ops->get_timeleft)
 		return -EOPNOTSUPP;
 
+	mutex_lock(&wddev->lock);
+
 	*timeleft = wddev->ops->get_timeleft(wddev);
 
+	mutex_unlock(&wddev->lock);
 	return err;
 }
 
@@ -213,8 +231,11 @@ static int watchdog_ioctl_op(struct watchdog_device *wddev, unsigned int cmd,
 	if (!wddev->ops->ioctl)
 		return -ENOIOCTLCMD;
 
+	mutex_lock(&wddev->lock);
+
 	err = wddev->ops->ioctl(wddev, cmd, arg);
 
+	mutex_unlock(&wddev->lock);
 	return err;
 }
 
