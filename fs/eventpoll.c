@@ -1711,7 +1711,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 
 	/* Check if EPOLLWAKEUP is allowed */
 	if ((epds.events & EPOLLWAKEUP) && !capable(CAP_EPOLLWAKEUP))
-		goto error_tgt_fput;
+		epds.events &= ~EPOLLWAKEUP;
 
 	/*
 	 * We have to check that the file structure underneath the file descriptor
