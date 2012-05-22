@@ -5109,11 +5109,18 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 				clp->cl_rpcclient->cl_nodename,
 				clp->cl_rpcclient->cl_auth->au_flavor);
 
+	res.server_owner = kzalloc(sizeof(struct nfs41_server_owner),
+					GFP_KERNEL);
+	if (unlikely(res.server_owner == NULL)) {
+		status = -ENOMEM;
+		goto out;
+	}
+
 	res.server_scope = kzalloc(sizeof(struct nfs41_server_scope),
 					GFP_KERNEL);
 	if (unlikely(res.server_scope == NULL)) {
 		status = -ENOMEM;
-		goto out;
+		goto out_server_owner;
 	}
 
 	res.impl_id = kzalloc(sizeof(struct nfs41_impl_id), GFP_KERNEL);
@@ -5125,6 +5132,12 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 	if (status == 0)
 		status = nfs4_check_cl_exchange_flags(clp->cl_exchange_flags);
+
+	if (status == 0) {
+		kfree(clp->cl_serverowner);
+		clp->cl_serverowner = res.server_owner;
+		res.server_owner = NULL;
+	}
 
 	if (status == 0) {
 		/* use the most recent implementation id */
@@ -5150,6 +5163,8 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 		}
 	}
 
+out_server_owner:
+	kfree(res.server_owner);
 out_server_scope:
 	kfree(res.server_scope);
 out:

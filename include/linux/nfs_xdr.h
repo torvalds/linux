@@ -1098,7 +1098,7 @@ struct nfs41_exchange_id_args {
 	u32				flags;
 };
 
-struct server_owner {
+struct nfs41_server_owner {
 	uint64_t			minor_id;
 	uint32_t			major_id_sz;
 	char				major_id[NFS4_OPAQUE_LIMIT];
@@ -1118,6 +1118,7 @@ struct nfs41_impl_id {
 struct nfs41_exchange_id_res {
 	struct nfs_client		*client;
 	u32				flags;
+	struct nfs41_server_owner	*server_owner;
 	struct nfs41_server_scope	*server_scope;
 	struct nfs41_impl_id		*impl_id;
 };
