@@ -420,6 +420,9 @@ void bitmap_update_sb(struct bitmap *bitmap)
 	/* Just in case these have been changed via sysfs: */
 	sb->daemon_sleep = cpu_to_le32(bitmap->mddev->bitmap_info.daemon_sleep/HZ);
 	sb->write_behind = cpu_to_le32(bitmap->mddev->bitmap_info.max_write_behind);
+	/* This might have been changed by a reshape */
+	sb->sync_size = cpu_to_le64(bitmap->mddev->resync_max_sectors);
+	sb->chunksize = cpu_to_le32(bitmap->mddev->bitmap_info.chunksize);
 	kunmap_atomic(sb);
 	write_page(bitmap, bitmap->storage.sb_page, 1);
 }
