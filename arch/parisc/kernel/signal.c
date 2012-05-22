@@ -459,6 +459,9 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		test_thread_flag(TIF_SINGLESTEP) ||
 		test_thread_flag(TIF_BLOCKSTEP));
 
+	DBG(1,KERN_DEBUG "do_signal: Exit (success), regs->gr[28] = %ld\n",
+		regs->gr[28]);
+
 	return 1;
 }
 
@@ -593,13 +596,8 @@ do_signal(struct pt_regs *regs, long in_syscall)
 		/* Whee!  Actually deliver the signal.  If the
 		   delivery failed, we need to continue to iterate in
 		   this loop so we can deliver the SIGSEGV... */
-		if (handle_signal(signr, &info, &ka, regs, in_syscall)) {
-			DBG(1,KERN_DEBUG "do_signal: Exit (success), regs->gr[28] = %ld\n",
-				regs->gr[28]);
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
+		if (handle_signal(signr, &info, &ka, regs, in_syscall))
 			return;
-		}
 	}
 	/* end of while(1) looping forever if we can't force a signal */
 

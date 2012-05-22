@@ -481,11 +481,6 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 		return;
 	}
 	block_sigmask(ka, sig);
-	/* A signal was successfully delivered, and the
-	   saved sigmask was stored on the signal frame,
-	   and will be restored by sigreturn.  So we can
-	   simply clear the restore sigmask flag.  */
-	clear_thread_flag(TIF_RESTORE_SIGMASK);
 }
 
 static inline void

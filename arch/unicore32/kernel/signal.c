@@ -312,7 +312,7 @@ static inline void setup_syscall_restart(struct pt_regs *regs)
 /*
  * OK, we're invoking a handler
  */
-static int handle_signal(unsigned long sig, struct k_sigaction *ka,
+static void handle_signal(unsigned long sig, struct k_sigaction *ka,
 	      siginfo_t *info, struct pt_regs *regs, int syscall)
 {
 	struct thread_info *thread = current_thread_info();
@@ -363,15 +363,13 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 
 	if (ret != 0) {
 		force_sigsegv(sig, tsk);
-		return ret;
+		return;
 	}
 
 	/*
 	 * Block the signal if we were successful.
 	 */
 	block_sigmask(ka, sig);
-
-	return 0;
 }
 
 /*
@@ -403,17 +401,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
-		if (handle_signal(signr, &ka, &info, regs, syscall)
-				== 0) {
-			/*
-			 * A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag.
-			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
+		handle_signal(signr, &ka, &info, regs, syscall);
 		return;
 	}
 

@@ -22,7 +22,7 @@ EXPORT_SYMBOL(unblock_signals);
 /*
  * OK, we're invoking a handler
  */
-static int handle_signal(struct pt_regs *regs, unsigned long signr,
+static void handle_signal(struct pt_regs *regs, unsigned long signr,
 			 struct k_sigaction *ka, siginfo_t *info)
 {
 	sigset_t *oldset = sigmask_to_save();
@@ -66,8 +66,6 @@ static int handle_signal(struct pt_regs *regs, unsigned long signr,
 		force_sigsegv(signr, current);
 	else
 		block_sigmask(ka, signr);
-
-	return err;
 }
 
 static int kern_do_signal(struct pt_regs *regs)
@@ -79,17 +77,7 @@ static int kern_do_signal(struct pt_regs *regs)
 	while ((sig = get_signal_to_deliver(&info, &ka_copy, regs, NULL)) > 0) {
 		handled_sig = 1;
 		/* Whee!  Actually deliver the signal.  */
-		if (!handle_signal(regs, sig, &ka_copy, &info)) {
-			/*
-			 * a signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag
-			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-			break;
-		}
+		handle_signal(regs, sig, &ka_copy, &info);
 	}
 
 	/* Did we come from a system call? */

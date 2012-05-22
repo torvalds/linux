@@ -648,38 +648,27 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 {
 	int usig = signr_convert(sig);
 	sigset_t *set = sigmask_to_save();
-	int ret;
 
 	/* Set up the stack frame */
 	if (is_ia32) {
 		if (ka->sa.sa_flags & SA_SIGINFO)
-			ret = ia32_setup_rt_frame(usig, ka, info, set, regs);
+			return ia32_setup_rt_frame(usig, ka, info, set, regs);
 		else
-			ret = ia32_setup_frame(usig, ka, set, regs);
+			return ia32_setup_frame(usig, ka, set, regs);
 #ifdef CONFIG_X86_X32_ABI
 	} else if (is_x32) {
-		ret = x32_setup_rt_frame(usig, ka, info,
+		return x32_setup_rt_frame(usig, ka, info,
 					 (compat_sigset_t *)set, regs);
 #endif
 	} else {
-		ret = __setup_rt_frame(sig, ka, info, set, regs);
+		return __setup_rt_frame(sig, ka, info, set, regs);
 	}
-
-	if (ret) {
-		force_sigsegv(sig, current);
-		return -EFAULT;
-	}
-
-	current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-	return ret;
 }
 
-static int
+static void
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		struct pt_regs *regs)
 {
-	int ret;
-
 	/* Are we from a system call? */
 	if (syscall_get_nr(current, regs) >= 0) {
 		/* If so, check system call restarting.. */
@@ -710,10 +699,10 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	    likely(test_and_clear_thread_flag(TIF_FORCED_TF)))
 		regs->flags &= ~X86_EFLAGS_TF;
 
-	ret = setup_rt_frame(sig, ka, info, regs);
-
-	if (ret)
-		return ret;
+	if (setup_rt_frame(sig, ka, info, regs) < 0) {
+		force_sigsegv(sig, current);
+		return;
+	}
 
 	/*
 	 * Clear the direction flag as per the ABI for function entry.
@@ -732,8 +721,6 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 
 	tracehook_signal_handler(sig, info, ka, regs,
 				 test_thread_flag(TIF_SINGLESTEP));
-
-	return 0;
 }
 
 #ifdef CONFIG_X86_32

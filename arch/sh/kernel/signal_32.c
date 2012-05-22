@@ -522,7 +522,7 @@ handle_syscall_restart(unsigned long save_r0, struct pt_regs *regs,
 /*
  * OK, we're invoking a handler
  */
-static int
+static void
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	      struct pt_regs *regs, unsigned int save_r0)
 {
@@ -535,10 +535,11 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	else
 		ret = setup_frame(sig, ka, oldset, regs);
 
-	if (ret == 0)
-		block_sigmask(ka, sig);
-
-	return ret;
+	if (ret)
+		return;
+	block_sigmask(ka, sig);
+	tracehook_signal_handler(sig, info, ka, regs,
+			test_thread_flag(TIF_SINGLESTEP));
 }
 
 /*
@@ -570,20 +571,7 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 		handle_syscall_restart(save_r0, regs, &ka.sa);
 
 		/* Whee!  Actually deliver the signal.  */
-		if (handle_signal(signr, &ka, &info,
-				  regs, save_r0) == 0) {
-			/*
-			 * A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TS_RESTORE_SIGMASK flag
-			 */
-			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-
-			tracehook_signal_handler(signr, &info, &ka, regs,
-					test_thread_flag(TIF_SINGLESTEP));
-		}
-
+		handle_signal(signr, &ka, &info, regs, save_r0);
 		return;
 	}
 

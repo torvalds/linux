@@ -159,13 +159,6 @@ static int do_signal(struct pt_regs *regs)
 	regs->trap = 0;
 	if (ret) {
 		block_sigmask(&ka, signr);
-
-		/*
-		 * A signal was successfully delivered; the saved sigmask is in
-		 * its frame, and we can clear the TLF_RESTORE_SIGMASK flag.
-		 */
-		current_thread_info()->local_flags &= ~_TLF_RESTORE_SIGMASK;
-
 		/*
 		 * Let tracing know that we've done the handler setup.
 		 */

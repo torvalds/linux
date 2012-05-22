@@ -1147,8 +1147,6 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 		regs->sr &= ~0x8000;
 		send_sig(SIGTRAP, current, 1);
 	}
-
-	clear_thread_flag(TIF_RESTORE_SIGMASK);
 }
 
 /*

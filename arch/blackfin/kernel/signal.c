@@ -247,7 +247,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 /*
  * OK, we're invoking a handler
  */
-static int
+static void
 handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
 	      struct pt_regs *regs)
 {
@@ -260,11 +260,12 @@ handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
 
 	/* set up the stack frame */
 	ret = setup_rt_frame(sig, ka, info, sigmask_to_save(), regs);
+	if (ret)
+		return;
 
-	if (ret == 0)
-		block_sigmask(ka, sig);
-
-	return ret;
+	block_sigmask(ka, sig);
+	tracehook_signal_handler(sig, info, ka, regs,
+			test_thread_flag(TIF_SINGLESTEP));
 }
 
 /*
@@ -290,18 +291,7 @@ asmlinkage void do_signal(struct pt_regs *regs)
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		if (handle_signal(signr, &info, &ka, regs) == 0) {
-			/* a signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-
-			tracehook_signal_handler(signr, &info, &ka, regs,
-				test_thread_flag(TIF_SINGLESTEP));
-		}
-
+		handle_signal(signr, &info, &ka, regs);
 		return;
 	}
 

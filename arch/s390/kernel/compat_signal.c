@@ -572,7 +572,7 @@ give_sigsegv:
  * OK, we're invoking a handler
  */	
 
-int handle_signal32(unsigned long sig, struct k_sigaction *ka,
+void handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		    siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
 {
 	int ret;
@@ -583,8 +583,12 @@ int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 	else
 		ret = setup_frame32(sig, ka, oldset, regs);
 	if (ret)
-		return ret;
+		return;
 	block_sigmask(ka, sig);
-	return 0;
+	/*
+	 * Let tracing know that we've done the handler setup.
+	 */
+	tracehook_signal_handler(sig, info, ka, regs,
+				 test_thread_flag(TIF_SINGLE_STEP));
 }
 

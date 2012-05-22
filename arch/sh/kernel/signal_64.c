@@ -43,7 +43,7 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-static int
+static void
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		struct pt_regs * regs);
 
@@ -103,17 +103,7 @@ static void do_signal(struct pt_regs *regs)
 		handle_syscall_restart(regs, &ka.sa);
 
 		/* Whee!  Actually deliver the signal.  */
-		if (handle_signal(signr, &info, &ka, regs) == 0) {
-			/*
-			 * If a signal was successfully delivered, the
-			 * saved sigmask is in its frame, and we can
-			 * clear the TS_RESTORE_SIGMASK flag.
-			 */
-			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-
-			tracehook_signal_handler(signr, &info, &ka, regs,
-					test_thread_flag(TIF_SINGLESTEP));
-		}
+		handle_signal(signr, &info, &ka, regs);
 		return;
 	}
 
@@ -648,7 +638,7 @@ give_sigsegv:
 /*
  * OK, we're invoking a handler
  */
-static int
+static void
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		struct pt_regs * regs)
 {
@@ -661,10 +651,12 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	else
 		ret = setup_frame(sig, ka, oldset, regs);
 
-	if (ret == 0)
-		block_sigmask(ka, sig);
+	if (ret)
+		return;
 
-	return ret;
+	block_sigmask(ka, sig);
+	tracehook_signal_handler(sig, info, ka, regs,
+			test_thread_flag(TIF_SINGLESTEP));
 }
 
 asmlinkage void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)

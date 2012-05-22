@@ -267,7 +267,7 @@ static int prev_insn(struct pt_regs *regs)
  * OK, we're invoking a handler
  */
 
-static int
+static void
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	      struct pt_regs *regs)
 {
@@ -295,10 +295,9 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Set up the stack frame */
 	if (setup_rt_frame(sig, ka, info, sigmask_to_save(), regs))
-		return -EFAULT;
+		return;
 
 	block_sigmask(ka, sig);
-	return 0;
 }
 
 /*
@@ -333,8 +332,7 @@ static void do_signal(struct pt_regs *regs)
 		 */
 
 		/* Whee!  Actually deliver the signal.  */
-		if (handle_signal(signr, &ka, &info, regs) == 0)
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
+		handle_signal(signr, &ka, &info, regs);
 
 		return;
 	}

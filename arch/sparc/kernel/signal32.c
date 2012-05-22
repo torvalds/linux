@@ -775,7 +775,7 @@ sigsegv:
 	return -EFAULT;
 }
 
-static inline int handle_signal32(unsigned long signr, struct k_sigaction *ka,
+static inline void handle_signal32(unsigned long signr, struct k_sigaction *ka,
 				  siginfo_t *info,
 				  sigset_t *oldset, struct pt_regs *regs)
 {
@@ -787,12 +787,10 @@ static inline int handle_signal32(unsigned long signr, struct k_sigaction *ka,
 		err = setup_frame32(ka, regs, signr, oldset);
 
 	if (err)
-		return err;
+		return;
 
 	block_sigmask(ka, signr);
 	tracehook_signal_handler(signr, info, ka, regs, 0);
-
-	return 0;
 }
 
 static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs,
@@ -841,14 +839,7 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs)
 	if (signr > 0) {
 		if (restart_syscall)
 			syscall_restart32(orig_i0, regs, &ka.sa);
-		if (handle_signal32(signr, &ka, &info, oldset, regs) == 0) {
-			/* A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TS_RESTORE_SIGMASK flag.
-			 */
-			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-		}
+		handle_signal32(signr, &ka, &info, oldset, regs);
 		return;
 	}
 	if (restart_syscall &&

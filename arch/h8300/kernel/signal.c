@@ -442,10 +442,8 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	else
 		ret = setup_frame(sig, ka, oldset, regs);
 
-	if (!ret) {
+	if (!ret)
 		block_sigmask(ka, sig);
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-	}
 }
 
 /*

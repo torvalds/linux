@@ -238,16 +238,13 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	 */
 	ret |= !valid_user_regs(regs);
 
-	if (ret != 0) {
-		force_sigsegv(sig, current);
-		return;
-	}
-
 	/*
 	 * Block the signal if we were successful.
 	 */
-	block_sigmask(ka, sig);
-	clear_thread_flag(TIF_RESTORE_SIGMASK);
+	if (ret != 0)
+		force_sigsegv(sig, current);
+	else
+		block_sigmask(ka, sig);
 }
 
 /*

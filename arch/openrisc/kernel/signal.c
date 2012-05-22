@@ -263,8 +263,6 @@ handle_signal(unsigned long sig,
 		return;
 
 	block_sigmask(ka, sig);
-	clear_thread_flag(TIF_RESTORE_SIGMASK);
-
 	tracehook_signal_handler(sig, info, ka, regs,
 				 test_thread_flag(TIF_SINGLESTEP));
 }

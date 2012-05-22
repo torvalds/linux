@@ -434,7 +434,7 @@ give_sigsegv:
 }
 
 /* Invoke a signal handler to, well, handle the signal. */
-static inline int
+static inline void
 handle_signal(int canrestart, unsigned long sig,
 	      siginfo_t *info, struct k_sigaction *ka,
               struct pt_regs * regs)
@@ -491,8 +491,6 @@ handle_signal(int canrestart, unsigned long sig,
 
 	if (ret == 0)
 		block_sigmask(ka, sig);
-
-	return ret;
 }
 
 /*
@@ -525,16 +523,7 @@ do_signal(int canrestart, struct pt_regs *regs)
 
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		if (handle_signal(canrestart, signr, &info, &ka,
-				regs)) {
-			/* a signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
-
+		handle_signal(canrestart, signr, &info, &ka, regs);
 		return;
 	}
 

@@ -149,11 +149,9 @@ sigsegv:
 /*
  * Setup invocation of signal handler
  */
-static int handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
+static void handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
 			 struct pt_regs *regs)
 {
-	int rc;
-
 	/*
 	 * If we're handling a signal that aborted a system call,
 	 * set up the error return value before adding the signal
@@ -186,15 +184,13 @@ static int handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
 	 * Set up the stack frame; not doing the SA_SIGINFO thing.  We
 	 * only set up the rt_frame flavor.
 	 */
-	rc = setup_rt_frame(sig, ka, info, sigmask_to_save(), regs);
-
 	/* If there was an error on setup, no signal was delivered. */
-	if (rc)
-		return rc;
+	if (setup_rt_frame(sig, ka, info, sigmask_to_save(), regs) < 0)
+		return;
 
 	block_sigmask(ka, sig);
-
-	return 0;
+	tracehook_signal_handler(sig, info, ka, regs,
+			test_thread_flag(TIF_SINGLESTEP));
 }
 
 /*
@@ -215,17 +211,7 @@ static void do_signal(struct pt_regs *regs)
 	signo = get_signal_to_deliver(&info, &sigact, regs, NULL);
 
 	if (signo > 0) {
-		if (handle_signal(signo, &info, &sigact, regs) == 0) {
-			/*
-			 * Successful delivery case.  The saved sigmask is
-			 * stored in the signal frame, and will be restored
-			 * by sigreturn.  We can clear the TIF flag.
-			 */
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-
-			tracehook_signal_handler(signo, &info, &sigact, regs,
-				test_thread_flag(TIF_SINGLESTEP));
-		}
+		handle_signal(signo, &info, &sigact, regs);
 		return;
 	}
 

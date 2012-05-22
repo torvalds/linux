@@ -367,7 +367,7 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-static int handle_signal(unsigned long sig, struct k_sigaction *ka,
+static void handle_signal(unsigned long sig, struct k_sigaction *ka,
 			 siginfo_t *info, sigset_t *oldset,
 			 struct pt_regs *regs)
 {
@@ -379,9 +379,13 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 	else
 		ret = setup_frame(sig, ka, oldset, regs);
 	if (ret)
-		return ret;
+		return;
 	block_sigmask(ka, sig);
-	return 0;
+	/*
+	 * Let tracing know that we've done the handler setup.
+	 */
+	tracehook_signal_handler(sig, info, ka, regs,
+				 test_thread_flag(TIF_SINGLE_STEP));
 }
 
 /*
@@ -436,24 +440,10 @@ void do_signal(struct pt_regs *regs)
 		/* No longer in a system call */
 		clear_thread_flag(TIF_SYSCALL);
 
-		if ((is_compat_task() ?
-		     handle_signal32(signr, &ka, &info, oldset, regs) :
-		     handle_signal(signr, &ka, &info, oldset, regs)) == 0) {
-			/*
-			 * A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag.
-			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-
-			/*
-			 * Let tracing know that we've done the handler setup.
-			 */
-			tracehook_signal_handler(signr, &info, &ka, regs,
-					 test_thread_flag(TIF_SINGLE_STEP));
-		}
+		if (is_compat_task())
+			handle_signal32(signr, &ka, &info, oldset, regs);
+		else
+			handle_signal(signr, &ka, &info, oldset, regs);
 		return;
 	}
 

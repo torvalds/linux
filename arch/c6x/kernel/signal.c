@@ -248,7 +248,7 @@ do_restart:
 /*
  * handle the actual delivery of a signal to userspace
  */
-static int handle_signal(int sig,
+static void handle_signal(int sig,
 			 siginfo_t *info, struct k_sigaction *ka,
 			 struct pt_regs *regs, int syscall)
 {
@@ -277,11 +277,10 @@ static int handle_signal(int sig,
 	}
 
 	/* Set up the stack frame */
-	ret = setup_rt_frame(sig, ka, info, sigmask_to_save(), regs);
-	if (ret == 0)
-		block_sigmask(ka, sig);
-
-	return ret;
+	if (setup_rt_frame(sig, ka, info, sigmask_to_save(), regs) < 0)
+		return;
+	block_sigmask(ka, sig);
+	tracehook_signal_handler(sig, info, ka, regs, 0);
 }
 
 /*
@@ -300,17 +299,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
-		if (handle_signal(signr, &info, &ka, regs, syscall) == 0) {
-			/* a signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-
-			tracehook_signal_handler(signr, &info, &ka, regs, 0);
-		}
-
+		handle_signal(signr, &info, &ka, regs, syscall);
 		return;
 	}
 

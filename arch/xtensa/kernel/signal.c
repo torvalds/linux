@@ -499,7 +499,6 @@ static void do_signal(struct pt_regs *regs)
 		if (ret)
 			return;
 
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		block_sigmask(&ka, signr);
 		if (current->ptrace & PT_SINGLESTEP)
 			task_pt_regs(current)->icountlevel = 1;

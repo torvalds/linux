@@ -242,7 +242,7 @@ give_sigsegv:
  * OK, we're invoking a handler
  */
 
-static int handle_signal(unsigned long sig, siginfo_t *info,
+static void handle_signal(unsigned long sig, siginfo_t *info,
 			 struct k_sigaction *ka,
 			 struct pt_regs *regs)
 {
@@ -279,15 +279,9 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 	else
 #endif
 		ret = setup_rt_frame(sig, ka, info, oldset, regs);
-	if (ret == 0) {
-		/* This code is only called from system calls or from
-		 * the work_pending path in the return-to-user code, and
-		 * either way we can re-enable interrupts unconditionally.
-		 */
-		block_sigmask(ka, sig);
-	}
-
-	return ret;
+	if (ret)
+		return;
+	block_sigmask(ka, sig);
 }
 
 /*
@@ -311,16 +305,7 @@ void do_signal(struct pt_regs *regs)
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee! Actually deliver the signal.  */
-		if (handle_signal(signr, &info, &ka, regs) == 0) {
-			/*
-			 * A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TS_RESTORE_SIGMASK flag.
-			 */
-			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-		}
-
+		handle_signal(signr, &info, &ka, regs);
 		goto done;
 	}
 

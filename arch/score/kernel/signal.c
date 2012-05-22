@@ -241,11 +241,9 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-static int handle_signal(unsigned long sig, siginfo_t *info,
+static void handle_signal(unsigned long sig, siginfo_t *info,
 	struct k_sigaction *ka, struct pt_regs *regs)
 {
-	int ret;
-
 	if (regs->is_syscall) {
 		switch (regs->regs[4]) {
 		case ERESTART_RESTARTBLOCK:
@@ -269,12 +267,10 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 	/*
 	 * Set up the stack frame
 	 */
-	ret = setup_rt_frame(ka, regs, sig, sigmask_to_save(), info);
+	if (setup_rt_frame(ka, regs, sig, sigmask_to_save(), info) < 0)
+		return;
 
-	if (ret == 0)
-		block_sigmask(ka, sig);
-
-	return ret;
+	block_sigmask(ka, sig);
 }
 
 static void do_signal(struct pt_regs *regs)
@@ -294,17 +290,7 @@ static void do_signal(struct pt_regs *regs)
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Actually deliver the signal.  */
-		if (handle_signal(signr, &info, &ka, regs) == 0) {
-			/*
-			 * A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag.
-			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
-
+		handle_signal(signr, &info, &ka, regs);
 		return;
 	}
 

@@ -310,7 +310,7 @@ do_restart:
  * OK, we're invoking a handler
  */
 
-static int
+static void
 handle_signal(unsigned long sig, struct k_sigaction *ka,
 		siginfo_t *info, struct pt_regs *regs)
 {
@@ -324,11 +324,9 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 		ret = setup_rt_frame(sig, ka, NULL, oldset, regs);
 
 	if (ret)
-		return ret;
+		return;
 
 	block_sigmask(ka, sig);
-
-	return 0;
 }
 
 /*
@@ -356,16 +354,7 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 		/* Whee! Actually deliver the signal. */
 		if (in_syscall)
 			handle_restart(regs, &ka, 1);
-		if (!handle_signal(signr, &ka, &info, oldset, regs)) {
-			/*
-			 * A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TS_RESTORE_SIGMASK flag.
-			 */
-			current_thread_info()->status &=
-			    ~TS_RESTORE_SIGMASK;
-		}
+		handle_signal(signr, &ka, &info, regs);
 		return;
 	}
 
