@@ -640,38 +640,6 @@ out_no_sb:
 	return err;
 }
 
-enum bitmap_mask_op {
-	MASK_SET,
-	MASK_UNSET
-};
-
-/* record the state of the bitmap in the superblock.  Return the old value */
-static int bitmap_mask_state(struct bitmap *bitmap, enum bitmap_state bits,
-			     enum bitmap_mask_op op)
-{
-	bitmap_super_t *sb;
-	int old;
-
-	if (!bitmap->storage.sb_page) /* can't set the state */
-		return 0;
-	sb = kmap_atomic(bitmap->storage.sb_page);
-	old = le32_to_cpu(sb->state) & bits;
-	switch (op) {
-	case MASK_SET:
-		sb->state |= cpu_to_le32(bits);
-		bitmap->flags |= bits;
-		break;
-	case MASK_UNSET:
-		sb->state &= cpu_to_le32(~bits);
-		bitmap->flags &= ~bits;
-		break;
-	default:
-		BUG();
-	}
-	kunmap_atomic(sb);
-	return old;
-}
-
 /*
  * general bitmap file operations
  */
@@ -828,7 +796,8 @@ static void bitmap_file_kick(struct bitmap *bitmap)
 {
 	char *path, *ptr = NULL;
 
-	if (bitmap_mask_state(bitmap, BITMAP_STALE, MASK_SET) == 0) {
+	if (!(bitmap->flags & BITMAP_STALE)) {
+		bitmap->flags |= BITMAP_STALE;
 		bitmap_update_sb(bitmap);
 
 		if (bitmap->storage.file) {
@@ -1830,7 +1799,7 @@ int bitmap_load(struct mddev *mddev)
 
 	if (err)
 		goto out;
-	bitmap_mask_state(bitmap, BITMAP_STALE, MASK_UNSET);
+	bitmap->flags &= ~BITMAP_STALE;
 
 	/* Kick recovery in case any bits were set */
 	set_bit(MD_RECOVERY_NEEDED, &bitmap->mddev->recovery);
