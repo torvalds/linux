@@ -2884,7 +2884,7 @@ static int get_common_info(struct pevent *pevent,
 	event = pevent->events[0];
 	field = pevent_find_common_field(event, type);
 	if (!field)
-		die("field '%s' not found", type);
+		return -1;
 
 	*offset = field->offset;
 	*size = field->size;
@@ -2935,15 +2935,16 @@ static int parse_common_flags(struct pevent *pevent, void *data)
 
 static int parse_common_lock_depth(struct pevent *pevent, void *data)
 {
-	int ret;
+	return __parse_common(pevent, data,
+			      &pevent->ld_size, &pevent->ld_offset,
+			      "common_lock_depth");
+}
 
-	ret = __parse_common(pevent, data,
-			     &pevent->ld_size, &pevent->ld_offset,
-			     "common_lock_depth");
-	if (ret < 0)
-		return -1;
-
-	return ret;
+static int parse_common_migrate_disable(struct pevent *pevent, void *data)
+{
+	return __parse_common(pevent, data,
+			      &pevent->ld_size, &pevent->ld_offset,
+			      "common_migrate_disable");
 }
 
 static int events_id_cmp(const void *a, const void *b);
@@ -3988,10 +3989,13 @@ void pevent_data_lat_fmt(struct pevent *pevent,
 			 struct trace_seq *s, struct pevent_record *record)
 {
 	static int check_lock_depth = 1;
+	static int check_migrate_disable = 1;
 	static int lock_depth_exists;
+	static int migrate_disable_exists;
 	unsigned int lat_flags;
 	unsigned int pc;
 	int lock_depth;
+	int migrate_disable;
 	int hardirq;
 	int softirq;
 	void *data = record->data;
@@ -3999,18 +4003,26 @@ void pevent_data_lat_fmt(struct pevent *pevent,
 	lat_flags = parse_common_flags(pevent, data);
 	pc = parse_common_pc(pevent, data);
 	/* lock_depth may not always exist */
-	if (check_lock_depth) {
-		struct format_field *field;
-		struct event_format *event;
-
-		check_lock_depth = 0;
-		event = pevent->events[0];
-		field = pevent_find_common_field(event, "common_lock_depth");
-		if (field)
-			lock_depth_exists = 1;
-	}
 	if (lock_depth_exists)
 		lock_depth = parse_common_lock_depth(pevent, data);
+	else if (check_lock_depth) {
+		lock_depth = parse_common_lock_depth(pevent, data);
+		if (lock_depth < 0)
+			check_lock_depth = 0;
+		else
+			lock_depth_exists = 1;
+	}
+
+	/* migrate_disable may not always exist */
+	if (migrate_disable_exists)
+		migrate_disable = parse_common_migrate_disable(pevent, data);
+	else if (check_migrate_disable) {
+		migrate_disable = parse_common_migrate_disable(pevent, data);
+		if (migrate_disable < 0)
+			check_migrate_disable = 0;
+		else
+			migrate_disable_exists = 1;
+	}
 
 	hardirq = lat_flags & TRACE_FLAG_HARDIRQ;
 	softirq = lat_flags & TRACE_FLAG_SOFTIRQ;
@@ -4028,6 +4040,13 @@ void pevent_data_lat_fmt(struct pevent *pevent,
 		trace_seq_printf(s, "%x", pc);
 	else
 		trace_seq_putc(s, '.');
+
+	if (migrate_disable_exists) {
+		if (migrate_disable < 0)
+			trace_seq_putc(s, '.');
+		else
+			trace_seq_printf(s, "%d", migrate_disable);
+	}
 
 	if (lock_depth_exists) {
 		if (lock_depth < 0)
