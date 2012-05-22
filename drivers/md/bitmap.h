@@ -255,6 +255,9 @@ void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector);
 
 void bitmap_unplug(struct bitmap *bitmap);
 void bitmap_daemon_work(struct mddev *mddev);
+
+int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
+		  int chunksize, int init);
 #endif
 
 #endif

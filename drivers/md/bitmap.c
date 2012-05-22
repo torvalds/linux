@@ -698,7 +698,7 @@ static int bitmap_storage_alloc(struct bitmap_storage *store,
 		return -ENOMEM;
 
 	if (with_super && !store->sb_page) {
-		store->sb_page = alloc_page(GFP_KERNEL);
+		store->sb_page = alloc_page(GFP_KERNEL|__GFP_ZERO);
 		if (store->sb_page == NULL)
 			return -ENOMEM;
 		store->sb_page->index = 0;
@@ -709,7 +709,7 @@ static int bitmap_storage_alloc(struct bitmap_storage *store,
 		pnum = 1;
 	}
 	for ( ; pnum < num_pages; pnum++) {
-		store->filemap[pnum] = alloc_page(GFP_KERNEL);
+		store->filemap[pnum] = alloc_page(GFP_KERNEL|__GFP_ZERO);
 		if (!store->filemap[pnum]) {
 			store->file_pages = pnum;
 			return -ENOMEM;
@@ -1630,8 +1630,6 @@ int bitmap_create(struct mddev *mddev)
 {
 	struct bitmap *bitmap;
 	sector_t blocks = mddev->resync_max_sectors;
-	unsigned long chunks;
-	unsigned long pages;
 	struct file *file = mddev->bitmap_info.file;
 	int err;
 	struct sysfs_dirent *bm = NULL;
@@ -1691,37 +1689,14 @@ int bitmap_create(struct mddev *mddev)
 		goto error;
 
 	bitmap->daemon_lastrun = jiffies;
-	bitmap->counts.chunkshift = (ffz(~mddev->bitmap_info.chunksize)
-			      - BITMAP_BLOCK_SHIFT);
-
-	chunks = DIV_ROUND_UP_SECTOR_T(blocks, 1 << bitmap->counts.chunkshift);
-	pages = DIV_ROUND_UP(chunks, PAGE_COUNTER_RATIO);
-
-	BUG_ON(!pages);
-
-	bitmap->counts.chunks = chunks;
-	bitmap->counts.pages = pages;
-	bitmap->counts.missing_pages = pages;
-
-	bitmap->counts.bp = kzalloc(pages * sizeof(*bitmap->counts.bp),
-				    GFP_KERNEL);
-
-	err = -ENOMEM;
-	if (!bitmap->counts.bp)
+	err = bitmap_resize(bitmap, blocks, mddev->bitmap_info.chunksize, 1);
+	if (err)
 		goto error;
 
-	if (file || mddev->bitmap_info.offset) {
-		err = bitmap_storage_alloc(&bitmap->storage, bitmap->counts.chunks,
-					   !mddev->bitmap_info.external);
-		if (err)
-			goto error;
-	}
 	printk(KERN_INFO "created bitmap (%lu pages) for device %s\n",
-		pages, bmname(bitmap));
+	       bitmap->counts.pages, bmname(bitmap));
 
 	mddev->bitmap = bitmap;
-
-
 	return test_bit(BITMAP_WRITE_ERROR, &bitmap->flags) ? -EIO : 0;
 
  error:
@@ -1806,6 +1781,170 @@ void bitmap_status(struct seq_file *seq, struct bitmap *bitmap)
 
 	seq_printf(seq, "\n");
 }
+
+int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
+		  int chunksize, int init)
+{
+	/* If chunk_size is 0, choose an appropriate chunk size.
+	 * Then possibly allocate new storage space.
+	 * Then quiesce, copy bits, replace bitmap, and re-start
+	 *
+	 * This function is called both to set up the initial bitmap
+	 * and to resize the bitmap while the array is active.
+	 * If this happens as a result of the array being resized,
+	 * chunksize will be zero, and we need to choose a suitable
+	 * chunksize, otherwise we use what we are given.
+	 */
+	struct bitmap_storage store;
+	struct bitmap_counts old_counts;
+	unsigned long chunks;
+	sector_t block;
+	sector_t old_blocks, new_blocks;
+	int chunkshift;
+	int ret = 0;
+	long pages;
+	struct bitmap_page *new_bp;
+
+	if (chunksize == 0) {
+		/* If there is enough space, leave the chunk size unchanged,
+		 * else increase by factor of two until there is enough space.
+		 */
+		long bytes;
+		long space = bitmap->mddev->bitmap_info.space;
+
+		if (space == 0) {
+			/* We don't know how much space there is, so limit
+			 * to current size - in sectors.
+			 */
+			bytes = DIV_ROUND_UP(bitmap->counts.chunks, 8);
+			if (!bitmap->mddev->bitmap_info.external)
+				bytes += sizeof(bitmap_super_t);
+			space = DIV_ROUND_UP(bytes, 512);
+			bitmap->mddev->bitmap_info.space = space;
+		}
+		chunkshift = bitmap->counts.chunkshift;
+		chunkshift--;
+		do {
+			/* 'chunkshift' is shift from block size to chunk size */
+			chunkshift++;
+			chunks = DIV_ROUND_UP_SECTOR_T(blocks, 1 << chunkshift);
+			bytes = DIV_ROUND_UP(chunks, 8);
+			if (!bitmap->mddev->bitmap_info.external)
+				bytes += sizeof(bitmap_super_t);
+		} while (bytes > (space << 9));
+	} else
+		chunkshift = ffz(~chunksize) - BITMAP_BLOCK_SHIFT;
+
+	chunks = DIV_ROUND_UP_SECTOR_T(blocks, 1 << chunkshift);
+	memset(&store, 0, sizeof(store));
+	if (bitmap->mddev->bitmap_info.offset || bitmap->mddev->bitmap_info.file)
+		ret = bitmap_storage_alloc(&store, chunks,
+					   !bitmap->mddev->bitmap_info.external);
+	if (ret)
+		goto err;
+
+	pages = DIV_ROUND_UP(chunks, PAGE_COUNTER_RATIO);
+
+	new_bp = kzalloc(pages * sizeof(*new_bp), GFP_KERNEL);
+	ret = -ENOMEM;
+	if (!new_bp) {
+		bitmap_file_unmap(&store);
+		goto err;
+	}
+
+	if (!init)
+		bitmap->mddev->pers->quiesce(bitmap->mddev, 1);
+
+	store.file = bitmap->storage.file;
+	bitmap->storage.file = NULL;
+
+	if (store.sb_page && bitmap->storage.sb_page)
+		memcpy(page_address(store.sb_page),
+		       page_address(bitmap->storage.sb_page),
+		       sizeof(bitmap_super_t));
+	bitmap_file_unmap(&bitmap->storage);
+	bitmap->storage = store;
+
+	old_counts = bitmap->counts;
+	bitmap->counts.bp = new_bp;
+	bitmap->counts.pages = pages;
+	bitmap->counts.missing_pages = pages;
+	bitmap->counts.chunkshift = chunkshift;
+	bitmap->counts.chunks = chunks;
+	bitmap->mddev->bitmap_info.chunksize = 1 << (chunkshift +
+						     BITMAP_BLOCK_SHIFT);
+
+	blocks = min(old_counts.chunks << old_counts.chunkshift,
+		     chunks << chunkshift);
+
+	spin_lock_irq(&bitmap->counts.lock);
+	for (block = 0; block < blocks; ) {
+		bitmap_counter_t *bmc_old, *bmc_new;
+		int set;
+
+		bmc_old = bitmap_get_counter(&old_counts, block,
+					     &old_blocks, 0);
+		set = bmc_old && NEEDED(*bmc_old);
+
+		if (set) {
+			bmc_new = bitmap_get_counter(&bitmap->counts, block,
+						     &new_blocks, 1);
+			if (*bmc_new == 0) {
+				/* need to set on-disk bits too. */
+				sector_t end = block + new_blocks;
+				sector_t start = block >> chunkshift;
+				start <<= chunkshift;
+				while (start < end) {
+					bitmap_file_set_bit(bitmap, block);
+					start += 1 << chunkshift;
+				}
+				*bmc_new = 2;
+				bitmap_count_page(&bitmap->counts,
+						  block, 1);
+				bitmap_set_pending(&bitmap->counts,
+						   block);
+			}
+			*bmc_new |= NEEDED_MASK;
+			if (new_blocks < old_blocks)
+				old_blocks = new_blocks;
+		}
+		block += old_blocks;
+	}
+
+	if (!init) {
+		int i;
+		while (block < (chunks << chunkshift)) {
+			bitmap_counter_t *bmc;
+			bmc = bitmap_get_counter(&bitmap->counts, block,
+						 &new_blocks, 1);
+			if (bmc) {
+				/* new space.  It needs to be resynced, so
+				 * we set NEEDED_MASK.
+				 */
+				if (*bmc == 0) {
+					*bmc = NEEDED_MASK | 2;
+					bitmap_count_page(&bitmap->counts,
+							  block, 1);
+					bitmap_set_pending(&bitmap->counts,
+							   block);
+				}
+			}
+			block += new_blocks;
+		}
+		for (i = 0; i < bitmap->storage.file_pages; i++)
+			set_page_attr(bitmap, i, BITMAP_PAGE_DIRTY);
+	}
+	spin_unlock_irq(&bitmap->counts.lock);
+
+	if (!init) {
+		bitmap_unplug(bitmap);
+		bitmap->mddev->pers->quiesce(bitmap->mddev, 0);
+	}
+	ret = 0;
+err:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(bitmap_resize);
 
 static ssize_t
 location_show(struct mddev *mddev, char *page)
