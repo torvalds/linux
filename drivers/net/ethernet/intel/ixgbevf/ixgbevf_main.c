@@ -540,6 +540,25 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 	return 0;
 }
 
+/**
+ * ixgbevf_write_eitr - write VTEITR register in hardware specific way
+ * @q_vector: structure containing interrupt and ring information
+ */
+static void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector)
+{
+	struct ixgbevf_adapter *adapter = q_vector->adapter;
+	struct ixgbe_hw *hw = &adapter->hw;
+	int v_idx = q_vector->v_idx;
+	u32 itr_reg = q_vector->itr & IXGBE_MAX_EITR;
+
+	/*
+	 * set the WDIS bit to not clear the timer bits and cause an
+	 * immediate assertion of the interrupt
+	 */
+	itr_reg |= IXGBE_EITR_CNT_WDIS;
+
+	IXGBE_WRITE_REG(hw, IXGBE_VTEITR(v_idx), itr_reg);
+}
 
 /**
  * ixgbevf_configure_msix - Configure MSI-X hardware
@@ -660,30 +679,6 @@ static void ixgbevf_update_itr(struct ixgbevf_q_vector *q_vector,
 
 	/* write updated itr to ring container */
 	ring_container->itr = itr_setting;
-}
-
-/**
- * ixgbevf_write_eitr - write VTEITR register in hardware specific way
- * @q_vector: structure containing interrupt and ring information
- *
- * This function is made to be called by ethtool and by the driver
- * when it needs to update VTEITR registers at runtime.  Hardware
- * specific quirks/differences are taken care of here.
- */
-void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector)
-{
-	struct ixgbevf_adapter *adapter = q_vector->adapter;
-	struct ixgbe_hw *hw = &adapter->hw;
-	int v_idx = q_vector->v_idx;
-	u32 itr_reg = q_vector->itr & IXGBE_MAX_EITR;
-
-	/*
-	 * set the WDIS bit to not clear the timer bits and cause an
-	 * immediate assertion of the interrupt
-	 */
-	itr_reg |= IXGBE_EITR_CNT_WDIS;
-
-	IXGBE_WRITE_REG(hw, IXGBE_VTEITR(v_idx), itr_reg);
 }
 
 static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector)
