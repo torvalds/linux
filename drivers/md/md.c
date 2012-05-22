@@ -803,7 +803,7 @@ static int alloc_disk_sb(struct md_rdev * rdev)
 	return 0;
 }
 
-static void free_disk_sb(struct md_rdev * rdev)
+void md_rdev_clear(struct md_rdev *rdev)
 {
 	if (rdev->sb_page) {
 		put_page(rdev->sb_page);
@@ -817,7 +817,7 @@ static void free_disk_sb(struct md_rdev * rdev)
 		rdev->bb_page = NULL;
 	}
 }
-
+EXPORT_SYMBOL_GPL(md_rdev_clear);
 
 static void super_written(struct bio *bio, int error)
 {
@@ -2244,7 +2244,7 @@ static void export_rdev(struct md_rdev * rdev)
 		bdevname(rdev->bdev,b));
 	if (rdev->mddev)
 		MD_BUG();
-	free_disk_sb(rdev);
+	md_rdev_clear(rdev);
 #ifndef MODULE
 	if (test_bit(AutoDetected, &rdev->flags))
 		md_autodetect_dev(rdev->bdev->bd_dev);
@@ -3324,7 +3324,7 @@ static struct md_rdev *md_import_device(dev_t newdev, int super_format, int supe
 abort_free:
 	if (rdev->bdev)
 		unlock_rdev(rdev);
-	free_disk_sb(rdev);
+	md_rdev_clear(rdev);
 	kfree(rdev->badblocks.page);
 	kfree(rdev);
 	return ERR_PTR(err);

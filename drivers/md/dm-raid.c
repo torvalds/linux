@@ -155,10 +155,7 @@ static void context_free(struct raid_set *rs)
 	for (i = 0; i < rs->md.raid_disks; i++) {
 		if (rs->dev[i].meta_dev)
 			dm_put_device(rs->ti, rs->dev[i].meta_dev);
-		if (rs->dev[i].rdev.sb_page)
-			put_page(rs->dev[i].rdev.sb_page);
-		rs->dev[i].rdev.sb_page = NULL;
-		rs->dev[i].rdev.sb_loaded = 0;
+		md_rdev_clear(&rs->dev[i].rdev);
 		if (rs->dev[i].data_dev)
 			dm_put_device(rs->ti, rs->dev[i].data_dev);
 	}
