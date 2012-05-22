@@ -816,6 +816,8 @@ void md_rdev_clear(struct md_rdev *rdev)
 		put_page(rdev->bb_page);
 		rdev->bb_page = NULL;
 	}
+	kfree(rdev->badblocks.page);
+	rdev->badblocks.page = NULL;
 }
 EXPORT_SYMBOL_GPL(md_rdev_clear);
 
@@ -2191,9 +2193,7 @@ static void unbind_rdev_from_array(struct md_rdev * rdev)
 	sysfs_remove_link(&rdev->kobj, "block");
 	sysfs_put(rdev->sysfs_state);
 	rdev->sysfs_state = NULL;
-	kfree(rdev->badblocks.page);
 	rdev->badblocks.count = 0;
-	rdev->badblocks.page = NULL;
 	/* We need to delay this, otherwise we can deadlock when
 	 * writing to 'remove' to "dev/state".  We also need
 	 * to delay it due to rcu usage.
@@ -3325,7 +3325,6 @@ abort_free:
 	if (rdev->bdev)
 		unlock_rdev(rdev);
 	md_rdev_clear(rdev);
-	kfree(rdev->badblocks.page);
 	kfree(rdev);
 	return ERR_PTR(err);
 }
