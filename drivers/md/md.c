@@ -1989,7 +1989,7 @@ super_1_allow_new_offset(struct md_rdev *rdev,
 	bitmap = rdev->mddev->bitmap;
 	if (bitmap && !rdev->mddev->bitmap_info.file &&
 	    rdev->sb_start + rdev->mddev->bitmap_info.offset +
-	    bitmap->file_pages * (PAGE_SIZE>>9) > new_offset)
+	    bitmap->storage.file_pages * (PAGE_SIZE>>9) > new_offset)
 		return 0;
 	if (rdev->badblocks.sector + rdev->badblocks.size > new_offset)
 		return 0;
@@ -5649,7 +5649,7 @@ static int get_bitmap_file(struct mddev * mddev, void __user * arg)
 		goto out;
 
 	/* bitmap disabled, zero the first byte and copy out */
-	if (!mddev->bitmap || !mddev->bitmap->file) {
+	if (!mddev->bitmap || !mddev->bitmap->storage.file) {
 		file->pathname[0] = '\0';
 		goto copy_out;
 	}
@@ -5658,7 +5658,8 @@ static int get_bitmap_file(struct mddev * mddev, void __user * arg)
 	if (!buf)
 		goto out;
 
-	ptr = d_path(&mddev->bitmap->file->f_path, buf, sizeof(file->pathname));
+	ptr = d_path(&mddev->bitmap->storage.file->f_path,
+		     buf, sizeof(file->pathname));
 	if (IS_ERR(ptr))
 		goto out;
 
@@ -6299,7 +6300,7 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 			/* remove the bitmap */
 			if (!mddev->bitmap)
 				return -ENOENT;
-			if (mddev->bitmap->file)
+			if (mddev->bitmap->storage.file)
 				return -EINVAL;
 			mddev->pers->quiesce(mddev, 1);
 			bitmap_destroy(mddev);

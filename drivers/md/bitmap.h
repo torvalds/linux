@@ -188,12 +188,17 @@ struct bitmap {
 	/* bitmap spinlock */
 	spinlock_t lock;
 
-	struct file *file; /* backing disk file */
-	struct page *sb_page; /* cached copy of the bitmap file superblock */
-	struct page **filemap; /* list of cache pages for the file */
-	unsigned long *filemap_attr; /* attributes associated w/ filemap pages */
-	unsigned long file_pages; /* number of pages in the file */
-	int last_page_size; /* bytes in the last page */
+	struct bitmap_storage {
+		struct file *file;		/* backing disk file */
+		struct page *sb_page;		/* cached copy of the bitmap
+						 * file superblock */
+		struct page **filemap;		/* list of cache pages for
+						 * the file */
+		unsigned long *filemap_attr;	/* attributes associated
+						 * w/ filemap pages */
+		unsigned long file_pages;	/* number of pages in the file*/
+		int last_page_size;		/* bytes in the last page */
+	} storage;
 
 	unsigned long flags;
 
