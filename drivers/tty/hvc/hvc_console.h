@@ -46,10 +46,9 @@
 #define HVC_ALLOC_TTY_ADAPTERS	8
 
 struct hvc_struct {
+	struct tty_port port;
 	spinlock_t lock;
 	int index;
-	struct tty_struct *tty;
-	int count;
 	int do_wakeup;
 	char *outbuf;
 	int outbuf_size;
@@ -61,7 +60,6 @@ struct hvc_struct {
 	struct winsize ws;
 	struct work_struct tty_resize;
 	struct list_head next;
-	struct kref kref; /* ref count & hvc_struct lifetime */
 };
 
 /* implemented by a low level driver */

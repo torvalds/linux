@@ -26,11 +26,13 @@
 #include <linux/bitops.h>
 #include <linux/devpts_fs.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 
 
 #ifdef CONFIG_UNIX98_PTYS
 static struct tty_driver *ptm_driver;
 static struct tty_driver *pts_driver;
+static DEFINE_MUTEX(devpts_mutex);
 #endif
 
 static void pty_close(struct tty_struct *tty, struct file *filp)
@@ -45,6 +47,7 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	wake_up_interruptible(&tty->read_wait);
 	wake_up_interruptible(&tty->write_wait);
 	tty->packet = 0;
+	/* Review - krefs on tty_link ?? */
 	if (!tty->link)
 		return;
 	tty->link->packet = 0;
@@ -54,12 +57,15 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	if (tty->driver->subtype == PTY_TYPE_MASTER) {
 		set_bit(TTY_OTHER_CLOSED, &tty->flags);
 #ifdef CONFIG_UNIX98_PTYS
-		if (tty->driver == ptm_driver)
+		if (tty->driver == ptm_driver) {
+		        mutex_lock(&devpts_mutex);
 			devpts_pty_kill(tty->link);
+		        mutex_unlock(&devpts_mutex);
+		}
 #endif
-		tty_unlock();
+		tty_unlock(tty);
 		tty_vhangup(tty->link);
-		tty_lock();
+		tty_lock(tty);
 	}
 }
 
@@ -475,13 +481,17 @@ static struct tty_struct *ptm_unix98_lookup(struct tty_driver *driver,
  *	@idx: tty index
  *
  *	Look up a pty master device. Called under the tty_mutex for now.
- *	This provides our locking.
+ *	This provides our locking for the tty pointer.
  */
 
 static struct tty_struct *pts_unix98_lookup(struct tty_driver *driver,
 		struct inode *pts_inode, int idx)
 {
-	struct tty_struct *tty = devpts_get_tty(pts_inode, idx);
+	struct tty_struct *tty;
+
+	mutex_lock(&devpts_mutex);
+	tty = devpts_get_tty(pts_inode, idx);
+	mutex_unlock(&devpts_mutex);
 	/* Master must be open before slave */
 	if (!tty)
 		return ERR_PTR(-EIO);
@@ -613,23 +623,28 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 		return retval;
 
 	/* find a device that is not in use. */
-	tty_lock();
+	mutex_lock(&devpts_mutex);
 	index = devpts_new_index(inode);
-	tty_unlock();
 	if (index < 0) {
 		retval = index;
 		goto err_file;
 	}
 
+	mutex_unlock(&devpts_mutex);
+
 	mutex_lock(&tty_mutex);
-	tty_lock();
+	mutex_lock(&devpts_mutex);
 	tty = tty_init_dev(ptm_driver, index);
-	mutex_unlock(&tty_mutex);
 
 	if (IS_ERR(tty)) {
 		retval = PTR_ERR(tty);
 		goto out;
 	}
+
+	/* The tty returned here is locked so we can safely
+	   drop the mutex */
+	mutex_unlock(&devpts_mutex);
+	mutex_unlock(&tty_mutex);
 
 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
 
@@ -643,16 +658,17 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	if (retval)
 		goto err_release;
 
-	tty_unlock();
+	tty_unlock(tty);
 	return 0;
 err_release:
-	tty_unlock();
+	tty_unlock(tty);
 	tty_release(inode, filp);
 	return retval;
 out:
+	mutex_unlock(&tty_mutex);
 	devpts_kill_index(inode, index);
-	tty_unlock();
 err_file:
+        mutex_unlock(&devpts_mutex);
 	tty_free_file(filp);
 	return retval;
 }

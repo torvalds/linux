@@ -245,14 +245,6 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 	omap_up.dma_rx_poll_rate = info->dma_rx_poll_rate;
 	omap_up.autosuspend_timeout = info->autosuspend_timeout;
 
-	/* Enable the MDR1 Errata i202 for OMAP2430/3xxx/44xx */
-	if (!cpu_is_omap2420() && !cpu_is_ti816x())
-		omap_up.errata |= UART_ERRATA_i202_MDR1_ACCESS;
-
-	/* Enable DMA Mode Force Idle Errata i291 for omap34xx/3630 */
-	if (cpu_is_omap34xx() || cpu_is_omap3630())
-		omap_up.errata |= UART_ERRATA_i291_DMA_FORCEIDLE;
-
 	pdata = &omap_up;
 	pdata_size = sizeof(struct omap_uart_port_info);
 
