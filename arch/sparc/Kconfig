@@ -37,7 +37,6 @@ config SPARC32
 	def_bool !64BIT
 	select GENERIC_ATOMIC64
 	select CLZ_TAB
-	select ARCH_THREAD_INFO_ALLOCATOR
 
 config SPARC64
 	def_bool 64BIT

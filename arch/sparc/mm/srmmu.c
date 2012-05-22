@@ -467,33 +467,6 @@ void srmmu_unmapiorange(unsigned long virt_addr, unsigned int len)
 	flush_tlb_all();
 }
 
-/*
- * On the SRMMU we do not have the problems with limited tlb entries
- * for mapping kernel pages, so we just take things from the free page
- * pool.  As a side effect we are putting a little too much pressure
- * on the gfp() subsystem.  This setup also makes the logic of the
- * iommu mapping code a lot easier as we can transparently handle
- * mappings on the kernel stack without any special code.
- */
-struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node)
-{
-	struct thread_info *ret;
-
-	ret = (struct thread_info *)__get_free_pages(GFP_KERNEL,
-						     THREAD_INFO_ORDER);
-#ifdef CONFIG_DEBUG_STACK_USAGE
-	if (ret)
-		memset(ret, 0, PAGE_SIZE << THREAD_INFO_ORDER);
-#endif /* DEBUG_STACK_USAGE */
-
-	return ret;
-}
-
-void free_thread_info(struct thread_info *ti)
-{
-	free_pages((unsigned long)ti, THREAD_INFO_ORDER);
-}
-
 /* tsunami.S */
 extern void tsunami_flush_cache_all(void);
 extern void tsunami_flush_cache_mm(struct mm_struct *mm);
