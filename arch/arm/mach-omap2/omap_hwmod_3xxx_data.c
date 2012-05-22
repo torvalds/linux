@@ -418,7 +418,8 @@ static struct omap_hwmod_class_sysconfig i2c_sysc = {
 static struct omap_hwmod_class omap3xxx_wd_timer_hwmod_class = {
 	.name		= "wd_timer",
 	.sysc		= &omap3xxx_wd_timer_sysc,
-	.pre_shutdown	= &omap2_wd_timer_disable
+	.pre_shutdown	= &omap2_wd_timer_disable,
+	.reset		= &omap2_wd_timer_reset,
 };
 
 static struct omap_hwmod omap3xxx_wd_timer2_hwmod = {
@@ -1075,7 +1076,7 @@ static struct omap_hwmod_class omap3xxx_mcbsp_hwmod_class = {
 
 /* mcbsp1 */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp1_irqs[] = {
-	{ .name = "irq", .irq = 16 },
+	{ .name = "common", .irq = 16 },
 	{ .name = "tx", .irq = 59 },
 	{ .name = "rx", .irq = 60 },
 	{ .irq = -1 }
@@ -1100,7 +1101,7 @@ static struct omap_hwmod omap3xxx_mcbsp1_hwmod = {
 
 /* mcbsp2 */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp2_irqs[] = {
-	{ .name = "irq", .irq = 17 },
+	{ .name = "common", .irq = 17 },
 	{ .name = "tx", .irq = 62 },
 	{ .name = "rx", .irq = 63 },
 	{ .irq = -1 }
@@ -1130,7 +1131,7 @@ static struct omap_hwmod omap3xxx_mcbsp2_hwmod = {
 
 /* mcbsp3 */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp3_irqs[] = {
-	{ .name = "irq", .irq = 22 },
+	{ .name = "common", .irq = 22 },
 	{ .name = "tx", .irq = 89 },
 	{ .name = "rx", .irq = 90 },
 	{ .irq = -1 }
@@ -1160,7 +1161,7 @@ static struct omap_hwmod omap3xxx_mcbsp3_hwmod = {
 
 /* mcbsp4 */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp4_irqs[] = {
-	{ .name = "irq", .irq = 23 },
+	{ .name = "common", .irq = 23 },
 	{ .name = "tx", .irq = 54 },
 	{ .name = "rx", .irq = 55 },
 	{ .irq = -1 }
@@ -1191,7 +1192,7 @@ static struct omap_hwmod omap3xxx_mcbsp4_hwmod = {
 
 /* mcbsp5 */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp5_irqs[] = {
-	{ .name = "irq", .irq = 27 },
+	{ .name = "common", .irq = 27 },
 	{ .name = "tx", .irq = 81 },
 	{ .name = "rx", .irq = 82 },
 	{ .irq = -1 }
@@ -1976,6 +1977,56 @@ static struct omap_hwmod omap3xxx_usb_tll_hs_hwmod = {
 			.module_bit = OMAP3430ES2_EN_USBTLL_SHIFT,
 			.idlest_reg_id = 3,
 			.idlest_idle_bit = OMAP3430ES2_ST_USBTLL_SHIFT,
+		},
+	},
+};
+
+static struct omap_hwmod omap3xxx_hdq1w_hwmod = {
+	.name		= "hdq1w",
+	.mpu_irqs	= omap2_hdq1w_mpu_irqs,
+	.main_clk	= "hdq_fck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_EN_HDQ_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430_ST_HDQ_SHIFT,
+		},
+	},
+	.class		= &omap2_hdq1w_class,
+};
+
+/*
+ * '32K sync counter' class
+ * 32-bit ordinary counter, clocked by the falling edge of the 32 khz clock
+ */
+static struct omap_hwmod_class_sysconfig omap3xxx_counter_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0004,
+	.sysc_flags	= SYSC_HAS_SIDLEMODE,
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap3xxx_counter_hwmod_class = {
+	.name	= "counter",
+	.sysc	= &omap3xxx_counter_sysc,
+};
+
+static struct omap_hwmod omap3xxx_counter_32k_hwmod = {
+	.name		= "counter_32k",
+	.class		= &omap3xxx_counter_hwmod_class,
+	.clkdm_name	= "wkup_clkdm",
+	.flags		= HWMOD_SWSUP_SIDLE,
+	.main_clk	= "wkup_32k_fck",
+	.prcm		= {
+		.omap2	= {
+			.module_offs = WKUP_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_ST_32KSYNC_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430_ST_32KSYNC_SHIFT,
 		},
 	},
 };
@@ -3059,6 +3110,34 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__usb_tll_hs = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* l4_core -> hdq1w interface */
+static struct omap_hwmod_ocp_if omap3xxx_l4_core__hdq1w = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &omap3xxx_hdq1w_hwmod,
+	.clk		= "hdq_ick",
+	.addr		= omap2_hdq1w_addr_space,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+	.flags		= OMAP_FIREWALL_L4 | OCPIF_SWSUP_IDLE,
+};
+
+/* l4_wkup -> 32ksync_counter */
+static struct omap_hwmod_addr_space omap3xxx_counter_32k_addrs[] = {
+	{
+		.pa_start	= 0x48320000,
+		.pa_end		= 0x4832001f,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+static struct omap_hwmod_ocp_if omap3xxx_l4_wkup__counter_32k = {
+	.master		= &omap3xxx_l4_wkup_hwmod,
+	.slave		= &omap3xxx_counter_32k_hwmod,
+	.clk		= "omap_32ksync_ick",
+	.addr		= omap3xxx_counter_32k_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l3_main__l4_core,
 	&omap3xxx_l3_main__l4_per,
@@ -3103,6 +3182,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap34xx_l4_core__mcspi2,
 	&omap34xx_l4_core__mcspi3,
 	&omap34xx_l4_core__mcspi4,
+	&omap3xxx_l4_wkup__counter_32k,
 	NULL,
 };
 
@@ -3151,6 +3231,7 @@ static struct omap_hwmod_ocp_if *omap34xx_hwmod_ocp_ifs[] __initdata = {
 	&omap34xx_l4_core__sr1,
 	&omap34xx_l4_core__sr2,
 	&omap3xxx_l4_core__mailbox,
+	&omap3xxx_l4_core__hdq1w,
 	NULL
 };
 
@@ -3170,6 +3251,7 @@ static struct omap_hwmod_ocp_if *omap36xx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l4_core__usb_tll_hs,
 	&omap3xxx_l4_core__es3plus_mmc1,
 	&omap3xxx_l4_core__es3plus_mmc2,
+	&omap3xxx_l4_core__hdq1w,
 	NULL
 };
 

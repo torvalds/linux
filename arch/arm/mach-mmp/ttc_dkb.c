@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/i2c/pca953x.h>
 #include <linux/gpio.h>
+#include <linux/mfd/88pm860x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -135,7 +136,17 @@ static struct pca953x_platform_data max7312_data[] = {
 	},
 };
 
+static struct pm860x_platform_data ttc_dkb_pm8607_info = {
+	.irq_base       = IRQ_BOARD_START,
+};
+
 static struct i2c_board_info ttc_dkb_i2c_info[] = {
+	{
+		.type           = "88PM860x",
+		.addr           = 0x34,
+		.platform_data  = &ttc_dkb_pm8607_info,
+		.irq            = IRQ_PXA910_PMIC_INT,
+	},
 	{
 		.type		= "max7312",
 		.addr		= 0x23,

@@ -171,3 +171,12 @@ struct omap_hwmod_addr_space omap2_mcbsp1_addrs[] = {
 	},
 	{ }
 };
+
+struct omap_hwmod_addr_space omap2_hdq1w_addr_space[] = {
+	{
+		.pa_start       = 0x480b2000,
+		.pa_end         = 0x480b2fff,
+		.flags          = ADDR_TYPE_RT,
+	},
+	{ }
+};

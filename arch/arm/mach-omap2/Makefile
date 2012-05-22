@@ -4,7 +4,7 @@
 
 # Common support
 obj-y := id.o io.o control.o mux.o devices.o serial.o gpmc.o timer.o pm.o \
-	 common.o gpio.o dma.o wd_timer.o display.o i2c.o
+	 common.o gpio.o dma.o wd_timer.o display.o i2c.o hdq1w.o
 
 omap-2-3-common				= irq.o sdrc.o
 hwmod-common				= omap_hwmod.o \
@@ -118,16 +118,18 @@ obj-$(CONFIG_ARCH_OMAP4)		+= $(powerdomain-common) \
 					   powerdomains44xx_data.o
 
 # PRCM clockdomain control
-obj-$(CONFIG_ARCH_OMAP2)		+= clockdomain.o \
+clockdomain-common			+= clockdomain.o \
+					   clockdomains_common_data.o
+obj-$(CONFIG_ARCH_OMAP2)		+= $(clockdomain-common) \
 					   clockdomain2xxx_3xxx.o \
 					   clockdomains2xxx_3xxx_data.o
 obj-$(CONFIG_SOC_OMAP2420)		+= clockdomains2420_data.o
 obj-$(CONFIG_SOC_OMAP2430)		+= clockdomains2430_data.o
-obj-$(CONFIG_ARCH_OMAP3)		+= clockdomain.o \
+obj-$(CONFIG_ARCH_OMAP3)		+= $(clockdomain-common) \
 					   clockdomain2xxx_3xxx.o \
 					   clockdomains2xxx_3xxx_data.o \
 					   clockdomains3xxx_data.o
-obj-$(CONFIG_ARCH_OMAP4)		+= clockdomain.o \
+obj-$(CONFIG_ARCH_OMAP4)		+= $(clockdomain-common) \
 					   clockdomain44xx.o \
 					   clockdomains44xx_data.o
 
@@ -186,6 +188,9 @@ obj-y					+= $(iommu-m) $(iommu-y)
 ifneq ($(CONFIG_TIDSPBRIDGE),)
 obj-y					+= dsp.o
 endif
+
+# OMAP2420 MSDI controller integration support ("MMC")
+obj-$(CONFIG_SOC_OMAP2420)		+= msdi.o
 
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o
