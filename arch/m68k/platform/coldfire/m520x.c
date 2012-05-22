@@ -19,6 +19,22 @@
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
+#include <asm/mcfgpio.h>
+
+/***************************************************************************/
+
+struct mcf_gpio_chip mcf_gpio_chips[] = {
+	MCFGPS(PIRQ, 0, 8, MCFEPORT_EPDDR, MCFEPORT_EPDR, MCFEPORT_EPPDR),
+	MCFGPF(CS, 9, 3),
+	MCFGPF(FECI2C, 16, 4),
+	MCFGPF(QSPI, 24, 4),
+	MCFGPF(TIMER, 32, 4),
+	MCFGPF(UART, 40, 8),
+	MCFGPF(FECH, 48, 8),
+	MCFGPF(FECL, 56, 8),
+};
+
+unsigned int mcf_gpio_chips_size = ARRAY_SIZE(mcf_gpio_chips);
 
 /***************************************************************************/
 

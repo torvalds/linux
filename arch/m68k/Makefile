@@ -116,18 +116,6 @@ core-$(CONFIG_M68000)		+= arch/m68k/platform/68328/
 core-$(CONFIG_M68EZ328)		+= arch/m68k/platform/68EZ328/
 core-$(CONFIG_M68VZ328)		+= arch/m68k/platform/68VZ328/
 core-$(CONFIG_COLDFIRE)		+= arch/m68k/platform/coldfire/
-core-$(CONFIG_M5206)		+= arch/m68k/platform/5206/
-core-$(CONFIG_M5206e)		+= arch/m68k/platform/5206/
-core-$(CONFIG_M520x)		+= arch/m68k/platform/520x/
-core-$(CONFIG_M523x)		+= arch/m68k/platform/523x/
-core-$(CONFIG_M5249)		+= arch/m68k/platform/5249/
-core-$(CONFIG_M527x)		+= arch/m68k/platform/527x/
-core-$(CONFIG_M5272)		+= arch/m68k/platform/5272/
-core-$(CONFIG_M528x)		+= arch/m68k/platform/528x/
-core-$(CONFIG_M5307)		+= arch/m68k/platform/5307/
-core-$(CONFIG_M532x)		+= arch/m68k/platform/532x/
-core-$(CONFIG_M5407)		+= arch/m68k/platform/5407/
-core-$(CONFIG_M54xx)		+= arch/m68k/platform/54xx/
 
 
 all:	zImage
