@@ -611,7 +611,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	ddebug_query=   [KNL,DYNAMIC_DEBUG] Enable debug messages at early boot
 			time. See Documentation/dynamic-debug-howto.txt for
-			details.
+			details.  Deprecated, see dyndbg.
 
 	debug		[KNL] Enable kernel debugging (events log level).
 
@@ -730,6 +730,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			name.
 
 	dscc4.setup=	[NET]
+
+	dyndbg[="val"]		[KNL,DYNAMIC_DEBUG]
+	module.dyndbg[="val"]
+			Enable debug messages at boot time.  See
+			Documentation/dynamic-debug-howto.txt for details.
 
 	earlycon=	[KNL] Output early console device and options.
 		uart[8250],io,<addr>[,options]

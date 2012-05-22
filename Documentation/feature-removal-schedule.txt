@@ -2,7 +2,14 @@ The following is a list of files and features that are going to be
 removed in the kernel source tree.  Every entry should contain what
 exactly is going away, why it is happening, and who is going to be doing
 the work.  When the feature is removed from the kernel, it should also
-be removed from this file.
+be removed from this file.  The suggested deprecation period is 3 releases.
+
+---------------------------
+
+What:	ddebug_query="query" boot cmdline param
+When:	v3.8
+Why:	obsoleted by dyndbg="query" and module.dyndbg="query"
+Who:	Jim Cromie <jim.cromie@gmail.com>, Jason Baron <jbaron@redhat.com>
 
 ---------------------------
 

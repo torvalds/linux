@@ -53,8 +53,6 @@ config ANDROID_LOW_MEMORY_KILLER
 	---help---
 	  Register processes to be killed when memory is low
 
-source "drivers/staging/android/switch/Kconfig"
-
 config ANDROID_INTF_ALARM
 	bool "Android alarm driver"
 	depends on RTC_CLASS
@@ -80,7 +78,6 @@ config ANDROID_ALARM_OLDDRV_COMPAT
 	  Provides preprocessor alias to aid compatability with
 	  older out-of-tree drivers that use the Android Alarm
 	  in-kernel API. This will be removed eventually.
-
 endif # if ANDROID
 
 endmenu

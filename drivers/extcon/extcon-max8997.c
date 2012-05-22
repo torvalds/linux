@@ -1,7 +1,7 @@
 /*
- * max8997-muic.c - MAX8997 muic driver for the Maxim 8997
+ * extcon-max8997.c - MAX8997 extcon driver to support MAX8997 MUIC
  *
- *  Copyright (C) 2011 Samsung Electrnoics
+ *  Copyright (C) 2012 Samsung Electrnoics
  *  Donggeun Kim <dg77.kim@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -13,11 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/kernel.h>
@@ -30,6 +25,9 @@
 #include <linux/kobject.h>
 #include <linux/mfd/max8997.h>
 #include <linux/mfd/max8997-private.h>
+#include <linux/extcon.h>
+
+#define	DEV_NAME			"max8997-muic"
 
 /* MAX8997-MUIC STATUS1 register */
 #define STATUS1_ADC_SHIFT		0
@@ -95,7 +93,6 @@ static struct max8997_muic_irq muic_irqs[] = {
 
 struct max8997_muic_info {
 	struct device *dev;
-	struct max8997_dev *iodev;
 	struct i2c_client *muic;
 	struct max8997_muic_platform_data *muic_pdata;
 
@@ -106,12 +103,28 @@ struct max8997_muic_info {
 	int pre_adc;
 
 	struct mutex mutex;
+
+	struct extcon_dev	*edev;
+};
+
+const char *max8997_extcon_cable[] = {
+	[0] = "USB",
+	[1] = "USB-Host",
+	[2] = "TA",
+	[3] = "Fast-charger",
+	[4] = "Slow-charger",
+	[5] = "Charge-downstream",
+	[6] = "MHL",
+	[7] = "Dock-desk",
+	[7] = "Dock-card",
+	[8] = "JIG",
+
+	NULL,
 };
 
 static int max8997_muic_handle_usb(struct max8997_muic_info *info,
 			enum max8997_muic_usb_type usb_type, bool attached)
 {
-	struct max8997_muic_platform_data *mdata = info->muic_pdata;
 	int ret = 0;
 
 	if (usb_type == MAX8997_USB_HOST) {
@@ -125,25 +138,25 @@ static int max8997_muic_handle_usb(struct max8997_muic_info *info,
 		}
 	}
 
-	if (mdata->usb_callback)
-		mdata->usb_callback(usb_type, attached);
+	switch (usb_type) {
+	case MAX8997_USB_HOST:
+		extcon_set_cable_state(info->edev, "USB-Host", attached);
+		break;
+	case MAX8997_USB_DEVICE:
+		extcon_set_cable_state(info->edev, "USB", attached);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
 out:
 	return ret;
-}
-
-static void max8997_muic_handle_mhl(struct max8997_muic_info *info,
-			bool attached)
-{
-	struct max8997_muic_platform_data *mdata = info->muic_pdata;
-
-	if (mdata->mhl_callback)
-		mdata->mhl_callback(attached);
 }
 
 static int max8997_muic_handle_dock(struct max8997_muic_info *info,
 			int adc, bool attached)
 {
-	struct max8997_muic_platform_data *mdata = info->muic_pdata;
 	int ret = 0;
 
 	/* switch to AUDIO */
@@ -157,14 +170,13 @@ static int max8997_muic_handle_dock(struct max8997_muic_info *info,
 
 	switch (adc) {
 	case MAX8997_ADC_DESKDOCK:
-		if (mdata->deskdock_callback)
-			mdata->deskdock_callback(attached);
+		extcon_set_cable_state(info->edev, "Dock-desk", attached);
 		break;
 	case MAX8997_ADC_CARDOCK:
-		if (mdata->cardock_callback)
-			mdata->cardock_callback(attached);
+		extcon_set_cable_state(info->edev, "Dock-card", attached);
 		break;
 	default:
+		ret = -EINVAL;
 		break;
 	}
 out:
@@ -174,7 +186,6 @@ out:
 static int max8997_muic_handle_jig_uart(struct max8997_muic_info *info,
 			bool attached)
 {
-	struct max8997_muic_platform_data *mdata = info->muic_pdata;
 	int ret = 0;
 
 	/* switch to UART */
@@ -186,8 +197,7 @@ static int max8997_muic_handle_jig_uart(struct max8997_muic_info *info,
 		goto out;
 	}
 
-	if (mdata->uart_callback)
-		mdata->uart_callback(attached);
+	extcon_set_cable_state(info->edev, "JIG", attached);
 out:
 	return ret;
 }
@@ -201,7 +211,7 @@ static int max8997_muic_handle_adc_detach(struct max8997_muic_info *info)
 		ret = max8997_muic_handle_usb(info, MAX8997_USB_HOST, false);
 		break;
 	case MAX8997_ADC_MHL:
-		max8997_muic_handle_mhl(info, false);
+		extcon_set_cable_state(info->edev, "MHL", false);
 		break;
 	case MAX8997_ADC_JIG_USB_1:
 	case MAX8997_ADC_JIG_USB_2:
@@ -230,7 +240,7 @@ static int max8997_muic_handle_adc(struct max8997_muic_info *info, int adc)
 		ret = max8997_muic_handle_usb(info, MAX8997_USB_HOST, true);
 		break;
 	case MAX8997_ADC_MHL:
-		max8997_muic_handle_mhl(info, true);
+		extcon_set_cable_state(info->edev, "MHL", true);
 		break;
 	case MAX8997_ADC_JIG_USB_1:
 	case MAX8997_ADC_JIG_USB_2:
@@ -247,10 +257,40 @@ static int max8997_muic_handle_adc(struct max8997_muic_info *info, int adc)
 		ret = max8997_muic_handle_adc_detach(info);
 		break;
 	default:
-		break;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	info->pre_adc = adc;
+out:
+	return ret;
+}
+
+static int max8997_muic_handle_charger_type_detach(
+				struct max8997_muic_info *info)
+{
+	int ret = 0;
+
+	switch (info->pre_charger_type) {
+	case MAX8997_CHARGER_TYPE_USB:
+		extcon_set_cable_state(info->edev, "USB", false);
+		break;
+	case MAX8997_CHARGER_TYPE_DOWNSTREAM_PORT:
+		extcon_set_cable_state(info->edev, "Charge-downstream", false);
+		break;
+	case MAX8997_CHARGER_TYPE_DEDICATED_CHG:
+		extcon_set_cable_state(info->edev, "TA", false);
+		break;
+	case MAX8997_CHARGER_TYPE_500MA:
+		extcon_set_cable_state(info->edev, "Slow-charger", false);
+		break;
+	case MAX8997_CHARGER_TYPE_1A:
+		extcon_set_cable_state(info->edev, "Fast-charger", false);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
 
 	return ret;
 }
@@ -258,7 +298,6 @@ static int max8997_muic_handle_adc(struct max8997_muic_info *info, int adc)
 static int max8997_muic_handle_charger_type(struct max8997_muic_info *info,
 				enum max8997_muic_charger_type charger_type)
 {
-	struct max8997_muic_platform_data *mdata = info->muic_pdata;
 	u8 adc;
 	int ret;
 
@@ -270,30 +309,29 @@ static int max8997_muic_handle_charger_type(struct max8997_muic_info *info,
 
 	switch (charger_type) {
 	case MAX8997_CHARGER_TYPE_NONE:
-		if (mdata->charger_callback)
-			mdata->charger_callback(false, charger_type);
-		if (info->pre_charger_type == MAX8997_CHARGER_TYPE_USB) {
-			max8997_muic_handle_usb(info,
-					MAX8997_USB_DEVICE, false);
-		}
+		ret = max8997_muic_handle_charger_type_detach(info);
 		break;
 	case MAX8997_CHARGER_TYPE_USB:
 		if ((adc & STATUS1_ADC_MASK) == MAX8997_ADC_OPEN) {
 			max8997_muic_handle_usb(info,
 					MAX8997_USB_DEVICE, true);
 		}
-		if (mdata->charger_callback)
-			mdata->charger_callback(true, charger_type);
 		break;
 	case MAX8997_CHARGER_TYPE_DOWNSTREAM_PORT:
+		extcon_set_cable_state(info->edev, "Charge-downstream", true);
+		break;
 	case MAX8997_CHARGER_TYPE_DEDICATED_CHG:
+		extcon_set_cable_state(info->edev, "TA", true);
+		break;
 	case MAX8997_CHARGER_TYPE_500MA:
+		extcon_set_cable_state(info->edev, "Slow-charger", true);
+		break;
 	case MAX8997_CHARGER_TYPE_1A:
-		if (mdata->charger_callback)
-			mdata->charger_callback(true, charger_type);
+		extcon_set_cable_state(info->edev, "Fast-charger", true);
 		break;
 	default:
-		break;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	info->pre_charger_type = charger_type;
@@ -305,18 +343,17 @@ static void max8997_muic_irq_work(struct work_struct *work)
 {
 	struct max8997_muic_info *info = container_of(work,
 			struct max8997_muic_info, irq_work);
-	struct max8997_platform_data *pdata =
-				dev_get_platdata(info->iodev->dev);
-	u8 status[3];
+	struct max8997_dev *max8997 = i2c_get_clientdata(info->muic);
+	u8 status[2];
 	u8 adc, chg_type;
 
-	int irq_type = info->irq - pdata->irq_base;
+	int irq_type = info->irq - max8997->irq_base;
 	int ret;
 
 	mutex_lock(&info->mutex);
 
 	ret = max8997_bulk_read(info->muic, MAX8997_MUIC_REG_STATUS1,
-				3, status);
+				2, status);
 	if (ret) {
 		dev_err(info->dev, "failed to read muic register\n");
 		mutex_unlock(&info->mutex);
@@ -340,8 +377,8 @@ static void max8997_muic_irq_work(struct work_struct *work)
 		max8997_muic_handle_charger_type(info, chg_type);
 		break;
 	default:
-		dev_info(info->dev, "misc interrupt: %s occurred\n",
-			 muic_irqs[irq_type].name);
+		dev_info(info->dev, "misc interrupt: irq %d occurred\n",
+				irq_type);
 		break;
 	}
 
@@ -387,21 +424,10 @@ static void max8997_muic_detect_dev(struct max8997_muic_info *info)
 	max8997_muic_handle_charger_type(info, chg_type);
 }
 
-static void max8997_initialize_device(struct max8997_muic_info *info)
-{
-	struct max8997_muic_platform_data *mdata = info->muic_pdata;
-	int i;
-
-	for (i = 0; i < mdata->num_init_data; i++) {
-		max8997_write_reg(info->muic, mdata->init_data[i].addr,
-				mdata->init_data[i].data);
-	}
-}
-
 static int __devinit max8997_muic_probe(struct platform_device *pdev)
 {
-	struct max8997_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct max8997_platform_data *pdata = dev_get_platdata(iodev->dev);
+	struct max8997_dev *max8997 = dev_get_drvdata(pdev->dev.parent);
+	struct max8997_platform_data *pdata = dev_get_platdata(max8997->dev);
 	struct max8997_muic_info *info;
 	int ret, i;
 
@@ -412,16 +438,8 @@ static int __devinit max8997_muic_probe(struct platform_device *pdev)
 		goto err_kfree;
 	}
 
-	if (!pdata->muic_pdata) {
-		dev_err(&pdev->dev, "failed to get platform_data\n");
-		ret = -EINVAL;
-		goto err_pdata;
-	}
-	info->muic_pdata = pdata->muic_pdata;
-
 	info->dev = &pdev->dev;
-	info->iodev = iodev;
-	info->muic = iodev->muic;
+	info->muic = max8997->muic;
 
 	platform_set_drvdata(pdev, info);
 	mutex_init(&info->mutex);
@@ -444,18 +462,41 @@ static int __devinit max8997_muic_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* External connector */
+	info->edev = kzalloc(sizeof(struct extcon_dev), GFP_KERNEL);
+	if (!info->edev) {
+		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
+		ret = -ENOMEM;
+		goto err_irq;
+	}
+	info->edev->name = DEV_NAME;
+	info->edev->supported_cable = max8997_extcon_cable;
+	ret = extcon_dev_register(info->edev, NULL);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register extcon device\n");
+		goto err_extcon;
+	}
+
 	/* Initialize registers according to platform data */
-	max8997_initialize_device(info);
+	if (pdata->muic_pdata) {
+		struct max8997_muic_platform_data *mdata = info->muic_pdata;
+
+		for (i = 0; i < mdata->num_init_data; i++) {
+			max8997_write_reg(info->muic, mdata->init_data[i].addr,
+					mdata->init_data[i].data);
+		}
+	}
 
 	/* Initial device detection */
 	max8997_muic_detect_dev(info);
 
 	return ret;
 
+err_extcon:
+	kfree(info->edev);
 err_irq:
 	while (--i >= 0)
 		free_irq(pdata->irq_base + muic_irqs[i].irq, info);
-err_pdata:
 	kfree(info);
 err_kfree:
 	return ret;
@@ -464,13 +505,14 @@ err_kfree:
 static int __devexit max8997_muic_remove(struct platform_device *pdev)
 {
 	struct max8997_muic_info *info = platform_get_drvdata(pdev);
-	struct max8997_platform_data *pdata =
-				dev_get_platdata(info->iodev->dev);
+	struct max8997_dev *max8997 = i2c_get_clientdata(info->muic);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++)
-		free_irq(pdata->irq_base + muic_irqs[i].irq, info);
+		free_irq(max8997->irq_base + muic_irqs[i].irq, info);
 	cancel_work_sync(&info->irq_work);
+
+	extcon_dev_unregister(info->edev);
 
 	kfree(info);
 
@@ -479,7 +521,7 @@ static int __devexit max8997_muic_remove(struct platform_device *pdev)
 
 static struct platform_driver max8997_muic_driver = {
 	.driver		= {
-		.name	= "max8997-muic",
+		.name	= DEV_NAME,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max8997_muic_probe,
@@ -488,6 +530,6 @@ static struct platform_driver max8997_muic_driver = {
 
 module_platform_driver(max8997_muic_driver);
 
-MODULE_DESCRIPTION("Maxim MAX8997 MUIC driver");
+MODULE_DESCRIPTION("Maxim MAX8997 Extcon driver");
 MODULE_AUTHOR("Donggeun Kim <dg77.kim@samsung.com>");
 MODULE_LICENSE("GPL");
