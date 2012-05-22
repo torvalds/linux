@@ -1,5 +1,5 @@
 /*
- * tegra_alc5632.c  --  Toshiba AC100(PAZ00) machine ASoC driver
+* tegra_alc5632.c  --  Toshiba AC100(PAZ00) machine ASoC driver
  *
  * Copyright (C) 2011 The AC100 Kernel Team <ac100@lists.lauchpad.net>
  * Copyright (C) 2012 - NVIDIA, Inc.
@@ -110,7 +110,6 @@ static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	struct device_node *np = codec->card->dev->of_node;
 	struct tegra_alc5632 *machine = snd_soc_card_get_drvdata(codec->card);
 
 	snd_soc_jack_new(codec, "Headset Jack", SND_JACK_HEADSET,
@@ -118,8 +117,6 @@ static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_jack_add_pins(&tegra_alc5632_hs_jack,
 			ARRAY_SIZE(tegra_alc5632_hs_jack_pins),
 			tegra_alc5632_hs_jack_pins);
-
-	machine->gpio_hp_det = of_get_named_gpio(np, "nvidia,hp-det-gpios", 0);
 
 	if (gpio_is_valid(machine->gpio_hp_det)) {
 		tegra_alc5632_hp_jack_gpio.gpio = machine->gpio_hp_det;
@@ -159,6 +156,7 @@ static struct snd_soc_card snd_soc_tegra_alc5632 = {
 
 static __devinit int tegra_alc5632_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct snd_soc_card *card = &snd_soc_tegra_alc5632;
 	struct tegra_alc5632 *alc5632;
 	int ret;
@@ -180,6 +178,10 @@ static __devinit int tegra_alc5632_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err;
 	}
+
+	alc5632->gpio_hp_det = of_get_named_gpio(np, "nvidia,hp-det-gpios", 0);
+	if (alc5632->gpio_hp_det == -ENODEV)
+		return -EPROBE_DEFER;
 
 	ret = snd_soc_of_parse_card_name(card, "nvidia,model");
 	if (ret)
