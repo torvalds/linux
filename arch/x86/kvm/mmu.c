@@ -1242,7 +1242,8 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	int young = 0;
 
 	/*
-	 * Emulate the accessed bit for EPT, by checking if this page has
+	 * In case of absence of EPT Access and Dirty Bits supports,
+	 * emulate the accessed bit for EPT, by checking if this page has
 	 * an EPT mapping, and clearing it if it does. On the next access,
 	 * a new EPT mapping will be established.
 	 * This has some overhead, but not as much as the cost of swapping
@@ -1253,11 +1254,12 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 
 	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
 	     sptep = rmap_get_next(&iter)) {
-		BUG_ON(!(*sptep & PT_PRESENT_MASK));
+		BUG_ON(!is_shadow_present_pte(*sptep));
 
-		if (*sptep & PT_ACCESSED_MASK) {
+		if (*sptep & shadow_accessed_mask) {
 			young = 1;
-			clear_bit(PT_ACCESSED_SHIFT, (unsigned long *)sptep);
+			clear_bit((ffs(shadow_accessed_mask) - 1),
+				 (unsigned long *)sptep);
 		}
 	}
 
@@ -1281,9 +1283,9 @@ static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 
 	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
 	     sptep = rmap_get_next(&iter)) {
-		BUG_ON(!(*sptep & PT_PRESENT_MASK));
+		BUG_ON(!is_shadow_present_pte(*sptep));
 
-		if (*sptep & PT_ACCESSED_MASK) {
+		if (*sptep & shadow_accessed_mask) {
 			young = 1;
 			break;
 		}

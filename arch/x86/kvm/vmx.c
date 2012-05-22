@@ -7289,8 +7289,10 @@ static int __init vmx_init(void)
 	vmx_disable_intercept_for_msr(MSR_IA32_SYSENTER_EIP, false);
 
 	if (enable_ept) {
-		kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull,
-				VMX_EPT_EXECUTABLE_MASK);
+		kvm_mmu_set_mask_ptes(0ull,
+			(enable_ept_ad_bits) ? VMX_EPT_ACCESS_BIT : 0ull,
+			(enable_ept_ad_bits) ? VMX_EPT_DIRTY_BIT : 0ull,
+			0ull, VMX_EPT_EXECUTABLE_MASK);
 		ept_set_mmio_spte_mask();
 		kvm_enable_tdp();
 	} else
