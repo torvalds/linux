@@ -203,16 +203,11 @@ void __init leon_boot_cpus(void)
 
 }
 
-int __cpuinit leon_boot_one_cpu(int i)
+int __cpuinit leon_boot_one_cpu(int i, struct task_struct *idle)
 {
-
-	struct task_struct *p;
 	int timeout;
 
-	/* Cook up an idler for this guy. */
-	p = fork_idle(i);
-
-	current_set[i] = task_thread_info(p);
+	current_set[i] = task_thread_info(idle);
 
 	/* See trampoline.S:leon_smp_cpu_startup for details...
 	 * Initialize the contexts table

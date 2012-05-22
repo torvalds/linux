@@ -62,6 +62,8 @@ DECLARE_EARLY_PER_CPU(int, x86_cpu_to_logical_apicid);
 /* Static state in head.S used to set up a CPU */
 extern unsigned long stack_start; /* Initial stack pointer address */
 
+struct task_struct;
+
 struct smp_ops {
 	void (*smp_prepare_boot_cpu)(void);
 	void (*smp_prepare_cpus)(unsigned max_cpus);
@@ -70,7 +72,7 @@ struct smp_ops {
 	void (*stop_other_cpus)(int wait);
 	void (*smp_send_reschedule)(int cpu);
 
-	int (*cpu_up)(unsigned cpu);
+	int (*cpu_up)(unsigned cpu, struct task_struct *tidle);
 	int (*cpu_disable)(void);
 	void (*cpu_die)(unsigned int cpu);
 	void (*play_dead)(void);
@@ -113,9 +115,9 @@ static inline void smp_cpus_done(unsigned int max_cpus)
 	smp_ops.smp_cpus_done(max_cpus);
 }
 
-static inline int __cpu_up(unsigned int cpu)
+static inline int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	return smp_ops.cpu_up(cpu);
+	return smp_ops.cpu_up(cpu, tidle);
 }
 
 static inline int __cpu_disable(void)
@@ -152,7 +154,7 @@ void cpu_disable_common(void);
 void native_smp_prepare_boot_cpu(void);
 void native_smp_prepare_cpus(unsigned int max_cpus);
 void native_smp_cpus_done(unsigned int max_cpus);
-int native_cpu_up(unsigned int cpunum);
+int native_cpu_up(unsigned int cpunum, struct task_struct *tidle);
 int native_cpu_disable(void);
 void native_cpu_die(unsigned int cpu);
 void native_play_dead(void);
@@ -162,6 +164,7 @@ int wbinvd_on_all_cpus(void);
 
 void native_send_call_func_ipi(const struct cpumask *mask);
 void native_send_call_func_single_ipi(int cpu);
+void x86_idle_thread_init(unsigned int cpu, struct task_struct *idle);
 
 void smp_store_cpu_info(int id);
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)

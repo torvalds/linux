@@ -68,8 +68,6 @@ struct thread_struct {
 	.request		= { 0 } \
 }
 
-extern struct task_struct *alloc_task_struct_node(int node);
-
 static inline void release_thread(struct task_struct *task)
 {
 }

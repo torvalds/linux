@@ -51,7 +51,7 @@ UNIT		:= asb2364
 endif
 
 
-head-y		:= arch/mn10300/kernel/head.o arch/mn10300/kernel/init_task.o
+head-y		:= arch/mn10300/kernel/head.o
 
 core-y		+= arch/mn10300/kernel/ arch/mn10300/mm/
 

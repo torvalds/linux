@@ -270,6 +270,7 @@ struct leon2_cacheregs {
 #include <linux/interrupt.h>
 
 struct device_node;
+struct task_struct;
 extern unsigned int leon_build_device_irq(unsigned int real_irq,
 					   irq_flow_handler_t flow_handler,
 					   const char *name, int do_ack);
@@ -289,7 +290,7 @@ extern int leon_smp_nrcpus(void);
 extern void leon_clear_profile_irq(int cpu);
 extern void leon_smp_done(void);
 extern void leon_boot_cpus(void);
-extern int leon_boot_one_cpu(int i);
+extern int leon_boot_one_cpu(int i, struct task_struct *);
 void leon_init_smp(void);
 extern void cpu_idle(void);
 extern void init_IRQ(void);
@@ -325,7 +326,7 @@ extern int leon_ipi_irq;
 #define init_leon() do {} while (0)
 #define leon_smp_done() do {} while (0)
 #define leon_boot_cpus() do {} while (0)
-#define leon_boot_one_cpu(i) 1
+#define leon_boot_one_cpu(i, t) 1
 #define leon_init_smp() do {} while (0)
 
 #endif /* !defined(CONFIG_SPARC_LEON) */

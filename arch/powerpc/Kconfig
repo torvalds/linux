@@ -87,10 +87,6 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default y if 64BIT
 
-config ARCH_HAS_CPU_IDLE_WAIT
-	bool
-	default y
-
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -144,6 +140,7 @@ config PPC
 	select HAVE_BPF_JIT if PPC64
 	select HAVE_ARCH_JUMP_LABEL
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select GENERIC_SMP_IDLE_THREAD
 
 config EARLY_PRINTK
 	bool

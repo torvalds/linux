@@ -31,11 +31,13 @@ config SPARC
 	select GENERIC_PCI_IOMAP
 	select HAVE_NMI_WATCHDOG if SPARC64
 	select HAVE_BPF_JIT
+	select GENERIC_SMP_IDLE_THREAD
 
 config SPARC32
 	def_bool !64BIT
 	select GENERIC_ATOMIC64
 	select CLZ_TAB
+	select ARCH_THREAD_INFO_ALLOCATOR
 
 config SPARC64
 	def_bool 64BIT

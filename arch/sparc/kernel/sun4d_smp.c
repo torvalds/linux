@@ -129,18 +129,14 @@ void __init smp4d_boot_cpus(void)
 	local_ops->cache_all();
 }
 
-int __cpuinit smp4d_boot_one_cpu(int i)
+int __cpuinit smp4d_boot_one_cpu(int i, struct task_struct *idle)
 {
 	unsigned long *entry = &sun4d_cpu_startup;
-	struct task_struct *p;
 	int timeout;
 	int cpu_node;
 
 	cpu_find_by_instance(i, &cpu_node, NULL);
-	/* Cook up an idler for this guy. */
-	p = fork_idle(i);
-	current_set[i] = task_thread_info(p);
-
+	current_set[i] = task_thread_info(idle);
 	/*
 	 * Initialize the contexts table
 	 * Since the call to prom_startcpu() trashes the structure,

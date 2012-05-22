@@ -108,17 +108,12 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 /* Bring one cpu online.*/
 static int __init
-smp_boot_one_cpu(int cpuid)
+smp_boot_one_cpu(int cpuid, struct task_struct idle)
 {
 	unsigned timeout;
-	struct task_struct *idle;
 	cpumask_t cpu_mask;
 
 	cpumask_clear(&cpu_mask);
-	idle = fork_idle(cpuid);
-	if (IS_ERR(idle))
-		panic("SMP: fork failed for CPU:%d", cpuid);
-
 	task_thread_info(idle)->cpu = cpuid;
 
 	/* Information to the CPU that is about to boot */
@@ -141,9 +136,6 @@ smp_boot_one_cpu(int cpuid)
 		udelay(100);
 		barrier();
 	}
-
-	put_task_struct(idle);
-	idle = NULL;
 
 	printk(KERN_CRIT "SMP: CPU:%d is stuck.\n", cpuid);
 	return -1;
@@ -207,9 +199,9 @@ int setup_profiling_timer(unsigned int multiplier)
  */
 unsigned long cache_decay_ticks = 1;
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	smp_boot_one_cpu(cpu);
+	smp_boot_one_cpu(cpu, tidle);
 	return cpu_online(cpu) ? 0 : -ENOSYS;
 }
 

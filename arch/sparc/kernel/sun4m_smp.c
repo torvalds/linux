@@ -90,18 +90,15 @@ void __init smp4m_boot_cpus(void)
 	local_ops->cache_all();
 }
 
-int __cpuinit smp4m_boot_one_cpu(int i)
+int __cpuinit smp4m_boot_one_cpu(int i, struct task_struct *idle)
 {
 	unsigned long *entry = &sun4m_cpu_startup;
-	struct task_struct *p;
 	int timeout;
 	int cpu_node;
 
 	cpu_find_by_mid(i, &cpu_node);
+	current_set[i] = task_thread_info(idle);
 
-	/* Cook up an idler for this guy. */
-	p = fork_idle(i);
-	current_set[i] = task_thread_info(p);
 	/* See trampoline.S for details... */
 	entry += ((i - 1) * 3);
 

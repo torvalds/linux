@@ -50,7 +50,6 @@ endif
 endif
 
 head-y                 := arch/sparc/kernel/head_$(BITS).o
-head-y                 += arch/sparc/kernel/init_task.o
 
 # See arch/sparc/Kbuild for the core part of the kernel
 core-y                 += arch/sparc/

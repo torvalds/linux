@@ -256,21 +256,21 @@ void __init smp_prepare_boot_cpu(void)
 	set_cpu_possible(cpuid, true);
 }
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	extern int __cpuinit smp4m_boot_one_cpu(int);
-	extern int __cpuinit smp4d_boot_one_cpu(int);
+	extern int __cpuinit smp4m_boot_one_cpu(int, struct task_struct *);
+	extern int __cpuinit smp4d_boot_one_cpu(int, struct task_struct *);
 	int ret=0;
 
 	switch(sparc_cpu_model) {
 	case sun4m:
-		ret = smp4m_boot_one_cpu(cpu);
+		ret = smp4m_boot_one_cpu(cpu, tidle);
 		break;
 	case sun4d:
-		ret = smp4d_boot_one_cpu(cpu);
+		ret = smp4d_boot_one_cpu(cpu, tidle);
 		break;
 	case sparc_leon:
-		ret = leon_boot_one_cpu(cpu);
+		ret = leon_boot_one_cpu(cpu, tidle);
 		break;
 	case sun4e:
 		printk("SUN4E\n");

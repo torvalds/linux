@@ -109,8 +109,6 @@ KBUILD_AFLAGS += -mcpu=$(CPU_REV)
 CHECKFLAGS_SILICON = $(shell echo "" | $(CPP) $(KBUILD_CFLAGS) -dD - 2>/dev/null | awk '$$2 == "__SILICON_REVISION__" { print $$3 }')
 CHECKFLAGS += -D__SILICON_REVISION__=$(CHECKFLAGS_SILICON) -D__bfin__
 
-head-y   := arch/$(ARCH)/kernel/init_task.o
-
 core-y   += arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/ arch/$(ARCH)/mach-common/
 
 # If we have a machine-specific directory, then include it in the build.
