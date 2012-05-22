@@ -403,6 +403,8 @@ config ARCH_PRIMA2
 	select CLKDEV_LOOKUP
 	select GENERIC_IRQ_CHIP
 	select MIGHT_HAVE_CACHE_L2X0
+	select PINCTRL
+	select PINCTRL_SIRF
 	select USE_OF
 	select ZONE_DMA
 	help
@@ -465,6 +467,7 @@ config ARCH_MXS
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select HAVE_CLK_PREPARE
+	select PINCTRL
 	help
 	  Support for Freescale MXS-based family of processors
 
@@ -919,6 +922,7 @@ config ARCH_NOMADIK
 	select CPU_ARM926T
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
+	select PINCTRL
 	select MIGHT_HAVE_CACHE_L2X0
 	select ARCH_REQUIRE_GPIOLIB
 	help

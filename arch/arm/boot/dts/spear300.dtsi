@@ -21,6 +21,11 @@
 		ranges = <0x60000000 0x60000000 0x50000000
 			  0xd0000000 0xd0000000 0x30000000>;
 
+		pinmux@99000000 {
+			compatible = "st,spear300-pinmux";
+			reg = <0x99000000 0x1000>;
+		};
+
 		clcd@60000000 {
 			compatible = "arm,clcd-pl110", "arm,primecell";
 			reg = <0x60000000 0x1000>;

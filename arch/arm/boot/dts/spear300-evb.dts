@@ -25,6 +25,44 @@
 	};
 
 	ahb {
+		pinmux@99000000 {
+			st,pinmux-mode = <2>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&state_default>;
+
+			state_default: pinmux {
+				i2c0 {
+					st,pins = "i2c0_grp";
+					st,function = "i2c0";
+				};
+				ssp0 {
+					st,pins = "ssp0_grp";
+					st,function = "ssp0";
+				};
+				mii0 {
+					st,pins = "mii0_grp";
+					st,function = "mii0";
+				};
+				uart0 {
+					st,pins = "uart0_grp";
+					st,function = "uart0";
+				};
+				clcd {
+					st,pins = "clcd_pfmode_grp";
+					st,function = "clcd";
+				};
+				sdhci {
+					st,pins = "sdhci_4bit_grp";
+					st,function = "sdhci";
+				};
+				gpio1 {
+					st,pins = "gpio1_4_to_7_grp",
+						"gpio1_0_to_3_grp";
+					st,function = "gpio1";
+				};
+			};
+		};
+
 		clcd@60000000 {
 			status = "okay";
 		};

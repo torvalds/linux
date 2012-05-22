@@ -82,128 +82,6 @@
 #define SPEAR310_VIRQ_RS485_1			(SPEAR3XX_VIRQ_START + 17)
 
 
-/* pad multiplexing support */
-/* muxing registers */
-#define PAD_MUX_CONFIG_REG	0x08
-
-/* devices */
-static struct pmx_dev_mode pmx_emi_cs_0_1_4_5_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_TIMER_3_4_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_emi_cs_0_1_4_5 = {
-	.name = "emi_cs_0_1_4_5",
-	.modes = pmx_emi_cs_0_1_4_5_modes,
-	.mode_count = ARRAY_SIZE(pmx_emi_cs_0_1_4_5_modes),
-	.enb_on_reset = 1,
-};
-
-static struct pmx_dev_mode pmx_emi_cs_2_3_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_TIMER_1_2_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_emi_cs_2_3 = {
-	.name = "emi_cs_2_3",
-	.modes = pmx_emi_cs_2_3_modes,
-	.mode_count = ARRAY_SIZE(pmx_emi_cs_2_3_modes),
-	.enb_on_reset = 1,
-};
-
-static struct pmx_dev_mode pmx_uart1_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_FIRDA_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_uart1 = {
-	.name = "uart1",
-	.modes = pmx_uart1_modes,
-	.mode_count = ARRAY_SIZE(pmx_uart1_modes),
-	.enb_on_reset = 1,
-};
-
-static struct pmx_dev_mode pmx_uart2_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_TIMER_1_2_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_uart2 = {
-	.name = "uart2",
-	.modes = pmx_uart2_modes,
-	.mode_count = ARRAY_SIZE(pmx_uart2_modes),
-	.enb_on_reset = 1,
-};
-
-static struct pmx_dev_mode pmx_uart3_4_5_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_UART0_MODEM_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_uart3_4_5 = {
-	.name = "uart3_4_5",
-	.modes = pmx_uart3_4_5_modes,
-	.mode_count = ARRAY_SIZE(pmx_uart3_4_5_modes),
-	.enb_on_reset = 1,
-};
-
-static struct pmx_dev_mode pmx_fsmc_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_SSP_CS_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_fsmc = {
-	.name = "fsmc",
-	.modes = pmx_fsmc_modes,
-	.mode_count = ARRAY_SIZE(pmx_fsmc_modes),
-	.enb_on_reset = 1,
-};
-
-static struct pmx_dev_mode pmx_rs485_0_1_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_MII_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_rs485_0_1 = {
-	.name = "rs485_0_1",
-	.modes = pmx_rs485_0_1_modes,
-	.mode_count = ARRAY_SIZE(pmx_rs485_0_1_modes),
-	.enb_on_reset = 1,
-};
-
-static struct pmx_dev_mode pmx_tdm0_modes[] = {
-	{
-		.ids = 0x00,
-		.mask = PMX_MII_MASK,
-	},
-};
-
-struct pmx_dev spear310_pmx_tdm0 = {
-	.name = "tdm0",
-	.modes = pmx_tdm0_modes,
-	.mode_count = ARRAY_SIZE(pmx_tdm0_modes),
-	.enb_on_reset = 1,
-};
-
-/* pmx driver structure */
-static struct pmx_driver pmx_driver = {
-	.mux_reg = {.offset = PAD_MUX_CONFIG_REG, .mask = 0x00007fff},
-};
-
 /* spear3xx shared irq */
 static struct shirq_dev_config shirq_ras1_config[] = {
 	{
@@ -318,30 +196,6 @@ static struct spear_shirq shirq_intrcomm_ras = {
 		.status_reg_mask = SPEAR310_SHIRQ_INTRCOMM_RAS_MASK,
 		.clear_reg = -1,
 	},
-};
-
-/* padmux devices to enable */
-static struct pmx_dev *spear310_evb_pmx_devs[] = {
-	/* spear3xx specific devices */
-	&spear3xx_pmx_i2c,
-	&spear3xx_pmx_ssp,
-	&spear3xx_pmx_gpio_pin0,
-	&spear3xx_pmx_gpio_pin1,
-	&spear3xx_pmx_gpio_pin2,
-	&spear3xx_pmx_gpio_pin3,
-	&spear3xx_pmx_gpio_pin4,
-	&spear3xx_pmx_gpio_pin5,
-	&spear3xx_pmx_uart0,
-
-	/* spear310 specific devices */
-	&spear310_pmx_emi_cs_0_1_4_5,
-	&spear310_pmx_emi_cs_2_3,
-	&spear310_pmx_uart1,
-	&spear310_pmx_uart2,
-	&spear310_pmx_uart3_4_5,
-	&spear310_pmx_fsmc,
-	&spear310_pmx_rs485_0_1,
-	&spear310_pmx_tdm0,
 };
 
 /* DMAC platform data's slave info */
@@ -578,7 +432,7 @@ static struct of_dev_auxdata spear310_auxdata_lookup[] __initdata = {
 static void __init spear310_dt_init(void)
 {
 	void __iomem *base;
-	int ret = 0;
+	int ret;
 
 	pl080_plat_data.slave_channels = spear310_dma_info;
 	pl080_plat_data.num_slave_channels = ARRAY_SIZE(spear310_dma_info);
@@ -612,19 +466,6 @@ static void __init spear310_dt_init(void)
 		ret = spear_shirq_register(&shirq_intrcomm_ras);
 		if (ret)
 			pr_err("Error registering Shared IRQ 4\n");
-	}
-
-	if (of_machine_is_compatible("st,spear310-evb")) {
-		/* pmx initialization */
-		pmx_driver.base = base;
-		pmx_driver.mode = NULL;
-		pmx_driver.devs = spear310_evb_pmx_devs;
-		pmx_driver.devs_count = ARRAY_SIZE(spear310_evb_pmx_devs);
-
-		ret = pmx_register(&pmx_driver);
-		if (ret)
-			pr_err("padmux: registration failed. err no: %d\n",
-					ret);
 	}
 }
 

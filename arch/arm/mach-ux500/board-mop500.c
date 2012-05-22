@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2008-2009 ST-Ericsson
  *
@@ -29,18 +30,17 @@
 #include <linux/smsc911x.h>
 #include <linux/gpio_keys.h>
 #include <linux/delay.h>
-
 #include <linux/of.h>
 #include <linux/of_platform.h>
-
 #include <linux/leds.h>
+#include <linux/pinctrl/consumer.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
 
 #include <plat/i2c.h>
 #include <plat/ste_dma40.h>
-#include <plat/pincfg.h>
 #include <plat/gpio-nomadik.h>
 
 #include <mach/hardware.h>
@@ -48,11 +48,11 @@
 #include <mach/devices.h>
 #include <mach/irqs.h>
 
-#include "pins-db8500.h"
 #include "ste-dma40-db8500.h"
 #include "devices-db8500.h"
 #include "board-mop500.h"
 #include "board-mop500-regulators.h"
+#include "board-mop500-msp.h"
 
 static struct gpio_led snowball_led_array[] = {
 	{
@@ -520,14 +520,6 @@ static struct stedma40_chan_cfg uart2_dma_cfg_tx = {
 };
 #endif
 
-
-static pin_cfg_t mop500_pins_uart0[] = {
-	GPIO0_U0_CTSn   | PIN_INPUT_PULLUP,
-	GPIO1_U0_RTSn   | PIN_OUTPUT_HIGH,
-	GPIO2_U0_RXD    | PIN_INPUT_PULLUP,
-	GPIO3_U0_TXD    | PIN_OUTPUT_HIGH,
-};
-
 #define PRCC_K_SOFTRST_SET      0x18
 #define PRCC_K_SOFTRST_CLEAR    0x1C
 static void ux500_uart0_reset(void)
@@ -548,24 +540,33 @@ static void ux500_uart0_reset(void)
 	udelay(1);
 }
 
+/* This needs to be referenced by callbacks */
+struct pinctrl *u0_p;
+struct pinctrl_state *u0_def;
+struct pinctrl_state *u0_sleep;
+
 static void ux500_uart0_init(void)
 {
 	int ret;
 
-	ret = nmk_config_pins(mop500_pins_uart0,
-			ARRAY_SIZE(mop500_pins_uart0));
-	if (ret < 0)
-		pr_err("pl011: uart pins_enable failed\n");
+	if (IS_ERR(u0_p) || IS_ERR(u0_def))
+		return;
+
+	ret = pinctrl_select_state(u0_p, u0_def);
+	if (ret)
+		pr_err("could not set UART0 defstate\n");
 }
 
 static void ux500_uart0_exit(void)
 {
 	int ret;
 
-	ret = nmk_config_pins_sleep(mop500_pins_uart0,
-			ARRAY_SIZE(mop500_pins_uart0));
-	if (ret < 0)
-		pr_err("pl011: uart pins_disable failed\n");
+	if (IS_ERR(u0_p) || IS_ERR(u0_sleep))
+		return;
+
+	ret = pinctrl_select_state(u0_p, u0_sleep);
+	if (ret)
+		pr_err("could not set UART0 idlestate\n");
 }
 
 static struct amba_pl011_data uart0_plat = {
@@ -597,7 +598,28 @@ static struct amba_pl011_data uart2_plat = {
 
 static void __init mop500_uart_init(struct device *parent)
 {
-	db8500_add_uart0(parent, &uart0_plat);
+	struct amba_device *uart0_device;
+
+	uart0_device = db8500_add_uart0(parent, &uart0_plat);
+	if (uart0_device) {
+		u0_p = pinctrl_get(&uart0_device->dev);
+		if (IS_ERR(u0_p))
+			dev_err(&uart0_device->dev,
+				"could not get UART0 pinctrl\n");
+		else {
+			u0_def = pinctrl_lookup_state(u0_p,
+						      PINCTRL_STATE_DEFAULT);
+			if (IS_ERR(u0_def)) {
+				dev_err(&uart0_device->dev,
+					"could not get UART0 defstate\n");
+			}
+			u0_sleep = pinctrl_lookup_state(u0_p,
+							PINCTRL_STATE_SLEEP);
+			if (IS_ERR(u0_sleep))
+				dev_err(&uart0_device->dev,
+					"could not get UART0 idlestate\n");
+		}
+	}
 	db8500_add_uart1(parent, &uart1_plat);
 	db8500_add_uart2(parent, &uart2_plat);
 }
@@ -616,9 +638,8 @@ static void __init mop500_init_machine(void)
 
 	mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
 
+	mop500_pinmaps_init();
 	parent = u8500_init_devices();
-
-	mop500_pins_init();
 
 	/* FIXME: parent of ab8500 should be prcmu */
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
@@ -630,6 +651,7 @@ static void __init mop500_init_machine(void)
 	mop500_i2c_init(parent);
 	mop500_sdi_init(parent);
 	mop500_spi_init(parent);
+	mop500_msp_init(parent);
 	mop500_uart_init(parent);
 
 	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
@@ -647,9 +669,8 @@ static void __init snowball_init_machine(void)
 	struct device *parent = NULL;
 	int i;
 
+	snowball_pinmaps_init();
 	parent = u8500_init_devices();
-
-	snowball_pins_init();
 
 	for (i = 0; i < ARRAY_SIZE(snowball_platform_devs); i++)
 		snowball_platform_devs[i]->dev.parent = parent;
@@ -660,6 +681,7 @@ static void __init snowball_init_machine(void)
 	mop500_i2c_init(parent);
 	snowball_sdi_init(parent);
 	mop500_spi_init(parent);
+	mop500_msp_init(parent);
 	mop500_uart_init(parent);
 
 	/* This board has full regulator constraints */
@@ -679,9 +701,8 @@ static void __init hrefv60_init_machine(void)
 	 */
 	mop500_gpio_keys[0].gpio = HREFV60_PROX_SENSE_GPIO;
 
+	hrefv60_pinmaps_init();
 	parent = u8500_init_devices();
-
-	hrefv60_pins_init();
 
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
 		mop500_platform_devs[i]->dev.parent = parent;
@@ -692,6 +713,7 @@ static void __init hrefv60_init_machine(void)
 	mop500_i2c_init(parent);
 	hrefv60_sdi_init(parent);
 	mop500_spi_init(parent);
+	mop500_msp_init(parent);
 	mop500_uart_init(parent);
 
 	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
@@ -739,10 +761,22 @@ MACHINE_END
 #ifdef CONFIG_MACH_UX500_DT
 
 struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
+	/* Requires DMA and call-back bindings. */
 	OF_DEV_AUXDATA("arm,pl011", 0x80120000, "uart0", &uart0_plat),
 	OF_DEV_AUXDATA("arm,pl011", 0x80121000, "uart1", &uart1_plat),
 	OF_DEV_AUXDATA("arm,pl011", 0x80007000, "uart2", &uart2_plat),
+	/* Requires DMA bindings. */
 	OF_DEV_AUXDATA("arm,pl022", 0x80002000, "ssp0",  &ssp0_plat),
+	/* Requires clock name bindings. */
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8012e000, "gpio.0", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8012e080, "gpio.1", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8000e000, "gpio.2", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8000e080, "gpio.3", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8000e100, "gpio.4", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8000e180, "gpio.5", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8011e000, "gpio.6", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8011e080, "gpio.7", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0xa03fe000, "gpio.8", NULL),
 	{},
 };
 
@@ -759,6 +793,14 @@ static void __init u8500_init_machine(void)
 	int i2c0_devs;
 	int i;
 
+	/* Pinmaps must be in place before devices register */
+	if (of_machine_is_compatible("st-ericsson,mop500"))
+		mop500_pinmaps_init();
+	else if (of_machine_is_compatible("calaosystems,snowball-a9500"))
+		snowball_pinmaps_init();
+	else if (of_machine_is_compatible("st-ericsson,hrefv60+"))
+		hrefv60_pinmaps_init();
+
 	parent = u8500_init_devices();
 
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
@@ -771,7 +813,6 @@ static void __init u8500_init_machine(void)
 
 	if (of_machine_is_compatible("st-ericsson,mop500")) {
 		mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
-		mop500_pins_init();
 
 		platform_add_devices(mop500_platform_devs,
 				ARRAY_SIZE(mop500_platform_devs));
@@ -784,7 +825,6 @@ static void __init u8500_init_machine(void)
 					ARRAY_SIZE(mop500_i2c2_devices));
 
 	} else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
-		snowball_pins_init();
 		platform_add_devices(snowball_platform_devs,
 				ARRAY_SIZE(snowball_platform_devs));
 
@@ -796,7 +836,6 @@ static void __init u8500_init_machine(void)
 		 * instead.
 		 */
 		mop500_gpio_keys[0].gpio = HREFV60_PROX_SENSE_GPIO;
-		hrefv60_pins_init();
 		platform_add_devices(mop500_platform_devs,
 				ARRAY_SIZE(mop500_platform_devs));
 

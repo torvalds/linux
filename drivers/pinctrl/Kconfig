@@ -80,6 +80,16 @@ config PINCTRL_IMX28
 	select PINCONF
 	select PINCTRL_MXS
 
+config PINCTRL_NOMADIK
+	bool "Nomadik pin controller driver"
+	depends on ARCH_U8500 || ARCH_NOMADIK
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_DB8500
+	bool "DB8500 pin controller driver"
+	depends on PINCTRL_NOMADIK && ARCH_U8500
+
 config PINCTRL_PXA168
 	bool "PXA168 pin controller driver"
 	depends on ARCH_MMP
@@ -126,6 +136,8 @@ config PINCTRL_COH901
 	  The names of the two IP block variants supported are
 	  COH 901 335 and COH 901 571/3. They contain 3, 5 or 7
 	  ports of 8 GPIO pins each.
+
+source "drivers/pinctrl/spear/Kconfig"
 
 endmenu
 

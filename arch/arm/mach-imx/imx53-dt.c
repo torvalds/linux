@@ -15,6 +15,7 @@
 #include <linux/irqdomain.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/pinctrl/machine.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/common.h>
@@ -87,6 +88,8 @@ static void __init imx53_dt_init(void)
 	void (*func)(void);
 
 	of_irq_init(imx53_irq_match);
+
+	pinctrl_provide_dummies();
 
 	node = of_find_matching_node(NULL, imx53_iomuxc_of_match);
 	if (node) {

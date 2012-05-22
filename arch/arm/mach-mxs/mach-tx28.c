@@ -146,6 +146,8 @@ static struct mxs_mmc_platform_data tx28_mmc0_pdata __initdata = {
 
 static void __init tx28_stk5v3_init(void)
 {
+	mx28_soc_init();
+
 	mxs_iomux_setup_multiple_pads(tx28_stk5v3_pads,
 			ARRAY_SIZE(tx28_stk5v3_pads));
 

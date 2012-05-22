@@ -19,6 +19,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/pinctrl/machine.h>
 
 #include <asm/pgtable.h>
 #include <asm/system_misc.h>
@@ -267,6 +268,7 @@ void __init imx35_soc_init(void)
 	mxc_register_gpio("imx31-gpio", 1, MX35_GPIO2_BASE_ADDR, SZ_16K, MX35_INT_GPIO2, 0);
 	mxc_register_gpio("imx31-gpio", 2, MX35_GPIO3_BASE_ADDR, SZ_16K, MX35_INT_GPIO3, 0);
 
+	pinctrl_provide_dummies();
 	if (to_version == 1) {
 		strncpy(imx35_sdma_pdata.fw_name, "sdma-imx35-to1.bin",
 			strlen(imx35_sdma_pdata.fw_name));

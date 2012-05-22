@@ -29,6 +29,18 @@
 
 void __iomem *_PRCMU_BASE;
 
+/*
+ * FIXME: Should we set up the GPIO domain here?
+ *
+ * The problem is that we cannot put the interrupt resources into the platform
+ * device until the irqdomain has been added. Right now, we set the GIC interrupt
+ * domain from init_irq(), then load the gpio driver from
+ * core_initcall(nmk_gpio_init) and add the platform devices from
+ * arch_initcall(customize_machine).
+ *
+ * This feels fragile because it depends on the gpio device getting probed
+ * _before_ any device uses the gpio interrupts.
+*/
 static const struct of_device_id ux500_dt_irq_match[] = {
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
 	{},
