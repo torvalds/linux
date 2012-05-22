@@ -732,43 +732,25 @@ static int bitmap_storage_alloc(struct bitmap_storage *store,
 	return 0;
 }
 
-static void bitmap_file_unmap(struct bitmap *bitmap)
+static void bitmap_file_unmap(struct bitmap_storage *store)
 {
 	struct page **map, *sb_page;
-	unsigned long *attr;
 	int pages;
-	struct bitmap_storage *store = &bitmap->storage;
+	struct file *file;
 
+	file = store->file;
 	map = store->filemap;
-	store->filemap = NULL;
-	attr = store->filemap_attr;
-	store->filemap_attr = NULL;
 	pages = store->file_pages;
-	store->file_pages = 0;
 	sb_page = store->sb_page;
-	store->sb_page = NULL;
 
 	while (pages--)
 		if (map[pages] != sb_page) /* 0 is sb_page, release it below */
 			free_buffers(map[pages]);
 	kfree(map);
-	kfree(attr);
+	kfree(store->filemap_attr);
 
 	if (sb_page)
 		free_buffers(sb_page);
-}
-
-static void bitmap_file_put(struct bitmap *bitmap)
-{
-	struct file *file;
-
-	file = bitmap->storage.file;
-	bitmap->storage.file = NULL;
-
-	if (file)
-		wait_event(bitmap->write_wait,
-			   atomic_read(&bitmap->pending_writes)==0);
-	bitmap_file_unmap(bitmap);
 
 	if (file) {
 		struct inode *inode = file->f_path.dentry->d_inode;
@@ -1610,8 +1592,12 @@ static void bitmap_free(struct bitmap *bitmap)
 	if (!bitmap) /* there was no bitmap */
 		return;
 
-	/* release the bitmap file and kill the daemon */
-	bitmap_file_put(bitmap);
+	/* Shouldn't be needed - but just in case.... */
+	wait_event(bitmap->write_wait,
+		   atomic_read(&bitmap->pending_writes) == 0);
+
+	/* release the bitmap file  */
+	bitmap_file_unmap(&bitmap->storage);
 
 	bp = bitmap->bp;
 	pages = bitmap->pages;
