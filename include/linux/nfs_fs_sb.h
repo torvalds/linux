@@ -81,13 +81,13 @@ struct nfs_client {
 	u32			cl_exchange_flags;
 	struct nfs4_session	*cl_session;	/* shared session */
 	struct nfs41_server_scope *cl_serverscope;
+	struct nfs41_impl_id	*cl_implid;
 #endif /* CONFIG_NFS_V4 */
 
 #ifdef CONFIG_NFS_FSCACHE
 	struct fscache_cookie	*fscache;	/* client index cache cookie */
 #endif
 
-	struct nfs41_impl_id	*impl_id;	/* from exchange_id */
 	struct net		*net;
 };
 
