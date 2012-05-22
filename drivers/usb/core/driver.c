@@ -367,6 +367,7 @@ static int usb_probe_interface(struct device *dev)
 	return error;
 
  err:
+	usb_set_intfdata(intf, NULL);
 	intf->needs_remote_wakeup = 0;
 	intf->condition = USB_INTERFACE_UNBOUND;
 	usb_cancel_queued_reset(intf);
