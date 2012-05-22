@@ -506,6 +506,35 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
 }
 
 /*
+ * Found an existing client.  Make sure it's ready before returning.
+ */
+static struct nfs_client *
+nfs_found_client(const struct nfs_client_initdata *cl_init,
+		 struct nfs_client *clp)
+{
+	int error;
+
+	error = wait_event_killable(nfs_client_active_wq,
+				clp->cl_cons_state < NFS_CS_INITING);
+	if (error < 0) {
+		nfs_put_client(clp);
+		return ERR_PTR(-ERESTARTSYS);
+	}
+
+	if (clp->cl_cons_state < NFS_CS_READY) {
+		error = clp->cl_cons_state;
+		nfs_put_client(clp);
+		return ERR_PTR(error);
+	}
+
+	BUG_ON(clp->cl_cons_state != NFS_CS_READY);
+
+	dprintk("<-- %s found nfs_client %p for %s\n",
+		__func__, clp, cl_init->hostname ?: "");
+	return clp;
+}
+
+/*
  * Look up a client by IP address and protocol version
  * - creates a new record if one doesn't yet exist
  */
@@ -528,8 +557,12 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 		spin_lock(&nn->nfs_client_lock);
 
 		clp = nfs_match_client(cl_init);
-		if (clp)
-			goto found_client;
+		if (clp) {
+			spin_unlock(&nn->nfs_client_lock);
+			if (new)
+				nfs_free_client(new);
+			return nfs_found_client(cl_init, clp);
+		}
 		if (new)
 			goto install_client;
 
@@ -538,7 +571,8 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 		new = nfs_alloc_client(cl_init);
 	} while (!IS_ERR(new));
 
-	dprintk("--> nfs_get_client() = %ld [failed]\n", PTR_ERR(new));
+	dprintk("<-- nfs_get_client() Failed to find %s (%ld)\n",
+		cl_init->hostname ?: "", PTR_ERR(new));
 	return new;
 
 	/* install a new client and return with it unready */
@@ -554,33 +588,6 @@ install_client:
 		return ERR_PTR(error);
 	}
 	dprintk("--> nfs_get_client() = %p [new]\n", clp);
-	return clp;
-
-	/* found an existing client
-	 * - make sure it's ready before returning
-	 */
-found_client:
-	spin_unlock(&nn->nfs_client_lock);
-
-	if (new)
-		nfs_free_client(new);
-
-	error = wait_event_killable(nfs_client_active_wq,
-				clp->cl_cons_state < NFS_CS_INITING);
-	if (error < 0) {
-		nfs_put_client(clp);
-		return ERR_PTR(-ERESTARTSYS);
-	}
-
-	if (clp->cl_cons_state < NFS_CS_READY) {
-		error = clp->cl_cons_state;
-		nfs_put_client(clp);
-		return ERR_PTR(error);
-	}
-
-	BUG_ON(clp->cl_cons_state != NFS_CS_READY);
-
-	dprintk("--> nfs_get_client() = %p [share]\n", clp);
 	return clp;
 }
 
