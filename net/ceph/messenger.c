@@ -29,6 +29,14 @@
  * the sender.
  */
 
+/* State values for ceph_connection->sock_state; NEW is assumed to be 0 */
+
+#define CON_SOCK_STATE_NEW		0	/* -> CLOSED */
+#define CON_SOCK_STATE_CLOSED		1	/* -> CONNECTING */
+#define CON_SOCK_STATE_CONNECTING	2	/* -> CONNECTED or -> CLOSING */
+#define CON_SOCK_STATE_CONNECTED	3	/* -> CLOSING or -> CLOSED */
+#define CON_SOCK_STATE_CLOSING		4	/* -> CLOSED */
+
 /* static tag bytes (protocol control messages) */
 static char tag_msg = CEPH_MSGR_TAG_MSG;
 static char tag_ack = CEPH_MSGR_TAG_ACK;
@@ -147,6 +155,55 @@ void ceph_msgr_flush(void)
 }
 EXPORT_SYMBOL(ceph_msgr_flush);
 
+/* Connection socket state transition functions */
+
+static void con_sock_state_init(struct ceph_connection *con)
+{
+	int old_state;
+
+	old_state = atomic_xchg(&con->sock_state, CON_SOCK_STATE_CLOSED);
+	if (WARN_ON(old_state != CON_SOCK_STATE_NEW))
+		printk("%s: unexpected old state %d\n", __func__, old_state);
+}
+
+static void con_sock_state_connecting(struct ceph_connection *con)
+{
+	int old_state;
+
+	old_state = atomic_xchg(&con->sock_state, CON_SOCK_STATE_CONNECTING);
+	if (WARN_ON(old_state != CON_SOCK_STATE_CLOSED))
+		printk("%s: unexpected old state %d\n", __func__, old_state);
+}
+
+static void con_sock_state_connected(struct ceph_connection *con)
+{
+	int old_state;
+
+	old_state = atomic_xchg(&con->sock_state, CON_SOCK_STATE_CONNECTED);
+	if (WARN_ON(old_state != CON_SOCK_STATE_CONNECTING))
+		printk("%s: unexpected old state %d\n", __func__, old_state);
+}
+
+static void con_sock_state_closing(struct ceph_connection *con)
+{
+	int old_state;
+
+	old_state = atomic_xchg(&con->sock_state, CON_SOCK_STATE_CLOSING);
+	if (WARN_ON(old_state != CON_SOCK_STATE_CONNECTING &&
+			old_state != CON_SOCK_STATE_CONNECTED &&
+			old_state != CON_SOCK_STATE_CLOSING))
+		printk("%s: unexpected old state %d\n", __func__, old_state);
+}
+
+static void con_sock_state_closed(struct ceph_connection *con)
+{
+	int old_state;
+
+	old_state = atomic_xchg(&con->sock_state, CON_SOCK_STATE_CLOSED);
+	if (WARN_ON(old_state != CON_SOCK_STATE_CONNECTED &&
+			old_state != CON_SOCK_STATE_CLOSING))
+		printk("%s: unexpected old state %d\n", __func__, old_state);
+}
 
 /*
  * socket callback functions
@@ -203,6 +260,7 @@ static void ceph_sock_state_change(struct sock *sk)
 		dout("%s TCP_CLOSE\n", __func__);
 	case TCP_CLOSE_WAIT:
 		dout("%s TCP_CLOSE_WAIT\n", __func__);
+		con_sock_state_closing(con);
 		if (test_and_set_bit(SOCK_CLOSED, &con->flags) == 0) {
 			if (test_bit(CONNECTING, &con->state))
 				con->error_msg = "connection failed";
@@ -213,6 +271,7 @@ static void ceph_sock_state_change(struct sock *sk)
 		break;
 	case TCP_ESTABLISHED:
 		dout("%s TCP_ESTABLISHED\n", __func__);
+		con_sock_state_connected(con);
 		queue_con(con);
 		break;
 	default:	/* Everything else is uninteresting */
@@ -277,6 +336,7 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 		return ret;
 	}
 	con->sock = sock;
+	con_sock_state_connecting(con);
 
 	return 0;
 }
@@ -343,6 +403,7 @@ static int con_close_socket(struct ceph_connection *con)
 	sock_release(con->sock);
 	con->sock = NULL;
 	clear_bit(SOCK_CLOSED, &con->state);
+	con_sock_state_closed(con);
 	return rc;
 }
 
@@ -462,6 +523,9 @@ void ceph_con_init(struct ceph_messenger *msgr, struct ceph_connection *con)
 	memset(con, 0, sizeof(*con));
 	atomic_set(&con->nref, 1);
 	con->msgr = msgr;
+
+	con_sock_state_init(con);
+
 	mutex_init(&con->mutex);
 	INIT_LIST_HEAD(&con->out_queue);
 	INIT_LIST_HEAD(&con->out_sent);
