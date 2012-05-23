@@ -27,10 +27,12 @@
 #include <mach/board.h>
 
 #if 0
-#define DBG(x...)   printk(KERN_INFO x)
+#define DBG(x...)   printk(KERN_INFO "[BT_RFKILL]: "x)
 #else
 #define DBG(x...)
 #endif
+
+#define LOG(x...)   printk(KERN_INFO "[BT_RFKILL]: "x)
 
 #ifdef CONFIG_BCM4329
 #define WIFI_BT_POWER_TOGGLE	1
@@ -93,6 +95,7 @@
 
 // BT wakeup host pin
 #define BT_GPIO_WAKE_UP_HOST    RK30_PIN6_PA7
+#define BT_IRQ_WAKE_UP_HOST     gpio_to_irq(BT_GPIO_WAKE_UP_HOST)
 #define IOMUX_BT_GPIO_WAKE_UP_HOST()
 
 //bt cts paired to uart rts
@@ -136,7 +139,7 @@ extern int rk29sdk_wifi_power_state;
 struct bt_ctrl gBtCtrl;
 struct timer_list bt_sleep_tl;
 
-    
+
 #if BT_WAKE_HOST_SUPPORT
 void resetBtHostSleepTimer(void)
 {
@@ -146,7 +149,7 @@ void resetBtHostSleepTimer(void)
 void btWakeupHostLock(void)
 {
     if(gBtCtrl.b_HostWake == false){
-        DBG("*************************Lock\n");
+        DBG("** Lock **\n");
         wake_lock(&(gBtCtrl.bt_wakelock));
         gBtCtrl.b_HostWake = true;
     }
@@ -155,7 +158,7 @@ void btWakeupHostLock(void)
 void btWakeupHostUnlock(void)
 {
     if(gBtCtrl.b_HostWake == true){        
-        DBG("*************************UnLock\n");
+        DBG("** UnLock **\n");
         wake_unlock(&(gBtCtrl.bt_wakelock));  //让系统睡眠    
         gBtCtrl.b_HostWake = false;
     }    
@@ -163,15 +166,28 @@ void btWakeupHostUnlock(void)
 
 static void timer_hostSleep(unsigned long arg)
 {     
-	DBG("%s---b_HostWake=%d\n",__FUNCTION__,gBtCtrl.b_HostWake);
+	DBG("b_HostWake=%d\n", gBtCtrl.b_HostWake);
     btWakeupHostUnlock();
 }
 
 void bcm4325_sleep(unsigned long bSleep);
 
 #ifdef CONFIG_PM
+static irqreturn_t bcm4329_wake_host_irq(int irq, void *dev)
+{
+    DBG("%s\n",__FUNCTION__);
+
+    btWakeupHostLock();
+    resetBtHostSleepTimer();
+	return IRQ_HANDLED;
+}
+
 static void rfkill_do_wakeup(struct work_struct *work)
 {
+    // disable bt wakeup host
+    DBG("** free irq\n");
+    free_irq(BT_IRQ_WAKE_UP_HOST, NULL);
+
     DBG("Enable UART_RTS\n");
     gpio_set_value(UART_RTS, GPIO_LOW);
     IOMUX_UART_RTS();
@@ -183,6 +199,8 @@ static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t sta
 {
     DBG("%s\n",__FUNCTION__);
 
+    cancel_delayed_work(&wakeup_work);
+
 #ifdef CONFIG_BT_AUTOSLEEP
     bcm4325_sleep(1);
 #endif
@@ -192,6 +210,17 @@ static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t sta
 	IOMUX_UART_RTS_GPIO();
 	gpio_request(UART_RTS, "uart_rts");
 	gpio_set_value(UART_RTS, GPIO_HIGH);
+
+    // enable bt wakeup host
+    DBG("Request irq for bt wakeup host\n");
+	if (0 == request_irq(BT_IRQ_WAKE_UP_HOST,
+                    bcm4329_wake_host_irq,
+                    IRQF_TRIGGER_FALLING,
+                    "bt_wake",
+                    NULL))
+        enable_irq_wake(BT_IRQ_WAKE_UP_HOST);
+    else
+		LOG("Failed to request BT_WAKE_UP_HOST irq\n");
 
 #ifdef CONFIG_RFKILL_RESET
     extern void rfkill_set_block(struct rfkill *rfkill, bool blocked);
@@ -203,8 +232,14 @@ static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t sta
 
 static int bcm4329_rfkill_resume(struct platform_device *pdev)
 {  
-    DBG("%s\n",__FUNCTION__);     
+    DBG("%s\n",__FUNCTION__);
 
+    // 系统退出二级睡眠后需要拉低RTS，从而才允许BT发数据过来
+    // 但是目前发现在resume函数中直接拉低RTS会导致BT数据丢失
+    // 所以延迟1s后再拉低RTS
+    // 系统退出二级睡眠时释放掉BT_IRQ_WAKE_UP_HOST，在睡眠时候再
+    // 次申请，目前发现中断回调函数比resume更晚执行，如果resume
+    // 时直接free掉IRQ，会导致中断回调函数不会被执行，
     DBG("delay 1s\n");
     schedule_delayed_work(&wakeup_work, HZ);
 
@@ -215,14 +250,6 @@ static int bcm4329_rfkill_resume(struct platform_device *pdev)
 #define bcm4329_rfkill_resume  NULL
 #endif
 
-static irqreturn_t bcm4329_wake_host_irq(int irq, void *dev)
-{
-    DBG("%s\n",__FUNCTION__);
-
-    btWakeupHostLock();
-    resetBtHostSleepTimer();
-	return IRQ_HANDLED;
-}
 #endif
 
 void bcm4325_sleep(unsigned long bSleep)
@@ -243,7 +270,7 @@ void bcm4325_sleep(unsigned long bSleep)
 
 static int bcm4329_set_block(void *data, bool blocked)
 {
-	DBG("%s---blocked :%d\n", __FUNCTION__, blocked);
+	DBG("set blocked :%d\n", blocked);
 
     IOMUX_BT_GPIO_POWER();
     IOMUX_BT_GPIO_RESET();
@@ -292,7 +319,7 @@ static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 	int rc = 0;
 	bool default_state = true;
 	
-	DBG("Enter::%s,line=%d\n",__FUNCTION__,__LINE__);
+	DBG("Enter %s\n",__FUNCTION__);
 	
 	/* default to bluetooth off */
  	bcm4329_set_block(NULL, default_state); /* blocked -> bt off */
@@ -305,7 +332,7 @@ static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 
 	if (!gBtCtrl.bt_rfk)
 	{
-		printk("fail to rfkill_allocate************\n");
+		LOG("fail to rfkill_allocate\n");
 		return -ENOMEM;
 	}
 	
@@ -314,7 +341,7 @@ static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 	rc = rfkill_register(gBtCtrl.bt_rfk);
 	if (rc)
 	{
-		printk("failed to rfkill_register,rc=0x%x\n",rc);
+		LOG("failed to rfkill_register,rc=0x%x\n",rc);
 		rfkill_destroy(gBtCtrl.bt_rfk);
 	}
 	
@@ -341,21 +368,14 @@ static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 	
 	rc = gpio_request(BT_GPIO_WAKE_UP_HOST, "bt_wake");
 	if (rc) {
-		printk("%s:failed to request BT_WAKE_UP_HOST\n",__FUNCTION__);
+		LOG("Failed to request BT_WAKE_UP_HOST\n");
 	}
 	
 	IOMUX_BT_GPIO_WAKE_UP_HOST();
 	gpio_pull_updown(BT_GPIO_WAKE_UP_HOST,GPIOPullUp);
-	rc = request_irq(gpio_to_irq(BT_GPIO_WAKE_UP_HOST),bcm4329_wake_host_irq,IRQF_TRIGGER_FALLING,"bt_wake",NULL);
-	if(rc)
-	{
-		printk("%s:failed to request BT_WAKE_UP_HOST irq\n",__FUNCTION__);
-		gpio_free(BT_GPIO_WAKE_UP_HOST);
-	}
-	enable_irq_wake(gpio_to_irq(BT_GPIO_WAKE_UP_HOST)); // so BT_WAKE_UP_HOST can wake up system
-
-	printk(KERN_INFO "bcm4329 module has been initialized,rc=0x%x\n",rc);
  #endif
+ 
+    LOG("bcm4329 module has been initialized,rc=0x%x\n",rc);
  
 	return rc;
 }
@@ -377,7 +397,7 @@ static int __devexit bcm4329_rfkill_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	DBG("Enter::%s,line=%d\n",__FUNCTION__,__LINE__);
+	DBG("Enter %s\n",__FUNCTION__);
 	return 0;
 }
 
@@ -400,9 +420,9 @@ static struct platform_driver bcm4329_rfkill_driver = {
 static int __init bcm4329_mod_init(void)
 {
 	int ret;
-	DBG("Enter::%s,line=%d\n",__FUNCTION__,__LINE__);
+	DBG("Enter %s\n",__FUNCTION__);
 	ret = platform_driver_register(&bcm4329_rfkill_driver);
-    	printk("ret=0x%x\n", ret);
+	LOG("ret=0x%x\n", ret);
 	return ret;
 }
 
