@@ -228,9 +228,7 @@ struct dentry *au_plink_lkup(struct inode *inode, aufs_bindex_t bindex)
 	struct inode *h_dir;
 	int wkq_err;
 	char a[PLINK_NAME_LEN];
-	struct qstr tgtname = {
-		.name	= a
-	};
+	struct qstr tgtname = QSTR_INIT(a, 0);
 
 	AuDebugOn(au_plink_maint(inode->i_sb, AuLock_NOPLM));
 
@@ -316,9 +314,7 @@ static int whplink(struct dentry *h_dentry, struct inode *inode,
 	struct dentry *h_parent;
 	struct inode *h_dir;
 	char a[PLINK_NAME_LEN];
-	struct qstr tgtname = {
-		.name = a
-	};
+	struct qstr tgtname = QSTR_INIT(a, 0);
 
 	wbr = au_sbr(inode->i_sb, bindex)->br_wbr;
 	h_parent = wbr->wbr_plink;
