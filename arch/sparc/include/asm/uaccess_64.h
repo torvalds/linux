@@ -257,10 +257,6 @@ extern unsigned long __must_check __clear_user(void __user *, unsigned long);
 
 #define clear_user __clear_user
 
-extern long __must_check __strncpy_from_user(char *dest, const char __user *src, long count);
-
-#define strncpy_from_user __strncpy_from_user
-
 extern long __strlen_user(const char __user *);
 extern long __strnlen_user(const char __user *, long len);
 

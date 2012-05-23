@@ -33,9 +33,6 @@ EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(__bzero);
 
-/* Moving data to/from/in userspace. */
-EXPORT_SYMBOL(__strncpy_from_user);
-
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_partial);
 

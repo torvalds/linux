@@ -304,16 +304,6 @@ static inline unsigned long clear_user(void __user *addr, unsigned long n)
 		return n;
 }
 
-extern long __strncpy_from_user(char *dest, const char __user *src, long count);
-
-static inline long strncpy_from_user(char *dest, const char __user *src, long count)
-{
-	if (__access_ok((unsigned long) src, count))
-		return __strncpy_from_user(dest, src, count);
-	else
-		return -EFAULT;
-}
-
 extern long __strlen_user(const char __user *);
 extern long __strnlen_user(const char __user *, long len);
 

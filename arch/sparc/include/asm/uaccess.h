@@ -5,4 +5,7 @@
 #else
 #include <asm/uaccess_32.h>
 #endif
+
+extern long strncpy_from_user(char *dest, const char __user *src, long count);
+
 #endif
