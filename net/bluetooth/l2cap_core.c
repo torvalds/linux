@@ -5500,6 +5500,17 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 			rsp.status = cpu_to_le16(stat);
 			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP,
 							sizeof(rsp), &rsp);
+
+			if (!test_bit(CONF_REQ_SENT, &chan->conf_state) &&
+			    res == L2CAP_CR_SUCCESS) {
+				char buf[128];
+				set_bit(CONF_REQ_SENT, &chan->conf_state);
+				l2cap_send_cmd(conn, l2cap_get_ident(conn),
+					       L2CAP_CONF_REQ,
+					       l2cap_build_conf_req(chan, buf),
+					       buf);
+				chan->num_conf_req++;
+			}
 		}
 
 		l2cap_chan_unlock(chan);
