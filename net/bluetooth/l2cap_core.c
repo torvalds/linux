@@ -2944,7 +2944,7 @@ done:
 	}
 
 	req->dcid  = cpu_to_le16(chan->dcid);
-	req->flags = cpu_to_le16(0);
+	req->flags = __constant_cpu_to_le16(0);
 
 	return ptr - data;
 }
@@ -3164,7 +3164,7 @@ done:
 	}
 	rsp->scid   = cpu_to_le16(chan->dcid);
 	rsp->result = cpu_to_le16(result);
-	rsp->flags  = cpu_to_le16(0x0000);
+	rsp->flags  = __constant_cpu_to_le16(0);
 
 	return ptr - data;
 }
@@ -3263,7 +3263,7 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 	}
 
 	req->dcid   = cpu_to_le16(chan->dcid);
-	req->flags  = cpu_to_le16(0x0000);
+	req->flags  = __constant_cpu_to_le16(0);
 
 	return ptr - data;
 }
@@ -3618,7 +3618,7 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 	memcpy(chan->conf_req + chan->conf_len, req->data, len);
 	chan->conf_len += len;
 
-	if (flags & 0x0001) {
+	if (flags & L2CAP_CONF_FLAG_CONTINUATION) {
 		/* Incomplete config. Send empty response. */
 		l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP,
 				l2cap_build_conf_rsp(chan, rsp,
@@ -3769,7 +3769,7 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 		goto done;
 	}
 
-	if (flags & 0x01)
+	if (flags & L2CAP_CONF_FLAG_CONTINUATION)
 		goto done;
 
 	set_bit(CONF_INPUT_DONE, &chan->conf_state);

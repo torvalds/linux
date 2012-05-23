@@ -271,6 +271,9 @@ struct l2cap_conf_rsp {
 #define L2CAP_CONF_PENDING	0x0004
 #define L2CAP_CONF_EFS_REJECT	0x0005
 
+/* configuration req/rsp continuation flag */
+#define L2CAP_CONF_FLAG_CONTINUATION	0x0001
+
 struct l2cap_conf_opt {
 	__u8       type;
 	__u8       len;
