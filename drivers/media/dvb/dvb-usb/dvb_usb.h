@@ -239,6 +239,8 @@ enum dvb_usb_mode {
  * @read_mac_address: called to read the MAC address of the device.
  * @identify_state: called to determine the state (cold or warm), when it
  *  is not distinguishable by the USB IDs.
+ * @init: called after adapters are created in order to finalize device
+ *  configuration.
  *
  * @rc: remote controller properties
  *
@@ -283,6 +285,7 @@ struct dvb_usb_device_properties {
 	int (*read_mac_address) (struct dvb_usb_device *, u8 []);
 	int (*identify_state)   (struct usb_device *, struct dvb_usb_device_properties *,
 			struct dvb_usb_device_description **, int *);
+	int (*init) (struct dvb_usb_device *);
 
 	struct {
 		enum dvb_usb_mode mode;	/* Drivers shouldn't touch on it */

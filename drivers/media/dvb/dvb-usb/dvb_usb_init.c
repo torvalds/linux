@@ -164,6 +164,9 @@ static int dvb_usb_init(struct dvb_usb_device *d, short *adapter_nums)
 		return ret;
 	}
 
+	if (d->props.init)
+		d->props.init(d);
+
 	if ((ret = dvb_usb_remote_init(d)))
 		err("could not initialize remote control.");
 
