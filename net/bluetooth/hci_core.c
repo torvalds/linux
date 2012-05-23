@@ -1291,7 +1291,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 	}
 
 	bacpy(&key->bdaddr, bdaddr);
-	memcpy(key->val, val, 16);
+	memcpy(key->val, val, HCI_LINK_KEY_SIZE);
 	key->pin_len = pin_len;
 
 	if (type == HCI_LK_CHANGED_COMBINATION)

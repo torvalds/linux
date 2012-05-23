@@ -30,6 +30,8 @@
 #define HCI_MAX_EVENT_SIZE	260
 #define HCI_MAX_FRAME_SIZE	(HCI_MAX_ACL_SIZE + 4)
 
+#define HCI_LINK_KEY_SIZE	16
+
 /* HCI dev events */
 #define HCI_DEV_REG			1
 #define HCI_DEV_UNREG			2
@@ -371,7 +373,7 @@ struct hci_cp_reject_conn_req {
 #define HCI_OP_LINK_KEY_REPLY		0x040b
 struct hci_cp_link_key_reply {
 	bdaddr_t bdaddr;
-	__u8     link_key[16];
+	__u8     link_key[HCI_LINK_KEY_SIZE];
 } __packed;
 
 #define HCI_OP_LINK_KEY_NEG_REPLY	0x040c
@@ -1048,7 +1050,7 @@ struct hci_ev_link_key_req {
 #define HCI_EV_LINK_KEY_NOTIFY		0x18
 struct hci_ev_link_key_notify {
 	bdaddr_t bdaddr;
-	__u8     link_key[16];
+	__u8     link_key[HCI_LINK_KEY_SIZE];
 	__u8     key_type;
 } __packed;
 

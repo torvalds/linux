@@ -2739,7 +2739,7 @@ static inline void hci_link_key_request_evt(struct hci_dev *hdev,
 	}
 
 	bacpy(&cp.bdaddr, &ev->bdaddr);
-	memcpy(cp.link_key, key->val, 16);
+	memcpy(cp.link_key, key->val, HCI_LINK_KEY_SIZE);
 
 	hci_send_cmd(hdev, HCI_OP_LINK_KEY_REPLY, sizeof(cp), &cp);
 
