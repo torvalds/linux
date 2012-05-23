@@ -1630,3 +1630,15 @@ out_free:
 	kfree(data);
 	goto out;
 }
+
+struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
+{
+	struct nfs4_threshold *thp;
+
+	thp = kzalloc(sizeof(*thp), GFP_NOFS);
+	if (!thp) {
+		dprintk("%s mdsthreshold allocation failed\n", __func__);
+		return NULL;
+	}
+	return thp;
+}

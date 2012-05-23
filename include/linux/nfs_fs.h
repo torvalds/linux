@@ -102,6 +102,7 @@ struct nfs_open_context {
 	int error;
 
 	struct list_head list;
+	struct nfs4_threshold	*mdsthreshold;
 };
 
 struct nfs_open_dir_context {

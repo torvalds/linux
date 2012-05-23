@@ -227,6 +227,7 @@ int pnfs_read_done_resend_to_mds(struct inode *inode, struct list_head *head,
 			const struct nfs_pgio_completion_ops *compl_ops);
 int pnfs_write_done_resend_to_mds(struct inode *inode, struct list_head *head,
 			const struct nfs_pgio_completion_ops *compl_ops);
+struct nfs4_threshold *pnfs_mdsthreshold_alloc(void);
 
 /* nfs4_deviceid_flags */
 enum {
@@ -360,6 +361,14 @@ static inline int pnfs_return_layout(struct inode *ino)
 	return 0;
 }
 
+static inline bool
+pnfs_use_threshold(struct nfs4_threshold **dst, struct nfs4_threshold *src,
+		   struct nfs_server *nfss)
+{
+	return (dst && src && src->bm != 0 &&
+					nfss->pnfs_curr_ld->id == src->l_type);
+}
+
 #ifdef NFS_DEBUG
 void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id);
 #else
@@ -483,6 +492,18 @@ pnfs_recover_commit_reqs(struct inode *inode, struct list_head *list,
 static inline int pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 {
 	return 0;
+}
+
+static inline bool
+pnfs_use_threshold(struct nfs4_threshold **dst, struct nfs4_threshold *src,
+		   struct nfs_server *nfss)
+{
+	return false;
+}
+
+static inline struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
+{
+	return NULL;
 }
 
 #endif /* CONFIG_NFS_V4_1 */
