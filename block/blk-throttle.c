@@ -219,6 +219,7 @@ alloc_stats:
 static void throtl_pd_init(struct blkcg_gq *blkg)
 {
 	struct throtl_grp *tg = blkg_to_tg(blkg);
+	unsigned long flags;
 
 	RB_CLEAR_NODE(&tg->rb_node);
 	bio_list_init(&tg->bio_lists[0]);
@@ -235,19 +236,20 @@ static void throtl_pd_init(struct blkcg_gq *blkg)
 	 * but percpu allocator can't be called from IO path.  Queue tg on
 	 * tg_stats_alloc_list and allocate from work item.
 	 */
-	spin_lock(&tg_stats_alloc_lock);
+	spin_lock_irqsave(&tg_stats_alloc_lock, flags);
 	list_add(&tg->stats_alloc_node, &tg_stats_alloc_list);
 	queue_delayed_work(system_nrt_wq, &tg_stats_alloc_work, 0);
-	spin_unlock(&tg_stats_alloc_lock);
+	spin_unlock_irqrestore(&tg_stats_alloc_lock, flags);
 }
 
 static void throtl_pd_exit(struct blkcg_gq *blkg)
 {
 	struct throtl_grp *tg = blkg_to_tg(blkg);
+	unsigned long flags;
 
-	spin_lock(&tg_stats_alloc_lock);
+	spin_lock_irqsave(&tg_stats_alloc_lock, flags);
 	list_del_init(&tg->stats_alloc_node);
-	spin_unlock(&tg_stats_alloc_lock);
+	spin_unlock_irqrestore(&tg_stats_alloc_lock, flags);
 
 	free_percpu(tg->stats_cpu);
 }
