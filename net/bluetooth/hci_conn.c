@@ -425,7 +425,6 @@ int hci_conn_del(struct hci_conn *conn)
 		}
 	}
 
-
 	hci_chan_list_flush(conn);
 
 	hci_conn_hash_del(hdev, conn);
