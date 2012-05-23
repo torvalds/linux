@@ -36,6 +36,7 @@
 #define BTRFS_INODE_DUMMY			2
 #define BTRFS_INODE_IN_DEFRAG			3
 #define BTRFS_INODE_DELALLOC_META_RESERVED	4
+#define BTRFS_INODE_HAS_ORPHAN_ITEM		5
 
 /* in memory btrfs inode */
 struct btrfs_inode {
@@ -69,9 +70,6 @@ struct btrfs_inode {
 
 	/* used to order data wrt metadata */
 	struct btrfs_ordered_inode_tree ordered_tree;
-
-	/* for keeping track of orphaned inodes */
-	struct list_head i_orphan;
 
 	/* list of all the delalloc inodes in the FS.  There are times we need
 	 * to write all the delalloc pages to disk, and this list is used
