@@ -147,14 +147,6 @@ static int dvb_usb_init(struct dvb_usb_device *d)
 
 	d->state = DVB_USB_STATE_INIT;
 
-	if (d->props.size_of_priv > 0) {
-		d->priv = kzalloc(d->props.size_of_priv, GFP_KERNEL);
-		if (d->priv == NULL) {
-			err("no memory for priv in 'struct dvb_usb_device'");
-			return -ENOMEM;
-		}
-	}
-
 	/* check the capabilities and set appropriate variables */
 	dvb_usb_device_power_ctrl(d, 1);
 
@@ -175,12 +167,12 @@ static int dvb_usb_init(struct dvb_usb_device *d)
 }
 
 /* determine the name and the state of the just found USB device */
-static struct dvb_usb_device_description *dvb_usb_find_device(struct usb_device *udev, struct dvb_usb_device_properties *props, int *cold)
+static struct dvb_usb_device_description *dvb_usb_find_device(struct usb_device *udev, struct dvb_usb_device_properties *props, bool *cold)
 {
 	int i, j;
 	struct dvb_usb_device_description *desc = NULL;
 
-	*cold = -1;
+	*cold = true;
 
 	for (i = 0; i < props->num_device_descs; i++) {
 
@@ -188,7 +180,7 @@ static struct dvb_usb_device_description *dvb_usb_find_device(struct usb_device 
 			deb_info("check for cold %x %x\n", props->devices[i].cold_ids[j]->idVendor, props->devices[i].cold_ids[j]->idProduct);
 			if (props->devices[i].cold_ids[j]->idVendor  == le16_to_cpu(udev->descriptor.idVendor) &&
 				props->devices[i].cold_ids[j]->idProduct == le16_to_cpu(udev->descriptor.idProduct)) {
-				*cold = 1;
+				*cold = true;
 				desc = &props->devices[i];
 				break;
 			}
@@ -201,15 +193,12 @@ static struct dvb_usb_device_description *dvb_usb_find_device(struct usb_device 
 			deb_info("check for warm %x %x\n", props->devices[i].warm_ids[j]->idVendor, props->devices[i].warm_ids[j]->idProduct);
 			if (props->devices[i].warm_ids[j]->idVendor == le16_to_cpu(udev->descriptor.idVendor) &&
 				props->devices[i].warm_ids[j]->idProduct == le16_to_cpu(udev->descriptor.idProduct)) {
-				*cold = 0;
+				*cold = false;
 				desc = &props->devices[i];
 				break;
 			}
 		}
 	}
-
-	if (desc != NULL && props->identify_state != NULL)
-		props->identify_state(udev, props, &desc, cold);
 
 	return desc;
 }
@@ -233,29 +222,16 @@ int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
  * USB
  */
 int dvb_usbv2_device_init(struct usb_interface *intf,
-			const struct usb_device_id *id)
+		const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct dvb_usb_device *d = NULL;
 	struct dvb_usb_device_description *desc = NULL;
 	struct dvb_usb_device_properties *props =
 			(struct dvb_usb_device_properties *) id->driver_info;
+	int ret = -ENOMEM;
+	bool cold;
 
-	int ret = -ENOMEM, cold = 0;
-
-	if ((desc = dvb_usb_find_device(udev, props, &cold)) == NULL) {
-		deb_err("something went very wrong, device was not found in current device list - let's see what comes next.\n");
-		return -ENODEV;
-	}
-
-	if (cold) {
-		info("found a '%s' in cold state, will try to load a firmware", desc->name);
-		ret = dvb_usb_download_firmware(udev, props);
-		if (!props->no_reconnect || ret != 0)
-			return ret;
-	}
-
-	info("found a '%s' in warm state.", desc->name);
 	d = kzalloc(sizeof(struct dvb_usb_device), GFP_KERNEL);
 	if (d == NULL) {
 		err("no memory for 'struct dvb_usb_device'");
@@ -264,7 +240,50 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 
 	d->udev = udev;
 	memcpy(&d->props, props, sizeof(struct dvb_usb_device_properties));
+
+	if (d->props.size_of_priv > 0) {
+		d->priv = kzalloc(d->props.size_of_priv, GFP_KERNEL);
+		if (d->priv == NULL) {
+			err("no memory for priv in 'struct dvb_usb_device'");
+			ret = -ENOMEM;
+			goto err_kfree;
+		}
+	}
+
+	if ((desc = dvb_usb_find_device(udev, props, &cold)) == NULL) {
+		deb_err("something went very wrong, device was not found in current device list - let's see what comes next.\n");
+		ret = -ENODEV;
+		goto err_kfree;
+	}
+
 	d->desc = desc;
+
+	if (d->props.identify_state) {
+		ret = d->props.identify_state(d);
+		if (ret == 0) {
+			;
+		} else if (ret == COLD) {
+			cold = true;
+			ret = 0;
+		} else {
+			goto err_kfree;
+		}
+	}
+
+	if (cold) {
+		info("found a '%s' in cold state, will try to load a firmware", desc->name);
+		ret = dvb_usb_download_firmware(d);
+		if (ret == 0) {
+			;
+		} else if (ret == RECONNECTS_USB) {
+			ret = 0;
+			goto err_kfree;
+		} else {
+			goto err_kfree;
+		}
+	}
+
+	info("found a '%s' in warm state.", desc->name);
 
 	usb_set_intfdata(intf, d);
 
@@ -274,6 +293,13 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 		info("%s successfully initialized and connected.", desc->name);
 	else
 		info("%s error while loading driver (%d)", desc->name, ret);
+
+	return 0;
+
+err_kfree:
+	kfree(d->priv);
+	kfree(d);
+
 	return ret;
 }
 EXPORT_SYMBOL(dvb_usbv2_device_init);

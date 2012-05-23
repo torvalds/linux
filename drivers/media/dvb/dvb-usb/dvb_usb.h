@@ -275,9 +275,10 @@ struct dvb_usb_device_properties {
 #define CYPRESS_AN2235  2
 #define CYPRESS_FX2     3
 	int        usb_ctrl;
-	int        (*download_firmware) (struct usb_device *, const struct firmware *);
+
+#define RECONNECTS_USB                  1
+	int        (*download_firmware) (struct dvb_usb_device *, const struct firmware *);
 	const char *firmware;
-	int        no_reconnect;
 
 	int size_of_priv;
 
@@ -286,8 +287,10 @@ struct dvb_usb_device_properties {
 
 	int (*power_ctrl)       (struct dvb_usb_device *, int);
 	int (*read_mac_address) (struct dvb_usb_device *, u8 []);
-	int (*identify_state)   (struct usb_device *, struct dvb_usb_device_properties *,
-			struct dvb_usb_device_description **, int *);
+
+#define WARM                  0
+#define COLD                  1
+	int (*identify_state) (struct dvb_usb_device *);
 	int (*init) (struct dvb_usb_device *);
 
 	struct {
