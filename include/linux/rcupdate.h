@@ -256,6 +256,10 @@ static inline void destroy_rcu_head_on_stack(struct rcu_head *head)
 }
 #endif	/* #else !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 
+#if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_SMP)
+extern int rcu_is_cpu_idle(void);
+#endif /* #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_SMP) */
+
 #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PROVE_RCU)
 bool rcu_lockdep_current_cpu_online(void);
 #else /* #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PROVE_RCU) */
@@ -266,15 +270,6 @@ static inline bool rcu_lockdep_current_cpu_online(void)
 #endif /* #else #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PROVE_RCU) */
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-
-#ifdef CONFIG_PROVE_RCU
-extern int rcu_is_cpu_idle(void);
-#else /* !CONFIG_PROVE_RCU */
-static inline int rcu_is_cpu_idle(void)
-{
-	return 0;
-}
-#endif /* else !CONFIG_PROVE_RCU */
 
 static inline void rcu_lock_acquire(struct lockdep_map *map)
 {

@@ -585,8 +585,6 @@ void rcu_nmi_exit(void)
 	WARN_ON_ONCE(atomic_read(&rdtp->dynticks) & 0x1);
 }
 
-#ifdef CONFIG_PROVE_RCU
-
 /**
  * rcu_is_cpu_idle - see if RCU thinks that the current CPU is idle
  *
@@ -604,7 +602,7 @@ int rcu_is_cpu_idle(void)
 }
 EXPORT_SYMBOL(rcu_is_cpu_idle);
 
-#ifdef CONFIG_HOTPLUG_CPU
+#if defined(CONFIG_PROVE_RCU) && defined(CONFIG_HOTPLUG_CPU)
 
 /*
  * Is the current CPU online?  Disable preemption to avoid false positives
@@ -645,9 +643,7 @@ bool rcu_lockdep_current_cpu_online(void)
 }
 EXPORT_SYMBOL_GPL(rcu_lockdep_current_cpu_online);
 
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
-
-#endif /* #ifdef CONFIG_PROVE_RCU */
+#endif /* #if defined(CONFIG_PROVE_RCU) && defined(CONFIG_HOTPLUG_CPU) */
 
 /**
  * rcu_is_cpu_rrupt_from_idle - see if idle or immediately interrupted from idle
@@ -1903,6 +1899,13 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 					 rdp->qlen_lazy, rdp->qlen);
 	else
 		trace_rcu_callback(rsp->name, head, rdp->qlen_lazy, rdp->qlen);
+
+	/*
+	 * If called from an extended quiescent state, invoke the RCU
+	 * core in order to force a re-evaluation of RCU's idleness.
+	 */
+	if (rcu_is_cpu_idle())
+		invoke_rcu_core();
 
 	/* If interrupts were disabled, don't dive into RCU core. */
 	if (irqs_disabled_flags(flags)) {
