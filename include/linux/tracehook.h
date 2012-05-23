@@ -183,6 +183,8 @@ static inline void set_notify_resume(struct task_struct *task)
  */
 static inline void tracehook_notify_resume(struct pt_regs *regs)
 {
+	if (current->replacement_session_keyring)
+		key_replace_session_keyring();
 }
 
 #endif	/* <linux/tracehook.h> */

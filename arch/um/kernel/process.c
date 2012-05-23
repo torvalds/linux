@@ -117,11 +117,8 @@ void interrupt_end(void)
 		schedule();
 	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal();
-	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME)) {
+	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
 		tracehook_notify_resume(&current->thread.regs);
-		if (current->replacement_session_keyring)
-			key_replace_session_keyring();
-	}
 }
 
 void exit_thread(void)
