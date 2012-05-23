@@ -11,6 +11,11 @@
 #include <mach/platform.h>
 #include <asm/hardware/vic.h>
 
+		.macro getioaddr, rp, rv
+		ldr	\rp, =SW_IO_PHYS
+		ldr	\rv, =SW_IO_VIRT
+		.endm
+
 		.macro	disable_fiq
 		.endm
 
