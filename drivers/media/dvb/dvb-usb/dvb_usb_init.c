@@ -235,7 +235,7 @@ int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
  */
 int dvb_usbv2_device_init(struct usb_interface *intf,
 			struct dvb_usb_device_properties *props,
-			struct module *owner, struct dvb_usb_device **du,
+			struct module *owner,
 			short *adapter_nums)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -243,9 +243,6 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 	struct dvb_usb_device_description *desc = NULL;
 
 	int ret = -ENOMEM, cold = 0;
-
-	if (du != NULL)
-		*du = NULL;
 
 	if ((desc = dvb_usb_find_device(udev, props, &cold)) == NULL) {
 		deb_err("something went very wrong, device was not found in current device list - let's see what comes next.\n");
@@ -272,9 +269,6 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 	d->owner = owner;
 
 	usb_set_intfdata(intf, d);
-
-	if (du != NULL)
-		*du = d;
 
 	ret = dvb_usb_init(d, adapter_nums);
 
