@@ -129,17 +129,6 @@ config 977_WATCHDOG
 
 	  Not sure? It's safe to say N.
 
-config IXP2000_WATCHDOG
-	tristate "IXP2000 Watchdog"
-	depends on ARCH_IXP2000
-	help
-	  Say Y here if to include support for the watchdog timer
-	  in the Intel IXP2000(2400, 2800, 2850) network processors.
-	  This driver can be built as a module by choosing M. The module
-	  will be called ixp2000_wdt.
-
-	  Say N if you are unsure.
-
 config IXP4XX_WATCHDOG
 	tristate "IXP4xx Watchdog"
 	depends on ARCH_IXP4XX
@@ -543,13 +532,26 @@ config WAFER_WDT
 
 config I6300ESB_WDT
 	tristate "Intel 6300ESB Timer/Watchdog"
-	depends on X86 && PCI
+	depends on PCI
 	---help---
 	  Hardware driver for the watchdog timer built into the Intel
 	  6300ESB controller hub.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called i6300esb.
+
+config IE6XX_WDT
+	tristate "Intel Atom E6xx Watchdog"
+	depends on X86 && PCI
+	select WATCHDOG_CORE
+	select MFD_CORE
+	select LPC_SCH
+	---help---
+	  Hardware driver for the watchdog timer built into the Intel
+	  Atom E6XX (TunnelCreek) processor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ie6xx_wdt.
 
 config INTEL_SCU_WATCHDOG
 	bool "Intel SCU Watchdog for Mobile Platforms"
@@ -607,7 +609,12 @@ config IT87_WDT
 	depends on X86 && EXPERIMENTAL
 	---help---
 	  This is the driver for the hardware watchdog on the ITE IT8702,
-	  IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 Super I/O chips.
+	  IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 and IT8728
+	  Super I/O chips.
+
+	  If the driver does not work, then make sure that the game port in
+	  the BIOS is enabled.
+
 	  This watchdog simply watches your kernel to make sure it doesn't
 	  freeze, and if it does, it reboots your computer after a certain
 	  amount of time.
@@ -780,7 +787,7 @@ config SMSC37B787_WDT
 
 config VIA_WDT
 	tristate "VIA Watchdog Timer"
-	depends on X86
+	depends on X86 && PCI
 	select WATCHDOG_CORE
 	---help---
 	This is the driver for the hardware watchdog timer on VIA

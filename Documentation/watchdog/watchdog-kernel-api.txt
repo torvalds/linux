@@ -59,7 +59,7 @@ It contains following fields:
 * bootstatus: status of the device after booting (reported with watchdog
   WDIOF_* status bits).
 * driver_data: a pointer to the drivers private data of a watchdog device.
-  This data should only be accessed via the watchdog_set_drvadata and
+  This data should only be accessed via the watchdog_set_drvdata and
   watchdog_get_drvdata routines.
 * status: this field contains a number of status bits that give extra
   information about the status of the device (Like: is the watchdog timer
