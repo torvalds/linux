@@ -65,6 +65,9 @@ struct dma_buf_attachment;
  * 	  mapping needs to be coherent - if the exporter doesn't directly
  * 	  support this, it needs to fake coherency by shooting down any ptes
  * 	  when transitioning away from the cpu domain.
+ * @vmap: [optional] creates a virtual mapping for the buffer into kernel
+ *	  address space. Same restrictions as for vmap and friends apply.
+ * @vunmap: [optional] unmaps a vmap from the buffer
  */
 struct dma_buf_ops {
 	int (*attach)(struct dma_buf *, struct device *,
