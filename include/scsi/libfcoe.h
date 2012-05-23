@@ -29,6 +29,7 @@
 #include <linux/random.h>
 #include <scsi/fc/fc_fcoe.h>
 #include <scsi/libfc.h>
+#include <scsi/fcoe_sysfs.h>
 
 #define FCOE_MAX_CMD_LEN	16	/* Supported CDB length */
 
