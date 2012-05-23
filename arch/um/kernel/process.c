@@ -193,7 +193,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	if (current->thread.forking) {
 	  	memcpy(&p->thread.regs.regs, &regs->regs,
 		       sizeof(p->thread.regs.regs));
-		UPT_SET_SYSCALL_RETURN(&p->thread.regs.regs, 0);
+		PT_REGS_SET_SYSCALL_RETURN(&p->thread.regs, 0);
 		if (sp != 0)
 			REGS_SP(p->thread.regs.regs.gp) = sp;
 
