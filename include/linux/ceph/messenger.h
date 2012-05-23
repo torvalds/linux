@@ -120,6 +120,7 @@ struct ceph_msg_pos {
  */
 #define CONNECTING	1
 #define NEGOTIATING	2
+#define CONNECTED	5
 #define STANDBY		8  /* no outgoing messages, socket closed.  we keep
 			    * the ceph_connection around to maintain shared
 			    * state with the peer. */
