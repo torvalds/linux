@@ -159,6 +159,15 @@ struct fcoe_ctlr {
 };
 
 /**
+ * fcoe_ctlr_priv() - Return the private data from a fcoe_ctlr
+ * @cltr: The fcoe_ctlr whose private data will be returned
+ */
+static inline void *fcoe_ctlr_priv(const struct fcoe_ctlr *ctlr)
+{
+	return (void *)(ctlr + 1);
+}
+
+/**
  * struct fcoe_fcf - Fibre-Channel Forwarder
  * @list:	 list linkage
  * @time:	 system time (jiffies) when an advertisement was last received
