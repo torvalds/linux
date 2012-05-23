@@ -27,7 +27,7 @@
 #include "i915_drv.h"
 #include <linux/dma-buf.h>
 
-struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachment,
+static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachment,
 				      enum dma_data_direction dir)
 {
 	struct drm_i915_gem_object *obj = attachment->dmabuf->priv;
@@ -55,7 +55,7 @@ out:
 	return sg;
 }
 
-void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
+static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 			    struct sg_table *sg, enum dma_data_direction dir)
 {
 	dma_unmap_sg(attachment->dev, sg->sgl, sg->nents, dir);
@@ -63,7 +63,7 @@ void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	kfree(sg);
 }
 
-void i915_gem_dmabuf_release(struct dma_buf *dma_buf)
+static void i915_gem_dmabuf_release(struct dma_buf *dma_buf)
 {
 	struct drm_i915_gem_object *obj = dma_buf->priv;
 
@@ -93,7 +93,7 @@ static void i915_gem_dmabuf_kunmap(struct dma_buf *dma_buf, unsigned long page_n
 
 }
 
-struct dma_buf_ops i915_dmabuf_ops =  {
+static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.map_dma_buf = i915_gem_map_dma_buf,
 	.unmap_dma_buf = i915_gem_unmap_dma_buf,
 	.release = i915_gem_dmabuf_release,
