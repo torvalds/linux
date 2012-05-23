@@ -1,0 +1,11 @@
+menu "CPUQUIET Framework"
+
+config CPUQUIET_FRAMEWORK
+	bool "Cpuquiet framework"
+	default n
+	help
+	  Cpuquiet implements pluggable policies for forcing cpu cores into a
+	  quiescent state. Appropriate policies will save power without hurting
+	  performance.
+
+endmenu
