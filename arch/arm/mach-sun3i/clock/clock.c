@@ -1678,7 +1678,7 @@ static struct clk clk_ahb_de_image1  = {
     .mod_reset      = NULL,
 };
 static struct clk clk_ahb_de_image0  = {
-    .clk_id         = CSP_CCM_MOD_CLK_AHB_DE_IMAGE1,
+    .clk_id         = CSP_CCM_MOD_CLK_AHB_DE_IMAGE0,
     .parent_id      = CSP_CCM_SYS_CLK_AHB,
     .usrcnt         = 0,
     .parent         = &clk_ahb,
