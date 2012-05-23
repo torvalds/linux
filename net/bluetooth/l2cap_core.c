@@ -3641,7 +3641,7 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 		/* Incomplete config. Send empty response. */
 		l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP,
 				l2cap_build_conf_rsp(chan, rsp,
-					L2CAP_CONF_SUCCESS, 0x0001), rsp);
+					L2CAP_CONF_SUCCESS, flags), rsp);
 		goto unlock;
 	}
 
@@ -3697,7 +3697,7 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 
 		l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP,
 					l2cap_build_conf_rsp(chan, rsp,
-					L2CAP_CONF_SUCCESS, 0x0000), rsp);
+					L2CAP_CONF_SUCCESS, flags), rsp);
 	}
 
 unlock:
