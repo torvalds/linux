@@ -1,7 +1,7 @@
 /*
  * wm2000.c  --  WM2000 ALSA Soc Audio driver
  *
- * Copyright 2008-2010 Wolfson Microelectronics PLC.
+ * Copyright 2008-2011 Wolfson Microelectronics PLC.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *

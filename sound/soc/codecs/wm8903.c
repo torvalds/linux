@@ -1,7 +1,7 @@
 /*
  * wm8903.c  --  WM8903 ALSA SoC Audio driver
  *
- * Copyright 2008 Wolfson Microelectronics
+ * Copyright 2008-11 Wolfson Microelectronics
  * Copyright 2011-2012 NVIDIA, Inc.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>

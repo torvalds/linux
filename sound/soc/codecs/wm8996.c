@@ -1,7 +1,7 @@
 /*
  * wm8996.c - WM8996 audio codec interface
  *
- * Copyright 2011 Wolfson Microelectronics PLC.
+ * Copyright 2011-2 Wolfson Microelectronics PLC.
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it

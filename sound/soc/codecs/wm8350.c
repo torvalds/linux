@@ -1,7 +1,7 @@
 /*
  * wm8350.c -- WM8350 ALSA SoC audio driver
  *
- * Copyright (C) 2007, 2008 Wolfson Microelectronics PLC.
+ * Copyright (C) 2007-12 Wolfson Microelectronics PLC.
  *
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *

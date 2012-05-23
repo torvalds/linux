@@ -1,7 +1,7 @@
 /*
  * wm8580.c  --  WM8580 ALSA Soc Audio driver
  *
- * Copyright 2008, 2009 Wolfson Microelectronics PLC.
+ * Copyright 2008-11 Wolfson Microelectronics PLC.
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the

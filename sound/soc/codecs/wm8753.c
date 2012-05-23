@@ -1,7 +1,7 @@
 /*
  * wm8753.c  --  WM8753 ALSA Soc Audio driver
  *
- * Copyright 2003 Wolfson Microelectronics PLC.
+ * Copyright 2003-11 Wolfson Microelectronics PLC.
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute  it and/or modify it
