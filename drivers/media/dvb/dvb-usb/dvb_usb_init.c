@@ -26,7 +26,7 @@ static int dvb_usb_force_pid_filter_usage;
 module_param_named(force_pid_filter_usage, dvb_usb_force_pid_filter_usage, int, 0444);
 MODULE_PARM_DESC(force_pid_filter_usage, "force all dvb-usb-devices to use a PID filter, if any (default: 0).");
 
-static int dvb_usb_adapter_init(struct dvb_usb_device *d, short *adapter_nrs)
+static int dvb_usb_adapter_init(struct dvb_usb_device *d)
 {
 	struct dvb_usb_adapter *adap;
 	int ret, n, o;
@@ -83,7 +83,7 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d, short *adapter_nrs)
 		}
 
 		if ((ret = dvb_usb_adapter_stream_init(adap)) ||
-			(ret = dvb_usb_adapter_dvb_init(adap, adapter_nrs)) ||
+			(ret = dvb_usb_adapter_dvb_init(adap)) ||
 			(ret = dvb_usb_adapter_frontend_init(adap))) {
 			return ret;
 		}
@@ -138,7 +138,7 @@ static int dvb_usb_exit(struct dvb_usb_device *d)
 	return 0;
 }
 
-static int dvb_usb_init(struct dvb_usb_device *d, short *adapter_nums)
+static int dvb_usb_init(struct dvb_usb_device *d)
 {
 	int ret = 0;
 
@@ -158,8 +158,7 @@ static int dvb_usb_init(struct dvb_usb_device *d, short *adapter_nums)
 	/* check the capabilities and set appropriate variables */
 	dvb_usb_device_power_ctrl(d, 1);
 
-	if ((ret = dvb_usb_i2c_init(d)) ||
-		(ret = dvb_usb_adapter_init(d, adapter_nums))) {
+	if ((ret = dvb_usb_i2c_init(d)) || (ret = dvb_usb_adapter_init(d))) {
 		dvb_usb_exit(d);
 		return ret;
 	}
@@ -234,8 +233,7 @@ int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
  * USB
  */
 int dvb_usbv2_device_init(struct usb_interface *intf,
-			const struct usb_device_id *id,
-			short *adapter_nums)
+			const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct dvb_usb_device *d = NULL;
@@ -270,7 +268,7 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, d);
 
-	ret = dvb_usb_init(d, adapter_nums);
+	ret = dvb_usb_init(d);
 
 	if (ret == 0)
 		info("%s successfully initialized and connected.", desc->name);

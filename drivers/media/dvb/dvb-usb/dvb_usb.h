@@ -265,6 +265,7 @@ enum dvb_usb_mode {
 #define MAX_NO_OF_ADAPTER_PER_DEVICE 2
 struct dvb_usb_device_properties {
 	struct module *owner;
+	short *adapter_nr;
 
 #define DVB_USB_IS_AN_I2C_ADAPTER            0x01
 	int caps;
@@ -460,8 +461,7 @@ struct dvb_usb_device {
 };
 
 extern int dvb_usbv2_device_init(struct usb_interface *,
-				const struct usb_device_id *,
-			       short *adapter_nums);
+		const struct usb_device_id *);
 extern void dvb_usbv2_device_exit(struct usb_interface *);
 
 /* the generic read/write method for device control */

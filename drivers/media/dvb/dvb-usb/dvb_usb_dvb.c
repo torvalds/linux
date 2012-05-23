@@ -94,14 +94,13 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return dvb_usb_ctrl_feed(dvbdmxfeed,0);
 }
 
-int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap, short *adapter_nums)
+int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
 {
 	int i;
 	int ret = dvb_register_adapter(&adap->dvb_adap, adap->dev->desc->name,
 				       adap->dev->props.owner,
 				       &adap->dev->udev->dev,
-				       adapter_nums);
-
+				       adap->dev->props.adapter_nr);
 	if (ret < 0) {
 		deb_info("dvb_register_adapter failed: error %d", ret);
 		goto err;
