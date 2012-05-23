@@ -179,6 +179,12 @@ MGR_ATTR static int dcplb_miss(int cpu)
 		addr = addr1;
 	}
 
+#ifdef CONFIG_BF60x
+	if ((addr >= ASYNC_BANK0_BASE)
+		&& (addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE))
+		d_data |= PAGE_SIZE_64MB;
+#endif
+
 	/* Pick entry to evict */
 	idx = evict_one_dcplb(cpu);
 

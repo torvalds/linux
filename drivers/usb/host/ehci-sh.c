@@ -11,6 +11,7 @@
  */
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/platform_data/ehci-sh.h>
 
 struct ehci_sh_priv {
 	struct clk *iclk, *fclk;
@@ -100,6 +101,7 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 	const struct hc_driver *driver = &ehci_sh_hc_driver;
 	struct resource *res;
 	struct ehci_sh_priv *priv;
+	struct ehci_sh_platdata *pdata;
 	struct usb_hcd *hcd;
 	int irq, ret;
 
@@ -123,6 +125,9 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto fail_create_hcd;
 	}
+
+	if (pdev->dev.platform_data != NULL)
+		pdata = pdev->dev.platform_data;
 
 	/* initialize hcd */
 	hcd = usb_create_hcd(&ehci_sh_hc_driver, &pdev->dev,
@@ -167,6 +172,9 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 
 	clk_enable(priv->fclk);
 	clk_enable(priv->iclk);
+
+	if (pdata && pdata->phy_init)
+		pdata->phy_init();
 
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret != 0) {

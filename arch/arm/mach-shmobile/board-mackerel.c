@@ -908,6 +908,8 @@ fsi_set_rate_end:
 static struct sh_fsi_platform_info fsi_info = {
 	.port_a = {
 		.flags = SH_FSI_BRS_INV,
+		.tx_id = SHDMA_SLAVE_FSIA_TX,
+		.rx_id = SHDMA_SLAVE_FSIA_RX,
 	},
 	.port_b = {
 		.flags = SH_FSI_BRS_INV	|
@@ -920,9 +922,11 @@ static struct sh_fsi_platform_info fsi_info = {
 
 static struct resource fsi_resources[] = {
 	[0] = {
+		/* we need 0xFE1F0000 to access DMA
+		 * instead of 0xFE3C0000 */
 		.name	= "FSI",
-		.start	= 0xFE3C0000,
-		.end	= 0xFE3C0400 - 1,
+		.start  = 0xFE1F0000,
+		.end    = 0xFE1F0400 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -1248,6 +1252,8 @@ static void mackerel_camera_del(struct soc_camera_device *icd)
 
 static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
 	.flags = SH_CEU_FLAG_USE_8BIT_BUS,
+	.max_width = 8188,
+	.max_height = 8188,
 };
 
 static struct resource ceu_resources[] = {

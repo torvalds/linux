@@ -237,10 +237,6 @@ enum hw_io_access {
 
 #define OMBCMD_RETRY	0x03	/* 3 times try request before error */
 
-static int pci_dio_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int pci_dio_detach(struct comedi_device *dev);
-
 struct diosubd_data {
 	int chans;		/*  num of chans */
 	int addr;		/*  PCI address ofset */
@@ -262,26 +258,6 @@ struct dio_boardtype {
 	struct diosubd_data s8254[MAX_8254_SUBDEVS];	/* 8254 subdevices */
 	enum hw_io_access io_access;
 };
-
-static DEFINE_PCI_DEVICE_TABLE(pci_dio_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1730) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1733) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1734) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1735) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1736) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1739) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1750) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1751) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1752) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1753) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1754) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1756) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1760) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1762) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, pci_dio_pci_table);
 
 static const struct dio_boardtype boardtypes[] = {
 	{"pci1730", PCI_VENDOR_ID_ADVANTECH, 0x1730, PCIDIO_MAINREG,
@@ -404,15 +380,6 @@ static const struct dio_boardtype boardtypes[] = {
 	 {4, PCI1762_BOARDID, 1, SDF_INTERNAL},
 	 { {0, 0, 0, 0} },
 	 IO_16b}
-};
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct dio_boardtype))
-
-static struct comedi_driver driver_pci_dio = {
-	.driver_name = "adv_pci_dio",
-	.module = THIS_MODULE,
-	.attach = pci_dio_attach,
-	.detach = pci_dio_detach
 };
 
 struct pci_dio_private {
@@ -1116,9 +1083,6 @@ static int CheckAndAllocCard(struct comedi_device *dev,
 	return 1;
 }
 
-/*
-==============================================================================
-*/
 static int pci_dio_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
@@ -1134,7 +1098,7 @@ static int pci_dio_attach(struct comedi_device *dev,
 
 	for_each_pci_dev(pcidev) {
 		/*  loop through cards supported by this driver */
-		for (i = 0; i < n_boardtypes; ++i) {
+		for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
 			if (boardtypes[i].vendor_id != pcidev->vendor)
 				continue;
 			if (boardtypes[i].device_id != pcidev->device)
@@ -1162,7 +1126,7 @@ static int pci_dio_attach(struct comedi_device *dev,
 		return -EIO;
 	}
 
-	if (comedi_pci_enable(pcidev, driver_pci_dio.driver_name)) {
+	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
 		dev_err(dev->hw_dev, "Error: Can't enable PCI device and request regions!\n");
 		return -EIO;
 	}
@@ -1246,10 +1210,7 @@ static int pci_dio_attach(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
-static int pci_dio_detach(struct comedi_device *dev)
+static void pci_dio_detach(struct comedi_device *dev)
 {
 	int i, j;
 	struct comedi_subdevice *s;
@@ -1258,20 +1219,14 @@ static int pci_dio_detach(struct comedi_device *dev)
 	if (dev->private) {
 		if (devpriv->valid)
 			pci_dio_reset(dev);
-
-
-		/* This shows the silliness of using this kind of
-		 * scheme for numbering subdevices.  Don't do it.  --ds */
 		subdev = 0;
 		for (i = 0; i < MAX_DI_SUBDEVS; i++) {
 			if (this_board->sdi[i].chans)
 				subdev++;
-
 		}
 		for (i = 0; i < MAX_DO_SUBDEVS; i++) {
 			if (this_board->sdo[i].chans)
 				subdev++;
-
 		}
 		for (i = 0; i < MAX_DIO_SUBDEVG; i++) {
 			for (j = 0; j < this_board->sdio[i].regs; j++) {
@@ -1280,82 +1235,73 @@ static int pci_dio_detach(struct comedi_device *dev)
 				subdev++;
 			}
 		}
-
 		if (this_board->boardid.chans)
 			subdev++;
-
 		for (i = 0; i < MAX_8254_SUBDEVS; i++)
 			if (this_board->s8254[i].chans)
 				subdev++;
-
 		for (i = 0; i < dev->n_subdevices; i++) {
 			s = dev->subdevices + i;
 			s->private = NULL;
 		}
-
 		if (devpriv->pcidev) {
 			if (dev->iobase)
 				comedi_pci_disable(devpriv->pcidev);
-
 			pci_dev_put(devpriv->pcidev);
 		}
-
 		if (devpriv->prev)
 			devpriv->prev->next = devpriv->next;
 		else
 			pci_priv = devpriv->next;
-
 		if (devpriv->next)
 			devpriv->next->prev = devpriv->prev;
-
 	}
-
-	return 0;
 }
 
-/*
-==============================================================================
-*/
-static int __devinit driver_pci_dio_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
+static struct comedi_driver adv_pci_dio_driver = {
+	.driver_name	= "adv_pci_dio",
+	.module		= THIS_MODULE,
+	.attach		= pci_dio_attach,
+	.detach		= pci_dio_detach
+};
+
+static int __devinit adv_pci_dio_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_pci_dio.driver_name);
+	return comedi_pci_auto_config(dev, &adv_pci_dio_driver);
 }
 
-static void __devexit driver_pci_dio_pci_remove(struct pci_dev *dev)
+static void __devexit adv_pci_dio_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_pci_dio_pci_driver = {
-	.id_table = pci_dio_pci_table,
-	.probe = &driver_pci_dio_pci_probe,
-	.remove = __devexit_p(&driver_pci_dio_pci_remove)
+static DEFINE_PCI_DEVICE_TABLE(adv_pci_dio_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1730) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1733) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1734) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1735) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1736) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1739) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1750) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1751) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1752) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1753) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1754) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1756) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1760) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1762) },
+	{ 0 }
 };
+MODULE_DEVICE_TABLE(pci, adv_pci_dio_pci_table);
 
-static int __init driver_pci_dio_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_pci_dio);
-	if (retval < 0)
-		return retval;
-
-	driver_pci_dio_pci_driver.name = (char *)driver_pci_dio.driver_name;
-	return pci_register_driver(&driver_pci_dio_pci_driver);
-}
-
-static void __exit driver_pci_dio_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_pci_dio_pci_driver);
-	comedi_driver_unregister(&driver_pci_dio);
-}
-
-module_init(driver_pci_dio_init_module);
-module_exit(driver_pci_dio_cleanup_module);
-/*
-==============================================================================
-*/
+static struct pci_driver adv_pci_dio_pci_driver = {
+	.name		= "adv_pci_dio",
+	.id_table	= adv_pci_dio_pci_table,
+	.probe		= adv_pci_dio_pci_probe,
+	.remove		= __devexit_p(adv_pci_dio_pci_remove),
+};
+module_comedi_pci_driver(adv_pci_dio_driver, adv_pci_dio_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

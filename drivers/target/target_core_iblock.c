@@ -189,26 +189,6 @@ static void iblock_free_device(void *p)
 	kfree(ib_dev);
 }
 
-static inline struct iblock_req *IBLOCK_REQ(struct se_task *task)
-{
-	return container_of(task, struct iblock_req, ib_task);
-}
-
-static struct se_task *
-iblock_alloc_task(unsigned char *cdb)
-{
-	struct iblock_req *ib_req;
-
-	ib_req = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
-	if (!ib_req) {
-		pr_err("Unable to allocate memory for struct iblock_req\n");
-		return NULL;
-	}
-
-	atomic_set(&ib_req->pending, 1);
-	return &ib_req->ib_task;
-}
-
 static unsigned long long iblock_emulate_read_cap_with_block_size(
 	struct se_device *dev,
 	struct block_device *bd,
@@ -295,8 +275,16 @@ static void iblock_end_io_flush(struct bio *bio, int err)
 	if (err)
 		pr_err("IBLOCK: cache flush failed: %d\n", err);
 
-	if (cmd)
-		transport_complete_sync_cache(cmd, err == 0);
+	if (cmd) {
+		if (err) {
+			cmd->scsi_sense_reason =
+				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+			target_complete_cmd(cmd, SAM_STAT_CHECK_CONDITION);
+		} else {
+			target_complete_cmd(cmd, SAM_STAT_GOOD);
+		}
+	}
+
 	bio_put(bio);
 }
 
@@ -304,9 +292,8 @@ static void iblock_end_io_flush(struct bio *bio, int err)
  * Implement SYCHRONIZE CACHE.  Note that we can't handle lba ranges and must
  * always flush the whole cache.
  */
-static void iblock_emulate_sync_cache(struct se_task *task)
+static void iblock_emulate_sync_cache(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
 	int immed = (cmd->t_task_cdb[1] & 0x2);
 	struct bio *bio;
@@ -316,7 +303,7 @@ static void iblock_emulate_sync_cache(struct se_task *task)
 	 * for this SYNCHRONIZE_CACHE op.
 	 */
 	if (immed)
-		transport_complete_sync_cache(cmd, 1);
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
 
 	bio = bio_alloc(GFP_KERNEL, 0);
 	bio->bi_end_io = iblock_end_io_flush;
@@ -333,11 +320,6 @@ static int iblock_do_discard(struct se_device *dev, sector_t lba, u32 range)
 	int barrier = 0;
 
 	return blkdev_issue_discard(bd, lba, range, GFP_KERNEL, barrier);
-}
-
-static void iblock_free_task(struct se_task *task)
-{
-	kfree(IBLOCK_REQ(task));
 }
 
 enum {
@@ -448,19 +430,35 @@ static ssize_t iblock_show_configfs_dev_params(
 	return bl;
 }
 
+static void iblock_complete_cmd(struct se_cmd *cmd)
+{
+	struct iblock_req *ibr = cmd->priv;
+	u8 status;
+
+	if (!atomic_dec_and_test(&ibr->pending))
+		return;
+
+	if (atomic_read(&ibr->ib_bio_err_cnt))
+		status = SAM_STAT_CHECK_CONDITION;
+	else
+		status = SAM_STAT_GOOD;
+
+	target_complete_cmd(cmd, status);
+	kfree(ibr);
+}
+
 static void iblock_bio_destructor(struct bio *bio)
 {
-	struct se_task *task = bio->bi_private;
-	struct iblock_dev *ib_dev = task->task_se_cmd->se_dev->dev_ptr;
+	struct se_cmd *cmd = bio->bi_private;
+	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
 
 	bio_free(bio, ib_dev->ibd_bio_set);
 }
 
 static struct bio *
-iblock_get_bio(struct se_task *task, sector_t lba, u32 sg_num)
+iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
 {
-	struct iblock_dev *ib_dev = task->task_se_cmd->se_dev->dev_ptr;
-	struct iblock_req *ib_req = IBLOCK_REQ(task);
+	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
 	struct bio *bio;
 
 	/*
@@ -476,19 +474,11 @@ iblock_get_bio(struct se_task *task, sector_t lba, u32 sg_num)
 		return NULL;
 	}
 
-	pr_debug("Allocated bio: %p task_sg_nents: %u using ibd_bio_set:"
-		" %p\n", bio, task->task_sg_nents, ib_dev->ibd_bio_set);
-	pr_debug("Allocated bio: %p task_size: %u\n", bio, task->task_size);
-
 	bio->bi_bdev = ib_dev->ibd_bd;
-	bio->bi_private = task;
+	bio->bi_private = cmd;
 	bio->bi_destructor = iblock_bio_destructor;
 	bio->bi_end_io = &iblock_bio_done;
 	bio->bi_sector = lba;
-	atomic_inc(&ib_req->pending);
-
-	pr_debug("Set bio->bi_sector: %llu\n", (unsigned long long)bio->bi_sector);
-	pr_debug("Set ib_req->pending: %d\n", atomic_read(&ib_req->pending));
 	return bio;
 }
 
@@ -503,20 +493,21 @@ static void iblock_submit_bios(struct bio_list *list, int rw)
 	blk_finish_plug(&plug);
 }
 
-static int iblock_do_task(struct se_task *task)
+static int iblock_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
+		u32 sgl_nents, enum dma_data_direction data_direction)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
-	struct iblock_req *ibr = IBLOCK_REQ(task);
+	struct iblock_req *ibr;
 	struct bio *bio;
 	struct bio_list list;
 	struct scatterlist *sg;
-	u32 i, sg_num = task->task_sg_nents;
+	u32 sg_num = sgl_nents;
 	sector_t block_lba;
 	unsigned bio_cnt;
 	int rw;
+	int i;
 
-	if (task->task_data_direction == DMA_TO_DEVICE) {
+	if (data_direction == DMA_TO_DEVICE) {
 		/*
 		 * Force data to disk if we pretend to not have a volatile
 		 * write cache, or the initiator set the Force Unit Access bit.
@@ -532,17 +523,17 @@ static int iblock_do_task(struct se_task *task)
 	}
 
 	/*
-	 * Do starting conversion up from non 512-byte blocksize with
-	 * struct se_task SCSI blocksize into Linux/Block 512 units for BIO.
+	 * Convert the blocksize advertised to the initiator to the 512 byte
+	 * units unconditionally used by the Linux block layer.
 	 */
 	if (dev->se_sub_dev->se_dev_attrib.block_size == 4096)
-		block_lba = (task->task_lba << 3);
+		block_lba = (cmd->t_task_lba << 3);
 	else if (dev->se_sub_dev->se_dev_attrib.block_size == 2048)
-		block_lba = (task->task_lba << 2);
+		block_lba = (cmd->t_task_lba << 2);
 	else if (dev->se_sub_dev->se_dev_attrib.block_size == 1024)
-		block_lba = (task->task_lba << 1);
+		block_lba = (cmd->t_task_lba << 1);
 	else if (dev->se_sub_dev->se_dev_attrib.block_size == 512)
-		block_lba = task->task_lba;
+		block_lba = cmd->t_task_lba;
 	else {
 		pr_err("Unsupported SCSI -> BLOCK LBA conversion:"
 				" %u\n", dev->se_sub_dev->se_dev_attrib.block_size);
@@ -550,17 +541,22 @@ static int iblock_do_task(struct se_task *task)
 		return -ENOSYS;
 	}
 
-	bio = iblock_get_bio(task, block_lba, sg_num);
-	if (!bio) {
-		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		return -ENOMEM;
-	}
+	ibr = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
+	if (!ibr)
+		goto fail;
+	cmd->priv = ibr;
+
+	bio = iblock_get_bio(cmd, block_lba, sgl_nents);
+	if (!bio)
+		goto fail_free_ibr;
 
 	bio_list_init(&list);
 	bio_list_add(&list, bio);
+
+	atomic_set(&ibr->pending, 2);
 	bio_cnt = 1;
 
-	for_each_sg(task->task_sg, sg, task->task_sg_nents, i) {
+	for_each_sg(sgl, sg, sgl_nents, i) {
 		/*
 		 * XXX: if the length the device accepts is shorter than the
 		 *	length of the S/G list entry this will cause and
@@ -573,9 +569,11 @@ static int iblock_do_task(struct se_task *task)
 				bio_cnt = 0;
 			}
 
-			bio = iblock_get_bio(task, block_lba, sg_num);
+			bio = iblock_get_bio(cmd, block_lba, sg_num);
 			if (!bio)
-				goto fail;
+				goto fail_put_bios;
+
+			atomic_inc(&ibr->pending);
 			bio_list_add(&list, bio);
 			bio_cnt++;
 		}
@@ -586,17 +584,16 @@ static int iblock_do_task(struct se_task *task)
 	}
 
 	iblock_submit_bios(&list, rw);
-
-	if (atomic_dec_and_test(&ibr->pending)) {
-		transport_complete_task(task,
-				!atomic_read(&ibr->ib_bio_err_cnt));
-	}
+	iblock_complete_cmd(cmd);
 	return 0;
 
-fail:
+fail_put_bios:
 	while ((bio = bio_list_pop(&list)))
 		bio_put(bio);
+fail_free_ibr:
+	kfree(ibr);
 	cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+fail:
 	return -ENOMEM;
 }
 
@@ -621,8 +618,8 @@ static sector_t iblock_get_blocks(struct se_device *dev)
 
 static void iblock_bio_done(struct bio *bio, int err)
 {
-	struct se_task *task = bio->bi_private;
-	struct iblock_req *ibr = IBLOCK_REQ(task);
+	struct se_cmd *cmd = bio->bi_private;
+	struct iblock_req *ibr = cmd->priv;
 
 	/*
 	 * Set -EIO if !BIO_UPTODATE and the passed is still err=0
@@ -642,14 +639,7 @@ static void iblock_bio_done(struct bio *bio, int err)
 
 	bio_put(bio);
 
-	if (!atomic_dec_and_test(&ibr->pending))
-		return;
-
-	pr_debug("done[%p] bio: %p task_lba: %llu bio_lba: %llu err=%d\n",
-		 task, bio, task->task_lba,
-		 (unsigned long long)bio->bi_sector, err);
-
-	transport_complete_task(task, !atomic_read(&ibr->ib_bio_err_cnt));
+	iblock_complete_cmd(cmd);
 }
 
 static struct se_subsystem_api iblock_template = {
@@ -663,11 +653,9 @@ static struct se_subsystem_api iblock_template = {
 	.allocate_virtdevice	= iblock_allocate_virtdevice,
 	.create_virtdevice	= iblock_create_virtdevice,
 	.free_device		= iblock_free_device,
-	.alloc_task		= iblock_alloc_task,
-	.do_task		= iblock_do_task,
+	.execute_cmd		= iblock_execute_cmd,
 	.do_discard		= iblock_do_discard,
 	.do_sync_cache		= iblock_emulate_sync_cache,
-	.free_task		= iblock_free_task,
 	.check_configfs_dev_params = iblock_check_configfs_dev_params,
 	.set_configfs_dev_params = iblock_set_configfs_dev_params,
 	.show_configfs_dev_params = iblock_show_configfs_dev_params,

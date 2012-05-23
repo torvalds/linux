@@ -237,7 +237,7 @@ void omap_prcm_irq_complete(void)
  */
 int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 {
-	int nr_regs = irq_setup->nr_regs;
+	int nr_regs;
 	u32 mask[OMAP_PRCM_MAX_NR_PENDING_REG];
 	int offset, i;
 	struct irq_chip_generic *gc;
@@ -245,6 +245,8 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 
 	if (!irq_setup)
 		return -EINVAL;
+
+	nr_regs = irq_setup->nr_regs;
 
 	if (prcm_irq_setup) {
 		pr_err("PRCM: already initialized; won't reinitialize\n");

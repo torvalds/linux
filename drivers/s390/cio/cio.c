@@ -656,51 +656,34 @@ static struct io_subchannel_private console_priv;
 static int console_subchannel_in_use;
 
 /*
- * Use cio_tpi to get a pending interrupt and call the interrupt handler.
- * Return non-zero if an interrupt was processed, zero otherwise.
+ * Use cio_tsch to update the subchannel status and call the interrupt handler
+ * if status had been pending. Called with the console_subchannel lock.
  */
-static int cio_tpi(void)
+static void cio_tsch(struct subchannel *sch)
 {
-	struct tpi_info *tpi_info;
-	struct subchannel *sch;
 	struct irb *irb;
 	int irq_context;
 
-	tpi_info = (struct tpi_info *)&S390_lowcore.subchannel_id;
-	if (tpi(NULL) != 1)
-		return 0;
-	kstat_cpu(smp_processor_id()).irqs[IO_INTERRUPT]++;
-	if (tpi_info->adapter_IO) {
-		do_adapter_IO(tpi_info->isc);
-		return 1;
-	}
 	irb = (struct irb *)&S390_lowcore.irb;
 	/* Store interrupt response block to lowcore. */
-	if (tsch(tpi_info->schid, irb) != 0) {
+	if (tsch(sch->schid, irb) != 0)
 		/* Not status pending or not operational. */
-		kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
-		return 1;
-	}
-	sch = (struct subchannel *)(unsigned long)tpi_info->intparm;
-	if (!sch) {
-		kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
-		return 1;
-	}
-	irq_context = in_interrupt();
-	if (!irq_context)
-		local_bh_disable();
-	irq_enter();
-	spin_lock(sch->lock);
+		return;
 	memcpy(&sch->schib.scsw, &irb->scsw, sizeof(union scsw));
+	/* Call interrupt handler with updated status. */
+	irq_context = in_interrupt();
+	if (!irq_context) {
+		local_bh_disable();
+		irq_enter();
+	}
 	if (sch->driver && sch->driver->irq)
 		sch->driver->irq(sch);
 	else
 		kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
-	spin_unlock(sch->lock);
-	irq_exit();
-	if (!irq_context)
+	if (!irq_context) {
+		irq_exit();
 		_local_bh_enable();
-	return 1;
+	}
 }
 
 void *cio_get_console_priv(void)
@@ -712,34 +695,16 @@ void *cio_get_console_priv(void)
  * busy wait for the next interrupt on the console
  */
 void wait_cons_dev(void)
-	__releases(console_subchannel.lock)
-	__acquires(console_subchannel.lock)
 {
-	unsigned long cr6      __attribute__ ((aligned (8)));
-	unsigned long save_cr6 __attribute__ ((aligned (8)));
-
-	/* 
-	 * before entering the spinlock we may already have
-	 * processed the interrupt on a different CPU...
-	 */
 	if (!console_subchannel_in_use)
 		return;
 
-	/* disable all but the console isc */
-	__ctl_store (save_cr6, 6, 6);
-	cr6 = 1UL << (31 - CONSOLE_ISC);
-	__ctl_load (cr6, 6, 6);
-
-	do {
-		spin_unlock(console_subchannel.lock);
-		if (!cio_tpi())
-			cpu_relax();
-		spin_lock(console_subchannel.lock);
-	} while (console_subchannel.schib.scsw.cmd.actl != 0);
-	/*
-	 * restore previous isc value
-	 */
-	__ctl_load (save_cr6, 6, 6);
+	while (1) {
+		cio_tsch(&console_subchannel);
+		if (console_subchannel.schib.scsw.cmd.actl == 0)
+			break;
+		udelay_simple(100);
+	}
 }
 
 static int

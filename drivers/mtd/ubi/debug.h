@@ -21,20 +21,19 @@
 #ifndef __UBI_DEBUG_H__
 #define __UBI_DEBUG_H__
 
-#ifdef CONFIG_MTD_UBI_DEBUG
+void ubi_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
+void ubi_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr);
+void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
+
 #include <linux/random.h>
 
 #define ubi_assert(expr)  do {                                               \
 	if (unlikely(!(expr))) {                                             \
 		printk(KERN_CRIT "UBI assert failed in %s at %u (pid %d)\n", \
 		       __func__, __LINE__, current->pid);                    \
-		ubi_dbg_dump_stack();                                        \
+		dump_stack();                                                \
 	}                                                                    \
 } while (0)
-
-#define dbg_err(fmt, ...) ubi_err(fmt, ##__VA_ARGS__)
-
-#define ubi_dbg_dump_stack() dump_stack()
 
 #define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)  \
 		print_hex_dump(l, ps, pt, r, g, b, len, a)
@@ -58,17 +57,13 @@
 /* Initialization and build messages */
 #define dbg_bld(fmt, ...) ubi_dbg_msg("bld", fmt, ##__VA_ARGS__)
 
-void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr);
-void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
-void ubi_dbg_dump_vol_info(const struct ubi_volume *vol);
-void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx);
-void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv);
-void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type);
-void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
-void ubi_dbg_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
-int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len);
-int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
-			int offset, int len);
+void ubi_dump_vol_info(const struct ubi_volume *vol);
+void ubi_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx);
+void ubi_dump_av(const struct ubi_ainf_volume *av);
+void ubi_dump_aeb(const struct ubi_ainf_peb *aeb, int type);
+void ubi_dump_mkvol_req(const struct ubi_mkvol_req *req);
+int ubi_self_check_all_ff(struct ubi_device *ubi, int pnum, int offset,
+			  int len);
 int ubi_debugging_init_dev(struct ubi_device *ubi);
 void ubi_debugging_exit_dev(struct ubi_device *ubi);
 int ubi_debugfs_init(void);
@@ -167,73 +162,4 @@ static inline int ubi_dbg_is_erase_failure(const struct ubi_device *ubi)
 	return 0;
 }
 
-#else
-
-/* Use "if (0)" to make compiler check arguments even if debugging is off */
-#define ubi_assert(expr)  do {                                               \
-	if (0) {                                                             \
-		printk(KERN_CRIT "UBI assert failed in %s at %u (pid %d)\n", \
-		       __func__, __LINE__, current->pid);                    \
-	}                                                                    \
-} while (0)
-
-#define dbg_err(fmt, ...) do {                                               \
-	if (0)                                                               \
-		ubi_err(fmt, ##__VA_ARGS__);                                 \
-} while (0)
-
-#define ubi_dbg_msg(fmt, ...) do {                                           \
-	if (0)                                                               \
-		printk(KERN_DEBUG fmt "\n", ##__VA_ARGS__);                  \
-} while (0)
-
-#define dbg_msg(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_gen(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_eba(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_wl(fmt, ...)   ubi_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_io(fmt, ...)   ubi_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_bld(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
-
-static inline void ubi_dbg_dump_stack(void)                          { return; }
-static inline void
-ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)                 { return; }
-static inline void
-ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)              { return; }
-static inline void
-ubi_dbg_dump_vol_info(const struct ubi_volume *vol)                  { return; }
-static inline void
-ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)   { return; }
-static inline void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv) { return; }
-static inline void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb,
-				    int type)                        { return; }
-static inline void
-ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req)              { return; }
-static inline void ubi_dbg_dump_flash(struct ubi_device *ubi,
-				      int pnum, int offset, int len) { return; }
-static inline void
-ubi_dbg_print_hex_dump(const char *l, const char *ps, int pt, int r,
-		       int g, const void *b, size_t len, bool a)     { return; }
-static inline int ubi_dbg_check_all_ff(struct ubi_device *ubi,
-				       int pnum, int offset,
-				       int len)                    { return 0; }
-static inline int ubi_dbg_check_write(struct ubi_device *ubi,
-				      const void *buf, int pnum,
-				      int offset, int len)         { return 0; }
-
-static inline int ubi_debugging_init_dev(struct ubi_device *ubi)   { return 0; }
-static inline void ubi_debugging_exit_dev(struct ubi_device *ubi)  { return; }
-static inline int ubi_debugfs_init(void)                           { return 0; }
-static inline void ubi_debugfs_exit(void)                          { return; }
-static inline int ubi_debugfs_init_dev(struct ubi_device *ubi)     { return 0; }
-static inline void ubi_debugfs_exit_dev(struct ubi_device *ubi)    { return; }
-
-static inline int
-ubi_dbg_is_bgt_disabled(const struct ubi_device *ubi)              { return 0; }
-static inline int ubi_dbg_is_bitflip(const struct ubi_device *ubi) { return 0; }
-static inline int
-ubi_dbg_is_write_failure(const struct ubi_device *ubi)             { return 0; }
-static inline int
-ubi_dbg_is_erase_failure(const struct ubi_device *ubi)             { return 0; }
-
-#endif /* !CONFIG_MTD_UBI_DEBUG */
 #endif /* !__UBI_DEBUG_H__ */

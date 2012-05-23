@@ -19,8 +19,10 @@
 #include <linux/clkdev.h>
 #include <linux/mtd/physmap.h>
 
+#include <asm/arch_timer.h>
 #include <asm/mach-types.h>
 #include <asm/sizes.h>
+#include <asm/smp_twd.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -616,7 +618,6 @@ void __init v2m_dt_init_early(void)
 	}
 
 	clkdev_add_table(v2m_dt_lookups, ARRAY_SIZE(v2m_dt_lookups));
-	versatile_sched_clock_init(v2m_sysreg_base + V2M_SYS_24MHZ, 24000000);
 }
 
 static  struct of_device_id vexpress_irq_match[] __initdata = {
@@ -643,6 +644,11 @@ static void __init v2m_dt_timer_init(void)
 		return;
 	node = of_find_node_by_path(path);
 	v2m_sp804_init(of_iomap(node, 0), irq_of_parse_and_map(node, 0));
+	if (arch_timer_of_register() != 0)
+		twd_local_timer_of_register();
+
+	if (arch_timer_sched_clock_init() != 0)
+		versatile_sched_clock_init(v2m_sysreg_base + V2M_SYS_24MHZ, 24000000);
 }
 
 static struct sys_timer v2m_dt_timer = {

@@ -2352,6 +2352,24 @@ static void brcmf_sdbrcm_bus_stop(struct device *dev)
 	up(&bus->sdsem);
 }
 
+#ifdef CONFIG_BRCMFMAC_SDIO_OOB
+static inline void brcmf_sdbrcm_clrintr(struct brcmf_sdio *bus)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&bus->sdiodev->irq_en_lock, flags);
+	if (!bus->sdiodev->irq_en && !bus->ipend) {
+		enable_irq(bus->sdiodev->irq);
+		bus->sdiodev->irq_en = true;
+	}
+	spin_unlock_irqrestore(&bus->sdiodev->irq_en_lock, flags);
+}
+#else
+static inline void brcmf_sdbrcm_clrintr(struct brcmf_sdio *bus)
+{
+}
+#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
+
 static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 {
 	u32 intstatus, newstatus = 0;
@@ -2509,6 +2527,8 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 	bus->intstatus = intstatus;
 
 clkwait:
+	brcmf_sdbrcm_clrintr(bus);
+
 	if (data_ok(bus) && bus->ctrl_frame_stat &&
 		(bus->clkstate == CLK_AVAIL)) {
 		int ret, i;
@@ -3508,8 +3528,14 @@ static int brcmf_sdbrcm_bus_init(struct device *dev)
 	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
 			       SBSDIO_FUNC1_CHIPCLKCSR, saveclk, &err);
 
+	if (ret == 0) {
+		ret = brcmf_sdio_intr_register(bus->sdiodev);
+		if (ret != 0)
+			brcmf_dbg(ERROR, "intr register failed:%d\n", ret);
+	}
+
 	/* If we didn't come up, turn off backplane clock */
-	if (!ret)
+	if (bus_if->state != BRCMF_BUS_DATA)
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
 
 exit:
@@ -3867,7 +3893,7 @@ static void brcmf_sdbrcm_release(struct brcmf_sdio *bus)
 
 	if (bus) {
 		/* De-register interrupt handler */
-		brcmf_sdcard_intr_dereg(bus->sdiodev);
+		brcmf_sdio_intr_unregister(bus->sdiodev);
 
 		if (bus->sdiodev->bus_if->drvr) {
 			brcmf_detach(bus->sdiodev->dev);
@@ -3968,15 +3994,6 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 		goto fail;
 	}
 
-	/* Register interrupt callback, but mask it (not operational yet). */
-	brcmf_dbg(INTR, "disable SDIO interrupts (not interested yet)\n");
-	ret = brcmf_sdcard_intr_reg(bus->sdiodev);
-	if (ret != 0) {
-		brcmf_dbg(ERROR, "FAILED: sdcard_intr_reg returned %d\n", ret);
-		goto fail;
-	}
-	brcmf_dbg(INTR, "registered SDIO interrupt function ok\n");
-
 	brcmf_dbg(INFO, "completed!!\n");
 
 	/* if firmware path present try to download and bring up bus */
@@ -3986,12 +4003,6 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 			brcmf_dbg(ERROR, "dongle is not responding\n");
 			goto fail;
 		}
-	}
-
-	/* add interface and open for business */
-	if (brcmf_add_if(bus->sdiodev->dev, 0, "wlan%d", NULL)) {
-		brcmf_dbg(ERROR, "Add primary net device interface failed!!\n");
-		goto fail;
 	}
 
 	return bus;

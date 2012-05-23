@@ -22,19 +22,15 @@
 static void __init cnb20le_res(u8 bus, u8 slot, u8 func)
 {
 	struct pci_root_info *info;
+	struct pci_root_res *root_res;
 	struct resource res;
 	u16 word1, word2;
 	u8 fbus, lbus;
-	int i;
-
-	info = &pci_root_info[pci_root_num];
-	pci_root_num++;
 
 	/* read the PCI bus numbers */
 	fbus = read_pci_config_byte(bus, slot, func, 0x44);
 	lbus = read_pci_config_byte(bus, slot, func, 0x45);
-	info->bus_min = fbus;
-	info->bus_max = lbus;
+	info = alloc_pci_root_info(fbus, lbus, 0, 0);
 
 	/*
 	 * Add the legacy IDE ports on bus 0
@@ -86,8 +82,8 @@ static void __init cnb20le_res(u8 bus, u8 slot, u8 func)
 	res.flags = IORESOURCE_BUS;
 	printk(KERN_INFO "CNB20LE PCI Host Bridge (domain 0000 %pR)\n", &res);
 
-	for (i = 0; i < info->res_num; i++)
-		printk(KERN_INFO "host bridge window %pR\n", &info->res[i]);
+	list_for_each_entry(root_res, &info->resources, list)
+		printk(KERN_INFO "host bridge window %pR\n", &root_res->res);
 }
 
 static int __init broadcom_postcore_init(void)

@@ -119,11 +119,11 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
  * calculated SNR values.
  */
 static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
-					struct host_cmd_ds_command *resp,
-					struct mwifiex_ds_get_signal *signal)
+					struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_802_11_rssi_info_rsp *rssi_info_rsp =
 						&resp->params.rssi_info_rsp;
+	struct mwifiex_ds_misc_subsc_evt subsc_evt;
 
 	priv->data_rssi_last = le16_to_cpu(rssi_info_rsp->data_rssi_last);
 	priv->data_nf_last = le16_to_cpu(rssi_info_rsp->data_nf_last);
@@ -137,34 +137,29 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
 	priv->bcn_rssi_avg = le16_to_cpu(rssi_info_rsp->bcn_rssi_avg);
 	priv->bcn_nf_avg = le16_to_cpu(rssi_info_rsp->bcn_nf_avg);
 
-	/* Need to indicate IOCTL complete */
-	if (signal) {
-		memset(signal, 0, sizeof(*signal));
+	if (priv->subsc_evt_rssi_state == EVENT_HANDLED)
+		return 0;
 
-		signal->selector = ALL_RSSI_INFO_MASK;
-
-		/* RSSI */
-		signal->bcn_rssi_last = priv->bcn_rssi_last;
-		signal->bcn_rssi_avg = priv->bcn_rssi_avg;
-		signal->data_rssi_last = priv->data_rssi_last;
-		signal->data_rssi_avg = priv->data_rssi_avg;
-
-		/* SNR */
-		signal->bcn_snr_last =
-			CAL_SNR(priv->bcn_rssi_last, priv->bcn_nf_last);
-		signal->bcn_snr_avg =
-			CAL_SNR(priv->bcn_rssi_avg, priv->bcn_nf_avg);
-		signal->data_snr_last =
-			CAL_SNR(priv->data_rssi_last, priv->data_nf_last);
-		signal->data_snr_avg =
-			CAL_SNR(priv->data_rssi_avg, priv->data_nf_avg);
-
-		/* NF */
-		signal->bcn_nf_last = priv->bcn_nf_last;
-		signal->bcn_nf_avg = priv->bcn_nf_avg;
-		signal->data_nf_last = priv->data_nf_last;
-		signal->data_nf_avg = priv->data_nf_avg;
+	/* Resubscribe low and high rssi events with new thresholds */
+	memset(&subsc_evt, 0x00, sizeof(struct mwifiex_ds_misc_subsc_evt));
+	subsc_evt.events = BITMASK_BCN_RSSI_LOW | BITMASK_BCN_RSSI_HIGH;
+	subsc_evt.action = HostCmd_ACT_BITWISE_SET;
+	if (priv->subsc_evt_rssi_state == RSSI_LOW_RECVD) {
+		subsc_evt.bcn_l_rssi_cfg.abs_value = abs(priv->bcn_rssi_avg -
+				priv->cqm_rssi_hyst);
+		subsc_evt.bcn_h_rssi_cfg.abs_value = abs(priv->cqm_rssi_thold);
+	} else if (priv->subsc_evt_rssi_state == RSSI_HIGH_RECVD) {
+		subsc_evt.bcn_l_rssi_cfg.abs_value = abs(priv->cqm_rssi_thold);
+		subsc_evt.bcn_h_rssi_cfg.abs_value = abs(priv->bcn_rssi_avg +
+				priv->cqm_rssi_hyst);
 	}
+	subsc_evt.bcn_l_rssi_cfg.evt_freq = 1;
+	subsc_evt.bcn_h_rssi_cfg.evt_freq = 1;
+
+	priv->subsc_evt_rssi_state = EVENT_HANDLED;
+
+	mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+			       0, 0, &subsc_evt);
 
 	return 0;
 }
@@ -785,6 +780,28 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 }
 
 /*
+ * This function handles the command response for subscribe event command.
+ */
+static int mwifiex_ret_subsc_evt(struct mwifiex_private *priv,
+				 struct host_cmd_ds_command *resp,
+				 struct mwifiex_ds_misc_subsc_evt *sub_event)
+{
+	struct host_cmd_ds_802_11_subsc_evt *cmd_sub_event =
+		(struct host_cmd_ds_802_11_subsc_evt *)&resp->params.subsc_evt;
+
+	/* For every subscribe event command (Get/Set/Clear), FW reports the
+	 * current set of subscribed events*/
+	dev_dbg(priv->adapter->dev, "Bitmap of currently subscribed events: %16x\n",
+		le16_to_cpu(cmd_sub_event->events));
+
+	/*Return the subscribed event info for a Get request*/
+	if (sub_event)
+		sub_event->events = le16_to_cpu(cmd_sub_event->events);
+
+	return 0;
+}
+
+/*
  * This function handles the command responses.
  *
  * This is a generic function, which calls command specific
@@ -853,7 +870,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		ret = mwifiex_ret_get_log(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_RSSI_INFO:
-		ret = mwifiex_ret_802_11_rssi_info(priv, resp, data_buf);
+		ret = mwifiex_ret_802_11_rssi_info(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_SNMP_MIB:
 		ret = mwifiex_ret_802_11_snmp_mib(priv, resp, data_buf);
@@ -923,6 +940,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		ret = mwifiex_ret_11n_cfg(resp, data_buf);
 		break;
 	case HostCmd_CMD_PCIE_DESC_DETAILS:
+		break;
+	case HostCmd_CMD_802_11_SUBSCRIBE_EVENT:
+		ret = mwifiex_ret_subsc_evt(priv, resp, data_buf);
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",

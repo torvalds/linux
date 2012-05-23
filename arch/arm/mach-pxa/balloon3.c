@@ -732,9 +732,7 @@ static inline void balloon3_nand_init(void) {}
 #if defined(CONFIG_REGULATOR_MAX1586) || \
     defined(CONFIG_REGULATOR_MAX1586_MODULE)
 static struct regulator_consumer_supply balloon3_max1587a_consumers[] = {
-	{
-		.supply	= "vcc_core",
-	}
+	REGULATOR_SUPPLY("vcc_core", NULL),
 };
 
 static struct regulator_init_data balloon3_max1587a_v3_info = {

@@ -36,11 +36,10 @@
 #include <asm/unaligned.h>
 
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-agn.h"
 #include "iwl-io.h"
 #include "iwl-trans.h"
-#include "iwl-shared.h"
+#include "iwl-modparams.h"
 
 /* Throughput		OFF time(ms)	ON time (ms)
  *	>300			25		25
@@ -71,7 +70,7 @@ static const struct ieee80211_tpt_blink iwl_blink[] = {
 /* Set led register off */
 void iwlagn_led_enable(struct iwl_priv *priv)
 {
-	iwl_write32(trans(priv), CSR_LED_REG, CSR_LED_REG_TRUN_ON);
+	iwl_write32(priv->trans, CSR_LED_REG, CSR_LED_REG_TRUN_ON);
 }
 
 /*
@@ -107,9 +106,9 @@ static int iwl_send_led_cmd(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd)
 	};
 	u32 reg;
 
-	reg = iwl_read32(trans(priv), CSR_LED_REG);
+	reg = iwl_read32(priv->trans, CSR_LED_REG);
 	if (reg != (reg & CSR_LED_BSM_CTRL_MSK))
-		iwl_write32(trans(priv), CSR_LED_REG,
+		iwl_write32(priv->trans, CSR_LED_REG,
 			    reg & CSR_LED_BSM_CTRL_MSK);
 
 	return iwl_dvm_send_cmd(priv, &cmd);
@@ -138,11 +137,11 @@ static int iwl_led_cmd(struct iwl_priv *priv,
 	}
 
 	IWL_DEBUG_LED(priv, "Led blink time compensation=%u\n",
-			cfg(priv)->base_params->led_compensation);
+			priv->cfg->base_params->led_compensation);
 	led_cmd.on = iwl_blink_compensation(priv, on,
-				cfg(priv)->base_params->led_compensation);
+				priv->cfg->base_params->led_compensation);
 	led_cmd.off = iwl_blink_compensation(priv, off,
-				cfg(priv)->base_params->led_compensation);
+				priv->cfg->base_params->led_compensation);
 
 	ret = iwl_send_led_cmd(priv, &led_cmd);
 	if (!ret) {
@@ -175,7 +174,7 @@ static int iwl_led_blink_set(struct led_classdev *led_cdev,
 
 void iwl_leds_init(struct iwl_priv *priv)
 {
-	int mode = iwlagn_mod_params.led_mode;
+	int mode = iwlwifi_mod_params.led_mode;
 	int ret;
 
 	if (mode == IWL_LED_DISABLE) {
@@ -183,7 +182,7 @@ void iwl_leds_init(struct iwl_priv *priv)
 		return;
 	}
 	if (mode == IWL_LED_DEFAULT)
-		mode = cfg(priv)->led_mode;
+		mode = priv->cfg->led_mode;
 
 	priv->led.name = kasprintf(GFP_KERNEL, "%s-led",
 				   wiphy_name(priv->hw->wiphy));
@@ -207,7 +206,7 @@ void iwl_leds_init(struct iwl_priv *priv)
 		break;
 	}
 
-	ret = led_classdev_register(trans(priv)->dev, &priv->led);
+	ret = led_classdev_register(priv->trans->dev, &priv->led);
 	if (ret) {
 		kfree(priv->led.name);
 		return;

@@ -25,7 +25,7 @@ config AD7606
 	depends on GPIOLIB
 	select IIO_BUFFER
 	select IIO_TRIGGER
-	select IIO_SW_RING
+	select IIO_KFIFO_BUF
 	help
 	  Say yes here to build support for Analog Devices:
 	  ad7606, ad7606-6, ad7606-4 analog to digital converters (ADC).
@@ -63,7 +63,7 @@ config AD799X_RING_BUFFER
 	bool "Analog Devices AD799x: use ring buffer"
 	depends on AD799X
 	select IIO_BUFFER
-	select IIO_SW_RING
+	select IIO_KFIFO_BUF
 	help
 	  Say yes here to include ring buffer support in the AD799X
 	  ADC driver.
@@ -72,7 +72,7 @@ config AD7476
 	tristate "Analog Devices AD7475/6/7/8 AD7466/7/8 and AD7495 ADC driver"
 	depends on SPI
 	select IIO_BUFFER
-	select IIO_SW_RING
+	select IIO_KFIFO_BUF
 	select IIO_TRIGGER
 	help
 	  Say yes here to build support for Analog Devices
@@ -87,7 +87,7 @@ config AD7887
 	tristate "Analog Devices AD7887 ADC driver"
 	depends on SPI
 	select IIO_BUFFER
-	select IIO_SW_RING
+	select IIO_KFIFO_BUF
 	select IIO_TRIGGER
 	help
 	  Say yes here to build support for Analog Devices
@@ -113,7 +113,7 @@ config AD7793
 	tristate "Analog Devices AD7792 AD7793 ADC driver"
 	depends on SPI
 	select IIO_BUFFER
-	select IIO_SW_RING
+	select IIO_KFIFO_BUF
 	select IIO_TRIGGER
 	help
 	  Say yes here to build support for Analog Devices
@@ -135,7 +135,7 @@ config AD7192
 	tristate "Analog Devices AD7190 AD7192 AD7195 ADC driver"
 	depends on SPI
 	select IIO_BUFFER
-	select IIO_SW_RING
+	select IIO_KFIFO_BUF
 	select IIO_TRIGGER
 	help
 	  Say yes here to build support for Analog Devices AD7190,
@@ -195,11 +195,20 @@ config MAX1363_RING_BUFFER
 
 config LPC32XX_ADC
 	tristate "NXP LPC32XX ADC"
-	depends on ARCH_LPC32XX && !TOUCHSCREEN_LPC32XX
+	depends on ARCH_LPC32XX
 	help
 	  Say yes here to build support for the integrated ADC inside the
 	  LPC32XX SoC. Note that this feature uses the same hardware as the
-	  touchscreen driver, so you can only select one of the two drivers
-	  (lpc32xx_adc or lpc32xx_ts). Provides direct access via sysfs.
+	  touchscreen driver, so you should either select only one of the two
+	  drivers (lpc32xx_adc or lpc32xx_ts) or, in the OpenFirmware case,
+	  activate only one via device tree selection.  Provides direct access
+	  via sysfs.
+
+config SPEAR_ADC
+	tristate "ST SPEAr ADC"
+	depends on PLAT_SPEAR
+	help
+	  Say yes here to build support for the integrated ADC inside the
+	  ST SPEAr SoC. Provides direct access via sysfs.
 
 endmenu

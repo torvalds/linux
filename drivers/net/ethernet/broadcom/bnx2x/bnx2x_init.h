@@ -125,7 +125,7 @@ enum {
 	MODE_MF                        = 0x00000100,
 	MODE_MF_SD                     = 0x00000200,
 	MODE_MF_SI                     = 0x00000400,
-	MODE_MF_NIV                    = 0x00000800,
+	MODE_MF_AFEX                   = 0x00000800,
 	MODE_E3_A0                     = 0x00001000,
 	MODE_E3_B0                     = 0x00002000,
 	MODE_COS3                      = 0x00004000,
@@ -241,7 +241,8 @@ static inline void bnx2x_map_q_cos(struct bnx2x *bp, u32 q_num, u32 new_cos)
 			REG_WR(bp, reg_addr, reg_bit_map | q_bit_map);
 
 			/* set/clear queue bit in command-queue bit map
-			(E2/E3A0 only, valid COS values are 0/1) */
+			 * (E2/E3A0 only, valid COS values are 0/1)
+			 */
 			if (!(INIT_MODE_FLAGS(bp) & MODE_E3_B0)) {
 				reg_addr = BNX2X_Q_CMDQ_REG_ADDR(pf_q_num);
 				reg_bit_map = REG_RD(bp, reg_addr);
@@ -277,7 +278,215 @@ static inline void bnx2x_dcb_config_qm(struct bnx2x *bp, enum cos_mode mode,
 }
 
 
-/* Returns the index of start or end of a specific block stage in ops array*/
+/* congestion managment port init api description
+ * the api works as follows:
+ * the driver should pass the cmng_init_input struct, the port_init function
+ * will prepare the required internal ram structure which will be passed back
+ * to the driver (cmng_init) that will write it into the internal ram.
+ *
+ * IMPORTANT REMARKS:
+ * 1. the cmng_init struct does not represent the contiguous internal ram
+ *    structure. the driver should use the XSTORM_CMNG_PERPORT_VARS_OFFSET
+ *    offset in order to write the port sub struct and the
+ *    PFID_FROM_PORT_AND_VNIC offset for writing the vnic sub struct (in other
+ *    words - don't use memcpy!).
+ * 2. although the cmng_init struct is filled for the maximal vnic number
+ *    possible, the driver should only write the valid vnics into the internal
+ *    ram according to the appropriate port mode.
+ */
+#define BITS_TO_BYTES(x) ((x)/8)
+
+/* CMNG constants, as derived from system spec calculations */
+
+/* default MIN rate in case VNIC min rate is configured to zero- 100Mbps */
+#define DEF_MIN_RATE 100
+
+/* resolution of the rate shaping timer - 400 usec */
+#define RS_PERIODIC_TIMEOUT_USEC 400
+
+/* number of bytes in single QM arbitration cycle -
+ * coefficient for calculating the fairness timer
+ */
+#define QM_ARB_BYTES 160000
+
+/* resolution of Min algorithm 1:100 */
+#define MIN_RES 100
+
+/* how many bytes above threshold for
+ * the minimal credit of Min algorithm
+ */
+#define MIN_ABOVE_THRESH 32768
+
+/* Fairness algorithm integration time coefficient -
+ * for calculating the actual Tfair
+ */
+#define T_FAIR_COEF ((MIN_ABOVE_THRESH + QM_ARB_BYTES) * 8 * MIN_RES)
+
+/* Memory of fairness algorithm - 2 cycles */
+#define FAIR_MEM 2
+#define SAFC_TIMEOUT_USEC 52
+
+#define SDM_TICKS 4
+
+
+static inline void bnx2x_init_max(const struct cmng_init_input *input_data,
+				  u32 r_param, struct cmng_init *ram_data)
+{
+	u32 vnic;
+	struct cmng_vnic *vdata = &ram_data->vnic;
+	struct cmng_struct_per_port *pdata = &ram_data->port;
+	/* rate shaping per-port variables
+	 * 100 micro seconds in SDM ticks = 25
+	 * since each tick is 4 microSeconds
+	 */
+
+	pdata->rs_vars.rs_periodic_timeout =
+	RS_PERIODIC_TIMEOUT_USEC / SDM_TICKS;
+
+	/* this is the threshold below which no timer arming will occur.
+	 * 1.25 coefficient is for the threshold to be a little bigger
+	 * then the real time to compensate for timer in-accuracy
+	 */
+	pdata->rs_vars.rs_threshold =
+	(5 * RS_PERIODIC_TIMEOUT_USEC * r_param)/4;
+
+	/* rate shaping per-vnic variables */
+	for (vnic = 0; vnic < BNX2X_PORT2_MODE_NUM_VNICS; vnic++) {
+		/* global vnic counter */
+		vdata->vnic_max_rate[vnic].vn_counter.rate =
+		input_data->vnic_max_rate[vnic];
+		/* maximal Mbps for this vnic
+		 * the quota in each timer period - number of bytes
+		 * transmitted in this period
+		 */
+		vdata->vnic_max_rate[vnic].vn_counter.quota =
+			RS_PERIODIC_TIMEOUT_USEC *
+			(u32)vdata->vnic_max_rate[vnic].vn_counter.rate / 8;
+	}
+
+}
+
+static inline void bnx2x_init_min(const struct cmng_init_input *input_data,
+				  u32 r_param, struct cmng_init *ram_data)
+{
+	u32 vnic, fair_periodic_timeout_usec, vnicWeightSum, tFair;
+	struct cmng_vnic *vdata = &ram_data->vnic;
+	struct cmng_struct_per_port *pdata = &ram_data->port;
+
+	/* this is the resolution of the fairness timer */
+	fair_periodic_timeout_usec = QM_ARB_BYTES / r_param;
+
+	/* fairness per-port variables
+	 * for 10G it is 1000usec. for 1G it is 10000usec.
+	 */
+	tFair = T_FAIR_COEF / input_data->port_rate;
+
+	/* this is the threshold below which we won't arm the timer anymore */
+	pdata->fair_vars.fair_threshold = QM_ARB_BYTES;
+
+	/* we multiply by 1e3/8 to get bytes/msec. We don't want the credits
+	 * to pass a credit of the T_FAIR*FAIR_MEM (algorithm resolution)
+	 */
+	pdata->fair_vars.upper_bound = r_param * tFair * FAIR_MEM;
+
+	/* since each tick is 4 microSeconds */
+	pdata->fair_vars.fairness_timeout =
+				fair_periodic_timeout_usec / SDM_TICKS;
+
+	/* calculate sum of weights */
+	vnicWeightSum = 0;
+
+	for (vnic = 0; vnic < BNX2X_PORT2_MODE_NUM_VNICS; vnic++)
+		vnicWeightSum += input_data->vnic_min_rate[vnic];
+
+	/* global vnic counter */
+	if (vnicWeightSum > 0) {
+		/* fairness per-vnic variables */
+		for (vnic = 0; vnic < BNX2X_PORT2_MODE_NUM_VNICS; vnic++) {
+			/* this is the credit for each period of the fairness
+			 * algorithm - number of bytes in T_FAIR (this vnic
+			 * share of the port rate)
+			 */
+			vdata->vnic_min_rate[vnic].vn_credit_delta =
+				(u32)input_data->vnic_min_rate[vnic] * 100 *
+				(T_FAIR_COEF / (8 * 100 * vnicWeightSum));
+			if (vdata->vnic_min_rate[vnic].vn_credit_delta <
+			    pdata->fair_vars.fair_threshold +
+			    MIN_ABOVE_THRESH) {
+				vdata->vnic_min_rate[vnic].vn_credit_delta =
+					pdata->fair_vars.fair_threshold +
+					MIN_ABOVE_THRESH;
+			}
+		}
+	}
+}
+
+static inline void bnx2x_init_fw_wrr(const struct cmng_init_input *input_data,
+				     u32 r_param, struct cmng_init *ram_data)
+{
+	u32 vnic, cos;
+	u32 cosWeightSum = 0;
+	struct cmng_vnic *vdata = &ram_data->vnic;
+	struct cmng_struct_per_port *pdata = &ram_data->port;
+
+	for (cos = 0; cos < MAX_COS_NUMBER; cos++)
+		cosWeightSum += input_data->cos_min_rate[cos];
+
+	if (cosWeightSum > 0) {
+
+		for (vnic = 0; vnic < BNX2X_PORT2_MODE_NUM_VNICS; vnic++) {
+			/* Since cos and vnic shouldn't work together the rate
+			 * to divide between the coses is the port rate.
+			 */
+			u32 *ccd = vdata->vnic_min_rate[vnic].cos_credit_delta;
+			for (cos = 0; cos < MAX_COS_NUMBER; cos++) {
+				/* this is the credit for each period of
+				 * the fairness algorithm - number of bytes
+				 * in T_FAIR (this cos share of the vnic rate)
+				 */
+				ccd[cos] =
+				    (u32)input_data->cos_min_rate[cos] * 100 *
+				    (T_FAIR_COEF / (8 * 100 * cosWeightSum));
+				 if (ccd[cos] < pdata->fair_vars.fair_threshold
+						+ MIN_ABOVE_THRESH) {
+					ccd[cos] =
+					    pdata->fair_vars.fair_threshold +
+					    MIN_ABOVE_THRESH;
+				}
+			}
+		}
+	}
+}
+
+static inline void bnx2x_init_safc(const struct cmng_init_input *input_data,
+				   struct cmng_init *ram_data)
+{
+	/* in microSeconds */
+	ram_data->port.safc_vars.safc_timeout_usec = SAFC_TIMEOUT_USEC;
+}
+
+/* Congestion management port init */
+static inline void bnx2x_init_cmng(const struct cmng_init_input *input_data,
+				   struct cmng_init *ram_data)
+{
+	u32 r_param;
+	memset(ram_data, 0, sizeof(struct cmng_init));
+
+	ram_data->port.flags = input_data->flags;
+
+	/* number of bytes transmitted in a rate of 10Gbps
+	 * in one usec = 1.25KB.
+	 */
+	r_param = BITS_TO_BYTES(input_data->port_rate);
+	bnx2x_init_max(input_data, r_param, ram_data);
+	bnx2x_init_min(input_data, r_param, ram_data);
+	bnx2x_init_fw_wrr(input_data, r_param, ram_data);
+	bnx2x_init_safc(input_data, ram_data);
+}
+
+
+
+/* Returns the index of start or end of a specific block stage in ops array */
 #define BLOCK_OPS_IDX(block, stage, end) \
 			(2*(((block)*NUM_OF_INIT_PHASES) + (stage)) + (end))
 
@@ -499,9 +708,7 @@ static inline void bnx2x_disable_blocks_parity(struct bnx2x *bp)
 	bnx2x_set_mcp_parity(bp, false);
 }
 
-/**
- * Clear the parity error status registers.
- */
+/* Clear the parity error status registers. */
 static inline void bnx2x_clear_blocks_parity(struct bnx2x *bp)
 {
 	int i;

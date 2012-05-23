@@ -293,7 +293,7 @@ EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
  * cpu in the kernel context. Calls begin_cpu_access to allow exporter-specific
  * preparations. Coherency is only guaranteed in the specified range for the
  * specified access direction.
- * @dma_buf:	[in]	buffer to prepare cpu access for.
+ * @dmabuf:	[in]	buffer to prepare cpu access for.
  * @start:	[in]	start of range for cpu access.
  * @len:	[in]	length of range for cpu access.
  * @direction:	[in]	length of range for cpu access.
@@ -320,7 +320,7 @@ EXPORT_SYMBOL_GPL(dma_buf_begin_cpu_access);
  * cpu in the kernel context. Calls end_cpu_access to allow exporter-specific
  * actions. Coherency is only guaranteed in the specified range for the
  * specified access direction.
- * @dma_buf:	[in]	buffer to complete cpu access for.
+ * @dmabuf:	[in]	buffer to complete cpu access for.
  * @start:	[in]	start of range for cpu access.
  * @len:	[in]	length of range for cpu access.
  * @direction:	[in]	length of range for cpu access.
@@ -340,7 +340,7 @@ EXPORT_SYMBOL_GPL(dma_buf_end_cpu_access);
 /**
  * dma_buf_kmap_atomic - Map a page of the buffer object into kernel address
  * space. The same restrictions as for kmap_atomic and friends apply.
- * @dma_buf:	[in]	buffer to map page from.
+ * @dmabuf:	[in]	buffer to map page from.
  * @page_num:	[in]	page in PAGE_SIZE units to map.
  *
  * This call must always succeed, any necessary preparations that might fail
@@ -356,7 +356,7 @@ EXPORT_SYMBOL_GPL(dma_buf_kmap_atomic);
 
 /**
  * dma_buf_kunmap_atomic - Unmap a page obtained by dma_buf_kmap_atomic.
- * @dma_buf:	[in]	buffer to unmap page from.
+ * @dmabuf:	[in]	buffer to unmap page from.
  * @page_num:	[in]	page in PAGE_SIZE units to unmap.
  * @vaddr:	[in]	kernel space pointer obtained from dma_buf_kmap_atomic.
  *
@@ -375,7 +375,7 @@ EXPORT_SYMBOL_GPL(dma_buf_kunmap_atomic);
 /**
  * dma_buf_kmap - Map a page of the buffer object into kernel address space. The
  * same restrictions as for kmap and friends apply.
- * @dma_buf:	[in]	buffer to map page from.
+ * @dmabuf:	[in]	buffer to map page from.
  * @page_num:	[in]	page in PAGE_SIZE units to map.
  *
  * This call must always succeed, any necessary preparations that might fail
@@ -391,7 +391,7 @@ EXPORT_SYMBOL_GPL(dma_buf_kmap);
 
 /**
  * dma_buf_kunmap - Unmap a page obtained by dma_buf_kmap.
- * @dma_buf:	[in]	buffer to unmap page from.
+ * @dmabuf:	[in]	buffer to unmap page from.
  * @page_num:	[in]	page in PAGE_SIZE units to unmap.
  * @vaddr:	[in]	kernel space pointer obtained from dma_buf_kmap.
  *

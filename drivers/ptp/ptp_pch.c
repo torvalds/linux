@@ -262,6 +262,7 @@ u64 pch_rx_snap_read(struct pci_dev *pdev)
 
 	ns = ((u64) hi) << 32;
 	ns |= lo;
+	ns <<= TICKS_NS_SHIFT;
 
 	return ns;
 }
@@ -278,6 +279,7 @@ u64 pch_tx_snap_read(struct pci_dev *pdev)
 
 	ns = ((u64) hi) << 32;
 	ns |= lo;
+	ns <<= TICKS_NS_SHIFT;
 
 	return ns;
 }
@@ -307,7 +309,7 @@ static void pch_reset(struct pch_dev *chip)
  *				    traffic on the  ethernet interface
  * @addr:	dress which contain the column separated address to be used.
  */
-static int pch_set_station_address(u8 *addr, struct pci_dev *pdev)
+int pch_set_station_address(u8 *addr, struct pci_dev *pdev)
 {
 	s32 i;
 	struct pch_dev *chip = pci_get_drvdata(pdev);
@@ -351,6 +353,7 @@ static int pch_set_station_address(u8 *addr, struct pci_dev *pdev)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(pch_set_station_address);
 
 /*
  * Interrupt service routine
@@ -650,8 +653,6 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	iowrite32(1, &chip->regs->trgt_lo);
 	iowrite32(0, &chip->regs->trgt_hi);
 	iowrite32(PCH_TSE_TTIPEND, &chip->regs->event);
-	/* Version: IEEE1588 v1 and IEEE1588-2008,  Mode: All Evwnt, Locked  */
-	iowrite32(0x80020000, &chip->regs->ch_control);
 
 	pch_eth_enable_set(chip);
 

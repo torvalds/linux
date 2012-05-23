@@ -129,7 +129,7 @@ dc21285_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static struct pci_ops dc21285_ops = {
+struct pci_ops dc21285_ops = {
 	.read	= dc21285_read_config,
 	.write	= dc21285_write_config,
 };
@@ -282,11 +282,6 @@ int __init dc21285_setup(int nr, struct pci_sys_data *sys)
 	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
 
 	return 1;
-}
-
-struct pci_bus * __init dc21285_scan_bus(int nr, struct pci_sys_data *sys)
-{
-	return pci_scan_root_bus(NULL, 0, &dc21285_ops, sys, &sys->resources);
 }
 
 #define dc21285_request_irq(_a, _b, _c, _d, _e) \

@@ -648,6 +648,7 @@ int fc_lport_destroy(struct fc_lport *lport)
 	lport->tt.fcp_abort_io(lport);
 	lport->tt.disc_stop_final(lport);
 	lport->tt.exch_mgr_reset(lport, 0, 0);
+	cancel_delayed_work_sync(&lport->retry_work);
 	fc_fc4_del_lport(lport);
 	return 0;
 }
@@ -1564,7 +1565,6 @@ static void fc_lport_timeout(struct work_struct *work)
 
 	switch (lport->state) {
 	case LPORT_ST_DISABLED:
-		WARN_ON(1);
 		break;
 	case LPORT_ST_READY:
 		break;

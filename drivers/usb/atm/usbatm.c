@@ -86,7 +86,7 @@
 #ifdef VERBOSE_DEBUG
 static int usbatm_print_packet(const unsigned char *data, int len);
 #define PACKETDEBUG(arg...)	usbatm_print_packet(arg)
-#define vdbg(arg...)		dbg(arg)
+#define vdbg(arg...)		dev_dbg(arg)
 #else
 #define PACKETDEBUG(arg...)
 #define vdbg(arg...)
@@ -714,7 +714,7 @@ static void usbatm_destroy_instance(struct kref *kref)
 {
 	struct usbatm_data *instance = container_of(kref, struct usbatm_data, refcount);
 
-	dbg("%s", __func__);
+	usb_dbg(instance, "%s\n", __func__);
 
 	tasklet_kill(&instance->rx_channel.tasklet);
 	tasklet_kill(&instance->tx_channel.tasklet);
@@ -724,14 +724,14 @@ static void usbatm_destroy_instance(struct kref *kref)
 
 static void usbatm_get_instance(struct usbatm_data *instance)
 {
-	dbg("%s", __func__);
+	usb_dbg(instance, "%s\n", __func__);
 
 	kref_get(&instance->refcount);
 }
 
 static void usbatm_put_instance(struct usbatm_data *instance)
 {
-	dbg("%s", __func__);
+	usb_dbg(instance, "%s\n", __func__);
 
 	kref_put(&instance->refcount, usbatm_destroy_instance);
 }
@@ -745,11 +745,10 @@ static void usbatm_atm_dev_close(struct atm_dev *atm_dev)
 {
 	struct usbatm_data *instance = atm_dev->dev_data;
 
-	dbg("%s", __func__);
-
 	if (!instance)
 		return;
 
+	usb_dbg(instance, "%s\n", __func__);
 	atm_dev->dev_data = NULL; /* catch bugs */
 	usbatm_put_instance(instance);	/* taken in usbatm_atm_init */
 }
@@ -759,10 +758,8 @@ static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t * pos, char *pag
 	struct usbatm_data *instance = atm_dev->dev_data;
 	int left = *pos;
 
-	if (!instance) {
-		dbg("%s: NULL instance!", __func__);
+	if (!instance)
 		return -ENODEV;
-	}
 
 	if (!left--)
 		return sprintf(page, "%s\n", instance->description);
@@ -804,10 +801,8 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 	int vci = vcc->vci;
 	short vpi = vcc->vpi;
 
-	if (!instance) {
-		dbg("%s: NULL data!", __func__);
+	if (!instance)
 		return -ENODEV;
-	}
 
 	atm_dbg(instance, "%s: vpi %hd, vci %d\n", __func__, vpi, vci);
 
@@ -884,10 +879,8 @@ static void usbatm_atm_close(struct atm_vcc *vcc)
 	struct usbatm_data *instance = vcc->dev->dev_data;
 	struct usbatm_vcc_data *vcc_data = vcc->dev_data;
 
-	if (!instance || !vcc_data) {
-		dbg("%s: NULL data!", __func__);
+	if (!instance || !vcc_data)
 		return;
-	}
 
 	atm_dbg(instance, "%s entered\n", __func__);
 
@@ -929,10 +922,8 @@ static int usbatm_atm_ioctl(struct atm_dev *atm_dev, unsigned int cmd,
 {
 	struct usbatm_data *instance = atm_dev->dev_data;
 
-	if (!instance || instance->disconnected) {
-		dbg("%s: %s!", __func__, instance ? "disconnected" : "NULL instance");
+	if (!instance || instance->disconnected)
 		return -ENODEV;
-	}
 
 	switch (cmd) {
 	case ATM_QUERYLOOP:
@@ -1336,8 +1327,6 @@ EXPORT_SYMBOL_GPL(usbatm_usb_disconnect);
 
 static int __init usbatm_usb_init(void)
 {
-	dbg("%s: driver version %s", __func__, DRIVER_VERSION);
-
 	if (sizeof(struct usbatm_control) > FIELD_SIZEOF(struct sk_buff, cb)) {
 		printk(KERN_ERR "%s unusable with this kernel!\n", usbatm_driver_name);
 		return -EIO;
@@ -1357,7 +1346,6 @@ module_init(usbatm_usb_init);
 
 static void __exit usbatm_usb_exit(void)
 {
-	dbg("%s", __func__);
 }
 module_exit(usbatm_usb_exit);
 

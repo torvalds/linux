@@ -13,7 +13,7 @@
 
    Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
 
-   We want to tanks the Authors of those projects and the Ndiswrapper
+   We want to thank the Authors of those projects and the Ndiswrapper
    project Authors.
 */
 
@@ -256,7 +256,7 @@ static int r8192_wx_get_ap_status(struct net_device *dev,
 	//count the length of input ssid
 	for(name_len=0 ; ((char*)wrqu->data.pointer)[name_len]!='\0' ; name_len++);
 
-	//search for the correspoding info which is received
+	//search for the corresponding info which is received
 	list_for_each_entry(target, &ieee->network_list, list) {
 		if ( (target->ssid_len == name_len) &&
 		     (strncmp(target->ssid, (char*)wrqu->data.pointer, name_len)==0)){
@@ -419,7 +419,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	range->max_qual.updated = 7; /* Updated all three */
 
 	range->avg_qual.qual = 92; /* > 8% missed beacons is 'bad' */
-	/* TODO: Find real 'good' to 'bad' threshol value for RSSI */
+	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
 	range->avg_qual.level = 20 + -98;
 	range->avg_qual.noise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */
@@ -1047,7 +1047,7 @@ static iw_handler r8192_wx_handlers[] =
 #else
 	 NULL,
 #endif
-	dummy,                     /* SIOCGIWAPLIST -- depricated */
+	dummy,                     /* SIOCGIWAPLIST -- deprecated */
 	r8192_wx_set_scan,        /* SIOCSIWSCAN */
 	r8192_wx_get_scan,        /* SIOCGIWSCAN */
 	r8192_wx_set_essid,       /* SIOCSIWESSID */
@@ -1211,9 +1211,9 @@ struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 
 struct iw_handler_def  r8192_wx_handlers_def={
 	.standard = r8192_wx_handlers,
-	.num_standard = sizeof(r8192_wx_handlers) / sizeof(iw_handler),
+	.num_standard = ARRAY_SIZE(r8192_wx_handlers),
 	.private = r8192_private_handler,
-	.num_private = sizeof(r8192_private_handler) / sizeof(iw_handler),
+	.num_private = ARRAY_SIZE(r8192_private_handler),
 	.num_private_args = sizeof(r8192_private_args) / sizeof(struct iw_priv_args),
 #if WIRELESS_EXT >= 17
 	.get_wireless_stats = r8192_get_wireless_stats,

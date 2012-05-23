@@ -398,6 +398,9 @@ static int __devinit isp1760_plat_probe(struct platform_device *pdev)
 	hcd = isp1760_register(mem_res->start, mem_size, irq_res->start,
 			       irqflags, -ENOENT,
 			       &pdev->dev, dev_name(&pdev->dev), devflags);
+
+	dev_set_drvdata(&pdev->dev, hcd);
+
 	if (IS_ERR(hcd)) {
 		pr_warning("isp1760: Failed to register the HCD device\n");
 		ret = -ENODEV;
@@ -417,10 +420,15 @@ static int __devexit isp1760_plat_remove(struct platform_device *pdev)
 {
 	struct resource *mem_res;
 	resource_size_t mem_size;
+	struct usb_hcd *hcd = dev_get_drvdata(&pdev->dev);
+
+	usb_remove_hcd(hcd);
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mem_size = resource_size(mem_res);
 	release_mem_region(mem_res->start, mem_size);
+
+	usb_put_hcd(hcd);
 
 	return 0;
 }

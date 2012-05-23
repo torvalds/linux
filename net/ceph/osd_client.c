@@ -1214,7 +1214,7 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	}
 
 	if (!req->r_got_reply) {
-		unsigned bytes;
+		unsigned int bytes;
 
 		req->r_result = le32_to_cpu(rhead->result);
 		bytes = le32_to_cpu(msg->hdr.data_len);

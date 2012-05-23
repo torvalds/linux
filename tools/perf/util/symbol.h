@@ -65,6 +65,11 @@ struct symbol {
 
 void symbol__delete(struct symbol *sym);
 
+static inline size_t symbol__size(const struct symbol *sym)
+{
+	return sym->end - sym->start + 1;
+}
+
 struct strlist;
 
 struct symbol_conf {

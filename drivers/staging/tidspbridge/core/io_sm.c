@@ -2212,7 +2212,7 @@ void dump_dl_modules(struct bridge_dev_context *bridge_context)
 
 		if (status) {
 			pr_debug(
-			"%s: Failed to read dll_module stuct for 0x%x.\n",
+			"%s: Failed to read dll_module struct for 0x%x.\n",
 			__func__, module_dsp_addr);
 			break;
 		}

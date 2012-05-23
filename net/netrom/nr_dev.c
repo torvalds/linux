@@ -97,7 +97,7 @@ static int nr_rebuild_header(struct sk_buff *skb)
 
 static int nr_header(struct sk_buff *skb, struct net_device *dev,
 		     unsigned short type,
-		     const void *daddr, const void *saddr, unsigned len)
+		     const void *daddr, const void *saddr, unsigned int len)
 {
 	unsigned char *buff = skb_push(skb, NR_NETWORK_LEN + NR_TRANSPORT_LEN);
 

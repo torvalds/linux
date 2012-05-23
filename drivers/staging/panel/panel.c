@@ -754,7 +754,7 @@ static void lcd_backlight(int on)
 	if (lcd_bl_pin == PIN_NONE)
 		return;
 
-	/* The backlight is activated by seting the AUTOFEED line to +5V  */
+	/* The backlight is activated by setting the AUTOFEED line to +5V  */
 	spin_lock(&pprt_lock);
 	bits.bl = on;
 	panel_set_bits();

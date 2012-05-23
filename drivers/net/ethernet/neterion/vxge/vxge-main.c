@@ -1882,25 +1882,24 @@ static int vxge_poll_inta(struct napi_struct *napi, int budget)
  */
 static void vxge_netpoll(struct net_device *dev)
 {
-	struct __vxge_hw_device *hldev;
-	struct vxgedev *vdev;
-
-	vdev = netdev_priv(dev);
-	hldev = pci_get_drvdata(vdev->pdev);
+	struct vxgedev *vdev = netdev_priv(dev);
+	struct pci_dev *pdev = vdev->pdev;
+	struct __vxge_hw_device *hldev = pci_get_drvdata(pdev);
+	const int irq = pdev->irq;
 
 	vxge_debug_entryexit(VXGE_TRACE, "%s:%d", __func__, __LINE__);
 
-	if (pci_channel_offline(vdev->pdev))
+	if (pci_channel_offline(pdev))
 		return;
 
-	disable_irq(dev->irq);
+	disable_irq(irq);
 	vxge_hw_device_clear_tx_rx(hldev);
 
 	vxge_hw_device_clear_tx_rx(hldev);
 	VXGE_COMPLETE_ALL_RX(vdev);
 	VXGE_COMPLETE_ALL_TX(vdev);
 
-	enable_irq(dev->irq);
+	enable_irq(irq);
 
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s:%d  Exiting...", __func__, __LINE__);
@@ -2860,12 +2859,12 @@ static int vxge_open(struct net_device *dev)
 		vdev->config.rx_pause_enable);
 
 	if (vdev->vp_reset_timer.function == NULL)
-		vxge_os_timer(vdev->vp_reset_timer,
-			vxge_poll_vp_reset, vdev, (HZ/2));
+		vxge_os_timer(&vdev->vp_reset_timer, vxge_poll_vp_reset, vdev,
+			      HZ / 2);
 
 	/* There is no need to check for RxD leak and RxD lookup on Titan1A */
 	if (vdev->titan1 && vdev->vp_lockup_timer.function == NULL)
-		vxge_os_timer(vdev->vp_lockup_timer, vxge_poll_vp_lockup, vdev,
+		vxge_os_timer(&vdev->vp_lockup_timer, vxge_poll_vp_lockup, vdev,
 			      HZ / 2);
 
 	set_bit(__VXGE_STATE_CARD_UP, &vdev->state);
@@ -3424,9 +3423,6 @@ static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 	ndev->features |= ndev->hw_features |
 		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
 
-	/*  Driver entry points */
-	ndev->irq = vdev->pdev->irq;
-	ndev->base_addr = (unsigned long) hldev->bar0;
 
 	ndev->netdev_ops = &vxge_netdev_ops;
 

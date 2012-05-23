@@ -48,6 +48,8 @@ struct dcbnl_rtnl_ops {
 	/* IEEE 802.1Qaz std */
 	int (*ieee_getets) (struct net_device *, struct ieee_ets *);
 	int (*ieee_setets) (struct net_device *, struct ieee_ets *);
+	int (*ieee_getmaxrate) (struct net_device *, struct ieee_maxrate *);
+	int (*ieee_setmaxrate) (struct net_device *, struct ieee_maxrate *);
 	int (*ieee_getpfc) (struct net_device *, struct ieee_pfc *);
 	int (*ieee_setpfc) (struct net_device *, struct ieee_pfc *);
 	int (*ieee_getapp) (struct net_device *, struct dcb_app *);

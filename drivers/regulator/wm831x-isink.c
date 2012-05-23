@@ -154,6 +154,7 @@ static __devinit int wm831x_isink_probe(struct platform_device *pdev)
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
 	struct wm831x_isink *isink;
 	int id = pdev->id % ARRAY_SIZE(pdata->isink);
+	struct regulator_config config = { };
 	struct resource *res;
 	int ret, irq;
 
@@ -189,8 +190,11 @@ static __devinit int wm831x_isink_probe(struct platform_device *pdev)
 	isink->desc.type = REGULATOR_CURRENT;
 	isink->desc.owner = THIS_MODULE;
 
-	isink->regulator = regulator_register(&isink->desc, &pdev->dev,
-					     pdata->isink[id], isink, NULL);
+	config.dev = pdev->dev.parent;
+	config.init_data = pdata->isink[id];
+	config.driver_data = isink;
+
+	isink->regulator = regulator_register(&isink->desc, &config);
 	if (IS_ERR(isink->regulator)) {
 		ret = PTR_ERR(isink->regulator);
 		dev_err(wm831x->dev, "Failed to register ISINK%d: %d\n",

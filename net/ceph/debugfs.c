@@ -94,9 +94,9 @@ static int monc_show(struct seq_file *s, void *p)
 	mutex_lock(&monc->mutex);
 
 	if (monc->have_mdsmap)
-		seq_printf(s, "have mdsmap %u\n", (unsigned)monc->have_mdsmap);
+		seq_printf(s, "have mdsmap %u\n", (unsigned int)monc->have_mdsmap);
 	if (monc->have_osdmap)
-		seq_printf(s, "have osdmap %u\n", (unsigned)monc->have_osdmap);
+		seq_printf(s, "have osdmap %u\n", (unsigned int)monc->have_osdmap);
 	if (monc->want_next_osdmap)
 		seq_printf(s, "want next osdmap\n");
 
@@ -146,7 +146,7 @@ static int osdc_show(struct seq_file *s, void *pp)
 
 		if (req->r_reassert_version.epoch)
 			seq_printf(s, "\t%u'%llu",
-			   (unsigned)le32_to_cpu(req->r_reassert_version.epoch),
+			   (unsigned int)le32_to_cpu(req->r_reassert_version.epoch),
 			   le64_to_cpu(req->r_reassert_version.version));
 		else
 			seq_printf(s, "\t");

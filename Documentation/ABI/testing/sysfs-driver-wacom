@@ -9,6 +9,14 @@ Description:
 		or 0 otherwise. Writing to this file one of these values
 		switches reporting speed.
 
+What:		/sys/class/leds/0005\:056A\:00BD.0001\:selector\:*/
+Date:		May 2012
+Kernel Version:	3.5
+Contact:	linux-bluetooth@vger.kernel.org
+Description:
+		LED selector for Intuos4 WL. There are 4 leds, but only one LED
+		can be lit at a time. Max brightness is 127.
+
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/led
 Date:		August 2011
 Contact:	linux-input@vger.kernel.org

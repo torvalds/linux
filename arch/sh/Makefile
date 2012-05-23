@@ -124,7 +124,7 @@ endif
 
 export ld-bfd BITS
 
-head-y	:= arch/sh/kernel/init_task.o arch/sh/kernel/head_$(BITS).o
+head-y	:= arch/sh/kernel/head_$(BITS).o
 
 core-y				+= arch/sh/kernel/ arch/sh/mm/ arch/sh/boards/
 core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/

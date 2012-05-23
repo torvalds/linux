@@ -54,8 +54,6 @@ struct thread_info {
 	},					\
 }
 
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
-
 #ifndef ASM_OFFSETS_C
 /* how to get the thread information struct from C */
 #define current_thread_info()	((struct thread_info *) ((char *) current + IA64_TASK_SIZE))
@@ -84,7 +82,6 @@ struct thread_info {
 #endif
 #define end_of_stack(p) (unsigned long *)((void *)(p) + IA64_RBS_OFFSET)
 
-#define __HAVE_ARCH_TASK_STRUCT_ALLOCATOR
 #define alloc_task_struct_node(node)						\
 ({										\
 	struct page *page = alloc_pages_node(node, GFP_KERNEL | __GFP_COMP,	\

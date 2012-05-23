@@ -109,23 +109,23 @@ static __u8 dfp_rdesc_fixed[] = {
 static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
-	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
 
-	if ((quirks & LG_RDESC) && *rsize >= 90 && rdesc[83] == 0x26 &&
+	if ((drv_data->quirks & LG_RDESC) && *rsize >= 90 && rdesc[83] == 0x26 &&
 			rdesc[84] == 0x8c && rdesc[85] == 0x02) {
 		hid_info(hdev,
 			 "fixing up Logitech keyboard report descriptor\n");
 		rdesc[84] = rdesc[89] = 0x4d;
 		rdesc[85] = rdesc[90] = 0x10;
 	}
-	if ((quirks & LG_RDESC_REL_ABS) && *rsize >= 50 &&
+	if ((drv_data->quirks & LG_RDESC_REL_ABS) && *rsize >= 50 &&
 			rdesc[32] == 0x81 && rdesc[33] == 0x06 &&
 			rdesc[49] == 0x81 && rdesc[50] == 0x06) {
 		hid_info(hdev,
 			 "fixing up rel/abs in Logitech report descriptor\n");
 		rdesc[33] = rdesc[50] = 0x02;
 	}
-	if ((quirks & LG_FF4) && *rsize >= 101 &&
+	if ((drv_data->quirks & LG_FF4) && *rsize >= 101 &&
 			rdesc[41] == 0x95 && rdesc[42] == 0x0B &&
 			rdesc[47] == 0x05 && rdesc[48] == 0x09) {
 		hid_info(hdev, "fixing up Logitech Speed Force Wireless button descriptor\n");
@@ -278,7 +278,7 @@ static int lg_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		  0,  0,  0,  0,  0,183,184,185,186,187,
 		188,189,190,191,192,193,194,  0,  0,  0
 	};
-	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
 	unsigned int hid = usage->hid;
 
 	if (hdev->product == USB_DEVICE_ID_LOGITECH_RECEIVER &&
@@ -289,7 +289,7 @@ static int lg_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			lg_dinovo_mapping(hi, usage, bit, max))
 		return 1;
 
-	if ((quirks & LG_WIRELESS) && lg_wireless_mapping(hi, usage, bit, max))
+	if ((drv_data->quirks & LG_WIRELESS) && lg_wireless_mapping(hi, usage, bit, max))
 		return 1;
 
 	if ((hid & HID_USAGE_PAGE) != HID_UP_BUTTON)
@@ -299,11 +299,11 @@ static int lg_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 
 	/* Special handling for Logitech Cordless Desktop */
 	if (field->application == HID_GD_MOUSE) {
-		if ((quirks & LG_IGNORE_DOUBLED_WHEEL) &&
+		if ((drv_data->quirks & LG_IGNORE_DOUBLED_WHEEL) &&
 				(hid == 7 || hid == 8))
 			return -1;
 	} else {
-		if ((quirks & LG_EXPANDED_KEYMAP) &&
+		if ((drv_data->quirks & LG_EXPANDED_KEYMAP) &&
 				hid < ARRAY_SIZE(e_keymap) &&
 				e_keymap[hid] != 0) {
 			hid_map_usage(hi, usage, bit, max, EV_KEY,
@@ -319,13 +319,13 @@ static int lg_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
-	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
 
-	if ((quirks & LG_BAD_RELATIVE_KEYS) && usage->type == EV_KEY &&
+	if ((drv_data->quirks & LG_BAD_RELATIVE_KEYS) && usage->type == EV_KEY &&
 			(field->flags & HID_MAIN_ITEM_RELATIVE))
 		field->flags &= ~HID_MAIN_ITEM_RELATIVE;
 
-	if ((quirks & LG_DUPLICATE_USAGES) && (usage->type == EV_KEY ||
+	if ((drv_data->quirks & LG_DUPLICATE_USAGES) && (usage->type == EV_KEY ||
 			 usage->type == EV_REL || usage->type == EV_ABS))
 		clear_bit(usage->code, *bit);
 
@@ -335,9 +335,9 @@ static int lg_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 static int lg_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value)
 {
-	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
 
-	if ((quirks & LG_INVERT_HWHEEL) && usage->code == REL_HWHEEL) {
+	if ((drv_data->quirks & LG_INVERT_HWHEEL) && usage->code == REL_HWHEEL) {
 		input_event(field->hidinput->input, usage->type, usage->code,
 				-value);
 		return 1;
@@ -348,13 +348,20 @@ static int lg_event(struct hid_device *hdev, struct hid_field *field,
 
 static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
-	unsigned long quirks = id->driver_data;
 	unsigned int connect_mask = HID_CONNECT_DEFAULT;
+	struct lg_drv_data *drv_data;
 	int ret;
 
-	hid_set_drvdata(hdev, (void *)quirks);
+	drv_data = kzalloc(sizeof(struct lg_drv_data), GFP_KERNEL);
+	if (!drv_data) {
+		hid_err(hdev, "Insufficient memory, cannot allocate driver data\n");
+		return -ENOMEM;
+	}
+	drv_data->quirks = id->driver_data;
+	
+	hid_set_drvdata(hdev, (void *)drv_data);
 
-	if (quirks & LG_NOGET)
+	if (drv_data->quirks & LG_NOGET)
 		hdev->quirks |= HID_QUIRK_NOGET;
 
 	ret = hid_parse(hdev);
@@ -363,7 +370,7 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto err_free;
 	}
 
-	if (quirks & (LG_FF | LG_FF2 | LG_FF3 | LG_FF4))
+	if (drv_data->quirks & (LG_FF | LG_FF2 | LG_FF3 | LG_FF4))
 		connect_mask &= ~HID_CONNECT_FF;
 
 	ret = hid_hw_start(hdev, connect_mask);
@@ -392,27 +399,29 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		}
 	}
 
-	if (quirks & LG_FF)
+	if (drv_data->quirks & LG_FF)
 		lgff_init(hdev);
-	if (quirks & LG_FF2)
+	if (drv_data->quirks & LG_FF2)
 		lg2ff_init(hdev);
-	if (quirks & LG_FF3)
+	if (drv_data->quirks & LG_FF3)
 		lg3ff_init(hdev);
-	if (quirks & LG_FF4)
+	if (drv_data->quirks & LG_FF4)
 		lg4ff_init(hdev);
 
 	return 0;
 err_free:
+	kfree(drv_data);
 	return ret;
 }
 
 static void lg_remove(struct hid_device *hdev)
 {
-	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
-	if(quirks & LG_FF4)
+	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
+	if (drv_data->quirks & LG_FF4)
 		lg4ff_deinit(hdev);
 
 	hid_hw_stop(hdev);
+	kfree(drv_data);
 }
 
 static const struct hid_device_id lg_devices[] = {

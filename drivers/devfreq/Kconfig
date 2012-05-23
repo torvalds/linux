@@ -16,7 +16,7 @@ menuconfig PM_DEVFREQ
 	  is attached to a single device and returns a "representative"
 	  clock frequency of the device, which is also attached
 	  to a device by 1-to-1. The device registering devfreq takes the
-	  responsiblity to "interpret" the representative frequency and
+	  responsibility to "interpret" the representative frequency and
 	  to set its every clock accordingly with the "target" callback
 	  given to devfreq.
 

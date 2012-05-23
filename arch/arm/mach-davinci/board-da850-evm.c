@@ -284,7 +284,7 @@ static struct platform_device da850_evm_nandflash_device = {
 	.resource	= da850_evm_nandflash_resource,
 };
 
-static struct platform_device *da850_evm_devices[] __initdata = {
+static struct platform_device *da850_evm_devices[] = {
 	&da850_evm_nandflash_device,
 	&da850_evm_norflash_device,
 };

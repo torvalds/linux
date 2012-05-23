@@ -283,7 +283,7 @@ static unsigned int ip_nat_sip_expect(struct sk_buff *skb, unsigned int dataoff,
 	__be32 newip;
 	u_int16_t port;
 	char buffer[sizeof("nnn.nnn.nnn.nnn:nnnnn")];
-	unsigned buflen;
+	unsigned int buflen;
 
 	/* Connection will come from reply */
 	if (ct->tuplehash[dir].tuple.src.u3.ip == ct->tuplehash[!dir].tuple.dst.u3.ip)

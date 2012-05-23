@@ -1329,8 +1329,6 @@ static void qeth_set_intial_options(struct qeth_card *card)
 {
 	card->options.route4.type = NO_ROUTER;
 	card->options.route6.type = NO_ROUTER;
-	card->options.broadcast_mode = QETH_TR_BROADCAST_ALLRINGS;
-	card->options.macaddr_mode = QETH_TR_MACADDR_NONCANONICAL;
 	card->options.fake_broadcast = 0;
 	card->options.add_hhlen = DEFAULT_ADD_HHLEN;
 	card->options.performance_stats = 0;
@@ -1365,7 +1363,7 @@ static void qeth_start_kernel_thread(struct work_struct *work)
 	    card->write.state != CH_STATE_UP)
 		return;
 	if (qeth_do_start_thread(card, QETH_RECOVER_THREAD)) {
-		ts = kthread_run(card->discipline.recover, (void *)card,
+		ts = kthread_run(card->discipline->recover, (void *)card,
 				"qeth_recover");
 		if (IS_ERR(ts)) {
 			qeth_clear_thread_start_bit(card, QETH_RECOVER_THREAD);
@@ -3339,7 +3337,7 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 	if (rc) {
 		queue->card->stats.tx_errors += count;
 		/* ignore temporary SIGA errors without busy condition */
-		if (rc == QDIO_ERROR_SIGA_TARGET)
+		if (rc == -ENOBUFS)
 			return;
 		QETH_CARD_TEXT(queue->card, 2, "flushbuf");
 		QETH_CARD_TEXT_(queue->card, 2, " q%d", queue->queue_no);
@@ -3533,7 +3531,7 @@ void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	int i;
 
 	QETH_CARD_TEXT(card, 6, "qdouhdl");
-	if (qdio_error & QDIO_ERROR_ACTIVATE_CHECK_CONDITION) {
+	if (qdio_error & QDIO_ERROR_FATAL) {
 		QETH_CARD_TEXT(card, 2, "achkcond");
 		netif_stop_queue(card->dev);
 		qeth_schedule_recovery(card);
@@ -4629,7 +4627,7 @@ static int qeth_qdio_establish(struct qeth_card *card)
 		goto out_free_in_sbals;
 	}
 	for (i = 0; i < card->qdio.no_in_queues; ++i)
-		queue_start_poll[i] = card->discipline.start_poll;
+		queue_start_poll[i] = card->discipline->start_poll;
 
 	qeth_qdio_establish_cq(card, in_sbal_ptrs, queue_start_poll);
 
@@ -4653,8 +4651,8 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	init_data.qib_param_field        = qib_param_field;
 	init_data.no_input_qs            = card->qdio.no_in_queues;
 	init_data.no_output_qs           = card->qdio.no_out_queues;
-	init_data.input_handler          = card->discipline.input_handler;
-	init_data.output_handler         = card->discipline.output_handler;
+	init_data.input_handler 	 = card->discipline->input_handler;
+	init_data.output_handler	 = card->discipline->output_handler;
 	init_data.queue_start_poll_array = queue_start_poll;
 	init_data.int_parm               = (unsigned long) card;
 	init_data.input_sbal_addr_array  = (void **) in_sbal_ptrs;
@@ -4738,13 +4736,6 @@ static struct ccw_driver qeth_ccw_driver = {
 	.probe = ccwgroup_probe_ccwdev,
 	.remove = ccwgroup_remove_ccwdev,
 };
-
-static int qeth_core_driver_group(const char *buf, struct device *root_dev,
-				unsigned long driver_id)
-{
-	return ccwgroup_create_from_string(root_dev, driver_id,
-					   &qeth_ccw_driver, 3, buf);
-}
 
 int qeth_core_hardsetup_card(struct qeth_card *card)
 {
@@ -4911,11 +4902,7 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 		break;
 	case QETH_HEADER_TYPE_LAYER3:
 		skb_len = (*hdr)->hdr.l3.length;
-		if ((card->info.link_type == QETH_LINK_TYPE_LANE_TR) ||
-		    (card->info.link_type == QETH_LINK_TYPE_HSTR))
-			headroom = TR_HLEN;
-		else
-			headroom = ETH_HLEN;
+		headroom = ETH_HLEN;
 		break;
 	case QETH_HEADER_TYPE_OSN:
 		skb_len = (*hdr)->hdr.osn.pdu_length;
@@ -5046,17 +5033,15 @@ int qeth_core_load_discipline(struct qeth_card *card,
 	mutex_lock(&qeth_mod_mutex);
 	switch (discipline) {
 	case QETH_DISCIPLINE_LAYER3:
-		card->discipline.ccwgdriver = try_then_request_module(
-			symbol_get(qeth_l3_ccwgroup_driver),
-			"qeth_l3");
+		card->discipline = try_then_request_module(
+			symbol_get(qeth_l3_discipline), "qeth_l3");
 		break;
 	case QETH_DISCIPLINE_LAYER2:
-		card->discipline.ccwgdriver = try_then_request_module(
-			symbol_get(qeth_l2_ccwgroup_driver),
-			"qeth_l2");
+		card->discipline = try_then_request_module(
+			symbol_get(qeth_l2_discipline), "qeth_l2");
 		break;
 	}
-	if (!card->discipline.ccwgdriver) {
+	if (!card->discipline) {
 		dev_err(&card->gdev->dev, "There is no kernel module to "
 			"support discipline %d\n", discipline);
 		rc = -EINVAL;
@@ -5068,11 +5053,20 @@ int qeth_core_load_discipline(struct qeth_card *card,
 void qeth_core_free_discipline(struct qeth_card *card)
 {
 	if (card->options.layer2)
-		symbol_put(qeth_l2_ccwgroup_driver);
+		symbol_put(qeth_l2_discipline);
 	else
-		symbol_put(qeth_l3_ccwgroup_driver);
-	card->discipline.ccwgdriver = NULL;
+		symbol_put(qeth_l3_discipline);
+	card->discipline = NULL;
 }
+
+static const struct device_type qeth_generic_devtype = {
+	.name = "qeth_generic",
+	.groups = qeth_generic_attr_groups,
+};
+static const struct device_type qeth_osn_devtype = {
+	.name = "qeth_osn",
+	.groups = qeth_osn_attr_groups,
+};
 
 static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 {
@@ -5128,18 +5122,17 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	}
 
 	if (card->info.type == QETH_CARD_TYPE_OSN)
-		rc = qeth_core_create_osn_attributes(dev);
+		gdev->dev.type = &qeth_osn_devtype;
 	else
-		rc = qeth_core_create_device_attributes(dev);
-	if (rc)
-		goto err_dbf;
+		gdev->dev.type = &qeth_generic_devtype;
+
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_OSN:
 	case QETH_CARD_TYPE_OSM:
 		rc = qeth_core_load_discipline(card, QETH_DISCIPLINE_LAYER2);
 		if (rc)
-			goto err_attr;
-		rc = card->discipline.ccwgdriver->probe(card->gdev);
+			goto err_dbf;
+		rc = card->discipline->setup(card->gdev);
 		if (rc)
 			goto err_disc;
 	case QETH_CARD_TYPE_OSD:
@@ -5157,11 +5150,6 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 
 err_disc:
 	qeth_core_free_discipline(card);
-err_attr:
-	if (card->info.type == QETH_CARD_TYPE_OSN)
-		qeth_core_remove_osn_attributes(dev);
-	else
-		qeth_core_remove_device_attributes(dev);
 err_dbf:
 	debug_unregister(card->debug);
 err_card:
@@ -5178,14 +5166,8 @@ static void qeth_core_remove_device(struct ccwgroup_device *gdev)
 
 	QETH_DBF_TEXT(SETUP, 2, "removedv");
 
-	if (card->info.type == QETH_CARD_TYPE_OSN) {
-		qeth_core_remove_osn_attributes(&gdev->dev);
-	} else {
-		qeth_core_remove_device_attributes(&gdev->dev);
-	}
-
-	if (card->discipline.ccwgdriver) {
-		card->discipline.ccwgdriver->remove(gdev);
+	if (card->discipline) {
+		card->discipline->remove(gdev);
 		qeth_core_free_discipline(card);
 	}
 
@@ -5205,7 +5187,7 @@ static int qeth_core_set_online(struct ccwgroup_device *gdev)
 	int rc = 0;
 	int def_discipline;
 
-	if (!card->discipline.ccwgdriver) {
+	if (!card->discipline) {
 		if (card->info.type == QETH_CARD_TYPE_IQD)
 			def_discipline = QETH_DISCIPLINE_LAYER3;
 		else
@@ -5213,11 +5195,11 @@ static int qeth_core_set_online(struct ccwgroup_device *gdev)
 		rc = qeth_core_load_discipline(card, def_discipline);
 		if (rc)
 			goto err;
-		rc = card->discipline.ccwgdriver->probe(card->gdev);
+		rc = card->discipline->setup(card->gdev);
 		if (rc)
 			goto err;
 	}
-	rc = card->discipline.ccwgdriver->set_online(gdev);
+	rc = card->discipline->set_online(gdev);
 err:
 	return rc;
 }
@@ -5225,58 +5207,52 @@ err:
 static int qeth_core_set_offline(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
-	return card->discipline.ccwgdriver->set_offline(gdev);
+	return card->discipline->set_offline(gdev);
 }
 
 static void qeth_core_shutdown(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
-	if (card->discipline.ccwgdriver &&
-	    card->discipline.ccwgdriver->shutdown)
-		card->discipline.ccwgdriver->shutdown(gdev);
+	if (card->discipline && card->discipline->shutdown)
+		card->discipline->shutdown(gdev);
 }
 
 static int qeth_core_prepare(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
-	if (card->discipline.ccwgdriver &&
-	    card->discipline.ccwgdriver->prepare)
-		return card->discipline.ccwgdriver->prepare(gdev);
+	if (card->discipline && card->discipline->prepare)
+		return card->discipline->prepare(gdev);
 	return 0;
 }
 
 static void qeth_core_complete(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
-	if (card->discipline.ccwgdriver &&
-	    card->discipline.ccwgdriver->complete)
-		card->discipline.ccwgdriver->complete(gdev);
+	if (card->discipline && card->discipline->complete)
+		card->discipline->complete(gdev);
 }
 
 static int qeth_core_freeze(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
-	if (card->discipline.ccwgdriver &&
-	    card->discipline.ccwgdriver->freeze)
-		return card->discipline.ccwgdriver->freeze(gdev);
+	if (card->discipline && card->discipline->freeze)
+		return card->discipline->freeze(gdev);
 	return 0;
 }
 
 static int qeth_core_thaw(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
-	if (card->discipline.ccwgdriver &&
-	    card->discipline.ccwgdriver->thaw)
-		return card->discipline.ccwgdriver->thaw(gdev);
+	if (card->discipline && card->discipline->thaw)
+		return card->discipline->thaw(gdev);
 	return 0;
 }
 
 static int qeth_core_restore(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
-	if (card->discipline.ccwgdriver &&
-	    card->discipline.ccwgdriver->restore)
-		return card->discipline.ccwgdriver->restore(gdev);
+	if (card->discipline && card->discipline->restore)
+		return card->discipline->restore(gdev);
 	return 0;
 }
 
@@ -5285,8 +5261,7 @@ static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
 		.owner = THIS_MODULE,
 		.name = "qeth",
 	},
-	.driver_id = 0xD8C5E3C8,
-	.probe = qeth_core_probe_device,
+	.setup = qeth_core_probe_device,
 	.remove = qeth_core_remove_device,
 	.set_online = qeth_core_set_online,
 	.set_offline = qeth_core_set_offline,
@@ -5298,20 +5273,29 @@ static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
 	.restore = qeth_core_restore,
 };
 
-static ssize_t
-qeth_core_driver_group_store(struct device_driver *ddrv, const char *buf,
-			   size_t count)
+static ssize_t qeth_core_driver_group_store(struct device_driver *ddrv,
+					    const char *buf, size_t count)
 {
 	int err;
-	err = qeth_core_driver_group(buf, qeth_core_root_dev,
-					qeth_core_ccwgroup_driver.driver_id);
-	if (err)
-		return err;
-	else
-		return count;
-}
 
+	err = ccwgroup_create_dev(qeth_core_root_dev,
+				  &qeth_core_ccwgroup_driver, 3, buf);
+
+	return err ? err : count;
+}
 static DRIVER_ATTR(group, 0200, NULL, qeth_core_driver_group_store);
+
+static struct attribute *qeth_drv_attrs[] = {
+	&driver_attr_group.attr,
+	NULL,
+};
+static struct attribute_group qeth_drv_attr_group = {
+	.attrs = qeth_drv_attrs,
+};
+static const struct attribute_group *qeth_drv_attr_groups[] = {
+	&qeth_drv_attr_group,
+	NULL,
+};
 
 static struct {
 	const char str[ETH_GSTRING_LEN];
@@ -5550,49 +5534,41 @@ static int __init qeth_core_init(void)
 	rc = qeth_register_dbf_views();
 	if (rc)
 		goto out_err;
-	rc = ccw_driver_register(&qeth_ccw_driver);
-	if (rc)
-		goto ccw_err;
-	rc = ccwgroup_driver_register(&qeth_core_ccwgroup_driver);
-	if (rc)
-		goto ccwgroup_err;
-	rc = driver_create_file(&qeth_core_ccwgroup_driver.driver,
-				&driver_attr_group);
-	if (rc)
-		goto driver_err;
 	qeth_core_root_dev = root_device_register("qeth");
 	rc = IS_ERR(qeth_core_root_dev) ? PTR_ERR(qeth_core_root_dev) : 0;
 	if (rc)
 		goto register_err;
-
 	qeth_core_header_cache = kmem_cache_create("qeth_hdr",
 			sizeof(struct qeth_hdr) + ETH_HLEN, 64, 0, NULL);
 	if (!qeth_core_header_cache) {
 		rc = -ENOMEM;
 		goto slab_err;
 	}
-
 	qeth_qdio_outbuf_cache = kmem_cache_create("qeth_buf",
 			sizeof(struct qeth_qdio_out_buffer), 0, 0, NULL);
 	if (!qeth_qdio_outbuf_cache) {
 		rc = -ENOMEM;
 		goto cqslab_err;
 	}
+	rc = ccw_driver_register(&qeth_ccw_driver);
+	if (rc)
+		goto ccw_err;
+	qeth_core_ccwgroup_driver.driver.groups = qeth_drv_attr_groups;
+	rc = ccwgroup_driver_register(&qeth_core_ccwgroup_driver);
+	if (rc)
+		goto ccwgroup_err;
 
 	return 0;
+
+ccwgroup_err:
+	ccw_driver_unregister(&qeth_ccw_driver);
+ccw_err:
+	kmem_cache_destroy(qeth_qdio_outbuf_cache);
 cqslab_err:
 	kmem_cache_destroy(qeth_core_header_cache);
 slab_err:
 	root_device_unregister(qeth_core_root_dev);
 register_err:
-	driver_remove_file(&qeth_core_ccwgroup_driver.driver,
-			   &driver_attr_group);
-driver_err:
-	ccwgroup_driver_unregister(&qeth_core_ccwgroup_driver);
-ccwgroup_err:
-	ccw_driver_unregister(&qeth_ccw_driver);
-ccw_err:
-	QETH_DBF_MESSAGE(2, "Initialization failed with code %d\n", rc);
 	qeth_unregister_dbf_views();
 out_err:
 	pr_err("Initializing the qeth device driver failed\n");
@@ -5601,13 +5577,11 @@ out_err:
 
 static void __exit qeth_core_exit(void)
 {
-	root_device_unregister(qeth_core_root_dev);
-	driver_remove_file(&qeth_core_ccwgroup_driver.driver,
-			   &driver_attr_group);
 	ccwgroup_driver_unregister(&qeth_core_ccwgroup_driver);
 	ccw_driver_unregister(&qeth_ccw_driver);
 	kmem_cache_destroy(qeth_qdio_outbuf_cache);
 	kmem_cache_destroy(qeth_core_header_cache);
+	root_device_unregister(qeth_core_root_dev);
 	qeth_unregister_dbf_views();
 	pr_info("core functions removed\n");
 }

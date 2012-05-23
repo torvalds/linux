@@ -508,6 +508,7 @@ static struct usb_driver bpa10x_driver = {
 	.probe		= bpa10x_probe,
 	.disconnect	= bpa10x_disconnect,
 	.id_table	= bpa10x_table,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(bpa10x_driver);

@@ -97,7 +97,7 @@ static int scsi_bus_prepare(struct device *dev)
 {
 	if (scsi_is_sdev_device(dev)) {
 		/* sd probing uses async_schedule.  Wait until it finishes. */
-		async_synchronize_full();
+		async_synchronize_full_domain(&scsi_sd_probe_domain);
 
 	} else if (scsi_is_host_device(dev)) {
 		/* Wait until async scanning is finished */

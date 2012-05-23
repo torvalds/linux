@@ -83,8 +83,7 @@ EXPORT_SYMBOL(devm_gpio_request);
 void devm_gpio_free(struct device *dev, unsigned int gpio)
 {
 
-	WARN_ON(devres_destroy(dev, devm_gpio_release, devm_gpio_match,
+	WARN_ON(devres_release(dev, devm_gpio_release, devm_gpio_match,
 		&gpio));
-	gpio_free(gpio);
 }
 EXPORT_SYMBOL(devm_gpio_free);

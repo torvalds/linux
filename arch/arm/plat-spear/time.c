@@ -15,14 +15,13 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/ioport.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/time.h>
 #include <linux/irq.h>
 #include <asm/mach/time.h>
 #include <mach/generic.h>
-#include <mach/hardware.h>
-#include <mach/irqs.h>
 
 /*
  * We would use TIMER0 and TIMER1 as clockevent and clocksource.
@@ -175,7 +174,7 @@ static struct irqaction spear_timer_irq = {
 	.handler = spear_timer_interrupt
 };
 
-static void __init spear_clockevent_init(void)
+static void __init spear_clockevent_init(int irq)
 {
 	u32 tick_rate;
 
@@ -195,19 +194,19 @@ static void __init spear_clockevent_init(void)
 
 	clockevents_register_device(&clkevt);
 
-	setup_irq(SPEAR_GPT0_CHAN0_IRQ, &spear_timer_irq);
+	setup_irq(irq, &spear_timer_irq);
 }
 
-void __init spear_setup_timer(void)
+void __init spear_setup_timer(resource_size_t base, int irq)
 {
 	int ret;
 
-	if (!request_mem_region(SPEAR_GPT0_BASE, SZ_1K, "gpt0")) {
+	if (!request_mem_region(base, SZ_1K, "gpt0")) {
 		pr_err("%s:cannot get IO addr\n", __func__);
 		return;
 	}
 
-	gpt_base = (void __iomem *)ioremap(SPEAR_GPT0_BASE, SZ_1K);
+	gpt_base = ioremap(base, SZ_1K);
 	if (!gpt_base) {
 		pr_err("%s:ioremap failed for gpt\n", __func__);
 		goto err_mem;
@@ -225,7 +224,7 @@ void __init spear_setup_timer(void)
 		goto err_clk;
 	}
 
-	spear_clockevent_init();
+	spear_clockevent_init(irq);
 	spear_clocksource_init();
 
 	return;
@@ -235,5 +234,5 @@ err_clk:
 err_iomap:
 	iounmap(gpt_base);
 err_mem:
-	release_mem_region(SPEAR_GPT0_BASE, SZ_1K);
+	release_mem_region(base, SZ_1K);
 }

@@ -382,3 +382,33 @@ acpi_evaluate_reference(acpi_handle handle,
 }
 
 EXPORT_SYMBOL(acpi_evaluate_reference);
+
+acpi_status
+acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld *pld)
+{
+	acpi_status status;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *output;
+
+	status = acpi_evaluate_object(handle, "_PLD", NULL, &buffer);
+
+	if (ACPI_FAILURE(status))
+		return status;
+
+	output = buffer.pointer;
+
+	if (!output || output->type != ACPI_TYPE_PACKAGE
+	    || !output->package.count
+	    || output->package.elements[0].type != ACPI_TYPE_BUFFER
+	    || output->package.elements[0].buffer.length > sizeof(*pld)) {
+		status = AE_TYPE;
+		goto out;
+	}
+
+	memcpy(pld, output->package.elements[0].buffer.pointer,
+	       output->package.elements[0].buffer.length);
+out:
+	kfree(buffer.pointer);
+	return status;
+}
+EXPORT_SYMBOL(acpi_get_physical_device_location);

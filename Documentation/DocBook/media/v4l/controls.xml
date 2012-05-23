@@ -2023,7 +2023,7 @@ Possible values are:</entry>
 		<entry>integer</entry>
 	      </row>
 	      <row><entry spanname="descr">Cyclic intra macroblock refresh. This is the number of continuous macroblocks
-refreshed every frame. Each frame a succesive set of macroblocks is refreshed until the cycle completes and starts from the
+refreshed every frame. Each frame a successive set of macroblocks is refreshed until the cycle completes and starts from the
 top of the frame. Applicable to H264, H263 and MPEG4 encoder.</entry>
 	      </row>
 
@@ -2183,7 +2183,7 @@ Applicable to the MPEG4 and H264 encoders.</entry>
 		<entry>integer</entry>
 	      </row>
 	      <row><entry spanname="descr">The Video Buffer Verifier size in kilobytes, it is used as a limitation of frame skip.
-The VBV is defined in the standard as a mean to verify that the produced stream will be succesfully decoded.
+The VBV is defined in the standard as a mean to verify that the produced stream will be successfully decoded.
 The standard describes it as "Part of a hypothetical decoder that is conceptually connected to the
 output of the encoder. Its purpose is to provide a constraint on the variability of the data rate that an
 encoder or editing process may produce.".
@@ -2196,7 +2196,7 @@ Applicable to the MPEG1, MPEG2, MPEG4 encoders.</entry>
 		<entry>integer</entry>
 	      </row>
 	      <row><entry spanname="descr">The Coded Picture Buffer size in kilobytes, it is used as a limitation of frame skip.
-The CPB is defined in the H264 standard as a mean to verify that the produced stream will be succesfully decoded.
+The CPB is defined in the H264 standard as a mean to verify that the produced stream will be successfully decoded.
 Applicable to the H264 encoder.</entry>
 	      </row>
 

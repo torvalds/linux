@@ -1396,6 +1396,8 @@ asmlinkage void __init xen_start_kernel(void)
 		xen_start_info->console.domU.mfn = 0;
 		xen_start_info->console.domU.evtchn = 0;
 
+		xen_init_apic();
+
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
 	}

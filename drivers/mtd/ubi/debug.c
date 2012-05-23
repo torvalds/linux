@@ -18,24 +18,49 @@
  * Author: Artem Bityutskiy (Битюцкий Артём)
  */
 
-/*
- * Here we keep all the UBI debugging stuff which should normally be disabled
- * and compiled-out, but it is extremely helpful when hunting bugs or doing big
- * changes.
- */
-
-#ifdef CONFIG_MTD_UBI_DEBUG
-
 #include "ubi.h"
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
 
+
 /**
- * ubi_dbg_dump_ec_hdr - dump an erase counter header.
+ * ubi_dump_flash - dump a region of flash.
+ * @ubi: UBI device description object
+ * @pnum: the physical eraseblock number to dump
+ * @offset: the starting offset within the physical eraseblock to dump
+ * @len: the length of the region to dump
+ */
+void ubi_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len)
+{
+	int err;
+	size_t read;
+	void *buf;
+	loff_t addr = (loff_t)pnum * ubi->peb_size + offset;
+
+	buf = vmalloc(len);
+	if (!buf)
+		return;
+	err = mtd_read(ubi->mtd, addr, len, &read, buf);
+	if (err && err != -EUCLEAN) {
+		ubi_err("error %d while reading %d bytes from PEB %d:%d, "
+			"read %zd bytes", err, len, pnum, offset, read);
+		goto out;
+	}
+
+	ubi_msg("dumping %d bytes of data from PEB %d, offset %d",
+		len, pnum, offset);
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1, buf, len, 1);
+out:
+	vfree(buf);
+	return;
+}
+
+/**
+ * ubi_dump_ec_hdr - dump an erase counter header.
  * @ec_hdr: the erase counter header to dump
  */
-void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
+void ubi_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
 {
 	printk(KERN_DEBUG "Erase counter header dump:\n");
 	printk(KERN_DEBUG "\tmagic          %#08x\n",
@@ -57,10 +82,10 @@ void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
 }
 
 /**
- * ubi_dbg_dump_vid_hdr - dump a volume identifier header.
+ * ubi_dump_vid_hdr - dump a volume identifier header.
  * @vid_hdr: the volume identifier header to dump
  */
-void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
+void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
 {
 	printk(KERN_DEBUG "Volume identifier header dump:\n");
 	printk(KERN_DEBUG "\tmagic     %08x\n", be32_to_cpu(vid_hdr->magic));
@@ -82,10 +107,10 @@ void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
 }
 
 /**
- * ubi_dbg_dump_vol_info- dump volume information.
+ * ubi_dump_vol_info - dump volume information.
  * @vol: UBI volume description object
  */
-void ubi_dbg_dump_vol_info(const struct ubi_volume *vol)
+void ubi_dump_vol_info(const struct ubi_volume *vol)
 {
 	printk(KERN_DEBUG "Volume information dump:\n");
 	printk(KERN_DEBUG "\tvol_id          %d\n", vol->vol_id);
@@ -112,11 +137,11 @@ void ubi_dbg_dump_vol_info(const struct ubi_volume *vol)
 }
 
 /**
- * ubi_dbg_dump_vtbl_record - dump a &struct ubi_vtbl_record object.
+ * ubi_dump_vtbl_record - dump a &struct ubi_vtbl_record object.
  * @r: the object to dump
  * @idx: volume table index
  */
-void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
+void ubi_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
 {
 	int name_len = be16_to_cpu(r->name_len);
 
@@ -146,44 +171,44 @@ void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
 }
 
 /**
- * ubi_dbg_dump_sv - dump a &struct ubi_scan_volume object.
- * @sv: the object to dump
+ * ubi_dump_av - dump a &struct ubi_ainf_volume object.
+ * @av: the object to dump
  */
-void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv)
+void ubi_dump_av(const struct ubi_ainf_volume *av)
 {
-	printk(KERN_DEBUG "Volume scanning information dump:\n");
-	printk(KERN_DEBUG "\tvol_id         %d\n", sv->vol_id);
-	printk(KERN_DEBUG "\thighest_lnum   %d\n", sv->highest_lnum);
-	printk(KERN_DEBUG "\tleb_count      %d\n", sv->leb_count);
-	printk(KERN_DEBUG "\tcompat         %d\n", sv->compat);
-	printk(KERN_DEBUG "\tvol_type       %d\n", sv->vol_type);
-	printk(KERN_DEBUG "\tused_ebs       %d\n", sv->used_ebs);
-	printk(KERN_DEBUG "\tlast_data_size %d\n", sv->last_data_size);
-	printk(KERN_DEBUG "\tdata_pad       %d\n", sv->data_pad);
+	printk(KERN_DEBUG "Volume attaching information dump:\n");
+	printk(KERN_DEBUG "\tvol_id         %d\n", av->vol_id);
+	printk(KERN_DEBUG "\thighest_lnum   %d\n", av->highest_lnum);
+	printk(KERN_DEBUG "\tleb_count      %d\n", av->leb_count);
+	printk(KERN_DEBUG "\tcompat         %d\n", av->compat);
+	printk(KERN_DEBUG "\tvol_type       %d\n", av->vol_type);
+	printk(KERN_DEBUG "\tused_ebs       %d\n", av->used_ebs);
+	printk(KERN_DEBUG "\tlast_data_size %d\n", av->last_data_size);
+	printk(KERN_DEBUG "\tdata_pad       %d\n", av->data_pad);
 }
 
 /**
- * ubi_dbg_dump_seb - dump a &struct ubi_scan_leb object.
- * @seb: the object to dump
+ * ubi_dump_aeb - dump a &struct ubi_ainf_peb object.
+ * @aeb: the object to dump
  * @type: object type: 0 - not corrupted, 1 - corrupted
  */
-void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type)
+void ubi_dump_aeb(const struct ubi_ainf_peb *aeb, int type)
 {
-	printk(KERN_DEBUG "eraseblock scanning information dump:\n");
-	printk(KERN_DEBUG "\tec       %d\n", seb->ec);
-	printk(KERN_DEBUG "\tpnum     %d\n", seb->pnum);
+	printk(KERN_DEBUG "eraseblock attaching information dump:\n");
+	printk(KERN_DEBUG "\tec       %d\n", aeb->ec);
+	printk(KERN_DEBUG "\tpnum     %d\n", aeb->pnum);
 	if (type == 0) {
-		printk(KERN_DEBUG "\tlnum     %d\n", seb->lnum);
-		printk(KERN_DEBUG "\tscrub    %d\n", seb->scrub);
-		printk(KERN_DEBUG "\tsqnum    %llu\n", seb->sqnum);
+		printk(KERN_DEBUG "\tlnum     %d\n", aeb->lnum);
+		printk(KERN_DEBUG "\tscrub    %d\n", aeb->scrub);
+		printk(KERN_DEBUG "\tsqnum    %llu\n", aeb->sqnum);
 	}
 }
 
 /**
- * ubi_dbg_dump_mkvol_req - dump a &struct ubi_mkvol_req object.
+ * ubi_dump_mkvol_req - dump a &struct ubi_mkvol_req object.
  * @req: the object to dump
  */
-void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req)
+void ubi_dump_mkvol_req(const struct ubi_mkvol_req *req)
 {
 	char nm[17];
 
@@ -197,38 +222,6 @@ void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req)
 	memcpy(nm, req->name, 16);
 	nm[16] = 0;
 	printk(KERN_DEBUG "\t1st 16 characters of name: %s\n", nm);
-}
-
-/**
- * ubi_dbg_dump_flash - dump a region of flash.
- * @ubi: UBI device description object
- * @pnum: the physical eraseblock number to dump
- * @offset: the starting offset within the physical eraseblock to dump
- * @len: the length of the region to dump
- */
-void ubi_dbg_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len)
-{
-	int err;
-	size_t read;
-	void *buf;
-	loff_t addr = (loff_t)pnum * ubi->peb_size + offset;
-
-	buf = vmalloc(len);
-	if (!buf)
-		return;
-	err = mtd_read(ubi->mtd, addr, len, &read, buf);
-	if (err && err != -EUCLEAN) {
-		ubi_err("error %d while reading %d bytes from PEB %d:%d, "
-			"read %zd bytes", err, len, pnum, offset, read);
-		goto out;
-	}
-
-	dbg_msg("dumping %d bytes of data from PEB %d, offset %d",
-		len, pnum, offset);
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1, buf, len, 1);
-out:
-	vfree(buf);
-	return;
 }
 
 /**
@@ -479,5 +472,3 @@ void ubi_debugfs_exit_dev(struct ubi_device *ubi)
 {
 	debugfs_remove_recursive(ubi->dbg->dfs_dir);
 }
-
-#endif /* CONFIG_MTD_UBI_DEBUG */

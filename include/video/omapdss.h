@@ -468,6 +468,21 @@ struct omap_overlay_manager {
 	int (*wait_for_vsync)(struct omap_overlay_manager *mgr);
 };
 
+/* 22 pins means 1 clk lane and 10 data lanes */
+#define OMAP_DSS_MAX_DSI_PINS 22
+
+struct omap_dsi_pin_config {
+	int num_pins;
+	/*
+	 * pin numbers in the following order:
+	 * clk+, clk-
+	 * data1+, data1-
+	 * data2+, data2-
+	 * ...
+	 */
+	int pins[OMAP_DSS_MAX_DSI_PINS];
+};
+
 struct omap_dss_device {
 	struct device dev;
 
@@ -490,17 +505,6 @@ struct omap_dss_device {
 		} sdi;
 
 		struct {
-			u8 clk_lane;
-			u8 clk_pol;
-			u8 data1_lane;
-			u8 data1_pol;
-			u8 data2_lane;
-			u8 data2_pol;
-			u8 data3_lane;
-			u8 data3_pol;
-			u8 data4_lane;
-			u8 data4_pol;
-
 			int module;
 
 			bool ext_te;
@@ -687,6 +691,8 @@ int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
 int omap_dsi_request_vc(struct omap_dss_device *dssdev, int *channel);
 int omap_dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id);
 void omap_dsi_release_vc(struct omap_dss_device *dssdev, int channel);
+int omapdss_dsi_configure_pins(struct omap_dss_device *dssdev,
+		const struct omap_dsi_pin_config *pin_cfg);
 
 int omapdss_dsi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,

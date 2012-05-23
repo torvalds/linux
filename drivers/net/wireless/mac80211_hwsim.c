@@ -582,11 +582,13 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 		goto nla_put_failure;
 	}
 
-	NLA_PUT(skb, HWSIM_ATTR_ADDR_TRANSMITTER,
-		     sizeof(struct mac_address), data->addresses[1].addr);
+	if (nla_put(skb, HWSIM_ATTR_ADDR_TRANSMITTER,
+		    sizeof(struct mac_address), data->addresses[1].addr))
+		goto nla_put_failure;
 
 	/* We get the skb->data */
-	NLA_PUT(skb, HWSIM_ATTR_FRAME, my_skb->len, my_skb->data);
+	if (nla_put(skb, HWSIM_ATTR_FRAME, my_skb->len, my_skb->data))
+		goto nla_put_failure;
 
 	/* We get the flags for this transmission, and we translate them to
 	   wmediumd flags  */
@@ -597,7 +599,8 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
 		hwsim_flags |= HWSIM_TX_CTL_NO_ACK;
 
-	NLA_PUT_U32(skb, HWSIM_ATTR_FLAGS, hwsim_flags);
+	if (nla_put_u32(skb, HWSIM_ATTR_FLAGS, hwsim_flags))
+		goto nla_put_failure;
 
 	/* We get the tx control (rate and retries) info*/
 
@@ -606,12 +609,14 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 		tx_attempts[i].count = info->status.rates[i].count;
 	}
 
-	NLA_PUT(skb, HWSIM_ATTR_TX_INFO,
-		     sizeof(struct hwsim_tx_rate)*IEEE80211_TX_MAX_RATES,
-		     tx_attempts);
+	if (nla_put(skb, HWSIM_ATTR_TX_INFO,
+		    sizeof(struct hwsim_tx_rate)*IEEE80211_TX_MAX_RATES,
+		    tx_attempts))
+		goto nla_put_failure;
 
 	/* We create a cookie to identify this skb */
-	NLA_PUT_U64(skb, HWSIM_ATTR_COOKIE, (unsigned long) my_skb);
+	if (nla_put_u64(skb, HWSIM_ATTR_COOKIE, (unsigned long) my_skb))
+		goto nla_put_failure;
 
 	genlmsg_end(skb, msg_head);
 	genlmsg_unicast(&init_net, skb, dst_pid);
@@ -632,6 +637,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_rx_status rx_status;
+	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(hw, info);
 
 	if (data->idle) {
 		wiphy_debug(hw->wiphy, "Trying to TX when idle - reject\n");
@@ -666,6 +672,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	spin_lock(&hwsim_radio_lock);
 	list_for_each_entry(data2, &hwsim_radios, list) {
 		struct sk_buff *nskb;
+		struct ieee80211_mgmt *mgmt;
 
 		if (data == data2)
 			continue;
@@ -683,8 +690,18 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 
 		if (mac80211_hwsim_addr_match(data2, hdr->addr1))
 			ack = true;
+
+		/* set bcn timestamp relative to receiver mactime */
 		rx_status.mactime =
-			le64_to_cpu(__mac80211_hwsim_get_tsf(data2));
+				le64_to_cpu(__mac80211_hwsim_get_tsf(data2));
+		mgmt = (struct ieee80211_mgmt *) nskb->data;
+		if (ieee80211_is_beacon(mgmt->frame_control) ||
+		    ieee80211_is_probe_resp(mgmt->frame_control))
+			mgmt->u.beacon.timestamp = cpu_to_le64(
+				rx_status.mactime +
+				(data->tsf_offset - data2->tsf_offset) +
+				24 * 8 * 10 / txrate->bitrate);
+
 		memcpy(IEEE80211_SKB_RXCB(nskb), &rx_status, sizeof(rx_status));
 		ieee80211_rx_irqsafe(data2->hw, nskb);
 	}
@@ -698,12 +715,6 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	bool ack;
 	struct ieee80211_tx_info *txi;
 	u32 _pid;
-	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
-	struct mac80211_hwsim_data *data = hw->priv;
-
-	if (ieee80211_is_beacon(mgmt->frame_control) ||
-	    ieee80211_is_probe_resp(mgmt->frame_control))
-		mgmt->u.beacon.timestamp = __mac80211_hwsim_get_tsf(data);
 
 	mac80211_hwsim_monitor_rx(hw, skb);
 
@@ -800,11 +811,9 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 				     struct ieee80211_vif *vif)
 {
 	struct ieee80211_hw *hw = arg;
-	struct mac80211_hwsim_data *data = hw->priv;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
 	u32 _pid;
-	struct ieee80211_mgmt *mgmt;
 
 	hwsim_check_magic(vif);
 
@@ -817,9 +826,6 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	if (skb == NULL)
 		return;
 	info = IEEE80211_SKB_CB(skb);
-
-	mgmt = (struct ieee80211_mgmt *) skb->data;
-	mgmt->u.beacon.timestamp = __mac80211_hwsim_get_tsf(data);
 
 	mac80211_hwsim_monitor_rx(hw, skb);
 
@@ -1108,7 +1114,8 @@ static int mac80211_hwsim_testmode_cmd(struct ieee80211_hw *hw,
 						nla_total_size(sizeof(u32)));
 		if (!skb)
 			return -ENOMEM;
-		NLA_PUT_U32(skb, HWSIM_TM_ATTR_PS, hwsim->ps);
+		if (nla_put_u32(skb, HWSIM_TM_ATTR_PS, hwsim->ps))
+			goto nla_put_failure;
 		return cfg80211_testmode_reply(skb);
 	default:
 		return -EOPNOTSUPP;
@@ -1444,7 +1451,7 @@ DEFINE_SIMPLE_ATTRIBUTE(hwsim_fops_group,
 			hwsim_fops_group_read, hwsim_fops_group_write,
 			"%llx\n");
 
-struct mac80211_hwsim_data *get_hwsim_data_ref_from_addr(
+static struct mac80211_hwsim_data *get_hwsim_data_ref_from_addr(
 			     struct mac_address *addr)
 {
 	struct mac80211_hwsim_data *data;
@@ -1789,9 +1796,11 @@ static int __init init_mac80211_hwsim(void)
 			    IEEE80211_HW_SIGNAL_DBM |
 			    IEEE80211_HW_SUPPORTS_STATIC_SMPS |
 			    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
-			    IEEE80211_HW_AMPDU_AGGREGATION;
+			    IEEE80211_HW_AMPDU_AGGREGATION |
+			    IEEE80211_HW_WANT_MONITOR_VIF;
 
-		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
+		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
+				    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 		/* ask mac80211 to reserve space for magic */
 		hw->vif_data_size = sizeof(struct hwsim_vif_priv);

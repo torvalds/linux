@@ -49,6 +49,7 @@ config CRIS
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IOMAP
+	select GENERIC_SMP_IDLE_THREAD if ETRAX_ARCH_V32
 
 config HZ
 	int

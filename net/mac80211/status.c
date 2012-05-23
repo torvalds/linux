@@ -355,7 +355,13 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	int rtap_len;
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
-		if (info->status.rates[i].idx < 0) {
+		if ((info->flags & IEEE80211_TX_CTL_AMPDU) &&
+		    !(info->flags & IEEE80211_TX_STAT_AMPDU)) {
+			/* just the first aggr frame carry status info */
+			info->status.rates[i].idx = -1;
+			info->status.rates[i].count = 0;
+			break;
+		} else if (info->status.rates[i].idx < 0) {
 			break;
 		} else if (i >= hw->max_report_rates) {
 			/* the HW cannot have attempted that rate */
@@ -378,7 +384,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	for_each_sta_info(local, hdr->addr1, sta, tmp) {
 		/* skip wrong virtual interface */
-		if (compare_ether_addr(hdr->addr2, sta->sdata->vif.addr))
+		if (!ether_addr_equal(hdr->addr2, sta->sdata->vif.addr))
 			continue;
 
 		if (info->flags & IEEE80211_TX_STATUS_EOSP)

@@ -71,7 +71,8 @@ do {                                                            	\
  * @ctlr:	      The FCoE controller (for FIP)
  * @oem:	      The offload exchange manager for all local port
  *		      instances associated with this port
- * This structure is 1:1 with a net devive.
+ * @removed:	      Indicates fcoe interface removed from net device
+ * This structure is 1:1 with a net device.
  */
 struct fcoe_interface {
 	struct list_head   list;
@@ -81,6 +82,7 @@ struct fcoe_interface {
 	struct packet_type fip_packet_type;
 	struct fcoe_ctlr   ctlr;
 	struct fc_exch_mgr *oem;
+	u8	removed;
 };
 
 #define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_interface, ctlr)

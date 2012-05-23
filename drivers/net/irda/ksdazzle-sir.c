@@ -168,10 +168,10 @@ struct ksdazzle_cb {
 static void ksdazzle_speed_irq(struct urb *urb)
 {
 	/* unlink, shutdown, unplug, other nasties */
-	if (urb->status != 0) {
-		err("ksdazzle_speed_irq: urb asynchronously failed - %d",
-		    urb->status);
-	}
+	if (urb->status != 0)
+		dev_err(&urb->dev->dev,
+			"ksdazzle_speed_irq: urb asynchronously failed - %d\n",
+			urb->status);
 }
 
 /* Send a control request to change speed of the dongle */
@@ -245,14 +245,16 @@ static void ksdazzle_send_irq(struct urb *urb)
 
 	/* in process of stopping, just drop data */
 	if (!netif_running(kingsun->netdev)) {
-		err("ksdazzle_send_irq: Network not running!");
+		dev_err(&kingsun->usbdev->dev,
+			"ksdazzle_send_irq: Network not running!\n");
 		return;
 	}
 
 	/* unlink, shutdown, unplug, other nasties */
 	if (urb->status != 0) {
-		err("ksdazzle_send_irq: urb asynchronously failed - %d",
-		    urb->status);
+		dev_err(&kingsun->usbdev->dev,
+			"ksdazzle_send_irq: urb asynchronously failed - %d\n",
+			urb->status);
 		return;
 	}
 
@@ -271,7 +273,9 @@ static void ksdazzle_send_irq(struct urb *urb)
 		if (kingsun->tx_buf_clear_used > 0) {
 			/* There is more data to be sent */
 			if ((ret = ksdazzle_submit_tx_fragment(kingsun)) != 0) {
-				err("ksdazzle_send_irq: failed tx_urb submit: %d", ret);
+				dev_err(&kingsun->usbdev->dev,
+					"ksdazzle_send_irq: failed tx_urb submit: %d\n",
+					ret);
 				switch (ret) {
 				case -ENODEV:
 				case -EPIPE:
@@ -320,7 +324,8 @@ static netdev_tx_t ksdazzle_hard_xmit(struct sk_buff *skb,
 	kingsun->tx_buf_clear_used = wraplen;
 
 	if ((ret = ksdazzle_submit_tx_fragment(kingsun)) != 0) {
-		err("ksdazzle_hard_xmit: failed tx_urb submit: %d", ret);
+		dev_err(&kingsun->usbdev->dev,
+			"ksdazzle_hard_xmit: failed tx_urb submit: %d\n", ret);
 		switch (ret) {
 		case -ENODEV:
 		case -EPIPE:
@@ -355,8 +360,9 @@ static void ksdazzle_rcv_irq(struct urb *urb)
 
 	/* unlink, shutdown, unplug, other nasties */
 	if (urb->status != 0) {
-		err("ksdazzle_rcv_irq: urb asynchronously failed - %d",
-		    urb->status);
+		dev_err(&kingsun->usbdev->dev,
+			"ksdazzle_rcv_irq: urb asynchronously failed - %d\n",
+			urb->status);
 		kingsun->receiving = 0;
 		return;
 	}
@@ -430,7 +436,7 @@ static int ksdazzle_net_open(struct net_device *netdev)
 	sprintf(hwname, "usb#%d", kingsun->usbdev->devnum);
 	kingsun->irlap = irlap_open(netdev, &kingsun->qos, hwname);
 	if (!kingsun->irlap) {
-		err("ksdazzle-sir: irlap_open failed");
+		dev_err(&kingsun->usbdev->dev, "irlap_open failed\n");
 		goto free_mem;
 	}
 
@@ -442,7 +448,7 @@ static int ksdazzle_net_open(struct net_device *netdev)
 	kingsun->rx_urb->status = 0;
 	err = usb_submit_urb(kingsun->rx_urb, GFP_KERNEL);
 	if (err) {
-		err("ksdazzle-sir: first urb-submit failed: %d", err);
+		dev_err(&kingsun->usbdev->dev, "first urb-submit failed: %d\n", err);
 		goto close_irlap;
 	}
 
@@ -590,13 +596,14 @@ static int ksdazzle_probe(struct usb_interface *intf,
 	 */
 	interface = intf->cur_altsetting;
 	if (interface->desc.bNumEndpoints != 2) {
-		err("ksdazzle: expected 2 endpoints, found %d",
-		    interface->desc.bNumEndpoints);
+		dev_err(&intf->dev, "ksdazzle: expected 2 endpoints, found %d\n",
+			interface->desc.bNumEndpoints);
 		return -ENODEV;
 	}
 	endpoint = &interface->endpoint[KINGSUN_EP_IN].desc;
 	if (!usb_endpoint_is_int_in(endpoint)) {
-		err("ksdazzle: endpoint 0 is not interrupt IN");
+		dev_err(&intf->dev,
+			"ksdazzle: endpoint 0 is not interrupt IN\n");
 		return -ENODEV;
 	}
 
@@ -604,13 +611,16 @@ static int ksdazzle_probe(struct usb_interface *intf,
 	pipe = usb_rcvintpipe(dev, ep_in);
 	maxp_in = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
 	if (maxp_in > 255 || maxp_in <= 1) {
-		err("ksdazzle: endpoint 0 has max packet size %d not in range [2..255]", maxp_in);
+		dev_err(&intf->dev,
+			"ksdazzle: endpoint 0 has max packet size %d not in range [2..255]\n",
+			maxp_in);
 		return -ENODEV;
 	}
 
 	endpoint = &interface->endpoint[KINGSUN_EP_OUT].desc;
 	if (!usb_endpoint_is_int_out(endpoint)) {
-		err("ksdazzle: endpoint 1 is not interrupt OUT");
+		dev_err(&intf->dev,
+			"ksdazzle: endpoint 1 is not interrupt OUT\n");
 		return -ENODEV;
 	}
 

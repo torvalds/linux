@@ -683,9 +683,6 @@ SE_DEV_ATTR(block_size, S_IRUGO | S_IWUSR);
 DEF_DEV_ATTRIB_RO(hw_max_sectors);
 SE_DEV_ATTR_RO(hw_max_sectors);
 
-DEF_DEV_ATTRIB(max_sectors);
-SE_DEV_ATTR(max_sectors, S_IRUGO | S_IWUSR);
-
 DEF_DEV_ATTRIB(fabric_max_sectors);
 SE_DEV_ATTR(fabric_max_sectors, S_IRUGO | S_IWUSR);
 
@@ -727,7 +724,6 @@ static struct configfs_attribute *target_core_dev_attrib_attrs[] = {
 	&target_core_dev_attrib_hw_block_size.attr,
 	&target_core_dev_attrib_block_size.attr,
 	&target_core_dev_attrib_hw_max_sectors.attr,
-	&target_core_dev_attrib_max_sectors.attr,
 	&target_core_dev_attrib_fabric_max_sectors.attr,
 	&target_core_dev_attrib_optimal_sectors.attr,
 	&target_core_dev_attrib_hw_queue_depth.attr,
@@ -2451,6 +2447,26 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_trans_delay_msecs(
 SE_DEV_ALUA_TG_PT_ATTR(trans_delay_msecs, S_IRUGO | S_IWUSR);
 
 /*
+ * implict_trans_secs
+ */
+static ssize_t target_core_alua_tg_pt_gp_show_attr_implict_trans_secs(
+	struct t10_alua_tg_pt_gp *tg_pt_gp,
+	char *page)
+{
+	return core_alua_show_implict_trans_secs(tg_pt_gp, page);
+}
+
+static ssize_t target_core_alua_tg_pt_gp_store_attr_implict_trans_secs(
+	struct t10_alua_tg_pt_gp *tg_pt_gp,
+	const char *page,
+	size_t count)
+{
+	return core_alua_store_implict_trans_secs(tg_pt_gp, page, count);
+}
+
+SE_DEV_ALUA_TG_PT_ATTR(implict_trans_secs, S_IRUGO | S_IWUSR);
+
+/*
  * preferred
  */
 
@@ -2574,6 +2590,7 @@ static struct configfs_attribute *target_core_alua_tg_pt_gp_attrs[] = {
 	&target_core_alua_tg_pt_gp_alua_write_metadata.attr,
 	&target_core_alua_tg_pt_gp_nonop_delay_msecs.attr,
 	&target_core_alua_tg_pt_gp_trans_delay_msecs.attr,
+	&target_core_alua_tg_pt_gp_implict_trans_secs.attr,
 	&target_core_alua_tg_pt_gp_preferred.attr,
 	&target_core_alua_tg_pt_gp_tg_pt_gp_id.attr,
 	&target_core_alua_tg_pt_gp_members.attr,

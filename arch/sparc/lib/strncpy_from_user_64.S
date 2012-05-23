@@ -4,6 +4,7 @@
  *  Copyright (C) 1997, 1999 Jakub Jelinek (jj@ultra.linux.cz)
  */
 
+#include <linux/linkage.h>
 #include <asm/asi.h>
 #include <asm/errno.h>
 
@@ -12,7 +13,6 @@
 0:	.xword	0x0101010101010101
 
 	.text
-	.align	32
 
 	/* Must return:
 	 *
@@ -30,9 +30,7 @@
 	 * and average length is 18 or so.
 	 */
 
-	.globl	__strncpy_from_user
-	.type	__strncpy_from_user,#function
-__strncpy_from_user:
+ENTRY(__strncpy_from_user)
 	/* %o0=dest, %o1=src, %o2=count */
 	andcc	%o1, 7, %g0		! IEU1	Group
 	bne,pn	%icc, 30f		! CTI
@@ -123,7 +121,7 @@ __strncpy_from_user:
 	 mov	%o2, %o0
 2:	retl
 	 add	%o2, %o3, %o0
-	.size	__strncpy_from_user, .-__strncpy_from_user
+ENDPROC(__strncpy_from_user)
 
 	.section __ex_table,"a"
 	.align	4

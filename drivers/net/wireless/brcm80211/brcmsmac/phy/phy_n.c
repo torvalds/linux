@@ -16353,11 +16353,7 @@ static void wlc_phy_workarounds_nphy(struct brcms_phy *pi)
 			wlc_phy_set_rfseq_nphy(pi, NPHY_RFSEQ_RX2TX,
 					       rfseq_rx2tx_events_rev3_ipa,
 					       rfseq_rx2tx_dlys_rev3_ipa,
-					       sizeof
-					       (rfseq_rx2tx_events_rev3_ipa) /
-					       sizeof
-					       (rfseq_rx2tx_events_rev3_ipa
-						[0]));
+					       ARRAY_SIZE(rfseq_rx2tx_events_rev3_ipa));
 
 		mod_phy_reg(pi, 0x299, (0x3 << 14), (0x1 << 14));
 		mod_phy_reg(pi, 0x29d, (0x3 << 14), (0x1 << 14));
@@ -16858,18 +16854,13 @@ static void wlc_phy_workarounds_nphy(struct brcms_phy *pi)
 		wlc_phy_set_rfseq_nphy(pi, NPHY_RFSEQ_TX2RX,
 				       rfseq_tx2rx_events_rev3,
 				       rfseq_tx2rx_dlys_rev3,
-				       sizeof(rfseq_tx2rx_events_rev3) /
-				       sizeof(rfseq_tx2rx_events_rev3[0]));
+				       ARRAY_SIZE(rfseq_tx2rx_events_rev3));
 
 		if (PHY_IPA(pi))
 			wlc_phy_set_rfseq_nphy(pi, NPHY_RFSEQ_RX2TX,
 					       rfseq_rx2tx_events_rev3_ipa,
 					       rfseq_rx2tx_dlys_rev3_ipa,
-					       sizeof
-					       (rfseq_rx2tx_events_rev3_ipa) /
-					       sizeof
-					       (rfseq_rx2tx_events_rev3_ipa
-						[0]));
+					       ARRAY_SIZE(rfseq_rx2tx_events_rev3_ipa));
 
 		if ((pi->sh->hw_phyrxchain != 0x3) &&
 		    (pi->sh->hw_phyrxchain != pi->sh->hw_phytxchain)) {
@@ -16885,8 +16876,7 @@ static void wlc_phy_workarounds_nphy(struct brcms_phy *pi)
 				pi, NPHY_RFSEQ_RX2TX,
 				rfseq_rx2tx_events_rev3,
 				rfseq_rx2tx_dlys_rev3,
-				sizeof(rfseq_rx2tx_events_rev3)	/
-				sizeof(rfseq_rx2tx_events_rev3[0]));
+				ARRAY_SIZE(rfseq_rx2tx_events_rev3));
 		}
 
 		if (CHSPEC_IS2G(pi->radio_chanspec))
@@ -17209,13 +17199,11 @@ static void wlc_phy_workarounds_nphy(struct brcms_phy *pi)
 
 		wlc_phy_set_rfseq_nphy(pi, NPHY_RFSEQ_RX2TX, rfseq_rx2tx_events,
 				       rfseq_rx2tx_dlys,
-				       sizeof(rfseq_rx2tx_events) /
-				       sizeof(rfseq_rx2tx_events[0]));
+				       ARRAY_SIZE(rfseq_rx2tx_events));
 
 		wlc_phy_set_rfseq_nphy(pi, NPHY_RFSEQ_TX2RX, rfseq_tx2rx_events,
 				       rfseq_tx2rx_dlys,
-				       sizeof(rfseq_tx2rx_events) /
-				       sizeof(rfseq_tx2rx_events[0]));
+				       ARRAY_SIZE(rfseq_tx2rx_events));
 
 		wlc_phy_workarounds_nphy_gainctrl(pi);
 
@@ -19357,8 +19345,7 @@ static void wlc_phy_spurwar_nphy(struct brcms_phy *pi)
 			}
 
 			if (isAdjustNoiseVar) {
-				numTonesAdjust = sizeof(nphy_adj_tone_id_buf) /
-						sizeof(nphy_adj_tone_id_buf[0]);
+				numTonesAdjust = ARRAY_SIZE(nphy_adj_tone_id_buf);
 
 				wlc_phy_adjust_min_noisevar_nphy(
 					pi,
@@ -25204,32 +25191,26 @@ static u8 wlc_phy_a3_nphy(struct brcms_phy *pi, u8 start_gain, u8 core)
 
 				phy_a15 = pad_gain_codes_used_2057rev5;
 				phy_a13 =
-					sizeof(pad_gain_codes_used_2057rev5) /
-					sizeof(pad_gain_codes_used_2057rev5
-						[0]) - 1;
+					ARRAY_SIZE(pad_gain_codes_used_2057rev5) - 1;
 
 			} else if ((pi->pubpi.radiorev == 7)
 				   || (pi->pubpi.radiorev == 8)) {
 
 				phy_a15 = pad_gain_codes_used_2057rev7;
 				phy_a13 =
-					sizeof(pad_gain_codes_used_2057rev7) /
-					sizeof(pad_gain_codes_used_2057rev7
-						[0]) - 1;
+					ARRAY_SIZE(pad_gain_codes_used_2057rev7) - 1;
 
 			} else {
 
 				phy_a15 = pad_all_gain_codes_2057;
-				phy_a13 = sizeof(pad_all_gain_codes_2057) /
-					  sizeof(pad_all_gain_codes_2057[0]) -
+				phy_a13 = ARRAY_SIZE(pad_all_gain_codes_2057) -
 					  1;
 			}
 
 		} else {
 
 			phy_a15 = pga_all_gain_codes_2057;
-			phy_a13 = sizeof(pga_all_gain_codes_2057) /
-				  sizeof(pga_all_gain_codes_2057[0]) - 1;
+			phy_a13 = ARRAY_SIZE(pga_all_gain_codes_2057) - 1;
 		}
 
 		phy_a14 = 0;

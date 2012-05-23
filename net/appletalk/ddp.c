@@ -63,7 +63,7 @@
 #include <net/tcp_states.h>
 #include <net/route.h>
 #include <linux/atalk.h>
-#include "../core/kmap_skb.h"
+#include <linux/highmem.h>
 
 struct datalink_proto *ddp_dl, *aarp_dl;
 static const struct proto_ops atalk_dgram_ops;
@@ -960,10 +960,10 @@ static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 
 			if (copy > len)
 				copy = len;
-			vaddr = kmap_skb_frag(frag);
+			vaddr = kmap_atomic(skb_frag_page(frag));
 			sum = atalk_sum_partial(vaddr + frag->page_offset +
 						  offset - start, copy, sum);
-			kunmap_skb_frag(vaddr);
+			kunmap_atomic(vaddr);
 
 			if (!(len -= copy))
 				return sum;

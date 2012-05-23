@@ -27,7 +27,7 @@ Once the client knows the list of exported USB devices it may decide to use one
 of them. First the client opens a TCP/IP connection towards the server and
 sends an OP_REQ_IMPORT packet. The server replies with OP_REP_IMPORT. If the
 import was successful the TCP/IP connection remains open and will be used
-to trasfer the URB traffic between the client and the server. The client may
+to transfer the URB traffic between the client and the server. The client may
 send two types of packets: the USBIP_CMD_SUBMIT to submit an URB, and
 USBIP_CMD_UNLINK to unlink a previously submitted URB. The answers of the
 server may be USBIP_RET_SUBMIT and USBIP_RET_UNLINK respectively.

@@ -58,7 +58,7 @@ static int probed;
 
 /*
  * FIXME: For now, let's order by device function, as it makes
- * easier for driver's development proccess. This table should be
+ * easier for driver's development process. This table should be
  * moved to pci_id.h when submitted upstream
  */
 #define PCI_DEVICE_ID_INTEL_SBRIDGE_SAD0	0x3cf4	/* 12.6 */
@@ -375,7 +375,7 @@ static DEFINE_PCI_DEVICE_TABLE(sbridge_pci_tbl) = {
 
 
 /****************************************************************************
-			Anciliary status routines
+			Ancillary status routines
  ****************************************************************************/
 
 static inline int numrank(u32 mtr)
@@ -1430,7 +1430,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 		type = "FATAL";
 
 	/*
-	 * According with Table 15-9 of the Intel Archictecture spec vol 3A,
+	 * According with Table 15-9 of the Intel Architecture spec vol 3A,
 	 * memory errors should fit in this mask:
 	 *	000f 0000 1mmm cccc (binary)
 	 * where:

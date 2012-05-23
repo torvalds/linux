@@ -63,6 +63,13 @@ struct e1000_hw;
 #define E1000_DEV_ID_I350_FIBER               0x1522
 #define E1000_DEV_ID_I350_SERDES              0x1523
 #define E1000_DEV_ID_I350_SGMII               0x1524
+#define E1000_DEV_ID_I210_COPPER		0x1533
+#define E1000_DEV_ID_I210_COPPER_OEM1		0x1534
+#define E1000_DEV_ID_I210_COPPER_IT		0x1535
+#define E1000_DEV_ID_I210_FIBER			0x1536
+#define E1000_DEV_ID_I210_SERDES		0x1537
+#define E1000_DEV_ID_I210_SGMII			0x1538
+#define E1000_DEV_ID_I211_COPPER		0x1539
 
 #define E1000_REVISION_2 2
 #define E1000_REVISION_4 4
@@ -83,6 +90,8 @@ enum e1000_mac_type {
 	e1000_82576,
 	e1000_82580,
 	e1000_i350,
+	e1000_i210,
+	e1000_i211,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
 };
 
@@ -117,6 +126,7 @@ enum e1000_phy_type {
 	e1000_phy_igp_3,
 	e1000_phy_ife,
 	e1000_phy_82580,
+	e1000_phy_i210,
 };
 
 enum e1000_bus_type {
@@ -313,6 +323,9 @@ struct e1000_mac_operations {
 	void (*rar_set)(struct e1000_hw *, u8 *, u32);
 	s32  (*read_mac_addr)(struct e1000_hw *);
 	s32  (*get_speed_and_duplex)(struct e1000_hw *, u16 *, u16 *);
+	s32  (*acquire_swfw_sync)(struct e1000_hw *, u16);
+	void (*release_swfw_sync)(struct e1000_hw *, u16);
+
 };
 
 struct e1000_phy_operations {
@@ -338,6 +351,7 @@ struct e1000_nvm_operations {
 	s32  (*write)(struct e1000_hw *, u16, u16, u16 *);
 	s32  (*update)(struct e1000_hw *);
 	s32  (*validate)(struct e1000_hw *);
+	s32  (*valid_led_default)(struct e1000_hw *, u16 *);
 };
 
 struct e1000_info {

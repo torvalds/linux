@@ -91,21 +91,15 @@
 #include <linux/slab.h>
 #include "ubi.h"
 
-#ifdef CONFIG_MTD_UBI_DEBUG
-static int paranoid_check_not_bad(const struct ubi_device *ubi, int pnum);
-static int paranoid_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum);
-static int paranoid_check_ec_hdr(const struct ubi_device *ubi, int pnum,
-				 const struct ubi_ec_hdr *ec_hdr);
-static int paranoid_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum);
-static int paranoid_check_vid_hdr(const struct ubi_device *ubi, int pnum,
-				  const struct ubi_vid_hdr *vid_hdr);
-#else
-#define paranoid_check_not_bad(ubi, pnum) 0
-#define paranoid_check_peb_ec_hdr(ubi, pnum)  0
-#define paranoid_check_ec_hdr(ubi, pnum, ec_hdr)  0
-#define paranoid_check_peb_vid_hdr(ubi, pnum) 0
-#define paranoid_check_vid_hdr(ubi, pnum, vid_hdr) 0
-#endif
+static int self_check_not_bad(const struct ubi_device *ubi, int pnum);
+static int self_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum);
+static int self_check_ec_hdr(const struct ubi_device *ubi, int pnum,
+			     const struct ubi_ec_hdr *ec_hdr);
+static int self_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum);
+static int self_check_vid_hdr(const struct ubi_device *ubi, int pnum,
+			      const struct ubi_vid_hdr *vid_hdr);
+static int self_check_write(struct ubi_device *ubi, const void *buf, int pnum,
+			    int offset, int len);
 
 /**
  * ubi_io_read - read data from a physical eraseblock.
@@ -142,7 +136,7 @@ int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
 	ubi_assert(offset >= 0 && offset + len <= ubi->peb_size);
 	ubi_assert(len > 0);
 
-	err = paranoid_check_not_bad(ubi, pnum);
+	err = self_check_not_bad(ubi, pnum);
 	if (err)
 		return err;
 
@@ -189,16 +183,16 @@ retry:
 		}
 
 		if (retries++ < UBI_IO_RETRIES) {
-			dbg_io("error %d%s while reading %d bytes from PEB "
-			       "%d:%d, read only %zd bytes, retry",
-			       err, errstr, len, pnum, offset, read);
+			ubi_warn("error %d%s while reading %d bytes from PEB "
+				 "%d:%d, read only %zd bytes, retry",
+				 err, errstr, len, pnum, offset, read);
 			yield();
 			goto retry;
 		}
 
 		ubi_err("error %d%s while reading %d bytes from PEB %d:%d, "
 			"read %zd bytes", err, errstr, len, pnum, offset, read);
-		ubi_dbg_dump_stack();
+		dump_stack();
 
 		/*
 		 * The driver should never return -EBADMSG if it failed to read
@@ -257,14 +251,12 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		return -EROFS;
 	}
 
-	/* The below has to be compiled out if paranoid checks are disabled */
-
-	err = paranoid_check_not_bad(ubi, pnum);
+	err = self_check_not_bad(ubi, pnum);
 	if (err)
 		return err;
 
 	/* The area we are writing to has to contain all 0xFF bytes */
-	err = ubi_dbg_check_all_ff(ubi, pnum, offset, len);
+	err = ubi_self_check_all_ff(ubi, pnum, offset, len);
 	if (err)
 		return err;
 
@@ -273,18 +265,18 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		 * We write to the data area of the physical eraseblock. Make
 		 * sure it has valid EC and VID headers.
 		 */
-		err = paranoid_check_peb_ec_hdr(ubi, pnum);
+		err = self_check_peb_ec_hdr(ubi, pnum);
 		if (err)
 			return err;
-		err = paranoid_check_peb_vid_hdr(ubi, pnum);
+		err = self_check_peb_vid_hdr(ubi, pnum);
 		if (err)
 			return err;
 	}
 
 	if (ubi_dbg_is_write_failure(ubi)) {
-		dbg_err("cannot write %d bytes to PEB %d:%d "
+		ubi_err("cannot write %d bytes to PEB %d:%d "
 			"(emulated)", len, pnum, offset);
-		ubi_dbg_dump_stack();
+		dump_stack();
 		return -EIO;
 	}
 
@@ -293,13 +285,13 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 	if (err) {
 		ubi_err("error %d while writing %d bytes to PEB %d:%d, written "
 			"%zd bytes", err, len, pnum, offset, written);
-		ubi_dbg_dump_stack();
-		ubi_dbg_dump_flash(ubi, pnum, offset, len);
+		dump_stack();
+		ubi_dump_flash(ubi, pnum, offset, len);
 	} else
 		ubi_assert(written == len);
 
 	if (!err) {
-		err = ubi_dbg_check_write(ubi, buf, pnum, offset, len);
+		err = self_check_write(ubi, buf, pnum, offset, len);
 		if (err)
 			return err;
 
@@ -310,7 +302,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		offset += len;
 		len = ubi->peb_size - offset;
 		if (len)
-			err = ubi_dbg_check_all_ff(ubi, pnum, offset, len);
+			err = ubi_self_check_all_ff(ubi, pnum, offset, len);
 	}
 
 	return err;
@@ -364,13 +356,13 @@ retry:
 	err = mtd_erase(ubi->mtd, &ei);
 	if (err) {
 		if (retries++ < UBI_IO_RETRIES) {
-			dbg_io("error %d while erasing PEB %d, retry",
-			       err, pnum);
+			ubi_warn("error %d while erasing PEB %d, retry",
+				 err, pnum);
 			yield();
 			goto retry;
 		}
 		ubi_err("cannot erase PEB %d, error %d", pnum, err);
-		ubi_dbg_dump_stack();
+		dump_stack();
 		return err;
 	}
 
@@ -383,21 +375,21 @@ retry:
 
 	if (ei.state == MTD_ERASE_FAILED) {
 		if (retries++ < UBI_IO_RETRIES) {
-			dbg_io("error while erasing PEB %d, retry", pnum);
+			ubi_warn("error while erasing PEB %d, retry", pnum);
 			yield();
 			goto retry;
 		}
 		ubi_err("cannot erase PEB %d", pnum);
-		ubi_dbg_dump_stack();
+		dump_stack();
 		return -EIO;
 	}
 
-	err = ubi_dbg_check_all_ff(ubi, pnum, 0, ubi->peb_size);
+	err = ubi_self_check_all_ff(ubi, pnum, 0, ubi->peb_size);
 	if (err)
 		return err;
 
 	if (ubi_dbg_is_erase_failure(ubi)) {
-		dbg_err("cannot erase PEB %d (emulated)", pnum);
+		ubi_err("cannot erase PEB %d (emulated)", pnum);
 		return -EIO;
 	}
 
@@ -521,8 +513,7 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	 * It is important to first invalidate the EC header, and then the VID
 	 * header. Otherwise a power cut may lead to valid EC header and
 	 * invalid VID header, in which case UBI will treat this PEB as
-	 * corrupted and will try to preserve it, and print scary warnings (see
-	 * the header comment in scan.c for more information).
+	 * corrupted and will try to preserve it, and print scary warnings.
 	 */
 	addr = (loff_t)pnum * ubi->peb_size;
 	err = mtd_write(ubi->mtd, addr, 4, &written, (void *)&data);
@@ -563,7 +554,7 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	 */
 	ubi_err("cannot invalidate PEB %d, write returned %d read returned %d",
 		pnum, err, err1);
-	ubi_dbg_dump_flash(ubi, pnum, 0, ubi->peb_size);
+	ubi_dump_flash(ubi, pnum, 0, ubi->peb_size);
 	return -EIO;
 }
 
@@ -589,7 +580,7 @@ int ubi_io_sync_erase(struct ubi_device *ubi, int pnum, int torture)
 
 	ubi_assert(pnum >= 0 && pnum < ubi->peb_count);
 
-	err = paranoid_check_not_bad(ubi, pnum);
+	err = self_check_not_bad(ubi, pnum);
 	if (err != 0)
 		return err;
 
@@ -721,8 +712,8 @@ static int validate_ec_hdr(const struct ubi_device *ubi,
 
 bad:
 	ubi_err("bad EC header");
-	ubi_dbg_dump_ec_hdr(ec_hdr);
-	ubi_dbg_dump_stack();
+	ubi_dump_ec_hdr(ec_hdr);
+	dump_stack();
 	return 1;
 }
 
@@ -803,7 +794,7 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		if (verbose) {
 			ubi_warn("bad magic number at PEB %d: %08x instead of "
 				 "%08x", pnum, magic, UBI_EC_HDR_MAGIC);
-			ubi_dbg_dump_ec_hdr(ec_hdr);
+			ubi_dump_ec_hdr(ec_hdr);
 		}
 		dbg_bld("bad magic number at PEB %d: %08x instead of "
 			"%08x", pnum, magic, UBI_EC_HDR_MAGIC);
@@ -817,7 +808,7 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		if (verbose) {
 			ubi_warn("bad EC header CRC at PEB %d, calculated "
 				 "%#08x, read %#08x", pnum, crc, hdr_crc);
-			ubi_dbg_dump_ec_hdr(ec_hdr);
+			ubi_dump_ec_hdr(ec_hdr);
 		}
 		dbg_bld("bad EC header CRC at PEB %d, calculated "
 			"%#08x, read %#08x", pnum, crc, hdr_crc);
@@ -874,7 +865,7 @@ int ubi_io_write_ec_hdr(struct ubi_device *ubi, int pnum,
 	crc = crc32(UBI_CRC32_INIT, ec_hdr, UBI_EC_HDR_SIZE_CRC);
 	ec_hdr->hdr_crc = cpu_to_be32(crc);
 
-	err = paranoid_check_ec_hdr(ubi, pnum, ec_hdr);
+	err = self_check_ec_hdr(ubi, pnum, ec_hdr);
 	if (err)
 		return err;
 
@@ -905,40 +896,40 @@ static int validate_vid_hdr(const struct ubi_device *ubi,
 	int usable_leb_size = ubi->leb_size - data_pad;
 
 	if (copy_flag != 0 && copy_flag != 1) {
-		dbg_err("bad copy_flag");
+		ubi_err("bad copy_flag");
 		goto bad;
 	}
 
 	if (vol_id < 0 || lnum < 0 || data_size < 0 || used_ebs < 0 ||
 	    data_pad < 0) {
-		dbg_err("negative values");
+		ubi_err("negative values");
 		goto bad;
 	}
 
 	if (vol_id >= UBI_MAX_VOLUMES && vol_id < UBI_INTERNAL_VOL_START) {
-		dbg_err("bad vol_id");
+		ubi_err("bad vol_id");
 		goto bad;
 	}
 
 	if (vol_id < UBI_INTERNAL_VOL_START && compat != 0) {
-		dbg_err("bad compat");
+		ubi_err("bad compat");
 		goto bad;
 	}
 
 	if (vol_id >= UBI_INTERNAL_VOL_START && compat != UBI_COMPAT_DELETE &&
 	    compat != UBI_COMPAT_RO && compat != UBI_COMPAT_PRESERVE &&
 	    compat != UBI_COMPAT_REJECT) {
-		dbg_err("bad compat");
+		ubi_err("bad compat");
 		goto bad;
 	}
 
 	if (vol_type != UBI_VID_DYNAMIC && vol_type != UBI_VID_STATIC) {
-		dbg_err("bad vol_type");
+		ubi_err("bad vol_type");
 		goto bad;
 	}
 
 	if (data_pad >= ubi->leb_size / 2) {
-		dbg_err("bad data_pad");
+		ubi_err("bad data_pad");
 		goto bad;
 	}
 
@@ -950,45 +941,45 @@ static int validate_vid_hdr(const struct ubi_device *ubi,
 		 * mapped logical eraseblocks.
 		 */
 		if (used_ebs == 0) {
-			dbg_err("zero used_ebs");
+			ubi_err("zero used_ebs");
 			goto bad;
 		}
 		if (data_size == 0) {
-			dbg_err("zero data_size");
+			ubi_err("zero data_size");
 			goto bad;
 		}
 		if (lnum < used_ebs - 1) {
 			if (data_size != usable_leb_size) {
-				dbg_err("bad data_size");
+				ubi_err("bad data_size");
 				goto bad;
 			}
 		} else if (lnum == used_ebs - 1) {
 			if (data_size == 0) {
-				dbg_err("bad data_size at last LEB");
+				ubi_err("bad data_size at last LEB");
 				goto bad;
 			}
 		} else {
-			dbg_err("too high lnum");
+			ubi_err("too high lnum");
 			goto bad;
 		}
 	} else {
 		if (copy_flag == 0) {
 			if (data_crc != 0) {
-				dbg_err("non-zero data CRC");
+				ubi_err("non-zero data CRC");
 				goto bad;
 			}
 			if (data_size != 0) {
-				dbg_err("non-zero data_size");
+				ubi_err("non-zero data_size");
 				goto bad;
 			}
 		} else {
 			if (data_size == 0) {
-				dbg_err("zero data_size of copy");
+				ubi_err("zero data_size of copy");
 				goto bad;
 			}
 		}
 		if (used_ebs != 0) {
-			dbg_err("bad used_ebs");
+			ubi_err("bad used_ebs");
 			goto bad;
 		}
 	}
@@ -997,8 +988,8 @@ static int validate_vid_hdr(const struct ubi_device *ubi,
 
 bad:
 	ubi_err("bad VID header");
-	ubi_dbg_dump_vid_hdr(vid_hdr);
-	ubi_dbg_dump_stack();
+	ubi_dump_vid_hdr(vid_hdr);
+	dump_stack();
 	return 1;
 }
 
@@ -1054,7 +1045,7 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 		if (verbose) {
 			ubi_warn("bad magic number at PEB %d: %08x instead of "
 				 "%08x", pnum, magic, UBI_VID_HDR_MAGIC);
-			ubi_dbg_dump_vid_hdr(vid_hdr);
+			ubi_dump_vid_hdr(vid_hdr);
 		}
 		dbg_bld("bad magic number at PEB %d: %08x instead of "
 			"%08x", pnum, magic, UBI_VID_HDR_MAGIC);
@@ -1068,7 +1059,7 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 		if (verbose) {
 			ubi_warn("bad CRC at PEB %d, calculated %#08x, "
 				 "read %#08x", pnum, crc, hdr_crc);
-			ubi_dbg_dump_vid_hdr(vid_hdr);
+			ubi_dump_vid_hdr(vid_hdr);
 		}
 		dbg_bld("bad CRC at PEB %d, calculated %#08x, "
 			"read %#08x", pnum, crc, hdr_crc);
@@ -1112,7 +1103,7 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 	dbg_io("write VID header to PEB %d", pnum);
 	ubi_assert(pnum >= 0 &&  pnum < ubi->peb_count);
 
-	err = paranoid_check_peb_ec_hdr(ubi, pnum);
+	err = self_check_peb_ec_hdr(ubi, pnum);
 	if (err)
 		return err;
 
@@ -1121,7 +1112,7 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 	crc = crc32(UBI_CRC32_INIT, vid_hdr, UBI_VID_HDR_SIZE_CRC);
 	vid_hdr->hdr_crc = cpu_to_be32(crc);
 
-	err = paranoid_check_vid_hdr(ubi, pnum, vid_hdr);
+	err = self_check_vid_hdr(ubi, pnum, vid_hdr);
 	if (err)
 		return err;
 
@@ -1131,17 +1122,15 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 	return err;
 }
 
-#ifdef CONFIG_MTD_UBI_DEBUG
-
 /**
- * paranoid_check_not_bad - ensure that a physical eraseblock is not bad.
+ * self_check_not_bad - ensure that a physical eraseblock is not bad.
  * @ubi: UBI device description object
  * @pnum: physical eraseblock number to check
  *
  * This function returns zero if the physical eraseblock is good, %-EINVAL if
  * it is bad and a negative error code if an error occurred.
  */
-static int paranoid_check_not_bad(const struct ubi_device *ubi, int pnum)
+static int self_check_not_bad(const struct ubi_device *ubi, int pnum)
 {
 	int err;
 
@@ -1152,13 +1141,13 @@ static int paranoid_check_not_bad(const struct ubi_device *ubi, int pnum)
 	if (!err)
 		return err;
 
-	ubi_err("paranoid check failed for PEB %d", pnum);
-	ubi_dbg_dump_stack();
+	ubi_err("self-check failed for PEB %d", pnum);
+	dump_stack();
 	return err > 0 ? -EINVAL : err;
 }
 
 /**
- * paranoid_check_ec_hdr - check if an erase counter header is all right.
+ * self_check_ec_hdr - check if an erase counter header is all right.
  * @ubi: UBI device description object
  * @pnum: physical eraseblock number the erase counter header belongs to
  * @ec_hdr: the erase counter header to check
@@ -1166,8 +1155,8 @@ static int paranoid_check_not_bad(const struct ubi_device *ubi, int pnum)
  * This function returns zero if the erase counter header contains valid
  * values, and %-EINVAL if not.
  */
-static int paranoid_check_ec_hdr(const struct ubi_device *ubi, int pnum,
-				 const struct ubi_ec_hdr *ec_hdr)
+static int self_check_ec_hdr(const struct ubi_device *ubi, int pnum,
+			     const struct ubi_ec_hdr *ec_hdr)
 {
 	int err;
 	uint32_t magic;
@@ -1184,27 +1173,27 @@ static int paranoid_check_ec_hdr(const struct ubi_device *ubi, int pnum,
 
 	err = validate_ec_hdr(ubi, ec_hdr);
 	if (err) {
-		ubi_err("paranoid check failed for PEB %d", pnum);
+		ubi_err("self-check failed for PEB %d", pnum);
 		goto fail;
 	}
 
 	return 0;
 
 fail:
-	ubi_dbg_dump_ec_hdr(ec_hdr);
-	ubi_dbg_dump_stack();
+	ubi_dump_ec_hdr(ec_hdr);
+	dump_stack();
 	return -EINVAL;
 }
 
 /**
- * paranoid_check_peb_ec_hdr - check erase counter header.
+ * self_check_peb_ec_hdr - check erase counter header.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to check
  *
  * This function returns zero if the erase counter header is all right and and
  * a negative error code if not or if an error occurred.
  */
-static int paranoid_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum)
+static int self_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum)
 {
 	int err;
 	uint32_t crc, hdr_crc;
@@ -1225,14 +1214,14 @@ static int paranoid_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum)
 	hdr_crc = be32_to_cpu(ec_hdr->hdr_crc);
 	if (hdr_crc != crc) {
 		ubi_err("bad CRC, calculated %#08x, read %#08x", crc, hdr_crc);
-		ubi_err("paranoid check failed for PEB %d", pnum);
-		ubi_dbg_dump_ec_hdr(ec_hdr);
-		ubi_dbg_dump_stack();
+		ubi_err("self-check failed for PEB %d", pnum);
+		ubi_dump_ec_hdr(ec_hdr);
+		dump_stack();
 		err = -EINVAL;
 		goto exit;
 	}
 
-	err = paranoid_check_ec_hdr(ubi, pnum, ec_hdr);
+	err = self_check_ec_hdr(ubi, pnum, ec_hdr);
 
 exit:
 	kfree(ec_hdr);
@@ -1240,7 +1229,7 @@ exit:
 }
 
 /**
- * paranoid_check_vid_hdr - check that a volume identifier header is all right.
+ * self_check_vid_hdr - check that a volume identifier header is all right.
  * @ubi: UBI device description object
  * @pnum: physical eraseblock number the volume identifier header belongs to
  * @vid_hdr: the volume identifier header to check
@@ -1248,8 +1237,8 @@ exit:
  * This function returns zero if the volume identifier header is all right, and
  * %-EINVAL if not.
  */
-static int paranoid_check_vid_hdr(const struct ubi_device *ubi, int pnum,
-				  const struct ubi_vid_hdr *vid_hdr)
+static int self_check_vid_hdr(const struct ubi_device *ubi, int pnum,
+			      const struct ubi_vid_hdr *vid_hdr)
 {
 	int err;
 	uint32_t magic;
@@ -1266,29 +1255,29 @@ static int paranoid_check_vid_hdr(const struct ubi_device *ubi, int pnum,
 
 	err = validate_vid_hdr(ubi, vid_hdr);
 	if (err) {
-		ubi_err("paranoid check failed for PEB %d", pnum);
+		ubi_err("self-check failed for PEB %d", pnum);
 		goto fail;
 	}
 
 	return err;
 
 fail:
-	ubi_err("paranoid check failed for PEB %d", pnum);
-	ubi_dbg_dump_vid_hdr(vid_hdr);
-	ubi_dbg_dump_stack();
+	ubi_err("self-check failed for PEB %d", pnum);
+	ubi_dump_vid_hdr(vid_hdr);
+	dump_stack();
 	return -EINVAL;
 
 }
 
 /**
- * paranoid_check_peb_vid_hdr - check volume identifier header.
+ * self_check_peb_vid_hdr - check volume identifier header.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to check
  *
  * This function returns zero if the volume identifier header is all right,
  * and a negative error code if not or if an error occurred.
  */
-static int paranoid_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum)
+static int self_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum)
 {
 	int err;
 	uint32_t crc, hdr_crc;
@@ -1313,14 +1302,14 @@ static int paranoid_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum)
 	if (hdr_crc != crc) {
 		ubi_err("bad VID header CRC at PEB %d, calculated %#08x, "
 			"read %#08x", pnum, crc, hdr_crc);
-		ubi_err("paranoid check failed for PEB %d", pnum);
-		ubi_dbg_dump_vid_hdr(vid_hdr);
-		ubi_dbg_dump_stack();
+		ubi_err("self-check failed for PEB %d", pnum);
+		ubi_dump_vid_hdr(vid_hdr);
+		dump_stack();
 		err = -EINVAL;
 		goto exit;
 	}
 
-	err = paranoid_check_vid_hdr(ubi, pnum, vid_hdr);
+	err = self_check_vid_hdr(ubi, pnum, vid_hdr);
 
 exit:
 	ubi_free_vid_hdr(ubi, vid_hdr);
@@ -1328,7 +1317,7 @@ exit:
 }
 
 /**
- * ubi_dbg_check_write - make sure write succeeded.
+ * self_check_write - make sure write succeeded.
  * @ubi: UBI device description object
  * @buf: buffer with data which were written
  * @pnum: physical eraseblock number the data were written to
@@ -1339,8 +1328,8 @@ exit:
  * the original data buffer - the data have to match. Returns zero if the data
  * match and a negative error code if not or in case of failure.
  */
-int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
-			int offset, int len)
+static int self_check_write(struct ubi_device *ubi, const void *buf, int pnum,
+			    int offset, int len)
 {
 	int err, i;
 	size_t read;
@@ -1368,7 +1357,7 @@ int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 		if (c == c1)
 			continue;
 
-		ubi_err("paranoid check failed for PEB %d:%d, len %d",
+		ubi_err("self-check failed for PEB %d:%d, len %d",
 			pnum, offset, len);
 		ubi_msg("data differ at position %d", i);
 		dump_len = max_t(int, 128, len - i);
@@ -1380,7 +1369,7 @@ int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 			i, i + dump_len);
 		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
 			       buf1 + i, dump_len, 1);
-		ubi_dbg_dump_stack();
+		dump_stack();
 		err = -EINVAL;
 		goto out_free;
 	}
@@ -1394,7 +1383,7 @@ out_free:
 }
 
 /**
- * ubi_dbg_check_all_ff - check that a region of flash is empty.
+ * ubi_self_check_all_ff - check that a region of flash is empty.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to check
  * @offset: the starting offset within the physical eraseblock to check
@@ -1404,7 +1393,7 @@ out_free:
  * @offset of the physical eraseblock @pnum, and a negative error code if not
  * or if an error occurred.
  */
-int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
+int ubi_self_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 {
 	size_t read;
 	int err;
@@ -1438,14 +1427,12 @@ int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 	return 0;
 
 fail:
-	ubi_err("paranoid check failed for PEB %d", pnum);
+	ubi_err("self-check failed for PEB %d", pnum);
 	ubi_msg("hex dump of the %d-%d region", offset, offset + len);
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1, buf, len, 1);
 	err = -EINVAL;
 error:
-	ubi_dbg_dump_stack();
+	dump_stack();
 	vfree(buf);
 	return err;
 }
-
-#endif /* CONFIG_MTD_UBI_DEBUG */

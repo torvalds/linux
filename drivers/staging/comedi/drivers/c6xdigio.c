@@ -97,16 +97,6 @@ union encvaluetype {
 
 #define C6XDIGIO_TIME_OUT 20
 
-static int c6xdigio_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it);
-static int c6xdigio_detach(struct comedi_device *dev);
-struct comedi_driver driver_c6xdigio = {
-	.driver_name = "c6xdigio",
-	.module = THIS_MODULE,
-	.attach = c6xdigio_attach,
-	.detach = c6xdigio_detach,
-};
-
 static void C6X_pwmInit(unsigned long baseAddr)
 {
 	int timeout = 0;
@@ -407,10 +397,6 @@ static void board_init(struct comedi_device *dev)
 
 }
 
-/* static void board_halt(struct comedi_device *dev) { */
-/* C6X_pwmInit(dev->iobase); */
-/* } */
-
 /*
    options[0] - I/O port
    options[1] - irq
@@ -500,36 +486,22 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int c6xdigio_detach(struct comedi_device *dev)
+static void c6xdigio_detach(struct comedi_device *dev)
 {
-	/* board_halt(dev);  may not need this */
-
-	printk(KERN_DEBUG "comedi%d: c6xdigio: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, C6XDIGIO_SIZE);
-
-	/*  Not using IRQ so I am not sure if I need this */
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	pnp_unregister_driver(&c6xdigio_pnp_driver);
-
-	return 0;
 }
 
-static int __init driver_c6xdigio_init_module(void)
-{
-	return comedi_driver_register(&driver_c6xdigio);
-}
-
-static void __exit driver_c6xdigio_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_c6xdigio);
-}
-
-module_init(driver_c6xdigio_init_module);
-module_exit(driver_c6xdigio_cleanup_module);
+static struct comedi_driver c6xdigio_driver = {
+	.driver_name	= "c6xdigio",
+	.module		= THIS_MODULE,
+	.attach		= c6xdigio_attach,
+	.detach		= c6xdigio_detach,
+};
+module_comedi_driver(c6xdigio_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

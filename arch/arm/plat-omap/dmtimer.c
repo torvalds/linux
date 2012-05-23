@@ -349,11 +349,12 @@ EXPORT_SYMBOL_GPL(omap_dm_timer_start);
 int omap_dm_timer_stop(struct omap_dm_timer *timer)
 {
 	unsigned long rate = 0;
-	struct dmtimer_platform_data *pdata = timer->pdev->dev.platform_data;
+	struct dmtimer_platform_data *pdata;
 
 	if (unlikely(!timer))
 		return -EINVAL;
 
+	pdata = timer->pdev->dev.platform_data;
 	if (!pdata->needs_manual_reset)
 		rate = clk_get_rate(timer->fclk);
 

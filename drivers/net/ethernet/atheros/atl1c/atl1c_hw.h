@@ -25,12 +25,18 @@
 #include <linux/types.h>
 #include <linux/mii.h>
 
+#define FIELD_GETX(_x, _name)   ((_x) >> (_name##_SHIFT) & (_name##_MASK))
+#define FIELD_SETX(_x, _name, _v) \
+(((_x) & ~((_name##_MASK) << (_name##_SHIFT))) |\
+(((_v) & (_name##_MASK)) << (_name##_SHIFT)))
+#define FIELDX(_name, _v) (((_v) & (_name##_MASK)) << (_name##_SHIFT))
+
 struct atl1c_adapter;
 struct atl1c_hw;
 
 /* function prototype */
 void atl1c_phy_disable(struct atl1c_hw *hw);
-void atl1c_hw_set_mac_addr(struct atl1c_hw *hw);
+void atl1c_hw_set_mac_addr(struct atl1c_hw *hw, u8 *mac_addr);
 int atl1c_phy_reset(struct atl1c_hw *hw);
 int atl1c_read_mac_addr(struct atl1c_hw *hw);
 int atl1c_get_speed_and_duplex(struct atl1c_hw *hw, u16 *speed, u16 *duplex);
@@ -42,46 +48,44 @@ bool atl1c_read_eeprom(struct atl1c_hw *hw, u32 offset, u32 *p_value);
 int atl1c_phy_init(struct atl1c_hw *hw);
 int atl1c_check_eeprom_exist(struct atl1c_hw *hw);
 int atl1c_restart_autoneg(struct atl1c_hw *hw);
-int atl1c_phy_power_saving(struct atl1c_hw *hw);
+int atl1c_phy_to_ps_link(struct atl1c_hw *hw);
+int atl1c_power_saving(struct atl1c_hw *hw, u32 wufc);
+bool atl1c_wait_mdio_idle(struct atl1c_hw *hw);
+void atl1c_stop_phy_polling(struct atl1c_hw *hw);
+void atl1c_start_phy_polling(struct atl1c_hw *hw, u16 clk_sel);
+int atl1c_read_phy_core(struct atl1c_hw *hw, bool ext, u8 dev,
+			u16 reg, u16 *phy_data);
+int atl1c_write_phy_core(struct atl1c_hw *hw, bool ext, u8 dev,
+			u16 reg, u16 phy_data);
+int atl1c_read_phy_ext(struct atl1c_hw *hw, u8 dev_addr,
+			u16 reg_addr, u16 *phy_data);
+int atl1c_write_phy_ext(struct atl1c_hw *hw, u8 dev_addr,
+			u16 reg_addr, u16 phy_data);
+int atl1c_read_phy_dbg(struct atl1c_hw *hw, u16 reg_addr, u16 *phy_data);
+int atl1c_write_phy_dbg(struct atl1c_hw *hw, u16 reg_addr, u16 phy_data);
+void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
+
+/* hw-ids */
+#define PCI_DEVICE_ID_ATTANSIC_L2C      0x1062
+#define PCI_DEVICE_ID_ATTANSIC_L1C      0x1063
+#define PCI_DEVICE_ID_ATHEROS_L2C_B	0x2060 /* AR8152 v1.1 Fast 10/100 */
+#define PCI_DEVICE_ID_ATHEROS_L2C_B2	0x2062 /* AR8152 v2.0 Fast 10/100 */
+#define PCI_DEVICE_ID_ATHEROS_L1D	0x1073 /* AR8151 v1.0 Gigabit 1000 */
+#define PCI_DEVICE_ID_ATHEROS_L1D_2_0	0x1083 /* AR8151 v2.0 Gigabit 1000 */
+#define L2CB_V10			0xc0
+#define L2CB_V11			0xc1
+
 /* register definition */
 #define REG_DEVICE_CAP              	0x5C
 #define DEVICE_CAP_MAX_PAYLOAD_MASK     0x7
 #define DEVICE_CAP_MAX_PAYLOAD_SHIFT    0
 
-#define REG_DEVICE_CTRL			0x60
-#define DEVICE_CTRL_MAX_PAYLOAD_MASK    0x7
-#define DEVICE_CTRL_MAX_PAYLOAD_SHIFT   5
-#define DEVICE_CTRL_MAX_RREQ_SZ_MASK    0x7
-#define DEVICE_CTRL_MAX_RREQ_SZ_SHIFT   12
+#define DEVICE_CTRL_MAXRRS_MIN		2
 
 #define REG_LINK_CTRL			0x68
 #define LINK_CTRL_L0S_EN		0x01
 #define LINK_CTRL_L1_EN			0x02
 #define LINK_CTRL_EXT_SYNC		0x80
-
-#define REG_VPD_CAP			0x6C
-#define VPD_CAP_ID_MASK                 0xff
-#define VPD_CAP_ID_SHIFT                0
-#define VPD_CAP_NEXT_PTR_MASK           0xFF
-#define VPD_CAP_NEXT_PTR_SHIFT          8
-#define VPD_CAP_VPD_ADDR_MASK           0x7FFF
-#define VPD_CAP_VPD_ADDR_SHIFT          16
-#define VPD_CAP_VPD_FLAG                0x80000000
-
-#define REG_VPD_DATA                	0x70
-
-#define REG_PCIE_UC_SEVERITY		0x10C
-#define PCIE_UC_SERVRITY_TRN		0x00000001
-#define PCIE_UC_SERVRITY_DLP		0x00000010
-#define PCIE_UC_SERVRITY_PSN_TLP	0x00001000
-#define PCIE_UC_SERVRITY_FCP		0x00002000
-#define PCIE_UC_SERVRITY_CPL_TO		0x00004000
-#define PCIE_UC_SERVRITY_CA		0x00008000
-#define PCIE_UC_SERVRITY_UC		0x00010000
-#define PCIE_UC_SERVRITY_ROV		0x00020000
-#define PCIE_UC_SERVRITY_MLFP		0x00040000
-#define PCIE_UC_SERVRITY_ECRC		0x00080000
-#define PCIE_UC_SERVRITY_UR		0x00100000
 
 #define REG_DEV_SERIALNUM_CTRL		0x200
 #define REG_DEV_MAC_SEL_MASK		0x0 /* 0:EUI; 1:MAC */
@@ -90,25 +94,17 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define REG_DEV_SERIAL_NUM_EN_SHIFT	1
 
 #define REG_TWSI_CTRL               	0x218
+#define TWSI_CTLR_FREQ_MASK		0x3UL
+#define TWSI_CTRL_FREQ_SHIFT		24
+#define TWSI_CTRL_FREQ_100K		0
+#define TWSI_CTRL_FREQ_200K		1
+#define TWSI_CTRL_FREQ_300K		2
+#define TWSI_CTRL_FREQ_400K		3
+#define TWSI_CTRL_LD_EXIST		BIT(23)
+#define TWSI_CTRL_HW_LDSTAT		BIT(12)	/* 0:finish,1:in progress */
+#define TWSI_CTRL_SW_LDSTART            BIT(11)
 #define TWSI_CTRL_LD_OFFSET_MASK        0xFF
 #define TWSI_CTRL_LD_OFFSET_SHIFT       0
-#define TWSI_CTRL_LD_SLV_ADDR_MASK      0x7
-#define TWSI_CTRL_LD_SLV_ADDR_SHIFT     8
-#define TWSI_CTRL_SW_LDSTART            0x800
-#define TWSI_CTRL_HW_LDSTART            0x1000
-#define TWSI_CTRL_SMB_SLV_ADDR_MASK     0x7F
-#define TWSI_CTRL_SMB_SLV_ADDR_SHIFT    15
-#define TWSI_CTRL_LD_EXIST              0x400000
-#define TWSI_CTRL_READ_FREQ_SEL_MASK    0x3
-#define TWSI_CTRL_READ_FREQ_SEL_SHIFT   23
-#define TWSI_CTRL_FREQ_SEL_100K         0
-#define TWSI_CTRL_FREQ_SEL_200K         1
-#define TWSI_CTRL_FREQ_SEL_300K         2
-#define TWSI_CTRL_FREQ_SEL_400K         3
-#define TWSI_CTRL_SMB_SLV_ADDR
-#define TWSI_CTRL_WRITE_FREQ_SEL_MASK   0x3
-#define TWSI_CTRL_WRITE_FREQ_SEL_SHIFT  24
-
 
 #define REG_PCIE_DEV_MISC_CTRL      	0x21C
 #define PCIE_DEV_MISC_EXT_PIPE     	0x2
@@ -118,16 +114,23 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define PCIE_DEV_MISC_SERDES_SEL_DIN   	0x10
 
 #define REG_PCIE_PHYMISC	    	0x1000
-#define PCIE_PHYMISC_FORCE_RCV_DET	0x4
+#define PCIE_PHYMISC_FORCE_RCV_DET	BIT(2)
+#define PCIE_PHYMISC_NFTS_MASK		0xFFUL
+#define PCIE_PHYMISC_NFTS_SHIFT		16
 
 #define REG_PCIE_PHYMISC2		0x1004
-#define PCIE_PHYMISC2_SERDES_CDR_MASK	0x3
-#define PCIE_PHYMISC2_SERDES_CDR_SHIFT	16
-#define PCIE_PHYMISC2_SERDES_TH_MASK	0x3
-#define PCIE_PHYMISC2_SERDES_TH_SHIFT	18
+#define PCIE_PHYMISC2_L0S_TH_MASK	0x3UL
+#define PCIE_PHYMISC2_L0S_TH_SHIFT	18
+#define L2CB1_PCIE_PHYMISC2_L0S_TH	3
+#define PCIE_PHYMISC2_CDR_BW_MASK	0x3UL
+#define PCIE_PHYMISC2_CDR_BW_SHIFT	16
+#define L2CB1_PCIE_PHYMISC2_CDR_BW	3
 
 #define REG_TWSI_DEBUG			0x1108
-#define TWSI_DEBUG_DEV_EXIST		0x20000000
+#define TWSI_DEBUG_DEV_EXIST		BIT(29)
+
+#define REG_DMA_DBG			0x1114
+#define DMA_DBG_VENDOR_MSG		BIT(0)
 
 #define REG_EEPROM_CTRL			0x12C0
 #define EEPROM_CTRL_DATA_HI_MASK	0xFFFF
@@ -140,56 +143,81 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define REG_EEPROM_DATA_LO		0x12C4
 
 #define REG_OTP_CTRL			0x12F0
-#define OTP_CTRL_CLK_EN			0x0002
+#define OTP_CTRL_CLK_EN			BIT(1)
 
 #define REG_PM_CTRL			0x12F8
-#define PM_CTRL_SDES_EN			0x00000001
-#define PM_CTRL_RBER_EN			0x00000002
-#define PM_CTRL_CLK_REQ_EN		0x00000004
-#define PM_CTRL_ASPM_L1_EN		0x00000008
-#define PM_CTRL_SERDES_L1_EN		0x00000010
-#define PM_CTRL_SERDES_PLL_L1_EN	0x00000020
-#define PM_CTRL_SERDES_PD_EX_L1		0x00000040
-#define PM_CTRL_SERDES_BUDS_RX_L1_EN	0x00000080
-#define PM_CTRL_L0S_ENTRY_TIMER_MASK	0xF
-#define PM_CTRL_L0S_ENTRY_TIMER_SHIFT	8
-#define PM_CTRL_ASPM_L0S_EN		0x00001000
-#define PM_CTRL_CLK_SWH_L1		0x00002000
-#define PM_CTRL_CLK_PWM_VER1_1		0x00004000
-#define PM_CTRL_RCVR_WT_TIMER		0x00008000
-#define PM_CTRL_L1_ENTRY_TIMER_MASK	0xF
-#define PM_CTRL_L1_ENTRY_TIMER_SHIFT	16
-#define PM_CTRL_PM_REQ_TIMER_MASK	0xF
-#define PM_CTRL_PM_REQ_TIMER_SHIFT	20
-#define PM_CTRL_LCKDET_TIMER_MASK	0xF
+#define PM_CTRL_HOTRST			BIT(31)
+#define PM_CTRL_MAC_ASPM_CHK		BIT(30)	/* L0s/L1 dis by MAC based on
+						 * thrghput(setting in 15A0) */
+#define PM_CTRL_SA_DLY_EN		BIT(29)
+#define PM_CTRL_L0S_BUFSRX_EN		BIT(28)
+#define PM_CTRL_LCKDET_TIMER_MASK	0xFUL
 #define PM_CTRL_LCKDET_TIMER_SHIFT	24
-#define PM_CTRL_EN_BUFS_RX_L0S		0x10000000
-#define PM_CTRL_SA_DLY_EN		0x20000000
-#define PM_CTRL_MAC_ASPM_CHK		0x40000000
-#define PM_CTRL_HOTRST			0x80000000
+#define PM_CTRL_LCKDET_TIMER_DEF	0xC
+#define PM_CTRL_PM_REQ_TIMER_MASK	0xFUL
+#define PM_CTRL_PM_REQ_TIMER_SHIFT	20	/* pm_request_l1 time > @
+						 * ->L0s not L1 */
+#define PM_CTRL_PM_REQ_TO_DEF		0xF
+#define PMCTRL_TXL1_AFTER_L0S		BIT(19)	/* l1dv2.0+ */
+#define L1D_PMCTRL_L1_ENTRY_TM_MASK	7UL	/* l1dv2.0+, 3bits */
+#define L1D_PMCTRL_L1_ENTRY_TM_SHIFT	16
+#define L1D_PMCTRL_L1_ENTRY_TM_DIS	0
+#define L1D_PMCTRL_L1_ENTRY_TM_2US	1
+#define L1D_PMCTRL_L1_ENTRY_TM_4US	2
+#define L1D_PMCTRL_L1_ENTRY_TM_8US	3
+#define L1D_PMCTRL_L1_ENTRY_TM_16US	4
+#define L1D_PMCTRL_L1_ENTRY_TM_24US	5
+#define L1D_PMCTRL_L1_ENTRY_TM_32US	6
+#define L1D_PMCTRL_L1_ENTRY_TM_63US	7
+#define PM_CTRL_L1_ENTRY_TIMER_MASK	0xFUL  /* l1C 4bits */
+#define PM_CTRL_L1_ENTRY_TIMER_SHIFT	16
+#define L2CB1_PM_CTRL_L1_ENTRY_TM	7
+#define L1C_PM_CTRL_L1_ENTRY_TM		0xF
+#define PM_CTRL_RCVR_WT_TIMER		BIT(15)	/* 1:1us, 0:2ms */
+#define PM_CTRL_CLK_PWM_VER1_1		BIT(14)	/* 0:1.0a,1:1.1 */
+#define PM_CTRL_CLK_SWH_L1		BIT(13)	/* en pcie clk sw in L1 */
+#define PM_CTRL_ASPM_L0S_EN		BIT(12)
+#define PM_CTRL_RXL1_AFTER_L0S		BIT(11)	/* l1dv2.0+ */
+#define L1D_PMCTRL_L0S_TIMER_MASK	7UL	/* l1d2.0+, 3bits*/
+#define L1D_PMCTRL_L0S_TIMER_SHIFT	8
+#define PM_CTRL_L0S_ENTRY_TIMER_MASK	0xFUL	/* l1c, 4bits */
+#define PM_CTRL_L0S_ENTRY_TIMER_SHIFT	8
+#define PM_CTRL_SERDES_BUFS_RX_L1_EN	BIT(7)
+#define PM_CTRL_SERDES_PD_EX_L1		BIT(6)	/* power down serdes rx */
+#define PM_CTRL_SERDES_PLL_L1_EN	BIT(5)
+#define PM_CTRL_SERDES_L1_EN		BIT(4)
+#define PM_CTRL_ASPM_L1_EN		BIT(3)
+#define PM_CTRL_CLK_REQ_EN		BIT(2)
+#define PM_CTRL_RBER_EN			BIT(1)
+#define PM_CTRL_SPRSDWER_EN		BIT(0)
 
 #define REG_LTSSM_ID_CTRL		0x12FC
 #define LTSSM_ID_EN_WRO			0x1000
+
+
 /* Selene Master Control Register */
 #define REG_MASTER_CTRL			0x1400
-#define MASTER_CTRL_SOFT_RST            0x1
-#define MASTER_CTRL_TEST_MODE_MASK	0x3
-#define MASTER_CTRL_TEST_MODE_SHIFT	2
-#define MASTER_CTRL_BERT_START		0x10
-#define MASTER_CTRL_OOB_DIS_OFF		0x40
-#define MASTER_CTRL_SA_TIMER_EN		0x80
-#define MASTER_CTRL_MTIMER_EN           0x100
-#define MASTER_CTRL_MANUAL_INT          0x200
-#define MASTER_CTRL_TX_ITIMER_EN	0x400
-#define MASTER_CTRL_RX_ITIMER_EN	0x800
-#define MASTER_CTRL_CLK_SEL_DIS		0x1000
-#define MASTER_CTRL_CLK_SWH_MODE	0x2000
-#define MASTER_CTRL_INT_RDCLR		0x4000
-#define MASTER_CTRL_REV_NUM_SHIFT	16
-#define MASTER_CTRL_REV_NUM_MASK	0xff
-#define MASTER_CTRL_DEV_ID_SHIFT	24
-#define MASTER_CTRL_DEV_ID_MASK		0x7f
-#define MASTER_CTRL_OTP_SEL		0x80000000
+#define MASTER_CTRL_OTP_SEL		BIT(31)
+#define MASTER_DEV_NUM_MASK		0x7FUL
+#define MASTER_DEV_NUM_SHIFT		24
+#define MASTER_REV_NUM_MASK		0xFFUL
+#define MASTER_REV_NUM_SHIFT		16
+#define MASTER_CTRL_INT_RDCLR		BIT(14)
+#define MASTER_CTRL_CLK_SEL_DIS		BIT(12)	/* 1:alwys sel pclk from
+						 * serdes, not sw to 25M */
+#define MASTER_CTRL_RX_ITIMER_EN	BIT(11)	/* IRQ MODURATION FOR RX */
+#define MASTER_CTRL_TX_ITIMER_EN	BIT(10)	/* MODURATION FOR TX/RX */
+#define MASTER_CTRL_MANU_INT		BIT(9)	/* SOFT MANUAL INT */
+#define MASTER_CTRL_MANUTIMER_EN	BIT(8)
+#define MASTER_CTRL_SA_TIMER_EN		BIT(7)	/* SYS ALIVE TIMER EN */
+#define MASTER_CTRL_OOB_DIS		BIT(6)	/* OUT OF BOX DIS */
+#define MASTER_CTRL_WAKEN_25M		BIT(5)	/* WAKE WO. PCIE CLK */
+#define MASTER_CTRL_BERT_START		BIT(4)
+#define MASTER_PCIE_TSTMOD_MASK		3UL
+#define MASTER_PCIE_TSTMOD_SHIFT	2
+#define MASTER_PCIE_RST			BIT(1)
+#define MASTER_CTRL_SOFT_RST		BIT(0)	/* RST MAC & DMA */
+#define DMA_MAC_RST_TO			50
 
 /* Timer Initial Value Register */
 #define REG_MANUAL_TIMER_INIT       	0x1404
@@ -201,87 +229,85 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define IRQ_MODRT_RX_TIMER_SHIFT	16
 
 #define REG_GPHY_CTRL               	0x140C
-#define GPHY_CTRL_EXT_RESET         	0x1
-#define GPHY_CTRL_RTL_MODE		0x2
-#define GPHY_CTRL_LED_MODE		0x4
-#define GPHY_CTRL_ANEG_NOW		0x8
-#define GPHY_CTRL_REV_ANEG		0x10
-#define GPHY_CTRL_GATE_25M_EN       	0x20
-#define GPHY_CTRL_LPW_EXIT          	0x40
-#define GPHY_CTRL_PHY_IDDQ          	0x80
-#define GPHY_CTRL_PHY_IDDQ_DIS      	0x100
-#define GPHY_CTRL_GIGA_DIS		0x200
-#define GPHY_CTRL_HIB_EN            	0x400
-#define GPHY_CTRL_HIB_PULSE         	0x800
-#define GPHY_CTRL_SEL_ANA_RST       	0x1000
-#define GPHY_CTRL_PHY_PLL_ON        	0x2000
-#define GPHY_CTRL_PWDOWN_HW		0x4000
-#define GPHY_CTRL_PHY_PLL_BYPASS	0x8000
+#define GPHY_CTRL_ADDR_MASK		0x1FUL
+#define GPHY_CTRL_ADDR_SHIFT		19
+#define GPHY_CTRL_BP_VLTGSW		BIT(18)
+#define GPHY_CTRL_100AB_EN		BIT(17)
+#define GPHY_CTRL_10AB_EN		BIT(16)
+#define GPHY_CTRL_PHY_PLL_BYPASS	BIT(15)
+#define GPHY_CTRL_PWDOWN_HW		BIT(14)	/* affect MAC&PHY, to low pw */
+#define GPHY_CTRL_PHY_PLL_ON		BIT(13)	/* 1:pll always on, 0:can sw */
+#define GPHY_CTRL_SEL_ANA_RST		BIT(12)
+#define GPHY_CTRL_HIB_PULSE		BIT(11)
+#define GPHY_CTRL_HIB_EN		BIT(10)
+#define GPHY_CTRL_GIGA_DIS		BIT(9)
+#define GPHY_CTRL_PHY_IDDQ_DIS		BIT(8)	/* pw on RST */
+#define GPHY_CTRL_PHY_IDDQ		BIT(7)	/* bit8 affect bit7 while rb */
+#define GPHY_CTRL_LPW_EXIT		BIT(6)
+#define GPHY_CTRL_GATE_25M_EN		BIT(5)
+#define GPHY_CTRL_REV_ANEG		BIT(4)
+#define GPHY_CTRL_ANEG_NOW		BIT(3)
+#define GPHY_CTRL_LED_MODE		BIT(2)
+#define GPHY_CTRL_RTL_MODE		BIT(1)
+#define GPHY_CTRL_EXT_RESET		BIT(0)	/* 1:out of DSP RST status */
+#define GPHY_CTRL_EXT_RST_TO		80	/* 800us atmost */
+#define GPHY_CTRL_CLS			(\
+	GPHY_CTRL_LED_MODE		|\
+	GPHY_CTRL_100AB_EN		|\
+	GPHY_CTRL_PHY_PLL_ON)
 
-#define GPHY_CTRL_DEFAULT (		 \
-		GPHY_CTRL_SEL_ANA_RST	|\
-		GPHY_CTRL_HIB_PULSE	|\
-		GPHY_CTRL_HIB_EN)
-
-#define GPHY_CTRL_PW_WOL_DIS (		 \
-		GPHY_CTRL_SEL_ANA_RST	|\
-		GPHY_CTRL_HIB_PULSE	|\
-		GPHY_CTRL_HIB_EN	|\
-		GPHY_CTRL_PWDOWN_HW	|\
-		GPHY_CTRL_PHY_IDDQ)
-
-#define GPHY_CTRL_POWER_SAVING (	\
-		GPHY_CTRL_SEL_ANA_RST	|\
-		GPHY_CTRL_HIB_EN	|\
-		GPHY_CTRL_HIB_PULSE	|\
-		GPHY_CTRL_PWDOWN_HW	|\
-		GPHY_CTRL_PHY_IDDQ)
 /* Block IDLE Status Register */
-#define REG_IDLE_STATUS  		0x1410
-#define IDLE_STATUS_MASK		0x00FF
-#define IDLE_STATUS_RXMAC_NO_IDLE      	0x1
-#define IDLE_STATUS_TXMAC_NO_IDLE      	0x2
-#define IDLE_STATUS_RXQ_NO_IDLE        	0x4
-#define IDLE_STATUS_TXQ_NO_IDLE        	0x8
-#define IDLE_STATUS_DMAR_NO_IDLE       	0x10
-#define IDLE_STATUS_DMAW_NO_IDLE       	0x20
-#define IDLE_STATUS_SMB_NO_IDLE        	0x40
-#define IDLE_STATUS_CMB_NO_IDLE        	0x80
+#define REG_IDLE_STATUS			0x1410
+#define IDLE_STATUS_SFORCE_MASK		0xFUL
+#define IDLE_STATUS_SFORCE_SHIFT	14
+#define IDLE_STATUS_CALIB_DONE		BIT(13)
+#define IDLE_STATUS_CALIB_RES_MASK	0x1FUL
+#define IDLE_STATUS_CALIB_RES_SHIFT	8
+#define IDLE_STATUS_CALIBERR_MASK	0xFUL
+#define IDLE_STATUS_CALIBERR_SHIFT	4
+#define IDLE_STATUS_TXQ_BUSY		BIT(3)
+#define IDLE_STATUS_RXQ_BUSY		BIT(2)
+#define IDLE_STATUS_TXMAC_BUSY		BIT(1)
+#define IDLE_STATUS_RXMAC_BUSY		BIT(0)
+#define IDLE_STATUS_MASK		(\
+	IDLE_STATUS_TXQ_BUSY		|\
+	IDLE_STATUS_RXQ_BUSY		|\
+	IDLE_STATUS_TXMAC_BUSY		|\
+	IDLE_STATUS_RXMAC_BUSY)
 
 /* MDIO Control Register */
 #define REG_MDIO_CTRL           	0x1414
-#define MDIO_DATA_MASK          	0xffff  /* On MDIO write, the 16-bit
-						 * control data to write to PHY
-						 * MII management register */
-#define MDIO_DATA_SHIFT         	0       /* On MDIO read, the 16-bit
-						 * status data that was read
-						 * from the PHY MII management register */
-#define MDIO_REG_ADDR_MASK      	0x1f    /* MDIO register address */
-#define MDIO_REG_ADDR_SHIFT     	16
-#define MDIO_RW                 	0x200000  /* 1: read, 0: write */
-#define MDIO_SUP_PREAMBLE       	0x400000  /* Suppress preamble */
-#define MDIO_START              	0x800000  /* Write 1 to initiate the MDIO
-						   * master. And this bit is self
-						   * cleared after one cycle */
-#define MDIO_CLK_SEL_SHIFT      	24
-#define MDIO_CLK_25_4           	0
-#define MDIO_CLK_25_6           	2
-#define MDIO_CLK_25_8           	3
-#define MDIO_CLK_25_10          	4
-#define MDIO_CLK_25_14          	5
-#define MDIO_CLK_25_20          	6
-#define MDIO_CLK_25_28          	7
-#define MDIO_BUSY               	0x8000000
-#define MDIO_AP_EN              	0x10000000
-#define MDIO_WAIT_TIMES         	10
+#define MDIO_CTRL_MODE_EXT		BIT(30)
+#define MDIO_CTRL_POST_READ		BIT(29)
+#define MDIO_CTRL_AP_EN			BIT(28)
+#define MDIO_CTRL_BUSY			BIT(27)
+#define MDIO_CTRL_CLK_SEL_MASK		0x7UL
+#define MDIO_CTRL_CLK_SEL_SHIFT		24
+#define MDIO_CTRL_CLK_25_4		0	/* 25MHz divide 4 */
+#define MDIO_CTRL_CLK_25_6		2
+#define MDIO_CTRL_CLK_25_8		3
+#define MDIO_CTRL_CLK_25_10		4
+#define MDIO_CTRL_CLK_25_32		5
+#define MDIO_CTRL_CLK_25_64		6
+#define MDIO_CTRL_CLK_25_128		7
+#define MDIO_CTRL_START			BIT(23)
+#define MDIO_CTRL_SPRES_PRMBL		BIT(22)
+#define MDIO_CTRL_OP_READ		BIT(21)	/* 1:read, 0:write */
+#define MDIO_CTRL_REG_MASK		0x1FUL
+#define MDIO_CTRL_REG_SHIFT		16
+#define MDIO_CTRL_DATA_MASK		0xFFFFUL
+#define MDIO_CTRL_DATA_SHIFT		0
+#define MDIO_MAX_AC_TO			120	/* 1.2ms timeout for slow clk */
 
-/* MII PHY Status Register */
-#define REG_PHY_STATUS           	0x1418
-#define PHY_GENERAL_STATUS_MASK		0xFFFF
-#define PHY_STATUS_RECV_ENABLE		0x0001
-#define PHY_OE_PWSP_STATUS_MASK		0x07FF
-#define PHY_OE_PWSP_STATUS_SHIFT	16
-#define PHY_STATUS_LPW_STATE		0x80000000
+/* for extension reg access */
+#define REG_MDIO_EXTN			0x1448
+#define MDIO_EXTN_PORTAD_MASK		0x1FUL
+#define MDIO_EXTN_PORTAD_SHIFT		21
+#define MDIO_EXTN_DEVAD_MASK		0x1FUL
+#define MDIO_EXTN_DEVAD_SHIFT		16
+#define MDIO_EXTN_REG_MASK		0xFFFFUL
+#define MDIO_EXTN_REG_SHIFT		0
+
 /* BIST Control and Status Register0 (for the Packet Memory) */
 #define REG_BIST0_CTRL              	0x141c
 #define BIST0_NOW                   	0x1
@@ -299,50 +325,81 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define BIST1_FUSE_FLAG             	0x4
 
 /* SerDes Lock Detect Control and Status Register */
-#define REG_SERDES_LOCK            	0x1424
-#define SERDES_LOCK_DETECT          	0x1  /* SerDes lock detected. This signal
-					      * comes from Analog SerDes */
-#define SERDES_LOCK_DETECT_EN       	0x2  /* 1: Enable SerDes Lock detect function */
-#define SERDES_LOCK_STS_SELFB_PLL_SHIFT 0xE
-#define SERDES_LOCK_STS_SELFB_PLL_MASK  0x3
-#define SERDES_OVCLK_18_25		0x0
-#define SERDES_OVCLK_12_18		0x1
-#define SERDES_OVCLK_0_4		0x2
-#define SERDES_OVCLK_4_12		0x3
-#define SERDES_MAC_CLK_SLOWDOWN		0x20000
-#define SERDES_PYH_CLK_SLOWDOWN		0x40000
+#define REG_SERDES			0x1424
+#define SERDES_PHY_CLK_SLOWDOWN		BIT(18)
+#define SERDES_MAC_CLK_SLOWDOWN		BIT(17)
+#define SERDES_SELFB_PLL_MASK		0x3UL
+#define SERDES_SELFB_PLL_SHIFT		14
+#define SERDES_PHYCLK_SEL_GTX		BIT(13)	/* 1:gtx_clk, 0:25M */
+#define SERDES_PCIECLK_SEL_SRDS		BIT(12)	/* 1:serdes,0:25M */
+#define SERDES_BUFS_RX_EN		BIT(11)
+#define SERDES_PD_RX			BIT(10)
+#define SERDES_PLL_EN			BIT(9)
+#define SERDES_EN			BIT(8)
+#define SERDES_SELFB_PLL_SEL_CSR	BIT(6)	/* 0:state-machine,1:csr */
+#define SERDES_SELFB_PLL_CSR_MASK	0x3UL
+#define SERDES_SELFB_PLL_CSR_SHIFT	4
+#define SERDES_SELFB_PLL_CSR_4		3	/* 4-12% OV-CLK */
+#define SERDES_SELFB_PLL_CSR_0		2	/* 0-4% OV-CLK */
+#define SERDES_SELFB_PLL_CSR_12		1	/* 12-18% OV-CLK */
+#define SERDES_SELFB_PLL_CSR_18		0	/* 18-25% OV-CLK */
+#define SERDES_VCO_SLOW			BIT(3)
+#define SERDES_VCO_FAST			BIT(2)
+#define SERDES_LOCK_DETECT_EN		BIT(1)
+#define SERDES_LOCK_DETECT		BIT(0)
+
+#define REG_LPI_DECISN_TIMER            0x143C
+#define L2CB_LPI_DESISN_TIMER		0x7D00
+
+#define REG_LPI_CTRL                    0x1440
+#define LPI_CTRL_CHK_DA			BIT(31)
+#define LPI_CTRL_ENH_TO_MASK		0x1FFFUL
+#define LPI_CTRL_ENH_TO_SHIFT		12
+#define LPI_CTRL_ENH_TH_MASK		0x1FUL
+#define LPI_CTRL_ENH_TH_SHIFT		6
+#define LPI_CTRL_ENH_EN			BIT(5)
+#define LPI_CTRL_CHK_RX			BIT(4)
+#define LPI_CTRL_CHK_STATE		BIT(3)
+#define LPI_CTRL_GMII			BIT(2)
+#define LPI_CTRL_TO_PHY			BIT(1)
+#define LPI_CTRL_EN			BIT(0)
+
+#define REG_LPI_WAIT			0x1444
+#define LPI_WAIT_TIMER_MASK		0xFFFFUL
+#define LPI_WAIT_TIMER_SHIFT		0
 
 /* MAC Control Register  */
 #define REG_MAC_CTRL         		0x1480
-#define MAC_CTRL_TX_EN			0x1
-#define MAC_CTRL_RX_EN			0x2
-#define MAC_CTRL_TX_FLOW		0x4
-#define MAC_CTRL_RX_FLOW            	0x8
-#define MAC_CTRL_LOOPBACK          	0x10
-#define MAC_CTRL_DUPLX              	0x20
-#define MAC_CTRL_ADD_CRC            	0x40
-#define MAC_CTRL_PAD                	0x80
-#define MAC_CTRL_LENCHK             	0x100
-#define MAC_CTRL_HUGE_EN            	0x200
-#define MAC_CTRL_PRMLEN_SHIFT       	10
-#define MAC_CTRL_PRMLEN_MASK        	0xf
-#define MAC_CTRL_RMV_VLAN           	0x4000
-#define MAC_CTRL_PROMIS_EN          	0x8000
-#define MAC_CTRL_TX_PAUSE           	0x10000
-#define MAC_CTRL_SCNT               	0x20000
-#define MAC_CTRL_SRST_TX            	0x40000
-#define MAC_CTRL_TX_SIMURST         	0x80000
-#define MAC_CTRL_SPEED_SHIFT        	20
-#define MAC_CTRL_SPEED_MASK         	0x3
-#define MAC_CTRL_DBG_TX_BKPRESURE   	0x400000
-#define MAC_CTRL_TX_HUGE            	0x800000
-#define MAC_CTRL_RX_CHKSUM_EN       	0x1000000
-#define MAC_CTRL_MC_ALL_EN          	0x2000000
-#define MAC_CTRL_BC_EN              	0x4000000
-#define MAC_CTRL_DBG                	0x8000000
-#define MAC_CTRL_SINGLE_PAUSE_EN	0x10000000
-#define MAC_CTRL_HASH_ALG_CRC32		0x20000000
-#define MAC_CTRL_SPEED_MODE_SW		0x40000000
+#define MAC_CTRL_SPEED_MODE_SW		BIT(30) /* 0:phy,1:sw */
+#define MAC_CTRL_HASH_ALG_CRC32		BIT(29) /* 1:legacy,0:lw_5b */
+#define MAC_CTRL_SINGLE_PAUSE_EN	BIT(28)
+#define MAC_CTRL_DBG			BIT(27)
+#define MAC_CTRL_BC_EN			BIT(26)
+#define MAC_CTRL_MC_ALL_EN		BIT(25)
+#define MAC_CTRL_RX_CHKSUM_EN		BIT(24)
+#define MAC_CTRL_TX_HUGE		BIT(23)
+#define MAC_CTRL_DBG_TX_BKPRESURE	BIT(22)
+#define MAC_CTRL_SPEED_MASK		3UL
+#define MAC_CTRL_SPEED_SHIFT		20
+#define MAC_CTRL_SPEED_10_100		1
+#define MAC_CTRL_SPEED_1000		2
+#define MAC_CTRL_TX_SIMURST		BIT(19)
+#define MAC_CTRL_SCNT			BIT(17)
+#define MAC_CTRL_TX_PAUSE		BIT(16)
+#define MAC_CTRL_PROMIS_EN		BIT(15)
+#define MAC_CTRL_RMV_VLAN		BIT(14)
+#define MAC_CTRL_PRMLEN_MASK		0xFUL
+#define MAC_CTRL_PRMLEN_SHIFT		10
+#define MAC_CTRL_HUGE_EN		BIT(9)
+#define MAC_CTRL_LENCHK			BIT(8)
+#define MAC_CTRL_PAD			BIT(7)
+#define MAC_CTRL_ADD_CRC		BIT(6)
+#define MAC_CTRL_DUPLX			BIT(5)
+#define MAC_CTRL_LOOPBACK		BIT(4)
+#define MAC_CTRL_RX_FLOW		BIT(3)
+#define MAC_CTRL_TX_FLOW		BIT(2)
+#define MAC_CTRL_RX_EN			BIT(1)
+#define MAC_CTRL_TX_EN			BIT(0)
 
 /* MAC IPG/IFG Control Register  */
 #define REG_MAC_IPG_IFG             	0x1484
@@ -386,34 +443,53 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 
 /* Wake-On-Lan control register */
 #define REG_WOL_CTRL                	0x14a0
-#define WOL_PATTERN_EN              	0x00000001
-#define WOL_PATTERN_PME_EN              0x00000002
-#define WOL_MAGIC_EN                    0x00000004
-#define WOL_MAGIC_PME_EN                0x00000008
-#define WOL_LINK_CHG_EN                 0x00000010
-#define WOL_LINK_CHG_PME_EN             0x00000020
-#define WOL_PATTERN_ST                  0x00000100
-#define WOL_MAGIC_ST                    0x00000200
-#define WOL_LINKCHG_ST                  0x00000400
-#define WOL_CLK_SWITCH_EN               0x00008000
-#define WOL_PT0_EN                      0x00010000
-#define WOL_PT1_EN                      0x00020000
-#define WOL_PT2_EN                      0x00040000
-#define WOL_PT3_EN                      0x00080000
-#define WOL_PT4_EN                      0x00100000
-#define WOL_PT5_EN                      0x00200000
-#define WOL_PT6_EN                      0x00400000
+#define WOL_PT7_MATCH			BIT(31)
+#define WOL_PT6_MATCH			BIT(30)
+#define WOL_PT5_MATCH			BIT(29)
+#define WOL_PT4_MATCH			BIT(28)
+#define WOL_PT3_MATCH			BIT(27)
+#define WOL_PT2_MATCH			BIT(26)
+#define WOL_PT1_MATCH			BIT(25)
+#define WOL_PT0_MATCH			BIT(24)
+#define WOL_PT7_EN			BIT(23)
+#define WOL_PT6_EN			BIT(22)
+#define WOL_PT5_EN			BIT(21)
+#define WOL_PT4_EN			BIT(20)
+#define WOL_PT3_EN			BIT(19)
+#define WOL_PT2_EN			BIT(18)
+#define WOL_PT1_EN			BIT(17)
+#define WOL_PT0_EN			BIT(16)
+#define WOL_LNKCHG_ST			BIT(10)
+#define WOL_MAGIC_ST			BIT(9)
+#define WOL_PATTERN_ST			BIT(8)
+#define WOL_OOB_EN			BIT(6)
+#define WOL_LINK_CHG_PME_EN		BIT(5)
+#define WOL_LINK_CHG_EN			BIT(4)
+#define WOL_MAGIC_PME_EN		BIT(3)
+#define WOL_MAGIC_EN			BIT(2)
+#define WOL_PATTERN_PME_EN		BIT(1)
+#define WOL_PATTERN_EN			BIT(0)
 
 /* WOL Length ( 2 DWORD ) */
-#define REG_WOL_PATTERN_LEN         	0x14a4
-#define WOL_PT_LEN_MASK                 0x7f
-#define WOL_PT0_LEN_SHIFT               0
-#define WOL_PT1_LEN_SHIFT               8
-#define WOL_PT2_LEN_SHIFT               16
-#define WOL_PT3_LEN_SHIFT               24
-#define WOL_PT4_LEN_SHIFT               0
-#define WOL_PT5_LEN_SHIFT               8
-#define WOL_PT6_LEN_SHIFT               16
+#define REG_WOL_PTLEN1			0x14A4
+#define WOL_PTLEN1_3_MASK		0xFFUL
+#define WOL_PTLEN1_3_SHIFT		24
+#define WOL_PTLEN1_2_MASK		0xFFUL
+#define WOL_PTLEN1_2_SHIFT		16
+#define WOL_PTLEN1_1_MASK		0xFFUL
+#define WOL_PTLEN1_1_SHIFT		8
+#define WOL_PTLEN1_0_MASK		0xFFUL
+#define WOL_PTLEN1_0_SHIFT		0
+
+#define REG_WOL_PTLEN2			0x14A8
+#define WOL_PTLEN2_7_MASK		0xFFUL
+#define WOL_PTLEN2_7_SHIFT		24
+#define WOL_PTLEN2_6_MASK		0xFFUL
+#define WOL_PTLEN2_6_SHIFT		16
+#define WOL_PTLEN2_5_MASK		0xFFUL
+#define WOL_PTLEN2_5_SHIFT		8
+#define WOL_PTLEN2_4_MASK		0xFFUL
+#define WOL_PTLEN2_4_SHIFT		0
 
 /* Internal SRAM Partition Register */
 #define RFDX_HEAD_ADDR_MASK		0x03FF
@@ -458,66 +534,50 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
  */
 #define REG_RX_BASE_ADDR_HI		0x1540
 #define REG_TX_BASE_ADDR_HI		0x1544
-#define REG_SMB_BASE_ADDR_HI		0x1548
-#define REG_SMB_BASE_ADDR_LO		0x154C
 #define REG_RFD0_HEAD_ADDR_LO		0x1550
-#define REG_RFD1_HEAD_ADDR_LO		0x1554
-#define REG_RFD2_HEAD_ADDR_LO		0x1558
-#define REG_RFD3_HEAD_ADDR_LO		0x155C
 #define REG_RFD_RING_SIZE		0x1560
 #define RFD_RING_SIZE_MASK		0x0FFF
 #define REG_RX_BUF_SIZE			0x1564
 #define RX_BUF_SIZE_MASK		0xFFFF
 #define REG_RRD0_HEAD_ADDR_LO		0x1568
-#define REG_RRD1_HEAD_ADDR_LO		0x156C
-#define REG_RRD2_HEAD_ADDR_LO		0x1570
-#define REG_RRD3_HEAD_ADDR_LO		0x1574
 #define REG_RRD_RING_SIZE		0x1578
 #define RRD_RING_SIZE_MASK		0x0FFF
-#define REG_HTPD_HEAD_ADDR_LO		0x157C
-#define REG_NTPD_HEAD_ADDR_LO		0x1580
+#define REG_TPD_PRI1_ADDR_LO		0x157C
+#define REG_TPD_PRI0_ADDR_LO		0x1580
 #define REG_TPD_RING_SIZE		0x1584
 #define TPD_RING_SIZE_MASK		0xFFFF
-#define REG_CMB_BASE_ADDR_LO		0x1588
-
-/* RSS about */
-#define REG_RSS_KEY0                    0x14B0
-#define REG_RSS_KEY1                    0x14B4
-#define REG_RSS_KEY2                    0x14B8
-#define REG_RSS_KEY3                    0x14BC
-#define REG_RSS_KEY4                    0x14C0
-#define REG_RSS_KEY5                    0x14C4
-#define REG_RSS_KEY6                    0x14C8
-#define REG_RSS_KEY7                    0x14CC
-#define REG_RSS_KEY8                    0x14D0
-#define REG_RSS_KEY9                    0x14D4
-#define REG_IDT_TABLE0                	0x14E0
-#define REG_IDT_TABLE1                  0x14E4
-#define REG_IDT_TABLE2                  0x14E8
-#define REG_IDT_TABLE3                  0x14EC
-#define REG_IDT_TABLE4                  0x14F0
-#define REG_IDT_TABLE5                  0x14F4
-#define REG_IDT_TABLE6                  0x14F8
-#define REG_IDT_TABLE7                  0x14FC
-#define REG_IDT_TABLE                   REG_IDT_TABLE0
-#define REG_RSS_HASH_VALUE              0x15B0
-#define REG_RSS_HASH_FLAG               0x15B4
-#define REG_BASE_CPU_NUMBER             0x15B8
 
 /* TXQ Control Register */
-#define REG_TXQ_CTRL                	0x1590
-#define	TXQ_NUM_TPD_BURST_MASK     	0xF
-#define TXQ_NUM_TPD_BURST_SHIFT    	0
-#define TXQ_CTRL_IP_OPTION_EN		0x10
-#define TXQ_CTRL_EN                     0x20
-#define TXQ_CTRL_ENH_MODE               0x40
-#define TXQ_CTRL_LS_8023_EN		0x80
-#define TXQ_TXF_BURST_NUM_SHIFT    	16
-#define TXQ_TXF_BURST_NUM_MASK     	0xFFFF
+#define REG_TXQ_CTRL			0x1590
+#define TXQ_TXF_BURST_NUM_MASK          0xFFFFUL
+#define TXQ_TXF_BURST_NUM_SHIFT		16
+#define L1C_TXQ_TXF_BURST_PREF          0x200
+#define L2CB_TXQ_TXF_BURST_PREF         0x40
+#define TXQ_CTRL_PEDING_CLR             BIT(8)
+#define TXQ_CTRL_LS_8023_EN             BIT(7)
+#define TXQ_CTRL_ENH_MODE               BIT(6)
+#define TXQ_CTRL_EN                     BIT(5)
+#define TXQ_CTRL_IP_OPTION_EN           BIT(4)
+#define TXQ_NUM_TPD_BURST_MASK          0xFUL
+#define TXQ_NUM_TPD_BURST_SHIFT         0
+#define TXQ_NUM_TPD_BURST_DEF           5
+#define TXQ_CFGV			(\
+	FIELDX(TXQ_NUM_TPD_BURST, TXQ_NUM_TPD_BURST_DEF) |\
+	TXQ_CTRL_ENH_MODE |\
+	TXQ_CTRL_LS_8023_EN |\
+	TXQ_CTRL_IP_OPTION_EN)
+#define L1C_TXQ_CFGV			(\
+	TXQ_CFGV |\
+	FIELDX(TXQ_TXF_BURST_NUM, L1C_TXQ_TXF_BURST_PREF))
+#define L2CB_TXQ_CFGV			(\
+	TXQ_CFGV |\
+	FIELDX(TXQ_TXF_BURST_NUM, L2CB_TXQ_TXF_BURST_PREF))
+
 
 /* Jumbo packet Threshold for task offload */
 #define REG_TX_TSO_OFFLOAD_THRESH	0x1594 /* In 8-bytes */
 #define TX_TSO_OFFLOAD_THRESH_MASK	0x07FF
+#define MAX_TSO_FRAME_SIZE		(7*1024)
 
 #define	REG_TXF_WATER_MARK		0x1598 /* In 8-bytes */
 #define TXF_WATER_MARK_MASK		0x0FFF
@@ -537,26 +597,21 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define ASPM_THRUPUT_LIMIT_NO		0x00
 #define ASPM_THRUPUT_LIMIT_1M		0x01
 #define ASPM_THRUPUT_LIMIT_10M		0x02
-#define ASPM_THRUPUT_LIMIT_100M		0x04
-#define RXQ1_CTRL_EN			0x10
-#define RXQ2_CTRL_EN			0x20
-#define RXQ3_CTRL_EN			0x40
-#define IPV6_CHKSUM_CTRL_EN		0x80
-#define RSS_HASH_BITS_MASK		0x00FF
-#define RSS_HASH_BITS_SHIFT		8
-#define RSS_HASH_IPV4			0x10000
-#define RSS_HASH_IPV4_TCP		0x20000
-#define RSS_HASH_IPV6			0x40000
-#define RSS_HASH_IPV6_TCP		0x80000
+#define ASPM_THRUPUT_LIMIT_100M		0x03
+#define IPV6_CHKSUM_CTRL_EN		BIT(7)
 #define RXQ_RFD_BURST_NUM_MASK		0x003F
 #define RXQ_RFD_BURST_NUM_SHIFT		20
-#define RSS_MODE_MASK			0x0003
+#define RXQ_NUM_RFD_PREF_DEF		8
+#define RSS_MODE_MASK			3UL
 #define RSS_MODE_SHIFT			26
-#define RSS_NIP_QUEUE_SEL_MASK		0x1
-#define RSS_NIP_QUEUE_SEL_SHIFT		28
-#define RRS_HASH_CTRL_EN		0x20000000
-#define RX_CUT_THRU_EN			0x40000000
-#define RXQ_CTRL_EN			0x80000000
+#define RSS_MODE_DIS			0
+#define RSS_MODE_SQSI			1
+#define RSS_MODE_MQSI			2
+#define RSS_MODE_MQMI			3
+#define RSS_NIP_QUEUE_SEL		BIT(28) /* 0:q0, 1:table */
+#define RRS_HASH_CTRL_EN		BIT(29)
+#define RX_CUT_THRU_EN			BIT(30)
+#define RXQ_CTRL_EN			BIT(31)
 
 #define REG_RFD_FREE_THRESH		0x15A4
 #define RFD_FREE_THRESH_MASK		0x003F
@@ -577,57 +632,45 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define RXD_DMA_DOWN_TIMER_SHIFT	16
 
 /* DMA Engine Control Register */
-#define REG_DMA_CTRL                	0x15C0
-#define DMA_CTRL_DMAR_IN_ORDER          0x1
-#define DMA_CTRL_DMAR_ENH_ORDER         0x2
-#define DMA_CTRL_DMAR_OUT_ORDER         0x4
-#define DMA_CTRL_RCB_VALUE              0x8
-#define DMA_CTRL_DMAR_BURST_LEN_MASK    0x0007
-#define DMA_CTRL_DMAR_BURST_LEN_SHIFT   4
-#define DMA_CTRL_DMAW_BURST_LEN_MASK    0x0007
-#define DMA_CTRL_DMAW_BURST_LEN_SHIFT   7
-#define DMA_CTRL_DMAR_REQ_PRI           0x400
-#define DMA_CTRL_DMAR_DLY_CNT_MASK      0x001F
-#define DMA_CTRL_DMAR_DLY_CNT_SHIFT     11
-#define DMA_CTRL_DMAW_DLY_CNT_MASK      0x000F
-#define DMA_CTRL_DMAW_DLY_CNT_SHIFT     16
-#define DMA_CTRL_CMB_EN               	0x100000
-#define DMA_CTRL_SMB_EN			0x200000
-#define DMA_CTRL_CMB_NOW		0x400000
-#define MAC_CTRL_SMB_DIS		0x1000000
-#define DMA_CTRL_SMB_NOW		0x80000000
+#define REG_DMA_CTRL			0x15C0
+#define DMA_CTRL_SMB_NOW                BIT(31)
+#define DMA_CTRL_WPEND_CLR              BIT(30)
+#define DMA_CTRL_RPEND_CLR              BIT(29)
+#define DMA_CTRL_WDLY_CNT_MASK          0xFUL
+#define DMA_CTRL_WDLY_CNT_SHIFT         16
+#define DMA_CTRL_WDLY_CNT_DEF           4
+#define DMA_CTRL_RDLY_CNT_MASK          0x1FUL
+#define DMA_CTRL_RDLY_CNT_SHIFT         11
+#define DMA_CTRL_RDLY_CNT_DEF           15
+#define DMA_CTRL_RREQ_PRI_DATA          BIT(10)      /* 0:tpd, 1:data */
+#define DMA_CTRL_WREQ_BLEN_MASK         7UL
+#define DMA_CTRL_WREQ_BLEN_SHIFT        7
+#define DMA_CTRL_RREQ_BLEN_MASK         7UL
+#define DMA_CTRL_RREQ_BLEN_SHIFT        4
+#define L1C_CTRL_DMA_RCB_LEN128         BIT(3)   /* 0:64bytes,1:128bytes */
+#define DMA_CTRL_RORDER_MODE_MASK       7UL
+#define DMA_CTRL_RORDER_MODE_SHIFT      0
+#define DMA_CTRL_RORDER_MODE_OUT        4
+#define DMA_CTRL_RORDER_MODE_ENHANCE    2
+#define DMA_CTRL_RORDER_MODE_IN         1
 
-/* CMB/SMB Control Register */
+/* INT-triggle/SMB Control Register */
 #define REG_SMB_STAT_TIMER		0x15C4	/* 2us resolution */
 #define SMB_STAT_TIMER_MASK		0xFFFFFF
-#define REG_CMB_TPD_THRESH		0x15C8
-#define CMB_TPD_THRESH_MASK		0xFFFF
-#define REG_CMB_TX_TIMER		0x15CC	/* 2us resolution */
-#define CMB_TX_TIMER_MASK		0xFFFF
+#define REG_TINT_TPD_THRESH             0x15C8 /* tpd th to trig intrrupt */
 
 /* Mail box */
 #define MB_RFDX_PROD_IDX_MASK		0xFFFF
 #define REG_MB_RFD0_PROD_IDX		0x15E0
-#define REG_MB_RFD1_PROD_IDX		0x15E4
-#define REG_MB_RFD2_PROD_IDX		0x15E8
-#define REG_MB_RFD3_PROD_IDX		0x15EC
 
-#define MB_PRIO_PROD_IDX_MASK		0xFFFF
-#define REG_MB_PRIO_PROD_IDX		0x15F0
-#define MB_HTPD_PROD_IDX_SHIFT		0
-#define MB_NTPD_PROD_IDX_SHIFT		16
-
-#define MB_PRIO_CONS_IDX_MASK		0xFFFF
-#define REG_MB_PRIO_CONS_IDX		0x15F4
-#define MB_HTPD_CONS_IDX_SHIFT		0
-#define MB_NTPD_CONS_IDX_SHIFT		16
+#define REG_TPD_PRI1_PIDX               0x15F0	/* 16bit,hi-tpd producer idx */
+#define REG_TPD_PRI0_PIDX		0x15F2	/* 16bit,lo-tpd producer idx */
+#define REG_TPD_PRI1_CIDX		0x15F4	/* 16bit,hi-tpd consumer idx */
+#define REG_TPD_PRI0_CIDX		0x15F6	/* 16bit,lo-tpd consumer idx */
 
 #define REG_MB_RFD01_CONS_IDX		0x15F8
 #define MB_RFD0_CONS_IDX_MASK		0x0000FFFF
 #define MB_RFD1_CONS_IDX_MASK		0xFFFF0000
-#define REG_MB_RFD23_CONS_IDX		0x15FC
-#define MB_RFD2_CONS_IDX_MASK		0x0000FFFF
-#define MB_RFD3_CONS_IDX_MASK		0xFFFF0000
 
 /* Interrupt Status Register */
 #define REG_ISR    			0x1600
@@ -704,13 +747,6 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 
 #define REG_INT_RETRIG_TIMER		0x1608
 #define INT_RETRIG_TIMER_MASK		0xFFFF
-
-#define REG_HDS_CTRL			0x160C
-#define HDS_CTRL_EN			0x0001
-#define HDS_CTRL_BACKFILLSIZE_SHIFT	8
-#define HDS_CTRL_BACKFILLSIZE_MASK	0x0FFF
-#define HDS_CTRL_MAX_HDRSIZE_SHIFT	20
-#define HDS_CTRL_MAC_HDRSIZE_MASK	0x0FFF
 
 #define REG_MAC_RX_STATUS_BIN 		0x1700
 #define REG_MAC_RX_STATUS_END 		0x175c
@@ -796,73 +832,188 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define MII_DBG_ADDR			0x1D
 #define MII_DBG_DATA			0x1E
 
-#define MII_ANA_CTRL_0			0x0
-#define ANA_RESTART_CAL			0x0001
-#define ANA_MANUL_SWICH_ON_SHIFT	0x1
-#define ANA_MANUL_SWICH_ON_MASK		0xF
-#define ANA_MAN_ENABLE			0x0020
-#define ANA_SEL_HSP			0x0040
-#define ANA_EN_HB			0x0080
-#define ANA_EN_HBIAS			0x0100
-#define ANA_OEN_125M			0x0200
-#define ANA_EN_LCKDT			0x0400
-#define ANA_LCKDT_PHY			0x0800
-#define ANA_AFE_MODE			0x1000
-#define ANA_VCO_SLOW			0x2000
-#define ANA_VCO_FAST			0x4000
-#define ANA_SEL_CLK125M_DSP		0x8000
+/***************************** debug port *************************************/
 
-#define MII_ANA_CTRL_4			0x4
-#define ANA_IECHO_ADJ_MASK		0xF
-#define ANA_IECHO_ADJ_3_SHIFT		0
-#define ANA_IECHO_ADJ_2_SHIFT		4
-#define ANA_IECHO_ADJ_1_SHIFT		8
-#define ANA_IECHO_ADJ_0_SHIFT		12
+#define MIIDBG_ANACTRL                  0x00
+#define ANACTRL_CLK125M_DELAY_EN        0x8000
+#define ANACTRL_VCO_FAST                0x4000
+#define ANACTRL_VCO_SLOW                0x2000
+#define ANACTRL_AFE_MODE_EN             0x1000
+#define ANACTRL_LCKDET_PHY              0x800
+#define ANACTRL_LCKDET_EN               0x400
+#define ANACTRL_OEN_125M                0x200
+#define ANACTRL_HBIAS_EN                0x100
+#define ANACTRL_HB_EN                   0x80
+#define ANACTRL_SEL_HSP                 0x40
+#define ANACTRL_CLASSA_EN               0x20
+#define ANACTRL_MANUSWON_SWR_MASK       3U
+#define ANACTRL_MANUSWON_SWR_SHIFT      2
+#define ANACTRL_MANUSWON_SWR_2V         0
+#define ANACTRL_MANUSWON_SWR_1P9V       1
+#define ANACTRL_MANUSWON_SWR_1P8V       2
+#define ANACTRL_MANUSWON_SWR_1P7V       3
+#define ANACTRL_MANUSWON_BW3_4M         0x2
+#define ANACTRL_RESTART_CAL             0x1
+#define ANACTRL_DEF                     0x02EF
 
-#define MII_ANA_CTRL_5			0x5
-#define ANA_SERDES_CDR_BW_SHIFT		0
-#define ANA_SERDES_CDR_BW_MASK		0x3
-#define ANA_MS_PAD_DBG			0x0004
-#define ANA_SPEEDUP_DBG			0x0008
-#define ANA_SERDES_TH_LOS_SHIFT		4
-#define ANA_SERDES_TH_LOS_MASK		0x3
-#define ANA_SERDES_EN_DEEM		0x0040
-#define ANA_SERDES_TXELECIDLE		0x0080
-#define ANA_SERDES_BEACON		0x0100
-#define ANA_SERDES_HALFTXDR		0x0200
-#define ANA_SERDES_SEL_HSP		0x0400
-#define ANA_SERDES_EN_PLL		0x0800
-#define ANA_SERDES_EN			0x1000
-#define ANA_SERDES_EN_LCKDT		0x2000
+#define MIIDBG_SYSMODCTRL               0x04
+#define SYSMODCTRL_IECHOADJ_PFMH_PHY    0x8000
+#define SYSMODCTRL_IECHOADJ_BIASGEN     0x4000
+#define SYSMODCTRL_IECHOADJ_PFML_PHY    0x2000
+#define SYSMODCTRL_IECHOADJ_PS_MASK     3U
+#define SYSMODCTRL_IECHOADJ_PS_SHIFT    10
+#define SYSMODCTRL_IECHOADJ_PS_40       3
+#define SYSMODCTRL_IECHOADJ_PS_20       2
+#define SYSMODCTRL_IECHOADJ_PS_0        1
+#define SYSMODCTRL_IECHOADJ_10BT_100MV  0x40 /* 1:100mv, 0:200mv */
+#define SYSMODCTRL_IECHOADJ_HLFAP_MASK  3U
+#define SYSMODCTRL_IECHOADJ_HLFAP_SHIFT 4
+#define SYSMODCTRL_IECHOADJ_VDFULBW     0x8
+#define SYSMODCTRL_IECHOADJ_VDBIASHLF   0x4
+#define SYSMODCTRL_IECHOADJ_VDAMPHLF    0x2
+#define SYSMODCTRL_IECHOADJ_VDLANSW     0x1
+#define SYSMODCTRL_IECHOADJ_DEF         0x88BB /* ???? */
 
-#define MII_ANA_CTRL_11			0xB
-#define ANA_PS_HIB_EN			0x8000
+/* for l1d & l2cb */
+#define SYSMODCTRL_IECHOADJ_CUR_ADD     0x8000
+#define SYSMODCTRL_IECHOADJ_CUR_MASK    7U
+#define SYSMODCTRL_IECHOADJ_CUR_SHIFT   12
+#define SYSMODCTRL_IECHOADJ_VOL_MASK    0xFU
+#define SYSMODCTRL_IECHOADJ_VOL_SHIFT   8
+#define SYSMODCTRL_IECHOADJ_VOL_17ALL   3
+#define SYSMODCTRL_IECHOADJ_VOL_100M15  1
+#define SYSMODCTRL_IECHOADJ_VOL_10M17   0
+#define SYSMODCTRL_IECHOADJ_BIAS1_MASK  0xFU
+#define SYSMODCTRL_IECHOADJ_BIAS1_SHIFT 4
+#define SYSMODCTRL_IECHOADJ_BIAS2_MASK  0xFU
+#define SYSMODCTRL_IECHOADJ_BIAS2_SHIFT 0
+#define L1D_SYSMODCTRL_IECHOADJ_DEF     0x4FBB
 
-#define MII_ANA_CTRL_18			0x12
-#define ANA_TEST_MODE_10BT_01SHIFT	0
-#define ANA_TEST_MODE_10BT_01MASK	0x3
-#define ANA_LOOP_SEL_10BT		0x0004
-#define ANA_RGMII_MODE_SW		0x0008
-#define ANA_EN_LONGECABLE		0x0010
-#define ANA_TEST_MODE_10BT_2		0x0020
-#define ANA_EN_10BT_IDLE		0x0400
-#define ANA_EN_MASK_TB			0x0800
-#define ANA_TRIGGER_SEL_TIMER_SHIFT	12
-#define ANA_TRIGGER_SEL_TIMER_MASK	0x3
-#define ANA_INTERVAL_SEL_TIMER_SHIFT	14
-#define ANA_INTERVAL_SEL_TIMER_MASK	0x3
+#define MIIDBG_SRDSYSMOD                0x05
+#define SRDSYSMOD_LCKDET_EN             0x2000
+#define SRDSYSMOD_PLL_EN                0x800
+#define SRDSYSMOD_SEL_HSP               0x400
+#define SRDSYSMOD_HLFTXDR               0x200
+#define SRDSYSMOD_TXCLK_DELAY_EN        0x100
+#define SRDSYSMOD_TXELECIDLE            0x80
+#define SRDSYSMOD_DEEMP_EN              0x40
+#define SRDSYSMOD_MS_PAD                0x4
+#define SRDSYSMOD_CDR_ADC_VLTG          0x2
+#define SRDSYSMOD_CDR_DAC_1MA           0x1
+#define SRDSYSMOD_DEF                   0x2C46
 
-#define MII_ANA_CTRL_41			0x29
-#define ANA_TOP_PS_EN			0x8000
+#define MIIDBG_CFGLPSPD                 0x0A
+#define CFGLPSPD_RSTCNT_MASK            3U
+#define CFGLPSPD_RSTCNT_SHIFT           14
+#define CFGLPSPD_RSTCNT_CLK125SW        0x2000
 
-#define MII_ANA_CTRL_54			0x36
-#define ANA_LONG_CABLE_TH_100_SHIFT	0
-#define ANA_LONG_CABLE_TH_100_MASK	0x3F
-#define ANA_DESERVED			0x0040
-#define ANA_EN_LIT_CH			0x0080
-#define ANA_SHORT_CABLE_TH_100_SHIFT	8
-#define ANA_SHORT_CABLE_TH_100_MASK	0x3F
-#define ANA_BP_BAD_LINK_ACCUM		0x4000
-#define ANA_BP_SMALL_BW			0x8000
+#define MIIDBG_HIBNEG                   0x0B
+#define HIBNEG_PSHIB_EN                 0x8000
+#define HIBNEG_WAKE_BOTH                0x4000
+#define HIBNEG_ONOFF_ANACHG_SUDEN       0x2000
+#define HIBNEG_HIB_PULSE                0x1000
+#define HIBNEG_GATE_25M_EN              0x800
+#define HIBNEG_RST_80U                  0x400
+#define HIBNEG_RST_TIMER_MASK           3U
+#define HIBNEG_RST_TIMER_SHIFT          8
+#define HIBNEG_GTX_CLK_DELAY_MASK       3U
+#define HIBNEG_GTX_CLK_DELAY_SHIFT      5
+#define HIBNEG_BYPSS_BRKTIMER           0x10
+#define HIBNEG_DEF                      0xBC40
+
+#define MIIDBG_TST10BTCFG               0x12
+#define TST10BTCFG_INTV_TIMER_MASK      3U
+#define TST10BTCFG_INTV_TIMER_SHIFT     14
+#define TST10BTCFG_TRIGER_TIMER_MASK    3U
+#define TST10BTCFG_TRIGER_TIMER_SHIFT   12
+#define TST10BTCFG_DIV_MAN_MLT3_EN      0x800
+#define TST10BTCFG_OFF_DAC_IDLE         0x400
+#define TST10BTCFG_LPBK_DEEP            0x4 /* 1:deep,0:shallow */
+#define TST10BTCFG_DEF                  0x4C04
+
+#define MIIDBG_AZ_ANADECT		0x15
+#define AZ_ANADECT_10BTRX_TH		0x8000
+#define AZ_ANADECT_BOTH_01CHNL		0x4000
+#define AZ_ANADECT_INTV_MASK		0x3FU
+#define AZ_ANADECT_INTV_SHIFT		8
+#define AZ_ANADECT_THRESH_MASK		0xFU
+#define AZ_ANADECT_THRESH_SHIFT		4
+#define AZ_ANADECT_CHNL_MASK		0xFU
+#define AZ_ANADECT_CHNL_SHIFT		0
+#define AZ_ANADECT_DEF			0x3220
+#define AZ_ANADECT_LONG                 0xb210
+
+#define MIIDBG_MSE16DB			0x18	/* l1d */
+#define L1D_MSE16DB_UP			0x05EA
+#define L1D_MSE16DB_DOWN		0x02EA
+
+#define MIIDBG_LEGCYPS                  0x29
+#define LEGCYPS_EN                      0x8000
+#define LEGCYPS_DAC_AMP1000_MASK        7U
+#define LEGCYPS_DAC_AMP1000_SHIFT       12
+#define LEGCYPS_DAC_AMP100_MASK         7U
+#define LEGCYPS_DAC_AMP100_SHIFT        9
+#define LEGCYPS_DAC_AMP10_MASK          7U
+#define LEGCYPS_DAC_AMP10_SHIFT         6
+#define LEGCYPS_UNPLUG_TIMER_MASK       7U
+#define LEGCYPS_UNPLUG_TIMER_SHIFT      3
+#define LEGCYPS_UNPLUG_DECT_EN          0x4
+#define LEGCYPS_ECNC_PS_EN              0x1
+#define L1D_LEGCYPS_DEF                 0x129D
+#define L1C_LEGCYPS_DEF                 0x36DD
+
+#define MIIDBG_TST100BTCFG              0x36
+#define TST100BTCFG_NORMAL_BW_EN        0x8000
+#define TST100BTCFG_BADLNK_BYPASS       0x4000
+#define TST100BTCFG_SHORTCABL_TH_MASK   0x3FU
+#define TST100BTCFG_SHORTCABL_TH_SHIFT  8
+#define TST100BTCFG_LITCH_EN            0x80
+#define TST100BTCFG_VLT_SW              0x40
+#define TST100BTCFG_LONGCABL_TH_MASK    0x3FU
+#define TST100BTCFG_LONGCABL_TH_SHIFT   0
+#define TST100BTCFG_DEF                 0xE12C
+
+#define MIIDBG_VOLT_CTRL                0x3B	/* only for l2cb 1 & 2 */
+#define VOLT_CTRL_CABLE1TH_MASK         0x1FFU
+#define VOLT_CTRL_CABLE1TH_SHIFT        7
+#define VOLT_CTRL_AMPCTRL_MASK          3U
+#define VOLT_CTRL_AMPCTRL_SHIFT         5
+#define VOLT_CTRL_SW_BYPASS             0x10
+#define VOLT_CTRL_SWLOWEST              0x8
+#define VOLT_CTRL_DACAMP10_MASK         7U
+#define VOLT_CTRL_DACAMP10_SHIFT        0
+
+#define MIIDBG_CABLE1TH_DET             0x3E
+#define CABLE1TH_DET_EN                 0x8000
+
+
+/******* dev 3 *********/
+#define MIIEXT_PCS                      3
+
+#define MIIEXT_CLDCTRL3                 0x8003
+#define CLDCTRL3_BP_CABLE1TH_DET_GT     0x8000
+#define CLDCTRL3_AZ_DISAMP              0x1000
+#define L2CB_CLDCTRL3                   0x4D19
+#define L1D_CLDCTRL3                    0xDD19
+
+#define MIIEXT_CLDCTRL6			0x8006
+#define CLDCTRL6_CAB_LEN_MASK		0x1FFU
+#define CLDCTRL6_CAB_LEN_SHIFT          0
+#define CLDCTRL6_CAB_LEN_SHORT          0x50
+
+/********* dev 7 **********/
+#define MIIEXT_ANEG                     7
+
+#define MIIEXT_LOCAL_EEEADV             0x3C
+#define LOCAL_EEEADV_1000BT             0x4
+#define LOCAL_EEEADV_100BT              0x2
+
+#define MIIEXT_REMOTE_EEEADV            0x3D
+#define REMOTE_EEEADV_1000BT            0x4
+#define REMOTE_EEEADV_100BT             0x2
+
+#define MIIEXT_EEE_ANEG                 0x8000
+#define EEE_ANEG_1000M                  0x4
+#define EEE_ANEG_100M                   0x2
 
 #endif /*_ATL1C_HW_H_*/

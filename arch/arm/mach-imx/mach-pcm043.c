@@ -399,7 +399,7 @@ static void __init pcm043_timer_init(void)
 	mx35_clocks_init();
 }
 
-struct sys_timer pcm043_timer = {
+static struct sys_timer pcm043_timer = {
 	.init	= pcm043_timer_init,
 };
 

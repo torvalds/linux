@@ -7,6 +7,7 @@ config OPENRISC
 	def_bool y
 	select OF
 	select OF_EARLY_FLATTREE
+	select IRQ_DOMAIN
 	select HAVE_MEMBLOCK
 	select ARCH_WANT_OPTIONAL_GPIOLIB
         select HAVE_ARCH_TRACEHOOK
@@ -141,7 +142,7 @@ config DEBUG_STACKOVERFLOW
 	bool "Check for kernel stack overflow"
 	default y
 	help
-	  Make extra checks for space avaliable on stack in some
+	  Make extra checks for space available on stack in some
           critical functions. This will cause kernel to run a bit slower,
 	  but will catch most of kernel stack overruns and exit gracefuly.
 

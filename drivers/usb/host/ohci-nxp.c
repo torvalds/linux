@@ -22,6 +22,8 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
+#include <linux/of.h>
+#include <linux/usb/isp1301.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -29,7 +31,6 @@
 
 #include <mach/platform.h>
 #include <mach/irqs.h>
-#include <asm/gpio.h>
 
 #define USB_CONFIG_BASE		0x31020000
 #define PWRMAN_BASE		0x40004000
@@ -38,7 +39,9 @@
 
 /* USB_CTRL bit defines */
 #define USB_SLAVE_HCLK_EN	(1 << 24)
+#define USB_DEV_NEED_CLK_EN	(1 << 22)
 #define USB_HOST_NEED_CLK_EN	(1 << 21)
+#define PAD_CONTROL_LAST_DRIVEN	(1 << 19)
 
 #define USB_OTG_CLK_CTRL	IO_ADDRESS(USB_CONFIG_BASE + 0xFF4)
 #define USB_OTG_CLK_STAT	IO_ADDRESS(USB_CONFIG_BASE + 0xFF8)
@@ -56,54 +59,6 @@
 #define TRANSPARENT_I2C_EN	(1 << 7)
 #define HOST_EN			(1 << 0)
 
-/* ISP1301 USB transceiver I2C registers */
-#define	ISP1301_MODE_CONTROL_1		0x04	/* u8 read, set, +1 clear */
-
-#define	MC1_SPEED_REG		(1 << 0)
-#define	MC1_SUSPEND_REG		(1 << 1)
-#define	MC1_DAT_SE0		(1 << 2)
-#define	MC1_TRANSPARENT		(1 << 3)
-#define	MC1_BDIS_ACON_EN	(1 << 4)
-#define	MC1_OE_INT_EN		(1 << 5)
-#define	MC1_UART_EN		(1 << 6)
-#define	MC1_MASK		0x7f
-
-#define	ISP1301_MODE_CONTROL_2		0x12	/* u8 read, set, +1 clear */
-
-#define	MC2_GLOBAL_PWR_DN	(1 << 0)
-#define	MC2_SPD_SUSP_CTRL	(1 << 1)
-#define	MC2_BI_DI		(1 << 2)
-#define	MC2_TRANSP_BDIR0	(1 << 3)
-#define	MC2_TRANSP_BDIR1	(1 << 4)
-#define	MC2_AUDIO_EN		(1 << 5)
-#define	MC2_PSW_EN		(1 << 6)
-#define	MC2_EN2V7		(1 << 7)
-
-#define	ISP1301_OTG_CONTROL_1		0x06	/* u8 read, set, +1 clear */
-#	define	OTG1_DP_PULLUP		(1 << 0)
-#	define	OTG1_DM_PULLUP		(1 << 1)
-#	define	OTG1_DP_PULLDOWN	(1 << 2)
-#	define	OTG1_DM_PULLDOWN	(1 << 3)
-#	define	OTG1_ID_PULLDOWN	(1 << 4)
-#	define	OTG1_VBUS_DRV		(1 << 5)
-#	define	OTG1_VBUS_DISCHRG	(1 << 6)
-#	define	OTG1_VBUS_CHRG		(1 << 7)
-#define	ISP1301_OTG_STATUS		0x10	/* u8 readonly */
-#	define	OTG_B_SESS_END		(1 << 6)
-#	define	OTG_B_SESS_VLD		(1 << 7)
-
-#define ISP1301_I2C_ADDR 0x2C
-
-#define ISP1301_I2C_MODE_CONTROL_1 0x4
-#define ISP1301_I2C_MODE_CONTROL_2 0x12
-#define ISP1301_I2C_OTG_CONTROL_1 0x6
-#define ISP1301_I2C_OTG_CONTROL_2 0x10
-#define ISP1301_I2C_INTERRUPT_SOURCE 0x8
-#define ISP1301_I2C_INTERRUPT_LATCH 0xA
-#define ISP1301_I2C_INTERRUPT_FALLING 0xC
-#define ISP1301_I2C_INTERRUPT_RISING 0xE
-#define ISP1301_I2C_REG_CLEAR_ADDR 1
-
 /* On LPC32xx, those are undefined */
 #ifndef start_int_set_falling_edge
 #define start_int_set_falling_edge(irq)
@@ -113,41 +68,11 @@
 #define start_int_umask(irq)
 #endif
 
-static struct i2c_driver isp1301_driver;
 static struct i2c_client *isp1301_i2c_client;
 
 extern int usb_disabled(void);
-extern int ocpi_enable(void);
 
 static struct clk *usb_clk;
-
-static const unsigned short normal_i2c[] =
-    { ISP1301_I2C_ADDR, ISP1301_I2C_ADDR + 1, I2C_CLIENT_END };
-
-static int isp1301_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
-{
-	return 0;
-}
-
-static int isp1301_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
-static const struct i2c_device_id isp1301_id[] = {
-	{ "isp1301_nxp", 0 },
-	{ }
-};
-
-static struct i2c_driver isp1301_driver = {
-	.driver = {
-		.name = "isp1301_nxp",
-	},
-	.probe = isp1301_probe,
-	.remove = isp1301_remove,
-	.id_table = isp1301_id,
-};
 
 static void isp1301_configure_pnx4008(void)
 {
@@ -220,7 +145,7 @@ static void isp1301_configure_lpc32xx(void)
 		ISP1301_I2C_INTERRUPT_RISING | ISP1301_I2C_REG_CLEAR_ADDR, ~0);
 
 	/* Enable usb_need_clk clock after transceiver is initialized */
-	__raw_writel((__raw_readl(USB_CTRL) | (1 << 22)), USB_CTRL);
+	__raw_writel(__raw_readl(USB_CTRL) | USB_HOST_NEED_CLK_EN, USB_CTRL);
 
 	printk(KERN_INFO "ISP1301 Vendor ID  : 0x%04x\n",
 	      i2c_smbus_read_word_data(isp1301_i2c_client, 0x00));
@@ -372,65 +297,55 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 	struct usb_hcd *hcd = 0;
 	struct ohci_hcd *ohci;
 	const struct hc_driver *driver = &ohci_nxp_hc_driver;
-	struct i2c_adapter *i2c_adap;
-	struct i2c_board_info i2c_info;
-
+	struct resource *res;
 	int ret = 0, irq;
+	struct device_node *isp1301_node;
 
-	dev_dbg(&pdev->dev, "%s: " DRIVER_DESC " (nxp)\n", hcd_name);
-	if (usb_disabled()) {
-		err("USB is disabled");
-		ret = -ENODEV;
+	if (pdev->dev.of_node) {
+		isp1301_node = of_parse_phandle(pdev->dev.of_node,
+						"transceiver", 0);
+	} else {
+		isp1301_node = NULL;
+	}
+
+	isp1301_i2c_client = isp1301_get_client(isp1301_node);
+	if (!isp1301_i2c_client) {
+		ret = -EPROBE_DEFER;
 		goto out;
 	}
 
-	if (pdev->num_resources != 2
-	    || pdev->resource[0].flags != IORESOURCE_MEM
-	    || pdev->resource[1].flags != IORESOURCE_IRQ) {
-		err("Invalid resource configuration");
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+
+	dev_dbg(&pdev->dev, "%s: " DRIVER_DESC " (nxp)\n", hcd_name);
+	if (usb_disabled()) {
+		dev_err(&pdev->dev, "USB is disabled\n");
 		ret = -ENODEV;
 		goto out;
 	}
 
 	/* Enable AHB slave USB clock, needed for further USB clock control */
-	__raw_writel(USB_SLAVE_HCLK_EN | (1 << 19), USB_CTRL);
-
-	ret = i2c_add_driver(&isp1301_driver);
-	if (ret < 0) {
-		err("failed to add ISP1301 driver");
-		goto out;
-	}
-	i2c_adap = i2c_get_adapter(2);
-	memset(&i2c_info, 0, sizeof(struct i2c_board_info));
-	strlcpy(i2c_info.type, "isp1301_nxp", I2C_NAME_SIZE);
-	isp1301_i2c_client = i2c_new_probed_device(i2c_adap, &i2c_info,
-						   normal_i2c, NULL);
-	i2c_put_adapter(i2c_adap);
-	if (!isp1301_i2c_client) {
-		err("failed to connect I2C to ISP1301 USB Transceiver");
-		ret = -ENODEV;
-		goto out_i2c_driver;
-	}
+	__raw_writel(USB_SLAVE_HCLK_EN | PAD_CONTROL_LAST_DRIVEN, USB_CTRL);
 
 	isp1301_configure();
 
 	/* Enable USB PLL */
 	usb_clk = clk_get(&pdev->dev, "ck_pll5");
 	if (IS_ERR(usb_clk)) {
-		err("failed to acquire USB PLL");
+		dev_err(&pdev->dev, "failed to acquire USB PLL\n");
 		ret = PTR_ERR(usb_clk);
 		goto out1;
 	}
 
 	ret = clk_enable(usb_clk);
 	if (ret < 0) {
-		err("failed to start USB PLL");
+		dev_err(&pdev->dev, "failed to start USB PLL\n");
 		goto out2;
 	}
 
 	ret = clk_set_rate(usb_clk, 48000);
 	if (ret < 0) {
-		err("failed to set USB clock rate");
+		dev_err(&pdev->dev, "failed to set USB clock rate\n");
 		goto out3;
 	}
 
@@ -442,9 +357,9 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 	while ((__raw_readl(USB_OTG_CLK_STAT) & USB_CLOCK_MASK) !=
 	       USB_CLOCK_MASK) ;
 
-	hcd = usb_create_hcd (driver, &pdev->dev, dev_name(&pdev->dev));
+	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
-		err("Failed to allocate HC buffer");
+		dev_err(&pdev->dev, "Failed to allocate HC buffer\n");
 		ret = -ENOMEM;
 		goto out3;
 	}
@@ -452,14 +367,21 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 	/* Set all USB bits in the Start Enable register */
 	nxp_set_usb_bits();
 
-	hcd->rsrc_start = pdev->resource[0].start;
-	hcd->rsrc_len = pdev->resource[0].end - pdev->resource[0].start + 1;
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		dev_dbg(&pdev->dev, "request_mem_region failed\n");
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "Failed to get MEM resource\n");
 		ret =  -ENOMEM;
 		goto out4;
 	}
-	hcd->regs = (void __iomem *)pdev->resource[0].start;
+
+	hcd->regs = devm_request_and_ioremap(&pdev->dev, res);
+	if (!hcd->regs) {
+		dev_err(&pdev->dev, "Failed to devm_request_and_ioremap\n");
+		ret =  -ENOMEM;
+		goto out4;
+	}
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -486,10 +408,7 @@ out3:
 out2:
 	clk_put(usb_clk);
 out1:
-	i2c_unregister_device(isp1301_i2c_client);
 	isp1301_i2c_client = NULL;
-out_i2c_driver:
-	i2c_del_driver(&isp1301_driver);
 out:
 	return ret;
 }
@@ -507,7 +426,6 @@ static int usb_hcd_nxp_remove(struct platform_device *pdev)
 	clk_put(usb_clk);
 	i2c_unregister_device(isp1301_i2c_client);
 	isp1301_i2c_client = NULL;
-	i2c_del_driver(&isp1301_driver);
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -517,10 +435,19 @@ static int usb_hcd_nxp_remove(struct platform_device *pdev)
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:usb-ohci");
 
+#ifdef CONFIG_OF
+static const struct of_device_id usb_hcd_nxp_match[] = {
+	{ .compatible = "nxp,ohci-nxp" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, usb_hcd_nxp_match);
+#endif
+
 static struct platform_driver usb_hcd_nxp_driver = {
 	.driver = {
 		.name = "usb-ohci",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(usb_hcd_nxp_match),
 	},
 	.probe = usb_hcd_nxp_probe,
 	.remove = usb_hcd_nxp_remove,

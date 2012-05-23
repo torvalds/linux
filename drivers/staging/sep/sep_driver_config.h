@@ -68,11 +68,11 @@
 #define SEP_DRIVER_MIN_DATA_SIZE_PER_TABLE		16
 
 /* flag that signifies tah the lock is
-currently held by the proccess (struct file) */
+currently held by the process (struct file) */
 #define SEP_DRIVER_OWN_LOCK_FLAG                        1
 
 /* flag that signifies tah the lock is currently NOT
-held by the proccess (struct file) */
+held by the process (struct file) */
 #define SEP_DRIVER_DISOWN_LOCK_FLAG                     0
 
 /* indicates whether driver has mapped/unmapped shared area */
@@ -280,7 +280,7 @@ held by the proccess (struct file) */
 
 /*
  * Used to limit number of concurrent processes
- * allowed to allocte dynamic buffers in fastcall
+ * allowed to allocate dynamic buffers in fastcall
  * interface.
  */
 #define SEP_DOUBLEBUF_USERS_LIMIT		3

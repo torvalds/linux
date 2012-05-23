@@ -5,39 +5,22 @@
 if ARCH_SPEAR3XX
 
 menu "SPEAr3xx Implementations"
-config BOARD_SPEAR300_EVB
-	bool "SPEAr300 Evaluation Board"
-	select MACH_SPEAR300
-	help
-	  Supports ST SPEAr300 Evaluation Board
-
-config BOARD_SPEAR310_EVB
-	bool "SPEAr310 Evaluation Board"
-	select MACH_SPEAR310
-	help
-	  Supports ST SPEAr310 Evaluation Board
-
-config BOARD_SPEAR320_EVB
-	bool "SPEAr320 Evaluation Board"
-	select MACH_SPEAR320
-	help
-	  Supports ST SPEAr320 Evaluation Board
-
-endmenu
-
 config MACH_SPEAR300
-	bool "SPEAr300"
+	bool "SPEAr300 Machine support with Device Tree"
+	select PINCTRL_SPEAR300
 	help
-	  Supports ST SPEAr300 Machine
+	  Supports ST SPEAr300 machine configured via the device-tree
 
 config MACH_SPEAR310
-	bool "SPEAr310"
+	bool "SPEAr310 Machine support with Device Tree"
+	select PINCTRL_SPEAR310
 	help
-	  Supports ST SPEAr310 Machine
+	  Supports ST SPEAr310 machine configured via the device-tree
 
 config MACH_SPEAR320
-	bool "SPEAr320"
+	bool "SPEAr320 Machine support with Device Tree"
+	select PINCTRL_SPEAR320
 	help
-	  Supports ST SPEAr320 Machine
-
+	  Supports ST SPEAr320 machine configured via the device-tree
+endmenu
 endif #ARCH_SPEAR3XX

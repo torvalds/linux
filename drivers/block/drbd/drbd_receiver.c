@@ -664,7 +664,7 @@ static struct socket *drbd_wait_for_connect(struct drbd_conf *mdev)
 	timeo = mdev->net_conf->try_connect_int * HZ;
 	timeo += (random32() & 1) ? timeo / 7 : -timeo / 7; /* 28.5% random jitter */
 
-	s_listen->sk->sk_reuse    = 1; /* SO_REUSEADDR */
+	s_listen->sk->sk_reuse    = SK_CAN_REUSE; /* SO_REUSEADDR */
 	s_listen->sk->sk_rcvtimeo = timeo;
 	s_listen->sk->sk_sndtimeo = timeo;
 	drbd_setbufsize(s_listen, mdev->net_conf->sndbuf_size,
@@ -841,8 +841,8 @@ retry:
 		}
 	} while (1);
 
-	msock->sk->sk_reuse = 1; /* SO_REUSEADDR */
-	sock->sk->sk_reuse = 1; /* SO_REUSEADDR */
+	msock->sk->sk_reuse = SK_CAN_REUSE; /* SO_REUSEADDR */
+	sock->sk->sk_reuse = SK_CAN_REUSE; /* SO_REUSEADDR */
 
 	sock->sk->sk_allocation = GFP_NOIO;
 	msock->sk->sk_allocation = GFP_NOIO;

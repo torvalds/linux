@@ -69,23 +69,24 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 
 	ret += SNPRINTF(bf + ret, size - ret, "], ");
 
-	if (top->target_pid)
+	if (top->target.pid)
 		ret += SNPRINTF(bf + ret, size - ret, " (target_pid: %s",
-				top->target_pid);
-	else if (top->target_tid)
+				top->target.pid);
+	else if (top->target.tid)
 		ret += SNPRINTF(bf + ret, size - ret, " (target_tid: %s",
-				top->target_tid);
-	else if (top->uid_str != NULL)
+				top->target.tid);
+	else if (top->target.uid_str != NULL)
 		ret += SNPRINTF(bf + ret, size - ret, " (uid: %s",
-				top->uid_str);
+				top->target.uid_str);
 	else
 		ret += SNPRINTF(bf + ret, size - ret, " (all");
 
-	if (top->cpu_list)
+	if (top->target.cpu_list)
 		ret += SNPRINTF(bf + ret, size - ret, ", CPU%s: %s)",
-				top->evlist->cpus->nr > 1 ? "s" : "", top->cpu_list);
+				top->evlist->cpus->nr > 1 ? "s" : "",
+				top->target.cpu_list);
 	else {
-		if (top->target_tid)
+		if (top->target.tid)
 			ret += SNPRINTF(bf + ret, size - ret, ")");
 		else
 			ret += SNPRINTF(bf + ret, size - ret, ", %d CPU%s)",

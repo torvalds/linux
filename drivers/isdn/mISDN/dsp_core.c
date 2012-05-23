@@ -268,6 +268,7 @@ dsp_fill_empty(struct dsp *dsp)
 	}
 	cq.op = MISDN_CTRL_FILL_EMPTY;
 	cq.p1 = 1;
+	cq.p2 = dsp_silence;
 	if (dsp->ch.peer->ctrl(dsp->ch.peer, CONTROL_CHANNEL, &cq)) {
 		printk(KERN_DEBUG "%s: CONTROL_CHANNEL failed\n",
 		       __func__);

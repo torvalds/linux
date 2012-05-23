@@ -40,17 +40,6 @@ void disable_cpuidle(void)
 	off = 1;
 }
 
-#if defined(CONFIG_ARCH_HAS_CPU_IDLE_WAIT)
-static void cpuidle_kick_cpus(void)
-{
-	cpu_idle_wait();
-}
-#elif defined(CONFIG_SMP)
-# error "Arch needs cpu_idle_wait() equivalent here"
-#else /* !CONFIG_ARCH_HAS_CPU_IDLE_WAIT && !CONFIG_SMP */
-static void cpuidle_kick_cpus(void) {}
-#endif
-
 static int __cpuidle_register_device(struct cpuidle_device *dev);
 
 static inline int cpuidle_enter(struct cpuidle_device *dev,
@@ -186,7 +175,7 @@ void cpuidle_uninstall_idle_handler(void)
 {
 	if (enabled_devices) {
 		initialized = 0;
-		cpuidle_kick_cpus();
+		kick_all_cpus_sync();
 	}
 }
 

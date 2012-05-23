@@ -241,11 +241,11 @@ static void vfp_panic(char *reason, u32 inst)
 {
 	int i;
 
-	printk(KERN_ERR "VFP: Error: %s\n", reason);
-	printk(KERN_ERR "VFP: EXC 0x%08x SCR 0x%08x INST 0x%08x\n",
+	pr_err("VFP: Error: %s\n", reason);
+	pr_err("VFP: EXC 0x%08x SCR 0x%08x INST 0x%08x\n",
 		fmrx(FPEXC), fmrx(FPSCR), inst);
 	for (i = 0; i < 32; i += 2)
-		printk(KERN_ERR "VFP: s%2u: 0x%08x s%2u: 0x%08x\n",
+		pr_err("VFP: s%2u: 0x%08x s%2u: 0x%08x\n",
 		       i, vfp_get_float(i), i+1, vfp_get_float(i+1));
 }
 
@@ -452,7 +452,7 @@ static int vfp_pm_suspend(void)
 
 	/* if vfp is on, then save state for resumption */
 	if (fpexc & FPEXC_EN) {
-		printk(KERN_DEBUG "%s: saving vfp state\n", __func__);
+		pr_debug("%s: saving vfp state\n", __func__);
 		vfp_save_state(&ti->vfpstate, fpexc);
 
 		/* disable, just in case */
@@ -664,16 +664,16 @@ static int __init vfp_init(void)
 	barrier();
 	vfp_vector = vfp_null_entry;
 
-	printk(KERN_INFO "VFP support v0.3: ");
+	pr_info("VFP support v0.3: ");
 	if (VFP_arch)
-		printk("not present\n");
+		pr_cont("not present\n");
 	else if (vfpsid & FPSID_NODOUBLE) {
-		printk("no double precision support\n");
+		pr_cont("no double precision support\n");
 	} else {
 		hotcpu_notifier(vfp_hotplug, 0);
 
 		VFP_arch = (vfpsid & FPSID_ARCH_MASK) >> FPSID_ARCH_BIT;  /* Extract the architecture version */
-		printk("implementor %02x architecture %d part %02x variant %x rev %x\n",
+		pr_cont("implementor %02x architecture %d part %02x variant %x rev %x\n",
 			(vfpsid & FPSID_IMPLEMENTER_MASK) >> FPSID_IMPLEMENTER_BIT,
 			(vfpsid & FPSID_ARCH_MASK) >> FPSID_ARCH_BIT,
 			(vfpsid & FPSID_PART_MASK) >> FPSID_PART_BIT,

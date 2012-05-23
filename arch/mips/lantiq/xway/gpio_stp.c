@@ -150,7 +150,7 @@ int __init ltq_stp_init(void)
 	int ret = platform_driver_register(&ltq_stp_driver);
 
 	if (ret)
-		pr_info("ltq_stp: error registering platfom driver");
+		pr_info("ltq_stp: error registering platform driver");
 	return ret;
 }
 

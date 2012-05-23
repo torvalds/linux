@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/clocksource.h>
 
+#include <asm/mach/time.h>
 #include <asm/sched_clock.h>
 
 #include <plat/hardware.h>
@@ -43,7 +44,7 @@ static u32 notrace omap_32k_read_sched_clock(void)
 }
 
 /**
- * read_persistent_clock -  Return time from a persistent clock.
+ * omap_read_persistent_clock -  Return time from a persistent clock.
  *
  * Reads the time from a source which isn't disabled during PM, the
  * 32k sync timer.  Convert the cycles elapsed since last read into
@@ -52,7 +53,7 @@ static u32 notrace omap_32k_read_sched_clock(void)
 static struct timespec persistent_ts;
 static cycles_t cycles, last_cycles;
 static unsigned int persistent_mult, persistent_shift;
-void read_persistent_clock(struct timespec *ts)
+static void omap_read_persistent_clock(struct timespec *ts)
 {
 	unsigned long long nsecs;
 	cycles_t delta;
@@ -116,6 +117,7 @@ int __init omap_init_clocksource_32k(void)
 			printk(err, "32k_counter");
 
 		setup_sched_clock(omap_32k_read_sched_clock, 32, 32768);
+		register_persistent_clock(NULL, omap_read_persistent_clock);
 	}
 	return 0;
 }

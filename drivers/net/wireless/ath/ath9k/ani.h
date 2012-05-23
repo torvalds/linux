@@ -25,11 +25,13 @@
 
 /* units are errors per second */
 #define ATH9K_ANI_OFDM_TRIG_HIGH_OLD      500
-#define ATH9K_ANI_OFDM_TRIG_HIGH_NEW      1000
+#define ATH9K_ANI_OFDM_TRIG_HIGH_NEW      3500
+#define ATH9K_ANI_OFDM_TRIG_HIGH_BELOW_INI 1000
 
 /* units are errors per second */
 #define ATH9K_ANI_OFDM_TRIG_LOW_OLD       200
 #define ATH9K_ANI_OFDM_TRIG_LOW_NEW       400
+#define ATH9K_ANI_OFDM_TRIG_LOW_ABOVE_INI 900
 
 /* units are errors per second */
 #define ATH9K_ANI_CCK_TRIG_HIGH_OLD       200
@@ -53,7 +55,7 @@
 #define ATH9K_ANI_RSSI_THR_LOW            7
 
 #define ATH9K_ANI_PERIOD_OLD              100
-#define ATH9K_ANI_PERIOD_NEW              1000
+#define ATH9K_ANI_PERIOD_NEW              300
 
 /* in ms */
 #define ATH9K_ANI_POLLINTERVAL_OLD        100

@@ -477,10 +477,7 @@ different:
 static
 void nfs_prime_dcache(struct dentry *parent, struct nfs_entry *entry)
 {
-	struct qstr filename = {
-		.len = entry->len,
-		.name = entry->name,
-	};
+	struct qstr filename = QSTR_INIT(entry->name, entry->len);
 	struct dentry *dentry;
 	struct dentry *alias;
 	struct inode *dir = parent->d_inode;

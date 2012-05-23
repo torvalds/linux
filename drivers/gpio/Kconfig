@@ -91,6 +91,12 @@ config GPIO_IT8761E
 	help
 	  Say yes here to support GPIO functionality of IT8761E super I/O chip.
 
+config GPIO_EM
+	tristate "Emma Mobile GPIO"
+	depends on ARM
+	help
+	  Say yes here to support GPIO on Renesas Emma Mobile SoCs.
+
 config GPIO_EP93XX
 	def_bool y
 	depends on ARCH_EP93XX

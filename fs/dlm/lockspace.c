@@ -74,6 +74,19 @@ static ssize_t dlm_id_store(struct dlm_ls *ls, const char *buf, size_t len)
 	return len;
 }
 
+static ssize_t dlm_nodir_show(struct dlm_ls *ls, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%u\n", dlm_no_directory(ls));
+}
+
+static ssize_t dlm_nodir_store(struct dlm_ls *ls, const char *buf, size_t len)
+{
+	int val = simple_strtoul(buf, NULL, 0);
+	if (val == 1)
+		set_bit(LSFL_NODIR, &ls->ls_flags);
+	return len;
+}
+
 static ssize_t dlm_recover_status_show(struct dlm_ls *ls, char *buf)
 {
 	uint32_t status = dlm_recover_status(ls);
@@ -107,6 +120,12 @@ static struct dlm_attr dlm_attr_id = {
 	.store = dlm_id_store
 };
 
+static struct dlm_attr dlm_attr_nodir = {
+	.attr  = {.name = "nodir", .mode = S_IRUGO | S_IWUSR},
+	.show  = dlm_nodir_show,
+	.store = dlm_nodir_store
+};
+
 static struct dlm_attr dlm_attr_recover_status = {
 	.attr  = {.name = "recover_status", .mode = S_IRUGO},
 	.show  = dlm_recover_status_show
@@ -121,6 +140,7 @@ static struct attribute *dlm_attrs[] = {
 	&dlm_attr_control.attr,
 	&dlm_attr_event.attr,
 	&dlm_attr_id.attr,
+	&dlm_attr_nodir.attr,
 	&dlm_attr_recover_status.attr,
 	&dlm_attr_recover_nodeid.attr,
 	NULL,

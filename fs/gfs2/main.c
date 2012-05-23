@@ -70,16 +70,6 @@ static void gfs2_init_gl_aspace_once(void *foo)
 	address_space_init_once(mapping);
 }
 
-static void *gfs2_bh_alloc(gfp_t mask, void *data)
-{
-	return alloc_buffer_head(mask);
-}
-
-static void gfs2_bh_free(void *ptr, void *data)
-{
-	return free_buffer_head(ptr);
-}
-
 /**
  * init_gfs2_fs - Register GFS2 as a filesystem
  *
@@ -143,6 +133,12 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_quotad_cachep)
 		goto fail;
 
+	gfs2_rsrv_cachep = kmem_cache_create("gfs2_mblk",
+					     sizeof(struct gfs2_blkreserv),
+					       0, 0, NULL);
+	if (!gfs2_rsrv_cachep)
+		goto fail;
+
 	register_shrinker(&qd_shrinker);
 
 	error = register_filesystem(&gfs2_fs_type);
@@ -164,8 +160,8 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_control_wq)
 		goto fail_recovery;
 
-	gfs2_bh_pool = mempool_create(1024, gfs2_bh_alloc, gfs2_bh_free, NULL);
-	if (!gfs2_bh_pool)
+	gfs2_page_pool = mempool_create_page_pool(64, 0);
+	if (!gfs2_page_pool)
 		goto fail_control;
 
 	gfs2_register_debugfs();
@@ -185,6 +181,9 @@ fail_unregister:
 fail:
 	unregister_shrinker(&qd_shrinker);
 	gfs2_glock_exit();
+
+	if (gfs2_rsrv_cachep)
+		kmem_cache_destroy(gfs2_rsrv_cachep);
 
 	if (gfs2_quotad_cachep)
 		kmem_cache_destroy(gfs2_quotad_cachep);
@@ -225,7 +224,8 @@ static void __exit exit_gfs2_fs(void)
 
 	rcu_barrier();
 
-	mempool_destroy(gfs2_bh_pool);
+	mempool_destroy(gfs2_page_pool);
+	kmem_cache_destroy(gfs2_rsrv_cachep);
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);
 	kmem_cache_destroy(gfs2_bufdata_cachep);

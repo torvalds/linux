@@ -1129,17 +1129,15 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 	/* This should never happen, but lets log it if so.  */
 	if (unlikely(!link)) {
 		if (from_addr.sa.sa_family == AF_INET6) {
-			if (net_ratelimit())
-				pr_warn("%s association %p could not find address %pI6\n",
-					__func__,
-					asoc,
-					&from_addr.v6.sin6_addr);
+			net_warn_ratelimited("%s association %p could not find address %pI6\n",
+					     __func__,
+					     asoc,
+					     &from_addr.v6.sin6_addr);
 		} else {
-			if (net_ratelimit())
-				pr_warn("%s association %p could not find address %pI4\n",
-					__func__,
-					asoc,
-					&from_addr.v4.sin_addr.s_addr);
+			net_warn_ratelimited("%s association %p could not find address %pI4\n",
+					     __func__,
+					     asoc,
+					     &from_addr.v4.sin_addr.s_addr);
 		}
 		return SCTP_DISPOSITION_DISCARD;
 	}
@@ -2410,7 +2408,7 @@ static sctp_disposition_t __sctp_sf_do_9_1_abort(const struct sctp_endpoint *ep,
 					sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
-	unsigned len;
+	unsigned int len;
 	__be16 error = SCTP_ERROR_NO_ERROR;
 
 	/* See if we have an error cause code in the chunk.  */
@@ -2446,7 +2444,7 @@ sctp_disposition_t sctp_sf_cookie_wait_abort(const struct sctp_endpoint *ep,
 				     sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
-	unsigned len;
+	unsigned int len;
 	__be16 error = SCTP_ERROR_NO_ERROR;
 
 	if (!sctp_vtag_verify_either(chunk, asoc))

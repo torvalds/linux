@@ -122,6 +122,7 @@ static int __devinit anatop_regulator_probe(struct platform_device *pdev)
 	struct anatop_regulator *sreg;
 	struct regulator_init_data *initdata;
 	struct anatop *anatopmfd = dev_get_drvdata(pdev->dev.parent);
+	struct regulator_config config = { };
 	int ret = 0;
 
 	initdata = of_get_regulator_init_data(dev, np);
@@ -178,9 +179,13 @@ static int __devinit anatop_regulator_probe(struct platform_device *pdev)
 	rdesc->n_voltages = (sreg->max_voltage - sreg->min_voltage)
 		/ 25000 + 1;
 
+	config.dev = &pdev->dev;
+	config.init_data = initdata;
+	config.driver_data = sreg;
+	config.of_node = pdev->dev.of_node;
+
 	/* register regulator */
-	rdev = regulator_register(rdesc, dev,
-				  initdata, sreg, pdev->dev.of_node);
+	rdev = regulator_register(rdesc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(dev, "failed to register %s\n",
 			rdesc->name);

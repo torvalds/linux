@@ -516,25 +516,23 @@ static int
 mwifiex_dump_station_info(struct mwifiex_private *priv,
 			  struct station_info *sinfo)
 {
-	struct mwifiex_ds_get_signal signal;
 	struct mwifiex_rate_cfg rate;
-	int ret = 0;
 
 	sinfo->filled = STATION_INFO_RX_BYTES | STATION_INFO_TX_BYTES |
-		STATION_INFO_RX_PACKETS |
-		STATION_INFO_TX_PACKETS
-		| STATION_INFO_SIGNAL | STATION_INFO_TX_BITRATE;
+			STATION_INFO_RX_PACKETS | STATION_INFO_TX_PACKETS |
+			STATION_INFO_TX_BITRATE |
+			STATION_INFO_SIGNAL | STATION_INFO_SIGNAL_AVG;
 
 	/* Get signal information from the firmware */
-	memset(&signal, 0, sizeof(struct mwifiex_ds_get_signal));
-	if (mwifiex_get_signal_info(priv, &signal)) {
-		dev_err(priv->adapter->dev, "getting signal information\n");
-		ret = -EFAULT;
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_RSSI_INFO,
+				  HostCmd_ACT_GEN_GET, 0, NULL)) {
+		dev_err(priv->adapter->dev, "failed to get signal information\n");
+		return -EFAULT;
 	}
 
 	if (mwifiex_drv_get_data_rate(priv, &rate)) {
 		dev_err(priv->adapter->dev, "getting data rate\n");
-		ret = -EFAULT;
+		return -EFAULT;
 	}
 
 	/* Get DTIM period information from firmware */
@@ -557,11 +555,12 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 			sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
 	}
 
+	sinfo->signal_avg = priv->bcn_rssi_avg;
 	sinfo->rx_bytes = priv->stats.rx_bytes;
 	sinfo->tx_bytes = priv->stats.tx_bytes;
 	sinfo->rx_packets = priv->stats.rx_packets;
 	sinfo->tx_packets = priv->stats.tx_packets;
-	sinfo->signal = priv->qual_level;
+	sinfo->signal = priv->bcn_rssi_avg;
 	/* bit rate is in 500 kb/s units. Convert it to 100kb/s units */
 	sinfo->txrate.legacy = rate.rate * 5;
 
@@ -581,7 +580,7 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 			priv->curr_bss_params.bss_descriptor.beacon_period;
 	}
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -600,6 +599,23 @@ mwifiex_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 		return -ENOENT;
 	if (memcmp(mac, priv->cfg_bssid, ETH_ALEN))
 		return -ENOENT;
+
+	return mwifiex_dump_station_info(priv, sinfo);
+}
+
+/*
+ * CFG802.11 operation handler to dump station information.
+ */
+static int
+mwifiex_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
+			      int idx, u8 *mac, struct station_info *sinfo)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+
+	if (!priv->media_connected || idx)
+		return -ENOENT;
+
+	memcpy(mac, priv->cfg_bssid, ETH_ALEN);
 
 	return mwifiex_dump_station_info(priv, sinfo);
 }
@@ -745,6 +761,45 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 
 	wiphy_debug(wiphy, "info: device configured in 802.11%s%s mode\n",
 		    (mode & BAND_B) ? "b" : "", (mode & BAND_G) ? "g" : "");
+
+	return 0;
+}
+
+/*
+ * CFG802.11 operation handler for connection quality monitoring.
+ *
+ * This function subscribes/unsubscribes HIGH_RSSI and LOW_RSSI
+ * events to FW.
+ */
+static int mwifiex_cfg80211_set_cqm_rssi_config(struct wiphy *wiphy,
+						struct net_device *dev,
+						s32 rssi_thold, u32 rssi_hyst)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_ds_misc_subsc_evt subsc_evt;
+
+	priv->cqm_rssi_thold = rssi_thold;
+	priv->cqm_rssi_hyst = rssi_hyst;
+
+	memset(&subsc_evt, 0x00, sizeof(struct mwifiex_ds_misc_subsc_evt));
+	subsc_evt.events = BITMASK_BCN_RSSI_LOW | BITMASK_BCN_RSSI_HIGH;
+
+	/* Subscribe/unsubscribe low and high rssi events */
+	if (rssi_thold && rssi_hyst) {
+		subsc_evt.action = HostCmd_ACT_BITWISE_SET;
+		subsc_evt.bcn_l_rssi_cfg.abs_value = abs(rssi_thold);
+		subsc_evt.bcn_h_rssi_cfg.abs_value = abs(rssi_thold);
+		subsc_evt.bcn_l_rssi_cfg.evt_freq = 1;
+		subsc_evt.bcn_h_rssi_cfg.evt_freq = 1;
+		return mwifiex_send_cmd_sync(priv,
+					     HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+					     0, 0, &subsc_evt);
+	} else {
+		subsc_evt.action = HostCmd_ACT_BITWISE_CLR;
+		return mwifiex_send_cmd_sync(priv,
+					     HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+					     0, 0, &subsc_evt);
+	}
 
 	return 0;
 }
@@ -1107,6 +1162,17 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy, struct net_device *dev,
 	priv->user_scan_cfg->num_ssids = request->n_ssids;
 	priv->user_scan_cfg->ssid_list = request->ssids;
 
+	if (request->ie && request->ie_len) {
+		for (i = 0; i < MWIFIEX_MAX_VSIE_NUM; i++) {
+			if (priv->vs_ie[i].mask != MWIFIEX_VSIE_MASK_CLEAR)
+				continue;
+			priv->vs_ie[i].mask = MWIFIEX_VSIE_MASK_SCAN;
+			memcpy(&priv->vs_ie[i].ie, request->ie,
+			       request->ie_len);
+			break;
+		}
+	}
+
 	for (i = 0; i < request->n_channels; i++) {
 		chan = request->channels[i];
 		priv->user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
@@ -1124,6 +1190,15 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy, struct net_device *dev,
 	if (mwifiex_set_user_scan_ioctl(priv, priv->user_scan_cfg))
 		return -EFAULT;
 
+	if (request->ie && request->ie_len) {
+		for (i = 0; i < MWIFIEX_MAX_VSIE_NUM; i++) {
+			if (priv->vs_ie[i].mask == MWIFIEX_VSIE_MASK_SCAN) {
+				priv->vs_ie[i].mask = MWIFIEX_VSIE_MASK_CLEAR;
+				memset(&priv->vs_ie[i].ie, 0,
+				       MWIFIEX_MAX_VSIE_LEN);
+			}
+		}
+	}
 	return 0;
 }
 
@@ -1340,6 +1415,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.connect = mwifiex_cfg80211_connect,
 	.disconnect = mwifiex_cfg80211_disconnect,
 	.get_station = mwifiex_cfg80211_get_station,
+	.dump_station = mwifiex_cfg80211_dump_station,
 	.set_wiphy_params = mwifiex_cfg80211_set_wiphy_params,
 	.set_channel = mwifiex_cfg80211_set_channel,
 	.join_ibss = mwifiex_cfg80211_join_ibss,
@@ -1350,6 +1426,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.set_power_mgmt = mwifiex_cfg80211_set_power_mgmt,
 	.set_tx_power = mwifiex_cfg80211_set_tx_power,
 	.set_bitrate_mask = mwifiex_cfg80211_set_bitrate_mask,
+	.set_cqm_rssi_config = mwifiex_cfg80211_set_cqm_rssi_config,
 };
 
 /*
@@ -1365,6 +1442,7 @@ int mwifiex_register_cfg80211(struct mwifiex_private *priv)
 	void *wdev_priv;
 	struct wireless_dev *wdev;
 	struct ieee80211_sta_ht_cap *ht_info;
+	u8 *country_code;
 
 	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 	if (!wdev) {
@@ -1381,6 +1459,7 @@ int mwifiex_register_cfg80211(struct mwifiex_private *priv)
 	}
 	wdev->iftype = NL80211_IFTYPE_STATION;
 	wdev->wiphy->max_scan_ssids = 10;
+	wdev->wiphy->max_scan_ie_len = MWIFIEX_MAX_VSIE_LEN;
 	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				       BIT(NL80211_IFTYPE_ADHOC);
 
@@ -1403,8 +1482,8 @@ int mwifiex_register_cfg80211(struct mwifiex_private *priv)
 	memcpy(wdev->wiphy->perm_addr, priv->curr_addr, ETH_ALEN);
 	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 
-	/* Reserve space for bss band information */
-	wdev->wiphy->bss_priv_size = sizeof(u8);
+	/* Reserve space for mwifiex specific private data for BSS */
+	wdev->wiphy->bss_priv_size = sizeof(struct mwifiex_bss_priv);
 
 	wdev->wiphy->reg_notifier = mwifiex_reg_notifier;
 
@@ -1426,6 +1505,11 @@ int mwifiex_register_cfg80211(struct mwifiex_private *priv)
 		dev_dbg(priv->adapter->dev,
 			"info: successfully registered wiphy device\n");
 	}
+
+	country_code = mwifiex_11d_code_2_region(priv->adapter->region_code);
+	if (country_code && regulatory_hint(wdev->wiphy, country_code))
+		dev_err(priv->adapter->dev,
+			"%s: regulatory_hint failed\n", __func__);
 
 	priv->wdev = wdev;
 

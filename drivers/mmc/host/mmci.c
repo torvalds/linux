@@ -94,6 +94,17 @@ static struct variant_data variant_u300 = {
 	.signal_direction	= true,
 };
 
+static struct variant_data variant_nomadik = {
+	.fifosize		= 16 * 4,
+	.fifohalfsize		= 8 * 4,
+	.clkreg			= MCI_CLK_ENABLE,
+	.datalength_bits	= 24,
+	.sdio			= true,
+	.st_clkdiv		= true,
+	.pwrreg_powerup		= MCI_PWR_ON,
+	.signal_direction	= true,
+};
+
 static struct variant_data variant_ux500 = {
 	.fifosize		= 30 * 4,
 	.fifohalfsize		= 8 * 4,
@@ -1397,7 +1408,7 @@ static int __devinit mmci_probe(struct amba_device *dev,
 	if (ret)
 		goto unmap;
 
-	if (dev->irq[1] == NO_IRQ || !dev->irq[1])
+	if (!dev->irq[1])
 		host->singleirq = true;
 	else {
 		ret = request_irq(dev->irq[1], mmci_pio_irq, IRQF_SHARED,
@@ -1567,6 +1578,11 @@ static struct amba_id mmci_ids[] = {
 		.id     = 0x00180180,
 		.mask   = 0x00ffffff,
 		.data	= &variant_u300,
+	},
+	{
+		.id     = 0x10180180,
+		.mask   = 0xf0ffffff,
+		.data	= &variant_nomadik,
 	},
 	{
 		.id     = 0x00280180,

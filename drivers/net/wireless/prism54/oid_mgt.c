@@ -693,8 +693,6 @@ mgt_update_addr(islpci_private *priv)
 	return ret;
 }
 
-#define VEC_SIZE(a) ARRAY_SIZE(a)
-
 int
 mgt_commit(islpci_private *priv)
 {
@@ -704,10 +702,10 @@ mgt_commit(islpci_private *priv)
 	if (islpci_get_state(priv) < PRV_STATE_INIT)
 		return 0;
 
-	rvalue = mgt_commit_list(priv, commit_part1, VEC_SIZE(commit_part1));
+	rvalue = mgt_commit_list(priv, commit_part1, ARRAY_SIZE(commit_part1));
 
 	if (priv->iw_mode != IW_MODE_MONITOR)
-		rvalue |= mgt_commit_list(priv, commit_part2, VEC_SIZE(commit_part2));
+		rvalue |= mgt_commit_list(priv, commit_part2, ARRAY_SIZE(commit_part2));
 
 	u = OID_INL_MODE;
 	rvalue |= mgt_commit_list(priv, &u, 1);

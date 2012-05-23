@@ -1883,7 +1883,13 @@ static void fcoe_ctlr_vn_send(struct fcoe_ctlr *fip,
 	frame = (struct fip_frame *)skb->data;
 	memset(frame, 0, len);
 	memcpy(frame->eth.h_dest, dest, ETH_ALEN);
-	memcpy(frame->eth.h_source, fip->ctl_src_addr, ETH_ALEN);
+
+	if (sub == FIP_SC_VN_BEACON) {
+		hton24(frame->eth.h_source, FIP_VN_FC_MAP);
+		hton24(frame->eth.h_source + 3, fip->port_id);
+	} else {
+		memcpy(frame->eth.h_source, fip->ctl_src_addr, ETH_ALEN);
+	}
 	frame->eth.h_proto = htons(ETH_P_FIP);
 
 	frame->fip.fip_ver = FIP_VER_ENCAPS(FIP_VER);
