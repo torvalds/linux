@@ -250,3 +250,16 @@ config UML_RANDOM
 	  (check your distro, or download from
 	  http://sourceforge.net/projects/gkernel/).  rngd periodically reads
 	  /dev/hwrng and injects the entropy into /dev/random.
+
+config HW_RANDOM_PSERIES
+	tristate "pSeries HW Random Number Generator support"
+	depends on HW_RANDOM && PPC64 && IBMVIO
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on POWER7+ machines and above
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pseries-rng.
+
+	  If unsure, say Y.

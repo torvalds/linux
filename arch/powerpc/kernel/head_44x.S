@@ -778,14 +778,6 @@ _GLOBAL(__fixup_440A_mcheck)
 	blr
 
 /*
- * extern void giveup_altivec(struct task_struct *prev)
- *
- * The 44x core does not have an AltiVec unit.
- */
-_GLOBAL(giveup_altivec)
-	blr
-
-/*
  * extern void giveup_fpu(struct task_struct *prev)
  *
  * The 44x core does not have an FPU.
