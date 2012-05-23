@@ -587,7 +587,7 @@ fault_exit_work:
 	ld.w	r1, r0[TI_flags]
 	rjmp	fault_exit_work
 
-1:	mov	r2, _TIF_SIGPENDING | _TIF_RESTORE_SIGMASK
+1:	mov	r2, _TIF_SIGPENDING | _TIF_RESTORE_SIGMASK | _TIF_NOTIFY_RESUME
 	tst	r1, r2
 	breq	2f
 	unmask_interrupts
