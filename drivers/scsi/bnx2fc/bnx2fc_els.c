@@ -900,7 +900,7 @@ struct fc_seq *bnx2fc_elsct_send(struct fc_lport *lport, u32 did,
 {
 	struct fcoe_port *port = lport_priv(lport);
 	struct bnx2fc_interface *interface = port->priv;
-	struct fcoe_ctlr *fip = &interface->ctlr;
+	struct fcoe_ctlr *fip = bnx2fc_to_ctlr(interface);
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
 
 	switch (op) {
