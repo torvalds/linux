@@ -347,6 +347,9 @@ void userspace(struct uml_pt_regs *regs)
 	/* To prevent races if using_sysemu changes under us.*/
 	int local_using_sysemu;
 
+	/* Handle any immediate reschedules or signals */
+	interrupt_end();
+
 	if (getitimer(ITIMER_VIRTUAL, &timer))
 		printk(UM_KERN_ERR "Failed to get itimer, errno = %d\n", errno);
 	nsecs = timer.it_value.tv_sec * UM_NSEC_PER_SEC +
