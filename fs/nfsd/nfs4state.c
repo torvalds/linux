@@ -2263,8 +2263,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			expire_client(conf);
 		}
 		move_to_confirmed(unconf);
-		conf = unconf;
-		nfsd4_probe_callback(conf);
+		nfsd4_probe_callback(unconf);
 		status = nfs_ok;
 	} else if ((!conf || !same_verf(&conf->cl_confirm, &confirm))
 	    && (!unconf || !same_verf(&unconf->cl_confirm, &confirm))) {
