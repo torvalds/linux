@@ -1309,12 +1309,12 @@ static inline struct hci_sco_hdr *hci_sco_hdr(const struct sk_buff *skb)
 }
 
 /* Command opcode pack/unpack */
-#define hci_opcode_pack(ogf, ocf)	(__u16) ((ocf & 0x03ff)|(ogf << 10))
+#define hci_opcode_pack(ogf, ocf)	((__u16) ((ocf & 0x03ff)|(ogf << 10)))
 #define hci_opcode_ogf(op)		(op >> 10)
 #define hci_opcode_ocf(op)		(op & 0x03ff)
 
 /* ACL handle and flags pack/unpack */
-#define hci_handle_pack(h, f)	(__u16) ((h & 0x0fff)|(f << 12))
+#define hci_handle_pack(h, f)	((__u16) ((h & 0x0fff)|(f << 12)))
 #define hci_handle(h)		(h & 0x0fff)
 #define hci_flags(h)		(h >> 12)
 

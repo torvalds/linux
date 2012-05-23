@@ -65,7 +65,7 @@ struct discovery_state {
 		DISCOVERY_RESOLVING,
 		DISCOVERY_STOPPING,
 	} state;
-	struct list_head	all;		/* All devices found during inquiry */
+	struct list_head	all;	/* All devices found during inquiry */
 	struct list_head	unknown;	/* Name state not known */
 	struct list_head	resolve;	/* Name needs to be resolved */
 	__u32			timestamp;
@@ -360,7 +360,8 @@ extern int l2cap_connect_cfm(struct hci_conn *hcon, u8 status);
 extern int l2cap_disconn_ind(struct hci_conn *hcon);
 extern int l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason);
 extern int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt);
-extern int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags);
+extern int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb,
+			      u16 flags);
 
 extern int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
 extern int sco_connect_cfm(struct hci_conn *hcon, __u8 status);
@@ -429,8 +430,8 @@ enum {
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
-	return (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
-				test_bit(HCI_CONN_SSP_ENABLED, &conn->flags));
+	return test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
+	       test_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
 }
 
 static inline void hci_conn_hash_init(struct hci_dev *hdev)
@@ -661,7 +662,8 @@ int hci_get_conn_info(struct hci_dev *hdev, void __user *arg);
 int hci_get_auth_info(struct hci_dev *hdev, void __user *arg);
 int hci_inquiry(void __user *arg);
 
-struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr);
+struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev,
+					 bdaddr_t *bdaddr);
 int hci_blacklist_clear(struct hci_dev *hdev);
 int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
 int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);

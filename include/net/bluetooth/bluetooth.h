@@ -25,7 +25,7 @@
 #ifndef __BLUETOOTH_H
 #define __BLUETOOTH_H
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <asm/byteorder.h>
 #include <linux/list.h>
 #include <linux/poll.h>
@@ -168,8 +168,8 @@ typedef struct {
 #define BDADDR_LE_PUBLIC	0x01
 #define BDADDR_LE_RANDOM	0x02
 
-#define BDADDR_ANY   (&(bdaddr_t) {{0, 0, 0, 0, 0, 0}})
-#define BDADDR_LOCAL (&(bdaddr_t) {{0, 0, 0, 0xff, 0xff, 0xff}})
+#define BDADDR_ANY   (&(bdaddr_t) {{0, 0, 0, 0, 0, 0} })
+#define BDADDR_LOCAL (&(bdaddr_t) {{0, 0, 0, 0xff, 0xff, 0xff} })
 
 /* Copy, swap, convert BD Address */
 static inline int bacmp(bdaddr_t *ba1, bdaddr_t *ba2)
@@ -215,7 +215,7 @@ int  bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 				struct msghdr *msg, size_t len, int flags);
 int  bt_sock_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 			struct msghdr *msg, size_t len, int flags);
-uint bt_sock_poll(struct file * file, struct socket *sock, poll_table *wait);
+uint bt_sock_poll(struct file *file, struct socket *sock, poll_table *wait);
 int  bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 int  bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo);
 
@@ -225,12 +225,12 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock);
 
 /* Skb helpers */
 struct l2cap_ctrl {
-	unsigned int	sframe	: 1,
-			poll	: 1,
-			final	: 1,
-			fcs	: 1,
-			sar	: 2,
-			super	: 2;
+	unsigned int	sframe:1,
+			poll:1,
+			final:1,
+			fcs:1,
+			sar:2,
+			super:2;
 	__u16		reqseq;
 	__u16		txseq;
 	__u8		retries;
@@ -249,7 +249,8 @@ static inline struct sk_buff *bt_skb_alloc(unsigned int len, gfp_t how)
 {
 	struct sk_buff *skb;
 
-	if ((skb = alloc_skb(len + BT_SKB_RESERVE, how))) {
+	skb = alloc_skb(len + BT_SKB_RESERVE, how);
+	if (skb) {
 		skb_reserve(skb, BT_SKB_RESERVE);
 		bt_cb(skb)->incoming  = 0;
 	}
@@ -261,7 +262,8 @@ static inline struct sk_buff *bt_skb_send_alloc(struct sock *sk,
 {
 	struct sk_buff *skb;
 
-	if ((skb = sock_alloc_send_skb(sk, len + BT_SKB_RESERVE, nb, err))) {
+	skb = sock_alloc_send_skb(sk, len + BT_SKB_RESERVE, nb, err);
+	if (skb) {
 		skb_reserve(skb, BT_SKB_RESERVE);
 		bt_cb(skb)->incoming  = 0;
 	}
