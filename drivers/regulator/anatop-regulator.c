@@ -224,7 +224,7 @@ static struct platform_driver anatop_regulator_driver = {
 		.of_match_table = of_anatop_regulator_match_tbl,
 	},
 	.probe	= anatop_regulator_probe,
-	.remove	= anatop_regulator_remove,
+	.remove	= __devexit_p(anatop_regulator_remove),
 };
 
 static int __init anatop_regulator_init(void)
