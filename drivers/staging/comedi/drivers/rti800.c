@@ -138,8 +138,6 @@ struct rti800_board {
 	int has_ao;
 };
 
-#define this_board ((const struct rti800_board *)dev->board_ptr)
-
 static irqreturn_t rti800_interrupt(int irq, void *dev);
 
 struct rti800_private {
@@ -309,6 +307,7 @@ static int rti800_do_insn_bits(struct comedi_device *dev,
 
 static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct rti800_board *board = comedi_board(dev);
 	unsigned int irq;
 	unsigned long iobase;
 	int ret;
@@ -347,7 +346,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		printk(KERN_INFO "( no irq )\n");
 	}
 
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 
 	ret = alloc_subdevices(dev, 4);
 	if (ret < 0)
@@ -386,7 +385,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	s++;
-	if (this_board->has_ao) {
+	if (board->has_ao) {
 		/* ao subdevice (only on rti815) */
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE;
