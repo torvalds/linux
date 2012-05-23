@@ -47,11 +47,6 @@ struct serial2002_board {
 	const char *name;
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct serial2002_board *)dev->board_ptr)
-
 struct serial2002_range_table_t {
 
 	/*  HACK... */
@@ -783,10 +778,11 @@ static int serial2002_ei_rinsn(struct comedi_device *dev,
 static int serial2002_attach(struct comedi_device *dev,
 			     struct comedi_devconfig *it)
 {
+	const struct serial2002_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 
 	dev_dbg(dev->hw_dev, "comedi%d: attached\n", dev->minor);
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 	if (alloc_private(dev, sizeof(struct serial2002_private)) < 0)
 		return -ENOMEM;
 	dev->open = serial_2002_open;
