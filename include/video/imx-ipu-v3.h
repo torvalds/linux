@@ -331,6 +331,7 @@ static inline void ipu_cpmem_set_burstsize(struct ipu_ch_param __iomem *p,
 };
 
 struct ipu_client_platformdata {
+	int csi;
 	int di;
 	int dc;
 	int dp;
