@@ -650,8 +650,6 @@ typedef int (*ubifs_lpt_scan_callback)(struct ubifs_info *c,
  * @avail: number of bytes available in the write-buffer
  * @used:  number of used bytes in the write-buffer
  * @size: write-buffer size (in [@c->min_io_size, @c->max_write_size] range)
- * @dtype: type of data stored in this LEB (%UBI_LONGTERM, %UBI_SHORTTERM,
- * %UBI_UNKNOWN)
  * @jhead: journal head the mutex belongs to (note, needed only to shut lockdep
  *         up by 'mutex_lock_nested()).
  * @sync_callback: write-buffer synchronization callback
@@ -685,7 +683,6 @@ struct ubifs_wbuf {
 	int avail;
 	int used;
 	int size;
-	int dtype;
 	int jhead;
 	int (*sync_callback)(struct ubifs_info *c, int lnum, int free, int pad);
 	struct mutex io_mutex;
@@ -762,6 +759,9 @@ struct ubifs_zbranch {
  * @offs: offset of the corresponding indexing node
  * @len: length  of the corresponding indexing node
  * @zbranch: array of znode branches (@c->fanout elements)
+ *
+ * Note! The @lnum, @offs, and @len fields are not really needed - we have them
+ * only for internal consistency check. They could be removed to save some RAM.
  */
 struct ubifs_znode {
 	struct ubifs_znode *parent;
@@ -772,9 +772,9 @@ struct ubifs_znode {
 	int child_cnt;
 	int iip;
 	int alt;
-#ifdef CONFIG_UBIFS_FS_DEBUG
-	int lnum, offs, len;
-#endif
+	int lnum;
+	int offs;
+	int len;
 	struct ubifs_zbranch zbranch[];
 };
 
@@ -1444,9 +1444,7 @@ struct ubifs_info {
 	struct rb_root size_tree;
 	struct ubifs_mount_opts mount_opts;
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
 	struct ubifs_debug_info *dbg;
-#endif
 };
 
 extern struct list_head ubifs_infos;
@@ -1468,22 +1466,20 @@ void ubifs_ro_mode(struct ubifs_info *c, int err);
 int ubifs_leb_read(const struct ubifs_info *c, int lnum, void *buf, int offs,
 		   int len, int even_ebadmsg);
 int ubifs_leb_write(struct ubifs_info *c, int lnum, const void *buf, int offs,
-		    int len, int dtype);
-int ubifs_leb_change(struct ubifs_info *c, int lnum, const void *buf, int len,
-		     int dtype);
+		    int len);
+int ubifs_leb_change(struct ubifs_info *c, int lnum, const void *buf, int len);
 int ubifs_leb_unmap(struct ubifs_info *c, int lnum);
-int ubifs_leb_map(struct ubifs_info *c, int lnum, int dtype);
+int ubifs_leb_map(struct ubifs_info *c, int lnum);
 int ubifs_is_mapped(const struct ubifs_info *c, int lnum);
 int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len);
-int ubifs_wbuf_seek_nolock(struct ubifs_wbuf *wbuf, int lnum, int offs,
-			   int dtype);
+int ubifs_wbuf_seek_nolock(struct ubifs_wbuf *wbuf, int lnum, int offs);
 int ubifs_wbuf_init(struct ubifs_info *c, struct ubifs_wbuf *wbuf);
 int ubifs_read_node(const struct ubifs_info *c, void *buf, int type, int len,
 		    int lnum, int offs);
 int ubifs_read_node_wbuf(struct ubifs_wbuf *wbuf, void *buf, int type, int len,
 			 int lnum, int offs);
 int ubifs_write_node(struct ubifs_info *c, void *node, int len, int lnum,
-		     int offs, int dtype);
+		     int offs);
 int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
 		     int offs, int quiet, int must_chk_crc);
 void ubifs_prepare_node(struct ubifs_info *c, void *buf, int len, int pad);
