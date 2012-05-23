@@ -900,7 +900,7 @@ static int mma8452_init_platform_hw(void)
 	return 0;
 }
 
-static struct mma8452_platform_data mma8452_info = {
+static struct gsensor_platform_data mma8452_info = {
 	.model = 8452,
 	.swap_xy = 0,
 	.swap_xyz = 1,

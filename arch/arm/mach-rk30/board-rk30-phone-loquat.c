@@ -809,16 +809,10 @@ static int mma8452_init_platform_hw(void)
 {
 	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
 
-	if (gpio_request(MMA8452_INT_PIN, NULL) != 0) {
-		gpio_free(MMA8452_INT_PIN);
-		printk("mma8452_init_platform_hw gpio_request error\n");
-		return -EIO;
-	}
-	gpio_pull_updown(MMA8452_INT_PIN, 1);
 	return 0;
 }
 
-static struct mma8452_platform_data mma8452_info = {
+static struct gsensor_platform_data mma8452_info = {
 	.model = 8452,
 	.swap_xy = 0,
 	.swap_xyz = 1,

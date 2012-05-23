@@ -126,16 +126,6 @@
 
 #define MMA8452_REG_LEN         11
 
-
-/*
-struct mma8452_platform_data {
-	int reset;
-	int clk_on;
-	int intr;
-};
-
-*/
-
 struct mma8452_axis {
 	int x;
 	int y;
