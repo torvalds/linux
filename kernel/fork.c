@@ -292,8 +292,6 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	int node = tsk_fork_get_node(orig);
 	int err;
 
-	prepare_to_copy(orig);
-
 	tsk = alloc_task_struct_node(node);
 	if (!tsk)
 		return NULL;

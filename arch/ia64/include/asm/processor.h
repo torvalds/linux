@@ -343,9 +343,6 @@ struct task_struct;
  */
 #define release_thread(dead_task)
 
-/* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk)	do { } while (0)
-
 /*
  * This is the mechanism for creating a new kernel thread.
  *

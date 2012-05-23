@@ -13,8 +13,15 @@ unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
 #endif
 
+/*
+ * this gets called so that we can store lazy state into memory and copy the
+ * current task into the new thread.
+ */
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
+#ifdef CONFIG_SUPERH32
+	unlazy_fpu(src, task_pt_regs(src));
+#endif
 	*dst = *src;
 
 	if (src->thread.xstate) {
