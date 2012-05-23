@@ -744,7 +744,7 @@ cifs_echo_callback(struct mid_q_entry *mid)
 	struct TCP_Server_Info *server = mid->callback_data;
 
 	DeleteMidQEntry(mid);
-	add_credits(server, 1);
+	add_credits(server, 1, CIFS_ECHO_OP);
 }
 
 int
@@ -771,7 +771,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
 
 	rc = cifs_call_async(server, &iov, 1, NULL, cifs_echo_callback,
-			     server, true);
+			     server, CIFS_ASYNC_OP | CIFS_ECHO_OP);
 	if (rc)
 		cFYI(1, "Echo request failed: %d", rc);
 
@@ -1589,7 +1589,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 
 	queue_work(cifsiod_wq, &rdata->work);
 	DeleteMidQEntry(mid);
-	add_credits(server, 1);
+	add_credits(server, 1, 0);
 }
 
 /* cifs_async_readv - send an async write, and set up mid to handle result */
@@ -1645,7 +1645,7 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	kref_get(&rdata->refcount);
 	rc = cifs_call_async(tcon->ses->server, rdata->iov, 1,
 			     cifs_readv_receive, cifs_readv_callback,
-			     rdata, false);
+			     rdata, 0);
 
 	if (rc == 0)
 		cifs_stats_inc(&tcon->num_reads);
@@ -2036,7 +2036,7 @@ cifs_writev_callback(struct mid_q_entry *mid)
 
 	queue_work(cifsiod_wq, &wdata->work);
 	DeleteMidQEntry(mid);
-	add_credits(tcon->ses->server, 1);
+	add_credits(tcon->ses->server, 1, 0);
 }
 
 /* cifs_async_writev - send an async write, and set up mid to handle result */
@@ -2118,7 +2118,7 @@ cifs_async_writev(struct cifs_writedata *wdata)
 
 	kref_get(&wdata->refcount);
 	rc = cifs_call_async(tcon->ses->server, iov, wdata->nr_pages + 1,
-			     NULL, cifs_writev_callback, wdata, false);
+			     NULL, cifs_writev_callback, wdata, 0);
 
 	if (rc == 0)
 		cifs_stats_inc(&tcon->num_writes);
@@ -2296,7 +2296,7 @@ CIFSSMBLock(const int xid, struct cifs_tcon *tcon,
 	LOCK_REQ *pSMB = NULL;
 /*	LOCK_RSP *pSMBr = NULL; */ /* No response data other than rc to parse */
 	int bytes_returned;
-	int timeout = 0;
+	int flags = 0;
 	__u16 count;
 
 	cFYI(1, "CIFSSMBLock timeout %d numLock %d", (int)waitFlag, numLock);
@@ -2306,10 +2306,11 @@ CIFSSMBLock(const int xid, struct cifs_tcon *tcon,
 		return rc;
 
 	if (lockType == LOCKING_ANDX_OPLOCK_RELEASE) {
-		timeout = CIFS_ASYNC_OP; /* no response expected */
+		/* no response expected */
+		flags = CIFS_ASYNC_OP | CIFS_OBREAK_OP;
 		pSMB->Timeout = 0;
 	} else if (waitFlag) {
-		timeout = CIFS_BLOCKING_OP; /* blocking operation, no timeout */
+		flags = CIFS_BLOCKING_OP; /* blocking operation, no timeout */
 		pSMB->Timeout = cpu_to_le32(-1);/* blocking - do not time out */
 	} else {
 		pSMB->Timeout = 0;
@@ -2342,7 +2343,7 @@ CIFSSMBLock(const int xid, struct cifs_tcon *tcon,
 			(struct smb_hdr *) pSMB, &bytes_returned);
 		cifs_small_buf_release(pSMB);
 	} else {
-		rc = SendReceiveNoRsp(xid, tcon->ses, (char *)pSMB, timeout);
+		rc = SendReceiveNoRsp(xid, tcon->ses, (char *)pSMB, flags);
 		/* SMB buffer freed by function above */
 	}
 	cifs_stats_inc(&tcon->num_locks);

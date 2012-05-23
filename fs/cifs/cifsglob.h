@@ -171,9 +171,11 @@ struct smb_version_operations {
 	/* check response: verify signature, map error */
 	int (*check_receive)(struct mid_q_entry *, struct TCP_Server_Info *,
 			     bool);
-	void (*add_credits)(struct TCP_Server_Info *, const unsigned int);
+	void (*add_credits)(struct TCP_Server_Info *, const unsigned int,
+			    const int);
 	void (*set_credits)(struct TCP_Server_Info *, const int);
-	int * (*get_credits_field)(struct TCP_Server_Info *);
+	int * (*get_credits_field)(struct TCP_Server_Info *, const int);
+	unsigned int (*get_credits)(struct mid_q_entry *);
 	__u64 (*get_next_mid)(struct TCP_Server_Info *);
 	/* data offset from read response message */
 	unsigned int (*read_data_offset)(char *);
@@ -392,9 +394,10 @@ has_credits(struct TCP_Server_Info *server, int *credits)
 }
 
 static inline void
-add_credits(struct TCP_Server_Info *server, const unsigned int add)
+add_credits(struct TCP_Server_Info *server, const unsigned int add,
+	    const int optype)
 {
-	server->ops->add_credits(server, add);
+	server->ops->add_credits(server, add, optype);
 }
 
 static inline void
@@ -956,6 +959,11 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   CIFS_LOG_ERROR    0x010    /* log NT STATUS if non-zero */
 #define   CIFS_LARGE_BUF_OP 0x020    /* large request buffer */
 #define   CIFS_NO_RESP      0x040    /* no response buffer required */
+
+/* Type of request operation */
+#define   CIFS_ECHO_OP      0x080    /* echo request */
+#define   CIFS_OBREAK_OP   0x0100    /* oplock break request */
+#define   CIFS_OP_MASK     0x0180    /* mask request type */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001
