@@ -6486,7 +6486,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
 
-	mutex_lock(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto cleanup;
 
 	/* Reference the objects for the scheduled work. */
 	drm_gem_object_reference(&work->old_fb_obj->base);
@@ -6521,6 +6523,7 @@ cleanup_pending:
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 
+cleanup:
 	spin_lock_irqsave(&dev->event_lock, flags);
 	intel_crtc->unpin_work = NULL;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
