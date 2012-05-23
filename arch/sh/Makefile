@@ -199,6 +199,10 @@ ifeq ($(CONFIG_DWARF_UNWINDER),y)
   KBUILD_CFLAGS += -fasynchronous-unwind-tables
 endif
 
+ifeq ($(CONFIG_CC_STACKPROTECTOR),y)
+  KBUILD_CFLAGS += -fstack-protector
+endif
+
 libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
 libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
 

@@ -6573,7 +6573,7 @@ M:	Paul Mundt <lethal@linux-sh.org>
 L:	linux-sh@vger.kernel.org
 W:	http://www.linux-sh.org
 Q:	http://patchwork.kernel.org/project/linux-sh/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/sh-2.6.git sh-latest
+T:	git git://github.com/pmundt/linux-sh.git sh-latest
 S:	Supported
 F:	Documentation/sh/
 F:	arch/sh/

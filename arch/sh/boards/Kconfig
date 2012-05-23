@@ -133,7 +133,8 @@ config SH_RTS7751R2D
 
 config SH_RSK
 	bool "Renesas Starter Kit"
-	depends on CPU_SUBTYPE_SH7201 || CPU_SUBTYPE_SH7203
+	depends on CPU_SUBTYPE_SH7201 || CPU_SUBTYPE_SH7203 || \
+	  CPU_SUBTYPE_SH7264 || CPU_SUBTYPE_SH7269
 	help
 	 Select this option if configuring for any of the RSK+ MCU
 	 evaluation platforms.
@@ -338,8 +339,6 @@ config SH_APSH4AD0A
 	help
 	  Select AP-SH4AD-0A if configuring for an ALPHAPROJECT AP-SH4AD-0A.
 
-endmenu
-
 source "arch/sh/boards/mach-r2d/Kconfig"
 source "arch/sh/boards/mach-highlander/Kconfig"
 source "arch/sh/boards/mach-sdk7780/Kconfig"
@@ -359,3 +358,5 @@ config SH_MAGIC_PANEL_R2_VERSION
 endmenu
 
 endif
+
+endmenu

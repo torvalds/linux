@@ -2,9 +2,16 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/export.h>
+#include <linux/stackprotector.h>
 
 struct kmem_cache *task_xstate_cachep = NULL;
 unsigned int xstate_size;
+
+#ifdef CONFIG_CC_STACKPROTECTOR
+unsigned long __stack_chk_guard __read_mostly;
+EXPORT_SYMBOL(__stack_chk_guard);
+#endif
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {

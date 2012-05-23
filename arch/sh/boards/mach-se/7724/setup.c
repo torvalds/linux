@@ -24,6 +24,7 @@
 #include <linux/input/sh_keysc.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/sh_eth.h>
+#include <linux/sh_intc.h>
 #include <linux/videodev2.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
@@ -197,7 +198,7 @@ static struct resource lcdc_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 106,
+		.start	= evt2irq(0xf40),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -224,7 +225,7 @@ static struct resource ceu0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 52,
+		.start  = evt2irq(0x880),
 		.flags  = IORESOURCE_IRQ,
 	},
 	[2] = {
@@ -255,7 +256,7 @@ static struct resource ceu1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 63,
+		.start  = evt2irq(0x9e0),
 		.flags  = IORESOURCE_IRQ,
 	},
 	[2] = {
@@ -289,7 +290,7 @@ static struct resource fsi_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 108,
+		.start  = evt2irq(0xf80),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -343,7 +344,7 @@ static struct resource keysc_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 79,
+		.start  = evt2irq(0xbe0),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -366,7 +367,7 @@ static struct resource sh_eth_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start = 91,
+		.start = evt2irq(0xd60),
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };
@@ -397,8 +398,8 @@ static struct resource sh7724_usb0_host_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 65,
-		.end	= 65,
+		.start	= evt2irq(0xa20),
+		.end	= evt2irq(0xa20),
 		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
 	},
 };
@@ -426,8 +427,8 @@ static struct resource sh7724_usb1_gadget_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 66,
-		.end	= 66,
+		.start	= evt2irq(0xa40),
+		.end	= evt2irq(0xa40),
 		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
 	},
 };
@@ -452,7 +453,7 @@ static struct resource sdhi0_cn7_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 100,
+		.start  = evt2irq(0xe80),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -481,7 +482,7 @@ static struct resource sdhi1_cn8_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 23,
+		.start  = evt2irq(0x4e0),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -511,7 +512,7 @@ static struct resource irda_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 20,
+		.start  = evt2irq(0x480),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -549,7 +550,7 @@ static struct resource sh_vou_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 55,
+		.start  = evt2irq(0x8e0),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -595,6 +596,7 @@ static struct i2c_board_info i2c0_devices[] = {
 #define EEPROM_DATA 0xBA20600C
 #define EEPROM_STAT 0xBA206010
 #define EEPROM_STRT 0xBA206014
+
 static int __init sh_eth_is_eeprom_ready(void)
 {
 	int t = 10000;
@@ -650,7 +652,6 @@ extern char ms7724se_sdram_enter_start;
 extern char ms7724se_sdram_enter_end;
 extern char ms7724se_sdram_leave_start;
 extern char ms7724se_sdram_leave_end;
-
 
 static int __init arch_setup(void)
 {
@@ -928,5 +929,4 @@ device_initcall(devices_setup);
 static struct sh_machine_vector mv_ms7724se __initmv = {
 	.mv_name	= "ms7724se",
 	.mv_init_irq	= init_se7724_IRQ,
-	.mv_nr_irqs	= SE7724_FPGA_IRQ_BASE + SE7724_FPGA_IRQ_NR,
 };
