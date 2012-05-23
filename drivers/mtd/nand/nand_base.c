@@ -1565,14 +1565,6 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 					oobreadlen -= toread;
 				}
 			}
-
-			if (!(chip->options & NAND_NO_READRDY)) {
-				/* Apply delay or wait for ready/busy pin */
-				if (!chip->dev_ready)
-					udelay(chip->chip_delay);
-				else
-					nand_wait_ready(mtd);
-			}
 		} else {
 			memcpy(buf, chip->buffers->databuf + col, bytes);
 			buf += bytes;
@@ -1836,14 +1828,6 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 
 		len = min(len, readlen);
 		buf = nand_transfer_oob(chip, buf, ops, len);
-
-		if (!(chip->options & NAND_NO_READRDY)) {
-			/* Apply delay or wait for ready/busy pin */
-			if (!chip->dev_ready)
-				udelay(chip->chip_delay);
-			else
-				nand_wait_ready(mtd);
-		}
 
 		readlen -= len;
 		if (!readlen)
@@ -2915,7 +2899,6 @@ static int nand_flash_detect_onfi(struct mtd_info *mtd, struct nand_chip *chip,
 		*busw = NAND_BUSWIDTH_16;
 
 	chip->options &= ~NAND_CHIPOPTIONS_MSK;
-	chip->options |= NAND_NO_READRDY & NAND_CHIPOPTIONS_MSK;
 
 	pr_info("ONFI flash detected\n");
 	return 1;

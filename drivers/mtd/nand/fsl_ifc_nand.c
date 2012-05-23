@@ -805,7 +805,6 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	out_be32(&ifc->ifc_nand.ncfgr, 0x0);
 
 	/* set up nand options */
-	chip->options = NAND_NO_READRDY;
 	chip->bbt_options = NAND_BBT_USE_FLASH;
 
 
