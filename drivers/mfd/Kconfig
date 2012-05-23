@@ -376,7 +376,6 @@ config PMIC_DA9052
 
 config MFD_DA9052_SPI
 	bool "Support Dialog Semiconductor DA9052/53 PMIC variants with SPI"
-	select IRQ_DOMAIN
 	select REGMAP_SPI
 	select REGMAP_IRQ
 	select PMIC_DA9052
@@ -389,7 +388,6 @@ config MFD_DA9052_SPI
 
 config MFD_DA9052_I2C
 	bool "Support Dialog Semiconductor DA9052/53 PMIC variants with I2C"
-	select IRQ_DOMAIN
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	select PMIC_DA9052
@@ -560,7 +558,6 @@ config MFD_WM8994
 	bool "Support Wolfson Microelectronics WM8994"
 	select MFD_CORE
 	select REGMAP_I2C
-	select IRQ_DOMAIN
 	select REGMAP_IRQ
 	depends on I2C=y && GENERIC_HARDIRQS
 	help
