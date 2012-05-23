@@ -188,7 +188,6 @@ void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
 
 	hci_send_cmd(hdev, HCI_OP_LE_CONN_UPDATE, sizeof(cp), &cp);
 }
-EXPORT_SYMBOL(hci_le_conn_update);
 
 void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __u8 rand[8],
 		      __u8 ltk[16])
@@ -207,7 +206,6 @@ void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __u8 rand[8],
 
 	hci_send_cmd(hdev, HCI_OP_LE_START_ENC, sizeof(cp), &cp);
 }
-EXPORT_SYMBOL(hci_le_start_enc);
 
 /* Device _must_ be locked */
 void hci_sco_setup(struct hci_conn *conn, __u8 status)
@@ -546,7 +544,6 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 
 	return sco;
 }
-EXPORT_SYMBOL(hci_connect);
 
 /* Check link security requirement */
 int hci_conn_check_link_mode(struct hci_conn *conn)
@@ -558,7 +555,6 @@ int hci_conn_check_link_mode(struct hci_conn *conn)
 
 	return 1;
 }
-EXPORT_SYMBOL(hci_conn_check_link_mode);
 
 /* Authenticate remote device */
 static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
@@ -690,7 +686,6 @@ int hci_conn_change_link_key(struct hci_conn *conn)
 
 	return 0;
 }
-EXPORT_SYMBOL(hci_conn_change_link_key);
 
 /* Switch role */
 int hci_conn_switch_role(struct hci_conn *conn, __u8 role)

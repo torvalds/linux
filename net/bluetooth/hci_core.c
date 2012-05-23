@@ -1227,7 +1227,6 @@ struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8])
 
 	return NULL;
 }
-EXPORT_SYMBOL(hci_find_ltk);
 
 struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
 				     u8 addr_type)
@@ -1241,7 +1240,6 @@ struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
 
 	return NULL;
 }
-EXPORT_SYMBOL(hci_find_ltk_by_addr);
 
 int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 		     bdaddr_t *bdaddr, u8 *val, u8 type, u8 pin_len)
@@ -2201,7 +2199,6 @@ void hci_send_acl(struct hci_chan *chan, struct sk_buff *skb, __u16 flags)
 
 	queue_work(hdev->workqueue, &hdev->tx_work);
 }
-EXPORT_SYMBOL(hci_send_acl);
 
 /* Send SCO data */
 void hci_send_sco(struct hci_conn *conn, struct sk_buff *skb)
@@ -2224,7 +2221,6 @@ void hci_send_sco(struct hci_conn *conn, struct sk_buff *skb)
 	skb_queue_tail(&conn->data_q, skb);
 	queue_work(hdev->workqueue, &hdev->tx_work);
 }
-EXPORT_SYMBOL(hci_send_sco);
 
 /* ---- HCI TX task (outgoing data) ---- */
 
