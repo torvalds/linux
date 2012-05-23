@@ -893,6 +893,7 @@ static int disable_device(struct acpiphp_slot *slot)
 	pdev = pci_get_slot(bus, PCI_DEVFN(slot->device, 0));
 	if (!pdev)
 		goto err_exit;
+	pci_dev_put(pdev);
 
 	list_for_each_entry(func, &slot->funcs, sibling) {
 		if (func->bridge) {
