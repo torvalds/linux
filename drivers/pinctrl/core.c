@@ -332,6 +332,17 @@ void pinctrl_add_gpio_range(struct pinctrl_dev *pctldev,
 }
 EXPORT_SYMBOL_GPL(pinctrl_add_gpio_range);
 
+void pinctrl_add_gpio_ranges(struct pinctrl_dev *pctldev,
+			     struct pinctrl_gpio_range *ranges,
+			     unsigned nranges)
+{
+	int i;
+
+	for (i = 0; i < nranges; i++)
+		pinctrl_add_gpio_range(pctldev, &ranges[i]);
+}
+EXPORT_SYMBOL_GPL(pinctrl_add_gpio_ranges);
+
 /**
  * pinctrl_get_group_selector() - returns the group selector for a group
  * @pctldev: the pin controller handling the group
