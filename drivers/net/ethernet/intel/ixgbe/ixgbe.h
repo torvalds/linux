@@ -130,7 +130,6 @@ struct vf_data_storage {
 	u16 tx_rate;
 	u16 vlan_count;
 	u8 spoofchk_enabled;
-	struct pci_dev *vfdev;
 };
 
 struct vf_macvlans {

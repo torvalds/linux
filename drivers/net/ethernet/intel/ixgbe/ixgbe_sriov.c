@@ -44,40 +44,6 @@
 #include "ixgbe_sriov.h"
 
 #ifdef CONFIG_PCI_IOV
-static int ixgbe_find_enabled_vfs(struct ixgbe_adapter *adapter)
-{
-	struct pci_dev *pdev = adapter->pdev;
-	struct pci_dev *pvfdev;
-	u16 vf_devfn = 0;
-	int device_id;
-	int vfs_found = 0;
-
-	switch (adapter->hw.mac.type) {
-	case ixgbe_mac_82599EB:
-		device_id = IXGBE_DEV_ID_82599_VF;
-		break;
-	case ixgbe_mac_X540:
-		device_id = IXGBE_DEV_ID_X540_VF;
-		break;
-	default:
-		device_id = 0;
-		break;
-	}
-
-	vf_devfn = pdev->devfn + 0x80;
-	pvfdev = pci_get_device(PCI_VENDOR_ID_INTEL, device_id, NULL);
-	while (pvfdev) {
-		if (pvfdev->devfn == vf_devfn &&
-		    (pvfdev->bus->number >= pdev->bus->number))
-			vfs_found++;
-		vf_devfn += 2;
-		pvfdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-					device_id, pvfdev);
-	}
-
-	return vfs_found;
-}
-
 void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 			 const struct ixgbe_info *ii)
 {
@@ -86,7 +52,7 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 	struct vf_macvlans *mv_list;
 	int pre_existing_vfs = 0;
 
-	pre_existing_vfs = ixgbe_find_enabled_vfs(adapter);
+	pre_existing_vfs = pci_num_vf(adapter->pdev);
 	if (!pre_existing_vfs && !adapter->num_vfs)
 		return;
 
@@ -205,14 +171,46 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 	      "SRIOV disabled\n");
 	ixgbe_disable_sriov(adapter);
 }
-#endif /* #ifdef CONFIG_PCI_IOV */
 
+static bool ixgbe_vfs_are_assigned(struct ixgbe_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct pci_dev *vfdev;
+	int dev_id;
+
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82599EB:
+		dev_id = IXGBE_DEV_ID_82599_VF;
+		break;
+	case ixgbe_mac_X540:
+		dev_id = IXGBE_DEV_ID_X540_VF;
+		break;
+	default:
+		return false;
+	}
+
+	/* loop through all the VFs to see if we own any that are assigned */
+	vfdev = pci_get_device(PCI_VENDOR_ID_INTEL, dev_id, NULL);
+	while (vfdev) {
+		/* if we don't own it we don't care */
+		if (vfdev->is_virtfn && vfdev->physfn == pdev) {
+			/* if it is assigned we cannot release it */
+			if (vfdev->dev_flags & PCI_DEV_FLAGS_ASSIGNED)
+				return true;
+		}
+
+		vfdev = pci_get_device(PCI_VENDOR_ID_INTEL, dev_id, vfdev);
+	}
+
+	return false;
+}
+
+#endif /* #ifdef CONFIG_PCI_IOV */
 void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 gpie;
 	u32 vmdctl;
-	int i;
 
 	/* set num VFs to 0 to prevent access to vfinfo */
 	adapter->num_vfs = 0;
@@ -230,6 +228,15 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 		return;
 
 #ifdef CONFIG_PCI_IOV
+	/*
+	 * If our VFs are assigned we cannot shut down SR-IOV
+	 * without causing issues, so just leave the hardware
+	 * available but disabled
+	 */
+	if (ixgbe_vfs_are_assigned(adapter)) {
+		e_dev_warn("Unloading driver while VFs are assigned - VFs will not be deallocated\n");
+		return;
+
 	/* disable iov and allow time for transactions to clear */
 	pci_disable_sriov(adapter->pdev);
 #endif
@@ -253,12 +260,6 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 
 	/* take a breather then clean up driver data */
 	msleep(100);
-
-	/* Release reference to VF devices */
-	for (i = 0; i < adapter->num_vfs; i++) {
-		if (adapter->vfinfo[i].vfdev)
-			pci_dev_put(adapter->vfinfo[i].vfdev);
-	}
 
 	adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
 }
@@ -493,28 +494,11 @@ static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 	return 0;
 }
 
-int ixgbe_check_vf_assignment(struct ixgbe_adapter *adapter)
-{
-#ifdef CONFIG_PCI_IOV
-	int i;
-	for (i = 0; i < adapter->num_vfs; i++) {
-		if (adapter->vfinfo[i].vfdev->dev_flags &
-				PCI_DEV_FLAGS_ASSIGNED)
-			return true;
-	}
-#endif
-	return false;
-}
-
 int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 {
 	unsigned char vf_mac_addr[6];
 	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
 	unsigned int vfn = (event_mask & 0x3f);
-	struct pci_dev *pvfdev;
-	unsigned int device_id;
-	u16 thisvf_devfn = (pdev->devfn + 0x80 + (vfn << 1)) |
-				(pdev->devfn & 1);
 
 	bool enable = ((event_mask & 0x10000000U) != 0);
 
@@ -527,31 +511,6 @@ int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 		 * for it later.
 		 */
 		memcpy(adapter->vfinfo[vfn].vf_mac_addresses, vf_mac_addr, 6);
-
-		switch (adapter->hw.mac.type) {
-		case ixgbe_mac_82599EB:
-			device_id = IXGBE_DEV_ID_82599_VF;
-			break;
-		case ixgbe_mac_X540:
-			device_id = IXGBE_DEV_ID_X540_VF;
-			break;
-		default:
-			device_id = 0;
-			break;
-		}
-
-		pvfdev = pci_get_device(PCI_VENDOR_ID_INTEL, device_id, NULL);
-		while (pvfdev) {
-			if (pvfdev->devfn == thisvf_devfn)
-				break;
-			pvfdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-						device_id, pvfdev);
-		}
-		if (pvfdev)
-			adapter->vfinfo[vfn].vfdev = pvfdev;
-		else
-			e_err(drv, "Couldn't find pci dev ptr for VF %4.4x\n",
-			      thisvf_devfn);
 	}
 
 	return 0;

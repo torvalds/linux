@@ -7452,13 +7452,7 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(netdev);
 
-	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
-		if (!(ixgbe_check_vf_assignment(adapter)))
-			ixgbe_disable_sriov(adapter);
-		else
-			e_dev_warn("Unloading driver while VFs are assigned "
-				   "- VFs will not be deallocated\n");
-	}
+	ixgbe_disable_sriov(adapter);
 
 	ixgbe_clear_interrupt_scheme(adapter);
 
