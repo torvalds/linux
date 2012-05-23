@@ -2561,7 +2561,7 @@ static int vino_acquire_input(struct vino_channel_settings *vcs)
 	} else if (vino_drvdata->decoder
 		   && (vino_drvdata->decoder_owner == VINO_NO_CHANNEL)) {
 		int input;
-		int data_norm;
+		int data_norm = 0;
 		v4l2_std_id norm;
 
 		input = VINO_INPUT_COMPOSITE;
@@ -2651,7 +2651,7 @@ static int vino_set_input(struct vino_channel_settings *vcs, int input)
 		}
 
 		if (vino_drvdata->decoder_owner == vcs->channel) {
-			int data_norm;
+			int data_norm = 0;
 			v4l2_std_id norm;
 
 			ret = decoder_call(video, s_routing,
