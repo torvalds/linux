@@ -1292,7 +1292,6 @@ struct hci_sco_hdr {
 	__u8	dlen;
 } __packed;
 
-#include <linux/skbuff.h>
 static inline struct hci_event_hdr *hci_event_hdr(const struct sk_buff *skb)
 {
 	return (struct hci_event_hdr *) skb->data;

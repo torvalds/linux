@@ -24,25 +24,7 @@
 
 /* Bluetooth HCI sockets. */
 
-#include <linux/module.h>
-
-#include <linux/types.h>
-#include <linux/capability.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/poll.h>
-#include <linux/fcntl.h>
-#include <linux/init.h>
-#include <linux/skbuff.h>
-#include <linux/workqueue.h>
-#include <linux/interrupt.h>
-#include <linux/compat.h>
-#include <linux/socket.h>
-#include <linux/ioctl.h>
-#include <net/sock.h>
-
-#include <linux/uaccess.h>
+#include <linux/export.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>

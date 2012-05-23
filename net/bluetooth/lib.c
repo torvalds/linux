@@ -26,12 +26,7 @@
 
 #define pr_fmt(fmt) "Bluetooth: " fmt
 
-#include <linux/module.h>
-
-#include <linux/kernel.h>
-#include <linux/stddef.h>
-#include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/export.h>
 
 #include <net/bluetooth/bluetooth.h>
 

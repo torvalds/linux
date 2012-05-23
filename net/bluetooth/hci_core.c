@@ -25,28 +25,9 @@
 
 /* Bluetooth HCI core. */
 
-#include <linux/jiffies.h>
-#include <linux/module.h>
-#include <linux/kmod.h>
+#include <linux/export.h>
 
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/poll.h>
-#include <linux/fcntl.h>
-#include <linux/init.h>
-#include <linux/skbuff.h>
-#include <linux/workqueue.h>
-#include <linux/interrupt.h>
 #include <linux/rfkill.h>
-#include <linux/timer.h>
-#include <linux/crypto.h>
-#include <net/sock.h>
-
-#include <linux/uaccess.h>
-#include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>

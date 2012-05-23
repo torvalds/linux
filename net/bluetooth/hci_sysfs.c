@@ -1,10 +1,6 @@
 /* Bluetooth HCI driver model support. */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/debugfs.h>
-#include <linux/seq_file.h>
 #include <linux/module.h>
 
 #include <net/bluetooth/bluetooth.h>

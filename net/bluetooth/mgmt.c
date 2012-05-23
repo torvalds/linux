@@ -24,8 +24,6 @@
 
 /* Bluetooth HCI Management interface */
 
-#include <linux/kernel.h>
-#include <linux/uaccess.h>
 #include <linux/module.h>
 #include <asm/unaligned.h>
 

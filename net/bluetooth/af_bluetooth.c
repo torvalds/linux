@@ -25,18 +25,7 @@
 /* Bluetooth address family and sockets. */
 
 #include <linux/module.h>
-
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/skbuff.h>
-#include <linux/init.h>
-#include <linux/poll.h>
-#include <net/sock.h>
 #include <asm/ioctls.h>
-#include <linux/kmod.h>
 
 #include <net/bluetooth/bluetooth.h>
 

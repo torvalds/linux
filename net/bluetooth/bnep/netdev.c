@@ -25,16 +25,8 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-#include <linux/module.h>
-#include <linux/slab.h>
-
-#include <linux/socket.h>
-#include <linux/netdevice.h>
+#include <linux/export.h>
 #include <linux/etherdevice.h>
-#include <linux/skbuff.h>
-#include <linux/wait.h>
-
-#include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>

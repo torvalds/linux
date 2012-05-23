@@ -24,21 +24,7 @@
 
 /* Bluetooth HCI connection handling. */
 
-#include <linux/module.h>
-
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/poll.h>
-#include <linux/fcntl.h>
-#include <linux/init.h>
-#include <linux/skbuff.h>
-#include <linux/interrupt.h>
-#include <net/sock.h>
-
-#include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/export.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>

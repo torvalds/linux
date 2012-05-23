@@ -25,9 +25,6 @@
 #ifndef __BLUETOOTH_H
 #define __BLUETOOTH_H
 
-#include <linux/types.h>
-#include <asm/byteorder.h>
-#include <linux/list.h>
 #include <linux/poll.h>
 #include <net/sock.h>
 

@@ -26,22 +26,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/signal.h>
-#include <linux/init.h>
-#include <linux/wait.h>
-#include <linux/device.h>
 #include <linux/debugfs.h>
-#include <linux/seq_file.h>
-#include <linux/net.h>
-#include <linux/mutex.h>
 #include <linux/kthread.h>
-#include <linux/slab.h>
-
-#include <net/sock.h>
-#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
