@@ -771,8 +771,6 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 			if (list_is_last(&xfer->transfer_list,
 						&msg->transfers))
 				cs_toggle = 1;
-			else
-				disable_cs(sdd, spi);
 		}
 
 		msg->actual_length += xfer->len;
