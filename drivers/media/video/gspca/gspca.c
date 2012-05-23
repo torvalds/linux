@@ -1049,12 +1049,6 @@ static int vidioc_g_register(struct file *file, void *priv,
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
-	if (!gspca_dev->sd_desc->get_chip_ident)
-		return -ENOTTY;
-
-	if (!gspca_dev->sd_desc->get_register)
-		return -ENOTTY;
-
 	gspca_dev->usb_err = 0;
 	return gspca_dev->sd_desc->get_register(gspca_dev, reg);
 }
@@ -1063,12 +1057,6 @@ static int vidioc_s_register(struct file *file, void *priv,
 			struct v4l2_dbg_register *reg)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
-
-	if (!gspca_dev->sd_desc->get_chip_ident)
-		return -ENOTTY;
-
-	if (!gspca_dev->sd_desc->set_register)
-		return -ENOTTY;
 
 	gspca_dev->usb_err = 0;
 	return gspca_dev->sd_desc->set_register(gspca_dev, reg);
@@ -1079,9 +1067,6 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 			struct v4l2_dbg_chip_ident *chip)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
-
-	if (!gspca_dev->sd_desc->get_chip_ident)
-		return -ENOTTY;
 
 	gspca_dev->usb_err = 0;
 	return gspca_dev->sd_desc->get_chip_ident(gspca_dev, chip);
@@ -1136,8 +1121,10 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	int mode;
 
 	mode = gspca_dev->curr_mode;
-	memcpy(&fmt->fmt.pix, &gspca_dev->cam.cam_mode[mode],
-		sizeof fmt->fmt.pix);
+	fmt->fmt.pix = gspca_dev->cam.cam_mode[mode];
+	/* some drivers use priv internally, zero it before giving it to
+	   userspace */
+	fmt->fmt.pix.priv = 0;
 	return 0;
 }
 
@@ -1168,8 +1155,10 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 /*		else
 			;		 * no chance, return this mode */
 	}
-	memcpy(&fmt->fmt.pix, &gspca_dev->cam.cam_mode[mode],
-		sizeof fmt->fmt.pix);
+	fmt->fmt.pix = gspca_dev->cam.cam_mode[mode];
+	/* some drivers use priv internally, zero it before giving it to
+	   userspace */
+	fmt->fmt.pix.priv = 0;
 	return mode;			/* used when s_fmt */
 }
 
@@ -1694,8 +1683,6 @@ static int vidioc_g_jpegcomp(struct file *file, void *priv,
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
-	if (!gspca_dev->sd_desc->get_jcomp)
-		return -ENOTTY;
 	gspca_dev->usb_err = 0;
 	return gspca_dev->sd_desc->get_jcomp(gspca_dev, jpegcomp);
 }
@@ -1705,8 +1692,6 @@ static int vidioc_s_jpegcomp(struct file *file, void *priv,
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
-	if (!gspca_dev->sd_desc->set_jcomp)
-		return -ENOTTY;
 	gspca_dev->usb_err = 0;
 	return gspca_dev->sd_desc->set_jcomp(gspca_dev, jpegcomp);
 }
@@ -2290,6 +2275,20 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	v4l2_disable_ioctl_locking(&gspca_dev->vdev, VIDIOC_DQBUF);
 	v4l2_disable_ioctl_locking(&gspca_dev->vdev, VIDIOC_QBUF);
 	v4l2_disable_ioctl_locking(&gspca_dev->vdev, VIDIOC_QUERYBUF);
+	if (!gspca_dev->sd_desc->get_chip_ident)
+		v4l2_disable_ioctl(&gspca_dev->vdev, VIDIOC_DBG_G_CHIP_IDENT);
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	if (!gspca_dev->sd_desc->get_chip_ident ||
+	    !gspca_dev->sd_desc->get_register)
+		v4l2_disable_ioctl(&gspca_dev->vdev, VIDIOC_DBG_G_REGISTER);
+	if (!gspca_dev->sd_desc->get_chip_ident ||
+	    !gspca_dev->sd_desc->set_register)
+		v4l2_disable_ioctl(&gspca_dev->vdev, VIDIOC_DBG_S_REGISTER);
+#endif
+	if (!gspca_dev->sd_desc->get_jcomp)
+		v4l2_disable_ioctl(&gspca_dev->vdev, VIDIOC_G_JPEGCOMP);
+	if (!gspca_dev->sd_desc->set_jcomp)
+		v4l2_disable_ioctl(&gspca_dev->vdev, VIDIOC_S_JPEGCOMP);
 
 	/* init video stuff */
 	ret = video_register_device(&gspca_dev->vdev,
