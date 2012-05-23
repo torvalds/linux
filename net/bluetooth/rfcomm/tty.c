@@ -132,7 +132,7 @@ static struct rfcomm_dev *__rfcomm_dev_get(int id)
 	return NULL;
 }
 
-static inline struct rfcomm_dev *rfcomm_dev_get(int id)
+static struct rfcomm_dev *rfcomm_dev_get(int id)
 {
 	struct rfcomm_dev *dev;
 
@@ -345,7 +345,7 @@ static void rfcomm_wfree(struct sk_buff *skb)
 	tty_port_put(&dev->port);
 }
 
-static inline void rfcomm_set_owner_w(struct sk_buff *skb, struct rfcomm_dev *dev)
+static void rfcomm_set_owner_w(struct sk_buff *skb, struct rfcomm_dev *dev)
 {
 	tty_port_get(&dev->port);
 	atomic_add(skb->truesize, &dev->wmem_alloc);

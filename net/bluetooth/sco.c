@@ -123,7 +123,7 @@ static struct sco_conn *sco_conn_add(struct hci_conn *hcon)
 	return conn;
 }
 
-static inline struct sock *sco_chan_get(struct sco_conn *conn)
+static struct sock *sco_chan_get(struct sco_conn *conn)
 {
 	struct sock *sk = NULL;
 	sco_conn_lock(conn);
@@ -157,7 +157,8 @@ static int sco_conn_del(struct hci_conn *hcon, int err)
 	return 0;
 }
 
-static inline int sco_chan_add(struct sco_conn *conn, struct sock *sk, struct sock *parent)
+static int sco_chan_add(struct sco_conn *conn, struct sock *sk,
+			struct sock *parent)
 {
 	int err = 0;
 
@@ -228,7 +229,7 @@ done:
 	return err;
 }
 
-static inline int sco_send_frame(struct sock *sk, struct msghdr *msg, int len)
+static int sco_send_frame(struct sock *sk, struct msghdr *msg, int len)
 {
 	struct sco_conn *conn = sco_pi(sk)->conn;
 	struct sk_buff *skb;
@@ -254,7 +255,7 @@ static inline int sco_send_frame(struct sock *sk, struct msghdr *msg, int len)
 	return len;
 }
 
-static inline void sco_recv_frame(struct sco_conn *conn, struct sk_buff *skb)
+static void sco_recv_frame(struct sco_conn *conn, struct sk_buff *skb)
 {
 	struct sock *sk = sco_chan_get(conn);
 

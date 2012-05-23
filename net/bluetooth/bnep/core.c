@@ -306,7 +306,7 @@ static u8 __bnep_rx_hlen[] = {
 	ETH_ALEN + 2  /* BNEP_COMPRESSED_DST_ONLY */
 };
 
-static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
+static int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 {
 	struct net_device *dev = s->dev;
 	struct sk_buff *nskb;
@@ -404,7 +404,7 @@ static u8 __bnep_tx_types[] = {
 	BNEP_COMPRESSED
 };
 
-static inline int bnep_tx_frame(struct bnep_session *s, struct sk_buff *skb)
+static int bnep_tx_frame(struct bnep_session *s, struct sk_buff *skb)
 {
 	struct ethhdr *eh = (void *) skb->data;
 	struct socket *sock = s->sock;

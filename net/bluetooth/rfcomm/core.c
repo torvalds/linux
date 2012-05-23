@@ -115,14 +115,14 @@ static void rfcomm_session_del(struct rfcomm_session *s);
 #define __get_rpn_stop_bits(line) (((line) >> 2) & 0x1)
 #define __get_rpn_parity(line)    (((line) >> 3) & 0x7)
 
-static inline void rfcomm_schedule(void)
+static void rfcomm_schedule(void)
 {
 	if (!rfcomm_thread)
 		return;
 	wake_up_process(rfcomm_thread);
 }
 
-static inline void rfcomm_session_put(struct rfcomm_session *s)
+static void rfcomm_session_put(struct rfcomm_session *s)
 {
 	if (atomic_dec_and_test(&s->refcnt))
 		rfcomm_session_del(s);
@@ -227,7 +227,7 @@ static int rfcomm_l2sock_create(struct socket **sock)
 	return err;
 }
 
-static inline int rfcomm_check_security(struct rfcomm_dlc *d)
+static int rfcomm_check_security(struct rfcomm_dlc *d)
 {
 	struct sock *sk = d->session->sock->sk;
 	struct l2cap_conn *conn = l2cap_pi(sk)->chan->conn;
@@ -1750,7 +1750,7 @@ static void rfcomm_process_connect(struct rfcomm_session *s)
 /* Send data queued for the DLC.
  * Return number of frames left in the queue.
  */
-static inline int rfcomm_process_tx(struct rfcomm_dlc *d)
+static int rfcomm_process_tx(struct rfcomm_dlc *d)
 {
 	struct sk_buff *skb;
 	int err;
@@ -1798,7 +1798,7 @@ static inline int rfcomm_process_tx(struct rfcomm_dlc *d)
 	return skb_queue_len(&d->tx_queue);
 }
 
-static inline void rfcomm_process_dlcs(struct rfcomm_session *s)
+static void rfcomm_process_dlcs(struct rfcomm_session *s)
 {
 	struct rfcomm_dlc *d;
 	struct list_head *p, *n;
@@ -1858,7 +1858,7 @@ static inline void rfcomm_process_dlcs(struct rfcomm_session *s)
 	}
 }
 
-static inline void rfcomm_process_rx(struct rfcomm_session *s)
+static void rfcomm_process_rx(struct rfcomm_session *s)
 {
 	struct socket *sock = s->sock;
 	struct sock *sk = sock->sk;
@@ -1883,7 +1883,7 @@ static inline void rfcomm_process_rx(struct rfcomm_session *s)
 	}
 }
 
-static inline void rfcomm_accept_connection(struct rfcomm_session *s)
+static void rfcomm_accept_connection(struct rfcomm_session *s)
 {
 	struct socket *sock = s->sock, *nsock;
 	int err;
@@ -1917,7 +1917,7 @@ static inline void rfcomm_accept_connection(struct rfcomm_session *s)
 		sock_release(nsock);
 }
 
-static inline void rfcomm_check_connection(struct rfcomm_session *s)
+static void rfcomm_check_connection(struct rfcomm_session *s)
 {
 	struct sock *sk = s->sock->sk;
 
@@ -1941,7 +1941,7 @@ static inline void rfcomm_check_connection(struct rfcomm_session *s)
 	}
 }
 
-static inline void rfcomm_process_sessions(void)
+static void rfcomm_process_sessions(void)
 {
 	struct list_head *p, *n;
 

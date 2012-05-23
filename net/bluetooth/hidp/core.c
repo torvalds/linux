@@ -268,7 +268,7 @@ static int __hidp_send_ctrl_message(struct hidp_session *session,
 	return 0;
 }
 
-static inline int hidp_send_ctrl_message(struct hidp_session *session,
+static int hidp_send_ctrl_message(struct hidp_session *session,
 			unsigned char hdr, unsigned char *data, int size)
 {
 	int err;
@@ -471,7 +471,7 @@ static void hidp_set_timer(struct hidp_session *session)
 		mod_timer(&session->timer, jiffies + HZ * session->idle_to);
 }
 
-static inline void hidp_del_timer(struct hidp_session *session)
+static void hidp_del_timer(struct hidp_session *session)
 {
 	if (session->idle_to > 0)
 		del_timer(&session->timer);

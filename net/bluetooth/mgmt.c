@@ -1821,7 +1821,7 @@ static int set_io_capability(struct sock *sk, struct hci_dev *hdev, void *data,
 			    0);
 }
 
-static inline struct pending_cmd *find_pairing(struct hci_conn *conn)
+static struct pending_cmd *find_pairing(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct pending_cmd *cmd;

@@ -496,7 +496,8 @@ static int hci_sock_blacklist_del(struct hci_dev *hdev, void __user *arg)
 }
 
 /* Ioctls that require bound socket */
-static inline int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd, unsigned long arg)
+static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
+				unsigned long arg)
 {
 	struct hci_dev *hdev = hci_pi(sk)->hdev;
 
@@ -712,7 +713,8 @@ static int hci_sock_getname(struct socket *sock, struct sockaddr *addr, int *add
 	return 0;
 }
 
-static inline void hci_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
+static void hci_sock_cmsg(struct sock *sk, struct msghdr *msg,
+			  struct sk_buff *skb)
 {
 	__u32 mask = hci_pi(sk)->cmsg_mask;
 

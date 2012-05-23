@@ -167,8 +167,9 @@ static int __hci_request(struct hci_dev *hdev,
 	return err;
 }
 
-static inline int hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *hdev, unsigned long opt),
-					unsigned long opt, __u32 timeout)
+static int hci_request(struct hci_dev *hdev,
+		       void (*req)(struct hci_dev *hdev, unsigned long opt),
+		       unsigned long opt, __u32 timeout)
 {
 	int ret;
 
@@ -2245,8 +2246,8 @@ EXPORT_SYMBOL(hci_send_sco);
 /* ---- HCI TX task (outgoing data) ---- */
 
 /* HCI Connection scheduler */
-static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type,
-					    int *quote)
+static struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type,
+				     int *quote)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct hci_conn *conn = NULL, *c;
@@ -2305,7 +2306,7 @@ static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type,
 	return conn;
 }
 
-static inline void hci_link_tx_to(struct hci_dev *hdev, __u8 type)
+static void hci_link_tx_to(struct hci_dev *hdev, __u8 type)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct hci_conn *c;
@@ -2326,8 +2327,8 @@ static inline void hci_link_tx_to(struct hci_dev *hdev, __u8 type)
 	rcu_read_unlock();
 }
 
-static inline struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
-					     int *quote)
+static struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
+				      int *quote)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct hci_chan *chan = NULL;
@@ -2461,7 +2462,7 @@ static inline int __get_blocks(struct hci_dev *hdev, struct sk_buff *skb)
 	return DIV_ROUND_UP(skb->len - HCI_ACL_HDR_SIZE, hdev->block_len);
 }
 
-static inline void __check_timeout(struct hci_dev *hdev, unsigned int cnt)
+static void __check_timeout(struct hci_dev *hdev, unsigned int cnt)
 {
 	if (!test_bit(HCI_RAW, &hdev->flags)) {
 		/* ACL tx timeout must be longer than maximum
@@ -2472,7 +2473,7 @@ static inline void __check_timeout(struct hci_dev *hdev, unsigned int cnt)
 	}
 }
 
-static inline void hci_sched_acl_pkt(struct hci_dev *hdev)
+static void hci_sched_acl_pkt(struct hci_dev *hdev)
 {
 	unsigned int cnt = hdev->acl_cnt;
 	struct hci_chan *chan;
@@ -2510,7 +2511,7 @@ static inline void hci_sched_acl_pkt(struct hci_dev *hdev)
 		hci_prio_recalculate(hdev, ACL_LINK);
 }
 
-static inline void hci_sched_acl_blk(struct hci_dev *hdev)
+static void hci_sched_acl_blk(struct hci_dev *hdev)
 {
 	unsigned int cnt = hdev->block_cnt;
 	struct hci_chan *chan;
@@ -2556,7 +2557,7 @@ static inline void hci_sched_acl_blk(struct hci_dev *hdev)
 		hci_prio_recalculate(hdev, ACL_LINK);
 }
 
-static inline void hci_sched_acl(struct hci_dev *hdev)
+static void hci_sched_acl(struct hci_dev *hdev)
 {
 	BT_DBG("%s", hdev->name);
 
@@ -2575,7 +2576,7 @@ static inline void hci_sched_acl(struct hci_dev *hdev)
 }
 
 /* Schedule SCO */
-static inline void hci_sched_sco(struct hci_dev *hdev)
+static void hci_sched_sco(struct hci_dev *hdev)
 {
 	struct hci_conn *conn;
 	struct sk_buff *skb;
@@ -2598,7 +2599,7 @@ static inline void hci_sched_sco(struct hci_dev *hdev)
 	}
 }
 
-static inline void hci_sched_esco(struct hci_dev *hdev)
+static void hci_sched_esco(struct hci_dev *hdev)
 {
 	struct hci_conn *conn;
 	struct sk_buff *skb;
@@ -2621,7 +2622,7 @@ static inline void hci_sched_esco(struct hci_dev *hdev)
 	}
 }
 
-static inline void hci_sched_le(struct hci_dev *hdev)
+static void hci_sched_le(struct hci_dev *hdev)
 {
 	struct hci_chan *chan;
 	struct sk_buff *skb;
@@ -2698,7 +2699,7 @@ static void hci_tx_work(struct work_struct *work)
 /* ----- HCI RX task (incoming data processing) ----- */
 
 /* ACL data packet */
-static inline void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_acl_hdr *hdr = (void *) skb->data;
 	struct hci_conn *conn;
@@ -2742,7 +2743,7 @@ static inline void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 }
 
 /* SCO data packet */
-static inline void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_sco_hdr *hdr = (void *) skb->data;
 	struct hci_conn *conn;
