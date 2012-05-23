@@ -7,7 +7,7 @@
  * which is Copyright 2009 Simtec Electronics
  * and on sound/soc/imx/phycore-ac97.c which is
  * Copyright 2009 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
- * 
+ *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the  License, or (at your

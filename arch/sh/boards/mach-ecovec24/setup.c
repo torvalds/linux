@@ -33,6 +33,7 @@
 #include <linux/videodev2.h>
 #include <video/sh_mobile_lcdc.h>
 #include <sound/sh_fsi.h>
+#include <sound/simple_card.h>
 #include <media/sh_mobile_ceu.h>
 #include <media/soc_camera.h>
 #include <media/tw9910.h>
@@ -811,6 +812,30 @@ static struct platform_device fsi_device = {
 	},
 };
 
+static struct asoc_simple_dai_init_info fsi_da7210_init_info = {
+	.fmt		= SND_SOC_DAIFMT_I2S,
+	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
+	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
+};
+
+static struct asoc_simple_card_info fsi_da7210_info = {
+	.name		= "DA7210",
+	.card		= "FSIB-DA7210",
+	.cpu_dai	= "fsib-dai",
+	.codec		= "da7210.0-001a",
+	.platform	= "sh_fsi.0",
+	.codec_dai	= "da7210-hifi",
+	.init		= &fsi_da7210_init_info,
+};
+
+static struct platform_device fsi_da7210_device = {
+	.name	= "asoc-simple-card",
+	.dev	= {
+		.platform_data	= &fsi_da7210_info,
+	},
+};
+
+
 /* IrDA */
 static struct resource irda_resources[] = {
 	[0] = {
@@ -947,6 +972,7 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&camera_devices[1],
 	&camera_devices[2],
 	&fsi_device,
+	&fsi_da7210_device,
 	&irda_device,
 	&vou_device,
 #if defined(CONFIG_MMC_SH_MMCIF) || defined(CONFIG_MMC_SH_MMCIF_MODULE)

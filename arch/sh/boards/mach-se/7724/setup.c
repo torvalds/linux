@@ -29,6 +29,7 @@
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
 #include <sound/sh_fsi.h>
+#include <sound/simple_card.h>
 #include <asm/io.h>
 #include <asm/heartbeat.h>
 #include <asm/clock.h>
@@ -305,17 +306,25 @@ static struct platform_device fsi_device = {
 	},
 };
 
-static struct fsi_ak4642_info fsi_ak4642_info = {
+static struct asoc_simple_dai_init_info fsi2_ak4642_init_info = {
+	.fmt		= SND_SOC_DAIFMT_LEFT_J,
+	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
+	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
+	.sysclk		= 11289600,
+};
+
+static struct asoc_simple_card_info fsi_ak4642_info = {
 	.name		= "AK4642",
 	.card		= "FSIA-AK4642",
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi.0",
-	.id		= FSI_PORT_A,
+	.codec_dai	= "ak4642-hifi",
+	.init		= &fsi2_ak4642_init_info,
 };
 
 static struct platform_device fsi_ak4642_device = {
-	.name	= "fsi-ak4642-audio",
+	.name	= "asoc-simple-card",
 	.dev	= {
 		.platform_data	= &fsi_ak4642_info,
 	},

@@ -109,7 +109,8 @@ static int snd_imx_open(struct snd_pcm_substream *substream)
 	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	dma_data = kzalloc(sizeof(*dma_data), GFP_KERNEL);
-	dma_data->peripheral_type = IMX_DMATYPE_SSI;
+	dma_data->peripheral_type = dma_params->shared_peripheral ?
+					IMX_DMATYPE_SSI_SP : IMX_DMATYPE_SSI;
 	dma_data->priority = DMA_PRIO_HIGH;
 	dma_data->dma_request = dma_params->dma;
 

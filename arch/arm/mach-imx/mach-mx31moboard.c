@@ -47,6 +47,7 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx3.h>
 #include <mach/ulpi.h>
+#include <mach/ssi.h>
 
 #include "devices-imx31.h"
 
@@ -102,6 +103,9 @@ static unsigned int moboard_pins[] = {
 	MX31_PIN_CSPI3_MOSI__MOSI, MX31_PIN_CSPI3_MISO__MISO,
 	MX31_PIN_CSPI3_SCLK__SCLK, MX31_PIN_CSPI3_SPI_RDY__SPI_RDY,
 	MX31_PIN_CSPI2_SS1__CSPI3_SS1,
+	/* SSI */
+	MX31_PIN_STXD4__STXD4, MX31_PIN_SRXD4__SRXD4,
+	MX31_PIN_SCK4__SCK4, MX31_PIN_SFS4__SFS4,
 };
 
 static struct physmap_flash_data mx31moboard_flash_data = {
@@ -276,6 +280,11 @@ static struct mc13xxx_buttons_platform_data moboard_buttons = {
 	.b1on_key = KEY_POWER,
 };
 
+static struct mc13xxx_codec_platform_data moboard_codec = {
+	.dac_ssi_port = MC13783_SSI1_PORT,
+	.adc_ssi_port = MC13783_SSI1_PORT,
+};
+
 static struct mc13xxx_platform_data moboard_pmic = {
 	.regulators = {
 		.regulators = moboard_regulators,
@@ -283,7 +292,12 @@ static struct mc13xxx_platform_data moboard_pmic = {
 	},
 	.leds = &moboard_leds,
 	.buttons = &moboard_buttons,
-	.flags = MC13XXX_USE_RTC | MC13XXX_USE_ADC,
+	.codec = &moboard_codec,
+	.flags = MC13XXX_USE_RTC | MC13XXX_USE_ADC | MC13XXX_USE_CODEC,
+};
+
+static struct imx_ssi_platform_data moboard_ssi_pdata = {
+	.flags = IMX_SSI_DMA | IMX_SSI_NET,
 };
 
 static struct spi_board_info moboard_spi_board_info[] __initdata = {
@@ -553,6 +567,10 @@ static void __init mx31moboard_init(void)
 	usb_xcvr_reset();
 
 	moboard_usbh2_init();
+
+	imx31_add_imx_ssi(0, &moboard_ssi_pdata);
+
+	imx_add_platform_device("imx_mc13783", 0, NULL, 0, NULL, 0);
 
 	pm_power_off = mx31moboard_poweroff;
 
