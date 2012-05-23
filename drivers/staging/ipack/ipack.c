@@ -48,7 +48,7 @@ static int ipack_bus_match(struct device *device, struct device_driver *driver)
 	if (ret)
 		dev->driver = drv;
 
-	return 0;
+	return ret;
 }
 
 static int ipack_bus_probe(struct device *device)
