@@ -303,7 +303,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, struct thread_info *ti)
 	if ((sysreg_read(SR) & MODE_MASK) == MODE_SUPERVISOR)
 		syscall = 1;
 
-	if (ti->flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
+	if (ti->flags & _TIF_SIGPENDING))
 		do_signal(regs, syscall);
 
 	if (ti->flags & _TIF_NOTIFY_RESUME) {
