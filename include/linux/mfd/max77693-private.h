@@ -198,8 +198,14 @@ struct max77693_dev {
 	struct regmap *regmap_muic;
 	struct regmap *regmap_haptic;
 
+	struct irq_domain *irq_domain;
+
 	int irq;
+	int irq_gpio;
 	bool wakeup;
+	struct mutex irqlock;
+	int irq_masks_cur[MAX77693_IRQ_GROUP_NR];
+	int irq_masks_cache[MAX77693_IRQ_GROUP_NR];
 };
 
 enum max77693_types {
@@ -213,5 +219,9 @@ extern int max77693_write_reg(struct regmap *map, u8 reg, u8 value);
 extern int max77693_bulk_write(struct regmap *map, u8 reg, int count,
 				u8 *buf);
 extern int max77693_update_reg(struct regmap *map, u8 reg, u8 val, u8 mask);
+
+extern int max77693_irq_init(struct max77693_dev *max77686);
+extern void max77693_irq_exit(struct max77693_dev *max77686);
+extern int max77693_irq_resume(struct max77693_dev *max77686);
 
 #endif /*  __LINUX_MFD_MAX77693_PRIV_H */
