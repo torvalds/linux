@@ -686,7 +686,7 @@ static int c_can_get_berr_counter(const struct net_device *dev,
  *
  * We iterate from priv->tx_echo to priv->tx_next and check if the
  * packet has been transmitted, echo it back to the CAN framework.
- * If we discover a not yet transmitted package, stop looking for more.
+ * If we discover a not yet transmitted packet, stop looking for more.
  */
 static void c_can_do_tx(struct net_device *dev)
 {
@@ -698,7 +698,7 @@ static void c_can_do_tx(struct net_device *dev)
 	for (/* nix */; (priv->tx_next - priv->tx_echo) > 0; priv->tx_echo++) {
 		msg_obj_no = get_tx_echo_msg_obj(priv);
 		val = c_can_read_reg32(priv, &priv->regs->txrqst1);
-		if (!(val & (1 << msg_obj_no))) {
+		if (!(val & (1 << (msg_obj_no - 1)))) {
 			can_get_echo_skb(dev,
 					msg_obj_no - C_CAN_MSG_OBJ_TX_FIRST);
 			stats->tx_bytes += priv->read_reg(priv,
@@ -706,6 +706,8 @@ static void c_can_do_tx(struct net_device *dev)
 					& IF_MCONT_DLC_MASK;
 			stats->tx_packets++;
 			c_can_inval_msg_object(dev, 0, msg_obj_no);
+		} else {
+			break;
 		}
 	}
 
