@@ -3337,7 +3337,7 @@ void btrfsic_unmount(struct btrfs_root *root,
 				btrfsic_block_link_free(l);
 		}
 
-		if (b_all->is_iodone)
+		if (b_all->is_iodone || b_all->never_written)
 			btrfsic_block_free(b_all);
 		else
 			printk(KERN_INFO "btrfs: attempt to free %c-block"
