@@ -13,8 +13,6 @@
  *
  */
 
-#ifdef __KERNEL__
-
 #ifndef _LINUX_BITOPS_H
 #error only <linux/bitops.h> can be included directly
 #endif
@@ -833,8 +831,5 @@ static inline int find_next_bit_le(void *vaddr, unsigned long size,
 #include <asm-generic/bitops/le.h>
 
 #include <asm-generic/bitops/ext2-atomic-setbit.h>
-
-
-#endif /* __KERNEL__ */
 
 #endif /* _S390_BITOPS_H */

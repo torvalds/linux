@@ -11,8 +11,6 @@
 #ifndef _S390_IO_H
 #define _S390_IO_H
 
-#ifdef __KERNEL__
-
 #include <asm/page.h>
 
 #define IO_SPACE_LIMIT 0xffffffff
@@ -45,7 +43,5 @@ void unxlate_dev_mem_ptr(unsigned long phys, void *addr);
  * Convert a virtual cached pointer to an uncached pointer
  */
 #define xlate_dev_kmem_ptr(p)	p
-
-#endif /* __KERNEL__ */
 
 #endif

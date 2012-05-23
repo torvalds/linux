@@ -9,8 +9,6 @@
 #ifndef _ASM_THREAD_INFO_H
 #define _ASM_THREAD_INFO_H
 
-#ifdef __KERNEL__
-
 /*
  * Size of kernel stack for each process
  */
@@ -122,8 +120,6 @@ static inline struct thread_info *current_thread_info(void)
 #else
 #define is_32bit_task()		(1)
 #endif
-
-#endif /* __KERNEL__ */
 
 #define PREEMPT_ACTIVE		0x4000000
 

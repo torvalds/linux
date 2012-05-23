@@ -41,8 +41,6 @@
 #error "please don't include asm/rwsem.h directly, use linux/rwsem.h instead"
 #endif
 
-#ifdef __KERNEL__
-
 #ifndef __s390x__
 #define RWSEM_UNLOCKED_VALUE	0x00000000
 #define RWSEM_ACTIVE_BIAS	0x00000001
@@ -319,5 +317,4 @@ static inline long rwsem_atomic_update(long delta, struct rw_semaphore *sem)
 	return new;
 }
 
-#endif /* __KERNEL__ */
 #endif /* _S390_RWSEM_H */

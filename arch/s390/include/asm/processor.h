@@ -20,7 +20,6 @@
 #include <asm/ptrace.h>
 #include <asm/setup.h>
 
-#ifdef __KERNEL__
 /*
  * Default implementation of macro that returns current
  * instruction pointer ("program counter").
@@ -54,8 +53,6 @@ extern int sysctl_ieee_emulation_warnings;
 
 #endif /* __s390x__ */
 
-#ifdef __KERNEL__
-
 #ifndef __s390x__
 #define STACK_TOP		(1UL << 31)
 #define STACK_TOP_MAX		(1UL << 31)
@@ -63,9 +60,6 @@ extern int sysctl_ieee_emulation_warnings;
 #define STACK_TOP		(1UL << (test_thread_flag(TIF_31BIT) ? 31:42))
 #define STACK_TOP_MAX		(1UL << 42)
 #endif /* __s390x__ */
-
-
-#endif
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
@@ -340,8 +334,6 @@ extern void (*s390_base_pgm_handler_fn)(void);
 extern void (*s390_base_ext_handler_fn)(void);
 
 #define ARCH_LOW_ADDRESS_LIMIT	0x7fffffffUL
-
-#endif
 
 /*
  * Helper macro for exception table entries
