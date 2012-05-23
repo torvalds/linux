@@ -129,9 +129,9 @@ calibrate_xor_blocks(void)
 
 	if (fastest) {
 		printk(KERN_INFO "xor: automatically using best "
-			"checksumming function: %s\n",
-			fastest->name);
+				 "checksumming function:\n");
 		xor_speed(fastest);
+		goto out;
 	} else {
 		printk(KERN_INFO "xor: measuring software checksum speed\n");
 		XOR_TRY_TEMPLATES;
@@ -146,6 +146,7 @@ calibrate_xor_blocks(void)
 
 #undef xor_speed
 
+ out:
 	free_pages((unsigned long)b1, 2);
 
 	active_template = fastest;

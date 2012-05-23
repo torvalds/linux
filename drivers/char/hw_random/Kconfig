@@ -63,7 +63,7 @@ config HW_RANDOM_AMD
 config HW_RANDOM_ATMEL
 	tristate "Atmel Random Number Generator support"
 	depends on HW_RANDOM && HAVE_CLK
-	default HW_RANDOM
+	default (HW_RANDOM && ARCH_AT91)
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on Atmel AT91 devices.
