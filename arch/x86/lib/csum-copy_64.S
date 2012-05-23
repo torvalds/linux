@@ -8,6 +8,7 @@
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
 #include <asm/errno.h>
+#include <asm/asm.h>
 
 /*
  * Checksum copy with exception handling.
@@ -31,26 +32,17 @@
 
 	.macro source
 10:
-	.section __ex_table, "a"
-	.align 8
-	.quad 10b, .Lbad_source
-	.previous
+	_ASM_EXTABLE(10b, .Lbad_source)
 	.endm
 
 	.macro dest
 20:
-	.section __ex_table, "a"
-	.align 8
-	.quad 20b, .Lbad_dest
-	.previous
+	_ASM_EXTABLE(20b, .Lbad_dest)
 	.endm
 
 	.macro ignore L=.Lignore
 30:
-	.section __ex_table, "a"
-	.align 8
-	.quad 30b, \L
-	.previous
+	_ASM_EXTABLE(30b, \L)
 	.endm
 
 
