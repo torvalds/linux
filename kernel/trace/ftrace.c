@@ -1383,13 +1383,36 @@ ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip)
 
 static int ftrace_cmp_recs(const void *a, const void *b)
 {
-	const struct dyn_ftrace *reca = a;
-	const struct dyn_ftrace *recb = b;
+	const struct dyn_ftrace *key = a;
+	const struct dyn_ftrace *rec = b;
 
-	if (reca->ip > recb->ip)
-		return 1;
-	if (reca->ip < recb->ip)
+	if (key->flags < rec->ip)
 		return -1;
+	if (key->ip >= rec->ip + MCOUNT_INSN_SIZE)
+		return 1;
+	return 0;
+}
+
+static unsigned long ftrace_location_range(unsigned long start, unsigned long end)
+{
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
+	struct dyn_ftrace key;
+
+	key.ip = start;
+	key.flags = end;	/* overload flags, as it is unsigned long */
+
+	for (pg = ftrace_pages_start; pg; pg = pg->next) {
+		if (end < pg->records[0].ip ||
+		    start >= (pg->records[pg->index - 1].ip + MCOUNT_INSN_SIZE))
+			continue;
+		rec = bsearch(&key, pg->records, pg->index,
+			      sizeof(struct dyn_ftrace),
+			      ftrace_cmp_recs);
+		if (rec)
+			return rec->ip;
+	}
+
 	return 0;
 }
 
@@ -1397,28 +1420,34 @@ static int ftrace_cmp_recs(const void *a, const void *b)
  * ftrace_location - return true if the ip giving is a traced location
  * @ip: the instruction pointer to check
  *
- * Returns 1 if @ip given is a pointer to a ftrace location.
+ * Returns rec->ip if @ip given is a pointer to a ftrace location.
  * That is, the instruction that is either a NOP or call to
  * the function tracer. It checks the ftrace internal tables to
  * determine if the address belongs or not.
  */
-int ftrace_location(unsigned long ip)
+unsigned long ftrace_location(unsigned long ip)
 {
-	struct ftrace_page *pg;
-	struct dyn_ftrace *rec;
-	struct dyn_ftrace key;
+	return ftrace_location_range(ip, ip);
+}
 
-	key.ip = ip;
+/**
+ * ftrace_text_reserved - return true if range contains an ftrace location
+ * @start: start of range to search
+ * @end: end of range to search (inclusive). @end points to the last byte to check.
+ *
+ * Returns 1 if @start and @end contains a ftrace location.
+ * That is, the instruction that is either a NOP or call to
+ * the function tracer. It checks the ftrace internal tables to
+ * determine if the address belongs or not.
+ */
+int ftrace_text_reserved(void *start, void *end)
+{
+	unsigned long ret;
 
-	for (pg = ftrace_pages_start; pg; pg = pg->next) {
-		rec = bsearch(&key, pg->records, pg->index,
-			      sizeof(struct dyn_ftrace),
-			      ftrace_cmp_recs);
-		if (rec)
-			return 1;
-	}
+	ret = ftrace_location_range((unsigned long)start,
+				    (unsigned long)end);
 
-	return 0;
+	return (int)!!ret;
 }
 
 static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
@@ -1520,35 +1549,6 @@ static void ftrace_hash_rec_enable(struct ftrace_ops *ops,
 	__ftrace_hash_rec_update(ops, filter_hash, 1);
 }
 
-static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
-{
-	if (ftrace_pages->index == ftrace_pages->size) {
-		/* We should have allocated enough */
-		if (WARN_ON(!ftrace_pages->next))
-			return NULL;
-		ftrace_pages = ftrace_pages->next;
-	}
-
-	return &ftrace_pages->records[ftrace_pages->index++];
-}
-
-static struct dyn_ftrace *
-ftrace_record_ip(unsigned long ip)
-{
-	struct dyn_ftrace *rec;
-
-	if (ftrace_disabled)
-		return NULL;
-
-	rec = ftrace_alloc_dyn_node(ip);
-	if (!rec)
-		return NULL;
-
-	rec->ip = ip;
-
-	return rec;
-}
-
 static void print_ip_ins(const char *fmt, unsigned char *p)
 {
 	int i;
@@ -1596,21 +1596,6 @@ void ftrace_bug(int failed, unsigned long ip)
 		pr_info("ftrace faulted on unknown error ");
 		print_ip_sym(ip);
 	}
-}
-
-
-/* Return 1 if the address range is reserved for ftrace */
-int ftrace_text_reserved(void *start, void *end)
-{
-	struct dyn_ftrace *rec;
-	struct ftrace_page *pg;
-
-	do_for_each_ftrace_rec(pg, rec) {
-		if (rec->ip <= (unsigned long)end &&
-		    rec->ip + MCOUNT_INSN_SIZE > (unsigned long)start)
-			return 1;
-	} while_for_each_ftrace_rec();
-	return 0;
 }
 
 static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
@@ -1698,7 +1683,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 	return -1; /* unknow ftrace bug */
 }
 
-static void ftrace_replace_code(int update)
+void __weak ftrace_replace_code(int enable)
 {
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
@@ -1708,7 +1693,7 @@ static void ftrace_replace_code(int update)
 		return;
 
 	do_for_each_ftrace_rec(pg, rec) {
-		failed = __ftrace_replace_code(rec, update);
+		failed = __ftrace_replace_code(rec, enable);
 		if (failed) {
 			ftrace_bug(failed, rec->ip);
 			/* Stop processing */
@@ -1826,22 +1811,27 @@ int __weak ftrace_arch_code_modify_post_process(void)
 	return 0;
 }
 
+void ftrace_modify_all_code(int command)
+{
+	if (command & FTRACE_UPDATE_CALLS)
+		ftrace_replace_code(1);
+	else if (command & FTRACE_DISABLE_CALLS)
+		ftrace_replace_code(0);
+
+	if (command & FTRACE_UPDATE_TRACE_FUNC)
+		ftrace_update_ftrace_func(ftrace_trace_function);
+
+	if (command & FTRACE_START_FUNC_RET)
+		ftrace_enable_ftrace_graph_caller();
+	else if (command & FTRACE_STOP_FUNC_RET)
+		ftrace_disable_ftrace_graph_caller();
+}
+
 static int __ftrace_modify_code(void *data)
 {
 	int *command = data;
 
-	if (*command & FTRACE_UPDATE_CALLS)
-		ftrace_replace_code(1);
-	else if (*command & FTRACE_DISABLE_CALLS)
-		ftrace_replace_code(0);
-
-	if (*command & FTRACE_UPDATE_TRACE_FUNC)
-		ftrace_update_ftrace_func(ftrace_trace_function);
-
-	if (*command & FTRACE_START_FUNC_RET)
-		ftrace_enable_ftrace_graph_caller();
-	else if (*command & FTRACE_STOP_FUNC_RET)
-		ftrace_disable_ftrace_graph_caller();
+	ftrace_modify_all_code(*command);
 
 	return 0;
 }
@@ -2469,57 +2459,35 @@ static int
 ftrace_avail_open(struct inode *inode, struct file *file)
 {
 	struct ftrace_iterator *iter;
-	int ret;
 
 	if (unlikely(ftrace_disabled))
 		return -ENODEV;
 
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
-	if (!iter)
-		return -ENOMEM;
-
-	iter->pg = ftrace_pages_start;
-	iter->ops = &global_ops;
-
-	ret = seq_open(file, &show_ftrace_seq_ops);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-
-		m->private = iter;
-	} else {
-		kfree(iter);
+	iter = __seq_open_private(file, &show_ftrace_seq_ops, sizeof(*iter));
+	if (iter) {
+		iter->pg = ftrace_pages_start;
+		iter->ops = &global_ops;
 	}
 
-	return ret;
+	return iter ? 0 : -ENOMEM;
 }
 
 static int
 ftrace_enabled_open(struct inode *inode, struct file *file)
 {
 	struct ftrace_iterator *iter;
-	int ret;
 
 	if (unlikely(ftrace_disabled))
 		return -ENODEV;
 
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
-	if (!iter)
-		return -ENOMEM;
-
-	iter->pg = ftrace_pages_start;
-	iter->flags = FTRACE_ITER_ENABLED;
-	iter->ops = &global_ops;
-
-	ret = seq_open(file, &show_ftrace_seq_ops);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-
-		m->private = iter;
-	} else {
-		kfree(iter);
+	iter = __seq_open_private(file, &show_ftrace_seq_ops, sizeof(*iter));
+	if (iter) {
+		iter->pg = ftrace_pages_start;
+		iter->flags = FTRACE_ITER_ENABLED;
+		iter->ops = &global_ops;
 	}
 
-	return ret;
+	return iter ? 0 : -ENOMEM;
 }
 
 static void ftrace_filter_reset(struct ftrace_hash *hash)
@@ -3688,22 +3656,36 @@ static __init int ftrace_init_dyn_debugfs(struct dentry *d_tracer)
 	return 0;
 }
 
-static void ftrace_swap_recs(void *a, void *b, int size)
+static int ftrace_cmp_ips(const void *a, const void *b)
 {
-	struct dyn_ftrace *reca = a;
-	struct dyn_ftrace *recb = b;
-	struct dyn_ftrace t;
+	const unsigned long *ipa = a;
+	const unsigned long *ipb = b;
 
-	t = *reca;
-	*reca = *recb;
-	*recb = t;
+	if (*ipa > *ipb)
+		return 1;
+	if (*ipa < *ipb)
+		return -1;
+	return 0;
+}
+
+static void ftrace_swap_ips(void *a, void *b, int size)
+{
+	unsigned long *ipa = a;
+	unsigned long *ipb = b;
+	unsigned long t;
+
+	t = *ipa;
+	*ipa = *ipb;
+	*ipb = t;
 }
 
 static int ftrace_process_locs(struct module *mod,
 			       unsigned long *start,
 			       unsigned long *end)
 {
+	struct ftrace_page *start_pg;
 	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
 	unsigned long count;
 	unsigned long *p;
 	unsigned long addr;
@@ -3715,8 +3697,11 @@ static int ftrace_process_locs(struct module *mod,
 	if (!count)
 		return 0;
 
-	pg = ftrace_allocate_pages(count);
-	if (!pg)
+	sort(start, count, sizeof(*start),
+	     ftrace_cmp_ips, ftrace_swap_ips);
+
+	start_pg = ftrace_allocate_pages(count);
+	if (!start_pg)
 		return -ENOMEM;
 
 	mutex_lock(&ftrace_lock);
@@ -3729,7 +3714,7 @@ static int ftrace_process_locs(struct module *mod,
 	if (!mod) {
 		WARN_ON(ftrace_pages || ftrace_pages_start);
 		/* First initialization */
-		ftrace_pages = ftrace_pages_start = pg;
+		ftrace_pages = ftrace_pages_start = start_pg;
 	} else {
 		if (!ftrace_pages)
 			goto out;
@@ -3740,11 +3725,11 @@ static int ftrace_process_locs(struct module *mod,
 				ftrace_pages = ftrace_pages->next;
 		}
 
-		ftrace_pages->next = pg;
-		ftrace_pages = pg;
+		ftrace_pages->next = start_pg;
 	}
 
 	p = start;
+	pg = start_pg;
 	while (p < end) {
 		addr = ftrace_call_adjust(*p++);
 		/*
@@ -3755,17 +3740,26 @@ static int ftrace_process_locs(struct module *mod,
 		 */
 		if (!addr)
 			continue;
-		if (!ftrace_record_ip(addr))
-			break;
+
+		if (pg->index == pg->size) {
+			/* We should have allocated enough */
+			if (WARN_ON(!pg->next))
+				break;
+			pg = pg->next;
+		}
+
+		rec = &pg->records[pg->index++];
+		rec->ip = addr;
 	}
 
-	/* These new locations need to be initialized */
-	ftrace_new_pgs = pg;
+	/* We should have used all pages */
+	WARN_ON(pg->next);
 
-	/* Make each individual set of pages sorted by ips */
-	for (; pg; pg = pg->next)
-		sort(pg->records, pg->index, sizeof(struct dyn_ftrace),
-		     ftrace_cmp_recs, ftrace_swap_recs);
+	/* Assign the last page to ftrace_pages */
+	ftrace_pages = pg;
+
+	/* These new locations need to be initialized */
+	ftrace_new_pgs = start_pg;
 
 	/*
 	 * We only need to disable interrupts on start up

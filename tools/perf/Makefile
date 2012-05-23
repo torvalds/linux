@@ -1,17 +1,9 @@
-ifeq ("$(origin O)", "command line")
-	OUTPUT := $(O)/
-endif
+include ../scripts/Makefile.include
 
 # The default target of this Makefile is...
 all:
 
 include config/utilities.mak
-
-ifneq ($(OUTPUT),)
-# check that the output directory actually exists
-OUTDIR := $(shell cd $(OUTPUT) && /bin/pwd)
-$(if $(OUTDIR),, $(error output directory "$(OUTPUT)" does not exist))
-endif
 
 # Define V to have a more verbose compile.
 #
@@ -83,31 +75,6 @@ endif
 ifneq ($(WERROR),0)
 	CFLAGS_WERROR := -Werror
 endif
-
-#
-# Include saner warnings here, which can catch bugs:
-#
-
-EXTRA_WARNINGS := -Wformat
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wformat-security
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wformat-y2k
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wshadow
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Winit-self
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wpacked
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wredundant-decls
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wstrict-aliasing=3
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wswitch-default
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wswitch-enum
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wno-system-headers
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wundef
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wwrite-strings
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wbad-function-cast
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wmissing-declarations
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wmissing-prototypes
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wnested-externs
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wold-style-definition
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wstrict-prototypes
-EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wdeclaration-after-statement
 
 ifeq ("$(origin DEBUG)", "command line")
   PERF_DEBUG = $(DEBUG)
@@ -182,7 +149,7 @@ endif
 
 ### --- END CONFIGURATION SECTION ---
 
-BASIC_CFLAGS = -Iutil/include -Iarch/$(ARCH)/include -I$(OUTPUT)/util -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
+BASIC_CFLAGS = -Iutil/include -Iarch/$(ARCH)/include -I$(OUTPUT)/util -I$(EVENT_PARSE_DIR) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
 BASIC_LDFLAGS =
 
 # Guard against environment variables
@@ -210,6 +177,17 @@ $(OUTPUT)python/perf.so: $(PYRF_OBJS) $(PYTHON_EXT_SRCS) $(PYTHON_EXT_DEPS)
 #
 
 SCRIPTS = $(patsubst %.sh,%,$(SCRIPT_SH))
+
+EVENT_PARSE_DIR = ../lib/traceevent/
+
+ifeq ("$(origin O)", "command line")
+	EP_PATH=$(OUTPUT)/
+else
+	EP_PATH=$(EVENT_PARSE_DIR)/
+endif
+
+LIBPARSEVENT = $(EP_PATH)libtraceevent.a
+EP_LIB := -L$(EP_PATH) -ltraceevent
 
 #
 # Single 'perf' binary right now:
@@ -333,6 +311,8 @@ LIB_H += util/cpumap.h
 LIB_H += util/top.h
 LIB_H += $(ARCH_INCLUDE)
 LIB_H += util/cgroup.h
+LIB_H += $(EVENT_PARSE_DIR)event-parse.h
+LIB_H += util/target.h
 
 LIB_OBJS += $(OUTPUT)util/abspath.o
 LIB_OBJS += $(OUTPUT)util/alias.o
@@ -394,6 +374,7 @@ LIB_OBJS += $(OUTPUT)util/util.o
 LIB_OBJS += $(OUTPUT)util/xyarray.o
 LIB_OBJS += $(OUTPUT)util/cpumap.o
 LIB_OBJS += $(OUTPUT)util/cgroup.o
+LIB_OBJS += $(OUTPUT)util/target.o
 
 BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
 
@@ -429,7 +410,7 @@ BUILTIN_OBJS += $(OUTPUT)builtin-kvm.o
 BUILTIN_OBJS += $(OUTPUT)builtin-test.o
 BUILTIN_OBJS += $(OUTPUT)builtin-inject.o
 
-PERFLIBS = $(LIB_FILE)
+PERFLIBS = $(LIB_FILE) $(LIBPARSEVENT)
 
 # Files needed for the python binding, perf.so
 # pyrf is just an internal name needed for all those wrappers.
@@ -506,22 +487,23 @@ else
 		# Fedora has /usr/include/slang/slang.h, but ubuntu /usr/include/slang.h
 		BASIC_CFLAGS += -I/usr/include/slang
 		EXTLIBS += -lnewt -lslang
-		LIB_OBJS += $(OUTPUT)util/ui/setup.o
-		LIB_OBJS += $(OUTPUT)util/ui/browser.o
-		LIB_OBJS += $(OUTPUT)util/ui/browsers/annotate.o
-		LIB_OBJS += $(OUTPUT)util/ui/browsers/hists.o
-		LIB_OBJS += $(OUTPUT)util/ui/browsers/map.o
-		LIB_OBJS += $(OUTPUT)util/ui/helpline.o
-		LIB_OBJS += $(OUTPUT)util/ui/progress.o
-		LIB_OBJS += $(OUTPUT)util/ui/util.o
-		LIB_H += util/ui/browser.h
-		LIB_H += util/ui/browsers/map.h
-		LIB_H += util/ui/helpline.h
-		LIB_H += util/ui/keysyms.h
-		LIB_H += util/ui/libslang.h
-		LIB_H += util/ui/progress.h
-		LIB_H += util/ui/util.h
-		LIB_H += util/ui/ui.h
+		LIB_OBJS += $(OUTPUT)ui/setup.o
+		LIB_OBJS += $(OUTPUT)ui/browser.o
+		LIB_OBJS += $(OUTPUT)ui/browsers/annotate.o
+		LIB_OBJS += $(OUTPUT)ui/browsers/hists.o
+		LIB_OBJS += $(OUTPUT)ui/browsers/map.o
+		LIB_OBJS += $(OUTPUT)ui/helpline.o
+		LIB_OBJS += $(OUTPUT)ui/progress.o
+		LIB_OBJS += $(OUTPUT)ui/util.o
+		LIB_OBJS += $(OUTPUT)ui/tui/setup.o
+		LIB_H += ui/browser.h
+		LIB_H += ui/browsers/map.h
+		LIB_H += ui/helpline.h
+		LIB_H += ui/keysyms.h
+		LIB_H += ui/libslang.h
+		LIB_H += ui/progress.h
+		LIB_H += ui/util.h
+		LIB_H += ui/ui.h
 	endif
 endif
 
@@ -535,7 +517,12 @@ else
 	else
 		BASIC_CFLAGS += $(shell pkg-config --cflags gtk+-2.0)
 		EXTLIBS += $(shell pkg-config --libs gtk+-2.0)
-		LIB_OBJS += $(OUTPUT)util/gtk/browser.o
+		LIB_OBJS += $(OUTPUT)ui/gtk/browser.o
+		LIB_OBJS += $(OUTPUT)ui/gtk/setup.o
+		# Make sure that it'd be included only once.
+		ifneq ($(findstring -DNO_NEWT_SUPPORT,$(BASIC_CFLAGS)),)
+			LIB_OBJS += $(OUTPUT)ui/setup.o
+		endif
 	endif
 endif
 
@@ -678,18 +665,6 @@ else
 	endif
 endif
 
-ifneq ($(findstring $(MAKEFLAGS),s),s)
-ifndef V
-	QUIET_CC       = @echo '   ' CC $@;
-	QUIET_AR       = @echo '   ' AR $@;
-	QUIET_LINK     = @echo '   ' LINK $@;
-	QUIET_MKDIR    = @echo '   ' MKDIR $@;
-	QUIET_GEN      = @echo '   ' GEN $@;
-	QUIET_FLEX     = @echo '   ' FLEX $@;
-	QUIET_BISON    = @echo '   ' BISON $@;
-endif
-endif
-
 ifdef ASCIIDOC8
 	export ASCIIDOC8
 endif
@@ -800,16 +775,16 @@ $(OUTPUT)util/exec_cmd.o: util/exec_cmd.c $(OUTPUT)PERF-CFLAGS
 $(OUTPUT)util/config.o: util/config.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
 
-$(OUTPUT)util/ui/browser.o: util/ui/browser.c $(OUTPUT)PERF-CFLAGS
+$(OUTPUT)ui/browser.o: ui/browser.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
-$(OUTPUT)util/ui/browsers/annotate.o: util/ui/browsers/annotate.c $(OUTPUT)PERF-CFLAGS
+$(OUTPUT)ui/browsers/annotate.o: ui/browsers/annotate.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
-$(OUTPUT)util/ui/browsers/hists.o: util/ui/browsers/hists.c $(OUTPUT)PERF-CFLAGS
+$(OUTPUT)ui/browsers/hists.o: ui/browsers/hists.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
-$(OUTPUT)util/ui/browsers/map.o: util/ui/browsers/map.c $(OUTPUT)PERF-CFLAGS
+$(OUTPUT)ui/browsers/map.o: ui/browsers/map.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
 $(OUTPUT)util/rbtree.o: ../../lib/rbtree.c $(OUTPUT)PERF-CFLAGS
@@ -843,6 +818,10 @@ $(sort $(dir $(DIRECTORY_DEPS))):
 
 $(LIB_FILE): $(LIB_OBJS)
 	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $(LIB_OBJS)
+
+# libparsevent.a
+$(LIBPARSEVENT):
+	make -C $(EVENT_PARSE_DIR) $(COMMAND_O) libtraceevent.a
 
 help:
 	@echo 'Perf make targets:'

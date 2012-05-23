@@ -5,12 +5,12 @@
 #include <newt.h>
 #include <linux/rbtree.h>
 
-#include "../../evsel.h"
-#include "../../evlist.h"
-#include "../../hist.h"
-#include "../../pstack.h"
-#include "../../sort.h"
-#include "../../util.h"
+#include "../../util/evsel.h"
+#include "../../util/evlist.h"
+#include "../../util/hist.h"
+#include "../../util/pstack.h"
+#include "../../util/sort.h"
+#include "../../util/util.h"
 
 #include "../browser.h"
 #include "../helpline.h"
@@ -840,10 +840,14 @@ static int hists__browser_title(struct hists *self, char *bf, size_t size,
 	int printed;
 	const struct dso *dso = self->dso_filter;
 	const struct thread *thread = self->thread_filter;
-	unsigned long nr_events = self->stats.nr_events[PERF_RECORD_SAMPLE];
+	unsigned long nr_samples = self->stats.nr_events[PERF_RECORD_SAMPLE];
+	u64 nr_events = self->stats.total_period;
 
-	nr_events = convert_unit(nr_events, &unit);
-	printed = scnprintf(bf, size, "Events: %lu%c %s", nr_events, unit, ev_name);
+	nr_samples = convert_unit(nr_samples, &unit);
+	printed = scnprintf(bf, size,
+			   "Samples: %lu%c of event '%s', Event count (approx.): %lu",
+			   nr_samples, unit, ev_name, nr_events);
+
 
 	if (self->uid_filter_str)
 		printed += snprintf(bf + printed, size - printed,
@@ -937,7 +941,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			goto zoom_dso;
 		case 't':
 			goto zoom_thread;
-		case 's':
+		case '/':
 			if (ui_browser__input_window("Symbol to show",
 					"Please enter the name of symbol you want to see",
 					buf, "ENTER: OK, ESC: Cancel",
@@ -965,7 +969,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 					"E             Expand all callchains\n"
 					"d             Zoom into current DSO\n"
 					"t             Zoom into current Thread\n"
-					"s             Filter symbol by name");
+					"/             Filter symbol by name");
 			continue;
 		case K_ENTER:
 		case K_RIGHT:

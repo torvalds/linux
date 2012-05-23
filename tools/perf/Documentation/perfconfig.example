@@ -6,6 +6,7 @@
 	normal = black, lightgray
 	selected = lightgray, magenta
 	code = blue, lightgray
+	addr = magenta, lightgray
 
 [tui]
 

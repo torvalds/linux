@@ -1195,6 +1195,10 @@ realloc:
 static int test__PERF_RECORD(void)
 {
 	struct perf_record_opts opts = {
+		.target = {
+			.uid = UINT_MAX,
+			.uses_mmap = true,
+		},
 		.no_delay   = true,
 		.freq	    = 10,
 		.mmap_pages = 256,
@@ -1237,8 +1241,7 @@ static int test__PERF_RECORD(void)
 	 * perf_evlist__prepare_workload we'll fill in the only thread
 	 * we're monitoring, the one forked there.
 	 */
-	err = perf_evlist__create_maps(evlist, opts.target_pid,
-				       opts.target_tid, UINT_MAX, opts.cpu_list);
+	err = perf_evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
 		pr_debug("Not enough memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
@@ -1579,8 +1582,6 @@ static int __test__rdpmc(void)
 	sa.sa_sigaction = segfault_handler;
 	sigaction(SIGSEGV, &sa, NULL);
 
-	fprintf(stderr, "\n\n");
-
 	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
 	if (fd < 0) {
 		die("Error: sys_perf_event_open() syscall returned "
@@ -1605,7 +1606,7 @@ static int __test__rdpmc(void)
 		loops *= 10;
 
 		delta = now - stamp;
-		fprintf(stderr, "%14d: %14Lu\n", n, (long long)delta);
+		pr_debug("%14d: %14Lu\n", n, (long long)delta);
 
 		delta_sum += delta;
 	}
@@ -1613,7 +1614,7 @@ static int __test__rdpmc(void)
 	munmap(addr, page_size);
 	close(fd);
 
-	fprintf(stderr, "   ");
+	pr_debug("   ");
 
 	if (!delta_sum)
 		return -1;

@@ -2,14 +2,14 @@
 #include <signal.h>
 #include <stdbool.h>
 
-#include "../cache.h"
-#include "../debug.h"
-#include "browser.h"
-#include "helpline.h"
-#include "ui.h"
-#include "util.h"
-#include "libslang.h"
-#include "keysyms.h"
+#include "../../util/cache.h"
+#include "../../util/debug.h"
+#include "../browser.h"
+#include "../helpline.h"
+#include "../ui.h"
+#include "../util.h"
+#include "../libslang.h"
+#include "../keysyms.h"
 
 pthread_mutex_t ui__lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -93,45 +93,26 @@ static void newt_suspend(void *d __used)
 	newtResume();
 }
 
-static int ui__init(void)
-{
-	int err = SLkp_init();
-
-	if (err < 0)
-		goto out;
-
-	SLkp_define_keysym((char *)"^(kB)", SL_KEY_UNTAB);
-out:
-	return err;
-}
-
-static void ui__exit(void)
-{
-	SLtt_set_cursor_visibility(1);
-	SLsmg_refresh();
-	SLsmg_reset_smg();
-	SLang_reset_tty();
-}
-
 static void ui__signal(int sig)
 {
-	ui__exit();
+	ui__exit(false);
 	psignal(sig, "perf");
 	exit(0);
 }
 
-void setup_browser(bool fallback_to_pager)
+int ui__init(void)
 {
-	if (!isatty(1) || !use_browser || dump_trace) {
-		use_browser = 0;
-		if (fallback_to_pager)
-			setup_pager();
-		return;
+	int err;
+
+	newtInit();
+	err = SLkp_init();
+	if (err < 0) {
+		pr_err("TUI initialization failed.\n");
+		goto out;
 	}
 
-	use_browser = 1;
-	newtInit();
-	ui__init();
+	SLkp_define_keysym((char *)"^(kB)", SL_KEY_UNTAB);
+
 	newtSetSuspendCallback(newt_suspend, NULL);
 	ui_helpline__init();
 	ui_browser__init();
@@ -141,15 +122,19 @@ void setup_browser(bool fallback_to_pager)
 	signal(SIGINT, ui__signal);
 	signal(SIGQUIT, ui__signal);
 	signal(SIGTERM, ui__signal);
+out:
+	return err;
 }
 
-void exit_browser(bool wait_for_ok)
+void ui__exit(bool wait_for_ok)
 {
-	if (use_browser > 0) {
-		if (wait_for_ok)
-			ui__question_window("Fatal Error",
-					    ui_helpline__last_msg,
-					    "Press any key...", 0);
-		ui__exit();
-	}
+	if (wait_for_ok)
+		ui__question_window("Fatal Error",
+				    ui_helpline__last_msg,
+				    "Press any key...", 0);
+
+	SLtt_set_cursor_visibility(1);
+	SLsmg_refresh();
+	SLsmg_reset_smg();
+	SLang_reset_tty();
 }
