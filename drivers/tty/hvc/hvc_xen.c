@@ -219,7 +219,8 @@ static int xen_hvm_console_init(void)
 	if (r < 0)
 		goto err;
 	info->evtchn = v;
-	hvm_get_parameter(HVM_PARAM_CONSOLE_PFN, &v);
+	v = 0;
+	r = hvm_get_parameter(HVM_PARAM_CONSOLE_PFN, &v);
 	if (r < 0)
 		goto err;
 	mfn = v;
