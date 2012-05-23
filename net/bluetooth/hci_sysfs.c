@@ -220,8 +220,8 @@ static ssize_t show_class(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
 	struct hci_dev *hdev = to_hci_dev(dev);
-	return sprintf(buf, "0x%.2x%.2x%.2x\n",
-		       hdev->dev_class[2], hdev->dev_class[1], hdev->dev_class[0]);
+	return sprintf(buf, "0x%.2x%.2x%.2x\n", hdev->dev_class[2],
+		       hdev->dev_class[1], hdev->dev_class[0]);
 }
 
 static ssize_t show_address(struct device *dev,

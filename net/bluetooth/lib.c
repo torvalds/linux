@@ -31,7 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 
 #include <net/bluetooth/bluetooth.h>
 

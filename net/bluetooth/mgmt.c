@@ -714,7 +714,8 @@ static struct pending_cmd *mgmt_pending_add(struct sock *sk, u16 opcode,
 }
 
 static void mgmt_pending_foreach(u16 opcode, struct hci_dev *hdev,
-				 void (*cb)(struct pending_cmd *cmd, void *data),
+				 void (*cb)(struct pending_cmd *cmd,
+					    void *data),
 				 void *data)
 {
 	struct list_head *p, *n;
@@ -1594,7 +1595,8 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	if (cp->addr.type == BDADDR_BREDR)
-		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->addr.bdaddr);
+		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK,
+					       &cp->addr.bdaddr);
 	else
 		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &cp->addr.bdaddr);
 
@@ -3226,7 +3228,8 @@ int mgmt_user_confirm_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 					 u8 link_type, u8 addr_type, u8 status)
 {
 	return user_pairing_resp_complete(hdev, bdaddr, link_type, addr_type,
-					  status, MGMT_OP_USER_CONFIRM_NEG_REPLY);
+					  status,
+					  MGMT_OP_USER_CONFIRM_NEG_REPLY);
 }
 
 int mgmt_user_passkey_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
@@ -3240,7 +3243,8 @@ int mgmt_user_passkey_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 					 u8 link_type, u8 addr_type, u8 status)
 {
 	return user_pairing_resp_complete(hdev, bdaddr, link_type, addr_type,
-					  status, MGMT_OP_USER_PASSKEY_NEG_REPLY);
+					  status,
+					  MGMT_OP_USER_PASSKEY_NEG_REPLY);
 }
 
 int mgmt_auth_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,

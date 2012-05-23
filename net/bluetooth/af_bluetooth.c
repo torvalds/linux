@@ -418,7 +418,8 @@ static inline unsigned int bt_accept_poll(struct sock *parent)
 	return 0;
 }
 
-unsigned int bt_sock_poll(struct file *file, struct socket *sock, poll_table *wait)
+unsigned int bt_sock_poll(struct file *file, struct socket *sock,
+			  poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	unsigned int mask = 0;

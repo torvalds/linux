@@ -453,7 +453,8 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 	read_lock(&hci_dev_list_lock);
 
 	list_for_each_entry(d, &hci_dev_list, list) {
-		if (!test_bit(HCI_UP, &d->flags) || test_bit(HCI_RAW, &d->flags))
+		if (!test_bit(HCI_UP, &d->flags) ||
+		    test_bit(HCI_RAW, &d->flags))
 			continue;
 
 		/* Simple routing:

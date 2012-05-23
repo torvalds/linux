@@ -241,7 +241,8 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 			struct hci_mon_hdr *hdr;
 
 			/* Create a private copy with headroom */
-			skb_copy = __pskb_copy(skb, HCI_MON_HDR_SIZE, GFP_ATOMIC);
+			skb_copy = __pskb_copy(skb, HCI_MON_HDR_SIZE,
+					       GFP_ATOMIC);
 			if (!skb_copy)
 				continue;
 
@@ -542,7 +543,8 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 	}
 }
 
-static int hci_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
+			  unsigned long arg)
 {
 	struct sock *sk = sock->sk;
 	void __user *argp = (void __user *) arg;
@@ -603,7 +605,8 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long a
 	}
 }
 
-static int hci_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
+static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
+			 int addr_len)
 {
 	struct sockaddr_hci haddr;
 	struct sock *sk = sock->sk;
@@ -692,7 +695,8 @@ done:
 	return err;
 }
 
-static int hci_sock_getname(struct socket *sock, struct sockaddr *addr, int *addr_len, int peer)
+static int hci_sock_getname(struct socket *sock, struct sockaddr *addr,
+			    int *addr_len, int peer)
 {
 	struct sockaddr_hci *haddr = (struct sockaddr_hci *) addr;
 	struct sock *sk = sock->sk;
@@ -720,7 +724,8 @@ static void hci_sock_cmsg(struct sock *sk, struct msghdr *msg,
 
 	if (mask & HCI_CMSG_DIR) {
 		int incoming = bt_cb(skb)->incoming;
-		put_cmsg(msg, SOL_HCI, HCI_CMSG_DIR, sizeof(incoming), &incoming);
+		put_cmsg(msg, SOL_HCI, HCI_CMSG_DIR, sizeof(incoming),
+			 &incoming);
 	}
 
 	if (mask & HCI_CMSG_TSTAMP) {
@@ -895,7 +900,8 @@ drop:
 	goto done;
 }
 
-static int hci_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int len)
+static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
+			       char __user *optval, unsigned int len)
 {
 	struct hci_ufilter uf = { .opcode = 0 };
 	struct sock *sk = sock->sk;
@@ -977,7 +983,8 @@ done:
 	return err;
 }
 
-static int hci_sock_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen)
+static int hci_sock_getsockopt(struct socket *sock, int level, int optname,
+			       char __user *optval, int __user *optlen)
 {
 	struct hci_ufilter uf;
 	struct sock *sk = sock->sk;

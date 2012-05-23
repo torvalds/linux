@@ -622,7 +622,9 @@ int hci_inquiry(void __user *arg)
 			goto done;
 	}
 
-	/* for unlimited number of responses we will use buffer with 255 entries */
+	/* for unlimited number of responses we will use buffer with
+	 * 255 entries
+	 */
 	max_rsp = (ir.num_rsp == 0) ? 255 : ir.num_rsp;
 
 	/* cache_dump can't sleep. Therefore we allocate temp buffer and then
@@ -2610,7 +2612,8 @@ static void hci_sched_esco(struct hci_dev *hdev)
 	if (!hci_conn_num(hdev, ESCO_LINK))
 		return;
 
-	while (hdev->sco_cnt && (conn = hci_low_sent(hdev, ESCO_LINK, &quote))) {
+	while (hdev->sco_cnt && (conn = hci_low_sent(hdev, ESCO_LINK,
+						     &quote))) {
 		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
 			BT_DBG("skb %p len %d", skb, skb->len);
 			hci_send_frame(skb);
