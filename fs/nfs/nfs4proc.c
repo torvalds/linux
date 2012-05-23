@@ -5603,53 +5603,78 @@ int nfs4_proc_destroy_session(struct nfs4_session *session)
 	return status;
 }
 
+/*
+ * With sessions, the client is not marked ready until after a
+ * successful EXCHANGE_ID and CREATE_SESSION.
+ *
+ * Map errors cl_cons_state errors to EPROTONOSUPPORT to indicate
+ * other versions of NFS can be tried.
+ */
+static int nfs41_check_session_ready(struct nfs_client *clp)
+{
+	int ret;
+	
+	if (clp->cl_cons_state == NFS_CS_SESSION_INITING) {
+		ret = nfs4_client_recover_expired_lease(clp);
+		if (ret)
+			return ret;
+	}
+	if (clp->cl_cons_state < NFS_CS_READY)
+		return -EPROTONOSUPPORT;
+	return 0;
+}
+
 int nfs4_init_session(struct nfs_server *server)
 {
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs4_session *session;
 	unsigned int rsize, wsize;
-	int ret;
 
 	if (!nfs4_has_session(clp))
 		return 0;
 
 	session = clp->cl_session;
-	if (!test_and_clear_bit(NFS4_SESSION_INITING, &session->session_state))
-		return 0;
+	spin_lock(&clp->cl_lock);
+	if (test_and_clear_bit(NFS4_SESSION_INITING, &session->session_state)) {
 
-	rsize = server->rsize;
-	if (rsize == 0)
-		rsize = NFS_MAX_FILE_IO_SIZE;
-	wsize = server->wsize;
-	if (wsize == 0)
-		wsize = NFS_MAX_FILE_IO_SIZE;
+		rsize = server->rsize;
+		if (rsize == 0)
+			rsize = NFS_MAX_FILE_IO_SIZE;
+		wsize = server->wsize;
+		if (wsize == 0)
+			wsize = NFS_MAX_FILE_IO_SIZE;
 
-	session->fc_attrs.max_rqst_sz = wsize + nfs41_maxwrite_overhead;
-	session->fc_attrs.max_resp_sz = rsize + nfs41_maxread_overhead;
+		session->fc_attrs.max_rqst_sz = wsize + nfs41_maxwrite_overhead;
+		session->fc_attrs.max_resp_sz = rsize + nfs41_maxread_overhead;
+	}
+	spin_unlock(&clp->cl_lock);
 
-	ret = nfs4_recover_expired_lease(server);
-	if (!ret)
-		ret = nfs4_check_client_ready(clp);
-	return ret;
+	return nfs41_check_session_ready(clp);
 }
 
-int nfs4_init_ds_session(struct nfs_client *clp)
+int nfs4_init_ds_session(struct nfs_client *clp, unsigned long lease_time)
 {
 	struct nfs4_session *session = clp->cl_session;
 	int ret;
 
-	if (!test_and_clear_bit(NFS4_SESSION_INITING, &session->session_state))
-		return 0;
+	spin_lock(&clp->cl_lock);
+	if (test_and_clear_bit(NFS4_SESSION_INITING, &session->session_state)) {
+		/*
+		 * Do not set NFS_CS_CHECK_LEASE_TIME instead set the
+		 * DS lease to be equal to the MDS lease.
+		 */
+		clp->cl_lease_time = lease_time;
+		clp->cl_last_renewal = jiffies;
+	}
+	spin_unlock(&clp->cl_lock);
 
-	ret = nfs4_client_recover_expired_lease(clp);
-	if (!ret)
-		/* Test for the DS role */
-		if (!is_ds_client(clp))
-			ret = -ENODEV;
-	if (!ret)
-		ret = nfs4_check_client_ready(clp);
-	return ret;
-
+	ret = nfs41_check_session_ready(clp);
+	if (ret)
+		return ret;
+	/* Test for the DS role */
+	if (!is_ds_client(clp))
+		return -ENODEV;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nfs4_init_ds_session);
 

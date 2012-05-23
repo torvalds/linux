@@ -592,22 +592,6 @@ void nfs_mark_client_ready(struct nfs_client *clp, int state)
 }
 
 /*
- * With sessions, the client is not marked ready until after a
- * successful EXCHANGE_ID and CREATE_SESSION.
- *
- * Map errors cl_cons_state errors to EPROTONOSUPPORT to indicate
- * other versions of NFS can be tried.
- */
-int nfs4_check_client_ready(struct nfs_client *clp)
-{
-	if (!nfs4_has_session(clp))
-		return 0;
-	if (clp->cl_cons_state < NFS_CS_READY)
-		return -EPROTONOSUPPORT;
-	return 0;
-}
-
-/*
  * Initialise the timeout values for a connection
  */
 static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
