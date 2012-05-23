@@ -7,7 +7,7 @@ choice
 	help
 	  The Freescale (was Motorola) M68K family of processors implements
 	  the full 68000 processor instruction set.
-	  The Freescale ColdFire family of processors is a modern derivitive
+	  The Freescale ColdFire family of processors is a modern derivative
 	  of the 68000 processor family. They are mainly targeted at embedded
 	  applications, and are all System-On-Chip (SOC) devices, as opposed
 	  to stand alone CPUs. They implement a subset of the original 68000

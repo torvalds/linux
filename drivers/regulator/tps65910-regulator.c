@@ -31,54 +31,54 @@
 			TPS65910_SLEEP_CONTROL_EXT_INPUT_EN3 |		\
 			TPS65911_SLEEP_CONTROL_EXT_INPUT_SLEEP)
 
-/* supported VIO voltages in milivolts */
+/* supported VIO voltages in millivolts */
 static const u16 VIO_VSEL_table[] = {
 	1500, 1800, 2500, 3300,
 };
 
 /* VSEL tables for TPS65910 specific LDOs and dcdc's */
 
-/* supported VDD3 voltages in milivolts */
+/* supported VDD3 voltages in millivolts */
 static const u16 VDD3_VSEL_table[] = {
 	5000,
 };
 
-/* supported VDIG1 voltages in milivolts */
+/* supported VDIG1 voltages in millivolts */
 static const u16 VDIG1_VSEL_table[] = {
 	1200, 1500, 1800, 2700,
 };
 
-/* supported VDIG2 voltages in milivolts */
+/* supported VDIG2 voltages in millivolts */
 static const u16 VDIG2_VSEL_table[] = {
 	1000, 1100, 1200, 1800,
 };
 
-/* supported VPLL voltages in milivolts */
+/* supported VPLL voltages in millivolts */
 static const u16 VPLL_VSEL_table[] = {
 	1000, 1100, 1800, 2500,
 };
 
-/* supported VDAC voltages in milivolts */
+/* supported VDAC voltages in millivolts */
 static const u16 VDAC_VSEL_table[] = {
 	1800, 2600, 2800, 2850,
 };
 
-/* supported VAUX1 voltages in milivolts */
+/* supported VAUX1 voltages in millivolts */
 static const u16 VAUX1_VSEL_table[] = {
 	1800, 2500, 2800, 2850,
 };
 
-/* supported VAUX2 voltages in milivolts */
+/* supported VAUX2 voltages in millivolts */
 static const u16 VAUX2_VSEL_table[] = {
 	1800, 2800, 2900, 3300,
 };
 
-/* supported VAUX33 voltages in milivolts */
+/* supported VAUX33 voltages in millivolts */
 static const u16 VAUX33_VSEL_table[] = {
 	1800, 2000, 2800, 3300,
 };
 
-/* supported VMMC voltages in milivolts */
+/* supported VMMC voltages in millivolts */
 static const u16 VMMC_VSEL_table[] = {
 	1800, 2800, 3000, 3300,
 };

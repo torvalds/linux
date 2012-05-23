@@ -1,5 +1,5 @@
 /*
- * Authors:	Oskar Schirmer <os@emlix.com>
+ * Authors:	Oskar Schirmer <oskar@scara.com>
  *		Daniel Gloeckner <dg@emlix.com>
  * (c) 2008 emlix GmbH http://www.emlix.com
  *

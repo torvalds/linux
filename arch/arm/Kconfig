@@ -1914,10 +1914,10 @@ choice
 	default ZBOOT_ROM_NONE
 	help
 	  Include experimental SD/MMC loading code in the ROM-able zImage.
-	  With this enabled it is possible to write the the ROM-able zImage
+	  With this enabled it is possible to write the ROM-able zImage
 	  kernel image to an MMC or SD card and boot the kernel straight
 	  from the reset vector. At reset the processor Mask ROM will load
-	  the first part of the the ROM-able zImage which in turn loads the
+	  the first part of the ROM-able zImage which in turn loads the
 	  rest the kernel image to RAM.
 
 config ZBOOT_ROM_NONE

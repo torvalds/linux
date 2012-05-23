@@ -7,7 +7,7 @@
  *	Copyright (C) 2000, Lineo (www.lineo.com)
  *	Yaroslav Vinogradov yaroslav.vinogradov@freescale.com
  *	Copyright Freescale Semiconductor, Inc 2006
- *	Copyright (c) 2006, emlix, Sebastian Hess <sh@emlix.com>
+ *	Copyright (c) 2006, emlix, Sebastian Hess <shess@hessware.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

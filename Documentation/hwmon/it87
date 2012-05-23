@@ -63,7 +63,7 @@ Module Parameters
 Hardware Interfaces
 -------------------
 
-All the chips suported by this driver are LPC Super-I/O chips, accessed
+All the chips supported by this driver are LPC Super-I/O chips, accessed
 through the LPC bus (ISA-like I/O ports). The IT8712F additionally has an
 SMBus interface to the hardware monitoring functions. This driver no
 longer supports this interface though, as it is slower and less reliable

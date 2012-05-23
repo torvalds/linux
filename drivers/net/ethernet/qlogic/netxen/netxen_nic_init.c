@@ -1260,8 +1260,7 @@ next:
 void
 netxen_release_firmware(struct netxen_adapter *adapter)
 {
-	if (adapter->fw)
-		release_firmware(adapter->fw);
+	release_firmware(adapter->fw);
 	adapter->fw = NULL;
 }
 

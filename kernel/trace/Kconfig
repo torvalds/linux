@@ -271,7 +271,7 @@ config PROFILE_ANNOTATED_BRANCHES
 	bool "Trace likely/unlikely profiler"
 	select TRACE_BRANCH_PROFILING
 	help
-	  This tracer profiles all the the likely and unlikely macros
+	  This tracer profiles all likely and unlikely macros
 	  in the kernel. It will display the results in:
 
 	  /sys/kernel/debug/tracing/trace_stat/branch_annotated

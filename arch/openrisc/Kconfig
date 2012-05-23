@@ -142,7 +142,7 @@ config DEBUG_STACKOVERFLOW
 	bool "Check for kernel stack overflow"
 	default y
 	help
-	  Make extra checks for space avaliable on stack in some
+	  Make extra checks for space available on stack in some
           critical functions. This will cause kernel to run a bit slower,
 	  but will catch most of kernel stack overruns and exit gracefuly.
 

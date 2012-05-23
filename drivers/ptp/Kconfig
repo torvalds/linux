@@ -70,7 +70,7 @@ config DP83640_PHY
 	  using the SO_TIMESTAMPING API.
 
 	  In order for this to work, your MAC driver must also
-	  implement the skb_tx_timetamp() function.
+	  implement the skb_tx_timestamp() function.
 
 config PTP_1588_CLOCK_PCH
 	tristate "Intel PCH EG20T as PTP clock"

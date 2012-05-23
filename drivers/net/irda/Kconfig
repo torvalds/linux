@@ -316,7 +316,7 @@ config AU1000_FIR
 	tristate "Alchemy IrDA SIR/FIR"
 	depends on IRDA && MIPS_ALCHEMY
 	help
-	  Say Y/M here to build suppor the the IrDA peripheral on the
+	  Say Y/M here to build support the IrDA peripheral on the
 	  Alchemy Au1000 and Au1100 SoCs.
 	  Say M to build a module; it will be called au1k_ir.ko
 

@@ -383,7 +383,7 @@ static void doc_set_device_id(struct docg3 *docg3, int id)
  * leveling counters are stored.  To access this last area of 4 bytes, a special
  * mode must be input to the flash ASIC.
  *
- * Returns 0 if no error occured, -EIO else.
+ * Returns 0 if no error occurred, -EIO else.
  */
 static int doc_set_extra_page_mode(struct docg3 *docg3)
 {
@@ -681,7 +681,7 @@ out:
  *  - one read of 512 bytes at offset 0
  *  - one read of 512 bytes at offset 512 + 16
  *
- * Returns 0 if successful, -EIO if a read error occured.
+ * Returns 0 if successful, -EIO if a read error occurred.
  */
 static int doc_read_page_prepare(struct docg3 *docg3, int block0, int block1,
 				 int page, int offset)
@@ -839,7 +839,7 @@ static void calc_block_sector(loff_t from, int *block0, int *block1, int *page,
  *
  * Reads flash memory OOB area of pages.
  *
- * Returns 0 if read successfull, of -EIO, -EINVAL if an error occured
+ * Returns 0 if read successful, of -EIO, -EINVAL if an error occurred
  */
 static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 			struct mtd_oob_ops *ops)
@@ -971,7 +971,7 @@ err_in_read:
  * Reads flash memory pages. This function does not read the OOB chunk, but only
  * the page data.
  *
- * Returns 0 if read successfull, of -EIO, -EINVAL if an error occured
+ * Returns 0 if read successful, of -EIO, -EINVAL if an error occurred
  */
 static int doc_read(struct mtd_info *mtd, loff_t from, size_t len,
 	     size_t *retlen, u_char *buf)
@@ -1109,7 +1109,7 @@ static int doc_get_op_status(struct docg3 *docg3)
  * Wait for the chip to be ready again after erase or write operation, and check
  * erase/write status.
  *
- * Returns 0 if erase successfull, -EIO if erase/write issue, -ETIMEOUT if
+ * Returns 0 if erase successful, -EIO if erase/write issue, -ETIMEOUT if
  * timeout
  */
 static int doc_write_erase_wait_status(struct docg3 *docg3)
@@ -1186,7 +1186,7 @@ static int doc_erase_block(struct docg3 *docg3, int block0, int block1)
  * Erase a bunch of contiguous blocks, by pairs, as a "mtd" page of 1024 is
  * split into 2 pages of 512 bytes on 2 contiguous blocks.
  *
- * Returns 0 if erase successful, -EINVAL if adressing error, -EIO if erase
+ * Returns 0 if erase successful, -EINVAL if addressing error, -EIO if erase
  * issue
  */
 static int doc_erase(struct mtd_info *mtd, struct erase_info *info)
@@ -1397,7 +1397,7 @@ static int doc_backup_oob(struct docg3 *docg3, loff_t to,
  * Or provide data without OOB, and then a all zeroed OOB will be used (ECC will
  * still be filled in if asked for).
  *
- * Returns 0 is successfull, EINVAL if length is not 14 bytes
+ * Returns 0 is successful, EINVAL if length is not 14 bytes
  */
 static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 			 struct mtd_oob_ops *ops)
@@ -1945,7 +1945,7 @@ static void doc_release_device(struct mtd_info *mtd)
  * docg3_resume - Awakens docg3 floor
  * @pdev: platfrom device
  *
- * Returns 0 (always successfull)
+ * Returns 0 (always successful)
  */
 static int docg3_resume(struct platform_device *pdev)
 {

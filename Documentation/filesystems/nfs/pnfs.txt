@@ -93,7 +93,7 @@ The API to the login script is as follows:
 				(allways exists)
 				(More protocols can be defined in the future.
 				 The client does not interpret this string it is
-				 passed unchanged as recieved from the Server)
+				 passed unchanged as received from the Server)
 		-o		osdname of the requested target OSD
 				(Might be empty)
 				(A string which denotes the OSD name, there is a

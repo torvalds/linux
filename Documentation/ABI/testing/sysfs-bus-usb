@@ -204,7 +204,7 @@ Contact:	Matthew Garrett <mjg@redhat.com>
 Description:
 		Some information about whether a given USB device is
 		physically fixed to the platform can be inferred from a
-		combination of hub decriptor bits and platform-specific data
+		combination of hub descriptor bits and platform-specific data
 		such as ACPI. This file will read either "removable" or
 		"fixed" if the information is available, and "unknown"
 		otherwise.

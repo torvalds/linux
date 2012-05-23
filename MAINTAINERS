@@ -2912,7 +2912,7 @@ S:	Maintained
 F:	arch/frv/
 
 FUJITSU LAPTOP EXTRAS
-M:	Jonathan Woithe <jwoithe@physics.adelaide.edu.au>
+M:	Jonathan Woithe <jwoithe@just42.net>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/fujitsu-laptop.c

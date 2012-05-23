@@ -351,7 +351,7 @@ config I2C_DAVINCI
 	  For details please see http://www.ti.com/davinci
 
 config I2C_DESIGNWARE_PLATFORM
-	tristate "Synopsys DesignWare Platfrom"
+	tristate "Synopsys DesignWare Platform"
 	depends on HAVE_CLK
 	help
 	  If you say yes to this option, support will be included for the

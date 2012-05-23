@@ -1105,8 +1105,7 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 		goto out;
 
 out:
-	if (fw)
-		release_firmware(fw);
+	release_firmware(fw);
 	/* allow rproc_unregister() contexts, if any, to proceed */
 	complete_all(&rproc->firmware_loading_complete);
 }

@@ -1309,7 +1309,7 @@ config PM_BFIN_WAKE_GP
 	  (all processors, except ADSP-BF549). This option sets
 	  the general-purpose wake-up enable (GPWE) control bit to enable
 	  wake-up upon detection of an active low signal on the /GPW (PH7) pin.
-	  On ADSP-BF549 this option enables the the same functionality on the
+	  On ADSP-BF549 this option enables the same functionality on the
 	  /MRXON pin also PH7.
 
 config PM_BFIN_WAKE_PA15

@@ -470,7 +470,7 @@ config HID_PICOLCD_FB
 	select FB_SYS_FOPS
 	---help---
 	  Provide access to PicoLCD's 256x64 monochrome display via a
-	  frambuffer device.
+	  framebuffer device.
 
 config HID_PICOLCD_BACKLIGHT
 	bool "Backlight control" if EXPERT

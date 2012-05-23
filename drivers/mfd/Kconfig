@@ -417,7 +417,7 @@ config MFD_MAX8925
 	select MFD_CORE
 	help
 	  Say yes here to support for Maxim Semiconductor MAX8925. This is
-	  a Power Management IC. This driver provies common support for
+	  a Power Management IC. This driver provides common support for
 	  accessing the device, additional drivers must be enabled in order
 	  to use the functionality of the device.
 
@@ -440,7 +440,7 @@ config MFD_MAX8998
 	help
 	  Say yes here to support for Maxim Semiconductor MAX8998 and
 	  National Semiconductor LP3974. This is a Power Management IC.
-	  This driver provies common support for accessing the device,
+	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
@@ -451,7 +451,7 @@ config MFD_S5M_CORE
 	select REGMAP_I2C
 	help
 	 Support for the Samsung Electronics S5M MFD series.
-	 This driver provies common support for accessing the device,
+	 This driver provides common support for accessing the device,
 	 additional drivers must be enabled in order to use the functionality
 	 of the device
 
