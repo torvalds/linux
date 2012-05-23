@@ -45,6 +45,20 @@
 #define VIBRACTRL_MEMBER(reg) ((reg == TWL6040_REG_VIBCTLL) ? 0 : 1)
 #define TWL6040_NUM_SUPPLIES	(2)
 
+static bool twl6040_has_vibra(struct twl6040_platform_data *pdata,
+			      struct device_node *node)
+{
+	if (pdata && pdata->vibra)
+		return true;
+
+#ifdef CONFIG_OF
+	if (of_find_node_by_name(node, "vibra"))
+		return true;
+#endif
+
+	return false;
+}
+
 int twl6040_reg_read(struct twl6040 *twl6040, unsigned int reg)
 {
 	int ret;
@@ -617,7 +631,7 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 	}
 	children++;
 
-	if ((pdata && pdata->vibra) || of_find_node_by_name(node, "vibra")) {
+	if (twl6040_has_vibra(pdata, node)) {
 		irq = twl6040->irq_base + TWL6040_IRQ_VIB;
 
 		cell = &twl6040->cells[children];
