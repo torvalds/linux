@@ -1116,3 +1116,4 @@ atdgp318		MACH_ATDGP318		ATDGP318		3494
 sun4i                   MACH_SUN4I              SUN4I                   3495
 sun5i                   MACH_SUN5I              SUN5I                   3496
 sun6i                   MACH_SUN6I              SUN6I                   3497
+sun3i                   MACH_SUN3I              SUN3I                   3498
