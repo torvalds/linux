@@ -234,13 +234,15 @@ int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
  * USB
  */
 int dvb_usbv2_device_init(struct usb_interface *intf,
-			struct dvb_usb_device_properties *props,
+			const struct usb_device_id *id,
 			struct module *owner,
 			short *adapter_nums)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct dvb_usb_device *d = NULL;
 	struct dvb_usb_device_description *desc = NULL;
+	struct dvb_usb_device_properties *props =
+			(struct dvb_usb_device_properties *) id->driver_info;
 
 	int ret = -ENOMEM, cold = 0;
 

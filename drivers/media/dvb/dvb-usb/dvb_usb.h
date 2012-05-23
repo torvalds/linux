@@ -461,7 +461,7 @@ struct dvb_usb_device {
 };
 
 extern int dvb_usbv2_device_init(struct usb_interface *,
-			       struct dvb_usb_device_properties *,
+				const struct usb_device_id *,
 			       struct module *,
 			       short *adapter_nums);
 extern void dvb_usbv2_device_exit(struct usb_interface *);
