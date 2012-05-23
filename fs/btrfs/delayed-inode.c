@@ -669,8 +669,8 @@ static int btrfs_delayed_inode_reserve_metadata(
 		return ret;
 	} else if (src_rsv == &root->fs_info->delalloc_block_rsv) {
 		spin_lock(&BTRFS_I(inode)->lock);
-		if (BTRFS_I(inode)->delalloc_meta_reserved) {
-			BTRFS_I(inode)->delalloc_meta_reserved = 0;
+		if (test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
+				       &BTRFS_I(inode)->runtime_flags)) {
 			spin_unlock(&BTRFS_I(inode)->lock);
 			release = true;
 			goto migrate;

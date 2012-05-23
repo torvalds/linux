@@ -4355,10 +4355,9 @@ static unsigned drop_outstanding_extent(struct inode *inode)
 	BTRFS_I(inode)->outstanding_extents--;
 
 	if (BTRFS_I(inode)->outstanding_extents == 0 &&
-	    BTRFS_I(inode)->delalloc_meta_reserved) {
+	    test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
+			       &BTRFS_I(inode)->runtime_flags))
 		drop_inode_space = 1;
-		BTRFS_I(inode)->delalloc_meta_reserved = 0;
-	}
 
 	/*
 	 * If we have more or the same amount of outsanding extents than we have
@@ -4465,7 +4464,8 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	 * Add an item to reserve for updating the inode when we complete the
 	 * delalloc io.
 	 */
-	if (!BTRFS_I(inode)->delalloc_meta_reserved) {
+	if (!test_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
+		      &BTRFS_I(inode)->runtime_flags)) {
 		nr_extents++;
 		extra_reserve = 1;
 	}
@@ -4511,7 +4511,8 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 	spin_lock(&BTRFS_I(inode)->lock);
 	if (extra_reserve) {
-		BTRFS_I(inode)->delalloc_meta_reserved = 1;
+		set_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
+			&BTRFS_I(inode)->runtime_flags);
 		nr_extents--;
 	}
 	BTRFS_I(inode)->reserved_extents += nr_extents;

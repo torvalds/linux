@@ -24,6 +24,19 @@
 #include "ordered-data.h"
 #include "delayed-inode.h"
 
+/*
+ * ordered_data_close is set by truncate when a file that used
+ * to have good data has been truncated to zero.  When it is set
+ * the btrfs file release call will add this inode to the
+ * ordered operations list so that we make sure to flush out any
+ * new data the application may have written before commit.
+ */
+#define BTRFS_INODE_ORDERED_DATA_CLOSE		0
+#define BTRFS_INODE_ORPHAN_META_RESERVED	1
+#define BTRFS_INODE_DUMMY			2
+#define BTRFS_INODE_IN_DEFRAG			3
+#define BTRFS_INODE_DELALLOC_META_RESERVED	4
+
 /* in memory btrfs inode */
 struct btrfs_inode {
 	/* which subvolume this inode belongs to */
@@ -77,6 +90,8 @@ struct btrfs_inode {
 
 	/* the space_info for where this inode's data allocations are done */
 	struct btrfs_space_info *space_info;
+
+	unsigned long runtime_flags;
 
 	/* full 64 bit generation number, struct vfs_inode doesn't have a big
 	 * enough field for this.
@@ -142,22 +157,9 @@ struct btrfs_inode {
 	unsigned reserved_extents;
 
 	/*
-	 * ordered_data_close is set by truncate when a file that used
-	 * to have good data has been truncated to zero.  When it is set
-	 * the btrfs file release call will add this inode to the
-	 * ordered operations list so that we make sure to flush out any
-	 * new data the application may have written before commit.
-	 */
-	unsigned ordered_data_close:1;
-	unsigned orphan_meta_reserved:1;
-	unsigned dummy_inode:1;
-	unsigned in_defrag:1;
-	unsigned delalloc_meta_reserved:1;
-
-	/*
 	 * always compress this one file
 	 */
-	unsigned force_compress:4;
+	unsigned force_compress;
 
 	struct btrfs_delayed_node *delayed_node;
 

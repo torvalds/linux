@@ -2001,7 +2001,8 @@ int open_ctree(struct super_block *sb,
 	BTRFS_I(fs_info->btree_inode)->root = tree_root;
 	memset(&BTRFS_I(fs_info->btree_inode)->location, 0,
 	       sizeof(struct btrfs_key));
-	BTRFS_I(fs_info->btree_inode)->dummy_inode = 1;
+	set_bit(BTRFS_INODE_DUMMY,
+		&BTRFS_I(fs_info->btree_inode)->runtime_flags);
 	insert_inode_hash(fs_info->btree_inode);
 
 	spin_lock_init(&fs_info->block_group_cache_lock);

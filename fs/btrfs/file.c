@@ -103,7 +103,7 @@ static void __btrfs_add_inode_defrag(struct inode *inode,
 			goto exists;
 		}
 	}
-	BTRFS_I(inode)->in_defrag = 1;
+	set_bit(BTRFS_INODE_IN_DEFRAG, &BTRFS_I(inode)->runtime_flags);
 	rb_link_node(&defrag->rb_node, parent, p);
 	rb_insert_color(&defrag->rb_node, &root->fs_info->defrag_inodes);
 	return;
@@ -131,7 +131,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	if (btrfs_fs_closing(root->fs_info))
 		return 0;
 
-	if (BTRFS_I(inode)->in_defrag)
+	if (test_bit(BTRFS_INODE_IN_DEFRAG, &BTRFS_I(inode)->runtime_flags))
 		return 0;
 
 	if (trans)
@@ -148,7 +148,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	defrag->root = root->root_key.objectid;
 
 	spin_lock(&root->fs_info->defrag_inodes_lock);
-	if (!BTRFS_I(inode)->in_defrag)
+	if (!test_bit(BTRFS_INODE_IN_DEFRAG, &BTRFS_I(inode)->runtime_flags))
 		__btrfs_add_inode_defrag(inode, defrag);
 	else
 		kfree(defrag);
@@ -252,7 +252,7 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 			goto next;
 
 		/* do a chunk of defrag */
-		BTRFS_I(inode)->in_defrag = 0;
+		clear_bit(BTRFS_INODE_IN_DEFRAG, &BTRFS_I(inode)->runtime_flags);
 		range.start = defrag->last_offset;
 		num_defrag = btrfs_defrag_file(inode, NULL, &range, defrag->transid,
 					       defrag_batch);
@@ -1465,8 +1465,8 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
 	 * flush down new bytes that may have been written if the
 	 * application were using truncate to replace a file in place.
 	 */
-	if (BTRFS_I(inode)->ordered_data_close) {
-		BTRFS_I(inode)->ordered_data_close = 0;
+	if (test_and_clear_bit(BTRFS_INODE_ORDERED_DATA_CLOSE,
+			       &BTRFS_I(inode)->runtime_flags)) {
 		btrfs_add_ordered_operation(NULL, BTRFS_I(inode)->root, inode);
 		if (inode->i_size > BTRFS_ORDERED_OPERATIONS_FLUSH_LIMIT)
 			filemap_flush(inode->i_mapping);
