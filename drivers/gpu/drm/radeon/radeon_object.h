@@ -111,9 +111,10 @@ extern int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type,
 			  bool no_wait);
 
 extern int radeon_bo_create(struct radeon_device *rdev,
-				unsigned long size, int byte_align,
-				bool kernel, u32 domain,
-				struct radeon_bo **bo_ptr);
+			    unsigned long size, int byte_align,
+			    bool kernel, u32 domain,
+			    struct sg_table *sg,
+			    struct radeon_bo **bo_ptr);
 extern int radeon_bo_kmap(struct radeon_bo *bo, void **ptr);
 extern void radeon_bo_kunmap(struct radeon_bo *bo);
 extern void radeon_bo_unref(struct radeon_bo **bo);

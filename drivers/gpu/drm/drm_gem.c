@@ -201,6 +201,19 @@ free:
 }
 EXPORT_SYMBOL(drm_gem_object_alloc);
 
+static void
+drm_gem_remove_prime_handles(struct drm_gem_object *obj, struct drm_file *filp)
+{
+	if (obj->import_attach) {
+		drm_prime_remove_imported_buf_handle(&filp->prime,
+				obj->import_attach->dmabuf);
+	}
+	if (obj->export_dma_buf) {
+		drm_prime_remove_imported_buf_handle(&filp->prime,
+				obj->export_dma_buf);
+	}
+}
+
 /**
  * Removes the mapping from handle to filp for this object.
  */
@@ -233,9 +246,7 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 	idr_remove(&filp->object_idr, handle);
 	spin_unlock(&filp->table_lock);
 
-	if (obj->import_attach)
-		drm_prime_remove_imported_buf_handle(&filp->prime,
-				obj->import_attach->dmabuf);
+	drm_gem_remove_prime_handles(obj, filp);
 
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, filp);
@@ -530,9 +541,7 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 	struct drm_gem_object *obj = ptr;
 	struct drm_device *dev = obj->dev;
 
-	if (obj->import_attach)
-		drm_prime_remove_imported_buf_handle(&file_priv->prime,
-				obj->import_attach->dmabuf);
+	drm_gem_remove_prime_handles(obj, file_priv);
 
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, file_priv);

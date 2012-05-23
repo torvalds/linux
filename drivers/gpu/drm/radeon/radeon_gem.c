@@ -42,6 +42,8 @@ void radeon_gem_object_free(struct drm_gem_object *gobj)
 	struct radeon_bo *robj = gem_to_radeon_bo(gobj);
 
 	if (robj) {
+		if (robj->gem_base.import_attach)
+			drm_prime_gem_destroy(&robj->gem_base, robj->tbo.sg);
 		radeon_bo_unref(&robj);
 	}
 }
@@ -59,7 +61,7 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 	if (alignment < PAGE_SIZE) {
 		alignment = PAGE_SIZE;
 	}
-	r = radeon_bo_create(rdev, size, alignment, kernel, initial_domain, &robj);
+	r = radeon_bo_create(rdev, size, alignment, kernel, initial_domain, NULL, &robj);
 	if (r) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("Failed to allocate GEM object (%d, %d, %u, %d)\n",

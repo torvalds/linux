@@ -552,7 +552,7 @@ int r600_blit_init(struct radeon_device *rdev)
 	obj_size = ALIGN(obj_size, 256);
 
 	r = radeon_bo_create(rdev, obj_size, PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
-				&rdev->r600_blit.shader_obj);
+			     NULL, &rdev->r600_blit.shader_obj);
 	if (r) {
 		DRM_ERROR("r600 failed to allocate shader\n");
 		return r;

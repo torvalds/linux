@@ -89,12 +89,17 @@ nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
 int
 nouveau_bo_new(struct drm_device *dev, int size, int align,
 	       uint32_t flags, uint32_t tile_mode, uint32_t tile_flags,
+	       struct sg_table *sg,
 	       struct nouveau_bo **pnvbo)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *nvbo;
 	size_t acc_size;
 	int ret;
+	int type = ttm_bo_type_device;
+
+	if (sg)
+		type = ttm_bo_type_sg;
 
 	nvbo = kzalloc(sizeof(struct nouveau_bo), GFP_KERNEL);
 	if (!nvbo)
@@ -120,8 +125,8 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 				       sizeof(struct nouveau_bo));
 
 	ret = ttm_bo_init(&dev_priv->ttm.bdev, &nvbo->bo, size,
-			  ttm_bo_type_device, &nvbo->placement,
-			  align >> PAGE_SHIFT, 0, false, NULL, acc_size,
+			  type, &nvbo->placement,
+			  align >> PAGE_SHIFT, 0, false, NULL, acc_size, sg,
 			  nouveau_bo_del_ttm);
 	if (ret) {
 		/* ttm will call nouveau_bo_del_ttm if it fails.. */
@@ -817,9 +822,14 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 		} else
 		if (new_mem && new_mem->mem_type == TTM_PL_TT &&
 		    nvbo->page_shift == vma->vm->spg_shift) {
-			nouveau_vm_map_sg(vma, 0, new_mem->
-					  num_pages << PAGE_SHIFT,
-					  new_mem->mm_node);
+			if (((struct nouveau_mem *)new_mem->mm_node)->sg)
+				nouveau_vm_map_sg_table(vma, 0, new_mem->
+						  num_pages << PAGE_SHIFT,
+						  new_mem->mm_node);
+			else
+				nouveau_vm_map_sg(vma, 0, new_mem->
+						  num_pages << PAGE_SHIFT,
+						  new_mem->mm_node);
 		} else {
 			nouveau_vm_unmap(vma);
 		}
@@ -1058,9 +1068,18 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	struct drm_device *dev;
 	unsigned i;
 	int r;
+	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
 	if (ttm->state != tt_unpopulated)
 		return 0;
+
+	if (slave && ttm->sg) {
+		/* make userspace faulting work */
+		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
+						 ttm_dma->dma_address, ttm->num_pages);
+		ttm->state = tt_unbound;
+		return 0;
+	}
 
 	dev_priv = nouveau_bdev(ttm->bdev);
 	dev = dev_priv->dev;
@@ -1106,6 +1125,10 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	struct drm_nouveau_private *dev_priv;
 	struct drm_device *dev;
 	unsigned i;
+	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
+
+	if (slave)
+		return;
 
 	dev_priv = nouveau_bdev(ttm->bdev);
 	dev = dev_priv->dev;
@@ -1181,9 +1204,12 @@ nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nouveau_vm *vm,
 
 	if (nvbo->bo.mem.mem_type == TTM_PL_VRAM)
 		nouveau_vm_map(vma, nvbo->bo.mem.mm_node);
-	else
-	if (nvbo->bo.mem.mem_type == TTM_PL_TT)
-		nouveau_vm_map_sg(vma, 0, size, node);
+	else if (nvbo->bo.mem.mem_type == TTM_PL_TT) {
+		if (node->sg)
+			nouveau_vm_map_sg_table(vma, 0, size, node);
+		else
+			nouveau_vm_map_sg(vma, 0, size, node);
+	}
 
 	list_add_tail(&vma->head, &nvbo->vma_list);
 	vma->refcount = 1;

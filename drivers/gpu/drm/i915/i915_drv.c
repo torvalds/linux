@@ -1039,7 +1039,7 @@ static struct drm_driver driver = {
 	 */
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | /* DRIVER_USE_MTRR |*/
-	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM,
+	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME,
 	.load = i915_driver_load,
 	.unload = i915_driver_unload,
 	.open = i915_driver_open,
@@ -1062,6 +1062,12 @@ static struct drm_driver driver = {
 	.gem_init_object = i915_gem_init_object,
 	.gem_free_object = i915_gem_free_object,
 	.gem_vm_ops = &i915_gem_vm_ops,
+
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export = i915_gem_prime_export,
+	.gem_prime_import = i915_gem_prime_import,
+
 	.dumb_create = i915_gem_dumb_create,
 	.dumb_map_offset = i915_gem_mmap_gtt,
 	.dumb_destroy = i915_gem_dumb_destroy,

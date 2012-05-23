@@ -37,7 +37,7 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
 	     nv50_calc.o \
 	     nv04_pm.o nv40_pm.o nv50_pm.o nva3_pm.o nvc0_pm.o \
 	     nv50_vram.o nvc0_vram.o \
-	     nv50_vm.o nvc0_vm.o
+	     nv50_vm.o nvc0_vm.o nouveau_prime.o
 
 nouveau-$(CONFIG_DRM_NOUVEAU_DEBUG) += nouveau_debugfs.o
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o
