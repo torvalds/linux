@@ -764,7 +764,6 @@ int __devexit tegra_pinctrl_remove(struct platform_device *pdev)
 {
 	struct tegra_pmx *pmx = platform_get_drvdata(pdev);
 
-	pinctrl_remove_gpio_range(pmx->pctl, &tegra_pinctrl_gpio_range);
 	pinctrl_unregister(pmx->pctl);
 
 	return 0;
