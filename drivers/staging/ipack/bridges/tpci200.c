@@ -628,7 +628,7 @@ static int tpci200_slot_unregister(struct ipack_device *dev)
 static int tpci200_slot_map_space(struct ipack_device *dev,
 				  unsigned int memory_size, int space)
 {
-	int res;
+	int res = 0;
 	unsigned int size_to_map;
 	void __iomem *phys_address;
 	struct ipack_addr_space *virt_addr_space;
