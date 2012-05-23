@@ -168,9 +168,16 @@ static inline void *fcoe_ctlr_priv(const struct fcoe_ctlr *ctlr)
 	return (void *)(ctlr + 1);
 }
 
+#define fcoe_ctlr_to_ctlr_dev(x)					\
+	(struct fcoe_ctlr_device *)(((struct fcoe_ctlr_device *)(x)) - 1)
+
 /**
  * struct fcoe_fcf - Fibre-Channel Forwarder
  * @list:	 list linkage
+ * @event_work:  Work for FC Transport actions queue
+ * @event:       The event to be processed
+ * @fip:         The controller that the FCF was discovered on
+ * @fcf_dev:     The associated fcoe_fcf_device instance
  * @time:	 system time (jiffies) when an advertisement was last received
  * @switch_name: WWN of switch from advertisement
  * @fabric_name: WWN of fabric from advertisement
@@ -192,6 +199,9 @@ static inline void *fcoe_ctlr_priv(const struct fcoe_ctlr *ctlr)
  */
 struct fcoe_fcf {
 	struct list_head list;
+	struct work_struct event_work;
+	struct fcoe_ctlr *fip;
+	struct fcoe_fcf_device *fcf_dev;
 	unsigned long time;
 
 	u64 switch_name;
@@ -207,6 +217,9 @@ struct fcoe_fcf {
 	u32 fka_period;
 	u8 fd_flags:1;
 };
+
+#define fcoe_fcf_to_fcf_dev(x)			\
+	((x)->fcf_dev)
 
 /**
  * struct fcoe_rport - VN2VN remote port
@@ -342,6 +355,10 @@ void fcoe_check_wait_queue(struct fc_lport *lport, struct sk_buff *skb);
 void fcoe_queue_timer(ulong lport);
 int fcoe_get_paged_crc_eof(struct sk_buff *skb, int tlen,
 			   struct fcoe_percpu_s *fps);
+
+/* FCoE Sysfs helpers */
+void fcoe_fcf_get_selected(struct fcoe_fcf_device *);
+void fcoe_ctlr_get_fip_mode(struct fcoe_ctlr_device *);
 
 /**
  * struct netdev_list

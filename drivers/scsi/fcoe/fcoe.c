@@ -41,6 +41,7 @@
 
 #include <scsi/fc/fc_encaps.h>
 #include <scsi/fc/fc_fip.h>
+#include <scsi/fc/fc_fcoe.h>
 
 #include <scsi/libfc.h>
 #include <scsi/fc_frame.h>
@@ -150,6 +151,21 @@ static int fcoe_vport_create(struct fc_vport *, bool disabled);
 static int fcoe_vport_disable(struct fc_vport *, bool disable);
 static void fcoe_set_vport_symbolic_name(struct fc_vport *);
 static void fcoe_set_port_id(struct fc_lport *, u32, struct fc_frame *);
+static void fcoe_ctlr_get_lesb(struct fcoe_ctlr_device *);
+static void fcoe_fcf_get_vlan_id(struct fcoe_fcf_device *);
+
+static struct fcoe_sysfs_function_template fcoe_sysfs_templ = {
+	.get_fcoe_ctlr_mode = fcoe_ctlr_get_fip_mode,
+	.get_fcoe_ctlr_link_fail = fcoe_ctlr_get_lesb,
+	.get_fcoe_ctlr_vlink_fail = fcoe_ctlr_get_lesb,
+	.get_fcoe_ctlr_miss_fka = fcoe_ctlr_get_lesb,
+	.get_fcoe_ctlr_symb_err = fcoe_ctlr_get_lesb,
+	.get_fcoe_ctlr_err_block = fcoe_ctlr_get_lesb,
+	.get_fcoe_ctlr_fcs_error = fcoe_ctlr_get_lesb,
+
+	.get_fcoe_fcf_selected = fcoe_fcf_get_selected,
+	.get_fcoe_fcf_vlan_id = fcoe_fcf_get_vlan_id,
+};
 
 static struct libfc_function_template fcoe_libfc_fcn_templ = {
 	.frame_send = fcoe_xmit,
@@ -366,6 +382,7 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
 						    enum fip_state fip_mode)
 {
+	struct fcoe_ctlr_device *ctlr_dev;
 	struct fcoe_ctlr *ctlr;
 	struct fcoe_interface *fcoe;
 	int size;
@@ -379,13 +396,16 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
 	}
 
 	size = sizeof(struct fcoe_ctlr) + sizeof(struct fcoe_interface);
-	ctlr = kzalloc(size, GFP_KERNEL);
-	fcoe = fcoe_ctlr_priv(ctlr);
-	if (!fcoe) {
-		FCOE_NETDEV_DBG(netdev, "Could not allocate fcoe structure\n");
+	ctlr_dev = fcoe_ctlr_device_add(&netdev->dev, &fcoe_sysfs_templ,
+					size);
+	if (!ctlr_dev) {
+		FCOE_DBG("Failed to add fcoe_ctlr_device\n");
 		fcoe = ERR_PTR(-ENOMEM);
 		goto out_putmod;
 	}
+
+	ctlr = fcoe_ctlr_device_priv(ctlr_dev);
+	fcoe = fcoe_ctlr_priv(ctlr);
 
 	dev_hold(netdev);
 
@@ -400,6 +420,7 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
 	err = fcoe_interface_setup(fcoe, netdev);
 	if (err) {
 		fcoe_ctlr_destroy(ctlr);
+		fcoe_ctlr_device_delete(ctlr_dev);
 		dev_put(netdev);
 		fcoe = ERR_PTR(err);
 		goto out_putmod;
@@ -466,6 +487,7 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 {
 	struct net_device *netdev = fcoe->netdev;
 	struct fcoe_ctlr *fip = fcoe_to_ctlr(fcoe);
+	struct fcoe_ctlr_device *ctlr_dev = fcoe_ctlr_to_ctlr_dev(fip);
 
 	rtnl_lock();
 	if (!fcoe->removed)
@@ -476,7 +498,7 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	/* tear-down the FCoE controller */
 	fcoe_ctlr_destroy(fip);
 	scsi_host_put(fip->lp->host);
-	kfree(fip);
+	fcoe_ctlr_device_delete(ctlr_dev);
 	dev_put(netdev);
 	module_put(THIS_MODULE);
 }
@@ -2196,6 +2218,7 @@ static void fcoe_dcb_create(struct fcoe_interface *fcoe)
 static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 {
 	int rc = 0;
+	struct fcoe_ctlr_device *ctlr_dev;
 	struct fcoe_ctlr *ctlr;
 	struct fcoe_interface *fcoe;
 	struct fc_lport *lport;
@@ -2216,8 +2239,8 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 	}
 
 	ctlr = fcoe_to_ctlr(fcoe);
-
-	lport = fcoe_if_create(fcoe, &netdev->dev, 0);
+	ctlr_dev = fcoe_ctlr_to_ctlr_dev(ctlr);
+	lport = fcoe_if_create(fcoe, &ctlr_dev->dev, 0);
 	if (IS_ERR(lport)) {
 		printk(KERN_ERR "fcoe: Failed to create interface (%s)\n",
 		       netdev->name);
@@ -2766,6 +2789,40 @@ static void fcoe_get_lesb(struct fc_lport *lport,
 	struct net_device *netdev = fcoe_netdev(lport);
 
 	__fcoe_get_lesb(lport, fc_lesb, netdev);
+}
+
+static void fcoe_ctlr_get_lesb(struct fcoe_ctlr_device *ctlr_dev)
+{
+	struct fcoe_ctlr *fip = fcoe_ctlr_device_priv(ctlr_dev);
+	struct net_device *netdev = fcoe_netdev(fip->lp);
+	struct fcoe_fc_els_lesb *fcoe_lesb;
+	struct fc_els_lesb fc_lesb;
+
+	__fcoe_get_lesb(fip->lp, &fc_lesb, netdev);
+	fcoe_lesb = (struct fcoe_fc_els_lesb *)(&fc_lesb);
+
+	ctlr_dev->lesb.lesb_link_fail =
+		ntohl(fcoe_lesb->lesb_link_fail);
+	ctlr_dev->lesb.lesb_vlink_fail =
+		ntohl(fcoe_lesb->lesb_vlink_fail);
+	ctlr_dev->lesb.lesb_miss_fka =
+		ntohl(fcoe_lesb->lesb_miss_fka);
+	ctlr_dev->lesb.lesb_symb_err =
+		ntohl(fcoe_lesb->lesb_symb_err);
+	ctlr_dev->lesb.lesb_err_block =
+		ntohl(fcoe_lesb->lesb_err_block);
+	ctlr_dev->lesb.lesb_fcs_error =
+		ntohl(fcoe_lesb->lesb_fcs_error);
+}
+
+static void fcoe_fcf_get_vlan_id(struct fcoe_fcf_device *fcf_dev)
+{
+	struct fcoe_ctlr_device *ctlr_dev =
+		fcoe_fcf_dev_to_ctlr_dev(fcf_dev);
+	struct fcoe_ctlr *ctlr = fcoe_ctlr_device_priv(ctlr_dev);
+	struct fcoe_interface *fcoe = fcoe_ctlr_priv(ctlr);
+
+	fcf_dev->vlan_id = vlan_dev_vlan_id(fcoe->netdev);
 }
 
 /**

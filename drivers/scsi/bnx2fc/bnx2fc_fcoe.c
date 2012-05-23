@@ -54,6 +54,7 @@ static struct cnic_ulp_ops bnx2fc_cnic_cb;
 static struct libfc_function_template bnx2fc_libfc_fcn_templ;
 static struct scsi_host_template bnx2fc_shost_template;
 static struct fc_function_template bnx2fc_transport_function;
+static struct fcoe_sysfs_function_template bnx2fc_fcoe_sysfs_templ;
 static struct fc_function_template bnx2fc_vport_xport_function;
 static int bnx2fc_create(struct net_device *netdev, enum fip_state fip_mode);
 static void __bnx2fc_destroy(struct bnx2fc_interface *interface);
@@ -88,6 +89,7 @@ static void bnx2fc_port_shutdown(struct fc_lport *lport);
 static void bnx2fc_stop(struct bnx2fc_interface *interface);
 static int __init bnx2fc_mod_init(void);
 static void __exit bnx2fc_mod_exit(void);
+static void bnx2fc_ctlr_get_lesb(struct fcoe_ctlr_device *ctlr_dev);
 
 unsigned int bnx2fc_debug_level;
 module_param_named(debug_logging, bnx2fc_debug_level, int, S_IRUGO|S_IWUSR);
@@ -116,6 +118,41 @@ static void bnx2fc_get_lesb(struct fc_lport *lport,
 	struct net_device *netdev = bnx2fc_netdev(lport);
 
 	__fcoe_get_lesb(lport, fc_lesb, netdev);
+}
+
+static void bnx2fc_ctlr_get_lesb(struct fcoe_ctlr_device *ctlr_dev)
+{
+	struct fcoe_ctlr *fip = fcoe_ctlr_device_priv(ctlr_dev);
+	struct net_device *netdev = bnx2fc_netdev(fip->lp);
+	struct fcoe_fc_els_lesb *fcoe_lesb;
+	struct fc_els_lesb fc_lesb;
+
+	__fcoe_get_lesb(fip->lp, &fc_lesb, netdev);
+	fcoe_lesb = (struct fcoe_fc_els_lesb *)(&fc_lesb);
+
+	ctlr_dev->lesb.lesb_link_fail =
+		ntohl(fcoe_lesb->lesb_link_fail);
+	ctlr_dev->lesb.lesb_vlink_fail =
+		ntohl(fcoe_lesb->lesb_vlink_fail);
+	ctlr_dev->lesb.lesb_miss_fka =
+		ntohl(fcoe_lesb->lesb_miss_fka);
+	ctlr_dev->lesb.lesb_symb_err =
+		ntohl(fcoe_lesb->lesb_symb_err);
+	ctlr_dev->lesb.lesb_err_block =
+		ntohl(fcoe_lesb->lesb_err_block);
+	ctlr_dev->lesb.lesb_fcs_error =
+		ntohl(fcoe_lesb->lesb_fcs_error);
+}
+EXPORT_SYMBOL(bnx2fc_ctlr_get_lesb);
+
+static void bnx2fc_fcf_get_vlan_id(struct fcoe_fcf_device *fcf_dev)
+{
+	struct fcoe_ctlr_device *ctlr_dev =
+		fcoe_fcf_dev_to_ctlr_dev(fcf_dev);
+	struct fcoe_ctlr *ctlr = fcoe_ctlr_device_priv(ctlr_dev);
+	struct bnx2fc_interface *fcoe = fcoe_ctlr_priv(ctlr);
+
+	fcf_dev->vlan_id = fcoe->vlan_id;
 }
 
 static void bnx2fc_clean_rx_queue(struct fc_lport *lp)
@@ -1235,6 +1272,7 @@ static void bnx2fc_release_transport(void)
 
 static void bnx2fc_interface_release(struct kref *kref)
 {
+	struct fcoe_ctlr_device *ctlr_dev;
 	struct bnx2fc_interface *interface;
 	struct fcoe_ctlr *ctlr;
 	struct net_device *netdev;
@@ -1243,13 +1281,14 @@ static void bnx2fc_interface_release(struct kref *kref)
 	BNX2FC_MISC_DBG("Interface is being released\n");
 
 	ctlr = bnx2fc_to_ctlr(interface);
+	ctlr_dev = fcoe_ctlr_to_ctlr_dev(ctlr);
 	netdev = interface->netdev;
 
 	/* tear-down FIP controller */
 	if (test_and_clear_bit(BNX2FC_CTLR_INIT_DONE, &interface->if_flags))
 		fcoe_ctlr_destroy(ctlr);
 
-	kfree(ctlr);
+	fcoe_ctlr_device_delete(ctlr_dev);
 
 	dev_put(netdev);
 	module_put(THIS_MODULE);
@@ -1342,17 +1381,20 @@ struct bnx2fc_interface *bnx2fc_interface_create(struct bnx2fc_hba *hba,
 				      struct net_device *netdev,
 				      enum fip_state fip_mode)
 {
+	struct fcoe_ctlr_device *ctlr_dev;
 	struct bnx2fc_interface *interface;
 	struct fcoe_ctlr *ctlr;
 	int size;
 	int rc = 0;
 
 	size = (sizeof(*interface) + sizeof(struct fcoe_ctlr));
-	ctlr = kzalloc(size, GFP_KERNEL);
-	if (!ctlr) {
+	ctlr_dev = fcoe_ctlr_device_add(&netdev->dev, &bnx2fc_fcoe_sysfs_templ,
+					 size);
+	if (!ctlr_dev) {
 		printk(KERN_ERR PFX "Unable to allocate interface structure\n");
 		return NULL;
 	}
+	ctlr = fcoe_ctlr_device_priv(ctlr_dev);
 	interface = fcoe_ctlr_priv(ctlr);
 	dev_hold(netdev);
 	kref_init(&interface->kref);
@@ -1372,7 +1414,7 @@ struct bnx2fc_interface *bnx2fc_interface_create(struct bnx2fc_hba *hba,
 
 	fcoe_ctlr_destroy(ctlr);
 	dev_put(netdev);
-	kfree(ctlr);
+	fcoe_ctlr_device_delete(ctlr_dev);
 	return NULL;
 }
 
@@ -2470,6 +2512,19 @@ static void __exit bnx2fc_mod_exit(void)
 
 module_init(bnx2fc_mod_init);
 module_exit(bnx2fc_mod_exit);
+
+static struct fcoe_sysfs_function_template bnx2fc_fcoe_sysfs_templ = {
+	.get_fcoe_ctlr_mode = fcoe_ctlr_get_fip_mode,
+	.get_fcoe_ctlr_link_fail = bnx2fc_ctlr_get_lesb,
+	.get_fcoe_ctlr_vlink_fail = bnx2fc_ctlr_get_lesb,
+	.get_fcoe_ctlr_miss_fka = bnx2fc_ctlr_get_lesb,
+	.get_fcoe_ctlr_symb_err = bnx2fc_ctlr_get_lesb,
+	.get_fcoe_ctlr_err_block = bnx2fc_ctlr_get_lesb,
+	.get_fcoe_ctlr_fcs_error = bnx2fc_ctlr_get_lesb,
+
+	.get_fcoe_fcf_selected = fcoe_fcf_get_selected,
+	.get_fcoe_fcf_vlan_id = bnx2fc_fcf_get_vlan_id,
+};
 
 static struct fc_function_template bnx2fc_transport_function = {
 	.show_host_node_name = 1,
