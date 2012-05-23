@@ -3940,7 +3940,7 @@ CIFSTCon(unsigned int xid, struct cifs_ses *ses,
 	header_assemble(smb_buffer, SMB_COM_TREE_CONNECT_ANDX,
 			NULL /*no tid */ , 4 /*wct */ );
 
-	smb_buffer->Mid = GetNextMid(ses->server);
+	smb_buffer->Mid = get_next_mid(ses->server);
 	smb_buffer->Uid = ses->Suid;
 	pSMB = (TCONX_REQ *) smb_buffer;
 	pSMBr = (TCONX_RSP *) smb_buffer_response;
