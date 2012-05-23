@@ -481,6 +481,38 @@ static void perf_event__read_swap(union perf_event *event)
 	event->read.id		 = bswap_64(event->read.id);
 }
 
+static u8 revbyte(u8 b)
+{
+	int rev = (b >> 4) | ((b & 0xf) << 4);
+	rev = ((rev & 0xcc) >> 2) | ((rev & 0x33) << 2);
+	rev = ((rev & 0xaa) >> 1) | ((rev & 0x55) << 1);
+	return (u8) rev;
+}
+
+/*
+ * XXX this is hack in attempt to carry flags bitfield
+ * throught endian village. ABI says:
+ *
+ * Bit-fields are allocated from right to left (least to most significant)
+ * on little-endian implementations and from left to right (most to least
+ * significant) on big-endian implementations.
+ *
+ * The above seems to be byte specific, so we need to reverse each
+ * byte of the bitfield. 'Internet' also says this might be implementation
+ * specific and we probably need proper fix and carry perf_event_attr
+ * bitfield flags in separate data file FEAT_ section. Thought this seems
+ * to work for now.
+ */
+static void swap_bitfield(u8 *p, unsigned len)
+{
+	unsigned i;
+
+	for (i = 0; i < len; i++) {
+		*p = revbyte(*p);
+		p++;
+	}
+}
+
 /* exported for swapping attributes in file header */
 void perf_event__attr_swap(struct perf_event_attr *attr)
 {
@@ -494,6 +526,8 @@ void perf_event__attr_swap(struct perf_event_attr *attr)
 	attr->bp_type		= bswap_32(attr->bp_type);
 	attr->bp_addr		= bswap_64(attr->bp_addr);
 	attr->bp_len		= bswap_64(attr->bp_len);
+
+	swap_bitfield((u8 *) (&attr->read_format + 1), sizeof(u64));
 }
 
 static void perf_event__hdr_attr_swap(union perf_event *event)
@@ -1064,8 +1098,9 @@ volatile int session_done;
 static int __perf_session__process_pipe_events(struct perf_session *self,
 					       struct perf_tool *tool)
 {
-	union perf_event event;
-	uint32_t size;
+	union perf_event *event;
+	uint32_t size, cur_size = 0;
+	void *buf = NULL;
 	int skip = 0;
 	u64 head;
 	int err;
@@ -1074,8 +1109,14 @@ static int __perf_session__process_pipe_events(struct perf_session *self,
 	perf_tool__fill_defaults(tool);
 
 	head = 0;
+	cur_size = sizeof(union perf_event);
+
+	buf = malloc(cur_size);
+	if (!buf)
+		return -errno;
 more:
-	err = readn(self->fd, &event, sizeof(struct perf_event_header));
+	event = buf;
+	err = readn(self->fd, event, sizeof(struct perf_event_header));
 	if (err <= 0) {
 		if (err == 0)
 			goto done;
@@ -1085,13 +1126,23 @@ more:
 	}
 
 	if (self->header.needs_swap)
-		perf_event_header__bswap(&event.header);
+		perf_event_header__bswap(&event->header);
 
-	size = event.header.size;
+	size = event->header.size;
 	if (size == 0)
 		size = 8;
 
-	p = &event;
+	if (size > cur_size) {
+		void *new = realloc(buf, size);
+		if (!new) {
+			pr_err("failed to allocate memory to read event\n");
+			goto out_err;
+		}
+		buf = new;
+		cur_size = size;
+		event = buf;
+	}
+	p = event;
 	p += sizeof(struct perf_event_header);
 
 	if (size - sizeof(struct perf_event_header)) {
@@ -1107,9 +1158,9 @@ more:
 		}
 	}
 
-	if ((skip = perf_session__process_event(self, &event, tool, head)) < 0) {
+	if ((skip = perf_session__process_event(self, event, tool, head)) < 0) {
 		pr_err("%#" PRIx64 " [%#x]: failed to process type: %d\n",
-		       head, event.header.size, event.header.type);
+		       head, event->header.size, event->header.type);
 		err = -EINVAL;
 		goto out_err;
 	}
@@ -1124,6 +1175,7 @@ more:
 done:
 	err = 0;
 out_err:
+	free(buf);
 	perf_session__warn_about_errors(self, tool);
 	perf_session_free_sample_buffers(self);
 	return err;
