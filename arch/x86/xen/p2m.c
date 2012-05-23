@@ -686,6 +686,7 @@ int m2p_add_override(unsigned long mfn, struct page *page,
 	unsigned long uninitialized_var(address);
 	unsigned level;
 	pte_t *ptep = NULL;
+	int ret = 0;
 
 	pfn = page_to_pfn(page);
 	if (!PageHighMem(page)) {
@@ -721,6 +722,24 @@ int m2p_add_override(unsigned long mfn, struct page *page,
 	list_add(&page->lru,  &m2p_overrides[mfn_hash(mfn)]);
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
 
+	/* p2m(m2p(mfn)) == mfn: the mfn is already present somewhere in
+	 * this domain. Set the FOREIGN_FRAME_BIT in the p2m for the other
+	 * pfn so that the following mfn_to_pfn(mfn) calls will return the
+	 * pfn from the m2p_override (the backend pfn) instead.
+	 * We need to do this because the pages shared by the frontend
+	 * (xen-blkfront) can be already locked (lock_page, called by
+	 * do_read_cache_page); when the userspace backend tries to use them
+	 * with direct_IO, mfn_to_pfn returns the pfn of the frontend, so
+	 * do_blockdev_direct_IO is going to try to lock the same pages
+	 * again resulting in a deadlock.
+	 * As a side effect get_user_pages_fast might not be safe on the
+	 * frontend pages while they are being shared with the backend,
+	 * because mfn_to_pfn (that ends up being called by GUPF) will
+	 * return the backend pfn rather than the frontend pfn. */
+	ret = __get_user(pfn, &machine_to_phys_mapping[mfn]);
+	if (ret == 0 && get_phys_to_machine(pfn) == mfn)
+		set_phys_to_machine(pfn, FOREIGN_FRAME(mfn));
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(m2p_add_override);
@@ -732,6 +751,7 @@ int m2p_remove_override(struct page *page, bool clear_pte)
 	unsigned long uninitialized_var(address);
 	unsigned level;
 	pte_t *ptep = NULL;
+	int ret = 0;
 
 	pfn = page_to_pfn(page);
 	mfn = get_phys_to_machine(pfn);
@@ -800,6 +820,22 @@ int m2p_remove_override(struct page *page, bool clear_pte)
 		}
 	} else
 		set_phys_to_machine(pfn, page->index);
+
+	/* p2m(m2p(mfn)) == FOREIGN_FRAME(mfn): the mfn is already present
+	 * somewhere in this domain, even before being added to the
+	 * m2p_override (see comment above in m2p_add_override).
+	 * If there are no other entries in the m2p_override corresponding
+	 * to this mfn, then remove the FOREIGN_FRAME_BIT from the p2m for
+	 * the original pfn (the one shared by the frontend): the backend
+	 * cannot do any IO on this page anymore because it has been
+	 * unshared. Removing the FOREIGN_FRAME_BIT from the p2m entry of
+	 * the original pfn causes mfn_to_pfn(mfn) to return the frontend
+	 * pfn again. */
+	mfn &= ~FOREIGN_FRAME_BIT;
+	ret = __get_user(pfn, &machine_to_phys_mapping[mfn]);
+	if (ret == 0 && get_phys_to_machine(pfn) == FOREIGN_FRAME(mfn) &&
+			m2p_find_override(mfn) == NULL)
+		set_phys_to_machine(pfn, mfn);
 
 	return 0;
 }
