@@ -137,14 +137,18 @@ struct ceph_connection {
 	const struct ceph_connection_operations *ops;
 
 	struct ceph_messenger *msgr;
+
+	atomic_t sock_state;
 	struct socket *sock;
+	struct ceph_entity_addr peer_addr; /* peer address */
+	struct ceph_entity_addr peer_addr_for_me;
+
 	unsigned long flags;
 	unsigned long state;
 	const char *error_msg;  /* error message, if any */
 
-	struct ceph_entity_addr peer_addr; /* peer address */
 	struct ceph_entity_name peer_name; /* peer name */
-	struct ceph_entity_addr peer_addr_for_me;
+
 	unsigned peer_features;
 	u32 connect_seq;      /* identify the most recent connection
 				 attempt for this connection, client */
