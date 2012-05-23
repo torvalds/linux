@@ -98,7 +98,8 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap, short *adapter_nums)
 {
 	int i;
 	int ret = dvb_register_adapter(&adap->dvb_adap, adap->dev->desc->name,
-				       adap->dev->owner, &adap->dev->udev->dev,
+				       adap->dev->props.owner,
+				       &adap->dev->udev->dev,
 				       adapter_nums);
 
 	if (ret < 0) {

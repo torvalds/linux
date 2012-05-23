@@ -235,7 +235,6 @@ int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
  */
 int dvb_usbv2_device_init(struct usb_interface *intf,
 			const struct usb_device_id *id,
-			struct module *owner,
 			short *adapter_nums)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -268,7 +267,6 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 	d->udev = udev;
 	memcpy(&d->props, props, sizeof(struct dvb_usb_device_properties));
 	d->desc = desc;
-	d->owner = owner;
 
 	usb_set_intfdata(intf, d);
 

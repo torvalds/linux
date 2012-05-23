@@ -224,6 +224,7 @@ enum dvb_usb_mode {
 
 /**
  * struct dvb_usb_device_properties - properties of a dvb-usb-device
+ * @owner: owner of the dvb_adapter
  * @usb_ctrl: which USB device-side controller is in use. Needed for firmware
  *  download.
  * @firmware: name of the firmware file.
@@ -263,6 +264,7 @@ enum dvb_usb_mode {
  */
 #define MAX_NO_OF_ADAPTER_PER_DEVICE 2
 struct dvb_usb_device_properties {
+	struct module *owner;
 
 #define DVB_USB_IS_AN_I2C_ADAPTER            0x01
 	int caps;
@@ -419,7 +421,6 @@ struct dvb_usb_adapter {
  * @rc_query_work: struct work_struct frequent rc queries
  * @last_event: last triggered event
  * @last_state: last state (no, pressed, repeat)
- * @owner: owner of the dvb_adapter
  * @priv: private data of the actual driver (allocate by dvb-usb, size defined
  *  in size_of_priv of dvb_usb_properties).
  */
@@ -455,14 +456,11 @@ struct dvb_usb_device {
 	u32 last_event;
 	int last_state;
 
-	struct module *owner;
-
 	void *priv;
 };
 
 extern int dvb_usbv2_device_init(struct usb_interface *,
 				const struct usb_device_id *,
-			       struct module *,
 			       short *adapter_nums);
 extern void dvb_usbv2_device_exit(struct usb_interface *);
 
