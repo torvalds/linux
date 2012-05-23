@@ -4122,8 +4122,7 @@ qla2x00_release_firmware(void)
 
 	mutex_lock(&qla_fw_lock);
 	for (idx = 0; idx < FW_BLOBS; idx++)
-		if (qla_fw_blobs[idx].fw)
-			release_firmware(qla_fw_blobs[idx].fw);
+		release_firmware(qla_fw_blobs[idx].fw);
 	mutex_unlock(&qla_fw_lock);
 }
 

@@ -107,13 +107,13 @@ extern int edac_debug_level;
  *
  * CPU caches (L1 and L2)
  * DMA engines
- * Core CPU swithces
+ * Core CPU switches
  * Fabric switch units
  * PCIe interface controllers
  * other EDAC/ECC type devices that can be monitored for
  * errors, etc.
  *
- * It allows for a 2 level set of hiearchry. For example:
+ * It allows for a 2 level set of hierarchy. For example:
  *
  * cache could be composed of L1, L2 and L3 levels of cache.
  * Each CPU core would have its own L1 cache, while sharing

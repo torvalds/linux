@@ -36,11 +36,11 @@ static DEFINE_MUTEX(nf_ct_proto_mutex);
 
 #ifdef CONFIG_SYSCTL
 static int
-nf_ct_register_sysctl(struct ctl_table_header **header, struct ctl_path *path,
+nf_ct_register_sysctl(struct ctl_table_header **header, const char *path,
 		      struct ctl_table *table, unsigned int *users)
 {
 	if (*header == NULL) {
-		*header = register_sysctl_paths(path, table);
+		*header = register_net_sysctl(&init_net, path, table);
 		if (*header == NULL)
 			return -ENOMEM;
 	}
@@ -56,7 +56,7 @@ nf_ct_unregister_sysctl(struct ctl_table_header **header,
 	if (users != NULL && --*users > 0)
 		return;
 
-	unregister_sysctl_table(*header);
+	unregister_net_sysctl_table(*header);
 	*header = NULL;
 }
 #endif
@@ -250,7 +250,7 @@ static int nf_ct_l4proto_register_sysctl(struct nf_conntrack_l4proto *l4proto)
 #ifdef CONFIG_SYSCTL
 	if (l4proto->ctl_table != NULL) {
 		err = nf_ct_register_sysctl(l4proto->ctl_table_header,
-					    nf_net_netfilter_sysctl_path,
+					    "net/netfilter",
 					    l4proto->ctl_table,
 					    l4proto->ctl_table_users);
 		if (err < 0)
@@ -259,7 +259,7 @@ static int nf_ct_l4proto_register_sysctl(struct nf_conntrack_l4proto *l4proto)
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
 	if (l4proto->ctl_compat_table != NULL) {
 		err = nf_ct_register_sysctl(&l4proto->ctl_compat_table_header,
-					    nf_net_ipv4_netfilter_sysctl_path,
+					    "net/ipv4/netfilter",
 					    l4proto->ctl_compat_table, NULL);
 		if (err == 0)
 			goto out;

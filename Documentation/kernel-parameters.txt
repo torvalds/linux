@@ -110,6 +110,7 @@ parameter is applicable:
 	USB	USB support is enabled.
 	USBHID	USB Human Interface Device support is enabled.
 	V4L	Video For Linux support is enabled.
+	VMMIO   Driver for memory mapped virtio devices is enabled.
 	VGA	The VGA console has been enabled.
 	VT	Virtual terminal support is enabled.
 	WDT	Watchdog support is enabled.
@@ -610,7 +611,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	ddebug_query=   [KNL,DYNAMIC_DEBUG] Enable debug messages at early boot
 			time. See Documentation/dynamic-debug-howto.txt for
-			details.
+			details.  Deprecated, see dyndbg.
 
 	debug		[KNL] Enable kernel debugging (events log level).
 
@@ -729,6 +730,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			name.
 
 	dscc4.setup=	[NET]
+
+	dyndbg[="val"]		[KNL,DYNAMIC_DEBUG]
+	module.dyndbg[="val"]
+			Enable debug messages at boot time.  See
+			Documentation/dynamic-debug-howto.txt for details.
 
 	earlycon=	[KNL] Output early console device and options.
 		uart[8250],io,<addr>[,options]
@@ -2161,6 +2167,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				on: Turn realloc on
 		realloc		same as realloc=on
 		noari		do not use PCIe ARI.
+		pcie_scan_all	Scan all possible PCIe devices.  Otherwise we
+				only look for one device below a PCIe downstream
+				port.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
@@ -2330,17 +2339,99 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			See Documentation/blockdev/ramdisk.txt.
 
-	rcupdate.blimit=	[KNL,BOOT]
+	rcutree.blimit=	[KNL,BOOT]
 			Set maximum number of finished RCU callbacks to process
 			in one batch.
 
-	rcupdate.qhimark=	[KNL,BOOT]
+	rcutree.qhimark=	[KNL,BOOT]
 			Set threshold of queued
 			RCU callbacks over which batch limiting is disabled.
 
-	rcupdate.qlowmark=	[KNL,BOOT]
+	rcutree.qlowmark=	[KNL,BOOT]
 			Set threshold of queued RCU callbacks below which
 			batch limiting is re-enabled.
+
+	rcutree.rcu_cpu_stall_suppress=	[KNL,BOOT]
+			Suppress RCU CPU stall warning messages.
+
+	rcutree.rcu_cpu_stall_timeout= [KNL,BOOT]
+			Set timeout for RCU CPU stall warning messages.
+
+	rcutorture.fqs_duration= [KNL,BOOT]
+			Set duration of force_quiescent_state bursts.
+
+	rcutorture.fqs_holdoff= [KNL,BOOT]
+			Set holdoff time within force_quiescent_state bursts.
+
+	rcutorture.fqs_stutter= [KNL,BOOT]
+			Set wait time between force_quiescent_state bursts.
+
+	rcutorture.irqreader= [KNL,BOOT]
+			Test RCU readers from irq handlers.
+
+	rcutorture.n_barrier_cbs= [KNL,BOOT]
+			Set callbacks/threads for rcu_barrier() testing.
+
+	rcutorture.nfakewriters= [KNL,BOOT]
+			Set number of concurrent RCU writers.  These just
+			stress RCU, they don't participate in the actual
+			test, hence the "fake".
+
+	rcutorture.nreaders= [KNL,BOOT]
+			Set number of RCU readers.
+
+	rcutorture.onoff_holdoff= [KNL,BOOT]
+			Set time (s) after boot for CPU-hotplug testing.
+
+	rcutorture.onoff_interval= [KNL,BOOT]
+			Set time (s) between CPU-hotplug operations, or
+			zero to disable CPU-hotplug testing.
+
+	rcutorture.shuffle_interval= [KNL,BOOT]
+			Set task-shuffle interval (s).  Shuffling tasks
+			allows some CPUs to go into dyntick-idle mode
+			during the rcutorture test.
+
+	rcutorture.shutdown_secs= [KNL,BOOT]
+			Set time (s) after boot system shutdown.  This
+			is useful for hands-off automated testing.
+
+	rcutorture.stall_cpu= [KNL,BOOT]
+			Duration of CPU stall (s) to test RCU CPU stall
+			warnings, zero to disable.
+
+	rcutorture.stall_cpu_holdoff= [KNL,BOOT]
+			Time to wait (s) after boot before inducing stall.
+
+	rcutorture.stat_interval= [KNL,BOOT]
+			Time (s) between statistics printk()s.
+
+	rcutorture.stutter= [KNL,BOOT]
+			Time (s) to stutter testing, for example, specifying
+			five seconds causes the test to run for five seconds,
+			wait for five seconds, and so on.  This tests RCU's
+			ability to transition abruptly to and from idle.
+
+	rcutorture.test_boost= [KNL,BOOT]
+			Test RCU priority boosting?  0=no, 1=maybe, 2=yes.
+			"Maybe" means test if the RCU implementation
+			under test support RCU priority boosting.
+
+	rcutorture.test_boost_duration= [KNL,BOOT]
+			Duration (s) of each individual boost test.
+
+	rcutorture.test_boost_interval= [KNL,BOOT]
+			Interval (s) between each boost test.
+
+	rcutorture.test_no_idle_hz= [KNL,BOOT]
+			Test RCU's dyntick-idle handling.  See also the
+			rcutorture.shuffle_interval parameter.
+
+	rcutorture.torture_type= [KNL,BOOT]
+			Specify the RCU implementation to test.
+
+	rcutorture.verbose= [KNL,BOOT]
+			Enable additional printk() statements.
 
 	rdinit=		[KNL]
 			Format: <full_path>
@@ -2846,6 +2937,22 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	video=		[FB] Frame buffer configuration
 			See Documentation/fb/modedb.txt.
+
+	virtio_mmio.device=
+			[VMMIO] Memory mapped virtio (platform) device.
+
+				<size>@<baseaddr>:<irq>[:<id>]
+			where:
+				<size>     := size (can use standard suffixes
+						like K, M and G)
+				<baseaddr> := physical base address
+				<irq>      := interrupt number (as passed to
+						request_irq())
+				<id>       := (optional) platform device id
+			example:
+				virtio_mmio.device=1K@0x100b0000:48:7
+
+			Can be used multiple times for multiple devices.
 
 	vga=		[BOOT,X86-32] Select a particular video mode
 			See Documentation/x86/boot.txt and

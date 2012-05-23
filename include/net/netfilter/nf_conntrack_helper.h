@@ -60,8 +60,8 @@ static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
 	return nf_ct_ext_find(ct, NF_CT_EXT_HELPER);
 }
 
-extern int nf_conntrack_helper_init(void);
-extern void nf_conntrack_helper_fini(void);
+extern int nf_conntrack_helper_init(struct net *net);
+extern void nf_conntrack_helper_fini(struct net *net);
 
 extern int nf_conntrack_broadcast_help(struct sk_buff *skb,
 				       unsigned int protoff,

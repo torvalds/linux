@@ -245,6 +245,11 @@ static int lp3972_set_bits(struct lp3972 *lp3972, u8 reg, u16 mask, u16 val)
 static int lp3972_ldo_list_voltage(struct regulator_dev *dev, unsigned index)
 {
 	int ldo = rdev_get_id(dev) - LP3972_LDO1;
+
+	if (index < LP3972_LDO_VOL_MIN_IDX(ldo) ||
+	    index > LP3972_LDO_VOL_MAX_IDX(ldo))
+		return -EINVAL;
+
 	return 1000 * LP3972_LDO_VOL_VALUE_MAP(ldo)[index];
 }
 
@@ -292,34 +297,16 @@ static int lp3972_ldo_get_voltage(struct regulator_dev *dev)
 	return 1000 * LP3972_LDO_VOL_VALUE_MAP(ldo)[val];
 }
 
-static int lp3972_ldo_set_voltage(struct regulator_dev *dev,
-				  int min_uV, int max_uV,
-				  unsigned int *selector)
+static int lp3972_ldo_set_voltage_sel(struct regulator_dev *dev,
+				      unsigned int selector)
 {
 	struct lp3972 *lp3972 = rdev_get_drvdata(dev);
 	int ldo = rdev_get_id(dev) - LP3972_LDO1;
-	int min_vol = min_uV / 1000, max_vol = max_uV / 1000;
-	const int *vol_map = LP3972_LDO_VOL_VALUE_MAP(ldo);
-	u16 val;
 	int shift, ret;
-
-	if (min_vol < vol_map[LP3972_LDO_VOL_MIN_IDX(ldo)] ||
-	    min_vol > vol_map[LP3972_LDO_VOL_MAX_IDX(ldo)])
-		return -EINVAL;
-
-	for (val = LP3972_LDO_VOL_MIN_IDX(ldo);
-		val <= LP3972_LDO_VOL_MAX_IDX(ldo); val++)
-		if (vol_map[val] >= min_vol)
-			break;
-
-	if (val > LP3972_LDO_VOL_MAX_IDX(ldo) || vol_map[val] > max_vol)
-		return -EINVAL;
-
-	*selector = val;
 
 	shift = LP3972_LDO_VOL_CONTR_SHIFT(ldo);
 	ret = lp3972_set_bits(lp3972, LP3972_LDO_VOL_CONTR_REG(ldo),
-		LP3972_LDO_VOL_MASK(ldo) << shift, val << shift);
+		LP3972_LDO_VOL_MASK(ldo) << shift, selector << shift);
 
 	if (ret)
 		return ret;
@@ -355,12 +342,17 @@ static struct regulator_ops lp3972_ldo_ops = {
 	.enable = lp3972_ldo_enable,
 	.disable = lp3972_ldo_disable,
 	.get_voltage = lp3972_ldo_get_voltage,
-	.set_voltage = lp3972_ldo_set_voltage,
+	.set_voltage_sel = lp3972_ldo_set_voltage_sel,
 };
 
 static int lp3972_dcdc_list_voltage(struct regulator_dev *dev, unsigned index)
 {
 	int buck = rdev_get_id(dev) - LP3972_DCDC1;
+
+	if (index < LP3972_BUCK_VOL_MIN_IDX(buck) ||
+	    index > LP3972_BUCK_VOL_MAX_IDX(buck))
+		return -EINVAL;
+
 	return 1000 * buck_voltage_map[buck][index];
 }
 
@@ -419,34 +411,15 @@ static int lp3972_dcdc_get_voltage(struct regulator_dev *dev)
 	return val;
 }
 
-static int lp3972_dcdc_set_voltage(struct regulator_dev *dev,
-				   int min_uV, int max_uV,
-				   unsigned int *selector)
+static int lp3972_dcdc_set_voltage_sel(struct regulator_dev *dev,
+				       unsigned int selector)
 {
 	struct lp3972 *lp3972 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - LP3972_DCDC1;
-	int min_vol = min_uV / 1000, max_vol = max_uV / 1000;
-	const int *vol_map = buck_voltage_map[buck];
-	u16 val;
 	int ret;
 
-	if (min_vol < vol_map[LP3972_BUCK_VOL_MIN_IDX(buck)] ||
-	    min_vol > vol_map[LP3972_BUCK_VOL_MAX_IDX(buck)])
-		return -EINVAL;
-
-	for (val = LP3972_BUCK_VOL_MIN_IDX(buck);
-		val <= LP3972_BUCK_VOL_MAX_IDX(buck); val++)
-		if (vol_map[val] >= min_vol)
-			break;
-
-	if (val > LP3972_BUCK_VOL_MAX_IDX(buck) ||
-	    vol_map[val] > max_vol)
-		return -EINVAL;
-
-	*selector = val;
-
 	ret = lp3972_set_bits(lp3972, LP3972_BUCK_VOL1_REG(buck),
-				LP3972_BUCK_VOL_MASK, val);
+				LP3972_BUCK_VOL_MASK, selector);
 	if (ret)
 		return ret;
 
@@ -468,10 +441,10 @@ static struct regulator_ops lp3972_dcdc_ops = {
 	.enable = lp3972_dcdc_enable,
 	.disable = lp3972_dcdc_disable,
 	.get_voltage = lp3972_dcdc_get_voltage,
-	.set_voltage = lp3972_dcdc_set_voltage,
+	.set_voltage_sel = lp3972_dcdc_set_voltage_sel,
 };
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	{
 		.name = "LDO1",
 		.id = LP3972_LDO1,
@@ -554,9 +527,14 @@ static int __devinit setup_regulators(struct lp3972 *lp3972,
 	/* Instantiate the regulators */
 	for (i = 0; i < pdata->num_regulators; i++) {
 		struct lp3972_regulator_subdev *reg = &pdata->regulators[i];
-		lp3972->rdev[i] = regulator_register(&regulators[reg->id],
-				lp3972->dev, reg->initdata, lp3972, NULL);
+		struct regulator_config config = { };
 
+		config.dev = lp3972->dev;
+		config.init_data = reg->initdata;
+		config.driver_data = lp3972;
+
+		lp3972->rdev[i] = regulator_register(&regulators[reg->id],
+						     &config);
 		if (IS_ERR(lp3972->rdev[i])) {
 			err = PTR_ERR(lp3972->rdev[i]);
 			dev_err(lp3972->dev, "regulator init failed: %d\n",

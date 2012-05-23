@@ -996,7 +996,6 @@ Table 1-9: Network info in /proc/net
  snmp          SNMP data                                                       
  sockstat      Socket statistics                                               
  tcp           TCP  sockets                                                    
- tr_rif        Token ring RIF routing table                                    
  udp           UDP sockets                                                     
  unix          UNIX domain sockets                                             
  wireless      Wireless interface data (Wavelan etc)                           

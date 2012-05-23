@@ -12,7 +12,6 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/idprom.h>
-#include <asm/machines.h>
 #include <asm/oplib.h>
 #include <asm/auxio.h>
 #include <asm/irq.h>
@@ -103,25 +102,13 @@ static struct sun_floppy_ops sun_fdops;
 /* Routines unique to each controller type on a Sun. */
 static void sun_set_dor(unsigned char value, int fdc_82077)
 {
-	if (sparc_cpu_model == sun4c) {
-		unsigned int bits = 0;
-		if (value & 0x10)
-			bits |= AUXIO_FLPY_DSEL;
-		if ((value & 0x80) == 0)
-			bits |= AUXIO_FLPY_EJCT;
-		set_auxio(bits, (~bits) & (AUXIO_FLPY_DSEL|AUXIO_FLPY_EJCT));
-	}
-	if (fdc_82077) {
+	if (fdc_82077)
 		sun_fdc->dor_82077 = value;
-	}
 }
 
 static unsigned char sun_read_dir(void)
 {
-	if (sparc_cpu_model == sun4c)
-		return (get_auxio() & AUXIO_FLPY_DCHG) ? 0x80 : 0;
-	else
-		return sun_fdc->dir_82077;
+	return sun_fdc->dir_82077;
 }
 
 static unsigned char sun_82072_fd_inb(int port)
@@ -242,10 +229,7 @@ static inline void virtual_dma_init(void)
 static inline void sun_fd_disable_dma(void)
 {
 	doing_pdma = 0;
-	if (pdma_base) {
-		mmu_unlockarea(pdma_base, pdma_areasize);
-		pdma_base = NULL;
-	}
+	pdma_base = NULL;
 }
 
 static inline void sun_fd_set_dma_mode(int mode)
@@ -275,7 +259,6 @@ static inline void sun_fd_set_dma_count(int length)
 
 static inline void sun_fd_enable_dma(void)
 {
-	pdma_vaddr = mmu_lockarea(pdma_vaddr, pdma_size);
 	pdma_base = pdma_vaddr;
 	pdma_areasize = pdma_size;
 }
@@ -301,38 +284,36 @@ static int sun_floppy_init(void)
 {
 	struct platform_device *op;
 	struct device_node *dp;
-	char state[128];
-	phandle tnode, fd_node;
-	int num_regs;
 	struct resource r;
+	char state[128];
+	phandle fd_node;
+	phandle tnode;
+	int num_regs;
 
 	use_virtual_dma = 1;
 
 	/* Forget it if we aren't on a machine that could possibly
 	 * ever have a floppy drive.
 	 */
-	if((sparc_cpu_model != sun4c && sparc_cpu_model != sun4m) ||
-	   ((idprom->id_machtype == (SM_SUN4C | SM_4C_SLC)) ||
-	    (idprom->id_machtype == (SM_SUN4C | SM_4C_ELC)))) {
+	if (sparc_cpu_model != sun4m) {
 		/* We certainly don't have a floppy controller. */
 		goto no_sun_fdc;
 	}
 	/* Well, try to find one. */
 	tnode = prom_getchild(prom_root_node);
 	fd_node = prom_searchsiblings(tnode, "obio");
-	if(fd_node != 0) {
+	if (fd_node != 0) {
 		tnode = prom_getchild(fd_node);
 		fd_node = prom_searchsiblings(tnode, "SUNW,fdtwo");
 	} else {
 		fd_node = prom_searchsiblings(tnode, "fd");
 	}
-	if(fd_node == 0) {
+	if (fd_node == 0) {
 		goto no_sun_fdc;
 	}
 
 	/* The sun4m lets us know if the controller is actually usable. */
-	if(sparc_cpu_model == sun4m &&
-	   prom_getproperty(fd_node, "status", state, sizeof(state)) != -1) {
+	if (prom_getproperty(fd_node, "status", state, sizeof(state)) != -1) {
 		if(!strcmp(state, "disabled")) {
 			goto no_sun_fdc;
 		}
@@ -343,12 +324,12 @@ static int sun_floppy_init(void)
 	memset(&r, 0, sizeof(r));
 	r.flags = fd_regs[0].which_io;
 	r.start = fd_regs[0].phys_addr;
-	sun_fdc = (struct sun_flpy_controller *)
-	    of_ioremap(&r, 0, fd_regs[0].reg_size, "floppy");
+	sun_fdc = of_ioremap(&r, 0, fd_regs[0].reg_size, "floppy");
 
 	/* Look up irq in platform_device.
 	 * We try "SUNW,fdtwo" and "fd"
 	 */
+	op = NULL;
 	for_each_node_by_name(dp, "SUNW,fdtwo") {
 		op = of_find_device_by_node(dp);
 		if (op)
@@ -367,7 +348,7 @@ static int sun_floppy_init(void)
 	FLOPPY_IRQ = op->archdata.irqs[0];
 
 	/* Last minute sanity check... */
-	if(sun_fdc->status_82072 == 0xff) {
+	if (sun_fdc->status_82072 == 0xff) {
 		sun_fdc = NULL;
 		goto no_sun_fdc;
 	}

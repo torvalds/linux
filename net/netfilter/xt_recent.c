@@ -314,7 +314,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *pde;
 #endif
-	unsigned i;
+	unsigned int i;
 	int ret = -EINVAL;
 
 	if (unlikely(!hash_rnd_inited)) {

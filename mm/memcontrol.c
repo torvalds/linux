@@ -3873,14 +3873,21 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
 	return val << PAGE_SHIFT;
 }
 
-static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
+static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+			       struct file *file, char __user *buf,
+			       size_t nbytes, loff_t *ppos)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	char str[64];
 	u64 val;
-	int type, name;
+	int type, name, len;
 
 	type = MEMFILE_TYPE(cft->private);
 	name = MEMFILE_ATTR(cft->private);
+
+	if (!do_swap_account && type == _MEMSWAP)
+		return -EOPNOTSUPP;
+
 	switch (type) {
 	case _MEM:
 		if (name == RES_USAGE)
@@ -3897,7 +3904,9 @@ static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
 	default:
 		BUG();
 	}
-	return val;
+
+	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
+	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
 }
 /*
  * The user of this function is...
@@ -3913,6 +3922,10 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
 
 	type = MEMFILE_TYPE(cft->private);
 	name = MEMFILE_ATTR(cft->private);
+
+	if (!do_swap_account && type == _MEMSWAP)
+		return -EOPNOTSUPP;
+
 	switch (name) {
 	case RES_LIMIT:
 		if (mem_cgroup_is_root(memcg)) { /* Can't set limit on root */
@@ -3978,12 +3991,15 @@ out:
 
 static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
 {
-	struct mem_cgroup *memcg;
+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
 	int type, name;
 
-	memcg = mem_cgroup_from_cont(cont);
 	type = MEMFILE_TYPE(event);
 	name = MEMFILE_ATTR(event);
+
+	if (!do_swap_account && type == _MEMSWAP)
+		return -EOPNOTSUPP;
+
 	switch (name) {
 	case RES_MAX_USAGE:
 		if (type == _MEM)
@@ -4624,29 +4640,22 @@ static int mem_control_numa_stat_open(struct inode *unused, struct file *file)
 #endif /* CONFIG_NUMA */
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys *ss)
+static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
-	/*
-	 * Part of this would be better living in a separate allocation
-	 * function, leaving us with just the cgroup tree population work.
-	 * We, however, depend on state such as network's proto_list that
-	 * is only initialized after cgroup creation. I found the less
-	 * cumbersome way to deal with it to defer it all to populate time
-	 */
-	return mem_cgroup_sockets_init(cont, ss);
+	return mem_cgroup_sockets_init(memcg, ss);
 };
 
-static void kmem_cgroup_destroy(struct cgroup *cont)
+static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
 {
-	mem_cgroup_sockets_destroy(cont);
+	mem_cgroup_sockets_destroy(memcg);
 }
 #else
-static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys *ss)
+static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
 	return 0;
 }
 
-static void kmem_cgroup_destroy(struct cgroup *cont)
+static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
 {
 }
 #endif
@@ -4655,7 +4664,7 @@ static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
-		.read_u64 = mem_cgroup_read,
+		.read = mem_cgroup_read,
 		.register_event = mem_cgroup_usage_register_event,
 		.unregister_event = mem_cgroup_usage_unregister_event,
 	},
@@ -4663,25 +4672,25 @@ static struct cftype mem_cgroup_files[] = {
 		.name = "max_usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_MAX_USAGE),
 		.trigger = mem_cgroup_reset,
-		.read_u64 = mem_cgroup_read,
+		.read = mem_cgroup_read,
 	},
 	{
 		.name = "limit_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_LIMIT),
 		.write_string = mem_cgroup_write,
-		.read_u64 = mem_cgroup_read,
+		.read = mem_cgroup_read,
 	},
 	{
 		.name = "soft_limit_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_SOFT_LIMIT),
 		.write_string = mem_cgroup_write,
-		.read_u64 = mem_cgroup_read,
+		.read = mem_cgroup_read,
 	},
 	{
 		.name = "failcnt",
 		.private = MEMFILE_PRIVATE(_MEM, RES_FAILCNT),
 		.trigger = mem_cgroup_reset,
-		.read_u64 = mem_cgroup_read,
+		.read = mem_cgroup_read,
 	},
 	{
 		.name = "stat",
@@ -4721,14 +4730,11 @@ static struct cftype mem_cgroup_files[] = {
 		.mode = S_IRUGO,
 	},
 #endif
-};
-
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-static struct cftype memsw_cgroup_files[] = {
 	{
 		.name = "memsw.usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_USAGE),
-		.read_u64 = mem_cgroup_read,
+		.read = mem_cgroup_read,
 		.register_event = mem_cgroup_usage_register_event,
 		.unregister_event = mem_cgroup_usage_unregister_event,
 	},
@@ -4736,35 +4742,23 @@ static struct cftype memsw_cgroup_files[] = {
 		.name = "memsw.max_usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_MAX_USAGE),
 		.trigger = mem_cgroup_reset,
-		.read_u64 = mem_cgroup_read,
+		.read = mem_cgroup_read,
 	},
 	{
 		.name = "memsw.limit_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_LIMIT),
 		.write_string = mem_cgroup_write,
-		.read_u64 = mem_cgroup_read,
+		.read = mem_cgroup_read,
 	},
 	{
 		.name = "memsw.failcnt",
 		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_FAILCNT),
 		.trigger = mem_cgroup_reset,
-		.read_u64 = mem_cgroup_read,
+		.read = mem_cgroup_read,
 	},
-};
-
-static int register_memsw_files(struct cgroup *cont, struct cgroup_subsys *ss)
-{
-	if (!do_swap_account)
-		return 0;
-	return cgroup_add_files(cont, ss, memsw_cgroup_files,
-				ARRAY_SIZE(memsw_cgroup_files));
-};
-#else
-static int register_memsw_files(struct cgroup *cont, struct cgroup_subsys *ss)
-{
-	return 0;
-}
 #endif
+	{ },	/* terminate */
+};
 
 static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
 {
@@ -5016,6 +5010,17 @@ mem_cgroup_create(struct cgroup *cont)
 	memcg->move_charge_at_immigrate = 0;
 	mutex_init(&memcg->thresholds_lock);
 	spin_lock_init(&memcg->move_lock);
+
+	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+	if (error) {
+		/*
+		 * We call put now because our (and parent's) refcnts
+		 * are already in place. mem_cgroup_put() will internally
+		 * call __mem_cgroup_free, so return directly
+		 */
+		mem_cgroup_put(memcg);
+		return ERR_PTR(error);
+	}
 	return &memcg->css;
 free_out:
 	__mem_cgroup_free(memcg);
@@ -5033,26 +5038,9 @@ static void mem_cgroup_destroy(struct cgroup *cont)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
 
-	kmem_cgroup_destroy(cont);
+	kmem_cgroup_destroy(memcg);
 
 	mem_cgroup_put(memcg);
-}
-
-static int mem_cgroup_populate(struct cgroup_subsys *ss,
-				struct cgroup *cont)
-{
-	int ret;
-
-	ret = cgroup_add_files(cont, ss, mem_cgroup_files,
-				ARRAY_SIZE(mem_cgroup_files));
-
-	if (!ret)
-		ret = register_memsw_files(cont, ss);
-
-	if (!ret)
-		ret = register_kmem_files(cont, ss);
-
-	return ret;
 }
 
 #ifdef CONFIG_MMU
@@ -5638,12 +5626,13 @@ struct cgroup_subsys mem_cgroup_subsys = {
 	.create = mem_cgroup_create,
 	.pre_destroy = mem_cgroup_pre_destroy,
 	.destroy = mem_cgroup_destroy,
-	.populate = mem_cgroup_populate,
 	.can_attach = mem_cgroup_can_attach,
 	.cancel_attach = mem_cgroup_cancel_attach,
 	.attach = mem_cgroup_move_task,
+	.base_cftypes = mem_cgroup_files,
 	.early_init = 0,
 	.use_id = 1,
+	.__DEPRECATED_clear_css_refs = true,
 };
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP

@@ -99,34 +99,11 @@ struct max8997_muic_reg_data {
 
 /**
  * struct max8997_muic_platform_data
- * @usb_callback: callback function for USB
- *		  inform callee of USB type (HOST or DEVICE)
- *		  and attached state(true or false)
- * @charger_callback: callback function for charger
- *		  inform callee of charger_type
- *		  and attached state(true or false)
- * @deskdock_callback: callback function for desk dock
- *		  inform callee of attached state(true or false)
- * @cardock_callback: callback function for car dock
- *		  inform callee of attached state(true or false)
- * @mhl_callback: callback function for MHL (Mobile High-definition Link)
- *		  inform callee of attached state(true or false)
- * @uart_callback: callback function for JIG UART
- *		   inform callee of attached state(true or false)
  * @init_data: array of max8997_muic_reg_data
  *	       used for initializing registers of MAX8997 MUIC device
  * @num_init_data: array size of init_data
  */
 struct max8997_muic_platform_data {
-	void (*usb_callback)(enum max8997_muic_usb_type usb_type,
-		bool attached);
-	void (*charger_callback)(bool attached,
-		enum max8997_muic_charger_type charger_type);
-	void (*deskdock_callback) (bool attached);
-	void (*cardock_callback) (bool attached);
-	void (*mhl_callback) (bool attached);
-	void (*uart_callback) (bool attached);
-
 	struct max8997_muic_reg_data *init_data;
 	int num_init_data;
 };

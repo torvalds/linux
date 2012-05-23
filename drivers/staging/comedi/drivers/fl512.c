@@ -42,38 +42,6 @@ static const struct comedi_lrange range_fl512 = { 4, {
 						      }
 };
 
-static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int fl512_detach(struct comedi_device *dev);
-
-static struct comedi_driver driver_fl512 = {
-	.driver_name = "fl512",
-	.module = THIS_MODULE,
-	.attach = fl512_attach,
-	.detach = fl512_detach,
-};
-
-static int __init driver_fl512_init_module(void)
-{
-	return comedi_driver_register(&driver_fl512);
-}
-
-static void __exit driver_fl512_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_fl512);
-}
-
-module_init(driver_fl512_init_module);
-module_exit(driver_fl512_cleanup_module);
-
-static int fl512_ai_insn(struct comedi_device *dev,
-			 struct comedi_subdevice *s, struct comedi_insn *insn,
-			 unsigned int *data);
-static int fl512_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data);
-static int fl512_ao_insn_readback(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data);
-
 /*
  * fl512_ai_insn : this is the analog input function
  */
@@ -140,9 +108,6 @@ static int fl512_ao_insn_readback(struct comedi_device *dev,
 	return n;
 }
 
-/*
- * start attach
- */
 static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	unsigned long iobase;
@@ -209,13 +174,19 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-static int fl512_detach(struct comedi_device *dev)
+static void fl512_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, FL512_SIZE);
-	printk(KERN_INFO "comedi%d: fl512: dummy i detach\n", dev->minor);
-	return 0;
 }
+
+static struct comedi_driver fl512_driver = {
+	.driver_name	= "fl512",
+	.module		= THIS_MODULE,
+	.attach		= fl512_attach,
+	.detach		= fl512_detach,
+};
+module_comedi_driver(fl512_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

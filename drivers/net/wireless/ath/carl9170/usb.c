@@ -1159,6 +1159,7 @@ static struct usb_driver carl9170_driver = {
 	.resume = carl9170_usb_resume,
 	.reset_resume = carl9170_usb_resume,
 #endif /* CONFIG_PM */
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(carl9170_driver);

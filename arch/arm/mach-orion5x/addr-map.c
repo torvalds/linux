@@ -76,7 +76,7 @@ static int __init cpu_win_can_remap(const struct orion_addr_map_cfg *cfg,
 /*
  * Description of the windows needed by the platform code
  */
-static struct __initdata orion_addr_map_cfg addr_map_cfg = {
+static struct orion_addr_map_cfg addr_map_cfg __initdata = {
 	.num_wins = 8,
 	.cpu_win_can_remap = cpu_win_can_remap,
 	.bridge_virt_base = ORION5X_BRIDGE_VIRT_BASE,

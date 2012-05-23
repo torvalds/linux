@@ -266,7 +266,6 @@ struct qe_ep {
 	struct usb_ep ep;
 	struct list_head queue;
 	struct qe_udc *udc;
-	const struct usb_endpoint_descriptor *desc;
 	struct usb_gadget *gadget;
 
 	u8 state;

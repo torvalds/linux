@@ -2,6 +2,7 @@ comment "VME Device Drivers"
 
 config VME_USER
 	tristate "VME user space access driver"
+	depends on STAGING
 	help
 	  If you say Y here you want to be able to access a limited number of
 	  VME windows in a manner at least semi-compatible with the interface
@@ -9,7 +10,7 @@ config VME_USER
 
 config VME_PIO2
 	tristate "GE PIO2 VME"
-	depends on GPIOLIB
+	depends on STAGING && GPIOLIB
 	help
 	  Say Y here to include support for the GE PIO2. The PIO2 is a 6U VME
 	  slave card, implementing 32 solid-state relay switched IO lines, in

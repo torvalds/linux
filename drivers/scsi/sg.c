@@ -104,7 +104,7 @@ static int scatter_elem_sz_prev = SG_SCATTER_SZ;
 static int sg_add(struct device *, struct class_interface *);
 static void sg_remove(struct device *, struct class_interface *);
 
-static DEFINE_MUTEX(sg_mutex);
+static DEFINE_SPINLOCK(sg_open_exclusive_lock);
 
 static DEFINE_IDR(sg_index_idr);
 static DEFINE_RWLOCK(sg_index_lock);	/* Also used to lock
@@ -137,13 +137,15 @@ typedef struct sg_request {	/* SG_MAX_QUEUE requests outstanding per file */
 	char res_used;		/* 1 -> using reserve buffer, 0 -> not ... */
 	char orphan;		/* 1 -> drop on sight, 0 -> normal */
 	char sg_io_owned;	/* 1 -> packet belongs to SG_IO */
-	volatile char done;	/* 0->before bh, 1->before read, 2->read */
+	/* done protected by rq_list_lock */
+	char done;		/* 0->before bh, 1->before read, 2->read */
 	struct request *rq;
 	struct bio *bio;
 	struct execute_work ew;
 } Sg_request;
 
 typedef struct sg_fd {		/* holds the state of a file descriptor */
+	/* sfd_siblings is protected by sg_index_lock */
 	struct list_head sfd_siblings;
 	struct sg_device *parentdp;	/* owning device */
 	wait_queue_head_t read_wait;	/* queue read until command done */
@@ -157,7 +159,6 @@ typedef struct sg_fd {		/* holds the state of a file descriptor */
 	Sg_request req_arr[SG_MAX_QUEUE];	/* used as singly-linked list */
 	char low_dma;		/* as in parent but possibly overridden to 1 */
 	char force_packid;	/* 1 -> pack_id input to read(), 0 -> ignored */
-	volatile char closed;	/* 1 -> fd closed but request(s) outstanding */
 	char cmd_q;		/* 1 -> allow command queuing, 0 -> don't */
 	char next_cmd_len;	/* 0 -> automatic (def), >0 -> use on next write() */
 	char keep_orphan;	/* 0 -> drop orphan (def), 1 -> keep for read() */
@@ -171,9 +172,11 @@ typedef struct sg_device { /* holds the state of each scsi generic device */
 	wait_queue_head_t o_excl_wait;	/* queue open() when O_EXCL in use */
 	int sg_tablesize;	/* adapter's max scatter-gather table size */
 	u32 index;		/* device index number */
+	/* sfds is protected by sg_index_lock */
 	struct list_head sfds;
 	volatile char detached;	/* 0->attached, 1->detached pending removal */
-	volatile char exclude;	/* opened for exclusive access */
+	/* exclude protected by sg_open_exclusive_lock */
+	char exclude;		/* opened for exclusive access */
 	char sgdebug;		/* 0->off, 1->sense, 9->dump dev, 10-> all devs */
 	struct gendisk *disk;
 	struct cdev * cdev;	/* char_dev [sysfs: /sys/cdev/major/sg<n>] */
@@ -221,6 +224,38 @@ static int sg_allow_access(struct file *filp, unsigned char *cmd)
 	return blk_verify_command(cmd, filp->f_mode & FMODE_WRITE);
 }
 
+static int get_exclude(Sg_device *sdp)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&sg_open_exclusive_lock, flags);
+	ret = sdp->exclude;
+	spin_unlock_irqrestore(&sg_open_exclusive_lock, flags);
+	return ret;
+}
+
+static int set_exclude(Sg_device *sdp, char val)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sg_open_exclusive_lock, flags);
+	sdp->exclude = val;
+	spin_unlock_irqrestore(&sg_open_exclusive_lock, flags);
+	return val;
+}
+
+static int sfds_list_empty(Sg_device *sdp)
+{
+	unsigned long flags;
+	int ret;
+
+	read_lock_irqsave(&sg_index_lock, flags);
+	ret = list_empty(&sdp->sfds);
+	read_unlock_irqrestore(&sg_index_lock, flags);
+	return ret;
+}
+
 static int
 sg_open(struct inode *inode, struct file *filp)
 {
@@ -232,7 +267,6 @@ sg_open(struct inode *inode, struct file *filp)
 	int res;
 	int retval;
 
-	mutex_lock(&sg_mutex);
 	nonseekable_open(inode, filp);
 	SCSI_LOG_TIMEOUT(3, printk("sg_open: dev=%d, flags=0x%x\n", dev, flags));
 	sdp = sg_get_dev(dev);
@@ -264,25 +298,22 @@ sg_open(struct inode *inode, struct file *filp)
 			retval = -EPERM; /* Can't lock it with read only access */
 			goto error_out;
 		}
-		if (!list_empty(&sdp->sfds) && (flags & O_NONBLOCK)) {
+		if (!sfds_list_empty(sdp) && (flags & O_NONBLOCK)) {
 			retval = -EBUSY;
 			goto error_out;
 		}
-		res = 0;
-		__wait_event_interruptible(sdp->o_excl_wait,
-					   ((!list_empty(&sdp->sfds) || sdp->exclude) ? 0 : (sdp->exclude = 1)), res);
+		res = wait_event_interruptible(sdp->o_excl_wait,
+					   ((!sfds_list_empty(sdp) || get_exclude(sdp)) ? 0 : set_exclude(sdp, 1)));
 		if (res) {
 			retval = res;	/* -ERESTARTSYS because signal hit process */
 			goto error_out;
 		}
-	} else if (sdp->exclude) {	/* some other fd has an exclusive lock on dev */
+	} else if (get_exclude(sdp)) {	/* some other fd has an exclusive lock on dev */
 		if (flags & O_NONBLOCK) {
 			retval = -EBUSY;
 			goto error_out;
 		}
-		res = 0;
-		__wait_event_interruptible(sdp->o_excl_wait, (!sdp->exclude),
-					   res);
+		res = wait_event_interruptible(sdp->o_excl_wait, !get_exclude(sdp));
 		if (res) {
 			retval = res;	/* -ERESTARTSYS because signal hit process */
 			goto error_out;
@@ -292,7 +323,7 @@ sg_open(struct inode *inode, struct file *filp)
 		retval = -ENODEV;
 		goto error_out;
 	}
-	if (list_empty(&sdp->sfds)) {	/* no existing opens on this device */
+	if (sfds_list_empty(sdp)) {	/* no existing opens on this device */
 		sdp->sgdebug = 0;
 		q = sdp->device->request_queue;
 		sdp->sg_tablesize = queue_max_segments(q);
@@ -301,7 +332,7 @@ sg_open(struct inode *inode, struct file *filp)
 		filp->private_data = sfp;
 	else {
 		if (flags & O_EXCL) {
-			sdp->exclude = 0;	/* undo if error */
+			set_exclude(sdp, 0);	/* undo if error */
 			wake_up_interruptible(&sdp->o_excl_wait);
 		}
 		retval = -ENOMEM;
@@ -317,7 +348,6 @@ sdp_put:
 sg_put:
 	if (sdp)
 		sg_put_dev(sdp);
-	mutex_unlock(&sg_mutex);
 	return retval;
 }
 
@@ -332,9 +362,7 @@ sg_release(struct inode *inode, struct file *filp)
 		return -ENXIO;
 	SCSI_LOG_TIMEOUT(3, printk("sg_release: %s\n", sdp->disk->disk_name));
 
-	sfp->closed = 1;
-
-	sdp->exclude = 0;
+	set_exclude(sdp, 0);
 	wake_up_interruptible(&sdp->o_excl_wait);
 
 	scsi_autopm_put_device(sdp->device);
@@ -398,19 +426,14 @@ sg_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 			retval = -EAGAIN;
 			goto free_old_hdr;
 		}
-		while (1) {
-			retval = 0; /* following macro beats race condition */
-			__wait_event_interruptible(sfp->read_wait,
-				(sdp->detached ||
-				(srp = sg_get_rq_mark(sfp, req_pack_id))), 
-				retval);
-			if (sdp->detached) {
-				retval = -ENODEV;
-				goto free_old_hdr;
-			}
-			if (0 == retval)
-				break;
-
+		retval = wait_event_interruptible(sfp->read_wait,
+			(sdp->detached ||
+			(srp = sg_get_rq_mark(sfp, req_pack_id))));
+		if (sdp->detached) {
+			retval = -ENODEV;
+			goto free_old_hdr;
+		}
+		if (retval) {
 			/* -ERESTARTSYS as signal hit process */
 			goto free_old_hdr;
 		}
@@ -771,7 +794,18 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 	return 0;
 }
 
-static int
+static int srp_done(Sg_fd *sfp, Sg_request *srp)
+{
+	unsigned long flags;
+	int ret;
+
+	read_lock_irqsave(&sfp->rq_list_lock, flags);
+	ret = srp->done;
+	read_unlock_irqrestore(&sfp->rq_list_lock, flags);
+	return ret;
+}
+
+static long
 sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 {
 	void __user *p = (void __user *)arg;
@@ -791,40 +825,30 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 
 	switch (cmd_in) {
 	case SG_IO:
-		{
-			int blocking = 1;	/* ignore O_NONBLOCK flag */
-
-			if (sdp->detached)
-				return -ENODEV;
-			if (!scsi_block_when_processing_errors(sdp->device))
-				return -ENXIO;
-			if (!access_ok(VERIFY_WRITE, p, SZ_SG_IO_HDR))
-				return -EFAULT;
-			result =
-			    sg_new_write(sfp, filp, p, SZ_SG_IO_HDR,
-					 blocking, read_only, 1, &srp);
-			if (result < 0)
-				return result;
-			while (1) {
-				result = 0;	/* following macro to beat race condition */
-				__wait_event_interruptible(sfp->read_wait,
-					(srp->done || sdp->detached),
-					result);
-				if (sdp->detached)
-					return -ENODEV;
-				write_lock_irq(&sfp->rq_list_lock);
-				if (srp->done) {
-					srp->done = 2;
-					write_unlock_irq(&sfp->rq_list_lock);
-					break;
-				}
-				srp->orphan = 1;
-				write_unlock_irq(&sfp->rq_list_lock);
-				return result;	/* -ERESTARTSYS because signal hit process */
-			}
+		if (sdp->detached)
+			return -ENODEV;
+		if (!scsi_block_when_processing_errors(sdp->device))
+			return -ENXIO;
+		if (!access_ok(VERIFY_WRITE, p, SZ_SG_IO_HDR))
+			return -EFAULT;
+		result = sg_new_write(sfp, filp, p, SZ_SG_IO_HDR,
+				 1, read_only, 1, &srp);
+		if (result < 0)
+			return result;
+		result = wait_event_interruptible(sfp->read_wait,
+			(srp_done(sfp, srp) || sdp->detached));
+		if (sdp->detached)
+			return -ENODEV;
+		write_lock_irq(&sfp->rq_list_lock);
+		if (srp->done) {
+			srp->done = 2;
+			write_unlock_irq(&sfp->rq_list_lock);
 			result = sg_new_read(sfp, p, SZ_SG_IO_HDR, srp);
 			return (result < 0) ? result : 0;
 		}
+		srp->orphan = 1;
+		write_unlock_irq(&sfp->rq_list_lock);
+		return result;	/* -ERESTARTSYS because signal hit process */
 	case SG_SET_TIMEOUT:
 		result = get_user(val, ip);
 		if (result)
@@ -1091,18 +1115,6 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 	}
 }
 
-static long
-sg_unlocked_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
-{
-	int ret;
-
-	mutex_lock(&sg_mutex);
-	ret = sg_ioctl(filp, cmd_in, arg);
-	mutex_unlock(&sg_mutex);
-
-	return ret;
-}
-
 #ifdef CONFIG_COMPAT
 static long sg_compat_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 {
@@ -1136,8 +1148,11 @@ sg_poll(struct file *filp, poll_table * wait)
 	int count = 0;
 	unsigned long iflags;
 
-	if ((!(sfp = (Sg_fd *) filp->private_data)) || (!(sdp = sfp->parentdp))
-	    || sfp->closed)
+	sfp = filp->private_data;
+	if (!sfp)
+		return POLLERR;
+	sdp = sfp->parentdp;
+	if (!sdp)
 		return POLLERR;
 	poll_wait(filp, &sfp->read_wait, wait);
 	read_lock_irqsave(&sfp->rq_list_lock, iflags);
@@ -1347,7 +1362,7 @@ static const struct file_operations sg_fops = {
 	.read = sg_read,
 	.write = sg_write,
 	.poll = sg_poll,
-	.unlocked_ioctl = sg_unlocked_ioctl,
+	.unlocked_ioctl = sg_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = sg_compat_ioctl,
 #endif
@@ -2312,7 +2327,7 @@ struct sg_proc_leaf {
 	const struct file_operations * fops;
 };
 
-static struct sg_proc_leaf sg_proc_leaf_arr[] = {
+static const struct sg_proc_leaf sg_proc_leaf_arr[] = {
 	{"allow_dio", &adio_fops},
 	{"debug", &debug_fops},
 	{"def_reserved_size", &dressz_fops},
@@ -2332,7 +2347,7 @@ sg_proc_init(void)
 	if (!sg_proc_sgp)
 		return 1;
 	for (k = 0; k < num_leaves; ++k) {
-		struct sg_proc_leaf *leaf = &sg_proc_leaf_arr[k];
+		const struct sg_proc_leaf *leaf = &sg_proc_leaf_arr[k];
 		umode_t mask = leaf->fops->write ? S_IRUGO | S_IWUSR : S_IRUGO;
 		proc_create(leaf->name, mask, sg_proc_sgp, leaf->fops);
 	}
@@ -2533,9 +2548,9 @@ static void sg_proc_debug_helper(struct seq_file *s, Sg_device * sdp)
 			   fp->reserve.bufflen,
 			   (int) fp->reserve.k_use_sg,
 			   (int) fp->low_dma);
-		seq_printf(s, "   cmd_q=%d f_packid=%d k_orphan=%d closed=%d\n",
+		seq_printf(s, "   cmd_q=%d f_packid=%d k_orphan=%d closed=0\n",
 			   (int) fp->cmd_q, (int) fp->force_packid,
-			   (int) fp->keep_orphan, (int) fp->closed);
+			   (int) fp->keep_orphan);
 		for (m = 0, srp = fp->headrp;
 				srp != NULL;
 				++m, srp = srp->nextrp) {
@@ -2612,7 +2627,7 @@ static int sg_proc_seq_show_debug(struct seq_file *s, void *v)
 			     scsidp->lun,
 			     scsidp->host->hostt->emulated);
 		seq_printf(s, " sg_tablesize=%d excl=%d\n",
-			   sdp->sg_tablesize, sdp->exclude);
+			   sdp->sg_tablesize, get_exclude(sdp));
 		sg_proc_debug_helper(s, sdp);
 	}
 	read_unlock_irqrestore(&sg_index_lock, iflags);

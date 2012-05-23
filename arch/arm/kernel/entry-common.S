@@ -335,20 +335,6 @@ ENDPROC(ftrace_stub)
  *-----------------------------------------------------------------------------
  */
 
-	/* If we're optimising for StrongARM the resulting code won't 
-	   run on an ARM7 and we can save a couple of instructions.  
-								--pb */
-#ifdef CONFIG_CPU_ARM710
-#define A710(code...) code
-.Larm710bug:
-	ldmia	sp, {r0 - lr}^			@ Get calling r0 - lr
-	mov	r0, r0
-	add	sp, sp, #S_FRAME_SIZE
-	subs	pc, lr, #4
-#else
-#define A710(code...)
-#endif
-
 	.align	5
 ENTRY(vector_swi)
 	sub	sp, sp, #S_FRAME_SIZE
@@ -379,9 +365,6 @@ ENTRY(vector_swi)
 	ldreq	r10, [lr, #-4]			@ get SWI instruction
 #else
 	ldr	r10, [lr, #-4]			@ get SWI instruction
-  A710(	and	ip, r10, #0x0f000000		@ check for SWI		)
-  A710(	teq	ip, #0x0f000000						)
-  A710(	bne	.Larm710bug						)
 #endif
 #ifdef CONFIG_CPU_ENDIAN_BE8
 	rev	r10, r10			@ little endian instruction
@@ -392,26 +375,15 @@ ENTRY(vector_swi)
 	/*
 	 * Pure EABI user space always put syscall number into scno (r7).
 	 */
-  A710(	ldr	ip, [lr, #-4]			@ get SWI instruction	)
-  A710(	and	ip, ip, #0x0f000000		@ check for SWI		)
-  A710(	teq	ip, #0x0f000000						)
-  A710(	bne	.Larm710bug						)
-
 #elif defined(CONFIG_ARM_THUMB)
-
 	/* Legacy ABI only, possibly thumb mode. */
 	tst	r8, #PSR_T_BIT			@ this is SPSR from save_user_regs
 	addne	scno, r7, #__NR_SYSCALL_BASE	@ put OS number in
 	ldreq	scno, [lr, #-4]
 
 #else
-
 	/* Legacy ABI only. */
 	ldr	scno, [lr, #-4]			@ get SWI instruction
-  A710(	and	ip, scno, #0x0f000000		@ check for SWI		)
-  A710(	teq	ip, #0x0f000000						)
-  A710(	bne	.Larm710bug						)
-
 #endif
 
 #ifdef CONFIG_ALIGNMENT_TRAP

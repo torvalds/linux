@@ -683,8 +683,6 @@ static int __devinit hamachi_init_one (struct pci_dev *pdev,
 	}
 
 	hmp->base = ioaddr;
-	dev->base_addr = (unsigned long)ioaddr;
-	dev->irq = irq;
 	pci_set_drvdata(pdev, dev);
 
 	hmp->chip_id = chip_id;
@@ -859,13 +857,10 @@ static int hamachi_open(struct net_device *dev)
 	u32 rx_int_var, tx_int_var;
 	u16 fifo_info;
 
-	i = request_irq(dev->irq, hamachi_interrupt, IRQF_SHARED, dev->name, dev);
+	i = request_irq(hmp->pci_dev->irq, hamachi_interrupt, IRQF_SHARED,
+			dev->name, dev);
 	if (i)
 		return i;
-
-	if (hamachi_debug > 1)
-		printk(KERN_DEBUG "%s: hamachi_open() irq %d.\n",
-			   dev->name, dev->irq);
 
 	hamachi_init_ring(dev);
 
@@ -1705,7 +1700,7 @@ static int hamachi_close(struct net_device *dev)
 	}
 #endif /* __i386__ debugging only */
 
-	free_irq(dev->irq, dev);
+	free_irq(hmp->pci_dev->irq, dev);
 
 	del_timer_sync(&hmp->timer);
 

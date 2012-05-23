@@ -7,7 +7,7 @@
  * The implementation of this service is split into two parts the first of which
  * is protocol independent and the second contains protocol specific details.
  * This split is to allow alternative protocols to be defined.
- * The implemenation of this service uses ozhcd.c to implement a USB HCD.
+ * The implementation of this service uses ozhcd.c to implement a USB HCD.
  * -----------------------------------------------------------------------------
  */
 #include <linux/init.h>

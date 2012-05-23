@@ -615,18 +615,22 @@ static int rsvp_dump(struct tcf_proto *tp, unsigned long fh,
 	if (nest == NULL)
 		goto nla_put_failure;
 
-	NLA_PUT(skb, TCA_RSVP_DST, sizeof(s->dst), &s->dst);
+	if (nla_put(skb, TCA_RSVP_DST, sizeof(s->dst), &s->dst))
+		goto nla_put_failure;
 	pinfo.dpi = s->dpi;
 	pinfo.spi = f->spi;
 	pinfo.protocol = s->protocol;
 	pinfo.tunnelid = s->tunnelid;
 	pinfo.tunnelhdr = f->tunnelhdr;
 	pinfo.pad = 0;
-	NLA_PUT(skb, TCA_RSVP_PINFO, sizeof(pinfo), &pinfo);
-	if (f->res.classid)
-		NLA_PUT_U32(skb, TCA_RSVP_CLASSID, f->res.classid);
-	if (((f->handle >> 8) & 0xFF) != 16)
-		NLA_PUT(skb, TCA_RSVP_SRC, sizeof(f->src), f->src);
+	if (nla_put(skb, TCA_RSVP_PINFO, sizeof(pinfo), &pinfo))
+		goto nla_put_failure;
+	if (f->res.classid &&
+	    nla_put_u32(skb, TCA_RSVP_CLASSID, f->res.classid))
+		goto nla_put_failure;
+	if (((f->handle >> 8) & 0xFF) != 16 &&
+	    nla_put(skb, TCA_RSVP_SRC, sizeof(f->src), f->src))
+		goto nla_put_failure;
 
 	if (tcf_exts_dump(skb, &f->exts, &rsvp_ext_map) < 0)
 		goto nla_put_failure;

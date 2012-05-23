@@ -381,21 +381,25 @@ out:
 	return err;
 }
 
-static void __devexit virtballoon_remove(struct virtio_device *vdev)
+static void remove_common(struct virtio_balloon *vb)
 {
-	struct virtio_balloon *vb = vdev->priv;
-
-	kthread_stop(vb->thread);
-
 	/* There might be pages left in the balloon: free them. */
 	while (vb->num_pages)
 		leak_balloon(vb, vb->num_pages);
 	update_balloon_size(vb);
 
 	/* Now we reset the device so we can clean up the queues. */
-	vdev->config->reset(vdev);
+	vb->vdev->config->reset(vb->vdev);
 
-	vdev->config->del_vqs(vdev);
+	vb->vdev->config->del_vqs(vb->vdev);
+}
+
+static void __devexit virtballoon_remove(struct virtio_device *vdev)
+{
+	struct virtio_balloon *vb = vdev->priv;
+
+	kthread_stop(vb->thread);
+	remove_common(vb);
 	kfree(vb);
 }
 
@@ -409,17 +413,11 @@ static int virtballoon_freeze(struct virtio_device *vdev)
 	 * function is called.
 	 */
 
-	while (vb->num_pages)
-		leak_balloon(vb, vb->num_pages);
-	update_balloon_size(vb);
-
-	/* Ensure we don't get any more requests from the host */
-	vdev->config->reset(vdev);
-	vdev->config->del_vqs(vdev);
+	remove_common(vb);
 	return 0;
 }
 
-static int restore_common(struct virtio_device *vdev)
+static int virtballoon_restore(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
 	int ret;
@@ -431,11 +429,6 @@ static int restore_common(struct virtio_device *vdev)
 	fill_balloon(vb, towards_target(vb));
 	update_balloon_size(vb);
 	return 0;
-}
-
-static int virtballoon_restore(struct virtio_device *vdev)
-{
-	return restore_common(vdev);
 }
 #endif
 

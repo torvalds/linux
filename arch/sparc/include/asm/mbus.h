@@ -8,14 +8,10 @@
 #define _SPARC_MBUS_H
 
 #include <asm/ross.h>    /* HyperSparc stuff */
-#include <asm/cypress.h> /* Cypress Chips */
 #include <asm/viking.h>  /* Ugh, bug city... */
 
 enum mbus_module {
 	HyperSparc        = 0,
-	Cypress           = 1,
-	Cypress_vE        = 2,
-	Cypress_vD        = 3,
 	Swift_ok          = 4,
 	Swift_bad_c       = 5,
 	Swift_lots_o_bugs = 6,

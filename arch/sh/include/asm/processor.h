@@ -85,10 +85,6 @@ struct sh_cpuinfo {
 	struct tlb_info itlb;
 	struct tlb_info dtlb;
 
-#ifdef CONFIG_SMP
-	struct task_struct *idle;
-#endif
-
 	unsigned int phys_bits;
 	unsigned long flags;
 } __attribute__ ((aligned(L1_CACHE_BYTES)));
@@ -102,7 +98,6 @@ extern struct sh_cpuinfo cpu_data[];
 #define cpu_relax()	barrier()
 
 void default_idle(void);
-void cpu_idle_wait(void);
 void stop_this_cpu(void *);
 
 /* Forward decl */

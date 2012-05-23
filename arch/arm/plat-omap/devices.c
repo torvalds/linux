@@ -167,8 +167,8 @@ void __init omap_dsp_reserve_sdram_memblock(void)
 
 	paddr = arm_memblock_steal(size, SZ_1M);
 	if (!paddr) {
-		pr_err("%s: failed to reserve %x bytes\n",
-				__func__, size);
+		pr_err("%s: failed to reserve %llx bytes\n",
+				__func__, (unsigned long long)size);
 		return;
 	}
 

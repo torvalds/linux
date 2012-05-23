@@ -1258,7 +1258,7 @@ idt77252_rx_raw(struct idt77252_dev *card)
 	tail = readl(SAR_REG_RAWCT);
 
 	pci_dma_sync_single_for_cpu(card->pcidev, IDT77252_PRV_PADDR(queue),
-				    skb_end_pointer(queue) - queue->head - 16,
+				    skb_end_offset(queue) - 16,
 				    PCI_DMA_FROMDEVICE);
 
 	while (head != tail) {

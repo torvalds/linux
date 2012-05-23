@@ -24,6 +24,10 @@
 	};
 
 	ahb {
+		dma@fc400000 {
+			status = "okay";
+		};
+
 		gmac: ethernet@e0800000 {
 			phy-mode = "gmii";
 			status = "okay";

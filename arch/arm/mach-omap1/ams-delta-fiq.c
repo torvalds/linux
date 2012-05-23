@@ -102,7 +102,7 @@ void __init ams_delta_init_fiq(void)
 	}
 
 	retval = request_irq(INT_DEFERRED_FIQ, deferred_fiq,
-			IRQ_TYPE_EDGE_RISING, "deferred_fiq", 0);
+			IRQ_TYPE_EDGE_RISING, "deferred_fiq", NULL);
 	if (retval < 0) {
 		pr_err("Failed to get deferred_fiq IRQ, ret=%d\n", retval);
 		release_fiq(&fh);

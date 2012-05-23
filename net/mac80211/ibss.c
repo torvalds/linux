@@ -66,7 +66,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	skb_reset_tail_pointer(skb);
 	skb_reserve(skb, sdata->local->hw.extra_tx_headroom);
 
-	if (compare_ether_addr(ifibss->bssid, bssid))
+	if (!ether_addr_equal(ifibss->bssid, bssid))
 		sta_info_flush(sdata->local, sdata);
 
 	/* if merging, indicate to driver that we leave the old IBSS */
@@ -160,16 +160,14 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	if (channel_type && sband->ht_cap.ht_supported) {
 		pos = skb_put(skb, 4 +
 				   sizeof(struct ieee80211_ht_cap) +
-				   sizeof(struct ieee80211_ht_info));
+				   sizeof(struct ieee80211_ht_operation));
 		pos = ieee80211_ie_build_ht_cap(pos, &sband->ht_cap,
 						sband->ht_cap.cap);
-		pos = ieee80211_ie_build_ht_info(pos,
-						 &sband->ht_cap,
-						 chan,
-						 channel_type);
+		pos = ieee80211_ie_build_ht_oper(pos, &sband->ht_cap,
+						 chan, channel_type, 0);
 	}
 
-	if (local->hw.queues >= 4) {
+	if (local->hw.queues >= IEEE80211_NUM_ACS) {
 		pos = skb_put(skb, 9);
 		*pos++ = WLAN_EID_VENDOR_SPECIFIC;
 		*pos++ = 7; /* len */
@@ -305,9 +303,8 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	 * 	allow new one to be added.
 	 */
 	if (local->num_sta >= IEEE80211_IBSS_MAX_STA_ENTRIES) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: No room for a new IBSS STA entry %pM\n",
-			       sdata->name, addr);
+		net_dbg_ratelimited("%s: No room for a new IBSS STA entry %pM\n",
+				    sdata->name, addr);
 		rcu_read_lock();
 		return NULL;
 	}
@@ -317,7 +314,7 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 	}
 
-	if (compare_ether_addr(bssid, sdata->u.ibss.bssid)) {
+	if (!ether_addr_equal(bssid, sdata->u.ibss.bssid)) {
 		rcu_read_lock();
 		return NULL;
 	}
@@ -403,14 +400,14 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
-	    compare_ether_addr(mgmt->bssid, sdata->u.ibss.bssid) == 0) {
+	    ether_addr_equal(mgmt->bssid, sdata->u.ibss.bssid)) {
 
 		rcu_read_lock();
 		sta = sta_info_get(sdata, mgmt->sa);
 
 		if (elems->supp_rates) {
 			supp_rates = ieee80211_sta_get_rates(local, elems,
-							     band);
+							     band, NULL);
 			if (sta) {
 				u32 prev_rates;
 
@@ -441,13 +438,13 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		if (sta && elems->wmm_info)
 			set_sta_flag(sta, WLAN_STA_WME);
 
-		if (sta && elems->ht_info_elem && elems->ht_cap_elem &&
+		if (sta && elems->ht_operation && elems->ht_cap_elem &&
 		    sdata->u.ibss.channel_type != NL80211_CHAN_NO_HT) {
 			/* we both use HT */
 			struct ieee80211_sta_ht_cap sta_ht_cap_new;
 			enum nl80211_channel_type channel_type =
-				ieee80211_ht_info_to_channel_type(
-							elems->ht_info_elem);
+				ieee80211_ht_oper_to_channel_type(
+							elems->ht_operation);
 
 			ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 							  elems->ht_cap_elem,
@@ -508,7 +505,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		goto put_bss;
 
 	/* same BSSID */
-	if (compare_ether_addr(cbss->bssid, sdata->u.ibss.bssid) == 0)
+	if (ether_addr_equal(cbss->bssid, sdata->u.ibss.bssid))
 		goto put_bss;
 
 	if (rx_status->flag & RX_FLAG_MACTIME_MPDU) {
@@ -560,7 +557,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		       sdata->name, mgmt->bssid);
 #endif
 		ieee80211_sta_join_ibss(sdata, bss);
-		supp_rates = ieee80211_sta_get_rates(local, elems, band);
+		supp_rates = ieee80211_sta_get_rates(local, elems, band, NULL);
 		ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa,
 				       supp_rates, true);
 		rcu_read_unlock();
@@ -584,16 +581,15 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 	 * 	allow new one to be added.
 	 */
 	if (local->num_sta >= IEEE80211_IBSS_MAX_STA_ENTRIES) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: No room for a new IBSS STA entry %pM\n",
-			       sdata->name, addr);
+		net_dbg_ratelimited("%s: No room for a new IBSS STA entry %pM\n",
+				    sdata->name, addr);
 		return;
 	}
 
 	if (ifibss->state == IEEE80211_IBSS_MLME_SEARCH)
 		return;
 
-	if (compare_ether_addr(bssid, sdata->u.ibss.bssid))
+	if (!ether_addr_equal(bssid, sdata->u.ibss.bssid))
 		return;
 
 	sta = sta_info_alloc(sdata, addr, GFP_ATOMIC);
@@ -831,7 +827,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	if (!tx_last_beacon && is_multicast_ether_addr(mgmt->da))
 		return;
 
-	if (compare_ether_addr(mgmt->bssid, ifibss->bssid) != 0 &&
+	if (!ether_addr_equal(mgmt->bssid, ifibss->bssid) &&
 	    !is_broadcast_ether_addr(mgmt->bssid))
 		return;
 
@@ -1063,7 +1059,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 			    4 /* IBSS params */ +
 			    2 + (IEEE80211_MAX_SUPP_RATES - 8) +
 			    2 + sizeof(struct ieee80211_ht_cap) +
-			    2 + sizeof(struct ieee80211_ht_info) +
+			    2 + sizeof(struct ieee80211_ht_operation) +
 			    params->ie_len);
 	if (!skb)
 		return -ENOMEM;

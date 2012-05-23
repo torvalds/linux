@@ -102,7 +102,7 @@ goku_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	unsigned long	flags;
 
 	ep = container_of(_ep, struct goku_ep, ep);
-	if (!_ep || !desc || ep->desc
+	if (!_ep || !desc || ep->ep.desc
 			|| desc->bDescriptorType != USB_DT_ENDPOINT)
 		return -EINVAL;
 	dev = ep->dev;
@@ -176,7 +176,7 @@ goku_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	command(ep->dev->regs, COMMAND_RESET, ep->num);
 	ep->ep.maxpacket = max;
 	ep->stopped = 0;
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	spin_unlock_irqrestore(&ep->dev->lock, flags);
 
 	DBG(dev, "enable %s %s %s maxpacket %u\n", ep->ep.name,
@@ -233,7 +233,6 @@ static void ep_reset(struct goku_udc_regs __iomem *regs, struct goku_ep *ep)
 	}
 
 	ep->ep.maxpacket = MAX_FIFO_SIZE;
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	ep->stopped = 1;
 	ep->irqs = 0;
@@ -247,7 +246,7 @@ static int goku_ep_disable(struct usb_ep *_ep)
 	unsigned long	flags;
 
 	ep = container_of(_ep, struct goku_ep, ep);
-	if (!_ep || !ep->desc)
+	if (!_ep || !ep->ep.desc)
 		return -ENODEV;
 	dev = ep->dev;
 	if (dev->ep0state == EP0_SUSPEND)
@@ -722,7 +721,7 @@ goku_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 			|| !_req->buf || !list_empty(&req->queue)))
 		return -EINVAL;
 	ep = container_of(_ep, struct goku_ep, ep);
-	if (unlikely(!_ep || (!ep->desc && ep->num != 0)))
+	if (unlikely(!_ep || (!ep->ep.desc && ep->num != 0)))
 		return -EINVAL;
 	dev = ep->dev;
 	if (unlikely(!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN))
@@ -815,7 +814,7 @@ static int goku_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	unsigned long		flags;
 
 	ep = container_of(_ep, struct goku_ep, ep);
-	if (!_ep || !_req || (!ep->desc && ep->num != 0))
+	if (!_ep || !_req || (!ep->ep.desc && ep->num != 0))
 		return -EINVAL;
 	dev = ep->dev;
 	if (!dev->driver)
@@ -896,7 +895,7 @@ static int goku_set_halt(struct usb_ep *_ep, int value)
 			return -EINVAL;
 
 	/* don't change EPxSTATUS_EP_INVALID to READY */
-	} else if (!ep->desc) {
+	} else if (!ep->ep.desc) {
 		DBG(ep->dev, "%s %s inactive?\n", __func__, ep->ep.name);
 		return -EINVAL;
 	}
@@ -955,7 +954,7 @@ static void goku_fifo_flush(struct usb_ep *_ep)
 	VDBG(ep->dev, "%s %s\n", __func__, ep->ep.name);
 
 	/* don't change EPxSTATUS_EP_INVALID to READY */
-	if (!ep->desc && ep->num != 0) {
+	if (!ep->ep.desc && ep->num != 0) {
 		DBG(ep->dev, "%s %s inactive?\n", __func__, ep->ep.name);
 		return;
 	}
@@ -1152,7 +1151,7 @@ udc_proc_read(char *buffer, char **start, off_t off, int count,
 		struct goku_ep		*ep = &dev->ep [i];
 		struct goku_request	*req;
 
-		if (i && !ep->desc)
+		if (i && !ep->ep.desc)
 			continue;
 
 		tmp = readl(ep->reg_status);
@@ -1473,7 +1472,8 @@ static void ep0_setup(struct goku_udc *dev)
 			case USB_RECIP_ENDPOINT:
 				tmp = le16_to_cpu(ctrl.wIndex) & 0x0f;
 				/* active endpoint */
-				if (tmp > 3 || (!dev->ep[tmp].desc && tmp != 0))
+				if (tmp > 3 ||
+				    (!dev->ep[tmp].ep.desc && tmp != 0))
 					goto stall;
 				if (ctrl.wIndex & cpu_to_le16(
 						USB_DIR_IN)) {
@@ -1895,14 +1895,4 @@ static struct pci_driver goku_pci_driver = {
 	/* FIXME add power management support */
 };
 
-static int __init init (void)
-{
-	return pci_register_driver (&goku_pci_driver);
-}
-module_init (init);
-
-static void __exit cleanup (void)
-{
-	pci_unregister_driver (&goku_pci_driver);
-}
-module_exit (cleanup);
+module_pci_driver(goku_pci_driver);

@@ -1,0 +1,97 @@
+TPS6586x family of regulators
+
+Required properties:
+- compatible: "ti,tps6586x"
+- reg: I2C slave address
+- interrupts: the interrupt outputs of the controller
+- #gpio-cells: number of cells to describe a GPIO
+- gpio-controller: mark the device as a GPIO controller
+- regulators: list of regulators provided by this controller, must be named
+  after their hardware counterparts: sm[0-2], ldo[0-9] and ldo_rtc
+
+Each regulator is defined using the standard binding for regulators.
+
+Example:
+
+	pmu: tps6586x@34 {
+		compatible = "ti,tps6586x";
+		reg = <0x34>;
+		interrupts = <0 88 0x4>;
+
+		#gpio-cells = <2>;
+		gpio-controller;
+
+		regulators {
+			sm0_reg: sm0 {
+				regulator-min-microvolt = < 725000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sm1_reg: sm1 {
+				regulator-min-microvolt = < 725000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sm2_reg: sm2 {
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <4550000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ldo0_reg: ldo0 {
+				regulator-name = "PCIE CLK";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			ldo1_reg: ldo1 {
+				regulator-min-microvolt = < 725000>;
+				regulator-max-microvolt = <1500000>;
+			};
+
+			ldo2_reg: ldo2 {
+				regulator-min-microvolt = < 725000>;
+				regulator-max-microvolt = <1500000>;
+			};
+
+			ldo3_reg: ldo3 {
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			ldo4_reg: ldo4 {
+				regulator-min-microvolt = <1700000>;
+				regulator-max-microvolt = <2475000>;
+			};
+
+			ldo5_reg: ldo5 {
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			ldo6_reg: ldo6 {
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			ldo7_reg: ldo7 {
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			ldo8_reg: ldo8 {
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			ldo9_reg: ldo9 {
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <3300000>;
+			};
+		};
+	};

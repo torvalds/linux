@@ -28,14 +28,9 @@
 #include "bat_sysfs.h"
 #include "originator.h"
 #include "hash.h"
+#include "bridge_loop_avoidance.h"
 
 #include <linux/if_arp.h>
-
-
-static int batman_skb_recv(struct sk_buff *skb,
-			   struct net_device *dev,
-			   struct packet_type *ptype,
-			   struct net_device *orig_dev);
 
 void hardif_free_rcu(struct rcu_head *rcu)
 {
@@ -107,7 +102,8 @@ out:
 	return hard_iface;
 }
 
-static void primary_if_update_addr(struct bat_priv *bat_priv)
+static void primary_if_update_addr(struct bat_priv *bat_priv,
+				   struct hard_iface *oldif)
 {
 	struct vis_packet *vis_packet;
 	struct hard_iface *primary_if;
@@ -122,6 +118,7 @@ static void primary_if_update_addr(struct bat_priv *bat_priv)
 	memcpy(vis_packet->sender_orig,
 	       primary_if->net_dev->dev_addr, ETH_ALEN);
 
+	bla_update_orig_address(bat_priv, primary_if, oldif);
 out:
 	if (primary_if)
 		hardif_free_ref(primary_if);
@@ -140,14 +137,15 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	curr_hard_iface = rcu_dereference_protected(bat_priv->primary_if, 1);
 	rcu_assign_pointer(bat_priv->primary_if, new_hard_iface);
 
+	if (!new_hard_iface)
+		goto out;
+
+	bat_priv->bat_algo_ops->bat_primary_iface_set(new_hard_iface);
+	primary_if_update_addr(bat_priv, curr_hard_iface);
+
+out:
 	if (curr_hard_iface)
 		hardif_free_ref(curr_hard_iface);
-
-	if (!new_hard_iface)
-		return;
-
-	bat_priv->bat_algo_ops->bat_ogm_init_primary(new_hard_iface);
-	primary_if_update_addr(bat_priv);
 }
 
 static bool hardif_is_iface_up(const struct hard_iface *hard_iface)
@@ -175,9 +173,9 @@ static void check_known_mac_addr(const struct net_device *net_dev)
 				 net_dev->dev_addr))
 			continue;
 
-		pr_warning("The newly added mac address (%pM) already exists on: %s\n",
-			   net_dev->dev_addr, hard_iface->net_dev->name);
-		pr_warning("It is strongly recommended to keep mac addresses unique to avoid problems!\n");
+		pr_warn("The newly added mac address (%pM) already exists on: %s\n",
+			net_dev->dev_addr, hard_iface->net_dev->name);
+		pr_warn("It is strongly recommended to keep mac addresses unique to avoid problems!\n");
 	}
 	rcu_read_unlock();
 }
@@ -230,7 +228,7 @@ static void hardif_activate_interface(struct hard_iface *hard_iface)
 
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	bat_priv->bat_algo_ops->bat_ogm_update_mac(hard_iface);
+	bat_priv->bat_algo_ops->bat_iface_update_mac(hard_iface);
 	hard_iface->if_status = IF_TO_BE_ACTIVATED;
 
 	/**
@@ -300,22 +298,17 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	if (!softif_is_valid(soft_iface)) {
 		pr_err("Can't create batman mesh interface %s: already exists as regular interface\n",
 		       soft_iface->name);
-		dev_put(soft_iface);
 		ret = -EINVAL;
-		goto err;
+		goto err_dev;
 	}
 
 	hard_iface->soft_iface = soft_iface;
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	bat_priv->bat_algo_ops->bat_ogm_init(hard_iface);
-
-	if (!hard_iface->packet_buff) {
-		bat_err(hard_iface->soft_iface,
-			"Can't add interface packet (%s): out of memory\n",
-			hard_iface->net_dev->name);
+	ret = bat_priv->bat_algo_ops->bat_iface_enable(hard_iface);
+	if (ret < 0) {
 		ret = -ENOMEM;
-		goto err;
+		goto err_dev;
 	}
 
 	hard_iface->if_num = bat_priv->num_ifaces;
@@ -328,7 +321,6 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	hard_iface->batman_adv_ptype.dev = hard_iface->net_dev;
 	dev_add_pack(&hard_iface->batman_adv_ptype);
 
-	atomic_set(&hard_iface->seqno, 1);
 	atomic_set(&hard_iface->frag_seqno, 1);
 	bat_info(hard_iface->soft_iface, "Adding interface: %s\n",
 		 hard_iface->net_dev->name);
@@ -360,6 +352,8 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 out:
 	return 0;
 
+err_dev:
+	dev_put(soft_iface);
 err:
 	hardif_free_ref(hard_iface);
 	return ret;
@@ -394,8 +388,7 @@ void hardif_disable_interface(struct hard_iface *hard_iface)
 			hardif_free_ref(new_if);
 	}
 
-	kfree(hard_iface->packet_buff);
-	hard_iface->packet_buff = NULL;
+	bat_priv->bat_algo_ops->bat_iface_disable(hard_iface);
 	hard_iface->if_status = IF_NOT_IN_USE;
 
 	/* delete all references to this hard_iface */
@@ -446,6 +439,13 @@ static struct hard_iface *hardif_add_interface(struct net_device *net_dev)
 
 	check_known_mac_addr(hard_iface->net_dev);
 	list_add_tail_rcu(&hard_iface->list, &hardif_list);
+
+	/**
+	 * This can't be called via a bat_priv callback because
+	 * we have no bat_priv yet.
+	 */
+	atomic_set(&hard_iface->seqno, 1);
+	hard_iface->packet_buff = NULL;
 
 	return hard_iface;
 
@@ -524,14 +524,14 @@ static int hard_if_event(struct notifier_block *this,
 		check_known_mac_addr(hard_iface->net_dev);
 
 		bat_priv = netdev_priv(hard_iface->soft_iface);
-		bat_priv->bat_algo_ops->bat_ogm_update_mac(hard_iface);
+		bat_priv->bat_algo_ops->bat_iface_update_mac(hard_iface);
 
 		primary_if = primary_if_get_selected(bat_priv);
 		if (!primary_if)
 			goto hardif_put;
 
 		if (hard_iface == primary_if)
-			primary_if_update_addr(bat_priv);
+			primary_if_update_addr(bat_priv, NULL);
 		break;
 	default:
 		break;
@@ -543,114 +543,6 @@ out:
 	if (primary_if)
 		hardif_free_ref(primary_if);
 	return NOTIFY_DONE;
-}
-
-/* incoming packets with the batman ethertype received on any active hard
- * interface */
-static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
-			   struct packet_type *ptype,
-			   struct net_device *orig_dev)
-{
-	struct bat_priv *bat_priv;
-	struct batman_ogm_packet *batman_ogm_packet;
-	struct hard_iface *hard_iface;
-	int ret;
-
-	hard_iface = container_of(ptype, struct hard_iface, batman_adv_ptype);
-	skb = skb_share_check(skb, GFP_ATOMIC);
-
-	/* skb was released by skb_share_check() */
-	if (!skb)
-		goto err_out;
-
-	/* packet should hold at least type and version */
-	if (unlikely(!pskb_may_pull(skb, 2)))
-		goto err_free;
-
-	/* expect a valid ethernet header here. */
-	if (unlikely(skb->mac_len != sizeof(struct ethhdr) ||
-		     !skb_mac_header(skb)))
-		goto err_free;
-
-	if (!hard_iface->soft_iface)
-		goto err_free;
-
-	bat_priv = netdev_priv(hard_iface->soft_iface);
-
-	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
-		goto err_free;
-
-	/* discard frames on not active interfaces */
-	if (hard_iface->if_status != IF_ACTIVE)
-		goto err_free;
-
-	batman_ogm_packet = (struct batman_ogm_packet *)skb->data;
-
-	if (batman_ogm_packet->header.version != COMPAT_VERSION) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: incompatible batman version (%i)\n",
-			batman_ogm_packet->header.version);
-		goto err_free;
-	}
-
-	/* all receive handlers return whether they received or reused
-	 * the supplied skb. if not, we have to free the skb. */
-
-	switch (batman_ogm_packet->header.packet_type) {
-		/* batman originator packet */
-	case BAT_OGM:
-		ret = recv_bat_ogm_packet(skb, hard_iface);
-		break;
-
-		/* batman icmp packet */
-	case BAT_ICMP:
-		ret = recv_icmp_packet(skb, hard_iface);
-		break;
-
-		/* unicast packet */
-	case BAT_UNICAST:
-		ret = recv_unicast_packet(skb, hard_iface);
-		break;
-
-		/* fragmented unicast packet */
-	case BAT_UNICAST_FRAG:
-		ret = recv_ucast_frag_packet(skb, hard_iface);
-		break;
-
-		/* broadcast packet */
-	case BAT_BCAST:
-		ret = recv_bcast_packet(skb, hard_iface);
-		break;
-
-		/* vis packet */
-	case BAT_VIS:
-		ret = recv_vis_packet(skb, hard_iface);
-		break;
-		/* Translation table query (request or response) */
-	case BAT_TT_QUERY:
-		ret = recv_tt_query(skb, hard_iface);
-		break;
-		/* Roaming advertisement */
-	case BAT_ROAM_ADV:
-		ret = recv_roam_adv(skb, hard_iface);
-		break;
-	default:
-		ret = NET_RX_DROP;
-	}
-
-	if (ret == NET_RX_DROP)
-		kfree_skb(skb);
-
-	/* return NET_RX_SUCCESS in any case as we
-	 * most probably dropped the packet for
-	 * routing-logical reasons. */
-
-	return NET_RX_SUCCESS;
-
-err_free:
-	kfree_skb(skb);
-err_out:
-	return NET_RX_DROP;
 }
 
 /* This function returns true if the interface represented by ifindex is a

@@ -103,7 +103,7 @@ struct labpc_private {
 
 int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 			unsigned int irq, unsigned int dma);
-int labpc_common_detach(struct comedi_device *dev);
+void labpc_common_detach(struct comedi_device *dev);
 
 extern const int labpc_1200_is_unipolar[];
 extern const int labpc_1200_ai_gain_bits[];

@@ -29,19 +29,12 @@
 #define OZ_EVT_DEBUG		20
 
 struct oz_event {
-	unsigned long jiffies;
-	unsigned char evt;
-	unsigned char ctx1;
-	unsigned short ctx2;
-	void *ctx3;
-	unsigned ctx4;
-};
-
-#define OZ_EVT_LIST_SZ	64
-struct oz_evtlist {
-	int count;
-	int missed;
-	struct oz_event evts[OZ_EVT_LIST_SZ];
+	__u32 jiffies;
+	__u8 evt;
+	__u8 ctx1;
+	__u16 ctx2;
+	__u32 ctx3;
+	__u32 ctx4;
 };
 
 #endif /* _OZEVENTDEF_H */

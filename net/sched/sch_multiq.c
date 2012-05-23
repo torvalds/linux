@@ -284,7 +284,8 @@ static int multiq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	opt.bands = q->bands;
 	opt.max_bands = q->max_bands;
 
-	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	if (nla_put(skb, TCA_OPTIONS, sizeof(opt), &opt))
+		goto nla_put_failure;
 
 	return skb->len;
 

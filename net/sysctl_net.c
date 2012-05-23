@@ -26,10 +26,6 @@
 #include <linux/if_ether.h>
 #endif
 
-#ifdef CONFIG_TR
-#include <linux/if_tr.h>
-#endif
-
 static struct ctl_table_set *
 net_ctl_header_lookup(struct ctl_table_root *root, struct nsproxy *namespaces)
 {
@@ -59,19 +55,6 @@ static struct ctl_table_root net_sysctl_root = {
 	.permissions = net_ctl_permissions,
 };
 
-static int net_ctl_ro_header_perms(struct ctl_table_root *root,
-		struct nsproxy *namespaces, struct ctl_table *table)
-{
-	if (net_eq(namespaces->net_ns, &init_net))
-		return table->mode;
-	else
-		return table->mode & ~0222;
-}
-
-static struct ctl_table_root net_sysctl_ro_root = {
-	.permissions = net_ctl_ro_header_perms,
-};
-
 static int __net_init sysctl_net_init(struct net *net)
 {
 	setup_sysctl_set(&net->sysctls, &net_sysctl_root, is_seen);
@@ -88,34 +71,32 @@ static struct pernet_operations sysctl_pernet_ops = {
 	.exit = sysctl_net_exit,
 };
 
-static __init int net_sysctl_init(void)
+static struct ctl_table_header *net_header;
+__init int net_sysctl_init(void)
 {
-	int ret;
+	static struct ctl_table empty[1];
+	int ret = -ENOMEM;
+	/* Avoid limitations in the sysctl implementation by
+	 * registering "/proc/sys/net" as an empty directory not in a
+	 * network namespace.
+	 */
+	net_header = register_sysctl("net", empty);
+	if (!net_header)
+		goto out;
 	ret = register_pernet_subsys(&sysctl_pernet_ops);
 	if (ret)
 		goto out;
-	setup_sysctl_set(&net_sysctl_ro_root.default_set, &net_sysctl_ro_root, NULL);
-	register_sysctl_root(&net_sysctl_ro_root);
 	register_sysctl_root(&net_sysctl_root);
 out:
 	return ret;
 }
-subsys_initcall(net_sysctl_init);
 
-struct ctl_table_header *register_net_sysctl_table(struct net *net,
-	const struct ctl_path *path, struct ctl_table *table)
+struct ctl_table_header *register_net_sysctl(struct net *net,
+	const char *path, struct ctl_table *table)
 {
-	return __register_sysctl_paths(&net->sysctls, path, table);
+	return __register_sysctl_table(&net->sysctls, path, table);
 }
-EXPORT_SYMBOL_GPL(register_net_sysctl_table);
-
-struct ctl_table_header *register_net_sysctl_rotable(const
-		struct ctl_path *path, struct ctl_table *table)
-{
-	return __register_sysctl_paths(&net_sysctl_ro_root.default_set,
-					path, table);
-}
-EXPORT_SYMBOL_GPL(register_net_sysctl_rotable);
+EXPORT_SYMBOL_GPL(register_net_sysctl);
 
 void unregister_net_sysctl_table(struct ctl_table_header *header)
 {

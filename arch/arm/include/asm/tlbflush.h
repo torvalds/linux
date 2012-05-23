@@ -65,21 +65,6 @@
 #define MULTI_TLB 1
 #endif
 
-#define v3_tlb_flags	(TLB_V3_FULL | TLB_V3_PAGE)
-
-#ifdef CONFIG_CPU_TLB_V3
-# define v3_possible_flags	v3_tlb_flags
-# define v3_always_flags	v3_tlb_flags
-# ifdef _TLB
-#  define MULTI_TLB 1
-# else
-#  define _TLB v3
-# endif
-#else
-# define v3_possible_flags	0
-# define v3_always_flags	(-1UL)
-#endif
-
 #define v4_tlb_flags	(TLB_V4_U_FULL | TLB_V4_U_PAGE)
 
 #ifdef CONFIG_CPU_TLB_V4WT
@@ -298,8 +283,7 @@ extern struct cpu_tlb_fns cpu_tlb;
  * implemented the "%?" method, but this has been discontinued due to too
  * many people getting it wrong.
  */
-#define possible_tlb_flags	(v3_possible_flags | \
-				 v4_possible_flags | \
+#define possible_tlb_flags	(v4_possible_flags | \
 				 v4wbi_possible_flags | \
 				 fr_possible_flags | \
 				 v4wb_possible_flags | \
@@ -307,8 +291,7 @@ extern struct cpu_tlb_fns cpu_tlb;
 				 v6wbi_possible_flags | \
 				 v7wbi_possible_flags)
 
-#define always_tlb_flags	(v3_always_flags & \
-				 v4_always_flags & \
+#define always_tlb_flags	(v4_always_flags & \
 				 v4wbi_always_flags & \
 				 fr_always_flags & \
 				 v4wb_always_flags & \

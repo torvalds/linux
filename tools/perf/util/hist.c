@@ -599,7 +599,7 @@ static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain,
 	if (chain->ms.sym)
 		ret += fprintf(fp, "%s\n", chain->ms.sym->name);
 	else
-		ret += fprintf(fp, "%p\n", (void *)(long)chain->ip);
+		ret += fprintf(fp, "0x%0" PRIx64 "\n", chain->ip);
 
 	return ret;
 }

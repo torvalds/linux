@@ -32,9 +32,13 @@ config HID
 	  If unsure, say Y.
 
 config HID_BATTERY_STRENGTH
-	bool
+	bool "Battery level reporting for HID devices"
 	depends on HID && POWER_SUPPLY && HID = POWER_SUPPLY
 	default n
+	---help---
+	This option adds support of reporting battery strength (for HID devices
+	that support this feature) through power_supply class so that userspace
+	tools, such as upower, can display it.
 
 config HIDRAW
 	bool "/dev/hidraw raw HID device support"
@@ -59,6 +63,18 @@ source "drivers/hid/usbhid/Kconfig"
 
 menu "Special HID drivers"
 	depends on HID
+
+config HID_GENERIC
+	tristate "Generic HID driver"
+	depends on HID
+	default y
+	---help---
+	Support for generic HID devices.
+
+	To compile this driver as a module, choose M here: the module
+	will be called hid-generic.
+
+	If unsure, say Y.
 
 config HID_A4TECH
 	tristate "A4 tech mice" if EXPERT
@@ -91,6 +107,12 @@ config HID_APPLE
 
 	Say Y here if you want support for keyboards of	Apple iBooks, PowerBooks,
 	MacBooks, MacBook Pros and Apple Aluminum.
+
+config HID_AUREAL
+	tristate "Aureal"
+	depends on USB_HID
+	---help---
+	Support for Aureal Cy se W-01RN Remote Controller and other Aureal derived remotes.
 
 config HID_BELKIN
 	tristate "Belkin Flip KVM and Wireless keyboard" if EXPERT
@@ -448,7 +470,7 @@ config HID_PICOLCD_FB
 	select FB_SYS_FOPS
 	---help---
 	  Provide access to PicoLCD's 256x64 monochrome display via a
-	  frambuffer device.
+	  framebuffer device.
 
 config HID_PICOLCD_BACKLIGHT
 	bool "Backlight control" if EXPERT
@@ -595,16 +617,10 @@ config THRUSTMASTER_FF
 config HID_WACOM
 	tristate "Wacom Bluetooth devices support"
 	depends on BT_HIDP
-	---help---
-	Support for Wacom Graphire Bluetooth tablet.
-
-config HID_WACOM_POWER_SUPPLY
-	bool "Wacom Bluetooth devices power supply status support"
-	depends on HID_WACOM
+	depends on LEDS_CLASS
 	select POWER_SUPPLY
 	---help---
-	  Say Y here if you want to enable power supply status monitoring for
-	  Wacom Bluetooth devices.
+	Support for Wacom Graphire Bluetooth and Intuos4 WL tablets.
 
 config HID_WIIMOTE
 	tristate "Nintendo Wii Remote support"

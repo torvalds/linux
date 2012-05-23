@@ -60,31 +60,6 @@ addition, the clock does not seem to be very accurate.
 #define DT2814_ENB 0x10
 #define DT2814_CHANMASK 0x0f
 
-static int dt2814_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int dt2814_detach(struct comedi_device *dev);
-static struct comedi_driver driver_dt2814 = {
-	.driver_name = "dt2814",
-	.module = THIS_MODULE,
-	.attach = dt2814_attach,
-	.detach = dt2814_detach,
-};
-
-static int __init driver_dt2814_init_module(void)
-{
-	return comedi_driver_register(&driver_dt2814);
-}
-
-static void __exit driver_dt2814_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_dt2814);
-}
-
-module_init(driver_dt2814_init_module);
-module_exit(driver_dt2814_cleanup_module);
-
-static irqreturn_t dt2814_interrupt(int irq, void *dev);
-
 struct dt2814_private {
 
 	int ntrig;
@@ -260,6 +235,45 @@ static int dt2814_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 }
 
+static irqreturn_t dt2814_interrupt(int irq, void *d)
+{
+	int lo, hi;
+	struct comedi_device *dev = d;
+	struct comedi_subdevice *s;
+	int data;
+
+	if (!dev->attached) {
+		comedi_error(dev, "spurious interrupt");
+		return IRQ_HANDLED;
+	}
+
+	s = dev->subdevices + 0;
+
+	hi = inb(dev->iobase + DT2814_DATA);
+	lo = inb(dev->iobase + DT2814_DATA);
+
+	data = (hi << 4) | (lo >> 4);
+
+	if (!(--devpriv->ntrig)) {
+		int i;
+
+		outb(0, dev->iobase + DT2814_CSR);
+		/* note: turning off timed mode triggers another
+		   sample. */
+
+		for (i = 0; i < DT2814_TIMEOUT; i++) {
+			if (inb(dev->iobase + DT2814_CSR) & DT2814_FINISH)
+				break;
+		}
+		inb(dev->iobase + DT2814_DATA);
+		inb(dev->iobase + DT2814_DATA);
+
+		s->async->events |= COMEDI_CB_EOA;
+	}
+	comedi_event(dev, s);
+	return IRQ_HANDLED;
+}
+
 static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int i, irq;
@@ -347,57 +361,21 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int dt2814_detach(struct comedi_device *dev)
+static void dt2814_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: dt2814: remove\n", dev->minor);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->iobase)
 		release_region(dev->iobase, DT2814_SIZE);
-
-	return 0;
 }
 
-static irqreturn_t dt2814_interrupt(int irq, void *d)
-{
-	int lo, hi;
-	struct comedi_device *dev = d;
-	struct comedi_subdevice *s;
-	int data;
-
-	if (!dev->attached) {
-		comedi_error(dev, "spurious interrupt");
-		return IRQ_HANDLED;
-	}
-
-	s = dev->subdevices + 0;
-
-	hi = inb(dev->iobase + DT2814_DATA);
-	lo = inb(dev->iobase + DT2814_DATA);
-
-	data = (hi << 4) | (lo >> 4);
-
-	if (!(--devpriv->ntrig)) {
-		int i;
-
-		outb(0, dev->iobase + DT2814_CSR);
-		/* note: turning off timed mode triggers another
-		   sample. */
-
-		for (i = 0; i < DT2814_TIMEOUT; i++) {
-			if (inb(dev->iobase + DT2814_CSR) & DT2814_FINISH)
-				break;
-		}
-		inb(dev->iobase + DT2814_DATA);
-		inb(dev->iobase + DT2814_DATA);
-
-		s->async->events |= COMEDI_CB_EOA;
-	}
-	comedi_event(dev, s);
-	return IRQ_HANDLED;
-}
+static struct comedi_driver dt2814_driver = {
+	.driver_name	= "dt2814",
+	.module		= THIS_MODULE,
+	.attach		= dt2814_attach,
+	.detach		= dt2814_detach,
+};
+module_comedi_driver(dt2814_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

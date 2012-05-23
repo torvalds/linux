@@ -12,7 +12,6 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/errno.h>
-#include <asm/vac-ops.h>
 #endif
 
 #ifndef __ASSEMBLY__

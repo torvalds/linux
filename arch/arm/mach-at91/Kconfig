@@ -9,15 +9,6 @@ config HAVE_AT91_DBGU0
 config HAVE_AT91_DBGU1
 	bool
 
-config HAVE_AT91_USART3
-	bool
-
-config HAVE_AT91_USART4
-	bool
-
-config HAVE_AT91_USART5
-	bool
-
 config AT91_SAM9_ALT_RESET
 	bool
 	default !ARCH_AT91X40
@@ -26,87 +17,129 @@ config AT91_SAM9G45_RESET
 	bool
 	default !ARCH_AT91X40
 
+config SOC_AT91SAM9
+	bool
+	select GENERIC_CLOCKEVENTS
+	select CPU_ARM926T
+
 menu "Atmel AT91 System-on-Chip"
 
-choice
-	prompt "Atmel AT91 Processor"
+comment "Atmel AT91 Processor"
 
-config ARCH_AT91RM9200
+config SOC_AT91SAM9
+	bool
+	select CPU_ARM926T
+	select AT91_SAM9_TIME
+	select AT91_SAM9_SMC
+
+config SOC_AT91RM9200
 	bool "AT91RM9200"
 	select CPU_ARM920T
 	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_DBGU0
-	select HAVE_AT91_USART3
+
+config SOC_AT91SAM9260
+	bool "AT91SAM9260, AT91SAM9XE or AT91SAM9G20"
+	select SOC_AT91SAM9
+	select HAVE_AT91_DBGU0
+	select HAVE_NET_MACB
+	help
+	  Select this if you are using one of Atmel's AT91SAM9260, AT91SAM9XE
+	  or AT91SAM9G20 SoC.
+
+config SOC_AT91SAM9261
+	bool "AT91SAM9261 or AT91SAM9G10"
+	select SOC_AT91SAM9
+	select HAVE_AT91_DBGU0
+	select HAVE_FB_ATMEL
+	help
+	  Select this if you are using one of Atmel's AT91SAM9261 or AT91SAM9G10 SoC.
+
+config SOC_AT91SAM9263
+	bool "AT91SAM9263"
+	select SOC_AT91SAM9
+	select HAVE_AT91_DBGU1
+	select HAVE_FB_ATMEL
+	select HAVE_NET_MACB
+
+config SOC_AT91SAM9RL
+	bool "AT91SAM9RL"
+	select SOC_AT91SAM9
+	select HAVE_AT91_DBGU0
+	select HAVE_FB_ATMEL
+
+config SOC_AT91SAM9G45
+	bool "AT91SAM9G45 or AT91SAM9M10 families"
+	select SOC_AT91SAM9
+	select HAVE_AT91_DBGU1
+	select HAVE_FB_ATMEL
+	select HAVE_NET_MACB
+	help
+	  Select this if you are using one of Atmel's AT91SAM9G45 family SoC.
+	  This support covers AT91SAM9G45, AT91SAM9G46, AT91SAM9M10 and AT91SAM9M11.
+
+config SOC_AT91SAM9X5
+	bool "AT91SAM9x5 family"
+	select SOC_AT91SAM9
+	select HAVE_AT91_DBGU0
+	select HAVE_FB_ATMEL
+	select HAVE_NET_MACB
+	help
+	  Select this if you are using one of Atmel's AT91SAM9x5 family SoC.
+	  This means that your SAM9 name finishes with a '5' (except if it is
+	  AT91SAM9G45!).
+	  This support covers AT91SAM9G15, AT91SAM9G25, AT91SAM9X25, AT91SAM9G35
+	  and AT91SAM9X35.
+
+config SOC_AT91SAM9N12
+	bool "AT91SAM9N12 family"
+	select SOC_AT91SAM9
+	select HAVE_AT91_DBGU0
+	select HAVE_FB_ATMEL
+	help
+	  Select this if you are using Atmel's AT91SAM9N12 SoC.
+
+choice
+	prompt "Atmel AT91 Processor Devices for non DT boards"
+
+config ARCH_AT91_NONE
+	bool "None"
+
+config ARCH_AT91RM9200
+	bool "AT91RM9200"
+	select SOC_AT91RM9200
 
 config ARCH_AT91SAM9260
 	bool "AT91SAM9260 or AT91SAM9XE"
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select HAVE_AT91_DBGU0
-	select HAVE_AT91_USART3
-	select HAVE_AT91_USART4
-	select HAVE_AT91_USART5
-	select HAVE_NET_MACB
+	select SOC_AT91SAM9260
 
 config ARCH_AT91SAM9261
 	bool "AT91SAM9261"
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select HAVE_FB_ATMEL
-	select HAVE_AT91_DBGU0
+	select SOC_AT91SAM9261
 
 config ARCH_AT91SAM9G10
 	bool "AT91SAM9G10"
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select HAVE_AT91_DBGU0
-	select HAVE_FB_ATMEL
+	select SOC_AT91SAM9261
 
 config ARCH_AT91SAM9263
 	bool "AT91SAM9263"
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select HAVE_FB_ATMEL
-	select HAVE_NET_MACB
-	select HAVE_AT91_DBGU1
+	select SOC_AT91SAM9263
 
 config ARCH_AT91SAM9RL
 	bool "AT91SAM9RL"
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select HAVE_AT91_USART3
-	select HAVE_FB_ATMEL
-	select HAVE_AT91_DBGU0
+	select SOC_AT91SAM9RL
 
 config ARCH_AT91SAM9G20
 	bool "AT91SAM9G20"
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select HAVE_AT91_DBGU0
-	select HAVE_AT91_USART3
-	select HAVE_AT91_USART4
-	select HAVE_AT91_USART5
-	select HAVE_NET_MACB
+	select SOC_AT91SAM9260
 
 config ARCH_AT91SAM9G45
 	bool "AT91SAM9G45"
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select HAVE_AT91_USART3
-	select HAVE_FB_ATMEL
-	select HAVE_NET_MACB
-	select HAVE_AT91_DBGU1
-
-config ARCH_AT91SAM9X5
-	bool "AT91SAM9x5 family"
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select HAVE_FB_ATMEL
-	select HAVE_NET_MACB
-	select HAVE_AT91_DBGU0
+	select SOC_AT91SAM9G45
 
 config ARCH_AT91X40
 	bool "AT91x40"
+	depends on !MMU
 	select ARCH_USES_GETTIMEOFFSET
 
 endchoice
@@ -364,6 +397,7 @@ config MACH_AT91SAM9G20EK_2MMC
 	  Select this if you are using an Atmel AT91SAM9G20-EK Evaluation Kit
 	  with 2 SD/MMC Slots. This is the case for AT91SAM9G20-EK rev. C and
 	  onwards.
+	  <http://www.atmel.com/tools/SAM9G20-EK.aspx>
 
 config MACH_CPU9G20
 	bool "Eukrea CPU9G20 board"
@@ -433,9 +467,10 @@ comment "AT91SAM9G45 Board Type"
 config MACH_AT91SAM9M10G45EK
 	bool "Atmel AT91SAM9M10G45-EK Evaluation Kits"
 	help
-	  Select this if you are using Atmel's AT91SAM9G45-EKES Evaluation Kit.
-	  "ES" at the end of the name means that this board is an
-	  Engineering Sample.
+	  Select this if you are using Atmel's AT91SAM9M10G45-EK Evaluation Kit.
+	  Those boards can be populated with any SoC of AT91SAM9G45 or AT91SAM9M10
+	  families: AT91SAM9G45, AT91SAM9G46, AT91SAM9M10 and AT91SAM9M11.
+	  <http://www.atmel.com/tools/SAM9M10-G45-EK.aspx>
 
 endif
 
@@ -514,41 +549,6 @@ config AT91_TIMER_HZ
 	  On AT91sam926x chips, or otherwise when using a higher precision
 	  system clock (of at least several MHz), rounding is less of a
 	  problem so it can be safer to use a decimal values like 100.
-
-choice
-	prompt "Select a UART for early kernel messages"
-
-config AT91_EARLY_DBGU0
-	bool "DBGU on rm9200, 9260/9g20, 9261/9g10 and 9rl"
-	depends on HAVE_AT91_DBGU0
-
-config AT91_EARLY_DBGU1
-	bool "DBGU on 9263 and 9g45"
-	depends on HAVE_AT91_DBGU1
-
-config AT91_EARLY_USART0
-	bool "USART0"
-
-config AT91_EARLY_USART1
-	bool "USART1"
-
-config AT91_EARLY_USART2
-	bool "USART2"
-	depends on ! ARCH_AT91X40
-
-config AT91_EARLY_USART3
-	bool "USART3"
-	depends on HAVE_AT91_USART3
-
-config AT91_EARLY_USART4
-	bool "USART4"
-	depends on HAVE_AT91_USART4
-
-config AT91_EARLY_USART5
-	bool "USART5"
-	depends on HAVE_AT91_USART5
-
-endchoice
 
 endmenu
 

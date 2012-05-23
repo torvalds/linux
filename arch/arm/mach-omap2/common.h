@@ -27,6 +27,7 @@
 #ifndef __ASSEMBLER__
 
 #include <linux/delay.h>
+#include <linux/i2c/twl.h>
 #include <plat/common.h>
 #include <asm/proc-fns.h>
 
@@ -111,6 +112,7 @@ struct omap_globals {
 	void __iomem	*prm;            /* Power and Reset Management */
 	void __iomem	*cm;             /* Clock Management */
 	void __iomem	*cm2;
+	void __iomem	*prcm_mpu;
 };
 
 void omap2_set_globals_242x(void);
@@ -133,8 +135,6 @@ void am33xx_map_io(void);
 void omap4_map_io(void);
 void ti81xx_map_io(void);
 void omap_barriers_init(void);
-
-extern void __init omap_init_consistent_dma_size(void);
 
 /**
  * omap_test_timeout - busy-loop, testing a condition
@@ -254,6 +254,8 @@ static inline u32 omap4_mpuss_read_prev_context_state(void)
 struct omap_sdrc_params;
 extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1);
+struct omap2_hsmmc_info;
+extern int omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers);
 
 #endif /* __ASSEMBLER__ */
 #endif /* __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H */

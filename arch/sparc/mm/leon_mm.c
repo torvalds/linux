@@ -15,8 +15,22 @@
 #include <asm/leon.h>
 #include <asm/tlbflush.h>
 
+#include "srmmu.h"
+
 int leon_flush_during_switch = 1;
 int srmmu_swprobe_trace;
+
+static inline unsigned long leon_get_ctable_ptr(void)
+{
+	unsigned int retval;
+
+	__asm__ __volatile__("lda [%1] %2, %0\n\t" :
+			     "=r" (retval) :
+			     "r" (SRMMU_CTXTBL_PTR),
+			     "i" (ASI_LEON_MMUREGS));
+	return (retval & SRMMU_CTX_PMASK) << 4;
+}
+
 
 unsigned long srmmu_swprobe(unsigned long vaddr, unsigned long *paddr)
 {
@@ -33,10 +47,10 @@ unsigned long srmmu_swprobe(unsigned long vaddr, unsigned long *paddr)
 	if (srmmu_swprobe_trace)
 		printk(KERN_INFO "swprobe: trace on\n");
 
-	ctxtbl = srmmu_get_ctable_ptr();
+	ctxtbl = leon_get_ctable_ptr();
 	if (!(ctxtbl)) {
 		if (srmmu_swprobe_trace)
-			printk(KERN_INFO "swprobe: srmmu_get_ctable_ptr returned 0=>0\n");
+			printk(KERN_INFO "swprobe: leon_get_ctable_ptr returned 0=>0\n");
 		return 0;
 	}
 	if (!_pfn_valid(PFN(ctxtbl))) {
@@ -257,4 +271,81 @@ void leon_switch_mm(void)
 	flush_tlb_mm((void *)0);
 	if (leon_flush_during_switch)
 		leon_flush_cache_all();
+}
+
+static void leon_flush_cache_mm(struct mm_struct *mm)
+{
+	leon_flush_cache_all();
+}
+
+static void leon_flush_cache_page(struct vm_area_struct *vma, unsigned long page)
+{
+	leon_flush_pcache_all(vma, page);
+}
+
+static void leon_flush_cache_range(struct vm_area_struct *vma,
+				   unsigned long start,
+				   unsigned long end)
+{
+	leon_flush_cache_all();
+}
+
+static void leon_flush_tlb_mm(struct mm_struct *mm)
+{
+	leon_flush_tlb_all();
+}
+
+static void leon_flush_tlb_page(struct vm_area_struct *vma,
+				unsigned long page)
+{
+	leon_flush_tlb_all();
+}
+
+static void leon_flush_tlb_range(struct vm_area_struct *vma,
+				 unsigned long start,
+				 unsigned long end)
+{
+	leon_flush_tlb_all();
+}
+
+static void leon_flush_page_to_ram(unsigned long page)
+{
+	leon_flush_cache_all();
+}
+
+static void leon_flush_sig_insns(struct mm_struct *mm, unsigned long page)
+{
+	leon_flush_cache_all();
+}
+
+static void leon_flush_page_for_dma(unsigned long page)
+{
+	leon_flush_dcache_all();
+}
+
+void __init poke_leonsparc(void)
+{
+}
+
+static const struct sparc32_cachetlb_ops leon_ops = {
+	.cache_all	= leon_flush_cache_all,
+	.cache_mm	= leon_flush_cache_mm,
+	.cache_page	= leon_flush_cache_page,
+	.cache_range	= leon_flush_cache_range,
+	.tlb_all	= leon_flush_tlb_all,
+	.tlb_mm		= leon_flush_tlb_mm,
+	.tlb_page	= leon_flush_tlb_page,
+	.tlb_range	= leon_flush_tlb_range,
+	.page_to_ram	= leon_flush_page_to_ram,
+	.sig_insns	= leon_flush_sig_insns,
+	.page_for_dma	= leon_flush_page_for_dma,
+};
+
+void __init init_leon(void)
+{
+	srmmu_name = "LEON";
+	sparc32_cachetlb_ops = &leon_ops;
+	poke_srmmu = poke_leonsparc;
+
+	leon_flush_during_switch = leon_flush_needed();
 }

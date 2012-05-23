@@ -247,7 +247,7 @@ int __init omap_mux_init_signal(const char *muxname, int val)
 	int mux_mode;
 
 	mux_mode = omap_mux_get_by_name(muxname, &partition, &mux);
-	if (mux_mode < 0)
+	if (mux_mode < 0 || !mux)
 		return mux_mode;
 
 	old_mode = omap_mux_read(partition, mux->reg_offset);

@@ -8,16 +8,16 @@
  * Copyright (C) 1996,1997 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
+#include <linux/linkage.h>
 #include <asm/asi.h>
 
 #define LO_MAGIC 0x01010101
 #define HI_MAGIC 0x80808080
 
 	.align 4
-	.global __strlen_user, __strnlen_user
-__strlen_user:
+ENTRY(__strlen_user)
 	sethi	%hi(32768), %o1
-__strnlen_user:	
+ENTRY(__strnlen_user)
 	mov	%o1, %g1
 	mov	%o0, %o1
 	andcc	%o0, 3, %g0
@@ -78,6 +78,8 @@ __strnlen_user:
 	 mov	2, %o0
 23:	retl
 	 mov	3, %o0
+ENDPROC(__strlen_user)
+ENDPROC(__strnlen_user)
 
         .section .fixup,#alloc,#execinstr
         .align  4

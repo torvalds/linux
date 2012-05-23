@@ -319,6 +319,8 @@ static struct mxs_mmc_platform_data m28evk_mmc_pdata[] __initdata = {
 
 static void __init m28evk_init(void)
 {
+	mx28_soc_init();
+
 	mxs_iomux_setup_multiple_pads(m28evk_pads, ARRAY_SIZE(m28evk_pads));
 
 	mx28_add_duart();

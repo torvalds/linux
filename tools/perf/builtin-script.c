@@ -261,7 +261,7 @@ static void print_sample_start(struct perf_sample *sample,
 			       struct perf_event_attr *attr)
 {
 	int type;
-	struct event *event;
+	struct event_format *event;
 	const char *evname = NULL;
 	unsigned long secs;
 	unsigned long usecs;

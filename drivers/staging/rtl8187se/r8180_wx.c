@@ -13,7 +13,7 @@
 
 	Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
 
-	We want to tanks the Authors of those projects and the Ndiswrapper
+	We want to thanks the Authors of those projects and the Ndiswrapper
 	project Authors.
 */
 
@@ -1181,7 +1181,7 @@ static iw_handler r8180_wx_handlers[] =	{
 		r8180_wx_set_wap,			/* SIOCSIWAP */
 		r8180_wx_get_wap,			/* SIOCGIWAP */
 		r8180_wx_set_mlme,			/* SIOCSIWMLME*/
-		dummy,					/* SIOCGIWAPLIST -- depricated */
+		dummy,					/* SIOCGIWAPLIST -- deprecated */
 		r8180_wx_set_scan,			/* SIOCSIWSCAN */
 		r8180_wx_get_scan,			/* SIOCGIWSCAN */
 		r8180_wx_set_essid,			/* SIOCSIWESSID */
@@ -1369,7 +1369,7 @@ static inline int is_same_network(struct ieee80211_network *src,
 			(dst->capability & WLAN_CAPABILITY_BSS)));
 }
 
-/* WB modefied to show signal to GUI on 18-01-2008 */
+/* WB modified to show signal to GUI on 18-01-2008 */
 static struct iw_statistics *r8180_get_wireless_stats(struct net_device *dev)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);

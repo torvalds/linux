@@ -1594,7 +1594,7 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		err("dlfb_usb_probe: failed alloc of dev struct\n");
+		dev_err(&interface->dev, "dlfb_usb_probe: failed alloc of dev struct\n");
 		goto error;
 	}
 

@@ -185,6 +185,7 @@ void free_tty_struct(struct tty_struct *tty)
 		put_device(tty->dev);
 	kfree(tty->write_buf);
 	tty_buffer_free_all(tty);
+	tty->magic = 0xDEADDEAD;
 	kfree(tty);
 }
 
@@ -573,7 +574,7 @@ void __tty_hangup(struct tty_struct *tty)
 	}
 	spin_unlock(&redirect_lock);
 
-	tty_lock();
+	tty_lock(tty);
 
 	/* some functions below drop BTM, so we need this bit */
 	set_bit(TTY_HUPPING, &tty->flags);
@@ -666,7 +667,7 @@ void __tty_hangup(struct tty_struct *tty)
 	clear_bit(TTY_HUPPING, &tty->flags);
 	tty_ldisc_enable(tty);
 
-	tty_unlock();
+	tty_unlock(tty);
 
 	if (f)
 		fput(f);
@@ -855,10 +856,11 @@ void disassociate_ctty(int on_exit)
  */
 void no_tty(void)
 {
+	/* FIXME: Review locking here. The tty_lock never covered any race
+	   between a new association and proc_clear_tty but possible we need
+	   to protect against this anyway */
 	struct task_struct *tsk = current;
-	tty_lock();
 	disassociate_ctty(0);
-	tty_unlock();
 	proc_clear_tty(tsk);
 }
 
@@ -1102,12 +1104,12 @@ void tty_write_message(struct tty_struct *tty, char *msg)
 {
 	if (tty) {
 		mutex_lock(&tty->atomic_write_lock);
-		tty_lock();
+		tty_lock(tty);
 		if (tty->ops->write && !test_bit(TTY_CLOSING, &tty->flags)) {
-			tty_unlock();
+			tty_unlock(tty);
 			tty->ops->write(tty, msg, strlen(msg));
 		} else
-			tty_unlock();
+			tty_unlock(tty);
 		tty_write_unlock(tty);
 	}
 	return;
@@ -1402,6 +1404,7 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx)
 	}
 	initialize_tty_struct(tty, driver, idx);
 
+	tty_lock(tty);
 	retval = tty_driver_install_tty(driver, tty);
 	if (retval < 0)
 		goto err_deinit_tty;
@@ -1414,9 +1417,11 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx)
 	retval = tty_ldisc_setup(tty, tty->link);
 	if (retval)
 		goto err_release_tty;
+	/* Return the tty locked so that it cannot vanish under the caller */
 	return tty;
 
 err_deinit_tty:
+	tty_unlock(tty);
 	deinitialize_tty_struct(tty);
 	free_tty_struct(tty);
 err_module_put:
@@ -1425,6 +1430,7 @@ err_module_put:
 
 	/* call the tty release_tty routine to clean out this slot */
 err_release_tty:
+	tty_unlock(tty);
 	printk_ratelimited(KERN_INFO "tty_init_dev: ldisc open failed, "
 				 "clearing slot %d\n", idx);
 	release_tty(tty, idx);
@@ -1627,7 +1633,7 @@ int tty_release(struct inode *inode, struct file *filp)
 	if (tty_paranoia_check(tty, inode, __func__))
 		return 0;
 
-	tty_lock();
+	tty_lock(tty);
 	check_tty_count(tty, __func__);
 
 	__tty_fasync(-1, filp, 0);
@@ -1636,10 +1642,11 @@ int tty_release(struct inode *inode, struct file *filp)
 	pty_master = (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 		      tty->driver->subtype == PTY_TYPE_MASTER);
 	devpts = (tty->driver->flags & TTY_DRIVER_DEVPTS_MEM) != 0;
+	/* Review: parallel close */
 	o_tty = tty->link;
 
 	if (tty_release_checks(tty, o_tty, idx)) {
-		tty_unlock();
+		tty_unlock(tty);
 		return 0;
 	}
 
@@ -1651,7 +1658,7 @@ int tty_release(struct inode *inode, struct file *filp)
 	if (tty->ops->close)
 		tty->ops->close(tty, filp);
 
-	tty_unlock();
+	tty_unlock(tty);
 	/*
 	 * Sanity check: if tty->count is going to zero, there shouldn't be
 	 * any waiters on tty->read_wait or tty->write_wait.  We test the
@@ -1674,7 +1681,7 @@ int tty_release(struct inode *inode, struct file *filp)
 		   opens on /dev/tty */
 
 		mutex_lock(&tty_mutex);
-		tty_lock();
+		tty_lock_pair(tty, o_tty);
 		tty_closing = tty->count <= 1;
 		o_tty_closing = o_tty &&
 			(o_tty->count <= (pty_master ? 1 : 0));
@@ -1705,7 +1712,7 @@ int tty_release(struct inode *inode, struct file *filp)
 
 		printk(KERN_WARNING "%s: %s: read/write wait queue active!\n",
 				__func__, tty_name(tty, buf));
-		tty_unlock();
+		tty_unlock_pair(tty, o_tty);
 		mutex_unlock(&tty_mutex);
 		schedule();
 	}
@@ -1768,7 +1775,7 @@ int tty_release(struct inode *inode, struct file *filp)
 
 	/* check whether both sides are closing ... */
 	if (!tty_closing || (o_tty && !o_tty_closing)) {
-		tty_unlock();
+		tty_unlock_pair(tty, o_tty);
 		return 0;
 	}
 
@@ -1781,14 +1788,16 @@ int tty_release(struct inode *inode, struct file *filp)
 	tty_ldisc_release(tty, o_tty);
 	/*
 	 * The release_tty function takes care of the details of clearing
-	 * the slots and preserving the termios structure.
+	 * the slots and preserving the termios structure. The tty_unlock_pair
+	 * should be safe as we keep a kref while the tty is locked (so the
+	 * unlock never unlocks a freed tty).
 	 */
 	release_tty(tty, idx);
+	tty_unlock_pair(tty, o_tty);
 
 	/* Make this pty number available for reallocation */
 	if (devpts)
 		devpts_kill_index(inode, idx);
-	tty_unlock();
 	return 0;
 }
 
@@ -1800,6 +1809,9 @@ int tty_release(struct inode *inode, struct file *filp)
  *
  *	We cannot return driver and index like for the other nodes because
  *	devpts will not work then. It expects inodes to be from devpts FS.
+ *
+ *	We need to move to returning a refcounted object from all the lookup
+ *	paths including this one.
  */
 static struct tty_struct *tty_open_current_tty(dev_t device, struct file *filp)
 {
@@ -1816,6 +1828,7 @@ static struct tty_struct *tty_open_current_tty(dev_t device, struct file *filp)
 	/* noctty = 1; */
 	tty_kref_put(tty);
 	/* FIXME: we put a reference and return a TTY! */
+	/* This is only safe because the caller holds tty_mutex */
 	return tty;
 }
 
@@ -1888,6 +1901,9 @@ static struct tty_driver *tty_lookup_driver(dev_t device, struct file *filp,
  *	Locking: tty_mutex protects tty, tty_lookup_driver and tty_init_dev.
  *		 tty->count should protect the rest.
  *		 ->siglock protects ->signal/->sighand
+ *
+ *	Note: the tty_unlock/lock cases without a ref are only safe due to
+ *	tty_mutex
  */
 
 static int tty_open(struct inode *inode, struct file *filp)
@@ -1911,8 +1927,7 @@ retry_open:
 	retval = 0;
 
 	mutex_lock(&tty_mutex);
-	tty_lock();
-
+	/* This is protected by the tty_mutex */
 	tty = tty_open_current_tty(device, filp);
 	if (IS_ERR(tty)) {
 		retval = PTR_ERR(tty);
@@ -1933,17 +1948,19 @@ retry_open:
 	}
 
 	if (tty) {
+		tty_lock(tty);
 		retval = tty_reopen(tty);
-		if (retval)
+		if (retval < 0) {
+			tty_unlock(tty);
 			tty = ERR_PTR(retval);
-	} else
+		}
+	} else	/* Returns with the tty_lock held for now */
 		tty = tty_init_dev(driver, index);
 
 	mutex_unlock(&tty_mutex);
 	if (driver)
 		tty_driver_kref_put(driver);
 	if (IS_ERR(tty)) {
-		tty_unlock();
 		retval = PTR_ERR(tty);
 		goto err_file;
 	}
@@ -1972,7 +1989,7 @@ retry_open:
 		printk(KERN_DEBUG "%s: error %d in opening %s...\n", __func__,
 				retval, tty->name);
 #endif
-		tty_unlock(); /* need to call tty_release without BTM */
+		tty_unlock(tty); /* need to call tty_release without BTM */
 		tty_release(inode, filp);
 		if (retval != -ERESTARTSYS)
 			return retval;
@@ -1984,17 +2001,15 @@ retry_open:
 		/*
 		 * Need to reset f_op in case a hangup happened.
 		 */
-		tty_lock();
 		if (filp->f_op == &hung_up_tty_fops)
 			filp->f_op = &tty_fops;
-		tty_unlock();
 		goto retry_open;
 	}
-	tty_unlock();
+	tty_unlock(tty);
 
 
 	mutex_lock(&tty_mutex);
-	tty_lock();
+	tty_lock(tty);
 	spin_lock_irq(&current->sighand->siglock);
 	if (!noctty &&
 	    current->signal->leader &&
@@ -2002,11 +2017,10 @@ retry_open:
 	    tty->session == NULL)
 		__proc_set_tty(current, tty);
 	spin_unlock_irq(&current->sighand->siglock);
-	tty_unlock();
+	tty_unlock(tty);
 	mutex_unlock(&tty_mutex);
 	return 0;
 err_unlock:
-	tty_unlock();
 	mutex_unlock(&tty_mutex);
 	/* after locks to avoid deadlock */
 	if (!IS_ERR_OR_NULL(driver))
@@ -2089,10 +2103,13 @@ out:
 
 static int tty_fasync(int fd, struct file *filp, int on)
 {
+	struct tty_struct *tty = file_tty(filp);
 	int retval;
-	tty_lock();
+
+	tty_lock(tty);
 	retval = __tty_fasync(fd, filp, on);
-	tty_unlock();
+	tty_unlock(tty);
+
 	return retval;
 }
 
@@ -2929,6 +2946,7 @@ void initialize_tty_struct(struct tty_struct *tty,
 	tty->pgrp = NULL;
 	tty->overrun_time = jiffies;
 	tty_buffer_init(tty);
+	mutex_init(&tty->legacy_mutex);
 	mutex_init(&tty->termios_mutex);
 	mutex_init(&tty->ldisc_mutex);
 	init_waitqueue_head(&tty->write_wait);

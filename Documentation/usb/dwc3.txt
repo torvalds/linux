@@ -28,7 +28,7 @@ Please pick something while reading :)
       none
 
     - primary handler of the EP-interrupt
-      reads the event and tries to process it. Everything that requries
+      reads the event and tries to process it. Everything that requires
       sleeping is handed over to the Thread. The event is saved in an
       per-endpoint data-structure.
       We probably have to pay attention not to process events once we

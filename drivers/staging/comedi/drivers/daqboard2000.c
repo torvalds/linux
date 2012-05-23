@@ -301,17 +301,6 @@ struct daqboard2000_hw {
 #define DAQBOARD2000_PosRefDacSelect             0x0100
 #define DAQBOARD2000_NegRefDacSelect             0x0000
 
-static int daqboard2000_attach(struct comedi_device *dev,
-			       struct comedi_devconfig *it);
-static int daqboard2000_detach(struct comedi_device *dev);
-
-static struct comedi_driver driver_daqboard2000 = {
-	.driver_name = "daqboard2000",
-	.module = THIS_MODULE,
-	.attach = daqboard2000_attach,
-	.detach = daqboard2000_detach,
-};
-
 struct daq200_boardtype {
 	const char *name;
 	int id;
@@ -321,15 +310,7 @@ static const struct daq200_boardtype boardtypes[] = {
 	{"ids4", DAQBOARD2000_SUBSYSTEM_IDS4},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct daq200_boardtype))
 #define this_board ((const struct daq200_boardtype *)dev->board_ptr)
-
-static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
-	{ PCI_DEVICE(0x1616, 0x0409) },
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, daqboard2000_pci_table);
 
 struct daqboard2000_private {
 	enum {
@@ -412,9 +393,12 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 	    DAQBOARD2000_AcqResetScanListFifo |
 	    DAQBOARD2000_AcqResetResultsFifo | DAQBOARD2000_AcqResetConfigPipe;
 
-	/* If pacer clock is not set to some high value (> 10 us), we
-	   risk multiple samples to be put into the result FIFO. */
-	fpga->acqPacerClockDivLow = 1000000;	/* 1 second, should be long enough */
+	/*
+	 * If pacer clock is not set to some high value (> 10 us), we
+	 * risk multiple samples to be put into the result FIFO.
+	 */
+	/* 1 second, should be long enough */
+	fpga->acqPacerClockDivLow = 1000000;
 	fpga->acqPacerClockDivHigh = 0;
 
 	gain = CR_RANGE(insn->chanspec);
@@ -761,7 +745,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 		devpriv->pci_dev = card;
 		id = ((u32) card->
 		      subsystem_device << 16) | card->subsystem_vendor;
-		for (i = 0; i < n_boardtypes; i++) {
+		for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
 			if (boardtypes[i].id == id) {
 				dev_dbg(dev->hw_dev, "%s\n",
 					boardtypes[i].name);
@@ -852,14 +836,12 @@ out:
 	return result;
 }
 
-static int daqboard2000_detach(struct comedi_device *dev)
+static void daqboard2000_detach(struct comedi_device *dev)
 {
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (devpriv) {
 		if (devpriv->daq)
 			iounmap(devpriv->daq);
@@ -871,48 +853,39 @@ static int daqboard2000_detach(struct comedi_device *dev)
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
-	return 0;
 }
 
-static int __devinit driver_daqboard2000_pci_probe(struct pci_dev *dev,
-						   const struct pci_device_id
-						   *ent)
+static struct comedi_driver daqboard2000_driver = {
+	.driver_name	= "daqboard2000",
+	.module		= THIS_MODULE,
+	.attach		= daqboard2000_attach,
+	.detach		= daqboard2000_detach,
+};
+
+static int __devinit daqboard2000_pci_probe(struct pci_dev *dev,
+					    const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_daqboard2000.driver_name);
+	return comedi_pci_auto_config(dev, &daqboard2000_driver);
 }
 
-static void __devexit driver_daqboard2000_pci_remove(struct pci_dev *dev)
+static void __devexit daqboard2000_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_daqboard2000_pci_driver = {
-	.id_table = daqboard2000_pci_table,
-	.probe = &driver_daqboard2000_pci_probe,
-	.remove = __devexit_p(&driver_daqboard2000_pci_remove)
+static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
+	{ PCI_DEVICE(0x1616, 0x0409) },
+	{ 0 }
 };
+MODULE_DEVICE_TABLE(pci, daqboard2000_pci_table);
 
-static int __init driver_daqboard2000_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_daqboard2000);
-	if (retval < 0)
-		return retval;
-
-	driver_daqboard2000_pci_driver.name =
-	    (char *)driver_daqboard2000.driver_name;
-	return pci_register_driver(&driver_daqboard2000_pci_driver);
-}
-
-static void __exit driver_daqboard2000_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_daqboard2000_pci_driver);
-	comedi_driver_unregister(&driver_daqboard2000);
-}
-
-module_init(driver_daqboard2000_init_module);
-module_exit(driver_daqboard2000_cleanup_module);
+static struct pci_driver daqboard2000_pci_driver = {
+	.name		= "daqboard2000",
+	.id_table	= daqboard2000_pci_table,
+	.probe		= daqboard2000_pci_probe,
+	.remove		= __devexit_p(daqboard2000_pci_remove),
+};
+module_comedi_pci_driver(daqboard2000_driver, daqboard2000_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

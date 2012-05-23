@@ -29,7 +29,8 @@ ohci_ppc_of_start(struct usb_hcd *hcd)
 		return ret;
 
 	if ((ret = ohci_run(ohci)) < 0) {
-		err("can't start %s", ohci_to_hcd(ohci)->self.bus_name);
+		dev_err(hcd->self.controller, "can't start %s\n",
+			hcd->self.bus_name);
 		ohci_stop(hcd);
 		return ret;
 	}
@@ -236,7 +237,7 @@ MODULE_DEVICE_TABLE(of, ohci_hcd_ppc_of_match);
 
 #if	!defined(CONFIG_USB_OHCI_HCD_PPC_OF_BE) && \
 	!defined(CONFIG_USB_OHCI_HCD_PPC_OF_LE)
-#error "No endianess selected for ppc-of-ohci"
+#error "No endianness selected for ppc-of-ohci"
 #endif
 
 

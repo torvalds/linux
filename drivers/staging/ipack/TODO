@@ -1,0 +1,46 @@
+				TODO
+				====
+Introduction
+============
+
+These drivers add support for IndustryPack devices: carrier and mezzanine
+boards.
+
+The ipack driver is just an abstraction of the bus providing the common
+operations between the two kind of boards.
+
+TODO
+====
+
+TPCI-200
+--------
+
+* It receives the name of the mezzanine plugged in each slot by SYSFS.
+  No autodetection supported yet, because the mezzanine driver could not be
+  loaded at the time that the tpci200 driver loads.
+
+* It has a linked list with the tpci200 devices it is managing. Get rid of it
+  and use driver_for_each_device() instead.
+
+IP-OCTAL
+--------
+
+* It has a linked list which saves the devices it is currently
+  managing. It should use the driver_for_each_device() function. It is not there
+  due to the impossibility of using container_of macro to recover the
+  corresponding "struct ipoctal" because the attribute "struct ipack_device" is
+  a pointer. This code should be refactored.
+
+Ipack
+-----
+
+* The structures and API exported can be improved a lot. For example, the
+  way to unregistering mezzanine devices, doing the mezzanine driver a call to
+  remove_device() to notify the carrier driver, or the opposite with the call to
+  the ipack_driver_ops' remove() function could be improved.
+
+
+Contact
+=======
+
+Contact: Samuel Iglesias Gonsalvez <siglesias@igalia.com>

@@ -16,6 +16,7 @@
 #include <linux/mmc/host.h>
 
 #include <plat/board.h>
+#include <plat/omap_hwmod.h>
 
 #define OMAP15XX_NR_MMC		1
 #define OMAP16XX_NR_MMC		2
@@ -195,4 +196,7 @@ static inline int omap_mmc_add(const char *name, int id, unsigned long base,
 }
 
 #endif
+
+extern int omap_msdi_reset(struct omap_hwmod *oh);
+
 #endif

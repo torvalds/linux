@@ -75,8 +75,6 @@ static const struct hc_driver ehci_platform_hc_driver = {
 	.relinquish_port	= ehci_relinquish_port,
 	.port_handed_over	= ehci_port_handed_over,
 
-	.update_device		= ehci_update_device,
-
 	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
 };
 
@@ -94,12 +92,12 @@ static int __devinit ehci_platform_probe(struct platform_device *dev)
 
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0) {
-		pr_err("no irq provieded");
+		pr_err("no irq provided");
 		return irq;
 	}
 	res_mem = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
-		pr_err("no memory recourse provieded");
+		pr_err("no memory recourse provided");
 		return -ENXIO;
 	}
 

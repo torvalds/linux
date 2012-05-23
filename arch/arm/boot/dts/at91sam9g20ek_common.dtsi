@@ -1,0 +1,142 @@
+/*
+ * at91sam9g20ek_common.dtsi - Device Tree file for Atmel at91sam9g20ek board
+ *
+ * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ *
+ * Licensed under GPLv2.
+ */
+/include/ "at91sam9g20.dtsi"
+
+/ {
+
+	chosen {
+		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock5 rw rootfstype=ubifs";
+	};
+
+	memory {
+		reg = <0x20000000 0x4000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock@0 {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <18432000>;
+		};
+	};
+
+	ahb {
+		apb {
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
+
+			usart0: serial@fffb0000 {
+				status = "okay";
+			};
+
+			usart1: serial@fffb4000 {
+				status = "okay";
+			};
+
+			macb0: ethernet@fffc4000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+
+			usb1: gadget@fffa4000 {
+				atmel,vbus-gpio = <&pioC 5 0>;
+				status = "okay";
+			};
+		};
+
+		nand0: nand@40000000 {
+			nand-bus-width = <8>;
+			nand-ecc-mode = "soft";
+			nand-on-flash-bbt;
+			status = "okay";
+
+			at91bootstrap@0 {
+				label = "at91bootstrap";
+				reg = <0x0 0x20000>;
+			};
+
+			barebox@20000 {
+				label = "barebox";
+				reg = <0x20000 0x40000>;
+			};
+
+			bareboxenv@60000 {
+				label = "bareboxenv";
+				reg = <0x60000 0x20000>;
+			};
+
+			bareboxenv2@80000 {
+				label = "bareboxenv2";
+				reg = <0x80000 0x20000>;
+			};
+
+			oftree@80000 {
+				label = "oftree";
+				reg = <0xa0000 0x20000>;
+			};
+
+			kernel@a0000 {
+				label = "kernel";
+				reg = <0xc0000 0x400000>;
+			};
+
+			rootfs@4a0000 {
+				label = "rootfs";
+				reg = <0x4c0000 0x7800000>;
+			};
+
+			data@7ca0000 {
+				label = "data";
+				reg = <0x7cc0000 0x8340000>;
+			};
+		};
+
+		usb0: ohci@00500000 {
+			num-ports = <2>;
+			status = "okay";
+		};
+	};
+
+	i2c@0 {
+		status = "okay";
+
+		24c512@50 {
+			compatible = "24c512";
+			reg = <0x50>;
+		};
+
+		wm8731@1b {
+			compatible = "wm8731";
+			reg = <0x1b>;
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		btn3 {
+			label = "Buttin 3";
+			gpios = <&pioA 30 1>;
+			linux,code = <0x103>;
+			gpio-key,wakeup;
+		};
+
+		btn4 {
+			label = "Buttin 4";
+			gpios = <&pioA 31 1>;
+			linux,code = <0x104>;
+			gpio-key,wakeup;
+		};
+	};
+};

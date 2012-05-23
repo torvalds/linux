@@ -17,14 +17,14 @@ Introduction
   SPEAr (Platform)
 	- SPEAr3XX (3XX SOC series, based on ARM9)
 		- SPEAr300 (SOC)
-			- SPEAr300_EVB (Evaluation Board)
+			- SPEAr300 Evaluation Board
 		- SPEAr310 (SOC)
-			- SPEAr310_EVB (Evaluation Board)
+			- SPEAr310 Evaluation Board
 		- SPEAr320 (SOC)
-			- SPEAr320_EVB (Evaluation Board)
+			- SPEAr320 Evaluation Board
 	- SPEAr6XX (6XX SOC series, based on ARM9)
 		- SPEAr600 (SOC)
-			- SPEAr600_EVB (Evaluation Board)
+			- SPEAr600 Evaluation Board
 	- SPEAr13XX (13XX SOC series, based on ARM CORTEXA9)
 		- SPEAr1300 (SOC)
 
@@ -51,10 +51,11 @@ Introduction
   Common file for machines of spear3xx family is mach-spear3xx/spear3xx.c and for
   spear6xx is mach-spear6xx/spear6xx.c. mach-spear* also contain soc/machine
   specific files, like spear300.c, spear310.c, spear320.c and spear600.c.
-  mach-spear* also contains board specific files for each machine type.
+  mach-spear* doesn't contains board specific files as they fully support
+  Flattened Device Tree.
 
 
   Document Author
   ---------------
 
-  Viresh Kumar, (c) 2010 ST Microelectronics
+  Viresh Kumar <viresh.kumar@st.com>, (c) 2010-2012 ST Microelectronics

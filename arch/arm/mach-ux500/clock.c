@@ -149,9 +149,7 @@ static unsigned long clk_mtu_get_rate(struct clk *clk)
 	unsigned long mturate;
 	unsigned long retclk;
 
-	if (cpu_is_u5500())
-		addr = __io_address(U5500_PRCMU_BASE);
-	else if (cpu_is_u8500())
+	if (cpu_is_u8500_family())
 		addr = __io_address(U8500_PRCMU_BASE);
 	else
 		ux500_unknown_soc();
@@ -336,6 +334,7 @@ static DEFINE_PRCMU_CLK(uiccclk,	0x4, 1, UICCCLK); /* v1 */
  */
 
 /* Peripheral Cluster #1 */
+static DEFINE_PRCC_CLK(1, msp3,		11, 10, &clk_msp1clk);
 static DEFINE_PRCC_CLK(1, i2c4,		10, 9, &clk_i2cclk);
 static DEFINE_PRCC_CLK(1, gpio0,	9, -1, NULL);
 static DEFINE_PRCC_CLK(1, slimbus0,	8,  8, &clk_slimclk);
@@ -405,7 +404,7 @@ static struct clk_lookup u8500_clks[] = {
 	CLK(slimbus0,	"slimbus0",	NULL),
 	CLK(i2c2,	"nmk-i2c.2",	NULL),
 	CLK(sdi0,	"sdi0",		NULL),
-	CLK(msp0,	"msp0",		NULL),
+	CLK(msp0,	"ux500-msp-i2s.0",	NULL),
 	CLK(i2c1,	"nmk-i2c.1",	NULL),
 	CLK(uart1,	"uart1",	NULL),
 	CLK(uart0,	"uart0",	NULL),
@@ -455,7 +454,8 @@ static struct clk_lookup u8500_clks[] = {
 	/* Peripheral Cluster #1 */
 	CLK(i2c4,	"nmk-i2c.4",	NULL),
 	CLK(spi3,	"spi3",		NULL),
-	CLK(msp1,	"msp1",		NULL),
+	CLK(msp1,	"ux500-msp-i2s.1",	NULL),
+	CLK(msp3,	"ux500-msp-i2s.3",	NULL),
 
 	/* Peripheral Cluster #2 */
 	CLK(gpio1,	"gpio.6",	NULL),
@@ -465,7 +465,7 @@ static struct clk_lookup u8500_clks[] = {
 	CLK(spi0,	"spi0",		NULL),
 	CLK(sdi3,	"sdi3",		NULL),
 	CLK(sdi1,	"sdi1",		NULL),
-	CLK(msp2,	"msp2",		NULL),
+	CLK(msp2,	"ux500-msp-i2s.2",	NULL),
 	CLK(sdi4,	"sdi4",		NULL),
 	CLK(pwl,	"pwl",		NULL),
 	CLK(spi1,	"spi1",		NULL),
@@ -705,14 +705,6 @@ late_initcall(clk_init_smp_twd_cpufreq);
 
 int __init clk_init(void)
 {
-	if (cpu_is_u5500()) {
-		/* Clock tree for U5500 not implemented yet */
-		clk_prcc_ops.enable = clk_prcc_ops.disable = NULL;
-		clk_prcmu_ops.enable = clk_prcmu_ops.disable = NULL;
-		clk_uartclk.rate = 36360000;
-		clk_sdmmcclk.rate = 99900000;
-	}
-
 	clkdev_add_table(u8500_clks, ARRAY_SIZE(u8500_clks));
 	clkdev_add(&clk_smp_twd_lookup);
 

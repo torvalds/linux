@@ -32,25 +32,10 @@ static void *module_map(unsigned long size)
 				GFP_KERNEL, PAGE_KERNEL, -1,
 				__builtin_return_address(0));
 }
-
-static char *dot2underscore(char *name)
-{
-	return name;
-}
 #else
 static void *module_map(unsigned long size)
 {
 	return vmalloc(size);
-}
-
-/* Replace references to .func with _Func */
-static char *dot2underscore(char *name)
-{
-	if (name[0] == '.') {
-		name[0] = '_';
-                name[1] = toupper(name[1]);
-	}
-	return name;
 }
 #endif /* CONFIG_SPARC64 */
 
@@ -93,12 +78,8 @@ int module_frob_arch_sections(Elf_Ehdr *hdr,
 
 	for (i = 1; i < sechdrs[symidx].sh_size / sizeof(Elf_Sym); i++) {
 		if (sym[i].st_shndx == SHN_UNDEF) {
-			if (ELF_ST_TYPE(sym[i].st_info) == STT_REGISTER) {
+			if (ELF_ST_TYPE(sym[i].st_info) == STT_REGISTER)
 				sym[i].st_shndx = SHN_ABS;
-			} else {
-				char *name = strtab + sym[i].st_name;
-				dot2underscore(name);
-			}
 		}
 	}
 	return 0;

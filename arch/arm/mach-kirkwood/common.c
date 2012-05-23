@@ -15,6 +15,7 @@
 #include <linux/ata_platform.h>
 #include <linux/mtd/nand.h>
 #include <linux/dma-mapping.h>
+#include <linux/of.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/timex.h>
@@ -482,12 +483,23 @@ static int __init kirkwood_clock_gate(void)
 	unsigned int curr = readl(CLOCK_GATING_CTRL);
 	u32 dev, rev;
 
+#ifdef CONFIG_OF
+	struct device_node *np;
+#endif
 	kirkwood_pcie_id(&dev, &rev);
 	printk(KERN_DEBUG "Gating clock of unused units\n");
 	printk(KERN_DEBUG "before: 0x%08x\n", curr);
 
 	/* Make sure those units are accessible */
 	writel(curr | CGC_SATA0 | CGC_SATA1 | CGC_PEX0 | CGC_PEX1, CLOCK_GATING_CTRL);
+
+#ifdef CONFIG_OF
+	np = of_find_compatible_node(NULL, NULL, "mrvl,orion-nand");
+	if (np && of_device_is_available(np)) {
+		kirkwood_clk_ctrl |= CGC_RUNIT;
+		of_node_put(np);
+	}
+#endif
 
 	/* For SATA: first shutdown the phy */
 	if (!(kirkwood_clk_ctrl & CGC_SATA0)) {

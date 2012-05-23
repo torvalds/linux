@@ -413,6 +413,8 @@ static void __init mx28evk_init(void)
 {
 	int ret;
 
+	mx28_soc_init();
+
 	mxs_iomux_setup_multiple_pads(mx28evk_pads, ARRAY_SIZE(mx28evk_pads));
 
 	mx28_add_duart();

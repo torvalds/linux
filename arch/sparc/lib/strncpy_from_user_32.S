@@ -3,11 +3,11 @@
  *  Copyright(C) 1996 David S. Miller
  */
 
+#include <linux/linkage.h>
 #include <asm/ptrace.h>
 #include <asm/errno.h>
 
 	.text
-	.align	4
 
 	/* Must return:
 	 *
@@ -16,8 +16,7 @@
 	 * bytes copied		if we hit a null byte
 	 */
 
-	.globl	__strncpy_from_user
-__strncpy_from_user:
+ENTRY(__strncpy_from_user)
 	/* %o0=dest, %o1=src, %o2=count */
 	mov	%o2, %o3
 1:
@@ -35,6 +34,7 @@ __strncpy_from_user:
 	add	%o2, 1, %o0
 	retl
 	 sub	%o3, %o0, %o0
+ENDPROC(__strncpy_from_user)
 
 	.section .fixup,#alloc,#execinstr
 	.align	4

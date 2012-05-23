@@ -1383,14 +1383,6 @@ static int brcmf_usb_probe_cb(struct device *dev, const char *desc,
 		goto fail;
 	}
 
-	/* add interface and open for business */
-	ret = brcmf_add_if(dev, 0, "wlan%d", NULL);
-	if (ret) {
-		brcmf_dbg(ERROR, "Add primary net device interface failed!!\n");
-		brcmf_detach(dev);
-		goto fail;
-	}
-
 	return 0;
 fail:
 	/* Release resources in reverse order */
@@ -1604,7 +1596,8 @@ static struct usb_driver brcmf_usbdrvr = {
 	.id_table = brcmf_usb_devid_table,
 	.suspend = brcmf_usb_suspend,
 	.resume = brcmf_usb_resume,
-	.supports_autosuspend = 1
+	.supports_autosuspend = 1,
+	.disable_hub_initiated_lpm = 1,
 };
 
 void brcmf_usb_exit(void)

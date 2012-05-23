@@ -4466,3 +4466,49 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 #endif
 	return;
 }
+
+/*
+ * Driver debug utility routines outside of debugfs. The debug utility
+ * routines implemented here is intended to be used in the instrumented
+ * debug driver for debugging host or port issues.
+ */
+
+/**
+ * lpfc_debug_dump_all_queues - dump all the queues with a hba
+ * @phba: Pointer to HBA context object.
+ *
+ * This function dumps entries of all the queues asociated with the @phba.
+ **/
+void
+lpfc_debug_dump_all_queues(struct lpfc_hba *phba)
+{
+	int fcp_wqidx;
+
+	/*
+	 * Dump Work Queues (WQs)
+	 */
+	lpfc_debug_dump_mbx_wq(phba);
+	lpfc_debug_dump_els_wq(phba);
+
+	for (fcp_wqidx = 0; fcp_wqidx < phba->cfg_fcp_wq_count; fcp_wqidx++)
+		lpfc_debug_dump_fcp_wq(phba, fcp_wqidx);
+
+	lpfc_debug_dump_hdr_rq(phba);
+	lpfc_debug_dump_dat_rq(phba);
+	/*
+	 * Dump Complete Queues (CQs)
+	 */
+	lpfc_debug_dump_mbx_cq(phba);
+	lpfc_debug_dump_els_cq(phba);
+
+	for (fcp_wqidx = 0; fcp_wqidx < phba->cfg_fcp_wq_count; fcp_wqidx++)
+		lpfc_debug_dump_fcp_cq(phba, fcp_wqidx);
+
+	/*
+	 * Dump Event Queues (EQs)
+	 */
+	lpfc_debug_dump_sp_eq(phba);
+
+	for (fcp_wqidx = 0; fcp_wqidx < phba->cfg_fcp_wq_count; fcp_wqidx++)
+		lpfc_debug_dump_fcp_eq(phba, fcp_wqidx);
+}

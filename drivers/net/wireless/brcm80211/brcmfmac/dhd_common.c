@@ -799,7 +799,6 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 {
 	char iovbuf[BRCMF_EVENTING_MASK_LEN + 12];	/*  Room for
 				 "event_msgs" + '\0' + bitvec  */
-	uint up = 0;
 	char buf[128], *ptr;
 	u32 dongle_align = drvr->bus_if->align;
 	u32 glom = 0;
@@ -852,9 +851,6 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 		      iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
-
-	/* Force STA UP */
-	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_UP, (char *)&up, sizeof(up));
 
 	/* Setup event_msgs */
 	brcmf_c_mkiovar("event_msgs", drvr->eventmask, BRCMF_EVENTING_MASK_LEN,
