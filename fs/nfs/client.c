@@ -507,6 +507,17 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
 	return NULL;
 }
 
+static bool nfs_client_init_is_complete(const struct nfs_client *clp)
+{
+	return clp->cl_cons_state != NFS_CS_INITING;
+}
+
+int nfs_wait_client_init_complete(const struct nfs_client *clp)
+{
+	return wait_event_killable(nfs_client_active_wq,
+			nfs_client_init_is_complete(clp));
+}
+
 /*
  * Found an existing client.  Make sure it's ready before returning.
  */
@@ -516,8 +527,7 @@ nfs_found_client(const struct nfs_client_initdata *cl_init,
 {
 	int error;
 
-	error = wait_event_killable(nfs_client_active_wq,
-				clp->cl_cons_state < NFS_CS_INITING);
+	error = nfs_wait_client_init_complete(clp);
 	if (error < 0) {
 		nfs_put_client(clp);
 		return ERR_PTR(-ERESTARTSYS);
@@ -1333,7 +1343,7 @@ static int nfs4_init_client_minor_version(struct nfs_client *clp)
 		 * so that the client back channel can find the
 		 * nfs_client struct
 		 */
-		clp->cl_cons_state = NFS_CS_SESSION_INITING;
+		nfs_mark_client_ready(clp, NFS_CS_SESSION_INITING);
 	}
 #endif /* CONFIG_NFS_V4_1 */
 
