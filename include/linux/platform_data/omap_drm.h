@@ -1,8 +1,8 @@
 /*
- * include/drm/omap_priv.h
+ * DRM/KMS platform data for TI OMAP platforms
  *
- * Copyright (C) 2011 Texas Instruments
- * Author: Rob Clark <rob@ti.com>
+ * Copyright (C) 2012 Texas Instruments
+ * Author: Rob Clark <rob.clark@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
@@ -17,13 +17,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __OMAP_PRIV_H__
-#define __OMAP_PRIV_H__
+#ifndef __PLATFORM_DATA_OMAP_DRM_H__
+#define __PLATFORM_DATA_OMAP_DRM_H__
 
-/* Non-userspace facing APIs
- */
-
-/* optional platform data to configure the default configuration of which
+/*
+ * Optional platform data to configure the default configuration of which
  * pipes/overlays/CRTCs are used.. if this is not provided, then instead the
  * first CONFIG_DRM_OMAP_NUM_CRTCS are used, and they are each connected to
  * one manager, with priority given to managers that are connected to
@@ -49,7 +47,6 @@ struct omap_kms_platform_data {
 
 struct omap_drm_platform_data {
 	struct omap_kms_platform_data *kms_pdata;
-	struct omap_dmm_platform_data *dmm_pdata;
 };
 
-#endif /* __OMAP_DRM_H__ */
+#endif /* __PLATFORM_DATA_OMAP_DRM_H__ */
