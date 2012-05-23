@@ -105,14 +105,12 @@
  * @vector	Vector number
  * @handler	Handler called when IRQ arrives
  * @arg		Handler argument
- * @name	IRQ name
  *
  */
 struct slot_irq {
 	int		vector;
 	int		(*handler)(void *);
 	void		*arg;
-	const char	*name;
 };
 
 /**
