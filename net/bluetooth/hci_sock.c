@@ -118,7 +118,7 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 			continue;
 
 		if (bt_cb(skb)->pkt_type == HCI_EVENT_PKT) {
-			register int evt = (*(__u8 *)skb->data & HCI_FLT_EVENT_BITS);
+			int evt = (*(__u8 *)skb->data & HCI_FLT_EVENT_BITS);
 
 			if (!hci_test_bit(evt, &flt->event_mask))
 				continue;
