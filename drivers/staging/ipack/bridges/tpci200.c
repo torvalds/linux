@@ -582,7 +582,7 @@ static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
 		if (dev->mem_space.address == NULL) {
 			pr_info("Slot [%d:%d] MEM space not mapped !\n",
 				dev->bus_nr, dev->slot);
-		goto out_unlock;
+			goto out_unlock;
 		}
 		virt_addr_space = &dev->mem_space;
 		break;
