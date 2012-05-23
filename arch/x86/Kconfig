@@ -12,6 +12,7 @@ config X86_32
 
 config X86_64
 	def_bool 64BIT
+	select X86_DEV_DMA_OPS
 
 ### Arch settings
 config X86
@@ -327,6 +328,7 @@ config X86_EXTENDED_PLATFORM
 		NUMAQ (IBM/Sequent)
 		RDC R-321x SoC
 		SGI 320/540 (Visual Workstation)
+		STA2X11-based (e.g. Northville)
 		Summit/EXA (IBM x440)
 		Unisys ES7000 IA32 series
 		Moorestown MID devices
@@ -373,6 +375,7 @@ config X86_VSMP
 	select PARAVIRT
 	depends on X86_64 && PCI
 	depends on X86_EXTENDED_PLATFORM
+	depends on SMP
 	---help---
 	  Support for ScaleMP vSMP systems.  Say 'Y' here if this kernel is
 	  supposed to run on these EM64T-based machines.  Only choose this option
@@ -459,10 +462,10 @@ config X86_32_NON_STANDARD
 	depends on X86_32 && SMP
 	depends on X86_EXTENDED_PLATFORM
 	---help---
-	  This option compiles in the NUMAQ, Summit, bigsmp, ES7000, default
-	  subarchitectures.  It is intended for a generic binary kernel.
-	  if you select them all, kernel will probe it one by one. and will
-	  fallback to default.
+	  This option compiles in the NUMAQ, Summit, bigsmp, ES7000,
+	  STA2X11, default subarchitectures.  It is intended for a generic
+	  binary kernel. If you select them all, kernel will probe it
+	  one by one and will fallback to default.
 
 # Alphabetically sorted list of Non standard 32 bit platforms
 
@@ -501,6 +504,22 @@ config X86_VISWS
 
 	  A kernel compiled for the Visual Workstation will run on general
 	  PCs as well. See <file:Documentation/sgi-visws.txt> for details.
+
+config STA2X11
+	bool "STA2X11 Companion Chip Support"
+	depends on X86_32_NON_STANDARD && PCI
+	select X86_DEV_DMA_OPS
+	select X86_DMA_REMAP
+	select SWIOTLB
+	select MFD_STA2X11
+	select ARCH_REQUIRE_GPIOLIB
+	default n
+	---help---
+	  This adds support for boards based on the STA2X11 IO-Hub,
+	  a.k.a. "ConneXt". The chip is used in place of the standard
+	  PC chipset, so all "standard" peripherals are missing. If this
+	  option is selected the kernel will still be able to boot on
+	  standard PC machines.
 
 config X86_SUMMIT
 	bool "Summit/EXA (IBM x440)"
@@ -2209,6 +2228,14 @@ config HAVE_ATOMIC_IOMAP
 config HAVE_TEXT_POKE_SMP
 	bool
 	select STOP_MACHINE if SMP
+
+config X86_DEV_DMA_OPS
+	bool
+	depends on X86_64 || STA2X11
+
+config X86_DMA_REMAP
+	bool
+	depends on STA2X11
 
 source "net/Kconfig"
 
