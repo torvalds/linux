@@ -1990,19 +1990,12 @@ static void ocrdma_get_create_qp_rsp(struct ocrdma_create_qp_rsp *rsp,
 	max_wqe_allocated = 1 << max_wqe_allocated;
 	max_rqe_allocated = 1 << ((u16)rsp->max_wqe_rqe);
 
-	if (qp->dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
-		qp->sq.free_delta = 0;
-		qp->rq.free_delta = 1;
-	} else
-		qp->sq.free_delta = 1;
-
 	qp->sq.max_cnt = max_wqe_allocated;
 	qp->sq.max_wqe_idx = max_wqe_allocated - 1;
 
 	if (!attrs->srq) {
 		qp->rq.max_cnt = max_rqe_allocated;
 		qp->rq.max_wqe_idx = max_rqe_allocated - 1;
-		qp->rq.free_delta = 1;
 	}
 }
 
