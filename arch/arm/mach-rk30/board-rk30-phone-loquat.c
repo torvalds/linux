@@ -821,6 +821,26 @@ static struct gsensor_platform_data mma8452_info = {
 };
 #endif
 
+#if defined (CONFIG_GS_LIS3DH)
+#define LIS3DH_INT_PIN   RK30_PIN4_PC0
+
+static int lis3dh_init_platform_hw(void)
+{
+	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
+
+	return 0;
+}
+
+static struct gsensor_platform_data lis3dh_info = {
+	.model = 8452,
+	.swap_xy = 0,
+	.swap_xyz = 1,
+	.init_platform_hw = lis3dh_init_platform_hw,
+	.orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
+};
+#endif
+
+
 #if defined (CONFIG_RK_HEADSET_DET) || defined (CONFIG_RK_HEADSET_IRQ_HOOK_ADC_DET)
 
 static int rk_headset_io_init(int gpio, char *iomux_name, int iomux_mode)
@@ -1535,6 +1555,16 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.platform_data = &mma8452_info,
 	},
 #endif
+#if defined (CONFIG_GS_LIS3DH)
+	{
+		.type	        = "lis3dh",
+		.addr	        = 0x19,
+		.flags	        = 0,
+		.irq	        = LIS3DH_INT_PIN,
+		.platform_data = &lis3dh_info,
+	},
+#endif
+
 #if defined (CONFIG_COMPASS_AK8975)
 	{
 		.type          = "ak8975",
