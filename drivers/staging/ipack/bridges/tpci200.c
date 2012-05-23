@@ -59,13 +59,6 @@ static struct tpci200_board *check_slot(struct ipack_device *dev)
 		return NULL;
 	}
 
-	BUG_ON(tpci200->slots == NULL);
-	if (tpci200->slots[dev->slot].dev == NULL) {
-		pr_info("Slot [%d:%d] is not registered !\n", dev->bus_nr,
-			dev->slot);
-		return NULL;
-	}
-
 	return tpci200;
 }
 
