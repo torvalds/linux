@@ -77,22 +77,14 @@ static int wm8994_ldo_enable_time(struct regulator_dev *rdev)
 	return 3000;
 }
 
-static int wm8994_ldo1_list_voltage(struct regulator_dev *rdev,
-				    unsigned int selector)
-{
-	if (selector > WM8994_LDO1_MAX_SELECTOR)
-		return -EINVAL;
-
-	return (selector * 100000) + 2400000;
-}
-
 static struct regulator_ops wm8994_ldo1_ops = {
 	.enable = wm8994_ldo_enable,
 	.disable = wm8994_ldo_disable,
 	.is_enabled = wm8994_ldo_is_enabled,
 	.enable_time = wm8994_ldo_enable_time,
 
-	.list_voltage = wm8994_ldo1_list_voltage,
+	.list_voltage = regulator_list_voltage_linear,
+	.map_voltage = regulator_map_voltage_linear,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 };
@@ -143,6 +135,8 @@ static const struct regulator_desc wm8994_ldo_desc[] = {
 		.vsel_reg = WM8994_LDO_1,
 		.vsel_mask = WM8994_LDO1_VSEL_MASK,
 		.ops = &wm8994_ldo1_ops,
+		.min_uV = 2400000,
+		.uV_step = 100000,
 		.owner = THIS_MODULE,
 	},
 	{
