@@ -19,8 +19,6 @@
 #ifndef __ASM_OPENRISC_PTRACE_H
 #define __ASM_OPENRISC_PTRACE_H
 
-#include <asm/spr_defs.h>
-
 #ifndef __ASSEMBLY__
 /*
  * This is the layout of the regset returned by the GETREGSET ptrace call
@@ -30,12 +28,12 @@ struct user_regs_struct {
 	unsigned long gpr[32];
 	unsigned long pc;
 	unsigned long sr;
-	unsigned long pad1;
-	unsigned long pad2;
 };
 #endif
 
 #ifdef __KERNEL__
+
+#include <asm/spr_defs.h>
 
 /*
  * Make kernel PTrace/register structures opaque to userspace... userspace can

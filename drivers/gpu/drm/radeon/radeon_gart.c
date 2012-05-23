@@ -551,7 +551,7 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 
 	/* nothing to do if vm isn't bound */
 	if (vm->id == -1)
-		return 0;;
+		return 0;
 
 	bo_va = radeon_bo_va(bo, vm);
 	if (bo_va == NULL) {

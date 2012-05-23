@@ -111,11 +111,12 @@ and detailed below as well:
 	int phy_addr;
 	int interface;
 	struct stmmac_mdio_bus_data *mdio_bus_data;
-	int pbl;
+	struct stmmac_dma_cfg *dma_cfg;
 	int clk_csr;
 	int has_gmac;
 	int enh_desc;
 	int tx_coe;
+	int rx_coe;
 	int bugged_jumbo;
 	int pmt;
 	int force_sf_dma_mode;
@@ -136,10 +137,12 @@ Where:
  o pbl: the Programmable Burst Length is maximum number of beats to
        be transferred in one DMA transaction.
        GMAC also enables the 4xPBL by default.
- o clk_csr: CSR Clock range selection.
+ o clk_csr: fixed CSR Clock range selection.
  o has_gmac: uses the GMAC core.
  o enh_desc: if sets the MAC will use the enhanced descriptor structure.
  o tx_coe: core is able to perform the tx csum in HW.
+ o rx_coe: the supports three check sum offloading engine types:
+	   type_1, type_2 (full csum) and no RX coe.
  o bugged_jumbo: some HWs are not able to perform the csum in HW for
 		over-sized frames due to limited buffer sizes.
 		Setting this flag the csum will be done in SW on
@@ -160,7 +163,7 @@ Where:
  o custom_cfg: this is a custom configuration that can be passed while
 	      initialising the resources.
 
-The we have:
+For MDIO bus The we have:
 
  struct stmmac_mdio_bus_data {
 	int bus_id;
@@ -177,10 +180,28 @@ Where:
  o irqs: list of IRQs, one per PHY.
  o probed_phy_irq: if irqs is NULL, use this for probed PHY.
 
+
+For DMA engine we have the following internal fields that should be
+tuned according to the HW capabilities.
+
+struct stmmac_dma_cfg {
+	int pbl;
+	int fixed_burst;
+	int burst_len_supported;
+};
+
+Where:
+ o pbl: Programmable Burst Length
+ o fixed_burst: program the DMA to use the fixed burst mode
+ o burst_len: this is the value we put in the register
+	      supported values are provided as macros in
+	      linux/stmmac.h header file.
+
+---
+
 Below an example how the structures above are using on ST platforms.
 
  static struct plat_stmmacenet_data stxYYY_ethernet_platform_data = {
-	.pbl = 32,
 	.has_gmac = 0,
 	.enh_desc = 0,
 	.fix_mac_speed = stxYYY_ethernet_fix_mac_speed,

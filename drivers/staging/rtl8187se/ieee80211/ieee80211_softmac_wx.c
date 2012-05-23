@@ -362,7 +362,7 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 		ieee80211_stop_protocol(ieee);
 
 	/* this is just to be sure that the GET wx callback
-	 * has consisten infos. not needed otherwise
+	 * has consistent infos. not needed otherwise
 	 */
 	spin_lock_irqsave(&ieee->lock, flags);
 

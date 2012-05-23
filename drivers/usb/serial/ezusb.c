@@ -26,7 +26,6 @@ int ezusb_writememory(struct usb_serial *serial, int address,
 	int result;
 	unsigned char *transfer_buffer;
 
-	/* dbg("ezusb_writememory %x, %d", address, length); */
 	if (!serial->dev) {
 		printk(KERN_ERR "ezusb: %s - no physical device present, "
 		       "failing.\n", __func__);
@@ -50,7 +49,6 @@ int ezusb_set_reset(struct usb_serial *serial, unsigned char reset_bit)
 {
 	int response;
 
-	/* dbg("%s - %d", __func__, reset_bit); */
 	response = ezusb_writememory(serial, CPUCS_REG, &reset_bit, 1, 0xa0);
 	if (response < 0)
 		dev_err(&serial->dev->dev, "%s- %d failed\n",

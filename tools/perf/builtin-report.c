@@ -296,12 +296,15 @@ static size_t hists__fprintf_nr_sample_events(struct hists *self,
 {
 	size_t ret;
 	char unit;
-	unsigned long nr_events = self->stats.nr_events[PERF_RECORD_SAMPLE];
+	unsigned long nr_samples = self->stats.nr_events[PERF_RECORD_SAMPLE];
+	u64 nr_events = self->stats.total_period;
 
-	nr_events = convert_unit(nr_events, &unit);
-	ret = fprintf(fp, "# Events: %lu%c", nr_events, unit);
+	nr_samples = convert_unit(nr_samples, &unit);
+	ret = fprintf(fp, "# Samples: %lu%c", nr_samples, unit);
 	if (evname != NULL)
-		ret += fprintf(fp, " %s", evname);
+		ret += fprintf(fp, " of event '%s'", evname);
+
+	ret += fprintf(fp, "\n# Event count (approx.): %" PRIu64, nr_events);
 	return ret + fprintf(fp, "\n#\n");
 }
 
@@ -680,14 +683,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 
 	}
 
-	if (strcmp(report.input_name, "-") != 0) {
-		if (report.use_gtk)
-			perf_gtk_setup_browser(argc, argv, true);
-		else
-			setup_browser(true);
-	} else {
+	if (strcmp(report.input_name, "-") != 0)
+		setup_browser(true);
+	else
 		use_browser = 0;
-	}
 
 	/*
 	 * Only in the newt browser we are doing integrated annotation,

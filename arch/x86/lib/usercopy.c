@@ -44,13 +44,6 @@ copy_from_user_nmi(void *to, const void __user *from, unsigned long n)
 }
 EXPORT_SYMBOL_GPL(copy_from_user_nmi);
 
-static inline unsigned long count_bytes(unsigned long mask)
-{
-	mask = (mask - 1) & ~mask;
-	mask >>= 7;
-	return count_masked_bytes(mask);
-}
-
 /*
  * Do a strncpy, return length of string without final '\0'.
  * 'count' is the user-supplied count (return 'count' if we
@@ -69,16 +62,19 @@ static inline long do_strncpy_from_user(char *dst, const char __user *src, long 
 		max = count;
 
 	while (max >= sizeof(unsigned long)) {
-		unsigned long c;
+		unsigned long c, mask;
 
 		/* Fall back to byte-at-a-time if we get a page fault */
 		if (unlikely(__get_user(c,(unsigned long __user *)(src+res))))
 			break;
-		/* This can write a few bytes past the NUL character, but that's ok */
+		mask = has_zero(c);
+		if (mask) {
+			mask = (mask - 1) & ~mask;
+			mask >>= 7;
+			*(unsigned long *)(dst+res) = c & mask;
+			return res + count_masked_bytes(mask);
+		}
 		*(unsigned long *)(dst+res) = c;
-		c = has_zero(c);
-		if (c)
-			return res + count_bytes(c);
 		res += sizeof(unsigned long);
 		max -= sizeof(unsigned long);
 	}

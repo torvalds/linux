@@ -477,7 +477,7 @@ static int nci_activate_target(struct nfc_dev *nfc_dev, __u32 target_idx,
 	}
 
 	if (atomic_read(&ndev->state) == NCI_W4_HOST_SELECT) {
-		param.rf_discovery_id = target->idx;
+		param.rf_discovery_id = target->logical_idx;
 
 		if (protocol == NFC_PROTO_JEWEL)
 			param.rf_protocol = NCI_RF_PROTOCOL_T1T;

@@ -114,27 +114,10 @@ void cpu_idle(void)
 	}
 }
 
-struct thread_info *alloc_thread_info_node(struct task_struct *task, int node)
-{
-	struct page *page;
-	gfp_t flags = GFP_KERNEL;
-
-#ifdef CONFIG_DEBUG_STACK_USAGE
-	flags |= __GFP_ZERO;
-#endif
-
-	page = alloc_pages_node(node, flags, THREAD_SIZE_ORDER);
-	if (!page)
-		return NULL;
-
-	return (struct thread_info *)page_address(page);
-}
-
 /*
- * Free a thread_info node, and all of its derivative
- * data structures.
+ * Release a thread_info structure
  */
-void free_thread_info(struct thread_info *info)
+void arch_release_thread_info(struct thread_info *info)
 {
 	struct single_step_state *step_state = info->step_state;
 
@@ -169,8 +152,6 @@ void free_thread_info(struct thread_info *info)
 		 */
 		kfree(step_state);
 	}
-
-	free_pages((unsigned long)info, THREAD_SIZE_ORDER);
 }
 
 static void save_arch_state(struct thread_struct *t);

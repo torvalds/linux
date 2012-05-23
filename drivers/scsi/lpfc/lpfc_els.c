@@ -230,27 +230,43 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 
 	INIT_LIST_HEAD(&pbuflist->list);
 
-	icmd->un.elsreq64.bdl.addrHigh = putPaddrHigh(pbuflist->phys);
-	icmd->un.elsreq64.bdl.addrLow = putPaddrLow(pbuflist->phys);
-	icmd->un.elsreq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
-	icmd->un.elsreq64.remoteID = did;	/* DID */
 	if (expectRsp) {
+		icmd->un.elsreq64.bdl.addrHigh = putPaddrHigh(pbuflist->phys);
+		icmd->un.elsreq64.bdl.addrLow = putPaddrLow(pbuflist->phys);
+		icmd->un.elsreq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
 		icmd->un.elsreq64.bdl.bdeSize = (2 * sizeof(struct ulp_bde64));
+
+		icmd->un.elsreq64.remoteID = did;		/* DID */
 		icmd->ulpCommand = CMD_ELS_REQUEST64_CR;
 		icmd->ulpTimeout = phba->fc_ratov * 2;
 	} else {
-		icmd->un.elsreq64.bdl.bdeSize = sizeof(struct ulp_bde64);
+		icmd->un.xseq64.bdl.addrHigh = putPaddrHigh(pbuflist->phys);
+		icmd->un.xseq64.bdl.addrLow = putPaddrLow(pbuflist->phys);
+		icmd->un.xseq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
+		icmd->un.xseq64.bdl.bdeSize = sizeof(struct ulp_bde64);
+		icmd->un.xseq64.xmit_els_remoteID = did;	/* DID */
 		icmd->ulpCommand = CMD_XMIT_ELS_RSP64_CX;
 	}
 	icmd->ulpBdeCount = 1;
 	icmd->ulpLe = 1;
 	icmd->ulpClass = CLASS3;
 
-	if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
-		icmd->un.elsreq64.myID = vport->fc_myDID;
+	/*
+	 * If we have NPIV enabled, we want to send ELS traffic by VPI.
+	 * For SLI4, since the driver controls VPIs we also want to include
+	 * all ELS pt2pt protocol traffic as well.
+	 */
+	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) ||
+		((phba->sli_rev == LPFC_SLI_REV4) &&
+		    (vport->fc_flag & FC_PT2PT))) {
 
-		/* For ELS_REQUEST64_CR, use the VPI by default */
-		icmd->ulpContext = phba->vpi_ids[vport->vpi];
+		if (expectRsp) {
+			icmd->un.elsreq64.myID = vport->fc_myDID;
+
+			/* For ELS_REQUEST64_CR, use the VPI by default */
+			icmd->ulpContext = phba->vpi_ids[vport->vpi];
+		}
+
 		icmd->ulpCt_h = 0;
 		/* The CT field must be 0=INVALID_RPI for the ECHO cmd */
 		if (elscmd == ELS_CMD_ECHO)
@@ -438,9 +454,10 @@ lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 	int rc = 0;
 
 	sp = &phba->fc_fabparam;
-	/* move forward in case of SLI4 FC port loopback test */
+	/* move forward in case of SLI4 FC port loopback test and pt2pt mode */
 	if ((phba->sli_rev == LPFC_SLI_REV4) &&
-	    !(phba->link_flag & LS_LOOPBACK_MODE)) {
+	    !(phba->link_flag & LS_LOOPBACK_MODE) &&
+	    !(vport->fc_flag & FC_PT2PT)) {
 		ndlp = lpfc_findnode_did(vport, Fabric_DID);
 		if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
 			rc = -ENODEV;
@@ -707,14 +724,17 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_sli4_unreg_all_rpis(vport);
 			lpfc_mbx_unreg_vpi(vport);
 			spin_lock_irq(shost->host_lock);
-			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-			/*
-			* If VPI is unreged, driver need to do INIT_VPI
-			* before re-registering
-			*/
 			vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 			spin_unlock_irq(shost->host_lock);
 		}
+
+		/*
+		 * For SLI3 and SLI4, the VPI needs to be reregistered in
+		 * response to this fabric parameter change event.
+		 */
+		spin_lock_irq(shost->host_lock);
+		vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+		spin_unlock_irq(shost->host_lock);
 	} else if ((phba->sli_rev == LPFC_SLI_REV4) &&
 		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
 			/*
@@ -817,6 +837,17 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			mempool_free(mbox, phba->mbox_mem_pool);
 			goto fail;
 		}
+
+		/*
+		 * For SLI4, the VFI/VPI are registered AFTER the
+		 * Nport with the higher WWPN sends the PLOGI with
+		 * an assigned NPortId.
+		 */
+
+		/* not equal */
+		if ((phba->sli_rev == LPFC_SLI_REV4) && rc)
+			lpfc_issue_reg_vfi(vport);
+
 		/* Decrement ndlp reference count indicating that ndlp can be
 		 * safely released when other references to it are done.
 		 */
@@ -2972,7 +3003,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 * ABTS we cannot generate and RRQ.
 			 */
 			lpfc_set_rrq_active(phba, ndlp,
-					 cmdiocb->sli4_xritag, 0, 0);
+					 cmdiocb->sli4_lxritag, 0, 0);
 		}
 		break;
 	case IOSTAT_LOCAL_REJECT:
@@ -3803,10 +3834,11 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 	/* Xmit ELS ACC response tag <ulpIoTag> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0128 Xmit ELS ACC response tag x%x, XRI: x%x, "
-			 "DID: x%x, nlp_flag: x%x nlp_state: x%x RPI: x%x\n",
+			 "DID: x%x, nlp_flag: x%x nlp_state: x%x RPI: x%x "
+			 "fc_flag x%x\n",
 			 elsiocb->iotag, elsiocb->iocb.ulpContext,
 			 ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_state,
-			 ndlp->nlp_rpi);
+			 ndlp->nlp_rpi, vport->fc_flag);
 	if (ndlp->nlp_flag & NLP_LOGO_ACC) {
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag &= ~NLP_LOGO_ACC;
@@ -4936,8 +4968,6 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		return 1;
 	}
 
-	did = Fabric_DID;
-
 	if ((lpfc_check_sparm(vport, ndlp, sp, CLASS3, 1))) {
 		/* For a FLOGI we accept, then if our portname is greater
 		 * then the remote portname we initiate Nport login.
@@ -4976,26 +5006,82 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_PT2PT_PLOGI;
 			spin_unlock_irq(shost->host_lock);
+
+			/* If we have the high WWPN we can assign our own
+			 * myDID; otherwise, we have to WAIT for a PLOGI
+			 * from the remote NPort to find out what it
+			 * will be.
+			 */
+			vport->fc_myDID = PT2PT_LocalID;
 		}
+
+		/*
+		 * The vport state should go to LPFC_FLOGI only
+		 * AFTER we issue a FLOGI, not receive one.
+		 */
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_PT2PT;
 		vport->fc_flag &= ~(FC_FABRIC | FC_PUBLIC_LOOP);
 		spin_unlock_irq(shost->host_lock);
+
+		/*
+		 * We temporarily set fc_myDID to make it look like we are
+		 * a Fabric. This is done just so we end up with the right
+		 * did / sid on the FLOGI ACC rsp.
+		 */
+		did = vport->fc_myDID;
+		vport->fc_myDID = Fabric_DID;
+
 	} else {
 		/* Reject this request because invalid parameters */
 		stat.un.b.lsRjtRsvd0 = 0;
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_SPARM_OPTIONS;
 		stat.un.b.vendorUnique = 0;
+
+		/*
+		 * We temporarily set fc_myDID to make it look like we are
+		 * a Fabric. This is done just so we end up with the right
+		 * did / sid on the FLOGI LS_RJT rsp.
+		 */
+		did = vport->fc_myDID;
+		vport->fc_myDID = Fabric_DID;
+
 		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp,
 			NULL);
+
+		/* Now lets put fc_myDID back to what its supposed to be */
+		vport->fc_myDID = did;
+
 		return 1;
 	}
 
 	/* Send back ACC */
 	lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb, ndlp, NULL);
 
+	/* Now lets put fc_myDID back to what its supposed to be */
+	vport->fc_myDID = did;
+
+	if (!(vport->fc_flag & FC_PT2PT_PLOGI)) {
+
+		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+		if (!mbox)
+			goto fail;
+
+		lpfc_config_link(phba, mbox);
+
+		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		mbox->vport = vport;
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+		if (rc == MBX_NOT_FINISHED) {
+			mempool_free(mbox, phba->mbox_mem_pool);
+			goto fail;
+		}
+	}
+
 	return 0;
+fail:
+	return 1;
 }
 
 /**
@@ -5176,7 +5262,6 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	cmdsize = sizeof(struct RLS_RSP) + sizeof(uint32_t);
-	mempool_free(pmb, phba->mbox_mem_pool);
 	elsiocb = lpfc_prep_els_iocb(phba->pport, 0, cmdsize,
 				     lpfc_max_els_tries, ndlp,
 				     ndlp->nlp_DID, ELS_CMD_ACC);
@@ -5184,8 +5269,10 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	/* Decrement the ndlp reference count from previous mbox command */
 	lpfc_nlp_put(ndlp);
 
-	if (!elsiocb)
+	if (!elsiocb) {
+		mempool_free(pmb, phba->mbox_mem_pool);
 		return;
+	}
 
 	icmd = &elsiocb->iocb;
 	icmd->ulpContext = rxid;
@@ -5202,7 +5289,7 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	rls_rsp->primSeqErrCnt = cpu_to_be32(mb->un.varRdLnk.primSeqErrCnt);
 	rls_rsp->invalidXmitWord = cpu_to_be32(mb->un.varRdLnk.invalidXmitWord);
 	rls_rsp->crcCnt = cpu_to_be32(mb->un.varRdLnk.crcCnt);
-
+	mempool_free(pmb, phba->mbox_mem_pool);
 	/* Xmit ELS RLS ACC response tag <ulpIoTag> */
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_ELS,
 			 "2874 Xmit ELS RLS ACC response tag x%x xri x%x, "
@@ -5586,7 +5673,7 @@ lpfc_issue_els_rrq(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	pcmd += sizeof(uint32_t);
 	els_rrq = (struct RRQ *) pcmd;
 
-	bf_set(rrq_oxid, els_rrq, rrq->xritag);
+	bf_set(rrq_oxid, els_rrq, phba->sli4_hba.xri_ids[rrq->xritag]);
 	bf_set(rrq_rxid, els_rrq, rrq->rxid);
 	bf_set(rrq_did, els_rrq, vport->fc_myDID);
 	els_rrq->rrq = cpu_to_be32(els_rrq->rrq);
@@ -7873,7 +7960,9 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 			sglq_entry->state = SGL_FREED;
 			spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
-			lpfc_set_rrq_active(phba, ndlp, xri, rxid, 1);
+			lpfc_set_rrq_active(phba, ndlp,
+				sglq_entry->sli4_lxritag,
+				rxid, 1);
 
 			/* Check if TXQ queue needs to be serviced */
 			if (pring->txq_cnt)

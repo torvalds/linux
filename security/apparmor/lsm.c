@@ -373,7 +373,7 @@ static int apparmor_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 				      AA_MAY_META_READ);
 }
 
-static int apparmor_dentry_open(struct file *file, const struct cred *cred)
+static int apparmor_file_open(struct file *file, const struct cred *cred)
 {
 	struct aa_file_cxt *fcxt = file->f_security;
 	struct aa_profile *profile;
@@ -589,7 +589,7 @@ static int apparmor_setprocattr(struct task_struct *task, char *name,
 		} else {
 			struct common_audit_data sa;
 			struct apparmor_audit_data aad = {0,};
-			COMMON_AUDIT_DATA_INIT(&sa, NONE);
+			sa.type = LSM_AUDIT_DATA_NONE;
 			sa.aad = &aad;
 			aad.op = OP_SETPROCATTR;
 			aad.info = name;
@@ -640,9 +640,9 @@ static struct security_operations apparmor_ops = {
 	.path_chmod =			apparmor_path_chmod,
 	.path_chown =			apparmor_path_chown,
 	.path_truncate =		apparmor_path_truncate,
-	.dentry_open =			apparmor_dentry_open,
 	.inode_getattr =                apparmor_inode_getattr,
 
+	.file_open =			apparmor_file_open,
 	.file_permission =		apparmor_file_permission,
 	.file_alloc_security =		apparmor_file_alloc_security,
 	.file_free_security =		apparmor_file_free_security,

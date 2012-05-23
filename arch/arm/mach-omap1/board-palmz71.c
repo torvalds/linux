@@ -289,10 +289,10 @@ palmz71_gpio_setup(int early)
 		gpio_direction_input(PALMZ71_USBDETECT_GPIO);
 		if (request_irq(gpio_to_irq(PALMZ71_USBDETECT_GPIO),
 				palmz71_powercable, IRQF_SAMPLE_RANDOM,
-				"palmz71-cable", 0))
+				"palmz71-cable", NULL))
 			printk(KERN_ERR
 					"IRQ request for power cable failed!\n");
-		palmz71_powercable(gpio_to_irq(PALMZ71_USBDETECT_GPIO), 0);
+		palmz71_powercable(gpio_to_irq(PALMZ71_USBDETECT_GPIO), NULL);
 	}
 }
 

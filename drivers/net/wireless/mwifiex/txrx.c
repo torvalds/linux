@@ -77,12 +77,23 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA)
 			local_tx_pd =
 				(struct txpd *) (head_ptr + INTF_HEADER_LEN);
-
-		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
-						   skb, tx_param);
+		if (adapter->iface_type == MWIFIEX_USB) {
+			adapter->data_sent = true;
+			skb_pull(skb, INTF_HEADER_LEN);
+			ret = adapter->if_ops.host_to_card(adapter,
+							   MWIFIEX_USB_EP_DATA,
+							   skb, NULL);
+		} else {
+			ret = adapter->if_ops.host_to_card(adapter,
+							   MWIFIEX_TYPE_DATA,
+							   skb, tx_param);
+		}
 	}
 
 	switch (ret) {
+	case -ENOSR:
+		dev_err(adapter->dev, "data: -ENOSR is returned\n");
+		break;
 	case -EBUSY:
 		if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
 		    (adapter->pps_uapsd_mode) && (adapter->tx_lock_flag)) {
@@ -135,6 +146,9 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 	if (!priv)
 		goto done;
 
+	if (adapter->iface_type == MWIFIEX_USB)
+		adapter->data_sent = false;
+
 	mwifiex_set_trans_start(priv->netdev);
 	if (!status) {
 		priv->stats.tx_packets++;
@@ -162,4 +176,5 @@ done:
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mwifiex_write_data_complete);
 

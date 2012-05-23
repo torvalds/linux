@@ -29,9 +29,7 @@ struct ccwgroup_device {
 
 /**
  * struct ccwgroup_driver - driver for ccw group devices
- * @max_slaves: maximum number of slave devices
- * @driver_id: unique id
- * @probe: function called on probe
+ * @setup: function called during device creation to setup the device
  * @remove: function called on remove
  * @set_online: function called when device is set online
  * @set_offline: function called when device is set offline
@@ -44,10 +42,7 @@ struct ccwgroup_device {
  * @driver: embedded driver structure
  */
 struct ccwgroup_driver {
-	int max_slaves;
-	unsigned long driver_id;
-
-	int (*probe) (struct ccwgroup_device *);
+	int (*setup) (struct ccwgroup_device *);
 	void (*remove) (struct ccwgroup_device *);
 	int (*set_online) (struct ccwgroup_device *);
 	int (*set_offline) (struct ccwgroup_device *);
@@ -63,9 +58,8 @@ struct ccwgroup_driver {
 
 extern int  ccwgroup_driver_register   (struct ccwgroup_driver *cdriver);
 extern void ccwgroup_driver_unregister (struct ccwgroup_driver *cdriver);
-int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
-				struct ccw_driver *cdrv, int num_devices,
-				const char *buf);
+int ccwgroup_create_dev(struct device *root, struct ccwgroup_driver *gdrv,
+			int num_devices, const char *buf);
 
 extern int ccwgroup_probe_ccwdev(struct ccw_device *cdev);
 extern void ccwgroup_remove_ccwdev(struct ccw_device *cdev);

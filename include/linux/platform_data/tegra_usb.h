@@ -26,6 +26,7 @@ struct tegra_ehci_platform_data {
 	/* power down the phy on bus suspend */
 	int power_down_on_bus_suspend;
 	void *phy_config;
+	int vbus_gpio;
 };
 
 #endif /* _TEGRA_USB_H_ */

@@ -34,9 +34,18 @@
 
 #include "iw_cxgb4.h"
 
+static int db_delay_usecs = 1;
+module_param(db_delay_usecs, int, 0644);
+MODULE_PARM_DESC(db_delay_usecs, "Usecs to delay awaiting db fifo to drain");
+
 static int ocqp_support = 1;
 module_param(ocqp_support, int, 0644);
 MODULE_PARM_DESC(ocqp_support, "Support on-chip SQs (default=1)");
+
+int db_fc_threshold = 2000;
+module_param(db_fc_threshold, int, 0644);
+MODULE_PARM_DESC(db_fc_threshold, "QP count/threshold that triggers automatic "
+		 "db flow control mode (default = 2000)");
 
 static void set_state(struct c4iw_qp *qhp, enum c4iw_qp_state state)
 {
@@ -1128,6 +1137,35 @@ out:
 	return ret;
 }
 
+/*
+ * Called by the library when the qp has user dbs disabled due to
+ * a DB_FULL condition.  This function will single-thread all user
+ * DB rings to avoid overflowing the hw db-fifo.
+ */
+static int ring_kernel_db(struct c4iw_qp *qhp, u32 qid, u16 inc)
+{
+	int delay = db_delay_usecs;
+
+	mutex_lock(&qhp->rhp->db_mutex);
+	do {
+
+		/*
+		 * The interrupt threshold is dbfifo_int_thresh << 6. So
+		 * make sure we don't cross that and generate an interrupt.
+		 */
+		if (cxgb4_dbfifo_count(qhp->rhp->rdev.lldi.ports[0], 1) <
+		    (qhp->rhp->rdev.lldi.dbfifo_int_thresh << 5)) {
+			writel(V_QID(qid) | V_PIDX(inc), qhp->wq.db);
+			break;
+		}
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(usecs_to_jiffies(delay));
+		delay = min(delay << 1, 2000);
+	} while (1);
+	mutex_unlock(&qhp->rhp->db_mutex);
+	return 0;
+}
+
 int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 		   enum c4iw_qp_attr_mask mask,
 		   struct c4iw_qp_attributes *attrs,
@@ -1174,6 +1212,15 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			newattr.max_ird = attrs->max_ird;
 		}
 		qhp->attr = newattr;
+	}
+
+	if (mask & C4IW_QP_ATTR_SQ_DB) {
+		ret = ring_kernel_db(qhp, qhp->wq.sq.qid, attrs->sq_db_inc);
+		goto out;
+	}
+	if (mask & C4IW_QP_ATTR_RQ_DB) {
+		ret = ring_kernel_db(qhp, qhp->wq.rq.qid, attrs->rq_db_inc);
+		goto out;
 	}
 
 	if (!(mask & C4IW_QP_ATTR_NEXT_STATE))
@@ -1352,6 +1399,14 @@ out:
 	return ret;
 }
 
+static int enable_qp_db(int id, void *p, void *data)
+{
+	struct c4iw_qp *qp = p;
+
+	t4_enable_wq_db(&qp->wq);
+	return 0;
+}
+
 int c4iw_destroy_qp(struct ib_qp *ib_qp)
 {
 	struct c4iw_dev *rhp;
@@ -1369,7 +1424,16 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 		c4iw_modify_qp(rhp, qhp, C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
 	wait_event(qhp->wait, !qhp->ep);
 
-	remove_handle(rhp, &rhp->qpidr, qhp->wq.sq.qid);
+	spin_lock_irq(&rhp->lock);
+	remove_handle_nolock(rhp, &rhp->qpidr, qhp->wq.sq.qid);
+	rhp->qpcnt--;
+	BUG_ON(rhp->qpcnt < 0);
+	if (rhp->qpcnt <= db_fc_threshold && rhp->db_state == FLOW_CONTROL) {
+		rhp->rdev.stats.db_state_transitions++;
+		rhp->db_state = NORMAL;
+		idr_for_each(&rhp->qpidr, enable_qp_db, NULL);
+	}
+	spin_unlock_irq(&rhp->lock);
 	atomic_dec(&qhp->refcnt);
 	wait_event(qhp->wait, !atomic_read(&qhp->refcnt));
 
@@ -1380,6 +1444,14 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 
 	PDBG("%s ib_qp %p qpid 0x%0x\n", __func__, ib_qp, qhp->wq.sq.qid);
 	kfree(qhp);
+	return 0;
+}
+
+static int disable_qp_db(int id, void *p, void *data)
+{
+	struct c4iw_qp *qp = p;
+
+	t4_disable_wq_db(&qp->wq);
 	return 0;
 }
 
@@ -1469,7 +1541,16 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	init_waitqueue_head(&qhp->wait);
 	atomic_set(&qhp->refcnt, 1);
 
-	ret = insert_handle(rhp, &rhp->qpidr, qhp, qhp->wq.sq.qid);
+	spin_lock_irq(&rhp->lock);
+	if (rhp->db_state != NORMAL)
+		t4_disable_wq_db(&qhp->wq);
+	if (++rhp->qpcnt > db_fc_threshold && rhp->db_state == NORMAL) {
+		rhp->rdev.stats.db_state_transitions++;
+		rhp->db_state = FLOW_CONTROL;
+		idr_for_each(&rhp->qpidr, disable_qp_db, NULL);
+	}
+	ret = insert_handle_nolock(rhp, &rhp->qpidr, qhp, qhp->wq.sq.qid);
+	spin_unlock_irq(&rhp->lock);
 	if (ret)
 		goto err2;
 
@@ -1613,6 +1694,15 @@ int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			 C4IW_QP_ATTR_ENABLE_RDMA_WRITE |
 			 C4IW_QP_ATTR_ENABLE_RDMA_BIND) : 0;
 
+	/*
+	 * Use SQ_PSN and RQ_PSN to pass in IDX_INC values for
+	 * ringing the queue db when we're in DB_FULL mode.
+	 */
+	attrs.sq_db_inc = attr->sq_psn;
+	attrs.rq_db_inc = attr->rq_psn;
+	mask |= (attr_mask & IB_QP_SQ_PSN) ? C4IW_QP_ATTR_SQ_DB : 0;
+	mask |= (attr_mask & IB_QP_RQ_PSN) ? C4IW_QP_ATTR_RQ_DB : 0;
+
 	return c4iw_modify_qp(rhp, qhp, mask, &attrs, 0);
 }
 
@@ -1620,4 +1710,15 @@ struct ib_qp *c4iw_get_qp(struct ib_device *dev, int qpn)
 {
 	PDBG("%s ib_dev %p qpn 0x%x\n", __func__, dev, qpn);
 	return (struct ib_qp *)get_qhp(to_c4iw_dev(dev), qpn);
+}
+
+int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
+		     int attr_mask, struct ib_qp_init_attr *init_attr)
+{
+	struct c4iw_qp *qhp = to_c4iw_qp(ibqp);
+
+	memset(attr, 0, sizeof *attr);
+	memset(init_attr, 0, sizeof *init_attr);
+	attr->qp_state = to_ib_qp_state(qhp->attr.state);
+	return 0;
 }

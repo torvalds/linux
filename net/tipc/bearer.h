@@ -49,7 +49,6 @@
  * - media type identifier located at offset 3
  * - remaining bytes vary according to media type
  */
-
 #define TIPC_MEDIA_ADDR_SIZE	20
 #define TIPC_MEDIA_TYPE_OFFSET	3
 
@@ -64,7 +63,6 @@
  * @media_id: TIPC media type identifier
  * @broadcast: non-zero if address is a broadcast address
  */
-
 struct tipc_media_addr {
 	u8 value[TIPC_MEDIA_ADDR_SIZE];
 	u8 media_id;
@@ -89,7 +87,6 @@ struct tipc_bearer;
  * @type_id: TIPC media identifier
  * @name: media name
  */
-
 struct tipc_media {
 	int (*send_msg)(struct sk_buff *buf,
 			struct tipc_bearer *b_ptr,
@@ -216,7 +213,6 @@ void tipc_bearer_lock_push(struct tipc_bearer *b_ptr);
  * send routine always returns success -- even if the buffer was not sent --
  * and let TIPC's link code deal with the undelivered message.
  */
-
 static inline int tipc_bearer_send(struct tipc_bearer *b_ptr,
 				   struct sk_buff *buf,
 				   struct tipc_media_addr *dest)

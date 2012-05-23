@@ -422,10 +422,6 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 	const struct ieee80211_iface_combination *c;
 	int i, j;
 
-	/* If we have combinations enforce them */
-	if (wiphy->n_iface_combinations)
-		wiphy->flags |= WIPHY_FLAG_ENFORCE_COMBINATIONS;
-
 	for (i = 0; i < wiphy->n_iface_combinations; i++) {
 		u32 cnt = 0;
 		u16 all_iftypes = 0;
@@ -708,6 +704,10 @@ void wiphy_unregister(struct wiphy *wiphy)
 	flush_work(&rdev->scan_done_wk);
 	cancel_work_sync(&rdev->conn_work);
 	flush_work(&rdev->event_work);
+
+	if (rdev->wowlan && rdev->ops->set_wakeup)
+		rdev->ops->set_wakeup(&rdev->wiphy, false);
+	cfg80211_rdev_free_wowlan(rdev);
 }
 EXPORT_SYMBOL(wiphy_unregister);
 
@@ -720,7 +720,6 @@ void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 	mutex_destroy(&rdev->sched_scan_mtx);
 	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
 		cfg80211_put_bss(&scan->pub);
-	cfg80211_rdev_free_wowlan(rdev);
 	kfree(rdev);
 }
 

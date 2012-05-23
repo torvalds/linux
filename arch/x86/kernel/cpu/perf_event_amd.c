@@ -134,8 +134,13 @@ static u64 amd_pmu_event_map(int hw_event)
 
 static int amd_pmu_hw_config(struct perf_event *event)
 {
-	int ret = x86_pmu_hw_config(event);
+	int ret;
 
+	/* pass precise event sampling to ibs: */
+	if (event->attr.precise_ip && get_ibs_caps())
+		return -ENOENT;
+
+	ret = x86_pmu_hw_config(event);
 	if (ret)
 		return ret;
 
@@ -205,10 +210,8 @@ static void amd_put_event_constraints(struct cpu_hw_events *cpuc,
 	 * when we come here
 	 */
 	for (i = 0; i < x86_pmu.num_counters; i++) {
-		if (nb->owners[i] == event) {
-			cmpxchg(nb->owners+i, event, NULL);
+		if (cmpxchg(nb->owners + i, event, NULL) == event)
 			break;
-		}
 	}
 }
 

@@ -207,10 +207,10 @@ source "net/ipx/Kconfig"
 source "drivers/net/appletalk/Kconfig"
 source "net/x25/Kconfig"
 source "net/lapb/Kconfig"
-source "net/econet/Kconfig"
 source "net/wanrouter/Kconfig"
 source "net/phonet/Kconfig"
 source "net/ieee802154/Kconfig"
+source "net/mac802154/Kconfig"
 source "net/sched/Kconfig"
 source "net/dcb/Kconfig"
 source "net/dns_resolver/Kconfig"
@@ -245,9 +245,6 @@ config BQL
 	depends on SYSFS
 	select DQL
 	default y
-
-config HAVE_BPF_JIT
-	bool
 
 config BPF_JIT
 	bool "enable BPF Just In Time compiler"
@@ -295,7 +292,7 @@ config NET_TCPPROBE
 	module will be called tcp_probe.
 
 config NET_DROP_MONITOR
-	boolean "Network packet drop alerting service"
+	tristate "Network packet drop alerting service"
 	depends on INET && EXPERIMENTAL && TRACEPOINTS
 	---help---
 	This feature provides an alerting service to userspace in the
@@ -340,3 +337,7 @@ source "net/nfc/Kconfig"
 
 
 endif   # if NET
+
+# Used by archs to tell that they support BPF_JIT
+config HAVE_BPF_JIT
+	bool

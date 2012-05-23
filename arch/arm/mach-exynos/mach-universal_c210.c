@@ -23,6 +23,8 @@
 #include <linux/i2c-gpio.h>
 #include <linux/i2c/mcs.h>
 #include <linux/i2c/atmel_mxt_ts.h>
+#include <linux/platform_data/s3c-hsotg.h>
+#include <drm/exynos_drm.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
@@ -205,6 +207,7 @@ static struct regulator_init_data lp3974_ldo2_data = {
 };
 
 static struct regulator_consumer_supply lp3974_ldo3_consumer[] = {
+	REGULATOR_SUPPLY("vusb_a", "s3c-hsotg"),
 	REGULATOR_SUPPLY("vdd", "exynos4-hdmi"),
 	REGULATOR_SUPPLY("vdd_pll", "exynos4-hdmi"),
 	REGULATOR_SUPPLY("vdd11", "s5p-mipi-csis.0"),
@@ -290,6 +293,7 @@ static struct regulator_init_data lp3974_ldo7_data = {
 };
 
 static struct regulator_consumer_supply lp3974_ldo8_consumer[] = {
+	REGULATOR_SUPPLY("vusb_d", "s3c-hsotg"),
 	REGULATOR_SUPPLY("vdd33a_dac", "s5p-sdo"),
 };
 
@@ -486,7 +490,10 @@ static struct regulator_init_data lp3974_vichg_data = {
 static struct regulator_init_data lp3974_esafeout1_data = {
 	.constraints	= {
 		.name		= "SAFEOUT1",
+		.min_uV		= 4800000,
+		.max_uV		= 4800000,
 		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.always_on	= 1,
 		.state_mem	= {
 			.enabled	= 1,
 		},
@@ -750,7 +757,6 @@ static struct s3c_sdhci_platdata universal_hsmmc0_data __initdata = {
 				MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
 	.host_caps2		= MMC_CAP2_BROKEN_VOLTAGE,
 	.cd_type		= S3C_SDHCI_CD_PERMANENT,
-	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
 };
 
 static struct regulator_consumer_supply mmc0_supplies[] = {
@@ -790,7 +796,6 @@ static struct s3c_sdhci_platdata universal_hsmmc2_data __initdata = {
 	.ext_cd_gpio		= EXYNOS4_GPX3(4),      /* XEINT_28 */
 	.ext_cd_gpio_invert	= 1,
 	.cd_type		= S3C_SDHCI_CD_GPIO,
-	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
 };
 
 /* WiFi */
@@ -813,6 +818,29 @@ static struct i2c_board_info i2c1_devs[] __initdata = {
 	/* Gyro, To be updated */
 };
 
+#ifdef CONFIG_DRM_EXYNOS
+static struct exynos_drm_fimd_pdata drm_fimd_pdata = {
+	.panel = {
+		.timing	= {
+			.left_margin	= 16,
+			.right_margin	= 16,
+			.upper_margin	= 2,
+			.lower_margin	= 28,
+			.hsync_len	= 2,
+			.vsync_len	= 1,
+			.xres		= 480,
+			.yres		= 800,
+			.refresh	= 55,
+		},
+	},
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB |
+			  VIDCON0_CLKSEL_LCD,
+	.vidcon1	= VIDCON1_INV_VCLK | VIDCON1_INV_VDEN
+			  | VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.default_win	= 3,
+	.bpp		= 32,
+};
+#else
 /* Frame Buffer */
 static struct s3c_fb_pd_win universal_fb_win0 = {
 	.win_mode = {
@@ -840,6 +868,7 @@ static struct s3c_fb_platdata universal_lcd_pdata __initdata = {
 			  | VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 	.setup_gpio	= exynos4_fimd0_gpio_setup_24bpp,
 };
+#endif
 
 static struct regulator_consumer_supply cam_vt_dio_supply =
 	REGULATOR_SUPPLY("vdd_core", "0-003c");
@@ -994,6 +1023,9 @@ static struct gpio universal_camera_gpios[] = {
 	{ GPIO_CAM_VGA_NSTBY,	GPIOF_OUT_INIT_LOW,  "CAM_VGA_NSTBY" },
 };
 
+/* USB OTG */
+static struct s3c_hsotg_plat universal_hsotg_pdata;
+
 static void __init universal_camera_init(void)
 {
 	s3c_set_platdata(&mipi_csis_platdata, sizeof(mipi_csis_platdata),
@@ -1049,6 +1081,10 @@ static struct platform_device *universal_devices[] __initdata = {
 	&s5p_device_onenand,
 	&s5p_device_fimd0,
 	&s5p_device_jpeg,
+#ifdef CONFIG_DRM_EXYNOS
+	&exynos_device_drm,
+#endif
+	&s3c_device_usb_hsotg,
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
@@ -1096,12 +1132,18 @@ static void __init universal_machine_init(void)
 	s5p_i2c_hdmiphy_set_platdata(NULL);
 	i2c_register_board_info(5, i2c5_devs, ARRAY_SIZE(i2c5_devs));
 
+#ifdef CONFIG_DRM_EXYNOS
+	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;
+	exynos4_fimd0_gpio_setup_24bpp();
+#else
 	s5p_fimd0_set_platdata(&universal_lcd_pdata);
+#endif
 
 	universal_touchkey_init();
 	i2c_register_board_info(I2C_GPIO_BUS_12, i2c_gpio12_devs,
 			ARRAY_SIZE(i2c_gpio12_devs));
 
+	s3c_hsotg_set_platdata(&universal_hsotg_pdata);
 	universal_camera_init();
 
 	/* Last */

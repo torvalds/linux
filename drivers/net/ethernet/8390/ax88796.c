@@ -501,6 +501,7 @@ static const struct ethtool_ops ax_ethtool_ops = {
 	.get_settings		= ax_get_settings,
 	.set_settings		= ax_set_settings,
 	.get_link		= ethtool_op_get_link,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 #ifdef CONFIG_AX88796_93CX6

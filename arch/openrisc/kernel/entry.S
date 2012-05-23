@@ -1117,10 +1117,10 @@ ENTRY(sys_rt_sigreturn)
 ENTRY(sys_or1k_atomic)
 	/* FIXME: This ignores r3 and always does an XCHG */
 	DISABLE_INTERRUPTS(r17,r19)
-	l.lwz	r30,0(r4)
-	l.lwz	r28,0(r5)
-	l.sw	0(r4),r28
-	l.sw	0(r5),r30
+	l.lwz	r29,0(r4)
+	l.lwz	r27,0(r5)
+	l.sw	0(r4),r27
+	l.sw	0(r5),r29
 	ENABLE_INTERRUPTS(r17)
 	l.jr	r9
 	 l.or	r11,r0,r0

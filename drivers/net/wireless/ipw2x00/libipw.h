@@ -584,61 +584,6 @@ struct libipw_tim_parameters {
 
 /*******************************************************/
 
-enum {				/* libipw_basic_report.map */
-	LIBIPW_BASIC_MAP_BSS = (1 << 0),
-	LIBIPW_BASIC_MAP_OFDM = (1 << 1),
-	LIBIPW_BASIC_MAP_UNIDENTIFIED = (1 << 2),
-	LIBIPW_BASIC_MAP_RADAR = (1 << 3),
-	LIBIPW_BASIC_MAP_UNMEASURED = (1 << 4),
-	/* Bits 5-7 are reserved */
-
-};
-struct libipw_basic_report {
-	u8 channel;
-	__le64 start_time;
-	__le16 duration;
-	u8 map;
-} __packed;
-
-enum {				/* libipw_measurement_request.mode */
-	/* Bit 0 is reserved */
-	LIBIPW_MEASUREMENT_ENABLE = (1 << 1),
-	LIBIPW_MEASUREMENT_REQUEST = (1 << 2),
-	LIBIPW_MEASUREMENT_REPORT = (1 << 3),
-	/* Bits 4-7 are reserved */
-};
-
-enum {
-	LIBIPW_REPORT_BASIC = 0,	/* required */
-	LIBIPW_REPORT_CCA = 1,	/* optional */
-	LIBIPW_REPORT_RPI = 2,	/* optional */
-	/* 3-255 reserved */
-};
-
-struct libipw_measurement_params {
-	u8 channel;
-	__le64 start_time;
-	__le16 duration;
-} __packed;
-
-struct libipw_measurement_request {
-	struct libipw_info_element ie;
-	u8 token;
-	u8 mode;
-	u8 type;
-	struct libipw_measurement_params params[0];
-} __packed;
-
-struct libipw_measurement_report {
-	struct libipw_info_element ie;
-	u8 token;
-	u8 mode;
-	u8 type;
-	union {
-		struct libipw_basic_report basic[0];
-	} u;
-} __packed;
-
 struct libipw_tpc_report {
 	u8 transmit_power;
 	u8 link_margin;

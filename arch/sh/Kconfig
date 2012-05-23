@@ -28,6 +28,7 @@ config SUPERH
 	select RTC_LIB
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_SHOW
+	select GENERIC_SMP_IDLE_THREAD
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -150,9 +151,6 @@ config ARCH_NO_VIRT_TO_BUS
 	def_bool y
 
 config ARCH_HAS_DEFAULT_IDLE
-	def_bool y
-
-config ARCH_HAS_CPU_IDLE_WAIT
 	def_bool y
 
 config NO_IOPORT

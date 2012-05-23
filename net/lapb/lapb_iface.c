@@ -15,6 +15,8 @@
  *	2000-10-29	Henner Eisen	lapb_data_indication() return status.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -279,9 +281,7 @@ int lapb_connect_request(struct net_device *dev)
 
 	lapb_establish_data_link(lapb);
 
-#if LAPB_DEBUG > 0
-	printk(KERN_DEBUG "lapb: (%p) S0 -> S1\n", lapb->dev);
-#endif
+	lapb_dbg(0, "(%p) S0 -> S1\n", lapb->dev);
 	lapb->state = LAPB_STATE_1;
 
 	rc = LAPB_OK;
@@ -305,12 +305,8 @@ int lapb_disconnect_request(struct net_device *dev)
 		goto out_put;
 
 	case LAPB_STATE_1:
-#if LAPB_DEBUG > 1
-		printk(KERN_DEBUG "lapb: (%p) S1 TX DISC(1)\n", lapb->dev);
-#endif
-#if LAPB_DEBUG > 0
-		printk(KERN_DEBUG "lapb: (%p) S1 -> S0\n", lapb->dev);
-#endif
+		lapb_dbg(1, "(%p) S1 TX DISC(1)\n", lapb->dev);
+		lapb_dbg(0, "(%p) S1 -> S0\n", lapb->dev);
 		lapb_send_control(lapb, LAPB_DISC, LAPB_POLLON, LAPB_COMMAND);
 		lapb->state = LAPB_STATE_0;
 		lapb_start_t1timer(lapb);
@@ -329,12 +325,8 @@ int lapb_disconnect_request(struct net_device *dev)
 	lapb_stop_t2timer(lapb);
 	lapb->state = LAPB_STATE_2;
 
-#if LAPB_DEBUG > 1
-	printk(KERN_DEBUG "lapb: (%p) S3 DISC(1)\n", lapb->dev);
-#endif
-#if LAPB_DEBUG > 0
-	printk(KERN_DEBUG "lapb: (%p) S3 -> S2\n", lapb->dev);
-#endif
+	lapb_dbg(1, "(%p) S3 DISC(1)\n", lapb->dev);
+	lapb_dbg(0, "(%p) S3 -> S2\n", lapb->dev);
 
 	rc = LAPB_OK;
 out_put:

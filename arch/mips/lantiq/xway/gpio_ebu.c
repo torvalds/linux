@@ -119,7 +119,7 @@ static int __init ltq_ebu_init(void)
 	int ret = platform_driver_register(&ltq_ebu_driver);
 
 	if (ret)
-		pr_info("ltq_ebu : Error registering platfom driver!");
+		pr_info("ltq_ebu : Error registering platform driver!");
 	return ret;
 }
 

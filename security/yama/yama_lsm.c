@@ -18,7 +18,12 @@
 #include <linux/prctl.h>
 #include <linux/ratelimit.h>
 
-static int ptrace_scope = 1;
+#define YAMA_SCOPE_DISABLED	0
+#define YAMA_SCOPE_RELATIONAL	1
+#define YAMA_SCOPE_CAPABILITY	2
+#define YAMA_SCOPE_NO_ATTACH	3
+
+static int ptrace_scope = YAMA_SCOPE_RELATIONAL;
 
 /* describe a ptrace relationship for potential exception */
 struct ptrace_relation {
@@ -251,17 +256,32 @@ static int yama_ptrace_access_check(struct task_struct *child,
 		return rc;
 
 	/* require ptrace target be a child of ptracer on attach */
-	if (mode == PTRACE_MODE_ATTACH &&
-	    ptrace_scope &&
-	    !task_is_descendant(current, child) &&
-	    !ptracer_exception_found(current, child) &&
-	    !capable(CAP_SYS_PTRACE))
-		rc = -EPERM;
+	if (mode == PTRACE_MODE_ATTACH) {
+		switch (ptrace_scope) {
+		case YAMA_SCOPE_DISABLED:
+			/* No additional restrictions. */
+			break;
+		case YAMA_SCOPE_RELATIONAL:
+			if (!task_is_descendant(current, child) &&
+			    !ptracer_exception_found(current, child) &&
+			    !ns_capable(task_user_ns(child), CAP_SYS_PTRACE))
+				rc = -EPERM;
+			break;
+		case YAMA_SCOPE_CAPABILITY:
+			if (!ns_capable(task_user_ns(child), CAP_SYS_PTRACE))
+				rc = -EPERM;
+			break;
+		case YAMA_SCOPE_NO_ATTACH:
+		default:
+			rc = -EPERM;
+			break;
+		}
+	}
 
 	if (rc) {
 		char name[sizeof(current->comm)];
-		printk_ratelimited(KERN_NOTICE "ptrace of non-child"
-			" pid %d was attempted by: %s (pid %d)\n",
+		printk_ratelimited(KERN_NOTICE
+			"ptrace of pid %d was attempted by: %s (pid %d)\n",
 			child->pid,
 			get_task_comm(name, current),
 			current->pid);
@@ -279,8 +299,27 @@ static struct security_operations yama_ops = {
 };
 
 #ifdef CONFIG_SYSCTL
+static int yama_dointvec_minmax(struct ctl_table *table, int write,
+				void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int rc;
+
+	if (write && !capable(CAP_SYS_PTRACE))
+		return -EPERM;
+
+	rc = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (rc)
+		return rc;
+
+	/* Lock the max value if it ever gets set. */
+	if (write && *(int *)table->data == *(int *)table->extra2)
+		table->extra1 = table->extra2;
+
+	return rc;
+}
+
 static int zero;
-static int one = 1;
+static int max_scope = YAMA_SCOPE_NO_ATTACH;
 
 struct ctl_path yama_sysctl_path[] = {
 	{ .procname = "kernel", },
@@ -294,9 +333,9 @@ static struct ctl_table yama_sysctl_table[] = {
 		.data           = &ptrace_scope,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = proc_dointvec_minmax,
+		.proc_handler   = yama_dointvec_minmax,
 		.extra1         = &zero,
-		.extra2         = &one,
+		.extra2         = &max_scope,
 	},
 	{ }
 };

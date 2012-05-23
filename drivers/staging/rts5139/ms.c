@@ -2680,7 +2680,7 @@ static int mspro_set_rw_cmd(struct rts51x_chip *chip, u32 start_sec,
 	return STATUS_SUCCESS;
 }
 
-void mspro_stop_seq_mode(struct rts51x_chip *chip)
+static void mspro_stop_seq_mode(struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	int retval;
@@ -3149,7 +3149,7 @@ Fail:
 		TRACE_RET(chip, STATUS_FAIL);
 
 	sec_cnt = chip->rsp_buf[0];
-	RTS51X_DEBUGP("%d pages need be trasferred, %d pages remained\n",
+	RTS51X_DEBUGP("%d pages need be transferred, %d pages remained\n",
 		       (int)page_cnt, (int)sec_cnt);
 	page_addr = start_page + (page_cnt - sec_cnt);
 
@@ -3864,7 +3864,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 	log_blk = (u16) (start_sector >> ms_card->block_shift);
 	start_page = (u8) (start_sector & ms_card->page_off);
 
-	for (seg_no = 0; seg_no < sizeof(ms_start_idx) / 2; seg_no++) {
+	for (seg_no = 0; seg_no < ARRAY_SIZE(ms_start_idx) - 1; seg_no++) {
 		if (log_blk < ms_start_idx[seg_no + 1])
 			break;
 	}
@@ -4020,7 +4020,8 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 
 		log_blk++;
 
-		for (seg_no = 0; seg_no < sizeof(ms_start_idx) / 2; seg_no++) {
+		for (seg_no = 0; seg_no < ARRAY_SIZE(ms_start_idx) - 1;
+				seg_no++) {
 			if (log_blk < ms_start_idx[seg_no + 1])
 				break;
 		}
@@ -4134,7 +4135,7 @@ void ms_cleanup_work(struct rts51x_chip *chip)
 	}
 }
 
-int ms_power_off_card3v3(struct rts51x_chip *chip)
+static int ms_power_off_card3v3(struct rts51x_chip *chip)
 {
 	int retval;
 

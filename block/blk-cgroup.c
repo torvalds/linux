@@ -28,33 +28,11 @@ static LIST_HEAD(blkio_list);
 struct blkio_cgroup blkio_root_cgroup = { .weight = 2*BLKIO_WEIGHT_DEFAULT };
 EXPORT_SYMBOL_GPL(blkio_root_cgroup);
 
-static struct cgroup_subsys_state *blkiocg_create(struct cgroup *);
-static int blkiocg_can_attach(struct cgroup *, struct cgroup_taskset *);
-static void blkiocg_attach(struct cgroup *, struct cgroup_taskset *);
-static void blkiocg_destroy(struct cgroup *);
-static int blkiocg_populate(struct cgroup_subsys *, struct cgroup *);
-
 /* for encoding cft->private value on file */
 #define BLKIOFILE_PRIVATE(x, val)	(((x) << 16) | (val))
 /* What policy owns the file, proportional or throttle */
 #define BLKIOFILE_POLICY(val)		(((val) >> 16) & 0xffff)
 #define BLKIOFILE_ATTR(val)		((val) & 0xffff)
-
-struct cgroup_subsys blkio_subsys = {
-	.name = "blkio",
-	.create = blkiocg_create,
-	.can_attach = blkiocg_can_attach,
-	.attach = blkiocg_attach,
-	.destroy = blkiocg_destroy,
-	.populate = blkiocg_populate,
-#ifdef CONFIG_BLK_CGROUP
-	/* note: blkio_subsys_id is otherwise defined in blk-cgroup.h */
-	.subsys_id = blkio_subsys_id,
-#endif
-	.use_id = 1,
-	.module = THIS_MODULE,
-};
-EXPORT_SYMBOL_GPL(blkio_subsys);
 
 static inline void blkio_policy_insert_node(struct blkio_cgroup *blkcg,
 					    struct blkio_policy_node *pn)
@@ -1537,13 +1515,8 @@ struct cftype blkio_files[] = {
 		.read_map = blkiocg_file_read_map,
 	},
 #endif
+	{ }	/* terminate */
 };
-
-static int blkiocg_populate(struct cgroup_subsys *subsys, struct cgroup *cgroup)
-{
-	return cgroup_add_files(cgroup, subsys, blkio_files,
-				ARRAY_SIZE(blkio_files));
-}
 
 static void blkiocg_destroy(struct cgroup *cgroup)
 {
@@ -1657,6 +1630,22 @@ static void blkiocg_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 		}
 	}
 }
+
+struct cgroup_subsys blkio_subsys = {
+	.name = "blkio",
+	.create = blkiocg_create,
+	.can_attach = blkiocg_can_attach,
+	.attach = blkiocg_attach,
+	.destroy = blkiocg_destroy,
+#ifdef CONFIG_BLK_CGROUP
+	/* note: blkio_subsys_id is otherwise defined in blk-cgroup.h */
+	.subsys_id = blkio_subsys_id,
+#endif
+	.base_cftypes = blkio_files,
+	.use_id = 1,
+	.module = THIS_MODULE,
+};
+EXPORT_SYMBOL_GPL(blkio_subsys);
 
 void blkio_policy_register(struct blkio_policy_type *blkiop)
 {

@@ -82,11 +82,12 @@
 #define ARPHRD_FCPL	786		/* Fibrechannel public loop	*/
 #define ARPHRD_FCFABRIC	787		/* Fibrechannel fabric		*/
 	/* 787->799 reserved for fibrechannel media types */
-#define ARPHRD_IEEE802_TR 800		/* Magic type ident for TR	*/
+/* 800 used to be used for token ring */
 #define ARPHRD_IEEE80211 801		/* IEEE 802.11			*/
 #define ARPHRD_IEEE80211_PRISM 802	/* IEEE 802.11 + Prism2 header  */
 #define ARPHRD_IEEE80211_RADIOTAP 803	/* IEEE 802.11 + radiotap header */
 #define ARPHRD_IEEE802154	  804
+#define ARPHRD_IEEE802154_MONITOR 805	/* IEEE 802.15.4 network monitor */
 
 #define ARPHRD_PHONET	820		/* PhoNet media type		*/
 #define ARPHRD_PHONET_PIPE 821		/* PhoNet pipe header		*/

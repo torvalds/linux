@@ -83,7 +83,7 @@ struct fw_priv {   /*8-bytes alignment required*/
 	unsigned char rfintfs;    /* 0:SWSI, 1:HWSI, 2:HWPI*/
 	unsigned char def_nettype;
 	unsigned char turboMode;
-	unsigned char lowPowerMode;/* 0: noral mode, 1: low power mode*/
+	unsigned char lowPowerMode;/* 0: normal mode, 1: low power mode*/
 	/*--- long word 2 ----*/
 	unsigned char lbk_mode; /*0x00: normal, 0x03: MACLBK, 0x01: PHYLBK*/
 	unsigned char mp_mode; /* 1: for MP use, 0: for normal driver */
@@ -123,7 +123,7 @@ struct fw_priv {   /*8-bytes alignment required*/
 	unsigned char rsvd053;
 };
 
-struct fw_hdr {/*8-byte alinment required*/
+struct fw_hdr {/*8-byte alignment required*/
 	unsigned short	signature;
 	unsigned short	version;	/*0x8000 ~ 0x8FFF for FPGA version,
 					 *0x0000 ~ 0x7FFF for ASIC version,*/

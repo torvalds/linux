@@ -415,6 +415,7 @@ static const struct ethtool_ops uec_ethtool_ops = {
 	.get_ethtool_stats      = uec_get_ethtool_stats,
 	.get_wol		= uec_get_wol,
 	.set_wol		= uec_set_wol,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 void uec_set_ethtool_ops(struct net_device *netdev)

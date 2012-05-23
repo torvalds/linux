@@ -640,9 +640,9 @@ struct ieee80211_rann_ie {
 	u8 rann_hopcount;
 	u8 rann_ttl;
 	u8 rann_addr[6];
-	u32 rann_seq;
-	u32 rann_interval;
-	u32 rann_metric;
+	__le32 rann_seq;
+	__le32 rann_interval;
+	__le32 rann_metric;
 } __attribute__ ((packed));
 
 enum ieee80211_rann_flags {
@@ -1007,13 +1007,13 @@ enum ieee80211_min_mpdu_spacing {
 };
 
 /**
- * struct ieee80211_ht_info - HT information
+ * struct ieee80211_ht_operation - HT operation IE
  *
- * This structure is the "HT information element" as
- * described in 802.11n D5.0 7.3.2.58
+ * This structure is the "HT operation element" as
+ * described in 802.11n-2009 7.3.2.57
  */
-struct ieee80211_ht_info {
-	u8 control_chan;
+struct ieee80211_ht_operation {
+	u8 primary_chan;
 	u8 ht_param;
 	__le16 operation_mode;
 	__le16 stbc_param;
@@ -1027,8 +1027,6 @@ struct ieee80211_ht_info {
 #define		IEEE80211_HT_PARAM_CHA_SEC_BELOW	0x03
 #define IEEE80211_HT_PARAM_CHAN_WIDTH_ANY		0x04
 #define IEEE80211_HT_PARAM_RIFS_MODE			0x08
-#define IEEE80211_HT_PARAM_SPSMP_SUPPORT		0x10
-#define IEEE80211_HT_PARAM_SERV_INTERVAL_GRAN		0xE0
 
 /* for operation_mode */
 #define IEEE80211_HT_OP_MODE_PROTECTION			0x0003
@@ -1301,7 +1299,7 @@ enum ieee80211_eid {
 	WLAN_EID_EXT_SUPP_RATES = 50,
 
 	WLAN_EID_HT_CAPABILITY = 45,
-	WLAN_EID_HT_INFORMATION = 61,
+	WLAN_EID_HT_OPERATION = 61,
 
 	WLAN_EID_RSN = 48,
 	WLAN_EID_MMIE = 76,
@@ -1441,6 +1439,18 @@ enum ieee80211_tdls_actioncode {
 #define WLAN_TDLS_SNAP_RFTYPE	0x2
 
 /**
+ * enum - mesh synchronization method identifier
+ *
+ * @IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET: the default synchronization method
+ * @IEEE80211_SYNC_METHOD_VENDOR: a vendor specific synchronization method
+ * that will be specified in a vendor specific information element
+ */
+enum {
+	IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET = 1,
+	IEEE80211_SYNC_METHOD_VENDOR = 255,
+};
+
+/**
  * enum - mesh path selection protocol identifier
  *
  * @IEEE80211_PATH_PROTOCOL_HWMP: the default path selection protocol
@@ -1448,7 +1458,7 @@ enum ieee80211_tdls_actioncode {
  * be specified in a vendor specific information element
  */
 enum {
-	IEEE80211_PATH_PROTOCOL_HWMP = 0,
+	IEEE80211_PATH_PROTOCOL_HWMP = 1,
 	IEEE80211_PATH_PROTOCOL_VENDOR = 255,
 };
 
@@ -1460,7 +1470,7 @@ enum {
  * specified in a vendor specific information element
  */
 enum {
-	IEEE80211_PATH_METRIC_AIRTIME = 0,
+	IEEE80211_PATH_METRIC_AIRTIME = 1,
 	IEEE80211_PATH_METRIC_VENDOR = 255,
 };
 

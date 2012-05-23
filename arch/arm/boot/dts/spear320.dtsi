@@ -1,0 +1,95 @@
+/*
+ * DTS file for SPEAr320 SoC
+ *
+ * Copyright 2012 Viresh Kumar <viresh.kumar@st.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/include/ "spear3xx.dtsi"
+
+/ {
+	ahb {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x40000000 0x40000000 0x80000000
+			  0xd0000000 0xd0000000 0x30000000>;
+
+		pinmux@b3000000 {
+			compatible = "st,spear320-pinmux";
+			reg = <0xb3000000 0x1000>;
+		};
+
+		clcd@90000000 {
+			compatible = "arm,clcd-pl110", "arm,primecell";
+			reg = <0x90000000 0x1000>;
+			interrupts = <33>;
+			status = "disabled";
+		};
+
+		fsmc: flash@4c000000 {
+			compatible = "st,spear600-fsmc-nand";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x4c000000 0x1000	/* FSMC Register */
+			       0x50000000 0x0010>;	/* NAND Base */
+			reg-names = "fsmc_regs", "nand_data";
+			st,ale-off = <0x20000>;
+			st,cle-off = <0x10000>;
+			status = "disabled";
+		};
+
+		sdhci@70000000 {
+			compatible = "st,sdhci-spear";
+			reg = <0x70000000 0x100>;
+			interrupts = <29>;
+			status = "disabled";
+		};
+
+		spi1: spi@a5000000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0xa5000000 0x1000>;
+			status = "disabled";
+		};
+
+		spi2: spi@a6000000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0xa6000000 0x1000>;
+			status = "disabled";
+		};
+
+		apb {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			ranges = <0xa0000000 0xa0000000 0x10000000
+				  0xd0000000 0xd0000000 0x30000000>;
+
+			i2c1: i2c@a7000000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,designware-i2c";
+				reg = <0xa7000000 0x1000>;
+				status = "disabled";
+			};
+
+			serial@a3000000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xa3000000 0x1000>;
+				status = "disabled";
+			};
+
+			serial@a4000000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xa4000000 0x1000>;
+				status = "disabled";
+			};
+		};
+	};
+};

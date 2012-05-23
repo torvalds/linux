@@ -50,11 +50,8 @@ static void flush(void)
 
 static inline void arch_decomp_setup(void)
 {
-	/* Check in run time if we run on an U8500 or U5500 */
-	if (machine_is_u5500())
-		ux500_uart_base = U5500_UART0_BASE;
-	else
-		ux500_uart_base = U8500_UART2_BASE;
+	/* Use machine_is_foo() macro if you need to switch base someday */
+	ux500_uart_base = U8500_UART2_BASE;
 }
 
 #define arch_decomp_wdog() /* nothing to do here */

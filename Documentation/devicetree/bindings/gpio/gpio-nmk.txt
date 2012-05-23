@@ -1,0 +1,31 @@
+Nomadik GPIO controller
+
+Required properties:
+- compatible            : Should be "st,nomadik-gpio".
+- reg                   : Physical base address and length of the controller's registers.
+- interrupts            : The interrupt outputs from the controller.
+- #gpio-cells           : Should be two:
+                            The first cell is the pin number.
+                            The second cell is used to specify optional parameters:
+                              - bits[3:0] trigger type and level flags:
+                                  1 = low-to-high edge triggered.
+                                  2 = high-to-low edge triggered.
+                                  4 = active high level-sensitive.
+                                  8 = active low level-sensitive.
+- gpio-controller       : Marks the device node as a GPIO controller.
+- interrupt-controller  : Marks the device node as an interrupt controller.
+- gpio-bank             : Specifies which bank a controller owns.
+- st,supports-sleepmode : Specifies whether controller can sleep or not
+
+Example:
+
+                gpio1: gpio@8012e080 {
+                        compatible = "st,nomadik-gpio";
+                        reg =  <0x8012e080 0x80>;
+                        interrupts = <0 120 0x4>;
+                        #gpio-cells = <2>;
+                        gpio-controller;
+                        interrupt-controller;
+                        supports-sleepmode;
+                        gpio-bank = <1>;
+                };

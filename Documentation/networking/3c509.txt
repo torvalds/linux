@@ -25,7 +25,6 @@ models:
   3c509B (later revision of the ISA card; supports full-duplex)
   3c589 (PCMCIA)
   3c589B (later revision of the 3c589; supports full-duplex)
-  3c529 (MCA)
   3c579 (EISA)
 
 Large portions of this documentation were heavily borrowed from the guide

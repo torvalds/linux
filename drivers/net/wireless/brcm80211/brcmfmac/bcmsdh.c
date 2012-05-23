@@ -39,37 +39,113 @@
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 
-static void brcmf_sdioh_irqhandler(struct sdio_func *func)
+#ifdef CONFIG_BRCMFMAC_SDIO_OOB
+static irqreturn_t brcmf_sdio_irqhandler(int irq, void *dev_id)
 {
-	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
+	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(dev_id);
 
-	brcmf_dbg(TRACE, "***IRQHandler\n");
+	brcmf_dbg(INTR, "oob intr triggered\n");
 
-	sdio_release_host(func);
+	/*
+	 * out-of-band interrupt is level-triggered which won't
+	 * be cleared until dpc
+	 */
+	if (sdiodev->irq_en) {
+		disable_irq_nosync(irq);
+		sdiodev->irq_en = false;
+	}
 
 	brcmf_sdbrcm_isr(sdiodev->bus);
 
-	sdio_claim_host(func);
+	return IRQ_HANDLED;
+}
+
+int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
+{
+	int ret = 0;
+	u8 data;
+	unsigned long flags;
+
+	brcmf_dbg(TRACE, "Entering\n");
+
+	brcmf_dbg(ERROR, "requesting irq %d\n", sdiodev->irq);
+	ret = request_irq(sdiodev->irq, brcmf_sdio_irqhandler,
+			  sdiodev->irq_flags, "brcmf_oob_intr",
+			  &sdiodev->func[1]->card->dev);
+	if (ret != 0)
+		return ret;
+	spin_lock_init(&sdiodev->irq_en_lock);
+	spin_lock_irqsave(&sdiodev->irq_en_lock, flags);
+	sdiodev->irq_en = true;
+	spin_unlock_irqrestore(&sdiodev->irq_en_lock, flags);
+
+	ret = enable_irq_wake(sdiodev->irq);
+	if (ret != 0)
+		return ret;
+	sdiodev->irq_wake = true;
+
+	/* must configure SDIO_CCCR_IENx to enable irq */
+	data = brcmf_sdcard_cfg_read(sdiodev, SDIO_FUNC_0,
+				     SDIO_CCCR_IENx, &ret);
+	data |= 1 << SDIO_FUNC_1 | 1 << SDIO_FUNC_2 | 1;
+	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_0, SDIO_CCCR_IENx,
+			       data, &ret);
+
+	/* redirect, configure ane enable io for interrupt signal */
+	data = SDIO_SEPINT_MASK | SDIO_SEPINT_OE;
+	if (sdiodev->irq_flags | IRQF_TRIGGER_HIGH)
+		data |= SDIO_SEPINT_ACT_HI;
+	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_0, SDIO_CCCR_BRCM_SEPINT,
+			       data, &ret);
+
+	return 0;
+}
+
+int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
+{
+	brcmf_dbg(TRACE, "Entering\n");
+
+	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_0, SDIO_CCCR_BRCM_SEPINT,
+			       0, NULL);
+	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_0, SDIO_CCCR_IENx, 0, NULL);
+
+	if (sdiodev->irq_wake) {
+		disable_irq_wake(sdiodev->irq);
+		sdiodev->irq_wake = false;
+	}
+	free_irq(sdiodev->irq, &sdiodev->func[1]->card->dev);
+	sdiodev->irq_en = false;
+
+	return 0;
+}
+#else		/* CONFIG_BRCMFMAC_SDIO_OOB */
+static void brcmf_sdio_irqhandler(struct sdio_func *func)
+{
+	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
+
+	brcmf_dbg(INTR, "ib intr triggered\n");
+
+	brcmf_sdbrcm_isr(sdiodev->bus);
 }
 
 /* dummy handler for SDIO function 2 interrupt */
-static void brcmf_sdioh_dummy_irq_handler(struct sdio_func *func)
+static void brcmf_sdio_dummy_irqhandler(struct sdio_func *func)
 {
 }
 
-int brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev)
+int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
 {
 	brcmf_dbg(TRACE, "Entering\n");
 
 	sdio_claim_host(sdiodev->func[1]);
-	sdio_claim_irq(sdiodev->func[1], brcmf_sdioh_irqhandler);
-	sdio_claim_irq(sdiodev->func[2], brcmf_sdioh_dummy_irq_handler);
+	sdio_claim_irq(sdiodev->func[1], brcmf_sdio_irqhandler);
+	sdio_claim_irq(sdiodev->func[2], brcmf_sdio_dummy_irqhandler);
 	sdio_release_host(sdiodev->func[1]);
 
 	return 0;
 }
 
-int brcmf_sdcard_intr_dereg(struct brcmf_sdio_dev *sdiodev)
+int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 {
 	brcmf_dbg(TRACE, "Entering\n");
 
@@ -80,6 +156,7 @@ int brcmf_sdcard_intr_dereg(struct brcmf_sdio_dev *sdiodev)
 
 	return 0;
 }
+#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
 
 u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
 			 int *err)

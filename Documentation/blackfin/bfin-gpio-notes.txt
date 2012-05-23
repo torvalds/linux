@@ -53,7 +53,7 @@
 
 3. But there are some exceptions
     - Kernel permit the identical GPIO be requested both as GPIO and GPIO
-    interrut.
+    interrupt.
     Some drivers, like gpio-keys, need this behavior. Kernel only print out
     warning messages like,
 	bfin-gpio: GPIO 24 is already reserved by gpio-keys: BTN0, and you are

@@ -671,7 +671,7 @@ void RxReorderIndicatePacket( struct ieee80211_device *ieee,
 		index = 1;
 	} else {
 		/* Current packet is going to be inserted into pending list.*/
-		//IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): We RX no ordered packed, insert to orderd list\n",__FUNCTION__);
+		//IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): We RX no ordered packed, insert to ordered list\n",__FUNCTION__);
 		if(!list_empty(&ieee->RxReorder_Unused_List)) {
 			pReorderEntry = (PRX_REORDER_ENTRY)list_entry(ieee->RxReorder_Unused_List.next,RX_REORDER_ENTRY,List);
 			list_del_init(&pReorderEntry->List);
@@ -1285,7 +1285,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 */
 //added by amy for reorder
 	if(ieee->current_network.qos_data.active && IsQoSDataFrame(skb->data)
-		&& !is_multicast_ether_addr(hdr->addr1) && !is_broadcast_ether_addr(hdr->addr1))
+		&& !is_multicast_ether_addr(hdr->addr1))
 	{
 		TID = Frame_QoSTID(skb->data);
 		SeqNum = WLAN_GET_SEQ_SEQ(sc);

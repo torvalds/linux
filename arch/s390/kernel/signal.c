@@ -235,13 +235,6 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 			sp = current->sas_ss_sp + current->sas_ss_size;
 	}
 
-	/* This is the legacy signal stack switching. */
-	else if (!user_mode(regs) &&
-		 !(ka->sa.sa_flags & SA_RESTORER) &&
-		 ka->sa.sa_restorer) {
-		sp = (unsigned long) ka->sa.sa_restorer;
-	}
-
 	return (void __user *)((sp - frame_size) & -8ul);
 }
 
@@ -413,15 +406,6 @@ void do_signal(struct pt_regs *regs)
 	int signr;
 	struct k_sigaction ka;
 	sigset_t *oldset;
-
-	/*
-	 * We want the common case to go fast, which
-	 * is why we may in certain cases get here from
-	 * kernel mode. Just return without doing anything
-	 * if so.
-	 */
-	if (!user_mode(regs))
-		return;
 
 	if (test_thread_flag(TIF_RESTORE_SIGMASK))
 		oldset = &current->saved_sigmask;

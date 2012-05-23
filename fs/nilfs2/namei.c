@@ -441,7 +441,7 @@ static struct dentry *nilfs_get_parent(struct dentry *child)
 {
 	unsigned long ino;
 	struct inode *inode;
-	struct qstr dotdot = {.name = "..", .len = 2};
+	struct qstr dotdot = QSTR_INIT("..", 2);
 	struct nilfs_root *root;
 
 	ino = nilfs_inode_by_name(child->d_inode, &dotdot);

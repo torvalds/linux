@@ -85,7 +85,7 @@ static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 
 	/* Check that the host interface is enabled. */
 	hicr = er32(HICR);
-	if ((hicr & E1000_HICR_EN) == 0) {
+	if (!(hicr & E1000_HICR_EN)) {
 		e_dbg("E1000_HOST_EN bit disabled.\n");
 		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}

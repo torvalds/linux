@@ -16,7 +16,6 @@
 #include <asm/ptrace.h>
 #include <asm/head.h>
 #include <asm/signal.h>
-#include <asm/btfixup.h>
 #include <asm/page.h>
 
 /*

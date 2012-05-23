@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-extra-y                := head_$(BITS).o head$(BITS).o head.o init_task.o vmlinux.lds
+extra-y                := head_$(BITS).o head$(BITS).o head.o vmlinux.lds
 
 CPPFLAGS_vmlinux.lds += -U$(UTS_MACHINE)
 

@@ -36,44 +36,6 @@ void __init stamp9g20_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91_initialize(18432000);
-
-	/* DGBU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
-}
-
-static void __init stamp9g20evb_init_early(void)
-{
-	stamp9g20_init_early();
-
-	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
-	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
-						| ATMEL_UART_DTR | ATMEL_UART_DSR
-						| ATMEL_UART_DCD | ATMEL_UART_RI);
-}
-
-static void __init portuxg20_init_early(void)
-{
-	stamp9g20_init_early();
-
-	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
-	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
-						| ATMEL_UART_DTR | ATMEL_UART_DSR
-						| ATMEL_UART_DCD | ATMEL_UART_RI);
-
-	/* USART1 on ttyS2. (Rx, Tx, CTS, RTS) */
-	at91_register_uart(AT91SAM9260_ID_US1, 2, ATMEL_UART_CTS | ATMEL_UART_RTS);
-
-	/* USART2 on ttyS3. (Rx, Tx, CTS, RTS) */
-	at91_register_uart(AT91SAM9260_ID_US2, 3, ATMEL_UART_CTS | ATMEL_UART_RTS);
-
-	/* USART4 on ttyS5. (Rx, Tx only) */
-	at91_register_uart(AT91SAM9260_ID_US4, 5, 0);
-
-	/* USART5 on ttyS6. (Rx, Tx only) */
-	at91_register_uart(AT91SAM9260_ID_US5, 6, 0);
 }
 
 /*
@@ -254,6 +216,8 @@ void add_w1(void)
 void __init stamp9g20_board_init(void)
 {
 	/* Serial */
+	/* DGBU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
 	at91_add_device_serial();
 	/* NAND */
 	add_device_nand();
@@ -269,6 +233,22 @@ void __init stamp9g20_board_init(void)
 
 static void __init portuxg20_board_init(void)
 {
+	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
+						| ATMEL_UART_DTR | ATMEL_UART_DSR
+						| ATMEL_UART_DCD | ATMEL_UART_RI);
+
+	/* USART1 on ttyS2. (Rx, Tx, CTS, RTS) */
+	at91_register_uart(AT91SAM9260_ID_US1, 2, ATMEL_UART_CTS | ATMEL_UART_RTS);
+
+	/* USART2 on ttyS3. (Rx, Tx, CTS, RTS) */
+	at91_register_uart(AT91SAM9260_ID_US2, 3, ATMEL_UART_CTS | ATMEL_UART_RTS);
+
+	/* USART4 on ttyS5. (Rx, Tx only) */
+	at91_register_uart(AT91SAM9260_ID_US4, 5, 0);
+
+	/* USART5 on ttyS6. (Rx, Tx only) */
+	at91_register_uart(AT91SAM9260_ID_US5, 6, 0);
 	stamp9g20_board_init();
 	/* USB Host */
 	at91_add_device_usbh(&usbh_data);
@@ -286,6 +266,10 @@ static void __init portuxg20_board_init(void)
 
 static void __init stamp9g20evb_board_init(void)
 {
+	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
+						| ATMEL_UART_DTR | ATMEL_UART_DSR
+						| ATMEL_UART_DCD | ATMEL_UART_RI);
 	stamp9g20_board_init();
 	/* USB Host */
 	at91_add_device_usbh(&usbh_data);
@@ -303,7 +287,7 @@ MACHINE_START(PORTUXG20, "taskit PortuxG20")
 	/* Maintainer: taskit GmbH */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
-	.init_early	= portuxg20_init_early,
+	.init_early	= stamp9g20_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= portuxg20_board_init,
 MACHINE_END
@@ -312,7 +296,7 @@ MACHINE_START(STAMP9G20, "taskit Stamp9G20")
 	/* Maintainer: taskit GmbH */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
-	.init_early	= stamp9g20evb_init_early,
+	.init_early	= stamp9g20_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= stamp9g20evb_board_init,
 MACHINE_END

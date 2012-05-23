@@ -265,18 +265,8 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 		set_cpu_possible(cpu, false);
 	}
 
-	for_each_possible_cpu (cpu) {
-		struct task_struct *idle;
-
-		if (cpu == 0)
-			continue;
-
-		idle = fork_idle(cpu);
-		if (IS_ERR(idle))
-			panic("failed fork for CPU %d", cpu);
-
+	for_each_possible_cpu(cpu)
 		set_cpu_present(cpu, true);
-	}
 }
 
 static int __cpuinit
@@ -346,9 +336,8 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-static int __cpuinit xen_cpu_up(unsigned int cpu)
+static int __cpuinit xen_cpu_up(unsigned int cpu, struct task_struct *idle)
 {
-	struct task_struct *idle = idle_task(cpu);
 	int rc;
 
 	per_cpu(current_task, cpu) = idle;
@@ -562,10 +551,10 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 	xen_init_lock_cpu(0);
 }
 
-static int __cpuinit xen_hvm_cpu_up(unsigned int cpu)
+static int __cpuinit xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int rc;
-	rc = native_cpu_up(cpu);
+	rc = native_cpu_up(cpu, tidle);
 	WARN_ON (xen_smp_intr_init(cpu));
 	return rc;
 }

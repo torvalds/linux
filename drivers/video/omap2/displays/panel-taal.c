@@ -993,6 +993,15 @@ static int taal_probe(struct omap_dss_device *dssdev)
 
 	dev_set_drvdata(&dssdev->dev, td);
 
+	if (gpio_is_valid(panel_data->reset_gpio)) {
+		r = gpio_request_one(panel_data->reset_gpio, GPIOF_OUT_INIT_LOW,
+				"taal rst");
+		if (r) {
+			dev_err(&dssdev->dev, "failed to request reset gpio\n");
+			goto err_rst_gpio;
+		}
+	}
+
 	taal_hw_reset(dssdev);
 
 	if (panel_data->use_dsi_backlight) {
@@ -1073,6 +1082,9 @@ err_gpio:
 	if (bldev != NULL)
 		backlight_device_unregister(bldev);
 err_bl:
+	if (gpio_is_valid(panel_data->reset_gpio))
+		gpio_free(panel_data->reset_gpio);
+err_rst_gpio:
 	destroy_workqueue(td->workqueue);
 err_wq:
 	free_regulators(panel_config->regulators, panel_config->num_regulators);
@@ -1116,14 +1128,24 @@ static void __exit taal_remove(struct omap_dss_device *dssdev)
 	free_regulators(td->panel_config->regulators,
 			td->panel_config->num_regulators);
 
+	if (gpio_is_valid(panel_data->reset_gpio))
+		gpio_free(panel_data->reset_gpio);
+
 	kfree(td);
 }
 
 static int taal_power_on(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
 	u8 id1, id2, id3;
 	int r;
+
+	r = omapdss_dsi_configure_pins(dssdev, &panel_data->pin_config);
+	if (r) {
+		dev_err(&dssdev->dev, "failed to configure DSI pins\n");
+		goto err0;
+	};
 
 	r = omapdss_dsi_display_enable(dssdev);
 	if (r) {

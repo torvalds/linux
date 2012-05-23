@@ -5,7 +5,7 @@ an IIO device.  Whilst this can create device specific complexities
 such triggers are registered with the core in the same way as
 stand-alone triggers.
 
-struct iio_trig *trig = iio_allocate_trigger("<trigger format string>", ...);
+struct iio_trig *trig = iio_trigger_alloc("<trigger format string>", ...);
 
 allocates a trigger structure.  The key elements to then fill in within
 a driver are:

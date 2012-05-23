@@ -613,8 +613,9 @@ id_failure:
 	ib_conn->cma_id = NULL;
 addr_failure:
 	ib_conn->state = ISER_CONN_DOWN;
+	iser_conn_put(ib_conn, 1); /* deref ib conn's cma id */
 connect_failure:
-	iser_conn_release(ib_conn, 1);
+	iser_conn_put(ib_conn, 1); /* deref ib conn deallocate */
 	return err;
 }
 

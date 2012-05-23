@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/nl80211.h>
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
@@ -45,6 +47,7 @@ static DEFINE_PCI_DEVICE_TABLE(ath5k_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x001b) }, /* 5413 Eagle */
 	{ PCI_VDEVICE(ATHEROS, 0x001c) }, /* PCI-E cards */
 	{ PCI_VDEVICE(ATHEROS, 0x001d) }, /* 2417 Nala */
+	{ PCI_VDEVICE(ATHEROS, 0xff1b) }, /* AR5BXB63 */
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ath5k_pci_id_table);
@@ -337,28 +340,4 @@ static struct pci_driver ath5k_pci_driver = {
 	.driver.pm	= ATH5K_PM_OPS,
 };
 
-/*
- * Module init/exit functions
- */
-static int __init
-init_ath5k_pci(void)
-{
-	int ret;
-
-	ret = pci_register_driver(&ath5k_pci_driver);
-	if (ret) {
-		printk(KERN_ERR "ath5k_pci: can't register pci driver\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static void __exit
-exit_ath5k_pci(void)
-{
-	pci_unregister_driver(&ath5k_pci_driver);
-}
-
-module_init(init_ath5k_pci);
-module_exit(exit_ath5k_pci);
+module_pci_driver(ath5k_pci_driver);

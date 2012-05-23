@@ -1027,8 +1027,6 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	u64 status;
 	int handled;
 
-	perf_sample_data_init(&data, 0);
-
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
 	/*
@@ -1082,7 +1080,7 @@ again:
 		if (!intel_pmu_save_and_restart(event))
 			continue;
 
-		data.period = event->hw.last_period;
+		perf_sample_data_init(&data, 0, event->hw.last_period);
 
 		if (has_branch_stack(event))
 			data.br_stack = &cpuc->lbr_stack;

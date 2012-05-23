@@ -135,15 +135,6 @@ enum {
 	IPW_HW_STATE_ENABLED = 0
 };
 
-struct ssid_context {
-	char ssid[IW_ESSID_MAX_SIZE + 1];
-	int ssid_len;
-	unsigned char bssid[ETH_ALEN];
-	int port_type;
-	int channel;
-
-};
-
 extern const char *port_type_str[];
 extern const char *band_str[];
 
@@ -488,6 +479,7 @@ enum {
 #define CAP_PRIVACY_ON          (1<<1)	/* Off = No privacy */
 
 struct ipw2100_priv {
+	void __iomem *ioaddr;
 
 	int stop_hang_check;	/* Set 1 when shutting down to kill hang_check */
 	int stop_rf_kill;	/* Set 1 when shutting down to kill rf_kill */

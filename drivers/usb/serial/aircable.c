@@ -111,13 +111,14 @@ static int aircable_probe(struct usb_serial *serial,
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
 		endpoint = &iface_desc->endpoint[i].desc;
 		if (usb_endpoint_is_bulk_out(endpoint)) {
-			dbg("found bulk out on endpoint %d", i);
+			dev_dbg(&serial->dev->dev,
+				"found bulk out on endpoint %d\n", i);
 			++num_bulk_out;
 		}
 	}
 
 	if (num_bulk_out == 0) {
-		dbg("Invalid interface, discarding");
+		dev_dbg(&serial->dev->dev, "Invalid interface, discarding\n");
 		return -ENODEV;
 	}
 
@@ -133,7 +134,7 @@ static int aircable_process_packet(struct tty_struct *tty,
 		packet += HCI_HEADER_LENGTH;
 	}
 	if (len <= 0) {
-		dbg("%s - malformed packet", __func__);
+		dev_dbg(&port->dev, "%s - malformed packet\n", __func__);
 		return 0;
 	}
 
@@ -170,13 +171,6 @@ static void aircable_process_read_urb(struct urb *urb)
 	tty_kref_put(tty);
 }
 
-static struct usb_driver aircable_driver = {
-	.name =		"aircable",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table,
-};
-
 static struct usb_serial_driver aircable_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -196,7 +190,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&aircable_device, NULL
 };
 
-module_usb_serial_driver(aircable_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

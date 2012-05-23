@@ -149,4 +149,10 @@ extern int  lapb_t1timer_running(struct lapb_cb *lapb);
  */
 #define	LAPB_DEBUG	0
 
+#define lapb_dbg(level, fmt, ...)			\
+do {							\
+	if (level < LAPB_DEBUG)				\
+		pr_debug(fmt, ##__VA_ARGS__);		\
+} while (0)
+
 #endif

@@ -90,7 +90,7 @@ MODULE_PARM_DESC(use_pci_fixup, "Enable PCI fixup to seek for hidden devices");
 #define MC_MAX_DOD	0x64
 
 /*
- * OFFSETS for Device 3 Function 4, as inicated on Xeon 5500 datasheet:
+ * OFFSETS for Device 3 Function 4, as indicated on Xeon 5500 datasheet:
  * http://www.arrownac.com/manufacturers/intel/s/nehalem/5500-datasheet-v2.pdf
  */
 
@@ -101,7 +101,7 @@ MODULE_PARM_DESC(use_pci_fixup, "Enable PCI fixup to seek for hidden devices");
   #define DIMM1_COR_ERR(r)			(((r) >> 16) & 0x7fff)
   #define DIMM0_COR_ERR(r)			((r) & 0x7fff)
 
-/* OFFSETS for Device 3 Function 2, as inicated on Xeon 5500 datasheet */
+/* OFFSETS for Device 3 Function 2, as indicated on Xeon 5500 datasheet */
 #define MC_SSRCONTROL		0x48
   #define SSR_MODE_DISABLE	0x00
   #define SSR_MODE_ENABLE	0x01
@@ -398,7 +398,7 @@ static DEFINE_PCI_DEVICE_TABLE(i7core_pci_tbl) = {
 };
 
 /****************************************************************************
-			Anciliary status routines
+			Ancillary status routines
  ****************************************************************************/
 
 	/* MC_CONTROL bits */
@@ -1361,7 +1361,7 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 			      dev_descr->dev_id, *prev);
 
 	/*
-	 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core regs
+	 * On Xeon 55xx, the Intel QuickPath Arch Generic Non-core regs
 	 * is at addr 8086:2c40, instead of 8086:2c41. So, we need
 	 * to probe for the alternate address in case of failure
 	 */
@@ -2132,7 +2132,7 @@ static int set_sdram_scrub_rate(struct mem_ctl_info *mci, u32 new_bw)
 
 /*
  * get_sdram_scrub_rate		This routine convert current scrub rate value
- *				into byte/sec bandwidth accourding to
+ *				into byte/sec bandwidth according to
  *				SCRUBINTERVAL formula found in datasheet.
  */
 static int get_sdram_scrub_rate(struct mem_ctl_info *mci)

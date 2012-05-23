@@ -2953,7 +2953,7 @@ static struct module *load_module(void __user *umod,
 
 	/* Module is ready to execute: parsing args may do that. */
 	err = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
-			 -32768, 32767, NULL);
+			 -32768, 32767, &ddebug_dyndbg_module_param_cb);
 	if (err < 0)
 		goto unlink;
 

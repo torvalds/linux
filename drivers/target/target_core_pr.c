@@ -193,9 +193,8 @@ static int target_check_scsi2_reservation_conflict(struct se_cmd *cmd)
 	return 0;
 }
 
-int target_scsi2_reservation_release(struct se_task *task)
+int target_scsi2_reservation_release(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
 	struct se_portal_group *tpg = sess->se_tpg;
@@ -237,16 +236,13 @@ int target_scsi2_reservation_release(struct se_task *task)
 out_unlock:
 	spin_unlock(&dev->dev_reservation_lock);
 out:
-	if (!ret) {
-		task->task_scsi_status = GOOD;
-		transport_complete_task(task, 1);
-	}
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
 	return ret;
 }
 
-int target_scsi2_reservation_reserve(struct se_task *task)
+int target_scsi2_reservation_reserve(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
 	struct se_portal_group *tpg = sess->se_tpg;
@@ -307,10 +303,8 @@ int target_scsi2_reservation_reserve(struct se_task *task)
 out_unlock:
 	spin_unlock(&dev->dev_reservation_lock);
 out:
-	if (!ret) {
-		task->task_scsi_status = GOOD;
-		transport_complete_task(task, 1);
-	}
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
 	return ret;
 }
 
@@ -503,11 +497,10 @@ static int core_scsi3_pr_seq_non_holder(
 	 * statement.
 	 */
 	if (!ret && !other_cdb) {
-#if 0
 		pr_debug("Allowing explict CDB: 0x%02x for %s"
 			" reservation holder\n", cdb[0],
 			core_scsi3_pr_dump_type(pr_reg_type));
-#endif
+
 		return ret;
 	}
 	/*
@@ -535,14 +528,14 @@ static int core_scsi3_pr_seq_non_holder(
 			 * as we expect registered non-reservation holding
 			 * nexuses to issue CDBs.
 			 */
-#if 0
+
 			if (!registered_nexus) {
 				pr_debug("Allowing implict CDB: 0x%02x"
 					" for %s reservation on unregistered"
 					" nexus\n", cdb[0],
 					core_scsi3_pr_dump_type(pr_reg_type));
 			}
-#endif
+
 			return 0;
 		}
 	} else if ((reg_only) || (all_reg)) {
@@ -551,11 +544,11 @@ static int core_scsi3_pr_seq_non_holder(
 			 * For PR_*_REG_ONLY and PR_*_ALL_REG reservations,
 			 * allow commands from registered nexuses.
 			 */
-#if 0
+
 			pr_debug("Allowing implict CDB: 0x%02x for %s"
 				" reservation\n", cdb[0],
 				core_scsi3_pr_dump_type(pr_reg_type));
-#endif
+
 			return 0;
 		}
 	}
@@ -1669,12 +1662,12 @@ static int core_scsi3_decode_spec_i_port(
 			ret = -EINVAL;
 			goto out;
 		}
-#if 0
+
 		pr_debug("SPC-3 PR SPEC_I_PT: Got %s data_length: %u tpdl: %u"
 			" tid_len: %d for %s + %s\n",
 			dest_tpg->se_tpg_tfo->get_fabric_name(), cmd->data_length,
 			tpdl, tid_len, i_str, iport_ptr);
-#endif
+
 		if (tid_len > tpdl) {
 			pr_err("SPC-3 PR SPEC_I_PT: Illegal tid_len:"
 				" %u for Transport ID: %s\n", tid_len, ptr);
@@ -1717,12 +1710,12 @@ static int core_scsi3_decode_spec_i_port(
 			ret = -EINVAL;
 			goto out;
 		}
-#if 0
+
 		pr_debug("SPC-3 PR SPEC_I_PT: Located %s Node: %s"
 			" dest_se_deve mapped_lun: %u\n",
 			dest_tpg->se_tpg_tfo->get_fabric_name(),
 			dest_node_acl->initiatorname, dest_se_deve->mapped_lun);
-#endif
+
 		/*
 		 * Skip any TransportIDs that already have a registration for
 		 * this target port.
@@ -3476,10 +3469,10 @@ static int core_scsi3_emulate_pro_register_and_move(
 
 	buf = transport_kmap_data_sg(cmd);
 	proto_ident = (buf[24] & 0x0f);
-#if 0
+
 	pr_debug("SPC-3 PR REGISTER_AND_MOVE: Extracted Protocol Identifier:"
 			" 0x%02x\n", proto_ident);
-#endif
+
 	if (proto_ident != dest_tf_ops->get_fabric_proto_ident(dest_se_tpg)) {
 		pr_err("SPC-3 PR REGISTER_AND_MOVE: Received"
 			" proto_ident: 0x%02x does not match ident: 0x%02x"
@@ -3578,11 +3571,11 @@ after_iport_check:
 		ret = -EINVAL;
 		goto out;
 	}
-#if 0
+
 	pr_debug("SPC-3 PR REGISTER_AND_MOVE: Found %s dest_node_acl:"
 		" %s from TransportID\n", dest_tf_ops->get_fabric_name(),
 		dest_node_acl->initiatorname);
-#endif
+
 	/*
 	 * Locate the struct se_dev_entry pointer for the matching RELATIVE TARGET
 	 * PORT IDENTIFIER.
@@ -3606,12 +3599,12 @@ after_iport_check:
 		ret = -EINVAL;
 		goto out;
 	}
-#if 0
+
 	pr_debug("SPC-3 PR REGISTER_AND_MOVE: Located %s node %s LUN"
 		" ACL for dest_se_deve->mapped_lun: %u\n",
 		dest_tf_ops->get_fabric_name(), dest_node_acl->initiatorname,
 		dest_se_deve->mapped_lun);
-#endif
+
 	/*
 	 * A persistent reservation needs to already existing in order to
 	 * successfully complete the REGISTER_AND_MOVE service action..
@@ -3802,9 +3795,8 @@ static unsigned long long core_scsi3_extract_reservation_key(unsigned char *cdb)
 /*
  * See spc4r17 section 6.14 Table 170
  */
-int target_scsi3_emulate_pr_out(struct se_task *task)
+int target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	unsigned char *cdb = &cmd->t_task_cdb[0];
 	unsigned char *buf;
 	u64 res_key, sa_res_key;
@@ -3944,10 +3936,8 @@ int target_scsi3_emulate_pr_out(struct se_task *task)
 	}
 
 out:
-	if (!ret) {
-		task->task_scsi_status = GOOD;
-		transport_complete_task(task, 1);
-	}
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
 	return ret;
 }
 
@@ -4302,9 +4292,8 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 	return 0;
 }
 
-int target_scsi3_emulate_pr_in(struct se_task *task)
+int target_scsi3_emulate_pr_in(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	int ret;
 
 	/*
@@ -4345,10 +4334,8 @@ int target_scsi3_emulate_pr_in(struct se_task *task)
 		break;
 	}
 
-	if (!ret) {
-		task->task_scsi_status = GOOD;
-		transport_complete_task(task, 1);
-	}
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
 	return ret;
 }
 

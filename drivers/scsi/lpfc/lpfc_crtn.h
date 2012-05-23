@@ -254,6 +254,7 @@ int
 lpfc_sli_handle_fast_ring_event(struct lpfc_hba *,
 			struct lpfc_sli_ring *, uint32_t);
 
+struct lpfc_iocbq *__lpfc_sli_get_iocbq(struct lpfc_hba *);
 struct lpfc_iocbq * lpfc_sli_get_iocbq(struct lpfc_hba *);
 void lpfc_sli_release_iocbq(struct lpfc_hba *, struct lpfc_iocbq *);
 uint16_t lpfc_sli_next_iotag(struct lpfc_hba *, struct lpfc_iocbq *);
@@ -460,6 +461,7 @@ int lpfc_hba_init_link_fc_topology(struct lpfc_hba *, uint32_t, uint32_t);
 int lpfc_issue_reg_vfi(struct lpfc_vport *);
 int lpfc_issue_unreg_vfi(struct lpfc_vport *);
 int lpfc_selective_reset(struct lpfc_hba *);
-int lpfc_sli4_read_config(struct lpfc_hba *phba);
-int lpfc_scsi_buf_update(struct lpfc_hba *phba);
-void lpfc_sli4_node_prep(struct lpfc_hba *phba);
+int lpfc_sli4_read_config(struct lpfc_hba *);
+void lpfc_sli4_node_prep(struct lpfc_hba *);
+int lpfc_sli4_xri_sgl_update(struct lpfc_hba *);
+void lpfc_free_sgl_list(struct lpfc_hba *, struct list_head *);

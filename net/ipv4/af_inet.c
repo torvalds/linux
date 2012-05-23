@@ -350,7 +350,7 @@ lookup_protocol:
 	err = 0;
 	sk->sk_no_check = answer_no_check;
 	if (INET_PROTOSW_REUSE & answer_flags)
-		sk->sk_reuse = 1;
+		sk->sk_reuse = SK_CAN_REUSE;
 
 	inet = inet_sk(sk);
 	inet->is_icsk = (INET_PROTOSW_ICSK & answer_flags) != 0;
@@ -541,7 +541,7 @@ out:
 }
 EXPORT_SYMBOL(inet_bind);
 
-int inet_dgram_connect(struct socket *sock, struct sockaddr * uaddr,
+int inet_dgram_connect(struct socket *sock, struct sockaddr *uaddr,
 		       int addr_len, int flags)
 {
 	struct sock *sk = sock->sk;

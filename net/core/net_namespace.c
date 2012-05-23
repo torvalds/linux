@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/workqueue.h>
 #include <linux/rtnetlink.h>
 #include <linux/cache.h>
@@ -212,8 +214,8 @@ static void net_free(struct net *net)
 {
 #ifdef NETNS_REFCNT_DEBUG
 	if (unlikely(atomic_read(&net->use_count) != 0)) {
-		printk(KERN_EMERG "network namespace not free! Usage: %d\n",
-			atomic_read(&net->use_count));
+		pr_emerg("network namespace not free! Usage: %d\n",
+			 atomic_read(&net->use_count));
 		return;
 	}
 #endif

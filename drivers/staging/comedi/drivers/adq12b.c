@@ -125,24 +125,6 @@ struct adq12b_board {
 	int do_chans;
 };
 
-static const struct adq12b_board adq12b_boards[] = {
-	{
-	 .name = "adq12b",
-	 .ai_se_chans = 16,
-	 .ai_diff_chans = 8,
-	 .ai_bits = 12,
-	 .di_chans = 5,
-	 .do_chans = 8}
-/* potentially, more adq-based deviced will be added */
-/*,
-	.name = "adq12b",
-	.ai_chans = 16,  // this is just for reference, hardcoded again later
-	.ai_bits = 12,
-	.di_chans = 8,
-	.do_chans = 5
-	}*/
-};
-
 #define thisboard ((const struct adq12b_board *)dev->board_ptr)
 
 struct adq12b_private {
@@ -156,41 +138,88 @@ struct adq12b_private {
 #define devpriv ((struct adq12b_private *)dev->private)
 
 /*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
+ * "instructions" read/write data in "one-shot" or "software-triggered"
+ * mode.
  */
-static int adq12b_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int adq12b_detach(struct comedi_device *dev);
-
-static struct comedi_driver driver_adq12b = {
-	.driver_name = "adq12b",
-	.module = THIS_MODULE,
-	.attach = adq12b_attach,
-	.detach = adq12b_detach,
-	.board_name = &adq12b_boards[0].name,
-	.offset = sizeof(struct adq12b_board),
-	.num_names = ARRAY_SIZE(adq12b_boards),
-};
 
 static int adq12b_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data);
+			   unsigned int *data)
+{
+	int n, i;
+	int range, channel;
+	unsigned char hi, lo, status;
+
+	/* change channel and range only if it is different from the previous */
+	range = CR_RANGE(insn->chanspec);
+	channel = CR_CHAN(insn->chanspec);
+	if (channel != devpriv->last_channel || range != devpriv->last_range) {
+		outb((range << 4) | channel, dev->iobase + ADQ12B_CTREG);
+		udelay(50);	/* wait for the mux to settle */
+	}
+
+	/* trigger conversion */
+	status = inb(dev->iobase + ADQ12B_ADLOW);
+
+	/* convert n samples */
+	for (n = 0; n < insn->n; n++) {
+
+		/* wait for end of conversion */
+		i = 0;
+		do {
+			/* udelay(1); */
+			status = inb(dev->iobase + ADQ12B_STINR);
+			status = status & ADQ12B_EOC;
+		} while (status == 0 && ++i < TIMEOUT);
+		/* } while (++i < 10); */
+
+		/* read data */
+		hi = inb(dev->iobase + ADQ12B_ADHIG);
+		lo = inb(dev->iobase + ADQ12B_ADLOW);
+
+		/* printk("debug: chan=%d range=%d status=%d hi=%d lo=%d\n",
+		       channel, range, status,  hi, lo); */
+		data[n] = (hi << 8) | lo;
+
+	}
+
+	/* return the number of samples read/written */
+	return n;
+}
+
 static int adq12b_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
+			       struct comedi_insn *insn, unsigned int *data)
+{
+
+	/* only bits 0-4 have information about digital inputs */
+	data[1] = (inb(dev->iobase + ADQ12B_STINR) & (0x1f));
+
+	return 2;
+}
+
 static int adq12b_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
+			       struct comedi_insn *insn, unsigned int *data)
+{
+	int channel;
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
+	for (channel = 0; channel < 8; channel++)
+		if (((data[0] >> channel) & 0x01) != 0)
+			outb((((data[1] >> channel) & 0x01) << 3) | channel,
+			     dev->iobase + ADQ12B_OUTBR);
+
+	/* store information to retrieve when asked for reading */
+	if (data[0]) {
+		devpriv->digital_state &= ~data[0];
+		devpriv->digital_state |= (data[0] & data[1]);
+	}
+
+	data[1] = devpriv->digital_state;
+
+	return 2;
+}
+
 static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
@@ -295,125 +324,34 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int adq12b_detach(struct comedi_device *dev)
+static void adq12b_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, ADQ12B_SIZE);
-
 	kfree(devpriv);
-
-	printk(KERN_INFO "comedi%d: adq12b: removed\n", dev->minor);
-
-	return 0;
 }
 
-/*
- * "instructions" read/write data in "one-shot" or "software-triggered"
- * mode.
- */
+static const struct adq12b_board adq12b_boards[] = {
+	{
+		.name		= "adq12b",
+		.ai_se_chans	= 16,
+		.ai_diff_chans	= 8,
+		.ai_bits	= 12,
+		.di_chans	= 5,
+		.do_chans	= 8,
+	},
+};
 
-static int adq12b_ai_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
-{
-	int n, i;
-	int range, channel;
-	unsigned char hi, lo, status;
-
-	/* change channel and range only if it is different from the previous */
-	range = CR_RANGE(insn->chanspec);
-	channel = CR_CHAN(insn->chanspec);
-	if (channel != devpriv->last_channel || range != devpriv->last_range) {
-		outb((range << 4) | channel, dev->iobase + ADQ12B_CTREG);
-		udelay(50);	/* wait for the mux to settle */
-	}
-
-	/* trigger conversion */
-	status = inb(dev->iobase + ADQ12B_ADLOW);
-
-	/* convert n samples */
-	for (n = 0; n < insn->n; n++) {
-
-		/* wait for end of conversion */
-		i = 0;
-		do {
-			/* udelay(1); */
-			status = inb(dev->iobase + ADQ12B_STINR);
-			status = status & ADQ12B_EOC;
-		} while (status == 0 && ++i < TIMEOUT);
-		/* } while (++i < 10); */
-
-		/* read data */
-		hi = inb(dev->iobase + ADQ12B_ADHIG);
-		lo = inb(dev->iobase + ADQ12B_ADLOW);
-
-		/* printk("debug: chan=%d range=%d status=%d hi=%d lo=%d\n",
-		       channel, range, status,  hi, lo); */
-		data[n] = (hi << 8) | lo;
-
-	}
-
-	/* return the number of samples read/written */
-	return n;
-}
-
-static int adq12b_di_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-
-	/* only bits 0-4 have information about digital inputs */
-	data[1] = (inb(dev->iobase + ADQ12B_STINR) & (0x1f));
-
-	return 2;
-}
-
-static int adq12b_do_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	int channel;
-
-	for (channel = 0; channel < 8; channel++)
-		if (((data[0] >> channel) & 0x01) != 0)
-			outb((((data[1] >> channel) & 0x01) << 3) | channel,
-			     dev->iobase + ADQ12B_OUTBR);
-
-	/* store information to retrieve when asked for reading */
-	if (data[0]) {
-		devpriv->digital_state &= ~data[0];
-		devpriv->digital_state |= (data[0] & data[1]);
-	}
-
-	data[1] = devpriv->digital_state;
-
-	return 2;
-}
-
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-static int __init driver_adq12b_init_module(void)
-{
-	return comedi_driver_register(&driver_adq12b);
-}
-
-static void __exit driver_adq12b_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_adq12b);
-}
-
-module_init(driver_adq12b_init_module);
-module_exit(driver_adq12b_cleanup_module);
+static struct comedi_driver adq12b_driver = {
+	.driver_name	= "adq12b",
+	.module		= THIS_MODULE,
+	.attach		= adq12b_attach,
+	.detach		= adq12b_detach,
+	.board_name	= &adq12b_boards[0].name,
+	.offset		= sizeof(struct adq12b_board),
+	.num_names	= ARRAY_SIZE(adq12b_boards),
+};
+module_comedi_driver(adq12b_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

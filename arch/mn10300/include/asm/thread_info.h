@@ -20,8 +20,10 @@
 
 #ifdef CONFIG_4KSTACKS
 #define THREAD_SIZE		(4096)
+#define THREAD_SIZE_ORDER	(0)
 #else
 #define THREAD_SIZE		(8192)
+#define THREAD_SIZE_ORDER	(1)
 #endif
 
 #define STACK_WARN		(THREAD_SIZE / 8)
@@ -120,21 +122,8 @@ static inline unsigned long current_stack_pointer(void)
 	return sp;
 }
 
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
-
-/* thread information allocation */
-#ifdef CONFIG_DEBUG_STACK_USAGE
-#define alloc_thread_info_node(tsk, node)			\
-		kzalloc_node(THREAD_SIZE, GFP_KERNEL, node)
-#else
-#define alloc_thread_info_node(tsk, node)			\
-		kmalloc_node(THREAD_SIZE, GFP_KERNEL, node)
-#endif
-
 #ifndef CONFIG_KGDB
-#define free_thread_info(ti)	kfree((ti))
-#else
-extern void free_thread_info(struct thread_info *);
+void arch_release_thread_info(struct thread_info *ti)
 #endif
 #define get_thread_info(ti)	get_task_struct((ti)->task)
 #define put_thread_info(ti)	put_task_struct((ti)->task)

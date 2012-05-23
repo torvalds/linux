@@ -127,9 +127,7 @@ static struct dentry *rpc_setup_pipedir_sb(struct super_block *sb,
 {
 	static uint32_t clntid;
 	char name[15];
-	struct qstr q = {
-		.name = name,
-	};
+	struct qstr q = { .name = name };
 	struct dentry *dir, *dentry;
 	int error;
 

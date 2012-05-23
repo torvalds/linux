@@ -15,9 +15,9 @@
 #include <linux/err.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
 
 
 #include "ad7887.h"
@@ -42,7 +42,7 @@ static int ad7887_read_raw(struct iio_dev *indio_dev,
 	unsigned int scale_uv;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev))
 			ret = -EBUSY;
@@ -75,7 +75,8 @@ static const struct ad7887_chip_info ad7887_chip_info_tbl[] = {
 			.type = IIO_VOLTAGE,
 			.indexed = 1,
 			.channel = 1,
-			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.address = 1,
 			.scan_index = 1,
 			.scan_type = IIO_ST('u', 12, 16, 0),
@@ -84,7 +85,8 @@ static const struct ad7887_chip_info ad7887_chip_info_tbl[] = {
 			.type = IIO_VOLTAGE,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.address = 0,
 			.scan_index = 0,
 			.scan_type = IIO_ST('u', 12, 16, 0),
@@ -104,7 +106,7 @@ static int __devinit ad7887_probe(struct spi_device *spi)
 	struct ad7887_platform_data *pdata = spi->dev.platform_data;
 	struct ad7887_state *st;
 	int ret, voltage_uv = 0;
-	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
+	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
 
 	if (indio_dev == NULL)
 		return -ENOMEM;
@@ -220,7 +222,7 @@ error_disable_reg:
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -237,7 +239,7 @@ static int ad7887_remove(struct spi_device *spi)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

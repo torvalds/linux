@@ -145,7 +145,7 @@ int rds_tcp_listen_init(void)
 	if (ret < 0)
 		goto out;
 
-	sock->sk->sk_reuse = 1;
+	sock->sk->sk_reuse = SK_CAN_REUSE;
 	rds_tcp_nonagle(sock);
 
 	write_lock_bh(&sock->sk->sk_callback_lock);

@@ -53,6 +53,7 @@
 #define MWIFIEX_RATE_BITMAP_MCS127 159
 
 #define MWIFIEX_RX_DATA_BUF_SIZE     (4 * 1024)
+#define MWIFIEX_RX_CMD_BUF_SIZE	     (2 * 1024)
 
 #define MWIFIEX_RTS_MIN_VALUE              (0)
 #define MWIFIEX_RTS_MAX_VALUE              (2347)

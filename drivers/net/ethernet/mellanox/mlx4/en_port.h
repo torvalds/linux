@@ -39,6 +39,8 @@
 #define SET_PORT_PROMISC_SHIFT	31
 #define SET_PORT_MC_PROMISC_SHIFT	30
 
+#define MLX4_EN_NUM_TC		8
+
 #define VLAN_FLTR_SIZE	128
 struct mlx4_set_vlan_fltr_mbox {
 	__be32 entry[VLAN_FLTR_SIZE];

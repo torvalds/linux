@@ -68,9 +68,7 @@
 
 #include <net/mac80211.h>
 
-#include "iwl-commands.h"
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-debug.h"
 #include "iwl-agn.h"
 #include "iwl-eeprom.h"
@@ -187,33 +185,33 @@ static void iwl_eeprom_release_semaphore(struct iwl_trans *trans)
 
 }
 
-static int iwl_eeprom_verify_signature(struct iwl_trans *trans)
+static int iwl_eeprom_verify_signature(struct iwl_priv *priv)
 {
-	u32 gp = iwl_read32(trans, CSR_EEPROM_GP) &
+	u32 gp = iwl_read32(priv->trans, CSR_EEPROM_GP) &
 			   CSR_EEPROM_GP_VALID_MSK;
 	int ret = 0;
 
-	IWL_DEBUG_EEPROM(trans, "EEPROM signature=0x%08x\n", gp);
+	IWL_DEBUG_EEPROM(priv, "EEPROM signature=0x%08x\n", gp);
 	switch (gp) {
 	case CSR_EEPROM_GP_BAD_SIG_EEP_GOOD_SIG_OTP:
-		if (trans->nvm_device_type != NVM_DEVICE_TYPE_OTP) {
-			IWL_ERR(trans, "EEPROM with bad signature: 0x%08x\n",
+		if (priv->nvm_device_type != NVM_DEVICE_TYPE_OTP) {
+			IWL_ERR(priv, "EEPROM with bad signature: 0x%08x\n",
 				gp);
 			ret = -ENOENT;
 		}
 		break;
 	case CSR_EEPROM_GP_GOOD_SIG_EEP_LESS_THAN_4K:
 	case CSR_EEPROM_GP_GOOD_SIG_EEP_MORE_THAN_4K:
-		if (trans->nvm_device_type != NVM_DEVICE_TYPE_EEPROM) {
-			IWL_ERR(trans, "OTP with bad signature: 0x%08x\n", gp);
+		if (priv->nvm_device_type != NVM_DEVICE_TYPE_EEPROM) {
+			IWL_ERR(priv, "OTP with bad signature: 0x%08x\n", gp);
 			ret = -ENOENT;
 		}
 		break;
 	case CSR_EEPROM_GP_BAD_SIGNATURE_BOTH_EEP_AND_OTP:
 	default:
-		IWL_ERR(trans, "bad EEPROM/OTP signature, type=%s, "
+		IWL_ERR(priv, "bad EEPROM/OTP signature, type=%s, "
 			"EEPROM_GP=0x%08x\n",
-			(trans->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+			(priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
 			? "OTP" : "EEPROM", gp);
 		ret = -ENOENT;
 		break;
@@ -221,11 +219,11 @@ static int iwl_eeprom_verify_signature(struct iwl_trans *trans)
 	return ret;
 }
 
-u16 iwl_eeprom_query16(const struct iwl_shared *shrd, size_t offset)
+u16 iwl_eeprom_query16(struct iwl_priv *priv, size_t offset)
 {
-	if (!shrd->eeprom)
+	if (!priv->eeprom)
 		return 0;
-	return (u16)shrd->eeprom[offset] | ((u16)shrd->eeprom[offset + 1] << 8);
+	return (u16)priv->eeprom[offset] | ((u16)priv->eeprom[offset + 1] << 8);
 }
 
 int iwl_eeprom_check_version(struct iwl_priv *priv)
@@ -233,11 +231,11 @@ int iwl_eeprom_check_version(struct iwl_priv *priv)
 	u16 eeprom_ver;
 	u16 calib_ver;
 
-	eeprom_ver = iwl_eeprom_query16(priv->shrd, EEPROM_VERSION);
-	calib_ver = iwl_eeprom_calib_version(priv->shrd);
+	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
+	calib_ver = iwl_eeprom_calib_version(priv);
 
-	if (eeprom_ver < cfg(priv)->eeprom_ver ||
-	    calib_ver < cfg(priv)->eeprom_calib_ver)
+	if (eeprom_ver < priv->cfg->eeprom_ver ||
+	    calib_ver < priv->cfg->eeprom_calib_ver)
 		goto err;
 
 	IWL_INFO(priv, "device EEPROM VER=0x%x, CALIB=0x%x\n",
@@ -247,58 +245,115 @@ int iwl_eeprom_check_version(struct iwl_priv *priv)
 err:
 	IWL_ERR(priv, "Unsupported (too old) EEPROM VER=0x%x < 0x%x "
 		  "CALIB=0x%x < 0x%x\n",
-		  eeprom_ver, cfg(priv)->eeprom_ver,
-		  calib_ver,  cfg(priv)->eeprom_calib_ver);
+		  eeprom_ver, priv->cfg->eeprom_ver,
+		  calib_ver,  priv->cfg->eeprom_calib_ver);
 	return -EINVAL;
 
 }
 
 int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 {
-	struct iwl_shared *shrd = priv->shrd;
 	u16 radio_cfg;
 
-	hw_params(priv).sku = iwl_eeprom_query16(shrd, EEPROM_SKU_CAP);
-	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE &&
-	    !cfg(priv)->ht_params) {
+	priv->hw_params.sku = iwl_eeprom_query16(priv, EEPROM_SKU_CAP);
+	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE &&
+	    !priv->cfg->ht_params) {
 		IWL_ERR(priv, "Invalid 11n configuration\n");
 		return -EINVAL;
 	}
 
-	if (!hw_params(priv).sku) {
+	if (!priv->hw_params.sku) {
 		IWL_ERR(priv, "Invalid device sku\n");
 		return -EINVAL;
 	}
 
-	IWL_INFO(priv, "Device SKU: 0x%X\n", hw_params(priv).sku);
+	IWL_INFO(priv, "Device SKU: 0x%X\n", priv->hw_params.sku);
 
-	radio_cfg = iwl_eeprom_query16(shrd, EEPROM_RADIO_CONFIG);
+	radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
 
-	hw_params(priv).valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
-	hw_params(priv).valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
+	priv->hw_params.valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
+	priv->hw_params.valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
 
 	/* check overrides (some devices have wrong EEPROM) */
-	if (cfg(priv)->valid_tx_ant)
-		hw_params(priv).valid_tx_ant = cfg(priv)->valid_tx_ant;
-	if (cfg(priv)->valid_rx_ant)
-		hw_params(priv).valid_rx_ant = cfg(priv)->valid_rx_ant;
+	if (priv->cfg->valid_tx_ant)
+		priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
+	if (priv->cfg->valid_rx_ant)
+		priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
 
-	if (!hw_params(priv).valid_tx_ant || !hw_params(priv).valid_rx_ant) {
+	if (!priv->hw_params.valid_tx_ant || !priv->hw_params.valid_rx_ant) {
 		IWL_ERR(priv, "Invalid chain (0x%X, 0x%X)\n",
-			hw_params(priv).valid_tx_ant,
-			hw_params(priv).valid_rx_ant);
+			priv->hw_params.valid_tx_ant,
+			priv->hw_params.valid_rx_ant);
 		return -EINVAL;
 	}
 
 	IWL_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
-		 hw_params(priv).valid_tx_ant, hw_params(priv).valid_rx_ant);
+		 priv->hw_params.valid_tx_ant, priv->hw_params.valid_rx_ant);
 
 	return 0;
 }
 
-void iwl_eeprom_get_mac(const struct iwl_shared *shrd, u8 *mac)
+u16 iwl_eeprom_calib_version(struct iwl_priv *priv)
 {
-	const u8 *addr = iwl_eeprom_query_addr(shrd,
+	struct iwl_eeprom_calib_hdr *hdr;
+
+	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(priv,
+							EEPROM_CALIB_ALL);
+	return hdr->version;
+}
+
+static u32 eeprom_indirect_address(struct iwl_priv *priv, u32 address)
+{
+	u16 offset = 0;
+
+	if ((address & INDIRECT_ADDRESS) == 0)
+		return address;
+
+	switch (address & INDIRECT_TYPE_MSK) {
+	case INDIRECT_HOST:
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_HOST);
+		break;
+	case INDIRECT_GENERAL:
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_GENERAL);
+		break;
+	case INDIRECT_REGULATORY:
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_REGULATORY);
+		break;
+	case INDIRECT_TXP_LIMIT:
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_TXP_LIMIT);
+		break;
+	case INDIRECT_TXP_LIMIT_SIZE:
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_TXP_LIMIT_SIZE);
+		break;
+	case INDIRECT_CALIBRATION:
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_CALIBRATION);
+		break;
+	case INDIRECT_PROCESS_ADJST:
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_PROCESS_ADJST);
+		break;
+	case INDIRECT_OTHERS:
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_OTHERS);
+		break;
+	default:
+		IWL_ERR(priv, "illegal indirect type: 0x%X\n",
+		address & INDIRECT_TYPE_MSK);
+		break;
+	}
+
+	/* translate the offset from words to byte */
+	return (address & ADDRESS_MSK) + (offset << 1);
+}
+
+const u8 *iwl_eeprom_query_addr(struct iwl_priv *priv, size_t offset)
+{
+	u32 address = eeprom_indirect_address(priv, offset);
+	BUG_ON(address >= priv->cfg->base_params->eeprom_size);
+	return &priv->eeprom[address];
+}
+
+void iwl_eeprom_get_mac(struct iwl_priv *priv, u8 *mac)
+{
+	const u8 *addr = iwl_eeprom_query_addr(priv,
 					EEPROM_MAC_ADDRESS);
 	memcpy(mac, addr, ETH_ALEN);
 }
@@ -376,7 +431,7 @@ static int iwl_init_otp_access(struct iwl_trans *trans)
 		 * CSR auto clock gate disable bit -
 		 * this is only applicable for HW with OTP shadow RAM
 		 */
-		if (cfg(trans)->base_params->shadow_ram_support)
+		if (trans->cfg->base_params->shadow_ram_support)
 			iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 				CSR_RESET_LINK_PWR_MGMT_DISABLED);
 	}
@@ -497,7 +552,7 @@ static int iwl_find_otp_image(struct iwl_trans *trans,
 		}
 		/* more in the link list, continue */
 		usedblocks++;
-	} while (usedblocks <= cfg(trans)->base_params->max_ll_items);
+	} while (usedblocks <= trans->cfg->base_params->max_ll_items);
 
 	/* OTP has no valid blocks */
 	IWL_DEBUG_EEPROM(trans, "OTP has no valid blocks\n");
@@ -591,7 +646,6 @@ iwl_eeprom_enh_txp_read_element(struct iwl_priv *priv,
 
 static void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
 {
-	struct iwl_shared *shrd = priv->shrd;
 	struct iwl_eeprom_enhanced_txpwr *txp_array, *txp;
 	int idx, entries;
 	__le16 *txp_len;
@@ -600,10 +654,10 @@ static void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
 	BUILD_BUG_ON(sizeof(struct iwl_eeprom_enhanced_txpwr) != 8);
 
 	/* the length is in 16-bit words, but we want entries */
-	txp_len = (__le16 *) iwl_eeprom_query_addr(shrd, EEPROM_TXP_SZ_OFFS);
+	txp_len = (__le16 *) iwl_eeprom_query_addr(priv, EEPROM_TXP_SZ_OFFS);
 	entries = le16_to_cpup(txp_len) * 2 / EEPROM_TXP_ENTRY_LEN;
 
-	txp_array = (void *) iwl_eeprom_query_addr(shrd, EEPROM_TXP_OFFS);
+	txp_array = (void *) iwl_eeprom_query_addr(priv, EEPROM_TXP_OFFS);
 
 	for (idx = 0; idx < entries; idx++) {
 		txp = &txp_array[idx];
@@ -637,7 +691,7 @@ static void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
 				 ((txp->delta_20_in_40 & 0xf0) >> 4),
 				 (txp->delta_20_in_40 & 0x0f));
 
-		max_txp_avg = iwl_get_max_txpower_avg(cfg(priv), txp_array, idx,
+		max_txp_avg = iwl_get_max_txpower_avg(priv->cfg, txp_array, idx,
 						      &max_txp_avg_halfdbm);
 
 		/*
@@ -656,66 +710,66 @@ static void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
 /**
  * iwl_eeprom_init - read EEPROM contents
  *
- * Load the EEPROM contents from adapter into shrd->eeprom
+ * Load the EEPROM contents from adapter into priv->eeprom
  *
  * NOTE:  This routine uses the non-debug IO access functions.
  */
-int iwl_eeprom_init(struct iwl_trans *trans, u32 hw_rev)
+int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 {
 	__le16 *e;
-	u32 gp = iwl_read32(trans, CSR_EEPROM_GP);
+	u32 gp = iwl_read32(priv->trans, CSR_EEPROM_GP);
 	int sz;
 	int ret;
 	u16 addr;
 	u16 validblockaddr = 0;
 	u16 cache_addr = 0;
 
-	trans->nvm_device_type = iwl_get_nvm_type(trans, hw_rev);
-	if (trans->nvm_device_type == -ENOENT)
+	priv->nvm_device_type = iwl_get_nvm_type(priv->trans, hw_rev);
+	if (priv->nvm_device_type == -ENOENT)
 		return -ENOENT;
 	/* allocate eeprom */
-	sz = cfg(trans)->base_params->eeprom_size;
-	IWL_DEBUG_EEPROM(trans, "NVM size = %d\n", sz);
-	trans->shrd->eeprom = kzalloc(sz, GFP_KERNEL);
-	if (!trans->shrd->eeprom) {
+	sz = priv->cfg->base_params->eeprom_size;
+	IWL_DEBUG_EEPROM(priv, "NVM size = %d\n", sz);
+	priv->eeprom = kzalloc(sz, GFP_KERNEL);
+	if (!priv->eeprom) {
 		ret = -ENOMEM;
 		goto alloc_err;
 	}
-	e = (__le16 *)trans->shrd->eeprom;
+	e = (__le16 *)priv->eeprom;
 
-	ret = iwl_eeprom_verify_signature(trans);
+	ret = iwl_eeprom_verify_signature(priv);
 	if (ret < 0) {
-		IWL_ERR(trans, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
+		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
 		ret = -ENOENT;
 		goto err;
 	}
 
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
-	ret = iwl_eeprom_acquire_semaphore(trans);
+	ret = iwl_eeprom_acquire_semaphore(priv->trans);
 	if (ret < 0) {
-		IWL_ERR(trans, "Failed to acquire EEPROM semaphore.\n");
+		IWL_ERR(priv, "Failed to acquire EEPROM semaphore.\n");
 		ret = -ENOENT;
 		goto err;
 	}
 
-	if (trans->nvm_device_type == NVM_DEVICE_TYPE_OTP) {
+	if (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP) {
 
-		ret = iwl_init_otp_access(trans);
+		ret = iwl_init_otp_access(priv->trans);
 		if (ret) {
-			IWL_ERR(trans, "Failed to initialize OTP access.\n");
+			IWL_ERR(priv, "Failed to initialize OTP access.\n");
 			ret = -ENOENT;
 			goto done;
 		}
-		iwl_write32(trans, CSR_EEPROM_GP,
-			    iwl_read32(trans, CSR_EEPROM_GP) &
+		iwl_write32(priv->trans, CSR_EEPROM_GP,
+			    iwl_read32(priv->trans, CSR_EEPROM_GP) &
 			    ~CSR_EEPROM_GP_IF_OWNER_MSK);
 
-		iwl_set_bit(trans, CSR_OTP_GP_REG,
+		iwl_set_bit(priv->trans, CSR_OTP_GP_REG,
 			     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
 			     CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
 		/* traversing the linked list if no shadow ram supported */
-		if (!cfg(trans)->base_params->shadow_ram_support) {
-			if (iwl_find_otp_image(trans, &validblockaddr)) {
+		if (!priv->cfg->base_params->shadow_ram_support) {
+			if (iwl_find_otp_image(priv->trans, &validblockaddr)) {
 				ret = -ENOENT;
 				goto done;
 			}
@@ -724,7 +778,8 @@ int iwl_eeprom_init(struct iwl_trans *trans, u32 hw_rev)
 		     addr += sizeof(u16)) {
 			__le16 eeprom_data;
 
-			ret = iwl_read_otp_word(trans, addr, &eeprom_data);
+			ret = iwl_read_otp_word(priv->trans, addr,
+						&eeprom_data);
 			if (ret)
 				goto done;
 			e[cache_addr / 2] = eeprom_data;
@@ -735,94 +790,93 @@ int iwl_eeprom_init(struct iwl_trans *trans, u32 hw_rev)
 		for (addr = 0; addr < sz; addr += sizeof(u16)) {
 			u32 r;
 
-			iwl_write32(trans, CSR_EEPROM_REG,
+			iwl_write32(priv->trans, CSR_EEPROM_REG,
 				    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
-			ret = iwl_poll_bit(trans, CSR_EEPROM_REG,
+			ret = iwl_poll_bit(priv->trans, CSR_EEPROM_REG,
 						  CSR_EEPROM_REG_READ_VALID_MSK,
 						  CSR_EEPROM_REG_READ_VALID_MSK,
 						  IWL_EEPROM_ACCESS_TIMEOUT);
 			if (ret < 0) {
-				IWL_ERR(trans,
+				IWL_ERR(priv,
 					"Time out reading EEPROM[%d]\n", addr);
 				goto done;
 			}
-			r = iwl_read32(trans, CSR_EEPROM_REG);
+			r = iwl_read32(priv->trans, CSR_EEPROM_REG);
 			e[addr / 2] = cpu_to_le16(r >> 16);
 		}
 	}
 
-	IWL_DEBUG_EEPROM(trans, "NVM Type: %s, version: 0x%x\n",
-		       (trans->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+	IWL_DEBUG_EEPROM(priv, "NVM Type: %s, version: 0x%x\n",
+		       (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
 		       ? "OTP" : "EEPROM",
-		       iwl_eeprom_query16(trans->shrd, EEPROM_VERSION));
+		       iwl_eeprom_query16(priv, EEPROM_VERSION));
 
 	ret = 0;
 done:
-	iwl_eeprom_release_semaphore(trans);
+	iwl_eeprom_release_semaphore(priv->trans);
 
 err:
 	if (ret)
-		iwl_eeprom_free(trans->shrd);
+		iwl_eeprom_free(priv);
 alloc_err:
 	return ret;
 }
 
-void iwl_eeprom_free(struct iwl_shared *shrd)
+void iwl_eeprom_free(struct iwl_priv *priv)
 {
-	kfree(shrd->eeprom);
-	shrd->eeprom = NULL;
+	kfree(priv->eeprom);
+	priv->eeprom = NULL;
 }
 
-static void iwl_init_band_reference(const struct iwl_priv *priv,
+static void iwl_init_band_reference(struct iwl_priv *priv,
 			int eep_band, int *eeprom_ch_count,
 			const struct iwl_eeprom_channel **eeprom_ch_info,
 			const u8 **eeprom_ch_index)
 {
-	struct iwl_shared *shrd = priv->shrd;
-	u32 offset = cfg(priv)->lib->
+	u32 offset = priv->lib->
 			eeprom_ops.regulatory_bands[eep_band - 1];
 	switch (eep_band) {
 	case 1:		/* 2.4GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_1);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_eeprom_query_addr(shrd, offset);
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_1;
 		break;
 	case 2:		/* 4.9GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_2);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_eeprom_query_addr(shrd, offset);
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_2;
 		break;
 	case 3:		/* 5.2GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_3);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_eeprom_query_addr(shrd, offset);
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_3;
 		break;
 	case 4:		/* 5.5GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_4);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_eeprom_query_addr(shrd, offset);
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_4;
 		break;
 	case 5:		/* 5.7GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_5);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_eeprom_query_addr(shrd, offset);
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_5;
 		break;
 	case 6:		/* 2.4GHz ht40 channels */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_6);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_eeprom_query_addr(shrd, offset);
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_6;
 		break;
 	case 7:		/* 5 GHz ht40 channels */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_7);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_eeprom_query_addr(shrd, offset);
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_7;
 		break;
 	default:
@@ -987,9 +1041,9 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	}
 
 	/* Check if we do have HT40 channels */
-	if (cfg(priv)->lib->eeprom_ops.regulatory_bands[5] ==
+	if (priv->lib->eeprom_ops.regulatory_bands[5] ==
 	    EEPROM_REGULATORY_BAND_NO_HT40 &&
-	    cfg(priv)->lib->eeprom_ops.regulatory_bands[6] ==
+	    priv->lib->eeprom_ops.regulatory_bands[6] ==
 	    EEPROM_REGULATORY_BAND_NO_HT40)
 		return 0;
 
@@ -1025,7 +1079,7 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	 * driver need to process addition information
 	 * to determine the max channel tx power limits
 	 */
-	if (cfg(priv)->lib->eeprom_ops.enhanced_txpower)
+	if (priv->lib->eeprom_ops.enhanced_txpower)
 		iwl_eeprom_enhanced_txpower(priv);
 
 	return 0;
@@ -1072,11 +1126,11 @@ void iwl_rf_config(struct iwl_priv *priv)
 {
 	u16 radio_cfg;
 
-	radio_cfg = iwl_eeprom_query16(priv->shrd, EEPROM_RADIO_CONFIG);
+	radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
 
 	/* write radio config values to register */
 	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <= EEPROM_RF_CONFIG_TYPE_MAX) {
-		iwl_set_bit(trans(priv), CSR_HW_IF_CONFIG_REG,
+		iwl_set_bit(priv->trans, CSR_HW_IF_CONFIG_REG,
 			    EEPROM_RF_CFG_TYPE_MSK(radio_cfg) |
 			    EEPROM_RF_CFG_STEP_MSK(radio_cfg) |
 			    EEPROM_RF_CFG_DASH_MSK(radio_cfg));
@@ -1088,7 +1142,7 @@ void iwl_rf_config(struct iwl_priv *priv)
 		WARN_ON(1);
 
 	/* set CSR_HW_CONFIG_REG for uCode use */
-	iwl_set_bit(trans(priv), CSR_HW_IF_CONFIG_REG,
+	iwl_set_bit(priv->trans, CSR_HW_IF_CONFIG_REG,
 		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
 		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 }

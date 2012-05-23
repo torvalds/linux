@@ -353,6 +353,14 @@ config CORDIC
 	  This option provides an implementation of the CORDIC algorithm;
 	  calculations are in fixed point. Module will be called cordic.
 
+config DDR
+	bool "JEDEC DDR data"
+	help
+	  Data from JEDEC specs for DDR SDRAM memories,
+	  particularly the AC timing parameters and addressing
+	  information. This data is useful for drivers handling
+	  DDR SDRAM controllers.
+
 config MPILIB
 	tristate
 	select CLZ_TAB

@@ -183,7 +183,7 @@ int usb_register_dev(struct usb_interface *intf,
 	if (retval)
 		return retval;
 
-	dev_dbg(&intf->dev, "looking for a minor, starting at %d", minor_base);
+	dev_dbg(&intf->dev, "looking for a minor, starting at %d\n", minor_base);
 
 	down_write(&minor_rwsem);
 	for (minor = minor_base; minor < MAX_USB_MINORS; ++minor) {
@@ -239,7 +239,7 @@ void usb_deregister_dev(struct usb_interface *intf,
 	if (intf->minor == -1)
 		return;
 
-	dbg ("removing %d minor", intf->minor);
+	dev_dbg(&intf->dev, "removing %d minor\n", intf->minor);
 
 	down_write(&minor_rwsem);
 	usb_minors[intf->minor] = NULL;

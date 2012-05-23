@@ -121,7 +121,7 @@ enum rtl8712_h2c_cmd {
 	GEN_CMD_CODE(_GetCurDataRate) ,
 
 	GEN_CMD_CODE(_GetTxRetrycnt),  /* to record times that Tx retry to
-					* transmmit packet after association
+					* transmit packet after association
 					*/
 	GEN_CMD_CODE(_GetRxRetrycnt),  /* to record total number of the
 					* received frame with ReTry bit set in

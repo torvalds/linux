@@ -421,6 +421,12 @@ static void pci_device_shutdown(struct device *dev)
 	pci_msix_shutdown(pci_dev);
 
 	/*
+	 * Turn off Bus Master bit on the device to tell it to not
+	 * continue to do DMA
+	 */
+	pci_disable_device(pci_dev);
+
+	/*
 	 * Devices may be enabled to wake up by runtime PM, but they need not
 	 * be supposed to wake up the system from its "power off" state (e.g.
 	 * ACPI S5).  Therefore disable wakeup for all devices that aren't

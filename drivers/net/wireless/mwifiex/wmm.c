@@ -1120,11 +1120,19 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	tx_info = MWIFIEX_SKB_TXCB(skb);
 
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, ra_list_flags);
-	tx_param.next_pkt_len =
-		((skb_next) ? skb_next->len +
-		 sizeof(struct txpd) : 0);
-	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA, skb,
-					   &tx_param);
+
+	if (adapter->iface_type == MWIFIEX_USB) {
+		adapter->data_sent = true;
+		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_USB_EP_DATA,
+						   skb, NULL);
+	} else {
+		tx_param.next_pkt_len =
+			((skb_next) ? skb_next->len +
+			 sizeof(struct txpd) : 0);
+		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
+						   skb, &tx_param);
+	}
+
 	switch (ret) {
 	case -EBUSY:
 		dev_dbg(adapter->dev, "data: -EBUSY is returned\n");

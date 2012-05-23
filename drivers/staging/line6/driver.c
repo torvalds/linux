@@ -92,14 +92,9 @@ const unsigned char line6_midi_id[] = {
 	Code to request version of POD, Variax interface
 	(and maybe other devices).
 */
-static const char line6_request_version0[] = {
+static const char line6_request_version[] = {
 	0xf0, 0x7e, 0x7f, 0x06, 0x01, 0xf7
 };
-
-/*
-	Copy of version request code with GFP_KERNEL flag for use in URB.
-*/
-static const char *line6_request_version;
 
 struct usb_line6 *line6_devices[LINE6_MAX_DEVICES];
 
@@ -336,8 +331,21 @@ int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer,
 */
 int line6_version_request_async(struct usb_line6 *line6)
 {
-	return line6_send_raw_message_async(line6, line6_request_version,
-					    sizeof(line6_request_version0));
+	char *buffer;
+	int retval;
+
+	buffer = kmalloc(sizeof(line6_request_version), GFP_ATOMIC);
+	if (buffer == NULL) {
+		dev_err(line6->ifcdev, "Out of memory");
+		return -ENOMEM;
+	}
+
+	memcpy(buffer, line6_request_version, sizeof(line6_request_version));
+
+	retval = line6_send_raw_message_async(line6, buffer,
+					      sizeof(line6_request_version));
+	kfree(buffer);
+	return retval;
 }
 
 /*
@@ -1292,69 +1300,7 @@ static struct usb_driver line6_driver = {
 	.id_table = line6_id_table,
 };
 
-/*
-	Module initialization.
-*/
-static int __init line6_init(void)
-{
-	int i, retval;
-
-	printk(KERN_INFO "%s driver version %s\n", DRIVER_NAME, DRIVER_VERSION);
-
-	for (i = LINE6_MAX_DEVICES; i--;)
-		line6_devices[i] = NULL;
-
-	retval = usb_register(&line6_driver);
-
-	if (retval) {
-		err("usb_register failed. Error number %d", retval);
-		return retval;
-	}
-
-	line6_request_version = kmalloc(sizeof(line6_request_version0),
-					GFP_KERNEL);
-
-	if (line6_request_version == NULL) {
-		err("Out of memory");
-		return -ENOMEM;
-	}
-
-	memcpy((char *)line6_request_version, line6_request_version0,
-	       sizeof(line6_request_version0));
-
-	return retval;
-}
-
-/*
-	Module cleanup.
-*/
-static void __exit line6_exit(void)
-{
-	int i;
-	struct usb_line6 *line6;
-	struct snd_line6_pcm *line6pcm;
-
-	/* stop all PCM channels */
-	for (i = LINE6_MAX_DEVICES; i--;) {
-		line6 = line6_devices[i];
-
-		if (line6 == NULL)
-			continue;
-
-		line6pcm = line6->line6pcm;
-
-		if (line6pcm == NULL)
-			continue;
-
-		line6_pcm_release(line6pcm, ~0);
-	}
-
-	usb_deregister(&line6_driver);
-	kfree(line6_request_version);
-}
-
-module_init(line6_init);
-module_exit(line6_exit);
+module_usb_driver(line6_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

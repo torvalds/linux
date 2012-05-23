@@ -558,9 +558,7 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 			__skb_queue_tail(&q->direct_queue, skb);
 			q->direct_pkts++;
 		} else {
-			kfree_skb(skb);
-			sch->qstats.drops++;
-			return NET_XMIT_DROP;
+			return qdisc_drop(skb, sch);
 		}
 #ifdef CONFIG_NET_CLS_ACT
 	} else if (!cl) {
@@ -576,7 +574,6 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		}
 		return ret;
 	} else {
-		bstats_update(&cl->bstats, skb);
 		htb_activate(q, cl);
 	}
 
@@ -837,6 +834,7 @@ next:
 	} while (cl != start);
 
 	if (likely(skb != NULL)) {
+		bstats_update(&cl->bstats, skb);
 		cl->un.leaf.deficit[level] -= qdisc_pkt_len(skb);
 		if (cl->un.leaf.deficit[level] < 0) {
 			cl->un.leaf.deficit[level] += cl->quantum;
@@ -1051,7 +1049,8 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	nest = nla_nest_start(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
-	NLA_PUT(skb, TCA_HTB_INIT, sizeof(gopt), &gopt);
+	if (nla_put(skb, TCA_HTB_INIT, sizeof(gopt), &gopt))
+		goto nla_put_failure;
 	nla_nest_end(skb, nest);
 
 	spin_unlock_bh(root_lock);
@@ -1090,7 +1089,8 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	opt.quantum = cl->quantum;
 	opt.prio = cl->prio;
 	opt.level = cl->level;
-	NLA_PUT(skb, TCA_HTB_PARMS, sizeof(opt), &opt);
+	if (nla_put(skb, TCA_HTB_PARMS, sizeof(opt), &opt))
+		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
 	spin_unlock_bh(root_lock);

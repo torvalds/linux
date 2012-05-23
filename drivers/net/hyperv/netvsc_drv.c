@@ -211,9 +211,13 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		net->stats.tx_packets++;
 	} else {
 		kfree(packet);
+		if (ret != -EAGAIN) {
+			dev_kfree_skb_any(skb);
+			net->stats.tx_dropped++;
+		}
 	}
 
-	return ret ? NETDEV_TX_BUSY : NETDEV_TX_OK;
+	return (ret == -EAGAIN) ? NETDEV_TX_BUSY : NETDEV_TX_OK;
 }
 
 /*
