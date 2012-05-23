@@ -764,6 +764,8 @@ out:
 static void tpci200_slot_remove(struct tpci200_slot *slot)
 {
 	if ((slot->dev == NULL) ||
+	    (slot->dev->driver == NULL) ||
+	    (slot->dev->driver->ops == NULL) ||
 	    (slot->dev->driver->ops->remove == NULL))
 		return;
 
