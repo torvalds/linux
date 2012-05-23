@@ -29,9 +29,6 @@ static int handle_signal(struct pt_regs *regs, unsigned long signr,
 	unsigned long sp;
 	int err;
 
-	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
-
 	/* Did we come from a system call? */
 	if (PT_REGS_SYSCALL_NR(regs) >= 0) {
 		/* If so, check system call restarting.. */
@@ -77,15 +74,14 @@ static int kern_do_signal(struct pt_regs *regs)
 {
 	struct k_sigaction ka_copy;
 	siginfo_t info;
-	sigset_t *oldset;
 	int sig, handled_sig = 0;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	while ((sig = get_signal_to_deliver(&info, &ka_copy, regs, NULL)) > 0) {
+		sigset_t *oldset;
+		if (test_thread_flag(TIF_RESTORE_SIGMASK))
+			oldset = &current->saved_sigmask;
+		else
+			oldset = &current->blocked;
 		handled_sig = 1;
 		/* Whee!  Actually deliver the signal.  */
 		if (!handle_signal(regs, sig, &ka_copy, &info, oldset)) {
