@@ -15,6 +15,8 @@
 #include "pci.h"
 
 DECLARE_RWSEM(pci_bus_sem);
+EXPORT_SYMBOL_GPL(pci_bus_sem);
+
 /*
  * find the upstream PCIe-to-PCI bridge of a PCI device
  * if the device is PCIE, return NULL

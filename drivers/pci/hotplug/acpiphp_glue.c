@@ -878,6 +878,24 @@ static void disable_bridges(struct pci_bus *bus)
 	}
 }
 
+/* return first device in slot, acquiring a reference on it */
+static struct pci_dev *dev_in_slot(struct acpiphp_slot *slot)
+{
+	struct pci_bus *bus = slot->bridge->pci_bus;
+	struct pci_dev *dev;
+	struct pci_dev *ret = NULL;
+
+	down_read(&pci_bus_sem);
+	list_for_each_entry(dev, &bus->devices, bus_list)
+		if (PCI_SLOT(dev->devfn) == slot->device) {
+			ret = pci_dev_get(dev);
+			break;
+		}
+	up_read(&pci_bus_sem);
+
+	return ret;
+}
+
 /**
  * disable_device - disable a slot
  * @slot: ACPI PHP slot
@@ -902,18 +920,22 @@ static int disable_device(struct acpiphp_slot *slot)
 						(u32)1, NULL, NULL);
 			func->bridge = NULL;
 		}
+	}
 
-		pdev = pci_get_slot(slot->bridge->pci_bus,
-				    PCI_DEVFN(slot->device, func->function));
-		if (pdev) {
-			pci_stop_bus_device(pdev);
-			if (pdev->subordinate) {
-				disable_bridges(pdev->subordinate);
-				pci_disable_device(pdev);
-			}
-			__pci_remove_bus_device(pdev);
-			pci_dev_put(pdev);
+	/*
+	 * enable_device() enumerates all functions in this device via
+	 * pci_scan_slot(), whether they have associated ACPI hotplug
+	 * methods (_EJ0, etc.) or not.  Therefore, we remove all functions
+	 * here.
+	 */
+	while ((pdev = dev_in_slot(slot))) {
+		pci_stop_bus_device(pdev);
+		if (pdev->subordinate) {
+			disable_bridges(pdev->subordinate);
+			pci_disable_device(pdev);
 		}
+		__pci_remove_bus_device(pdev);
+		pci_dev_put(pdev);
 	}
 
 	list_for_each_entry(func, &slot->funcs, sibling) {
