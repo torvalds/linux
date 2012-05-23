@@ -6,6 +6,7 @@
 #include <asm/mmu.h>
 
 #include <linux/smp.h>
+#include <linux/percpu.h>
 
 static inline void fill_ldt(struct desc_struct *desc, const struct user_desc *info)
 {

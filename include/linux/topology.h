@@ -239,7 +239,7 @@ static inline int cpu_to_node(int cpu)
 #ifndef set_numa_node
 static inline void set_numa_node(int node)
 {
-	percpu_write(numa_node, node);
+	this_cpu_write(numa_node, node);
 }
 #endif
 
@@ -274,7 +274,7 @@ DECLARE_PER_CPU(int, _numa_mem_);
 #ifndef set_numa_mem
 static inline void set_numa_mem(int node)
 {
-	percpu_write(_numa_mem_, node);
+	this_cpu_write(_numa_mem_, node);
 }
 #endif
 
