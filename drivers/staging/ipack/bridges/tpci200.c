@@ -551,20 +551,15 @@ out:
 
 static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
 {
-	int res;
 	struct ipack_addr_space *virt_addr_space;
 	struct tpci200_board *tpci200;
 
 	tpci200 = check_slot(dev);
-	if (tpci200 == NULL) {
-		res = -EINVAL;
-		goto out;
-	}
+	if (tpci200 == NULL)
+		return -EINVAL;
 
-	if (mutex_lock_interruptible(&tpci200->mutex)) {
-		res = -ERESTARTSYS;
-		goto out;
-	}
+	if (mutex_lock_interruptible(&tpci200->mutex))
+		return -ERESTARTSYS;
 
 	switch (space) {
 	case IPACK_IO_SPACE:
@@ -594,9 +589,8 @@ static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
 	default:
 		pr_err("Slot [%d:%d] space number %d doesn't exist !\n",
 		       dev->bus_nr, dev->slot, space);
-		res = -EINVAL;
-		goto out_unlock;
-		break;
+		mutex_unlock(&tpci200->mutex);
+		return -EINVAL;
 	}
 
 	iounmap(virt_addr_space->address);
@@ -605,8 +599,7 @@ static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
 	virt_addr_space->size = 0;
 out_unlock:
 	mutex_unlock(&tpci200->mutex);
-out:
-	return res;
+	return 0;
 }
 
 static int tpci200_slot_unregister(struct ipack_device *dev)
