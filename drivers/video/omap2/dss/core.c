@@ -194,8 +194,7 @@ static inline int dss_initialize_debugfs(void)
 static inline void dss_uninitialize_debugfs(void)
 {
 }
-static inline int dss_debugfs_create_file(const char *name,
-		void (*write)(struct seq_file *))
+int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
 {
 	return 0;
 }
