@@ -143,10 +143,7 @@ static int au_hfsn_handle_event(struct fsnotify_group *group,
 	struct au_hnotify *hnotify;
 	struct inode *h_dir, *h_inode;
 	__u32 mask;
-	struct qstr h_child_qstr = {
-		.name	= event->file_name,
-		.len	= event->name_len
-	};
+	struct qstr h_child_qstr = QSTR_INIT(event->file_name, event->name_len);
 
 	AuDebugOn(event->data_type != FSNOTIFY_EVENT_INODE);
 

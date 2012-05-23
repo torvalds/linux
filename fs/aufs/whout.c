@@ -28,10 +28,8 @@
  * If a directory contains this file, then it is opaque.  We start with the
  * .wh. flag so that it is blocked by lookup.
  */
-static struct qstr diropq_name = {
-	.name = AUFS_WH_DIROPQ,
-	.len = sizeof(AUFS_WH_DIROPQ) - 1
-};
+static struct qstr diropq_name = QSTR_INIT(AUFS_WH_DIROPQ,
+					   sizeof(AUFS_WH_DIROPQ) - 1);
 
 /*
  * generate whiteout name, which is NOT terminated by NULL.
@@ -448,18 +446,12 @@ int au_wh_init(struct dentry *h_root, struct au_branch *br,
 	struct inode *h_dir;
 	struct au_wbr *wbr = br->br_wbr;
 	static const struct qstr base_name[] = {
-		[AuBrWh_BASE] = {
-			.name	= AUFS_BASE_NAME,
-			.len	= sizeof(AUFS_BASE_NAME) - 1
-		},
-		[AuBrWh_PLINK] = {
-			.name	= AUFS_PLINKDIR_NAME,
-			.len	= sizeof(AUFS_PLINKDIR_NAME) - 1
-		},
-		[AuBrWh_ORPH] = {
-			.name	= AUFS_ORPHDIR_NAME,
-			.len	= sizeof(AUFS_ORPHDIR_NAME) - 1
-		}
+		[AuBrWh_BASE] = QSTR_INIT(AUFS_BASE_NAME,
+					  sizeof(AUFS_BASE_NAME) - 1),
+		[AuBrWh_PLINK] = QSTR_INIT(AUFS_PLINKDIR_NAME,
+					   sizeof(AUFS_PLINKDIR_NAME) - 1),
+		[AuBrWh_ORPH] = QSTR_INIT(AUFS_ORPHDIR_NAME,
+					  sizeof(AUFS_ORPHDIR_NAME) - 1)
 	};
 	struct au_wh_base base[] = {
 		[AuBrWh_BASE] = {
