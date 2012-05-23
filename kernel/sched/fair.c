@@ -3574,11 +3574,26 @@ void update_group_power(struct sched_domain *sd, int cpu)
 
 	power = 0;
 
-	group = child->groups;
-	do {
-		power += group->sgp->power;
-		group = group->next;
-	} while (group != child->groups);
+	if (child->flags & SD_OVERLAP) {
+		/*
+		 * SD_OVERLAP domains cannot assume that child groups
+		 * span the current group.
+		 */
+
+		for_each_cpu(cpu, sched_group_cpus(sdg))
+			power += power_of(cpu);
+	} else  {
+		/*
+		 * !SD_OVERLAP domains can assume that child groups
+		 * span the current group.
+		 */ 
+
+		group = child->groups;
+		do {
+			power += group->sgp->power;
+			group = group->next;
+		} while (group != child->groups);
+	}
 
 	sdg->sgp->power = power;
 }
