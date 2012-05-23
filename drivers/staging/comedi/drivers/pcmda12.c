@@ -80,11 +80,6 @@ static const struct comedi_lrange pcmda12_ranges = {
 	 }
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct pcmda12_board *)dev->board_ptr)
-
 struct pcmda12_private {
 
 	unsigned int ao_readback[CHANS];
@@ -167,6 +162,7 @@ static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int pcmda12_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	const struct pcmda12_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 
@@ -181,11 +177,7 @@ static int pcmda12_attach(struct comedi_device *dev,
 	}
 	dev->iobase = iobase;
 
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
 /*
  * Allocate the private structure area.  alloc_private() is a
