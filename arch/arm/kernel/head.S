@@ -95,7 +95,11 @@ ENTRY(stext)
 	mov	r0, #0
 	b	_real_start
 
-#if CONFIG_CHIP_ID == 1123
+#if CONFIG_CHIP_ID == 1120
+#warning "chip id: 1120"
+1:	.long 0xf37
+	.long 0x40000000
+#elif CONFIG_CHIP_ID == 1123
 #warning "chip id: 1123"
 1:	.long 0xf34
 	.long 0x40000000
