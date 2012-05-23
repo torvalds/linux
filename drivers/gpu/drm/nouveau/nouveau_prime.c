@@ -61,7 +61,7 @@ static void nouveau_gem_kunmap(struct dma_buf *dma_buf, unsigned long page_num, 
 
 }
 
-struct dma_buf_ops nouveau_dmabuf_ops =  {
+static const struct dma_buf_ops nouveau_dmabuf_ops =  {
 	.map_dma_buf = nouveau_gem_map_dma_buf,
 	.unmap_dma_buf = nouveau_gem_unmap_dma_buf,
 	.release = nouveau_gem_dmabuf_release,

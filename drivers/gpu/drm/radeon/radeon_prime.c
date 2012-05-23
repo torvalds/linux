@@ -85,7 +85,7 @@ static void radeon_gem_kunmap(struct dma_buf *dma_buf, unsigned long page_num, v
 
 }
 
-struct dma_buf_ops radeon_dmabuf_ops =  {
+const static struct dma_buf_ops radeon_dmabuf_ops =  {
 	.map_dma_buf = radeon_gem_map_dma_buf,
 	.unmap_dma_buf = radeon_gem_unmap_dma_buf,
 	.release = radeon_gem_dmabuf_release,
