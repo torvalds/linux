@@ -5621,6 +5621,7 @@ static int nfs41_check_session_ready(struct nfs_client *clp)
 	}
 	if (clp->cl_cons_state < NFS_CS_READY)
 		return -EPROTONOSUPPORT;
+	smp_rmb();
 	return 0;
 }
 

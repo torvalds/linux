@@ -459,6 +459,8 @@ static bool nfs4_cb_match_client(const struct sockaddr *addr,
 	    clp->cl_cons_state == NFS_CS_SESSION_INITING))
 		return false;
 
+	smp_rmb();
+
 	/* Match the version and minorversion */
 	if (clp->rpc_ops->version != 4 ||
 	    clp->cl_minorversion != minorversion)
@@ -539,6 +541,8 @@ nfs_found_client(const struct nfs_client_initdata *cl_init,
 		return ERR_PTR(error);
 	}
 
+	smp_rmb();
+
 	BUG_ON(clp->cl_cons_state != NFS_CS_READY);
 
 	dprintk("<-- %s found nfs_client %p for %s\n",
@@ -597,6 +601,7 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
  */
 void nfs_mark_client_ready(struct nfs_client *clp, int state)
 {
+	smp_wmb();
 	clp->cl_cons_state = state;
 	wake_up_all(&nfs_client_active_wq);
 }

@@ -548,6 +548,7 @@ restart:
 		/* Skip nfs_clients that failed to initialise */
 		if (clp->cl_cons_state < 0)
 			continue;
+		smp_rmb();
 		if (clp->rpc_ops != &nfs_v4_clientops)
 			continue;
 		cl_dentry = clp->cl_idmap->idmap_pipe->dentry;
