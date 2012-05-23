@@ -368,7 +368,7 @@ struct regmap *regmap_init(struct device *dev,
 
 	ret = regcache_init(map, config);
 	if (ret < 0)
-		goto err_free_workbuf;
+		goto err_debugfs;
 
 	/* Add a devres resource for dev_get_regmap() */
 	m = devres_alloc(dev_get_regmap_release, sizeof(*m), GFP_KERNEL);
@@ -383,7 +383,8 @@ struct regmap *regmap_init(struct device *dev,
 
 err_cache:
 	regcache_exit(map);
-err_free_workbuf:
+err_debugfs:
+	regmap_debugfs_exit(map);
 	kfree(map->work_buf);
 err_map:
 	kfree(map);
