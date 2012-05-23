@@ -942,7 +942,7 @@ config UIDGID_CONVERTED
 	depends on PROC_EVENTS = n
 
 	# Networking
-	depends on NET = n
+	depends on PACKET = n
 	depends on NET_9P = n
 	depends on IPX = n
 	depends on PHONET = n
