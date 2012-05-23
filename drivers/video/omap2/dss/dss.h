@@ -244,6 +244,7 @@ int dss_mgr_check_timings(struct omap_overlay_manager *mgr,
 int dss_mgr_check(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info,
 		const struct omap_video_timings *mgr_timings,
+		const struct dss_lcd_mgr_config *config,
 		struct omap_overlay_info **overlay_infos);
 
 static inline bool dss_mgr_is_lcd(enum omap_channel id)

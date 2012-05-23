@@ -226,7 +226,7 @@ static int dss_check_settings_low(struct omap_overlay_manager *mgr,
 		ois[ovl->id] = oi;
 	}
 
-	return dss_mgr_check(mgr, mi, &mp->timings, ois);
+	return dss_mgr_check(mgr, mi, &mp->timings, &mp->lcd_config, ois);
 }
 
 /*
