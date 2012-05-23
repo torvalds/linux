@@ -55,9 +55,9 @@
 #define		MT9P031_HORIZONTAL_BLANK_MIN		0
 #define		MT9P031_HORIZONTAL_BLANK_MAX		4095
 #define MT9P031_VERTICAL_BLANK				0x06
-#define		MT9P031_VERTICAL_BLANK_MIN		0
-#define		MT9P031_VERTICAL_BLANK_MAX		4095
-#define		MT9P031_VERTICAL_BLANK_DEF		25
+#define		MT9P031_VERTICAL_BLANK_MIN		1
+#define		MT9P031_VERTICAL_BLANK_MAX		4096
+#define		MT9P031_VERTICAL_BLANK_DEF		26
 #define MT9P031_OUTPUT_CONTROL				0x07
 #define		MT9P031_OUTPUT_CONTROL_CEN		2
 #define		MT9P031_OUTPUT_CONTROL_SYN		1
@@ -368,13 +368,13 @@ static int mt9p031_set_params(struct mt9p031 *mt9p031)
 	/* Blanking - use minimum value for horizontal blanking and default
 	 * value for vertical blanking.
 	 */
-	hblank = 346 * ybin + 64 + (80 >> max_t(unsigned int, xbin, 3));
+	hblank = 346 * ybin + 64 + (80 >> min_t(unsigned int, xbin, 3));
 	vblank = MT9P031_VERTICAL_BLANK_DEF;
 
-	ret = mt9p031_write(client, MT9P031_HORIZONTAL_BLANK, hblank);
+	ret = mt9p031_write(client, MT9P031_HORIZONTAL_BLANK, hblank - 1);
 	if (ret < 0)
 		return ret;
-	ret = mt9p031_write(client, MT9P031_VERTICAL_BLANK, vblank);
+	ret = mt9p031_write(client, MT9P031_VERTICAL_BLANK, vblank - 1);
 	if (ret < 0)
 		return ret;
 
