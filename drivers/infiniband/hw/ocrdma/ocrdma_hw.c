@@ -732,7 +732,7 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 		break;
 	case OCRDMA_SRQ_LIMIT_EVENT:
 		ib_evt.element.srq = &qp->srq->ibsrq;
-		ib_evt.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		ib_evt.event = IB_EVENT_SRQ_LIMIT_REACHED;
 		srq_event = 1;
 		qp_event = 0;
 		break;
