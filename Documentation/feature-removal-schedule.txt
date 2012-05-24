@@ -588,3 +588,9 @@ Why:	Remount currently allows changing bound subsystems and
 	replaced with conventional fsnotify.
 
 ----------------------------
+
+What:	net/wanrouter/
+When:	June 2013
+Why:	Unsupported/unmaintained/unused since 2.6
+
+----------------------------
