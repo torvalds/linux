@@ -43,6 +43,14 @@ struct reg_default {
 
 #ifdef CONFIG_REGMAP
 
+enum regmap_endian {
+	/* Unspecified -> 0 -> Backwards compatible default */
+	REGMAP_ENDIAN_DEFAULT = 0,
+	REGMAP_ENDIAN_BIG,
+	REGMAP_ENDIAN_LITTLE,
+	REGMAP_ENDIAN_NATIVE,
+};
+
 /**
  * Configuration for the register map of a device.
  *
@@ -84,6 +92,12 @@ struct reg_default {
  * @reg_defaults_raw: Power on reset values for registers (for use with
  *                    register cache support).
  * @num_reg_defaults_raw: Number of elements in reg_defaults_raw.
+ * @reg_format_endian: Endianness for formatted register addresses. If this is
+ *                     DEFAULT, the @reg_format_endian_default value from the
+ *                     regmap bus is used.
+ * @val_format_endian: Endianness for formatted register values. If this is
+ *                     DEFAULT, the @reg_format_endian_default value from the
+ *                     regmap bus is used.
  */
 struct regmap_config {
 	const char *name;
@@ -109,6 +123,9 @@ struct regmap_config {
 	u8 write_flag_mask;
 
 	bool use_single_rw;
+
+	enum regmap_endian reg_format_endian;
+	enum regmap_endian val_format_endian;
 };
 
 typedef int (*regmap_hw_write)(void *context, const void *data,
@@ -133,6 +150,12 @@ typedef void (*regmap_hw_free_context)(void *context);
  *         data.
  * @read_flag_mask: Mask to be set in the top byte of the register when doing
  *                  a read.
+ * @reg_format_endian_default: Default endianness for formatted register
+ *     addresses. Used when the regmap_config specifies DEFAULT. If this is
+ *     DEFAULT, BIG is assumed.
+ * @val_format_endian_default: Default endianness for formatted register
+ *     values. Used when the regmap_config specifies DEFAULT. If this is
+ *     DEFAULT, BIG is assumed.
  */
 struct regmap_bus {
 	bool fast_io;
@@ -141,6 +164,8 @@ struct regmap_bus {
 	regmap_hw_read read;
 	regmap_hw_free_context free_context;
 	u8 read_flag_mask;
+	enum regmap_endian reg_format_endian_default;
+	enum regmap_endian val_format_endian_default;
 };
 
 struct regmap *regmap_init(struct device *dev,
