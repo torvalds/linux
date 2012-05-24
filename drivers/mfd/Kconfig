@@ -425,6 +425,7 @@ config MFD_MAX77693
 	bool "Maxim Semiconductor MAX77693 PMIC Support"
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
+	select REGMAP_I2C
 	help
 	  Say yes here to support for Maxim Semiconductor MAX77693.
 	  This is a companion Power Management IC with Flash, Haptic, Charger,
