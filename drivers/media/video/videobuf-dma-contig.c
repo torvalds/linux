@@ -40,7 +40,7 @@ struct videobuf_dma_contig_memory {
 
 static int __videobuf_dc_alloc(struct device *dev,
 			       struct videobuf_dma_contig_memory *mem,
-			       unsigned long size, unsigned long flags)
+			       unsigned long size, gfp_t flags)
 {
 	mem->size = size;
 	if (mem->cached) {
