@@ -1244,6 +1244,7 @@ static unsigned int ixgbe_get_headlen(unsigned char *data,
 		struct vlan_hdr *vlan;
 		/* l3 headers */
 		struct iphdr *ipv4;
+		struct ipv6hdr *ipv6;
 	} hdr;
 	__be16 protocol;
 	u8 nexthdr = 0;	/* default to not TCP */
@@ -1284,6 +1285,13 @@ static unsigned int ixgbe_get_headlen(unsigned char *data,
 		/* record next protocol */
 		nexthdr = hdr.ipv4->protocol;
 		hdr.network += hlen;
+	} else if (protocol == __constant_htons(ETH_P_IPV6)) {
+		if ((hdr.network - data) > (max_len - sizeof(struct ipv6hdr)))
+			return max_len;
+
+		/* record next protocol */
+		nexthdr = hdr.ipv6->nexthdr;
+		hdr.network += sizeof(struct ipv6hdr);
 #ifdef IXGBE_FCOE
 	} else if (protocol == __constant_htons(ETH_P_FCOE)) {
 		if ((hdr.network - data) > (max_len - FCOE_HEADER_LEN))
@@ -1294,7 +1302,7 @@ static unsigned int ixgbe_get_headlen(unsigned char *data,
 		return hdr.network - data;
 	}
 
-	/* finally sort out TCP */
+	/* finally sort out TCP/UDP */
 	if (nexthdr == IPPROTO_TCP) {
 		if ((hdr.network - data) > (max_len - sizeof(struct tcphdr)))
 			return max_len;
@@ -1307,6 +1315,11 @@ static unsigned int ixgbe_get_headlen(unsigned char *data,
 			return hdr.network - data;
 
 		hdr.network += hlen;
+	} else if (nexthdr == IPPROTO_UDP) {
+		if ((hdr.network - data) > (max_len - sizeof(struct udphdr)))
+			return max_len;
+
+		hdr.network += sizeof(struct udphdr);
 	}
 
 	/*
