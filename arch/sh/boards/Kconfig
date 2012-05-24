@@ -292,6 +292,7 @@ config SH_X3PROTO
 	bool "SH-X3 Prototype board"
 	depends on CPU_SUBTYPE_SHX3
 	select NO_IOPORT if !PCI
+	select IRQ_DOMAIN
 
 config SH_MAGIC_PANEL_R2
 	bool "Magic Panel R2"
