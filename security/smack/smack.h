@@ -43,7 +43,6 @@ struct superblock_smack {
 	char		*smk_hat;
 	char		*smk_default;
 	int		smk_initialized;
-	spinlock_t	smk_sblock;	/* for initialization */
 };
 
 struct socket_smack {

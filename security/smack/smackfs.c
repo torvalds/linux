@@ -2051,7 +2051,6 @@ static int smk_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	root_inode = sb->s_root->d_inode;
-	root_inode->i_security = new_inode_smack(smack_known_floor.smk_known);
 
 	return 0;
 }

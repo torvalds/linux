@@ -251,7 +251,6 @@ static int smack_sb_alloc_security(struct super_block *sb)
 	sbsp->smk_floor = smack_known_floor.smk_known;
 	sbsp->smk_hat = smack_known_hat.smk_known;
 	sbsp->smk_initialized = 0;
-	spin_lock_init(&sbsp->smk_sblock);
 
 	sb->s_security = sbsp;
 
@@ -332,13 +331,10 @@ static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 	char *commap;
 	char *nsp;
 
-	spin_lock(&sp->smk_sblock);
-	if (sp->smk_initialized != 0) {
-		spin_unlock(&sp->smk_sblock);
+	if (sp->smk_initialized != 0)
 		return 0;
-	}
+
 	sp->smk_initialized = 1;
-	spin_unlock(&sp->smk_sblock);
 
 	for (op = data; op != NULL; op = commap) {
 		commap = strchr(op, ',');
