@@ -1073,4 +1073,15 @@ static inline void snd_pcm_limit_isa_dma_size(int dma, size_t *max)
 
 const char *snd_pcm_format_name(snd_pcm_format_t format);
 
+/**
+ * Get a string naming the direction of a stream
+ */
+static inline const char *snd_pcm_stream_str(struct snd_pcm_substream *substream)
+{
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return "Playback";
+	else
+		return "Capture";
+}
+
 #endif /* __SOUND_PCM_H */
