@@ -35,6 +35,7 @@
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/clk.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -51,6 +52,7 @@ static int dapm_up_seq[] = {
 	[snd_soc_dapm_pre] = 0,
 	[snd_soc_dapm_supply] = 1,
 	[snd_soc_dapm_regulator_supply] = 1,
+	[snd_soc_dapm_clock_supply] = 1,
 	[snd_soc_dapm_micbias] = 2,
 	[snd_soc_dapm_dai_link] = 2,
 	[snd_soc_dapm_dai] = 3,
@@ -92,6 +94,7 @@ static int dapm_down_seq[] = {
 	[snd_soc_dapm_aif_out] = 10,
 	[snd_soc_dapm_dai] = 10,
 	[snd_soc_dapm_dai_link] = 11,
+	[snd_soc_dapm_clock_supply] = 12,
 	[snd_soc_dapm_regulator_supply] = 12,
 	[snd_soc_dapm_supply] = 12,
 	[snd_soc_dapm_post] = 13,
@@ -391,6 +394,7 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	case snd_soc_dapm_vmid:
 	case snd_soc_dapm_supply:
 	case snd_soc_dapm_regulator_supply:
+	case snd_soc_dapm_clock_supply:
 	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_aif_out:
 	case snd_soc_dapm_dai:
@@ -764,6 +768,7 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 	switch (widget->id) {
 	case snd_soc_dapm_supply:
 	case snd_soc_dapm_regulator_supply:
+	case snd_soc_dapm_clock_supply:
 		return 0;
 	default:
 		break;
@@ -850,6 +855,7 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
 	switch (widget->id) {
 	case snd_soc_dapm_supply:
 	case snd_soc_dapm_regulator_supply:
+	case snd_soc_dapm_clock_supply:
 		return 0;
 	default:
 		break;
@@ -995,6 +1001,24 @@ int dapm_regulator_event(struct snd_soc_dapm_widget *w,
 		return regulator_disable_deferred(w->regulator, w->shift);
 }
 EXPORT_SYMBOL_GPL(dapm_regulator_event);
+
+/*
+ * Handler for clock supply widget.
+ */
+int dapm_clock_event(struct snd_soc_dapm_widget *w,
+		   struct snd_kcontrol *kcontrol, int event)
+{
+	if (!w->clk)
+		return -EIO;
+
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		return clk_enable(w->clk);
+	} else {
+		clk_disable(w->clk);
+		return 0;
+	}
+}
+EXPORT_SYMBOL_GPL(dapm_clock_event);
 
 static int dapm_widget_power_check(struct snd_soc_dapm_widget *w)
 {
@@ -1487,6 +1511,7 @@ static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
 	switch (w->id) {
 	case snd_soc_dapm_supply:
 	case snd_soc_dapm_regulator_supply:
+	case snd_soc_dapm_clock_supply:
 		/* Supplies can't affect their outputs, only their inputs */
 		break;
 	default:
@@ -1587,6 +1612,7 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 				break;
 			case snd_soc_dapm_supply:
 			case snd_soc_dapm_regulator_supply:
+			case snd_soc_dapm_clock_supply:
 			case snd_soc_dapm_micbias:
 				if (d->target_bias_level < SND_SOC_BIAS_STANDBY)
 					d->target_bias_level = SND_SOC_BIAS_STANDBY;
@@ -1941,6 +1967,7 @@ static ssize_t dapm_widget_show(struct device *dev,
 		case snd_soc_dapm_mixer_named_ctl:
 		case snd_soc_dapm_supply:
 		case snd_soc_dapm_regulator_supply:
+		case snd_soc_dapm_clock_supply:
 			if (w->name)
 				count += sprintf(buf + count, "%s: %s\n",
 					w->name, w->power ? "On":"Off");
@@ -2187,6 +2214,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	case snd_soc_dapm_post:
 	case snd_soc_dapm_supply:
 	case snd_soc_dapm_regulator_supply:
+	case snd_soc_dapm_clock_supply:
 	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_aif_out:
 	case snd_soc_dapm_dai:
@@ -2873,6 +2901,15 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 			return NULL;
 		}
 		break;
+	case snd_soc_dapm_clock_supply:
+		w->clk = clk_get(dapm->dev, w->name);
+		if (IS_ERR(w->clk)) {
+			ret = PTR_ERR(w->clk);
+			dev_err(dapm->dev, "Failed to request %s: %d\n",
+				w->name, ret);
+			return NULL;
+		}
+		break;
 	default:
 		break;
 	}
@@ -2924,6 +2961,7 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 		break;
 	case snd_soc_dapm_supply:
 	case snd_soc_dapm_regulator_supply:
+	case snd_soc_dapm_clock_supply:
 		w->power_check = dapm_supply_check_power;
 		break;
 	case snd_soc_dapm_dai:

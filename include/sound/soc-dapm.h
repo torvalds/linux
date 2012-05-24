@@ -229,6 +229,10 @@ struct device;
 {	.id = snd_soc_dapm_adc, .name = wname, .sname = stname, .reg = wreg, \
 	.shift = wshift, .invert = winvert, \
 	.event = wevent, .event_flags = wflags}
+#define SND_SOC_DAPM_CLOCK_SUPPLY(wname) \
+{	.id = snd_soc_dapm_clock_supply, .name = wname, \
+	.reg = SND_SOC_NOPM, .event = dapm_clock_event, \
+	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD }
 
 /* generic widgets */
 #define SND_SOC_DAPM_REG(wid, wname, wreg, wshift, wmask, won_val, woff_val) \
@@ -244,6 +248,7 @@ struct device;
 {	.id = snd_soc_dapm_regulator_supply, .name = wname, \
 	.reg = SND_SOC_NOPM, .shift = wdelay, .event = dapm_regulator_event, \
 	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD }
+
 
 /* dapm kcontrol types */
 #define SOC_DAPM_SINGLE(xname, reg, shift, max, invert) \
@@ -326,6 +331,8 @@ struct snd_soc_dapm_widget_list;
 int dapm_reg_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 int dapm_regulator_event(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *kcontrol, int event);
+int dapm_clock_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event);
 
 /* dapm controls */
@@ -432,6 +439,7 @@ enum snd_soc_dapm_type {
 	snd_soc_dapm_post,			/* machine specific post widget - exec last */
 	snd_soc_dapm_supply,		/* power/clock supply */
 	snd_soc_dapm_regulator_supply,	/* external regulator */
+	snd_soc_dapm_clock_supply,	/* external clock */
 	snd_soc_dapm_aif_in,		/* audio interface input */
 	snd_soc_dapm_aif_out,		/* audio interface output */
 	snd_soc_dapm_siggen,		/* signal generator */
@@ -537,6 +545,8 @@ struct snd_soc_dapm_widget {
 	struct list_head dirty;
 	int inputs;
 	int outputs;
+
+	struct clk *clk;
 };
 
 struct snd_soc_dapm_update {
