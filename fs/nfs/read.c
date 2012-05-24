@@ -152,6 +152,7 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	nfs_pageio_init_read(&pgio, inode, &nfs_async_read_completion_ops);
 	nfs_pageio_add_request(&pgio, new);
 	nfs_pageio_complete(&pgio);
+	NFS_I(inode)->read_io += pgio.pg_bytes_written;
 	return 0;
 }
 
@@ -656,6 +657,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	ret = read_cache_pages(mapping, pages, readpage_async_filler, &desc);
 
 	nfs_pageio_complete(&pgio);
+	NFS_I(inode)->read_io += pgio.pg_bytes_written;
 	npages = (pgio.pg_bytes_written + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	nfs_add_stats(inode, NFSIOS_READPAGES, npages);
 read_complete:

@@ -202,6 +202,9 @@ struct nfs_inode {
 	/* pNFS layout information */
 	struct pnfs_layout_hdr *layout;
 #endif /* CONFIG_NFS_V4*/
+	/* how many bytes have been written/read and how many bytes queued up */
+	__u64 write_io;
+	__u64 read_io;
 #ifdef CONFIG_NFS_FSCACHE
 	struct fscache_cookie	*fscache;
 #endif
