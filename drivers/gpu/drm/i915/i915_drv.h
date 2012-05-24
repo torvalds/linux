@@ -1315,8 +1315,8 @@ int __must_check i915_gem_idle(struct drm_device *dev);
 int __must_check i915_add_request(struct intel_ring_buffer *ring,
 				  struct drm_file *file,
 				  struct drm_i915_gem_request *request);
-int __must_check i915_wait_request(struct intel_ring_buffer *ring,
-				   uint32_t seqno);
+int __must_check i915_wait_seqno(struct intel_ring_buffer *ring,
+				 uint32_t seqno);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int __must_check
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,
