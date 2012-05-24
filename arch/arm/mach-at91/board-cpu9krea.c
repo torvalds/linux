@@ -253,8 +253,7 @@ static struct gpio_led cpu9krea_leds[] = {
 
 static struct i2c_board_info __initdata cpu9krea_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("rtc-ds1307", 0x68),
-		.type	= "ds1339",
+		I2C_BOARD_INFO("ds1339", 0x68),
 	},
 };
 
