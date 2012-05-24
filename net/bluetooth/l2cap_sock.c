@@ -88,8 +88,8 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	if (err < 0)
 		goto done;
 
-	if (__le16_to_cpu(la.l2_psm) == 0x0001 ||
-				__le16_to_cpu(la.l2_psm) == 0x0003)
+	if (__le16_to_cpu(la.l2_psm) == L2CAP_PSM_SDP ||
+	    __le16_to_cpu(la.l2_psm) == L2CAP_PSM_RFCOMM)
 		chan->sec_level = BT_SECURITY_SDP;
 
 	bacpy(&bt_sk(sk)->src, &la.l2_bdaddr);

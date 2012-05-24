@@ -229,6 +229,10 @@ struct l2cap_conn_rsp {
 	__le16     status;
 } __packed;
 
+/* protocol/service multiplexer (PSM) */
+#define L2CAP_PSM_SDP		0x0001
+#define L2CAP_PSM_RFCOMM	0x0003
+
 /* channel indentifier */
 #define L2CAP_CID_SIGNALING	0x0001
 #define L2CAP_CID_CONN_LESS	0x0002

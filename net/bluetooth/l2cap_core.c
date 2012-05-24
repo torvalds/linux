@@ -648,7 +648,7 @@ static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 		default:
 			return HCI_AT_NO_BONDING;
 		}
-	} else if (chan->psm == cpu_to_le16(0x0001)) {
+	} else if (chan->psm == __constant_cpu_to_le16(L2CAP_PSM_SDP)) {
 		if (chan->sec_level == BT_SECURITY_LOW)
 			chan->sec_level = BT_SECURITY_SDP;
 
@@ -3393,7 +3393,7 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	lock_sock(parent);
 
 	/* Check if the ACL is secure enough (if not SDP) */
-	if (psm != cpu_to_le16(0x0001) &&
+	if (psm != __constant_cpu_to_le16(L2CAP_PSM_SDP) &&
 				!hci_conn_check_link_mode(conn->hcon)) {
 		conn->disc_reason = HCI_ERROR_AUTH_FAILURE;
 		result = L2CAP_CR_SEC_BLOCK;
