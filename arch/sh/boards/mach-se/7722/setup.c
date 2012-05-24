@@ -2,6 +2,7 @@
  * linux/arch/sh/boards/se/7722/setup.c
  *
  * Copyright (C) 2007 Nobuhiro Iwamatsu
+ * Copyright (C) 2012 Paul Mundt
  *
  * Hitachi UL SolutionEngine 7722 Support.
  *
@@ -15,6 +16,7 @@
 #include <linux/ata_platform.h>
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
+#include <linux/irqdomain.h>
 #include <linux/smc91x.h>
 #include <mach-se/mach/se7722.h>
 #include <mach-se/mach/mrshpc.h>
@@ -142,10 +144,10 @@ static int __init se7722_devices_setup(void)
 
 	/* Wire-up dynamic vectors */
 	cf_ide_resources[2].start = cf_ide_resources[2].end =
-		se7722_fpga_irq[SE7722_FPGA_IRQ_MRSHPC0];
+		irq_find_mapping(se7722_irq_domain, SE7722_FPGA_IRQ_MRSHPC0);
 
 	smc91x_eth_resources[1].start = smc91x_eth_resources[1].end =
-		se7722_fpga_irq[SE7722_FPGA_IRQ_SMC];
+		irq_find_mapping(se7722_irq_domain, SE7722_FPGA_IRQ_SMC);
 
 	return platform_add_devices(se7722_devices, ARRAY_SIZE(se7722_devices));
 }
