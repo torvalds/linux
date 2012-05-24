@@ -29,7 +29,7 @@ static bool matrix_keypad_map_key(struct input_dev *input_dev,
 				  unsigned int rows, unsigned int cols,
 				  unsigned int row_shift, unsigned int key)
 {
-	unsigned char *keymap = input_dev->keycode;
+	unsigned short *keymap = input_dev->keycode;
 	unsigned int row = KEY_ROW(key);
 	unsigned int col = KEY_COL(key);
 	unsigned short code = KEY_VAL(key);
