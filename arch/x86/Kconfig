@@ -85,6 +85,13 @@ config X86
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_SECCOMP_FILTER
 	select BUILDTIME_EXTABLE_SORT
+	select GENERIC_CMOS_UPDATE
+	select CLOCKSOURCE_WATCHDOG
+	select GENERIC_CLOCKEVENTS
+	select ARCH_CLOCKSOURCE_DATA if X86_64
+	select GENERIC_CLOCKEVENTS_BROADCAST if X86_64 || (X86_32 && X86_LOCAL_APIC)
+	select GENERIC_TIME_VSYSCALL if X86_64
+	select KTIME_SCALAR if X86_32
 
 config INSTRUCTION_DECODER
 	def_bool (KPROBES || PERF_EVENTS || UPROBES)
@@ -98,23 +105,6 @@ config ARCH_DEFCONFIG
 	string
 	default "arch/x86/configs/i386_defconfig" if X86_32
 	default "arch/x86/configs/x86_64_defconfig" if X86_64
-
-config GENERIC_CMOS_UPDATE
-	def_bool y
-
-config CLOCKSOURCE_WATCHDOG
-	def_bool y
-
-config GENERIC_CLOCKEVENTS
-	def_bool y
-
-config ARCH_CLOCKSOURCE_DATA
-	def_bool y
-	depends on X86_64
-
-config GENERIC_CLOCKEVENTS_BROADCAST
-	def_bool y
-	depends on X86_64 || (X86_32 && X86_LOCAL_APIC)
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -165,10 +155,6 @@ config RWSEM_XCHGADD_ALGORITHM
 
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
-
-config GENERIC_TIME_VSYSCALL
-	bool
-	default X86_64
 
 config ARCH_HAS_CPU_RELAX
 	def_bool y
@@ -236,9 +222,6 @@ config ARCH_HWEIGHT_CFLAGS
 	default "-fcall-saved-ecx -fcall-saved-edx" if X86_32
 	default "-fcall-saved-rdi -fcall-saved-rsi -fcall-saved-rdx -fcall-saved-rcx -fcall-saved-r8 -fcall-saved-r9 -fcall-saved-r10 -fcall-saved-r11" if X86_64
 
-config KTIME_SCALAR
-	def_bool X86_32
-
 config ARCH_CPU_PROBE_RELEASE
 	def_bool y
 	depends on HOTPLUG_CPU
@@ -260,8 +243,6 @@ config ZONE_DMA
 	  Disable if no such devices will be used.
 
 	  If unsure, say Y.
-
-source "kernel/time/Kconfig"
 
 config SMP
 	bool "Symmetric multi-processing support"

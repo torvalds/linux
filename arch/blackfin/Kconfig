@@ -38,6 +38,7 @@ config BLACKFIN
 	select IRQ_PER_CPU if SMP
 	select HAVE_NMI_WATCHDOG if NMI_WATCHDOG
 	select GENERIC_SMP_IDLE_THREAD
+	select ARCH_USES_GETTIMEOFFSET if !GENERIC_CLOCKEVENTS
 
 config GENERIC_CSUM
 	def_bool y
@@ -642,9 +643,10 @@ comment "Kernel Timer/Scheduler"
 
 source kernel/Kconfig.hz
 
-config GENERIC_CLOCKEVENTS
+config SET_GENERIC_CLOCKEVENTS
 	bool "Generic clock events"
 	default y
+	select GENERIC_CLOCKEVENTS
 
 menu "Clock event device"
 	depends on GENERIC_CLOCKEVENTS
@@ -677,12 +679,6 @@ config GPTMR0_CLOCKSOURCE
 	select BFIN_GPTIMERS
 	depends on !TICKSOURCE_GPTMR0
 endmenu
-
-config ARCH_USES_GETTIMEOFFSET
-	depends on !GENERIC_CLOCKEVENTS
-	def_bool y
-
-source kernel/time/Kconfig
 
 comment "Misc"
 

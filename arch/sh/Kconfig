@@ -29,6 +29,8 @@ config SUPERH
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_SHOW
 	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CMOS_UPDATE if SH_SH03 || SH_DREAMCAST
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -86,16 +88,6 @@ config GENERIC_GPIO
 
 config GENERIC_CALIBRATE_DELAY
 	bool
-
-config GENERIC_CLOCKEVENTS
-	def_bool y
-
-config GENERIC_CLOCKEVENTS_BROADCAST
-	bool
-
-config GENERIC_CMOS_UPDATE
-	def_bool y
-	depends on SH_SH03 || SH_DREAMCAST
 
 config GENERIC_LOCKBREAK
 	def_bool y
@@ -610,8 +602,6 @@ config SH_CLK_CPG_LEGACY
 		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757 && \
 		      !CPU_SUBTYPE_SH7734 && !CPU_SUBTYPE_SH7264 && \
 		      !CPU_SUBTYPE_SH7269
-
-source "kernel/time/Kconfig"
 
 endmenu
 

@@ -31,6 +31,8 @@ config MIPS
 	select ARCH_DISCARD_MEMBLOCK
 	select GENERIC_SMP_IDLE_THREAD
 	select BUILDTIME_EXTABLE_SORT
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CMOS_UPDATE
 
 menu "Machine selection"
 
@@ -855,14 +857,6 @@ config GENERIC_HWEIGHT
 	default y
 
 config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
-
-config GENERIC_CLOCKEVENTS
-	bool
-	default y
-
-config GENERIC_CMOS_UPDATE
 	bool
 	default y
 
@@ -2052,9 +2046,6 @@ config CPU_HAS_SYNC
 	depends on !CPU_R3000
 	default y
 
-config GENERIC_CLOCKEVENTS_BROADCAST
-	bool
-
 #
 # CPU non-features
 #
@@ -2215,8 +2206,6 @@ config NR_CPUS
 	  approximately eight kilobytes to the kernel image.  For best
 	  performance should round up your number of processors to the next
 	  power of two.
-
-source "kernel/time/Kconfig"
 
 #
 # Timer Interrupt Frequency Configuration

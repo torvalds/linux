@@ -32,12 +32,15 @@ config SPARC
 	select HAVE_NMI_WATCHDOG if SPARC64
 	select HAVE_BPF_JIT
 	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_CMOS_UPDATE
+	select GENERIC_CLOCKEVENTS
 
 config SPARC32
 	def_bool !64BIT
 	select GENERIC_ATOMIC64
 	select CLZ_TAB
 	select ARCH_THREAD_INFO_ALLOCATOR
+	select ARCH_USES_GETTIMEOFFSET
 
 config SPARC64
 	def_bool 64BIT
@@ -76,13 +79,6 @@ config BITS
 	int
 	default 32 if SPARC32
 	default 64 if SPARC64
-
-config GENERIC_CMOS_UPDATE
-	bool
-	default y
-
-config GENERIC_CLOCKEVENTS
-	def_bool y
 
 config IOMMU_HELPER
 	bool
@@ -273,8 +269,6 @@ config HOTPLUG_CPU
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
-
-source "kernel/time/Kconfig"
 
 if SPARC64
 source "drivers/cpufreq/Kconfig"
