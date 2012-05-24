@@ -71,6 +71,7 @@ static const char * const sym_regex_kernel[S_NSYMTYPES] = {
 	"__(start|stop)_notes|"
 	"__end_rodata|"
 	"__initramfs_start|"
+	"(jiffies|jiffies_64)|"
 	"_end)$"
 };
 
