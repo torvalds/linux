@@ -2260,6 +2260,17 @@ static int rcu_cpu_has_callbacks(int cpu)
 }
 
 /*
+ * Helper function for _rcu_barrier() tracing.  If tracing is disabled,
+ * the compiler is expected to optimize this away.
+ */
+static void _rcu_barrier_trace(struct rcu_state *rsp, char *s,
+			       int cpu, unsigned long done)
+{
+	trace_rcu_barrier(rsp->name, s, cpu,
+			  atomic_read(&rsp->barrier_cpu_count), done);
+}
+
+/*
  * RCU callback function for _rcu_barrier().  If we are last, wake
  * up the task executing _rcu_barrier().
  */
@@ -2268,8 +2279,12 @@ static void rcu_barrier_callback(struct rcu_head *rhp)
 	struct rcu_data *rdp = container_of(rhp, struct rcu_data, barrier_head);
 	struct rcu_state *rsp = rdp->rsp;
 
-	if (atomic_dec_and_test(&rsp->barrier_cpu_count))
+	if (atomic_dec_and_test(&rsp->barrier_cpu_count)) {
+		_rcu_barrier_trace(rsp, "LastCB", -1, rsp->n_barrier_done);
 		complete(&rsp->barrier_completion);
+	} else {
+		_rcu_barrier_trace(rsp, "CB", -1, rsp->n_barrier_done);
+	}
 }
 
 /*
@@ -2280,6 +2295,7 @@ static void rcu_barrier_func(void *type)
 	struct rcu_state *rsp = type;
 	struct rcu_data *rdp = __this_cpu_ptr(rsp->rda);
 
+	_rcu_barrier_trace(rsp, "IRQ", -1, rsp->n_barrier_done);
 	atomic_inc(&rsp->barrier_cpu_count);
 	rsp->call(&rdp->barrier_head, rcu_barrier_callback);
 }
@@ -2298,6 +2314,7 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	unsigned long snap_done;
 
 	init_rcu_head_on_stack(&rd.barrier_head);
+	_rcu_barrier_trace(rsp, "Begin", -1, snap);
 
 	/* Take mutex to serialize concurrent rcu_barrier() requests. */
 	mutex_lock(&rsp->barrier_mutex);
@@ -2315,7 +2332,9 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	 * value up to the next even number and adds two before comparing.
 	 */
 	snap_done = ACCESS_ONCE(rsp->n_barrier_done);
+	_rcu_barrier_trace(rsp, "Check", -1, snap_done);
 	if (ULONG_CMP_GE(snap_done, ((snap + 1) & ~0x1) + 2)) {
+		_rcu_barrier_trace(rsp, "EarlyExit", -1, snap_done);
 		smp_mb(); /* caller's subsequent code after above check. */
 		mutex_unlock(&rsp->barrier_mutex);
 		return;
@@ -2328,6 +2347,7 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	 */
 	ACCESS_ONCE(rsp->n_barrier_done)++;
 	WARN_ON_ONCE((rsp->n_barrier_done & 0x1) != 1);
+	_rcu_barrier_trace(rsp, "Inc1", -1, rsp->n_barrier_done);
 	smp_mb(); /* Order ->n_barrier_done increment with below mechanism. */
 
 	/*
@@ -2364,13 +2384,19 @@ static void _rcu_barrier(struct rcu_state *rsp)
 		preempt_disable();
 		rdp = per_cpu_ptr(rsp->rda, cpu);
 		if (cpu_is_offline(cpu)) {
+			_rcu_barrier_trace(rsp, "Offline", cpu,
+					   rsp->n_barrier_done);
 			preempt_enable();
 			while (cpu_is_offline(cpu) && ACCESS_ONCE(rdp->qlen))
 				schedule_timeout_interruptible(1);
 		} else if (ACCESS_ONCE(rdp->qlen)) {
+			_rcu_barrier_trace(rsp, "OnlineQ", cpu,
+					   rsp->n_barrier_done);
 			smp_call_function_single(cpu, rcu_barrier_func, rsp, 1);
 			preempt_enable();
 		} else {
+			_rcu_barrier_trace(rsp, "OnlineNQ", cpu,
+					   rsp->n_barrier_done);
 			preempt_enable();
 		}
 	}
@@ -2403,6 +2429,7 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	smp_mb(); /* Keep increment after above mechanism. */
 	ACCESS_ONCE(rsp->n_barrier_done)++;
 	WARN_ON_ONCE((rsp->n_barrier_done & 0x1) != 0);
+	_rcu_barrier_trace(rsp, "Inc2", -1, rsp->n_barrier_done);
 	smp_mb(); /* Keep increment before caller's subsequent code. */
 
 	/* Wait for all rcu_barrier_callback() callbacks to be invoked. */
