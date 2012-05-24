@@ -433,6 +433,11 @@ enum iwl_trans_state {
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @pm_support: set to true in start_hw if link pm is supported
  * @wait_command_queue: the wait_queue for SYNC host commands
+ * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
+ *	The user should use iwl_trans_{alloc,free}_tx_cmd.
+ * @dev_cmd_headroom: room needed for the transport's private use before the
+ *	device_cmd for Tx - for internal use only
+ *	The user should use iwl_trans_{alloc,free}_tx_cmd.
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -449,6 +454,10 @@ struct iwl_trans {
 	bool pm_support;
 
 	wait_queue_head_t wait_command_queue;
+
+	/* The following fields are internal only */
+	struct kmem_cache *dev_cmd_pool;
+	size_t dev_cmd_headroom;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -523,6 +532,26 @@ static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 		  "%s bad state = %d", __func__, trans->state);
 
 	return trans->ops->send_cmd(trans, cmd);
+}
+
+static inline struct iwl_device_cmd *
+iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
+{
+	u8 *dev_cmd_ptr = kmem_cache_alloc(trans->dev_cmd_pool, GFP_ATOMIC);
+
+	if (unlikely(dev_cmd_ptr == NULL))
+		return NULL;
+
+	return (struct iwl_device_cmd *)
+			(dev_cmd_ptr + trans->dev_cmd_headroom);
+}
+
+static inline void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
+					 struct iwl_device_cmd *dev_cmd)
+{
+	u8 *dev_cmd_ptr = (u8 *)dev_cmd - trans->dev_cmd_headroom;
+
+	kmem_cache_free(trans->dev_cmd_pool, dev_cmd_ptr);
 }
 
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,

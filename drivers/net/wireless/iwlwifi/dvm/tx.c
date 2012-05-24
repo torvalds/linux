@@ -295,7 +295,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_station_priv *sta_priv = NULL;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-	struct iwl_device_cmd *dev_cmd = NULL;
+	struct iwl_device_cmd *dev_cmd;
 	struct iwl_tx_cmd *tx_cmd;
 	__le16 fc;
 	u8 hdr_len;
@@ -377,7 +377,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (info->flags & IEEE80211_TX_CTL_AMPDU)
 		is_agg = true;
 
-	dev_cmd = kmem_cache_alloc(iwl_tx_cmd_pool, GFP_ATOMIC);
+	dev_cmd = iwl_trans_alloc_tx_cmd(priv->trans);
 
 	if (unlikely(!dev_cmd))
 		goto drop_unlock_priv;
@@ -492,7 +492,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 drop_unlock_sta:
 	if (dev_cmd)
-		kmem_cache_free(iwl_tx_cmd_pool, dev_cmd);
+		iwl_trans_free_tx_cmd(priv->trans, dev_cmd);
 	spin_unlock(&priv->sta_lock);
 drop_unlock_priv:
 	return -1;
@@ -1193,8 +1193,8 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 
 			info = IEEE80211_SKB_CB(skb);
 			ctx = info->driver_data[0];
-			kmem_cache_free(iwl_tx_cmd_pool,
-					(info->driver_data[1]));
+			iwl_trans_free_tx_cmd(priv->trans,
+					      info->driver_data[1]);
 
 			memset(&info->status, 0, sizeof(info->status));
 
@@ -1357,7 +1357,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 			WARN_ON_ONCE(1);
 
 		info = IEEE80211_SKB_CB(skb);
-		kmem_cache_free(iwl_tx_cmd_pool, (info->driver_data[1]));
+		iwl_trans_free_tx_cmd(priv->trans, info->driver_data[1]);
 
 		if (freed == 1) {
 			/* this is the first skb we deliver in this batch */

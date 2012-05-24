@@ -2290,10 +2290,11 @@ void iwlagn_lift_passive_no_rx(struct iwl_priv *priv)
 
 static void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 {
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 	struct ieee80211_tx_info *info;
 
 	info = IEEE80211_SKB_CB(skb);
-	kmem_cache_free(iwl_tx_cmd_pool, (info->driver_data[1]));
+	iwl_trans_free_tx_cmd(priv->trans, info->driver_data[1]);
 	dev_kfree_skb_any(skb);
 }
 
@@ -2328,9 +2329,6 @@ const struct iwl_op_mode_ops iwl_dvm_ops = {
  * driver and module entry point
  *
  *****************************************************************************/
-
-struct kmem_cache *iwl_tx_cmd_pool;
-
 static int __init iwl_init(void)
 {
 
@@ -2338,29 +2336,18 @@ static int __init iwl_init(void)
 	pr_info(DRV_DESCRIPTION ", " DRV_VERSION "\n");
 	pr_info(DRV_COPYRIGHT "\n");
 
-	iwl_tx_cmd_pool = kmem_cache_create("iwl_dev_cmd",
-					    sizeof(struct iwl_device_cmd),
-					    sizeof(void *), 0, NULL);
-	if (!iwl_tx_cmd_pool)
-		return -ENOMEM;
-
 	ret = iwlagn_rate_control_register();
 	if (ret) {
 		pr_err("Unable to register rate control algorithm: %d\n", ret);
-		goto error_rc_register;
+		return ret;
 	}
 
 	ret = iwl_opmode_register("iwldvm", &iwl_dvm_ops);
 	if (ret) {
 		pr_err("Unable to register op_mode: %d\n", ret);
-		goto error_opmode_register;
+		iwlagn_rate_control_unregister();
 	}
-	return ret;
 
-error_opmode_register:
-	iwlagn_rate_control_unregister();
-error_rc_register:
-	kmem_cache_destroy(iwl_tx_cmd_pool);
 	return ret;
 }
 module_init(iwl_init);
@@ -2369,6 +2356,5 @@ static void __exit iwl_exit(void)
 {
 	iwl_opmode_deregister("iwldvm");
 	iwlagn_rate_control_unregister();
-	kmem_cache_destroy(iwl_tx_cmd_pool);
 }
 module_exit(iwl_exit);

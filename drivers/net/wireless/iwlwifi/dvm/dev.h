@@ -1001,8 +1001,6 @@ struct iwl_priv {
 	enum iwl_ucode_type cur_ucode;
 }; /*iwl_priv */
 
-extern struct kmem_cache *iwl_tx_cmd_pool;
-
 static inline struct iwl_rxon_context *
 iwl_rxon_ctx_from_vif(struct ieee80211_vif *vif)
 {
