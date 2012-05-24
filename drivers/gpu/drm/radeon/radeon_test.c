@@ -59,7 +59,7 @@ void radeon_test_moves(struct radeon_device *rdev)
 	}
 
 	r = radeon_bo_create(rdev, size, PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
-				&vram_obj);
+			     NULL, &vram_obj);
 	if (r) {
 		DRM_ERROR("Failed to create VRAM object\n");
 		goto out_cleanup;
@@ -78,7 +78,7 @@ void radeon_test_moves(struct radeon_device *rdev)
 		void **vram_start, **vram_end;
 
 		r = radeon_bo_create(rdev, size, PAGE_SIZE, true,
-					 RADEON_GEM_DOMAIN_GTT, gtt_obj + i);
+				     RADEON_GEM_DOMAIN_GTT, NULL, gtt_obj + i);
 		if (r) {
 			DRM_ERROR("Failed to create GTT object %d\n", i);
 			goto out_cleanup;
@@ -317,7 +317,7 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 
 out_cleanup:
 	if (semaphore)
-		radeon_semaphore_free(rdev, semaphore);
+		radeon_semaphore_free(rdev, semaphore, NULL);
 
 	if (fence1)
 		radeon_fence_unref(&fence1);
@@ -437,7 +437,7 @@ void radeon_test_ring_sync2(struct radeon_device *rdev,
 
 out_cleanup:
 	if (semaphore)
-		radeon_semaphore_free(rdev, semaphore);
+		radeon_semaphore_free(rdev, semaphore, NULL);
 
 	if (fenceA)
 		radeon_fence_unref(&fenceA);
