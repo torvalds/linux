@@ -125,6 +125,8 @@ obj-$(CONFIG_CLZ_TAB) += clz_tab.o
 
 obj-$(CONFIG_DDR) += jedec_ddr_data.o
 
+obj-$(CONFIG_GENERIC_STRNCPY_FROM_USER) += strncpy_from_user.o
+
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h
 
