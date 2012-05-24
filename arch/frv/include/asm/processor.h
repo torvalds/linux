@@ -54,7 +54,6 @@ extern struct cpuinfo_frv __nongprelbss boot_cpu_data;
  * Bus types
  */
 #define EISA_bus 0
-#define MCA_bus 0
 
 struct thread_struct {
 	struct pt_regs		*frame;		/* [GR28] exception frame ptr for this thread */

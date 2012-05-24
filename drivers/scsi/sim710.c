@@ -17,7 +17,7 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *----------------------------------------------------------------------------
  *
- * MCA card detection code by Trent McNair.
+ * MCA card detection code by Trent McNair. (now deleted)
  * Fixes to not explicitly nul bss data from Xavier Bestel.
  * Some multiboard fixes from Rolf Eike Beer.
  * Auto probing of EISA config space from Trevor Hemsley.
@@ -32,7 +32,6 @@
 #include <linux/blkdev.h>
 #include <linux/device.h>
 #include <linux/init.h>
-#include <linux/mca.h>
 #include <linux/eisa.h>
 #include <linux/interrupt.h>
 #include <scsi/scsi_host.h>
@@ -43,7 +42,7 @@
 #include "53c700.h"
 
 
-/* Must be enough for both EISA and MCA */
+/* Must be enough for EISA */
 #define MAX_SLOTS 8
 static __u8 __initdata id_array[MAX_SLOTS] = { [0 ... MAX_SLOTS-1] = 7 };
 
@@ -89,7 +88,7 @@ param_setup(char *str)
 __setup("sim710=", param_setup);
 
 static struct scsi_host_template sim710_driver_template = {
-	.name			= "LSI (Symbios) 710 MCA/EISA",
+	.name			= "LSI (Symbios) 710 EISA",
 	.proc_name		= "sim710",
 	.this_id		= 7,
 	.module			= THIS_MODULE,
@@ -169,114 +168,6 @@ sim710_device_remove(struct device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_MCA
-
-/* CARD ID 01BB and 01BA use the same pos values */
-#define MCA_01BB_IO_PORTS { 0x0000, 0x0000, 0x0800, 0x0C00, 0x1000, 0x1400, \
-			    0x1800, 0x1C00, 0x2000, 0x2400, 0x2800, \
-			    0x2C00, 0x3000, 0x3400, 0x3800, 0x3C00, \
-			    0x4000, 0x4400, 0x4800, 0x4C00, 0x5000  }
-
-#define MCA_01BB_IRQS { 3, 5, 11, 14 }
-
-/* CARD ID 004f */
-#define MCA_004F_IO_PORTS { 0x0000, 0x0200, 0x0300, 0x0400, 0x0500,  0x0600 }
-#define MCA_004F_IRQS { 5, 9, 14 }
-
-static short sim710_mca_id_table[] = { 0x01bb, 0x01ba, 0x004f, 0};
-
-static __init int
-sim710_mca_probe(struct device *dev)
-{
-	struct mca_device *mca_dev = to_mca_device(dev);
-	int slot = mca_dev->slot;
-	int pos[3];
-	unsigned int base;
-	int irq_vector;
-	short id = sim710_mca_id_table[mca_dev->index];
-	static int io_004f_by_pos[] = MCA_004F_IO_PORTS;
-	static int irq_004f_by_pos[] = MCA_004F_IRQS;
-	static int io_01bb_by_pos[] = MCA_01BB_IO_PORTS;
-	static int irq_01bb_by_pos[] = MCA_01BB_IRQS;
-	char *name;
-	int clock;
-
-	pos[0] = mca_device_read_stored_pos(mca_dev, 2);
-	pos[1] = mca_device_read_stored_pos(mca_dev, 3);
-	pos[2] = mca_device_read_stored_pos(mca_dev, 4);
-
-	/*
-	 * 01BB & 01BA port base by bits 7,6,5,4,3,2 in pos[2]
-	 *
-	 *    000000  <disabled>   001010  0x2800
-	 *    000001  <invalid>    001011  0x2C00
-	 *    000010  0x0800       001100  0x3000
-	 *    000011  0x0C00       001101  0x3400
-	 *    000100  0x1000       001110  0x3800
-	 *    000101  0x1400       001111  0x3C00
-	 *    000110  0x1800       010000  0x4000
-	 *    000111  0x1C00       010001  0x4400
-	 *    001000  0x2000       010010  0x4800
-	 *    001001  0x2400       010011  0x4C00
-	 *                         010100  0x5000
-	 *
-	 * 00F4 port base by bits 3,2,1 in pos[0]
-	 *
-	 *    000  <disabled>      001    0x200
-	 *    010  0x300           011    0x400
-	 *    100  0x500           101    0x600
-	 *
-	 * 01BB & 01BA IRQ is specified in pos[0] bits 7 and 6:
-	 *
-	 *    00   3               10   11
-	 *    01   5               11   14
-	 *
-	 * 00F4 IRQ specified by bits 6,5,4 in pos[0]
-	 *
-	 *    100   5              101    9
-	 *    110   14
-	 */
-
-	if (id == 0x01bb || id == 0x01ba) {
-		base = io_01bb_by_pos[(pos[2] & 0xFC) >> 2];
-		irq_vector =
-			irq_01bb_by_pos[((pos[0] & 0xC0) >> 6)];
-
-		clock = 50;
-		if (id == 0x01bb)
-			name = "NCR 3360/3430 SCSI SubSystem";
-		else
-			name = "NCR Dual SIOP SCSI Host Adapter Board";
-	} else if ( id == 0x004f ) {
-		base = io_004f_by_pos[((pos[0] & 0x0E) >> 1)];
-		irq_vector =
-			irq_004f_by_pos[((pos[0] & 0x70) >> 4) - 4];
-		clock = 50;
-		name = "NCR 53c710 SCSI Host Adapter Board";
-	} else {
-		return -ENODEV;
-	}
-	mca_device_set_name(mca_dev, name);
-	mca_device_set_claim(mca_dev, 1);
-	base = mca_device_transform_ioport(mca_dev, base);
-	irq_vector = mca_device_transform_irq(mca_dev, irq_vector);
-
-	return sim710_probe_common(dev, base, irq_vector, clock,
-				   0, id_array[slot]);
-}
-
-static struct mca_driver sim710_mca_driver = {
-	.id_table		= sim710_mca_id_table,
-	.driver = {
-		.name		= "sim710",
-		.bus		= &mca_bus_type,
-		.probe		= sim710_mca_probe,
-		.remove		= __devexit_p(sim710_device_remove),
-	},
-};
-
-#endif /* CONFIG_MCA */
-
 #ifdef CONFIG_EISA
 static struct eisa_device_id sim710_eisa_ids[] = {
 	{ "CPQ4410" },
@@ -344,10 +235,6 @@ static int __init sim710_init(void)
 		param_setup(sim710);
 #endif
 
-#ifdef CONFIG_MCA
-	err = mca_register_driver(&sim710_mca_driver);
-#endif
-
 #ifdef CONFIG_EISA
 	err = eisa_driver_register(&sim710_eisa_driver);
 #endif
@@ -361,11 +248,6 @@ static int __init sim710_init(void)
 
 static void __exit sim710_exit(void)
 {
-#ifdef CONFIG_MCA
-	if (MCA_bus)
-		mca_unregister_driver(&sim710_mca_driver);
-#endif
-
 #ifdef CONFIG_EISA
 	eisa_driver_unregister(&sim710_eisa_driver);
 #endif
