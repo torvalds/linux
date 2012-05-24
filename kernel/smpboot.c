@@ -31,6 +31,12 @@ void __init idle_thread_set_boot_cpu(void)
 	per_cpu(idle_threads, smp_processor_id()) = current;
 }
 
+/**
+ * idle_init - Initialize the idle thread for a cpu
+ * @cpu:	The cpu for which the idle thread should be initialized
+ *
+ * Creates the thread if it does not exist.
+ */
 static inline void idle_init(unsigned int cpu)
 {
 	struct task_struct *tsk = per_cpu(idle_threads, cpu);
@@ -45,10 +51,7 @@ static inline void idle_init(unsigned int cpu)
 }
 
 /**
- * idle_thread_init - Initialize the idle thread for a cpu
- * @cpu:	The cpu for which the idle thread should be initialized
- *
- * Creates the thread if it does not exist.
+ * idle_threads_init - Initialize idle threads for all cpus
  */
 void __init idle_threads_init(void)
 {
