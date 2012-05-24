@@ -2116,7 +2116,7 @@ out:
 	return ret;
 }
 
-static int format_check(struct drm_mode_fb_cmd2 *r)
+static int format_check(const struct drm_mode_fb_cmd2 *r)
 {
 	uint32_t format = r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN;
 
@@ -2185,7 +2185,7 @@ static int format_check(struct drm_mode_fb_cmd2 *r)
 	}
 }
 
-static int framebuffer_check(struct drm_mode_fb_cmd2 *r)
+static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 {
 	int ret, hsub, vsub, num_planes, i;
 
