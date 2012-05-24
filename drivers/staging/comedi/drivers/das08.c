@@ -235,14 +235,13 @@ static const int *const das08_gainlists[] = {
 	das08_pgm_gainlist,
 };
 
-#define devpriv ((struct das08_private_struct *)dev->private)
-#define thisboard ((const struct das08_board_struct *)dev->board_ptr)
-
 #define TIMEOUT 100000
 
 static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	const struct das08_board_struct *thisboard = comedi_board(dev);
+	struct das08_private_struct *devpriv = dev->private;
 	int i, n;
 	int chan;
 	int range;
@@ -320,6 +319,7 @@ static int das08_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 static int das08_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	struct das08_private_struct *devpriv = dev->private;
 	int wbits;
 
 	/*  get current settings of digital output lines */
@@ -358,6 +358,8 @@ static int das08jr_do_wbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct das08_private_struct *devpriv = dev->private;
+
 	/*  null bits we are going to set */
 	devpriv->do_bits &= ~data[0];
 	/*  set new bit values */
@@ -528,6 +530,7 @@ static int das08_counter_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
+	struct das08_private_struct *devpriv = dev->private;
 	int chan = insn->chanspec;
 	data[0] = i8254_read_channel(&devpriv->i8254, chan);
 	return 1;
@@ -537,6 +540,7 @@ static int das08_counter_write(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct das08_private_struct *devpriv = dev->private;
 	int chan = insn->chanspec;
 	i8254_write_channel(&devpriv->i8254, chan, data[0]);
 	return 1;
@@ -546,6 +550,7 @@ static int das08_counter_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct das08_private_struct *devpriv = dev->private;
 	int chan = insn->chanspec;
 
 	if (insn->n != 2)
@@ -823,6 +828,8 @@ EXPORT_SYMBOL_GPL(das08_cs_boards);
 
 int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 {
+	const struct das08_board_struct *thisboard = comedi_board(dev);
+	struct das08_private_struct *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -934,12 +941,15 @@ EXPORT_SYMBOL_GPL(das08_common_attach);
 #ifdef DO_COMEDI_DRIVER_REGISTER
 static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct das08_board_struct *thisboard = comedi_board(dev);
+	struct das08_private_struct *devpriv;
 	int ret;
 	unsigned long iobase;
 
 	ret = alloc_private(dev, sizeof(struct das08_private_struct));
 	if (ret < 0)
 		return ret;
+	devpriv = dev->private;
 
 	dev_info(dev->class_dev, "attach\n");
 	if (IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) && thisboard->bustype == pci) {
@@ -1016,6 +1026,9 @@ EXPORT_SYMBOL_GPL(das08_common_detach);
 #ifdef DO_COMEDI_DRIVER_REGISTER
 static void das08_detach(struct comedi_device *dev)
 {
+	const struct das08_board_struct *thisboard = comedi_board(dev);
+	struct das08_private_struct *devpriv = dev->private;
+
 	das08_common_detach(dev);
 	if (IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) &&
 	    (thisboard->bustype == isa || thisboard->bustype == pc104)) {
