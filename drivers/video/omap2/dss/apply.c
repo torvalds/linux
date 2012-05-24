@@ -182,14 +182,23 @@ void dss_apply_init(void)
 	mp->lcd_config.clock_info.pck_div = 1;
 }
 
+/*
+ * A LCD manager's stallmode decides whether it is in manual or auto update. TV
+ * manager is always auto update, stallmode field for TV manager is false by
+ * default
+ */
 static bool ovl_manual_update(struct omap_overlay *ovl)
 {
-	return ovl->manager->device->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
+	struct mgr_priv_data *mp = get_mgr_priv(ovl->manager);
+
+	return mp->lcd_config.stallmode;
 }
 
 static bool mgr_manual_update(struct omap_overlay_manager *mgr)
 {
-	return mgr->device->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
+
+	return mp->lcd_config.stallmode;
 }
 
 static int dss_check_settings_low(struct omap_overlay_manager *mgr,
