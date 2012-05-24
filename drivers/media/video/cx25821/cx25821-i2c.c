@@ -361,7 +361,6 @@ void cx25821_av_clk(struct cx25821_dev *dev, int enable)
 int cx25821_i2c_read(struct cx25821_i2c *bus, u16 reg_addr, int *value)
 {
 	struct i2c_client *client = &bus->i2c_client;
-	int retval = 0;
 	int v = 0;
 	u8 addr[2] = { 0, 0 };
 	u8 buf[4] = { 0, 0, 0, 0 };
@@ -385,7 +384,7 @@ int cx25821_i2c_read(struct cx25821_i2c *bus, u16 reg_addr, int *value)
 	msgs[0].addr = 0x44;
 	msgs[1].addr = 0x44;
 
-	retval = i2c_xfer(client->adapter, msgs, 2);
+	i2c_xfer(client->adapter, msgs, 2);
 
 	v = (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
 	*value = v;

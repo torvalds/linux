@@ -45,7 +45,6 @@ static int videobuf_dvb_thread(void *data)
 	struct videobuf_dvb *dvb = data;
 	struct videobuf_buffer *buf;
 	unsigned long flags;
-	int err;
 	void *outp;
 
 	dprintk("dvb thread started\n");
@@ -57,7 +56,7 @@ static int videobuf_dvb_thread(void *data)
 		buf = list_entry(dvb->dvbq.stream.next,
 				 struct videobuf_buffer, stream);
 		list_del(&buf->stream);
-		err = videobuf_waiton(&dvb->dvbq, buf, 0, 1);
+		videobuf_waiton(&dvb->dvbq, buf, 0, 1);
 
 		/* no more feeds left or stop_feed() asked us to quit */
 		if (0 == dvb->nfeeds)

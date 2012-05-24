@@ -13,6 +13,8 @@
 #include <linux/videodev2.h>
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-event.h>
+#include <media/v4l2-fh.h>
 #include <media/videobuf2-core.h>
 
 /* --------------------------------------------------------------------------
@@ -153,8 +155,7 @@ struct uvc_control_info {
 
 struct uvc_control_mapping {
 	struct list_head list;
-
-	struct uvc_control_info *ctrl;
+	struct list_head ev_subs;
 
 	__u32 id;
 	__u8 name[32];
@@ -168,6 +169,10 @@ struct uvc_control_mapping {
 
 	struct uvc_menu_info *menu_info;
 	__u32 menu_count;
+
+	__u32 master_id;
+	__s32 master_manual;
+	__u32 slave_ids[2];
 
 	__s32 (*get) (struct uvc_control_mapping *mapping, __u8 query,
 		      const __u8 *data);
@@ -524,6 +529,7 @@ enum uvc_handle_state {
 };
 
 struct uvc_fh {
+	struct v4l2_fh vfh;
 	struct uvc_video_chain *chain;
 	struct uvc_streaming *stream;
 	enum uvc_handle_state state;
@@ -643,6 +649,8 @@ extern int uvc_status_suspend(struct uvc_device *dev);
 extern int uvc_status_resume(struct uvc_device *dev);
 
 /* Controls */
+extern const struct v4l2_subscribed_event_ops uvc_ctrl_sub_ev_ops;
+
 extern int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		struct v4l2_queryctrl *v4l2_ctrl);
 extern int uvc_query_v4l2_menu(struct uvc_video_chain *chain,
@@ -655,14 +663,18 @@ extern void uvc_ctrl_cleanup_device(struct uvc_device *dev);
 extern int uvc_ctrl_resume_device(struct uvc_device *dev);
 
 extern int uvc_ctrl_begin(struct uvc_video_chain *chain);
-extern int __uvc_ctrl_commit(struct uvc_video_chain *chain, int rollback);
-static inline int uvc_ctrl_commit(struct uvc_video_chain *chain)
+extern int __uvc_ctrl_commit(struct uvc_fh *handle, int rollback,
+			const struct v4l2_ext_control *xctrls,
+			unsigned int xctrls_count);
+static inline int uvc_ctrl_commit(struct uvc_fh *handle,
+			const struct v4l2_ext_control *xctrls,
+			unsigned int xctrls_count)
 {
-	return __uvc_ctrl_commit(chain, 0);
+	return __uvc_ctrl_commit(handle, 0, xctrls, xctrls_count);
 }
-static inline int uvc_ctrl_rollback(struct uvc_video_chain *chain)
+static inline int uvc_ctrl_rollback(struct uvc_fh *handle)
 {
-	return __uvc_ctrl_commit(chain, 1);
+	return __uvc_ctrl_commit(handle, 1, NULL, 0);
 }
 
 extern int uvc_ctrl_get(struct uvc_video_chain *chain,

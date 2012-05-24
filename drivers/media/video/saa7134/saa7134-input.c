@@ -753,6 +753,13 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0xffff;
 		raw_decode   = true;
 		break;
+	case SAA7134_BOARD_ASUSTeK_PS3_100:
+		ir_codes     = RC_MAP_ASUS_PS3_100;
+		mask_keydown = 0x0040000;
+		mask_keyup   = 0x0040000;
+		mask_keycode = 0xffff;
+		raw_decode   = true;
+		break;
 	case SAA7134_BOARD_ENCORE_ENLTV:
 	case SAA7134_BOARD_ENCORE_ENLTV_FM:
 		ir_codes     = RC_MAP_ENCORE_ENLTV;

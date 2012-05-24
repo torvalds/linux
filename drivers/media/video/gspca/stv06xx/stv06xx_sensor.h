@@ -63,8 +63,8 @@ struct stv06xx_sensor {
 	/* Performs a initialization sequence */
 	int (*init)(struct sd *sd);
 
-	/* Executed at device disconnect */
-	void (*disconnect)(struct sd *sd);
+	/* Initializes the controls */
+	int (*init_controls)(struct sd *sd);
 
 	/* Reads a sensor register */
 	int (*read_sensor)(struct sd *sd, const u8 address,

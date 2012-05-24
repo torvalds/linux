@@ -70,10 +70,6 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 static int ir_open(void *data);
 static void ir_close(void *data);
 
-/* Driver init/exit prototypes */
-static int __init imon_init(void);
-static void __exit imon_exit(void);
-
 /*** G L O B A L S ***/
 #define IMON_DATA_BUF_SZ	35
 

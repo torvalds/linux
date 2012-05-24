@@ -441,23 +441,6 @@ preview_enable_dcor(struct isp_prev_device *prev, u8 enable)
 }
 
 /*
- * preview_enable_cfa - Enable/Disable the CFA Interpolation.
- * @enable: 1 - Enables the CFA.
- */
-static void
-preview_enable_cfa(struct isp_prev_device *prev, u8 enable)
-{
-	struct isp_device *isp = to_isp_device(prev);
-
-	if (enable)
-		isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			    ISPPRV_PCR_CFAEN);
-	else
-		isp_reg_clr(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			    ISPPRV_PCR_CFAEN);
-}
-
-/*
  * preview_enable_gammabypass - Enables/Disables the GammaByPass
  * @enable: 1 - Bypasses Gamma - 10bit input is cropped to 8MSB.
  *          0 - Goes through Gamma Correction. input and output is 10bit.
@@ -608,12 +591,12 @@ preview_config_rgb_blending(struct isp_prev_device *prev, const void *rgb2rgb)
 }
 
 /*
- * Configures the RGB-YCbYCr conversion matrix
+ * Configures the color space conversion (RGB toYCbYCr) matrix
  * @prev_csc: Structure containing the RGB to YCbYCr matrix and the
  *            YCbCr offset.
  */
 static void
-preview_config_rgb_to_ycbcr(struct isp_prev_device *prev, const void *prev_csc)
+preview_config_csc(struct isp_prev_device *prev, const void *prev_csc)
 {
 	struct isp_device *isp = to_isp_device(prev);
 	const struct omap3isp_prev_csc *csc = prev_csc;
@@ -649,12 +632,18 @@ preview_config_rgb_to_ycbcr(struct isp_prev_device *prev, const void *prev_csc)
 static void
 preview_update_contrast(struct isp_prev_device *prev, u8 contrast)
 {
-	struct prev_params *params = &prev->params;
+	struct prev_params *params;
+	unsigned long flags;
+
+	spin_lock_irqsave(&prev->params.lock, flags);
+	params = (prev->params.active & OMAP3ISP_PREV_CONTRAST)
+	       ? &prev->params.params[0] : &prev->params.params[1];
 
 	if (params->contrast != (contrast * ISPPRV_CONTRAST_UNITS)) {
 		params->contrast = contrast * ISPPRV_CONTRAST_UNITS;
-		prev->update |= PREV_CONTRAST;
+		params->update |= OMAP3ISP_PREV_CONTRAST;
 	}
+	spin_unlock_irqrestore(&prev->params.lock, flags);
 }
 
 /*
@@ -681,12 +670,18 @@ preview_config_contrast(struct isp_prev_device *prev, const void *params)
 static void
 preview_update_brightness(struct isp_prev_device *prev, u8 brightness)
 {
-	struct prev_params *params = &prev->params;
+	struct prev_params *params;
+	unsigned long flags;
+
+	spin_lock_irqsave(&prev->params.lock, flags);
+	params = (prev->params.active & OMAP3ISP_PREV_BRIGHTNESS)
+	       ? &prev->params.params[0] : &prev->params.params[1];
 
 	if (params->brightness != (brightness * ISPPRV_BRIGHT_UNITS)) {
 		params->brightness = brightness * ISPPRV_BRIGHT_UNITS;
-		prev->update |= PREV_BRIGHTNESS;
+		params->update |= OMAP3ISP_PREV_BRIGHTNESS;
 	}
+	spin_unlock_irqrestore(&prev->params.lock, flags);
 }
 
 /*
@@ -721,157 +716,186 @@ preview_config_yc_range(struct isp_prev_device *prev, const void *yclimit)
 		       OMAP3_ISP_IOMEM_PREV, ISPPRV_SETUP_YC);
 }
 
+static u32
+preview_params_lock(struct isp_prev_device *prev, u32 update, bool shadow)
+{
+	u32 active = prev->params.active;
+
+	if (shadow) {
+		/* Mark all shadow parameters we are going to touch as busy. */
+		prev->params.params[0].busy |= ~active & update;
+		prev->params.params[1].busy |= active & update;
+	} else {
+		/* Mark all active parameters we are going to touch as busy. */
+		update = (prev->params.params[0].update & active)
+		       | (prev->params.params[1].update & ~active);
+
+		prev->params.params[0].busy |= active & update;
+		prev->params.params[1].busy |= ~active & update;
+	}
+
+	return update;
+}
+
+static void
+preview_params_unlock(struct isp_prev_device *prev, u32 update, bool shadow)
+{
+	u32 active = prev->params.active;
+
+	if (shadow) {
+		/* Set the update flag for shadow parameters that have been
+		 * updated and clear the busy flag for all shadow parameters.
+		 */
+		prev->params.params[0].update |= (~active & update);
+		prev->params.params[1].update |= (active & update);
+		prev->params.params[0].busy &= active;
+		prev->params.params[1].busy &= ~active;
+	} else {
+		/* Clear the update flag for active parameters that have been
+		 * applied and the busy flag for all active parameters.
+		 */
+		prev->params.params[0].update &= ~(active & update);
+		prev->params.params[1].update &= ~(~active & update);
+		prev->params.params[0].busy &= ~active;
+		prev->params.params[1].busy &= active;
+	}
+}
+
+static void preview_params_switch(struct isp_prev_device *prev)
+{
+	u32 to_switch;
+
+	/* Switch active parameters with updated shadow parameters when the
+	 * shadow parameter has been updated and neither the active not the
+	 * shadow parameter is busy.
+	 */
+	to_switch = (prev->params.params[0].update & ~prev->params.active)
+		  | (prev->params.params[1].update & prev->params.active);
+	to_switch &= ~(prev->params.params[0].busy |
+		       prev->params.params[1].busy);
+	if (to_switch == 0)
+		return;
+
+	prev->params.active ^= to_switch;
+
+	/* Remove the update flag for the shadow copy of parameters we have
+	 * switched.
+	 */
+	prev->params.params[0].update &= ~(~prev->params.active & to_switch);
+	prev->params.params[1].update &= ~(prev->params.active & to_switch);
+}
+
 /* preview parameters update structure */
 struct preview_update {
-	int cfg_bit;
-	int feature_bit;
 	void (*config)(struct isp_prev_device *, const void *);
 	void (*enable)(struct isp_prev_device *, u8);
+	unsigned int param_offset;
+	unsigned int param_size;
+	unsigned int config_offset;
+	bool skip;
 };
 
-static struct preview_update update_attrs[] = {
-	{OMAP3ISP_PREV_LUMAENH, PREV_LUMA_ENHANCE,
+/* Keep the array indexed by the OMAP3ISP_PREV_* bit number. */
+static const struct preview_update update_attrs[] = {
+	/* OMAP3ISP_PREV_LUMAENH */ {
 		preview_config_luma_enhancement,
-		preview_enable_luma_enhancement},
-	{OMAP3ISP_PREV_INVALAW, PREV_INVERSE_ALAW,
+		preview_enable_luma_enhancement,
+		offsetof(struct prev_params, luma),
+		FIELD_SIZEOF(struct prev_params, luma),
+		offsetof(struct omap3isp_prev_update_config, luma),
+	}, /* OMAP3ISP_PREV_INVALAW */ {
 		NULL,
-		preview_enable_invalaw},
-	{OMAP3ISP_PREV_HRZ_MED, PREV_HORZ_MEDIAN_FILTER,
+		preview_enable_invalaw,
+	}, /* OMAP3ISP_PREV_HRZ_MED */ {
 		preview_config_hmed,
-		preview_enable_hmed},
-	{OMAP3ISP_PREV_CFA, PREV_CFA,
+		preview_enable_hmed,
+		offsetof(struct prev_params, hmed),
+		FIELD_SIZEOF(struct prev_params, hmed),
+		offsetof(struct omap3isp_prev_update_config, hmed),
+	}, /* OMAP3ISP_PREV_CFA */ {
 		preview_config_cfa,
-		preview_enable_cfa},
-	{OMAP3ISP_PREV_CHROMA_SUPP, PREV_CHROMA_SUPPRESS,
+		NULL,
+		offsetof(struct prev_params, cfa),
+		FIELD_SIZEOF(struct prev_params, cfa),
+		offsetof(struct omap3isp_prev_update_config, cfa),
+	}, /* OMAP3ISP_PREV_CHROMA_SUPP */ {
 		preview_config_chroma_suppression,
-		preview_enable_chroma_suppression},
-	{OMAP3ISP_PREV_WB, PREV_WB,
+		preview_enable_chroma_suppression,
+		offsetof(struct prev_params, csup),
+		FIELD_SIZEOF(struct prev_params, csup),
+		offsetof(struct omap3isp_prev_update_config, csup),
+	}, /* OMAP3ISP_PREV_WB */ {
 		preview_config_whitebalance,
-		NULL},
-	{OMAP3ISP_PREV_BLKADJ, PREV_BLKADJ,
+		NULL,
+		offsetof(struct prev_params, wbal),
+		FIELD_SIZEOF(struct prev_params, wbal),
+		offsetof(struct omap3isp_prev_update_config, wbal),
+	}, /* OMAP3ISP_PREV_BLKADJ */ {
 		preview_config_blkadj,
-		NULL},
-	{OMAP3ISP_PREV_RGB2RGB, PREV_RGB2RGB,
+		NULL,
+		offsetof(struct prev_params, blkadj),
+		FIELD_SIZEOF(struct prev_params, blkadj),
+		offsetof(struct omap3isp_prev_update_config, blkadj),
+	}, /* OMAP3ISP_PREV_RGB2RGB */ {
 		preview_config_rgb_blending,
-		NULL},
-	{OMAP3ISP_PREV_COLOR_CONV, PREV_COLOR_CONV,
-		preview_config_rgb_to_ycbcr,
-		NULL},
-	{OMAP3ISP_PREV_YC_LIMIT, PREV_YCLIMITS,
+		NULL,
+		offsetof(struct prev_params, rgb2rgb),
+		FIELD_SIZEOF(struct prev_params, rgb2rgb),
+		offsetof(struct omap3isp_prev_update_config, rgb2rgb),
+	}, /* OMAP3ISP_PREV_COLOR_CONV */ {
+		preview_config_csc,
+		NULL,
+		offsetof(struct prev_params, csc),
+		FIELD_SIZEOF(struct prev_params, csc),
+		offsetof(struct omap3isp_prev_update_config, csc),
+	}, /* OMAP3ISP_PREV_YC_LIMIT */ {
 		preview_config_yc_range,
-		NULL},
-	{OMAP3ISP_PREV_DEFECT_COR, PREV_DEFECT_COR,
+		NULL,
+		offsetof(struct prev_params, yclimit),
+		FIELD_SIZEOF(struct prev_params, yclimit),
+		offsetof(struct omap3isp_prev_update_config, yclimit),
+	}, /* OMAP3ISP_PREV_DEFECT_COR */ {
 		preview_config_dcor,
-		preview_enable_dcor},
-	{OMAP3ISP_PREV_GAMMABYPASS, PREV_GAMMA_BYPASS,
+		preview_enable_dcor,
+		offsetof(struct prev_params, dcor),
+		FIELD_SIZEOF(struct prev_params, dcor),
+		offsetof(struct omap3isp_prev_update_config, dcor),
+	}, /* OMAP3ISP_PREV_GAMMABYPASS */ {
 		NULL,
-		preview_enable_gammabypass},
-	{OMAP3ISP_PREV_DRK_FRM_CAPTURE, PREV_DARK_FRAME_CAPTURE,
+		preview_enable_gammabypass,
+	}, /* OMAP3ISP_PREV_DRK_FRM_CAPTURE */ {
 		NULL,
-		preview_enable_drkframe_capture},
-	{OMAP3ISP_PREV_DRK_FRM_SUBTRACT, PREV_DARK_FRAME_SUBTRACT,
+		preview_enable_drkframe_capture,
+	}, /* OMAP3ISP_PREV_DRK_FRM_SUBTRACT */ {
 		NULL,
-		preview_enable_drkframe},
-	{OMAP3ISP_PREV_LENS_SHADING, PREV_LENS_SHADING,
+		preview_enable_drkframe,
+	}, /* OMAP3ISP_PREV_LENS_SHADING */ {
 		preview_config_drkf_shadcomp,
-		preview_enable_drkframe},
-	{OMAP3ISP_PREV_NF, PREV_NOISE_FILTER,
+		preview_enable_drkframe,
+	}, /* OMAP3ISP_PREV_NF */ {
 		preview_config_noisefilter,
-		preview_enable_noisefilter},
-	{OMAP3ISP_PREV_GAMMA, PREV_GAMMA,
+		preview_enable_noisefilter,
+		offsetof(struct prev_params, nf),
+		FIELD_SIZEOF(struct prev_params, nf),
+		offsetof(struct omap3isp_prev_update_config, nf),
+	}, /* OMAP3ISP_PREV_GAMMA */ {
 		preview_config_gammacorrn,
-		NULL},
-	{-1, PREV_CONTRAST,
+		NULL,
+		offsetof(struct prev_params, gamma),
+		FIELD_SIZEOF(struct prev_params, gamma),
+		offsetof(struct omap3isp_prev_update_config, gamma),
+	}, /* OMAP3ISP_PREV_CONTRAST */ {
 		preview_config_contrast,
-		NULL},
-	{-1, PREV_BRIGHTNESS,
+		NULL,
+		offsetof(struct prev_params, contrast),
+		0, true,
+	}, /* OMAP3ISP_PREV_BRIGHTNESS */ {
 		preview_config_brightness,
-		NULL},
+		NULL,
+		offsetof(struct prev_params, brightness),
+		0, true,
+	},
 };
-
-/*
- * __preview_get_ptrs - helper function which return pointers to members
- *                         of params and config structures.
- * @params - pointer to preview_params structure.
- * @param - return pointer to appropriate structure field.
- * @configs - pointer to update config structure.
- * @config - return pointer to appropriate structure field.
- * @bit - for which feature to return pointers.
- * Return size of corresponding prev_params member
- */
-static u32
-__preview_get_ptrs(struct prev_params *params, void **param,
-		   struct omap3isp_prev_update_config *configs,
-		   void __user **config, u32 bit)
-{
-#define CHKARG(cfgs, cfg, field)				\
-	if (cfgs && cfg) {					\
-		*(cfg) = (cfgs)->field;				\
-	}
-
-	switch (bit) {
-	case PREV_HORZ_MEDIAN_FILTER:
-		*param = &params->hmed;
-		CHKARG(configs, config, hmed)
-		return sizeof(params->hmed);
-	case PREV_NOISE_FILTER:
-		*param = &params->nf;
-		CHKARG(configs, config, nf)
-		return sizeof(params->nf);
-		break;
-	case PREV_CFA:
-		*param = &params->cfa;
-		CHKARG(configs, config, cfa)
-		return sizeof(params->cfa);
-	case PREV_LUMA_ENHANCE:
-		*param = &params->luma;
-		CHKARG(configs, config, luma)
-		return sizeof(params->luma);
-	case PREV_CHROMA_SUPPRESS:
-		*param = &params->csup;
-		CHKARG(configs, config, csup)
-		return sizeof(params->csup);
-	case PREV_DEFECT_COR:
-		*param = &params->dcor;
-		CHKARG(configs, config, dcor)
-		return sizeof(params->dcor);
-	case PREV_BLKADJ:
-		*param = &params->blk_adj;
-		CHKARG(configs, config, blkadj)
-		return sizeof(params->blk_adj);
-	case PREV_YCLIMITS:
-		*param = &params->yclimit;
-		CHKARG(configs, config, yclimit)
-		return sizeof(params->yclimit);
-	case PREV_RGB2RGB:
-		*param = &params->rgb2rgb;
-		CHKARG(configs, config, rgb2rgb)
-		return sizeof(params->rgb2rgb);
-	case PREV_COLOR_CONV:
-		*param = &params->rgb2ycbcr;
-		CHKARG(configs, config, csc)
-		return sizeof(params->rgb2ycbcr);
-	case PREV_WB:
-		*param = &params->wbal;
-		CHKARG(configs, config, wbal)
-		return sizeof(params->wbal);
-	case PREV_GAMMA:
-		*param = &params->gamma;
-		CHKARG(configs, config, gamma)
-		return sizeof(params->gamma);
-	case PREV_CONTRAST:
-		*param = &params->contrast;
-		return 0;
-	case PREV_BRIGHTNESS:
-		*param = &params->brightness;
-		return 0;
-	default:
-		*param = NULL;
-		*config = NULL;
-		break;
-	}
-	return 0;
-}
 
 /*
  * preview_config - Copy and update local structure with userspace preview
@@ -885,84 +909,103 @@ __preview_get_ptrs(struct prev_params *params, void **param,
 static int preview_config(struct isp_prev_device *prev,
 			  struct omap3isp_prev_update_config *cfg)
 {
-	struct prev_params *params;
-	struct preview_update *attr;
-	int i, bit, rval = 0;
+	unsigned long flags;
+	unsigned int i;
+	int rval = 0;
+	u32 update;
+	u32 active;
 
-	params = &prev->params;
+	if (cfg->update == 0)
+		return 0;
 
-	if (prev->state != ISP_PIPELINE_STREAM_STOPPED) {
-		unsigned long flags;
+	/* Mark the shadow parameters we're going to update as busy. */
+	spin_lock_irqsave(&prev->params.lock, flags);
+	preview_params_lock(prev, cfg->update, true);
+	active = prev->params.active;
+	spin_unlock_irqrestore(&prev->params.lock, flags);
 
-		spin_lock_irqsave(&prev->lock, flags);
-		prev->shadow_update = 1;
-		spin_unlock_irqrestore(&prev->lock, flags);
-	}
+	update = 0;
 
 	for (i = 0; i < ARRAY_SIZE(update_attrs); i++) {
-		attr = &update_attrs[i];
-		bit = 0;
+		const struct preview_update *attr = &update_attrs[i];
+		struct prev_params *params;
+		unsigned int bit = 1 << i;
 
-		if (!(cfg->update & attr->cfg_bit))
+		if (attr->skip || !(cfg->update & bit))
 			continue;
 
-		bit = cfg->flag & attr->cfg_bit;
-		if (bit) {
-			void *to = NULL, __user *from = NULL;
-			unsigned long sz = 0;
+		params = &prev->params.params[!!(active & bit)];
 
-			sz = __preview_get_ptrs(params, &to, cfg, &from,
-						   bit);
-			if (to && from && sz) {
-				if (copy_from_user(to, from, sz)) {
+		if (cfg->flag & bit) {
+			void __user *from = *(void * __user *)
+				((void *)cfg + attr->config_offset);
+			void *to = (void *)params + attr->param_offset;
+			size_t size = attr->param_size;
+
+			if (to && from && size) {
+				if (copy_from_user(to, from, size)) {
 					rval = -EFAULT;
 					break;
 				}
 			}
-			params->features |= attr->feature_bit;
+			params->features |= bit;
 		} else {
-			params->features &= ~attr->feature_bit;
+			params->features &= ~bit;
 		}
 
-		prev->update |= attr->feature_bit;
+		update |= bit;
 	}
 
-	prev->shadow_update = 0;
+	spin_lock_irqsave(&prev->params.lock, flags);
+	preview_params_unlock(prev, update, true);
+	preview_params_switch(prev);
+	spin_unlock_irqrestore(&prev->params.lock, flags);
+
 	return rval;
 }
 
 /*
  * preview_setup_hw - Setup preview registers and/or internal memory
  * @prev: pointer to preview private structure
+ * @update: Bitmask of parameters to setup
+ * @active: Bitmask of parameters active in set 0
  * Note: can be called from interrupt context
  * Return none
  */
-static void preview_setup_hw(struct isp_prev_device *prev)
+static void preview_setup_hw(struct isp_prev_device *prev, u32 update,
+			     u32 active)
 {
-	struct prev_params *params = &prev->params;
-	struct preview_update *attr;
-	int i, bit;
-	void *param_ptr;
+	unsigned int i;
+	u32 features;
+
+	if (update == 0)
+		return;
+
+	features = (prev->params.params[0].features & active)
+		 | (prev->params.params[1].features & ~active);
 
 	for (i = 0; i < ARRAY_SIZE(update_attrs); i++) {
-		attr = &update_attrs[i];
+		const struct preview_update *attr = &update_attrs[i];
+		struct prev_params *params;
+		unsigned int bit = 1 << i;
+		void *param_ptr;
 
-		if (!(prev->update & attr->feature_bit))
+		if (!(update & bit))
 			continue;
-		bit = params->features & attr->feature_bit;
-		if (bit) {
+
+		params = &prev->params.params[!(active & bit)];
+
+		if (params->features & bit) {
 			if (attr->config) {
-				__preview_get_ptrs(params, &param_ptr, NULL,
-						      NULL, bit);
+				param_ptr = (void *)params + attr->param_offset;
 				attr->config(prev, param_ptr);
 			}
 			if (attr->enable)
 				attr->enable(prev, 1);
-		} else
+		} else {
 			if (attr->enable)
 				attr->enable(prev, 0);
-
-		prev->update &= ~attr->feature_bit;
+		}
 	}
 }
 
@@ -1000,17 +1043,42 @@ preview_config_ycpos(struct isp_prev_device *prev,
 static void preview_config_averager(struct isp_prev_device *prev, u8 average)
 {
 	struct isp_device *isp = to_isp_device(prev);
+	struct prev_params *params;
 	int reg = 0;
 
-	if (prev->params.cfa.format == OMAP3ISP_CFAFMT_BAYER)
+	params = (prev->params.active & OMAP3ISP_PREV_CFA)
+	       ? &prev->params.params[0] : &prev->params.params[1];
+
+	if (params->cfa.format == OMAP3ISP_CFAFMT_BAYER)
 		reg = ISPPRV_AVE_EVENDIST_2 << ISPPRV_AVE_EVENDIST_SHIFT |
 		      ISPPRV_AVE_ODDDIST_2 << ISPPRV_AVE_ODDDIST_SHIFT |
 		      average;
-	else if (prev->params.cfa.format == OMAP3ISP_CFAFMT_RGBFOVEON)
+	else if (params->cfa.format == OMAP3ISP_CFAFMT_RGBFOVEON)
 		reg = ISPPRV_AVE_EVENDIST_3 << ISPPRV_AVE_EVENDIST_SHIFT |
 		      ISPPRV_AVE_ODDDIST_3 << ISPPRV_AVE_ODDDIST_SHIFT |
 		      average;
 	isp_reg_writel(isp, reg, OMAP3_ISP_IOMEM_PREV, ISPPRV_AVE);
+}
+
+/*
+ * preview_config_input_format - Configure the input format
+ * @prev: The preview engine
+ * @format: Format on the preview engine sink pad
+ *
+ * Enable CFA interpolation for Bayer formats and disable it for greyscale
+ * formats.
+ */
+static void preview_config_input_format(struct isp_prev_device *prev,
+					const struct v4l2_mbus_framefmt *format)
+{
+	struct isp_device *isp = to_isp_device(prev);
+
+	if (format->code != V4L2_MBUS_FMT_Y10_1X10)
+		isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
+			    ISPPRV_PCR_CFAEN);
+	else
+		isp_reg_clr(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
+			    ISPPRV_PCR_CFAEN);
 }
 
 /*
@@ -1024,32 +1092,37 @@ static void preview_config_averager(struct isp_prev_device *prev, u8 average)
  *
  * See the explanation at the PREV_MARGIN_* definitions for more details.
  */
-static void preview_config_input_size(struct isp_prev_device *prev)
+static void preview_config_input_size(struct isp_prev_device *prev, u32 active)
 {
+	const struct v4l2_mbus_framefmt *format = &prev->formats[PREV_PAD_SINK];
 	struct isp_device *isp = to_isp_device(prev);
-	struct prev_params *params = &prev->params;
 	unsigned int sph = prev->crop.left;
 	unsigned int eph = prev->crop.left + prev->crop.width - 1;
 	unsigned int slv = prev->crop.top;
 	unsigned int elv = prev->crop.top + prev->crop.height - 1;
+	u32 features;
 
-	if (params->features & PREV_CFA) {
+	if (format->code == V4L2_MBUS_FMT_Y10_1X10) {
 		sph -= 2;
 		eph += 2;
 		slv -= 2;
 		elv += 2;
 	}
-	if (params->features & (PREV_DEFECT_COR | PREV_NOISE_FILTER)) {
+
+	features = (prev->params.params[0].features & active)
+		 | (prev->params.params[1].features & ~active);
+
+	if (features & (OMAP3ISP_PREV_DEFECT_COR | OMAP3ISP_PREV_NF)) {
 		sph -= 2;
 		eph += 2;
 		slv -= 2;
 		elv += 2;
 	}
-	if (params->features & PREV_HORZ_MEDIAN_FILTER) {
+	if (features & OMAP3ISP_PREV_HRZ_MED) {
 		sph -= 2;
 		eph += 2;
 	}
-	if (params->features & (PREV_CHROMA_SUPPRESS | PREV_LUMA_ENHANCE))
+	if (features & (OMAP3ISP_PREV_CHROMA_SUPP | OMAP3ISP_PREV_LUMAENH))
 		sph -= 2;
 
 	isp_reg_writel(isp, (sph << ISPPRV_HORZ_INFO_SPH_SHIFT) | eph,
@@ -1184,8 +1257,16 @@ int omap3isp_preview_busy(struct isp_prev_device *prev)
  */
 void omap3isp_preview_restore_context(struct isp_device *isp)
 {
-	isp->isp_prev.update = PREV_FEATURES_END - 1;
-	preview_setup_hw(&isp->isp_prev);
+	struct isp_prev_device *prev = &isp->isp_prev;
+	const u32 update = OMAP3ISP_PREV_FEATURES_END - 1;
+
+	prev->params.params[0].update = prev->params.active & update;
+	prev->params.params[1].update = ~prev->params.active & update;
+
+	preview_setup_hw(prev, update, prev->params.active);
+
+	prev->params.params[0].update = 0;
+	prev->params.params[1].update = 0;
 }
 
 /*
@@ -1244,12 +1325,21 @@ static void preview_print_status(struct isp_prev_device *prev)
 /*
  * preview_init_params - init image processing parameters.
  * @prev: pointer to previewer private structure
- * return none
  */
 static void preview_init_params(struct isp_prev_device *prev)
 {
-	struct prev_params *params = &prev->params;
-	int i = 0;
+	struct prev_params *params;
+	unsigned int i;
+
+	spin_lock_init(&prev->params.lock);
+
+	prev->params.active = ~0;
+	prev->params.params[0].busy = 0;
+	prev->params.params[0].update = OMAP3ISP_PREV_FEATURES_END - 1;
+	prev->params.params[1].busy = 0;
+	prev->params.params[1].update = 0;
+
+	params = &prev->params.params[0];
 
 	/* Init values */
 	params->contrast = ISPPRV_CONTRAST_DEF * ISPPRV_CONTRAST_UNITS;
@@ -1277,22 +1367,22 @@ static void preview_init_params(struct isp_prev_device *prev)
 	params->wbal.coef1 = FLR_WBAL_COEF;
 	params->wbal.coef2 = FLR_WBAL_COEF;
 	params->wbal.coef3 = FLR_WBAL_COEF;
-	params->blk_adj.red = FLR_BLKADJ_RED;
-	params->blk_adj.green = FLR_BLKADJ_GREEN;
-	params->blk_adj.blue = FLR_BLKADJ_BLUE;
+	params->blkadj.red = FLR_BLKADJ_RED;
+	params->blkadj.green = FLR_BLKADJ_GREEN;
+	params->blkadj.blue = FLR_BLKADJ_BLUE;
 	params->rgb2rgb = flr_rgb2rgb;
-	params->rgb2ycbcr = flr_prev_csc;
+	params->csc = flr_prev_csc;
 	params->yclimit.minC = ISPPRV_YC_MIN;
 	params->yclimit.maxC = ISPPRV_YC_MAX;
 	params->yclimit.minY = ISPPRV_YC_MIN;
 	params->yclimit.maxY = ISPPRV_YC_MAX;
 
-	params->features = PREV_CFA | PREV_DEFECT_COR | PREV_NOISE_FILTER
-			 | PREV_GAMMA | PREV_BLKADJ | PREV_YCLIMITS
-			 | PREV_RGB2RGB | PREV_COLOR_CONV | PREV_WB
-			 | PREV_BRIGHTNESS | PREV_CONTRAST;
-
-	prev->update = PREV_FEATURES_END - 1;
+	params->features = OMAP3ISP_PREV_CFA | OMAP3ISP_PREV_DEFECT_COR
+			 | OMAP3ISP_PREV_NF | OMAP3ISP_PREV_GAMMA
+			 | OMAP3ISP_PREV_BLKADJ | OMAP3ISP_PREV_YC_LIMIT
+			 | OMAP3ISP_PREV_RGB2RGB | OMAP3ISP_PREV_COLOR_CONV
+			 | OMAP3ISP_PREV_WB | OMAP3ISP_PREV_BRIGHTNESS
+			 | OMAP3ISP_PREV_CONTRAST;
 }
 
 /*
@@ -1321,8 +1411,17 @@ static void preview_configure(struct isp_prev_device *prev)
 {
 	struct isp_device *isp = to_isp_device(prev);
 	struct v4l2_mbus_framefmt *format;
+	unsigned long flags;
+	u32 update;
+	u32 active;
 
-	preview_setup_hw(prev);
+	spin_lock_irqsave(&prev->params.lock, flags);
+	/* Mark all active parameters we are going to touch as busy. */
+	update = preview_params_lock(prev, 0, false);
+	active = prev->params.active;
+	spin_unlock_irqrestore(&prev->params.lock, flags);
+
+	preview_setup_hw(prev, update, active);
 
 	if (prev->output & PREVIEW_OUTPUT_MEMORY)
 		isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
@@ -1343,7 +1442,8 @@ static void preview_configure(struct isp_prev_device *prev)
 
 	preview_adjust_bandwidth(prev);
 
-	preview_config_input_size(prev);
+	preview_config_input_format(prev, format);
+	preview_config_input_size(prev, active);
 
 	if (prev->input == PREVIEW_INPUT_CCDC)
 		preview_config_inlineoffset(prev, 0);
@@ -1360,6 +1460,10 @@ static void preview_configure(struct isp_prev_device *prev)
 
 	preview_config_averager(prev, 0);
 	preview_config_ycpos(prev, format->code);
+
+	spin_lock_irqsave(&prev->params.lock, flags);
+	preview_params_unlock(prev, update, false);
+	spin_unlock_irqrestore(&prev->params.lock, flags);
 }
 
 /* -----------------------------------------------------------------------------
@@ -1448,25 +1552,30 @@ static void preview_isr_buffer(struct isp_prev_device *prev)
 void omap3isp_preview_isr(struct isp_prev_device *prev)
 {
 	unsigned long flags;
+	u32 update;
+	u32 active;
 
 	if (omap3isp_module_sync_is_stopping(&prev->wait, &prev->stopping))
 		return;
 
-	spin_lock_irqsave(&prev->lock, flags);
-	if (prev->shadow_update)
-		goto done;
+	spin_lock_irqsave(&prev->params.lock, flags);
+	preview_params_switch(prev);
+	update = preview_params_lock(prev, 0, false);
+	active = prev->params.active;
+	spin_unlock_irqrestore(&prev->params.lock, flags);
 
-	preview_setup_hw(prev);
-	preview_config_input_size(prev);
-
-done:
-	spin_unlock_irqrestore(&prev->lock, flags);
+	preview_setup_hw(prev, update, active);
+	preview_config_input_size(prev, active);
 
 	if (prev->input == PREVIEW_INPUT_MEMORY ||
 	    prev->output & PREVIEW_OUTPUT_MEMORY)
 		preview_isr_buffer(prev);
 	else if (prev->state == ISP_PIPELINE_STREAM_CONTINUOUS)
 		preview_enable_oneshot(prev);
+
+	spin_lock_irqsave(&prev->params.lock, flags);
+	preview_params_unlock(prev, update, false);
+	spin_unlock_irqrestore(&prev->params.lock, flags);
 }
 
 /* -----------------------------------------------------------------------------
@@ -1552,7 +1661,6 @@ static int preview_set_stream(struct v4l2_subdev *sd, int enable)
 	struct isp_video *video_out = &prev->video_out;
 	struct isp_device *isp = to_isp_device(prev);
 	struct device *dev = to_device(prev);
-	unsigned long flags;
 
 	if (prev->state == ISP_PIPELINE_STREAM_STOPPED) {
 		if (enable == ISP_PIPELINE_STREAM_STOPPED)
@@ -1589,11 +1697,9 @@ static int preview_set_stream(struct v4l2_subdev *sd, int enable)
 		if (omap3isp_module_sync_idle(&sd->entity, &prev->wait,
 					      &prev->stopping))
 			dev_dbg(dev, "%s: stop timeout.\n", sd->name);
-		spin_lock_irqsave(&prev->lock, flags);
 		omap3isp_sbl_disable(isp, OMAP3_ISP_SBL_PREVIEW_READ);
 		omap3isp_sbl_disable(isp, OMAP3_ISP_SBL_PREVIEW_WRITE);
 		omap3isp_subclk_disable(isp, OMAP3_ISP_SUBCLK_PREVIEW);
-		spin_unlock_irqrestore(&prev->lock, flags);
 		isp_video_dmaqueue_flags_clr(video_out);
 		break;
 	}
@@ -1624,6 +1730,7 @@ __preview_get_crop(struct isp_prev_device *prev, struct v4l2_subdev_fh *fh,
 
 /* previewer format descriptions */
 static const unsigned int preview_input_fmts[] = {
+	V4L2_MBUS_FMT_Y10_1X10,
 	V4L2_MBUS_FMT_SGRBG10_1X10,
 	V4L2_MBUS_FMT_SRGGB10_1X10,
 	V4L2_MBUS_FMT_SBGGR10_1X10,
@@ -1822,55 +1929,89 @@ static int preview_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 /*
- * preview_get_crop - Retrieve the crop rectangle on a pad
+ * preview_get_selection - Retrieve a selection rectangle on a pad
  * @sd: ISP preview V4L2 subdevice
  * @fh: V4L2 subdev file handle
- * @crop: crop rectangle
+ * @sel: Selection rectangle
+ *
+ * The only supported rectangles are the crop rectangles on the sink pad.
  *
  * Return 0 on success or a negative error code otherwise.
  */
-static int preview_get_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-			    struct v4l2_subdev_crop *crop)
-{
-	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
-
-	/* Cropping is only supported on the sink pad. */
-	if (crop->pad != PREV_PAD_SINK)
-		return -EINVAL;
-
-	crop->rect = *__preview_get_crop(prev, fh, crop->which);
-	return 0;
-}
-
-/*
- * preview_set_crop - Retrieve the crop rectangle on a pad
- * @sd: ISP preview V4L2 subdevice
- * @fh: V4L2 subdev file handle
- * @crop: crop rectangle
- *
- * Return 0 on success or a negative error code otherwise.
- */
-static int preview_set_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-			    struct v4l2_subdev_crop *crop)
+static int preview_get_selection(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_selection *sel)
 {
 	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	/* Cropping is only supported on the sink pad. */
-	if (crop->pad != PREV_PAD_SINK)
+	if (sel->pad != PREV_PAD_SINK)
+		return -EINVAL;
+
+	switch (sel->target) {
+	case V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS:
+		sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.width = INT_MAX;
+		sel->r.height = INT_MAX;
+
+		format = __preview_get_format(prev, fh, PREV_PAD_SINK,
+					      sel->which);
+		preview_try_crop(prev, format, &sel->r);
+		break;
+
+	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
+		sel->r = *__preview_get_crop(prev, fh, sel->which);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * preview_set_selection - Set a selection rectangle on a pad
+ * @sd: ISP preview V4L2 subdevice
+ * @fh: V4L2 subdev file handle
+ * @sel: Selection rectangle
+ *
+ * The only supported rectangle is the actual crop rectangle on the sink pad.
+ *
+ * Return 0 on success or a negative error code otherwise.
+ */
+static int preview_set_selection(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_selection *sel)
+{
+	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
+	struct v4l2_mbus_framefmt *format;
+
+	if (sel->target != V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL ||
+	    sel->pad != PREV_PAD_SINK)
 		return -EINVAL;
 
 	/* The crop rectangle can't be changed while streaming. */
 	if (prev->state != ISP_PIPELINE_STREAM_STOPPED)
 		return -EBUSY;
 
-	format = __preview_get_format(prev, fh, PREV_PAD_SINK, crop->which);
-	preview_try_crop(prev, format, &crop->rect);
-	*__preview_get_crop(prev, fh, crop->which) = crop->rect;
+	/* Modifying the crop rectangle always changes the format on the source
+	 * pad. If the KEEP_CONFIG flag is set, just return the current crop
+	 * rectangle.
+	 */
+	if (sel->flags & V4L2_SUBDEV_SEL_FLAG_KEEP_CONFIG) {
+		sel->r = *__preview_get_crop(prev, fh, sel->which);
+		return 0;
+	}
+
+	format = __preview_get_format(prev, fh, PREV_PAD_SINK, sel->which);
+	preview_try_crop(prev, format, &sel->r);
+	*__preview_get_crop(prev, fh, sel->which) = sel->r;
 
 	/* Update the source format. */
-	format = __preview_get_format(prev, fh, PREV_PAD_SOURCE, crop->which);
-	preview_try_format(prev, fh, PREV_PAD_SOURCE, format, crop->which);
+	format = __preview_get_format(prev, fh, PREV_PAD_SOURCE, sel->which);
+	preview_try_format(prev, fh, PREV_PAD_SOURCE, format, sel->which);
 
 	return 0;
 }
@@ -1979,8 +2120,8 @@ static const struct v4l2_subdev_pad_ops preview_v4l2_pad_ops = {
 	.enum_frame_size = preview_enum_frame_size,
 	.get_fmt = preview_get_format,
 	.set_fmt = preview_set_format,
-	.get_crop = preview_get_crop,
-	.set_crop = preview_set_crop,
+	.get_selection = preview_get_selection,
+	.set_selection = preview_set_selection,
 };
 
 /* subdev operations */
@@ -2076,6 +2217,7 @@ static int preview_link_setup(struct media_entity *entity,
 /* media operations */
 static const struct media_entity_operations preview_media_ops = {
 	.link_setup = preview_link_setup,
+	.link_validate = v4l2_subdev_link_validate,
 };
 
 void omap3isp_preview_unregister_entities(struct isp_prev_device *prev)
@@ -2201,7 +2343,7 @@ error_video_in:
 }
 
 /*
- * isp_preview_init - Previewer initialization.
+ * omap3isp_preview_init - Previewer initialization.
  * @dev : Pointer to ISP device
  * return -ENOMEM or zero on success
  */
@@ -2209,8 +2351,8 @@ int omap3isp_preview_init(struct isp_device *isp)
 {
 	struct isp_prev_device *prev = &isp->isp_prev;
 
-	spin_lock_init(&prev->lock);
 	init_waitqueue_head(&prev->wait);
+
 	preview_init_params(prev);
 
 	return preview_init_entities(prev);

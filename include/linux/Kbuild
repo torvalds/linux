@@ -383,6 +383,7 @@ header-y += utime.h
 header-y += utsname.h
 header-y += uuid.h
 header-y += uvcvideo.h
+header-y += v4l2-dv-timings.h
 header-y += v4l2-mediabus.h
 header-y += v4l2-subdev.h
 header-y += veth.h

@@ -372,6 +372,24 @@ struct dtv_frontend_properties {
 
 	/* DVB-T2 specifics */
 	u32                     dvbt2_plp_id;
+
+	/* ATSC-MH specifics */
+	u8			atscmh_fic_ver;
+	u8			atscmh_parade_id;
+	u8			atscmh_nog;
+	u8			atscmh_tnog;
+	u8			atscmh_sgn;
+	u8			atscmh_prc;
+
+	u8			atscmh_rs_frame_mode;
+	u8			atscmh_rs_frame_ensemble;
+	u8			atscmh_rs_code_mode_pri;
+	u8			atscmh_rs_code_mode_sec;
+	u8			atscmh_sccc_block_mode;
+	u8			atscmh_sccc_code_mode_a;
+	u8			atscmh_sccc_code_mode_b;
+	u8			atscmh_sccc_code_mode_c;
+	u8			atscmh_sccc_code_mode_d;
 };
 
 struct dvb_frontend {

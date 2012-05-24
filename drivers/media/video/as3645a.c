@@ -713,7 +713,7 @@ static int as3645a_resume(struct device *dev)
  * The number of LEDs reported in platform data is used to compute default
  * limits. Parameters passed through platform data can override those limits.
  */
-static int as3645a_init_controls(struct as3645a *flash)
+static int __devinit as3645a_init_controls(struct as3645a *flash)
 {
 	const struct as3645a_platform_data *pdata = flash->pdata;
 	struct v4l2_ctrl *ctrl;
@@ -804,8 +804,8 @@ static int as3645a_init_controls(struct as3645a *flash)
 	return flash->ctrls.error;
 }
 
-static int as3645a_probe(struct i2c_client *client,
-			 const struct i2c_device_id *devid)
+static int __devinit as3645a_probe(struct i2c_client *client,
+				   const struct i2c_device_id *devid)
 {
 	struct as3645a *flash;
 	int ret;
@@ -846,7 +846,7 @@ done:
 	return ret;
 }
 
-static int __exit as3645a_remove(struct i2c_client *client)
+static int __devexit as3645a_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct as3645a *flash = to_as3645a(subdev);
@@ -877,7 +877,7 @@ static struct i2c_driver as3645a_i2c_driver = {
 		.pm   = &as3645a_pm_ops,
 	},
 	.probe	= as3645a_probe,
-	.remove	= __exit_p(as3645a_remove),
+	.remove	= __devexit_p(as3645a_remove),
 	.id_table = as3645a_id_table,
 };
 

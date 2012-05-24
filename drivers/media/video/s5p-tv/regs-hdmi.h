@@ -140,6 +140,7 @@
 #define HDMI_MODE_MASK			(3 << 0)
 
 /* HDMI_TG_CMD */
+#define HDMI_TG_FIELD_EN		(1 << 1)
 #define HDMI_TG_EN			(1 << 0)
 
 #endif /* SAMSUNG_REGS_HDMI_H */
