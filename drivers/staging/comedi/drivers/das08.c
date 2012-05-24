@@ -32,7 +32,7 @@
  *   [ComputerBoards] DAS08 (isa-das08), DAS08-PGM (das08-pgm),
  *   DAS08-PGH (das08-pgh), DAS08-PGL (das08-pgl), DAS08-AOH (das08-aoh),
  *   DAS08-AOL (das08-aol), DAS08-AOM (das08-aom), DAS08/JR-AO (das08/jr-ao),
- *   DAS08/JR-16-AO (das08jr-16-ao), PCI-DAS08 (das08),
+ *   DAS08/JR-16-AO (das08jr-16-ao), PCI-DAS08 (pci-das08 or das08),
  *   PC104-DAS08 (pc104-das08), DAS08/JR/16 (das08jr/16)
  * Status: works
  *
@@ -765,7 +765,7 @@ static const struct das08_board_struct das08_boards[] = {
 #endif /* IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) */
 #if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 	{
-		.name = "das08",	/*  pci-das08 */
+		.name = "pci-das08",	/*  pci-das08 */
 		.id = PCI_DEVICE_ID_PCIDAS08,
 		.bustype = pci,
 		.ai = das08_ai_rinsn,
@@ -780,6 +780,11 @@ static const struct das08_board_struct das08_boards[] = {
 		.i8255_offset = 0,
 		.i8254_offset = 4,
 		.iosize = 8,
+	},
+	{ /* wildcard entry matches any supported PCI device */
+		.name = DRV_NAME,
+		.id = PCI_ANY_ID,
+		.bustype = pci,
 	},
 #endif /* IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) */
 };
@@ -938,6 +943,66 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 }
 EXPORT_SYMBOL_GPL(das08_common_attach);
 
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
+static struct pci_dev *das08_find_pci(struct comedi_device *dev,
+				      int bus, int slot)
+{
+	const struct das08_board_struct *thisboard = comedi_board(dev);
+	struct pci_dev *pdev;
+	unsigned int matchid;
+
+	if (bus || slot)
+		dev_dbg(dev->class_dev, "Looking for %s at PCI %02X:%02X\n",
+			thisboard->name, bus, slot);
+	else
+		dev_dbg(dev->class_dev, "Looking for %s on PCI buses\n",
+			thisboard->name);
+
+	matchid = thisboard->id;
+	pdev = NULL;
+	for_each_pci_dev(pdev) {
+		if ((bus || slot) &&
+		    (bus != pdev->bus->number || slot != PCI_SLOT(pdev->devfn)))
+			continue;
+		if (pdev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
+			continue;
+		if (matchid == PCI_ANY_ID) {
+			/* wildcard board matches any supported PCI board */
+			unsigned int i;
+			for (i = 0; i < ARRAY_SIZE(das08_boards); i++) {
+				if (das08_boards[i].bustype != pci)
+					continue;
+				if (pdev->device == das08_boards[i].id) {
+					/* replace wildcard board_ptr */
+					dev->board_ptr = &das08_boards[i];
+					thisboard = comedi_board(dev);
+					break;
+				}
+			}
+			if (i == ARRAY_SIZE(das08_boards))
+				continue;
+		} else {
+			/* match specific PCI board */
+			if (pdev->device != matchid)
+				continue;
+		}
+		/* found a match */
+		dev_info(dev->class_dev, "Found %s at PCI %s\n",
+			 thisboard->name, pci_name(pdev));
+		return pdev;
+	}
+	/* no match found */
+	if (bus || slot)
+		dev_err(dev->class_dev,
+			"No %s cards found at PCI %02X:%02X\n",
+			thisboard->name, bus, slot);
+	else
+		dev_err(dev->class_dev, "No %s cards found on PCI buses\n",
+			thisboard->name);
+	return NULL;
+}
+#endif
+
 #ifdef DO_COMEDI_DRIVER_REGISTER
 static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -954,30 +1019,11 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev_info(dev->class_dev, "attach\n");
 	if (IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) && thisboard->bustype == pci) {
 		unsigned long pci_iobase = 0;
-		struct pci_dev *pdev = NULL;
-		if (it->options[0] || it->options[1]) {
-			dev_info(dev->class_dev, "pci bus %i slot %i\n",
-			       it->options[0], it->options[1]);
-		}
-		/*  find card */
-		for_each_pci_dev(pdev) {
-			if (pdev->vendor == PCI_VENDOR_ID_COMPUTERBOARDS
-			    && pdev->device == PCI_DEVICE_ID_PCIDAS08) {
-				if (it->options[0] || it->options[1]) {
-					if (pdev->bus->number == it->options[0]
-					    && PCI_SLOT(pdev->devfn) ==
-					    it->options[1]) {
-						break;
-					}
-				} else {
-					break;
-				}
-			}
-		}
-		if (!pdev) {
-			dev_err(dev->class_dev, "No pci das08 cards found\n");
+		struct pci_dev *pdev;
+		pdev = das08_find_pci(dev, it->options[0], it->options[1]);
+		if (pdev == NULL)
 			return -EIO;
-		}
+		thisboard = comedi_board(dev);	/* replaced wildcard board */
 		devpriv->pdev = pdev;
 		/*  enable PCI device and reserve I/O spaces */
 		if (comedi_pci_enable(pdev, DRV_NAME)) {
