@@ -157,7 +157,9 @@ batadv_tt_orig_list_entry_free_ref(struct tt_orig_list_entry *orig_entry)
 static void batadv_tt_local_event(struct bat_priv *bat_priv,
 				  const uint8_t *addr, uint8_t flags)
 {
-	struct tt_change_node *tt_change_node;
+	struct tt_change_node *tt_change_node, *entry, *safe;
+	bool event_removed = false;
+	bool del_op_requested, del_op_entry;
 
 	tt_change_node = kmalloc(sizeof(*tt_change_node), GFP_ATOMIC);
 
@@ -167,13 +169,45 @@ static void batadv_tt_local_event(struct bat_priv *bat_priv,
 	tt_change_node->change.flags = flags;
 	memcpy(tt_change_node->change.addr, addr, ETH_ALEN);
 
+	del_op_requested = flags & TT_CLIENT_DEL;
+
+	/* check for ADD+DEL or DEL+ADD events */
 	spin_lock_bh(&bat_priv->tt_changes_list_lock);
+	list_for_each_entry_safe(entry, safe, &bat_priv->tt_changes_list,
+				 list) {
+		if (!batadv_compare_eth(entry->change.addr, addr))
+			continue;
+
+		/* DEL+ADD in the same orig interval have no effect and can be
+		 * removed to avoid silly behaviour on the receiver side. The
+		 * other way around (ADD+DEL) can happen in case of roaming of
+		 * a client still in the NEW state. Roaming of NEW clients is
+		 * now possible due to automatically recognition of "temporary"
+		 * clients
+		 */
+		del_op_entry = entry->change.flags & TT_CLIENT_DEL;
+		if (!del_op_requested && del_op_entry)
+			goto del;
+		if (del_op_requested && !del_op_entry)
+			goto del;
+		continue;
+del:
+		list_del(&entry->list);
+		kfree(entry);
+		event_removed = true;
+		goto unlock;
+	}
+
 	/* track the change in the OGMinterval list */
 	list_add_tail(&tt_change_node->list, &bat_priv->tt_changes_list);
-	atomic_inc(&bat_priv->tt_local_changes);
+
+unlock:
 	spin_unlock_bh(&bat_priv->tt_changes_list_lock);
 
-	atomic_set(&bat_priv->tt_ogm_append_cnt, 0);
+	if (event_removed)
+		atomic_dec(&bat_priv->tt_local_changes);
+	else
+		atomic_inc(&bat_priv->tt_local_changes);
 }
 
 int batadv_tt_len(int changes_num)
