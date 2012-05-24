@@ -588,3 +588,10 @@ Why:	Remount currently allows changing bound subsystems and
 	replaced with conventional fsnotify.
 
 ----------------------------
+
+What:	KVM debugfs statistics
+When:	2013
+Why:	KVM tracepoints provide mostly equivalent information in a much more
+        flexible fashion.
+
+----------------------------
