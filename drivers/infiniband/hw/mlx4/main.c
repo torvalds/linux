@@ -140,7 +140,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->max_mr_size	   = ~0ull;
 	props->page_size_cap	   = dev->dev->caps.page_size_cap;
 	props->max_qp		   = dev->dev->caps.num_qps - dev->dev->caps.reserved_qps;
-	props->max_qp_wr	   = dev->dev->caps.max_wqes;
+	props->max_qp_wr	   = dev->dev->caps.max_wqes - MLX4_IB_SQ_MAX_SPARE;
 	props->max_sge		   = min(dev->dev->caps.max_sq_sg,
 					 dev->dev->caps.max_rq_sg);
 	props->max_cq		   = dev->dev->caps.num_cqs - dev->dev->caps.reserved_cqs;
