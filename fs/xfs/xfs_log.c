@@ -18,9 +18,7 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_bit.h"
 #include "xfs_log.h"
-#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -35,7 +33,6 @@
 #include "xfs_trans_priv.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_rw.h"
 #include "xfs_trace.h"
 
 kmem_zone_t	*xfs_log_ticket_zone;
@@ -916,24 +913,39 @@ xfs_log_need_covered(xfs_mount_t *mp)
  * We may be holding the log iclog lock upon entering this routine.
  */
 xfs_lsn_t
-xlog_assign_tail_lsn(
+xlog_assign_tail_lsn_locked(
 	struct xfs_mount	*mp)
 {
-	xfs_lsn_t		tail_lsn;
 	struct log		*log = mp->m_log;
+	struct xfs_log_item	*lip;
+	xfs_lsn_t		tail_lsn;
+
+	assert_spin_locked(&mp->m_ail->xa_lock);
 
 	/*
 	 * To make sure we always have a valid LSN for the log tail we keep
 	 * track of the last LSN which was committed in log->l_last_sync_lsn,
-	 * and use that when the AIL was empty and xfs_ail_min_lsn returns 0.
-	 *
-	 * If the AIL has been emptied we also need to wake any process
-	 * waiting for this condition.
+	 * and use that when the AIL was empty.
 	 */
-	tail_lsn = xfs_ail_min_lsn(mp->m_ail);
-	if (!tail_lsn)
+	lip = xfs_ail_min(mp->m_ail);
+	if (lip)
+		tail_lsn = lip->li_lsn;
+	else
 		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
 	atomic64_set(&log->l_tail_lsn, tail_lsn);
+	return tail_lsn;
+}
+
+xfs_lsn_t
+xlog_assign_tail_lsn(
+	struct xfs_mount	*mp)
+{
+	xfs_lsn_t		tail_lsn;
+
+	spin_lock(&mp->m_ail->xa_lock);
+	tail_lsn = xlog_assign_tail_lsn_locked(mp);
+	spin_unlock(&mp->m_ail->xa_lock);
+
 	return tail_lsn;
 }
 
@@ -1172,7 +1184,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	xlog_get_iclog_buffer_size(mp, log);
 
 	error = ENOMEM;
-	bp = xfs_buf_alloc(mp->m_logdev_targp, 0, log->l_iclog_size, 0);
+	bp = xfs_buf_alloc(mp->m_logdev_targp, 0, BTOBB(log->l_iclog_size), 0);
 	if (!bp)
 		goto out_free_log;
 	bp->b_iodone = xlog_iodone;
@@ -1181,9 +1193,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 
 	spin_lock_init(&log->l_icloglock);
 	init_waitqueue_head(&log->l_flush_wait);
-
-	/* log record size must be multiple of BBSIZE; see xlog_rec_header_t */
-	ASSERT((XFS_BUF_SIZE(bp) & BBMASK) == 0);
 
 	iclogp = &log->l_iclog;
 	/*
@@ -1204,7 +1213,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		prev_iclog = iclog;
 
 		bp = xfs_buf_get_uncached(mp->m_logdev_targp,
-						log->l_iclog_size, 0);
+						BTOBB(log->l_iclog_size), 0);
 		if (!bp)
 			goto out_free_iclog;
 
@@ -1224,7 +1233,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		head->h_fmt = cpu_to_be32(XLOG_FMT);
 		memcpy(&head->h_fs_uuid, &mp->m_sb.sb_uuid, sizeof(uuid_t));
 
-		iclog->ic_size = XFS_BUF_SIZE(bp) - log->l_iclog_hsize;
+		iclog->ic_size = BBTOB(bp->b_length) - log->l_iclog_hsize;
 		iclog->ic_state = XLOG_STATE_ACTIVE;
 		iclog->ic_log = log;
 		atomic_set(&iclog->ic_refcnt, 0);
@@ -1475,7 +1484,7 @@ xlog_sync(xlog_t		*log,
 	} else {
 		iclog->ic_bwritecnt = 1;
 	}
-	XFS_BUF_SET_COUNT(bp, count);
+	bp->b_io_length = BTOBB(count);
 	bp->b_fspriv = iclog;
 	XFS_BUF_ZEROFLAGS(bp);
 	XFS_BUF_ASYNC(bp);
@@ -1573,7 +1582,7 @@ xlog_dealloc_log(xlog_t *log)
 	 * always need to ensure that the extra buffer does not point to memory
 	 * owned by another log buffer before we free it.
 	 */
-	xfs_buf_set_empty(log->l_xbuf, log->l_iclog_size);
+	xfs_buf_set_empty(log->l_xbuf, BTOBB(log->l_iclog_size));
 	xfs_buf_free(log->l_xbuf);
 
 	iclog = log->l_iclog;
@@ -2932,6 +2941,7 @@ xfs_log_force(
 {
 	int	error;
 
+	trace_xfs_log_force(mp, 0);
 	error = _xfs_log_force(mp, flags, NULL);
 	if (error)
 		xfs_warn(mp, "%s: error %d returned.", __func__, error);
@@ -3080,6 +3090,7 @@ xfs_log_force_lsn(
 {
 	int	error;
 
+	trace_xfs_log_force(mp, lsn);
 	error = _xfs_log_force_lsn(mp, lsn, flags, NULL);
 	if (error)
 		xfs_warn(mp, "%s: error %d returned.", __func__, error);

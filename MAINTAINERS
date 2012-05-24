@@ -7623,7 +7623,7 @@ XFS FILESYSTEM
 P:	Silicon Graphics Inc
 M:	Ben Myers <bpm@sgi.com>
 M:	Alex Elder <elder@kernel.org>
-M:	xfs-masters@oss.sgi.com
+M:	xfs@oss.sgi.com
 L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs
 T:	git git://oss.sgi.com/xfs/xfs.git
