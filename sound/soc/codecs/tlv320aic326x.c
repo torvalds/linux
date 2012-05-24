@@ -2106,7 +2106,7 @@ static int aic3262_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	int aif_bclk_wclk_reg; 
 	int aif_interface_reg; 
 	int aif_bclk_offset_reg; 
-	int iface_reg; 
+	int iface_reg = 0; 			//must be init, not will lead to error
 	codec = codec_dai->codec;
 	aic3262 = snd_soc_codec_get_drvdata(codec);
 	iface_val = 0x00;
@@ -2639,7 +2639,7 @@ static void AP_to_speaker(void)
 	aic3262_codec_write(aic3262_codec, AIC3262_PASI_DAC_DP_SETUP, 0xc0);
 	aic3262_codec_write(aic3262_codec, AIC3262_DAC_MVOL_CONF, 0x00);
 
-}*/
+}
 
 
 static void AP_to_headphone(void)
@@ -2679,7 +2679,7 @@ static void AP_to_headphone(void)
 	aic3262_codec_write(aic3262_codec, AIC3262_PASI_DAC_DP_SETUP, 0xc0);
 	aic3262_codec_write(aic3262_codec, AIC3262_DAC_MVOL_CONF, 0x00);
 
-}
+}*/
 
 /*static void record_in1lr(void)
 {
@@ -2730,14 +2730,74 @@ static void record_in2lr(void)
 	aic3262_codec_write(aic3262_codec, MAKE_REG(0,0,127), 0x00);
 	aic3262_codec_write(aic3262_codec, AIC3262_RESET_REG, 0x01);
 
+}
+
+static void incall_mic(void)
+{
+	unsigned char ret;
+	//Choose Book 0
+	aic3262_codec_write(aic3262_codec, AIC3262_PAGE_SEL_REG, 0x00);
+	aic3262_codec_write(aic3262_codec, MAKE_REG(0,0,127), 0x00);
+
+	// Clock Configuration
+	//ret = aic3262_codec_read(aic3262_codec, AIC3262_DAC_ADC_CLKIN_REG);
+	//ret = ret &0xf0;
+	//aic3262_codec_write(aic3262_codec, AIC3262_DAC_ADC_CLKIN_REG, ret);
+	//aic3262_codec_write(aic3262_codec, AIC3262_NADC_DIV_POW_REG, 0x81);
+	//aic3262_codec_write(aic3262_codec, AIC3262_MADC_DIV_POW_REG, 0x8b);
+	//aic3262_codec_write(aic3262_codec, AIC3262_AOSR_REG, 0x80);
+
+	// Initialize the Codec
+	//aic3262_codec_write(aic3262_codec, AIC3262_PAGE_SEL_REG, 0x01);
+	//aic3262_codec_write(aic3262_codec, AIC3262_POWER_CONF, 0x00);
+	//aic3262_codec_write(aic3262_codec, AIC3262_REF_PWR_DLY, 0x01);
+	//aic3262_codec_write(aic3262_codec, AIC3262_MIC_PWR_DLY, 0x33);
+
+	//ASI#3 configuration
+	aic3262_codec_write(aic3262_codec, AIC3262_PAGE_SEL_REG, 0x04);
+	//aic3262_codec_write(aic3262_codec, AIC3262_ASI3_BUS_FMT, 0x00);
+	//aic3262_codec_write(aic3262_codec, AIC3262_ASI3_ADC_INPUT_CNTL, 0x01);
+	//aic3262_codec_write(aic3262_codec, AIC3262_ASI3_BWCLK_CNTL_REG, 0x00);
+	aic3262_codec_write(aic3262_codec, AIC3262_ASI3_DOUT_CNTL, 0x00);
+
+	//Signal processing
+	//aic3262_codec_write(aic3262_codec, AIC3262_PAGE_SEL_REG, 0x00);
+	//aic3262_codec_write(aic3262_codec, AIC3262_ADC_PRB, 0x01);
+
+	//ADC configuration
+	aic3262_codec_write(aic3262_codec, AIC3262_PAGE_SEL_REG, 0x01);
+	aic3262_codec_write(aic3262_codec, AIC3262_MIC_BIAS_CNTL, 0x55);
+	aic3262_codec_write(aic3262_codec, AIC3262_LMIC_PGA_PIN, 0x80);
+	aic3262_codec_write(aic3262_codec, AIC3262_LMIC_PGA_MIN, 0x80);
+	aic3262_codec_write(aic3262_codec, AIC3262_RMIC_PGA_PIN, 0x80);
+	
+	aic3262_codec_write(aic3262_codec, AIC3262_RMIC_PGA_MIN, 0x20);
+	aic3262_codec_write(aic3262_codec, AIC3262_MICL_PGA, 0x3c);
+	aic3262_codec_write(aic3262_codec, AIC3262_MICR_PGA, 0x3c);
+	aic3262_codec_write(aic3262_codec, MAKE_REG(0,1, 61), 0x00);
+
+	aic3262_codec_write(aic3262_codec, AIC3262_PAGE_SEL_REG, 0x00);
+
+	aic3262_codec_write(aic3262_codec, AIC3262_ADC_CHANNEL_POW, 0xc0);
+	aic3262_codec_write(aic3262_codec, AIC3262_ADC_FINE_GAIN, 0x00);
 }*/
+
+static void test(void)
+{
+	//Choose Book 0
+	aic3262_codec_write(aic3262_codec, AIC3262_PAGE_SEL_REG, 0x00);
+	aic3262_codec_write(aic3262_codec, MAKE_REG(0,0,127), 0x00);
+
+	aic3262_codec_write(aic3262_codec, AIC3262_PAGE_SEL_REG, 0x04);
+	aic3262_codec_write(aic3262_codec, AIC3262_ASI3_BUS_FMT, 0x60);
+}
 
 static void test_playback(void)
 {
 	
-	printk("test palyback start\n");
+	printk("test\n");
 
-	AP_to_headphone( );
+	test( );
 
 }
 
