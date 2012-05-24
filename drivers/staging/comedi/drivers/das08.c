@@ -944,6 +944,75 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 EXPORT_SYMBOL_GPL(das08_common_attach);
 
 #if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
+static int das08_pci_attach_common(struct comedi_device *dev,
+				   struct pci_dev *pdev)
+{
+	unsigned long iobase;
+	unsigned long pci_iobase;
+	struct das08_private_struct *devpriv = dev->private;
+
+	devpriv->pdev = pdev;
+	/*  enable PCI device and reserve I/O spaces */
+	if (comedi_pci_enable(pdev, dev->driver->driver_name)) {
+		dev_err(dev->class_dev,
+			"Error enabling PCI device and requesting regions\n");
+		return -EIO;
+	}
+	/*  read base addresses */
+	pci_iobase = pci_resource_start(pdev, 1);
+	iobase = pci_resource_start(pdev, 2);
+	dev_info(dev->class_dev, "pcibase 0x%lx  iobase 0x%lx\n",
+		 pci_iobase, iobase);
+	devpriv->pci_iobase = pci_iobase;
+#if 0
+	/* We could enable pci-das08's interrupt here to make it possible
+	* to do timed input in this driver, but there is little point since
+	* conversions would have to be started by the interrupt handler
+	* so you might as well use comedi_rt_timer to emulate commands
+	*/
+	/* set source of interrupt trigger to counter2 output */
+	outb(CNTRL_INTR | CNTRL_DIR, pci_iobase + CNTRL);
+	/* Enable local interrupt 1 and pci interrupt */
+	outw(INTR1_ENABLE | PCI_INTR_ENABLE, pci_iobase + INTCSR);
+#endif
+	return das08_common_attach(dev, iobase);
+}
+#endif
+
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
+static const struct das08_board_struct *
+das08_find_pci_board(struct pci_dev *pdev)
+{
+	unsigned int i;
+	for (i = 0; i < ARRAY_SIZE(das08_boards); i++)
+		if (das08_boards[i].bustype == pci &&
+		    pdev->device == das08_boards[i].id)
+			return &das08_boards[i];
+	return NULL;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
+/* only called in the PCI probe path, via comedi_pci_auto_config() */
+static int __devinit das08_attach_pci(struct comedi_device *dev,
+				   struct pci_dev *pdev)
+{
+	int ret;
+
+	ret = alloc_private(dev, sizeof(struct das08_private_struct));
+	if (ret < 0)
+		return ret;
+	dev_info(dev->class_dev, "attach pci %s\n", pci_name(pdev));
+	dev->board_ptr = das08_find_pci_board(pdev);
+	if (dev->board_ptr == NULL) {
+		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
+		return -EINVAL;
+	}
+	return das08_pci_attach_common(dev, pdev);
+}
+#endif
+
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 static struct pci_dev *das08_find_pci(struct comedi_device *dev,
 				      int bus, int slot)
 {
@@ -968,19 +1037,12 @@ static struct pci_dev *das08_find_pci(struct comedi_device *dev,
 			continue;
 		if (matchid == PCI_ANY_ID) {
 			/* wildcard board matches any supported PCI board */
-			unsigned int i;
-			for (i = 0; i < ARRAY_SIZE(das08_boards); i++) {
-				if (das08_boards[i].bustype != pci)
-					continue;
-				if (pdev->device == das08_boards[i].id) {
-					/* replace wildcard board_ptr */
-					dev->board_ptr = &das08_boards[i];
-					thisboard = comedi_board(dev);
-					break;
-				}
-			}
-			if (i == ARRAY_SIZE(das08_boards))
+			const struct das08_board_struct *foundboard;
+			foundboard = das08_find_pci_board(pdev);
+			if (foundboard == NULL)
 				continue;
+			/* replace wildcard board_ptr */
+			dev->board_ptr = thisboard = foundboard;
 		} else {
 			/* match specific PCI board */
 			if (pdev->device != matchid)
@@ -1018,36 +1080,11 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev_info(dev->class_dev, "attach\n");
 	if (IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) && thisboard->bustype == pci) {
-		unsigned long pci_iobase = 0;
 		struct pci_dev *pdev;
 		pdev = das08_find_pci(dev, it->options[0], it->options[1]);
 		if (pdev == NULL)
 			return -EIO;
-		thisboard = comedi_board(dev);	/* replaced wildcard board */
-		devpriv->pdev = pdev;
-		/*  enable PCI device and reserve I/O spaces */
-		if (comedi_pci_enable(pdev, DRV_NAME)) {
-			dev_err(dev->class_dev,
-				"Error enabling PCI device and requesting regions\n");
-			return -EIO;
-		}
-		/*  read base addresses */
-		pci_iobase = pci_resource_start(pdev, 1);
-		iobase = pci_resource_start(pdev, 2);
-		dev_info(dev->class_dev, "pcibase 0x%lx  iobase 0x%lx\n",
-			 pci_iobase, iobase);
-		devpriv->pci_iobase = pci_iobase;
-#if 0
-/* We could enable to pci-das08's interrupt here to make it possible
- * to do timed input in this driver, but there is little point since
- * conversions would have to be started by the interrupt handler
- * so you might as well use comedi_rt_timer to emulate commands
- */
-		/* set source of interrupt trigger to counter2 output */
-		outb(CNTRL_INTR | CNTRL_DIR, pci_iobase + CNTRL);
-		/* Enable local interrupt 1 and pci interrupt */
-		outw(INTR1_ENABLE | PCI_INTR_ENABLE, pci_iobase + INTCSR);
-#endif
+		return das08_pci_attach_common(dev, pdev);
 	} else if (IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) &&
 		   (thisboard->bustype == isa || thisboard->bustype == pc104)) {
 		iobase = it->options[0];
@@ -1056,9 +1093,9 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev_err(dev->class_dev, "I/O port conflict\n");
 			return -EIO;
 		}
+		return das08_common_attach(dev, iobase);
 	} else
 		return -EIO;
-	return das08_common_attach(dev, iobase);
 }
 #endif /* DO_COMEDI_DRIVER_REGISTER */
 
@@ -1096,6 +1133,9 @@ static struct comedi_driver das08_driver = {
 	.driver_name = DRV_NAME,
 	.module = THIS_MODULE,
 	.attach = das08_attach,
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
+	.attach_pci = das08_attach_pci,
+#endif
 	.detach = das08_detach,
 	.board_name = &das08_boards[0].name,
 	.num_names = sizeof(das08_boards) / sizeof(struct das08_board_struct),
