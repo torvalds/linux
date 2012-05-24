@@ -60,23 +60,9 @@
 #define warn(format, arg...) \
 	printk(KERN_WARNING DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
 
-/**
- * struct dvb_usb_device_description - name and its according USB IDs
- * @name: real name of the box, regardless which DVB USB device class is in use
- * @cold_ids: array of struct usb_device_id which describe the device in
- *  pre-firmware state
- * @warm_ids: array of struct usb_device_id which describe the device in
- *  post-firmware state
- *
- * Each DVB USB device class can have one or more actual devices, this struct
- * assigns a name to it.
- */
-struct dvb_usb_device_description {
+struct dvb_usb_driver_info {
 	const char *name;
-
-#define DVB_USB_ID_MAX_NUM 15
-	struct usb_device_id *cold_ids[DVB_USB_ID_MAX_NUM];
-	struct usb_device_id *warm_ids[DVB_USB_ID_MAX_NUM];
+	const struct dvb_usb_device_properties *props;
 };
 
 static inline u8 rc5_custom(struct rc_map_table *key)
@@ -262,10 +248,6 @@ enum dvb_usb_mode {
  *  the generic_bulk_ctrl_endpoint. When this is non-zero, this will be used
  *  instead of the generic_bulk_ctrl_endpoint when reading usb responses in
  *  the dvb_usb_generic_rw helper function.
- *
- * @num_device_descs: number of struct dvb_usb_device_description in @devices
- * @devices: array of struct dvb_usb_device_description compatibles with these
- *  properties.
  */
 #define MAX_NO_OF_ADAPTER_PER_DEVICE 2
 struct dvb_usb_device_properties {
@@ -309,9 +291,6 @@ struct dvb_usb_device_properties {
 
 	int generic_bulk_ctrl_endpoint;
 	int generic_bulk_ctrl_endpoint_response;
-
-	int num_device_descs;
-	struct dvb_usb_device_description devices[12];
 };
 
 /**
@@ -437,7 +416,7 @@ struct dvb_usb_adapter {
  */
 struct dvb_usb_device {
 	struct dvb_usb_device_properties props;
-	struct dvb_usb_device_description *desc;
+	const char *name;
 
 	struct usb_device *udev;
 

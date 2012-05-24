@@ -198,49 +198,6 @@ static int dvb_usb_init(struct dvb_usb_device *d)
 	return 0;
 }
 
-/* determine the name and the state of the just found USB device */
-static struct dvb_usb_device_description *dvb_usb_find_device(
-		struct usb_device *udev,
-		struct dvb_usb_device_properties *props, bool *cold)
-{
-	int i, j;
-	struct dvb_usb_device_description *desc = NULL;
-
-	*cold = true;
-
-	for (i = 0; i < props->num_device_descs; i++) {
-		for (j = 0; j < DVB_USB_ID_MAX_NUM && props->devices[i].cold_ids[j] != NULL; j++) {
-			deb_info("check for cold %x %x\n",
-				props->devices[i].cold_ids[j]->idVendor,
-				props->devices[i].cold_ids[j]->idProduct);
-			if (props->devices[i].cold_ids[j]->idVendor == le16_to_cpu(udev->descriptor.idVendor) &&
-					props->devices[i].cold_ids[j]->idProduct == le16_to_cpu(udev->descriptor.idProduct)) {
-				*cold = true;
-				desc = &props->devices[i];
-				break;
-			}
-		}
-
-		if (desc != NULL)
-			break;
-
-		for (j = 0; j < DVB_USB_ID_MAX_NUM && props->devices[i].warm_ids[j] != NULL; j++) {
-			deb_info("check for warm %x %x\n",
-				props->devices[i].warm_ids[j]->idVendor,
-				props->devices[i].warm_ids[j]->idProduct);
-
-			if (props->devices[i].warm_ids[j]->idVendor == le16_to_cpu(udev->descriptor.idVendor) &&
-					props->devices[i].warm_ids[j]->idProduct == le16_to_cpu(udev->descriptor.idProduct)) {
-				*cold = false;
-				desc = &props->devices[i];
-				break;
-			}
-		}
-	}
-
-	return desc;
-}
-
 int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	if (onoff)
@@ -265,11 +222,11 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct dvb_usb_device *d = NULL;
-	struct dvb_usb_device_description *desc = NULL;
-	struct dvb_usb_device_properties *props =
-			(struct dvb_usb_device_properties *) id->driver_info;
+	struct dvb_usb_driver_info *driver_info =
+			(struct dvb_usb_driver_info *) id->driver_info;
+	const struct dvb_usb_device_properties *props = driver_info->props;
 	int ret = -ENOMEM;
-	bool cold;
+	bool cold = false;
 
 	d = kzalloc(sizeof(struct dvb_usb_device), GFP_KERNEL);
 	if (d == NULL) {
@@ -278,6 +235,7 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 	}
 
 	d->udev = udev;
+	d->name = driver_info->name;
 	memcpy(&d->props, props, sizeof(struct dvb_usb_device_properties));
 
 	if (d->props.size_of_priv > 0) {
@@ -288,18 +246,6 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 			goto err_kfree;
 		}
 	}
-
-	desc = dvb_usb_find_device(udev, props, &cold);
-
-	if (desc == NULL) {
-		deb_err("something went very wrong, device was not found in" \
-				" current device list - let's see what" \
-				" comes next.\n");
-		ret = -ENODEV;
-		goto err_kfree;
-	}
-
-	d->desc = desc;
 
 	if (d->props.identify_state) {
 		ret = d->props.identify_state(d);
@@ -315,7 +261,7 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 
 	if (cold) {
 		info("found a '%s' in cold state, will try to load a firmware",
-				desc->name);
+				d->name);
 		ret = dvb_usb_download_firmware(d);
 		if (ret == 0) {
 			;
@@ -327,16 +273,16 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 		}
 	}
 
-	info("found a '%s' in warm state.", desc->name);
+	info("found a '%s' in warm state.", d->name);
 
 	usb_set_intfdata(intf, d);
 
 	ret = dvb_usb_init(d);
 
 	if (ret == 0)
-		info("%s successfully initialized and connected.", desc->name);
+		info("%s successfully initialized and connected.", d->name);
 	else
-		info("%s error while loading driver (%d)", desc->name, ret);
+		info("%s error while loading driver (%d)", d->name, ret);
 
 	return 0;
 
@@ -351,15 +297,14 @@ EXPORT_SYMBOL(dvb_usbv2_device_init);
 void dvb_usbv2_device_exit(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	const char *name = "generic DVB-USB module";
+	const char *name;
 
 	usb_set_intfdata(intf, NULL);
-	if (d != NULL && d->desc != NULL) {
-		name = d->desc->name;
+	if (d) {
+		name = d->name;
 		dvb_usb_exit(d);
 	}
 	info("%s successfully deinitialized and disconnected.", name);
-
 }
 EXPORT_SYMBOL(dvb_usbv2_device_exit);
 

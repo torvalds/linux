@@ -103,7 +103,7 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
 {
 	int i;
-	int ret = dvb_register_adapter(&adap->dvb_adap, adap->dev->desc->name,
+	int ret = dvb_register_adapter(&adap->dvb_adap, adap->dev->name,
 				       adap->dev->props.owner,
 				       &adap->dev->udev->dev,
 				       adap->dev->props.adapter_nr);
@@ -236,7 +236,7 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		if (adap->props.fe[i].frontend_attach == NULL) {
 			err("strange: '%s' #%d,%d " \
 			    "doesn't want to attach a frontend.",
-			    adap->dev->desc->name, adap->id, i);
+			    adap->dev->name, adap->id, i);
 
 			return 0;
 		}
@@ -246,7 +246,7 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 			/* only print error when there is no FE at all */
 			if (i == 0)
 				err("no frontend was attached by '%s'",
-					adap->dev->desc->name);
+					adap->dev->name);
 
 			return 0;
 		}
