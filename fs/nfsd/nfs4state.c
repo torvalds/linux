@@ -862,6 +862,11 @@ static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses, 
 	if (ret)
 		/* oops; xprt is already down: */
 		nfsd4_conn_lost(&conn->cn_xpt_user);
+	if (ses->se_client->cl_cb_state == NFSD4_CB_DOWN &&
+		dir & NFS4_CDFC4_BACK) {
+		/* callback channel may be back up */
+		nfsd4_probe_callback(ses->se_client);
+	}
 	return nfs_ok;
 }
 
