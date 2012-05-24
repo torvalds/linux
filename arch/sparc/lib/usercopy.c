@@ -11,35 +11,20 @@ EXPORT_SYMBOL(copy_from_user_overflow);
 
 #define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
 
-/* Return the high bit set in the first byte that is a zero */
-static inline unsigned long has_zero(unsigned long a)
+static inline long find_zero(unsigned long mask)
 {
-	return ((a - REPEAT_BYTE(0x01)) & ~a) & REPEAT_BYTE(0x80);
-}
-
-static inline long find_zero(unsigned long c)
-{
+	long byte = 0;
 #ifdef CONFIG_64BIT
-	if (!(c & 0xff00000000000000UL))
-		return 0;
-	if (!(c & 0x00ff000000000000UL))
-		return 1;
-	if (!(c & 0x0000ff0000000000UL))
-		return 2;
-	if (!(c & 0x000000ff00000000UL))
-		return 3;
-#define __OFF 4
-#else
-#define __OFF 0
+	if (mask >> 32)
+		mask >>= 32;
+	else
+		byte = 4;
 #endif
-	if (!(c & 0xff000000))
-		return __OFF + 0;
-	if (!(c & 0x00ff0000))
-		return __OFF + 1;
-	if (!(c & 0x0000ff00))
-		return __OFF + 2;
-	return __OFF + 3;
-#undef __OFF
+	if (mask >> 16)
+		mask >>= 16;
+	else
+		byte += 2;
+	return (mask >> 8) ? byte : byte + 1;
 }
 
 /*
@@ -50,6 +35,8 @@ static inline long find_zero(unsigned long c)
  */
 static inline long do_strncpy_from_user(char *dst, const char __user *src, long count, unsigned long max)
 {
+	const unsigned long high_bits = REPEAT_BYTE(0xfe) + 1;
+	const unsigned long low_bits = REPEAT_BYTE(0x7f);
 	long res = 0;
 
 	/*
@@ -63,14 +50,19 @@ static inline long do_strncpy_from_user(char *dst, const char __user *src, long 
 		goto byte_at_a_time;
 
 	while (max >= sizeof(unsigned long)) {
-		unsigned long c;
+		unsigned long c, v, rhs;
 
 		/* Fall back to byte-at-a-time if we get a page fault */
 		if (unlikely(__get_user(c,(unsigned long __user *)(src+res))))
 			break;
+		rhs = c | low_bits;
+		v = (c + high_bits) & ~rhs;
 		*(unsigned long *)(dst+res) = c;
-		if (has_zero(c))
-			return res + find_zero(c);
+		if (v) {
+			v = (c & low_bits) + low_bits;;
+			v = ~(v | rhs);
+			return res + find_zero(v);
+		}
 		res += sizeof(unsigned long);
 		max -= sizeof(unsigned long);
 	}
