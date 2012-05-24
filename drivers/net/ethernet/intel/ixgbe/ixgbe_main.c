@@ -1517,8 +1517,8 @@ static bool ixgbe_cleanup_headers(struct ixgbe_ring *rx_ring,
 	 * 60 bytes if the skb->len is less than 60 for skb_pad.
 	 */
 	pull_len = skb_frag_size(frag);
-	if (pull_len > 256)
-		pull_len = ixgbe_get_headlen(va, pull_len);
+	if (pull_len > IXGBE_RX_HDR_SIZE)
+		pull_len = ixgbe_get_headlen(va, IXGBE_RX_HDR_SIZE);
 
 	/* align pull length to size of long to optimize memcpy performance */
 	skb_copy_to_linear_data(skb, va, ALIGN(pull_len, sizeof(long)));
