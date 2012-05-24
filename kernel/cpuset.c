@@ -1990,6 +1990,32 @@ static void remove_tasks_in_empty_cpuset(struct cpuset *cs)
 }
 
 /*
+ * Helper function to traverse cpusets.
+ * It can be used to walk the cpuset tree from top to bottom, completing
+ * one layer before dropping down to the next (thus always processing a
+ * node before any of its children).
+ */
+static struct cpuset *cpuset_next(struct list_head *queue)
+{
+	struct cpuset *cp;
+	struct cpuset *child;	/* scans child cpusets of cp */
+	struct cgroup *cont;
+
+	if (list_empty(queue))
+		return NULL;
+
+	cp = list_first_entry(queue, struct cpuset, stack_list);
+	list_del(queue->next);
+	list_for_each_entry(cont, &cp->css.cgroup->children, sibling) {
+		child = cgroup_cs(cont);
+		list_add_tail(&child->stack_list, queue);
+	}
+
+	return cp;
+}
+
+
+/*
  * Walk the specified cpuset subtree and look for empty cpusets.
  * The tasks of such cpuset must be moved to a parent cpuset.
  *
@@ -2008,19 +2034,11 @@ static void scan_for_empty_cpusets(struct cpuset *root)
 {
 	LIST_HEAD(queue);
 	struct cpuset *cp;	/* scans cpusets being updated */
-	struct cpuset *child;	/* scans child cpusets of cp */
-	struct cgroup *cont;
 	static nodemask_t oldmems;	/* protected by cgroup_mutex */
 
 	list_add_tail((struct list_head *)&root->stack_list, &queue);
 
-	while (!list_empty(&queue)) {
-		cp = list_first_entry(&queue, struct cpuset, stack_list);
-		list_del(queue.next);
-		list_for_each_entry(cont, &cp->css.cgroup->children, sibling) {
-			child = cgroup_cs(cont);
-			list_add_tail(&child->stack_list, &queue);
-		}
+	while ((cp = cpuset_next(&queue)) != NULL) {
 
 		/* Continue past cpusets with all cpus, mems online */
 		if (cpumask_subset(cp->cpus_allowed, cpu_active_mask) &&
