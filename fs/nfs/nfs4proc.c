@@ -5192,20 +5192,20 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 				clp->cl_rpcclient->cl_auth->au_flavor);
 
 	res.server_owner = kzalloc(sizeof(struct nfs41_server_owner),
-					GFP_KERNEL);
+					GFP_NOFS);
 	if (unlikely(res.server_owner == NULL)) {
 		status = -ENOMEM;
 		goto out;
 	}
 
 	res.server_scope = kzalloc(sizeof(struct nfs41_server_scope),
-					GFP_KERNEL);
+					GFP_NOFS);
 	if (unlikely(res.server_scope == NULL)) {
 		status = -ENOMEM;
 		goto out_server_owner;
 	}
 
-	res.impl_id = kzalloc(sizeof(struct nfs41_impl_id), GFP_KERNEL);
+	res.impl_id = kzalloc(sizeof(struct nfs41_impl_id), GFP_NOFS);
 	if (unlikely(res.impl_id == NULL)) {
 		status = -ENOMEM;
 		goto out_server_scope;
