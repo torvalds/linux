@@ -190,7 +190,6 @@ struct max77693_dev {
 	struct i2c_client *i2c;		/* 0xCC , PMIC, Charger, Flash LED */
 	struct i2c_client *muic;	/* 0x4A , MUIC */
 	struct i2c_client *haptic;	/* 0x90 , Haptic */
-	struct mutex iolock;
 
 	int type;
 

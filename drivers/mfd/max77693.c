@@ -138,8 +138,6 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 
 	max77693->wakeup = pdata->wakeup;
 
-	mutex_init(&max77693->iolock);
-
 	if (max77693_read_reg(max77693->regmap,
 				MAX77693_PMIC_REG_PMIC_ID2, &reg_data) < 0) {
 		dev_err(max77693->dev, "device not found on this channel\n");
