@@ -58,3 +58,4 @@ obj-$(CONFIG_RAMSTER)		+= ramster/
 obj-$(CONFIG_USB_WPAN_HCD)	+= ozwpan/
 obj-$(CONFIG_USB_G_CCG)		+= ccg/
 obj-$(CONFIG_WIMAX_GDM72XX)	+= gdm72xx/
+obj-$(CONFIG_CSR_WIFI)		+= csr/

@@ -1,0 +1,7 @@
+config CSR_WIFI
+	tristate "CSR wireless driver"
+	depends on PCI
+	help
+	  Driver for the CSR wireless SDIO device.
+
+	  If unsure, select N.
