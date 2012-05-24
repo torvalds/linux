@@ -821,14 +821,14 @@ static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
 			return;
 		}
 
-		WARN_ON(req->request.length > dep->endpoint.maxpacket);
+		WARN_ON(req->request.length > DWC3_EP0_BOUNCE_SIZE);
 
 		dwc->ep0_bounced = true;
 
 		/*
-		 * REVISIT in case request length is bigger than EP0
-		 * wMaxPacketSize, we will need two chained TRBs to handle
-		 * the transfer.
+		 * REVISIT in case request length is bigger than
+		 * DWC3_EP0_BOUNCE_SIZE we will need two chained
+		 * TRBs to handle the transfer.
 		 */
 		ret = dwc3_ep0_start_trans(dwc, event->endpoint_number,
 				dwc->ep0_bounce_addr, dep->endpoint.maxpacket,
