@@ -278,7 +278,7 @@ struct dvb_usb_device_properties {
 
 #define RECONNECTS_USB                  1
 	int        (*download_firmware) (struct dvb_usb_device *, const struct firmware *);
-	const char *firmware;
+	int (*get_firmware_name) (struct dvb_usb_device *, const char **);
 
 	int size_of_priv;
 

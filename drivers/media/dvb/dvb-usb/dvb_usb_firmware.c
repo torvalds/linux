@@ -79,15 +79,20 @@ int dvb_usb_download_firmware(struct dvb_usb_device *d)
 {
 	int ret;
 	const struct firmware *fw = NULL;
+	const char *name;
 
-	if ((ret = request_firmware(&fw, d->props.firmware, &d->udev->dev)) != 0) {
+	ret = d->props.get_firmware_name(d, &name);
+	if (ret < 0)
+		return ret;
+
+	if ((ret = request_firmware(&fw, name, &d->udev->dev)) != 0) {
 		err("did not find the firmware file. (%s) "
 			"Please see linux/Documentation/dvb/ for more details on firmware-problems. (%d)",
-			d->props.firmware,ret);
+			name,ret);
 		return ret;
 	}
 
-	info("downloading firmware from file '%s'", d->props.firmware);
+	info("downloading firmware from file '%s'", name);
 
 	switch (d->props.usb_ctrl) {
 		case CYPRESS_AN2135:
