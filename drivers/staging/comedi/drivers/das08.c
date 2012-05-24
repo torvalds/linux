@@ -861,12 +861,13 @@ static int das08_counter_config(struct comedi_device *dev,
 
 #ifdef DO_COMEDI_DRIVER_REGISTER
 static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static void das08_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_das08 = {
 	.driver_name = DRV_NAME,
 	.module = THIS_MODULE,
 	.attach = das08_attach,
-	.detach = das08_common_detach,
+	.detach = das08_detach,
 	.board_name = &das08_boards[0].name,
 	.num_names = sizeof(das08_boards) / sizeof(struct das08_board_struct),
 	.offset = sizeof(struct das08_board_struct),
@@ -878,14 +879,6 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	struct comedi_subdevice *s;
 	int ret;
 
-	/*  allocate ioports for non-pcmcia, non-pci boards */
-	if ((thisboard->bustype != pcmcia) && (thisboard->bustype != pci)) {
-		printk(KERN_INFO " iobase 0x%lx\n", iobase);
-		if (!request_region(iobase, thisboard->iosize, DRV_NAME)) {
-			printk(KERN_ERR " I/O port conflict\n");
-			return -EIO;
-		}
-	}
 	dev->iobase = iobase;
 
 	dev->board_name = thisboard->name;
@@ -996,19 +989,15 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	unsigned long iobase;
-#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
-	unsigned long pci_iobase = 0;
-	struct pci_dev *pdev = NULL;
-#endif
 
 	ret = alloc_private(dev, sizeof(struct das08_private_struct));
 	if (ret < 0)
 		return ret;
 
 	printk(KERN_INFO "comedi%d: das08: ", dev->minor);
-#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
-	/*  deal with a pci board */
-	if (thisboard->bustype == pci) {
+	if (IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) && thisboard->bustype == pci) {
+		unsigned long pci_iobase = 0;
+		struct pci_dev *pdev = NULL;
 		if (it->options[0] || it->options[1]) {
 			printk("bus %i slot %i ",
 			       it->options[0], it->options[1]);
@@ -1057,13 +1046,16 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		/* Enable local interrupt 1 and pci interrupt */
 		outw(INTR1_ENABLE | PCI_INTR_ENABLE, pci_iobase + INTCSR);
 #endif
-	} else
-#endif /* IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) */
-	{
+	} else if (IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) &&
+		   (thisboard->bustype == isa || thisboard->bustype == pc104)) {
 		iobase = it->options[0];
-	}
-	printk(KERN_INFO "\n");
-
+		printk(KERN_INFO " iobase 0x%lx\n", iobase);
+		if (!request_region(iobase, thisboard->iosize, DRV_NAME)) {
+			printk(KERN_ERR " I/O port conflict\n");
+			return -EIO;
+		}
+	} else
+		return -EIO;
 	return das08_common_attach(dev, iobase);
 }
 #endif /* DO_COMEDI_DRIVER_REGISTER */
@@ -1072,22 +1064,27 @@ void das08_common_detach(struct comedi_device *dev)
 {
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 4);
-	if ((thisboard->bustype != pcmcia) && (thisboard->bustype != pci)) {
+}
+EXPORT_SYMBOL_GPL(das08_common_detach);
+
+#ifdef DO_COMEDI_DRIVER_REGISTER
+static void das08_detach(struct comedi_device *dev)
+{
+	das08_common_detach(dev);
+	if (IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) &&
+	    (thisboard->bustype == isa || thisboard->bustype == pc104)) {
 		if (dev->iobase)
 			release_region(dev->iobase, thisboard->iosize);
-	}
-#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
-	if (devpriv) {
-		if (devpriv->pdev) {
+	} else if (IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) &&
+		   thisboard->bustype == pci) {
+		if (devpriv && devpriv->pdev) {
 			if (devpriv->pci_iobase)
 				comedi_pci_disable(devpriv->pdev);
-
 			pci_dev_put(devpriv->pdev);
 		}
 	}
-#endif
 }
-EXPORT_SYMBOL_GPL(das08_common_detach);
+#endif /* DO_COMEDI_DRIVER_REGISTER */
 
 #if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 static int __devinit driver_das08_pci_probe(struct pci_dev *dev,
