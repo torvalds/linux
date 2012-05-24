@@ -3,7 +3,8 @@
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
  * see dvb-usb-init.c for copyright information.
  *
- * a header file containing prototypes and types for internal use of the dvb-usb-lib
+ * a header file containing prototypes and types for internal use of the
+ * dvb-usb-lib
  */
 #ifndef DVB_USB_COMMON_H
 #define DVB_USB_COMMON_H
@@ -14,22 +15,23 @@
 extern int dvb_usb_debug;
 extern int dvb_usb_disable_rc_polling;
 
-#define deb_info(args...)  dprintk(dvb_usb_debug,0x001,args)
-#define deb_xfer(args...)  dprintk(dvb_usb_debug,0x002,args)
-#define deb_pll(args...)   dprintk(dvb_usb_debug,0x004,args)
-#define deb_ts(args...)    dprintk(dvb_usb_debug,0x008,args)
-#define deb_err(args...)   dprintk(dvb_usb_debug,0x010,args)
-#define deb_rc(args...)    dprintk(dvb_usb_debug,0x020,args)
-#define deb_fw(args...)    dprintk(dvb_usb_debug,0x040,args)
-#define deb_mem(args...)   dprintk(dvb_usb_debug,0x080,args)
-#define deb_uxfer(args...) dprintk(dvb_usb_debug,0x100,args)
+#define deb_info(args...)  dprintk(dvb_usb_debug, 0x001, args)
+#define deb_xfer(args...)  dprintk(dvb_usb_debug, 0x002, args)
+#define deb_pll(args...)   dprintk(dvb_usb_debug, 0x004, args)
+#define deb_ts(args...)    dprintk(dvb_usb_debug, 0x008, args)
+#define deb_err(args...)   dprintk(dvb_usb_debug, 0x010, args)
+#define deb_rc(args...)    dprintk(dvb_usb_debug, 0x020, args)
+#define deb_fw(args...)    dprintk(dvb_usb_debug, 0x040, args)
+#define deb_mem(args...)   dprintk(dvb_usb_debug, 0x080, args)
+#define deb_uxfer(args...) dprintk(dvb_usb_debug, 0x100, args)
 
 /* commonly used  methods */
 extern int dvb_usb_download_firmware(struct dvb_usb_device *);
 
 extern int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff);
 
-extern int usb_urb_init(struct usb_data_stream *stream, struct usb_data_stream_properties *props);
+extern int usb_urb_init(struct usb_data_stream *stream,
+		struct usb_data_stream_properties *props);
 extern int usb_urb_exit(struct usb_data_stream *stream);
 extern int usb_urb_submit(struct usb_data_stream *stream);
 extern int usb_urb_kill(struct usb_data_stream *stream);

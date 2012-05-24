@@ -3,7 +3,8 @@
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@desy.de)
  * see dvb-usb-init.c for copyright information.
  *
- * This file contains functions for initializing the input-device and for handling remote-control-queries.
+ * This file contains functions for initializing the input-device and for
+ * handling remote-control-queries.
  */
 #include "dvb_usb_common.h"
 #include <linux/usb/input.h>
@@ -112,73 +113,40 @@ static void legacy_dvb_usb_read_remote_control(struct work_struct *work)
 	u32 event;
 	int state;
 
-	/* TODO: need a lock here.  We can simply skip checking for the remote control
-	   if we're busy. */
+	/* TODO: need a lock here.  We can simply skip checking for the remote
+	   control if we're busy. */
 
-	/* when the parameter has been set to 1 via sysfs while the driver was running */
+	/* when the parameter has been set to 1 via sysfs while the driver
+	   was running */
 	if (dvb_usb_disable_rc_polling)
 		return;
 
-	if (d->props.rc.legacy.rc_query(d,&event,&state)) {
+	if (d->props.rc.legacy.rc_query(d, &event, &state)) {
 		err("error while querying for an remote control event.");
 		goto schedule;
 	}
 
 
 	switch (state) {
-		case REMOTE_NO_KEY_PRESSED:
-			break;
-		case REMOTE_KEY_PRESSED:
-			deb_rc("key pressed\n");
-			d->last_event = event;
-		case REMOTE_KEY_REPEAT:
-			deb_rc("key repeated\n");
-			input_event(d->input_dev, EV_KEY, event, 1);
-			input_sync(d->input_dev);
-			input_event(d->input_dev, EV_KEY, d->last_event, 0);
-			input_sync(d->input_dev);
-			break;
-		default:
-			break;
+	case REMOTE_NO_KEY_PRESSED:
+		break;
+	case REMOTE_KEY_PRESSED:
+		deb_rc("key pressed\n");
+		d->last_event = event;
+	case REMOTE_KEY_REPEAT:
+		deb_rc("key repeated\n");
+		input_event(d->input_dev, EV_KEY, event, 1);
+		input_sync(d->input_dev);
+		input_event(d->input_dev, EV_KEY, d->last_event, 0);
+		input_sync(d->input_dev);
+		break;
+	default:
+		break;
 	}
-
-/* improved repeat handling ???
-	switch (state) {
-		case REMOTE_NO_KEY_PRESSED:
-			deb_rc("NO KEY PRESSED\n");
-			if (d->last_state != REMOTE_NO_KEY_PRESSED) {
-				deb_rc("releasing event %d\n",d->last_event);
-				input_event(d->rc_input_dev, EV_KEY, d->last_event, 0);
-				input_sync(d->rc_input_dev);
-			}
-			d->last_state = REMOTE_NO_KEY_PRESSED;
-			d->last_event = 0;
-			break;
-		case REMOTE_KEY_PRESSED:
-			deb_rc("KEY PRESSED\n");
-			deb_rc("pressing event %d\n",event);
-
-			input_event(d->rc_input_dev, EV_KEY, event, 1);
-			input_sync(d->rc_input_dev);
-
-			d->last_event = event;
-			d->last_state = REMOTE_KEY_PRESSED;
-			break;
-		case REMOTE_KEY_REPEAT:
-			deb_rc("KEY_REPEAT\n");
-			if (d->last_state != REMOTE_NO_KEY_PRESSED) {
-				deb_rc("repeating event %d\n",d->last_event);
-				input_event(d->rc_input_dev, EV_KEY, d->last_event, 2);
-				input_sync(d->rc_input_dev);
-				d->last_state = REMOTE_KEY_REPEAT;
-			}
-		default:
-			break;
-	}
-*/
 
 schedule:
-	schedule_delayed_work(&d->rc_query_work,msecs_to_jiffies(d->props.rc.legacy.rc_interval));
+	schedule_delayed_work(&d->rc_query_work,
+			msecs_to_jiffies(d->props.rc.legacy.rc_interval));
 }
 
 static int legacy_dvb_usb_remote_init(struct dvb_usb_device *d)
@@ -206,10 +174,12 @@ static int legacy_dvb_usb_remote_init(struct dvb_usb_device *d)
 	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++) {
 		deb_rc("setting bit for event %d item %d\n",
 			d->props.rc.legacy.rc_map_table[i].keycode, i);
-		set_bit(d->props.rc.legacy.rc_map_table[i].keycode, input_dev->keybit);
+		set_bit(d->props.rc.legacy.rc_map_table[i].keycode,
+				input_dev->keybit);
 	}
 
-	/* setting these two values to non-zero, we have to manage key repeats */
+	/* setting these two values to non-zero, we have to manage key
+	   repeats */
 	input_dev->rep[REP_PERIOD] = d->props.rc.legacy.rc_interval;
 	input_dev->rep[REP_DELAY]  = d->props.rc.legacy.rc_interval + 150;
 
@@ -221,7 +191,8 @@ static int legacy_dvb_usb_remote_init(struct dvb_usb_device *d)
 
 	rc_interval = d->props.rc.legacy.rc_interval;
 
-	INIT_DELAYED_WORK(&d->rc_query_work, legacy_dvb_usb_read_remote_control);
+	INIT_DELAYED_WORK(&d->rc_query_work,
+			legacy_dvb_usb_read_remote_control);
 
 	info("schedule remote query interval to %d msecs.", rc_interval);
 	schedule_delayed_work(&d->rc_query_work,
@@ -243,8 +214,8 @@ static void dvb_usb_read_remote_control(struct work_struct *work)
 		container_of(work, struct dvb_usb_device, rc_query_work.work);
 	int err;
 
-	/* TODO: need a lock here.  We can simply skip checking for the remote control
-	   if we're busy. */
+	/* TODO: need a lock here.  We can simply skip checking for the remote
+	   control if we're busy. */
 
 	/* when the parameter has been set to 1 via sysfs while the
 	 * driver was running, or when bulk mode is enabled after IR init
@@ -254,7 +225,8 @@ static void dvb_usb_read_remote_control(struct work_struct *work)
 
 	err = d->props.rc.core.rc_query(d);
 	if (err)
-		err("error %d while querying for an remote control event.", err);
+		err("error %d while querying for an remote control event.",
+			err);
 
 	schedule_delayed_work(&d->rc_query_work,
 			      msecs_to_jiffies(d->props.rc.core.rc_interval));
@@ -361,30 +333,31 @@ int dvb_usbv2_nec_rc_key_to_event(struct dvb_usb_device *d,
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 	switch (keybuf[0]) {
-		case DVB_USB_RC_NEC_EMPTY:
+	case DVB_USB_RC_NEC_EMPTY:
+		break;
+	case DVB_USB_RC_NEC_KEY_PRESSED:
+		if ((u8) ~keybuf[1] != keybuf[2] ||
+			(u8) ~keybuf[3] != keybuf[4]) {
+			deb_err("remote control checksum failed.\n");
 			break;
-		case DVB_USB_RC_NEC_KEY_PRESSED:
-			if ((u8) ~keybuf[1] != keybuf[2] ||
-				(u8) ~keybuf[3] != keybuf[4]) {
-				deb_err("remote control checksum failed.\n");
-				break;
+		}
+		/* See if we can match the raw key code. */
+		for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
+			if (rc5_custom(&keymap[i]) == keybuf[1] &&
+				rc5_data(&keymap[i]) == keybuf[3]) {
+				*event = keymap[i].keycode;
+				*state = REMOTE_KEY_PRESSED;
+				return 0;
 			}
-			/* See if we can match the raw key code. */
-			for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
-				if (rc5_custom(&keymap[i]) == keybuf[1] &&
-					rc5_data(&keymap[i]) == keybuf[3]) {
-					*event = keymap[i].keycode;
-					*state = REMOTE_KEY_PRESSED;
-					return 0;
-				}
-			deb_err("key mapping failed - no appropriate key found in keymapping\n");
-			break;
-		case DVB_USB_RC_NEC_KEY_REPEATED:
-			*state = REMOTE_KEY_REPEAT;
-			break;
-		default:
-			deb_err("unknown type of remote status: %d\n",keybuf[0]);
-			break;
+		deb_err("key mapping failed - no appropriate key found in" \
+				" keymapping\n");
+		break;
+	case DVB_USB_RC_NEC_KEY_REPEATED:
+		*state = REMOTE_KEY_REPEAT;
+		break;
+	default:
+		deb_err("unknown type of remote status: %d\n", keybuf[0]);
+		break;
 	}
 	return 0;
 }

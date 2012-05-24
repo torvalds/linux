@@ -27,18 +27,19 @@
 
 /* debug */
 #ifdef CONFIG_DVB_USB_DEBUG
-#define dprintk(var,level,args...) \
-	    do { if ((var & level)) { printk(args); } } while (0)
+#define dprintk(var, level, args...) \
+	do { if ((var & level)) { printk(args); } } while (0)
 
-#define debug_dump(b,l,func) {\
+#define debug_dump(b, l, func) {\
 	int loop_; \
-	for (loop_ = 0; loop_ < l; loop_++) func("%02x ", b[loop_]); \
+	for (loop_ = 0; loop_ < l; loop_++) \
+		func("%02x ", b[loop_]); \
 	func("\n");\
 }
 #define DVB_USB_DEBUG_STATUS
 #else
 #define dprintk(args...)
-#define debug_dump(b,l,func)
+#define debug_dump(b, l, func)
 
 #define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
 
@@ -50,11 +51,14 @@
 #endif
 
 #undef err
-#define err(format, arg...)  printk(KERN_ERR     DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
+#define err(format, arg...) \
+	printk(KERN_ERR     DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
 #undef info
-#define info(format, arg...) printk(KERN_INFO    DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
+#define info(format, arg...) \
+	printk(KERN_INFO    DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
 #undef warn
-#define warn(format, arg...) printk(KERN_WARNING DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
+#define warn(format, arg...) \
+	printk(KERN_WARNING DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
 
 /**
  * struct dvb_usb_device_description - name and its according USB IDs
@@ -120,7 +124,8 @@ struct usb_data_stream_properties {
 
 /**
  * struct dvb_usb_adapter_properties - properties of a dvb-usb-adapter.
- *    A DVB-USB-Adapter is basically a dvb_adapter which is present on a USB-device.
+ * A DVB-USB-Adapter is basically a dvb_adapter which is present on a
+ * USB-device.
  * @caps: capabilities of the DVB USB device.
  * @pid_filter_count: number of PID filter position in the optional hardware
  *  PID-filter.
@@ -277,7 +282,8 @@ struct dvb_usb_device_properties {
 	int        usb_ctrl;
 
 #define RECONNECTS_USB                  1
-	int        (*download_firmware) (struct dvb_usb_device *, const struct firmware *);
+	int (*download_firmware) (struct dvb_usb_device *,
+			const struct firmware *);
 	int (*get_firmware_name) (struct dvb_usb_device *, const char **);
 
 	int size_of_priv;
@@ -351,7 +357,8 @@ struct usb_data_stream {
  * @pll_addr: I2C address of the tuner for programming
  * @pll_init: array containing the initialization buffer
  * @pll_desc: pointer to the appropriate struct dvb_pll_desc
- * @tuner_pass_ctrl: called to (de)activate tuner passthru of the demod or the board
+ * @tuner_pass_ctrl: called to (de)activate tuner passthru of the demod or
+ * the board
  *
  * @dvb_adap: device's dvb_adapter.
  * @dmxdev: device's dmxdev.
@@ -468,11 +475,13 @@ extern int dvb_usbv2_device_init(struct usb_interface *,
 extern void dvb_usbv2_device_exit(struct usb_interface *);
 
 /* the generic read/write method for device control */
-extern int dvb_usbv2_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16,int);
+extern int dvb_usbv2_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16,
+		int);
 extern int dvb_usbv2_generic_write(struct dvb_usb_device *, u8 *, u16);
 
 /* commonly used remote control parsing */
-extern int dvb_usbv2_nec_rc_key_to_event(struct dvb_usb_device *, u8[], u32 *, int *);
+extern int dvb_usbv2_nec_rc_key_to_event(struct dvb_usb_device *, u8[], u32 *,
+		int *);
 
 /* commonly used firmware download types and function */
 struct hexline {
@@ -482,8 +491,9 @@ struct hexline {
 	u8 data[255];
 	u8 chk;
 };
-extern int usbv2_cypress_load_firmware(struct usb_device *udev, const struct firmware *fw, int type);
-extern int dvb_usbv2_get_hexline(const struct firmware *fw, struct hexline *hx, int *pos);
-
+extern int usbv2_cypress_load_firmware(struct usb_device *udev,
+		const struct firmware *fw, int type);
+extern int dvb_usbv2_get_hexline(const struct firmware *fw, struct hexline *hx,
+		int *pos);
 
 #endif

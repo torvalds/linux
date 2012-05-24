@@ -30,7 +30,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		usb_urb_kill(&adap->fe_adap[adap->active_fe].stream);
 
 		if (adap->props.fe[adap->active_fe].streaming_ctrl != NULL) {
-			ret = adap->props.fe[adap->active_fe].streaming_ctrl(adap, 0);
+			ret = adap->props.fe[adap->active_fe].streaming_ctrl(
+				adap, 0);
 			if (ret < 0) {
 				err("error while stopping stream.");
 				return ret;
@@ -48,7 +49,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	if (adap->props.fe[adap->active_fe].caps & DVB_USB_ADAP_HAS_PID_FILTER &&
 		adap->fe_adap[adap->active_fe].pid_filtering &&
 		adap->props.fe[adap->active_fe].pid_filter != NULL)
-		adap->props.fe[adap->active_fe].pid_filter(adap, dvbdmxfeed->index, dvbdmxfeed->pid, onoff);
+		adap->props.fe[adap->active_fe].pid_filter(adap,
+			dvbdmxfeed->index, dvbdmxfeed->pid, onoff);
 
 	/* start the feed if this was the first feed and there is still a feed
 	 * for reception.
@@ -62,7 +64,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			adap->props.fe[adap->active_fe].caps &
 			DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF &&
 			adap->props.fe[adap->active_fe].pid_filter_ctrl != NULL) {
-			ret = adap->props.fe[adap->active_fe].pid_filter_ctrl(adap,
+			ret = adap->props.fe[adap->active_fe].pid_filter_ctrl(
+				adap,
 				adap->fe_adap[adap->active_fe].pid_filtering);
 			if (ret < 0) {
 				err("could not handle pid_parser");
@@ -71,7 +74,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		}
 		deb_ts("start feeding\n");
 		if (adap->props.fe[adap->active_fe].streaming_ctrl != NULL) {
-			ret = adap->props.fe[adap->active_fe].streaming_ctrl(adap, 1);
+			ret = adap->props.fe[adap->active_fe].streaming_ctrl(
+				adap, 1);
 			if (ret < 0) {
 				err("error while enabling fifo.");
 				return ret;
@@ -84,14 +88,16 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 
 static int dvb_usb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
-	deb_ts("start pid: 0x%04x, feedtype: %d\n", dvbdmxfeed->pid,dvbdmxfeed->type);
-	return dvb_usb_ctrl_feed(dvbdmxfeed,1);
+	deb_ts("start pid: 0x%04x, feedtype: %d\n",
+		dvbdmxfeed->pid, dvbdmxfeed->type);
+	return dvb_usb_ctrl_feed(dvbdmxfeed, 1);
 }
 
 static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
-	deb_ts("stop pid: 0x%04x, feedtype: %d\n", dvbdmxfeed->pid, dvbdmxfeed->type);
-	return dvb_usb_ctrl_feed(dvbdmxfeed,0);
+	deb_ts("stop pid: 0x%04x, feedtype: %d\n",
+			dvbdmxfeed->pid, dvbdmxfeed->type);
+	return dvb_usb_ctrl_feed(dvbdmxfeed, 0);
 }
 
 int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
@@ -109,8 +115,9 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
 	adap->dvb_adap.fe_ioctl_override = adap->props.fe_ioctl_override;
 
 	if (adap->dev->props.read_mac_address) {
-		if (adap->dev->props.read_mac_address(adap->dev,adap->dvb_adap.proposed_mac) == 0)
-			info("MAC address: %pM",adap->dvb_adap.proposed_mac);
+		if (adap->dev->props.read_mac_address(adap->dev,
+				adap->dvb_adap.proposed_mac) == 0)
+			info("MAC address: %pM", adap->dvb_adap.proposed_mac);
 		else
 			err("MAC address reading failed.");
 	}
@@ -128,22 +135,24 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
 	adap->demux.start_feed       = dvb_usb_start_feed;
 	adap->demux.stop_feed        = dvb_usb_stop_feed;
 	adap->demux.write_to_decoder = NULL;
-	if ((ret = dvb_dmx_init(&adap->demux)) < 0) {
-		err("dvb_dmx_init failed: error %d",ret);
+	ret = dvb_dmx_init(&adap->demux);
+	if (ret < 0) {
+		err("dvb_dmx_init failed: error %d", ret);
 		goto err_dmx;
 	}
 
 	adap->dmxdev.filternum       = adap->demux.filternum;
 	adap->dmxdev.demux           = &adap->demux.dmx;
 	adap->dmxdev.capabilities    = 0;
-	if ((ret = dvb_dmxdev_init(&adap->dmxdev, &adap->dvb_adap)) < 0) {
-		err("dvb_dmxdev_init failed: error %d",ret);
+	ret = dvb_dmxdev_init(&adap->dmxdev, &adap->dvb_adap);
+	if (ret < 0) {
+		err("dvb_dmxdev_init failed: error %d", ret);
 		goto err_dmx_dev;
 	}
 
-	if ((ret = dvb_net_init(&adap->dvb_adap, &adap->dvb_net,
-						&adap->demux.dmx)) < 0) {
-		err("dvb_net_init failed: error %d",ret);
+	ret = dvb_net_init(&adap->dvb_adap, &adap->dvb_net, &adap->demux.dmx);
+	if (ret < 0) {
+		err("dvb_net_init failed: error %d", ret);
 		goto err_net_init;
 	}
 
@@ -225,7 +234,7 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 	for (i = 0; i < adap->props.num_frontends; i++) {
 
 		if (adap->props.fe[i].frontend_attach == NULL) {
-			err("strange: '%s' #%d,%d "
+			err("strange: '%s' #%d,%d " \
 			    "doesn't want to attach a frontend.",
 			    adap->dev->desc->name, adap->id, i);
 
@@ -250,7 +259,8 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		adap->fe_adap[i].fe_sleep = adap->fe_adap[i].fe->ops.sleep;
 		adap->fe_adap[i].fe->ops.sleep = dvb_usb_fe_sleep;
 
-		if (dvb_register_frontend(&adap->dvb_adap, adap->fe_adap[i].fe)) {
+		if (dvb_register_frontend(&adap->dvb_adap,
+				adap->fe_adap[i].fe)) {
 			err("Frontend %d registration failed.", i);
 			dvb_frontend_detach(adap->fe_adap[i].fe);
 			adap->fe_adap[i].fe = NULL;

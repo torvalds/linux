@@ -3,9 +3,11 @@
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@desy.de)
  * see dvb-usb-init.c for copyright information.
  *
- * This file contains functions for downloading the firmware to Cypress FX 1 and 2 based devices.
+ * This file contains functions for downloading the firmware to Cypress FX 1
+ * and 2 based devices.
  *
- * FIXME: This part does actually not belong to dvb-usb, but to the usb-subsystem.
+ * FIXME: This part does actually not belong to dvb-usb, but to the
+ * usb-subsystem.
  */
 #include "dvb_usb_common.h"
 
@@ -13,58 +15,71 @@
 
 struct usb_cypress_controller {
 	int id;
-	const char *name;       /* name of the usb controller */
-	u16 cpu_cs_register;    /* needs to be restarted, when the firmware has been downloaded. */
+	/* name of the usb controller */
+	const char *name;
+	/* needs to be restarted, when the firmware has been downloaded. */
+	u16 cpu_cs_register;
 };
 
 static struct usb_cypress_controller cypress[] = {
-	{ .id = DEVICE_SPECIFIC, .name = "Device specific", .cpu_cs_register = 0 },
-	{ .id = CYPRESS_AN2135,  .name = "Cypress AN2135",  .cpu_cs_register = 0x7f92 },
-	{ .id = CYPRESS_AN2235,  .name = "Cypress AN2235",  .cpu_cs_register = 0x7f92 },
-	{ .id = CYPRESS_FX2,     .name = "Cypress FX2",     .cpu_cs_register = 0xe600 },
+	{ .id = DEVICE_SPECIFIC, .name = "Device specific",
+		.cpu_cs_register = 0 },
+	{ .id = CYPRESS_AN2135,  .name = "Cypress AN2135",
+		.cpu_cs_register = 0x7f92 },
+	{ .id = CYPRESS_AN2235,  .name = "Cypress AN2235",
+		.cpu_cs_register = 0x7f92 },
+	{ .id = CYPRESS_FX2,     .name = "Cypress FX2",
+		.cpu_cs_register = 0xe600 },
 };
 
 /*
  * load a firmware packet to the device
  */
-static int usb_cypress_writemem(struct usb_device *udev,u16 addr,u8 *data, u8 len)
+static int usb_cypress_writemem(struct usb_device *udev, u16 addr, u8 *data,
+		u8 len)
 {
-	return usb_control_msg(udev, usb_sndctrlpipe(udev,0),
+	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			0xa0, USB_TYPE_VENDOR, addr, 0x00, data, len, 5000);
 }
 
-int usbv2_cypress_load_firmware(struct usb_device *udev, const struct firmware *fw, int type)
+int usbv2_cypress_load_firmware(struct usb_device *udev,
+		const struct firmware *fw, int type)
 {
 	struct hexline hx;
 	u8 reset;
-	int ret,pos=0;
+	int ret, pos = 0;
 
 	/* stop the CPU */
 	reset = 1;
-	if ((ret = usb_cypress_writemem(udev,cypress[type].cpu_cs_register,&reset,1)) != 1)
+	ret = usb_cypress_writemem(udev, cypress[type].cpu_cs_register,
+			&reset, 1);
+	if (ret != 1)
 		err("could not stop the USB controller CPU.");
 
-	while ((ret = dvb_usbv2_get_hexline(fw,&hx,&pos)) > 0) {
-		deb_fw("writing to address 0x%04x (buffer: 0x%02x %02x)\n",hx.addr,hx.len,hx.chk);
-		ret = usb_cypress_writemem(udev,hx.addr,hx.data,hx.len);
+	while ((ret = dvb_usbv2_get_hexline(fw, &hx, &pos)) > 0) {
+		deb_fw("writing to address 0x%04x (buffer: 0x%02x %02x)\n",
+				hx.addr, hx.len, hx.chk);
+		ret = usb_cypress_writemem(udev, hx.addr, hx.data, hx.len);
 
 		if (ret != hx.len) {
-			err("error while transferring firmware "
+			err("error while transferring firmware " \
 				"(transferred size: %d, block size: %d)",
-				ret,hx.len);
+				ret, hx.len);
 			ret = -EINVAL;
 			break;
 		}
 	}
 	if (ret < 0) {
-		err("firmware download failed at %d with %d",pos,ret);
+		err("firmware download failed at %d with %d", pos, ret);
 		return ret;
 	}
 
 	if (ret == 0) {
 		/* restart the CPU */
 		reset = 0;
-		if (ret || usb_cypress_writemem(udev,cypress[type].cpu_cs_register,&reset,1) != 1) {
+		if (ret || usb_cypress_writemem(udev,
+				cypress[type].cpu_cs_register,
+				&reset, 1) != 1) {
 			err("could not restart the USB controller CPU.");
 			ret = -EINVAL;
 		}
@@ -85,32 +100,37 @@ int dvb_usb_download_firmware(struct dvb_usb_device *d)
 	if (ret < 0)
 		return ret;
 
-	if ((ret = request_firmware(&fw, name, &d->udev->dev)) != 0) {
-		err("did not find the firmware file. (%s) "
-			"Please see linux/Documentation/dvb/ for more details on firmware-problems. (%d)",
-			name,ret);
+	ret = request_firmware(&fw, name, &d->udev->dev);
+	if (ret != 0) {
+		err("did not find the firmware file. (%s) " \
+			"Please see linux/Documentation/dvb/ for more" \
+			" details on firmware-problems. (%d)",
+			name, ret);
 		return ret;
 	}
 
 	info("downloading firmware from file '%s'", name);
 
 	switch (d->props.usb_ctrl) {
-		case CYPRESS_AN2135:
-		case CYPRESS_AN2235:
-		case CYPRESS_FX2:
-			ret = usbv2_cypress_load_firmware(d->udev, fw, d->props.usb_ctrl);
-			break;
-		case DEVICE_SPECIFIC:
-			if (d->props.download_firmware)
-				ret = d->props.download_firmware(d, fw);
-			else {
-				err("BUG: driver didn't specified a download_firmware-callback, although it claims to have a DEVICE_SPECIFIC one.");
-				ret = -EINVAL;
-			}
-			break;
-		default:
+	case CYPRESS_AN2135:
+	case CYPRESS_AN2235:
+	case CYPRESS_FX2:
+		ret = usbv2_cypress_load_firmware(d->udev, fw,
+				d->props.usb_ctrl);
+		break;
+	case DEVICE_SPECIFIC:
+		if (d->props.download_firmware)
+			ret = d->props.download_firmware(d, fw);
+		else {
+			err("BUG: driver didn't specified a download_firmware" \
+				"-callback, although it claims to have a" \
+				" DEVICE_SPECIFIC one.");
 			ret = -EINVAL;
-			break;
+		}
+		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
 	release_firmware(fw);
@@ -125,7 +145,7 @@ int dvb_usbv2_get_hexline(const struct firmware *fw, struct hexline *hx,
 	if (*pos >= fw->size)
 		return 0;
 
-	memset(hx,0,sizeof(struct hexline));
+	memset(hx, 0, sizeof(struct hexline));
 
 	hx->len  = b[0];
 
@@ -136,12 +156,13 @@ int dvb_usbv2_get_hexline(const struct firmware *fw, struct hexline *hx,
 	hx->type = b[3];
 
 	if (hx->type == 0x04) {
-		/* b[4] and b[5] are the Extended linear address record data field */
+		/* b[4] and b[5] are the Extended linear address record data
+		 * field */
 		hx->addr |= (b[4] << 24) | (b[5] << 16);
 /*		hx->len -= 2;
 		data_offs += 2; */
 	}
-	memcpy(hx->data,&b[data_offs],hx->len);
+	memcpy(hx->data, &b[data_offs], hx->len);
 	hx->chk = b[hx->len + data_offs];
 
 	*pos += hx->len + 5;

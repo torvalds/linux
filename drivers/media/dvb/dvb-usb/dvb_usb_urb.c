@@ -11,7 +11,7 @@
 int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 	u16 rlen, int delay_ms)
 {
-	int actlen,ret = -ENOMEM;
+	int actlen, ret = -ENOMEM;
 
 	if (!d || wbuf == NULL || wlen == 0)
 		return -EINVAL;
@@ -21,18 +21,19 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 		return -EINVAL;
 	}
 
-	if ((ret = mutex_lock_interruptible(&d->usb_mutex)))
+	ret = mutex_lock_interruptible(&d->usb_mutex);
+	if (ret)
 		return ret;
 
 	deb_xfer(">>> ");
-	debug_dump(wbuf,wlen,deb_xfer);
+	debug_dump(wbuf, wlen, deb_xfer);
 
-	ret = usb_bulk_msg(d->udev,usb_sndbulkpipe(d->udev,
-			d->props.generic_bulk_ctrl_endpoint), wbuf,wlen,&actlen,
-			2000);
+	ret = usb_bulk_msg(d->udev, usb_sndbulkpipe(d->udev,
+			d->props.generic_bulk_ctrl_endpoint), wbuf, wlen,
+			&actlen, 2000);
 
 	if (ret)
-		err("bulk message failed: %d (%d/%d)",ret,wlen,actlen);
+		err("bulk message failed: %d (%d/%d)", ret, wlen, actlen);
 	else
 		ret = actlen != wlen ? -1 : 0;
 
@@ -41,17 +42,17 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 		if (delay_ms)
 			msleep(delay_ms);
 
-		ret = usb_bulk_msg(d->udev,usb_rcvbulkpipe(d->udev,
+		ret = usb_bulk_msg(d->udev, usb_rcvbulkpipe(d->udev,
 				d->props.generic_bulk_ctrl_endpoint_response ?
 				d->props.generic_bulk_ctrl_endpoint_response :
-				d->props.generic_bulk_ctrl_endpoint),rbuf,rlen,&actlen,
-				2000);
+				d->props.generic_bulk_ctrl_endpoint),
+				rbuf, rlen, &actlen, 2000);
 
 		if (ret)
-			err("recv bulk message failed: %d",ret);
+			err("recv bulk message failed: %d", ret);
 		else {
 			deb_xfer("<<< ");
-			debug_dump(rbuf,actlen,deb_xfer);
+			debug_dump(rbuf, actlen, deb_xfer);
 		}
 	}
 
@@ -62,18 +63,20 @@ EXPORT_SYMBOL(dvb_usbv2_generic_rw);
 
 int dvb_usbv2_generic_write(struct dvb_usb_device *d, u8 *buf, u16 len)
 {
-	return dvb_usbv2_generic_rw(d,buf,len,NULL,0,0);
+	return dvb_usbv2_generic_rw(d, buf, len, NULL, 0, 0);
 }
 EXPORT_SYMBOL(dvb_usbv2_generic_write);
 
-static void dvb_usb_data_complete(struct usb_data_stream *stream, u8 *buffer, size_t length)
+static void dvb_usb_data_complete(struct usb_data_stream *stream, u8 *buffer,
+		size_t length)
 {
 	struct dvb_usb_adapter *adap = stream->user_priv;
 	if (adap->feedcount > 0 && adap->state & DVB_USB_ADAP_STATE_DVB)
 		dvb_dmx_swfilter(&adap->demux, buffer, length);
 }
 
-static void dvb_usb_data_complete_204(struct usb_data_stream *stream, u8 *buffer, size_t length)
+static void dvb_usb_data_complete_204(struct usb_data_stream *stream,
+		u8 *buffer, size_t length)
 {
 	struct dvb_usb_adapter *adap = stream->user_priv;
 	if (adap->feedcount > 0 && adap->state & DVB_USB_ADAP_STATE_DVB)
