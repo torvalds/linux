@@ -98,6 +98,13 @@ nv04_display_early_init(struct drm_device *dev)
 		NVSetOwner(dev, 0);
 	}
 
+	/* ensure vblank interrupts are off, they can't be enabled until
+	 * drm_vblank has been initialised
+	 */
+	NVWriteCRTC(dev, 0, NV_PCRTC_INTR_EN_0, 0);
+	if (nv_two_heads(dev))
+		NVWriteCRTC(dev, 1, NV_PCRTC_INTR_EN_0, 0);
+
 	return 0;
 }
 
@@ -246,6 +253,10 @@ nv04_display_init(struct drm_device *dev)
 void
 nv04_display_fini(struct drm_device *dev)
 {
+	/* disable vblank interrupts */
+	NVWriteCRTC(dev, 0, NV_PCRTC_INTR_EN_0, 0);
+	if (nv_two_heads(dev))
+		NVWriteCRTC(dev, 1, NV_PCRTC_INTR_EN_0, 0);
 }
 
 static void

@@ -33,6 +33,7 @@
 #include "nouveau_crtc.h"
 #include "nouveau_dma.h"
 #include "nouveau_fb.h"
+#include "nouveau_software.h"
 #include "nv50_display.h"
 
 #define EVO_DMA_NR 9
@@ -284,8 +285,6 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	u32 *push;
 	int ret;
 
-	evo_sync(crtc->dev, EVO_MASTER);
-
 	swap_interval <<= 4;
 	if (swap_interval == 0)
 		swap_interval |= 0x100;
@@ -300,15 +299,16 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		if (ret)
 			return ret;
 
-		offset  = chan->dispc_vma[nv_crtc->index].offset;
+
+		offset  = nvc0_software_crtc(chan, nv_crtc->index);
 		offset += evo->sem.offset;
 
-		BEGIN_NVC0(chan, 2, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
+		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 		OUT_RING  (chan, upper_32_bits(offset));
 		OUT_RING  (chan, lower_32_bits(offset));
 		OUT_RING  (chan, 0xf00d0000 | evo->sem.value);
 		OUT_RING  (chan, 0x1002);
-		BEGIN_NVC0(chan, 2, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
+		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 		OUT_RING  (chan, upper_32_bits(offset));
 		OUT_RING  (chan, lower_32_bits(offset ^ 0x10));
 		OUT_RING  (chan, 0x74b1e000);

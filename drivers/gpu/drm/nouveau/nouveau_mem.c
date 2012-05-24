@@ -39,6 +39,8 @@
 #include "nouveau_pm.h"
 #include "nouveau_mm.h"
 #include "nouveau_vm.h"
+#include "nouveau_fifo.h"
+#include "nouveau_fence.h"
 
 /*
  * NV10-NV40 tiling helpers
@@ -50,7 +52,6 @@ nv10_mem_update_tile_region(struct drm_device *dev,
 			    uint32_t size, uint32_t pitch, uint32_t flags)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
 	int i = tile - dev_priv->tile.reg, j;
 	unsigned long save;
@@ -64,8 +65,8 @@ nv10_mem_update_tile_region(struct drm_device *dev,
 		pfb->init_tile_region(dev, i, addr, size, pitch, flags);
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, save);
-	pfifo->reassign(dev, false);
-	pfifo->cache_pull(dev, false);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 0);
+	nv04_fifo_cache_pull(dev, false);
 
 	nouveau_wait_for_idle(dev);
 
@@ -75,8 +76,8 @@ nv10_mem_update_tile_region(struct drm_device *dev,
 			dev_priv->eng[j]->set_tile_region(dev, i);
 	}
 
-	pfifo->cache_pull(dev, true);
-	pfifo->reassign(dev, true);
+	nv04_fifo_cache_pull(dev, true);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 1);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, save);
 }
 
@@ -89,7 +90,7 @@ nv10_mem_get_tile_region(struct drm_device *dev, int i)
 	spin_lock(&dev_priv->tile.lock);
 
 	if (!tile->used &&
-	    (!tile->fence || nouveau_fence_signalled(tile->fence)))
+	    (!tile->fence || nouveau_fence_done(tile->fence)))
 		tile->used = true;
 	else
 		tile = NULL;
@@ -843,6 +844,7 @@ nouveau_mem_timing_calc(struct drm_device *dev, u32 freq,
 		ret = nv50_mem_timing_calc(dev, freq, e, len, boot, t);
 		break;
 	case NV_C0:
+	case NV_D0:
 		ret = nvc0_mem_timing_calc(dev, freq, e, len, boot, t);
 		break;
 	default:
@@ -977,6 +979,8 @@ nouveau_mem_exec(struct nouveau_mem_exec_func *exec,
 		break;
 	case NV_MEM_TYPE_DDR3:
 		tDLLK = 12000;
+		tCKSRE = 2000;
+		tXS = 1000;
 		mr1_dlloff = 0x00000001;
 		break;
 	case NV_MEM_TYPE_GDDR3:
@@ -1022,6 +1026,7 @@ nouveau_mem_exec(struct nouveau_mem_exec_func *exec,
 	exec->precharge(exec);
 	exec->refresh_self(exec, false);
 	exec->refresh_auto(exec, true);
+	exec->wait(exec, tXS);
 	exec->wait(exec, tXS);
 
 	/* update MRs */

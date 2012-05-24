@@ -30,6 +30,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
+#include "nouveau_fence.h"
 
 #define nouveau_gem_pushbuf_sync(chan) 0
 
@@ -708,7 +709,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	}
 
 	if (chan->dma.ib_max) {
-		ret = nouveau_dma_wait(chan, req->nr_push + 1, 6);
+		ret = nouveau_dma_wait(chan, req->nr_push + 1, 16);
 		if (ret) {
 			NV_INFO(dev, "nv50cal_space: %d\n", ret);
 			goto out;
@@ -778,7 +779,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		}
 	}
 
-	ret = nouveau_fence_new(chan, &fence, true);
+	ret = nouveau_fence_new(chan, &fence);
 	if (ret) {
 		NV_ERROR(dev, "error fencing pushbuf: %d\n", ret);
 		WIND_RING(chan);
