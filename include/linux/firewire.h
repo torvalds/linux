@@ -307,7 +307,7 @@ struct fw_transaction {
 
 struct fw_address_handler {
 	u64 offset;
-	size_t length;
+	u64 length;
 	fw_address_callback_t address_callback;
 	void *callback_data;
 	struct list_head link;
