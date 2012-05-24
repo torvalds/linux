@@ -1243,15 +1243,15 @@ void mce_log_therm_throt_event(__u64 status)
  * poller finds an MCE, poll 2x faster.  When the poller finds no more
  * errors, poll 2x slower (up to check_interval seconds).
  */
-static int check_interval = 5 * 60; /* 5 minutes */
+static unsigned long check_interval = 5 * 60; /* 5 minutes */
 
-static DEFINE_PER_CPU(int, mce_next_interval); /* in jiffies */
+static DEFINE_PER_CPU(unsigned long, mce_next_interval); /* in jiffies */
 static DEFINE_PER_CPU(struct timer_list, mce_timer);
 
-static void mce_start_timer(unsigned long data)
+static void mce_timer_fn(unsigned long data)
 {
-	struct timer_list *t = &per_cpu(mce_timer, data);
-	int *n;
+	struct timer_list *t = &__get_cpu_var(mce_timer);
+	unsigned long iv;
 
 	WARN_ON(smp_processor_id() != data);
 
@@ -1264,13 +1264,14 @@ static void mce_start_timer(unsigned long data)
 	 * Alert userspace if needed.  If we logged an MCE, reduce the
 	 * polling interval, otherwise increase the polling interval.
 	 */
-	n = &__get_cpu_var(mce_next_interval);
+	iv = __this_cpu_read(mce_next_interval);
 	if (mce_notify_irq())
-		*n = max(*n/2, HZ/100);
+		iv = max(iv, (unsigned long) HZ/100);
 	else
-		*n = min(*n*2, (int)round_jiffies_relative(check_interval*HZ));
+		iv = min(iv * 2, round_jiffies_relative(check_interval * HZ));
+	__this_cpu_write(mce_next_interval, iv);
 
-	t->expires = jiffies + *n;
+	t->expires = jiffies + iv;
 	add_timer_on(t, smp_processor_id());
 }
 
@@ -1511,17 +1512,17 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 static void __mcheck_cpu_init_timer(void)
 {
 	struct timer_list *t = &__get_cpu_var(mce_timer);
-	int *n = &__get_cpu_var(mce_next_interval);
+	unsigned long iv = __this_cpu_read(mce_next_interval);
 
-	setup_timer(t, mce_start_timer, smp_processor_id());
+	setup_timer(t, mce_timer_fn, smp_processor_id());
 
 	if (mce_ignore_ce)
 		return;
 
-	*n = check_interval * HZ;
-	if (!*n)
+	__this_cpu_write(mce_next_interval, iv);
+	if (!iv)
 		return;
-	t->expires = round_jiffies(jiffies + *n);
+	t->expires = round_jiffies(jiffies + iv);
 	add_timer_on(t, smp_processor_id());
 }
 
@@ -2231,7 +2232,7 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	case CPU_DOWN_FAILED_FROZEN:
 		if (!mce_ignore_ce && check_interval) {
 			t->expires = round_jiffies(jiffies +
-					   __get_cpu_var(mce_next_interval));
+					per_cpu(mce_next_interval, cpu));
 			add_timer_on(t, cpu);
 		}
 		smp_call_function_single(cpu, mce_reenable_cpu, &action, 1);
