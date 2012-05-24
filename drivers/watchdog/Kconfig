@@ -64,6 +64,18 @@ config SOFT_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called softdog.
 
+config DA9052_WATCHDOG
+        tristate "Dialog DA9052 Watchdog"
+        depends on PMIC_DA9052
+        select WATCHDOG_CORE
+        help
+          Support for the watchdog in the DA9052 PMIC. Watchdog trigger
+          cause system reset.
+
+          Say Y here to include support for the DA9052 watchdog.
+          Alternatively say M to compile the driver as a module,
+          which will be called da9052_wdt.
+
 config WM831X_WATCHDOG
 	tristate "WM831x watchdog"
 	depends on MFD_WM831X
