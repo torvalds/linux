@@ -34,12 +34,5 @@ salsa20-x86_64-y := salsa20-x86_64-asm_64.o salsa20_glue.o
 serpent-sse2-x86_64-y := serpent-sse2-x86_64-asm_64.o serpent_sse2_glue.o
 
 aesni-intel-y := aesni-intel_asm.o aesni-intel_glue.o fpu.o
-
 ghash-clmulni-intel-y := ghash-clmulni-intel_asm.o ghash-clmulni-intel_glue.o
-
-# enable AVX support only when $(AS) can actually assemble the instructions
-ifeq ($(call as-instr,vpxor %xmm0$(comma)%xmm1$(comma)%xmm2,yes,no),yes)
-AFLAGS_sha1_ssse3_asm.o += -DSHA1_ENABLE_AVX_SUPPORT
-CFLAGS_sha1_ssse3_glue.o += -DSHA1_ENABLE_AVX_SUPPORT
-endif
 sha1-ssse3-y := sha1_ssse3_asm.o sha1_ssse3_glue.o
