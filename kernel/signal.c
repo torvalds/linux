@@ -29,6 +29,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/nsproxy.h>
 #include <linux/user_namespace.h>
+#include <linux/uprobes.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
 
@@ -2190,6 +2191,9 @@ int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka,
 	struct sighand_struct *sighand = current->sighand;
 	struct signal_struct *signal = current->signal;
 	int signr;
+
+	if (unlikely(uprobe_deny_signal()))
+		return 0;
 
 relock:
 	/*
