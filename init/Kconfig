@@ -948,7 +948,6 @@ config UIDGID_CONVERTED
 	depends on NETFILTER_XT_MATCH_RECENT = n
 	depends on NETFILTER_XT_TARGET_LOG = n
 	depends on NETFILTER_NETLINK_LOG = n
-	depends on INET = n
 	depends on IPV6 = n
 	depends on AF_RXRPC = n
 	depends on NET_KEY = n
