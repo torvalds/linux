@@ -3,6 +3,7 @@
 
 #include <linux/compiler.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/idr.h>
@@ -154,7 +155,11 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event);
 
 /* -iso */
 
-int fw_iso_buffer_map(struct fw_iso_buffer *buffer, struct vm_area_struct *vma);
+int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count);
+int fw_iso_buffer_map_dma(struct fw_iso_buffer *buffer, struct fw_card *card,
+			  enum dma_data_direction direction);
+int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
+			  struct vm_area_struct *vma);
 
 
 /* -topology */
