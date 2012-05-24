@@ -6632,7 +6632,7 @@ F:	include/linux/taskstats*
 F:	kernel/taskstats.c
 
 TC CLASSIFIER
-M:	Jamal Hadi Salim <hadi@cyberus.ca>
+M:	Jamal Hadi Salim <jhs@mojatatu.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	include/linux/pkt_cls.h
