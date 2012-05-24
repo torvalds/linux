@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
  *
  * Andreas Langer
  *
@@ -66,8 +66,8 @@ static struct sk_buff *frag_merge_packet(struct list_head *head,
 	kfree_skb(tmp_skb);
 
 	memmove(skb->data + uni_diff, skb->data, hdr_len);
-	unicast_packet = (struct unicast_packet *) skb_pull(skb, uni_diff);
-	unicast_packet->packet_type = BAT_UNICAST;
+	unicast_packet = (struct unicast_packet *)skb_pull(skb, uni_diff);
+	unicast_packet->header.packet_type = BAT_UNICAST;
 
 	return skb;
 
@@ -238,7 +238,7 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 		goto dropped;
 	skb_reserve(frag_skb, ucf_hdr_len);
 
-	unicast_packet = (struct unicast_packet *) skb->data;
+	unicast_packet = (struct unicast_packet *)skb->data;
 	memcpy(&tmp_uc, unicast_packet, uc_hdr_len);
 	skb_split(skb, frag_skb, data_len / 2 + uc_hdr_len);
 
@@ -251,9 +251,9 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 
 	memcpy(frag1, &tmp_uc, sizeof(tmp_uc));
 
-	frag1->ttl--;
-	frag1->version = COMPAT_VERSION;
-	frag1->packet_type = BAT_UNICAST_FRAG;
+	frag1->header.ttl--;
+	frag1->header.version = COMPAT_VERSION;
+	frag1->header.packet_type = BAT_UNICAST_FRAG;
 
 	memcpy(frag1->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(frag2, frag1, sizeof(*frag2));
@@ -320,11 +320,11 @@ find_router:
 
 	unicast_packet = (struct unicast_packet *)skb->data;
 
-	unicast_packet->version = COMPAT_VERSION;
+	unicast_packet->header.version = COMPAT_VERSION;
 	/* batman packet type: unicast */
-	unicast_packet->packet_type = BAT_UNICAST;
+	unicast_packet->header.packet_type = BAT_UNICAST;
 	/* set unicast ttl */
-	unicast_packet->ttl = TTL;
+	unicast_packet->header.ttl = TTL;
 	/* copy the destination for faster routing */
 	memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
 	/* set the destination tt version number */
@@ -335,7 +335,7 @@ find_router:
 	    data_len + sizeof(*unicast_packet) >
 				neigh_node->if_incoming->net_dev->mtu) {
 		/* send frag skb decreases ttl */
-		unicast_packet->ttl++;
+		unicast_packet->header.ttl++;
 		ret = frag_send_skb(skb, bat_priv,
 				    neigh_node->if_incoming, neigh_node->addr);
 		goto out;

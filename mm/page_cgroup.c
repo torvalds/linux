@@ -379,13 +379,15 @@ static struct swap_cgroup *lookup_swap_cgroup(swp_entry_t ent,
 	pgoff_t offset = swp_offset(ent);
 	struct swap_cgroup_ctrl *ctrl;
 	struct page *mappage;
+	struct swap_cgroup *sc;
 
 	ctrl = &swap_cgroup_ctrl[swp_type(ent)];
 	if (ctrlp)
 		*ctrlp = ctrl;
 
 	mappage = ctrl->map[offset / SC_PER_PAGE];
-	return page_address(mappage) + offset % SC_PER_PAGE;
+	sc = page_address(mappage);
+	return sc + offset % SC_PER_PAGE;
 }
 
 /**

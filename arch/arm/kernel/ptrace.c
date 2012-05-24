@@ -26,7 +26,6 @@
 #include <linux/audit.h>
 
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/traps.h>
 
 #define REG_PC	15
@@ -257,7 +256,7 @@ static int ptrace_read_user(struct task_struct *tsk, unsigned long off,
 {
 	unsigned long tmp;
 
-	if (off & 3 || off >= sizeof(struct user))
+	if (off & 3)
 		return -EIO;
 
 	tmp = 0;
@@ -269,6 +268,8 @@ static int ptrace_read_user(struct task_struct *tsk, unsigned long off,
 		tmp = tsk->mm->end_code;
 	else if (off < sizeof(struct pt_regs))
 		tmp = get_user_reg(tsk, off >> 2);
+	else if (off >= sizeof(struct user))
+		return -EIO;
 
 	return put_user(tmp, ret);
 }

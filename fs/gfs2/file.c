@@ -18,7 +18,6 @@
 #include <linux/mount.h>
 #include <linux/fs.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/ext2_fs.h>
 #include <linux/falloc.h>
 #include <linux/swap.h>
 #include <linux/crc32.h>
@@ -313,6 +312,8 @@ static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return gfs2_get_flags(filp, (u32 __user *)arg);
 	case FS_IOC_SETFLAGS:
 		return gfs2_set_flags(filp, (u32 __user *)arg);
+	case FITRIM:
+		return gfs2_fitrim(filp, (void __user *)arg);
 	}
 	return -ENOTTY;
 }
@@ -674,6 +675,7 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct buffer_head *dibh;
 	int error;
+	loff_t size = len;
 	unsigned int nr_blks;
 	sector_t lblock = offset >> inode->i_blkbits;
 
@@ -707,8 +709,8 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 			goto out;
 		}
 	}
-	if (offset + len > inode->i_size && !(mode & FALLOC_FL_KEEP_SIZE))
-		i_size_write(inode, offset + len);
+	if (offset + size > inode->i_size && !(mode & FALLOC_FL_KEEP_SIZE))
+		i_size_write(inode, offset + size);
 
 	mark_inode_dirty(inode);
 
@@ -777,12 +779,14 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	if (unlikely(error))
 		goto out_uninit;
 
-	if (!gfs2_write_alloc_required(ip, offset, len))
-		goto out_unlock;
-
 	while (len > 0) {
 		if (len < bytes)
 			bytes = len;
+		if (!gfs2_write_alloc_required(ip, offset, bytes)) {
+			len -= bytes;
+			offset += bytes;
+			continue;
+		}
 		qa = gfs2_qadata_get(ip);
 		if (!qa) {
 			error = -ENOMEM;

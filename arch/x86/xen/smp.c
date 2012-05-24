@@ -59,7 +59,7 @@ static irqreturn_t xen_reschedule_interrupt(int irq, void *dev_id)
 
 static void __cpuinit cpu_bringup(void)
 {
-	int cpu = smp_processor_id();
+	int cpu;
 
 	cpu_init();
 	touch_softlockup_watchdog();
@@ -75,8 +75,14 @@ static void __cpuinit cpu_bringup(void)
 
 	xen_setup_cpu_clockevents();
 
+	notify_cpu_starting(cpu);
+
+	ipi_call_lock();
 	set_cpu_online(cpu, true);
-	percpu_write(cpu_state, CPU_ONLINE);
+	ipi_call_unlock();
+
+	this_cpu_write(cpu_state, CPU_ONLINE);
+
 	wmb();
 
 	/* We can take interrupts now: we're officially "up". */

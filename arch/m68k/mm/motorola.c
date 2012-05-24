@@ -24,7 +24,6 @@
 #include <asm/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
-#include <asm/system.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/dma.h>

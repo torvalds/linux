@@ -33,4 +33,6 @@
 #define AT_L1D_CACHESHAPE	35
 #define AT_L2_CACHESHAPE	36
 
+#define AT_VECTOR_SIZE_ARCH 5 /* entries in ARCH_DLINFO */
+
 #endif /* __ASM_SH_AUXVEC_H */

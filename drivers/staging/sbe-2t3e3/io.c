@@ -11,7 +11,6 @@
  */
 
 #include <linux/ip.h>
-#include <asm/system.h>
 #include "2t3e3.h"
 #include "ctrl.h"
 

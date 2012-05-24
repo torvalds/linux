@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <linux/kmsg_dump.h>
 #include <linux/time.h>
-#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>

@@ -29,6 +29,5 @@
 #define PCI_IO_VADDR            0xee000000
 
 #define __io(a)			((void __iomem *)(PCI_IO_VADDR + (a)))
-#define __mem_pci(a)		(a)
 
 #endif

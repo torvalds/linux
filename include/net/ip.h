@@ -388,7 +388,7 @@ static inline int sk_mc_loop(struct sock *sk)
 	return 1;
 }
 
-extern int	ip_call_ra_chain(struct sk_buff *skb);
+extern bool ip_call_ra_chain(struct sk_buff *skb);
 
 /*
  *	Functions provided by ip_fragment.c

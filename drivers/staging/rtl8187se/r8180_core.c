@@ -439,8 +439,7 @@ void buffer_free(struct net_device *dev, struct buffer **buffer, int len, short 
 		}
 		kfree(tmp);
 		tmp = next;
-	}
-	while (next != *buffer);
+	} while (next != *buffer);
 
 	*buffer = NULL;
 }
@@ -1392,11 +1391,13 @@ void PerformUndecoratedSignalSmoothing8185(struct r8180_priv *priv,
 	priv->bCurCCKPkt = bCckRate;
 
 	if (priv->UndecoratedSmoothedSS >= 0)
-		priv->UndecoratedSmoothedSS = ((priv->UndecoratedSmoothedSS * 5) + (priv->SignalStrength * 10)) / 6;
+		priv->UndecoratedSmoothedSS = ((priv->UndecoratedSmoothedSS * 5) +
+					       (priv->SignalStrength * 10)) / 6;
 	else
 		priv->UndecoratedSmoothedSS = priv->SignalStrength * 10;
 
-	priv->UndercorateSmoothedRxPower = ((priv->UndercorateSmoothedRxPower * 50) + (priv->RxPower * 11)) / 60;
+	priv->UndercorateSmoothedRxPower = ((priv->UndercorateSmoothedRxPower * 50) +
+					    (priv->RxPower * 11)) / 60;
 
 	if (bCckRate)
 		priv->CurCCKRSSI = priv->RSSI;
@@ -1607,43 +1608,50 @@ void rtl8180_rx(struct net_device *dev)
 		/* printk("==========================>rx : RXAGC is %d,signalstrength is %d\n",RXAGC,stats.signalstrength); */
 		stats.rssi = priv->wstats.qual.qual = priv->SignalQuality;
 		stats.noise = priv->wstats.qual.noise = 100 - priv->wstats.qual.qual;
-		bHwError = (((*(priv->rxringtail)) & (0x00000fff)) == 4080) | (((*(priv->rxringtail)) & (0x04000000)) != 0)
-			| (((*(priv->rxringtail)) & (0x08000000)) != 0) | (((~(*(priv->rxringtail))) & (0x10000000)) != 0) | (((~(*(priv->rxringtail))) & (0x20000000)) != 0);
+		bHwError = (((*(priv->rxringtail)) & (0x00000fff)) == 4080) |
+			   (((*(priv->rxringtail)) & (0x04000000)) != 0) |
+			   (((*(priv->rxringtail)) & (0x08000000)) != 0) |
+			   (((~(*(priv->rxringtail))) & (0x10000000)) != 0) |
+			   (((~(*(priv->rxringtail))) & (0x20000000)) != 0);
 		bCRC = ((*(priv->rxringtail)) & (0x00002000)) >> 13;
 		bICV = ((*(priv->rxringtail)) & (0x00001000)) >> 12;
 		hdr = (struct ieee80211_hdr_4addr *)priv->rxbuffer->buf;
 		    fc = le16_to_cpu(hdr->frame_ctl);
 		type = WLAN_FC_GET_TYPE(fc);
 
-			if ((IEEE80211_FTYPE_CTL != type) &&
-				(eqMacAddr(priv->ieee80211->current_network.bssid, (fc & IEEE80211_FCTL_TODS) ? hdr->addr1 : (fc & IEEE80211_FCTL_FROMDS) ? hdr->addr2 : hdr->addr3))
-				 && (!bHwError) && (!bCRC) && (!bICV)) {
-				/* Perform signal smoothing for dynamic
-				 * mechanism on demand. This is different
-				 * with PerformSignalSmoothing8185 in smoothing
-				 * fomula. No dramatic adjustion is apply
-				 * because dynamic mechanism need some degree
-				 * of correctness. */
-				PerformUndecoratedSignalSmoothing8185(priv, bCckRate);
+		if (IEEE80211_FTYPE_CTL != type &&
+		    !bHwError && !bCRC && !bICV &&
+		    eqMacAddr(priv->ieee80211->current_network.bssid,
+			fc & IEEE80211_FCTL_TODS ? hdr->addr1 :
+			fc & IEEE80211_FCTL_FROMDS ? hdr->addr2 :
+			hdr->addr3)) {
 
-				/* For good-looking singal strength. */
-				SignalStrengthIndex = NetgearSignalStrengthTranslate(
-								priv->LastSignalStrengthInPercent,
-								priv->SignalStrength);
+			/* Perform signal smoothing for dynamic
+			 * mechanism on demand. This is different
+			 * with PerformSignalSmoothing8185 in smoothing
+			 * fomula. No dramatic adjustion is apply
+			 * because dynamic mechanism need some degree
+			 * of correctness. */
+			PerformUndecoratedSignalSmoothing8185(priv, bCckRate);
 
-				priv->LastSignalStrengthInPercent = SignalStrengthIndex;
-				priv->Stats_SignalStrength = TranslateToDbm8185((u8)SignalStrengthIndex);
+			/* For good-looking singal strength. */
+			SignalStrengthIndex = NetgearSignalStrengthTranslate(
+							priv->LastSignalStrengthInPercent,
+							priv->SignalStrength);
+
+			priv->LastSignalStrengthInPercent = SignalStrengthIndex;
+			priv->Stats_SignalStrength = TranslateToDbm8185((u8)SignalStrengthIndex);
 		/*
 		 * We need more correct power of received packets and the  "SignalStrength" of RxStats is beautified,
 		 * so we record the correct power here.
 		 */
-				priv->Stats_SignalQuality = (long)(priv->Stats_SignalQuality * 5 + (long)priv->SignalQuality + 5) / 6;
-				priv->Stats_RecvSignalPower = (long)(priv->Stats_RecvSignalPower * 5 + priv->RecvSignalPower - 1) / 6;
+			priv->Stats_SignalQuality = (long)(priv->Stats_SignalQuality * 5 + (long)priv->SignalQuality + 5) / 6;
+			priv->Stats_RecvSignalPower = (long)(priv->Stats_RecvSignalPower * 5 + priv->RecvSignalPower - 1) / 6;
 
 		/* Figure out which antenna that received the lasted packet. */
-				priv->LastRxPktAntenna = Antenna ? 1 : 0; /* 0: aux, 1: main. */
-				SwAntennaDiversityRxOk8185(dev, priv->SignalStrength);
-			}
+			priv->LastRxPktAntenna = Antenna ? 1 : 0; /* 0: aux, 1: main. */
+			SwAntennaDiversityRxOk8185(dev, priv->SignalStrength);
+		}
 
 		if (first) {
 			if (!priv->rx_skb_complete) {
@@ -1654,7 +1662,7 @@ void rtl8180_rx(struct net_device *dev)
 			}
 			/* support for prism header has been originally added by Christian */
 			if (priv->prism_hdr && priv->ieee80211->iw_mode == IW_MODE_MONITOR) {
-				
+
 			} else {
 				priv->rx_skb = dev_alloc_skb(len+2);
 				if (!priv->rx_skb)
@@ -1766,7 +1774,7 @@ void rtl8180_data_hard_resume(struct net_device *dev)
 	rtl8180_set_mode(dev, EPROM_CMD_NORMAL);
 }
 
-/* 
+/*
  * This function TX data frames when the ieee80211 stack requires this.
  * It checks also if we need to stop the ieee tx queue, eventually do it
  */
@@ -1810,7 +1818,7 @@ rate) {
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 }
 
-/* 
+/*
  * This is a rough attempt to TX a frame
  * This is called by the ieee 80211 stack to TX management frames.
  * If the ring is full packet are dropped (for data frame the queue
@@ -1916,7 +1924,7 @@ void rtl8180_prepare_beacon(struct net_device *dev)
 	}
 }
 
-/* 
+/*
  * This function do the real dirty work: it enqueues a TX command
  * descriptor in the ring buffer, copyes the frame in a TX buffer
  * and kicks the NIC to ensure it does the DMA transfer.
@@ -2002,7 +2010,8 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 			bRTSEnable = 0;
 			bCTSEnable = 0;
 
-			ThisFrameTime = ComputeTxTime(len + sCrcLng, rtl8180_rate2rate(rate), 0, bUseShortPreamble);
+			ThisFrameTime = ComputeTxTime(len + sCrcLng, rtl8180_rate2rate(rate),
+						      0, bUseShortPreamble);
 			TxDescDuration = ThisFrameTime;
 		} else { /* Unicast packet */
 			u16 AckTime;
@@ -2040,7 +2049,8 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 				bRTSEnable = 0;
 				RtsDur = 0;
 
-				ThisFrameTime = ComputeTxTime(len + sCrcLng, rtl8180_rate2rate(rate), 0, bUseShortPreamble);
+				ThisFrameTime = ComputeTxTime(len + sCrcLng, rtl8180_rate2rate(rate),
+							      0, bUseShortPreamble);
 				TxDescDuration = ThisFrameTime + aSifsTime + AckTime;
 			}
 
@@ -2184,7 +2194,7 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 			priv->txhpbufstail = buflist;
 			break;
 		case BEACON_PRIORITY:
-			/* 
+			/*
 			 * The HW seems to be happy with the 1st
 			 * descriptor filled and the 2nd empty...
 			 * So always update descriptor 1 and never
@@ -2304,13 +2314,13 @@ void rtl8180_hw_sleep(struct net_device *dev, u32 th, u32 tl)
 
 	spin_lock_irqsave(&priv->ps_lock, flags);
 
-	/* 
+	/*
 	 * Writing HW register with 0 equals to disable
 	 * the timer, that is not really what we want
 	 */
 	tl -= MSECS(4+16+7);
 
-	/* 
+	/*
 	 * If the interval in witch we are requested to sleep is too
 	 * short then give up and remain awake
 	 */
@@ -2325,10 +2335,10 @@ void rtl8180_hw_sleep(struct net_device *dev, u32 th, u32 tl)
 		u32 tmp = (tl > rb) ? (tl-rb) : (rb-tl);
 
 		priv->DozePeriodInPast2Sec += jiffies_to_msecs(tmp);
-
-		queue_delayed_work(priv->ieee80211->wq, &priv->ieee80211->hw_wakeup_wq, tmp); /* as tl may be less than rb */
+		/* as tl may be less than rb */
+		queue_delayed_work(priv->ieee80211->wq, &priv->ieee80211->hw_wakeup_wq, tmp);
 	}
-	/* 
+	/*
 	 * If we suspect the TimerInt is gone beyond tl
 	 * while setting it, then give up
 	 */
@@ -3086,7 +3096,8 @@ void rtl8185_set_rate(struct net_device *dev)
 	max_rr_rate = ieeerate2rtlrate(240);
 
 	write_nic_byte(dev, RESP_RATE,
-			max_rr_rate<<MAX_RESP_RATE_SHIFT | min_rr_rate<<MIN_RESP_RATE_SHIFT);
+		       max_rr_rate<<MAX_RESP_RATE_SHIFT |
+		       min_rr_rate<<MIN_RESP_RATE_SHIFT);
 
 	word  = read_nic_word(dev, BRSR);
 	word &= ~BRSR_MBR_8185;
@@ -3168,7 +3179,7 @@ void rtl8180_adapter_start(struct net_device *dev)
 	netif_start_queue(dev);
 }
 
-/* 
+/*
  * This configures registers for beacon tx and enables it via
  * rtl8180_beacon_tx_enable(). rtl8180_beacon_tx_disable() might
  * be used to stop beacon transmission
@@ -3227,7 +3238,8 @@ void LeisurePSEnter(struct r8180_priv *priv)
 {
 	if (priv->bLeisurePs) {
 		if (priv->ieee80211->ps == IEEE80211_PS_DISABLED)
-			MgntActSet_802_11_PowerSaveMode(priv, IEEE80211_PS_MBCAST|IEEE80211_PS_UNICAST); /* IEEE80211_PS_ENABLE */
+			/* IEEE80211_PS_ENABLE */
+			MgntActSet_802_11_PowerSaveMode(priv, IEEE80211_PS_MBCAST|IEEE80211_PS_UNICAST);
 	}
 }
 
@@ -3299,7 +3311,10 @@ void rtl8180_watch_dog(struct net_device *dev)
 	u16 SlotIndex = 0;
 	u16 i = 0;
 	if (priv->ieee80211->actscanning == false) {
-		if ((priv->ieee80211->iw_mode != IW_MODE_ADHOC) && (priv->ieee80211->state == IEEE80211_NOLINK) && (priv->ieee80211->beinretry == false) && (priv->eRFPowerState == eRfOn))
+		if ((priv->ieee80211->iw_mode != IW_MODE_ADHOC) &&
+		    (priv->ieee80211->state == IEEE80211_NOLINK) &&
+		    (priv->ieee80211->beinretry == false) &&
+		    (priv->eRFPowerState == eRfOn))
 			IPSEnter(dev);
 	}
 	/* YJ,add,080828,for link state check */
@@ -3732,7 +3747,7 @@ static int __init rtl8180_pci_module_init(void)
 	DMESG("Wireless extensions version %d", WIRELESS_EXT);
 	rtl8180_proc_module_init();
 
-      if (pci_register_driver(&rtl8180_pci_driver)) {
+	if (pci_register_driver(&rtl8180_pci_driver)) {
 		DMESG("No device found");
 		return -ENODEV;
 	}
@@ -3839,7 +3854,7 @@ void rtl8180_tx_isr(struct net_device *dev, int pri, short error)
 			return;
 		}
 
-	/* 
+	/*
 	 * We check all the descriptors between the head and the nic,
 	 * but not the currently pointed by the nic (the next to be txed)
 	 * and the previous of the pointed (might be in process ??)
@@ -3877,7 +3892,7 @@ void rtl8180_tx_isr(struct net_device *dev, int pri, short error)
 			head += 8;
 	}
 
-	/* 
+	/*
 	 * The head has been moved to the last certainly TXed
 	 * (or at least processed by the nic) packet.
 	 * The driver take forcefully owning of all these packets
@@ -4144,7 +4159,7 @@ void GPIOChangeRFWorkItemCallBack(struct work_struct *work)
 		argv[0] = RadioPowerPath;
 		argv[2] = NULL;
 
-		call_usermodehelper(RadioPowerPath, argv, envp, 1);
+		call_usermodehelper(RadioPowerPath, argv, envp, UMH_WAIT_PROC);
 	}
 }
 

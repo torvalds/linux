@@ -446,11 +446,11 @@ void tomoyo_read_log(struct tomoyo_io_buffer *head)
  * tomoyo_poll_log - Wait for an audit log.
  *
  * @file: Pointer to "struct file".
- * @wait: Pointer to "poll_table".
+ * @wait: Pointer to "poll_table". Maybe NULL.
  *
  * Returns POLLIN | POLLRDNORM when ready to read an audit log.
  */
-int tomoyo_poll_log(struct file *file, poll_table *wait)
+unsigned int tomoyo_poll_log(struct file *file, poll_table *wait)
 {
 	if (tomoyo_log_count)
 		return POLLIN | POLLRDNORM;

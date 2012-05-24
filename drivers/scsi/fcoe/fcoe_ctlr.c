@@ -242,7 +242,7 @@ static void fcoe_ctlr_announce(struct fcoe_ctlr *fip)
 		printk(KERN_INFO "libfcoe: host%d: FIP selected "
 		       "Fibre-Channel Forwarder MAC %pM\n",
 		       fip->lp->host->host_no, sel->fcf_mac);
-		memcpy(fip->dest_addr, sel->fcf_mac, ETH_ALEN);
+		memcpy(fip->dest_addr, sel->fcoe_mac, ETH_ALEN);
 		fip->map_dest = 0;
 	}
 unlock:
@@ -824,6 +824,7 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 			memcpy(fcf->fcf_mac,
 			       ((struct fip_mac_desc *)desc)->fd_mac,
 			       ETH_ALEN);
+			memcpy(fcf->fcoe_mac, fcf->fcf_mac, ETH_ALEN);
 			if (!is_valid_ether_addr(fcf->fcf_mac)) {
 				LIBFCOE_FIP_DBG(fip,
 					"Invalid MAC addr %pM in FIP adv\n",
@@ -1013,6 +1014,7 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	struct fip_desc *desc;
 	struct fip_encaps *els;
 	struct fcoe_dev_stats *stats;
+	struct fcoe_fcf *sel;
 	enum fip_desc_type els_dtype = 0;
 	u8 els_op;
 	u8 sub;
@@ -1040,7 +1042,8 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 			goto drop;
 		/* Drop ELS if there are duplicate critical descriptors */
 		if (desc->fip_dtype < 32) {
-			if (desc_mask & 1U << desc->fip_dtype) {
+			if ((desc->fip_dtype != FIP_DT_MAC) &&
+			    (desc_mask & 1U << desc->fip_dtype)) {
 				LIBFCOE_FIP_DBG(fip, "Duplicate Critical "
 						"Descriptors in FIP ELS\n");
 				goto drop;
@@ -1049,17 +1052,32 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		}
 		switch (desc->fip_dtype) {
 		case FIP_DT_MAC:
+			sel = fip->sel_fcf;
 			if (desc_cnt == 1) {
 				LIBFCOE_FIP_DBG(fip, "FIP descriptors "
 						"received out of order\n");
 				goto drop;
 			}
+			/*
+			 * Some switch implementations send two MAC descriptors,
+			 * with first MAC(granted_mac) being the FPMA, and the
+			 * second one(fcoe_mac) is used as destination address
+			 * for sending/receiving FCoE packets. FIP traffic is
+			 * sent using fip_mac. For regular switches, both
+			 * fip_mac and fcoe_mac would be the same.
+			 */
+			if (desc_cnt == 2)
+				memcpy(granted_mac,
+				       ((struct fip_mac_desc *)desc)->fd_mac,
+				       ETH_ALEN);
 
 			if (dlen != sizeof(struct fip_mac_desc))
 				goto len_err;
-			memcpy(granted_mac,
-			       ((struct fip_mac_desc *)desc)->fd_mac,
-			       ETH_ALEN);
+
+			if ((desc_cnt == 3) && (sel))
+				memcpy(sel->fcoe_mac,
+				       ((struct fip_mac_desc *)desc)->fd_mac,
+				       ETH_ALEN);
 			break;
 		case FIP_DT_FLOGI:
 		case FIP_DT_FDISC:
@@ -1273,17 +1291,17 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 		 * No Vx_Port description. Clear all NPIV ports,
 		 * followed by physical port
 		 */
-		mutex_lock(&lport->lp_mutex);
-		list_for_each_entry(vn_port, &lport->vports, list)
-			fc_lport_reset(vn_port);
-		mutex_unlock(&lport->lp_mutex);
-
 		mutex_lock(&fip->ctlr_mutex);
 		per_cpu_ptr(lport->dev_stats,
 			    get_cpu())->VLinkFailureCount++;
 		put_cpu();
 		fcoe_ctlr_reset(fip);
 		mutex_unlock(&fip->ctlr_mutex);
+
+		mutex_lock(&lport->lp_mutex);
+		list_for_each_entry(vn_port, &lport->vports, list)
+			fc_lport_reset(vn_port);
+		mutex_unlock(&lport->lp_mutex);
 
 		fc_lport_reset(fip->lp);
 		fcoe_ctlr_solicit(fip, NULL);

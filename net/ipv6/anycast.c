@@ -211,35 +211,6 @@ void ipv6_sock_ac_close(struct sock *sk)
 	rcu_read_unlock();
 }
 
-#if 0
-/* The function is not used, which is funny. Apparently, author
- * supposed to use it to filter out datagrams inside udp/raw but forgot.
- *
- * It is OK, anycasts are not special comparing to delivery to unicasts.
- */
-
-int inet6_ac_check(struct sock *sk, struct in6_addr *addr, int ifindex)
-{
-	struct ipv6_ac_socklist *pac;
-	struct ipv6_pinfo *np = inet6_sk(sk);
-	int	found;
-
-	found = 0;
-	read_lock(&ipv6_sk_ac_lock);
-	for (pac=np->ipv6_ac_list; pac; pac=pac->acl_next) {
-		if (ifindex && pac->acl_ifindex != ifindex)
-			continue;
-		found = ipv6_addr_equal(&pac->acl_addr, addr);
-		if (found)
-			break;
-	}
-	read_unlock(&ipv6_sk_ac_lock);
-
-	return found;
-}
-
-#endif
-
 static void aca_put(struct ifacaddr6 *ac)
 {
 	if (atomic_dec_and_test(&ac->aca_refcnt)) {

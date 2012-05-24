@@ -47,14 +47,11 @@ struct kernel_param_ops {
 	void (*free)(void *arg);
 };
 
-/* Flag bits for kernel_param.flags */
-#define KPARAM_ISBOOL		2
-
 struct kernel_param {
 	const char *name;
 	const struct kernel_param_ops *ops;
 	u16 perm;
-	u16 flags;
+	s16 level;
 	union {
 		void *arg;
 		const struct kparam_string *str;
@@ -131,8 +128,40 @@ struct kparam_array
  * The ops can have NULL set or get functions.
  */
 #define module_param_cb(name, ops, arg, perm)				      \
-	__module_param_call(MODULE_PARAM_PREFIX,			      \
-			    name, ops, arg, __same_type((arg), bool *), perm)
+	__module_param_call(MODULE_PARAM_PREFIX, name, ops, arg, perm, 0)
+
+/**
+ * <level>_param_cb - general callback for a module/cmdline parameter
+ *                    to be evaluated before certain initcall level
+ * @name: a valid C identifier which is the parameter name.
+ * @ops: the set & get operations for this parameter.
+ * @perm: visibility in sysfs.
+ *
+ * The ops can have NULL set or get functions.
+ */
+#define __level_param_cb(name, ops, arg, perm, level)			\
+	__module_param_call(MODULE_PARAM_PREFIX, name, ops, arg, perm, level)
+
+#define core_param_cb(name, ops, arg, perm)		\
+	__level_param_cb(name, ops, arg, perm, 1)
+
+#define postcore_param_cb(name, ops, arg, perm)		\
+	__level_param_cb(name, ops, arg, perm, 2)
+
+#define arch_param_cb(name, ops, arg, perm)		\
+	__level_param_cb(name, ops, arg, perm, 3)
+
+#define subsys_param_cb(name, ops, arg, perm)		\
+	__level_param_cb(name, ops, arg, perm, 4)
+
+#define fs_param_cb(name, ops, arg, perm)		\
+	__level_param_cb(name, ops, arg, perm, 5)
+
+#define device_param_cb(name, ops, arg, perm)		\
+	__level_param_cb(name, ops, arg, perm, 6)
+
+#define late_param_cb(name, ops, arg, perm)		\
+	__level_param_cb(name, ops, arg, perm, 7)
 
 /* On alpha, ia64 and ppc64 relocations to global data cannot go into
    read-only sections (which is part of respective UNIX ABI on these
@@ -146,7 +175,7 @@ struct kparam_array
 
 /* This is the fundamental function for registering boot/module
    parameters. */
-#define __module_param_call(prefix, name, ops, arg, isbool, perm)	\
+#define __module_param_call(prefix, name, ops, arg, perm, level)	\
 	/* Default value instead of permissions? */			\
 	static int __param_perm_check_##name __attribute__((unused)) =	\
 	BUILD_BUG_ON_ZERO((perm) < 0 || (perm) > 0777 || ((perm) & 2))	\
@@ -155,8 +184,7 @@ struct kparam_array
 	static struct kernel_param __moduleparam_const __param_##name	\
 	__used								\
     __attribute__ ((unused,__section__ ("__param"),aligned(sizeof(void *)))) \
-	= { __param_str_##name, ops, perm, isbool ? KPARAM_ISBOOL : 0,	\
-	    { arg } }
+	= { __param_str_##name, ops, perm, level, { arg } }
 
 /* Obsolete - use module_param_cb() */
 #define module_param_call(name, set, get, arg, perm)			\
@@ -164,8 +192,7 @@ struct kparam_array
 		 { (void *)set, (void *)get };				\
 	__module_param_call(MODULE_PARAM_PREFIX,			\
 			    name, &__param_ops_##name, arg,		\
-			    __same_type(arg, bool *),			\
-			    (perm) + sizeof(__check_old_set_param(set))*0)
+			    (perm) + sizeof(__check_old_set_param(set))*0, 0)
 
 /* We don't get oldget: it's often a new-style param_get_uint, etc. */
 static inline int
@@ -245,8 +272,7 @@ static inline void __kernel_param_unlock(void)
  */
 #define core_param(name, var, type, perm)				\
 	param_check_##type(name, &(var));				\
-	__module_param_call("", name, &param_ops_##type,		\
-			    &var, __same_type(var, bool), perm)
+	__module_param_call("", name, &param_ops_##type, &var, perm, 0)
 #endif /* !MODULE */
 
 /**
@@ -264,7 +290,7 @@ static inline void __kernel_param_unlock(void)
 		= { len, string };					\
 	__module_param_call(MODULE_PARAM_PREFIX, name,			\
 			    &param_ops_string,				\
-			    .str = &__param_string_##name, 0, perm);	\
+			    .str = &__param_string_##name, perm, 0);	\
 	__MODULE_PARM_TYPE(name, "string")
 
 /**
@@ -292,6 +318,8 @@ extern int parse_args(const char *name,
 		      char *args,
 		      const struct kernel_param *params,
 		      unsigned num,
+		      s16 level_min,
+		      s16 level_max,
 		      int (*unknown)(char *param, char *val));
 
 /* Called by module remove. */
@@ -403,7 +431,7 @@ extern int param_set_bint(const char *val, const struct kernel_param *kp);
 	__module_param_call(MODULE_PARAM_PREFIX, name,			\
 			    &param_array_ops,				\
 			    .arr = &__param_arr_##name,			\
-			    __same_type(array[0], bool), perm);		\
+			    perm, 0);					\
 	__MODULE_PARM_TYPE(name, "array of " #type)
 
 extern struct kernel_param_ops param_array_ops;

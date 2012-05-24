@@ -41,6 +41,7 @@
 #include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/at91rm9200_mc.h>
+#include <mach/at91_ramc.h>
 
 #include "generic.h"
 
@@ -116,7 +117,7 @@ static struct i2c_board_info __initdata ek_i2c_devices[] = {
 };
 
 #define EK_FLASH_BASE	AT91_CHIPSELECT_0
-#define EK_FLASH_SIZE	SZ_2M
+#define EK_FLASH_SIZE	SZ_8M
 
 static struct physmap_flash_data ek_flash_data = {
 	.width		= 2,

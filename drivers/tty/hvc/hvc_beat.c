@@ -113,7 +113,7 @@ static int __init hvc_beat_init(void)
 	if (!firmware_has_feature(FW_FEATURE_BEAT))
 		return -ENODEV;
 
-	hp = hvc_alloc(0, NO_IRQ, &hvc_beat_get_put_ops, 16);
+	hp = hvc_alloc(0, 0, &hvc_beat_get_put_ops, 16);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
 	hvc_beat_dev = hp;

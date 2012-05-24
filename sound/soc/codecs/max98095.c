@@ -1284,7 +1284,7 @@ static const struct snd_soc_dapm_route max98095_audio_map[] = {
 
 static int max98095_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_add_controls(codec, max98095_snd_controls,
+	snd_soc_add_codec_controls(codec, max98095_snd_controls,
 			     ARRAY_SIZE(max98095_snd_controls));
 
 	return 0;
@@ -1984,7 +1984,7 @@ static void max98095_handle_eq_pdata(struct snd_soc_codec *codec)
 	max98095->eq_enum.texts = max98095->eq_texts;
 	max98095->eq_enum.max = max98095->eq_textcnt;
 
-	ret = snd_soc_add_controls(codec, controls, ARRAY_SIZE(controls));
+	ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
 	if (ret != 0)
 		dev_err(codec->dev, "Failed to add EQ control: %d\n", ret);
 }
@@ -2139,7 +2139,7 @@ static void max98095_handle_bq_pdata(struct snd_soc_codec *codec)
 	max98095->bq_enum.texts = max98095->bq_texts;
 	max98095->bq_enum.max = max98095->bq_textcnt;
 
-	ret = snd_soc_add_controls(codec, controls, ARRAY_SIZE(controls));
+	ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
 	if (ret != 0)
 		dev_err(codec->dev, "Failed to add Biquad control: %d\n", ret);
 }

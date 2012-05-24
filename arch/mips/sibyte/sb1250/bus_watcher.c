@@ -30,7 +30,6 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
-#include <asm/system.h>
 #include <asm/io.h>
 
 #include <asm/sibyte/sb1250.h>

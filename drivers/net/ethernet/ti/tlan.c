@@ -486,7 +486,6 @@ static int __devinit tlan_probe1(struct pci_dev *pdev,
 
 	dev = alloc_etherdev(sizeof(struct tlan_priv));
 	if (dev == NULL) {
-		pr_err("Could not allocate memory for device\n");
 		rc = -ENOMEM;
 		goto err_out_regions;
 	}

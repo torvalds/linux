@@ -36,6 +36,7 @@
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/poll.h>
+#include <linux/nmi.h>
 #include <linux/fs.h>
 
 #include "trace.h"
@@ -350,6 +351,59 @@ static void wakeup_work_handler(struct work_struct *work)
 }
 
 static DECLARE_DELAYED_WORK(wakeup_work, wakeup_work_handler);
+
+/**
+ * tracing_on - enable tracing buffers
+ *
+ * This function enables tracing buffers that may have been
+ * disabled with tracing_off.
+ */
+void tracing_on(void)
+{
+	if (global_trace.buffer)
+		ring_buffer_record_on(global_trace.buffer);
+	/*
+	 * This flag is only looked at when buffers haven't been
+	 * allocated yet. We don't really care about the race
+	 * between setting this flag and actually turning
+	 * on the buffer.
+	 */
+	global_trace.buffer_disabled = 0;
+}
+EXPORT_SYMBOL_GPL(tracing_on);
+
+/**
+ * tracing_off - turn off tracing buffers
+ *
+ * This function stops the tracing buffers from recording data.
+ * It does not disable any overhead the tracers themselves may
+ * be causing. This function simply causes all recording to
+ * the ring buffers to fail.
+ */
+void tracing_off(void)
+{
+	if (global_trace.buffer)
+		ring_buffer_record_on(global_trace.buffer);
+	/*
+	 * This flag is only looked at when buffers haven't been
+	 * allocated yet. We don't really care about the race
+	 * between setting this flag and actually turning
+	 * on the buffer.
+	 */
+	global_trace.buffer_disabled = 1;
+}
+EXPORT_SYMBOL_GPL(tracing_off);
+
+/**
+ * tracing_is_on - show state of ring buffers enabled
+ */
+int tracing_is_on(void)
+{
+	if (global_trace.buffer)
+		return ring_buffer_record_is_on(global_trace.buffer);
+	return !global_trace.buffer_disabled;
+}
+EXPORT_SYMBOL_GPL(tracing_is_on);
 
 /**
  * trace_wake_up - wake up tasks waiting for trace input
@@ -1644,6 +1698,7 @@ __find_next_entry(struct trace_iterator *iter, int *ent_cpu,
 	int cpu_file = iter->cpu_file;
 	u64 next_ts = 0, ts;
 	int next_cpu = -1;
+	int next_size = 0;
 	int cpu;
 
 	/*
@@ -1675,8 +1730,11 @@ __find_next_entry(struct trace_iterator *iter, int *ent_cpu,
 			next_cpu = cpu;
 			next_ts = ts;
 			next_lost = lost_events;
+			next_size = iter->ent_size;
 		}
 	}
+
+	iter->ent_size = next_size;
 
 	if (ent_cpu)
 		*ent_cpu = next_cpu;
@@ -2764,12 +2822,12 @@ static const char readme_msg[] =
 	"tracing mini-HOWTO:\n\n"
 	"# mount -t debugfs nodev /sys/kernel/debug\n\n"
 	"# cat /sys/kernel/debug/tracing/available_tracers\n"
-	"wakeup preemptirqsoff preemptoff irqsoff function sched_switch nop\n\n"
+	"wakeup wakeup_rt preemptirqsoff preemptoff irqsoff function nop\n\n"
 	"# cat /sys/kernel/debug/tracing/current_tracer\n"
 	"nop\n"
-	"# echo sched_switch > /sys/kernel/debug/tracing/current_tracer\n"
+	"# echo wakeup > /sys/kernel/debug/tracing/current_tracer\n"
 	"# cat /sys/kernel/debug/tracing/current_tracer\n"
-	"sched_switch\n"
+	"wakeup\n"
 	"# cat /sys/kernel/debug/tracing/trace_options\n"
 	"noprint-parent nosym-offset nosym-addr noverbose\n"
 	"# echo print-parent > /sys/kernel/debug/tracing/trace_options\n"
@@ -4567,6 +4625,55 @@ static __init void create_trace_options_dir(void)
 		create_trace_option_core_file(trace_options[i], i);
 }
 
+static ssize_t
+rb_simple_read(struct file *filp, char __user *ubuf,
+	       size_t cnt, loff_t *ppos)
+{
+	struct ring_buffer *buffer = filp->private_data;
+	char buf[64];
+	int r;
+
+	if (buffer)
+		r = ring_buffer_record_is_on(buffer);
+	else
+		r = 0;
+
+	r = sprintf(buf, "%d\n", r);
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
+}
+
+static ssize_t
+rb_simple_write(struct file *filp, const char __user *ubuf,
+		size_t cnt, loff_t *ppos)
+{
+	struct ring_buffer *buffer = filp->private_data;
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul_from_user(ubuf, cnt, 10, &val);
+	if (ret)
+		return ret;
+
+	if (buffer) {
+		if (val)
+			ring_buffer_record_on(buffer);
+		else
+			ring_buffer_record_off(buffer);
+	}
+
+	(*ppos)++;
+
+	return cnt;
+}
+
+static const struct file_operations rb_simple_fops = {
+	.open		= tracing_open_generic,
+	.read		= rb_simple_read,
+	.write		= rb_simple_write,
+	.llseek		= default_llseek,
+};
+
 static __init int tracer_init_debugfs(void)
 {
 	struct dentry *d_tracer;
@@ -4625,6 +4732,9 @@ static __init int tracer_init_debugfs(void)
 
 	trace_create_file("trace_clock", 0644, d_tracer, NULL,
 			  &trace_clock_fops);
+
+	trace_create_file("tracing_on", 0644, d_tracer,
+			    global_trace.buffer, &rb_simple_fops);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 	trace_create_file("dyn_ftrace_total_info", 0444, d_tracer,
@@ -4798,6 +4908,7 @@ __ftrace_dump(bool disable_tracing, enum ftrace_dump_mode oops_dump_mode)
 			if (ret != TRACE_TYPE_NO_CONSUME)
 				trace_consume(&iter);
 		}
+		touch_nmi_watchdog();
 
 		trace_printk_seq(&iter.seq);
 	}
@@ -4863,6 +4974,8 @@ __init static int tracer_alloc_buffers(void)
 		goto out_free_cpumask;
 	}
 	global_trace.entries = ring_buffer_size(global_trace.buffer);
+	if (global_trace.buffer_disabled)
+		tracing_off();
 
 
 #ifdef CONFIG_TRACER_MAX_TRACE

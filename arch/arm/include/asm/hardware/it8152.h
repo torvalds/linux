@@ -9,6 +9,9 @@
 
 #ifndef __ASM_HARDWARE_IT8152_H
 #define __ASM_HARDWARE_IT8152_H
+
+#include <mach/irqs.h>
+
 extern void __iomem *it8152_base_address;
 
 #define IT8152_IO_BASE			(it8152_base_address + 0x03e00000)

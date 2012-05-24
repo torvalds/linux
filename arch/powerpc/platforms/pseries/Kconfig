@@ -3,6 +3,7 @@ config PPC_PSERIES
 	bool "IBM pSeries & new (POWER5-based) iSeries"
 	select HAVE_PCSPKR_PLATFORM
 	select MPIC
+	select OF_DYNAMIC
 	select PCI_MSI
 	select PPC_XICS
 	select PPC_ICP_NATIVE
@@ -72,7 +73,7 @@ config IO_EVENT_IRQ
 
 config LPARCFG
 	bool "LPAR Configuration Data"
-	depends on PPC_PSERIES || PPC_ISERIES
+	depends on PPC_PSERIES
 	help
 	Provide system capacity information via human readable
 	<key word>=<value> pairs through a /proc/ppc64/lparcfg interface.

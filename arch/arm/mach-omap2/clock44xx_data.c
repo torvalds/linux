@@ -26,8 +26,12 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/clk.h>
+#include <linux/io.h>
+
+#include <plat/hardware.h>
 #include <plat/clkdev_omap.h>
 
+#include "iomap.h"
 #include "clock.h"
 #include "clock44xx.h"
 #include "cm1_44xx.h"
@@ -953,8 +957,8 @@ static struct dpll_data dpll_usb_dd = {
 	.modes		= (1 << DPLL_LOW_POWER_BYPASS) | (1 << DPLL_LOCKED),
 	.autoidle_reg	= OMAP4430_CM_AUTOIDLE_DPLL_USB,
 	.idlest_reg	= OMAP4430_CM_IDLEST_DPLL_USB,
-	.mult_mask	= OMAP4430_DPLL_MULT_MASK,
-	.div1_mask	= OMAP4430_DPLL_DIV_MASK,
+	.mult_mask	= OMAP4430_DPLL_MULT_USB_MASK,
+	.div1_mask	= OMAP4430_DPLL_DIV_0_7_MASK,
 	.enable_mask	= OMAP4430_DPLL_EN_MASK,
 	.autoidle_mask	= OMAP4430_AUTO_DPLL_MODE_MASK,
 	.idlest_mask	= OMAP4430_ST_DPLL_CLK_MASK,
@@ -974,6 +978,7 @@ static struct clk dpll_usb_ck = {
 	.recalc		= &omap3_dpll_recalc,
 	.round_rate	= &omap2_dpll_round_rate,
 	.set_rate	= &omap3_noncore_dpll_set_rate,
+	.clkdm_name	= "l3_init_clkdm",
 };
 
 static struct clk dpll_usb_clkdcoldo_ck = {

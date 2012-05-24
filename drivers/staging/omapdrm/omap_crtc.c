@@ -118,29 +118,35 @@ static void omap_crtc_load_lut(struct drm_crtc *crtc)
 {
 }
 
-static void page_flip_cb(void *arg)
+static void vblank_cb(void *arg)
 {
+	static uint32_t sequence = 0;
 	struct drm_crtc *crtc = arg;
 	struct drm_device *dev = crtc->dev;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct drm_pending_vblank_event *event = omap_crtc->event;
-	struct drm_framebuffer *old_fb = omap_crtc->old_fb;
-	struct timeval now;
 	unsigned long flags;
+	struct timeval now;
 
 	WARN_ON(!event);
 
 	omap_crtc->event = NULL;
-	omap_crtc->old_fb = NULL;
-
-	omap_crtc_mode_set_base(crtc, crtc->x, crtc->y, old_fb);
 
 	/* wakeup userspace */
-	/* TODO: this should happen *after* flip in vsync IRQ handler */
 	if (event) {
+		do_gettimeofday(&now);
+
 		spin_lock_irqsave(&dev->event_lock, flags);
+		/* TODO: we can't yet use the vblank time accounting,
+		 * because omapdss lower layer is the one that knows
+		 * the irq # and registers the handler, which more or
+		 * less defeats how drm_irq works.. for now just fake
+		 * the sequence number and use gettimeofday..
+		 *
 		event->event.sequence = drm_vblank_count_and_time(
 				dev, omap_crtc->id, &now);
+		 */
+		event->event.sequence = sequence++;
 		event->event.tv_sec = now.tv_sec;
 		event->event.tv_usec = now.tv_usec;
 		list_add_tail(&event->base.link,
@@ -148,6 +154,23 @@ static void page_flip_cb(void *arg)
 		wake_up_interruptible(&event->base.file_priv->event_wait);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
+}
+
+static void page_flip_cb(void *arg)
+{
+	struct drm_crtc *crtc = arg;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_framebuffer *old_fb = omap_crtc->old_fb;
+
+	omap_crtc->old_fb = NULL;
+
+	omap_crtc_mode_set_base(crtc, crtc->x, crtc->y, old_fb);
+
+	/* really we'd like to setup the callback atomically w/ setting the
+	 * new scanout buffer to avoid getting stuck waiting an extra vblank
+	 * cycle.. for now go for correctness and later figure out speed..
+	 */
+	omap_plane_on_endwin(omap_crtc->plane, vblank_cb, crtc);
 }
 
 static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,

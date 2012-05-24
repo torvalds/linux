@@ -53,8 +53,8 @@
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
 #define _NETXEN_NIC_LINUX_MINOR 0
-#define _NETXEN_NIC_LINUX_SUBVERSION 77
-#define NETXEN_NIC_LINUX_VERSIONID  "4.0.77"
+#define _NETXEN_NIC_LINUX_SUBVERSION 78
+#define NETXEN_NIC_LINUX_VERSIONID  "4.0.78"
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -686,6 +686,18 @@ struct netxen_recv_context {
 	dma_addr_t phys_addr;
 };
 
+struct _cdrp_cmd {
+	u32 cmd;
+	u32 arg1;
+	u32 arg2;
+	u32 arg3;
+};
+
+struct netxen_cmd_args {
+	struct _cdrp_cmd req;
+	struct _cdrp_cmd rsp;
+};
+
 /* New HW context creation */
 
 #define NX_OS_CRB_RETRY_COUNT	4000
@@ -942,7 +954,7 @@ typedef struct nx_mac_list_s {
 
 struct nx_vlan_ip_list {
 	struct list_head list;
-	u32 ip_addr;
+	__be32 ip_addr;
 };
 
 /*
@@ -1142,6 +1154,7 @@ typedef struct {
 #define NETXEN_NIC_LRO_DISABLED		0x00
 #define NETXEN_NIC_BRIDGE_ENABLED       0X10
 #define NETXEN_NIC_DIAG_ENABLED		0x20
+#define NETXEN_FW_RESET_OWNER           0x40
 #define NETXEN_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED))
 
@@ -1158,6 +1171,419 @@ typedef struct {
 #define __NX_FW_ATTACHED		0
 #define __NX_DEV_UP			1
 #define __NX_RESETTING			2
+
+/* Mini Coredump FW supported version */
+#define NX_MD_SUPPORT_MAJOR		4
+#define NX_MD_SUPPORT_MINOR		0
+#define NX_MD_SUPPORT_SUBVERSION	579
+
+#define LSW(x)  ((uint16_t)(x))
+#define LSD(x)  ((uint32_t)((uint64_t)(x)))
+#define MSD(x)  ((uint32_t)((((uint64_t)(x)) >> 16) >> 16))
+
+/* Mini Coredump mask level */
+#define	NX_DUMP_MASK_MIN	0x03
+#define	NX_DUMP_MASK_DEF	0x1f
+#define	NX_DUMP_MASK_MAX	0xff
+
+/* Mini Coredump CDRP commands */
+#define NX_CDRP_CMD_TEMP_SIZE           0x0000002f
+#define NX_CDRP_CMD_GET_TEMP_HDR        0x00000030
+
+
+#define NX_DUMP_STATE_ARRAY_LEN		16
+#define NX_DUMP_CAP_SIZE_ARRAY_LEN	8
+
+/* Mini Coredump sysfs entries flags*/
+#define NX_FORCE_FW_DUMP_KEY		0xdeadfeed
+#define NX_ENABLE_FW_DUMP               0xaddfeed
+#define NX_DISABLE_FW_DUMP              0xbadfeed
+#define NX_FORCE_FW_RESET               0xdeaddead
+
+
+/* Flash read/write address */
+#define NX_FW_DUMP_REG1         0x00130060
+#define NX_FW_DUMP_REG2         0x001e0000
+#define NX_FLASH_SEM2_LK        0x0013C010
+#define NX_FLASH_SEM2_ULK       0x0013C014
+#define NX_FLASH_LOCK_ID        0x001B2100
+#define FLASH_ROM_WINDOW        0x42110030
+#define FLASH_ROM_DATA          0x42150000
+
+/* Mini Coredump register read/write routine */
+#define NX_RD_DUMP_REG(addr, bar0, data) do {                   \
+	writel((addr & 0xFFFF0000), (void __iomem *) (bar0 +            \
+		NX_FW_DUMP_REG1));                                      \
+	readl((void __iomem *) (bar0 + NX_FW_DUMP_REG1));               \
+	*data = readl((void __iomem *) (bar0 + NX_FW_DUMP_REG2 +        \
+		LSW(addr)));                                            \
+} while (0)
+
+#define NX_WR_DUMP_REG(addr, bar0, data) do {                   \
+	writel((addr & 0xFFFF0000), (void __iomem *) (bar0 +            \
+		NX_FW_DUMP_REG1));                                      \
+	readl((void __iomem *) (bar0 + NX_FW_DUMP_REG1));                \
+	writel(data, (void __iomem *) (bar0 + NX_FW_DUMP_REG2 + LSW(addr)));\
+	readl((void __iomem *) (bar0 + NX_FW_DUMP_REG2 + LSW(addr)));  \
+} while (0)
+
+
+/*
+Entry Type Defines
+*/
+
+#define RDNOP	0
+#define RDCRB	1
+#define RDMUX	2
+#define QUEUE	3
+#define BOARD	4
+#define RDSRE	5
+#define RDOCM	6
+#define PREGS	7
+#define L1DTG	8
+#define L1ITG	9
+#define CACHE	10
+
+#define L1DAT	11
+#define L1INS	12
+#define RDSTK	13
+#define RDCON	14
+
+#define L2DTG	21
+#define L2ITG	22
+#define L2DAT	23
+#define L2INS	24
+#define RDOC3	25
+
+#define MEMBK	32
+
+#define RDROM	71
+#define RDMEM	72
+#define RDMN	73
+
+#define INFOR	81
+#define CNTRL	98
+
+#define TLHDR	99
+#define RDEND	255
+
+#define PRIMQ	103
+#define SQG2Q	104
+#define SQG3Q	105
+
+/*
+* Opcodes for Control Entries.
+* These Flags are bit fields.
+*/
+#define NX_DUMP_WCRB		0x01
+#define NX_DUMP_RWCRB		0x02
+#define NX_DUMP_ANDCRB		0x04
+#define NX_DUMP_ORCRB		0x08
+#define NX_DUMP_POLLCRB		0x10
+#define NX_DUMP_RD_SAVE		0x20
+#define NX_DUMP_WRT_SAVED	0x40
+#define NX_DUMP_MOD_SAVE_ST	0x80
+
+/* Driver Flags */
+#define NX_DUMP_SKIP		0x80	/*  driver skipped this entry  */
+#define NX_DUMP_SIZE_ERR 0x40	/*entry size vs capture size mismatch*/
+
+#define NX_PCI_READ_32(ADDR)			readl((ADDR))
+#define NX_PCI_WRITE_32(DATA, ADDR)	writel(DATA, (ADDR))
+
+
+
+struct netxen_minidump {
+	u32 pos;			/* position in the dump buffer */
+	u8  fw_supports_md;		/* FW supports Mini cordump */
+	u8  has_valid_dump;		/* indicates valid dump */
+	u8  md_capture_mask;		/* driver capture mask */
+	u8  md_enabled;			/* Turn Mini Coredump on/off */
+	u32 md_dump_size;		/* Total FW Mini Coredump size */
+	u32 md_capture_size;		/* FW dump capture size */
+	u32 md_template_size;		/* FW template size */
+	u32 md_template_ver;		/* FW template version */
+	u64 md_timestamp;		/* FW Mini dump timestamp */
+	void *md_template;		/* FW template will be stored */
+	void *md_capture_buff;		/* FW dump will be stored */
+};
+
+
+
+struct netxen_minidump_template_hdr {
+	u32 entry_type;
+	u32 first_entry_offset;
+	u32 size_of_template;
+	u32 capture_mask;
+	u32 num_of_entries;
+	u32 version;
+	u32 driver_timestamp;
+	u32 checksum;
+	u32 driver_capture_mask;
+	u32 driver_info_word2;
+	u32 driver_info_word3;
+	u32 driver_info_word4;
+	u32 saved_state_array[NX_DUMP_STATE_ARRAY_LEN];
+	u32 capture_size_array[NX_DUMP_CAP_SIZE_ARRAY_LEN];
+	u32 rsvd[0];
+};
+
+/* Common Entry Header:  Common to All Entry Types */
+/*
+ * Driver Code is for driver to write some info about the entry.
+ * Currently not used.
+ */
+
+struct netxen_common_entry_hdr {
+	u32 entry_type;
+	u32 entry_size;
+	u32 entry_capture_size;
+	union {
+		struct {
+			u8 entry_capture_mask;
+			u8 entry_code;
+			u8 driver_code;
+			u8 driver_flags;
+		};
+		u32 entry_ctrl_word;
+	};
+};
+
+
+/* Generic Entry Including Header */
+struct netxen_minidump_entry {
+	struct netxen_common_entry_hdr hdr;
+	u32 entry_data00;
+	u32 entry_data01;
+	u32 entry_data02;
+	u32 entry_data03;
+	u32 entry_data04;
+	u32 entry_data05;
+	u32 entry_data06;
+	u32 entry_data07;
+};
+
+/* Read ROM Header */
+struct netxen_minidump_entry_rdrom {
+	struct netxen_common_entry_hdr h;
+	union {
+		struct {
+			u32 select_addr_reg;
+		};
+		u32 rsvd_0;
+	};
+	union {
+		struct {
+			u8 addr_stride;
+			u8 addr_cnt;
+			u16 data_size;
+		};
+		u32 rsvd_1;
+	};
+	union {
+		struct {
+			u32 op_count;
+		};
+		u32 rsvd_2;
+	};
+	union {
+		struct {
+			u32 read_addr_reg;
+		};
+		u32 rsvd_3;
+	};
+	union {
+		struct {
+			u32 write_mask;
+		};
+		u32 rsvd_4;
+	};
+	union {
+		struct {
+			u32 read_mask;
+		};
+		u32 rsvd_5;
+	};
+	u32 read_addr;
+	u32 read_data_size;
+};
+
+
+/* Read CRB and Control Entry Header */
+struct netxen_minidump_entry_crb {
+	struct netxen_common_entry_hdr h;
+	u32 addr;
+	union {
+		struct {
+			u8 addr_stride;
+			u8 state_index_a;
+			u16 poll_timeout;
+			};
+		u32 addr_cntrl;
+	};
+	u32 data_size;
+	u32 op_count;
+	union {
+		struct {
+			u8 opcode;
+			u8 state_index_v;
+			u8 shl;
+			u8 shr;
+			};
+		u32 control_value;
+	};
+	u32 value_1;
+	u32 value_2;
+	u32 value_3;
+};
+
+/* Read Memory and MN Header */
+struct netxen_minidump_entry_rdmem {
+	struct netxen_common_entry_hdr h;
+	union {
+		struct {
+			u32 select_addr_reg;
+		};
+		u32 rsvd_0;
+	};
+	union {
+		struct {
+			u8 addr_stride;
+			u8 addr_cnt;
+			u16 data_size;
+		};
+		u32 rsvd_1;
+	};
+	union {
+		struct {
+			u32 op_count;
+		};
+		u32 rsvd_2;
+	};
+	union {
+		struct {
+			u32 read_addr_reg;
+		};
+		u32 rsvd_3;
+	};
+	union {
+		struct {
+			u32 cntrl_addr_reg;
+		};
+		u32 rsvd_4;
+	};
+	union {
+		struct {
+			u8 wr_byte0;
+			u8 wr_byte1;
+			u8 poll_mask;
+			u8 poll_cnt;
+		};
+		u32 rsvd_5;
+	};
+	u32 read_addr;
+	u32 read_data_size;
+};
+
+/* Read Cache L1 and L2 Header */
+struct netxen_minidump_entry_cache {
+	struct netxen_common_entry_hdr h;
+	u32 tag_reg_addr;
+	union {
+		struct {
+			u16 tag_value_stride;
+			u16 init_tag_value;
+		};
+		u32 select_addr_cntrl;
+	};
+	u32 data_size;
+	u32 op_count;
+	u32 control_addr;
+	union {
+		struct {
+			u16 write_value;
+			u8 poll_mask;
+			u8 poll_wait;
+		};
+		u32 control_value;
+	};
+	u32 read_addr;
+	union {
+		struct {
+			u8 read_addr_stride;
+			u8 read_addr_cnt;
+			u16 rsvd_1;
+		};
+		u32 read_addr_cntrl;
+	};
+};
+
+/* Read OCM Header */
+struct netxen_minidump_entry_rdocm {
+	struct netxen_common_entry_hdr h;
+	u32 rsvd_0;
+	union {
+		struct {
+			u32 rsvd_1;
+		};
+		u32 select_addr_cntrl;
+	};
+	u32 data_size;
+	u32 op_count;
+	u32 rsvd_2;
+	u32 rsvd_3;
+	u32 read_addr;
+	union {
+		struct {
+			u32 read_addr_stride;
+		};
+		u32 read_addr_cntrl;
+	};
+};
+
+/* Read MUX Header */
+struct netxen_minidump_entry_mux {
+	struct netxen_common_entry_hdr h;
+	u32 select_addr;
+	union {
+		struct {
+			u32 rsvd_0;
+		};
+		u32 select_addr_cntrl;
+	};
+	u32 data_size;
+	u32 op_count;
+	u32 select_value;
+	u32 select_value_stride;
+	u32 read_addr;
+	u32 rsvd_1;
+};
+
+/* Read Queue Header */
+struct netxen_minidump_entry_queue {
+	struct netxen_common_entry_hdr h;
+	u32 select_addr;
+	union {
+		struct {
+			u16 queue_id_stride;
+			u16 rsvd_0;
+		};
+		u32 select_addr_cntrl;
+	};
+	u32 data_size;
+	u32 op_count;
+	u32 rsvd_1;
+	u32 rsvd_2;
+	u32 read_addr;
+	union {
+		struct {
+			u8 read_addr_stride;
+			u8 read_addr_cnt;
+			u16 rsvd_3;
+		};
+		u32 read_addr_cntrl;
+	};
+};
 
 struct netxen_dummy_dma {
 	void *addr;
@@ -1263,6 +1689,8 @@ struct netxen_adapter {
 	__le32 file_prd_off;	/*File fw product offset*/
 	u32 fw_version;
 	const struct firmware *fw;
+	struct netxen_minidump mdump;   /* mdump ptr */
+	int fw_mdump_rdy;	/* for mdump ready */
 };
 
 int nx_fw_cmd_query_phy(struct netxen_adapter *adapter, u32 reg, u32 *val);
@@ -1352,7 +1780,7 @@ int netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max);
 void netxen_p3_free_mac_list(struct netxen_adapter *adapter);
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter);
 int netxen_config_rss(struct netxen_adapter *adapter, int enable);
-int netxen_config_ipaddr(struct netxen_adapter *adapter, u32 ip, int cmd);
+int netxen_config_ipaddr(struct netxen_adapter *adapter, __be32 ip, int cmd);
 int netxen_linkevent_request(struct netxen_adapter *adapter, int enable);
 void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup);
 void netxen_pci_camqm_read_2M(struct netxen_adapter *, u64, u64 *);
@@ -1365,12 +1793,15 @@ int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
 int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable);
 int netxen_config_bridged_mode(struct netxen_adapter *adapter, int enable);
 int netxen_send_lro_cleanup(struct netxen_adapter *adapter);
-
+int netxen_setup_minidump(struct netxen_adapter *adapter);
+void netxen_dump_fw(struct netxen_adapter *adapter);
 void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 		struct nx_host_tx_ring *tx_ring);
 
 /* Functions from netxen_nic_main.c */
 int netxen_nic_reset_context(struct netxen_adapter *);
+
+int nx_dev_request_reset(struct netxen_adapter *adapter);
 
 /*
  * NetXen Board information

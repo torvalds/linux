@@ -67,4 +67,8 @@
 #define MSM_DEBUG_UART_PHYS	0x19C40000
 #endif
 
+#ifndef __ASSEMBLY__
+extern void msm_map_msm8x60_io(void);
+#endif
+
 #endif

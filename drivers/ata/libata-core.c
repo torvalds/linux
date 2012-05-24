@@ -95,7 +95,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev);
 static void ata_dev_xfermask(struct ata_device *dev);
 static unsigned long ata_dev_blacklisted(const struct ata_device *dev);
 
-unsigned int ata_print_id = 1;
+atomic_t ata_print_id = ATOMIC_INIT(1);
 
 struct ata_force_param {
 	const char	*name;
@@ -5936,29 +5936,31 @@ void ata_host_init(struct ata_host *host, struct device *dev,
 	host->ops = ops;
 }
 
+void __ata_port_probe(struct ata_port *ap)
+{
+	struct ata_eh_info *ehi = &ap->link.eh_info;
+	unsigned long flags;
+
+	/* kick EH for boot probing */
+	spin_lock_irqsave(ap->lock, flags);
+
+	ehi->probe_mask |= ATA_ALL_DEVICES;
+	ehi->action |= ATA_EH_RESET;
+	ehi->flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET;
+
+	ap->pflags &= ~ATA_PFLAG_INITIALIZING;
+	ap->pflags |= ATA_PFLAG_LOADING;
+	ata_port_schedule_eh(ap);
+
+	spin_unlock_irqrestore(ap->lock, flags);
+}
+
 int ata_port_probe(struct ata_port *ap)
 {
 	int rc = 0;
 
-	/* probe */
 	if (ap->ops->error_handler) {
-		struct ata_eh_info *ehi = &ap->link.eh_info;
-		unsigned long flags;
-
-		/* kick EH for boot probing */
-		spin_lock_irqsave(ap->lock, flags);
-
-		ehi->probe_mask |= ATA_ALL_DEVICES;
-		ehi->action |= ATA_EH_RESET;
-		ehi->flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET;
-
-		ap->pflags &= ~ATA_PFLAG_INITIALIZING;
-		ap->pflags |= ATA_PFLAG_LOADING;
-		ata_port_schedule_eh(ap);
-
-		spin_unlock_irqrestore(ap->lock, flags);
-
-		/* wait for EH to finish */
+		__ata_port_probe(ap);
 		ata_port_wait_eh(ap);
 	} else {
 		DPRINTK("ata%u: bus probe begin\n", ap->print_id);
@@ -6027,7 +6029,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 
 	/* give ports names and add SCSI hosts */
 	for (i = 0; i < host->n_ports; i++)
-		host->ports[i]->print_id = ata_print_id++;
+		host->ports[i]->print_id = atomic_inc_return(&ata_print_id);
 
 
 	/* Create associated sysfs transport objects  */

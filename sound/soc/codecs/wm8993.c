@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
@@ -40,134 +41,113 @@ static const char *wm8993_supply_names[WM8993_NUM_SUPPLIES] = {
 	"SPKVDD",
 };
 
-static u16 wm8993_reg_defaults[WM8993_REGISTER_COUNT] = {
-	0x8993,     /* R0   - Software Reset */
-	0x0000,     /* R1   - Power Management (1) */
-	0x6000,     /* R2   - Power Management (2) */
-	0x0000,     /* R3   - Power Management (3) */
-	0x4050,     /* R4   - Audio Interface (1) */
-	0x4000,     /* R5   - Audio Interface (2) */
-	0x01C8,     /* R6   - Clocking 1 */
-	0x0000,     /* R7   - Clocking 2 */
-	0x0000,     /* R8   - Audio Interface (3) */
-	0x0040,     /* R9   - Audio Interface (4) */
-	0x0004,     /* R10  - DAC CTRL */
-	0x00C0,     /* R11  - Left DAC Digital Volume */
-	0x00C0,     /* R12  - Right DAC Digital Volume */
-	0x0000,     /* R13  - Digital Side Tone */
-	0x0300,     /* R14  - ADC CTRL */
-	0x00C0,     /* R15  - Left ADC Digital Volume */
-	0x00C0,     /* R16  - Right ADC Digital Volume */
-	0x0000,     /* R17 */
-	0x0000,     /* R18  - GPIO CTRL 1 */
-	0x0010,     /* R19  - GPIO1 */
-	0x0000,     /* R20  - IRQ_DEBOUNCE */
-	0x0000,     /* R21 */
-	0x8000,     /* R22  - GPIOCTRL 2 */
-	0x0800,     /* R23  - GPIO_POL */
-	0x008B,     /* R24  - Left Line Input 1&2 Volume */
-	0x008B,     /* R25  - Left Line Input 3&4 Volume */
-	0x008B,     /* R26  - Right Line Input 1&2 Volume */
-	0x008B,     /* R27  - Right Line Input 3&4 Volume */
-	0x006D,     /* R28  - Left Output Volume */
-	0x006D,     /* R29  - Right Output Volume */
-	0x0066,     /* R30  - Line Outputs Volume */
-	0x0020,     /* R31  - HPOUT2 Volume */
-	0x0079,     /* R32  - Left OPGA Volume */
-	0x0079,     /* R33  - Right OPGA Volume */
-	0x0003,     /* R34  - SPKMIXL Attenuation */
-	0x0003,     /* R35  - SPKMIXR Attenuation */
-	0x0011,     /* R36  - SPKOUT Mixers */
-	0x0100,     /* R37  - SPKOUT Boost */
-	0x0079,     /* R38  - Speaker Volume Left */
-	0x0079,     /* R39  - Speaker Volume Right */
-	0x0000,     /* R40  - Input Mixer2 */
-	0x0000,     /* R41  - Input Mixer3 */
-	0x0000,     /* R42  - Input Mixer4 */
-	0x0000,     /* R43  - Input Mixer5 */
-	0x0000,     /* R44  - Input Mixer6 */
-	0x0000,     /* R45  - Output Mixer1 */
-	0x0000,     /* R46  - Output Mixer2 */
-	0x0000,     /* R47  - Output Mixer3 */
-	0x0000,     /* R48  - Output Mixer4 */
-	0x0000,     /* R49  - Output Mixer5 */
-	0x0000,     /* R50  - Output Mixer6 */
-	0x0000,     /* R51  - HPOUT2 Mixer */
-	0x0000,     /* R52  - Line Mixer1 */
-	0x0000,     /* R53  - Line Mixer2 */
-	0x0000,     /* R54  - Speaker Mixer */
-	0x0000,     /* R55  - Additional Control */
-	0x0000,     /* R56  - AntiPOP1 */
-	0x0000,     /* R57  - AntiPOP2 */
-	0x0000,     /* R58  - MICBIAS */
-	0x0000,     /* R59 */
-	0x0000,     /* R60  - FLL Control 1 */
-	0x0000,     /* R61  - FLL Control 2 */
-	0x0000,     /* R62  - FLL Control 3 */
-	0x2EE0,     /* R63  - FLL Control 4 */
-	0x0002,     /* R64  - FLL Control 5 */
-	0x2287,     /* R65  - Clocking 3 */
-	0x025F,     /* R66  - Clocking 4 */
-	0x0000,     /* R67  - MW Slave Control */
-	0x0000,     /* R68 */
-	0x0002,     /* R69  - Bus Control 1 */
-	0x0000,     /* R70  - Write Sequencer 0 */
-	0x0000,     /* R71  - Write Sequencer 1 */
-	0x0000,     /* R72  - Write Sequencer 2 */
-	0x0000,     /* R73  - Write Sequencer 3 */
-	0x0000,     /* R74  - Write Sequencer 4 */
-	0x0000,     /* R75  - Write Sequencer 5 */
-	0x1F25,     /* R76  - Charge Pump 1 */
-	0x0000,     /* R77 */
-	0x0000,     /* R78 */
-	0x0000,     /* R79 */
-	0x0000,     /* R80 */
-	0x0000,     /* R81  - Class W 0 */
-	0x0000,     /* R82 */
-	0x0000,     /* R83 */
-	0x0000,     /* R84  - DC Servo 0 */
-	0x054A,     /* R85  - DC Servo 1 */
-	0x0000,     /* R86 */
-	0x0000,     /* R87  - DC Servo 3 */
-	0x0000,     /* R88  - DC Servo Readback 0 */
-	0x0000,     /* R89  - DC Servo Readback 1 */
-	0x0000,     /* R90  - DC Servo Readback 2 */
-	0x0000,     /* R91 */
-	0x0000,     /* R92 */
-	0x0000,     /* R93 */
-	0x0000,     /* R94 */
-	0x0000,     /* R95 */
-	0x0100,     /* R96  - Analogue HP 0 */
-	0x0000,     /* R97 */
-	0x0000,     /* R98  - EQ1 */
-	0x000C,     /* R99  - EQ2 */
-	0x000C,     /* R100 - EQ3 */
-	0x000C,     /* R101 - EQ4 */
-	0x000C,     /* R102 - EQ5 */
-	0x000C,     /* R103 - EQ6 */
-	0x0FCA,     /* R104 - EQ7 */
-	0x0400,     /* R105 - EQ8 */
-	0x00D8,     /* R106 - EQ9 */
-	0x1EB5,     /* R107 - EQ10 */
-	0xF145,     /* R108 - EQ11 */
-	0x0B75,     /* R109 - EQ12 */
-	0x01C5,     /* R110 - EQ13 */
-	0x1C58,     /* R111 - EQ14 */
-	0xF373,     /* R112 - EQ15 */
-	0x0A54,     /* R113 - EQ16 */
-	0x0558,     /* R114 - EQ17 */
-	0x168E,     /* R115 - EQ18 */
-	0xF829,     /* R116 - EQ19 */
-	0x07AD,     /* R117 - EQ20 */
-	0x1103,     /* R118 - EQ21 */
-	0x0564,     /* R119 - EQ22 */
-	0x0559,     /* R120 - EQ23 */
-	0x4000,     /* R121 - EQ24 */
-	0x0000,     /* R122 - Digital Pulls */
-	0x0F08,     /* R123 - DRC Control 1 */
-	0x0000,     /* R124 - DRC Control 2 */
-	0x0080,     /* R125 - DRC Control 3 */
-	0x0000,     /* R126 - DRC Control 4 */
+static struct reg_default wm8993_reg_defaults[] = {
+	{ 1,   0x0000 },     /* R1   - Power Management (1) */
+	{ 2,   0x6000 },     /* R2   - Power Management (2) */
+	{ 3,   0x0000 },     /* R3   - Power Management (3) */
+	{ 4,   0x4050 },     /* R4   - Audio Interface (1) */
+	{ 5,   0x4000 },     /* R5   - Audio Interface (2) */
+	{ 6,   0x01C8 },     /* R6   - Clocking 1 */
+	{ 7,   0x0000 },     /* R7   - Clocking 2 */
+	{ 8,   0x0000 },     /* R8   - Audio Interface (3) */
+	{ 9,   0x0040 },     /* R9   - Audio Interface (4) */
+	{ 10,  0x0004 },     /* R10  - DAC CTRL */
+	{ 11,  0x00C0 },     /* R11  - Left DAC Digital Volume */
+	{ 12,  0x00C0 },     /* R12  - Right DAC Digital Volume */
+	{ 13,  0x0000 },     /* R13  - Digital Side Tone */
+	{ 14,  0x0300 },     /* R14  - ADC CTRL */
+	{ 15,  0x00C0 },     /* R15  - Left ADC Digital Volume */
+	{ 16,  0x00C0 },     /* R16  - Right ADC Digital Volume */
+	{ 18,  0x0000 },     /* R18  - GPIO CTRL 1 */
+	{ 19,  0x0010 },     /* R19  - GPIO1 */
+	{ 20,  0x0000 },     /* R20  - IRQ_DEBOUNCE */
+	{ 21,  0x0000 },     /* R21  - Inputs Clamp */
+	{ 22,  0x8000 },     /* R22  - GPIOCTRL 2 */
+	{ 23,  0x0800 },     /* R23  - GPIO_POL */
+	{ 24,  0x008B },     /* R24  - Left Line Input 1&2 Volume */
+	{ 25,  0x008B },     /* R25  - Left Line Input 3&4 Volume */
+	{ 26,  0x008B },     /* R26  - Right Line Input 1&2 Volume */
+	{ 27,  0x008B },     /* R27  - Right Line Input 3&4 Volume */
+	{ 28,  0x006D },     /* R28  - Left Output Volume */
+	{ 29,  0x006D },     /* R29  - Right Output Volume */
+	{ 30,  0x0066 },     /* R30  - Line Outputs Volume */
+	{ 31,  0x0020 },     /* R31  - HPOUT2 Volume */
+	{ 32,  0x0079 },     /* R32  - Left OPGA Volume */
+	{ 33,  0x0079 },     /* R33  - Right OPGA Volume */
+	{ 34,  0x0003 },     /* R34  - SPKMIXL Attenuation */
+	{ 35,  0x0003 },     /* R35  - SPKMIXR Attenuation */
+	{ 36,  0x0011 },     /* R36  - SPKOUT Mixers */
+	{ 37,  0x0100 },     /* R37  - SPKOUT Boost */
+	{ 38,  0x0079 },     /* R38  - Speaker Volume Left */
+	{ 39,  0x0079 },     /* R39  - Speaker Volume Right */
+	{ 40,  0x0000 },     /* R40  - Input Mixer2 */
+	{ 41,  0x0000 },     /* R41  - Input Mixer3 */
+	{ 42,  0x0000 },     /* R42  - Input Mixer4 */
+	{ 43,  0x0000 },     /* R43  - Input Mixer5 */
+	{ 44,  0x0000 },     /* R44  - Input Mixer6 */
+	{ 45,  0x0000 },     /* R45  - Output Mixer1 */
+	{ 46,  0x0000 },     /* R46  - Output Mixer2 */
+	{ 47,  0x0000 },     /* R47  - Output Mixer3 */
+	{ 48,  0x0000 },     /* R48  - Output Mixer4 */
+	{ 49,  0x0000 },     /* R49  - Output Mixer5 */
+	{ 50,  0x0000 },     /* R50  - Output Mixer6 */
+	{ 51,  0x0000 },     /* R51  - HPOUT2 Mixer */
+	{ 52,  0x0000 },     /* R52  - Line Mixer1 */
+	{ 53,  0x0000 },     /* R53  - Line Mixer2 */
+	{ 54,  0x0000 },     /* R54  - Speaker Mixer */
+	{ 55,  0x0000 },     /* R55  - Additional Control */
+	{ 56,  0x0000 },     /* R56  - AntiPOP1 */
+	{ 57,  0x0000 },     /* R57  - AntiPOP2 */
+	{ 58,  0x0000 },     /* R58  - MICBIAS */
+	{ 60,  0x0000 },     /* R60  - FLL Control 1 */
+	{ 61,  0x0000 },     /* R61  - FLL Control 2 */
+	{ 62,  0x0000 },     /* R62  - FLL Control 3 */
+	{ 63,  0x2EE0 },     /* R63  - FLL Control 4 */
+	{ 64,  0x0002 },     /* R64  - FLL Control 5 */
+	{ 65,  0x2287 },     /* R65  - Clocking 3 */
+	{ 66,  0x025F },     /* R66  - Clocking 4 */
+	{ 67,  0x0000 },     /* R67  - MW Slave Control */
+	{ 69,  0x0002 },     /* R69  - Bus Control 1 */
+	{ 70,  0x0000 },     /* R70  - Write Sequencer 0 */
+	{ 71,  0x0000 },     /* R71  - Write Sequencer 1 */
+	{ 72,  0x0000 },     /* R72  - Write Sequencer 2 */
+	{ 73,  0x0000 },     /* R73  - Write Sequencer 3 */
+	{ 74,  0x0000 },     /* R74  - Write Sequencer 4 */
+	{ 75,  0x0000 },     /* R75  - Write Sequencer 5 */
+	{ 76,  0x1F25 },     /* R76  - Charge Pump 1 */
+	{ 81,  0x0000 },     /* R81  - Class W 0 */
+	{ 85,  0x054A },     /* R85  - DC Servo 1 */
+	{ 87,  0x0000 },     /* R87  - DC Servo 3 */
+	{ 96,  0x0100 },     /* R96  - Analogue HP 0 */
+	{ 98,  0x0000 },     /* R98  - EQ1 */
+	{ 99,  0x000C },     /* R99  - EQ2 */
+	{ 100, 0x000C },     /* R100 - EQ3 */
+	{ 101, 0x000C },     /* R101 - EQ4 */
+	{ 102, 0x000C },     /* R102 - EQ5 */
+	{ 103, 0x000C },     /* R103 - EQ6 */
+	{ 104, 0x0FCA },     /* R104 - EQ7 */
+	{ 105, 0x0400 },     /* R105 - EQ8 */
+	{ 106, 0x00D8 },     /* R106 - EQ9 */
+	{ 107, 0x1EB5 },     /* R107 - EQ10 */
+	{ 108, 0xF145 },     /* R108 - EQ11 */
+	{ 109, 0x0B75 },     /* R109 - EQ12 */
+	{ 110, 0x01C5 },     /* R110 - EQ13 */
+	{ 111, 0x1C58 },     /* R111 - EQ14 */
+	{ 112, 0xF373 },     /* R112 - EQ15 */
+	{ 113, 0x0A54 },     /* R113 - EQ16 */
+	{ 114, 0x0558 },     /* R114 - EQ17 */
+	{ 115, 0x168E },     /* R115 - EQ18 */
+	{ 116, 0xF829 },     /* R116 - EQ19 */
+	{ 117, 0x07AD },     /* R117 - EQ20 */
+	{ 118, 0x1103 },     /* R118 - EQ21 */
+	{ 119, 0x0564 },     /* R119 - EQ22 */
+	{ 120, 0x0559 },     /* R120 - EQ23 */
+	{ 121, 0x4000 },     /* R121 - EQ24 */
+	{ 122, 0x0000 },     /* R122 - Digital Pulls */
+	{ 123, 0x0F08 },     /* R123 - DRC Control 1 */
+	{ 124, 0x0000 },     /* R124 - DRC Control 2 */
+	{ 125, 0x0080 },     /* R125 - DRC Control 3 */
+	{ 126, 0x0000 },     /* R126 - DRC Control 4 */
 };
 
 static struct {
@@ -225,9 +205,11 @@ static struct {
 
 struct wm8993_priv {
 	struct wm_hubs_data hubs_data;
+	struct device *dev;
+	struct regmap *regmap;
 	struct regulator_bulk_data supplies[WM8993_NUM_SUPPLIES];
 	struct wm8993_platform_data pdata;
-	enum snd_soc_control_type control_type;
+	struct completion fll_lock;
 	int master;
 	int sysclk_source;
 	int tdm_slots;
@@ -242,17 +224,137 @@ struct wm8993_priv {
 	int fll_src;
 };
 
-static int wm8993_volatile(struct snd_soc_codec *codec, unsigned int reg)
+static bool wm8993_volatile(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case WM8993_SOFTWARE_RESET:
+	case WM8993_GPIO_CTRL_1:
 	case WM8993_DC_SERVO_0:
 	case WM8993_DC_SERVO_READBACK_0:
 	case WM8993_DC_SERVO_READBACK_1:
 	case WM8993_DC_SERVO_READBACK_2:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
+	}
+}
+
+static bool wm8993_readable(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case WM8993_SOFTWARE_RESET:
+	case WM8993_POWER_MANAGEMENT_1:
+	case WM8993_POWER_MANAGEMENT_2:
+	case WM8993_POWER_MANAGEMENT_3:
+	case WM8993_AUDIO_INTERFACE_1:
+	case WM8993_AUDIO_INTERFACE_2:
+	case WM8993_CLOCKING_1:
+	case WM8993_CLOCKING_2:
+	case WM8993_AUDIO_INTERFACE_3:
+	case WM8993_AUDIO_INTERFACE_4:
+	case WM8993_DAC_CTRL:
+	case WM8993_LEFT_DAC_DIGITAL_VOLUME:
+	case WM8993_RIGHT_DAC_DIGITAL_VOLUME:
+	case WM8993_DIGITAL_SIDE_TONE:
+	case WM8993_ADC_CTRL:
+	case WM8993_LEFT_ADC_DIGITAL_VOLUME:
+	case WM8993_RIGHT_ADC_DIGITAL_VOLUME:
+	case WM8993_GPIO_CTRL_1:
+	case WM8993_GPIO1:
+	case WM8993_IRQ_DEBOUNCE:
+	case WM8993_GPIOCTRL_2:
+	case WM8993_GPIO_POL:
+	case WM8993_LEFT_LINE_INPUT_1_2_VOLUME:
+	case WM8993_LEFT_LINE_INPUT_3_4_VOLUME:
+	case WM8993_RIGHT_LINE_INPUT_1_2_VOLUME:
+	case WM8993_RIGHT_LINE_INPUT_3_4_VOLUME:
+	case WM8993_LEFT_OUTPUT_VOLUME:
+	case WM8993_RIGHT_OUTPUT_VOLUME:
+	case WM8993_LINE_OUTPUTS_VOLUME:
+	case WM8993_HPOUT2_VOLUME:
+	case WM8993_LEFT_OPGA_VOLUME:
+	case WM8993_RIGHT_OPGA_VOLUME:
+	case WM8993_SPKMIXL_ATTENUATION:
+	case WM8993_SPKMIXR_ATTENUATION:
+	case WM8993_SPKOUT_MIXERS:
+	case WM8993_SPKOUT_BOOST:
+	case WM8993_SPEAKER_VOLUME_LEFT:
+	case WM8993_SPEAKER_VOLUME_RIGHT:
+	case WM8993_INPUT_MIXER2:
+	case WM8993_INPUT_MIXER3:
+	case WM8993_INPUT_MIXER4:
+	case WM8993_INPUT_MIXER5:
+	case WM8993_INPUT_MIXER6:
+	case WM8993_OUTPUT_MIXER1:
+	case WM8993_OUTPUT_MIXER2:
+	case WM8993_OUTPUT_MIXER3:
+	case WM8993_OUTPUT_MIXER4:
+	case WM8993_OUTPUT_MIXER5:
+	case WM8993_OUTPUT_MIXER6:
+	case WM8993_HPOUT2_MIXER:
+	case WM8993_LINE_MIXER1:
+	case WM8993_LINE_MIXER2:
+	case WM8993_SPEAKER_MIXER:
+	case WM8993_ADDITIONAL_CONTROL:
+	case WM8993_ANTIPOP1:
+	case WM8993_ANTIPOP2:
+	case WM8993_MICBIAS:
+	case WM8993_FLL_CONTROL_1:
+	case WM8993_FLL_CONTROL_2:
+	case WM8993_FLL_CONTROL_3:
+	case WM8993_FLL_CONTROL_4:
+	case WM8993_FLL_CONTROL_5:
+	case WM8993_CLOCKING_3:
+	case WM8993_CLOCKING_4:
+	case WM8993_MW_SLAVE_CONTROL:
+	case WM8993_BUS_CONTROL_1:
+	case WM8993_WRITE_SEQUENCER_0:
+	case WM8993_WRITE_SEQUENCER_1:
+	case WM8993_WRITE_SEQUENCER_2:
+	case WM8993_WRITE_SEQUENCER_3:
+	case WM8993_WRITE_SEQUENCER_4:
+	case WM8993_WRITE_SEQUENCER_5:
+	case WM8993_CHARGE_PUMP_1:
+	case WM8993_CLASS_W_0:
+	case WM8993_DC_SERVO_0:
+	case WM8993_DC_SERVO_1:
+	case WM8993_DC_SERVO_3:
+	case WM8993_DC_SERVO_READBACK_0:
+	case WM8993_DC_SERVO_READBACK_1:
+	case WM8993_DC_SERVO_READBACK_2:
+	case WM8993_ANALOGUE_HP_0:
+	case WM8993_EQ1:
+	case WM8993_EQ2:
+	case WM8993_EQ3:
+	case WM8993_EQ4:
+	case WM8993_EQ5:
+	case WM8993_EQ6:
+	case WM8993_EQ7:
+	case WM8993_EQ8:
+	case WM8993_EQ9:
+	case WM8993_EQ10:
+	case WM8993_EQ11:
+	case WM8993_EQ12:
+	case WM8993_EQ13:
+	case WM8993_EQ14:
+	case WM8993_EQ15:
+	case WM8993_EQ16:
+	case WM8993_EQ17:
+	case WM8993_EQ18:
+	case WM8993_EQ19:
+	case WM8993_EQ20:
+	case WM8993_EQ21:
+	case WM8993_EQ22:
+	case WM8993_EQ23:
+	case WM8993_EQ24:
+	case WM8993_DIGITAL_PULLS:
+	case WM8993_DRC_CONTROL_1:
+	case WM8993_DRC_CONTROL_2:
+	case WM8993_DRC_CONTROL_3:
+	case WM8993_DRC_CONTROL_4:
+		return true;
+	default:
+		return false;
 	}
 }
 
@@ -369,8 +471,10 @@ static int _wm8993_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
 	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
+	struct i2c_client *i2c = to_i2c_client(codec->dev);
 	u16 reg1, reg4, reg5;
 	struct _fll_div fll_div;
+	unsigned int timeout;
 	int ret;
 
 	/* Any change? */
@@ -441,14 +545,22 @@ static int _wm8993_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	reg5 |= fll_div.fll_clk_ref_div << WM8993_FLL_CLK_REF_DIV_SHIFT;
 	snd_soc_write(codec, WM8993_FLL_CONTROL_5, reg5);
 
+	/* If we've got an interrupt wired up make sure we get it */
+	if (i2c->irq)
+		timeout = msecs_to_jiffies(20);
+	else if (Fref < 1000000)
+		timeout = msecs_to_jiffies(3);
+	else
+		timeout = msecs_to_jiffies(1);
+
+	try_wait_for_completion(&wm8993->fll_lock);
+
 	/* Enable the FLL */
 	snd_soc_write(codec, WM8993_FLL_CONTROL_1, reg1 | WM8993_FLL_ENA);
 
-	/* Both overestimates */
-	if (Fref < 1000000)
-		msleep(3);
-	else
-		msleep(1);
+	timeout = wait_for_completion_timeout(&wm8993->fll_lock, timeout);
+	if (i2c->irq && !timeout)
+		dev_warn(codec->dev, "Timed out waiting for FLL\n");
 
 	dev_dbg(codec->dev, "FLL enabled at %dHz->%dHz\n", Fref, Fout);
 
@@ -946,6 +1058,8 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
+	wm_hubs_set_bias_level(codec, level);
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
@@ -963,12 +1077,10 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 			if (ret != 0)
 				return ret;
 
-			snd_soc_cache_sync(codec);
+			regcache_cache_only(wm8993->regmap, false);
+			regcache_sync(wm8993->regmap);
 
-			/* Tune DC servo configuration */
-			snd_soc_write(codec, 0x44, 3);
-			snd_soc_write(codec, 0x56, 3);
-			snd_soc_write(codec, 0x44, 0);
+			wm_hubs_vmid_ena(codec);
 
 			/* Bring up VMID with fast soft start */
 			snd_soc_update_bits(codec, WM8993_ANTIPOP2,
@@ -1024,14 +1136,8 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 				    WM8993_VMID_RAMP_MASK |
 				    WM8993_BIAS_SRC, 0);
 
-#ifdef CONFIG_REGULATOR
-               /* Post 2.6.34 we will be able to get a callback when
-                * the regulators are disabled which we can use but
-		* for now just assume that the power will be cut if
-		* the regulator API is in use.
-		*/
-		codec->cache_sync = 1;
-#endif
+		regcache_cache_only(wm8993->regmap, true);
+		regcache_mark_dirty(wm8993->regmap);
 
 		regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies),
 				       wm8993->supplies);
@@ -1378,6 +1484,45 @@ out:
 	return 0;
 }
 
+static irqreturn_t wm8993_irq(int irq, void *data)
+{
+	struct wm8993_priv *wm8993 = data;
+	int mask, val, ret;
+
+	ret = regmap_read(wm8993->regmap, WM8993_GPIO_CTRL_1, &val);
+	if (ret != 0) {
+		dev_err(wm8993->dev, "Failed to read interrupt status: %d\n",
+			ret);
+		return IRQ_NONE;
+	}
+
+	ret = regmap_read(wm8993->regmap, WM8993_GPIOCTRL_2, &mask);
+	if (ret != 0) {
+		dev_err(wm8993->dev, "Failed to read interrupt mask: %d\n",
+			ret);
+		return IRQ_NONE;
+	}
+
+	/* The IRQ pin status is visible in the register too */
+	val &= ~(mask | WM8993_IRQ);
+	if (!val)
+		return IRQ_NONE;
+
+	if (val & WM8993_TEMPOK_EINT)
+		dev_crit(wm8993->dev, "Thermal warning\n");
+
+	if (val & WM8993_FLL_LOCK_EINT) {
+		dev_dbg(wm8993->dev, "FLL locked\n");
+		complete(&wm8993->fll_lock);
+	}
+
+	ret = regmap_write(wm8993->regmap, WM8993_GPIO_CTRL_1, val);
+	if (ret != 0)
+		dev_err(wm8993->dev, "Failed to ack interrupt: %d\n", ret);
+
+	return IRQ_HANDLED;
+}
+
 static const struct snd_soc_dai_ops wm8993_ops = {
 	.set_sysclk = wm8993_set_sysclk,
 	.set_fmt = wm8993_set_dai_fmt,
@@ -1402,6 +1547,7 @@ static struct snd_soc_dai_driver wm8993_dai = {
 		.channels_max = 2,
 		.rates = WM8993_RATES,
 		.formats = WM8993_FORMATS,
+		.sig_bits = 24,
 	},
 	.capture = {
 		 .stream_name = "Capture",
@@ -1409,6 +1555,7 @@ static struct snd_soc_dai_driver wm8993_dai = {
 		 .channels_max = 2,
 		 .rates = WM8993_RATES,
 		 .formats = WM8993_FORMATS,
+		 .sig_bits = 24,
 	 },
 	.ops = &wm8993_ops,
 	.symmetric_rates = 1,
@@ -1418,48 +1565,19 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 {
 	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret, i, val;
+	int ret;
 
 	wm8993->hubs_data.hp_startup_mode = 1;
 	wm8993->hubs_data.dcs_codes_l = -2;
 	wm8993->hubs_data.dcs_codes_r = -2;
 	wm8993->hubs_data.series_startup = 1;
 
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
+	codec->control_data = wm8993->regmap;
+	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
 	}
-
-	for (i = 0; i < ARRAY_SIZE(wm8993->supplies); i++)
-		wm8993->supplies[i].supply = wm8993_supply_names[i];
-
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8993->supplies),
-				 wm8993->supplies);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
-		return ret;
-	}
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(wm8993->supplies),
-				    wm8993->supplies);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_get;
-	}
-
-	val = snd_soc_read(codec, WM8993_SOFTWARE_RESET);
-	if (val != wm8993_reg_defaults[WM8993_SOFTWARE_RESET]) {
-		dev_err(codec->dev, "Invalid ID register value %x\n", val);
-		ret = -EINVAL;
-		goto err_enable;
-	}
-
-	ret = snd_soc_write(codec, WM8993_SOFTWARE_RESET, 0xffff);
-	if (ret != 0)
-		goto err_enable;
-
-	codec->cache_only = 1;
 
 	/* By default we're using the output mixers */
 	wm8993->class_w_users = 2;
@@ -1489,15 +1607,15 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 
 	ret = wm8993_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	if (ret != 0)
-		goto err_enable;
+		return ret;
 
-	snd_soc_add_controls(codec, wm8993_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8993_snd_controls,
 			     ARRAY_SIZE(wm8993_snd_controls));
 	if (wm8993->pdata.num_retune_configs != 0) {
 		dev_dbg(codec->dev, "Using ReTune Mobile\n");
 	} else {
 		dev_dbg(codec->dev, "No ReTune Mobile, using normal EQ\n");
-		snd_soc_add_controls(codec, wm8993_eq_controls,
+		snd_soc_add_codec_controls(codec, wm8993_eq_controls,
 				     ARRAY_SIZE(wm8993_eq_controls));
 	}
 
@@ -1509,13 +1627,14 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 	wm_hubs_add_analogue_routes(codec, wm8993->pdata.lineout1_diff,
 				    wm8993->pdata.lineout2_diff);
 
+	/* If the line outputs are differential then we aren't presenting
+	 * VMID as an output and can disable it.
+	 */
+	if (wm8993->pdata.lineout1_diff && wm8993->pdata.lineout2_diff)
+		codec->dapm.idle_bias_off = 1;
+
 	return 0;
 
-err_enable:
-	regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
-err_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
-	return ret;
 }
 
 static int wm8993_remove(struct snd_soc_codec *codec)
@@ -1578,41 +1697,149 @@ static int wm8993_resume(struct snd_soc_codec *codec)
 #define wm8993_resume NULL
 #endif
 
+/* Tune DC servo configuration */
+static struct reg_default wm8993_regmap_patch[] = {
+	{ 0x44, 3 },
+	{ 0x56, 3 },
+	{ 0x44, 0 },
+};
+
+static const struct regmap_config wm8993_regmap = {
+	.reg_bits = 8,
+	.val_bits = 16,
+
+	.max_register = WM8993_MAX_REGISTER,
+	.volatile_reg = wm8993_volatile,
+	.readable_reg = wm8993_readable,
+
+	.cache_type = REGCACHE_RBTREE,
+	.reg_defaults = wm8993_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(wm8993_reg_defaults),
+};
+
 static struct snd_soc_codec_driver soc_codec_dev_wm8993 = {
 	.probe = 	wm8993_probe,
 	.remove = 	wm8993_remove,
 	.suspend =	wm8993_suspend,
 	.resume =	wm8993_resume,
 	.set_bias_level = wm8993_set_bias_level,
-	.reg_cache_size = ARRAY_SIZE(wm8993_reg_defaults),
-	.reg_word_size = sizeof(u16),
-	.reg_cache_default = wm8993_reg_defaults,
-	.volatile_register = wm8993_volatile,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8993_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8993_priv *wm8993;
-	int ret;
+	unsigned int reg;
+	int ret, i;
 
 	wm8993 = devm_kzalloc(&i2c->dev, sizeof(struct wm8993_priv),
 			      GFP_KERNEL);
 	if (wm8993 == NULL)
 		return -ENOMEM;
 
+	wm8993->dev = &i2c->dev;
+	init_completion(&wm8993->fll_lock);
+
+	wm8993->regmap = regmap_init_i2c(i2c, &wm8993_regmap);
+	if (IS_ERR(wm8993->regmap)) {
+		ret = PTR_ERR(wm8993->regmap);
+		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
+		return ret;
+	}
+
 	i2c_set_clientdata(i2c, wm8993);
+
+	for (i = 0; i < ARRAY_SIZE(wm8993->supplies); i++)
+		wm8993->supplies[i].supply = wm8993_supply_names[i];
+
+	ret = regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8993->supplies),
+				 wm8993->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		goto err;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8993->supplies),
+				    wm8993->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
+		goto err_get;
+	}
+
+	ret = regmap_read(wm8993->regmap, WM8993_SOFTWARE_RESET, &reg);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to read chip ID: %d\n", ret);
+		goto err_enable;
+	}
+
+	if (reg != 0x8993) {
+		dev_err(&i2c->dev, "Invalid ID register value %x\n", reg);
+		ret = -EINVAL;
+		goto err_enable;
+	}
+
+	ret = regmap_write(wm8993->regmap, WM8993_SOFTWARE_RESET, 0xffff);
+	if (ret != 0)
+		goto err_enable;
+
+	ret = regmap_register_patch(wm8993->regmap, wm8993_regmap_patch,
+				    ARRAY_SIZE(wm8993_regmap_patch));
+	if (ret != 0)
+		dev_warn(wm8993->dev, "Failed to apply regmap patch: %d\n",
+			 ret);
+
+	if (i2c->irq) {
+		/* Put GPIO1 into interrupt mode (only GPIO1 can output IRQ) */
+		ret = regmap_update_bits(wm8993->regmap, WM8993_GPIO1,
+					 WM8993_GPIO1_PD |
+					 WM8993_GPIO1_SEL_MASK, 7);
+		if (ret != 0)
+			goto err_enable;
+
+		ret = request_threaded_irq(i2c->irq, NULL, wm8993_irq,
+					   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					   "wm8993", wm8993);
+		if (ret != 0)
+			goto err_enable;
+
+	}
+
+	regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
+
+	regcache_cache_only(wm8993->regmap, true);
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8993, &wm8993_dai, 1);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
+		goto err_irq;
+	}
+
+	return 0;
+
+err_irq:
+	if (i2c->irq)
+		free_irq(i2c->irq, wm8993);
+err_enable:
+	regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
+err_get:
+	regulator_bulk_free(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
+err:
+	regmap_exit(wm8993->regmap);
 	return ret;
 }
 
-static __devexit int wm8993_i2c_remove(struct i2c_client *client)
+static __devexit int wm8993_i2c_remove(struct i2c_client *i2c)
 {
-	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+	struct wm8993_priv *wm8993 = i2c_get_clientdata(i2c);
+
+	snd_soc_unregister_codec(&i2c->dev);
+	if (i2c->irq)
+		free_irq(i2c->irq, wm8993);
+	regmap_exit(wm8993->regmap);
+	regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
+	regulator_bulk_free(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
+
 	return 0;
 }
 
@@ -1631,30 +1858,8 @@ static struct i2c_driver wm8993_i2c_driver = {
 	.remove =   __devexit_p(wm8993_i2c_remove),
 	.id_table = wm8993_i2c_id,
 };
-#endif
 
-static int __init wm8993_modinit(void)
-{
-	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	ret = i2c_add_driver(&wm8993_i2c_driver);
-	if (ret != 0) {
-		pr_err("WM8993: Unable to register I2C driver: %d\n",
-		       ret);
-	}
-#endif
-	return ret;
-}
-module_init(wm8993_modinit);
-
-static void __exit wm8993_exit(void)
-{
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_del_driver(&wm8993_i2c_driver);
-#endif
-}
-module_exit(wm8993_exit);
-
+module_i2c_driver(wm8993_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8993 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

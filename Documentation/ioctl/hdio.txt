@@ -596,7 +596,7 @@ HDIO_DRIVE_TASKFILE		execute raw taskfile
 	     if CHS/LBA28
 
 	  The association between in_flags.all and each enable
-	  bitfield flips depending on endianess; fortunately, TASKFILE
+	  bitfield flips depending on endianness; fortunately, TASKFILE
 	  only uses inflags.b.data bit and ignores all other bits.
 	  The end result is that, on any endian machines, it has no
 	  effect other than modifying in_flags on completion.
@@ -720,7 +720,7 @@ HDIO_DRIVE_TASKFILE		execute raw taskfile
 
 	  [6] Do not access {in|out}_flags->all except for resetting
 	  all the bits.  Always access individual bit fields.  ->all
-	  value will flip depending on endianess.  For the same
+	  value will flip depending on endianness.  For the same
 	  reason, do not use IDE_{TASKFILE|HOB}_STD_{OUT|IN}_FLAGS
 	  constants defined in hdreg.h.
 

@@ -134,12 +134,11 @@ static int get_batt_uV(struct charger_manager *cm, int *uV)
 	union power_supply_propval val;
 	int ret;
 
-	if (cm->fuel_gauge)
-		ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
-				POWER_SUPPLY_PROP_VOLTAGE_NOW, &val);
-	else
+	if (!cm->fuel_gauge)
 		return -ENODEV;
 
+	ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
+				POWER_SUPPLY_PROP_VOLTAGE_NOW, &val);
 	if (ret)
 		return ret;
 
@@ -245,9 +244,7 @@ static int try_charger_enable(struct charger_manager *cm, bool enable)
 	struct charger_desc *desc = cm->desc;
 
 	/* Ignore if it's redundent command */
-	if (enable && cm->charger_enabled)
-		return 0;
-	if (!enable && !cm->charger_enabled)
+	if (enable == cm->charger_enabled)
 		return 0;
 
 	if (enable) {
@@ -309,9 +306,7 @@ static void uevent_notify(struct charger_manager *cm, const char *event)
 
 		if (!strncmp(env_str_save, event, UEVENT_BUF_SIZE))
 			return; /* Duplicated. */
-		else
-			strncpy(env_str_save, event, UEVENT_BUF_SIZE);
-
+		strncpy(env_str_save, event, UEVENT_BUF_SIZE);
 		return;
 	}
 
@@ -387,8 +382,10 @@ static bool cm_monitor(void)
 
 	mutex_lock(&cm_list_mtx);
 
-	list_for_each_entry(cm, &cm_list, entry)
-		stop = stop || _cm_monitor(cm);
+	list_for_each_entry(cm, &cm_list, entry) {
+		if (_cm_monitor(cm))
+			stop = true;
+	}
 
 	mutex_unlock(&cm_list_mtx);
 
@@ -402,7 +399,8 @@ static int charger_get_property(struct power_supply *psy,
 	struct charger_manager *cm = container_of(psy,
 			struct charger_manager, charger_psy);
 	struct charger_desc *desc = cm->desc;
-	int i, ret = 0, uV;
+	int ret = 0;
+	int uV;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -428,8 +426,7 @@ static int charger_get_property(struct power_supply *psy,
 			val->intval = 0;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		ret = get_batt_uV(cm, &i);
-		val->intval = i;
+		ret = get_batt_uV(cm, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
@@ -697,8 +694,10 @@ bool cm_suspend_again(void)
 	mutex_lock(&cm_list_mtx);
 	list_for_each_entry(cm, &cm_list, entry) {
 		if (cm->status_save_ext_pwr_inserted != is_ext_pwr_online(cm) ||
-		    cm->status_save_batt != is_batt_present(cm))
+		    cm->status_save_batt != is_batt_present(cm)) {
 			ret = false;
+			break;
+		}
 	}
 	mutex_unlock(&cm_list_mtx);
 
@@ -855,11 +854,10 @@ static int charger_manager_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, cm);
 
-	memcpy(&cm->charger_psy, &psy_default,
-				sizeof(psy_default));
+	memcpy(&cm->charger_psy, &psy_default, sizeof(psy_default));
+
 	if (!desc->psy_name) {
-		strncpy(cm->psy_name_buf, psy_default.name,
-				PSY_NAME_MAX);
+		strncpy(cm->psy_name_buf, psy_default.name, PSY_NAME_MAX);
 	} else {
 		strncpy(cm->psy_name_buf, desc->psy_name, PSY_NAME_MAX);
 	}
@@ -894,14 +892,14 @@ static int charger_manager_probe(struct platform_device *pdev)
 				POWER_SUPPLY_PROP_CURRENT_NOW;
 		cm->charger_psy.num_properties++;
 	}
-	if (!desc->measure_battery_temp) {
-		cm->charger_psy.properties[cm->charger_psy.num_properties] =
-				POWER_SUPPLY_PROP_TEMP_AMBIENT;
-		cm->charger_psy.num_properties++;
-	}
+
 	if (desc->measure_battery_temp) {
 		cm->charger_psy.properties[cm->charger_psy.num_properties] =
 				POWER_SUPPLY_PROP_TEMP;
+		cm->charger_psy.num_properties++;
+	} else {
+		cm->charger_psy.properties[cm->charger_psy.num_properties] =
+				POWER_SUPPLY_PROP_TEMP_AMBIENT;
 		cm->charger_psy.num_properties++;
 	}
 
@@ -933,9 +931,8 @@ static int charger_manager_probe(struct platform_device *pdev)
 	return 0;
 
 err_chg_enable:
-	if (desc->charger_regulators)
-		regulator_bulk_free(desc->num_charger_regulators,
-					desc->charger_regulators);
+	regulator_bulk_free(desc->num_charger_regulators,
+			    desc->charger_regulators);
 err_bulk_get:
 	power_supply_unregister(&cm->charger_psy);
 err_register:
@@ -961,10 +958,8 @@ static int __devexit charger_manager_remove(struct platform_device *pdev)
 	list_del(&cm->entry);
 	mutex_unlock(&cm_list_mtx);
 
-	if (desc->charger_regulators)
-		regulator_bulk_free(desc->num_charger_regulators,
-					desc->charger_regulators);
-
+	regulator_bulk_free(desc->num_charger_regulators,
+			    desc->charger_regulators);
 	power_supply_unregister(&cm->charger_psy);
 	kfree(cm->charger_psy.properties);
 	kfree(cm->charger_stat);
@@ -982,9 +977,7 @@ MODULE_DEVICE_TABLE(platform, charger_manager_id);
 
 static int cm_suspend_prepare(struct device *dev)
 {
-	struct platform_device *pdev = container_of(dev, struct platform_device,
-						    dev);
-	struct charger_manager *cm = platform_get_drvdata(pdev);
+	struct charger_manager *cm = dev_get_drvdata(dev);
 
 	if (!cm_suspended) {
 		if (rtc_dev) {
@@ -1020,9 +1013,7 @@ static int cm_suspend_prepare(struct device *dev)
 
 static void cm_suspend_complete(struct device *dev)
 {
-	struct platform_device *pdev = container_of(dev, struct platform_device,
-						    dev);
-	struct charger_manager *cm = platform_get_drvdata(pdev);
+	struct charger_manager *cm = dev_get_drvdata(dev);
 
 	if (cm_suspended) {
 		if (rtc_dev) {

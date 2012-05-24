@@ -40,9 +40,9 @@
 #include "ttm/ttm_module.h"
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20111025"
+#define VMWGFX_DRIVER_DATE "20120209"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 3
+#define VMWGFX_DRIVER_MINOR 4
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -62,6 +62,7 @@
 struct vmw_fpriv {
 	struct drm_master *locked_master;
 	struct ttm_object_file *tfile;
+	struct list_head fence_events;
 };
 
 struct vmw_dma_buffer {
@@ -202,6 +203,8 @@ struct vmw_private {
 	uint32_t mmio_size;
 	uint32_t fb_max_width;
 	uint32_t fb_max_height;
+	uint32_t initial_width;
+	uint32_t initial_height;
 	__le32 __iomem *mmio_virt;
 	int mmio_mtrr;
 	uint32_t capabilities;
@@ -533,7 +536,8 @@ extern int vmw_execbuf_process(struct drm_file *file_priv,
 			       uint32_t command_size,
 			       uint64_t throttle_us,
 			       struct drm_vmw_fence_rep __user
-			       *user_fence_rep);
+			       *user_fence_rep,
+			       struct vmw_fence_obj **out_fence);
 
 extern void
 vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,

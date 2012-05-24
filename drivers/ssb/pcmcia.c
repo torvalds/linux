@@ -676,14 +676,10 @@ static int ssb_pcmcia_do_get_invariants(struct pcmcia_device *p_dev,
 	case SSB_PCMCIA_CIS_ANTGAIN:
 		GOTO_ERROR_ON(tuple->TupleDataLen != 2,
 			"antg tpl size");
-		sprom->antenna_gain.ghz24.a0 = tuple->TupleData[1];
-		sprom->antenna_gain.ghz24.a1 = tuple->TupleData[1];
-		sprom->antenna_gain.ghz24.a2 = tuple->TupleData[1];
-		sprom->antenna_gain.ghz24.a3 = tuple->TupleData[1];
-		sprom->antenna_gain.ghz5.a0 = tuple->TupleData[1];
-		sprom->antenna_gain.ghz5.a1 = tuple->TupleData[1];
-		sprom->antenna_gain.ghz5.a2 = tuple->TupleData[1];
-		sprom->antenna_gain.ghz5.a3 = tuple->TupleData[1];
+		sprom->antenna_gain.a0 = tuple->TupleData[1];
+		sprom->antenna_gain.a1 = tuple->TupleData[1];
+		sprom->antenna_gain.a2 = tuple->TupleData[1];
+		sprom->antenna_gain.a3 = tuple->TupleData[1];
 		break;
 	case SSB_PCMCIA_CIS_BFLAGS:
 		GOTO_ERROR_ON((tuple->TupleDataLen != 3) &&

@@ -22,6 +22,8 @@
 #ifndef __MACH_BARRIERS_H
 #define __MACH_BARRIERS_H
 
+#include <asm/outercache.h>
+
 extern void omap_bus_sync(void);
 
 #define rmb()		dsb()

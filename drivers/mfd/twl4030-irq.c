@@ -28,10 +28,12 @@
  */
 
 #include <linux/init.h>
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
-
+#include <linux/of.h>
+#include <linux/irqdomain.h>
 #include <linux/i2c/twl.h>
 
 #include "twl-core.h"
@@ -53,12 +55,13 @@
  *	base + 8  .. base + 15	SIH for PWR_INT
  *	base + 16 .. base + 33	SIH for GPIO
  */
+#define TWL4030_CORE_NR_IRQS	8
+#define TWL4030_PWR_NR_IRQS	8
 
 /* PIH register offsets */
 #define REG_PIH_ISR_P1			0x01
 #define REG_PIH_ISR_P2			0x02
 #define REG_PIH_SIR			0x03	/* for testing */
-
 
 /* Linux could (eventually) use either IRQ line */
 static int irq_line;
@@ -111,7 +114,8 @@ static int nr_sih_modules;
 #define TWL4030_MODULE_INT_PWR		TWL4030_MODULE_INT
 
 
-/* Order in this table matches order in PIH_ISR.  That is,
+/*
+ * Order in this table matches order in PIH_ISR.  That is,
  * BIT(n) in PIH_ISR is sih_modules[n].
  */
 /* sih_modules_twl4030 is used both in twl4030 and twl5030 */
@@ -288,7 +292,6 @@ static unsigned twl4030_irq_base;
  */
 static irqreturn_t handle_twl4030_pih(int irq, void *devid)
 {
-	int		module_irq;
 	irqreturn_t	ret;
 	u8		pih_isr;
 
@@ -299,16 +302,18 @@ static irqreturn_t handle_twl4030_pih(int irq, void *devid)
 		return IRQ_NONE;
 	}
 
-	/* these handlers deal with the relevant SIH irq status */
-	for (module_irq = twl4030_irq_base;
-			pih_isr;
-			pih_isr >>= 1, module_irq++) {
-		if (pih_isr & 0x1)
-			handle_nested_irq(module_irq);
+	while (pih_isr) {
+		unsigned long	pending = __ffs(pih_isr);
+		unsigned int	irq;
+
+		pih_isr &= ~BIT(pending);
+		irq = pending + twl4030_irq_base;
+		handle_nested_irq(irq);
 	}
 
 	return IRQ_HANDLED;
 }
+
 /*----------------------------------------------------------------------*/
 
 /*
@@ -337,7 +342,6 @@ static int twl4030_init_sih_modules(unsigned line)
 	memset(buf, 0xff, sizeof buf);
 	sih = sih_modules;
 	for (i = 0; i < nr_sih_modules; i++, sih++) {
-
 		/* skip USB -- it's funky */
 		if (!sih->bytes_ixr)
 			continue;
@@ -352,7 +356,8 @@ static int twl4030_init_sih_modules(unsigned line)
 			pr_err("twl4030: err %d initializing %s %s\n",
 					status, sih->name, "IMR");
 
-		/* Maybe disable "exclusive" mode; buffer second pending irq;
+		/*
+		 * Maybe disable "exclusive" mode; buffer second pending irq;
 		 * set Clear-On-Read (COR) bit.
 		 *
 		 * NOTE that sometimes COR polarity is documented as being
@@ -382,7 +387,8 @@ static int twl4030_init_sih_modules(unsigned line)
 		if (sih->irq_lines <= line)
 			continue;
 
-		/* Clear pending interrupt status.  Either the read was
+		/*
+		 * Clear pending interrupt status.  Either the read was
 		 * enough, or we need to write those bits.  Repeat, in
 		 * case an IRQ is pending (PENDDIS=0) ... that's not
 		 * uncommon with PWR_INT.PWRON.
@@ -398,7 +404,8 @@ static int twl4030_init_sih_modules(unsigned line)
 				status = twl_i2c_write(sih->module, buf,
 					sih->mask[line].isr_offset,
 					sih->bytes_ixr);
-			/* else COR=1 means read sufficed.
+			/*
+			 * else COR=1 means read sufficed.
 			 * (for most SIH modules...)
 			 */
 		}
@@ -410,7 +417,8 @@ static int twl4030_init_sih_modules(unsigned line)
 static inline void activate_irq(int irq)
 {
 #ifdef CONFIG_ARM
-	/* ARM requires an extra step to clear IRQ_NOREQUEST, which it
+	/*
+	 * ARM requires an extra step to clear IRQ_NOREQUEST, which it
 	 * sets on behalf of every irq_chip.  Also sets IRQ_NOPROBE.
 	 */
 	set_irq_flags(irq, IRQF_VALID);
@@ -620,41 +628,30 @@ static irqreturn_t handle_twl4030_sih(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static unsigned twl4030_irq_next;
-
-/* returns the first IRQ used by this SIH bank,
- * or negative errno
- */
-int twl4030_sih_setup(int module)
+/* returns the first IRQ used by this SIH bank, or negative errno */
+int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 {
 	int			sih_mod;
 	const struct sih	*sih = NULL;
 	struct sih_agent	*agent;
 	int			i, irq;
 	int			status = -EINVAL;
-	unsigned		irq_base = twl4030_irq_next;
 
 	/* only support modules with standard clear-on-read for now */
-	for (sih_mod = 0, sih = sih_modules;
-			sih_mod < nr_sih_modules;
+	for (sih_mod = 0, sih = sih_modules; sih_mod < nr_sih_modules;
 			sih_mod++, sih++) {
 		if (sih->module == module && sih->set_cor) {
-			if (!WARN((irq_base + sih->bits) > NR_IRQS,
-					"irq %d for %s too big\n",
-					irq_base + sih->bits,
-					sih->name))
-				status = 0;
+			status = 0;
 			break;
 		}
 	}
+
 	if (status < 0)
 		return status;
 
 	agent = kzalloc(sizeof *agent, GFP_KERNEL);
 	if (!agent)
 		return -ENOMEM;
-
-	status = 0;
 
 	agent->irq_base = irq_base;
 	agent->sih = sih;
@@ -671,8 +668,6 @@ int twl4030_sih_setup(int module)
 		activate_irq(irq);
 	}
 
-	twl4030_irq_next += i;
-
 	/* replace generic PIH handler (handle_simple_irq) */
 	irq = sih_mod + twl4030_irq_base;
 	irq_set_handler_data(irq, agent);
@@ -680,26 +675,43 @@ int twl4030_sih_setup(int module)
 	status = request_threaded_irq(irq, NULL, handle_twl4030_sih, 0,
 				      agent->irq_name ?: sih->name, NULL);
 
-	pr_info("twl4030: %s (irq %d) chaining IRQs %d..%d\n", sih->name,
-			irq, irq_base, twl4030_irq_next - 1);
+	dev_info(dev, "%s (irq %d) chaining IRQs %d..%d\n", sih->name,
+			irq, irq_base, irq_base + i - 1);
 
 	return status < 0 ? status : irq_base;
 }
 
 /* FIXME need a call to reverse twl4030_sih_setup() ... */
 
-
 /*----------------------------------------------------------------------*/
 
 /* FIXME pass in which interrupt line we'll use ... */
 #define twl_irq_line	0
 
-int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
+int twl4030_init_irq(struct device *dev, int irq_num)
 {
 	static struct irq_chip	twl4030_irq_chip;
+	int			status, i;
+	int			irq_base, irq_end, nr_irqs;
+	struct			device_node *node = dev->of_node;
 
-	int			status;
-	int			i;
+	/*
+	 * TWL core and pwr interrupts must be contiguous because
+	 * the hwirqs numbers are defined contiguously from 1 to 15.
+	 * Create only one domain for both.
+	 */
+	nr_irqs = TWL4030_PWR_NR_IRQS + TWL4030_CORE_NR_IRQS;
+
+	irq_base = irq_alloc_descs(-1, 0, nr_irqs, 0);
+	if (IS_ERR_VALUE(irq_base)) {
+		dev_err(dev, "Fail to allocate IRQ descs\n");
+		return irq_base;
+	}
+
+	irq_domain_add_legacy(node, nr_irqs, irq_base, 0,
+			      &irq_domain_simple_ops, NULL);
+
+	irq_end = irq_base + TWL4030_CORE_NR_IRQS;
 
 	/*
 	 * Mask and clear all TWL4030 interrupts since initially we do
@@ -711,7 +723,8 @@ int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 
 	twl4030_irq_base = irq_base;
 
-	/* install an irq handler for each of the SIH modules;
+	/*
+	 * Install an irq handler for each of the SIH modules;
 	 * clone dummy irq_chip since PIH can't *do* anything
 	 */
 	twl4030_irq_chip = dummy_irq_chip;
@@ -725,14 +738,14 @@ int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 		irq_set_nested_thread(i, 1);
 		activate_irq(i);
 	}
-	twl4030_irq_next = i;
-	pr_info("twl4030: %s (irq %d) chaining IRQs %d..%d\n", "PIH",
-			irq_num, irq_base, twl4030_irq_next - 1);
+
+	dev_info(dev, "%s (irq %d) chaining IRQs %d..%d\n", "PIH",
+			irq_num, irq_base, irq_end);
 
 	/* ... and the PWR_INT module ... */
-	status = twl4030_sih_setup(TWL4030_MODULE_INT);
+	status = twl4030_sih_setup(dev, TWL4030_MODULE_INT, irq_end);
 	if (status < 0) {
-		pr_err("twl4030: sih_setup PWR INT --> %d\n", status);
+		dev_err(dev, "sih_setup PWR INT --> %d\n", status);
 		goto fail;
 	}
 
@@ -741,11 +754,11 @@ int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 				      IRQF_ONESHOT,
 				      "TWL4030-PIH", NULL);
 	if (status < 0) {
-		pr_err("twl4030: could not claim irq%d: %d\n", irq_num, status);
+		dev_err(dev, "could not claim irq%d: %d\n", irq_num, status);
 		goto fail_rqirq;
 	}
 
-	return status;
+	return irq_base;
 fail_rqirq:
 	/* clean up twl4030_sih_setup */
 fail:

@@ -34,7 +34,7 @@
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
 
-/* McBSP internal signal muxing function */
+/* McBSP1 internal signal muxing function for OMAP2/3 */
 static int omap2_mcbsp1_mux_rx_clk(struct device *dev, const char *signal,
 				   const char *src)
 {
@@ -61,6 +61,42 @@ static int omap2_mcbsp1_mux_rx_clk(struct device *dev, const char *signal,
 	}
 
 	omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
+
+	return 0;
+}
+
+/* McBSP4 internal signal muxing function for OMAP4 */
+#define OMAP4_CONTROL_MCBSPLP_ALBCTRLRX_FSX	(1 << 31)
+#define OMAP4_CONTROL_MCBSPLP_ALBCTRLRX_CLKX	(1 << 30)
+static int omap4_mcbsp4_mux_rx_clk(struct device *dev, const char *signal,
+				   const char *src)
+{
+	u32 v;
+
+	/*
+	 * In CONTROL_MCBSPLP register only bit 30 (CLKR mux), and bit 31 (FSR
+	 * mux) is used */
+	v = omap4_ctrl_pad_readl(OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_MCBSPLP);
+
+	if (!strcmp(signal, "clkr")) {
+		if (!strcmp(src, "clkr"))
+			v &= ~OMAP4_CONTROL_MCBSPLP_ALBCTRLRX_CLKX;
+		else if (!strcmp(src, "clkx"))
+			v |= OMAP4_CONTROL_MCBSPLP_ALBCTRLRX_CLKX;
+		else
+			return -EINVAL;
+	} else if (!strcmp(signal, "fsr")) {
+		if (!strcmp(src, "fsr"))
+			v &= ~OMAP4_CONTROL_MCBSPLP_ALBCTRLRX_FSX;
+		else if (!strcmp(src, "fsx"))
+			v |= OMAP4_CONTROL_MCBSPLP_ALBCTRLRX_FSX;
+		else
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
+
+	omap4_ctrl_pad_writel(v, OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_MCBSPLP);
 
 	return 0;
 }
@@ -122,7 +158,7 @@ static int omap3_enable_st_clock(unsigned int id, bool enable)
 	return 0;
 }
 
-static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
+static int __init omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 {
 	int id, count = 1;
 	char *name = "omap-mcbsp";
@@ -146,8 +182,14 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 		pdata->has_ccr = true;
 	}
 	pdata->set_clk_src = omap2_mcbsp_set_clk_src;
-	if (id == 1)
+
+	/* On OMAP2/3 the McBSP1 port has 6 pin configuration */
+	if (id == 1 && oh->class->rev < MCBSP_CONFIG_TYPE4)
 		pdata->mux_signal = omap2_mcbsp1_mux_rx_clk;
+
+	/* On OMAP4 the McBSP4 port has 6 pin configuration */
+	if (id == 4 && oh->class->rev == MCBSP_CONFIG_TYPE4)
+		pdata->mux_signal = omap4_mcbsp4_mux_rx_clk;
 
 	if (oh->class->rev == MCBSP_CONFIG_TYPE3) {
 		if (id == 2)
@@ -180,7 +222,6 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 					name, oh->name);
 		return PTR_ERR(pdev);
 	}
-	omap_mcbsp_count++;
 	return 0;
 }
 
@@ -188,11 +229,6 @@ static int __init omap2_mcbsp_init(void)
 {
 	omap_hwmod_for_each_by_class("mcbsp", omap_init_mcbsp, NULL);
 
-	mcbsp_ptr = kzalloc(omap_mcbsp_count * sizeof(struct omap_mcbsp *),
-								GFP_KERNEL);
-	if (!mcbsp_ptr)
-		return -ENOMEM;
-
-	return omap_mcbsp_init();
+	return 0;
 }
 arch_initcall(omap2_mcbsp_init);

@@ -165,7 +165,7 @@ void init_cpu_timer(void)
 	__ctl_set_bit(0, 4);
 }
 
-static void clock_comparator_interrupt(unsigned int ext_int_code,
+static void clock_comparator_interrupt(struct ext_code ext_code,
 				       unsigned int param32,
 				       unsigned long param64)
 {
@@ -177,7 +177,7 @@ static void clock_comparator_interrupt(unsigned int ext_int_code,
 static void etr_timing_alert(struct etr_irq_parm *);
 static void stp_timing_alert(struct stp_irq_parm *);
 
-static void timing_alert_interrupt(unsigned int ext_int_code,
+static void timing_alert_interrupt(struct ext_code ext_code,
 				   unsigned int param32, unsigned long param64)
 {
 	kstat_cpu(smp_processor_id()).irqs[EXTINT_TLA]++;

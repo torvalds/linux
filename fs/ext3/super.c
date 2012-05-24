@@ -17,22 +17,12 @@
  */
 
 #include <linux/module.h>
-#include <linux/string.h>
-#include <linux/fs.h>
-#include <linux/time.h>
-#include <linux/jbd.h>
-#include <linux/ext3_fs.h>
-#include <linux/ext3_jbd.h>
-#include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/parser.h>
-#include <linux/buffer_head.h>
 #include <linux/exportfs.h>
-#include <linux/vfs.h>
+#include <linux/statfs.h>
 #include <linux/random.h>
 #include <linux/mount.h>
-#include <linux/namei.h>
 #include <linux/quotaops.h>
 #include <linux/seq_file.h>
 #include <linux/log2.h>
@@ -40,12 +30,12 @@
 
 #include <asm/uaccess.h>
 
+#define CREATE_TRACE_POINTS
+
+#include "ext3.h"
 #include "xattr.h"
 #include "acl.h"
 #include "namei.h"
-
-#define CREATE_TRACE_POINTS
-#include <trace/events/ext3.h>
 
 #ifdef CONFIG_EXT3_DEFAULTS_TO_ORDERED
   #define EXT3_MOUNT_DEFAULT_DATA_MODE EXT3_MOUNT_ORDERED_DATA
@@ -2046,10 +2036,9 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		ext3_msg(sb, KERN_ERR, "error: corrupt root inode, run e2fsck");
 		goto failed_mount3;
 	}
-	sb->s_root = d_alloc_root(root);
+	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
 		ext3_msg(sb, KERN_ERR, "error: get root dentry failed");
-		iput(root);
 		ret = -ENOMEM;
 		goto failed_mount3;
 	}

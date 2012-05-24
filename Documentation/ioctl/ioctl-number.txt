@@ -189,7 +189,7 @@ Code  Seq#(hex)	Include File		Comments
 'Y'	all	linux/cyclades.h
 'Z'	14-15	drivers/message/fusion/mptctl.h
 '['	00-07	linux/usb/tmc.h		USB Test and Measurement Devices
-					<mailto:gregkh@suse.de>
+					<mailto:gregkh@linuxfoundation.org>
 'a'	all	linux/atm*.h, linux/sonet.h	ATM on linux
 					<http://lrcwww.epfl.ch/>
 'b'	00-FF				conflict! bit3 vme host bridge
@@ -218,12 +218,14 @@ Code  Seq#(hex)	Include File		Comments
 'h'	00-7F				conflict! Charon filesystem
 					<mailto:zapman@interlan.net>
 'h'	00-1F	linux/hpet.h		conflict!
+'h'	80-8F	fs/hfsplus/ioctl.c
 'i'	00-3F	linux/i2o-dev.h		conflict!
 'i'	0B-1F	linux/ipmi.h		conflict!
 'i'	80-8F	linux/i8k.h
 'j'	00-3F	linux/joystick.h
 'k'	00-0F	linux/spi/spidev.h	conflict!
 'k'	00-05	video/kyro.h		conflict!
+'k'	10-17	linux/hsi/hsi_char.h	HSI character device
 'l'	00-3F	linux/tcfs_fs.h		transparent cryptographic file system
 					<http://web.archive.org/web/*/http://mikonos.dia.unisa.it/tcfs>
 'l'	40-7F	linux/udf_fs_i.h	in development:
@@ -255,7 +257,7 @@ Code  Seq#(hex)	Include File		Comments
 		linux/ixjuser.h		<http://web.archive.org/web/*/http://www.quicknet.net>
 'r'	00-1F	linux/msdos_fs.h and fs/fat/dir.c
 's'	all	linux/cdk.h
-'t'	00-7F	linux/if_ppp.h
+'t'	00-7F	linux/ppp-ioctl.h
 't'	80-8F	linux/isdn_ppp.h
 't'	90	linux/toshiba.h
 'u'	00-1F	linux/smb_fs.h		gone

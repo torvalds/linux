@@ -30,7 +30,7 @@ static DEFINE_RWLOCK(proto_tab_lock);
 static const struct nfc_protocol *proto_tab[NFC_SOCKPROTO_MAX];
 
 static int nfc_sock_create(struct net *net, struct socket *sock, int proto,
-								int kern)
+			   int kern)
 {
 	int rc = -EPROTONOSUPPORT;
 

@@ -7,9 +7,9 @@ Each LED is represented as a sub-node of the gpio-leds device.  Each
 node's name represents the name of the corresponding LED.
 
 LED sub-node properties:
-- gpios :  Should specify the LED's GPIO, see "Specifying GPIO information
-  for devices" in Documentation/devicetree/booting-without-of.txt.  Active
-  low LEDs should be indicated using flags in the GPIO specifier.
+- gpios :  Should specify the LED's GPIO, see "gpios property" in
+  Documentation/devicetree/gpio.txt.  Active low LEDs should be
+  indicated using flags in the GPIO specifier.
 - label :  (optional) The label for this LED.  If omitted, the label is
   taken from the node name (excluding the unit address).
 - linux,default-trigger :  (optional) This parameter, if present, is a

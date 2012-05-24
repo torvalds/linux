@@ -947,6 +947,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = FUSE_SUPER_MAGIC;
 	sb->s_op = &fuse_super_operations;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
+	sb->s_time_gran = 1;
 	sb->s_export_op = &fuse_export_operations;
 
 	file = fget(d.fd);
@@ -988,14 +989,9 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 
 	err = -ENOMEM;
 	root = fuse_get_root_inode(sb, d.rootmode);
-	if (!root)
+	root_dentry = d_make_root(root);
+	if (!root_dentry)
 		goto err_put_conn;
-
-	root_dentry = d_alloc_root(root);
-	if (!root_dentry) {
-		iput(root);
-		goto err_put_conn;
-	}
 	/* only now - we want root dentry with NULL ->d_op */
 	sb->s_d_op = &fuse_dentry_operations;
 

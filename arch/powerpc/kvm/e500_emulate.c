@@ -89,19 +89,23 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 			return EMULATE_FAIL;
 		vcpu_e500->pid[2] = spr_val; break;
 	case SPRN_MAS0:
-		vcpu_e500->mas0 = spr_val; break;
+		vcpu->arch.shared->mas0 = spr_val; break;
 	case SPRN_MAS1:
-		vcpu_e500->mas1 = spr_val; break;
+		vcpu->arch.shared->mas1 = spr_val; break;
 	case SPRN_MAS2:
-		vcpu_e500->mas2 = spr_val; break;
+		vcpu->arch.shared->mas2 = spr_val; break;
 	case SPRN_MAS3:
-		vcpu_e500->mas3 = spr_val; break;
+		vcpu->arch.shared->mas7_3 &= ~(u64)0xffffffff;
+		vcpu->arch.shared->mas7_3 |= spr_val;
+		break;
 	case SPRN_MAS4:
-		vcpu_e500->mas4 = spr_val; break;
+		vcpu->arch.shared->mas4 = spr_val; break;
 	case SPRN_MAS6:
-		vcpu_e500->mas6 = spr_val; break;
+		vcpu->arch.shared->mas6 = spr_val; break;
 	case SPRN_MAS7:
-		vcpu_e500->mas7 = spr_val; break;
+		vcpu->arch.shared->mas7_3 &= (u64)0xffffffff;
+		vcpu->arch.shared->mas7_3 |= (u64)spr_val << 32;
+		break;
 	case SPRN_L1CSR0:
 		vcpu_e500->l1csr0 = spr_val;
 		vcpu_e500->l1csr0 &= ~(L1CSR0_DCFI | L1CSR0_CLFC);
@@ -143,6 +147,7 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	int emulated = EMULATE_DONE;
+	unsigned long val;
 
 	switch (sprn) {
 	case SPRN_PID:
@@ -152,20 +157,23 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 	case SPRN_PID2:
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->pid[2]); break;
 	case SPRN_MAS0:
-		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas0); break;
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->mas0); break;
 	case SPRN_MAS1:
-		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas1); break;
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->mas1); break;
 	case SPRN_MAS2:
-		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas2); break;
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->mas2); break;
 	case SPRN_MAS3:
-		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas3); break;
+		val = (u32)vcpu->arch.shared->mas7_3;
+		kvmppc_set_gpr(vcpu, rt, val);
+		break;
 	case SPRN_MAS4:
-		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas4); break;
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->mas4); break;
 	case SPRN_MAS6:
-		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas6); break;
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->mas6); break;
 	case SPRN_MAS7:
-		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas7); break;
-
+		val = vcpu->arch.shared->mas7_3 >> 32;
+		kvmppc_set_gpr(vcpu, rt, val);
+		break;
 	case SPRN_TLB0CFG:
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->tlb0cfg); break;
 	case SPRN_TLB1CFG:

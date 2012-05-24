@@ -17,6 +17,8 @@
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
+#include <linux/usb/ehci_pdriver.h>
+#include <linux/usb/ohci_pdriver.h>
 
 #include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/ar71xx_regs.h>
@@ -36,14 +38,19 @@ static struct resource ath79_ohci_resources[] = {
 };
 
 static u64 ath79_ohci_dmamask = DMA_BIT_MASK(32);
+
+static struct usb_ohci_pdata ath79_ohci_pdata = {
+};
+
 static struct platform_device ath79_ohci_device = {
-	.name		= "ath79-ohci",
+	.name		= "ohci-platform",
 	.id		= -1,
 	.resource	= ath79_ohci_resources,
 	.num_resources	= ARRAY_SIZE(ath79_ohci_resources),
 	.dev = {
 		.dma_mask		= &ath79_ohci_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &ath79_ohci_pdata,
 	},
 };
 
@@ -60,8 +67,20 @@ static struct resource ath79_ehci_resources[] = {
 };
 
 static u64 ath79_ehci_dmamask = DMA_BIT_MASK(32);
+
+static struct usb_ehci_pdata ath79_ehci_pdata_v1 = {
+	.has_synopsys_hc_bug	= 1,
+	.port_power_off		= 1,
+};
+
+static struct usb_ehci_pdata ath79_ehci_pdata_v2 = {
+	.caps_offset		= 0x100,
+	.has_tt			= 1,
+	.port_power_off		= 1,
+};
+
 static struct platform_device ath79_ehci_device = {
-	.name		= "ath79-ehci",
+	.name		= "ehci-platform",
 	.id		= -1,
 	.resource	= ath79_ehci_resources,
 	.num_resources	= ARRAY_SIZE(ath79_ehci_resources),
@@ -101,7 +120,7 @@ static void __init ath79_usb_setup(void)
 
 	ath79_ehci_resources[0].start = AR71XX_EHCI_BASE;
 	ath79_ehci_resources[0].end = AR71XX_EHCI_BASE + AR71XX_EHCI_SIZE - 1;
-	ath79_ehci_device.name = "ar71xx-ehci";
+	ath79_ehci_device.dev.platform_data = &ath79_ehci_pdata_v1;
 	platform_device_register(&ath79_ehci_device);
 }
 
@@ -142,7 +161,7 @@ static void __init ar724x_usb_setup(void)
 
 	ath79_ehci_resources[0].start = AR724X_EHCI_BASE;
 	ath79_ehci_resources[0].end = AR724X_EHCI_BASE + AR724X_EHCI_SIZE - 1;
-	ath79_ehci_device.name = "ar724x-ehci";
+	ath79_ehci_device.dev.platform_data = &ath79_ehci_pdata_v2;
 	platform_device_register(&ath79_ehci_device);
 }
 
@@ -159,7 +178,7 @@ static void __init ar913x_usb_setup(void)
 
 	ath79_ehci_resources[0].start = AR913X_EHCI_BASE;
 	ath79_ehci_resources[0].end = AR913X_EHCI_BASE + AR913X_EHCI_SIZE - 1;
-	ath79_ehci_device.name = "ar913x-ehci";
+	ath79_ehci_device.dev.platform_data = &ath79_ehci_pdata_v2;
 	platform_device_register(&ath79_ehci_device);
 }
 
@@ -176,7 +195,7 @@ static void __init ar933x_usb_setup(void)
 
 	ath79_ehci_resources[0].start = AR933X_EHCI_BASE;
 	ath79_ehci_resources[0].end = AR933X_EHCI_BASE + AR933X_EHCI_SIZE - 1;
-	ath79_ehci_device.name = "ar933x-ehci";
+	ath79_ehci_device.dev.platform_data = &ath79_ehci_pdata_v2;
 	platform_device_register(&ath79_ehci_device);
 }
 

@@ -11,6 +11,7 @@
 #include <linux/dlmconstants.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/writeback.h>
+#include <linux/ktime.h>
 #include "incore.h"
 #include "glock.h"
 
@@ -43,7 +44,8 @@
 	{(1UL << GLF_FROZEN),			"F" },		\
 	{(1UL << GLF_QUEUED),			"q" },		\
 	{(1UL << GLF_LRU),			"L" },		\
-	{(1UL << GLF_OBJECT),			"o" })
+	{(1UL << GLF_OBJECT),			"o" },		\
+	{(1UL << GLF_BLOCKING),			"b" })
 
 #ifndef NUMPTY
 #define NUMPTY
@@ -234,6 +236,62 @@ TRACE_EVENT(gfs2_glock_queue,
 		  (unsigned long long)__entry->glnum,
 		  __entry->queue ? "" : "de",
 		  glock_trace_name(__entry->state))
+);
+
+/* DLM sends a reply to GFS2 */
+TRACE_EVENT(gfs2_glock_lock_time,
+
+	TP_PROTO(const struct gfs2_glock *gl, s64 tdiff),
+
+	TP_ARGS(gl, tdiff),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev		)
+		__field(	u64,	glnum		)
+		__field(	u32,	gltype		)
+		__field(	int,	status		)
+		__field(	char,	flags		)
+		__field(	s64,	tdiff		)
+		__field(	s64,	srtt		)
+		__field(	s64,	srttvar		)
+		__field(	s64,	srttb		)
+		__field(	s64,	srttvarb	)
+		__field(	s64,	sirt		)
+		__field(	s64,	sirtvar		)
+		__field(	s64,	dcount		)
+		__field(	s64,	qcount		)
+	),
+
+	TP_fast_assign(
+		__entry->dev            = gl->gl_sbd->sd_vfs->s_dev;
+		__entry->glnum          = gl->gl_name.ln_number;
+		__entry->gltype         = gl->gl_name.ln_type;
+		__entry->status		= gl->gl_lksb.sb_status;
+		__entry->flags		= gl->gl_lksb.sb_flags;
+		__entry->tdiff		= tdiff;
+		__entry->srtt		= gl->gl_stats.stats[GFS2_LKS_SRTT];
+		__entry->srttvar	= gl->gl_stats.stats[GFS2_LKS_SRTTVAR];
+		__entry->srttb		= gl->gl_stats.stats[GFS2_LKS_SRTTB];
+		__entry->srttvarb	= gl->gl_stats.stats[GFS2_LKS_SRTTVARB];
+		__entry->sirt		= gl->gl_stats.stats[GFS2_LKS_SIRT];
+		__entry->sirtvar	= gl->gl_stats.stats[GFS2_LKS_SIRTVAR];
+		__entry->dcount		= gl->gl_stats.stats[GFS2_LKS_DCOUNT];
+		__entry->qcount		= gl->gl_stats.stats[GFS2_LKS_QCOUNT];
+	),
+
+	TP_printk("%u,%u glock %d:%lld status:%d flags:%02x tdiff:%lld srtt:%lld/%lld srttb:%lld/%lld sirt:%lld/%lld dcnt:%lld qcnt:%lld",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->gltype,
+		  (unsigned long long)__entry->glnum,
+		  __entry->status, __entry->flags,
+		  (long long)__entry->tdiff,
+		  (long long)__entry->srtt,
+		  (long long)__entry->srttvar,
+		  (long long)__entry->srttb,
+		  (long long)__entry->srttvarb,
+		  (long long)__entry->sirt,
+		  (long long)__entry->sirtvar,
+		  (long long)__entry->dcount,
+		  (long long)__entry->qcount)
 );
 
 /* Section 2 - Log/journal

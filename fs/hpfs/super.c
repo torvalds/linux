@@ -625,11 +625,9 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	hpfs_init_inode(root);
 	hpfs_read_inode(root);
 	unlock_new_inode(root);
-	s->s_root = d_alloc_root(root);
-	if (!s->s_root) {
-		iput(root);
+	s->s_root = d_make_root(root);
+	if (!s->s_root)
 		goto bail0;
-	}
 
 	/*
 	 * find the root directory's . pointer & finish filling in the inode

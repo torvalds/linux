@@ -64,7 +64,6 @@ config CRYPTO_DEV_GEODE
 config ZCRYPT
 	tristate "Support for PCI-attached cryptographic adapters"
 	depends on S390
-	select ZCRYPT_MONOLITHIC if ZCRYPT="y"
 	select HW_RANDOM
 	help
 	  Select this option if you want to use a PCI-attached cryptographic
@@ -76,14 +75,6 @@ config ZCRYPT
 	  + Crypto Express2 Accelerator (CEX2A)
 	  + Crypto Express3 Coprocessor (CEX3C)
 	  + Crypto Express3 Accelerator (CEX3A)
-
-config ZCRYPT_MONOLITHIC
-	bool "Monolithic zcrypt module"
-	depends on ZCRYPT
-	help
-	  Select this option if you want to have a single module z90crypt,
-	  that contains all parts of the crypto device driver (ap bus,
-	  request router and all the card drivers).
 
 config CRYPTO_SHA1_S390
 	tristate "SHA1 digest algorithm"
@@ -292,5 +283,16 @@ config CRYPTO_DEV_S5P
 	  This option allows you to have support for S5P crypto acceleration.
 	  Select this to offload Samsung S5PV210 or S5PC110 from AES
 	  algorithms execution.
+
+config CRYPTO_DEV_TEGRA_AES
+	tristate "Support for TEGRA AES hw engine"
+	depends on ARCH_TEGRA
+	select CRYPTO_AES
+	help
+	  TEGRA processors have AES module accelerator. Select this if you
+	  want to use the TEGRA module for AES algorithms.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called tegra-aes.
 
 endif # CRYPTO_HW

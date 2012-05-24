@@ -69,6 +69,7 @@ struct vio_dev {
 };
 
 struct vio_driver {
+	const char *name;
 	const struct vio_device_id *id_table;
 	int (*probe)(struct vio_dev *dev, const struct vio_device_id *id);
 	int (*remove)(struct vio_dev *dev);
@@ -76,10 +77,17 @@ struct vio_driver {
 	 * be loaded in a CMO environment if it uses DMA.
 	 */
 	unsigned long (*get_desired_dma)(struct vio_dev *dev);
+	const struct dev_pm_ops *pm;
 	struct device_driver driver;
 };
 
-extern int vio_register_driver(struct vio_driver *drv);
+extern int __vio_register_driver(struct vio_driver *drv, struct module *owner,
+				 const char *mod_name);
+/*
+ * vio_register_driver must be a macro so that KBUILD_MODNAME can be expanded
+ */
+#define vio_register_driver(driver)		\
+	__vio_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
 extern void vio_unregister_driver(struct vio_driver *drv);
 
 extern int vio_cmo_entitlement_update(size_t);

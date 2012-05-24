@@ -91,7 +91,7 @@ process_line(struct conf_writedata *cnf)
 /* write conf file -> boot or send cfg line to card */
 /****************************************************/
 static ssize_t
-hysdn_conf_write(struct file *file, const char __user *buf, size_t count, loff_t * off)
+hysdn_conf_write(struct file *file, const char __user *buf, size_t count, loff_t *off)
 {
 	struct conf_writedata *cnf;
 	int i;
@@ -366,7 +366,7 @@ static const struct file_operations conf_fops =
 	.read           = hysdn_conf_read,
 	.write          = hysdn_conf_write,
 	.open           = hysdn_conf_open,
-	.release        = hysdn_conf_close,                                       
+	.release        = hysdn_conf_close,
 };
 
 /*****************************/
@@ -395,9 +395,9 @@ hysdn_procconf_init(void)
 
 		sprintf(conf_name, "%s%d", PROC_CONF_BASENAME, card->myid);
 		if ((card->procconf = (void *) proc_create(conf_name,
-						S_IFREG | S_IRUGO | S_IWUSR,
-						hysdn_proc_entry,
-						&conf_fops)) != NULL) {
+							   S_IFREG | S_IRUGO | S_IWUSR,
+							   hysdn_proc_entry,
+							   &conf_fops)) != NULL) {
 			hysdn_proclog_init(card);	/* init the log file entry */
 		}
 		card = card->next;	/* next entry */

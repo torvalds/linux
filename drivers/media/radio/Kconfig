@@ -43,7 +43,7 @@ config USB_DSBR
 
 config RADIO_MAXIRADIO
 	tristate "Guillemot MAXI Radio FM 2000 radio"
-	depends on VIDEO_V4L2 && PCI
+	depends on VIDEO_V4L2 && PCI && SND
 	---help---
 	  Choose Y here if you have this radio card.  This card may also be
 	  found as Gemtek PCI FM.
@@ -79,6 +79,16 @@ config RADIO_SI4713
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-si4713.
+
+config USB_KEENE
+	tristate "Keene FM Transmitter USB support"
+	depends on USB && VIDEO_V4L2
+	---help---
+	  Say Y here if you want to connect this type of FM transmitter
+	  to your computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-keene.
 
 config RADIO_TEA5764
 	tristate "TEA5764 I2C FM radio support"
@@ -167,6 +177,10 @@ menuconfig V4L_RADIO_ISA_DRIVERS
 
 if V4L_RADIO_ISA_DRIVERS
 
+config RADIO_ISA
+	depends on ISA
+	tristate
+
 config RADIO_CADET
 	tristate "ADS Cadet AM/FM Tuner"
 	depends on ISA && VIDEO_V4L2
@@ -174,20 +188,13 @@ config RADIO_CADET
 	  Choose Y here if you have one of these AM/FM radio cards, and then
 	  fill in the port address below.
 
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
-
-	  Further documentation on this driver can be found on the WWW at
-	  <http://linux.blackhawke.net/cadet/>.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-cadet.
 
 config RADIO_RTRACK
 	tristate "AIMSlab RadioTrack (aka RadioReveal) support"
 	depends on ISA && VIDEO_V4L2
+	select RADIO_ISA
 	---help---
 	  Choose Y here if you have one of these FM radio cards, and then fill
 	  in the port address below.
@@ -201,11 +208,7 @@ config RADIO_RTRACK
 	  You must also pass the module a suitable io parameter, 0x248 has
 	  been reported to be used by these cards.
 
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>. More information is
-	  contained in the file
+	  More information is contained in the file
 	  <file:Documentation/video4linux/radiotrack.txt>.
 
 	  To compile this driver as a module, choose M here: the
@@ -214,7 +217,7 @@ config RADIO_RTRACK
 config RADIO_RTRACK_PORT
 	hex "RadioTrack i/o port (0x20f or 0x30f)"
 	depends on RADIO_RTRACK=y
-	default "20f"
+	default "30f"
 	help
 	  Enter either 0x30f or 0x20f here.  The card default is 0x30f, if you
 	  haven't changed the jumper setting on the card.
@@ -222,14 +225,14 @@ config RADIO_RTRACK_PORT
 config RADIO_RTRACK2
 	tristate "AIMSlab RadioTrack II support"
 	depends on ISA && VIDEO_V4L2
+	select RADIO_ISA
 	---help---
 	  Choose Y here if you have this FM radio card, and then fill in the
 	  port address below.
 
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
+	  Note: this driver hasn't been tested since a long time due to lack
+	  of hardware. If you have this hardware, then please contact the
+	  linux-media mailinglist.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-rtrack2.
@@ -245,14 +248,10 @@ config RADIO_RTRACK2_PORT
 config RADIO_AZTECH
 	tristate "Aztech/Packard Bell Radio"
 	depends on ISA && VIDEO_V4L2
+	select RADIO_ISA
 	---help---
 	  Choose Y here if you have one of these FM radio cards, and then fill
 	  in the port address below.
-
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-aztech.
@@ -269,6 +268,7 @@ config RADIO_AZTECH_PORT
 config RADIO_GEMTEK
 	tristate "GemTek Radio card (or compatible) support"
 	depends on ISA && VIDEO_V4L2
+	select RADIO_ISA
 	---help---
 	  Choose Y here if you have this FM radio card, and then fill in the
 	  I/O port address and settings below. The following cards either have
@@ -278,23 +278,21 @@ config RADIO_GEMTEK
 	  - Typhoon Radio card (some models)
 	  - Hama Radio card
 
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-gemtek.
 
 config RADIO_GEMTEK_PORT
-	hex "Fixed I/O port (0x20c, 0x30c, 0x24c, 0x34c, 0c24c or 0x28c)"
+	hex "Fixed I/O port (0x20c, 0x30c, 0x24c, 0x34c, 0x248 or 0x28c)"
 	depends on RADIO_GEMTEK=y
 	default "34c"
 	help
-	  Enter either 0x20c, 0x30c, 0x24c or 0x34c here. The card default is
-	  0x34c, if you haven't changed the jumper setting on the card. On
-	  Sound Vision 16 Gold PnP with FM Radio (ESS1869+FM Gemtek), the I/O
+	  Enter either 0x20c, 0x30c, 0x24c, 0x34c, 0x248 or 0x28c here. The
+	  card default is 0x34c, if you haven't changed the jumper setting
+	  on the card.
+
+	  On Sound Vision 16 Gold PnP with FM Radio (ESS1869+FM Gemtek), the I/O
 	  port is 0x20c, 0x248 or 0x28c.
+
 	  If automatic I/O port probing is enabled this port will be used only
 	  in case of automatic probing failure, ie. as a fallback.
 
@@ -318,11 +316,6 @@ config RADIO_MIROPCM20
 	  sound card driver "Miro miroSOUND PCM1pro/PCM12/PCM20radio" as this
 	  is required for the radio-miropcm20.
 
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-miropcm20.
 
@@ -331,11 +324,6 @@ config RADIO_SF16FMI
 	depends on ISA && VIDEO_V4L2
 	---help---
 	  Choose Y here if you have one of these FM radio cards.
-
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-sf16fmi.
@@ -346,49 +334,34 @@ config RADIO_SF16FMR2
 	---help---
 	  Choose Y here if you have one of these FM radio cards.
 
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found on the WWW at
-	  <http://roadrunner.swansea.uk.linux.org/v4l.shtml>.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-sf16fmr2.
 
 config RADIO_TERRATEC
 	tristate "TerraTec ActiveRadio ISA Standalone"
 	depends on ISA && VIDEO_V4L2
+	select RADIO_ISA
 	---help---
-	  Choose Y here if you have this FM radio card, and then fill in the
-	  port address below. (TODO)
+	  Choose Y here if you have this FM radio card.
 
-	  Note: This driver is in its early stages.  Right now volume and
-	  frequency control and muting works at least for me, but
-	  unfortunately I have not found anybody who wants to use this card
-	  with Linux.  So if it is this what YOU are trying to do right now,
-	  PLEASE DROP ME A NOTE!!  Rolf Offermanns <rolf@offermanns.de>.
-
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
+	  Note: this driver hasn't been tested since a long time due to lack
+	  of hardware. If you have this hardware, then please contact the
+	  linux-media mailinglist.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-terratec.
 
-config RADIO_TERRATEC_PORT
-	hex "Terratec i/o port (normally 0x590)"
-	depends on RADIO_TERRATEC=y
-	default "590"
-	help
-	  Fill in the I/O port of your TerraTec FM radio card. If unsure, go
-	  with the default.
-
 config RADIO_TRUST
 	tristate "Trust FM radio card"
 	depends on ISA && VIDEO_V4L2
+	select RADIO_ISA
 	help
 	  This is a driver for the Trust FM radio cards. Say Y if you have
 	  such a card and want to use it under Linux.
+
+	  Note: this driver hasn't been tested since a long time due to lack
+	  of hardware. If you have this hardware, then please contact the
+	  linux-media mailinglist.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-trust.
@@ -404,14 +377,14 @@ config RADIO_TRUST_PORT
 config RADIO_TYPHOON
 	tristate "Typhoon Radio (a.k.a. EcoRadio)"
 	depends on ISA && VIDEO_V4L2
+	select RADIO_ISA
 	---help---
 	  Choose Y here if you have one of these FM radio cards, and then fill
 	  in the port address and the frequency used for muting below.
 
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
+	  Note: this driver hasn't been tested since a long time due to lack
+	  of hardware. If you have this hardware, then please contact the
+	  linux-media mailinglist.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-typhoon.
@@ -438,14 +411,14 @@ config RADIO_TYPHOON_MUTEFREQ
 config RADIO_ZOLTRIX
 	tristate "Zoltrix Radio"
 	depends on ISA && VIDEO_V4L2
+	select RADIO_ISA
 	---help---
 	  Choose Y here if you have one of these FM radio cards, and then fill
 	  in the port address below.
 
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
+	  Note: this driver hasn't been tested since a long time due to lack
+	  of hardware. If you have this hardware, then please contact the
+	  linux-media mailinglist.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-zoltrix.

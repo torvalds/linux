@@ -56,6 +56,12 @@ static unsigned int read_xapic_id(void)
 	return get_apic_id(apic_read(APIC_ID));
 }
 
+static int numachip_apic_id_valid(int apicid)
+{
+	/* Trust what bootloader passes in MADT */
+	return 1;
+}
+
 static int numachip_apic_id_registered(void)
 {
 	return physid_isset(read_xapic_id(), phys_cpu_present_map);
@@ -238,6 +244,7 @@ static struct apic apic_numachip __refconst = {
 	.name				= "NumaConnect system",
 	.probe				= numachip_probe,
 	.acpi_madt_oem_check		= numachip_acpi_madt_oem_check,
+	.apic_id_valid			= numachip_apic_id_valid,
 	.apic_id_registered		= numachip_apic_id_registered,
 
 	.irq_delivery_mode		= dest_Fixed,

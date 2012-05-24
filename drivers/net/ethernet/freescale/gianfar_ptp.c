@@ -564,6 +564,6 @@ static struct platform_driver gianfar_ptp_driver = {
 
 module_platform_driver(gianfar_ptp_driver);
 
-MODULE_AUTHOR("Richard Cochran <richard.cochran@omicron.at>");
+MODULE_AUTHOR("Richard Cochran <richardcochran@gmail.com>");
 MODULE_DESCRIPTION("PTP clock using the eTSEC");
 MODULE_LICENSE("GPL");

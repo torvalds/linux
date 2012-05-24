@@ -43,7 +43,6 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 
@@ -235,6 +234,7 @@ static void ep_reset(struct goku_udc_regs __iomem *regs, struct goku_ep *ep)
 
 	ep->ep.maxpacket = MAX_FIFO_SIZE;
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	ep->stopped = 1;
 	ep->irqs = 0;
 	ep->dma = 0;
@@ -310,12 +310,9 @@ done(struct goku_ep *ep, struct goku_request *req, int status)
 		status = req->req.status;
 
 	dev = ep->dev;
-	if (req->mapped) {
-		pci_unmap_single(dev->pdev, req->req.dma, req->req.length,
-			ep->is_in ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
-		req->req.dma = DMA_ADDR_INVALID;
-		req->mapped = 0;
-	}
+
+	if (ep->dma)
+		usb_gadget_unmap_request(&dev->gadget, &req->req, ep->is_in);
 
 #ifndef USB_TRACE
 	if (status && status != -ESHUTDOWN)
@@ -736,10 +733,11 @@ goku_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		return -EBUSY;
 
 	/* set up dma mapping in case the caller didn't */
-	if (ep->dma && _req->dma == DMA_ADDR_INVALID) {
-		_req->dma = pci_map_single(dev->pdev, _req->buf, _req->length,
-			ep->is_in ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
-		req->mapped = 1;
+	if (ep->dma) {
+		status = usb_gadget_map_request(&dev->gadget, &req->req,
+				ep->is_in);
+		if (status)
+			return status;
 	}
 
 #ifdef USB_TRACE

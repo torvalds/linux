@@ -395,7 +395,7 @@ DataAccess:
 	bl	hash_page
 1:	lwz	r5,_DSISR(r11)		/* get DSISR value */
 	mfspr	r4,SPRN_DAR
-	EXC_XFER_EE_LITE(0x300, handle_page_fault)
+	EXC_XFER_LITE(0x300, handle_page_fault)
 
 
 /* Instruction access exception. */
@@ -410,7 +410,7 @@ InstructionAccess:
 	bl	hash_page
 1:	mr	r4,r12
 	mr	r5,r9
-	EXC_XFER_EE_LITE(0x400, handle_page_fault)
+	EXC_XFER_LITE(0x400, handle_page_fault)
 
 /* External interrupt */
 	EXCEPTION(0x500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)

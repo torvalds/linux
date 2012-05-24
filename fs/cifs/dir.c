@@ -171,7 +171,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, umode_t mode,
 	}
 	tcon = tlink_tcon(tlink);
 
-	if (enable_oplocks)
+	if (tcon->ses->server->oplocks)
 		oplock = REQ_OPLOCK;
 
 	if (nd)
@@ -492,7 +492,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 {
 	int xid;
 	int rc = 0; /* to get around spurious gcc warning, set to zero here */
-	__u32 oplock = enable_oplocks ? REQ_OPLOCK : 0;
+	__u32 oplock;
 	__u16 fileHandle = 0;
 	bool posix_open = false;
 	struct cifs_sb_info *cifs_sb;
@@ -517,6 +517,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		return (struct dentry *)tlink;
 	}
 	pTcon = tlink_tcon(tlink);
+
+	oplock = pTcon->ses->server->oplocks ? REQ_OPLOCK : 0;
 
 	/*
 	 * Don't allow the separator character in a path component.
@@ -584,10 +586,26 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 			 * If either that or op not supported returned, follow
 			 * the normal lookup.
 			 */
-			if ((rc == 0) || (rc == -ENOENT))
+			switch (rc) {
+			case 0:
+				/*
+				 * The server may allow us to open things like
+				 * FIFOs, but the client isn't set up to deal
+				 * with that. If it's not a regular file, just
+				 * close it and proceed as if it were a normal
+				 * lookup.
+				 */
+				if (newInode && !S_ISREG(newInode->i_mode)) {
+					CIFSSMBClose(xid, pTcon, fileHandle);
+					break;
+				}
+			case -ENOENT:
 				posix_open = true;
-			else if ((rc == -EINVAL) || (rc != -EOPNOTSUPP))
+			case -EOPNOTSUPP:
+				break;
+			default:
 				pTcon->broken_posix_open = true;
+			}
 		}
 		if (!posix_open)
 			rc = cifs_get_inode_info_unix(&newInode, full_path,

@@ -63,7 +63,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/system.h>
 
 #define PCMCIA
 #include "ibmtr.c"

@@ -22,6 +22,14 @@ struct exynos_plane {
 	bool				enabled;
 };
 
+static const uint32_t formats[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV12M,
+	DRM_FORMAT_NV12MT,
+};
+
 static int
 exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		     struct drm_framebuffer *fb, int crtc_x, int crtc_y,
@@ -115,9 +123,9 @@ int exynos_plane_init(struct drm_device *dev, unsigned int nr)
 
 	exynos_plane->overlay.zpos = DEFAULT_ZPOS;
 
-	/* TODO: format */
 	return drm_plane_init(dev, &exynos_plane->base, possible_crtcs,
-			      &exynos_plane_funcs, NULL, 0, false);
+			      &exynos_plane_funcs, formats, ARRAY_SIZE(formats),
+			      false);
 }
 
 int exynos_plane_set_zpos_ioctl(struct drm_device *dev, void *data,

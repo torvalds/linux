@@ -30,6 +30,7 @@
 #include <asm/fixed_code.h>
 #include <asm/early_printk.h>
 #include <asm/irq_handler.h>
+#include <asm/pda.h>
 
 u16 _bfin_swrst;
 EXPORT_SYMBOL(_bfin_swrst);
@@ -549,6 +550,7 @@ static __init void memory_setup(void)
 {
 #ifdef CONFIG_MTD_UCLINUX
 	unsigned long mtd_phys = 0;
+	unsigned long n;
 #endif
 	unsigned long max_mem;
 
@@ -592,9 +594,9 @@ static __init void memory_setup(void)
 	mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 8)));
 
 # if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
-	if (*((unsigned short *)(mtd_phys + 0x438)) == EXT2_SUPER_MAGIC)
-		mtd_size =
-		    PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x404)) << 10);
+	n = ext2_image_size((void *)(mtd_phys + 0x400));
+	if (n)
+		mtd_size = PAGE_ALIGN(n * 1024);
 # endif
 
 # if defined(CONFIG_CRAMFS)

@@ -20,6 +20,8 @@ struct seq_file;
 /**
  * struct pinconf_ops - pin config operations, to be implemented by
  * pin configuration capable drivers.
+ * @is_generic: for pin controllers that want to use the generic interface,
+ *	this flag tells the framework that it's generic.
  * @pin_config_get: get the config of a certain pin, if the requested config
  *	is not available on this controller this should return -ENOTSUPP
  *	and if it is available but disabled it should return -EINVAL
@@ -33,6 +35,9 @@ struct seq_file;
  *	per-device info for a certain group in debugfs
  */
 struct pinconf_ops {
+#ifdef CONFIG_GENERIC_PINCONF
+	bool is_generic;
+#endif
 	int (*pin_config_get) (struct pinctrl_dev *pctldev,
 			       unsigned pin,
 			       unsigned long *config);
@@ -52,45 +57,6 @@ struct pinconf_ops {
 					   struct seq_file *s,
 					   unsigned selector);
 };
-
-extern int pin_config_get(const char *dev_name, const char *name,
-			  unsigned long *config);
-extern int pin_config_set(const char *dev_name, const char *name,
-			  unsigned long config);
-extern int pin_config_group_get(const char *dev_name,
-				const char *pin_group,
-				unsigned long *config);
-extern int pin_config_group_set(const char *dev_name,
-				const char *pin_group,
-				unsigned long config);
-
-#else
-
-static inline int pin_config_get(const char *dev_name, const char *name,
-				 unsigned long *config)
-{
-	return 0;
-}
-
-static inline int pin_config_set(const char *dev_name, const char *name,
-				 unsigned long config)
-{
-	return 0;
-}
-
-static inline int pin_config_group_get(const char *dev_name,
-				       const char *pin_group,
-				       unsigned long *config)
-{
-	return 0;
-}
-
-static inline int pin_config_group_set(const char *dev_name,
-				       const char *pin_group,
-				       unsigned long config)
-{
-	return 0;
-}
 
 #endif
 

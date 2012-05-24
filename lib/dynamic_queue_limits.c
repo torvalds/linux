@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/ctype.h>
 #include <linux/kernel.h>
+#include <linux/jiffies.h>
 #include <linux/dynamic_queue_limits.h>
 
 #define POSDIFF(A, B) ((A) > (B) ? (A) - (B) : 0)

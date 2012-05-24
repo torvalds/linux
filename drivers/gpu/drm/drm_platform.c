@@ -122,7 +122,7 @@ static const char *drm_platform_get_name(struct drm_device *dev)
 
 static int drm_platform_set_busid(struct drm_device *dev, struct drm_master *master)
 {
-	int len, ret;
+	int len, ret, id;
 
 	master->unique_len = 13 + strlen(dev->platformdev->name);
 	master->unique_size = master->unique_len;
@@ -131,8 +131,16 @@ static int drm_platform_set_busid(struct drm_device *dev, struct drm_master *mas
 	if (master->unique == NULL)
 		return -ENOMEM;
 
+	id = dev->platformdev->id;
+
+	/* if only a single instance of the platform device, id will be
+	 * set to -1.. use 0 instead to avoid a funny looking bus-id:
+	 */
+	if (id == -1)
+		id = 0;
+
 	len = snprintf(master->unique, master->unique_len,
-			"platform:%s:%02d", dev->platformdev->name, dev->platformdev->id);
+			"platform:%s:%02d", dev->platformdev->name, id);
 
 	if (len > master->unique_len) {
 		DRM_ERROR("Unique buffer overflowed\n");

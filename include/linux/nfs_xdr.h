@@ -2,7 +2,6 @@
 #define _LINUX_NFS_XDR_H
 
 #include <linux/nfsacl.h>
-#include <linux/nfs3.h>
 #include <linux/sunrpc/gss_api.h>
 
 /*
@@ -89,11 +88,12 @@ struct nfs_fattr {
 #define NFS_ATTR_FATTR_PRECTIME		(1U << 16)
 #define NFS_ATTR_FATTR_CHANGE		(1U << 17)
 #define NFS_ATTR_FATTR_PRECHANGE	(1U << 18)
-#define NFS_ATTR_FATTR_V4_REFERRAL	(1U << 19)	/* NFSv4 referral */
-#define NFS_ATTR_FATTR_MOUNTPOINT	(1U << 20)	/* Treat as mountpoint */
-#define NFS_ATTR_FATTR_MOUNTED_ON_FILEID		(1U << 21)
-#define NFS_ATTR_FATTR_OWNER_NAME	(1U << 22)
-#define NFS_ATTR_FATTR_GROUP_NAME	(1U << 23)
+#define NFS_ATTR_FATTR_V4_LOCATIONS	(1U << 19)
+#define NFS_ATTR_FATTR_V4_REFERRAL	(1U << 20)
+#define NFS_ATTR_FATTR_MOUNTPOINT	(1U << 21)
+#define NFS_ATTR_FATTR_MOUNTED_ON_FILEID (1U << 22)
+#define NFS_ATTR_FATTR_OWNER_NAME	(1U << 23)
+#define NFS_ATTR_FATTR_GROUP_NAME	(1U << 24)
 
 #define NFS_ATTR_FATTR (NFS_ATTR_FATTR_TYPE \
 		| NFS_ATTR_FATTR_MODE \
@@ -182,7 +182,7 @@ struct nfs4_slot {
 
 struct nfs4_sequence_args {
 	struct nfs4_session	*sa_session;
-	u8			sa_slotid;
+	u32			sa_slotid;
 	u8			sa_cache_this;
 };
 
@@ -977,6 +977,7 @@ struct nfs4_server_caps_res {
 	u32				acl_bitmask;
 	u32				has_links;
 	u32				has_symlinks;
+	u32				fh_expire_type;
 	struct nfs4_sequence_res	seq_res;
 };
 
@@ -1055,14 +1056,6 @@ struct nfstime4 {
 };
 
 #ifdef CONFIG_NFS_V4_1
-struct nfs_impl_id4 {
-	u32		domain_len;
-	char		*domain;
-	u32		name_len;
-	char		*name;
-	struct nfstime4	date;
-};
-
 #define NFS4_EXCHANGE_ID_LEN	(48)
 struct nfs41_exchange_id_args {
 	struct nfs_client		*client;
@@ -1083,10 +1076,17 @@ struct server_scope {
 	char 				server_scope[NFS4_OPAQUE_LIMIT];
 };
 
+struct nfs41_impl_id {
+	char				domain[NFS4_OPAQUE_LIMIT + 1];
+	char				name[NFS4_OPAQUE_LIMIT + 1];
+	struct nfstime4			date;
+};
+
 struct nfs41_exchange_id_res {
 	struct nfs_client		*client;
 	u32				flags;
 	struct server_scope		*server_scope;
+	struct nfs41_impl_id		*impl_id;
 };
 
 struct nfs41_create_session_args {
@@ -1192,6 +1192,27 @@ struct nfs_write_data {
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 
+struct nfs_unlinkdata {
+	struct hlist_node list;
+	struct nfs_removeargs args;
+	struct nfs_removeres res;
+	struct inode *dir;
+	struct rpc_cred	*cred;
+	struct nfs_fattr dir_attr;
+};
+
+struct nfs_renamedata {
+	struct nfs_renameargs	args;
+	struct nfs_renameres	res;
+	struct rpc_cred		*cred;
+	struct inode		*old_dir;
+	struct dentry		*old_dentry;
+	struct nfs_fattr	old_fattr;
+	struct inode		*new_dir;
+	struct dentry		*new_dentry;
+	struct nfs_fattr	new_fattr;
+};
+
 struct nfs_access_entry;
 struct nfs_client;
 struct rpc_timeout;
@@ -1221,10 +1242,12 @@ struct nfs_rpc_ops {
 			    struct iattr *, int, struct nfs_open_context *);
 	int	(*remove)  (struct inode *, struct qstr *);
 	void	(*unlink_setup)  (struct rpc_message *, struct inode *dir);
+	void	(*unlink_rpc_prepare) (struct rpc_task *, struct nfs_unlinkdata *);
 	int	(*unlink_done) (struct rpc_task *, struct inode *);
 	int	(*rename)  (struct inode *, struct qstr *,
 			    struct inode *, struct qstr *);
 	void	(*rename_setup)  (struct rpc_message *msg, struct inode *dir);
+	void	(*rename_rpc_prepare)(struct rpc_task *task, struct nfs_renamedata *);
 	int	(*rename_done) (struct rpc_task *task, struct inode *old_dir, struct inode *new_dir);
 	int	(*link)    (struct inode *, struct inode *, struct qstr *);
 	int	(*symlink) (struct inode *, struct dentry *, struct page *,
@@ -1244,8 +1267,10 @@ struct nfs_rpc_ops {
 	int	(*set_capabilities)(struct nfs_server *, struct nfs_fh *);
 	int	(*decode_dirent)(struct xdr_stream *, struct nfs_entry *, int);
 	void	(*read_setup)   (struct nfs_read_data *, struct rpc_message *);
+	void	(*read_rpc_prepare)(struct rpc_task *, struct nfs_read_data *);
 	int	(*read_done)  (struct rpc_task *, struct nfs_read_data *);
 	void	(*write_setup)  (struct nfs_write_data *, struct rpc_message *);
+	void	(*write_rpc_prepare)(struct rpc_task *, struct nfs_write_data *);
 	int	(*write_done)  (struct rpc_task *, struct nfs_write_data *);
 	void	(*commit_setup) (struct nfs_write_data *, struct rpc_message *);
 	int	(*commit_done) (struct rpc_task *, struct nfs_write_data *);
@@ -1275,11 +1300,11 @@ struct nfs_rpc_ops {
 extern const struct nfs_rpc_ops	nfs_v2_clientops;
 extern const struct nfs_rpc_ops	nfs_v3_clientops;
 extern const struct nfs_rpc_ops	nfs_v4_clientops;
-extern struct rpc_version	nfs_version2;
-extern struct rpc_version	nfs_version3;
-extern struct rpc_version	nfs_version4;
+extern const struct rpc_version nfs_version2;
+extern const struct rpc_version nfs_version3;
+extern const struct rpc_version nfs_version4;
 
-extern struct rpc_version	nfsacl_version3;
-extern struct rpc_program	nfsacl_program;
+extern const struct rpc_version nfsacl_version3;
+extern const struct rpc_program nfsacl_program;
 
 #endif

@@ -34,6 +34,8 @@ struct ite_config {
 	u8 tuner_id_1;
 	u8 dual_mode;
 	u8 adf;
+	/* option to read SIGNAL_LEVEL */
+	u8 read_slevel;
 };
 
 #if defined(CONFIG_DVB_IT913X_FE) || (defined(CONFIG_DVB_IT913X_FE_MODULE) && \
@@ -168,6 +170,8 @@ static inline struct dvb_frontend *it913x_fe_attach(
 #define EST_SIGNAL_LEVEL	0x004a
 #define FREE_BAND		0x004b
 #define SUSPEND_FLAG		0x004c
+#define VAR_P_INBAND		0x00f7
+
 /* Build in tuner types */
 #define IT9137 0x38
 #define IT9135_38 0x38

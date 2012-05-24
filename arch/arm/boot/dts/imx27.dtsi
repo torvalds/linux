@@ -1,0 +1,217 @@
+/*
+ * Copyright 2012 Sascha Hauer, Pengutronix
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
+		serial5 = &uart6;
+	};
+
+	avic: avic-interrupt-controller@e0000000 {
+		compatible = "fsl,imx27-avic", "fsl,avic";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0x10040000 0x1000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		osc26m {
+			compatible = "fsl,imx-osc26m", "fixed-clock";
+			clock-frequency = <26000000>;
+		};
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&avic>;
+		ranges;
+
+		aipi@10000000 { /* AIPI1 */
+			compatible = "fsl,aipi-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x10000000 0x10000000>;
+			ranges;
+
+			wdog@10002000 {
+				compatible = "fsl,imx27-wdt", "fsl,imx21-wdt";
+				reg = <0x10002000 0x4000>;
+				interrupts = <27>;
+				status = "disabled";
+			};
+
+			uart1: uart@1000a000 {
+				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+				reg = <0x1000a000 0x1000>;
+				interrupts = <20>;
+				status = "disabled";
+			};
+
+			uart2: uart@1000b000 {
+				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+				reg = <0x1000b000 0x1000>;
+				interrupts = <19>;
+				status = "disabled";
+			};
+
+			uart3: uart@1000c000 {
+				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+				reg = <0x1000c000 0x1000>;
+				interrupts = <18>;
+				status = "disabled";
+			};
+
+			uart4: uart@1000d000 {
+				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+				reg = <0x1000d000 0x1000>;
+				interrupts = <17>;
+				status = "disabled";
+			};
+
+			cspi1: cspi@1000e000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx27-cspi";
+				reg = <0x1000e000 0x1000>;
+				interrupts = <16>;
+				status = "disabled";
+			};
+
+			cspi2: cspi@1000f000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx27-cspi";
+				reg = <0x1000f000 0x1000>;
+				interrupts = <15>;
+				status = "disabled";
+			};
+
+			i2c1: i2c@10012000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx27-i2c", "fsl,imx1-i2c";
+				reg = <0x10012000 0x1000>;
+				interrupts = <12>;
+				status = "disabled";
+			};
+
+			gpio1: gpio@10015000 {
+				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+				reg = <0x10015000 0x100>;
+				interrupts = <8>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+			};
+
+			gpio2: gpio@10015100 {
+				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+				reg = <0x10015100 0x100>;
+				interrupts = <8>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+			};
+
+			gpio3: gpio@10015200 {
+				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+				reg = <0x10015200 0x100>;
+				interrupts = <8>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+			};
+
+			gpio4: gpio@10015300 {
+				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+				reg = <0x10015300 0x100>;
+				interrupts = <8>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+			};
+
+			gpio5: gpio@10015400 {
+				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+				reg = <0x10015400 0x100>;
+				interrupts = <8>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+			};
+
+			gpio6: gpio@10015500 {
+				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+				reg = <0x10015500 0x100>;
+				interrupts = <8>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+			};
+
+			cspi3: cspi@10017000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx27-cspi";
+				reg = <0x10017000 0x1000>;
+				interrupts = <6>;
+				status = "disabled";
+			};
+
+			uart5: uart@1001b000 {
+				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+				reg = <0x1001b000 0x1000>;
+				interrupts = <49>;
+				status = "disabled";
+			};
+
+			uart6: uart@1001c000 {
+				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+				reg = <0x1001c000 0x1000>;
+				interrupts = <48>;
+				status = "disabled";
+			};
+
+			i2c2: i2c@1001d000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx27-i2c", "fsl,imx1-i2c";
+				reg = <0x1001d000 0x1000>;
+				interrupts = <1>;
+				status = "disabled";
+			};
+
+			fec: fec@1002b000 {
+				compatible = "fsl,imx27-fec";
+				reg = <0x1002b000 0x4000>;
+				interrupts = <50>;
+				status = "disabled";
+			};
+		};
+	};
+};

@@ -24,16 +24,6 @@ config HVC_OLD_HVSI
 	depends on HVC_CONSOLE
 	default n
 
-config HVC_ISERIES
-	bool "iSeries Hypervisor Virtual Console support"
-	depends on PPC_ISERIES
-	default y
-	select HVC_DRIVER
-	select HVC_IRQ
-	select VIOPATH
-	help
-	  iSeries machines support a hypervisor virtual console.
-
 config HVC_OPAL
 	bool "OPAL Console support"
 	depends on PPC_POWERNV
@@ -76,11 +66,23 @@ config HVC_XEN
 	help
 	  Xen virtual console device driver
 
+config HVC_XEN_FRONTEND
+	bool "Xen Hypervisor Multiple Consoles support"
+	depends on HVC_XEN
+	select XEN_XENBUS_FRONTEND
+	default y
+	help
+	  Xen driver for secondary virtual consoles
+
 config HVC_UDBG
        bool "udbg based fake hypervisor console"
        depends on PPC && EXPERIMENTAL
        select HVC_DRIVER
        default n
+       help
+         This is meant to be used during HW bring up or debugging when
+	 no other console mechanism exist but udbg, to get you a quick
+	 console for userspace. Do NOT enable in production kernels. 
 
 config HVC_DCC
        bool "ARM JTAG DCC console"

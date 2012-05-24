@@ -326,11 +326,11 @@
 
 #define PCI_FORCEHT(sih) (PCIE(sih) && (ai_get_chip_id(sih) == BCM4716_CHIP_ID))
 
-#ifdef BCMDBG
+#ifdef DEBUG
 #define	SI_MSG(fmt, ...)	pr_debug(fmt, ##__VA_ARGS__)
 #else
 #define	SI_MSG(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 #define	GOODCOREADDR(x, b) \
 	(((x) >= (b)) && ((x) < ((b) + SI_MAXCORES * SI_CORE_SIZE)) && \

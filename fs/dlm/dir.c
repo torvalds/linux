@@ -351,11 +351,28 @@ int dlm_dir_lookup(struct dlm_ls *ls, int nodeid, char *name, int namelen,
 static struct dlm_rsb *find_rsb_root(struct dlm_ls *ls, char *name, int len)
 {
 	struct dlm_rsb *r;
+	uint32_t hash, bucket;
+	int rv;
+
+	hash = jhash(name, len, 0);
+	bucket = hash & (ls->ls_rsbtbl_size - 1);
+
+	spin_lock(&ls->ls_rsbtbl[bucket].lock);
+	rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[bucket].keep, name, len, 0, &r);
+	if (rv)
+		rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[bucket].toss,
+					 name, len, 0, &r);
+	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
+
+	if (!rv)
+		return r;
 
 	down_read(&ls->ls_root_sem);
 	list_for_each_entry(r, &ls->ls_root_list, res_root_list) {
 		if (len == r->res_length && !memcmp(name, r->res_name, len)) {
 			up_read(&ls->ls_root_sem);
+			log_error(ls, "find_rsb_root revert to root_list %s",
+				  r->res_name);
 			return r;
 		}
 	}

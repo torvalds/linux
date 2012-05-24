@@ -900,7 +900,7 @@ int ivtv_v4l2_close(struct file *filp)
 	if (s->type >= IVTV_DEC_STREAM_TYPE_MPG) {
 		struct ivtv_stream *s_vout = &itv->streams[IVTV_DEC_STREAM_TYPE_VOUT];
 
-		ivtv_stop_decoding(id, VIDEO_CMD_STOP_TO_BLACK | VIDEO_CMD_STOP_IMMEDIATELY, 0);
+		ivtv_stop_decoding(id, V4L2_DEC_CMD_STOP_TO_BLACK | V4L2_DEC_CMD_STOP_IMMEDIATELY, 0);
 
 		/* If all output streams are closed, and if the user doesn't have
 		   IVTV_DEC_STREAM_TYPE_VOUT open, then disable CC on TV-out. */

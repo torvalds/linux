@@ -1369,7 +1369,13 @@ qlcnic_handle_linkevent(struct qlcnic_adapter *adapter,
 
 	adapter->module_type = module;
 	adapter->link_autoneg = autoneg;
-	adapter->link_speed = link_speed;
+
+	if (link_status) {
+		adapter->link_speed = link_speed;
+	} else {
+		adapter->link_speed = SPEED_UNKNOWN;
+		adapter->link_duplex = DUPLEX_UNKNOWN;
+	}
 }
 
 static void
@@ -1434,7 +1440,7 @@ qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 	dma_addr_t dma;
 	struct pci_dev *pdev = adapter->pdev;
 
-	skb = dev_alloc_skb(rds_ring->skb_size);
+	skb = netdev_alloc_skb(adapter->netdev, rds_ring->skb_size);
 	if (!skb) {
 		adapter->stats.skb_alloc_failure++;
 		return -ENOMEM;

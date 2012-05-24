@@ -80,14 +80,9 @@ static struct nand_ecclayout docg3_oobinfo = {
 	.oobavail = 8,
 };
 
-/**
- * struct docg3_bch - BCH engine
- */
-static struct bch_control *docg3_bch;
-
 static inline u8 doc_readb(struct docg3 *docg3, u16 reg)
 {
-	u8 val = readb(docg3->base + reg);
+	u8 val = readb(docg3->cascade->base + reg);
 
 	trace_docg3_io(0, 8, reg, (int)val);
 	return val;
@@ -95,7 +90,7 @@ static inline u8 doc_readb(struct docg3 *docg3, u16 reg)
 
 static inline u16 doc_readw(struct docg3 *docg3, u16 reg)
 {
-	u16 val = readw(docg3->base + reg);
+	u16 val = readw(docg3->cascade->base + reg);
 
 	trace_docg3_io(0, 16, reg, (int)val);
 	return val;
@@ -103,13 +98,13 @@ static inline u16 doc_readw(struct docg3 *docg3, u16 reg)
 
 static inline void doc_writeb(struct docg3 *docg3, u8 val, u16 reg)
 {
-	writeb(val, docg3->base + reg);
+	writeb(val, docg3->cascade->base + reg);
 	trace_docg3_io(1, 8, reg, val);
 }
 
 static inline void doc_writew(struct docg3 *docg3, u16 val, u16 reg)
 {
-	writew(val, docg3->base + reg);
+	writew(val, docg3->cascade->base + reg);
 	trace_docg3_io(1, 16, reg, val);
 }
 
@@ -643,7 +638,8 @@ static int doc_ecc_bch_fix_data(struct docg3 *docg3, void *buf, u8 *hwecc)
 
 	for (i = 0; i < DOC_ECC_BCH_SIZE; i++)
 		ecc[i] = bitrev8(hwecc[i]);
-	numerrs = decode_bch(docg3_bch, NULL, DOC_ECC_BCH_COVERED_BYTES,
+	numerrs = decode_bch(docg3->cascade->bch, NULL,
+			     DOC_ECC_BCH_COVERED_BYTES,
 			     NULL, ecc, NULL, errorpos);
 	BUG_ON(numerrs == -EINVAL);
 	if (numerrs < 0)
@@ -734,7 +730,7 @@ err:
  * doc_read_page_getbytes - Reads bytes from a prepared page
  * @docg3: the device
  * @len: the number of bytes to be read (must be a multiple of 4)
- * @buf: the buffer to be filled in
+ * @buf: the buffer to be filled in (or NULL is forget bytes)
  * @first: 1 if first time read, DOC_READADDRESS should be set
  *
  */
@@ -849,7 +845,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 			struct mtd_oob_ops *ops)
 {
 	struct docg3 *docg3 = mtd->priv;
-	int block0, block1, page, ret, ofs = 0;
+	int block0, block1, page, ret, skip, ofs = 0;
 	u8 *oobbuf = ops->oobbuf;
 	u8 *buf = ops->datbuf;
 	size_t len, ooblen, nbdata, nboob;
@@ -869,34 +865,36 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 
 	doc_dbg("doc_read_oob(from=%lld, mode=%d, data=(%p:%zu), oob=(%p:%zu))\n",
 		from, ops->mode, buf, len, oobbuf, ooblen);
-	if ((len % DOC_LAYOUT_PAGE_SIZE) || (ooblen % DOC_LAYOUT_OOB_SIZE) ||
-	    (from % DOC_LAYOUT_PAGE_SIZE))
+	if (ooblen % DOC_LAYOUT_OOB_SIZE)
 		return -EINVAL;
 
-	ret = -EINVAL;
-	calc_block_sector(from + len, &block0, &block1, &page, &ofs,
-			  docg3->reliable);
-	if (block1 > docg3->max_block)
-		goto err;
+	if (from + len > mtd->size)
+		return -EINVAL;
 
 	ops->oobretlen = 0;
 	ops->retlen = 0;
 	ret = 0;
+	skip = from % DOC_LAYOUT_PAGE_SIZE;
+	mutex_lock(&docg3->cascade->lock);
 	while (!ret && (len > 0 || ooblen > 0)) {
-		calc_block_sector(from, &block0, &block1, &page, &ofs,
+		calc_block_sector(from - skip, &block0, &block1, &page, &ofs,
 			docg3->reliable);
-		nbdata = min_t(size_t, len, (size_t)DOC_LAYOUT_PAGE_SIZE);
+		nbdata = min_t(size_t, len, DOC_LAYOUT_PAGE_SIZE - skip);
 		nboob = min_t(size_t, ooblen, (size_t)DOC_LAYOUT_OOB_SIZE);
 		ret = doc_read_page_prepare(docg3, block0, block1, page, ofs);
 		if (ret < 0)
-			goto err;
+			goto out;
 		ret = doc_read_page_ecc_init(docg3, DOC_ECC_BCH_TOTAL_BYTES);
 		if (ret < 0)
 			goto err_in_read;
-		ret = doc_read_page_getbytes(docg3, nbdata, buf, 1);
+		ret = doc_read_page_getbytes(docg3, skip, NULL, 1);
+		if (ret < skip)
+			goto err_in_read;
+		ret = doc_read_page_getbytes(docg3, nbdata, buf, 0);
 		if (ret < nbdata)
 			goto err_in_read;
-		doc_read_page_getbytes(docg3, DOC_LAYOUT_PAGE_SIZE - nbdata,
+		doc_read_page_getbytes(docg3,
+				       DOC_LAYOUT_PAGE_SIZE - nbdata - skip,
 				       NULL, 0);
 		ret = doc_read_page_getbytes(docg3, nboob, oobbuf, 0);
 		if (ret < nboob)
@@ -950,13 +948,15 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 		len -= nbdata;
 		ooblen -= nboob;
 		from += DOC_LAYOUT_PAGE_SIZE;
+		skip = 0;
 	}
 
+out:
+	mutex_unlock(&docg3->cascade->lock);
 	return ret;
 err_in_read:
 	doc_read_page_finish(docg3);
-err:
-	return ret;
+	goto out;
 }
 
 /**
@@ -1114,10 +1114,10 @@ static int doc_get_op_status(struct docg3 *docg3)
  */
 static int doc_write_erase_wait_status(struct docg3 *docg3)
 {
-	int status, ret = 0;
+	int i, status, ret = 0;
 
-	if (!doc_is_ready(docg3))
-		usleep_range(3000, 3000);
+	for (i = 0; !doc_is_ready(docg3) && i < 5; i++)
+		msleep(20);
 	if (!doc_is_ready(docg3)) {
 		doc_dbg("Timeout reached and the chip is still not ready\n");
 		ret = -EAGAIN;
@@ -1196,18 +1196,19 @@ static int doc_erase(struct mtd_info *mtd, struct erase_info *info)
 	int block0, block1, page, ret, ofs = 0;
 
 	doc_dbg("doc_erase(from=%lld, len=%lld\n", info->addr, info->len);
-	doc_set_device_id(docg3, docg3->device_id);
 
 	info->state = MTD_ERASE_PENDING;
 	calc_block_sector(info->addr + info->len, &block0, &block1, &page,
 			  &ofs, docg3->reliable);
 	ret = -EINVAL;
-	if (block1 > docg3->max_block || page || ofs)
+	if (info->addr + info->len > mtd->size || page || ofs)
 		goto reset_err;
 
 	ret = 0;
 	calc_block_sector(info->addr, &block0, &block1, &page, &ofs,
 			  docg3->reliable);
+	mutex_lock(&docg3->cascade->lock);
+	doc_set_device_id(docg3, docg3->device_id);
 	doc_set_reliable_mode(docg3);
 	for (len = info->len; !ret && len > 0; len -= mtd->erasesize) {
 		info->state = MTD_ERASING;
@@ -1215,6 +1216,7 @@ static int doc_erase(struct mtd_info *mtd, struct erase_info *info)
 		block0 += 2;
 		block1 += 2;
 	}
+	mutex_unlock(&docg3->cascade->lock);
 
 	if (ret)
 		goto reset_err;
@@ -1401,7 +1403,7 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 			 struct mtd_oob_ops *ops)
 {
 	struct docg3 *docg3 = mtd->priv;
-	int block0, block1, page, ret, pofs = 0, autoecc, oobdelta;
+	int ret, autoecc, oobdelta;
 	u8 *oobbuf = ops->oobbuf;
 	u8 *buf = ops->datbuf;
 	size_t len, ooblen;
@@ -1438,12 +1440,8 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 	if (len && ooblen &&
 	    (len / DOC_LAYOUT_PAGE_SIZE) != (ooblen / oobdelta))
 		return -EINVAL;
-
-	ret = -EINVAL;
-	calc_block_sector(ofs + len, &block0, &block1, &page, &pofs,
-			  docg3->reliable);
-	if (block1 > docg3->max_block)
-		goto err;
+	if (ofs + len > mtd->size)
+		return -EINVAL;
 
 	ops->oobretlen = 0;
 	ops->retlen = 0;
@@ -1457,6 +1455,7 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 	if (autoecc < 0)
 		return autoecc;
 
+	mutex_lock(&docg3->cascade->lock);
 	while (!ret && len > 0) {
 		memset(oob, 0, sizeof(oob));
 		if (ofs == docg3->oob_write_ofs)
@@ -1477,8 +1476,9 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 		}
 		ops->retlen += DOC_LAYOUT_PAGE_SIZE;
 	}
-err:
+
 	doc_set_device_id(docg3, 0);
+	mutex_unlock(&docg3->cascade->lock);
 	return ret;
 }
 
@@ -1535,9 +1535,11 @@ static ssize_t dps0_is_key_locked(struct device *dev,
 	struct docg3 *docg3 = sysfs_dev2docg3(dev, attr);
 	int dps0;
 
+	mutex_lock(&docg3->cascade->lock);
 	doc_set_device_id(docg3, docg3->device_id);
 	dps0 = doc_register_readb(docg3, DOC_DPS0_STATUS);
 	doc_set_device_id(docg3, 0);
+	mutex_unlock(&docg3->cascade->lock);
 
 	return sprintf(buf, "%d\n", !(dps0 & DOC_DPS_KEY_OK));
 }
@@ -1548,9 +1550,11 @@ static ssize_t dps1_is_key_locked(struct device *dev,
 	struct docg3 *docg3 = sysfs_dev2docg3(dev, attr);
 	int dps1;
 
+	mutex_lock(&docg3->cascade->lock);
 	doc_set_device_id(docg3, docg3->device_id);
 	dps1 = doc_register_readb(docg3, DOC_DPS1_STATUS);
 	doc_set_device_id(docg3, 0);
+	mutex_unlock(&docg3->cascade->lock);
 
 	return sprintf(buf, "%d\n", !(dps1 & DOC_DPS_KEY_OK));
 }
@@ -1565,10 +1569,12 @@ static ssize_t dps0_insert_key(struct device *dev,
 	if (count != DOC_LAYOUT_DPS_KEY_LENGTH)
 		return -EINVAL;
 
+	mutex_lock(&docg3->cascade->lock);
 	doc_set_device_id(docg3, docg3->device_id);
 	for (i = 0; i < DOC_LAYOUT_DPS_KEY_LENGTH; i++)
 		doc_writeb(docg3, buf[i], DOC_DPS0_KEY);
 	doc_set_device_id(docg3, 0);
+	mutex_unlock(&docg3->cascade->lock);
 	return count;
 }
 
@@ -1582,10 +1588,12 @@ static ssize_t dps1_insert_key(struct device *dev,
 	if (count != DOC_LAYOUT_DPS_KEY_LENGTH)
 		return -EINVAL;
 
+	mutex_lock(&docg3->cascade->lock);
 	doc_set_device_id(docg3, docg3->device_id);
 	for (i = 0; i < DOC_LAYOUT_DPS_KEY_LENGTH; i++)
 		doc_writeb(docg3, buf[i], DOC_DPS1_KEY);
 	doc_set_device_id(docg3, 0);
+	mutex_unlock(&docg3->cascade->lock);
 	return count;
 }
 
@@ -1601,13 +1609,13 @@ static struct device_attribute doc_sys_attrs[DOC_MAX_NBFLOORS][4] = {
 };
 
 static int doc_register_sysfs(struct platform_device *pdev,
-			      struct mtd_info **floors)
+			      struct docg3_cascade *cascade)
 {
 	int ret = 0, floor, i = 0;
 	struct device *dev = &pdev->dev;
 
-	for (floor = 0; !ret && floor < DOC_MAX_NBFLOORS && floors[floor];
-	     floor++)
+	for (floor = 0; !ret && floor < DOC_MAX_NBFLOORS &&
+		     cascade->floors[floor]; floor++)
 		for (i = 0; !ret && i < 4; i++)
 			ret = device_create_file(dev, &doc_sys_attrs[floor][i]);
 	if (!ret)
@@ -1621,12 +1629,12 @@ static int doc_register_sysfs(struct platform_device *pdev,
 }
 
 static void doc_unregister_sysfs(struct platform_device *pdev,
-				 struct mtd_info **floors)
+				 struct docg3_cascade *cascade)
 {
 	struct device *dev = &pdev->dev;
 	int floor, i;
 
-	for (floor = 0; floor < DOC_MAX_NBFLOORS && floors[floor];
+	for (floor = 0; floor < DOC_MAX_NBFLOORS && cascade->floors[floor];
 	     floor++)
 		for (i = 0; i < 4; i++)
 			device_remove_file(dev, &doc_sys_attrs[floor][i]);
@@ -1640,7 +1648,11 @@ static int dbg_flashctrl_show(struct seq_file *s, void *p)
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 
 	int pos = 0;
-	u8 fctrl = doc_register_readb(docg3, DOC_FLASHCONTROL);
+	u8 fctrl;
+
+	mutex_lock(&docg3->cascade->lock);
+	fctrl = doc_register_readb(docg3, DOC_FLASHCONTROL);
+	mutex_unlock(&docg3->cascade->lock);
 
 	pos += seq_printf(s,
 		 "FlashControl : 0x%02x (%s,CE# %s,%s,%s,flash %s)\n",
@@ -1658,9 +1670,12 @@ static int dbg_asicmode_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 
-	int pos = 0;
-	int pctrl = doc_register_readb(docg3, DOC_ASICMODE);
-	int mode = pctrl & 0x03;
+	int pos = 0, pctrl, mode;
+
+	mutex_lock(&docg3->cascade->lock);
+	pctrl = doc_register_readb(docg3, DOC_ASICMODE);
+	mode = pctrl & 0x03;
+	mutex_unlock(&docg3->cascade->lock);
 
 	pos += seq_printf(s,
 			 "%04x : RAM_WE=%d,RSTIN_RESET=%d,BDETCT_RESET=%d,WRITE_ENABLE=%d,POWERDOWN=%d,MODE=%d%d (",
@@ -1692,7 +1707,11 @@ static int dbg_device_id_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 	int pos = 0;
-	int id = doc_register_readb(docg3, DOC_DEVICESELECT);
+	int id;
+
+	mutex_lock(&docg3->cascade->lock);
+	id = doc_register_readb(docg3, DOC_DEVICESELECT);
+	mutex_unlock(&docg3->cascade->lock);
 
 	pos += seq_printf(s, "DeviceId = %d\n", id);
 	return pos;
@@ -1705,6 +1724,7 @@ static int dbg_protection_show(struct seq_file *s, void *p)
 	int pos = 0;
 	int protect, dps0, dps0_low, dps0_high, dps1, dps1_low, dps1_high;
 
+	mutex_lock(&docg3->cascade->lock);
 	protect = doc_register_readb(docg3, DOC_PROTECTION);
 	dps0 = doc_register_readb(docg3, DOC_DPS0_STATUS);
 	dps0_low = doc_register_readw(docg3, DOC_DPS0_ADDRLOW);
@@ -1712,6 +1732,7 @@ static int dbg_protection_show(struct seq_file *s, void *p)
 	dps1 = doc_register_readb(docg3, DOC_DPS1_STATUS);
 	dps1_low = doc_register_readw(docg3, DOC_DPS1_ADDRLOW);
 	dps1_high = doc_register_readw(docg3, DOC_DPS1_ADDRHIGH);
+	mutex_unlock(&docg3->cascade->lock);
 
 	pos += seq_printf(s, "Protection = 0x%02x (",
 			 protect);
@@ -1804,7 +1825,7 @@ static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 
 	switch (chip_id) {
 	case DOC_CHIPID_G3:
-		mtd->name = kasprintf(GFP_KERNEL, "DiskOnChip G3 floor %d",
+		mtd->name = kasprintf(GFP_KERNEL, "docg3.%d",
 				      docg3->device_id);
 		docg3->max_block = 2047;
 		break;
@@ -1817,16 +1838,17 @@ static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 	mtd->erasesize = DOC_LAYOUT_BLOCK_SIZE * DOC_LAYOUT_NBPLANES;
 	if (docg3->reliable == 2)
 		mtd->erasesize /= 2;
-	mtd->writesize = DOC_LAYOUT_PAGE_SIZE;
+	mtd->writebufsize = mtd->writesize = DOC_LAYOUT_PAGE_SIZE;
 	mtd->oobsize = DOC_LAYOUT_OOB_SIZE;
 	mtd->owner = THIS_MODULE;
-	mtd->erase = doc_erase;
-	mtd->read = doc_read;
-	mtd->write = doc_write;
-	mtd->read_oob = doc_read_oob;
-	mtd->write_oob = doc_write_oob;
-	mtd->block_isbad = doc_block_isbad;
+	mtd->_erase = doc_erase;
+	mtd->_read = doc_read;
+	mtd->_write = doc_write;
+	mtd->_read_oob = doc_read_oob;
+	mtd->_write_oob = doc_write_oob;
+	mtd->_block_isbad = doc_block_isbad;
 	mtd->ecclayout = &docg3_oobinfo;
+	mtd->ecc_strength = DOC_ECC_BCH_T;
 }
 
 /**
@@ -1834,6 +1856,7 @@ static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
  * @base: the io space where the device is probed
  * @floor: the floor of the probed device
  * @dev: the device
+ * @cascade: the cascade of chips this devices will belong to
  *
  * Checks whether a device at the specified IO range, and floor is available.
  *
@@ -1841,8 +1864,8 @@ static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
  * if a memory allocation failed. If floor 0 is checked, a reset of the ASIC is
  * launched.
  */
-static struct mtd_info *doc_probe_device(void __iomem *base, int floor,
-					 struct device *dev)
+static struct mtd_info * __init
+doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 {
 	int ret, bbt_nbpages;
 	u16 chip_id, chip_id_inv;
@@ -1865,7 +1888,7 @@ static struct mtd_info *doc_probe_device(void __iomem *base, int floor,
 
 	docg3->dev = dev;
 	docg3->device_id = floor;
-	docg3->base = base;
+	docg3->cascade = cascade;
 	doc_set_device_id(docg3, docg3->device_id);
 	if (!floor)
 		doc_set_asic_mode(docg3, DOC_ASICMODE_RESET);
@@ -1882,7 +1905,7 @@ static struct mtd_info *doc_probe_device(void __iomem *base, int floor,
 	switch (chip_id) {
 	case DOC_CHIPID_G3:
 		doc_info("Found a G3 DiskOnChip at addr %p, floor %d\n",
-			 base, floor);
+			 docg3->cascade->base, floor);
 		break;
 	default:
 		doc_err("Chip id %04x is not a DiskOnChip G3 chip\n", chip_id);
@@ -1927,10 +1950,12 @@ static void doc_release_device(struct mtd_info *mtd)
 static int docg3_resume(struct platform_device *pdev)
 {
 	int i;
+	struct docg3_cascade *cascade;
 	struct mtd_info **docg3_floors, *mtd;
 	struct docg3 *docg3;
 
-	docg3_floors = platform_get_drvdata(pdev);
+	cascade = platform_get_drvdata(pdev);
+	docg3_floors = cascade->floors;
 	mtd = docg3_floors[0];
 	docg3 = mtd->priv;
 
@@ -1952,11 +1977,13 @@ static int docg3_resume(struct platform_device *pdev)
 static int docg3_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	int floor, i;
+	struct docg3_cascade *cascade;
 	struct mtd_info **docg3_floors, *mtd;
 	struct docg3 *docg3;
 	u8 ctrl, pwr_down;
 
-	docg3_floors = platform_get_drvdata(pdev);
+	cascade = platform_get_drvdata(pdev);
+	docg3_floors = cascade->floors;
 	for (floor = 0; floor < DOC_MAX_NBFLOORS; floor++) {
 		mtd = docg3_floors[floor];
 		if (!mtd)
@@ -2006,7 +2033,7 @@ static int __init docg3_probe(struct platform_device *pdev)
 	struct resource *ress;
 	void __iomem *base;
 	int ret, floor, found = 0;
-	struct mtd_info **docg3_floors;
+	struct docg3_cascade *cascade;
 
 	ret = -ENXIO;
 	ress = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2017,17 +2044,19 @@ static int __init docg3_probe(struct platform_device *pdev)
 	base = ioremap(ress->start, DOC_IOSPACE_SIZE);
 
 	ret = -ENOMEM;
-	docg3_floors = kzalloc(sizeof(*docg3_floors) * DOC_MAX_NBFLOORS,
-			       GFP_KERNEL);
-	if (!docg3_floors)
+	cascade = kzalloc(sizeof(*cascade) * DOC_MAX_NBFLOORS,
+			  GFP_KERNEL);
+	if (!cascade)
 		goto nomem1;
-	docg3_bch = init_bch(DOC_ECC_BCH_M, DOC_ECC_BCH_T,
+	cascade->base = base;
+	mutex_init(&cascade->lock);
+	cascade->bch = init_bch(DOC_ECC_BCH_M, DOC_ECC_BCH_T,
 			     DOC_ECC_BCH_PRIMPOLY);
-	if (!docg3_bch)
+	if (!cascade->bch)
 		goto nomem2;
 
 	for (floor = 0; floor < DOC_MAX_NBFLOORS; floor++) {
-		mtd = doc_probe_device(base, floor, dev);
+		mtd = doc_probe_device(cascade, floor, dev);
 		if (IS_ERR(mtd)) {
 			ret = PTR_ERR(mtd);
 			goto err_probe;
@@ -2038,7 +2067,7 @@ static int __init docg3_probe(struct platform_device *pdev)
 			else
 				continue;
 		}
-		docg3_floors[floor] = mtd;
+		cascade->floors[floor] = mtd;
 		ret = mtd_device_parse_register(mtd, part_probes, NULL, NULL,
 						0);
 		if (ret)
@@ -2046,26 +2075,26 @@ static int __init docg3_probe(struct platform_device *pdev)
 		found++;
 	}
 
-	ret = doc_register_sysfs(pdev, docg3_floors);
+	ret = doc_register_sysfs(pdev, cascade);
 	if (ret)
 		goto err_probe;
 	if (!found)
 		goto notfound;
 
-	platform_set_drvdata(pdev, docg3_floors);
-	doc_dbg_register(docg3_floors[0]->priv);
+	platform_set_drvdata(pdev, cascade);
+	doc_dbg_register(cascade->floors[0]->priv);
 	return 0;
 
 notfound:
 	ret = -ENODEV;
 	dev_info(dev, "No supported DiskOnChip found\n");
 err_probe:
-	free_bch(docg3_bch);
+	kfree(cascade->bch);
 	for (floor = 0; floor < DOC_MAX_NBFLOORS; floor++)
-		if (docg3_floors[floor])
-			doc_release_device(docg3_floors[floor]);
+		if (cascade->floors[floor])
+			doc_release_device(cascade->floors[floor]);
 nomem2:
-	kfree(docg3_floors);
+	kfree(cascade);
 nomem1:
 	iounmap(base);
 noress:
@@ -2080,19 +2109,19 @@ noress:
  */
 static int __exit docg3_release(struct platform_device *pdev)
 {
-	struct mtd_info **docg3_floors = platform_get_drvdata(pdev);
-	struct docg3 *docg3 = docg3_floors[0]->priv;
-	void __iomem *base = docg3->base;
+	struct docg3_cascade *cascade = platform_get_drvdata(pdev);
+	struct docg3 *docg3 = cascade->floors[0]->priv;
+	void __iomem *base = cascade->base;
 	int floor;
 
-	doc_unregister_sysfs(pdev, docg3_floors);
+	doc_unregister_sysfs(pdev, cascade);
 	doc_dbg_unregister(docg3);
 	for (floor = 0; floor < DOC_MAX_NBFLOORS; floor++)
-		if (docg3_floors[floor])
-			doc_release_device(docg3_floors[floor]);
+		if (cascade->floors[floor])
+			doc_release_device(cascade->floors[floor]);
 
-	kfree(docg3_floors);
-	free_bch(docg3_bch);
+	free_bch(docg3->cascade->bch);
+	kfree(cascade);
 	iounmap(base);
 	return 0;
 }

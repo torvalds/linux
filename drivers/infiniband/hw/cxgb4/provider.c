@@ -329,7 +329,7 @@ static int c4iw_query_port(struct ib_device *ibdev, u8 port,
 	props->gid_tbl_len = 1;
 	props->pkey_tbl_len = 1;
 	props->active_width = 2;
-	props->active_speed = 2;
+	props->active_speed = IB_SPEED_DDR;
 	props->max_msg_sz = -1;
 
 	return 0;

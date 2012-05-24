@@ -450,7 +450,7 @@ exit:
 /**
  *	usb_alphatrack_poll
  */
-static unsigned int usb_alphatrack_poll(struct file *file, poll_table * wait)
+static unsigned int usb_alphatrack_poll(struct file *file, poll_table *wait)
 {
 	struct usb_alphatrack *dev;
 	unsigned int mask = 0;

@@ -21,6 +21,7 @@
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/setup.h>
+#include <asm/system_misc.h>
 #include <asm/timex.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

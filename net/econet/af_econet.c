@@ -47,7 +47,6 @@
 #include <linux/mutex.h>
 
 #include <linux/uaccess.h>
-#include <asm/system.h>
 
 static const struct proto_ops econet_ops;
 static struct hlist_head econet_sklist;

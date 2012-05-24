@@ -75,32 +75,6 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 	return 0;
 }
 
-int radeon_gem_object_pin(struct drm_gem_object *obj, uint32_t pin_domain,
-			  uint64_t *gpu_addr)
-{
-	struct radeon_bo *robj = gem_to_radeon_bo(obj);
-	int r;
-
-	r = radeon_bo_reserve(robj, false);
-	if (unlikely(r != 0))
-		return r;
-	r = radeon_bo_pin(robj, pin_domain, gpu_addr);
-	radeon_bo_unreserve(robj);
-	return r;
-}
-
-void radeon_gem_object_unpin(struct drm_gem_object *obj)
-{
-	struct radeon_bo *robj = gem_to_radeon_bo(obj);
-	int r;
-
-	r = radeon_bo_reserve(robj, false);
-	if (likely(r == 0)) {
-		radeon_bo_unpin(robj);
-		radeon_bo_unreserve(robj);
-	}
-}
-
 int radeon_gem_set_domain(struct drm_gem_object *gobj,
 			  uint32_t rdomain, uint32_t wdomain)
 {

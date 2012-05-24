@@ -25,6 +25,7 @@
 
 #include <mach/ipu.h>
 
+#include "../dmaengine.h"
 #include "ipu_intern.h"
 
 #define FS_VF_IN_VALID	0x00000002
@@ -866,14 +867,7 @@ static dma_cookie_t idmac_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	dev_dbg(dev, "Submitting sg %p\n", &desc->sg[0]);
 
-	cookie = ichan->dma_chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	/* from dmaengine.h: "last cookie value returned to client" */
-	ichan->dma_chan.cookie = cookie;
-	tx->cookie = cookie;
+	cookie = dma_cookie_assign(tx);
 
 	/* ipu->lock can be taken under ichan->lock, but not v.v. */
 	spin_lock_irqsave(&ichan->lock, flags);
@@ -1295,7 +1289,7 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 	/* Flip the active buffer - even if update above failed */
 	ichan->active_buffer = !ichan->active_buffer;
 	if (done)
-		ichan->completed = desc->txd.cookie;
+		dma_cookie_complete(&desc->txd);
 
 	callback = desc->txd.callback;
 	callback_param = desc->txd.callback_param;
@@ -1341,7 +1335,8 @@ static void ipu_gc_tasklet(unsigned long arg)
 /* Allocate and initialise a transfer descriptor. */
 static struct dma_async_tx_descriptor *idmac_prep_slave_sg(struct dma_chan *chan,
 		struct scatterlist *sgl, unsigned int sg_len,
-		enum dma_transfer_direction direction, unsigned long tx_flags)
+		enum dma_transfer_direction direction, unsigned long tx_flags,
+		void *context)
 {
 	struct idmac_channel *ichan = to_idmac_chan(chan);
 	struct idmac_tx_desc *desc = NULL;
@@ -1510,8 +1505,7 @@ static int idmac_alloc_chan_resources(struct dma_chan *chan)
 	BUG_ON(chan->client_count > 1);
 	WARN_ON(ichan->status != IPU_CHANNEL_FREE);
 
-	chan->cookie		= 1;
-	ichan->completed	= -ENXIO;
+	dma_cookie_init(chan);
 
 	ret = ipu_irq_map(chan->chan_id);
 	if (ret < 0)
@@ -1600,9 +1594,7 @@ static void idmac_free_chan_resources(struct dma_chan *chan)
 static enum dma_status idmac_tx_status(struct dma_chan *chan,
 		       dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
-	struct idmac_channel *ichan = to_idmac_chan(chan);
-
-	dma_set_tx_state(txstate, ichan->completed, chan->cookie, 0);
+	dma_set_tx_state(txstate, chan->completed_cookie, chan->cookie, 0);
 	if (cookie != chan->cookie)
 		return DMA_ERROR;
 	return DMA_SUCCESS;
@@ -1638,11 +1630,10 @@ static int __init ipu_idmac_init(struct ipu *ipu)
 
 		ichan->status		= IPU_CHANNEL_FREE;
 		ichan->sec_chan_en	= false;
-		ichan->completed	= -ENXIO;
 		snprintf(ichan->eof_name, sizeof(ichan->eof_name), "IDMAC EOF %d", i);
 
 		dma_chan->device	= &idmac->dma;
-		dma_chan->cookie	= 1;
+		dma_cookie_init(dma_chan);
 		dma_chan->chan_id	= i;
 		list_add_tail(&dma_chan->device_node, &dma->channels);
 	}

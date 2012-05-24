@@ -43,4 +43,12 @@ static inline bool guest_cpuid_has_fsgsbase(struct kvm_vcpu *vcpu)
 	return best && (best->ebx & bit(X86_FEATURE_FSGSBASE));
 }
 
+static inline bool guest_cpuid_has_osvw(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
+	return best && (best->ecx & bit(X86_FEATURE_OSVW));
+}
+
 #endif

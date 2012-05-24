@@ -276,7 +276,10 @@ out:
 	nfs_free_fattr(fattr);
 	nfs_free_fhandle(fh);
 out_nofree:
-	dprintk("<-- nfs_follow_mountpoint() = %p\n", mnt);
+	if (IS_ERR(mnt))
+		dprintk("<-- %s(): error %ld\n", __func__, PTR_ERR(mnt));
+	else
+		dprintk("<-- %s() = %p\n", __func__, mnt);
 	return mnt;
 }
 

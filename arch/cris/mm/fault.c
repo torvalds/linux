@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/wait.h>
 #include <asm/uaccess.h>
+#include <arch/system.h>
 
 extern int find_fixup_code(struct pt_regs *);
 extern void die_if_kernel(const char *, struct pt_regs *, long);

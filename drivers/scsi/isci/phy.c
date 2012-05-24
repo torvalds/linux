@@ -59,12 +59,35 @@
 #include "scu_event_codes.h"
 #include "probe_roms.h"
 
+#undef C
+#define C(a) (#a)
+static const char *phy_state_name(enum sci_phy_states state)
+{
+	static const char * const strings[] = PHY_STATES;
+
+	return strings[state];
+}
+#undef C
+
 /* Maximum arbitration wait time in micro-seconds */
 #define SCIC_SDS_PHY_MAX_ARBITRATION_WAIT_TIME  (700)
 
 enum sas_linkrate sci_phy_linkrate(struct isci_phy *iphy)
 {
 	return iphy->max_negotiated_speed;
+}
+
+static struct isci_host *phy_to_host(struct isci_phy *iphy)
+{
+	struct isci_phy *table = iphy - iphy->phy_index;
+	struct isci_host *ihost = container_of(table, typeof(*ihost), phys[0]);
+
+	return ihost;
+}
+
+static struct device *sciphy_to_dev(struct isci_phy *iphy)
+{
+	return &phy_to_host(iphy)->pdev->dev;
 }
 
 static enum sci_status
@@ -446,8 +469,8 @@ enum sci_status sci_phy_start(struct isci_phy *iphy)
 	enum sci_phy_states state = iphy->sm.current_state_id;
 
 	if (state != SCI_PHY_STOPPED) {
-		dev_dbg(sciphy_to_dev(iphy),
-			 "%s: in wrong state: %d\n", __func__, state);
+		dev_dbg(sciphy_to_dev(iphy), "%s: in wrong state: %s\n",
+			__func__, phy_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -472,8 +495,8 @@ enum sci_status sci_phy_stop(struct isci_phy *iphy)
 	case SCI_PHY_READY:
 		break;
 	default:
-		dev_dbg(sciphy_to_dev(iphy),
-			"%s: in wrong state: %d\n", __func__, state);
+		dev_dbg(sciphy_to_dev(iphy), "%s: in wrong state: %s\n",
+			__func__, phy_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -486,8 +509,8 @@ enum sci_status sci_phy_reset(struct isci_phy *iphy)
 	enum sci_phy_states state = iphy->sm.current_state_id;
 
 	if (state != SCI_PHY_READY) {
-		dev_dbg(sciphy_to_dev(iphy),
-			"%s: in wrong state: %d\n", __func__, state);
+		dev_dbg(sciphy_to_dev(iphy), "%s: in wrong state: %s\n",
+			__func__, phy_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -536,8 +559,8 @@ enum sci_status sci_phy_consume_power_handler(struct isci_phy *iphy)
 		return SCI_SUCCESS;
 	}
 	default:
-		dev_dbg(sciphy_to_dev(iphy),
-			"%s: in wrong state: %d\n", __func__, state);
+		dev_dbg(sciphy_to_dev(iphy), "%s: in wrong state: %s\n",
+			__func__, phy_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -591,6 +614,60 @@ static void sci_phy_complete_link_training(struct isci_phy *iphy,
 	sci_change_state(&iphy->sm, next_state);
 }
 
+static const char *phy_event_name(u32 event_code)
+{
+	switch (scu_get_event_code(event_code)) {
+	case SCU_EVENT_PORT_SELECTOR_DETECTED:
+		return "port selector";
+	case SCU_EVENT_SENT_PORT_SELECTION:
+		return "port selection";
+	case SCU_EVENT_HARD_RESET_TRANSMITTED:
+		return "tx hard reset";
+	case SCU_EVENT_HARD_RESET_RECEIVED:
+		return "rx hard reset";
+	case SCU_EVENT_RECEIVED_IDENTIFY_TIMEOUT:
+		return "identify timeout";
+	case SCU_EVENT_LINK_FAILURE:
+		return "link fail";
+	case SCU_EVENT_SATA_SPINUP_HOLD:
+		return "sata spinup hold";
+	case SCU_EVENT_SAS_15_SSC:
+	case SCU_EVENT_SAS_15:
+		return "sas 1.5";
+	case SCU_EVENT_SAS_30_SSC:
+	case SCU_EVENT_SAS_30:
+		return "sas 3.0";
+	case SCU_EVENT_SAS_60_SSC:
+	case SCU_EVENT_SAS_60:
+		return "sas 6.0";
+	case SCU_EVENT_SATA_15_SSC:
+	case SCU_EVENT_SATA_15:
+		return "sata 1.5";
+	case SCU_EVENT_SATA_30_SSC:
+	case SCU_EVENT_SATA_30:
+		return "sata 3.0";
+	case SCU_EVENT_SATA_60_SSC:
+	case SCU_EVENT_SATA_60:
+		return "sata 6.0";
+	case SCU_EVENT_SAS_PHY_DETECTED:
+		return "sas detect";
+	case SCU_EVENT_SATA_PHY_DETECTED:
+		return "sata detect";
+	default:
+		return "unknown";
+	}
+}
+
+#define phy_event_dbg(iphy, state, code) \
+	dev_dbg(sciphy_to_dev(iphy), "phy-%d:%d: %s event: %s (%x)\n", \
+		phy_to_host(iphy)->id, iphy->phy_index, \
+		phy_state_name(state), phy_event_name(code), code)
+
+#define phy_event_warn(iphy, state, code) \
+	dev_warn(sciphy_to_dev(iphy), "phy-%d:%d: %s event: %s (%x)\n", \
+		phy_to_host(iphy)->id, iphy->phy_index, \
+		phy_state_name(state), phy_event_name(code), code)
+
 enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 {
 	enum sci_phy_states state = iphy->sm.current_state_id;
@@ -607,11 +684,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			iphy->is_in_link_training = true;
 			break;
 		default:
-			dev_dbg(sciphy_to_dev(iphy),
-				"%s: PHY starting substate machine received "
-				"unexpected event_code %x\n",
-				__func__,
-				event_code);
+			phy_event_dbg(iphy, state, event_code);
 			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
@@ -648,11 +721,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
 		default:
-			dev_warn(sciphy_to_dev(iphy),
-				 "%s: PHY starting substate machine received "
-				 "unexpected event_code %x\n",
-				 __func__, event_code);
-
+			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE;
 			break;
 		}
@@ -677,10 +746,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
 		default:
-			dev_warn(sciphy_to_dev(iphy),
-				 "%s: PHY starting substate machine received "
-				 "unexpected event_code %x\n",
-				 __func__, event_code);
+			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
@@ -691,11 +757,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
 		default:
-			dev_warn(sciphy_to_dev(iphy),
-				"%s: PHY starting substate machine received unexpected "
-				"event_code %x\n",
-				__func__,
-				event_code);
+			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
@@ -719,11 +781,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			break;
 
 		default:
-			dev_warn(sciphy_to_dev(iphy),
-				 "%s: PHY starting substate machine received "
-				 "unexpected event_code %x\n",
-				 __func__, event_code);
-
+			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
@@ -751,12 +809,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			sci_phy_start_sas_link_training(iphy);
 			break;
 		default:
-			dev_warn(sciphy_to_dev(iphy),
-				 "%s: PHY starting substate machine received "
-				 "unexpected event_code %x\n",
-				 __func__,
-				 event_code);
-
+			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
@@ -793,11 +846,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			sci_phy_start_sas_link_training(iphy);
 			break;
 		default:
-			dev_warn(sciphy_to_dev(iphy),
-				 "%s: PHY starting substate machine received "
-				 "unexpected event_code %x\n",
-				 __func__, event_code);
-
+			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE;
 		}
 
@@ -815,12 +864,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			break;
 
 		default:
-			dev_warn(sciphy_to_dev(iphy),
-				 "%s: PHY starting substate machine received "
-				 "unexpected event_code %x\n",
-				 __func__,
-				 event_code);
-
+			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
@@ -838,10 +882,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 				iphy->bcn_received_while_port_unassigned = true;
 			break;
 		default:
-			dev_warn(sciphy_to_dev(iphy),
-				 "%sP SCIC PHY 0x%p ready state machine received "
-				 "unexpected event_code %x\n",
-				 __func__, iphy, event_code);
+			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE_INVALID_STATE;
 		}
 		return SCI_SUCCESS;
@@ -852,18 +893,14 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
 		default:
-			dev_warn(sciphy_to_dev(iphy),
-				 "%s: SCIC PHY 0x%p resetting state machine received "
-				 "unexpected event_code %x\n",
-				 __func__, iphy, event_code);
-
+			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE_INVALID_STATE;
 			break;
 		}
 		return SCI_SUCCESS;
 	default:
-		dev_dbg(sciphy_to_dev(iphy),
-			"%s: in wrong state: %d\n", __func__, state);
+		dev_dbg(sciphy_to_dev(iphy), "%s: in wrong state: %s\n",
+			__func__, phy_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -956,8 +993,8 @@ enum sci_status sci_phy_frame_handler(struct isci_phy *iphy, u32 frame_index)
 		return result;
 	}
 	default:
-		dev_dbg(sciphy_to_dev(iphy),
-			"%s: in wrong state: %d\n", __func__, state);
+		dev_dbg(sciphy_to_dev(iphy), "%s: in wrong state: %s\n",
+			__func__, phy_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -1299,7 +1336,6 @@ void isci_phy_init(struct isci_phy *iphy, struct isci_host *ihost, int index)
 	sas_addr = cpu_to_be64(sci_sas_addr);
 	memcpy(iphy->sas_addr, &sas_addr, sizeof(sas_addr));
 
-	iphy->isci_port = NULL;
 	iphy->sas_phy.enabled = 0;
 	iphy->sas_phy.id = index;
 	iphy->sas_phy.sas_addr = &iphy->sas_addr[0];
@@ -1333,13 +1369,13 @@ int isci_phy_control(struct asd_sas_phy *sas_phy,
 {
 	int ret = 0;
 	struct isci_phy *iphy = sas_phy->lldd_phy;
-	struct isci_port *iport = iphy->isci_port;
+	struct asd_sas_port *port = sas_phy->port;
 	struct isci_host *ihost = sas_phy->ha->lldd_ha;
 	unsigned long flags;
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: phy %p; func %d; buf %p; isci phy %p, port %p\n",
-		__func__, sas_phy, func, buf, iphy, iport);
+		__func__, sas_phy, func, buf, iphy, port);
 
 	switch (func) {
 	case PHY_FUNC_DISABLE:
@@ -1356,11 +1392,10 @@ int isci_phy_control(struct asd_sas_phy *sas_phy,
 		break;
 
 	case PHY_FUNC_HARD_RESET:
-		if (!iport)
+		if (!port)
 			return -ENODEV;
 
-		/* Perform the port reset. */
-		ret = isci_port_perform_hard_reset(ihost, iport, iphy);
+		ret = isci_port_perform_hard_reset(ihost, port->lldd_port, iphy);
 
 		break;
 	case PHY_FUNC_GET_EVENTS: {

@@ -13,11 +13,11 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/system.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
 #include <arch/spr_def.h>
 #include <asm/processor.h>
+#include <asm/switch_to.h>
 
 /*
  * See <asm/system.h>; called with prev and next task_struct pointers.

@@ -43,7 +43,6 @@
 
 #include <asm/errno.h>
 #include <asm/signal.h>
-#include <asm/system.h>
 #include <asm/ptrace.h>
 #include <asm/mipsregs.h>
 #include <asm/thread_info.h>

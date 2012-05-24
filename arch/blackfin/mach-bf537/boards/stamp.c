@@ -975,7 +975,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_SND_BF5XX_SOC_AD193X) || defined(CONFIG_SND_BF5XX_SOC_AD193X_MODULE)
+#ifdef CONFIG_SND_SOC_AD193X_SPI
 	{
 		.modalias = "ad193x",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
@@ -2171,7 +2171,7 @@ static unsigned long adt7316_i2c_data[2] = {
 #endif
 
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
-#if defined(CONFIG_SND_BF5XX_SOC_AD193X) || defined(CONFIG_SND_BF5XX_SOC_AD193X_MODULE)
+#ifdef CONFIG_SND_SOC_AD193X_I2C
 	{
 		I2C_BOARD_INFO("ad1937", 0x04),
 	},
@@ -2593,6 +2593,21 @@ static struct platform_device bfin_ac97_pcm = {
 };
 #endif
 
+#if defined(CONFIG_SND_BF5XX_SOC_AD73311) || \
+				defined(CONFIG_SND_BF5XX_SOC_AD73311_MODULE)
+static const unsigned ad73311_gpio[] = {
+	GPIO_PF4,
+};
+
+static struct platform_device bfin_ad73311_machine = {
+	.name = "bfin-snd-ad73311",
+	.id = 1,
+	.dev = {
+		.platform_data = (void *)ad73311_gpio,
+	},
+};
+#endif
+
 #if defined(CONFIG_SND_SOC_AD73311) || defined(CONFIG_SND_SOC_AD73311_MODULE)
 static struct platform_device bfin_ad73311_codec_device = {
 	.name = "ad73311",
@@ -2862,6 +2877,11 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&bfin_ac97_pcm,
 #endif
 
+#if defined(CONFIG_SND_BF5XX_SOC_AD73311) || \
+		defined(CONFIG_SND_BF5XX_SOC_AD73311_MODULE)
+	&bfin_ad73311_machine,
+#endif
+
 #if defined(CONFIG_SND_SOC_AD73311) || defined(CONFIG_SND_SOC_AD73311_MODULE)
 	&bfin_ad73311_codec_device,
 #endif
@@ -2993,9 +3013,10 @@ void native_machine_restart(char *cmd)
  * Currently the MAC address is saved in Flash by U-Boot
  */
 #define FLASH_MAC	0x203f0000
-void bfin_get_ether_addr(char *addr)
+int bfin_get_ether_addr(char *addr)
 {
 	*(u32 *)(&(addr[0])) = bfin_read32(FLASH_MAC);
 	*(u16 *)(&(addr[4])) = bfin_read16(FLASH_MAC + 4);
+	return 0;
 }
 EXPORT_SYMBOL(bfin_get_ether_addr);

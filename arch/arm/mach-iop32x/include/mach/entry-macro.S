@@ -9,9 +9,6 @@
  */
 #include <mach/iop32x.h>
 
-	.macro	disable_fiq
-	.endm
-
 	.macro get_irqnr_preamble, base, tmp
 	mrc	p15, 0, \tmp, c15, c1, 0
 	orr	\tmp, \tmp, #(1 << 6)

@@ -1243,7 +1243,7 @@ static void __exit dp83640_exit(void)
 }
 
 MODULE_DESCRIPTION("National Semiconductor DP83640 PHY driver");
-MODULE_AUTHOR("Richard Cochran <richard.cochran@omicron.at>");
+MODULE_AUTHOR("Richard Cochran <richardcochran@gmail.at>");
 MODULE_LICENSE("GPL");
 
 module_init(dp83640_init);

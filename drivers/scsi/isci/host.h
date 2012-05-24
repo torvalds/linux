@@ -187,6 +187,7 @@ struct isci_host {
 	int id; /* unique within a given pci device */
 	struct isci_phy phys[SCI_MAX_PHYS];
 	struct isci_port ports[SCI_MAX_PORTS + 1]; /* includes dummy port */
+	struct asd_sas_port sas_ports[SCI_MAX_PORTS];
 	struct sas_ha_struct sas_ha;
 
 	spinlock_t state_lock;
@@ -392,24 +393,6 @@ static inline int sci_remote_device_node_count(struct isci_remote_device *idev)
  */
 #define sci_controller_clear_invalid_phy(controller, phy) \
 	((controller)->invalid_phy_mask &= ~(1 << (phy)->phy_index))
-
-static inline struct device *sciphy_to_dev(struct isci_phy *iphy)
-{
-
-	if (!iphy || !iphy->isci_port || !iphy->isci_port->isci_host)
-		return NULL;
-
-	return &iphy->isci_port->isci_host->pdev->dev;
-}
-
-static inline struct device *sciport_to_dev(struct isci_port *iport)
-{
-
-	if (!iport || !iport->isci_host)
-		return NULL;
-
-	return &iport->isci_host->pdev->dev;
-}
 
 static inline struct device *scirdev_to_dev(struct isci_remote_device *idev)
 {

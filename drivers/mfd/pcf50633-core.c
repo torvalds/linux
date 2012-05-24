@@ -46,13 +46,7 @@ EXPORT_SYMBOL_GPL(pcf50633_read_block);
 int pcf50633_write_block(struct pcf50633 *pcf , u8 reg,
 					int nr_regs, u8 *data)
 {
-	int ret;
-
-	ret = regmap_raw_write(pcf->regmap, reg, data, nr_regs);
-	if (ret != 0)
-		return ret;
-
-	return nr_regs;
+	return regmap_raw_write(pcf->regmap, reg, data, nr_regs);
 }
 EXPORT_SYMBOL_GPL(pcf50633_write_block);
 

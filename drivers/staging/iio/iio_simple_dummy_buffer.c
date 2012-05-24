@@ -142,8 +142,6 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 	}
 
 	indio_dev->buffer = buffer;
-	/* Tell the core how to access the buffer */
-	buffer->access = &kfifo_access_funcs;
 
 	/* Enable timestamps by default */
 	buffer->scan_timestamp = true;

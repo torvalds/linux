@@ -306,7 +306,7 @@ static int ti_hecc_set_btc(struct ti_hecc_priv *priv)
 		if (bit_timing->brp > 4)
 			can_btc |= HECC_CANBTC_SAM;
 		else
-			dev_warn(priv->ndev->dev.parent, "WARN: Triple" \
+			netdev_warn(priv->ndev, "WARN: Triple"
 				"sampling not set due to h/w limitations");
 	}
 	can_btc |= ((bit_timing->sjw - 1) & 0x3) << 8;
@@ -315,7 +315,7 @@ static int ti_hecc_set_btc(struct ti_hecc_priv *priv)
 	/* ERM being set to 0 by default meaning resync at falling edge */
 
 	hecc_write(priv, HECC_CANBTC, can_btc);
-	dev_info(priv->ndev->dev.parent, "setting CANBTC=%#x\n", can_btc);
+	netdev_info(priv->ndev, "setting CANBTC=%#x\n", can_btc);
 
 	return 0;
 }
@@ -332,7 +332,7 @@ static void ti_hecc_reset(struct net_device *ndev)
 	u32 cnt;
 	struct ti_hecc_priv *priv = netdev_priv(ndev);
 
-	dev_dbg(ndev->dev.parent, "resetting hecc ...\n");
+	netdev_dbg(ndev, "resetting hecc ...\n");
 	hecc_set_bit(priv, HECC_CANMC, HECC_CANMC_SRES);
 
 	/* Set change control request and wait till enabled */
@@ -458,6 +458,17 @@ static int ti_hecc_do_set_mode(struct net_device *ndev, enum can_mode mode)
 	return ret;
 }
 
+static int ti_hecc_get_berr_counter(const struct net_device *ndev,
+					struct can_berr_counter *bec)
+{
+	struct ti_hecc_priv *priv = netdev_priv(ndev);
+
+	bec->txerr = hecc_read(priv, HECC_CANTEC);
+	bec->rxerr = hecc_read(priv, HECC_CANREC);
+
+	return 0;
+}
+
 /*
  * ti_hecc_xmit: HECC Transmit
  *
@@ -496,7 +507,7 @@ static netdev_tx_t ti_hecc_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (unlikely(hecc_read(priv, HECC_CANME) & mbx_mask)) {
 		spin_unlock_irqrestore(&priv->mbx_lock, flags);
 		netif_stop_queue(ndev);
-		dev_err(priv->ndev->dev.parent,
+		netdev_err(priv->ndev,
 			"BUG: TX mbx not ready tx_head=%08X, tx_tail=%08X\n",
 			priv->tx_head, priv->tx_tail);
 		return NETDEV_TX_BUSY;
@@ -550,7 +561,7 @@ static int ti_hecc_rx_pkt(struct ti_hecc_priv *priv, int mbxno)
 	skb = alloc_can_skb(priv->ndev, &cf);
 	if (!skb) {
 		if (printk_ratelimit())
-			dev_err(priv->ndev->dev.parent,
+			netdev_err(priv->ndev,
 				"ti_hecc_rx_pkt: alloc_can_skb() failed\n");
 		return -ENOMEM;
 	}
@@ -668,7 +679,7 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 	skb = alloc_can_err_skb(ndev, &cf);
 	if (!skb) {
 		if (printk_ratelimit())
-			dev_err(priv->ndev->dev.parent,
+			netdev_err(priv->ndev,
 				"ti_hecc_error: alloc_can_err_skb() failed\n");
 		return -ENOMEM;
 	}
@@ -684,7 +695,7 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 				cf->data[1] |= CAN_ERR_CRTL_RX_WARNING;
 		}
 		hecc_set_bit(priv, HECC_CANES, HECC_CANES_EW);
-		dev_dbg(priv->ndev->dev.parent, "Error Warning interrupt\n");
+		netdev_dbg(priv->ndev, "Error Warning interrupt\n");
 		hecc_clear_bit(priv, HECC_CANMC, HECC_CANMC_CCR);
 	}
 
@@ -699,7 +710,7 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 				cf->data[1] |= CAN_ERR_CRTL_RX_PASSIVE;
 		}
 		hecc_set_bit(priv, HECC_CANES, HECC_CANES_EP);
-		dev_dbg(priv->ndev->dev.parent, "Error passive interrupt\n");
+		netdev_dbg(priv->ndev, "Error passive interrupt\n");
 		hecc_clear_bit(priv, HECC_CANMC, HECC_CANMC_CCR);
 	}
 
@@ -825,7 +836,7 @@ static int ti_hecc_open(struct net_device *ndev)
 	err = request_irq(ndev->irq, ti_hecc_interrupt, IRQF_SHARED,
 			ndev->name, ndev);
 	if (err) {
-		dev_err(ndev->dev.parent, "error requesting interrupt\n");
+		netdev_err(ndev, "error requesting interrupt\n");
 		return err;
 	}
 
@@ -834,7 +845,7 @@ static int ti_hecc_open(struct net_device *ndev)
 	/* Open common can device */
 	err = open_candev(ndev);
 	if (err) {
-		dev_err(ndev->dev.parent, "open_candev() failed %d\n", err);
+		netdev_err(ndev, "open_candev() failed %d\n", err);
 		ti_hecc_transceiver_switch(priv, 0);
 		free_irq(ndev->irq, ndev);
 		return err;
@@ -923,6 +934,7 @@ static int ti_hecc_probe(struct platform_device *pdev)
 	priv->can.bittiming_const = &ti_hecc_bittiming_const;
 	priv->can.do_set_mode = ti_hecc_do_set_mode;
 	priv->can.do_get_state = ti_hecc_get_state;
+	priv->can.do_get_berr_counter = ti_hecc_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
 	spin_lock_init(&priv->mbx_lock);

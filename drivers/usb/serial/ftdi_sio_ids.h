@@ -23,11 +23,14 @@
 #define FTDI_8U2232C_PID 0x6010 /* Dual channel device */
 #define FTDI_4232H_PID 0x6011 /* Quad channel hi-speed device */
 #define FTDI_232H_PID  0x6014 /* Single channel hi-speed device */
+#define FTDI_FTX_PID   0x6015 /* FT-X series (FT201X, FT230X, FT231X, etc) */
 #define FTDI_SIO_PID	0x8372	/* Product Id SIO application of 8U100AX */
 #define FTDI_232RL_PID  0xFBFA  /* Product ID for FT232RL */
 
 
 /*** third-party PIDs (using FTDI_VID) ***/
+
+#define FTDI_LUMEL_PD12_PID	0x6002
 
 /*
  * Marvell OpenRD Base, Client
@@ -96,6 +99,8 @@
 #define FTDI_TACTRIX_OPENPORT_13M_PID	0xCC48	/* OpenPort 1.3 Mitsubishi */
 #define FTDI_TACTRIX_OPENPORT_13S_PID	0xCC49	/* OpenPort 1.3 Subaru */
 #define FTDI_TACTRIX_OPENPORT_13U_PID	0xCC4A	/* OpenPort 1.3 Universal */
+
+#define FTDI_DISTORTEC_JTAG_LOCK_PICK_PID	0xCFF8
 
 /* SCS HF Radio Modems PID's (http://www.scs-ptc.com) */
 /* the VID is the standard ftdi vid (FTDI_VID) */
@@ -532,10 +537,14 @@
 #define ADI_GNICEPLUS_PID	0xF001
 
 /*
- * Hornby Elite
+ * Microchip Technology, Inc.
+ *
+ * MICROCHIP_VID (0x04D8) and MICROCHIP_USB_BOARD_PID (0x000A) are also used by:
+ * Hornby Elite - Digital Command Control Console
+ * http://www.hornby.com/hornby-dcc/controllers/
  */
-#define HORNBY_VID		0x04D8
-#define HORNBY_ELITE_PID	0x000A
+#define MICROCHIP_VID		0x04D8
+#define MICROCHIP_USB_BOARD_PID	0x000A /* CDC RS-232 Emulation Demo */
 
 /*
  * RATOC REX-USB60F
@@ -680,6 +689,10 @@
 #define SEALEVEL_2803_6_PID	0X2863	/* SeaLINK+8 (2803) Port 6 */
 #define SEALEVEL_2803_7_PID	0X2873	/* SeaLINK+8 (2803) Port 7 */
 #define SEALEVEL_2803_8_PID	0X2883	/* SeaLINK+8 (2803) Port 8 */
+#define SEALEVEL_2803R_1_PID	0Xa02a	/* SeaLINK+8 (2803-ROHS) Port 1+2 */
+#define SEALEVEL_2803R_2_PID	0Xa02b	/* SeaLINK+8 (2803-ROHS) Port 3+4 */
+#define SEALEVEL_2803R_3_PID	0Xa02c	/* SeaLINK+8 (2803-ROHS) Port 5+6 */
+#define SEALEVEL_2803R_4_PID	0Xa02d	/* SeaLINK+8 (2803-ROHS) Port 7+8 */
 
 /*
  * JETI SPECTROMETER SPECBOS 1201

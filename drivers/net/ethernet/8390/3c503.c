@@ -54,7 +54,6 @@ static const char version[] =
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/byteorder.h>
 
 #include "8390.h"

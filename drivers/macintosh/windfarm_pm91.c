@@ -41,7 +41,6 @@
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/sections.h>
 #include <asm/smu.h>
 

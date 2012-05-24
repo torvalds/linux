@@ -24,7 +24,6 @@
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/mach/pci.h>
 
 /*
@@ -191,7 +190,7 @@ static struct resource pre_mem = {
 	.flags	= IORESOURCE_MEM | IORESOURCE_PREFETCH,
 };
 
-static int __init pci_versatile_setup_resources(struct list_head *resources)
+static int __init pci_versatile_setup_resources(struct pci_sys_data *sys)
 {
 	int ret = 0;
 
@@ -219,9 +218,9 @@ static int __init pci_versatile_setup_resources(struct list_head *resources)
 	 * the mem resource for this bus
 	 * the prefetch mem resource for this bus
 	 */
-	pci_add_resource(resources, &io_mem);
-	pci_add_resource(resources, &non_mem);
-	pci_add_resource(resources, &pre_mem);
+	pci_add_resource_offset(&sys->resources, &io_mem, sys->io_offset);
+	pci_add_resource_offset(&sys->resources, &non_mem, sys->mem_offset);
+	pci_add_resource_offset(&sys->resources, &pre_mem, sys->mem_offset);
 
 	goto out;
 
@@ -250,7 +249,7 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
 
 	if (nr == 0) {
 		sys->mem_offset = 0;
-		ret = pci_versatile_setup_resources(&sys->resources);
+		ret = pci_versatile_setup_resources(sys);
 		if (ret < 0) {
 			printk("pci_versatile_setup: resources... oops?\n");
 			goto out;

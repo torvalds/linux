@@ -1,7 +1,7 @@
 /* $Id: divasi.c,v 1.25.6.2 2005/01/31 12:22:20 armin Exp $
  *
  * Driver for Eicon DIVA Server ISDN cards.
- * User Mode IDI Interface 
+ * User Mode IDI Interface
  *
  * Copyright 2000-2003 by Armin Schindler (mac@melware.de)
  * Copyright 2000-2003 Cytronics & Melware (info@melware.de)
@@ -71,10 +71,10 @@ static char *getrev(const char *revision)
  *  LOCALS
  */
 static ssize_t um_idi_read(struct file *file, char __user *buf, size_t count,
-			   loff_t * offset);
+			   loff_t *offset);
 static ssize_t um_idi_write(struct file *file, const char __user *buf,
-			    size_t count, loff_t * offset);
-static unsigned int um_idi_poll(struct file *file, poll_table * wait);
+			    size_t count, loff_t *offset);
+static unsigned int um_idi_poll(struct file *file, poll_table *wait);
 static int um_idi_open(struct inode *inode, struct file *file);
 static int um_idi_release(struct inode *inode, struct file *file);
 static int remove_entity(void *entity);
@@ -194,7 +194,7 @@ static int DIVA_INIT_FUNCTION divasi_init(void)
 	}
 	printk(KERN_INFO "%s: started with major %d\n", DRIVERLNAME, major);
 
-      out:
+out:
 	return (ret);
 }
 
@@ -228,7 +228,7 @@ divas_um_idi_copy_to_user(void *os_handle, void *dst, const void *src,
 }
 
 static ssize_t
-um_idi_read(struct file *file, char __user *buf, size_t count, loff_t * offset)
+um_idi_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
 	diva_um_idi_os_context_t *p_os;
 	int ret = -EINVAL;
@@ -292,7 +292,7 @@ static int um_idi_open_adapter(struct file *file, int adapter_nr)
 {
 	diva_um_idi_os_context_t *p_os;
 	void *e =
-	    divas_um_idi_create_entity((dword) adapter_nr, (void *) file);
+		divas_um_idi_create_entity((dword) adapter_nr, (void *) file);
 
 	if (!(file->private_data = e)) {
 		return (0);
@@ -310,7 +310,7 @@ static int um_idi_open_adapter(struct file *file, int adapter_nr)
 
 static ssize_t
 um_idi_write(struct file *file, const char __user *buf, size_t count,
-	     loff_t * offset)
+	     loff_t *offset)
 {
 	diva_um_idi_os_context_t *p_os;
 	int ret = -EINVAL;
@@ -331,8 +331,8 @@ um_idi_write(struct file *file, const char __user *buf, size_t count,
 	}
 
 	if (!(p_os =
-	     (diva_um_idi_os_context_t *) diva_um_id_get_os_context(file->
-								    private_data)))
+	      (diva_um_idi_os_context_t *) diva_um_id_get_os_context(file->
+								     private_data)))
 	{
 		return (-ENODEV);
 	}
@@ -367,7 +367,7 @@ um_idi_write(struct file *file, const char __user *buf, size_t count,
 	return (ret);
 }
 
-static unsigned int um_idi_poll(struct file *file, poll_table * wait)
+static unsigned int um_idi_poll(struct file *file, poll_table *wait)
 {
 	diva_um_idi_os_context_t *p_os;
 
@@ -417,7 +417,7 @@ static int um_idi_release(struct inode *inode, struct file *file)
 	}
 
 	if (!(p_os =
-		(diva_um_idi_os_context_t *) diva_um_id_get_os_context(file->private_data))) {
+	      (diva_um_idi_os_context_t *) diva_um_id_get_os_context(file->private_data))) {
 		ret = -ENODEV;
 		goto out;
 	}
@@ -434,7 +434,7 @@ static int um_idi_release(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-      out:
+out:
 	return (ret);
 }
 
@@ -446,14 +446,14 @@ int diva_os_get_context_size(void)
 void diva_os_wakeup_read(void *os_context)
 {
 	diva_um_idi_os_context_t *p_os =
-	    (diva_um_idi_os_context_t *) os_context;
+		(diva_um_idi_os_context_t *) os_context;
 	wake_up_interruptible(&p_os->read_wait);
 }
 
 void diva_os_wakeup_close(void *os_context)
 {
 	diva_um_idi_os_context_t *p_os =
-	    (diva_um_idi_os_context_t *) os_context;
+		(diva_um_idi_os_context_t *) os_context;
 	wake_up_interruptible(&p_os->close_wait);
 }
 
@@ -466,7 +466,7 @@ void diva_um_timer_function(unsigned long data)
 	wake_up_interruptible(&p_os->read_wait);
 	wake_up_interruptible(&p_os->close_wait);
 	DBG_ERR(("entity removal watchdog"))
-}
+		}
 
 /*
 **  If application exits without entity removal this function will remove
@@ -481,30 +481,30 @@ static int remove_entity(void *entity)
 
 	if (!entity) {
 		DBG_FTL(("Zero entity on remove"))
-		return (0);
+			return (0);
 	}
 
 	if (!(p_os =
-	     (diva_um_idi_os_context_t *)
-	     diva_um_id_get_os_context(entity))) {
+	      (diva_um_idi_os_context_t *)
+	      diva_um_id_get_os_context(entity))) {
 		DBG_FTL(("Zero entity os context on remove"))
-		return (0);
+			return (0);
 	}
 
 	if (!divas_um_idi_entity_assigned(entity) || p_os->aborted) {
 		/*
-		   Entity is not assigned, also can be removed
-		 */
+		  Entity is not assigned, also can be removed
+		*/
 		return (0);
 	}
 
 	DBG_TRC(("E(%08x) check remove", entity))
 
-	/*
-	   If adapter not answers on remove request inside of
-	   10 Sec, then adapter is dead
-	 */
-	diva_um_idi_start_wdog(entity);
+		/*
+		  If adapter not answers on remove request inside of
+		  10 Sec, then adapter is dead
+		*/
+		diva_um_idi_start_wdog(entity);
 
 	{
 		DECLARE_WAITQUEUE(wait, curtask);
@@ -542,7 +542,7 @@ static int remove_entity(void *entity)
 	DBG_TRC(("E(%08x) remove complete, aborted:%d", entity,
 		 p_os->aborted))
 
-	diva_um_idi_stop_wdog(entity);
+		diva_um_idi_stop_wdog(entity);
 
 	p_os->aborted = 0;
 

@@ -43,7 +43,6 @@
 #include <asm/pdc.h>
 #include <asm/pdcpat.h>
 #include <asm/page.h>
-#include <asm/system.h>
 
 #include <asm/ropes.h>
 #include <asm/hardware.h>	/* for register_parisc_driver() stuff */
@@ -635,7 +634,6 @@ lba_fixup_bus(struct pci_bus *bus)
 	u16 status;
 #endif
 	struct lba_device *ldev = LBA_DEV(parisc_walk_tree(bus->bridge));
-	int lba_portbase = HBA_PORT_BASE(ldev->hba.hba_num);
 
 	DBG("lba_fixup_bus(0x%p) bus %d platform_data 0x%p\n",
 		bus, bus->secondary, bus->bridge->platform_data);
@@ -725,27 +723,6 @@ lba_fixup_bus(struct pci_bus *bus)
 			/* If resource not allocated - skip it */
 			if (!res->start)
 				continue;
-
-			if (res->flags & IORESOURCE_IO) {
-				DBG("lba_fixup_bus() I/O Ports [%lx/%lx] -> ",
-					res->start, res->end);
-				res->start |= lba_portbase;
-				res->end   |= lba_portbase;
-				DBG("[%lx/%lx]\n", res->start, res->end);
-			} else if (res->flags & IORESOURCE_MEM) {
-				/*
-				** Convert PCI (IO_VIEW) addresses to
-				** processor (PA_VIEW) addresses
-				 */
-				DBG("lba_fixup_bus() MMIO [%lx/%lx] -> ",
-					res->start, res->end);
-				res->start = PCI_HOST_ADDR(HBA_DATA(ldev), res->start);
-				res->end   = PCI_HOST_ADDR(HBA_DATA(ldev), res->end);
-				DBG("[%lx/%lx]\n", res->start, res->end);
-			} else {
-				DBG("lba_fixup_bus() WTF? 0x%lx [%lx/%lx] XXX",
-					res->flags, res->start, res->end);
-			}
 
 			/*
 			** FIXME: this will result in whinging for devices
@@ -1514,11 +1491,14 @@ lba_driver_probe(struct parisc_device *dev)
 		lba_dev->hba.lmmio_space.flags = 0;
 	}
 
-	pci_add_resource(&resources, &lba_dev->hba.io_space);
+	pci_add_resource_offset(&resources, &lba_dev->hba.io_space,
+				HBA_PORT_BASE(lba_dev->hba.hba_num));
 	if (lba_dev->hba.elmmio_space.start)
-		pci_add_resource(&resources, &lba_dev->hba.elmmio_space);
+		pci_add_resource_offset(&resources, &lba_dev->hba.elmmio_space,
+					lba_dev->hba.lmmio_space_offset);
 	if (lba_dev->hba.lmmio_space.flags)
-		pci_add_resource(&resources, &lba_dev->hba.lmmio_space);
+		pci_add_resource_offset(&resources, &lba_dev->hba.lmmio_space,
+					lba_dev->hba.lmmio_space_offset);
 	if (lba_dev->hba.gmmio_space.flags)
 		pci_add_resource(&resources, &lba_dev->hba.gmmio_space);
 

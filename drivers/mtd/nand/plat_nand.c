@@ -99,8 +99,9 @@ static int __devinit plat_nand_probe(struct platform_device *pdev)
 	}
 
 	err = mtd_device_parse_register(&data->mtd,
-			pdata->chip.part_probe_types, 0,
-			pdata->chip.partitions, pdata->chip.nr_partitions);
+					pdata->chip.part_probe_types, NULL,
+					pdata->chip.partitions,
+					pdata->chip.nr_partitions);
 
 	if (!err)
 		return err;

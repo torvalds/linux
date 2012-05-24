@@ -217,6 +217,7 @@ ov534_9		06f8:3003	Hercules Dualpix HD Weblog
 sonixj		06f8:3004	Hercules Classic Silver
 sonixj		06f8:3008	Hercules Deluxe Optical Glass
 pac7302		06f8:3009	Hercules Classic Link
+pac7302		06f8:301b	Hercules Link
 nw80x		0728:d001	AVerMedia Camguard
 spca508		0733:0110	ViewQuest VQ110
 spca501		0733:0401	Intel Create and Share

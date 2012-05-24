@@ -232,7 +232,7 @@ static struct snd_soc_ops raumfeld_ak4104_ops = {
 	.cpu_dai_name	= "pxa-ssp-dai.0",		\
 	.platform_name	= "pxa-pcm-audio",		\
 	.codec_dai_name	= "cs4270-hifi",		\
-	.codec_name	= "cs4270-codec.0-0048",	\
+	.codec_name	= "cs4270.0-0048",	\
 	.ops		= &raumfeld_cs4270_ops,		\
 }
 

@@ -121,7 +121,7 @@ struct drm_display_mode {
 	char name[DRM_DISPLAY_MODE_LEN];
 
 	enum drm_mode_status status;
-	int type;
+	unsigned int type;
 
 	/* Proposed mode values */
 	int clock;		/* in kHz */
@@ -257,7 +257,7 @@ struct drm_property_blob {
 	struct drm_mode_object base;
 	struct list_head head;
 	unsigned int length;
-	void *data;
+	unsigned char data[];
 };
 
 struct drm_property_enum {
@@ -796,6 +796,9 @@ struct drm_mode_config {
 	struct drm_property *scaling_mode_property;
 	struct drm_property *dithering_mode_property;
 	struct drm_property *dirty_info_property;
+
+	/* dumb ioctl parameters */
+	uint32_t preferred_depth, prefer_shadow;
 };
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
@@ -807,23 +810,29 @@ struct drm_mode_config {
 #define obj_to_blob(x) container_of(x, struct drm_property_blob, base)
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)
 
+struct drm_prop_enum_list {
+	int type;
+	char *name;
+};
 
-extern void drm_crtc_init(struct drm_device *dev,
-			  struct drm_crtc *crtc,
-			  const struct drm_crtc_funcs *funcs);
+extern int drm_crtc_init(struct drm_device *dev,
+			 struct drm_crtc *crtc,
+			 const struct drm_crtc_funcs *funcs);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
 
-extern void drm_connector_init(struct drm_device *dev,
-			    struct drm_connector *connector,
-			    const struct drm_connector_funcs *funcs,
-			    int connector_type);
+extern int drm_connector_init(struct drm_device *dev,
+			      struct drm_connector *connector,
+			      const struct drm_connector_funcs *funcs,
+			      int connector_type);
 
 extern void drm_connector_cleanup(struct drm_connector *connector);
+/* helper to unplug all connectors from sysfs for device */
+extern void drm_connector_unplug_all(struct drm_device *dev);
 
-extern void drm_encoder_init(struct drm_device *dev,
-			     struct drm_encoder *encoder,
-			     const struct drm_encoder_funcs *funcs,
-			     int encoder_type);
+extern int drm_encoder_init(struct drm_device *dev,
+			    struct drm_encoder *encoder,
+			    const struct drm_encoder_funcs *funcs,
+			    int encoder_type);
 
 extern int drm_plane_init(struct drm_device *dev,
 			  struct drm_plane *plane,
@@ -848,6 +857,7 @@ extern struct edid *drm_get_edid(struct drm_connector *connector,
 extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 extern void drm_mode_probed_add(struct drm_connector *connector, struct drm_display_mode *mode);
 extern void drm_mode_remove(struct drm_connector *connector, struct drm_display_mode *mode);
+extern void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *src);
 extern struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
 						   const struct drm_display_mode *mode);
 extern void drm_mode_debug_printmodeline(struct drm_display_mode *mode);
@@ -862,7 +872,7 @@ extern int drm_mode_height(struct drm_display_mode *mode);
 /* for us by fb module */
 extern int drm_mode_attachmode_crtc(struct drm_device *dev,
 				    struct drm_crtc *crtc,
-				    struct drm_display_mode *mode);
+				    const struct drm_display_mode *mode);
 extern int drm_mode_detachmode_crtc(struct drm_device *dev, struct drm_display_mode *mode);
 
 extern struct drm_display_mode *drm_mode_create(struct drm_device *dev);
@@ -904,6 +914,13 @@ extern int drm_connector_attach_property(struct drm_connector *connector,
 				      struct drm_property *property, uint64_t init_val);
 extern struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 						const char *name, int num_values);
+extern struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
+					 const char *name,
+					 const struct drm_prop_enum_list *props,
+					 int num_values);
+struct drm_property *drm_property_create_range(struct drm_device *dev, int flags,
+					 const char *name,
+					 uint64_t min, uint64_t max);
 extern void drm_property_destroy(struct drm_device *dev, struct drm_property *property);
 extern int drm_property_add_enum(struct drm_property *property, int index,
 				 uint64_t value, const char *name);
@@ -919,7 +936,7 @@ extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 					     struct drm_encoder *encoder);
 extern void drm_mode_connector_detach_encoder(struct drm_connector *connector,
 					   struct drm_encoder *encoder);
-extern bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
+extern int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 					 int gamma_size);
 extern struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 		uint32_t id, uint32_t type);
@@ -995,6 +1012,7 @@ extern int drm_add_modes_noedid(struct drm_connector *connector,
 				int hdisplay, int vdisplay);
 
 extern int drm_edid_header_is_valid(const u8 *raw_edid);
+extern bool drm_edid_block_valid(u8 *raw_edid);
 extern bool drm_edid_is_valid(struct edid *edid);
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh);

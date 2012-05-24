@@ -76,6 +76,20 @@ config BATTERY_DS2780
 	help
 	  Say Y here to enable support for batteries with ds2780 chip.
 
+config BATTERY_DS2781
+	tristate "2781 battery driver"
+	depends on HAS_IOMEM
+	select W1
+	select W1_SLAVE_DS2781
+	help
+	  If you enable this you will have the DS2781 battery driver support.
+
+	  The battery monitor chip is used in many batteries/devices
+	  as the one who is responsible for charging/discharging/monitoring
+	  Li+ batteries.
+
+	  If you are unsure, say N.
+
 config BATTERY_DS2782
 	tristate "DS2782/DS2786 standalone gas-gauge"
 	depends on I2C
@@ -235,7 +249,7 @@ config CHARGER_TWL4030
 	  Say Y here to enable support for TWL4030 Battery Charge Interface.
 
 config CHARGER_LP8727
-	tristate "National Semiconductor LP8727 charger driver"
+	tristate "TI/National Semiconductor LP8727 charger driver"
 	depends on I2C
 	help
 	  Say Y here to enable support for LP8727 Charger Driver.
@@ -274,4 +288,23 @@ config CHARGER_MAX8998
 	  Say Y to enable support for the battery charger control sysfs and
 	  platform data of MAX8998/LP3974 PMICs.
 
+config CHARGER_SMB347
+	tristate "Summit Microelectronics SMB347 Battery Charger"
+	depends on I2C
+	help
+	  Say Y to include support for Summit Microelectronics SMB347
+	  Battery Charger.
+
+config AB8500_BM
+	bool "AB8500 Battery Management Driver"
+	depends on AB8500_CORE && AB8500_GPADC
+	help
+	  Say Y to include support for AB5500 battery management.
+
+config AB8500_BATTERY_THERM_ON_BATCTRL
+	bool "Thermistor connected on BATCTRL ADC"
+	depends on AB8500_BM
+	help
+	  Say Y to enable battery temperature measurements using
+	  thermistor connected on BATCTRL ADC.
 endif # POWER_SUPPLY

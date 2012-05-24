@@ -10,12 +10,12 @@
 #include <linux/init.h>
 #include <linux/bitops.h>
 
-#include <asm/system.h>
 #include <asm/cpudata.h>
 #include <asm/uaccess.h>
 #include <asm/spitfire.h>
 #include <asm/oplib.h>
 #include <asm/hypervisor.h>
+#include <asm/cacheflush.h>
 
 struct poll {
 	int fd;

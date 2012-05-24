@@ -28,7 +28,7 @@ static int __init emu_find_memblk_by_nid(int nid, const struct numa_meminfo *mi)
 	return -ENOENT;
 }
 
-static u64 mem_hole_size(u64 start, u64 end)
+static u64 __init mem_hole_size(u64 start, u64 end)
 {
 	unsigned long start_pfn = PFN_UP(start);
 	unsigned long end_pfn = PFN_DOWN(end);
@@ -60,7 +60,7 @@ static int __init emu_setup_memblk(struct numa_meminfo *ei,
 	eb->nid = nid;
 
 	if (emu_nid_to_phys[nid] == NUMA_NO_NODE)
-		emu_nid_to_phys[nid] = pb->nid;
+		emu_nid_to_phys[nid] = nid;
 
 	pb->start += size;
 	if (pb->start >= pb->end) {

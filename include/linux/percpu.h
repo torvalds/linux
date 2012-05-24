@@ -348,9 +348,9 @@ do {									\
 #define _this_cpu_generic_to_op(pcp, val, op)				\
 do {									\
 	unsigned long flags;						\
-	local_irq_save(flags);						\
+	raw_local_irq_save(flags);					\
 	*__this_cpu_ptr(&(pcp)) op val;					\
-	local_irq_restore(flags);					\
+	raw_local_irq_restore(flags);					\
 } while (0)
 
 #ifndef this_cpu_write
@@ -449,10 +449,10 @@ do {									\
 ({									\
 	typeof(pcp) ret__;						\
 	unsigned long flags;						\
-	local_irq_save(flags);						\
+	raw_local_irq_save(flags);					\
 	__this_cpu_add(pcp, val);					\
 	ret__ = __this_cpu_read(pcp);					\
-	local_irq_restore(flags);					\
+	raw_local_irq_restore(flags);					\
 	ret__;								\
 })
 
@@ -479,10 +479,10 @@ do {									\
 #define _this_cpu_generic_xchg(pcp, nval)				\
 ({	typeof(pcp) ret__;						\
 	unsigned long flags;						\
-	local_irq_save(flags);						\
+	raw_local_irq_save(flags);					\
 	ret__ = __this_cpu_read(pcp);					\
 	__this_cpu_write(pcp, nval);					\
-	local_irq_restore(flags);					\
+	raw_local_irq_restore(flags);					\
 	ret__;								\
 })
 
@@ -507,11 +507,11 @@ do {									\
 ({									\
 	typeof(pcp) ret__;						\
 	unsigned long flags;						\
-	local_irq_save(flags);						\
+	raw_local_irq_save(flags);					\
 	ret__ = __this_cpu_read(pcp);					\
 	if (ret__ == (oval))						\
 		__this_cpu_write(pcp, nval);				\
-	local_irq_restore(flags);					\
+	raw_local_irq_restore(flags);					\
 	ret__;								\
 })
 
@@ -544,10 +544,10 @@ do {									\
 ({									\
 	int ret__;							\
 	unsigned long flags;						\
-	local_irq_save(flags);						\
+	raw_local_irq_save(flags);					\
 	ret__ = __this_cpu_generic_cmpxchg_double(pcp1, pcp2,		\
 			oval1, oval2, nval1, nval2);			\
-	local_irq_restore(flags);					\
+	raw_local_irq_restore(flags);					\
 	ret__;								\
 })
 
@@ -718,12 +718,13 @@ do {									\
 # ifndef __this_cpu_add_return_8
 #  define __this_cpu_add_return_8(pcp, val)	__this_cpu_generic_add_return(pcp, val)
 # endif
-# define __this_cpu_add_return(pcp, val)	__pcpu_size_call_return2(this_cpu_add_return_, pcp, val)
+# define __this_cpu_add_return(pcp, val)	\
+	__pcpu_size_call_return2(__this_cpu_add_return_, pcp, val)
 #endif
 
-#define __this_cpu_sub_return(pcp, val)	this_cpu_add_return(pcp, -(val))
-#define __this_cpu_inc_return(pcp)	this_cpu_add_return(pcp, 1)
-#define __this_cpu_dec_return(pcp)	this_cpu_add_return(pcp, -1)
+#define __this_cpu_sub_return(pcp, val)	__this_cpu_add_return(pcp, -(val))
+#define __this_cpu_inc_return(pcp)	__this_cpu_add_return(pcp, 1)
+#define __this_cpu_dec_return(pcp)	__this_cpu_add_return(pcp, -1)
 
 #define __this_cpu_generic_xchg(pcp, nval)				\
 ({	typeof(pcp) ret__;						\

@@ -663,11 +663,7 @@ static int sudmac_alloc_channel(struct r8a66597 *r8a66597,
 	ep->fifoctr = D0FIFOCTR;
 
 	/* dma mapping */
-	req->req.dma = dma_map_single(r8a66597_to_dev(ep->r8a66597),
-				req->req.buf, req->req.length,
-				dma->dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-
-	return 0;
+	return usb_gadget_map_request(&r8a66597->gadget, &req->req, dma->dir);
 }
 
 static void sudmac_free_channel(struct r8a66597 *r8a66597,
@@ -677,9 +673,7 @@ static void sudmac_free_channel(struct r8a66597 *r8a66597,
 	if (!r8a66597_is_sudmac(r8a66597))
 		return;
 
-	dma_unmap_single(r8a66597_to_dev(ep->r8a66597),
-			 req->req.dma, req->req.length,
-			 ep->dma->dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	usb_gadget_unmap_request(&r8a66597->gadget, &req->req, ep->dma->dir);
 
 	r8a66597_bclr(r8a66597, DREQE, ep->fifosel);
 	r8a66597_change_curpipe(r8a66597, 0, 0, ep->fifosel);

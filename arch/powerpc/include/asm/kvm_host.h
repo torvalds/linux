@@ -32,15 +32,30 @@
 #include <linux/atomic.h>
 #include <asm/kvm_asm.h>
 #include <asm/processor.h>
+#include <asm/page.h>
 
 #define KVM_MAX_VCPUS		NR_CPUS
 #define KVM_MAX_VCORES		NR_CPUS
 #define KVM_MEMORY_SLOTS 32
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
+#define KVM_MEM_SLOTS_NUM (KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS)
 
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+#endif
+
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+#include <linux/mmu_notifier.h>
+
+#define KVM_ARCH_WANT_MMU_NOTIFIER
+
+struct kvm;
+extern int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
+extern int kvm_age_hva(struct kvm *kvm, unsigned long hva);
+extern int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
+extern void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
+
 #endif
 
 /* We don't currently support large pages. */
@@ -158,34 +173,72 @@ struct kvmppc_spapr_tce_table {
 	struct page *pages[0];
 };
 
-struct kvmppc_rma_info {
+struct kvmppc_linear_info {
 	void		*base_virt;
 	unsigned long	 base_pfn;
 	unsigned long	 npages;
 	struct list_head list;
-	atomic_t 	 use_count;
+	atomic_t	 use_count;
+	int		 type;
+};
+
+/*
+ * The reverse mapping array has one entry for each HPTE,
+ * which stores the guest's view of the second word of the HPTE
+ * (including the guest physical address of the mapping),
+ * plus forward and backward pointers in a doubly-linked ring
+ * of HPTEs that map the same host page.  The pointers in this
+ * ring are 32-bit HPTE indexes, to save space.
+ */
+struct revmap_entry {
+	unsigned long guest_rpte;
+	unsigned int forw, back;
+};
+
+/*
+ * We use the top bit of each memslot->rmap entry as a lock bit,
+ * and bit 32 as a present flag.  The bottom 32 bits are the
+ * index in the guest HPT of a HPTE that points to the page.
+ */
+#define KVMPPC_RMAP_LOCK_BIT	63
+#define KVMPPC_RMAP_RC_SHIFT	32
+#define KVMPPC_RMAP_REFERENCED	(HPTE_R_R << KVMPPC_RMAP_RC_SHIFT)
+#define KVMPPC_RMAP_CHANGED	(HPTE_R_C << KVMPPC_RMAP_RC_SHIFT)
+#define KVMPPC_RMAP_PRESENT	0x100000000ul
+#define KVMPPC_RMAP_INDEX	0xfffffffful
+
+/* Low-order bits in kvm->arch.slot_phys[][] */
+#define KVMPPC_PAGE_ORDER_MASK	0x1f
+#define KVMPPC_PAGE_NO_CACHE	HPTE_R_I	/* 0x20 */
+#define KVMPPC_PAGE_WRITETHRU	HPTE_R_W	/* 0x40 */
+#define KVMPPC_GOT_PAGE		0x80
+
+struct kvm_arch_memory_slot {
 };
 
 struct kvm_arch {
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	unsigned long hpt_virt;
-	unsigned long ram_npages;
-	unsigned long ram_psize;
-	unsigned long ram_porder;
-	struct kvmppc_pginfo *ram_pginfo;
+	struct revmap_entry *revmap;
 	unsigned int lpid;
 	unsigned int host_lpid;
 	unsigned long host_lpcr;
 	unsigned long sdr1;
 	unsigned long host_sdr1;
 	int tlbie_lock;
-	int n_rma_pages;
 	unsigned long lpcr;
 	unsigned long rmor;
-	struct kvmppc_rma_info *rma;
+	struct kvmppc_linear_info *rma;
+	unsigned long vrma_slb_v;
+	int rma_setup_done;
+	int using_mmu_notifiers;
 	struct list_head spapr_tce_tables;
+	spinlock_t slot_phys_lock;
+	unsigned long *slot_phys[KVM_MEM_SLOTS_NUM];
+	int slot_npages[KVM_MEM_SLOTS_NUM];
 	unsigned short last_vcpu[NR_CPUS];
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
+	struct kvmppc_linear_info *hpt_li;
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
 };
 
@@ -318,10 +371,6 @@ struct kvm_vcpu_arch {
 	u32 vrsave; /* also USPRG0 */
 	u32 mmucr;
 	ulong shadow_msr;
-	ulong sprg4;
-	ulong sprg5;
-	ulong sprg6;
-	ulong sprg7;
 	ulong csrr0;
 	ulong csrr1;
 	ulong dsrr0;
@@ -329,16 +378,14 @@ struct kvm_vcpu_arch {
 	ulong mcsrr0;
 	ulong mcsrr1;
 	ulong mcsr;
-	ulong esr;
 	u32 dec;
 	u32 decar;
 	u32 tbl;
 	u32 tbu;
 	u32 tcr;
-	u32 tsr;
+	ulong tsr; /* we need to perform set/clr_bits() which requires ulong */
 	u32 ivor[64];
 	ulong ivpr;
-	u32 pir;
 	u32 pvr;
 
 	u32 shadow_pid;
@@ -427,9 +474,14 @@ struct kvm_vcpu_arch {
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	struct kvm_vcpu_arch_shared shregs;
 
+	unsigned long pgfault_addr;
+	long pgfault_index;
+	unsigned long pgfault_hpte[2];
+
 	struct list_head run_list;
 	struct task_struct *run_task;
 	struct kvm_run *kvm_run;
+	pgd_t *pgdir;
 #endif
 };
 
@@ -437,5 +489,13 @@ struct kvm_vcpu_arch {
 #define KVMPPC_VCPU_STOPPED		0
 #define KVMPPC_VCPU_BUSY_IN_HOST	1
 #define KVMPPC_VCPU_RUNNABLE		2
+
+/* Values for vcpu->arch.io_gpr */
+#define KVM_MMIO_REG_MASK	0x001f
+#define KVM_MMIO_REG_EXT_MASK	0xffe0
+#define KVM_MMIO_REG_GPR	0x0000
+#define KVM_MMIO_REG_FPR	0x0020
+#define KVM_MMIO_REG_QPR	0x0040
+#define KVM_MMIO_REG_FQPR	0x0060
 
 #endif /* __POWERPC_KVM_HOST_H__ */

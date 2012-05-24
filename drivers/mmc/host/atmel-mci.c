@@ -24,6 +24,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
+#include <linux/types.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdio.h>
@@ -76,6 +77,7 @@ struct atmel_mci_caps {
 	bool    has_cstor_reg;
 	bool    has_highspeed;
 	bool    has_rwproof;
+	bool	has_odd_clk_div;
 };
 
 struct atmel_mci_dma {
@@ -173,6 +175,7 @@ struct atmel_mci {
 
 	struct atmel_mci_dma	dma;
 	struct dma_chan		*data_chan;
+	struct dma_slave_config	dma_conf;
 
 	u32			cmd_status;
 	u32			data_status;
@@ -480,7 +483,14 @@ err:
 static inline unsigned int atmci_ns_to_clocks(struct atmel_mci *host,
 					unsigned int ns)
 {
-	return (ns * (host->bus_hz / 1000000) + 999) / 1000;
+	/*
+	 * It is easier here to use us instead of ns for the timeout,
+	 * it prevents from overflows during calculation.
+	 */
+	unsigned int us = DIV_ROUND_UP(ns, 1000);
+
+	/* Maximum clock frequency is host->bus_hz/2 */
+	return us * (DIV_ROUND_UP(host->bus_hz, 2000000));
 }
 
 static void atmci_set_timeout(struct atmel_mci *host,
@@ -863,16 +873,17 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 
 	if (data->flags & MMC_DATA_READ) {
 		direction = DMA_FROM_DEVICE;
-		slave_dirn = DMA_DEV_TO_MEM;
+		host->dma_conf.direction = slave_dirn = DMA_DEV_TO_MEM;
 	} else {
 		direction = DMA_TO_DEVICE;
-		slave_dirn = DMA_MEM_TO_DEV;
+		host->dma_conf.direction = slave_dirn = DMA_MEM_TO_DEV;
 	}
 
 	sglen = dma_map_sg(chan->device->dev, data->sg,
 			data->sg_len, direction);
 
-	desc = chan->device->device_prep_slave_sg(chan,
+	dmaengine_slave_config(chan, &host->dma_conf);
+	desc = dmaengine_prep_slave_sg(chan,
 			data->sg, sglen, slave_dirn,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
@@ -1124,15 +1135,26 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		}
 
 		/* Calculate clock divider */
-		clkdiv = DIV_ROUND_UP(host->bus_hz, 2 * clock_min) - 1;
-		if (clkdiv > 255) {
-			dev_warn(&mmc->class_dev,
-				"clock %u too slow; using %lu\n",
-				clock_min, host->bus_hz / (2 * 256));
-			clkdiv = 255;
+		if (host->caps.has_odd_clk_div) {
+			clkdiv = DIV_ROUND_UP(host->bus_hz, clock_min) - 2;
+			if (clkdiv > 511) {
+				dev_warn(&mmc->class_dev,
+				         "clock %u too slow; using %lu\n",
+				         clock_min, host->bus_hz / (511 + 2));
+				clkdiv = 511;
+			}
+			host->mode_reg = ATMCI_MR_CLKDIV(clkdiv >> 1)
+			                 | ATMCI_MR_CLKODD(clkdiv & 1);
+		} else {
+			clkdiv = DIV_ROUND_UP(host->bus_hz, 2 * clock_min) - 1;
+			if (clkdiv > 255) {
+				dev_warn(&mmc->class_dev,
+				         "clock %u too slow; using %lu\n",
+				         clock_min, host->bus_hz / (2 * 256));
+				clkdiv = 255;
+			}
+			host->mode_reg = ATMCI_MR_CLKDIV(clkdiv);
 		}
-
-		host->mode_reg = ATMCI_MR_CLKDIV(clkdiv);
 
 		/*
 		 * WRPROOF and RDPROOF prevent overruns/underruns by
@@ -1948,21 +1970,17 @@ static bool atmci_filter(struct dma_chan *chan, void *slave)
 	}
 }
 
-static void atmci_configure_dma(struct atmel_mci *host)
+static bool atmci_configure_dma(struct atmel_mci *host)
 {
 	struct mci_platform_data	*pdata;
 
 	if (host == NULL)
-		return;
+		return false;
 
 	pdata = host->pdev->dev.platform_data;
 
 	if (pdata && find_slave_dev(pdata->dma_slave)) {
 		dma_cap_mask_t mask;
-
-		setup_dma_addr(pdata->dma_slave,
-			       host->mapbase + ATMCI_TDR,
-			       host->mapbase + ATMCI_RDR);
 
 		/* Try to grab a DMA channel */
 		dma_cap_zero(mask);
@@ -1970,12 +1988,23 @@ static void atmci_configure_dma(struct atmel_mci *host)
 		host->dma.chan =
 			dma_request_channel(mask, atmci_filter, pdata->dma_slave);
 	}
-	if (!host->dma.chan)
-		dev_notice(&host->pdev->dev, "DMA not available, using PIO\n");
-	else
+	if (!host->dma.chan) {
+		dev_warn(&host->pdev->dev, "no DMA channel available\n");
+		return false;
+	} else {
 		dev_info(&host->pdev->dev,
-					"Using %s for DMA transfers\n",
+					"using %s for DMA transfers\n",
 					dma_chan_name(host->dma.chan));
+
+		host->dma_conf.src_addr = host->mapbase + ATMCI_RDR;
+		host->dma_conf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		host->dma_conf.src_maxburst = 1;
+		host->dma_conf.dst_addr = host->mapbase + ATMCI_TDR;
+		host->dma_conf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		host->dma_conf.dst_maxburst = 1;
+		host->dma_conf.device_fc = false;
+		return true;
+	}
 }
 
 static inline unsigned int atmci_get_version(struct atmel_mci *host)
@@ -1997,35 +2026,35 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 			"version: 0x%x\n", version);
 
 	host->caps.has_dma = 0;
-	host->caps.has_pdc = 0;
+	host->caps.has_pdc = 1;
 	host->caps.has_cfg_reg = 0;
 	host->caps.has_cstor_reg = 0;
 	host->caps.has_highspeed = 0;
 	host->caps.has_rwproof = 0;
+	host->caps.has_odd_clk_div = 0;
 
 	/* keep only major version number */
 	switch (version & 0xf00) {
-	case 0x100:
-	case 0x200:
-		host->caps.has_pdc = 1;
-		host->caps.has_rwproof = 1;
-		break;
-	case 0x300:
-	case 0x400:
 	case 0x500:
+		host->caps.has_odd_clk_div = 1;
+	case 0x400:
+	case 0x300:
 #ifdef CONFIG_AT_HDMAC
 		host->caps.has_dma = 1;
 #else
-		host->caps.has_dma = 0;
 		dev_info(&host->pdev->dev,
 			"has dma capability but dma engine is not selected, then use pio\n");
 #endif
+		host->caps.has_pdc = 0;
 		host->caps.has_cfg_reg = 1;
 		host->caps.has_cstor_reg = 1;
 		host->caps.has_highspeed = 1;
+	case 0x200:
 		host->caps.has_rwproof = 1;
+	case 0x100:
 		break;
 	default:
+		host->caps.has_pdc = 0;
 		dev_warn(&host->pdev->dev,
 				"Unmanaged mci version, set minimum capabilities\n");
 		break;
@@ -2085,8 +2114,7 @@ static int __init atmci_probe(struct platform_device *pdev)
 
 	/* Get MCI capabilities and set operations according to it */
 	atmci_get_cap(host);
-	if (host->caps.has_dma) {
-		dev_info(&pdev->dev, "using DMA\n");
+	if (host->caps.has_dma && atmci_configure_dma(host)) {
 		host->prepare_data = &atmci_prepare_data_dma;
 		host->submit_data = &atmci_submit_data_dma;
 		host->stop_transfer = &atmci_stop_transfer_dma;
@@ -2096,14 +2124,11 @@ static int __init atmci_probe(struct platform_device *pdev)
 		host->submit_data = &atmci_submit_data_pdc;
 		host->stop_transfer = &atmci_stop_transfer_pdc;
 	} else {
-		dev_info(&pdev->dev, "no DMA, no PDC\n");
+		dev_info(&pdev->dev, "using PIO\n");
 		host->prepare_data = &atmci_prepare_data;
 		host->submit_data = &atmci_submit_data;
 		host->stop_transfer = &atmci_stop_transfer;
 	}
-
-	if (host->caps.has_dma)
-		atmci_configure_dma(host);
 
 	platform_set_drvdata(pdev, host);
 

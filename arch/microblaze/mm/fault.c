@@ -33,7 +33,6 @@
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
-#include <asm/system.h>
 #include <linux/uaccess.h>
 #include <asm/exceptions.h>
 

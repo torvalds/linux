@@ -48,6 +48,9 @@ OPTIONS
 	Only consider these symbols. CSV that understands
 	file://filename entries.
 
+--symbol-filter=::
+	Only show symbols that match (partially) with this filter.
+
 -U::
 --hide-unresolved::
         Only display entries resolved to a symbol.
@@ -110,6 +113,8 @@ OPTIONS
 	requires a tty, if one is not present, as when piping to other
 	commands, the stdio interface is used.
 
+--gtk:: Use the GTK2 interface.
+
 -k::
 --vmlinux=<file>::
         vmlinux pathname
@@ -152,6 +157,16 @@ OPTIONS
 	Display extended information about the perf.data file. This adds
 	information which may be very large and thus may clutter the display.
 	It currently includes: cpu and numa topology of the host system.
+
+-b::
+--branch-stack::
+	Use the addresses of sampled taken branches instead of the instruction
+	address to build the histograms. To generate meaningful output, the
+	perf.data file must have been obtained using perf record -b or
+	perf record --branch-filter xxx where xxx is a branch filter option.
+	perf report is able to auto-detect whether a perf.data file contains
+	branch stacks and it will automatically switch to the branch view mode,
+	unless --no-branch-stack is used.
 
 SEE ALSO
 --------

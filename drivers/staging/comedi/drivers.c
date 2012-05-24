@@ -42,7 +42,6 @@
 #include <linux/cdev.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
-#include <asm/system.h>
 
 #include "comedidev.h"
 #include "internal.h"

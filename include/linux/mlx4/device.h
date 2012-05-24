@@ -101,10 +101,6 @@ enum {
 #define MLX4_ATTR_EXTENDED_PORT_INFO	cpu_to_be16(0xff90)
 
 enum {
-	MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO	= 1 <<  0
-};
-
-enum {
 	MLX4_BMME_FLAG_LOCAL_INV	= 1 <<  6,
 	MLX4_BMME_FLAG_REMOTE_INV	= 1 <<  7,
 	MLX4_BMME_FLAG_TYPE_2_WIN	= 1 <<  9,
@@ -133,6 +129,7 @@ enum mlx4_event {
 	MLX4_EVENT_TYPE_CMD		   = 0x0a,
 	MLX4_EVENT_TYPE_VEP_UPDATE	   = 0x19,
 	MLX4_EVENT_TYPE_COMM_CHANNEL	   = 0x18,
+	MLX4_EVENT_TYPE_FATAL_WARNING	   = 0x1b,
 	MLX4_EVENT_TYPE_FLR_EVENT	   = 0x1c,
 	MLX4_EVENT_TYPE_NONE		   = 0xff,
 };
@@ -140,6 +137,10 @@ enum mlx4_event {
 enum {
 	MLX4_PORT_CHANGE_SUBTYPE_DOWN	= 1,
 	MLX4_PORT_CHANGE_SUBTYPE_ACTIVE	= 4
+};
+
+enum {
+	MLX4_FATAL_WARNING_SUBTYPE_WARMING = 0,
 };
 
 enum {
@@ -273,6 +274,7 @@ struct mlx4_caps {
 	int			num_comp_vectors;
 	int			comp_pool;
 	int			num_mpts;
+	int			max_fmr_maps;
 	int			num_mtts;
 	int			fmr_reserved_mtts;
 	int			reserved_mtts;
@@ -308,7 +310,7 @@ struct mlx4_caps {
 	u32			port_mask[MLX4_MAX_PORTS + 1];
 	enum mlx4_port_type	possible_type[MLX4_MAX_PORTS + 1];
 	u32			max_counters;
-	u8			ext_port_cap[MLX4_MAX_PORTS + 1];
+	u8			port_ib_mtu[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_buf_list {
@@ -622,7 +624,10 @@ int mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac);
 int mlx4_get_eth_qp(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn);
 void mlx4_put_eth_qp(struct mlx4_dev *dev, u8 port, u64 mac, int qpn);
 void mlx4_set_stats_bitmap(struct mlx4_dev *dev, u64 *stats_bitmap);
-
+int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
+			  u8 pptx, u8 pfctx, u8 pprx, u8 pfcrx);
+int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
+			   u8 promisc);
 int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx);
 int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);
 void mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index);

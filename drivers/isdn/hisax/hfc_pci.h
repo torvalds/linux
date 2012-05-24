@@ -4,7 +4,7 @@
  *
  * Author       Werner Cornelius
  * Copyright    by Werner Cornelius  <werner@isdn4linux.de>
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
@@ -55,7 +55,7 @@
 
 #define HFCPCI_MST_EMOD  0xB4
 #define HFCPCI_MST_MODE	 0xB8
-#define HFCPCI_CONNECT 	 0xBC
+#define HFCPCI_CONNECT	 0xBC
 
 
 /* Interrupt and status registers */
@@ -64,22 +64,22 @@
 #define HFCPCI_TRM       0x48
 #define HFCPCI_B_MODE    0x4C
 #define HFCPCI_CHIP_ID   0x58
-#define HFCPCI_CIRM  	 0x60
+#define HFCPCI_CIRM	 0x60
 #define HFCPCI_CTMT	 0x64
-#define HFCPCI_INT_M1  	 0x68
-#define HFCPCI_INT_M2  	 0x6C
-#define HFCPCI_INT_S1  	 0x78
-#define HFCPCI_INT_S2  	 0x7C
-#define HFCPCI_STATUS  	 0x70
+#define HFCPCI_INT_M1	 0x68
+#define HFCPCI_INT_M2	 0x6C
+#define HFCPCI_INT_S1	 0x78
+#define HFCPCI_INT_S2	 0x7C
+#define HFCPCI_STATUS	 0x70
 
 /* S/T section registers */
 
-#define HFCPCI_STATES  	 0xC0
-#define HFCPCI_SCTRL  	 0xC4
+#define HFCPCI_STATES	 0xC0
+#define HFCPCI_SCTRL	 0xC4
 #define HFCPCI_SCTRL_E   0xC8
 #define HFCPCI_SCTRL_R   0xCC
-#define HFCPCI_SQ  	 0xD0
-#define HFCPCI_CLKDEL  	 0xDC
+#define HFCPCI_SQ	 0xD0
+#define HFCPCI_CLKDEL	 0xDC
 #define HFCPCI_B1_REC    0xF0
 #define HFCPCI_B1_SEND   0xF0
 #define HFCPCI_B2_REC    0xF4
@@ -91,7 +91,7 @@
 
 /* bits in status register (READ) */
 #define HFCPCI_PCI_PROC   0x02
-#define HFCPCI_NBUSY	  0x04 
+#define HFCPCI_NBUSY	  0x04
 #define HFCPCI_TIMER_ELAP 0x10
 #define HFCPCI_STATINT	  0x20
 #define HFCPCI_FRAMEINT	  0x40
@@ -110,7 +110,7 @@
 
 /* bits in CIRM (Write) */
 #define HFCPCI_AUX_MSK    0x07
-#define HFCPCI_RESET  	  0x08
+#define HFCPCI_RESET	  0x08
 #define HFCPCI_B1_REV     0x40
 #define HFCPCI_B2_REV     0x80
 
@@ -183,53 +183,53 @@
 #define D_FREG_MASK  0xF
 
 typedef struct {
-    unsigned short z1;  /* Z1 pointer 16 Bit */
-    unsigned short z2;  /* Z2 pointer 16 Bit */
-  } z_type;
+	unsigned short z1;  /* Z1 pointer 16 Bit */
+	unsigned short z2;  /* Z2 pointer 16 Bit */
+} z_type;
 
 typedef struct {
-    u_char data[D_FIFO_SIZE]; /* FIFO data space */
-    u_char fill1[0x20A0-D_FIFO_SIZE]; /* reserved, do not use */
-    u_char f1,f2; /* f pointers */
-    u_char fill2[0x20C0-0x20A2]; /* reserved, do not use */
-    z_type za[MAX_D_FRAMES+1]; /* mask index with D_FREG_MASK for access */
-    u_char fill3[0x4000-0x2100]; /* align 16K */  
-  } dfifo_type;
+	u_char data[D_FIFO_SIZE]; /* FIFO data space */
+	u_char fill1[0x20A0 - D_FIFO_SIZE]; /* reserved, do not use */
+	u_char f1, f2; /* f pointers */
+	u_char fill2[0x20C0 - 0x20A2]; /* reserved, do not use */
+	z_type za[MAX_D_FRAMES + 1]; /* mask index with D_FREG_MASK for access */
+	u_char fill3[0x4000 - 0x2100]; /* align 16K */
+} dfifo_type;
 
 typedef struct {
-    z_type za[MAX_B_FRAMES+1]; /* only range 0x0..0x1F allowed */ 
-    u_char f1,f2; /* f pointers */
-    u_char fill[0x2100-0x2082]; /* alignment */
-  } bzfifo_type;
+	z_type za[MAX_B_FRAMES + 1]; /* only range 0x0..0x1F allowed */
+	u_char f1, f2; /* f pointers */
+	u_char fill[0x2100 - 0x2082]; /* alignment */
+} bzfifo_type;
 
 
 typedef union {
-    struct { 
-      dfifo_type d_tx; /* D-send channel */
-      dfifo_type d_rx; /* D-receive channel */
-    } d_chan; 
-    struct {
-      u_char fill1[0x200];
-      u_char txdat_b1[B_FIFO_SIZE];
-      bzfifo_type txbz_b1;
+	struct {
+		dfifo_type d_tx; /* D-send channel */
+		dfifo_type d_rx; /* D-receive channel */
+	} d_chan;
+	struct {
+		u_char fill1[0x200];
+		u_char txdat_b1[B_FIFO_SIZE];
+		bzfifo_type txbz_b1;
 
-      bzfifo_type txbz_b2;
-      u_char txdat_b2[B_FIFO_SIZE];
+		bzfifo_type txbz_b2;
+		u_char txdat_b2[B_FIFO_SIZE];
 
-      u_char fill2[D_FIFO_SIZE];
+		u_char fill2[D_FIFO_SIZE];
 
-      u_char rxdat_b1[B_FIFO_SIZE];
-      bzfifo_type rxbz_b1;
+		u_char rxdat_b1[B_FIFO_SIZE];
+		bzfifo_type rxbz_b1;
 
-      bzfifo_type rxbz_b2;
-      u_char rxdat_b2[B_FIFO_SIZE];
-    } b_chans;  
-    u_char fill[32768]; 
-  } fifo_area;
+		bzfifo_type rxbz_b2;
+		u_char rxdat_b2[B_FIFO_SIZE];
+	} b_chans;
+	u_char fill[32768];
+} fifo_area;
 
 
-#define Write_hfc(a,b,c) (*(((u_char *)a->hw.hfcpci.pci_io)+b) = c) 
-#define Read_hfc(a,b) (*(((u_char *)a->hw.hfcpci.pci_io)+b))
+#define Write_hfc(a, b, c) (*(((u_char *)a->hw.hfcpci.pci_io) + b) = c)
+#define Read_hfc(a, b) (*(((u_char *)a->hw.hfcpci.pci_io) + b))
 
 extern void main_irq_hcpci(struct BCState *bcs);
 extern void releasehfcpci(struct IsdnCardState *cs);

@@ -25,7 +25,7 @@ get_cpuid(char *buffer, size_t sz)
 
 	pvr = mfspr(SPRN_PVR);
 
-	nb = snprintf(buffer, sz, "%lu,%lu$", PVR_VER(pvr), PVR_REV(pvr));
+	nb = scnprintf(buffer, sz, "%lu,%lu$", PVR_VER(pvr), PVR_REV(pvr));
 
 	/* look for end marker to ensure the entire data fit */
 	if (strchr(buffer, '$')) {

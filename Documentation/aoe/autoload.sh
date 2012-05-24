@@ -1,8 +1,8 @@
 #!/bin/sh
 # set aoe to autoload by installing the
-# aliases in /etc/modprobe.conf
+# aliases in /etc/modprobe.d/
 
-f=/etc/modprobe.conf
+f=/etc/modprobe.d/aoe.conf
 
 if test ! -r $f || test ! -w $f; then
 	echo "cannot configure $f for module autoloading" 1>&2

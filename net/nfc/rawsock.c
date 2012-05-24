@@ -63,7 +63,7 @@ static int rawsock_release(struct socket *sock)
 }
 
 static int rawsock_connect(struct socket *sock, struct sockaddr *_addr,
-							int len, int flags)
+			   int len, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct sockaddr_nfc *addr = (struct sockaddr_nfc *)_addr;
@@ -73,7 +73,7 @@ static int rawsock_connect(struct socket *sock, struct sockaddr *_addr,
 	pr_debug("sock=%p sk=%p flags=%d\n", sock, sk, flags);
 
 	if (!addr || len < sizeof(struct sockaddr_nfc) ||
-		addr->sa_family != AF_NFC)
+	    addr->sa_family != AF_NFC)
 		return -EINVAL;
 
 	pr_debug("addr dev_idx=%u target_idx=%u protocol=%u\n",
@@ -89,18 +89,6 @@ static int rawsock_connect(struct socket *sock, struct sockaddr *_addr,
 	dev = nfc_get_device(addr->dev_idx);
 	if (!dev) {
 		rc = -ENODEV;
-		goto error;
-	}
-
-	if (addr->target_idx > dev->target_idx - 1 ||
-		addr->target_idx < dev->target_idx - dev->n_targets) {
-		rc = -EINVAL;
-		goto error;
-	}
-
-	if (addr->target_idx > dev->target_idx - 1 ||
-		addr->target_idx < dev->target_idx - dev->n_targets) {
-		rc = -EINVAL;
 		goto error;
 	}
 
@@ -132,7 +120,7 @@ static int rawsock_add_header(struct sk_buff *skb)
 }
 
 static void rawsock_data_exchange_complete(void *context, struct sk_buff *skb,
-								int err)
+					   int err)
 {
 	struct sock *sk = (struct sock *) context;
 
@@ -185,7 +173,7 @@ static void rawsock_tx_work(struct work_struct *work)
 
 	sock_hold(sk);
 	rc = nfc_data_exchange(dev, target_idx, skb,
-				rawsock_data_exchange_complete, sk);
+			       rawsock_data_exchange_complete, sk);
 	if (rc) {
 		rawsock_report_error(sk, rc);
 		sock_put(sk);
@@ -193,7 +181,7 @@ static void rawsock_tx_work(struct work_struct *work)
 }
 
 static int rawsock_sendmsg(struct kiocb *iocb, struct socket *sock,
-					struct msghdr *msg, size_t len)
+			   struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct nfc_dev *dev = nfc_rawsock(sk)->dev;
@@ -230,7 +218,7 @@ static int rawsock_sendmsg(struct kiocb *iocb, struct socket *sock,
 }
 
 static int rawsock_recvmsg(struct kiocb *iocb, struct socket *sock,
-				struct msghdr *msg, size_t len, int flags)
+			   struct msghdr *msg, size_t len, int flags)
 {
 	int noblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
@@ -286,7 +274,7 @@ static void rawsock_destruct(struct sock *sk)
 
 	if (sk->sk_state == TCP_ESTABLISHED) {
 		nfc_deactivate_target(nfc_rawsock(sk)->dev,
-					nfc_rawsock(sk)->target_idx);
+				      nfc_rawsock(sk)->target_idx);
 		nfc_put_device(nfc_rawsock(sk)->dev);
 	}
 
@@ -299,7 +287,7 @@ static void rawsock_destruct(struct sock *sk)
 }
 
 static int rawsock_create(struct net *net, struct socket *sock,
-				const struct nfc_protocol *nfc_proto)
+			  const struct nfc_protocol *nfc_proto)
 {
 	struct sock *sk;
 

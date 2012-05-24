@@ -88,14 +88,14 @@ static inline int __ticket_spin_is_locked(arch_spinlock_t *lock)
 {
 	struct __raw_tickets tmp = ACCESS_ONCE(lock->tickets);
 
-	return !!(tmp.tail ^ tmp.head);
+	return tmp.tail != tmp.head;
 }
 
 static inline int __ticket_spin_is_contended(arch_spinlock_t *lock)
 {
 	struct __raw_tickets tmp = ACCESS_ONCE(lock->tickets);
 
-	return ((tmp.tail - tmp.head) & TICKET_MASK) > 1;
+	return (__ticket_t)(tmp.tail - tmp.head) > 1;
 }
 
 #ifndef CONFIG_PARAVIRT_SPINLOCKS

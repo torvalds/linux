@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2012  Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -251,7 +251,7 @@ static void *rtl_rate_alloc_sta(void *ppriv,
 	rate_priv = kzalloc(sizeof(struct rtl_rate_priv), gfp);
 	if (!rate_priv) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 ("Unable to allocate private rc structure\n"));
+			 "Unable to allocate private rc structure\n");
 		return NULL;
 	}
 

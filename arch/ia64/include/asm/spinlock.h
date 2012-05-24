@@ -15,7 +15,6 @@
 
 #include <linux/atomic.h>
 #include <asm/intrinsics.h>
-#include <asm/system.h>
 
 #define arch_spin_lock_init(x)			((x)->lock = 0)
 

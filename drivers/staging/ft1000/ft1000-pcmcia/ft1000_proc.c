@@ -29,10 +29,10 @@
 #define FT1000_PROC "ft1000"
 #define MAX_FILE_LEN 255
 
-#define PUTM_TO_PAGE(len,page,args...) \
+#define PUTM_TO_PAGE(len, page, args...) \
 	len += snprintf(page+len, PAGE_SIZE - len, args)
 
-#define PUTX_TO_PAGE(len,page,message,size,var) \
+#define PUTX_TO_PAGE(len, page, message, size, var) \
 	len += snprintf(page+len, PAGE_SIZE - len, message); \
 	for(i = 0; i < (size - 1); i++) \
 	{ \
@@ -40,7 +40,7 @@
 	} \
 	len += snprintf(page+len, PAGE_SIZE - len, "%02x\n", var[i])
 
-#define PUTD_TO_PAGE(len,page,message,size,var) \
+#define PUTD_TO_PAGE(len, page, message, size, var) \
 	len += snprintf(page+len, PAGE_SIZE - len, message); \
 	for(i = 0; i < (size - 1); i++) \
 	{ \

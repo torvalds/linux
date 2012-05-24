@@ -101,7 +101,6 @@ static struct platform_device smc91x_device = {
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 #include <linux/bfin_mac.h>
-#include <linux/export.h>
 static const unsigned short bfin_mac_peripherals[] = P_RMII0;
 
 static struct bfin_phydev_platform_data bfin_phydev_data[] = {
@@ -535,9 +534,8 @@ void __init native_machine_early_platform_add_devices(void)
 		ARRAY_SIZE(stamp_early_devices));
 }
 
-void bfin_get_ether_addr(char *addr)
+int bfin_get_ether_addr(char *addr)
 {
-	random_ether_addr(addr);
-	printk(KERN_WARNING "%s:%s: Setting Ethernet MAC to a random one\n", __FILE__, __func__);
+	return 1;
 }
 EXPORT_SYMBOL(bfin_get_ether_addr);

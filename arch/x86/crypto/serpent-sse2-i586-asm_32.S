@@ -463,23 +463,20 @@
 	pand x0,		x4; \
 	pxor x2,		x4;
 
-#define transpose_4x4(x0, x1, x2, x3, t1, t2, t3) \
-	movdqa x2,		t3; \
-	movdqa x0,		t1; \
-	unpcklps x3,		t3; \
+#define transpose_4x4(x0, x1, x2, x3, t0, t1, t2) \
 	movdqa x0,		t2; \
-	unpcklps x1,		t1; \
-	unpckhps x1,		t2; \
-	movdqa t3,		x1; \
-	unpckhps x3,		x2; \
-	movdqa t1,		x0; \
-	movhlps t1,		x1; \
-	movdqa t2,		t1; \
-	movlhps t3,		x0; \
-	movlhps x2,		t1; \
-	movhlps t2,		x2; \
-	movdqa x2,		x3; \
-	movdqa t1,		x2;
+	punpckldq x1,		x0; \
+	punpckhdq x1,		t2; \
+	movdqa x2,		t1; \
+	punpckhdq x3,		x2; \
+	punpckldq x3,		t1; \
+	movdqa x0,		x1; \
+	punpcklqdq t1,		x0; \
+	punpckhqdq t1,		x1; \
+	movdqa t2,		x3; \
+	punpcklqdq x2,		t2; \
+	punpckhqdq x2,		x3; \
+	movdqa t2,		x2;
 
 #define read_blocks(in, x0, x1, x2, x3, t0, t1, t2) \
 	movdqu (0*4*4)(in),	x0; \

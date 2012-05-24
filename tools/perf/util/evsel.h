@@ -80,7 +80,8 @@ void perf_evsel__exit(struct perf_evsel *evsel);
 void perf_evsel__delete(struct perf_evsel *evsel);
 
 void perf_evsel__config(struct perf_evsel *evsel,
-			struct perf_record_opts *opts);
+			struct perf_record_opts *opts,
+			struct perf_evsel *first);
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads);
@@ -168,5 +169,7 @@ static inline int perf_evsel__sample_size(struct perf_evsel *evsel)
 {
 	return __perf_evsel__sample_size(evsel->attr.sample_type);
 }
+
+void hists__init(struct hists *hists);
 
 #endif /* __PERF_EVSEL_H */

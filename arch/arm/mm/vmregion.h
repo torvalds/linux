@@ -19,11 +19,14 @@ struct arm_vmregion {
 	unsigned long		vm_end;
 	struct page		*vm_pages;
 	int			vm_active;
+	const void		*caller;
 };
 
-struct arm_vmregion *arm_vmregion_alloc(struct arm_vmregion_head *, size_t, size_t, gfp_t);
+struct arm_vmregion *arm_vmregion_alloc(struct arm_vmregion_head *, size_t, size_t, gfp_t, const void *);
 struct arm_vmregion *arm_vmregion_find(struct arm_vmregion_head *, unsigned long);
 struct arm_vmregion *arm_vmregion_find_remove(struct arm_vmregion_head *, unsigned long);
 void arm_vmregion_free(struct arm_vmregion_head *, struct arm_vmregion *);
+
+int arm_vmregion_create_proc(const char *, struct arm_vmregion_head *);
 
 #endif

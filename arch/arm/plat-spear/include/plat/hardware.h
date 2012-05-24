@@ -14,10 +14,4 @@
 #ifndef __PLAT_HARDWARE_H
 #define __PLAT_HARDWARE_H
 
-#ifndef __ASSEMBLY__
-#define IOMEM(x)	((void __iomem __force *)(x))
-#else
-#define IOMEM(x)	(x)
-#endif
-
 #endif /* __PLAT_HARDWARE_H */

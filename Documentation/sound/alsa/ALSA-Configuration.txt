@@ -860,7 +860,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     [Multiple options for each card instance]
     model	- force the model name
-    position_fix - Fix DMA pointer (0 = auto, 1 = use LPIB, 2 = POSBUF)
+    position_fix - Fix DMA pointer (0 = auto, 1 = use LPIB, 2 = POSBUF,
+    		   3 = VIACOMBO, 4 = COMBO)
     probe_mask  - Bitmask to probe codecs (default = -1, meaning all slots)
     		  When the bit 8 (0x100) is set, the lower 8 bits are used
 		  as the "fixed" codec slots; i.e. the driver probes the
@@ -924,6 +925,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	    the position buffer instead of reading SD_LPIB register.
 	    (Usually SD_LPIB register is more accurate than the
 	    position buffer.)
+
+	    position_fix=3 is specific to VIA devices.  The position
+	    of the capture stream is checked from both LPIB and POSBUF
+	    values.  position_fix=4 is a combination mode, using LPIB
+	    for playback and POSBUF for capture.
 
     NB: If you get many "azx_get_response timeout" messages at
     loading, it's likely a problem of interrupts (e.g. ACPI irq
@@ -1588,7 +1594,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module supports autoprobe a chip.
 
-    Note: the driver may have problems regarding endianess.
+    Note: the driver may have problems regarding endianness.
 
     The power-management is supported.
 
@@ -2038,7 +2044,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Install the necessary firmware files in alsa-firmware package.
     When no hotplug fw loader is available, you need to load the
     firmware via vxloader utility in alsa-tools package.  To invoke
-    vxloader automatically, add the following to /etc/modprobe.conf
+    vxloader automatically, add the following to /etc/modprobe.d/alsa.conf
 
 	install snd-vx222 /sbin/modprobe --first-time -i snd-vx222 && /usr/bin/vxloader
 
@@ -2162,10 +2168,10 @@ corresponds to the card index of ALSA.  Usually, define this
 as the same card module.
 
 An example configuration for a single emu10k1 card is like below:
------ /etc/modprobe.conf
+----- /etc/modprobe.d/alsa.conf
 alias snd-card-0 snd-emu10k1
 alias sound-slot-0 snd-emu10k1
------ /etc/modprobe.conf
+----- /etc/modprobe.d/alsa.conf
 
 The available number of auto-loaded sound cards depends on the module
 option "cards_limit" of snd module.  As default it's set to 1.
@@ -2178,7 +2184,7 @@ cards is kept consistent.
 
 An example configuration for two sound cards is like below:
 
------ /etc/modprobe.conf
+----- /etc/modprobe.d/alsa.conf
 # ALSA portion
 options snd cards_limit=2
 alias snd-card-0 snd-interwave
@@ -2188,7 +2194,7 @@ options snd-ens1371 index=1
 # OSS/Free portion
 alias sound-slot-0 snd-interwave
 alias sound-slot-1 snd-ens1371
------ /etc/modprobe.conf
+----- /etc/modprobe.d/alsa.conf
 
 In this example, the interwave card is always loaded as the first card
 (index 0) and ens1371 as the second (index 1).

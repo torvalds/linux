@@ -65,6 +65,13 @@ Description:
 		Defines the penalty which will be applied to an
 		originator message's tq-field on every hop.
 
+What:		/sys/class/net/<mesh_iface>/mesh/routing_algo
+Date:		Dec 2011
+Contact:	Marek Lindner <lindner_marek@yahoo.de>
+Description:
+		Defines the routing procotol this mesh instance
+		uses to find the optimal paths through the mesh.
+
 What:           /sys/class/net/<mesh_iface>/mesh/vis_mode
 Date:           May 2010
 Contact:        Marek Lindner <lindner_marek@yahoo.de>

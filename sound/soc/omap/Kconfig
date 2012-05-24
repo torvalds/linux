@@ -7,7 +7,6 @@ config SND_OMAP_SOC_DMIC
 
 config SND_OMAP_SOC_MCBSP
 	tristate
-	select OMAP_MCBSP
 
 config SND_OMAP_SOC_MCPDM
 	tristate
@@ -27,7 +26,6 @@ config SND_OMAP_SOC_N810
 config SND_OMAP_SOC_RX51
 	tristate "SoC Audio support for Nokia RX-51"
 	depends on SND_OMAP_SOC && MACH_NOKIA_RX51
-	select OMAP_MCBSP
 	select SND_OMAP_SOC_MCBSP
 	select SND_SOC_TLV320AIC3X
 	select SND_SOC_TPA6130A2
@@ -97,16 +95,19 @@ config SND_OMAP_SOC_SDP3430
 	  Say Y if you want to add support for SoC audio on Texas Instruments
 	  SDP3430.
 
-config SND_OMAP_SOC_SDP4430
-	tristate "SoC Audio support for Texas Instruments SDP4430"
-	depends on TWL4030_CORE && SND_OMAP_SOC && MACH_OMAP_4430SDP
+config SND_OMAP_SOC_OMAP_ABE_TWL6040
+	tristate "SoC Audio support for OMAP boards using ABE and twl6040 codec"
+	depends on TWL6040_CORE && SND_OMAP_SOC && ARCH_OMAP4
 	select SND_OMAP_SOC_DMIC
 	select SND_OMAP_SOC_MCPDM
 	select SND_SOC_TWL6040
 	select SND_SOC_DMIC
 	help
-	  Say Y if you want to add support for SoC audio on Texas Instruments
-	  SDP4430.
+	  Say Y if you want to add support for SoC audio on OMAP boards using
+	  ABE and twl6040 codec. This driver currently supports:
+	  - SDP4430/Blaze boards
+	  - PandaBoard (4430)
+	  - PandaBoardES (4460)
 
 config SND_OMAP_SOC_OMAP4_HDMI
 	tristate "SoC Audio support for Texas Instruments OMAP4 HDMI"

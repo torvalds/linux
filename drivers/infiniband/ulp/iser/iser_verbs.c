@@ -274,6 +274,18 @@ static int iser_free_ib_conn_res(struct iser_conn *ib_conn, int can_destroy_id)
 	ib_conn->cma_id   = NULL;
 	kfree(ib_conn->page_vec);
 
+	if (ib_conn->login_buf) {
+		if (ib_conn->login_req_dma)
+			ib_dma_unmap_single(ib_conn->device->ib_device,
+				ib_conn->login_req_dma,
+				ISCSI_DEF_MAX_RECV_SEG_LEN, DMA_TO_DEVICE);
+		if (ib_conn->login_resp_dma)
+			ib_dma_unmap_single(ib_conn->device->ib_device,
+				ib_conn->login_resp_dma,
+				ISER_RX_LOGIN_SIZE, DMA_FROM_DEVICE);
+		kfree(ib_conn->login_buf);
+	}
+
 	return 0;
 }
 

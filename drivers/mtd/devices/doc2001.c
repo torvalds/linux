@@ -346,14 +346,15 @@ void DoCMil_init(struct mtd_info *mtd)
 
 	/* FIXME: erase size is not always 8KiB */
 	mtd->erasesize = 0x2000;
-	mtd->writesize = 512;
+	mtd->writebufsize = mtd->writesize = 512;
 	mtd->oobsize = 16;
+	mtd->ecc_strength = 2;
 	mtd->owner = THIS_MODULE;
-	mtd->erase = doc_erase;
-	mtd->read = doc_read;
-	mtd->write = doc_write;
-	mtd->read_oob = doc_read_oob;
-	mtd->write_oob = doc_write_oob;
+	mtd->_erase = doc_erase;
+	mtd->_read = doc_read;
+	mtd->_write = doc_write;
+	mtd->_read_oob = doc_read_oob;
+	mtd->_write_oob = doc_write_oob;
 	this->curfloor = -1;
 	this->curchip = -1;
 
@@ -382,10 +383,6 @@ static int doc_read (struct mtd_info *mtd, loff_t from, size_t len,
 	struct DiskOnChip *this = mtd->priv;
 	void __iomem *docptr = this->virtadr;
 	struct Nand *mychip = &this->chips[from >> (this->chipshift)];
-
-	/* Don't allow read past end of device */
-	if (from >= this->totlen)
-		return -EINVAL;
 
 	/* Don't allow a single read to cross a 512-byte block boundary */
 	if (from + len > ((from | 0x1ff) + 1))
@@ -494,10 +491,6 @@ static int doc_write (struct mtd_info *mtd, loff_t to, size_t len,
 	void __iomem *docptr = this->virtadr;
 	struct Nand *mychip = &this->chips[to >> (this->chipshift)];
 
-	/* Don't allow write past end of device */
-	if (to >= this->totlen)
-		return -EINVAL;
-
 #if 0
 	/* Don't allow a single write to cross a 512-byte block boundary */
 	if (to + len > ( (to | 0x1ff) + 1))
@@ -599,7 +592,6 @@ static int doc_write (struct mtd_info *mtd, loff_t to, size_t len,
 		printk("Error programming flash\n");
 		/* Error in programming
 		   FIXME: implement Bad Block Replacement (in nftl.c ??) */
-		*retlen = 0;
 		ret = -EIO;
 	}
 	dummy = ReadDOC(docptr, LastDataRead);

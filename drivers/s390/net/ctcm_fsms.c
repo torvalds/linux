@@ -1341,6 +1341,12 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 
 	spin_unlock(&ch->collect_lock);
 	clear_normalized_cda(&ch->ccw[1]);
+
+	CTCM_PR_DBGDATA("ccwcda=0x%p data=0x%p\n",
+			(void *)(unsigned long)ch->ccw[1].cda,
+			ch->trans_skb->data);
+	ch->ccw[1].count = ch->max_bufsize;
+
 	if (set_normalized_cda(&ch->ccw[1], ch->trans_skb->data)) {
 		dev_kfree_skb_any(ch->trans_skb);
 		ch->trans_skb = NULL;
@@ -1350,6 +1356,11 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 		fsm_event(priv->mpcg->fsm, MPCG_EVENT_INOP, dev);
 		return;
 	}
+
+	CTCM_PR_DBGDATA("ccwcda=0x%p data=0x%p\n",
+			(void *)(unsigned long)ch->ccw[1].cda,
+			ch->trans_skb->data);
+
 	ch->ccw[1].count = ch->trans_skb->len;
 	fsm_addtimer(&ch->timer, CTCM_TIME_5_SEC, CTC_EVENT_TIMER, ch);
 	ch->prof.send_stamp = current_kernel_time(); /* xtime */

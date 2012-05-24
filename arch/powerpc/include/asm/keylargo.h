@@ -21,7 +21,7 @@
 #define KEYLARGO_FCR4		0x48
 #define KEYLARGO_FCR5		0x4c	/* Pangea only */
 
-/* K2 aditional FCRs */
+/* K2 additional FCRs */
 #define K2_FCR6			0x34
 #define K2_FCR7			0x30
 #define K2_FCR8			0x2c

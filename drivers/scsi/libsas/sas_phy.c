@@ -36,8 +36,7 @@ static void sas_phye_loss_of_signal(struct work_struct *work)
 		container_of(work, struct asd_sas_event, work);
 	struct asd_sas_phy *phy = ev->phy;
 
-	sas_begin_event(PHYE_LOSS_OF_SIGNAL, &phy->ha->event_lock,
-			&phy->phy_events_pending);
+	clear_bit(PHYE_LOSS_OF_SIGNAL, &phy->phy_events_pending);
 	phy->error = 0;
 	sas_deform_port(phy, 1);
 }
@@ -48,8 +47,7 @@ static void sas_phye_oob_done(struct work_struct *work)
 		container_of(work, struct asd_sas_event, work);
 	struct asd_sas_phy *phy = ev->phy;
 
-	sas_begin_event(PHYE_OOB_DONE, &phy->ha->event_lock,
-			&phy->phy_events_pending);
+	clear_bit(PHYE_OOB_DONE, &phy->phy_events_pending);
 	phy->error = 0;
 }
 
@@ -63,8 +61,7 @@ static void sas_phye_oob_error(struct work_struct *work)
 	struct sas_internal *i =
 		to_sas_internal(sas_ha->core.shost->transportt);
 
-	sas_begin_event(PHYE_OOB_ERROR, &phy->ha->event_lock,
-			&phy->phy_events_pending);
+	clear_bit(PHYE_OOB_ERROR, &phy->phy_events_pending);
 
 	sas_deform_port(phy, 1);
 
@@ -95,8 +92,7 @@ static void sas_phye_spinup_hold(struct work_struct *work)
 	struct sas_internal *i =
 		to_sas_internal(sas_ha->core.shost->transportt);
 
-	sas_begin_event(PHYE_SPINUP_HOLD, &phy->ha->event_lock,
-			&phy->phy_events_pending);
+	clear_bit(PHYE_SPINUP_HOLD, &phy->phy_events_pending);
 
 	phy->error = 0;
 	i->dft->lldd_control_phy(phy, PHY_FUNC_RELEASE_SPINUP_HOLD, NULL);

@@ -280,13 +280,10 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 
 		}
 		rds_ring->rx_buf_arr = vzalloc(RCV_BUFF_RINGSIZE(rds_ring));
-		if (rds_ring->rx_buf_arr == NULL) {
-			printk(KERN_ERR "%s: Failed to allocate "
-				"rx buffer ring %d\n",
-				netdev->name, ring);
+		if (rds_ring->rx_buf_arr == NULL)
 			/* free whatever was already allocated */
 			goto err_out;
-		}
+
 		INIT_LIST_HEAD(&rds_ring->free_list);
 		/*
 		 * Now go through all of them, set reference handles
@@ -449,7 +446,7 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter)
 
 	/* resetall */
 	netxen_rom_lock(adapter);
-	NXWR32(adapter, NETXEN_ROMUSB_GLB_SW_RESET, 0xffffffff);
+	NXWR32(adapter, NETXEN_ROMUSB_GLB_SW_RESET, 0xfeffffff);
 	netxen_rom_unlock(adapter);
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
@@ -480,11 +477,8 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter)
 	}
 
 	buf = kcalloc(n, sizeof(struct crb_addr_pair), GFP_KERNEL);
-	if (buf == NULL) {
-		printk("%s: netxen_pinit_from_rom: Unable to calloc memory.\n",
-				netxen_nic_driver_name);
+	if (buf == NULL)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < n; i++) {
 		if (netxen_rom_fast_read(adapter, 8*i + 4*offset, &val) != 0 ||
@@ -1353,7 +1347,6 @@ int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 
 	do {
 		val = NXRD32(adapter, CRB_CMDPEG_STATE);
-
 		switch (val) {
 		case PHAN_INITIALIZE_COMPLETE:
 		case PHAN_INITIALIZE_ACK:
@@ -1494,7 +1487,7 @@ netxen_alloc_rx_skb(struct netxen_adapter *adapter,
 	dma_addr_t dma;
 	struct pci_dev *pdev = adapter->pdev;
 
-	buffer->skb = dev_alloc_skb(rds_ring->skb_size);
+	buffer->skb = netdev_alloc_skb(adapter->netdev, rds_ring->skb_size);
 	if (!buffer->skb)
 		return 1;
 

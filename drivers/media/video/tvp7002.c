@@ -1069,27 +1069,4 @@ static struct i2c_driver tvp7002_driver = {
 	.id_table = tvp7002_id,
 };
 
-/*
- * tvp7002_init - Initialize driver via I2C interface
- *
- * Register the TVP7002 driver.
- * Return 0 on success or error code on failure.
- */
-static int __init tvp7002_init(void)
-{
-	return i2c_add_driver(&tvp7002_driver);
-}
-
-/*
- * tvp7002_exit - Remove driver via I2C interface
- *
- * Unregister the TVP7002 driver.
- * Returns nothing.
- */
-static void __exit tvp7002_exit(void)
-{
-	i2c_del_driver(&tvp7002_driver);
-}
-
-module_init(tvp7002_init);
-module_exit(tvp7002_exit);
+module_i2c_driver(tvp7002_driver);

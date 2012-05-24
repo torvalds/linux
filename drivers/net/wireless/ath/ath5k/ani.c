@@ -257,7 +257,7 @@ ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 				  "beacon RSSI high");
 		/* only OFDM: beacon RSSI is high, we can disable ODFM weak
 		 * signal detection */
-		if (ofdm_trigger && as->ofdm_weak_sig == true) {
+		if (ofdm_trigger && as->ofdm_weak_sig) {
 			ath5k_ani_set_ofdm_weak_signal_detection(ah, false);
 			ath5k_ani_set_spur_immunity_level(ah, 0);
 			return;
@@ -272,7 +272,7 @@ ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 		 * but can raise firstep level */
 		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI,
 				  "beacon RSSI mid");
-		if (ofdm_trigger && as->ofdm_weak_sig == false)
+		if (ofdm_trigger && !as->ofdm_weak_sig)
 			ath5k_ani_set_ofdm_weak_signal_detection(ah, true);
 		if (as->firstep_level < ATH5K_ANI_MAX_FIRSTEP_LVL)
 			ath5k_ani_set_firstep_level(ah, as->firstep_level + 1);
@@ -282,7 +282,7 @@ ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 		 * detect and zero firstep level to maximize CCK sensitivity */
 		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI,
 				  "beacon RSSI low, 2GHz");
-		if (ofdm_trigger && as->ofdm_weak_sig == true)
+		if (ofdm_trigger && as->ofdm_weak_sig)
 			ath5k_ani_set_ofdm_weak_signal_detection(ah, false);
 		if (as->firstep_level > 0)
 			ath5k_ani_set_firstep_level(ah, 0);
@@ -326,7 +326,7 @@ ath5k_ani_lower_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as)
 		} else if (rssi > ATH5K_ANI_RSSI_THR_LOW) {
 			/* beacon RSSI is mid-range: turn on ODFM weak signal
 			 * detection and next, lower firstep level */
-			if (as->ofdm_weak_sig == false) {
+			if (!as->ofdm_weak_sig) {
 				ath5k_ani_set_ofdm_weak_signal_detection(ah,
 									 true);
 				return;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2006-2012 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *

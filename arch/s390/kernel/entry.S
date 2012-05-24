@@ -2,7 +2,7 @@
  *  arch/s390/kernel/entry.S
  *    S390 low-level entry points.
  *
- *    Copyright (C) IBM Corp. 1999,2006
+ *    Copyright (C) IBM Corp. 1999,2012
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *		 Hartmut Penner (hp@de.ibm.com),
  *		 Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
@@ -105,14 +105,14 @@ STACK_SIZE  = 1 << STACK_SHIFT
 
 	.macro	ADD64 high,low,timer
 	al	\high,\timer
-	al	\low,\timer+4
+	al	\low,4+\timer
 	brc	12,.+8
 	ahi	\high,1
 	.endm
 
 	.macro	SUB64 high,low,timer
 	sl	\high,\timer
-	sl	\low,\timer+4
+	sl	\low,4+\timer
 	brc	3,.+8
 	ahi	\high,-1
 	.endm
@@ -471,7 +471,6 @@ io_tif:
 	jnz	io_work			# there is work to do (signals etc.)
 io_restore:
 	mvc	__LC_RETURN_PSW(8),__PT_PSW(%r11)
-	ni	__LC_RETURN_PSW+1,0xfd	# clean wait state bit
 	stpt	__LC_EXIT_TIMER
 	lm	%r0,%r15,__PT_R0(%r11)
 	lpsw	__LC_RETURN_PSW
@@ -606,11 +605,31 @@ ext_skip:
 	stm	%r8,%r9,__PT_PSW(%r11)
 	TRACE_IRQS_OFF
 	lr	%r2,%r11		# pass pointer to pt_regs
-	l	%r3,__LC_CPU_ADDRESS	# get cpu address + interruption code
+	l	%r3,__LC_EXT_CPU_ADDR	# get cpu address + interruption code
 	l	%r4,__LC_EXT_PARAMS	# get external parameters
 	l	%r1,BASED(.Ldo_extint)
 	basr	%r14,%r1		# call do_extint
 	j	io_return
+
+/*
+ * Load idle PSW. The second "half" of this function is in cleanup_idle.
+ */
+ENTRY(psw_idle)
+	st	%r4,__SF_EMPTY(%r15)
+	basr	%r1,0
+	la	%r1,psw_idle_lpsw+4-.(%r1)
+	st	%r1,__SF_EMPTY+4(%r15)
+	oi	__SF_EMPTY+4(%r15),0x80
+	la	%r1,.Lvtimer_max-psw_idle_lpsw-4(%r1)
+	stck	__IDLE_ENTER(%r2)
+	ltr	%r5,%r5
+	stpt	__VQ_IDLE_ENTER(%r3)
+	jz	psw_idle_lpsw
+	spt	0(%r1)
+psw_idle_lpsw:
+	lpsw	__SF_EMPTY(%r15)
+	br	%r14
+psw_idle_end:
 
 __critical_end:
 
@@ -673,7 +692,6 @@ mcck_skip:
 	TRACE_IRQS_ON
 mcck_return:
 	mvc	__LC_RETURN_MCCK_PSW(8),__PT_PSW(%r11) # move return PSW
-	ni	__LC_RETURN_MCCK_PSW+1,0xfd # clear wait state bit
 	tm	__LC_RETURN_MCCK_PSW+1,0x01 # returning to user ?
 	jno	0f
 	lm	%r0,%r15,__PT_R0(%r11)
@@ -691,77 +709,30 @@ mcck_panic:
 0:	ahi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	mcck_skip
 
-/*
- * Restart interruption handler, kick starter for additional CPUs
- */
-#ifdef CONFIG_SMP
-	__CPUINIT
-ENTRY(restart_int_handler)
-	basr	%r1,0
-restart_base:
-	spt	restart_vtime-restart_base(%r1)
-	stck	__LC_LAST_UPDATE_CLOCK
-	mvc	__LC_LAST_UPDATE_TIMER(8),restart_vtime-restart_base(%r1)
-	mvc	__LC_EXIT_TIMER(8),restart_vtime-restart_base(%r1)
-	l	%r15,__LC_GPREGS_SAVE_AREA+60 # load ksp
-	lctl	%c0,%c15,__LC_CREGS_SAVE_AREA # get new ctl regs
-	lam	%a0,%a15,__LC_AREGS_SAVE_AREA
-	lm	%r6,%r15,__SF_GPRS(%r15)# load registers from clone
-	l	%r1,__LC_THREAD_INFO
-	mvc	__LC_USER_TIMER(8),__TI_user_timer(%r1)
-	mvc	__LC_SYSTEM_TIMER(8),__TI_system_timer(%r1)
-	xc	__LC_STEAL_TIMER(8),__LC_STEAL_TIMER
-	ssm	__LC_PGM_NEW_PSW	# turn dat on, keep irqs off
-	basr	%r14,0
-	l	%r14,restart_addr-.(%r14)
-	basr	%r14,%r14		# call start_secondary
-restart_addr:
-	.long	start_secondary
-	.align	8
-restart_vtime:
-	.long	0x7fffffff,0xffffffff
-	.previous
-#else
-/*
- * If we do not run with SMP enabled, let the new CPU crash ...
- */
-ENTRY(restart_int_handler)
-	basr	%r1,0
-restart_base:
-	lpsw	restart_crash-restart_base(%r1)
-	.align	8
-restart_crash:
-	.long	0x000a0000,0x00000000
-restart_go:
-#endif
-
 #
 # PSW restart interrupt handler
 #
-ENTRY(psw_restart_int_handler)
+ENTRY(restart_int_handler)
 	st	%r15,__LC_SAVE_AREA_RESTART
-	basr	%r15,0
-0:	l	%r15,.Lrestart_stack-0b(%r15)	# load restart stack
-	l	%r15,0(%r15)
+	l	%r15,__LC_RESTART_STACK
 	ahi	%r15,-__PT_SIZE			# create pt_regs on stack
+	xc	0(__PT_SIZE,%r15),0(%r15)
 	stm	%r0,%r14,__PT_R0(%r15)
 	mvc	__PT_R15(4,%r15),__LC_SAVE_AREA_RESTART
 	mvc	__PT_PSW(8,%r15),__LC_RST_OLD_PSW # store restart old psw
-	ahi	%r15,-STACK_FRAME_OVERHEAD
-	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15)
-	basr	%r14,0
-1:	l	%r14,.Ldo_restart-1b(%r14)
-	basr	%r14,%r14
-	basr	%r14,0				# load disabled wait PSW if
-2:	lpsw	restart_psw_crash-2b(%r14)	# do_restart returns
-	.align 4
-.Ldo_restart:
-	.long	do_restart
-.Lrestart_stack:
-	.long	restart_stack
-	.align 8
-restart_psw_crash:
-	.long	0x000a0000,0x00000000 + restart_psw_crash
+	ahi	%r15,-STACK_FRAME_OVERHEAD	# create stack frame on stack
+	xc	0(STACK_FRAME_OVERHEAD,%r15),0(%r15)
+	lm	%r1,%r3,__LC_RESTART_FN		# load fn, parm & source cpu
+	ltr	%r3,%r3				# test source cpu address
+	jm	1f				# negative -> skip source stop
+0:	sigp	%r4,%r3,1			# sigp sense to source cpu
+	brc	10,0b				# wait for status stored
+1:	basr	%r14,%r1			# call function
+	stap	__SF_EMPTY(%r15)		# store cpu address
+	lh	%r3,__SF_EMPTY(%r15)
+2:	sigp	%r4,%r3,5			# sigp stop to current cpu
+	brc	2,2b
+3:	j	3b
 
 	.section .kprobes.text, "ax"
 
@@ -795,6 +766,8 @@ cleanup_table:
 	.long	io_tif + 0x80000000
 	.long	io_restore + 0x80000000
 	.long	io_done + 0x80000000
+	.long	psw_idle + 0x80000000
+	.long	psw_idle_end + 0x80000000
 
 cleanup_critical:
 	cl	%r9,BASED(cleanup_table)	# system_call
@@ -813,6 +786,10 @@ cleanup_critical:
 	jl	cleanup_io_tif
 	cl	%r9,BASED(cleanup_table+28)	# io_done
 	jl	cleanup_io_restore
+	cl	%r9,BASED(cleanup_table+32)	# psw_idle
+	jl	0f
+	cl	%r9,BASED(cleanup_table+36)	# psw_idle_end
+	jl	cleanup_idle
 0:	br	%r14
 
 cleanup_system_call:
@@ -896,7 +873,6 @@ cleanup_io_restore:
 	jhe	0f
 	l	%r9,12(%r11)		# get saved r11 pointer to pt_regs
 	mvc	__LC_RETURN_PSW(8),__PT_PSW(%r9)
-	ni	__LC_RETURN_PSW+1,0xfd	# clear wait state bit
 	mvc	0(32,%r11),__PT_R8(%r9)
 	lm	%r0,%r7,__PT_R0(%r9)
 0:	lm	%r8,%r9,__LC_RETURN_PSW
@@ -904,11 +880,52 @@ cleanup_io_restore:
 cleanup_io_restore_insn:
 	.long	io_done - 4 + 0x80000000
 
+cleanup_idle:
+	# copy interrupt clock & cpu timer
+	mvc	__IDLE_EXIT(8,%r2),__LC_INT_CLOCK
+	mvc	__VQ_IDLE_EXIT(8,%r3),__LC_ASYNC_ENTER_TIMER
+	chi	%r11,__LC_SAVE_AREA_ASYNC
+	je	0f
+	mvc	__IDLE_EXIT(8,%r2),__LC_MCCK_CLOCK
+	mvc	__VQ_IDLE_EXIT(8,%r3),__LC_MCCK_ENTER_TIMER
+0:	# check if stck has been executed
+	cl	%r9,BASED(cleanup_idle_insn)
+	jhe	1f
+	mvc	__IDLE_ENTER(8,%r2),__IDLE_EXIT(%r2)
+	mvc	__VQ_IDLE_ENTER(8,%r3),__VQ_IDLE_EXIT(%r3)
+	j	2f
+1:	# check if the cpu timer has been reprogrammed
+	ltr	%r5,%r5
+	jz	2f
+	spt	__VQ_IDLE_ENTER(%r3)
+2:	# account system time going idle
+	lm	%r9,%r10,__LC_STEAL_TIMER
+	ADD64	%r9,%r10,__IDLE_ENTER(%r2)
+	SUB64	%r9,%r10,__LC_LAST_UPDATE_CLOCK
+	stm	%r9,%r10,__LC_STEAL_TIMER
+	mvc	__LC_LAST_UPDATE_CLOCK(8),__IDLE_EXIT(%r2)
+	lm	%r9,%r10,__LC_SYSTEM_TIMER
+	ADD64	%r9,%r10,__LC_LAST_UPDATE_TIMER
+	SUB64	%r9,%r10,__VQ_IDLE_ENTER(%r3)
+	stm	%r9,%r10,__LC_SYSTEM_TIMER
+	mvc	__LC_LAST_UPDATE_TIMER(8),__VQ_IDLE_EXIT(%r3)
+	# prepare return psw
+	n	%r8,BASED(cleanup_idle_wait)	# clear wait state bit
+	l	%r9,24(%r11)			# return from psw_idle
+	br	%r14
+cleanup_idle_insn:
+	.long	psw_idle_lpsw + 0x80000000
+cleanup_idle_wait:
+	.long	0xfffdffff
+
 /*
  * Integer constants
  */
 	.align	4
-.Lnr_syscalls:		.long	NR_syscalls
+.Lnr_syscalls:
+	.long	NR_syscalls
+.Lvtimer_max:
+	.quad	0x7fffffffffffffff
 
 /*
  * Symbol constants

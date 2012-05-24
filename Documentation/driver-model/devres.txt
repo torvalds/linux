@@ -271,3 +271,8 @@ IOMAP
   pcim_iounmap()
   pcim_iomap_table()	: array of mapped addresses indexed by BAR
   pcim_iomap_regions()	: do request_region() and iomap() on multiple BARs
+
+REGULATOR
+  devm_regulator_get()
+  devm_regulator_put()
+  devm_regulator_bulk_get()

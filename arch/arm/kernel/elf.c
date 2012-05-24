@@ -3,6 +3,7 @@
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 #include <linux/elf.h>
+#include <asm/system_info.h>
 
 int elf_check_arch(const struct elf32_hdr *x)
 {

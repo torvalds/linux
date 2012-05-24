@@ -1,7 +1,7 @@
 
 /* cnic.c: Broadcom CNIC core network driver.
  *
- * Copyright (c) 2006-2009 Broadcom Corporation
+ * Copyright (c) 2006-2012 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,16 +35,6 @@
 #define L5CM_RAMROD_CMD_ID_SEARCHER_DELETE	(L5CM_RAMROD_CMD_ID_BASE + 14)
 #define L5CM_RAMROD_CMD_ID_TERMINATE_OFFLOAD	(L5CM_RAMROD_CMD_ID_BASE + 15)
 
-#define FCOE_KCQE_OPCODE_INIT_FUNC			(0x10)
-#define FCOE_KCQE_OPCODE_DESTROY_FUNC			(0x11)
-#define FCOE_KCQE_OPCODE_STAT_FUNC			(0x12)
-#define FCOE_KCQE_OPCODE_OFFLOAD_CONN			(0x15)
-#define FCOE_KCQE_OPCODE_ENABLE_CONN			(0x16)
-#define FCOE_KCQE_OPCODE_DISABLE_CONN			(0x17)
-#define FCOE_KCQE_OPCODE_DESTROY_CONN			(0x18)
-#define FCOE_KCQE_OPCODE_CQ_EVENT_NOTIFICATION  (0x20)
-#define FCOE_KCQE_OPCODE_FCOE_ERROR				(0x21)
-
 #define FCOE_RAMROD_CMD_ID_INIT_FUNC		(FCOE_KCQE_OPCODE_INIT_FUNC)
 #define FCOE_RAMROD_CMD_ID_DESTROY_FUNC		(FCOE_KCQE_OPCODE_DESTROY_FUNC)
 #define FCOE_RAMROD_CMD_ID_STAT_FUNC		(FCOE_KCQE_OPCODE_STAT_FUNC)
@@ -53,22 +43,6 @@
 #define FCOE_RAMROD_CMD_ID_DISABLE_CONN		(FCOE_KCQE_OPCODE_DISABLE_CONN)
 #define FCOE_RAMROD_CMD_ID_DESTROY_CONN		(FCOE_KCQE_OPCODE_DESTROY_CONN)
 #define FCOE_RAMROD_CMD_ID_TERMINATE_CONN	(0x81)
-
-#define FCOE_KWQE_OPCODE_INIT1                  (0)
-#define FCOE_KWQE_OPCODE_INIT2                  (1)
-#define FCOE_KWQE_OPCODE_INIT3                  (2)
-#define FCOE_KWQE_OPCODE_OFFLOAD_CONN1  (3)
-#define FCOE_KWQE_OPCODE_OFFLOAD_CONN2  (4)
-#define FCOE_KWQE_OPCODE_OFFLOAD_CONN3  (5)
-#define FCOE_KWQE_OPCODE_OFFLOAD_CONN4  (6)
-#define FCOE_KWQE_OPCODE_ENABLE_CONN	(7)
-#define FCOE_KWQE_OPCODE_DISABLE_CONN	(8)
-#define FCOE_KWQE_OPCODE_DESTROY_CONN	(9)
-#define FCOE_KWQE_OPCODE_DESTROY		(10)
-#define FCOE_KWQE_OPCODE_STAT			(11)
-
-#define FCOE_KCQE_COMPLETION_STATUS_ERROR	(0x1)
-#define FCOE_KCQE_COMPLETION_STATUS_CTX_ALLOC_FAILURE	(0x3)
 
 /* KCQ (kernel completion queue) response op codes */
 #define L4_KCQE_OPCODE_VALUE_CLOSE_COMP             (53)
@@ -86,6 +60,7 @@
 /* KCQ (kernel completion queue) completion status */
 #define L4_KCQE_COMPLETION_STATUS_SUCCESS           (0)
 #define L4_KCQE_COMPLETION_STATUS_NIC_ERROR         (4)
+#define L4_KCQE_COMPLETION_STATUS_PARITY_ERROR	    (0x81)
 #define L4_KCQE_COMPLETION_STATUS_TIMEOUT           (0x93)
 
 #define L4_KCQE_COMPLETION_STATUS_CTX_ALLOC_FAIL    (0x83)
@@ -1392,9 +1367,9 @@ struct xstorm_fcoe_extra_ag_context_section {
 #define __XSTORM_FCOE_EXTRA_AG_CONTEXT_SECTION_RESERVED_DA_EXPIRATION_FLAG_SHIFT 7
 #endif
 	u32 snd_nxt;
-	u32 tx_wnd;
-	u32 __reserved55;
-	u32 local_adv_wnd;
+	u32 __xfrqe_bd_addr_lo;
+	u32 __xfrqe_bd_addr_hi;
+	u32 __xfrqe_data1;
 #if defined(__BIG_ENDIAN)
 	u8 __agg_val8_th;
 	u8 __tx_dest;
@@ -1480,13 +1455,13 @@ struct xstorm_fcoe_extra_ag_context_section {
 #endif
 	u32 __tcp_agg_vars6;
 #if defined(__BIG_ENDIAN)
-	u16 __agg_misc6;
+	u16 __xfrqe_mng;
 	u16 __tcp_agg_vars7;
 #elif defined(__LITTLE_ENDIAN)
 	u16 __tcp_agg_vars7;
-	u16 __agg_misc6;
+	u16 __xfrqe_mng;
 #endif
-	u32 __agg_val10;
+	u32 __xfrqe_data0;
 	u32 __agg_val10_th;
 #if defined(__BIG_ENDIAN)
 	u16 __reserved3;
@@ -1706,11 +1681,11 @@ struct xstorm_fcoe_ag_context {
 #define XSTORM_FCOE_AG_CONTEXT_AGG_MISC3 (0xFF<<24)
 #define XSTORM_FCOE_AG_CONTEXT_AGG_MISC3_SHIFT 24
 #if defined(__BIG_ENDIAN)
-	u16 agg_misc0;
+	u16 __cache_wqe_db;
 	u16 sq_prod;
 #elif defined(__LITTLE_ENDIAN)
 	u16 sq_prod;
-	u16 agg_misc0;
+	u16 __cache_wqe_db;
 #endif
 #if defined(__BIG_ENDIAN)
 	u8 agg_val3;
@@ -3016,8 +2991,8 @@ struct fcoe_tce_tx_wr_rx_rd_const {
 #define FCOE_TCE_TX_WR_RX_RD_CONST_RSRV1_SHIFT 5
 #define FCOE_TCE_TX_WR_RX_RD_CONST_TX_SEQ_INIT (0x1<<6)
 #define FCOE_TCE_TX_WR_RX_RD_CONST_TX_SEQ_INIT_SHIFT 6
-#define FCOE_TCE_TX_WR_RX_RD_CONST_RSRV2 (0x1<<7)
-#define FCOE_TCE_TX_WR_RX_RD_CONST_RSRV2_SHIFT 7
+#define FCOE_TCE_TX_WR_RX_RD_CONST_TX_COMP_TRNS (0x1<<7)
+#define FCOE_TCE_TX_WR_RX_RD_CONST_TX_COMP_TRNS_SHIFT 7
 	__le16 rsrv3;
 	__le32 verify_tx_seq;
 };
@@ -4298,7 +4273,7 @@ struct xstorm_eth_context_section {
 #endif
 #if defined(__BIG_ENDIAN)
 	u16 reserved_vlan_type;
-	u16 params;
+	u16 vlan_params;
 #define XSTORM_ETH_CONTEXT_SECTION_VLAN_ID (0xFFF<<0)
 #define XSTORM_ETH_CONTEXT_SECTION_VLAN_ID_SHIFT 0
 #define XSTORM_ETH_CONTEXT_SECTION_CFI (0x1<<12)
@@ -4306,7 +4281,7 @@ struct xstorm_eth_context_section {
 #define XSTORM_ETH_CONTEXT_SECTION_PRIORITY (0x7<<13)
 #define XSTORM_ETH_CONTEXT_SECTION_PRIORITY_SHIFT 13
 #elif defined(__LITTLE_ENDIAN)
-	u16 params;
+	u16 vlan_params;
 #define XSTORM_ETH_CONTEXT_SECTION_VLAN_ID (0xFFF<<0)
 #define XSTORM_ETH_CONTEXT_SECTION_VLAN_ID_SHIFT 0
 #define XSTORM_ETH_CONTEXT_SECTION_CFI (0x1<<12)

@@ -21,14 +21,8 @@
 
 #define LPC32XX_INTC_MASKED_STATUS_OFS	0x8
 
-	.macro	disable_fiq
-	.endm
-
 	.macro  get_irqnr_preamble, base, tmp
 	ldr	\base, =IO_ADDRESS(LPC32XX_MIC_BASE)
-	.endm
-
-	.macro  arch_ret_to_user, tmp1, tmp2
 	.endm
 
 /*

@@ -193,6 +193,7 @@ static struct dentry *hfsplus_file_lookup(struct inode *dir,
 	mutex_init(&hip->extents_lock);
 	hip->extent_state = 0;
 	hip->flags = 0;
+	hip->userflags = 0;
 	set_bit(HFSPLUS_I_RSRC, &hip->flags);
 
 	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
@@ -400,6 +401,7 @@ struct inode *hfsplus_new_inode(struct super_block *sb, umode_t mode)
 	atomic_set(&hip->opencnt, 0);
 	hip->extent_state = 0;
 	hip->flags = 0;
+	hip->userflags = 0;
 	memset(hip->first_extents, 0, sizeof(hfsplus_extent_rec));
 	memset(hip->cached_extents, 0, sizeof(hfsplus_extent_rec));
 	hip->alloc_blocks = 0;

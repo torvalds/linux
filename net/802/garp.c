@@ -167,7 +167,8 @@ static struct garp_attr *garp_attr_lookup(const struct garp_applicant *app,
 	return NULL;
 }
 
-static void garp_attr_insert(struct garp_applicant *app, struct garp_attr *new)
+static struct garp_attr *garp_attr_create(struct garp_applicant *app,
+					  const void *data, u8 len, u8 type)
 {
 	struct rb_node *parent = NULL, **p = &app->gid.rb_node;
 	struct garp_attr *attr;
@@ -176,21 +177,16 @@ static void garp_attr_insert(struct garp_applicant *app, struct garp_attr *new)
 	while (*p) {
 		parent = *p;
 		attr = rb_entry(parent, struct garp_attr, node);
-		d = garp_attr_cmp(attr, new->data, new->dlen, new->type);
+		d = garp_attr_cmp(attr, data, len, type);
 		if (d < 0)
 			p = &parent->rb_left;
 		else if (d > 0)
 			p = &parent->rb_right;
+		else {
+			/* The attribute already exists; re-use it. */
+			return attr;
+		}
 	}
-	rb_link_node(&new->node, parent, p);
-	rb_insert_color(&new->node, &app->gid);
-}
-
-static struct garp_attr *garp_attr_create(struct garp_applicant *app,
-					  const void *data, u8 len, u8 type)
-{
-	struct garp_attr *attr;
-
 	attr = kmalloc(sizeof(*attr) + len, GFP_ATOMIC);
 	if (!attr)
 		return attr;
@@ -198,7 +194,9 @@ static struct garp_attr *garp_attr_create(struct garp_applicant *app,
 	attr->type  = type;
 	attr->dlen  = len;
 	memcpy(attr->data, data, len);
-	garp_attr_insert(app, attr);
+
+	rb_link_node(&attr->node, parent, p);
+	rb_insert_color(&attr->node, &app->gid);
 	return attr;
 }
 

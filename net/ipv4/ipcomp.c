@@ -156,11 +156,11 @@ static const struct net_protocol ipcomp4_protocol = {
 static int __init ipcomp4_init(void)
 {
 	if (xfrm_register_type(&ipcomp_type, AF_INET) < 0) {
-		printk(KERN_INFO "ipcomp init: can't add xfrm type\n");
+		pr_info("%s: can't add xfrm type\n", __func__);
 		return -EAGAIN;
 	}
 	if (inet_add_protocol(&ipcomp4_protocol, IPPROTO_COMP) < 0) {
-		printk(KERN_INFO "ipcomp init: can't add protocol\n");
+		pr_info("%s: can't add protocol\n", __func__);
 		xfrm_unregister_type(&ipcomp_type, AF_INET);
 		return -EAGAIN;
 	}
@@ -170,9 +170,9 @@ static int __init ipcomp4_init(void)
 static void __exit ipcomp4_fini(void)
 {
 	if (inet_del_protocol(&ipcomp4_protocol, IPPROTO_COMP) < 0)
-		printk(KERN_INFO "ip ipcomp close: can't remove protocol\n");
+		pr_info("%s: can't remove protocol\n", __func__);
 	if (xfrm_unregister_type(&ipcomp_type, AF_INET) < 0)
-		printk(KERN_INFO "ip ipcomp close: can't remove xfrm type\n");
+		pr_info("%s: can't remove xfrm type\n", __func__);
 }
 
 module_init(ipcomp4_init);

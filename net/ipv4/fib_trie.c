@@ -51,7 +51,6 @@
 #define VERSION "0.409"
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -1170,9 +1169,8 @@ static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 	}
 
 	if (tp && tp->pos + tp->bits > 32)
-		pr_warning("fib_trie"
-			   " tp=%p pos=%d, bits=%d, key=%0x plen=%d\n",
-			   tp, tp->pos, tp->bits, key, plen);
+		pr_warn("fib_trie tp=%p pos=%d, bits=%d, key=%0x plen=%d\n",
+			tp, tp->pos, tp->bits, key, plen);
 
 	/* Rebalance the trie */
 

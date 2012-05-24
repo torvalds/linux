@@ -29,7 +29,6 @@
 #include <linux/spinlock.h>
 #include <asm/processor.h>
 #include <asm/fixmap.h>
-#include <asm/system.h>
 
 struct mm_struct;
 struct vm_area_struct;

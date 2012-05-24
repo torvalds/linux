@@ -37,14 +37,15 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
+#include <asm/setup.h>
 
 #if defined(CONFIG_SERIAL_SUNSAB_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
 #endif
 
 #include <linux/serial_core.h>
+#include <linux/sunserialcore.h>
 
-#include "suncore.h"
 #include "sunsab.h"
 
 struct uart_sunsab_port {

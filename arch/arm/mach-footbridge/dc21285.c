@@ -21,7 +21,6 @@
 #include <video/vga.h>
 
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/mach/pci.h>
 #include <asm/hardware/dec21285.h>
 
@@ -275,10 +274,12 @@ int __init dc21285_setup(int nr, struct pci_sys_data *sys)
 	allocate_resource(&iomem_resource, &res[0], 0x40000000,
 			  0x80000000, 0xffffffff, 0x40000000, NULL, NULL);
 
-	pci_add_resource(&sys->resources, &ioport_resource);
-	pci_add_resource(&sys->resources, &res[0]);
-	pci_add_resource(&sys->resources, &res[1]);
 	sys->mem_offset  = DC21285_PCI_MEM;
+
+	pci_add_resource_offset(&sys->resources,
+				&ioport_resource, sys->io_offset);
+	pci_add_resource_offset(&sys->resources, &res[0], sys->mem_offset);
+	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
 
 	return 1;
 }

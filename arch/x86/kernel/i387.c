@@ -16,6 +16,7 @@
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/i387.h>
+#include <asm/fpu-internal.h>
 #include <asm/user.h>
 
 #ifdef CONFIG_X86_64
@@ -32,6 +33,86 @@
 # define user32_fxsr_struct	user_fxsr_struct
 #endif
 
+/*
+ * Were we in an interrupt that interrupted kernel mode?
+ *
+ * We can do a kernel_fpu_begin/end() pair *ONLY* if that
+ * pair does nothing at all: the thread must not have fpu (so
+ * that we don't try to save the FPU state), and TS must
+ * be set (so that the clts/stts pair does nothing that is
+ * visible in the interrupted kernel thread).
+ */
+static inline bool interrupted_kernel_fpu_idle(void)
+{
+	return !__thread_has_fpu(current) &&
+		(read_cr0() & X86_CR0_TS);
+}
+
+/*
+ * Were we in user mode (or vm86 mode) when we were
+ * interrupted?
+ *
+ * Doing kernel_fpu_begin/end() is ok if we are running
+ * in an interrupt context from user mode - we'll just
+ * save the FPU state as required.
+ */
+static inline bool interrupted_user_mode(void)
+{
+	struct pt_regs *regs = get_irq_regs();
+	return regs && user_mode_vm(regs);
+}
+
+/*
+ * Can we use the FPU in kernel mode with the
+ * whole "kernel_fpu_begin/end()" sequence?
+ *
+ * It's always ok in process context (ie "not interrupt")
+ * but it is sometimes ok even from an irq.
+ */
+bool irq_fpu_usable(void)
+{
+	return !in_interrupt() ||
+		interrupted_user_mode() ||
+		interrupted_kernel_fpu_idle();
+}
+EXPORT_SYMBOL(irq_fpu_usable);
+
+void kernel_fpu_begin(void)
+{
+	struct task_struct *me = current;
+
+	WARN_ON_ONCE(!irq_fpu_usable());
+	preempt_disable();
+	if (__thread_has_fpu(me)) {
+		__save_init_fpu(me);
+		__thread_clear_has_fpu(me);
+		/* We do 'stts()' in kernel_fpu_end() */
+	} else {
+		percpu_write(fpu_owner_task, NULL);
+		clts();
+	}
+}
+EXPORT_SYMBOL(kernel_fpu_begin);
+
+void kernel_fpu_end(void)
+{
+	stts();
+	preempt_enable();
+}
+EXPORT_SYMBOL(kernel_fpu_end);
+
+void unlazy_fpu(struct task_struct *tsk)
+{
+	preempt_disable();
+	if (__thread_has_fpu(tsk)) {
+		__save_init_fpu(tsk);
+		__thread_fpu_end(tsk);
+	} else
+		tsk->fpu_counter = 0;
+	preempt_enable();
+}
+EXPORT_SYMBOL(unlazy_fpu);
+
 #ifdef CONFIG_MATH_EMULATION
 # define HAVE_HWFP		(boot_cpu_data.hard_math)
 #else
@@ -44,7 +125,7 @@ EXPORT_SYMBOL_GPL(xstate_size);
 unsigned int sig_xstate_ia32_size = sizeof(struct _fpstate_ia32);
 static struct i387_fxsave_struct fx_scratch __cpuinitdata;
 
-void __cpuinit mxcsr_feature_mask_init(void)
+static void __cpuinit mxcsr_feature_mask_init(void)
 {
 	unsigned long mask = 0;
 

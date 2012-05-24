@@ -2461,7 +2461,7 @@ struct rpc_procinfo	nfs3_procedures[] = {
 	PROC(COMMIT,		commit,		commit,		5),
 };
 
-struct rpc_version		nfs_version3 = {
+const struct rpc_version nfs_version3 = {
 	.number			= 3,
 	.nrprocs		= ARRAY_SIZE(nfs3_procedures),
 	.procs			= nfs3_procedures
@@ -2489,7 +2489,7 @@ static struct rpc_procinfo	nfs3_acl_procedures[] = {
 	},
 };
 
-struct rpc_version		nfsacl_version3 = {
+const struct rpc_version nfsacl_version3 = {
 	.number			= 3,
 	.nrprocs		= sizeof(nfs3_acl_procedures)/
 				  sizeof(nfs3_acl_procedures[0]),

@@ -471,7 +471,7 @@ exit:
 /**
  *	usb_tranzport_poll
  */
-static unsigned int usb_tranzport_poll(struct file *file, poll_table * wait)
+static unsigned int usb_tranzport_poll(struct file *file, poll_table *wait)
 {
 	struct usb_tranzport *dev;
 	unsigned int mask = 0;

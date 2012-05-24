@@ -208,6 +208,9 @@ u32 ssb_cpu_clock(struct ssb_mipscore *mcore)
 	struct ssb_bus *bus = mcore->dev->bus;
 	u32 pll_type, n, m, rate = 0;
 
+	if (bus->chipco.capabilities & SSB_CHIPCO_CAP_PMU)
+		return ssb_pmu_get_cpu_clock(&bus->chipco);
+
 	if (bus->extif.dev) {
 		ssb_extif_get_clockcontrol(&bus->extif, &pll_type, &n, &m);
 	} else if (bus->chipco.dev) {

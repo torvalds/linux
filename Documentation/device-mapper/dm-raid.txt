@@ -28,7 +28,7 @@ The target is named "raid" and it accepts the following parameters:
   raid6_nc	RAID6 N continue
 		- rotating parity N (right-to-left) with data continuation
 
-  Refererence: Chapter 4 of
+  Reference: Chapter 4 of
   http://www.snia.org/sites/default/files/SNIA_DDF_Technical_Position_v2.0.pdf
 
 <#raid_params>: The number of parameters that follow.

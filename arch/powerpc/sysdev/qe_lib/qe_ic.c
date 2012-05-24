@@ -245,13 +245,13 @@ static struct irq_chip qe_ic_irq_chip = {
 	.irq_mask_ack = qe_ic_mask_irq,
 };
 
-static int qe_ic_host_match(struct irq_host *h, struct device_node *node)
+static int qe_ic_host_match(struct irq_domain *h, struct device_node *node)
 {
 	/* Exact match, unless qe_ic node is NULL */
 	return h->of_node == NULL || h->of_node == node;
 }
 
-static int qe_ic_host_map(struct irq_host *h, unsigned int virq,
+static int qe_ic_host_map(struct irq_domain *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
 	struct qe_ic *qe_ic = h->host_data;
@@ -272,23 +272,10 @@ static int qe_ic_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static int qe_ic_host_xlate(struct irq_host *h, struct device_node *ct,
-			    const u32 * intspec, unsigned int intsize,
-			    irq_hw_number_t * out_hwirq,
-			    unsigned int *out_flags)
-{
-	*out_hwirq = intspec[0];
-	if (intsize > 1)
-		*out_flags = intspec[1];
-	else
-		*out_flags = IRQ_TYPE_NONE;
-	return 0;
-}
-
-static struct irq_host_ops qe_ic_host_ops = {
+static struct irq_domain_ops qe_ic_host_ops = {
 	.match = qe_ic_host_match,
 	.map = qe_ic_host_map,
-	.xlate = qe_ic_host_xlate,
+	.xlate = irq_domain_xlate_onetwocell,
 };
 
 /* Return an interrupt vector or NO_IRQ if no interrupt is pending. */
@@ -339,8 +326,8 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags,
 	if (qe_ic == NULL)
 		return;
 
-	qe_ic->irqhost = irq_alloc_host(node, IRQ_HOST_MAP_LINEAR,
-					NR_QE_IC_INTS, &qe_ic_host_ops, 0);
+	qe_ic->irqhost = irq_domain_add_linear(node, NR_QE_IC_INTS,
+					       &qe_ic_host_ops, qe_ic);
 	if (qe_ic->irqhost == NULL) {
 		kfree(qe_ic);
 		return;
@@ -348,7 +335,6 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags,
 
 	qe_ic->regs = ioremap(res.start, resource_size(&res));
 
-	qe_ic->irqhost->host_data = qe_ic;
 	qe_ic->hc_irq = qe_ic_irq_chip;
 
 	qe_ic->virq_high = irq_of_parse_and_map(node, 0);

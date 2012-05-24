@@ -324,20 +324,9 @@ static struct i2c_driver tmp421_driver = {
 	.address_list = normal_i2c,
 };
 
-static int __init tmp421_init(void)
-{
-	return i2c_add_driver(&tmp421_driver);
-}
-
-static void __exit tmp421_exit(void)
-{
-	i2c_del_driver(&tmp421_driver);
-}
+module_i2c_driver(tmp421_driver);
 
 MODULE_AUTHOR("Andre Prendel <andre.prendel@gmx.de>");
 MODULE_DESCRIPTION("Texas Instruments TMP421/422/423 temperature sensor"
 		   " driver");
 MODULE_LICENSE("GPL");
-
-module_init(tmp421_init);
-module_exit(tmp421_exit);

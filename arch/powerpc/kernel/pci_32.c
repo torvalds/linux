@@ -219,9 +219,9 @@ void __devinit pcibios_setup_phb_io_space(struct pci_controller *hose)
 	struct resource *res = &hose->io_resource;
 
 	/* Fixup IO space offset */
-	io_offset = (unsigned long)hose->io_base_virt - isa_io_base;
-	res->start = (res->start + io_offset) & 0xffffffffu;
-	res->end = (res->end + io_offset) & 0xffffffffu;
+	io_offset = pcibios_io_space_offset(hose);
+	res->start += io_offset;
+	res->end += io_offset;
 }
 
 static int __init pcibios_init(void)

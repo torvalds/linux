@@ -336,6 +336,20 @@ static void rate_idx_to_bitrate(struct rate_info *rate, struct sta_info *sta, in
 		rate->mcs = idx;
 }
 
+void sta_set_rate_info_tx(struct sta_info *sta,
+			  const struct ieee80211_tx_rate *rate,
+			  struct rate_info *rinfo)
+{
+	rinfo->flags = 0;
+	if (rate->flags & IEEE80211_TX_RC_MCS)
+		rinfo->flags |= RATE_INFO_FLAGS_MCS;
+	if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+		rinfo->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+	if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
+		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
+	rate_idx_to_bitrate(rinfo, sta, rate->idx);
+}
+
 static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -378,14 +392,7 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->signal_avg = (s8) -ewma_read(&sta->avg_signal);
 	}
 
-	sinfo->txrate.flags = 0;
-	if (sta->last_tx_rate.flags & IEEE80211_TX_RC_MCS)
-		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
-	if (sta->last_tx_rate.flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-		sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
-	if (sta->last_tx_rate.flags & IEEE80211_TX_RC_SHORT_GI)
-		sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
-	rate_idx_to_bitrate(&sinfo->txrate, sta, sta->last_tx_rate.idx);
+	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
 
 	sinfo->rxrate.flags = 0;
 	if (sta->last_rx_rate_flag & RX_FLAG_HT)
@@ -489,27 +496,13 @@ static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static void ieee80211_config_ap_ssid(struct ieee80211_sub_if_data *sdata,
-				     struct beacon_parameters *params)
-{
-	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
-
-	bss_conf->ssid_len = params->ssid_len;
-
-	if (params->ssid_len)
-		memcpy(bss_conf->ssid, params->ssid, params->ssid_len);
-
-	bss_conf->hidden_ssid =
-		(params->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE);
-}
-
 static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
-				    u8 *resp, size_t resp_len)
+				    const u8 *resp, size_t resp_len)
 {
 	struct sk_buff *new, *old;
 
 	if (!resp || !resp_len)
-		return -EINVAL;
+		return 1;
 
 	old = rtnl_dereference(sdata->u.ap.probe_resp);
 
@@ -520,50 +513,28 @@ static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 	memcpy(skb_put(new, resp_len), resp, resp_len);
 
 	rcu_assign_pointer(sdata->u.ap.probe_resp, new);
-	synchronize_rcu();
-
-	if (old)
+	if (old) {
+		/* TODO: use call_rcu() */
+		synchronize_rcu();
 		dev_kfree_skb(old);
+	}
 
 	return 0;
 }
 
-/*
- * This handles both adding a beacon and setting new beacon info
- */
-static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
-				   struct beacon_parameters *params)
+static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
+				   struct cfg80211_beacon_data *params)
 {
 	struct beacon_data *new, *old;
 	int new_head_len, new_tail_len;
-	int size;
-	int err = -EINVAL;
-	u32 changed = 0;
+	int size, err;
+	u32 changed = BSS_CHANGED_BEACON;
 
 	old = rtnl_dereference(sdata->u.ap.beacon);
 
-	/* head must not be zero-length */
-	if (params->head && !params->head_len)
-		return -EINVAL;
-
-	/*
-	 * This is a kludge. beacon interval should really be part
-	 * of the beacon information.
-	 */
-	if (params->interval &&
-	    (sdata->vif.bss_conf.beacon_int != params->interval)) {
-		sdata->vif.bss_conf.beacon_int = params->interval;
-		ieee80211_bss_info_change_notify(sdata,
-						 BSS_CHANGED_BEACON_INT);
-	}
-
 	/* Need to have a beacon head if we don't have one yet */
 	if (!params->head && !old)
-		return err;
-
-	/* sorry, no way to start beaconing without dtim period */
-	if (!params->dtim_period && !old)
-		return err;
+		return -EINVAL;
 
 	/* new or old head? */
 	if (params->head)
@@ -585,12 +556,6 @@ static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
 		return -ENOMEM;
 
 	/* start filling the new info now */
-
-	/* new or old dtim period? */
-	if (params->dtim_period)
-		new->dtim_period = params->dtim_period;
-	else
-		new->dtim_period = old->dtim_period;
 
 	/*
 	 * pointers go into the block we allocated,
@@ -614,45 +579,36 @@ static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
 		if (old)
 			memcpy(new->tail, old->tail, new_tail_len);
 
-	sdata->vif.bss_conf.dtim_period = new->dtim_period;
+	err = ieee80211_set_probe_resp(sdata, params->probe_resp,
+				       params->probe_resp_len);
+	if (err < 0)
+		return err;
+	if (err == 0)
+		changed |= BSS_CHANGED_AP_PROBE_RESP;
 
 	rcu_assign_pointer(sdata->u.ap.beacon, new);
 
-	synchronize_rcu();
+	if (old)
+		kfree_rcu(old, rcu_head);
 
-	kfree(old);
-
-	err = ieee80211_set_probe_resp(sdata, params->probe_resp,
-				       params->probe_resp_len);
-	if (!err)
-		changed |= BSS_CHANGED_AP_PROBE_RESP;
-
-	ieee80211_config_ap_ssid(sdata, params);
-	changed |= BSS_CHANGED_BEACON_ENABLED |
-		   BSS_CHANGED_BEACON |
-		   BSS_CHANGED_SSID;
-
-	ieee80211_bss_info_change_notify(sdata, changed);
-	return 0;
+	return changed;
 }
 
-static int ieee80211_add_beacon(struct wiphy *wiphy, struct net_device *dev,
-				struct beacon_parameters *params)
+static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
+			      struct cfg80211_ap_settings *params)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct beacon_data *old;
 	struct ieee80211_sub_if_data *vlan;
-	int ret;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	u32 changed = BSS_CHANGED_BEACON_INT |
+		      BSS_CHANGED_BEACON_ENABLED |
+		      BSS_CHANGED_BEACON |
+		      BSS_CHANGED_SSID;
+	int err;
 
 	old = rtnl_dereference(sdata->u.ap.beacon);
 	if (old)
 		return -EALREADY;
-
-	ret = ieee80211_config_beacon(sdata, params);
-	if (ret)
-		return ret;
 
 	/*
 	 * Apply control port protocol, this allows us to
@@ -667,14 +623,32 @@ static int ieee80211_add_beacon(struct wiphy *wiphy, struct net_device *dev,
 			params->crypto.control_port_no_encrypt;
 	}
 
+	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
+	sdata->vif.bss_conf.dtim_period = params->dtim_period;
+
+	sdata->vif.bss_conf.ssid_len = params->ssid_len;
+	if (params->ssid_len)
+		memcpy(sdata->vif.bss_conf.ssid, params->ssid,
+		       params->ssid_len);
+	sdata->vif.bss_conf.hidden_ssid =
+		(params->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE);
+
+	err = ieee80211_assign_beacon(sdata, &params->beacon);
+	if (err < 0)
+		return err;
+	changed |= err;
+
+	ieee80211_bss_info_change_notify(sdata, changed);
+
 	return 0;
 }
 
-static int ieee80211_set_beacon(struct wiphy *wiphy, struct net_device *dev,
-				struct beacon_parameters *params)
+static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
+				   struct cfg80211_beacon_data *params)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct beacon_data *old;
+	int err;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -682,10 +656,14 @@ static int ieee80211_set_beacon(struct wiphy *wiphy, struct net_device *dev,
 	if (!old)
 		return -ENOENT;
 
-	return ieee80211_config_beacon(sdata, params);
+	err = ieee80211_assign_beacon(sdata, params);
+	if (err < 0)
+		return err;
+	ieee80211_bss_info_change_notify(sdata, err);
+	return 0;
 }
 
-static int ieee80211_del_beacon(struct wiphy *wiphy, struct net_device *dev)
+static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct beacon_data *old;
@@ -697,10 +675,11 @@ static int ieee80211_del_beacon(struct wiphy *wiphy, struct net_device *dev)
 		return -ENOENT;
 
 	RCU_INIT_POINTER(sdata->u.ap.beacon, NULL);
-	synchronize_rcu();
-	kfree(old);
+
+	kfree_rcu(old, rcu_head);
 
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
+
 	return 0;
 }
 
@@ -776,12 +755,10 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 
 		if (set & BIT(NL80211_STA_FLAG_AUTHENTICATED) &&
 		    !test_sta_flag(sta, WLAN_STA_AUTH)) {
-			ret = sta_info_move_state_checked(sta,
-					IEEE80211_STA_AUTH);
+			ret = sta_info_move_state(sta, IEEE80211_STA_AUTH);
 			if (ret)
 				return ret;
-			ret = sta_info_move_state_checked(sta,
-					IEEE80211_STA_ASSOC);
+			ret = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
 			if (ret)
 				return ret;
 		}
@@ -789,11 +766,9 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 
 	if (mask & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
 		if (set & BIT(NL80211_STA_FLAG_AUTHORIZED))
-			ret = sta_info_move_state_checked(sta,
-					IEEE80211_STA_AUTHORIZED);
+			ret = sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
 		else if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
-			ret = sta_info_move_state_checked(sta,
-					IEEE80211_STA_ASSOC);
+			ret = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
 		if (ret)
 			return ret;
 	}
@@ -805,12 +780,10 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 
 		if (!(set & BIT(NL80211_STA_FLAG_AUTHENTICATED)) &&
 		    test_sta_flag(sta, WLAN_STA_AUTH)) {
-			ret = sta_info_move_state_checked(sta,
-					IEEE80211_STA_AUTH);
+			ret = sta_info_move_state(sta, IEEE80211_STA_AUTH);
 			if (ret)
 				return ret;
-			ret = sta_info_move_state_checked(sta,
-					IEEE80211_STA_NONE);
+			ret = sta_info_move_state(sta, IEEE80211_STA_NONE);
 			if (ret)
 				return ret;
 		}
@@ -944,8 +917,8 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (!sta)
 		return -ENOMEM;
 
-	sta_info_move_state(sta, IEEE80211_STA_AUTH);
-	sta_info_move_state(sta, IEEE80211_STA_ASSOC);
+	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
+	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
 
 	err = sta_apply_parameters(local, sta, params);
 	if (err) {
@@ -1001,6 +974,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *vlansdata;
+	int err;
 
 	mutex_lock(&local->sta_mtx);
 
@@ -1040,7 +1014,11 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		ieee80211_send_layer2_update(sta);
 	}
 
-	sta_apply_parameters(local, sta, params);
+	err = sta_apply_parameters(local, sta, params);
+	if (err) {
+		mutex_unlock(&local->sta_mtx);
+		return err;
+	}
 
 	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) && params->supported_rates)
 		rate_control_rate_init(sta);
@@ -1341,6 +1319,16 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 		conf->dot11MeshHWMPRannInterval =
 			nconf->dot11MeshHWMPRannInterval;
 	}
+	if (_chg_mesh_attr(NL80211_MESHCONF_FORWARDING, mask))
+		conf->dot11MeshForwarding = nconf->dot11MeshForwarding;
+	if (_chg_mesh_attr(NL80211_MESHCONF_RSSI_THRESHOLD, mask)) {
+		/* our RSSI threshold implementation is supported only for
+		 * devices that report signal in dBm.
+		 */
+		if (!(sdata->local->hw.flags & IEEE80211_HW_SIGNAL_DBM))
+			return -ENOTSUPP;
+		conf->rssi_threshold = nconf->rssi_threshold;
+	}
 	return 0;
 }
 
@@ -1622,19 +1610,15 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_deauth(struct wiphy *wiphy, struct net_device *dev,
-			    struct cfg80211_deauth_request *req,
-			    void *cookie)
+			    struct cfg80211_deauth_request *req)
 {
-	return ieee80211_mgd_deauth(IEEE80211_DEV_TO_SUB_IF(dev),
-				    req, cookie);
+	return ieee80211_mgd_deauth(IEEE80211_DEV_TO_SUB_IF(dev), req);
 }
 
 static int ieee80211_disassoc(struct wiphy *wiphy, struct net_device *dev,
-			      struct cfg80211_disassoc_request *req,
-			      void *cookie)
+			      struct cfg80211_disassoc_request *req)
 {
-	return ieee80211_mgd_disassoc(IEEE80211_DEV_TO_SUB_IF(dev),
-				      req, cookie);
+	return ieee80211_mgd_disassoc(IEEE80211_DEV_TO_SUB_IF(dev), req);
 }
 
 static int ieee80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
@@ -1868,7 +1852,6 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 					 s32 rssi_thold, u32 rssi_hyst)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_vif *vif = &sdata->vif;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
@@ -1879,14 +1862,9 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 	bss_conf->cqm_rssi_thold = rssi_thold;
 	bss_conf->cqm_rssi_hyst = rssi_hyst;
 
-	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)) {
-		if (sdata->vif.type != NL80211_IFTYPE_STATION)
-			return -EOPNOTSUPP;
-		return 0;
-	}
-
 	/* tell the driver upon association, unless already associated */
-	if (sdata->u.mgd.associated)
+	if (sdata->u.mgd.associated &&
+	    sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI)
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_CQM);
 
 	return 0;
@@ -1907,8 +1885,11 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 			return ret;
 	}
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
 		sdata->rc_rateidx_mask[i] = mask->control[i].legacy;
+		memcpy(sdata->rc_rateidx_mcs_mask[i], mask->control[i].mcs,
+		       sizeof(mask->control[i].mcs));
+	}
 
 	return 0;
 }
@@ -2030,7 +2011,7 @@ ieee80211_offchan_tx_done(struct ieee80211_work *wk, struct sk_buff *skb)
 	if (wk->offchan_tx.wait && !wk->offchan_tx.status)
 		cfg80211_mgmt_tx_status(wk->sdata->dev,
 					(unsigned long) wk->offchan_tx.frame,
-					wk->ie, wk->ie_len, false, GFP_KERNEL);
+					wk->data, wk->data_len, false, GFP_KERNEL);
 
 	return WORK_DONE_DESTROY;
 }
@@ -2181,8 +2162,8 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	wk->done = ieee80211_offchan_tx_done;
 	wk->offchan_tx.frame = skb;
 	wk->offchan_tx.wait = wait;
-	wk->ie_len = len;
-	memcpy(wk->ie, buf, len);
+	wk->data_len = len;
+	memcpy(wk->data, buf, len);
 
 	ieee80211_add_work(wk);
 	return 0;
@@ -2701,9 +2682,9 @@ struct cfg80211_ops mac80211_config_ops = {
 	.get_key = ieee80211_get_key,
 	.set_default_key = ieee80211_config_default_key,
 	.set_default_mgmt_key = ieee80211_config_default_mgmt_key,
-	.add_beacon = ieee80211_add_beacon,
-	.set_beacon = ieee80211_set_beacon,
-	.del_beacon = ieee80211_del_beacon,
+	.start_ap = ieee80211_start_ap,
+	.change_beacon = ieee80211_change_beacon,
+	.stop_ap = ieee80211_stop_ap,
 	.add_station = ieee80211_add_station,
 	.del_station = ieee80211_del_station,
 	.change_station = ieee80211_change_station,

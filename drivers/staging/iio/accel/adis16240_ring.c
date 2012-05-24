@@ -110,8 +110,6 @@ int adis16240_configure_ring(struct iio_dev *indio_dev)
 		return ret;
 	}
 	indio_dev->buffer = ring;
-	/* Effectively select the ring buffer implementation */
-	ring->access = &ring_sw_access_funcs;
 	ring->scan_timestamp = true;
 	indio_dev->setup_ops = &adis16240_ring_setup_ops;
 

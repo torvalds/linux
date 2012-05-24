@@ -21,7 +21,6 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/r4kcache.h>
-#include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/war.h>
 
@@ -81,9 +80,9 @@ static void octeon_flush_icache_all_cores(struct vm_area_struct *vma)
 	if (vma)
 		mask = *mm_cpumask(vma->vm_mm);
 	else
-		mask = cpu_online_map;
-	cpu_clear(cpu, mask);
-	for_each_cpu_mask(cpu, mask)
+		mask = *cpu_online_mask;
+	cpumask_clear_cpu(cpu, &mask);
+	for_each_cpu(cpu, &mask)
 		octeon_send_ipi_single(cpu, SMP_ICACHE_FLUSH);
 
 	preempt_enable();

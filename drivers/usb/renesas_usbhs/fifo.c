@@ -23,6 +23,7 @@
 #define usbhsf_get_cfifo(p)	(&((p)->fifo_info.cfifo))
 #define usbhsf_get_d0fifo(p)	(&((p)->fifo_info.d0fifo))
 #define usbhsf_get_d1fifo(p)	(&((p)->fifo_info.d1fifo))
+#define usbhsf_is_cfifo(p, f)	(usbhsf_get_cfifo(p) == f)
 
 #define usbhsf_fifo_is_busy(f)	((f)->pipe) /* see usbhs_pipe_select_fifo */
 
@@ -75,8 +76,7 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 		pipe->handler = &usbhsf_null_handler;
 	}
 
-	list_del_init(&pkt->node);
-	list_add_tail(&pkt->node, &pipe->list);
+	list_move_tail(&pkt->node, &pipe->list);
 
 	/*
 	 * each pkt must hold own handler.
@@ -106,7 +106,7 @@ static struct usbhs_pkt *__usbhsf_pkt_get(struct usbhs_pipe *pipe)
 	if (list_empty(&pipe->list))
 		return NULL;
 
-	return list_entry(pipe->list.next, struct usbhs_pkt, node);
+	return list_first_entry(&pipe->list, struct usbhs_pkt, node);
 }
 
 struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt)
@@ -305,7 +305,10 @@ static int usbhsf_fifo_select(struct usbhs_pipe *pipe,
 	}
 
 	/* "base" will be used below  */
-	usbhs_write(priv, fifo->sel, base | MBW_32);
+	if (usbhs_get_dparam(priv, has_sudmac) && !usbhsf_is_cfifo(priv, fifo))
+		usbhs_write(priv, fifo->sel, base);
+	else
+		usbhs_write(priv, fifo->sel, base | MBW_32);
 
 	/* check ISEL and CURPIPE value */
 	while (timeout--) {
@@ -762,9 +765,9 @@ static int __usbhsf_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
 }
 
 static void usbhsf_dma_complete(void *arg);
-static void usbhsf_dma_prepare_tasklet(unsigned long data)
+static void xfer_work(struct work_struct *work)
 {
-	struct usbhs_pkt *pkt = (struct usbhs_pkt *)data;
+	struct usbhs_pkt *pkt = container_of(work, struct usbhs_pkt, work);
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_fifo *fifo = usbhs_pipe_to_fifo(pipe);
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
@@ -783,9 +786,8 @@ static void usbhsf_dma_prepare_tasklet(unsigned long data)
 	sg_dma_address(&sg) = pkt->dma + pkt->actual;
 	sg_dma_len(&sg) = pkt->trans;
 
-	desc = chan->device->device_prep_slave_sg(chan, &sg, 1, dir,
-						  DMA_PREP_INTERRUPT |
-						  DMA_CTRL_ACK);
+	desc = dmaengine_prep_slave_sg(chan, &sg, 1, dir,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
 		return;
 
@@ -844,11 +846,8 @@ static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 
 	pkt->trans = len;
 
-	tasklet_init(&fifo->tasklet,
-		     usbhsf_dma_prepare_tasklet,
-		     (unsigned long)pkt);
-
-	tasklet_schedule(&fifo->tasklet);
+	INIT_WORK(&pkt->work, xfer_work);
+	schedule_work(&pkt->work);
 
 	return 0;
 
@@ -938,11 +937,8 @@ static int usbhsf_dma_try_pop(struct usbhs_pkt *pkt, int *is_done)
 
 	pkt->trans = len;
 
-	tasklet_init(&fifo->tasklet,
-		     usbhsf_dma_prepare_tasklet,
-		     (unsigned long)pkt);
-
-	tasklet_schedule(&fifo->tasklet);
+	INIT_WORK(&pkt->work, xfer_work);
+	schedule_work(&pkt->work);
 
 	return 0;
 

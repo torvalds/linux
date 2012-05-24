@@ -41,6 +41,25 @@ const struct file_operations hugetlbfs_file_operations;
 static const struct inode_operations hugetlbfs_dir_inode_operations;
 static const struct inode_operations hugetlbfs_inode_operations;
 
+struct hugetlbfs_config {
+	uid_t   uid;
+	gid_t   gid;
+	umode_t mode;
+	long	nr_blocks;
+	long	nr_inodes;
+	struct hstate *hstate;
+};
+
+struct hugetlbfs_inode_info {
+	struct shared_policy policy;
+	struct inode vfs_inode;
+};
+
+static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
+{
+	return container_of(inode, struct hugetlbfs_inode_info, vfs_inode);
+}
+
 static struct backing_dev_info hugetlbfs_backing_dev_info = {
 	.name		= "hugetlbfs",
 	.ra_pages	= 0,	/* No readahead */
@@ -154,10 +173,12 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 			return addr;
 	}
 
-	start_addr = mm->free_area_cache;
-
-	if (len <= mm->cached_hole_size)
+	if (len > mm->cached_hole_size)
+		start_addr = mm->free_area_cache;
+	else {
 		start_addr = TASK_UNMAPPED_BASE;
+		mm->cached_hole_size = 0;
+	}
 
 full_search:
 	addr = ALIGN(start_addr, huge_page_size(h));
@@ -171,13 +192,18 @@ full_search:
 			 */
 			if (start_addr != TASK_UNMAPPED_BASE) {
 				start_addr = TASK_UNMAPPED_BASE;
+				mm->cached_hole_size = 0;
 				goto full_search;
 			}
 			return -ENOMEM;
 		}
 
-		if (!vma || addr + len <= vma->vm_start)
+		if (!vma || addr + len <= vma->vm_start) {
+			mm->free_area_cache = addr + len;
 			return addr;
+		}
+		if (addr + mm->cached_hole_size < vma->vm_start)
+			mm->cached_hole_size = vma->vm_start - addr;
 		addr = ALIGN(vma->vm_end, huge_page_size(h));
 	}
 }
@@ -238,17 +264,10 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
 	loff_t isize;
 	ssize_t retval = 0;
 
-	mutex_lock(&inode->i_mutex);
-
 	/* validate length */
 	if (len == 0)
 		goto out;
 
-	isize = i_size_read(inode);
-	if (!isize)
-		goto out;
-
-	end_index = (isize - 1) >> huge_page_shift(h);
 	for (;;) {
 		struct page *page;
 		unsigned long nr, ret;
@@ -256,18 +275,21 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
 
 		/* nr is the maximum number of bytes to copy from this page */
 		nr = huge_page_size(h);
+		isize = i_size_read(inode);
+		if (!isize)
+			goto out;
+		end_index = (isize - 1) >> huge_page_shift(h);
 		if (index >= end_index) {
 			if (index > end_index)
 				goto out;
 			nr = ((isize - 1) & ~huge_page_mask(h)) + 1;
-			if (nr <= offset) {
+			if (nr <= offset)
 				goto out;
-			}
 		}
 		nr = nr - offset;
 
 		/* Find the page */
-		page = find_get_page(mapping, index);
+		page = find_lock_page(mapping, index);
 		if (unlikely(page == NULL)) {
 			/*
 			 * We have a HOLE, zero out the user-buffer for the
@@ -279,17 +301,18 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
 			else
 				ra = 0;
 		} else {
+			unlock_page(page);
+
 			/*
 			 * We have the page, copy it to user space buffer.
 			 */
 			ra = hugetlbfs_read_actor(page, offset, buf, len, nr);
 			ret = ra;
+			page_cache_release(page);
 		}
 		if (ra < 0) {
 			if (retval == 0)
 				retval = ra;
-			if (page)
-				page_cache_release(page);
 			goto out;
 		}
 
@@ -299,16 +322,12 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
 		index += offset >> huge_page_shift(h);
 		offset &= ~huge_page_mask(h);
 
-		if (page)
-			page_cache_release(page);
-
 		/* short read or no more work */
 		if ((ret != nr) || (len == 0))
 			break;
 	}
 out:
 	*ppos = ((loff_t)index << huge_page_shift(h)) + offset;
-	mutex_unlock(&inode->i_mutex);
 	return retval;
 }
 
@@ -607,9 +626,15 @@ static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		spin_lock(&sbinfo->stat_lock);
 		/* If no limits set, just report 0 for max/free/used
 		 * blocks, like simple_statfs() */
-		if (sbinfo->max_blocks >= 0) {
-			buf->f_blocks = sbinfo->max_blocks;
-			buf->f_bavail = buf->f_bfree = sbinfo->free_blocks;
+		if (sbinfo->spool) {
+			long free_pages;
+
+			spin_lock(&sbinfo->spool->lock);
+			buf->f_blocks = sbinfo->spool->max_hpages;
+			free_pages = sbinfo->spool->max_hpages
+				- sbinfo->spool->used_hpages;
+			buf->f_bavail = buf->f_bfree = free_pages;
+			spin_unlock(&sbinfo->spool->lock);
 			buf->f_files = sbinfo->max_inodes;
 			buf->f_ffree = sbinfo->free_inodes;
 		}
@@ -625,6 +650,10 @@ static void hugetlbfs_put_super(struct super_block *sb)
 
 	if (sbi) {
 		sb->s_fs_info = NULL;
+
+		if (sbi->spool)
+			hugepage_put_subpool(sbi->spool);
+
 		kfree(sbi);
 	}
 }
@@ -831,8 +860,6 @@ bad_val:
 static int
 hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
 {
-	struct inode * inode;
-	struct dentry * root;
 	int ret;
 	struct hugetlbfs_config config;
 	struct hugetlbfs_sb_info *sbinfo;
@@ -855,58 +882,29 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_fs_info = sbinfo;
 	sbinfo->hstate = config.hstate;
 	spin_lock_init(&sbinfo->stat_lock);
-	sbinfo->max_blocks = config.nr_blocks;
-	sbinfo->free_blocks = config.nr_blocks;
 	sbinfo->max_inodes = config.nr_inodes;
 	sbinfo->free_inodes = config.nr_inodes;
+	sbinfo->spool = NULL;
+	if (config.nr_blocks != -1) {
+		sbinfo->spool = hugepage_new_subpool(config.nr_blocks);
+		if (!sbinfo->spool)
+			goto out_free;
+	}
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize = huge_page_size(config.hstate);
 	sb->s_blocksize_bits = huge_page_shift(config.hstate);
 	sb->s_magic = HUGETLBFS_MAGIC;
 	sb->s_op = &hugetlbfs_ops;
 	sb->s_time_gran = 1;
-	inode = hugetlbfs_get_root(sb, &config);
-	if (!inode)
+	sb->s_root = d_make_root(hugetlbfs_get_root(sb, &config));
+	if (!sb->s_root)
 		goto out_free;
-
-	root = d_alloc_root(inode);
-	if (!root) {
-		iput(inode);
-		goto out_free;
-	}
-	sb->s_root = root;
 	return 0;
 out_free:
+	if (sbinfo->spool)
+		kfree(sbinfo->spool);
 	kfree(sbinfo);
 	return -ENOMEM;
-}
-
-int hugetlb_get_quota(struct address_space *mapping, long delta)
-{
-	int ret = 0;
-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(mapping->host->i_sb);
-
-	if (sbinfo->free_blocks > -1) {
-		spin_lock(&sbinfo->stat_lock);
-		if (sbinfo->free_blocks - delta >= 0)
-			sbinfo->free_blocks -= delta;
-		else
-			ret = -ENOMEM;
-		spin_unlock(&sbinfo->stat_lock);
-	}
-
-	return ret;
-}
-
-void hugetlb_put_quota(struct address_space *mapping, long delta)
-{
-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(mapping->host->i_sb);
-
-	if (sbinfo->free_blocks > -1) {
-		spin_lock(&sbinfo->stat_lock);
-		sbinfo->free_blocks += delta;
-		spin_unlock(&sbinfo->stat_lock);
-	}
 }
 
 static struct dentry *hugetlbfs_mount(struct file_system_type *fs_type,
@@ -928,8 +926,8 @@ static int can_do_hugetlb_shm(void)
 	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
 }
 
-struct file *hugetlb_file_setup(const char *name, size_t size,
-				vm_flags_t acctflag,
+struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+				size_t size, vm_flags_t acctflag,
 				struct user_struct **user, int creat_flags)
 {
 	int error = -ENOMEM;
@@ -938,6 +936,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
 	struct path path;
 	struct dentry *root;
 	struct qstr quick_string;
+	struct hstate *hstate;
+	unsigned long num_pages;
 
 	*user = NULL;
 	if (!hugetlbfs_vfsmount)
@@ -946,7 +946,11 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
 	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
 		*user = current_user();
 		if (user_shm_lock(size, *user)) {
-			printk_once(KERN_WARNING "Using mlock ulimits for SHM_HUGETLB is deprecated\n");
+			task_lock(current);
+			printk_once(KERN_WARNING
+				"%s (%d): Using mlock ulimits for SHM_HUGETLB is deprecated\n",
+				current->comm, current->pid);
+			task_unlock(current);
 		} else {
 			*user = NULL;
 			return ERR_PTR(-EPERM);
@@ -967,10 +971,12 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
 	if (!inode)
 		goto out_dentry;
 
+	hstate = hstate_inode(inode);
+	size += addr & ~huge_page_mask(hstate);
+	num_pages = ALIGN(size, huge_page_size(hstate)) >>
+			huge_page_shift(hstate);
 	error = -ENOMEM;
-	if (hugetlb_reserve_pages(inode, 0,
-			size >> huge_page_shift(hstate_inode(inode)), NULL,
-			acctflag))
+	if (hugetlb_reserve_pages(inode, 0, num_pages, NULL, acctflag))
 		goto out_inode;
 
 	d_instantiate(path.dentry, inode);
@@ -1006,6 +1012,7 @@ static int __init init_hugetlbfs_fs(void)
 	if (error)
 		return error;
 
+	error = -ENOMEM;
 	hugetlbfs_inode_cachep = kmem_cache_create("hugetlbfs_inode_cache",
 					sizeof(struct hugetlbfs_inode_info),
 					0, 0, init_once);
@@ -1026,8 +1033,7 @@ static int __init init_hugetlbfs_fs(void)
 	error = PTR_ERR(vfsmount);
 
  out:
-	if (error)
-		kmem_cache_destroy(hugetlbfs_inode_cachep);
+	kmem_cache_destroy(hugetlbfs_inode_cachep);
  out2:
 	bdi_destroy(&hugetlbfs_backing_dev_info);
 	return error;

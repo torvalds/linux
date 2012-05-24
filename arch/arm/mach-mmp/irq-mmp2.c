@@ -15,6 +15,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 
+#include <mach/irqs.h>
 #include <mach/regs-icu.h>
 #include <mach/mmp2.h>
 

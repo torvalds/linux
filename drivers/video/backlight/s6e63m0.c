@@ -690,7 +690,7 @@ static ssize_t s6e63m0_sysfs_store_gamma_mode(struct device *dev,
 	struct backlight_device *bd = NULL;
 	int brightness, rc;
 
-	rc = strict_strtoul(buf, 0, (unsigned long *)&lcd->gamma_mode);
+	rc = kstrtouint(buf, 0, &lcd->gamma_mode);
 	if (rc < 0)
 		return rc;
 
@@ -909,18 +909,7 @@ static struct spi_driver s6e63m0_driver = {
 	.resume		= s6e63m0_resume,
 };
 
-static int __init s6e63m0_init(void)
-{
-	return spi_register_driver(&s6e63m0_driver);
-}
-
-static void __exit s6e63m0_exit(void)
-{
-	spi_unregister_driver(&s6e63m0_driver);
-}
-
-module_init(s6e63m0_init);
-module_exit(s6e63m0_exit);
+module_spi_driver(s6e63m0_driver);
 
 MODULE_AUTHOR("InKi Dae <inki.dae@samsung.com>");
 MODULE_DESCRIPTION("S6E63M0 LCD Driver");

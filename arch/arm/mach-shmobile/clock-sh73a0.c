@@ -88,7 +88,7 @@ static unsigned long div2_recalc(struct clk *clk)
 	return clk->parent->rate / 2;
 }
 
-static struct clk_ops div2_clk_ops = {
+static struct sh_clk_ops div2_clk_ops = {
 	.recalc		= div2_recalc,
 };
 
@@ -97,7 +97,7 @@ static unsigned long div7_recalc(struct clk *clk)
 	return clk->parent->rate / 7;
 }
 
-static struct clk_ops div7_clk_ops = {
+static struct sh_clk_ops div7_clk_ops = {
 	.recalc		= div7_recalc,
 };
 
@@ -106,7 +106,7 @@ static unsigned long div13_recalc(struct clk *clk)
 	return clk->parent->rate / 13;
 }
 
-static struct clk_ops div13_clk_ops = {
+static struct sh_clk_ops div13_clk_ops = {
 	.recalc		= div13_recalc,
 };
 
@@ -122,7 +122,7 @@ static struct clk extal2_div2_clk = {
 	.parent		= &sh73a0_extal2_clk,
 };
 
-static struct clk_ops main_clk_ops = {
+static struct sh_clk_ops main_clk_ops = {
 	.recalc		= followparent_recalc,
 };
 
@@ -156,7 +156,7 @@ static unsigned long pll_recalc(struct clk *clk)
 	return clk->parent->rate * mult;
 }
 
-static struct clk_ops pll_clk_ops = {
+static struct sh_clk_ops pll_clk_ops = {
 	.recalc		= pll_recalc,
 };
 
@@ -438,7 +438,7 @@ static int dsiphy_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-static struct clk_ops dsiphy_clk_ops = {
+static struct sh_clk_ops dsiphy_clk_ops = {
 	.recalc		= dsiphy_recalc,
 	.round_rate	= dsiphy_round_rate,
 	.set_rate	= dsiphy_set_rate,
@@ -620,7 +620,7 @@ void __init sh73a0_clock_init(void)
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
-		clk_init();
+		shmobile_clk_init();
 	else
 		panic("failed to setup sh73a0 clocks\n");
 }

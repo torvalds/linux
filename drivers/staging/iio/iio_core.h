@@ -49,4 +49,8 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 
 #endif
 
+int iio_device_register_eventset(struct iio_dev *indio_dev);
+void iio_device_unregister_eventset(struct iio_dev *indio_dev);
+int iio_event_getfd(struct iio_dev *indio_dev);
+
 #endif

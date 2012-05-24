@@ -4,14 +4,12 @@
 /* Reiserfs block (de)allocator, bitmap-based. */
 
 #include <linux/time.h>
-#include <linux/reiserfs_fs.h>
+#include "reiserfs.h"
 #include <linux/errno.h>
 #include <linux/buffer_head.h>
 #include <linux/kernel.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
-#include <linux/reiserfs_fs_sb.h>
-#include <linux/reiserfs_fs_i.h>
 #include <linux/quotaops.h>
 #include <linux/seq_file.h>
 

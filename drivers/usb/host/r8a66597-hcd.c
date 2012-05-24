@@ -2428,6 +2428,9 @@ static int __devinit r8a66597_probe(struct platform_device *pdev)
 	int i;
 	unsigned long irq_trigger;
 
+	if (usb_disabled())
+		return -ENODEV;
+
 	if (pdev->dev.dma_mask) {
 		ret = -EINVAL;
 		dev_err(&pdev->dev, "dma not supported\n");
@@ -2552,20 +2555,4 @@ static struct platform_driver r8a66597_driver = {
 	},
 };
 
-static int __init r8a66597_init(void)
-{
-	if (usb_disabled())
-		return -ENODEV;
-
-	printk(KERN_INFO KBUILD_MODNAME ": driver %s, %s\n", hcd_name,
-	       DRIVER_VERSION);
-	return platform_driver_register(&r8a66597_driver);
-}
-module_init(r8a66597_init);
-
-static void __exit r8a66597_cleanup(void)
-{
-	platform_driver_unregister(&r8a66597_driver);
-}
-module_exit(r8a66597_cleanup);
-
+module_platform_driver(r8a66597_driver);

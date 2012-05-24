@@ -122,11 +122,20 @@ extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 extern unsigned long get_wchan(struct task_struct *p);
 
-#define KSTK_EIP(tsk)	(task_pt_regs(task)->pc)
-#define	KSTK_ESP(tsk)	(task_pt_regs(task)->sp)
+#define KSTK_EIP(task)	(task_pt_regs(task)->pc)
+#define KSTK_ESP(task)	(task_pt_regs(task)->sp)
 
 #define cpu_relax()		do { } while (0)
 
 extern const struct seq_operations cpuinfo_op;
+
+/* Reset the board */
+#define HARD_RESET_NOW()
+
+extern unsigned int c6x_core_freq;
+
+
+extern void (*c6x_restart)(void);
+extern void (*c6x_halt)(void);
 
 #endif /* ASM_C6X_PROCESSOR_H */

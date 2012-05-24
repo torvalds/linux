@@ -16,6 +16,7 @@
 #include <asm/fpumacro.h>
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
+#include <asm/cacheflush.h>
 
 #include "sfp-util_64.h"
 #include <math-emu/soft-fp.h>

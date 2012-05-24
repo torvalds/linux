@@ -31,11 +31,16 @@ extern const char *parent_pattern;
 extern const char default_sort_order[];
 extern int sort__need_collapse;
 extern int sort__has_parent;
+extern int sort__branch_mode;
 extern char *field_sep;
 extern struct sort_entry sort_comm;
 extern struct sort_entry sort_dso;
 extern struct sort_entry sort_sym;
 extern struct sort_entry sort_parent;
+extern struct sort_entry sort_dso_from;
+extern struct sort_entry sort_dso_to;
+extern struct sort_entry sort_sym_from;
+extern struct sort_entry sort_sym_to;
 extern enum sort_type sort__first_dimension;
 
 /**
@@ -72,6 +77,7 @@ struct hist_entry {
 		struct hist_entry *pair;
 		struct rb_root	  sorted_chain;
 	};
+	struct branch_info	*branch_info;
 	struct callchain_root	callchain[0];
 };
 
@@ -82,6 +88,11 @@ enum sort_type {
 	SORT_SYM,
 	SORT_PARENT,
 	SORT_CPU,
+	SORT_DSO_FROM,
+	SORT_DSO_TO,
+	SORT_SYM_FROM,
+	SORT_SYM_TO,
+	SORT_MISPREDICT,
 };
 
 /*

@@ -63,9 +63,20 @@ char *perf_header__find_event(u64 id)
 	return NULL;
 }
 
-static const char *__perf_magic = "PERFFILE";
+/*
+ * magic2 = "PERFILE2"
+ * must be a numerical value to let the endianness
+ * determine the memory layout. That way we are able
+ * to detect endianness when reading the perf.data file
+ * back.
+ *
+ * we check for legacy (PERFFILE) format.
+ */
+static const char *__perf_magic1 = "PERFFILE";
+static const u64 __perf_magic2    = 0x32454c4946524550ULL;
+static const u64 __perf_magic2_sw = 0x50455246494c4532ULL;
 
-#define PERF_MAGIC	(*(u64 *)__perf_magic)
+#define PERF_MAGIC	__perf_magic2
 
 struct perf_file_attr {
 	struct perf_event_attr	attr;
@@ -280,7 +291,7 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 	if (realname == NULL || filename == NULL || linkname == NULL)
 		goto out_free;
 
-	len = snprintf(filename, size, "%s%s%s",
+	len = scnprintf(filename, size, "%s%s%s",
 		       debugdir, is_kallsyms ? "/" : "", realname);
 	if (mkdir_p(filename, 0755))
 		goto out_free;
@@ -295,7 +306,7 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 			goto out_free;
 	}
 
-	len = snprintf(linkname, size, "%s/.build-id/%.2s",
+	len = scnprintf(linkname, size, "%s/.build-id/%.2s",
 		       debugdir, sbuild_id);
 
 	if (access(linkname, X_OK) && mkdir_p(linkname, 0755))
@@ -1012,6 +1023,12 @@ write_it:
 	return do_write_string(fd, buffer);
 }
 
+static int write_branch_stack(int fd __used, struct perf_header *h __used,
+		       struct perf_evlist *evlist __used)
+{
+	return 0;
+}
+
 static void print_hostname(struct perf_header *ph, int fd, FILE *fp)
 {
 	char *str = do_read_string(fd, ph);
@@ -1133,8 +1150,9 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 	uint64_t id;
 	void *buf = NULL;
 	char *str;
-	u32 nre, sz, nr, i, j, msz;
-	int ret;
+	u32 nre, sz, nr, i, j;
+	ssize_t ret;
+	size_t msz;
 
 	/* number of events */
 	ret = read(fd, &nre, sizeof(nre));
@@ -1151,15 +1169,9 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 	if (ph->needs_swap)
 		sz = bswap_32(sz);
 
-	/*
-	 * ensure it is at least to our ABI rev
-	 */
-	if (sz < (u32)sizeof(attr))
-		goto error;
-
 	memset(&attr, 0, sizeof(attr));
 
-	/* read entire region to sync up to next field */
+	/* buffer to hold on file attr struct */
 	buf = malloc(sz);
 	if (!buf)
 		goto error;
@@ -1170,6 +1182,10 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 
 	for (i = 0 ; i < nre; i++) {
 
+		/*
+		 * must read entire on-file attr struct to
+		 * sync up with layout.
+		 */
 		ret = read(fd, buf, sz);
 		if (ret != (ssize_t)sz)
 			goto error;
@@ -1305,25 +1321,204 @@ static void print_cpuid(struct perf_header *ph, int fd, FILE *fp)
 	free(str);
 }
 
+static void print_branch_stack(struct perf_header *ph __used, int fd __used,
+			       FILE *fp)
+{
+	fprintf(fp, "# contains samples with branch stack\n");
+}
+
+static int __event_process_build_id(struct build_id_event *bev,
+				    char *filename,
+				    struct perf_session *session)
+{
+	int err = -1;
+	struct list_head *head;
+	struct machine *machine;
+	u16 misc;
+	struct dso *dso;
+	enum dso_kernel_type dso_type;
+
+	machine = perf_session__findnew_machine(session, bev->pid);
+	if (!machine)
+		goto out;
+
+	misc = bev->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+
+	switch (misc) {
+	case PERF_RECORD_MISC_KERNEL:
+		dso_type = DSO_TYPE_KERNEL;
+		head = &machine->kernel_dsos;
+		break;
+	case PERF_RECORD_MISC_GUEST_KERNEL:
+		dso_type = DSO_TYPE_GUEST_KERNEL;
+		head = &machine->kernel_dsos;
+		break;
+	case PERF_RECORD_MISC_USER:
+	case PERF_RECORD_MISC_GUEST_USER:
+		dso_type = DSO_TYPE_USER;
+		head = &machine->user_dsos;
+		break;
+	default:
+		goto out;
+	}
+
+	dso = __dsos__findnew(head, filename);
+	if (dso != NULL) {
+		char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+
+		dso__set_build_id(dso, &bev->build_id);
+
+		if (filename[0] == '[')
+			dso->kernel = dso_type;
+
+		build_id__sprintf(dso->build_id, sizeof(dso->build_id),
+				  sbuild_id);
+		pr_debug("build id event received for %s: %s\n",
+			 dso->long_name, sbuild_id);
+	}
+
+	err = 0;
+out:
+	return err;
+}
+
+static int perf_header__read_build_ids_abi_quirk(struct perf_header *header,
+						 int input, u64 offset, u64 size)
+{
+	struct perf_session *session = container_of(header, struct perf_session, header);
+	struct {
+		struct perf_event_header   header;
+		u8			   build_id[ALIGN(BUILD_ID_SIZE, sizeof(u64))];
+		char			   filename[0];
+	} old_bev;
+	struct build_id_event bev;
+	char filename[PATH_MAX];
+	u64 limit = offset + size;
+
+	while (offset < limit) {
+		ssize_t len;
+
+		if (read(input, &old_bev, sizeof(old_bev)) != sizeof(old_bev))
+			return -1;
+
+		if (header->needs_swap)
+			perf_event_header__bswap(&old_bev.header);
+
+		len = old_bev.header.size - sizeof(old_bev);
+		if (read(input, filename, len) != len)
+			return -1;
+
+		bev.header = old_bev.header;
+
+		/*
+		 * As the pid is the missing value, we need to fill
+		 * it properly. The header.misc value give us nice hint.
+		 */
+		bev.pid	= HOST_KERNEL_ID;
+		if (bev.header.misc == PERF_RECORD_MISC_GUEST_USER ||
+		    bev.header.misc == PERF_RECORD_MISC_GUEST_KERNEL)
+			bev.pid	= DEFAULT_GUEST_KERNEL_ID;
+
+		memcpy(bev.build_id, old_bev.build_id, sizeof(bev.build_id));
+		__event_process_build_id(&bev, filename, session);
+
+		offset += bev.header.size;
+	}
+
+	return 0;
+}
+
+static int perf_header__read_build_ids(struct perf_header *header,
+				       int input, u64 offset, u64 size)
+{
+	struct perf_session *session = container_of(header, struct perf_session, header);
+	struct build_id_event bev;
+	char filename[PATH_MAX];
+	u64 limit = offset + size, orig_offset = offset;
+	int err = -1;
+
+	while (offset < limit) {
+		ssize_t len;
+
+		if (read(input, &bev, sizeof(bev)) != sizeof(bev))
+			goto out;
+
+		if (header->needs_swap)
+			perf_event_header__bswap(&bev.header);
+
+		len = bev.header.size - sizeof(bev);
+		if (read(input, filename, len) != len)
+			goto out;
+		/*
+		 * The a1645ce1 changeset:
+		 *
+		 * "perf: 'perf kvm' tool for monitoring guest performance from host"
+		 *
+		 * Added a field to struct build_id_event that broke the file
+		 * format.
+		 *
+		 * Since the kernel build-id is the first entry, process the
+		 * table using the old format if the well known
+		 * '[kernel.kallsyms]' string for the kernel build-id has the
+		 * first 4 characters chopped off (where the pid_t sits).
+		 */
+		if (memcmp(filename, "nel.kallsyms]", 13) == 0) {
+			if (lseek(input, orig_offset, SEEK_SET) == (off_t)-1)
+				return -1;
+			return perf_header__read_build_ids_abi_quirk(header, input, offset, size);
+		}
+
+		__event_process_build_id(&bev, filename, session);
+
+		offset += bev.header.size;
+	}
+	err = 0;
+out:
+	return err;
+}
+
+static int process_trace_info(struct perf_file_section *section __unused,
+			      struct perf_header *ph __unused,
+			      int feat __unused, int fd)
+{
+	trace_report(fd, false);
+	return 0;
+}
+
+static int process_build_id(struct perf_file_section *section,
+			    struct perf_header *ph,
+			    int feat __unused, int fd)
+{
+	if (perf_header__read_build_ids(ph, fd, section->offset, section->size))
+		pr_debug("Failed to read buildids, continuing...\n");
+	return 0;
+}
+
 struct feature_ops {
 	int (*write)(int fd, struct perf_header *h, struct perf_evlist *evlist);
 	void (*print)(struct perf_header *h, int fd, FILE *fp);
+	int (*process)(struct perf_file_section *section,
+		       struct perf_header *h, int feat, int fd);
 	const char *name;
 	bool full_only;
 };
 
 #define FEAT_OPA(n, func) \
 	[n] = { .name = #n, .write = write_##func, .print = print_##func }
+#define FEAT_OPP(n, func) \
+	[n] = { .name = #n, .write = write_##func, .print = print_##func, \
+		.process = process_##func }
 #define FEAT_OPF(n, func) \
-	[n] = { .name = #n, .write = write_##func, .print = print_##func, .full_only = true }
+	[n] = { .name = #n, .write = write_##func, .print = print_##func, \
+		.full_only = true }
 
 /* feature_ops not implemented: */
 #define print_trace_info		NULL
 #define print_build_id			NULL
 
 static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
-	FEAT_OPA(HEADER_TRACE_INFO,	trace_info),
-	FEAT_OPA(HEADER_BUILD_ID,	build_id),
+	FEAT_OPP(HEADER_TRACE_INFO,	trace_info),
+	FEAT_OPP(HEADER_BUILD_ID,	build_id),
 	FEAT_OPA(HEADER_HOSTNAME,	hostname),
 	FEAT_OPA(HEADER_OSRELEASE,	osrelease),
 	FEAT_OPA(HEADER_VERSION,	version),
@@ -1336,6 +1531,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPA(HEADER_CMDLINE,	cmdline),
 	FEAT_OPF(HEADER_CPU_TOPOLOGY,	cpu_topology),
 	FEAT_OPF(HEADER_NUMA_TOPOLOGY,	numa_topology),
+	FEAT_OPA(HEADER_BRANCH_STACK,	branch_stack),
 };
 
 struct header_print_data {
@@ -1620,24 +1816,128 @@ out_free:
 	return err;
 }
 
+static const int attr_file_abi_sizes[] = {
+	[0] = PERF_ATTR_SIZE_VER0,
+	[1] = PERF_ATTR_SIZE_VER1,
+	0,
+};
+
+/*
+ * In the legacy file format, the magic number is not used to encode endianness.
+ * hdr_sz was used to encode endianness. But given that hdr_sz can vary based
+ * on ABI revisions, we need to try all combinations for all endianness to
+ * detect the endianness.
+ */
+static int try_all_file_abis(uint64_t hdr_sz, struct perf_header *ph)
+{
+	uint64_t ref_size, attr_size;
+	int i;
+
+	for (i = 0 ; attr_file_abi_sizes[i]; i++) {
+		ref_size = attr_file_abi_sizes[i]
+			 + sizeof(struct perf_file_section);
+		if (hdr_sz != ref_size) {
+			attr_size = bswap_64(hdr_sz);
+			if (attr_size != ref_size)
+				continue;
+
+			ph->needs_swap = true;
+		}
+		pr_debug("ABI%d perf.data file detected, need_swap=%d\n",
+			 i,
+			 ph->needs_swap);
+		return 0;
+	}
+	/* could not determine endianness */
+	return -1;
+}
+
+#define PERF_PIPE_HDR_VER0	16
+
+static const size_t attr_pipe_abi_sizes[] = {
+	[0] = PERF_PIPE_HDR_VER0,
+	0,
+};
+
+/*
+ * In the legacy pipe format, there is an implicit assumption that endiannesss
+ * between host recording the samples, and host parsing the samples is the
+ * same. This is not always the case given that the pipe output may always be
+ * redirected into a file and analyzed on a different machine with possibly a
+ * different endianness and perf_event ABI revsions in the perf tool itself.
+ */
+static int try_all_pipe_abis(uint64_t hdr_sz, struct perf_header *ph)
+{
+	u64 attr_size;
+	int i;
+
+	for (i = 0 ; attr_pipe_abi_sizes[i]; i++) {
+		if (hdr_sz != attr_pipe_abi_sizes[i]) {
+			attr_size = bswap_64(hdr_sz);
+			if (attr_size != hdr_sz)
+				continue;
+
+			ph->needs_swap = true;
+		}
+		pr_debug("Pipe ABI%d perf.data file detected\n", i);
+		return 0;
+	}
+	return -1;
+}
+
+static int check_magic_endian(u64 magic, uint64_t hdr_sz,
+			      bool is_pipe, struct perf_header *ph)
+{
+	int ret;
+
+	/* check for legacy format */
+	ret = memcmp(&magic, __perf_magic1, sizeof(magic));
+	if (ret == 0) {
+		pr_debug("legacy perf.data format\n");
+		if (is_pipe)
+			return try_all_pipe_abis(hdr_sz, ph);
+
+		return try_all_file_abis(hdr_sz, ph);
+	}
+	/*
+	 * the new magic number serves two purposes:
+	 * - unique number to identify actual perf.data files
+	 * - encode endianness of file
+	 */
+
+	/* check magic number with one endianness */
+	if (magic == __perf_magic2)
+		return 0;
+
+	/* check magic number with opposite endianness */
+	if (magic != __perf_magic2_sw)
+		return -1;
+
+	ph->needs_swap = true;
+
+	return 0;
+}
+
 int perf_file_header__read(struct perf_file_header *header,
 			   struct perf_header *ph, int fd)
 {
+	int ret;
+
 	lseek(fd, 0, SEEK_SET);
 
-	if (readn(fd, header, sizeof(*header)) <= 0 ||
-	    memcmp(&header->magic, __perf_magic, sizeof(header->magic)))
+	ret = readn(fd, header, sizeof(*header));
+	if (ret <= 0)
 		return -1;
 
-	if (header->attr_size != sizeof(struct perf_file_attr)) {
-		u64 attr_size = bswap_64(header->attr_size);
+	if (check_magic_endian(header->magic,
+			       header->attr_size, false, ph) < 0) {
+		pr_debug("magic/endian check failed\n");
+		return -1;
+	}
 
-		if (attr_size != sizeof(struct perf_file_attr))
-			return -1;
-
+	if (ph->needs_swap) {
 		mem_bswap_64(header, offsetof(struct perf_file_header,
-					    adds_features));
-		ph->needs_swap = true;
+			     adds_features));
 	}
 
 	if (header->size != sizeof(*header)) {
@@ -1689,156 +1989,6 @@ int perf_file_header__read(struct perf_file_header *header,
 	return 0;
 }
 
-static int __event_process_build_id(struct build_id_event *bev,
-				    char *filename,
-				    struct perf_session *session)
-{
-	int err = -1;
-	struct list_head *head;
-	struct machine *machine;
-	u16 misc;
-	struct dso *dso;
-	enum dso_kernel_type dso_type;
-
-	machine = perf_session__findnew_machine(session, bev->pid);
-	if (!machine)
-		goto out;
-
-	misc = bev->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-
-	switch (misc) {
-	case PERF_RECORD_MISC_KERNEL:
-		dso_type = DSO_TYPE_KERNEL;
-		head = &machine->kernel_dsos;
-		break;
-	case PERF_RECORD_MISC_GUEST_KERNEL:
-		dso_type = DSO_TYPE_GUEST_KERNEL;
-		head = &machine->kernel_dsos;
-		break;
-	case PERF_RECORD_MISC_USER:
-	case PERF_RECORD_MISC_GUEST_USER:
-		dso_type = DSO_TYPE_USER;
-		head = &machine->user_dsos;
-		break;
-	default:
-		goto out;
-	}
-
-	dso = __dsos__findnew(head, filename);
-	if (dso != NULL) {
-		char sbuild_id[BUILD_ID_SIZE * 2 + 1];
-
-		dso__set_build_id(dso, &bev->build_id);
-
-		if (filename[0] == '[')
-			dso->kernel = dso_type;
-
-		build_id__sprintf(dso->build_id, sizeof(dso->build_id),
-				  sbuild_id);
-		pr_debug("build id event received for %s: %s\n",
-			 dso->long_name, sbuild_id);
-	}
-
-	err = 0;
-out:
-	return err;
-}
-
-static int perf_header__read_build_ids_abi_quirk(struct perf_header *header,
-						 int input, u64 offset, u64 size)
-{
-	struct perf_session *session = container_of(header, struct perf_session, header);
-	struct {
-		struct perf_event_header   header;
-		u8			   build_id[ALIGN(BUILD_ID_SIZE, sizeof(u64))];
-		char			   filename[0];
-	} old_bev;
-	struct build_id_event bev;
-	char filename[PATH_MAX];
-	u64 limit = offset + size;
-
-	while (offset < limit) {
-		ssize_t len;
-
-		if (read(input, &old_bev, sizeof(old_bev)) != sizeof(old_bev))
-			return -1;
-
-		if (header->needs_swap)
-			perf_event_header__bswap(&old_bev.header);
-
-		len = old_bev.header.size - sizeof(old_bev);
-		if (read(input, filename, len) != len)
-			return -1;
-
-		bev.header = old_bev.header;
-
-		/*
-		 * As the pid is the missing value, we need to fill
-		 * it properly. The header.misc value give us nice hint.
-		 */
-		bev.pid	= HOST_KERNEL_ID;
-		if (bev.header.misc == PERF_RECORD_MISC_GUEST_USER ||
-		    bev.header.misc == PERF_RECORD_MISC_GUEST_KERNEL)
-			bev.pid	= DEFAULT_GUEST_KERNEL_ID;
-
-		memcpy(bev.build_id, old_bev.build_id, sizeof(bev.build_id));
-		__event_process_build_id(&bev, filename, session);
-
-		offset += bev.header.size;
-	}
-
-	return 0;
-}
-
-static int perf_header__read_build_ids(struct perf_header *header,
-				       int input, u64 offset, u64 size)
-{
-	struct perf_session *session = container_of(header, struct perf_session, header);
-	struct build_id_event bev;
-	char filename[PATH_MAX];
-	u64 limit = offset + size, orig_offset = offset;
-	int err = -1;
-
-	while (offset < limit) {
-		ssize_t len;
-
-		if (read(input, &bev, sizeof(bev)) != sizeof(bev))
-			goto out;
-
-		if (header->needs_swap)
-			perf_event_header__bswap(&bev.header);
-
-		len = bev.header.size - sizeof(bev);
-		if (read(input, filename, len) != len)
-			goto out;
-		/*
-		 * The a1645ce1 changeset:
-		 *
-		 * "perf: 'perf kvm' tool for monitoring guest performance from host"
-		 *
-		 * Added a field to struct build_id_event that broke the file
-		 * format.
-		 *
-		 * Since the kernel build-id is the first entry, process the
-		 * table using the old format if the well known
-		 * '[kernel.kallsyms]' string for the kernel build-id has the
-		 * first 4 characters chopped off (where the pid_t sits).
-		 */
-		if (memcmp(filename, "nel.kallsyms]", 13) == 0) {
-			if (lseek(input, orig_offset, SEEK_SET) == (off_t)-1)
-				return -1;
-			return perf_header__read_build_ids_abi_quirk(header, input, offset, size);
-		}
-
-		__event_process_build_id(&bev, filename, session);
-
-		offset += bev.header.size;
-	}
-	err = 0;
-out:
-	return err;
-}
-
 static int perf_file_section__process(struct perf_file_section *section,
 				      struct perf_header *ph,
 				      int feat, int fd, void *data __used)
@@ -1854,40 +2004,32 @@ static int perf_file_section__process(struct perf_file_section *section,
 		return 0;
 	}
 
-	switch (feat) {
-	case HEADER_TRACE_INFO:
-		trace_report(fd, false);
-		break;
-	case HEADER_BUILD_ID:
-		if (perf_header__read_build_ids(ph, fd, section->offset, section->size))
-			pr_debug("Failed to read buildids, continuing...\n");
-		break;
-	default:
-		break;
-	}
+	if (!feat_ops[feat].process)
+		return 0;
 
-	return 0;
+	return feat_ops[feat].process(section, ph, feat, fd);
 }
 
 static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
 				       struct perf_header *ph, int fd,
 				       bool repipe)
 {
-	if (readn(fd, header, sizeof(*header)) <= 0 ||
-	    memcmp(&header->magic, __perf_magic, sizeof(header->magic)))
+	int ret;
+
+	ret = readn(fd, header, sizeof(*header));
+	if (ret <= 0)
 		return -1;
+
+	if (check_magic_endian(header->magic, header->size, true, ph) < 0) {
+		pr_debug("endian/magic failed\n");
+		return -1;
+	}
+
+	if (ph->needs_swap)
+		header->size = bswap_64(header->size);
 
 	if (repipe && do_write(STDOUT_FILENO, header, sizeof(*header)) < 0)
 		return -1;
-
-	if (header->size != sizeof(*header)) {
-		u64 size = bswap_64(header->size);
-
-		if (size != sizeof(*header))
-			return -1;
-
-		ph->needs_swap = true;
-	}
 
 	return 0;
 }
@@ -1908,6 +2050,52 @@ static int perf_header__read_pipe(struct perf_session *session, int fd)
 	return 0;
 }
 
+static int read_attr(int fd, struct perf_header *ph,
+		     struct perf_file_attr *f_attr)
+{
+	struct perf_event_attr *attr = &f_attr->attr;
+	size_t sz, left;
+	size_t our_sz = sizeof(f_attr->attr);
+	int ret;
+
+	memset(f_attr, 0, sizeof(*f_attr));
+
+	/* read minimal guaranteed structure */
+	ret = readn(fd, attr, PERF_ATTR_SIZE_VER0);
+	if (ret <= 0) {
+		pr_debug("cannot read %d bytes of header attr\n",
+			 PERF_ATTR_SIZE_VER0);
+		return -1;
+	}
+
+	/* on file perf_event_attr size */
+	sz = attr->size;
+
+	if (ph->needs_swap)
+		sz = bswap_32(sz);
+
+	if (sz == 0) {
+		/* assume ABI0 */
+		sz =  PERF_ATTR_SIZE_VER0;
+	} else if (sz > our_sz) {
+		pr_debug("file uses a more recent and unsupported ABI"
+			 " (%zu bytes extra)\n", sz - our_sz);
+		return -1;
+	}
+	/* what we have not yet read and that we know about */
+	left = sz - PERF_ATTR_SIZE_VER0;
+	if (left) {
+		void *ptr = attr;
+		ptr += PERF_ATTR_SIZE_VER0;
+
+		ret = readn(fd, ptr, left);
+	}
+	/* read perf_file_section, ids are read in caller */
+	ret = readn(fd, &f_attr->ids, sizeof(f_attr->ids));
+
+	return ret <= 0 ? -1 : 0;
+}
+
 int perf_session__read_header(struct perf_session *session, int fd)
 {
 	struct perf_header *header = &session->header;
@@ -1923,19 +2111,17 @@ int perf_session__read_header(struct perf_session *session, int fd)
 	if (session->fd_pipe)
 		return perf_header__read_pipe(session, fd);
 
-	if (perf_file_header__read(&f_header, header, fd) < 0) {
-		pr_debug("incompatible file format\n");
+	if (perf_file_header__read(&f_header, header, fd) < 0)
 		return -EINVAL;
-	}
 
-	nr_attrs = f_header.attrs.size / sizeof(f_attr);
+	nr_attrs = f_header.attrs.size / f_header.attr_size;
 	lseek(fd, f_header.attrs.offset, SEEK_SET);
 
 	for (i = 0; i < nr_attrs; i++) {
 		struct perf_evsel *evsel;
 		off_t tmp;
 
-		if (readn(fd, &f_attr, sizeof(f_attr)) <= 0)
+		if (read_attr(fd, header, &f_attr) < 0)
 			goto out_errno;
 
 		if (header->needs_swap)

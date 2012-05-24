@@ -31,6 +31,7 @@
 
 #include "common.h"
 #include "omap4-sar-layout.h"
+#include <linux/export.h>
 
 #ifdef CONFIG_CACHE_L2X0
 static void __iomem *l2cache_base;
@@ -55,6 +56,7 @@ void omap_bus_sync(void)
 		isb();
 	}
 }
+EXPORT_SYMBOL(omap_bus_sync);
 
 /* Steal one page physical memory for barrier implementation */
 int __init omap_barrier_reserve_memblock(void)

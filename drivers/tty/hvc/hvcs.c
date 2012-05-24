@@ -879,10 +879,7 @@ static struct vio_driver hvcs_vio_driver = {
 	.id_table	= hvcs_driver_table,
 	.probe		= hvcs_probe,
 	.remove		= __devexit_p(hvcs_remove),
-	.driver		= {
-		.name	= hvcs_driver_name,
-		.owner	= THIS_MODULE,
-	}
+	.name		= hvcs_driver_name,
 };
 
 /* Only called from hvcs_get_pi please */
@@ -1090,27 +1087,23 @@ static int hvcs_enable_device(struct hvcs_struct *hvcsd, uint32_t unit_address,
  */
 static struct hvcs_struct *hvcs_get_by_index(int index)
 {
-	struct hvcs_struct *hvcsd = NULL;
+	struct hvcs_struct *hvcsd;
 	unsigned long flags;
 
 	spin_lock(&hvcs_structs_lock);
-	/* We can immediately discard OOB requests */
-	if (index >= 0 && index < HVCS_MAX_SERVER_ADAPTERS) {
-		list_for_each_entry(hvcsd, &hvcs_structs, next) {
-			spin_lock_irqsave(&hvcsd->lock, flags);
-			if (hvcsd->index == index) {
-				kref_get(&hvcsd->kref);
-				spin_unlock_irqrestore(&hvcsd->lock, flags);
-				spin_unlock(&hvcs_structs_lock);
-				return hvcsd;
-			}
+	list_for_each_entry(hvcsd, &hvcs_structs, next) {
+		spin_lock_irqsave(&hvcsd->lock, flags);
+		if (hvcsd->index == index) {
+			kref_get(&hvcsd->kref);
 			spin_unlock_irqrestore(&hvcsd->lock, flags);
+			spin_unlock(&hvcs_structs_lock);
+			return hvcsd;
 		}
-		hvcsd = NULL;
+		spin_unlock_irqrestore(&hvcsd->lock, flags);
 	}
-
 	spin_unlock(&hvcs_structs_lock);
-	return hvcsd;
+
+	return NULL;
 }
 
 /*
@@ -1203,7 +1196,7 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 {
 	struct hvcs_struct *hvcsd;
 	unsigned long flags;
-	int irq = NO_IRQ;
+	int irq;
 
 	/*
 	 * Is someone trying to close the file associated with this device after
@@ -1264,7 +1257,7 @@ static void hvcs_hangup(struct tty_struct * tty)
 	struct hvcs_struct *hvcsd = tty->driver_data;
 	unsigned long flags;
 	int temp_open_count;
-	int irq = NO_IRQ;
+	int irq;
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
 	/* Preserve this so that we know how many kref refs to put */
@@ -1498,8 +1491,6 @@ static int __devinit hvcs_initialize(void)
 		rc = -ENOMEM;
 		goto index_fail;
 	}
-
-	hvcs_tty_driver->owner = THIS_MODULE;
 
 	hvcs_tty_driver->driver_name = hvcs_driver_name;
 	hvcs_tty_driver->name = hvcs_device_node;

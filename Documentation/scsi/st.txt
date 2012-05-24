@@ -390,6 +390,10 @@ MTSETDRVBUFFER
 	     MT_ST_SYSV sets the SYSV semantics (mode)
 	     MT_ST_NOWAIT enables immediate mode (i.e., don't wait for
 	        the command to finish) for some commands (e.g., rewind)
+	     MT_ST_NOWAIT_EOF enables immediate filemark mode (i.e. when
+	        writing a filemark, don't wait for it to complete). Please
+		see the BASICS note about MTWEOFI with respect to the
+		possible dangers of writing immediate filemarks.
 	     MT_ST_SILI enables setting the SILI bit in SCSI commands when
 		reading in variable block mode to enhance performance when
 		reading blocks shorter than the byte count; set this only

@@ -23,7 +23,6 @@ config HAS_MTU
 config NOMADIK_MTU_SCHED_CLOCK
 	bool
 	depends on HAS_MTU
-	select HAVE_SCHED_CLOCK
 	help
 	  Use the Multi Timer Unit as the sched_clock.
 

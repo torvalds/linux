@@ -74,7 +74,7 @@ static unsigned long div2_recalc(struct clk *clk)
 	return clk->parent->rate / 2;
 }
 
-static struct clk_ops div2_clk_ops = {
+static struct sh_clk_ops div2_clk_ops = {
 	.recalc		= div2_recalc,
 };
 
@@ -101,7 +101,7 @@ static unsigned long pllc1_recalc(struct clk *clk)
 	return clk->parent->rate * mult;
 }
 
-static struct clk_ops pllc1_clk_ops = {
+static struct sh_clk_ops pllc1_clk_ops = {
 	.recalc		= pllc1_recalc,
 };
 
@@ -128,7 +128,7 @@ static unsigned long pllc2_recalc(struct clk *clk)
 	return clk->parent->rate * mult;
 }
 
-static struct clk_ops pllc2_clk_ops = {
+static struct sh_clk_ops pllc2_clk_ops = {
 	.recalc		= pllc2_recalc,
 };
 
@@ -349,7 +349,7 @@ void __init sh7367_clock_init(void)
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
-		clk_init();
+		shmobile_clk_init();
 	else
 		panic("failed to setup sh7367 clocks\n");
 }

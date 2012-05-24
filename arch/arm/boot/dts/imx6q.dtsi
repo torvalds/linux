@@ -88,9 +88,9 @@
 		ranges;
 
 		timer@00a00600 {
-			compatible = "arm,smp-twd";
-			reg = <0x00a00600 0x100>;
-			interrupts = <1 13 0xf4>;
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0x00a00600 0x20>;
+			interrupts = <1 13 0xf01>;
 		};
 
 		L2: l2-cache@00a02000 {

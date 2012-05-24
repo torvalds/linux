@@ -69,6 +69,7 @@ warning-1 += -Wmissing-prototypes
 warning-1 += -Wold-style-definition
 warning-1 += $(call cc-option, -Wmissing-include-dirs)
 warning-1 += $(call cc-option, -Wunused-but-set-variable)
+warning-1 += $(call cc-disable-warning, missing-field-initializers)
 
 warning-2 := -Waggregate-return
 warning-2 += -Wcast-align
@@ -76,6 +77,7 @@ warning-2 += -Wdisabled-optimization
 warning-2 += -Wnested-externs
 warning-2 += -Wshadow
 warning-2 += $(call cc-option, -Wlogical-op)
+warning-2 += $(call cc-option, -Wmissing-field-initializers)
 
 warning-3 := -Wbad-function-cast
 warning-3 += -Wcast-qual

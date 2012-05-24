@@ -59,9 +59,12 @@
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
+#include <asm/exec.h>
 
 #include <trace/events/task.h>
 #include "internal.h"
+
+#include <trace/events/sched.h>
 
 int core_uses_pid;
 char core_pattern[CORENAME_MAX_SIZE] = "core";
@@ -79,15 +82,13 @@ static atomic_t call_count = ATOMIC_INIT(1);
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
-int __register_binfmt(struct linux_binfmt * fmt, int insert)
+void __register_binfmt(struct linux_binfmt * fmt, int insert)
 {
-	if (!fmt)
-		return -EINVAL;
+	BUG_ON(!fmt);
 	write_lock(&binfmt_lock);
 	insert ? list_add(&fmt->lh, &formats) :
 		 list_add_tail(&fmt->lh, &formats);
 	write_unlock(&binfmt_lock);
-	return 0;	
 }
 
 EXPORT_SYMBOL(__register_binfmt);
@@ -822,7 +823,7 @@ static int exec_mmap(struct mm_struct *mm)
 	/* Notify parent that we're no longer interested in the old VM */
 	tsk = current;
 	old_mm = current->mm;
-	sync_mm_rss(tsk, old_mm);
+	sync_mm_rss(old_mm);
 	mm_release(tsk, old_mm);
 
 	if (old_mm) {
@@ -848,6 +849,7 @@ static int exec_mmap(struct mm_struct *mm)
 	if (old_mm) {
 		up_read(&old_mm->mmap_sem);
 		BUG_ON(active_mm != old_mm);
+		setmax_mm_hiwater_rss(&tsk->signal->maxrss, old_mm);
 		mm_update_next_owner(old_mm);
 		mmput(old_mm);
 		return 0;
@@ -975,8 +977,8 @@ static int de_thread(struct task_struct *tsk)
 	sig->notify_count = 0;
 
 no_thread_group:
-	if (current->mm)
-		setmax_mm_hiwater_rss(&sig->maxrss, current->mm);
+	/* we have changed execution domain */
+	tsk->exit_signal = SIGCHLD;
 
 	exit_itimers(sig);
 	flush_itimer_signals();
@@ -1026,10 +1028,10 @@ static void flush_old_files(struct files_struct * files)
 		fdt = files_fdtable(files);
 		if (i >= fdt->max_fds)
 			break;
-		set = fdt->close_on_exec->fds_bits[j];
+		set = fdt->close_on_exec[j];
 		if (!set)
 			continue;
-		fdt->close_on_exec->fds_bits[j] = 0;
+		fdt->close_on_exec[j] = 0;
 		spin_unlock(&files->file_lock);
 		for ( ; set ; i++,set >>= 1) {
 			if (set & 1) {
@@ -1112,7 +1114,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 	bprm->mm = NULL;		/* We're using it now */
 
 	set_fs(USER_DS);
-	current->flags &= ~(PF_RANDOMIZE | PF_KTHREAD);
+	current->flags &= ~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD);
 	flush_thread();
 	current->personality &= ~bprm->per_clear;
 
@@ -1339,13 +1341,13 @@ int remove_arg_zero(struct linux_binprm *bprm)
 			ret = -EFAULT;
 			goto out;
 		}
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page);
 
 		for (; offset < PAGE_SIZE && kaddr[offset];
 				offset++, bprm->p++)
 			;
 
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 		put_arg_page(page);
 
 		if (offset == PAGE_SIZE)
@@ -1369,7 +1371,7 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 	unsigned int depth = bprm->recursion_depth;
 	int try,retval;
 	struct linux_binfmt *fmt;
-	pid_t old_pid;
+	pid_t old_pid, old_vpid;
 
 	retval = security_bprm_check(bprm);
 	if (retval)
@@ -1380,8 +1382,9 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 		return retval;
 
 	/* Need to fetch pid before load_binary changes it */
+	old_pid = current->pid;
 	rcu_read_lock();
-	old_pid = task_pid_nr_ns(current, task_active_pid_ns(current->parent));
+	old_vpid = task_pid_nr_ns(current, task_active_pid_ns(current->parent));
 	rcu_read_unlock();
 
 	retval = -ENOENT;
@@ -1402,9 +1405,10 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 			 */
 			bprm->recursion_depth = depth;
 			if (retval >= 0) {
-				if (depth == 0)
-					ptrace_event(PTRACE_EVENT_EXEC,
-							old_pid);
+				if (depth == 0) {
+					trace_sched_process_exec(current, old_pid, bprm);
+					ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
+				}
 				put_binfmt(fmt);
 				allow_write_access(bprm->file);
 				if (bprm->file)
@@ -1915,7 +1919,6 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 {
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
-	struct completion *vfork_done;
 	int core_waiters = -EBUSY;
 
 	init_completion(&core_state->startup);
@@ -1927,22 +1930,9 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 		core_waiters = zap_threads(tsk, mm, core_state, exit_code);
 	up_write(&mm->mmap_sem);
 
-	if (unlikely(core_waiters < 0))
-		goto fail;
-
-	/*
-	 * Make sure nobody is waiting for us to release the VM,
-	 * otherwise we can deadlock when we wait on each other
-	 */
-	vfork_done = tsk->vfork_done;
-	if (vfork_done) {
-		tsk->vfork_done = NULL;
-		complete(vfork_done);
-	}
-
-	if (core_waiters)
+	if (core_waiters > 0)
 		wait_for_completion(&core_state->startup);
-fail:
+
 	return core_waiters;
 }
 
@@ -2078,8 +2068,8 @@ static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
 	fd_install(0, rp);
 	spin_lock(&cf->file_lock);
 	fdt = files_fdtable(cf);
-	FD_SET(0, fdt->open_fds);
-	FD_CLR(0, fdt->close_on_exec);
+	__set_open_fd(0, fdt);
+	__clear_close_on_exec(0, fdt);
 	spin_unlock(&cf->file_lock);
 
 	/* and disallow core files too */

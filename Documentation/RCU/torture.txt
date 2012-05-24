@@ -69,6 +69,13 @@ onoff_interval
 		CPU-hotplug operations regardless of what value is
 		specified for onoff_interval.
 
+onoff_holdoff	The number of seconds to wait until starting CPU-hotplug
+		operations.  This would normally only be used when
+		rcutorture was built into the kernel and started
+		automatically at boot time, in which case it is useful
+		in order to avoid confusing boot-time code with CPUs
+		coming and going.
+
 shuffle_interval
 		The number of seconds to keep the test threads affinitied
 		to a particular subset of the CPUs, defaults to 3 seconds.
@@ -78,6 +85,24 @@ shutdown_secs	The number of seconds to run the test before terminating
 		the test and powering off the system.  The default is
 		zero, which disables test termination and system shutdown.
 		This capability is useful for automated testing.
+
+stall_cpu	The number of seconds that a CPU should be stalled while
+		within both an rcu_read_lock() and a preempt_disable().
+		This stall happens only once per rcutorture run.
+		If you need multiple stalls, use modprobe and rmmod to
+		repeatedly run rcutorture.  The default for stall_cpu
+		is zero, which prevents rcutorture from stalling a CPU.
+
+		Note that attempts to rmmod rcutorture while the stall
+		is ongoing will hang, so be careful what value you
+		choose for this module parameter!  In addition, too-large
+		values for stall_cpu might well induce failures and
+		warnings in other parts of the kernel.  You have been
+		warned!
+
+stall_cpu_holdoff
+		The number of seconds to wait after rcutorture starts
+		before stalling a CPU.  Defaults to 10 seconds.
 
 stat_interval	The number of seconds between output of torture
 		statistics (via printk()).  Regardless of the interval,
@@ -271,11 +296,13 @@ The following script may be used to torture RCU:
 	#!/bin/sh
 
 	modprobe rcutorture
-	sleep 100
+	sleep 3600
 	rmmod rcutorture
 	dmesg | grep torture:
 
 The output can be manually inspected for the error flag of "!!!".
 One could of course create a more elaborate script that automatically
-checked for such errors.  The "rmmod" command forces a "SUCCESS" or
-"FAILURE" indication to be printk()ed.
+checked for such errors.  The "rmmod" command forces a "SUCCESS",
+"FAILURE", or "RCU_HOTPLUG" indication to be printk()ed.  The first
+two are self-explanatory, while the last indicates that while there
+were no RCU failures, CPU-hotplug problems were detected.

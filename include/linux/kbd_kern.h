@@ -7,8 +7,6 @@
 
 extern struct tasklet_struct keyboard_tasklet;
 
-extern int shift_state;
-
 extern char *func_table[MAX_NR_FUNC];
 extern char func_buf[];
 extern char *funcbufptr;
@@ -65,8 +63,6 @@ struct kbd_struct {
 #define VC_META		4	/* 0 - meta, 1 - meta=prefix with ESC */
 };
 
-extern struct kbd_struct kbd_table[];
-
 extern int kbd_init(void);
 
 extern unsigned char getledstate(void);
@@ -79,6 +75,7 @@ extern void (*kbd_ledfunc)(unsigned int led);
 extern int set_console(int nr);
 extern void schedule_console_callback(void);
 
+/* FIXME: review locking for vt.c callers */
 static inline void set_leds(void)
 {
 	tasklet_schedule(&keyboard_tasklet);
@@ -142,8 +139,6 @@ static inline void chg_vc_kbd_led(struct kbd_struct * kbd, int flag)
 
 struct console;
 
-int getkeycode(unsigned int scancode);
-int setkeycode(unsigned int scancode, unsigned int keycode);
 void compute_shiftstate(void);
 
 /* defkeymap.c */

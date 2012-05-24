@@ -527,7 +527,7 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 		ret = sis900_get_mac_addr(pci_dev, net_dev);
 
 	if (!ret || !is_valid_ether_addr(net_dev->dev_addr)) {
-		random_ether_addr(net_dev->dev_addr);
+		eth_hw_addr_random(net_dev);
 		printk(KERN_WARNING "%s: Unreadable or invalid MAC address,"
 				"using random generated one\n", dev_name);
 	}
@@ -619,7 +619,6 @@ static int __devinit sis900_mii_probe(struct net_device * net_dev)
 		}
 
 		if ((mii_phy = kmalloc(sizeof(struct mii_phy), GFP_KERNEL)) == NULL) {
-			printk(KERN_WARNING "Cannot allocate mem for struct mii_phy\n");
 			mii_phy = sis_priv->first_mii;
 			while (mii_phy) {
 				struct mii_phy *phy;
@@ -1167,7 +1166,7 @@ sis900_init_rx_ring(struct net_device *net_dev)
 	for (i = 0; i < NUM_RX_DESC; i++) {
 		struct sk_buff *skb;
 
-		if ((skb = dev_alloc_skb(RX_BUF_SIZE)) == NULL) {
+		if ((skb = netdev_alloc_skb(net_dev, RX_BUF_SIZE)) == NULL) {
 			/* not enough memory for skbuff, this makes a "hole"
 			   on the buffer ring, it is not clear how the
 			   hardware will react to this kind of degenerated
@@ -1770,7 +1769,7 @@ static int sis900_rx(struct net_device *net_dev)
 
 			/* refill the Rx buffer, what if there is not enough
 			 * memory for new socket buffer ?? */
-			if ((skb = dev_alloc_skb(RX_BUF_SIZE)) == NULL) {
+			if ((skb = netdev_alloc_skb(net_dev, RX_BUF_SIZE)) == NULL) {
 				/*
 				 * Not enough memory to refill the buffer
 				 * so we need to recycle the old one so
@@ -1828,7 +1827,7 @@ refill_rx_ring:
 		entry = sis_priv->dirty_rx % NUM_RX_DESC;
 
 		if (sis_priv->rx_skbuff[entry] == NULL) {
-			if ((skb = dev_alloc_skb(RX_BUF_SIZE)) == NULL) {
+			if ((skb = netdev_alloc_skb(net_dev, RX_BUF_SIZE)) == NULL) {
 				/* not enough memory for skbuff, this makes a
 				 * "hole" on the buffer ring, it is not clear
 				 * how the hardware will react to this kind

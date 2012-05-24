@@ -28,6 +28,8 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
+#define pr_fmt(fmt) "[TTM] " fmt
+
 #include <ttm/ttm_module.h>
 #include <ttm/ttm_bo_driver.h>
 #include <ttm/ttm_placement.h>
@@ -262,8 +264,7 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 	read_unlock(&bdev->vm_lock);
 
 	if (unlikely(bo == NULL)) {
-		printk(KERN_ERR TTM_PFX
-		       "Could not find buffer object to map.\n");
+		pr_err("Could not find buffer object to map\n");
 		return -EINVAL;
 	}
 

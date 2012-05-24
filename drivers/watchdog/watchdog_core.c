@@ -77,7 +77,7 @@ int watchdog_register_device(struct watchdog_device *wdd)
 	/* We only support 1 watchdog device via the /dev/watchdog interface */
 	ret = watchdog_dev_register(wdd);
 	if (ret) {
-		pr_err("error registering /dev/watchdog (err=%d).\n", ret);
+		pr_err("error registering /dev/watchdog (err=%d)\n", ret);
 		return ret;
 	}
 
@@ -101,7 +101,7 @@ void watchdog_unregister_device(struct watchdog_device *wdd)
 
 	ret = watchdog_dev_unregister(wdd);
 	if (ret)
-		pr_err("error unregistering /dev/watchdog (err=%d).\n", ret);
+		pr_err("error unregistering /dev/watchdog (err=%d)\n", ret);
 }
 EXPORT_SYMBOL_GPL(watchdog_unregister_device);
 

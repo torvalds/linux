@@ -24,10 +24,9 @@
  * along with this driver.  If not, see <http://www.gnu.org/licenses/>.
  **********************************************************************/
 
-#include <linux/slab.h>
+#include "crystalhd.h"
 
-#include "crystalhd_misc.h"
-#include "crystalhd_lnx.h"
+#include <linux/slab.h>
 
 uint32_t g_linklog_level;
 

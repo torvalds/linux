@@ -28,6 +28,8 @@
 
 #include <net/ip.h>
 #include <net/arp.h>
+#include <net/route.h>
+#include <net/ip6_fib.h>
 #include <net/ip6_checksum.h>
 #include <net/iucv/af_iucv.h>
 
@@ -2428,7 +2430,7 @@ static int qeth_l3_arp_query_cb(struct qeth_card *card,
 
 		if ((qinfo->udata_len - qinfo->udata_offset) < esize) {
 			QETH_CARD_TEXT_(card, 4, "qaer3%i", -ENOMEM);
-			cmd->hdr.return_code = -ENOMEM;
+			cmd->hdr.return_code = IPA_RC_ENOMEM;
 			goto out_error;
 		}
 
@@ -2743,6 +2745,9 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 							mii_data->phy_id,
 							mii_data->reg_num);
 		break;
+	case SIOC_QETH_QUERY_OAT:
+		rc = qeth_query_oat_command(card, rq->ifr_ifru.ifru_data);
+		break;
 	default:
 		rc = -EOPNOTSUPP;
 	}
@@ -2832,7 +2837,6 @@ static void qeth_l3_fill_af_iucv_hdr(struct qeth_card *card,
 static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		struct sk_buff *skb, int ipv, int cast_type)
 {
-	struct neighbour *n = NULL;
 	struct dst_entry *dst;
 
 	memset(hdr, 0, sizeof(struct qeth_hdr));
@@ -2855,33 +2859,29 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 
 	rcu_read_lock();
 	dst = skb_dst(skb);
-	if (dst)
-		n = dst_get_neighbour_noref(dst);
 	if (ipv == 4) {
+		struct rtable *rt = (struct rtable *) dst;
+		__be32 *pkey = &ip_hdr(skb)->daddr;
+
+		if (rt->rt_gateway)
+			pkey = &rt->rt_gateway;
+
 		/* IPv4 */
 		hdr->hdr.l3.flags = qeth_l3_get_qeth_hdr_flags4(cast_type);
 		memset(hdr->hdr.l3.dest_addr, 0, 12);
-		if (n) {
-			*((u32 *) (&hdr->hdr.l3.dest_addr[12])) =
-			    *((u32 *) n->primary_key);
-		} else {
-			/* fill in destination address used in ip header */
-			*((u32 *) (&hdr->hdr.l3.dest_addr[12])) =
-							ip_hdr(skb)->daddr;
-		}
+		*((__be32 *) (&hdr->hdr.l3.dest_addr[12])) = *pkey;
 	} else if (ipv == 6) {
+		struct rt6_info *rt = (struct rt6_info *) dst;
+		struct in6_addr *pkey = &ipv6_hdr(skb)->daddr;
+
+		if (!ipv6_addr_any(&rt->rt6i_gateway))
+			pkey = &rt->rt6i_gateway;
+
 		/* IPv6 */
 		hdr->hdr.l3.flags = qeth_l3_get_qeth_hdr_flags6(cast_type);
 		if (card->info.type == QETH_CARD_TYPE_IQD)
 			hdr->hdr.l3.flags &= ~QETH_HDR_PASSTHRU;
-		if (n) {
-			memcpy(hdr->hdr.l3.dest_addr,
-			       n->primary_key, 16);
-		} else {
-			/* fill in destination address used in ip header */
-			memcpy(hdr->hdr.l3.dest_addr,
-			       &ipv6_hdr(skb)->daddr, 16);
-		}
+		memcpy(hdr->hdr.l3.dest_addr, pkey, 16);
 	} else {
 		/* passthrough */
 		if ((skb->dev->type == ARPHRD_IEEE802_TR) &&

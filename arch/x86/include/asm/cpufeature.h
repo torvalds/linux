@@ -177,6 +177,7 @@
 #define X86_FEATURE_PLN		(7*32+ 5) /* Intel Power Limit Notification */
 #define X86_FEATURE_PTS		(7*32+ 6) /* Intel Package Thermal Status */
 #define X86_FEATURE_DTS		(7*32+ 7) /* Digital Thermal Sensor */
+#define X86_FEATURE_HW_PSTATE	(7*32+ 8) /* AMD HW-PState */
 
 /* Virtualization flags: Linux defined, word 8 */
 #define X86_FEATURE_TPR_SHADOW  (8*32+ 0) /* Intel TPR Shadow */
@@ -199,10 +200,13 @@
 /* Intel-defined CPU features, CPUID level 0x00000007:0 (ebx), word 9 */
 #define X86_FEATURE_FSGSBASE	(9*32+ 0) /* {RD/WR}{FS/GS}BASE instructions*/
 #define X86_FEATURE_BMI1	(9*32+ 3) /* 1st group bit manipulation extensions */
+#define X86_FEATURE_HLE		(9*32+ 4) /* Hardware Lock Elision */
 #define X86_FEATURE_AVX2	(9*32+ 5) /* AVX2 instructions */
 #define X86_FEATURE_SMEP	(9*32+ 7) /* Supervisor Mode Execution Protection */
 #define X86_FEATURE_BMI2	(9*32+ 8) /* 2nd group bit manipulation extensions */
 #define X86_FEATURE_ERMS	(9*32+ 9) /* Enhanced REP MOVSB/STOSB */
+#define X86_FEATURE_INVPCID	(9*32+10) /* Invalidate Processor Context ID */
+#define X86_FEATURE_RTM		(9*32+11) /* Restricted Transactional Memory */
 
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 

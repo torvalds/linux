@@ -33,7 +33,6 @@
 #include <linux/kallsyms.h>
 #include <asm/uaccess.h>
 
-#include <asm/system.h>
 #include <asm/segment.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
@@ -115,6 +114,7 @@ void dump_stack(void)
 
 	show_stack(current, &stack);
 }
+EXPORT_SYMBOL(dump_stack);
 
 void show_registers(struct pt_regs *regs)
 {
@@ -145,8 +145,8 @@ void show_registers(struct pt_regs *regs)
 	       regs->gpr[24], regs->gpr[25], regs->gpr[26], regs->gpr[27]);
 	printk("GPR28: %08lx GPR29: %08lx GPR30: %08lx GPR31: %08lx\n",
 	       regs->gpr[28], regs->gpr[29], regs->gpr[30], regs->gpr[31]);
-	printk("  RES: %08lx oGPR11: %08lx syscallno: %08lx\n",
-	       regs->gpr[11], regs->orig_gpr11, regs->syscallno);
+	printk("  RES: %08lx oGPR11: %08lx\n",
+	       regs->gpr[11], regs->orig_gpr11);
 
 	printk("Process %s (pid: %d, stackpage=%08lx)\n",
 	       current->comm, current->pid, (unsigned long)current);
@@ -207,8 +207,8 @@ void nommu_dump_state(struct pt_regs *regs,
 	       regs->gpr[24], regs->gpr[25], regs->gpr[26], regs->gpr[27]);
 	printk("GPR28: %08lx GPR29: %08lx GPR30: %08lx GPR31: %08lx\n",
 	       regs->gpr[28], regs->gpr[29], regs->gpr[30], regs->gpr[31]);
-	printk("  RES: %08lx oGPR11: %08lx syscallno: %08lx\n",
-	       regs->gpr[11], regs->orig_gpr11, regs->syscallno);
+	printk("  RES: %08lx oGPR11: %08lx\n",
+	       regs->gpr[11], regs->orig_gpr11);
 
 	printk("Process %s (pid: %d, stackpage=%08lx)\n",
 	       ((struct task_struct *)(__pa(current)))->comm,

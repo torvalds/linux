@@ -18,7 +18,6 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/reboot.h>
 #include <asm/sgialib.h>
 #include <asm/sgi/ioc.h>

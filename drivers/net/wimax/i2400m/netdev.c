@@ -367,38 +367,28 @@ netdev_tx_t i2400m_hard_start_xmit(struct sk_buff *skb,
 {
 	struct i2400m *i2400m = net_dev_to_i2400m(net_dev);
 	struct device *dev = i2400m_dev(i2400m);
-	int result;
+	int result = -1;
 
 	d_fnstart(3, dev, "(skb %p net_dev %p)\n", skb, net_dev);
-	if (skb_header_cloned(skb)) {
-		/*
-		 * Make tcpdump/wireshark happy -- if they are
-		 * running, the skb is cloned and we will overwrite
-		 * the mac fields in i2400m_tx_prep_header. Expand
-		 * seems to fix this...
-		 */
-		result = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-		if (result) {
-			result = NETDEV_TX_BUSY;
-			goto error_expand;
-		}
-	}
+
+	if (skb_header_cloned(skb) && 
+	    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+		goto drop;
 
 	if (i2400m->state == I2400M_SS_IDLE)
 		result = i2400m_net_wake_tx(i2400m, net_dev, skb);
 	else
 		result = i2400m_net_tx(i2400m, net_dev, skb);
-	if (result <  0)
+	if (result <  0) {
+drop:
 		net_dev->stats.tx_dropped++;
-	else {
+	} else {
 		net_dev->stats.tx_packets++;
 		net_dev->stats.tx_bytes += skb->len;
 	}
-	result = NETDEV_TX_OK;
-error_expand:
-	kfree_skb(skb);
+	dev_kfree_skb(skb);
 	d_fnend(3, dev, "(skb %p net_dev %p) = %d\n", skb, net_dev, result);
-	return result;
+	return NETDEV_TX_OK;
 }
 
 
@@ -607,7 +597,8 @@ static void i2400m_get_drvinfo(struct net_device *net_dev,
 	struct i2400m *i2400m = net_dev_to_i2400m(net_dev);
 
 	strncpy(info->driver, KBUILD_MODNAME, sizeof(info->driver) - 1);
-	strncpy(info->fw_version, i2400m->fw_name, sizeof(info->fw_version) - 1);
+	strncpy(info->fw_version,
+	        i2400m->fw_name ? : "", sizeof(info->fw_version) - 1);
 	if (net_dev->dev.parent)
 		strncpy(info->bus_info, dev_name(net_dev->dev.parent),
 			sizeof(info->bus_info) - 1);

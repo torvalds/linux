@@ -5717,6 +5717,8 @@ bfa_fcs_vport_free(struct bfa_fcs_vport_s *vport)
 
 	if (vport_drv->comp_del)
 		complete(vport_drv->comp_del);
+	else
+		kfree(vport_drv);
 
 	bfa_lps_delete(vport->lps);
 }

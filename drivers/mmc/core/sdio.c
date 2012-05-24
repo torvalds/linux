@@ -585,6 +585,9 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	 * Inform the card of the voltage
 	 */
 	if (!powered_resume) {
+		/* The initialization should be done at 3.3 V I/O voltage. */
+		mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, 0);
+
 		err = mmc_send_io_op_cond(host, host->ocr, &ocr);
 		if (err)
 			goto err;
@@ -996,6 +999,11 @@ static int mmc_sdio_power_restore(struct mmc_host *host)
 	 * With these steps taken, mmc_select_voltage() is also required to
 	 * restore the correct voltage setting of the card.
 	 */
+
+	/* The initialization should be done at 3.3 V I/O voltage. */
+	if (!mmc_card_keep_power(host))
+		mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, 0);
+
 	sdio_reset(host);
 	mmc_go_idle(host);
 	mmc_send_if_cond(host, host->ocr_avail);

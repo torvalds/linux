@@ -1,4 +1,4 @@
-/* Copyright 2008-2011 Broadcom Corporation
+/* Copyright 2008-2012 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -89,6 +89,8 @@
 #define PFC_BRB_FULL_LB_XON_THRESHOLD				250
 
 #define MAXVAL(a, b) (((a) > (b)) ? (a) : (b))
+
+#define BMAC_CONTROL_RX_ENABLE		2
 /***********************************************************/
 /*                         Structs                         */
 /***********************************************************/
@@ -337,8 +339,8 @@ int bnx2x_phy_write(struct link_params *params, u8 phy_addr,
 void bnx2x_link_status_update(struct link_params *input,
 			    struct link_vars *output);
 /* returns string representing the fw_version of the external phy */
-int bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
-				 u8 *version, u16 len);
+int bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 *version,
+				 u16 len);
 
 /* Set/Unset the led
    Basically, the CLC takes care of the led for the link, but in case one needs

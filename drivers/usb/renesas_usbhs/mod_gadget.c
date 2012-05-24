@@ -165,69 +165,32 @@ static void usbhsg_queue_push(struct usbhsg_uep *uep,
 /*
  *		dma map/unmap
  */
-static int usbhsg_dma_map(struct device *dev,
-			  struct usbhs_pkt *pkt,
-			  enum dma_data_direction dir)
-{
-	struct usbhsg_request *ureq = usbhsg_pkt_to_ureq(pkt);
-	struct usb_request *req = &ureq->req;
-
-	if (pkt->dma != DMA_ADDR_INVALID) {
-		dev_err(dev, "dma is already mapped\n");
-		return -EIO;
-	}
-
-	if (req->dma == DMA_ADDR_INVALID) {
-		pkt->dma = dma_map_single(dev, pkt->buf, pkt->length, dir);
-	} else {
-		dma_sync_single_for_device(dev, req->dma, req->length, dir);
-		pkt->dma = req->dma;
-	}
-
-	if (dma_mapping_error(dev, pkt->dma)) {
-		dev_err(dev, "dma mapping error %llx\n", (u64)pkt->dma);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int usbhsg_dma_unmap(struct device *dev,
-			    struct usbhs_pkt *pkt,
-			    enum dma_data_direction dir)
-{
-	struct usbhsg_request *ureq = usbhsg_pkt_to_ureq(pkt);
-	struct usb_request *req = &ureq->req;
-
-	if (pkt->dma == DMA_ADDR_INVALID) {
-		dev_err(dev, "dma is not mapped\n");
-		return -EIO;
-	}
-
-	if (req->dma == DMA_ADDR_INVALID)
-		dma_unmap_single(dev, pkt->dma, pkt->length, dir);
-	else
-		dma_sync_single_for_cpu(dev, req->dma, req->length, dir);
-
-	pkt->dma = DMA_ADDR_INVALID;
-
-	return 0;
-}
-
 static int usbhsg_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
 {
+	struct usbhsg_request *ureq = usbhsg_pkt_to_ureq(pkt);
+	struct usb_request *req = &ureq->req;
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhsg_uep *uep = usbhsg_pipe_to_uep(pipe);
 	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
-	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
 	enum dma_data_direction dir;
+	int ret = 0;
 
-	dir = usbhs_pipe_is_dir_in(pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+	dir = usbhs_pipe_is_dir_host(pipe);
 
-	if (map)
-		return usbhsg_dma_map(dev, pkt, dir);
-	else
-		return usbhsg_dma_unmap(dev, pkt, dir);
+	if (map) {
+		/* it can not use scatter/gather */
+		WARN_ON(req->num_sgs);
+
+		ret = usb_gadget_map_request(&gpriv->gadget, req, dir);
+		if (ret < 0)
+			return ret;
+
+		pkt->dma = req->dma;
+	} else {
+		usb_gadget_unmap_request(&gpriv->gadget, req, dir);
+	}
+
+	return ret;
 }
 
 /*
@@ -657,8 +620,6 @@ static struct usb_request *usbhsg_ep_alloc_request(struct usb_ep *ep,
 
 	usbhs_pkt_init(usbhsg_ureq_to_pkt(ureq));
 
-	ureq->req.dma = DMA_ADDR_INVALID;
-
 	return &ureq->req;
 }
 
@@ -941,6 +902,11 @@ static int usbhsg_stop(struct usbhs_priv *priv)
 	return usbhsg_try_stop(priv, USBHSG_STATUS_STARTED);
 }
 
+static void usbhs_mod_gadget_release(struct device *pdev)
+{
+	/* do nothing */
+}
+
 int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 {
 	struct usbhsg_gpriv *gpriv;
@@ -989,6 +955,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	 */
 	dev_set_name(&gpriv->gadget.dev, "gadget");
 	gpriv->gadget.dev.parent	= dev;
+	gpriv->gadget.dev.release	= usbhs_mod_gadget_release;
 	gpriv->gadget.name		= "renesas_usbhs_udc";
 	gpriv->gadget.ops		= &usbhsg_gadget_ops;
 	gpriv->gadget.max_speed		= USB_SPEED_HIGH;

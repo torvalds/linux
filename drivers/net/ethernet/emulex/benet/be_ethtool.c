@@ -37,20 +37,46 @@ enum {DRVSTAT_TX, DRVSTAT_RX, DRVSTAT};
 					FIELDINFO(struct be_drv_stats, field)
 
 static const struct be_ethtool_stat et_stats[] = {
-	{DRVSTAT_INFO(tx_events)},
 	{DRVSTAT_INFO(rx_crc_errors)},
 	{DRVSTAT_INFO(rx_alignment_symbol_errors)},
 	{DRVSTAT_INFO(rx_pause_frames)},
 	{DRVSTAT_INFO(rx_control_frames)},
+	/* Received packets dropped when the Ethernet length field
+	 * is not equal to the actual Ethernet data length.
+	 */
 	{DRVSTAT_INFO(rx_in_range_errors)},
+	/* Received packets dropped when their length field is >= 1501 bytes
+	 * and <= 1535 bytes.
+	 */
 	{DRVSTAT_INFO(rx_out_range_errors)},
+	/* Received packets dropped when they are longer than 9216 bytes */
 	{DRVSTAT_INFO(rx_frame_too_long)},
-	{DRVSTAT_INFO(rx_address_match_errors)},
+	/* Received packets dropped when they don't pass the unicast or
+	 * multicast address filtering.
+	 */
+	{DRVSTAT_INFO(rx_address_mismatch_drops)},
+	/* Received packets dropped when IP packet length field is less than
+	 * the IP header length field.
+	 */
 	{DRVSTAT_INFO(rx_dropped_too_small)},
+	/* Received packets dropped when IP length field is greater than
+	 * the actual packet length.
+	 */
 	{DRVSTAT_INFO(rx_dropped_too_short)},
+	/* Received packets dropped when the IP header length field is less
+	 * than 5.
+	 */
 	{DRVSTAT_INFO(rx_dropped_header_too_small)},
+	/* Received packets dropped when the TCP header length field is less
+	 * than 5 or the TCP header length + IP header length is more
+	 * than IP packet length.
+	 */
 	{DRVSTAT_INFO(rx_dropped_tcp_length)},
 	{DRVSTAT_INFO(rx_dropped_runt)},
+	/* Number of received packets dropped when a fifo for descriptors going
+	 * into the packet demux block overflows. In normal operation, this
+	 * fifo must never overflow.
+	 */
 	{DRVSTAT_INFO(rxpp_fifo_overflow_drop)},
 	{DRVSTAT_INFO(rx_input_fifo_overflow_drop)},
 	{DRVSTAT_INFO(rx_ip_checksum_errs)},
@@ -59,16 +85,35 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(tx_pauseframes)},
 	{DRVSTAT_INFO(tx_controlframes)},
 	{DRVSTAT_INFO(rx_priority_pause_frames)},
+	/* Received packets dropped when an internal fifo going into
+	 * main packet buffer tank (PMEM) overflows.
+	 */
 	{DRVSTAT_INFO(pmem_fifo_overflow_drop)},
 	{DRVSTAT_INFO(jabber_events)},
+	/* Received packets dropped due to lack of available HW packet buffers
+	 * used to temporarily hold the received packets.
+	 */
 	{DRVSTAT_INFO(rx_drops_no_pbuf)},
-	{DRVSTAT_INFO(rx_drops_no_txpb)},
+	/* Received packets dropped due to input receive buffer
+	 * descriptor fifo overflowing.
+	 */
 	{DRVSTAT_INFO(rx_drops_no_erx_descr)},
+	/* Packets dropped because the internal FIFO to the offloaded TCP
+	 * receive processing block is full. This could happen only for
+	 * offloaded iSCSI or FCoE trarffic.
+	 */
 	{DRVSTAT_INFO(rx_drops_no_tpre_descr)},
+	/* Received packets dropped when they need more than 8
+	 * receive buffers. This cannot happen as the driver configures
+	 * 2048 byte receive buffers.
+	 */
 	{DRVSTAT_INFO(rx_drops_too_many_frags)},
-	{DRVSTAT_INFO(rx_drops_invalid_ring)},
 	{DRVSTAT_INFO(forwarded_packets)},
+	/* Received packets dropped when the frame length
+	 * is more than 9018 bytes
+	 */
 	{DRVSTAT_INFO(rx_drops_mtu)},
+	/* Number of packets dropped due to random early drop function */
 	{DRVSTAT_INFO(eth_red_drops)},
 	{DRVSTAT_INFO(be_on_die_temperature)}
 };
@@ -80,12 +125,17 @@ static const struct be_ethtool_stat et_stats[] = {
 static const struct be_ethtool_stat et_rx_stats[] = {
 	{DRVSTAT_RX_INFO(rx_bytes)},/* If moving this member see above note */
 	{DRVSTAT_RX_INFO(rx_pkts)}, /* If moving this member see above note */
-	{DRVSTAT_RX_INFO(rx_polls)},
-	{DRVSTAT_RX_INFO(rx_events)},
 	{DRVSTAT_RX_INFO(rx_compl)},
 	{DRVSTAT_RX_INFO(rx_mcast_pkts)},
+	/* Number of page allocation failures while posting receive buffers
+	 * to HW.
+	 */
 	{DRVSTAT_RX_INFO(rx_post_fail)},
+	/* Recevied packets dropped due to skb allocation failure */
 	{DRVSTAT_RX_INFO(rx_drops_no_skbs)},
+	/* Received packets dropped due to lack of available fetched buffers
+	 * posted by the driver.
+	 */
 	{DRVSTAT_RX_INFO(rx_drops_no_frags)}
 };
 #define ETHTOOL_RXSTATS_NUM (ARRAY_SIZE(et_rx_stats))
@@ -97,9 +147,13 @@ static const struct be_ethtool_stat et_tx_stats[] = {
 	{DRVSTAT_TX_INFO(tx_compl)}, /* If moving this member see above note */
 	{DRVSTAT_TX_INFO(tx_bytes)},
 	{DRVSTAT_TX_INFO(tx_pkts)},
+	/* Number of skbs queued for trasmission by the driver */
 	{DRVSTAT_TX_INFO(tx_reqs)},
+	/* Number of TX work request blocks DMAed to HW */
 	{DRVSTAT_TX_INFO(tx_wrbs)},
-	{DRVSTAT_TX_INFO(tx_compl)},
+	/* Number of times the TX queue was stopped due to lack
+	 * of spaces in the TXQ.
+	 */
 	{DRVSTAT_TX_INFO(tx_stops)}
 };
 #define ETHTOOL_TXSTATS_NUM (ARRAY_SIZE(et_tx_stats))
@@ -232,86 +286,42 @@ be_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *buf)
 	}
 }
 
-static int
-be_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
+static int be_get_coalesce(struct net_device *netdev,
+			   struct ethtool_coalesce *et)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_eq_obj *rx_eq = &adapter->rx_obj[0].rx_eq;
-	struct be_eq_obj *tx_eq = &adapter->tx_eq;
+	struct be_eq_obj *eqo = &adapter->eq_obj[0];
 
-	coalesce->rx_coalesce_usecs = rx_eq->cur_eqd;
-	coalesce->rx_coalesce_usecs_high = rx_eq->max_eqd;
-	coalesce->rx_coalesce_usecs_low = rx_eq->min_eqd;
 
-	coalesce->tx_coalesce_usecs = tx_eq->cur_eqd;
-	coalesce->tx_coalesce_usecs_high = tx_eq->max_eqd;
-	coalesce->tx_coalesce_usecs_low = tx_eq->min_eqd;
+	et->rx_coalesce_usecs = eqo->cur_eqd;
+	et->rx_coalesce_usecs_high = eqo->max_eqd;
+	et->rx_coalesce_usecs_low = eqo->min_eqd;
 
-	coalesce->use_adaptive_rx_coalesce = rx_eq->enable_aic;
-	coalesce->use_adaptive_tx_coalesce = tx_eq->enable_aic;
+	et->tx_coalesce_usecs = eqo->cur_eqd;
+	et->tx_coalesce_usecs_high = eqo->max_eqd;
+	et->tx_coalesce_usecs_low = eqo->min_eqd;
+
+	et->use_adaptive_rx_coalesce = eqo->enable_aic;
+	et->use_adaptive_tx_coalesce = eqo->enable_aic;
 
 	return 0;
 }
 
-/*
- * This routine is used to set interrup coalescing delay
+/* TX attributes are ignored. Only RX attributes are considered
+ * eqd cmd is issued in the worker thread.
  */
-static int
-be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
+static int be_set_coalesce(struct net_device *netdev,
+			   struct ethtool_coalesce *et)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_rx_obj *rxo;
-	struct be_eq_obj *rx_eq;
-	struct be_eq_obj *tx_eq = &adapter->tx_eq;
-	u32 rx_max, rx_min, rx_cur;
-	int status = 0, i;
-	u32 tx_cur;
+	struct be_eq_obj *eqo;
+	int i;
 
-	if (coalesce->use_adaptive_tx_coalesce == 1)
-		return -EINVAL;
-
-	for_all_rx_queues(adapter, rxo, i) {
-		rx_eq = &rxo->rx_eq;
-
-		if (!rx_eq->enable_aic && coalesce->use_adaptive_rx_coalesce)
-			rx_eq->cur_eqd = 0;
-		rx_eq->enable_aic = coalesce->use_adaptive_rx_coalesce;
-
-		rx_max = coalesce->rx_coalesce_usecs_high;
-		rx_min = coalesce->rx_coalesce_usecs_low;
-		rx_cur = coalesce->rx_coalesce_usecs;
-
-		if (rx_eq->enable_aic) {
-			if (rx_max > BE_MAX_EQD)
-				rx_max = BE_MAX_EQD;
-			if (rx_min > rx_max)
-				rx_min = rx_max;
-			rx_eq->max_eqd = rx_max;
-			rx_eq->min_eqd = rx_min;
-			if (rx_eq->cur_eqd > rx_max)
-				rx_eq->cur_eqd = rx_max;
-			if (rx_eq->cur_eqd < rx_min)
-				rx_eq->cur_eqd = rx_min;
-		} else {
-			if (rx_cur > BE_MAX_EQD)
-				rx_cur = BE_MAX_EQD;
-			if (rx_eq->cur_eqd != rx_cur) {
-				status = be_cmd_modify_eqd(adapter, rx_eq->q.id,
-						rx_cur);
-				if (!status)
-					rx_eq->cur_eqd = rx_cur;
-			}
-		}
-	}
-
-	tx_cur = coalesce->tx_coalesce_usecs;
-
-	if (tx_cur > BE_MAX_EQD)
-		tx_cur = BE_MAX_EQD;
-	if (tx_eq->cur_eqd != tx_cur) {
-		status = be_cmd_modify_eqd(adapter, tx_eq->q.id, tx_cur);
-		if (!status)
-			tx_eq->cur_eqd = tx_cur;
+	for_all_evt_queues(adapter, eqo, i) {
+		eqo->enable_aic = et->use_adaptive_rx_coalesce;
+		eqo->max_eqd = min(et->rx_coalesce_usecs_high, BE_MAX_EQD);
+		eqo->min_eqd = min(et->rx_coalesce_usecs_low, eqo->max_eqd);
+		eqo->eqd = et->rx_coalesce_usecs;
 	}
 
 	return 0;
@@ -590,26 +600,16 @@ be_set_phys_id(struct net_device *netdev,
 	return 0;
 }
 
-static bool
-be_is_wol_supported(struct be_adapter *adapter)
-{
-	if (!be_physfn(adapter))
-		return false;
-	else
-		return true;
-}
 
 static void
 be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	if (be_is_wol_supported(adapter))
-		wol->supported = WAKE_MAGIC;
-
-	if (adapter->wol)
-		wol->wolopts = WAKE_MAGIC;
-	else
+	if (be_is_wol_supported(adapter)) {
+		wol->supported |= WAKE_MAGIC;
+		wol->wolopts |= WAKE_MAGIC;
+	} else
 		wol->wolopts = 0;
 	memset(&wol->sopass, 0, sizeof(wol->sopass));
 }
@@ -620,9 +620,14 @@ be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	if (wol->wolopts & ~WAKE_MAGIC)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
-	if ((wol->wolopts & WAKE_MAGIC) && be_is_wol_supported(adapter))
+	if (!be_is_wol_supported(adapter)) {
+		dev_warn(&adapter->pdev->dev, "WOL not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (wol->wolopts & WAKE_MAGIC)
 		adapter->wol = true;
 	else
 		adapter->wol = false;

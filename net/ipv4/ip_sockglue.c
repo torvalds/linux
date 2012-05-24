@@ -445,11 +445,6 @@ out:
 }
 
 
-static void opt_kfree_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct ip_options_rcu, rcu));
-}
-
 /*
  *	Socket option code for IP. This is the end of the line after any
  *	TCP,UDP etc options on an IP socket.
@@ -469,6 +464,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			     (1<<IP_ROUTER_ALERT) | (1<<IP_FREEBIND) |
 			     (1<<IP_PASSSEC) | (1<<IP_TRANSPARENT) |
 			     (1<<IP_MINTTL) | (1<<IP_NODEFRAG))) ||
+	    optname == IP_UNICAST_IF ||
 	    optname == IP_MULTICAST_TTL ||
 	    optname == IP_MULTICAST_ALL ||
 	    optname == IP_MULTICAST_LOOP ||
@@ -525,7 +521,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		}
 		rcu_assign_pointer(inet->inet_opt, opt);
 		if (old)
-			call_rcu(&old->rcu, opt_kfree_rcu);
+			kfree_rcu(old, rcu);
 		break;
 	}
 	case IP_PKTINFO:
@@ -628,6 +624,35 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			goto e_inval;
 		inet->mc_loop = !!val;
 		break;
+	case IP_UNICAST_IF:
+	{
+		struct net_device *dev = NULL;
+		int ifindex;
+
+		if (optlen != sizeof(int))
+			goto e_inval;
+
+		ifindex = (__force int)ntohl((__force __be32)val);
+		if (ifindex == 0) {
+			inet->uc_index = 0;
+			err = 0;
+			break;
+		}
+
+		dev = dev_get_by_index(sock_net(sk), ifindex);
+		err = -EADDRNOTAVAIL;
+		if (!dev)
+			break;
+		dev_put(dev);
+
+		err = -EINVAL;
+		if (sk->sk_bound_dev_if)
+			break;
+
+		inet->uc_index = ifindex;
+		err = 0;
+		break;
+	}
 	case IP_MULTICAST_IF:
 	{
 		struct ip_mreqn mreq;
@@ -1178,6 +1203,9 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_MULTICAST_LOOP:
 		val = inet->mc_loop;
 		break;
+	case IP_UNICAST_IF:
+		val = (__force int)htonl((__u32) inet->uc_index);
+		break;
 	case IP_MULTICAST_IF:
 	{
 		struct in_addr addr;
@@ -1255,6 +1283,10 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		if (inet->cmsg_flags & IP_CMSG_TTL) {
 			int hlim = inet->mc_ttl;
 			put_cmsg(&msg, SOL_IP, IP_TTL, sizeof(hlim), &hlim);
+		}
+		if (inet->cmsg_flags & IP_CMSG_TOS) {
+			int tos = inet->rcv_tos;
+			put_cmsg(&msg, SOL_IP, IP_TOS, sizeof(tos), &tos);
 		}
 		len -= msg.msg_controllen;
 		return put_user(len, optlen);

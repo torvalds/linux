@@ -14,7 +14,6 @@
 
 #include <mach/hardware.h>
 #include <asm/leds.h>
-#include <asm/system.h>
 
 #include "leds.h"
 

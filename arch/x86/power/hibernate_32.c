@@ -10,7 +10,6 @@
 #include <linux/suspend.h>
 #include <linux/bootmem.h>
 
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/mmzone.h>

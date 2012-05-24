@@ -21,12 +21,13 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/atomic.h>
 
 #include <asm/errno.h>
 #include <asm/topology.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
-#include <linux/atomic.h>
+#include <asm/eeh.h>
 
 #ifdef CONFIG_PPC_OF_PLATFORM_PCI
 
@@ -65,6 +66,9 @@ static int __devinit of_pci_phb_probe(struct platform_device *dev)
 
 	/* Init pci_dn data structures */
 	pci_devs_phb_init_dynamic(phb);
+
+	/* Create EEH devices for the PHB */
+	eeh_dev_phb_init_dynamic(phb);
 
 	/* Register devices with EEH */
 #ifdef CONFIG_EEH

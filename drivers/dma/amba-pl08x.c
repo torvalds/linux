@@ -85,6 +85,8 @@
 #include <linux/slab.h>
 #include <asm/hardware/pl080.h>
 
+#include "dmaengine.h"
+
 #define DRIVER_NAME	"pl08xdmac"
 
 static struct amba_driver pl08x_amba_driver;
@@ -649,7 +651,7 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 			}
 
 			if ((bd.srcbus.addr % bd.srcbus.buswidth) ||
-					(bd.srcbus.addr % bd.srcbus.buswidth)) {
+					(bd.dstbus.addr % bd.dstbus.buswidth)) {
 				dev_err(&pl08x->adev->dev,
 					"%s src & dst address must be aligned to src"
 					" & dst width if peripheral is flow controller",
@@ -919,13 +921,10 @@ static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(tx->chan);
 	struct pl08x_txd *txd = to_pl08x_txd(tx);
 	unsigned long flags;
+	dma_cookie_t cookie;
 
 	spin_lock_irqsave(&plchan->lock, flags);
-
-	plchan->chan.cookie += 1;
-	if (plchan->chan.cookie < 0)
-		plchan->chan.cookie = 1;
-	tx->cookie = plchan->chan.cookie;
+	cookie = dma_cookie_assign(tx);
 
 	/* Put this onto the pending list */
 	list_add_tail(&txd->node, &plchan->pend_list);
@@ -945,7 +944,7 @@ static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_unlock_irqrestore(&plchan->lock, flags);
 
-	return tx->cookie;
+	return cookie;
 }
 
 static struct dma_async_tx_descriptor *pl08x_prep_dma_interrupt(
@@ -965,31 +964,17 @@ static enum dma_status pl08x_dma_tx_status(struct dma_chan *chan,
 		dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
 	enum dma_status ret;
-	u32 bytesleft = 0;
 
-	last_used = plchan->chan.cookie;
-	last_complete = plchan->lc;
-
-	ret = dma_async_is_complete(cookie, last_complete, last_used);
-	if (ret == DMA_SUCCESS) {
-		dma_set_tx_state(txstate, last_complete, last_used, 0);
+	ret = dma_cookie_status(chan, cookie, txstate);
+	if (ret == DMA_SUCCESS)
 		return ret;
-	}
 
 	/*
 	 * This cookie not complete yet
+	 * Get number of bytes left in the active transactions and queue
 	 */
-	last_used = plchan->chan.cookie;
-	last_complete = plchan->lc;
-
-	/* Get number of bytes left in the active transactions and queue */
-	bytesleft = pl08x_getbytes_chan(plchan);
-
-	dma_set_tx_state(txstate, last_complete, last_used,
-			 bytesleft);
+	dma_set_residue(txstate, pl08x_getbytes_chan(plchan));
 
 	if (plchan->state == PL08X_CHAN_PAUSED)
 		return DMA_PAUSED;
@@ -1138,6 +1123,8 @@ static int dma_set_runtime_config(struct dma_chan *chan,
 	burst = pl08x_burst(maxburst);
 	cctl |= burst << PL080_CONTROL_SB_SIZE_SHIFT;
 	cctl |= burst << PL080_CONTROL_DB_SIZE_SHIFT;
+
+	plchan->device_fc = config->device_fc;
 
 	if (plchan->runtime_direction == DMA_DEV_TO_MEM) {
 		plchan->src_addr = config->src_addr;
@@ -1326,7 +1313,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 		struct dma_chan *chan, struct scatterlist *sgl,
 		unsigned int sg_len, enum dma_transfer_direction direction,
-		unsigned long flags)
+		unsigned long flags, void *context)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
 	struct pl08x_driver_data *pl08x = plchan->host;
@@ -1370,7 +1357,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 		return NULL;
 	}
 
-	if (plchan->cd->device_fc)
+	if (plchan->device_fc)
 		tmp = (direction == DMA_MEM_TO_DEV) ? PL080_FLOW_MEM2PER_PER :
 			PL080_FLOW_PER2MEM_PER;
 	else
@@ -1541,7 +1528,7 @@ static void pl08x_tasklet(unsigned long data)
 
 	if (txd) {
 		/* Update last completed */
-		plchan->lc = txd->tx.cookie;
+		dma_cookie_complete(&txd->tx);
 	}
 
 	/* If a new descriptor is queued, set it up plchan->at is NULL here */
@@ -1722,8 +1709,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 			 chan->name);
 
 		chan->chan.device = dmadev;
-		chan->chan.cookie = 0;
-		chan->lc = 0;
+		dma_cookie_init(&chan->chan);
 
 		spin_lock_init(&chan->lock);
 		INIT_LIST_HEAD(&chan->pend_list);

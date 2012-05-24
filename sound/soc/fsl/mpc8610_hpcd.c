@@ -58,9 +58,9 @@ static int mpc8610_hpcd_machine_probe(struct snd_soc_card *card)
 {
 	struct mpc8610_hpcd_data *machine_data =
 		container_of(card, struct mpc8610_hpcd_data, card);
-	struct ccsr_guts_86xx __iomem *guts;
+	struct ccsr_guts __iomem *guts;
 
-	guts = ioremap(guts_phys, sizeof(struct ccsr_guts_86xx));
+	guts = ioremap(guts_phys, sizeof(struct ccsr_guts));
 	if (!guts) {
 		dev_err(card->dev, "could not map global utilities\n");
 		return -ENOMEM;
@@ -142,9 +142,9 @@ static int mpc8610_hpcd_machine_remove(struct snd_soc_card *card)
 {
 	struct mpc8610_hpcd_data *machine_data =
 		container_of(card, struct mpc8610_hpcd_data, card);
-	struct ccsr_guts_86xx __iomem *guts;
+	struct ccsr_guts __iomem *guts;
 
-	guts = ioremap(guts_phys, sizeof(struct ccsr_guts_86xx));
+	guts = ioremap(guts_phys, sizeof(struct ccsr_guts));
 	if (!guts) {
 		dev_err(card->dev, "could not map global utilities\n");
 		return -ENOMEM;
@@ -245,7 +245,7 @@ static int get_parent_cell_index(struct device_node *np)
  * 'struct device'  It's ugly and hackish, but it works.
  *
  * The dev_name for such devices include the bus number and I2C address. For
- * example, "cs4270-codec.0-004f".
+ * example, "cs4270.0-004f".
  */
 static int codec_node_dev_name(struct device_node *np, char *buf, size_t len)
 {
@@ -267,13 +267,13 @@ static int codec_node_dev_name(struct device_node *np, char *buf, size_t len)
 	if (!i2c)
 		return -ENODEV;
 
-	snprintf(buf, len, "%s-codec.%u-%04x", temp, i2c->adapter->nr, addr);
+	snprintf(buf, len, "%s.%u-%04x", temp, i2c->adapter->nr, addr);
 
 	return 0;
 }
 
 static int get_dma_channel(struct device_node *ssi_np,
-			   const char *compatible,
+			   const char *name,
 			   struct snd_soc_dai_link *dai,
 			   unsigned int *dma_channel_id,
 			   unsigned int *dma_id)
@@ -283,7 +283,7 @@ static int get_dma_channel(struct device_node *ssi_np,
 	const u32 *iprop;
 	int ret;
 
-	dma_channel_np = get_node_by_phandle_name(ssi_np, compatible,
+	dma_channel_np = get_node_by_phandle_name(ssi_np, name,
 						  "fsl,ssi-dma-channel");
 	if (!dma_channel_np)
 		return -EINVAL;
@@ -336,12 +336,8 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 	const char *sprop;
 	const u32 *iprop;
 
-	/* We are only interested in SSIs with a codec phandle in them,
-	 * so let's make sure this SSI has one. The MPC8610 HPCD only
-	 * knows about the CS4270 codec, so reject anything else.
-	 */
-	codec_np = get_node_by_phandle_name(np, "codec-handle",
-					    "cirrus,cs4270");
+	/* Find the codec node for this SSI. */
+	codec_np = of_parse_phandle(np, "codec-handle", 0);
 	if (!codec_np) {
 		dev_err(dev, "invalid codec node\n");
 		return -EINVAL;
@@ -550,7 +546,7 @@ static struct platform_driver mpc8610_hpcd_driver = {
 	.probe = mpc8610_hpcd_probe,
 	.remove = __devexit_p(mpc8610_hpcd_remove),
 	.driver = {
-		/* The name must match the 'model' property in the device tree,
+		/* The name must match 'compatible' property in the device tree,
 		 * in lowercase letters.
 		 */
 		.name = "snd-soc-mpc8610hpcd",

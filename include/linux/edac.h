@@ -13,7 +13,11 @@
 #define _LINUX_EDAC_H_
 
 #include <linux/atomic.h>
-#include <linux/device.h>
+#include <linux/kobject.h>
+#include <linux/completion.h>
+#include <linux/workqueue.h>
+
+struct device;
 
 #define EDAC_OPSTATE_INVAL	-1
 #define EDAC_OPSTATE_POLL	0
@@ -66,25 +70,64 @@ enum dev_type {
 #define DEV_FLAG_X32		BIT(DEV_X32)
 #define DEV_FLAG_X64		BIT(DEV_X64)
 
-/* memory types */
+/**
+ * enum mem_type - memory types. For a more detailed reference, please see
+ *			http://en.wikipedia.org/wiki/DRAM
+ *
+ * @MEM_EMPTY		Empty csrow
+ * @MEM_RESERVED:	Reserved csrow type
+ * @MEM_UNKNOWN:	Unknown csrow type
+ * @MEM_FPM:		FPM - Fast Page Mode, used on systems up to 1995.
+ * @MEM_EDO:		EDO - Extended data out, used on systems up to 1998.
+ * @MEM_BEDO:		BEDO - Burst Extended data out, an EDO variant.
+ * @MEM_SDR:		SDR - Single data rate SDRAM
+ *			http://en.wikipedia.org/wiki/Synchronous_dynamic_random-access_memory
+ *			They use 3 pins for chip select: Pins 0 and 2 are
+ *			for rank 0; pins 1 and 3 are for rank 1, if the memory
+ *			is dual-rank.
+ * @MEM_RDR:		Registered SDR SDRAM
+ * @MEM_DDR:		Double data rate SDRAM
+ *			http://en.wikipedia.org/wiki/DDR_SDRAM
+ * @MEM_RDDR:		Registered Double data rate SDRAM
+ *			This is a variant of the DDR memories.
+ *			A registered memory has a buffer inside it, hiding
+ *			part of the memory details to the memory controller.
+ * @MEM_RMBS:		Rambus DRAM, used on a few Pentium III/IV controllers.
+ * @MEM_DDR2:		DDR2 RAM, as described at JEDEC JESD79-2F.
+ *			Those memories are labed as "PC2-" instead of "PC" to
+ *			differenciate from DDR.
+ * @MEM_FB_DDR2:	Fully-Buffered DDR2, as described at JEDEC Std No. 205
+ *			and JESD206.
+ *			Those memories are accessed per DIMM slot, and not by
+ *			a chip select signal.
+ * @MEM_RDDR2:		Registered DDR2 RAM
+ *			This is a variant of the DDR2 memories.
+ * @MEM_XDR:		Rambus XDR
+ *			It is an evolution of the original RAMBUS memories,
+ *			created to compete with DDR2. Weren't used on any
+ *			x86 arch, but cell_edac PPC memory controller uses it.
+ * @MEM_DDR3:		DDR3 RAM
+ * @MEM_RDDR3:		Registered DDR3 RAM
+ *			This is a variant of the DDR3 memories.
+ */
 enum mem_type {
-	MEM_EMPTY = 0,		/* Empty csrow */
-	MEM_RESERVED,		/* Reserved csrow type */
-	MEM_UNKNOWN,		/* Unknown csrow type */
-	MEM_FPM,		/* Fast page mode */
-	MEM_EDO,		/* Extended data out */
-	MEM_BEDO,		/* Burst Extended data out */
-	MEM_SDR,		/* Single data rate SDRAM */
-	MEM_RDR,		/* Registered single data rate SDRAM */
-	MEM_DDR,		/* Double data rate SDRAM */
-	MEM_RDDR,		/* Registered Double data rate SDRAM */
-	MEM_RMBS,		/* Rambus DRAM */
-	MEM_DDR2,		/* DDR2 RAM */
-	MEM_FB_DDR2,		/* fully buffered DDR2 */
-	MEM_RDDR2,		/* Registered DDR2 RAM */
-	MEM_XDR,		/* Rambus XDR */
-	MEM_DDR3,		/* DDR3 RAM */
-	MEM_RDDR3,		/* Registered DDR3 RAM */
+	MEM_EMPTY = 0,
+	MEM_RESERVED,
+	MEM_UNKNOWN,
+	MEM_FPM,
+	MEM_EDO,
+	MEM_BEDO,
+	MEM_SDR,
+	MEM_RDR,
+	MEM_DDR,
+	MEM_RDDR,
+	MEM_RMBS,
+	MEM_DDR2,
+	MEM_FB_DDR2,
+	MEM_RDDR2,
+	MEM_XDR,
+	MEM_DDR3,
+	MEM_RDDR3,
 };
 
 #define MEM_FLAG_EMPTY		BIT(MEM_EMPTY)
@@ -162,8 +205,9 @@ enum scrub_type {
 #define OP_OFFLINE		0x300
 
 /*
- * There are several things to be aware of that aren't at all obvious:
+ * Concepts used at the EDAC subsystem
  *
+ * There are several things to be aware of that aren't at all obvious:
  *
  * SOCKETS, SOCKET SETS, BANKS, ROWS, CHIP-SELECT ROWS, CHANNELS, etc..
  *
@@ -172,36 +216,61 @@ enum scrub_type {
  * creating a common ground for discussion, terms and their definitions
  * will be established.
  *
- * Memory devices:	The individual chip on a memory stick.  These devices
- *			commonly output 4 and 8 bits each.  Grouping several
- *			of these in parallel provides 64 bits which is common
- *			for a memory stick.
+ * Memory devices:	The individual DRAM chips on a memory stick.  These
+ *			devices commonly output 4 and 8 bits each (x4, x8).
+ *			Grouping several of these in parallel provides the
+ *			number of bits that the memory controller expects:
+ *			typically 72 bits, in order to provide 64 bits +
+ *			8 bits of ECC data.
  *
  * Memory Stick:	A printed circuit board that aggregates multiple
- *			memory devices in parallel.  This is the atomic
- *			memory component that is purchaseable by Joe consumer
- *			and loaded into a memory socket.
+ *			memory devices in parallel.  In general, this is the
+ *			Field Replaceable Unit (FRU) which gets replaced, in
+ *			the case of excessive errors. Most often it is also
+ *			called DIMM (Dual Inline Memory Module).
  *
- * Socket:		A physical connector on the motherboard that accepts
- *			a single memory stick.
+ * Memory Socket:	A physical connector on the motherboard that accepts
+ *			a single memory stick. Also called as "slot" on several
+ *			datasheets.
  *
- * Channel:		Set of memory devices on a memory stick that must be
- *			grouped in parallel with one or more additional
- *			channels from other memory sticks.  This parallel
- *			grouping of the output from multiple channels are
- *			necessary for the smallest granularity of memory access.
- *			Some memory controllers are capable of single channel -
- *			which means that memory sticks can be loaded
- *			individually.  Other memory controllers are only
- *			capable of dual channel - which means that memory
- *			sticks must be loaded as pairs (see "socket set").
+ * Channel:		A memory controller channel, responsible to communicate
+ *			with a group of DIMMs. Each channel has its own
+ *			independent control (command) and data bus, and can
+ *			be used independently or grouped with other channels.
  *
- * Chip-select row:	All of the memory devices that are selected together.
- *			for a single, minimum grain of memory access.
- *			This selects all of the parallel memory devices across
- *			all of the parallel channels.  Common chip-select rows
- *			for single channel are 64 bits, for dual channel 128
- *			bits.
+ * Branch:		It is typically the highest hierarchy on a
+ *			Fully-Buffered DIMM memory controller.
+ *			Typically, it contains two channels.
+ *			Two channels at the same branch can be used in single
+ *			mode or in lockstep mode.
+ *			When lockstep is enabled, the cacheline is doubled,
+ *			but it generally brings some performance penalty.
+ *			Also, it is generally not possible to point to just one
+ *			memory stick when an error occurs, as the error
+ *			correction code is calculated using two DIMMs instead
+ *			of one. Due to that, it is capable of correcting more
+ *			errors than on single mode.
+ *
+ * Single-channel:	The data accessed by the memory controller is contained
+ *			into one dimm only. E. g. if the data is 64 bits-wide,
+ *			the data flows to the CPU using one 64 bits parallel
+ *			access.
+ *			Typically used with SDR, DDR, DDR2 and DDR3 memories.
+ *			FB-DIMM and RAMBUS use a different concept for channel,
+ *			so this concept doesn't apply there.
+ *
+ * Double-channel:	The data size accessed by the memory controller is
+ *			interlaced into two dimms, accessed at the same time.
+ *			E. g. if the DIMM is 64 bits-wide (72 bits with ECC),
+ *			the data flows to the CPU using a 128 bits parallel
+ *			access.
+ *
+ * Chip-select row:	This is the name of the DRAM signal used to select the
+ *			DRAM ranks to be accessed. Common chip-select rows for
+ *			single channel are 64 bits, for dual channel 128 bits.
+ *			It may not be visible by the memory controller, as some
+ *			DIMM types have a memory buffer that can hide direct
+ *			access to it from the Memory Controller.
  *
  * Single-Ranked stick:	A Single-ranked stick has 1 chip-select row of memory.
  *			Motherboards commonly drive two chip-select pins to
@@ -214,8 +283,8 @@ enum scrub_type {
  *
  * Double-sided stick:	DEPRECATED TERM, see Double-Ranked stick.
  *			A double-sided stick has two chip-select rows which
- *			access different sets of memory devices.  The two
- *			rows cannot be accessed concurrently.  "Double-sided"
+ *			access different sets of memory devices. The two
+ *			rows cannot be accessed concurrently. "Double-sided"
  *			is irrespective of the memory devices being mounted
  *			on both sides of the memory stick.
  *
@@ -243,10 +312,22 @@ enum scrub_type {
  * PS - I enjoyed writing all that about as much as you enjoyed reading it.
  */
 
-struct channel_info {
-	int chan_idx;		/* channel index */
-	u32 ce_count;		/* Correctable Errors for this CHANNEL */
-	char label[EDAC_MC_LABEL_LEN + 1];	/* DIMM label on motherboard */
+/**
+ * struct rank_info - contains the information for one DIMM rank
+ *
+ * @chan_idx:	channel number where the rank is (typically, 0 or 1)
+ * @ce_count:	number of correctable errors for this rank
+ * @label:	DIMM label. Different ranks for the same DIMM should be
+ *		filled, on userspace, with the same label.
+ *		FIXME: The core currently won't enforce it.
+ * @csrow:	A pointer to the chip select row structure (the parent
+ *		structure). The location of the rank is given by
+ *		the (csrow->csrow_idx, chan_idx) vector.
+ */
+struct rank_info {
+	int chan_idx;
+	u32 ce_count;
+	char label[EDAC_MC_LABEL_LEN + 1];
 	struct csrow_info *csrow;	/* the parent */
 };
 
@@ -270,7 +351,7 @@ struct csrow_info {
 
 	/* channel information for this csrow */
 	u32 nr_channels;
-	struct channel_info *channels;
+	struct rank_info *channels;
 };
 
 struct mcidev_sysfs_group {

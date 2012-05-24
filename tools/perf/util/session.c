@@ -24,7 +24,7 @@ static int perf_session__open(struct perf_session *self, bool force)
 		self->fd = STDIN_FILENO;
 
 		if (perf_session__read_header(self, self->fd) < 0)
-			pr_err("incompatible file format");
+			pr_err("incompatible file format (rerun with -v to learn more)");
 
 		return 0;
 	}
@@ -56,7 +56,7 @@ static int perf_session__open(struct perf_session *self, bool force)
 	}
 
 	if (perf_session__read_header(self, self->fd) < 0) {
-		pr_err("incompatible file format");
+		pr_err("incompatible file format (rerun with -v to learn more)");
 		goto out_close;
 	}
 
@@ -140,6 +140,7 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 	INIT_LIST_HEAD(&self->ordered_samples.sample_cache);
 	INIT_LIST_HEAD(&self->ordered_samples.to_free);
 	machine__init(&self->host_machine, "", HOST_KERNEL_ID);
+	hists__init(&self->hists);
 
 	if (mode == O_RDONLY) {
 		if (perf_session__open(self, force) < 0)
@@ -227,6 +228,64 @@ static bool symbol__match_parent_regex(struct symbol *sym)
 		return 1;
 
 	return 0;
+}
+
+static const u8 cpumodes[] = {
+	PERF_RECORD_MISC_USER,
+	PERF_RECORD_MISC_KERNEL,
+	PERF_RECORD_MISC_GUEST_USER,
+	PERF_RECORD_MISC_GUEST_KERNEL
+};
+#define NCPUMODES (sizeof(cpumodes)/sizeof(u8))
+
+static void ip__resolve_ams(struct machine *self, struct thread *thread,
+			    struct addr_map_symbol *ams,
+			    u64 ip)
+{
+	struct addr_location al;
+	size_t i;
+	u8 m;
+
+	memset(&al, 0, sizeof(al));
+
+	for (i = 0; i < NCPUMODES; i++) {
+		m = cpumodes[i];
+		/*
+		 * We cannot use the header.misc hint to determine whether a
+		 * branch stack address is user, kernel, guest, hypervisor.
+		 * Branches may straddle the kernel/user/hypervisor boundaries.
+		 * Thus, we have to try consecutively until we find a match
+		 * or else, the symbol is unknown
+		 */
+		thread__find_addr_location(thread, self, m, MAP__FUNCTION,
+				ip, &al, NULL);
+		if (al.sym)
+			goto found;
+	}
+found:
+	ams->addr = ip;
+	ams->al_addr = al.addr;
+	ams->sym = al.sym;
+	ams->map = al.map;
+}
+
+struct branch_info *machine__resolve_bstack(struct machine *self,
+					    struct thread *thr,
+					    struct branch_stack *bs)
+{
+	struct branch_info *bi;
+	unsigned int i;
+
+	bi = calloc(bs->nr, sizeof(struct branch_info));
+	if (!bi)
+		return NULL;
+
+	for (i = 0; i < bs->nr; i++) {
+		ip__resolve_ams(self, thr, &bi[i].to, bs->entries[i].to);
+		ip__resolve_ams(self, thr, &bi[i].from, bs->entries[i].from);
+		bi[i].flags = bs->entries[i].flags;
+	}
+	return bi;
 }
 
 int machine__resolve_callchain(struct machine *self, struct perf_evsel *evsel,
@@ -697,6 +756,18 @@ static void callchain__printf(struct perf_sample *sample)
 		       i, sample->callchain->ips[i]);
 }
 
+static void branch_stack__printf(struct perf_sample *sample)
+{
+	uint64_t i;
+
+	printf("... branch stack: nr:%" PRIu64 "\n", sample->branch_stack->nr);
+
+	for (i = 0; i < sample->branch_stack->nr; i++)
+		printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 "\n",
+			i, sample->branch_stack->entries[i].from,
+			sample->branch_stack->entries[i].to);
+}
+
 static void perf_session__print_tstamp(struct perf_session *session,
 				       union perf_event *event,
 				       struct perf_sample *sample)
@@ -744,6 +815,9 @@ static void dump_sample(struct perf_session *session, union perf_event *event,
 
 	if (session->sample_type & PERF_SAMPLE_CALLCHAIN)
 		callchain__printf(sample);
+
+	if (session->sample_type & PERF_SAMPLE_BRANCH_STACK)
+		branch_stack__printf(sample);
 }
 
 static struct machine *
@@ -752,8 +826,16 @@ static struct machine *
 {
 	const u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest)
-		return perf_session__find_machine(session, event->ip.pid);
+	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest) {
+		u32 pid;
+
+		if (event->header.type == PERF_RECORD_MMAP)
+			pid = event->mmap.pid;
+		else
+			pid = event->ip.pid;
+
+		return perf_session__find_machine(session, pid);
+	}
 
 	return perf_session__find_host_machine(session);
 }
@@ -794,7 +876,11 @@ static int perf_session_deliver_event(struct perf_session *session,
 		dump_sample(session, event, sample);
 		if (evsel == NULL) {
 			++session->hists.stats.nr_unknown_id;
-			return -1;
+			return 0;
+		}
+		if (machine == NULL) {
+			++session->hists.stats.nr_unprocessable_samples;
+			return 0;
 		}
 		return tool->sample(tool, event, sample, evsel, machine);
 	case PERF_RECORD_MMAP:
@@ -964,6 +1050,12 @@ static void perf_session__warn_about_errors(const struct perf_session *session,
  			    session->hists.stats.nr_invalid_chains,
  			    session->hists.stats.nr_events[PERF_RECORD_SAMPLE]);
  	}
+
+	if (session->hists.stats.nr_unprocessable_samples != 0) {
+		ui__warning("%u unprocessable samples recorded.\n"
+			    "Do you have a KVM guest running and not using 'perf kvm'?\n",
+			    session->hists.stats.nr_unprocessable_samples);
+	}
 }
 
 #define session_done()	(*(volatile int *)(&session_done))
@@ -1293,10 +1385,9 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 
 void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 			  struct machine *machine, struct perf_evsel *evsel,
-			  int print_sym, int print_dso)
+			  int print_sym, int print_dso, int print_symoffset)
 {
 	struct addr_location al;
-	const char *symname, *dsoname;
 	struct callchain_cursor *cursor = &evsel->hists.callchain_cursor;
 	struct callchain_cursor_node *node;
 
@@ -1324,20 +1415,13 @@ void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 
 			printf("\t%16" PRIx64, node->ip);
 			if (print_sym) {
-				if (node->sym && node->sym->name)
-					symname = node->sym->name;
-				else
-					symname = "";
-
-				printf(" %s", symname);
+				printf(" ");
+				symbol__fprintf_symname(node->sym, stdout);
 			}
 			if (print_dso) {
-				if (node->map && node->map->dso && node->map->dso->name)
-					dsoname = node->map->dso->name;
-				else
-					dsoname = "";
-
-				printf(" (%s)", dsoname);
+				printf(" (");
+				map__fprintf_dsoname(al.map, stdout);
+				printf(")");
 			}
 			printf("\n");
 
@@ -1347,21 +1431,18 @@ void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 	} else {
 		printf("%16" PRIx64, sample->ip);
 		if (print_sym) {
-			if (al.sym && al.sym->name)
-				symname = al.sym->name;
+			printf(" ");
+			if (print_symoffset)
+				symbol__fprintf_symname_offs(al.sym, &al,
+							     stdout);
 			else
-				symname = "";
-
-			printf(" %s", symname);
+				symbol__fprintf_symname(al.sym, stdout);
 		}
 
 		if (print_dso) {
-			if (al.map && al.map->dso && al.map->dso->name)
-				dsoname = al.map->dso->name;
-			else
-				dsoname = "";
-
-			printf(" (%s)", dsoname);
+			printf(" (");
+			map__fprintf_dsoname(al.map, stdout);
+			printf(")");
 		}
 	}
 }

@@ -155,6 +155,7 @@ struct key {
 #define KEY_FLAG_IN_QUOTA	3	/* set if key consumes quota */
 #define KEY_FLAG_USER_CONSTRUCT	4	/* set if key is being constructed in userspace */
 #define KEY_FLAG_NEGATIVE	5	/* set if key is negative */
+#define KEY_FLAG_ROOT_CAN_CLEAR	6	/* set if key can be cleared by root without permission */
 
 	/* the description string
 	 * - this is used to match a key against search criteria
@@ -275,6 +276,8 @@ static inline key_serial_t key_serial(const struct key *key)
 {
 	return key ? key->serial : 0;
 }
+
+extern void key_set_timeout(struct key *, unsigned);
 
 /**
  * key_is_instantiated - Determine if a key has been positively instantiated

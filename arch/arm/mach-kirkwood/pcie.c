@@ -198,9 +198,9 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 	if (request_resource(&iomem_resource, &pp->res[1]))
 		panic("Request PCIe%d Memory resource failed\n", index);
 
-	pci_add_resource(&sys->resources, &pp->res[0]);
-	pci_add_resource(&sys->resources, &pp->res[1]);
 	sys->io_offset = 0;
+	pci_add_resource_offset(&sys->resources, &pp->res[0], sys->io_offset);
+	pci_add_resource_offset(&sys->resources, &pp->res[1], sys->mem_offset);
 
 	/*
 	 * Generic PCIe unit setup.

@@ -24,15 +24,16 @@
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
+#include <asm/fpu-internal.h>
 #include <asm/debugreg.h>
 #include <asm/ldt.h>
 #include <asm/desc.h>
 #include <asm/prctl.h>
 #include <asm/proto.h>
 #include <asm/hw_breakpoint.h>
+#include <asm/traps.h>
 
 #include "tls.h"
 
@@ -1130,6 +1131,100 @@ static int genregs32_set(struct task_struct *target,
 	return ret;
 }
 
+#ifdef CONFIG_X86_X32_ABI
+static long x32_arch_ptrace(struct task_struct *child,
+			    compat_long_t request, compat_ulong_t caddr,
+			    compat_ulong_t cdata)
+{
+	unsigned long addr = caddr;
+	unsigned long data = cdata;
+	void __user *datap = compat_ptr(data);
+	int ret;
+
+	switch (request) {
+	/* Read 32bits at location addr in the USER area.  Only allow
+	   to return the lower 32bits of segment and debug registers.  */
+	case PTRACE_PEEKUSR: {
+		u32 tmp;
+
+		ret = -EIO;
+		if ((addr & (sizeof(data) - 1)) || addr >= sizeof(struct user) ||
+		    addr < offsetof(struct user_regs_struct, cs))
+			break;
+
+		tmp = 0;  /* Default return condition */
+		if (addr < sizeof(struct user_regs_struct))
+			tmp = getreg(child, addr);
+		else if (addr >= offsetof(struct user, u_debugreg[0]) &&
+			 addr <= offsetof(struct user, u_debugreg[7])) {
+			addr -= offsetof(struct user, u_debugreg[0]);
+			tmp = ptrace_get_debugreg(child, addr / sizeof(data));
+		}
+		ret = put_user(tmp, (__u32 __user *)datap);
+		break;
+	}
+
+	/* Write the word at location addr in the USER area.  Only allow
+	   to update segment and debug registers with the upper 32bits
+	   zero-extended. */
+	case PTRACE_POKEUSR:
+		ret = -EIO;
+		if ((addr & (sizeof(data) - 1)) || addr >= sizeof(struct user) ||
+		    addr < offsetof(struct user_regs_struct, cs))
+			break;
+
+		if (addr < sizeof(struct user_regs_struct))
+			ret = putreg(child, addr, data);
+		else if (addr >= offsetof(struct user, u_debugreg[0]) &&
+			 addr <= offsetof(struct user, u_debugreg[7])) {
+			addr -= offsetof(struct user, u_debugreg[0]);
+			ret = ptrace_set_debugreg(child,
+						  addr / sizeof(data), data);
+		}
+		break;
+
+	case PTRACE_GETREGS:	/* Get all gp regs from the child. */
+		return copy_regset_to_user(child,
+					   task_user_regset_view(current),
+					   REGSET_GENERAL,
+					   0, sizeof(struct user_regs_struct),
+					   datap);
+
+	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
+		return copy_regset_from_user(child,
+					     task_user_regset_view(current),
+					     REGSET_GENERAL,
+					     0, sizeof(struct user_regs_struct),
+					     datap);
+
+	case PTRACE_GETFPREGS:	/* Get the child FPU state. */
+		return copy_regset_to_user(child,
+					   task_user_regset_view(current),
+					   REGSET_FP,
+					   0, sizeof(struct user_i387_struct),
+					   datap);
+
+	case PTRACE_SETFPREGS:	/* Set the child FPU state. */
+		return copy_regset_from_user(child,
+					     task_user_regset_view(current),
+					     REGSET_FP,
+					     0, sizeof(struct user_i387_struct),
+					     datap);
+
+		/* normal 64bit interface to access TLS data.
+		   Works just like arch_prctl, except that the arguments
+		   are reversed. */
+	case PTRACE_ARCH_PRCTL:
+		return do_arch_prctl(child, data, addr);
+
+	default:
+		return compat_ptrace_request(child, request, addr, data);
+	}
+
+	return ret;
+}
+#endif
+
 long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			compat_ulong_t caddr, compat_ulong_t cdata)
 {
@@ -1138,6 +1233,11 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 	void __user *datap = compat_ptr(data);
 	int ret;
 	__u32 val;
+
+#ifdef CONFIG_X86_X32_ABI
+	if (!is_ia32_task())
+		return x32_arch_ptrace(child, request, caddr, cdata);
+#endif
 
 	switch (request) {
 	case PTRACE_PEEKUSR:
@@ -1326,7 +1426,7 @@ static void fill_sigtrap_info(struct task_struct *tsk,
 				int error_code, int si_code,
 				struct siginfo *info)
 {
-	tsk->thread.trap_no = 1;
+	tsk->thread.trap_nr = X86_TRAP_DB;
 	tsk->thread.error_code = error_code;
 
 	memset(info, 0, sizeof(*info));

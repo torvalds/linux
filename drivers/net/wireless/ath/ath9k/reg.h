@@ -797,7 +797,6 @@
 #define AR_SREV_VERSION_9580		0x1C0
 #define AR_SREV_REVISION_9580_10	4 /* AR9580 1.0 */
 #define AR_SREV_VERSION_9462		0x280
-#define AR_SREV_REVISION_9462_10	0
 #define AR_SREV_REVISION_9462_20	2
 
 #define AR_SREV_5416(_ah) \
@@ -897,10 +896,6 @@
 
 #define AR_SREV_9462(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462))
-
-#define AR_SREV_9462_10(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
-	((_ah)->hw_version.macRev == AR_SREV_REVISION_9462_10))
 
 #define AR_SREV_9462_20(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
@@ -1156,6 +1151,7 @@ enum {
 #define AR_INTR_PRIO_ASYNC_ENABLE (AR_SREV_9340(ah) ? 0x4094 : 0x40d4)
 #define AR_ENT_OTP		  0x40d8
 #define AR_ENT_OTP_CHAIN2_DISABLE               0x00020000
+#define AR_ENT_OTP_49GHZ_DISABLE		0x00100000
 #define AR_ENT_OTP_MIN_PKT_SIZE_DISABLE		0x00800000
 
 #define AR_CH0_BB_DPLL1		 0x16180

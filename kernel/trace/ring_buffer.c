@@ -154,33 +154,10 @@ enum {
 
 static unsigned long ring_buffer_flags __read_mostly = RB_BUFFERS_ON;
 
+/* Used for individual buffers (after the counter) */
+#define RB_BUFFER_OFF		(1 << 20)
+
 #define BUF_PAGE_HDR_SIZE offsetof(struct buffer_data_page, data)
-
-/**
- * tracing_on - enable all tracing buffers
- *
- * This function enables all tracing buffers that may have been
- * disabled with tracing_off.
- */
-void tracing_on(void)
-{
-	set_bit(RB_BUFFERS_ON_BIT, &ring_buffer_flags);
-}
-EXPORT_SYMBOL_GPL(tracing_on);
-
-/**
- * tracing_off - turn off all tracing buffers
- *
- * This function stops all tracing buffers from recording data.
- * It does not disable any overhead the tracers themselves may
- * be causing. This function simply causes all recording to
- * the ring buffers to fail.
- */
-void tracing_off(void)
-{
-	clear_bit(RB_BUFFERS_ON_BIT, &ring_buffer_flags);
-}
-EXPORT_SYMBOL_GPL(tracing_off);
 
 /**
  * tracing_off_permanent - permanently disable ring buffers
@@ -192,15 +169,6 @@ void tracing_off_permanent(void)
 {
 	set_bit(RB_BUFFERS_DISABLED_BIT, &ring_buffer_flags);
 }
-
-/**
- * tracing_is_on - show state of ring buffers enabled
- */
-int tracing_is_on(void)
-{
-	return ring_buffer_flags == RB_BUFFERS_ON;
-}
-EXPORT_SYMBOL_GPL(tracing_is_on);
 
 #define RB_EVNT_HDR_SIZE (offsetof(struct ring_buffer_event, array))
 #define RB_ALIGNMENT		4U
@@ -2619,6 +2587,63 @@ void ring_buffer_record_enable(struct ring_buffer *buffer)
 EXPORT_SYMBOL_GPL(ring_buffer_record_enable);
 
 /**
+ * ring_buffer_record_off - stop all writes into the buffer
+ * @buffer: The ring buffer to stop writes to.
+ *
+ * This prevents all writes to the buffer. Any attempt to write
+ * to the buffer after this will fail and return NULL.
+ *
+ * This is different than ring_buffer_record_disable() as
+ * it works like an on/off switch, where as the disable() verison
+ * must be paired with a enable().
+ */
+void ring_buffer_record_off(struct ring_buffer *buffer)
+{
+	unsigned int rd;
+	unsigned int new_rd;
+
+	do {
+		rd = atomic_read(&buffer->record_disabled);
+		new_rd = rd | RB_BUFFER_OFF;
+	} while (atomic_cmpxchg(&buffer->record_disabled, rd, new_rd) != rd);
+}
+EXPORT_SYMBOL_GPL(ring_buffer_record_off);
+
+/**
+ * ring_buffer_record_on - restart writes into the buffer
+ * @buffer: The ring buffer to start writes to.
+ *
+ * This enables all writes to the buffer that was disabled by
+ * ring_buffer_record_off().
+ *
+ * This is different than ring_buffer_record_enable() as
+ * it works like an on/off switch, where as the enable() verison
+ * must be paired with a disable().
+ */
+void ring_buffer_record_on(struct ring_buffer *buffer)
+{
+	unsigned int rd;
+	unsigned int new_rd;
+
+	do {
+		rd = atomic_read(&buffer->record_disabled);
+		new_rd = rd & ~RB_BUFFER_OFF;
+	} while (atomic_cmpxchg(&buffer->record_disabled, rd, new_rd) != rd);
+}
+EXPORT_SYMBOL_GPL(ring_buffer_record_on);
+
+/**
+ * ring_buffer_record_is_on - return true if the ring buffer can write
+ * @buffer: The ring buffer to see if write is enabled
+ *
+ * Returns true if the ring buffer is in a state that it accepts writes.
+ */
+int ring_buffer_record_is_on(struct ring_buffer *buffer)
+{
+	return !atomic_read(&buffer->record_disabled);
+}
+
+/**
  * ring_buffer_record_disable_cpu - stop all writes into the cpu_buffer
  * @buffer: The ring buffer to stop writes to.
  * @cpu: The CPU buffer to stop
@@ -4038,68 +4063,6 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_read_page);
-
-#ifdef CONFIG_TRACING
-static ssize_t
-rb_simple_read(struct file *filp, char __user *ubuf,
-	       size_t cnt, loff_t *ppos)
-{
-	unsigned long *p = filp->private_data;
-	char buf[64];
-	int r;
-
-	if (test_bit(RB_BUFFERS_DISABLED_BIT, p))
-		r = sprintf(buf, "permanently disabled\n");
-	else
-		r = sprintf(buf, "%d\n", test_bit(RB_BUFFERS_ON_BIT, p));
-
-	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
-}
-
-static ssize_t
-rb_simple_write(struct file *filp, const char __user *ubuf,
-		size_t cnt, loff_t *ppos)
-{
-	unsigned long *p = filp->private_data;
-	unsigned long val;
-	int ret;
-
-	ret = kstrtoul_from_user(ubuf, cnt, 10, &val);
-	if (ret)
-		return ret;
-
-	if (val)
-		set_bit(RB_BUFFERS_ON_BIT, p);
-	else
-		clear_bit(RB_BUFFERS_ON_BIT, p);
-
-	(*ppos)++;
-
-	return cnt;
-}
-
-static const struct file_operations rb_simple_fops = {
-	.open		= tracing_open_generic,
-	.read		= rb_simple_read,
-	.write		= rb_simple_write,
-	.llseek		= default_llseek,
-};
-
-
-static __init int rb_init_debugfs(void)
-{
-	struct dentry *d_tracer;
-
-	d_tracer = tracing_init_dentry();
-
-	trace_create_file("tracing_on", 0644, d_tracer,
-			    &ring_buffer_flags, &rb_simple_fops);
-
-	return 0;
-}
-
-fs_initcall(rb_init_debugfs);
-#endif
 
 #ifdef CONFIG_HOTPLUG_CPU
 static int rb_cpu_notify(struct notifier_block *self,

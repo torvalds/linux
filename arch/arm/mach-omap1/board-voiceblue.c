@@ -27,22 +27,23 @@
 #include <linux/smc91x.h>
 #include <linux/export.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include <plat/board-voiceblue.h>
-#include "common.h"
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
 #include <plat/usb.h>
 
+#include <mach/hardware.h>
+
+#include "common.h"
+
 static struct plat_serial8250_port voiceblue_ports[] = {
 	{
 		.mapbase	= (unsigned long)(OMAP_CS1_PHYS + 0x40000),
-		.irq		= OMAP_GPIO_IRQ(12),
 		.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
 		.iotype		= UPIO_MEM,
 		.regshift	= 1,
@@ -50,7 +51,6 @@ static struct plat_serial8250_port voiceblue_ports[] = {
 	},
 	{
 		.mapbase	= (unsigned long)(OMAP_CS1_PHYS + 0x50000),
-		.irq		= OMAP_GPIO_IRQ(13),
 		.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
 		.iotype		= UPIO_MEM,
 		.regshift	= 1,
@@ -58,7 +58,6 @@ static struct plat_serial8250_port voiceblue_ports[] = {
 	},
 	{
 		.mapbase	= (unsigned long)(OMAP_CS1_PHYS + 0x60000),
-		.irq		= OMAP_GPIO_IRQ(14),
 		.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
 		.iotype		= UPIO_MEM,
 		.regshift	= 1,
@@ -66,7 +65,6 @@ static struct plat_serial8250_port voiceblue_ports[] = {
 	},
 	{
 		.mapbase	= (unsigned long)(OMAP_CS1_PHYS + 0x70000),
-		.irq		= OMAP_GPIO_IRQ(15),
 		.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
 		.iotype		= UPIO_MEM,
 		.regshift	= 1,
@@ -78,9 +76,6 @@ static struct plat_serial8250_port voiceblue_ports[] = {
 static struct platform_device serial_device = {
 	.name			= "serial8250",
 	.id			= PLAT8250_DEV_PLATFORM1,
-	.dev			= {
-		.platform_data	= voiceblue_ports,
-	},
 };
 
 static int __init ext_uart_init(void)
@@ -88,6 +83,11 @@ static int __init ext_uart_init(void)
 	if (!machine_is_voiceblue())
 		return -ENODEV;
 
+	voiceblue_ports[0].irq = gpio_to_irq(12);
+	voiceblue_ports[1].irq = gpio_to_irq(13);
+	voiceblue_ports[2].irq = gpio_to_irq(14);
+	voiceblue_ports[3].irq = gpio_to_irq(15);
+	serial_device.dev.platform_data = voiceblue_ports;
 	return platform_device_register(&serial_device);
 }
 arch_initcall(ext_uart_init);
@@ -126,8 +126,6 @@ static struct resource voiceblue_smc91x_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= OMAP_GPIO_IRQ(8),
-		.end	= OMAP_GPIO_IRQ(8),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
@@ -273,6 +271,8 @@ static void __init voiceblue_init(void)
 	irq_set_irq_type(gpio_to_irq(14), IRQ_TYPE_EDGE_RISING);
 	irq_set_irq_type(gpio_to_irq(15), IRQ_TYPE_EDGE_RISING);
 
+	voiceblue_smc91x_resources[1].start = gpio_to_irq(8);
+	voiceblue_smc91x_resources[1].end = gpio_to_irq(8);
 	platform_add_devices(voiceblue_devices, ARRAY_SIZE(voiceblue_devices));
 	omap_board_config = voiceblue_config;
 	omap_board_config_size = ARRAY_SIZE(voiceblue_config);

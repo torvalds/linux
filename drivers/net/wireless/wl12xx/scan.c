@@ -38,7 +38,6 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	struct ieee80211_vif *vif;
 	struct wl12xx_vif *wlvif;
 	int ret;
-	bool is_sta, is_ibss;
 
 	dwork = container_of(work, struct delayed_work, work);
 	wl = container_of(dwork, struct wl1271, scan_complete_work);
@@ -56,6 +55,12 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	vif = wl->scan_vif;
 	wlvif = wl12xx_vif_to_data(vif);
 
+	/*
+	 * Rearm the tx watchdog just before idling scan. This
+	 * prevents just-finished scans from triggering the watchdog
+	 */
+	wl12xx_rearm_tx_watchdog_locked(wl);
+
 	wl->scan.state = WL1271_SCAN_STATE_IDLE;
 	memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
 	wl->scan.req = NULL;
@@ -70,15 +75,6 @@ void wl1271_scan_complete_work(struct work_struct *work)
 		wl1271_cmd_build_ap_probe_req(wl, wlvif, wlvif->probereq);
 	}
 
-	/* return to ROC if needed */
-	is_sta = (wlvif->bss_type == BSS_TYPE_STA_BSS);
-	is_ibss = (wlvif->bss_type == BSS_TYPE_IBSS);
-	if (((is_sta && !test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags)) ||
-	     (is_ibss && !test_bit(WLVIF_FLAG_IBSS_JOINED, &wlvif->flags))) &&
-	    !test_bit(wlvif->dev_role_id, wl->roc_map)) {
-		/* restore remain on channel */
-		wl12xx_start_dev(wl, wlvif);
-	}
 	wl1271_ps_elp_sleep(wl);
 
 	if (wl->scan.failed) {
@@ -182,14 +178,23 @@ static int wl1271_scan_send(struct wl1271 *wl, struct ieee80211_vif *vif,
 		goto out;
 	}
 
+	if (wl->conf.scan.split_scan_timeout)
+		scan_options |= WL1271_SCAN_OPT_SPLIT_SCAN;
+
 	if (passive)
 		scan_options |= WL1271_SCAN_OPT_PASSIVE;
 
-	if (WARN_ON(wlvif->role_id == WL12XX_INVALID_ROLE_ID)) {
+	if (wlvif->bss_type == BSS_TYPE_AP_BSS ||
+	    test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
+		cmd->params.role_id = wlvif->role_id;
+	else
+		cmd->params.role_id = wlvif->dev_role_id;
+
+	if (WARN_ON(cmd->params.role_id == WL12XX_INVALID_ROLE_ID)) {
 		ret = -EINVAL;
 		goto out;
 	}
-	cmd->params.role_id = wlvif->role_id;
+
 	cmd->params.scan_options = cpu_to_le16(scan_options);
 
 	cmd->params.n_ch = wl1271_get_scan_channels(wl, wl->scan.req,
@@ -202,7 +207,7 @@ static int wl1271_scan_send(struct wl1271 *wl, struct ieee80211_vif *vif,
 
 	cmd->params.tx_rate = cpu_to_le32(basic_rate);
 	cmd->params.n_probe_reqs = wl->conf.scan.num_probe_reqs;
-	cmd->params.tid_trigger = 0;
+	cmd->params.tid_trigger = CONF_TX_AC_ANY_TID;
 	cmd->params.scan_tag = WL1271_SCAN_DEFAULT_TAG;
 
 	if (band == IEEE80211_BAND_2GHZ)
@@ -217,16 +222,17 @@ static int wl1271_scan_send(struct wl1271 *wl, struct ieee80211_vif *vif,
 
 	memcpy(cmd->addr, vif->addr, ETH_ALEN);
 
-	ret = wl1271_cmd_build_probe_req(wl, wlvif, wl->scan.ssid,
-					 wl->scan.ssid_len, wl->scan.req->ie,
-					 wl->scan.req->ie_len, band);
+	ret = wl12xx_cmd_build_probe_req(wl, wlvif,
+					 cmd->params.role_id, band,
+					 wl->scan.ssid, wl->scan.ssid_len,
+					 wl->scan.req->ie,
+					 wl->scan.req->ie_len);
 	if (ret < 0) {
 		wl1271_error("PROBE request template failed");
 		goto out;
 	}
 
-	/* disable the timeout */
-	trigger->timeout = 0;
+	trigger->timeout = cpu_to_le32(wl->conf.scan.split_scan_timeout);
 	ret = wl1271_cmd_send(wl, CMD_TRIGGER_SCAN_TO, trigger,
 			      sizeof(*trigger), 0);
 	if (ret < 0) {
@@ -658,11 +664,13 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	}
 
 	if (!force_passive && cfg->active[0]) {
-		ret = wl1271_cmd_build_probe_req(wl, wlvif, req->ssids[0].ssid,
+		u8 band = IEEE80211_BAND_2GHZ;
+		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
+						 wlvif->dev_role_id, band,
+						 req->ssids[0].ssid,
 						 req->ssids[0].ssid_len,
-						 ies->ie[IEEE80211_BAND_2GHZ],
-						 ies->len[IEEE80211_BAND_2GHZ],
-						 IEEE80211_BAND_2GHZ);
+						 ies->ie[band],
+						 ies->len[band]);
 		if (ret < 0) {
 			wl1271_error("2.4GHz PROBE request template failed");
 			goto out;
@@ -670,11 +678,13 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	}
 
 	if (!force_passive && cfg->active[1]) {
-		ret = wl1271_cmd_build_probe_req(wl, wlvif, req->ssids[0].ssid,
+		u8 band = IEEE80211_BAND_5GHZ;
+		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
+						 wlvif->dev_role_id, band,
+						 req->ssids[0].ssid,
 						 req->ssids[0].ssid_len,
-						 ies->ie[IEEE80211_BAND_5GHZ],
-						 ies->len[IEEE80211_BAND_5GHZ],
-						 IEEE80211_BAND_5GHZ);
+						 ies->ie[band],
+						 ies->len[band]);
 		if (ret < 0) {
 			wl1271_error("5GHz PROBE request template failed");
 			goto out;

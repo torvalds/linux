@@ -15,7 +15,6 @@
 #include <linux/sys.h>
 #include <linux/linkage.h>
 #include <asm/smp.h>
-#include <asm/system.h>
 #include <asm/irqflags.h>
 #include <asm/thread_info.h>
 #include <asm/intctl-regs.h>

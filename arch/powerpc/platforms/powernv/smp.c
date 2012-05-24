@@ -25,7 +25,6 @@
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/firmware.h>
-#include <asm/system.h>
 #include <asm/rtas.h>
 #include <asm/vdso_datapage.h>
 #include <asm/cputhreads.h>

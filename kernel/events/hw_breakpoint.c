@@ -581,6 +581,12 @@ static int hw_breakpoint_event_init(struct perf_event *bp)
 	if (bp->attr.type != PERF_TYPE_BREAKPOINT)
 		return -ENOENT;
 
+	/*
+	 * no branch sampling for breakpoint events
+	 */
+	if (has_branch_stack(bp))
+		return -EOPNOTSUPP;
+
 	err = register_perf_hw_breakpoint(bp);
 	if (err)
 		return err;
@@ -613,6 +619,11 @@ static void hw_breakpoint_stop(struct perf_event *bp, int flags)
 	bp->hw.state = PERF_HES_STOPPED;
 }
 
+static int hw_breakpoint_event_idx(struct perf_event *bp)
+{
+	return 0;
+}
+
 static struct pmu perf_breakpoint = {
 	.task_ctx_nr	= perf_sw_context, /* could eventually get its own */
 
@@ -622,6 +633,8 @@ static struct pmu perf_breakpoint = {
 	.start		= hw_breakpoint_start,
 	.stop		= hw_breakpoint_stop,
 	.read		= hw_breakpoint_pmu_read,
+
+	.event_idx	= hw_breakpoint_event_idx,
 };
 
 int __init init_hw_breakpoint(void)

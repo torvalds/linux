@@ -7,12 +7,13 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/mach-types.h>
-#include <asm/system.h>
+#include <asm/system_misc.h>
 
 extern const unsigned char relocate_new_kernel[];
 extern const unsigned int relocate_new_kernel_size;
@@ -53,6 +54,29 @@ void machine_crash_nonpanic_core(void *unused)
 		cpu_relax();
 }
 
+static void machine_kexec_mask_interrupts(void)
+{
+	unsigned int i;
+	struct irq_desc *desc;
+
+	for_each_irq_desc(i, desc) {
+		struct irq_chip *chip;
+
+		chip = irq_desc_get_chip(desc);
+		if (!chip)
+			continue;
+
+		if (chip->irq_eoi && irqd_irq_inprogress(&desc->irq_data))
+			chip->irq_eoi(&desc->irq_data);
+
+		if (chip->irq_mask)
+			chip->irq_mask(&desc->irq_data);
+
+		if (chip->irq_disable && !irqd_irq_disabled(&desc->irq_data))
+			chip->irq_disable(&desc->irq_data);
+	}
+}
+
 void machine_crash_shutdown(struct pt_regs *regs)
 {
 	unsigned long msecs;
@@ -70,6 +94,7 @@ void machine_crash_shutdown(struct pt_regs *regs)
 		printk(KERN_WARNING "Non-crashing CPUs did not react to IPI\n");
 
 	crash_save_cpu(regs, smp_processor_id());
+	machine_kexec_mask_interrupts();
 
 	printk(KERN_INFO "Loading crashdump kernel...\n");
 }

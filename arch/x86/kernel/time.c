@@ -57,9 +57,6 @@ EXPORT_SYMBOL(profile_pc);
  */
 static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
-	/* Keep nmi watchdog up to date */
-	inc_irq_stat(irq0_irqs);
-
 	global_clock_event->event_handler(global_clock_event);
 
 	/* MCA bus quirk: Acknowledge irq0 by setting bit 7 in port 0x61 */

@@ -204,7 +204,7 @@ int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
 			kmem_cache_free(rm_cache, p);
 			--entries;
 		} else if ((seqnum == p->seqnum) &&
-			   (memcmp(sa, p->sa, ETH_ALEN) == 0))
+			   (compare_ether_addr(sa, p->sa) == 0))
 			return -1;
 	}
 

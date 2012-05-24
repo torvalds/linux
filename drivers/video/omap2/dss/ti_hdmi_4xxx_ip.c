@@ -587,12 +587,12 @@ static void hdmi_core_video_config(struct hdmi_ip_data *ip_data,
 			HDMI_CORE_SYS_TMDS_CTRL, cfg->tclk_sel_clkmult, 6, 5);
 }
 
-static void hdmi_core_aux_infoframe_avi_config(struct hdmi_ip_data *ip_data,
-		struct hdmi_core_infoframe_avi info_avi)
+static void hdmi_core_aux_infoframe_avi_config(struct hdmi_ip_data *ip_data)
 {
 	u32 val;
 	char sum = 0, checksum = 0;
 	void __iomem *av_base = hdmi_av_base(ip_data);
+	struct hdmi_core_infoframe_avi info_avi = ip_data->avi_cfg;
 
 	sum += 0x82 + 0x002 + 0x00D;
 	hdmi_write_reg(av_base, HDMI_CORE_AV_AVI_TYPE, 0x082);
@@ -682,8 +682,7 @@ static void hdmi_core_av_packet_config(struct hdmi_ip_data *ip_data,
 }
 
 static void hdmi_wp_init(struct omap_video_timings *timings,
-			struct hdmi_video_format *video_fmt,
-			struct hdmi_video_interface *video_int)
+			struct hdmi_video_format *video_fmt)
 {
 	pr_debug("Enter hdmi_wp_init\n");
 
@@ -698,12 +697,6 @@ static void hdmi_wp_init(struct omap_video_timings *timings,
 	video_fmt->y_res = 0;
 	video_fmt->x_res = 0;
 
-	video_int->vsp = 0;
-	video_int->hsp = 0;
-
-	video_int->interlacing = 0;
-	video_int->tm = 0; /* HDMI_TIMING_SLAVE */
-
 }
 
 void ti_hdmi_4xxx_wp_video_start(struct hdmi_ip_data *ip_data, bool start)
@@ -716,15 +709,15 @@ static void hdmi_wp_video_init_format(struct hdmi_video_format *video_fmt,
 {
 	pr_debug("Enter hdmi_wp_video_init_format\n");
 
-	video_fmt->y_res = param->timings.timings.y_res;
-	video_fmt->x_res = param->timings.timings.x_res;
+	video_fmt->y_res = param->timings.y_res;
+	video_fmt->x_res = param->timings.x_res;
 
-	timings->hbp = param->timings.timings.hbp;
-	timings->hfp = param->timings.timings.hfp;
-	timings->hsw = param->timings.timings.hsw;
-	timings->vbp = param->timings.timings.vbp;
-	timings->vfp = param->timings.timings.vfp;
-	timings->vsw = param->timings.timings.vsw;
+	timings->hbp = param->timings.hbp;
+	timings->hfp = param->timings.hfp;
+	timings->hsw = param->timings.hsw;
+	timings->vbp = param->timings.vbp;
+	timings->vfp = param->timings.vfp;
+	timings->vsw = param->timings.vsw;
 }
 
 static void hdmi_wp_video_config_format(struct hdmi_ip_data *ip_data,
@@ -740,17 +733,16 @@ static void hdmi_wp_video_config_format(struct hdmi_ip_data *ip_data,
 	hdmi_write_reg(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_SIZE, l);
 }
 
-static void hdmi_wp_video_config_interface(struct hdmi_ip_data *ip_data,
-		struct hdmi_video_interface *video_int)
+static void hdmi_wp_video_config_interface(struct hdmi_ip_data *ip_data)
 {
 	u32 r;
 	pr_debug("Enter hdmi_wp_video_config_interface\n");
 
 	r = hdmi_read_reg(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_CFG);
-	r = FLD_MOD(r, video_int->vsp, 7, 7);
-	r = FLD_MOD(r, video_int->hsp, 6, 6);
-	r = FLD_MOD(r, video_int->interlacing, 3, 3);
-	r = FLD_MOD(r, video_int->tm, 1, 0);
+	r = FLD_MOD(r, ip_data->cfg.timings.vsync_pol, 7, 7);
+	r = FLD_MOD(r, ip_data->cfg.timings.hsync_pol, 6, 6);
+	r = FLD_MOD(r, ip_data->cfg.timings.interlace, 3, 3);
+	r = FLD_MOD(r, 1, 1, 0); /* HDMI_TIMING_MASTER_24BIT */
 	hdmi_write_reg(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_CFG, r);
 }
 
@@ -778,15 +770,13 @@ void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 	/* HDMI */
 	struct omap_video_timings video_timing;
 	struct hdmi_video_format video_format;
-	struct hdmi_video_interface video_interface;
 	/* HDMI core */
-	struct hdmi_core_infoframe_avi avi_cfg;
+	struct hdmi_core_infoframe_avi avi_cfg = ip_data->avi_cfg;
 	struct hdmi_core_video_config v_core_cfg;
 	struct hdmi_core_packet_enable_repeat repeat_cfg;
 	struct hdmi_config *cfg = &ip_data->cfg;
 
-	hdmi_wp_init(&video_timing, &video_format,
-		&video_interface);
+	hdmi_wp_init(&video_timing, &video_format);
 
 	hdmi_core_init(&v_core_cfg,
 		&avi_cfg,
@@ -801,12 +791,7 @@ void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 
 	hdmi_wp_video_config_format(ip_data, &video_format);
 
-	video_interface.vsp = cfg->timings.vsync_pol;
-	video_interface.hsp = cfg->timings.hsync_pol;
-	video_interface.interlacing = cfg->interlace;
-	video_interface.tm = 1 ; /* HDMI_TIMING_MASTER_24BIT */
-
-	hdmi_wp_video_config_interface(ip_data, &video_interface);
+	hdmi_wp_video_config_interface(ip_data);
 
 	/*
 	 * configure core video part
@@ -848,7 +833,7 @@ void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 	avi_cfg.db10_11_pixel_eofleft = 0;
 	avi_cfg.db12_13_pixel_sofright = 0;
 
-	hdmi_core_aux_infoframe_avi_config(ip_data, avi_cfg);
+	hdmi_core_aux_infoframe_avi_config(ip_data);
 
 	/* enable/repeat the infoframe */
 	repeat_cfg.avi_infoframe = HDMI_PACKETENABLE;
@@ -1076,13 +1061,9 @@ void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
 	u32 r;
 	void __iomem *av_base = hdmi_av_base(ip_data);
 
-	/* audio clock recovery parameters */
-	r = hdmi_read_reg(av_base, HDMI_CORE_AV_ACR_CTRL);
-	r = FLD_MOD(r, cfg->use_mclk, 2, 2);
-	r = FLD_MOD(r, cfg->en_acr_pkt, 1, 1);
-	r = FLD_MOD(r, cfg->cts_mode, 0, 0);
-	hdmi_write_reg(av_base, HDMI_CORE_AV_ACR_CTRL, r);
-
+	/*
+	 * Parameters for generation of Audio Clock Recovery packets
+	 */
 	REG_FLD_MOD(av_base, HDMI_CORE_AV_N_SVAL1, cfg->n, 7, 0);
 	REG_FLD_MOD(av_base, HDMI_CORE_AV_N_SVAL2, cfg->n >> 8, 7, 0);
 	REG_FLD_MOD(av_base, HDMI_CORE_AV_N_SVAL3, cfg->n >> 16, 7, 0);
@@ -1094,14 +1075,6 @@ void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
 		REG_FLD_MOD(av_base,
 				HDMI_CORE_AV_CTS_SVAL3, cfg->cts >> 16, 7, 0);
 	} else {
-		/*
-		 * HDMI IP uses this configuration to divide the MCLK to
-		 * update CTS value.
-		 */
-		REG_FLD_MOD(av_base,
-				HDMI_CORE_AV_FREQ_SVAL, cfg->mclk_mode, 2, 0);
-
-		/* Configure clock for audio packets */
 		REG_FLD_MOD(av_base, HDMI_CORE_AV_AUD_PAR_BUSCLK_1,
 				cfg->aud_par_busclk, 7, 0);
 		REG_FLD_MOD(av_base, HDMI_CORE_AV_AUD_PAR_BUSCLK_2,
@@ -1109,6 +1082,25 @@ void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
 		REG_FLD_MOD(av_base, HDMI_CORE_AV_AUD_PAR_BUSCLK_3,
 				(cfg->aud_par_busclk >> 16), 7, 0);
 	}
+
+	/* Set ACR clock divisor */
+	REG_FLD_MOD(av_base,
+			HDMI_CORE_AV_FREQ_SVAL, cfg->mclk_mode, 2, 0);
+
+	r = hdmi_read_reg(av_base, HDMI_CORE_AV_ACR_CTRL);
+	/*
+	 * Use TMDS clock for ACR packets. For devices that use
+	 * the MCLK, this is the first part of the MCLK initialization.
+	 */
+	r = FLD_MOD(r, 0, 2, 2);
+
+	r = FLD_MOD(r, cfg->en_acr_pkt, 1, 1);
+	r = FLD_MOD(r, cfg->cts_mode, 0, 0);
+	hdmi_write_reg(av_base, HDMI_CORE_AV_ACR_CTRL, r);
+
+	/* For devices using MCLK, this completes its initialization. */
+	if (cfg->use_mclk)
+		REG_FLD_MOD(av_base, HDMI_CORE_AV_ACR_CTRL, 1, 2, 2);
 
 	/* Override of SPDIF sample frequency with value in I2S_CHST4 */
 	REG_FLD_MOD(av_base, HDMI_CORE_AV_SPDIF_CTRL,
@@ -1205,7 +1197,7 @@ int hdmi_config_audio_acr(struct hdmi_ip_data *ip_data,
 {
 	u32 r;
 	u32 deep_color = 0;
-	u32 pclk = ip_data->cfg.timings.timings.pixel_clock;
+	u32 pclk = ip_data->cfg.timings.pixel_clock;
 
 	if (n == NULL || cts == NULL)
 		return -EINVAL;

@@ -95,6 +95,7 @@ MACHINE_START(NEC_MP900, "MobilePro900/C")
 	.atag_offset	= 0x220100,
 	.timer		= &pxa_timer,
 	.map_io		= pxa25x_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
 	.init_machine	= mp900c_init,

@@ -488,7 +488,7 @@ static struct attribute *selfballoon_attrs[] = {
 	NULL
 };
 
-static struct attribute_group selfballoon_group = {
+static const struct attribute_group selfballoon_group = {
 	.name = "selfballoon",
 	.attrs = selfballoon_attrs
 };

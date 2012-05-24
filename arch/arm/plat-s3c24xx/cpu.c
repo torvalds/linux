@@ -32,8 +32,11 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <mach/regs-clock.h>
 #include <asm/irq.h>
 #include <asm/cacheflush.h>
+#include <asm/system_info.h>
+#include <asm/system_misc.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -190,8 +193,34 @@ static unsigned long s3c24xx_read_idcode_v4(void)
 	return __raw_readl(S3C2410_GSTATUS1);
 }
 
+static void s3c24xx_default_idle(void)
+{
+	unsigned long tmp;
+	int i;
+
+	/* idle the system by using the idle mode which will wait for an
+	 * interrupt to happen before restarting the system.
+	 */
+
+	/* Warning: going into idle state upsets jtag scanning */
+
+	__raw_writel(__raw_readl(S3C2410_CLKCON) | S3C2410_CLKCON_IDLE,
+		     S3C2410_CLKCON);
+
+	/* the samsung port seems to do a loop and then unset idle.. */
+	for (i = 0; i < 50; i++)
+		tmp += __raw_readl(S3C2410_CLKCON); /* ensure loop not optimised out */
+
+	/* this bit is not cleared on re-start... */
+
+	__raw_writel(__raw_readl(S3C2410_CLKCON) & ~S3C2410_CLKCON_IDLE,
+		     S3C2410_CLKCON);
+}
+
 void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 {
+	arm_pm_idle = s3c24xx_default_idle;
+
 	/* initialise the io descriptors we need for initialisation */
 	iotable_init(mach_desc, size);
 	iotable_init(s3c_iodesc, ARRAY_SIZE(s3c_iodesc));

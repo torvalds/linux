@@ -2078,15 +2078,4 @@ static struct i2c_driver tvaudio_driver = {
 	.id_table	= tvaudio_id,
 };
 
-static __init int init_tvaudio(void)
-{
-	return i2c_add_driver(&tvaudio_driver);
-}
-
-static __exit void exit_tvaudio(void)
-{
-	i2c_del_driver(&tvaudio_driver);
-}
-
-module_init(init_tvaudio);
-module_exit(exit_tvaudio);
+module_i2c_driver(tvaudio_driver);

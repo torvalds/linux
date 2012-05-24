@@ -21,10 +21,12 @@
 #include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <linux/micrel_phy.h>
+#include <asm/smp_twd.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+#include <asm/system_misc.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
 
@@ -97,7 +99,8 @@ static int __init imx6q_gpio_add_irq_domain(struct device_node *np,
 	static int gpio_irq_base = MXC_GPIO_IRQ_START + ARCH_NR_GPIOS;
 
 	gpio_irq_base -= 32;
-	irq_domain_add_simple(np, gpio_irq_base);
+	irq_domain_add_legacy(np, 32, gpio_irq_base, 0, &irq_domain_simple_ops,
+			      NULL);
 
 	return 0;
 }
@@ -119,6 +122,7 @@ static void __init imx6q_init_irq(void)
 static void __init imx6q_timer_init(void)
 {
 	mx6q_clocks_init();
+	twd_local_timer_of_register();
 }
 
 static struct sys_timer imx6q_timer = {
@@ -128,6 +132,7 @@ static struct sys_timer imx6q_timer = {
 static const char *imx6q_dt_compat[] __initdata = {
 	"fsl,imx6q-arm2",
 	"fsl,imx6q-sabrelite",
+	"fsl,imx6q",
 	NULL,
 };
 

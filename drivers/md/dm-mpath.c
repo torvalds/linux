@@ -226,6 +226,27 @@ static void free_multipath(struct multipath *m)
 	kfree(m);
 }
 
+static int set_mapinfo(struct multipath *m, union map_info *info)
+{
+	struct dm_mpath_io *mpio;
+
+	mpio = mempool_alloc(m->mpio_pool, GFP_ATOMIC);
+	if (!mpio)
+		return -ENOMEM;
+
+	memset(mpio, 0, sizeof(*mpio));
+	info->ptr = mpio;
+
+	return 0;
+}
+
+static void clear_mapinfo(struct multipath *m, union map_info *info)
+{
+	struct dm_mpath_io *mpio = info->ptr;
+
+	info->ptr = NULL;
+	mempool_free(mpio, m->mpio_pool);
+}
 
 /*-----------------------------------------------
  * Path selection
@@ -341,13 +362,14 @@ static int __must_push_back(struct multipath *m)
 }
 
 static int map_io(struct multipath *m, struct request *clone,
-		  struct dm_mpath_io *mpio, unsigned was_queued)
+		  union map_info *map_context, unsigned was_queued)
 {
 	int r = DM_MAPIO_REMAPPED;
 	size_t nr_bytes = blk_rq_bytes(clone);
 	unsigned long flags;
 	struct pgpath *pgpath;
 	struct block_device *bdev;
+	struct dm_mpath_io *mpio = map_context->ptr;
 
 	spin_lock_irqsave(&m->lock, flags);
 
@@ -423,7 +445,6 @@ static void dispatch_queued_ios(struct multipath *m)
 {
 	int r;
 	unsigned long flags;
-	struct dm_mpath_io *mpio;
 	union map_info *info;
 	struct request *clone, *n;
 	LIST_HEAD(cl);
@@ -436,16 +457,15 @@ static void dispatch_queued_ios(struct multipath *m)
 		list_del_init(&clone->queuelist);
 
 		info = dm_get_rq_mapinfo(clone);
-		mpio = info->ptr;
 
-		r = map_io(m, clone, mpio, 1);
+		r = map_io(m, clone, info, 1);
 		if (r < 0) {
-			mempool_free(mpio, m->mpio_pool);
+			clear_mapinfo(m, info);
 			dm_kill_unmapped_request(clone, r);
 		} else if (r == DM_MAPIO_REMAPPED)
 			dm_dispatch_request(clone);
 		else if (r == DM_MAPIO_REQUEUE) {
-			mempool_free(mpio, m->mpio_pool);
+			clear_mapinfo(m, info);
 			dm_requeue_unmapped_request(clone);
 		}
 	}
@@ -908,20 +928,16 @@ static int multipath_map(struct dm_target *ti, struct request *clone,
 			 union map_info *map_context)
 {
 	int r;
-	struct dm_mpath_io *mpio;
 	struct multipath *m = (struct multipath *) ti->private;
 
-	mpio = mempool_alloc(m->mpio_pool, GFP_ATOMIC);
-	if (!mpio)
+	if (set_mapinfo(m, map_context) < 0)
 		/* ENOMEM, requeue */
 		return DM_MAPIO_REQUEUE;
-	memset(mpio, 0, sizeof(*mpio));
 
-	map_context->ptr = mpio;
 	clone->cmd_flags |= REQ_FAILFAST_TRANSPORT;
-	r = map_io(m, clone, mpio, 0);
+	r = map_io(m, clone, map_context, 0);
 	if (r < 0 || r == DM_MAPIO_REQUEUE)
-		mempool_free(mpio, m->mpio_pool);
+		clear_mapinfo(m, map_context);
 
 	return r;
 }
@@ -1054,8 +1070,9 @@ static int switch_pg_num(struct multipath *m, const char *pgstr)
 	struct priority_group *pg;
 	unsigned pgnum;
 	unsigned long flags;
+	char dummy;
 
-	if (!pgstr || (sscanf(pgstr, "%u", &pgnum) != 1) || !pgnum ||
+	if (!pgstr || (sscanf(pgstr, "%u%c", &pgnum, &dummy) != 1) || !pgnum ||
 	    (pgnum > m->nr_priority_groups)) {
 		DMWARN("invalid PG number supplied to switch_pg_num");
 		return -EINVAL;
@@ -1085,8 +1102,9 @@ static int bypass_pg_num(struct multipath *m, const char *pgstr, int bypassed)
 {
 	struct priority_group *pg;
 	unsigned pgnum;
+	char dummy;
 
-	if (!pgstr || (sscanf(pgstr, "%u", &pgnum) != 1) || !pgnum ||
+	if (!pgstr || (sscanf(pgstr, "%u%c", &pgnum, &dummy) != 1) || !pgnum ||
 	    (pgnum > m->nr_priority_groups)) {
 		DMWARN("invalid PG number supplied to bypass_pg");
 		return -EINVAL;
@@ -1261,13 +1279,15 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 	struct path_selector *ps;
 	int r;
 
+	BUG_ON(!mpio);
+
 	r  = do_end_io(m, clone, error, mpio);
 	if (pgpath) {
 		ps = &pgpath->pg->ps;
 		if (ps->type->end_io)
 			ps->type->end_io(ps, &pgpath->path, mpio->nr_bytes);
 	}
-	mempool_free(mpio, m->mpio_pool);
+	clear_mapinfo(m, map_context);
 
 	return r;
 }

@@ -853,7 +853,7 @@ config SERIAL_MPC52xx_CONSOLE_BAUD
 
 config SERIAL_ICOM
 	tristate "IBM Multiport Serial Adapter"
-	depends on PCI && (PPC_ISERIES || PPC_PSERIES)
+	depends on PCI && PPC_PSERIES
 	select SERIAL_CORE
 	select FW_LOADER
 	help
@@ -1041,7 +1041,7 @@ config SERIAL_OMAP
 
 config SERIAL_OMAP_CONSOLE
 	bool "Console on OMAP serial port"
-	depends on SERIAL_OMAP
+	depends on SERIAL_OMAP=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  Select this option if you would like to use omap serial port as
@@ -1346,5 +1346,18 @@ config SERIAL_AR933X_NR_UARTS
 	help
 	  Set this to the number of serial ports you want the driver
 	  to support.
+
+config SERIAL_EFM32_UART
+	tristate "EFM32 UART/USART port."
+	depends on ARCH_EFM32
+	select SERIAL_CORE
+	help
+	  This driver support the USART and UART ports on
+	  Energy Micro's efm32 SoCs.
+
+config SERIAL_EFM32_UART_CONSOLE
+	bool "EFM32 UART/USART console support"
+	depends on SERIAL_EFM32_UART=y
+	select SERIAL_CORE_CONSOLE
 
 endmenu

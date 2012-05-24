@@ -331,6 +331,10 @@ struct qla_flt_region {
 /*  Mailbox command definitions */
 #define MBOX_CMD_ABOUT_FW			0x0009
 #define MBOX_CMD_PING				0x000B
+#define PING_IPV6_PROTOCOL_ENABLE		0x1
+#define PING_IPV6_LINKLOCAL_ADDR		0x4
+#define PING_IPV6_ADDR0				0x8
+#define PING_IPV6_ADDR1				0xC
 #define MBOX_CMD_ENABLE_INTRS			0x0010
 #define INTR_DISABLE				0
 #define INTR_ENABLE				1
@@ -396,6 +400,10 @@ struct qla_flt_region {
 #define FW_ADDSTATE_DHCPv4_LEASE_EXPIRED	0x0008
 #define FW_ADDSTATE_LINK_UP			0x0010
 #define FW_ADDSTATE_ISNS_SVC_ENABLED		0x0020
+#define FW_ADDSTATE_LINK_SPEED_10MBPS		0x0100
+#define FW_ADDSTATE_LINK_SPEED_100MBPS		0x0200
+#define FW_ADDSTATE_LINK_SPEED_1GBPS		0x0400
+#define FW_ADDSTATE_LINK_SPEED_10GBPS		0x0800
 
 #define MBOX_CMD_GET_DATABASE_ENTRY_DEFAULTS	0x006B
 #define IPV6_DEFAULT_DDB_ENTRY			0x0001
@@ -918,6 +926,8 @@ struct qla4_header {
 #define ET_CMND_T3		 0x19
 #define ET_PASSTHRU0		 0x3A
 #define ET_PASSTHRU_STATUS	 0x3C
+#define ET_MBOX_CMD		0x38
+#define ET_MBOX_STATUS		0x39
 
 	uint8_t entryStatus;
 	uint8_t systemDefined;
@@ -1116,6 +1126,20 @@ struct passthru_status {
 	uint8_t res2[12];	/* 20-2B */
 	uint32_t inResidual;	/* 2C-2F */
 	uint8_t res4[16];	/* 30-3F */
+};
+
+struct mbox_cmd_iocb {
+	struct qla4_header hdr;	/* 00-03 */
+	uint32_t handle;	/* 04-07 */
+	uint32_t in_mbox[8];	/* 08-25 */
+	uint32_t res1[6];	/* 26-3F */
+};
+
+struct mbox_status_iocb {
+	struct qla4_header hdr;	/* 00-03 */
+	uint32_t handle;	/* 04-07 */
+	uint32_t out_mbox[8];	/* 08-25 */
+	uint32_t res1[6];	/* 26-3F */
 };
 
 /*

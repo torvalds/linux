@@ -28,15 +28,21 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dmaengine.h>
+#include <linux/fsl/mxs-dma.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
-#include <mach/dma.h>
 #include "mxs-pcm.h"
+
+struct mxs_pcm_dma_data {
+	struct mxs_dma_data dma_data;
+	struct mxs_pcm_dma_params *dma_params;
+};
 
 static struct snd_pcm_hardware snd_mxs_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
@@ -58,21 +64,10 @@ static struct snd_pcm_hardware snd_mxs_hardware = {
 
 };
 
-static void audio_dma_irq(void *data)
-{
-	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct mxs_pcm_runtime_data *iprtd = runtime->private_data;
-
-	iprtd->offset += iprtd->period_bytes;
-	iprtd->offset %= iprtd->period_bytes * iprtd->periods;
-	snd_pcm_period_elapsed(substream);
-}
-
 static bool filter(struct dma_chan *chan, void *param)
 {
-	struct mxs_pcm_runtime_data *iprtd = param;
-	struct mxs_pcm_dma_params *dma_params = iprtd->dma_params;
+	struct mxs_pcm_dma_data *pcm_dma_data = param;
+	struct mxs_pcm_dma_params *dma_params = pcm_dma_data->dma_params;
 
 	if (!mxs_dma_is_apbx(chan))
 		return false;
@@ -80,150 +75,51 @@ static bool filter(struct dma_chan *chan, void *param)
 	if (chan->chan_id != dma_params->chan_num)
 		return false;
 
-	chan->private = &iprtd->dma_data;
+	chan->private = &pcm_dma_data->dma_data;
 
 	return true;
-}
-
-static int mxs_dma_alloc(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct mxs_pcm_runtime_data *iprtd = runtime->private_data;
-	dma_cap_mask_t mask;
-
-	iprtd->dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	iprtd->dma_data.chan_irq = iprtd->dma_params->chan_irq;
-	iprtd->dma_chan = dma_request_channel(mask, filter, iprtd);
-	if (!iprtd->dma_chan)
-		return -EINVAL;
-
-	return 0;
 }
 
 static int snd_mxs_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct mxs_pcm_runtime_data *iprtd = runtime->private_data;
-	unsigned long dma_addr;
-	struct dma_chan *chan;
-	int ret;
-
-	ret = mxs_dma_alloc(substream, params);
-	if (ret)
-		return ret;
-	chan = iprtd->dma_chan;
-
-	iprtd->size = params_buffer_bytes(params);
-	iprtd->periods = params_periods(params);
-	iprtd->period_bytes = params_period_bytes(params);
-	iprtd->offset = 0;
-	iprtd->period_time = HZ / (params_rate(params) /
-			params_period_size(params));
-
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
-	dma_addr = runtime->dma_addr;
-
-	iprtd->buf = substream->dma_buffer.area;
-
-	iprtd->desc = chan->device->device_prep_dma_cyclic(chan, dma_addr,
-			iprtd->period_bytes * iprtd->periods,
-			iprtd->period_bytes,
-			substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
-			DMA_MEM_TO_DEV : DMA_DEV_TO_MEM);
-	if (!iprtd->desc) {
-		dev_err(&chan->dev->device, "cannot prepare slave dma\n");
-		return -EINVAL;
-	}
-
-	iprtd->desc->callback = audio_dma_irq;
-	iprtd->desc->callback_param = substream;
-
 	return 0;
-}
-
-static int snd_mxs_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct mxs_pcm_runtime_data *iprtd = runtime->private_data;
-
-	if (iprtd->dma_chan) {
-		dma_release_channel(iprtd->dma_chan);
-		iprtd->dma_chan = NULL;
-	}
-
-	return 0;
-}
-
-static int snd_mxs_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct mxs_pcm_runtime_data *iprtd = runtime->private_data;
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_RESUME:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		dmaengine_submit(iprtd->desc);
-
-		break;
-	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		dmaengine_terminate_all(iprtd->dma_chan);
-
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static snd_pcm_uframes_t snd_mxs_pcm_pointer(
-		struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct mxs_pcm_runtime_data *iprtd = runtime->private_data;
-
-	return bytes_to_frames(substream->runtime, iprtd->offset);
 }
 
 static int snd_mxs_open(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct mxs_pcm_runtime_data *iprtd;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct mxs_pcm_dma_data *pcm_dma_data;
 	int ret;
 
-	iprtd = kzalloc(sizeof(*iprtd), GFP_KERNEL);
-	if (iprtd == NULL)
+	pcm_dma_data = kzalloc(sizeof(*pcm_dma_data), GFP_KERNEL);
+	if (pcm_dma_data == NULL)
 		return -ENOMEM;
-	runtime->private_data = iprtd;
 
-	ret = snd_pcm_hw_constraint_integer(substream->runtime,
-			SNDRV_PCM_HW_PARAM_PERIODS);
-	if (ret < 0) {
-		kfree(iprtd);
+	pcm_dma_data->dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+	pcm_dma_data->dma_data.chan_irq = pcm_dma_data->dma_params->chan_irq;
+
+	ret = snd_dmaengine_pcm_open(substream, filter, pcm_dma_data);
+	if (ret) {
+		kfree(pcm_dma_data);
 		return ret;
 	}
 
 	snd_soc_set_runtime_hwparams(substream, &snd_mxs_hardware);
+
+	snd_dmaengine_pcm_set_data(substream, pcm_dma_data);
 
 	return 0;
 }
 
 static int snd_mxs_close(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct mxs_pcm_runtime_data *iprtd = runtime->private_data;
+	struct mxs_pcm_dma_data *pcm_dma_data = snd_dmaengine_pcm_get_data(substream);
 
-	kfree(iprtd);
+	snd_dmaengine_pcm_close(substream);
+	kfree(pcm_dma_data);
 
 	return 0;
 }
@@ -244,9 +140,8 @@ static struct snd_pcm_ops mxs_pcm_ops = {
 	.close		= snd_mxs_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= snd_mxs_pcm_hw_params,
-	.hw_free	= snd_mxs_pcm_hw_free,
-	.trigger	= snd_mxs_pcm_trigger,
-	.pointer	= snd_mxs_pcm_pointer,
+	.trigger	= snd_dmaengine_pcm_trigger,
+	.pointer	= snd_dmaengine_pcm_pointer,
 	.mmap		= snd_mxs_pcm_mmap,
 };
 

@@ -33,6 +33,7 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/dmaengine.h>
+#include <linux/types.h>
 
 #include <asm/dma.h>
 #include <asm/irq.h>
@@ -254,7 +255,7 @@ static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 	if (nents != data->sg_len)
 		return -EINVAL;
 
-	host->desc = host->dma->device->device_prep_slave_sg(host->dma,
+	host->desc = dmaengine_prep_slave_sg(host->dma,
 		data->sg, data->sg_len, slave_dirn,
 		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
@@ -267,6 +268,7 @@ static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 	wmb();
 
 	dmaengine_submit(host->desc);
+	dma_async_issue_pending(host->dma);
 
 	return 0;
 }
@@ -710,6 +712,7 @@ static int mxcmci_setup_dma(struct mmc_host *mmc)
 	config->src_addr_width = 4;
 	config->dst_maxburst = host->burstlen;
 	config->src_maxburst = host->burstlen;
+	config->device_fc = false;
 
 	return dmaengine_slave_config(host->dma, config);
 }

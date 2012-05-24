@@ -1,5 +1,5 @@
 /*
- * drivers/net/ibm_newemac/mal.h
+ * drivers/net/ethernet/ibm/emac/mal.h
  *
  * Memory Access Layer (MAL) support
  *

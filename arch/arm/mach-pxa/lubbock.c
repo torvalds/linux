@@ -223,6 +223,7 @@ static struct resource sa1111_resources[] = {
 
 static struct sa1111_platform_data sa1111_info = {
 	.irq_base	= LUBBOCK_SA1111_IRQ_BASE,
+	.disable_devs	= SA1111_DEVID_SAC,
 };
 
 static struct platform_device sa1111_device = {

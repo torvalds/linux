@@ -12,6 +12,7 @@
  *
  */
 
+#include <asm/hw_irq.h>
 #include <asm/exception-64s.h>
 #include <asm/ptrace.h>
 
@@ -19,7 +20,7 @@
  * We layout physical memory as follows:
  * 0x0000 - 0x00ff : Secondary processor spin code
  * 0x0100 - 0x2fff : pSeries Interrupt prologs
- * 0x3000 - 0x5fff : interrupt support, iSeries and common interrupt prologs
+ * 0x3000 - 0x5fff : interrupt support common interrupt prologs
  * 0x6000 - 0x6fff : Initial (CPU0) segment table
  * 0x7000 - 0x7fff : FWNMI data area
  * 0x8000 -        : Early init and support code
@@ -100,14 +101,14 @@ data_access_not_stab:
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 #endif
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, data_access_common, EXC_STD,
-				 KVMTEST_PR, 0x300)
+				 KVMTEST, 0x300)
 
 	. = 0x380
 	.globl data_access_slb_pSeries
 data_access_slb_pSeries:
 	HMT_MEDIUM
 	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST_PR, 0x380)
+	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST, 0x380)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_DAR
 #ifdef __DISABLED__
@@ -329,8 +330,8 @@ do_stab_bolted_pSeries:
 	EXCEPTION_PROLOG_PSERIES_1(.do_stab_bolted, EXC_STD)
 #endif /* CONFIG_POWER4_ONLY */
 
-	KVM_HANDLER_PR_SKIP(PACA_EXGEN, EXC_STD, 0x300)
-	KVM_HANDLER_PR_SKIP(PACA_EXSLB, EXC_STD, 0x380)
+	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_STD, 0x300)
+	KVM_HANDLER_SKIP(PACA_EXSLB, EXC_STD, 0x380)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0x400)
 	KVM_HANDLER_PR(PACA_EXSLB, EXC_STD, 0x480)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0x900)
@@ -356,34 +357,60 @@ do_stab_bolted_pSeries:
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf40)
 
 /*
- * An interrupt came in while soft-disabled; clear EE in SRR1,
- * clear paca->hard_enabled and return.
+ * An interrupt came in while soft-disabled. We set paca->irq_happened,
+ * then, if it was a decrementer interrupt, we bump the dec to max and
+ * and return, else we hard disable and return. This is called with
+ * r10 containing the value to OR to the paca field.
  */
-masked_interrupt:
-	stb	r10,PACAHARDIRQEN(r13)
-	mtcrf	0x80,r9
-	ld	r9,PACA_EXGEN+EX_R9(r13)
-	mfspr	r10,SPRN_SRR1
-	rldicl	r10,r10,48,1		/* clear MSR_EE */
-	rotldi	r10,r10,16
-	mtspr	SPRN_SRR1,r10
-	ld	r10,PACA_EXGEN+EX_R10(r13)
-	GET_SCRATCH0(r13)
-	rfid
+#define MASKED_INTERRUPT(_H)				\
+masked_##_H##interrupt:					\
+	std	r11,PACA_EXGEN+EX_R11(r13);		\
+	lbz	r11,PACAIRQHAPPENED(r13);		\
+	or	r11,r11,r10;				\
+	stb	r11,PACAIRQHAPPENED(r13);		\
+	andi.	r10,r10,PACA_IRQ_DEC;			\
+	beq	1f;					\
+	lis	r10,0x7fff;				\
+	ori	r10,r10,0xffff;				\
+	mtspr	SPRN_DEC,r10;				\
+	b	2f;					\
+1:	mfspr	r10,SPRN_##_H##SRR1;			\
+	rldicl	r10,r10,48,1; /* clear MSR_EE */	\
+	rotldi	r10,r10,16;				\
+	mtspr	SPRN_##_H##SRR1,r10;			\
+2:	mtcrf	0x80,r9;				\
+	ld	r9,PACA_EXGEN+EX_R9(r13);		\
+	ld	r10,PACA_EXGEN+EX_R10(r13);		\
+	ld	r11,PACA_EXGEN+EX_R11(r13);		\
+	GET_SCRATCH0(r13);				\
+	##_H##rfid;					\
 	b	.
+	
+	MASKED_INTERRUPT()
+	MASKED_INTERRUPT(H)
 
-masked_Hinterrupt:
-	stb	r10,PACAHARDIRQEN(r13)
-	mtcrf	0x80,r9
-	ld	r9,PACA_EXGEN+EX_R9(r13)
-	mfspr	r10,SPRN_HSRR1
-	rldicl	r10,r10,48,1		/* clear MSR_EE */
-	rotldi	r10,r10,16
-	mtspr	SPRN_HSRR1,r10
-	ld	r10,PACA_EXGEN+EX_R10(r13)
-	GET_SCRATCH0(r13)
-	hrfid
-	b	.
+/*
+ * Called from arch_local_irq_enable when an interrupt needs
+ * to be resent. r3 contains 0x500 or 0x900 to indicate which
+ * kind of interrupt. MSR:EE is already off. We generate a
+ * stackframe like if a real interrupt had happened.
+ *
+ * Note: While MSR:EE is off, we need to make sure that _MSR
+ * in the generated frame has EE set to 1 or the exception
+ * handler will not properly re-enable them.
+ */
+_GLOBAL(__replay_interrupt)
+	/* We are going to jump to the exception common code which
+	 * will retrieve various register values from the PACA which
+	 * we don't give a damn about, so we don't bother storing them.
+	 */
+	mfmsr	r12
+	mflr	r11
+	mfcr	r9
+	ori	r12,r12,MSR_EE
+	andi.	r3,r3,0x0800
+	bne	decrementer_common
+	b	hardware_interrupt_common
 
 #ifdef CONFIG_PPC_PSERIES
 /*
@@ -458,14 +485,15 @@ machine_check_common:
 	bl	.machine_check_exception
 	b	.ret_from_except
 
-	STD_EXCEPTION_COMMON_LITE(0x900, decrementer, .timer_interrupt)
+	STD_EXCEPTION_COMMON_ASYNC(0x500, hardware_interrupt, do_IRQ)
+	STD_EXCEPTION_COMMON_ASYNC(0x900, decrementer, .timer_interrupt)
 	STD_EXCEPTION_COMMON(0xa00, trap_0a, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xb00, trap_0b, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xd00, single_step, .single_step_exception)
 	STD_EXCEPTION_COMMON(0xe00, trap_0e, .unknown_exception)
         STD_EXCEPTION_COMMON(0xe40, emulation_assist, .program_check_exception)
         STD_EXCEPTION_COMMON(0xe60, hmi_exception, .unknown_exception)
-	STD_EXCEPTION_COMMON_IDLE(0xf00, performance_monitor, .performance_monitor_exception)
+	STD_EXCEPTION_COMMON_ASYNC(0xf00, performance_monitor, .performance_monitor_exception)
 	STD_EXCEPTION_COMMON(0x1300, instruction_breakpoint, .instruction_breakpoint_exception)
 #ifdef CONFIG_ALTIVEC
 	STD_EXCEPTION_COMMON(0x1700, altivec_assist, .altivec_assist_exception)
@@ -481,6 +509,9 @@ machine_check_common:
 	.align	7
 system_call_entry:
 	b	system_call_common
+
+ppc64_runlatch_on_trampoline:
+	b	.__ppc64_runlatch_on
 
 /*
  * Here we have detected that the kernel stack pointer is bad.
@@ -555,6 +586,8 @@ data_access_common:
 	mfspr	r10,SPRN_DSISR
 	stw	r10,PACA_EXGEN+EX_DSISR(r13)
 	EXCEPTION_PROLOG_COMMON(0x300, PACA_EXGEN)
+	DISABLE_INTS
+	ld	r12,_MSR(r1)
 	ld	r3,PACA_EXGEN+EX_DAR(r13)
 	lwz	r4,PACA_EXGEN+EX_DSISR(r13)
 	li	r5,0x300
@@ -569,6 +602,7 @@ h_data_storage_common:
         stw     r10,PACA_EXGEN+EX_DSISR(r13)
         EXCEPTION_PROLOG_COMMON(0xe00, PACA_EXGEN)
         bl      .save_nvgprs
+	DISABLE_INTS
         addi    r3,r1,STACK_FRAME_OVERHEAD
         bl      .unknown_exception
         b       .ret_from_except
@@ -577,6 +611,8 @@ h_data_storage_common:
 	.globl instruction_access_common
 instruction_access_common:
 	EXCEPTION_PROLOG_COMMON(0x400, PACA_EXGEN)
+	DISABLE_INTS
+	ld	r12,_MSR(r1)
 	ld	r3,_NIP(r1)
 	andis.	r4,r12,0x5820
 	li	r5,0x400
@@ -672,12 +708,6 @@ _GLOBAL(slb_miss_realmode)
 	ld	r10,PACA_EXSLB+EX_LR(r13)
 	ld	r3,PACA_EXSLB+EX_R3(r13)
 	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
-#ifdef CONFIG_PPC_ISERIES
-BEGIN_FW_FTR_SECTION
-	ld	r11,PACALPPACAPTR(r13)
-	ld	r11,LPPACASRR0(r11)		/* get SRR0 value */
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#endif /* CONFIG_PPC_ISERIES */
 
 	mtlr	r10
 
@@ -690,12 +720,6 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
 .machine	pop
 
-#ifdef CONFIG_PPC_ISERIES
-BEGIN_FW_FTR_SECTION
-	mtspr	SPRN_SRR0,r11
-	mtspr	SPRN_SRR1,r12
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#endif /* CONFIG_PPC_ISERIES */
 	ld	r9,PACA_EXSLB+EX_R9(r13)
 	ld	r10,PACA_EXSLB+EX_R10(r13)
 	ld	r11,PACA_EXSLB+EX_R11(r13)
@@ -704,13 +728,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 	rfid
 	b	.	/* prevent speculative execution */
 
-2:
-#ifdef CONFIG_PPC_ISERIES
-BEGIN_FW_FTR_SECTION
-	b	unrecov_slb
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#endif /* CONFIG_PPC_ISERIES */
-	mfspr	r11,SPRN_SRR0
+2:	mfspr	r11,SPRN_SRR0
 	ld	r10,PACAKBASE(r13)
 	LOAD_HANDLER(r10,unrecov_slb)
 	mtspr	SPRN_SRR0,r10
@@ -727,20 +745,6 @@ unrecov_slb:
 	bl	.unrecoverable_exception
 	b	1b
 
-	.align	7
-	.globl hardware_interrupt_common
-	.globl hardware_interrupt_entry
-hardware_interrupt_common:
-	EXCEPTION_PROLOG_COMMON(0x500, PACA_EXGEN)
-	FINISH_NAP
-hardware_interrupt_entry:
-	DISABLE_INTS
-BEGIN_FTR_SECTION
-	bl	.ppc64_runlatch_on
-END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.do_IRQ
-	b	.ret_from_except_lite
 
 #ifdef CONFIG_PPC_970_NAP
 power4_fixup_nap:
@@ -785,8 +789,8 @@ fp_unavailable_common:
 	EXCEPTION_PROLOG_COMMON(0x800, PACA_EXGEN)
 	bne	1f			/* if from user, just load it up */
 	bl	.save_nvgprs
+	DISABLE_INTS
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	ENABLE_INTS
 	bl	.kernel_fp_unavailable_exception
 	BUG_OPCODE
 1:	bl	.load_up_fpu
@@ -805,8 +809,8 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
 	bl	.save_nvgprs
+	DISABLE_INTS
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	ENABLE_INTS
 	bl	.altivec_unavailable_exception
 	b	.ret_from_except
 
@@ -816,79 +820,20 @@ vsx_unavailable_common:
 	EXCEPTION_PROLOG_COMMON(0xf40, PACA_EXGEN)
 #ifdef CONFIG_VSX
 BEGIN_FTR_SECTION
-	bne	.load_up_vsx
+	beq	1f
+	b	.load_up_vsx
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
 	bl	.save_nvgprs
+	DISABLE_INTS
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	ENABLE_INTS
 	bl	.vsx_unavailable_exception
 	b	.ret_from_except
 
 	.align	7
 	.globl	__end_handlers
 __end_handlers:
-
-/*
- * Return from an exception with minimal checks.
- * The caller is assumed to have done EXCEPTION_PROLOG_COMMON.
- * If interrupts have been enabled, or anything has been
- * done that might have changed the scheduling status of
- * any task or sent any task a signal, you should use
- * ret_from_except or ret_from_except_lite instead of this.
- */
-fast_exc_return_irq:			/* restores irq state too */
-	ld	r3,SOFTE(r1)
-	TRACE_AND_RESTORE_IRQ(r3);
-	ld	r12,_MSR(r1)
-	rldicl	r4,r12,49,63		/* get MSR_EE to LSB */
-	stb	r4,PACAHARDIRQEN(r13)	/* restore paca->hard_enabled */
-	b	1f
-
-	.globl	fast_exception_return
-fast_exception_return:
-	ld	r12,_MSR(r1)
-1:	ld	r11,_NIP(r1)
-	andi.	r3,r12,MSR_RI		/* check if RI is set */
-	beq-	unrecov_fer
-
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	andi.	r3,r12,MSR_PR
-	beq	2f
-	ACCOUNT_CPU_USER_EXIT(r3, r4)
-2:
-#endif
-
-	ld	r3,_CCR(r1)
-	ld	r4,_LINK(r1)
-	ld	r5,_CTR(r1)
-	ld	r6,_XER(r1)
-	mtcr	r3
-	mtlr	r4
-	mtctr	r5
-	mtxer	r6
-	REST_GPR(0, r1)
-	REST_8GPRS(2, r1)
-
-	mfmsr	r10
-	rldicl	r10,r10,48,1		/* clear EE */
-	rldicr	r10,r10,16,61		/* clear RI (LE is 0 already) */
-	mtmsrd	r10,1
-
-	mtspr	SPRN_SRR1,r12
-	mtspr	SPRN_SRR0,r11
-	REST_4GPRS(10, r1)
-	ld	r1,GPR1(r1)
-	rfid
-	b	.	/* prevent speculative execution */
-
-unrecov_fer:
-	bl	.save_nvgprs
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.unrecoverable_exception
-	b	1b
-
 
 /*
  * Hash table stuff
@@ -912,28 +857,6 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
 	andis.	r0,r0,NMI_MASK@h	/* (i.e. an irq when soft-disabled) */
 	bne	77f			/* then don't call hash_page now */
-
-	/*
-	 * On iSeries, we soft-disable interrupts here, then
-	 * hard-enable interrupts so that the hash_page code can spin on
-	 * the hash_table_lock without problems on a shared processor.
-	 */
-	DISABLE_INTS
-
-	/*
-	 * Currently, trace_hardirqs_off() will be called by DISABLE_INTS
-	 * and will clobber volatile registers when irq tracing is enabled
-	 * so we need to reload them. It may be possible to be smarter here
-	 * and move the irq tracing elsewhere but let's keep it simple for
-	 * now
-	 */
-#ifdef CONFIG_TRACE_IRQFLAGS
-	ld	r3,_DAR(r1)
-	ld	r4,_DSISR(r1)
-	ld	r5,_TRAP(r1)
-	ld	r12,_MSR(r1)
-	clrrdi	r5,r5,4
-#endif /* CONFIG_TRACE_IRQFLAGS */
 	/*
 	 * We need to set the _PAGE_USER bit if MSR_PR is set or if we are
 	 * accessing a userspace segment (even from the kernel). We assume
@@ -951,43 +874,31 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 	 * r4 contains the required access permissions
 	 * r5 contains the trap number
 	 *
-	 * at return r3 = 0 for success
+	 * at return r3 = 0 for success, 1 for page fault, negative for error
 	 */
 	bl	.hash_page		/* build HPTE if possible */
 	cmpdi	r3,0			/* see if hash_page succeeded */
 
-BEGIN_FW_FTR_SECTION
-	/*
-	 * If we had interrupts soft-enabled at the point where the
-	 * DSI/ISI occurred, and an interrupt came in during hash_page,
-	 * handle it now.
-	 * We jump to ret_from_except_lite rather than fast_exception_return
-	 * because ret_from_except_lite will check for and handle pending
-	 * interrupts if necessary.
-	 */
-	beq	13f
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-
-BEGIN_FW_FTR_SECTION
-	/*
-	 * Here we have interrupts hard-disabled, so it is sufficient
-	 * to restore paca->{soft,hard}_enable and get out.
-	 */
+	/* Success */
 	beq	fast_exc_return_irq	/* Return from exception on success */
-END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
 
-	/* For a hash failure, we don't bother re-enabling interrupts */
-	ble-	12f
+	/* Error */
+	blt-	13f
 
-	/*
-	 * hash_page couldn't handle it, set soft interrupt enable back
-	 * to what it was before the trap.  Note that .arch_local_irq_restore
-	 * handles any interrupts pending at this point.
-	 */
-	ld	r3,SOFTE(r1)
-	TRACE_AND_RESTORE_IRQ_PARTIAL(r3, 11f)
-	bl	.arch_local_irq_restore
-	b	11f
+/* Here we have a page fault that hash_page can't handle. */
+handle_page_fault:
+11:	ld	r4,_DAR(r1)
+	ld	r5,_DSISR(r1)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.do_page_fault
+	cmpdi	r3,0
+	beq+	12f
+	bl	.save_nvgprs
+	mr	r5,r3
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	lwz	r4,_DAR(r1)
+	bl	.bad_page_fault
+	b	.ret_from_except
 
 /* We have a data breakpoint exception - handle it */
 handle_dabr_fault:
@@ -996,30 +907,13 @@ handle_dabr_fault:
 	ld      r5,_DSISR(r1)
 	addi    r3,r1,STACK_FRAME_OVERHEAD
 	bl      .do_dabr
-	b       .ret_from_except_lite
+12:	b       .ret_from_except_lite
 
-/* Here we have a page fault that hash_page can't handle. */
-handle_page_fault:
-	ENABLE_INTS
-11:	ld	r4,_DAR(r1)
-	ld	r5,_DSISR(r1)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.do_page_fault
-	cmpdi	r3,0
-	beq+	13f
-	bl	.save_nvgprs
-	mr	r5,r3
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	lwz	r4,_DAR(r1)
-	bl	.bad_page_fault
-	b	.ret_from_except
-
-13:	b	.ret_from_except_lite
 
 /* We have a page fault that hash_page could handle but HV refused
  * the PTE insertion
  */
-12:	bl	.save_nvgprs
+13:	bl	.save_nvgprs
 	mr	r5,r3
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r4,_DAR(r1)
@@ -1141,51 +1035,19 @@ _GLOBAL(do_stab_bolted)
 	.= 0x7000
 	.globl fwnmi_data_area
 fwnmi_data_area:
-#endif /* defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV) */
 
-	/* iSeries does not use the FWNMI stuff, so it is safe to put
-	 * this here, even if we later allow kernels that will boot on
-	 * both pSeries and iSeries */
-#ifdef CONFIG_PPC_ISERIES
-        . = LPARMAP_PHYS
-	.globl xLparMap
-xLparMap:
-	.quad	HvEsidsToMap		/* xNumberEsids */
-	.quad	HvRangesToMap		/* xNumberRanges */
-	.quad	STAB0_PAGE		/* xSegmentTableOffs */
-	.zero	40			/* xRsvd */
-	/* xEsids (HvEsidsToMap entries of 2 quads) */
-	.quad	PAGE_OFFSET_ESID	/* xKernelEsid */
-	.quad	PAGE_OFFSET_VSID	/* xKernelVsid */
-	.quad	VMALLOC_START_ESID	/* xKernelEsid */
-	.quad	VMALLOC_START_VSID	/* xKernelVsid */
-	/* xRanges (HvRangesToMap entries of 3 quads) */
-	.quad	HvPagesToMap		/* xPages */
-	.quad	0			/* xOffset */
-	.quad	PAGE_OFFSET_VSID << (SID_SHIFT - HW_PAGE_SHIFT)	/* xVPN */
-
-#endif /* CONFIG_PPC_ISERIES */
-
-#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 	/* pseries and powernv need to keep the whole page from
 	 * 0x7000 to 0x8000 free for use by the firmware
 	 */
         . = 0x8000
 #endif /* defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV) */
 
-/*
- * Space for CPU0's segment table.
- *
- * On iSeries, the hypervisor must fill in at least one entry before
- * we get control (with relocate on).  The address is given to the hv
- * as a page number (see xLparMap above), so this must be at a
- * fixed address (the linker can't compute (u64)&initial_stab >>
- * PAGE_SHIFT).
- */
-	. = STAB0_OFFSET	/* 0x8000 */
+/* Space for CPU0's segment table */
+	.balign 4096
 	.globl initial_stab
 initial_stab:
 	.space	4096
+
 #ifdef CONFIG_PPC_POWERNV
 _GLOBAL(opal_mc_secondary_handler)
 	HMT_MEDIUM

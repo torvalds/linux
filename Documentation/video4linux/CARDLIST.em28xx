@@ -7,7 +7,7 @@
   6 -> Terratec Cinergy 200 USB                 (em2800)
   7 -> Leadtek Winfast USB II                   (em2800)        [0413:6023]
   8 -> Kworld USB2800                           (em2800)
-  9 -> Pinnacle Dazzle DVC 90/100/101/107 / Kaiser Baas Video to DVD maker  (em2820/em2840) [1b80:e302,1b80:e304,2304:0207,2304:021a]
+  9 -> Pinnacle Dazzle DVC 90/100/101/107 / Kaiser Baas Video to DVD maker  (em2820/em2840) [1b80:e302,1b80:e304,2304:0207,2304:021a,093b:a003]
  10 -> Hauppauge WinTV HVR 900                  (em2880)        [2040:6500]
  11 -> Terratec Hybrid XS                       (em2880)
  12 -> Kworld PVR TV 2800 RF                    (em2820/em2840)
@@ -61,7 +61,7 @@
  61 -> Pixelview PlayTV Box 4 USB 2.0           (em2820/em2840)
  62 -> Gadmei TVR200                            (em2820/em2840)
  63 -> Kaiomy TVnPC U2                          (em2860)        [eb1a:e303]
- 64 -> Easy Cap Capture DC-60                   (em2860)
+ 64 -> Easy Cap Capture DC-60                   (em2860)        [1b80:e309]
  65 -> IO-DATA GV-MVP/SZ                        (em2820/em2840) [04bb:0515]
  66 -> Empire dual TV                           (em2880)
  67 -> Terratec Grabby                          (em2860)        [0ccd:0096,0ccd:10AF]
@@ -76,7 +76,11 @@
  76 -> KWorld PlusTV 340U or UB435-Q (ATSC)     (em2870)        [1b80:a340]
  77 -> EM2874 Leadership ISDBT                  (em2874)
  78 -> PCTV nanoStick T2 290e                   (em28174)
- 79 -> Terratec Cinergy H5                      (em2884)        [0ccd:10a2,0ccd:10ad]
+ 79 -> Terratec Cinergy H5                      (em2884)        [0ccd:008e,0ccd:00ac,0ccd:10a2,0ccd:10ad]
  80 -> PCTV DVB-S2 Stick (460e)                 (em28174)
  81 -> Hauppauge WinTV HVR 930C                 (em2884)        [2040:1605]
  82 -> Terratec Cinergy HTC Stick               (em2884)        [0ccd:00b2]
+ 83 -> Honestech Vidbox NW03                    (em2860)        [eb1a:5006]
+ 84 -> MaxMedia UB425-TC                        (em2874)        [1b80:e425]
+ 85 -> PCTV QuatroStick (510e)                  (em2884)        [2304:0242]
+ 86 -> PCTV QuatroStick nano (520e)             (em2884)        [2013:0251]

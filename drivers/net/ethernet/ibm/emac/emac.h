@@ -1,5 +1,5 @@
 /*
- * drivers/net/ibm_newemac/emac.h
+ * drivers/net/ethernet/ibm/emac/emac.h
  *
  * Register definitions for PowerPC 4xx on-chip ethernet contoller
  *
@@ -212,6 +212,8 @@ struct emac_regs {
 #define EMAC4_RMR_RFAF_64_1024		0x00000006
 #define EMAC4_RMR_RFAF_128_2048		0x00000007
 #define EMAC4_RMR_BASE			EMAC4_RMR_RFAF_128_2048
+#define EMAC4_RMR_MJS_MASK              0x0001fff8
+#define EMAC4_RMR_MJS(s)                (((s) << 3) & EMAC4_RMR_MJS_MASK)
 
 /* EMACx_ISR & EMACx_ISER */
 #define EMAC4_ISR_TXPE			0x20000000

@@ -25,7 +25,6 @@
 
 #include <mach/hardware.h>
 #include <asm/leds.h>
-#include <asm/system.h>
 #include <asm/mach-types.h>
 
 #include <asm/hardware/clps7111.h>

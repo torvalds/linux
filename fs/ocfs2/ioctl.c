@@ -28,8 +28,6 @@
 #include "suballoc.h"
 #include "move_extents.h"
 
-#include <linux/ext2_fs.h>
-
 #define o2info_from_user(a, b)	\
 		copy_from_user(&(a), (b), sizeof(a))
 #define o2info_to_user(a, b)	\

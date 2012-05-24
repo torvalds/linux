@@ -2268,13 +2268,12 @@ static struct platform_driver omap_vout_driver = {
 	.driver = {
 		.name = VOUT_NAME,
 	},
-	.probe = omap_vout_probe,
 	.remove = omap_vout_remove,
 };
 
 static int __init omap_vout_init(void)
 {
-	if (platform_driver_register(&omap_vout_driver) != 0) {
+	if (platform_driver_probe(&omap_vout_driver, omap_vout_probe) != 0) {
 		printk(KERN_ERR VOUT_NAME ":Could not register Video driver\n");
 		return -EINVAL;
 	}

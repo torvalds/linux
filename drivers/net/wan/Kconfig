@@ -290,8 +290,8 @@ config FARSYNC
 	  Frame Relay or X.25/LAPB.
 
 	  If you want the module to be automatically loaded when the interface
-	  is referenced then you should add "alias hdlcX farsync" to
-	  /etc/modprobe.conf for each interface, where X is 0, 1, 2, ..., or
+	  is referenced then you should add "alias hdlcX farsync" to a file
+	  in /etc/modprobe.d/ for each interface, where X is 0, 1, 2, ..., or
 	  simply use "alias hdlc* farsync" to indicate all of them.
 
 	  To compile this driver as a module, choose M here: the

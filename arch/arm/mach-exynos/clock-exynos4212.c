@@ -1,7 +1,5 @@
 /*
- * linux/arch/arm/mach-exynos4/clock-exynos4212.c
- *
- * Copyright (c) 2011 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2011-2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * EXYNOS4212 - Clock support
@@ -28,22 +26,22 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
-#include <mach/exynos4-clock.h>
 
 #include "common.h"
+#include "clock-exynos4.h"
 
 #ifdef CONFIG_PM_SLEEP
 static struct sleep_save exynos4212_clock_save[] = {
-	SAVE_ITEM(S5P_CLKSRC_IMAGE),
-	SAVE_ITEM(S5P_CLKDIV_IMAGE),
-	SAVE_ITEM(S5P_CLKGATE_IP_IMAGE_4212),
-	SAVE_ITEM(S5P_CLKGATE_IP_PERIR_4212),
+	SAVE_ITEM(EXYNOS4_CLKSRC_IMAGE),
+	SAVE_ITEM(EXYNOS4_CLKDIV_IMAGE),
+	SAVE_ITEM(EXYNOS4212_CLKGATE_IP_IMAGE),
+	SAVE_ITEM(EXYNOS4212_CLKGATE_IP_PERIR),
 };
 #endif
 
 static struct clk *clk_src_mpll_user_list[] = {
 	[0] = &clk_fin_mpll,
-	[1] = &clk_mout_mpll.clk,
+	[1] = &exynos4_clk_mout_mpll.clk,
 };
 
 static struct clksrc_sources clk_src_mpll_user = {
@@ -56,7 +54,7 @@ static struct clksrc_clk clk_mout_mpll_user = {
 		.name		= "mout_mpll_user",
 	},
 	.sources	= &clk_src_mpll_user,
-	.reg_src	= { .reg = S5P_CLKSRC_CPU, .shift = 24, .size = 1 },
+	.reg_src	= { .reg = EXYNOS4_CLKSRC_CPU, .shift = 24, .size = 1 },
 };
 
 static struct clksrc_clk *sysclks[] = {
@@ -89,7 +87,7 @@ static void exynos4212_clock_resume(void)
 #define exynos4212_clock_resume NULL
 #endif
 
-struct syscore_ops exynos4212_clock_syscore_ops = {
+static struct syscore_ops exynos4212_clock_syscore_ops = {
 	.suspend	= exynos4212_clock_suspend,
 	.resume		= exynos4212_clock_resume,
 };
@@ -99,15 +97,15 @@ void __init exynos4212_register_clocks(void)
 	int ptr;
 
 	/* usbphy1 is removed */
-	clkset_group_list[4] = NULL;
+	exynos4_clkset_group_list[4] = NULL;
 
 	/* mout_mpll_user is used */
-	clkset_group_list[6] = &clk_mout_mpll_user.clk;
-	clkset_aclk_top_list[0] = &clk_mout_mpll_user.clk;
+	exynos4_clkset_group_list[6] = &clk_mout_mpll_user.clk;
+	exynos4_clkset_aclk_top_list[0] = &clk_mout_mpll_user.clk;
 
-	clk_mout_mpll.reg_src.reg = S5P_CLKSRC_DMC;
-	clk_mout_mpll.reg_src.shift = 12;
-	clk_mout_mpll.reg_src.size = 1;
+	exynos4_clk_mout_mpll.reg_src.reg = EXYNOS4_CLKSRC_DMC;
+	exynos4_clk_mout_mpll.reg_src.shift = 12;
+	exynos4_clk_mout_mpll.reg_src.size = 1;
 
 	for (ptr = 0; ptr < ARRAY_SIZE(sysclks); ptr++)
 		s3c_register_clksrc(sysclks[ptr], 1);

@@ -27,6 +27,8 @@ struct physmap_flash_info {
 	struct mtd_info		*mtd[MAX_RESOURCES];
 	struct mtd_info		*cmtd;
 	struct map_info		map[MAX_RESOURCES];
+	spinlock_t		vpp_lock;
+	int			vpp_refcnt;
 };
 
 static int physmap_flash_remove(struct platform_device *dev)
@@ -63,12 +65,26 @@ static void physmap_set_vpp(struct map_info *map, int state)
 {
 	struct platform_device *pdev;
 	struct physmap_flash_data *physmap_data;
+	struct physmap_flash_info *info;
+	unsigned long flags;
 
 	pdev = (struct platform_device *)map->map_priv_1;
 	physmap_data = pdev->dev.platform_data;
 
-	if (physmap_data->set_vpp)
-		physmap_data->set_vpp(pdev, state);
+	if (!physmap_data->set_vpp)
+		return;
+
+	info = platform_get_drvdata(pdev);
+
+	spin_lock_irqsave(&info->vpp_lock, flags);
+	if (state) {
+		if (++info->vpp_refcnt == 1)    /* first nested 'on' */
+			physmap_data->set_vpp(pdev, 1);
+	} else {
+		if (--info->vpp_refcnt == 0)    /* last nested 'off' */
+			physmap_data->set_vpp(pdev, 0);
+	}
+	spin_unlock_irqrestore(&info->vpp_lock, flags);
 }
 
 static const char *rom_probe_types[] = {
@@ -172,9 +188,11 @@ static int physmap_flash_probe(struct platform_device *dev)
 	if (err)
 		goto err_out;
 
+	spin_lock_init(&info->vpp_lock);
+
 	part_types = physmap_data->part_probe_types ? : part_probe_types;
 
-	mtd_device_parse_register(info->cmtd, part_types, 0,
+	mtd_device_parse_register(info->cmtd, part_types, NULL,
 				  physmap_data->parts, physmap_data->nr_parts);
 	return 0;
 

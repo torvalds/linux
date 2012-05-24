@@ -38,7 +38,6 @@
 #include <linux/serial.h>
 #include <linux/serial_reg.h>
 #include <linux/bitops.h>
-#include <asm/system.h>
 #include <asm/io.h>
 
 #include <pcmcia/cistpl.h>
@@ -83,9 +82,6 @@ typedef struct dtl1_info_t {
 
 
 static int dtl1_config(struct pcmcia_device *link);
-static void dtl1_release(struct pcmcia_device *link);
-
-static void dtl1_detach(struct pcmcia_device *p_dev);
 
 
 /* Transmit states  */
@@ -367,7 +363,7 @@ static int dtl1_hci_open(struct hci_dev *hdev)
 
 static int dtl1_hci_flush(struct hci_dev *hdev)
 {
-	dtl1_info_t *info = (dtl1_info_t *)(hdev->driver_data);
+	dtl1_info_t *info = hci_get_drvdata(hdev);
 
 	/* Drop TX queue */
 	skb_queue_purge(&(info->txq));
@@ -399,7 +395,7 @@ static int dtl1_hci_send_frame(struct sk_buff *skb)
 		return -ENODEV;
 	}
 
-	info = (dtl1_info_t *)(hdev->driver_data);
+	info = hci_get_drvdata(hdev);
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
@@ -442,11 +438,6 @@ static int dtl1_hci_send_frame(struct sk_buff *skb)
 }
 
 
-static void dtl1_hci_destruct(struct hci_dev *hdev)
-{
-}
-
-
 static int dtl1_hci_ioctl(struct hci_dev *hdev, unsigned int cmd,  unsigned long arg)
 {
 	return -ENOIOCTLCMD;
@@ -483,17 +474,14 @@ static int dtl1_open(dtl1_info_t *info)
 	info->hdev = hdev;
 
 	hdev->bus = HCI_PCCARD;
-	hdev->driver_data = info;
+	hci_set_drvdata(hdev, info);
 	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
 	hdev->open     = dtl1_hci_open;
 	hdev->close    = dtl1_hci_close;
 	hdev->flush    = dtl1_hci_flush;
 	hdev->send     = dtl1_hci_send_frame;
-	hdev->destruct = dtl1_hci_destruct;
 	hdev->ioctl    = dtl1_hci_ioctl;
-
-	hdev->owner = THIS_MODULE;
 
 	spin_lock_irqsave(&(info->lock), flags);
 
@@ -579,8 +567,8 @@ static void dtl1_detach(struct pcmcia_device *link)
 {
 	dtl1_info_t *info = link->priv;
 
-	dtl1_release(link);
-
+	dtl1_close(info);
+	pcmcia_disable_device(link);
 	kfree(info);
 }
 
@@ -619,20 +607,9 @@ static int dtl1_config(struct pcmcia_device *link)
 	return 0;
 
 failed:
-	dtl1_release(link);
+	dtl1_detach(link);
 	return -ENODEV;
 }
-
-
-static void dtl1_release(struct pcmcia_device *link)
-{
-	dtl1_info_t *info = link->priv;
-
-	dtl1_close(info);
-
-	pcmcia_disable_device(link);
-}
-
 
 static const struct pcmcia_device_id dtl1_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Nokia Mobile Phones", "DTL-1", 0xe1bfdd64, 0xe168480d),

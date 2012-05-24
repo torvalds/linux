@@ -38,10 +38,10 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
+#include <linux/fsl/mxs-dma.h>
 
 #include <mach/mxs.h>
 #include <mach/common.h>
-#include <mach/dma.h>
 #include <mach/mmc.h>
 
 #define DRIVER_NAME	"mxs-mmc"
@@ -305,7 +305,7 @@ static irqreturn_t mxs_mmc_irq_handler(int irq, void *dev_id)
 }
 
 static struct dma_async_tx_descriptor *mxs_mmc_prep_dma(
-	struct mxs_mmc_host *host, unsigned int append)
+	struct mxs_mmc_host *host, unsigned long flags)
 {
 	struct dma_async_tx_descriptor *desc;
 	struct mmc_data *data = host->data;
@@ -324,8 +324,8 @@ static struct dma_async_tx_descriptor *mxs_mmc_prep_dma(
 		sg_len = SSP_PIO_NUM;
 	}
 
-	desc = host->dmach->device->device_prep_slave_sg(host->dmach,
-				sgl, sg_len, host->slave_dirn, append);
+	desc = dmaengine_prep_slave_sg(host->dmach,
+				sgl, sg_len, host->slave_dirn, flags);
 	if (desc) {
 		desc->callback = mxs_mmc_dma_irq_callback;
 		desc->callback_param = host;
@@ -358,7 +358,7 @@ static void mxs_mmc_bc(struct mxs_mmc_host *host)
 	host->ssp_pio_words[2] = cmd1;
 	host->dma_dir = DMA_NONE;
 	host->slave_dirn = DMA_TRANS_NONE;
-	desc = mxs_mmc_prep_dma(host, 0);
+	desc = mxs_mmc_prep_dma(host, DMA_CTRL_ACK);
 	if (!desc)
 		goto out;
 
@@ -398,7 +398,7 @@ static void mxs_mmc_ac(struct mxs_mmc_host *host)
 	host->ssp_pio_words[2] = cmd1;
 	host->dma_dir = DMA_NONE;
 	host->slave_dirn = DMA_TRANS_NONE;
-	desc = mxs_mmc_prep_dma(host, 0);
+	desc = mxs_mmc_prep_dma(host, DMA_CTRL_ACK);
 	if (!desc)
 		goto out;
 
@@ -526,7 +526,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 	host->data = data;
 	host->dma_dir = dma_data_dir;
 	host->slave_dirn = slave_dirn;
-	desc = mxs_mmc_prep_dma(host, 1);
+	desc = mxs_mmc_prep_dma(host, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
 		goto out;
 

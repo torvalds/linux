@@ -51,6 +51,7 @@
 #define _COMPONENT          ACPI_HARDWARE
 ACPI_MODULE_NAME("hwregs")
 
+#if (!ACPI_REDUCED_HARDWARE)
 /* Local Prototypes */
 static acpi_status
 acpi_hw_read_multiple(u32 *value,
@@ -61,6 +62,8 @@ static acpi_status
 acpi_hw_write_multiple(u32 value,
 		       struct acpi_generic_address *register_a,
 		       struct acpi_generic_address *register_b);
+
+#endif				/* !ACPI_REDUCED_HARDWARE */
 
 /******************************************************************************
  *
@@ -154,6 +157,7 @@ acpi_hw_validate_register(struct acpi_generic_address *reg,
 acpi_status acpi_hw_read(u32 *value, struct acpi_generic_address *reg)
 {
 	u64 address;
+	u64 value64;
 	acpi_status status;
 
 	ACPI_FUNCTION_NAME(hw_read);
@@ -175,7 +179,9 @@ acpi_status acpi_hw_read(u32 *value, struct acpi_generic_address *reg)
 	 */
 	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
 		status = acpi_os_read_memory((acpi_physical_address)
-					     address, value, reg->bit_width);
+					     address, &value64, reg->bit_width);
+
+		*value = (u32)value64;
 	} else {		/* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
 
 		status = acpi_hw_read_port((acpi_io_address)
@@ -225,7 +231,8 @@ acpi_status acpi_hw_write(u32 value, struct acpi_generic_address *reg)
 	 */
 	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
 		status = acpi_os_write_memory((acpi_physical_address)
-					      address, value, reg->bit_width);
+					      address, (u64)value,
+					      reg->bit_width);
 	} else {		/* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
 
 		status = acpi_hw_write_port((acpi_io_address)
@@ -240,6 +247,7 @@ acpi_status acpi_hw_write(u32 value, struct acpi_generic_address *reg)
 	return (status);
 }
 
+#if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_hw_clear_acpi_status
@@ -285,7 +293,7 @@ exit:
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_hw_get_register_bit_mask
+ * FUNCTION:    acpi_hw_get_bit_register_info
  *
  * PARAMETERS:  register_id         - Index of ACPI Register to access
  *
@@ -658,3 +666,5 @@ acpi_hw_write_multiple(u32 value,
 
 	return (status);
 }
+
+#endif				/* !ACPI_REDUCED_HARDWARE */

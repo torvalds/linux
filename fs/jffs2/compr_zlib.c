@@ -14,6 +14,8 @@
 #error "The userspace support got too messy and was removed. Update your mkfs.jffs2"
 #endif
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/zlib.h>
 #include <linux/zutil.h>
@@ -42,18 +44,18 @@ static int __init alloc_workspaces(void)
 {
 	def_strm.workspace = vmalloc(zlib_deflate_workspacesize(MAX_WBITS,
 							MAX_MEM_LEVEL));
-	if (!def_strm.workspace) {
-		printk(KERN_WARNING "Failed to allocate %d bytes for deflate workspace\n", zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL));
+	if (!def_strm.workspace)
 		return -ENOMEM;
-	}
-	D1(printk(KERN_DEBUG "Allocated %d bytes for deflate workspace\n", zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL)));
+
+	jffs2_dbg(1, "Allocated %d bytes for deflate workspace\n",
+		  zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL));
 	inf_strm.workspace = vmalloc(zlib_inflate_workspacesize());
 	if (!inf_strm.workspace) {
-		printk(KERN_WARNING "Failed to allocate %d bytes for inflate workspace\n", zlib_inflate_workspacesize());
 		vfree(def_strm.workspace);
 		return -ENOMEM;
 	}
-	D1(printk(KERN_DEBUG "Allocated %d bytes for inflate workspace\n", zlib_inflate_workspacesize()));
+	jffs2_dbg(1, "Allocated %d bytes for inflate workspace\n",
+		  zlib_inflate_workspacesize());
 	return 0;
 }
 
@@ -79,7 +81,7 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 	mutex_lock(&deflate_mutex);
 
 	if (Z_OK != zlib_deflateInit(&def_strm, 3)) {
-		printk(KERN_WARNING "deflateInit failed\n");
+		pr_warn("deflateInit failed\n");
 		mutex_unlock(&deflate_mutex);
 		return -1;
 	}
@@ -93,13 +95,14 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 	while (def_strm.total_out < *dstlen - STREAM_END_SPACE && def_strm.total_in < *sourcelen) {
 		def_strm.avail_out = *dstlen - (def_strm.total_out + STREAM_END_SPACE);
 		def_strm.avail_in = min((unsigned)(*sourcelen-def_strm.total_in), def_strm.avail_out);
-		D1(printk(KERN_DEBUG "calling deflate with avail_in %d, avail_out %d\n",
-			  def_strm.avail_in, def_strm.avail_out));
+		jffs2_dbg(1, "calling deflate with avail_in %d, avail_out %d\n",
+			  def_strm.avail_in, def_strm.avail_out);
 		ret = zlib_deflate(&def_strm, Z_PARTIAL_FLUSH);
-		D1(printk(KERN_DEBUG "deflate returned with avail_in %d, avail_out %d, total_in %ld, total_out %ld\n",
-			  def_strm.avail_in, def_strm.avail_out, def_strm.total_in, def_strm.total_out));
+		jffs2_dbg(1, "deflate returned with avail_in %d, avail_out %d, total_in %ld, total_out %ld\n",
+			  def_strm.avail_in, def_strm.avail_out,
+			  def_strm.total_in, def_strm.total_out);
 		if (ret != Z_OK) {
-			D1(printk(KERN_DEBUG "deflate in loop returned %d\n", ret));
+			jffs2_dbg(1, "deflate in loop returned %d\n", ret);
 			zlib_deflateEnd(&def_strm);
 			mutex_unlock(&deflate_mutex);
 			return -1;
@@ -111,20 +114,20 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 	zlib_deflateEnd(&def_strm);
 
 	if (ret != Z_STREAM_END) {
-		D1(printk(KERN_DEBUG "final deflate returned %d\n", ret));
+		jffs2_dbg(1, "final deflate returned %d\n", ret);
 		ret = -1;
 		goto out;
 	}
 
 	if (def_strm.total_out >= def_strm.total_in) {
-		D1(printk(KERN_DEBUG "zlib compressed %ld bytes into %ld; failing\n",
-			  def_strm.total_in, def_strm.total_out));
+		jffs2_dbg(1, "zlib compressed %ld bytes into %ld; failing\n",
+			  def_strm.total_in, def_strm.total_out);
 		ret = -1;
 		goto out;
 	}
 
-	D1(printk(KERN_DEBUG "zlib compressed %ld bytes into %ld\n",
-		  def_strm.total_in, def_strm.total_out));
+	jffs2_dbg(1, "zlib compressed %ld bytes into %ld\n",
+		  def_strm.total_in, def_strm.total_out);
 
 	*dstlen = def_strm.total_out;
 	*sourcelen = def_strm.total_in;
@@ -157,18 +160,18 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 	    ((data_in[0] & 0x0f) == Z_DEFLATED) &&
 	    !(((data_in[0]<<8) + data_in[1]) % 31)) {
 
-		D2(printk(KERN_DEBUG "inflate skipping adler32\n"));
+		jffs2_dbg(2, "inflate skipping adler32\n");
 		wbits = -((data_in[0] >> 4) + 8);
 		inf_strm.next_in += 2;
 		inf_strm.avail_in -= 2;
 	} else {
 		/* Let this remain D1 for now -- it should never happen */
-		D1(printk(KERN_DEBUG "inflate not skipping adler32\n"));
+		jffs2_dbg(1, "inflate not skipping adler32\n");
 	}
 
 
 	if (Z_OK != zlib_inflateInit2(&inf_strm, wbits)) {
-		printk(KERN_WARNING "inflateInit failed\n");
+		pr_warn("inflateInit failed\n");
 		mutex_unlock(&inflate_mutex);
 		return 1;
 	}
@@ -176,7 +179,7 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 	while((ret = zlib_inflate(&inf_strm, Z_FINISH)) == Z_OK)
 		;
 	if (ret != Z_STREAM_END) {
-		printk(KERN_NOTICE "inflate returned %d\n", ret);
+		pr_notice("inflate returned %d\n", ret);
 	}
 	zlib_inflateEnd(&inf_strm);
 	mutex_unlock(&inflate_mutex);

@@ -18,6 +18,7 @@
 #include <linux/kmemcheck.h>
 #include <linux/compiler.h>
 #include <linux/time.h>
+#include <linux/bug.h>
 #include <linux/cache.h>
 
 #include <linux/atomic.h>
@@ -93,6 +94,13 @@
  *			  way by an unknown reason. Though, see comment above
  *			  about CHECKSUM_UNNECESSARY. 8)
  *	NETIF_F_IPV6_CSUM about as dumb as the last one but does IPv6 instead.
+ *
+ *	UNNECESSARY: device will do per protocol specific csum. Protocol drivers
+ *	that do not want net to perform the checksum calculation should use
+ *	this flag in their outgoing skbs.
+ *	NETIF_F_FCOE_CRC  this indicates the device can do FCoE FC CRC
+ *			  offload. Correspondingly, the FCoE protocol driver
+ *			  stack should use CHECKSUM_UNNECESSARY.
  *
  *	Any questions? No questions, good. 		--ANK
  */
@@ -361,6 +369,7 @@ typedef unsigned char *sk_buff_data_t;
  *		ports.
  *	@wifi_acked_valid: wifi_acked was set
  *	@wifi_acked: whether frame was acked on wifi or not
+ *	@no_fcs:  Request NIC to treat last 4 bytes as Ethernet FCS
  *	@dma_cookie: a cookie to one of several possible DMA operations
  *		done by skb DMA functions
  *	@secmark: security marking
@@ -438,14 +447,17 @@ struct sk_buff {
 #endif
 
 	int			skb_iif;
+
+	__u32			rxhash;
+
+	__u16			vlan_tci;
+
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
 #ifdef CONFIG_NET_CLS_ACT
 	__u16			tc_verd;	/* traffic control verdict */
 #endif
 #endif
-
-	__u32			rxhash;
 
 	__u16			queue_mapping;
 	kmemcheck_bitfield_begin(flags2);
@@ -456,7 +468,8 @@ struct sk_buff {
 	__u8			l4_rxhash:1;
 	__u8			wifi_acked_valid:1;
 	__u8			wifi_acked:1;
-	/* 10/12 bit hole (depending on ndisc_nodetype presence) */
+	__u8			no_fcs:1;
+	/* 9/11 bit hole (depending on ndisc_nodetype presence) */
 	kmemcheck_bitfield_end(flags2);
 
 #ifdef CONFIG_NET_DMA
@@ -468,9 +481,8 @@ struct sk_buff {
 	union {
 		__u32		mark;
 		__u32		dropcount;
+		__u32		avail_size;
 	};
-
-	__u16			vlan_tci;
 
 	sk_buff_data_t		transport_header;
 	sk_buff_data_t		network_header;
@@ -490,7 +502,6 @@ struct sk_buff {
  */
 #include <linux/slab.h>
 
-#include <asm/system.h>
 
 /*
  * skb might have a dst pointer attached, refcounted or not.
@@ -876,6 +887,24 @@ static inline struct sk_buff *skb_peek(const struct sk_buff_head *list_)
 }
 
 /**
+ *	skb_peek_next - peek skb following the given one from a queue
+ *	@skb: skb to start from
+ *	@list_: list to peek at
+ *
+ *	Returns %NULL when the end of the list is met or a pointer to the
+ *	next element. The reference count is not incremented and the
+ *	reference is therefore volatile. Use with caution.
+ */
+static inline struct sk_buff *skb_peek_next(struct sk_buff *skb,
+		const struct sk_buff_head *list_)
+{
+	struct sk_buff *next = skb->next;
+	if (next == (struct sk_buff *)list_)
+		next = NULL;
+	return next;
+}
+
+/**
  *	skb_peek_tail - peek at the tail of an &sk_buff_head
  *	@list_: list to peek at
  *
@@ -1152,7 +1181,7 @@ static inline struct sk_buff *__skb_dequeue_tail(struct sk_buff_head *list)
 }
 
 
-static inline int skb_is_nonlinear(const struct sk_buff *skb)
+static inline bool skb_is_nonlinear(const struct sk_buff *skb)
 {
 	return skb->data_len;
 }
@@ -1216,7 +1245,7 @@ static inline void skb_fill_page_desc(struct sk_buff *skb, int i,
 }
 
 extern void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page,
-			    int off, int size);
+			    int off, int size, unsigned int truesize);
 
 #define SKB_PAGE_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->nr_frags)
 #define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_has_frag_list(skb))
@@ -1335,6 +1364,18 @@ static inline unsigned int skb_headroom(const struct sk_buff *skb)
 static inline int skb_tailroom(const struct sk_buff *skb)
 {
 	return skb_is_nonlinear(skb) ? 0 : skb->end - skb->tail;
+}
+
+/**
+ *	skb_availroom - bytes at buffer end
+ *	@skb: buffer to check
+ *
+ *	Return the number of bytes of free space at the tail of an sk_buff
+ *	allocated by sk_stream_alloc()
+ */
+static inline int skb_availroom(const struct sk_buff *skb)
+{
+	return skb_is_nonlinear(skb) ? 0 : skb->avail_size - skb->len;
 }
 
 /**
@@ -2055,7 +2096,7 @@ static inline void skb_frag_add_head(struct sk_buff *skb, struct sk_buff *frag)
 	for (iter = skb_shinfo(skb)->frag_list; iter; iter = iter->next)
 
 extern struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
-					   int *peeked, int *err);
+					   int *peeked, int *off, int *err);
 extern struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
 					 int noblock, int *err);
 extern unsigned int    datagram_poll(struct file *file, struct socket *sock,
@@ -2448,12 +2489,12 @@ static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
 }
 #endif
 
-static inline int skb_is_gso(const struct sk_buff *skb)
+static inline bool skb_is_gso(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->gso_size;
 }
 
-static inline int skb_is_gso_v6(const struct sk_buff *skb)
+static inline bool skb_is_gso_v6(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6;
 }

@@ -356,6 +356,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		/* txx9ndfmc_nand_scan will overwrite ecc.size and ecc.bytes */
 		chip->ecc.size = 256;
 		chip->ecc.bytes = 3;
+		chip->ecc.strength = 1;
 		chip->chip_delay = 100;
 		chip->controller = &drvdata->hw_control;
 
@@ -386,7 +387,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		}
 		mtd->name = txx9_priv->mtdname;
 
-		mtd_device_parse_register(mtd, NULL, 0, NULL, 0);
+		mtd_device_parse_register(mtd, NULL, NULL, NULL, 0);
 		drvdata->mtds[i] = mtd;
 	}
 

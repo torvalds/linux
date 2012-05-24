@@ -43,6 +43,13 @@
 #define NFSD4_MAX_TAGLEN	128
 #define XDR_LEN(n)                     (((n) + 3) & ~3)
 
+#define CURRENT_STATE_ID_FLAG (1<<0)
+#define SAVED_STATE_ID_FLAG (1<<1)
+
+#define SET_STATE_ID(c, f) ((c)->sid_flags |= (f))
+#define HAS_STATE_ID(c, f) ((c)->sid_flags & (f))
+#define CLEAR_STATE_ID(c, f) ((c)->sid_flags &= ~(f))
+
 struct nfsd4_compound_state {
 	struct svc_fh		current_fh;
 	struct svc_fh		save_fh;
@@ -54,6 +61,10 @@ struct nfsd4_compound_state {
 	size_t			iovlen;
 	u32			minorversion;
 	u32			status;
+	stateid_t	current_stateid;
+	stateid_t	save_stateid;
+	/* to indicate current and saved state id presents */
+	u32		sid_flags;
 };
 
 static inline bool nfsd4_has_session(struct nfsd4_compound_state *cs)
@@ -212,16 +223,19 @@ struct nfsd4_open {
 	struct xdr_netobj op_fname;	    /* request - everything but CLAIM_PREV */
 	u32		op_delegate_type;   /* request - CLAIM_PREV only */
 	stateid_t       op_delegate_stateid; /* request - response */
+	u32		op_why_no_deleg;    /* response - DELEG_NONE_EXT only */
 	u32		op_create;     	    /* request */
 	u32		op_createmode;      /* request */
 	u32		op_bmval[3];        /* request */
 	struct iattr	iattr;              /* UNCHECKED4, GUARDED4, EXCLUSIVE4_1 */
-	nfs4_verifier	verf;               /* EXCLUSIVE4 */
+	nfs4_verifier	op_verf __attribute__((aligned(32)));
+					    /* EXCLUSIVE4 */
 	clientid_t	op_clientid;        /* request */
 	struct xdr_netobj op_owner;           /* request */
 	u32		op_seqid;           /* request */
 	u32		op_share_access;    /* request */
 	u32		op_share_deny;      /* request */
+	u32		op_deleg_want;      /* request */
 	stateid_t	op_stateid;         /* response */
 	u32		op_recall;          /* recall */
 	struct nfsd4_change_info  op_cinfo; /* response */
@@ -234,7 +248,6 @@ struct nfsd4_open {
 	struct nfs4_acl *op_acl;
 };
 #define op_iattr	iattr
-#define op_verf		verf
 
 struct nfsd4_open_confirm {
 	stateid_t	oc_req_stateid		/* request */;
@@ -245,8 +258,9 @@ struct nfsd4_open_confirm {
 struct nfsd4_open_downgrade {
 	stateid_t       od_stateid;
 	u32             od_seqid;
-	u32             od_share_access;
-	u32             od_share_deny;
+	u32             od_share_access;	/* request */
+	u32		od_deleg_want;		/* request */
+	u32             od_share_deny;		/* request */
 };
 
 
@@ -343,10 +357,15 @@ struct nfsd4_saved_compoundargs {
 	struct page **pagelist;
 };
 
+struct nfsd4_test_stateid_id {
+	__be32			ts_id_status;
+	stateid_t		ts_id_stateid;
+	struct list_head	ts_id_list;
+};
+
 struct nfsd4_test_stateid {
 	__be32		ts_num_ids;
-	struct nfsd4_compoundargs *ts_saved_args;
-	struct nfsd4_saved_compoundargs ts_savedp;
+	struct list_head ts_stateid_list;
 };
 
 struct nfsd4_free_stateid {
@@ -503,7 +522,8 @@ static inline bool nfsd4_is_solo_sequence(struct nfsd4_compoundres *resp)
 
 static inline bool nfsd4_not_cached(struct nfsd4_compoundres *resp)
 {
-	return !resp->cstate.slot->sl_cachethis || nfsd4_is_solo_sequence(resp);
+	return !(resp->cstate.slot->sl_flags & NFSD4_SLOT_CACHETHIS)
+		|| nfsd4_is_solo_sequence(resp);
 }
 
 #define NFS4_SVC_XDRSIZE		sizeof(struct nfsd4_compoundargs)

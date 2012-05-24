@@ -207,8 +207,8 @@ enum atc_status {
  * @save_cfg: configuration register that is saved on suspend/resume cycle
  * @save_dscr: for cyclic operations, preserve next descriptor address in
  *             the cyclic list on suspend/resume cycle
+ * @dma_sconfig: configuration for slave transfers, passed via DMA_SLAVE_CONFIG
  * @lock: serializes enqueue/dequeue operations to descriptors lists
- * @completed_cookie: identifier for the most recently completed operation
  * @active_list: list of descriptors dmaengine is being running on
  * @queue: list of descriptors ready to be submitted to engine
  * @free_list: list of descriptors usable by the channel
@@ -223,11 +223,11 @@ struct at_dma_chan {
 	struct tasklet_struct	tasklet;
 	u32			save_cfg;
 	u32			save_dscr;
+	struct dma_slave_config dma_sconfig;
 
 	spinlock_t		lock;
 
 	/* these other elements are all protected by lock */
-	dma_cookie_t		completed_cookie;
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;
@@ -245,6 +245,36 @@ static inline struct at_dma_chan *to_at_dma_chan(struct dma_chan *dchan)
 	return container_of(dchan, struct at_dma_chan, chan_common);
 }
 
+/*
+ * Fix sconfig's burst size according to at_hdmac. We need to convert them as:
+ * 1 -> 0, 4 -> 1, 8 -> 2, 16 -> 3, 32 -> 4, 64 -> 5, 128 -> 6, 256 -> 7.
+ *
+ * This can be done by finding most significant bit set.
+ */
+static inline void convert_burst(u32 *maxburst)
+{
+	if (*maxburst > 1)
+		*maxburst = fls(*maxburst) - 2;
+	else
+		*maxburst = 0;
+}
+
+/*
+ * Fix sconfig's bus width according to at_hdmac.
+ * 1 byte -> 0, 2 bytes -> 1, 4 bytes -> 2.
+ */
+static inline u8 convert_buswidth(enum dma_slave_buswidth addr_width)
+{
+	switch (addr_width) {
+	case DMA_SLAVE_BUSWIDTH_2_BYTES:
+		return 1;
+	case DMA_SLAVE_BUSWIDTH_4_BYTES:
+		return 2;
+	default:
+		/* For 1 byte width or fallback */
+		return 0;
+	}
+}
 
 /*--  Controller  ------------------------------------------------------*/
 

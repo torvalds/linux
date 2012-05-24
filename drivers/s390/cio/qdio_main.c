@@ -18,6 +18,7 @@
 #include <linux/atomic.h>
 #include <asm/debug.h>
 #include <asm/qdio.h>
+#include <asm/ipl.h>
 
 #include "cio.h"
 #include "css.h"
@@ -167,7 +168,7 @@ again:
 	DBF_ERROR("%4x EQBS ERROR", SCH_NO(q));
 	DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
 	q->handler(q->irq_ptr->cdev, QDIO_ERROR_ACTIVATE_CHECK_CONDITION,
-		   0, -1, -1, q->irq_ptr->int_parm);
+		   q->nr, q->first_to_kick, count, q->irq_ptr->int_parm);
 	return 0;
 }
 
@@ -215,7 +216,7 @@ again:
 	DBF_ERROR("%4x SQBS ERROR", SCH_NO(q));
 	DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
 	q->handler(q->irq_ptr->cdev, QDIO_ERROR_ACTIVATE_CHECK_CONDITION,
-		   0, -1, -1, q->irq_ptr->int_parm);
+		   q->nr, q->first_to_kick, count, q->irq_ptr->int_parm);
 	return 0;
 }
 
@@ -1093,6 +1094,11 @@ static void qdio_handle_activate_check(struct ccw_device *cdev,
 		   q->nr, q->first_to_kick, count, irq_ptr->int_parm);
 no_handler:
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
+	/*
+	 * In case of z/VM LGR (Live Guest Migration) QDIO recovery will happen.
+	 * Therefore we call the LGR detection function here.
+	 */
+	lgr_info_log();
 }
 
 static void qdio_establish_handle_irq(struct ccw_device *cdev, int cstat,
@@ -1452,7 +1458,6 @@ int qdio_establish(struct qdio_initialize *init_data)
 	}
 
 	qdio_setup_ssqd_info(irq_ptr);
-	DBF_EVENT("qib ac:%4x", irq_ptr->qib.ac);
 
 	qdio_detect_hsicq(irq_ptr);
 

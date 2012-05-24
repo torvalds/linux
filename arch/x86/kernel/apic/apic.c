@@ -383,19 +383,24 @@ static inline int eilvt_entry_is_changeable(unsigned int old, unsigned int new)
 
 static unsigned int reserve_eilvt_offset(int offset, unsigned int new)
 {
-	unsigned int rsvd;			/* 0: uninitialized */
+	unsigned int rsvd, vector;
 
 	if (offset >= APIC_EILVT_NR_MAX)
 		return ~0;
 
-	rsvd = atomic_read(&eilvt_offsets[offset]) & ~APIC_EILVT_MASKED;
+	rsvd = atomic_read(&eilvt_offsets[offset]);
 	do {
-		if (rsvd &&
-		    !eilvt_entry_is_changeable(rsvd, new))
+		vector = rsvd & ~APIC_EILVT_MASKED;	/* 0: unassigned */
+		if (vector && !eilvt_entry_is_changeable(vector, new))
 			/* may not change if vectors are different */
 			return rsvd;
 		rsvd = atomic_cmpxchg(&eilvt_offsets[offset], rsvd, new);
 	} while (rsvd != new);
+
+	rsvd &= ~APIC_EILVT_MASKED;
+	if (rsvd && rsvd != vector)
+		pr_info("LVT offset %d assigned for vector 0x%02x\n",
+			offset, rsvd);
 
 	return new;
 }

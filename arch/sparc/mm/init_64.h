@@ -36,8 +36,6 @@ extern unsigned long kern_locked_tte_data;
 
 extern void prom_world(int enter);
 
-extern void free_initmem(void);
-
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 #define VMEMMAP_CHUNK_SHIFT	22
 #define VMEMMAP_CHUNK		(1UL << VMEMMAP_CHUNK_SHIFT)

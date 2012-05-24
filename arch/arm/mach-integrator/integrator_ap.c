@@ -38,12 +38,13 @@
 #include <mach/hardware.h>
 #include <mach/platform.h>
 #include <asm/hardware/arm_timer.h>
-#include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/param.h>		/* HZ */
 #include <asm/mach-types.h>
+#include <asm/sched_clock.h>
 
 #include <mach/lm.h>
+#include <mach/irqs.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
@@ -325,6 +326,11 @@ static void __init ap_init(void)
 
 static unsigned long timer_reload;
 
+static u32 notrace integrator_read_sched_clock(void)
+{
+	return -readl((void __iomem *) TIMER2_VA_BASE + TIMER_VALUE);
+}
+
 static void integrator_clocksource_init(unsigned long inrate)
 {
 	void __iomem *base = (void __iomem *)TIMER2_VA_BASE;
@@ -341,6 +347,7 @@ static void integrator_clocksource_init(unsigned long inrate)
 
 	clocksource_mmio_init(base + TIMER_VALUE, "timer2",
 			rate, 200, 16, clocksource_mmio_readl_down);
+	setup_sched_clock(integrator_read_sched_clock, 16, rate);
 }
 
 static void __iomem * const clkevt_base = (void __iomem *)TIMER1_VA_BASE;
@@ -468,6 +475,7 @@ MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	.atag_offset	= 0x100,
 	.reserve	= integrator_reserve,
 	.map_io		= ap_map_io,
+	.nr_irqs	= NR_IRQS_INTEGRATOR_AP,
 	.init_early	= integrator_init_early,
 	.init_irq	= ap_init_irq,
 	.timer		= &ap_timer,

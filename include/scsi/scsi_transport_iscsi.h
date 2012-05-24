@@ -144,6 +144,12 @@ struct iscsi_transport {
 				int param, char *buf);
 	umode_t (*attr_is_visible)(int param_type, int param);
 	int (*bsg_request)(struct bsg_job *job);
+	int (*send_ping) (struct Scsi_Host *shost, uint32_t iface_num,
+			  uint32_t iface_type, uint32_t payload_size,
+			  uint32_t pid, struct sockaddr *dst_addr);
+	int (*get_chap) (struct Scsi_Host *shost, uint16_t chap_tbl_idx,
+			 uint32_t *num_entries, char *buf);
+	int (*delete_chap) (struct Scsi_Host *shost, uint16_t chap_tbl_idx);
 };
 
 /*
@@ -165,6 +171,17 @@ extern int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 extern int iscsi_offload_mesg(struct Scsi_Host *shost,
 			      struct iscsi_transport *transport, uint32_t type,
 			      char *data, uint16_t data_size);
+
+extern void iscsi_post_host_event(uint32_t host_no,
+				  struct iscsi_transport *transport,
+				  enum iscsi_host_event_code code,
+				  uint32_t data_size,
+				  uint8_t *data);
+
+extern void iscsi_ping_comp_event(uint32_t host_no,
+				  struct iscsi_transport *transport,
+				  uint32_t status, uint32_t pid,
+				  uint32_t data_size, uint8_t *data);
 
 struct iscsi_cls_conn {
 	struct list_head conn_list;	/* item in connlist */
@@ -238,6 +255,8 @@ struct iscsi_cls_host {
 	atomic_t nr_scans;
 	struct mutex mutex;
 	struct request_queue *bsg_q;
+	uint32_t port_speed;
+	uint32_t port_state;
 };
 
 #define iscsi_job_to_shost(_job) \
@@ -307,5 +326,8 @@ extern struct iscsi_iface *iscsi_create_iface(struct Scsi_Host *shost,
 					      uint32_t iface_num, int dd_size);
 extern void iscsi_destroy_iface(struct iscsi_iface *iface);
 extern struct iscsi_iface *iscsi_lookup_iface(int handle);
+extern char *iscsi_get_port_speed_name(struct Scsi_Host *shost);
+extern char *iscsi_get_port_state_name(struct Scsi_Host *shost);
+extern int iscsi_is_session_dev(const struct device *dev);
 
 #endif

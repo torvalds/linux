@@ -27,6 +27,7 @@
 #include <asm/io.h>
 #include <asm/time.h>
 #include <asm/mpc6xx.h>
+#include <asm/switch_to.h>
 
 #include <sysdev/fsl_soc.h>
 

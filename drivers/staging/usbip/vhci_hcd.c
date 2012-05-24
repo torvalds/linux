@@ -386,29 +386,6 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				dum->port_status[rhport] |=
 					USB_PORT_STAT_ENABLE;
 			}
-#if 0
-			if (dum->driver) {
-				dum->port_status[rhport] |=
-					USB_PORT_STAT_ENABLE;
-				/* give it the best speed we agree on */
-				dum->gadget.speed = dum->driver->speed;
-				dum->gadget.ep0->maxpacket = 64;
-				switch (dum->gadget.speed) {
-				case USB_SPEED_HIGH:
-					dum->port_status[rhport] |=
-						USB_PORT_STAT_HIGH_SPEED;
-					break;
-				case USB_SPEED_LOW:
-					dum->gadget.ep0->maxpacket = 8;
-					dum->port_status[rhport] |=
-						USB_PORT_STAT_LOW_SPEED;
-					break;
-				default:
-					dum->gadget.speed = USB_SPEED_FULL;
-					break;
-				}
-			}
-#endif
 		}
 		((u16 *) buf)[0] = cpu_to_le16(dum->port_status[rhport]);
 		((u16 *) buf)[1] = cpu_to_le16(dum->port_status[rhport] >> 16);
@@ -425,15 +402,6 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_SUSPEND:
 			usbip_dbg_vhci_rh(" SetPortFeature: "
 					  "USB_PORT_FEAT_SUSPEND\n");
-#if 0
-			dum->port_status[rhport] |=
-				(1 << USB_PORT_FEAT_SUSPEND);
-			if (dum->driver->suspend) {
-				spin_unlock(&dum->lock);
-				dum->driver->suspend(&dum->gadget);
-				spin_lock(&dum->lock);
-			}
-#endif
 			break;
 		case USB_PORT_FEAT_RESET:
 			usbip_dbg_vhci_rh(" SetPortFeature: "
@@ -444,13 +412,6 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					~(USB_PORT_STAT_ENABLE |
 					  USB_PORT_STAT_LOW_SPEED |
 					  USB_PORT_STAT_HIGH_SPEED);
-#if 0
-				if (dum->driver) {
-					dev_dbg(hardware, "disconnect\n");
-					stop_activity(dum, dum->driver);
-				}
-#endif
-
 				/* FIXME test that code path! */
 			}
 			/* 50msec reset signaling */
@@ -934,14 +895,12 @@ static void vhci_device_init(struct vhci_device *vdev)
 
 	vdev->ud.side   = USBIP_VHCI;
 	vdev->ud.status = VDEV_ST_NULL;
-	/* vdev->ud.lock   = SPIN_LOCK_UNLOCKED; */
 	spin_lock_init(&vdev->ud.lock);
 
 	INIT_LIST_HEAD(&vdev->priv_rx);
 	INIT_LIST_HEAD(&vdev->priv_tx);
 	INIT_LIST_HEAD(&vdev->unlink_tx);
 	INIT_LIST_HEAD(&vdev->unlink_rx);
-	/* vdev->priv_lock = SPIN_LOCK_UNLOCKED; */
 	spin_lock_init(&vdev->priv_lock);
 
 	init_waitqueue_head(&vdev->waitq_tx);

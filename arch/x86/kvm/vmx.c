@@ -70,9 +70,6 @@ module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 static bool __read_mostly vmm_exclusive = 1;
 module_param(vmm_exclusive, bool, S_IRUGO);
 
-static bool __read_mostly yield_on_hlt = 1;
-module_param(yield_on_hlt, bool, S_IRUGO);
-
 static bool __read_mostly fasteoi = 1;
 module_param(fasteoi, bool, S_IRUGO);
 
@@ -1457,7 +1454,7 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 #ifdef CONFIG_X86_64
 	wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
 #endif
-	if (__thread_has_fpu(current))
+	if (user_has_fpu())
 		clts();
 	load_gdt(&__get_cpu_var(host_gdt));
 }
@@ -1655,17 +1652,6 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	vmx_set_interrupt_shadow(vcpu, 0);
 }
 
-static void vmx_clear_hlt(struct kvm_vcpu *vcpu)
-{
-	/* Ensure that we clear the HLT state in the VMCS.  We don't need to
-	 * explicitly skip the instruction because if the HLT state is set, then
-	 * the instruction is already executing and RIP has already been
-	 * advanced. */
-	if (!yield_on_hlt &&
-	    vmcs_read32(GUEST_ACTIVITY_STATE) == GUEST_ACTIVITY_HLT)
-		vmcs_write32(GUEST_ACTIVITY_STATE, GUEST_ACTIVITY_ACTIVE);
-}
-
 /*
  * KVM wants to inject page-faults which it got to the guest. This function
  * checks whether in a nested guest, we need to inject them to L1 or L2.
@@ -1678,7 +1664,7 @@ static int nested_pf_handled(struct kvm_vcpu *vcpu)
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 
 	/* TODO: also check PFEC_MATCH/MASK, not just EB.PF. */
-	if (!(vmcs12->exception_bitmap & PF_VECTOR))
+	if (!(vmcs12->exception_bitmap & (1u << PF_VECTOR)))
 		return 0;
 
 	nested_vmx_vmexit(vcpu);
@@ -1718,7 +1704,6 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 		intr_info |= INTR_TYPE_HARD_EXCEPTION;
 
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr_info);
-	vmx_clear_hlt(vcpu);
 }
 
 static bool vmx_rdtscp_supported(void)
@@ -1817,13 +1802,19 @@ u64 vmx_read_l1_tsc(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Empty call-back. Needs to be implemented when VMX enables the SET_TSC_KHZ
- * ioctl. In this case the call-back should update internal vmx state to make
- * the changes effective.
+ * Engage any workarounds for mis-matched TSC rates.  Currently limited to
+ * software catchup for faster rates on slower CPUs.
  */
-static void vmx_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz)
+static void vmx_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz, bool scale)
 {
-	/* Nothing to do here */
+	if (!scale)
+		return;
+
+	if (user_tsc_khz > tsc_khz) {
+		vcpu->arch.tsc_catchup = 1;
+		vcpu->arch.tsc_always_catchup = 1;
+	} else
+		WARN(1, "user requested TSC rate below hardware speed\n");
 }
 
 /*
@@ -1850,7 +1841,7 @@ static void vmx_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 	}
 }
 
-static void vmx_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
+static void vmx_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool host)
 {
 	u64 offset = vmcs_read64(TSC_OFFSET);
 	vmcs_write64(TSC_OFFSET, offset + adjustment);
@@ -2219,6 +2210,12 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		msr = find_msr_entry(vmx, msr_index);
 		if (msr) {
 			msr->data = data;
+			if (msr - vmx->guest_msrs < vmx->save_nmsrs) {
+				preempt_disable();
+				kvm_set_shared_msr(msr->index, msr->data,
+						   msr->mask);
+				preempt_enable();
+			}
 			break;
 		}
 		ret = kvm_set_msr_common(vcpu, msr_index, data);
@@ -2399,7 +2396,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 				&_pin_based_exec_control) < 0)
 		return -EIO;
 
-	min =
+	min = CPU_BASED_HLT_EXITING |
 #ifdef CONFIG_X86_64
 	      CPU_BASED_CR8_LOAD_EXITING |
 	      CPU_BASED_CR8_STORE_EXITING |
@@ -2413,9 +2410,6 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	      CPU_BASED_MONITOR_EXITING |
 	      CPU_BASED_INVLPG_EXITING |
 	      CPU_BASED_RDPMC_EXITING;
-
-	if (yield_on_hlt)
-		min |= CPU_BASED_HLT_EXITING;
 
 	opt = CPU_BASED_TPR_SHADOW |
 	      CPU_BASED_USE_MSR_BITMAPS |
@@ -3915,7 +3909,9 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->vpid);
 
 	vmx->vcpu.arch.cr0 = X86_CR0_NW | X86_CR0_CD | X86_CR0_ET;
+	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 	vmx_set_cr0(&vmx->vcpu, kvm_read_cr0(vcpu)); /* enter rmode */
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	vmx_set_cr4(&vmx->vcpu, 0);
 	vmx_set_efer(&vmx->vcpu, 0);
 	vmx_fpu_activate(&vmx->vcpu);
@@ -4003,7 +3999,6 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu)
 	} else
 		intr |= INTR_TYPE_EXT_INTR;
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr);
-	vmx_clear_hlt(vcpu);
 }
 
 static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
@@ -4035,7 +4030,6 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 	}
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
 			INTR_TYPE_NMI_INTR | INTR_INFO_VALID_MASK | NMI_VECTOR);
-	vmx_clear_hlt(vcpu);
 }
 
 static int vmx_nmi_allowed(struct kvm_vcpu *vcpu)
@@ -4672,9 +4666,10 @@ static int handle_task_switch(struct kvm_vcpu *vcpu)
 	bool has_error_code = false;
 	u32 error_code = 0;
 	u16 tss_selector;
-	int reason, type, idt_v;
+	int reason, type, idt_v, idt_index;
 
 	idt_v = (vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK);
+	idt_index = (vmx->idt_vectoring_info & VECTORING_INFO_VECTOR_MASK);
 	type = (vmx->idt_vectoring_info & VECTORING_INFO_TYPE_MASK);
 
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
@@ -4712,8 +4707,9 @@ static int handle_task_switch(struct kvm_vcpu *vcpu)
 		       type != INTR_TYPE_NMI_INTR))
 		skip_emulated_instruction(vcpu);
 
-	if (kvm_task_switch(vcpu, tss_selector, reason,
-				has_error_code, error_code) == EMULATE_FAIL) {
+	if (kvm_task_switch(vcpu, tss_selector,
+			    type == INTR_TYPE_SOFT_INTR ? idt_index : -1, reason,
+			    has_error_code, error_code) == EMULATE_FAIL) {
 		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
 		vcpu->run->internal.ndata = 0;

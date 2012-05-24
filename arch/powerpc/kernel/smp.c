@@ -43,12 +43,12 @@
 #include <asm/machdep.h>
 #include <asm/cputhreads.h>
 #include <asm/cputable.h>
-#include <asm/system.h>
 #include <asm/mpic.h>
 #include <asm/vdso_datapage.h>
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #endif
+#include <asm/debug.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>

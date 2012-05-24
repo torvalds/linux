@@ -268,7 +268,7 @@ struct iscsi_session {
 	int			lu_reset_timeout;
 	int			tgt_reset_timeout;
 	int			initial_r2t_en;
-	unsigned		max_r2t;
+	unsigned short		max_r2t;
 	int			imm_data_en;
 	unsigned		first_burst;
 	unsigned		max_burst;
@@ -284,6 +284,7 @@ struct iscsi_session {
 	char			*password;
 	char			*password_in;
 	char			*targetname;
+	char			*targetalias;
 	char			*ifacename;
 	char			*initiatorname;
 	/* control data */

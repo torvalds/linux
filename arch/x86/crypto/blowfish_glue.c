@@ -25,6 +25,7 @@
  *
  */
 
+#include <asm/processor.h>
 #include <crypto/blowfish.h>
 #include <linux/crypto.h>
 #include <linux/init.h>
@@ -75,27 +76,6 @@ static void blowfish_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	blowfish_dec_blk(crypto_tfm_ctx(tfm), dst, src);
 }
-
-static struct crypto_alg bf_alg = {
-	.cra_name		=	"blowfish",
-	.cra_driver_name	=	"blowfish-asm",
-	.cra_priority		=	200,
-	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
-	.cra_blocksize		=	BF_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct bf_ctx),
-	.cra_alignmask		=	3,
-	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(bf_alg.cra_list),
-	.cra_u			=	{
-		.cipher = {
-			.cia_min_keysize	=	BF_MIN_KEY_SIZE,
-			.cia_max_keysize	=	BF_MAX_KEY_SIZE,
-			.cia_setkey		=	blowfish_setkey,
-			.cia_encrypt		=	blowfish_encrypt,
-			.cia_decrypt		=	blowfish_decrypt,
-		}
-	}
-};
 
 static int ecb_crypt(struct blkcipher_desc *desc, struct blkcipher_walk *walk,
 		     void (*fn)(struct bf_ctx *, u8 *, const u8 *),
@@ -159,28 +139,6 @@ static int ecb_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	return ecb_crypt(desc, &walk, blowfish_dec_blk, blowfish_dec_blk_4way);
 }
-
-static struct crypto_alg blk_ecb_alg = {
-	.cra_name		= "ecb(blowfish)",
-	.cra_driver_name	= "ecb-blowfish-asm",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		= BF_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct bf_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(blk_ecb_alg.cra_list),
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= BF_MIN_KEY_SIZE,
-			.max_keysize	= BF_MAX_KEY_SIZE,
-			.setkey		= blowfish_setkey,
-			.encrypt	= ecb_encrypt,
-			.decrypt	= ecb_decrypt,
-		},
-	},
-};
 
 static unsigned int __cbc_encrypt(struct blkcipher_desc *desc,
 				  struct blkcipher_walk *walk)
@@ -307,29 +265,6 @@ static int cbc_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	return err;
 }
 
-static struct crypto_alg blk_cbc_alg = {
-	.cra_name		= "cbc(blowfish)",
-	.cra_driver_name	= "cbc-blowfish-asm",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		= BF_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct bf_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(blk_cbc_alg.cra_list),
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= BF_MIN_KEY_SIZE,
-			.max_keysize	= BF_MAX_KEY_SIZE,
-			.ivsize		= BF_BLOCK_SIZE,
-			.setkey		= blowfish_setkey,
-			.encrypt	= cbc_encrypt,
-			.decrypt	= cbc_decrypt,
-		},
-	},
-};
-
 static void ctr_crypt_final(struct bf_ctx *ctx, struct blkcipher_walk *walk)
 {
 	u8 *ctrblk = walk->iv;
@@ -423,7 +358,67 @@ static int ctr_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	return err;
 }
 
-static struct crypto_alg blk_ctr_alg = {
+static struct crypto_alg bf_algs[4] = { {
+	.cra_name		= "blowfish",
+	.cra_driver_name	= "blowfish-asm",
+	.cra_priority		= 200,
+	.cra_flags		= CRYPTO_ALG_TYPE_CIPHER,
+	.cra_blocksize		= BF_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct bf_ctx),
+	.cra_alignmask		= 0,
+	.cra_module		= THIS_MODULE,
+	.cra_list		= LIST_HEAD_INIT(bf_algs[0].cra_list),
+	.cra_u = {
+		.cipher = {
+			.cia_min_keysize	= BF_MIN_KEY_SIZE,
+			.cia_max_keysize	= BF_MAX_KEY_SIZE,
+			.cia_setkey		= blowfish_setkey,
+			.cia_encrypt		= blowfish_encrypt,
+			.cia_decrypt		= blowfish_decrypt,
+		}
+	}
+}, {
+	.cra_name		= "ecb(blowfish)",
+	.cra_driver_name	= "ecb-blowfish-asm",
+	.cra_priority		= 300,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_blocksize		= BF_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct bf_ctx),
+	.cra_alignmask		= 0,
+	.cra_type		= &crypto_blkcipher_type,
+	.cra_module		= THIS_MODULE,
+	.cra_list		= LIST_HEAD_INIT(bf_algs[1].cra_list),
+	.cra_u = {
+		.blkcipher = {
+			.min_keysize	= BF_MIN_KEY_SIZE,
+			.max_keysize	= BF_MAX_KEY_SIZE,
+			.setkey		= blowfish_setkey,
+			.encrypt	= ecb_encrypt,
+			.decrypt	= ecb_decrypt,
+		},
+	},
+}, {
+	.cra_name		= "cbc(blowfish)",
+	.cra_driver_name	= "cbc-blowfish-asm",
+	.cra_priority		= 300,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_blocksize		= BF_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct bf_ctx),
+	.cra_alignmask		= 0,
+	.cra_type		= &crypto_blkcipher_type,
+	.cra_module		= THIS_MODULE,
+	.cra_list		= LIST_HEAD_INIT(bf_algs[2].cra_list),
+	.cra_u = {
+		.blkcipher = {
+			.min_keysize	= BF_MIN_KEY_SIZE,
+			.max_keysize	= BF_MAX_KEY_SIZE,
+			.ivsize		= BF_BLOCK_SIZE,
+			.setkey		= blowfish_setkey,
+			.encrypt	= cbc_encrypt,
+			.decrypt	= cbc_decrypt,
+		},
+	},
+}, {
 	.cra_name		= "ctr(blowfish)",
 	.cra_driver_name	= "ctr-blowfish-asm",
 	.cra_priority		= 300,
@@ -433,7 +428,7 @@ static struct crypto_alg blk_ctr_alg = {
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_blkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(blk_ctr_alg.cra_list),
+	.cra_list		= LIST_HEAD_INIT(bf_algs[3].cra_list),
 	.cra_u = {
 		.blkcipher = {
 			.min_keysize	= BF_MIN_KEY_SIZE,
@@ -444,43 +439,45 @@ static struct crypto_alg blk_ctr_alg = {
 			.decrypt	= ctr_crypt,
 		},
 	},
-};
+} };
+
+static bool is_blacklisted_cpu(void)
+{
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return false;
+
+	if (boot_cpu_data.x86 == 0x0f) {
+		/*
+		 * On Pentium 4, blowfish-x86_64 is slower than generic C
+		 * implementation because use of 64bit rotates (which are really
+		 * slow on P4). Therefore blacklist P4s.
+		 */
+		return true;
+	}
+
+	return false;
+}
+
+static int force;
+module_param(force, int, 0);
+MODULE_PARM_DESC(force, "Force module load, ignore CPU blacklist");
 
 static int __init init(void)
 {
-	int err;
+	if (!force && is_blacklisted_cpu()) {
+		printk(KERN_INFO
+			"blowfish-x86_64: performance on this CPU "
+			"would be suboptimal: disabling "
+			"blowfish-x86_64.\n");
+		return -ENODEV;
+	}
 
-	err = crypto_register_alg(&bf_alg);
-	if (err)
-		goto bf_err;
-	err = crypto_register_alg(&blk_ecb_alg);
-	if (err)
-		goto ecb_err;
-	err = crypto_register_alg(&blk_cbc_alg);
-	if (err)
-		goto cbc_err;
-	err = crypto_register_alg(&blk_ctr_alg);
-	if (err)
-		goto ctr_err;
-
-	return 0;
-
-ctr_err:
-	crypto_unregister_alg(&blk_cbc_alg);
-cbc_err:
-	crypto_unregister_alg(&blk_ecb_alg);
-ecb_err:
-	crypto_unregister_alg(&bf_alg);
-bf_err:
-	return err;
+	return crypto_register_algs(bf_algs, ARRAY_SIZE(bf_algs));
 }
 
 static void __exit fini(void)
 {
-	crypto_unregister_alg(&blk_ctr_alg);
-	crypto_unregister_alg(&blk_cbc_alg);
-	crypto_unregister_alg(&blk_ecb_alg);
-	crypto_unregister_alg(&bf_alg);
+	crypto_unregister_algs(bf_algs, ARRAY_SIZE(bf_algs));
 }
 
 module_init(init);

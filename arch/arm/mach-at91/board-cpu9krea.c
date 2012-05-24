@@ -43,6 +43,7 @@
 #include <mach/board.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/at91sam9260_matrix.h>
+#include <mach/at91_matrix.h>
 
 #include "sam9_smc.h"
 #include "generic.h"
@@ -116,6 +117,7 @@ static struct atmel_nand_data __initdata cpu9krea_nand_data = {
 	.enable_pin	= AT91_PIN_PC14,
 	.bus_width_16	= 0,
 	.det_pin	= -EINVAL,
+	.ecc_mode	= NAND_ECC_SOFT,
 };
 
 #ifdef CONFIG_MACH_CPU9260
@@ -238,8 +240,8 @@ static __init void cpu9krea_add_device_nor(void)
 {
 	unsigned long csa;
 
-	csa = at91_sys_read(AT91_MATRIX_EBICSA);
-	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_VDDIOMSEL_3_3V);
+	csa = at91_matrix_read(AT91_MATRIX_EBICSA);
+	at91_matrix_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_VDDIOMSEL_3_3V);
 
 	/* configure chip-select 0 (NOR) */
 	sam9_smc_configure(0, 0, &cpu9krea_nor_smc_config);

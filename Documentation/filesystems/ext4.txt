@@ -144,9 +144,6 @@ journal_async_commit	Commit block can be written to disk without waiting
 			mount the device. This will enable 'journal_checksum'
 			internally.
 
-journal=update		Update the ext4 file system's journal to the current
-			format.
-
 journal_dev=devnum	When the external journal device's major/minor numbers
 			have changed, this option allows the user to specify
 			the new journal location.  The journal device is
@@ -308,7 +305,7 @@ min_batch_time=usec	This parameter sets the commit time (as
 			fast disks, at the cost of increasing latency.
 
 journal_ioprio=prio	The I/O priority (from 0 to 7, where 0 is the
-			highest priorty) which should be used for I/O
+			highest priority) which should be used for I/O
 			operations submitted by kjournald2 during a
 			commit operation.  This defaults to 3, which is
 			a slightly higher priority than the default I/O
@@ -343,7 +340,7 @@ noinit_itable		Do not initialize any uninitialized inode table
 init_itable=n		The lazy itable init code will wait n times the
 			number of milliseconds it took to zero out the
 			previous block group's inode table.  This
-			minimizes the impact on the systme performance
+			minimizes the impact on the system performance
 			while file system's inode table is being initialized.
 
 discard			Controls whether ext4 should issue discard/TRIM
@@ -355,11 +352,6 @@ nodiscard(*)		commands to the underlying block device when
 nouid32			Disables 32-bit UIDs and GIDs.  This is for
 			interoperability  with  older kernels which only
 			store and expect 16-bit values.
-
-resize			Allows to resize filesystem to the end of the last
-			existing block group, further resize has to be done
-			with resize2fs either online, or offline. It can be
-			used only with conjunction with remount.
 
 block_validity		This options allows to enables/disables the in-kernel
 noblock_validity	facility for tracking filesystem metadata blocks

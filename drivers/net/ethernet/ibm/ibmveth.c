@@ -1616,11 +1616,8 @@ static struct vio_driver ibmveth_driver = {
 	.probe		= ibmveth_probe,
 	.remove		= ibmveth_remove,
 	.get_desired_dma = ibmveth_get_desired_dma,
-	.driver		= {
-		.name	= ibmveth_driver_name,
-		.owner	= THIS_MODULE,
-		.pm = &ibmveth_pm_ops,
-	}
+	.name		= ibmveth_driver_name,
+	.pm		= &ibmveth_pm_ops,
 };
 
 static int __init ibmveth_module_init(void)

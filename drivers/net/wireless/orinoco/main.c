@@ -941,11 +941,9 @@ void __orinoco_ev_rx(struct net_device *dev, struct hermes *hw)
 
 	/* Add desc and skb to rx queue */
 	rx_data = kzalloc(sizeof(*rx_data), GFP_ATOMIC);
-	if (!rx_data) {
-		printk(KERN_WARNING "%s: Can't allocate RX packet\n",
-			dev->name);
+	if (!rx_data)
 		goto drop;
-	}
+
 	rx_data->desc = desc;
 	rx_data->skb = skb;
 	list_add_tail(&rx_data->list, &priv->rx_list);
@@ -1338,6 +1336,10 @@ static void qbuf_scan(struct orinoco_private *priv, void *buf,
 	unsigned long flags;
 
 	sd = kmalloc(sizeof(*sd), GFP_ATOMIC);
+	if (!sd) {
+		printk(KERN_ERR "%s: failed to alloc memory\n", __func__);
+		return;
+	}
 	sd->buf = buf;
 	sd->len = len;
 	sd->type = type;
@@ -1355,6 +1357,10 @@ static void qabort_scan(struct orinoco_private *priv)
 	unsigned long flags;
 
 	sd = kmalloc(sizeof(*sd), GFP_ATOMIC);
+	if (!sd) {
+		printk(KERN_ERR "%s: failed to alloc memory\n", __func__);
+		return;
+	}
 	sd->len = -1; /* Abort */
 
 	spin_lock_irqsave(&priv->scan_lock, flags);

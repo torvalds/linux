@@ -30,6 +30,9 @@
 #include <linux/gpio_keys.h>
 #include <linux/delay.h>
 
+#include <linux/of.h>
+#include <linux/of_platform.h>
+
 #include <linux/leds.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -72,7 +75,7 @@ static struct platform_device snowball_led_dev = {
 };
 
 static struct ab8500_gpio_platform_data ab8500_gpio_pdata = {
-	.gpio_base		= MOP500_AB8500_GPIO(0),
+	.gpio_base		= MOP500_AB8500_PIN_GPIO(1),
 	.irq_base		= MOP500_AB8500_VIR_GPIO_IRQ_BASE,
 	/* config_reg is the initial configuration of ab8500 pins.
 	 * The pins can be configured as GPIO or alt functions based
@@ -226,7 +229,12 @@ static struct tps6105x_platform_data mop500_tps61052_data = {
 
 static void mop500_tc35892_init(struct tc3589x *tc3589x, unsigned int base)
 {
-	mop500_sdi_tc35892_init();
+	struct device *parent = NULL;
+#if 0
+	/* FIXME: Is the sdi actually part of tc3589x? */
+	parent = tc3589x->dev;
+#endif
+	mop500_sdi_tc35892_init(parent);
 }
 
 static struct tc3589x_gpio_platform_data mop500_tc35892_gpio_data = {
@@ -353,12 +361,12 @@ U8500_I2C_CONTROLLER(1, 0xe, 1, 8, 100000, 200, I2C_FREQ_MODE_FAST);
 U8500_I2C_CONTROLLER(2,	0xe, 1, 8, 100000, 200, I2C_FREQ_MODE_FAST);
 U8500_I2C_CONTROLLER(3,	0xe, 1, 8, 100000, 200, I2C_FREQ_MODE_FAST);
 
-static void __init mop500_i2c_init(void)
+static void __init mop500_i2c_init(struct device *parent)
 {
-	db8500_add_i2c0(&u8500_i2c0_data);
-	db8500_add_i2c1(&u8500_i2c1_data);
-	db8500_add_i2c2(&u8500_i2c2_data);
-	db8500_add_i2c3(&u8500_i2c3_data);
+	db8500_add_i2c0(parent, &u8500_i2c0_data);
+	db8500_add_i2c1(parent, &u8500_i2c1_data);
+	db8500_add_i2c2(parent, &u8500_i2c2_data);
+	db8500_add_i2c3(parent, &u8500_i2c3_data);
 }
 
 static struct gpio_keys_button mop500_gpio_keys[] = {
@@ -435,7 +443,7 @@ static struct stedma40_chan_cfg ssp0_dma_cfg_tx = {
 };
 #endif
 
-static struct pl022_ssp_controller ssp0_platform_data = {
+static struct pl022_ssp_controller ssp0_plat = {
 	.bus_id = 0,
 #ifdef CONFIG_STE_DMA40
 	.enable_dma = 1,
@@ -451,9 +459,9 @@ static struct pl022_ssp_controller ssp0_platform_data = {
 	.num_chipselect = 5,
 };
 
-static void __init mop500_spi_init(void)
+static void __init mop500_spi_init(struct device *parent)
 {
-	db8500_add_ssp0(&ssp0_platform_data);
+	db8500_add_ssp0(parent, &ssp0_plat);
 }
 
 #ifdef CONFIG_STE_DMA40
@@ -587,11 +595,11 @@ static struct amba_pl011_data uart2_plat = {
 #endif
 };
 
-static void __init mop500_uart_init(void)
+static void __init mop500_uart_init(struct device *parent)
 {
-	db8500_add_uart0(&uart0_plat);
-	db8500_add_uart1(&uart1_plat);
-	db8500_add_uart2(&uart2_plat);
+	db8500_add_uart0(parent, &uart0_plat);
+	db8500_add_uart1(parent, &uart1_plat);
+	db8500_add_uart2(parent, &uart2_plat);
 }
 
 static struct platform_device *snowball_platform_devs[] __initdata = {
@@ -603,21 +611,27 @@ static struct platform_device *snowball_platform_devs[] __initdata = {
 
 static void __init mop500_init_machine(void)
 {
+	struct device *parent = NULL;
 	int i2c0_devs;
+	int i;
 
 	mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
 
-	u8500_init_devices();
+	parent = u8500_init_devices();
 
 	mop500_pins_init();
+
+	/* FIXME: parent of ab8500 should be prcmu */
+	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
+		mop500_platform_devs[i]->dev.parent = parent;
 
 	platform_add_devices(mop500_platform_devs,
 			ARRAY_SIZE(mop500_platform_devs));
 
-	mop500_i2c_init();
-	mop500_sdi_init();
-	mop500_spi_init();
-	mop500_uart_init();
+	mop500_i2c_init(parent);
+	mop500_sdi_init(parent);
+	mop500_spi_init(parent);
+	mop500_uart_init(parent);
 
 	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
 
@@ -631,19 +645,24 @@ static void __init mop500_init_machine(void)
 
 static void __init snowball_init_machine(void)
 {
+	struct device *parent = NULL;
 	int i2c0_devs;
+	int i;
 
-	u8500_init_devices();
+	parent = u8500_init_devices();
 
 	snowball_pins_init();
+
+	for (i = 0; i < ARRAY_SIZE(snowball_platform_devs); i++)
+		snowball_platform_devs[i]->dev.parent = parent;
 
 	platform_add_devices(snowball_platform_devs,
 			ARRAY_SIZE(snowball_platform_devs));
 
-	mop500_i2c_init();
-	snowball_sdi_init();
-	mop500_spi_init();
-	mop500_uart_init();
+	mop500_i2c_init(parent);
+	snowball_sdi_init(parent);
+	mop500_spi_init(parent);
+	mop500_uart_init(parent);
 
 	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
 	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
@@ -656,7 +675,9 @@ static void __init snowball_init_machine(void)
 
 static void __init hrefv60_init_machine(void)
 {
+	struct device *parent = NULL;
 	int i2c0_devs;
+	int i;
 
 	/*
 	 * The HREFv60 board removed a GPIO expander and routed
@@ -665,17 +686,20 @@ static void __init hrefv60_init_machine(void)
 	 */
 	mop500_gpio_keys[0].gpio = HREFV60_PROX_SENSE_GPIO;
 
-	u8500_init_devices();
+	parent = u8500_init_devices();
 
 	hrefv60_pins_init();
+
+	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
+		mop500_platform_devs[i]->dev.parent = parent;
 
 	platform_add_devices(mop500_platform_devs,
 			ARRAY_SIZE(mop500_platform_devs));
 
-	mop500_i2c_init();
-	hrefv60_sdi_init();
-	mop500_spi_init();
-	mop500_uart_init();
+	mop500_i2c_init(parent);
+	hrefv60_sdi_init(parent);
+	mop500_spi_init(parent);
+	mop500_uart_init(parent);
 
 	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
 
@@ -718,3 +742,94 @@ MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= snowball_init_machine,
 MACHINE_END
+
+#ifdef CONFIG_MACH_UX500_DT
+
+struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("arm,pl011", 0x80120000, "uart0", &uart0_plat),
+	OF_DEV_AUXDATA("arm,pl011", 0x80121000, "uart1", &uart1_plat),
+	OF_DEV_AUXDATA("arm,pl011", 0x80007000, "uart2", &uart2_plat),
+	OF_DEV_AUXDATA("arm,pl022", 0x80002000, "ssp0",  &ssp0_plat),
+	{},
+};
+
+static const struct of_device_id u8500_soc_node[] = {
+	/* only create devices below soc node */
+	{ .compatible = "stericsson,db8500", },
+	{ },
+};
+
+static void __init u8500_init_machine(void)
+{
+	struct device *parent = NULL;
+	int i2c0_devs;
+	int i;
+
+	parent = u8500_init_devices();
+	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
+
+	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
+		mop500_platform_devs[i]->dev.parent = parent;
+	for (i = 0; i < ARRAY_SIZE(snowball_platform_devs); i++)
+		snowball_platform_devs[i]->dev.parent = parent;
+
+	/* automatically probe child nodes of db8500 device */
+	of_platform_populate(NULL, u8500_soc_node, u8500_auxdata_lookup, parent);
+
+	if (of_machine_is_compatible("st-ericsson,mop500")) {
+		mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
+		mop500_pins_init();
+
+		platform_add_devices(mop500_platform_devs,
+				ARRAY_SIZE(mop500_platform_devs));
+
+		mop500_sdi_init(parent);
+	} else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
+		snowball_pins_init();
+		platform_add_devices(snowball_platform_devs,
+				ARRAY_SIZE(snowball_platform_devs));
+
+		snowball_sdi_init(parent);
+	} else if (of_machine_is_compatible("st-ericsson,hrefv60+")) {
+		/*
+		 * The HREFv60 board removed a GPIO expander and routed
+		 * all these GPIO pins to the internal GPIO controller
+		 * instead.
+		 */
+		mop500_gpio_keys[0].gpio = HREFV60_PROX_SENSE_GPIO;
+		i2c0_devs -= NUM_PRE_V60_I2C0_DEVICES;
+		hrefv60_pins_init();
+		platform_add_devices(mop500_platform_devs,
+				ARRAY_SIZE(mop500_platform_devs));
+
+		hrefv60_sdi_init(parent);
+	}
+	mop500_i2c_init(parent);
+
+	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
+	i2c_register_board_info(2, mop500_i2c2_devices,
+				ARRAY_SIZE(mop500_i2c2_devices));
+
+	/* This board has full regulator constraints */
+	regulator_has_full_constraints();
+}
+
+static const char * u8500_dt_board_compat[] = {
+	"calaosystems,snowball-a9500",
+	"st-ericsson,hrefv60+",
+	"st-ericsson,u8500",
+	"st-ericsson,mop500",
+	NULL,
+};
+
+
+DT_MACHINE_START(U8500_DT, "ST-Ericsson U8500 platform (Device Tree Support)")
+	.map_io		= u8500_map_io,
+	.init_irq	= ux500_init_irq,
+	/* we re-use nomadik timer here */
+	.timer		= &ux500_timer,
+	.handle_irq	= gic_handle_irq,
+	.init_machine	= u8500_init_machine,
+	.dt_compat      = u8500_dt_board_compat,
+MACHINE_END
+#endif

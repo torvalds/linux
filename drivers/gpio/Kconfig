@@ -190,6 +190,17 @@ config GPIO_VX855
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
+config GPIO_GE_FPGA
+	bool "GE FPGA based GPIO"
+	depends on GE_FPGA
+	help
+	  Support for common GPIO functionality provided on some GE Single Board
+	  Computers.
+
+	  This driver provides basic support (configure as input or output, read
+	  and write pin state) for GPIO implemented in a number of GE single
+	  board computers.
+
 comment "I2C GPIO expanders:"
 
 config GPIO_MAX7300
@@ -224,6 +235,12 @@ config GPIO_MAX732X_IRQ
 	help
 	  Say yes here to enable the max732x to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
+
+config GPIO_MC9S08DZ60
+	bool "MX35 3DS BOARD MC9S08DZ60 GPIO functions"
+	depends on I2C && MACH_MX35_3DS
+	help
+	  Select this to enable the MC9S08DZ60 GPIO driver
 
 config GPIO_PCA953X
 	tristate "PCA953x, PCA955x, TCA64xx, and MAX7310 I/O ports"
@@ -410,6 +427,14 @@ config GPIO_ML_IOH
 	  This driver can be used for OKI SEMICONDUCTOR ML7213 IOH(Input/Output
 	  Hub) which is for IVI(In-Vehicle Infotainment) use.
 	  This driver can access the IOH's GPIO device.
+
+config GPIO_SODAVILLE
+	bool "Intel Sodaville GPIO support"
+	depends on X86 && PCI && OF
+	select GPIO_GENERIC
+	select GENERIC_IRQ_CHIP
+	help
+	  Say Y here to support Intel Sodaville GPIO.
 
 config GPIO_TIMBERDALE
 	bool "Support for timberdale GPIO IP"

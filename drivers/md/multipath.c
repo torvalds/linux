@@ -428,7 +428,7 @@ static int multipath_run (struct mddev *mddev)
 	}
 
 	working_disks = 0;
-	list_for_each_entry(rdev, &mddev->disks, same_set) {
+	rdev_for_each(rdev, mddev) {
 		disk_idx = rdev->raid_disk;
 		if (disk_idx < 0 ||
 		    disk_idx >= mddev->raid_disks)

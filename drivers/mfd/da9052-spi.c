@@ -21,7 +21,7 @@
 
 #include <linux/mfd/da9052/da9052.h>
 
-static int da9052_spi_probe(struct spi_device *spi)
+static int __devinit da9052_spi_probe(struct spi_device *spi)
 {
 	int ret;
 	const struct spi_device_id *id = spi_get_device_id(spi);
@@ -52,20 +52,23 @@ static int da9052_spi_probe(struct spi_device *spi)
 
 	ret = da9052_device_init(da9052, id->driver_data);
 	if (ret != 0)
-		goto err;
+		goto err_regmap;
 
 	return 0;
 
+err_regmap:
+	regmap_exit(da9052->regmap);
 err:
 	kfree(da9052);
 	return ret;
 }
 
-static int da9052_spi_remove(struct spi_device *spi)
+static int __devexit da9052_spi_remove(struct spi_device *spi)
 {
 	struct da9052 *da9052 = dev_get_drvdata(&spi->dev);
 
 	da9052_device_exit(da9052);
+	regmap_exit(da9052->regmap);
 	kfree(da9052);
 
 	return 0;

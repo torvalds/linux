@@ -412,6 +412,10 @@ enum cb_status {
 	cb_ok       = 0x2000,
 };
 
+/**
+ * cb_command - Command Block flags
+ * @cb_tx_nc:  0: controler does CRC (normal),  1: CRC from skb memory
+ */
 enum cb_command {
 	cb_nop    = 0x0000,
 	cb_iaaddr = 0x0001,
@@ -421,6 +425,7 @@ enum cb_command {
 	cb_ucode  = 0x0005,
 	cb_dump   = 0x0006,
 	cb_tx_sf  = 0x0008,
+	cb_tx_nc  = 0x0010,
 	cb_cid    = 0x1f00,
 	cb_i      = 0x2000,
 	cb_s      = 0x4000,
@@ -457,7 +462,7 @@ struct config {
 /*5*/	u8 X(tx_dma_max_count:7, dma_max_count_enable:1);
 /*6*/	u8 X(X(X(X(X(X(X(late_scb_update:1, direct_rx_dma:1),
 	   tno_intr:1), cna_intr:1), standard_tcb:1), standard_stat_counter:1),
-	   rx_discard_overruns:1), rx_save_bad_frames:1);
+	   rx_save_overruns : 1), rx_save_bad_frames : 1);
 /*7*/	u8 X(X(X(X(X(rx_discard_short_frames:1, tx_underrun_retry:2),
 	   pad7:2), rx_extended_rfd:1), tx_two_frames_in_fifo:1),
 	   tx_dynamic_tbd:1);
@@ -617,6 +622,7 @@ struct nic {
 	u32 rx_fc_pause;
 	u32 rx_fc_unsupported;
 	u32 rx_tco_frames;
+	u32 rx_short_frame_errors;
 	u32 rx_over_length_errors;
 
 	u16 eeprom_wc;
@@ -1075,7 +1081,7 @@ static void e100_get_defaults(struct nic *nic)
 	/* Template for a freshly allocated RFD */
 	nic->blank_rfd.command = 0;
 	nic->blank_rfd.rbd = cpu_to_le32(0xFFFFFFFF);
-	nic->blank_rfd.size = cpu_to_le16(VLAN_ETH_FRAME_LEN);
+	nic->blank_rfd.size = cpu_to_le16(VLAN_ETH_FRAME_LEN + ETH_FCS_LEN);
 
 	/* MII setup */
 	nic->mii.phy_id_mask = 0x1F;
@@ -1089,6 +1095,7 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
 	struct config *config = &cb->u.config;
 	u8 *c = (u8 *)config;
+	struct net_device *netdev = nic->netdev;
 
 	cb->command = cpu_to_le16(cb_config);
 
@@ -1132,6 +1139,9 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 		config->promiscuous_mode = 0x1;		/* 1=on, 0=off */
 	}
 
+	if (unlikely(netdev->features & NETIF_F_RXFCS))
+		config->rx_crc_transfer = 0x1;	/* 1=save, 0=discard */
+
 	if (nic->flags & multicast_all)
 		config->multicast_all = 0x1;		/* 1=accept, 0=no */
 
@@ -1154,6 +1164,12 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 		} else {
 			config->standard_stat_counter = 0x0;
 		}
+	}
+
+	if (netdev->features & NETIF_F_RXALL) {
+		config->rx_save_overruns = 0x1; /* 1=save, 0=discard */
+		config->rx_save_bad_frames = 0x1;       /* 1=save, 0=discard */
+		config->rx_discard_short_frames = 0x0;  /* 1=discard, 0=save */
 	}
 
 	netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
@@ -1607,7 +1623,9 @@ static void e100_update_stats(struct nic *nic)
 		ns->collisions += nic->tx_collisions;
 		ns->tx_errors += le32_to_cpu(s->tx_max_collisions) +
 			le32_to_cpu(s->tx_lost_crs);
-		ns->rx_length_errors += le32_to_cpu(s->rx_short_frame_errors) +
+		nic->rx_short_frame_errors +=
+			le32_to_cpu(s->rx_short_frame_errors);
+		ns->rx_length_errors = nic->rx_short_frame_errors +
 			nic->rx_over_length_errors;
 		ns->rx_crc_errors += le32_to_cpu(s->rx_crc_errors);
 		ns->rx_frame_errors += le32_to_cpu(s->rx_alignment_errors);
@@ -1720,6 +1738,16 @@ static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	struct sk_buff *skb)
 {
 	cb->command = nic->tx_command;
+
+	/*
+	 * Use the last 4 bytes of the SKB payload packet as the CRC, used for
+	 * testing, ie sending frames with bad CRC.
+	 */
+	if (unlikely(skb->no_fcs))
+		cb->command |= __constant_cpu_to_le16(cb_tx_nc);
+	else
+		cb->command &= ~__constant_cpu_to_le16(cb_tx_nc);
+
 	/* interrupt every 16 packets regardless of delay */
 	if ((nic->cbs_avail & ~15) == nic->cbs_avail)
 		cb->command |= cpu_to_le16(cb_i);
@@ -1881,7 +1909,7 @@ static inline void e100_start_receiver(struct nic *nic, struct rx *rx)
 	}
 }
 
-#define RFD_BUF_LEN (sizeof(struct rfd) + VLAN_ETH_FRAME_LEN)
+#define RFD_BUF_LEN (sizeof(struct rfd) + VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 {
 	if (!(rx->skb = netdev_alloc_skb_ip_align(nic->netdev, RFD_BUF_LEN)))
@@ -1919,6 +1947,7 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	struct sk_buff *skb = rx->skb;
 	struct rfd *rfd = (struct rfd *)skb->data;
 	u16 rfd_status, actual_size;
+	u16 fcs_pad = 0;
 
 	if (unlikely(work_done && *work_done >= work_to_do))
 		return -EAGAIN;
@@ -1951,6 +1980,8 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	}
 
 	/* Get actual data size */
+	if (unlikely(dev->features & NETIF_F_RXFCS))
+		fcs_pad = 4;
 	actual_size = le16_to_cpu(rfd->actual_size) & 0x3FFF;
 	if (unlikely(actual_size > RFD_BUF_LEN - sizeof(struct rfd)))
 		actual_size = RFD_BUF_LEN - sizeof(struct rfd);
@@ -1977,16 +2008,27 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	skb_put(skb, actual_size);
 	skb->protocol = eth_type_trans(skb, nic->netdev);
 
+	/* If we are receiving all frames, then don't bother
+	 * checking for errors.
+	 */
+	if (unlikely(dev->features & NETIF_F_RXALL)) {
+		if (actual_size > ETH_DATA_LEN + VLAN_ETH_HLEN + fcs_pad)
+			/* Received oversized frame, but keep it. */
+			nic->rx_over_length_errors++;
+		goto process_skb;
+	}
+
 	if (unlikely(!(rfd_status & cb_ok))) {
 		/* Don't indicate if hardware indicates errors */
 		dev_kfree_skb_any(skb);
-	} else if (actual_size > ETH_DATA_LEN + VLAN_ETH_HLEN) {
+	} else if (actual_size > ETH_DATA_LEN + VLAN_ETH_HLEN + fcs_pad) {
 		/* Don't indicate oversized frames */
 		nic->rx_over_length_errors++;
 		dev_kfree_skb_any(skb);
 	} else {
+process_skb:
 		dev->stats.rx_packets++;
-		dev->stats.rx_bytes += actual_size;
+		dev->stats.rx_bytes += (actual_size - fcs_pad);
 		netif_receive_skb(skb);
 		if (work_done)
 			(*work_done)++;
@@ -2058,7 +2100,8 @@ static void e100_rx_clean(struct nic *nic, unsigned int *work_done,
 		pci_dma_sync_single_for_device(nic->pdev,
 			old_before_last_rx->dma_addr, sizeof(struct rfd),
 			PCI_DMA_BIDIRECTIONAL);
-		old_before_last_rfd->size = cpu_to_le16(VLAN_ETH_FRAME_LEN);
+		old_before_last_rfd->size = cpu_to_le16(VLAN_ETH_FRAME_LEN
+							+ ETH_FCS_LEN);
 		pci_dma_sync_single_for_device(nic->pdev,
 			old_before_last_rx->dma_addr, sizeof(struct rfd),
 			PCI_DMA_BIDIRECTIONAL);
@@ -2618,6 +2661,7 @@ static const char e100_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"tx_deferred", "tx_single_collisions", "tx_multi_collisions",
 	"tx_flow_control_pause", "rx_flow_control_pause",
 	"rx_flow_control_unsupported", "tx_tco_packets", "rx_tco_packets",
+	"rx_short_frame_errors", "rx_over_length_errors",
 };
 #define E100_NET_STATS_LEN	21
 #define E100_STATS_LEN	ARRAY_SIZE(e100_gstrings_stats)
@@ -2651,6 +2695,8 @@ static void e100_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = nic->rx_fc_unsupported;
 	data[i++] = nic->tx_tco_frames;
 	data[i++] = nic->rx_tco_frames;
+	data[i++] = nic->rx_short_frame_errors;
+	data[i++] = nic->rx_over_length_errors;
 }
 
 static void e100_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
@@ -2729,6 +2775,20 @@ static int e100_close(struct net_device *netdev)
 	return 0;
 }
 
+static int e100_set_features(struct net_device *netdev,
+			     netdev_features_t features)
+{
+	struct nic *nic = netdev_priv(netdev);
+	netdev_features_t changed = features ^ netdev->features;
+
+	if (!(changed & (NETIF_F_RXFCS | NETIF_F_RXALL)))
+		return 0;
+
+	netdev->features = features;
+	e100_exec_cb(nic, NULL, e100_configure);
+	return 0;
+}
+
 static const struct net_device_ops e100_netdev_ops = {
 	.ndo_open		= e100_open,
 	.ndo_stop		= e100_close,
@@ -2742,6 +2802,7 @@ static const struct net_device_ops e100_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= e100_netpoll,
 #endif
+	.ndo_set_features	= e100_set_features,
 };
 
 static int __devinit e100_probe(struct pci_dev *pdev,
@@ -2751,11 +2812,12 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	struct nic *nic;
 	int err;
 
-	if (!(netdev = alloc_etherdev(sizeof(struct nic)))) {
-		if (((1 << debug) - 1) & NETIF_MSG_PROBE)
-			pr_err("Etherdev alloc failed, aborting\n");
+	if (!(netdev = alloc_etherdev(sizeof(struct nic))))
 		return -ENOMEM;
-	}
+
+	netdev->hw_features |= NETIF_F_RXFCS;
+	netdev->priv_flags |= IFF_SUPP_NOFCS;
+	netdev->hw_features |= NETIF_F_RXALL;
 
 	netdev->netdev_ops = &e100_netdev_ops;
 	SET_ETHTOOL_OPS(netdev, &e100_ethtool_ops);

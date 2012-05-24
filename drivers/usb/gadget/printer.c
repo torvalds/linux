@@ -34,7 +34,6 @@
 #include <asm/byteorder.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <asm/system.h>
 #include <linux/uaccess.h>
 #include <asm/unaligned.h>
 

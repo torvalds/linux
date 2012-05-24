@@ -89,7 +89,6 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 #ifdef CONFIG_OF
 /* For open firmware. */

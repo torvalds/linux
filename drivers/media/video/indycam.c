@@ -387,15 +387,4 @@ static struct i2c_driver indycam_driver = {
 	.id_table	= indycam_id,
 };
 
-static __init int init_indycam(void)
-{
-	return i2c_add_driver(&indycam_driver);
-}
-
-static __exit void exit_indycam(void)
-{
-	i2c_del_driver(&indycam_driver);
-}
-
-module_init(init_indycam);
-module_exit(exit_indycam);
+module_i2c_driver(indycam_driver);

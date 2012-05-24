@@ -824,6 +824,8 @@ static const struct snd_soc_dapm_route wm9081_audio_paths[] = {
 static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
+	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
@@ -841,6 +843,9 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		/* Initial cold start */
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+			regcache_cache_only(wm9081->regmap, false);
+			regcache_sync(wm9081->regmap);
+
 			/* Disable LINEOUT discharge */
 			snd_soc_update_bits(codec, WM9081_ANTI_POP_CONTROL,
 					    WM9081_LINEOUT_DISCH, 0);
@@ -892,6 +897,8 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, WM9081_ANTI_POP_CONTROL,
 				    WM9081_LINEOUT_DISCH,
 				    WM9081_LINEOUT_DISCH);
+
+		regcache_cache_only(wm9081->regmap, true);
 		break;
 	}
 
@@ -1258,7 +1265,6 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 {
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-	u16 reg;
 
 	codec->control_data = wm9081->regmap;
 
@@ -1267,16 +1273,6 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
 	}
-
-	reg = 0;
-	if (wm9081->pdata.irq_high)
-		reg |= WM9081_IRQ_POL;
-	if (!wm9081->pdata.irq_cmos)
-		reg |= WM9081_IRQ_OP_CTRL;
-	snd_soc_update_bits(codec, WM9081_INTERRUPT_CONTROL,
-			    WM9081_IRQ_POL | WM9081_IRQ_OP_CTRL, reg);
-
-	wm9081_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Enable zero cross by default */
 	snd_soc_update_bits(codec, WM9081_ANALOGUE_LINEOUT,
@@ -1287,7 +1283,7 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 	if (!wm9081->pdata.num_retune_configs) {
 		dev_dbg(codec->dev,
 			"No ReTune Mobile data, using normal EQ\n");
-		snd_soc_add_controls(codec, wm9081_eq_controls,
+		snd_soc_add_codec_controls(codec, wm9081_eq_controls,
 				     ARRAY_SIZE(wm9081_eq_controls));
 	}
 
@@ -1300,37 +1296,14 @@ static int wm9081_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm9081_suspend(struct snd_soc_codec *codec)
-{
-	wm9081_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int wm9081_resume(struct snd_soc_codec *codec)
-{
-	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
-
-	regcache_sync(wm9081->regmap);
-
-	wm9081_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define wm9081_suspend NULL
-#define wm9081_resume NULL
-#endif
-
 static struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
 	.probe = 	wm9081_probe,
 	.remove = 	wm9081_remove,
-	.suspend =	wm9081_suspend,
-	.resume =	wm9081_resume,
 
 	.set_sysclk = wm9081_set_sysclk,
 	.set_bias_level = wm9081_set_bias_level,
+
+	.idle_bias_off = true,
 
 	.controls         = wm9081_snd_controls,
 	.num_controls     = ARRAY_SIZE(wm9081_snd_controls),
@@ -1395,6 +1368,16 @@ static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
 		memcpy(&wm9081->pdata, dev_get_platdata(&i2c->dev),
 		       sizeof(wm9081->pdata));
 
+	reg = 0;
+	if (wm9081->pdata.irq_high)
+		reg |= WM9081_IRQ_POL;
+	if (!wm9081->pdata.irq_cmos)
+		reg |= WM9081_IRQ_OP_CTRL;
+	regmap_update_bits(wm9081->regmap, WM9081_INTERRUPT_CONTROL,
+			   WM9081_IRQ_POL | WM9081_IRQ_OP_CTRL, reg);
+
+	regcache_cache_only(wm9081->regmap, true);
+
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm9081, &wm9081_dai, 1);
 	if (ret < 0)
@@ -1435,28 +1418,7 @@ static struct i2c_driver wm9081_i2c_driver = {
 };
 #endif
 
-static int __init wm9081_modinit(void)
-{
-	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	ret = i2c_add_driver(&wm9081_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM9081 I2C driver: %d\n",
-		       ret);
-	}
-#endif
-	return ret;
-}
-module_init(wm9081_modinit);
-
-static void __exit wm9081_exit(void)
-{
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_del_driver(&wm9081_i2c_driver);
-#endif
-}
-module_exit(wm9081_exit);
-
+module_i2c_driver(wm9081_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM9081 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

@@ -106,7 +106,6 @@ DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " Richard Procter <rnp@paradise.net.
 #include <linux/semaphore.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
@@ -1169,7 +1168,7 @@ static void mc32_rx_ring(struct net_device *dev)
 			/* Try to save time by avoiding a copy on big frames */
 
 			if ((length > RX_COPYBREAK) &&
-			    ((newskb=dev_alloc_skb(1532)) != NULL))
+			    ((newskb = netdev_alloc_skb(dev, 1532)) != NULL))
 			{
 				skb=lp->rx_ring[rx_ring_tail].skb;
 				skb_put(skb, length);
@@ -1180,7 +1179,7 @@ static void mc32_rx_ring(struct net_device *dev)
 			}
 			else
 			{
-				skb=dev_alloc_skb(length+2);
+				skb = netdev_alloc_skb(dev, length + 2);
 
 				if(skb==NULL) {
 					dev->stats.rx_dropped++;

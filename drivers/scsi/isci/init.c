@@ -60,6 +60,7 @@
 #include <linux/efi.h>
 #include <asm/string.h>
 #include <scsi/scsi_host.h>
+#include "host.h"
 #include "isci.h"
 #include "task.h"
 #include "probe_roms.h"
@@ -154,7 +155,6 @@ static struct scsi_host_template isci_sht = {
 	.queuecommand			= sas_queuecommand,
 	.target_alloc			= sas_target_alloc,
 	.slave_configure		= sas_slave_configure,
-	.slave_destroy			= sas_slave_destroy,
 	.scan_finished			= isci_host_scan_finished,
 	.scan_start			= isci_host_scan_start,
 	.change_queue_depth		= sas_change_queue_depth,
@@ -166,9 +166,6 @@ static struct scsi_host_template isci_sht = {
 	.sg_tablesize			= SG_ALL,
 	.max_sectors			= SCSI_DEFAULT_MAX_SECTORS,
 	.use_clustering			= ENABLE_CLUSTERING,
-	.eh_device_reset_handler	= sas_eh_device_reset_handler,
-	.eh_bus_reset_handler		= isci_bus_reset_handler,
-	.slave_alloc			= sas_slave_alloc,
 	.target_destroy			= sas_target_destroy,
 	.ioctl				= sas_ioctl,
 	.shost_attrs			= isci_host_attrs,
@@ -193,6 +190,9 @@ static struct sas_domain_function_template isci_transport_ops  = {
 	.lldd_I_T_nexus_reset	= isci_task_I_T_nexus_reset,
 	.lldd_lu_reset		= isci_task_lu_reset,
 	.lldd_query_task	= isci_task_query_task,
+
+	/* ata recovery called from ata-eh */
+	.lldd_ata_check_ready	= isci_ata_check_ready,
 
 	/* Port and Adapter management */
 	.lldd_clear_nexus_port	= isci_task_clear_nexus_port,
@@ -242,18 +242,13 @@ static int isci_register_sas_ha(struct isci_host *isci_host)
 	if (!sas_ports)
 		return -ENOMEM;
 
-	/*----------------- Libsas Initialization Stuff----------------------
-	 * Set various fields in the sas_ha struct:
-	 */
-
 	sas_ha->sas_ha_name = DRV_NAME;
 	sas_ha->lldd_module = THIS_MODULE;
 	sas_ha->sas_addr    = &isci_host->phys[0].sas_addr[0];
 
-	/* set the array of phy and port structs.  */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
 		sas_phys[i] = &isci_host->phys[i].sas_phy;
-		sas_ports[i] = &isci_host->ports[i].sas_port;
+		sas_ports[i] = &isci_host->sas_ports[i];
 	}
 
 	sas_ha->sas_phy  = sas_phys;
@@ -528,6 +523,13 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 			goto err_host_alloc;
 		}
 		pci_info->hosts[i] = h;
+
+		/* turn on DIF support */
+		scsi_host_set_prot(h->shost,
+				   SHOST_DIF_TYPE1_PROTECTION |
+				   SHOST_DIF_TYPE2_PROTECTION |
+				   SHOST_DIF_TYPE3_PROTECTION);
+		scsi_host_set_guard(h->shost, SHOST_DIX_GUARD_CRC);
 	}
 
 	err = isci_setup_interrupts(pdev);
@@ -551,9 +553,9 @@ static void __devexit isci_pci_remove(struct pci_dev *pdev)
 	int i;
 
 	for_each_isci_host(i, ihost, pdev) {
+		wait_for_start(ihost);
 		isci_unregister(ihost);
 		isci_host_deinit(ihost);
-		sci_controller_disable_interrupts(ihost);
 	}
 }
 

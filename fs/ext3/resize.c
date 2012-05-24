@@ -11,10 +11,7 @@
 
 #define EXT3FS_DEBUG
 
-#include <linux/ext3_jbd.h>
-
-#include <linux/errno.h>
-#include <linux/slab.h>
+#include "ext3.h"
 
 
 #define outside(b, first, last)	((b) < (first) || (b) >= (last))

@@ -47,9 +47,6 @@ enum {
  * @muxval: a number usually used to poke into some mux regiser to
  * mux in the signal to this channel
  * @cctl_opt: default options for the channel control register
- * @device_fc: Flow Controller Settings for ccfg register. Only valid for slave
- * channels. Fill with 'true' if peripheral should be flow controller. Direction
- * will be selected at Runtime.
  * @addr: source/target address in physical memory for this DMA channel,
  * can be the address of a FIFO register for burst requests for example.
  * This can be left undefined if the PrimeCell API is used for configuring
@@ -68,7 +65,6 @@ struct pl08x_channel_data {
 	int max_signal;
 	u32 muxval;
 	u32 cctl;
-	bool device_fc;
 	dma_addr_t addr;
 	bool circular_buffer;
 	bool single;
@@ -176,13 +172,15 @@ enum pl08x_dma_chan_state {
  * @runtime_addr: address for RX/TX according to the runtime config
  * @runtime_direction: current direction of this channel according to
  * runtime config
- * @lc: last completed transaction on this channel
  * @pend_list: queued transactions pending on this channel
  * @at: active transaction on this channel
  * @lock: a lock for this channel data
  * @host: a pointer to the host (internal use)
  * @state: whether the channel is idle, paused, running etc
  * @slave: whether this channel is a device (slave) or for memcpy
+ * @device_fc: Flow Controller Settings for ccfg register. Only valid for slave
+ * channels. Fill with 'true' if peripheral should be flow controller. Direction
+ * will be selected at Runtime.
  * @waiting: a TX descriptor on this channel which is waiting for a physical
  * channel to become available
  */
@@ -198,13 +196,13 @@ struct pl08x_dma_chan {
 	u32 src_cctl;
 	u32 dst_cctl;
 	enum dma_transfer_direction runtime_direction;
-	dma_cookie_t lc;
 	struct list_head pend_list;
 	struct pl08x_txd *at;
 	spinlock_t lock;
 	struct pl08x_driver_data *host;
 	enum pl08x_dma_chan_state state;
 	bool slave;
+	bool device_fc;
 	struct pl08x_txd *waiting;
 };
 

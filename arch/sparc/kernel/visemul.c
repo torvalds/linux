@@ -9,9 +9,9 @@
 
 #include <asm/ptrace.h>
 #include <asm/pstate.h>
-#include <asm/system.h>
 #include <asm/fpumacro.h>
 #include <asm/uaccess.h>
+#include <asm/cacheflush.h>
 
 /* OPF field of various VIS instructions.  */
 

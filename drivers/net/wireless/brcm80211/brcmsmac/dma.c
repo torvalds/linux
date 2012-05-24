@@ -177,7 +177,7 @@
 #define BCMEXTRAHDROOM 172
 
 /* debug/trace */
-#ifdef BCMDBG
+#ifdef DEBUG
 #define	DMA_ERROR(fmt, ...)					\
 do {								\
 	if (*di->msg_level & 1)					\
@@ -193,7 +193,7 @@ do {								\
 	no_printk(fmt, ##__VA_ARGS__)
 #define	DMA_TRACE(fmt, ...)			\
 	no_printk(fmt, ##__VA_ARGS__)
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 #define	DMA_NONE(fmt, ...)			\
 	no_printk(fmt, ##__VA_ARGS__)
@@ -968,7 +968,7 @@ int dma_rx(struct dma_pub *pub, struct sk_buff_head *skb_list)
 			pktcnt++;
 		}
 
-#ifdef BCMDBG
+#ifdef DEBUG
 		if (resid > 0) {
 			uint cur;
 			cur =
@@ -979,7 +979,7 @@ int dma_rx(struct dma_pub *pub, struct sk_buff_head *skb_list)
 			DMA_ERROR("rxin %d rxout %d, hw_curr %d\n",
 				   di->rxin, di->rxout, cur);
 		}
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 		if ((di->dma.dmactrlflags & DMA_CTRL_RXMULTI) == 0) {
 			DMA_ERROR("%s: bad frame length (%d)\n",

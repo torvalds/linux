@@ -568,6 +568,9 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 	else if (IS_QLA82XX(ha)) {
 		*start = FA_FLASH_LAYOUT_ADDR_82;
 		goto end;
+	} else if (IS_QLA83XX(ha)) {
+		*start = FA_FLASH_LAYOUT_ADDR_83;
+		goto end;
 	}
 	/* Begin with first PCI expansion ROM header. */
 	buf = (uint8_t *)req->ring;
@@ -721,13 +724,22 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		    le32_to_cpu(region->size));
 
 		switch (le32_to_cpu(region->code) & 0xff) {
+		case FLT_REG_FCOE_FW:
+			if (!IS_QLA8031(ha))
+				break;
+			ha->flt_region_fw = start;
+			break;
 		case FLT_REG_FW:
+			if (IS_QLA8031(ha))
+				break;
 			ha->flt_region_fw = start;
 			break;
 		case FLT_REG_BOOT_CODE:
 			ha->flt_region_boot = start;
 			break;
 		case FLT_REG_VPD_0:
+			if (IS_QLA8031(ha))
+				break;
 			ha->flt_region_vpd_nvram = start;
 			if (IS_QLA82XX(ha))
 				break;
@@ -735,16 +747,20 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 				ha->flt_region_vpd = start;
 			break;
 		case FLT_REG_VPD_1:
-			if (IS_QLA82XX(ha))
+			if (IS_QLA82XX(ha) || IS_QLA8031(ha))
 				break;
 			if (!ha->flags.port0)
 				ha->flt_region_vpd = start;
 			break;
 		case FLT_REG_NVRAM_0:
+			if (IS_QLA8031(ha))
+				break;
 			if (ha->flags.port0)
 				ha->flt_region_nvram = start;
 			break;
 		case FLT_REG_NVRAM_1:
+			if (IS_QLA8031(ha))
+				break;
 			if (!ha->flags.port0)
 				ha->flt_region_nvram = start;
 			break;
@@ -785,6 +801,31 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		case FLT_REG_VPD_82XX:
 			ha->flt_region_vpd = start;
 			break;
+		case FLT_REG_FCOE_VPD_0:
+			if (!IS_QLA8031(ha))
+				break;
+			ha->flt_region_vpd_nvram = start;
+			if (ha->flags.port0)
+				ha->flt_region_vpd = start;
+			break;
+		case FLT_REG_FCOE_VPD_1:
+			if (!IS_QLA8031(ha))
+				break;
+			if (!ha->flags.port0)
+				ha->flt_region_vpd = start;
+			break;
+		case FLT_REG_FCOE_NVRAM_0:
+			if (!IS_QLA8031(ha))
+				break;
+			if (ha->flags.port0)
+				ha->flt_region_nvram = start;
+			break;
+		case FLT_REG_FCOE_NVRAM_1:
+			if (!IS_QLA8031(ha))
+				break;
+			if (!ha->flags.port0)
+				ha->flt_region_nvram = start;
+			break;
 		}
 	}
 	goto done;
@@ -804,15 +845,12 @@ no_flash_data:
 	    def_npiv_conf0[def] : def_npiv_conf1[def];
 done:
 	ql_dbg(ql_dbg_init, vha, 0x004a,
-	    "FLT[%s]: boot=0x%x fw=0x%x vpd_nvram=0x%x vpd=0x%x.\n",
-	    loc, ha->flt_region_boot,
-	    ha->flt_region_fw, ha->flt_region_vpd_nvram,
-	    ha->flt_region_vpd);
-	ql_dbg(ql_dbg_init, vha, 0x004b,
-	    "nvram=0x%x fdt=0x%x flt=0x%x npiv=0x%x fcp_prif_cfg=0x%x.\n",
-	    ha->flt_region_nvram,
-	    ha->flt_region_fdt, ha->flt_region_flt,
-	    ha->flt_region_npiv_conf, ha->flt_region_fcp_prio);
+	    "FLT[%s]: boot=0x%x fw=0x%x vpd_nvram=0x%x vpd=0x%x nvram=0x%x "
+	    "fdt=0x%x flt=0x%x npiv=0x%x fcp_prif_cfg=0x%x.\n",
+	    loc, ha->flt_region_boot, ha->flt_region_fw,
+	    ha->flt_region_vpd_nvram, ha->flt_region_vpd, ha->flt_region_nvram,
+	    ha->flt_region_fdt, ha->flt_region_flt, ha->flt_region_npiv_conf,
+	    ha->flt_region_fcp_prio);
 }
 
 static void
@@ -948,7 +986,8 @@ qla2xxx_get_flash_info(scsi_qla_host_t *vha)
 	uint32_t flt_addr;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA24XX_TYPE(ha) && !IS_QLA25XX(ha) && !IS_QLA8XXX_TYPE(ha))
+	if (!IS_QLA24XX_TYPE(ha) && !IS_QLA25XX(ha) &&
+	    !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha))
 		return QLA_SUCCESS;
 
 	ret = qla2xxx_find_flt_start(vha, &flt_addr);
@@ -974,7 +1013,8 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 	struct qla_npiv_entry *entry;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA24XX_TYPE(ha) && !IS_QLA25XX(ha) && !IS_QLA8XXX_TYPE(ha))
+	if (!IS_QLA24XX_TYPE(ha) && !IS_QLA25XX(ha) &&
+	    !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha))
 		return;
 
 	ha->isp_ops->read_optrom(vha, (uint8_t *)&hdr,
@@ -1144,8 +1184,8 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 	struct qla_hw_data *ha = vha->hw;
 
 	/* Prepare burst-capable write on supported ISPs. */
-	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && !(faddr & 0xfff) &&
-	    dwords > OPTROM_BURST_DWORDS) {
+	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA83XX(ha)) &&
+	    !(faddr & 0xfff) && dwords > OPTROM_BURST_DWORDS) {
 		optrom = dma_alloc_coherent(&ha->pdev->dev, OPTROM_BURST_SIZE,
 		    &optrom_dma, GFP_KERNEL);
 		if (!optrom) {
@@ -1619,6 +1659,71 @@ qla24xx_beacon_blink(struct scsi_qla_host *vha)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
+void
+qla83xx_beacon_blink(struct scsi_qla_host *vha)
+{
+	uint32_t led_select_value;
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t led_cfg[6];
+	uint16_t orig_led_cfg[6];
+
+	if (!IS_QLA83XX(ha) && !IS_QLA81XX(ha))
+		return;
+
+	if (IS_QLA2031(ha) && ha->beacon_blink_led) {
+		if (ha->flags.port0)
+			led_select_value = 0x00201320;
+		else
+			led_select_value = 0x00201328;
+
+		qla83xx_write_remote_reg(vha, led_select_value, 0x40002000);
+		qla83xx_write_remote_reg(vha, led_select_value + 4, 0x40002000);
+		msleep(1000);
+		qla83xx_write_remote_reg(vha, led_select_value, 0x40004000);
+		qla83xx_write_remote_reg(vha, led_select_value + 4, 0x40004000);
+	} else if ((IS_QLA8031(ha) || IS_QLA81XX(ha)) && ha->beacon_blink_led) {
+		int rval;
+
+		/* Save Current */
+		rval = qla81xx_get_led_config(vha, orig_led_cfg);
+		/* Do the blink */
+		if (rval == QLA_SUCCESS) {
+			if (IS_QLA81XX(ha)) {
+				led_cfg[0] = 0x4000;
+				led_cfg[1] = 0x2000;
+				led_cfg[2] = 0;
+				led_cfg[3] = 0;
+				led_cfg[4] = 0;
+				led_cfg[5] = 0;
+			} else {
+				led_cfg[0] = 0x4000;
+				led_cfg[1] = 0x4000;
+				led_cfg[2] = 0x4000;
+				led_cfg[3] = 0x2000;
+				led_cfg[4] = 0;
+				led_cfg[5] = 0x2000;
+			}
+			rval = qla81xx_set_led_config(vha, led_cfg);
+			msleep(1000);
+			if (IS_QLA81XX(ha)) {
+				led_cfg[0] = 0x4000;
+				led_cfg[1] = 0x2000;
+				led_cfg[2] = 0;
+			} else {
+				led_cfg[0] = 0x4000;
+				led_cfg[1] = 0x2000;
+				led_cfg[2] = 0x4000;
+				led_cfg[3] = 0x4000;
+				led_cfg[4] = 0;
+				led_cfg[5] = 0x2000;
+			}
+			rval = qla81xx_set_led_config(vha, led_cfg);
+		}
+		/* On exit, restore original (presumes no status change) */
+		qla81xx_set_led_config(vha, orig_led_cfg);
+	}
+}
+
 int
 qla24xx_beacon_on(struct scsi_qla_host *vha)
 {
@@ -1629,6 +1734,9 @@ qla24xx_beacon_on(struct scsi_qla_host *vha)
 
 	if (IS_QLA82XX(ha))
 		return QLA_SUCCESS;
+
+	if (IS_QLA8031(ha) || IS_QLA81XX(ha))
+		goto skip_gpio; /* let blink handle it */
 
 	if (ha->beacon_blink_led == 0) {
 		/* Enable firmware for update */
@@ -1644,6 +1752,9 @@ qla24xx_beacon_on(struct scsi_qla_host *vha)
 			return QLA_FUNCTION_FAILED;
 		}
 
+		if (IS_QLA2031(ha))
+			goto skip_gpio;
+
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 		gpio_data = RD_REG_DWORD(&reg->gpiod);
 
@@ -1658,6 +1769,7 @@ qla24xx_beacon_on(struct scsi_qla_host *vha)
 	/* So all colors blink together. */
 	ha->beacon_color_state = 0;
 
+skip_gpio:
 	/* Let the per HBA timer kick off the blinking process. */
 	ha->beacon_blink_led = 1;
 
@@ -1676,6 +1788,13 @@ qla24xx_beacon_off(struct scsi_qla_host *vha)
 		return QLA_SUCCESS;
 
 	ha->beacon_blink_led = 0;
+
+	if (IS_QLA2031(ha))
+		goto set_fw_options;
+
+	if (IS_QLA8031(ha) || IS_QLA81XX(ha))
+		return QLA_SUCCESS;
+
 	ha->beacon_color_state = QLA_LED_ALL_ON;
 
 	ha->isp_ops->beacon_blink(vha);	/* Will flip to all off. */
@@ -1690,6 +1809,7 @@ qla24xx_beacon_off(struct scsi_qla_host *vha)
 	RD_REG_DWORD(&reg->gpiod);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
+set_fw_options:
 	ha->fw_options[1] &= ~ADD_FO1_DISABLE_GPIO_LED_CTRL;
 
 	if (qla2x00_set_fw_options(vha, ha->fw_options) != QLA_SUCCESS) {

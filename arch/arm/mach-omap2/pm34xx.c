@@ -31,6 +31,7 @@
 #include <trace/events/power.h>
 
 #include <asm/suspend.h>
+#include <asm/system_misc.h>
 
 #include <plat/sram.h>
 #include "clockdomain.h"
@@ -49,10 +50,6 @@
 #include "pm.h"
 #include "sdrc.h"
 #include "control.h"
-
-#ifdef CONFIG_SUSPEND
-static suspend_state_t suspend_state = PM_SUSPEND_ON;
-#endif
 
 /* pm34xx errata defined in pm.h */
 u16 pm34xx_errata;
@@ -74,16 +71,6 @@ void (*omap3_do_wfi_sram)(void);
 static struct powerdomain *mpu_pwrdm, *neon_pwrdm;
 static struct powerdomain *core_pwrdm, *per_pwrdm;
 static struct powerdomain *cam_pwrdm;
-
-static inline void omap3_per_save_context(void)
-{
-	omap_gpio_save_context();
-}
-
-static inline void omap3_per_restore_context(void)
-{
-	omap_gpio_restore_context();
-}
 
 static void omap3_enable_io_chain(void)
 {
@@ -166,8 +153,7 @@ static void omap3_save_secure_ram_context(void)
 		pwrdm_set_next_pwrst(mpu_pwrdm, mpu_next_state);
 		/* Following is for error tracking, it should not happen */
 		if (ret) {
-			printk(KERN_ERR "save_secure_sram() returns %08x\n",
-				ret);
+			pr_err("save_secure_sram() returns %08x\n", ret);
 			while (1)
 				;
 		}
@@ -290,11 +276,6 @@ void omap_sram_idle(void)
 	int core_prev_state, per_prev_state;
 	u32 sdrc_pwr = 0;
 
-	pwrdm_clear_all_prev_pwrst(mpu_pwrdm);
-	pwrdm_clear_all_prev_pwrst(neon_pwrdm);
-	pwrdm_clear_all_prev_pwrst(core_pwrdm);
-	pwrdm_clear_all_prev_pwrst(per_pwrdm);
-
 	mpu_next_state = pwrdm_read_next_pwrst(mpu_pwrdm);
 	switch (mpu_next_state) {
 	case PWRDM_POWER_ON:
@@ -307,7 +288,7 @@ void omap_sram_idle(void)
 		break;
 	default:
 		/* Invalid state */
-		printk(KERN_ERR "Invalid mpu state in sram_idle\n");
+		pr_err("Invalid mpu state in sram_idle\n");
 		return;
 	}
 
@@ -332,8 +313,6 @@ void omap_sram_idle(void)
 	if (per_next_state < PWRDM_POWER_ON) {
 		per_going_off = (per_next_state == PWRDM_POWER_OFF) ? 1 : 0;
 		omap2_gpio_prepare_for_idle(per_going_off);
-		if (per_next_state == PWRDM_POWER_OFF)
-				omap3_per_save_context();
 	}
 
 	/* CORE */
@@ -399,8 +378,6 @@ void omap_sram_idle(void)
 	if (per_next_state < PWRDM_POWER_ON) {
 		per_prev_state = pwrdm_read_prev_pwrst(per_pwrdm);
 		omap2_gpio_resume_after_idle();
-		if (per_prev_state == PWRDM_POWER_OFF)
-			omap3_per_restore_context();
 	}
 
 	/* Disable IO-PAD and IO-CHAIN wakeup */
@@ -418,10 +395,9 @@ void omap_sram_idle(void)
 
 static void omap3_pm_idle(void)
 {
-	local_irq_disable();
 	local_fiq_disable();
 
-	if (omap_irq_pending() || need_resched())
+	if (omap_irq_pending())
 		goto out;
 
 	trace_power_start(POWER_CSTATE, 1, smp_processor_id());
@@ -434,7 +410,6 @@ static void omap3_pm_idle(void)
 
 out:
 	local_fiq_enable();
-	local_irq_enable();
 }
 
 #ifdef CONFIG_SUSPEND
@@ -463,66 +438,21 @@ restore:
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		state = pwrdm_read_prev_pwrst(pwrst->pwrdm);
 		if (state > pwrst->next_state) {
-			printk(KERN_INFO "Powerdomain (%s) didn't enter "
-			       "target state %d\n",
+			pr_info("Powerdomain (%s) didn't enter "
+				"target state %d\n",
 			       pwrst->pwrdm->name, pwrst->next_state);
 			ret = -1;
 		}
 		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
 	}
 	if (ret)
-		printk(KERN_ERR "Could not enter target state in pm_suspend\n");
+		pr_err("Could not enter target state in pm_suspend\n");
 	else
-		printk(KERN_INFO "Successfully put all powerdomains "
-		       "to target state\n");
+		pr_info("Successfully put all powerdomains to target state\n");
 
 	return ret;
 }
 
-static int omap3_pm_enter(suspend_state_t unused)
-{
-	int ret = 0;
-
-	switch (suspend_state) {
-	case PM_SUSPEND_STANDBY:
-	case PM_SUSPEND_MEM:
-		ret = omap3_pm_suspend();
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	return ret;
-}
-
-/* Hooks to enable / disable UART interrupts during suspend */
-static int omap3_pm_begin(suspend_state_t state)
-{
-	disable_hlt();
-	suspend_state = state;
-	omap_prcm_irq_prepare();
-	return 0;
-}
-
-static void omap3_pm_end(void)
-{
-	suspend_state = PM_SUSPEND_ON;
-	enable_hlt();
-	return;
-}
-
-static void omap3_pm_finish(void)
-{
-	omap_prcm_irq_complete();
-}
-
-static const struct platform_suspend_ops omap_pm_ops = {
-	.begin		= omap3_pm_begin,
-	.end		= omap3_pm_end,
-	.enter		= omap3_pm_enter,
-	.finish		= omap3_pm_finish,
-	.valid		= suspend_valid_only_mem,
-};
 #endif /* CONFIG_SUSPEND */
 
 
@@ -743,21 +673,6 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 }
 
 /*
- * Enable hw supervised mode for all clockdomains if it's
- * supported. Initiate sleep transition for other clockdomains, if
- * they are not used
- */
-static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
-{
-	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
-		clkdm_allow_idle(clkdm);
-	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
-		 atomic_read(&clkdm->usecount) == 0)
-		clkdm_sleep(clkdm);
-	return 0;
-}
-
-/*
  * Push functions to SRAM
  *
  * The minimum set of functions is pushed to SRAM for execution:
@@ -817,21 +732,22 @@ static int __init omap3_pm_init(void)
 
 	if (ret) {
 		pr_err("pm: Failed to request pm_io irq\n");
-		goto err1;
+		goto err2;
 	}
 
 	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {
-		printk(KERN_ERR "Failed to setup powerdomains\n");
-		goto err2;
+		pr_err("Failed to setup powerdomains\n");
+		goto err3;
 	}
 
-	(void) clkdm_for_each(clkdms_setup, NULL);
+	(void) clkdm_for_each(omap_pm_clkdms_setup, NULL);
 
 	mpu_pwrdm = pwrdm_lookup("mpu_pwrdm");
 	if (mpu_pwrdm == NULL) {
-		printk(KERN_ERR "Failed to get mpu_pwrdm\n");
-		goto err2;
+		pr_err("Failed to get mpu_pwrdm\n");
+		ret = -EINVAL;
+		goto err3;
 	}
 
 	neon_pwrdm = pwrdm_lookup("neon_pwrdm");
@@ -845,10 +761,10 @@ static int __init omap3_pm_init(void)
 	core_clkdm = clkdm_lookup("core_clkdm");
 
 #ifdef CONFIG_SUSPEND
-	suspend_set_ops(&omap_pm_ops);
-#endif /* CONFIG_SUSPEND */
+	omap_pm_suspend = omap3_pm_suspend;
+#endif
 
-	pm_idle = omap3_pm_idle;
+	arm_pm_idle = omap3_pm_idle;
 	omap3_idle_init();
 
 	/*
@@ -864,8 +780,8 @@ static int __init omap3_pm_init(void)
 		omap3_secure_ram_storage =
 			kmalloc(0x803F, GFP_KERNEL);
 		if (!omap3_secure_ram_storage)
-			printk(KERN_ERR "Memory allocation failed when"
-					"allocating for secure sram context\n");
+			pr_err("Memory allocation failed when "
+			       "allocating for secure sram context\n");
 
 		local_irq_disable();
 		local_fiq_disable();
@@ -879,14 +795,17 @@ static int __init omap3_pm_init(void)
 	}
 
 	omap3_save_scratchpad_contents();
-err1:
 	return ret;
-err2:
-	free_irq(INT_34XX_PRCM_MPU_IRQ, NULL);
+
+err3:
 	list_for_each_entry_safe(pwrst, tmp, &pwrst_list, node) {
 		list_del(&pwrst->node);
 		kfree(pwrst);
 	}
+	free_irq(omap_prcm_event_to_irq("io"), omap3_pm_init);
+err2:
+	free_irq(omap_prcm_event_to_irq("wkup"), NULL);
+err1:
 	return ret;
 }
 

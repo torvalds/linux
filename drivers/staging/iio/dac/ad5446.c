@@ -149,30 +149,8 @@ static struct attribute *ad5446_attributes[] = {
 	NULL,
 };
 
-static umode_t ad5446_attr_is_visible(struct kobject *kobj,
-				     struct attribute *attr, int n)
-{
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad5446_state *st = iio_priv(indio_dev);
-
-	umode_t mode = attr->mode;
-
-	if (!st->chip_info->store_pwr_down &&
-		(attr == &iio_dev_attr_out_voltage0_powerdown.dev_attr.attr ||
-		attr == &iio_dev_attr_out_voltage_powerdown_mode.
-		 dev_attr.attr ||
-		attr ==
-		&iio_const_attr_out_voltage_powerdown_mode_available.
-		 dev_attr.attr))
-		mode = 0;
-
-	return mode;
-}
-
 static const struct attribute_group ad5446_attribute_group = {
 	.attrs = ad5446_attributes,
-	.is_visible = ad5446_attr_is_visible,
 };
 
 #define AD5446_CHANNEL(bits, storage, shift) { \
@@ -321,6 +299,12 @@ static const struct iio_info ad5446_info = {
 	.driver_module = THIS_MODULE,
 };
 
+static const struct iio_info ad5446_info_no_pwr_down = {
+	.read_raw = ad5446_read_raw,
+	.write_raw = ad5446_write_raw,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ad5446_probe(struct spi_device *spi)
 {
 	struct ad5446_state *st;
@@ -350,10 +334,13 @@ static int __devinit ad5446_probe(struct spi_device *spi)
 	st->reg = reg;
 	st->spi = spi;
 
-	/* Estabilish that the iio_dev is a child of the spi device */
+	/* Establish that the iio_dev is a child of the spi device */
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->info = &ad5446_info;
+	if (st->chip_info->store_pwr_down)
+		indio_dev->info = &ad5446_info;
+	else
+		indio_dev->info = &ad5446_info_no_pwr_down;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = &st->chip_info->channel;
 	indio_dev->num_channels = 1;

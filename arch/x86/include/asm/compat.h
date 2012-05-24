@@ -6,7 +6,9 @@
  */
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <asm/processor.h>
 #include <asm/user32.h>
+#include <asm/unistd.h>
 
 #define COMPAT_USER_HZ		100
 #define COMPAT_UTS_MACHINE	"i686\0\0"
@@ -186,7 +188,20 @@ struct compat_shmid64_ds {
 /*
  * The type of struct elf_prstatus.pr_reg in compatible core dumps.
  */
+#ifdef CONFIG_X86_X32_ABI
+typedef struct user_regs_struct compat_elf_gregset_t;
+
+#define PR_REG_SIZE(S) (test_thread_flag(TIF_IA32) ? 68 : 216)
+#define PRSTATUS_SIZE(S) (test_thread_flag(TIF_IA32) ? 144 : 296)
+#define SET_PR_FPVALID(S,V) \
+  do { *(int *) (((void *) &((S)->pr_reg)) + PR_REG_SIZE(0)) = (V); } \
+  while (0)
+
+#define COMPAT_USE_64BIT_TIME \
+	(!!(task_pt_regs(current)->orig_ax & __X32_SYSCALL_BIT))
+#else
 typedef struct user_regs_struct32 compat_elf_gregset_t;
+#endif
 
 /*
  * A pointer passed in from user mode. This should not
@@ -208,13 +223,30 @@ static inline compat_uptr_t ptr_to_compat(void __user *uptr)
 
 static inline void __user *arch_compat_alloc_user_space(long len)
 {
-	struct pt_regs *regs = task_pt_regs(current);
-	return (void __user *)regs->sp - len;
+	compat_uptr_t sp;
+
+	if (test_thread_flag(TIF_IA32)) {
+		sp = task_pt_regs(current)->sp;
+	} else {
+		/* -128 for the x32 ABI redzone */
+		sp = percpu_read(old_rsp) - 128;
+	}
+
+	return (void __user *)round_down(sp - len, 16);
 }
 
-static inline int is_compat_task(void)
+static inline bool is_x32_task(void)
 {
-	return current_thread_info()->status & TS_COMPAT;
+#ifdef CONFIG_X86_X32_ABI
+	if (task_pt_regs(current)->orig_ax & __X32_SYSCALL_BIT)
+		return true;
+#endif
+	return false;
+}
+
+static inline bool is_compat_task(void)
+{
+	return is_ia32_task() || is_x32_task();
 }
 
 #endif /* _ASM_X86_COMPAT_H */

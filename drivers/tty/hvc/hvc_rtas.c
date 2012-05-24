@@ -94,7 +94,7 @@ static int __init hvc_rtas_init(void)
 
 	/* Allocate an hvc_struct for the console device we instantiated
 	 * earlier.  Save off hp so that we can return it on exit */
-	hp = hvc_alloc(hvc_rtas_cookie, NO_IRQ, &hvc_rtas_get_put_ops, 16);
+	hp = hvc_alloc(hvc_rtas_cookie, 0, &hvc_rtas_get_put_ops, 16);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
 

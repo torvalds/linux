@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2012  Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -1190,7 +1190,6 @@
 
 #define USB_AGG_EN				BIT(3)
 
-#define MAC_ADDR_LEN				6
 #define LAST_ENTRY_OF_TX_PKT_BUFFER		255
 
 #define POLLING_LLT_THRESHOLD			20

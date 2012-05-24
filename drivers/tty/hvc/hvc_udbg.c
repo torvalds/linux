@@ -36,7 +36,7 @@ static int hvc_udbg_put(uint32_t vtermno, const char *buf, int count)
 {
 	int i;
 
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count && udbg_putc; i++)
 		udbg_putc(buf[i]);
 
 	return i;
@@ -67,9 +67,12 @@ static int __init hvc_udbg_init(void)
 {
 	struct hvc_struct *hp;
 
+	if (!udbg_putc)
+		return -ENODEV;
+
 	BUG_ON(hvc_udbg_dev);
 
-	hp = hvc_alloc(0, NO_IRQ, &hvc_udbg_ops, 16);
+	hp = hvc_alloc(0, 0, &hvc_udbg_ops, 16);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
 
@@ -88,6 +91,9 @@ module_exit(hvc_udbg_exit);
 
 static int __init hvc_udbg_console_init(void)
 {
+	if (!udbg_putc)
+		return -ENODEV;
+
 	hvc_instantiate(0, 0, &hvc_udbg_ops);
 	add_preferred_console("hvc", 0, NULL);
 

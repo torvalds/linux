@@ -51,10 +51,10 @@ enum {
 	SCAN_COMPLETE_EVENT_ID			 = BIT(10),
 	WFD_DISCOVERY_COMPLETE_EVENT_ID		 = BIT(11),
 	AP_DISCOVERY_COMPLETE_EVENT_ID		 = BIT(12),
-	PS_REPORT_EVENT_ID			 = BIT(13),
+	RESERVED1			         = BIT(13),
 	PSPOLL_DELIVERY_FAILURE_EVENT_ID	 = BIT(14),
-	DISCONNECT_EVENT_COMPLETE_ID		 = BIT(15),
-	/* BIT(16) is reserved */
+	ROLE_STOP_COMPLETE_EVENT_ID		 = BIT(15),
+	RADAR_DETECTED_EVENT_ID                  = BIT(16),
 	CHANNEL_SWITCH_COMPLETE_EVENT_ID	 = BIT(17),
 	BSS_LOSE_EVENT_ID			 = BIT(18),
 	REGAINED_BSS_EVENT_ID			 = BIT(19),
@@ -94,9 +94,9 @@ struct event_mailbox {
 	u8 soft_gemini_sense_info;
 	u8 soft_gemini_protective_info;
 	s8 rssi_snr_trigger_metric[NUM_OF_RSSI_SNR_TRIGGERS];
-	u8 channel_switch_status;
+	u8 change_auto_mode_timeout;
 	u8 scheduled_scan_status;
-	u8 ps_status;
+	u8 reserved4;
 	/* tuned channel (roc) */
 	u8 roc_channel;
 
@@ -119,17 +119,21 @@ struct event_mailbox {
 	u8 rx_ba_allowed;
 	u8 reserved_6[2];
 
+	/* Channel switch results */
+
+	u8 channel_switch_role_id;
+	u8 channel_switch_status;
+	u8 reserved_7[2];
+
 	u8 ps_poll_delivery_failure_role_ids;
 	u8 stopped_role_ids;
 	u8 started_role_ids;
-	u8 change_auto_mode_timeout;
 
-	u8 reserved_7[12];
+	u8 reserved_8[9];
 } __packed;
 
 int wl1271_event_unmask(struct wl1271 *wl);
 void wl1271_event_mbox_config(struct wl1271 *wl);
 int wl1271_event_handle(struct wl1271 *wl, u8 mbox);
-void wl1271_pspoll_work(struct work_struct *work);
 
 #endif

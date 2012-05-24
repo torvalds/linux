@@ -69,8 +69,8 @@ struct twl4030_bci {
 	struct device		*dev;
 	struct power_supply	ac;
 	struct power_supply	usb;
-	struct otg_transceiver	*transceiver;
-	struct notifier_block	otg_nb;
+	struct usb_phy		*transceiver;
+	struct notifier_block	usb_nb;
 	struct work_struct	work;
 	int			irq_chg;
 	int			irq_bci;
@@ -279,7 +279,7 @@ static void twl4030_bci_usb_work(struct work_struct *data)
 static int twl4030_bci_usb_ncb(struct notifier_block *nb, unsigned long val,
 			       void *priv)
 {
-	struct twl4030_bci *bci = container_of(nb, struct twl4030_bci, otg_nb);
+	struct twl4030_bci *bci = container_of(nb, struct twl4030_bci, usb_nb);
 
 	dev_dbg(bci->dev, "OTG notify %lu\n", val);
 
@@ -479,10 +479,10 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 
 	INIT_WORK(&bci->work, twl4030_bci_usb_work);
 
-	bci->transceiver = otg_get_transceiver();
+	bci->transceiver = usb_get_transceiver();
 	if (bci->transceiver != NULL) {
-		bci->otg_nb.notifier_call = twl4030_bci_usb_ncb;
-		otg_register_notifier(bci->transceiver, &bci->otg_nb);
+		bci->usb_nb.notifier_call = twl4030_bci_usb_ncb;
+		usb_register_notifier(bci->transceiver, &bci->usb_nb);
 	}
 
 	/* Enable interrupts now. */
@@ -508,8 +508,8 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 
 fail_unmask_interrupts:
 	if (bci->transceiver != NULL) {
-		otg_unregister_notifier(bci->transceiver, &bci->otg_nb);
-		otg_put_transceiver(bci->transceiver);
+		usb_unregister_notifier(bci->transceiver, &bci->usb_nb);
+		usb_put_transceiver(bci->transceiver);
 	}
 	free_irq(bci->irq_bci, bci);
 fail_bci_irq:
@@ -539,8 +539,8 @@ static int __exit twl4030_bci_remove(struct platform_device *pdev)
 			 TWL4030_INTERRUPTS_BCIIMR2A);
 
 	if (bci->transceiver != NULL) {
-		otg_unregister_notifier(bci->transceiver, &bci->otg_nb);
-		otg_put_transceiver(bci->transceiver);
+		usb_unregister_notifier(bci->transceiver, &bci->usb_nb);
+		usb_put_transceiver(bci->transceiver);
 	}
 	free_irq(bci->irq_bci, bci);
 	free_irq(bci->irq_chg, bci);

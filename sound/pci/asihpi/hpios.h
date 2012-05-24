@@ -30,7 +30,6 @@ HPI Operating System Specific macros for Linux Kernel driver
 #define HPI_BUILD_KERNEL_MODE
 
 #include <linux/io.h>
-#include <asm/system.h>
 #include <linux/ioctl.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

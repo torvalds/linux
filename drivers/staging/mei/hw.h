@@ -1,7 +1,7 @@
 /*
  *
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2011, Intel Corporation.
+ * Copyright (c) 2003-2012, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -141,6 +141,11 @@ access to ME_CBD */
 #define HBM_MAJOR_VERSION                   1
 #define HBM_TIMEOUT                         1	/* 1 second */
 
+/* Host bus message command opcode */
+#define MEI_HBM_CMD_OP_MSK                  0x7f
+/* Host bus message command RESPONSE */
+#define MEI_HBM_CMD_RES_MSK                 0x80
+
 /*
  * MEI Bus Message Command IDs
  */
@@ -164,7 +169,7 @@ access to ME_CBD */
 #define CLIENT_DISCONNECT_REQ_CMD           0x07
 #define CLIENT_DISCONNECT_RES_CMD           0x87
 
-#define MEI_FLOW_CONTROL_CMD               0x08
+#define MEI_FLOW_CONTROL_CMD                0x08
 
 /*
  * MEI Stop Reason
@@ -213,15 +218,9 @@ struct mei_msg_hdr {
 } __packed;
 
 
-struct hbm_cmd {
-	u8 cmd:7;
-	u8 is_response:1;
-} __packed;
-
-
 struct mei_bus_message {
-	struct hbm_cmd cmd;
-	u8 command_specific_data[];
+	u8 hbm_cmd;
+	u8 data[0];
 } __packed;
 
 struct hbm_version {
@@ -230,41 +229,41 @@ struct hbm_version {
 } __packed;
 
 struct hbm_host_version_request {
-	struct hbm_cmd cmd;
+	u8 hbm_cmd;
 	u8 reserved;
 	struct hbm_version host_version;
 } __packed;
 
 struct hbm_host_version_response {
-	struct hbm_cmd cmd;
-	int host_version_supported;
+	u8 hbm_cmd;
+	u8 host_version_supported;
 	struct hbm_version me_max_version;
 } __packed;
 
 struct hbm_host_stop_request {
-	struct hbm_cmd cmd;
+	u8 hbm_cmd;
 	u8 reason;
 	u8 reserved[2];
 } __packed;
 
 struct hbm_host_stop_response {
-	struct hbm_cmd cmd;
+	u8 hbm_cmd;
 	u8 reserved[3];
 } __packed;
 
 struct hbm_me_stop_request {
-	struct hbm_cmd cmd;
+	u8 hbm_cmd;
 	u8 reason;
 	u8 reserved[2];
 } __packed;
 
 struct hbm_host_enum_request {
-	struct hbm_cmd cmd;
+	u8 hbm_cmd;
 	u8 reserved[3];
 } __packed;
 
 struct hbm_host_enum_response {
-	struct hbm_cmd cmd;
+	u8 hbm_cmd;
 	u8 reserved[3];
 	u8 valid_addresses[32];
 } __packed;
@@ -279,14 +278,14 @@ struct mei_client_properties {
 } __packed;
 
 struct hbm_props_request {
-	struct hbm_cmd cmd;
+	u8 hbm_cmd;
 	u8 address;
 	u8 reserved[2];
 } __packed;
 
 
 struct hbm_props_response {
-	struct hbm_cmd cmd;
+	u8 hbm_cmd;
 	u8 address;
 	u8 status;
 	u8 reserved[1];
@@ -294,21 +293,21 @@ struct hbm_props_response {
 } __packed;
 
 struct hbm_client_connect_request {
-	struct hbm_cmd cmd;
+	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;
 	u8 reserved;
 } __packed;
 
 struct hbm_client_connect_response {
-	struct hbm_cmd cmd;
+	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;
 	u8 status;
 } __packed;
 
 struct hbm_client_disconnect_request {
-	struct hbm_cmd cmd;
+	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;
 	u8 reserved[1];
@@ -317,7 +316,7 @@ struct hbm_client_disconnect_request {
 #define MEI_FC_MESSAGE_RESERVED_LENGTH           5
 
 struct hbm_flow_control {
-	struct hbm_cmd cmd;
+	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;
 	u8 reserved[MEI_FC_MESSAGE_RESERVED_LENGTH];

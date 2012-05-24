@@ -253,7 +253,7 @@ static const struct snd_kcontrol_new max9877_controls[] = {
 /* This function is called from ASoC machine driver */
 int max9877_add_controls(struct snd_soc_codec *codec)
 {
-	return snd_soc_add_controls(codec, max9877_controls,
+	return snd_soc_add_codec_controls(codec, max9877_controls,
 			ARRAY_SIZE(max9877_controls));
 }
 EXPORT_SYMBOL_GPL(max9877_add_controls);

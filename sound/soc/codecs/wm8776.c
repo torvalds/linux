@@ -30,6 +30,11 @@
 
 #include "wm8776.h"
 
+enum wm8776_chip_type {
+	WM8775 = 1,
+	WM8776,
+};
+
 /* codec private data */
 struct wm8776_priv {
 	enum snd_soc_control_type control_type;
@@ -512,7 +517,8 @@ static __devexit int wm8776_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id wm8776_i2c_id[] = {
-	{ "wm8776", 0 },
+	{ "wm8775", WM8775 },
+	{ "wm8776", WM8776 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8776_i2c_id);

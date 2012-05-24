@@ -26,6 +26,7 @@
 #include <mach/mfp-pxa168.h>
 #include <mach/pxa168.h>
 #include <mach/teton_bga.h>
+#include <mach/irqs.h>
 
 #include "common.h"
 
@@ -83,7 +84,7 @@ static void __init teton_bga_init(void)
 
 MACHINE_START(TETON_BGA, "PXA168-based Teton BGA Development Platform")
 	.map_io		= mmp_map_io,
-	.nr_irqs	= IRQ_BOARD_START,
+	.nr_irqs	= MMP_NR_IRQS,
 	.init_irq       = pxa168_init_irq,
 	.timer          = &pxa168_timer,
 	.init_machine   = teton_bga_init,

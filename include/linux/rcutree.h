@@ -61,6 +61,24 @@ extern void synchronize_rcu_bh(void);
 extern void synchronize_sched_expedited(void);
 extern void synchronize_rcu_expedited(void);
 
+void kfree_call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
+
+/**
+ * synchronize_rcu_bh_expedited - Brute-force RCU-bh grace period
+ *
+ * Wait for an RCU-bh grace period to elapse, but use a "big hammer"
+ * approach to force the grace period to end quickly.  This consumes
+ * significant time on all CPUs and is unfriendly to real-time workloads,
+ * so is thus not recommended for any sort of common-case code.  In fact,
+ * if you are using synchronize_rcu_bh_expedited() in a loop, please
+ * restructure your code to batch your updates, and then use a single
+ * synchronize_rcu_bh() instead.
+ *
+ * Note that it is illegal to call this function while holding any lock
+ * that is acquired by a CPU-hotplug notifier.  And yes, it is also illegal
+ * to call this function from a CPU-hotplug notifier.  Failing to observe
+ * these restriction will result in deadlock.
+ */
 static inline void synchronize_rcu_bh_expedited(void)
 {
 	synchronize_sched_expedited();
@@ -83,6 +101,7 @@ extern void rcu_sched_force_quiescent_state(void);
 /* A context switch is a grace period for RCU-sched and RCU-bh. */
 static inline int rcu_blocking_is_gp(void)
 {
+	might_sleep();  /* Check for RCU read-side critical section. */
 	return num_online_cpus() == 1;
 }
 

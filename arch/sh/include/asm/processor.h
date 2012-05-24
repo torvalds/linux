@@ -101,6 +101,10 @@ extern struct sh_cpuinfo cpu_data[];
 #define cpu_sleep()	__asm__ __volatile__ ("sleep" : : : "memory")
 #define cpu_relax()	barrier()
 
+void default_idle(void);
+void cpu_idle_wait(void);
+void stop_this_cpu(void *);
+
 /* Forward decl */
 struct seq_operations;
 struct task_struct;
@@ -159,6 +163,17 @@ int test_mode_pin(int pin);
 int vsyscall_init(void);
 #else
 #define vsyscall_init() do { } while (0)
+#endif
+
+/*
+ * SH-2A has both 16 and 32-bit opcodes, do lame encoding checks.
+ */
+#ifdef CONFIG_CPU_SH2A
+extern unsigned int instruction_size(unsigned int insn);
+#elif defined(CONFIG_SUPERH32)
+#define instruction_size(insn)	(2)
+#else
+#define instruction_size(insn)	(4)
 #endif
 
 #endif /* __ASSEMBLY__ */

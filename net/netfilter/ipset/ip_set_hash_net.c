@@ -43,7 +43,7 @@ hash_net_same_set(const struct ip_set *a, const struct ip_set *b);
 struct hash_net4_elem {
 	__be32 ip;
 	u16 padding0;
-	u8 padding1;
+	u8 nomatch;
 	u8 cidr;
 };
 
@@ -51,7 +51,7 @@ struct hash_net4_elem {
 struct hash_net4_telem {
 	__be32 ip;
 	u16 padding0;
-	u8 padding1;
+	u8 nomatch;
 	u8 cidr;
 	unsigned long timeout;
 };
@@ -61,7 +61,8 @@ hash_net4_data_equal(const struct hash_net4_elem *ip1,
 		     const struct hash_net4_elem *ip2,
 		     u32 *multi)
 {
-	return ip1->ip == ip2->ip && ip1->cidr == ip2->cidr;
+	return ip1->ip == ip2->ip &&
+	       ip1->cidr == ip2->cidr;
 }
 
 static inline bool
@@ -76,6 +77,19 @@ hash_net4_data_copy(struct hash_net4_elem *dst,
 {
 	dst->ip = src->ip;
 	dst->cidr = src->cidr;
+	dst->nomatch = src->nomatch;
+}
+
+static inline void
+hash_net4_data_flags(struct hash_net4_elem *dst, u32 flags)
+{
+	dst->nomatch = flags & IPSET_FLAG_NOMATCH;
+}
+
+static inline bool
+hash_net4_data_match(const struct hash_net4_elem *elem)
+{
+	return !elem->nomatch;
 }
 
 static inline void
@@ -95,8 +109,12 @@ hash_net4_data_zero_out(struct hash_net4_elem *elem)
 static bool
 hash_net4_data_list(struct sk_buff *skb, const struct hash_net4_elem *data)
 {
+	u32 flags = data->nomatch ? IPSET_FLAG_NOMATCH : 0;
+
 	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP, data->ip);
 	NLA_PUT_U8(skb, IPSET_ATTR_CIDR, data->cidr);
+	if (flags)
+		NLA_PUT_NET32(skb, IPSET_ATTR_CADT_FLAGS, htonl(flags));
 	return 0;
 
 nla_put_failure:
@@ -108,11 +126,14 @@ hash_net4_data_tlist(struct sk_buff *skb, const struct hash_net4_elem *data)
 {
 	const struct hash_net4_telem *tdata =
 		(const struct hash_net4_telem *)data;
+	u32 flags = data->nomatch ? IPSET_FLAG_NOMATCH : 0;
 
 	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP, tdata->ip);
 	NLA_PUT_U8(skb, IPSET_ATTR_CIDR, tdata->cidr);
 	NLA_PUT_NET32(skb, IPSET_ATTR_TIMEOUT,
 		      htonl(ip_set_timeout_get(tdata->timeout)));
+	if (flags)
+		NLA_PUT_NET32(skb, IPSET_ATTR_CADT_FLAGS, htonl(flags));
 
 	return 0;
 
@@ -167,7 +188,8 @@ hash_net4_uadt(struct ip_set *set, struct nlattr *tb[],
 	int ret;
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT)))
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
 		return -IPSET_ERR_PROTOCOL;
 
 	if (tb[IPSET_ATTR_LINENO])
@@ -179,7 +201,7 @@ hash_net4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	if (tb[IPSET_ATTR_CIDR]) {
 		data.cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
-		if (!data.cidr)
+		if (!data.cidr || data.cidr > HOST_MASK)
 			return -IPSET_ERR_INVALID_CIDR;
 	}
 
@@ -187,6 +209,12 @@ hash_net4_uadt(struct ip_set *set, struct nlattr *tb[],
 		if (!with_timeout(h->timeout))
 			return -IPSET_ERR_TIMEOUT;
 		timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
+	}
+
+	if (tb[IPSET_ATTR_CADT_FLAGS] && adt == IPSET_ADD) {
+		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
+		if (cadt_flags & IPSET_FLAG_NOMATCH)
+			flags |= (cadt_flags << 16);
 	}
 
 	if (adt == IPSET_TEST || !tb[IPSET_ATTR_IP_TO]) {
@@ -236,14 +264,14 @@ hash_net_same_set(const struct ip_set *a, const struct ip_set *b)
 struct hash_net6_elem {
 	union nf_inet_addr ip;
 	u16 padding0;
-	u8 padding1;
+	u8 nomatch;
 	u8 cidr;
 };
 
 struct hash_net6_telem {
 	union nf_inet_addr ip;
 	u16 padding0;
-	u8 padding1;
+	u8 nomatch;
 	u8 cidr;
 	unsigned long timeout;
 };
@@ -269,6 +297,19 @@ hash_net6_data_copy(struct hash_net6_elem *dst,
 {
 	dst->ip.in6 = src->ip.in6;
 	dst->cidr = src->cidr;
+	dst->nomatch = src->nomatch;
+}
+
+static inline void
+hash_net6_data_flags(struct hash_net6_elem *dst, u32 flags)
+{
+	dst->nomatch = flags & IPSET_FLAG_NOMATCH;
+}
+
+static inline bool
+hash_net6_data_match(const struct hash_net6_elem *elem)
+{
+	return !elem->nomatch;
 }
 
 static inline void
@@ -296,8 +337,12 @@ hash_net6_data_netmask(struct hash_net6_elem *elem, u8 cidr)
 static bool
 hash_net6_data_list(struct sk_buff *skb, const struct hash_net6_elem *data)
 {
+	u32 flags = data->nomatch ? IPSET_FLAG_NOMATCH : 0;
+
 	NLA_PUT_IPADDR6(skb, IPSET_ATTR_IP, &data->ip);
 	NLA_PUT_U8(skb, IPSET_ATTR_CIDR, data->cidr);
+	if (flags)
+		NLA_PUT_NET32(skb, IPSET_ATTR_CADT_FLAGS, htonl(flags));
 	return 0;
 
 nla_put_failure:
@@ -309,11 +354,14 @@ hash_net6_data_tlist(struct sk_buff *skb, const struct hash_net6_elem *data)
 {
 	const struct hash_net6_telem *e =
 		(const struct hash_net6_telem *)data;
+	u32 flags = data->nomatch ? IPSET_FLAG_NOMATCH : 0;
 
 	NLA_PUT_IPADDR6(skb, IPSET_ATTR_IP, &e->ip);
 	NLA_PUT_U8(skb, IPSET_ATTR_CIDR, e->cidr);
 	NLA_PUT_NET32(skb, IPSET_ATTR_TIMEOUT,
 		      htonl(ip_set_timeout_get(e->timeout)));
+	if (flags)
+		NLA_PUT_NET32(skb, IPSET_ATTR_CADT_FLAGS, htonl(flags));
 	return 0;
 
 nla_put_failure:
@@ -366,7 +414,8 @@ hash_net6_uadt(struct ip_set *set, struct nlattr *tb[],
 	int ret;
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT)))
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
 		return -IPSET_ERR_PROTOCOL;
 	if (unlikely(tb[IPSET_ATTR_IP_TO]))
 		return -IPSET_ERR_HASH_RANGE_UNSUPPORTED;
@@ -381,7 +430,7 @@ hash_net6_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (tb[IPSET_ATTR_CIDR])
 		data.cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
 
-	if (!data.cidr)
+	if (!data.cidr || data.cidr > HOST_MASK)
 		return -IPSET_ERR_INVALID_CIDR;
 
 	ip6_netmask(&data.ip, data.cidr);
@@ -390,6 +439,12 @@ hash_net6_uadt(struct ip_set *set, struct nlattr *tb[],
 		if (!with_timeout(h->timeout))
 			return -IPSET_ERR_TIMEOUT;
 		timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
+	}
+
+	if (tb[IPSET_ATTR_CADT_FLAGS] && adt == IPSET_ADD) {
+		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
+		if (cadt_flags & IPSET_FLAG_NOMATCH)
+			flags |= (cadt_flags << 16);
 	}
 
 	ret = adtfn(set, &data, timeout, flags);
@@ -406,7 +461,7 @@ hash_net_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	struct ip_set_hash *h;
 	u8 hbits;
 
-	if (!(set->family == AF_INET || set->family == AF_INET6))
+	if (!(set->family == NFPROTO_IPV4 || set->family == NFPROTO_IPV6))
 		return -IPSET_ERR_INVALID_FAMILY;
 
 	if (unlikely(!ip_set_optattr_netorder(tb, IPSET_ATTR_HASHSIZE) ||
@@ -425,7 +480,7 @@ hash_net_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 
 	h = kzalloc(sizeof(*h)
 		    + sizeof(struct ip_set_hash_nets)
-		      * (set->family == AF_INET ? 32 : 128), GFP_KERNEL);
+		      * (set->family == NFPROTO_IPV4 ? 32 : 128), GFP_KERNEL);
 	if (!h)
 		return -ENOMEM;
 
@@ -448,15 +503,15 @@ hash_net_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	if (tb[IPSET_ATTR_TIMEOUT]) {
 		h->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 
-		set->variant = set->family == AF_INET
+		set->variant = set->family == NFPROTO_IPV4
 			? &hash_net4_tvariant : &hash_net6_tvariant;
 
-		if (set->family == AF_INET)
+		if (set->family == NFPROTO_IPV4)
 			hash_net4_gc_init(set);
 		else
 			hash_net6_gc_init(set);
 	} else {
-		set->variant = set->family == AF_INET
+		set->variant = set->family == NFPROTO_IPV4
 			? &hash_net4_variant : &hash_net6_variant;
 	}
 
@@ -472,9 +527,10 @@ static struct ip_set_type hash_net_type __read_mostly = {
 	.protocol	= IPSET_PROTOCOL,
 	.features	= IPSET_TYPE_IP,
 	.dimension	= IPSET_DIM_ONE,
-	.family		= AF_UNSPEC,
+	.family		= NFPROTO_UNSPEC,
 	.revision_min	= 0,
-	.revision_max	= 1,	/* Range as input support for IPv4 added */
+	/*		= 1 	   Range as input support for IPv4 added */
+	.revision_max	= 2,	/* nomatch flag support added */
 	.create		= hash_net_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },
@@ -488,6 +544,7 @@ static struct ip_set_type hash_net_type __read_mostly = {
 		[IPSET_ATTR_IP_TO]	= { .type = NLA_NESTED },
 		[IPSET_ATTR_CIDR]	= { .type = NLA_U8 },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
+		[IPSET_ATTR_CADT_FLAGS]	= { .type = NLA_U32 },
 	},
 	.me		= THIS_MODULE,
 };

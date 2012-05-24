@@ -21,6 +21,7 @@
 #include <linux/jbd2.h>
 #include <linux/errno.h>
 #include <linux/crc32.h>
+#include <linux/blkdev.h>
 #endif
 
 /*
@@ -265,7 +266,9 @@ int jbd2_journal_recover(journal_t *journal)
 	err2 = sync_blockdev(journal->j_fs_dev);
 	if (!err)
 		err = err2;
-
+	/* Make sure all replayed data is on permanent storage */
+	if (journal->j_flags & JBD2_BARRIER)
+		blkdev_issue_flush(journal->j_fs_dev, GFP_KERNEL, NULL);
 	return err;
 }
 

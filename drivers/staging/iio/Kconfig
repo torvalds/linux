@@ -11,6 +11,13 @@ menuconfig IIO
 	  number of different physical interfaces (i2c, spi, etc). See
 	  drivers/staging/iio/Documentation for more information.
 if IIO
+config IIO_ST_HWMON
+	tristate "Hwmon driver that uses channels specified via iio maps"
+	depends on HWMON
+	help
+	  This is a platform driver that in combination with a suitable
+	  map allows IIO devices to provide  basic hwmon functionality
+	  for those channels specified in the map.
 
 config IIO_BUFFER
 	bool "Enable buffer support within IIO"
@@ -79,7 +86,7 @@ config IIO_SIMPLE_DUMMY
        help
 	 Driver intended mainly as documentation for how to write
 	 a driver. May also be useful for testing userspace code
-	 without hardward.
+	 without hardware.
 
 if IIO_SIMPLE_DUMMY
 

@@ -9,7 +9,6 @@
 #include <linux/interrupt.h>
 #include <asm/bfin-global.h>
 #include <asm/reboot.h>
-#include <asm/system.h>
 #include <asm/bfrom.h>
 
 /* A system soft reset makes external memory unusable so force

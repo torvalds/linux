@@ -62,7 +62,7 @@ in the system log at /var/log/messages.
 
 If installed as a module, the module must be loaded.  This can be done
 manually by entering "modprobe rocket".  To have the module loaded automatically
-upon system boot, edit the /etc/modprobe.conf file and add the line
+upon system boot, edit a /etc/modprobe.d/*.conf file and add the line
 "alias char-major-46 rocket".
 
 In order to use the ports, their device names (nodes) must be created with mknod.

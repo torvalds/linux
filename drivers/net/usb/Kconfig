@@ -398,6 +398,28 @@ config USB_NET_KALMIA
 	  To compile this driver as a module, choose M here: the
 	  module will be called kalmia.
 
+config USB_NET_QMI_WWAN
+	tristate "QMI WWAN driver for Qualcomm MSM based 3G and LTE modems"
+	depends on USB_USBNET
+	select USB_WDM
+	help
+	  Support WWAN LTE/3G devices based on Qualcomm Mobile Data Modem
+	  (MDM) chipsets.  Examples of such devices are
+	    * Huawei E392/E398
+
+	  This driver will only drive the ethernet part of the chips.
+	  The devices require additional configuration to be usable.
+	  Multiple management interfaces with linux drivers are
+	  available:
+
+	    * option: AT commands on /dev/ttyUSBx
+	    * cdc-wdm: Qualcomm MSM Interface (QMI) protocol on /dev/cdc-wdmx
+
+	  A modem manager with support for QMI is recommended.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qmi_wwan.
+
 config USB_HSO
 	tristate "Option USB High Speed Mobile Devices"
 	depends on USB && RFKILL
@@ -460,5 +482,6 @@ config USB_VL600
 	  4G modem from Verizon:
 
 	  http://ubuntuforums.org/showpost.php?p=10589647&postcount=17
+
 
 endmenu

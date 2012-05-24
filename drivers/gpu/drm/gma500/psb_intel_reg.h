@@ -177,6 +177,9 @@
 #define LVDSPP_OFF		0x6120c
 #define PP_CYCLE		0x61210
 
+#define PP_ON_DELAYS		0x61208		/* Cedartrail */
+#define PP_OFF_DELAYS		0x6120c		/* Cedartrail */
+
 #define PFIT_CONTROL		0x61230
 #define PFIT_ENABLE			(1 << 31)
 #define PFIT_PIPE_MASK			(3 << 29)
@@ -1252,6 +1255,12 @@ No status bits are changed.
 # define SB_BYTE_ENABLE_SHIFT                   4
 # define SB_BUSY                                (1 << 0)
 
+#define DSPCLK_GATE_D		0x6200
+# define VRHUNIT_CLOCK_GATE_DISABLE		(1 << 28) /* Fixed value on CDV */
+# define DPOUNIT_CLOCK_GATE_DISABLE		(1 << 11)
+# define DPIOUNIT_CLOCK_GATE_DISABLE		(1 << 6)
+
+#define RAMCLK_GATE_D		0x6210
 
 /* 32-bit value read/written from the DPIO reg. */
 #define SB_DATA		0x02104 /* cedarview */

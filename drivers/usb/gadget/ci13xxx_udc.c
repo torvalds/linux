@@ -2181,6 +2181,7 @@ static int ep_disable(struct usb_ep *ep)
 	} while (mEp->dir != direction);
 
 	mEp->desc = NULL;
+	mEp->ep.desc = NULL;
 
 	spin_unlock_irqrestore(mEp->lock, flags);
 	return retval;
@@ -2537,7 +2538,7 @@ static int ci13xxx_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	struct ci13xxx *udc = container_of(_gadget, struct ci13xxx, gadget);
 
 	if (udc->transceiver)
-		return otg_set_power(udc->transceiver, mA);
+		return usb_phy_set_power(udc->transceiver, mA);
 	return -ENOTSUPP;
 }
 
@@ -2900,7 +2901,7 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	if (retval < 0)
 		goto free_udc;
 
-	udc->transceiver = otg_get_transceiver();
+	udc->transceiver = usb_get_transceiver();
 
 	if (udc->udc_driver->flags & CI13XXX_REQUIRE_TRANSCEIVER) {
 		if (udc->transceiver == NULL) {
@@ -2928,7 +2929,8 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 		goto unreg_device;
 
 	if (udc->transceiver) {
-		retval = otg_set_peripheral(udc->transceiver, &udc->gadget);
+		retval = otg_set_peripheral(udc->transceiver->otg,
+						&udc->gadget);
 		if (retval)
 			goto remove_dbg;
 	}
@@ -2945,8 +2947,8 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 
 remove_trans:
 	if (udc->transceiver) {
-		otg_set_peripheral(udc->transceiver, &udc->gadget);
-		otg_put_transceiver(udc->transceiver);
+		otg_set_peripheral(udc->transceiver->otg, &udc->gadget);
+		usb_put_transceiver(udc->transceiver);
 	}
 
 	err("error = %i", retval);
@@ -2958,7 +2960,7 @@ unreg_device:
 	device_unregister(&udc->gadget.dev);
 put_transceiver:
 	if (udc->transceiver)
-		otg_put_transceiver(udc->transceiver);
+		usb_put_transceiver(udc->transceiver);
 free_udc:
 	kfree(udc);
 	_udc = NULL;
@@ -2981,8 +2983,8 @@ static void udc_remove(void)
 	usb_del_gadget_udc(&udc->gadget);
 
 	if (udc->transceiver) {
-		otg_set_peripheral(udc->transceiver, &udc->gadget);
-		otg_put_transceiver(udc->transceiver);
+		otg_set_peripheral(udc->transceiver->otg, &udc->gadget);
+		usb_put_transceiver(udc->transceiver);
 	}
 #ifdef CONFIG_USB_GADGET_DEBUG_FILES
 	dbg_remove_files(&udc->gadget.dev);

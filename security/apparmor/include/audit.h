@@ -25,10 +25,8 @@
 
 struct aa_profile;
 
-extern const char *audit_mode_names[];
+extern const char *const audit_mode_names[];
 #define AUDIT_MAX_INDEX 5
-
-#define AUDIT_APPARMOR_AUTO 0	/* auto choose audit message type */
 
 enum audit_mode {
 	AUDIT_NORMAL,		/* follow normal auditing of accesses */
@@ -45,10 +43,11 @@ enum audit_type {
 	AUDIT_APPARMOR_HINT,
 	AUDIT_APPARMOR_STATUS,
 	AUDIT_APPARMOR_ERROR,
-	AUDIT_APPARMOR_KILL
+	AUDIT_APPARMOR_KILL,
+	AUDIT_APPARMOR_AUTO
 };
 
-extern const char *op_table[];
+extern const char *const op_table[];
 enum aa_ops {
 	OP_NULL,
 
@@ -104,7 +103,33 @@ enum aa_ops {
 };
 
 
-/* define a short hand for apparmor_audit_data portion of common_audit_data */
+struct apparmor_audit_data {
+	int error;
+	int op;
+	int type;
+	void *profile;
+	const char *name;
+	const char *info;
+	union {
+		void *target;
+		struct {
+			long pos;
+			void *target;
+		} iface;
+		struct {
+			int rlim;
+			unsigned long max;
+		} rlim;
+		struct {
+			const char *target;
+			u32 request;
+			u32 denied;
+			uid_t ouid;
+		} fs;
+	};
+};
+
+/* define a short hand for apparmor_audit_data structure */
 #define aad apparmor_audit_data
 
 void aa_audit_msg(int type, struct common_audit_data *sa,

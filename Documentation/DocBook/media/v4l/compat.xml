@@ -444,7 +444,7 @@ linkend="pixfmt-rgb"><constant>V4L2_PIX_FMT_BGR24</constant></link></para></entr
 		<entry><para><link
 linkend="pixfmt-rgb"><constant>V4L2_PIX_FMT_BGR32</constant></link><footnote>
 		      <para>Presumably all V4L RGB formats are
-little-endian, although some drivers might interpret them according to machine endianess. V4L2 defines little-endian, big-endian and red/blue
+little-endian, although some drivers might interpret them according to machine endianness. V4L2 defines little-endian, big-endian and red/blue
 swapped variants. For details see <xref linkend="pixfmt-rgb" />.</para>
 		    </footnote></para></entry>
 	      </row>
@@ -823,7 +823,7 @@ standard); 35468950&nbsp;Hz PAL and SECAM (625-line standards)</entry>
 		<row>
 		  <entry>sample_format</entry>
 		  <entry>V4L2_PIX_FMT_GREY. The last four bytes (a
-machine endianess integer) contain a frame counter.</entry>
+machine endianness integer) contain a frame counter.</entry>
 		</row>
 		<row>
 		  <entry>start[]</entry>
@@ -2392,6 +2392,20 @@ details.</para>
 	  <para>Added <constant>V4L2_CID_ALPHA_COMPONENT</constant> control
 	    to the <link linkend="control">User controls class</link>.
 	  </para>
+        </listitem>
+        <listitem>
+	  <para>Added the device_caps field to struct v4l2_capabilities and added the new
+	  V4L2_CAP_DEVICE_CAPS capability.</para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.4</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added <link linkend="jpeg-controls">JPEG compression control
+	  class</link>.</para>
         </listitem>
       </orderedlist>
     </section>

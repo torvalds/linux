@@ -435,7 +435,7 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 	u32 i;
 	int res = -EINVAL;
 
-	if (tipc_mode != TIPC_NET_MODE) {
+	if (!tipc_own_addr) {
 		warn("Bearer <%s> rejected, not supported in standalone mode\n",
 		     name);
 		return -ENOPROTOOPT;
@@ -456,8 +456,7 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 		warn("Bearer <%s> rejected, illegal discovery domain\n", name);
 		return -EINVAL;
 	}
-	if ((priority < TIPC_MIN_LINK_PRI ||
-	     priority > TIPC_MAX_LINK_PRI) &&
+	if ((priority > TIPC_MAX_LINK_PRI) &&
 	    (priority != TIPC_MEDIA_LINK_PRI)) {
 		warn("Bearer <%s> rejected, illegal priority\n", name);
 		return -EINVAL;

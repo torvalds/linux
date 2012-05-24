@@ -327,7 +327,9 @@ static int temac_set_mac_address(struct net_device *ndev, void *address)
 		memcpy(ndev->dev_addr, address, ETH_ALEN);
 
 	if (!is_valid_ether_addr(ndev->dev_addr))
-		random_ether_addr(ndev->dev_addr);
+		eth_hw_addr_random(ndev);
+	else
+		ndev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	/* set up unicast MAC address filter set its mac address */
 	mutex_lock(&lp->indirect_mutex);
@@ -1011,10 +1013,9 @@ static int __devinit temac_of_probe(struct platform_device *op)
 
 	/* Init network device structure */
 	ndev = alloc_etherdev(sizeof(*lp));
-	if (!ndev) {
-		dev_err(&op->dev, "could not allocate device.\n");
+	if (!ndev)
 		return -ENOMEM;
-	}
+
 	ether_setup(ndev);
 	dev_set_drvdata(&op->dev, ndev);
 	SET_NETDEV_DEV(ndev, &op->dev);

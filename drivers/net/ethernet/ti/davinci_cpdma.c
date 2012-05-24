@@ -822,7 +822,7 @@ int cpdma_chan_stop(struct cpdma_chan *chan)
 	dma_reg_write(ctlr, chan->int_clear, chan->mask);
 
 	/* trigger teardown */
-	dma_reg_write(ctlr, chan->td, chan->chan_num);
+	dma_reg_write(ctlr, chan->td, chan_linear(chan));
 
 	/* wait for teardown complete */
 	timeout = jiffies + HZ/10;	/* 100 msec */

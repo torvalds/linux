@@ -55,14 +55,9 @@
 
 /*
  * MAX_REQ is the maximum number of requests that WE will send
- * on one socket concurrently. It also matches the most common
- * value of max multiplex returned by servers.  We may
- * eventually want to use the negotiated value (in case
- * future servers can handle more) when we are more confident that
- * we will not have problems oveloading the socket with pending
- * write data.
+ * on one socket concurrently.
  */
-#define CIFS_MAX_REQ 50
+#define CIFS_MAX_REQ 32767
 
 #define RFC1001_NAME_LEN 15
 #define RFC1001_NAME_LEN_WITH_NULL (RFC1001_NAME_LEN + 1)
@@ -235,6 +230,12 @@ struct cifs_mnt_data {
 	int flags;
 };
 
+static inline unsigned int
+get_rfc1002_length(void *buf)
+{
+	return be32_to_cpu(*((__be32 *)buf));
+}
+
 struct TCP_Server_Info {
 	struct list_head tcp_ses_list;
 	struct list_head smb_ses_list;
@@ -255,7 +256,9 @@ struct TCP_Server_Info {
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
 	bool tcp_nodelay;
-	atomic_t inFlight;  /* number of requests on the wire to server */
+	int credits;  /* send no more requests at once */
+	unsigned int in_flight;  /* number of requests on the wire to server */
+	spinlock_t req_lock;  /* protect the two values above */
 	struct mutex srv_mutex;
 	struct task_struct *tsk;
 	char server_GUID[16];
@@ -263,6 +266,7 @@ struct TCP_Server_Info {
 	bool session_estab; /* mark when very first sess is established */
 	u16 dialect; /* dialect index that server chose */
 	enum securityEnum secType;
+	bool oplocks:1; /* enable oplocks */
 	unsigned int maxReq;	/* Clients should submit no more */
 	/* than maxReq distinct unanswered SMBs to the server when using  */
 	/* multiplexed reads or writes */
@@ -278,7 +282,7 @@ struct TCP_Server_Info {
 				   vcnumbers */
 	int capabilities; /* allow selective disabling of caps by smb sess */
 	int timeAdj;  /* Adjust for difference in server time zone in sec */
-	__u16 CurrentMid;         /* multiplex id - rotating counter */
+	__u64 CurrentMid;         /* multiplex id - rotating counter */
 	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlm, ntlmv2 etc */
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
@@ -306,6 +310,48 @@ struct TCP_Server_Info {
 	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
 #endif
 };
+
+static inline unsigned int
+in_flight(struct TCP_Server_Info *server)
+{
+	unsigned int num;
+	spin_lock(&server->req_lock);
+	num = server->in_flight;
+	spin_unlock(&server->req_lock);
+	return num;
+}
+
+static inline int*
+get_credits_field(struct TCP_Server_Info *server)
+{
+	/*
+	 * This will change to switch statement when we reserve slots for echos
+	 * and oplock breaks.
+	 */
+	return &server->credits;
+}
+
+static inline bool
+has_credits(struct TCP_Server_Info *server, int *credits)
+{
+	int num;
+	spin_lock(&server->req_lock);
+	num = *credits;
+	spin_unlock(&server->req_lock);
+	return num > 0;
+}
+
+static inline size_t
+header_size(void)
+{
+	return sizeof(struct smb_hdr);
+}
+
+static inline size_t
+max_header_size(void)
+{
+	return MAX_CIFS_HDR_SIZE;
+}
 
 /*
  * Macros to allow the TCP_Server_Info->net field and related code to drop out
@@ -555,9 +601,11 @@ struct cifs_io_parms {
  * Take a reference on the file private data. Must be called with
  * cifs_file_list_lock held.
  */
-static inline void cifsFileInfo_get(struct cifsFileInfo *cifs_file)
+static inline
+struct cifsFileInfo *cifsFileInfo_get(struct cifsFileInfo *cifs_file)
 {
 	++cifs_file->count;
+	return cifs_file;
 }
 
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
@@ -578,7 +626,7 @@ struct cifsInodeInfo {
 	bool delete_pending;		/* DELETE_ON_CLOSE is set */
 	bool invalid_mapping;		/* pagecache is invalid */
 	unsigned long time;		/* jiffies of last update of inode */
-	u64  server_eof;		/* current file size on server */
+	u64  server_eof;		/* current file size on server -- protected by i_lock */
 	u64  uniqueid;			/* server inode number */
 	u64  createtime;		/* creation time on server */
 #ifdef CONFIG_CIFS_FSCACHE
@@ -685,8 +733,8 @@ typedef void (mid_callback_t)(struct mid_q_entry *mid);
 /* one of these for every pending CIFS request to the server */
 struct mid_q_entry {
 	struct list_head qhead;	/* mids waiting on reply from this server */
-	__u16 mid;		/* multiplex id */
-	__u16 pid;		/* process id */
+	__u64 mid;		/* multiplex id */
+	__u32 pid;		/* process id */
 	__u32 sequence_number;  /* for CIFS signing */
 	unsigned long when_alloc;  /* when mid was created */
 #ifdef CONFIG_CIFS_STATS2
@@ -696,10 +744,10 @@ struct mid_q_entry {
 	mid_receive_t *receive; /* call receive callback */
 	mid_callback_t *callback; /* call completion callback */
 	void *callback_data;	  /* general purpose pointer for callback */
-	struct smb_hdr *resp_buf;	/* pointer to received SMB header */
-	int midState;	/* wish this were enum but can not pass to wait_event */
-	__u8 command;	/* smb command code */
-	bool largeBuf:1;	/* if valid response, is pointer to large buf */
+	void *resp_buf;		/* pointer to received SMB header */
+	int mid_state;	/* wish this were enum but can not pass to wait_event */
+	__le16 command;		/* smb command code */
+	bool large_buf:1;	/* if valid response, is pointer to large buf */
 	bool multiRsp:1;	/* multiple trans2 responses for one request  */
 	bool multiEnd:1;	/* both received */
 };
@@ -1010,9 +1058,6 @@ GLOBAL_EXTERN unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */
 GLOBAL_EXTERN unsigned int cifs_min_small;  /* min size of small buf pool */
 GLOBAL_EXTERN unsigned int cifs_max_pending; /* MAX requests at once to server*/
 
-/* reconnect after this many failed echo attempts */
-GLOBAL_EXTERN unsigned short echo_retries;
-
 #ifdef CONFIG_CIFS_ACL
 GLOBAL_EXTERN struct rb_root uidtree;
 GLOBAL_EXTERN struct rb_root gidtree;
@@ -1027,5 +1072,6 @@ GLOBAL_EXTERN spinlock_t gidsidlock;
 void cifs_oplock_break(struct work_struct *work);
 
 extern const struct slow_work_ops cifs_oplock_break_ops;
+extern struct workqueue_struct *cifsiod_wq;
 
 #endif	/* _CIFS_GLOB_H */

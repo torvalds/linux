@@ -1,0 +1,8 @@
+ST SPEAr Platforms Device Tree Bindings
+---------------------------------------
+
+Boards with the ST SPEAr600 SoC shall have the following properties:
+
+Required root node property:
+
+compatible = "st,spear600";

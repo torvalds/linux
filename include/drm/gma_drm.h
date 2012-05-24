@@ -83,9 +83,9 @@ struct drm_psb_gem_mmap {
 #define DRM_GMA_GAMMA		0x04		/* Set gamma table */
 #define DRM_GMA_ADB		0x05		/* Get backlight */
 #define DRM_GMA_DPST_BL		0x06		/* Set backlight */
-#define DRM_GMA_GET_PIPE_FROM_CRTC_ID 0x1	/* CRTC to physical pipe# */
 #define DRM_GMA_MODE_OPERATION	0x07		/* Mode validation/DC set */
 #define 	PSB_MODE_OPERATION_MODE_VALID	0x01
+#define DRM_GMA_GET_PIPE_FROM_CRTC_ID	0x08	/* CRTC to physical pipe# */
 
 
 #endif

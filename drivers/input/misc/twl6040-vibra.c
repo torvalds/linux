@@ -27,8 +27,9 @@
  */
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/workqueue.h>
-#include <linux/i2c/twl.h>
+#include <linux/input.h>
 #include <linux/mfd/twl6040.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -257,11 +258,14 @@ static SIMPLE_DEV_PM_OPS(twl6040_vibra_pm_ops, twl6040_vibra_suspend, NULL);
 
 static int __devinit twl6040_vibra_probe(struct platform_device *pdev)
 {
-	struct twl4030_vibra_data *pdata = pdev->dev.platform_data;
+	struct twl6040_vibra_data *pdata = pdev->dev.platform_data;
+	struct device_node *node = pdev->dev.of_node;
 	struct vibra_info *info;
+	int vddvibl_uV = 0;
+	int vddvibr_uV = 0;
 	int ret;
 
-	if (!pdata) {
+	if (!pdata && !node) {
 		dev_err(&pdev->dev, "platform_data not available\n");
 		return -EINVAL;
 	}
@@ -273,11 +277,26 @@ static int __devinit twl6040_vibra_probe(struct platform_device *pdev)
 	}
 
 	info->dev = &pdev->dev;
+
 	info->twl6040 = dev_get_drvdata(pdev->dev.parent);
-	info->vibldrv_res = pdata->vibldrv_res;
-	info->vibrdrv_res = pdata->vibrdrv_res;
-	info->viblmotor_res = pdata->viblmotor_res;
-	info->vibrmotor_res = pdata->vibrmotor_res;
+	if (pdata) {
+		info->vibldrv_res = pdata->vibldrv_res;
+		info->vibrdrv_res = pdata->vibrdrv_res;
+		info->viblmotor_res = pdata->viblmotor_res;
+		info->vibrmotor_res = pdata->vibrmotor_res;
+		vddvibl_uV = pdata->vddvibl_uV;
+		vddvibr_uV = pdata->vddvibr_uV;
+	} else {
+		of_property_read_u32(node, "vibldrv_res", &info->vibldrv_res);
+		of_property_read_u32(node, "vibrdrv_res", &info->vibrdrv_res);
+		of_property_read_u32(node, "viblmotor_res",
+				     &info->viblmotor_res);
+		of_property_read_u32(node, "vibrmotor_res",
+				     &info->vibrmotor_res);
+		of_property_read_u32(node, "vddvibl_uV", &vddvibl_uV);
+		of_property_read_u32(node, "vddvibr_uV", &vddvibr_uV);
+	}
+
 	if ((!info->vibldrv_res && !info->viblmotor_res) ||
 	    (!info->vibrdrv_res && !info->vibrmotor_res)) {
 		dev_err(info->dev, "invalid vibra driver/motor resistance\n");
@@ -339,10 +358,9 @@ static int __devinit twl6040_vibra_probe(struct platform_device *pdev)
 		goto err_regulator;
 	}
 
-	if (pdata->vddvibl_uV) {
+	if (vddvibl_uV) {
 		ret = regulator_set_voltage(info->supplies[0].consumer,
-					    pdata->vddvibl_uV,
-					    pdata->vddvibl_uV);
+					    vddvibl_uV, vddvibl_uV);
 		if (ret) {
 			dev_err(info->dev, "failed to set VDDVIBL volt %d\n",
 				ret);
@@ -350,10 +368,9 @@ static int __devinit twl6040_vibra_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (pdata->vddvibr_uV) {
+	if (vddvibr_uV) {
 		ret = regulator_set_voltage(info->supplies[1].consumer,
-					    pdata->vddvibr_uV,
-					    pdata->vddvibr_uV);
+					    vddvibr_uV, vddvibr_uV);
 		if (ret) {
 			dev_err(info->dev, "failed to set VDDVIBR volt %d\n",
 				ret);
@@ -401,6 +418,12 @@ static int __devexit twl6040_vibra_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id twl6040_vibra_of_match[] = {
+	{.compatible = "ti,twl6040-vibra", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, twl6040_vibra_of_match);
+
 static struct platform_driver twl6040_vibra_driver = {
 	.probe		= twl6040_vibra_probe,
 	.remove		= __devexit_p(twl6040_vibra_remove),
@@ -408,6 +431,7 @@ static struct platform_driver twl6040_vibra_driver = {
 		.name	= "twl6040-vibra",
 		.owner	= THIS_MODULE,
 		.pm	= &twl6040_vibra_pm_ops,
+		.of_match_table = twl6040_vibra_of_match,
 	},
 };
 module_platform_driver(twl6040_vibra_driver);

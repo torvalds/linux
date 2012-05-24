@@ -85,61 +85,50 @@ struct sci_remote_node_context;
 typedef void (*scics_sds_remote_node_context_callback)(void *);
 
 /**
- * This is the enumeration of the remote node context states.
+ * enum sci_remote_node_context_states
+ * @SCI_RNC_INITIAL initial state for a remote node context.  On a resume
+ * request the remote node context will transition to the posting state.
+ *
+ * @SCI_RNC_POSTING: transition state that posts the RNi to the hardware. Once
+ * the RNC is posted the remote node context will be made ready.
+ *
+ * @SCI_RNC_INVALIDATING: transition state that will post an RNC invalidate to
+ * the hardware.  Once the invalidate is complete the remote node context will
+ * transition to the posting state.
+ *
+ * @SCI_RNC_RESUMING: transition state that will post an RNC resume to the
+ * hardare.  Once the event notification of resume complete is received the
+ * remote node context will transition to the ready state.
+ *
+ * @SCI_RNC_READY: state that the remote node context must be in to accept io
+ * request operations.
+ *
+ * @SCI_RNC_TX_SUSPENDED: state that the remote node context transitions to when
+ * it gets a TX suspend notification from the hardware.
+ *
+ * @SCI_RNC_TX_RX_SUSPENDED: state that the remote node context transitions to
+ * when it gets a TX RX suspend notification from the hardware.
+ *
+ * @SCI_RNC_AWAIT_SUSPENSION: wait state for the remote node context that waits
+ * for a suspend notification from the hardware.  This state is entered when
+ * either there is a request to supend the remote node context or when there is
+ * a TC completion where the remote node will be suspended by the hardware.
  */
-enum scis_sds_remote_node_context_states {
-	/**
-	 * This state is the initial state for a remote node context.  On a resume
-	 * request the remote node context will transition to the posting state.
-	 */
-	SCI_RNC_INITIAL,
-
-	/**
-	 * This is a transition state that posts the RNi to the hardware. Once the RNC
-	 * is posted the remote node context will be made ready.
-	 */
-	SCI_RNC_POSTING,
-
-	/**
-	 * This is a transition state that will post an RNC invalidate to the
-	 * hardware.  Once the invalidate is complete the remote node context will
-	 * transition to the posting state.
-	 */
-	SCI_RNC_INVALIDATING,
-
-	/**
-	 * This is a transition state that will post an RNC resume to the hardare.
-	 * Once the event notification of resume complete is received the remote node
-	 * context will transition to the ready state.
-	 */
-	SCI_RNC_RESUMING,
-
-	/**
-	 * This is the state that the remote node context must be in to accept io
-	 * request operations.
-	 */
-	SCI_RNC_READY,
-
-	/**
-	 * This is the state that the remote node context transitions to when it gets
-	 * a TX suspend notification from the hardware.
-	 */
-	SCI_RNC_TX_SUSPENDED,
-
-	/**
-	 * This is the state that the remote node context transitions to when it gets
-	 * a TX RX suspend notification from the hardware.
-	 */
-	SCI_RNC_TX_RX_SUSPENDED,
-
-	/**
-	 * This state is a wait state for the remote node context that waits for a
-	 * suspend notification from the hardware.  This state is entered when either
-	 * there is a request to supend the remote node context or when there is a TC
-	 * completion where the remote node will be suspended by the hardware.
-	 */
-	SCI_RNC_AWAIT_SUSPENSION
-};
+#define RNC_STATES {\
+	C(RNC_INITIAL),\
+	C(RNC_POSTING),\
+	C(RNC_INVALIDATING),\
+	C(RNC_RESUMING),\
+	C(RNC_READY),\
+	C(RNC_TX_SUSPENDED),\
+	C(RNC_TX_RX_SUSPENDED),\
+	C(RNC_AWAIT_SUSPENSION),\
+	}
+#undef C
+#define C(a) SCI_##a
+enum scis_sds_remote_node_context_states RNC_STATES;
+#undef C
+const char *rnc_state_name(enum scis_sds_remote_node_context_states state);
 
 /**
  *

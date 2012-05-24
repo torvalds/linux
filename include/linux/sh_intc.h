@@ -3,6 +3,23 @@
 
 #include <linux/ioport.h>
 
+#ifdef CONFIG_SUPERH
+#define INTC_NR_IRQS	512
+#else
+#define INTC_NR_IRQS	1024
+#endif
+
+/*
+ * Convert back and forth between INTEVT and IRQ values.
+ */
+#ifdef CONFIG_CPU_HAS_INTEVT
+#define evt2irq(evt)		(((evt) >> 5) - 16)
+#define irq2evt(irq)		(((irq) + 16) << 5)
+#else
+#define evt2irq(evt)		(evt)
+#define irq2evt(irq)		(irq)
+#endif
+
 typedef unsigned char intc_enum;
 
 struct intc_vect {

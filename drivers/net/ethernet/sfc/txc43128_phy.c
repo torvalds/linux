@@ -512,7 +512,7 @@ static bool txc43128_phy_poll(struct efx_nic *efx)
 	return efx->link_state.up != was_up;
 }
 
-static const char *txc43128_test_names[] = {
+static const char *const txc43128_test_names[] = {
 	"bist"
 };
 

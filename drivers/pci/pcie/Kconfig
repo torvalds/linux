@@ -55,6 +55,31 @@ config PCIEASPM_DEBUG
 	  This enables PCI Express ASPM debug support. It will add per-device
 	  interface to control ASPM.
 
+choice
+	prompt "Default ASPM policy"
+	default PCIEASPM_DEFAULT
+	depends on PCIEASPM
+
+config PCIEASPM_DEFAULT
+        bool "BIOS default"
+	depends on PCIEASPM
+	help
+	  Use the BIOS defaults for PCI Express ASPM.
+
+config PCIEASPM_POWERSAVE
+        bool "Powersave"
+	depends on PCIEASPM
+	help
+	  Enable PCI Express ASPM L0s and L1 where possible, even if the
+	  BIOS did not.
+
+config PCIEASPM_PERFORMANCE
+        bool "Performance"
+	depends on PCIEASPM
+	help
+	  Disable PCI Express ASPM L0s and L1, even if the BIOS enabled them.
+endchoice
+
 config PCIE_PME
 	def_bool y
 	depends on PCIEPORTBUS && PM_RUNTIME && EXPERIMENTAL && ACPI

@@ -155,8 +155,8 @@ static int cns3xxx_pci_setup(int nr, struct pci_sys_data *sys)
 	BUG_ON(request_resource(&iomem_resource, res_io) ||
 	       request_resource(&iomem_resource, res_mem));
 
-	pci_add_resource(&sys->resources, res_io);
-	pci_add_resource(&sys->resources, res_mem);
+	pci_add_resource_offset(&sys->resources, res_io, sys->io_offset);
+	pci_add_resource_offset(&sys->resources, res_mem, sys->mem_offset);
 
 	return 1;
 }

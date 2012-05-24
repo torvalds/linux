@@ -23,6 +23,7 @@
  * information.
  */
 
+#include <linux/bug.h>
 #include <linux/plist.h>
 #include <linux/spinlock.h>
 

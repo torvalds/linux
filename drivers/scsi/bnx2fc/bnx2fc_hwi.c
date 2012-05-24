@@ -1716,15 +1716,19 @@ void bnx2fc_init_task(struct bnx2fc_cmd *io_req,
 
 	/* Tx only */
 	bd_count = bd_tbl->bd_valid;
+	cached_sge = &task->rxwr_only.union_ctx.read_info.sgl_ctx.cached_sge;
 	if (task_type == FCOE_TASK_TYPE_WRITE) {
 		if ((dev_type == TYPE_DISK) && (bd_count == 1)) {
 			struct fcoe_bd_ctx *fcoe_bd_tbl = bd_tbl->bd_tbl;
 
 			task->txwr_only.sgl_ctx.cached_sge.cur_buf_addr.lo =
+			cached_sge->cur_buf_addr.lo =
 					fcoe_bd_tbl->buf_addr_lo;
 			task->txwr_only.sgl_ctx.cached_sge.cur_buf_addr.hi =
+			cached_sge->cur_buf_addr.hi =
 					fcoe_bd_tbl->buf_addr_hi;
 			task->txwr_only.sgl_ctx.cached_sge.cur_buf_rem =
+			cached_sge->cur_buf_rem =
 					fcoe_bd_tbl->buf_len;
 
 			task->txwr_rxrd.const_ctx.init_flags |= 1 <<
@@ -1790,11 +1794,13 @@ void bnx2fc_init_task(struct bnx2fc_cmd *io_req,
 	task->rxwr_txrd.var_ctx.rx_id = 0xffff;
 
 	/* Rx Only */
-	cached_sge = &task->rxwr_only.union_ctx.read_info.sgl_ctx.cached_sge;
+	if (task_type != FCOE_TASK_TYPE_READ)
+		return;
+
 	sgl = &task->rxwr_only.union_ctx.read_info.sgl_ctx.sgl;
 	bd_count = bd_tbl->bd_valid;
-	if (task_type == FCOE_TASK_TYPE_READ &&
-	    dev_type == TYPE_DISK) {
+
+	if (dev_type == TYPE_DISK) {
 		if (bd_count == 1) {
 
 			struct fcoe_bd_ctx *fcoe_bd_tbl = bd_tbl->bd_tbl;

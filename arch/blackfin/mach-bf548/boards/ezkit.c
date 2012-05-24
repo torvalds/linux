@@ -1237,6 +1237,8 @@ static struct bfin_capture_config bfin_capture_data = {
 	},
 	.ppi_info = &ppi_info,
 	.ppi_control = (POLC | PACKEN | DLEN_8 | XFR_TYPE | 0x20),
+	.int_mask = 0xFFFFFFFF, /* disable error interrupt on eppi */
+	.blank_clocks = 8, /* 8 clocks as SAV and EAV */
 };
 #endif
 
@@ -1293,6 +1295,11 @@ static struct platform_device i2c_bfin_twi1_device = {
 #endif
 
 static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
+#if defined(CONFIG_SND_SOC_SSM2602) || defined(CONFIG_SND_SOC_SSM2602_MODULE)
+	{
+		I2C_BOARD_INFO("ssm2602", 0x1b),
+	},
+#endif
 };
 
 #if !defined(CONFIG_BF542)	/* The BF542 only has 1 TWI */
@@ -1385,6 +1392,8 @@ static struct platform_device bfin_dpmc = {
 static const u16 bfin_snd_pin[][7] = {
 	SPORT_REQ(0),
 	SPORT_REQ(1),
+	SPORT_REQ(2),
+	SPORT_REQ(3),
 };
 
 static struct bfin_snd_platform_data bfin_snd_data[] = {
@@ -1393,6 +1402,12 @@ static struct bfin_snd_platform_data bfin_snd_data[] = {
 	},
 	{
 		.pin_req = &bfin_snd_pin[1][0],
+	},
+	{
+		.pin_req = &bfin_snd_pin[2][0],
+	},
+	{
+		.pin_req = &bfin_snd_pin[3][0],
 	},
 };
 
@@ -1423,10 +1438,28 @@ static struct bfin_snd_platform_data bfin_snd_data[] = {
 static struct resource bfin_snd_resources[][4] = {
 	BFIN_SND_RES(0),
 	BFIN_SND_RES(1),
+	BFIN_SND_RES(2),
+	BFIN_SND_RES(3),
 };
+#endif
 
-static struct platform_device bfin_pcm = {
-	.name = "bfin-pcm-audio",
+#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+static struct platform_device bfin_i2s_pcm = {
+	.name = "bfin-i2s-pcm-audio",
+	.id = -1,
+};
+#endif
+
+#if defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE)
+static struct platform_device bfin_tdm_pcm = {
+	.name = "bfin-tdm-pcm-audio",
+	.id = -1,
+};
+#endif
+
+#if defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
+static struct platform_device bfin_ac97_pcm = {
+	.name = "bfin-ac97-pcm-audio",
 	.id = -1,
 };
 #endif
@@ -1599,10 +1632,14 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&ezkit_flash_device,
 #endif
 
-#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE) || \
-	defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE) || \
-	defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
-	&bfin_pcm,
+#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+	&bfin_i2s_pcm,
+#endif
+#if defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE)
+	&bfin_tdm_pcm,
+#endif
+#if defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
+	&bfin_ac97_pcm,
 #endif
 
 #if defined(CONFIG_SND_BF5XX_SOC_AD1980) || defined(CONFIG_SND_BF5XX_SOC_AD1980_MODULE)

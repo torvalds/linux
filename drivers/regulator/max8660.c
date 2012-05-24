@@ -153,13 +153,14 @@ static int max8660_dcdc_set(struct regulator_dev *rdev, int min_uV, int max_uV,
 	if (max_uV < MAX8660_DCDC_MIN_UV || max_uV > MAX8660_DCDC_MAX_UV)
 		return -EINVAL;
 
-	selector = (min_uV - (MAX8660_DCDC_MIN_UV - MAX8660_DCDC_STEP + 1))
-			/ MAX8660_DCDC_STEP;
-	*s = selector;
+	selector = DIV_ROUND_UP(min_uV - MAX8660_DCDC_MIN_UV,
+				MAX8660_DCDC_STEP);
 
 	ret = max8660_dcdc_list(rdev, selector);
 	if (ret < 0 || ret > max_uV)
 		return -EINVAL;
+
+	*s = selector;
 
 	reg = (rdev_get_id(rdev) == MAX8660_V3) ? MAX8660_ADTV2 : MAX8660_SDTV2;
 	ret = max8660_write(max8660, reg, 0, selector);
@@ -210,8 +211,9 @@ static int max8660_ldo5_set(struct regulator_dev *rdev, int min_uV, int max_uV,
 	if (max_uV < MAX8660_LDO5_MIN_UV || max_uV > MAX8660_LDO5_MAX_UV)
 		return -EINVAL;
 
-	selector = (min_uV - (MAX8660_LDO5_MIN_UV - MAX8660_LDO5_STEP + 1))
-			/ MAX8660_LDO5_STEP;
+	selector = DIV_ROUND_UP(min_uV - MAX8660_LDO5_MIN_UV,
+				MAX8660_LDO5_STEP);
+
 	ret = max8660_ldo5_list(rdev, selector);
 	if (ret < 0 || ret > max_uV)
 		return -EINVAL;
@@ -287,8 +289,8 @@ static int max8660_ldo67_set(struct regulator_dev *rdev, int min_uV,
 	if (max_uV < MAX8660_LDO67_MIN_UV || max_uV > MAX8660_LDO67_MAX_UV)
 		return -EINVAL;
 
-	selector = (min_uV - (MAX8660_LDO67_MIN_UV - MAX8660_LDO67_STEP + 1))
-			/ MAX8660_LDO67_STEP;
+	selector = DIV_ROUND_UP(min_uV - MAX8660_LDO67_MIN_UV,
+				MAX8660_LDO67_STEP);
 
 	ret = max8660_ldo67_list(rdev, selector);
 	if (ret < 0 || ret > max_uV)

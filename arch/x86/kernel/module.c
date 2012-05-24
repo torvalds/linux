@@ -26,7 +26,6 @@
 #include <linux/gfp.h>
 #include <linux/jump_label.h>
 
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 

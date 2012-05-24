@@ -84,8 +84,11 @@ static int cfutill_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	caif_assert(layr != NULL);
 	caif_assert(layr->dn != NULL);
 	caif_assert(layr->dn->transmit != NULL);
-	if (!cfsrvl_ready(service, &ret))
+
+	if (!cfsrvl_ready(service, &ret)) {
+		cfpkt_destroy(pkt);
 		return ret;
+	}
 
 	cfpkt_add_head(pkt, &zero, 1);
 	/* Add info for MUX-layer to route the packet out. */

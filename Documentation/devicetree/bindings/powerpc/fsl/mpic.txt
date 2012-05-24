@@ -56,7 +56,27 @@ PROPERTIES
           to the client.  The presence of this property also mandates
           that any initialization related to interrupt sources shall
           be limited to sources explicitly referenced in the device tree.
-       
+
+  - big-endian
+      Usage: optional
+      Value type: <empty>
+          If present the MPIC will be assumed to be big-endian.  Some
+          device-trees omit this property on MPIC nodes even when the MPIC is
+          in fact big-endian, so certain boards override this property.
+
+  - single-cpu-affinity
+      Usage: optional
+      Value type: <empty>
+          If present the MPIC will be assumed to only be able to route
+          non-IPI interrupts to a single CPU at a time (EG: Freescale MPIC).
+
+  - last-interrupt-source
+      Usage: optional
+      Value type: <u32>
+          Some MPICs do not correctly report the number of hardware sources
+          in the global feature registers.  If specified, this field will
+          override the value read from MPIC_GREG_FEATURE_LAST_SRC.
+
 INTERRUPT SPECIFIER DEFINITION
 
   Interrupt specifiers consists of 4 cells encoded as

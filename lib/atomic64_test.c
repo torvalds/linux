@@ -9,6 +9,7 @@
  * (at your option) any later version.
  */
 #include <linux/init.h>
+#include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/atomic.h>
 

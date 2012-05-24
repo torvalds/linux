@@ -339,15 +339,4 @@ static struct i2c_driver wm8775_driver = {
 	.id_table	= wm8775_id,
 };
 
-static __init int init_wm8775(void)
-{
-	return i2c_add_driver(&wm8775_driver);
-}
-
-static __exit void exit_wm8775(void)
-{
-	i2c_del_driver(&wm8775_driver);
-}
-
-module_init(init_wm8775);
-module_exit(exit_wm8775);
+module_i2c_driver(wm8775_driver);

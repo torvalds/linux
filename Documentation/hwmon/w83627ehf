@@ -50,7 +50,7 @@ W83627DHG, W83627DHG-P, W83627UHG, W83667HG, W83667HG-B, W83667HG-I
 (NCT6775F), and NCT6776F super I/O chips. We will refer to them collectively
 as Winbond chips.
 
-The chips implement 2 to 4 temperature sensors (9 for NCT6775F and NCT6776F),
+The chips implement 3 to 4 temperature sensors (9 for NCT6775F and NCT6776F),
 2 to 5 fan rotation speed sensors, 8 to 10 analog voltage sensors, one VID
 (except for 627UHG), alarms with beep warnings (control unimplemented),
 and some automatic fan regulation strategies (plus manual fan control mode).
@@ -143,8 +143,13 @@ pwm[1-4]_min_output - minimum fan speed (range 1 - 255), when the temperature
 pwm[1-4]_stop_time  - how many milliseconds [ms] must elapse to switch
                       corresponding fan off. (when the temperature was below
                       defined range).
+pwm[1-4]_start_output-minimum fan speed (range 1 - 255) when spinning up
+pwm[1-4]_step_output- rate of fan speed change (1 - 255)
+pwm[1-4]_stop_output- minimum fan speed (range 1 - 255) when spinning down
+pwm[1-4]_max_output - maximum fan speed (range 1 - 255), when the temperature
+                      is above defined range.
 
-Note: last two functions are influenced by other control bits, not yet exported
+Note: last six functions are influenced by other control bits, not yet exported
       by the driver, so a change might not have any effect.
 
 Implementation Details

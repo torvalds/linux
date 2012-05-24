@@ -26,7 +26,6 @@
 #include <asm/processor.h>
 #include <linux/console.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/setup.h>
 #include <asm/io.h>
 #include <asm/smp.h>

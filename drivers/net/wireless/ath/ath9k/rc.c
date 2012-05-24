@@ -567,10 +567,8 @@ static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv,
 
 static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv,
 				  const struct ath_rate_table *rate_table,
-				  u8 *mcs_set, u32 capflag)
+				  struct ath_rateset *rateset, u32 capflag)
 {
-	struct ath_rateset *rateset = (struct ath_rateset *)mcs_set;
-
 	u8 i, j, hi = 0;
 
 	/* Use intersection of working rates and valid rates */
@@ -750,7 +748,8 @@ static void ath_rc_rate_set_rtscts(struct ath_softc *sc,
 	 * If 802.11g protection is enabled, determine whether to use RTS/CTS or
 	 * just CTS.  Note that this is only done for OFDM/HT unicast frames.
 	 */
-	if ((sc->sc_flags & SC_OP_PROTECT_ENABLE) &&
+	if ((tx_info->control.vif &&
+	     tx_info->control.vif->bss_conf.use_cts_prot) &&
 	    (rate_table->info[rix].phy == WLAN_RC_PHY_OFDM ||
 	     WLAN_RC_PHY_HT(rate_table->info[rix].phy))) {
 		rates[0].flags |= IEEE80211_TX_RC_USE_CTS_PROTECT;
@@ -1212,7 +1211,7 @@ static void ath_rc_init(struct ath_softc *sc,
 {
 	struct ath_rateset *rateset = &ath_rc_priv->neg_rates;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	u8 *ht_mcs = (u8 *)&ath_rc_priv->neg_ht_rates;
+	struct ath_rateset *ht_mcs = &ath_rc_priv->neg_ht_rates;
 	u8 i, j, k, hi = 0, hthi = 0;
 
 	/* Initial rate table size. Will change depending
@@ -1228,7 +1227,7 @@ static void ath_rc_init(struct ath_softc *sc,
 	ath_rc_init_valid_rate_idx(ath_rc_priv);
 
 	for (i = 0; i < WLAN_RC_PHY_MAX; i++) {
-		for (j = 0; j < MAX_TX_RATE_PHY; j++)
+		for (j = 0; j < RATE_TABLE_SIZE; j++)
 			ath_rc_priv->valid_phy_rateidx[i][j] = 0;
 		ath_rc_priv->valid_phy_ratecnt[i] = 0;
 	}
@@ -1300,12 +1299,13 @@ static u8 ath_rc_build_ht_caps(struct ath_softc *sc, struct ieee80211_sta *sta,
 	return caps;
 }
 
-static bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an,
+static bool ath_tx_aggr_check(struct ath_softc *sc, struct ieee80211_sta *sta,
 			      u8 tidno)
 {
+	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 	struct ath_atx_tid *txtid;
 
-	if (!(sc->sc_flags & SC_OP_TXAGGR))
+	if (!sta->ht_cap.ht_supported)
 		return false;
 
 	txtid = ATH_AN_2_TID(an, tidno);
@@ -1376,13 +1376,11 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		if (ieee80211_is_data_qos(fc) &&
 		    skb_get_queue_mapping(skb) != IEEE80211_AC_VO) {
 			u8 *qc, tid;
-			struct ath_node *an;
 
 			qc = ieee80211_get_qos_ctl(hdr);
 			tid = qc[0] & 0xf;
-			an = (struct ath_node *)sta->drv_priv;
 
-			if(ath_tx_aggr_check(sc, an, tid))
+			if(ath_tx_aggr_check(sc, sta, tid))
 				ieee80211_start_tx_ba_session(sta, tid, 0);
 		}
 	}
@@ -1482,12 +1480,6 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 
-static int ath9k_debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
@@ -1555,7 +1547,7 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_rcstat = {
 	.read = read_file_rcstat,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE
 };
 

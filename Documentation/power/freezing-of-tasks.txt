@@ -63,6 +63,27 @@ devices have been reinitialized, the function thaw_processes() is called in
 order to clear the PF_FROZEN flag for each frozen task.  Then, the tasks that
 have been frozen leave __refrigerator() and continue running.
 
+
+Rationale behind the functions dealing with freezing and thawing of tasks:
+-------------------------------------------------------------------------
+
+freeze_processes():
+  - freezes only userspace tasks
+
+freeze_kernel_threads():
+  - freezes all tasks (including kernel threads) because we can't freeze
+    kernel threads without freezing userspace tasks
+
+thaw_kernel_threads():
+  - thaws only kernel threads; this is particularly useful if we need to do
+    anything special in between thawing of kernel threads and thawing of
+    userspace tasks, or if we want to postpone the thawing of userspace tasks
+
+thaw_processes():
+  - thaws all tasks (including kernel threads) because we can't thaw userspace
+    tasks without thawing kernel threads
+
+
 III. Which kernel threads are freezable?
 
 Kernel threads are not freezable by default.  However, a kernel thread may clear

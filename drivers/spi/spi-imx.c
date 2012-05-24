@@ -83,7 +83,7 @@ struct spi_imx_data {
 	struct spi_bitbang bitbang;
 
 	struct completion xfer_done;
-	void *base;
+	void __iomem *base;
 	int irq;
 	struct clk *clk;
 	unsigned long spi_clk;
@@ -766,8 +766,12 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 	}
 
 	ret = of_property_read_u32(np, "fsl,spi-num-chipselects", &num_cs);
-	if (ret < 0)
-		num_cs = mxc_platform_info->num_chipselect;
+	if (ret < 0) {
+		if (mxc_platform_info)
+			num_cs = mxc_platform_info->num_chipselect;
+		else
+			return ret;
+	}
 
 	master = spi_alloc_master(&pdev->dev,
 			sizeof(struct spi_imx_data) + sizeof(int) * num_cs);
@@ -784,7 +788,7 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 
 	for (i = 0; i < master->num_chipselect; i++) {
 		int cs_gpio = of_get_named_gpio(np, "cs-gpios", i);
-		if (cs_gpio < 0)
+		if (cs_gpio < 0 && mxc_platform_info)
 			cs_gpio = mxc_platform_info->chipselect[i];
 
 		spi_imx->chipselect[i] = cs_gpio;
@@ -793,13 +797,8 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 
 		ret = gpio_request(spi_imx->chipselect[i], DRIVER_NAME);
 		if (ret) {
-			while (i > 0) {
-				i--;
-				if (spi_imx->chipselect[i] >= 0)
-					gpio_free(spi_imx->chipselect[i]);
-			}
 			dev_err(&pdev->dev, "can't get cs gpios\n");
-			goto out_master_put;
+			goto out_gpio_free;
 		}
 	}
 
@@ -881,10 +880,10 @@ out_iounmap:
 out_release_mem:
 	release_mem_region(res->start, resource_size(res));
 out_gpio_free:
-	for (i = 0; i < master->num_chipselect; i++)
+	while (--i >= 0) {
 		if (spi_imx->chipselect[i] >= 0)
 			gpio_free(spi_imx->chipselect[i]);
-out_master_put:
+	}
 	spi_master_put(master);
 	kfree(master);
 	platform_set_drvdata(pdev, NULL);

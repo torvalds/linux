@@ -1,3 +1,4 @@
+
 /*
  * omap_device implementation
  *
@@ -97,14 +98,7 @@
 #define USE_WAKEUP_LAT			0
 #define IGNORE_WAKEUP_LAT		1
 
-static int omap_device_register(struct platform_device *pdev);
 static int omap_early_device_register(struct platform_device *pdev);
-static struct omap_device *omap_device_alloc(struct platform_device *pdev,
-				      struct omap_hwmod **ohs, int oh_cnt,
-				      struct omap_device_pm_latency *pm_lats,
-				      int pm_lats_cnt);
-static void omap_device_delete(struct omap_device *od);
-
 
 static struct omap_device_pm_latency omap_default_latency[] = {
 	{
@@ -320,8 +314,6 @@ static void _add_hwmod_clocks_clkdev(struct omap_device *od,
 }
 
 
-static struct dev_pm_domain omap_device_pm_domain;
-
 /**
  * omap_device_build_from_dt - build an omap_device with multiple hwmods
  * @pdev_name: name of the platform_device driver to use
@@ -348,7 +340,7 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 
 	oh_cnt = of_property_count_strings(node, "ti,hwmods");
 	if (!oh_cnt || IS_ERR_VALUE(oh_cnt)) {
-		dev_warn(&pdev->dev, "No 'hwmods' to build omap_device\n");
+		dev_dbg(&pdev->dev, "No 'hwmods' to build omap_device\n");
 		return -ENODEV;
 	}
 
@@ -509,7 +501,7 @@ static int omap_device_fill_resources(struct omap_device *od,
  *
  * Returns an struct omap_device pointer or ERR_PTR() on error;
  */
-static struct omap_device *omap_device_alloc(struct platform_device *pdev,
+struct omap_device *omap_device_alloc(struct platform_device *pdev,
 					struct omap_hwmod **ohs, int oh_cnt,
 					struct omap_device_pm_latency *pm_lats,
 					int pm_lats_cnt)
@@ -591,7 +583,7 @@ oda_exit1:
 	return ERR_PTR(ret);
 }
 
-static void omap_device_delete(struct omap_device *od)
+void omap_device_delete(struct omap_device *od)
 {
 	if (!od)
 		return;
@@ -619,7 +611,7 @@ static void omap_device_delete(struct omap_device *od)
  * information.  Returns ERR_PTR(-EINVAL) if @oh is NULL; otherwise,
  * passes along the return value of omap_device_build_ss().
  */
-struct platform_device *omap_device_build(const char *pdev_name, int pdev_id,
+struct platform_device __init *omap_device_build(const char *pdev_name, int pdev_id,
 				      struct omap_hwmod *oh, void *pdata,
 				      int pdata_len,
 				      struct omap_device_pm_latency *pm_lats,
@@ -652,7 +644,7 @@ struct platform_device *omap_device_build(const char *pdev_name, int pdev_id,
  * platform_device record.  Returns an ERR_PTR() on error, or passes
  * along the return value of omap_device_register().
  */
-struct platform_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
+struct platform_device __init *omap_device_build_ss(const char *pdev_name, int pdev_id,
 					 struct omap_hwmod **ohs, int oh_cnt,
 					 void *pdata, int pdata_len,
 					 struct omap_device_pm_latency *pm_lats,
@@ -717,7 +709,7 @@ odbs_exit:
  * platform_early_add_device() on the underlying platform_device.
  * Returns 0 by default.
  */
-static int omap_early_device_register(struct platform_device *pdev)
+static int __init omap_early_device_register(struct platform_device *pdev)
 {
 	struct platform_device *devices[1];
 
@@ -762,14 +754,12 @@ static int _od_suspend_noirq(struct device *dev)
 	struct omap_device *od = to_omap_device(pdev);
 	int ret;
 
-	if (od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND)
-		return pm_generic_suspend_noirq(dev);
-
 	ret = pm_generic_suspend_noirq(dev);
 
 	if (!ret && !pm_runtime_status_suspended(dev)) {
 		if (pm_generic_runtime_suspend(dev) == 0) {
-			omap_device_idle(pdev);
+			if (!(od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND))
+				omap_device_idle(pdev);
 			od->flags |= OMAP_DEVICE_SUSPENDED;
 		}
 	}
@@ -782,13 +772,11 @@ static int _od_resume_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 
-	if (od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND)
-		return pm_generic_resume_noirq(dev);
-
 	if ((od->flags & OMAP_DEVICE_SUSPENDED) &&
 	    !pm_runtime_status_suspended(dev)) {
 		od->flags &= ~OMAP_DEVICE_SUSPENDED;
-		omap_device_enable(pdev);
+		if (!(od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND))
+			omap_device_enable(pdev);
 		pm_generic_runtime_resume(dev);
 	}
 
@@ -799,7 +787,7 @@ static int _od_resume_noirq(struct device *dev)
 #define _od_resume_noirq NULL
 #endif
 
-static struct dev_pm_domain omap_device_pm_domain = {
+struct dev_pm_domain omap_device_pm_domain = {
 	.ops = {
 		SET_RUNTIME_PM_OPS(_od_runtime_suspend, _od_runtime_resume,
 				   _od_runtime_idle)
@@ -817,11 +805,10 @@ static struct dev_pm_domain omap_device_pm_domain = {
  * platform_device_register() on the underlying platform_device.
  * Returns the return value of platform_device_register().
  */
-static int omap_device_register(struct platform_device *pdev)
+int omap_device_register(struct platform_device *pdev)
 {
 	pr_debug("omap_device: %s: registering\n", pdev->name);
 
-	pdev->dev.parent = &omap_device_parent;
 	pdev->dev.pm_domain = &omap_device_pm_domain;
 	return platform_device_add(pdev);
 }
@@ -1130,11 +1117,6 @@ int omap_device_enable_clocks(struct omap_device *od)
 	return 0;
 }
 
-struct device omap_device_parent = {
-	.init_name	= "omap",
-	.parent         = &platform_bus,
-};
-
 static struct notifier_block platform_nb = {
 	.notifier_call = _omap_device_notifier_call,
 };
@@ -1142,6 +1124,6 @@ static struct notifier_block platform_nb = {
 static int __init omap_device_init(void)
 {
 	bus_register_notifier(&platform_bus_type, &platform_nb);
-	return device_register(&omap_device_parent);
+	return 0;
 }
 core_initcall(omap_device_init);

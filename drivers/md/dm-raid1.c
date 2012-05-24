@@ -924,8 +924,9 @@ static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 		      unsigned int mirror, char **argv)
 {
 	unsigned long long offset;
+	char dummy;
 
-	if (sscanf(argv[1], "%llu", &offset) != 1) {
+	if (sscanf(argv[1], "%llu%c", &offset, &dummy) != 1) {
 		ti->error = "Invalid offset";
 		return -EINVAL;
 	}
@@ -953,13 +954,14 @@ static struct dm_dirty_log *create_dirty_log(struct dm_target *ti,
 {
 	unsigned param_count;
 	struct dm_dirty_log *dl;
+	char dummy;
 
 	if (argc < 2) {
 		ti->error = "Insufficient mirror log arguments";
 		return NULL;
 	}
 
-	if (sscanf(argv[1], "%u", &param_count) != 1) {
+	if (sscanf(argv[1], "%u%c", &param_count, &dummy) != 1) {
 		ti->error = "Invalid mirror log argument count";
 		return NULL;
 	}
@@ -986,13 +988,14 @@ static int parse_features(struct mirror_set *ms, unsigned argc, char **argv,
 {
 	unsigned num_features;
 	struct dm_target *ti = ms->ti;
+	char dummy;
 
 	*args_used = 0;
 
 	if (!argc)
 		return 0;
 
-	if (sscanf(argv[0], "%u", &num_features) != 1) {
+	if (sscanf(argv[0], "%u%c", &num_features, &dummy) != 1) {
 		ti->error = "Invalid number of features";
 		return -EINVAL;
 	}
@@ -1036,6 +1039,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	unsigned int nr_mirrors, m, args_used;
 	struct mirror_set *ms;
 	struct dm_dirty_log *dl;
+	char dummy;
 
 	dl = create_dirty_log(ti, argc, argv, &args_used);
 	if (!dl)
@@ -1044,7 +1048,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	argv += args_used;
 	argc -= args_used;
 
-	if (!argc || sscanf(argv[0], "%u", &nr_mirrors) != 1 ||
+	if (!argc || sscanf(argv[0], "%u%c", &nr_mirrors, &dummy) != 1 ||
 	    nr_mirrors < 2 || nr_mirrors > DM_KCOPYD_MAX_REGIONS + 1) {
 		ti->error = "Invalid number of mirrors";
 		dm_dirty_log_destroy(dl);

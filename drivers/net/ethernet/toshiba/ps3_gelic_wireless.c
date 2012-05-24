@@ -1621,10 +1621,9 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 		kfree(target->hwinfo);
 		target->hwinfo = kzalloc(be16_to_cpu(scan_info->size),
 					 GFP_KERNEL);
-		if (!target->hwinfo) {
-			pr_info("%s: kzalloc failed\n", __func__);
+		if (!target->hwinfo)
 			continue;
-		}
+
 		/* copy hw scan info */
 		memcpy(target->hwinfo, scan_info, scan_info->size);
 		target->essid_len = strnlen(scan_info->essid,

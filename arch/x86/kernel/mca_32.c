@@ -43,7 +43,6 @@
 #include <linux/mca.h>
 #include <linux/kprobes.h>
 #include <linux/slab.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <linux/proc_fs.h>
 #include <linux/mman.h>

@@ -152,7 +152,7 @@ static struct platform_device sht15 = {
 
 static struct regulator_consumer_supply stargate2_sensor_3_con[] = {
 	{
-		.dev = &sht15.dev,
+		.dev_name = "sht15",
 		.supply = "vcc",
 	},
 };
@@ -1006,6 +1006,7 @@ static void __init stargate2_init(void)
 #ifdef CONFIG_MACH_INTELMOTE2
 MACHINE_START(INTELMOTE2, "IMOTE 2")
 	.map_io		= pxa27x_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,

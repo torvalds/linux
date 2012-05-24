@@ -25,6 +25,8 @@
 
 #include <mach/serial.h>
 
+#define IOMEM(x)	((void __force __iomem *)(x))
+
 u32 *uart;
 
 /* PORT_16C550A, in polled non-fifo mode */

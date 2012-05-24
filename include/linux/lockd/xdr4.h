@@ -42,6 +42,6 @@ int	nlmclt_encode_lockargs(struct rpc_rqst *, u32 *, struct nlm_args *);
 int	nlmclt_encode_cancargs(struct rpc_rqst *, u32 *, struct nlm_args *);
 int	nlmclt_encode_unlockargs(struct rpc_rqst *, u32 *, struct nlm_args *);
  */
-extern struct rpc_version nlm_version4;
+extern const struct rpc_version nlm_version4;
 
 #endif /* LOCKD_XDR4_H */

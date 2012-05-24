@@ -300,6 +300,7 @@ static int negotiate_nvsp_ver(struct hv_device *device,
 	memset(init_packet, 0, sizeof(struct nvsp_message));
 	init_packet->hdr.msg_type = NVSP_MSG2_TYPE_SEND_NDIS_CONFIG;
 	init_packet->msg.v2_msg.send_ndis_config.mtu = net_device->ndev->mtu;
+	init_packet->msg.v2_msg.send_ndis_config.capability.ieee8021q = 1;
 
 	ret = vmbus_sendpacket(device->channel, init_packet,
 				sizeof(struct nvsp_message),
@@ -341,7 +342,7 @@ static int netvsc_connect_vsp(struct hv_device *device)
 	/* Send the ndis version */
 	memset(init_packet, 0, sizeof(struct nvsp_message));
 
-	ndis_version = 0x00050000;
+	ndis_version = 0x00050001;
 
 	init_packet->hdr.msg_type = NVSP_MSG1_TYPE_SEND_NDIS_VER;
 	init_packet->msg.v1_msg.

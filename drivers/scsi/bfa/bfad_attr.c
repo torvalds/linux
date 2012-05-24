@@ -442,6 +442,43 @@ bfad_im_vport_create(struct fc_vport *fc_vport, bool disable)
 	return status;
 }
 
+int
+bfad_im_issue_fc_host_lip(struct Scsi_Host *shost)
+{
+	struct bfad_im_port_s *im_port =
+			(struct bfad_im_port_s *) shost->hostdata[0];
+	struct bfad_s *bfad = im_port->bfad;
+	struct bfad_hal_comp fcomp;
+	unsigned long flags;
+	uint32_t status;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	status = bfa_port_disable(&bfad->bfa.modules.port,
+					bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	if (status != BFA_STATUS_OK)
+		return -EIO;
+
+	wait_for_completion(&fcomp.comp);
+	if (fcomp.status != BFA_STATUS_OK)
+		return -EIO;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	status = bfa_port_enable(&bfad->bfa.modules.port,
+					bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (status != BFA_STATUS_OK)
+		return -EIO;
+
+	wait_for_completion(&fcomp.comp);
+	if (fcomp.status != BFA_STATUS_OK)
+		return -EIO;
+
+	return 0;
+}
+
 static int
 bfad_im_vport_delete(struct fc_vport *fc_vport)
 {
@@ -457,8 +494,11 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 	unsigned long flags;
 	struct completion fcomp;
 
-	if (im_port->flags & BFAD_PORT_DELETE)
-		goto free_scsi_host;
+	if (im_port->flags & BFAD_PORT_DELETE) {
+		bfad_scsi_host_free(bfad, im_port);
+		list_del(&vport->list_entry);
+		return 0;
+	}
 
 	port = im_port->port;
 
@@ -489,7 +529,6 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 
 	wait_for_completion(vport->comp_del);
 
-free_scsi_host:
 	bfad_scsi_host_free(bfad, im_port);
 	list_del(&vport->list_entry);
 	kfree(vport);
@@ -579,7 +618,7 @@ struct fc_function_template bfad_im_fc_function_template = {
 	.show_rport_dev_loss_tmo = 1,
 	.get_rport_dev_loss_tmo = bfad_im_get_rport_loss_tmo,
 	.set_rport_dev_loss_tmo = bfad_im_set_rport_loss_tmo,
-
+	.issue_fc_host_lip = bfad_im_issue_fc_host_lip,
 	.vport_create = bfad_im_vport_create,
 	.vport_delete = bfad_im_vport_delete,
 	.vport_disable = bfad_im_vport_disable,

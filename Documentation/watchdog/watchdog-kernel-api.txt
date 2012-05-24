@@ -1,6 +1,6 @@
 The Linux WatchDog Timer Driver Core kernel API.
 ===============================================
-Last reviewed: 29-Nov-2011
+Last reviewed: 16-Mar-2012
 
 Wim Van Sebroeck <wim@iguana.be>
 
@@ -77,6 +77,7 @@ struct watchdog_ops {
 	int (*ping)(struct watchdog_device *);
 	unsigned int (*status)(struct watchdog_device *);
 	int (*set_timeout)(struct watchdog_device *, unsigned int);
+	unsigned int (*get_timeleft)(struct watchdog_device *);
 	long (*ioctl)(struct watchdog_device *, unsigned int, unsigned long);
 };
 
@@ -117,11 +118,13 @@ they are supported. These optional routines/operations are:
   status of the device is reported with watchdog WDIOF_* status flags/bits.
 * set_timeout: this routine checks and changes the timeout of the watchdog
   timer device. It returns 0 on success, -EINVAL for "parameter out of range"
-  and -EIO for "could not write value to the watchdog". On success the timeout
-  value of the watchdog_device will be changed to the value that was just used
-  to re-program the watchdog timer device.
+  and -EIO for "could not write value to the watchdog". On success this
+  routine should set the timeout value of the watchdog_device to the
+  achieved timeout value (which may be different from the requested one
+  because the watchdog does not necessarily has a 1 second resolution).
   (Note: the WDIOF_SETTIMEOUT needs to be set in the options field of the
   watchdog's info structure).
+* get_timeleft: this routines returns the time that's left before a reset.
 * ioctl: if this routine is present then it will be called first before we do
   our own internal ioctl call handling. This routine should return -ENOIOCTLCMD
   if a command is not supported. The parameters that are passed to the ioctl
@@ -167,4 +170,4 @@ driver specific data to and a pointer to the data itself.
 
 The watchdog_get_drvdata function allows you to retrieve driver specific data.
 The argument of this function is the watchdog device where you want to retrieve
-data from. The function retruns the pointer to the driver specific data.
+data from. The function returns the pointer to the driver specific data.

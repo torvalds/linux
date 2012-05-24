@@ -144,52 +144,52 @@ static struct pl022_ssp_controller ssp0_plat_data = {
  * RealView PBXCore AMBA devices
  */
 
-#define GPIO2_IRQ		{ IRQ_PBX_GPIO2, NO_IRQ }
-#define GPIO3_IRQ		{ IRQ_PBX_GPIO3, NO_IRQ }
-#define AACI_IRQ		{ IRQ_PBX_AACI, NO_IRQ }
+#define GPIO2_IRQ		{ IRQ_PBX_GPIO2 }
+#define GPIO3_IRQ		{ IRQ_PBX_GPIO3 }
+#define AACI_IRQ		{ IRQ_PBX_AACI }
 #define MMCI0_IRQ		{ IRQ_PBX_MMCI0A, IRQ_PBX_MMCI0B }
-#define KMI0_IRQ		{ IRQ_PBX_KMI0, NO_IRQ }
-#define KMI1_IRQ		{ IRQ_PBX_KMI1, NO_IRQ }
-#define PBX_SMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define MPMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define PBX_CLCD_IRQ		{ IRQ_PBX_CLCD, NO_IRQ }
-#define DMAC_IRQ		{ IRQ_PBX_DMAC, NO_IRQ }
-#define SCTL_IRQ		{ NO_IRQ, NO_IRQ }
-#define PBX_WATCHDOG_IRQ	{ IRQ_PBX_WATCHDOG, NO_IRQ }
-#define PBX_GPIO0_IRQ		{ IRQ_PBX_GPIO0, NO_IRQ }
-#define GPIO1_IRQ		{ IRQ_PBX_GPIO1, NO_IRQ }
-#define PBX_RTC_IRQ		{ IRQ_PBX_RTC, NO_IRQ }
-#define SCI_IRQ			{ IRQ_PBX_SCI, NO_IRQ }
-#define PBX_UART0_IRQ		{ IRQ_PBX_UART0, NO_IRQ }
-#define PBX_UART1_IRQ		{ IRQ_PBX_UART1, NO_IRQ }
-#define PBX_UART2_IRQ		{ IRQ_PBX_UART2, NO_IRQ }
-#define PBX_UART3_IRQ		{ IRQ_PBX_UART3, NO_IRQ }
-#define PBX_SSP_IRQ		{ IRQ_PBX_SSP, NO_IRQ }
+#define KMI0_IRQ		{ IRQ_PBX_KMI0 }
+#define KMI1_IRQ		{ IRQ_PBX_KMI1 }
+#define PBX_SMC_IRQ		{ }
+#define MPMC_IRQ		{ }
+#define PBX_CLCD_IRQ		{ IRQ_PBX_CLCD }
+#define DMAC_IRQ		{ IRQ_PBX_DMAC }
+#define SCTL_IRQ		{ }
+#define PBX_WATCHDOG_IRQ	{ IRQ_PBX_WATCHDOG }
+#define PBX_GPIO0_IRQ		{ IRQ_PBX_GPIO0 }
+#define GPIO1_IRQ		{ IRQ_PBX_GPIO1 }
+#define PBX_RTC_IRQ		{ IRQ_PBX_RTC }
+#define SCI_IRQ			{ IRQ_PBX_SCI }
+#define PBX_UART0_IRQ		{ IRQ_PBX_UART0 }
+#define PBX_UART1_IRQ		{ IRQ_PBX_UART1 }
+#define PBX_UART2_IRQ		{ IRQ_PBX_UART2 }
+#define PBX_UART3_IRQ		{ IRQ_PBX_UART3 }
+#define PBX_SSP_IRQ		{ IRQ_PBX_SSP }
 
 /* FPGA Primecells */
-AMBA_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
-AMBA_DEVICE(mmc0,	"fpga:mmc0",	MMCI0,		&realview_mmc0_plat_data);
-AMBA_DEVICE(kmi0,	"fpga:kmi0",	KMI0,		NULL);
-AMBA_DEVICE(kmi1,	"fpga:kmi1",	KMI1,		NULL);
-AMBA_DEVICE(uart3,	"fpga:uart3",	PBX_UART3,	NULL);
+APB_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
+APB_DEVICE(mmc0,	"fpga:mmc0",	MMCI0,		&realview_mmc0_plat_data);
+APB_DEVICE(kmi0,	"fpga:kmi0",	KMI0,		NULL);
+APB_DEVICE(kmi1,	"fpga:kmi1",	KMI1,		NULL);
+APB_DEVICE(uart3,	"fpga:uart3",	PBX_UART3,	NULL);
 
 /* DevChip Primecells */
-AMBA_DEVICE(smc,	"dev:smc",	PBX_SMC,	NULL);
-AMBA_DEVICE(sctl,	"dev:sctl",	SCTL,		NULL);
-AMBA_DEVICE(wdog,	"dev:wdog",	PBX_WATCHDOG, 	NULL);
-AMBA_DEVICE(gpio0,	"dev:gpio0",	PBX_GPIO0,	&gpio0_plat_data);
-AMBA_DEVICE(gpio1,	"dev:gpio1",	GPIO1,		&gpio1_plat_data);
-AMBA_DEVICE(gpio2,	"dev:gpio2",	GPIO2,		&gpio2_plat_data);
-AMBA_DEVICE(rtc,	"dev:rtc",	PBX_RTC,	NULL);
-AMBA_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
-AMBA_DEVICE(uart0,	"dev:uart0",	PBX_UART0,	NULL);
-AMBA_DEVICE(uart1,	"dev:uart1",	PBX_UART1,	NULL);
-AMBA_DEVICE(uart2,	"dev:uart2",	PBX_UART2,	NULL);
-AMBA_DEVICE(ssp0,	"dev:ssp0",	PBX_SSP,	&ssp0_plat_data);
+AHB_DEVICE(smc,	"dev:smc",	PBX_SMC,	NULL);
+AHB_DEVICE(sctl,	"dev:sctl",	SCTL,		NULL);
+APB_DEVICE(wdog,	"dev:wdog",	PBX_WATCHDOG, 	NULL);
+APB_DEVICE(gpio0,	"dev:gpio0",	PBX_GPIO0,	&gpio0_plat_data);
+APB_DEVICE(gpio1,	"dev:gpio1",	GPIO1,		&gpio1_plat_data);
+APB_DEVICE(gpio2,	"dev:gpio2",	GPIO2,		&gpio2_plat_data);
+APB_DEVICE(rtc,		"dev:rtc",	PBX_RTC,	NULL);
+APB_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
+APB_DEVICE(uart0,	"dev:uart0",	PBX_UART0,	NULL);
+APB_DEVICE(uart1,	"dev:uart1",	PBX_UART1,	NULL);
+APB_DEVICE(uart2,	"dev:uart2",	PBX_UART2,	NULL);
+APB_DEVICE(ssp0,	"dev:ssp0",	PBX_SSP,	&ssp0_plat_data);
 
 /* Primecells on the NEC ISSP chip */
-AMBA_DEVICE(clcd,	"issp:clcd",	PBX_CLCD,	&clcd_plat_data);
-AMBA_DEVICE(dmac,	"issp:dmac",	DMAC,		NULL);
+AHB_DEVICE(clcd,	"issp:clcd",	PBX_CLCD,	&clcd_plat_data);
+AHB_DEVICE(dmac,	"issp:dmac",	DMAC,		NULL);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&dmac_device,
@@ -298,6 +298,21 @@ static void __init gic_init_irq(void)
 	}
 }
 
+#ifdef CONFIG_HAVE_ARM_TWD
+static DEFINE_TWD_LOCAL_TIMER(twd_local_timer,
+			      REALVIEW_PBX_TILE_TWD_BASE,
+			      IRQ_LOCALTIMER);
+
+static void __init realview_pbx_twd_init(void)
+{
+	int err = twd_local_timer_register(&twd_local_timer);
+	if (err)
+		pr_err("twd_local_timer_register failed %d\n", err);
+}
+#else
+#define realview_pbx_twd_init()	do { } while(0)
+#endif
+
 static void __init realview_pbx_timer_init(void)
 {
 	timer0_va_base = __io_address(REALVIEW_PBX_TIMER0_1_BASE);
@@ -305,11 +320,8 @@ static void __init realview_pbx_timer_init(void)
 	timer2_va_base = __io_address(REALVIEW_PBX_TIMER2_3_BASE);
 	timer3_va_base = __io_address(REALVIEW_PBX_TIMER2_3_BASE) + 0x20;
 
-#ifdef CONFIG_LOCAL_TIMERS
-	if (core_tile_pbx11mp() || core_tile_pbxa9mp())
-		twd_base = __io_address(REALVIEW_PBX_TILE_TWD_BASE);
-#endif
 	realview_timer_init(IRQ_PBX_TIMER0_1);
+	realview_pbx_twd_init();
 }
 
 static struct sys_timer realview_pbx_timer = {

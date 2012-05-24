@@ -44,15 +44,15 @@
 #include <linux/clockchips.h>
 #include <linux/io.h>
 
-#include <asm/system.h>
-#include <mach/hardware.h>
 #include <asm/leds.h>
 #include <asm/irq.h>
 #include <asm/sched_clock.h>
 
+#include <mach/hardware.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
+#include "iomap.h"
 #include "common.h"
 
 #ifdef CONFIG_OMAP_MPU_TIMER

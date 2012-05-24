@@ -2169,7 +2169,10 @@ bfa_fcs_rport_update(struct bfa_fcs_rport_s *rport, struct fc_logi_s *plogi)
 	 * - MAX receive frame size
 	 */
 	rport->cisc = plogi->csp.cisc;
-	rport->maxfrsize = be16_to_cpu(plogi->class3.rxsz);
+	if (be16_to_cpu(plogi->class3.rxsz) < be16_to_cpu(plogi->csp.rxsz))
+		rport->maxfrsize = be16_to_cpu(plogi->class3.rxsz);
+	else
+		rport->maxfrsize = be16_to_cpu(plogi->csp.rxsz);
 
 	bfa_trc(port->fcs, be16_to_cpu(plogi->csp.bbcred));
 	bfa_trc(port->fcs, port->fabric->bb_credit);

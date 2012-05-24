@@ -5,7 +5,6 @@
  * User space memory access functions
  */
 #include <asm/page.h>
-#include <asm/system.h>
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm-generic/uaccess-unaligned.h>

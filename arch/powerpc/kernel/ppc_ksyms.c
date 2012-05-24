@@ -26,7 +26,6 @@
 #include <linux/cuda.h>
 #include <linux/pmu.h>
 #include <asm/prom.h>
-#include <asm/system.h>
 #include <asm/pci-bridge.h>
 #include <asm/irq.h>
 #include <asm/pmac_feature.h>
@@ -43,6 +42,7 @@
 #include <asm/signal.h>
 #include <asm/dcr.h>
 #include <asm/ftrace.h>
+#include <asm/switch_to.h>
 
 #ifdef CONFIG_PPC32
 extern void transfer_to_handler(void);

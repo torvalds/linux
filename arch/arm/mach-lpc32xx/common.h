@@ -19,6 +19,7 @@
 #ifndef __LPC32XX_COMMON_H
 #define __LPC32XX_COMMON_H
 
+#include <mach/board.h>
 #include <linux/platform_device.h>
 
 /*
@@ -29,7 +30,10 @@ extern struct platform_device lpc32xx_i2c0_device;
 extern struct platform_device lpc32xx_i2c1_device;
 extern struct platform_device lpc32xx_i2c2_device;
 extern struct platform_device lpc32xx_tsc_device;
+extern struct platform_device lpc32xx_adc_device;
 extern struct platform_device lpc32xx_rtc_device;
+extern struct platform_device lpc32xx_ohci_device;
+extern struct platform_device lpc32xx_net_device;
 
 /*
  * Other arch specific structures and functions
@@ -65,9 +69,7 @@ extern u32 clk_get_pclk_div(void);
  */
 extern void lpc32xx_get_uid(u32 devid[4]);
 
-extern void lpc32xx_watchdog_reset(void);
 extern u32 lpc32xx_return_iram_size(void);
-
 /*
  * Pointers used for sizing and copying suspend function data
  */

@@ -224,7 +224,6 @@ static struct usb_driver garmin_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
-	.no_dynamic_id = 1,
 };
 
 
@@ -1497,7 +1496,6 @@ static struct usb_serial_driver garmin_device = {
 		.name        = "garmin_gps",
 	},
 	.description         = "Garmin GPS usb/tty",
-	.usb_driver          = &garmin_driver,
 	.id_table            = id_table,
 	.num_ports           = 1,
 	.open                = garmin_open,
@@ -1514,40 +1512,11 @@ static struct usb_serial_driver garmin_device = {
 	.read_int_callback   = garmin_read_int_callback,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&garmin_device, NULL
+};
 
-
-static int __init garmin_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register(&garmin_device);
-	if (retval)
-		goto failed_garmin_register;
-	retval = usb_register(&garmin_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&garmin_device);
-failed_garmin_register:
-	return retval;
-}
-
-
-static void __exit garmin_exit(void)
-{
-	usb_deregister(&garmin_driver);
-	usb_serial_deregister(&garmin_device);
-}
-
-
-
-
-module_init(garmin_init);
-module_exit(garmin_exit);
+module_usb_serial_driver(garmin_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -1557,4 +1526,3 @@ module_param(debug, bool, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
 module_param(initial_mode, int, S_IRUGO);
 MODULE_PARM_DESC(initial_mode, "Initial mode");
-

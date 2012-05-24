@@ -46,7 +46,7 @@ static int caam_remove(struct platform_device *pdev)
 /* Probe routine for CAAM top (controller) level */
 static int caam_probe(struct platform_device *pdev)
 {
-	int d, ring, rspec;
+	int ring, rspec;
 	struct device *dev;
 	struct device_node *nprop, *np;
 	struct caam_ctrl __iomem *ctrl;

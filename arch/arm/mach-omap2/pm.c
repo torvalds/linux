@@ -15,11 +15,15 @@
 #include <linux/err.h>
 #include <linux/opp.h>
 #include <linux/export.h>
+#include <linux/suspend.h>
+
+#include <asm/system_misc.h>
 
 #include <plat/omap-pm.h>
 #include <plat/omap_device.h>
 #include "common.h"
 
+#include "prcm-common.h"
 #include "voltage.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
@@ -28,7 +32,13 @@
 
 static struct omap_device_pm_latency *pm_lats;
 
-static int _init_omap_device(char *name)
+/*
+ * omap_pm_suspend: points to a function that does the SoC-specific
+ * suspend work
+ */
+int (*omap_pm_suspend)(void);
+
+static int __init _init_omap_device(char *name)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
@@ -49,7 +59,7 @@ static int _init_omap_device(char *name)
 /*
  * Build omap_devices for processors and bus.
  */
-static void omap2_init_processor_devices(void)
+static void __init omap2_init_processor_devices(void)
 {
 	_init_omap_device("mpu");
 	if (omap3_has_iva())
@@ -68,32 +78,41 @@ static void omap2_init_processor_devices(void)
 #define FORCEWAKEUP_SWITCH	0
 #define LOWPOWERSTATE_SWITCH	1
 
+int __init omap_pm_clkdms_setup(struct clockdomain *clkdm, void *unused)
+{
+	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
+		clkdm_allow_idle(clkdm);
+	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
+		 atomic_read(&clkdm->usecount) == 0)
+		clkdm_sleep(clkdm);
+	return 0;
+}
+
 /*
  * This sets pwrdm state (other than mpu & core. Currently only ON &
  * RET are supported.
  */
-int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
+int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 pwrst)
 {
-	u32 cur_state;
-	int sleep_switch = -1;
-	int ret = 0;
-	int hwsup = 0;
+	u8 curr_pwrst, next_pwrst;
+	int sleep_switch = -1, ret = 0, hwsup = 0;
 
-	if (pwrdm == NULL || IS_ERR(pwrdm))
+	if (!pwrdm || IS_ERR(pwrdm))
 		return -EINVAL;
 
-	while (!(pwrdm->pwrsts & (1 << state))) {
-		if (state == PWRDM_POWER_OFF)
+	while (!(pwrdm->pwrsts & (1 << pwrst))) {
+		if (pwrst == PWRDM_POWER_OFF)
 			return ret;
-		state--;
+		pwrst--;
 	}
 
-	cur_state = pwrdm_read_next_pwrst(pwrdm);
-	if (cur_state == state)
+	next_pwrst = pwrdm_read_next_pwrst(pwrdm);
+	if (next_pwrst == pwrst)
 		return ret;
 
-	if (pwrdm_read_pwrst(pwrdm) < PWRDM_POWER_ON) {
-		if ((pwrdm_read_pwrst(pwrdm) > state) &&
+	curr_pwrst = pwrdm_read_pwrst(pwrdm);
+	if (curr_pwrst < PWRDM_POWER_ON) {
+		if ((curr_pwrst > pwrst) &&
 			(pwrdm->flags & PWRDM_HAS_LOWPOWERSTATECHANGE)) {
 			sleep_switch = LOWPOWERSTATE_SWITCH;
 		} else {
@@ -103,12 +122,10 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 		}
 	}
 
-	ret = pwrdm_set_next_pwrst(pwrdm, state);
-	if (ret) {
-		pr_err("%s: unable to set state of powerdomain: %s\n",
+	ret = pwrdm_set_next_pwrst(pwrdm, pwrst);
+	if (ret)
+		pr_err("%s: unable to set power state of powerdomain: %s\n",
 		       __func__, pwrdm->name);
-		goto err;
-	}
 
 	switch (sleep_switch) {
 	case FORCEWAKEUP_SWITCH:
@@ -119,15 +136,15 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 		break;
 	case LOWPOWERSTATE_SWITCH:
 		pwrdm_set_lowpwrstchange(pwrdm);
+		pwrdm_wait_transition(pwrdm);
+		pwrdm_state_switch(pwrdm);
 		break;
-	default:
-		return ret;
 	}
 
-	pwrdm_state_switch(pwrdm);
-err:
 	return ret;
 }
+
+
 
 /*
  * This API is to be called during init to set the various voltage
@@ -199,6 +216,56 @@ exit:
 	return -EINVAL;
 }
 
+#ifdef CONFIG_SUSPEND
+static int omap_pm_enter(suspend_state_t suspend_state)
+{
+	int ret = 0;
+
+	if (!omap_pm_suspend)
+		return -ENOENT; /* XXX doublecheck */
+
+	switch (suspend_state) {
+	case PM_SUSPEND_STANDBY:
+	case PM_SUSPEND_MEM:
+		ret = omap_pm_suspend();
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int omap_pm_begin(suspend_state_t state)
+{
+	disable_hlt();
+	if (cpu_is_omap34xx())
+		omap_prcm_irq_prepare();
+	return 0;
+}
+
+static void omap_pm_end(void)
+{
+	enable_hlt();
+	return;
+}
+
+static void omap_pm_finish(void)
+{
+	if (cpu_is_omap34xx())
+		omap_prcm_irq_complete();
+}
+
+static const struct platform_suspend_ops omap_pm_ops = {
+	.begin		= omap_pm_begin,
+	.end		= omap_pm_end,
+	.enter		= omap_pm_enter,
+	.finish		= omap_pm_finish,
+	.valid		= suspend_valid_only_mem,
+};
+
+#endif /* CONFIG_SUSPEND */
+
 static void __init omap3_init_voltages(void)
 {
 	if (!cpu_is_omap34xx())
@@ -230,6 +297,14 @@ postcore_initcall(omap2_common_pm_init);
 
 static int __init omap2_common_pm_late_init(void)
 {
+	/*
+	 * In the case of DT, the PMIC and SR initialization will be done using
+	 * a completely different mechanism.
+	 * Disable this part if a DT blob is available.
+	 */
+	if (of_have_populated_dt())
+		return 0;
+
 	/* Init the voltage layer */
 	omap_pmic_late_init();
 	omap_voltage_late_init();
@@ -240,6 +315,10 @@ static int __init omap2_common_pm_late_init(void)
 
 	/* Smartreflex device init */
 	omap_devinit_smartreflex();
+
+#ifdef CONFIG_SUSPEND
+	suspend_set_ops(&omap_pm_ops);
+#endif
 
 	return 0;
 }

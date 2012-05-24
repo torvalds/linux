@@ -1,5 +1,5 @@
 /*
- * drivers/net/gianfar.h
+ * drivers/net/ethernet/freescale/gianfar.h
  *
  * Gianfar Ethernet Driver
  * Driver for FEC on MPC8540 and TSEC on MPC8540/MPC8560
@@ -78,11 +78,8 @@ struct ethtool_rx_list {
 #define INCREMENTAL_BUFFER_SIZE 512
 
 #define PHY_INIT_TIMEOUT 100000
-#define GFAR_PHY_CHANGE_TIME 2
 
-#define DEVICE_NAME "%s: Gianfar Ethernet Controller Version 1.2, "
 #define DRV_NAME "gfar-enet"
-extern const char gfar_driver_name[];
 extern const char gfar_driver_version[];
 
 /* MAXIMUM NUMBER OF QUEUES SUPPORTED */
@@ -520,7 +517,7 @@ extern const char gfar_driver_version[];
 #define RXFCB_PERR_MASK		0x000c
 #define RXFCB_PERR_BADL3	0x0008
 
-#define GFAR_INT_NAME_MAX	IFNAMSIZ + 4
+#define GFAR_INT_NAME_MAX	(IFNAMSIZ + 6)	/* '_g#_xx' */
 
 struct txbd8
 {

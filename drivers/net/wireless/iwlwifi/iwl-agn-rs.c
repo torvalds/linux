@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -38,6 +38,7 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-agn.h"
+#include "iwl-op-mode.h"
 
 #define RS_NAME "iwl-agn-rs"
 
@@ -869,19 +870,16 @@ static void rs_bt_update_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 {
 	struct iwl_scale_tbl_info *tbl;
 	bool full_concurrent = priv->bt_full_concurrent;
-	unsigned long flags;
 
 	if (priv->bt_ant_couple_ok) {
 		/*
 		 * Is there a need to switch between
 		 * full concurrency and 3-wire?
 		 */
-		spin_lock_irqsave(&priv->shrd->lock, flags);
 		if (priv->bt_ci_compliance && priv->bt_ant_couple_ok)
 			full_concurrent = true;
 		else
 			full_concurrent = false;
-		spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	}
 	if ((priv->bt_traffic_load != priv->last_bt_traffic_load) ||
 	    (priv->bt_full_concurrent != full_concurrent)) {
@@ -892,7 +890,7 @@ static void rs_bt_update_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		rs_fill_link_cmd(priv, lq_sta, tbl->current_rate);
 		iwl_send_lq_cmd(priv, ctx, &lq_sta->lq, CMD_ASYNC, false);
 
-		queue_work(priv->shrd->workqueue, &priv->bt_full_concurrency);
+		queue_work(priv->workqueue, &priv->bt_full_concurrency);
 	}
 }
 
@@ -909,7 +907,8 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	struct iwl_lq_sta *lq_sta = priv_sta;
 	struct iwl_link_quality_cmd *table;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
+	struct iwl_op_mode *op_mode = (struct iwl_op_mode *)priv_r;
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	enum mac80211_rate_control_flags mac_flags;
 	u32 tx_rate;
@@ -2678,7 +2677,6 @@ out:
  *       which requires station table entry to exist).
  */
 static void rs_initialize_lq(struct iwl_priv *priv,
-			     struct ieee80211_conf *conf,
 			     struct ieee80211_sta *sta,
 			     struct iwl_lq_sta *lq_sta)
 {
@@ -2737,7 +2735,9 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 
 	struct sk_buff *skb = txrc->skb;
 	struct ieee80211_supported_band *sband = txrc->sband;
-	struct iwl_priv *priv __maybe_unused = (struct iwl_priv *)priv_r;
+	struct iwl_op_mode *op_mode __maybe_unused =
+			(struct iwl_op_mode *)priv_r;
+	struct iwl_priv *priv __maybe_unused = IWL_OP_MODE_GET_DVM(op_mode);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_lq_sta *lq_sta = priv_sta;
 	int rate_idx;
@@ -2805,9 +2805,10 @@ static void *rs_alloc_sta(void *priv_rate, struct ieee80211_sta *sta,
 			  gfp_t gfp)
 {
 	struct iwl_station_priv *sta_priv = (struct iwl_station_priv *) sta->drv_priv;
-	struct iwl_priv *priv;
+	struct iwl_op_mode *op_mode __maybe_unused =
+			(struct iwl_op_mode *)priv_rate;
+	struct iwl_priv *priv __maybe_unused = IWL_OP_MODE_GET_DVM(op_mode);
 
-	priv = (struct iwl_priv *)priv_rate;
 	IWL_DEBUG_RATE(priv, "create station rate scale window\n");
 
 	return &sta_priv->lq_sta;
@@ -2910,7 +2911,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	lq_sta->dbg_fixed_rate = 0;
 #endif
 
-	rs_initialize_lq(priv, conf, sta, lq_sta);
+	rs_initialize_lq(priv, sta, lq_sta);
 }
 
 static void rs_fill_link_cmd(struct iwl_priv *priv,
@@ -3074,18 +3075,14 @@ static void rs_free(void *priv_rate)
 static void rs_free_sta(void *priv_r, struct ieee80211_sta *sta,
 			void *priv_sta)
 {
-	struct iwl_priv *priv __maybe_unused = priv_r;
+	struct iwl_op_mode *op_mode __maybe_unused = priv_r;
+	struct iwl_priv *priv __maybe_unused = IWL_OP_MODE_GET_DVM(op_mode);
 
 	IWL_DEBUG_RATE(priv, "enter\n");
 	IWL_DEBUG_RATE(priv, "leave\n");
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-static int open_file_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
 static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
 			     u32 *rate_n_flags, int index)
 {
@@ -3224,7 +3221,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 static const struct file_operations rs_sta_dbgfs_scale_table_ops = {
 	.write = rs_sta_dbgfs_scale_table_write,
 	.read = rs_sta_dbgfs_scale_table_read,
-	.open = open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 static ssize_t rs_sta_dbgfs_stats_table_read(struct file *file,
@@ -3267,7 +3264,7 @@ static ssize_t rs_sta_dbgfs_stats_table_read(struct file *file,
 
 static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
 	.read = rs_sta_dbgfs_stats_table_read,
-	.open = open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -3293,7 +3290,7 @@ static ssize_t rs_sta_dbgfs_rate_scale_data_read(struct file *file,
 
 static const struct file_operations rs_sta_dbgfs_rate_scale_data_ops = {
 	.read = rs_sta_dbgfs_rate_scale_data_read,
-	.open = open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 

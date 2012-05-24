@@ -84,7 +84,7 @@ fail:
 		page_cache_release(pages[i]);
 	}
 	drm_free_large(pages);
-	return ERR_PTR(PTR_ERR(p));
+	return ERR_CAST(p);
 }
 
 /**

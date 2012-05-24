@@ -39,7 +39,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/version.h>
 
 #include <asm-generic/io-64-nonatomic-lo-hi.h>
 

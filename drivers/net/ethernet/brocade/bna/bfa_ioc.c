@@ -692,7 +692,7 @@ static void
 bfa_iocpf_sm_mismatch_entry(struct bfa_iocpf *iocpf)
 {
 	/* Call only the first time sm enters fwmismatch state. */
-	if (iocpf->fw_mismatch_notified == false)
+	if (!iocpf->fw_mismatch_notified)
 		bfa_ioc_pf_fwmismatch(iocpf->ioc);
 
 	iocpf->fw_mismatch_notified = true;

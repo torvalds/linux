@@ -26,7 +26,6 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
-#include <asm/system.h>
 
 #include "go7007-priv.h"
 #include "wis-i2c.h"

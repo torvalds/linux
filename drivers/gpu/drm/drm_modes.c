@@ -686,8 +686,6 @@ void drm_mode_set_crtcinfo(struct drm_display_mode *p, int adjust_flags)
 			p->crtc_vsync_end /= 2;
 			p->crtc_vtotal /= 2;
 		}
-
-		p->crtc_vtotal |= 1;
 	}
 
 	if (p->flags & DRM_MODE_FLAG_DBLSCAN) {
@@ -716,6 +714,27 @@ EXPORT_SYMBOL(drm_mode_set_crtcinfo);
 
 
 /**
+ * drm_mode_copy - copy the mode
+ * @dst: mode to overwrite
+ * @src: mode to copy
+ *
+ * LOCKING:
+ * None.
+ *
+ * Copy an existing mode into another mode, preserving the object id
+ * of the destination mode.
+ */
+void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *src)
+{
+	int id = dst->base.id;
+
+	*dst = *src;
+	dst->base.id = id;
+	INIT_LIST_HEAD(&dst->head);
+}
+EXPORT_SYMBOL(drm_mode_copy);
+
+/**
  * drm_mode_duplicate - allocate and duplicate an existing mode
  * @m: mode to duplicate
  *
@@ -729,16 +748,13 @@ struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
 					    const struct drm_display_mode *mode)
 {
 	struct drm_display_mode *nmode;
-	int new_id;
 
 	nmode = drm_mode_create(dev);
 	if (!nmode)
 		return NULL;
 
-	new_id = nmode->base.id;
-	*nmode = *mode;
-	nmode->base.id = new_id;
-	INIT_LIST_HEAD(&nmode->head);
+	drm_mode_copy(nmode, mode);
+
 	return nmode;
 }
 EXPORT_SYMBOL(drm_mode_duplicate);

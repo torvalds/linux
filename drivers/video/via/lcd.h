@@ -76,7 +76,8 @@ void __devinit viafb_init_lvds_output_interface(struct lvds_chip_information
 				*plvds_chip_info,
 				struct lvds_setting_information
 				*plvds_setting_info);
-void viafb_lcd_set_mode(struct lvds_setting_information *plvds_setting_info,
+void viafb_lcd_set_mode(const struct fb_var_screeninfo *var, u16 cxres,
+	u16 cyres, struct lvds_setting_information *plvds_setting_info,
 	struct lvds_chip_information *plvds_chip_info);
 bool __devinit viafb_lvds_trasmitter_identify(void);
 void viafb_init_lvds_output_interface(struct lvds_chip_information

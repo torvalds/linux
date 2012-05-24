@@ -226,7 +226,7 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 	}
 	info->mtd->owner = THIS_MODULE;
 
-	err = mtd_device_parse_register(info->mtd, probes, 0, NULL, 0);
+	err = mtd_device_parse_register(info->mtd, probes, NULL, NULL, 0);
 	if (err)
 		goto Error;
 

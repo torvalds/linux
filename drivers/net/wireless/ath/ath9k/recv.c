@@ -169,22 +169,17 @@ static void ath_rx_addbuffer_edma(struct ath_softc *sc,
 				  enum ath9k_rx_qtype qtype, int size)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	u32 nbuf = 0;
+	struct ath_buf *bf, *tbf;
 
 	if (list_empty(&sc->rx.rxbuf)) {
 		ath_dbg(common, QUEUE, "No free rx buf available\n");
 		return;
 	}
 
-	while (!list_empty(&sc->rx.rxbuf)) {
-		nbuf++;
-
+	list_for_each_entry_safe(bf, tbf, &sc->rx.rxbuf, list)
 		if (!ath_rx_edma_buf_link(sc, qtype))
 			break;
 
-		if (nbuf >= size)
-			break;
-	}
 }
 
 static void ath_rx_remove_buffer(struct ath_softc *sc,
@@ -232,7 +227,6 @@ static void ath_rx_edma_cleanup(struct ath_softc *sc)
 static void ath_rx_edma_init_queue(struct ath_rx_edma *rx_edma, int size)
 {
 	skb_queue_head_init(&rx_edma->rx_fifo);
-	skb_queue_head_init(&rx_edma->rx_buffers);
 	rx_edma->rx_fifo_hwsize = size;
 }
 
@@ -658,7 +652,9 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb, bool mybeacon)
 }
 
 static bool ath_edma_get_buffers(struct ath_softc *sc,
-				 enum ath9k_rx_qtype qtype)
+				 enum ath9k_rx_qtype qtype,
+				 struct ath_rx_status *rs,
+				 struct ath_buf **dest)
 {
 	struct ath_rx_edma *rx_edma = &sc->rx.rx_edma[qtype];
 	struct ath_hw *ah = sc->sc_ah;
@@ -677,7 +673,7 @@ static bool ath_edma_get_buffers(struct ath_softc *sc,
 	dma_sync_single_for_cpu(sc->dev, bf->bf_buf_addr,
 				common->rx_bufsize, DMA_FROM_DEVICE);
 
-	ret = ath9k_hw_process_rxdesc_edma(ah, NULL, skb->data);
+	ret = ath9k_hw_process_rxdesc_edma(ah, rs, skb->data);
 	if (ret == -EINPROGRESS) {
 		/*let device gain the buffer again*/
 		dma_sync_single_for_device(sc->dev, bf->bf_buf_addr,
@@ -690,20 +686,21 @@ static bool ath_edma_get_buffers(struct ath_softc *sc,
 		/* corrupt descriptor, skip this one and the following one */
 		list_add_tail(&bf->list, &sc->rx.rxbuf);
 		ath_rx_edma_buf_link(sc, qtype);
+
 		skb = skb_peek(&rx_edma->rx_fifo);
-		if (!skb)
-			return true;
+		if (skb) {
+			bf = SKB_CB_ATHBUF(skb);
+			BUG_ON(!bf);
 
-		bf = SKB_CB_ATHBUF(skb);
-		BUG_ON(!bf);
-
-		__skb_unlink(skb, &rx_edma->rx_fifo);
-		list_add_tail(&bf->list, &sc->rx.rxbuf);
-		ath_rx_edma_buf_link(sc, qtype);
-		return true;
+			__skb_unlink(skb, &rx_edma->rx_fifo);
+			list_add_tail(&bf->list, &sc->rx.rxbuf);
+			ath_rx_edma_buf_link(sc, qtype);
+		} else {
+			bf = NULL;
+		}
 	}
-	skb_queue_tail(&rx_edma->rx_buffers, skb);
 
+	*dest = bf;
 	return true;
 }
 
@@ -711,18 +708,15 @@ static struct ath_buf *ath_edma_get_next_rx_buf(struct ath_softc *sc,
 						struct ath_rx_status *rs,
 						enum ath9k_rx_qtype qtype)
 {
-	struct ath_rx_edma *rx_edma = &sc->rx.rx_edma[qtype];
-	struct sk_buff *skb;
-	struct ath_buf *bf;
+	struct ath_buf *bf = NULL;
 
-	while (ath_edma_get_buffers(sc, qtype));
-	skb = __skb_dequeue(&rx_edma->rx_buffers);
-	if (!skb)
-		return NULL;
+	while (ath_edma_get_buffers(sc, qtype, rs, &bf)) {
+		if (!bf)
+			continue;
 
-	bf = SKB_CB_ATHBUF(skb);
-	ath9k_hw_process_rxdesc_edma(sc->sc_ah, rs, skb->data);
-	return bf;
+		return bf;
+	}
+	return NULL;
 }
 
 static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
@@ -954,6 +948,7 @@ static void ath9k_process_rssi(struct ath_common *common,
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = common->ah;
 	int last_rssi;
+	int rssi = rx_stats->rs_rssi;
 
 	if (!rx_stats->is_mybeacon ||
 	    ((ah->opmode != NL80211_IFTYPE_STATION) &&
@@ -965,13 +960,12 @@ static void ath9k_process_rssi(struct ath_common *common,
 
 	last_rssi = sc->last_rssi;
 	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-		rx_stats->rs_rssi = ATH_EP_RND(last_rssi,
-					      ATH_RSSI_EP_MULTIPLIER);
-	if (rx_stats->rs_rssi < 0)
-		rx_stats->rs_rssi = 0;
+		rssi = ATH_EP_RND(last_rssi, ATH_RSSI_EP_MULTIPLIER);
+	if (rssi < 0)
+		rssi = 0;
 
 	/* Update Beacon RSSI, this is used by ANI. */
-	ah->stats.avgbrssi = rx_stats->rs_rssi;
+	ah->stats.avgbrssi = rssi;
 }
 
 /*
@@ -987,8 +981,6 @@ static int ath9k_rx_skb_preprocess(struct ath_common *common,
 				   bool *decrypt_error)
 {
 	struct ath_hw *ah = common->ah;
-
-	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
 
 	/*
 	 * everything but the rate is checked here, the rate check is done
@@ -1011,6 +1003,8 @@ static int ath9k_rx_skb_preprocess(struct ath_common *common,
 	rx_status->signal = ah->noise + rx_stats->rs_rssi;
 	rx_status->antenna = rx_stats->rs_antenna;
 	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
+	if (rx_stats->rs_moreaggr)
+		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
 	return 0;
 }
@@ -1845,6 +1839,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (sc->sc_flags & SC_OP_RXFLUSH)
 			goto requeue_drop_frag;
 
+		memset(rxs, 0, sizeof(struct ieee80211_rx_status));
+
 		rxs->mactime = (tsf & ~0xffffffffULL) | rs.rs_tstamp;
 		if (rs.rs_tstamp > tsf_lower &&
 		    unlikely(rs.rs_tstamp - tsf_lower > 0x10000000))
@@ -1917,12 +1913,12 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (sc->rx.frag) {
 			int space = skb->len - skb_tailroom(hdr_skb);
 
-			sc->rx.frag = NULL;
-
 			if (pskb_expand_head(hdr_skb, 0, space, GFP_ATOMIC) < 0) {
 				dev_kfree_skb(skb);
 				goto requeue_drop_frag;
 			}
+
+			sc->rx.frag = NULL;
 
 			skb_copy_from_linear_data(skb, skb_put(hdr_skb, skb->len),
 						  skb->len);

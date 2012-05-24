@@ -500,7 +500,7 @@ static u32 clocksource_max_adjustment(struct clocksource *cs)
 {
 	u64 ret;
 	/*
-	 * We won't try to correct for more then 11% adjustments (110,000 ppm),
+	 * We won't try to correct for more than 11% adjustments (110,000 ppm),
 	 */
 	ret = (u64)cs->mult * 11;
 	do_div(ret,100);

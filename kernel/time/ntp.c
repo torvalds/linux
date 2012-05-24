@@ -22,16 +22,17 @@
  * NTP timekeeping variables:
  */
 
+DEFINE_SPINLOCK(ntp_lock);
+
+
 /* USER_HZ period (usecs): */
 unsigned long			tick_usec = TICK_USEC;
 
 /* ACTHZ period (nsecs): */
 unsigned long			tick_nsec;
 
-u64				tick_length;
+static u64			tick_length;
 static u64			tick_length_base;
-
-static struct hrtimer		leap_timer;
 
 #define MAX_TICKADJ		500LL		/* usecs */
 #define MAX_TICKADJ_SCALED \
@@ -49,7 +50,7 @@ static struct hrtimer		leap_timer;
 static int			time_state = TIME_OK;
 
 /* clock status bits:							*/
-int				time_status = STA_UNSYNC;
+static int			time_status = STA_UNSYNC;
 
 /* TAI offset (secs):							*/
 static long			time_tai;
@@ -133,7 +134,7 @@ static inline void pps_reset_freq_interval(void)
 /**
  * pps_clear - Clears the PPS state variables
  *
- * Must be called while holding a write on the xtime_lock
+ * Must be called while holding a write on the ntp_lock
  */
 static inline void pps_clear(void)
 {
@@ -149,7 +150,7 @@ static inline void pps_clear(void)
  * the last PPS signal. When it reaches 0, indicate that PPS signal is
  * missing.
  *
- * Must be called while holding a write on the xtime_lock
+ * Must be called while holding a write on the ntp_lock
  */
 static inline void pps_dec_valid(void)
 {
@@ -233,6 +234,17 @@ static inline void pps_fill_timex(struct timex *txc)
 
 #endif /* CONFIG_NTP_PPS */
 
+
+/**
+ * ntp_synced - Returns 1 if the NTP status is not UNSYNC
+ *
+ */
+static inline int ntp_synced(void)
+{
+	return !(time_status & STA_UNSYNC);
+}
+
+
 /*
  * NTP methods:
  */
@@ -275,7 +287,7 @@ static inline s64 ntp_update_offset_fll(s64 offset64, long secs)
 
 	time_status |= STA_MODE;
 
-	return div_s64(offset64 << (NTP_SCALE_SHIFT - SHIFT_FLL), secs);
+	return div64_long(offset64 << (NTP_SCALE_SHIFT - SHIFT_FLL), secs);
 }
 
 static void ntp_update_offset(long offset)
@@ -330,11 +342,13 @@ static void ntp_update_offset(long offset)
 
 /**
  * ntp_clear - Clears the NTP state variables
- *
- * Must be called while holding a write on the xtime_lock
  */
 void ntp_clear(void)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&ntp_lock, flags);
+
 	time_adjust	= 0;		/* stop active adjtime() */
 	time_status	|= STA_UNSYNC;
 	time_maxerror	= NTP_PHASE_LIMIT;
@@ -347,51 +361,22 @@ void ntp_clear(void)
 
 	/* Clear PPS state variables */
 	pps_clear();
+	spin_unlock_irqrestore(&ntp_lock, flags);
+
 }
 
-/*
- * Leap second processing. If in leap-insert state at the end of the
- * day, the system clock is set back one second; if in leap-delete
- * state, the system clock is set ahead one second.
- */
-static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
+
+u64 ntp_tick_length(void)
 {
-	enum hrtimer_restart res = HRTIMER_NORESTART;
+	unsigned long flags;
+	s64 ret;
 
-	write_seqlock(&xtime_lock);
-
-	switch (time_state) {
-	case TIME_OK:
-		break;
-	case TIME_INS:
-		timekeeping_leap_insert(-1);
-		time_state = TIME_OOP;
-		printk(KERN_NOTICE
-			"Clock: inserting leap second 23:59:60 UTC\n");
-		hrtimer_add_expires_ns(&leap_timer, NSEC_PER_SEC);
-		res = HRTIMER_RESTART;
-		break;
-	case TIME_DEL:
-		timekeeping_leap_insert(1);
-		time_tai--;
-		time_state = TIME_WAIT;
-		printk(KERN_NOTICE
-			"Clock: deleting leap second 23:59:59 UTC\n");
-		break;
-	case TIME_OOP:
-		time_tai++;
-		time_state = TIME_WAIT;
-		/* fall through */
-	case TIME_WAIT:
-		if (!(time_status & (STA_INS | STA_DEL)))
-			time_state = TIME_OK;
-		break;
-	}
-
-	write_sequnlock(&xtime_lock);
-
-	return res;
+	spin_lock_irqsave(&ntp_lock, flags);
+	ret = tick_length;
+	spin_unlock_irqrestore(&ntp_lock, flags);
+	return ret;
 }
+
 
 /*
  * this routine handles the overflow of the microsecond field
@@ -400,10 +385,57 @@ static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
  * were provided by Dave Mills (Mills@UDEL.EDU) of NTP fame.
  * They were originally developed for SUN and DEC kernels.
  * All the kudos should go to Dave for this stuff.
+ *
+ * Also handles leap second processing, and returns leap offset
  */
-void second_overflow(void)
+int second_overflow(unsigned long secs)
 {
 	s64 delta;
+	int leap = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ntp_lock, flags);
+
+	/*
+	 * Leap second processing. If in leap-insert state at the end of the
+	 * day, the system clock is set back one second; if in leap-delete
+	 * state, the system clock is set ahead one second.
+	 */
+	switch (time_state) {
+	case TIME_OK:
+		if (time_status & STA_INS)
+			time_state = TIME_INS;
+		else if (time_status & STA_DEL)
+			time_state = TIME_DEL;
+		break;
+	case TIME_INS:
+		if (secs % 86400 == 0) {
+			leap = -1;
+			time_state = TIME_OOP;
+			printk(KERN_NOTICE
+				"Clock: inserting leap second 23:59:60 UTC\n");
+		}
+		break;
+	case TIME_DEL:
+		if ((secs + 1) % 86400 == 0) {
+			leap = 1;
+			time_tai--;
+			time_state = TIME_WAIT;
+			printk(KERN_NOTICE
+				"Clock: deleting leap second 23:59:59 UTC\n");
+		}
+		break;
+	case TIME_OOP:
+		time_tai++;
+		time_state = TIME_WAIT;
+		break;
+
+	case TIME_WAIT:
+		if (!(time_status & (STA_INS | STA_DEL)))
+			time_state = TIME_OK;
+		break;
+	}
+
 
 	/* Bump the maxerror field */
 	time_maxerror += MAXFREQ / NSEC_PER_USEC;
@@ -423,29 +455,33 @@ void second_overflow(void)
 	pps_dec_valid();
 
 	if (!time_adjust)
-		return;
+		goto out;
 
 	if (time_adjust > MAX_TICKADJ) {
 		time_adjust -= MAX_TICKADJ;
 		tick_length += MAX_TICKADJ_SCALED;
-		return;
+		goto out;
 	}
 
 	if (time_adjust < -MAX_TICKADJ) {
 		time_adjust += MAX_TICKADJ;
 		tick_length -= MAX_TICKADJ_SCALED;
-		return;
+		goto out;
 	}
 
 	tick_length += (s64)(time_adjust * NSEC_PER_USEC / NTP_INTERVAL_FREQ)
 							 << NTP_SCALE_SHIFT;
 	time_adjust = 0;
+
+
+
+out:
+	spin_unlock_irqrestore(&ntp_lock, flags);
+
+	return leap;
 }
 
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
-
-/* Disable the cmos update - used by virtualization and embedded */
-int no_sync_cmos_clock  __read_mostly;
 
 static void sync_cmos_clock(struct work_struct *work);
 
@@ -493,35 +529,13 @@ static void sync_cmos_clock(struct work_struct *work)
 
 static void notify_cmos_timer(void)
 {
-	if (!no_sync_cmos_clock)
-		schedule_delayed_work(&sync_cmos_work, 0);
+	schedule_delayed_work(&sync_cmos_work, 0);
 }
 
 #else
 static inline void notify_cmos_timer(void) { }
 #endif
 
-/*
- * Start the leap seconds timer:
- */
-static inline void ntp_start_leap_timer(struct timespec *ts)
-{
-	long now = ts->tv_sec;
-
-	if (time_status & STA_INS) {
-		time_state = TIME_INS;
-		now += 86400 - now % 86400;
-		hrtimer_start(&leap_timer, ktime_set(now, 0), HRTIMER_MODE_ABS);
-
-		return;
-	}
-
-	if (time_status & STA_DEL) {
-		time_state = TIME_DEL;
-		now += 86400 - (now + 1) % 86400;
-		hrtimer_start(&leap_timer, ktime_set(now, 0), HRTIMER_MODE_ABS);
-	}
-}
 
 /*
  * Propagate a new txc->status value into the NTP state:
@@ -546,22 +560,6 @@ static inline void process_adj_status(struct timex *txc, struct timespec *ts)
 	time_status &= STA_RONLY;
 	time_status |= txc->status & ~STA_RONLY;
 
-	switch (time_state) {
-	case TIME_OK:
-		ntp_start_leap_timer(ts);
-		break;
-	case TIME_INS:
-	case TIME_DEL:
-		time_state = TIME_OK;
-		ntp_start_leap_timer(ts);
-	case TIME_WAIT:
-		if (!(time_status & (STA_INS | STA_DEL)))
-			time_state = TIME_OK;
-		break;
-	case TIME_OOP:
-		hrtimer_restart(&leap_timer);
-		break;
-	}
 }
 /*
  * Called with the xtime lock held, so we can access and modify
@@ -643,9 +641,6 @@ int do_adjtimex(struct timex *txc)
 		    (txc->tick <  900000/USER_HZ ||
 		     txc->tick > 1100000/USER_HZ))
 			return -EINVAL;
-
-		if (txc->modes & ADJ_STATUS && time_state != TIME_OK)
-			hrtimer_cancel(&leap_timer);
 	}
 
 	if (txc->modes & ADJ_SETOFFSET) {
@@ -663,7 +658,7 @@ int do_adjtimex(struct timex *txc)
 
 	getnstimeofday(&ts);
 
-	write_seqlock_irq(&xtime_lock);
+	spin_lock_irq(&ntp_lock);
 
 	if (txc->modes & ADJ_ADJTIME) {
 		long save_adjust = time_adjust;
@@ -705,7 +700,7 @@ int do_adjtimex(struct timex *txc)
 	/* fill PPS status fields */
 	pps_fill_timex(txc);
 
-	write_sequnlock_irq(&xtime_lock);
+	spin_unlock_irq(&ntp_lock);
 
 	txc->time.tv_sec = ts.tv_sec;
 	txc->time.tv_usec = ts.tv_nsec;
@@ -903,7 +898,7 @@ void hardpps(const struct timespec *phase_ts, const struct timespec *raw_ts)
 
 	pts_norm = pps_normalize_ts(*phase_ts);
 
-	write_seqlock_irqsave(&xtime_lock, flags);
+	spin_lock_irqsave(&ntp_lock, flags);
 
 	/* clear the error bits, they will be set again if needed */
 	time_status &= ~(STA_PPSJITTER | STA_PPSWANDER | STA_PPSERROR);
@@ -916,7 +911,7 @@ void hardpps(const struct timespec *phase_ts, const struct timespec *raw_ts)
 	 * just start the frequency interval */
 	if (unlikely(pps_fbase.tv_sec == 0)) {
 		pps_fbase = *raw_ts;
-		write_sequnlock_irqrestore(&xtime_lock, flags);
+		spin_unlock_irqrestore(&ntp_lock, flags);
 		return;
 	}
 
@@ -931,7 +926,7 @@ void hardpps(const struct timespec *phase_ts, const struct timespec *raw_ts)
 		time_status |= STA_PPSJITTER;
 		/* restart the frequency calibration interval */
 		pps_fbase = *raw_ts;
-		write_sequnlock_irqrestore(&xtime_lock, flags);
+		spin_unlock_irqrestore(&ntp_lock, flags);
 		pr_err("hardpps: PPSJITTER: bad pulse\n");
 		return;
 	}
@@ -948,7 +943,7 @@ void hardpps(const struct timespec *phase_ts, const struct timespec *raw_ts)
 
 	hardpps_update_phase(pts_norm.nsec);
 
-	write_sequnlock_irqrestore(&xtime_lock, flags);
+	spin_unlock_irqrestore(&ntp_lock, flags);
 }
 EXPORT_SYMBOL(hardpps);
 
@@ -967,6 +962,4 @@ __setup("ntp_tick_adj=", ntp_tick_adj_setup);
 void __init ntp_init(void)
 {
 	ntp_clear();
-	hrtimer_init(&leap_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-	leap_timer.function = ntp_leap_second;
 }

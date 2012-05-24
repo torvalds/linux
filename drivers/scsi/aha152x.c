@@ -239,7 +239,6 @@
 #include <asm/irq.h>
 #include <linux/io.h>
 #include <linux/blkdev.h>
-#include <asm/system.h>
 #include <linux/completion.h>
 #include <linux/errno.h>
 #include <linux/string.h>

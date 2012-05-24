@@ -33,93 +33,6 @@ static inline int __movsl_is_ok(unsigned long a1, unsigned long a2, unsigned lon
 	__movsl_is_ok((unsigned long)(a1), (unsigned long)(a2), (n))
 
 /*
- * Copy a null terminated string from userspace.
- */
-
-#define __do_strncpy_from_user(dst, src, count, res)			   \
-do {									   \
-	int __d0, __d1, __d2;						   \
-	might_fault();							   \
-	__asm__ __volatile__(						   \
-		"	testl %1,%1\n"					   \
-		"	jz 2f\n"					   \
-		"0:	lodsb\n"					   \
-		"	stosb\n"					   \
-		"	testb %%al,%%al\n"				   \
-		"	jz 1f\n"					   \
-		"	decl %1\n"					   \
-		"	jnz 0b\n"					   \
-		"1:	subl %1,%0\n"					   \
-		"2:\n"							   \
-		".section .fixup,\"ax\"\n"				   \
-		"3:	movl %5,%0\n"					   \
-		"	jmp 2b\n"					   \
-		".previous\n"						   \
-		_ASM_EXTABLE(0b,3b)					   \
-		: "=&d"(res), "=&c"(count), "=&a" (__d0), "=&S" (__d1),	   \
-		  "=&D" (__d2)						   \
-		: "i"(-EFAULT), "0"(count), "1"(count), "3"(src), "4"(dst) \
-		: "memory");						   \
-} while (0)
-
-/**
- * __strncpy_from_user: - Copy a NUL terminated string from userspace, with less checking.
- * @dst:   Destination address, in kernel space.  This buffer must be at
- *         least @count bytes long.
- * @src:   Source address, in user space.
- * @count: Maximum number of bytes to copy, including the trailing NUL.
- *
- * Copies a NUL-terminated string from userspace to kernel space.
- * Caller must check the specified block with access_ok() before calling
- * this function.
- *
- * On success, returns the length of the string (not including the trailing
- * NUL).
- *
- * If access to userspace fails, returns -EFAULT (some data may have been
- * copied).
- *
- * If @count is smaller than the length of the string, copies @count bytes
- * and returns @count.
- */
-long
-__strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	long res;
-	__do_strncpy_from_user(dst, src, count, res);
-	return res;
-}
-EXPORT_SYMBOL(__strncpy_from_user);
-
-/**
- * strncpy_from_user: - Copy a NUL terminated string from userspace.
- * @dst:   Destination address, in kernel space.  This buffer must be at
- *         least @count bytes long.
- * @src:   Source address, in user space.
- * @count: Maximum number of bytes to copy, including the trailing NUL.
- *
- * Copies a NUL-terminated string from userspace to kernel space.
- *
- * On success, returns the length of the string (not including the trailing
- * NUL).
- *
- * If access to userspace fails, returns -EFAULT (some data may have been
- * copied).
- *
- * If @count is smaller than the length of the string, copies @count bytes
- * and returns @count.
- */
-long
-strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	long res = -EFAULT;
-	if (access_ok(VERIFY_READ, src, 1))
-		__do_strncpy_from_user(dst, src, count, res);
-	return res;
-}
-EXPORT_SYMBOL(strncpy_from_user);
-
-/*
  * Zero Userspace
  */
 
@@ -760,9 +673,9 @@ survive:
 				break;
 			}
 
-			maddr = kmap_atomic(pg, KM_USER0);
+			maddr = kmap_atomic(pg);
 			memcpy(maddr + offset, from, len);
-			kunmap_atomic(maddr, KM_USER0);
+			kunmap_atomic(maddr);
 			set_page_dirty_lock(pg);
 			put_page(pg);
 			up_read(&current->mm->mmap_sem);

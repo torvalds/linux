@@ -49,6 +49,7 @@
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evxfevnt")
 
+#if (!ACPI_REDUCED_HARDWARE)	/* Entire module */
 /*******************************************************************************
  *
  * FUNCTION:    acpi_enable
@@ -352,3 +353,4 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_get_event_status)
+#endif				/* !ACPI_REDUCED_HARDWARE */

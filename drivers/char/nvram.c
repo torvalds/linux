@@ -94,7 +94,7 @@
 /* Note that *all* calls to CMOS_READ and CMOS_WRITE must be done with
  * rtc_lock held. Due to the index-port/data-port design of the RTC, we
  * don't want two different things trying to get to it at once. (e.g. the
- * periodic 11 min sync from time.c vs. this driver.)
+ * periodic 11 min sync from kernel/time/ntp.c vs. this driver.)
  */
 
 #include <linux/types.h>
@@ -111,7 +111,6 @@
 #include <linux/uaccess.h>
 #include <linux/mutex.h>
 
-#include <asm/system.h>
 
 static DEFINE_MUTEX(nvram_mutex);
 static DEFINE_SPINLOCK(nvram_state_lock);

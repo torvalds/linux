@@ -64,7 +64,7 @@ int ui_helpline__show_help(const char *format, va_list ap)
 	static int backlog;
 
 	pthread_mutex_lock(&ui__lock);
-	ret = vsnprintf(ui_helpline__last_msg + backlog,
+	ret = vscnprintf(ui_helpline__last_msg + backlog,
 			sizeof(ui_helpline__last_msg) - backlog, format, ap);
 	backlog += ret;
 

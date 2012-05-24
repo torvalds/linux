@@ -1934,11 +1934,10 @@ static void refill_rx(struct net_device *dev)
 		int entry = np->dirty_rx % RX_RING_SIZE;
 		if (np->rx_skbuff[entry] == NULL) {
 			unsigned int buflen = np->rx_buf_sz+NATSEMI_PADDING;
-			skb = dev_alloc_skb(buflen);
+			skb = netdev_alloc_skb(dev, buflen);
 			np->rx_skbuff[entry] = skb;
 			if (skb == NULL)
 				break; /* Better luck next round. */
-			skb->dev = dev; /* Mark as being used by this device. */
 			np->rx_dma[entry] = pci_map_single(np->pci_dev,
 				skb->data, buflen, PCI_DMA_FROMDEVICE);
 			np->rx_ring[entry].addr = cpu_to_le32(np->rx_dma[entry]);
@@ -2344,7 +2343,7 @@ static void netdev_rx(struct net_device *dev, int *work_done, int work_to_do)
 			/* Check if the packet is long enough to accept
 			 * without copying to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak &&
-			    (skb = dev_alloc_skb(pkt_len + RX_OFFSET)) != NULL) {
+			    (skb = netdev_alloc_skb(dev, pkt_len + RX_OFFSET)) != NULL) {
 				/* 16 byte align the IP header */
 				skb_reserve(skb, RX_OFFSET);
 				pci_dma_sync_single_for_cpu(np->pci_dev,

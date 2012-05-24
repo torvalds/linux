@@ -250,19 +250,8 @@ static struct i2c_driver ds1682_driver = {
 	.id_table = ds1682_id,
 };
 
-static int __init ds1682_init(void)
-{
-	return i2c_add_driver(&ds1682_driver);
-}
-
-static void __exit ds1682_exit(void)
-{
-	i2c_del_driver(&ds1682_driver);
-}
+module_i2c_driver(ds1682_driver);
 
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
 MODULE_DESCRIPTION("DS1682 Elapsed Time Indicator driver");
 MODULE_LICENSE("GPL");
-
-module_init(ds1682_init);
-module_exit(ds1682_exit);

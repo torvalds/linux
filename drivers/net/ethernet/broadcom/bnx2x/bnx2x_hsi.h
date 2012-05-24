@@ -1,6 +1,6 @@
 /* bnx2x_hsi.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2011 Broadcom Corporation
+ * Copyright (c) 2007-2012 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,9 +34,10 @@ struct license_key {
 };
 
 
-#define PORT_0              0
-#define PORT_1              1
-#define PORT_MAX            2
+#define PORT_0			0
+#define PORT_1			1
+#define PORT_MAX		2
+#define NVM_PATH_MAX		2
 
 /****************************************************************************
  * Shared HW configuration                                                  *
@@ -618,12 +619,6 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 	#define PORT_HW_CFG_ENABLE_CMS_DISABLED                      0x00000000
 	#define PORT_HW_CFG_ENABLE_CMS_ENABLED                       0x00200000
 
-	/*  Enable RJ45 magjack pair swapping on 10GBase-T PHY, 84833 only */
-	#define PORT_HW_CFG_RJ45_PR_SWP_MASK                0x00400000
-	#define PORT_HW_CFG_RJ45_PR_SWP_SHIFT			     22
-	#define PORT_HW_CFG_RJ45_PR_SWP_DISABLED		     0x00000000
-	#define PORT_HW_CFG_RJ45_PR_SWP_ENABLED			     0x00400000
-
 	/*  Determine the Serdes electrical interface   */
 	#define PORT_HW_CFG_NET_SERDES_IF_MASK              0x0F000000
 	#define PORT_HW_CFG_NET_SERDES_IF_SHIFT                      24
@@ -898,11 +893,6 @@ struct port_feat_cfg {		    /* port 0: 0x454  port 1: 0x4c8 */
 		#define PORT_FEAT_CFG_DCBX_DISABLED                  0x00000000
 		#define PORT_FEAT_CFG_DCBX_ENABLED                   0x00000100
 
-	#define PORT_FEAT_CFG_AUTOGREEN_MASK                0x00000200
-	#define PORT_FEAT_CFG_AUTOGREEN_SHIFT                        9
-	#define PORT_FEAT_CFG_AUTOGREEN_DISABLED                     0x00000000
-	#define PORT_FEAT_CFG_AUTOGREEN_ENABLED                      0x00000200
-
 	#define PORT_FEATURE_EN_SIZE_MASK                   0x0f000000
 	#define PORT_FEATURE_EN_SIZE_SHIFT                           24
 	#define PORT_FEATURE_WOL_ENABLED                             0x01000000
@@ -1139,8 +1129,7 @@ struct shm_dev_info {				/* size */
 
 #define FW_ACK_NUM_OF_POLL  (FW_ACK_TIME_OUT_MS/FW_ACK_POLL_TIME_MS)
 
-/* LED Blink rate that will achieve ~15.9Hz */
-#define LED_BLINK_RATE_VAL      480
+#define MFW_TRACE_SIGNATURE     0x54524342
 
 /****************************************************************************
  * Driver <-> FW Mailbox                                                    *
@@ -1261,6 +1250,9 @@ struct drv_func_mb {
 	#define DRV_MSG_CODE_SET_MF_BW_ACK              0xe1000000
 
 	#define DRV_MSG_CODE_LINK_STATUS_CHANGED        0x01000000
+
+	#define DRV_MSG_CODE_INITIATE_FLR               0x02000000
+	#define REQ_BC_VER_4_INITIATE_FLR               0x00070213
 
 	#define BIOS_MSG_CODE_LIC_CHALLENGE             0xff010000
 	#define BIOS_MSG_CODE_LIC_RESPONSE              0xff020000
@@ -1407,7 +1399,7 @@ struct port_mf_cfg {
 	#define PORT_MF_CFG_E1HOV_TAG_SHIFT             0
 	#define PORT_MF_CFG_E1HOV_TAG_DEFAULT         PORT_MF_CFG_E1HOV_TAG_MASK
 
-	u32 reserved[3];
+	u32 reserved[1];
 
 };
 
@@ -1493,7 +1485,8 @@ struct func_ext_cfg {
 struct mf_cfg {
 
 	struct shared_mf_cfg    shared_mf_config;       /* 0x4 */
-	struct port_mf_cfg  port_mf_config[PORT_MAX];   /* 0x10 * 2 = 0x20 */
+							/* 0x8*2*2=0x20 */
+	struct port_mf_cfg  port_mf_config[NVM_PATH_MAX][PORT_MAX];
 	/* for all chips, there are 8 mf functions */
 	struct func_mf_cfg  func_mf_config[E1H_FUNC_MAX]; /* 0x18 * 8 = 0xc0 */
 	/*
@@ -1845,6 +1838,9 @@ struct lldp_local_mib {
 	#define DCBX_LOCAL_PFC_MISMATCH          0x00000010
 	#define DCBX_LOCAL_APP_MISMATCH          0x00000020
 	#define DCBX_REMOTE_MIB_ERROR		 0x00000040
+	#define DCBX_REMOTE_ETS_TLV_NOT_FOUND    0x00000080
+	#define DCBX_REMOTE_PFC_TLV_NOT_FOUND    0x00000100
+	#define DCBX_REMOTE_APP_TLV_NOT_FOUND    0x00000200
 	struct dcbx_features   features;
 	u32 suffix_seq_num;
 };
@@ -2002,6 +1998,7 @@ struct shmem2_region {
 #define DRV_INFO_CONTROL_VER_SHIFT         0
 #define DRV_INFO_CONTROL_OP_CODE_MASK      0x0000ff00
 #define DRV_INFO_CONTROL_OP_CODE_SHIFT     8
+	u32 ibft_host_addr; /* initialized by option ROM */
 };
 
 
@@ -2700,8 +2697,8 @@ union drv_info_to_mcp {
 	struct iscsi_stats_info	iscsi_stat;
 };
 #define BCM_5710_FW_MAJOR_VERSION			7
-#define BCM_5710_FW_MINOR_VERSION			0
-#define BCM_5710_FW_REVISION_VERSION		29
+#define BCM_5710_FW_MINOR_VERSION			2
+#define BCM_5710_FW_REVISION_VERSION		16
 #define BCM_5710_FW_ENGINEERING_VERSION		0
 #define BCM_5710_FW_COMPILE_FLAGS			1
 
@@ -3308,8 +3305,10 @@ struct client_init_rx_data {
 #define CLIENT_INIT_RX_DATA_TPA_EN_IPV4_SHIFT 0
 #define CLIENT_INIT_RX_DATA_TPA_EN_IPV6 (0x1<<1)
 #define CLIENT_INIT_RX_DATA_TPA_EN_IPV6_SHIFT 1
-#define CLIENT_INIT_RX_DATA_RESERVED5 (0x3F<<2)
-#define CLIENT_INIT_RX_DATA_RESERVED5_SHIFT 2
+#define CLIENT_INIT_RX_DATA_TPA_MODE (0x1<<2)
+#define CLIENT_INIT_RX_DATA_TPA_MODE_SHIFT 2
+#define CLIENT_INIT_RX_DATA_RESERVED5 (0x1F<<3)
+#define CLIENT_INIT_RX_DATA_RESERVED5_SHIFT 3
 	u8 vmqueue_mode_en_flg;
 	u8 extra_data_over_sgl_en_flg;
 	u8 cache_line_alignment_log_size;
@@ -3324,7 +3323,7 @@ struct client_init_rx_data {
 	u8 outer_vlan_removal_enable_flg;
 	u8 status_block_id;
 	u8 rx_sb_index_number;
-	u8 reserved0;
+	u8 dont_verify_rings_pause_thr_flg;
 	u8 max_tpa_queues;
 	u8 silent_vlan_removal_flg;
 	__le16 max_bytes_on_bd;
@@ -3657,7 +3656,7 @@ struct eth_fast_path_rx_cqe {
 	u8 placement_offset;
 	__le32 rss_hash_result;
 	__le16 vlan_tag;
-	__le16 pkt_len;
+	__le16 pkt_len_or_gro_seg_len;
 	__le16 len_on_bd;
 	struct parsing_flags pars_flags;
 	union eth_sgl_or_raw_data sgl_or_raw_data;
@@ -4215,6 +4214,15 @@ enum set_mac_action_type {
 
 
 /*
+ * Ethernet TPA Modes
+ */
+enum tpa_mode {
+	TPA_LRO,
+	TPA_GRO,
+	MAX_TPA_MODE};
+
+
+/*
  * tpa update ramrod data
  */
 struct tpa_update_ramrod_data {
@@ -4224,7 +4232,8 @@ struct tpa_update_ramrod_data {
 	u8 max_tpa_queues;
 	u8 max_sges_for_packet;
 	u8 complete_on_both_clients;
-	__le16 reserved1;
+	u8 dont_verify_rings_pause_thr_flg;
+	u8 tpa_mode;
 	__le16 sge_buff_size;
 	__le16 max_agg_size;
 	__le32 sge_page_base_lo;
@@ -4447,13 +4456,13 @@ enum common_spqe_cmd_id {
 	RAMROD_CMD_ID_COMMON_UNUSED,
 	RAMROD_CMD_ID_COMMON_FUNCTION_START,
 	RAMROD_CMD_ID_COMMON_FUNCTION_STOP,
+	RAMROD_CMD_ID_COMMON_FUNCTION_UPDATE,
 	RAMROD_CMD_ID_COMMON_CFC_DEL,
 	RAMROD_CMD_ID_COMMON_CFC_DEL_WB,
 	RAMROD_CMD_ID_COMMON_STAT_QUERY,
 	RAMROD_CMD_ID_COMMON_STOP_TRAFFIC,
 	RAMROD_CMD_ID_COMMON_START_TRAFFIC,
 	RAMROD_CMD_ID_COMMON_RESERVED1,
-	RAMROD_CMD_ID_COMMON_RESERVED2,
 	MAX_COMMON_SPQE_CMD_ID
 };
 
@@ -4733,8 +4742,8 @@ enum event_ring_opcode {
 	EVENT_RING_OPCODE_MALICIOUS_VF,
 	EVENT_RING_OPCODE_FORWARD_SETUP,
 	EVENT_RING_OPCODE_RSS_UPDATE_RULES,
+	EVENT_RING_OPCODE_FUNCTION_UPDATE,
 	EVENT_RING_OPCODE_RESERVED1,
-	EVENT_RING_OPCODE_RESERVED2,
 	EVENT_RING_OPCODE_SET_MAC,
 	EVENT_RING_OPCODE_CLASSIFICATION_RULES,
 	EVENT_RING_OPCODE_FILTERS_RULES,

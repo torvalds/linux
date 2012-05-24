@@ -94,8 +94,8 @@ static int ad5398_set_current_limit(struct regulator_dev *rdev, int min_uA, int 
 	if (max_uA > chip->max_uA || max_uA < chip->min_uA)
 		return -EINVAL;
 
-	selector = ((min_uA - chip->min_uA) * chip->current_level +
-			range_uA - 1) / range_uA;
+	selector = DIV_ROUND_UP((min_uA - chip->min_uA) * chip->current_level,
+				range_uA);
 	if (ad5398_calc_current(chip, selector) > max_uA)
 		return -EINVAL;
 

@@ -2258,7 +2258,7 @@ static int get_permanent_address(struct atl2_hw *hw)
 	u32 Addr[2];
 	u32 i, Control;
 	u16 Register;
-	u8  EthAddr[NODE_ADDRESS_SIZE];
+	u8  EthAddr[ETH_ALEN];
 	bool KeyValid;
 
 	if (is_valid_ether_addr(hw->perm_mac_addr))
@@ -2299,7 +2299,7 @@ static int get_permanent_address(struct atl2_hw *hw)
 		*(u16 *) &EthAddr[0] = SHORTSWAP(*(u16 *) &Addr[1]);
 
 		if (is_valid_ether_addr(EthAddr)) {
-			memcpy(hw->perm_mac_addr, EthAddr, NODE_ADDRESS_SIZE);
+			memcpy(hw->perm_mac_addr, EthAddr, ETH_ALEN);
 			return 0;
 		}
 		return 1;
@@ -2334,7 +2334,7 @@ static int get_permanent_address(struct atl2_hw *hw)
 	*(u32 *) &EthAddr[2] = LONGSWAP(Addr[0]);
 	*(u16 *) &EthAddr[0] = SHORTSWAP(*(u16 *)&Addr[1]);
 	if (is_valid_ether_addr(EthAddr)) {
-		memcpy(hw->perm_mac_addr, EthAddr, NODE_ADDRESS_SIZE);
+		memcpy(hw->perm_mac_addr, EthAddr, ETH_ALEN);
 		return 0;
 	}
 	/* maybe MAC-address is from BIOS */
@@ -2344,7 +2344,7 @@ static int get_permanent_address(struct atl2_hw *hw)
 	*(u16 *) &EthAddr[0] = SHORTSWAP(*(u16 *) &Addr[1]);
 
 	if (is_valid_ether_addr(EthAddr)) {
-		memcpy(hw->perm_mac_addr, EthAddr, NODE_ADDRESS_SIZE);
+		memcpy(hw->perm_mac_addr, EthAddr, ETH_ALEN);
 		return 0;
 	}
 
@@ -2358,8 +2358,6 @@ static int get_permanent_address(struct atl2_hw *hw)
  */
 static s32 atl2_read_mac_addr(struct atl2_hw *hw)
 {
-	u16 i;
-
 	if (get_permanent_address(hw)) {
 		/* for test */
 		/* FIXME: shouldn't we use random_ether_addr() here? */
@@ -2371,8 +2369,7 @@ static s32 atl2_read_mac_addr(struct atl2_hw *hw)
 		hw->perm_mac_addr[5] = 0x38;
 	}
 
-	for (i = 0; i < NODE_ADDRESS_SIZE; i++)
-		hw->mac_addr[i] = hw->perm_mac_addr[i];
+	memcpy(hw->mac_addr, hw->perm_mac_addr, ETH_ALEN);
 
 	return 0;
 }

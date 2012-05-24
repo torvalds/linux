@@ -121,6 +121,7 @@ extern unsigned long ixp4xx_timer_freq;
  * Functions used by platform-level setup code
  */
 extern void ixp4xx_map_io(void);
+extern void ixp4xx_init_early(void);
 extern void ixp4xx_init_irq(void);
 extern void ixp4xx_sys_init(void);
 extern void ixp4xx_timer_init(void);

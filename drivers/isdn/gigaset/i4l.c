@@ -243,7 +243,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		dev_kfree_skb(bcs->rx_skb);
 		gigaset_new_rx_skb(bcs);
 
-		commands = kzalloc(AT_NUM*(sizeof *commands), GFP_ATOMIC);
+		commands = kzalloc(AT_NUM * (sizeof *commands), GFP_ATOMIC);
 		if (!commands) {
 			gigaset_free_channel(bcs);
 			dev_err(cs->dev, "ISDN_CMD_DIAL: out of memory\n");
@@ -261,7 +261,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 			if (!commands[AT_TYPE])
 				goto oom;
 			snprintf(commands[AT_DIAL], l,
-				 "D%s\r", cntrl->parm.setup.phone+2);
+				 "D%s\r", cntrl->parm.setup.phone + 2);
 		} else {
 			commands[AT_TYPE] = kstrdup("^SCTP=1\r", GFP_ATOMIC);
 			if (!commands[AT_TYPE])
@@ -482,7 +482,7 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 		response.parm.setup.si2 = 2;
 	} else {
 		dev_warn(cs->dev, "RING ignored - unsupported BC %s\n",
-		     at_state->str_var[STR_ZBC]);
+			 at_state->str_var[STR_ZBC]);
 		return ICALL_IGNORE;
 	}
 	if (at_state->str_var[STR_NMBR]) {
@@ -518,7 +518,7 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 		return ICALL_REJECT;
 	case 3:	/* incomplete */
 		dev_warn(cs->dev,
-		       "LL requested unsupported feature: Incomplete Number\n");
+			 "LL requested unsupported feature: Incomplete Number\n");
 		return ICALL_IGNORE;
 	case 4:	/* proceeding */
 		/* Gigaset will send ALERTING anyway.

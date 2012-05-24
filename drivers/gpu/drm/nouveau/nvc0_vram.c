@@ -106,31 +106,32 @@ nvc0_vram_init(struct drm_device *dev)
 	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
 	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
-	u32 parts = nv_rd32(dev, 0x121c74);
+	u32 parts = nv_rd32(dev, 0x022438);
+	u32 pmask = nv_rd32(dev, 0x022554);
 	u32 bsize = nv_rd32(dev, 0x10f20c);
 	u32 offset, length;
 	bool uniform = true;
 	int ret, part;
 
 	NV_DEBUG(dev, "0x100800: 0x%08x\n", nv_rd32(dev, 0x100800));
-	NV_DEBUG(dev, "parts 0x%08x bcast_mem_amount 0x%08x\n", parts, bsize);
+	NV_DEBUG(dev, "parts 0x%08x mask 0x%08x\n", parts, pmask);
+
+	dev_priv->vram_type = nouveau_mem_vbios_type(dev);
+	dev_priv->vram_rank_B = !!(nv_rd32(dev, 0x10f200) & 0x00000004);
 
 	/* read amount of vram attached to each memory controller */
-	part = 0;
-	while (parts) {
-		u32 psize = nv_rd32(dev, 0x11020c + (part++ * 0x1000));
-		if (psize == 0)
-			continue;
-		parts--;
+	for (part = 0; part < parts; part++) {
+		if (!(pmask & (1 << part))) {
+			u32 psize = nv_rd32(dev, 0x11020c + (part * 0x1000));
+			if (psize != bsize) {
+				if (psize < bsize)
+					bsize = psize;
+				uniform = false;
+			}
 
-		if (psize != bsize) {
-			if (psize < bsize)
-				bsize = psize;
-			uniform = false;
+			NV_DEBUG(dev, "%d: mem_amount 0x%08x\n", part, psize);
+			dev_priv->vram_size += (u64)psize << 20;
 		}
-
-		NV_DEBUG(dev, "%d: mem_amount 0x%08x\n", part, psize);
-		dev_priv->vram_size += (u64)psize << 20;
 	}
 
 	/* if all controllers have the same amount attached, there's no holes */

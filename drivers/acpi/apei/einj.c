@@ -74,6 +74,8 @@ struct vendor_error_type_extension {
 	u8	reserved[3];
 };
 
+static u32 notrigger;
+
 static u32 vendor_flags;
 static struct debugfs_blob_wrapper vendor_blob;
 static char vendor_dev[64];
@@ -238,7 +240,7 @@ static void *einj_get_parameter_address(void)
 			return v5param;
 		}
 	}
-	if (paddrv4) {
+	if (param_extension && paddrv4) {
 		struct einj_parameter *v4param;
 
 		v4param = acpi_os_map_memory(paddrv4, sizeof(*v4param));
@@ -496,9 +498,11 @@ static int __einj_error_inject(u32 type, u64 param1, u64 param2)
 	if (rc)
 		return rc;
 	trigger_paddr = apei_exec_ctx_get_output(&ctx);
-	rc = __einj_error_trigger(trigger_paddr, type, param1, param2);
-	if (rc)
-		return rc;
+	if (notrigger == 0) {
+		rc = __einj_error_trigger(trigger_paddr, type, param1, param2);
+		if (rc)
+			return rc;
+	}
 	rc = apei_exec_run_optional(&ctx, ACPI_EINJ_END_OPERATION);
 
 	return rc;
@@ -698,6 +702,11 @@ static int __init einj_init(void)
 			goto err_unmap;
 		fentry = debugfs_create_x64("param2", S_IRUSR | S_IWUSR,
 					    einj_debug_dir, &error_param2);
+		if (!fentry)
+			goto err_unmap;
+
+		fentry = debugfs_create_x32("notrigger", S_IRUSR | S_IWUSR,
+					    einj_debug_dir, &notrigger);
 		if (!fentry)
 			goto err_unmap;
 	}

@@ -3,7 +3,7 @@
  *
  * DEBUG_PREEMPT variant of smp_processor_id().
  */
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kallsyms.h>
 #include <linux/sched.h>
 

@@ -51,22 +51,23 @@ int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_data_path(struct wl1271 *wl, bool enable);
 int wl1271_cmd_ps_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-		       u8 ps_mode);
+		       u8 ps_mode, u16 auto_ps_timeout);
 int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
 			   size_t len);
-int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
-			    void *buf, size_t buf_len, int index, u32 rates);
+int wl1271_cmd_template_set(struct wl1271 *wl, u8 role_id,
+			    u16 template_id, void *buf, size_t buf_len,
+			    int index, u32 rates);
 int wl12xx_cmd_build_null_data(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl1271_cmd_build_ps_poll(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			     u16 aid);
-int wl1271_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			       u8 role_id, u8 band,
 			       const u8 *ssid, size_t ssid_len,
-			       const u8 *ie, size_t ie_len, u8 band);
+			       const u8 *ie, size_t ie_len);
 struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 					      struct wl12xx_vif *wlvif,
 					      struct sk_buff *skb);
-int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-			     __be32 ip_addr);
+int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl1271_build_qos_null_data(struct wl1271 *wl, struct ieee80211_vif *vif);
 int wl12xx_cmd_build_klv_null_data(struct wl1271 *wl,
 				   struct wl12xx_vif *wlvif);
@@ -89,6 +90,7 @@ int wl12xx_cmd_config_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_start_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_stop_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_channel_switch(struct wl1271 *wl,
+			      struct wl12xx_vif *wlvif,
 			      struct ieee80211_channel_switch *ch_switch);
 int wl12xx_cmd_stop_channel_switch(struct wl1271 *wl);
 int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif,
@@ -96,62 +98,65 @@ int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid);
 
 enum wl1271_commands {
-	CMD_INTERROGATE     = 1,    /*use this to read information elements*/
-	CMD_CONFIGURE       = 2,    /*use this to write information elements*/
-	CMD_ENABLE_RX       = 3,
-	CMD_ENABLE_TX       = 4,
-	CMD_DISABLE_RX      = 5,
-	CMD_DISABLE_TX      = 6,
-	CMD_SCAN            = 8,
-	CMD_STOP_SCAN       = 9,
-	CMD_SET_KEYS        = 12,
-	CMD_READ_MEMORY     = 13,
-	CMD_WRITE_MEMORY    = 14,
-	CMD_SET_TEMPLATE    = 19,
-	CMD_TEST            = 23,
-	CMD_NOISE_HIST      = 28,
-	CMD_QUIET_ELEMENT_SET_STATE  = 29,
-	CMD_SET_BCN_MODE    = 33,
-	CMD_MEASUREMENT      = 34,
-	CMD_STOP_MEASUREMENT = 35,
-	CMD_SET_PS_MODE      = 37,
-	CMD_CHANNEL_SWITCH   = 38,
-	CMD_STOP_CHANNEL_SWICTH = 39,
-	CMD_AP_DISCOVERY     = 40,
-	CMD_STOP_AP_DISCOVERY = 41,
-	CMD_HEALTH_CHECK     = 45,
-	CMD_DEBUG            = 46,
-	CMD_TRIGGER_SCAN_TO  = 47,
-	CMD_CONNECTION_SCAN_CFG      = 48,
-	CMD_CONNECTION_SCAN_SSID_CFG = 49,
-	CMD_START_PERIODIC_SCAN      = 50,
-	CMD_STOP_PERIODIC_SCAN       = 51,
-	CMD_SET_PEER_STATE           = 52,
-	CMD_REMAIN_ON_CHANNEL        = 53,
-	CMD_CANCEL_REMAIN_ON_CHANNEL = 54,
+	CMD_INTERROGATE	= 1, /* use this to read information elements */
+	CMD_CONFIGURE	= 2, /* use this to write information elements */
+	CMD_ENABLE_RX	= 3,
+	CMD_ENABLE_TX	= 4,
+	CMD_DISABLE_RX	= 5,
+	CMD_DISABLE_TX	= 6,
+	CMD_SCAN	= 7,
+	CMD_STOP_SCAN	= 8,
+	CMD_SET_KEYS	= 9,
+	CMD_READ_MEMORY	= 10,
+	CMD_WRITE_MEMORY	= 11,
+	CMD_SET_TEMPLATE	= 12,
+	CMD_TEST		= 13,
+	CMD_NOISE_HIST		= 14,
+	CMD_QUIET_ELEMENT_SET_STATE = 15,
+	CMD_SET_BCN_MODE	= 16,
 
-	CMD_CONFIG_FWLOGGER          = 55,
-	CMD_START_FWLOGGER           = 56,
-	CMD_STOP_FWLOGGER            = 57,
+	CMD_MEASUREMENT		= 17,
+	CMD_STOP_MEASUREMENT	= 18,
+	CMD_SET_PS_MODE		= 19,
+	CMD_CHANNEL_SWITCH	= 20,
+	CMD_STOP_CHANNEL_SWICTH = 21,
+	CMD_AP_DISCOVERY	= 22,
+	CMD_STOP_AP_DISCOVERY	= 23,
+	CMD_HEALTH_CHECK	= 24,
+	CMD_DEBUG		= 25,
+	CMD_TRIGGER_SCAN_TO	= 26,
+	CMD_CONNECTION_SCAN_CFG	= 27,
+	CMD_CONNECTION_SCAN_SSID_CFG	= 28,
+	CMD_START_PERIODIC_SCAN	= 29,
+	CMD_STOP_PERIODIC_SCAN	= 30,
+	CMD_SET_PEER_STATE	= 31,
+	CMD_REMAIN_ON_CHANNEL	= 32,
+	CMD_CANCEL_REMAIN_ON_CHANNEL	= 33,
+	CMD_CONFIG_FWLOGGER		= 34,
+	CMD_START_FWLOGGER			= 35,
+	CMD_STOP_FWLOGGER			= 36,
 
-	/* AP commands */
-	CMD_ADD_PEER                 = 62,
-	CMD_REMOVE_PEER              = 63,
+	/* Access point commands */
+	CMD_ADD_PEER		= 37,
+	CMD_REMOVE_PEER		= 38,
 
 	/* Role API */
-	CMD_ROLE_ENABLE              = 70,
-	CMD_ROLE_DISABLE             = 71,
-	CMD_ROLE_START               = 72,
-	CMD_ROLE_STOP                = 73,
+	CMD_ROLE_ENABLE		= 39,
+	CMD_ROLE_DISABLE	= 40,
+	CMD_ROLE_START		= 41,
+	CMD_ROLE_STOP		= 42,
+
+	/* DFS */
+	CMD_START_RADAR_DETECTION	= 43,
+	CMD_STOP_RADAR_DETECTION	= 44,
 
 	/* WIFI Direct */
-	CMD_WFD_START_DISCOVERY      = 80,
-	CMD_WFD_STOP_DISCOVERY	     = 81,
-	CMD_WFD_ATTRIBUTE_CONFIG     = 82,
+	CMD_WFD_START_DISCOVERY	= 45,
+	CMD_WFD_STOP_DISCOVERY	= 46,
+	CMD_WFD_ATTRIBUTE_CONFIG	= 47,
+	CMD_NOP			= 48,
+	CMD_LAST_COMMAND,
 
-	CMD_NOP                      = 100,
-
-	NUM_COMMANDS,
 	MAX_COMMAND_ID = 0xFFFF,
 };
 
@@ -191,7 +196,7 @@ enum cmd_templ {
 /* unit ms */
 #define WL1271_COMMAND_TIMEOUT     2000
 #define WL1271_CMD_TEMPL_DFLT_SIZE 252
-#define WL1271_CMD_TEMPL_MAX_SIZE  548
+#define WL1271_CMD_TEMPL_MAX_SIZE  512
 #define WL1271_EVENT_TIMEOUT       750
 
 struct wl1271_cmd_header {
@@ -339,7 +344,9 @@ struct wl12xx_cmd_role_start {
 			u8 ssid_len;
 			u8 ssid[IEEE80211_MAX_SSID_LEN];
 
-			u8 padding_1[5];
+			u8 reset_tsf;
+
+			u8 padding_1[4];
 		} __packed ap;
 	};
 } __packed;
@@ -364,14 +371,18 @@ struct cmd_enabledisable_path {
 struct wl1271_cmd_template_set {
 	struct wl1271_cmd_header header;
 
-	__le16 len;
+	u8 role_id;
 	u8 template_type;
+	__le16 len;
 	u8 index;  /* relevant only for KLV_TEMPLATE type */
+	u8 padding[3];
+
 	__le32 enabled_rates;
 	u8 short_retry_limit;
 	u8 long_retry_limit;
 	u8 aflags;
 	u8 reserved;
+
 	u8 template_data[WL1271_CMD_TEMPL_MAX_SIZE];
 } __packed;
 
@@ -388,6 +399,7 @@ struct wl1271_tim {
 } __packed;
 
 enum wl1271_cmd_ps_mode {
+	STATION_AUTO_PS_MODE,   /* Dynamic Power Save */
 	STATION_ACTIVE_MODE,
 	STATION_POWER_SAVE_MODE
 };
@@ -397,7 +409,7 @@ struct wl1271_cmd_ps_params {
 
 	u8 role_id;
 	u8 ps_mode; /* STATION_* */
-	u8 padding[2];
+	u16 auto_ps_timeout;
 } __packed;
 
 /* HW encryption keys */
@@ -695,14 +707,18 @@ struct wl12xx_cmd_stop_fwlog {
 struct wl12xx_cmd_channel_switch {
 	struct wl1271_cmd_header header;
 
+	u8 role_id;
+
 	/* The new serving channel */
 	u8 channel;
 	/* Relative time of the serving channel switch in TBTT units */
 	u8 switch_time;
-	/* 1: Suspend TX till switch time; 0: Do not suspend TX */
-	u8 tx_suspend;
-	/* 1: Flush TX at switch time; 0: Do not flush */
-	u8 flush;
+	/* Stop the role TX, should expect it after radar detection */
+	u8 stop_tx;
+	/* The target channel tx status 1-stopped 0-open*/
+	u8 post_switch_tx_disable;
+
+	u8 padding[3];
 } __packed;
 
 struct wl12xx_cmd_stop_channel_switch {

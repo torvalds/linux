@@ -204,7 +204,7 @@ EXPORT_SYMBOL(alloc_file);
  * to write to @file, along with access to write through
  * its vfsmount.
  */
-void drop_file_write_access(struct file *file)
+static void drop_file_write_access(struct file *file)
 {
 	struct vfsmount *mnt = file->f_path.mnt;
 	struct dentry *dentry = file->f_path.dentry;
@@ -219,7 +219,6 @@ void drop_file_write_access(struct file *file)
 	mnt_drop_write(mnt);
 	file_release_write(file);
 }
-EXPORT_SYMBOL_GPL(drop_file_write_access);
 
 /* the real guts of fput() - releasing the last reference to file
  */

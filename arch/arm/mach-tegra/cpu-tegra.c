@@ -30,7 +30,6 @@
 #include <linux/io.h>
 #include <linux/suspend.h>
 
-#include <asm/system.h>
 
 #include <mach/clk.h>
 

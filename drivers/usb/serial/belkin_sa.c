@@ -78,7 +78,6 @@ static struct usb_driver belkin_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
-	.no_dynamic_id =	1,
 };
 
 /* All of the device info needed for the serial converters */
@@ -88,7 +87,6 @@ static struct usb_serial_driver belkin_device = {
 		.name =		"belkin",
 	},
 	.description =		"Belkin / Peracom / GoHubs USB Serial Adapter",
-	.usb_driver =		&belkin_driver,
 	.id_table =		id_table_combined,
 	.num_ports =		1,
 	.open =			belkin_sa_open,
@@ -101,6 +99,10 @@ static struct usb_serial_driver belkin_device = {
 	.tiocmset =		belkin_sa_tiocmset,
 	.attach =		belkin_sa_startup,
 	.release =		belkin_sa_release,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&belkin_device, NULL
 };
 
 struct belkin_sa_private {
@@ -522,34 +524,7 @@ exit:
 	return retval;
 }
 
-
-static int __init belkin_sa_init(void)
-{
-	int retval;
-	retval = usb_serial_register(&belkin_device);
-	if (retval)
-		goto failed_usb_serial_register;
-	retval = usb_register(&belkin_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&belkin_device);
-failed_usb_serial_register:
-	return retval;
-}
-
-static void __exit belkin_sa_exit (void)
-{
-	usb_deregister(&belkin_driver);
-	usb_serial_deregister(&belkin_device);
-}
-
-
-module_init(belkin_sa_init);
-module_exit(belkin_sa_exit);
+module_usb_serial_driver(belkin_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

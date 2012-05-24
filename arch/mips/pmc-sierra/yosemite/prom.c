@@ -20,7 +20,6 @@
 #include <asm/processor.h>
 #include <asm/reboot.h>
 #include <asm/smp-ops.h>
-#include <asm/system.h>
 #include <asm/bootinfo.h>
 #include <asm/pmon.h>
 

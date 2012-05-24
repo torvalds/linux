@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2010-2011 Hans de Goede <hdegoede@redhat.com>           *
+ *   Copyright (C) 2010-2012 Hans de Goede <hdegoede@redhat.com>           *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -79,6 +79,7 @@ static const char * const SCH5627_IN_LABELS[SCH5627_NO_IN] = {
 struct sch5627_data {
 	unsigned short addr;
 	struct device *hwmon_dev;
+	struct sch56xx_watchdog_data *watchdog;
 	u8 control;
 	u8 temp_max[SCH5627_NO_TEMPS];
 	u8 temp_crit[SCH5627_NO_TEMPS];
@@ -453,6 +454,9 @@ static int sch5627_remove(struct platform_device *pdev)
 {
 	struct sch5627_data *data = platform_get_drvdata(pdev);
 
+	if (data->watchdog)
+		sch56xx_watchdog_unregister(data->watchdog);
+
 	if (data->hwmon_dev)
 		hwmon_device_unregister(data->hwmon_dev);
 
@@ -573,6 +577,11 @@ static int __devinit sch5627_probe(struct platform_device *pdev)
 		data->hwmon_dev = NULL;
 		goto error;
 	}
+
+	/* Note failing to register the watchdog is not a fatal error */
+	data->watchdog = sch56xx_watchdog_register(data->addr,
+			(build_code << 24) | (build_id << 8) | hwmon_rev,
+			&data->update_lock, 1);
 
 	return 0;
 

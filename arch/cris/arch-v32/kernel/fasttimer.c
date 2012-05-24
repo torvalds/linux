@@ -17,7 +17,6 @@
 #include <linux/delay.h>
 
 #include <asm/irq.h>
-#include <asm/system.h>
 
 #include <hwregs/reg_map.h>
 #include <hwregs/reg_rdwr.h>

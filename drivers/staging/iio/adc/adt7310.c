@@ -725,32 +725,19 @@ static struct attribute *adt7310_event_int_attributes[] = {
 	&iio_dev_attr_fault_queue.dev_attr.attr,
 	&iio_dev_attr_t_alarm_high.dev_attr.attr,
 	&iio_dev_attr_t_alarm_low.dev_attr.attr,
-	&iio_dev_attr_t_hyst.dev_attr.attr,
-	NULL,
-};
-
-static struct attribute *adt7310_event_ct_attributes[] = {
-	&iio_dev_attr_event_mode.dev_attr.attr,
-	&iio_dev_attr_available_event_modes.dev_attr.attr,
-	&iio_dev_attr_fault_queue.dev_attr.attr,
 	&iio_dev_attr_t_crit.dev_attr.attr,
 	&iio_dev_attr_t_hyst.dev_attr.attr,
 	NULL,
 };
 
-static struct attribute_group adt7310_event_attribute_group[ADT7310_IRQS] = {
-	{
-		.attrs = adt7310_event_int_attributes,
-		.name = "events",
-	}, {
-		.attrs = adt7310_event_ct_attributes,
-		.name = "events",
-	}
+static struct attribute_group adt7310_event_attribute_group = {
+	.attrs = adt7310_event_int_attributes,
+	.name = "events",
 };
 
 static const struct iio_info adt7310_info = {
 	.attrs = &adt7310_attribute_group,
-	.event_attrs = adt7310_event_attribute_group,
+	.event_attrs = &adt7310_event_attribute_group,
 	.driver_module = THIS_MODULE,
 };
 

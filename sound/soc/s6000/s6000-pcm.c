@@ -435,7 +435,8 @@ static void s6000_pcm_free(struct snd_pcm *pcm)
 {
 	struct snd_soc_pcm_runtime *runtime = pcm->private_data;
 	struct s6000_pcm_dma_params *params =
-		snd_soc_dai_get_dma_data(runtime->cpu_dai, pcm->streams[0].substream);
+		snd_soc_dai_get_dma_data(runtime->cpu_dai,
+			pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream);
 
 	free_irq(params->irq, pcm);
 	snd_pcm_lib_preallocate_free_for_all(pcm);
@@ -451,7 +452,7 @@ static int s6000_pcm_new(struct snd_soc_pcm_runtime *runtime)
 	int res;
 
 	params = snd_soc_dai_get_dma_data(runtime->cpu_dai,
-			pcm->streams[0].substream);
+			pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream);
 
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &s6000_pcm_dmamask;

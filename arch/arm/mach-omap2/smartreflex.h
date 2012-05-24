@@ -152,6 +152,15 @@ struct omap_sr_pmic_data {
 	void (*sr_pmic_init) (void);
 };
 
+/**
+ * struct omap_smartreflex_dev_attr - Smartreflex Device attribute.
+ *
+ * @sensor_voltdm_name:       Name of voltdomain of SR instance
+ */
+struct omap_smartreflex_dev_attr {
+	const char      *sensor_voltdm_name;
+};
+
 #ifdef CONFIG_OMAP_SMARTREFLEX
 /*
  * The smart reflex driver supports CLASS1 CLASS2 and CLASS3 SR.
@@ -231,6 +240,7 @@ void omap_sr_register_pmic(struct omap_sr_pmic_data *pmic_data);
 int sr_enable(struct voltagedomain *voltdm, unsigned long volt);
 void sr_disable(struct voltagedomain *voltdm);
 int sr_configure_errgen(struct voltagedomain *voltdm);
+int sr_disable_errgen(struct voltagedomain *voltdm);
 int sr_configure_minmax(struct voltagedomain *voltdm);
 
 /* API to register the smartreflex class driver with the smartreflex driver */

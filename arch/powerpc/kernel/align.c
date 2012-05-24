@@ -21,10 +21,10 @@
 #include <linux/mm.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/cache.h>
 #include <asm/cputable.h>
 #include <asm/emulated_ops.h>
+#include <asm/switch_to.h>
 
 struct aligninfo {
 	unsigned char len;

@@ -7,7 +7,6 @@
 #include <linux/platform_device.h>
 
 #include <asm/setup.h>
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>

@@ -21,6 +21,10 @@ extern const struct mxs_auart_data mx23_auart_data[] __initconst;
 #define mx23_add_auart0()		mx23_add_auart(0)
 #define mx23_add_auart1()		mx23_add_auart(1)
 
+extern const struct mxs_gpmi_nand_data mx23_gpmi_nand_data __initconst;
+#define mx23_add_gpmi_nand(pdata)	\
+	mxs_add_gpmi_nand(pdata, &mx23_gpmi_nand_data)
+
 extern const struct mxs_mxs_mmc_data mx23_mxs_mmc_data[] __initconst;
 #define mx23_add_mxs_mmc(id, pdata) \
 	mxs_add_mxs_mmc(&mx23_mxs_mmc_data[id], pdata)

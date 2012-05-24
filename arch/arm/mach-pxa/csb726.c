@@ -274,6 +274,7 @@ static void __init csb726_init(void)
 MACHINE_START(CSB726, "Cogent CSB726")
 	.atag_offset	= 0x100,
 	.map_io         = pxa27x_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.handle_irq       = pxa27x_handle_irq,
 	.init_machine   = csb726_init,

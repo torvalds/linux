@@ -40,7 +40,6 @@
 
 #include <asm/processor.h>
 #include <asm/msr.h>
-#include <asm/system.h>
 
 static struct class *msr_class;
 

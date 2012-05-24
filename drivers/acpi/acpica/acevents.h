@@ -69,11 +69,10 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node *node,
  */
 acpi_status acpi_ev_init_global_lock_handler(void);
 
-acpi_status acpi_ev_acquire_global_lock(u16 timeout);
-
-acpi_status acpi_ev_release_global_lock(void);
-
-acpi_status acpi_ev_remove_global_lock_handler(void);
+ACPI_HW_DEPENDENT_RETURN_OK(acpi_status
+			    acpi_ev_acquire_global_lock(u16 timeout))
+ ACPI_HW_DEPENDENT_RETURN_OK(acpi_status acpi_ev_release_global_lock(void))
+ acpi_status acpi_ev_remove_global_lock_handler(void);
 
 /*
  * evgpe - Low-level GPE support
@@ -114,7 +113,9 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			     struct acpi_gpe_block_info *gpe_block,
 			     void *context);
 
-acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block);
+ACPI_HW_DEPENDENT_RETURN_OK(acpi_status
+			    acpi_ev_delete_gpe_block(struct acpi_gpe_block_info
+						     *gpe_block))
 
 u32
 acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
@@ -126,9 +127,10 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
  */
 acpi_status acpi_ev_gpe_initialize(void);
 
-void acpi_ev_update_gpes(acpi_owner_id table_owner_id);
+ACPI_HW_DEPENDENT_RETURN_VOID(void
+			      acpi_ev_update_gpes(acpi_owner_id table_owner_id))
 
-acpi_status
+ acpi_status
 acpi_ev_match_gpe_method(acpi_handle obj_handle,
 			 u32 level, void *context, void **return_value);
 
@@ -237,6 +239,5 @@ acpi_status acpi_ev_remove_sci_handler(void);
 
 u32 acpi_ev_initialize_sCI(u32 program_sCI);
 
-void acpi_ev_terminate(void);
-
+ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_ev_terminate(void))
 #endif				/* __ACEVENTS_H__  */

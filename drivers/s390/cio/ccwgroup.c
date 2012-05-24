@@ -580,7 +580,6 @@ void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 	struct device *dev;
 
 	/* We don't want ccwgroup devices to live longer than their driver. */
-	get_driver(&cdriver->driver);
 	while ((dev = driver_find_device(&cdriver->driver, NULL, NULL,
 					 __ccwgroup_match_all))) {
 		struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
@@ -592,7 +591,6 @@ void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 		mutex_unlock(&gdev->reg_mutex);
 		put_device(dev);
 	}
-	put_driver(&cdriver->driver);
 	driver_unregister(&cdriver->driver);
 }
 EXPORT_SYMBOL(ccwgroup_driver_unregister);

@@ -20,6 +20,7 @@
 #include <linux/timex.h>
 #include <linux/profile.h>
 
+#include <asm/special_insns.h>
 #include <asm/timer64.h>
 
 static u32 sched_clock_multiplier;

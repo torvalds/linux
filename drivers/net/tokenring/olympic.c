@@ -106,7 +106,6 @@
 #include <net/net_namespace.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include "olympic.h"
 

@@ -35,7 +35,6 @@
 
 #include <linux/pfn.h>
 #include <linux/atomic.h>
-#include <linux/sched.h>
 #include <mach/dma.h>
 
 /* ---- Public Variables ------------------------------------------------- */

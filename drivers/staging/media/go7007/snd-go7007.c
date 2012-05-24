@@ -29,7 +29,6 @@
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
-#include <asm/system.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>

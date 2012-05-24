@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
+#include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 
 #include <linux/i2c/twl.h>
@@ -128,7 +129,7 @@ static void __init board_mmc_init(void)
 		return;
 	}
 
-	omap2_hsmmc_init(board_mmc_info);
+	omap_hsmmc_init(board_mmc_info);
 }
 
 static struct omap_smsc911x_platform_data __initdata board_smsc911x_data = {
@@ -188,8 +189,14 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x.0"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x.0"),
+};
+
 static void __init omap3logic_init(void)
 {
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap3torpedo_fix_pbias_voltage();
 	omap3logic_i2c_init();
@@ -205,6 +212,7 @@ static void __init omap3logic_init(void)
 
 MACHINE_START(OMAP3_TORPEDO, "Logic OMAP3 Torpedo board")
 	.atag_offset	= 0x100,
+	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
@@ -216,6 +224,7 @@ MACHINE_END
 
 MACHINE_START(OMAP3530_LV_SOM, "OMAP Logic 3530 LV SOM board")
 	.atag_offset	= 0x100,
+	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,

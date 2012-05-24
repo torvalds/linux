@@ -2,8 +2,8 @@
  *
  *  sep_driver_config.h - Security Processor Driver configuration
  *
- *  Copyright(c) 2009,2010 Intel Corporation. All rights reserved.
- *  Contributions(c) 2009,2010 Discretix. All rights reserved.
+ *  Copyright(c) 2009-2011 Intel Corporation. All rights reserved.
+ *  Contributions(c) 2009-2011 Discretix. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the Free
@@ -26,6 +26,7 @@
  *  CHANGES:
  *
  *  2010.06.26	Upgrade to Medfield
+ *  2011.02.22  Enable kernel crypto
  *
  */
 
@@ -48,6 +49,8 @@
 /* the mode for running on the ARM1172 Evaluation platform (flag is 1) */
 #define SEP_DRIVER_ARM_DEBUG_MODE                       0
 
+/* Critical message area contents for sanity checking */
+#define SEP_START_MSG_TOKEN				0x02558808
 /*-------------------------------------------
 	INTERNAL DATA CONFIGURATION
 	-------------------------------------------*/
@@ -65,20 +68,16 @@
 #define SEP_DRIVER_MIN_DATA_SIZE_PER_TABLE		16
 
 /* flag that signifies tah the lock is
-currently held by the process (struct file) */
+currently held by the proccess (struct file) */
 #define SEP_DRIVER_OWN_LOCK_FLAG                        1
 
 /* flag that signifies tah the lock is currently NOT
-held by the process (struct file) */
+held by the proccess (struct file) */
 #define SEP_DRIVER_DISOWN_LOCK_FLAG                     0
 
 /* indicates whether driver has mapped/unmapped shared area */
 #define SEP_REQUEST_DAEMON_MAPPED 1
 #define SEP_REQUEST_DAEMON_UNMAPPED 0
-
-#define SEP_DEV_NAME "sep_sec_driver"
-#define SEP_DEV_SINGLETON "sep_sec_singleton_driver"
-#define SEP_DEV_DAEMON "sep_req_daemon_driver"
 
 /*--------------------------------------------------------
 	SHARED AREA  memory total size is 36K
@@ -90,7 +89,7 @@ held by the process (struct file) */
 									}
 	DATA_POOL_AREA                          12K        }
 
-	SYNCHRONIC_DMA_TABLES_AREA              5K
+	SYNCHRONIC_DMA_TABLES_AREA              29K
 
 	placeholder until drver changes
 	FLOW_DMA_TABLES_AREA                    4K
@@ -109,6 +108,12 @@ held by the process (struct file) */
 
 
 /*
+	the minimum length of the message - includes 2 reserved fields
+	at the start, then token, message size and opcode fields. all dwords
+*/
+#define SEP_DRIVER_MIN_MESSAGE_SIZE_IN_BYTES			(5*sizeof(u32))
+
+/*
 	the maximum length of the message - the rest of the message shared
 	area will be dedicated to the dma lli tables
 */
@@ -124,13 +129,16 @@ held by the process (struct file) */
 #define SEP_DRIVER_DATA_POOL_SHARED_AREA_SIZE_IN_BYTES		(16 * 1024)
 
 /* the size of the message shared area in pages */
-#define SYNCHRONIC_DMA_TABLES_AREA_SIZE_BYTES	(1024 * 5)
+#define SYNCHRONIC_DMA_TABLES_AREA_SIZE_BYTES	(1024 * 29)
 
 /* Placeholder until driver changes */
 #define SEP_DRIVER_FLOW_DMA_TABLES_AREA_SIZE_IN_BYTES		(1024 * 4)
 
 /* system data (time, caller id etc') pool */
 #define SEP_DRIVER_SYSTEM_DATA_MEMORY_SIZE_IN_BYTES		(1024 * 3)
+
+/* Offset of the sep printf buffer in the message area */
+#define SEP_DRIVER_PRINTF_OFFSET_IN_BYTES			(5888)
 
 /* the size in bytes of the time memory */
 #define SEP_DRIVER_TIME_MEMORY_SIZE_IN_BYTES			8
@@ -223,10 +231,10 @@ held by the process (struct file) */
 #define SEP_ALREADY_INITIALIZED_ERR                           12
 
 /* bit that locks access to the shared area */
-#define SEP_MMAP_LOCK_BIT                                     0
+#define SEP_TRANSACTION_STARTED_LOCK_BIT                      0
 
 /* bit that lock access to the poll  - after send_command */
-#define SEP_SEND_MSG_LOCK_BIT                                 1
+#define SEP_WORKING_LOCK_BIT                                  1
 
 /* the token that defines the static pool address address */
 #define SEP_STATIC_POOL_VAL_TOKEN                             0xABBAABBA
@@ -239,5 +247,52 @@ held by the process (struct file) */
 
 /* Time limit for SEP to finish */
 #define WAIT_TIME 10
+
+/* Delay for pm runtime suspend (reduces pm thrashing with bursty traffic */
+#define SUSPEND_DELAY 10
+
+/* Number of delays to wait until scu boots after runtime resume */
+#define SCU_DELAY_MAX 50
+
+/* Delay for each iteration (usec) wait for scu boots after runtime resume */
+#define SCU_DELAY_ITERATION 10
+
+
+/*
+ * Bits used in struct sep_call_status to check that
+ * driver's APIs are called in valid order
+ */
+
+/* Bit offset which indicates status of sep_write() */
+#define SEP_FASTCALL_WRITE_DONE_OFFSET		0
+
+/* Bit offset which indicates status of sep_mmap() */
+#define SEP_LEGACY_MMAP_DONE_OFFSET		1
+
+/* Bit offset which indicates status of the SEP_IOCSENDSEPCOMMAND ioctl */
+#define SEP_LEGACY_SENDMSG_DONE_OFFSET		2
+
+/* Bit offset which indicates status of sep_poll() */
+#define SEP_LEGACY_POLL_DONE_OFFSET		3
+
+/* Bit offset which indicates status of the SEP_IOCENDTRANSACTION ioctl */
+#define SEP_LEGACY_ENDTRANSACTION_DONE_OFFSET	4
+
+/*
+ * Used to limit number of concurrent processes
+ * allowed to allocte dynamic buffers in fastcall
+ * interface.
+ */
+#define SEP_DOUBLEBUF_USERS_LIMIT		3
+
+/* Identifier for valid fastcall header */
+#define SEP_FC_MAGIC				0xFFAACCAA
+
+/*
+ * Used for enabling driver runtime power management.
+ * Useful for enabling/disabling it during performance
+ * testing
+ */
+#define SEP_ENABLE_RUNTIME_PM
 
 #endif /* SEP DRIVER CONFIG */

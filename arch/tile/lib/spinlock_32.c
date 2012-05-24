@@ -144,7 +144,7 @@ void arch_read_unlock(arch_rwlock_t *rwlock)
 	for (;;) {
 		__insn_mtspr(SPR_INTERRUPT_CRITICAL_SECTION, 1);
 		val = __insn_tns((int *)&rwlock->lock);
-		if (likely(val & 1) == 0) {
+		if (likely((val & 1) == 0)) {
 			rwlock->lock = val - (1 << _RD_COUNT_SHIFT);
 			__insn_mtspr(SPR_INTERRUPT_CRITICAL_SECTION, 0);
 			break;

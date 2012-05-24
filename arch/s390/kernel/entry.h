@@ -4,10 +4,21 @@
 #include <linux/types.h>
 #include <linux/signal.h>
 #include <asm/ptrace.h>
-
+#include <asm/cputime.h>
+#include <asm/timer.h>
 
 extern void (*pgm_check_table[128])(struct pt_regs *);
 extern void *restart_stack;
+
+void system_call(void);
+void pgm_check_handler(void);
+void ext_int_handler(void);
+void io_int_handler(void);
+void mcck_int_handler(void);
+void restart_int_handler(void);
+void restart_call_handler(void);
+void psw_idle(struct s390_idle_data *, struct vtimer_queue *,
+	      unsigned long, int);
 
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
 asmlinkage void do_syscall_trace_exit(struct pt_regs *regs);
@@ -24,9 +35,9 @@ int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		    siginfo_t *info, sigset_t *oldset, struct pt_regs *regs);
 void do_notify_resume(struct pt_regs *regs);
 
-void do_extint(struct pt_regs *regs, unsigned int, unsigned int, unsigned long);
+struct ext_code;
+void do_extint(struct pt_regs *regs, struct ext_code, unsigned int, unsigned long);
 void do_restart(void);
-int __cpuinit start_secondary(void *cpuvoid);
 void __init startup_init(void);
 void die(struct pt_regs *regs, const char *str);
 

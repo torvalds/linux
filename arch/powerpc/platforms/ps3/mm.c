@@ -29,6 +29,7 @@
 #include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/lv1call.h>
+#include <asm/setup.h>
 
 #include "platform.h"
 

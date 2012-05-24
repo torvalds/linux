@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/io.h>
-#include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 

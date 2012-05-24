@@ -330,7 +330,6 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 	padapter->stapriv.padapter = padapter;
 	r8712_init_bcmc_stainfo(padapter);
 	r8712_init_pwrctrl_priv(padapter);
-	sema_init(&(padapter->pwrctrlpriv.pnp_pwr_mgnt_sema), 0);
 	mp871xinit(padapter);
 	if (init_default_value(padapter) != _SUCCESS)
 		return _FAIL;
@@ -476,11 +475,6 @@ static int netdev_close(struct net_device *pnetdev)
 	r8712_free_assoc_resources(padapter);
 	/*s2-4.*/
 	r8712_free_network_queue(padapter);
-	/* The interface is no longer Up: */
-	padapter->bup = false;
-	release_firmware(padapter->fw);
-	/* never exit with a firmware callback pending */
-	wait_for_completion(&padapter->rtl8712_fw_ready);
 	return 0;
 }
 

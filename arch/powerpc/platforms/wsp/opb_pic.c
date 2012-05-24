@@ -30,7 +30,7 @@
 static int opb_index = 0;
 
 struct opb_pic {
-	struct irq_host *host;
+	struct irq_domain *host;
 	void *regs;
 	int index;
 	spinlock_t lock;
@@ -179,7 +179,7 @@ static struct irq_chip opb_irq_chip = {
 	.irq_set_type	= opb_set_irq_type
 };
 
-static int opb_host_map(struct irq_host *host, unsigned int virq,
+static int opb_host_map(struct irq_domain *host, unsigned int virq,
 		irq_hw_number_t hwirq)
 {
 	struct opb_pic *opb;
@@ -196,20 +196,9 @@ static int opb_host_map(struct irq_host *host, unsigned int virq,
 	return 0;
 }
 
-static int opb_host_xlate(struct irq_host *host, struct device_node *dn,
-		const u32 *intspec, unsigned int intsize,
-		irq_hw_number_t *out_hwirq, unsigned int *out_type)
-{
-	/* Interrupt size must == 2 */
-	BUG_ON(intsize != 2);
-	*out_hwirq = intspec[0];
-	*out_type = intspec[1];
-	return 0;
-}
-
-static struct irq_host_ops opb_host_ops = {
+static const struct irq_domain_ops opb_host_ops = {
 	.map = opb_host_map,
-	.xlate = opb_host_xlate,
+	.xlate = irq_domain_xlate_twocell,
 };
 
 irqreturn_t opb_irq_handler(int irq, void *private)
@@ -263,13 +252,11 @@ struct opb_pic *opb_pic_init_one(struct device_node *dn)
 		goto free_opb;
 	}
 
-	/* Allocate an irq host so that Linux knows that despite only
+	/* Allocate an irq domain so that Linux knows that despite only
 	 * having one interrupt to issue, we're the controller for multiple
 	 * hardware IRQs, so later we can lookup their virtual IRQs. */
 
-	opb->host = irq_alloc_host(dn, IRQ_HOST_MAP_LINEAR,
-			OPB_NR_IRQS, &opb_host_ops, -1);
-
+	opb->host = irq_domain_add_linear(dn, OPB_NR_IRQS, &opb_host_ops, opb);
 	if (!opb->host) {
 		printk(KERN_ERR "opb: Failed to allocate IRQ host!\n");
 		goto free_regs;
@@ -277,7 +264,6 @@ struct opb_pic *opb_pic_init_one(struct device_node *dn)
 
 	opb->index = opb_index++;
 	spin_lock_init(&opb->lock);
-	opb->host->host_data = opb;
 
 	/* Disable all interrupts by default */
 	opb_out(opb, OPB_MLSASIER, 0);

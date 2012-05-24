@@ -149,7 +149,7 @@ static struct clocksource pit_clk = {
 
 /***************************************************************************/
 
-void hw_timer_init(void)
+void hw_timer_init(irq_handler_t handler)
 {
 	cf_pit_clockevent.cpumask = cpumask_of(smp_processor_id());
 	cf_pit_clockevent.mult = div_sc(FREQ, NSEC_PER_SEC, 32);

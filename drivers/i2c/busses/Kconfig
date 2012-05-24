@@ -103,6 +103,7 @@ config I2C_I801
 	    Patsburg (PCH)
 	    DH89xxCC (PCH)
 	    Panther Point (PCH)
+	    Lynx Point (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -369,6 +370,21 @@ config I2C_DESIGNWARE_PCI
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-designware-pci.
 
+config I2C_EG20T
+	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) I2C"
+	depends on PCI
+	help
+	  This driver is for PCH(Platform controller Hub) I2C of EG20T which
+	  is an IOH(Input/Output Hub) for x86 embedded processor.
+	  This driver can access PCH I2C bus device.
+
+	  This driver also can be used for LAPIS Semiconductor IOH(Input/
+	  Output Hub), ML7213, ML7223 and ML7831.
+	  ML7213 IOH is for IVI(In-Vehicle Infotainment) use, ML7223 IOH is
+	  for MP(Media Phone) use and ML7831 IOH is for general purpose use.
+	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
+	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
+
 config I2C_GPIO
 	tristate "GPIO-based bitbanging I2C"
 	depends on GENERIC_GPIO
@@ -630,6 +646,16 @@ config I2C_SIMTEC
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-simtec.
 
+config I2C_SIRF
+	tristate "CSR SiRFprimaII I2C interface"
+	depends on ARCH_PRIMA2
+	help
+	  If you say yes to this option, support will be included for the
+	  CSR SiRFprimaII I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-sirf.
+
 config I2C_STU300
 	tristate "ST Microelectronics DDC I2C interface"
 	depends on MACH_U300
@@ -681,20 +707,15 @@ config I2C_XILINX
 	  This driver can also be built as a module.  If so, the module
 	  will be called xilinx_i2c.
 
-config I2C_EG20T
-	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) I2C"
-	depends on PCI
+config I2C_XLR
+	tristate "XLR I2C support"
+	depends on CPU_XLR
 	help
-	  This driver is for PCH(Platform controller Hub) I2C of EG20T which
-	  is an IOH(Input/Output Hub) for x86 embedded processor.
-	  This driver can access PCH I2C bus device.
+	  This driver enables support for the on-chip I2C interface of
+	  the Netlogic XLR/XLS MIPS processors.
 
-	  This driver also can be used for LAPIS Semiconductor IOH(Input/
-	  Output Hub), ML7213, ML7223 and ML7831.
-	  ML7213 IOH is for IVI(In-Vehicle Infotainment) use, ML7223 IOH is
-	  for MP(Media Phone) use and ML7831 IOH is for general purpose use.
-	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
-	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-xlr.
 
 comment "External I2C/SMBus adapter drivers"
 

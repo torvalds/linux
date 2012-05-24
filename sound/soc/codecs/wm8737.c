@@ -599,7 +599,7 @@ static int wm8737_probe(struct snd_soc_codec *codec)
 	/* Bias level configuration will have done an extra enable */
 	regulator_bulk_disable(ARRAY_SIZE(wm8737->supplies), wm8737->supplies);
 
-	snd_soc_add_controls(codec, wm8737_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8737_snd_controls,
 			     ARRAY_SIZE(wm8737_snd_controls));
 	wm8737_add_widgets(codec);
 

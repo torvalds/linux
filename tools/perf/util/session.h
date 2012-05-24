@@ -73,6 +73,10 @@ int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel
 				    struct ip_callchain *chain,
 				    struct symbol **parent);
 
+struct branch_info *machine__resolve_bstack(struct machine *self,
+					    struct thread *thread,
+					    struct branch_stack *bs);
+
 bool perf_session__has_traces(struct perf_session *self, const char *msg);
 
 void mem_bswap_64(void *src, int byte_size);
@@ -147,7 +151,7 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 
 void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 			  struct machine *machine, struct perf_evsel *evsel,
-			  int print_sym, int print_dso);
+			  int print_sym, int print_dso, int print_symoffset);
 
 int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap);

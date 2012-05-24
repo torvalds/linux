@@ -12,6 +12,7 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/rcupdate.h>
+#include <linux/bug.h>
 #include <linux/jiffies.h>
 #include <net/neighbour.h>
 #include <asm/processor.h>

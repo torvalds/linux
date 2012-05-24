@@ -79,18 +79,6 @@ struct stats_general_data {
 	u32 beacon_energy_c;
 };
 
-void
-il4965_calib_free_results(struct il_priv *il)
-{
-	int i;
-
-	for (i = 0; i < IL_CALIB_MAX; i++) {
-		kfree(il->calib_results[i].buf);
-		il->calib_results[i].buf = NULL;
-		il->calib_results[i].buf_len = 0;
-	}
-}
-
 /*****************************************************************************
  * RUNTIME calibrations framework
  *****************************************************************************/
@@ -627,13 +615,13 @@ il4965_find_disconn_antenna(struct il_priv *il, u32 * average_sig,
 
 	average_sig[0] =
 	    data->chain_signal_a /
-	    il->cfg->base_params->chain_noise_num_beacons;
+	    il->cfg->chain_noise_num_beacons;
 	average_sig[1] =
 	    data->chain_signal_b /
-	    il->cfg->base_params->chain_noise_num_beacons;
+	    il->cfg->chain_noise_num_beacons;
 	average_sig[2] =
 	    data->chain_signal_c /
-	    il->cfg->base_params->chain_noise_num_beacons;
+	    il->cfg->chain_noise_num_beacons;
 
 	if (average_sig[0] >= average_sig[1]) {
 		max_average_sig = average_sig[0];
@@ -806,8 +794,6 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 	unsigned long flags;
 	struct stats_rx_non_phy *rx_info;
 
-	struct il_rxon_context *ctx = &il->ctx;
-
 	if (il->disable_chain_noise_cal)
 		return;
 
@@ -833,8 +819,8 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 		return;
 	}
 
-	rxon_band24 = !!(ctx->staging.flags & RXON_FLG_BAND_24G_MSK);
-	rxon_chnum = le16_to_cpu(ctx->staging.channel);
+	rxon_band24 = !!(il->staging.flags & RXON_FLG_BAND_24G_MSK);
+	rxon_chnum = le16_to_cpu(il->staging.channel);
 
 	stat_band24 =
 	    !!(((struct il_notif_stats *)stat_resp)->
@@ -888,7 +874,7 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 	/* If this is the "chain_noise_num_beacons", determine:
 	 * 1)  Disconnected antennas (using signal strengths)
 	 * 2)  Differential gain (using silence noise) to balance receivers */
-	if (data->beacon_count != il->cfg->base_params->chain_noise_num_beacons)
+	if (data->beacon_count != il->cfg->chain_noise_num_beacons)
 		return;
 
 	/* Analyze signal for disconnected antenna */
@@ -896,11 +882,11 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 
 	/* Analyze noise for rx balance */
 	average_noise[0] =
-	    data->chain_noise_a / il->cfg->base_params->chain_noise_num_beacons;
+	    data->chain_noise_a / il->cfg->chain_noise_num_beacons;
 	average_noise[1] =
-	    data->chain_noise_b / il->cfg->base_params->chain_noise_num_beacons;
+	    data->chain_noise_b / il->cfg->chain_noise_num_beacons;
 	average_noise[2] =
-	    data->chain_noise_c / il->cfg->base_params->chain_noise_num_beacons;
+	    data->chain_noise_c / il->cfg->chain_noise_num_beacons;
 
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
 		if (!data->disconn_array[i] &&
@@ -925,8 +911,8 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 	/* Some power changes may have been made during the calibration.
 	 * Update and commit the RXON
 	 */
-	if (il->cfg->ops->lib->update_chain_flags)
-		il->cfg->ops->lib->update_chain_flags(il);
+	if (il->ops->update_chain_flags)
+		il->ops->update_chain_flags(il);
 
 	data->state = IL_CHAIN_NOISE_DONE;
 	il_power_update_mode(il, false);

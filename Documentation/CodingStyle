@@ -793,6 +793,35 @@ own custom mode, or may have some other magic method for making indentation
 work correctly.
 
 
+		Chapter 19:  Inline assembly
+
+In architecture-specific code, you may need to use inline assembly to interface
+with CPU or platform functionality.  Don't hesitate to do so when necessary.
+However, don't use inline assembly gratuitously when C can do the job.  You can
+and should poke hardware from C when possible.
+
+Consider writing simple helper functions that wrap common bits of inline
+assembly, rather than repeatedly writing them with slight variations.  Remember
+that inline assembly can use C parameters.
+
+Large, non-trivial assembly functions should go in .S files, with corresponding
+C prototypes defined in C header files.  The C prototypes for assembly
+functions should use "asmlinkage".
+
+You may need to mark your asm statement as volatile, to prevent GCC from
+removing it if GCC doesn't notice any side effects.  You don't always need to
+do so, though, and doing so unnecessarily can limit optimization.
+
+When writing a single inline assembly statement containing multiple
+instructions, put each instruction on a separate line in a separate quoted
+string, and end each string except the last with \n\t to properly indent the
+next instruction in the assembly output:
+
+	asm ("magic %reg1, #42\n\t"
+	     "more_magic %reg2, %reg3"
+	     : /* outputs */ : /* inputs */ : /* clobbers */);
+
+
 
 		Appendix I: References
 

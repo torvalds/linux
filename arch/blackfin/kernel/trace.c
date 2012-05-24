@@ -21,6 +21,7 @@
 #include <asm/fixed_code.h>
 #include <asm/traps.h>
 #include <asm/irq_handler.h>
+#include <asm/pda.h>
 
 void decode_address(char *buf, unsigned long address)
 {

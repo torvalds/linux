@@ -41,7 +41,6 @@
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -1010,8 +1009,6 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	line = tty->index;
 	if (line == MXSER_PORTS)
 		return 0;
-	if (line < 0 || line > MXSER_PORTS)
-		return -ENODEV;
 	info = &mxser_boards[line / MXSER_PORTS_PER_BOARD].ports[line % MXSER_PORTS_PER_BOARD];
 	if (!info->ioaddr)
 		return -ENODEV;
@@ -2658,12 +2655,9 @@ static int __init mxser_module_init(void)
 		MXSER_VERSION);
 
 	/* Initialize the tty_driver structure */
-	mxvar_sdriver->owner = THIS_MODULE;
-	mxvar_sdriver->magic = TTY_DRIVER_MAGIC;
 	mxvar_sdriver->name = "ttyMI";
 	mxvar_sdriver->major = ttymajor;
 	mxvar_sdriver->minor_start = 0;
-	mxvar_sdriver->num = MXSER_PORTS + 1;
 	mxvar_sdriver->type = TTY_DRIVER_TYPE_SERIAL;
 	mxvar_sdriver->subtype = SERIAL_TYPE_NORMAL;
 	mxvar_sdriver->init_termios = tty_std_termios;

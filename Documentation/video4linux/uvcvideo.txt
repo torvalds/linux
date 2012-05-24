@@ -116,7 +116,7 @@ Description:
 	A UVC control can be mapped to several V4L2 controls. For instance,
 	a UVC pan/tilt control could be mapped to separate pan and tilt V4L2
 	controls. The UVC control is divided into non overlapping fields using
-	the 'size' and 'offset' fields and are then independantly mapped to
+	the 'size' and 'offset' fields and are then independently mapped to
 	V4L2 control.
 
 	For signed integer V4L2 controls the data_type field should be set to

@@ -17,21 +17,15 @@
 static inline void SSYNC(void)
 {
 	int _tmp;
-	if (ANOMALY_05000312)
+	if (ANOMALY_05000312 || ANOMALY_05000244)
 		__asm__ __volatile__(
 			"cli %0;"
+			"nop;"
 			"nop;"
 			"nop;"
 			"ssync;"
 			"sti %0;"
 			: "=d" (_tmp)
-		);
-	else if (ANOMALY_05000244)
-		__asm__ __volatile__(
-			"nop;"
-			"nop;"
-			"nop;"
-			"ssync;"
 		);
 	else
 		__asm__ __volatile__("ssync;");
@@ -41,21 +35,15 @@ static inline void SSYNC(void)
 static inline void CSYNC(void)
 {
 	int _tmp;
-	if (ANOMALY_05000312)
+	if (ANOMALY_05000312 || ANOMALY_05000244)
 		__asm__ __volatile__(
 			"cli %0;"
+			"nop;"
 			"nop;"
 			"nop;"
 			"csync;"
 			"sti %0;"
 			: "=d" (_tmp)
-		);
-	else if (ANOMALY_05000244)
-		__asm__ __volatile__(
-			"nop;"
-			"nop;"
-			"nop;"
-			"csync;"
 		);
 	else
 		__asm__ __volatile__("csync;");
@@ -73,18 +61,26 @@ static inline void CSYNC(void)
 #define ssync(x) SSYNC(x)
 #define csync(x) CSYNC(x)
 
-#if ANOMALY_05000312
-#define SSYNC(scratch) cli scratch; nop; nop; SSYNC; sti scratch;
-#define CSYNC(scratch) cli scratch; nop; nop; CSYNC; sti scratch;
+#if ANOMALY_05000312 || ANOMALY_05000244
+#define SSYNC(scratch)	\
+do {			\
+	cli scratch;	\
+	nop; nop; nop;	\
+	SSYNC;		\
+	sti scratch;	\
+} while (0)
 
-#elif ANOMALY_05000244
-#define SSYNC(scratch) nop; nop; nop; SSYNC;
-#define CSYNC(scratch) nop; nop; nop; CSYNC;
+#define CSYNC(scratch)	\
+do {			\
+	cli scratch;	\
+	nop; nop; nop;	\
+	CSYNC;		\
+	sti scratch;	\
+} while (0)
 
 #else
 #define SSYNC(scratch) SSYNC;
 #define CSYNC(scratch) CSYNC;
-
 #endif /* ANOMALY_05000312 & ANOMALY_05000244 handling */
 
 #endif /* __ASSEMBLY__ */

@@ -16,8 +16,8 @@
 #include <asm/errno.h>
 #include <asm/memory.h>
 #include <asm/domain.h>
-#include <asm/system.h>
 #include <asm/unified.h>
+#include <asm/compiler.h>
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1

@@ -25,6 +25,8 @@
 #include <linux/atomic.h>
 #include <asm/nmi.h>
 #include <asm/pcr.h>
+#include <asm/perfctr.h>
+#include <asm/cacheflush.h>
 
 #include "kernel.h"
 #include "kstack.h"
@@ -1104,6 +1106,10 @@ static int sparc_pmu_event_init(struct perf_event *event)
 
 	if (atomic_read(&nmi_active) < 0)
 		return -ENODEV;
+
+	/* does not support taken branch sampling */
+	if (has_branch_stack(event))
+		return -EOPNOTSUPP;
 
 	switch (attr->type) {
 	case PERF_TYPE_HARDWARE:

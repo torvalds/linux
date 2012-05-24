@@ -34,7 +34,6 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
-#include <asm/system.h>
 
 #include "go7007.h"
 #include "go7007-priv.h"
@@ -1050,15 +1049,15 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 	return 0;
 }
 
-/* VIDIOC_ENUMSTD on go7007 were used for enumberating the supported fps and
+/* VIDIOC_ENUMSTD on go7007 were used for enumerating the supported fps and
    its resolution, when the device is not connected to TV.
-   This were an API abuse, probably used by the lack of specific IOCTL's to
-   enumberate it, by the time the driver were written.
+   This is were an API abuse, probably used by the lack of specific IOCTL's to
+   enumerate it, by the time the driver was written.
 
    However, since kernel 2.6.19, two new ioctls (VIDIOC_ENUM_FRAMEINTERVALS
    and VIDIOC_ENUM_FRAMESIZES) were added for this purpose.
 
-   The two functions bellow implements the newer ioctls
+   The two functions below implement the newer ioctls
 */
 static int vidioc_enum_framesizes(struct file *filp, void *priv,
 				  struct v4l2_frmsizeenum *fsize)

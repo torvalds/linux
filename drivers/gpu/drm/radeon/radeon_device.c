@@ -89,6 +89,10 @@ static const char radeon_family_name[][16] = {
 	"TURKS",
 	"CAICOS",
 	"CAYMAN",
+	"ARUBA",
+	"TAHITI",
+	"PITCAIRN",
+	"VERDE",
 	"LAST",
 };
 
@@ -964,7 +968,7 @@ int radeon_resume_kms(struct drm_device *dev)
 	/* init dig PHYs, disp eng pll */
 	if (rdev->is_atom_bios) {
 		radeon_atom_encoder_init(rdev);
-		radeon_atom_dcpll_init(rdev);
+		radeon_atom_disp_eng_pll_init(rdev);
 	}
 	/* reset hpd state */
 	radeon_hpd_init(rdev);

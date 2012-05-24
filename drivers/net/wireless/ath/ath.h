@@ -174,28 +174,24 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry);
 void ath_hw_cycle_counters_update(struct ath_common *common);
 int32_t ath_hw_get_listen_time(struct ath_common *common);
 
-extern __printf(2, 3) void ath_printk(const char *level, const char *fmt, ...);
-
-#define _ath_printk(level, common, fmt, ...)			\
-do {								\
-	__always_unused struct ath_common *unused = common;	\
-	ath_printk(level, fmt, ##__VA_ARGS__);			\
-} while (0)
+__printf(3, 4)
+void ath_printk(const char *level, const struct ath_common *common,
+		const char *fmt, ...);
 
 #define ath_emerg(common, fmt, ...)				\
-	_ath_printk(KERN_EMERG, common, fmt, ##__VA_ARGS__)
+	ath_printk(KERN_EMERG, common, fmt, ##__VA_ARGS__)
 #define ath_alert(common, fmt, ...)				\
-	_ath_printk(KERN_ALERT, common, fmt, ##__VA_ARGS__)
+	ath_printk(KERN_ALERT, common, fmt, ##__VA_ARGS__)
 #define ath_crit(common, fmt, ...)				\
-	_ath_printk(KERN_CRIT, common, fmt, ##__VA_ARGS__)
+	ath_printk(KERN_CRIT, common, fmt, ##__VA_ARGS__)
 #define ath_err(common, fmt, ...)				\
-	_ath_printk(KERN_ERR, common, fmt, ##__VA_ARGS__)
+	ath_printk(KERN_ERR, common, fmt, ##__VA_ARGS__)
 #define ath_warn(common, fmt, ...)				\
-	_ath_printk(KERN_WARNING, common, fmt, ##__VA_ARGS__)
+	ath_printk(KERN_WARNING, common, fmt, ##__VA_ARGS__)
 #define ath_notice(common, fmt, ...)				\
-	_ath_printk(KERN_NOTICE, common, fmt, ##__VA_ARGS__)
+	ath_printk(KERN_NOTICE, common, fmt, ##__VA_ARGS__)
 #define ath_info(common, fmt, ...)				\
-	_ath_printk(KERN_INFO, common, fmt, ##__VA_ARGS__)
+	ath_printk(KERN_INFO, common, fmt, ##__VA_ARGS__)
 
 /**
  * enum ath_debug_level - atheros wireless debug level
@@ -256,7 +252,7 @@ enum ATH_DEBUG {
 #define ath_dbg(common, dbg_mask, fmt, ...)				\
 do {									\
 	if ((common)->debug_mask & ATH_DBG_##dbg_mask)			\
-		_ath_printk(KERN_DEBUG, common, fmt, ##__VA_ARGS__);	\
+		ath_printk(KERN_DEBUG, common, fmt, ##__VA_ARGS__);	\
 } while (0)
 
 #define ATH_DBG_WARN(foo, arg...) WARN(foo, arg)

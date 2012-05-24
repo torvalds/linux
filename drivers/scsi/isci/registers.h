@@ -370,6 +370,27 @@ struct scu_iit_entry {
 		>> SMU_DEVICE_CONTEXT_CAPACITY_MAX_RNC_SHIFT \
 	)
 
+/* ***************************************************************************** */
+#define SMU_CLOCK_GATING_CONTROL_IDLE_ENABLE_SHIFT    (0)
+#define SMU_CLOCK_GATING_CONTROL_IDLE_ENABLE_MASK     (0x00000001)
+#define SMU_CLOCK_GATING_CONTROL_XCLK_ENABLE_SHIFT    (1)
+#define SMU_CLOCK_GATING_CONTROL_XCLK_ENABLE_MASK     (0x00000002)
+#define SMU_CLOCK_GATING_CONTROL_TXCLK_ENABLE_SHIFT   (2)
+#define SMU_CLOCK_GATING_CONTROL_TXCLK_ENABLE_MASK    (0x00000004)
+#define SMU_CLOCK_GATING_CONTROL_REGCLK_ENABLE_SHIFT  (3)
+#define SMU_CLOCK_GATING_CONTROL_REGCLK_ENABLE_MASK   (0x00000008)
+#define SMU_CLOCK_GATING_CONTROL_IDLE_TIMEOUT_SHIFT   (16)
+#define SMU_CLOCK_GATING_CONTROL_IDLE_TIMEOUT_MASK    (0x000F0000)
+#define SMU_CLOCK_GATING_CONTROL_FORCE_IDLE_SHIFT     (31)
+#define SMU_CLOCK_GATING_CONTROL_FORCE_IDLE_MASK      (0x80000000)
+#define SMU_CLOCK_GATING_CONTROL_RESERVED_MASK        (0x7FF0FFF0)
+
+#define SMU_CGUCR_GEN_VAL(name, value) \
+	SCU_GEN_VALUE(SMU_CLOCK_GATING_CONTROL_##name, value)
+
+#define SMU_CGUCR_GEN_BIT(name) \
+	SCU_GEN_BIT(SMU_CLOCK_GATING_CONTROL_##name)
+
 /* -------------------------------------------------------------------------- */
 
 #define SMU_CONTROL_STATUS_TASK_CONTEXT_RANGE_ENABLE_SHIFT      (0)
@@ -992,8 +1013,10 @@ struct smu_registers {
 	u32 mmr_address_window;
 /* 0x00A4 SMDW */
 	u32 mmr_data_window;
-	u32 reserved_A8;
-	u32 reserved_AC;
+/* 0x00A8 CGUCR */
+	u32 clock_gating_control;
+/* 0x00AC CGUPC */
+	u32 clock_gating_performance;
 /* A whole bunch of reserved space */
 	u32 reserved_Bx[4];
 	u32 reserved_Cx[4];

@@ -94,7 +94,7 @@ static int c2_query_port(struct ib_device *ibdev,
 	props->pkey_tbl_len = 1;
 	props->qkey_viol_cntr = 0;
 	props->active_width = 1;
-	props->active_speed = 1;
+	props->active_speed = IB_SPEED_SDR;
 
 	return 0;
 }

@@ -1,0 +1,13 @@
+For this staging driver, RAMster duplicates code from drivers/staging/zcache
+then incorporates changes to the local copy of the code.  For V5, it also
+directly incorporates the soon-to-be-removed drivers/staging/zram/xvmalloc.[ch]
+as all testing has been done with xvmalloc rather than the new zsmalloc.
+Before RAMster can be promoted from staging, the zcache and RAMster drivers
+should be either merged or reorganized to separate out common code.
+
+Until V4, RAMster duplicated code from fs/ocfs2/cluster, but this made
+RAMster incompatible with ocfs2 running in the same kernel and included
+lots of code that could be removed.  As of V5, the ocfs2 code has been
+mined and made RAMster-specific, made to communicate with a userland
+ramster-tools package rather than ocfs2-tools, and can co-exist with ocfs2
+both in the same kernel and in userland on the same machine.

@@ -3,8 +3,8 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#include "vb_struct.h"
 #include "vgatypes.h"
+#include "vb_struct.h"
 
 enum xgifb_display_type {
 	XGIFB_DISP_NONE = 0,

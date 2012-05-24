@@ -1368,7 +1368,7 @@ static int ali_ircc_net_open(struct net_device *dev)
 		IRDA_WARNING("%s, unable to allocate dma=%d\n",
 			     ALI_IRCC_DRIVER_NAME,
 			     self->io.dma);
-		free_irq(self->io.irq, self);
+		free_irq(self->io.irq, dev);
 		return -EAGAIN;
 	}
 	

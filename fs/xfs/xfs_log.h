@@ -53,15 +53,6 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 #define XFS_LOG_REL_PERM_RESERV	0x1
 
 /*
- * Flags to xfs_log_reserve()
- *
- *	XFS_LOG_PERM_RESERV: Permanent reservation.  When writes are
- *		performed against this type of reservation, the reservation
- *		is not decreased.  Long running transactions should use this.
- */
-#define XFS_LOG_PERM_RESERV	0x2
-
-/*
  * Flags to xfs_log_force()
  *
  *	XFS_LOG_SYNC:	Synchronous force in-core log to disk
@@ -160,8 +151,8 @@ int	  xfs_log_mount(struct xfs_mount	*mp,
 			xfs_daddr_t		start_block,
 			int		 	num_bblocks);
 int	  xfs_log_mount_finish(struct xfs_mount *mp);
-void	  xfs_log_move_tail(struct xfs_mount	*mp,
-			    xfs_lsn_t		tail_lsn);
+xfs_lsn_t xlog_assign_tail_lsn(struct xfs_mount *mp);
+void	  xfs_log_space_wake(struct xfs_mount *mp);
 int	  xfs_log_notify(struct xfs_mount	*mp,
 			 struct xlog_in_core	*iclog,
 			 xfs_log_callback_t	*callback_entry);
@@ -172,8 +163,9 @@ int	  xfs_log_reserve(struct xfs_mount *mp,
 			  int		   count,
 			  struct xlog_ticket **ticket,
 			  __uint8_t	   clientid,
-			  uint		   flags,
+			  bool		   permanent,
 			  uint		   t_type);
+int	  xfs_log_regrant(struct xfs_mount *mp, struct xlog_ticket *tic);
 int	  xfs_log_unmount_write(struct xfs_mount *mp);
 void      xfs_log_unmount(struct xfs_mount *mp);
 int	  xfs_log_force_umount(struct xfs_mount *mp, int logerror);

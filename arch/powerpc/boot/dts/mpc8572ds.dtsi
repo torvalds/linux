@@ -41,37 +41,47 @@
 		bank-width = <2>;
 		device-width = <1>;
 
-		ramdisk@0 {
+		partition@0 {
 			reg = <0x0 0x03000000>;
-			read-only;
+			label = "ramdisk-nor";
 		};
 
-		diagnostic@3000000 {
+		partition@3000000 {
 			reg = <0x03000000 0x00e00000>;
+			label = "diagnostic-nor";
 			read-only;
 		};
 
-		dink@3e00000 {
+		partition@3e00000 {
 			reg = <0x03e00000 0x00200000>;
+			label = "dink-nor";
 			read-only;
 		};
 
-		kernel@4000000 {
+		partition@4000000 {
 			reg = <0x04000000 0x00400000>;
-			read-only;
+			label = "kernel-nor";
 		};
 
-		jffs2@4400000 {
+		partition@4400000 {
 			reg = <0x04400000 0x03b00000>;
+			label = "fs-nor";
 		};
 
-		dtb@7f00000 {
-			reg = <0x07f00000 0x00080000>;
+		partition@7f00000 {
+			reg = <0x07f00000 0x00060000>;
+			label = "dtb-nor";
+		};
+
+		partition@7f60000 {
+			reg = <0x07f60000 0x00020000>;
+			label = "env-nor";
 			read-only;
 		};
 
-		u-boot@7f80000 {
+		partition@7f80000 {
 			reg = <0x07f80000 0x00080000>;
+			label = "u-boot-nor";
 			read-only;
 		};
 	};
@@ -83,31 +93,35 @@
 			     "fsl,elbc-fcm-nand";
 		reg = <0x2 0x0 0x40000>;
 
-		u-boot@0 {
+		partition@0 {
 			reg = <0x0 0x02000000>;
+			label = "u-boot-nand";
 			read-only;
 		};
 
-		jffs2@2000000 {
+		partition@2000000 {
 			reg = <0x02000000 0x10000000>;
+			label = "fs-nand";
 		};
 
-		ramdisk@12000000 {
+		partition@12000000 {
 			reg = <0x12000000 0x08000000>;
-			read-only;
+			label = "ramdisk-nand";
 		};
 
-		kernel@1a000000 {
+		partition@1a000000 {
 			reg = <0x1a000000 0x04000000>;
+			label = "kernel-nand";
 		};
 
-		dtb@1e000000 {
+		partition@1e000000 {
 			reg = <0x1e000000 0x01000000>;
-			read-only;
+			label = "dtb-nand";
 		};
 
-		empty@1f000000 {
+		partition@1f000000 {
 			reg = <0x1f000000 0x21000000>;
+			label = "empty-nand";
 		};
 	};
 

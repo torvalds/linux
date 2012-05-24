@@ -61,7 +61,7 @@ static DEFINE_RAW_SPINLOCK(pmac_pic_lock);
 static unsigned long ppc_lost_interrupts[NR_MASK_WORDS];
 static unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
 static int pmac_irq_cascade = -1;
-static struct irq_host *pmac_pic_host;
+static struct irq_domain *pmac_pic_host;
 
 static void __pmac_retrigger(unsigned int irq_nr)
 {
@@ -268,13 +268,13 @@ static struct irqaction gatwick_cascade_action = {
 	.name		= "cascade",
 };
 
-static int pmac_pic_host_match(struct irq_host *h, struct device_node *node)
+static int pmac_pic_host_match(struct irq_domain *h, struct device_node *node)
 {
 	/* We match all, we don't always have a node anyway */
 	return 1;
 }
 
-static int pmac_pic_host_map(struct irq_host *h, unsigned int virq,
+static int pmac_pic_host_map(struct irq_domain *h, unsigned int virq,
 			     irq_hw_number_t hw)
 {
 	if (hw >= max_irqs)
@@ -288,21 +288,10 @@ static int pmac_pic_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static int pmac_pic_host_xlate(struct irq_host *h, struct device_node *ct,
-			       const u32 *intspec, unsigned int intsize,
-			       irq_hw_number_t *out_hwirq,
-			       unsigned int *out_flags)
-
-{
-	*out_flags = IRQ_TYPE_NONE;
-	*out_hwirq = *intspec;
-	return 0;
-}
-
-static struct irq_host_ops pmac_pic_host_ops = {
+static const struct irq_domain_ops pmac_pic_host_ops = {
 	.match = pmac_pic_host_match,
 	.map = pmac_pic_host_map,
-	.xlate = pmac_pic_host_xlate,
+	.xlate = irq_domain_xlate_onecell,
 };
 
 static void __init pmac_pic_probe_oldstyle(void)
@@ -352,9 +341,8 @@ static void __init pmac_pic_probe_oldstyle(void)
 	/*
 	 * Allocate an irq host
 	 */
-	pmac_pic_host = irq_alloc_host(master, IRQ_HOST_MAP_LINEAR, max_irqs,
-				       &pmac_pic_host_ops,
-				       max_irqs);
+	pmac_pic_host = irq_domain_add_linear(master, max_irqs,
+					      &pmac_pic_host_ops, NULL);
 	BUG_ON(pmac_pic_host == NULL);
 	irq_set_default_host(pmac_pic_host);
 
@@ -469,7 +457,6 @@ static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
 
 	pmac_call_feature(PMAC_FTR_ENABLE_MPIC, np, 0, 0);
 
-	flags |= MPIC_WANTS_RESET;
 	if (of_get_property(np, "big-endian", NULL))
 		flags |= MPIC_BIG_ENDIAN;
 

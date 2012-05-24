@@ -45,7 +45,7 @@ Status
 Usage
 -----
 
-  Try "modprobe asus_acpi". Check your dmesg (simply type dmesg). You should
+  Try "modprobe asus-laptop". Check your dmesg (simply type dmesg). You should
   see some lines like this :
 
       Asus Laptop Extras version 0.42

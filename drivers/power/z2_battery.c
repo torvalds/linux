@@ -316,19 +316,7 @@ static struct i2c_driver z2_batt_driver = {
 	.remove		= __devexit_p(z2_batt_remove),
 	.id_table	= z2_batt_id,
 };
-
-static int __init z2_batt_init(void)
-{
-	return i2c_add_driver(&z2_batt_driver);
-}
-
-static void __exit z2_batt_exit(void)
-{
-	i2c_del_driver(&z2_batt_driver);
-}
-
-module_init(z2_batt_init);
-module_exit(z2_batt_exit);
+module_i2c_driver(z2_batt_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Peter Edwards <sweetlilmre@gmail.com>");

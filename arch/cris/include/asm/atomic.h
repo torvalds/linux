@@ -5,7 +5,7 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <asm/system.h>
+#include <asm/cmpxchg.h>
 #include <arch/atomic.h>
 
 /*

@@ -485,11 +485,11 @@ static void fc_fcp_recv_data(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 
 	if (!(fr_flags(fp) & FCPHF_CRC_UNCHECKED)) {
 		copy_len = fc_copy_buffer_to_sglist(buf, len, sg, &nents,
-						    &offset, KM_SOFTIRQ0, NULL);
+						    &offset, NULL);
 	} else {
 		crc = crc32(~0, (u8 *) fh, sizeof(*fh));
 		copy_len = fc_copy_buffer_to_sglist(buf, len, sg, &nents,
-						    &offset, KM_SOFTIRQ0, &crc);
+						    &offset, &crc);
 		buf = fc_frame_payload_get(fp, 0);
 		if (len % 4)
 			crc = crc32(crc, buf + len, 4 - (len % 4));
@@ -650,10 +650,10 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 			 * The scatterlist item may be bigger than PAGE_SIZE,
 			 * but we must not cross pages inside the kmap.
 			 */
-			page_addr = kmap_atomic(page, KM_SOFTIRQ0);
+			page_addr = kmap_atomic(page);
 			memcpy(data, (char *)page_addr + (off & ~PAGE_MASK),
 			       sg_bytes);
-			kunmap_atomic(page_addr, KM_SOFTIRQ0);
+			kunmap_atomic(page_addr);
 			data += sg_bytes;
 		}
 		offset += sg_bytes;
@@ -1074,8 +1074,7 @@ static int fc_fcp_pkt_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp)
 	fsp->cdb_cmd.fc_dl = htonl(fsp->data_len);
 	fsp->cdb_cmd.fc_flags = fsp->req_flags & ~FCP_CFL_LEN_MASK;
 
-	int_to_scsilun(fsp->cmd->device->lun,
-		       (struct scsi_lun *)fsp->cdb_cmd.fc_lun);
+	int_to_scsilun(fsp->cmd->device->lun, &fsp->cdb_cmd.fc_lun);
 	memcpy(fsp->cdb_cmd.fc_cdb, fsp->cmd->cmnd, fsp->cmd->cmd_len);
 
 	spin_lock_irqsave(&si->scsi_queue_lock, flags);
@@ -1257,7 +1256,7 @@ static int fc_lun_reset(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 
 	fsp->cdb_cmd.fc_dl = htonl(fsp->data_len);
 	fsp->cdb_cmd.fc_tm_flags = FCP_TMF_LUN_RESET;
-	int_to_scsilun(lun, (struct scsi_lun *)fsp->cdb_cmd.fc_lun);
+	int_to_scsilun(lun, &fsp->cdb_cmd.fc_lun);
 
 	fsp->wait_for_comp = 1;
 	init_completion(&fsp->tm_done);

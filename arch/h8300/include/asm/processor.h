@@ -135,4 +135,9 @@ unsigned long get_wchan(struct task_struct *p);
 
 #define cpu_relax()    barrier()
 
+#define HARD_RESET_NOW() ({		\
+        local_irq_disable();		\
+        asm("jmp @@0");			\
+})
+
 #endif

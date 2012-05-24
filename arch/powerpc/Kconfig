@@ -133,8 +133,9 @@ config PPC
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS && PPC_BOOK3S_64
 	select HAVE_GENERIC_HARDIRQS
-	select HAVE_SPARSE_IRQ
+	select SPARSE_IRQ
 	select IRQ_PER_CPU
+	select IRQ_DOMAIN
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IRQ_SHOW_LEVEL
 	select IRQ_FORCED_THREADING
@@ -152,6 +153,7 @@ config COMPAT
 	bool
 	default y if PPC64
 	select COMPAT_BINFMT_ELF
+	select ARCH_WANT_OLD_COMPAT_IPC
 
 config SYSVIPC_COMPAT
 	bool
@@ -376,13 +378,16 @@ config CRASH_DUMP
 	  The same kernel binary can be used as production kernel and dump
 	  capture kernel.
 
-config PHYP_DUMP
-	bool "Hypervisor-assisted dump (EXPERIMENTAL)"
-	depends on PPC_PSERIES && EXPERIMENTAL
+config FA_DUMP
+	bool "Firmware-assisted dump"
+	depends on PPC64 && PPC_RTAS && CRASH_DUMP
 	help
-	  Hypervisor-assisted dump is meant to be a kdump replacement
-	  offering robustness and speed not possible without system
-	  hypervisor assistance.
+	  A robust mechanism to get reliable kernel crash dump with
+	  assistance from firmware. This approach does not use kexec,
+	  instead firmware assists in booting the kdump kernel
+	  while preserving memory contents. Firmware-assisted dump
+	  is meant to be a kdump replacement offering robustness and
+	  speed not possible without system firmware assistance.
 
 	  If unsure, say "N"
 
@@ -611,7 +616,7 @@ endmenu
 
 config ISA_DMA_API
 	bool
-	default !PPC_ISERIES || PCI
+	default PCI
 
 menu "Bus options"
 

@@ -36,10 +36,10 @@
 #define NT_ACTIVATION_TIMER	0x01	/* enables NT mode activation Timer */
 #define NT_T1_COUNT		10
 
-#define MAX_BCH_SIZE 		2048	/* allowed B-channel packet size */
+#define MAX_BCH_SIZE		2048	/* allowed B-channel packet size */
 
-#define HFCUSB_RX_THRESHOLD 	64	/* threshold for fifo report bit rx */
-#define HFCUSB_TX_THRESHOLD 	96	/* threshold for fifo report bit tx */
+#define HFCUSB_RX_THRESHOLD	64	/* threshold for fifo report bit rx */
+#define HFCUSB_TX_THRESHOLD	96	/* threshold for fifo report bit tx */
 
 #define HFCUSB_CHIP_ID		0x16	/* Chip ID register index */
 #define HFCUSB_CIRM		0x00	/* cirm register index */
@@ -90,8 +90,8 @@
 
 /* defines how much ISO packets are handled in one URB */
 static int iso_packets[8] =
-    { ISOC_PACKETS_B, ISOC_PACKETS_B, ISOC_PACKETS_B, ISOC_PACKETS_B,
-	ISOC_PACKETS_D, ISOC_PACKETS_D, ISOC_PACKETS_D, ISOC_PACKETS_D
+{ ISOC_PACKETS_B, ISOC_PACKETS_B, ISOC_PACKETS_B, ISOC_PACKETS_B,
+  ISOC_PACKETS_D, ISOC_PACKETS_D, ISOC_PACKETS_D, ISOC_PACKETS_D
 };
 
 
@@ -100,15 +100,15 @@ static int iso_packets[8] =
 #define SINK_MIN	48
 #define SINK_DMIN	12
 #define SINK_DMAX	18
-#define BITLINE_INF	(-96*8)
+#define BITLINE_INF	(-96 * 8)
 
 /* HFC-S USB register access by Control-URSs */
-#define write_reg_atomic(a, b, c) \
+#define write_reg_atomic(a, b, c)					\
 	usb_control_msg((a)->dev, (a)->ctrl_out_pipe, 0, 0x40, (c), (b), \
-		0, 0, HFC_CTRL_TIMEOUT)
-#define read_reg_atomic(a, b, c) \
+			0, 0, HFC_CTRL_TIMEOUT)
+#define read_reg_atomic(a, b, c)					\
 	usb_control_msg((a)->dev, (a)->ctrl_in_pipe, 1, 0xC0, 0, (b), (c), \
-		1, HFC_CTRL_TIMEOUT)
+			1, HFC_CTRL_TIMEOUT)
 #define HFC_CTRL_BUFSIZE 64
 
 struct ctrl_buf {
@@ -222,7 +222,7 @@ static char *conf_str[] = {
 #define LED_B2_DATA	10
 
 #define LED_NORMAL	0	/* LEDs are normal */
-#define LED_INVERTED 	1	/* LEDs are inverted */
+#define LED_INVERTED	1	/* LEDs are inverted */
 
 /* time in ms to perform a Flashing LED when B-Channel has traffic */
 #define LED_TIME      250
@@ -258,7 +258,7 @@ struct usb_fifo {
 
 	__u8 usb_transfer_mode; /* switched between ISO and INT */
 	struct iso_urb	iso[2]; /* two urbs to have one always
-					 one pending */
+				   one pending */
 
 	struct dchannel *dch;	/* link to hfcsusb_t->dch */
 	struct bchannel *bch;	/* link to hfcsusb_t->bch */
@@ -339,76 +339,76 @@ static const char *HFC_NT_LAYER1_STATES[HFC_MAX_NT_LAYER1_STATE + 1] = {
 /* supported devices */
 static struct usb_device_id hfcsusb_idtab[] = {
 	{
-	 USB_DEVICE(0x0959, 0x2bd0),
-	 .driver_info = (unsigned long) &((struct hfcsusb_vdata)
-			  {LED_OFF, {4, 0, 2, 1},
-			   "ISDN USB TA (Cologne Chip HFC-S USB based)"}),
+		USB_DEVICE(0x0959, 0x2bd0),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_OFF, {4, 0, 2, 1},
+					"ISDN USB TA (Cologne Chip HFC-S USB based)"}),
 	},
 	{
-	 USB_DEVICE(0x0675, 0x1688),
-	 .driver_info = (unsigned long) &((struct hfcsusb_vdata)
-			  {LED_SCHEME1, {1, 2, 0, 0},
-			   "DrayTek miniVigor 128 USB ISDN TA"}),
+		USB_DEVICE(0x0675, 0x1688),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_SCHEME1, {1, 2, 0, 0},
+					"DrayTek miniVigor 128 USB ISDN TA"}),
 	},
 	{
-	 USB_DEVICE(0x07b0, 0x0007),
-	 .driver_info = (unsigned long) &((struct hfcsusb_vdata)
-			  {LED_SCHEME1, {0x80, -64, -32, -16},
-			   "Billion tiny USB ISDN TA 128"}),
+		USB_DEVICE(0x07b0, 0x0007),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_SCHEME1, {0x80, -64, -32, -16},
+					"Billion tiny USB ISDN TA 128"}),
 	},
 	{
-	 USB_DEVICE(0x0742, 0x2008),
-	 .driver_info = (unsigned long) &((struct hfcsusb_vdata)
-			  {LED_SCHEME1, {4, 0, 2, 1},
-			   "Stollmann USB TA"}),
+		USB_DEVICE(0x0742, 0x2008),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_SCHEME1, {4, 0, 2, 1},
+					"Stollmann USB TA"}),
 	},
 	{
-	 USB_DEVICE(0x0742, 0x2009),
-	 .driver_info = (unsigned long) &((struct hfcsusb_vdata)
-			  {LED_SCHEME1, {4, 0, 2, 1},
-			   "Aceex USB ISDN TA"}),
+		USB_DEVICE(0x0742, 0x2009),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_SCHEME1, {4, 0, 2, 1},
+					"Aceex USB ISDN TA"}),
 	},
 	{
-	 USB_DEVICE(0x0742, 0x200A),
-	 .driver_info = (unsigned long) &((struct hfcsusb_vdata)
-			  {LED_SCHEME1, {4, 0, 2, 1},
-			   "OEM USB ISDN TA"}),
+		USB_DEVICE(0x0742, 0x200A),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_SCHEME1, {4, 0, 2, 1},
+					"OEM USB ISDN TA"}),
 	},
 	{
-	 USB_DEVICE(0x08e3, 0x0301),
-	 .driver_info = (unsigned long) &((struct hfcsusb_vdata)
-			  {LED_SCHEME1, {2, 0, 1, 4},
-			   "Olitec USB RNIS"}),
+		USB_DEVICE(0x08e3, 0x0301),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_SCHEME1, {2, 0, 1, 4},
+					"Olitec USB RNIS"}),
 	},
 	{
-	 USB_DEVICE(0x07fa, 0x0846),
-	 .driver_info = (unsigned long) &((struct hfcsusb_vdata)
-			  {LED_SCHEME1, {0x80, -64, -32, -16},
-			   "Bewan Modem RNIS USB"}),
+		USB_DEVICE(0x07fa, 0x0846),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_SCHEME1, {0x80, -64, -32, -16},
+					"Bewan Modem RNIS USB"}),
 	},
 	{
-	 USB_DEVICE(0x07fa, 0x0847),
-	 .driver_info = (unsigned long) &((struct hfcsusb_vdata)
-			  {LED_SCHEME1, {0x80, -64, -32, -16},
-			   "Djinn Numeris USB"}),
+		USB_DEVICE(0x07fa, 0x0847),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_SCHEME1, {0x80, -64, -32, -16},
+					"Djinn Numeris USB"}),
 	},
 	{
-	 USB_DEVICE(0x07b0, 0x0006),
-	 .driver_info = (unsigned long) &((struct hfcsusb_vdata)
-			  {LED_SCHEME1, {0x80, -64, -32, -16},
-			   "Twister ISDN TA"}),
+		USB_DEVICE(0x07b0, 0x0006),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_SCHEME1, {0x80, -64, -32, -16},
+					"Twister ISDN TA"}),
 	},
 	{
-	 USB_DEVICE(0x071d, 0x1005),
-	 .driver_info = (unsigned long) &((struct hfcsusb_vdata)
-			  {LED_SCHEME1, {0x02, 0, 0x01, 0x04},
-			   "Eicon DIVA USB 4.0"}),
+		USB_DEVICE(0x071d, 0x1005),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_SCHEME1, {0x02, 0, 0x01, 0x04},
+					"Eicon DIVA USB 4.0"}),
 	},
 	{
-	 USB_DEVICE(0x0586, 0x0102),
-	 .driver_info = (unsigned long) &((struct hfcsusb_vdata)
-			  {LED_SCHEME1, {0x88, -64, -32, -16},
-			   "ZyXEL OMNI.NET USB II"}),
+		USB_DEVICE(0x0586, 0x0102),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_SCHEME1, {0x88, -64, -32, -16},
+					"ZyXEL OMNI.NET USB II"}),
 	},
 	{ }
 };

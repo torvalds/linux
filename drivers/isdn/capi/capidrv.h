@@ -34,7 +34,7 @@
  * per plci state machine
  */
 #define ST_PLCI_NONE			0	/* P-0 */
-#define ST_PLCI_OUTGOING 		1	/* P-0.1 */
+#define ST_PLCI_OUTGOING		1	/* P-0.1 */
 #define ST_PLCI_ALLOCATED		2	/* P-1 */
 #define ST_PLCI_ACTIVE			3	/* P-ACT */
 #define ST_PLCI_INCOMING		4	/* P-2 */
@@ -47,20 +47,20 @@
 #define ST_PLCI_HELD			11	/* P-HELD */
 
 #define EV_PLCI_CONNECT_REQ		1	/* P-0 -> P-0.1
-                                                 */
+						 */
 #define EV_PLCI_CONNECT_CONF_ERROR	2	/* P-0.1 -> P-0
-                                                 */
+						 */
 #define EV_PLCI_CONNECT_CONF_OK		3	/* P-0.1 -> P-1
-                                                 */
+						 */
 #define EV_PLCI_FACILITY_IND_UP		4	/* P-0 -> P-1
-                                                 */
+						 */
 #define EV_PLCI_CONNECT_IND		5	/* P-0 -> P-2
-                                                 */
+						 */
 #define EV_PLCI_CONNECT_ACTIVE_IND	6	/* P-1 -> P-ACT
-                                                 */
+						 */
 #define EV_PLCI_CONNECT_REJECT		7	/* P-2 -> P-5
 						   P-3 -> P-5
-						 */
+						*/
 #define EV_PLCI_DISCONNECT_REQ		8	/* P-1 -> P-5
 						   P-2 -> P-5
 						   P-3 -> P-5
@@ -68,7 +68,7 @@
 						   P-ACT -> P-5
 						   P-Res -> P-5 (*)
 						   P-HELD -> P-5 (*)
-						   */
+						*/
 #define EV_PLCI_DISCONNECT_IND		9	/* P-1 -> P-6
 						   P-2 -> P-6
 						   P-3 -> P-6
@@ -77,35 +77,35 @@
 						   P-ACT -> P-6
 						   P-Res -> P-6 (*)
 						   P-HELD -> P-6 (*)
-						   */
+						*/
 #define EV_PLCI_FACILITY_IND_DOWN	10	/* P-0.1 -> P-5
 						   P-1 -> P-5
 						   P-ACT -> P-5
 						   P-2 -> P-5
 						   P-3 -> P-5
 						   P-4 -> P-5
-						   */
+						*/
 #define EV_PLCI_DISCONNECT_RESP		11	/* P-6 -> P-0
-                                                   */
+						 */
 #define EV_PLCI_CONNECT_RESP		12	/* P-6 -> P-0
-                                                   */
+						 */
 
 #define EV_PLCI_RESUME_REQ		13	/* P-0 -> P-0.Res
-                                                 */
+						 */
 #define EV_PLCI_RESUME_CONF_OK		14	/* P-0.Res -> P-Res
-                                                 */
+						 */
 #define EV_PLCI_RESUME_CONF_ERROR	15	/* P-0.Res -> P-0
-                                                 */
+						 */
 #define EV_PLCI_RESUME_IND		16	/* P-Res -> P-ACT
-                                                 */
+						 */
 #define EV_PLCI_HOLD_IND		17	/* P-ACT -> P-HELD
-                                                 */
+						 */
 #define EV_PLCI_RETRIEVE_IND		18	/* P-HELD -> P-ACT
-                                                 */
+						 */
 #define EV_PLCI_SUSPEND_IND		19	/* P-ACT -> P-5
-                                                 */
+						 */
 #define EV_PLCI_CD_IND			20	/* P-2 -> P-5
-                                                 */
+						 */
 
 /*
  * per ncci state machine

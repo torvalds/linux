@@ -35,7 +35,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
-#include <asm/system.h>
 
 #include <plat/omap_hwmod.h>
 
@@ -100,8 +99,8 @@ void omap_mux_write_array(struct omap_mux_partition *partition,
 
 static char *omap_mux_options;
 
-static int _omap_mux_init_gpio(struct omap_mux_partition *partition,
-			       int gpio, int val)
+static int __init _omap_mux_init_gpio(struct omap_mux_partition *partition,
+				      int gpio, int val)
 {
 	struct omap_mux_entry *e;
 	struct omap_mux *gpio_mux = NULL;
@@ -145,7 +144,7 @@ static int _omap_mux_init_gpio(struct omap_mux_partition *partition,
 	return 0;
 }
 
-int omap_mux_init_gpio(int gpio, int val)
+int __init omap_mux_init_gpio(int gpio, int val)
 {
 	struct omap_mux_partition *partition;
 	int ret;
@@ -159,9 +158,9 @@ int omap_mux_init_gpio(int gpio, int val)
 	return -ENODEV;
 }
 
-static int _omap_mux_get_by_name(struct omap_mux_partition *partition,
-				 const char *muxname,
-				 struct omap_mux **found_mux)
+static int __init _omap_mux_get_by_name(struct omap_mux_partition *partition,
+					const char *muxname,
+					struct omap_mux **found_mux)
 {
 	struct omap_mux *mux = NULL;
 	struct omap_mux_entry *e;
@@ -218,7 +217,7 @@ static int _omap_mux_get_by_name(struct omap_mux_partition *partition,
 	return -ENODEV;
 }
 
-static int
+static int __init
 omap_mux_get_by_name(const char *muxname,
 			struct omap_mux_partition **found_partition,
 			struct omap_mux **found_mux)
@@ -240,7 +239,7 @@ omap_mux_get_by_name(const char *muxname,
 	return -ENODEV;
 }
 
-int omap_mux_init_signal(const char *muxname, int val)
+int __init omap_mux_init_signal(const char *muxname, int val)
 {
 	struct omap_mux_partition *partition = NULL;
 	struct omap_mux *mux = NULL;

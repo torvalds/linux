@@ -35,7 +35,7 @@ struct arch_hw_breakpoint {
 
 #include <linux/kdebug.h>
 #include <asm/reg.h>
-#include <asm/system.h>
+#include <asm/debug.h>
 
 struct perf_event;
 struct pmu;

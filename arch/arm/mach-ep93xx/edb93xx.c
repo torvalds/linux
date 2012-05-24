@@ -43,6 +43,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+#include "soc.h"
 
 static void __init edb93xx_register_flash(void)
 {

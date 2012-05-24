@@ -433,7 +433,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		break;
 
 	case APIC_DM_INIT:
-		if (level) {
+		if (!trig_mode || level) {
 			result = 1;
 			vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
 			kvm_make_request(KVM_REQ_EVENT, vcpu);
@@ -731,7 +731,7 @@ static void start_apic_timer(struct kvm_lapic *apic)
 		u64 guest_tsc, tscdeadline = apic->lapic_timer.tscdeadline;
 		u64 ns = 0;
 		struct kvm_vcpu *vcpu = apic->vcpu;
-		unsigned long this_tsc_khz = vcpu_tsc_khz(vcpu);
+		unsigned long this_tsc_khz = vcpu->arch.virtual_tsc_khz;
 		unsigned long flags;
 
 		if (unlikely(!tscdeadline || !this_tsc_khz))
@@ -1283,9 +1283,9 @@ void kvm_lapic_sync_from_vapic(struct kvm_vcpu *vcpu)
 	if (!irqchip_in_kernel(vcpu->kvm) || !vcpu->arch.apic->vapic_addr)
 		return;
 
-	vapic = kmap_atomic(vcpu->arch.apic->vapic_page, KM_USER0);
+	vapic = kmap_atomic(vcpu->arch.apic->vapic_page);
 	data = *(u32 *)(vapic + offset_in_page(vcpu->arch.apic->vapic_addr));
-	kunmap_atomic(vapic, KM_USER0);
+	kunmap_atomic(vapic);
 
 	apic_set_tpr(vcpu->arch.apic, data & 0xff);
 }
@@ -1310,9 +1310,9 @@ void kvm_lapic_sync_to_vapic(struct kvm_vcpu *vcpu)
 		max_isr = 0;
 	data = (tpr & 0xff) | ((max_isr & 0xf0) << 8) | (max_irr << 24);
 
-	vapic = kmap_atomic(vcpu->arch.apic->vapic_page, KM_USER0);
+	vapic = kmap_atomic(vcpu->arch.apic->vapic_page);
 	*(u32 *)(vapic + offset_in_page(vcpu->arch.apic->vapic_addr)) = data;
-	kunmap_atomic(vapic, KM_USER0);
+	kunmap_atomic(vapic);
 }
 
 void kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr)

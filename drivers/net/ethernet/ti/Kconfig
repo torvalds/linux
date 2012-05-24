@@ -49,6 +49,17 @@ config TI_DAVINCI_CPDMA
 	  To compile this driver as a module, choose M here: the module
 	  will be called davinci_cpdma.  This is recommended.
 
+config TI_CPSW
+	tristate "TI CPSW Switch Support"
+	depends on ARM && (ARCH_DAVINCI || SOC_OMAPAM33XX)
+	select TI_DAVINCI_CPDMA
+	select TI_DAVINCI_MDIO
+	---help---
+	  This driver supports TI's CPSW Ethernet Switch.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called cpsw.
+
 config TLAN
 	tristate "TI ThunderLAN support"
 	depends on (PCI || EISA)

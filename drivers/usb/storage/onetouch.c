@@ -312,6 +312,7 @@ static struct usb_driver onetouch_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	onetouch_usb_ids,
 	.soft_unbind =	1,
+	.no_dynamic_id = 1,
 };
 
 module_usb_driver(onetouch_driver);

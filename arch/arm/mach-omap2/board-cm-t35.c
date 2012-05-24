@@ -26,6 +26,7 @@
 
 #include <linux/i2c/at24.h>
 #include <linux/i2c/twl.h>
+#include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/mmc/host.h>
 
@@ -81,8 +82,23 @@ static struct omap_smsc911x_platform_data sb_t35_smsc911x_cfg = {
 	.flags		= SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
 };
 
+static struct regulator_consumer_supply cm_t35_smsc911x_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x.0"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x.0"),
+};
+
+static struct regulator_consumer_supply sb_t35_smsc911x_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x.1"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x.1"),
+};
+
 static void __init cm_t35_init_ethernet(void)
 {
+	regulator_register_fixed(0, cm_t35_smsc911x_supplies,
+				 ARRAY_SIZE(cm_t35_smsc911x_supplies));
+	regulator_register_fixed(1, sb_t35_smsc911x_supplies,
+				 ARRAY_SIZE(sb_t35_smsc911x_supplies));
+
 	gpmc_smsc911x_init(&cm_t35_smsc911x_cfg);
 	gpmc_smsc911x_init(&sb_t35_smsc911x_cfg);
 }
@@ -280,7 +296,6 @@ static struct omap_dss_board_info cm_t35_dss_data = {
 
 static struct omap2_mcspi_device_config tdo24m_mcspi_config = {
 	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
 };
 
 static struct tdo24m_platform_data tdo24m_config = {
@@ -413,7 +428,7 @@ static struct omap2_hsmmc_info mmc[] = {
 		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
-
+		.deferred	= true,
 	},
 	{
 		.mmc		= 2,
@@ -471,7 +486,7 @@ static int cm_t35_twl_gpio_setup(struct device *dev, unsigned gpio,
 
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
-	omap2_hsmmc_init(mmc);
+	omap_hsmmc_late_init(mmc);
 
 	return 0;
 }
@@ -639,6 +654,7 @@ static void __init cm_t3x_common_init(void)
 	omap_serial_init();
 	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
 			     mt46h32m32lf6_sdrc_params);
+	omap_hsmmc_init(mmc);
 	cm_t35_init_i2c();
 	omap_ads7846_init(1, CM_T35_GPIO_PENDOWN, 0, NULL);
 	cm_t35_init_ethernet();

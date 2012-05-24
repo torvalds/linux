@@ -93,7 +93,6 @@ sint _r8712_init_recv_priv(struct recv_priv *precvpriv,
 		precvframe++;
 	}
 	precvpriv->rx_pending_cnt = 1;
-	sema_init(&precvpriv->allrxreturnevt, 0);
 	return r8712_init_recv_priv(precvpriv, padapter);
 }
 

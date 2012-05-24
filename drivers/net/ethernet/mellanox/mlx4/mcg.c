@@ -562,14 +562,14 @@ out_mutex:
  */
 static int find_entry(struct mlx4_dev *dev, u8 port,
 		      u8 *gid, enum mlx4_protocol prot,
-		      enum mlx4_steer_type steer,
 		      struct mlx4_cmd_mailbox *mgm_mailbox,
-		      u16 *hash, int *prev, int *index)
+		      int *prev, int *index)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_mgm *mgm = mgm_mailbox->buf;
 	u8 *mgid;
 	int err;
+	u16 hash;
 	u8 op_mod = (prot == MLX4_PROT_ETH) ?
 		!!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER) : 0;
 
@@ -580,15 +580,15 @@ static int find_entry(struct mlx4_dev *dev, u8 port,
 
 	memcpy(mgid, gid, 16);
 
-	err = mlx4_GID_HASH(dev, mailbox, hash, op_mod);
+	err = mlx4_GID_HASH(dev, mailbox, &hash, op_mod);
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	if (err)
 		return err;
 
 	if (0)
-		mlx4_dbg(dev, "Hash for %pI6 is %04x\n", gid, *hash);
+		mlx4_dbg(dev, "Hash for %pI6 is %04x\n", gid, hash);
 
-	*index = *hash;
+	*index = hash;
 	*prev  = -1;
 
 	do {
@@ -597,7 +597,7 @@ static int find_entry(struct mlx4_dev *dev, u8 port,
 			return err;
 
 		if (!(be32_to_cpu(mgm->members_count) & 0xffffff)) {
-			if (*index != *hash) {
+			if (*index != hash) {
 				mlx4_err(dev, "Found zero MGID in AMGM.\n");
 				err = -EINVAL;
 			}
@@ -624,7 +624,6 @@ int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_mgm *mgm;
 	u32 members_count;
-	u16 hash;
 	int index, prev;
 	int link = 0;
 	int i;
@@ -638,8 +637,8 @@ int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 	mgm = mailbox->buf;
 
 	mutex_lock(&priv->mcg_table.mutex);
-	err = find_entry(dev, port, gid, prot, steer,
-			 mailbox, &hash, &prev, &index);
+	err = find_entry(dev, port, gid, prot,
+			 mailbox, &prev, &index);
 	if (err)
 		goto out;
 
@@ -733,7 +732,6 @@ int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_mgm *mgm;
 	u32 members_count;
-	u16 hash;
 	int prev, index;
 	int i, loc;
 	int err;
@@ -747,8 +745,8 @@ int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 
 	mutex_lock(&priv->mcg_table.mutex);
 
-	err = find_entry(dev, port, gid, prot, steer,
-			 mailbox, &hash, &prev, &index);
+	err = find_entry(dev, port, gid, prot,
+			 mailbox, &prev, &index);
 	if (err)
 		goto out;
 
@@ -872,44 +870,36 @@ static int mlx4_QP_ATTACH(struct mlx4_dev *dev, struct mlx4_qp *qp,
 int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  int block_mcast_loopback, enum mlx4_protocol prot)
 {
-	enum mlx4_steer_type steer;
-
-	steer = (is_valid_ether_addr(&gid[10])) ? MLX4_UC_STEER : MLX4_MC_STEER;
-
 	if (prot == MLX4_PROT_ETH &&
 			!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER))
 		return 0;
 
 	if (prot == MLX4_PROT_ETH)
-		gid[7] |= (steer << 1);
+		gid[7] |= (MLX4_MC_STEER << 1);
 
 	if (mlx4_is_mfunc(dev))
 		return mlx4_QP_ATTACH(dev, qp, gid, 1,
 					block_mcast_loopback, prot);
 
 	return mlx4_qp_attach_common(dev, qp, gid, block_mcast_loopback,
-					prot, steer);
+					prot, MLX4_MC_STEER);
 }
 EXPORT_SYMBOL_GPL(mlx4_multicast_attach);
 
 int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  enum mlx4_protocol prot)
 {
-	enum mlx4_steer_type steer;
-
-	steer = (is_valid_ether_addr(&gid[10])) ? MLX4_UC_STEER : MLX4_MC_STEER;
-
 	if (prot == MLX4_PROT_ETH &&
 			!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER))
 		return 0;
 
 	if (prot == MLX4_PROT_ETH)
-		gid[7] |= (steer << 1);
+		gid[7] |= (MLX4_MC_STEER << 1);
 
 	if (mlx4_is_mfunc(dev))
 		return mlx4_QP_ATTACH(dev, qp, gid, 0, 0, prot);
 
-	return mlx4_qp_detach_common(dev, qp, gid, prot, steer);
+	return mlx4_qp_detach_common(dev, qp, gid, prot, MLX4_MC_STEER);
 }
 EXPORT_SYMBOL_GPL(mlx4_multicast_detach);
 

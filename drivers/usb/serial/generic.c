@@ -54,7 +54,6 @@ static struct usb_driver generic_driver = {
 	.probe =	generic_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	generic_serial_ids,
-	.no_dynamic_id =	1,
 };
 
 /* All of the device info needed for the Generic Serial Converter */
@@ -64,13 +63,16 @@ struct usb_serial_driver usb_serial_generic_device = {
 		.name =		"generic",
 	},
 	.id_table =		generic_device_ids,
-	.usb_driver = 		&generic_driver,
 	.num_ports =		1,
 	.disconnect =		usb_serial_generic_disconnect,
 	.release =		usb_serial_generic_release,
 	.throttle =		usb_serial_generic_throttle,
 	.unthrottle =		usb_serial_generic_unthrottle,
 	.resume =		usb_serial_generic_resume,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&usb_serial_generic_device, NULL
 };
 
 static int generic_probe(struct usb_interface *interface,
@@ -97,13 +99,7 @@ int usb_serial_generic_register(int _debug)
 		USB_DEVICE_ID_MATCH_VENDOR | USB_DEVICE_ID_MATCH_PRODUCT;
 
 	/* register our generic driver with ourselves */
-	retval = usb_serial_register(&usb_serial_generic_device);
-	if (retval)
-		goto exit;
-	retval = usb_register(&generic_driver);
-	if (retval)
-		usb_serial_deregister(&usb_serial_generic_device);
-exit:
+	retval = usb_serial_register_drivers(&generic_driver, serial_drivers);
 #endif
 	return retval;
 }
@@ -112,8 +108,7 @@ void usb_serial_generic_deregister(void)
 {
 #ifdef CONFIG_USB_SERIAL_GENERIC
 	/* remove our generic driver */
-	usb_deregister(&generic_driver);
-	usb_serial_deregister(&usb_serial_generic_device);
+	usb_serial_deregister_drivers(&generic_driver, serial_drivers);
 #endif
 }
 
@@ -217,7 +212,7 @@ retry:
 	clear_bit(i, &port->write_urbs_free);
 	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result) {
-		dev_err(&port->dev, "%s - error submitting urb: %d\n",
+		dev_err_console(port, "%s - error submitting urb: %d\n",
 						__func__, result);
 		set_bit(i, &port->write_urbs_free);
 		spin_lock_irqsave(&port->lock, flags);

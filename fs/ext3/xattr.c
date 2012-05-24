@@ -50,14 +50,9 @@
  * by the buffer lock.
  */
 
-#include <linux/init.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/ext3_jbd.h>
-#include <linux/ext3_fs.h>
+#include "ext3.h"
 #include <linux/mbcache.h>
 #include <linux/quotaops.h>
-#include <linux/rwsem.h>
 #include "xattr.h"
 #include "acl.h"
 

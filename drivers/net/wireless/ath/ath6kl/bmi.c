@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004-2011 Atheros Communications Inc.
+ * Copyright (c) 2011-2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -57,8 +58,14 @@ int ath6kl_bmi_get_target_info(struct ath6kl *ar,
 		return ret;
 	}
 
-	ret = ath6kl_hif_bmi_read(ar, (u8 *)&targ_info->version,
-				  sizeof(targ_info->version));
+	if (ar->hif_type == ATH6KL_HIF_TYPE_USB) {
+		ret = ath6kl_hif_bmi_read(ar, (u8 *)targ_info,
+					  sizeof(*targ_info));
+	} else {
+		ret = ath6kl_hif_bmi_read(ar, (u8 *)&targ_info->version,
+				sizeof(targ_info->version));
+	}
+
 	if (ret) {
 		ath6kl_err("Unable to recv target info: %d\n", ret);
 		return ret;
@@ -99,7 +106,7 @@ int ath6kl_bmi_get_target_info(struct ath6kl *ar,
 	}
 
 	ath6kl_dbg(ATH6KL_DBG_BMI, "target info (ver: 0x%x type: 0x%x)\n",
-		targ_info->version, targ_info->type);
+		   targ_info->version, targ_info->type);
 
 	return 0;
 }
@@ -186,7 +193,7 @@ int ath6kl_bmi_write(struct ath6kl *ar, u32 addr, u8 *buf, u32 len)
 	memset(ar->bmi.cmd_buf, 0, ar->bmi.max_data_size + header);
 
 	ath6kl_dbg(ATH6KL_DBG_BMI,
-		  "bmi write memory: addr: 0x%x, len: %d\n", addr, len);
+		   "bmi write memory: addr: 0x%x, len: %d\n", addr, len);
 
 	len_remain = len;
 	while (len_remain) {
@@ -428,7 +435,7 @@ int ath6kl_bmi_lz_data(struct ath6kl *ar, u8 *buf, u32 len)
 		memcpy(&(ar->bmi.cmd_buf[offset]), &tx_len, sizeof(tx_len));
 		offset += sizeof(tx_len);
 		memcpy(&(ar->bmi.cmd_buf[offset]), &buf[len - len_remain],
-			tx_len);
+		       tx_len);
 		offset += tx_len;
 
 		ret = ath6kl_hif_bmi_write(ar, ar->bmi.cmd_buf, offset);

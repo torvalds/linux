@@ -90,11 +90,11 @@ static void __exit sasem_exit(void);
 struct sasem_context {
 
 	struct usb_device *dev;
-	int vfd_isopen;			/* VFD port has been opened       */
-	unsigned int vfd_contrast;	/* VFD contrast		   */
-	int ir_isopen;			/* IR port has been opened	*/
-	int dev_present;		/* USB device presence	    */
-	struct mutex ctx_lock;		/* to lock this object	    */
+	int vfd_isopen;			/* VFD port has been opened */
+	unsigned int vfd_contrast;	/* VFD contrast */
+	int ir_isopen;			/* IR port has been opened */
+	int dev_present;		/* USB device presence */
+	struct mutex ctx_lock;		/* to lock this object */
 	wait_queue_head_t remove_ok;	/* For unexpected USB disconnects */
 
 	struct lirc_driver *driver;
@@ -106,10 +106,11 @@ struct sasem_context {
 	unsigned char usb_tx_buf[8];
 
 	struct tx_t {
-		unsigned char data_buf[SASEM_DATA_BUF_SZ]; /* user data buffer */
+		unsigned char data_buf[SASEM_DATA_BUF_SZ]; /* user data
+							    * buffer */
 		struct completion finished;  /* wait for write to finish  */
-		atomic_t busy;		     /* write in progress	 */
-		int status;		     /* status of tx completion   */
+		atomic_t busy;		     /* write in progress */
+		int status;		     /* status of tx completion */
 	} tx;
 
 	/* for dealing with repeat codes (wish there was a toggle bit!) */

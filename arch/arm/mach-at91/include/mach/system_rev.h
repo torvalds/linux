@@ -7,6 +7,8 @@
 #ifndef __ARCH_SYSTEM_REV_H__
 #define __ARCH_SYSTEM_REV_H__
 
+#include <asm/system_info.h>
+
 /*
  * board revision encoding
  * mach specific

@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -38,7 +38,6 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-power.h"
-#include "iwl-agn.h"
 #include "iwl-shared.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
@@ -114,7 +113,7 @@ int iwl_init_geos(struct iwl_priv *priv)
 	if (priv->bands[IEEE80211_BAND_2GHZ].n_bitrates ||
 	    priv->bands[IEEE80211_BAND_5GHZ].n_bitrates) {
 		IWL_DEBUG_INFO(priv, "Geography modes already initialized.\n");
-		set_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status);
+		set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 		return 0;
 	}
 
@@ -137,7 +136,7 @@ int iwl_init_geos(struct iwl_priv *priv)
 	sband->bitrates = &rates[IWL_FIRST_OFDM_RATE];
 	sband->n_bitrates = IWL_RATE_COUNT_LEGACY - IWL_FIRST_OFDM_RATE;
 
-	if (cfg(priv)->sku & EEPROM_SKU_CAP_11N_ENABLE)
+	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE)
 		iwl_init_ht_hw_capab(priv, &sband->ht_cap,
 					 IEEE80211_BAND_5GHZ);
 
@@ -147,7 +146,7 @@ int iwl_init_geos(struct iwl_priv *priv)
 	sband->bitrates = rates;
 	sband->n_bitrates = IWL_RATE_COUNT_LEGACY;
 
-	if (cfg(priv)->sku & EEPROM_SKU_CAP_11N_ENABLE)
+	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE)
 		iwl_init_ht_hw_capab(priv, &sband->ht_cap,
 					 IEEE80211_BAND_2GHZ);
 
@@ -202,19 +201,18 @@ int iwl_init_geos(struct iwl_priv *priv)
 	priv->tx_power_next = max_tx_power;
 
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
-	     cfg(priv)->sku & EEPROM_SKU_CAP_BAND_52GHZ) {
-		char buf[32];
-		bus_get_hw_id_string(bus(priv), buf, sizeof(buf));
+	     hw_params(priv).sku & EEPROM_SKU_CAP_BAND_52GHZ) {
 		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
-			"Please send your %s to maintainer.\n", buf);
-		cfg(priv)->sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
+			"Please send your %s to maintainer.\n",
+			trans(priv)->hw_id_str);
+		hw_params(priv).sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
 	}
 
 	IWL_INFO(priv, "Tunable channels: %d 802.11bg, %d 802.11a channels\n",
 		   priv->bands[IEEE80211_BAND_2GHZ].n_channels,
 		   priv->bands[IEEE80211_BAND_5GHZ].n_channels);
 
-	set_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status);
+	set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 
 	return 0;
 }
@@ -226,7 +224,7 @@ void iwl_free_geos(struct iwl_priv *priv)
 {
 	kfree(priv->ieee_channels);
 	kfree(priv->ieee_rates);
-	clear_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status);
+	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
 }
 
 static bool iwl_is_channel_extension(struct iwl_priv *priv,
@@ -318,7 +316,7 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	conf = &priv->hw->conf;
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	memset(&ctx->timing, 0, sizeof(struct iwl_rxon_time_cmd));
 
@@ -371,7 +369,7 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			le32_to_cpu(ctx->timing.beacon_init_val),
 			le16_to_cpu(ctx->timing.atim_window));
 
-	return iwl_trans_send_cmd_pdu(trans(priv), ctx->rxon_timing_cmd,
+	return iwl_dvm_send_cmd_pdu(priv, ctx->rxon_timing_cmd,
 				CMD_SYNC, sizeof(ctx->timing), &ctx->timing);
 }
 
@@ -644,7 +642,7 @@ u8 iwl_get_single_channel_number(struct iwl_priv *priv,
  * NOTE:  Does not commit to the hardware; it sets appropriate bit fields
  * in the staging RXON flag structure based on the ch->band
  */
-int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
+void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 			 struct iwl_rxon_context *ctx)
 {
 	enum ieee80211_band band = ch->band;
@@ -652,7 +650,7 @@ int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 
 	if ((le16_to_cpu(ctx->staging.channel) == channel) &&
 	    (priv->band == band))
-		return 0;
+		return;
 
 	ctx->staging.channel = cpu_to_le16(channel);
 	if (band == IEEE80211_BAND_5GHZ)
@@ -664,7 +662,6 @@ int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 
 	IWL_DEBUG_INFO(priv, "Staging channel set to %d [%d]\n", channel, band);
 
-	return 0;
 }
 
 void iwl_set_flags_for_band(struct iwl_priv *priv,
@@ -801,11 +798,10 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	if (test_and_clear_bit(STATUS_CHANNEL_SWITCH_PENDING,
-				&priv->shrd->status))
+	if (test_and_clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status))
 		ieee80211_chswitch_done(ctx->vif, is_success);
 }
 
@@ -832,10 +828,18 @@ void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 }
 #endif
 
-void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
+static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 {
 	unsigned int reload_msec;
 	unsigned long reload_jiffies;
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_have_debug_level(IWL_DL_FW_ERRORS))
+		iwl_print_rx_config_cmd(priv, IWL_RXON_CTX_BSS);
+#endif
+
+	/* uCode is no longer loaded. */
+	priv->ucode_loaded = false;
 
 	/* Set the FW error flag -- cleared on iwl_down */
 	set_bit(STATUS_FW_ERROR, &priv->shrd->status);
@@ -843,13 +847,13 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status);
 
-	iwl_abort_notification_waits(priv->shrd);
+	iwl_abort_notification_waits(&priv->notif_wait);
 
 	/* Keep the restart process from trying to send host
 	 * commands by clearing the ready bit */
-	clear_bit(STATUS_READY, &priv->shrd->status);
+	clear_bit(STATUS_READY, &priv->status);
 
-	wake_up(&priv->shrd->wait_command_queue);
+	wake_up(&trans(priv)->wait_command_queue);
 
 	if (!ondemand) {
 		/*
@@ -872,139 +876,16 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 			priv->reload_count = 0;
 	}
 
-	if (!test_bit(STATUS_EXIT_PENDING, &priv->shrd->status)) {
+	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		if (iwlagn_mod_params.restart_fw) {
 			IWL_DEBUG_FW_ERRORS(priv,
 				  "Restarting adapter due to uCode error.\n");
-			queue_work(priv->shrd->workqueue, &priv->restart);
+			queue_work(priv->workqueue, &priv->restart);
 		} else
 			IWL_DEBUG_FW_ERRORS(priv,
 				  "Detected FW error, but not restarting\n");
 	}
 }
-
-static int iwl_apm_stop_master(struct iwl_priv *priv)
-{
-	int ret = 0;
-
-	/* stop device's busmaster DMA activity */
-	iwl_set_bit(bus(priv), CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
-
-	ret = iwl_poll_bit(bus(priv), CSR_RESET,
-			CSR_RESET_REG_FLAG_MASTER_DISABLED,
-			CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-	if (ret)
-		IWL_WARN(priv, "Master Disable Timed Out, 100 usec\n");
-
-	IWL_DEBUG_INFO(priv, "stop master\n");
-
-	return ret;
-}
-
-void iwl_apm_stop(struct iwl_priv *priv)
-{
-	IWL_DEBUG_INFO(priv, "Stop card, put in low power state\n");
-
-	clear_bit(STATUS_DEVICE_ENABLED, &priv->shrd->status);
-
-	/* Stop device's DMA activity */
-	iwl_apm_stop_master(priv);
-
-	/* Reset the entire device */
-	iwl_set_bit(bus(priv), CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
-
-	/*
-	 * Clear "initialization complete" bit to move adapter from
-	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
-	 */
-	iwl_clear_bit(bus(priv), CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-}
-
-
-/*
- * Start up NIC's basic functionality after it has been reset
- * (e.g. after platform boot, or shutdown via iwl_apm_stop())
- * NOTE:  This does not load uCode nor start the embedded processor
- */
-int iwl_apm_init(struct iwl_priv *priv)
-{
-	int ret = 0;
-	IWL_DEBUG_INFO(priv, "Init card's basic functions\n");
-
-	/*
-	 * Use "set_bit" below rather than "write", to preserve any hardware
-	 * bits already set by default after reset.
-	 */
-
-	/* Disable L0S exit timer (platform NMI Work/Around) */
-	iwl_set_bit(bus(priv), CSR_GIO_CHICKEN_BITS,
-			  CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
-
-	/*
-	 * Disable L0s without affecting L1;
-	 *  don't wait for ICH L0s (ICH bug W/A)
-	 */
-	iwl_set_bit(bus(priv), CSR_GIO_CHICKEN_BITS,
-			  CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX);
-
-	/* Set FH wait threshold to maximum (HW error during stress W/A) */
-	iwl_set_bit(bus(priv), CSR_DBG_HPET_MEM_REG, CSR_DBG_HPET_MEM_REG_VAL);
-
-	/*
-	 * Enable HAP INTA (interrupt from management bus) to
-	 * wake device's PCI Express link L1a -> L0s
-	 */
-	iwl_set_bit(bus(priv), CSR_HW_IF_CONFIG_REG,
-				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
-
-	bus_apm_config(bus(priv));
-
-	/* Configure analog phase-lock-loop before activating to D0A */
-	if (cfg(priv)->base_params->pll_cfg_val)
-		iwl_set_bit(bus(priv), CSR_ANA_PLL_CFG,
-			    cfg(priv)->base_params->pll_cfg_val);
-
-	/*
-	 * Set "initialization complete" bit to move adapter from
-	 * D0U* --> D0A* (powered-up active) state.
-	 */
-	iwl_set_bit(bus(priv), CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-
-	/*
-	 * Wait for clock stabilization; once stabilized, access to
-	 * device-internal resources is supported, e.g. iwl_write_prph()
-	 * and accesses to uCode SRAM.
-	 */
-	ret = iwl_poll_bit(bus(priv), CSR_GP_CNTRL,
-			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
-	if (ret < 0) {
-		IWL_DEBUG_INFO(priv, "Failed to init the card\n");
-		goto out;
-	}
-
-	/*
-	 * Enable DMA clock and wait for it to stabilize.
-	 *
-	 * Write to "CLK_EN_REG"; "1" bits enable clocks, while "0" bits
-	 * do not disable clocks.  This preserves any hardware bits already
-	 * set by default in "CLK_CTRL_REG" after reset.
-	 */
-	iwl_write_prph(bus(priv), APMG_CLK_EN_REG, APMG_CLK_VAL_DMA_CLK_RQT);
-	udelay(20);
-
-	/* Disable L1-Active */
-	iwl_set_bits_prph(bus(priv), APMG_PCIDEV_STT_REG,
-			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
-
-	set_bit(STATUS_DEVICE_ENABLED, &priv->shrd->status);
-
-out:
-	return ret;
-}
-
 
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 {
@@ -1013,7 +894,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	bool defer;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	if (priv->tx_power_user_lmt == tx_power && !force)
 		return 0;
@@ -1033,7 +914,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 		return -EINVAL;
 	}
 
-	if (!iwl_is_ready_rf(priv->shrd))
+	if (!iwl_is_ready_rf(priv))
 		return -EIO;
 
 	/* scan complete and commit_rxon use tx_power_next value,
@@ -1041,7 +922,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	priv->tx_power_next = tx_power;
 
 	/* do not set tx power when scanning or channel changing */
-	defer = test_bit(STATUS_SCANNING, &priv->shrd->status) ||
+	defer = test_bit(STATUS_SCANNING, &priv->status) ||
 		memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging));
 	if (defer && !force) {
 		IWL_DEBUG_INFO(priv, "Deferring tx power set\n");
@@ -1079,7 +960,7 @@ void iwl_send_bt_config(struct iwl_priv *priv)
 	IWL_DEBUG_INFO(priv, "BT coex %s\n",
 		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
 
-	if (iwl_trans_send_cmd_pdu(trans(priv), REPLY_BT_CONFIG,
+	if (iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
 			     CMD_SYNC, sizeof(struct iwl_bt_cmd), &bt_cmd))
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
 }
@@ -1092,12 +973,12 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 	};
 
 	if (flags & CMD_ASYNC)
-		return iwl_trans_send_cmd_pdu(trans(priv), REPLY_STATISTICS_CMD,
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
 					      CMD_ASYNC,
 					       sizeof(struct iwl_statistics_cmd),
 					       &statistics_cmd);
 	else
-		return iwl_trans_send_cmd_pdu(trans(priv), REPLY_STATISTICS_CMD,
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
 					CMD_SYNC,
 					sizeof(struct iwl_statistics_cmd),
 					&statistics_cmd);
@@ -1124,7 +1005,7 @@ int iwl_alloc_traffic_mem(struct iwl_priv *priv)
 {
 	u32 traffic_size = IWL_TRAFFIC_DUMP_SIZE;
 
-	if (iwl_get_debug_level(priv->shrd) & IWL_DL_TX) {
+	if (iwl_have_debug_level(IWL_DL_TX)) {
 		if (!priv->tx_traffic) {
 			priv->tx_traffic =
 				kzalloc(traffic_size, GFP_KERNEL);
@@ -1132,7 +1013,7 @@ int iwl_alloc_traffic_mem(struct iwl_priv *priv)
 				return -ENOMEM;
 		}
 	}
-	if (iwl_get_debug_level(priv->shrd) & IWL_DL_RX) {
+	if (iwl_have_debug_level(IWL_DL_RX)) {
 		if (!priv->rx_traffic) {
 			priv->rx_traffic =
 				kzalloc(traffic_size, GFP_KERNEL);
@@ -1159,7 +1040,7 @@ void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
 	__le16 fc;
 	u16 len;
 
-	if (likely(!(iwl_get_debug_level(priv->shrd) & IWL_DL_TX)))
+	if (likely(!iwl_have_debug_level(IWL_DL_TX)))
 		return;
 
 	if (!priv->tx_traffic)
@@ -1183,7 +1064,7 @@ void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
 	__le16 fc;
 	u16 len;
 
-	if (likely(!(iwl_get_debug_level(priv->shrd) & IWL_DL_RX)))
+	if (likely(!iwl_have_debug_level(IWL_DL_RX)))
 		return;
 
 	if (!priv->rx_traffic)
@@ -1340,7 +1221,7 @@ void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
 
 static void iwl_force_rf_reset(struct iwl_priv *priv)
 {
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	if (!iwl_is_any_associated(priv)) {
@@ -1365,7 +1246,7 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 {
 	struct iwl_force_reset *force_reset;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EINVAL;
 
 	if (mode >= IWL_MAX_FORCE_RESET) {
@@ -1421,7 +1302,7 @@ int iwl_cmd_echo_test(struct iwl_priv *priv)
 		.flags = CMD_SYNC,
 	};
 
-	ret = iwl_trans_send_cmd(trans(priv), &cmd);
+	ret = iwl_dvm_send_cmd(priv, &cmd);
 	if (ret)
 		IWL_ERR(priv, "echo testing fail: 0X%x\n", ret);
 	else
@@ -1455,30 +1336,20 @@ void iwl_bg_watchdog(unsigned long data)
 	int cnt;
 	unsigned long timeout;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	if (iwl_is_rfkill(priv->shrd))
+	if (iwl_is_rfkill(priv))
 		return;
 
-	timeout = cfg(priv)->base_params->wd_timeout;
+	timeout = hw_params(priv).wd_timeout;
 	if (timeout == 0)
 		return;
 
-	/* monitor and check for stuck cmd queue */
-	if (iwl_check_stuck_queue(priv, priv->shrd->cmd_queue))
-		return;
-
-	/* monitor and check for other stuck queues */
-	if (iwl_is_any_associated(priv)) {
-		for (cnt = 0; cnt < hw_params(priv).max_txq_num; cnt++) {
-			/* skip as we already checked the command queue */
-			if (cnt == priv->shrd->cmd_queue)
-				continue;
-			if (iwl_check_stuck_queue(priv, cnt))
-				return;
-		}
-	}
+	/* monitor and check for stuck queues */
+	for (cnt = 0; cnt < cfg(priv)->base_params->num_of_queues; cnt++)
+		if (iwl_check_stuck_queue(priv, cnt))
+			return;
 
 	mod_timer(&priv->watchdog, jiffies +
 		  msecs_to_jiffies(IWL_WD_TICK(timeout)));
@@ -1486,7 +1357,7 @@ void iwl_bg_watchdog(unsigned long data)
 
 void iwl_setup_watchdog(struct iwl_priv *priv)
 {
-	unsigned int timeout = cfg(priv)->base_params->wd_timeout;
+	unsigned int timeout = hw_params(priv).wd_timeout;
 
 	if (!iwlagn_mod_params.wd_disable) {
 		/* use system default */
@@ -1580,31 +1451,30 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 	return cpu_to_le32(res);
 }
 
-void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state)
+void iwl_nic_error(struct iwl_op_mode *op_mode)
 {
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	iwlagn_fw_error(priv, false);
+}
+
+void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	if (state)
+		set_bit(STATUS_RF_KILL_HW, &priv->status);
+	else
+		clear_bit(STATUS_RF_KILL_HW, &priv->status);
+
 	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
 }
 
-void iwl_nic_config(struct iwl_priv *priv)
-{
-	cfg(priv)->lib->nic_config(priv);
-}
-
-void iwl_free_skb(struct iwl_priv *priv, struct sk_buff *skb)
+void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info;
 
 	info = IEEE80211_SKB_CB(skb);
-	kmem_cache_free(priv->tx_cmd_pool, (info->driver_data[1]));
+	kmem_cache_free(iwl_tx_cmd_pool, (info->driver_data[1]));
 	dev_kfree_skb_any(skb);
-}
-
-void iwl_stop_sw_queue(struct iwl_priv *priv, u8 ac)
-{
-	ieee80211_stop_queue(priv->hw, ac);
-}
-
-void iwl_wake_sw_queue(struct iwl_priv *priv, u8 ac)
-{
-	ieee80211_wake_queue(priv->hw, ac);
 }

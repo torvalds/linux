@@ -13,6 +13,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -45,7 +47,7 @@
 
 static unsigned int soft_margin = DEFAULT_MARGIN;	/* in seconds */
 static unsigned int reload;			/* the computed soft_margin */
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 static char expect_release;
 static unsigned long hpwdt_is_open;
 
@@ -235,8 +237,7 @@ static int __devinit cru_detect(unsigned long map_entry,
 	asminline_call(&cmn_regs, bios32_entrypoint);
 
 	if (cmn_regs.u1.ral != 0) {
-		printk(KERN_WARNING
-			"hpwdt: Call succeeded but with an error: 0x%x\n",
+		pr_warn("Call succeeded but with an error: 0x%x\n",
 			cmn_regs.u1.ral);
 	} else {
 		physical_bios_base = cmn_regs.u2.rebx;
@@ -256,14 +257,10 @@ static int __devinit cru_detect(unsigned long map_entry,
 			}
 		}
 
-		printk(KERN_DEBUG "hpwdt: CRU Base Address:   0x%lx\n",
-			physical_bios_base);
-		printk(KERN_DEBUG "hpwdt: CRU Offset Address: 0x%lx\n",
-			physical_bios_offset);
-		printk(KERN_DEBUG "hpwdt: CRU Length:         0x%lx\n",
-			cru_length);
-		printk(KERN_DEBUG "hpwdt: CRU Mapped Address: %p\n",
-			&cru_rom_addr);
+		pr_debug("CRU Base Address:   0x%lx\n", physical_bios_base);
+		pr_debug("CRU Offset Address: 0x%lx\n", physical_bios_offset);
+		pr_debug("CRU Length:         0x%lx\n", cru_length);
+		pr_debug("CRU Mapped Address: %p\n", &cru_rom_addr);
 	}
 	iounmap(bios32_map);
 	return retval;
@@ -458,16 +455,13 @@ static void hpwdt_ping(void)
 static int hpwdt_change_timer(int new_margin)
 {
 	if (new_margin < 1 || new_margin > HPWDT_MAX_TIMER) {
-		printk(KERN_WARNING
-			"hpwdt: New value passed in is invalid: %d seconds.\n",
+		pr_warn("New value passed in is invalid: %d seconds\n",
 			new_margin);
 		return -EINVAL;
 	}
 
 	soft_margin = new_margin;
-	printk(KERN_DEBUG
-		"hpwdt: New timer passed in is %d seconds.\n",
-		new_margin);
+	pr_debug("New timer passed in is %d seconds\n", new_margin);
 	reload = SECS_TO_TICKS(soft_margin);
 
 	return 0;
@@ -535,8 +529,7 @@ static int hpwdt_release(struct inode *inode, struct file *file)
 	if (expect_release == 42) {
 		hpwdt_stop();
 	} else {
-		printk(KERN_CRIT
-			"hpwdt: Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, not stopping watchdog!\n");
 		hpwdt_ping();
 	}
 
@@ -881,7 +874,7 @@ MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 module_param(soft_margin, int, 0);
 MODULE_PARM_DESC(soft_margin, "Watchdog timeout in seconds");
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 

@@ -177,13 +177,11 @@ extern const char *const pm_states[];
 
 extern bool valid_state(suspend_state_t state);
 extern int suspend_devices_and_enter(suspend_state_t state);
-extern int enter_state(suspend_state_t state);
 #else /* !CONFIG_SUSPEND */
 static inline int suspend_devices_and_enter(suspend_state_t state)
 {
 	return -ENOSYS;
 }
-static inline int enter_state(suspend_state_t state) { return -ENOSYS; }
 static inline bool valid_state(suspend_state_t state) { return false; }
 #endif /* !CONFIG_SUSPEND */
 
@@ -234,16 +232,14 @@ static inline int suspend_freeze_processes(void)
 	int error;
 
 	error = freeze_processes();
-
 	/*
 	 * freeze_processes() automatically thaws every task if freezing
 	 * fails. So we need not do anything extra upon error.
 	 */
 	if (error)
-		goto Finish;
+		return error;
 
 	error = freeze_kernel_threads();
-
 	/*
 	 * freeze_kernel_threads() thaws only kernel threads upon freezing
 	 * failure. So we have to thaw the userspace tasks ourselves.
@@ -251,7 +247,6 @@ static inline int suspend_freeze_processes(void)
 	if (error)
 		thaw_processes();
 
- Finish:
 	return error;
 }
 

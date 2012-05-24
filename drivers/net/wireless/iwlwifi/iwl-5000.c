@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -45,6 +45,7 @@
 #include "iwl-trans.h"
 #include "iwl-shared.h"
 #include "iwl-cfg.h"
+#include "iwl-prph.h"
 
 /* Highest firmware API version supported */
 #define IWL5000_UCODE_API_MAX 5
@@ -63,27 +64,19 @@
 /* NIC configuration for 5000 series */
 static void iwl5000_nic_config(struct iwl_priv *priv)
 {
-	unsigned long flags;
-
 	iwl_rf_config(priv);
-
-	spin_lock_irqsave(&priv->shrd->lock, flags);
 
 	/* W/A : NIC is stuck in a reset state after Early PCIe power off
 	 * (PCIe power is lost before PERST# is asserted),
 	 * causing ME FW to lose ownership and not being able to obtain it back.
 	 */
-	iwl_set_bits_mask_prph(bus(priv), APMG_PS_CTRL_REG,
+	iwl_set_bits_mask_prph(trans(priv), APMG_PS_CTRL_REG,
 				APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
 				~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
-
-
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 }
 
-static struct iwl_sensitivity_ranges iwl5000_sensitivity = {
+static const struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 	.min_nrg_cck = 100,
-	.max_nrg_cck = 0, /* not used, set to 0 */
 	.auto_corr_min_ofdm = 90,
 	.auto_corr_min_ofdm_mrc = 170,
 	.auto_corr_min_ofdm_x1 = 105,
@@ -108,7 +101,6 @@ static struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 
 static struct iwl_sensitivity_ranges iwl5150_sensitivity = {
 	.min_nrg_cck = 95,
-	.max_nrg_cck = 0, /* not used, set to 0 */
 	.auto_corr_min_ofdm = 90,
 	.auto_corr_min_ofdm_mrc = 170,
 	.auto_corr_min_ofdm_x1 = 105,
@@ -162,62 +154,36 @@ static void iwl5000_set_ct_threshold(struct iwl_priv *priv)
 	hw_params(priv).ct_kill_threshold = CT_KILL_THRESHOLD_LEGACY;
 }
 
-static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
+static void iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
-		cfg(priv)->base_params->num_of_queues =
-			iwlagn_mod_params.num_of_queues;
-
-	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
-	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
-
-	hw_params(priv).max_data_size = IWLAGN_RTC_DATA_SIZE;
-	hw_params(priv).max_inst_size = IWLAGN_RTC_INST_SIZE;
-
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 
-	hw_params(priv).tx_chains_num = num_of_ant(cfg(priv)->valid_tx_ant);
-	hw_params(priv).rx_chains_num = num_of_ant(cfg(priv)->valid_rx_ant);
-	hw_params(priv).valid_tx_ant = cfg(priv)->valid_tx_ant;
-	hw_params(priv).valid_rx_ant = cfg(priv)->valid_rx_ant;
+	hw_params(priv).tx_chains_num =
+		num_of_ant(hw_params(priv).valid_tx_ant);
+	hw_params(priv).rx_chains_num =
+		num_of_ant(hw_params(priv).valid_rx_ant);
 
 	iwl5000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
 	hw_params(priv).sens = &iwl5000_sensitivity;
-
-	return 0;
 }
 
-static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
+static void iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 {
-	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
-		cfg(priv)->base_params->num_of_queues =
-			iwlagn_mod_params.num_of_queues;
-
-	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
-	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
-
-	hw_params(priv).max_data_size = IWLAGN_RTC_DATA_SIZE;
-	hw_params(priv).max_inst_size = IWLAGN_RTC_INST_SIZE;
-
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 
-	hw_params(priv).tx_chains_num = num_of_ant(cfg(priv)->valid_tx_ant);
-	hw_params(priv).rx_chains_num = num_of_ant(cfg(priv)->valid_rx_ant);
-	hw_params(priv).valid_tx_ant = cfg(priv)->valid_tx_ant;
-	hw_params(priv).valid_rx_ant = cfg(priv)->valid_rx_ant;
+	hw_params(priv).tx_chains_num =
+		num_of_ant(hw_params(priv).valid_tx_ant);
+	hw_params(priv).rx_chains_num =
+		num_of_ant(hw_params(priv).valid_rx_ant);
 
 	iwl5150_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
 	hw_params(priv).sens = &iwl5150_sensitivity;
-
-	return 0;
 }
 
 static void iwl5150_temperature(struct iwl_priv *priv)
@@ -300,7 +266,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 		return -EFAULT;
 	}
 
-	return iwl_trans_send_cmd(trans(priv), &hcmd);
+	return iwl_dvm_send_cmd(priv, &hcmd);
 }
 
 static struct iwl_lib_ops iwl5000_lib = {
@@ -339,7 +305,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 	.temperature = iwl5150_temperature,
 };
 
-static struct iwl_base_params iwl5000_base_params = {
+static const struct iwl_base_params iwl5000_base_params = {
 	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
@@ -352,7 +318,8 @@ static struct iwl_base_params iwl5000_base_params = {
 	.no_idle_support = true,
 	.wd_disable = true,
 };
-static struct iwl_ht_params iwl5000_ht_params = {
+
+static const struct iwl_ht_params iwl5000_ht_params = {
 	.ht_greenfield_support = true,
 };
 
@@ -360,13 +327,15 @@ static struct iwl_ht_params iwl5000_ht_params = {
 	.fw_name_pre = IWL5000_FW_PRE,				\
 	.ucode_api_max = IWL5000_UCODE_API_MAX,			\
 	.ucode_api_min = IWL5000_UCODE_API_MIN,			\
+	.max_inst_size = IWLAGN_RTC_INST_SIZE,			\
+	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,	\
 	.lib = &iwl5000_lib,					\
 	.base_params = &iwl5000_base_params,			\
 	.led_mode = IWL_LED_BLINK
 
-struct iwl_cfg iwl5300_agn_cfg = {
+const struct iwl_cfg iwl5300_agn_cfg = {
 	.name = "Intel(R) Ultimate N WiFi Link 5300 AGN",
 	IWL_DEVICE_5000,
 	/* at least EEPROM 0x11A has wrong info */
@@ -375,7 +344,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.ht_params = &iwl5000_ht_params,
 };
 
-struct iwl_cfg iwl5100_bgn_cfg = {
+const struct iwl_cfg iwl5100_bgn_cfg = {
 	.name = "Intel(R) WiFi Link 5100 BGN",
 	IWL_DEVICE_5000,
 	.valid_tx_ant = ANT_B,		/* .cfg overwrite */
@@ -383,14 +352,14 @@ struct iwl_cfg iwl5100_bgn_cfg = {
 	.ht_params = &iwl5000_ht_params,
 };
 
-struct iwl_cfg iwl5100_abg_cfg = {
+const struct iwl_cfg iwl5100_abg_cfg = {
 	.name = "Intel(R) WiFi Link 5100 ABG",
 	IWL_DEVICE_5000,
 	.valid_tx_ant = ANT_B,		/* .cfg overwrite */
 	.valid_rx_ant = ANT_AB,		/* .cfg overwrite */
 };
 
-struct iwl_cfg iwl5100_agn_cfg = {
+const struct iwl_cfg iwl5100_agn_cfg = {
 	.name = "Intel(R) WiFi Link 5100 AGN",
 	IWL_DEVICE_5000,
 	.valid_tx_ant = ANT_B,		/* .cfg overwrite */
@@ -398,11 +367,13 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.ht_params = &iwl5000_ht_params,
 };
 
-struct iwl_cfg iwl5350_agn_cfg = {
+const struct iwl_cfg iwl5350_agn_cfg = {
 	.name = "Intel(R) WiMAX/WiFi Link 5350 AGN",
 	.fw_name_pre = IWL5000_FW_PRE,
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
+	.max_inst_size = IWLAGN_RTC_INST_SIZE,
+	.max_data_size = IWLAGN_RTC_DATA_SIZE,
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
 	.lib = &iwl5000_lib,
@@ -416,6 +387,8 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.fw_name_pre = IWL5150_FW_PRE,				\
 	.ucode_api_max = IWL5150_UCODE_API_MAX,			\
 	.ucode_api_min = IWL5150_UCODE_API_MIN,			\
+	.max_inst_size = IWLAGN_RTC_INST_SIZE,			\
+	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,	\
 	.lib = &iwl5150_lib,					\
@@ -424,14 +397,14 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.led_mode = IWL_LED_BLINK,				\
 	.internal_wimax_coex = true
 
-struct iwl_cfg iwl5150_agn_cfg = {
+const struct iwl_cfg iwl5150_agn_cfg = {
 	.name = "Intel(R) WiMAX/WiFi Link 5150 AGN",
 	IWL_DEVICE_5150,
 	.ht_params = &iwl5000_ht_params,
 
 };
 
-struct iwl_cfg iwl5150_abg_cfg = {
+const struct iwl_cfg iwl5150_abg_cfg = {
 	.name = "Intel(R) WiMAX/WiFi Link 5150 ABG",
 	IWL_DEVICE_5150,
 };

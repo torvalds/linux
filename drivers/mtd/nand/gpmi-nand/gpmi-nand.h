@@ -20,7 +20,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <mach/dma.h>
+#include <linux/fsl/mxs-dma.h>
 
 struct resources {
 	void          *gpmi_regs;

@@ -737,14 +737,11 @@ static int hvsi_open(struct tty_struct *tty, struct file *filp)
 {
 	struct hvsi_struct *hp;
 	unsigned long flags;
-	int line = tty->index;
 	int ret;
 
 	pr_debug("%s\n", __func__);
 
-	if (line < 0 || line >= hvsi_count)
-		return -ENODEV;
-	hp = &hvsi_ports[line];
+	hp = &hvsi_ports[tty->index];
 
 	tty->driver_data = hp;
 
@@ -1088,7 +1085,6 @@ static int __init hvsi_init(void)
 	if (!hvsi_driver)
 		return -ENOMEM;
 
-	hvsi_driver->owner = THIS_MODULE;
 	hvsi_driver->driver_name = "hvsi";
 	hvsi_driver->name = "hvsi";
 	hvsi_driver->major = HVSI_MAJOR;
@@ -1237,7 +1233,7 @@ static int __init hvsi_console_init(void)
 		hp->state = HVSI_CLOSED;
 		hp->vtermno = *vtermno;
 		hp->virq = irq_create_mapping(NULL, irq[0]);
-		if (hp->virq == NO_IRQ) {
+		if (hp->virq == 0) {
 			printk(KERN_ERR "%s: couldn't create irq mapping for 0x%x\n",
 				__func__, irq[0]);
 			continue;

@@ -249,7 +249,11 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	mode = adjusted_mode;
+	/*
+	 * copy the mode data adjusted by mode_fixup() into crtc->mode
+	 * so that hardware can be seet to proper mode.
+	 */
+	memcpy(&crtc->mode, adjusted_mode, sizeof(*adjusted_mode));
 
 	return exynos_drm_crtc_update(crtc);
 }
@@ -426,9 +430,3 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int crtc)
 	exynos_drm_fn_encoder(private->crtc[crtc], &crtc,
 			exynos_drm_disable_vblank);
 }
-
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_AUTHOR("Seung-Woo Kim <sw0312.kim@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM CRTC Driver");
-MODULE_LICENSE("GPL");

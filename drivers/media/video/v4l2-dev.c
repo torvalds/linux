@@ -26,7 +26,6 @@
 #include <linux/kmod.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
@@ -788,7 +787,7 @@ static void __exit videodev_exit(void)
 	unregister_chrdev_region(dev, VIDEO_NUM_DEVICES);
 }
 
-module_init(videodev_init)
+subsys_initcall(videodev_init);
 module_exit(videodev_exit)
 
 MODULE_AUTHOR("Alan Cox, Mauro Carvalho Chehab <mchehab@infradead.org>");

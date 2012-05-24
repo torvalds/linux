@@ -22,6 +22,7 @@
 
 #include <linux/list.h>
 #include <linux/tcp.h>
+#include <linux/bug.h>
 #include <linux/slab.h>
 #include <linux/cache.h>
 #include <linux/percpu.h>
@@ -1138,35 +1139,27 @@ static inline void tcp_clear_all_retrans_hints(struct tcp_sock *tp)
 /* MD5 Signature */
 struct crypto_hash;
 
+union tcp_md5_addr {
+	struct in_addr  a4;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct in6_addr	a6;
+#endif
+};
+
 /* - key database */
 struct tcp_md5sig_key {
-	u8			*key;
+	struct hlist_node	node;
 	u8			keylen;
-};
-
-struct tcp4_md5sig_key {
-	struct tcp_md5sig_key	base;
-	__be32			addr;
-};
-
-struct tcp6_md5sig_key {
-	struct tcp_md5sig_key	base;
-#if 0
-	u32			scope_id;	/* XXX */
-#endif
-	struct in6_addr		addr;
+	u8			family; /* AF_INET or AF_INET6 */
+	union tcp_md5_addr	addr;
+	u8			key[TCP_MD5SIG_MAXKEYLEN];
+	struct rcu_head		rcu;
 };
 
 /* - sock block */
 struct tcp_md5sig_info {
-	struct tcp4_md5sig_key	*keys4;
-#if IS_ENABLED(CONFIG_IPV6)
-	struct tcp6_md5sig_key	*keys6;
-	u32			entries6;
-	u32			alloced6;
-#endif
-	u32			entries4;
-	u32			alloced4;
+	struct hlist_head	head;
+	struct rcu_head		rcu;
 };
 
 /* - pseudo header */
@@ -1203,19 +1196,25 @@ extern int tcp_v4_md5_hash_skb(char *md5_hash, struct tcp_md5sig_key *key,
 			       const struct sock *sk,
 			       const struct request_sock *req,
 			       const struct sk_buff *skb);
-extern struct tcp_md5sig_key * tcp_v4_md5_lookup(struct sock *sk,
-						 struct sock *addr_sk);
-extern int tcp_v4_md5_do_add(struct sock *sk, __be32 addr, u8 *newkey,
-			     u8 newkeylen);
-extern int tcp_v4_md5_do_del(struct sock *sk, __be32 addr);
+extern int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
+			  int family, const u8 *newkey,
+			  u8 newkeylen, gfp_t gfp);
+extern int tcp_md5_do_del(struct sock *sk, const union tcp_md5_addr *addr,
+			  int family);
+extern struct tcp_md5sig_key *tcp_v4_md5_lookup(struct sock *sk,
+					 struct sock *addr_sk);
 
 #ifdef CONFIG_TCP_MD5SIG
-#define tcp_twsk_md5_key(twsk)	((twsk)->tw_md5_keylen ? 		 \
-				 &(struct tcp_md5sig_key) {		 \
-					.key = (twsk)->tw_md5_key,	 \
-					.keylen = (twsk)->tw_md5_keylen, \
-				} : NULL)
+extern struct tcp_md5sig_key *tcp_md5_do_lookup(struct sock *sk,
+			const union tcp_md5_addr *addr, int family);
+#define tcp_twsk_md5_key(twsk)	((twsk)->tw_md5_key)
 #else
+static inline struct tcp_md5sig_key *tcp_md5_do_lookup(struct sock *sk,
+					 const union tcp_md5_addr *addr,
+					 int family)
+{
+	return NULL;
+}
 #define tcp_twsk_md5_key(twsk)	NULL
 #endif
 
@@ -1364,8 +1363,9 @@ static inline void tcp_push_pending_frames(struct sock *sk)
 	}
 }
 
-/* Start sequence of the highest skb with SACKed bit, valid only if
- * sacked > 0 or when the caller has ensured validity by itself.
+/* Start sequence of the skb just after the highest skb with SACKed
+ * bit, valid only if sacked_out > 0 or when the caller has ensured
+ * validity by itself.
  */
 static inline u32 tcp_highest_sack_seq(struct tcp_sock *tp)
 {
@@ -1470,10 +1470,6 @@ struct tcp_sock_af_ops {
 						  const struct sock *sk,
 						  const struct request_sock *req,
 						  const struct sk_buff *skb);
-	int			(*md5_add) (struct sock *sk,
-					    struct sock *addr_sk,
-					    u8 *newkey,
-					    u8 len);
 	int			(*md5_parse) (struct sock *sk,
 					      char __user *optval,
 					      int optlen);

@@ -57,7 +57,6 @@
 #include <linux/types.h>
 #include <linux/inet_lro.h>
 #include <linux/slab.h>
-#include <asm/system.h>
 
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";
 static char mv643xx_eth_driver_version[] = "1.4";
@@ -667,7 +666,7 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 
 		skb = __skb_dequeue(&mp->rx_recycle);
 		if (skb == NULL)
-			skb = dev_alloc_skb(mp->skb_size);
+			skb = netdev_alloc_skb(mp->dev, mp->skb_size);
 
 		if (skb == NULL) {
 			mp->oom = 1;
@@ -1832,7 +1831,7 @@ static int mv643xx_eth_set_mac_address(struct net_device *dev, void *addr)
 	struct sockaddr *sa = addr;
 
 	if (!is_valid_ether_addr(sa->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 

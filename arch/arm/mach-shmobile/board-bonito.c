@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/smsc911x.h>
+#include <linux/videodev2.h>
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -34,6 +35,7 @@
 #include <asm/mach/time.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <mach/r8a7740.h>
+#include <mach/irqs.h>
 #include <video/sh_mobile_lcdc.h>
 
 /*
@@ -241,13 +243,13 @@ static struct sh_mobile_lcdc_info lcdc0_info = {
 	.clock_source	= LCDC_CLK_BUS,
 	.ch[0] = {
 		.chan			= LCDC_CHAN_MAINLCD,
-		.bpp			= 16,
+		.fourcc = V4L2_PIX_FMT_RGB565,
 		.interface_type		= RGB24,
 		.clock_divider		= 5,
 		.flags			= 0,
-		.lcd_cfg		= &lcdc0_mode,
-		.num_cfg		= 1,
-		.lcd_size_cfg = {
+		.lcd_modes		= &lcdc0_mode,
+		.num_modes		= 1,
+		.panel_cfg = {
 			.width	= 152,
 			.height = 91,
 		},
@@ -327,28 +329,6 @@ static struct platform_device *bonito_base_devices[] __initdata = {
  * map I/O
  */
 static struct map_desc bonito_io_desc[] __initdata = {
-	 /*
-	  * for CPGA/INTC/PFC
-	  * 0xe6000000-0xefffffff -> 0xe6000000-0xefffffff
-	  */
-	{
-		.virtual	= 0xe6000000,
-		.pfn		= __phys_to_pfn(0xe6000000),
-		.length		= 160 << 20,
-		.type		= MT_DEVICE_NONSHARED
-	},
-#ifdef CONFIG_CACHE_L2X0
-	/*
-	 * for l2x0_init()
-	 * 0xf0100000-0xf0101000 -> 0xf0002000-0xf0003000
-	 */
-	{
-		.virtual	= 0xf0002000,
-		.pfn		= __phys_to_pfn(0xf0100000),
-		.length		= PAGE_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	},
-#endif
 	/*
 	 * for FPGA (0x1800000-0x19ffffff)
 	 * 0x18000000-0x18002000 -> 0xf0003000-0xf0005000
@@ -363,11 +343,8 @@ static struct map_desc bonito_io_desc[] __initdata = {
 
 static void __init bonito_map_io(void)
 {
+	r8a7740_map_io();
 	iotable_init(bonito_io_desc, ARRAY_SIZE(bonito_io_desc));
-
-	/* setup early devices and console here as well */
-	r8a7740_add_early_devices();
-	shmobile_setup_console();
 }
 
 /*
@@ -394,7 +371,7 @@ static void __init bonito_init(void)
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 32K*8way */
-	l2x0_init(__io(0xf0002000), 0x40440000, 0x82000fff);
+	l2x0_init(IOMEM(0xf0002000), 0x40440000, 0x82000fff);
 #endif
 
 	r8a7740_add_standard_devices();
@@ -491,7 +468,7 @@ static void __init bonito_init(void)
 	}
 }
 
-static void __init bonito_timer_init(void)
+static void __init bonito_earlytimer_init(void)
 {
 	u16 val;
 	u8 md_ck = 0;
@@ -506,17 +483,22 @@ static void __init bonito_timer_init(void)
 		md_ck |= MD_CK0;
 
 	r8a7740_clock_init(md_ck);
-	shmobile_timer.init();
+	shmobile_earlytimer_init();
 }
 
-struct sys_timer bonito_timer = {
-	.init	= bonito_timer_init,
-};
+void __init bonito_add_early_devices(void)
+{
+	r8a7740_add_early_devices();
+
+	/* override timer setup with board-specific code */
+	shmobile_timer.init = bonito_earlytimer_init;
+}
 
 MACHINE_START(BONITO, "bonito")
 	.map_io		= bonito_map_io,
+	.init_early	= bonito_add_early_devices,
 	.init_irq	= r8a7740_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= bonito_init,
-	.timer		= &bonito_timer,
+	.timer		= &shmobile_timer,
 MACHINE_END

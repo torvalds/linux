@@ -71,8 +71,6 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 
 	memset((unsigned char *)pxmitpriv, 0, sizeof(struct xmit_priv));
 	spin_lock_init(&pxmitpriv->lock);
-	sema_init(&pxmitpriv->xmit_sema, 0);
-	sema_init(&pxmitpriv->terminate_xmitthread_sema, 0);
 	/*
 	Please insert all the queue initializaiton using _init_queue below
 	*/
@@ -121,7 +119,6 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 	_r8712_init_hw_txqueue(&pxmitpriv->bmc_txqueue, BMC_QUEUE_INX);
 	pxmitpriv->frag_len = MAX_FRAG_THRESHOLD;
 	pxmitpriv->txirp_cnt = 1;
-	sema_init(&(pxmitpriv->tx_retevt), 0);
 	/*per AC pending irp*/
 	pxmitpriv->beq_cnt = 0;
 	pxmitpriv->bkq_cnt = 0;

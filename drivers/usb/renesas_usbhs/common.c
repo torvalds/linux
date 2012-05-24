@@ -413,8 +413,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	struct renesas_usbhs_platform_info *info = pdev->dev.platform_data;
 	struct renesas_usbhs_driver_callback *dfunc;
 	struct usbhs_priv *priv;
-	struct resource *res;
-	unsigned int irq;
+	struct resource *res, *irq_res;
 	int ret;
 
 	/* check platform information */
@@ -426,8 +425,8 @@ static int usbhs_probe(struct platform_device *pdev)
 
 	/* platform data */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	irq = platform_get_irq(pdev, 0);
-	if (!res || (int)irq <= 0) {
+	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!res || !irq_res) {
 		dev_err(&pdev->dev, "Not enough Renesas USB platform resources.\n");
 		return -ENODEV;
 	}
@@ -476,7 +475,9 @@ static int usbhs_probe(struct platform_device *pdev)
 	/*
 	 * priv settings
 	 */
-	priv->irq	= irq;
+	priv->irq	= irq_res->start;
+	if (irq_res->flags & IORESOURCE_IRQ_SHAREABLE)
+		priv->irqflags = IRQF_SHARED;
 	priv->pdev	= pdev;
 	INIT_DELAYED_WORK(&priv->notify_hotplug_work, usbhsc_notify_hotplug);
 	spin_lock_init(usbhs_priv_to_lock(priv));

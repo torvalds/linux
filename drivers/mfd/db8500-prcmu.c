@@ -30,6 +30,7 @@
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/regulator/db8500-prcmu.h>
 #include <linux/regulator/machine.h>
+#include <asm/hardware/gic.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/db8500-regs.h>
@@ -38,11 +39,6 @@
 
 /* Offset for the firmware version within the TCPM */
 #define PRCMU_FW_VERSION_OFFSET 0xA4
-
-/* PRCMU project numbers, defined by PRCMU FW */
-#define PRCMU_PROJECT_ID_8500V1_0 1
-#define PRCMU_PROJECT_ID_8500V2_0 2
-#define PRCMU_PROJECT_ID_8400V2_0 3
 
 /* Index of different voltages to be used when accessing AVSData */
 #define PRCM_AVS_BASE		0x2FC
@@ -137,6 +133,8 @@
 #define PRCM_REQ_MB1_ARM_OPP			(PRCM_REQ_MB1 + 0x0)
 #define PRCM_REQ_MB1_APE_OPP			(PRCM_REQ_MB1 + 0x1)
 #define PRCM_REQ_MB1_PLL_ON_OFF			(PRCM_REQ_MB1 + 0x4)
+#define PLL_SOC0_OFF	0x1
+#define PLL_SOC0_ON	0x2
 #define PLL_SOC1_OFF	0x4
 #define PLL_SOC1_ON	0x8
 
@@ -266,6 +264,11 @@
 #define WAKEUP_BIT_GPIO7 BIT(30)
 #define WAKEUP_BIT_GPIO8 BIT(31)
 
+static struct {
+	bool valid;
+	struct prcmu_fw_version version;
+} fw_info;
+
 /*
  * This vector maps irq numbers to the bits in the bit field used in
  * communication with the PRCMU firmware.
@@ -341,11 +344,13 @@ static struct {
  * mb1_transfer - state needed for mailbox 1 communication.
  * @lock:	The transaction lock.
  * @work:	The transaction completion structure.
+ * @ape_opp:	The current APE OPP.
  * @ack:	Reply ("acknowledge") data.
  */
 static struct {
 	struct mutex lock;
 	struct completion work;
+	u8 ape_opp;
 	struct {
 		u8 header;
 		u8 arm_opp;
@@ -413,79 +418,102 @@ static struct {
 static atomic_t ac_wake_req_state = ATOMIC_INIT(0);
 
 /* Spinlocks */
+static DEFINE_SPINLOCK(prcmu_lock);
 static DEFINE_SPINLOCK(clkout_lock);
-static DEFINE_SPINLOCK(gpiocr_lock);
 
 /* Global var to runtime determine TCDM base for v2 or v1 */
 static __iomem void *tcdm_base;
 
 struct clk_mgt {
-	unsigned int offset;
+	void __iomem *reg;
 	u32 pllsw;
+	int branch;
+	bool clk38div;
+};
+
+enum {
+	PLL_RAW,
+	PLL_FIX,
+	PLL_DIV
 };
 
 static DEFINE_SPINLOCK(clk_mgt_lock);
 
-#define CLK_MGT_ENTRY(_name)[PRCMU_##_name] = { (PRCM_##_name##_MGT_OFF), 0 }
+#define CLK_MGT_ENTRY(_name, _branch, _clk38div)[PRCMU_##_name] = \
+	{ (PRCM_##_name##_MGT), 0 , _branch, _clk38div}
 struct clk_mgt clk_mgt[PRCMU_NUM_REG_CLOCKS] = {
-	CLK_MGT_ENTRY(SGACLK),
-	CLK_MGT_ENTRY(UARTCLK),
-	CLK_MGT_ENTRY(MSP02CLK),
-	CLK_MGT_ENTRY(MSP1CLK),
-	CLK_MGT_ENTRY(I2CCLK),
-	CLK_MGT_ENTRY(SDMMCCLK),
-	CLK_MGT_ENTRY(SLIMCLK),
-	CLK_MGT_ENTRY(PER1CLK),
-	CLK_MGT_ENTRY(PER2CLK),
-	CLK_MGT_ENTRY(PER3CLK),
-	CLK_MGT_ENTRY(PER5CLK),
-	CLK_MGT_ENTRY(PER6CLK),
-	CLK_MGT_ENTRY(PER7CLK),
-	CLK_MGT_ENTRY(LCDCLK),
-	CLK_MGT_ENTRY(BMLCLK),
-	CLK_MGT_ENTRY(HSITXCLK),
-	CLK_MGT_ENTRY(HSIRXCLK),
-	CLK_MGT_ENTRY(HDMICLK),
-	CLK_MGT_ENTRY(APEATCLK),
-	CLK_MGT_ENTRY(APETRACECLK),
-	CLK_MGT_ENTRY(MCDECLK),
-	CLK_MGT_ENTRY(IPI2CCLK),
-	CLK_MGT_ENTRY(DSIALTCLK),
-	CLK_MGT_ENTRY(DMACLK),
-	CLK_MGT_ENTRY(B2R2CLK),
-	CLK_MGT_ENTRY(TVCLK),
-	CLK_MGT_ENTRY(SSPCLK),
-	CLK_MGT_ENTRY(RNGCLK),
-	CLK_MGT_ENTRY(UICCCLK),
+	CLK_MGT_ENTRY(SGACLK, PLL_DIV, false),
+	CLK_MGT_ENTRY(UARTCLK, PLL_FIX, true),
+	CLK_MGT_ENTRY(MSP02CLK, PLL_FIX, true),
+	CLK_MGT_ENTRY(MSP1CLK, PLL_FIX, true),
+	CLK_MGT_ENTRY(I2CCLK, PLL_FIX, true),
+	CLK_MGT_ENTRY(SDMMCCLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(SLIMCLK, PLL_FIX, true),
+	CLK_MGT_ENTRY(PER1CLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(PER2CLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(PER3CLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(PER5CLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(PER6CLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(PER7CLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(LCDCLK, PLL_FIX, true),
+	CLK_MGT_ENTRY(BMLCLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(HSITXCLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(HSIRXCLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(HDMICLK, PLL_FIX, false),
+	CLK_MGT_ENTRY(APEATCLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(APETRACECLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(MCDECLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(IPI2CCLK, PLL_FIX, true),
+	CLK_MGT_ENTRY(DSIALTCLK, PLL_FIX, false),
+	CLK_MGT_ENTRY(DMACLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(B2R2CLK, PLL_DIV, true),
+	CLK_MGT_ENTRY(TVCLK, PLL_FIX, true),
+	CLK_MGT_ENTRY(SSPCLK, PLL_FIX, true),
+	CLK_MGT_ENTRY(RNGCLK, PLL_FIX, true),
+	CLK_MGT_ENTRY(UICCCLK, PLL_FIX, false),
 };
 
-static struct regulator *hwacc_regulator[NUM_HW_ACC];
-static struct regulator *hwacc_ret_regulator[NUM_HW_ACC];
-
-static bool hwacc_enabled[NUM_HW_ACC];
-static bool hwacc_ret_enabled[NUM_HW_ACC];
-
-static const char *hwacc_regulator_name[NUM_HW_ACC] = {
-	[HW_ACC_SVAMMDSP]	= "hwacc-sva-mmdsp",
-	[HW_ACC_SVAPIPE]	= "hwacc-sva-pipe",
-	[HW_ACC_SIAMMDSP]	= "hwacc-sia-mmdsp",
-	[HW_ACC_SIAPIPE]	= "hwacc-sia-pipe",
-	[HW_ACC_SGA]		= "hwacc-sga",
-	[HW_ACC_B2R2]		= "hwacc-b2r2",
-	[HW_ACC_MCDE]		= "hwacc-mcde",
-	[HW_ACC_ESRAM1]		= "hwacc-esram1",
-	[HW_ACC_ESRAM2]		= "hwacc-esram2",
-	[HW_ACC_ESRAM3]		= "hwacc-esram3",
-	[HW_ACC_ESRAM4]		= "hwacc-esram4",
+struct dsiclk {
+	u32 divsel_mask;
+	u32 divsel_shift;
+	u32 divsel;
 };
 
-static const char *hwacc_ret_regulator_name[NUM_HW_ACC] = {
-	[HW_ACC_SVAMMDSP]	= "hwacc-sva-mmdsp-ret",
-	[HW_ACC_SIAMMDSP]	= "hwacc-sia-mmdsp-ret",
-	[HW_ACC_ESRAM1]		= "hwacc-esram1-ret",
-	[HW_ACC_ESRAM2]		= "hwacc-esram2-ret",
-	[HW_ACC_ESRAM3]		= "hwacc-esram3-ret",
-	[HW_ACC_ESRAM4]		= "hwacc-esram4-ret",
+static struct dsiclk dsiclk[2] = {
+	{
+		.divsel_mask = PRCM_DSI_PLLOUT_SEL_DSI0_PLLOUT_DIVSEL_MASK,
+		.divsel_shift = PRCM_DSI_PLLOUT_SEL_DSI0_PLLOUT_DIVSEL_SHIFT,
+		.divsel = PRCM_DSI_PLLOUT_SEL_PHI,
+	},
+	{
+		.divsel_mask = PRCM_DSI_PLLOUT_SEL_DSI1_PLLOUT_DIVSEL_MASK,
+		.divsel_shift = PRCM_DSI_PLLOUT_SEL_DSI1_PLLOUT_DIVSEL_SHIFT,
+		.divsel = PRCM_DSI_PLLOUT_SEL_PHI,
+	}
+};
+
+struct dsiescclk {
+	u32 en;
+	u32 div_mask;
+	u32 div_shift;
+};
+
+static struct dsiescclk dsiescclk[3] = {
+	{
+		.en = PRCM_DSITVCLK_DIV_DSI0_ESC_CLK_EN,
+		.div_mask = PRCM_DSITVCLK_DIV_DSI0_ESC_CLK_DIV_MASK,
+		.div_shift = PRCM_DSITVCLK_DIV_DSI0_ESC_CLK_DIV_SHIFT,
+	},
+	{
+		.en = PRCM_DSITVCLK_DIV_DSI1_ESC_CLK_EN,
+		.div_mask = PRCM_DSITVCLK_DIV_DSI1_ESC_CLK_DIV_MASK,
+		.div_shift = PRCM_DSITVCLK_DIV_DSI1_ESC_CLK_DIV_SHIFT,
+	},
+	{
+		.en = PRCM_DSITVCLK_DIV_DSI2_ESC_CLK_EN,
+		.div_mask = PRCM_DSITVCLK_DIV_DSI2_ESC_CLK_DIV_MASK,
+		.div_shift = PRCM_DSITVCLK_DIV_DSI2_ESC_CLK_DIV_SHIFT,
+	}
 };
 
 /*
@@ -503,9 +531,6 @@ static const char *hwacc_ret_regulator_name[NUM_HW_ACC] = {
 /* PLLDIV=12, PLLSW=4 (PLLDDR) */
 #define PRCMU_DSI_CLOCK_SETTING		0x0000008C
 
-/* PLLDIV=8, PLLSW=4 (PLLDDR) */
-#define PRCMU_DSI_CLOCK_SETTING_U8400	0x00000088
-
 /* DPI 50000000 Hz */
 #define PRCMU_DPI_CLOCK_SETTING		((1 << PRCMU_CLK_PLL_SW_SHIFT) | \
 					  (16 << PRCMU_CLK_PLL_DIV_SHIFT))
@@ -513,9 +538,6 @@ static const char *hwacc_ret_regulator_name[NUM_HW_ACC] = {
 
 /* D=101, N=1, R=4, SELDIV2=0 */
 #define PRCMU_PLLDSI_FREQ_SETTING	0x00040165
-
-/* D=70, N=1, R=3, SELDIV2=0 */
-#define PRCMU_PLLDSI_FREQ_SETTING_U8400	0x00030146
 
 #define PRCMU_ENABLE_PLLDSI		0x00000001
 #define PRCMU_DISABLE_PLLDSI		0x00000000
@@ -528,30 +550,17 @@ static const char *hwacc_ret_regulator_name[NUM_HW_ACC] = {
 
 #define PRCMU_PLLDSI_LOCKP_LOCKED	0x3
 
-static struct {
-	u8 project_number;
-	u8 api_version;
-	u8 func_version;
-	u8 errata;
-} prcmu_version;
-
-
 int db8500_prcmu_enable_dsipll(void)
 {
 	int i;
-	unsigned int plldsifreq;
 
 	/* Clear DSIPLL_RESETN */
 	writel(PRCMU_RESET_DSIPLL, PRCM_APE_RESETN_CLR);
 	/* Unclamp DSIPLL in/out */
 	writel(PRCMU_UNCLAMP_DSIPLL, PRCM_MMIP_LS_CLAMP_CLR);
 
-	if (prcmu_is_u8400())
-		plldsifreq = PRCMU_PLLDSI_FREQ_SETTING_U8400;
-	else
-		plldsifreq = PRCMU_PLLDSI_FREQ_SETTING;
 	/* Set DSI PLL FREQ */
-	writel(plldsifreq, PRCM_PLLDSI_FREQ);
+	writel(PRCMU_PLLDSI_FREQ_SETTING, PRCM_PLLDSI_FREQ);
 	writel(PRCMU_DSI_PLLOUT_SEL_SETTING, PRCM_DSI_PLLOUT_SEL);
 	/* Enable Escape clocks */
 	writel(PRCMU_ENABLE_ESCAPE_CLOCK_DIV, PRCM_DSITVCLK_DIV);
@@ -583,12 +592,6 @@ int db8500_prcmu_disable_dsipll(void)
 int db8500_prcmu_set_display_clocks(void)
 {
 	unsigned long flags;
-	unsigned int dsiclk;
-
-	if (prcmu_is_u8400())
-		dsiclk = PRCMU_DSI_CLOCK_SETTING_U8400;
-	else
-		dsiclk = PRCMU_DSI_CLOCK_SETTING;
 
 	spin_lock_irqsave(&clk_mgt_lock, flags);
 
@@ -596,7 +599,7 @@ int db8500_prcmu_set_display_clocks(void)
 	while ((readl(PRCM_SEM) & PRCM_SEM_PRCM_SEM) != 0)
 		cpu_relax();
 
-	writel(dsiclk, PRCM_HDMICLK_MGT);
+	writel(PRCMU_DSI_CLOCK_SETTING, PRCM_HDMICLK_MGT);
 	writel(PRCMU_DSI_LP_CLOCK_SETTING, PRCM_TVCLK_MGT);
 	writel(PRCMU_DPI_CLOCK_SETTING, PRCM_LCDCLK_MGT);
 
@@ -608,43 +611,41 @@ int db8500_prcmu_set_display_clocks(void)
 	return 0;
 }
 
-/**
- * prcmu_enable_spi2 - Enables pin muxing for SPI2 on OtherAlternateC1.
- */
-void prcmu_enable_spi2(void)
+u32 db8500_prcmu_read(unsigned int reg)
 {
-	u32 reg;
-	unsigned long flags;
-
-	spin_lock_irqsave(&gpiocr_lock, flags);
-	reg = readl(PRCM_GPIOCR);
-	writel(reg | PRCM_GPIOCR_SPI2_SELECT, PRCM_GPIOCR);
-	spin_unlock_irqrestore(&gpiocr_lock, flags);
+	return readl(_PRCMU_BASE + reg);
 }
 
-/**
- * prcmu_disable_spi2 - Disables pin muxing for SPI2 on OtherAlternateC1.
- */
-void prcmu_disable_spi2(void)
+void db8500_prcmu_write(unsigned int reg, u32 value)
 {
-	u32 reg;
 	unsigned long flags;
 
-	spin_lock_irqsave(&gpiocr_lock, flags);
-	reg = readl(PRCM_GPIOCR);
-	writel(reg & ~PRCM_GPIOCR_SPI2_SELECT, PRCM_GPIOCR);
-	spin_unlock_irqrestore(&gpiocr_lock, flags);
+	spin_lock_irqsave(&prcmu_lock, flags);
+	writel(value, (_PRCMU_BASE + reg));
+	spin_unlock_irqrestore(&prcmu_lock, flags);
+}
+
+void db8500_prcmu_write_masked(unsigned int reg, u32 mask, u32 value)
+{
+	u32 val;
+	unsigned long flags;
+
+	spin_lock_irqsave(&prcmu_lock, flags);
+	val = readl(_PRCMU_BASE + reg);
+	val = ((val & ~mask) | (value & mask));
+	writel(val, (_PRCMU_BASE + reg));
+	spin_unlock_irqrestore(&prcmu_lock, flags);
+}
+
+struct prcmu_fw_version *prcmu_get_fw_version(void)
+{
+	return fw_info.valid ? &fw_info.version : NULL;
 }
 
 bool prcmu_has_arm_maxopp(void)
 {
 	return (readb(tcdm_base + PRCM_AVS_VARM_MAX_OPP) &
 		PRCM_AVS_ISMODEENABLE_MASK) == PRCM_AVS_ISMODEENABLE_MASK;
-}
-
-bool prcmu_is_u8400(void)
-{
-	return prcmu_version.project_number == PRCMU_PROJECT_ID_8400V2_0;
 }
 
 /**
@@ -787,6 +788,124 @@ int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk, bool keep_ap_pll)
 	return 0;
 }
 
+u8 db8500_prcmu_get_power_state_result(void)
+{
+	return readb(tcdm_base + PRCM_ACK_MB0_AP_PWRSTTR_STATUS);
+}
+
+/* This function decouple the gic from the prcmu */
+int db8500_prcmu_gic_decouple(void)
+{
+	u32 val = readl(PRCM_A9_MASK_REQ);
+
+	/* Set bit 0 register value to 1 */
+	writel(val | PRCM_A9_MASK_REQ_PRCM_A9_MASK_REQ,
+	       PRCM_A9_MASK_REQ);
+
+	/* Make sure the register is updated */
+	readl(PRCM_A9_MASK_REQ);
+
+	/* Wait a few cycles for the gic mask completion */
+	udelay(1);
+
+	return 0;
+}
+
+/* This function recouple the gic with the prcmu */
+int db8500_prcmu_gic_recouple(void)
+{
+	u32 val = readl(PRCM_A9_MASK_REQ);
+
+	/* Set bit 0 register value to 0 */
+	writel(val & ~PRCM_A9_MASK_REQ_PRCM_A9_MASK_REQ, PRCM_A9_MASK_REQ);
+
+	return 0;
+}
+
+#define PRCMU_GIC_NUMBER_REGS 5
+
+/*
+ * This function checks if there are pending irq on the gic. It only
+ * makes sense if the gic has been decoupled before with the
+ * db8500_prcmu_gic_decouple function. Disabling an interrupt only
+ * disables the forwarding of the interrupt to any CPU interface. It
+ * does not prevent the interrupt from changing state, for example
+ * becoming pending, or active and pending if it is already
+ * active. Hence, we have to check the interrupt is pending *and* is
+ * active.
+ */
+bool db8500_prcmu_gic_pending_irq(void)
+{
+	u32 pr; /* Pending register */
+	u32 er; /* Enable register */
+	void __iomem *dist_base = __io_address(U8500_GIC_DIST_BASE);
+	int i;
+
+        /* 5 registers. STI & PPI not skipped */
+	for (i = 0; i < PRCMU_GIC_NUMBER_REGS; i++) {
+
+		pr = readl_relaxed(dist_base + GIC_DIST_PENDING_SET + i * 4);
+		er = readl_relaxed(dist_base + GIC_DIST_ENABLE_SET + i * 4);
+
+		if (pr & er)
+			return true; /* There is a pending interrupt */
+	}
+
+	return false;
+}
+
+/*
+ * This function checks if there are pending interrupt on the
+ * prcmu which has been delegated to monitor the irqs with the
+ * db8500_prcmu_copy_gic_settings function.
+ */
+bool db8500_prcmu_pending_irq(void)
+{
+	u32 it, im;
+	int i;
+
+	for (i = 0; i < PRCMU_GIC_NUMBER_REGS - 1; i++) {
+		it = readl(PRCM_ARMITVAL31TO0 + i * 4);
+		im = readl(PRCM_ARMITMSK31TO0 + i * 4);
+		if (it & im)
+			return true; /* There is a pending interrupt */
+	}
+
+	return false;
+}
+
+/*
+ * This function checks if the specified cpu is in in WFI. It's usage
+ * makes sense only if the gic is decoupled with the db8500_prcmu_gic_decouple
+ * function. Of course passing smp_processor_id() to this function will
+ * always return false...
+ */
+bool db8500_prcmu_is_cpu_in_wfi(int cpu)
+{
+	return readl(PRCM_ARM_WFI_STANDBY) & cpu ? PRCM_ARM_WFI_STANDBY_WFI1 :
+		     PRCM_ARM_WFI_STANDBY_WFI0;
+}
+
+/*
+ * This function copies the gic SPI settings to the prcmu in order to
+ * monitor them and abort/finish the retention/off sequence or state.
+ */
+int db8500_prcmu_copy_gic_settings(void)
+{
+	u32 er; /* Enable register */
+	void __iomem *dist_base = __io_address(U8500_GIC_DIST_BASE);
+	int i;
+
+        /* We skip the STI and PPI */
+	for (i = 0; i < PRCMU_GIC_NUMBER_REGS - 1; i++) {
+		er = readl_relaxed(dist_base +
+				   GIC_DIST_ENABLE_SET + (i + 1) * 4);
+		writel(er, PRCM_ARMITMSK31TO0 + i * 4);
+	}
+
+	return 0;
+}
+
 /* This function should only be called while mb0_transfer.lock is held. */
 static void config_wakeups(void)
 {
@@ -909,23 +1028,23 @@ int db8500_prcmu_get_arm_opp(void)
 }
 
 /**
- * prcmu_get_ddr_opp - get the current DDR OPP
+ * db8500_prcmu_get_ddr_opp - get the current DDR OPP
  *
  * Returns: the current DDR OPP
  */
-int prcmu_get_ddr_opp(void)
+int db8500_prcmu_get_ddr_opp(void)
 {
 	return readb(PRCM_DDR_SUBSYS_APE_MINBW);
 }
 
 /**
- * set_ddr_opp - set the appropriate DDR OPP
+ * db8500_set_ddr_opp - set the appropriate DDR OPP
  * @opp: The new DDR operating point to which transition is to be made
  * Returns: 0 on success, non-zero on failure
  *
  * This function sets the operating point of the DDR.
  */
-int prcmu_set_ddr_opp(u8 opp)
+int db8500_prcmu_set_ddr_opp(u8 opp)
 {
 	if (opp < DDR_100_OPP || opp > DDR_25_OPP)
 		return -EINVAL;
@@ -935,25 +1054,82 @@ int prcmu_set_ddr_opp(u8 opp)
 
 	return 0;
 }
+
+/* Divide the frequency of certain clocks by 2 for APE_50_PARTLY_25_OPP. */
+static void request_even_slower_clocks(bool enable)
+{
+	void __iomem *clock_reg[] = {
+		PRCM_ACLK_MGT,
+		PRCM_DMACLK_MGT
+	};
+	unsigned long flags;
+	unsigned int i;
+
+	spin_lock_irqsave(&clk_mgt_lock, flags);
+
+	/* Grab the HW semaphore. */
+	while ((readl(PRCM_SEM) & PRCM_SEM_PRCM_SEM) != 0)
+		cpu_relax();
+
+	for (i = 0; i < ARRAY_SIZE(clock_reg); i++) {
+		u32 val;
+		u32 div;
+
+		val = readl(clock_reg[i]);
+		div = (val & PRCM_CLK_MGT_CLKPLLDIV_MASK);
+		if (enable) {
+			if ((div <= 1) || (div > 15)) {
+				pr_err("prcmu: Bad clock divider %d in %s\n",
+					div, __func__);
+				goto unlock_and_return;
+			}
+			div <<= 1;
+		} else {
+			if (div <= 2)
+				goto unlock_and_return;
+			div >>= 1;
+		}
+		val = ((val & ~PRCM_CLK_MGT_CLKPLLDIV_MASK) |
+			(div & PRCM_CLK_MGT_CLKPLLDIV_MASK));
+		writel(val, clock_reg[i]);
+	}
+
+unlock_and_return:
+	/* Release the HW semaphore. */
+	writel(0, PRCM_SEM);
+
+	spin_unlock_irqrestore(&clk_mgt_lock, flags);
+}
+
 /**
- * set_ape_opp - set the appropriate APE OPP
+ * db8500_set_ape_opp - set the appropriate APE OPP
  * @opp: The new APE operating point to which transition is to be made
  * Returns: 0 on success, non-zero on failure
  *
  * This function sets the operating point of the APE.
  */
-int prcmu_set_ape_opp(u8 opp)
+int db8500_prcmu_set_ape_opp(u8 opp)
 {
 	int r = 0;
 
+	if (opp == mb1_transfer.ape_opp)
+		return 0;
+
 	mutex_lock(&mb1_transfer.lock);
+
+	if (mb1_transfer.ape_opp == APE_50_PARTLY_25_OPP)
+		request_even_slower_clocks(false);
+
+	if ((opp != APE_100_OPP) && (mb1_transfer.ape_opp != APE_100_OPP))
+		goto skip_message;
 
 	while (readl(PRCM_MBOX_CPU_VAL) & MBOX_BIT(1))
 		cpu_relax();
 
 	writeb(MB1H_ARM_APE_OPP, (tcdm_base + PRCM_MBOX_HEADER_REQ_MB1));
 	writeb(ARM_NO_CHANGE, (tcdm_base + PRCM_REQ_MB1_ARM_OPP));
-	writeb(opp, (tcdm_base + PRCM_REQ_MB1_APE_OPP));
+	writeb(((opp == APE_50_PARTLY_25_OPP) ? APE_50_OPP : opp),
+		(tcdm_base + PRCM_REQ_MB1_APE_OPP));
 
 	writel(MBOX_BIT(1), PRCM_MBOX_CPU_SET);
 	wait_for_completion(&mb1_transfer.work);
@@ -962,17 +1138,24 @@ int prcmu_set_ape_opp(u8 opp)
 		(mb1_transfer.ack.ape_opp != opp))
 		r = -EIO;
 
+skip_message:
+	if ((!r && (opp == APE_50_PARTLY_25_OPP)) ||
+		(r && (mb1_transfer.ape_opp == APE_50_PARTLY_25_OPP)))
+		request_even_slower_clocks(true);
+	if (!r)
+		mb1_transfer.ape_opp = opp;
+
 	mutex_unlock(&mb1_transfer.lock);
 
 	return r;
 }
 
 /**
- * prcmu_get_ape_opp - get the current APE OPP
+ * db8500_prcmu_get_ape_opp - get the current APE OPP
  *
  * Returns: the current APE OPP
  */
-int prcmu_get_ape_opp(void)
+int db8500_prcmu_get_ape_opp(void)
 {
 	return readb(tcdm_base + PRCM_ACK_MB1_CURRENT_APE_OPP);
 }
@@ -1056,7 +1239,9 @@ static int request_pll(u8 clock, bool enable)
 {
 	int r = 0;
 
-	if (clock == PRCMU_PLLSOC1)
+	if (clock == PRCMU_PLLSOC0)
+		clock = (enable ? PLL_SOC0_ON : PLL_SOC0_OFF);
+	else if (clock == PRCMU_PLLSOC1)
 		clock = (enable ? PLL_SOC1_ON : PLL_SOC1_OFF);
 	else
 		return -EINVAL;
@@ -1079,132 +1264,6 @@ static int request_pll(u8 clock, bool enable)
 
 	return r;
 }
-
-/**
- * prcmu_set_hwacc - set the power state of a h/w accelerator
- * @hwacc_dev: The hardware accelerator (enum hw_acc_dev).
- * @state: The new power state (enum hw_acc_state).
- *
- * This function sets the power state of a hardware accelerator.
- * This function should not be called from interrupt context.
- *
- * NOTE! Deprecated, to be removed when all users switched over to use the
- * regulator framework API.
- */
-int prcmu_set_hwacc(u16 hwacc_dev, u8 state)
-{
-	int r = 0;
-	bool ram_retention = false;
-	bool enable, enable_ret;
-
-	/* check argument */
-	BUG_ON(hwacc_dev >= NUM_HW_ACC);
-
-	/* get state of switches */
-	enable = hwacc_enabled[hwacc_dev];
-	enable_ret = hwacc_ret_enabled[hwacc_dev];
-
-	/* set flag if retention is possible */
-	switch (hwacc_dev) {
-	case HW_ACC_SVAMMDSP:
-	case HW_ACC_SIAMMDSP:
-	case HW_ACC_ESRAM1:
-	case HW_ACC_ESRAM2:
-	case HW_ACC_ESRAM3:
-	case HW_ACC_ESRAM4:
-		ram_retention = true;
-		break;
-	}
-
-	/* check argument */
-	BUG_ON(state > HW_ON);
-	BUG_ON(state == HW_OFF_RAMRET && !ram_retention);
-
-	/* modify enable flags */
-	switch (state) {
-	case HW_OFF:
-		enable_ret = false;
-		enable = false;
-		break;
-	case HW_ON:
-		enable = true;
-		break;
-	case HW_OFF_RAMRET:
-		enable_ret = true;
-		enable = false;
-		break;
-	}
-
-	/* get regulator (lazy) */
-	if (hwacc_regulator[hwacc_dev] == NULL) {
-		hwacc_regulator[hwacc_dev] = regulator_get(NULL,
-			hwacc_regulator_name[hwacc_dev]);
-		if (IS_ERR(hwacc_regulator[hwacc_dev])) {
-			pr_err("prcmu: failed to get supply %s\n",
-				hwacc_regulator_name[hwacc_dev]);
-			r = PTR_ERR(hwacc_regulator[hwacc_dev]);
-			goto out;
-		}
-	}
-
-	if (ram_retention) {
-		if (hwacc_ret_regulator[hwacc_dev] == NULL) {
-			hwacc_ret_regulator[hwacc_dev] = regulator_get(NULL,
-				hwacc_ret_regulator_name[hwacc_dev]);
-			if (IS_ERR(hwacc_ret_regulator[hwacc_dev])) {
-				pr_err("prcmu: failed to get supply %s\n",
-					hwacc_ret_regulator_name[hwacc_dev]);
-				r = PTR_ERR(hwacc_ret_regulator[hwacc_dev]);
-				goto out;
-			}
-		}
-	}
-
-	/* set regulators */
-	if (ram_retention) {
-		if (enable_ret && !hwacc_ret_enabled[hwacc_dev]) {
-			r = regulator_enable(hwacc_ret_regulator[hwacc_dev]);
-			if (r < 0) {
-				pr_err("prcmu_set_hwacc: ret enable failed\n");
-				goto out;
-			}
-			hwacc_ret_enabled[hwacc_dev] = true;
-		}
-	}
-
-	if (enable && !hwacc_enabled[hwacc_dev]) {
-		r = regulator_enable(hwacc_regulator[hwacc_dev]);
-		if (r < 0) {
-			pr_err("prcmu_set_hwacc: enable failed\n");
-			goto out;
-		}
-		hwacc_enabled[hwacc_dev] = true;
-	}
-
-	if (!enable && hwacc_enabled[hwacc_dev]) {
-		r = regulator_disable(hwacc_regulator[hwacc_dev]);
-		if (r < 0) {
-			pr_err("prcmu_set_hwacc: disable failed\n");
-			goto out;
-		}
-		hwacc_enabled[hwacc_dev] = false;
-	}
-
-	if (ram_retention) {
-		if (!enable_ret && hwacc_ret_enabled[hwacc_dev]) {
-			r = regulator_disable(hwacc_ret_regulator[hwacc_dev]);
-			if (r < 0) {
-				pr_err("prcmu_set_hwacc: ret disable failed\n");
-				goto out;
-			}
-			hwacc_ret_enabled[hwacc_dev] = false;
-		}
-	}
-
-out:
-	return r;
-}
-EXPORT_SYMBOL(prcmu_set_hwacc);
 
 /**
  * db8500_prcmu_set_epod - set the state of a EPOD (power domain)
@@ -1375,7 +1434,7 @@ static int request_timclk(bool enable)
 	return 0;
 }
 
-static int request_reg_clock(u8 clock, bool enable)
+static int request_clock(u8 clock, bool enable)
 {
 	u32 val;
 	unsigned long flags;
@@ -1386,14 +1445,14 @@ static int request_reg_clock(u8 clock, bool enable)
 	while ((readl(PRCM_SEM) & PRCM_SEM_PRCM_SEM) != 0)
 		cpu_relax();
 
-	val = readl(_PRCMU_BASE + clk_mgt[clock].offset);
+	val = readl(clk_mgt[clock].reg);
 	if (enable) {
 		val |= (PRCM_CLK_MGT_CLKEN | clk_mgt[clock].pllsw);
 	} else {
 		clk_mgt[clock].pllsw = (val & PRCM_CLK_MGT_CLKPLLSW_MASK);
 		val &= ~(PRCM_CLK_MGT_CLKEN | PRCM_CLK_MGT_CLKPLLSW_MASK);
 	}
-	writel(val, (_PRCMU_BASE + clk_mgt[clock].offset));
+	writel(val, clk_mgt[clock].reg);
 
 	/* Release the HW semaphore. */
 	writel(0, PRCM_SEM);
@@ -1413,7 +1472,7 @@ static int request_sga_clock(u8 clock, bool enable)
 		writel(val | PRCM_CGATING_BYPASS_ICN2, PRCM_CGATING_BYPASS);
 	}
 
-	ret = request_reg_clock(clock, enable);
+	ret = request_clock(clock, enable);
 
 	if (!ret && !enable) {
 		val = readl(PRCM_CGATING_BYPASS);
@@ -1421,6 +1480,78 @@ static int request_sga_clock(u8 clock, bool enable)
 	}
 
 	return ret;
+}
+
+static inline bool plldsi_locked(void)
+{
+	return (readl(PRCM_PLLDSI_LOCKP) &
+		(PRCM_PLLDSI_LOCKP_PRCM_PLLDSI_LOCKP10 |
+		 PRCM_PLLDSI_LOCKP_PRCM_PLLDSI_LOCKP3)) ==
+		(PRCM_PLLDSI_LOCKP_PRCM_PLLDSI_LOCKP10 |
+		 PRCM_PLLDSI_LOCKP_PRCM_PLLDSI_LOCKP3);
+}
+
+static int request_plldsi(bool enable)
+{
+	int r = 0;
+	u32 val;
+
+	writel((PRCM_MMIP_LS_CLAMP_DSIPLL_CLAMP |
+		PRCM_MMIP_LS_CLAMP_DSIPLL_CLAMPI), (enable ?
+		PRCM_MMIP_LS_CLAMP_CLR : PRCM_MMIP_LS_CLAMP_SET));
+
+	val = readl(PRCM_PLLDSI_ENABLE);
+	if (enable)
+		val |= PRCM_PLLDSI_ENABLE_PRCM_PLLDSI_ENABLE;
+	else
+		val &= ~PRCM_PLLDSI_ENABLE_PRCM_PLLDSI_ENABLE;
+	writel(val, PRCM_PLLDSI_ENABLE);
+
+	if (enable) {
+		unsigned int i;
+		bool locked = plldsi_locked();
+
+		for (i = 10; !locked && (i > 0); --i) {
+			udelay(100);
+			locked = plldsi_locked();
+		}
+		if (locked) {
+			writel(PRCM_APE_RESETN_DSIPLL_RESETN,
+				PRCM_APE_RESETN_SET);
+		} else {
+			writel((PRCM_MMIP_LS_CLAMP_DSIPLL_CLAMP |
+				PRCM_MMIP_LS_CLAMP_DSIPLL_CLAMPI),
+				PRCM_MMIP_LS_CLAMP_SET);
+			val &= ~PRCM_PLLDSI_ENABLE_PRCM_PLLDSI_ENABLE;
+			writel(val, PRCM_PLLDSI_ENABLE);
+			r = -EAGAIN;
+		}
+	} else {
+		writel(PRCM_APE_RESETN_DSIPLL_RESETN, PRCM_APE_RESETN_CLR);
+	}
+	return r;
+}
+
+static int request_dsiclk(u8 n, bool enable)
+{
+	u32 val;
+
+	val = readl(PRCM_DSI_PLLOUT_SEL);
+	val &= ~dsiclk[n].divsel_mask;
+	val |= ((enable ? dsiclk[n].divsel : PRCM_DSI_PLLOUT_SEL_OFF) <<
+		dsiclk[n].divsel_shift);
+	writel(val, PRCM_DSI_PLLOUT_SEL);
+	return 0;
+}
+
+static int request_dsiescclk(u8 n, bool enable)
+{
+	u32 val;
+
+	val = readl(PRCM_DSITVCLK_DIV);
+	enable ? (val |= dsiescclk[n].en) : (val &= ~dsiescclk[n].en);
+	writel(val, PRCM_DSITVCLK_DIV);
+	return 0;
 }
 
 /**
@@ -1433,21 +1564,435 @@ static int request_sga_clock(u8 clock, bool enable)
  */
 int db8500_prcmu_request_clock(u8 clock, bool enable)
 {
-	switch(clock) {
-	case PRCMU_SGACLK:
+	if (clock == PRCMU_SGACLK)
 		return request_sga_clock(clock, enable);
-	case PRCMU_TIMCLK:
+	else if (clock < PRCMU_NUM_REG_CLOCKS)
+		return request_clock(clock, enable);
+	else if (clock == PRCMU_TIMCLK)
 		return request_timclk(enable);
-	case PRCMU_SYSCLK:
+	else if ((clock == PRCMU_DSI0CLK) || (clock == PRCMU_DSI1CLK))
+		return request_dsiclk((clock - PRCMU_DSI0CLK), enable);
+	else if ((PRCMU_DSI0ESCCLK <= clock) && (clock <= PRCMU_DSI2ESCCLK))
+		return request_dsiescclk((clock - PRCMU_DSI0ESCCLK), enable);
+	else if (clock == PRCMU_PLLDSI)
+		return request_plldsi(enable);
+	else if (clock == PRCMU_SYSCLK)
 		return request_sysclk(enable);
-	case PRCMU_PLLSOC1:
+	else if ((clock == PRCMU_PLLSOC0) || (clock == PRCMU_PLLSOC1))
 		return request_pll(clock, enable);
-	default:
-		break;
+	else
+		return -EINVAL;
+}
+
+static unsigned long pll_rate(void __iomem *reg, unsigned long src_rate,
+	int branch)
+{
+	u64 rate;
+	u32 val;
+	u32 d;
+	u32 div = 1;
+
+	val = readl(reg);
+
+	rate = src_rate;
+	rate *= ((val & PRCM_PLL_FREQ_D_MASK) >> PRCM_PLL_FREQ_D_SHIFT);
+
+	d = ((val & PRCM_PLL_FREQ_N_MASK) >> PRCM_PLL_FREQ_N_SHIFT);
+	if (d > 1)
+		div *= d;
+
+	d = ((val & PRCM_PLL_FREQ_R_MASK) >> PRCM_PLL_FREQ_R_SHIFT);
+	if (d > 1)
+		div *= d;
+
+	if (val & PRCM_PLL_FREQ_SELDIV2)
+		div *= 2;
+
+	if ((branch == PLL_FIX) || ((branch == PLL_DIV) &&
+		(val & PRCM_PLL_FREQ_DIV2EN) &&
+		((reg == PRCM_PLLSOC0_FREQ) ||
+		 (reg == PRCM_PLLDDR_FREQ))))
+		div *= 2;
+
+	(void)do_div(rate, div);
+
+	return (unsigned long)rate;
+}
+
+#define ROOT_CLOCK_RATE 38400000
+
+static unsigned long clock_rate(u8 clock)
+{
+	u32 val;
+	u32 pllsw;
+	unsigned long rate = ROOT_CLOCK_RATE;
+
+	val = readl(clk_mgt[clock].reg);
+
+	if (val & PRCM_CLK_MGT_CLK38) {
+		if (clk_mgt[clock].clk38div && (val & PRCM_CLK_MGT_CLK38DIV))
+			rate /= 2;
+		return rate;
 	}
+
+	val |= clk_mgt[clock].pllsw;
+	pllsw = (val & PRCM_CLK_MGT_CLKPLLSW_MASK);
+
+	if (pllsw == PRCM_CLK_MGT_CLKPLLSW_SOC0)
+		rate = pll_rate(PRCM_PLLSOC0_FREQ, rate, clk_mgt[clock].branch);
+	else if (pllsw == PRCM_CLK_MGT_CLKPLLSW_SOC1)
+		rate = pll_rate(PRCM_PLLSOC1_FREQ, rate, clk_mgt[clock].branch);
+	else if (pllsw == PRCM_CLK_MGT_CLKPLLSW_DDR)
+		rate = pll_rate(PRCM_PLLDDR_FREQ, rate, clk_mgt[clock].branch);
+	else
+		return 0;
+
+	if ((clock == PRCMU_SGACLK) &&
+		(val & PRCM_SGACLK_MGT_SGACLKDIV_BY_2_5_EN)) {
+		u64 r = (rate * 10);
+
+		(void)do_div(r, 25);
+		return (unsigned long)r;
+	}
+	val &= PRCM_CLK_MGT_CLKPLLDIV_MASK;
+	if (val)
+		return rate / val;
+	else
+		return 0;
+}
+
+static unsigned long dsiclk_rate(u8 n)
+{
+	u32 divsel;
+	u32 div = 1;
+
+	divsel = readl(PRCM_DSI_PLLOUT_SEL);
+	divsel = ((divsel & dsiclk[n].divsel_mask) >> dsiclk[n].divsel_shift);
+
+	if (divsel == PRCM_DSI_PLLOUT_SEL_OFF)
+		divsel = dsiclk[n].divsel;
+
+	switch (divsel) {
+	case PRCM_DSI_PLLOUT_SEL_PHI_4:
+		div *= 2;
+	case PRCM_DSI_PLLOUT_SEL_PHI_2:
+		div *= 2;
+	case PRCM_DSI_PLLOUT_SEL_PHI:
+		return pll_rate(PRCM_PLLDSI_FREQ, clock_rate(PRCMU_HDMICLK),
+			PLL_RAW) / div;
+	default:
+		return 0;
+	}
+}
+
+static unsigned long dsiescclk_rate(u8 n)
+{
+	u32 div;
+
+	div = readl(PRCM_DSITVCLK_DIV);
+	div = ((div & dsiescclk[n].div_mask) >> (dsiescclk[n].div_shift));
+	return clock_rate(PRCMU_TVCLK) / max((u32)1, div);
+}
+
+unsigned long prcmu_clock_rate(u8 clock)
+{
 	if (clock < PRCMU_NUM_REG_CLOCKS)
-		return request_reg_clock(clock, enable);
-	return -EINVAL;
+		return clock_rate(clock);
+	else if (clock == PRCMU_TIMCLK)
+		return ROOT_CLOCK_RATE / 16;
+	else if (clock == PRCMU_SYSCLK)
+		return ROOT_CLOCK_RATE;
+	else if (clock == PRCMU_PLLSOC0)
+		return pll_rate(PRCM_PLLSOC0_FREQ, ROOT_CLOCK_RATE, PLL_RAW);
+	else if (clock == PRCMU_PLLSOC1)
+		return pll_rate(PRCM_PLLSOC1_FREQ, ROOT_CLOCK_RATE, PLL_RAW);
+	else if (clock == PRCMU_PLLDDR)
+		return pll_rate(PRCM_PLLDDR_FREQ, ROOT_CLOCK_RATE, PLL_RAW);
+	else if (clock == PRCMU_PLLDSI)
+		return pll_rate(PRCM_PLLDSI_FREQ, clock_rate(PRCMU_HDMICLK),
+			PLL_RAW);
+	else if ((clock == PRCMU_DSI0CLK) || (clock == PRCMU_DSI1CLK))
+		return dsiclk_rate(clock - PRCMU_DSI0CLK);
+	else if ((PRCMU_DSI0ESCCLK <= clock) && (clock <= PRCMU_DSI2ESCCLK))
+		return dsiescclk_rate(clock - PRCMU_DSI0ESCCLK);
+	else
+		return 0;
+}
+
+static unsigned long clock_source_rate(u32 clk_mgt_val, int branch)
+{
+	if (clk_mgt_val & PRCM_CLK_MGT_CLK38)
+		return ROOT_CLOCK_RATE;
+	clk_mgt_val &= PRCM_CLK_MGT_CLKPLLSW_MASK;
+	if (clk_mgt_val == PRCM_CLK_MGT_CLKPLLSW_SOC0)
+		return pll_rate(PRCM_PLLSOC0_FREQ, ROOT_CLOCK_RATE, branch);
+	else if (clk_mgt_val == PRCM_CLK_MGT_CLKPLLSW_SOC1)
+		return pll_rate(PRCM_PLLSOC1_FREQ, ROOT_CLOCK_RATE, branch);
+	else if (clk_mgt_val == PRCM_CLK_MGT_CLKPLLSW_DDR)
+		return pll_rate(PRCM_PLLDDR_FREQ, ROOT_CLOCK_RATE, branch);
+	else
+		return 0;
+}
+
+static u32 clock_divider(unsigned long src_rate, unsigned long rate)
+{
+	u32 div;
+
+	div = (src_rate / rate);
+	if (div == 0)
+		return 1;
+	if (rate < (src_rate / div))
+		div++;
+	return div;
+}
+
+static long round_clock_rate(u8 clock, unsigned long rate)
+{
+	u32 val;
+	u32 div;
+	unsigned long src_rate;
+	long rounded_rate;
+
+	val = readl(clk_mgt[clock].reg);
+	src_rate = clock_source_rate((val | clk_mgt[clock].pllsw),
+		clk_mgt[clock].branch);
+	div = clock_divider(src_rate, rate);
+	if (val & PRCM_CLK_MGT_CLK38) {
+		if (clk_mgt[clock].clk38div) {
+			if (div > 2)
+				div = 2;
+		} else {
+			div = 1;
+		}
+	} else if ((clock == PRCMU_SGACLK) && (div == 3)) {
+		u64 r = (src_rate * 10);
+
+		(void)do_div(r, 25);
+		if (r <= rate)
+			return (unsigned long)r;
+	}
+	rounded_rate = (src_rate / min(div, (u32)31));
+
+	return rounded_rate;
+}
+
+#define MIN_PLL_VCO_RATE 600000000ULL
+#define MAX_PLL_VCO_RATE 1680640000ULL
+
+static long round_plldsi_rate(unsigned long rate)
+{
+	long rounded_rate = 0;
+	unsigned long src_rate;
+	unsigned long rem;
+	u32 r;
+
+	src_rate = clock_rate(PRCMU_HDMICLK);
+	rem = rate;
+
+	for (r = 7; (rem > 0) && (r > 0); r--) {
+		u64 d;
+
+		d = (r * rate);
+		(void)do_div(d, src_rate);
+		if (d < 6)
+			d = 6;
+		else if (d > 255)
+			d = 255;
+		d *= src_rate;
+		if (((2 * d) < (r * MIN_PLL_VCO_RATE)) ||
+			((r * MAX_PLL_VCO_RATE) < (2 * d)))
+			continue;
+		(void)do_div(d, r);
+		if (rate < d) {
+			if (rounded_rate == 0)
+				rounded_rate = (long)d;
+			break;
+		}
+		if ((rate - d) < rem) {
+			rem = (rate - d);
+			rounded_rate = (long)d;
+		}
+	}
+	return rounded_rate;
+}
+
+static long round_dsiclk_rate(unsigned long rate)
+{
+	u32 div;
+	unsigned long src_rate;
+	long rounded_rate;
+
+	src_rate = pll_rate(PRCM_PLLDSI_FREQ, clock_rate(PRCMU_HDMICLK),
+		PLL_RAW);
+	div = clock_divider(src_rate, rate);
+	rounded_rate = (src_rate / ((div > 2) ? 4 : div));
+
+	return rounded_rate;
+}
+
+static long round_dsiescclk_rate(unsigned long rate)
+{
+	u32 div;
+	unsigned long src_rate;
+	long rounded_rate;
+
+	src_rate = clock_rate(PRCMU_TVCLK);
+	div = clock_divider(src_rate, rate);
+	rounded_rate = (src_rate / min(div, (u32)255));
+
+	return rounded_rate;
+}
+
+long prcmu_round_clock_rate(u8 clock, unsigned long rate)
+{
+	if (clock < PRCMU_NUM_REG_CLOCKS)
+		return round_clock_rate(clock, rate);
+	else if (clock == PRCMU_PLLDSI)
+		return round_plldsi_rate(rate);
+	else if ((clock == PRCMU_DSI0CLK) || (clock == PRCMU_DSI1CLK))
+		return round_dsiclk_rate(rate);
+	else if ((PRCMU_DSI0ESCCLK <= clock) && (clock <= PRCMU_DSI2ESCCLK))
+		return round_dsiescclk_rate(rate);
+	else
+		return (long)prcmu_clock_rate(clock);
+}
+
+static void set_clock_rate(u8 clock, unsigned long rate)
+{
+	u32 val;
+	u32 div;
+	unsigned long src_rate;
+	unsigned long flags;
+
+	spin_lock_irqsave(&clk_mgt_lock, flags);
+
+	/* Grab the HW semaphore. */
+	while ((readl(PRCM_SEM) & PRCM_SEM_PRCM_SEM) != 0)
+		cpu_relax();
+
+	val = readl(clk_mgt[clock].reg);
+	src_rate = clock_source_rate((val | clk_mgt[clock].pllsw),
+		clk_mgt[clock].branch);
+	div = clock_divider(src_rate, rate);
+	if (val & PRCM_CLK_MGT_CLK38) {
+		if (clk_mgt[clock].clk38div) {
+			if (div > 1)
+				val |= PRCM_CLK_MGT_CLK38DIV;
+			else
+				val &= ~PRCM_CLK_MGT_CLK38DIV;
+		}
+	} else if (clock == PRCMU_SGACLK) {
+		val &= ~(PRCM_CLK_MGT_CLKPLLDIV_MASK |
+			PRCM_SGACLK_MGT_SGACLKDIV_BY_2_5_EN);
+		if (div == 3) {
+			u64 r = (src_rate * 10);
+
+			(void)do_div(r, 25);
+			if (r <= rate) {
+				val |= PRCM_SGACLK_MGT_SGACLKDIV_BY_2_5_EN;
+				div = 0;
+			}
+		}
+		val |= min(div, (u32)31);
+	} else {
+		val &= ~PRCM_CLK_MGT_CLKPLLDIV_MASK;
+		val |= min(div, (u32)31);
+	}
+	writel(val, clk_mgt[clock].reg);
+
+	/* Release the HW semaphore. */
+	writel(0, PRCM_SEM);
+
+	spin_unlock_irqrestore(&clk_mgt_lock, flags);
+}
+
+static int set_plldsi_rate(unsigned long rate)
+{
+	unsigned long src_rate;
+	unsigned long rem;
+	u32 pll_freq = 0;
+	u32 r;
+
+	src_rate = clock_rate(PRCMU_HDMICLK);
+	rem = rate;
+
+	for (r = 7; (rem > 0) && (r > 0); r--) {
+		u64 d;
+		u64 hwrate;
+
+		d = (r * rate);
+		(void)do_div(d, src_rate);
+		if (d < 6)
+			d = 6;
+		else if (d > 255)
+			d = 255;
+		hwrate = (d * src_rate);
+		if (((2 * hwrate) < (r * MIN_PLL_VCO_RATE)) ||
+			((r * MAX_PLL_VCO_RATE) < (2 * hwrate)))
+			continue;
+		(void)do_div(hwrate, r);
+		if (rate < hwrate) {
+			if (pll_freq == 0)
+				pll_freq = (((u32)d << PRCM_PLL_FREQ_D_SHIFT) |
+					(r << PRCM_PLL_FREQ_R_SHIFT));
+			break;
+		}
+		if ((rate - hwrate) < rem) {
+			rem = (rate - hwrate);
+			pll_freq = (((u32)d << PRCM_PLL_FREQ_D_SHIFT) |
+				(r << PRCM_PLL_FREQ_R_SHIFT));
+		}
+	}
+	if (pll_freq == 0)
+		return -EINVAL;
+
+	pll_freq |= (1 << PRCM_PLL_FREQ_N_SHIFT);
+	writel(pll_freq, PRCM_PLLDSI_FREQ);
+
+	return 0;
+}
+
+static void set_dsiclk_rate(u8 n, unsigned long rate)
+{
+	u32 val;
+	u32 div;
+
+	div = clock_divider(pll_rate(PRCM_PLLDSI_FREQ,
+			clock_rate(PRCMU_HDMICLK), PLL_RAW), rate);
+
+	dsiclk[n].divsel = (div == 1) ? PRCM_DSI_PLLOUT_SEL_PHI :
+			   (div == 2) ? PRCM_DSI_PLLOUT_SEL_PHI_2 :
+			   /* else */	PRCM_DSI_PLLOUT_SEL_PHI_4;
+
+	val = readl(PRCM_DSI_PLLOUT_SEL);
+	val &= ~dsiclk[n].divsel_mask;
+	val |= (dsiclk[n].divsel << dsiclk[n].divsel_shift);
+	writel(val, PRCM_DSI_PLLOUT_SEL);
+}
+
+static void set_dsiescclk_rate(u8 n, unsigned long rate)
+{
+	u32 val;
+	u32 div;
+
+	div = clock_divider(clock_rate(PRCMU_TVCLK), rate);
+	val = readl(PRCM_DSITVCLK_DIV);
+	val &= ~dsiescclk[n].div_mask;
+	val |= (min(div, (u32)255) << dsiescclk[n].div_shift);
+	writel(val, PRCM_DSITVCLK_DIV);
+}
+
+int prcmu_set_clock_rate(u8 clock, unsigned long rate)
+{
+	if (clock < PRCMU_NUM_REG_CLOCKS)
+		set_clock_rate(clock, rate);
+	else if (clock == PRCMU_PLLDSI)
+		return set_plldsi_rate(rate);
+	else if ((clock == PRCMU_DSI0CLK) || (clock == PRCMU_DSI1CLK))
+		set_dsiclk_rate((clock - PRCMU_DSI0CLK), rate);
+	else if ((PRCMU_DSI0ESCCLK <= clock) && (clock <= PRCMU_DSI2ESCCLK))
+		set_dsiescclk_rate((clock - PRCMU_DSI0ESCCLK), rate);
+	return 0;
 }
 
 int db8500_prcmu_config_esram0_deep_sleep(u8 state)
@@ -1476,7 +2021,7 @@ int db8500_prcmu_config_esram0_deep_sleep(u8 state)
 	return 0;
 }
 
-int prcmu_config_hotdog(u8 threshold)
+int db8500_prcmu_config_hotdog(u8 threshold)
 {
 	mutex_lock(&mb4_transfer.lock);
 
@@ -1494,7 +2039,7 @@ int prcmu_config_hotdog(u8 threshold)
 	return 0;
 }
 
-int prcmu_config_hotmon(u8 low, u8 high)
+int db8500_prcmu_config_hotmon(u8 low, u8 high)
 {
 	mutex_lock(&mb4_transfer.lock);
 
@@ -1533,7 +2078,7 @@ static int config_hot_period(u16 val)
 	return 0;
 }
 
-int prcmu_start_temp_sense(u16 cycles32k)
+int db8500_prcmu_start_temp_sense(u16 cycles32k)
 {
 	if (cycles32k == 0xFFFF)
 		return -EINVAL;
@@ -1541,7 +2086,7 @@ int prcmu_start_temp_sense(u16 cycles32k)
 	return config_hot_period(cycles32k);
 }
 
-int prcmu_stop_temp_sense(void)
+int db8500_prcmu_stop_temp_sense(void)
 {
 	return config_hot_period(0xFFFF);
 }
@@ -1570,7 +2115,7 @@ static int prcmu_a9wdog(u8 cmd, u8 d0, u8 d1, u8 d2, u8 d3)
 
 }
 
-int prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
+int db8500_prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 {
 	BUG_ON(num == 0 || num > 0xf);
 	return prcmu_a9wdog(MB4H_A9WDOG_CONF, num, 0, 0,
@@ -1578,17 +2123,17 @@ int prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 			    A9WDOG_AUTO_OFF_DIS);
 }
 
-int prcmu_enable_a9wdog(u8 id)
+int db8500_prcmu_enable_a9wdog(u8 id)
 {
 	return prcmu_a9wdog(MB4H_A9WDOG_EN, id, 0, 0, 0);
 }
 
-int prcmu_disable_a9wdog(u8 id)
+int db8500_prcmu_disable_a9wdog(u8 id)
 {
 	return prcmu_a9wdog(MB4H_A9WDOG_DIS, id, 0, 0, 0);
 }
 
-int prcmu_kick_a9wdog(u8 id)
+int db8500_prcmu_kick_a9wdog(u8 id)
 {
 	return prcmu_a9wdog(MB4H_A9WDOG_KICK, id, 0, 0, 0);
 }
@@ -1596,16 +2141,8 @@ int prcmu_kick_a9wdog(u8 id)
 /*
  * timeout is 28 bit, in ms.
  */
-#define MAX_WATCHDOG_TIMEOUT 131000
-int prcmu_load_a9wdog(u8 id, u32 timeout)
+int db8500_prcmu_load_a9wdog(u8 id, u32 timeout)
 {
-	if (timeout > MAX_WATCHDOG_TIMEOUT)
-		/*
-		 * Due to calculation bug in prcmu fw, timeouts
-		 * can't be bigger than 131 seconds.
-		 */
-		return -EINVAL;
-
 	return prcmu_a9wdog(MB4H_A9WDOG_LOAD,
 			    (id & A9WDOG_ID_MASK) |
 			    /*
@@ -1616,41 +2153,6 @@ int prcmu_load_a9wdog(u8 id, u32 timeout)
 			    (u8)((timeout >> 4) & 0xff),
 			    (u8)((timeout >> 12) & 0xff),
 			    (u8)((timeout >> 20) & 0xff));
-}
-
-/**
- * prcmu_set_clock_divider() - Configure the clock divider.
- * @clock:	The clock for which the request is made.
- * @divider:	The clock divider. (< 32)
- *
- * This function should only be used by the clock implementation.
- * Do not use it from any other place!
- */
-int prcmu_set_clock_divider(u8 clock, u8 divider)
-{
-	u32 val;
-	unsigned long flags;
-
-	if ((clock >= PRCMU_NUM_REG_CLOCKS) || (divider < 1) || (31 < divider))
-		return -EINVAL;
-
-	spin_lock_irqsave(&clk_mgt_lock, flags);
-
-	/* Grab the HW semaphore. */
-	while ((readl(PRCM_SEM) & PRCM_SEM_PRCM_SEM) != 0)
-		cpu_relax();
-
-	val = readl(_PRCMU_BASE + clk_mgt[clock].offset);
-	val &= ~(PRCM_CLK_MGT_CLKPLLDIV_MASK);
-	val |= (u32)divider;
-	writel(val, (_PRCMU_BASE + clk_mgt[clock].offset));
-
-	/* Release the HW semaphore. */
-	writel(0, PRCM_SEM);
-
-	spin_unlock_irqrestore(&clk_mgt_lock, flags);
-
-	return 0;
 }
 
 /**
@@ -1675,6 +2177,7 @@ int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size)
 	while (readl(PRCM_MBOX_CPU_VAL) & MBOX_BIT(5))
 		cpu_relax();
 
+	writeb(0, (tcdm_base + PRCM_MBOX_HEADER_REQ_MB5));
 	writeb(PRCMU_I2C_READ(slave), (tcdm_base + PRCM_REQ_MB5_I2C_SLAVE_OP));
 	writeb(PRCMU_I2C_STOP_EN, (tcdm_base + PRCM_REQ_MB5_I2C_HW_BITS));
 	writeb(reg, (tcdm_base + PRCM_REQ_MB5_I2C_REG));
@@ -1700,16 +2203,19 @@ int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size)
 }
 
 /**
- * prcmu_abb_write() - Write register value(s) to the ABB.
+ * prcmu_abb_write_masked() - Write masked register value(s) to the ABB.
  * @slave:	The I2C slave address.
  * @reg:	The (start) register address.
  * @value:	The value(s) to write.
+ * @mask:	The mask(s) to use.
  * @size:	The number of registers to write.
  *
- * Reads register value(s) from the ABB.
+ * Writes masked register value(s) to the ABB.
+ * For each @value, only the bits set to 1 in the corresponding @mask
+ * will be written. The other bits are not changed.
  * @size has to be 1 for the current firmware version.
  */
-int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
+int prcmu_abb_write_masked(u8 slave, u8 reg, u8 *value, u8 *mask, u8 size)
 {
 	int r;
 
@@ -1721,6 +2227,7 @@ int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
 	while (readl(PRCM_MBOX_CPU_VAL) & MBOX_BIT(5))
 		cpu_relax();
 
+	writeb(~*mask, (tcdm_base + PRCM_MBOX_HEADER_REQ_MB5));
 	writeb(PRCMU_I2C_WRITE(slave), (tcdm_base + PRCM_REQ_MB5_I2C_SLAVE_OP));
 	writeb(PRCMU_I2C_STOP_EN, (tcdm_base + PRCM_REQ_MB5_I2C_HW_BITS));
 	writeb(reg, (tcdm_base + PRCM_REQ_MB5_I2C_REG));
@@ -1740,6 +2247,23 @@ int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
 	mutex_unlock(&mb5_transfer.lock);
 
 	return r;
+}
+
+/**
+ * prcmu_abb_write() - Write register value(s) to the ABB.
+ * @slave:	The I2C slave address.
+ * @reg:	The (start) register address.
+ * @value:	The value(s) to write.
+ * @size:	The number of registers to write.
+ *
+ * Writes register value(s) to the ABB.
+ * @size has to be 1 for the current firmware version.
+ */
+int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
+{
+	u8 mask = ~0;
+
+	return prcmu_abb_write_masked(slave, reg, value, &mask, size);
 }
 
 /**
@@ -1850,9 +2374,9 @@ u16 db8500_prcmu_get_reset_code(void)
 }
 
 /**
- * prcmu_reset_modem - ask the PRCMU to reset modem
+ * db8500_prcmu_reset_modem - ask the PRCMU to reset modem
  */
-void prcmu_modem_reset(void)
+void db8500_prcmu_modem_reset(void)
 {
 	mutex_lock(&mb1_transfer.lock);
 
@@ -2099,6 +2623,26 @@ static struct irq_chip prcmu_irq_chip = {
 	.irq_unmask	= prcmu_irq_unmask,
 };
 
+static char *fw_project_name(u8 project)
+{
+	switch (project) {
+	case PRCMU_FW_PROJECT_U8500:
+		return "U8500";
+	case PRCMU_FW_PROJECT_U8500_C2:
+		return "U8500 C2";
+	case PRCMU_FW_PROJECT_U9500:
+		return "U9500";
+	case PRCMU_FW_PROJECT_U9500_C2:
+		return "U9500 C2";
+	case PRCMU_FW_PROJECT_U8520:
+		return "U8520";
+	case PRCMU_FW_PROJECT_U8420:
+		return "U8420";
+	default:
+		return "Unknown";
+	}
+}
+
 void __init db8500_prcmu_early_init(void)
 {
 	unsigned int i;
@@ -2108,11 +2652,13 @@ void __init db8500_prcmu_early_init(void)
 		if (tcpm_base != NULL) {
 			u32 version;
 			version = readl(tcpm_base + PRCMU_FW_VERSION_OFFSET);
-			prcmu_version.project_number = version & 0xFF;
-			prcmu_version.api_version = (version >> 8) & 0xFF;
-			prcmu_version.func_version = (version >> 16) & 0xFF;
-			prcmu_version.errata = (version >> 24) & 0xFF;
-			pr_info("PRCMU firmware version %d.%d.%d\n",
+			fw_info.version.project = version & 0xFF;
+			fw_info.version.api_version = (version >> 8) & 0xFF;
+			fw_info.version.func_version = (version >> 16) & 0xFF;
+			fw_info.version.errata = (version >> 24) & 0xFF;
+			fw_info.valid = true;
+			pr_info("PRCMU firmware: %s, version %d.%d.%d\n",
+				fw_project_name(fw_info.version.project),
 				(version >> 8) & 0xFF, (version >> 16) & 0xFF,
 				(version >> 24) & 0xFF);
 			iounmap(tcpm_base);
@@ -2130,6 +2676,7 @@ void __init db8500_prcmu_early_init(void)
 	init_completion(&mb0_transfer.ac_wake_work);
 	mutex_init(&mb1_transfer.lock);
 	init_completion(&mb1_transfer.work);
+	mb1_transfer.ape_opp = APE_NO_CHANGE;
 	mutex_init(&mb2_transfer.lock);
 	init_completion(&mb2_transfer.work);
 	spin_lock_init(&mb2_transfer.auto_pm_lock);
@@ -2154,7 +2701,7 @@ void __init db8500_prcmu_early_init(void)
 	}
 }
 
-static void __init db8500_prcmu_init_clkforce(void)
+static void __init init_prcm_registers(void)
 {
 	u32 val;
 
@@ -2186,19 +2733,17 @@ static struct regulator_consumer_supply db8500_vape_consumers[] = {
 	REGULATOR_SUPPLY("vcore", "uart1"),
 	REGULATOR_SUPPLY("vcore", "uart2"),
 	REGULATOR_SUPPLY("v-ape", "nmk-ske-keypad.0"),
+	REGULATOR_SUPPLY("v-hsi", "ste_hsi.0"),
 };
 
 static struct regulator_consumer_supply db8500_vsmps2_consumers[] = {
-	/* CG2900 and CW1200 power to off-chip peripherals */
-	REGULATOR_SUPPLY("gbf_1v8", "cg2900-uart.0"),
-	REGULATOR_SUPPLY("wlan_1v8", "cw1200.0"),
 	REGULATOR_SUPPLY("musb_1v8", "ab8500-usb.0"),
 	/* AV8100 regulator */
 	REGULATOR_SUPPLY("hdmi_1v8", "0-0070"),
 };
 
 static struct regulator_consumer_supply db8500_b2r2_mcde_consumers[] = {
-	REGULATOR_SUPPLY("vsupply", "b2r2.0"),
+	REGULATOR_SUPPLY("vsupply", "b2r2_bus"),
 	REGULATOR_SUPPLY("vsupply", "mcde"),
 };
 
@@ -2235,6 +2780,7 @@ static struct regulator_consumer_supply db8500_esram12_consumers[] = {
 static struct regulator_consumer_supply db8500_esram34_consumers[] = {
 	REGULATOR_SUPPLY("v-esram34", "mcde"),
 	REGULATOR_SUPPLY("esram34", "cm_control"),
+	REGULATOR_SUPPLY("lcla_esram", "dma40.0"),
 };
 
 static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
@@ -2242,6 +2788,7 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 		.constraints = {
 			.name = "db8500-vape",
 			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+			.always_on = true,
 		},
 		.consumer_supplies = db8500_vape_consumers,
 		.num_consumer_supplies = ARRAY_SIZE(db8500_vape_consumers),
@@ -2291,7 +2838,7 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 		},
 	},
 	[DB8500_REGULATOR_SWITCH_SVAMMDSP] = {
-		.supply_regulator = "db8500-vape",
+		/* dependency to u8500-vape is handled outside regulator framework */
 		.constraints = {
 			.name = "db8500-sva-mmdsp",
 			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
@@ -2307,7 +2854,7 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 		},
 	},
 	[DB8500_REGULATOR_SWITCH_SVAPIPE] = {
-		.supply_regulator = "db8500-vape",
+		/* dependency to u8500-vape is handled outside regulator framework */
 		.constraints = {
 			.name = "db8500-sva-pipe",
 			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
@@ -2316,7 +2863,7 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 		.num_consumer_supplies = ARRAY_SIZE(db8500_svapipe_consumers),
 	},
 	[DB8500_REGULATOR_SWITCH_SIAMMDSP] = {
-		.supply_regulator = "db8500-vape",
+		/* dependency to u8500-vape is handled outside regulator framework */
 		.constraints = {
 			.name = "db8500-sia-mmdsp",
 			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
@@ -2331,7 +2878,7 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 		},
 	},
 	[DB8500_REGULATOR_SWITCH_SIAPIPE] = {
-		.supply_regulator = "db8500-vape",
+		/* dependency to u8500-vape is handled outside regulator framework */
 		.constraints = {
 			.name = "db8500-sia-pipe",
 			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
@@ -2359,7 +2906,10 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 		.num_consumer_supplies = ARRAY_SIZE(db8500_b2r2_mcde_consumers),
 	},
 	[DB8500_REGULATOR_SWITCH_ESRAM12] = {
-		.supply_regulator = "db8500-vape",
+		/*
+		 * esram12 is set in retention and supplied by Vsafe when Vape is off,
+		 * no need to hold Vape
+		 */
 		.constraints = {
 			.name = "db8500-esram12",
 			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
@@ -2374,7 +2924,10 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 		},
 	},
 	[DB8500_REGULATOR_SWITCH_ESRAM34] = {
-		.supply_regulator = "db8500-vape",
+		/*
+		 * esram34 is set in retention and supplied by Vsafe when Vape is off,
+		 * no need to hold Vape
+		 */
 		.constraints = {
 			.name = "db8500-esram34",
 			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
@@ -2412,7 +2965,7 @@ static int __init db8500_prcmu_probe(struct platform_device *pdev)
 	if (ux500_is_svp())
 		return -ENODEV;
 
-	db8500_prcmu_init_clkforce();
+	init_prcm_registers();
 
 	/* Clean up the mailbox interrupts after pre-kernel code. */
 	writel(ALL_MBOX_BITS, PRCM_ARM_IT1_CLR);

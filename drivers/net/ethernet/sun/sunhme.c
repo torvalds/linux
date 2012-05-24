@@ -36,7 +36,6 @@
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/byteorder.h>
@@ -2043,7 +2042,7 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 			/* Trim the original skb for the netif. */
 			skb_trim(skb, len);
 		} else {
-			struct sk_buff *copy_skb = dev_alloc_skb(len + 2);
+			struct sk_buff *copy_skb = netdev_alloc_skb(dev, len + 2);
 
 			if (copy_skb == NULL) {
 				drops++;

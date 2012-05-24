@@ -193,7 +193,7 @@ static struct dentry *btrfs_get_parent(struct dentry *child)
 	if (ret < 0)
 		goto fail;
 
-	BUG_ON(ret == 0);
+	BUG_ON(ret == 0); /* Key with offset of -1 found */
 	if (path->slots[0] == 0) {
 		ret = -ENOENT;
 		goto fail;

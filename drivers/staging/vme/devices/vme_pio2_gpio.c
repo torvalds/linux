@@ -187,7 +187,7 @@ int pio2_gpio_reset(struct pio2_card *card)
 	return 0;
 }
 
-int __init pio2_gpio_init(struct pio2_card *card)
+int __devinit pio2_gpio_init(struct pio2_card *card)
 {
 	int retval = 0;
 	char *label;
@@ -220,7 +220,7 @@ int __init pio2_gpio_init(struct pio2_card *card)
 	return retval;
 };
 
-void __exit pio2_gpio_exit(struct pio2_card *card)
+void pio2_gpio_exit(struct pio2_card *card)
 {
 	const char *label = card->gc.label;
 

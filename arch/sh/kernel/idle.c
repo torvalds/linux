@@ -17,10 +17,10 @@
 #include <linux/irqflags.h>
 #include <linux/smp.h>
 #include <linux/cpuidle.h>
-#include <asm/pgalloc.h>
-#include <asm/system.h>
 #include <linux/atomic.h>
+#include <asm/pgalloc.h>
 #include <asm/smp.h>
+#include <asm/bl_bit.h>
 
 void (*pm_idle)(void);
 
@@ -114,9 +114,7 @@ void cpu_idle(void)
 
 		rcu_idle_exit();
 		tick_nohz_idle_exit();
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 	}
 }
 

@@ -35,6 +35,7 @@
 #include <linux/dmapool.h>
 #include <linux/of_platform.h>
 
+#include "dmaengine.h"
 #include "fsldma.h"
 
 #define chan_dbg(chan, fmt, arg...)					\
@@ -413,16 +414,9 @@ static dma_cookie_t fsl_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	 * assign cookies to all of the software descriptors
 	 * that make up this transaction
 	 */
-	cookie = chan->common.cookie;
 	list_for_each_entry(child, &desc->tx_list, node) {
-		cookie++;
-		if (cookie < DMA_MIN_COOKIE)
-			cookie = DMA_MIN_COOKIE;
-
-		child->async_tx.cookie = cookie;
+		cookie = dma_cookie_assign(&child->async_tx);
 	}
-
-	chan->common.cookie = cookie;
 
 	/* put this transaction onto the tail of the pending queue */
 	append_ld_queue(chan, desc);
@@ -765,6 +759,7 @@ fail:
  * @sg_len: number of entries in @scatterlist
  * @direction: DMA direction
  * @flags: DMAEngine flags
+ * @context: transaction context (ignored)
  *
  * Prepare a set of descriptors for a DMA_SLAVE transaction. Following the
  * DMA_SLAVE API, this gets the device-specific information from the
@@ -772,7 +767,8 @@ fail:
  */
 static struct dma_async_tx_descriptor *fsl_dma_prep_slave_sg(
 	struct dma_chan *dchan, struct scatterlist *sgl, unsigned int sg_len,
-	enum dma_transfer_direction direction, unsigned long flags)
+	enum dma_transfer_direction direction, unsigned long flags,
+	void *context)
 {
 	/*
 	 * This operation is not supported on the Freescale DMA controller
@@ -984,19 +980,14 @@ static enum dma_status fsl_tx_status(struct dma_chan *dchan,
 					struct dma_tx_state *txstate)
 {
 	struct fsldma_chan *chan = to_fsl_chan(dchan);
-	dma_cookie_t last_complete;
-	dma_cookie_t last_used;
+	enum dma_status ret;
 	unsigned long flags;
 
 	spin_lock_irqsave(&chan->desc_lock, flags);
-
-	last_complete = chan->completed_cookie;
-	last_used = dchan->cookie;
-
+	ret = dma_cookie_status(dchan, cookie, txstate);
 	spin_unlock_irqrestore(&chan->desc_lock, flags);
 
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-	return dma_async_is_complete(cookie, last_complete, last_used);
+	return ret;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1087,8 +1078,8 @@ static void dma_do_tasklet(unsigned long data)
 
 		desc = to_fsl_desc(chan->ld_running.prev);
 		cookie = desc->async_tx.cookie;
+		dma_cookie_complete(&desc->async_tx);
 
-		chan->completed_cookie = cookie;
 		chan_dbg(chan, "completed_cookie=%d\n", cookie);
 	}
 
@@ -1303,6 +1294,7 @@ static int __devinit fsl_dma_chan_probe(struct fsldma_device *fdev,
 	chan->idle = true;
 
 	chan->common.device = &fdev->common;
+	dma_cookie_init(&chan->common);
 
 	/* find the IRQ line, if it exists in the device tree */
 	chan->irq = irq_of_parse_and_map(node, 0);

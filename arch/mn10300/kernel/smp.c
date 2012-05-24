@@ -25,7 +25,6 @@
 #include <linux/profile.h>
 #include <linux/smp.h>
 #include <asm/tlbflush.h>
-#include <asm/system.h>
 #include <asm/bitops.h>
 #include <asm/processor.h>
 #include <asm/bug.h>

@@ -22,6 +22,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/err.h>
+#include <linux/dma-mapping.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -46,6 +47,57 @@ struct usb_udc {
 static struct class *udc_class;
 static LIST_HEAD(udc_list);
 static DEFINE_MUTEX(udc_lock);
+
+/* ------------------------------------------------------------------------- */
+
+int usb_gadget_map_request(struct usb_gadget *gadget,
+		struct usb_request *req, int is_in)
+{
+	if (req->length == 0)
+		return 0;
+
+	if (req->num_sgs) {
+		int     mapped;
+
+		mapped = dma_map_sg(&gadget->dev, req->sg, req->num_sgs,
+				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+		if (mapped == 0) {
+			dev_err(&gadget->dev, "failed to map SGs\n");
+			return -EFAULT;
+		}
+
+		req->num_mapped_sgs = mapped;
+	} else {
+		req->dma = dma_map_single(&gadget->dev, req->buf, req->length,
+				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+
+		if (dma_mapping_error(&gadget->dev, req->dma)) {
+			dev_err(&gadget->dev, "failed to map buffer\n");
+			return -EFAULT;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_gadget_map_request);
+
+void usb_gadget_unmap_request(struct usb_gadget *gadget,
+		struct usb_request *req, int is_in)
+{
+	if (req->length == 0)
+		return;
+
+	if (req->num_mapped_sgs) {
+		dma_unmap_sg(&gadget->dev, req->sg, req->num_mapped_sgs,
+				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+
+		req->num_mapped_sgs = 0;
+	} else {
+		dma_unmap_single(&gadget->dev, req->dma, req->length,
+				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	}
+}
+EXPORT_SYMBOL_GPL(usb_gadget_unmap_request);
 
 /* ------------------------------------------------------------------------- */
 
@@ -212,8 +264,8 @@ static void usb_gadget_remove_driver(struct usb_udc *udc)
 	if (udc_is_newstyle(udc)) {
 		udc->driver->disconnect(udc->gadget);
 		udc->driver->unbind(udc->gadget);
-		usb_gadget_udc_stop(udc->gadget, udc->driver);
 		usb_gadget_disconnect(udc->gadget);
+		usb_gadget_udc_stop(udc->gadget, udc->driver);
 	} else {
 		usb_gadget_stop(udc->gadget, udc->driver);
 	}
@@ -359,8 +411,12 @@ static ssize_t usb_udc_softconn_store(struct device *dev,
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
 
 	if (sysfs_streq(buf, "connect")) {
+		if (udc_is_newstyle(udc))
+			usb_gadget_udc_start(udc->gadget, udc->driver);
 		usb_gadget_connect(udc->gadget);
 	} else if (sysfs_streq(buf, "disconnect")) {
+		if (udc_is_newstyle(udc))
+			usb_gadget_udc_stop(udc->gadget, udc->driver);
 		usb_gadget_disconnect(udc->gadget);
 	} else {
 		dev_err(dev, "unsupported command '%s'\n", buf);

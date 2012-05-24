@@ -139,7 +139,6 @@ void cpc_tty_init(pc300dev_t *dev);
 void cpc_tty_unregister_service(pc300dev_t *pc300dev);
 void cpc_tty_receive(pc300dev_t *pc300dev);
 void cpc_tty_trigger_poll(pc300dev_t *pc300dev);
-void cpc_tty_reset_var(void);
 
 /*
  * PC300 TTY clear "signal"
@@ -1078,20 +1077,3 @@ void cpc_tty_trigger_poll(pc300dev_t *pc300dev)
 	}
 	schedule_work(&(cpc_tty->tty_tx_work)); 
 } 
-
-/*
- * PC300 TTY reset var routine
- * This routine is called by pc300driver to init the TTY area. 
- */
-
-void cpc_tty_reset_var(void)
-{
-	int i ; 
-
-	CPC_TTY_DBG("hdlcX-tty: reset variables\n");
-	/* reset  the tty_driver structure - serial_drv */ 
-	memset(&serial_drv, 0, sizeof(struct tty_driver));
-	for (i=0; i < CPC_TTY_NPORTS; i++){
-		memset(&cpc_tty_area[i],0, sizeof(st_cpc_tty_area)); 
-	}
-}

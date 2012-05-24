@@ -13,7 +13,6 @@
 #include <linux/pm.h>
 #include <linux/tick.h>
 #include <linux/bitops.h>
-#include <asm/system.h>
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h> /* for USER_DS macros */
 #include <asm/cacheflush.h>
@@ -110,9 +109,7 @@ void cpu_idle(void)
 		rcu_idle_exit();
 		tick_nohz_idle_exit();
 
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 		check_pgt_cache();
 	}
 }

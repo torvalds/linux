@@ -125,14 +125,14 @@ static void psb_page_clflush(struct psb_mmu_driver *driver, struct page* page)
 	int i;
 	uint8_t *clf;
 
-	clf = kmap_atomic(page, KM_USER0);
+	clf = kmap_atomic(page);
 	mb();
 	for (i = 0; i < clflush_count; ++i) {
 		psb_clflush(clf);
 		clf += clflush_add;
 	}
 	mb();
-	kunmap_atomic(clf, KM_USER0);
+	kunmap_atomic(clf);
 }
 
 static void psb_pages_clflush(struct psb_mmu_driver *driver,
@@ -270,7 +270,7 @@ out_err1:
 	return NULL;
 }
 
-void psb_mmu_free_pt(struct psb_mmu_pt *pt)
+static void psb_mmu_free_pt(struct psb_mmu_pt *pt)
 {
 	__free_page(pt->p);
 	kfree(pt);
@@ -325,7 +325,7 @@ static struct psb_mmu_pt *psb_mmu_alloc_pt(struct psb_mmu_pd *pd)
 
 	spin_lock(lock);
 
-	v = kmap_atomic(pt->p, KM_USER0);
+	v = kmap_atomic(pt->p);
 	clf = (uint8_t *) v;
 	ptes = (uint32_t *) v;
 	for (i = 0; i < (PAGE_SIZE / sizeof(uint32_t)); ++i)
@@ -341,7 +341,7 @@ static struct psb_mmu_pt *psb_mmu_alloc_pt(struct psb_mmu_pd *pd)
 		mb();
 	}
 
-	kunmap_atomic(v, KM_USER0);
+	kunmap_atomic(v);
 	spin_unlock(lock);
 
 	pt->count = 0;
@@ -351,7 +351,7 @@ static struct psb_mmu_pt *psb_mmu_alloc_pt(struct psb_mmu_pd *pd)
 	return pt;
 }
 
-struct psb_mmu_pt *psb_mmu_pt_alloc_map_lock(struct psb_mmu_pd *pd,
+static struct psb_mmu_pt *psb_mmu_pt_alloc_map_lock(struct psb_mmu_pd *pd,
 					     unsigned long addr)
 {
 	uint32_t index = psb_mmu_pd_index(addr);
@@ -376,18 +376,18 @@ struct psb_mmu_pt *psb_mmu_pt_alloc_map_lock(struct psb_mmu_pd *pd,
 			continue;
 		}
 
-		v = kmap_atomic(pd->p, KM_USER0);
+		v = kmap_atomic(pd->p);
 		pd->tables[index] = pt;
 		v[index] = (page_to_pfn(pt->p) << 12) | pd->pd_mask;
 		pt->index = index;
-		kunmap_atomic((void *) v, KM_USER0);
+		kunmap_atomic((void *) v);
 
 		if (pd->hw_context != -1) {
 			psb_mmu_clflush(pd->driver, (void *) &v[index]);
 			atomic_set(&pd->driver->needs_tlbflush, 1);
 		}
 	}
-	pt->v = kmap_atomic(pt->p, KM_USER0);
+	pt->v = kmap_atomic(pt->p);
 	return pt;
 }
 
@@ -404,7 +404,7 @@ static struct psb_mmu_pt *psb_mmu_pt_map_lock(struct psb_mmu_pd *pd,
 		spin_unlock(lock);
 		return NULL;
 	}
-	pt->v = kmap_atomic(pt->p, KM_USER0);
+	pt->v = kmap_atomic(pt->p);
 	return pt;
 }
 
@@ -413,9 +413,9 @@ static void psb_mmu_pt_unmap_unlock(struct psb_mmu_pt *pt)
 	struct psb_mmu_pd *pd = pt->pd;
 	uint32_t *v;
 
-	kunmap_atomic(pt->v, KM_USER0);
+	kunmap_atomic(pt->v);
 	if (pt->count == 0) {
-		v = kmap_atomic(pd->p, KM_USER0);
+		v = kmap_atomic(pd->p);
 		v[pt->index] = pd->invalid_pde;
 		pd->tables[pt->index] = NULL;
 
@@ -424,7 +424,7 @@ static void psb_mmu_pt_unmap_unlock(struct psb_mmu_pt *pt)
 					(void *) &v[pt->index]);
 			atomic_set(&pd->driver->needs_tlbflush, 1);
 		}
-		kunmap_atomic(pt->v, KM_USER0);
+		kunmap_atomic(pt->v);
 		spin_unlock(&pd->driver->lock);
 		psb_mmu_free_pt(pt);
 		return;
@@ -457,7 +457,7 @@ void psb_mmu_mirror_gtt(struct psb_mmu_pd *pd,
 	down_read(&driver->sem);
 	spin_lock(&driver->lock);
 
-	v = kmap_atomic(pd->p, KM_USER0);
+	v = kmap_atomic(pd->p);
 	v += start;
 
 	while (gtt_pages--) {
@@ -467,7 +467,7 @@ void psb_mmu_mirror_gtt(struct psb_mmu_pd *pd,
 
 	/*ttm_tt_cache_flush(&pd->p, num_pages);*/
 	psb_pages_clflush(pd->driver, &pd->p, num_pages);
-	kunmap_atomic(v, KM_USER0);
+	kunmap_atomic(v);
 	spin_unlock(&driver->lock);
 
 	if (pd->hw_context != -1)
@@ -486,15 +486,6 @@ struct psb_mmu_pd *psb_mmu_get_default_pd(struct psb_mmu_driver *driver)
 	/* up_read(&driver->sem); */
 
 	return pd;
-}
-
-/* Returns the physical address of the PD shared by sgx/msvdx */
-uint32_t psb_get_default_pd_addr(struct psb_mmu_driver *driver)
-{
-	struct psb_mmu_pd *pd;
-
-	pd = psb_mmu_get_default_pd(driver);
-	return page_to_pfn(pd->p) << PAGE_SHIFT;
 }
 
 void psb_mmu_driver_takedown(struct psb_mmu_driver *driver)
@@ -830,9 +821,9 @@ int psb_mmu_virtual_to_pfn(struct psb_mmu_pd *pd, uint32_t virtual,
 		uint32_t *v;
 
 		spin_lock(lock);
-		v = kmap_atomic(pd->p, KM_USER0);
+		v = kmap_atomic(pd->p);
 		tmp = v[psb_mmu_pd_index(virtual)];
-		kunmap_atomic(v, KM_USER0);
+		kunmap_atomic(v);
 		spin_unlock(lock);
 
 		if (tmp != pd->invalid_pde || !(tmp & PSB_PTE_VALID) ||

@@ -2240,7 +2240,7 @@ __lcs_shutdown_device(struct ccwgroup_device *ccwgdev, int recovery_mode)
 {
 	struct lcs_card *card;
 	enum lcs_dev_states recover_state;
-	int ret;
+	int ret = 0, ret2 = 0, ret3 = 0;
 
 	LCS_DBF_TEXT(3, setup, "shtdndev");
 	card = dev_get_drvdata(&ccwgdev->dev);
@@ -2255,13 +2255,15 @@ __lcs_shutdown_device(struct ccwgroup_device *ccwgdev, int recovery_mode)
 	recover_state = card->state;
 
 	ret = lcs_stop_device(card->dev);
-	ret = ccw_device_set_offline(card->read.ccwdev);
-	ret = ccw_device_set_offline(card->write.ccwdev);
+	ret2 = ccw_device_set_offline(card->read.ccwdev);
+	ret3 = ccw_device_set_offline(card->write.ccwdev);
+	if (!ret)
+		ret = (ret2) ? ret2 : ret3;
+	if (ret)
+		LCS_DBF_TEXT_(3, setup, "1err:%d", ret);
 	if (recover_state == DEV_STATE_UP) {
 		card->state = DEV_STATE_RECOVER;
 	}
-	if (ret)
-		return ret;
 	return 0;
 }
 

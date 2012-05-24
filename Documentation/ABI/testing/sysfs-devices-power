@@ -165,3 +165,21 @@ Description:
 
 		Not all drivers support this attribute.  If it isn't supported,
 		attempts to read or write it will yield I/O errors.
+
+What:		/sys/devices/.../power/pm_qos_latency_us
+Date:		March 2012
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../power/pm_qos_resume_latency_us attribute
+		contains the PM QoS resume latency limit for the given device,
+		which is the maximum allowed time it can take to resume the
+		device, after it has been suspended at run time, from a resume
+		request to the moment the device will be ready to process I/O,
+		in microseconds.  If it is equal to 0, however, this means that
+		the PM QoS resume latency may be arbitrary.
+
+		Not all drivers support this attribute.  If it isn't supported,
+		it is not present.
+
+		This attribute has no effect on system-wide suspend/resume and
+		hibernation.

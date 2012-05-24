@@ -356,7 +356,8 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		else if (start == (ha->flt_region_boot * 4) ||
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
-		else if (IS_QLA25XX(ha) || IS_QLA8XXX_TYPE(ha))
+		else if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha)
+			|| IS_CNA_CAPABLE(ha) || IS_QLA2031(ha))
 			valid = 1;
 		if (!valid) {
 			ql_log(ql_log_warn, vha, 0x7065,
@@ -627,144 +628,6 @@ static struct bin_attribute sysfs_reset_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_write_edc(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr,
-			char *buf, loff_t off, size_t count)
-{
-	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
-	    struct device, kobj)));
-	struct qla_hw_data *ha = vha->hw;
-	uint16_t dev, adr, opt, len;
-	int rval;
-
-	ha->edc_data_len = 0;
-
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count < 8)
-		return -EINVAL;
-
-	if (!ha->edc_data) {
-		ha->edc_data = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
-		    &ha->edc_data_dma);
-		if (!ha->edc_data) {
-			ql_log(ql_log_warn, vha, 0x7073,
-			    "Unable to allocate memory for EDC write.\n");
-			return -ENOMEM;
-		}
-	}
-
-	dev = le16_to_cpup((void *)&buf[0]);
-	adr = le16_to_cpup((void *)&buf[2]);
-	opt = le16_to_cpup((void *)&buf[4]);
-	len = le16_to_cpup((void *)&buf[6]);
-
-	if (!(opt & BIT_0))
-		if (len == 0 || len > DMA_POOL_SIZE || len > count - 8)
-			return -EINVAL;
-
-	memcpy(ha->edc_data, &buf[8], len);
-
-	rval = qla2x00_write_sfp(vha, ha->edc_data_dma, ha->edc_data,
-	    dev, adr, len, opt);
-	if (rval != QLA_SUCCESS) {
-		ql_log(ql_log_warn, vha, 0x7074,
-		    "Unable to write EDC (%x) %02x:%04x:%02x:%02x:%02hhx\n",
-		    rval, dev, adr, opt, len, buf[8]);
-		return -EIO;
-	}
-
-	return count;
-}
-
-static struct bin_attribute sysfs_edc_attr = {
-	.attr = {
-		.name = "edc",
-		.mode = S_IWUSR,
-	},
-	.size = 0,
-	.write = qla2x00_sysfs_write_edc,
-};
-
-static ssize_t
-qla2x00_sysfs_write_edc_status(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr,
-			char *buf, loff_t off, size_t count)
-{
-	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
-	    struct device, kobj)));
-	struct qla_hw_data *ha = vha->hw;
-	uint16_t dev, adr, opt, len;
-	int rval;
-
-	ha->edc_data_len = 0;
-
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count < 8)
-		return -EINVAL;
-
-	if (!ha->edc_data) {
-		ha->edc_data = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
-		    &ha->edc_data_dma);
-		if (!ha->edc_data) {
-			ql_log(ql_log_warn, vha, 0x708c,
-			    "Unable to allocate memory for EDC status.\n");
-			return -ENOMEM;
-		}
-	}
-
-	dev = le16_to_cpup((void *)&buf[0]);
-	adr = le16_to_cpup((void *)&buf[2]);
-	opt = le16_to_cpup((void *)&buf[4]);
-	len = le16_to_cpup((void *)&buf[6]);
-
-	if (!(opt & BIT_0))
-		if (len == 0 || len > DMA_POOL_SIZE)
-			return -EINVAL;
-
-	memset(ha->edc_data, 0, len);
-	rval = qla2x00_read_sfp(vha, ha->edc_data_dma, ha->edc_data,
-			dev, adr, len, opt);
-	if (rval != QLA_SUCCESS) {
-		ql_log(ql_log_info, vha, 0x7075,
-		    "Unable to write EDC status (%x) %02x:%04x:%02x:%02x.\n",
-		    rval, dev, adr, opt, len);
-		return -EIO;
-	}
-
-	ha->edc_data_len = len;
-
-	return count;
-}
-
-static ssize_t
-qla2x00_sysfs_read_edc_status(struct file *filp, struct kobject *kobj,
-			   struct bin_attribute *bin_attr,
-			   char *buf, loff_t off, size_t count)
-{
-	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
-	    struct device, kobj)));
-	struct qla_hw_data *ha = vha->hw;
-
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count == 0)
-		return 0;
-
-	if (!ha->edc_data || ha->edc_data_len == 0 || ha->edc_data_len > count)
-		return -EINVAL;
-
-	memcpy(buf, ha->edc_data, ha->edc_data_len);
-
-	return ha->edc_data_len;
-}
-
-static struct bin_attribute sysfs_edc_status_attr = {
-	.attr = {
-		.name = "edc_status",
-		.mode = S_IRUSR | S_IWUSR,
-	},
-	.size = 0,
-	.write = qla2x00_sysfs_write_edc_status,
-	.read = qla2x00_sysfs_read_edc_status,
-};
-
-static ssize_t
 qla2x00_sysfs_read_xgmac_stats(struct file *filp, struct kobject *kobj,
 		       struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
@@ -879,8 +742,6 @@ static struct sysfs_entry {
 	{ "vpd", &sysfs_vpd_attr, 1 },
 	{ "sfp", &sysfs_sfp_attr, 1 },
 	{ "reset", &sysfs_reset_attr, },
-	{ "edc", &sysfs_edc_attr, 2 },
-	{ "edc_status", &sysfs_edc_status_attr, 2 },
 	{ "xgmac_stats", &sysfs_xgmac_stats_attr, 3 },
 	{ "dcbx_tlv", &sysfs_dcbx_tlv_attr, 3 },
 	{ NULL },
@@ -898,7 +759,7 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *vha)
 			continue;
 		if (iter->is4GBp_only == 2 && !IS_QLA25XX(vha->hw))
 			continue;
-		if (iter->is4GBp_only == 3 && !(IS_QLA8XXX_TYPE(vha->hw)))
+		if (iter->is4GBp_only == 3 && !(IS_CNA_CAPABLE(vha->hw)))
 			continue;
 
 		ret = sysfs_create_bin_file(&host->shost_gendev.kobj,
@@ -926,7 +787,7 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha)
 			continue;
 		if (iter->is4GBp_only == 2 && !IS_QLA25XX(ha))
 			continue;
-		if (iter->is4GBp_only == 3 && !!(IS_QLA8XXX_TYPE(vha->hw)))
+		if (iter->is4GBp_only == 3 && !(IS_CNA_CAPABLE(vha->hw)))
 			continue;
 
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,
@@ -1231,7 +1092,7 @@ qla2x00_optrom_gold_fw_version_show(struct device *dev,
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d (%d)\n",
@@ -1278,7 +1139,7 @@ qla2x00_mpi_version_show(struct device *dev, struct device_attribute *attr,
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d (%x)\n",
@@ -1293,7 +1154,7 @@ qla2x00_phy_version_show(struct device *dev, struct device_attribute *attr,
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d\n",
@@ -1316,7 +1177,7 @@ qla2x00_vlan_id_show(struct device *dev, struct device_attribute *attr,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 
-	if (!IS_QLA8XXX_TYPE(vha->hw))
+	if (!IS_CNA_CAPABLE(vha->hw))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", vha->fcoe_vlan_id);
@@ -1328,7 +1189,7 @@ qla2x00_vn_port_mac_address_show(struct device *dev,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 
-	if (!IS_QLA8XXX_TYPE(vha->hw))
+	if (!IS_CNA_CAPABLE(vha->hw))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -1364,7 +1225,7 @@ qla2x00_thermal_temp_show(struct device *dev,
 	else if (!vha->hw->flags.eeh_busy)
 		rval = qla2x00_get_thermal_temp(vha, &temp, &frac);
 	if (rval != QLA_SUCCESS)
-		temp = frac = 0;
+		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", temp, frac);
 }
@@ -1492,6 +1353,9 @@ qla2x00_get_host_speed(struct Scsi_Host *shost)
 		break;
 	case PORT_SPEED_10GB:
 		speed = FC_PORTSPEED_10GBIT;
+		break;
+	case PORT_SPEED_16GB:
+		speed = FC_PORTSPEED_16GBIT;
 		break;
 	}
 	fc_host_speed(shost) = speed;
@@ -1643,10 +1507,14 @@ qla2x00_terminate_rport_io(struct fc_rport *rport)
 	 * final cleanup of firmware resources (PCBs and XCBs).
 	 */
 	if (fcport->loop_id != FC_NO_LOOP_ID &&
-	    !test_bit(UNLOADING, &fcport->vha->dpc_flags))
-		fcport->vha->hw->isp_ops->fabric_logout(fcport->vha,
-			fcport->loop_id, fcport->d_id.b.domain,
-			fcport->d_id.b.area, fcport->d_id.b.al_pa);
+	    !test_bit(UNLOADING, &fcport->vha->dpc_flags)) {
+		if (IS_FWI2_CAPABLE(fcport->vha->hw))
+			fcport->vha->hw->isp_ops->fabric_logout(fcport->vha,
+			    fcport->loop_id, fcport->d_id.b.domain,
+			    fcport->d_id.b.area, fcport->d_id.b.al_pa);
+		else
+			qla2x00_port_logout(fcport->vha, fcport);
+	}
 }
 
 static int
@@ -1889,6 +1757,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 			break;
 		}
 	}
+
 	if (qos) {
 		ret = qla25xx_create_req_que(ha, options, vha->vp_idx, 0, 0,
 			qos);
@@ -2086,7 +1955,7 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	fc_host_max_npiv_vports(vha->host) = ha->max_npiv_vports;
 	fc_host_npiv_vports_inuse(vha->host) = ha->cur_vport_count;
 
-	if (IS_QLA8XXX_TYPE(ha))
+	if (IS_CNA_CAPABLE(ha))
 		speed = FC_PORTSPEED_10GBIT;
 	else if (IS_QLA25XX(ha))
 		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |

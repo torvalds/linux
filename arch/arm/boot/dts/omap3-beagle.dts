@@ -13,15 +13,6 @@
 	model = "TI OMAP3 BeagleBoard";
 	compatible = "ti,omap3-beagle", "ti,omap3";
 
-	/*
-	 * Since the initial device tree board file does not create any
-	 * devices (MMC, network...), the only way to boot is to provide a
-	 * ramdisk.
-	 */
-	chosen {
-		bootargs = "root=/dev/ram0 rw console=ttyO2,115200n8 initrd=0x81600000,20M ramdisk_size=20480 no_console_suspend debug earlyprintk";
-	};
-
 	memory {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MB */

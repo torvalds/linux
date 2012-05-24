@@ -38,7 +38,6 @@
 #include <linux/slab.h>
 
 #include <asm/bootinfo.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/dma.h>

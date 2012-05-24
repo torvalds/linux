@@ -47,26 +47,6 @@ struct dentry_stat_t {
 };
 extern struct dentry_stat_t dentry_stat;
 
-/*
- * Compare 2 name strings, return 0 if they match, otherwise non-zero.
- * The strings are both count bytes long, and count is non-zero.
- */
-static inline int dentry_cmp(const unsigned char *cs, size_t scount,
-				const unsigned char *ct, size_t tcount)
-{
-	if (scount != tcount)
-		return 1;
-
-	do {
-		if (*cs != *ct)
-			return 1;
-		cs++;
-		ct++;
-		tcount--;
-	} while (tcount);
-	return 0;
-}
-
 /* Name hashing routines. Initial hash value */
 /* Hash courtesy of the R5 hash in reiserfs modulo sign bits */
 #define init_name_hash()		0
@@ -242,7 +222,6 @@ extern void shrink_dcache_for_umount(struct super_block *);
 extern int d_invalidate(struct dentry *);
 
 /* only used at mount-time */
-extern struct dentry * d_alloc_root(struct inode *);
 extern struct dentry * d_make_root(struct inode *);
 
 /* <clickety>-<click> the ramfs-type tree */

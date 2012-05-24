@@ -122,6 +122,7 @@
 #define ISCSI_KCQE_COMPLETION_STATUS_LOM_ISCSI_NOT_ENABLED              (0x51)
 
 #define ISCSI_KCQE_COMPLETION_STATUS_CID_BUSY				(0x80)
+#define ISCSI_KCQE_COMPLETION_STATUS_PARITY_ERR                         (0x81)
 
 /* SQ/RQ/CQ DB structure sizes */
 #define ISCSI_SQ_DB_SIZE    (16)

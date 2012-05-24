@@ -16,7 +16,6 @@
 #include <asm/pdc.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
-#include <asm/system.h>
 #include <asm/percpu.h>
 
 #endif /* __ASSEMBLY__ */
@@ -169,6 +168,7 @@ struct thread_struct {
  * Return saved PC of a blocked thread.  This is used by ps mostly.
  */
 
+struct task_struct;
 unsigned long thread_saved_pc(struct task_struct *t);
 void show_trace(struct task_struct *task, unsigned long *stack);
 

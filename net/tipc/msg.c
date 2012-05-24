@@ -106,7 +106,7 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 	if (likely(res))
 		return dsz;
 
-	buf_discard(*buf);
+	kfree_skb(*buf);
 	*buf = NULL;
 	return -EFAULT;
 }

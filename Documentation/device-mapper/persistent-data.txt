@@ -3,7 +3,7 @@ Introduction
 
 The more-sophisticated device-mapper targets require complex metadata
 that is managed in kernel.  In late 2010 we were seeing that various
-different targets were rolling their own data strutures, for example:
+different targets were rolling their own data structures, for example:
 
 - Mikulas Patocka's multisnap implementation
 - Heinz Mauelshagen's thin provisioning target

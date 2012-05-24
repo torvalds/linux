@@ -111,6 +111,12 @@ struct nested_state {
 #define MSRPM_OFFSETS	16
 static u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
 
+/*
+ * Set osvw_len to higher value when updated Revision Guides
+ * are published and we know what the new status bits are
+ */
+static uint64_t osvw_len = 4, osvw_status;
+
 struct vcpu_svm {
 	struct kvm_vcpu vcpu;
 	struct vmcb *vmcb;
@@ -177,11 +183,13 @@ static bool npt_enabled = true;
 #else
 static bool npt_enabled;
 #endif
-static int npt = 1;
 
+/* allow nested paging (virtualized MMU) for all guests */
+static int npt = true;
 module_param(npt, int, S_IRUGO);
 
-static int nested = 1;
+/* allow nested virtualization in KVM/SVM */
+static int nested = true;
 module_param(nested, int, S_IRUGO);
 
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
@@ -557,6 +565,27 @@ static void svm_init_erratum_383(void)
 	erratum_383_found = true;
 }
 
+static void svm_init_osvw(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Guests should see errata 400 and 415 as fixed (assuming that
+	 * HLT and IO instructions are intercepted).
+	 */
+	vcpu->arch.osvw.length = (osvw_len >= 3) ? (osvw_len) : 3;
+	vcpu->arch.osvw.status = osvw_status & ~(6ULL);
+
+	/*
+	 * By increasing VCPU's osvw.length to 3 we are telling the guest that
+	 * all osvw.status bits inside that length, including bit 0 (which is
+	 * reserved for erratum 298), are valid. However, if host processor's
+	 * osvw_len is 0 then osvw_status[0] carries no information. We need to
+	 * be conservative here and therefore we tell the guest that erratum 298
+	 * is present (because we really don't know).
+	 */
+	if (osvw_len == 0 && boot_cpu_data.x86 == 0x10)
+		vcpu->arch.osvw.status |= 1;
+}
+
 static int has_svm(void)
 {
 	const char *msg;
@@ -622,6 +651,36 @@ static int svm_hardware_enable(void *garbage)
 		wrmsrl(MSR_AMD64_TSC_RATIO, TSC_RATIO_DEFAULT);
 		__get_cpu_var(current_tsc_ratio) = TSC_RATIO_DEFAULT;
 	}
+
+
+	/*
+	 * Get OSVW bits.
+	 *
+	 * Note that it is possible to have a system with mixed processor
+	 * revisions and therefore different OSVW bits. If bits are not the same
+	 * on different processors then choose the worst case (i.e. if erratum
+	 * is present on one processor and not on another then assume that the
+	 * erratum is present everywhere).
+	 */
+	if (cpu_has(&boot_cpu_data, X86_FEATURE_OSVW)) {
+		uint64_t len, status = 0;
+		int err;
+
+		len = native_read_msr_safe(MSR_AMD64_OSVW_ID_LENGTH, &err);
+		if (!err)
+			status = native_read_msr_safe(MSR_AMD64_OSVW_STATUS,
+						      &err);
+
+		if (err)
+			osvw_status = osvw_len = 0;
+		else {
+			if (len < osvw_len)
+				osvw_len = len;
+			osvw_status |= status;
+			osvw_status &= (1ULL << osvw_len) - 1;
+		}
+	} else
+		osvw_status = osvw_len = 0;
 
 	svm_init_erratum_383();
 
@@ -910,20 +969,25 @@ static u64 svm_scale_tsc(struct kvm_vcpu *vcpu, u64 tsc)
 	return _tsc;
 }
 
-static void svm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz)
+static void svm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz, bool scale)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u64 ratio;
 	u64 khz;
 
-	/* TSC scaling supported? */
-	if (!boot_cpu_has(X86_FEATURE_TSCRATEMSR))
-		return;
-
-	/* TSC-Scaling disabled or guest TSC same frequency as host TSC? */
-	if (user_tsc_khz == 0) {
-		vcpu->arch.virtual_tsc_khz = 0;
+	/* Guest TSC same frequency as host TSC? */
+	if (!scale) {
 		svm->tsc_ratio = TSC_RATIO_DEFAULT;
+		return;
+	}
+
+	/* TSC scaling supported? */
+	if (!boot_cpu_has(X86_FEATURE_TSCRATEMSR)) {
+		if (user_tsc_khz > tsc_khz) {
+			vcpu->arch.tsc_catchup = 1;
+			vcpu->arch.tsc_always_catchup = 1;
+		} else
+			WARN(1, "user requested TSC rate below hardware speed\n");
 		return;
 	}
 
@@ -938,7 +1002,6 @@ static void svm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz)
 				user_tsc_khz);
 		return;
 	}
-	vcpu->arch.virtual_tsc_khz = user_tsc_khz;
 	svm->tsc_ratio             = ratio;
 }
 
@@ -958,9 +1021,13 @@ static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
-static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
+static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool host)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+
+	WARN_ON(adjustment < 0);
+	if (host)
+		adjustment = svm_scale_tsc(vcpu, adjustment);
 
 	svm->vmcb->control.tsc_offset += adjustment;
 	if (is_guest_mode(vcpu))
@@ -1191,6 +1258,8 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	if (kvm_vcpu_is_bsp(&svm->vcpu))
 		svm->vcpu.arch.apic_base |= MSR_IA32_APICBASE_BSP;
 
+	svm_init_osvw(&svm->vcpu);
+
 	return &svm->vcpu;
 
 free_page4:
@@ -1268,6 +1337,21 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 }
 
+static void svm_update_cpl(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	int cpl;
+
+	if (!is_protmode(vcpu))
+		cpl = 0;
+	else if (svm->vmcb->save.rflags & X86_EFLAGS_VM)
+		cpl = 3;
+	else
+		cpl = svm->vmcb->save.cs.selector & 0x3;
+
+	svm->vmcb->save.cpl = cpl;
+}
+
 static unsigned long svm_get_rflags(struct kvm_vcpu *vcpu)
 {
 	return to_svm(vcpu)->vmcb->save.rflags;
@@ -1275,7 +1359,11 @@ static unsigned long svm_get_rflags(struct kvm_vcpu *vcpu)
 
 static void svm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
+	unsigned long old_rflags = to_svm(vcpu)->vmcb->save.rflags;
+
 	to_svm(vcpu)->vmcb->save.rflags = rflags;
+	if ((old_rflags ^ rflags) & X86_EFLAGS_VM)
+		svm_update_cpl(vcpu);
 }
 
 static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
@@ -1543,9 +1631,7 @@ static void svm_set_segment(struct kvm_vcpu *vcpu,
 		s->attrib |= (var->g & 1) << SVM_SELECTOR_G_SHIFT;
 	}
 	if (seg == VCPU_SREG_CS)
-		svm->vmcb->save.cpl
-			= (svm->vmcb->save.cs.attrib
-			   >> SVM_SELECTOR_DPL_SHIFT) & 3;
+		svm_update_cpl(vcpu);
 
 	mark_dirty(svm->vmcb, VMCB_SEG);
 }
@@ -2735,7 +2821,10 @@ static int task_switch_interception(struct vcpu_svm *svm)
 	     (int_vec == OF_VECTOR || int_vec == BP_VECTOR)))
 		skip_emulated_instruction(&svm->vcpu);
 
-	if (kvm_task_switch(&svm->vcpu, tss_selector, reason,
+	if (int_type != SVM_EXITINTINFO_TYPE_SOFT)
+		int_vec = -1;
+
+	if (kvm_task_switch(&svm->vcpu, tss_selector, int_vec, reason,
 				has_error_code, error_code) == EMULATE_FAIL) {
 		svm->vcpu.run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		svm->vcpu.run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;

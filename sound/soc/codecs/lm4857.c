@@ -179,7 +179,7 @@ static int lm4857_probe(struct snd_soc_codec *codec)
 
 	codec->control_data = lm4857->i2c;
 
-	ret = snd_soc_add_controls(codec, lm4857_controls,
+	ret = snd_soc_add_codec_controls(codec, lm4857_controls,
 			ARRAY_SIZE(lm4857_controls));
 	if (ret)
 		return ret;

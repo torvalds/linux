@@ -86,7 +86,6 @@
 #include <linux/ioctl.h>
 #include <linux/synclink.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/dma.h>
@@ -3381,7 +3380,7 @@ static int mgsl_open(struct tty_struct *tty, struct file * filp)
 
 	/* verify range of specified line number */	
 	line = tty->index;
-	if ((line < 0) || (line >= mgsl_device_count)) {
+	if (line >= mgsl_device_count) {
 		printk("%s(%d):mgsl_open with invalid line #%d.\n",
 			__FILE__,__LINE__,line);
 		return -ENODEV;
@@ -4333,7 +4332,6 @@ static int mgsl_init_tty(void)
 	if (!serial_driver)
 		return -ENOMEM;
 	
-	serial_driver->owner = THIS_MODULE;
 	serial_driver->driver_name = "synclink";
 	serial_driver->name = "ttySL";
 	serial_driver->major = ttymajor;

@@ -137,13 +137,13 @@ BEGIN(dec_return)
 RET_ENDP
 #undef v
 
-#define v %ecx
+#define v %esi
 BEGIN(add_unless)
-	addl %eax, %esi
+	addl %eax, %ecx
 	adcl %edx, %edi
 	addl  (v), %eax
 	adcl 4(v), %edx
-	cmpl %eax, %esi
+	cmpl %eax, %ecx
 	je 3f
 1:
 	movl %eax,  (v)

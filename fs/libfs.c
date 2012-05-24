@@ -3,7 +3,7 @@
  *	Library for filesystems writers.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 #include <linux/mount.h>
@@ -264,6 +264,13 @@ Enomem:
 	return ERR_PTR(-ENOMEM);
 }
 
+int simple_open(struct inode *inode, struct file *file)
+{
+	if (inode->i_private)
+		file->private_data = inode->i_private;
+	return 0;
+}
+
 int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = old_dentry->d_inode;
@@ -491,11 +498,9 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	set_nlink(inode, 2);
-	root = d_alloc_root(inode);
-	if (!root) {
-		iput(inode);
+	root = d_make_root(inode);
+	if (!root)
 		return -ENOMEM;
-	}
 	for (i = 0; !files->name || files->name[0]; i++, files++) {
 		if (!files->name)
 			continue;
@@ -524,6 +529,7 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	return 0;
 out:
 	d_genocide(root);
+	shrink_dcache_parent(root);
 	dput(root);
 	return -ENOMEM;
 }
@@ -536,7 +542,7 @@ int simple_pin_fs(struct file_system_type *type, struct vfsmount **mount, int *c
 	spin_lock(&pin_fs_lock);
 	if (unlikely(!*mount)) {
 		spin_unlock(&pin_fs_lock);
-		mnt = vfs_kern_mount(type, 0, type->name, NULL);
+		mnt = vfs_kern_mount(type, MS_KERNMOUNT, type->name, NULL);
 		if (IS_ERR(mnt))
 			return PTR_ERR(mnt);
 		spin_lock(&pin_fs_lock);
@@ -986,6 +992,7 @@ EXPORT_SYMBOL(simple_dir_operations);
 EXPORT_SYMBOL(simple_empty);
 EXPORT_SYMBOL(simple_fill_super);
 EXPORT_SYMBOL(simple_getattr);
+EXPORT_SYMBOL(simple_open);
 EXPORT_SYMBOL(simple_link);
 EXPORT_SYMBOL(simple_lookup);
 EXPORT_SYMBOL(simple_pin_fs);

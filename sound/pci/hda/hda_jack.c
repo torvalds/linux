@@ -19,6 +19,22 @@
 #include "hda_local.h"
 #include "hda_jack.h"
 
+bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid)
+{
+	if (codec->no_jack_detect)
+		return false;
+	if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_PRES_DETECT))
+		return false;
+	if (!codec->ignore_misc_bit &&
+	    (get_defcfg_misc(snd_hda_codec_get_pincfg(codec, nid)) &
+	     AC_DEFCFG_MISC_NO_PRESENCE))
+		return false;
+	if (!(get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP))
+		return false;
+	return true;
+}
+EXPORT_SYMBOL_HDA(is_jack_detectable);
+
 /* execute pin sense measurement */
 static u32 read_pin_sense(struct hda_codec *codec, hda_nid_t nid)
 {

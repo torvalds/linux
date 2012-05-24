@@ -38,7 +38,8 @@ int mc13xxx_irq_ack(struct mc13xxx *mc13xxx, int irq);
 int mc13xxx_get_flags(struct mc13xxx *mc13xxx);
 
 int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx,
-		unsigned int mode, unsigned int channel, unsigned int *sample);
+		unsigned int mode, unsigned int channel,
+		u8 ato, bool atox, unsigned int *sample);
 
 #define MC13XXX_IRQ_ADCDONE	0
 #define MC13XXX_IRQ_ADCBISDONE	1
@@ -157,6 +158,18 @@ struct mc13xxx_buttons_platform_data {
 	unsigned short b3on_key;
 };
 
+struct mc13xxx_ts_platform_data {
+	/* Delay between Touchscreen polarization and ADC Conversion.
+	 * Given in clock ticks of a 32 kHz clock which gives a granularity of
+	 * about 30.5ms */
+	u8 ato;
+
+#define MC13783_TS_ATO_FIRST false
+#define MC13783_TS_ATO_EACH  true
+	/* Use the ATO delay only for the first conversion or for each one */
+	bool atox;
+};
+
 struct mc13xxx_platform_data {
 #define MC13XXX_USE_TOUCHSCREEN (1 << 0)
 #define MC13XXX_USE_CODEC	(1 << 1)
@@ -167,6 +180,7 @@ struct mc13xxx_platform_data {
 	struct mc13xxx_regulator_platform_data regulators;
 	struct mc13xxx_leds_platform_data *leds;
 	struct mc13xxx_buttons_platform_data *buttons;
+	struct mc13xxx_ts_platform_data touch;
 };
 
 #define MC13XXX_ADC_MODE_TS		1

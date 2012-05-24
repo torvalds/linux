@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/tty.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/gdb-stub.h>
 #include <asm/exceptions.h>
 #include <unit/clock.h>

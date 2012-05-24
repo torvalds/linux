@@ -35,11 +35,11 @@ OPTIONS
         child tasks do not inherit counters
 -p::
 --pid=<pid>::
-        stat events on existing process id
+        stat events on existing process id (comma separated list)
 
 -t::
 --tid=<tid>::
-        stat events on existing thread id
+        stat events on existing thread id (comma separated list)
 
 
 -a::

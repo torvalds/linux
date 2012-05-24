@@ -59,9 +59,8 @@ static int rx51_spk_func;
 static int rx51_dmic_func;
 static int rx51_jack_func;
 
-static void rx51_ext_control(struct snd_soc_codec *codec)
+static void rx51_ext_control(struct snd_soc_dapm_context *dapm)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int hp = 0, hs = 0, tvout = 0;
 
 	switch (rx51_jack_func) {
@@ -102,11 +101,11 @@ static int rx51_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_card *card = rtd->card;
 
 	snd_pcm_hw_constraint_minmax(runtime,
 				     SNDRV_PCM_HW_PARAM_CHANNELS, 2, 2);
-	rx51_ext_control(codec);
+	rx51_ext_control(&card->dapm);
 
 	return 0;
 }
@@ -138,13 +137,13 @@ static int rx51_get_spk(struct snd_kcontrol *kcontrol,
 static int rx51_set_spk(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
 	if (rx51_spk_func == ucontrol->value.integer.value[0])
 		return 0;
 
 	rx51_spk_func = ucontrol->value.integer.value[0];
-	rx51_ext_control(codec);
+	rx51_ext_control(&card->dapm);
 
 	return 1;
 }
@@ -184,13 +183,13 @@ static int rx51_get_input(struct snd_kcontrol *kcontrol,
 static int rx51_set_input(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
 	if (rx51_dmic_func == ucontrol->value.integer.value[0])
 		return 0;
 
 	rx51_dmic_func = ucontrol->value.integer.value[0];
-	rx51_ext_control(codec);
+	rx51_ext_control(&card->dapm);
 
 	return 1;
 }
@@ -206,13 +205,13 @@ static int rx51_get_jack(struct snd_kcontrol *kcontrol,
 static int rx51_set_jack(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
 	if (rx51_jack_func == ucontrol->value.integer.value[0])
 		return 0;
 
 	rx51_jack_func = ucontrol->value.integer.value[0];
-	rx51_ext_control(codec);
+	rx51_ext_control(&card->dapm);
 
 	return 1;
 }
@@ -297,7 +296,7 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "LINE1R");
 
 	/* Add RX-51 specific controls */
-	err = snd_soc_add_controls(codec, aic34_rx51_controls,
+	err = snd_soc_add_card_controls(rtd->card, aic34_rx51_controls,
 				   ARRAY_SIZE(aic34_rx51_controls));
 	if (err < 0)
 		return err;
@@ -314,7 +313,7 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 		return err;
 	snd_soc_limit_volume(codec, "TPA6130A2 Headphone Playback Volume", 42);
 
-	err = omap_mcbsp_st_add_controls(codec, 1);
+	err = omap_mcbsp_st_add_controls(rtd);
 	if (err < 0)
 		return err;
 
@@ -335,7 +334,7 @@ static int rx51_aic34b_init(struct snd_soc_dapm_context *dapm)
 {
 	int err;
 
-	err = snd_soc_add_controls(dapm->codec, aic34_rx51_controlsb,
+	err = snd_soc_add_card_controls(dapm->card, aic34_rx51_controlsb,
 				   ARRAY_SIZE(aic34_rx51_controlsb));
 	if (err < 0)
 		return err;
@@ -354,7 +353,7 @@ static struct snd_soc_dai_link rx51_dai[] = {
 	{
 		.name = "TLV320AIC34",
 		.stream_name = "AIC34",
-		.cpu_dai_name = "omap-mcbsp-dai.1",
+		.cpu_dai_name = "omap-mcbsp.2",
 		.codec_dai_name = "tlv320aic3x-hifi",
 		.platform_name = "omap-pcm-audio",
 		.codec_name = "tlv320aic3x-codec.2-0018",

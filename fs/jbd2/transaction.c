@@ -33,6 +33,35 @@
 static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh);
 static void __jbd2_journal_unfile_buffer(struct journal_head *jh);
 
+static struct kmem_cache *transaction_cache;
+int __init jbd2_journal_init_transaction_cache(void)
+{
+	J_ASSERT(!transaction_cache);
+	transaction_cache = kmem_cache_create("jbd2_transaction_s",
+					sizeof(transaction_t),
+					0,
+					SLAB_HWCACHE_ALIGN|SLAB_TEMPORARY,
+					NULL);
+	if (transaction_cache)
+		return 0;
+	return -ENOMEM;
+}
+
+void jbd2_journal_destroy_transaction_cache(void)
+{
+	if (transaction_cache) {
+		kmem_cache_destroy(transaction_cache);
+		transaction_cache = NULL;
+	}
+}
+
+void jbd2_journal_free_transaction(transaction_t *transaction)
+{
+	if (unlikely(ZERO_OR_NULL_PTR(transaction)))
+		return;
+	kmem_cache_free(transaction_cache, transaction);
+}
+
 /*
  * jbd2_get_transaction: obtain a new transaction_t object.
  *
@@ -133,7 +162,8 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
 
 alloc_transaction:
 	if (!journal->j_running_transaction) {
-		new_transaction = kzalloc(sizeof(*new_transaction), gfp_mask);
+		new_transaction = kmem_cache_alloc(transaction_cache,
+						   gfp_mask | __GFP_ZERO);
 		if (!new_transaction) {
 			/*
 			 * If __GFP_FS is not present, then we may be
@@ -162,7 +192,7 @@ repeat:
 	if (is_journal_aborted(journal) ||
 	    (journal->j_errno != 0 && !(journal->j_flags & JBD2_ACK_ERR))) {
 		read_unlock(&journal->j_state_lock);
-		kfree(new_transaction);
+		jbd2_journal_free_transaction(new_transaction);
 		return -EROFS;
 	}
 
@@ -284,7 +314,7 @@ repeat:
 	read_unlock(&journal->j_state_lock);
 
 	lock_map_acquire(&handle->h_lockdep_map);
-	kfree(new_transaction);
+	jbd2_journal_free_transaction(new_transaction);
 	return 0;
 }
 
@@ -783,12 +813,12 @@ done:
 			    "Possible IO failure.\n");
 		page = jh2bh(jh)->b_page;
 		offset = offset_in_page(jh2bh(jh)->b_data);
-		source = kmap_atomic(page, KM_USER0);
+		source = kmap_atomic(page);
 		/* Fire data frozen trigger just before we copy the data */
 		jbd2_buffer_frozen_trigger(jh, source + offset,
 					   jh->b_triggers);
 		memcpy(jh->b_frozen_data, source+offset, jh2bh(jh)->b_size);
-		kunmap_atomic(source, KM_USER0);
+		kunmap_atomic(source);
 
 		/*
 		 * Now that the frozen data is saved off, we need to store
@@ -1549,9 +1579,9 @@ __blist_del_buffer(struct journal_head **list, struct journal_head *jh)
  * of these pointers, it could go bad.  Generally the caller needs to re-read
  * the pointer from the transaction_t.
  *
- * Called under j_list_lock.  The journal may not be locked.
+ * Called under j_list_lock.
  */
-void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh)
+static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh)
 {
 	struct journal_head **list = NULL;
 	transaction_t *transaction;
@@ -1646,10 +1676,8 @@ __journal_try_to_free_buffer(journal_t *journal, struct buffer_head *bh)
 	spin_lock(&journal->j_list_lock);
 	if (jh->b_cp_transaction != NULL && jh->b_transaction == NULL) {
 		/* written-back checkpointed metadata buffer */
-		if (jh->b_jlist == BJ_None) {
-			JBUFFER_TRACE(jh, "remove from checkpoint list");
-			__jbd2_journal_remove_checkpoint(jh);
-		}
+		JBUFFER_TRACE(jh, "remove from checkpoint list");
+		__jbd2_journal_remove_checkpoint(jh);
 	}
 	spin_unlock(&journal->j_list_lock);
 out:
@@ -1949,6 +1977,8 @@ zap_buffer_unlocked:
 	clear_buffer_mapped(bh);
 	clear_buffer_req(bh);
 	clear_buffer_new(bh);
+	clear_buffer_delay(bh);
+	clear_buffer_unwritten(bh);
 	bh->b_bdev = NULL;
 	return may_free;
 }

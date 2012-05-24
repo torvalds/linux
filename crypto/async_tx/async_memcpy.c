@@ -79,13 +79,13 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 		/* wait for any prerequisite operations */
 		async_tx_quiesce(&submit->depend_tx);
 
-		dest_buf = kmap_atomic(dest, KM_USER0) + dest_offset;
-		src_buf = kmap_atomic(src, KM_USER1) + src_offset;
+		dest_buf = kmap_atomic(dest) + dest_offset;
+		src_buf = kmap_atomic(src) + src_offset;
 
 		memcpy(dest_buf, src_buf, len);
 
-		kunmap_atomic(src_buf, KM_USER1);
-		kunmap_atomic(dest_buf, KM_USER0);
+		kunmap_atomic(src_buf);
+		kunmap_atomic(dest_buf);
 
 		async_tx_sync_epilog(submit);
 	}

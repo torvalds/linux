@@ -33,7 +33,10 @@
 #include <linux/pm_runtime.h>
 
 #include <video/omapdss.h>
+
+#include <plat/cpu.h>
 #include <plat/clock.h>
+
 #include "dss.h"
 #include "dss_features.h"
 
@@ -748,19 +751,19 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 	dss_mem = platform_get_resource(dss.pdev, IORESOURCE_MEM, 0);
 	if (!dss_mem) {
 		DSSERR("can't get IORESOURCE_MEM DSS\n");
-		r = -EINVAL;
-		goto err_ioremap;
+		return -EINVAL;
 	}
-	dss.base = ioremap(dss_mem->start, resource_size(dss_mem));
+
+	dss.base = devm_ioremap(&pdev->dev, dss_mem->start,
+				resource_size(dss_mem));
 	if (!dss.base) {
 		DSSERR("can't ioremap DSS\n");
-		r = -ENOMEM;
-		goto err_ioremap;
+		return -ENOMEM;
 	}
 
 	r = dss_get_clocks();
 	if (r)
-		goto err_clocks;
+		return r;
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -808,9 +811,6 @@ err_dpi:
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
 	dss_put_clocks();
-err_clocks:
-	iounmap(dss.base);
-err_ioremap:
 	return r;
 }
 
@@ -818,8 +818,6 @@ static int omap_dsshw_remove(struct platform_device *pdev)
 {
 	dpi_exit();
 	sdi_exit();
-
-	iounmap(dss.base);
 
 	pm_runtime_disable(&pdev->dev);
 

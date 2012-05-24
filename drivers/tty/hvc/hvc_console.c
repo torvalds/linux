@@ -917,7 +917,6 @@ static int hvc_init(void)
 		goto out;
 	}
 
-	drv->owner = THIS_MODULE;
 	drv->driver_name = "hvc";
 	drv->name = "hvc";
 	drv->major = HVC_MAJOR;

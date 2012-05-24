@@ -21,7 +21,7 @@
 #include <linux/mutex.h>
 #include <linux/ppp_defs.h>
 #include <linux/if.h>
-#include <linux/if_ppp.h>
+#include <linux/ppp-ioctl.h>
 #include <linux/sched.h>
 #include <linux/serial.h>
 #include <linux/slab.h>
@@ -90,33 +90,23 @@ static void report_deregistering(struct ipw_tty *tty)
 	       tty->index);
 }
 
-static struct ipw_tty *get_tty(int minor)
+static struct ipw_tty *get_tty(int index)
 {
-	if (minor < ipw_tty_driver->minor_start
-			|| minor >= ipw_tty_driver->minor_start +
-			IPWIRELESS_PCMCIA_MINORS)
+	/*
+	 * The 'ras_raw' channel is only available when 'loopback' mode
+	 * is enabled.
+	 * Number of minor starts with 16 (_RANGE * _RAS_RAW).
+	 */
+	if (!ipwireless_loopback && index >=
+			 IPWIRELESS_PCMCIA_MINOR_RANGE * TTYTYPE_RAS_RAW)
 		return NULL;
-	else {
-		int minor_offset = minor - ipw_tty_driver->minor_start;
 
-		/*
-		 * The 'ras_raw' channel is only available when 'loopback' mode
-		 * is enabled.
-		 * Number of minor starts with 16 (_RANGE * _RAS_RAW).
-		 */
-		if (!ipwireless_loopback &&
-				minor_offset >=
-				 IPWIRELESS_PCMCIA_MINOR_RANGE * TTYTYPE_RAS_RAW)
-			return NULL;
-
-		return ttys[minor_offset];
-	}
+	return ttys[index];
 }
 
 static int ipw_open(struct tty_struct *linux_tty, struct file *filp)
 {
-	int minor = linux_tty->index;
-	struct ipw_tty *tty = get_tty(minor);
+	struct ipw_tty *tty = get_tty(linux_tty->index);
 
 	if (!tty)
 		return -ENODEV;
@@ -510,7 +500,7 @@ static int add_tty(int j,
 		ipwireless_associate_network_tty(network,
 						 secondary_channel_idx,
 						 ttys[j]);
-	if (get_tty(j + ipw_tty_driver->minor_start) == ttys[j])
+	if (get_tty(j) == ttys[j])
 		report_registering(ttys[j]);
 	return 0;
 }
@@ -570,7 +560,7 @@ void ipwireless_tty_free(struct ipw_tty *tty)
 
 		if (ttyj) {
 			mutex_lock(&ttyj->ipw_tty_mutex);
-			if (get_tty(j + ipw_tty_driver->minor_start) == ttyj)
+			if (get_tty(j) == ttyj)
 				report_deregistering(ttyj);
 			ttyj->closing = 1;
 			if (ttyj->linux_tty != NULL) {
@@ -614,7 +604,6 @@ int ipwireless_tty_init(void)
 	if (!ipw_tty_driver)
 		return -ENOMEM;
 
-	ipw_tty_driver->owner = THIS_MODULE;
 	ipw_tty_driver->driver_name = IPWIRELESS_PCCARD_NAME;
 	ipw_tty_driver->name = "ttyIPWp";
 	ipw_tty_driver->major = 0;

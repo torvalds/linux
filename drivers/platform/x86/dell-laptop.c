@@ -117,6 +117,7 @@ static const struct dmi_system_id __initdata dell_device_table[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(dmi, dell_device_table);
 
 static struct dmi_system_id __devinitdata dell_blacklist[] = {
 	/* Supported by compal-laptop */
@@ -184,6 +185,33 @@ static struct dmi_system_id __devinitdata dell_quirks[] = {
 		},
 		.driver_data = &quirk_dell_vostro_v130,
 	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Vostro 3555",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 3555"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inspiron N311z",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron N311z"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inspiron M5110",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron M5110"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
 };
 
 static struct calling_interface_buffer *buffer;
@@ -236,9 +264,7 @@ static void __init find_tokens(const struct dmi_header *dm, void *dummy)
 {
 	switch (dm->type) {
 	case 0xd4: /* Indexed IO */
-		break;
 	case 0xd5: /* Protected Area Type 1 */
-		break;
 	case 0xd6: /* Protected Area Type 2 */
 		break;
 	case 0xda: /* Calling interface */
@@ -615,6 +641,7 @@ static void touchpad_led_set(struct led_classdev *led_cdev,
 static struct led_classdev touchpad_led = {
 	.name = "dell-laptop::touchpad",
 	.brightness_set = touchpad_led_set,
+	.flags = LED_CORE_SUSPENDRESUME,
 };
 
 static int __devinit touchpad_led_init(struct device *dev)
@@ -794,6 +821,3 @@ module_exit(dell_exit);
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
 MODULE_DESCRIPTION("Dell laptop driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("dmi:*svnDellInc.:*:ct8:*");
-MODULE_ALIAS("dmi:*svnDellInc.:*:ct9:*");
-MODULE_ALIAS("dmi:*svnDellComputerCorporation.:*:ct8:*");

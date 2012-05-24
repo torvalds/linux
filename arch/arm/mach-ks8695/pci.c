@@ -169,8 +169,8 @@ static int __init ks8695_pci_setup(int nr, struct pci_sys_data *sys)
 	request_resource(&iomem_resource, &pci_mem);
 	request_resource(&ioport_resource, &pci_io);
 
-	pci_add_resource(&sys->resources, &pci_io);
-	pci_add_resource(&sys->resources, &pci_mem);
+	pci_add_resource_offset(&sys->resources, &pci_io, sys->io_offset);
+	pci_add_resource_offset(&sys->resources, &pci_mem, sys->mem_offset);
 
 	/* Assign and enable processor bridge */
 	ks8695_local_writeconfig(PCI_BASE_ADDRESS_0, KS8695_PCIMEM_PA);

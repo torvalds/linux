@@ -1,5 +1,5 @@
 /*
- *  drivers/net/gianfar_ethtool.c
+ *  drivers/net/ethernet/freescale/gianfar_ethtool.c
  *
  *  Gianfar Ethernet Driver
  *  Ethtool support for Gianfar Enet
@@ -58,7 +58,7 @@ static void gfar_gringparam(struct net_device *dev, struct ethtool_ringparam *rv
 static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rvals);
 static void gfar_gdrvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo);
 
-static char stat_gstrings[][ETH_GSTRING_LEN] = {
+static const char stat_gstrings[][ETH_GSTRING_LEN] = {
 	"rx-dropped-by-kernel",
 	"rx-large-frame-errors",
 	"rx-short-frame-errors",

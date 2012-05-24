@@ -1066,7 +1066,7 @@ el3_rx(struct net_device *dev)
 			short pkt_len = rx_status & 0x7ff;
 			struct sk_buff *skb;
 
-			skb = dev_alloc_skb(pkt_len+5);
+			skb = netdev_alloc_skb(dev, pkt_len + 5);
 			if (el3_debug > 4)
 				pr_debug("Receiving packet size %d status %4.4x.\n",
 					   pkt_len, rx_status);

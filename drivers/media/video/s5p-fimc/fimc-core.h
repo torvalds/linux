@@ -434,7 +434,6 @@ struct fimc_ctx;
  * @num_clocks: the number of clocks managed by this device instance
  * @clock:	clocks required for FIMC operation
  * @regs:	the mapped hardware registers
- * @regs_res:	the resource claimed for IO registers
  * @irq:	FIMC interrupt number
  * @irq_queue:	interrupt handler waitqueue
  * @v4l2_dev:	root v4l2_device
@@ -454,7 +453,6 @@ struct fimc_dev {
 	u16				num_clocks;
 	struct clk			*clock[MAX_FIMC_CLOCKS];
 	void __iomem			*regs;
-	struct resource			*regs_res;
 	int				irq;
 	wait_queue_head_t		irq_queue;
 	struct v4l2_device		*v4l2_dev;

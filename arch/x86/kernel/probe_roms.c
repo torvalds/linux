@@ -12,6 +12,7 @@
 #include <linux/pci.h>
 #include <linux/export.h>
 
+#include <asm/probe_roms.h>
 #include <asm/pci-direct.h>
 #include <asm/e820.h>
 #include <asm/mmzone.h>

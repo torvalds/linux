@@ -38,11 +38,11 @@ if [ ! -e /proc/sys/fs/binfmt_misc/register ]; then
         /sbin/modprobe binfmt_misc
 	# Some distributions, like Fedora Core, perform
 	# the following command automatically when the
-	# binfmt_misc module is loaded into the kernel.
+	# binfmt_misc module is loaded into the kernel
+	# or during normal boot up (systemd-based systems).
 	# Thus, it is possible that the following line
-	# is not needed at all. Look at /etc/modprobe.conf
-	# to check whether this is applicable or not.
-        mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
+	# is not needed at all.
+	mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
 fi
 
 # Register support for .NET CLR binaries

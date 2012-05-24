@@ -36,11 +36,7 @@ extern __read_mostly int scheduler_running;
 
 /*
  * These are the 'tuning knobs' of the scheduler:
- *
- * default timeslice is 100 msecs (used only for SCHED_RR tasks).
- * Timeslices get refilled after they expire.
  */
-#define DEF_TIMESLICE		(100 * HZ / 1000)
 
 /*
  * single value that denotes runtime == period, ie unlimited time.
@@ -216,9 +212,6 @@ struct cfs_rq {
 	struct rb_root tasks_timeline;
 	struct rb_node *rb_leftmost;
 
-	struct list_head tasks;
-	struct list_head *balance_iterator;
-
 	/*
 	 * 'curr' points to currently running entity on this cfs_rq.
 	 * It is set to NULL otherwise (i.e when none are currently running).
@@ -245,11 +238,6 @@ struct cfs_rq {
 	struct task_group *tg;	/* group that "owns" this runqueue */
 
 #ifdef CONFIG_SMP
-	/*
-	 * the part of load.weight contributed by tasks
-	 */
-	unsigned long task_weight;
-
 	/*
 	 *   h_load = weight * f(tg)
 	 *
@@ -424,6 +412,8 @@ struct rq {
 	int cpu;
 	int online;
 
+	struct list_head cfs_tasks;
+
 	u64 rt_avg;
 	u64 age_stamp;
 	u64 idle_stamp;
@@ -462,7 +452,6 @@ struct rq {
 	unsigned int yld_count;
 
 	/* schedule() stats */
-	unsigned int sched_switch;
 	unsigned int sched_count;
 	unsigned int sched_goidle;
 
@@ -611,7 +600,7 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
  * Tunables that become constants when CONFIG_SCHED_DEBUG is off:
  */
 #ifdef CONFIG_SCHED_DEBUG
-# include <linux/jump_label.h>
+# include <linux/static_key.h>
 # define const_debug __read_mostly
 #else
 # define const_debug const
@@ -630,18 +619,18 @@ enum {
 #undef SCHED_FEAT
 
 #if defined(CONFIG_SCHED_DEBUG) && defined(HAVE_JUMP_LABEL)
-static __always_inline bool static_branch__true(struct jump_label_key *key)
+static __always_inline bool static_branch__true(struct static_key *key)
 {
-	return likely(static_branch(key)); /* Not out of line branch. */
+	return static_key_true(key); /* Not out of line branch. */
 }
 
-static __always_inline bool static_branch__false(struct jump_label_key *key)
+static __always_inline bool static_branch__false(struct static_key *key)
 {
-	return unlikely(static_branch(key)); /* Out of line branch. */
+	return static_key_false(key); /* Out of line branch. */
 }
 
 #define SCHED_FEAT(name, enabled)					\
-static __always_inline bool static_branch_##name(struct jump_label_key *key) \
+static __always_inline bool static_branch_##name(struct static_key *key) \
 {									\
 	return static_branch__##enabled(key);				\
 }
@@ -650,7 +639,7 @@ static __always_inline bool static_branch_##name(struct jump_label_key *key) \
 
 #undef SCHED_FEAT
 
-extern struct jump_label_key sched_feat_keys[__SCHED_FEAT_NR];
+extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
 #define sched_feat(x) (static_branch_##x(&sched_feat_keys[__SCHED_FEAT_##x]))
 #else /* !(SCHED_DEBUG && HAVE_JUMP_LABEL) */
 #define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
@@ -691,6 +680,9 @@ static inline int task_running(struct rq *rq, struct task_struct *p)
 #endif
 #ifndef finish_arch_switch
 # define finish_arch_switch(prev)	do { } while (0)
+#endif
+#ifndef finish_arch_post_lock_switch
+# define finish_arch_post_lock_switch()	do { } while (0)
 #endif
 
 #ifndef __ARCH_WANT_UNLOCKED_CTXSW

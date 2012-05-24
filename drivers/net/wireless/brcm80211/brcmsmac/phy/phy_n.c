@@ -14,6 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/cordic.h>
@@ -17822,8 +17824,6 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(struct brcms_phy *pi)
 	if (pi->sh->sromrev < 4) {
 		idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_2g;
 		idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_2g;
-		target_pwr_qtrdbm[0] = 13 * 4;
-		target_pwr_qtrdbm[1] = 13 * 4;
 		a1[0] = -424;
 		a1[1] = -424;
 		b0[0] = 5612;
@@ -17837,10 +17837,6 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(struct brcms_phy *pi)
 		case WL_CHAN_FREQ_RANGE_2G:
 			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_2g;
 			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_2g;
-			target_pwr_qtrdbm[0] =
-				pi->nphy_pwrctrl_info[0].max_pwr_2g;
-			target_pwr_qtrdbm[1] =
-				pi->nphy_pwrctrl_info[1].max_pwr_2g;
 			a1[0] = pi->nphy_pwrctrl_info[0].pwrdet_2g_a1;
 			a1[1] = pi->nphy_pwrctrl_info[1].pwrdet_2g_a1;
 			b0[0] = pi->nphy_pwrctrl_info[0].pwrdet_2g_b0;
@@ -17851,10 +17847,6 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(struct brcms_phy *pi)
 		case WL_CHAN_FREQ_RANGE_5GL:
 			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_5g;
 			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_5g;
-			target_pwr_qtrdbm[0] =
-				pi->nphy_pwrctrl_info[0].max_pwr_5gl;
-			target_pwr_qtrdbm[1] =
-				pi->nphy_pwrctrl_info[1].max_pwr_5gl;
 			a1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gl_a1;
 			a1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gl_a1;
 			b0[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gl_b0;
@@ -17865,10 +17857,6 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(struct brcms_phy *pi)
 		case WL_CHAN_FREQ_RANGE_5GM:
 			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_5g;
 			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_5g;
-			target_pwr_qtrdbm[0] =
-				pi->nphy_pwrctrl_info[0].max_pwr_5gm;
-			target_pwr_qtrdbm[1] =
-				pi->nphy_pwrctrl_info[1].max_pwr_5gm;
 			a1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gm_a1;
 			a1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gm_a1;
 			b0[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gm_b0;
@@ -17879,10 +17867,6 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(struct brcms_phy *pi)
 		case WL_CHAN_FREQ_RANGE_5GH:
 			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_5g;
 			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_5g;
-			target_pwr_qtrdbm[0] =
-				pi->nphy_pwrctrl_info[0].max_pwr_5gh;
-			target_pwr_qtrdbm[1] =
-				pi->nphy_pwrctrl_info[1].max_pwr_5gh;
 			a1[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gh_a1;
 			a1[1] = pi->nphy_pwrctrl_info[1].pwrdet_5gh_a1;
 			b0[0] = pi->nphy_pwrctrl_info[0].pwrdet_5gh_b0;
@@ -17893,8 +17877,6 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(struct brcms_phy *pi)
 		default:
 			idle_tssi[0] = pi->nphy_pwrctrl_info[0].idle_tssi_2g;
 			idle_tssi[1] = pi->nphy_pwrctrl_info[1].idle_tssi_2g;
-			target_pwr_qtrdbm[0] = 13 * 4;
-			target_pwr_qtrdbm[1] = 13 * 4;
 			a1[0] = -424;
 			a1[1] = -424;
 			b0[0] = 5612;
@@ -17905,6 +17887,7 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(struct brcms_phy *pi)
 		}
 	}
 
+	/* use the provided transmit power */
 	target_pwr_qtrdbm[0] = (s8) pi->tx_power_max;
 	target_pwr_qtrdbm[1] = (s8) pi->tx_power_max;
 
@@ -19987,12 +19970,11 @@ static void wlc_phy_radio_init_2057(struct brcms_phy *pi)
 		switch (pi->pubpi.radiorev) {
 		case 5:
 
-			if (pi->pubpi.radiover == 0x0)
+			if (NREV_IS(pi->pubpi.phy_rev, 8))
 				regs_2057_ptr = regs_2057_rev5;
-			else if (pi->pubpi.radiover == 0x1)
+			else if (NREV_IS(pi->pubpi.phy_rev, 9))
 				regs_2057_ptr = regs_2057_rev5v1;
-			else
-				break;
+			break;
 
 		case 7:
 
@@ -21462,7 +21444,7 @@ void wlc_phy_antsel_init(struct brcms_phy_pub *ppi, bool lut_init)
 	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
 		u16 v0 = 0x211, v1 = 0x222, v2 = 0x144, v3 = 0x188;
 
-		if (lut_init == false)
+		if (!lut_init)
 			return;
 
 		if (pi->srom_fem2g.antswctrllut == 0) {
@@ -26434,8 +26416,7 @@ cal_try:
 	}
 
 	if (bcmerror != 0) {
-		printk(KERN_DEBUG "%s: Failed, cnt = %d\n", __func__,
-		       cal_retry);
+		pr_debug("%s: Failed, cnt = %d\n", __func__, cal_retry);
 
 		if (cal_retry < CAL_RETRY_CNT) {
 			cal_retry++;

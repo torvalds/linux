@@ -810,7 +810,7 @@ static int lance_rx( struct net_device *dev )
 				dev->stats.rx_errors++;
 			}
 			else {
-				skb = dev_alloc_skb( pkt_len+2 );
+				skb = netdev_alloc_skb(dev, pkt_len + 2);
 				if (skb == NULL) {
 					DPRINTK( 1, ( "%s: Memory squeeze, deferring packet.\n",
 						      dev->name ));

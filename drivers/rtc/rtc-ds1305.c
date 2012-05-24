@@ -814,17 +814,7 @@ static struct spi_driver ds1305_driver = {
 	/* REVISIT add suspend/resume */
 };
 
-static int __init ds1305_init(void)
-{
-	return spi_register_driver(&ds1305_driver);
-}
-module_init(ds1305_init);
-
-static void __exit ds1305_exit(void)
-{
-	spi_unregister_driver(&ds1305_driver);
-}
-module_exit(ds1305_exit);
+module_spi_driver(ds1305_driver);
 
 MODULE_DESCRIPTION("RTC driver for DS1305 and DS1306 chips");
 MODULE_LICENSE("GPL");

@@ -49,6 +49,7 @@ struct hv_netvsc_packet {
 
 	struct hv_device *device;
 	bool is_data_pkt;
+	u16 vlan_tci;
 
 	/*
 	 * Valid only for receives when we break a xfer page packet
@@ -926,8 +927,39 @@ struct rndis_oobd {
 struct rndis_per_packet_info {
 	u32 size;
 	u32 type;
-	u32 per_pkt_info_offset;
+	u32 ppi_offset;
 };
+
+enum ndis_per_pkt_info_type {
+	TCPIP_CHKSUM_PKTINFO,
+	IPSEC_PKTINFO,
+	TCP_LARGESEND_PKTINFO,
+	CLASSIFICATION_HANDLE_PKTINFO,
+	NDIS_RESERVED,
+	SG_LIST_PKTINFO,
+	IEEE_8021Q_INFO,
+	ORIGINAL_PKTINFO,
+	PACKET_CANCEL_ID,
+	ORIGINAL_NET_BUFLIST,
+	CACHED_NET_BUFLIST,
+	SHORT_PKT_PADINFO,
+	MAX_PER_PKT_INFO
+};
+
+struct ndis_pkt_8021q_info {
+	union {
+		struct {
+			u32 pri:3; /* User Priority */
+			u32 cfi:1; /* Canonical Format ID */
+			u32 vlanid:12; /* VLAN ID */
+			u32 reserved:16;
+		};
+		u32 value;
+	};
+};
+
+#define NDIS_VLAN_PPI_SIZE (sizeof(struct rndis_per_packet_info) + \
+		sizeof(struct ndis_pkt_8021q_info))
 
 /* Format of Information buffer passed in a SetRequest for the OID */
 /* OID_GEN_RNDIS_CONFIG_PARAMETER. */

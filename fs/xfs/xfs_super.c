@@ -324,10 +324,9 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_FILESTREAM)) {
 			mp->m_flags |= XFS_MOUNT_FILESTREAMS;
 		} else if (!strcmp(this_char, MNTOPT_NOQUOTA)) {
-			mp->m_qflags &= ~(XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE |
-					  XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE |
-					  XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE |
-					  XFS_UQUOTA_ENFD | XFS_OQUOTA_ENFD);
+			mp->m_qflags &= ~XFS_ALL_QUOTA_ACCT;
+			mp->m_qflags &= ~XFS_ALL_QUOTA_ENFD;
+			mp->m_qflags &= ~XFS_ALL_QUOTA_ACTIVE;
 		} else if (!strcmp(this_char, MNTOPT_QUOTA) ||
 			   !strcmp(this_char, MNTOPT_UQUOTA) ||
 			   !strcmp(this_char, MNTOPT_USRQUOTA)) {
@@ -760,6 +759,36 @@ xfs_setup_devices(
 	return 0;
 }
 
+STATIC int
+xfs_init_mount_workqueues(
+	struct xfs_mount	*mp)
+{
+	mp->m_data_workqueue = alloc_workqueue("xfs-data/%s",
+			WQ_MEM_RECLAIM, 0, mp->m_fsname);
+	if (!mp->m_data_workqueue)
+		goto out;
+
+	mp->m_unwritten_workqueue = alloc_workqueue("xfs-conv/%s",
+			WQ_MEM_RECLAIM, 0, mp->m_fsname);
+	if (!mp->m_unwritten_workqueue)
+		goto out_destroy_data_iodone_queue;
+
+	return 0;
+
+out_destroy_data_iodone_queue:
+	destroy_workqueue(mp->m_data_workqueue);
+out:
+	return -ENOMEM;
+}
+
+STATIC void
+xfs_destroy_mount_workqueues(
+	struct xfs_mount	*mp)
+{
+	destroy_workqueue(mp->m_data_workqueue);
+	destroy_workqueue(mp->m_unwritten_workqueue);
+}
+
 /* Catch misguided souls that try to use this interface on XFS */
 STATIC struct inode *
 xfs_fs_alloc_inode(
@@ -834,91 +863,58 @@ xfs_fs_inode_init_once(
 }
 
 /*
- * Dirty the XFS inode when mark_inode_dirty_sync() is called so that
- * we catch unlogged VFS level updates to the inode.
+ * This is called by the VFS when dirtying inode metadata.  This can happen
+ * for a few reasons, but we only care about timestamp updates, given that
+ * we handled the rest ourselves.  In theory no other calls should happen,
+ * but for example generic_write_end() keeps dirtying the inode after
+ * updating i_size.  Thus we check that the flags are exactly I_DIRTY_SYNC,
+ * and skip this call otherwise.
  *
- * We need the barrier() to maintain correct ordering between unlogged
- * updates and the transaction commit code that clears the i_update_core
- * field. This requires all updates to be completed before marking the
- * inode dirty.
+ * We'll hopefull get a different method just for updating timestamps soon,
+ * at which point this hack can go away, and maybe we'll also get real
+ * error handling here.
  */
 STATIC void
 xfs_fs_dirty_inode(
-	struct inode	*inode,
-	int		flags)
-{
-	barrier();
-	XFS_I(inode)->i_update_core = 1;
-}
-
-STATIC int
-xfs_fs_write_inode(
 	struct inode		*inode,
-	struct writeback_control *wbc)
+	int			flags)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	int			error = EAGAIN;
+	struct xfs_trans	*tp;
+	int			error;
 
-	trace_xfs_write_inode(ip);
+	if (flags != I_DIRTY_SYNC)
+		return;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return -XFS_ERROR(EIO);
+	trace_xfs_dirty_inode(ip);
 
-	if (wbc->sync_mode == WB_SYNC_ALL || wbc->for_kupdate) {
-		/*
-		 * Make sure the inode has made it it into the log.  Instead
-		 * of forcing it all the way to stable storage using a
-		 * synchronous transaction we let the log force inside the
-		 * ->sync_fs call do that for thus, which reduces the number
-		 * of synchronous log forces dramatically.
-		 */
-		error = xfs_log_dirty_inode(ip, NULL, 0);
-		if (error)
-			goto out;
-		return 0;
-	} else {
-		if (!ip->i_update_core)
-			return 0;
-
-		/*
-		 * We make this non-blocking if the inode is contended, return
-		 * EAGAIN to indicate to the caller that they did not succeed.
-		 * This prevents the flush path from blocking on inodes inside
-		 * another operation right now, they get caught later by
-		 * xfs_sync.
-		 */
-		if (!xfs_ilock_nowait(ip, XFS_ILOCK_SHARED))
-			goto out;
-
-		if (xfs_ipincount(ip) || !xfs_iflock_nowait(ip))
-			goto out_unlock;
-
-		/*
-		 * Now we have the flush lock and the inode is not pinned, we
-		 * can check if the inode is really clean as we know that
-		 * there are no pending transaction completions, it is not
-		 * waiting on the delayed write queue and there is no IO in
-		 * progress.
-		 */
-		if (xfs_inode_clean(ip)) {
-			xfs_ifunlock(ip);
-			error = 0;
-			goto out_unlock;
-		}
-		error = xfs_iflush(ip, SYNC_TRYLOCK);
+	tp = xfs_trans_alloc(mp, XFS_TRANS_FSYNC_TS);
+	error = xfs_trans_reserve(tp, 0, XFS_FSYNC_TS_LOG_RES(mp), 0, 0, 0);
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		goto trouble;
 	}
-
- out_unlock:
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
- out:
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	/*
-	 * if we failed to write out the inode then mark
-	 * it dirty again so we'll try again later.
+	 * Grab all the latest timestamps from the Linux inode.
 	 */
+	ip->i_d.di_atime.t_sec = (__int32_t)inode->i_atime.tv_sec;
+	ip->i_d.di_atime.t_nsec = (__int32_t)inode->i_atime.tv_nsec;
+	ip->i_d.di_ctime.t_sec = (__int32_t)inode->i_ctime.tv_sec;
+	ip->i_d.di_ctime.t_nsec = (__int32_t)inode->i_ctime.tv_nsec;
+	ip->i_d.di_mtime.t_sec = (__int32_t)inode->i_mtime.tv_sec;
+	ip->i_d.di_mtime.t_nsec = (__int32_t)inode->i_mtime.tv_nsec;
+
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_TIMESTAMP);
+	error = xfs_trans_commit(tp, 0);
 	if (error)
-		xfs_mark_inode_dirty_sync(ip);
-	return -error;
+		goto trouble;
+	return;
+
+trouble:
+	xfs_warn(mp, "failed to update timestamps for inode 0x%llx", ip->i_ino);
 }
 
 STATIC void
@@ -954,6 +950,22 @@ xfs_fs_evict_inode(
 	xfs_inactive(ip);
 }
 
+/*
+ * We do an unlocked check for XFS_IDONTCACHE here because we are already
+ * serialised against cache hits here via the inode->i_lock and igrab() in
+ * xfs_iget_cache_hit(). Hence a lookup that might clear this flag will not be
+ * racing with us, and it avoids needing to grab a spinlock here for every inode
+ * we drop the final reference on.
+ */
+STATIC int
+xfs_fs_drop_inode(
+	struct inode		*inode)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+
+	return generic_drop_inode(inode) || (ip->i_flags & XFS_IDONTCACHE);
+}
+
 STATIC void
 xfs_free_fsname(
 	struct xfs_mount	*mp)
@@ -983,6 +995,7 @@ xfs_fs_put_super(
 	xfs_unmountfs(mp);
 	xfs_freesb(mp);
 	xfs_icsb_destroy_counters(mp);
+	xfs_destroy_mount_workqueues(mp);
 	xfs_close_devices(mp);
 	xfs_free_fsname(mp);
 	kfree(mp);
@@ -1309,9 +1322,13 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_free_fsname;
 
-	error = xfs_icsb_init_counters(mp);
+	error = xfs_init_mount_workqueues(mp);
 	if (error)
 		goto out_close_devices;
+
+	error = xfs_icsb_init_counters(mp);
+	if (error)
+		goto out_destroy_workqueues;
 
 	error = xfs_readsb(mp, flags);
 	if (error)
@@ -1341,6 +1358,7 @@ xfs_fs_fill_super(
 	sb->s_blocksize = mp->m_sb.sb_blocksize;
 	sb->s_blocksize_bits = ffs(sb->s_blocksize) - 1;
 	sb->s_maxbytes = xfs_max_file_offset(sb->s_blocksize_bits);
+	sb->s_max_links = XFS_MAXLINK;
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);
 
@@ -1361,10 +1379,10 @@ xfs_fs_fill_super(
 		error = EINVAL;
 		goto out_syncd_stop;
 	}
-	sb->s_root = d_alloc_root(root);
+	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
 		error = ENOMEM;
-		goto out_iput;
+		goto out_syncd_stop;
 	}
 
 	return 0;
@@ -1375,6 +1393,8 @@ xfs_fs_fill_super(
 	xfs_freesb(mp);
  out_destroy_counters:
 	xfs_icsb_destroy_counters(mp);
+out_destroy_workqueues:
+	xfs_destroy_mount_workqueues(mp);
  out_close_devices:
 	xfs_close_devices(mp);
  out_free_fsname:
@@ -1383,8 +1403,6 @@ xfs_fs_fill_super(
  out:
 	return -error;
 
- out_iput:
-	iput(root);
  out_syncd_stop:
 	xfs_syncd_stop(mp);
  out_unmount:
@@ -1430,8 +1448,8 @@ static const struct super_operations xfs_super_operations = {
 	.alloc_inode		= xfs_fs_alloc_inode,
 	.destroy_inode		= xfs_fs_destroy_inode,
 	.dirty_inode		= xfs_fs_dirty_inode,
-	.write_inode		= xfs_fs_write_inode,
 	.evict_inode		= xfs_fs_evict_inode,
+	.drop_inode		= xfs_fs_drop_inode,
 	.put_super		= xfs_fs_put_super,
 	.sync_fs		= xfs_fs_sync_fs,
 	.freeze_fs		= xfs_fs_freeze,
@@ -1605,12 +1623,28 @@ xfs_init_workqueues(void)
 	xfs_syncd_wq = alloc_workqueue("xfssyncd", WQ_NON_REENTRANT, 0);
 	if (!xfs_syncd_wq)
 		return -ENOMEM;
+
+	/*
+	 * The allocation workqueue can be used in memory reclaim situations
+	 * (writepage path), and parallelism is only limited by the number of
+	 * AGs in all the filesystems mounted. Hence use the default large
+	 * max_active value for this workqueue.
+	 */
+	xfs_alloc_wq = alloc_workqueue("xfsalloc", WQ_MEM_RECLAIM, 0);
+	if (!xfs_alloc_wq)
+		goto out_destroy_syncd;
+
 	return 0;
+
+out_destroy_syncd:
+	destroy_workqueue(xfs_syncd_wq);
+	return -ENOMEM;
 }
 
 STATIC void
 xfs_destroy_workqueues(void)
 {
+	destroy_workqueue(xfs_alloc_wq);
 	destroy_workqueue(xfs_syncd_wq);
 }
 
@@ -1652,13 +1686,17 @@ init_xfs_fs(void)
 	if (error)
 		goto out_cleanup_procfs;
 
-	vfs_initquota();
+	error = xfs_qm_init();
+	if (error)
+		goto out_sysctl_unregister;
 
 	error = register_filesystem(&xfs_fs_type);
 	if (error)
-		goto out_sysctl_unregister;
+		goto out_qm_exit;
 	return 0;
 
+ out_qm_exit:
+	xfs_qm_exit();
  out_sysctl_unregister:
 	xfs_sysctl_unregister();
  out_cleanup_procfs:
@@ -1680,7 +1718,7 @@ init_xfs_fs(void)
 STATIC void __exit
 exit_xfs_fs(void)
 {
-	vfs_exitquota();
+	xfs_qm_exit();
 	unregister_filesystem(&xfs_fs_type);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();

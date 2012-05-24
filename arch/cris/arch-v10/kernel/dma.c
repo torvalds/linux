@@ -8,6 +8,7 @@
 
 #include <asm/dma.h>
 #include <arch/svinto.h>
+#include <arch/system.h>
 
 /* Macro to access ETRAX 100 registers */
 #define SETS(var, reg, field, val) var = (var & ~IO_MASK_(reg##_, field##_)) | \

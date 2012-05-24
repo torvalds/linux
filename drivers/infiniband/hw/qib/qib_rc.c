@@ -2048,7 +2048,6 @@ send_last:
 		wc.pkey_index = 0;
 		wc.dlid_path_bits = 0;
 		wc.port_num = 0;
-		wc.csum_ok = 0;
 		/* Signal completion event if the solicited bit is set. */
 		qib_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
 			     (ohdr->bth[0] &

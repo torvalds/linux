@@ -77,6 +77,9 @@ EXPORT_SYMBOL(acpi_in_debugger);
 extern char line_buf[80];
 #endif				/*ENABLE_DEBUGGER */
 
+static int (*__acpi_os_prepare_sleep)(u8 sleep_state, u32 pm1a_ctrl,
+				      u32 pm1b_ctrl);
+
 static acpi_osd_handler acpi_irq_handler;
 static void *acpi_irq_context;
 static struct workqueue_struct *kacpid_wq;
@@ -347,7 +350,7 @@ static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
 	unsigned long pfn;
 
 	pfn = pg_off >> PAGE_SHIFT;
-	if (page_is_ram(pfn))
+	if (should_use_kmap(pfn))
 		kunmap(pfn_to_page(pfn));
 	else
 		iounmap(vaddr);
@@ -554,6 +557,15 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
 	return AE_OK;
 }
 
+acpi_status
+acpi_os_physical_table_override(struct acpi_table_header *existing_table,
+				acpi_physical_address * new_address,
+				u32 *new_table_length)
+{
+	return AE_SUPPORT;
+}
+
+
 static irqreturn_t acpi_irq(int irq, void *dev_id)
 {
 	u32 handled;
@@ -699,49 +711,6 @@ acpi_status acpi_os_write_port(acpi_io_address port, u32 value, u32 width)
 
 EXPORT_SYMBOL(acpi_os_write_port);
 
-acpi_status
-acpi_os_read_memory(acpi_physical_address phys_addr, u32 * value, u32 width)
-{
-	void __iomem *virt_addr;
-	unsigned int size = width / 8;
-	bool unmap = false;
-	u32 dummy;
-
-	rcu_read_lock();
-	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
-	if (!virt_addr) {
-		rcu_read_unlock();
-		virt_addr = acpi_os_ioremap(phys_addr, size);
-		if (!virt_addr)
-			return AE_BAD_ADDRESS;
-		unmap = true;
-	}
-
-	if (!value)
-		value = &dummy;
-
-	switch (width) {
-	case 8:
-		*(u8 *) value = readb(virt_addr);
-		break;
-	case 16:
-		*(u16 *) value = readw(virt_addr);
-		break;
-	case 32:
-		*(u32 *) value = readl(virt_addr);
-		break;
-	default:
-		BUG();
-	}
-
-	if (unmap)
-		iounmap(virt_addr);
-	else
-		rcu_read_unlock();
-
-	return AE_OK;
-}
-
 #ifdef readq
 static inline u64 read64(const volatile void __iomem *addr)
 {
@@ -758,7 +727,7 @@ static inline u64 read64(const volatile void __iomem *addr)
 #endif
 
 acpi_status
-acpi_os_read_memory64(acpi_physical_address phys_addr, u64 *value, u32 width)
+acpi_os_read_memory(acpi_physical_address phys_addr, u64 *value, u32 width)
 {
 	void __iomem *virt_addr;
 	unsigned int size = width / 8;
@@ -803,45 +772,6 @@ acpi_os_read_memory64(acpi_physical_address phys_addr, u64 *value, u32 width)
 	return AE_OK;
 }
 
-acpi_status
-acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
-{
-	void __iomem *virt_addr;
-	unsigned int size = width / 8;
-	bool unmap = false;
-
-	rcu_read_lock();
-	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
-	if (!virt_addr) {
-		rcu_read_unlock();
-		virt_addr = acpi_os_ioremap(phys_addr, size);
-		if (!virt_addr)
-			return AE_BAD_ADDRESS;
-		unmap = true;
-	}
-
-	switch (width) {
-	case 8:
-		writeb(value, virt_addr);
-		break;
-	case 16:
-		writew(value, virt_addr);
-		break;
-	case 32:
-		writel(value, virt_addr);
-		break;
-	default:
-		BUG();
-	}
-
-	if (unmap)
-		iounmap(virt_addr);
-	else
-		rcu_read_unlock();
-
-	return AE_OK;
-}
-
 #ifdef writeq
 static inline void write64(u64 val, volatile void __iomem *addr)
 {
@@ -856,7 +786,7 @@ static inline void write64(u64 val, volatile void __iomem *addr)
 #endif
 
 acpi_status
-acpi_os_write_memory64(acpi_physical_address phys_addr, u64 value, u32 width)
+acpi_os_write_memory(acpi_physical_address phys_addr, u64 value, u32 width)
 {
 	void __iomem *virt_addr;
 	unsigned int size = width / 8;
@@ -1640,4 +1570,25 @@ acpi_status acpi_os_terminate(void)
 	destroy_workqueue(kacpi_hotplug_wq);
 
 	return AE_OK;
+}
+
+acpi_status acpi_os_prepare_sleep(u8 sleep_state, u32 pm1a_control,
+				  u32 pm1b_control)
+{
+	int rc = 0;
+	if (__acpi_os_prepare_sleep)
+		rc = __acpi_os_prepare_sleep(sleep_state,
+					     pm1a_control, pm1b_control);
+	if (rc < 0)
+		return AE_ERROR;
+	else if (rc > 0)
+		return AE_CTRL_SKIP;
+
+	return AE_OK;
+}
+
+void acpi_os_set_prepare_sleep(int (*func)(u8 sleep_state,
+			       u32 pm1a_ctrl, u32 pm1b_ctrl))
+{
+	__acpi_os_prepare_sleep = func;
 }

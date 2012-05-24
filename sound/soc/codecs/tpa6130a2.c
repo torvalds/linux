@@ -351,10 +351,10 @@ int tpa6130a2_add_controls(struct snd_soc_codec *codec)
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	if (data->id == TPA6140A2)
-		return snd_soc_add_controls(codec, tpa6140a2_controls,
+		return snd_soc_add_codec_controls(codec, tpa6140a2_controls,
 						ARRAY_SIZE(tpa6140a2_controls));
 	else
-		return snd_soc_add_controls(codec, tpa6130a2_controls,
+		return snd_soc_add_codec_controls(codec, tpa6130a2_controls,
 						ARRAY_SIZE(tpa6130a2_controls));
 }
 EXPORT_SYMBOL_GPL(tpa6130a2_add_controls);

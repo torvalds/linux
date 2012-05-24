@@ -1,4 +1,4 @@
-/* drivers/net/ax88796.c
+/* drivers/net/ethernet/8390/ax88796.c
  *
  * Copyright 2005,2007 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
@@ -31,7 +31,6 @@
 
 #include <net/ax88796.h>
 
-#include <asm/system.h>
 
 /* Rename the lib8390.c functions to show that they are in this driver */
 #define __ei_open ax_ei_open

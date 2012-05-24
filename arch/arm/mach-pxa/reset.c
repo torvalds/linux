@@ -9,6 +9,7 @@
 #include <linux/gpio.h>
 #include <linux/io.h>
 #include <asm/proc-fns.h>
+#include <asm/system_misc.h>
 
 #include <mach/regs-ost.h>
 #include <mach/reset.h>

@@ -60,7 +60,6 @@
 #include <linux/ioctl.h>
 #include <linux/synclink.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/dma.h>
@@ -2484,7 +2483,7 @@ static int mgslpc_open(struct tty_struct *tty, struct file * filp)
 
 	/* verify range of specified line number */
 	line = tty->index;
-	if ((line < 0) || (line >= mgslpc_device_count)) {
+	if (line >= mgslpc_device_count) {
 		printk("%s(%d):mgslpc_open with invalid line #%d.\n",
 			__FILE__,__LINE__,line);
 		return -ENODEV;
@@ -2836,7 +2835,6 @@ static int __init synclink_cs_init(void)
 
     /* Initialize the tty_driver structure */
 
-    serial_driver->owner = THIS_MODULE;
     serial_driver->driver_name = "synclink_cs";
     serial_driver->name = "ttySLP";
     serial_driver->major = ttymajor;

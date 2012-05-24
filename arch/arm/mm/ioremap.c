@@ -26,12 +26,14 @@
 #include <linux/vmalloc.h>
 #include <linux/io.h>
 
+#include <asm/cp15.h>
 #include <asm/cputype.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/sizes.h>
+#include <asm/system_info.h>
 
 #include <asm/mach/map.h>
 #include "mm.h"
@@ -306,11 +308,15 @@ __arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
 }
 EXPORT_SYMBOL(__arm_ioremap_pfn);
 
+void __iomem * (*arch_ioremap_caller)(unsigned long, size_t,
+				      unsigned int, void *) =
+	__arm_ioremap_caller;
+
 void __iomem *
 __arm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 {
-	return __arm_ioremap_caller(phys_addr, size, mtype,
-			__builtin_return_address(0));
+	return arch_ioremap_caller(phys_addr, size, mtype,
+		__builtin_return_address(0));
 }
 EXPORT_SYMBOL(__arm_ioremap);
 
@@ -369,4 +375,11 @@ void __iounmap(volatile void __iomem *io_addr)
 
 	vunmap(addr);
 }
-EXPORT_SYMBOL(__iounmap);
+
+void (*arch_iounmap)(volatile void __iomem *) = __iounmap;
+
+void __arm_iounmap(volatile void __iomem *io_addr)
+{
+	arch_iounmap(io_addr);
+}
+EXPORT_SYMBOL(__arm_iounmap);

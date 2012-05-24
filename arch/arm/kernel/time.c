@@ -25,8 +25,6 @@
 #include <linux/timer.h>
 #include <linux/irq.h>
 
-#include <linux/mc146818rtc.h>
-
 #include <asm/leds.h>
 #include <asm/thread_info.h>
 #include <asm/sched_clock.h>
@@ -149,8 +147,6 @@ void __init time_init(void)
 {
 	system_timer = machine_desc->timer;
 	system_timer->init();
-#ifdef CONFIG_HAVE_SCHED_CLOCK
 	sched_clock_postinit();
-#endif
 }
 

@@ -1,5 +1,5 @@
 /*
- * drivers/net/ibm_newemac/phy.c
+ * drivers/net/ethernet/ibm/emac/phy.c
  *
  * Driver for PowerPC 4xx on-chip ethernet controller, PHY support.
  * Borrowed from sungem_phy.c, though I only kept the generic MII

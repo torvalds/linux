@@ -22,7 +22,6 @@
 #include <asm/mipsregs.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
-#include <asm/system.h>
 #include <asm/traps.h>
 #include <asm/uaccess.h>
 

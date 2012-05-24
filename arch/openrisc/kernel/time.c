@@ -125,16 +125,13 @@ irqreturn_t __irq_entry timer_interrupt(struct pt_regs *regs)
 
 static __init void openrisc_clockevent_init(void)
 {
-	clockevents_calc_mult_shift(&clockevent_openrisc_timer,
-				    cpuinfo.clock_frequency, 4);
+	clockevent_openrisc_timer.cpumask = cpumask_of(0);
 
 	/* We only have 28 bits */
-	clockevent_openrisc_timer.max_delta_ns =
-	    clockevent_delta2ns((u32) 0x0fffffff, &clockevent_openrisc_timer);
-	clockevent_openrisc_timer.min_delta_ns =
-	    clockevent_delta2ns(1, &clockevent_openrisc_timer);
-	clockevent_openrisc_timer.cpumask = cpumask_of(0);
-	clockevents_register_device(&clockevent_openrisc_timer);
+	clockevents_config_and_register(&clockevent_openrisc_timer,
+					cpuinfo.clock_frequency,
+					100, 0x0fffffff);
+
 }
 
 /**

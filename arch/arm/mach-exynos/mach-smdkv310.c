@@ -270,6 +270,9 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
 	&s5p_device_fimc3,
+	&s5p_device_fimc_md,
+	&s5p_device_g2d,
+	&s5p_device_jpeg,
 	&exynos4_device_ac97,
 	&exynos4_device_i2s0,
 	&exynos4_device_ohci,
@@ -277,13 +280,6 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
-	&exynos4_device_pd[PD_MFC],
-	&exynos4_device_pd[PD_G3D],
-	&exynos4_device_pd[PD_LCD0],
-	&exynos4_device_pd[PD_LCD1],
-	&exynos4_device_pd[PD_CAM],
-	&exynos4_device_pd[PD_TV],
-	&exynos4_device_pd[PD_GPS],
 	&exynos4_device_spdif,
 	&exynos4_device_sysmmu,
 	&samsung_asoc_dma,
@@ -336,10 +332,6 @@ static void s5p_tv_setup(void)
 	WARN_ON(gpio_request_one(EXYNOS4_GPX3(7), GPIOF_IN, "hpd-plug"));
 	s3c_gpio_cfgpin(EXYNOS4_GPX3(7), S3C_GPIO_SFN(0x3));
 	s3c_gpio_setpull(EXYNOS4_GPX3(7), S3C_GPIO_PULL_NONE);
-
-	/* setup dependencies between TV devices */
-	s5p_device_hdmi.dev.parent = &exynos4_device_pd[PD_TV].dev;
-	s5p_device_mixer.dev.parent = &exynos4_device_pd[PD_TV].dev;
 }
 
 static void __init smdkv310_map_io(void)
@@ -379,7 +371,6 @@ static void __init smdkv310_machine_init(void)
 	clk_xusbxti.rate = 24000000;
 
 	platform_add_devices(smdkv310_devices, ARRAY_SIZE(smdkv310_devices));
-	s5p_device_mfc.dev.parent = &exynos4_device_pd[PD_MFC].dev;
 }
 
 MACHINE_START(SMDKV310, "SMDKV310")

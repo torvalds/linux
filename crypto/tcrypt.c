@@ -1297,6 +1297,18 @@ static int do_test(int m)
 				speed_template_16_24_32);
 		test_cipher_speed("cbc(camellia)", DECRYPT, sec, NULL, 0,
 				speed_template_16_24_32);
+		test_cipher_speed("ctr(camellia)", ENCRYPT, sec, NULL, 0,
+				speed_template_16_24_32);
+		test_cipher_speed("ctr(camellia)", DECRYPT, sec, NULL, 0,
+				speed_template_16_24_32);
+		test_cipher_speed("lrw(camellia)", ENCRYPT, sec, NULL, 0,
+				speed_template_32_40_48);
+		test_cipher_speed("lrw(camellia)", DECRYPT, sec, NULL, 0,
+				speed_template_32_40_48);
+		test_cipher_speed("xts(camellia)", ENCRYPT, sec, NULL, 0,
+				speed_template_32_48_64);
+		test_cipher_speed("xts(camellia)", DECRYPT, sec, NULL, 0,
+				speed_template_32_48_64);
 		break;
 
 	case 206:

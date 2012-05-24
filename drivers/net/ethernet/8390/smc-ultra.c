@@ -69,7 +69,6 @@ static const char version[] =
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 
 #include "8390.h"
 

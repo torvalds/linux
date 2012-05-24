@@ -90,6 +90,8 @@ struct kvmppc_vcpu_book3s {
 #endif
 	int context_id[SID_CONTEXTS];
 
+	bool hior_explicit;		/* HIOR is set by ioctl, not PVR */
+
 	struct hlist_head hpte_hash_pte[HPTEG_HASH_NUM_PTE];
 	struct hlist_head hpte_hash_pte_long[HPTEG_HASH_NUM_PTE_LONG];
 	struct hlist_head hpte_hash_vpte[HPTEG_HASH_NUM_VPTE];
@@ -119,6 +121,11 @@ extern void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu);
 extern int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte);
 extern int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr);
 extern void kvmppc_mmu_flush_segments(struct kvm_vcpu *vcpu);
+extern int kvmppc_book3s_hv_page_fault(struct kvm_run *run,
+			struct kvm_vcpu *vcpu, unsigned long addr,
+			unsigned long status);
+extern long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr,
+			unsigned long slb_v, unsigned long valid);
 
 extern void kvmppc_mmu_hpte_cache_map(struct kvm_vcpu *vcpu, struct hpte_cache *pte);
 extern struct hpte_cache *kvmppc_mmu_hpte_cache_next(struct kvm_vcpu *vcpu);
@@ -138,6 +145,21 @@ extern void kvmppc_set_bat(struct kvm_vcpu *vcpu, struct kvmppc_bat *bat,
 extern void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr);
 extern int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu);
 extern pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn);
+extern void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
+			unsigned long *rmap, long pte_index, int realmode);
+extern void kvmppc_invalidate_hpte(struct kvm *kvm, unsigned long *hptep,
+			unsigned long pte_index);
+void kvmppc_clear_ref_hpte(struct kvm *kvm, unsigned long *hptep,
+			unsigned long pte_index);
+extern void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long addr,
+			unsigned long *nb_ret);
+extern void kvmppc_unpin_guest_page(struct kvm *kvm, void *addr);
+extern long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
+			long pte_index, unsigned long pteh, unsigned long ptel);
+extern long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
+			long pte_index, unsigned long pteh, unsigned long ptel);
+extern long kvmppc_hv_get_dirty_log(struct kvm *kvm,
+			struct kvm_memory_slot *memslot);
 
 extern void kvmppc_entry_trampoline(void);
 extern void kvmppc_hv_entry_trampoline(void);
@@ -183,7 +205,9 @@ static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 {
 	if ( num < 14 ) {
-		to_svcpu(vcpu)->gpr[num] = val;
+		struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+		svcpu->gpr[num] = val;
+		svcpu_put(svcpu);
 		to_book3s(vcpu)->shadow_vcpu->gpr[num] = val;
 	} else
 		vcpu->arch.gpr[num] = val;
@@ -191,80 +215,120 @@ static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 
 static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
 {
-	if ( num < 14 )
-		return to_svcpu(vcpu)->gpr[num];
-	else
+	if ( num < 14 ) {
+		struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+		ulong r = svcpu->gpr[num];
+		svcpu_put(svcpu);
+		return r;
+	} else
 		return vcpu->arch.gpr[num];
 }
 
 static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
 {
-	to_svcpu(vcpu)->cr = val;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	svcpu->cr = val;
+	svcpu_put(svcpu);
 	to_book3s(vcpu)->shadow_vcpu->cr = val;
 }
 
 static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
 {
-	return to_svcpu(vcpu)->cr;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	u32 r;
+	r = svcpu->cr;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, u32 val)
 {
-	to_svcpu(vcpu)->xer = val;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	svcpu->xer = val;
 	to_book3s(vcpu)->shadow_vcpu->xer = val;
+	svcpu_put(svcpu);
 }
 
 static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
 {
-	return to_svcpu(vcpu)->xer;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	u32 r;
+	r = svcpu->xer;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline void kvmppc_set_ctr(struct kvm_vcpu *vcpu, ulong val)
 {
-	to_svcpu(vcpu)->ctr = val;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	svcpu->ctr = val;
+	svcpu_put(svcpu);
 }
 
 static inline ulong kvmppc_get_ctr(struct kvm_vcpu *vcpu)
 {
-	return to_svcpu(vcpu)->ctr;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	ulong r;
+	r = svcpu->ctr;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline void kvmppc_set_lr(struct kvm_vcpu *vcpu, ulong val)
 {
-	to_svcpu(vcpu)->lr = val;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	svcpu->lr = val;
+	svcpu_put(svcpu);
 }
 
 static inline ulong kvmppc_get_lr(struct kvm_vcpu *vcpu)
 {
-	return to_svcpu(vcpu)->lr;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	ulong r;
+	r = svcpu->lr;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline void kvmppc_set_pc(struct kvm_vcpu *vcpu, ulong val)
 {
-	to_svcpu(vcpu)->pc = val;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	svcpu->pc = val;
+	svcpu_put(svcpu);
 }
 
 static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
 {
-	return to_svcpu(vcpu)->pc;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	ulong r;
+	r = svcpu->pc;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
 {
 	ulong pc = kvmppc_get_pc(vcpu);
-	struct kvmppc_book3s_shadow_vcpu *svcpu = to_svcpu(vcpu);
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	u32 r;
 
 	/* Load the instruction manually if it failed to do so in the
 	 * exit path */
 	if (svcpu->last_inst == KVM_INST_FETCH_FAILED)
 		kvmppc_ld(vcpu, &pc, sizeof(u32), &svcpu->last_inst, false);
 
-	return svcpu->last_inst;
+	r = svcpu->last_inst;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 {
-	return to_svcpu(vcpu)->fault_dar;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	ulong r;
+	r = svcpu->fault_dar;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)

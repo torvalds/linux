@@ -5,7 +5,7 @@ IPs present in the SoC.
 On top of that an omap_device is created to extend the platform_device
 capabilities and to allow binding with one or several hwmods.
 The hwmods will contain all the information to build the device:
-adresse range, irq lines, dma lines, interconnect, PRCM register,
+address range, irq lines, dma lines, interconnect, PRCM register,
 clock domain, input clocks.
 For the moment just point to the existing hwmod, the next step will be
 to move data from hwmod to device-tree representation.
@@ -41,3 +41,9 @@ Boards:
 
 - OMAP4 PandaBoard : Low cost community board
   compatible = "ti,omap4-panda", "ti,omap4430"
+
+- OMAP3 EVM : Software Developement Board for OMAP35x, AM/DM37x
+  compatible = "ti,omap3-evm", "ti,omap3"
+
+- AM335X EVM : Software Developement Board for AM335x
+  compatible = "ti,am335x-evm", "ti,am33xx", "ti,omap3"

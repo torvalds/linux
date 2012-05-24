@@ -1096,7 +1096,7 @@ static int kt_serial_setup(struct serial_private *priv,
 			   const struct pciserial_board *board,
 			   struct uart_port *port, int idx)
 {
-	port->flags |= UPF_IIR_ONCE;
+	port->flags |= UPF_BUG_THRE;
 	return skip_tx_en_setup(priv, board, port, idx);
 }
 
@@ -1116,18 +1116,6 @@ pci_xr17c154_setup(struct serial_private *priv,
 {
 	port->flags |= UPF_EXAR_EFR;
 	return pci_default_setup(priv, board, port, idx);
-}
-
-static int try_enable_msi(struct pci_dev *dev)
-{
-	/* use msi if available, but fallback to legacy otherwise */
-	pci_enable_msi(dev);
-	return 0;
-}
-
-static void disable_msi(struct pci_dev *dev)
-{
-	pci_disable_msi(dev);
 }
 
 #define PCI_VENDOR_ID_SBSMODULARIO	0x124B
@@ -1249,9 +1237,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.device		= PCI_DEVICE_ID_INTEL_PATSBURG_KT,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
-		.init		= try_enable_msi,
 		.setup		= kt_serial_setup,
-		.exit		= disable_msi,
 	},
 	/*
 	 * ITE

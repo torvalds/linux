@@ -592,11 +592,18 @@ static const struct i2c_device_id isl29018_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, isl29018_id);
 
+static const struct of_device_id isl29018_of_match[] = {
+	{ .compatible = "invn,isl29018", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, isl29018_of_match);
+
 static struct i2c_driver isl29018_driver = {
 	.class	= I2C_CLASS_HWMON,
 	.driver	 = {
 			.name = "isl29018",
 			.owner = THIS_MODULE,
+			.of_match_table = isl29018_of_match,
 		    },
 	.probe	 = isl29018_probe,
 	.remove	 = __devexit_p(isl29018_remove),

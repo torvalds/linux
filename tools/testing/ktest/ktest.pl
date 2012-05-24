@@ -46,6 +46,7 @@ my %default = (
     "DIE_ON_FAILURE"		=> 1,
     "SSH_EXEC"			=> "ssh \$SSH_USER\@\$MACHINE \$SSH_COMMAND",
     "SCP_TO_TARGET"		=> "scp \$SRC_FILE \$SSH_USER\@\$MACHINE:\$DST_FILE",
+    "SCP_TO_TARGET_INSTALL"	=> "\${SCP_TO_TARGET}",
     "REBOOT"			=> "ssh \$SSH_USER\@\$MACHINE reboot",
     "STOP_AFTER_SUCCESS"	=> 10,
     "STOP_AFTER_FAILURE"	=> 60,
@@ -86,11 +87,13 @@ my $reboot_on_error;
 my $switch_to_good;
 my $switch_to_test;
 my $poweroff_on_error;
+my $reboot_on_success;
 my $die_on_failure;
 my $powercycle_after_reboot;
 my $poweroff_after_halt;
 my $ssh_exec;
 my $scp_to_target;
+my $scp_to_target_install;
 my $power_off;
 my $grub_menu;
 my $grub_number;
@@ -211,6 +214,7 @@ my %option_map = (
     "SWITCH_TO_GOOD"		=> \$switch_to_good,
     "SWITCH_TO_TEST"		=> \$switch_to_test,
     "POWEROFF_ON_ERROR"		=> \$poweroff_on_error,
+    "REBOOT_ON_SUCCESS"		=> \$reboot_on_success,
     "DIE_ON_FAILURE"		=> \$die_on_failure,
     "POWER_OFF"			=> \$power_off,
     "POWERCYCLE_AFTER_REBOOT"	=> \$powercycle_after_reboot,
@@ -243,6 +247,7 @@ my %option_map = (
     "BUILD_TARGET"		=> \$build_target,
     "SSH_EXEC"			=> \$ssh_exec,
     "SCP_TO_TARGET"		=> \$scp_to_target,
+    "SCP_TO_TARGET_INSTALL"	=> \$scp_to_target_install,
     "CHECKOUT"			=> \$checkout,
     "TARGET_IMAGE"		=> \$target_image,
     "LOCALVERSION"		=> \$localversion,
@@ -1113,7 +1118,6 @@ sub reboot_to_good {
 
     if (defined($switch_to_good)) {
 	run_command $switch_to_good;
-	return;
     }
 
     reboot $time;
@@ -1349,13 +1353,28 @@ sub run_ssh {
 }
 
 sub run_scp {
-    my ($src, $dst) = @_;
-    my $cp_scp = $scp_to_target;
+    my ($src, $dst, $cp_scp) = @_;
 
     $cp_scp =~ s/\$SRC_FILE/$src/g;
     $cp_scp =~ s/\$DST_FILE/$dst/g;
 
     return run_command "$cp_scp";
+}
+
+sub run_scp_install {
+    my ($src, $dst) = @_;
+
+    my $cp_scp = $scp_to_target_install;
+
+    return run_scp($src, $dst, $cp_scp);
+}
+
+sub run_scp_mod {
+    my ($src, $dst) = @_;
+
+    my $cp_scp = $scp_to_target;
+
+    return run_scp($src, $dst, $cp_scp);
 }
 
 sub get_grub_index {
@@ -1460,6 +1479,7 @@ sub get_sha1 {
 sub monitor {
     my $booted = 0;
     my $bug = 0;
+    my $bug_ignored = 0;
     my $skip_call_trace = 0;
     my $loops;
 
@@ -1531,9 +1551,13 @@ sub monitor {
 	}
 
 	if ($full_line =~ /call trace:/i) {
-	    if (!$ignore_errors && !$bug && !$skip_call_trace) {
-		$bug = 1;
-		$failure_start = time;
+	    if (!$bug && !$skip_call_trace) {
+		if ($ignore_errors) {
+		    $bug_ignored = 1;
+		} else {
+		    $bug = 1;
+		    $failure_start = time;
+		}
 	    }
 	}
 
@@ -1595,6 +1619,10 @@ sub monitor {
 	fail "failed - never got a boot prompt." and return 0;
     }
 
+    if ($bug_ignored) {
+	doprint "WARNING: Call Trace detected but ignored due to IGNORE_ERRORS=1\n";
+    }
+
     return 1;
 }
 
@@ -1621,7 +1649,7 @@ sub install {
 
     my $cp_target = eval_kernel_version $target_image;
 
-    run_scp "$outputdir/$build_target", "$cp_target" or
+    run_scp_install "$outputdir/$build_target", "$cp_target" or
 	dodie "failed to copy image";
 
     my $install_mods = 0;
@@ -1643,7 +1671,7 @@ sub install {
 	return;
     }
 
-    run_command "$make INSTALL_MOD_PATH=$tmpdir modules_install" or
+    run_command "$make INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$tmpdir modules_install" or
 	dodie "Failed to install modules";
 
     my $modlib = "/lib/modules/$version";
@@ -1656,7 +1684,7 @@ sub install {
     run_command "cd $tmpdir && tar -cjf $modtar lib/modules/$version" or
 	dodie "making tarball";
 
-    run_scp "$tmpdir/$modtar", "/tmp" or
+    run_scp_mod "$tmpdir/$modtar", "/tmp" or
 	dodie "failed to copy modules";
 
     unlink "$tmpdir/$modtar";
@@ -2601,7 +2629,7 @@ sub config_bisect {
     # read directly what we want to check
     my %config_check;
     open (IN, $output_config)
-	or dodie "faied to open $output_config";
+	or dodie "failed to open $output_config";
 
     while (<IN>) {
 	if (/^((CONFIG\S*)=.*)/) {
@@ -3526,8 +3554,10 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	    die "failed to checkout $checkout";
     }
 
-    $no_reboot = 0;
-
+    # A test may opt to not reboot the box
+    if ($reboot_on_success) {
+	$no_reboot = 0;
+    }
 
     if ($test_type eq "bisect") {
 	bisect $i;
@@ -3572,7 +3602,11 @@ if ($opt{"POWEROFF_ON_SUCCESS"}) {
     halt;
 } elsif ($opt{"REBOOT_ON_SUCCESS"} && !do_not_reboot) {
     reboot_to_good;
+} elsif (defined($switch_to_good)) {
+    # still need to get to the good kernel
+    run_command $switch_to_good;
 }
+
 
 doprint "\n    $successes of $opt{NUM_TESTS} tests were successful\n\n";
 

@@ -79,8 +79,7 @@
 // #include <linux/delay.h>
 // #include <linux/skbuff.h>
 // #include <asm/io.h>
-// #include <asm/system.h>
-// #include <asm/bitops.h>
+// // #include <asm/bitops.h>
 
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>

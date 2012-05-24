@@ -52,11 +52,15 @@ OPTIONS
 
 -p::
 --pid=::
-	Record events on existing process ID.
+	Record events on existing process ID (comma separated list).
 
 -t::
 --tid=::
-        Record events on existing thread ID.
+        Record events on existing thread ID (comma separated list).
+
+-u::
+--uid=::
+        Record events in threads owned by uid. Name or number.
 
 -r::
 --realtime=::
@@ -147,6 +151,36 @@ to first event, second cgroup to second event and so on. It is possible to provi
 an empty cgroup (monitor all the time) using, e.g., -G foo,,bar. Cgroups must have
 corresponding events, i.e., they always refer to events defined earlier on the command
 line.
+
+-b::
+--branch-any::
+Enable taken branch stack sampling. Any type of taken branch may be sampled.
+This is a shortcut for --branch-filter any. See --branch-filter for more infos.
+
+-j::
+--branch-filter::
+Enable taken branch stack sampling. Each sample captures a series of consecutive
+taken branches. The number of branches captured with each sample depends on the
+underlying hardware, the type of branches of interest, and the executed code.
+It is possible to select the types of branches captured by enabling filters. The
+following filters are defined:
+
+        - any:  any type of branches
+        - any_call: any function call or system call
+        - any_ret: any function return or system call return
+        - any_ind: any indirect branch
+        - u:  only when the branch target is at the user level
+        - k: only when the branch target is in the kernel
+        - hv: only when the target is at the hypervisor level
+
++
+The option requires at least one branch type among any, any_call, any_ret, ind_call.
+The privilege levels may be ommitted, in which case, the privilege levels of the associated
+event are applied to the branch filter. Both kernel (k) and hypervisor (hv) privilege
+levels are subject to permissions.  When sampling on multiple events, branch stack sampling
+is enabled for all the sampling events. The sampled branch type is the same for all events.
+The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
+Note that this feature may not be available on all processors.
 
 SEE ALSO
 --------

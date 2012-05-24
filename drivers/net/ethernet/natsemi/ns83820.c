@@ -121,7 +121,6 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 #define DRV_NAME "ns83820"
 

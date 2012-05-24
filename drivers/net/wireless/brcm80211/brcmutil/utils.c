@@ -14,6 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/netdevice.h>
 #include <linux/module.h>
 
@@ -240,17 +242,35 @@ struct sk_buff *brcmu_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 }
 EXPORT_SYMBOL(brcmu_pktq_mdeq);
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 /* pretty hex print a pkt buffer chain */
 void brcmu_prpkt(const char *msg, struct sk_buff *p0)
 {
 	struct sk_buff *p;
 
 	if (msg && (msg[0] != '\0'))
-		printk(KERN_DEBUG "%s:\n", msg);
+		pr_debug("%s:\n", msg);
 
 	for (p = p0; p; p = p->next)
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, p->data, p->len);
 }
 EXPORT_SYMBOL(brcmu_prpkt);
-#endif				/* defined(BCMDBG) */
+
+void brcmu_dbg_hex_dump(const void *data, size_t size, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	pr_debug("%pV", &vaf);
+
+	va_end(args);
+
+	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, data, size);
+}
+EXPORT_SYMBOL(brcmu_dbg_hex_dump);
+#endif				/* defined(DEBUG) */

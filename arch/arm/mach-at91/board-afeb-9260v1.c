@@ -138,6 +138,7 @@ static struct atmel_nand_data __initdata afeb9260_nand_data = {
 	.rdy_pin	= AT91_PIN_PC13,
 	.enable_pin	= AT91_PIN_PC14,
 	.bus_width_16	= 0,
+	.ecc_mode	= NAND_ECC_SOFT,
 	.parts		= afeb9260_nand_partition,
 	.num_parts	= ARRAY_SIZE(afeb9260_nand_partition),
 	.det_pin	= -EINVAL,

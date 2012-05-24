@@ -10,9 +10,9 @@
  */
 
 #include <linux/sched.h>
-#include <asm/system.h>
 #include <asm/current.h>
 #include <asm/mmu_context.h>
+#include <asm/switch_to.h>
 
 void save_processor_state(void)
 {

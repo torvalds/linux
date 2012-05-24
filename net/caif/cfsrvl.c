@@ -174,15 +174,11 @@ void cfsrvl_init(struct cfsrvl *service,
 
 bool cfsrvl_ready(struct cfsrvl *service, int *err)
 {
-	if (service->open && service->modem_flow_on && service->phy_flow_on)
-		return true;
 	if (!service->open) {
 		*err = -ENOTCONN;
 		return false;
 	}
-	caif_assert(!(service->modem_flow_on && service->phy_flow_on));
-	*err = -EAGAIN;
-	return false;
+	return true;
 }
 
 u8 cfsrvl_getphyid(struct cflayer *layer)

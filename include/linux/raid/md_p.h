@@ -281,6 +281,10 @@ struct mdp_superblock_1 {
 					    * active device with same 'role'.
 					    * 'recovery_offset' is also set.
 					    */
-#define	MD_FEATURE_ALL			(1|2|4|8|16)
+#define	MD_FEATURE_ALL			(MD_FEATURE_BITMAP_OFFSET	\
+					|MD_FEATURE_RECOVERY_OFFSET	\
+					|MD_FEATURE_RESHAPE_ACTIVE	\
+					|MD_FEATURE_BAD_BLOCKS		\
+					|MD_FEATURE_REPLACEMENT)
 
 #endif 

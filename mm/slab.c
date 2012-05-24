@@ -1731,6 +1731,52 @@ static int __init cpucache_init(void)
 }
 __initcall(cpucache_init);
 
+static noinline void
+slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
+{
+	struct kmem_list3 *l3;
+	struct slab *slabp;
+	unsigned long flags;
+	int node;
+
+	printk(KERN_WARNING
+		"SLAB: Unable to allocate memory on node %d (gfp=0x%x)\n",
+		nodeid, gfpflags);
+	printk(KERN_WARNING "  cache: %s, object size: %d, order: %d\n",
+		cachep->name, cachep->buffer_size, cachep->gfporder);
+
+	for_each_online_node(node) {
+		unsigned long active_objs = 0, num_objs = 0, free_objects = 0;
+		unsigned long active_slabs = 0, num_slabs = 0;
+
+		l3 = cachep->nodelists[node];
+		if (!l3)
+			continue;
+
+		spin_lock_irqsave(&l3->list_lock, flags);
+		list_for_each_entry(slabp, &l3->slabs_full, list) {
+			active_objs += cachep->num;
+			active_slabs++;
+		}
+		list_for_each_entry(slabp, &l3->slabs_partial, list) {
+			active_objs += slabp->inuse;
+			active_slabs++;
+		}
+		list_for_each_entry(slabp, &l3->slabs_free, list)
+			num_slabs++;
+
+		free_objects += l3->free_objects;
+		spin_unlock_irqrestore(&l3->list_lock, flags);
+
+		num_slabs += active_slabs;
+		num_objs = num_slabs * cachep->num;
+		printk(KERN_WARNING
+			"  node %d: slabs: %ld/%ld, objs: %ld/%ld, free: %ld\n",
+			node, active_slabs, num_slabs, active_objs, num_objs,
+			free_objects);
+	}
+}
+
 /*
  * Interface to system's page allocator. No need to hold the cache-lock.
  *
@@ -1757,8 +1803,11 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 		flags |= __GFP_RECLAIMABLE;
 
 	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
-	if (!page)
+	if (!page) {
+		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
+			slab_out_of_memory(cachep, flags, nodeid);
 		return NULL;
+	}
 
 	nr_pages = (1 << cachep->gfporder);
 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
@@ -3284,12 +3333,10 @@ static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
 	if (in_interrupt() || (flags & __GFP_THISNODE))
 		return NULL;
 	nid_alloc = nid_here = numa_mem_id();
-	get_mems_allowed();
 	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
 		nid_alloc = cpuset_slab_spread_node();
 	else if (current->mempolicy)
 		nid_alloc = slab_node(current->mempolicy);
-	put_mems_allowed();
 	if (nid_alloc != nid_here)
 		return ____cache_alloc_node(cachep, flags, nid_alloc);
 	return NULL;
@@ -3312,13 +3359,16 @@ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 	enum zone_type high_zoneidx = gfp_zone(flags);
 	void *obj = NULL;
 	int nid;
+	unsigned int cpuset_mems_cookie;
 
 	if (flags & __GFP_THISNODE)
 		return NULL;
 
-	get_mems_allowed();
-	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
 	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
+
+retry_cpuset:
+	cpuset_mems_cookie = get_mems_allowed();
+	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
 
 retry:
 	/*
@@ -3372,7 +3422,9 @@ retry:
 			}
 		}
 	}
-	put_mems_allowed();
+
+	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !obj))
+		goto retry_cpuset;
 	return obj;
 }
 
@@ -3693,13 +3745,12 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
 
 	if (likely(ac->avail < ac->limit)) {
 		STATS_INC_FREEHIT(cachep);
-		ac->entry[ac->avail++] = objp;
-		return;
 	} else {
 		STATS_INC_FREEMISS(cachep);
 		cache_flusharray(cachep, ac);
-		ac->entry[ac->avail++] = objp;
 	}
+
+	ac->entry[ac->avail++] = objp;
 }
 
 /**

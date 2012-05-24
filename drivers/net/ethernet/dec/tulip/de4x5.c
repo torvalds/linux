@@ -3598,7 +3598,7 @@ de4x5_alloc_rx_buff(struct net_device *dev, int index, int len)
     struct sk_buff *ret;
     u_long i=0, tmp;
 
-    p = dev_alloc_skb(IEEE802_3_SZ + DE4X5_ALIGN + 2);
+    p = netdev_alloc_skb(dev, IEEE802_3_SZ + DE4X5_ALIGN + 2);
     if (!p) return NULL;
 
     tmp = virt_to_bus(p->data);
@@ -3618,7 +3618,7 @@ de4x5_alloc_rx_buff(struct net_device *dev, int index, int len)
 #else
     if (lp->state != OPEN) return (struct sk_buff *)1; /* Fake out the open */
 
-    p = dev_alloc_skb(len + 2);
+    p = netdev_alloc_skb(dev, len + 2);
     if (!p) return NULL;
 
     skb_reserve(p, 2);	                               /* Align */
@@ -5234,11 +5234,7 @@ de4x5_dbg_open(struct net_device *dev)
 
     if (de4x5_debug & DEBUG_OPEN) {
 	printk("%s: de4x5 opening with irq %d\n",dev->name,dev->irq);
-	printk("\tphysical address: ");
-	for (i=0;i<6;i++) {
-	    printk("%2.2x:",(short)dev->dev_addr[i]);
-	}
-	printk("\n");
+	printk("\tphysical address: %pM\n", dev->dev_addr);
 	printk("Descriptor head addresses:\n");
 	printk("\t0x%8.8lx  0x%8.8lx\n",(u_long)lp->rx_ring,(u_long)lp->tx_ring);
 	printk("Descriptor addresses:\nRX: ");

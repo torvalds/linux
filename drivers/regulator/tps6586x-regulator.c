@@ -79,6 +79,11 @@ static int tps6586x_ldo_list_voltage(struct regulator_dev *rdev,
 				     unsigned selector)
 {
 	struct tps6586x_regulator *info = rdev_get_drvdata(rdev);
+	int rid = rdev_get_id(rdev);
+
+	/* LDO0 has minimal voltage 1.2V rather than 1.25V */
+	if ((rid == TPS6586X_ID_LDO_0) && (selector == 0))
+		return (info->voltages[0] - 50) * 1000;
 
 	return info->voltages[selector] * 1000;
 }
@@ -383,7 +388,7 @@ static int __devinit tps6586x_regulator_probe(struct platform_device *pdev)
 	int id = pdev->id;
 	int err;
 
-	dev_dbg(&pdev->dev, "Probing reulator %d\n", id);
+	dev_dbg(&pdev->dev, "Probing regulator %d\n", id);
 
 	ri = find_regulator_info(id);
 	if (ri == NULL) {

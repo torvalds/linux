@@ -370,6 +370,7 @@ struct acpi_predefined_data {
 /* Defines for Flags field above */
 
 #define ACPI_OBJECT_REPAIRED    1
+#define ACPI_OBJECT_WRAPPED     2
 
 /*
  * Bitmapped return value types

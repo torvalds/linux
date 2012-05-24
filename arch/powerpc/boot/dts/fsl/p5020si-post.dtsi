@@ -339,12 +339,14 @@
 /include/ "qoriq-gpio-0.dtsi"
 /include/ "qoriq-usb2-mph-0.dtsi"
 		usb0: usb@210000 {
+			compatible = "fsl-usb2-mph-v1.6", "fsl,mpc85xx-usb2-mph", "fsl-usb2-mph";
 			phy_type = "utmi";
 			port0;
 		};
 
 /include/ "qoriq-usb2-dr-0.dtsi"
 		usb1: usb@211000 {
+			compatible = "fsl-usb2-dr-v1.6", "fsl,mpc85xx-usb2-dr", "fsl-usb2-dr";
 			dr_mode = "host";
 			phy_type = "utmi";
 		};

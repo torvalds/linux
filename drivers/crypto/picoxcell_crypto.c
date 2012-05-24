@@ -1322,6 +1322,7 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_driver_name = "cbc-aes-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
 			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY |
 				     CRYPTO_ALG_ASYNC |
 				     CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize = AES_BLOCK_SIZE,
@@ -1349,6 +1350,7 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_driver_name = "ecb-aes-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
 			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+				CRYPTO_ALG_KERN_DRIVER_ONLY |
 				CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct spacc_ablk_ctx),
@@ -1373,7 +1375,9 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_name = "cbc(des)",
 			.cra_driver_name = "cbc-des-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
-			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct spacc_ablk_ctx),
 			.cra_type = &crypto_ablkcipher_type,
@@ -1398,7 +1402,9 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_name = "ecb(des)",
 			.cra_driver_name = "ecb-des-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
-			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct spacc_ablk_ctx),
 			.cra_type = &crypto_ablkcipher_type,
@@ -1422,7 +1428,9 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_name = "cbc(des3_ede)",
 			.cra_driver_name = "cbc-des3-ede-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
-			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct spacc_ablk_ctx),
 			.cra_type = &crypto_ablkcipher_type,
@@ -1447,7 +1455,9 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_name = "ecb(des3_ede)",
 			.cra_driver_name = "ecb-des3-ede-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
-			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct spacc_ablk_ctx),
 			.cra_type = &crypto_ablkcipher_type,
@@ -1472,7 +1482,9 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_name = "authenc(hmac(sha1),cbc(aes))",
 			.cra_driver_name = "authenc-hmac-sha1-cbc-aes-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
-			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_TYPE_AEAD |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct spacc_aead_ctx),
 			.cra_type = &crypto_aead_type,
@@ -1500,7 +1512,9 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_name = "authenc(hmac(sha256),cbc(aes))",
 			.cra_driver_name = "authenc-hmac-sha256-cbc-aes-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
-			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_TYPE_AEAD |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct spacc_aead_ctx),
 			.cra_type = &crypto_aead_type,
@@ -1527,7 +1541,9 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_name = "authenc(hmac(md5),cbc(aes))",
 			.cra_driver_name = "authenc-hmac-md5-cbc-aes-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
-			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_TYPE_AEAD |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct spacc_aead_ctx),
 			.cra_type = &crypto_aead_type,
@@ -1554,7 +1570,9 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_name = "authenc(hmac(sha1),cbc(des3_ede))",
 			.cra_driver_name = "authenc-hmac-sha1-cbc-3des-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
-			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_TYPE_AEAD |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct spacc_aead_ctx),
 			.cra_type = &crypto_aead_type,
@@ -1582,7 +1600,9 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_name = "authenc(hmac(sha256),cbc(des3_ede))",
 			.cra_driver_name = "authenc-hmac-sha256-cbc-3des-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
-			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_TYPE_AEAD |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct spacc_aead_ctx),
 			.cra_type = &crypto_aead_type,
@@ -1609,7 +1629,9 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_name = "authenc(hmac(md5),cbc(des3_ede))",
 			.cra_driver_name = "authenc-hmac-md5-cbc-3des-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
-			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_TYPE_AEAD |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct spacc_aead_ctx),
 			.cra_type = &crypto_aead_type,
@@ -1639,7 +1661,9 @@ static struct spacc_alg l2_engine_algs[] = {
 			.cra_name = "f8(kasumi)",
 			.cra_driver_name = "f8-kasumi-picoxcell",
 			.cra_priority = SPACC_CRYPTO_ALG_PRIORITY,
-			.cra_flags = CRYPTO_ALG_TYPE_GIVCIPHER | CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_TYPE_GIVCIPHER |
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 8,
 			.cra_ctxsize = sizeof(struct spacc_ablk_ctx),
 			.cra_type = &crypto_ablkcipher_type,

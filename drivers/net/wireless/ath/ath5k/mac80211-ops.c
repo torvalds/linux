@@ -134,6 +134,8 @@ ath5k_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 			ah->num_ap_vifs++;
 		else if (avf->opmode == NL80211_IFTYPE_ADHOC)
 			ah->num_adhoc_vifs++;
+		else if (avf->opmode == NL80211_IFTYPE_MESH_POINT)
+			ah->num_mesh_vifs++;
 	}
 
 	/* Any MAC address is fine, all others are included through the
@@ -175,6 +177,8 @@ ath5k_remove_interface(struct ieee80211_hw *hw,
 		ah->num_ap_vifs--;
 	else if (avf->opmode == NL80211_IFTYPE_ADHOC)
 		ah->num_adhoc_vifs--;
+	else if (avf->opmode == NL80211_IFTYPE_MESH_POINT)
+		ah->num_mesh_vifs--;
 
 	ath5k_update_bssid_mask_and_opmode(ah, NULL);
 	mutex_unlock(&ah->lock);
@@ -482,6 +486,14 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (ath5k_modparam_nohwcrypt)
 		return -EOPNOTSUPP;
+
+	if (vif->type == NL80211_IFTYPE_ADHOC &&
+	    (key->cipher == WLAN_CIPHER_SUITE_TKIP ||
+	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
+	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
+		/* don't program group keys when using IBSS_RSN */
+		return -EOPNOTSUPP;
+	}
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:

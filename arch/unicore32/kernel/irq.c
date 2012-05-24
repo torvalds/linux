@@ -26,7 +26,6 @@
 #include <linux/syscore_ops.h>
 #include <linux/gpio.h>
 
-#include <asm/system.h>
 #include <mach/hardware.h>
 
 #include "setup.h"

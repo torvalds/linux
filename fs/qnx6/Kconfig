@@ -1,0 +1,26 @@
+config QNX6FS_FS
+	tristate "QNX6 file system support (read only)"
+	depends on BLOCK && CRC32
+	help
+	  This is the file system used by the real-time operating systems
+	  QNX 6 (also called QNX RTP).
+	  Further information is available at <http://www.qnx.com/>.
+	  Say Y if you intend to mount QNX hard disks or floppies formatted
+          with a mkqnx6fs.
+	  However, keep in mind that this currently is a readonly driver!
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called qnx6.
+
+	  If you don't know whether you need it, then you don't need it:
+	  answer N.
+
+config QNX6FS_DEBUG
+	bool "QNX6 debugging information"
+	depends on QNX6FS_FS
+	help
+	  Turns on extended debugging output.
+
+	  If you are not a developer working on the QNX6FS, you probably don't
+	  want this:
+	  answer N.

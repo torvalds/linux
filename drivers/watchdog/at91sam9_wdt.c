@@ -15,6 +15,8 @@
  * bootloader doesn't write to this register.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -60,8 +62,8 @@ module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds. "
 	"(default = " __MODULE_STRING(WDT_HEARTBEAT) ")");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
@@ -96,7 +98,7 @@ static void at91_ping(unsigned long data)
 		at91_wdt_reset();
 		mod_timer(&at91wdt_private.timer, jiffies + WDT_TIMEOUT);
 	} else
-		printk(KERN_CRIT DRV_NAME": I will reset your machine !\n");
+		pr_crit("I will reset your machine !\n");
 }
 
 /*
@@ -140,7 +142,7 @@ static int at91_wdt_settimeout(unsigned int timeout)
 	/* Check if disabled */
 	mr = wdt_read(AT91_WDT_MR);
 	if (mr & AT91_WDT_WDDIS) {
-		printk(KERN_ERR DRV_NAME": sorry, watchdog is disabled\n");
+		pr_err("sorry, watchdog is disabled\n");
 		return -EIO;
 	}
 
@@ -283,7 +285,7 @@ static int __init at91wdt_probe(struct platform_device *pdev)
 	setup_timer(&at91wdt_private.timer, at91_ping, 0);
 	mod_timer(&at91wdt_private.timer, jiffies + WDT_TIMEOUT);
 
-	printk(KERN_INFO DRV_NAME " enabled (heartbeat=%d sec, nowayout=%d)\n",
+	pr_info("enabled (heartbeat=%d sec, nowayout=%d)\n",
 		heartbeat, nowayout);
 
 	return 0;

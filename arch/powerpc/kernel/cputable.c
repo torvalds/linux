@@ -20,6 +20,7 @@
 #include <asm/cputable.h>
 #include <asm/prom.h>		/* for PTRRELOC on ARCH=ppc */
 #include <asm/mmu.h>
+#include <asm/setup.h>
 
 struct cpu_spec* cur_cpu_spec = NULL;
 EXPORT_SYMBOL(cur_cpu_spec);
@@ -1816,7 +1817,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.platform		= "ppc440",
 	},
 	{ /* 464 in APM821xx */
-		.pvr_mask		= 0xffffff00,
+		.pvr_mask		= 0xfffffff0,
 		.pvr_value		= 0x12C41C80,
 		.cpu_name		= "APM821XX",
 		.cpu_features		= CPU_FTRS_44X,
@@ -2018,6 +2019,24 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_restore		= __restore_cpu_e5500,
 		.machine_check		= machine_check_e500mc,
 		.platform		= "ppce5500",
+	},
+	{	/* e6500 */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x80400000,
+		.cpu_name		= "e6500",
+		.cpu_features		= CPU_FTRS_E6500,
+		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
+		.mmu_features		= MMU_FTR_TYPE_FSL_E | MMU_FTR_BIG_PHYS |
+			MMU_FTR_USE_TLBILX,
+		.icache_bsize		= 64,
+		.dcache_bsize		= 64,
+		.num_pmcs		= 4,
+		.oprofile_cpu_type	= "ppc/e6500",
+		.oprofile_type		= PPC_OPROFILE_FSL_EMB,
+		.cpu_setup		= __setup_cpu_e5500,
+		.cpu_restore		= __restore_cpu_e5500,
+		.machine_check		= machine_check_e500mc,
+		.platform		= "ppce6500",
 	},
 #ifdef CONFIG_PPC32
 	{	/* default match */

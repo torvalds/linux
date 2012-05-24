@@ -13,10 +13,6 @@
 #ifndef EFX_NET_DRIVER_H
 #define EFX_NET_DRIVER_H
 
-#if defined(EFX_ENABLE_DEBUG) && !defined(DEBUG)
-#define DEBUG
-#endif
-
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -28,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/highmem.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 #include <linux/vmalloc.h>
 #include <linux/i2c.h>
 
@@ -42,7 +39,7 @@
 
 #define EFX_DRIVER_VERSION	"3.1"
 
-#ifdef EFX_ENABLE_DEBUG
+#ifdef DEBUG
 #define EFX_BUG_ON_PARANOID(x) BUG_ON(x)
 #define EFX_WARN_ON_PARANOID(x) WARN_ON(x)
 #else
@@ -56,8 +53,10 @@
  *
  **************************************************************************/
 
-#define EFX_MAX_CHANNELS 32
+#define EFX_MAX_CHANNELS 32U
 #define EFX_MAX_RX_QUEUES EFX_MAX_CHANNELS
+#define EFX_EXTRA_CHANNEL_IOV	0
+#define EFX_MAX_EXTRA_CHANNELS	1U
 
 /* Checksum generation is a per-queue option in hardware, so each
  * queue visible to the networking core is backed by two hardware TX
@@ -85,15 +84,8 @@ struct efx_special_buffer {
 	void *addr;
 	dma_addr_t dma_addr;
 	unsigned int len;
-	int index;
-	int entries;
-};
-
-enum efx_flush_state {
-	FLUSH_NONE,
-	FLUSH_PENDING,
-	FLUSH_FAILED,
-	FLUSH_DONE,
+	unsigned int index;
+	unsigned int entries;
 };
 
 /**
@@ -142,7 +134,6 @@ struct efx_tx_buffer {
  * @txd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
  * @initialised: Has hardware queue been initialised?
- * @flushed: Used when handling queue flushing
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
  * @old_write_count: The value of @write_count when last checked.
@@ -185,7 +176,6 @@ struct efx_tx_queue {
 	struct efx_special_buffer txd;
 	unsigned int ptr_mask;
 	bool initialised;
-	enum efx_flush_state flushed;
 
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
@@ -209,12 +199,12 @@ struct efx_tx_queue {
 /**
  * struct efx_rx_buffer - An Efx RX data buffer
  * @dma_addr: DMA base address of the buffer
- * @skb: The associated socket buffer, if any.
- *	If both this and page are %NULL, the buffer slot is currently free.
- * @page: The associated page buffer, if any.
- *	If both this and skb are %NULL, the buffer slot is currently free.
+ * @skb: The associated socket buffer. Valid iff !(@flags & %EFX_RX_BUF_PAGE).
+ *	Will be %NULL if the buffer slot is currently free.
+ * @page: The associated page buffer. Valif iff @flags & %EFX_RX_BUF_PAGE.
+ *	Will be %NULL if the buffer slot is currently free.
  * @len: Buffer length, in bytes.
- * @is_page: Indicates if @page is valid. If false, @skb is valid.
+ * @flags: Flags for buffer and packet state.
  */
 struct efx_rx_buffer {
 	dma_addr_t dma_addr;
@@ -223,8 +213,11 @@ struct efx_rx_buffer {
 		struct page *page;
 	} u;
 	unsigned int len;
-	bool is_page;
+	u16 flags;
 };
+#define EFX_RX_BUF_PAGE		0x0001
+#define EFX_RX_PKT_CSUMMED	0x0002
+#define EFX_RX_PKT_DISCARD	0x0004
 
 /**
  * struct efx_rx_page_state - Page-based rx buffer state
@@ -250,6 +243,9 @@ struct efx_rx_page_state {
  * @buffer: The software buffer ring
  * @rxd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
+ * @enabled: Receive queue enabled indicator.
+ * @flush_pending: Set when a RX flush is pending. Has the same lifetime as
+ *	@rxq_flush_pending.
  * @added_count: Number of buffers added to the receive queue.
  * @notified_count: Number of buffers given to NIC (<= @added_count).
  * @removed_count: Number of buffers removed from the receive queue.
@@ -264,13 +260,14 @@ struct efx_rx_page_state {
  * @alloc_page_count: RX allocation strategy counter.
  * @alloc_skb_count: RX allocation strategy counter.
  * @slow_fill: Timer used to defer efx_nic_generate_fill_event().
- * @flushed: Use when handling queue flushing
  */
 struct efx_rx_queue {
 	struct efx_nic *efx;
 	struct efx_rx_buffer *buffer;
 	struct efx_special_buffer rxd;
 	unsigned int ptr_mask;
+	bool enabled;
+	bool flush_pending;
 
 	int added_count;
 	int notified_count;
@@ -284,8 +281,6 @@ struct efx_rx_queue {
 	unsigned int alloc_skb_count;
 	struct timer_list slow_fill;
 	unsigned int slow_fill_count;
-
-	enum efx_flush_state flushed;
 };
 
 /**
@@ -319,6 +314,7 @@ enum efx_rx_alloc_method {
  *
  * @efx: Associated Efx NIC
  * @channel: Channel instance number
+ * @type: Channel type definition
  * @enabled: Channel enabled indicator
  * @irq: IRQ number (MSI and MSI-X only)
  * @irq_moderation: IRQ moderation value (in hardware ticks)
@@ -328,7 +324,7 @@ enum efx_rx_alloc_method {
  * @eventq: Event queue buffer
  * @eventq_mask: Event queue pointer mask
  * @eventq_read_ptr: Event queue read pointer
- * @last_eventq_read_ptr: Last event queue read pointer value.
+ * @event_test_cpu: Last CPU to handle interrupt or test event for this channel
  * @irq_count: Number of IRQs since last adaptive moderation decision
  * @irq_mod_score: IRQ moderation score
  * @rx_alloc_level: Watermark based heuristic counter for pushing descriptors
@@ -348,6 +344,7 @@ enum efx_rx_alloc_method {
 struct efx_channel {
 	struct efx_nic *efx;
 	int channel;
+	const struct efx_channel_type *type;
 	bool enabled;
 	int irq;
 	unsigned int irq_moderation;
@@ -357,7 +354,7 @@ struct efx_channel {
 	struct efx_special_buffer eventq;
 	unsigned int eventq_mask;
 	unsigned int eventq_read_ptr;
-	unsigned int last_eventq_read_ptr;
+	int event_test_cpu;
 
 	unsigned int irq_count;
 	unsigned int irq_mod_score;
@@ -380,10 +377,29 @@ struct efx_channel {
 	 * access with prefetches.
 	 */
 	struct efx_rx_buffer *rx_pkt;
-	bool rx_pkt_csummed;
 
 	struct efx_rx_queue rx_queue;
 	struct efx_tx_queue tx_queue[EFX_TXQ_TYPES];
+};
+
+/**
+ * struct efx_channel_type - distinguishes traffic and extra channels
+ * @handle_no_channel: Handle failure to allocate an extra channel
+ * @pre_probe: Set up extra state prior to initialisation
+ * @post_remove: Tear down extra state after finalisation, if allocated.
+ *	May be called on channels that have not been probed.
+ * @get_name: Generate the channel's name (used for its IRQ handler)
+ * @copy: Copy the channel state prior to reallocation.  May be %NULL if
+ *	reallocation is not supported.
+ * @keep_eventq: Flag for whether event queue should be kept initialised
+ *	while the device is stopped
+ */
+struct efx_channel_type {
+	void (*handle_no_channel)(struct efx_nic *);
+	int (*pre_probe)(struct efx_channel *);
+	void (*get_name)(struct efx_channel *, char *buf, size_t len);
+	struct efx_channel *(*copy)(const struct efx_channel *);
+	bool keep_eventq;
 };
 
 enum efx_led_mode {
@@ -395,12 +411,12 @@ enum efx_led_mode {
 #define STRING_TABLE_LOOKUP(val, member) \
 	((val) < member ## _max) ? member ## _names[val] : "(invalid)"
 
-extern const char *efx_loopback_mode_names[];
+extern const char *const efx_loopback_mode_names[];
 extern const unsigned int efx_loopback_mode_max;
 #define LOOPBACK_MODE(efx) \
 	STRING_TABLE_LOOKUP((efx)->loopback_mode, efx_loopback_mode)
 
-extern const char *efx_reset_type_names[];
+extern const char *const efx_reset_type_names[];
 extern const unsigned int efx_reset_type_max;
 #define RESET_TYPE(type) \
 	STRING_TABLE_LOOKUP(type, efx_reset_type)
@@ -474,18 +490,6 @@ static inline bool efx_link_state_equal(const struct efx_link_state *left,
 }
 
 /**
- * struct efx_mac_operations - Efx MAC operations table
- * @reconfigure: Reconfigure MAC. Serialised by the mac_lock
- * @update_stats: Update statistics
- * @check_fault: Check fault state. True if fault present.
- */
-struct efx_mac_operations {
-	int (*reconfigure) (struct efx_nic *efx);
-	void (*update_stats) (struct efx_nic *efx);
-	bool (*check_fault)(struct efx_nic *efx);
-};
-
-/**
  * struct efx_phy_operations - Efx PHY operations table
  * @probe: Probe PHY and initialise efx->mdio.mode_support, efx->mdio.mmds,
  *	efx->loopback_modes.
@@ -552,64 +556,64 @@ struct efx_mac_stats {
 	u64 tx_bytes;
 	u64 tx_good_bytes;
 	u64 tx_bad_bytes;
-	unsigned long tx_packets;
-	unsigned long tx_bad;
-	unsigned long tx_pause;
-	unsigned long tx_control;
-	unsigned long tx_unicast;
-	unsigned long tx_multicast;
-	unsigned long tx_broadcast;
-	unsigned long tx_lt64;
-	unsigned long tx_64;
-	unsigned long tx_65_to_127;
-	unsigned long tx_128_to_255;
-	unsigned long tx_256_to_511;
-	unsigned long tx_512_to_1023;
-	unsigned long tx_1024_to_15xx;
-	unsigned long tx_15xx_to_jumbo;
-	unsigned long tx_gtjumbo;
-	unsigned long tx_collision;
-	unsigned long tx_single_collision;
-	unsigned long tx_multiple_collision;
-	unsigned long tx_excessive_collision;
-	unsigned long tx_deferred;
-	unsigned long tx_late_collision;
-	unsigned long tx_excessive_deferred;
-	unsigned long tx_non_tcpudp;
-	unsigned long tx_mac_src_error;
-	unsigned long tx_ip_src_error;
+	u64 tx_packets;
+	u64 tx_bad;
+	u64 tx_pause;
+	u64 tx_control;
+	u64 tx_unicast;
+	u64 tx_multicast;
+	u64 tx_broadcast;
+	u64 tx_lt64;
+	u64 tx_64;
+	u64 tx_65_to_127;
+	u64 tx_128_to_255;
+	u64 tx_256_to_511;
+	u64 tx_512_to_1023;
+	u64 tx_1024_to_15xx;
+	u64 tx_15xx_to_jumbo;
+	u64 tx_gtjumbo;
+	u64 tx_collision;
+	u64 tx_single_collision;
+	u64 tx_multiple_collision;
+	u64 tx_excessive_collision;
+	u64 tx_deferred;
+	u64 tx_late_collision;
+	u64 tx_excessive_deferred;
+	u64 tx_non_tcpudp;
+	u64 tx_mac_src_error;
+	u64 tx_ip_src_error;
 	u64 rx_bytes;
 	u64 rx_good_bytes;
 	u64 rx_bad_bytes;
-	unsigned long rx_packets;
-	unsigned long rx_good;
-	unsigned long rx_bad;
-	unsigned long rx_pause;
-	unsigned long rx_control;
-	unsigned long rx_unicast;
-	unsigned long rx_multicast;
-	unsigned long rx_broadcast;
-	unsigned long rx_lt64;
-	unsigned long rx_64;
-	unsigned long rx_65_to_127;
-	unsigned long rx_128_to_255;
-	unsigned long rx_256_to_511;
-	unsigned long rx_512_to_1023;
-	unsigned long rx_1024_to_15xx;
-	unsigned long rx_15xx_to_jumbo;
-	unsigned long rx_gtjumbo;
-	unsigned long rx_bad_lt64;
-	unsigned long rx_bad_64_to_15xx;
-	unsigned long rx_bad_15xx_to_jumbo;
-	unsigned long rx_bad_gtjumbo;
-	unsigned long rx_overflow;
-	unsigned long rx_missed;
-	unsigned long rx_false_carrier;
-	unsigned long rx_symbol_error;
-	unsigned long rx_align_error;
-	unsigned long rx_length_error;
-	unsigned long rx_internal_error;
-	unsigned long rx_good_lt64;
+	u64 rx_packets;
+	u64 rx_good;
+	u64 rx_bad;
+	u64 rx_pause;
+	u64 rx_control;
+	u64 rx_unicast;
+	u64 rx_multicast;
+	u64 rx_broadcast;
+	u64 rx_lt64;
+	u64 rx_64;
+	u64 rx_65_to_127;
+	u64 rx_128_to_255;
+	u64 rx_256_to_511;
+	u64 rx_512_to_1023;
+	u64 rx_1024_to_15xx;
+	u64 rx_15xx_to_jumbo;
+	u64 rx_gtjumbo;
+	u64 rx_bad_lt64;
+	u64 rx_bad_64_to_15xx;
+	u64 rx_bad_15xx_to_jumbo;
+	u64 rx_bad_gtjumbo;
+	u64 rx_overflow;
+	u64 rx_missed;
+	u64 rx_false_carrier;
+	u64 rx_symbol_error;
+	u64 rx_align_error;
+	u64 rx_length_error;
+	u64 rx_internal_error;
+	u64 rx_good_lt64;
 };
 
 /* Number of bits used in a multicast filter hash address */
@@ -625,6 +629,8 @@ union efx_multicast_hash {
 };
 
 struct efx_filter_state;
+struct efx_vf;
+struct vfdi_status;
 
 /**
  * struct efx_nic - an Efx NIC
@@ -640,6 +646,7 @@ struct efx_filter_state;
  * @membase_phys: Memory BAR value as physical address
  * @membase: Memory BAR value
  * @interrupt_mode: Interrupt mode
+ * @timer_quantum_ns: Interrupt timer quantum, in nanoseconds
  * @irq_rx_adaptive: Adaptive IRQ moderation enabled for RX event queues
  * @irq_rx_moderation: IRQ moderation time for RX event queues
  * @msg_enable: Log message enable flags
@@ -649,8 +656,13 @@ struct efx_filter_state;
  * @rx_queue: RX DMA queues
  * @channel: Channels
  * @channel_name: Names for channels and their IRQs
+ * @extra_channel_types: Types of extra (non-traffic) channels that
+ *	should be allocated for this NIC
  * @rxq_entries: Size of receive queues requested by user.
  * @txq_entries: Size of transmit queues requested by user.
+ * @tx_dc_base: Base qword address in SRAM of TX queue descriptor caches
+ * @rx_dc_base: Base qword address in SRAM of RX queue descriptor caches
+ * @sram_lim_qw: Qword address limit of SRAM
  * @next_buffer_table: First available buffer table id
  * @n_channels: Number of channels in use
  * @n_rx_channels: Number of channels used for RX (= number of RX queues)
@@ -663,7 +675,8 @@ struct efx_filter_state;
  * @int_error_expire: Time at which error count will be expired
  * @irq_status: Interrupt status buffer
  * @irq_zero_count: Number of legacy IRQs seen with queue flags == 0
- * @fatal_irq_level: IRQ level (bit number) used for serious errors
+ * @irq_level: IRQ level/index for IRQs not triggered by an event queue
+ * @selftest_work: Work item for asynchronous self-test
  * @mtd_list: List of MTDs attached to the NIC
  * @nic_data: Hardware dependent state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
@@ -676,7 +689,6 @@ struct efx_filter_state;
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
  * @stats_buffer: DMA buffer for statistics
- * @mac_op: MAC interface
  * @phy_type: PHY type
  * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
@@ -689,21 +701,42 @@ struct efx_filter_state;
  * @promiscuous: Promiscuous flag. Protected by netif_tx_lock.
  * @multicast_hash: Multicast hash table
  * @wanted_fc: Wanted flow control flags
+ * @fc_disable: When non-zero flow control is disabled. Typically used to
+ *	ensure that network back pressure doesn't delay dma queue flushes.
+ *	Serialised by the rtnl lock.
  * @mac_work: Work item for changing MAC promiscuity and multicast hash
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
+ * @drain_pending: Count of RX and TX queues that haven't been flushed and drained.
+ * @rxq_flush_pending: Count of number of receive queues that need to be flushed.
+ *	Decremented when the efx_flush_rx_queue() is called.
+ * @rxq_flush_outstanding: Count of number of RX flushes started but not yet
+ *	completed (either success or failure). Not used when MCDI is used to
+ *	flush receive queues.
+ * @flush_wq: wait queue used by efx_nic_flush_queues() to wait for flush completions.
+ * @vf: Array of &struct efx_vf objects.
+ * @vf_count: Number of VFs intended to be enabled.
+ * @vf_init_count: Number of VFs that have been fully initialised.
+ * @vi_scale: log2 number of vnics per VF.
+ * @vf_buftbl_base: The zeroth buffer table index used to back VF queues.
+ * @vfdi_status: Common VFDI status page to be dmad to VF address space.
+ * @local_addr_list: List of local addresses. Protected by %local_lock.
+ * @local_page_list: List of DMA addressable pages used to broadcast
+ *	%local_addr_list. Protected by %local_lock.
+ * @local_lock: Mutex protecting %local_addr_list and %local_page_list.
+ * @peer_work: Work item to broadcast peer addresses to VMs.
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
- * @last_irq_cpu: Last CPU to handle interrupt.
- *	This register is written with the SMP processor ID whenever an
- *	interrupt is handled.  It is used by efx_nic_test_interrupt()
- *	to verify that an interrupt has occurred.
+ * @last_irq_cpu: Last CPU to handle a possible test interrupt.  This
+ *	field is used by efx_test_interrupts() to verify that an
+ *	interrupt has occurred.
  * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
  * @mac_stats: MAC statistics. These include all statistics the MACs
  *	can provide.  Generic code converts these into a standard
  *	&struct net_device_stats.
  * @stats_lock: Statistics update lock. Serialises statistics fetches
+ *	and access to @mac_stats.
  *
  * This is stored in the private area of the &struct net_device.
  */
@@ -722,6 +755,7 @@ struct efx_nic {
 	void __iomem *membase;
 
 	enum efx_int_mode interrupt_mode;
+	unsigned int timer_quantum_ns;
 	bool irq_rx_adaptive;
 	unsigned int irq_rx_moderation;
 	u32 msg_enable;
@@ -731,12 +765,18 @@ struct efx_nic {
 
 	struct efx_channel *channel[EFX_MAX_CHANNELS];
 	char channel_name[EFX_MAX_CHANNELS][IFNAMSIZ + 6];
+	const struct efx_channel_type *
+	extra_channel_type[EFX_MAX_EXTRA_CHANNELS];
 
 	unsigned rxq_entries;
 	unsigned txq_entries;
+	unsigned tx_dc_base;
+	unsigned rx_dc_base;
+	unsigned sram_lim_qw;
 	unsigned next_buffer_table;
 	unsigned n_channels;
 	unsigned n_rx_channels;
+	unsigned rss_spread;
 	unsigned tx_channel_offset;
 	unsigned n_tx_channels;
 	unsigned int rx_buffer_len;
@@ -749,7 +789,8 @@ struct efx_nic {
 
 	struct efx_buffer irq_status;
 	unsigned irq_zero_count;
-	unsigned fatal_irq_level;
+	unsigned irq_level;
+	struct delayed_work selftest_work;
 
 #ifdef CONFIG_SFC_MTD
 	struct list_head mtd_list;
@@ -766,8 +807,6 @@ struct efx_nic {
 
 	struct efx_buffer stats_buffer;
 
-	const struct efx_mac_operations *mac_op;
-
 	unsigned int phy_type;
 	const struct efx_phy_operations *phy_op;
 	void *phy_data;
@@ -782,6 +821,7 @@ struct efx_nic {
 	bool promiscuous;
 	union efx_multicast_hash multicast_hash;
 	u8 wanted_fc;
+	unsigned fc_disable;
 
 	atomic_t rx_reset;
 	enum efx_loopback_mode loopback_mode;
@@ -791,11 +831,30 @@ struct efx_nic {
 
 	struct efx_filter_state *filter_state;
 
+	atomic_t drain_pending;
+	atomic_t rxq_flush_pending;
+	atomic_t rxq_flush_outstanding;
+	wait_queue_head_t flush_wq;
+
+#ifdef CONFIG_SFC_SRIOV
+	struct efx_channel *vfdi_channel;
+	struct efx_vf *vf;
+	unsigned vf_count;
+	unsigned vf_init_count;
+	unsigned vi_scale;
+	unsigned vf_buftbl_base;
+	struct efx_buffer vfdi_status;
+	struct list_head local_addr_list;
+	struct list_head local_page_list;
+	struct mutex local_lock;
+	struct work_struct peer_work;
+#endif
+
 	/* The following fields may be written more often */
 
 	struct delayed_work monitor_work ____cacheline_aligned_in_smp;
 	spinlock_t biu_lock;
-	volatile signed int last_irq_cpu;
+	int last_irq_cpu;
 	unsigned n_rx_nodesc_drop_cnt;
 	struct efx_mac_stats mac_stats;
 	spinlock_t stats_lock;
@@ -804,15 +863,6 @@ struct efx_nic {
 static inline int efx_dev_registered(struct efx_nic *efx)
 {
 	return efx->net_dev->reg_state == NETREG_REGISTERED;
-}
-
-/* Net device name, for inclusion in log messages if it has been registered.
- * Use efx->name not efx->net_dev->name so that races with (un)registration
- * are harmless.
- */
-static inline const char *efx_dev_name(struct efx_nic *efx)
-{
-	return efx_dev_registered(efx) ? efx->name : "";
 }
 
 static inline unsigned int efx_port_num(struct efx_nic *efx)
@@ -825,6 +875,8 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @probe: Probe the controller
  * @remove: Free resources allocated by probe()
  * @init: Initialise the controller
+ * @dimension_resources: Dimension controller resources (buffer table,
+ *	and VIs once the available interrupt resources are clear)
  * @fini: Shut down the controller
  * @monitor: Periodic function for polling link state and hardware monitor
  * @map_reset_reason: Map ethtool reset reason to a reset method
@@ -840,14 +892,15 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @stop_stats: Stop the regular fetching of statistics
  * @set_id_led: Set state of identifying LED or revert to automatic function
  * @push_irq_moderation: Apply interrupt moderation value
- * @push_multicast_hash: Apply multicast hash table
  * @reconfigure_port: Push loopback/power/txdis changes to the MAC and PHY
+ * @reconfigure_mac: Push MAC address, MTU, flow control and filter settings
+ *	to the hardware.  Serialised by the mac_lock.
+ * @check_mac_fault: Check MAC fault state. True if fault present.
  * @get_wol: Get WoL configuration from driver state
  * @set_wol: Push WoL configuration to the NIC
  * @resume_wol: Synchronise WoL state between driver and MC (e.g. after resume)
  * @test_registers: Test read/write functionality of control registers
  * @test_nvram: Test validity of NVRAM contents
- * @default_mac_ops: efx_mac_operations to set at startup
  * @revision: Hardware architecture revision
  * @mem_map_size: Memory BAR mapped size
  * @txd_ptr_tbl_base: TX descriptor ring base address
@@ -862,8 +915,7 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  *	from &enum efx_init_mode.
  * @phys_addr_channels: Number of channels with physically addressed
  *	descriptors
- * @tx_dc_base: Base address in SRAM of TX queue descriptor caches
- * @rx_dc_base: Base address in SRAM of RX queue descriptor caches
+ * @timer_period_max: Maximum period of interrupt timer (in ticks)
  * @offload_features: net_device feature flags for protocol offload
  *	features implemented in hardware
  */
@@ -871,6 +923,7 @@ struct efx_nic_type {
 	int (*probe)(struct efx_nic *efx);
 	void (*remove)(struct efx_nic *efx);
 	int (*init)(struct efx_nic *efx);
+	void (*dimension_resources)(struct efx_nic *efx);
 	void (*fini)(struct efx_nic *efx);
 	void (*monitor)(struct efx_nic *efx);
 	enum reset_type (*map_reset_reason)(enum reset_type reason);
@@ -885,14 +938,14 @@ struct efx_nic_type {
 	void (*stop_stats)(struct efx_nic *efx);
 	void (*set_id_led)(struct efx_nic *efx, enum efx_led_mode mode);
 	void (*push_irq_moderation)(struct efx_channel *channel);
-	void (*push_multicast_hash)(struct efx_nic *efx);
 	int (*reconfigure_port)(struct efx_nic *efx);
+	int (*reconfigure_mac)(struct efx_nic *efx);
+	bool (*check_mac_fault)(struct efx_nic *efx);
 	void (*get_wol)(struct efx_nic *efx, struct ethtool_wolinfo *wol);
 	int (*set_wol)(struct efx_nic *efx, u32 type);
 	void (*resume_wol)(struct efx_nic *efx);
 	int (*test_registers)(struct efx_nic *efx);
 	int (*test_nvram)(struct efx_nic *efx);
-	const struct efx_mac_operations *default_mac_ops;
 
 	int revision;
 	unsigned int mem_map_size;
@@ -906,8 +959,7 @@ struct efx_nic_type {
 	unsigned int rx_buffer_padding;
 	unsigned int max_interrupt_mode;
 	unsigned int phys_addr_channels;
-	unsigned int tx_dc_base;
-	unsigned int rx_dc_base;
+	unsigned int timer_period_max;
 	netdev_features_t offload_features;
 };
 
@@ -930,6 +982,13 @@ efx_get_channel(struct efx_nic *efx, unsigned index)
 	     _channel;							\
 	     _channel = (_channel->channel + 1 < (_efx)->n_channels) ?	\
 		     (_efx)->channel[_channel->channel + 1] : NULL)
+
+/* Iterate over all used channels in reverse */
+#define efx_for_each_channel_rev(_channel, _efx)			\
+	for (_channel = (_efx)->channel[(_efx)->n_channels - 1];	\
+	     _channel;							\
+	     _channel = _channel->channel ?				\
+		     (_efx)->channel[_channel->channel - 1] : NULL)
 
 static inline struct efx_tx_queue *
 efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
@@ -971,16 +1030,12 @@ static inline bool efx_tx_queue_used(struct efx_tx_queue *tx_queue)
 
 /* Iterate over all possible TX queues belonging to a channel */
 #define efx_for_each_possible_channel_tx_queue(_tx_queue, _channel)	\
-	for (_tx_queue = (_channel)->tx_queue;				\
-	     _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES;		\
-	     _tx_queue++)
-
-static inline struct efx_rx_queue *
-efx_get_rx_queue(struct efx_nic *efx, unsigned index)
-{
-	EFX_BUG_ON_PARANOID(index >= efx->n_rx_channels);
-	return &efx->channel[index]->rx_queue;
-}
+	if (!efx_channel_has_tx_queues(_channel))			\
+		;							\
+	else								\
+		for (_tx_queue = (_channel)->tx_queue;			\
+		     _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES;	\
+		     _tx_queue++)
 
 static inline bool efx_channel_has_rx_queue(struct efx_channel *channel)
 {

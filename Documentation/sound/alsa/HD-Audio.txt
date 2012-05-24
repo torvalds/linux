@@ -59,7 +59,12 @@ a case, you can change the default method via `position_fix` option.
 `position_fix=1` means to use LPIB method explicitly.
 `position_fix=2` means to use the position-buffer.
 `position_fix=3` means to use a combination of both methods, needed
-for some VIA and ATI controllers.  0 is the default value for all other
+for some VIA controllers.  The capture stream position is corrected
+by comparing both LPIB and position-buffer values.
+`position_fix=4` is another combination available for all controllers,
+and uses LPIB for the playback and the position-buffer for the capture
+streams.
+0 is the default value for all other
 controllers, the automatic check and fallback to LPIB as described in
 the above.  If you get a problem of repeated sounds, this option might
 help.

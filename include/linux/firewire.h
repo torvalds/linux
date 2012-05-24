@@ -17,9 +17,6 @@
 #include <linux/atomic.h>
 #include <asm/byteorder.h>
 
-#define fw_notify(s, args...) printk(KERN_NOTICE KBUILD_MODNAME ": " s, ## args)
-#define fw_error(s, args...) printk(KERN_ERR KBUILD_MODNAME ": " s, ## args)
-
 #define CSR_REGISTER_BASE		0xfffff0000000ULL
 
 /* register offsets are relative to CSR_REGISTER_BASE */
@@ -201,18 +198,6 @@ static inline struct fw_device *fw_device(struct device *dev)
 static inline int fw_device_is_shutdown(struct fw_device *device)
 {
 	return atomic_read(&device->state) == FW_DEVICE_SHUTDOWN;
-}
-
-static inline struct fw_device *fw_device_get(struct fw_device *device)
-{
-	get_device(&device->device);
-
-	return device;
-}
-
-static inline void fw_device_put(struct fw_device *device)
-{
-	put_device(&device->device);
 }
 
 int fw_device_enable_phys_dma(struct fw_device *device);
@@ -441,6 +426,7 @@ int fw_iso_context_queue(struct fw_iso_context *ctx,
 			 struct fw_iso_buffer *buffer,
 			 unsigned long payload);
 void fw_iso_context_queue_flush(struct fw_iso_context *ctx);
+int fw_iso_context_flush_completions(struct fw_iso_context *ctx);
 int fw_iso_context_start(struct fw_iso_context *ctx,
 			 int cycle, int sync, int tags);
 int fw_iso_context_stop(struct fw_iso_context *ctx);

@@ -5,6 +5,7 @@
 
 #ifndef __ASSEMBLY__
 #include <asm/processor.h>
+#include <asm/special_insns.h>
 
 struct thread_info {
 	struct task_struct *task;	/* main task structure */

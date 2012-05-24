@@ -57,7 +57,6 @@ static const char *version = "smc-ultra32.c: 06/97 v1.00\n";
 #include <linux/etherdevice.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include "8390.h"
 

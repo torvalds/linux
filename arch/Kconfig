@@ -47,18 +47,29 @@ config KPROBES
 	  If in doubt, say "N".
 
 config JUMP_LABEL
-       bool "Optimize trace point call sites"
+       bool "Optimize very unlikely/likely branches"
        depends on HAVE_ARCH_JUMP_LABEL
        help
-         If it is detected that the compiler has support for "asm goto",
-	 the kernel will compile trace point locations with just a
-	 nop instruction. When trace points are enabled, the nop will
-	 be converted to a jump to the trace function. This technique
-	 lowers overhead and stress on the branch prediction of the
-	 processor.
+         This option enables a transparent branch optimization that
+	 makes certain almost-always-true or almost-always-false branch
+	 conditions even cheaper to execute within the kernel.
 
-	 On i386, options added to the compiler flags may increase
-	 the size of the kernel slightly.
+	 Certain performance-sensitive kernel code, such as trace points,
+	 scheduler functionality, networking code and KVM have such
+	 branches and include support for this optimization technique.
+
+         If it is detected that the compiler has support for "asm goto",
+	 the kernel will compile such branches with just a nop
+	 instruction. When the condition flag is toggled to true, the
+	 nop will be converted to a jump instruction to execute the
+	 conditional block of instructions.
+
+	 This technique lowers overhead and stress on the branch prediction
+	 of the processor and generally makes the kernel faster. The update
+	 of the condition is slower, but those are always very rare.
+
+	 ( On 32-bit x86, the necessary options added to the compiler
+	   flags may increase the size of the kernel slightly. )
 
 config OPTPROBES
 	def_bool y
@@ -108,6 +119,9 @@ config HAVE_KRETPROBES
 	bool
 
 config HAVE_OPTPROBES
+	bool
+
+config HAVE_NMI_WATCHDOG
 	bool
 #
 # An arch should select this if it provides all these things:
@@ -197,6 +211,9 @@ config HAVE_CMPXCHG_LOCAL
 	bool
 
 config HAVE_CMPXCHG_DOUBLE
+	bool
+
+config ARCH_WANT_OLD_COMPAT_IPC
 	bool
 
 source "kernel/gcov/Kconfig"

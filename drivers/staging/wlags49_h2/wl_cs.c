@@ -74,7 +74,6 @@
 #include <linux/in.h>
 #include <linux/delay.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/bitops.h>
 
 #include <linux/netdevice.h>
@@ -229,7 +228,6 @@ static int wl_adapter_resume(struct pcmcia_device *link)
 void wl_adapter_insert(struct pcmcia_device *link)
 {
 	struct net_device *dev;
-	int i;
 	int ret;
 	/*--------------------------------------------------------------------*/
 
@@ -266,10 +264,8 @@ void wl_adapter_insert(struct pcmcia_device *link)
 
 	register_wlags_sysfs(dev);
 
-	printk(KERN_INFO "%s: Wireless, io_addr %#03lx, irq %d, ""mac_address ",
-		dev->name, dev->base_addr, dev->irq);
-	for (i = 0; i < ETH_ALEN; i++)
-		printk("%02X%c", dev->dev_addr[i], ((i < (ETH_ALEN-1)) ? ':' : '\n'));
+	printk(KERN_INFO "%s: Wireless, io_addr %#03lx, irq %d, mac_address"
+		" %pM\n", dev->name, dev->base_addr, dev->irq, dev->dev_addr);
 
 	DBG_LEAVE(DbgInfo);
 	return;

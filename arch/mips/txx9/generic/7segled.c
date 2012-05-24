@@ -102,7 +102,7 @@ static int __init tx_7segled_init_sysfs(void)
 			break;
 		}
 		dev->id = i;
-		dev->dev = &tx_7segled_subsys;
+		dev->bus = &tx_7segled_subsys;
 		error = device_register(dev);
 		if (!error) {
 			device_create_file(dev, &dev_attr_ascii);

@@ -366,7 +366,7 @@ vrtc_mrst_do_probe(struct device *dev, struct resource *iomem, int rtc_irq)
 
 	if (rtc_irq) {
 		retval = request_irq(rtc_irq, mrst_rtc_irq,
-				IRQF_DISABLED, dev_name(&mrst_rtc.rtc->dev),
+				0, dev_name(&mrst_rtc.rtc->dev),
 				mrst_rtc.rtc);
 		if (retval < 0) {
 			dev_dbg(dev, "IRQ %d is already in use, err %d\n",

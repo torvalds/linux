@@ -363,10 +363,9 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 	ret = -ENOMEM;
 
 	dev = alloc_etherdev(sizeof (*ep));
-	if (!dev) {
-		dev_err(&pdev->dev, "no memory for eth device\n");
+	if (!dev)
 		goto err_out_free_res;
-	}
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 #ifdef USE_IO_OPS
@@ -935,7 +934,7 @@ static void epic_init_ring(struct net_device *dev)
 
 	/* Fill in the Rx buffers.  Handle allocation failure gracefully. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
-		struct sk_buff *skb = dev_alloc_skb(ep->rx_buf_sz + 2);
+		struct sk_buff *skb = netdev_alloc_skb(dev, ep->rx_buf_sz + 2);
 		ep->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
@@ -1200,7 +1199,7 @@ static int epic_rx(struct net_device *dev, int budget)
 			/* Check if the packet is long enough to accept without copying
 			   to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak &&
-			    (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
+			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				pci_dma_sync_single_for_cpu(ep->pci_dev,
 							    ep->rx_ring[entry].bufaddr,
@@ -1233,7 +1232,7 @@ static int epic_rx(struct net_device *dev, int budget)
 		entry = ep->dirty_rx % RX_RING_SIZE;
 		if (ep->rx_skbuff[entry] == NULL) {
 			struct sk_buff *skb;
-			skb = ep->rx_skbuff[entry] = dev_alloc_skb(ep->rx_buf_sz + 2);
+			skb = ep->rx_skbuff[entry] = netdev_alloc_skb(dev, ep->rx_buf_sz + 2);
 			if (skb == NULL)
 				break;
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */

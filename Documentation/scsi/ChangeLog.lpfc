@@ -1718,7 +1718,7 @@ Changes from 20040319 to 20040326
 	* lpfc_els_timeout_handler() now uses system timer.
 	* Further cleanup of #ifdef powerpc
 	* lpfc_scsi_timeout_handler() now uses system timer.
-	* Replace common driver's own defines for endianess w/ Linux's
+	* Replace common driver's own defines for endianness w/ Linux's
 	  __BIG_ENDIAN etc.
 	* Added #ifdef IPFC for all IPFC specific code.
 	* lpfc_disc_retry_rptlun() now uses system timer.

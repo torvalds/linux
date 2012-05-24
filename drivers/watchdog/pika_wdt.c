@@ -5,6 +5,8 @@
  *   Sean MacLennan <smaclennan@pikatech.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/module.h>
@@ -23,7 +25,6 @@
 #include <linux/of_platform.h>
 
 #define DRV_NAME "PIKA-WDT"
-#define PFX DRV_NAME ": "
 
 /* Hardware timeout in seconds */
 #define WDT_HW_TIMEOUT 2
@@ -38,8 +39,8 @@ module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds. "
 	"(default = " __MODULE_STRING(WDT_HEARTBEAT) ")");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
@@ -90,7 +91,7 @@ static void pikawdt_ping(unsigned long data)
 		pikawdt_reset();
 		mod_timer(&pikawdt_private.timer, jiffies + WDT_TIMEOUT);
 	} else
-		printk(KERN_CRIT PFX "I will reset your machine !\n");
+		pr_crit("I will reset your machine !\n");
 }
 
 
@@ -228,14 +229,14 @@ static int __init pikawdt_init(void)
 
 	np = of_find_compatible_node(NULL, NULL, "pika,fpga");
 	if (np == NULL) {
-		printk(KERN_ERR PFX "Unable to find fpga.\n");
+		pr_err("Unable to find fpga\n");
 		return -ENOENT;
 	}
 
 	pikawdt_private.fpga = of_iomap(np, 0);
 	of_node_put(np);
 	if (pikawdt_private.fpga == NULL) {
-		printk(KERN_ERR PFX "Unable to map fpga.\n");
+		pr_err("Unable to map fpga\n");
 		return -ENOMEM;
 	}
 
@@ -244,7 +245,7 @@ static int __init pikawdt_init(void)
 	/* POST information is in the sd area. */
 	np = of_find_compatible_node(NULL, NULL, "pika,fpga-sd");
 	if (np == NULL) {
-		printk(KERN_ERR PFX "Unable to find fpga-sd.\n");
+		pr_err("Unable to find fpga-sd\n");
 		ret = -ENOENT;
 		goto out;
 	}
@@ -252,7 +253,7 @@ static int __init pikawdt_init(void)
 	fpga = of_iomap(np, 0);
 	of_node_put(np);
 	if (fpga == NULL) {
-		printk(KERN_ERR PFX "Unable to map fpga-sd.\n");
+		pr_err("Unable to map fpga-sd\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -271,12 +272,12 @@ static int __init pikawdt_init(void)
 
 	ret = misc_register(&pikawdt_miscdev);
 	if (ret) {
-		printk(KERN_ERR PFX "Unable to register miscdev.\n");
+		pr_err("Unable to register miscdev\n");
 		goto out;
 	}
 
-	printk(KERN_INFO PFX "initialized. heartbeat=%d sec (nowayout=%d)\n",
-							heartbeat, nowayout);
+	pr_info("initialized. heartbeat=%d sec (nowayout=%d)\n",
+		heartbeat, nowayout);
 	return 0;
 
 out:

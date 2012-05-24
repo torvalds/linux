@@ -31,11 +31,13 @@
 
 #include <mach/udc.h>
 #include <mach/hardware.h>
+#include <mach/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>
 #include <asm/sched_clock.h>
+#include <asm/system_misc.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -235,6 +237,12 @@ static struct irq_chip ixp4xx_irq_chip = {
 void __init ixp4xx_init_irq(void)
 {
 	int i = 0;
+
+	/*
+	 * ixp4xx does not implement the XScale PWRMODE register
+	 * so it must not call cpu_do_idle().
+	 */
+	disable_hlt();
 
 	/* Route all sources to IRQ instead of FIQ */
 	*IXP4XX_ICLR = 0x0;
@@ -511,3 +519,35 @@ void ixp4xx_restart(char mode, const char *cmd)
 		*IXP4XX_OSWE = IXP4XX_WDT_RESET_ENABLE | IXP4XX_WDT_COUNT_ENABLE;
 	}
 }
+
+#ifdef CONFIG_IXP4XX_INDIRECT_PCI
+/*
+ * In the case of using indirect PCI, we simply return the actual PCI
+ * address and our read/write implementation use that to drive the
+ * access registers. If something outside of PCI is ioremap'd, we
+ * fallback to the default.
+ */
+
+static void __iomem *ixp4xx_ioremap_caller(unsigned long addr, size_t size,
+					   unsigned int mtype, void *caller)
+{
+	if (!is_pci_memory(addr))
+		return __arm_ioremap_caller(addr, size, mtype, caller);
+
+	return (void __iomem *)addr;
+}
+
+static void ixp4xx_iounmap(void __iomem *addr)
+{
+	if (!is_pci_memory((__force u32)addr))
+		__iounmap(addr);
+}
+
+void __init ixp4xx_init_early(void)
+{
+	arch_ioremap_caller = ixp4xx_ioremap_caller;
+	arch_iounmap = ixp4xx_iounmap;
+}
+#else
+void __init ixp4xx_init_early(void) {}
+#endif

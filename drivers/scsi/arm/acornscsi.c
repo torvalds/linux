@@ -138,7 +138,6 @@
 #include <linux/stringify.h>
 #include <linux/io.h>
 
-#include <asm/system.h>
 #include <asm/ecard.h>
 
 #include "../scsi.h"

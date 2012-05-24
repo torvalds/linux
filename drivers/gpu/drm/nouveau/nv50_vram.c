@@ -189,8 +189,25 @@ nv50_vram_init(struct drm_device *dev)
 	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
 	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
+	u32 pfb714 = nv_rd32(dev, 0x100714);
 	u32 rblock, length;
 
+	switch (pfb714 & 0x00000007) {
+	case 0: dev_priv->vram_type = NV_MEM_TYPE_DDR1; break;
+	case 1:
+		if (nouveau_mem_vbios_type(dev) == NV_MEM_TYPE_DDR3)
+			dev_priv->vram_type = NV_MEM_TYPE_DDR3;
+		else
+			dev_priv->vram_type = NV_MEM_TYPE_DDR2;
+		break;
+	case 2: dev_priv->vram_type = NV_MEM_TYPE_GDDR3; break;
+	case 3: dev_priv->vram_type = NV_MEM_TYPE_GDDR4; break;
+	case 4: dev_priv->vram_type = NV_MEM_TYPE_GDDR5; break;
+	default:
+		break;
+	}
+
+	dev_priv->vram_rank_B = !!(nv_rd32(dev, 0x100200) & 0x4);
 	dev_priv->vram_size  = nv_rd32(dev, 0x10020c);
 	dev_priv->vram_size |= (dev_priv->vram_size & 0xff) << 32;
 	dev_priv->vram_size &= 0xffffffff00ULL;

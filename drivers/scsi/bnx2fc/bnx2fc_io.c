@@ -1682,9 +1682,7 @@ void bnx2fc_build_fcp_cmnd(struct bnx2fc_cmd *io_req,
 
 	memset(fcp_cmnd, 0, sizeof(struct fcp_cmnd));
 
-	int_to_scsilun(sc_cmd->device->lun,
-			(struct scsi_lun *) fcp_cmnd->fc_lun);
-
+	int_to_scsilun(sc_cmd->device->lun, &fcp_cmnd->fc_lun);
 
 	fcp_cmnd->fc_dl = htonl(io_req->data_xfer_len);
 	memcpy(fcp_cmnd->fc_cdb, sc_cmd->cmnd, sc_cmd->cmd_len);

@@ -145,6 +145,12 @@ static inline int alternatives_text_reserved(void *start, void *end)
  */
 #define ASM_OUTPUT2(a...) a
 
+/*
+ * use this macro if you need clobbers but no inputs in
+ * alternative_{input,io,call}()
+ */
+#define ASM_NO_INPUT_CLOBBER(clbr...) "i" (0) : clbr
+
 struct paravirt_patch_site;
 #ifdef CONFIG_PARAVIRT
 void apply_paravirt(struct paravirt_patch_site *start,

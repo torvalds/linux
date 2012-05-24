@@ -184,7 +184,6 @@ static int ecryptfs_show_options(struct seq_file *m, struct dentry *root)
 const struct super_operations ecryptfs_sops = {
 	.alloc_inode = ecryptfs_alloc_inode,
 	.destroy_inode = ecryptfs_destroy_inode,
-	.drop_inode = generic_drop_inode,
 	.statfs = ecryptfs_statfs,
 	.remount_fs = NULL,
 	.evict_inode = ecryptfs_evict_inode,

@@ -647,9 +647,8 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
-	struct ath_mci_profile *mci = &sc->btcoex.mci;
 	u32 max_4ms_framelen, frmlen;
-	u16 aggr_limit, legacy = 0;
+	u16 aggr_limit, bt_aggr_limit, legacy = 0;
 	int i;
 
 	skb = bf->bf_mpdu;
@@ -694,14 +693,14 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	if (tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE || legacy)
 		return 0;
 
-	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI) && mci->aggr_limit)
-		aggr_limit = (max_4ms_framelen * mci->aggr_limit) >> 4;
-	else if (sc->sc_flags & SC_OP_BT_PRIORITY_DETECTED)
-		aggr_limit = min((max_4ms_framelen * 3) / 8,
-				 (u32)ATH_AMPDU_LIMIT_MAX);
-	else
-		aggr_limit = min(max_4ms_framelen,
-				 (u32)ATH_AMPDU_LIMIT_MAX);
+	aggr_limit = min(max_4ms_framelen, (u32)ATH_AMPDU_LIMIT_MAX);
+
+	/*
+	 * Override the default aggregation limit for BTCOEX.
+	 */
+	bt_aggr_limit = ath9k_btcoex_aggr_limit(sc, max_4ms_framelen);
+	if (bt_aggr_limit)
+		aggr_limit = bt_aggr_limit;
 
 	/*
 	 * h/w can accept aggregates up to 16 bit lengths (65535).
@@ -956,7 +955,9 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 	 */
 	rate = ieee80211_get_rts_cts_rate(sc->hw, tx_info);
 	info->rtscts_rate = rate->hw_value;
-	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
+
+	if (tx_info->control.vif &&
+	    tx_info->control.vif->bss_conf.use_short_preamble)
 		info->rtscts_rate |= rate->hw_value_short;
 
 	for (i = 0; i < 4; i++) {
@@ -1291,14 +1292,11 @@ void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid
 
 	an = (struct ath_node *)sta->drv_priv;
 
-	if (sc->sc_flags & SC_OP_TXAGGR) {
-		txtid = ATH_AN_2_TID(an, tid);
-		txtid->baw_size =
-			IEEE80211_MIN_AMPDU_BUF << sta->ht_cap.ampdu_factor;
-		txtid->state |= AGGR_ADDBA_COMPLETE;
-		txtid->state &= ~AGGR_ADDBA_PROGRESS;
-		ath_tx_resume_tid(sc, txtid);
-	}
+	txtid = ATH_AN_2_TID(an, tid);
+	txtid->baw_size = IEEE80211_MIN_AMPDU_BUF << sta->ht_cap.ampdu_factor;
+	txtid->state |= AGGR_ADDBA_COMPLETE;
+	txtid->state &= ~AGGR_ADDBA_PROGRESS;
+	ath_tx_resume_tid(sc, txtid);
 }
 
 /********************/
@@ -1357,8 +1355,7 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	 * based intr on the EOSP frames.
 	 */
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
-		qi.tqi_qflags = TXQ_FLAG_TXOKINT_ENABLE |
-				TXQ_FLAG_TXERRINT_ENABLE;
+		qi.tqi_qflags = TXQ_FLAG_TXINT_ENABLE;
 	} else {
 		if (qtype == ATH9K_TX_QUEUE_UAPSD)
 			qi.tqi_qflags = TXQ_FLAG_TXDESCINT_ENABLE;
@@ -1524,7 +1521,7 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 	ath_drain_txq_list(sc, txq, &txq->axq_q, retry_tx);
 
 	/* flush any pending frames if aggregation is enabled */
-	if ((sc->sc_flags & SC_OP_TXAGGR) && !retry_tx)
+	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) && !retry_tx)
 		ath_txq_drain_pending_buffers(sc, txq);
 
 	ath_txq_unlock_complete(sc, txq);
@@ -1872,7 +1869,7 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct sk_buff *skb,
 	struct ath_buf *bf;
 	u8 tidno;
 
-	if ((sc->sc_flags & SC_OP_TXAGGR) && txctl->an &&
+	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) && txctl->an &&
 		ieee80211_is_data_qos(hdr->frame_control)) {
 		tidno = ieee80211_get_qos_ctl(hdr)[0] &
 			IEEE80211_QOS_CTL_TID_MASK;
@@ -2142,7 +2139,7 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 	} else
 		ath_tx_complete_aggr(sc, txq, bf, bf_head, ts, txok, true);
 
-	if (sc->sc_flags & SC_OP_TXAGGR)
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ath_txq_schedule(sc, txq);
 }
 
@@ -2167,7 +2164,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 		if (list_empty(&txq->axq_q)) {
 			txq->axq_link = NULL;
-			if (sc->sc_flags & SC_OP_TXAGGR)
+			if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 				ath_txq_schedule(sc, txq);
 			break;
 		}
@@ -2264,10 +2261,9 @@ static void ath_tx_complete_poll_work(struct work_struct *work)
 
 void ath_tx_tasklet(struct ath_softc *sc)
 {
+	struct ath_hw *ah = sc->sc_ah;
+	u32 qcumask = ((1 << ATH9K_NUM_TX_QUEUES) - 1) & ah->intr_txqs;
 	int i;
-	u32 qcumask = ((1 << ATH9K_NUM_TX_QUEUES) - 1);
-
-	ath9k_hw_gettxintrtxqs(sc->sc_ah, &qcumask);
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i) && (qcumask & (1 << i)))
@@ -2297,9 +2293,12 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 			break;
 		}
 
-		/* Skip beacon completions */
-		if (ts.qid == sc->beacon.beaconq)
+		/* Process beacon completions separately */
+		if (ts.qid == sc->beacon.beaconq) {
+			sc->beacon.tx_processed = true;
+			sc->beacon.tx_last = !(ts.ts_status & ATH9K_TXERR_MASK);
 			continue;
+		}
 
 		txq = &sc->tx.txq[ts.qid];
 

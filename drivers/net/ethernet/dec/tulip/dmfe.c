@@ -325,8 +325,8 @@ static irqreturn_t dmfe_interrupt(int , void *);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void poll_dmfe (struct net_device *dev);
 #endif
-static void dmfe_descriptor_init(struct dmfe_board_info *, unsigned long);
-static void allocate_rx_buffer(struct dmfe_board_info *);
+static void dmfe_descriptor_init(struct net_device *, unsigned long);
+static void allocate_rx_buffer(struct net_device *);
 static void update_cr6(u32, unsigned long);
 static void send_filter_frame(struct DEVICE *);
 static void dm9132_id_table(struct DEVICE *);
@@ -649,7 +649,7 @@ static void dmfe_init_dm910x(struct DEVICE *dev)
 		db->op_mode = db->media_mode; 	/* Force Mode */
 
 	/* Initialize Transmit/Receive decriptor and CR3/4 */
-	dmfe_descriptor_init(db, ioaddr);
+	dmfe_descriptor_init(dev, ioaddr);
 
 	/* Init CR6 to program DM910x operation */
 	update_cr6(db->cr6_data, ioaddr);
@@ -828,7 +828,7 @@ static irqreturn_t dmfe_interrupt(int irq, void *dev_id)
 
 	/* reallocate rx descriptor buffer */
 	if (db->rx_avail_cnt<RX_DESC_CNT)
-		allocate_rx_buffer(db);
+		allocate_rx_buffer(dev);
 
 	/* Free the transmitted descriptor */
 	if ( db->cr5_data & 0x01)
@@ -1008,7 +1008,7 @@ static void dmfe_rx_packet(struct DEVICE *dev, struct dmfe_board_info * db)
 					/* Good packet, send to upper layer */
 					/* Shorst packet used new SKB */
 					if ((rxlen < RX_COPY_SIZE) &&
-						((newskb = dev_alloc_skb(rxlen + 2))
+						((newskb = netdev_alloc_skb(dev, rxlen + 2))
 						!= NULL)) {
 
 						skb = newskb;
@@ -1364,8 +1364,9 @@ static void dmfe_reuse_skb(struct dmfe_board_info *db, struct sk_buff * skb)
  *	Using Chain structure, and allocate Tx/Rx buffer
  */
 
-static void dmfe_descriptor_init(struct dmfe_board_info *db, unsigned long ioaddr)
+static void dmfe_descriptor_init(struct net_device *dev, unsigned long ioaddr)
 {
+	struct dmfe_board_info *db = netdev_priv(dev);
 	struct tx_desc *tmp_tx;
 	struct rx_desc *tmp_rx;
 	unsigned char *tmp_buf;
@@ -1421,7 +1422,7 @@ static void dmfe_descriptor_init(struct dmfe_board_info *db, unsigned long ioadd
 	tmp_rx->next_rx_desc = db->first_rx_desc;
 
 	/* pre-allocate Rx buffer */
-	allocate_rx_buffer(db);
+	allocate_rx_buffer(dev);
 }
 
 
@@ -1551,15 +1552,16 @@ static void send_filter_frame(struct DEVICE *dev)
  *	As possible as allocate maxiumn Rx buffer
  */
 
-static void allocate_rx_buffer(struct dmfe_board_info *db)
+static void allocate_rx_buffer(struct net_device *dev)
 {
+	struct dmfe_board_info *db = netdev_priv(dev);
 	struct rx_desc *rxptr;
 	struct sk_buff *skb;
 
 	rxptr = db->rx_insert_ptr;
 
 	while(db->rx_avail_cnt < RX_DESC_CNT) {
-		if ( ( skb = dev_alloc_skb(RX_ALLOC_SIZE) ) == NULL )
+		if ( ( skb = netdev_alloc_skb(dev, RX_ALLOC_SIZE) ) == NULL )
 			break;
 		rxptr->rx_skb_ptr = skb; /* FIXME (?) */
 		rxptr->rdes2 = cpu_to_le32( pci_map_single(db->pdev, skb->data,

@@ -12,6 +12,7 @@
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
 #include <asm/tlbflush.h>
+#include <asm/ctl_reg.h>
 #include <asm-generic/mm_hooks.h>
 
 static inline int init_new_context(struct task_struct *tsk,

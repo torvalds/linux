@@ -434,12 +434,12 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	if (error)
 		return error;
 
-	kaddr = kmap_atomic(page, KM_USER0);
+	kaddr = kmap_atomic(page);
 	if (dsize > (dibh->b_size - sizeof(struct gfs2_dinode)))
 		dsize = (dibh->b_size - sizeof(struct gfs2_dinode));
 	memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode), dsize);
 	memset(kaddr + dsize, 0, PAGE_CACHE_SIZE - dsize);
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 	flush_dcache_page(page);
 	brelse(dibh);
 	SetPageUptodate(page);
@@ -542,9 +542,9 @@ int gfs2_internal_read(struct gfs2_inode *ip, struct file_ra_state *ra_state,
 		page = read_cache_page(mapping, index, __gfs2_readpage, NULL);
 		if (IS_ERR(page))
 			return PTR_ERR(page);
-		p = kmap_atomic(page, KM_USER0);
+		p = kmap_atomic(page);
 		memcpy(buf + copied, p + offset, amt);
-		kunmap_atomic(p, KM_USER0);
+		kunmap_atomic(p);
 		mark_page_accessed(page);
 		page_cache_release(page);
 		copied += amt;
@@ -788,11 +788,11 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 	unsigned char *buf = dibh->b_data + sizeof(struct gfs2_dinode);
 
 	BUG_ON((pos + len) > (dibh->b_size - sizeof(struct gfs2_dinode)));
-	kaddr = kmap_atomic(page, KM_USER0);
+	kaddr = kmap_atomic(page);
 	memcpy(buf + pos, kaddr + pos, copied);
 	memset(kaddr + pos + copied, 0, len - copied);
 	flush_dcache_page(page);
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 
 	if (!PageUptodate(page))
 		SetPageUptodate(page);
@@ -807,7 +807,7 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 
 	if (inode == sdp->sd_rindex) {
 		adjust_fs_space(inode);
-		ip->i_gh.gh_flags |= GL_NOCACHE;
+		sdp->sd_rindex_uptodate = 0;
 	}
 
 	brelse(dibh);
@@ -873,7 +873,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 
 	if (inode == sdp->sd_rindex) {
 		adjust_fs_space(inode);
-		ip->i_gh.gh_flags |= GL_NOCACHE;
+		sdp->sd_rindex_uptodate = 0;
 	}
 
 	brelse(dibh);

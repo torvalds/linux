@@ -196,6 +196,8 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4_pci_tbl) = {
 	CH_DEVICE(0x4408, 4),
 	CH_DEVICE(0x4409, 4),
 	CH_DEVICE(0x440a, 4),
+	CH_DEVICE(0x440d, 4),
+	CH_DEVICE(0x440e, 4),
 	{ 0, }
 };
 
@@ -1998,13 +2000,6 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 /*
  * debugfs support
  */
-
-static int mem_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
@@ -2048,7 +2043,7 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 
 static const struct file_operations mem_debugfs_fops = {
 	.owner   = THIS_MODULE,
-	.open    = mem_open,
+	.open    = simple_open,
 	.read    = mem_read,
 	.llseek  = default_llseek,
 };
@@ -2809,7 +2804,7 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 	struct port_info *pi = netdev_priv(dev);
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	ret = t4_change_mac(pi->adapter, pi->adapter->fn, pi->viid,
 			    pi->xact_addr_filt, addr->sa_data, true, true);

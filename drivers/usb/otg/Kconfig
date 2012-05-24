@@ -23,7 +23,7 @@ config USB_GPIO_VBUS
 	select USB_OTG_UTILS
 	help
 	  Provides simple GPIO VBUS sensing for controllers with an
-	  internal transceiver via the otg_transceiver interface, and
+	  internal transceiver via the usb_phy interface, and
 	  optionally control of a D+ pullup GPIO as well as a VBUS
 	  current limit regulator.
 

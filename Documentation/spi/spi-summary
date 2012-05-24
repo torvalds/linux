@@ -1,7 +1,7 @@
 Overview of Linux kernel SPI support
 ====================================
 
-21-May-2007
+02-Feb-2012
 
 What is SPI?
 ------------
@@ -483,9 +483,9 @@ also initialize its own internal state.  (See below about bus numbering
 and those methods.)
 
 After you initialize the spi_master, then use spi_register_master() to
-publish it to the rest of the system.  At that time, device nodes for
-the controller and any predeclared spi devices will be made available,
-and the driver model core will take care of binding them to drivers.
+publish it to the rest of the system. At that time, device nodes for the
+controller and any predeclared spi devices will be made available, and
+the driver model core will take care of binding them to drivers.
 
 If you need to remove your SPI controller driver, spi_unregister_master()
 will reverse the effect of spi_register_master().
@@ -521,21 +521,53 @@ SPI MASTER METHODS
 		** When you code setup(), ASSUME that the controller
 		** is actively processing transfers for another device.
 
-    master->transfer(struct spi_device *spi, struct spi_message *message)
-    	This must not sleep.  Its responsibility is arrange that the
-	transfer happens and its complete() callback is issued.  The two
-	will normally happen later, after other transfers complete, and
-	if the controller is idle it will need to be kickstarted.
-
     master->cleanup(struct spi_device *spi)
 	Your controller driver may use spi_device.controller_state to hold
 	state it dynamically associates with that device.  If you do that,
 	be sure to provide the cleanup() method to free that state.
 
+    master->prepare_transfer_hardware(struct spi_master *master)
+	This will be called by the queue mechanism to signal to the driver
+	that a message is coming in soon, so the subsystem requests the
+	driver to prepare the transfer hardware by issuing this call.
+	This may sleep.
+
+    master->unprepare_transfer_hardware(struct spi_master *master)
+	This will be called by the queue mechanism to signal to the driver
+	that there are no more messages pending in the queue and it may
+	relax the hardware (e.g. by power management calls). This may sleep.
+
+    master->transfer_one_message(struct spi_master *master,
+				 struct spi_message *mesg)
+	The subsystem calls the driver to transfer a single message while
+	queuing transfers that arrive in the meantime. When the driver is
+	finished with this message, it must call
+	spi_finalize_current_message() so the subsystem can issue the next
+	transfer. This may sleep.
+
+    DEPRECATED METHODS
+
+    master->transfer(struct spi_device *spi, struct spi_message *message)
+	This must not sleep. Its responsibility is arrange that the
+	transfer happens and its complete() callback is issued. The two
+	will normally happen later, after other transfers complete, and
+	if the controller is idle it will need to be kickstarted. This
+	method is not used on queued controllers and must be NULL if
+	transfer_one_message() and (un)prepare_transfer_hardware() are
+	implemented.
+
 
 SPI MESSAGE QUEUE
 
-The bulk of the driver will be managing the I/O queue fed by transfer().
+If you are happy with the standard queueing mechanism provided by the
+SPI subsystem, just implement the queued methods specified above. Using
+the message queue has the upside of centralizing a lot of code and
+providing pure process-context execution of methods. The message queue
+can also be elevated to realtime priority on high-priority SPI traffic.
+
+Unless the queueing mechanism in the SPI subsystem is selected, the bulk
+of the driver will be managing the I/O queue fed by the now deprecated
+function transfer().
 
 That queue could be purely conceptual.  For example, a driver used only
 for low-frequency sensor access might be fine using synchronous PIO.
@@ -561,4 +593,6 @@ Stephen Street
 Mark Underwood
 Andrew Victor
 Vitaly Wool
-
+Grant Likely
+Mark Brown
+Linus Walleij

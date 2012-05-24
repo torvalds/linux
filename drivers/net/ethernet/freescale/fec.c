@@ -711,7 +711,7 @@ fec_enet_rx(struct net_device *ndev)
 		 * include that when passing upstream as it messes up
 		 * bridging applications.
 		 */
-		skb = dev_alloc_skb(pkt_len - 4 + NET_IP_ALIGN);
+		skb = netdev_alloc_skb(ndev, pkt_len - 4 + NET_IP_ALIGN);
 
 		if (unlikely(!skb)) {
 			printk("%s: Memory squeeze, dropping packet.\n",
@@ -1210,7 +1210,7 @@ static int fec_enet_alloc_buffers(struct net_device *ndev)
 
 	bdp = fep->rx_bd_base;
 	for (i = 0; i < RX_RING_SIZE; i++) {
-		skb = dev_alloc_skb(FEC_ENET_RX_FRSIZE);
+		skb = netdev_alloc_skb(ndev, FEC_ENET_RX_FRSIZE);
 		if (!skb) {
 			fec_enet_free_buffers(ndev);
 			return -ENOMEM;
@@ -1739,21 +1739,6 @@ static struct platform_driver fec_driver = {
 	.remove	= __devexit_p(fec_drv_remove),
 };
 
-static int __init
-fec_enet_module_init(void)
-{
-	printk(KERN_INFO "FEC Ethernet Driver\n");
-
-	return platform_driver_register(&fec_driver);
-}
-
-static void __exit
-fec_enet_cleanup(void)
-{
-	platform_driver_unregister(&fec_driver);
-}
-
-module_exit(fec_enet_cleanup);
-module_init(fec_enet_module_init);
+module_platform_driver(fec_driver);
 
 MODULE_LICENSE("GPL");

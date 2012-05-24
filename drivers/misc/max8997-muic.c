@@ -488,17 +488,7 @@ static struct platform_driver max8997_muic_driver = {
 	.remove		= __devexit_p(max8997_muic_remove),
 };
 
-static int __init max8997_muic_init(void)
-{
-	return platform_driver_register(&max8997_muic_driver);
-}
-module_init(max8997_muic_init);
-
-static void __exit max8997_muic_exit(void)
-{
-	platform_driver_unregister(&max8997_muic_driver);
-}
-module_exit(max8997_muic_exit);
+module_platform_driver(max8997_muic_driver);
 
 MODULE_DESCRIPTION("Maxim MAX8997 MUIC driver");
 MODULE_AUTHOR("Donggeun Kim <dg77.kim@samsung.com>");

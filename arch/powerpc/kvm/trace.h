@@ -118,11 +118,14 @@ TRACE_EVENT(kvm_book3s_exit,
 	),
 
 	TP_fast_assign(
+		struct kvmppc_book3s_shadow_vcpu *svcpu;
 		__entry->exit_nr	= exit_nr;
 		__entry->pc		= kvmppc_get_pc(vcpu);
 		__entry->dar		= kvmppc_get_fault_dar(vcpu);
 		__entry->msr		= vcpu->arch.shared->msr;
-		__entry->srr1		= to_svcpu(vcpu)->shadow_srr1;
+		svcpu = svcpu_get(vcpu);
+		__entry->srr1		= svcpu->shadow_srr1;
+		svcpu_put(svcpu);
 	),
 
 	TP_printk("exit=0x%x | pc=0x%lx | msr=0x%lx | dar=0x%lx | srr1=0x%lx",
@@ -336,6 +339,63 @@ TRACE_EVENT(kvm_book3s_slbmte,
 );
 
 #endif /* CONFIG_PPC_BOOK3S */
+
+
+/*************************************************************************
+ *                         Book3E trace points                           *
+ *************************************************************************/
+
+#ifdef CONFIG_BOOKE
+
+TRACE_EVENT(kvm_booke206_stlb_write,
+	TP_PROTO(__u32 mas0, __u32 mas8, __u32 mas1, __u64 mas2, __u64 mas7_3),
+	TP_ARGS(mas0, mas8, mas1, mas2, mas7_3),
+
+	TP_STRUCT__entry(
+		__field(	__u32,	mas0		)
+		__field(	__u32,	mas8		)
+		__field(	__u32,	mas1		)
+		__field(	__u64,	mas2		)
+		__field(	__u64,	mas7_3		)
+	),
+
+	TP_fast_assign(
+		__entry->mas0		= mas0;
+		__entry->mas8		= mas8;
+		__entry->mas1		= mas1;
+		__entry->mas2		= mas2;
+		__entry->mas7_3		= mas7_3;
+	),
+
+	TP_printk("mas0=%x mas8=%x mas1=%x mas2=%llx mas7_3=%llx",
+		__entry->mas0, __entry->mas8, __entry->mas1,
+		__entry->mas2, __entry->mas7_3)
+);
+
+TRACE_EVENT(kvm_booke206_gtlb_write,
+	TP_PROTO(__u32 mas0, __u32 mas1, __u64 mas2, __u64 mas7_3),
+	TP_ARGS(mas0, mas1, mas2, mas7_3),
+
+	TP_STRUCT__entry(
+		__field(	__u32,	mas0		)
+		__field(	__u32,	mas1		)
+		__field(	__u64,	mas2		)
+		__field(	__u64,	mas7_3		)
+	),
+
+	TP_fast_assign(
+		__entry->mas0		= mas0;
+		__entry->mas1		= mas1;
+		__entry->mas2		= mas2;
+		__entry->mas7_3		= mas7_3;
+	),
+
+	TP_printk("mas0=%x mas1=%x mas2=%llx mas7_3=%llx",
+		__entry->mas0, __entry->mas1,
+		__entry->mas2, __entry->mas7_3)
+);
+
+#endif
 
 #endif /* _TRACE_KVM_H */
 

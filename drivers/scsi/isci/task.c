@@ -96,8 +96,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 			__func__, task, response, status);
 
 		task->lldd_task = NULL;
-
-		isci_execpath_callback(ihost, task, task->task_done);
+		task->task_done(task);
 		break;
 
 	case isci_perform_aborted_io_completion:
@@ -117,8 +116,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 			"%s: Error - task = %p, response=%d, "
 			"status=%d\n",
 			__func__, task, response, status);
-
-		isci_execpath_callback(ihost, task, sas_task_abort);
+		sas_task_abort(task);
 		break;
 
 	default:
@@ -249,46 +247,6 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 	return 0;
 }
 
-static enum sci_status isci_sata_management_task_request_build(struct isci_request *ireq)
-{
-	struct isci_tmf *isci_tmf;
-	enum sci_status status;
-
-	if (!test_bit(IREQ_TMF, &ireq->flags))
-		return SCI_FAILURE;
-
-	isci_tmf = isci_request_access_tmf(ireq);
-
-	switch (isci_tmf->tmf_code) {
-
-	case isci_tmf_sata_srst_high:
-	case isci_tmf_sata_srst_low: {
-		struct host_to_dev_fis *fis = &ireq->stp.cmd;
-
-		memset(fis, 0, sizeof(*fis));
-
-		fis->fis_type  =  0x27;
-		fis->flags     &= ~0x80;
-		fis->flags     &= 0xF0;
-		if (isci_tmf->tmf_code == isci_tmf_sata_srst_high)
-			fis->control |= ATA_SRST;
-		else
-			fis->control &= ~ATA_SRST;
-		break;
-	}
-	/* other management commnd go here... */
-	default:
-		return SCI_FAILURE;
-	}
-
-	/* core builds the protocol specific request
-	 *  based on the h2d fis.
-	 */
-	status = sci_task_request_construct_sata(ireq);
-
-	return status;
-}
-
 static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 						    struct isci_remote_device *idev,
 						    u16 tag, struct isci_tmf *isci_tmf)
@@ -328,13 +286,6 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 			return NULL;
 	}
 
-	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
-		isci_tmf->proto = SAS_PROTOCOL_SATA;
-		status = isci_sata_management_task_request_build(ireq);
-
-		if (status != SCI_SUCCESS)
-			return NULL;
-	}
 	return ireq;
 }
 
@@ -873,53 +824,20 @@ static int isci_task_send_lu_reset_sas(
 	return ret;
 }
 
-static int isci_task_send_lu_reset_sata(struct isci_host *ihost,
-				 struct isci_remote_device *idev, u8 *lun)
+int isci_task_lu_reset(struct domain_device *dev, u8 *lun)
 {
-	int ret = TMF_RESP_FUNC_FAILED;
-	struct isci_tmf tmf;
-
-	/* Send the soft reset to the target */
-	#define ISCI_SRST_TIMEOUT_MS 25000 /* 25 second timeout. */
-	isci_task_build_tmf(&tmf, isci_tmf_sata_srst_high, NULL, NULL);
-
-	ret = isci_task_execute_tmf(ihost, idev, &tmf, ISCI_SRST_TIMEOUT_MS);
-
-	if (ret != TMF_RESP_FUNC_COMPLETE) {
-		dev_dbg(&ihost->pdev->dev,
-			 "%s: Assert SRST failed (%p) = %x",
-			 __func__, idev, ret);
-
-		/* Return the failure so that the LUN reset is escalated
-		 * to a target reset.
-		 */
-	}
-	return ret;
-}
-
-/**
- * isci_task_lu_reset() - This function is one of the SAS Domain Template
- *    functions. This is one of the Task Management functoins called by libsas,
- *    to reset the given lun. Note the assumption that while this call is
- *    executing, no I/O will be sent by the host to the device.
- * @lun: This parameter specifies the lun to be reset.
- *
- * status, zero indicates success.
- */
-int isci_task_lu_reset(struct domain_device *domain_device, u8 *lun)
-{
-	struct isci_host *isci_host = dev_to_ihost(domain_device);
+	struct isci_host *isci_host = dev_to_ihost(dev);
 	struct isci_remote_device *isci_device;
 	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
-	isci_device = isci_lookup_device(domain_device);
+	isci_device = isci_lookup_device(dev);
 	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: domain_device=%p, isci_host=%p; isci_device=%p\n",
-		 __func__, domain_device, isci_host, isci_device);
+		 __func__, dev, isci_host, isci_device);
 
 	if (!isci_device) {
 		/* If the device is gone, stop the escalations. */
@@ -928,11 +846,11 @@ int isci_task_lu_reset(struct domain_device *domain_device, u8 *lun)
 		ret = TMF_RESP_FUNC_COMPLETE;
 		goto out;
 	}
-	set_bit(IDEV_EH, &isci_device->flags);
 
 	/* Send the task management part of the reset. */
-	if (sas_protocol_ata(domain_device->tproto)) {
-		ret = isci_task_send_lu_reset_sata(isci_host, isci_device, lun);
+	if (dev_is_sata(dev)) {
+		sas_ata_schedule_reset(dev);
+		ret = TMF_RESP_FUNC_COMPLETE;
 	} else
 		ret = isci_task_send_lu_reset_sas(isci_host, isci_device, lun);
 
@@ -1061,9 +979,6 @@ int isci_task_abort_task(struct sas_task *task)
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: dev = %p, task = %p, old_request == %p\n",
 		__func__, isci_device, task, old_request);
-
-	if (isci_device)
-		set_bit(IDEV_EH, &isci_device->flags);
 
 	/* Device reset conditions signalled in task_state_flags are the
 	 * responsbility of libsas to observe at the start of the error
@@ -1332,29 +1247,35 @@ isci_task_request_complete(struct isci_host *ihost,
 }
 
 static int isci_reset_device(struct isci_host *ihost,
+			     struct domain_device *dev,
 			     struct isci_remote_device *idev)
 {
-	struct sas_phy *phy = sas_find_local_phy(idev->domain_dev);
-	enum sci_status status;
-	unsigned long flags;
 	int rc;
+	unsigned long flags;
+	enum sci_status status;
+	struct sas_phy *phy = sas_get_local_phy(dev);
+	struct isci_port *iport = dev->port->lldd_port;
 
 	dev_dbg(&ihost->pdev->dev, "%s: idev %p\n", __func__, idev);
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 	status = sci_remote_device_reset(idev);
-	if (status != SCI_SUCCESS) {
-		spin_unlock_irqrestore(&ihost->scic_lock, flags);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
+	if (status != SCI_SUCCESS) {
 		dev_dbg(&ihost->pdev->dev,
 			 "%s: sci_remote_device_reset(%p) returned %d!\n",
 			 __func__, idev, status);
-
-		return TMF_RESP_FUNC_FAILED;
+		rc = TMF_RESP_FUNC_FAILED;
+		goto out;
 	}
-	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
-	rc = sas_phy_reset(phy, true);
+	if (scsi_is_sas_phy_local(phy)) {
+		struct isci_phy *iphy = &ihost->phys[phy->number];
+
+		rc = isci_port_perform_hard_reset(ihost, iport, iphy);
+	} else
+		rc = sas_phy_reset(phy, !dev_is_sata(dev));
 
 	/* Terminate in-progress I/O now. */
 	isci_remote_device_nuke_requests(ihost, idev);
@@ -1371,7 +1292,8 @@ static int isci_reset_device(struct isci_host *ihost,
 	}
 
 	dev_dbg(&ihost->pdev->dev, "%s: idev %p complete.\n", __func__, idev);
-
+ out:
+	sas_put_local_phy(phy);
 	return rc;
 }
 
@@ -1386,35 +1308,15 @@ int isci_task_I_T_nexus_reset(struct domain_device *dev)
 	idev = isci_lookup_device(dev);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
-	if (!idev || !test_bit(IDEV_EH, &idev->flags)) {
-		ret = TMF_RESP_FUNC_COMPLETE;
-		goto out;
-	}
-
-	ret = isci_reset_device(ihost, idev);
- out:
-	isci_put_device(idev);
-	return ret;
-}
-
-int isci_bus_reset_handler(struct scsi_cmnd *cmd)
-{
-	struct domain_device *dev = sdev_to_domain_dev(cmd->device);
-	struct isci_host *ihost = dev_to_ihost(dev);
-	struct isci_remote_device *idev;
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&ihost->scic_lock, flags);
-	idev = isci_lookup_device(dev);
-	spin_unlock_irqrestore(&ihost->scic_lock, flags);
-
 	if (!idev) {
+		/* XXX: need to cleanup any ireqs targeting this
+		 * domain_device
+		 */
 		ret = TMF_RESP_FUNC_COMPLETE;
 		goto out;
 	}
 
-	ret = isci_reset_device(ihost, idev);
+	ret = isci_reset_device(ihost, dev, idev);
  out:
 	isci_put_device(idev);
 	return ret;

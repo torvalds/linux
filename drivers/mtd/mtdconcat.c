@@ -72,8 +72,6 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 	int ret = 0, err;
 	int i;
 
-	*retlen = 0;
-
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
 		size_t size, retsize;
@@ -126,11 +124,6 @@ concat_write(struct mtd_info *mtd, loff_t to, size_t len,
 	int err = -EINVAL;
 	int i;
 
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
-
-	*retlen = 0;
-
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
 		size_t size, retsize;
@@ -145,11 +138,7 @@ concat_write(struct mtd_info *mtd, loff_t to, size_t len,
 		else
 			size = len;
 
-		if (!(subdev->flags & MTD_WRITEABLE))
-			err = -EROFS;
-		else
-			err = mtd_write(subdev, to, size, &retsize, buf);
-
+		err = mtd_write(subdev, to, size, &retsize, buf);
 		if (err)
 			break;
 
@@ -176,18 +165,9 @@ concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	int i;
 	int err = -EINVAL;
 
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
-
-	*retlen = 0;
-
 	/* Calculate total length of data */
 	for (i = 0; i < count; i++)
 		total_len += vecs[i].iov_len;
-
-	/* Do not allow write past end of device */
-	if ((to + total_len) > mtd->size)
-		return -EINVAL;
 
 	/* Check alignment */
 	if (mtd->writesize > 1) {
@@ -224,12 +204,8 @@ concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
 		old_iov_len = vecs_copy[entry_high].iov_len;
 		vecs_copy[entry_high].iov_len = size;
 
-		if (!(subdev->flags & MTD_WRITEABLE))
-			err = -EROFS;
-		else
-			err = mtd_writev(subdev, &vecs_copy[entry_low],
-					 entry_high - entry_low + 1, to,
-					 &retsize);
+		err = mtd_writev(subdev, &vecs_copy[entry_low],
+				 entry_high - entry_low + 1, to, &retsize);
 
 		vecs_copy[entry_high].iov_len = old_iov_len - size;
 		vecs_copy[entry_high].iov_base += size;
@@ -403,15 +379,6 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 	uint64_t length, offset = 0;
 	struct erase_info *erase;
 
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
-
-	if (instr->addr > concat->mtd.size)
-		return -EINVAL;
-
-	if (instr->len + instr->addr > concat->mtd.size)
-		return -EINVAL;
-
 	/*
 	 * Check for proper erase block alignment of the to-be-erased area.
 	 * It is easier to do this based on the super device's erase
@@ -459,8 +426,6 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 			return -EINVAL;
 	}
 
-	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
-
 	/* make a local copy of instr to avoid modifying the caller's struct */
 	erase = kmalloc(sizeof (struct erase_info), GFP_KERNEL);
 
@@ -499,10 +464,6 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 		else
 			erase->len = length;
 
-		if (!(subdev->flags & MTD_WRITEABLE)) {
-			err = -EROFS;
-			break;
-		}
 		length -= erase->len;
 		if ((err = concat_dev_erase(subdev, erase))) {
 			/* sanity check: should never happen since
@@ -538,9 +499,6 @@ static int concat_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	struct mtd_concat *concat = CONCAT(mtd);
 	int i, err = -EINVAL;
 
-	if ((len + ofs) > mtd->size)
-		return -EINVAL;
-
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
 		uint64_t size;
@@ -574,9 +532,6 @@ static int concat_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
 	int i, err = 0;
-
-	if ((len + ofs) > mtd->size)
-		return -EINVAL;
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
@@ -650,9 +605,6 @@ static int concat_block_isbad(struct mtd_info *mtd, loff_t ofs)
 	if (!mtd_can_have_bb(concat->subdev[0]))
 		return res;
 
-	if (ofs > mtd->size)
-		return -EINVAL;
-
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
 
@@ -672,12 +624,6 @@ static int concat_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
 	int i, err = -EINVAL;
-
-	if (!mtd_can_have_bb(concat->subdev[0]))
-		return 0;
-
-	if (ofs > mtd->size)
-		return -EINVAL;
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
@@ -715,10 +661,6 @@ static unsigned long concat_get_unmapped_area(struct mtd_info *mtd,
 			offset -= subdev->size;
 			continue;
 		}
-
-		/* we've found the subdev over which the mapping will reside */
-		if (offset + len > subdev->size)
-			return (unsigned long) -EINVAL;
 
 		return mtd_get_unmapped_area(subdev, len, offset, flags);
 	}
@@ -777,16 +719,16 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	concat->mtd.subpage_sft = subdev[0]->subpage_sft;
 	concat->mtd.oobsize = subdev[0]->oobsize;
 	concat->mtd.oobavail = subdev[0]->oobavail;
-	if (subdev[0]->writev)
-		concat->mtd.writev = concat_writev;
-	if (subdev[0]->read_oob)
-		concat->mtd.read_oob = concat_read_oob;
-	if (subdev[0]->write_oob)
-		concat->mtd.write_oob = concat_write_oob;
-	if (subdev[0]->block_isbad)
-		concat->mtd.block_isbad = concat_block_isbad;
-	if (subdev[0]->block_markbad)
-		concat->mtd.block_markbad = concat_block_markbad;
+	if (subdev[0]->_writev)
+		concat->mtd._writev = concat_writev;
+	if (subdev[0]->_read_oob)
+		concat->mtd._read_oob = concat_read_oob;
+	if (subdev[0]->_write_oob)
+		concat->mtd._write_oob = concat_write_oob;
+	if (subdev[0]->_block_isbad)
+		concat->mtd._block_isbad = concat_block_isbad;
+	if (subdev[0]->_block_markbad)
+		concat->mtd._block_markbad = concat_block_markbad;
 
 	concat->mtd.ecc_stats.badblocks = subdev[0]->ecc_stats.badblocks;
 
@@ -833,8 +775,8 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 		if (concat->mtd.writesize   !=  subdev[i]->writesize ||
 		    concat->mtd.subpage_sft != subdev[i]->subpage_sft ||
 		    concat->mtd.oobsize    !=  subdev[i]->oobsize ||
-		    !concat->mtd.read_oob  != !subdev[i]->read_oob ||
-		    !concat->mtd.write_oob != !subdev[i]->write_oob) {
+		    !concat->mtd._read_oob  != !subdev[i]->_read_oob ||
+		    !concat->mtd._write_oob != !subdev[i]->_write_oob) {
 			kfree(concat);
 			printk("Incompatible OOB or ECC data on \"%s\"\n",
 			       subdev[i]->name);
@@ -849,15 +791,15 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	concat->num_subdev = num_devs;
 	concat->mtd.name = name;
 
-	concat->mtd.erase = concat_erase;
-	concat->mtd.read = concat_read;
-	concat->mtd.write = concat_write;
-	concat->mtd.sync = concat_sync;
-	concat->mtd.lock = concat_lock;
-	concat->mtd.unlock = concat_unlock;
-	concat->mtd.suspend = concat_suspend;
-	concat->mtd.resume = concat_resume;
-	concat->mtd.get_unmapped_area = concat_get_unmapped_area;
+	concat->mtd._erase = concat_erase;
+	concat->mtd._read = concat_read;
+	concat->mtd._write = concat_write;
+	concat->mtd._sync = concat_sync;
+	concat->mtd._lock = concat_lock;
+	concat->mtd._unlock = concat_unlock;
+	concat->mtd._suspend = concat_suspend;
+	concat->mtd._resume = concat_resume;
+	concat->mtd._get_unmapped_area = concat_get_unmapped_area;
 
 	/*
 	 * Combine the erase block size info of the subdevices:

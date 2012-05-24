@@ -5,8 +5,7 @@
 config NET_VENDOR_CIRRUS
 	bool "Cirrus devices"
 	default y
-	depends on ISA || EISA || MACH_IXDP2351 || ARCH_IXDP2X01 \
-		|| MACH_MX31ADS || MACH_QQ2440 || (ARM && ARCH_EP93XX) || MAC
+	depends on ISA || EISA || ARM || MAC
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -21,8 +20,7 @@ if NET_VENDOR_CIRRUS
 
 config CS89x0
 	tristate "CS89x0 support"
-	depends on (ISA || EISA || MACH_IXDP2351 \
-		|| ARCH_IXDP2X01 || MACH_MX31ADS || MACH_QQ2440)
+	depends on ISA || EISA || ARM
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the
@@ -33,10 +31,15 @@ config CS89x0
 	  To compile this driver as a module, choose M here. The module
 	  will be called cs89x0.
 
-config CS89x0_NONISA_IRQ
-	def_bool y
-	depends on CS89x0 != n
-	depends on MACH_IXDP2351 || ARCH_IXDP2X01 || MACH_MX31ADS || MACH_QQ2440
+config CS89x0_PLATFORM
+	bool "CS89x0 platform driver support"
+	depends on CS89x0
+	help
+	  Say Y to compile the cs89x0 driver as a platform driver. This
+	  makes this driver suitable for use on certain evaluation boards
+	  such as the iMX21ADS.
+
+	  If you are unsure, say N.
 
 config EP93XX_ETH
 	tristate "EP93xx Ethernet support"

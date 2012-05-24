@@ -33,45 +33,33 @@ struct phram_mtd_list {
 
 static LIST_HEAD(phram_list);
 
-
 static int phram_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	u_char *start = mtd->priv;
 
-	if (instr->addr + instr->len > mtd->size)
-		return -EINVAL;
-
 	memset(start + instr->addr, 0xff, instr->len);
 
-	/* This'll catch a few races. Free the thing before returning :)
+	/*
+	 * This'll catch a few races. Free the thing before returning :)
 	 * I don't feel at all ashamed. This kind of thing is possible anyway
 	 * with flash, but unlikely.
 	 */
-
 	instr->state = MTD_ERASE_DONE;
-
 	mtd_erase_callback(instr);
-
 	return 0;
 }
 
 static int phram_point(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, void **virt, resource_size_t *phys)
 {
-	if (from + len > mtd->size)
-		return -EINVAL;
-
-	/* can we return a physical address with this driver? */
-	if (phys)
-		return -EINVAL;
-
 	*virt = mtd->priv + from;
 	*retlen = len;
 	return 0;
 }
 
-static void phram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
+static int phram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
+	return 0;
 }
 
 static int phram_read(struct mtd_info *mtd, loff_t from, size_t len,
@@ -79,14 +67,7 @@ static int phram_read(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	u_char *start = mtd->priv;
 
-	if (from >= mtd->size)
-		return -EINVAL;
-
-	if (len > mtd->size - from)
-		len = mtd->size - from;
-
 	memcpy(buf, start + from, len);
-
 	*retlen = len;
 	return 0;
 }
@@ -96,19 +77,10 @@ static int phram_write(struct mtd_info *mtd, loff_t to, size_t len,
 {
 	u_char *start = mtd->priv;
 
-	if (to >= mtd->size)
-		return -EINVAL;
-
-	if (len > mtd->size - to)
-		len = mtd->size - to;
-
 	memcpy(start + to, buf, len);
-
 	*retlen = len;
 	return 0;
 }
-
-
 
 static void unregister_devices(void)
 {
@@ -142,11 +114,11 @@ static int register_device(char *name, unsigned long start, unsigned long len)
 	new->mtd.name = name;
 	new->mtd.size = len;
 	new->mtd.flags = MTD_CAP_RAM;
-        new->mtd.erase = phram_erase;
-	new->mtd.point = phram_point;
-	new->mtd.unpoint = phram_unpoint;
-	new->mtd.read = phram_read;
-	new->mtd.write = phram_write;
+	new->mtd._erase = phram_erase;
+	new->mtd._point = phram_point;
+	new->mtd._unpoint = phram_unpoint;
+	new->mtd._read = phram_read;
+	new->mtd._write = phram_write;
 	new->mtd.owner = THIS_MODULE;
 	new->mtd.type = MTD_RAM;
 	new->mtd.erasesize = PAGE_SIZE;
@@ -233,7 +205,17 @@ static inline void kill_final_newline(char *str)
 	return 1;		\
 } while (0)
 
-static int phram_setup(const char *val, struct kernel_param *kp)
+/*
+ * This shall contain the module parameter if any. It is of the form:
+ * - phram=<device>,<address>,<size> for module case
+ * - phram.phram=<device>,<address>,<size> for built-in case
+ * We leave 64 bytes for the device name, 12 for the address and 12 for the
+ * size.
+ * Example: phram.phram=rootfs,0xa0000000,512Mi
+ */
+static __initdata char phram_paramline[64+12+12];
+
+static int __init phram_setup(const char *val)
 {
 	char buf[64+12+12], *str = buf;
 	char *token[3];
@@ -282,12 +264,28 @@ static int phram_setup(const char *val, struct kernel_param *kp)
 	return ret;
 }
 
-module_param_call(phram, phram_setup, NULL, NULL, 000);
+static int __init phram_param_call(const char *val, struct kernel_param *kp)
+{
+	/*
+	 * This function is always called before 'init_phram()', whether
+	 * built-in or module.
+	 */
+	if (strlen(val) >= sizeof(phram_paramline))
+		return -ENOSPC;
+	strcpy(phram_paramline, val);
+
+	return 0;
+}
+
+module_param_call(phram, phram_param_call, NULL, NULL, 000);
 MODULE_PARM_DESC(phram, "Memory region to map. \"phram=<name>,<start>,<length>\"");
 
 
 static int __init init_phram(void)
 {
+	if (phram_paramline[0])
+		return phram_setup(phram_paramline);
+
 	return 0;
 }
 

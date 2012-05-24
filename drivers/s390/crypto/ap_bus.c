@@ -42,10 +42,10 @@
 #include <asm/reset.h>
 #include <asm/airq.h>
 #include <linux/atomic.h>
-#include <asm/system.h>
 #include <asm/isc.h>
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
+#include <asm/facility.h>
 
 #include "ap_bus.h"
 
@@ -1862,7 +1862,5 @@ void ap_module_exit(void)
 	}
 }
 
-#ifndef CONFIG_ZCRYPT_MONOLITHIC
 module_init(ap_module_init);
 module_exit(ap_module_exit);
-#endif

@@ -23,6 +23,7 @@
 #include <linux/bootmem.h>
 
 #include <asm/ptrace.h>
+#include <asm/mce.h>
 
 #include "proto.h"
 #include "pci_impl.h"

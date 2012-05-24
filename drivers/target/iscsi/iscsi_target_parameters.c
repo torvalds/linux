@@ -874,8 +874,8 @@ static int iscsi_check_numerical_value(struct iscsi_param *param, char *value_pt
 static int iscsi_check_numerical_range_value(struct iscsi_param *param, char *value)
 {
 	char *left_val_ptr = NULL, *right_val_ptr = NULL;
-	char *tilde_ptr = NULL, *tmp_ptr = NULL;
-	u32 left_val, right_val, local_left_val, local_right_val;
+	char *tilde_ptr = NULL;
+	u32 left_val, right_val, local_left_val;
 
 	if (strcmp(param->name, IFMARKINT) &&
 	    strcmp(param->name, OFMARKINT)) {
@@ -903,8 +903,8 @@ static int iscsi_check_numerical_range_value(struct iscsi_param *param, char *va
 	if (iscsi_check_numerical_value(param, right_val_ptr) < 0)
 		return -1;
 
-	left_val = simple_strtoul(left_val_ptr, &tmp_ptr, 0);
-	right_val = simple_strtoul(right_val_ptr, &tmp_ptr, 0);
+	left_val = simple_strtoul(left_val_ptr, NULL, 0);
+	right_val = simple_strtoul(right_val_ptr, NULL, 0);
 	*tilde_ptr = '~';
 
 	if (right_val < left_val) {
@@ -928,8 +928,7 @@ static int iscsi_check_numerical_range_value(struct iscsi_param *param, char *va
 	left_val_ptr = param->value;
 	right_val_ptr = param->value + strlen(left_val_ptr) + 1;
 
-	local_left_val = simple_strtoul(left_val_ptr, &tmp_ptr, 0);
-	local_right_val = simple_strtoul(right_val_ptr, &tmp_ptr, 0);
+	local_left_val = simple_strtoul(left_val_ptr, NULL, 0);
 	*tilde_ptr = '~';
 
 	if (param->set_param) {
@@ -1189,7 +1188,7 @@ static int iscsi_check_proposer_state(struct iscsi_param *param, char *value)
 	if (IS_TYPE_NUMBER_RANGE(param)) {
 		u32 left_val = 0, right_val = 0, recieved_value = 0;
 		char *left_val_ptr = NULL, *right_val_ptr = NULL;
-		char *tilde_ptr = NULL, *tmp_ptr = NULL;
+		char *tilde_ptr = NULL;
 
 		if (!strcmp(value, IRRELEVANT) || !strcmp(value, REJECT)) {
 			if (iscsi_update_param_value(param, value) < 0)
@@ -1213,9 +1212,9 @@ static int iscsi_check_proposer_state(struct iscsi_param *param, char *value)
 
 		left_val_ptr = param->value;
 		right_val_ptr = param->value + strlen(left_val_ptr) + 1;
-		left_val = simple_strtoul(left_val_ptr, &tmp_ptr, 0);
-		right_val = simple_strtoul(right_val_ptr, &tmp_ptr, 0);
-		recieved_value = simple_strtoul(value, &tmp_ptr, 0);
+		left_val = simple_strtoul(left_val_ptr, NULL, 0);
+		right_val = simple_strtoul(right_val_ptr, NULL, 0);
+		recieved_value = simple_strtoul(value, NULL, 0);
 
 		*tilde_ptr = '~';
 

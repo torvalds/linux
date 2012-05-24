@@ -3,6 +3,7 @@
 
 /* Caches aren't brain-dead on the intel. */
 #include <asm-generic/cacheflush.h>
+#include <asm/special_insns.h>
 
 #ifdef CONFIG_X86_PAT
 /*

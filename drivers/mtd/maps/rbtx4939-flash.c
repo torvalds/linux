@@ -102,8 +102,8 @@ static int rbtx4939_flash_probe(struct platform_device *dev)
 	info->mtd->owner = THIS_MODULE;
 	if (err)
 		goto err_out;
-	err = mtd_device_parse_register(info->mtd, NULL, 0,
-			pdata->parts, pdata->nr_parts);
+	err = mtd_device_parse_register(info->mtd, NULL, NULL, pdata->parts,
+					pdata->nr_parts);
 
 	if (err)
 		goto err_out;

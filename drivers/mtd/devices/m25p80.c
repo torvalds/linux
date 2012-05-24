@@ -288,9 +288,6 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 			__func__, (long long)instr->addr,
 			(long long)instr->len);
 
-	/* sanity checks */
-	if (instr->addr + instr->len > flash->mtd.size)
-		return -EINVAL;
 	div_u64_rem(instr->len, mtd->erasesize, &rem);
 	if (rem)
 		return -EINVAL;
@@ -349,13 +346,6 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	pr_debug("%s: %s from 0x%08x, len %zd\n", dev_name(&flash->spi->dev),
 			__func__, (u32)from, len);
 
-	/* sanity checks */
-	if (!len)
-		return 0;
-
-	if (from + len > flash->mtd.size)
-		return -EINVAL;
-
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));
 
@@ -370,9 +360,6 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	t[1].rx_buf = buf;
 	t[1].len = len;
 	spi_message_add_tail(&t[1], &m);
-
-	/* Byte count starts at zero. */
-	*retlen = 0;
 
 	mutex_lock(&flash->lock);
 
@@ -416,15 +403,6 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	pr_debug("%s: %s to 0x%08x, len %zd\n", dev_name(&flash->spi->dev),
 			__func__, (u32)to, len);
-
-	*retlen = 0;
-
-	/* sanity checks */
-	if (!len)
-		return(0);
-
-	if (to + len > flash->mtd.size)
-		return -EINVAL;
 
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));
@@ -508,15 +486,6 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	pr_debug("%s: %s to 0x%08x, len %zd\n", dev_name(&flash->spi->dev),
 			__func__, (u32)to, len);
-
-	*retlen = 0;
-
-	/* sanity checks */
-	if (!len)
-		return 0;
-
-	if (to + len > flash->mtd.size)
-		return -EINVAL;
 
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));
@@ -908,14 +877,14 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	flash->mtd.writesize = 1;
 	flash->mtd.flags = MTD_CAP_NORFLASH;
 	flash->mtd.size = info->sector_size * info->n_sectors;
-	flash->mtd.erase = m25p80_erase;
-	flash->mtd.read = m25p80_read;
+	flash->mtd._erase = m25p80_erase;
+	flash->mtd._read = m25p80_read;
 
 	/* sst flash chips use AAI word program */
 	if (JEDEC_MFR(info->jedec_id) == CFI_MFR_SST)
-		flash->mtd.write = sst_write;
+		flash->mtd._write = sst_write;
 	else
-		flash->mtd.write = m25p80_write;
+		flash->mtd._write = m25p80_write;
 
 	/* prefer "small sector" erase if possible */
 	if (info->flags & SECT_4K) {
@@ -932,6 +901,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	ppdata.of_node = spi->dev.of_node;
 	flash->mtd.dev.parent = &spi->dev;
 	flash->page_size = info->page_size;
+	flash->mtd.writebufsize = flash->page_size;
 
 	if (info->addr_width)
 		flash->addr_width = info->addr_width;
@@ -1004,21 +974,7 @@ static struct spi_driver m25p80_driver = {
 	 */
 };
 
-
-static int __init m25p80_init(void)
-{
-	return spi_register_driver(&m25p80_driver);
-}
-
-
-static void __exit m25p80_exit(void)
-{
-	spi_unregister_driver(&m25p80_driver);
-}
-
-
-module_init(m25p80_init);
-module_exit(m25p80_exit);
+module_spi_driver(m25p80_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mike Lavender");

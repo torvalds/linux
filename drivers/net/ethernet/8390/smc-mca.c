@@ -47,7 +47,6 @@
 #include <linux/etherdevice.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include "8390.h"
 

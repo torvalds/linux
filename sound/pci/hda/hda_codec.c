@@ -19,6 +19,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -2304,7 +2305,7 @@ typedef int (*map_slave_func_t)(void *, struct snd_kcontrol *);
 
 /* apply the function to all matching slave ctls in the mixer list */
 static int map_slaves(struct hda_codec *codec, const char * const *slaves,
-		      map_slave_func_t func, void *data) 
+		      const char *suffix, map_slave_func_t func, void *data) 
 {
 	struct hda_nid_item *items;
 	const char * const *s;
@@ -2317,7 +2318,14 @@ static int map_slaves(struct hda_codec *codec, const char * const *slaves,
 		    sctl->id.iface != SNDRV_CTL_ELEM_IFACE_MIXER)
 			continue;
 		for (s = slaves; *s; s++) {
-			if (!strcmp(sctl->id.name, *s)) {
+			char tmpname[sizeof(sctl->id.name)];
+			const char *name = *s;
+			if (suffix) {
+				snprintf(tmpname, sizeof(tmpname), "%s %s",
+					 name, suffix);
+				name = tmpname;
+			}
+			if (!strcmp(sctl->id.name, name)) {
 				err = func(data, sctl);
 				if (err)
 					return err;
@@ -2333,12 +2341,65 @@ static int check_slave_present(void *data, struct snd_kcontrol *sctl)
 	return 1;
 }
 
+/* guess the value corresponding to 0dB */
+static int get_kctl_0dB_offset(struct snd_kcontrol *kctl)
+{
+	int _tlv[4];
+	const int *tlv = NULL;
+	int val = -1;
+
+	if (kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
+		/* FIXME: set_fs() hack for obtaining user-space TLV data */
+		mm_segment_t fs = get_fs();
+		set_fs(get_ds());
+		if (!kctl->tlv.c(kctl, 0, sizeof(_tlv), _tlv))
+			tlv = _tlv;
+		set_fs(fs);
+	} else if (kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_TLV_READ)
+		tlv = kctl->tlv.p;
+	if (tlv && tlv[0] == SNDRV_CTL_TLVT_DB_SCALE)
+		val = -tlv[2] / tlv[3];
+	return val;
+}
+
+/* call kctl->put with the given value(s) */
+static int put_kctl_with_value(struct snd_kcontrol *kctl, int val)
+{
+	struct snd_ctl_elem_value *ucontrol;
+	ucontrol = kzalloc(sizeof(*ucontrol), GFP_KERNEL);
+	if (!ucontrol)
+		return -ENOMEM;
+	ucontrol->value.integer.value[0] = val;
+	ucontrol->value.integer.value[1] = val;
+	kctl->put(kctl, ucontrol);
+	kfree(ucontrol);
+	return 0;
+}
+
+/* initialize the slave volume with 0dB */
+static int init_slave_0dB(void *data, struct snd_kcontrol *slave)
+{
+	int offset = get_kctl_0dB_offset(slave);
+	if (offset > 0)
+		put_kctl_with_value(slave, offset);
+	return 0;
+}
+
+/* unmute the slave */
+static int init_slave_unmute(void *data, struct snd_kcontrol *slave)
+{
+	return put_kctl_with_value(slave, 1);
+}
+
 /**
  * snd_hda_add_vmaster - create a virtual master control and add slaves
  * @codec: HD-audio codec
  * @name: vmaster control name
  * @tlv: TLV data (optional)
  * @slaves: slave control names (optional)
+ * @suffix: suffix string to each slave name (optional)
+ * @init_slave_vol: initialize slaves to unmute/0dB
+ * @ctl_ret: store the vmaster kcontrol in return
  *
  * Create a virtual master control with the given name.  The TLV data
  * must be either NULL or a valid data.
@@ -2349,13 +2410,18 @@ static int check_slave_present(void *data, struct snd_kcontrol *sctl)
  *
  * This function returns zero if successful or a negative error code.
  */
-int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
-			unsigned int *tlv, const char * const *slaves)
+int __snd_hda_add_vmaster(struct hda_codec *codec, char *name,
+			unsigned int *tlv, const char * const *slaves,
+			  const char *suffix, bool init_slave_vol,
+			  struct snd_kcontrol **ctl_ret)
 {
 	struct snd_kcontrol *kctl;
 	int err;
 
-	err = map_slaves(codec, slaves, check_slave_present, NULL);
+	if (ctl_ret)
+		*ctl_ret = NULL;
+
+	err = map_slaves(codec, slaves, suffix, check_slave_present, NULL);
 	if (err != 1) {
 		snd_printdd("No slave found for %s\n", name);
 		return 0;
@@ -2367,13 +2433,119 @@ int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 	if (err < 0)
 		return err;
 
-	err = map_slaves(codec, slaves, (map_slave_func_t)snd_ctl_add_slave,
-			 kctl);
+	err = map_slaves(codec, slaves, suffix,
+			 (map_slave_func_t)snd_ctl_add_slave, kctl);
 	if (err < 0)
 		return err;
+
+	/* init with master mute & zero volume */
+	put_kctl_with_value(kctl, 0);
+	if (init_slave_vol)
+		map_slaves(codec, slaves, suffix,
+			   tlv ? init_slave_0dB : init_slave_unmute, kctl);
+
+	if (ctl_ret)
+		*ctl_ret = kctl;
 	return 0;
 }
-EXPORT_SYMBOL_HDA(snd_hda_add_vmaster);
+EXPORT_SYMBOL_HDA(__snd_hda_add_vmaster);
+
+/*
+ * mute-LED control using vmaster
+ */
+static int vmaster_mute_mode_info(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_info *uinfo)
+{
+	static const char * const texts[] = {
+		"Off", "On", "Follow Master"
+	};
+	unsigned int index;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 3;
+	index = uinfo->value.enumerated.item;
+	if (index >= 3)
+		index = 2;
+	strcpy(uinfo->value.enumerated.name, texts[index]);
+	return 0;
+}
+
+static int vmaster_mute_mode_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_vmaster_mute_hook *hook = snd_kcontrol_chip(kcontrol);
+	ucontrol->value.enumerated.item[0] = hook->mute_mode;
+	return 0;
+}
+
+static int vmaster_mute_mode_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_vmaster_mute_hook *hook = snd_kcontrol_chip(kcontrol);
+	unsigned int old_mode = hook->mute_mode;
+
+	hook->mute_mode = ucontrol->value.enumerated.item[0];
+	if (hook->mute_mode > HDA_VMUTE_FOLLOW_MASTER)
+		hook->mute_mode = HDA_VMUTE_FOLLOW_MASTER;
+	if (old_mode == hook->mute_mode)
+		return 0;
+	snd_hda_sync_vmaster_hook(hook);
+	return 1;
+}
+
+static struct snd_kcontrol_new vmaster_mute_mode = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Mute-LED Mode",
+	.info = vmaster_mute_mode_info,
+	.get = vmaster_mute_mode_get,
+	.put = vmaster_mute_mode_put,
+};
+
+/*
+ * Add a mute-LED hook with the given vmaster switch kctl
+ * "Mute-LED Mode" control is automatically created and associated with
+ * the given hook.
+ */
+int snd_hda_add_vmaster_hook(struct hda_codec *codec,
+			     struct hda_vmaster_mute_hook *hook,
+			     bool expose_enum_ctl)
+{
+	struct snd_kcontrol *kctl;
+
+	if (!hook->hook || !hook->sw_kctl)
+		return 0;
+	snd_ctl_add_vmaster_hook(hook->sw_kctl, hook->hook, codec);
+	hook->codec = codec;
+	hook->mute_mode = HDA_VMUTE_FOLLOW_MASTER;
+	if (!expose_enum_ctl)
+		return 0;
+	kctl = snd_ctl_new1(&vmaster_mute_mode, hook);
+	if (!kctl)
+		return -ENOMEM;
+	return snd_hda_ctl_add(codec, 0, kctl);
+}
+EXPORT_SYMBOL_HDA(snd_hda_add_vmaster_hook);
+
+/*
+ * Call the hook with the current value for synchronization
+ * Should be called in init callback
+ */
+void snd_hda_sync_vmaster_hook(struct hda_vmaster_mute_hook *hook)
+{
+	if (!hook->hook || !hook->codec)
+		return;
+	switch (hook->mute_mode) {
+	case HDA_VMUTE_FOLLOW_MASTER:
+		snd_ctl_sync_vmaster_hook(hook->sw_kctl);
+		break;
+	default:
+		hook->hook(hook->codec, hook->mute_mode);
+		break;
+	}
+}
+EXPORT_SYMBOL_HDA(snd_hda_sync_vmaster_hook);
+
 
 /**
  * snd_hda_mixer_amp_switch_info - Info callback for a standard AMP mixer switch
@@ -5272,6 +5444,10 @@ int snd_hda_suspend(struct hda_bus *bus)
 	list_for_each_entry(codec, &bus->codec_list, list) {
 		if (hda_codec_is_power_on(codec))
 			hda_call_codec_suspend(codec);
+		else /* forcibly change the power to D3 even if not used */
+			hda_set_power_state(codec,
+					    codec->afg ? codec->afg : codec->mfg,
+					    AC_PWRST_D3);
 		if (codec->patch_ops.post_suspend)
 			codec->patch_ops.post_suspend(codec);
 	}

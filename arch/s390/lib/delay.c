@@ -13,6 +13,7 @@
 #include <linux/irqflags.h>
 #include <linux/interrupt.h>
 #include <asm/div64.h>
+#include <asm/timer.h>
 
 void __delay(unsigned long loops)
 {
@@ -28,36 +29,33 @@ void __delay(unsigned long loops)
 
 static void __udelay_disabled(unsigned long long usecs)
 {
-	unsigned long mask, cr0, cr0_saved;
-	u64 clock_saved;
-	u64 end;
+	unsigned long cr0, cr6, new;
+	u64 clock_saved, end;
 
-	mask = psw_kernel_bits | PSW_MASK_DAT | PSW_MASK_WAIT |
-		PSW_MASK_EXT | PSW_MASK_MCHECK;
 	end = get_clock() + (usecs << 12);
 	clock_saved = local_tick_disable();
-	__ctl_store(cr0_saved, 0, 0);
-	cr0 = (cr0_saved & 0xffff00e0) | 0x00000800;
-	__ctl_load(cr0 , 0, 0);
+	__ctl_store(cr0, 0, 0);
+	__ctl_store(cr6, 6, 6);
+	new = (cr0 &  0xffff00e0) | 0x00000800;
+	__ctl_load(new , 0, 0);
+	new = 0;
+	__ctl_load(new, 6, 6);
 	lockdep_off();
 	do {
 		set_clock_comparator(end);
-		trace_hardirqs_on();
-		__load_psw_mask(mask);
+		vtime_stop_cpu();
 		local_irq_disable();
 	} while (get_clock() < end);
 	lockdep_on();
-	__ctl_load(cr0_saved, 0, 0);
+	__ctl_load(cr0, 0, 0);
+	__ctl_load(cr6, 6, 6);
 	local_tick_enable(clock_saved);
 }
 
 static void __udelay_enabled(unsigned long long usecs)
 {
-	unsigned long mask;
-	u64 clock_saved;
-	u64 end;
+	u64 clock_saved, end;
 
-	mask = psw_kernel_bits | PSW_MASK_WAIT | PSW_MASK_EXT | PSW_MASK_IO;
 	end = get_clock() + (usecs << 12);
 	do {
 		clock_saved = 0;
@@ -65,8 +63,7 @@ static void __udelay_enabled(unsigned long long usecs)
 			clock_saved = local_tick_disable();
 			set_clock_comparator(end);
 		}
-		trace_hardirqs_on();
-		__load_psw_mask(mask);
+		vtime_stop_cpu();
 		local_irq_disable();
 		if (clock_saved)
 			local_tick_enable(clock_saved);

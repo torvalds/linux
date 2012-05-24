@@ -24,6 +24,7 @@
 #include <asm/dma.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
+#include <asm/system_misc.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <mach/irqs.h>
@@ -247,3 +248,21 @@ void h720x_restart(char mode, const char *cmd)
 {
 	CPU_REG (PMU_BASE, PMU_STAT) |= PMU_WARMRESET;
 }
+
+static void h720x__idle(void)
+{
+	CPU_REG (PMU_BASE, PMU_MODE) = PMU_MODE_IDLE;
+	nop();
+	nop();
+	CPU_REG (PMU_BASE, PMU_MODE) = PMU_MODE_RUN;
+	nop();
+	nop();
+}
+
+static int __init h720x_idle_init(void)
+{
+	arm_pm_idle = h720x__idle;
+	return 0;
+}
+
+arch_initcall(h720x_idle_init);

@@ -86,6 +86,7 @@ static void qla4xxx_init_response_q_entries(struct scsi_qla_host *ha)
 int qla4xxx_init_rings(struct scsi_qla_host *ha)
 {
 	unsigned long flags = 0;
+	int i;
 
 	/* Initialize request queue. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -124,6 +125,10 @@ int qla4xxx_init_rings(struct scsi_qla_host *ha)
 	}
 
 	qla4xxx_init_response_q_entries(ha);
+
+	/* Initialize mabilbox active array */
+	for (i = 0; i < MAX_MRB; i++)
+		ha->active_mrb_array[i] = NULL;
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 

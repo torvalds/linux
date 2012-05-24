@@ -12,6 +12,8 @@
  *	based on softdog.c by Alan Cox <alan@lxorguk.ukuu.org.uk>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -26,14 +28,13 @@
 #include <linux/uaccess.h>
 #include <asm/sgi/mc.h>
 
-#define PFX "indydog: "
 static unsigned long indydog_alive;
 static DEFINE_SPINLOCK(indydog_lock);
 
 #define WATCHDOG_TIMEOUT 30		/* 30 sec default timeout */
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
@@ -60,7 +61,7 @@ static void indydog_stop(void)
 	sgimc->cpuctrl0 = mc_ctrl0;
 	spin_unlock(&indydog_lock);
 
-	printk(KERN_INFO PFX "Stopped watchdog timer.\n");
+	pr_info("Stopped watchdog timer\n");
 }
 
 static void indydog_ping(void)
@@ -83,7 +84,7 @@ static int indydog_open(struct inode *inode, struct file *file)
 	indydog_start();
 	indydog_ping();
 
-	printk(KERN_INFO "Started watchdog timer.\n");
+	pr_info("Started watchdog timer\n");
 
 	return nonseekable_open(inode, file);
 }
@@ -178,30 +179,25 @@ static struct notifier_block indydog_notifier = {
 	.notifier_call = indydog_notify_sys,
 };
 
-static char banner[] __initdata =
-	KERN_INFO PFX "Hardware Watchdog Timer for SGI IP22: 0.3\n";
-
 static int __init watchdog_init(void)
 {
 	int ret;
 
 	ret = register_reboot_notifier(&indydog_notifier);
 	if (ret) {
-		printk(KERN_ERR PFX
-			"cannot register reboot notifier (err=%d)\n", ret);
+		pr_err("cannot register reboot notifier (err=%d)\n", ret);
 		return ret;
 	}
 
 	ret = misc_register(&indydog_miscdev);
 	if (ret) {
-		printk(KERN_ERR PFX
-			"cannot register miscdev on minor=%d (err=%d)\n",
-							WATCHDOG_MINOR, ret);
+		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+		       WATCHDOG_MINOR, ret);
 		unregister_reboot_notifier(&indydog_notifier);
 		return ret;
 	}
 
-	printk(banner);
+	pr_info("Hardware Watchdog Timer for SGI IP22: 0.3\n");
 
 	return 0;
 }

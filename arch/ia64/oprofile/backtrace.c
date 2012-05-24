@@ -14,7 +14,6 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <asm/ptrace.h>
-#include <asm/system.h>
 
 /*
  * For IA64 we need to perform a complex little dance to get both

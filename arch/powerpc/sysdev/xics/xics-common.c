@@ -40,7 +40,7 @@ unsigned int xics_interrupt_server_size		= 8;
 
 DEFINE_PER_CPU(struct xics_cppr, xics_cppr);
 
-struct irq_host *xics_host;
+struct irq_domain *xics_host;
 
 static LIST_HEAD(ics_list);
 
@@ -212,15 +212,15 @@ void xics_migrate_irqs_away(void)
 		/* We can't set affinity on ISA interrupts */
 		if (virq < NUM_ISA_INTERRUPTS)
 			continue;
-		if (!virq_is_host(virq, xics_host))
-			continue;
-		irq = (unsigned int)virq_to_hw(virq);
-		/* We need to get IPIs still. */
-		if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
-			continue;
 		desc = irq_to_desc(virq);
 		/* We only need to migrate enabled IRQS */
 		if (!desc || !desc->action)
+			continue;
+		if (desc->irq_data.domain != xics_host)
+			continue;
+		irq = desc->irq_data.hwirq;
+		/* We need to get IPIs still. */
+		if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 			continue;
 		chip = irq_desc_get_chip(desc);
 		if (!chip || !chip->irq_set_affinity)
@@ -301,7 +301,7 @@ int xics_get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 }
 #endif /* CONFIG_SMP */
 
-static int xics_host_match(struct irq_host *h, struct device_node *node)
+static int xics_host_match(struct irq_domain *h, struct device_node *node)
 {
 	struct ics *ics;
 
@@ -323,7 +323,7 @@ static struct irq_chip xics_ipi_chip = {
 	.irq_unmask = xics_ipi_unmask,
 };
 
-static int xics_host_map(struct irq_host *h, unsigned int virq,
+static int xics_host_map(struct irq_domain *h, unsigned int virq,
 			 irq_hw_number_t hw)
 {
 	struct ics *ics;
@@ -351,7 +351,7 @@ static int xics_host_map(struct irq_host *h, unsigned int virq,
 	return -EINVAL;
 }
 
-static int xics_host_xlate(struct irq_host *h, struct device_node *ct,
+static int xics_host_xlate(struct irq_domain *h, struct device_node *ct,
 			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
@@ -366,7 +366,7 @@ static int xics_host_xlate(struct irq_host *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_host_ops xics_host_ops = {
+static struct irq_domain_ops xics_host_ops = {
 	.match = xics_host_match,
 	.map = xics_host_map,
 	.xlate = xics_host_xlate,
@@ -374,8 +374,7 @@ static struct irq_host_ops xics_host_ops = {
 
 static void __init xics_init_host(void)
 {
-	xics_host = irq_alloc_host(NULL, IRQ_HOST_MAP_TREE, 0, &xics_host_ops,
-				   XICS_IRQ_SPURIOUS);
+	xics_host = irq_domain_add_tree(NULL, &xics_host_ops, NULL);
 	BUG_ON(xics_host == NULL);
 	irq_set_default_host(xics_host);
 }

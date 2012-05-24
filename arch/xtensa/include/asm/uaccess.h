@@ -17,7 +17,9 @@
 #define _XTENSA_UACCESS_H
 
 #include <linux/errno.h>
+#ifndef __ASSEMBLY__
 #include <linux/prefetch.h>
+#endif
 #include <asm/types.h>
 
 #define VERIFY_READ    0

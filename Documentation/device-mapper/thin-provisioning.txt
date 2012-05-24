@@ -1,7 +1,7 @@
 Introduction
 ============
 
-This document descibes a collection of device-mapper targets that
+This document describes a collection of device-mapper targets that
 between them implement thin-provisioning and snapshots.
 
 The main highlight of this implementation, compared to the previous
@@ -75,10 +75,12 @@ less sharing than average you'll need a larger-than-average metadata device.
 
 As a guide, we suggest you calculate the number of bytes to use in the
 metadata device as 48 * $data_dev_size / $data_block_size but round it up
-to 2MB if the answer is smaller.  The largest size supported is 16GB.
+to 2MB if the answer is smaller.  If you're creating large numbers of
+snapshots which are recording large amounts of change, you may find you
+need to increase this.
 
-If you're creating large numbers of snapshots which are recording large
-amounts of change, you may need find you need to increase this.
+The largest size supported is 16GB: If the device is larger,
+a warning will be issued and the excess space will not be used.
 
 Reloading a pool table
 ----------------------
@@ -167,6 +169,38 @@ ii) Using an internal snapshot.
 
     dmsetup create snap --table "0 2097152 thin /dev/mapper/pool 1"
 
+External snapshots
+------------------
+
+You can use an external _read only_ device as an origin for a
+thinly-provisioned volume.  Any read to an unprovisioned area of the
+thin device will be passed through to the origin.  Writes trigger
+the allocation of new blocks as usual.
+
+One use case for this is VM hosts that want to run guests on
+thinly-provisioned volumes but have the base image on another device
+(possibly shared between many VMs).
+
+You must not write to the origin device if you use this technique!
+Of course, you may write to the thin device and take internal snapshots
+of the thin volume.
+
+i) Creating a snapshot of an external device
+
+  This is the same as creating a thin device.
+  You don't mention the origin at this stage.
+
+    dmsetup message /dev/mapper/pool 0 "create_thin 0"
+
+ii) Using a snapshot of an external device.
+
+  Append an extra parameter to the thin target specifying the origin:
+
+    dmsetup create snap --table "0 2097152 thin /dev/mapper/pool 0 /dev/image"
+
+  N.B. All descendants (internal snapshots) of this snapshot require the
+  same extra origin parameter.
+
 Deactivation
 ------------
 
@@ -189,7 +223,13 @@ i) Constructor
 	      <low water mark (blocks)> [<number of feature args> [<arg>]*]
 
     Optional feature arguments:
-    - 'skip_block_zeroing': skips the zeroing of newly-provisioned blocks.
+
+      skip_block_zeroing: Skip the zeroing of newly-provisioned blocks.
+
+      ignore_discard: Disable discard support.
+
+      no_discard_passdown: Don't pass discards down to the underlying
+			   data device, but just remove the mapping.
 
     Data block size must be between 64KB (128 sectors) and 1GB
     (2097152 sectors) inclusive.
@@ -237,16 +277,6 @@ iii) Messages
 
 	Deletes a thin device.  Irreversible.
 
-    trim <dev id> <new size in sectors>
-
-	Delete mappings from the end of a thin device.  Irreversible.
-	You might want to use this if you're reducing the size of
-	your thinly-provisioned device.  In many cases, due to the
-	sharing of blocks between devices, it is not possible to
-	determine in advance how much space 'trim' will release.  (In
-	future a userspace tool might be able to perform this
-	calculation.)
-
     set_transaction_id <current id> <new id>
 
 	Userland volume managers, such as LVM, need a way to
@@ -262,7 +292,7 @@ iii) Messages
 
 i) Constructor
 
-    thin <pool dev> <dev id>
+    thin <pool dev> <dev id> [<external origin dev>]
 
     pool dev:
 	the thin-pool device, e.g. /dev/mapper/my_pool or 253:0
@@ -270,6 +300,11 @@ i) Constructor
     dev id:
 	the internal device identifier of the device to be
 	activated.
+
+    external origin dev:
+	an optional block device outside the pool to be treated as a
+	read-only snapshot origin: reads to unprovisioned areas of the
+	thin target will be mapped to this device.
 
 The pool doesn't store any size against the thin devices.  If you
 load a thin target that is smaller than you've been using previously,

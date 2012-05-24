@@ -44,7 +44,6 @@
 #include <linux/tty_ldisc.h>
 #include <linux/mutex.h>
 
-#include <asm/system.h>
 
 
 /*
@@ -52,6 +51,7 @@
  * hardcoded at present.)
  */
 #define NR_UNIX98_PTY_DEFAULT	4096      /* Default maximum for Unix98 ptys */
+#define NR_UNIX98_PTY_RESERVE	1024	  /* Default reserve for main devpts */
 #define NR_UNIX98_PTY_MAX	(1 << MINORBITS) /* Absolute limit */
 
 /*
@@ -480,10 +480,11 @@ extern void free_tty_struct(struct tty_struct *tty);
 extern void initialize_tty_struct(struct tty_struct *tty,
 		struct tty_driver *driver, int idx);
 extern void deinitialize_tty_struct(struct tty_struct *tty);
-extern struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
-								int first_ok);
+extern struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx);
 extern int tty_release(struct inode *inode, struct file *filp);
 extern int tty_init_termios(struct tty_struct *tty);
+extern int tty_standard_install(struct tty_driver *driver,
+		struct tty_struct *tty);
 
 extern struct tty_struct *tty_pair_get_tty(struct tty_struct *tty);
 extern struct tty_struct *tty_pair_get_pty(struct tty_struct *tty);

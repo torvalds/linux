@@ -79,11 +79,11 @@ static int samsung_dmadev_prepare(unsigned ch,
 			    info->len, offset_in_page(info->buf));
 		sg_dma_address(&sg) = info->buf;
 
-		desc = chan->device->device_prep_slave_sg(chan,
+		desc = dmaengine_prep_slave_sg(chan,
 			&sg, 1, info->direction, DMA_PREP_INTERRUPT);
 		break;
 	case DMA_CYCLIC:
-		desc = chan->device->device_prep_dma_cyclic(chan,
+		desc = dmaengine_prep_dma_cyclic(chan,
 			info->buf, info->len, info->period, info->direction);
 		break;
 	default:
@@ -116,7 +116,7 @@ static inline int samsung_dmadev_flush(unsigned ch)
 	return dmaengine_terminate_all((struct dma_chan *)ch);
 }
 
-struct samsung_dma_ops dmadev_ops = {
+static struct samsung_dma_ops dmadev_ops = {
 	.request	= samsung_dmadev_request,
 	.release	= samsung_dmadev_release,
 	.prepare	= samsung_dmadev_prepare,

@@ -248,6 +248,8 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 		goto out_ior;
 	}
 
+	this->ecc.strength = 1;
+
 	new_mtd->name = kasprintf(GFP_KERNEL, "cs553x_nand_cs%d", cs);
 
 	cs553x_mtd[cs] = new_mtd;
@@ -313,7 +315,7 @@ static int __init cs553x_init(void)
 	for (i = 0; i < NR_CS553X_CONTROLLERS; i++) {
 		if (cs553x_mtd[i]) {
 			/* If any devices registered, return success. Else the last error. */
-			mtd_device_parse_register(cs553x_mtd[i], NULL, 0,
+			mtd_device_parse_register(cs553x_mtd[i], NULL, NULL,
 						  NULL, 0);
 			err = 0;
 		}

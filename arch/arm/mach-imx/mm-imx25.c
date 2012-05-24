@@ -83,6 +83,10 @@ static struct sdma_platform_data imx25_sdma_pdata __initdata = {
 	.script_addrs = &imx25_sdma_script,
 };
 
+static const struct resource imx25_audmux_res[] __initconst = {
+	DEFINE_RES_MEM(MX25_AUDMUX_BASE_ADDR, SZ_16K),
+};
+
 void __init imx25_soc_init(void)
 {
 	/* i.mx25 has the i.mx31 type gpio */
@@ -93,4 +97,7 @@ void __init imx25_soc_init(void)
 
 	/* i.mx25 has the i.mx35 type sdma */
 	imx_add_imx_sdma("imx35-sdma", MX25_SDMA_BASE_ADDR, MX25_INT_SDMA, &imx25_sdma_pdata);
+	/* i.mx25 has the i.mx31 type audmux */
+	platform_device_register_simple("imx31-audmux", 0, imx25_audmux_res,
+					ARRAY_SIZE(imx25_audmux_res));
 }

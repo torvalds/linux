@@ -3,7 +3,7 @@
  *
  * Author       Carsten Paeth
  * Copyright    1998-2001 by Carsten Paeth <calle@calle.in-berlin.de>
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -39,20 +38,20 @@ module_param(isdnprot, int, 0);
 
 /*====================================================================*/
 
-static int avma1cs_config(struct pcmcia_device *link) __devinit ;
+static int avma1cs_config(struct pcmcia_device *link) __devinit;
 static void avma1cs_release(struct pcmcia_device *link);
-static void avma1cs_detach(struct pcmcia_device *p_dev) __devexit ;
+static void avma1cs_detach(struct pcmcia_device *p_dev) __devexit;
 
 static int __devinit avma1cs_probe(struct pcmcia_device *p_dev)
 {
-    dev_dbg(&p_dev->dev, "avma1cs_attach()\n");
+	dev_dbg(&p_dev->dev, "avma1cs_attach()\n");
 
-    /* General socket configuration */
-    p_dev->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-    p_dev->config_index = 1;
-    p_dev->config_regs = PRESENT_OPTION;
+	/* General socket configuration */
+	p_dev->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+	p_dev->config_index = 1;
+	p_dev->config_regs = PRESENT_OPTION;
 
-    return avma1cs_config(p_dev);
+	return avma1cs_config(p_dev);
 } /* avma1cs_attach */
 
 static void __devexit avma1cs_detach(struct pcmcia_device *link)
@@ -75,63 +74,63 @@ static int avma1cs_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 
 static int __devinit avma1cs_config(struct pcmcia_device *link)
 {
-    int i = -1;
-    char devname[128];
-    IsdnCard_t	icard;
-    int busy = 0;
+	int i = -1;
+	char devname[128];
+	IsdnCard_t	icard;
+	int busy = 0;
 
-    dev_dbg(&link->dev, "avma1cs_config(0x%p)\n", link);
+	dev_dbg(&link->dev, "avma1cs_config(0x%p)\n", link);
 
-    devname[0] = 0;
-    if (link->prod_id[1])
-	    strlcpy(devname, link->prod_id[1], sizeof(devname));
+	devname[0] = 0;
+	if (link->prod_id[1])
+		strlcpy(devname, link->prod_id[1], sizeof(devname));
 
-    if (pcmcia_loop_config(link, avma1cs_configcheck, NULL))
-	    return -ENODEV;
+	if (pcmcia_loop_config(link, avma1cs_configcheck, NULL))
+		return -ENODEV;
 
-    do {
-	/*
-	 * allocate an interrupt line
-	 */
-	if (!link->irq) {
-	    /* undo */
-	    pcmcia_disable_device(link);
-	    break;
-	}
+	do {
+		/*
+		 * allocate an interrupt line
+		 */
+		if (!link->irq) {
+			/* undo */
+			pcmcia_disable_device(link);
+			break;
+		}
 
-	/*
-	 * configure the PCMCIA socket
-	 */
-	i = pcmcia_enable_device(link);
+		/*
+		 * configure the PCMCIA socket
+		 */
+		i = pcmcia_enable_device(link);
+		if (i != 0) {
+			pcmcia_disable_device(link);
+			break;
+		}
+
+	} while (0);
+
+	/* If any step failed, release any partially configured state */
 	if (i != 0) {
-	    pcmcia_disable_device(link);
-	    break;
+		avma1cs_release(link);
+		return -ENODEV;
 	}
 
-    } while (0);
+	icard.para[0] = link->irq;
+	icard.para[1] = link->resource[0]->start;
+	icard.protocol = isdnprot;
+	icard.typ = ISDN_CTYPE_A1_PCMCIA;
 
-    /* If any step failed, release any partially configured state */
-    if (i != 0) {
-	avma1cs_release(link);
-	return -ENODEV;
-    }
+	i = hisax_init_pcmcia(link, &busy, &icard);
+	if (i < 0) {
+		printk(KERN_ERR "avma1_cs: failed to initialize AVM A1 "
+		       "PCMCIA %d at i/o %#x\n", i,
+		       (unsigned int) link->resource[0]->start);
+		avma1cs_release(link);
+		return -ENODEV;
+	}
+	link->priv = (void *) (unsigned long) i;
 
-    icard.para[0] = link->irq;
-    icard.para[1] = link->resource[0]->start;
-    icard.protocol = isdnprot;
-    icard.typ = ISDN_CTYPE_A1_PCMCIA;
-    
-    i = hisax_init_pcmcia(link, &busy, &icard);
-    if (i < 0) {
-	printk(KERN_ERR "avma1_cs: failed to initialize AVM A1 "
-			"PCMCIA %d at i/o %#x\n", i,
-			(unsigned int) link->resource[0]->start);
-	avma1cs_release(link);
-	return -ENODEV;
-    }
-    link->priv = (void *) (unsigned long) i;
-
-    return 0;
+	return 0;
 } /* avma1cs_config */
 
 static void avma1cs_release(struct pcmcia_device *link)

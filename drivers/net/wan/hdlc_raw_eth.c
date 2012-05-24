@@ -101,7 +101,7 @@ static int raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
 		old_qlen = dev->tx_queue_len;
 		ether_setup(dev);
 		dev->tx_queue_len = old_qlen;
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 		netif_dormant_off(dev);
 		return 0;
 	}

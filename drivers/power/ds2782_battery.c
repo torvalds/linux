@@ -403,18 +403,7 @@ static struct i2c_driver ds278x_battery_driver = {
 	.remove		= ds278x_battery_remove,
 	.id_table	= ds278x_id,
 };
-
-static int __init ds278x_init(void)
-{
-	return i2c_add_driver(&ds278x_battery_driver);
-}
-module_init(ds278x_init);
-
-static void __exit ds278x_exit(void)
-{
-	i2c_del_driver(&ds278x_battery_driver);
-}
-module_exit(ds278x_exit);
+module_i2c_driver(ds278x_battery_driver);
 
 MODULE_AUTHOR("Ryan Mallon");
 MODULE_DESCRIPTION("Maxim/Dallas DS2782 Stand-Alone Fuel Gauage IC driver");

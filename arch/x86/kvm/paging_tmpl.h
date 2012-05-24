@@ -92,9 +92,9 @@ static int FNAME(cmpxchg_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	if (unlikely(npages != 1))
 		return -EFAULT;
 
-	table = kmap_atomic(page, KM_USER0);
+	table = kmap_atomic(page);
 	ret = CMPXCHG(&table[index], orig_pte, new_pte);
-	kunmap_atomic(table, KM_USER0);
+	kunmap_atomic(table);
 
 	kvm_release_page_dirty(page);
 

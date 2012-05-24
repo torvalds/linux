@@ -83,6 +83,11 @@ config S3C64XX_SETUP_SPI
 	help
 	 Common setup code for SPI GPIO configurations
 
+config S3C64XX_SETUP_USB_PHY
+	bool
+	help
+	  Common setup code for USB PHY controller
+
 # S36400 Macchine support
 
 config MACH_SMDK6400
@@ -157,6 +162,7 @@ config MACH_SMDK6410
 	select S3C64XX_SETUP_IDE
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C64XX_SETUP_KEYPAD
+	select S3C64XX_SETUP_USB_PHY
 	help
 	  Machine support for the Samsung SMDK6410
 
@@ -256,6 +262,7 @@ config MACH_SMARTQ
 	select S3C_DEV_USB_HOST
 	select S3C64XX_SETUP_SDHCI
 	select S3C64XX_SETUP_FB_24BPP
+	select S3C64XX_SETUP_USB_PHY
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_PWM
 	select SAMSUNG_DEV_TS
@@ -283,6 +290,7 @@ config MACH_WLF_CRAGG_6410
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C64XX_SETUP_KEYPAD
 	select S3C64XX_SETUP_SPI
+	select S3C64XX_SETUP_USB_PHY
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_KEYPAD
 	select S3C_DEV_USB_HOST
@@ -296,5 +304,6 @@ config MACH_WLF_CRAGG_6410
 	select S3C64XX_DEV_SPI0
 	select SAMSUNG_GPIO_EXTRA128
 	select I2C
+	select LEDS_GPIO_REGISTER
 	help
 	  Machine support for the Wolfson Cragganmore S3C6410 variant.

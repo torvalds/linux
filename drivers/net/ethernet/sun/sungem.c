@@ -41,7 +41,6 @@
 #include <linux/mm.h>
 #include <linux/gfp.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
@@ -2885,7 +2884,6 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 
 	dev = alloc_etherdev(sizeof(*gp));
 	if (!dev) {
-		pr_err("Etherdev alloc failed, aborting\n");
 		err = -ENOMEM;
 		goto err_disable_device;
 	}

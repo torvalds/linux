@@ -33,6 +33,7 @@
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>
 #include <asm/vdso.h>
+#include <asm/switch_to.h>
 
 #include "signal.h"
 

@@ -97,7 +97,7 @@ struct isar_hw {
 #define ISAR_HIS_SDATA		0x20
 #define ISAR_HIS_DPS1		0x40
 #define ISAR_HIS_DPS2		0x80
-#define SET_DPS(x)		((x<<6) & 0xc0)
+#define SET_DPS(x)		((x << 6) & 0xc0)
 
 #define ISAR_IIS_MSCMSD		0x3f
 #define ISAR_IIS_VNR		0x15

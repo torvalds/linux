@@ -43,6 +43,9 @@
  *	version 1 or 2 as published by the Free Software Foundation.
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
@@ -125,9 +128,8 @@ static int sbwdog_release(struct inode *inode, struct file *file)
 		__raw_writeb(0, user_dog);
 		module_put(THIS_MODULE);
 	} else {
-		printk(KERN_CRIT
-			"%s: Unexpected close, not stopping watchdog!\n",
-						ident.identity);
+		pr_crit("%s: Unexpected close, not stopping watchdog!\n",
+			ident.identity);
 		sbwdog_pet(user_dog);
 	}
 	clear_bit(0, &sbwdog_gate);
@@ -269,7 +271,7 @@ irqreturn_t sbwdog_interrupt(int irq, void *addr)
 	 * if it's the second watchdog timer, it's for those users
 	 */
 	if (wd_cfg_reg == user_dog)
-		printk(KERN_CRIT "%s in danger of initiating system reset "
+		pr_crit("%s in danger of initiating system reset "
 			"in %ld.%01ld seconds\n",
 			ident.identity,
 			wd_init / 1000000, (wd_init / 100000) % 10);
@@ -290,9 +292,8 @@ static int __init sbwdog_init(void)
 	 */
 	ret = register_reboot_notifier(&sbwdog_notifier);
 	if (ret) {
-		printk(KERN_ERR
-			"%s: cannot register reboot notifier (err=%d)\n",
-						ident.identity, ret);
+		pr_err("%s: cannot register reboot notifier (err=%d)\n",
+		       ident.identity, ret);
 		return ret;
 	}
 
@@ -303,16 +304,16 @@ static int __init sbwdog_init(void)
 	ret = request_irq(1, sbwdog_interrupt, IRQF_SHARED,
 		ident.identity, (void *)user_dog);
 	if (ret) {
-		printk(KERN_ERR "%s: failed to request irq 1 - %d\n",
-						ident.identity, ret);
+		pr_err("%s: failed to request irq 1 - %d\n",
+		       ident.identity, ret);
 		goto out;
 	}
 
 	ret = misc_register(&sbwdog_miscdev);
 	if (ret == 0) {
-		printk(KERN_INFO "%s: timeout is %ld.%ld secs\n",
-				ident.identity,
-				timeout / 1000000, (timeout / 100000) % 10);
+		pr_info("%s: timeout is %ld.%ld secs\n",
+			ident.identity,
+			timeout / 1000000, (timeout / 100000) % 10);
 		return 0;
 	}
 	free_irq(1, (void *)user_dog);
@@ -353,8 +354,7 @@ void platform_wd_setup(void)
 	ret = request_irq(1, sbwdog_interrupt, IRQF_SHARED,
 		"Kernel Watchdog", IOADDR(A_SCD_WDOG_CFG_0));
 	if (ret) {
-		printk(KERN_CRIT
-		  "Watchdog IRQ zero(0) failed to be requested - %d\n", ret);
+		pr_crit("Watchdog IRQ zero(0) failed to be requested - %d\n", ret);
 	}
 }
 

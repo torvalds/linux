@@ -430,15 +430,13 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_d_op = &hfs_dentry_operations;
 	res = -ENOMEM;
-	sb->s_root = d_alloc_root(root_inode);
+	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root)
-		goto bail_iput;
+		goto bail_no_root;
 
 	/* everything's okay */
 	return 0;
 
-bail_iput:
-	iput(root_inode);
 bail_no_root:
 	printk(KERN_ERR "hfs: get root inode failed.\n");
 bail:

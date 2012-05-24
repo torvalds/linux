@@ -429,3 +429,9 @@ filemap_write_and_wait_range() so that all dirty pages are synced out properly.
 You must also keep in mind that ->fsync() is not called with i_mutex held
 anymore, so if you require i_mutex locking you must make sure to take it and
 release it yourself.
+
+--
+[mandatory]
+	d_alloc_root() is gone, along with a lot of bugs caused by code
+misusing it.  Replacement: d_make_root(inode).  The difference is,
+d_make_root() drops the reference to inode if dentry allocation fails.  

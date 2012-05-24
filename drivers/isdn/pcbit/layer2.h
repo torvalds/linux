@@ -2,17 +2,17 @@
  * PCBIT-D low-layer interface definitions
  *
  * Copyright (C) 1996 Universidade de Lisboa
- * 
+ *
  * Written by Pedro Roque Marques (roque@di.fc.ul.pt)
  *
- * This software may be used and distributed according to the terms of 
+ * This software may be used and distributed according to the terms of
  * the GNU General Public License, incorporated herein by reference.
  */
 
 /*
  * 19991203 - Fernando Carvalho - takion@superbofh.org
  * Hacked to compile with egcs and run with current version of isdn modules
-*/
+ */
 
 #ifndef LAYER2_H
 #define LAYER2_H
@@ -37,8 +37,8 @@
 
 /* TAM - XX - C - S  - NUM */
 #define PREHDR_LEN 8
-/* TT  - M  - I - TH - TD  */      
-#define FRAME_HDR_LEN  8   
+/* TT  - M  - I - TH - TD  */
+#define FRAME_HDR_LEN  8
 
 #define MSG_CONN_REQ		0x08000100
 #define MSG_CONN_CONF		0x00000101
@@ -84,21 +84,21 @@
 #define MSG_DEBUG_188           0x0000ff00
 
 /*
-   
-   long  4 3 2 1
-   Intel 1 2 3 4
+
+  long  4 3 2 1
+  Intel 1 2 3 4
 */
 
 #ifdef __LITTLE_ENDIAN
-#define SET_MSG_SCMD(msg, ch) 	(msg = (msg & 0xffffff00) | (((ch) & 0xff)))
-#define SET_MSG_CMD(msg, ch) 	(msg = (msg & 0xffff00ff) | (((ch) & 0xff) << 8))
-#define SET_MSG_PROC(msg, ch) 	(msg = (msg & 0xff00ffff) | (((ch) & 0xff) << 16))
-#define SET_MSG_CPU(msg, ch) 	(msg = (msg & 0x00ffffff) | (((ch) & 0xff) << 24))
+#define SET_MSG_SCMD(msg, ch)	(msg = (msg & 0xffffff00) | (((ch) & 0xff)))
+#define SET_MSG_CMD(msg, ch)	(msg = (msg & 0xffff00ff) | (((ch) & 0xff) << 8))
+#define SET_MSG_PROC(msg, ch)	(msg = (msg & 0xff00ffff) | (((ch) & 0xff) << 16))
+#define SET_MSG_CPU(msg, ch)	(msg = (msg & 0x00ffffff) | (((ch) & 0xff) << 24))
 
-#define GET_MSG_SCMD(msg) 	((msg) & 0xFF)
-#define GET_MSG_CMD(msg) 	((msg) >> 8 & 0xFF)
-#define GET_MSG_PROC(msg) 	((msg) >> 16 & 0xFF)
-#define GET_MSG_CPU(msg) 	((msg) >> 24)
+#define GET_MSG_SCMD(msg)	((msg) & 0xFF)
+#define GET_MSG_CMD(msg)	((msg) >> 8 & 0xFF)
+#define GET_MSG_PROC(msg)	((msg) >> 16 & 0xFF)
+#define GET_MSG_CPU(msg)	((msg) >> 24)
 
 #else
 #error "Non-Intel CPU"
@@ -109,60 +109,60 @@
 #define SCHED_READ    0x01
 #define SCHED_WRITE   0x02
 
-#define SET_RUN_TIMEOUT 2*HZ /* 2 seconds */
-     
+#define SET_RUN_TIMEOUT 2 * HZ /* 2 seconds */
+
 struct frame_buf {
-        ulong msg;
-        unsigned int refnum;
-        unsigned int dt_len;
-        unsigned int hdr_len;
-        struct sk_buff *skb;
+	ulong msg;
+	unsigned int refnum;
+	unsigned int dt_len;
+	unsigned int hdr_len;
+	struct sk_buff *skb;
 	unsigned int copied;
-        struct frame_buf * next;
+	struct frame_buf *next;
 };
 
-extern int pcbit_l2_write(struct pcbit_dev * dev, ulong msg, ushort refnum, 
-                          struct sk_buff *skb, unsigned short hdr_len);
+extern int pcbit_l2_write(struct pcbit_dev *dev, ulong msg, ushort refnum,
+			  struct sk_buff *skb, unsigned short hdr_len);
 
 extern irqreturn_t pcbit_irq_handler(int interrupt, void *);
 
-extern struct pcbit_dev * dev_pcbit[MAX_PCBIT_CARDS];
+extern struct pcbit_dev *dev_pcbit[MAX_PCBIT_CARDS];
 
 #ifdef DEBUG
 static __inline__ void log_state(struct pcbit_dev *dev) {
-        printk(KERN_DEBUG "writeptr = %ld\n", 
+	printk(KERN_DEBUG "writeptr = %ld\n",
 	       (ulong) (dev->writeptr - dev->sh_mem));
-        printk(KERN_DEBUG "readptr  = %ld\n", 
+	printk(KERN_DEBUG "readptr  = %ld\n",
 	       (ulong) (dev->readptr - (dev->sh_mem + BANK2)));
-        printk(KERN_DEBUG "{rcv_seq=%01x, send_seq=%01x, unack_seq=%01x}\n", 
+	printk(KERN_DEBUG "{rcv_seq=%01x, send_seq=%01x, unack_seq=%01x}\n",
 	       dev->rcv_seq, dev->send_seq, dev->unack_seq);
 }
 #endif
 
-static __inline__ struct pcbit_dev * chan2dev(struct pcbit_chan * chan) 
+static __inline__ struct pcbit_dev *chan2dev(struct pcbit_chan *chan)
 {
-        struct pcbit_dev * dev;
-        int i;
+	struct pcbit_dev *dev;
+	int i;
 
 
-        for (i=0; i<MAX_PCBIT_CARDS; i++)
-                if ((dev=dev_pcbit[i]))
-                        if (dev->b1 == chan || dev->b2 == chan)
-                                return dev;
-        return NULL;
+	for (i = 0; i < MAX_PCBIT_CARDS; i++)
+		if ((dev = dev_pcbit[i]))
+			if (dev->b1 == chan || dev->b2 == chan)
+				return dev;
+	return NULL;
 
 }
 
-static __inline__ struct pcbit_dev * finddev(int id)
+static __inline__ struct pcbit_dev *finddev(int id)
 {
-  struct pcbit_dev * dev;
-  int i;
+	struct pcbit_dev *dev;
+	int i;
 
-  for (i=0; i<MAX_PCBIT_CARDS; i++)
-    if ((dev=dev_pcbit[i]))
-      if (dev->id == id)
-	return dev;
-  return NULL;
+	for (i = 0; i < MAX_PCBIT_CARDS; i++)
+		if ((dev = dev_pcbit[i]))
+			if (dev->id == id)
+				return dev;
+	return NULL;
 }
 
 
@@ -172,117 +172,110 @@ static __inline__ struct pcbit_dev * finddev(int id)
 
 static __inline__ void pcbit_writeb(struct pcbit_dev *dev, unsigned char dt)
 {
-  writeb(dt, dev->writeptr++);
-  if (dev->writeptr == dev->sh_mem + BANKLEN)
-    dev->writeptr = dev->sh_mem;
+	writeb(dt, dev->writeptr++);
+	if (dev->writeptr == dev->sh_mem + BANKLEN)
+		dev->writeptr = dev->sh_mem;
 }
 
 static __inline__ void pcbit_writew(struct pcbit_dev *dev, unsigned short dt)
 {
-  int dist;
+	int dist;
 
-  dist = BANKLEN - (dev->writeptr - dev->sh_mem);
-  switch (dist) {
-  case 2:
-    writew(dt, dev->writeptr);
-    dev->writeptr = dev->sh_mem;
-    break;
-  case 1:
-    writeb((u_char) (dt & 0x00ffU), dev->writeptr);    
-    dev->writeptr = dev->sh_mem;
-    writeb((u_char) (dt >> 8), dev->writeptr++);    
-    break;
-  default:
-    writew(dt, dev->writeptr);
-    dev->writeptr += 2;
-    break;
-  };
+	dist = BANKLEN - (dev->writeptr - dev->sh_mem);
+	switch (dist) {
+	case 2:
+		writew(dt, dev->writeptr);
+		dev->writeptr = dev->sh_mem;
+		break;
+	case 1:
+		writeb((u_char) (dt & 0x00ffU), dev->writeptr);
+		dev->writeptr = dev->sh_mem;
+		writeb((u_char) (dt >> 8), dev->writeptr++);
+		break;
+	default:
+		writew(dt, dev->writeptr);
+		dev->writeptr += 2;
+		break;
+	};
 }
 
-static __inline__ void memcpy_topcbit(struct pcbit_dev * dev, u_char * data, 
+static __inline__ void memcpy_topcbit(struct pcbit_dev *dev, u_char *data,
 				      int len)
 {
-  int diff;
+	int diff;
 
-  diff = len - (BANKLEN - (dev->writeptr - dev->sh_mem) );
+	diff = len - (BANKLEN - (dev->writeptr - dev->sh_mem));
 
-  if (diff > 0)
-    {
-      memcpy_toio(dev->writeptr, data, len - diff);
-      memcpy_toio(dev->sh_mem, data + (len - diff), diff);
-      dev->writeptr = dev->sh_mem + diff;
-    }
-  else
-    {
-      memcpy_toio(dev->writeptr, data, len);
+	if (diff > 0)
+	{
+		memcpy_toio(dev->writeptr, data, len - diff);
+		memcpy_toio(dev->sh_mem, data + (len - diff), diff);
+		dev->writeptr = dev->sh_mem + diff;
+	}
+	else
+	{
+		memcpy_toio(dev->writeptr, data, len);
 
-      dev->writeptr += len;
-      if (diff == 0)
-	dev->writeptr = dev->sh_mem;
-    }
+		dev->writeptr += len;
+		if (diff == 0)
+			dev->writeptr = dev->sh_mem;
+	}
 }
 
 static __inline__ unsigned char pcbit_readb(struct pcbit_dev *dev)
 {
-  unsigned char val;
+	unsigned char val;
 
-  val = readb(dev->readptr++);
-  if (dev->readptr == dev->sh_mem + BANK2 + BANKLEN)
-    dev->readptr = dev->sh_mem + BANK2;
+	val = readb(dev->readptr++);
+	if (dev->readptr == dev->sh_mem + BANK2 + BANKLEN)
+		dev->readptr = dev->sh_mem + BANK2;
 
-  return val;
+	return val;
 }
 
 static __inline__ unsigned short pcbit_readw(struct pcbit_dev *dev)
 {
-  int dist;
-  unsigned short val;
+	int dist;
+	unsigned short val;
 
-  dist = BANKLEN - ( dev->readptr - (dev->sh_mem + BANK2 ) );
-  switch (dist) {
-  case 2:
-    val = readw(dev->readptr);
-    dev->readptr = dev->sh_mem + BANK2;
-    break;
-  case 1:
-    val = readb(dev->readptr);
-    dev->readptr = dev->sh_mem + BANK2;
-    val = (readb(dev->readptr++) << 8) | val;
-    break;
-  default:
-    val = readw(dev->readptr);
-    dev->readptr += 2;
-    break;
-  };
-  return val;
+	dist = BANKLEN - (dev->readptr - (dev->sh_mem + BANK2));
+	switch (dist) {
+	case 2:
+		val = readw(dev->readptr);
+		dev->readptr = dev->sh_mem + BANK2;
+		break;
+	case 1:
+		val = readb(dev->readptr);
+		dev->readptr = dev->sh_mem + BANK2;
+		val = (readb(dev->readptr++) << 8) | val;
+		break;
+	default:
+		val = readw(dev->readptr);
+		dev->readptr += 2;
+		break;
+	};
+	return val;
 }
 
-static __inline__ void memcpy_frompcbit(struct pcbit_dev * dev, u_char * data, int len)
+static __inline__ void memcpy_frompcbit(struct pcbit_dev *dev, u_char *data, int len)
 {
-  int diff;
+	int diff;
 
-  diff = len - (BANKLEN - (dev->readptr - (dev->sh_mem + BANK2) ) ); 
-  if (diff > 0)
-    {
-      memcpy_fromio(data, dev->readptr, len - diff);
-      memcpy_fromio(data + (len - diff), dev->sh_mem + BANK2 , diff);
-      dev->readptr = dev->sh_mem + BANK2 + diff;
-    }
-  else
-    {
-      memcpy_fromio(data, dev->readptr, len);
-      dev->readptr += len;
-      if (diff == 0)
-	dev->readptr = dev->sh_mem + BANK2;
-    }
+	diff = len - (BANKLEN - (dev->readptr - (dev->sh_mem + BANK2)));
+	if (diff > 0)
+	{
+		memcpy_fromio(data, dev->readptr, len - diff);
+		memcpy_fromio(data + (len - diff), dev->sh_mem + BANK2 , diff);
+		dev->readptr = dev->sh_mem + BANK2 + diff;
+	}
+	else
+	{
+		memcpy_fromio(data, dev->readptr, len);
+		dev->readptr += len;
+		if (diff == 0)
+			dev->readptr = dev->sh_mem + BANK2;
+	}
 }
 
 
 #endif
-
-
-
-
-
-
-

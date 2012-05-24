@@ -54,14 +54,14 @@ convert_to_display_mode(struct drm_display_mode *mode,
 	mode->vrefresh = timing->refresh;
 
 	mode->hdisplay = timing->xres;
-	mode->hsync_start = mode->hdisplay + timing->left_margin;
+	mode->hsync_start = mode->hdisplay + timing->right_margin;
 	mode->hsync_end = mode->hsync_start + timing->hsync_len;
-	mode->htotal = mode->hsync_end + timing->right_margin;
+	mode->htotal = mode->hsync_end + timing->left_margin;
 
 	mode->vdisplay = timing->yres;
-	mode->vsync_start = mode->vdisplay + timing->upper_margin;
+	mode->vsync_start = mode->vdisplay + timing->lower_margin;
 	mode->vsync_end = mode->vsync_start + timing->vsync_len;
-	mode->vtotal = mode->vsync_end + timing->lower_margin;
+	mode->vtotal = mode->vsync_end + timing->upper_margin;
 	mode->width_mm = panel->width_mm;
 	mode->height_mm = panel->height_mm;
 
@@ -85,14 +85,14 @@ convert_to_video_timing(struct fb_videomode *timing,
 	timing->refresh = drm_mode_vrefresh(mode);
 
 	timing->xres = mode->hdisplay;
-	timing->left_margin = mode->hsync_start - mode->hdisplay;
+	timing->right_margin = mode->hsync_start - mode->hdisplay;
 	timing->hsync_len = mode->hsync_end - mode->hsync_start;
-	timing->right_margin = mode->htotal - mode->hsync_end;
+	timing->left_margin = mode->htotal - mode->hsync_end;
 
 	timing->yres = mode->vdisplay;
-	timing->upper_margin = mode->vsync_start - mode->vdisplay;
+	timing->lower_margin = mode->vsync_start - mode->vdisplay;
 	timing->vsync_len = mode->vsync_end - mode->vsync_start;
-	timing->lower_margin = mode->vtotal - mode->vsync_end;
+	timing->upper_margin = mode->vtotal - mode->vsync_end;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		timing->vmode = FB_VMODE_INTERLACED;
@@ -225,6 +225,29 @@ static struct drm_connector_helper_funcs exynos_connector_helper_funcs = {
 	.best_encoder	= exynos_drm_best_encoder,
 };
 
+static int exynos_drm_connector_fill_modes(struct drm_connector *connector,
+				unsigned int max_width, unsigned int max_height)
+{
+	struct exynos_drm_connector *exynos_connector =
+					to_exynos_connector(connector);
+	struct exynos_drm_manager *manager = exynos_connector->manager;
+	struct exynos_drm_manager_ops *ops = manager->ops;
+	unsigned int width, height;
+
+	width = max_width;
+	height = max_height;
+
+	/*
+	 * if specific driver want to find desired_mode using maxmum
+	 * resolution then get max width and height from that driver.
+	 */
+	if (ops && ops->get_max_resol)
+		ops->get_max_resol(manager->dev, &width, &height);
+
+	return drm_helper_probe_single_connector_modes(connector, width,
+							height);
+}
+
 /* get detection status of display device. */
 static enum drm_connector_status
 exynos_drm_connector_detect(struct drm_connector *connector, bool force)
@@ -262,7 +285,7 @@ static void exynos_drm_connector_destroy(struct drm_connector *connector)
 
 static struct drm_connector_funcs exynos_connector_funcs = {
 	.dpms		= drm_helper_connector_dpms,
-	.fill_modes	= drm_helper_probe_single_connector_modes,
+	.fill_modes	= exynos_drm_connector_fill_modes,
 	.detect		= exynos_drm_connector_detect,
 	.destroy	= exynos_drm_connector_destroy,
 };
@@ -290,6 +313,10 @@ struct drm_connector *exynos_drm_connector_create(struct drm_device *dev,
 	case EXYNOS_DISPLAY_TYPE_HDMI:
 		type = DRM_MODE_CONNECTOR_HDMIA;
 		connector->interlace_allowed = true;
+		connector->polled = DRM_CONNECTOR_POLL_HPD;
+		break;
+	case EXYNOS_DISPLAY_TYPE_VIDI:
+		type = DRM_MODE_CONNECTOR_VIRTUAL;
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 		break;
 	default:
@@ -325,9 +352,3 @@ err_connector:
 	kfree(exynos_connector);
 	return NULL;
 }
-
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_AUTHOR("Seung-Woo Kim <sw0312.kim@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM Connector Driver");
-MODULE_LICENSE("GPL");

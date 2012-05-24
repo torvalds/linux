@@ -1,5 +1,5 @@
 /**
- * drivers/net/ks8851_mll.c
+ * drivers/net/ethernet/micrel/ks8851_mll.c
  * Copyright (c) 2009 Micrel Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -794,7 +794,7 @@ static void ks_rcv(struct ks_net *ks, struct net_device *netdev)
 
 	frame_hdr = ks->frame_head_info;
 	while (ks->frame_cnt--) {
-		skb = dev_alloc_skb(frame_hdr->len + 16);
+		skb = netdev_alloc_skb(netdev, frame_hdr->len + 16);
 		if (likely(skb && (frame_hdr->sts & RXFSHR_RXFV) &&
 			(frame_hdr->len < RX_BUF_SIZE) && frame_hdr->len)) {
 			skb_reserve(skb, 2);
@@ -837,7 +837,7 @@ static void ks_update_link_status(struct net_device *netdev, struct ks_net *ks)
 
 /**
  * ks_irq - device interrupt handler
- * @irq: Interrupt number passed from the IRQ hnalder.
+ * @irq: Interrupt number passed from the IRQ handler.
  * @pw: The private word passed to register_irq(), our struct ks_net.
  *
  * This is the handler invoked to find out what happened
@@ -1239,6 +1239,7 @@ static int ks_set_mac_address(struct net_device *netdev, void *paddr)
 	struct sockaddr *addr = paddr;
 	u8 *da;
 
+	netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 
 	da = (u8 *)netdev->dev_addr;
@@ -1499,10 +1500,8 @@ static int ks_hw_init(struct ks_net *ks)
 	ks->mcast_lst_size = 0;
 
 	ks->frame_head_info = kmalloc(MHEADER_SIZE, GFP_KERNEL);
-	if (!ks->frame_head_info) {
-		pr_err("Error: Fail to allocate frame memory\n");
+	if (!ks->frame_head_info)
 		return false;
-	}
 
 	ks_set_mac(ks, KS_DEFAULT_MAC_ADDRESS);
 	return true;

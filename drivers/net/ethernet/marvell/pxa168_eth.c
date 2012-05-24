@@ -43,7 +43,6 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/cacheflush.h>
 #include <linux/pxa168_eth.h>
 
@@ -220,7 +219,6 @@ struct pxa168_eth_private {
 	u8 work_todo;
 	int skb_size;
 
-	struct net_device_stats stats;
 	/* Size of Tx Ring per queue */
 	int tx_ring_size;
 	/* Number of tx descriptors in use */
@@ -350,7 +348,7 @@ static void rxq_refill(struct net_device *dev)
 	while (pep->rx_desc_count < pep->rx_ring_size) {
 		int size;
 
-		skb = dev_alloc_skb(pep->skb_size);
+		skb = netdev_alloc_skb(dev, pep->skb_size);
 		if (!skb)
 			break;
 		if (SKB_DMA_REALIGN)
@@ -627,8 +625,9 @@ static int pxa168_eth_set_mac_address(struct net_device *dev, void *addr)
 	unsigned char oldMac[ETH_ALEN];
 
 	if (!is_valid_ether_addr(sa->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 	memcpy(oldMac, dev->dev_addr, ETH_ALEN);
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 	netif_addr_lock_bh(dev);
 	update_hash_table_mac_address(pep, oldMac, dev->dev_addr);
@@ -1017,10 +1016,9 @@ static int rxq_init(struct net_device *dev)
 	/* Allocate RX skb rings */
 	pep->rx_skb = kmalloc(sizeof(*pep->rx_skb) * pep->rx_ring_size,
 			     GFP_KERNEL);
-	if (!pep->rx_skb) {
-		printk(KERN_ERR "%s: Cannot alloc RX skb ring\n", dev->name);
+	if (!pep->rx_skb)
 		return -ENOMEM;
-	}
+
 	/* Allocate RX ring */
 	pep->rx_desc_count = 0;
 	size = pep->rx_ring_size * sizeof(struct rx_desc);
@@ -1081,10 +1079,9 @@ static int txq_init(struct net_device *dev)
 
 	pep->tx_skb = kmalloc(sizeof(*pep->tx_skb) * pep->tx_ring_size,
 			     GFP_KERNEL);
-	if (!pep->tx_skb) {
-		printk(KERN_ERR "%s: Cannot alloc TX skb ring\n", dev->name);
+	if (!pep->tx_skb)
 		return -ENOMEM;
-	}
+
 	/* Allocate TX ring */
 	pep->tx_desc_count = 0;
 	size = pep->tx_ring_size * sizeof(struct tx_desc);
@@ -1522,7 +1519,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	INIT_WORK(&pep->tx_timeout_task, pxa168_eth_tx_timeout_task);
 
 	printk(KERN_INFO "%s:Using random mac address\n", DRIVER_NAME);
-	random_ether_addr(dev->dev_addr);
+	eth_hw_addr_random(dev);
 
 	pep->pd = pdev->dev.platform_data;
 	pep->rx_ring_size = NUM_RX_DESCS;

@@ -26,7 +26,6 @@ config CLKSRC_DBX500_PRCMU
 config CLKSRC_DBX500_PRCMU_SCHED_CLOCK
 	bool "Clocksource PRCMU Timer sched_clock"
 	depends on (CLKSRC_DBX500_PRCMU && !NOMADIK_MTU_SCHED_CLOCK)
-	select HAVE_SCHED_CLOCK
 	default y
 	help
 	  Use the always on PRCMU Timer as sched_clock

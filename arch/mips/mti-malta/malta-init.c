@@ -26,7 +26,6 @@
 #include <asm/bootinfo.h>
 #include <asm/gt64120.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/cacheflush.h>
 #include <asm/smp-ops.h>
 #include <asm/traps.h>

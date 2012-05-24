@@ -14,7 +14,6 @@
 #include <linux/string.h>
 #include <linux/module.h>
 
-#include <asm/system.h>
 #include <asm/amigahw.h>
 
 static unsigned short *snd_data;

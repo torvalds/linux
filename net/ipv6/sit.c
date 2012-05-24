@@ -680,9 +680,10 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	/* ISATAP (RFC4214) - must come before 6to4 */
 	if (dev->priv_flags & IFF_ISATAP) {
 		struct neighbour *neigh = NULL;
+		bool do_tx_error = false;
 
 		if (skb_dst(skb))
-			neigh = dst_get_neighbour_noref(skb_dst(skb));
+			neigh = dst_neigh_lookup(skb_dst(skb), &iph6->daddr);
 
 		if (neigh == NULL) {
 			if (net_ratelimit())
@@ -697,6 +698,10 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		     ipv6_addr_is_isatap(addr6))
 			dst = addr6->s6_addr32[3];
 		else
+			do_tx_error = true;
+
+		neigh_release(neigh);
+		if (do_tx_error)
 			goto tx_error;
 	}
 
@@ -705,9 +710,10 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 
 	if (!dst) {
 		struct neighbour *neigh = NULL;
+		bool do_tx_error = false;
 
 		if (skb_dst(skb))
-			neigh = dst_get_neighbour_noref(skb_dst(skb));
+			neigh = dst_neigh_lookup(skb_dst(skb), &iph6->daddr);
 
 		if (neigh == NULL) {
 			if (net_ratelimit())
@@ -723,10 +729,14 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			addr_type = ipv6_addr_type(addr6);
 		}
 
-		if ((addr_type & IPV6_ADDR_COMPATv4) == 0)
-			goto tx_error_icmp;
+		if ((addr_type & IPV6_ADDR_COMPATv4) != 0)
+			dst = addr6->s6_addr32[3];
+		else
+			do_tx_error = true;
 
-		dst = addr6->s6_addr32[3];
+		neigh_release(neigh);
+		if (do_tx_error)
+			goto tx_error;
 	}
 
 	rt = ip_route_output_ports(dev_net(dev), &fl4, NULL,

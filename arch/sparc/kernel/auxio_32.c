@@ -13,6 +13,7 @@
 #include <asm/io.h>
 #include <asm/auxio.h>
 #include <asm/string.h>		/* memset(), Linux has no bzero() */
+#include <asm/cpu_type.h>
 
 /* Probe and map in the Auxiliary I/O register */
 

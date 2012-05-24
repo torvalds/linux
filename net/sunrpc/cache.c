@@ -344,7 +344,7 @@ static int current_index;
 static void do_cache_clean(struct work_struct *work);
 static struct delayed_work cache_cleaner;
 
-static void sunrpc_init_cache_detail(struct cache_detail *cd)
+void sunrpc_init_cache_detail(struct cache_detail *cd)
 {
 	rwlock_init(&cd->hash_lock);
 	INIT_LIST_HEAD(&cd->queue);
@@ -360,8 +360,9 @@ static void sunrpc_init_cache_detail(struct cache_detail *cd)
 	/* start the cleaning process */
 	schedule_delayed_work(&cache_cleaner, 0);
 }
+EXPORT_SYMBOL_GPL(sunrpc_init_cache_detail);
 
-static void sunrpc_destroy_cache_detail(struct cache_detail *cd)
+void sunrpc_destroy_cache_detail(struct cache_detail *cd)
 {
 	cache_purge(cd);
 	spin_lock(&cache_list_lock);
@@ -384,6 +385,7 @@ static void sunrpc_destroy_cache_detail(struct cache_detail *cd)
 out:
 	printk(KERN_ERR "nfsd: failed to unregister %s cache\n", cd->name);
 }
+EXPORT_SYMBOL_GPL(sunrpc_destroy_cache_detail);
 
 /* clean cache tries to find something to clean
  * and cleans it.
@@ -828,6 +830,8 @@ static ssize_t cache_do_downcall(char *kaddr, const char __user *buf,
 {
 	ssize_t ret;
 
+	if (count == 0)
+		return -EINVAL;
 	if (copy_from_user(kaddr, buf, count))
 		return -EFAULT;
 	kaddr[count] = '\0';
@@ -1643,12 +1647,6 @@ int cache_register_net(struct cache_detail *cd, struct net *net)
 }
 EXPORT_SYMBOL_GPL(cache_register_net);
 
-int cache_register(struct cache_detail *cd)
-{
-	return cache_register_net(cd, &init_net);
-}
-EXPORT_SYMBOL_GPL(cache_register);
-
 void cache_unregister_net(struct cache_detail *cd, struct net *net)
 {
 	remove_cache_proc_entries(cd, net);
@@ -1656,11 +1654,31 @@ void cache_unregister_net(struct cache_detail *cd, struct net *net)
 }
 EXPORT_SYMBOL_GPL(cache_unregister_net);
 
-void cache_unregister(struct cache_detail *cd)
+struct cache_detail *cache_create_net(struct cache_detail *tmpl, struct net *net)
 {
-	cache_unregister_net(cd, &init_net);
+	struct cache_detail *cd;
+
+	cd = kmemdup(tmpl, sizeof(struct cache_detail), GFP_KERNEL);
+	if (cd == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	cd->hash_table = kzalloc(cd->hash_size * sizeof(struct cache_head *),
+				 GFP_KERNEL);
+	if (cd->hash_table == NULL) {
+		kfree(cd);
+		return ERR_PTR(-ENOMEM);
+	}
+	cd->net = net;
+	return cd;
 }
-EXPORT_SYMBOL_GPL(cache_unregister);
+EXPORT_SYMBOL_GPL(cache_create_net);
+
+void cache_destroy_net(struct cache_detail *cd, struct net *net)
+{
+	kfree(cd->hash_table);
+	kfree(cd);
+}
+EXPORT_SYMBOL_GPL(cache_destroy_net);
 
 static ssize_t cache_read_pipefs(struct file *filp, char __user *buf,
 				 size_t count, loff_t *ppos)
@@ -1787,17 +1805,14 @@ int sunrpc_cache_register_pipefs(struct dentry *parent,
 	struct dentry *dir;
 	int ret = 0;
 
-	sunrpc_init_cache_detail(cd);
 	q.name = name;
 	q.len = strlen(name);
 	q.hash = full_name_hash(q.name, q.len);
 	dir = rpc_create_cache_dir(parent, &q, umode, cd);
 	if (!IS_ERR(dir))
 		cd->u.pipefs.dir = dir;
-	else {
-		sunrpc_destroy_cache_detail(cd);
+	else
 		ret = PTR_ERR(dir);
-	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_register_pipefs);
@@ -1806,7 +1821,6 @@ void sunrpc_cache_unregister_pipefs(struct cache_detail *cd)
 {
 	rpc_remove_cache_dir(cd->u.pipefs.dir);
 	cd->u.pipefs.dir = NULL;
-	sunrpc_destroy_cache_detail(cd);
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_unregister_pipefs);
 

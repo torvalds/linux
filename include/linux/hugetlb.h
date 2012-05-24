@@ -14,6 +14,15 @@ struct user_struct;
 #include <linux/shm.h>
 #include <asm/tlbflush.h>
 
+struct hugepage_subpool {
+	spinlock_t lock;
+	long count;
+	long max_hpages, used_hpages;
+};
+
+struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
+void hugepage_put_subpool(struct hugepage_subpool *spool);
+
 int PageHuge(struct page *page);
 
 void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
@@ -128,34 +137,13 @@ enum {
 };
 
 #ifdef CONFIG_HUGETLBFS
-struct hugetlbfs_config {
-	uid_t   uid;
-	gid_t   gid;
-	umode_t mode;
-	long	nr_blocks;
-	long	nr_inodes;
-	struct hstate *hstate;
-};
-
 struct hugetlbfs_sb_info {
-	long	max_blocks;   /* blocks allowed */
-	long	free_blocks;  /* blocks free */
 	long	max_inodes;   /* inodes allowed */
 	long	free_inodes;  /* inodes free */
 	spinlock_t	stat_lock;
 	struct hstate *hstate;
+	struct hugepage_subpool *spool;
 };
-
-
-struct hugetlbfs_inode_info {
-	struct shared_policy policy;
-	struct inode vfs_inode;
-};
-
-static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
-{
-	return container_of(inode, struct hugetlbfs_inode_info, vfs_inode);
-}
 
 static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
 {
@@ -164,10 +152,9 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
 
 extern const struct file_operations hugetlbfs_file_operations;
 extern const struct vm_operations_struct hugetlb_vm_ops;
-struct file *hugetlb_file_setup(const char *name, size_t size, vm_flags_t acct,
+struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+				size_t size, vm_flags_t acct,
 				struct user_struct **user, int creat_flags);
-int hugetlb_get_quota(struct address_space *mapping, long delta);
-void hugetlb_put_quota(struct address_space *mapping, long delta);
 
 static inline int is_file_hugepages(struct file *file)
 {
@@ -179,15 +166,11 @@ static inline int is_file_hugepages(struct file *file)
 	return 0;
 }
 
-static inline void set_file_hugepages(struct file *file)
-{
-	file->f_op = &hugetlbfs_file_operations;
-}
 #else /* !CONFIG_HUGETLBFS */
 
 #define is_file_hugepages(file)			0
-#define set_file_hugepages(file)		BUG()
-static inline struct file *hugetlb_file_setup(const char *name, size_t size,
+static inline struct file *
+hugetlb_file_setup(const char *name, unsigned long addr, size_t size,
 		vm_flags_t acctflag, struct user_struct **user, int creat_flags)
 {
 	return ERR_PTR(-ENOSYS);

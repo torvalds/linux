@@ -427,6 +427,14 @@ struct qib_verbs_txreq {
 /* how often we check for packet activity for "power on hours (in seconds) */
 #define ACTIVITY_TIMER 5
 
+#define MAX_NAME_SIZE 64
+struct qib_msix_entry {
+	struct msix_entry msix;
+	void *arg;
+	char name[MAX_NAME_SIZE];
+	cpumask_var_t mask;
+};
+
 /* Below is an opaque struct. Each chip (device) can maintain
  * private data needed for its operation, but not germane to the
  * rest of the driver.  For convenience, we define another that
@@ -1355,7 +1363,7 @@ int qib_pcie_init(struct pci_dev *, const struct pci_device_id *);
 int qib_pcie_ddinit(struct qib_devdata *, struct pci_dev *,
 		    const struct pci_device_id *);
 void qib_pcie_ddcleanup(struct qib_devdata *);
-int qib_pcie_params(struct qib_devdata *, u32, u32 *, struct msix_entry *);
+int qib_pcie_params(struct qib_devdata *, u32, u32 *, struct qib_msix_entry *);
 int qib_reinit_intr(struct qib_devdata *);
 void qib_enable_intx(struct pci_dev *);
 void qib_nomsi(struct qib_devdata *);

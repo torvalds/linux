@@ -920,11 +920,11 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 
 	wm8994->dsp_active = -1;
 
-	snd_soc_add_controls(codec, wm8958_mbc_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8958_mbc_snd_controls,
 			     ARRAY_SIZE(wm8958_mbc_snd_controls));
-	snd_soc_add_controls(codec, wm8958_vss_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8958_vss_snd_controls,
 			     ARRAY_SIZE(wm8958_vss_snd_controls));
-	snd_soc_add_controls(codec, wm8958_enh_eq_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8958_enh_eq_snd_controls,
 			     ARRAY_SIZE(wm8958_enh_eq_snd_controls));
 
 
@@ -958,7 +958,7 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 		wm8994->mbc_enum.max = pdata->num_mbc_cfgs;
 		wm8994->mbc_enum.texts = wm8994->mbc_texts;
 
-		ret = snd_soc_add_controls(wm8994->codec, control, 1);
+		ret = snd_soc_add_codec_controls(wm8994->codec, control, 1);
 		if (ret != 0)
 			dev_err(wm8994->codec->dev,
 				"Failed to add MBC mode controls: %d\n", ret);
@@ -986,7 +986,7 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 		wm8994->vss_enum.max = pdata->num_vss_cfgs;
 		wm8994->vss_enum.texts = wm8994->vss_texts;
 
-		ret = snd_soc_add_controls(wm8994->codec, control, 1);
+		ret = snd_soc_add_codec_controls(wm8994->codec, control, 1);
 		if (ret != 0)
 			dev_err(wm8994->codec->dev,
 				"Failed to add VSS mode controls: %d\n", ret);
@@ -1015,7 +1015,7 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 		wm8994->vss_hpf_enum.max = pdata->num_vss_hpf_cfgs;
 		wm8994->vss_hpf_enum.texts = wm8994->vss_hpf_texts;
 
-		ret = snd_soc_add_controls(wm8994->codec, control, 1);
+		ret = snd_soc_add_codec_controls(wm8994->codec, control, 1);
 		if (ret != 0)
 			dev_err(wm8994->codec->dev,
 				"Failed to add VSS HPFmode controls: %d\n",
@@ -1045,7 +1045,7 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec)
 		wm8994->enh_eq_enum.max = pdata->num_enh_eq_cfgs;
 		wm8994->enh_eq_enum.texts = wm8994->enh_eq_texts;
 
-		ret = snd_soc_add_controls(wm8994->codec, control, 1);
+		ret = snd_soc_add_codec_controls(wm8994->codec, control, 1);
 		if (ret != 0)
 			dev_err(wm8994->codec->dev,
 				"Failed to add enhanced EQ controls: %d\n",

@@ -232,23 +232,30 @@ label##_hv:						\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common,	\
 				 EXC_HV, KVMTEST, vec)
 
-#define __SOFTEN_TEST(h)						\
+/* This associate vector numbers with bits in paca->irq_happened */
+#define SOFTEN_VALUE_0x500	PACA_IRQ_EE
+#define SOFTEN_VALUE_0x502	PACA_IRQ_EE
+#define SOFTEN_VALUE_0x900	PACA_IRQ_DEC
+#define SOFTEN_VALUE_0x982	PACA_IRQ_DEC
+
+#define __SOFTEN_TEST(h, vec)						\
 	lbz	r10,PACASOFTIRQEN(r13);					\
 	cmpwi	r10,0;							\
+	li	r10,SOFTEN_VALUE_##vec;					\
 	beq	masked_##h##interrupt
-#define _SOFTEN_TEST(h)	__SOFTEN_TEST(h)
+#define _SOFTEN_TEST(h, vec)	__SOFTEN_TEST(h, vec)
 
 #define SOFTEN_TEST_PR(vec)						\
 	KVMTEST_PR(vec);						\
-	_SOFTEN_TEST(EXC_STD)
+	_SOFTEN_TEST(EXC_STD, vec)
 
 #define SOFTEN_TEST_HV(vec)						\
 	KVMTEST(vec);							\
-	_SOFTEN_TEST(EXC_HV)
+	_SOFTEN_TEST(EXC_HV, vec)
 
 #define SOFTEN_TEST_HV_201(vec)						\
 	KVMTEST(vec);							\
-	_SOFTEN_TEST(EXC_STD)
+	_SOFTEN_TEST(EXC_STD, vec)
 
 #define __MASKABLE_EXCEPTION_PSERIES(vec, label, h, extra)		\
 	HMT_MEDIUM;							\
@@ -272,73 +279,55 @@ label##_hv:								\
 	_MASKABLE_EXCEPTION_PSERIES(vec, label,				\
 				    EXC_HV, SOFTEN_TEST_HV)
 
-#ifdef CONFIG_PPC_ISERIES
-#define DISABLE_INTS				\
-	li	r11,0;				\
-	stb	r11,PACASOFTIRQEN(r13);		\
-BEGIN_FW_FTR_SECTION;				\
-	stb	r11,PACAHARDIRQEN(r13);		\
-END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES);	\
-	TRACE_DISABLE_INTS;			\
-BEGIN_FW_FTR_SECTION;				\
-	mfmsr	r10;				\
-	ori	r10,r10,MSR_EE;			\
-	mtmsrd	r10,1;				\
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#else
-#define DISABLE_INTS				\
-	li	r11,0;				\
-	stb	r11,PACASOFTIRQEN(r13);		\
-	stb	r11,PACAHARDIRQEN(r13);		\
-	TRACE_DISABLE_INTS
-#endif /* CONFIG_PPC_ISERIES */
+/*
+ * Our exception common code can be passed various "additions"
+ * to specify the behaviour of interrupts, whether to kick the
+ * runlatch, etc...
+ */
 
+/* Exception addition: Hard disable interrupts */
+#define DISABLE_INTS	SOFT_DISABLE_INTS(r10,r11)
+
+/* Exception addition: Keep interrupt state */
 #define ENABLE_INTS				\
+	ld	r11,PACAKMSR(r13);		\
 	ld	r12,_MSR(r1);			\
-	mfmsr	r11;				\
 	rlwimi	r11,r12,0,MSR_EE;		\
 	mtmsrd	r11,1
 
-#define STD_EXCEPTION_COMMON(trap, label, hdlr)		\
-	.align	7;					\
-	.globl label##_common;				\
-label##_common:						\
-	EXCEPTION_PROLOG_COMMON(trap, PACA_EXGEN);	\
-	DISABLE_INTS;					\
-	bl	.save_nvgprs;				\
-	addi	r3,r1,STACK_FRAME_OVERHEAD;		\
-	bl	hdlr;					\
-	b	.ret_from_except
+#define ADD_NVGPRS				\
+	bl	.save_nvgprs
+
+#define RUNLATCH_ON				\
+BEGIN_FTR_SECTION				\
+	clrrdi	r3,r1,THREAD_SHIFT;		\
+	ld	r4,TI_LOCAL_FLAGS(r3);		\
+	andi.	r0,r4,_TLF_RUNLATCH;		\
+	beql	ppc64_runlatch_on_trampoline;	\
+END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
+
+#define EXCEPTION_COMMON(trap, label, hdlr, ret, additions)	\
+	.align	7;						\
+	.globl label##_common;					\
+label##_common:							\
+	EXCEPTION_PROLOG_COMMON(trap, PACA_EXGEN);		\
+	additions;						\
+	addi	r3,r1,STACK_FRAME_OVERHEAD;			\
+	bl	hdlr;						\
+	b	ret
+
+#define STD_EXCEPTION_COMMON(trap, label, hdlr)			\
+	EXCEPTION_COMMON(trap, label, hdlr, ret_from_except,	\
+			 ADD_NVGPRS;DISABLE_INTS)
 
 /*
  * Like STD_EXCEPTION_COMMON, but for exceptions that can occur
- * in the idle task and therefore need the special idle handling.
+ * in the idle task and therefore need the special idle handling
+ * (finish nap and runlatch)
  */
-#define STD_EXCEPTION_COMMON_IDLE(trap, label, hdlr)	\
-	.align	7;					\
-	.globl label##_common;				\
-label##_common:						\
-	EXCEPTION_PROLOG_COMMON(trap, PACA_EXGEN);	\
-	FINISH_NAP;					\
-	DISABLE_INTS;					\
-	bl	.save_nvgprs;				\
-	addi	r3,r1,STACK_FRAME_OVERHEAD;		\
-	bl	hdlr;					\
-	b	.ret_from_except
-
-#define STD_EXCEPTION_COMMON_LITE(trap, label, hdlr)	\
-	.align	7;					\
-	.globl label##_common;				\
-label##_common:						\
-	EXCEPTION_PROLOG_COMMON(trap, PACA_EXGEN);	\
-	FINISH_NAP;					\
-	DISABLE_INTS;					\
-BEGIN_FTR_SECTION					\
-	bl	.ppc64_runlatch_on;			\
-END_FTR_SECTION_IFSET(CPU_FTR_CTRL)			\
-	addi	r3,r1,STACK_FRAME_OVERHEAD;		\
-	bl	hdlr;					\
-	b	.ret_from_except_lite
+#define STD_EXCEPTION_COMMON_ASYNC(trap, label, hdlr)		  \
+	EXCEPTION_COMMON(trap, label, hdlr, ret_from_except_lite, \
+			 FINISH_NAP;RUNLATCH_ON;DISABLE_INTS)
 
 /*
  * When the idle code in power4_idle puts the CPU into NAP mode,

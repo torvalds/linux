@@ -1,5 +1,5 @@
 /*
- * drivers/net/ibm_newemac/core.c
+ * drivers/net/ethernet/ibm/emac/core.c
  *
  * Driver for PowerPC 4xx on-chip ethernet controller.
  *
@@ -433,6 +433,11 @@ static inline u32 emac_iff2rmr(struct net_device *ndev)
 		r |= EMAC_RMR_PMME;
 	else if (!netdev_mc_empty(ndev))
 		r |= EMAC_RMR_MAE;
+
+	if (emac_has_feature(dev, EMAC_APM821XX_REQ_JUMBO_FRAME_SIZE)) {
+		r &= ~EMAC4_RMR_MJS_MASK;
+		r |= EMAC4_RMR_MJS(ndev->mtu);
+	}
 
 	return r;
 }
@@ -965,6 +970,7 @@ static int emac_resize_rx_ring(struct emac_instance *dev, int new_mtu)
 	int rx_sync_size = emac_rx_sync_size(new_mtu);
 	int rx_skb_size = emac_rx_skb_size(new_mtu);
 	int i, ret = 0;
+	int mr1_jumbo_bit_change = 0;
 
 	mutex_lock(&dev->link_lock);
 	emac_netif_stop(dev);
@@ -1013,7 +1019,15 @@ static int emac_resize_rx_ring(struct emac_instance *dev, int new_mtu)
 	}
  skip:
 	/* Check if we need to change "Jumbo" bit in MR1 */
-	if ((new_mtu > ETH_DATA_LEN) ^ (dev->ndev->mtu > ETH_DATA_LEN)) {
+	if (emac_has_feature(dev, EMAC_APM821XX_REQ_JUMBO_FRAME_SIZE)) {
+		mr1_jumbo_bit_change = (new_mtu > ETH_DATA_LEN) ||
+				(dev->ndev->mtu > ETH_DATA_LEN);
+	} else {
+		mr1_jumbo_bit_change = (new_mtu > ETH_DATA_LEN) ^
+				(dev->ndev->mtu > ETH_DATA_LEN);
+	}
+
+	if (mr1_jumbo_bit_change) {
 		/* This is to prevent starting RX channel in emac_rx_enable() */
 		set_bit(MAL_COMMAC_RX_STOPPED, &dev->commac.flags);
 
@@ -2471,6 +2485,7 @@ static int __devinit emac_init_phy(struct emac_instance *dev)
 
 	/* Disable any PHY features not supported by the platform */
 	dev->phy.def->features &= ~dev->phy_feat_exc;
+	dev->phy.features &= ~dev->phy_feat_exc;
 
 	/* Setup initial link parameters */
 	if (dev->phy.features & SUPPORTED_Autoneg) {
@@ -2568,6 +2583,11 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 		if (of_device_is_compatible(np, "ibm,emac-405ex") ||
 		    of_device_is_compatible(np, "ibm,emac-405exr"))
 			dev->features |= EMAC_FTR_440EP_PHY_CLK_FIX;
+		if (of_device_is_compatible(np, "ibm,emac-apm821xx")) {
+			dev->features |= (EMAC_APM821XX_REQ_JUMBO_FRAME_SIZE |
+					  EMAC_FTR_APM821XX_NO_HALF_DUPLEX |
+					  EMAC_FTR_460EX_PHY_CLK_FIX);
+		}
 	} else if (of_device_is_compatible(np, "ibm,emac4")) {
 		dev->features |= EMAC_FTR_EMAC4;
 		if (of_device_is_compatible(np, "ibm,emac-440gx"))
@@ -2706,11 +2726,9 @@ static int __devinit emac_probe(struct platform_device *ofdev)
 	/* Allocate our net_device structure */
 	err = -ENOMEM;
 	ndev = alloc_etherdev(sizeof(struct emac_instance));
-	if (!ndev) {
-		printk(KERN_ERR "%s: could not allocate ethernet device!\n",
-		       np->full_name);
+	if (!ndev)
 		goto err_gone;
-	}
+
 	dev = netdev_priv(ndev);
 	dev->ndev = ndev;
 	dev->ofdev = ofdev;
@@ -2817,6 +2835,13 @@ static int __devinit emac_probe(struct platform_device *ofdev)
 	dev->phy.pause = dev->phy.asym_pause = 0;
 	dev->stop_timeout = STOP_TIMEOUT_100;
 	INIT_DELAYED_WORK(&dev->link_work, emac_link_timer);
+
+	/* Some SoCs like APM821xx does not support Half Duplex mode. */
+	if (emac_has_feature(dev, EMAC_FTR_APM821XX_NO_HALF_DUPLEX)) {
+		dev->phy_feat_exc = (SUPPORTED_1000baseT_Half |
+				     SUPPORTED_100baseT_Half |
+				     SUPPORTED_10baseT_Half);
+	}
 
 	/* Find PHY if any */
 	err = emac_init_phy(dev);

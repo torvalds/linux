@@ -8,6 +8,7 @@
 #define KMSG_COMPONENT "sclp_sdias"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/completion.h>
 #include <linux/sched.h>
 #include <asm/sclp.h>
 #include <asm/debug.h>
@@ -62,15 +63,29 @@ struct sdias_sccb {
 } __attribute__((packed));
 
 static struct sdias_sccb sccb __attribute__((aligned(4096)));
+static struct sdias_evbuf sdias_evbuf;
 
-static int sclp_req_done;
-static wait_queue_head_t sdias_wq;
+static DECLARE_COMPLETION(evbuf_accepted);
+static DECLARE_COMPLETION(evbuf_done);
 static DEFINE_MUTEX(sdias_mutex);
 
+/*
+ * Called by SCLP base when read event data has been completed (async mode only)
+ */
+static void sclp_sdias_receiver_fn(struct evbuf_header *evbuf)
+{
+	memcpy(&sdias_evbuf, evbuf,
+	       min_t(unsigned long, sizeof(sdias_evbuf), evbuf->length));
+	complete(&evbuf_done);
+	TRACE("sclp_sdias_receiver_fn done\n");
+}
+
+/*
+ * Called by SCLP base when sdias event has been accepted
+ */
 static void sdias_callback(struct sclp_req *request, void *data)
 {
-	sclp_req_done = 1;
-	wake_up(&sdias_wq); /* Inform caller, that request is complete */
+	complete(&evbuf_accepted);
 	TRACE("callback done\n");
 }
 
@@ -80,7 +95,6 @@ static int sdias_sclp_send(struct sclp_req *req)
 	int rc;
 
 	for (retries = SDIAS_RETRIES; retries; retries--) {
-		sclp_req_done = 0;
 		TRACE("add request\n");
 		rc = sclp_add_request(req);
 		if (rc) {
@@ -91,16 +105,31 @@ static int sdias_sclp_send(struct sclp_req *req)
 			continue;
 		}
 		/* initiated, wait for completion of service call */
-		wait_event(sdias_wq, (sclp_req_done == 1));
+		wait_for_completion(&evbuf_accepted);
 		if (req->status == SCLP_REQ_FAILED) {
 			TRACE("sclp request failed\n");
-			rc = -EIO;
 			continue;
 		}
+		/* if not accepted, retry */
+		if (!(sccb.evbuf.hdr.flags & 0x80)) {
+			TRACE("sclp request failed: flags=%x\n",
+			      sccb.evbuf.hdr.flags);
+			continue;
+		}
+		/*
+		 * for the sync interface the response is in the initial sccb
+		 */
+		if (!sclp_sdias_register.receiver_fn) {
+			memcpy(&sdias_evbuf, &sccb.evbuf, sizeof(sdias_evbuf));
+			TRACE("sync request done\n");
+			return 0;
+		}
+		/* otherwise we wait for completion */
+		wait_for_completion(&evbuf_done);
 		TRACE("request done\n");
-		break;
+		return 0;
 	}
-	return rc;
+	return -EIO;
 }
 
 /*
@@ -140,13 +169,12 @@ int sclp_sdias_blk_count(void)
 		goto out;
 	}
 
-	switch (sccb.evbuf.event_status) {
+	switch (sdias_evbuf.event_status) {
 		case 0:
-			rc = sccb.evbuf.blk_cnt;
+			rc = sdias_evbuf.blk_cnt;
 			break;
 		default:
-			pr_err("SCLP error: %x\n",
-			       sccb.evbuf.event_status);
+			pr_err("SCLP error: %x\n", sdias_evbuf.event_status);
 			rc = -EIO;
 			goto out;
 	}
@@ -211,18 +239,18 @@ int sclp_sdias_copy(void *dest, int start_blk, int nr_blks)
 		goto out;
 	}
 
-	switch (sccb.evbuf.event_status) {
+	switch (sdias_evbuf.event_status) {
 		case EVSTATE_ALL_STORED:
 			TRACE("all stored\n");
 		case EVSTATE_PART_STORED:
-			TRACE("part stored: %i\n", sccb.evbuf.blk_cnt);
+			TRACE("part stored: %i\n", sdias_evbuf.blk_cnt);
 			break;
 		case EVSTATE_NO_DATA:
 			TRACE("no data\n");
 		default:
 			pr_err("Error from SCLP while copying hsa. "
 			       "Event status = %x\n",
-			       sccb.evbuf.event_status);
+			       sdias_evbuf.event_status);
 			rc = -EIO;
 	}
 out:
@@ -230,19 +258,50 @@ out:
 	return rc;
 }
 
-int __init sclp_sdias_init(void)
+static int __init sclp_sdias_register_check(void)
 {
 	int rc;
 
+	rc = sclp_register(&sclp_sdias_register);
+	if (rc)
+		return rc;
+	if (sclp_sdias_blk_count() == 0) {
+		sclp_unregister(&sclp_sdias_register);
+		return -ENODEV;
+	}
+	return 0;
+}
+
+static int __init sclp_sdias_init_sync(void)
+{
+	TRACE("Try synchronous mode\n");
+	sclp_sdias_register.receive_mask = 0;
+	sclp_sdias_register.receiver_fn = NULL;
+	return sclp_sdias_register_check();
+}
+
+static int __init sclp_sdias_init_async(void)
+{
+	TRACE("Try asynchronous mode\n");
+	sclp_sdias_register.receive_mask = EVTYP_SDIAS_MASK;
+	sclp_sdias_register.receiver_fn = sclp_sdias_receiver_fn;
+	return sclp_sdias_register_check();
+}
+
+int __init sclp_sdias_init(void)
+{
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
 		return 0;
 	sdias_dbf = debug_register("dump_sdias", 4, 1, 4 * sizeof(long));
 	debug_register_view(sdias_dbf, &debug_sprintf_view);
 	debug_set_level(sdias_dbf, 6);
-	rc = sclp_register(&sclp_sdias_register);
-	if (rc)
-		return rc;
-	init_waitqueue_head(&sdias_wq);
+	if (sclp_sdias_init_sync() == 0)
+		goto out;
+	if (sclp_sdias_init_async() == 0)
+		goto out;
+	TRACE("init failed\n");
+	return -ENODEV;
+out:
 	TRACE("init done\n");
 	return 0;
 }

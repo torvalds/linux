@@ -54,7 +54,6 @@ obj-$(CONFIG_DVB_USB_DIB0700) += dvb-usb-dib0700.o
 dvb-usb-opera-objs = opera1.o
 obj-$(CONFIG_DVB_USB_OPERA1) += dvb-usb-opera.o
 
-
 dvb-usb-af9005-objs = af9005.o af9005-fe.o
 obj-$(CONFIG_DVB_USB_AF9005) += dvb-usb-af9005.o
 
@@ -88,6 +87,9 @@ obj-$(CONFIG_DVB_USB_FRIIO) += dvb-usb-friio.o
 dvb-usb-ec168-objs = ec168.o
 obj-$(CONFIG_DVB_USB_EC168) += dvb-usb-ec168.o
 
+dvb-usb-az6007-objs = az6007.o
+obj-$(CONFIG_DVB_USB_AZ6007) += dvb-usb-az6007.o
+
 dvb-usb-az6027-objs = az6027.o
 obj-$(CONFIG_DVB_USB_AZ6027) += dvb-usb-az6027.o
 
@@ -105,8 +107,12 @@ obj-$(CONFIG_DVB_USB_MXL111SF) += dvb-usb-mxl111sf.o
 obj-$(CONFIG_DVB_USB_MXL111SF) += mxl111sf-demod.o
 obj-$(CONFIG_DVB_USB_MXL111SF) += mxl111sf-tuner.o
 
-ccflags-y += -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/
+dvb-usb-rtl28xxu-objs = rtl28xxu.o
+obj-$(CONFIG_DVB_USB_RTL28XXU) += dvb-usb-rtl28xxu.o
+
+ccflags-y += -I$(srctree)/drivers/media/dvb/dvb-core
+ccflags-y += -I$(srctree)/drivers/media/dvb/frontends/
 # due to tuner-xc3028
-ccflags-y += -Idrivers/media/common/tuners
-EXTRA_CFLAGS += -Idrivers/media/dvb/ttpci
+ccflags-y += -I$(srctree)/drivers/media/common/tuners
+ccflags-y += -I$(srctree)/drivers/media/dvb/ttpci
 

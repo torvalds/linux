@@ -98,7 +98,7 @@ out:
 static void find_start_end(unsigned long flags, unsigned long *begin,
 			   unsigned long *end)
 {
-	if (!test_thread_flag(TIF_IA32) && (flags & MAP_32BIT)) {
+	if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT)) {
 		unsigned long new_begin;
 		/* This is usually used needed to map code in small
 		   model, so it needs to be in the first 31bit. Limit
@@ -144,7 +144,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		    (!vma || addr + len <= vma->vm_start))
 			return addr;
 	}
-	if (((flags & MAP_32BIT) || test_thread_flag(TIF_IA32))
+	if (((flags & MAP_32BIT) || test_thread_flag(TIF_ADDR32))
 	    && len <= mm->cached_hole_size) {
 		mm->cached_hole_size = 0;
 		mm->free_area_cache = begin;
@@ -195,7 +195,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
-	unsigned long addr = addr0;
+	unsigned long addr = addr0, start_addr;
 
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE)
@@ -205,7 +205,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		return addr;
 
 	/* for MAP_32BIT mappings we force the legact mmap base */
-	if (!test_thread_flag(TIF_IA32) && (flags & MAP_32BIT))
+	if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT))
 		goto bottomup;
 
 	/* requesting a specific address */
@@ -223,25 +223,14 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		mm->free_area_cache = mm->mmap_base;
 	}
 
+try_again:
 	/* either no address requested or can't fit in requested address hole */
-	addr = mm->free_area_cache;
+	start_addr = addr = mm->free_area_cache;
 
-	/* make sure it can fit in the remaining address space */
-	if (addr > len) {
-		unsigned long tmp_addr = align_addr(addr - len, filp,
-						    ALIGN_TOPDOWN);
+	if (addr < len)
+		goto fail;
 
-		vma = find_vma(mm, tmp_addr);
-		if (!vma || tmp_addr + len <= vma->vm_start)
-			/* remember the address as a hint for next time */
-			return mm->free_area_cache = tmp_addr;
-	}
-
-	if (mm->mmap_base < len)
-		goto bottomup;
-
-	addr = mm->mmap_base-len;
-
+	addr -= len;
 	do {
 		addr = align_addr(addr, filp, ALIGN_TOPDOWN);
 
@@ -262,6 +251,17 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		/* try just below the current vma->vm_start */
 		addr = vma->vm_start-len;
 	} while (len < vma->vm_start);
+
+fail:
+	/*
+	 * if hint left us with no space for the requested
+	 * mapping then try again:
+	 */
+	if (start_addr != mm->mmap_base) {
+		mm->free_area_cache = mm->mmap_base;
+		mm->cached_hole_size = 0;
+		goto try_again;
+	}
 
 bottomup:
 	/*

@@ -2,29 +2,19 @@
  * (C) 1997 Linus Torvalds
  * (C) 1999 Andrea Arcangeli <andrea@suse.de> (dynamic inode allocation)
  */
+#include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
-#include <linux/dcache.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/writeback.h>
-#include <linux/module.h>
 #include <linux/backing-dev.h>
-#include <linux/wait.h>
-#include <linux/rwsem.h>
 #include <linux/hash.h>
 #include <linux/swap.h>
 #include <linux/security.h>
-#include <linux/pagemap.h>
 #include <linux/cdev.h>
 #include <linux/bootmem.h>
 #include <linux/fsnotify.h>
 #include <linux/mount.h>
-#include <linux/async.h>
 #include <linux/posix_acl.h>
 #include <linux/prefetch.h>
-#include <linux/ima.h>
-#include <linux/cred.h>
 #include <linux/buffer_head.h> /* for inode_has_buffers */
 #include <linux/ratelimit.h>
 #include "internal.h"
@@ -938,8 +928,7 @@ void lockdep_annotate_inode_mutex_key(struct inode *inode)
 		struct file_system_type *type = inode->i_sb->s_type;
 
 		/* Set new key only if filesystem hasn't already changed it */
-		if (!lockdep_match_class(&inode->i_mutex,
-		    &type->i_mutex_key)) {
+		if (lockdep_match_class(&inode->i_mutex, &type->i_mutex_key)) {
 			/*
 			 * ensure nobody is actually holding i_mutex
 			 */
@@ -966,6 +955,7 @@ void unlock_new_inode(struct inode *inode)
 	spin_lock(&inode->i_lock);
 	WARN_ON(!(inode->i_state & I_NEW));
 	inode->i_state &= ~I_NEW;
+	smp_mb();
 	wake_up_bit(&inode->i_state, __I_NEW);
 	spin_unlock(&inode->i_lock);
 }
@@ -1369,17 +1359,6 @@ int generic_delete_inode(struct inode *inode)
 EXPORT_SYMBOL(generic_delete_inode);
 
 /*
- * Normal UNIX filesystem behaviour: delete the
- * inode when the usage count drops to zero, and
- * i_nlink is zero.
- */
-int generic_drop_inode(struct inode *inode)
-{
-	return !inode->i_nlink || inode_unhashed(inode);
-}
-EXPORT_SYMBOL_GPL(generic_drop_inode);
-
-/*
  * Called when we're dropping the last reference
  * to an inode.
  *
@@ -1510,9 +1489,10 @@ static int relatime_need_update(struct vfsmount *mnt, struct inode *inode,
  *	This function automatically handles read only file systems and media,
  *	as well as the "noatime" flag and inode specific "noatime" markers.
  */
-void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
+void touch_atime(struct path *path)
 {
-	struct inode *inode = dentry->d_inode;
+	struct vfsmount *mnt = path->mnt;
+	struct inode *inode = path->dentry->d_inode;
 	struct timespec now;
 
 	if (inode->i_flags & S_NOATIME)

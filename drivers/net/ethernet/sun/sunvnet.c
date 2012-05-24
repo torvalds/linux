@@ -949,10 +949,9 @@ static int __devinit vnet_port_alloc_tx_bufs(struct vnet_port *port)
 		int map_len = (ETH_FRAME_LEN + 7) & ~7;
 
 		err = -ENOMEM;
-		if (!buf) {
-			pr_err("TX buffer allocation failure\n");
+		if (!buf)
 			goto err_out;
-		}
+
 		err = -EFAULT;
 		if ((unsigned long)buf & (8UL - 1)) {
 			pr_err("TX buffer misaligned\n");
@@ -1027,10 +1026,8 @@ static struct vnet * __devinit vnet_new(const u64 *local_mac)
 	int err, i;
 
 	dev = alloc_etherdev(sizeof(*vp));
-	if (!dev) {
-		pr_err("Etherdev alloc failed, aborting\n");
+	if (!dev)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = (*local_mac >> (5 - i) * 8) & 0xff;
@@ -1165,10 +1162,8 @@ static int __devinit vnet_port_probe(struct vio_dev *vdev,
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	err = -ENOMEM;
-	if (!port) {
-		pr_err("Cannot allocate vnet_port\n");
+	if (!port)
 		goto err_out_put_mdesc;
-	}
 
 	for (i = 0; i < ETH_ALEN; i++)
 		port->raddr[i] = (*rmac >> (5 - i) * 8) & 0xff;
@@ -1264,10 +1259,7 @@ static struct vio_driver vnet_port_driver = {
 	.id_table	= vnet_port_match,
 	.probe		= vnet_port_probe,
 	.remove		= vnet_port_remove,
-	.driver		= {
-		.name	= "vnet_port",
-		.owner	= THIS_MODULE,
-	}
+	.name		= "vnet_port",
 };
 
 static int __init vnet_init(void)

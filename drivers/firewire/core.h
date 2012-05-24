@@ -1,6 +1,8 @@
 #ifndef _FIREWIRE_CORE_H
 #define _FIREWIRE_CORE_H
 
+#include <linux/compiler.h>
+#include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/idr.h>
@@ -22,6 +24,11 @@ struct fw_packet;
 
 
 /* -card */
+
+extern __printf(2, 3)
+void fw_err(const struct fw_card *card, const char *fmt, ...);
+extern __printf(2, 3)
+void fw_notice(const struct fw_card *card, const char *fmt, ...);
 
 /* bitfields within the PHY registers */
 #define PHY_LINK_ACTIVE		0x80
@@ -99,6 +106,8 @@ struct fw_card_driver {
 
 	void (*flush_queue_iso)(struct fw_iso_context *ctx);
 
+	int (*flush_iso_completions)(struct fw_iso_context *ctx);
+
 	int (*stop_iso)(struct fw_iso_context *ctx);
 };
 
@@ -140,6 +149,18 @@ void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p);
 extern struct rw_semaphore fw_device_rwsem;
 extern struct idr fw_device_idr;
 extern int fw_cdev_major;
+
+static inline struct fw_device *fw_device_get(struct fw_device *device)
+{
+	get_device(&device->device);
+
+	return device;
+}
+
+static inline void fw_device_put(struct fw_device *device)
+{
+	put_device(&device->device);
+}
 
 struct fw_device *fw_device_get_by_devt(dev_t devt);
 int fw_device_set_broadcast_channel(struct device *dev, void *gen);

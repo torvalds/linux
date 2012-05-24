@@ -25,7 +25,7 @@ inline (either in the code emitted directly by the compiler, or part of
 the implementation of a library call) when optimizing for a recent enough
 processor that has the necessary native support, but only if resulting
 binaries are already to be incompatible with earlier ARM processors due to
-useage of similar native instructions for other things.  In other words
+usage of similar native instructions for other things.  In other words
 don't make binaries unable to run on earlier processors just for the sake
 of not using these kernel helpers if your compiled code is not going to
 use new instructions for other purpose.

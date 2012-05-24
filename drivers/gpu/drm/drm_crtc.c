@@ -38,11 +38,6 @@
 #include "drm_edid.h"
 #include "drm_fourcc.h"
 
-struct drm_prop_enum_list {
-	int type;
-	char *name;
-};
-
 /* Avoid boilerplate.  I'm tired of typing. */
 #define DRM_ENUM_NAME_FN(fnname, list)				\
 	char *fnname(int val)					\
@@ -298,9 +293,8 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 	int ret;
 
 	ret = drm_mode_object_get(dev, &fb->base, DRM_MODE_OBJECT_FB);
-	if (ret) {
+	if (ret)
 		return ret;
-	}
 
 	fb->dev = dev;
 	fb->funcs = funcs;
@@ -370,19 +364,31 @@ EXPORT_SYMBOL(drm_framebuffer_cleanup);
  * Caller must hold mode config lock.
  *
  * Inits a new object created as base part of an driver crtc object.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure.
  */
-void drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
+int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		   const struct drm_crtc_funcs *funcs)
 {
+	int ret;
+
 	crtc->dev = dev;
 	crtc->funcs = funcs;
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_mode_object_get(dev, &crtc->base, DRM_MODE_OBJECT_CRTC);
+
+	ret = drm_mode_object_get(dev, &crtc->base, DRM_MODE_OBJECT_CRTC);
+	if (ret)
+		goto out;
 
 	list_add_tail(&crtc->head, &dev->mode_config.crtc_list);
 	dev->mode_config.num_crtc++;
+
+ out:
 	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_crtc_init);
 
@@ -442,7 +448,7 @@ void drm_mode_remove(struct drm_connector *connector,
 		     struct drm_display_mode *mode)
 {
 	list_del(&mode->head);
-	kfree(mode);
+	drm_mode_destroy(connector->dev, mode);
 }
 EXPORT_SYMBOL(drm_mode_remove);
 
@@ -454,21 +460,29 @@ EXPORT_SYMBOL(drm_mode_remove);
  * @name: user visible name of the connector
  *
  * LOCKING:
- * Caller must hold @dev's mode_config lock.
+ * Takes mode config lock.
  *
  * Initialises a preallocated connector. Connectors should be
  * subclassed as part of driver connector objects.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure.
  */
-void drm_connector_init(struct drm_device *dev,
-		     struct drm_connector *connector,
-		     const struct drm_connector_funcs *funcs,
-		     int connector_type)
+int drm_connector_init(struct drm_device *dev,
+		       struct drm_connector *connector,
+		       const struct drm_connector_funcs *funcs,
+		       int connector_type)
 {
+	int ret;
+
 	mutex_lock(&dev->mode_config.mutex);
+
+	ret = drm_mode_object_get(dev, &connector->base, DRM_MODE_OBJECT_CONNECTOR);
+	if (ret)
+		goto out;
 
 	connector->dev = dev;
 	connector->funcs = funcs;
-	drm_mode_object_get(dev, &connector->base, DRM_MODE_OBJECT_CONNECTOR);
 	connector->connector_type = connector_type;
 	connector->connector_type_id =
 		++drm_connector_enum_list[connector_type].count; /* TODO */
@@ -488,7 +502,10 @@ void drm_connector_init(struct drm_device *dev,
 	drm_connector_attach_property(connector,
 				      dev->mode_config.dpms_property, 0);
 
+ out:
 	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_connector_init);
 
@@ -497,7 +514,7 @@ EXPORT_SYMBOL(drm_connector_init);
  * @connector: connector to cleanup
  *
  * LOCKING:
- * Caller must hold @dev's mode_config lock.
+ * Takes mode config lock.
  *
  * Cleans up the connector but doesn't free the object.
  */
@@ -523,23 +540,41 @@ void drm_connector_cleanup(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_connector_cleanup);
 
-void drm_encoder_init(struct drm_device *dev,
+void drm_connector_unplug_all(struct drm_device *dev)
+{
+	struct drm_connector *connector;
+
+	/* taking the mode config mutex ends up in a clash with sysfs */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+		drm_sysfs_connector_remove(connector);
+
+}
+EXPORT_SYMBOL(drm_connector_unplug_all);
+
+int drm_encoder_init(struct drm_device *dev,
 		      struct drm_encoder *encoder,
 		      const struct drm_encoder_funcs *funcs,
 		      int encoder_type)
 {
+	int ret;
+
 	mutex_lock(&dev->mode_config.mutex);
 
-	encoder->dev = dev;
+	ret = drm_mode_object_get(dev, &encoder->base, DRM_MODE_OBJECT_ENCODER);
+	if (ret)
+		goto out;
 
-	drm_mode_object_get(dev, &encoder->base, DRM_MODE_OBJECT_ENCODER);
+	encoder->dev = dev;
 	encoder->encoder_type = encoder_type;
 	encoder->funcs = funcs;
 
 	list_add_tail(&encoder->head, &dev->mode_config.encoder_list);
 	dev->mode_config.num_encoder++;
 
+ out:
 	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_encoder_init);
 
@@ -560,18 +595,23 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		   const uint32_t *formats, uint32_t format_count,
 		   bool priv)
 {
+	int ret;
+
 	mutex_lock(&dev->mode_config.mutex);
 
+	ret = drm_mode_object_get(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
+	if (ret)
+		goto out;
+
 	plane->dev = dev;
-	drm_mode_object_get(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
 	plane->funcs = funcs;
 	plane->format_types = kmalloc(sizeof(uint32_t) * format_count,
 				      GFP_KERNEL);
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
 		drm_mode_object_put(dev, &plane->base);
-		mutex_unlock(&dev->mode_config.mutex);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	memcpy(plane->format_types, formats, format_count * sizeof(uint32_t));
@@ -589,9 +629,10 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		INIT_LIST_HEAD(&plane->head);
 	}
 
+ out:
 	mutex_unlock(&dev->mode_config.mutex);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(drm_plane_init);
 
@@ -631,7 +672,11 @@ struct drm_display_mode *drm_mode_create(struct drm_device *dev)
 	if (!nmode)
 		return NULL;
 
-	drm_mode_object_get(dev, &nmode->base, DRM_MODE_OBJECT_MODE);
+	if (drm_mode_object_get(dev, &nmode->base, DRM_MODE_OBJECT_MODE)) {
+		kfree(nmode);
+		return NULL;
+	}
+
 	return nmode;
 }
 EXPORT_SYMBOL(drm_mode_create);
@@ -648,6 +693,9 @@ EXPORT_SYMBOL(drm_mode_create);
  */
 void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode)
 {
+	if (!mode)
+		return;
+
 	drm_mode_object_put(dev, &mode->base);
 
 	kfree(mode);
@@ -658,7 +706,6 @@ static int drm_mode_create_standard_connector_properties(struct drm_device *dev)
 {
 	struct drm_property *edid;
 	struct drm_property *dpms;
-	int i;
 
 	/*
 	 * Standard properties (apply to all connectors)
@@ -668,11 +715,9 @@ static int drm_mode_create_standard_connector_properties(struct drm_device *dev)
 				   "EDID", 0);
 	dev->mode_config.edid_property = edid;
 
-	dpms = drm_property_create(dev, DRM_MODE_PROP_ENUM,
-				   "DPMS", ARRAY_SIZE(drm_dpms_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_dpms_enum_list); i++)
-		drm_property_add_enum(dpms, i, drm_dpms_enum_list[i].type,
-				      drm_dpms_enum_list[i].name);
+	dpms = drm_property_create_enum(dev, 0,
+				   "DPMS", drm_dpms_enum_list,
+				   ARRAY_SIZE(drm_dpms_enum_list));
 	dev->mode_config.dpms_property = dpms;
 
 	return 0;
@@ -688,30 +733,21 @@ int drm_mode_create_dvi_i_properties(struct drm_device *dev)
 {
 	struct drm_property *dvi_i_selector;
 	struct drm_property *dvi_i_subconnector;
-	int i;
 
 	if (dev->mode_config.dvi_i_select_subconnector_property)
 		return 0;
 
 	dvi_i_selector =
-		drm_property_create(dev, DRM_MODE_PROP_ENUM,
+		drm_property_create_enum(dev, 0,
 				    "select subconnector",
+				    drm_dvi_i_select_enum_list,
 				    ARRAY_SIZE(drm_dvi_i_select_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_dvi_i_select_enum_list); i++)
-		drm_property_add_enum(dvi_i_selector, i,
-				      drm_dvi_i_select_enum_list[i].type,
-				      drm_dvi_i_select_enum_list[i].name);
 	dev->mode_config.dvi_i_select_subconnector_property = dvi_i_selector;
 
-	dvi_i_subconnector =
-		drm_property_create(dev, DRM_MODE_PROP_ENUM |
-				    DRM_MODE_PROP_IMMUTABLE,
+	dvi_i_subconnector = drm_property_create_enum(dev, DRM_MODE_PROP_IMMUTABLE,
 				    "subconnector",
+				    drm_dvi_i_subconnector_enum_list,
 				    ARRAY_SIZE(drm_dvi_i_subconnector_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_dvi_i_subconnector_enum_list); i++)
-		drm_property_add_enum(dvi_i_subconnector, i,
-				      drm_dvi_i_subconnector_enum_list[i].type,
-				      drm_dvi_i_subconnector_enum_list[i].name);
 	dev->mode_config.dvi_i_subconnector_property = dvi_i_subconnector;
 
 	return 0;
@@ -742,51 +778,33 @@ int drm_mode_create_tv_properties(struct drm_device *dev, int num_modes,
 	/*
 	 * Basic connector properties
 	 */
-	tv_selector = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+	tv_selector = drm_property_create_enum(dev, 0,
 					  "select subconnector",
+					  drm_tv_select_enum_list,
 					  ARRAY_SIZE(drm_tv_select_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_tv_select_enum_list); i++)
-		drm_property_add_enum(tv_selector, i,
-				      drm_tv_select_enum_list[i].type,
-				      drm_tv_select_enum_list[i].name);
 	dev->mode_config.tv_select_subconnector_property = tv_selector;
 
 	tv_subconnector =
-		drm_property_create(dev, DRM_MODE_PROP_ENUM |
-				    DRM_MODE_PROP_IMMUTABLE, "subconnector",
+		drm_property_create_enum(dev, DRM_MODE_PROP_IMMUTABLE,
+				    "subconnector",
+				    drm_tv_subconnector_enum_list,
 				    ARRAY_SIZE(drm_tv_subconnector_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_tv_subconnector_enum_list); i++)
-		drm_property_add_enum(tv_subconnector, i,
-				      drm_tv_subconnector_enum_list[i].type,
-				      drm_tv_subconnector_enum_list[i].name);
 	dev->mode_config.tv_subconnector_property = tv_subconnector;
 
 	/*
 	 * Other, TV specific properties: margins & TV modes.
 	 */
 	dev->mode_config.tv_left_margin_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "left margin", 2);
-	dev->mode_config.tv_left_margin_property->values[0] = 0;
-	dev->mode_config.tv_left_margin_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "left margin", 0, 100);
 
 	dev->mode_config.tv_right_margin_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "right margin", 2);
-	dev->mode_config.tv_right_margin_property->values[0] = 0;
-	dev->mode_config.tv_right_margin_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "right margin", 0, 100);
 
 	dev->mode_config.tv_top_margin_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "top margin", 2);
-	dev->mode_config.tv_top_margin_property->values[0] = 0;
-	dev->mode_config.tv_top_margin_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "top margin", 0, 100);
 
 	dev->mode_config.tv_bottom_margin_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "bottom margin", 2);
-	dev->mode_config.tv_bottom_margin_property->values[0] = 0;
-	dev->mode_config.tv_bottom_margin_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "bottom margin", 0, 100);
 
 	dev->mode_config.tv_mode_property =
 		drm_property_create(dev, DRM_MODE_PROP_ENUM,
@@ -796,40 +814,22 @@ int drm_mode_create_tv_properties(struct drm_device *dev, int num_modes,
 				      i, modes[i]);
 
 	dev->mode_config.tv_brightness_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "brightness", 2);
-	dev->mode_config.tv_brightness_property->values[0] = 0;
-	dev->mode_config.tv_brightness_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "brightness", 0, 100);
 
 	dev->mode_config.tv_contrast_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "contrast", 2);
-	dev->mode_config.tv_contrast_property->values[0] = 0;
-	dev->mode_config.tv_contrast_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "contrast", 0, 100);
 
 	dev->mode_config.tv_flicker_reduction_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "flicker reduction", 2);
-	dev->mode_config.tv_flicker_reduction_property->values[0] = 0;
-	dev->mode_config.tv_flicker_reduction_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "flicker reduction", 0, 100);
 
 	dev->mode_config.tv_overscan_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "overscan", 2);
-	dev->mode_config.tv_overscan_property->values[0] = 0;
-	dev->mode_config.tv_overscan_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "overscan", 0, 100);
 
 	dev->mode_config.tv_saturation_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "saturation", 2);
-	dev->mode_config.tv_saturation_property->values[0] = 0;
-	dev->mode_config.tv_saturation_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "saturation", 0, 100);
 
 	dev->mode_config.tv_hue_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "hue", 2);
-	dev->mode_config.tv_hue_property->values[0] = 0;
-	dev->mode_config.tv_hue_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "hue", 0, 100);
 
 	return 0;
 }
@@ -845,18 +845,14 @@ EXPORT_SYMBOL(drm_mode_create_tv_properties);
 int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 {
 	struct drm_property *scaling_mode;
-	int i;
 
 	if (dev->mode_config.scaling_mode_property)
 		return 0;
 
 	scaling_mode =
-		drm_property_create(dev, DRM_MODE_PROP_ENUM, "scaling mode",
+		drm_property_create_enum(dev, 0, "scaling mode",
+				drm_scaling_mode_enum_list,
 				    ARRAY_SIZE(drm_scaling_mode_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_scaling_mode_enum_list); i++)
-		drm_property_add_enum(scaling_mode, i,
-				      drm_scaling_mode_enum_list[i].type,
-				      drm_scaling_mode_enum_list[i].name);
 
 	dev->mode_config.scaling_mode_property = scaling_mode;
 
@@ -874,18 +870,14 @@ EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
 int drm_mode_create_dithering_property(struct drm_device *dev)
 {
 	struct drm_property *dithering_mode;
-	int i;
 
 	if (dev->mode_config.dithering_mode_property)
 		return 0;
 
 	dithering_mode =
-		drm_property_create(dev, DRM_MODE_PROP_ENUM, "dithering",
+		drm_property_create_enum(dev, 0, "dithering",
+				drm_dithering_mode_enum_list,
 				    ARRAY_SIZE(drm_dithering_mode_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_dithering_mode_enum_list); i++)
-		drm_property_add_enum(dithering_mode, i,
-				      drm_dithering_mode_enum_list[i].type,
-				      drm_dithering_mode_enum_list[i].name);
 	dev->mode_config.dithering_mode_property = dithering_mode;
 
 	return 0;
@@ -902,20 +894,15 @@ EXPORT_SYMBOL(drm_mode_create_dithering_property);
 int drm_mode_create_dirty_info_property(struct drm_device *dev)
 {
 	struct drm_property *dirty_info;
-	int i;
 
 	if (dev->mode_config.dirty_info_property)
 		return 0;
 
 	dirty_info =
-		drm_property_create(dev, DRM_MODE_PROP_ENUM |
-				    DRM_MODE_PROP_IMMUTABLE,
+		drm_property_create_enum(dev, DRM_MODE_PROP_IMMUTABLE,
 				    "dirty",
+				    drm_dirty_info_enum_list,
 				    ARRAY_SIZE(drm_dirty_info_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_dirty_info_enum_list); i++)
-		drm_property_add_enum(dirty_info, i,
-				      drm_dirty_info_enum_list[i].type,
-				      drm_dirty_info_enum_list[i].name);
 	dev->mode_config.dirty_info_property = dirty_info;
 
 	return 0;
@@ -999,6 +986,7 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL(drm_mode_group_init_legacy_group);
 
 /**
  * drm_mode_config_cleanup - free up DRM mode_config info
@@ -1048,6 +1036,9 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 				 head) {
 		plane->funcs->destroy(plane);
 	}
+
+	idr_remove_all(&dev->mode_config.crtc_idr);
+	idr_destroy(&dev->mode_config.crtc_idr);
 }
 EXPORT_SYMBOL(drm_mode_config_cleanup);
 
@@ -1062,9 +1053,16 @@ EXPORT_SYMBOL(drm_mode_config_cleanup);
  * Convert a drm_display_mode into a drm_mode_modeinfo structure to return to
  * the user.
  */
-void drm_crtc_convert_to_umode(struct drm_mode_modeinfo *out,
-			       struct drm_display_mode *in)
+static void drm_crtc_convert_to_umode(struct drm_mode_modeinfo *out,
+				      const struct drm_display_mode *in)
 {
+	WARN(in->hdisplay > USHRT_MAX || in->hsync_start > USHRT_MAX ||
+	     in->hsync_end > USHRT_MAX || in->htotal > USHRT_MAX ||
+	     in->hskew > USHRT_MAX || in->vdisplay > USHRT_MAX ||
+	     in->vsync_start > USHRT_MAX || in->vsync_end > USHRT_MAX ||
+	     in->vtotal > USHRT_MAX || in->vscan > USHRT_MAX,
+	     "timing values too large for mode info\n");
+
 	out->clock = in->clock;
 	out->hdisplay = in->hdisplay;
 	out->hsync_start = in->hsync_start;
@@ -1093,10 +1091,16 @@ void drm_crtc_convert_to_umode(struct drm_mode_modeinfo *out,
  *
  * Convert a drm_mode_modeinfo into a drm_display_mode structure to return to
  * the caller.
+ *
+ * RETURNS:
+ * Zero on success, errno on failure.
  */
-void drm_crtc_convert_umode(struct drm_display_mode *out,
-			    struct drm_mode_modeinfo *in)
+static int drm_crtc_convert_umode(struct drm_display_mode *out,
+				  const struct drm_mode_modeinfo *in)
 {
+	if (in->clock > INT_MAX || in->vrefresh > INT_MAX)
+		return -ERANGE;
+
 	out->clock = in->clock;
 	out->hdisplay = in->hdisplay;
 	out->hsync_start = in->hsync_start;
@@ -1113,6 +1117,8 @@ void drm_crtc_convert_umode(struct drm_display_mode *out,
 	out->type = in->type;
 	strncpy(out->name, in->name, DRM_DISPLAY_MODE_LEN);
 	out->name[DRM_DISPLAY_MODE_LEN-1] = 0;
+
+	return 0;
 }
 
 /**
@@ -1311,7 +1317,7 @@ out:
  * @arg: arg from ioctl
  *
  * LOCKING:
- * Caller? (FIXME)
+ * Takes mode config lock.
  *
  * Construct a CRTC configuration structure to return to the user.
  *
@@ -1371,7 +1377,7 @@ out:
  * @arg: arg from ioctl
  *
  * LOCKING:
- * Caller? (FIXME)
+ * Takes mode config lock.
  *
  * Construct a connector configuration structure to return to the user.
  *
@@ -1553,6 +1559,9 @@ out:
  * @data: ioctl data
  * @file_priv: DRM file info
  *
+ * LOCKING:
+ * Takes mode config lock.
+ *
  * Return an plane count and set of IDs.
  */
 int drm_mode_getplane_res(struct drm_device *dev, void *data,
@@ -1598,6 +1607,9 @@ out:
  * @dev: DRM device
  * @data: ioctl data
  * @file_priv: DRM file info
+ *
+ * LOCKING:
+ * Takes mode config lock.
  *
  * Return plane info, including formats supported, gamma size, any
  * current fb, etc.
@@ -1663,6 +1675,9 @@ out:
  * @dev: DRM device
  * @data: ioctl data*
  * @file_prive: DRM file info
+ *
+ * LOCKING:
+ * Takes mode config lock.
  *
  * Set plane info, including placement, fb, scaling, and other factors.
  * Or pass a NULL fb to disable.
@@ -1794,7 +1809,7 @@ out:
  * @arg: arg from ioctl
  *
  * LOCKING:
- * Caller? (FIXME)
+ * Takes mode config lock.
  *
  * Build a new CRTC configuration based on user request.
  *
@@ -1809,7 +1824,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_mode_crtc *crtc_req = data;
 	struct drm_mode_object *obj;
-	struct drm_crtc *crtc, *crtcfb;
+	struct drm_crtc *crtc;
 	struct drm_connector **connector_set = NULL, *connector;
 	struct drm_framebuffer *fb = NULL;
 	struct drm_display_mode *mode = NULL;
@@ -1820,6 +1835,10 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
+
+	/* For some reason crtc x/y offsets are signed internally. */
+	if (crtc_req->x > INT_MAX || crtc_req->y > INT_MAX)
+		return -ERANGE;
 
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, crtc_req->crtc_id,
@@ -1836,14 +1855,12 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		/* If we have a mode we need a framebuffer. */
 		/* If we pass -1, set the mode with the currently bound fb */
 		if (crtc_req->fb_id == -1) {
-			list_for_each_entry(crtcfb,
-					    &dev->mode_config.crtc_list, head) {
-				if (crtcfb == crtc) {
-					DRM_DEBUG_KMS("Using current fb for "
-							"setmode\n");
-					fb = crtc->fb;
-				}
+			if (!crtc->fb) {
+				DRM_DEBUG_KMS("CRTC doesn't have current FB\n");
+				ret = -EINVAL;
+				goto out;
 			}
+			fb = crtc->fb;
 		} else {
 			obj = drm_mode_object_find(dev, crtc_req->fb_id,
 						   DRM_MODE_OBJECT_FB);
@@ -1857,8 +1874,30 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		}
 
 		mode = drm_mode_create(dev);
-		drm_crtc_convert_umode(mode, &crtc_req->mode);
+		if (!mode) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		ret = drm_crtc_convert_umode(mode, &crtc_req->mode);
+		if (ret) {
+			DRM_DEBUG_KMS("Invalid mode\n");
+			goto out;
+		}
+
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
+
+		if (mode->hdisplay > fb->width ||
+		    mode->vdisplay > fb->height ||
+		    crtc_req->x > fb->width - mode->hdisplay ||
+		    crtc_req->y > fb->height - mode->vdisplay) {
+			DRM_DEBUG_KMS("Invalid CRTC viewport %ux%u+%u+%u for fb size %ux%u.\n",
+				      mode->hdisplay, mode->vdisplay,
+				      crtc_req->x, crtc_req->y,
+				      fb->width, fb->height);
+			ret = -ENOSPC;
+			goto out;
+		}
 	}
 
 	if (crtc_req->count_connectors == 0 && mode) {
@@ -1926,6 +1965,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 out:
 	kfree(connector_set);
+	drm_mode_destroy(dev, mode);
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
@@ -2275,7 +2315,7 @@ out:
  * @arg: arg from ioctl
  *
  * LOCKING:
- * Caller? (FIXME)
+ * Takes mode config lock.
  *
  * Lookup the FB given its ID and return info about it.
  *
@@ -2424,38 +2464,48 @@ void drm_fb_release(struct drm_file *priv)
  *
  * Add @mode to @connector's user mode list.
  */
-static int drm_mode_attachmode(struct drm_device *dev,
-			       struct drm_connector *connector,
-			       struct drm_display_mode *mode)
+static void drm_mode_attachmode(struct drm_device *dev,
+				struct drm_connector *connector,
+				struct drm_display_mode *mode)
 {
-	int ret = 0;
-
 	list_add_tail(&mode->head, &connector->user_modes);
-	return ret;
 }
 
 int drm_mode_attachmode_crtc(struct drm_device *dev, struct drm_crtc *crtc,
-			     struct drm_display_mode *mode)
+			     const struct drm_display_mode *mode)
 {
 	struct drm_connector *connector;
 	int ret = 0;
-	struct drm_display_mode *dup_mode;
-	int need_dup = 0;
+	struct drm_display_mode *dup_mode, *next;
+	LIST_HEAD(list);
+
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (!connector->encoder)
-			break;
+			continue;
 		if (connector->encoder->crtc == crtc) {
-			if (need_dup)
-				dup_mode = drm_mode_duplicate(dev, mode);
-			else
-				dup_mode = mode;
-			ret = drm_mode_attachmode(dev, connector, dup_mode);
-			if (ret)
-				return ret;
-			need_dup = 1;
+			dup_mode = drm_mode_duplicate(dev, mode);
+			if (!dup_mode) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			list_add_tail(&dup_mode->head, &list);
 		}
 	}
-	return 0;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (!connector->encoder)
+			continue;
+		if (connector->encoder->crtc == crtc)
+			list_move_tail(list.next, &connector->user_modes);
+	}
+
+	WARN_ON(!list_empty(&list));
+
+ out:
+	list_for_each_entry_safe(dup_mode, next, &list, head)
+		drm_mode_destroy(dev, dup_mode);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_mode_attachmode_crtc);
 
@@ -2534,9 +2584,14 @@ int drm_mode_attachmode_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
-	drm_crtc_convert_umode(mode, umode);
+	ret = drm_crtc_convert_umode(mode, umode);
+	if (ret) {
+		DRM_DEBUG_KMS("Invalid mode\n");
+		drm_mode_destroy(dev, mode);
+		goto out;
+	}
 
-	ret = drm_mode_attachmode(dev, connector, mode);
+	drm_mode_attachmode(dev, connector, mode);
 out:
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
@@ -2577,7 +2632,12 @@ int drm_mode_detachmode_ioctl(struct drm_device *dev,
 	}
 	connector = obj_to_connector(obj);
 
-	drm_crtc_convert_umode(&mode, umode);
+	ret = drm_crtc_convert_umode(&mode, umode);
+	if (ret) {
+		DRM_DEBUG_KMS("Invalid mode\n");
+		goto out;
+	}
+
 	ret = drm_mode_detachmode(dev, connector, &mode);
 out:
 	mutex_unlock(&dev->mode_config.mutex);
@@ -2588,6 +2648,7 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 					 const char *name, int num_values)
 {
 	struct drm_property *property = NULL;
+	int ret;
 
 	property = kzalloc(sizeof(struct drm_property), GFP_KERNEL);
 	if (!property)
@@ -2599,7 +2660,10 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 			goto fail;
 	}
 
-	drm_mode_object_get(dev, &property->base, DRM_MODE_OBJECT_PROPERTY);
+	ret = drm_mode_object_get(dev, &property->base, DRM_MODE_OBJECT_PROPERTY);
+	if (ret)
+		goto fail;
+
 	property->flags = flags;
 	property->num_values = num_values;
 	INIT_LIST_HEAD(&property->enum_blob_list);
@@ -2612,10 +2676,58 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	list_add_tail(&property->head, &dev->mode_config.property_list);
 	return property;
 fail:
+	kfree(property->values);
 	kfree(property);
 	return NULL;
 }
 EXPORT_SYMBOL(drm_property_create);
+
+struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
+					 const char *name,
+					 const struct drm_prop_enum_list *props,
+					 int num_values)
+{
+	struct drm_property *property;
+	int i, ret;
+
+	flags |= DRM_MODE_PROP_ENUM;
+
+	property = drm_property_create(dev, flags, name, num_values);
+	if (!property)
+		return NULL;
+
+	for (i = 0; i < num_values; i++) {
+		ret = drm_property_add_enum(property, i,
+				      props[i].type,
+				      props[i].name);
+		if (ret) {
+			drm_property_destroy(dev, property);
+			return NULL;
+		}
+	}
+
+	return property;
+}
+EXPORT_SYMBOL(drm_property_create_enum);
+
+struct drm_property *drm_property_create_range(struct drm_device *dev, int flags,
+					 const char *name,
+					 uint64_t min, uint64_t max)
+{
+	struct drm_property *property;
+
+	flags |= DRM_MODE_PROP_RANGE;
+
+	property = drm_property_create(dev, flags, name, 2);
+	if (!property)
+		return NULL;
+
+	property->values[0] = min;
+	property->values[1] = max;
+
+	return property;
+}
+EXPORT_SYMBOL(drm_property_create_range);
 
 int drm_property_add_enum(struct drm_property *property, int index,
 			  uint64_t value, const char *name)
@@ -2828,6 +2940,7 @@ static struct drm_property_blob *drm_property_create_blob(struct drm_device *dev
 							  void *data)
 {
 	struct drm_property_blob *blob;
+	int ret;
 
 	if (!length || !data)
 		return NULL;
@@ -2836,12 +2949,15 @@ static struct drm_property_blob *drm_property_create_blob(struct drm_device *dev
 	if (!blob)
 		return NULL;
 
-	blob->data = (void *)((char *)blob + sizeof(struct drm_property_blob));
+	ret = drm_mode_object_get(dev, &blob->base, DRM_MODE_OBJECT_BLOB);
+	if (ret) {
+		kfree(blob);
+		return NULL;
+	}
+
 	blob->length = length;
 
 	memcpy(blob->data, data, length);
-
-	drm_mode_object_get(dev, &blob->base, DRM_MODE_OBJECT_BLOB);
 
 	list_add_tail(&blob->head, &dev->mode_config.property_blob_list);
 	return blob;
@@ -3021,7 +3137,7 @@ void drm_mode_connector_detach_encoder(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_mode_connector_detach_encoder);
 
-bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
+int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 				  int gamma_size)
 {
 	crtc->gamma_size = gamma_size;
@@ -3029,10 +3145,10 @@ bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 	crtc->gamma_store = kzalloc(gamma_size * sizeof(uint16_t) * 3, GFP_KERNEL);
 	if (!crtc->gamma_store) {
 		crtc->gamma_size = 0;
-		return false;
+		return -ENOMEM;
 	}
 
-	return true;
+	return 0;
 }
 EXPORT_SYMBOL(drm_mode_crtc_set_gamma_size);
 
@@ -3178,6 +3294,18 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		goto out;
 	fb = obj_to_fb(obj);
 
+	if (crtc->mode.hdisplay > fb->width ||
+	    crtc->mode.vdisplay > fb->height ||
+	    crtc->x > fb->width - crtc->mode.hdisplay ||
+	    crtc->y > fb->height - crtc->mode.vdisplay) {
+		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d.\n",
+			      fb->width, fb->height,
+			      crtc->mode.hdisplay, crtc->mode.vdisplay,
+			      crtc->x, crtc->y);
+		ret = -ENOSPC;
+		goto out;
+	}
+
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 		ret = -ENOMEM;
 		spin_lock_irqsave(&dev->event_lock, flags);
@@ -3207,10 +3335,12 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 
 	ret = crtc->funcs->page_flip(crtc, fb, e);
 	if (ret) {
-		spin_lock_irqsave(&dev->event_lock, flags);
-		file_priv->event_space += sizeof e->event;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-		kfree(e);
+		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
+			spin_lock_irqsave(&dev->event_lock, flags);
+			file_priv->event_space += sizeof e->event;
+			spin_unlock_irqrestore(&dev->event_lock, flags);
+			kfree(e);
+		}
 	}
 
 out:

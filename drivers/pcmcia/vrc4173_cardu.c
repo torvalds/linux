@@ -563,11 +563,8 @@ static int __devinit vrc4173_cardu_setup(char *options)
 
 __setup("vrc4173_cardu=", vrc4173_cardu_setup);
 
-static struct pci_device_id vrc4173_cardu_id_table[] __devinitdata = {
-	{	.vendor		= PCI_VENDOR_ID_NEC,
-		.device		= PCI_DEVICE_ID_NEC_NAPCCARD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID, },
+static DEFINE_PCI_DEVICE_TABLE(vrc4173_cardu_id_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_NAPCCARD) },
         {0, }
 };
 

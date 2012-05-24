@@ -7,15 +7,15 @@
 #include <linux/kernel.h>
 #include <linux/tty.h>
 #include <linux/proc_fs.h>
-#include <linux/string.h> 
+#include <linux/string.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/ucb1x00.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm/setup.h>
 
@@ -26,6 +26,7 @@
 #include <asm/mach/serial_sa1100.h>
 #include <mach/mcp.h>
 #include <mach/simpad.h>
+#include <mach/irqs.h>
 
 #include <linux/serial_core.h>
 #include <linux/ioport.h>
@@ -176,21 +177,18 @@ static struct flash_platform_data simpad_flash_data = {
 
 
 static struct resource simpad_flash_resources [] = {
-	{
-		.start     = SA1100_CS0_PHYS,
-		.end       = SA1100_CS0_PHYS + SZ_16M -1,
-		.flags     = IORESOURCE_MEM,
-	}, {
-		.start     = SA1100_CS1_PHYS,
-		.end       = SA1100_CS1_PHYS + SZ_16M -1,
-		.flags     = IORESOURCE_MEM,
-	}
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_16M),
+	DEFINE_RES_MEM(SA1100_CS1_PHYS, SZ_16M),
+};
+
+static struct ucb1x00_plat_data simpad_ucb1x00_data = {
+	.gpio_base	= SIMPAD_UCB1X00_GPIO_BASE,
 };
 
 static struct mcp_plat_data simpad_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
-	.gpio_base	= SIMPAD_UCB1X00_GPIO_BASE,
+	.codec_pdata	= &simpad_ucb1x00_data,
 };
 
 
@@ -376,6 +374,7 @@ static int __init simpad_init(void)
 
 	pm_power_off = simpad_power_off;
 
+	sa11x0_ppc_configure_mcp();
 	sa11x0_register_mtd(&simpad_flash_data, simpad_flash_resources,
 			      ARRAY_SIZE(simpad_flash_resources));
 	sa11x0_register_mcp(&simpad_mcp_data);
@@ -394,6 +393,7 @@ MACHINE_START(SIMPAD, "Simpad")
 	/* Maintainer: Holger Freyther */
 	.atag_offset	= 0x100,
 	.map_io		= simpad_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.restart	= sa11x0_restart,

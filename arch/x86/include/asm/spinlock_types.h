@@ -16,7 +16,6 @@ typedef u32 __ticketpair_t;
 #endif
 
 #define TICKET_SHIFT	(sizeof(__ticket_t) * 8)
-#define TICKET_MASK	((__ticket_t)((1 << TICKET_SHIFT) - 1))
 
 typedef struct arch_spinlock {
 	union {

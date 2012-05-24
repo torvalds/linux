@@ -104,7 +104,9 @@ static DEFINE_SPINLOCK(ipr_driver_lock);
 static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 	{ /* Gemstone, Citrine, Obsidian, and Obsidian-E */
 		.mailbox = 0x0042C,
+		.max_cmds = 100,
 		.cache_line_size = 0x20,
+		.clear_isr = 1,
 		{
 			.set_interrupt_mask_reg = 0x0022C,
 			.clr_interrupt_mask_reg = 0x00230,
@@ -126,7 +128,9 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 	},
 	{ /* Snipe and Scamp */
 		.mailbox = 0x0052C,
+		.max_cmds = 100,
 		.cache_line_size = 0x20,
+		.clear_isr = 1,
 		{
 			.set_interrupt_mask_reg = 0x00288,
 			.clr_interrupt_mask_reg = 0x0028C,
@@ -148,7 +152,9 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 	},
 	{ /* CRoC */
 		.mailbox = 0x00044,
+		.max_cmds = 1000,
 		.cache_line_size = 0x20,
+		.clear_isr = 0,
 		{
 			.set_interrupt_mask_reg = 0x00010,
 			.clr_interrupt_mask_reg = 0x00018,
@@ -183,7 +189,7 @@ static const struct ipr_chip_t ipr_chip[] = {
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE, IPR_USE_LSI, IPR_SIS32, IPR_PCI_CFG, &ipr_chip_cfg[1] },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP, IPR_USE_LSI, IPR_SIS32, IPR_PCI_CFG, &ipr_chip_cfg[1] },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_FPGA_E2, IPR_USE_MSI, IPR_SIS64, IPR_MMIO, &ipr_chip_cfg[2] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_ASIC_E2, IPR_USE_MSI, IPR_SIS64, IPR_MMIO, &ipr_chip_cfg[2] }
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROCODILE, IPR_USE_MSI, IPR_SIS64, IPR_MMIO, &ipr_chip_cfg[2] }
 };
 
 static int ipr_max_bus_speeds [] = {
@@ -847,8 +853,6 @@ static void ipr_do_req(struct ipr_cmnd *ipr_cmd,
 
 	ipr_trc_hook(ipr_cmd, IPR_TRACE_START, 0);
 
-	mb();
-
 	ipr_send_command(ipr_cmd);
 }
 
@@ -981,8 +985,6 @@ static void ipr_send_hcam(struct ipr_ioa_cfg *ioa_cfg, u8 type,
 			ipr_cmd->done = ipr_process_error;
 
 		ipr_trc_hook(ipr_cmd, IPR_TRACE_START, IPR_IOA_RES_ADDR);
-
-		mb();
 
 		ipr_send_command(ipr_cmd);
 	} else {
@@ -4339,8 +4341,7 @@ static struct ipr_resource_entry *ipr_find_starget(struct scsi_target *starget)
 
 	list_for_each_entry(res, &ioa_cfg->used_res_q, queue) {
 		if ((res->bus == starget->channel) &&
-		    (res->target == starget->id) &&
-		    (res->lun == 0)) {
+		    (res->target == starget->id)) {
 			return res;
 		}
 	}
@@ -4414,12 +4415,14 @@ static void ipr_target_destroy(struct scsi_target *starget)
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *) shost->hostdata;
 
 	if (ioa_cfg->sis64) {
-		if (starget->channel == IPR_ARRAY_VIRTUAL_BUS)
-			clear_bit(starget->id, ioa_cfg->array_ids);
-		else if (starget->channel == IPR_VSET_VIRTUAL_BUS)
-			clear_bit(starget->id, ioa_cfg->vset_ids);
-		else if (starget->channel == 0)
-			clear_bit(starget->id, ioa_cfg->target_ids);
+		if (!ipr_find_starget(starget)) {
+			if (starget->channel == IPR_ARRAY_VIRTUAL_BUS)
+				clear_bit(starget->id, ioa_cfg->array_ids);
+			else if (starget->channel == IPR_VSET_VIRTUAL_BUS)
+				clear_bit(starget->id, ioa_cfg->vset_ids);
+			else if (starget->channel == 0)
+				clear_bit(starget->id, ioa_cfg->target_ids);
+		}
 	}
 
 	if (sata_port) {
@@ -5048,12 +5051,14 @@ static irqreturn_t ipr_handle_other_interrupt(struct ipr_ioa_cfg *ioa_cfg,
 		del_timer(&ioa_cfg->reset_cmd->timer);
 		ipr_reset_ioa_job(ioa_cfg->reset_cmd);
 	} else if ((int_reg & IPR_PCII_HRRQ_UPDATED) == int_reg) {
-		if (ipr_debug && printk_ratelimit())
-			dev_err(&ioa_cfg->pdev->dev,
-				"Spurious interrupt detected. 0x%08X\n", int_reg);
-		writel(IPR_PCII_HRRQ_UPDATED, ioa_cfg->regs.clr_interrupt_reg32);
-		int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
-		return IRQ_NONE;
+		if (ioa_cfg->clear_isr) {
+			if (ipr_debug && printk_ratelimit())
+				dev_err(&ioa_cfg->pdev->dev,
+					"Spurious interrupt detected. 0x%08X\n", int_reg);
+			writel(IPR_PCII_HRRQ_UPDATED, ioa_cfg->regs.clr_interrupt_reg32);
+			int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
+			return IRQ_NONE;
+		}
 	} else {
 		if (int_reg & IPR_PCII_IOA_UNIT_CHECKED)
 			ioa_cfg->ioa_unit_checked = 1;
@@ -5152,6 +5157,9 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 				ioa_cfg->toggle_bit ^= 1u;
 			}
 		}
+
+		if (ipr_cmd && !ioa_cfg->clear_isr)
+			break;
 
 		if (ipr_cmd != NULL) {
 			/* Clear the PCI interrupt */
@@ -5854,14 +5862,12 @@ static int ipr_queuecommand_lck(struct scsi_cmnd *scsi_cmd,
 			rc = ipr_build_ioadl(ioa_cfg, ipr_cmd);
 	}
 
-	if (likely(rc == 0)) {
-		mb();
-		ipr_send_command(ipr_cmd);
-	} else {
-		 list_move_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
-		 return SCSI_MLQUEUE_HOST_BUSY;
+	if (unlikely(rc != 0)) {
+		list_move_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
+		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
+	ipr_send_command(ipr_cmd);
 	return 0;
 }
 
@@ -6238,8 +6244,6 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 		WARN_ON(1);
 		return AC_ERR_INVALID;
 	}
-
-	mb();
 
 	ipr_send_command(ipr_cmd);
 
@@ -8277,6 +8281,10 @@ static void ipr_free_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 	if (ioa_cfg->ipr_cmd_pool)
 		pci_pool_destroy (ioa_cfg->ipr_cmd_pool);
 
+	kfree(ioa_cfg->ipr_cmnd_list);
+	kfree(ioa_cfg->ipr_cmnd_list_dma);
+	ioa_cfg->ipr_cmnd_list = NULL;
+	ioa_cfg->ipr_cmnd_list_dma = NULL;
 	ioa_cfg->ipr_cmd_pool = NULL;
 }
 
@@ -8352,10 +8360,18 @@ static int __devinit ipr_alloc_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 	int i;
 
 	ioa_cfg->ipr_cmd_pool = pci_pool_create (IPR_NAME, ioa_cfg->pdev,
-						 sizeof(struct ipr_cmnd), 16, 0);
+						 sizeof(struct ipr_cmnd), 512, 0);
 
 	if (!ioa_cfg->ipr_cmd_pool)
 		return -ENOMEM;
+
+	ioa_cfg->ipr_cmnd_list = kcalloc(IPR_NUM_CMD_BLKS, sizeof(struct ipr_cmnd *), GFP_KERNEL);
+	ioa_cfg->ipr_cmnd_list_dma = kcalloc(IPR_NUM_CMD_BLKS, sizeof(dma_addr_t), GFP_KERNEL);
+
+	if (!ioa_cfg->ipr_cmnd_list || !ioa_cfg->ipr_cmnd_list_dma) {
+		ipr_free_cmd_blks(ioa_cfg);
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < IPR_NUM_CMD_BLKS; i++) {
 		ipr_cmd = pci_pool_alloc (ioa_cfg->ipr_cmd_pool, GFP_KERNEL, &dma_addr);
@@ -8584,6 +8600,7 @@ static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 	host->max_channel = IPR_MAX_BUS_TO_SCAN;
 	host->unique_id = host->host_no;
 	host->max_cmd_len = IPR_MAX_CDB_LEN;
+	host->can_queue = ioa_cfg->max_cmds;
 	pci_set_drvdata(pdev, ioa_cfg);
 
 	p = &ioa_cfg->chip_cfg->regs;
@@ -8768,6 +8785,8 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	/* set SIS 32 or SIS 64 */
 	ioa_cfg->sis64 = ioa_cfg->ipr_chip->sis_type == IPR_SIS64 ? 1 : 0;
 	ioa_cfg->chip_cfg = ioa_cfg->ipr_chip->cfg;
+	ioa_cfg->clear_isr = ioa_cfg->chip_cfg->clear_isr;
+	ioa_cfg->max_cmds = ioa_cfg->chip_cfg->max_cmds;
 
 	if (ipr_transop_timeout)
 		ioa_cfg->transop_timeout = ipr_transop_timeout;
@@ -9191,15 +9210,15 @@ static struct pci_device_id ipr_pci_table[] __devinitdata = {
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57C3, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_FPGA_E2,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57C4, 0, 0, 0 },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_ASIC_E2,
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROCODILE,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B4, 0, 0, 0 },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_ASIC_E2,
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROCODILE,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B1, 0, 0, 0 },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_ASIC_E2,
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROCODILE,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57C6, 0, 0, 0 },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_ASIC_E2,
-		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_575D, 0, 0, 0 },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_ASIC_E2,
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROCODILE,
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57C8, 0, 0, 0 },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROCODILE,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57CE, 0, 0, 0 },
 	{ }
 };

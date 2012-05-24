@@ -201,7 +201,7 @@ static int ab8500_list_voltage(struct regulator_dev *rdev, unsigned selector)
 	return info->voltages[selector];
 }
 
-static int ab8500_regulator_get_voltage(struct regulator_dev *rdev)
+static int ab8500_regulator_get_voltage_sel(struct regulator_dev *rdev)
 {
 	int ret, val;
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
@@ -229,11 +229,9 @@ static int ab8500_regulator_get_voltage(struct regulator_dev *rdev)
 	/* vintcore has a different layout */
 	val = regval & info->voltage_mask;
 	if (info->desc.id == AB8500_LDO_INTCORE)
-		ret = info->voltages[val >> 0x3];
+		return val >> 0x3;
 	else
-		ret = info->voltages[val];
-
-	return ret;
+		return val;
 }
 
 static int ab8500_get_best_voltage_index(struct regulator_dev *rdev,
@@ -320,7 +318,7 @@ static struct regulator_ops ab8500_regulator_ops = {
 	.enable		= ab8500_regulator_enable,
 	.disable	= ab8500_regulator_disable,
 	.is_enabled	= ab8500_regulator_is_enabled,
-	.get_voltage	= ab8500_regulator_get_voltage,
+	.get_voltage_sel = ab8500_regulator_get_voltage_sel,
 	.set_voltage	= ab8500_regulator_set_voltage,
 	.list_voltage	= ab8500_list_voltage,
 	.enable_time	= ab8500_regulator_enable_time,

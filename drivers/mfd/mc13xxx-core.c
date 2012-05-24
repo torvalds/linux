@@ -560,6 +560,8 @@ EXPORT_SYMBOL(mc13xxx_get_flags);
 
 #define MC13XXX_ADC1_CHAN0_SHIFT	5
 #define MC13XXX_ADC1_CHAN1_SHIFT	8
+#define MC13783_ADC1_ATO_SHIFT		11
+#define MC13783_ADC1_ATOX		(1 << 19)
 
 struct mc13xxx_adcdone_data {
 	struct mc13xxx *mc13xxx;
@@ -580,7 +582,8 @@ static irqreturn_t mc13xxx_handler_adcdone(int irq, void *data)
 #define MC13XXX_ADC_WORKING (1 << 0)
 
 int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx, unsigned int mode,
-		unsigned int channel, unsigned int *sample)
+		unsigned int channel, u8 ato, bool atox,
+		unsigned int *sample)
 {
 	u32 adc0, adc1, old_adc0;
 	int i, ret;
@@ -631,6 +634,9 @@ int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx, unsigned int mode,
 		return -EINVAL;
 	}
 
+	adc1 |= ato << MC13783_ADC1_ATO_SHIFT;
+	if (atox)
+		adc1 |= MC13783_ADC1_ATOX;
 	dev_dbg(&mc13xxx->spidev->dev, "%s: request irq\n", __func__);
 	mc13xxx_irq_request(mc13xxx, MC13XXX_IRQ_ADCDONE,
 			mc13xxx_handler_adcdone, __func__, &adcdone_data);
@@ -813,7 +819,8 @@ err_revision:
 		mc13xxx_add_subdevice(mc13xxx, "%s-rtc");
 
 	if (mc13xxx->flags & MC13XXX_USE_TOUCHSCREEN)
-		mc13xxx_add_subdevice(mc13xxx, "%s-ts");
+		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-ts",
+				&pdata->touch, sizeof(pdata->touch));
 
 	if (pdata) {
 		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-regulator",

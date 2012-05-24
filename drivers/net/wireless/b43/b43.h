@@ -932,6 +932,9 @@ struct b43_wl {
 	/* Flag that implement the queues stopping. */
 	bool tx_queue_stopped[B43_QOS_QUEUE_NUM];
 
+	/* firmware loading work */
+	struct work_struct firmware_load;
+
 	/* The device LEDs. */
 	struct b43_leds leds;
 
@@ -999,6 +1002,12 @@ static inline void b43_write16(struct b43_wldev *dev, u16 offset, u16 value)
 	dev->dev->write16(dev->dev, offset, value);
 }
 
+static inline void b43_maskset16(struct b43_wldev *dev, u16 offset, u16 mask,
+				 u16 set)
+{
+	b43_write16(dev, offset, (b43_read16(dev, offset) & mask) | set);
+}
+
 static inline u32 b43_read32(struct b43_wldev *dev, u16 offset)
 {
 	return dev->dev->read32(dev->dev, offset);
@@ -1007,6 +1016,12 @@ static inline u32 b43_read32(struct b43_wldev *dev, u16 offset)
 static inline void b43_write32(struct b43_wldev *dev, u16 offset, u32 value)
 {
 	dev->dev->write32(dev->dev, offset, value);
+}
+
+static inline void b43_maskset32(struct b43_wldev *dev, u16 offset, u32 mask,
+				 u32 set)
+{
+	b43_write32(dev, offset, (b43_read32(dev, offset) & mask) | set);
 }
 
 static inline void b43_block_read(struct b43_wldev *dev, void *buffer,

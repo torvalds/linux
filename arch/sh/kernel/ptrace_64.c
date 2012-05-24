@@ -34,11 +34,11 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
 #include <asm/syscalls.h>
 #include <asm/fpu.h>
+#include <asm/traps.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>

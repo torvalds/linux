@@ -296,7 +296,7 @@ static int neo1973_gta02_wm8753_init(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	ret = snd_soc_add_controls(codec, neo1973_gta02_wm8753_controls,
+	ret = snd_soc_add_card_controls(codec->card, neo1973_gta02_wm8753_controls,
 			ARRAY_SIZE(neo1973_gta02_wm8753_controls));
 	if (ret)
 		return ret;
@@ -328,7 +328,7 @@ static int neo1973_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 
 	/* add neo1973 specific controls */
-	ret = snd_soc_add_controls(codec, neo1973_wm8753_controls,
+	ret = snd_soc_add_card_controls(rtd->card, neo1973_wm8753_controls,
 			ARRAY_SIZE(neo1973_wm8753_controls));
 	if (ret)
 		return ret;
@@ -367,7 +367,7 @@ static struct snd_soc_dai_link neo1973_dai[] = {
 	.platform_name = "samsung-audio",
 	.cpu_dai_name = "s3c24xx-iis",
 	.codec_dai_name = "wm8753-hifi",
-	.codec_name = "wm8753-codec.0-001a",
+	.codec_name = "wm8753.0-001a",
 	.init = neo1973_wm8753_init,
 	.ops = &neo1973_hifi_ops,
 },
@@ -376,7 +376,7 @@ static struct snd_soc_dai_link neo1973_dai[] = {
 	.stream_name = "Voice",
 	.cpu_dai_name = "dfbmcs320-pcm",
 	.codec_dai_name = "wm8753-voice",
-	.codec_name = "wm8753-codec.0-001a",
+	.codec_name = "wm8753.0-001a",
 	.ops = &neo1973_voice_ops,
 },
 };

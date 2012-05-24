@@ -751,8 +751,8 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 	if (set)
 		mtd->mtd.name = set->name;
 
-	return mtd_device_parse_register(&mtd->mtd, NULL, 0,
-			set->partitions, set->nr_partitions);
+	return mtd_device_parse_register(&mtd->mtd, NULL, NULL,
+					 set->partitions, set->nr_partitions);
 }
 
 /**
@@ -823,6 +823,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		chip->ecc.calculate = s3c2410_nand_calculate_ecc;
 		chip->ecc.correct   = s3c2410_nand_correct_data;
 		chip->ecc.mode	    = NAND_ECC_HW;
+		chip->ecc.strength  = 1;
 
 		switch (info->cpu_type) {
 		case TYPE_S3C2410:

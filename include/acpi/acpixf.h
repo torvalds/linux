@@ -47,8 +47,9 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20120111
+#define ACPI_CA_VERSION                 0x20120320
 
+#include "acconfig.h"
 #include "actypes.h"
 #include "actbl.h"
 
@@ -70,6 +71,33 @@ extern bool acpi_gbl_enable_aml_debug_object;
 extern u8 acpi_gbl_copy_dsdt_locally;
 extern u8 acpi_gbl_truncate_io_addresses;
 extern u8 acpi_gbl_disable_auto_repair;
+
+/*
+ * Hardware-reduced prototypes. All interfaces that use these macros will
+ * be configured out of the ACPICA build if the ACPI_REDUCED_HARDWARE flag
+ * is set to TRUE.
+ */
+#if (!ACPI_REDUCED_HARDWARE)
+#define ACPI_HW_DEPENDENT_RETURN_STATUS(prototype) \
+	prototype;
+
+#define ACPI_HW_DEPENDENT_RETURN_OK(prototype) \
+	prototype;
+
+#define ACPI_HW_DEPENDENT_RETURN_VOID(prototype) \
+	prototype;
+
+#else
+#define ACPI_HW_DEPENDENT_RETURN_STATUS(prototype) \
+	static ACPI_INLINE prototype {return(AE_NOT_CONFIGURED);}
+
+#define ACPI_HW_DEPENDENT_RETURN_OK(prototype) \
+	static ACPI_INLINE prototype {return(AE_OK);}
+
+#define ACPI_HW_DEPENDENT_RETURN_VOID(prototype) \
+	static ACPI_INLINE prototype {}
+
+#endif				/* !ACPI_REDUCED_HARDWARE */
 
 extern u32 acpi_current_gpe_count;
 extern struct acpi_table_fadt acpi_gbl_FADT;
@@ -96,9 +124,8 @@ acpi_status acpi_terminate(void);
 acpi_status acpi_subsystem_status(void);
 #endif
 
-acpi_status acpi_enable(void);
-
-acpi_status acpi_disable(void);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable(void))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_disable(void))
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status acpi_get_system_info(struct acpi_buffer *ret_buffer);
@@ -235,17 +262,34 @@ acpi_status acpi_get_parent(acpi_handle object, acpi_handle * out_handle);
 acpi_status
 acpi_install_initialization_handler(acpi_init_handler handler, u32 function);
 
-acpi_status
-acpi_install_global_event_handler(ACPI_GBL_EVENT_HANDLER handler,
-				 void *context);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_install_global_event_handler
+				(ACPI_GBL_EVENT_HANDLER handler, void *context))
 
-acpi_status
-acpi_install_fixed_event_handler(u32 acpi_event,
-				 acpi_event_handler handler, void *context);
-
-acpi_status
-acpi_remove_fixed_event_handler(u32 acpi_event, acpi_event_handler handler);
-
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				 acpi_install_fixed_event_handler(u32
+								  acpi_event,
+								  acpi_event_handler
+								  handler,
+								  void
+								  *context))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				 acpi_remove_fixed_event_handler(u32 acpi_event,
+								 acpi_event_handler
+								 handler))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				 acpi_install_gpe_handler(acpi_handle
+							  gpe_device,
+							  u32 gpe_number,
+							  u32 type,
+							  acpi_gpe_handler
+							  address,
+							  void *context))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				 acpi_remove_gpe_handler(acpi_handle gpe_device,
+							 u32 gpe_number,
+							 acpi_gpe_handler
+							 address))
 acpi_status
 acpi_install_notify_handler(acpi_handle device,
 			    u32 handler_type,
@@ -266,15 +310,6 @@ acpi_remove_address_space_handler(acpi_handle device,
 				  acpi_adr_space_type space_id,
 				  acpi_adr_space_handler handler);
 
-acpi_status
-acpi_install_gpe_handler(acpi_handle gpe_device,
-			 u32 gpe_number,
-			 u32 type, acpi_gpe_handler address, void *context);
-
-acpi_status
-acpi_remove_gpe_handler(acpi_handle gpe_device,
-			u32 gpe_number, acpi_gpe_handler address);
-
 #ifdef ACPI_FUTURE_USAGE
 acpi_status acpi_install_exception_handler(acpi_exception_handler handler);
 #endif
@@ -284,9 +319,11 @@ acpi_status acpi_install_interface_handler(acpi_interface_handler handler);
 /*
  * Global Lock interfaces
  */
-acpi_status acpi_acquire_global_lock(u16 timeout, u32 * handle);
-
-acpi_status acpi_release_global_lock(u32 handle);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_acquire_global_lock(u16 timeout,
+							 u32 *handle))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_release_global_lock(u32 handle))
 
 /*
  * Interfaces to AML mutex objects
@@ -299,47 +336,75 @@ acpi_status acpi_release_mutex(acpi_handle handle, acpi_string pathname);
 /*
  * Fixed Event interfaces
  */
-acpi_status acpi_enable_event(u32 event, u32 flags);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_enable_event(u32 event, u32 flags))
 
-acpi_status acpi_disable_event(u32 event, u32 flags);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_disable_event(u32 event, u32 flags))
 
-acpi_status acpi_clear_event(u32 event);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_clear_event(u32 event))
 
-acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status);
-
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_get_event_status(u32 event,
+						      acpi_event_status
+						      *event_status))
 /*
  * General Purpose Event (GPE) Interfaces
  */
-acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_update_all_gpes(void))
 
-acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_enable_gpe(acpi_handle gpe_device,
+						u32 gpe_number))
 
-acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_disable_gpe(acpi_handle gpe_device,
+						 u32 gpe_number))
 
-acpi_status
-acpi_setup_gpe_for_wake(acpi_handle parent_device,
-			acpi_handle gpe_device, u32 gpe_number);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_clear_gpe(acpi_handle gpe_device,
+					       u32 gpe_number))
 
-acpi_status acpi_set_gpe_wake_mask(acpi_handle gpe_device, u32 gpe_number, u8 action);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_set_gpe(acpi_handle gpe_device,
+					     u32 gpe_number, u8 action))
 
-acpi_status
-acpi_get_gpe_status(acpi_handle gpe_device,
-		    u32 gpe_number, acpi_event_status *event_status);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_finish_gpe(acpi_handle gpe_device,
+						u32 gpe_number))
 
-acpi_status acpi_disable_all_gpes(void);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_setup_gpe_for_wake(acpi_handle
+							parent_device,
+							acpi_handle gpe_device,
+							u32 gpe_number))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				 acpi_set_gpe_wake_mask(acpi_handle gpe_device,
+							u32 gpe_number,
+							u8 action))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				 acpi_get_gpe_status(acpi_handle gpe_device,
+						     u32 gpe_number,
+						     acpi_event_status
+						     *event_status))
 
-acpi_status acpi_enable_all_runtime_gpes(void);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_disable_all_gpes(void))
 
-acpi_status acpi_get_gpe_device(u32 gpe_index, acpi_handle *gpe_device);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable_all_runtime_gpes(void))
 
-acpi_status
-acpi_install_gpe_block(acpi_handle gpe_device,
-		       struct acpi_generic_address *gpe_block_address,
-		       u32 register_count, u32 interrupt_number);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_get_gpe_device(u32 gpe_index,
+						    acpi_handle * gpe_device))
 
-acpi_status acpi_remove_gpe_block(acpi_handle gpe_device);
-
-acpi_status acpi_update_all_gpes(void);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_install_gpe_block(acpi_handle gpe_device,
+						       struct
+						       acpi_generic_address
+						       *gpe_block_address,
+						       u32 register_count,
+						       u32 interrupt_number))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				 acpi_remove_gpe_block(acpi_handle gpe_device))
 
 /*
  * Resource interfaces
@@ -391,32 +456,58 @@ acpi_buffer_to_resource(u8 *aml_buffer,
  */
 acpi_status acpi_reset(void);
 
-acpi_status acpi_read_bit_register(u32 register_id, u32 *return_value);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_read_bit_register(u32 register_id,
+						       u32 *return_value))
 
-acpi_status acpi_write_bit_register(u32 register_id, u32 value);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_write_bit_register(u32 register_id,
+							u32 value))
 
-acpi_status acpi_set_firmware_waking_vector(u32 physical_address);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_set_firmware_waking_vector(u32
+								physical_address))
 
 #if ACPI_MACHINE_WIDTH == 64
-acpi_status acpi_set_firmware_waking_vector64(u64 physical_address);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_set_firmware_waking_vector64(u64
+								  physical_address))
 #endif
 
 acpi_status acpi_read(u64 *value, struct acpi_generic_address *reg);
 
 acpi_status acpi_write(u64 value, struct acpi_generic_address *reg);
 
+/*
+ * Sleep/Wake interfaces
+ */
 acpi_status
 acpi_get_sleep_type_data(u8 sleep_state, u8 * slp_typ_a, u8 * slp_typ_b);
 
 acpi_status acpi_enter_sleep_state_prep(u8 sleep_state);
 
-acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state);
+acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state, u8 flags);
 
-acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void);
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void))
 
-acpi_status acpi_leave_sleep_state_prep(u8 sleep_state);
+acpi_status acpi_leave_sleep_state_prep(u8 sleep_state, u8 flags);
 
 acpi_status acpi_leave_sleep_state(u8 sleep_state);
+
+/*
+ * ACPI Timer interfaces
+ */
+#ifdef ACPI_FUTURE_USAGE
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_get_timer_resolution(u32 *resolution))
+
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_get_timer(u32 *ticks))
+
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_get_timer_duration(u32 start_ticks,
+							u32 end_ticks,
+							u32 *time_elapsed))
+#endif				/* ACPI_FUTURE_USAGE */
 
 /*
  * Error/Warning output

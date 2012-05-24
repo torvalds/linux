@@ -67,7 +67,7 @@
 
 
 struct axon_msic {
-	struct irq_host *irq_host;
+	struct irq_domain *irq_domain;
 	__le32 *fifo_virt;
 	dma_addr_t fifo_phys;
 	dcr_host_t dcr_host;
@@ -152,7 +152,7 @@ static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
 
 static struct axon_msic *find_msi_translator(struct pci_dev *dev)
 {
-	struct irq_host *irq_host;
+	struct irq_domain *irq_domain;
 	struct device_node *dn, *tmp;
 	const phandle *ph;
 	struct axon_msic *msic = NULL;
@@ -184,14 +184,14 @@ static struct axon_msic *find_msi_translator(struct pci_dev *dev)
 		goto out_error;
 	}
 
-	irq_host = irq_find_host(dn);
-	if (!irq_host) {
-		dev_dbg(&dev->dev, "axon_msi: no irq_host found for node %s\n",
+	irq_domain = irq_find_host(dn);
+	if (!irq_domain) {
+		dev_dbg(&dev->dev, "axon_msi: no irq_domain found for node %s\n",
 			dn->full_name);
 		goto out_error;
 	}
 
-	msic = irq_host->host_data;
+	msic = irq_domain->host_data;
 
 out_error:
 	of_node_put(dn);
@@ -280,7 +280,7 @@ static int axon_msi_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	BUILD_BUG_ON(NR_IRQS > 65536);
 
 	list_for_each_entry(entry, &dev->msi_list, list) {
-		virq = irq_create_direct_mapping(msic->irq_host);
+		virq = irq_create_direct_mapping(msic->irq_domain);
 		if (virq == NO_IRQ) {
 			dev_warn(&dev->dev,
 				 "axon_msi: virq allocation failed!\n");
@@ -318,7 +318,7 @@ static struct irq_chip msic_irq_chip = {
 	.name		= "AXON-MSI",
 };
 
-static int msic_host_map(struct irq_host *h, unsigned int virq,
+static int msic_host_map(struct irq_domain *h, unsigned int virq,
 			 irq_hw_number_t hw)
 {
 	irq_set_chip_data(virq, h->host_data);
@@ -327,7 +327,7 @@ static int msic_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_host_ops msic_host_ops = {
+static const struct irq_domain_ops msic_host_ops = {
 	.map	= msic_host_map,
 };
 
@@ -337,7 +337,7 @@ static void axon_msi_shutdown(struct platform_device *device)
 	u32 tmp;
 
 	pr_devel("axon_msi: disabling %s\n",
-		  msic->irq_host->of_node->full_name);
+		  msic->irq_domain->of_node->full_name);
 	tmp  = dcr_read(msic->dcr_host, MSIC_CTRL_REG);
 	tmp &= ~MSIC_CTRL_ENABLE & ~MSIC_CTRL_IRQ_ENABLE;
 	msic_dcr_write(msic, MSIC_CTRL_REG, tmp);
@@ -392,15 +392,12 @@ static int axon_msi_probe(struct platform_device *device)
 	}
 	memset(msic->fifo_virt, 0xff, MSIC_FIFO_SIZE_BYTES);
 
-	msic->irq_host = irq_alloc_host(dn, IRQ_HOST_MAP_NOMAP,
-					NR_IRQS, &msic_host_ops, 0);
-	if (!msic->irq_host) {
-		printk(KERN_ERR "axon_msi: couldn't allocate irq_host for %s\n",
+	msic->irq_domain = irq_domain_add_nomap(dn, 0, &msic_host_ops, msic);
+	if (!msic->irq_domain) {
+		printk(KERN_ERR "axon_msi: couldn't allocate irq_domain for %s\n",
 		       dn->full_name);
 		goto out_free_fifo;
 	}
-
-	msic->irq_host->host_data = msic;
 
 	irq_set_handler_data(virq, msic);
 	irq_set_chained_handler(virq, axon_msi_cascade);

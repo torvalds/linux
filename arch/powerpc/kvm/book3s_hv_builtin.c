@@ -18,6 +18,15 @@
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 
+#define KVM_LINEAR_RMA		0
+#define KVM_LINEAR_HPT		1
+
+static void __init kvm_linear_init_one(ulong size, int count, int type);
+static struct kvmppc_linear_info *kvm_alloc_linear(int type);
+static void kvm_release_linear(struct kvmppc_linear_info *ri);
+
+/*************** RMA *************/
+
 /*
  * This maintains a list of RMAs (real mode areas) for KVM guests to use.
  * Each RMA has to be physically contiguous and of a size that the
@@ -28,32 +37,6 @@
  */
 static unsigned long kvm_rma_size = 64 << 20;	/* 64MB */
 static unsigned long kvm_rma_count;
-
-static int __init early_parse_rma_size(char *p)
-{
-	if (!p)
-		return 1;
-
-	kvm_rma_size = memparse(p, &p);
-
-	return 0;
-}
-early_param("kvm_rma_size", early_parse_rma_size);
-
-static int __init early_parse_rma_count(char *p)
-{
-	if (!p)
-		return 1;
-
-	kvm_rma_count = simple_strtoul(p, NULL, 0);
-
-	return 0;
-}
-early_param("kvm_rma_count", early_parse_rma_count);
-
-static struct kvmppc_rma_info *rma_info;
-static LIST_HEAD(free_rmas);
-static DEFINE_SPINLOCK(rma_lock);
 
 /* Work out RMLS (real mode limit selector) field value for a given RMA size.
    Assumes POWER7 or PPC970. */
@@ -81,18 +64,154 @@ static inline int lpcr_rmls(unsigned long rma_size)
 	}
 }
 
+static int __init early_parse_rma_size(char *p)
+{
+	if (!p)
+		return 1;
+
+	kvm_rma_size = memparse(p, &p);
+
+	return 0;
+}
+early_param("kvm_rma_size", early_parse_rma_size);
+
+static int __init early_parse_rma_count(char *p)
+{
+	if (!p)
+		return 1;
+
+	kvm_rma_count = simple_strtoul(p, NULL, 0);
+
+	return 0;
+}
+early_param("kvm_rma_count", early_parse_rma_count);
+
+struct kvmppc_linear_info *kvm_alloc_rma(void)
+{
+	return kvm_alloc_linear(KVM_LINEAR_RMA);
+}
+EXPORT_SYMBOL_GPL(kvm_alloc_rma);
+
+void kvm_release_rma(struct kvmppc_linear_info *ri)
+{
+	kvm_release_linear(ri);
+}
+EXPORT_SYMBOL_GPL(kvm_release_rma);
+
+/*************** HPT *************/
+
 /*
- * Called at boot time while the bootmem allocator is active,
- * to allocate contiguous physical memory for the real memory
- * areas for guests.
+ * This maintains a list of big linear HPT tables that contain the GVA->HPA
+ * memory mappings. If we don't reserve those early on, we might not be able
+ * to get a big (usually 16MB) linear memory region from the kernel anymore.
  */
-void __init kvm_rma_init(void)
+
+static unsigned long kvm_hpt_count;
+
+static int __init early_parse_hpt_count(char *p)
+{
+	if (!p)
+		return 1;
+
+	kvm_hpt_count = simple_strtoul(p, NULL, 0);
+
+	return 0;
+}
+early_param("kvm_hpt_count", early_parse_hpt_count);
+
+struct kvmppc_linear_info *kvm_alloc_hpt(void)
+{
+	return kvm_alloc_linear(KVM_LINEAR_HPT);
+}
+EXPORT_SYMBOL_GPL(kvm_alloc_hpt);
+
+void kvm_release_hpt(struct kvmppc_linear_info *li)
+{
+	kvm_release_linear(li);
+}
+EXPORT_SYMBOL_GPL(kvm_release_hpt);
+
+/*************** generic *************/
+
+static LIST_HEAD(free_linears);
+static DEFINE_SPINLOCK(linear_lock);
+
+static void __init kvm_linear_init_one(ulong size, int count, int type)
 {
 	unsigned long i;
 	unsigned long j, npages;
-	void *rma;
+	void *linear;
 	struct page *pg;
+	const char *typestr;
+	struct kvmppc_linear_info *linear_info;
 
+	if (!count)
+		return;
+
+	typestr = (type == KVM_LINEAR_RMA) ? "RMA" : "HPT";
+
+	npages = size >> PAGE_SHIFT;
+	linear_info = alloc_bootmem(count * sizeof(struct kvmppc_linear_info));
+	for (i = 0; i < count; ++i) {
+		linear = alloc_bootmem_align(size, size);
+		pr_info("Allocated KVM %s at %p (%ld MB)\n", typestr, linear,
+			size >> 20);
+		linear_info[i].base_virt = linear;
+		linear_info[i].base_pfn = __pa(linear) >> PAGE_SHIFT;
+		linear_info[i].npages = npages;
+		linear_info[i].type = type;
+		list_add_tail(&linear_info[i].list, &free_linears);
+		atomic_set(&linear_info[i].use_count, 0);
+
+		pg = pfn_to_page(linear_info[i].base_pfn);
+		for (j = 0; j < npages; ++j) {
+			atomic_inc(&pg->_count);
+			++pg;
+		}
+	}
+}
+
+static struct kvmppc_linear_info *kvm_alloc_linear(int type)
+{
+	struct kvmppc_linear_info *ri, *ret;
+
+	ret = NULL;
+	spin_lock(&linear_lock);
+	list_for_each_entry(ri, &free_linears, list) {
+		if (ri->type != type)
+			continue;
+
+		list_del(&ri->list);
+		atomic_inc(&ri->use_count);
+		memset(ri->base_virt, 0, ri->npages << PAGE_SHIFT);
+		ret = ri;
+		break;
+	}
+	spin_unlock(&linear_lock);
+	return ret;
+}
+
+static void kvm_release_linear(struct kvmppc_linear_info *ri)
+{
+	if (atomic_dec_and_test(&ri->use_count)) {
+		spin_lock(&linear_lock);
+		list_add_tail(&ri->list, &free_linears);
+		spin_unlock(&linear_lock);
+
+	}
+}
+
+/*
+ * Called at boot time while the bootmem allocator is active,
+ * to allocate contiguous physical memory for the hash page
+ * tables for guests.
+ */
+void __init kvm_linear_init(void)
+{
+	/* HPT */
+	kvm_linear_init_one(1 << HPT_ORDER, kvm_hpt_count, KVM_LINEAR_HPT);
+
+	/* RMA */
 	/* Only do this on PPC970 in HV mode */
 	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
 	    !cpu_has_feature(CPU_FTR_ARCH_201))
@@ -107,50 +226,5 @@ void __init kvm_rma_init(void)
 		return;
 	}
 
-	npages = kvm_rma_size >> PAGE_SHIFT;
-	rma_info = alloc_bootmem(kvm_rma_count * sizeof(struct kvmppc_rma_info));
-	for (i = 0; i < kvm_rma_count; ++i) {
-		rma = alloc_bootmem_align(kvm_rma_size, kvm_rma_size);
-		pr_info("Allocated KVM RMA at %p (%ld MB)\n", rma,
-			kvm_rma_size >> 20);
-		rma_info[i].base_virt = rma;
-		rma_info[i].base_pfn = __pa(rma) >> PAGE_SHIFT;
-		rma_info[i].npages = npages;
-		list_add_tail(&rma_info[i].list, &free_rmas);
-		atomic_set(&rma_info[i].use_count, 0);
-
-		pg = pfn_to_page(rma_info[i].base_pfn);
-		for (j = 0; j < npages; ++j) {
-			atomic_inc(&pg->_count);
-			++pg;
-		}
-	}
+	kvm_linear_init_one(kvm_rma_size, kvm_rma_count, KVM_LINEAR_RMA);
 }
-
-struct kvmppc_rma_info *kvm_alloc_rma(void)
-{
-	struct kvmppc_rma_info *ri;
-
-	ri = NULL;
-	spin_lock(&rma_lock);
-	if (!list_empty(&free_rmas)) {
-		ri = list_first_entry(&free_rmas, struct kvmppc_rma_info, list);
-		list_del(&ri->list);
-		atomic_inc(&ri->use_count);
-	}
-	spin_unlock(&rma_lock);
-	return ri;
-}
-EXPORT_SYMBOL_GPL(kvm_alloc_rma);
-
-void kvm_release_rma(struct kvmppc_rma_info *ri)
-{
-	if (atomic_dec_and_test(&ri->use_count)) {
-		spin_lock(&rma_lock);
-		list_add_tail(&ri->list, &free_rmas);
-		spin_unlock(&rma_lock);
-
-	}
-}
-EXPORT_SYMBOL_GPL(kvm_release_rma);
-

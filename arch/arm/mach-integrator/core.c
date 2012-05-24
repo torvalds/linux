@@ -25,9 +25,9 @@
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <asm/irq.h>
 #include <mach/cm.h>
-#include <asm/system.h>
+#include <mach/irqs.h>
+
 #include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/mach/time.h>
@@ -35,67 +35,23 @@
 
 static struct amba_pl010_data integrator_uart_data;
 
-static struct amba_device rtc_device = {
-	.dev		= {
-		.init_name = "mb:15",
-	},
-	.res		= {
-		.start	= INTEGRATOR_RTC_BASE,
-		.end	= INTEGRATOR_RTC_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= { IRQ_RTCINT, NO_IRQ },
-};
+#define INTEGRATOR_RTC_IRQ	{ IRQ_RTCINT }
+#define INTEGRATOR_UART0_IRQ	{ IRQ_UARTINT0 }
+#define INTEGRATOR_UART1_IRQ	{ IRQ_UARTINT1 }
+#define KMI0_IRQ		{ IRQ_KMIINT0 }
+#define KMI1_IRQ		{ IRQ_KMIINT1 }
 
-static struct amba_device uart0_device = {
-	.dev		= {
-		.init_name = "mb:16",
-		.platform_data = &integrator_uart_data,
-	},
-	.res		= {
-		.start	= INTEGRATOR_UART0_BASE,
-		.end	= INTEGRATOR_UART0_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= { IRQ_UARTINT0, NO_IRQ },
-};
+static AMBA_APB_DEVICE(rtc, "mb:15", 0,
+	INTEGRATOR_RTC_BASE, INTEGRATOR_RTC_IRQ, NULL);
 
-static struct amba_device uart1_device = {
-	.dev		= {
-		.init_name = "mb:17",
-		.platform_data = &integrator_uart_data,
-	},
-	.res		= {
-		.start	= INTEGRATOR_UART1_BASE,
-		.end	= INTEGRATOR_UART1_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= { IRQ_UARTINT1, NO_IRQ },
-};
+static AMBA_APB_DEVICE(uart0, "mb:16", 0,
+	INTEGRATOR_UART0_BASE, INTEGRATOR_UART0_IRQ, &integrator_uart_data);
 
-static struct amba_device kmi0_device = {
-	.dev		= {
-		.init_name = "mb:18",
-	},
-	.res		= {
-		.start	= KMI0_BASE,
-		.end	= KMI0_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= { IRQ_KMIINT0, NO_IRQ },
-};
+static AMBA_APB_DEVICE(uart1, "mb:17", 0,
+	INTEGRATOR_UART1_BASE, INTEGRATOR_UART1_IRQ, &integrator_uart_data);
 
-static struct amba_device kmi1_device = {
-	.dev		= {
-		.init_name = "mb:19",
-	},
-	.res		= {
-		.start	= KMI1_BASE,
-		.end	= KMI1_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= { IRQ_KMIINT1, NO_IRQ },
-};
+static AMBA_APB_DEVICE(kmi0, "mb:18", 0, KMI0_BASE, KMI0_IRQ, NULL);
+static AMBA_APB_DEVICE(kmi1, "mb:19", 0, KMI1_BASE, KMI1_IRQ, NULL);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&rtc_device,

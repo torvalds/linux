@@ -689,7 +689,7 @@ kdb_printit:
 	if (!dbg_kdb_mode && kgdb_connected) {
 		gdbstub_msg_write(kdb_buffer, retlen);
 	} else {
-		if (!dbg_io_ops->is_console) {
+		if (dbg_io_ops && !dbg_io_ops->is_console) {
 			len = strlen(kdb_buffer);
 			cp = kdb_buffer;
 			while (len--) {
@@ -743,7 +743,7 @@ kdb_printit:
 		kdb_input_flush();
 		c = console_drivers;
 
-		if (!dbg_io_ops->is_console) {
+		if (dbg_io_ops && !dbg_io_ops->is_console) {
 			len = strlen(moreprompt);
 			cp = moreprompt;
 			while (len--) {

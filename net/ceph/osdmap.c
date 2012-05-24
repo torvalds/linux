@@ -283,7 +283,8 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		ceph_decode_32_safe(p, end, yes, bad);
 #if BITS_PER_LONG == 32
 		err = -EINVAL;
-		if (yes > ULONG_MAX / sizeof(struct crush_rule_step))
+		if (yes > (ULONG_MAX - sizeof(*r))
+			  / sizeof(struct crush_rule_step))
 			goto bad;
 #endif
 		r = c->rules[i] = kmalloc(sizeof(*r) +

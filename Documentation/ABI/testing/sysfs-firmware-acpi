@@ -1,3 +1,23 @@
+What:		/sys/firmware/acpi/bgrt/
+Date:		January 2012
+Contact:	Matthew Garrett <mjg@redhat.com>
+Description:
+		The BGRT is an ACPI 5.0 feature that allows the OS
+		to obtain a copy of the firmware boot splash and
+		some associated metadata. This is intended to be used
+		by boot splash applications in order to interact with
+		the firmware boot splash in order to avoid jarring
+		transitions.
+
+		image: The image bitmap. Currently a 32-bit BMP.
+		status: 1 if the image is valid, 0 if firmware invalidated it.
+		type: 0 indicates image is in BMP format.
+		version: The version of the BGRT. Currently 1.
+		xoffset: The number of pixels between the left of the screen
+			 and the left edge of the image.
+		yoffset: The number of pixels between the top of the screen
+			 and the top edge of the image.
+
 What:		/sys/firmware/acpi/interrupts/
 Date:		February 2008
 Contact:	Len Brown <lenb@kernel.org>

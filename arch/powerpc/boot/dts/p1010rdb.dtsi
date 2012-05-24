@@ -138,7 +138,7 @@
 			#size-cells = <1>;
 			compatible = "spansion,s25sl12801";
 			reg = <0>;
-			spi-max-frequency = <50000000>;
+			spi-max-frequency = <40000000>;
 
 			partition@0 {
 				/* 1MB for u-boot Bootloader Image */
@@ -196,7 +196,7 @@
 		};
 
 		tbi-phy@3 {
-			device-type = "tbi-phy";
+			device_type = "tbi-phy";
 			reg = <0x3>;
 		};
 	};

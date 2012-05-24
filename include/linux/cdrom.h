@@ -910,7 +910,6 @@ struct mode_page_header {
 
 #ifdef __KERNEL__
 #include <linux/fs.h>		/* not really needed, later.. */
-#include <linux/device.h>
 #include <linux/list.h>
 
 struct packet_command

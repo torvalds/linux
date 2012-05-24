@@ -1892,7 +1892,8 @@ static __kprobes void kretprobe_perf_func(struct kretprobe_instance *ri,
 #endif	/* CONFIG_PERF_EVENTS */
 
 static __kprobes
-int kprobe_register(struct ftrace_event_call *event, enum trace_reg type)
+int kprobe_register(struct ftrace_event_call *event,
+		    enum trace_reg type, void *data)
 {
 	struct trace_probe *tp = (struct trace_probe *)event->data;
 
@@ -1908,6 +1909,11 @@ int kprobe_register(struct ftrace_event_call *event, enum trace_reg type)
 		return enable_trace_probe(tp, TP_FLAG_PROFILE);
 	case TRACE_REG_PERF_UNREGISTER:
 		disable_trace_probe(tp, TP_FLAG_PROFILE);
+		return 0;
+	case TRACE_REG_PERF_OPEN:
+	case TRACE_REG_PERF_CLOSE:
+	case TRACE_REG_PERF_ADD:
+	case TRACE_REG_PERF_DEL:
 		return 0;
 #endif
 	}

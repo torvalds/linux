@@ -3,6 +3,7 @@
 #ifndef	__ASM_ARCH_OMAP_USB_H
 #define	__ASM_ARCH_OMAP_USB_H
 
+#include <linux/io.h>
 #include <linux/usb/musb.h>
 #include <plat/board.h>
 
@@ -105,6 +106,45 @@ extern int omap4430_phy_set_clk(struct device *dev, int on);
 extern int omap4430_phy_init(struct device *dev);
 extern int omap4430_phy_exit(struct device *dev);
 extern int omap4430_phy_suspend(struct device *dev, int suspend);
+
+/*
+ * NOTE: Please update omap USB drivers to use ioremap + read/write
+ */
+
+#define OMAP2_L4_IO_OFFSET	0xb2000000
+#define OMAP2_L4_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_L4_IO_OFFSET)
+
+static inline u8 omap_readb(u32 pa)
+{
+	return __raw_readb(OMAP2_L4_IO_ADDRESS(pa));
+}
+
+static inline u16 omap_readw(u32 pa)
+{
+	return __raw_readw(OMAP2_L4_IO_ADDRESS(pa));
+}
+
+static inline u32 omap_readl(u32 pa)
+{
+	return __raw_readl(OMAP2_L4_IO_ADDRESS(pa));
+}
+
+static inline void omap_writeb(u8 v, u32 pa)
+{
+	__raw_writeb(v, OMAP2_L4_IO_ADDRESS(pa));
+}
+
+
+static inline void omap_writew(u16 v, u32 pa)
+{
+	__raw_writew(v, OMAP2_L4_IO_ADDRESS(pa));
+}
+
+static inline void omap_writel(u32 v, u32 pa)
+{
+	__raw_writel(v, OMAP2_L4_IO_ADDRESS(pa));
+}
+
 #endif
 
 extern void am35x_musb_reset(void);

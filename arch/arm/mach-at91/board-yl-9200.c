@@ -45,6 +45,7 @@
 #include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/at91rm9200_mc.h>
+#include <mach/at91_ramc.h>
 #include <mach/cpu.h>
 
 #include "generic.h"
@@ -181,6 +182,7 @@ static struct atmel_nand_data __initdata yl9200_nand_data = {
 	.det_pin	= -EINVAL,
 	.rdy_pin	= AT91_PIN_PC14,	/* R/!B (Sheet10) */
 	.enable_pin	= AT91_PIN_PC15,	/* !CE  (Sheet10) */
+	.ecc_mode	= NAND_ECC_SOFT,
 	.parts		= yl9200_nand_partition,
 	.num_parts	= ARRAY_SIZE(yl9200_nand_partition),
 };
@@ -393,7 +395,7 @@ static void yl9200_init_video(void)
 	at91_set_A_periph(AT91_PIN_PC6, 0);
 
 	/* Initialization of the Static Memory Controller for Chip Select 2 */
-	at91_sys_write(AT91_SMC_CSR(2), AT91_SMC_DBW_16		/* 16 bit */
+	at91_ramc_write(0, AT91_SMC_CSR(2), AT91_SMC_DBW_16		/* 16 bit */
 			| AT91_SMC_WSEN | AT91_SMC_NWS_(0x4)	/* wait states */
 			| AT91_SMC_TDF_(0x100)			/* float time */
 	);

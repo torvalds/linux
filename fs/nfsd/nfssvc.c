@@ -251,13 +251,13 @@ static void nfsd_shutdown(void)
 	nfsd_up = false;
 }
 
-static void nfsd_last_thread(struct svc_serv *serv)
+static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 {
 	/* When last nfsd thread exits we need to do some clean-up */
 	nfsd_serv = NULL;
 	nfsd_shutdown();
 
-	svc_rpcb_cleanup(serv);
+	svc_rpcb_cleanup(serv, net);
 
 	printk(KERN_WARNING "nfsd: last server has exited, flushing export "
 			    "cache\n");
@@ -307,33 +307,37 @@ static void set_max_drc(void)
 	dprintk("%s nfsd_drc_max_mem %u \n", __func__, nfsd_drc_max_mem);
 }
 
+static int nfsd_get_default_max_blksize(void)
+{
+	struct sysinfo i;
+	unsigned long long target;
+	unsigned long ret;
+
+	si_meminfo(&i);
+	target = (i.totalram - i.totalhigh) << PAGE_SHIFT;
+	/*
+	 * Aim for 1/4096 of memory per thread This gives 1MB on 4Gig
+	 * machines, but only uses 32K on 128M machines.  Bottom out at
+	 * 8K on 32M and smaller.  Of course, this is only a default.
+	 */
+	target >>= 12;
+
+	ret = NFSSVC_MAXBLKSIZE;
+	while (ret > target && ret >= 8*1024*2)
+		ret /= 2;
+	return ret;
+}
+
 int nfsd_create_serv(void)
 {
-	int err = 0;
-
 	WARN_ON(!mutex_is_locked(&nfsd_mutex));
 	if (nfsd_serv) {
 		svc_get(nfsd_serv);
 		return 0;
 	}
-	if (nfsd_max_blksize == 0) {
-		/* choose a suitable default */
-		struct sysinfo i;
-		si_meminfo(&i);
-		/* Aim for 1/4096 of memory per thread
-		 * This gives 1MB on 4Gig machines
-		 * But only uses 32K on 128M machines.
-		 * Bottom out at 8K on 32M and smaller.
-		 * Of course, this is only a default.
-		 */
-		nfsd_max_blksize = NFSSVC_MAXBLKSIZE;
-		i.totalram <<= PAGE_SHIFT - 12;
-		while (nfsd_max_blksize > i.totalram &&
-		       nfsd_max_blksize >= 8*1024*2)
-			nfsd_max_blksize /= 2;
-	}
+	if (nfsd_max_blksize == 0)
+		nfsd_max_blksize = nfsd_get_default_max_blksize();
 	nfsd_reset_versions();
-
 	nfsd_serv = svc_create_pooled(&nfsd_program, nfsd_max_blksize,
 				      nfsd_last_thread, nfsd, THIS_MODULE);
 	if (nfsd_serv == NULL)
@@ -341,7 +345,7 @@ int nfsd_create_serv(void)
 
 	set_max_drc();
 	do_gettimeofday(&nfssvc_boot);		/* record boot time */
-	return err;
+	return 0;
 }
 
 int nfsd_nrpools(void)

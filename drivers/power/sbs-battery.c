@@ -852,18 +852,7 @@ static struct i2c_driver sbs_battery_driver = {
 		.of_match_table = sbs_dt_ids,
 	},
 };
-
-static int __init sbs_battery_init(void)
-{
-	return i2c_add_driver(&sbs_battery_driver);
-}
-module_init(sbs_battery_init);
-
-static void __exit sbs_battery_exit(void)
-{
-	i2c_del_driver(&sbs_battery_driver);
-}
-module_exit(sbs_battery_exit);
+module_i2c_driver(sbs_battery_driver);
 
 MODULE_DESCRIPTION("SBS battery monitor driver");
 MODULE_LICENSE("GPL");

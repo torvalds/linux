@@ -28,7 +28,6 @@
 #include <asm/cacheflush.h>
 #include <asm/cpu.h>
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/hardirq.h>
 #include <asm/mmu_context.h>
 #include <asm/time.h>

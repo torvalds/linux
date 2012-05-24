@@ -165,13 +165,6 @@ struct ath_rx_stats {
 	u32 post_delim_crc_err;
 	u32 decrypt_busy_err;
 	u32 phy_err_stats[ATH9K_PHYERR_MAX];
-	int8_t rs_rssi_ctl0;
-	int8_t rs_rssi_ctl1;
-	int8_t rs_rssi_ctl2;
-	int8_t rs_rssi_ext0;
-	int8_t rs_rssi_ext1;
-	int8_t rs_rssi_ext2;
-	u8 rs_antenna;
 };
 
 enum ath_reset_type {
@@ -235,16 +228,17 @@ struct ath9k_debug {
 	struct dentry *debugfs_phy;
 	u32 regidx;
 	struct ath_stats stats;
+#ifdef CONFIG_ATH9K_MAC_DEBUG
 	spinlock_t samp_lock;
 	struct ath_dbg_bb_mac_samp bb_mac_samp[ATH_DBG_MAX_SAMPLES];
 	u8 sampidx;
 	u8 tsidx;
 	u8 rsidx;
+#endif
 };
 
 int ath9k_init_debug(struct ath_hw *ah);
 
-void ath9k_debug_samp_bb_mac(struct ath_softc *sc);
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		       struct ath_tx_status *ts, struct ath_txq *txq,
@@ -256,10 +250,6 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
 static inline int ath9k_init_debug(struct ath_hw *ah)
 {
 	return 0;
-}
-
-static inline void ath9k_debug_samp_bb_mac(struct ath_softc *sc)
-{
 }
 
 static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
@@ -281,5 +271,18 @@ static inline void ath_debug_stat_rx(struct ath_softc *sc,
 }
 
 #endif /* CONFIG_ATH9K_DEBUGFS */
+
+#ifdef CONFIG_ATH9K_MAC_DEBUG
+
+void ath9k_debug_samp_bb_mac(struct ath_softc *sc);
+
+#else
+
+static inline void ath9k_debug_samp_bb_mac(struct ath_softc *sc)
+{
+}
+
+#endif
+
 
 #endif /* DEBUG_H */

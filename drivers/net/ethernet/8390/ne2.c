@@ -76,7 +76,6 @@ static const char *version = "ne2.c:v0.91 Nov 16 1998 Wim Dumon <wimpie@kotnet.o
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 

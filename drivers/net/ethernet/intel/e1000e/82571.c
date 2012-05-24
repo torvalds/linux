@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2011 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -235,30 +235,42 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
  *  e1000_init_mac_params_82571 - Init MAC func ptrs.
  *  @hw: pointer to the HW structure
  **/
-static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
+static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 {
-	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_mac_info *mac = &hw->mac;
-	struct e1000_mac_operations *func = &mac->ops;
 	u32 swsm = 0;
 	u32 swsm2 = 0;
 	bool force_clear_smbi = false;
 
-	/* Set media type */
-	switch (adapter->pdev->device) {
+	/* Set media type and media-dependent function pointers */
+	switch (hw->adapter->pdev->device) {
 	case E1000_DEV_ID_82571EB_FIBER:
 	case E1000_DEV_ID_82572EI_FIBER:
 	case E1000_DEV_ID_82571EB_QUAD_FIBER:
 		hw->phy.media_type = e1000_media_type_fiber;
+		mac->ops.setup_physical_interface =
+		    e1000_setup_fiber_serdes_link_82571;
+		mac->ops.check_for_link = e1000e_check_for_fiber_link;
+		mac->ops.get_link_up_info =
+		    e1000e_get_speed_and_duplex_fiber_serdes;
 		break;
 	case E1000_DEV_ID_82571EB_SERDES:
-	case E1000_DEV_ID_82572EI_SERDES:
 	case E1000_DEV_ID_82571EB_SERDES_DUAL:
 	case E1000_DEV_ID_82571EB_SERDES_QUAD:
+	case E1000_DEV_ID_82572EI_SERDES:
 		hw->phy.media_type = e1000_media_type_internal_serdes;
+		mac->ops.setup_physical_interface =
+		    e1000_setup_fiber_serdes_link_82571;
+		mac->ops.check_for_link = e1000_check_for_serdes_link_82571;
+		mac->ops.get_link_up_info =
+		    e1000e_get_speed_and_duplex_fiber_serdes;
 		break;
 	default:
 		hw->phy.media_type = e1000_media_type_copper;
+		mac->ops.setup_physical_interface =
+		    e1000_setup_copper_link_82571;
+		mac->ops.check_for_link = e1000e_check_for_copper_link;
+		mac->ops.get_link_up_info = e1000e_get_speed_and_duplex_copper;
 		break;
 	}
 
@@ -269,38 +281,13 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	/* Adaptive IFS supported */
 	mac->adaptive_ifs = true;
 
-	/* check for link */
-	switch (hw->phy.media_type) {
-	case e1000_media_type_copper:
-		func->setup_physical_interface = e1000_setup_copper_link_82571;
-		func->check_for_link = e1000e_check_for_copper_link;
-		func->get_link_up_info = e1000e_get_speed_and_duplex_copper;
-		break;
-	case e1000_media_type_fiber:
-		func->setup_physical_interface =
-			e1000_setup_fiber_serdes_link_82571;
-		func->check_for_link = e1000e_check_for_fiber_link;
-		func->get_link_up_info =
-			e1000e_get_speed_and_duplex_fiber_serdes;
-		break;
-	case e1000_media_type_internal_serdes:
-		func->setup_physical_interface =
-			e1000_setup_fiber_serdes_link_82571;
-		func->check_for_link = e1000_check_for_serdes_link_82571;
-		func->get_link_up_info =
-			e1000e_get_speed_and_duplex_fiber_serdes;
-		break;
-	default:
-		return -E1000_ERR_CONFIG;
-		break;
-	}
-
+	/* MAC-specific function pointers */
 	switch (hw->mac.type) {
 	case e1000_82573:
-		func->set_lan_id = e1000_set_lan_id_single_port;
-		func->check_mng_mode = e1000e_check_mng_mode_generic;
-		func->led_on = e1000e_led_on_generic;
-		func->blink_led = e1000e_blink_led_generic;
+		mac->ops.set_lan_id = e1000_set_lan_id_single_port;
+		mac->ops.check_mng_mode = e1000e_check_mng_mode_generic;
+		mac->ops.led_on = e1000e_led_on_generic;
+		mac->ops.blink_led = e1000e_blink_led_generic;
 
 		/* FWSM register */
 		mac->has_fwsm = true;
@@ -314,14 +301,14 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 		break;
 	case e1000_82574:
 	case e1000_82583:
-		func->set_lan_id = e1000_set_lan_id_single_port;
-		func->check_mng_mode = e1000_check_mng_mode_82574;
-		func->led_on = e1000_led_on_82574;
+		mac->ops.set_lan_id = e1000_set_lan_id_single_port;
+		mac->ops.check_mng_mode = e1000_check_mng_mode_82574;
+		mac->ops.led_on = e1000_led_on_82574;
 		break;
 	default:
-		func->check_mng_mode = e1000e_check_mng_mode_generic;
-		func->led_on = e1000e_led_on_generic;
-		func->blink_led = e1000e_blink_led_generic;
+		mac->ops.check_mng_mode = e1000e_check_mng_mode_generic;
+		mac->ops.led_on = e1000e_led_on_generic;
+		mac->ops.blink_led = e1000e_blink_led_generic;
 
 		/* FWSM register */
 		mac->has_fwsm = true;
@@ -342,11 +329,11 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 
 		if (!(swsm2 & E1000_SWSM2_LOCK)) {
 			/* Only do this for the first interface on this card */
-			ew32(SWSM2,
-			    swsm2 | E1000_SWSM2_LOCK);
+			ew32(SWSM2, swsm2 | E1000_SWSM2_LOCK);
 			force_clear_smbi = true;
-		} else
+		} else {
 			force_clear_smbi = false;
+		}
 		break;
 	default:
 		force_clear_smbi = true;
@@ -383,7 +370,7 @@ static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 	int is_port_b = er32(STATUS) & E1000_STATUS_FUNC_1;
 	s32 rc;
 
-	rc = e1000_init_mac_params_82571(adapter);
+	rc = e1000_init_mac_params_82571(hw);
 	if (rc)
 		return rc;
 
@@ -577,7 +564,6 @@ static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw)
 static s32 e1000_get_hw_semaphore_82573(struct e1000_hw *hw)
 {
 	u32 extcnf_ctrl;
-	s32 ret_val = 0;
 	s32 i = 0;
 
 	extcnf_ctrl = er32(EXTCNF_CTRL);
@@ -599,12 +585,10 @@ static s32 e1000_get_hw_semaphore_82573(struct e1000_hw *hw)
 		/* Release semaphores */
 		e1000_put_hw_semaphore_82573(hw);
 		e_dbg("Driver can't access the PHY\n");
-		ret_val = -E1000_ERR_PHY;
-		goto out;
+		return -E1000_ERR_PHY;
 	}
 
-out:
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -809,7 +793,7 @@ static s32 e1000_update_nvm_checksum_82571(struct e1000_hw *hw)
 	 * otherwise, commit the checksum to the flash NVM.
 	 */
 	if (hw->nvm.type != e1000_nvm_flash_hw)
-		return ret_val;
+		return 0;
 
 	/* Check for pending operations. */
 	for (i = 0; i < E1000_FLASH_UPDATES; i++) {
@@ -1134,7 +1118,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	e1000_initialize_hw_bits_82571(hw);
 
 	/* Initialize identification LED */
-	ret_val = e1000e_id_led_init(hw);
+	ret_val = mac->ops.id_led_init(hw);
 	if (ret_val)
 		e_dbg("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */
@@ -1159,7 +1143,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, 0);
 
 	/* Setup link and flow control */
-	ret_val = e1000_setup_link_82571(hw);
+	ret_val = mac->ops.setup_link(hw);
 
 	/* Set the transmit descriptor write-back policy */
 	reg_data = er32(TXDCTL(0));
@@ -1227,6 +1211,10 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	case e1000_82572:
 		reg |= (1 << 23) | (1 << 24) | (1 << 25) | (1 << 26);
 		break;
+	case e1000_82574:
+	case e1000_82583:
+		reg |= (1 << 26);
+		break;
 	default:
 		break;
 	}
@@ -1281,18 +1269,16 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 		reg |= E1000_PBA_ECC_CORR_EN;
 		ew32(PBA_ECC, reg);
 	}
+
 	/*
 	 * Workaround for hardware errata.
 	 * Ensure that DMA Dynamic Clock gating is disabled on 82571 and 82572
 	 */
-
-        if ((hw->mac.type == e1000_82571) ||
-           (hw->mac.type == e1000_82572)) {
-                reg = er32(CTRL_EXT);
-                reg &= ~E1000_CTRL_EXT_DMA_DYN_CLK_EN;
-                ew32(CTRL_EXT, reg);
-        }
-
+	if ((hw->mac.type == e1000_82571) || (hw->mac.type == e1000_82572)) {
+		reg = er32(CTRL_EXT);
+		reg &= ~E1000_CTRL_EXT_DMA_DYN_CLK_EN;
+		ew32(CTRL_EXT, reg);
+	}
 
 	/* PCI-Ex Control Registers */
 	switch (hw->mac.type) {
@@ -1418,7 +1404,6 @@ bool e1000_check_phy_82574(struct e1000_hw *hw)
 {
 	u16 status_1kbt = 0;
 	u16 receive_errors = 0;
-	bool phy_hung = false;
 	s32 ret_val = 0;
 
 	/*
@@ -1426,19 +1411,18 @@ bool e1000_check_phy_82574(struct e1000_hw *hw)
 	 * read the Base1000T status register If both are max then PHY is hung.
 	 */
 	ret_val = e1e_rphy(hw, E1000_RECEIVE_ERROR_COUNTER, &receive_errors);
-
 	if (ret_val)
-		goto out;
+		return false;
 	if (receive_errors == E1000_RECEIVE_ERROR_MAX)  {
 		ret_val = e1e_rphy(hw, E1000_BASE1000T_STATUS, &status_1kbt);
 		if (ret_val)
-			goto out;
+			return false;
 		if ((status_1kbt & E1000_IDLE_ERROR_COUNT_MASK) ==
 		    E1000_IDLE_ERROR_COUNT_MASK)
-			phy_hung = true;
+			return true;
 	}
-out:
-	return phy_hung;
+
+	return false;
 }
 
 /**
@@ -1469,7 +1453,7 @@ static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 		break;
 	}
 
-	return e1000e_setup_link(hw);
+	return e1000e_setup_link_generic(hw);
 }
 
 /**
@@ -1506,9 +1490,7 @@ static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	ret_val = e1000e_setup_copper_link(hw);
-
-	return ret_val;
+	return e1000e_setup_copper_link(hw);
 }
 
 /**
@@ -1842,9 +1824,9 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
  **/
 static s32 e1000_read_mac_addr_82571(struct e1000_hw *hw)
 {
-	s32 ret_val = 0;
-
 	if (hw->mac.type == e1000_82571) {
+		s32 ret_val = 0;
+
 		/*
 		 * If there's an alternate MAC address place it in RAR0
 		 * so that it will override the Si installed default perm
@@ -1852,13 +1834,10 @@ static s32 e1000_read_mac_addr_82571(struct e1000_hw *hw)
 		 */
 		ret_val = e1000_check_alt_mac_addr_generic(hw);
 		if (ret_val)
-			goto out;
+			return ret_val;
 	}
 
-	ret_val = e1000_read_mac_addr_generic(hw);
-
-out:
-	return ret_val;
+	return e1000_read_mac_addr_generic(hw);
 }
 
 /**
@@ -1873,7 +1852,7 @@ static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	struct e1000_mac_info *mac = &hw->mac;
 
-	if (!(phy->ops.check_reset_block))
+	if (!phy->ops.check_reset_block)
 		return;
 
 	/* If the management interface is not enabled, then power down */
@@ -1930,7 +1909,7 @@ static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw)
 static const struct e1000_mac_operations e82571_mac_ops = {
 	/* .check_mng_mode: mac type dependent */
 	/* .check_for_link: media type dependent */
-	.id_led_init		= e1000e_id_led_init,
+	.id_led_init		= e1000e_id_led_init_generic,
 	.cleanup_led		= e1000e_cleanup_led_generic,
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_82571,
 	.get_bus_info		= e1000e_get_bus_info_pcie,
@@ -1946,6 +1925,7 @@ static const struct e1000_mac_operations e82571_mac_ops = {
 	.setup_link		= e1000_setup_link_82571,
 	/* .setup_physical_interface: media type dependent */
 	.setup_led		= e1000e_setup_led_generic,
+	.config_collision_dist	= e1000e_config_collision_dist_generic,
 	.read_mac_addr		= e1000_read_mac_addr_82571,
 };
 
@@ -2007,6 +1987,7 @@ static const struct e1000_nvm_operations e82571_nvm_ops = {
 	.acquire		= e1000_acquire_nvm_82571,
 	.read			= e1000e_read_nvm_eerd,
 	.release		= e1000_release_nvm_82571,
+	.reload			= e1000e_reload_nvm_generic,
 	.update			= e1000_update_nvm_checksum_82571,
 	.valid_led_default	= e1000_valid_led_default_82571,
 	.validate		= e1000_validate_nvm_checksum_82571,

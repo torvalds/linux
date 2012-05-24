@@ -127,6 +127,27 @@ void nf_ct_l3proto_module_put(unsigned short l3proto)
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_module_put);
 
+struct nf_conntrack_l4proto *
+nf_ct_l4proto_find_get(u_int16_t l3num, u_int8_t l4num)
+{
+	struct nf_conntrack_l4proto *p;
+
+	rcu_read_lock();
+	p = __nf_ct_l4proto_find(l3num, l4num);
+	if (!try_module_get(p->me))
+		p = &nf_conntrack_l4proto_generic;
+	rcu_read_unlock();
+
+	return p;
+}
+EXPORT_SYMBOL_GPL(nf_ct_l4proto_find_get);
+
+void nf_ct_l4proto_put(struct nf_conntrack_l4proto *p)
+{
+	module_put(p->me);
+}
+EXPORT_SYMBOL_GPL(nf_ct_l4proto_put);
+
 static int kill_l3proto(struct nf_conn *i, void *data)
 {
 	return nf_ct_l3num(i) == ((struct nf_conntrack_l3proto *)data)->l3proto;

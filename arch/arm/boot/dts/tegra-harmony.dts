@@ -10,19 +10,25 @@
 		reg = < 0x00000000 0x40000000 >;
 	};
 
+	pmc@7000f400 {
+		nvidia,invert-interrupt;
+	};
+
 	i2c@7000c000 {
 		clock-frequency = <400000>;
 
-		codec: wm8903@1a {
+		wm8903: wm8903@1a {
 			compatible = "wlf,wm8903";
 			reg = <0x1a>;
-			interrupts = < 347 >;
+			interrupt-parent = <&gpio>;
+			interrupts = < 187 0x04 >;
 
 			gpio-controller;
 			#gpio-cells = <2>;
 
-			/* 0x8000 = Not configured */
-			gpio-cfg = < 0x8000 0x8000 0 0x8000 0x8000 >;
+			micdet-cfg = <0>;
+			micdet-delay = <100>;
+			gpio-cfg = < 0xffffffff 0xffffffff 0 0xffffffff 0xffffffff >;
 		};
 	};
 
@@ -38,13 +44,32 @@
 		clock-frequency = <400000>;
 	};
 
-	sound {
-		compatible = "nvidia,harmony-sound", "nvidia,tegra-wm8903";
+	i2s@70002a00 {
+		status = "disable";
+	};
 
-		spkr-en-gpios = <&codec 2 0>;
-		hp-det-gpios = <&gpio 178 0>;
-		int-mic-en-gpios = <&gpio 184 0>;
-		ext-mic-en-gpios = <&gpio 185 0>;
+	sound {
+		compatible = "nvidia,tegra-audio-wm8903-harmony",
+			     "nvidia,tegra-audio-wm8903";
+		nvidia,model = "NVIDIA Tegra Harmony";
+
+		nvidia,audio-routing =
+			"Headphone Jack", "HPOUTR",
+			"Headphone Jack", "HPOUTL",
+			"Int Spk", "ROP",
+			"Int Spk", "RON",
+			"Int Spk", "LOP",
+			"Int Spk", "LON",
+			"Mic Jack", "MICBIAS",
+			"IN1L", "Mic Jack";
+
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&wm8903>;
+
+		nvidia,spkr-en-gpios = <&wm8903 2 0>;
+		nvidia,hp-det-gpios = <&gpio 178 0>; /* gpio PW2 */
+		nvidia,int-mic-en-gpios = <&gpio 184 0>; /*gpio PX0 */
+		nvidia,ext-mic-en-gpios = <&gpio 185 0>; /* gpio PX1 */
 	};
 
 	serial@70006000 {

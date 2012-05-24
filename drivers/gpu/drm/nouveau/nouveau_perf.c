@@ -27,6 +27,178 @@
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
 
+static u8 *
+nouveau_perf_table(struct drm_device *dev, u8 *ver)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	struct bit_entry P;
+
+	if (!bit_table(dev, 'P', &P) && P.version && P.version <= 2) {
+		u8 *perf = ROMPTR(dev, P.data[0]);
+		if (perf) {
+			*ver = perf[0];
+			return perf;
+		}
+	}
+
+	if (bios->type == NVBIOS_BMP) {
+		if (bios->data[bios->offset + 6] >= 0x25) {
+			u8 *perf = ROMPTR(dev, bios->data[bios->offset + 0x94]);
+			if (perf) {
+				*ver = perf[1];
+				return perf;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+static u8 *
+nouveau_perf_entry(struct drm_device *dev, int idx,
+		   u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+{
+	u8 *perf = nouveau_perf_table(dev, ver);
+	if (perf) {
+		if (*ver >= 0x12 && *ver < 0x20 && idx < perf[2]) {
+			*hdr = perf[3];
+			*cnt = 0;
+			*len = 0;
+			return perf + perf[0] + idx * perf[3];
+		} else
+		if (*ver >= 0x20 && *ver < 0x40 && idx < perf[2]) {
+			*hdr = perf[3];
+			*cnt = perf[4];
+			*len = perf[5];
+			return perf + perf[1] + idx * (*hdr + (*cnt * *len));
+		} else
+		if (*ver >= 0x40 && *ver < 0x41 && idx < perf[5]) {
+			*hdr = perf[2];
+			*cnt = perf[4];
+			*len = perf[3];
+			return perf + perf[1] + idx * (*hdr + (*cnt * *len));
+		}
+	}
+	return NULL;
+}
+
+static u8 *
+nouveau_perf_rammap(struct drm_device *dev, u32 freq,
+		    u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct bit_entry P;
+	u8 *perf, i = 0;
+
+	if (!bit_table(dev, 'P', &P) && P.version == 2) {
+		u8 *rammap = ROMPTR(dev, P.data[4]);
+		if (rammap) {
+			u8 *ramcfg = rammap + rammap[1];
+
+			*ver = rammap[0];
+			*hdr = rammap[2];
+			*cnt = rammap[4];
+			*len = rammap[3];
+
+			freq /= 1000;
+			for (i = 0; i < rammap[5]; i++) {
+				if (freq >= ROM16(ramcfg[0]) &&
+				    freq <= ROM16(ramcfg[2]))
+					return ramcfg;
+
+				ramcfg += *hdr + (*cnt * *len);
+			}
+		}
+
+		return NULL;
+	}
+
+	if (dev_priv->chipset == 0x49 ||
+	    dev_priv->chipset == 0x4b)
+		freq /= 2;
+
+	while ((perf = nouveau_perf_entry(dev, i++, ver, hdr, cnt, len))) {
+		if (*ver >= 0x20 && *ver < 0x25) {
+			if (perf[0] != 0xff && freq <= ROM16(perf[11]) * 1000)
+				break;
+		} else
+		if (*ver >= 0x25 && *ver < 0x40) {
+			if (perf[0] != 0xff && freq <= ROM16(perf[12]) * 1000)
+				break;
+		}
+	}
+
+	if (perf) {
+		u8 *ramcfg = perf + *hdr;
+		*ver = 0x00;
+		*hdr = 0;
+		return ramcfg;
+	}
+
+	return NULL;
+}
+
+u8 *
+nouveau_perf_ramcfg(struct drm_device *dev, u32 freq, u8 *ver, u8 *len)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	u8 strap, hdr, cnt;
+	u8 *rammap;
+
+	strap = (nv_rd32(dev, 0x101000) & 0x0000003c) >> 2;
+	if (bios->ram_restrict_tbl_ptr)
+		strap = bios->data[bios->ram_restrict_tbl_ptr + strap];
+
+	rammap = nouveau_perf_rammap(dev, freq, ver, &hdr, &cnt, len);
+	if (rammap && strap < cnt)
+		return rammap + hdr + (strap * *len);
+
+	return NULL;
+}
+
+u8 *
+nouveau_perf_timing(struct drm_device *dev, u32 freq, u8 *ver, u8 *len)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	struct bit_entry P;
+	u8 *perf, *timing = NULL;
+	u8 i = 0, hdr, cnt;
+
+	if (bios->type == NVBIOS_BMP) {
+		while ((perf = nouveau_perf_entry(dev, i++, ver, &hdr, &cnt,
+						  len)) && *ver == 0x15) {
+			if (freq <= ROM32(perf[5]) * 20) {
+				*ver = 0x00;
+				*len = 14;
+				return perf + 41;
+			}
+		}
+		return NULL;
+	}
+
+	if (!bit_table(dev, 'P', &P)) {
+		if (P.version == 1)
+			timing = ROMPTR(dev, P.data[4]);
+		else
+		if (P.version == 2)
+			timing = ROMPTR(dev, P.data[8]);
+	}
+
+	if (timing && timing[0] == 0x10) {
+		u8 *ramcfg = nouveau_perf_ramcfg(dev, freq, ver, len);
+		if (ramcfg && ramcfg[1] < timing[2]) {
+			*ver = timing[0];
+			*len = timing[3];
+			return timing + timing[1] + (ramcfg[1] * timing[3]);
+		}
+	}
+
+	return NULL;
+}
+
 static void
 legacy_perf_init(struct drm_device *dev)
 {
@@ -72,74 +244,11 @@ legacy_perf_init(struct drm_device *dev)
 	pm->nr_perflvl = 1;
 }
 
-static struct nouveau_pm_memtiming *
-nouveau_perf_timing(struct drm_device *dev, struct bit_entry *P,
-		    u16 memclk, u8 *entry, u8 recordlen, u8 entries)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	struct nvbios *bios = &dev_priv->vbios;
-	u8 ramcfg;
-	int i;
-
-	/* perf v2 has a separate "timing map" table, we have to match
-	 * the target memory clock to a specific entry, *then* use
-	 * ramcfg to select the correct subentry
-	 */
-	if (P->version == 2) {
-		u8 *tmap = ROMPTR(dev, P->data[4]);
-		if (!tmap) {
-			NV_DEBUG(dev, "no timing map pointer\n");
-			return NULL;
-		}
-
-		if (tmap[0] != 0x10) {
-			NV_WARN(dev, "timing map 0x%02x unknown\n", tmap[0]);
-			return NULL;
-		}
-
-		entry = tmap + tmap[1];
-		recordlen = tmap[2] + (tmap[4] * tmap[3]);
-		for (i = 0; i < tmap[5]; i++, entry += recordlen) {
-			if (memclk >= ROM16(entry[0]) &&
-			    memclk <= ROM16(entry[2]))
-				break;
-		}
-
-		if (i == tmap[5]) {
-			NV_WARN(dev, "no match in timing map table\n");
-			return NULL;
-		}
-
-		entry += tmap[2];
-		recordlen = tmap[3];
-		entries   = tmap[4];
-	}
-
-	ramcfg = (nv_rd32(dev, NV_PEXTDEV_BOOT_0) & 0x0000003c) >> 2;
-	if (bios->ram_restrict_tbl_ptr)
-		ramcfg = bios->data[bios->ram_restrict_tbl_ptr + ramcfg];
-
-	if (ramcfg >= entries) {
-		NV_WARN(dev, "ramcfg strap out of bounds!\n");
-		return NULL;
-	}
-
-	entry += ramcfg * recordlen;
-	if (entry[1] >= pm->memtimings.nr_timing) {
-		if (entry[1] != 0xff)
-			NV_WARN(dev, "timingset %d does not exist\n", entry[1]);
-		return NULL;
-	}
-
-	return &pm->memtimings.timing[entry[1]];
-}
-
 static void
-nouveau_perf_voltage(struct drm_device *dev, struct bit_entry *P,
-		     struct nouveau_pm_level *perflvl)
+nouveau_perf_voltage(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct bit_entry P;
 	u8 *vmap;
 	int id;
 
@@ -158,13 +267,13 @@ nouveau_perf_voltage(struct drm_device *dev, struct bit_entry *P,
 	/* on newer ones, the perflvl stores an index into yet another
 	 * vbios table containing a min/max voltage value for the perflvl
 	 */
-	if (P->version != 2 || P->length < 34) {
+	if (bit_table(dev, 'P', &P) || P.version != 2 || P.length < 34) {
 		NV_DEBUG(dev, "where's our volt map table ptr? %d %d\n",
-			 P->version, P->length);
+			 P.version, P.length);
 		return;
 	}
 
-	vmap = ROMPTR(dev, P->data[32]);
+	vmap = ROMPTR(dev, P.data[32]);
 	if (!vmap) {
 		NV_DEBUG(dev, "volt map table pointer invalid\n");
 		return;
@@ -183,130 +292,70 @@ nouveau_perf_init(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct nvbios *bios = &dev_priv->vbios;
-	struct bit_entry P;
-	struct nouveau_pm_memtimings *memtimings = &pm->memtimings;
-	struct nouveau_pm_tbl_header mt_hdr;
-	u8 version, headerlen, recordlen, entries;
-	u8 *perf, *entry;
-	int vid, i;
+	u8 *perf, ver, hdr, cnt, len;
+	int ret, vid, i = -1;
 
-	if (bios->type == NVBIOS_BIT) {
-		if (bit_table(dev, 'P', &P))
-			return;
-
-		if (P.version != 1 && P.version != 2) {
-			NV_WARN(dev, "unknown perf for BIT P %d\n", P.version);
-			return;
-		}
-
-		perf = ROMPTR(dev, P.data[0]);
-		version   = perf[0];
-		headerlen = perf[1];
-		if (version < 0x40) {
-			recordlen = perf[3] + (perf[4] * perf[5]);
-			entries   = perf[2];
-
-			pm->pwm_divisor = ROM16(perf[6]);
-		} else {
-			recordlen = perf[2] + (perf[3] * perf[4]);
-			entries   = perf[5];
-		}
-	} else {
-		if (bios->data[bios->offset + 6] < 0x25) {
-			legacy_perf_init(dev);
-			return;
-		}
-
-		perf = ROMPTR(dev, bios->data[bios->offset + 0x94]);
-		if (!perf) {
-			NV_DEBUG(dev, "perf table pointer invalid\n");
-			return;
-		}
-
-		version   = perf[1];
-		headerlen = perf[0];
-		recordlen = perf[3];
-		entries   = perf[2];
+	if (bios->type == NVBIOS_BMP && bios->data[bios->offset + 6] < 0x25) {
+		legacy_perf_init(dev);
+		return;
 	}
 
-	if (entries > NOUVEAU_PM_MAX_LEVEL) {
-		NV_DEBUG(dev, "perf table has too many entries - buggy vbios?\n");
-		entries = NOUVEAU_PM_MAX_LEVEL;
-	}
+	perf = nouveau_perf_table(dev, &ver);
+	if (ver >= 0x20 && ver < 0x40)
+		pm->fan.pwm_divisor = ROM16(perf[6]);
 
-	entry = perf + headerlen;
-
-	/* For version 0x15, initialize memtiming table */
-	if(version == 0x15) {
-		memtimings->timing =
-				kcalloc(entries, sizeof(*memtimings->timing), GFP_KERNEL);
-		if (!memtimings->timing) {
-			NV_WARN(dev,"Could not allocate memtiming table\n");
-			return;
-		}
-
-		mt_hdr.entry_cnt = entries;
-		mt_hdr.entry_len = 14;
-		mt_hdr.version = version;
-		mt_hdr.header_len = 4;
-	}
-
-	for (i = 0; i < entries; i++) {
+	while ((perf = nouveau_perf_entry(dev, ++i, &ver, &hdr, &cnt, &len))) {
 		struct nouveau_pm_level *perflvl = &pm->perflvl[pm->nr_perflvl];
 
-		perflvl->timing = NULL;
-
-		if (entry[0] == 0xff) {
-			entry += recordlen;
+		if (perf[0] == 0xff)
 			continue;
-		}
 
-		switch (version) {
+		switch (ver) {
 		case 0x12:
 		case 0x13:
 		case 0x15:
-			perflvl->fanspeed = entry[55];
-			if (recordlen > 56)
-				perflvl->volt_min = entry[56];
-			perflvl->core = ROM32(entry[1]) * 10;
-			perflvl->memory = ROM32(entry[5]) * 20;
+			perflvl->fanspeed = perf[55];
+			if (hdr > 56)
+				perflvl->volt_min = perf[56];
+			perflvl->core = ROM32(perf[1]) * 10;
+			perflvl->memory = ROM32(perf[5]) * 20;
 			break;
 		case 0x21:
 		case 0x23:
 		case 0x24:
-			perflvl->fanspeed = entry[4];
-			perflvl->volt_min = entry[5];
-			perflvl->shader = ROM16(entry[6]) * 1000;
+			perflvl->fanspeed = perf[4];
+			perflvl->volt_min = perf[5];
+			perflvl->shader = ROM16(perf[6]) * 1000;
 			perflvl->core = perflvl->shader;
-			perflvl->core += (signed char)entry[8] * 1000;
+			perflvl->core += (signed char)perf[8] * 1000;
 			if (dev_priv->chipset == 0x49 ||
 			    dev_priv->chipset == 0x4b)
-				perflvl->memory = ROM16(entry[11]) * 1000;
+				perflvl->memory = ROM16(perf[11]) * 1000;
 			else
-				perflvl->memory = ROM16(entry[11]) * 2000;
+				perflvl->memory = ROM16(perf[11]) * 2000;
 			break;
 		case 0x25:
-			perflvl->fanspeed = entry[4];
-			perflvl->volt_min = entry[5];
-			perflvl->core = ROM16(entry[6]) * 1000;
-			perflvl->shader = ROM16(entry[10]) * 1000;
-			perflvl->memory = ROM16(entry[12]) * 1000;
+			perflvl->fanspeed = perf[4];
+			perflvl->volt_min = perf[5];
+			perflvl->core = ROM16(perf[6]) * 1000;
+			perflvl->shader = ROM16(perf[10]) * 1000;
+			perflvl->memory = ROM16(perf[12]) * 1000;
 			break;
 		case 0x30:
-			perflvl->memscript = ROM16(entry[2]);
+			perflvl->memscript = ROM16(perf[2]);
 		case 0x35:
-			perflvl->fanspeed = entry[6];
-			perflvl->volt_min = entry[7];
-			perflvl->core = ROM16(entry[8]) * 1000;
-			perflvl->shader = ROM16(entry[10]) * 1000;
-			perflvl->memory = ROM16(entry[12]) * 1000;
-			perflvl->vdec = ROM16(entry[16]) * 1000;
-			perflvl->dom6 = ROM16(entry[20]) * 1000;
+			perflvl->fanspeed = perf[6];
+			perflvl->volt_min = perf[7];
+			perflvl->core = ROM16(perf[8]) * 1000;
+			perflvl->shader = ROM16(perf[10]) * 1000;
+			perflvl->memory = ROM16(perf[12]) * 1000;
+			perflvl->vdec = ROM16(perf[16]) * 1000;
+			perflvl->dom6 = ROM16(perf[20]) * 1000;
 			break;
 		case 0x40:
-#define subent(n) (ROM16(entry[perf[2] + ((n) * perf[3])]) & 0xfff) * 1000
+#define subent(n) ((ROM16(perf[hdr + (n) * len]) & 0xfff) * 1000)
 			perflvl->fanspeed = 0; /*XXX*/
-			perflvl->volt_min = entry[2];
+			perflvl->volt_min = perf[2];
 			if (dev_priv->card_type == NV_50) {
 				perflvl->core   = subent(0);
 				perflvl->shader = subent(1);
@@ -329,36 +378,34 @@ nouveau_perf_init(struct drm_device *dev)
 		}
 
 		/* make sure vid is valid */
-		nouveau_perf_voltage(dev, &P, perflvl);
+		nouveau_perf_voltage(dev, perflvl);
 		if (pm->voltage.supported && perflvl->volt_min) {
 			vid = nouveau_volt_vid_lookup(dev, perflvl->volt_min);
 			if (vid < 0) {
-				NV_DEBUG(dev, "drop perflvl %d, bad vid\n", i);
-				entry += recordlen;
+				NV_DEBUG(dev, "perflvl %d, bad vid\n", i);
 				continue;
 			}
 		}
 
 		/* get the corresponding memory timings */
-		if (version == 0x15) {
-			memtimings->timing[i].id = i;
-			nv30_mem_timing_entry(dev,&mt_hdr,(struct nouveau_pm_tbl_entry*) &entry[41],0,&memtimings->timing[i]);
-			perflvl->timing = &memtimings->timing[i];
-		} else if (version > 0x15) {
-			/* last 3 args are for < 0x40, ignored for >= 0x40 */
-			perflvl->timing =
-				nouveau_perf_timing(dev, &P,
-						    perflvl->memory / 1000,
-						    entry + perf[3],
-						    perf[5], perf[4]);
+		ret = nouveau_mem_timing_calc(dev, perflvl->memory,
+					          &perflvl->timing);
+		if (ret) {
+			NV_DEBUG(dev, "perflvl %d, bad timing: %d\n", i, ret);
+			continue;
 		}
 
 		snprintf(perflvl->name, sizeof(perflvl->name),
 			 "performance_level_%d", i);
 		perflvl->id = i;
-		pm->nr_perflvl++;
 
-		entry += recordlen;
+		snprintf(perflvl->profile.name, sizeof(perflvl->profile.name),
+			 "%d", perflvl->id);
+		perflvl->profile.func = &nouveau_pm_static_profile_func;
+		list_add_tail(&perflvl->profile.head, &pm->profiles);
+
+
+		pm->nr_perflvl++;
 	}
 }
 

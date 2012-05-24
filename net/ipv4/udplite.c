@@ -10,6 +10,9 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  */
+
+#define pr_fmt(fmt) "UDPLite: " fmt
+
 #include <linux/export.h>
 #include "udp_impl.h"
 
@@ -129,11 +132,11 @@ void __init udplite4_register(void)
 	inet_register_protosw(&udplite4_protosw);
 
 	if (udplite4_proc_init())
-		printk(KERN_ERR "%s: Cannot register /proc!\n", __func__);
+		pr_err("%s: Cannot register /proc!\n", __func__);
 	return;
 
 out_unregister_proto:
 	proto_unregister(&udplite_prot);
 out_register_err:
-	printk(KERN_CRIT "%s: Cannot add UDP-Lite protocol.\n", __func__);
+	pr_crit("%s: Cannot add UDP-Lite protocol\n", __func__);
 }

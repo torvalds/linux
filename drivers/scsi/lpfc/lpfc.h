@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -534,6 +534,7 @@ struct lpfc_hba {
 	void (*lpfc_scsi_prep_cmnd)
 		(struct lpfc_vport *, struct lpfc_scsi_buf *,
 		 struct lpfc_nodelist *);
+
 	/* IOCB interface function jump table entries */
 	int (*__lpfc_sli_issue_iocb)
 		(struct lpfc_hba *, uint32_t,
@@ -541,8 +542,6 @@ struct lpfc_hba {
 	void (*__lpfc_sli_release_iocbq)(struct lpfc_hba *,
 			 struct lpfc_iocbq *);
 	int (*lpfc_hba_down_post)(struct lpfc_hba *phba);
-
-
 	IOCB_t * (*lpfc_get_iocb_from_iocbq)
 		(struct lpfc_iocbq *);
 	void (*lpfc_scsi_cmd_iocb_cmpl)
@@ -551,10 +550,12 @@ struct lpfc_hba {
 	/* MBOX interface function jump table entries */
 	int (*lpfc_sli_issue_mbox)
 		(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t);
+
 	/* Slow-path IOCB process function jump table entries */
 	void (*lpfc_sli_handle_slow_ring_event)
 		(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		 uint32_t mask);
+
 	/* INIT device interface function jump table entries */
 	int (*lpfc_sli_hbq_to_firmware)
 		(struct lpfc_hba *, uint32_t, struct hbq_dmabuf *);
@@ -572,6 +573,10 @@ struct lpfc_hba {
 		(struct lpfc_hba *, uint32_t);
 	int (*lpfc_selective_reset)
 		(struct lpfc_hba *);
+
+	int (*lpfc_bg_scsi_prep_dma_buf)
+		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+	/* Add new entries here */
 
 	/* SLI4 specific HBA data structure */
 	struct lpfc_sli4_hba sli4_hba;
@@ -835,9 +840,12 @@ struct lpfc_hba {
 	struct dentry *debug_dumpData;   /* BlockGuard BPL */
 	struct dentry *debug_dumpDif;    /* BlockGuard BPL */
 	struct dentry *debug_InjErrLBA;  /* LBA to inject errors at */
+	struct dentry *debug_InjErrNPortID;  /* NPortID to inject errors at */
+	struct dentry *debug_InjErrWWPN;  /* WWPN to inject errors at */
 	struct dentry *debug_writeGuard; /* inject write guard_tag errors */
 	struct dentry *debug_writeApp;   /* inject write app_tag errors */
 	struct dentry *debug_writeRef;   /* inject write ref_tag errors */
+	struct dentry *debug_readGuard;  /* inject read guard_tag errors */
 	struct dentry *debug_readApp;    /* inject read app_tag errors */
 	struct dentry *debug_readRef;    /* inject read ref_tag errors */
 
@@ -845,10 +853,13 @@ struct lpfc_hba {
 	uint32_t lpfc_injerr_wgrd_cnt;
 	uint32_t lpfc_injerr_wapp_cnt;
 	uint32_t lpfc_injerr_wref_cnt;
+	uint32_t lpfc_injerr_rgrd_cnt;
 	uint32_t lpfc_injerr_rapp_cnt;
 	uint32_t lpfc_injerr_rref_cnt;
+	uint32_t lpfc_injerr_nportid;
+	struct lpfc_name lpfc_injerr_wwpn;
 	sector_t lpfc_injerr_lba;
-#define LPFC_INJERR_LBA_OFF	(sector_t)0xffffffffffffffff
+#define LPFC_INJERR_LBA_OFF	(sector_t)(-1)
 
 	struct dentry *debug_slow_ring_trc;
 	struct lpfc_debugfs_trc *slow_ring_trc;
@@ -901,6 +912,8 @@ struct lpfc_hba {
 	atomic_t fast_event_count;
 	uint32_t fcoe_eventtag;
 	uint32_t fcoe_eventtag_at_fcf_scan;
+	uint32_t fcoe_cvl_eventtag;
+	uint32_t fcoe_cvl_eventtag_attn;
 	struct lpfc_fcf fcf;
 	uint8_t fc_map[3];
 	uint8_t valid_vlan;

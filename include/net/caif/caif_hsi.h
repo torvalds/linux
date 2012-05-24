@@ -138,6 +138,7 @@ struct cfhsi {
 	u8 *rx_ptr;
 	u8 *tx_buf;
 	u8 *rx_buf;
+	u8 *rx_flip_buf;
 	spinlock_t lock;
 	int flow_off_sent;
 	u32 q_low_mark;

@@ -1114,7 +1114,7 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * generated when moving QP to RTS state.
 	 * A TERM message will be sent after QP has moved to RTS state
 	 */
-	if ((ep->mpa_attr.version == 2) &&
+	if ((ep->mpa_attr.version == 2) && peer2peer &&
 			(ep->mpa_attr.p2p_type != p2p_type)) {
 		ep->mpa_attr.p2p_type = FW_RI_INIT_P2PTYPE_DISABLED;
 		rtr_mismatch = 1;
@@ -1562,11 +1562,11 @@ static int import_ep(struct c4iw_ep *ep, __be32 peer_ip, struct dst_entry *dst,
 	struct neighbour *n;
 	int err, step;
 
-	rcu_read_lock();
-	n = dst_get_neighbour_noref(dst);
-	err = -ENODEV;
+	n = dst_neigh_lookup(dst, &peer_ip);
 	if (!n)
-		goto out;
+		return -ENODEV;
+
+	rcu_read_lock();
 	err = -ENOMEM;
 	if (n->dev->flags & IFF_LOOPBACK) {
 		struct net_device *pdev;
@@ -1613,6 +1613,8 @@ static int import_ep(struct c4iw_ep *ep, __be32 peer_ip, struct dst_entry *dst,
 	err = 0;
 out:
 	rcu_read_unlock();
+
+	neigh_release(n);
 
 	return err;
 }

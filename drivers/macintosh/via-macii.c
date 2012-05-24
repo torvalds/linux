@@ -34,7 +34,6 @@
 #include <asm/macintosh.h>
 #include <asm/macints.h>
 #include <asm/mac_via.h>
-#include <asm/system.h>
 
 static volatile unsigned char *via;
 

@@ -20,6 +20,11 @@
 #define __MACH_TEGRA_DEVICES_H
 
 #include <linux/platform_device.h>
+#include <linux/platform_data/tegra_usb.h>
+
+extern struct tegra_ehci_platform_data tegra_ehci1_pdata;
+extern struct tegra_ehci_platform_data tegra_ehci2_pdata;
+extern struct tegra_ehci_platform_data tegra_ehci3_pdata;
 
 extern struct platform_device tegra_gpio_device;
 extern struct platform_device tegra_pinmux_device;

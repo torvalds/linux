@@ -29,10 +29,6 @@ config IBMVETH
 	  To compile this driver as a module, choose M here. The module will
 	  be called ibmveth.
 
-config ISERIES_VETH
-	tristate "iSeries Virtual Ethernet driver support"
-	depends on PPC_ISERIES
-
 source "drivers/net/ethernet/ibm/emac/Kconfig"
 
 config EHEA

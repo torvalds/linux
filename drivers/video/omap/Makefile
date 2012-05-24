@@ -1,20 +1,14 @@
 #
-# Makefile for the new OMAP framebuffer device driver
+# Makefile for the OMAP1 framebuffer device driver
 #
 
 obj-$(CONFIG_FB_OMAP) += omapfb.o
 
-objs-yy := omapfb_main.o
+objs-yy := omapfb_main.o lcdc.o
 
-objs-y$(CONFIG_ARCH_OMAP1) += lcdc.o
-objs-y$(CONFIG_ARCH_OMAP2) += dispc.o
-objs-y$(CONFIG_ARCH_OMAP3) += dispc.o
-
-objs-$(CONFIG_ARCH_OMAP1)$(CONFIG_FB_OMAP_LCDC_EXTERNAL) += sossi.o
-objs-$(CONFIG_ARCH_OMAP2)$(CONFIG_FB_OMAP_LCDC_EXTERNAL) += rfbi.o
+objs-y$(CONFIG_FB_OMAP_LCDC_EXTERNAL) += sossi.o
 
 objs-y$(CONFIG_FB_OMAP_LCDC_HWA742) += hwa742.o
-objs-y$(CONFIG_FB_OMAP_LCDC_BLIZZARD) += blizzard.o
 
 objs-y$(CONFIG_MACH_AMS_DELTA) += lcd_ams_delta.o
 objs-y$(CONFIG_MACH_OMAP_H3) += lcd_h3.o

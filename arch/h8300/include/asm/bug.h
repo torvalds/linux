@@ -5,4 +5,8 @@
 #define is_valid_bugaddr(addr) (1)
 
 #include <asm-generic/bug.h>
+
+struct pt_regs;
+extern void die(const char *str, struct pt_regs *fp, unsigned long err);
+
 #endif

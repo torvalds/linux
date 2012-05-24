@@ -38,7 +38,6 @@
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/dma.h>
@@ -254,11 +253,6 @@ static pgprot_t __init init_pgprot(ulong address)
 	    address == (ulong) empty_zero_page) {
 		return construct_pgprot(PAGE_KERNEL_RO, PAGE_HOME_IMMUTABLE);
 	}
-
-	/* As a performance optimization, keep the boot init stack here. */
-	if (address >= (ulong)&init_thread_union &&
-	    address < (ulong)&init_thread_union + THREAD_SIZE)
-		return construct_pgprot(PAGE_KERNEL, smp_processor_id());
 
 #ifndef __tilegx__
 #if !ATOMIC_LOCKS_FOUND_VIA_TABLE()
@@ -558,6 +552,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 
 	address = MEM_SV_INTRPT;
 	pmd = get_pmd(pgtables, address);
+	pfn = 0;  /* code starts at PA 0 */
 	if (ktext_small) {
 		/* Allocate an L2 PTE for the kernel text */
 		int cpu = 0;
@@ -580,10 +575,15 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 		}
 
 		BUG_ON(address != (unsigned long)_stext);
-		pfn = 0;  /* code starts at PA 0 */
-		pte = alloc_pte();
-		for (pte_ofs = 0; address < (unsigned long)_einittext;
-		     pfn++, pte_ofs++, address += PAGE_SIZE) {
+		pte = NULL;
+		for (; address < (unsigned long)_einittext;
+		     pfn++, address += PAGE_SIZE) {
+			pte_ofs = pte_index(address);
+			if (pte_ofs == 0) {
+				if (pte)
+					assign_pte(pmd++, pte);
+				pte = alloc_pte();
+			}
 			if (!ktext_local) {
 				prot = set_remote_cache_cpu(prot, cpu);
 				cpu = cpumask_next(cpu, &ktext_mask);
@@ -592,7 +592,8 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 			}
 			pte[pte_ofs] = pfn_pte(pfn, prot);
 		}
-		assign_pte(pmd, pte);
+		if (pte)
+			assign_pte(pmd, pte);
 	} else {
 		pte_t pteval = pfn_pte(0, PAGE_KERNEL_EXEC);
 		pteval = pte_mkhuge(pteval);
@@ -615,7 +616,9 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 		else
 			pteval = hv_pte_set_mode(pteval,
 						 HV_PTE_MODE_CACHE_NO_L3);
-		*(pte_t *)pmd = pteval;
+		for (; address < (unsigned long)_einittext;
+		     pfn += PFN_DOWN(HPAGE_SIZE), address += HPAGE_SIZE)
+			*(pte_t *)(pmd++) = pfn_pte(pfn, pteval);
 	}
 
 	/* Set swapper_pgprot here so it is flushed to memory right away. */

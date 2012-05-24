@@ -12,7 +12,7 @@ dynamically enabled per-callsite.
 Dynamic debug has even more useful features:
 
  * Simple query language allows turning on and off debugging statements by
-   matching any combination of:
+   matching any combination of 0 or 1 of:
 
    - source filename
    - function name
@@ -79,31 +79,24 @@ Command Language Reference
 ==========================
 
 At the lexical level, a command comprises a sequence of words separated
-by whitespace characters.  Note that newlines are treated as word
-separators and do *not* end a command or allow multiple commands to
-be done together.  So these are all equivalent:
+by spaces or tabs.  So these are all equivalent:
 
 nullarbor:~ # echo -c 'file svcsock.c line 1603 +p' >
 				<debugfs>/dynamic_debug/control
 nullarbor:~ # echo -c '  file   svcsock.c     line  1603 +p  ' >
 				<debugfs>/dynamic_debug/control
-nullarbor:~ # echo -c 'file svcsock.c\nline 1603 +p' >
-				<debugfs>/dynamic_debug/control
 nullarbor:~ # echo -n 'file svcsock.c line 1603 +p' >
 				<debugfs>/dynamic_debug/control
 
-Commands are bounded by a write() system call.  If you want to do
-multiple commands you need to do a separate "echo" for each, like:
+Command submissions are bounded by a write() system call.
+Multiple commands can be written together, separated by ';' or '\n'.
 
-nullarbor:~ # echo 'file svcsock.c line 1603 +p' > /proc/dprintk ;\
-> echo 'file svcsock.c line 1563 +p' > /proc/dprintk
+  ~# echo "func pnpacpi_get_resources +p; func pnp_assign_mem +p" \
+     > <debugfs>/dynamic_debug/control
 
-or even like:
+If your query set is big, you can batch them too:
 
-nullarbor:~ # (
-> echo 'file svcsock.c line 1603 +p' ;\
-> echo 'file svcsock.c line 1563 +p' ;\
-> ) > /proc/dprintk
+  ~# cat query-batch-file > <debugfs>/dynamic_debug/control
 
 At the syntactical level, a command comprises a sequence of match
 specifications, followed by a flags change specification.
@@ -144,11 +137,12 @@ func
     func svc_tcp_accept
 
 file
-    The given string is compared against either the full
-    pathname or the basename of the source file of each
-    callsite.  Examples:
+    The given string is compared against either the full pathname, the
+    src-root relative pathname, or the basename of the source file of
+    each callsite.  Examples:
 
     file svcsock.c
+    file kernel/freezer.c
     file /usr/src/packages/BUILD/sgi-enhancednfs-1.4/default/net/sunrpc/svcsock.c
 
 module

@@ -226,7 +226,7 @@ static int da9052_regulator_set_voltage_int(struct regulator_dev *rdev,
 	if (min_uV < info->min_uV)
 		min_uV = info->min_uV;
 
-	*selector = (min_uV - info->min_uV) / info->step_uV;
+	*selector = DIV_ROUND_UP(min_uV - info->min_uV, info->step_uV);
 
 	ret = da9052_list_voltage(rdev, *selector);
 	if (ret < 0)
@@ -260,8 +260,8 @@ static int da9052_set_ldo5_6_voltage(struct regulator_dev *rdev,
 	 * the LDO activate bit to implment the changes on the
 	 * LDO output.
 	*/
-	return da9052_reg_update(regulator->da9052, DA9052_SUPPLY_REG, 0,
-				 info->activate_bit);
+	return da9052_reg_update(regulator->da9052, DA9052_SUPPLY_REG,
+				 info->activate_bit, info->activate_bit);
 }
 
 static int da9052_set_dcdc_voltage(struct regulator_dev *rdev,
@@ -280,8 +280,8 @@ static int da9052_set_dcdc_voltage(struct regulator_dev *rdev,
 	 * the DCDC activate bit to implment the changes on the
 	 * DCDC output.
 	*/
-	return da9052_reg_update(regulator->da9052, DA9052_SUPPLY_REG, 0,
-				 info->activate_bit);
+	return da9052_reg_update(regulator->da9052, DA9052_SUPPLY_REG,
+				 info->activate_bit, info->activate_bit);
 }
 
 static int da9052_get_regulator_voltage_sel(struct regulator_dev *rdev)
@@ -318,10 +318,10 @@ static int da9052_set_buckperi_voltage(struct regulator_dev *rdev, int min_uV,
 	if ((regulator->da9052->chip_id == DA9052) &&
 	    (min_uV >= DA9052_CONST_3uV))
 		*selector = DA9052_BUCK_PERI_REG_MAP_UPTO_3uV +
-			    ((min_uV - DA9052_CONST_3uV) /
-			    (DA9052_BUCK_PERI_3uV_STEP));
+			    DIV_ROUND_UP(min_uV - DA9052_CONST_3uV,
+					 DA9052_BUCK_PERI_3uV_STEP);
 	else
-		*selector = (min_uV - info->min_uV) / info->step_uV;
+		*selector = DIV_ROUND_UP(min_uV - info->min_uV, info->step_uV);
 
 	ret = da9052_list_buckperi_voltage(rdev, *selector);
 	if (ret < 0)
@@ -400,6 +400,7 @@ static struct regulator_ops da9052_ldo_ops = {
 		.ops = &da9052_ldo5_6_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = _id,\
+		.n_voltages = (max - min) / step + 1, \
 		.owner = THIS_MODULE,\
 	},\
 	.min_uV = (min) * 1000,\
@@ -417,6 +418,7 @@ static struct regulator_ops da9052_ldo_ops = {
 		.ops = &da9052_ldo_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = _id,\
+		.n_voltages = (max - min) / step + 1, \
 		.owner = THIS_MODULE,\
 	},\
 	.min_uV = (min) * 1000,\
@@ -434,6 +436,7 @@ static struct regulator_ops da9052_ldo_ops = {
 		.ops = &da9052_dcdc_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = _id,\
+		.n_voltages = (max - min) / step + 1, \
 		.owner = THIS_MODULE,\
 	},\
 	.min_uV = (min) * 1000,\
@@ -451,6 +454,7 @@ static struct regulator_ops da9052_ldo_ops = {
 		.ops = &da9052_buckperi_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = _id,\
+		.n_voltages = (max - min) / step + 1, \
 		.owner = THIS_MODULE,\
 	},\
 	.min_uV = (min) * 1000,\

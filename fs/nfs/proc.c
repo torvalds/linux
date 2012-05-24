@@ -358,6 +358,11 @@ nfs_proc_unlink_setup(struct rpc_message *msg, struct inode *dir)
 	msg->rpc_proc = &nfs_procedures[NFSPROC_REMOVE];
 }
 
+static void nfs_proc_unlink_rpc_prepare(struct rpc_task *task, struct nfs_unlinkdata *data)
+{
+	rpc_call_start(task);
+}
+
 static int nfs_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 {
 	if (nfs_async_handle_expired_key(task))
@@ -370,6 +375,11 @@ static void
 nfs_proc_rename_setup(struct rpc_message *msg, struct inode *dir)
 {
 	msg->rpc_proc = &nfs_procedures[NFSPROC_RENAME];
+}
+
+static void nfs_proc_rename_rpc_prepare(struct rpc_task *task, struct nfs_renamedata *data)
+{
+	rpc_call_start(task);
 }
 
 static int
@@ -651,6 +661,11 @@ static void nfs_proc_read_setup(struct nfs_read_data *data, struct rpc_message *
 	msg->rpc_proc = &nfs_procedures[NFSPROC_READ];
 }
 
+static void nfs_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_data *data)
+{
+	rpc_call_start(task);
+}
+
 static int nfs_write_done(struct rpc_task *task, struct nfs_write_data *data)
 {
 	if (nfs_async_handle_expired_key(task))
@@ -666,6 +681,11 @@ static void nfs_proc_write_setup(struct nfs_write_data *data, struct rpc_message
 	/* Note: NFSv2 ignores @stable and always uses NFS_FILE_SYNC */
 	data->args.stable = NFS_FILE_SYNC;
 	msg->rpc_proc = &nfs_procedures[NFSPROC_WRITE];
+}
+
+static void nfs_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_data *data)
+{
+	rpc_call_start(task);
 }
 
 static void
@@ -721,9 +741,11 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.create		= nfs_proc_create,
 	.remove		= nfs_proc_remove,
 	.unlink_setup	= nfs_proc_unlink_setup,
+	.unlink_rpc_prepare = nfs_proc_unlink_rpc_prepare,
 	.unlink_done	= nfs_proc_unlink_done,
 	.rename		= nfs_proc_rename,
 	.rename_setup	= nfs_proc_rename_setup,
+	.rename_rpc_prepare = nfs_proc_rename_rpc_prepare,
 	.rename_done	= nfs_proc_rename_done,
 	.link		= nfs_proc_link,
 	.symlink	= nfs_proc_symlink,
@@ -736,8 +758,10 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.pathconf	= nfs_proc_pathconf,
 	.decode_dirent	= nfs2_decode_dirent,
 	.read_setup	= nfs_proc_read_setup,
+	.read_rpc_prepare = nfs_proc_read_rpc_prepare,
 	.read_done	= nfs_read_done,
 	.write_setup	= nfs_proc_write_setup,
+	.write_rpc_prepare = nfs_proc_write_rpc_prepare,
 	.write_done	= nfs_write_done,
 	.commit_setup	= nfs_proc_commit_setup,
 	.lock		= nfs_proc_lock,

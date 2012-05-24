@@ -287,7 +287,7 @@ static int __devinit lpc32xx_rtc_probe(struct platform_device *pdev)
 	if (rtc->irq >= 0) {
 		if (devm_request_irq(&pdev->dev, rtc->irq,
 				     lpc32xx_rtc_alarm_interrupt,
-				     IRQF_DISABLED, pdev->name, rtc) < 0) {
+				     0, pdev->name, rtc) < 0) {
 			dev_warn(&pdev->dev, "Can't request interrupt.\n");
 			rtc->irq = -1;
 		} else {

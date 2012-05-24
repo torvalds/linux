@@ -34,9 +34,9 @@ static char *serial_version = "$Revision: 1.25 $";
 
 #include <asm/irq.h>
 #include <asm/dma.h>
-#include <asm/system.h>
 
 #include <arch/svinto.h>
+#include <arch/system.h>
 
 /* non-arch dependent serial structures are in linux/serial.h */
 #include <linux/serial.h>
@@ -4105,20 +4105,11 @@ static int
 rs_open(struct tty_struct *tty, struct file * filp)
 {
 	struct e100_serial	*info;
-	int 			retval, line;
+	int 			retval;
 	unsigned long           page;
 	int                     allocated_resources = 0;
 
-	/* find which port we want to open */
-	line = tty->index;
-
-	if (line < 0 || line >= NR_PORTS)
-		return -ENODEV;
-
-	/* find the corresponding e100_serial struct in the table */
-	info = rs_table + line;
-
-	/* don't allow the opening of ports that are not enabled in the HW config */
+	info = rs_table + tty->index;
 	if (!info->enabled)
 		return -ENODEV;
 
@@ -4131,7 +4122,7 @@ rs_open(struct tty_struct *tty, struct file * filp)
 	tty->driver_data = info;
 	info->port.tty = tty;
 
-	info->port.tty->low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	tty->low_latency = !!(info->flags & ASYNC_LOW_LATENCY);
 
 	if (!tmp_buf) {
 		page = get_zeroed_page(GFP_KERNEL);

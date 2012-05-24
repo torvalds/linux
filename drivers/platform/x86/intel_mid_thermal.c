@@ -33,18 +33,15 @@
 #include <linux/slab.h>
 #include <linux/pm.h>
 #include <linux/thermal.h>
-
-#include <asm/intel_scu_ipc.h>
+#include <linux/mfd/intel_msic.h>
 
 /* Number of thermal sensors */
 #define MSIC_THERMAL_SENSORS	4
 
 /* ADC1 - thermal registers */
-#define MSIC_THERM_ADC1CNTL1	0x1C0
 #define MSIC_ADC_ENBL		0x10
 #define MSIC_ADC_START		0x08
 
-#define MSIC_THERM_ADC1CNTL3	0x1C2
 #define MSIC_ADCTHERM_ENBL	0x04
 #define MSIC_ADCRRDATA_ENBL	0x05
 #define MSIC_CHANL_MASK_VAL	0x0F
@@ -75,8 +72,8 @@
 #define ADC_VAL60C		315
 
 /* ADC base addresses */
-#define ADC_CHNL_START_ADDR	0x1C5	/* increments by 1 */
-#define ADC_DATA_START_ADDR	0x1D4	/* increments by 2 */
+#define ADC_CHNL_START_ADDR	INTEL_MSIC_ADC1ADDR0	/* increments by 1 */
+#define ADC_DATA_START_ADDR	INTEL_MSIC_ADC1SNS0H	/* increments by 2 */
 
 /* MSIC die attributes */
 #define MSIC_DIE_ADC_MIN	488
@@ -189,17 +186,17 @@ static int mid_read_temp(struct thermal_zone_device *tzd, unsigned long *temp)
 	addr = td_info->chnl_addr;
 
 	/* Enable the msic for conversion before reading */
-	ret = intel_scu_ipc_iowrite8(MSIC_THERM_ADC1CNTL3, MSIC_ADCRRDATA_ENBL);
+	ret = intel_msic_reg_write(INTEL_MSIC_ADC1CNTL3, MSIC_ADCRRDATA_ENBL);
 	if (ret)
 		return ret;
 
 	/* Re-toggle the RRDATARD bit (temporary workaround) */
-	ret = intel_scu_ipc_iowrite8(MSIC_THERM_ADC1CNTL3, MSIC_ADCTHERM_ENBL);
+	ret = intel_msic_reg_write(INTEL_MSIC_ADC1CNTL3, MSIC_ADCTHERM_ENBL);
 	if (ret)
 		return ret;
 
 	/* Read the higher bits of data */
-	ret = intel_scu_ipc_ioread8(addr, &data);
+	ret = intel_msic_reg_read(addr, &data);
 	if (ret)
 		return ret;
 
@@ -207,7 +204,7 @@ static int mid_read_temp(struct thermal_zone_device *tzd, unsigned long *temp)
 	adc_val = (data << 2);
 	addr++;
 
-	ret = intel_scu_ipc_ioread8(addr, &data);/* Read lower bits */
+	ret = intel_msic_reg_read(addr, &data);/* Read lower bits */
 	if (ret)
 		return ret;
 
@@ -235,7 +232,7 @@ static int configure_adc(int val)
 	int ret;
 	uint8_t data;
 
-	ret = intel_scu_ipc_ioread8(MSIC_THERM_ADC1CNTL1, &data);
+	ret = intel_msic_reg_read(INTEL_MSIC_ADC1CNTL1, &data);
 	if (ret)
 		return ret;
 
@@ -246,7 +243,7 @@ static int configure_adc(int val)
 		/* Just stop the ADC */
 		data &= (~MSIC_ADC_START);
 	}
-	return intel_scu_ipc_iowrite8(MSIC_THERM_ADC1CNTL1, data);
+	return intel_msic_reg_write(INTEL_MSIC_ADC1CNTL1, data);
 }
 
 /**
@@ -262,21 +259,21 @@ static int set_up_therm_channel(u16 base_addr)
 	int ret;
 
 	/* Enable all the sensor channels */
-	ret = intel_scu_ipc_iowrite8(base_addr, SKIN_SENSOR0_CODE);
+	ret = intel_msic_reg_write(base_addr, SKIN_SENSOR0_CODE);
 	if (ret)
 		return ret;
 
-	ret = intel_scu_ipc_iowrite8(base_addr + 1, SKIN_SENSOR1_CODE);
+	ret = intel_msic_reg_write(base_addr + 1, SKIN_SENSOR1_CODE);
 	if (ret)
 		return ret;
 
-	ret = intel_scu_ipc_iowrite8(base_addr + 2, SYS_SENSOR_CODE);
+	ret = intel_msic_reg_write(base_addr + 2, SYS_SENSOR_CODE);
 	if (ret)
 		return ret;
 
 	/* Since this is the last channel, set the stop bit
 	 * to 1 by ORing the DIE_SENSOR_CODE with 0x10 */
-	ret = intel_scu_ipc_iowrite8(base_addr + 3,
+	ret = intel_msic_reg_write(base_addr + 3,
 			(MSIC_DIE_SENSOR_CODE | 0x10));
 	if (ret)
 		return ret;
@@ -295,11 +292,11 @@ static int reset_stopbit(uint16_t addr)
 {
 	int ret;
 	uint8_t data;
-	ret = intel_scu_ipc_ioread8(addr, &data);
+	ret = intel_msic_reg_read(addr, &data);
 	if (ret)
 		return ret;
 	/* Set the stop bit to zero */
-	return intel_scu_ipc_iowrite8(addr, (data & 0xEF));
+	return intel_msic_reg_write(addr, (data & 0xEF));
 }
 
 /**
@@ -322,7 +319,7 @@ static int find_free_channel(void)
 	uint8_t data;
 
 	/* check whether ADC is enabled */
-	ret = intel_scu_ipc_ioread8(MSIC_THERM_ADC1CNTL1, &data);
+	ret = intel_msic_reg_read(INTEL_MSIC_ADC1CNTL1, &data);
 	if (ret)
 		return ret;
 
@@ -331,7 +328,7 @@ static int find_free_channel(void)
 
 	/* ADC is already enabled; Looking for an empty channel */
 	for (i = 0; i < ADC_CHANLS_MAX; i++) {
-		ret = intel_scu_ipc_ioread8(ADC_CHNL_START_ADDR + i, &data);
+		ret = intel_msic_reg_read(ADC_CHNL_START_ADDR + i, &data);
 		if (ret)
 			return ret;
 
@@ -359,12 +356,14 @@ static int mid_initialize_adc(struct device *dev)
 	 * Ensure that adctherm is disabled before we
 	 * initialize the ADC
 	 */
-	ret = intel_scu_ipc_ioread8(MSIC_THERM_ADC1CNTL3, &data);
+	ret = intel_msic_reg_read(INTEL_MSIC_ADC1CNTL3, &data);
 	if (ret)
 		return ret;
 
-	if (data & MSIC_ADCTHERM_MASK)
-		dev_warn(dev, "ADCTHERM already set");
+	data &= ~MSIC_ADCTHERM_MASK;
+	ret = intel_msic_reg_write(INTEL_MSIC_ADC1CNTL3, data);
+	if (ret)
+		return ret;
 
 	/* Index of the first channel in which the stop bit is set */
 	channel_index = find_free_channel();
@@ -546,10 +545,11 @@ static int mid_thermal_remove(struct platform_device *pdev)
 	return configure_adc(0);
 }
 
-#define DRIVER_NAME "msic_sensor"
+#define DRIVER_NAME "msic_thermal"
 
 static const struct platform_device_id therm_id_table[] = {
 	{ DRIVER_NAME, 1 },
+	{ "msic_thermal", 1 },
 	{ }
 };
 
@@ -565,18 +565,7 @@ static struct platform_driver mid_thermal_driver = {
 	.id_table = therm_id_table,
 };
 
-static int __init mid_thermal_module_init(void)
-{
-	return platform_driver_register(&mid_thermal_driver);
-}
-
-static void __exit mid_thermal_module_exit(void)
-{
-	platform_driver_unregister(&mid_thermal_driver);
-}
-
-module_init(mid_thermal_module_init);
-module_exit(mid_thermal_module_exit);
+module_platform_driver(mid_thermal_driver);
 
 MODULE_AUTHOR("Durgadoss R <durgadoss.r@intel.com>");
 MODULE_DESCRIPTION("Intel Medfield Platform Thermal Driver");

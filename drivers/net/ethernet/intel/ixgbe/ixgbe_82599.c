@@ -779,7 +779,8 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 	ixgbe_link_speed link_capabilities = IXGBE_LINK_SPEED_UNKNOWN;
 
 	/* Check to see if speed passed in is supported. */
-	hw->mac.ops.get_link_capabilities(hw, &link_capabilities, &autoneg);
+	status = hw->mac.ops.get_link_capabilities(hw, &link_capabilities,
+						   &autoneg);
 	if (status != 0)
 		goto out;
 
@@ -1906,38 +1907,17 @@ out:
  **/
 static s32 ixgbe_enable_rx_dma_82599(struct ixgbe_hw *hw, u32 regval)
 {
-#define IXGBE_MAX_SECRX_POLL 30
-	int i;
-	int secrxreg;
-
 	/*
 	 * Workaround for 82599 silicon errata when enabling the Rx datapath.
 	 * If traffic is incoming before we enable the Rx unit, it could hang
 	 * the Rx DMA unit.  Therefore, make sure the security engine is
 	 * completely disabled prior to enabling the Rx unit.
 	 */
-	secrxreg = IXGBE_READ_REG(hw, IXGBE_SECRXCTRL);
-	secrxreg |= IXGBE_SECRXCTRL_RX_DIS;
-	IXGBE_WRITE_REG(hw, IXGBE_SECRXCTRL, secrxreg);
-	for (i = 0; i < IXGBE_MAX_SECRX_POLL; i++) {
-		secrxreg = IXGBE_READ_REG(hw, IXGBE_SECRXSTAT);
-		if (secrxreg & IXGBE_SECRXSTAT_SECRX_RDY)
-			break;
-		else
-			/* Use interrupt-safe sleep just in case */
-			udelay(10);
-	}
-
-	/* For informational purposes only */
-	if (i >= IXGBE_MAX_SECRX_POLL)
-		hw_dbg(hw, "Rx unit being enabled before security "
-		       "path fully disabled.  Continuing with init.\n");
+	hw->mac.ops.disable_rx_buff(hw);
 
 	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, regval);
-	secrxreg = IXGBE_READ_REG(hw, IXGBE_SECRXCTRL);
-	secrxreg &= ~IXGBE_SECRXCTRL_RX_DIS;
-	IXGBE_WRITE_REG(hw, IXGBE_SECRXCTRL, secrxreg);
-	IXGBE_WRITE_FLUSH(hw);
+
+	hw->mac.ops.enable_rx_buff(hw);
 
 	return 0;
 }
@@ -2102,6 +2082,8 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.get_media_type         = &ixgbe_get_media_type_82599,
 	.get_supported_physical_layer = &ixgbe_get_supported_physical_layer_82599,
 	.enable_rx_dma          = &ixgbe_enable_rx_dma_82599,
+	.disable_rx_buff	= &ixgbe_disable_rx_buff_generic,
+	.enable_rx_buff		= &ixgbe_enable_rx_buff_generic,
 	.get_mac_addr           = &ixgbe_get_mac_addr_generic,
 	.get_san_mac_addr       = &ixgbe_get_san_mac_addr_generic,
 	.get_device_caps        = &ixgbe_get_device_caps_generic,

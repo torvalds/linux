@@ -20,7 +20,7 @@ struct g2d_dev {
 	struct v4l2_m2m_dev	*m2m_dev;
 	struct video_device	*vfd;
 	struct mutex		mutex;
-	spinlock_t		irqlock;
+	spinlock_t		ctrl_lock;
 	atomic_t		num_inst;
 	struct vb2_alloc_ctx	*alloc_ctx;
 	struct resource		*res_regs;
@@ -57,8 +57,11 @@ struct g2d_ctx {
 	struct v4l2_m2m_ctx     *m2m_ctx;
 	struct g2d_frame	in;
 	struct g2d_frame	out;
+	struct v4l2_ctrl	*ctrl_hflip;
+	struct v4l2_ctrl	*ctrl_vflip;
 	struct v4l2_ctrl_handler ctrl_handler;
 	u32 rop;
+	u32 flip;
 };
 
 struct g2d_fmt {
@@ -77,6 +80,7 @@ void g2d_set_dst_addr(struct g2d_dev *d, dma_addr_t a);
 void g2d_start(struct g2d_dev *d);
 void g2d_clear_int(struct g2d_dev *d);
 void g2d_set_rop4(struct g2d_dev *d, u32 r);
+void g2d_set_flip(struct g2d_dev *d, u32 r);
 u32 g2d_cmd_stretch(u32 e);
 void g2d_set_cmd(struct g2d_dev *d, u32 c);
 

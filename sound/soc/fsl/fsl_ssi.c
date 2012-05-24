@@ -716,12 +716,12 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 	}
 
 	/* Trigger the machine driver's probe function.  The platform driver
-	 * name of the machine driver is taken from the /model property of the
+	 * name of the machine driver is taken from /compatible property of the
 	 * device tree.  We also pass the address of the CPU DAI driver
 	 * structure.
 	 */
-	sprop = of_get_property(of_find_node_by_path("/"), "model", NULL);
-	/* Sometimes the model name has a "fsl," prefix, so we strip that. */
+	sprop = of_get_property(of_find_node_by_path("/"), "compatible", NULL);
+	/* Sometimes the compatible name has a "fsl," prefix, so we strip it. */
 	p = strrchr(sprop, ',');
 	if (p)
 		sprop = p + 1;

@@ -182,7 +182,6 @@ static int i2c_dw_pci_resume(struct device *dev)
 	pci_restore_state(pdev);
 
 	i2c_dw_init(i2c);
-	i2c_dw_enable(i2c);
 	return 0;
 }
 

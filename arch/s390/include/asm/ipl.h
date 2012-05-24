@@ -169,5 +169,6 @@ enum diag308_rc {
 extern int diag308(unsigned long subcode, void *addr);
 extern void diag308_reset(void);
 extern void store_status(void);
+extern void lgr_info_log(void);
 
 #endif /* _ASM_S390_IPL_H */

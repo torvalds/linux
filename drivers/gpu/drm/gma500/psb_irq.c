@@ -27,6 +27,8 @@
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
 #include "power.h"
+#include "psb_irq.h"
+#include "mdfld_output.h"
 
 /*
  * inline functions
@@ -113,7 +115,7 @@ psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
 	}
 }
 
-void mid_enable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
+static void mid_enable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
 {
 	if (gma_power_begin(dev_priv->dev, false)) {
 		u32 pipe_event = mid_pipe_event(pipe);
@@ -124,7 +126,7 @@ void mid_enable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
 	}
 }
 
-void mid_disable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
+static void mid_disable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
 {
 	if (dev_priv->pipestat[pipe] == 0) {
 		if (gma_power_begin(dev_priv->dev, false)) {
@@ -453,6 +455,11 @@ int psb_enable_vblank(struct drm_device *dev, int pipe)
 	uint32_t reg_val = 0;
 	uint32_t pipeconf_reg = mid_pipeconf(pipe);
 
+	/* Medfield is different - we should perhaps extract out vblank
+	   and blacklight etc ops */
+	if (IS_MFLD(dev))
+		return mdfld_enable_te(dev, pipe);
+
 	if (gma_power_begin(dev, false)) {
 		reg_val = REG_READ(pipeconf_reg);
 		gma_power_end(dev);
@@ -485,6 +492,8 @@ void psb_disable_vblank(struct drm_device *dev, int pipe)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 
+	if (IS_MFLD(dev))
+		mdfld_disable_te(dev, pipe);
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
 	if (pipe == 0)
@@ -495,6 +504,55 @@ void psb_disable_vblank(struct drm_device *dev, int pipe)
 	PSB_WVDC32(~dev_priv->vdc_irq_mask, PSB_INT_MASK_R);
 	PSB_WVDC32(dev_priv->vdc_irq_mask, PSB_INT_ENABLE_R);
 	psb_disable_pipestat(dev_priv, pipe, PIPE_VBLANK_INTERRUPT_ENABLE);
+
+	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
+}
+
+/*
+ * It is used to enable TE interrupt
+ */
+int mdfld_enable_te(struct drm_device *dev, int pipe)
+{
+	struct drm_psb_private *dev_priv =
+		(struct drm_psb_private *) dev->dev_private;
+	unsigned long irqflags;
+	uint32_t reg_val = 0;
+	uint32_t pipeconf_reg = mid_pipeconf(pipe);
+
+	if (gma_power_begin(dev, false)) {
+		reg_val = REG_READ(pipeconf_reg);
+		gma_power_end(dev);
+	}
+
+	if (!(reg_val & PIPEACONF_ENABLE))
+		return -EINVAL;
+
+	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
+
+	mid_enable_pipe_event(dev_priv, pipe);
+	psb_enable_pipestat(dev_priv, pipe, PIPE_TE_ENABLE);
+
+	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
+
+	return 0;
+}
+
+/*
+ * It is used to disable TE interrupt
+ */
+void mdfld_disable_te(struct drm_device *dev, int pipe)
+{
+	struct drm_psb_private *dev_priv =
+		(struct drm_psb_private *) dev->dev_private;
+	unsigned long irqflags;
+
+	if (!dev_priv->dsr_enable)
+		return;
+
+	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
+
+	mid_disable_pipe_event(dev_priv, pipe);
+	psb_disable_pipestat(dev_priv, pipe, PIPE_TE_ENABLE);
 
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 }

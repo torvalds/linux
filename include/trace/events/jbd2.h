@@ -81,6 +81,13 @@ DEFINE_EVENT(jbd2_commit, jbd2_commit_logging,
 	TP_ARGS(journal, commit_transaction)
 );
 
+DEFINE_EVENT(jbd2_commit, jbd2_drop_transaction,
+
+	TP_PROTO(journal_t *journal, transaction_t *commit_transaction),
+
+	TP_ARGS(journal, commit_transaction)
+);
+
 TRACE_EVENT(jbd2_end_commit,
 	TP_PROTO(journal_t *journal, transaction_t *commit_transaction),
 
@@ -200,7 +207,7 @@ TRACE_EVENT(jbd2_checkpoint_stats,
 		  __entry->forced_to_close, __entry->written, __entry->dropped)
 );
 
-TRACE_EVENT(jbd2_cleanup_journal_tail,
+TRACE_EVENT(jbd2_update_log_tail,
 
 	TP_PROTO(journal_t *journal, tid_t first_tid,
 		 unsigned long block_nr, unsigned long freed),
@@ -227,6 +234,26 @@ TRACE_EVENT(jbd2_cleanup_journal_tail,
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->tail_sequence, __entry->first_tid,
 		  __entry->block_nr, __entry->freed)
+);
+
+TRACE_EVENT(jbd2_write_superblock,
+
+	TP_PROTO(journal_t *journal, int write_op),
+
+	TP_ARGS(journal, write_op),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,  dev			)
+		__field(	  int,  write_op		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= journal->j_fs_dev->bd_dev;
+		__entry->write_op	= write_op;
+	),
+
+	TP_printk("dev %d,%d write_op %x", MAJOR(__entry->dev),
+		  MINOR(__entry->dev), __entry->write_op)
 );
 
 #endif /* _TRACE_JBD2_H */

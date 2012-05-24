@@ -19,6 +19,9 @@
 #include <asm/ptrace.h>
 #include <asm/ustack.h>
 
+#define __ARCH_WANT_UNLOCKED_CTXSW
+#define ARCH_HAS_PREFETCH_SWITCH_STACK
+
 #define IA64_NUM_PHYS_STACK_REG	96
 #define IA64_NUM_DBG_REGS	8
 
@@ -719,6 +722,11 @@ extern unsigned long boot_option_idle_override;
 
 enum idle_boot_override {IDLE_NO_OVERRIDE=0, IDLE_HALT, IDLE_FORCE_MWAIT,
 			 IDLE_NOMWAIT, IDLE_POLL};
+
+void cpu_idle_wait(void);
+void default_idle(void);
+
+#define ia64_platform_is(x) (strcmp(x, platform_name) == 0)
 
 #endif /* !__ASSEMBLY__ */
 

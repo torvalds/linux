@@ -22,7 +22,6 @@ struct wm8994_ldo_pdata {
 	/** GPIOs to enable regulator, 0 or less if not available */
 	int enable;
 
-	const char *supply;
 	const struct regulator_init_data *init_data;
 };
 
@@ -184,6 +183,9 @@ struct wm8994_pdata {
         /* WM8994 jack detect threashold levels, see datasheet for values */
         unsigned int jd_scthr:2;
         unsigned int jd_thr:2;
+
+	/* Configure WM1811 jack detection for use with external capacitor */
+	unsigned int jd_ext_cap:1;
 
 	/* WM8958 microphone bias configuration */
 	int micbias[2];

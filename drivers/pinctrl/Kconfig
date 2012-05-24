@@ -17,21 +17,63 @@ config PINMUX
 config PINCONF
 	bool "Support pin configuration controllers"
 
+config GENERIC_PINCONF
+	bool
+	select PINCONF
+
 config DEBUG_PINCTRL
 	bool "Debug PINCTRL calls"
 	depends on DEBUG_KERNEL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
+config PINCTRL_PXA3xx
+	bool
+	select PINMUX
+
+config PINCTRL_MMP2
+	bool "MMP2 pin controller driver"
+	depends on ARCH_MMP
+	select PINCTRL_PXA3xx
+	select PINCONF
+
+config PINCTRL_PXA168
+	bool "PXA168 pin controller driver"
+	depends on ARCH_MMP
+	select PINCTRL_PXA3xx
+	select PINCONF
+
+config PINCTRL_PXA910
+	bool "PXA910 pin controller driver"
+	depends on ARCH_MMP
+	select PINCTRL_PXA3xx
+	select PINCONF
+
 config PINCTRL_SIRF
 	bool "CSR SiRFprimaII pin controller driver"
 	depends on ARCH_PRIMA2
 	select PINMUX
 
+config PINCTRL_TEGRA
+	bool
+
+config PINCTRL_TEGRA20
+	bool
+	select PINMUX
+	select PINCONF
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA30
+	bool
+	select PINMUX
+	select PINCONF
+	select PINCTRL_TEGRA
+
 config PINCTRL_U300
 	bool "U300 pin controller driver"
 	depends on ARCH_U300
 	select PINMUX
+	select GENERIC_PINCONF
 
 config PINCTRL_COH901
 	bool "ST-Ericsson U300 COH 901 335/571 GPIO"

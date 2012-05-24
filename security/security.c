@@ -19,6 +19,8 @@
 #include <linux/integrity.h>
 #include <linux/ima.h>
 #include <linux/evm.h>
+#include <linux/fsnotify.h>
+#include <net/flow.h>
 
 #define MAX_LSM_EVM_XATTR	2
 
@@ -187,23 +189,9 @@ int security_settime(const struct timespec *ts, const struct timezone *tz)
 	return security_ops->settime(ts, tz);
 }
 
-int security_vm_enough_memory(long pages)
-{
-	WARN_ON(current->mm == NULL);
-	return security_ops->vm_enough_memory(current->mm, pages);
-}
-
 int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
 {
-	WARN_ON(mm == NULL);
 	return security_ops->vm_enough_memory(mm, pages);
-}
-
-int security_vm_enough_memory_kern(long pages)
-{
-	/* If current->mm is a kernel thread then we will pass NULL,
-	   for this specific case that is fine */
-	return security_ops->vm_enough_memory(current->mm, pages);
 }
 
 int security_bprm_set_creds(struct linux_binprm *bprm)
@@ -727,6 +715,11 @@ int security_dentry_open(struct file *file, const struct cred *cred)
 int security_task_create(unsigned long clone_flags)
 {
 	return security_ops->task_create(clone_flags);
+}
+
+void security_task_free(struct task_struct *task)
+{
+	security_ops->task_free(task);
 }
 
 int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)

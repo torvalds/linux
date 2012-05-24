@@ -562,14 +562,15 @@ void DoC2k_init(struct mtd_info *mtd)
 
 	mtd->type = MTD_NANDFLASH;
 	mtd->flags = MTD_CAP_NANDFLASH;
-	mtd->writesize = 512;
+	mtd->writebufsize = mtd->writesize = 512;
 	mtd->oobsize = 16;
+	mtd->ecc_strength = 2;
 	mtd->owner = THIS_MODULE;
-	mtd->erase = doc_erase;
-	mtd->read = doc_read;
-	mtd->write = doc_write;
-	mtd->read_oob = doc_read_oob;
-	mtd->write_oob = doc_write_oob;
+	mtd->_erase = doc_erase;
+	mtd->_read = doc_read;
+	mtd->_write = doc_write;
+	mtd->_read_oob = doc_read_oob;
+	mtd->_write_oob = doc_write_oob;
 	this->curfloor = -1;
 	this->curchip = -1;
 	mutex_init(&this->lock);
@@ -602,13 +603,7 @@ static int doc_read(struct mtd_info *mtd, loff_t from, size_t len,
 	int i, len256 = 0, ret=0;
 	size_t left = len;
 
-	/* Don't allow read past end of device */
-	if (from >= this->totlen)
-		return -EINVAL;
-
 	mutex_lock(&this->lock);
-
-	*retlen = 0;
 	while (left) {
 		len = left;
 
@@ -748,13 +743,7 @@ static int doc_write(struct mtd_info *mtd, loff_t to, size_t len,
 	size_t left = len;
 	int status;
 
-	/* Don't allow write past end of device */
-	if (to >= this->totlen)
-		return -EINVAL;
-
 	mutex_lock(&this->lock);
-
-	*retlen = 0;
 	while (left) {
 		len = left;
 

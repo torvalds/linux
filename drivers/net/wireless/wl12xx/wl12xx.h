@@ -35,8 +35,14 @@
 #include "conf.h"
 #include "ini.h"
 
-#define WL127X_FW_NAME "ti-connectivity/wl127x-fw-3.bin"
-#define WL128X_FW_NAME "ti-connectivity/wl128x-fw-3.bin"
+#define WL127X_FW_NAME_MULTI "ti-connectivity/wl127x-fw-4-mr.bin"
+#define WL127X_FW_NAME_SINGLE "ti-connectivity/wl127x-fw-4-sr.bin"
+
+#define WL128X_FW_NAME_MULTI "ti-connectivity/wl128x-fw-4-mr.bin"
+#define WL128X_FW_NAME_SINGLE "ti-connectivity/wl128x-fw-4-sr.bin"
+
+#define WL127X_PLT_FW_NAME "ti-connectivity/wl127x-fw-4-plt.bin"
+#define WL128X_PLT_FW_NAME "ti-connectivity/wl128x-fw-4-plt.bin"
 
 /*
  * wl127x and wl128x are using the same NVS file name. However, the
@@ -90,7 +96,13 @@
 enum wl1271_state {
 	WL1271_STATE_OFF,
 	WL1271_STATE_ON,
-	WL1271_STATE_PLT,
+};
+
+enum wl12xx_fw_type {
+	WL12XX_FW_TYPE_NONE,
+	WL12XX_FW_TYPE_NORMAL,
+	WL12XX_FW_TYPE_MULTI,
+	WL12XX_FW_TYPE_PLT,
 };
 
 enum wl1271_partition_type {
@@ -247,15 +259,17 @@ enum wl12xx_flags {
 	WL1271_FLAG_PENDING_WORK,
 	WL1271_FLAG_SOFT_GEMINI,
 	WL1271_FLAG_RECOVERY_IN_PROGRESS,
+	WL1271_FLAG_VIF_CHANGE_IN_PROGRESS,
+	WL1271_FLAG_INTENDED_FW_RECOVERY,
 };
 
 enum wl12xx_vif_flags {
 	WLVIF_FLAG_INITIALIZED,
 	WLVIF_FLAG_STA_ASSOCIATED,
+	WLVIF_FLAG_STA_AUTHORIZED,
 	WLVIF_FLAG_IBSS_JOINED,
 	WLVIF_FLAG_AP_STARTED,
-	WLVIF_FLAG_PSM,
-	WLVIF_FLAG_PSM_REQUESTED,
+	WLVIF_FLAG_IN_PS,
 	WLVIF_FLAG_STA_STATE_SENT,
 	WLVIF_FLAG_RX_STREAMING_STARTED,
 	WLVIF_FLAG_PSPOLL_FAILURE,
@@ -295,6 +309,9 @@ struct wl1271 {
 	spinlock_t wl_lock;
 
 	enum wl1271_state state;
+	enum wl12xx_fw_type fw_type;
+	bool plt;
+	u8 last_vif_count;
 	struct mutex mutex;
 
 	unsigned long flags;
@@ -313,7 +330,12 @@ struct wl1271 {
 
 	s8 hw_pg_ver;
 
-	u8 mac_addr[ETH_ALEN];
+	/* address read from the fuse ROM */
+	u32 fuse_oui_addr;
+	u32 fuse_nic_addr;
+
+	/* we have up to 2 MAC addresses */
+	struct mac_address addresses[2];
 	int channel;
 	u8 system_hlid;
 
@@ -425,16 +447,12 @@ struct wl1271 {
 	struct wl12xx_fw_status *fw_status;
 	struct wl1271_tx_hw_res_if *tx_res_if;
 
-	struct ieee80211_vif *vif;
-
 	/* Current chipset configuration */
 	struct conf_drv_settings conf;
 
 	bool sg_enabled;
 
 	bool enable_11a;
-
-	struct list_head list;
 
 	/* Most recently reported noise in dBm */
 	s8 noise;
@@ -477,6 +495,9 @@ struct wl1271 {
 
 	/* last wlvif we transmitted from */
 	struct wl12xx_vif *last_wlvif;
+
+	/* work to fire when Tx is stuck */
+	struct delayed_work tx_watchdog_work;
 };
 
 struct wl1271_station {
@@ -503,6 +524,8 @@ struct wl12xx_vif {
 			u8 basic_rate_idx;
 			u8 ap_rate_idx;
 			u8 p2p_rate_idx;
+
+			bool qos;
 		} sta;
 		struct {
 			u8 global_hlid;
@@ -560,12 +583,6 @@ struct wl12xx_vif {
 	/* Session counter for the chipset */
 	int session_counter;
 
-	struct completion *ps_compl;
-	struct delayed_work pspoll_work;
-
-	/* counter for ps-poll delivery failures */
-	int ps_poll_failures;
-
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;
 
@@ -574,6 +591,10 @@ struct wl12xx_vif {
 
 	int rssi_thold;
 	int last_rssi_event;
+
+	/* save the current encryption type for auto-arp config */
+	u8 encryption_type;
+	__be32 ip_addr;
 
 	/* RX BA constraint value */
 	bool ba_support;

@@ -30,7 +30,7 @@
 #include <asm/tlbflush.h>
 #include <asm/fixmap.h>
 
-void *__kmap_atomic(struct page *page)
+void *kmap_atomic(struct page *page)
 {
 	unsigned long vaddr;
 	long idx, type;
@@ -64,7 +64,7 @@ void *__kmap_atomic(struct page *page)
 
 	return (void*) vaddr;
 }
-EXPORT_SYMBOL(__kmap_atomic);
+EXPORT_SYMBOL(kmap_atomic);
 
 void __kunmap_atomic(void *kvaddr)
 {

@@ -588,11 +588,11 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 	/* now allocate any new buffers needed */
 	for (; new < size; new++) {
 		struct sk_buff *rx_skbuff;
-		new_skb_list[new] = dev_alloc_skb(PKT_BUF_SKB);
+		new_skb_list[new] = netdev_alloc_skb(dev, PKT_BUF_SKB);
 		rx_skbuff = new_skb_list[new];
 		if (!rx_skbuff) {
 			/* keep the original lists and buffers */
-			netif_err(lp, drv, dev, "%s dev_alloc_skb failed\n",
+			netif_err(lp, drv, dev, "%s netdev_alloc_skb failed\n",
 				  __func__);
 			goto free_all_new;
 		}
@@ -909,7 +909,7 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t * data1)
 	/* Initialize Transmit buffers. */
 	size = data_len + 15;
 	for (x = 0; x < numbuffs; x++) {
-		skb = dev_alloc_skb(size);
+		skb = netdev_alloc_skb(dev, size);
 		if (!skb) {
 			netif_printk(lp, hw, KERN_DEBUG, dev,
 				     "Cannot allocate skb at line: %d!\n",
@@ -1152,7 +1152,7 @@ static void pcnet32_rx_entry(struct net_device *dev,
 	if (pkt_len > rx_copybreak) {
 		struct sk_buff *newskb;
 
-		newskb = dev_alloc_skb(PKT_BUF_SKB);
+		newskb = netdev_alloc_skb(dev, PKT_BUF_SKB);
 		if (newskb) {
 			skb_reserve(newskb, NET_IP_ALIGN);
 			skb = lp->rx_skbuff[entry];
@@ -1172,7 +1172,7 @@ static void pcnet32_rx_entry(struct net_device *dev,
 		} else
 			skb = NULL;
 	} else
-		skb = dev_alloc_skb(pkt_len + NET_IP_ALIGN);
+		skb = netdev_alloc_skb(dev, pkt_len + NET_IP_ALIGN);
 
 	if (skb == NULL) {
 		netif_err(lp, drv, dev, "Memory squeeze, dropping packet\n");
@@ -1649,8 +1649,6 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 	dev = alloc_etherdev(sizeof(*lp));
 	if (!dev) {
-		if (pcnet32_debug & NETIF_MSG_PROBE)
-			pr_err("Memory allocation failed\n");
 		ret = -ENOMEM;
 		goto err_release_region;
 	}
@@ -2273,11 +2271,11 @@ static int pcnet32_init_ring(struct net_device *dev)
 	for (i = 0; i < lp->rx_ring_size; i++) {
 		struct sk_buff *rx_skbuff = lp->rx_skbuff[i];
 		if (rx_skbuff == NULL) {
-			lp->rx_skbuff[i] = dev_alloc_skb(PKT_BUF_SKB);
+			lp->rx_skbuff[i] = netdev_alloc_skb(dev, PKT_BUF_SKB);
 			rx_skbuff = lp->rx_skbuff[i];
 			if (!rx_skbuff) {
 				/* there is not much we can do at this point */
-				netif_err(lp, drv, dev, "%s dev_alloc_skb failed\n",
+				netif_err(lp, drv, dev, "%s netdev_alloc_skb failed\n",
 					  __func__);
 				return -1;
 			}

@@ -2327,6 +2327,7 @@ config USE_OF
 	bool "Flattened Device Tree support"
 	select OF
 	select OF_EARLY_FLATTREE
+	select IRQ_DOMAIN
 	help
 	  Include support for flattened device tree machine descriptions.
 
@@ -2456,6 +2457,7 @@ config MIPS32_COMPAT
 config COMPAT
 	bool
 	depends on MIPS32_COMPAT
+	select ARCH_WANT_OLD_COMPAT_IPC
 	default y
 
 config SYSVIPC_COMPAT

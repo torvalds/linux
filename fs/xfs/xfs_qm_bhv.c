@@ -40,28 +40,28 @@
 STATIC void
 xfs_fill_statvfs_from_dquot(
 	struct kstatfs		*statp,
-	xfs_disk_dquot_t	*dp)
+	struct xfs_dquot	*dqp)
 {
 	__uint64_t		limit;
 
-	limit = dp->d_blk_softlimit ?
-		be64_to_cpu(dp->d_blk_softlimit) :
-		be64_to_cpu(dp->d_blk_hardlimit);
+	limit = dqp->q_core.d_blk_softlimit ?
+		be64_to_cpu(dqp->q_core.d_blk_softlimit) :
+		be64_to_cpu(dqp->q_core.d_blk_hardlimit);
 	if (limit && statp->f_blocks > limit) {
 		statp->f_blocks = limit;
 		statp->f_bfree = statp->f_bavail =
-			(statp->f_blocks > be64_to_cpu(dp->d_bcount)) ?
-			 (statp->f_blocks - be64_to_cpu(dp->d_bcount)) : 0;
+			(statp->f_blocks > dqp->q_res_bcount) ?
+			 (statp->f_blocks - dqp->q_res_bcount) : 0;
 	}
 
-	limit = dp->d_ino_softlimit ?
-		be64_to_cpu(dp->d_ino_softlimit) :
-		be64_to_cpu(dp->d_ino_hardlimit);
+	limit = dqp->q_core.d_ino_softlimit ?
+		be64_to_cpu(dqp->q_core.d_ino_softlimit) :
+		be64_to_cpu(dqp->q_core.d_ino_hardlimit);
 	if (limit && statp->f_files > limit) {
 		statp->f_files = limit;
 		statp->f_ffree =
-			(statp->f_files > be64_to_cpu(dp->d_icount)) ?
-			 (statp->f_ffree - be64_to_cpu(dp->d_icount)) : 0;
+			(statp->f_files > dqp->q_res_icount) ?
+			 (statp->f_ffree - dqp->q_res_icount) : 0;
 	}
 }
 
@@ -82,7 +82,7 @@ xfs_qm_statvfs(
 	xfs_dquot_t		*dqp;
 
 	if (!xfs_qm_dqget(mp, NULL, xfs_get_projid(ip), XFS_DQ_PROJ, 0, &dqp)) {
-		xfs_fill_statvfs_from_dquot(statp, &dqp->q_core);
+		xfs_fill_statvfs_from_dquot(statp, dqp);
 		xfs_qm_dqput(dqp);
 	}
 }
@@ -155,22 +155,4 @@ xfs_qm_newmount(
 	}
 
 	return 0;
-}
-
-void __init
-xfs_qm_init(void)
-{
-	printk(KERN_INFO "SGI XFS Quota Management subsystem\n");
-	mutex_init(&xfs_Gqm_lock);
-	xfs_qm_init_procfs();
-}
-
-void __exit
-xfs_qm_exit(void)
-{
-	xfs_qm_cleanup_procfs();
-	if (qm_dqzone)
-		kmem_zone_destroy(qm_dqzone);
-	if (qm_dqtrxzone)
-		kmem_zone_destroy(qm_dqtrxzone);
 }

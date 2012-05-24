@@ -1,7 +1,7 @@
 /*
  * linux/arch/arm/mach-at91/board-flexibity.c
  *
- *  Copyright (C) 2010 Flexibity
+ *  Copyright (C) 2010-2011 Flexibity
  *  Copyright (C) 2005 SAN People
  *  Copyright (C) 2006 Atmel
  *
@@ -60,6 +60,13 @@ static struct at91_usbh_data __initdata flexibity_usbh_data = {
 static struct at91_udc_data __initdata flexibity_udc_data = {
 	.vbus_pin	= AT91_PIN_PC5,
 	.pullup_pin	= -EINVAL,		/* pull-up driven by UDC */
+};
+
+/* I2C devices */
+static struct i2c_board_info __initdata flexibity_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("ds1307", 0x68),
+	},
 };
 
 /* SPI devices */
@@ -141,6 +148,9 @@ static void __init flexibity_board_init(void)
 	at91_add_device_usbh(&flexibity_usbh_data);
 	/* USB Device */
 	at91_add_device_udc(&flexibity_udc_data);
+	/* I2C */
+	at91_add_device_i2c(flexibity_i2c_devices,
+		ARRAY_SIZE(flexibity_i2c_devices));
 	/* SPI */
 	at91_add_device_spi(flexibity_spi_devices,
 		ARRAY_SIZE(flexibity_spi_devices));

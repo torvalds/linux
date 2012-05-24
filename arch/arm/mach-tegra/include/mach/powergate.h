@@ -27,8 +27,21 @@
 #define TEGRA_POWERGATE_VDEC	4
 #define TEGRA_POWERGATE_L2	5
 #define TEGRA_POWERGATE_MPE	6
-#define TEGRA_NUM_POWERGATE	7
+#define TEGRA_POWERGATE_HEG	7
+#define TEGRA_POWERGATE_SATA	8
+#define TEGRA_POWERGATE_CPU1	9
+#define TEGRA_POWERGATE_CPU2	10
+#define TEGRA_POWERGATE_CPU3	11
+#define TEGRA_POWERGATE_CELP	12
+#define TEGRA_POWERGATE_3D1	13
 
+#define TEGRA_POWERGATE_CPU0	TEGRA_POWERGATE_CPU
+#define TEGRA_POWERGATE_3D0	TEGRA_POWERGATE_3D
+
+int  __init tegra_powergate_init(void);
+
+int tegra_cpu_powergate_id(int cpuid);
+int tegra_powergate_is_powered(int id);
 int tegra_powergate_power_on(int id);
 int tegra_powergate_power_off(int id);
 int tegra_powergate_remove_clamping(int id);

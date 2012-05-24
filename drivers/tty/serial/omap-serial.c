@@ -159,7 +159,7 @@ static void serial_omap_stop_tx(struct uart_port *port)
 		serial_out(up, UART_IER, up->ier);
 	}
 
-	if (!up->use_dma && pdata->set_forceidle)
+	if (!up->use_dma && pdata && pdata->set_forceidle)
 		pdata->set_forceidle(up->pdev);
 
 	pm_runtime_mark_last_busy(&up->pdev->dev);
@@ -298,7 +298,7 @@ static void serial_omap_start_tx(struct uart_port *port)
 	if (!up->use_dma) {
 		pm_runtime_get_sync(&up->pdev->dev);
 		serial_omap_enable_ier_thri(up);
-		if (pdata->set_noidle)
+		if (pdata && pdata->set_noidle)
 			pdata->set_noidle(up->pdev);
 		pm_runtime_mark_last_busy(&up->pdev->dev);
 		pm_runtime_put_autosuspend(&up->pdev->dev);
@@ -1381,29 +1381,24 @@ static int serial_omap_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (!request_mem_region(mem->start, resource_size(mem),
+	if (!devm_request_mem_region(&pdev->dev, mem->start, resource_size(mem),
 				pdev->dev.driver->name)) {
 		dev_err(&pdev->dev, "memory region already claimed\n");
 		return -EBUSY;
 	}
 
 	dma_rx = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
-	if (!dma_rx) {
-		ret = -EINVAL;
-		goto err;
-	}
+	if (!dma_rx)
+		return -ENXIO;
 
 	dma_tx = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
-	if (!dma_tx) {
-		ret = -EINVAL;
-		goto err;
-	}
+	if (!dma_tx)
+		return -ENXIO;
 
-	up = kzalloc(sizeof(*up), GFP_KERNEL);
-	if (up == NULL) {
-		ret = -ENOMEM;
-		goto do_release_region;
-	}
+	up = devm_kzalloc(&pdev->dev, sizeof(*up), GFP_KERNEL);
+	if (!up)
+		return -ENOMEM;
+
 	up->pdev = pdev;
 	up->port.dev = &pdev->dev;
 	up->port.type = PORT_OMAP;
@@ -1423,16 +1418,17 @@ static int serial_omap_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get alias/pdev id, errno %d\n",
 								up->port.line);
 		ret = -ENODEV;
-		goto err;
+		goto err_port_line;
 	}
 
 	sprintf(up->name, "OMAP UART%d", up->port.line);
 	up->port.mapbase = mem->start;
-	up->port.membase = ioremap(mem->start, resource_size(mem));
+	up->port.membase = devm_ioremap(&pdev->dev, mem->start,
+						resource_size(mem));
 	if (!up->port.membase) {
 		dev_err(&pdev->dev, "can't ioremap UART\n");
 		ret = -ENOMEM;
-		goto err;
+		goto err_ioremap;
 	}
 
 	up->port.flags = omap_up_info->flags;
@@ -1478,16 +1474,19 @@ static int serial_omap_probe(struct platform_device *pdev)
 
 	ret = uart_add_one_port(&serial_omap_reg, &up->port);
 	if (ret != 0)
-		goto do_release_region;
+		goto err_add_port;
 
 	pm_runtime_put(&pdev->dev);
 	platform_set_drvdata(pdev, up);
 	return 0;
-err:
+
+err_add_port:
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+err_ioremap:
+err_port_line:
 	dev_err(&pdev->dev, "[UART%d]: failure [%s]: %d\n",
 				pdev->id, __func__, ret);
-do_release_region:
-	release_mem_region(mem->start, resource_size(mem));
 	return ret;
 }
 
@@ -1499,8 +1498,6 @@ static int serial_omap_remove(struct platform_device *dev)
 		pm_runtime_disable(&up->pdev->dev);
 		uart_remove_one_port(&serial_omap_reg, &up->port);
 		pm_qos_remove_request(&up->pm_qos_request);
-
-		kfree(up);
 	}
 
 	platform_set_drvdata(dev, NULL);
@@ -1613,7 +1610,7 @@ static int serial_omap_runtime_resume(struct device *dev)
 	struct uart_omap_port *up = dev_get_drvdata(dev);
 	struct omap_uart_port_info *pdata = dev->platform_data;
 
-	if (up) {
+	if (up && pdata) {
 		if (pdata->get_context_loss_count) {
 			u32 loss_cnt = pdata->get_context_loss_count(dev);
 

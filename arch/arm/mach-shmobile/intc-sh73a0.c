@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/sh_intc.h>
 #include <mach/intc.h>
+#include <mach/irqs.h>
 #include <mach/sh73a0.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
@@ -420,8 +421,8 @@ static irqreturn_t sh73a0_pint1_demux(int irq, void *dev_id)
 
 void __init sh73a0_init_irq(void)
 {
-	void __iomem *gic_dist_base = __io(0xf0001000);
-	void __iomem *gic_cpu_base = __io(0xf0000100);
+	void __iomem *gic_dist_base = IOMEM(0xf0001000);
+	void __iomem *gic_cpu_base = IOMEM(0xf0000100);
 	void __iomem *intevtsa = ioremap_nocache(0xffd20100, PAGE_SIZE);
 	int k, n;
 

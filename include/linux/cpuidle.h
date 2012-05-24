@@ -15,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/kobject.h>
 #include <linux/completion.h>
+#include <linux/hrtimer.h>
 
 #define CPUIDLE_STATE_MAX	8
 #define CPUIDLE_NAME_LEN	16
@@ -43,12 +44,15 @@ struct cpuidle_state {
 
 	unsigned int	flags;
 	unsigned int	exit_latency; /* in US */
-	unsigned int	power_usage; /* in mW */
+	int		power_usage; /* in mW */
 	unsigned int	target_residency; /* in US */
+	unsigned int    disable;
 
 	int (*enter)	(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
 			int index);
+
+	int (*enter_dead) (struct cpuidle_device *dev, int index);
 };
 
 /* Idle State Flags */
@@ -96,7 +100,6 @@ struct cpuidle_device {
 	struct list_head 	device_list;
 	struct kobject		kobj;
 	struct completion	kobj_unregister;
-	void			*governor_data;
 };
 
 DECLARE_PER_CPU(struct cpuidle_device *, cpuidle_devices);
@@ -118,10 +121,12 @@ static inline int cpuidle_get_last_residency(struct cpuidle_device *dev)
  ****************************/
 
 struct cpuidle_driver {
-	char			name[CPUIDLE_NAME_LEN];
+	const char		*name;
 	struct module 		*owner;
 
 	unsigned int		power_specified:1;
+	/* set to 1 to use the core cpuidle time keeping (for all states). */
+	unsigned int		en_core_tk_irqen:1;
 	struct cpuidle_state	states[CPUIDLE_STATE_MAX];
 	int			state_count;
 	int			safe_state_index;
@@ -140,6 +145,11 @@ extern void cpuidle_pause_and_lock(void);
 extern void cpuidle_resume_and_unlock(void);
 extern int cpuidle_enable_device(struct cpuidle_device *dev);
 extern void cpuidle_disable_device(struct cpuidle_device *dev);
+extern int cpuidle_wrap_enter(struct cpuidle_device *dev,
+				struct cpuidle_driver *drv, int index,
+				int (*enter)(struct cpuidle_device *dev,
+					struct cpuidle_driver *drv, int index));
+extern int cpuidle_play_dead(void);
 
 #else
 static inline void disable_cpuidle(void) { }
@@ -157,6 +167,12 @@ static inline void cpuidle_resume_and_unlock(void) { }
 static inline int cpuidle_enable_device(struct cpuidle_device *dev)
 {return -ENODEV; }
 static inline void cpuidle_disable_device(struct cpuidle_device *dev) { }
+static inline int cpuidle_wrap_enter(struct cpuidle_device *dev,
+				struct cpuidle_driver *drv, int index,
+				int (*enter)(struct cpuidle_device *dev,
+					struct cpuidle_driver *drv, int index))
+{ return -ENODEV; }
+static inline int cpuidle_play_dead(void) {return -ENODEV; }
 
 #endif
 

@@ -95,6 +95,8 @@ unsigned long vm_dirty_bytes;
  */
 unsigned int dirty_writeback_interval = 5 * 100; /* centiseconds */
 
+EXPORT_SYMBOL_GPL(dirty_writeback_interval);
+
 /*
  * The longest time for which data is allowed to remain dirty
  */
@@ -1472,6 +1474,7 @@ void throttle_vm_writeout(gfp_t gfp_mask)
 
         for ( ; ; ) {
 		global_dirty_limits(&background_thresh, &dirty_thresh);
+		dirty_thresh = hard_dirty_limit(dirty_thresh);
 
                 /*
                  * Boost the allowable dirty threshold a bit for page

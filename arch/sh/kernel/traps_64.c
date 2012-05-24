@@ -25,7 +25,6 @@
 #include <linux/sysctl.h>
 #include <linux/module.h>
 #include <linux/perf_event.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <linux/atomic.h>

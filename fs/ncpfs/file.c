@@ -7,7 +7,6 @@
  */
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 #include <linux/time.h>
 #include <linux/kernel.h>

@@ -1029,7 +1029,8 @@ static int snd_interval_ratden(struct snd_interval *i,
  *
  * Returns non-zero if the value is changed, zero if not changed.
  */
-int snd_interval_list(struct snd_interval *i, unsigned int count, unsigned int *list, unsigned int mask)
+int snd_interval_list(struct snd_interval *i, unsigned int count,
+		      const unsigned int *list, unsigned int mask)
 {
         unsigned int k;
 	struct snd_interval list_range;

@@ -58,7 +58,6 @@
 
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <asm/system.h>
 
 #define LCD_MINOR		156
 #define KEYPAD_MINOR		185

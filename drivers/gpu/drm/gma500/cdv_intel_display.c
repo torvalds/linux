@@ -344,7 +344,7 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 /*
  * Returns whether any encoder on the specified pipe is of the specified type
  */
-bool cdv_intel_pipe_has_type(struct drm_crtc *crtc, int type)
+static bool cdv_intel_pipe_has_type(struct drm_crtc *crtc, int type)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
@@ -476,7 +476,7 @@ static bool cdv_intel_find_best_PLL(struct drm_crtc *crtc, int target,
 	return err != target;
 }
 
-int cdv_intel_pipe_set_base(struct drm_crtc *crtc,
+static int cdv_intel_pipe_set_base(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
@@ -569,7 +569,6 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int dspbase_reg = (pipe == 0) ? DSPABASE : DSPBBASE;
 	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
 	u32 temp;
-	bool enabled;
 
 	/* XXX: When our outputs are all unaware of DPMS modes other than off
 	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
@@ -663,7 +662,6 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		udelay(150);
 		break;
 	}
-	enabled = crtc->enabled && mode != DRM_MODE_DPMS_OFF;
 	/*Set FIFO Watermarks*/
 	REG_WRITE(DSPARB, 0x3F3E);
 }
@@ -678,22 +676,6 @@ static void cdv_intel_crtc_commit(struct drm_crtc *crtc)
 {
 	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
-}
-
-void cdv_intel_encoder_prepare(struct drm_encoder *encoder)
-{
-	struct drm_encoder_helper_funcs *encoder_funcs =
-	    encoder->helper_private;
-	/* lvds has its own version of prepare see cdv_intel_lvds_prepare */
-	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
-}
-
-void cdv_intel_encoder_commit(struct drm_encoder *encoder)
-{
-	struct drm_encoder_helper_funcs *encoder_funcs =
-	    encoder->helper_private;
-	/* lvds has its own version of commit see cdv_intel_lvds_commit */
-	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
 }
 
 static bool cdv_intel_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -745,7 +727,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	int refclk;
 	struct cdv_intel_clock_t clock;
 	u32 dpll = 0, dspcntr, pipeconf;
-	bool ok, is_sdvo = false, is_dvo = false;
+	bool ok;
 	bool is_crt = false, is_lvds = false, is_tv = false;
 	bool is_hdmi = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
@@ -762,12 +744,6 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		switch (psb_intel_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
-			break;
-		case INTEL_OUTPUT_SDVO:
-			is_sdvo = true;
-			break;
-		case INTEL_OUTPUT_DVO:
-			is_dvo = true;
 			break;
 		case INTEL_OUTPUT_TVOUT:
 			is_tv = true;
@@ -928,7 +904,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 }
 
 /** Loads the palette/gamma unit for the CRTC with the prepared values */
-void cdv_intel_crtc_load_lut(struct drm_crtc *crtc)
+static void cdv_intel_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv =
@@ -968,7 +944,7 @@ void cdv_intel_crtc_load_lut(struct drm_crtc *crtc)
 		gma_power_end(dev);
 	} else {
 		for (i = 0; i < 256; i++) {
-			dev_priv->save_palette_a[i] =
+			dev_priv->regs.psb.save_palette_a[i] =
 				  ((psb_intel_crtc->lut_r[i] +
 				  psb_intel_crtc->lut_adj[i]) << 16) |
 				  ((psb_intel_crtc->lut_g[i] +
@@ -1338,18 +1314,20 @@ static int cdv_intel_crtc_clock_get(struct drm_device *dev,
 		gma_power_end(dev);
 	} else {
 		dpll = (pipe == 0) ?
-			dev_priv->saveDPLL_A : dev_priv->saveDPLL_B;
+			dev_priv->regs.psb.saveDPLL_A :
+			dev_priv->regs.psb.saveDPLL_B;
 
 		if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
 			fp = (pipe == 0) ?
-				dev_priv->saveFPA0 :
-				dev_priv->saveFPB0;
+				dev_priv->regs.psb.saveFPA0 :
+				dev_priv->regs.psb.saveFPB0;
 		else
 			fp = (pipe == 0) ?
-				dev_priv->saveFPA1 :
-				dev_priv->saveFPB1;
+				dev_priv->regs.psb.saveFPA1 :
+				dev_priv->regs.psb.saveFPB1;
 
-		is_lvds = (pipe == 1) && (dev_priv->saveLVDS & LVDS_PORT_EN);
+		is_lvds = (pipe == 1) &&
+				(dev_priv->regs.psb.saveLVDS & LVDS_PORT_EN);
 	}
 
 	clock.m1 = (fp & FP_M1_DIV_MASK) >> FP_M1_DIV_SHIFT;
@@ -1419,13 +1397,17 @@ struct drm_display_mode *cdv_intel_crtc_mode_get(struct drm_device *dev,
 		gma_power_end(dev);
 	} else {
 		htot = (pipe == 0) ?
-			dev_priv->saveHTOTAL_A : dev_priv->saveHTOTAL_B;
+			dev_priv->regs.psb.saveHTOTAL_A :
+			dev_priv->regs.psb.saveHTOTAL_B;
 		hsync = (pipe == 0) ?
-			dev_priv->saveHSYNC_A : dev_priv->saveHSYNC_B;
+			dev_priv->regs.psb.saveHSYNC_A :
+			dev_priv->regs.psb.saveHSYNC_B;
 		vtot = (pipe == 0) ?
-			dev_priv->saveVTOTAL_A : dev_priv->saveVTOTAL_B;
+			dev_priv->regs.psb.saveVTOTAL_A :
+			dev_priv->regs.psb.saveVTOTAL_B;
 		vsync = (pipe == 0) ?
-			dev_priv->saveVSYNC_A : dev_priv->saveVSYNC_B;
+			dev_priv->regs.psb.saveVSYNC_A :
+			dev_priv->regs.psb.saveVSYNC_B;
 	}
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
@@ -1475,34 +1457,3 @@ const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
 	.set_config = cdv_crtc_set_config,
 	.destroy = cdv_intel_crtc_destroy,
 };
-
-/*
- * Set the default value of cursor control and base register
- * to zero. This is a workaround for h/w defect on oaktrail
- */
-void cdv_intel_cursor_init(struct drm_device *dev, int pipe)
-{
-	uint32_t control;
-	uint32_t base;
-
-	switch (pipe) {
-	case 0:
-		control = CURACNTR;
-		base = CURABASE;
-		break;
-	case 1:
-		control = CURBCNTR;
-		base = CURBBASE;
-		break;
-	case 2:
-		control = CURCCNTR;
-		base = CURCBASE;
-		break;
-	default:
-		return;
-	}
-
-	REG_WRITE(control, 0);
-	REG_WRITE(base, 0);
-}
-

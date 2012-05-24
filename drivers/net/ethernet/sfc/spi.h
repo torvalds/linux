@@ -68,7 +68,7 @@ static inline bool efx_spi_present(const struct efx_spi_device *spi)
 
 int falcon_spi_cmd(struct efx_nic *efx,
 		   const struct efx_spi_device *spi, unsigned int command,
-		   int address, const void* in, void *out, size_t len);
+		   int address, const void *in, void *out, size_t len);
 int falcon_spi_wait_write(struct efx_nic *efx,
 			  const struct efx_spi_device *spi);
 int falcon_spi_read(struct efx_nic *efx,

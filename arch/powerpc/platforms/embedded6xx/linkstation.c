@@ -82,8 +82,7 @@ static void __init linkstation_init_IRQ(void)
 {
 	struct mpic *mpic;
 
-	mpic = mpic_alloc(NULL, 0, MPIC_WANTS_RESET,
-			4, 32, " EPIC     ");
+	mpic = mpic_alloc(NULL, 0, 0, 4, 0, " EPIC     ");
 	BUG_ON(mpic == NULL);
 
 	/* PCI IRQs */

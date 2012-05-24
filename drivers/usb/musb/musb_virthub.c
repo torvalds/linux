@@ -47,6 +47,7 @@
 
 static void musb_port_suspend(struct musb *musb, bool do_suspend)
 {
+	struct usb_otg	*otg = musb->xceiv->otg;
 	u8		power;
 	void __iomem	*mbase = musb->mregs;
 
@@ -81,7 +82,7 @@ static void musb_port_suspend(struct musb *musb, bool do_suspend)
 		case OTG_STATE_A_HOST:
 			musb->xceiv->state = OTG_STATE_A_SUSPEND;
 			musb->is_active = is_otg_enabled(musb)
-					&& musb->xceiv->host->b_hnp_enable;
+					&& otg->host->b_hnp_enable;
 			if (musb->is_active)
 				mod_timer(&musb->otg_timer, jiffies
 					+ msecs_to_jiffies(
@@ -91,7 +92,7 @@ static void musb_port_suspend(struct musb *musb, bool do_suspend)
 		case OTG_STATE_B_HOST:
 			musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
 			musb->is_active = is_otg_enabled(musb)
-					&& musb->xceiv->host->b_hnp_enable;
+					&& otg->host->b_hnp_enable;
 			musb_platform_try_idle(musb, 0);
 			break;
 		default:
@@ -179,6 +180,8 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 
 void musb_root_disconnect(struct musb *musb)
 {
+	struct usb_otg	*otg = musb->xceiv->otg;
+
 	musb->port1_status = USB_PORT_STAT_POWER
 			| (USB_PORT_STAT_C_CONNECTION << 16);
 
@@ -188,7 +191,7 @@ void musb_root_disconnect(struct musb *musb)
 	switch (musb->xceiv->state) {
 	case OTG_STATE_A_SUSPEND:
 		if (is_otg_enabled(musb)
-				&& musb->xceiv->host->b_hnp_enable) {
+				&& otg->host->b_hnp_enable) {
 			musb->xceiv->state = OTG_STATE_A_PERIPHERAL;
 			musb->g.is_a_peripheral = 1;
 			break;

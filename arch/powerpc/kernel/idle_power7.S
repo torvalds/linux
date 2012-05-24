@@ -1,5 +1,5 @@
 /*
- *  This file contains the power_save function for 970-family CPUs.
+ *  This file contains the power_save function for Power7 CPUs.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -15,6 +15,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/ppc-opcode.h>
+#include <asm/hw_irq.h>
 
 #undef DEBUG
 
@@ -51,9 +52,25 @@ _GLOBAL(power7_idle)
 	rldicl	r9,r9,48,1
 	rotldi	r9,r9,16
 	mtmsrd	r9,1			/* hard-disable interrupts */
+
+	/* Check if something happened while soft-disabled */
+	lbz	r0,PACAIRQHAPPENED(r13)
+	cmpwi	cr0,r0,0
+	beq	1f
+	addi	r1,r1,INT_FRAME_SIZE
+	ld	r0,16(r1)
+	mtlr	r0
+	blr
+
+1:	/* We mark irqs hard disabled as this is the state we'll
+	 * be in when returning and we need to tell arch_local_irq_restore()
+	 * about it
+	 */
+	li	r0,PACA_IRQ_HARD_DIS
+	stb	r0,PACAIRQHAPPENED(r13)
+
+	/* We haven't lost state ... yet */
 	li	r0,0
-	stb	r0,PACASOFTIRQEN(r13)	/* we'll hard-enable shortly */
-	stb	r0,PACAHARDIRQEN(r13)
 	stb	r0,PACA_NAPSTATELOST(r13)
 
 	/* Continue saving state */

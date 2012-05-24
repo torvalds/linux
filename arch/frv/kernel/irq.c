@@ -28,7 +28,6 @@
 #include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/smp.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/delay.h>

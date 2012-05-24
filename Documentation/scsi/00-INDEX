@@ -94,3 +94,5 @@ sym53c8xx_2.txt
 	- info on second generation driver for sym53c8xx based adapters
 tmscsim.txt
 	- info on driver for AM53c974 based adapters
+ufs.txt
+	- info on Universal Flash Storage(UFS) and UFS host controller driver.

@@ -88,7 +88,7 @@ int of_n_size_cells(struct device_node *np)
 }
 EXPORT_SYMBOL(of_n_size_cells);
 
-#if !defined(CONFIG_SPARC)   /* SPARC doesn't do ref counting (yet) */
+#if defined(CONFIG_OF_DYNAMIC)
 /**
  *	of_node_get - Increment refcount of a node
  *	@node:	Node to inc refcount, NULL is supported to
@@ -161,7 +161,7 @@ void of_node_put(struct device_node *node)
 		kref_put(&node->kref, of_node_release);
 }
 EXPORT_SYMBOL(of_node_put);
-#endif /* !CONFIG_SPARC */
+#endif /* CONFIG_OF_DYNAMIC */
 
 struct property *of_find_property(const struct device_node *np,
 				  const char *name,
@@ -761,6 +761,42 @@ int of_property_read_string_index(struct device_node *np, const char *propname,
 }
 EXPORT_SYMBOL_GPL(of_property_read_string_index);
 
+/**
+ * of_property_match_string() - Find string in a list and return index
+ * @np: pointer to node containing string list property
+ * @propname: string list property name
+ * @string: pointer to string to search for in string list
+ *
+ * This function searches a string list property and returns the index
+ * of a specific string value.
+ */
+int of_property_match_string(struct device_node *np, const char *propname,
+			     const char *string)
+{
+	struct property *prop = of_find_property(np, propname, NULL);
+	size_t l;
+	int i;
+	const char *p, *end;
+
+	if (!prop)
+		return -EINVAL;
+	if (!prop->value)
+		return -ENODATA;
+
+	p = prop->value;
+	end = p + prop->length;
+
+	for (i = 0; p < end; i++, p += l) {
+		l = strlen(p) + 1;
+		if (p + l > end)
+			return -EILSEQ;
+		pr_debug("comparing %s with %s\n", string, p);
+		if (strcmp(string, p) == 0)
+			return i; /* Found it; return index */
+	}
+	return -ENODATA;
+}
+EXPORT_SYMBOL_GPL(of_property_match_string);
 
 /**
  * of_property_count_strings - Find and return the number of strings from a

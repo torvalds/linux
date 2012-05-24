@@ -25,8 +25,42 @@
 #include <linux/serial_sci.h>
 #include <linux/sh_timer.h>
 #include <mach/r8a7740.h>
+#include <mach/common.h>
+#include <mach/irqs.h>
 #include <asm/mach-types.h>
+#include <asm/mach/map.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/time.h>
+
+static struct map_desc r8a7740_io_desc[] __initdata = {
+	 /*
+	  * for CPGA/INTC/PFC
+	  * 0xe6000000-0xefffffff -> 0xe6000000-0xefffffff
+	  */
+	{
+		.virtual	= 0xe6000000,
+		.pfn		= __phys_to_pfn(0xe6000000),
+		.length		= 160 << 20,
+		.type		= MT_DEVICE_NONSHARED
+	},
+#ifdef CONFIG_CACHE_L2X0
+	/*
+	 * for l2x0_init()
+	 * 0xf0100000-0xf0101000 -> 0xf0002000-0xf0003000
+	 */
+	{
+		.virtual	= 0xf0002000,
+		.pfn		= __phys_to_pfn(0xf0100000),
+		.length		= PAGE_SIZE,
+		.type		= MT_DEVICE_NONSHARED
+	},
+#endif
+};
+
+void __init r8a7740_map_io(void)
+{
+	iotable_init(r8a7740_io_desc, ARRAY_SIZE(r8a7740_io_desc));
+}
 
 /* SCIFA0 */
 static struct plat_sci_port scif0_platform_data = {
@@ -345,8 +379,20 @@ void __init r8a7740_add_standard_devices(void)
 			     ARRAY_SIZE(r8a7740_late_devices));
 }
 
+static void __init r8a7740_earlytimer_init(void)
+{
+	r8a7740_clock_init(0);
+	shmobile_earlytimer_init();
+}
+
 void __init r8a7740_add_early_devices(void)
 {
 	early_platform_add_devices(r8a7740_early_devices,
 				   ARRAY_SIZE(r8a7740_early_devices));
+
+	/* setup early console here as well */
+	shmobile_setup_console();
+
+	/* override timer setup with soc-specific code */
+	shmobile_timer.init = r8a7740_earlytimer_init;
 }

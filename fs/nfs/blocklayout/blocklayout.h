@@ -37,6 +37,7 @@
 #include <linux/sunrpc/rpc_pipe_fs.h>
 
 #include "../pnfs.h"
+#include "../netns.h"
 
 #define PAGE_CACHE_SECTORS (PAGE_CACHE_SIZE >> SECTOR_SHIFT)
 #define PAGE_CACHE_SECTOR_SHIFT (PAGE_CACHE_SHIFT - SECTOR_SHIFT)
@@ -50,6 +51,7 @@ struct pnfs_block_dev {
 	struct list_head		bm_node;
 	struct nfs4_deviceid		bm_mdevid;    /* associated devid */
 	struct block_device		*bm_mdev;     /* meta device itself */
+	struct net			*net;
 };
 
 enum exstate4 {
@@ -151,18 +153,15 @@ BLK_LSEG2EXT(struct pnfs_layout_segment *lseg)
 	return BLK_LO2EXT(lseg->pls_layout);
 }
 
-struct bl_dev_msg {
-	int32_t status;
-	uint32_t major, minor;
+struct bl_pipe_msg {
+	struct rpc_pipe_msg msg;
+	wait_queue_head_t *bl_wq;
 };
 
 struct bl_msg_hdr {
 	u8  type;
 	u16 totallen; /* length of entire message, including hdr itself */
 };
-
-extern struct dentry *bl_device_pipe;
-extern wait_queue_head_t bl_wq;
 
 #define BL_DEVICE_UMOUNT               0x0 /* Umount--delete devices */
 #define BL_DEVICE_MOUNT                0x1 /* Mount--create devices*/

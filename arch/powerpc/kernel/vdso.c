@@ -24,7 +24,6 @@
 #include <linux/memblock.h>
 
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
@@ -263,17 +262,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * the "data" page of the vDSO or you'll stop getting kernel updates
 	 * and your nice userland gettimeofday will be totally dead.
 	 * It's fine to use that for setting breakpoints in the vDSO code
-	 * pages though
-	 *
-	 * Make sure the vDSO gets into every core dump.
-	 * Dumping its contents makes post-mortem fully interpretable later
-	 * without matching up the same kernel and hardware config to see
-	 * what PC values meant.
+	 * pages though.
 	 */
 	rc = install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
 				     VM_READ|VM_EXEC|
-				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
-				     VM_ALWAYSDUMP,
+				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 				     vdso_pagelist);
 	if (rc) {
 		current->mm->context.vdso_base = 0;
@@ -727,10 +720,10 @@ static int __init vdso_init(void)
 	vdso_data->version.minor = SYSTEMCFG_MINOR;
 	vdso_data->processor = mfspr(SPRN_PVR);
 	/*
-	 * Fake the old platform number for pSeries and iSeries and add
+	 * Fake the old platform number for pSeries and add
 	 * in LPAR bit if necessary
 	 */
-	vdso_data->platform = machine_is(iseries) ? 0x200 : 0x100;
+	vdso_data->platform = 0x100;
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		vdso_data->platform |= 1;
 	vdso_data->physicalMemorySize = memblock_phys_mem_size();

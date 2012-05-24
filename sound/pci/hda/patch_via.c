@@ -550,7 +550,10 @@ static void via_auto_init_output(struct hda_codec *codec,
 	pin = path->path[path->depth - 1];
 
 	init_output_pin(codec, pin, pin_type);
-	caps = query_amp_caps(codec, pin, HDA_OUTPUT);
+	if (get_wcaps(codec, pin) & AC_WCAP_OUT_AMP)
+		caps = query_amp_caps(codec, pin, HDA_OUTPUT);
+	else
+		caps = 0;
 	if (caps & AC_AMPCAP_MUTE) {
 		unsigned int val;
 		val = (caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT;
@@ -645,6 +648,10 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 
 	/* init ADCs */
 	for (i = 0; i < spec->num_adc_nids; i++) {
+		hda_nid_t nid = spec->adc_nids[i];
+		if (!(get_wcaps(codec, nid) & AC_WCAP_IN_AMP) ||
+		    !(query_amp_caps(codec, nid, HDA_INPUT) & AC_AMPCAP_MUTE))
+			continue;
 		snd_hda_codec_write(codec, spec->adc_nids[i], 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_UNMUTE(0));
@@ -1445,25 +1452,9 @@ static const struct hda_pcm_stream via_pcm_digital_capture = {
 /*
  * slave controls for virtual master
  */
-static const char * const via_slave_vols[] = {
-	"Front Playback Volume",
-	"Surround Playback Volume",
-	"Center Playback Volume",
-	"LFE Playback Volume",
-	"Side Playback Volume",
-	"Headphone Playback Volume",
-	"Speaker Playback Volume",
-	NULL,
-};
-
-static const char * const via_slave_sws[] = {
-	"Front Playback Switch",
-	"Surround Playback Switch",
-	"Center Playback Switch",
-	"LFE Playback Switch",
-	"Side Playback Switch",
-	"Headphone Playback Switch",
-	"Speaker Playback Switch",
+static const char * const via_slave_pfxs[] = {
+	"Front", "Surround", "Center", "LFE", "Side",
+	"Headphone", "Speaker",
 	NULL,
 };
 
@@ -1508,13 +1499,15 @@ static int via_build_controls(struct hda_codec *codec)
 		snd_hda_set_vmaster_tlv(codec, spec->multiout.dac_nids[0],
 					HDA_OUTPUT, vmaster_tlv);
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
-					  vmaster_tlv, via_slave_vols);
+					  vmaster_tlv, via_slave_pfxs,
+					  "Playback Volume");
 		if (err < 0)
 			return err;
 	}
 	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
 		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
-					  NULL, via_slave_sws);
+					  NULL, via_slave_pfxs,
+					  "Playback Switch");
 		if (err < 0)
 			return err;
 	}
@@ -1522,6 +1515,8 @@ static int via_build_controls(struct hda_codec *codec)
 	/* assign Capture Source enums to NID */
 	kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
 	for (i = 0; kctl && i < kctl->count; i++) {
+		if (!spec->mux_nids[i])
+			continue;
 		err = snd_hda_add_nid(codec, kctl, i, spec->mux_nids[i]);
 		if (err < 0)
 			return err;
@@ -2488,6 +2483,8 @@ static int create_mic_boost_ctls(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	const char *prev_label = NULL;
+	int type_idx = 0;
 	int i, err;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
@@ -2502,8 +2499,13 @@ static int create_mic_boost_ctls(struct hda_codec *codec)
 		if (caps == -1 || !(caps & AC_AMPCAP_NUM_STEPS))
 			continue;
 		label = hda_get_autocfg_input_label(codec, cfg, i);
+		if (prev_label && !strcmp(label, prev_label))
+			type_idx++;
+		else
+			type_idx = 0;
+		prev_label = label;
 		snprintf(name, sizeof(name), "%s Boost Volume", label);
-		err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
+		err = __via_add_control(spec, VIA_CTL_WIDGET_VOL, name, type_idx,
 			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_INPUT));
 		if (err < 0)
 			return err;

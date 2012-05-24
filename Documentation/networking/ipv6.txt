@@ -2,9 +2,9 @@
 Options for the ipv6 module are supplied as parameters at load time.
 
 Module options may be given as command line arguments to the insmod
-or modprobe command, but are usually specified in either the
-/etc/modules.conf or /etc/modprobe.conf configuration file, or in a
-distro-specific configuration file.
+or modprobe command, but are usually specified in either
+/etc/modules.d/*.conf configuration files, or in a distro-specific
+configuration file.
 
 The available ipv6 module parameters are listed below.  If a parameter
 is not specified the default value is used.

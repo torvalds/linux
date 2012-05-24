@@ -23,7 +23,8 @@ struct perf_top {
 	u64		   guest_us_samples, guest_kernel_samples;
 	int		   print_entries, count_filter, delay_secs;
 	int		   freq;
-	pid_t		   target_pid, target_tid;
+	const char	   *target_pid, *target_tid;
+	uid_t		   uid;
 	bool		   hide_kernel_symbols, hide_user_symbols, zero;
 	bool		   system_wide;
 	bool		   use_tui, use_stdio;
@@ -33,7 +34,8 @@ struct perf_top {
 	bool		   vmlinux_warned;
 	bool		   inherit;
 	bool		   group;
-	bool		   sample_id_all_avail;
+	bool		   sample_id_all_missing;
+	bool		   exclude_guest_missing;
 	bool		   dump_symtab;
 	const char	   *cpu_list;
 	struct hist_entry  *sym_filter_entry;
@@ -45,6 +47,7 @@ struct perf_top {
 	int		   realtime_prio;
 	int		   sym_pcnt_filter;
 	const char	   *sym_filter;
+	const char	   *uid_str;
 };
 
 size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size);

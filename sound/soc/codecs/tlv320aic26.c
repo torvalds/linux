@@ -389,7 +389,7 @@ static int aic26_probe(struct snd_soc_codec *codec)
 
 	/* register controls */
 	dev_dbg(codec->dev, "Registering controls\n");
-	err = snd_soc_add_controls(codec, aic26_snd_controls,
+	err = snd_soc_add_codec_controls(codec, aic26_snd_controls,
 			ARRAY_SIZE(aic26_snd_controls));
 	WARN_ON(err < 0);
 

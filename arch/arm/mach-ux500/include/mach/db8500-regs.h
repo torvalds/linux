@@ -161,4 +161,7 @@
 #define U8500_MODEM_BASE	0xe000000
 #define U8500_APE_BASE		0x6000000
 
+/* SoC identification number information */
+#define U8500_BB_UID_BASE      (U8500_BACKUPRAM1_BASE + 0xFC0)
+
 #endif

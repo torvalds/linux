@@ -48,7 +48,7 @@
 
 
 static int __sigp_sense(struct kvm_vcpu *vcpu, u16 cpu_addr,
-			unsigned long *reg)
+			u64 *reg)
 {
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
 	int rc;
@@ -160,12 +160,15 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 	inti->type = KVM_S390_SIGP_STOP;
 
 	spin_lock_bh(&li->lock);
+	if ((atomic_read(li->cpuflags) & CPUSTAT_STOPPED))
+		goto out;
 	list_add_tail(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
 	atomic_set_mask(CPUSTAT_STOP_INT, li->cpuflags);
 	li->action_bits |= action;
 	if (waitqueue_active(&li->wq))
 		wake_up_interruptible(&li->wq);
+out:
 	spin_unlock_bh(&li->lock);
 
 	return 0; /* order accepted */
@@ -220,7 +223,7 @@ static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter)
 }
 
 static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
-			     unsigned long *reg)
+			     u64 *reg)
 {
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
 	struct kvm_s390_local_interrupt *li = NULL;
@@ -278,7 +281,7 @@ out_fi:
 }
 
 static int __sigp_sense_running(struct kvm_vcpu *vcpu, u16 cpu_addr,
-				unsigned long *reg)
+				u64 *reg)
 {
 	int rc;
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
@@ -309,6 +312,34 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu, u16 cpu_addr,
 	return rc;
 }
 
+static int __sigp_restart(struct kvm_vcpu *vcpu, u16 cpu_addr)
+{
+	int rc = 0;
+	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
+	struct kvm_s390_local_interrupt *li;
+
+	if (cpu_addr >= KVM_MAX_VCPUS)
+		return 3; /* not operational */
+
+	spin_lock(&fi->lock);
+	li = fi->local_int[cpu_addr];
+	if (li == NULL) {
+		rc = 3; /* not operational */
+		goto out;
+	}
+
+	spin_lock_bh(&li->lock);
+	if (li->action_bits & ACTION_STOP_ON_STOP)
+		rc = 2; /* busy */
+	else
+		VCPU_EVENT(vcpu, 4, "sigp restart %x to handle userspace",
+			cpu_addr);
+	spin_unlock_bh(&li->lock);
+out:
+	spin_unlock(&fi->lock);
+	return rc;
+}
+
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 {
 	int r1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
@@ -316,7 +347,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 	int base2 = vcpu->arch.sie_block->ipb >> 28;
 	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
 	u32 parameter;
-	u16 cpu_addr = vcpu->arch.guest_gprs[r3];
+	u16 cpu_addr = vcpu->run->s.regs.gprs[r3];
 	u8 order_code;
 	int rc;
 
@@ -327,18 +358,18 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 
 	order_code = disp2;
 	if (base2)
-		order_code += vcpu->arch.guest_gprs[base2];
+		order_code += vcpu->run->s.regs.gprs[base2];
 
 	if (r1 % 2)
-		parameter = vcpu->arch.guest_gprs[r1];
+		parameter = vcpu->run->s.regs.gprs[r1];
 	else
-		parameter = vcpu->arch.guest_gprs[r1 + 1];
+		parameter = vcpu->run->s.regs.gprs[r1 + 1];
 
 	switch (order_code) {
 	case SIGP_SENSE:
 		vcpu->stat.instruction_sigp_sense++;
 		rc = __sigp_sense(vcpu, cpu_addr,
-				  &vcpu->arch.guest_gprs[r1]);
+				  &vcpu->run->s.regs.gprs[r1]);
 		break;
 	case SIGP_EXTERNAL_CALL:
 		vcpu->stat.instruction_sigp_external_call++;
@@ -354,7 +385,8 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		break;
 	case SIGP_STOP_STORE_STATUS:
 		vcpu->stat.instruction_sigp_stop++;
-		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STORE_ON_STOP);
+		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STORE_ON_STOP |
+						 ACTION_STOP_ON_STOP);
 		break;
 	case SIGP_SET_ARCH:
 		vcpu->stat.instruction_sigp_arch++;
@@ -363,15 +395,18 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 	case SIGP_SET_PREFIX:
 		vcpu->stat.instruction_sigp_prefix++;
 		rc = __sigp_set_prefix(vcpu, cpu_addr, parameter,
-				       &vcpu->arch.guest_gprs[r1]);
+				       &vcpu->run->s.regs.gprs[r1]);
 		break;
 	case SIGP_SENSE_RUNNING:
 		vcpu->stat.instruction_sigp_sense_running++;
 		rc = __sigp_sense_running(vcpu, cpu_addr,
-					  &vcpu->arch.guest_gprs[r1]);
+					  &vcpu->run->s.regs.gprs[r1]);
 		break;
 	case SIGP_RESTART:
 		vcpu->stat.instruction_sigp_restart++;
+		rc = __sigp_restart(vcpu, cpu_addr);
+		if (rc == 2) /* busy */
+			break;
 		/* user space must know about restart */
 	default:
 		return -EOPNOTSUPP;

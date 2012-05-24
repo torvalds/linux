@@ -45,16 +45,6 @@ static inline void arch_copy_thread(struct arch_thread *from,
         memcpy(&to->tls_array, &from->tls_array, sizeof(from->tls_array));
 }
 
-#include <asm/user.h>
-
-/* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-static inline void rep_nop(void)
-{
-	__asm__ __volatile__("rep;nop": : :"memory");
-}
-
-#define cpu_relax()	rep_nop()
-
 /*
  * Default implementation of macro that returns current
  * instruction pointer ("program counter"). Stolen

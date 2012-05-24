@@ -17,6 +17,15 @@
 #include <plat/ehci.h>
 #include <plat/usb-phy.h>
 
+#define EHCI_INSNREG00(base)			(base + 0x90)
+#define EHCI_INSNREG00_ENA_INCR16		(0x1 << 25)
+#define EHCI_INSNREG00_ENA_INCR8		(0x1 << 24)
+#define EHCI_INSNREG00_ENA_INCR4		(0x1 << 23)
+#define EHCI_INSNREG00_ENA_INCRX_ALIGN		(0x1 << 22)
+#define EHCI_INSNREG00_ENABLE_DMA_BURST	\
+	(EHCI_INSNREG00_ENA_INCR16 | EHCI_INSNREG00_ENA_INCR8 |	\
+	 EHCI_INSNREG00_ENA_INCR4 | EHCI_INSNREG00_ENA_INCRX_ALIGN)
+
 struct s5p_ehci_hcd {
 	struct device *dev;
 	struct usb_hcd *hcd;
@@ -128,6 +137,9 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 	ehci->regs = hcd->regs +
 		HC_LENGTH(ehci, readl(&ehci->caps->hc_capbase));
 
+	/* DMA burst Enable */
+	writel(EHCI_INSNREG00_ENABLE_DMA_BURST, EHCI_INSNREG00(hcd->regs));
+
 	dbg_hcs_params(ehci, "reset");
 	dbg_hcc_params(ehci, "reset");
 
@@ -233,6 +245,9 @@ static int s5p_ehci_resume(struct device *dev)
 
 	if (pdata && pdata->phy_init)
 		pdata->phy_init(pdev, S5P_USB_PHY_HOST);
+
+	/* DMA burst Enable */
+	writel(EHCI_INSNREG00_ENABLE_DMA_BURST, EHCI_INSNREG00(hcd->regs));
 
 	if (time_before(jiffies, ehci->next_statechange))
 		msleep(100);

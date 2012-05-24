@@ -128,20 +128,20 @@ struct pxa_irda {
 static inline void pxa_irda_disable_clk(struct pxa_irda *si)
 {
 	if (si->cur_clk)
-		clk_disable(si->cur_clk);
+		clk_disable_unprepare(si->cur_clk);
 	si->cur_clk = NULL;
 }
 
 static inline void pxa_irda_enable_firclk(struct pxa_irda *si)
 {
 	si->cur_clk = si->fir_clk;
-	clk_enable(si->fir_clk);
+	clk_prepare_enable(si->fir_clk);
 }
 
 static inline void pxa_irda_enable_sirclk(struct pxa_irda *si)
 {
 	si->cur_clk = si->sir_clk;
-	clk_enable(si->sir_clk);
+	clk_prepare_enable(si->sir_clk);
 }
 
 

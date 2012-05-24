@@ -22,7 +22,6 @@
 #include <asm/cpu.h>
 #include <asm/fpu.h>
 #include <asm/mipsregs.h>
-#include <asm/system.h>
 #include <asm/watch.h>
 #include <asm/elf.h>
 #include <asm/spram.h>

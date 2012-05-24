@@ -11,6 +11,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -103,7 +104,7 @@ static int pxa2xx_ac97_resume(struct snd_soc_dai *dai)
 #define pxa2xx_ac97_resume	NULL
 #endif
 
-static int pxa2xx_ac97_probe(struct snd_soc_dai *dai)
+static int __devinit pxa2xx_ac97_probe(struct snd_soc_dai *dai)
 {
 	return pxa2xx_ac97_hw_probe(to_platform_device(dai->dev));
 }
@@ -179,7 +180,7 @@ static const struct snd_soc_dai_ops pxa_ac97_mic_dai_ops = {
  * There is only 1 physical AC97 interface for pxa2xx, but it
  * has extra fifo's that can be used for aux DACs and ADCs.
  */
-static struct snd_soc_dai_driver pxa_ac97_dai[] = {
+static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 {
 	.name = "pxa2xx-ac97",
 	.ac97_control = 1,
@@ -244,13 +245,13 @@ static __devinit int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 	 * driver to do interesting things with the clocking to get us up
 	 * and running.
 	 */
-	return snd_soc_register_dais(&pdev->dev, pxa_ac97_dai,
-			ARRAY_SIZE(pxa_ac97_dai));
+	return snd_soc_register_dais(&pdev->dev, pxa_ac97_dai_driver,
+			ARRAY_SIZE(pxa_ac97_dai_driver));
 }
 
 static int __devexit pxa2xx_ac97_dev_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(pxa_ac97_dai));
+	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(pxa_ac97_dai_driver));
 	return 0;
 }
 

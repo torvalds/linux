@@ -75,6 +75,8 @@
 
 #define UDF_DEFAULT_BLOCKSIZE 2048
 
+enum { UDF_MAX_LINKS = 0xffff };
+
 /* These are the "meat" - everything else is stuffing */
 static int udf_fill_super(struct super_block *, void *, int);
 static void udf_put_super(struct super_block *);
@@ -948,11 +950,8 @@ static struct udf_bitmap *udf_sb_alloc_bitmap(struct super_block *sb, u32 index)
 	else
 		bitmap = vzalloc(size); /* TODO: get rid of vzalloc */
 
-	if (bitmap == NULL) {
-		udf_err(sb, "Unable to allocate space for bitmap and %d buffer_head pointers\n",
-			nr_groups);
+	if (bitmap == NULL)
 		return NULL;
-	}
 
 	bitmap->s_block_bitmap = (struct buffer_head **)(bitmap + 1);
 	bitmap->s_nr_groups = nr_groups;
@@ -2035,13 +2034,13 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	}
 
 	/* Allocate a dentry for the root inode */
-	sb->s_root = d_alloc_root(inode);
+	sb->s_root = d_make_root(inode);
 	if (!sb->s_root) {
 		udf_err(sb, "Couldn't allocate root dentry\n");
-		iput(inode);
 		goto error_out;
 	}
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
+	sb->s_max_links = UDF_MAX_LINKS;
 	return 0;
 
 error_out:

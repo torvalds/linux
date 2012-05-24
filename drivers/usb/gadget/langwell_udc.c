@@ -32,7 +32,6 @@
 #include <linux/pm.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #include "langwell_udc.h"
@@ -401,16 +400,7 @@ static void done(struct langwell_ep *ep, struct langwell_request *req,
 		dma_pool_free(dev->dtd_pool, curr_dtd, curr_dtd->dtd_dma);
 	}
 
-	if (req->mapped) {
-		dma_unmap_single(&dev->pdev->dev,
-			req->req.dma, req->req.length,
-			is_in(ep) ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
-		req->req.dma = DMA_ADDR_INVALID;
-		req->mapped = 0;
-	} else
-		dma_sync_single_for_cpu(&dev->pdev->dev, req->req.dma,
-				req->req.length,
-				is_in(ep) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	usb_gadget_unmap_request(&dev->gadget, &req->req, is_in(ep));
 
 	if (status != -ESHUTDOWN)
 		dev_dbg(&dev->pdev->dev,
@@ -487,6 +477,7 @@ static int langwell_ep_disable(struct usb_ep *_ep)
 	nuke(ep, -ESHUTDOWN);
 
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	ep->stopped = 1;
 
 	spin_unlock_irqrestore(&dev->lock, flags);
@@ -749,7 +740,8 @@ static int langwell_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 	struct langwell_ep	*ep;
 	struct langwell_udc	*dev;
 	unsigned long		flags;
-	int			is_iso = 0, zlflag = 0;
+	int			is_iso = 0;
+	int			ret;
 
 	/* always require a cpu-view buffer */
 	req = container_of(_req, struct langwell_request, req);
@@ -776,33 +768,10 @@ static int langwell_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 	if (unlikely(!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN))
 		return -ESHUTDOWN;
 
-	/* set up dma mapping in case the caller didn't */
-	if (_req->dma == DMA_ADDR_INVALID) {
-		/* WORKAROUND: WARN_ON(size == 0) */
-		if (_req->length == 0) {
-			dev_vdbg(&dev->pdev->dev, "req->length: 0->1\n");
-			zlflag = 1;
-			_req->length++;
-		}
-
-		_req->dma = dma_map_single(&dev->pdev->dev,
-				_req->buf, _req->length,
-				is_in(ep) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		if (zlflag && (_req->length == 1)) {
-			dev_vdbg(&dev->pdev->dev, "req->length: 1->0\n");
-			zlflag = 0;
-			_req->length = 0;
-		}
-
-		req->mapped = 1;
-		dev_vdbg(&dev->pdev->dev, "req->mapped = 1\n");
-	} else {
-		dma_sync_single_for_device(&dev->pdev->dev,
-				_req->dma, _req->length,
-				is_in(ep) ?  DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		req->mapped = 0;
-		dev_vdbg(&dev->pdev->dev, "req->mapped = 0\n");
-	}
+	/* set up dma mapping */
+	ret = usb_gadget_map_request(&dev->gadget, &req->req, is_in(ep));
+	if (ret)
+		return ret;
 
 	dev_dbg(&dev->pdev->dev,
 			"%s queue req %p, len %u, buf %p, dma 0x%08x\n",
@@ -1261,9 +1230,9 @@ static int langwell_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
 	if (dev->transceiver) {
-		dev_vdbg(&dev->pdev->dev, "otg_set_power\n");
+		dev_vdbg(&dev->pdev->dev, "usb_phy_set_power\n");
 		dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
-		return otg_set_power(dev->transceiver, mA);
+		return usb_phy_set_power(dev->transceiver, mA);
 	}
 
 	dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
@@ -1906,7 +1875,7 @@ static int langwell_stop(struct usb_gadget *g,
 
 	/* unbind OTG transceiver */
 	if (dev->transceiver)
-		(void)otg_set_peripheral(dev->transceiver, 0);
+		(void)otg_set_peripheral(dev->transceiver->otg, 0);
 
 	/* disable interrupt and set controller to stop state */
 	langwell_udc_stop(dev);

@@ -59,9 +59,6 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 	se_cmd = &cmd->se_cmd;
 	pr_debug("%s: cmd %p sess %p seq %p se_cmd %p\n",
 		caller, cmd, cmd->sess, cmd->seq, se_cmd);
-	pr_debug("%s: cmd %p cdb %p\n",
-		caller, cmd, cmd->cdb);
-	pr_debug("%s: cmd %p lun %d\n", caller, cmd, cmd->lun);
 
 	pr_debug("%s: cmd %p data_nents %u len %u se_cmd_flags <0x%x>\n",
 		caller, cmd, se_cmd->t_data_nents,
@@ -81,8 +78,6 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 			caller, cmd, ep->sid, ep->did, ep->oxid, ep->rxid,
 			sp->id, ep->esb_stat);
 	}
-	print_hex_dump(KERN_INFO, "ft_dump_cmd ", DUMP_PREFIX_NONE,
-		16, 4, cmd->cdb, MAX_COMMAND_SIZE, 0);
 }
 
 static void ft_free_cmd(struct ft_cmd *cmd)
@@ -126,6 +121,8 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	struct fc_exch *ep;
 	size_t len;
 
+	if (cmd->aborted)
+		return 0;
 	ft_dump_cmd(cmd, __func__);
 	ep = fc_seq_exch(cmd->seq);
 	lport = ep->lp;
@@ -192,6 +189,8 @@ int ft_write_pending(struct se_cmd *se_cmd)
 
 	ft_dump_cmd(cmd, __func__);
 
+	if (cmd->aborted)
+		return 0;
 	ep = fc_seq_exch(cmd->seq);
 	lport = ep->lp;
 	fp = fc_frame_alloc(lport, sizeof(*txrdy));
@@ -249,11 +248,6 @@ int ft_get_cmd_state(struct se_cmd *se_cmd)
 	return 0;
 }
 
-int ft_is_state_remove(struct se_cmd *se_cmd)
-{
-	return 0;	/* XXX TBD */
-}
-
 /*
  * FC sequence response handler for follow-on sequences (data) and aborts.
  */
@@ -262,10 +256,10 @@ static void ft_recv_seq(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 	struct ft_cmd *cmd = arg;
 	struct fc_frame_header *fh;
 
-	if (IS_ERR(fp)) {
+	if (unlikely(IS_ERR(fp))) {
 		/* XXX need to find cmd if queued */
 		cmd->seq = NULL;
-		transport_generic_free_cmd(&cmd->se_cmd, 0);
+		cmd->aborted = true;
 		return;
 	}
 
@@ -325,10 +319,12 @@ static void ft_send_resp_status(struct fc_lport *lport,
 
 	fc_fill_reply_hdr(fp, rx_fp, FC_RCTL_DD_CMD_STATUS, 0);
 	sp = fr_seq(fp);
-	if (sp)
+	if (sp) {
 		lport->tt.seq_send(lport, sp, fp);
-	else
+		lport->tt.exch_done(sp);
+	} else {
 		lport->tt.frame_send(lport, fp);
+	}
 }
 
 /*
@@ -358,15 +354,9 @@ static void ft_send_resp_code_and_free(struct ft_cmd *cmd,
  */
 static void ft_send_tm(struct ft_cmd *cmd)
 {
-	struct se_tmr_req *tmr;
 	struct fcp_cmnd *fcp;
-	struct ft_sess *sess;
+	int rc;
 	u8 tm_func;
-
-	transport_init_se_cmd(&cmd->se_cmd, &ft_configfs->tf_ops,
-			cmd->sess->se_sess, 0, DMA_NONE, 0,
-			&cmd->ft_sense_buffer[0]);
-	target_get_sess_cmd(cmd->sess->se_sess, &cmd->se_cmd, false);
 
 	fcp = fc_frame_payload_get(cmd->req_frame, sizeof(*fcp));
 
@@ -396,44 +386,12 @@ static void ft_send_tm(struct ft_cmd *cmd)
 		return;
 	}
 
-	pr_debug("alloc tm cmd fn %d\n", tm_func);
-	tmr = core_tmr_alloc_req(&cmd->se_cmd, cmd, tm_func, GFP_KERNEL);
-	if (!tmr) {
-		pr_debug("alloc failed\n");
+	/* FIXME: Add referenced task tag for ABORT_TASK */
+	rc = target_submit_tmr(&cmd->se_cmd, cmd->sess->se_sess,
+		&cmd->ft_sense_buffer[0], scsilun_to_int(&fcp->fc_lun),
+		cmd, tm_func, GFP_KERNEL, 0, 0);
+	if (rc < 0)
 		ft_send_resp_code_and_free(cmd, FCP_TMF_FAILED);
-		return;
-	}
-	cmd->se_cmd.se_tmr_req = tmr;
-
-	switch (fcp->fc_tm_flags) {
-	case FCP_TMF_LUN_RESET:
-		cmd->lun = scsilun_to_int((struct scsi_lun *)fcp->fc_lun);
-		if (transport_lookup_tmr_lun(&cmd->se_cmd, cmd->lun) < 0) {
-			/*
-			 * Make sure to clean up newly allocated TMR request
-			 * since "unable to  handle TMR request because failed
-			 * to get to LUN"
-			 */
-			pr_debug("Failed to get LUN for TMR func %d, "
-				  "se_cmd %p, unpacked_lun %d\n",
-				  tm_func, &cmd->se_cmd, cmd->lun);
-			ft_dump_cmd(cmd, __func__);
-			sess = cmd->sess;
-			transport_send_check_condition_and_sense(&cmd->se_cmd,
-				cmd->se_cmd.scsi_sense_reason, 0);
-			ft_sess_put(sess);
-			return;
-		}
-		break;
-	case FCP_TMF_TGT_RESET:
-	case FCP_TMF_CLR_TASK_SET:
-	case FCP_TMF_ABT_TASK_SET:
-	case FCP_TMF_CLR_ACA:
-		break;
-	default:
-		return;
-	}
-	transport_generic_handle_tmr(&cmd->se_cmd);
 }
 
 /*
@@ -445,6 +403,8 @@ int ft_queue_tm_resp(struct se_cmd *se_cmd)
 	struct se_tmr_req *tmr = se_cmd->se_tmr_req;
 	enum fcp_resp_rsp_codes code;
 
+	if (cmd->aborted)
+		return 0;
 	switch (tmr->response) {
 	case TMR_FUNCTION_COMPLETE:
 		code = FCP_TMF_CMPL;
@@ -538,7 +498,6 @@ static void ft_send_work(struct work_struct *work)
 	struct fc_frame_header *fh = fc_frame_header_get(cmd->req_frame);
 	struct fcp_cmnd *fcp;
 	int data_dir = 0;
-	u32 data_len;
 	int task_attr;
 
 	fcp = fc_frame_payload_get(cmd->req_frame, sizeof(*fcp));
@@ -548,47 +507,6 @@ static void ft_send_work(struct work_struct *work)
 	if (fcp->fc_flags & FCP_CFL_LEN_MASK)
 		goto err;		/* not handling longer CDBs yet */
 
-	if (fcp->fc_tm_flags) {
-		task_attr = FCP_PTA_SIMPLE;
-		data_dir = DMA_NONE;
-		data_len = 0;
-	} else {
-		switch (fcp->fc_flags & (FCP_CFL_RDDATA | FCP_CFL_WRDATA)) {
-		case 0:
-			data_dir = DMA_NONE;
-			break;
-		case FCP_CFL_RDDATA:
-			data_dir = DMA_FROM_DEVICE;
-			break;
-		case FCP_CFL_WRDATA:
-			data_dir = DMA_TO_DEVICE;
-			break;
-		case FCP_CFL_WRDATA | FCP_CFL_RDDATA:
-			goto err;	/* TBD not supported by tcm_fc yet */
-		}
-		/*
-		 * Locate the SAM Task Attr from fc_pri_ta
-		 */
-		switch (fcp->fc_pri_ta & FCP_PTA_MASK) {
-		case FCP_PTA_HEADQ:
-			task_attr = MSG_HEAD_TAG;
-			break;
-		case FCP_PTA_ORDERED:
-			task_attr = MSG_ORDERED_TAG;
-			break;
-		case FCP_PTA_ACA:
-			task_attr = MSG_ACA_TAG;
-			break;
-		case FCP_PTA_SIMPLE: /* Fallthrough */
-		default:
-			task_attr = MSG_SIMPLE_TAG;
-		}
-
-
-		task_attr = fcp->fc_pri_ta & FCP_PTA_MASK;
-		data_len = ntohl(fcp->fc_dl);
-		cmd->cdb = fcp->fc_cdb;
-	}
 	/*
 	 * Check for FCP task management flags
 	 */
@@ -596,15 +514,46 @@ static void ft_send_work(struct work_struct *work)
 		ft_send_tm(cmd);
 		return;
 	}
+
+	switch (fcp->fc_flags & (FCP_CFL_RDDATA | FCP_CFL_WRDATA)) {
+	case 0:
+		data_dir = DMA_NONE;
+		break;
+	case FCP_CFL_RDDATA:
+		data_dir = DMA_FROM_DEVICE;
+		break;
+	case FCP_CFL_WRDATA:
+		data_dir = DMA_TO_DEVICE;
+		break;
+	case FCP_CFL_WRDATA | FCP_CFL_RDDATA:
+		goto err;	/* TBD not supported by tcm_fc yet */
+	}
+	/*
+	 * Locate the SAM Task Attr from fc_pri_ta
+	 */
+	switch (fcp->fc_pri_ta & FCP_PTA_MASK) {
+	case FCP_PTA_HEADQ:
+		task_attr = MSG_HEAD_TAG;
+		break;
+	case FCP_PTA_ORDERED:
+		task_attr = MSG_ORDERED_TAG;
+		break;
+	case FCP_PTA_ACA:
+		task_attr = MSG_ACA_TAG;
+		break;
+	case FCP_PTA_SIMPLE: /* Fallthrough */
+	default:
+		task_attr = MSG_SIMPLE_TAG;
+	}
+
 	fc_seq_exch(cmd->seq)->lp->tt.seq_set_resp(cmd->seq, ft_recv_seq, cmd);
-	cmd->lun = scsilun_to_int((struct scsi_lun *)fcp->fc_lun);
 	/*
 	 * Use a single se_cmd->cmd_kref as we expect to release se_cmd
 	 * directly from ft_check_stop_free callback in response path.
 	 */
-	target_submit_cmd(&cmd->se_cmd, cmd->sess->se_sess, cmd->cdb,
-				&cmd->ft_sense_buffer[0], cmd->lun, data_len,
-				task_attr, data_dir, 0);
+	target_submit_cmd(&cmd->se_cmd, cmd->sess->se_sess, fcp->fc_cdb,
+			&cmd->ft_sense_buffer[0], scsilun_to_int(&fcp->fc_lun),
+			ntohl(fcp->fc_dl), task_attr, data_dir, 0);
 	pr_debug("r_ctl %x alloc target_submit_cmd\n", fh->fh_r_ctl);
 	return;
 

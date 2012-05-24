@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/net.h>
+#include <linux/workqueue.h>
 #include <net/ip.h>
 #include <net/inetpeer.h>
 #include <net/secure_seq.h>
@@ -66,6 +67,11 @@
 
 static struct kmem_cache *peer_cachep __read_mostly;
 
+static LIST_HEAD(gc_list);
+static const int gc_delay = 60 * HZ;
+static struct delayed_work gc_work;
+static DEFINE_SPINLOCK(gc_lock);
+
 #define node_height(x) x->avl_height
 
 #define peer_avl_empty ((struct inet_peer *)&peer_fake_node)
@@ -102,6 +108,50 @@ int inet_peer_threshold __read_mostly = 65536 + 128;	/* start to throw entries m
 int inet_peer_minttl __read_mostly = 120 * HZ;	/* TTL under high load: 120 sec */
 int inet_peer_maxttl __read_mostly = 10 * 60 * HZ;	/* usual time to live: 10 min */
 
+static void inetpeer_gc_worker(struct work_struct *work)
+{
+	struct inet_peer *p, *n;
+	LIST_HEAD(list);
+
+	spin_lock_bh(&gc_lock);
+	list_replace_init(&gc_list, &list);
+	spin_unlock_bh(&gc_lock);
+
+	if (list_empty(&list))
+		return;
+
+	list_for_each_entry_safe(p, n, &list, gc_list) {
+
+		if(need_resched())
+			cond_resched();
+
+		if (p->avl_left != peer_avl_empty) {
+			list_add_tail(&p->avl_left->gc_list, &list);
+			p->avl_left = peer_avl_empty;
+		}
+
+		if (p->avl_right != peer_avl_empty) {
+			list_add_tail(&p->avl_right->gc_list, &list);
+			p->avl_right = peer_avl_empty;
+		}
+
+		n = list_entry(p->gc_list.next, struct inet_peer, gc_list);
+
+		if (!atomic_read(&p->refcnt)) {
+			list_del(&p->gc_list);
+			kmem_cache_free(peer_cachep, p);
+		}
+	}
+
+	if (list_empty(&list))
+		return;
+
+	spin_lock_bh(&gc_lock);
+	list_splice(&list, &gc_list);
+	spin_unlock_bh(&gc_lock);
+
+	schedule_delayed_work(&gc_work, gc_delay);
+}
 
 /* Called from ip_output.c:ip_init  */
 void __init inet_initpeers(void)
@@ -126,6 +176,7 @@ void __init inet_initpeers(void)
 			0, SLAB_HWCACHE_ALIGN | SLAB_PANIC,
 			NULL);
 
+	INIT_DELAYED_WORK_DEFERRABLE(&gc_work, inetpeer_gc_worker);
 }
 
 static int addr_compare(const struct inetpeer_addr *a,
@@ -447,9 +498,8 @@ relookup:
 		p->rate_last = 0;
 		p->pmtu_expires = 0;
 		p->pmtu_orig = 0;
-		p->redirect_genid = 0;
 		memset(&p->redirect_learned, 0, sizeof(p->redirect_learned));
-
+		INIT_LIST_HEAD(&p->gc_list);
 
 		/* Link the node. */
 		link_to_pool(p, base);
@@ -509,3 +559,30 @@ bool inet_peer_xrlim_allow(struct inet_peer *peer, int timeout)
 	return rc;
 }
 EXPORT_SYMBOL(inet_peer_xrlim_allow);
+
+void inetpeer_invalidate_tree(int family)
+{
+	struct inet_peer *old, *new, *prev;
+	struct inet_peer_base *base = family_to_base(family);
+
+	write_seqlock_bh(&base->lock);
+
+	old = base->root;
+	if (old == peer_avl_empty_rcu)
+		goto out;
+
+	new = peer_avl_empty_rcu;
+
+	prev = cmpxchg(&base->root, old, new);
+	if (prev == old) {
+		base->total = 0;
+		spin_lock(&gc_lock);
+		list_add_tail(&prev->gc_list, &gc_list);
+		spin_unlock(&gc_lock);
+		schedule_delayed_work(&gc_work, gc_delay);
+	}
+
+out:
+	write_sequnlock_bh(&base->lock);
+}
+EXPORT_SYMBOL(inetpeer_invalidate_tree);

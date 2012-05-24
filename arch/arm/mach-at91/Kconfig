@@ -20,9 +20,11 @@ config HAVE_AT91_USART5
 
 config AT91_SAM9_ALT_RESET
 	bool
+	default !ARCH_AT91X40
 
 config AT91_SAM9G45_RESET
 	bool
+	default !ARCH_AT91X40
 
 menu "Atmel AT91 System-on-Chip"
 
@@ -45,7 +47,6 @@ config ARCH_AT91SAM9260
 	select HAVE_AT91_USART4
 	select HAVE_AT91_USART5
 	select HAVE_NET_MACB
-	select AT91_SAM9_ALT_RESET
 
 config ARCH_AT91SAM9261
 	bool "AT91SAM9261"
@@ -53,7 +54,6 @@ config ARCH_AT91SAM9261
 	select GENERIC_CLOCKEVENTS
 	select HAVE_FB_ATMEL
 	select HAVE_AT91_DBGU0
-	select AT91_SAM9_ALT_RESET
 
 config ARCH_AT91SAM9G10
 	bool "AT91SAM9G10"
@@ -61,7 +61,6 @@ config ARCH_AT91SAM9G10
 	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_DBGU0
 	select HAVE_FB_ATMEL
-	select AT91_SAM9_ALT_RESET
 
 config ARCH_AT91SAM9263
 	bool "AT91SAM9263"
@@ -70,7 +69,6 @@ config ARCH_AT91SAM9263
 	select HAVE_FB_ATMEL
 	select HAVE_NET_MACB
 	select HAVE_AT91_DBGU1
-	select AT91_SAM9_ALT_RESET
 
 config ARCH_AT91SAM9RL
 	bool "AT91SAM9RL"
@@ -79,7 +77,6 @@ config ARCH_AT91SAM9RL
 	select HAVE_AT91_USART3
 	select HAVE_FB_ATMEL
 	select HAVE_AT91_DBGU0
-	select AT91_SAM9_ALT_RESET
 
 config ARCH_AT91SAM9G20
 	bool "AT91SAM9G20"
@@ -90,7 +87,6 @@ config ARCH_AT91SAM9G20
 	select HAVE_AT91_USART4
 	select HAVE_AT91_USART5
 	select HAVE_NET_MACB
-	select AT91_SAM9_ALT_RESET
 
 config ARCH_AT91SAM9G45
 	bool "AT91SAM9G45"
@@ -100,16 +96,14 @@ config ARCH_AT91SAM9G45
 	select HAVE_FB_ATMEL
 	select HAVE_NET_MACB
 	select HAVE_AT91_DBGU1
-	select AT91_SAM9G45_RESET
 
-config ARCH_AT91CAP9
-	bool "AT91CAP9"
+config ARCH_AT91SAM9X5
+	bool "AT91SAM9x5 family"
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
 	select HAVE_FB_ATMEL
 	select HAVE_NET_MACB
-	select HAVE_AT91_DBGU1
-	select AT91_SAM9G45_RESET
+	select HAVE_AT91_DBGU0
 
 config ARCH_AT91X40
 	bool "AT91x40"
@@ -447,21 +441,6 @@ endif
 
 # ----------------------------------------------------------
 
-if ARCH_AT91CAP9
-
-comment "AT91CAP9 Board Type"
-
-config MACH_AT91CAP9ADK
-	bool "Atmel AT91CAP9A-DK Evaluation Kit"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using Atmel's AT91CAP9A-DK Evaluation Kit.
-	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4138>
-
-endif
-
-# ----------------------------------------------------------
-
 if ARCH_AT91X40
 
 comment "AT91X40 Board Type"
@@ -544,7 +523,7 @@ config AT91_EARLY_DBGU0
 	depends on HAVE_AT91_DBGU0
 
 config AT91_EARLY_DBGU1
-	bool "DBGU on 9263, 9g45 and cap9"
+	bool "DBGU on 9263 and 9g45"
 	depends on HAVE_AT91_DBGU1
 
 config AT91_EARLY_USART0

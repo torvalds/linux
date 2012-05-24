@@ -131,7 +131,7 @@ enum vnic_devcmd_cmd {
 	CMD_HANG_NOTIFY         = _CMDC(_CMD_DIR_NONE, _CMD_VTYPE_ALL, 8),
 
 	/* MAC address in (u48)a0 */
-	CMD_MAC_ADDR            = _CMDC(_CMD_DIR_READ,
+	CMD_GET_MAC_ADDR        = _CMDC(_CMD_DIR_READ,
 					_CMD_VTYPE_ENET | _CMD_VTYPE_FC, 9),
 
 	/* add addr from (u48)a0 */
@@ -337,6 +337,15 @@ enum vnic_devcmd_cmd {
 	 *      (u32)a2 = maximum timer value in usec
 	 */
 	CMD_INTR_COAL_CONVERT = _CMDC(_CMD_DIR_READ, _CMD_VTYPE_ALL, 50),
+
+	/*
+	 * cmd_set_mac_addr
+	 *	set mac address
+	 * in:
+	 *   (u48)a0 = mac addr
+	 *
+	 */
+	CMD_SET_MAC_ADDR = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 55),
 };
 
 /* CMD_ENABLE2 flags */

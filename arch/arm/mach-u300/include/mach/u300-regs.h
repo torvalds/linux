@@ -18,17 +18,16 @@
  * the defines are used for setting up the I/O memory mapping.
  */
 
-#ifdef __ASSEMBLER__
-#define IOMEM(a) (a)
-#else
-#define IOMEM(a) (void __iomem *) a
-#endif
-
 /* NAND Flash CS0 */
 #define U300_NAND_CS0_PHYS_BASE		0x80000000
 
 /* NFIF */
 #define U300_NAND_IF_PHYS_BASE		0x9f800000
+
+/* ALE, CLE offset for FSMC NAND */
+#define PLAT_NAND_CLE			(1 << 16)
+#define PLAT_NAND_ALE			(1 << 17)
+
 
 /* AHB Peripherals */
 #define U300_AHB_PER_PHYS_BASE		0xa0000000

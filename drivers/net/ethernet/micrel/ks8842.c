@@ -458,7 +458,7 @@ static int ks8842_tx_frame_dma(struct sk_buff *skb, struct net_device *netdev)
 	if (sg_dma_len(&ctl->sg) % 4)
 		sg_dma_len(&ctl->sg) += 4 - sg_dma_len(&ctl->sg) % 4;
 
-	ctl->adesc = ctl->chan->device->device_prep_slave_sg(ctl->chan,
+	ctl->adesc = dmaengine_prep_slave_sg(ctl->chan,
 		&ctl->sg, 1, DMA_MEM_TO_DEV,
 		DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP);
 	if (!ctl->adesc)
@@ -570,7 +570,7 @@ static int __ks8842_start_new_rx_dma(struct net_device *netdev)
 
 		sg_dma_len(sg) = DMA_BUFFER_SIZE;
 
-		ctl->adesc = ctl->chan->device->device_prep_slave_sg(ctl->chan,
+		ctl->adesc = dmaengine_prep_slave_sg(ctl->chan,
 			sg, 1, DMA_DEV_TO_MEM,
 			DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP);
 
@@ -1080,6 +1080,7 @@ static int ks8842_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
+	netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(netdev->dev_addr, mac, netdev->addr_len);
 
 	ks8842_write_mac_addr(adapter, mac);
@@ -1211,7 +1212,7 @@ static int __devinit ks8842_probe(struct platform_device *pdev)
 		ks8842_read_mac_addr(adapter, netdev->dev_addr);
 
 		if (!is_valid_ether_addr(netdev->dev_addr))
-			random_ether_addr(netdev->dev_addr);
+			eth_hw_addr_random(netdev);
 	}
 
 	id = ks8842_read16(adapter, 32, REG_SW_ID_AND_ENABLE);

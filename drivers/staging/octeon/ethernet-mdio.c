@@ -164,9 +164,9 @@ int cvm_oct_phy_setup_device(struct net_device *dev)
 
 	int phy_addr = cvmx_helper_board_get_mii_address(priv->port);
 	if (phy_addr != -1) {
-		char phy_id[20];
+		char phy_id[MII_BUS_ID_SIZE + 3];
 
-		snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT, "0", phy_addr);
+		snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT, "mdio-octeon-0", phy_addr);
 
 		priv->phydev = phy_connect(dev, phy_id, cvm_oct_adjust_link, 0,
 					PHY_INTERFACE_MODE_GMII);

@@ -12,7 +12,7 @@
 
 #include <linux/linkage.h>
 #include <mach/hardware.h>
-#include <mach/at91sam9_ddrsdr.h>
+#include <mach/at91_ramc.h>
 #include <mach/at91_rstc.h>
 
 			.arm
@@ -20,9 +20,10 @@
 			.globl	at91sam9g45_restart
 
 at91sam9g45_restart:
-			ldr	r0, .at91_va_base_sdramc0	@ preload constants
-			ldr	r1, =at91_rstc_base
-			ldr	r1, [r1]
+			ldr	r5, =at91_ramc_base		@ preload constants
+			ldr	r0, [r5]
+			ldr	r4, =at91_rstc_base
+			ldr	r1, [r4]
 
 			mov	r2, #1
 			mov	r3, #AT91_DDRSDRC_LPCB_POWER_DOWN
@@ -35,6 +36,3 @@ at91sam9g45_restart:
 			str	r4, [r1, #AT91_RSTC_CR]		@ reset processor
 
 			b	.
-
-.at91_va_base_sdramc0:
-	.word AT91_VA_BASE_SYS + AT91_DDRSDRC0

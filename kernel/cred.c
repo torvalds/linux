@@ -16,6 +16,7 @@
 #include <linux/keyctl.h>
 #include <linux/init_task.h>
 #include <linux/security.h>
+#include <linux/binfmts.h>
 #include <linux/cn_proc.h>
 
 #if 0
@@ -384,6 +385,8 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 #endif
 	struct cred *new;
 	int ret;
+
+	p->replacement_session_keyring = NULL;
 
 	if (
 #ifdef CONFIG_KEYS

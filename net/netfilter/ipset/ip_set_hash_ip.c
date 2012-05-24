@@ -366,11 +366,11 @@ hash_ip_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	u8 netmask, hbits;
 	struct ip_set_hash *h;
 
-	if (!(set->family == AF_INET || set->family == AF_INET6))
+	if (!(set->family == NFPROTO_IPV4 || set->family == NFPROTO_IPV6))
 		return -IPSET_ERR_INVALID_FAMILY;
-	netmask = set->family == AF_INET ? 32 : 128;
+	netmask = set->family == NFPROTO_IPV4 ? 32 : 128;
 	pr_debug("Create set %s with family %s\n",
-		 set->name, set->family == AF_INET ? "inet" : "inet6");
+		 set->name, set->family == NFPROTO_IPV4 ? "inet" : "inet6");
 
 	if (unlikely(!ip_set_optattr_netorder(tb, IPSET_ATTR_HASHSIZE) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_MAXELEM) ||
@@ -389,8 +389,8 @@ hash_ip_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	if (tb[IPSET_ATTR_NETMASK]) {
 		netmask = nla_get_u8(tb[IPSET_ATTR_NETMASK]);
 
-		if ((set->family == AF_INET && netmask > 32) ||
-		    (set->family == AF_INET6 && netmask > 128) ||
+		if ((set->family == NFPROTO_IPV4 && netmask > 32) ||
+		    (set->family == NFPROTO_IPV6 && netmask > 128) ||
 		    netmask == 0)
 			return -IPSET_ERR_INVALID_NETMASK;
 	}
@@ -419,15 +419,15 @@ hash_ip_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	if (tb[IPSET_ATTR_TIMEOUT]) {
 		h->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 
-		set->variant = set->family == AF_INET
+		set->variant = set->family == NFPROTO_IPV4
 			? &hash_ip4_tvariant : &hash_ip6_tvariant;
 
-		if (set->family == AF_INET)
+		if (set->family == NFPROTO_IPV4)
 			hash_ip4_gc_init(set);
 		else
 			hash_ip6_gc_init(set);
 	} else {
-		set->variant = set->family == AF_INET
+		set->variant = set->family == NFPROTO_IPV4
 			? &hash_ip4_variant : &hash_ip6_variant;
 	}
 
@@ -443,7 +443,7 @@ static struct ip_set_type hash_ip_type __read_mostly = {
 	.protocol	= IPSET_PROTOCOL,
 	.features	= IPSET_TYPE_IP,
 	.dimension	= IPSET_DIM_ONE,
-	.family		= AF_UNSPEC,
+	.family		= NFPROTO_UNSPEC,
 	.revision_min	= 0,
 	.revision_max	= 0,
 	.create		= hash_ip_create,

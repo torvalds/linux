@@ -36,7 +36,6 @@
 #include <asm/processor.h>
 #include <asm/irq.h>
 #include <linux/io.h>
-#include <asm/system.h>
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
 #include <asm/sections.h>

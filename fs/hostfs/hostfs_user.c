@@ -98,7 +98,8 @@ void *open_dir(char *path, int *err_out)
 }
 
 char *read_dir(void *stream, unsigned long long *pos,
-	       unsigned long long *ino_out, int *len_out)
+	       unsigned long long *ino_out, int *len_out,
+	       unsigned int *type_out)
 {
 	DIR *dir = stream;
 	struct dirent *ent;
@@ -109,6 +110,7 @@ char *read_dir(void *stream, unsigned long long *pos,
 		return NULL;
 	*len_out = strlen(ent->d_name);
 	*ino_out = ent->d_ino;
+	*type_out = ent->d_type;
 	*pos = telldir(dir);
 	return ent->d_name;
 }

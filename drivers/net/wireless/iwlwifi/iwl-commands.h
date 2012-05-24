@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,22 +69,9 @@
 #ifndef __iwl_commands_h__
 #define __iwl_commands_h__
 
-#include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
+#include <linux/types.h>
 
-struct iwl_priv;
-
-/* uCode version contains 4 values: Major/Minor/API/Serial */
-#define IWL_UCODE_MAJOR(ver)	(((ver) & 0xFF000000) >> 24)
-#define IWL_UCODE_MINOR(ver)	(((ver) & 0x00FF0000) >> 16)
-#define IWL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
-#define IWL_UCODE_SERIAL(ver)	((ver) & 0x000000FF)
-
-
-/* Tx rates */
-#define IWL_CCK_RATES	4
-#define IWL_OFDM_RATES	8
-#define IWL_MAX_RATES	(IWL_CCK_RATES + IWL_OFDM_RATES)
 
 enum {
 	REPLY_ALIVE = 0x1,
@@ -212,48 +199,6 @@ enum {
 
 /* iwl_cmd_header flags value */
 #define IWL_CMD_FAILED_MSK 0x40
-
-#define SEQ_TO_QUEUE(s)	(((s) >> 8) & 0x1f)
-#define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
-#define SEQ_TO_INDEX(s)	((s) & 0xff)
-#define INDEX_TO_SEQ(i)	((i) & 0xff)
-#define SEQ_RX_FRAME	cpu_to_le16(0x8000)
-
-/**
- * struct iwl_cmd_header
- *
- * This header format appears in the beginning of each command sent from the
- * driver, and each response/notification received from uCode.
- */
-struct iwl_cmd_header {
-	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
-	u8 flags;	/* 0:5 reserved, 6 abort, 7 internal */
-	/*
-	 * The driver sets up the sequence number to values of its choosing.
-	 * uCode does not use this value, but passes it back to the driver
-	 * when sending the response to each driver-originated command, so
-	 * the driver can match the response to the command.  Since the values
-	 * don't get used by uCode, the driver may set up an arbitrary format.
-	 *
-	 * There is one exception:  uCode sets bit 15 when it originates
-	 * the response/notification, i.e. when the response/notification
-	 * is not a direct response to a command sent by the driver.  For
-	 * example, uCode issues REPLY_RX when it sends a received frame
-	 * to the driver; it is not a direct response to any driver command.
-	 *
-	 * The Linux driver uses the following format:
-	 *
-	 *  0:7		tfd index - position within TX queue
-	 *  8:12	TX queue id
-	 *  13:14	reserved
-	 *  15		unsolicited RX or uCode-originated notification
-	 */
-	__le16 sequence;
-
-	/* command or response/notification data follows immediately */
-	u8 data[0];
-} __packed;
-
 
 /**
  * iwlagn rate_n_flags bit fields
@@ -3151,8 +3096,6 @@ struct iwl_enhance_sensitivity_cmd {
  */
 
 /* Phy calibration command for series */
-/* The default calibrate table size if not specified by firmware */
-#define IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE	18
 enum {
 	IWL_PHY_CALIBRATE_DC_CMD		= 8,
 	IWL_PHY_CALIBRATE_LO_CMD		= 9,
@@ -3161,10 +3104,7 @@ enum {
 	IWL_PHY_CALIBRATE_BASE_BAND_CMD		= 16,
 	IWL_PHY_CALIBRATE_TX_IQ_PERD_CMD	= 17,
 	IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD	= 18,
-	IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE	= 19,
 };
-
-#define IWL_MAX_PHY_CALIBRATE_TBL_SIZE		(253)
 
 /* This enum defines the bitmap of various calibrations to enable in both
  * init ucode and runtime ucode through CALIBRATION_CFG_CMD.
@@ -3904,50 +3844,6 @@ struct iwlagn_wowlan_kek_kck_material_cmd {
 	__le16	kek_len;
 	__le64	replay_ctr;
 } __packed;
-
-/******************************************************************************
- * (13)
- * Union of all expected notifications/responses:
- *
- *****************************************************************************/
-#define FH_RSCSR_FRAME_SIZE_MSK	(0x00003FFF)	/* bits 0-13 */
-
-struct iwl_rx_packet {
-	/*
-	 * The first 4 bytes of the RX frame header contain both the RX frame
-	 * size and some flags.
-	 * Bit fields:
-	 * 31:    flag flush RB request
-	 * 30:    flag ignore TC (terminal counter) request
-	 * 29:    flag fast IRQ request
-	 * 28-14: Reserved
-	 * 13-00: RX frame size
-	 */
-	__le32 len_n_flags;
-	struct iwl_cmd_header hdr;
-	union {
-		struct iwl_alive_resp alive_frame;
-		struct iwl_spectrum_notification spectrum_notif;
-		struct iwl_csa_notification csa_notif;
-		struct iwl_error_resp err_resp;
-		struct iwl_card_state_notif card_state_notif;
-		struct iwl_add_sta_resp add_sta;
-		struct iwl_rem_sta_resp rem_sta;
-		struct iwl_sleep_notification sleep_notif;
-		struct iwl_spectrum_resp spectrum;
-		struct iwl_notif_statistics stats;
-		struct iwl_bt_notif_statistics stats_bt;
-		struct iwl_compressed_ba_resp compressed_ba;
-		struct iwl_missed_beacon_notif missed_beacon;
-		struct iwl_coex_medium_notification coex_medium_notif;
-		struct iwl_coex_event_resp coex_event;
-		struct iwl_bt_coex_profile_notif bt_coex_profile_notif;
-		__le32 status;
-		u8 raw[0];
-	} u;
-} __packed;
-
-int iwl_agn_check_rxon_cmd(struct iwl_priv *priv);
 
 /*
  * REPLY_WIPAN_PARAMS = 0xb2 (Commands and Notification)

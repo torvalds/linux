@@ -47,7 +47,7 @@
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evevent")
-
+#if (!ACPI_REDUCED_HARDWARE)	/* Entire module */
 /* Local prototypes */
 static acpi_status acpi_ev_fixed_event_initialize(void);
 
@@ -291,3 +291,5 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
 	return ((acpi_gbl_fixed_event_handlers[event].
 		 handler) (acpi_gbl_fixed_event_handlers[event].context));
 }
+
+#endif				/* !ACPI_REDUCED_HARDWARE */

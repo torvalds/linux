@@ -89,7 +89,6 @@
 #include <pcmcia/ciscode.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 #ifndef MANFID_COMPAQ
@@ -1039,7 +1038,8 @@ xirc2ps_interrupt(int irq, void *dev_id)
 
 	    pr_debug("rsr=%#02x packet_length=%u\n", rsr, pktlen);
 
-	    skb = dev_alloc_skb(pktlen+3); /* 1 extra so we can use insw */
+	    /* 1 extra so we can use insw */
+	    skb = netdev_alloc_skb(dev, pktlen + 3);
 	    if (!skb) {
 		pr_notice("low memory, packet dropped (size=%u)\n", pktlen);
 		dev->stats.rx_dropped++;

@@ -7,7 +7,8 @@
 
 #include <linux/ktime.h>
 #include <linux/tracepoint.h>
-#include <linux/device.h>
+
+struct device;
 
 /*
  * The rpm_internal events are used for tracing some important

@@ -97,8 +97,7 @@ GigaSet 307x Device Driver
 				   2.5.): 1=on (default), 0=off
 
      Depending on your distribution you may want to create a separate module
-     configuration file /etc/modprobe.d/gigaset for these, or add them to a
-     custom file like /etc/modprobe.conf.local.
+     configuration file like /etc/modprobe.d/gigaset.conf for these.
 
 2.2. Device nodes for user space programs
      ------------------------------------
@@ -212,8 +211,8 @@ GigaSet 307x Device Driver
 
         options ppp_async flag_time=0
 
-     to an appropriate module configuration file, like /etc/modprobe.d/gigaset
-     or /etc/modprobe.conf.local.
+     to an appropriate module configuration file, like
+     /etc/modprobe.d/gigaset.conf.
 
      Unimodem mode is needed for making some devices [e.g. SX100] work which
      do not support the regular Gigaset command set. If debug output (see
@@ -237,8 +236,8 @@ GigaSet 307x Device Driver
 	modprobe usb_gigaset startmode=0
      or by adding a line like
 	options usb_gigaset startmode=0
-     to an appropriate module configuration file, like /etc/modprobe.d/gigaset
-     or /etc/modprobe.conf.local.
+     to an appropriate module configuration file, like
+     /etc/modprobe.d/gigaset.conf
 
 2.6. Call-ID (CID) mode
      ------------------
@@ -310,7 +309,7 @@ GigaSet 307x Device Driver
 
            options isdn dialtimeout=15
 
-        to /etc/modprobe.d/gigaset, /etc/modprobe.conf.local or a similar file.
+        to /etc/modprobe.d/gigaset.conf or a similar file.
 
      Problem:
         The isdnlog program emits error messages or just doesn't work.
@@ -350,8 +349,7 @@ GigaSet 307x Device Driver
      The initial value can be set using the debug parameter when loading the
      module "gigaset", e.g. by adding a line
         options gigaset debug=0
-     to your module configuration file, eg. /etc/modprobe.d/gigaset or
-     /etc/modprobe.conf.local.
+     to your module configuration file, eg. /etc/modprobe.d/gigaset.conf
 
      Generated debugging information can be found
      - as output of the command

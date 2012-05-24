@@ -71,10 +71,7 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	list_add_tail(&dynid->node, &dynids->list);
 	spin_unlock(&dynids->lock);
 
-	if (get_driver(driver)) {
-		retval = driver_attach(driver);
-		put_driver(driver);
-	}
+	retval = driver_attach(driver);
 
 	if (retval)
 		return retval;
@@ -132,43 +129,39 @@ store_remove_id(struct device_driver *driver, const char *buf, size_t count)
 }
 static DRIVER_ATTR(remove_id, S_IWUSR, NULL, store_remove_id);
 
-static int usb_create_newid_file(struct usb_driver *usb_drv)
+static int usb_create_newid_files(struct usb_driver *usb_drv)
 {
 	int error = 0;
 
 	if (usb_drv->no_dynamic_id)
 		goto exit;
 
-	if (usb_drv->probe != NULL)
+	if (usb_drv->probe != NULL) {
 		error = driver_create_file(&usb_drv->drvwrap.driver,
 					   &driver_attr_new_id);
+		if (error == 0) {
+			error = driver_create_file(&usb_drv->drvwrap.driver,
+					&driver_attr_remove_id);
+			if (error)
+				driver_remove_file(&usb_drv->drvwrap.driver,
+						&driver_attr_new_id);
+		}
+	}
 exit:
 	return error;
 }
 
-static void usb_remove_newid_file(struct usb_driver *usb_drv)
+static void usb_remove_newid_files(struct usb_driver *usb_drv)
 {
 	if (usb_drv->no_dynamic_id)
 		return;
 
-	if (usb_drv->probe != NULL)
+	if (usb_drv->probe != NULL) {
+		driver_remove_file(&usb_drv->drvwrap.driver,
+				&driver_attr_remove_id);
 		driver_remove_file(&usb_drv->drvwrap.driver,
 				   &driver_attr_new_id);
-}
-
-static int
-usb_create_removeid_file(struct usb_driver *drv)
-{
-	int error = 0;
-	if (drv->probe != NULL)
-		error = driver_create_file(&drv->drvwrap.driver,
-				&driver_attr_remove_id);
-	return error;
-}
-
-static void usb_remove_removeid_file(struct usb_driver *drv)
-{
-	driver_remove_file(&drv->drvwrap.driver, &driver_attr_remove_id);
+	}
 }
 
 static void usb_free_dynids(struct usb_driver *usb_drv)
@@ -183,22 +176,12 @@ static void usb_free_dynids(struct usb_driver *usb_drv)
 	spin_unlock(&usb_drv->dynids.lock);
 }
 #else
-static inline int usb_create_newid_file(struct usb_driver *usb_drv)
+static inline int usb_create_newid_files(struct usb_driver *usb_drv)
 {
 	return 0;
 }
 
-static void usb_remove_newid_file(struct usb_driver *usb_drv)
-{
-}
-
-static int
-usb_create_removeid_file(struct usb_driver *drv)
-{
-	return 0;
-}
-
-static void usb_remove_removeid_file(struct usb_driver *drv)
+static void usb_remove_newid_files(struct usb_driver *usb_drv)
 {
 }
 
@@ -875,13 +858,9 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner,
 
 	usbfs_update_special();
 
-	retval = usb_create_newid_file(new_driver);
+	retval = usb_create_newid_files(new_driver);
 	if (retval)
 		goto out_newid;
-
-	retval = usb_create_removeid_file(new_driver);
-	if (retval)
-		goto out_removeid;
 
 	pr_info("%s: registered new interface driver %s\n",
 			usbcore_name, new_driver->name);
@@ -889,8 +868,6 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner,
 out:
 	return retval;
 
-out_removeid:
-	usb_remove_newid_file(new_driver);
 out_newid:
 	driver_unregister(&new_driver->drvwrap.driver);
 
@@ -917,10 +894,9 @@ void usb_deregister(struct usb_driver *driver)
 	pr_info("%s: deregistering interface driver %s\n",
 			usbcore_name, driver->name);
 
-	usb_remove_removeid_file(driver);
-	usb_remove_newid_file(driver);
-	usb_free_dynids(driver);
+	usb_remove_newid_files(driver);
 	driver_unregister(&driver->drvwrap.driver);
+	usb_free_dynids(driver);
 
 	usbfs_update_special();
 }
@@ -958,13 +934,8 @@ void usb_rebind_intf(struct usb_interface *intf)
 	int rc;
 
 	/* Delayed unbind of an existing driver */
-	if (intf->dev.driver) {
-		struct usb_driver *driver =
-				to_usb_driver(intf->dev.driver);
-
-		dev_dbg(&intf->dev, "forced unbind\n");
-		usb_driver_release_interface(driver, intf);
-	}
+	if (intf->dev.driver)
+		usb_forced_unbind_intf(intf);
 
 	/* Try to rebind the interface */
 	if (!intf->dev.power.is_prepared) {
@@ -977,15 +948,13 @@ void usb_rebind_intf(struct usb_interface *intf)
 
 #ifdef CONFIG_PM
 
-#define DO_UNBIND	0
-#define DO_REBIND	1
-
-/* Unbind drivers for @udev's interfaces that don't support suspend/resume,
- * or rebind interfaces that have been unbound, according to @action.
+/* Unbind drivers for @udev's interfaces that don't support suspend/resume
+ * There is no check for reset_resume here because it can be determined
+ * only during resume whether reset_resume is needed.
  *
  * The caller must hold @udev's device lock.
  */
-static void do_unbind_rebind(struct usb_device *udev, int action)
+static void unbind_no_pm_drivers_interfaces(struct usb_device *udev)
 {
 	struct usb_host_config	*config;
 	int			i;
@@ -996,19 +965,49 @@ static void do_unbind_rebind(struct usb_device *udev, int action)
 	if (config) {
 		for (i = 0; i < config->desc.bNumInterfaces; ++i) {
 			intf = config->interface[i];
-			switch (action) {
-			case DO_UNBIND:
-				if (intf->dev.driver) {
-					drv = to_usb_driver(intf->dev.driver);
-					if (!drv->suspend || !drv->resume)
-						usb_forced_unbind_intf(intf);
-				}
-				break;
-			case DO_REBIND:
-				if (intf->needs_binding)
-					usb_rebind_intf(intf);
-				break;
+
+			if (intf->dev.driver) {
+				drv = to_usb_driver(intf->dev.driver);
+				if (!drv->suspend || !drv->resume)
+					usb_forced_unbind_intf(intf);
 			}
+		}
+	}
+}
+
+/* Unbind drivers for @udev's interfaces that failed to support reset-resume.
+ * These interfaces have the needs_binding flag set by usb_resume_interface().
+ *
+ * The caller must hold @udev's device lock.
+ */
+static void unbind_no_reset_resume_drivers_interfaces(struct usb_device *udev)
+{
+	struct usb_host_config	*config;
+	int			i;
+	struct usb_interface	*intf;
+
+	config = udev->actconfig;
+	if (config) {
+		for (i = 0; i < config->desc.bNumInterfaces; ++i) {
+			intf = config->interface[i];
+			if (intf->dev.driver && intf->needs_binding)
+				usb_forced_unbind_intf(intf);
+		}
+	}
+}
+
+static void do_rebind_interfaces(struct usb_device *udev)
+{
+	struct usb_host_config	*config;
+	int			i;
+	struct usb_interface	*intf;
+
+	config = udev->actconfig;
+	if (config) {
+		for (i = 0; i < config->desc.bNumInterfaces; ++i) {
+			intf = config->interface[i];
+			if (intf->needs_binding)
+				usb_rebind_intf(intf);
 		}
 	}
 }
@@ -1190,8 +1189,13 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	if (status == 0) {
 		status = usb_suspend_device(udev, msg);
 
-		/* Again, ignore errors during system sleep transitions */
-		if (!PMSG_IS_AUTO(msg))
+		/*
+		 * Ignore errors from non-root-hub devices during
+		 * system sleep transitions.  For the most part,
+		 * these devices should go to low power anyway when
+		 * the entire bus is suspended.
+		 */
+		if (udev->parent && !PMSG_IS_AUTO(msg))
 			status = 0;
 	}
 
@@ -1302,9 +1306,27 @@ int usb_suspend(struct device *dev, pm_message_t msg)
 {
 	struct usb_device	*udev = to_usb_device(dev);
 
-	do_unbind_rebind(udev, DO_UNBIND);
+	unbind_no_pm_drivers_interfaces(udev);
+
+	/* From now on we are sure all drivers support suspend/resume
+	 * but not necessarily reset_resume()
+	 * so we may still need to unbind and rebind upon resume
+	 */
 	choose_wakeup(udev, msg);
 	return usb_suspend_both(udev, msg);
+}
+
+/* The device lock is held by the PM core */
+int usb_resume_complete(struct device *dev)
+{
+	struct usb_device *udev = to_usb_device(dev);
+
+	/* For PM complete calls, all we do is rebind interfaces
+	 * whose needs_binding flag is set
+	 */
+	if (udev->state != USB_STATE_NOTATTACHED)
+		do_rebind_interfaces(udev);
+	return 0;
 }
 
 /* The device lock is held by the PM core */
@@ -1313,24 +1335,19 @@ int usb_resume(struct device *dev, pm_message_t msg)
 	struct usb_device	*udev = to_usb_device(dev);
 	int			status;
 
-	/* For PM complete calls, all we do is rebind interfaces */
-	if (msg.event == PM_EVENT_ON) {
-		if (udev->state != USB_STATE_NOTATTACHED)
-			do_unbind_rebind(udev, DO_REBIND);
-		status = 0;
-
-	/* For all other calls, take the device back to full power and
+	/* For all calls, take the device back to full power and
 	 * tell the PM core in case it was autosuspended previously.
-	 * Unbind the interfaces that will need rebinding later.
+	 * Unbind the interfaces that will need rebinding later,
+	 * because they fail to support reset_resume.
+	 * (This can't be done in usb_resume_interface()
+	 * above because it doesn't own the right set of locks.)
 	 */
-	} else {
-		status = usb_resume_both(udev, msg);
-		if (status == 0) {
-			pm_runtime_disable(dev);
-			pm_runtime_set_active(dev);
-			pm_runtime_enable(dev);
-			do_unbind_rebind(udev, DO_REBIND);
-		}
+	status = usb_resume_both(udev, msg);
+	if (status == 0) {
+		pm_runtime_disable(dev);
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
+		unbind_no_reset_resume_drivers_interfaces(udev);
 	}
 
 	/* Avoid PM error messages for devices disconnected while suspended

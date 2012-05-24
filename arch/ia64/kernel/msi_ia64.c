@@ -57,7 +57,7 @@ int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 		return irq;
 
 	irq_set_msi_desc(irq, desc);
-	cpus_and(mask, irq_to_domain(irq), cpu_online_map);
+	cpumask_and(&mask, &(irq_to_domain(irq)), cpu_online_mask);
 	dest_phys_id = cpu_physical_id(first_cpu(mask));
 	vector = irq_to_vector(irq);
 
@@ -179,7 +179,7 @@ msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
 	unsigned dest;
 	cpumask_t mask;
 
-	cpus_and(mask, irq_to_domain(irq), cpu_online_map);
+	cpumask_and(&mask, &(irq_to_domain(irq)), cpu_online_mask);
 	dest = cpu_physical_id(first_cpu(mask));
 
 	msg->address_hi = 0;

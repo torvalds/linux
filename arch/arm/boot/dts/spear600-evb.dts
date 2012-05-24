@@ -1,0 +1,47 @@
+/*
+ * Copyright 2012 Stefan Roese <sr@denx.de>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "spear600.dtsi"
+
+/ {
+	model = "ST SPEAr600 Evaluation Board";
+	compatible = "st,spear600-evb", "st,spear600";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x10000000>;
+	};
+
+	ahb {
+		gmac: ethernet@e0800000 {
+			phy-mode = "gmii";
+			status = "okay";
+		};
+
+		apb {
+			serial@d0000000 {
+				status = "okay";
+			};
+
+			serial@d0080000 {
+				status = "okay";
+			};
+
+			i2c@d0200000 {
+				clock-frequency = <400000>;
+				status = "okay";
+			};
+		};
+	};
+};

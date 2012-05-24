@@ -85,9 +85,7 @@ static int __devinit edb93xx_probe(struct platform_device *pdev)
 	struct snd_soc_card *card = &snd_soc_edb93xx;
 	int ret;
 
-	ret = ep93xx_i2s_acquire(EP93XX_SYSCON_DEVCFG_I2SONAC97,
-				 EP93XX_SYSCON_I2SCLKDIV_ORIDE |
-				 EP93XX_SYSCON_I2SCLKDIV_SPOL);
+	ret = ep93xx_i2s_acquire();
 	if (ret)
 		return ret;
 

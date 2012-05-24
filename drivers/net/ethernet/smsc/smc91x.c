@@ -463,7 +463,7 @@ static inline void  smc_rcv(struct net_device *dev)
 		 * multiple of 4 bytes on 32 bit buses.
 		 * Hence packet_len - 6 + 2 + 2 + 2.
 		 */
-		skb = dev_alloc_skb(packet_len);
+		skb = netdev_alloc_skb(dev, packet_len);
 		if (unlikely(skb == NULL)) {
 			printk(KERN_NOTICE "%s: Low memory, packet dropped.\n",
 				dev->name);
@@ -2223,7 +2223,6 @@ static int __devinit smc_drv_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(struct smc_local));
 	if (!ndev) {
-		printk("%s: could not allocate device.\n", CARDNAME);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -2281,7 +2280,7 @@ static int __devinit smc_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_release_io;
 #if defined(CONFIG_SA1100_ASSABET)
-	NCR_0 |= NCR_ENET_OSC_EN;
+	neponset_ncr_set(NCR_ENET_OSC_EN);
 #endif
 	platform_set_drvdata(pdev, ndev);
 	ret = smc_enable_device(pdev);

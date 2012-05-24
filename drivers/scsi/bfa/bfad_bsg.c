@@ -1288,50 +1288,6 @@ out:
 }
 
 int
-bfad_iocmd_faa_enable(struct bfad_s *bfad, void *cmd)
-{
-	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
-	unsigned long   flags;
-	struct bfad_hal_comp    fcomp;
-
-	init_completion(&fcomp.comp);
-	iocmd->status = BFA_STATUS_OK;
-	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	iocmd->status = bfa_faa_enable(&bfad->bfa, bfad_hcb_comp, &fcomp);
-	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-
-	if (iocmd->status != BFA_STATUS_OK)
-		goto out;
-
-	wait_for_completion(&fcomp.comp);
-	iocmd->status = fcomp.status;
-out:
-	return 0;
-}
-
-int
-bfad_iocmd_faa_disable(struct bfad_s *bfad, void *cmd)
-{
-	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
-	unsigned long   flags;
-	struct bfad_hal_comp    fcomp;
-
-	init_completion(&fcomp.comp);
-	iocmd->status = BFA_STATUS_OK;
-	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	iocmd->status = bfa_faa_disable(&bfad->bfa, bfad_hcb_comp, &fcomp);
-	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-
-	if (iocmd->status != BFA_STATUS_OK)
-		goto out;
-
-	wait_for_completion(&fcomp.comp);
-	iocmd->status = fcomp.status;
-out:
-	return 0;
-}
-
-int
 bfad_iocmd_faa_query(struct bfad_s *bfad, void *cmd)
 {
 	struct bfa_bsg_faa_attr_s *iocmd = (struct bfa_bsg_faa_attr_s *)cmd;
@@ -1918,6 +1874,7 @@ bfad_iocmd_debug_fw_core(struct bfad_s *bfad, void *cmd,
 	struct bfa_bsg_debug_s *iocmd = (struct bfa_bsg_debug_s *)cmd;
 	void	*iocmd_bufptr;
 	unsigned long	flags;
+	u32 offset;
 
 	if (bfad_chk_iocmd_sz(payload_len, sizeof(struct bfa_bsg_debug_s),
 			BFA_DEBUG_FW_CORE_CHUNK_SZ) != BFA_STATUS_OK) {
@@ -1935,8 +1892,10 @@ bfad_iocmd_debug_fw_core(struct bfad_s *bfad, void *cmd,
 
 	iocmd_bufptr = (char *)iocmd + sizeof(struct bfa_bsg_debug_s);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	offset = iocmd->offset;
 	iocmd->status = bfa_ioc_debug_fwcore(&bfad->bfa.ioc, iocmd_bufptr,
-				(u32 *)&iocmd->offset, &iocmd->bufsz);
+				&offset, &iocmd->bufsz);
+	iocmd->offset = offset;
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 out:
 	return 0;
@@ -2633,12 +2592,6 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 	case IOCMD_FLASH_DISABLE_OPTROM:
 		rc = bfad_iocmd_ablk_optrom(bfad, cmd, iocmd);
 		break;
-	case IOCMD_FAA_ENABLE:
-		rc = bfad_iocmd_faa_enable(bfad, iocmd);
-		break;
-	case IOCMD_FAA_DISABLE:
-		rc = bfad_iocmd_faa_disable(bfad, iocmd);
-		break;
 	case IOCMD_FAA_QUERY:
 		rc = bfad_iocmd_faa_query(bfad, iocmd);
 		break;
@@ -2809,8 +2762,15 @@ bfad_im_bsg_vendor_request(struct fc_bsg_job *job)
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) job->shost->hostdata[0];
 	struct bfad_s *bfad = im_port->bfad;
+	struct request_queue *request_q = job->req->q;
 	void *payload_kbuf;
 	int rc = -EINVAL;
+
+	/*
+	 * Set the BSG device request_queue size to 256 to support
+	 * payloads larger than 512*1024K bytes.
+	 */
+	blk_queue_max_segments(request_q, 256);
 
 	/* Allocate a temp buffer to hold the passed in user space command */
 	payload_kbuf = kzalloc(job->request_payload.payload_len, GFP_KERNEL);
@@ -3047,8 +3007,7 @@ bfad_im_bsg_els_ct_request(struct fc_bsg_job *job)
 	 * Allocate buffer for bsg_fcpt and do a copy_from_user op for payload
 	 * buffer of size bsg_data->payload_len
 	 */
-	bsg_fcpt = (struct bfa_bsg_fcpt_s *)
-		   kzalloc(bsg_data->payload_len, GFP_KERNEL);
+	bsg_fcpt = kzalloc(bsg_data->payload_len, GFP_KERNEL);
 	if (!bsg_fcpt)
 		goto out;
 
@@ -3060,6 +3019,7 @@ bfad_im_bsg_els_ct_request(struct fc_bsg_job *job)
 
 	drv_fcxp = kzalloc(sizeof(struct bfad_fcxp), GFP_KERNEL);
 	if (drv_fcxp == NULL) {
+		kfree(bsg_fcpt);
 		rc = -ENOMEM;
 		goto out;
 	}

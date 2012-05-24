@@ -19,6 +19,7 @@
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
 #include <plat/addr-map.h>
+#include <mach/orion5x.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -171,13 +172,14 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	/*
 	 * IORESOURCE_IO
 	 */
+	sys->io_offset = 0;
 	res[0].name = "PCIe I/O Space";
 	res[0].flags = IORESOURCE_IO;
 	res[0].start = ORION5X_PCIE_IO_BUS_BASE;
 	res[0].end = res[0].start + ORION5X_PCIE_IO_SIZE - 1;
 	if (request_resource(&ioport_resource, &res[0]))
 		panic("Request PCIe IO resource failed\n");
-	pci_add_resource(&sys->resources, &res[0]);
+	pci_add_resource_offset(&sys->resources, &res[0], sys->io_offset);
 
 	/*
 	 * IORESOURCE_MEM
@@ -188,9 +190,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	res[1].end = res[1].start + ORION5X_PCIE_MEM_SIZE - 1;
 	if (request_resource(&iomem_resource, &res[1]))
 		panic("Request PCIe Memory resource failed\n");
-	pci_add_resource(&sys->resources, &res[1]);
-
-	sys->io_offset = 0;
+	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
 
 	return 1;
 }
@@ -499,13 +499,14 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	/*
 	 * IORESOURCE_IO
 	 */
+	sys->io_offset = 0;
 	res[0].name = "PCI I/O Space";
 	res[0].flags = IORESOURCE_IO;
 	res[0].start = ORION5X_PCI_IO_BUS_BASE;
 	res[0].end = res[0].start + ORION5X_PCI_IO_SIZE - 1;
 	if (request_resource(&ioport_resource, &res[0]))
 		panic("Request PCI IO resource failed\n");
-	pci_add_resource(&sys->resources, &res[0]);
+	pci_add_resource_offset(&sys->resources, &res[0], sys->io_offset);
 
 	/*
 	 * IORESOURCE_MEM
@@ -516,9 +517,7 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	res[1].end = res[1].start + ORION5X_PCI_MEM_SIZE - 1;
 	if (request_resource(&iomem_resource, &res[1]))
 		panic("Request PCI Memory resource failed\n");
-	pci_add_resource(&sys->resources, &res[1]);
-
-	sys->io_offset = 0;
+	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
 
 	return 1;
 }

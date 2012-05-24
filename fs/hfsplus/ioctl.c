@@ -20,6 +20,38 @@
 #include <asm/uaccess.h>
 #include "hfsplus_fs.h"
 
+/*
+ * "Blessing" an HFS+ filesystem writes metadata to the superblock informing
+ * the platform firmware which file to boot from
+ */
+static int hfsplus_ioctl_bless(struct file *file, int __user *user_flags)
+{
+	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = dentry->d_inode;
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
+	struct hfsplus_vh *vh = sbi->s_vhdr;
+	struct hfsplus_vh *bvh = sbi->s_backup_vhdr;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	mutex_lock(&sbi->vh_mutex);
+
+	/* Directory containing the bootable system */
+	vh->finder_info[0] = bvh->finder_info[0] =
+		cpu_to_be32(parent_ino(dentry));
+
+	/* Bootloader */
+	vh->finder_info[1] = bvh->finder_info[1] = cpu_to_be32(inode->i_ino);
+
+	/* Per spec, the OS X system folder - same as finder_info[0] here */
+	vh->finder_info[5] = bvh->finder_info[5] =
+		cpu_to_be32(parent_ino(dentry));
+
+	mutex_unlock(&sbi->vh_mutex);
+	return 0;
+}
+
 static int hfsplus_ioctl_getflags(struct file *file, int __user *user_flags)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
@@ -108,6 +140,8 @@ long hfsplus_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return hfsplus_ioctl_getflags(file, argp);
 	case HFSPLUS_IOC_EXT2_SETFLAGS:
 		return hfsplus_ioctl_setflags(file, argp);
+	case HFSPLUS_IOC_BLESS:
+		return hfsplus_ioctl_bless(file, argp);
 	default:
 		return -ENOTTY;
 	}

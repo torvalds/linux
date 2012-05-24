@@ -24,13 +24,14 @@
 #include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/bitops.h>
+#include <linux/device.h>
 
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
 #include <asm/nmi.h>
-#include <asm/compat.h>
 #include <asm/smp.h>
 #include <asm/alternative.h>
+#include <asm/timer.h>
 
 #include "perf_event.h"
 
@@ -351,6 +352,36 @@ int x86_setup_perfctr(struct perf_event *event)
 	return 0;
 }
 
+/*
+ * check that branch_sample_type is compatible with
+ * settings needed for precise_ip > 1 which implies
+ * using the LBR to capture ALL taken branches at the
+ * priv levels of the measurement
+ */
+static inline int precise_br_compat(struct perf_event *event)
+{
+	u64 m = event->attr.branch_sample_type;
+	u64 b = 0;
+
+	/* must capture all branches */
+	if (!(m & PERF_SAMPLE_BRANCH_ANY))
+		return 0;
+
+	m &= PERF_SAMPLE_BRANCH_KERNEL | PERF_SAMPLE_BRANCH_USER;
+
+	if (!event->attr.exclude_user)
+		b |= PERF_SAMPLE_BRANCH_USER;
+
+	if (!event->attr.exclude_kernel)
+		b |= PERF_SAMPLE_BRANCH_KERNEL;
+
+	/*
+	 * ignore PERF_SAMPLE_BRANCH_HV, not supported on x86
+	 */
+
+	return m == b;
+}
+
 int x86_pmu_hw_config(struct perf_event *event)
 {
 	if (event->attr.precise_ip) {
@@ -367,6 +398,36 @@ int x86_pmu_hw_config(struct perf_event *event)
 
 		if (event->attr.precise_ip > precise)
 			return -EOPNOTSUPP;
+		/*
+		 * check that PEBS LBR correction does not conflict with
+		 * whatever the user is asking with attr->branch_sample_type
+		 */
+		if (event->attr.precise_ip > 1) {
+			u64 *br_type = &event->attr.branch_sample_type;
+
+			if (has_branch_stack(event)) {
+				if (!precise_br_compat(event))
+					return -EOPNOTSUPP;
+
+				/* branch_sample_type is compatible */
+
+			} else {
+				/*
+				 * user did not specify  branch_sample_type
+				 *
+				 * For PEBS fixups, we capture all
+				 * the branches at the priv level of the
+				 * event.
+				 */
+				*br_type = PERF_SAMPLE_BRANCH_ANY;
+
+				if (!event->attr.exclude_user)
+					*br_type |= PERF_SAMPLE_BRANCH_USER;
+
+				if (!event->attr.exclude_kernel)
+					*br_type |= PERF_SAMPLE_BRANCH_KERNEL;
+			}
+		}
 	}
 
 	/*
@@ -423,6 +484,10 @@ static int __x86_pmu_event_init(struct perf_event *event)
 
 	/* mark unused */
 	event->hw.extra_reg.idx = EXTRA_REG_NONE;
+
+	/* mark not used */
+	event->hw.extra_reg.idx = EXTRA_REG_NONE;
+	event->hw.branch_reg.idx = EXTRA_REG_NONE;
 
 	return x86_pmu.hw_config(event);
 }
@@ -577,14 +642,14 @@ static bool __perf_sched_find_counter(struct perf_sched *sched)
 	/* Prefer fixed purpose counters */
 	if (x86_pmu.num_counters_fixed) {
 		idx = X86_PMC_IDX_FIXED;
-		for_each_set_bit_cont(idx, c->idxmsk, X86_PMC_IDX_MAX) {
+		for_each_set_bit_from(idx, c->idxmsk, X86_PMC_IDX_MAX) {
 			if (!__test_and_set_bit(idx, sched->state.used))
 				goto done;
 		}
 	}
 	/* Grab the first unused counter starting with idx */
 	idx = sched->state.counter;
-	for_each_set_bit_cont(idx, c->idxmsk, X86_PMC_IDX_FIXED) {
+	for_each_set_bit_from(idx, c->idxmsk, X86_PMC_IDX_FIXED) {
 		if (!__test_and_set_bit(idx, sched->state.used))
 			goto done;
 	}
@@ -1210,6 +1275,8 @@ x86_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 		break;
 
 	case CPU_STARTING:
+		if (x86_pmu.attr_rdpmc)
+			set_in_cr4(X86_CR4_PCE);
 		if (x86_pmu.cpu_starting)
 			x86_pmu.cpu_starting(cpu);
 		break;
@@ -1245,6 +1312,11 @@ static void __init pmu_check_apic(void)
 	pr_info("no APIC, boot with the \"lapic\" boot parameter to force-enable it.\n");
 	pr_info("no hardware sampling interrupt available.\n");
 }
+
+static struct attribute_group x86_pmu_format_group = {
+	.name = "format",
+	.attrs = NULL,
+};
 
 static int __init init_hw_perf_events(void)
 {
@@ -1318,6 +1390,9 @@ static int __init init_hw_perf_events(void)
 			c->weight += x86_pmu.num_counters;
 		}
 	}
+
+	x86_pmu.attr_rdpmc = 1; /* enable userspace RDPMC usage by default */
+	x86_pmu_format_group.attrs = x86_pmu.format_attrs;
 
 	pr_info("... version:                %d\n",     x86_pmu.version);
 	pr_info("... bit width:              %d\n",     x86_pmu.cntval_bits);
@@ -1542,22 +1617,114 @@ static int x86_pmu_event_init(struct perf_event *event)
 	return err;
 }
 
+static int x86_pmu_event_idx(struct perf_event *event)
+{
+	int idx = event->hw.idx;
+
+	if (!x86_pmu.attr_rdpmc)
+		return 0;
+
+	if (x86_pmu.num_counters_fixed && idx >= X86_PMC_IDX_FIXED) {
+		idx -= X86_PMC_IDX_FIXED;
+		idx |= 1 << 30;
+	}
+
+	return idx + 1;
+}
+
+static ssize_t get_attr_rdpmc(struct device *cdev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 40, "%d\n", x86_pmu.attr_rdpmc);
+}
+
+static void change_rdpmc(void *info)
+{
+	bool enable = !!(unsigned long)info;
+
+	if (enable)
+		set_in_cr4(X86_CR4_PCE);
+	else
+		clear_in_cr4(X86_CR4_PCE);
+}
+
+static ssize_t set_attr_rdpmc(struct device *cdev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	unsigned long val = simple_strtoul(buf, NULL, 0);
+
+	if (!!val != !!x86_pmu.attr_rdpmc) {
+		x86_pmu.attr_rdpmc = !!val;
+		smp_call_function(change_rdpmc, (void *)val, 1);
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(rdpmc, S_IRUSR | S_IWUSR, get_attr_rdpmc, set_attr_rdpmc);
+
+static struct attribute *x86_pmu_attrs[] = {
+	&dev_attr_rdpmc.attr,
+	NULL,
+};
+
+static struct attribute_group x86_pmu_attr_group = {
+	.attrs = x86_pmu_attrs,
+};
+
+static const struct attribute_group *x86_pmu_attr_groups[] = {
+	&x86_pmu_attr_group,
+	&x86_pmu_format_group,
+	NULL,
+};
+
+static void x86_pmu_flush_branch_stack(void)
+{
+	if (x86_pmu.flush_branch_stack)
+		x86_pmu.flush_branch_stack();
+}
+
 static struct pmu pmu = {
-	.pmu_enable	= x86_pmu_enable,
-	.pmu_disable	= x86_pmu_disable,
+	.pmu_enable		= x86_pmu_enable,
+	.pmu_disable		= x86_pmu_disable,
+
+	.attr_groups	= x86_pmu_attr_groups,
 
 	.event_init	= x86_pmu_event_init,
 
-	.add		= x86_pmu_add,
-	.del		= x86_pmu_del,
-	.start		= x86_pmu_start,
-	.stop		= x86_pmu_stop,
-	.read		= x86_pmu_read,
+	.add			= x86_pmu_add,
+	.del			= x86_pmu_del,
+	.start			= x86_pmu_start,
+	.stop			= x86_pmu_stop,
+	.read			= x86_pmu_read,
 
 	.start_txn	= x86_pmu_start_txn,
 	.cancel_txn	= x86_pmu_cancel_txn,
 	.commit_txn	= x86_pmu_commit_txn,
+
+	.event_idx	= x86_pmu_event_idx,
+	.flush_branch_stack	= x86_pmu_flush_branch_stack,
 };
+
+void arch_perf_update_userpage(struct perf_event_mmap_page *userpg, u64 now)
+{
+	userpg->cap_usr_time = 0;
+	userpg->cap_usr_rdpmc = x86_pmu.attr_rdpmc;
+	userpg->pmc_width = x86_pmu.cntval_bits;
+
+	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
+		return;
+
+	if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
+		return;
+
+	userpg->cap_usr_time = 1;
+	userpg->time_mult = this_cpu_read(cyc2ns);
+	userpg->time_shift = CYC2NS_SCALE_FACTOR;
+	userpg->time_offset = this_cpu_read(cyc2ns_offset) - now;
+}
 
 /*
  * callchain support
@@ -1595,6 +1762,9 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_COMPAT
+
+#include <asm/compat.h>
+
 static inline int
 perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {

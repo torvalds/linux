@@ -136,8 +136,6 @@ static struct resource apollon_smc91x_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= OMAP_GPIO_IRQ(APOLLON_ETHR_GPIO_IRQ),
-		.end	= OMAP_GPIO_IRQ(APOLLON_ETHR_GPIO_IRQ),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
@@ -341,6 +339,8 @@ static void __init omap_apollon_init(void)
 	 * You have to mux them off in device drivers later on
 	 * if not needed.
 	 */
+	apollon_smc91x_resources[1].start = gpio_to_irq(APOLLON_ETHR_GPIO_IRQ);
+	apollon_smc91x_resources[1].end = gpio_to_irq(APOLLON_ETHR_GPIO_IRQ);
 	platform_add_devices(apollon_devices, ARRAY_SIZE(apollon_devices));
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);

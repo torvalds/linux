@@ -44,7 +44,6 @@
 #include <linux/slab.h>
 #include <linux/numa.h>
 #include <asm/page.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <linux/atomic.h>
 #include <asm/tlbflush.h>

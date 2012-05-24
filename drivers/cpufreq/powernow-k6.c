@@ -16,6 +16,7 @@
 #include <linux/timex.h>
 #include <linux/io.h>
 
+#include <asm/cpu_device_id.h>
 #include <asm/msr.h>
 
 #define POWERNOW_IOPORT 0xfff0          /* it doesn't matter where, as long
@@ -210,6 +211,12 @@ static struct cpufreq_driver powernow_k6_driver = {
 	.attr		= powernow_k6_attr,
 };
 
+static const struct x86_cpu_id powernow_k6_ids[] = {
+	{ X86_VENDOR_AMD, 5, 12 },
+	{ X86_VENDOR_AMD, 5, 13 },
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, powernow_k6_ids);
 
 /**
  * powernow_k6_init - initializes the k6 PowerNow! CPUFreq driver
@@ -220,10 +227,7 @@ static struct cpufreq_driver powernow_k6_driver = {
  */
 static int __init powernow_k6_init(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(0);
-
-	if ((c->x86_vendor != X86_VENDOR_AMD) || (c->x86 != 5) ||
-		((c->x86_model != 12) && (c->x86_model != 13)))
+	if (!x86_match_cpu(powernow_k6_ids))
 		return -ENODEV;
 
 	if (!request_region(POWERNOW_IOPORT, 16, "PowerNow!")) {

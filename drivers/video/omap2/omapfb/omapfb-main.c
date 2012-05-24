@@ -1399,7 +1399,7 @@ static int omapfb_alloc_fbmem(struct fb_info *fbi, unsigned long size,
 
 	if (!paddr) {
 		DBG("allocating %lu bytes for fb %d\n", size, ofbi->id);
-		r = omap_vram_alloc(OMAP_VRAM_MEMTYPE_SDRAM, size, &paddr);
+		r = omap_vram_alloc(size, &paddr);
 	} else {
 		DBG("reserving %lu bytes at %lx for fb %d\n", size, paddr,
 				ofbi->id);
@@ -1487,60 +1487,6 @@ static int omapfb_alloc_fbmem_display(struct fb_info *fbi, unsigned long size,
 	return omapfb_alloc_fbmem(fbi, size, paddr);
 }
 
-static enum omap_color_mode fb_format_to_dss_mode(enum omapfb_color_format fmt)
-{
-	enum omap_color_mode mode;
-
-	switch (fmt) {
-	case OMAPFB_COLOR_RGB565:
-		mode = OMAP_DSS_COLOR_RGB16;
-		break;
-	case OMAPFB_COLOR_YUV422:
-		mode = OMAP_DSS_COLOR_YUV2;
-		break;
-	case OMAPFB_COLOR_CLUT_8BPP:
-		mode = OMAP_DSS_COLOR_CLUT8;
-		break;
-	case OMAPFB_COLOR_CLUT_4BPP:
-		mode = OMAP_DSS_COLOR_CLUT4;
-		break;
-	case OMAPFB_COLOR_CLUT_2BPP:
-		mode = OMAP_DSS_COLOR_CLUT2;
-		break;
-	case OMAPFB_COLOR_CLUT_1BPP:
-		mode = OMAP_DSS_COLOR_CLUT1;
-		break;
-	case OMAPFB_COLOR_RGB444:
-		mode = OMAP_DSS_COLOR_RGB12U;
-		break;
-	case OMAPFB_COLOR_YUY422:
-		mode = OMAP_DSS_COLOR_UYVY;
-		break;
-	case OMAPFB_COLOR_ARGB16:
-		mode = OMAP_DSS_COLOR_ARGB16;
-		break;
-	case OMAPFB_COLOR_RGB24U:
-		mode = OMAP_DSS_COLOR_RGB24U;
-		break;
-	case OMAPFB_COLOR_RGB24P:
-		mode = OMAP_DSS_COLOR_RGB24P;
-		break;
-	case OMAPFB_COLOR_ARGB32:
-		mode = OMAP_DSS_COLOR_ARGB32;
-		break;
-	case OMAPFB_COLOR_RGBA32:
-		mode = OMAP_DSS_COLOR_RGBA32;
-		break;
-	case OMAPFB_COLOR_RGBX32:
-		mode = OMAP_DSS_COLOR_RGBX32;
-		break;
-	default:
-		mode = -EINVAL;
-	}
-
-	return mode;
-}
-
 static int omapfb_parse_vram_param(const char *param, int max_entries,
 		unsigned long *sizes, unsigned long *paddrs)
 {
@@ -1614,23 +1560,6 @@ static int omapfb_allocate_all_fbs(struct omapfb2_device *fbdev)
 		memset(&vram_paddrs, 0, sizeof(vram_paddrs));
 	}
 
-	if (fbdev->dev->platform_data) {
-		struct omapfb_platform_data *opd;
-		opd = fbdev->dev->platform_data;
-		for (i = 0; i < opd->mem_desc.region_cnt; ++i) {
-			if (!vram_sizes[i]) {
-				unsigned long size;
-				unsigned long paddr;
-
-				size = opd->mem_desc.region[i].size;
-				paddr = opd->mem_desc.region[i].paddr;
-
-				vram_sizes[i] = size;
-				vram_paddrs[i] = paddr;
-			}
-		}
-	}
-
 	for (i = 0; i < fbdev->num_fbs; i++) {
 		/* allocate memory automatically only for fb0, or if
 		 * excplicitly defined with vram or plat data option */
@@ -1669,7 +1598,7 @@ int omapfb_realloc_fbmem(struct fb_info *fbi, unsigned long size, int type)
 	int old_type = rg->type;
 	int r;
 
-	if (type > OMAPFB_MEMTYPE_MAX)
+	if (type != OMAPFB_MEMTYPE_SDRAM)
 		return -EINVAL;
 
 	size = PAGE_ALIGN(size);
@@ -1827,32 +1756,6 @@ static int omapfb_fb_init(struct omapfb2_device *fbdev, struct fb_info *fbi)
 	var->bits_per_pixel = 0;
 
 	var->rotate = def_rotate;
-
-	/*
-	 * Check if there is a default color format set in the board file,
-	 * and use this format instead the default deducted from the
-	 * display bpp.
-	 */
-	if (fbdev->dev->platform_data) {
-		struct omapfb_platform_data *opd;
-		int id = ofbi->id;
-
-		opd = fbdev->dev->platform_data;
-		if (opd->mem_desc.region[id].format_used) {
-			enum omap_color_mode mode;
-			enum omapfb_color_format format;
-
-			format = opd->mem_desc.region[id].format;
-			mode = fb_format_to_dss_mode(format);
-			if (mode < 0) {
-				r = mode;
-				goto err;
-			}
-			r = dss_mode_to_fb_mode(mode, var);
-			if (r < 0)
-				goto err;
-		}
-	}
 
 	if (display) {
 		u16 w, h;

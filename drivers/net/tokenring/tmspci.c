@@ -34,7 +34,6 @@
 #include <linux/netdevice.h>
 #include <linux/trdevice.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 

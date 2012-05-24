@@ -1022,7 +1022,7 @@ static int wm8961_probe(struct snd_soc_codec *codec)
 
 	wm8961_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	snd_soc_add_controls(codec, wm8961_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8961_snd_controls,
 				ARRAY_SIZE(wm8961_snd_controls));
 	snd_soc_dapm_new_controls(dapm, wm8961_dapm_widgets,
 				  ARRAY_SIZE(wm8961_dapm_widgets));

@@ -9,8 +9,6 @@
 #include <linux/fs.h>
 #include <linux/genhd.h>
 #include <linux/buffer_head.h>
-#include <linux/ext2_fs_sb.h>
-#include <linux/ext2_fs.h>
 #include <linux/blkdev.h>
 #include "ext2.h"
 #include "xip.h"

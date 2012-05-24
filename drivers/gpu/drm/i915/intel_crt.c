@@ -594,7 +594,10 @@ void intel_crt_init(struct drm_device *dev)
 				1 << INTEL_ANALOG_CLONE_BIT |
 				1 << INTEL_SDVO_LVDS_CLONE_BIT);
 	crt->base.crtc_mask = (1 << 0) | (1 << 1);
-	connector->interlace_allowed = 1;
+	if (IS_GEN2(dev))
+		connector->interlace_allowed = 0;
+	else
+		connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
 
 	drm_encoder_helper_add(&crt->base.base, &intel_crt_helper_funcs);

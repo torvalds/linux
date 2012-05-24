@@ -14,7 +14,6 @@
 #include "nic.h"
 #include "regs.h"
 #include "io.h"
-#include "mac.h"
 #include "mdio_10g.h"
 #include "workarounds.h"
 
@@ -139,7 +138,7 @@ static bool falcon_xmac_link_ok(struct efx_nic *efx)
 	return (efx->loopback_mode == LOOPBACK_XGMII ||
 		falcon_xgxs_link_ok(efx)) &&
 		(!(efx->mdio.mmds & (1 << MDIO_MMD_PHYXS)) ||
-		 LOOPBACK_INTERNAL(efx) || 
+		 LOOPBACK_INTERNAL(efx) ||
 		 efx_mdio_phyxgxs_lane_sync(efx));
 }
 
@@ -270,12 +269,12 @@ static bool falcon_xmac_link_ok_retry(struct efx_nic *efx, int tries)
 	return mac_up;
 }
 
-static bool falcon_xmac_check_fault(struct efx_nic *efx)
+bool falcon_xmac_check_fault(struct efx_nic *efx)
 {
 	return !falcon_xmac_link_ok_retry(efx, 5);
 }
 
-static int falcon_reconfigure_xmac(struct efx_nic *efx)
+int falcon_reconfigure_xmac(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
 
@@ -290,7 +289,7 @@ static int falcon_reconfigure_xmac(struct efx_nic *efx)
 	return 0;
 }
 
-static void falcon_update_stats_xmac(struct efx_nic *efx)
+void falcon_update_stats_xmac(struct efx_nic *efx)
 {
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 
@@ -361,9 +360,3 @@ void falcon_poll_xmac(struct efx_nic *efx)
 	nic_data->xmac_poll_required = !falcon_xmac_link_ok_retry(efx, 1);
 	falcon_ack_status_intr(efx);
 }
-
-const struct efx_mac_operations falcon_xmac_operations = {
-	.reconfigure	= falcon_reconfigure_xmac,
-	.update_stats	= falcon_update_stats_xmac,
-	.check_fault	= falcon_xmac_check_fault,
-};

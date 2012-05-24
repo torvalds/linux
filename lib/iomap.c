@@ -6,7 +6,7 @@
 #include <linux/pci.h>
 #include <linux/io.h>
 
-#include <linux/module.h>
+#include <linux/export.h>
 
 /*
  * Read/write from/to an (offsettable) iomem cookie. It might be a PIO

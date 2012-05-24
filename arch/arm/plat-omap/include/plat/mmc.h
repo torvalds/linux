@@ -137,8 +137,6 @@ struct omap_mmc_platform_data {
 		int (*set_power)(struct device *dev, int slot,
 				 int power_on, int vdd);
 		int (*get_ro)(struct device *dev, int slot);
-		int (*set_sleep)(struct device *dev, int slot, int sleep,
-				 int vdd, int cardsleep);
 		void (*remux)(struct device *dev, int slot, int power_on);
 		/* Call back before enabling / disabling regulators */
 		void (*before_set_reg)(struct device *dev, int slot,

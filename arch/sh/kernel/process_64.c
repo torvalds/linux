@@ -30,6 +30,7 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include <asm/fpu.h>
+#include <asm/switch_to.h>
 
 struct task_struct *last_task_used_math = NULL;
 

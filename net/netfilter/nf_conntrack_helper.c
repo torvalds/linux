@@ -181,6 +181,60 @@ void nf_ct_helper_destroy(struct nf_conn *ct)
 	}
 }
 
+static LIST_HEAD(nf_ct_helper_expectfn_list);
+
+void nf_ct_helper_expectfn_register(struct nf_ct_helper_expectfn *n)
+{
+	spin_lock_bh(&nf_conntrack_lock);
+	list_add_rcu(&n->head, &nf_ct_helper_expectfn_list);
+	spin_unlock_bh(&nf_conntrack_lock);
+}
+EXPORT_SYMBOL_GPL(nf_ct_helper_expectfn_register);
+
+void nf_ct_helper_expectfn_unregister(struct nf_ct_helper_expectfn *n)
+{
+	spin_lock_bh(&nf_conntrack_lock);
+	list_del_rcu(&n->head);
+	spin_unlock_bh(&nf_conntrack_lock);
+}
+EXPORT_SYMBOL_GPL(nf_ct_helper_expectfn_unregister);
+
+struct nf_ct_helper_expectfn *
+nf_ct_helper_expectfn_find_by_name(const char *name)
+{
+	struct nf_ct_helper_expectfn *cur;
+	bool found = false;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(cur, &nf_ct_helper_expectfn_list, head) {
+		if (!strcmp(cur->name, name)) {
+			found = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+	return found ? cur : NULL;
+}
+EXPORT_SYMBOL_GPL(nf_ct_helper_expectfn_find_by_name);
+
+struct nf_ct_helper_expectfn *
+nf_ct_helper_expectfn_find_by_symbol(const void *symbol)
+{
+	struct nf_ct_helper_expectfn *cur;
+	bool found = false;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(cur, &nf_ct_helper_expectfn_list, head) {
+		if (cur->expectfn == symbol) {
+			found = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+	return found ? cur : NULL;
+}
+EXPORT_SYMBOL_GPL(nf_ct_helper_expectfn_find_by_symbol);
+
 int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 {
 	unsigned int h = helper_hash(&me->tuple);

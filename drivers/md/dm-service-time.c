@@ -110,6 +110,7 @@ static int st_add_path(struct path_selector *ps, struct dm_path *path,
 	struct path_info *pi;
 	unsigned repeat_count = ST_MIN_IO;
 	unsigned relative_throughput = 1;
+	char dummy;
 
 	/*
 	 * Arguments: [<repeat_count> [<relative_throughput>]]
@@ -128,13 +129,13 @@ static int st_add_path(struct path_selector *ps, struct dm_path *path,
 		return -EINVAL;
 	}
 
-	if (argc && (sscanf(argv[0], "%u", &repeat_count) != 1)) {
+	if (argc && (sscanf(argv[0], "%u%c", &repeat_count, &dummy) != 1)) {
 		*error = "service-time ps: invalid repeat count";
 		return -EINVAL;
 	}
 
 	if ((argc == 2) &&
-	    (sscanf(argv[1], "%u", &relative_throughput) != 1 ||
+	    (sscanf(argv[1], "%u%c", &relative_throughput, &dummy) != 1 ||
 	     relative_throughput > ST_MAX_RELATIVE_THROUGHPUT)) {
 		*error = "service-time ps: invalid relative_throughput value";
 		return -EINVAL;

@@ -23,8 +23,6 @@
 #define PCIBIOS_MAX_MEM		0x4BFFFFFF
 #endif
 
-#define ARCH_HAS_DMA_SET_COHERENT_MASK
-
 /* Register locations and bits */
 #include "ixp4xx-regs.h"
 

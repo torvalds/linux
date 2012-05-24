@@ -58,14 +58,15 @@ cifs_dump_mem(char *label, void *data, int length)
 }
 
 #ifdef CONFIG_CIFS_DEBUG2
-void cifs_dump_detail(struct smb_hdr *smb)
+void cifs_dump_detail(void *buf)
 {
+	struct smb_hdr *smb = (struct smb_hdr *)buf;
+
 	cERROR(1, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d",
 		  smb->Command, smb->Status.CifsError,
 		  smb->Flags, smb->Flags2, smb->Mid, smb->Pid);
 	cERROR(1, "smb buf %p len %d", smb, smbCalcSize(smb));
 }
-
 
 void cifs_dump_mids(struct TCP_Server_Info *server)
 {
@@ -79,15 +80,15 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 	spin_lock(&GlobalMid_Lock);
 	list_for_each(tmp, &server->pending_mid_q) {
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		cERROR(1, "State: %d Cmd: %d Pid: %d Cbdata: %p Mid %d",
-			mid_entry->midState,
-			(int)mid_entry->command,
+		cERROR(1, "State: %d Cmd: %d Pid: %d Cbdata: %p Mid %llu",
+			mid_entry->mid_state,
+			le16_to_cpu(mid_entry->command),
 			mid_entry->pid,
 			mid_entry->callback_data,
 			mid_entry->mid);
 #ifdef CONFIG_CIFS_STATS2
 		cERROR(1, "IsLarge: %d buf: %p time rcv: %ld now: %ld",
-			mid_entry->largeBuf,
+			mid_entry->large_buf,
 			mid_entry->resp_buf,
 			mid_entry->when_received,
 			jiffies);
@@ -171,8 +172,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			seq_printf(m, "TCP status: %d\n\tLocal Users To "
 				   "Server: %d SecMode: 0x%x Req On Wire: %d",
 				   server->tcpStatus, server->srv_count,
-				   server->sec_mode,
-				   atomic_read(&server->inFlight));
+				   server->sec_mode, in_flight(server));
 
 #ifdef CONFIG_CIFS_STATS2
 			seq_printf(m, " In Send: %d In MaxReq Wait: %d",
@@ -218,12 +218,12 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 				mid_entry = list_entry(tmp3, struct mid_q_entry,
 					qhead);
 				seq_printf(m, "\tState: %d com: %d pid:"
-						" %d cbdata: %p mid %d\n",
-						mid_entry->midState,
-						(int)mid_entry->command,
-						mid_entry->pid,
-						mid_entry->callback_data,
-						mid_entry->mid);
+					      " %d cbdata: %p mid %llu\n",
+					      mid_entry->mid_state,
+					      le16_to_cpu(mid_entry->command),
+					      mid_entry->pid,
+					      mid_entry->callback_data,
+					      mid_entry->mid);
 			}
 			spin_unlock(&GlobalMid_Lock);
 		}
@@ -418,7 +418,6 @@ static const struct file_operations cifs_stats_proc_fops = {
 
 static struct proc_dir_entry *proc_fs_cifs;
 static const struct file_operations cifsFYI_proc_fops;
-static const struct file_operations cifs_oplock_proc_fops;
 static const struct file_operations cifs_lookup_cache_proc_fops;
 static const struct file_operations traceSMB_proc_fops;
 static const struct file_operations cifs_multiuser_mount_proc_fops;
@@ -439,7 +438,6 @@ cifs_proc_init(void)
 #endif /* STATS */
 	proc_create("cifsFYI", 0, proc_fs_cifs, &cifsFYI_proc_fops);
 	proc_create("traceSMB", 0, proc_fs_cifs, &traceSMB_proc_fops);
-	proc_create("OplockEnabled", 0, proc_fs_cifs, &cifs_oplock_proc_fops);
 	proc_create("LinuxExtensionsEnabled", 0, proc_fs_cifs,
 		    &cifs_linux_ext_proc_fops);
 	proc_create("MultiuserMount", 0, proc_fs_cifs,
@@ -463,7 +461,6 @@ cifs_proc_clean(void)
 	remove_proc_entry("Stats", proc_fs_cifs);
 #endif
 	remove_proc_entry("MultiuserMount", proc_fs_cifs);
-	remove_proc_entry("OplockEnabled", proc_fs_cifs);
 	remove_proc_entry("SecurityFlags", proc_fs_cifs);
 	remove_proc_entry("LinuxExtensionsEnabled", proc_fs_cifs);
 	remove_proc_entry("LookupCacheEnabled", proc_fs_cifs);
@@ -507,46 +504,6 @@ static const struct file_operations cifsFYI_proc_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 	.write		= cifsFYI_proc_write,
-};
-
-static int cifs_oplock_proc_show(struct seq_file *m, void *v)
-{
-	seq_printf(m, "%d\n", enable_oplocks);
-	return 0;
-}
-
-static int cifs_oplock_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, cifs_oplock_proc_show, NULL);
-}
-
-static ssize_t cifs_oplock_proc_write(struct file *file,
-		const char __user *buffer, size_t count, loff_t *ppos)
-{
-	char c;
-	int rc;
-
-	printk(KERN_WARNING "CIFS: The /proc/fs/cifs/OplockEnabled interface "
-	       "will be removed in kernel version 3.4. Please migrate to "
-	       "using the 'enable_oplocks' module parameter in cifs.ko.\n");
-	rc = get_user(c, buffer);
-	if (rc)
-		return rc;
-	if (c == '0' || c == 'n' || c == 'N')
-		enable_oplocks = false;
-	else if (c == '1' || c == 'y' || c == 'Y')
-		enable_oplocks = true;
-
-	return count;
-}
-
-static const struct file_operations cifs_oplock_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= cifs_oplock_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= cifs_oplock_proc_write,
 };
 
 static int cifs_linux_ext_proc_show(struct seq_file *m, void *v)

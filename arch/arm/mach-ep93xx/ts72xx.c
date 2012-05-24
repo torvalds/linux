@@ -28,6 +28,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 
+#include "soc.h"
 
 static struct map_desc ts72xx_io_desc[] __initdata = {
 	{

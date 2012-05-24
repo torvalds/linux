@@ -29,18 +29,19 @@
 #include <linux/clk.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/prefetch.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include <asm/byteorder.h>
 #include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/gpio.h>
 
 #include <mach/board.h>
 #include <mach/cpu.h>
 #include <mach/at91sam9261_matrix.h>
+#include <mach/at91_matrix.h>
 
 #include "at91_udc.h"
 
@@ -558,6 +559,7 @@ static int at91_ep_disable (struct usb_ep * _ep)
 
 	/* restore the endpoint's pristine config */
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	ep->ep.maxpacket = ep->maxpacket;
 
 	/* reset fifos and endpoint */
@@ -910,9 +912,9 @@ static void pullup(struct at91_udc *udc, int is_on)
 		} else if (cpu_is_at91sam9261() || cpu_is_at91sam9g10()) {
 			u32	usbpucr;
 
-			usbpucr = at91_sys_read(AT91_MATRIX_USBPUCR);
+			usbpucr = at91_matrix_read(AT91_MATRIX_USBPUCR);
 			usbpucr |= AT91_MATRIX_USBPUCR_PUON;
-			at91_sys_write(AT91_MATRIX_USBPUCR, usbpucr);
+			at91_matrix_write(AT91_MATRIX_USBPUCR, usbpucr);
 		}
 	} else {
 		stop_activity(udc);
@@ -928,9 +930,9 @@ static void pullup(struct at91_udc *udc, int is_on)
 		} else if (cpu_is_at91sam9261() || cpu_is_at91sam9g10()) {
 			u32	usbpucr;
 
-			usbpucr = at91_sys_read(AT91_MATRIX_USBPUCR);
+			usbpucr = at91_matrix_read(AT91_MATRIX_USBPUCR);
 			usbpucr &= ~AT91_MATRIX_USBPUCR_PUON;
-			at91_sys_write(AT91_MATRIX_USBPUCR, usbpucr);
+			at91_matrix_write(AT91_MATRIX_USBPUCR, usbpucr);
 		}
 		clk_off(udc);
 	}
@@ -1706,7 +1708,27 @@ static void at91udc_shutdown(struct platform_device *dev)
 	spin_unlock_irqrestore(&udc->lock, flags);
 }
 
-static int __init at91udc_probe(struct platform_device *pdev)
+static void __devinit at91udc_of_init(struct at91_udc *udc,
+				     struct device_node *np)
+{
+	struct at91_udc_data *board = &udc->board;
+	u32 val;
+	enum of_gpio_flags flags;
+
+	if (of_property_read_u32(np, "atmel,vbus-polled", &val) == 0)
+		board->vbus_polled = 1;
+
+	board->vbus_pin = of_get_named_gpio_flags(np, "atmel,vbus-gpio", 0,
+						  &flags);
+	board->vbus_active_low = (flags & OF_GPIO_ACTIVE_LOW) ? 1 : 0;
+
+	board->pullup_pin = of_get_named_gpio_flags(np, "atmel,pullup-gpio", 0,
+						  &flags);
+
+	board->pullup_active_low = (flags & OF_GPIO_ACTIVE_LOW) ? 1 : 0;
+}
+
+static int __devinit at91udc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	struct at91_udc	*udc;
@@ -1741,7 +1763,11 @@ static int __init at91udc_probe(struct platform_device *pdev)
 	/* init software state */
 	udc = &controller;
 	udc->gadget.dev.parent = dev;
-	udc->board = *(struct at91_udc_data *) dev->platform_data;
+	if (pdev->dev.of_node)
+		at91udc_of_init(udc, pdev->dev.of_node);
+	else
+		memcpy(&udc->board, dev->platform_data,
+		       sizeof(struct at91_udc_data));
 	udc->pdev = pdev;
 	udc->enabled = 0;
 	spin_lock_init(&udc->lock);
@@ -1837,8 +1863,8 @@ static int __init at91udc_probe(struct platform_device *pdev)
 			mod_timer(&udc->vbus_timer,
 				  jiffies + VBUS_POLL_TIMEOUT);
 		} else {
-			if (request_irq(udc->board.vbus_pin, at91_vbus_irq,
-					0, driver_name, udc)) {
+			if (request_irq(gpio_to_irq(udc->board.vbus_pin),
+					at91_vbus_irq, 0, driver_name, udc)) {
 				DBG("request vbus irq %d failed\n",
 				    udc->board.vbus_pin);
 				retval = -EBUSY;
@@ -1860,7 +1886,7 @@ static int __init at91udc_probe(struct platform_device *pdev)
 	return 0;
 fail4:
 	if (gpio_is_valid(udc->board.vbus_pin) && !udc->board.vbus_polled)
-		free_irq(udc->board.vbus_pin, udc);
+		free_irq(gpio_to_irq(udc->board.vbus_pin), udc);
 fail3:
 	if (gpio_is_valid(udc->board.vbus_pin))
 		gpio_free(udc->board.vbus_pin);
@@ -1898,7 +1924,7 @@ static int __exit at91udc_remove(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 0);
 	remove_debug_file(udc);
 	if (gpio_is_valid(udc->board.vbus_pin)) {
-		free_irq(udc->board.vbus_pin, udc);
+		free_irq(gpio_to_irq(udc->board.vbus_pin), udc);
 		gpio_free(udc->board.vbus_pin);
 	}
 	free_irq(udc->udp_irq, udc);
@@ -1970,6 +1996,15 @@ static int at91udc_resume(struct platform_device *pdev)
 #define	at91udc_resume	NULL
 #endif
 
+#if defined(CONFIG_OF)
+static const struct of_device_id at91_udc_dt_ids[] = {
+	{ .compatible = "atmel,at91rm9200-udc" },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(of, at91_udc_dt_ids);
+#endif
+
 static struct platform_driver at91_udc_driver = {
 	.remove		= __exit_p(at91udc_remove),
 	.shutdown	= at91udc_shutdown,
@@ -1978,6 +2013,7 @@ static struct platform_driver at91_udc_driver = {
 	.driver		= {
 		.name	= (char *) driver_name,
 		.owner	= THIS_MODULE,
+		.of_match_table	= of_match_ptr(at91_udc_dt_ids),
 	},
 };
 

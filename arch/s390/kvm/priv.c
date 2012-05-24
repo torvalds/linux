@@ -33,7 +33,7 @@ static int handle_set_prefix(struct kvm_vcpu *vcpu)
 
 	operand2 = disp2;
 	if (base2)
-		operand2 += vcpu->arch.guest_gprs[base2];
+		operand2 += vcpu->run->s.regs.gprs[base2];
 
 	/* must be word boundary */
 	if (operand2 & 3) {
@@ -56,8 +56,7 @@ static int handle_set_prefix(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	vcpu->arch.sie_block->prefix = address;
-	vcpu->arch.sie_block->ihcpu = 0xffff;
+	kvm_s390_set_prefix(vcpu, address);
 
 	VCPU_EVENT(vcpu, 5, "setting prefix to %x", address);
 out:
@@ -74,7 +73,7 @@ static int handle_store_prefix(struct kvm_vcpu *vcpu)
 	vcpu->stat.instruction_stpx++;
 	operand2 = disp2;
 	if (base2)
-		operand2 += vcpu->arch.guest_gprs[base2];
+		operand2 += vcpu->run->s.regs.gprs[base2];
 
 	/* must be word boundary */
 	if (operand2 & 3) {
@@ -106,7 +105,7 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 	vcpu->stat.instruction_stap++;
 	useraddr = disp2;
 	if (base2)
-		useraddr += vcpu->arch.guest_gprs[base2];
+		useraddr += vcpu->run->s.regs.gprs[base2];
 
 	if (useraddr & 1) {
 		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
@@ -181,7 +180,7 @@ static int handle_stidp(struct kvm_vcpu *vcpu)
 	vcpu->stat.instruction_stidp++;
 	operand2 = disp2;
 	if (base2)
-		operand2 += vcpu->arch.guest_gprs[base2];
+		operand2 += vcpu->run->s.regs.gprs[base2];
 
 	if (operand2 & 7) {
 		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
@@ -232,9 +231,9 @@ static void handle_stsi_3_2_2(struct kvm_vcpu *vcpu, struct sysinfo_3_2_2 *mem)
 
 static int handle_stsi(struct kvm_vcpu *vcpu)
 {
-	int fc = (vcpu->arch.guest_gprs[0] & 0xf0000000) >> 28;
-	int sel1 = vcpu->arch.guest_gprs[0] & 0xff;
-	int sel2 = vcpu->arch.guest_gprs[1] & 0xffff;
+	int fc = (vcpu->run->s.regs.gprs[0] & 0xf0000000) >> 28;
+	int sel1 = vcpu->run->s.regs.gprs[0] & 0xff;
+	int sel2 = vcpu->run->s.regs.gprs[1] & 0xffff;
 	int base2 = vcpu->arch.sie_block->ipb >> 28;
 	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
 	u64 operand2;
@@ -245,14 +244,14 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 
 	operand2 = disp2;
 	if (base2)
-		operand2 += vcpu->arch.guest_gprs[base2];
+		operand2 += vcpu->run->s.regs.gprs[base2];
 
 	if (operand2 & 0xfff && fc > 0)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	switch (fc) {
 	case 0:
-		vcpu->arch.guest_gprs[0] = 3 << 28;
+		vcpu->run->s.regs.gprs[0] = 3 << 28;
 		vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
 		return 0;
 	case 1: /* same handling for 1 and 2 */
@@ -281,7 +280,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	}
 	free_page(mem);
 	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
-	vcpu->arch.guest_gprs[0] = 0;
+	vcpu->run->s.regs.gprs[0] = 0;
 	return 0;
 out_mem:
 	free_page(mem);
@@ -333,8 +332,8 @@ static int handle_tprot(struct kvm_vcpu *vcpu)
 	int disp1 = (vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16;
 	int base2 = (vcpu->arch.sie_block->ipb & 0xf000) >> 12;
 	int disp2 = vcpu->arch.sie_block->ipb & 0x0fff;
-	u64 address1 = disp1 + base1 ? vcpu->arch.guest_gprs[base1] : 0;
-	u64 address2 = disp2 + base2 ? vcpu->arch.guest_gprs[base2] : 0;
+	u64 address1 = disp1 + base1 ? vcpu->run->s.regs.gprs[base1] : 0;
+	u64 address2 = disp2 + base2 ? vcpu->run->s.regs.gprs[base2] : 0;
 	struct vm_area_struct *vma;
 	unsigned long user_address;
 

@@ -426,6 +426,35 @@ static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 	return xfer_sz;
 }
 
+static int cfhsi_rx_desc_len(struct cfhsi_desc *desc)
+{
+	int xfer_sz = 0;
+	int nfrms = 0;
+	u16 *plen;
+
+	if ((desc->header & ~CFHSI_PIGGY_DESC) ||
+			(desc->offset > CFHSI_MAX_EMB_FRM_SZ)) {
+
+		pr_err("Invalid descriptor. %x %x\n", desc->header,
+				desc->offset);
+		return -EPROTO;
+	}
+
+	/* Calculate transfer length. */
+	plen = desc->cffrm_len;
+	while (nfrms < CFHSI_MAX_PKTS && *plen) {
+		xfer_sz += *plen;
+		plen++;
+		nfrms++;
+	}
+
+	if (xfer_sz % 4) {
+		pr_err("Invalid payload len: %d, ignored.\n", xfer_sz);
+		return -EPROTO;
+	}
+	return xfer_sz;
+}
+
 static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 {
 	int rx_sz = 0;
@@ -517,8 +546,10 @@ static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 static void cfhsi_rx_done(struct cfhsi *cfhsi)
 {
 	int res;
-	int desc_pld_len = 0;
+	int desc_pld_len = 0, rx_len, rx_state;
 	struct cfhsi_desc *desc = NULL;
+	u8 *rx_ptr, *rx_buf;
+	struct cfhsi_desc *piggy_desc = NULL;
 
 	desc = (struct cfhsi_desc *)cfhsi->rx_buf;
 
@@ -534,65 +565,71 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 	spin_unlock_bh(&cfhsi->lock);
 
 	if (cfhsi->rx_state.state == CFHSI_RX_STATE_DESC) {
-		desc_pld_len = cfhsi_rx_desc(desc, cfhsi);
-		if (desc_pld_len == -ENOMEM)
-			goto restart;
-		if (desc_pld_len == -EPROTO)
+		desc_pld_len = cfhsi_rx_desc_len(desc);
+
+		if (desc_pld_len < 0)
 			goto out_of_sync;
+
+		rx_buf = cfhsi->rx_buf;
+		rx_len = desc_pld_len;
+		if (desc_pld_len > 0 && (desc->header & CFHSI_PIGGY_DESC))
+			rx_len += CFHSI_DESC_SZ;
+		if (desc_pld_len == 0)
+			rx_buf = cfhsi->rx_flip_buf;
 	} else {
-		int pld_len;
+		rx_buf = cfhsi->rx_flip_buf;
 
-		if (!cfhsi->rx_state.piggy_desc) {
-			pld_len = cfhsi_rx_pld(desc, cfhsi);
-			if (pld_len == -ENOMEM)
-				goto restart;
-			if (pld_len == -EPROTO)
-				goto out_of_sync;
-			cfhsi->rx_state.pld_len = pld_len;
-		} else {
-			pld_len = cfhsi->rx_state.pld_len;
-		}
+		rx_len = CFHSI_DESC_SZ;
+		if (cfhsi->rx_state.pld_len > 0 &&
+				(desc->header & CFHSI_PIGGY_DESC)) {
 
-		if ((pld_len > 0) && (desc->header & CFHSI_PIGGY_DESC)) {
-			struct cfhsi_desc *piggy_desc;
 			piggy_desc = (struct cfhsi_desc *)
 				(desc->emb_frm + CFHSI_MAX_EMB_FRM_SZ +
-						pld_len);
+						cfhsi->rx_state.pld_len);
+
 			cfhsi->rx_state.piggy_desc = true;
 
-			/* Extract piggy-backed descriptor. */
-			desc_pld_len = cfhsi_rx_desc(piggy_desc, cfhsi);
-			if (desc_pld_len == -ENOMEM)
-				goto restart;
+			/* Extract payload len from piggy-backed descriptor. */
+			desc_pld_len = cfhsi_rx_desc_len(piggy_desc);
+			if (desc_pld_len < 0)
+				goto out_of_sync;
+
+			if (desc_pld_len > 0)
+				rx_len = desc_pld_len;
+
+			if (desc_pld_len > 0 &&
+					(piggy_desc->header & CFHSI_PIGGY_DESC))
+				rx_len += CFHSI_DESC_SZ;
 
 			/*
 			 * Copy needed information from the piggy-backed
 			 * descriptor to the descriptor in the start.
 			 */
-			memcpy((u8 *)desc, (u8 *)piggy_desc,
+			memcpy(rx_buf, (u8 *)piggy_desc,
 					CFHSI_DESC_SHORT_SZ);
-
+			/* Mark no embedded frame here */
+			piggy_desc->offset = 0;
 			if (desc_pld_len == -EPROTO)
 				goto out_of_sync;
 		}
 	}
 
-	memset(&cfhsi->rx_state, 0, sizeof(cfhsi->rx_state));
 	if (desc_pld_len) {
-		cfhsi->rx_state.state = CFHSI_RX_STATE_PAYLOAD;
-		cfhsi->rx_ptr = cfhsi->rx_buf + CFHSI_DESC_SZ;
-		cfhsi->rx_len = desc_pld_len;
+		rx_state = CFHSI_RX_STATE_PAYLOAD;
+		rx_ptr = rx_buf + CFHSI_DESC_SZ;
 	} else {
-		cfhsi->rx_state.state = CFHSI_RX_STATE_DESC;
-		cfhsi->rx_ptr = cfhsi->rx_buf;
-		cfhsi->rx_len = CFHSI_DESC_SZ;
+		rx_state = CFHSI_RX_STATE_DESC;
+		rx_ptr = rx_buf;
+		rx_len = CFHSI_DESC_SZ;
 	}
 
+	/* Initiate next read */
 	if (test_bit(CFHSI_AWAKE, &cfhsi->bits)) {
 		/* Set up new transfer. */
 		dev_dbg(&cfhsi->ndev->dev, "%s: Start RX.\n",
-			__func__);
-		res = cfhsi->dev->cfhsi_rx(cfhsi->rx_ptr, cfhsi->rx_len,
+				__func__);
+
+		res = cfhsi->dev->cfhsi_rx(rx_ptr, rx_len,
 				cfhsi->dev);
 		if (WARN_ON(res < 0)) {
 			dev_err(&cfhsi->ndev->dev, "%s: RX error %d.\n",
@@ -601,16 +638,32 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 			cfhsi->ndev->stats.rx_dropped++;
 		}
 	}
-	return;
 
-restart:
-	if (++cfhsi->rx_state.retries > CFHSI_MAX_RX_RETRIES) {
-		dev_err(&cfhsi->ndev->dev, "%s: No memory available "
-			"in %d iterations.\n",
-			__func__, CFHSI_MAX_RX_RETRIES);
-		BUG();
+	if (cfhsi->rx_state.state == CFHSI_RX_STATE_DESC) {
+		/* Extract payload from descriptor */
+		if (cfhsi_rx_desc(desc, cfhsi) < 0)
+			goto out_of_sync;
+	} else {
+		/* Extract payload */
+		if (cfhsi_rx_pld(desc, cfhsi) < 0)
+			goto out_of_sync;
+		if (piggy_desc) {
+			/* Extract any payload in piggyback descriptor. */
+			if (cfhsi_rx_desc(piggy_desc, cfhsi) < 0)
+				goto out_of_sync;
+		}
 	}
-	mod_timer(&cfhsi->rx_slowpath_timer, jiffies + 1);
+
+	/* Update state info */
+	memset(&cfhsi->rx_state, 0, sizeof(cfhsi->rx_state));
+	cfhsi->rx_state.state = rx_state;
+	cfhsi->rx_ptr = rx_ptr;
+	cfhsi->rx_len = rx_len;
+	cfhsi->rx_state.pld_len = desc_pld_len;
+	cfhsi->rx_state.piggy_desc = desc->header & CFHSI_PIGGY_DESC;
+
+	if (rx_buf != cfhsi->rx_buf)
+		swap(cfhsi->rx_buf, cfhsi->rx_flip_buf);
 	return;
 
 out_of_sync:
@@ -978,7 +1031,7 @@ static void cfhsi_setup(struct net_device *dev)
 	dev->netdev_ops = &cfhsi_ops;
 	dev->type = ARPHRD_CAIF;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
-	dev->mtu = CFHSI_MAX_PAYLOAD_SZ;
+	dev->mtu = CFHSI_MAX_CAIF_FRAME_SZ;
 	dev->tx_queue_len = 0;
 	dev->destructor = free_netdev;
 	skb_queue_head_init(&cfhsi->qhead);
@@ -1038,6 +1091,12 @@ int cfhsi_probe(struct platform_device *pdev)
 	if (!cfhsi->rx_buf) {
 		res = -ENODEV;
 		goto err_alloc_rx;
+	}
+
+	cfhsi->rx_flip_buf = kzalloc(CFHSI_BUF_SZ_RX, GFP_KERNEL);
+	if (!cfhsi->rx_flip_buf) {
+		res = -ENODEV;
+		goto err_alloc_rx_flip;
 	}
 
 	/* Pre-calculate inactivity timeout. */
@@ -1138,6 +1197,8 @@ int cfhsi_probe(struct platform_device *pdev)
  err_activate:
 	destroy_workqueue(cfhsi->wq);
  err_create_wq:
+	kfree(cfhsi->rx_flip_buf);
+ err_alloc_rx_flip:
 	kfree(cfhsi->rx_buf);
  err_alloc_rx:
 	kfree(cfhsi->tx_buf);

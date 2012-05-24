@@ -193,9 +193,6 @@ static int nilfs_link(struct dentry *old_dentry, struct inode *dir,
 	struct nilfs_transaction_info ti;
 	int err;
 
-	if (inode->i_nlink >= NILFS_LINK_MAX)
-		return -EMLINK;
-
 	err = nilfs_transaction_begin(dir->i_sb, &ti, 1);
 	if (err)
 		return err;
@@ -218,9 +215,6 @@ static int nilfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	struct inode *inode;
 	struct nilfs_transaction_info ti;
 	int err;
-
-	if (dir->i_nlink >= NILFS_LINK_MAX)
-		return -EMLINK;
 
 	err = nilfs_transaction_begin(dir->i_sb, &ti, 1);
 	if (err)
@@ -400,11 +394,6 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		drop_nlink(new_inode);
 		nilfs_mark_inode_dirty(new_inode);
 	} else {
-		if (dir_de) {
-			err = -EMLINK;
-			if (new_dir->i_nlink >= NILFS_LINK_MAX)
-				goto out_dir;
-		}
 		err = nilfs_add_link(new_dentry, old_inode);
 		if (err)
 			goto out_dir;

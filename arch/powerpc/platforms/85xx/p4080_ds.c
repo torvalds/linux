@@ -17,7 +17,6 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include <asm/system.h>
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>

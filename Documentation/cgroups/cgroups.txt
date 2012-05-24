@@ -558,8 +558,7 @@ Each subsystem may export the following methods. The only mandatory
 methods are create/destroy. Any others that are null are presumed to
 be successful no-ops.
 
-struct cgroup_subsys_state *create(struct cgroup_subsys *ss,
-				   struct cgroup *cgrp)
+struct cgroup_subsys_state *create(struct cgroup *cgrp)
 (cgroup_mutex held by caller)
 
 Called to create a subsystem state object for a cgroup. The
@@ -574,7 +573,7 @@ identified by the passed cgroup object having a NULL parent (since
 it's the root of the hierarchy) and may be an appropriate place for
 initialization code.
 
-void destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
+void destroy(struct cgroup *cgrp)
 (cgroup_mutex held by caller)
 
 The cgroup system is about to destroy the passed cgroup; the subsystem
@@ -585,7 +584,7 @@ cgroup->parent is still valid. (Note - can also be called for a
 newly-created cgroup if an error occurs after this subsystem's
 create() method has been called for the new cgroup).
 
-int pre_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp);
+int pre_destroy(struct cgroup *cgrp);
 
 Called before checking the reference count on each subsystem. This may
 be useful for subsystems which have some extra references even if
@@ -593,8 +592,7 @@ there are not tasks in the cgroup. If pre_destroy() returns error code,
 rmdir() will fail with it. From this behavior, pre_destroy() can be
 called multiple times against a cgroup.
 
-int can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-	       struct cgroup_taskset *tset)
+int can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 (cgroup_mutex held by caller)
 
 Called prior to moving one or more tasks into a cgroup; if the
@@ -615,8 +613,7 @@ fork. If this method returns 0 (success) then this should remain valid
 while the caller holds cgroup_mutex and it is ensured that either
 attach() or cancel_attach() will be called in future.
 
-void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-		   struct cgroup_taskset *tset)
+void cancel_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 (cgroup_mutex held by caller)
 
 Called when a task attach operation has failed after can_attach() has succeeded.
@@ -625,23 +622,22 @@ function, so that the subsystem can implement a rollback. If not, not necessary.
 This will be called only about subsystems whose can_attach() operation have
 succeeded. The parameters are identical to can_attach().
 
-void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-	    struct cgroup_taskset *tset)
+void attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 (cgroup_mutex held by caller)
 
 Called after the task has been attached to the cgroup, to allow any
 post-attachment activity that requires memory allocations or blocking.
 The parameters are identical to can_attach().
 
-void fork(struct cgroup_subsy *ss, struct task_struct *task)
+void fork(struct task_struct *task)
 
 Called when a task is forked into a cgroup.
 
-void exit(struct cgroup_subsys *ss, struct task_struct *task)
+void exit(struct task_struct *task)
 
 Called during task exit.
 
-int populate(struct cgroup_subsys *ss, struct cgroup *cgrp)
+int populate(struct cgroup *cgrp)
 (cgroup_mutex held by caller)
 
 Called after creation of a cgroup to allow a subsystem to populate
@@ -651,7 +647,7 @@ include/linux/cgroup.h for details).  Note that although this
 method can return an error code, the error code is currently not
 always handled well.
 
-void post_clone(struct cgroup_subsys *ss, struct cgroup *cgrp)
+void post_clone(struct cgroup *cgrp)
 (cgroup_mutex held by caller)
 
 Called during cgroup_create() to do any parameter
@@ -659,7 +655,7 @@ initialization which might be required before a task could attach.  For
 example in cpusets, no task may attach before 'cpus' and 'mems' are set
 up.
 
-void bind(struct cgroup_subsys *ss, struct cgroup *root)
+void bind(struct cgroup *root)
 (cgroup_mutex and ss->hierarchy_mutex held by caller)
 
 Called when a cgroup subsystem is rebound to a different hierarchy

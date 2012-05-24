@@ -62,7 +62,7 @@ Then fill in the following:
 	An optional associated buffer.
 - indio_dev->pollfunc:
 	Poll function related elements. This controls what occurs when a trigger
-	to which this device is attached sends and event.
+	to which this device is attached sends an event.
 - indio_dev->channels:
 	Specification of device channels. Most attributes etc are built
 	form this spec.

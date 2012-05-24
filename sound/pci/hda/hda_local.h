@@ -139,9 +139,35 @@ void snd_hda_set_vmaster_tlv(struct hda_codec *codec, hda_nid_t nid, int dir,
 			     unsigned int *tlv);
 struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 					    const char *name);
-int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
-			unsigned int *tlv, const char * const *slaves);
+int __snd_hda_add_vmaster(struct hda_codec *codec, char *name,
+			  unsigned int *tlv, const char * const *slaves,
+			  const char *suffix, bool init_slave_vol,
+			  struct snd_kcontrol **ctl_ret);
+#define snd_hda_add_vmaster(codec, name, tlv, slaves, suffix) \
+	__snd_hda_add_vmaster(codec, name, tlv, slaves, suffix, true, NULL)
 int snd_hda_codec_reset(struct hda_codec *codec);
+
+enum {
+	HDA_VMUTE_OFF,
+	HDA_VMUTE_ON,
+	HDA_VMUTE_FOLLOW_MASTER,
+};
+
+struct hda_vmaster_mute_hook {
+	/* below two fields must be filled by the caller of
+	 * snd_hda_add_vmaster_hook() beforehand
+	 */
+	struct snd_kcontrol *sw_kctl;
+	void (*hook)(void *, int);
+	/* below are initialized automatically */
+	unsigned int mute_mode; /* HDA_VMUTE_XXX */
+	struct hda_codec *codec;
+};
+
+int snd_hda_add_vmaster_hook(struct hda_codec *codec,
+			     struct hda_vmaster_mute_hook *hook,
+			     bool expose_enum_ctl);
+void snd_hda_sync_vmaster_hook(struct hda_vmaster_mute_hook *hook);
 
 /* amp value bits */
 #define HDA_AMP_MUTE	0x80

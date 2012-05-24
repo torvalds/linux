@@ -43,6 +43,8 @@
 
 #include <plat/dmtimer.h>
 
+#include <mach/hardware.h>
+
 static LIST_HEAD(omap_timer_list);
 static DEFINE_SPINLOCK(dm_timer_lock);
 
@@ -80,9 +82,9 @@ static void omap_dm_timer_write_reg(struct omap_dm_timer *timer, u32 reg,
 
 static void omap_timer_restore_context(struct omap_dm_timer *timer)
 {
-	omap_dm_timer_write_reg(timer, OMAP_TIMER_OCP_CFG_OFFSET,
-				timer->context.tiocp_cfg);
-	if (timer->revision > 1)
+	__raw_writel(timer->context.tiocp_cfg,
+			timer->io_base + OMAP_TIMER_OCP_CFG_OFFSET);
+	if (timer->revision == 1)
 		__raw_writel(timer->context.tistat, timer->sys_stat);
 
 	__raw_writel(timer->context.tisr, timer->irq_stat);
@@ -357,6 +359,19 @@ int omap_dm_timer_stop(struct omap_dm_timer *timer)
 
 	__omap_dm_timer_stop(timer, timer->posted, rate);
 
+	if (timer->loses_context && timer->get_context_loss_count)
+		timer->ctx_loss_count =
+			timer->get_context_loss_count(&timer->pdev->dev);
+
+	/*
+	 * Since the register values are computed and written within
+	 * __omap_dm_timer_stop, we need to use read to retrieve the
+	 * context.
+	 */
+	timer->context.tclr =
+			omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
+	timer->context.tisr = __raw_readl(timer->irq_stat);
+	omap_dm_timer_disable(timer);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_stop);

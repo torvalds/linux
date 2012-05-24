@@ -20,6 +20,7 @@
  */
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
+#include <asm/switch_to.h>
 
 int enter_vmx_copy(void)
 {

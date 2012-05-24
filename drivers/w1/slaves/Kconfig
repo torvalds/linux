@@ -81,6 +81,19 @@ config W1_SLAVE_DS2780
 
 	  If you are unsure, say N.
 
+config W1_SLAVE_DS2781
+	tristate "Dallas 2781 battery monitor chip"
+	depends on W1
+	help
+	  If you enable this you will have the DS2781 battery monitor
+	  chip support.
+
+	  The battery monitor chip is used in many batteries/devices
+	  as the one who is responsible for charging/discharging/monitoring
+	  Li+ batteries.
+
+	  If you are unsure, say N.
+
 config W1_SLAVE_BQ27000
 	tristate "BQ27000 slave support"
 	depends on W1

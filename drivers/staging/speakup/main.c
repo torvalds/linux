@@ -1731,15 +1731,15 @@ static void do_handle_spec(struct vc_data *vc, u_char value, char up_flag)
 	switch (value) {
 	case KVAL(K_CAPS):
 		label = msg_get(MSG_KEYNAME_CAPSLOCK);
-		on_off = (vc_kbd_led(kbd_table + vc->vc_num, VC_CAPSLOCK));
+		on_off = vt_get_leds(fg_console, VC_CAPSLOCK);
 		break;
 	case KVAL(K_NUM):
 		label = msg_get(MSG_KEYNAME_NUMLOCK);
-		on_off = (vc_kbd_led(kbd_table + vc->vc_num, VC_NUMLOCK));
+		on_off = vt_get_leds(fg_console, VC_NUMLOCK);
 		break;
 	case KVAL(K_HOLD):
 		label = msg_get(MSG_KEYNAME_SCROLLLOCK);
-		on_off = (vc_kbd_led(kbd_table + vc->vc_num, VC_SCROLLOCK));
+		on_off = vt_get_leds(fg_console, VC_SCROLLOCK);
 		if (speakup_console[vc->vc_num])
 			speakup_console[vc->vc_num]->tty_stopped = on_off;
 		break;
@@ -2020,7 +2020,7 @@ speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 	if (type >= 0xf0)
 		type -= 0xf0;
 	if (type == KT_PAD
-		&& (vc_kbd_led(kbd_table + fg_console, VC_NUMLOCK))) {
+		&& (vt_get_leds(fg_console, VC_NUMLOCK))) {
 		if (up_flag) {
 			spk_keydown = 0;
 			goto out;

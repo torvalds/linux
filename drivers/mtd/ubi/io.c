@@ -431,11 +431,11 @@ static int torture_peb(struct ubi_device *ubi, int pnum)
 			goto out;
 
 		/* Make sure the PEB contains only 0xFF bytes */
-		err = ubi_io_read(ubi, ubi->peb_buf1, pnum, 0, ubi->peb_size);
+		err = ubi_io_read(ubi, ubi->peb_buf, pnum, 0, ubi->peb_size);
 		if (err)
 			goto out;
 
-		err = ubi_check_pattern(ubi->peb_buf1, 0xFF, ubi->peb_size);
+		err = ubi_check_pattern(ubi->peb_buf, 0xFF, ubi->peb_size);
 		if (err == 0) {
 			ubi_err("erased PEB %d, but a non-0xFF byte found",
 				pnum);
@@ -444,17 +444,17 @@ static int torture_peb(struct ubi_device *ubi, int pnum)
 		}
 
 		/* Write a pattern and check it */
-		memset(ubi->peb_buf1, patterns[i], ubi->peb_size);
-		err = ubi_io_write(ubi, ubi->peb_buf1, pnum, 0, ubi->peb_size);
+		memset(ubi->peb_buf, patterns[i], ubi->peb_size);
+		err = ubi_io_write(ubi, ubi->peb_buf, pnum, 0, ubi->peb_size);
 		if (err)
 			goto out;
 
-		memset(ubi->peb_buf1, ~patterns[i], ubi->peb_size);
-		err = ubi_io_read(ubi, ubi->peb_buf1, pnum, 0, ubi->peb_size);
+		memset(ubi->peb_buf, ~patterns[i], ubi->peb_size);
+		err = ubi_io_read(ubi, ubi->peb_buf, pnum, 0, ubi->peb_size);
 		if (err)
 			goto out;
 
-		err = ubi_check_pattern(ubi->peb_buf1, patterns[i],
+		err = ubi_check_pattern(ubi->peb_buf, patterns[i],
 					ubi->peb_size);
 		if (err == 0) {
 			ubi_err("pattern %x checking failed for PEB %d",

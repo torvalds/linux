@@ -35,7 +35,6 @@
 #include <asm/cacheflush.h>
 #include <asm/leds.h>
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/thread_notify.h>
 #include <asm/stacktrace.h>
 #include <asm/mach/time.h>
@@ -60,8 +59,6 @@ static const char *isa_modes[] = {
 extern void setup_mm_for_reboot(void);
 
 static volatile int hlt_counter;
-
-#include <mach/system.h>
 
 void disable_hlt(void)
 {
@@ -181,13 +178,17 @@ void cpu_idle_wait(void)
 EXPORT_SYMBOL_GPL(cpu_idle_wait);
 
 /*
- * This is our default idle handler.  We need to disable
- * interrupts here to ensure we don't miss a wakeup call.
+ * This is our default idle handler.
  */
+
+void (*arm_pm_idle)(void);
+
 static void default_idle(void)
 {
-	if (!need_resched())
-		arch_idle();
+	if (arm_pm_idle)
+		arm_pm_idle();
+	else
+		cpu_do_idle();
 	local_irq_enable();
 }
 
@@ -215,6 +216,10 @@ void cpu_idle(void)
 				cpu_die();
 #endif
 
+			/*
+			 * We need to disable interrupts here
+			 * to ensure we don't miss a wakeup call.
+			 */
 			local_irq_disable();
 #ifdef CONFIG_PL310_ERRATA_769419
 			wmb();
@@ -222,26 +227,23 @@ void cpu_idle(void)
 			if (hlt_counter) {
 				local_irq_enable();
 				cpu_relax();
-			} else {
+			} else if (!need_resched()) {
 				stop_critical_timings();
 				if (cpuidle_idle_call())
 					pm_idle();
 				start_critical_timings();
 				/*
-				 * This will eventually be removed - pm_idle
-				 * functions should always return with IRQs
-				 * enabled.
+				 * pm_idle functions must always
+				 * return with IRQs enabled.
 				 */
 				WARN_ON(irqs_disabled());
+			} else
 				local_irq_enable();
-			}
 		}
 		leds_event(led_idle_end);
 		rcu_idle_exit();
 		tick_nohz_idle_exit();
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 	}
 }
 
@@ -526,22 +528,39 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 #ifdef CONFIG_MMU
 /*
  * The vectors page is always readable from user space for the
- * atomic helpers and the signal restart code.  Let's declare a mapping
- * for it so it is visible through ptrace and /proc/<pid>/mem.
+ * atomic helpers and the signal restart code. Insert it into the
+ * gate_vma so that it is visible through ptrace and /proc/<pid>/mem.
  */
+static struct vm_area_struct gate_vma;
 
-int vectors_user_mapping(void)
+static int __init gate_vma_init(void)
 {
-	struct mm_struct *mm = current->mm;
-	return install_special_mapping(mm, 0xffff0000, PAGE_SIZE,
-				       VM_READ | VM_EXEC |
-				       VM_MAYREAD | VM_MAYEXEC |
-				       VM_ALWAYSDUMP | VM_RESERVED,
-				       NULL);
+	gate_vma.vm_start	= 0xffff0000;
+	gate_vma.vm_end		= 0xffff0000 + PAGE_SIZE;
+	gate_vma.vm_page_prot	= PAGE_READONLY_EXEC;
+	gate_vma.vm_flags	= VM_READ | VM_EXEC |
+				  VM_MAYREAD | VM_MAYEXEC;
+	return 0;
+}
+arch_initcall(gate_vma_init);
+
+struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
+{
+	return &gate_vma;
+}
+
+int in_gate_area(struct mm_struct *mm, unsigned long addr)
+{
+	return (addr >= gate_vma.vm_start) && (addr < gate_vma.vm_end);
+}
+
+int in_gate_area_no_mm(unsigned long addr)
+{
+	return in_gate_area(NULL, addr);
 }
 
 const char *arch_vma_name(struct vm_area_struct *vma)
 {
-	return (vma->vm_start == 0xffff0000) ? "[vectors]" : NULL;
+	return (vma == &gate_vma) ? "[vectors]" : NULL;
 }
 #endif

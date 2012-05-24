@@ -359,7 +359,6 @@
 #include <asm/byteorder.h>
 #include <asm/processor.h>
 #include <asm/types.h>
-#include <asm/system.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>

@@ -179,6 +179,7 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.size = 256;
 	chip->ecc.bytes = 3;
+	chip->ecc.strength = 1;
 	chip->priv = ndfc;
 
 	ndfc->mtd.priv = chip;

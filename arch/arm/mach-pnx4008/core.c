@@ -32,7 +32,7 @@
 #include <asm/mach-types.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
-#include <asm/system.h>
+#include <asm/system_misc.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

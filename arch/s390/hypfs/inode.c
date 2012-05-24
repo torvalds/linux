@@ -293,11 +293,9 @@ static int hypfs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	root_inode->i_op = &simple_dir_inode_operations;
 	root_inode->i_fop = &simple_dir_operations;
-	sb->s_root = root_dentry = d_alloc_root(root_inode);
-	if (!root_dentry) {
-		iput(root_inode);
+	sb->s_root = root_dentry = d_make_root(root_inode);
+	if (!root_dentry)
 		return -ENOMEM;
-	}
 	if (MACHINE_IS_VM)
 		rc = hypfs_vm_create_files(sb, root_dentry);
 	else

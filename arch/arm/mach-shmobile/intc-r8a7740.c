@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <linux/sh_intc.h>
 #include <mach/intc.h>
+#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 

@@ -1089,12 +1089,11 @@ static void bdx_rx_alloc_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 	ENTER;
 	dno = bdx_rxdb_available(db) - 1;
 	while (dno > 0) {
-		skb = dev_alloc_skb(f->m.pktsz + NET_IP_ALIGN);
+		skb = netdev_alloc_skb(priv->ndev, f->m.pktsz + NET_IP_ALIGN);
 		if (!skb) {
-			pr_err("NO MEM: dev_alloc_skb failed\n");
+			pr_err("NO MEM: netdev_alloc_skb failed\n");
 			break;
 		}
-		skb->dev = priv->ndev;
 		skb_reserve(skb, NET_IP_ALIGN);
 
 		idx = bdx_rxdb_alloc_elem(db);
@@ -1258,7 +1257,7 @@ static int bdx_rx_receive(struct bdx_priv *priv, struct rxd_fifo *f, int budget)
 		skb = dm->skb;
 
 		if (len < BDX_COPYBREAK &&
-		    (skb2 = dev_alloc_skb(len + NET_IP_ALIGN))) {
+		    (skb2 = netdev_alloc_skb(priv->ndev, len + NET_IP_ALIGN))) {
 			skb_reserve(skb2, NET_IP_ALIGN);
 			/*skb_put(skb2, len); */
 			pci_dma_sync_single_for_cpu(priv->pdev,
@@ -1978,7 +1977,6 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ndev = alloc_etherdev(sizeof(struct bdx_priv));
 		if (!ndev) {
 			err = -ENOMEM;
-			pr_err("alloc_etherdev failed\n");
 			goto err_out_iomap;
 		}
 

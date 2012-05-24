@@ -89,7 +89,6 @@
 #include "disk-io.h"
 #include "transaction.h"
 #include "extent_io.h"
-#include "disk-io.h"
 #include "volumes.h"
 #include "print-tree.h"
 #include "locking.h"

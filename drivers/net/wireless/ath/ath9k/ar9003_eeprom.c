@@ -3603,10 +3603,6 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 	u32 value = ar9003_hw_ant_ctrl_common_get(ah, is2ghz);
 
 	if (AR_SREV_9462(ah)) {
-		if (AR_SREV_9462_10(ah)) {
-			value &= ~AR_SWITCH_TABLE_COM_SPDT;
-			value |= 0x00100000;
-		}
 		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
 				AR_SWITCH_TABLE_COM_AR9462_ALL, value);
 	} else

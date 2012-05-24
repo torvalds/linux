@@ -636,16 +636,15 @@ static void tulip_init_ring(struct net_device *dev)
 		dma_addr_t mapping;
 
 		/* Note the receive buffer must be longword aligned.
-		   dev_alloc_skb() provides 16 byte alignment.  But do *not*
+		   netdev_alloc_skb() provides 16 byte alignment.  But do *not*
 		   use skb_reserve() to align the IP header! */
-		struct sk_buff *skb = dev_alloc_skb(PKT_BUF_SZ);
+		struct sk_buff *skb = netdev_alloc_skb(dev, PKT_BUF_SZ);
 		tp->rx_buffers[i].skb = skb;
 		if (skb == NULL)
 			break;
 		mapping = pci_map_single(tp->pdev, skb->data,
 					 PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 		tp->rx_buffers[i].mapping = mapping;
-		skb->dev = dev;			/* Mark as being used by this device. */
 		tp->rx_ring[i].status = cpu_to_le32(DescOwned);	/* Owned by Tulip chip */
 		tp->rx_ring[i].buffer1 = cpu_to_le32(mapping);
 	}
@@ -1424,10 +1423,8 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 
 	/* alloc_etherdev ensures aligned and zeroed private structures */
 	dev = alloc_etherdev (sizeof (*tp));
-	if (!dev) {
-		pr_err("ether device alloc failed, aborting\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	if (pci_resource_len (pdev, 0) < tulip_tbl[chip_idx].io_size) {

@@ -878,7 +878,7 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 					     priv->dev->base_addr,
 					     priv->dev->dev_addr, 0);
 		if  (!is_valid_ether_addr(priv->dev->dev_addr))
-			random_ether_addr(priv->dev->dev_addr);
+			eth_hw_addr_random(priv->dev);
 	}
 	pr_warning("%s: device MAC address %pM\n", priv->dev->name,
 						   priv->dev->dev_addr);
@@ -910,10 +910,9 @@ static int stmmac_open(struct net_device *dev)
 
 #ifdef CONFIG_STMMAC_TIMER
 	priv->tm = kzalloc(sizeof(struct stmmac_timer *), GFP_KERNEL);
-	if (unlikely(priv->tm == NULL)) {
-		pr_err("%s: ERROR: timer memory alloc failed\n", __func__);
+	if (unlikely(priv->tm == NULL))
 		return -ENOMEM;
-	}
+
 	priv->tm->freq = tmrate;
 
 	/* Test if the external timer can be actually used.
@@ -1738,10 +1737,12 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	struct mac_device_info *mac;
 
 	/* Identify the MAC HW device */
-	if (priv->plat->has_gmac)
+	if (priv->plat->has_gmac) {
+		priv->dev->priv_flags |= IFF_UNICAST_FLT;
 		mac = dwmac1000_setup(priv->ioaddr);
-	else
+	} else {
 		mac = dwmac100_setup(priv->ioaddr);
+	}
 	if (!mac)
 		return -ENOMEM;
 
@@ -1801,10 +1802,8 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	struct stmmac_priv *priv;
 
 	ndev = alloc_etherdev(sizeof(struct stmmac_priv));
-	if (!ndev) {
-		pr_err("%s: ERROR: allocating the device\n", __func__);
+	if (!ndev)
 		return NULL;
-	}
 
 	SET_NETDEV_DEV(ndev, device);
 

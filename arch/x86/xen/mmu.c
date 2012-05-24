@@ -1071,14 +1071,14 @@ static void drop_other_mm_ref(void *info)
 	struct mm_struct *mm = info;
 	struct mm_struct *active_mm;
 
-	active_mm = percpu_read(cpu_tlbstate.active_mm);
+	active_mm = this_cpu_read(cpu_tlbstate.active_mm);
 
-	if (active_mm == mm && percpu_read(cpu_tlbstate.state) != TLBSTATE_OK)
+	if (active_mm == mm && this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK)
 		leave_mm(smp_processor_id());
 
 	/* If this cpu still has a stale cr3 reference, then make sure
 	   it has been flushed. */
-	if (percpu_read(xen_current_cr3) == __pa(mm->pgd))
+	if (this_cpu_read(xen_current_cr3) == __pa(mm->pgd))
 		load_cr3(swapper_pg_dir);
 }
 
@@ -1185,17 +1185,17 @@ static void __init xen_pagetable_setup_done(pgd_t *base)
 
 static void xen_write_cr2(unsigned long cr2)
 {
-	percpu_read(xen_vcpu)->arch.cr2 = cr2;
+	this_cpu_read(xen_vcpu)->arch.cr2 = cr2;
 }
 
 static unsigned long xen_read_cr2(void)
 {
-	return percpu_read(xen_vcpu)->arch.cr2;
+	return this_cpu_read(xen_vcpu)->arch.cr2;
 }
 
 unsigned long xen_read_cr2_direct(void)
 {
-	return percpu_read(xen_vcpu_info.arch.cr2);
+	return this_cpu_read(xen_vcpu_info.arch.cr2);
 }
 
 static void xen_flush_tlb(void)
@@ -1278,12 +1278,12 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 
 static unsigned long xen_read_cr3(void)
 {
-	return percpu_read(xen_cr3);
+	return this_cpu_read(xen_cr3);
 }
 
 static void set_current_cr3(void *v)
 {
-	percpu_write(xen_current_cr3, (unsigned long)v);
+	this_cpu_write(xen_current_cr3, (unsigned long)v);
 }
 
 static void __xen_write_cr3(bool kernel, unsigned long cr3)
@@ -1306,7 +1306,7 @@ static void __xen_write_cr3(bool kernel, unsigned long cr3)
 	xen_extend_mmuext_op(&op);
 
 	if (kernel) {
-		percpu_write(xen_cr3, cr3);
+		this_cpu_write(xen_cr3, cr3);
 
 		/* Update xen_current_cr3 once the batch has actually
 		   been submitted. */
@@ -1322,7 +1322,7 @@ static void xen_write_cr3(unsigned long cr3)
 
 	/* Update while interrupts are disabled, so its atomic with
 	   respect to ipis */
-	percpu_write(xen_cr3, cr3);
+	this_cpu_write(xen_cr3, cr3);
 
 	__xen_write_cr3(true, cr3);
 
@@ -1859,6 +1859,7 @@ pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 #endif	/* CONFIG_X86_64 */
 
 static unsigned char dummy_mapping[PAGE_SIZE] __page_aligned_bss;
+static unsigned char fake_ioapic_mapping[PAGE_SIZE] __page_aligned_bss;
 
 static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 {
@@ -1899,7 +1900,7 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 		 * We just don't map the IO APIC - all access is via
 		 * hypercalls.  Keep the address in the pte for reference.
 		 */
-		pte = pfn_pte(PFN_DOWN(__pa(dummy_mapping)), PAGE_KERNEL);
+		pte = pfn_pte(PFN_DOWN(__pa(fake_ioapic_mapping)), PAGE_KERNEL);
 		break;
 #endif
 
@@ -2064,6 +2065,7 @@ void __init xen_init_mmu_ops(void)
 	pv_mmu_ops = xen_mmu_ops;
 
 	memset(dummy_mapping, 0xff, PAGE_SIZE);
+	memset(fake_ioapic_mapping, 0xfd, PAGE_SIZE);
 }
 
 /* Protected by xen_reservation_lock. */

@@ -21,8 +21,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/smc91x.h>
+#include <linux/omapfb.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -32,8 +32,12 @@
 #include <plat/flash.h>
 #include <plat/fpga.h>
 #include <plat/keypad.h>
-#include "common.h"
 #include <plat/board.h>
+
+#include <mach/hardware.h>
+
+#include "iomap.h"
+#include "common.h"
 
 /* fsample is pretty close to p2-sample */
 
@@ -273,25 +277,15 @@ static struct platform_device kp_device = {
 	.resource	= kp_resources,
 };
 
-static struct platform_device lcd_device = {
-	.name		= "lcd_p2",
-	.id		= -1,
-};
-
 static struct platform_device *devices[] __initdata = {
 	&nor_device,
 	&nand_device,
 	&smc91x_device,
 	&kp_device,
-	&lcd_device,
 };
 
 static struct omap_lcd_config fsample_lcd_config = {
 	.ctrl_name	= "internal",
-};
-
-static struct omap_board_config_kernel fsample_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&fsample_lcd_config },
 };
 
 static void __init omap_fsample_init(void)
@@ -352,10 +346,10 @@ static void __init omap_fsample_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	omap_board_config = fsample_config;
-	omap_board_config_size = ARRAY_SIZE(fsample_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
+
+	omapfb_set_lcd_config(&fsample_lcd_config);
 }
 
 /* Only FPGA needs to be mapped here. All others are done with ioremap */

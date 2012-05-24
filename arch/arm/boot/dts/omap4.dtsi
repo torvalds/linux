@@ -99,33 +99,61 @@
 		gic: interrupt-controller@48241000 {
 			compatible = "arm,cortex-a9-gic";
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <3>;
 			reg = <0x48241000 0x1000>,
 			      <0x48240100 0x0100>;
 		};
 
-		uart1: serial@0x4806a000 {
+		uart1: serial@4806a000 {
 			compatible = "ti,omap4-uart";
 			ti,hwmods = "uart1";
 			clock-frequency = <48000000>;
 		};
 
-		uart2: serial@0x4806c000 {
+		uart2: serial@4806c000 {
 			compatible = "ti,omap4-uart";
 			ti,hwmods = "uart2";
 			clock-frequency = <48000000>;
 		};
 
-		uart3: serial@0x48020000 {
+		uart3: serial@48020000 {
 			compatible = "ti,omap4-uart";
 			ti,hwmods = "uart3";
 			clock-frequency = <48000000>;
 		};
 
-		uart4: serial@0x4806e000 {
+		uart4: serial@4806e000 {
 			compatible = "ti,omap4-uart";
 			ti,hwmods = "uart4";
 			clock-frequency = <48000000>;
+		};
+
+		i2c1: i2c@48070000 {
+			compatible = "ti,omap4-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "i2c1";
+		};
+
+		i2c2: i2c@48072000 {
+			compatible = "ti,omap4-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "i2c2";
+		};
+
+		i2c3: i2c@48060000 {
+			compatible = "ti,omap4-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "i2c3";
+		};
+
+		i2c4: i2c@48350000 {
+			compatible = "ti,omap4-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "i2c4";
 		};
 	};
 };

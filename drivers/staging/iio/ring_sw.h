@@ -25,11 +25,6 @@
 #define _IIO_RING_SW_H_
 #include "buffer.h"
 
-/**
- * ring_sw_access_funcs - access functions for a software ring buffer
- **/
-extern const struct iio_buffer_access_funcs ring_sw_access_funcs;
-
 struct iio_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev);
 void iio_sw_rb_free(struct iio_buffer *ring);
 #endif /* _IIO_RING_SW_H_ */

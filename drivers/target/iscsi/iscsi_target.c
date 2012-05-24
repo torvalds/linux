@@ -23,6 +23,7 @@
 #include <linux/crypto.h>
 #include <linux/completion.h>
 #include <linux/module.h>
+#include <linux/idr.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi_device.h>
 #include <scsi/iscsi_proto.h>
@@ -780,7 +781,7 @@ static int iscsit_alloc_buffs(struct iscsi_cmd *cmd)
 	struct scatterlist *sgl;
 	u32 length = cmd->se_cmd.data_length;
 	int nents = DIV_ROUND_UP(length, PAGE_SIZE);
-	int i = 0, ret;
+	int i = 0, j = 0, ret;
 	/*
 	 * If no SCSI payload is present, allocate the default iovecs used for
 	 * iSCSI PDU Header
@@ -821,17 +822,15 @@ static int iscsit_alloc_buffs(struct iscsi_cmd *cmd)
 	 */
         ret = iscsit_allocate_iovecs(cmd);
         if (ret < 0)
-		goto page_alloc_failed;
+		return -ENOMEM;
 
 	return 0;
 
 page_alloc_failed:
-	while (i >= 0) {
-		__free_page(sg_page(&sgl[i]));
-		i--;
-	}
-	kfree(cmd->t_mem_sg);
-	cmd->t_mem_sg = NULL;
+	while (j < i)
+		__free_page(sg_page(&sgl[j++]));
+
+	kfree(sgl);
 	return -ENOMEM;
 }
 
@@ -1006,8 +1005,8 @@ done:
 	/*
 	 * The CDB is going to an se_device_t.
 	 */
-	ret = iscsit_get_lun_for_cmd(cmd, hdr->cdb,
-				get_unaligned_le64(&hdr->lun));
+	ret = transport_lookup_cmd_lun(&cmd->se_cmd,
+				       scsilun_to_int(&hdr->lun));
 	if (ret < 0) {
 		if (cmd->se_cmd.scsi_sense_reason == TCM_NON_EXISTENT_LUN) {
 			pr_debug("Responding to non-acl'ed,"
@@ -1028,7 +1027,7 @@ done:
 		return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
 				1, 1, buf, cmd);
-	} else if (transport_ret == -EINVAL) {
+	} else if (transport_ret < 0) {
 		/*
 		 * Unsupported SAM Opcode.  CHECK_CONDITION will be sent
 		 * in iscsit_execute_cmd() during the CmdSN OOO Execution
@@ -1363,7 +1362,7 @@ static int iscsit_handle_data_out(struct iscsi_conn *conn, unsigned char *buf)
 		 * outstanding_r2ts reaches zero, go ahead and send the delayed
 		 * TASK_ABORTED status.
 		 */
-		if (atomic_read(&se_cmd->t_transport_aborted) != 0) {
+		if (se_cmd->transport_state & CMD_T_ABORTED) {
 			if (hdr->flags & ISCSI_FLAG_CMD_FINAL)
 				if (--cmd->outstanding_r2ts < 1) {
 					iscsit_stop_dataout_timer(cmd);
@@ -1471,14 +1470,12 @@ static int iscsit_handle_nop_out(
 	unsigned char *ping_data = NULL;
 	int cmdsn_ret, niov = 0, ret = 0, rx_got, rx_size;
 	u32 checksum, data_crc, padding = 0, payload_length;
-	u64 lun;
 	struct iscsi_cmd *cmd = NULL;
 	struct kvec *iov = NULL;
 	struct iscsi_nopout *hdr;
 
 	hdr			= (struct iscsi_nopout *) buf;
 	payload_length		= ntoh24(hdr->dlength);
-	lun			= get_unaligned_le64(&hdr->lun);
 	hdr->itt		= be32_to_cpu(hdr->itt);
 	hdr->ttt		= be32_to_cpu(hdr->ttt);
 	hdr->cmdsn		= be32_to_cpu(hdr->cmdsn);
@@ -1688,13 +1685,11 @@ static int iscsit_handle_task_mgt_cmd(
 	struct se_tmr_req *se_tmr;
 	struct iscsi_tmr_req *tmr_req;
 	struct iscsi_tm *hdr;
-	u32 payload_length;
 	int out_of_order_cmdsn = 0;
 	int ret;
 	u8 function;
 
 	hdr			= (struct iscsi_tm *) buf;
-	payload_length		= ntoh24(hdr->dlength);
 	hdr->itt		= be32_to_cpu(hdr->itt);
 	hdr->rtt		= be32_to_cpu(hdr->rtt);
 	hdr->cmdsn		= be32_to_cpu(hdr->cmdsn);
@@ -1746,8 +1741,8 @@ static int iscsit_handle_task_mgt_cmd(
 	 * Locate the struct se_lun for all TMRs not related to ERL=2 TASK_REASSIGN
 	 */
 	if (function != ISCSI_TM_FUNC_TASK_REASSIGN) {
-		ret = iscsit_get_lun_for_tmr(cmd,
-				get_unaligned_le64(&hdr->lun));
+		ret = transport_lookup_tmr_lun(&cmd->se_cmd,
+					       scsilun_to_int(&hdr->lun));
 		if (ret < 0) {
 			cmd->se_cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			se_tmr->response = ISCSI_TMF_RSP_NO_LUN;
@@ -2206,14 +2201,10 @@ static int iscsit_handle_snack(
 	struct iscsi_conn *conn,
 	unsigned char *buf)
 {
-	u32 unpacked_lun;
-	u64 lun;
 	struct iscsi_snack *hdr;
 
 	hdr			= (struct iscsi_snack *) buf;
 	hdr->flags		&= ~ISCSI_FLAG_CMD_FINAL;
-	lun			= get_unaligned_le64(&hdr->lun);
-	unpacked_lun		= scsilun_to_int((struct scsi_lun *)&lun);
 	hdr->itt		= be32_to_cpu(hdr->itt);
 	hdr->ttt		= be32_to_cpu(hdr->ttt);
 	hdr->exp_statsn		= be32_to_cpu(hdr->exp_statsn);
@@ -3513,7 +3504,6 @@ int iscsi_target_tx_thread(void *arg)
 	struct iscsi_cmd *cmd = NULL;
 	struct iscsi_conn *conn;
 	struct iscsi_queue_req *qr = NULL;
-	struct se_cmd *se_cmd;
 	struct iscsi_thread_set *ts = arg;
 	/*
 	 * Allow ourselves to be interrupted by SIGINT so that a
@@ -3695,8 +3685,6 @@ check_rsp_state:
 				conn->tx_response_queue = 0;
 				goto transport_err;
 			}
-
-			se_cmd = &cmd->se_cmd;
 
 			if (map_sg && !conn->conn_ops->IFMarker) {
 				if (iscsit_fe_sendpage_sg(cmd, conn) < 0) {
@@ -4170,7 +4158,7 @@ int iscsit_close_connection(
 	if (!atomic_read(&sess->session_reinstatement) &&
 	     atomic_read(&sess->session_fall_back_to_erl0)) {
 		spin_unlock_bh(&sess->conn_lock);
-		iscsit_close_session(sess);
+		target_put_session(sess->se_sess);
 
 		return 0;
 	} else if (atomic_read(&sess->session_logout)) {
@@ -4291,7 +4279,7 @@ static void iscsit_logout_post_handler_closesession(
 	iscsit_dec_conn_usage_count(conn);
 	iscsit_stop_session(sess, 1, 1);
 	iscsit_dec_session_usage_count(sess);
-	iscsit_close_session(sess);
+	target_put_session(sess->se_sess);
 }
 
 static void iscsit_logout_post_handler_samecid(
@@ -4457,7 +4445,7 @@ int iscsit_free_session(struct iscsi_session *sess)
 	} else
 		spin_unlock_bh(&sess->conn_lock);
 
-	iscsit_close_session(sess);
+	target_put_session(sess->se_sess);
 	return 0;
 }
 

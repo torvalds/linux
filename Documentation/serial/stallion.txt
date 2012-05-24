@@ -139,8 +139,8 @@ secondary address 0x280 and IRQ 10.
 
 You will probably want to enter this module load and configuration information
 into your system startup scripts so that the drivers are loaded and configured
-on each system boot. Typically the start up script would be something like
-/etc/modprobe.conf.
+on each system boot. Typically configuration files are put in the
+/etc/modprobe.d/ directory.
 
 
 2.2 STATIC DRIVER CONFIGURATION:

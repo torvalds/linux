@@ -65,6 +65,8 @@
  *		2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) "IPv4: " fmt
+
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -89,7 +91,6 @@
 #include <linux/slab.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 #include <linux/inet.h>
 #include <linux/igmp.h>
@@ -381,6 +382,7 @@ lookup_protocol:
 	inet->mc_all	= 1;
 	inet->mc_index	= 0;
 	inet->mc_list	= NULL;
+	inet->rcv_tos	= 0;
 
 	sk_refcnt_debug_inc(sk);
 
@@ -1084,13 +1086,11 @@ out:
 	return;
 
 out_permanent:
-	printk(KERN_ERR "Attempt to override permanent protocol %d.\n",
-	       protocol);
+	pr_err("Attempt to override permanent protocol %d\n", protocol);
 	goto out;
 
 out_illegal:
-	printk(KERN_ERR
-	       "Ignoring attempt to register invalid socket type %d.\n",
+	pr_err("Ignoring attempt to register invalid socket type %d\n",
 	       p->type);
 	goto out;
 }
@@ -1099,8 +1099,7 @@ EXPORT_SYMBOL(inet_register_protosw);
 void inet_unregister_protosw(struct inet_protosw *p)
 {
 	if (INET_PROTOSW_PERMANENT & p->flags) {
-		printk(KERN_ERR
-		       "Attempt to unregister permanent protocol %d.\n",
+		pr_err("Attempt to unregister permanent protocol %d\n",
 		       p->protocol);
 	} else {
 		spin_lock_bh(&inetsw_lock);
@@ -1149,8 +1148,8 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 		return 0;
 
 	if (sysctl_ip_dynaddr > 1) {
-		printk(KERN_INFO "%s(): shifting inet->saddr from %pI4 to %pI4\n",
-		       __func__, &old_saddr, &new_saddr);
+		pr_info("%s(): shifting inet->saddr from %pI4 to %pI4\n",
+			__func__, &old_saddr, &new_saddr);
 	}
 
 	inet->inet_saddr = inet->inet_rcv_saddr = new_saddr;
@@ -1679,14 +1678,14 @@ static int __init inet_init(void)
 	 */
 
 	if (inet_add_protocol(&icmp_protocol, IPPROTO_ICMP) < 0)
-		printk(KERN_CRIT "inet_init: Cannot add ICMP protocol\n");
+		pr_crit("%s: Cannot add ICMP protocol\n", __func__);
 	if (inet_add_protocol(&udp_protocol, IPPROTO_UDP) < 0)
-		printk(KERN_CRIT "inet_init: Cannot add UDP protocol\n");
+		pr_crit("%s: Cannot add UDP protocol\n", __func__);
 	if (inet_add_protocol(&tcp_protocol, IPPROTO_TCP) < 0)
-		printk(KERN_CRIT "inet_init: Cannot add TCP protocol\n");
+		pr_crit("%s: Cannot add TCP protocol\n", __func__);
 #ifdef CONFIG_IP_MULTICAST
 	if (inet_add_protocol(&igmp_protocol, IPPROTO_IGMP) < 0)
-		printk(KERN_CRIT "inet_init: Cannot add IGMP protocol\n");
+		pr_crit("%s: Cannot add IGMP protocol\n", __func__);
 #endif
 
 	/* Register the socket-side information for inet_create. */
@@ -1733,14 +1732,14 @@ static int __init inet_init(void)
 	 */
 #if defined(CONFIG_IP_MROUTE)
 	if (ip_mr_init())
-		printk(KERN_CRIT "inet_init: Cannot init ipv4 mroute\n");
+		pr_crit("%s: Cannot init ipv4 mroute\n", __func__);
 #endif
 	/*
 	 *	Initialise per-cpu ipv4 mibs
 	 */
 
 	if (init_ipv4_mibs())
-		printk(KERN_CRIT "inet_init: Cannot init ipv4 mibs\n");
+		pr_crit("%s: Cannot init ipv4 mibs\n", __func__);
 
 	ipv4_proc_init();
 

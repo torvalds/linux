@@ -19,15 +19,17 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/list.h>
+#include <linux/io.h>
 
+#include <plat/hardware.h>
 #include <plat/clkdev_omap.h>
 
+#include "iomap.h"
 #include "clock.h"
 #include "clock3xxx.h"
 #include "clock34xx.h"
 #include "clock36xx.h"
 #include "clock3517.h"
-
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
 #include "prm2xxx_3xxx.h"
@@ -745,7 +747,7 @@ static struct clk dpll4_m3_ck = {
 	.parent		= &dpll4_ck,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430_DSS_MOD, CM_CLKSEL),
-	.clksel_mask	= OMAP3430_CLKSEL_TV_MASK,
+	.clksel_mask	= OMAP3630_CLKSEL_TV_MASK,
 	.clksel		= dpll4_clksel,
 	.clkdm_name	= "dpll4_clkdm",
 	.recalc		= &omap2_clksel_recalc,
@@ -830,7 +832,7 @@ static struct clk dpll4_m4_ck = {
 	.parent		= &dpll4_ck,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430_DSS_MOD, CM_CLKSEL),
-	.clksel_mask	= OMAP3430_CLKSEL_DSS1_MASK,
+	.clksel_mask	= OMAP3630_CLKSEL_DSS1_MASK,
 	.clksel		= dpll4_clksel,
 	.clkdm_name	= "dpll4_clkdm",
 	.recalc		= &omap2_clksel_recalc,
@@ -857,7 +859,7 @@ static struct clk dpll4_m5_ck = {
 	.parent		= &dpll4_ck,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430_CAM_MOD, CM_CLKSEL),
-	.clksel_mask	= OMAP3430_CLKSEL_CAM_MASK,
+	.clksel_mask	= OMAP3630_CLKSEL_CAM_MASK,
 	.clksel		= dpll4_clksel,
 	.clkdm_name	= "dpll4_clkdm",
 	.set_rate	= &omap2_clksel_set_rate,
@@ -884,7 +886,7 @@ static struct clk dpll4_m6_ck = {
 	.parent		= &dpll4_ck,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430_EMU_MOD, CM_CLKSEL1),
-	.clksel_mask	= OMAP3430_DIV_DPLL4_MASK,
+	.clksel_mask	= OMAP3630_DIV_DPLL4_MASK,
 	.clksel		= dpll4_clksel,
 	.clkdm_name	= "dpll4_clkdm",
 	.recalc		= &omap2_clksel_recalc,
@@ -1392,6 +1394,7 @@ static struct clk cpefuse_fck = {
 	.name		= "cpefuse_fck",
 	.ops		= &clkops_omap2_dflt,
 	.parent		= &sys_ck,
+	.clkdm_name	= "core_l4_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, OMAP3430ES2_CM_FCLKEN3),
 	.enable_bit	= OMAP3430ES2_EN_CPEFUSE_SHIFT,
 	.recalc		= &followparent_recalc,
@@ -1401,6 +1404,7 @@ static struct clk ts_fck = {
 	.name		= "ts_fck",
 	.ops		= &clkops_omap2_dflt,
 	.parent		= &omap_32k_fck,
+	.clkdm_name	= "core_l4_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, OMAP3430ES2_CM_FCLKEN3),
 	.enable_bit	= OMAP3430ES2_EN_TS_SHIFT,
 	.recalc		= &followparent_recalc,
@@ -1410,6 +1414,7 @@ static struct clk usbtll_fck = {
 	.name		= "usbtll_fck",
 	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &dpll5_m2_ck,
+	.clkdm_name	= "core_l4_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, OMAP3430ES2_CM_FCLKEN3),
 	.enable_bit	= OMAP3430ES2_EN_USBTLL_SHIFT,
 	.recalc		= &followparent_recalc,
@@ -1615,6 +1620,7 @@ static struct clk fshostusb_fck = {
 	.name		= "fshostusb_fck",
 	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_48m_fck,
+	.clkdm_name	= "core_l4_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
 	.enable_bit	= OMAP3430ES1_EN_FSHOSTUSB_SHIFT,
 	.recalc		= &followparent_recalc,
@@ -2041,6 +2047,7 @@ static struct clk omapctrl_ick = {
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
 	.enable_bit	= OMAP3430_EN_OMAPCTRL_SHIFT,
 	.flags		= ENABLE_ON_INIT,
+	.clkdm_name	= "core_l4_clkdm",
 	.recalc		= &followparent_recalc,
 };
 
@@ -2092,6 +2099,7 @@ static struct clk usb_l4_ick = {
 	.clksel_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_CLKSEL),
 	.clksel_mask	= OMAP3430ES1_CLKSEL_FSHOSTUSB_MASK,
 	.clksel		= usb_l4_clksel,
+	.clkdm_name	= "core_l4_clkdm",
 	.recalc		= &omap2_clksel_recalc,
 };
 
@@ -3465,8 +3473,8 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"ipss_ick",	&ipss_ick,	CK_AM35XX),
 	CLK(NULL,	"rmii_ck",	&rmii_ck,	CK_AM35XX),
 	CLK(NULL,	"pclk_ck",	&pclk_ck,	CK_AM35XX),
-	CLK("davinci_emac",	"emac_clk",	&emac_ick,	CK_AM35XX),
-	CLK("davinci_emac",	"phy_clk",	&emac_fck,	CK_AM35XX),
+	CLK("davinci_emac",	NULL,	&emac_ick,	CK_AM35XX),
+	CLK("davinci_mdio.0",	NULL,	&emac_fck,	CK_AM35XX),
 	CLK("vpfe-capture",	"master",	&vpfe_ick,	CK_AM35XX),
 	CLK("vpfe-capture",	"slave",	&vpfe_fck,	CK_AM35XX),
 	CLK("musb-am35x",	"ick",		&hsotgusb_ick_am35xx,	CK_AM35XX),

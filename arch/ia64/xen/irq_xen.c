@@ -58,7 +58,7 @@ xen_free_irq_vector(int vector)
 
 	irq_op.vector = vector;
 	if (HYPERVISOR_physdev_op(PHYSDEVOP_free_irq_vector, &irq_op))
-		printk(KERN_WARNING "%s: xen_free_irq_vecotr fail vector=%d\n",
+		printk(KERN_WARNING "%s: xen_free_irq_vector fail vector=%d\n",
 		       __func__, vector);
 }
 

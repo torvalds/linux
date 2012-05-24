@@ -880,6 +880,7 @@ static int dev_set_geometry(struct dm_ioctl *param, size_t param_size)
 	struct hd_geometry geometry;
 	unsigned long indata[4];
 	char *geostr = (char *) param + param->data_start;
+	char dummy;
 
 	md = find_device(param);
 	if (!md)
@@ -891,8 +892,8 @@ static int dev_set_geometry(struct dm_ioctl *param, size_t param_size)
 		goto out;
 	}
 
-	x = sscanf(geostr, "%lu %lu %lu %lu", indata,
-		   indata + 1, indata + 2, indata + 3);
+	x = sscanf(geostr, "%lu %lu %lu %lu%c", indata,
+		   indata + 1, indata + 2, indata + 3, &dummy);
 
 	if (x != 4) {
 		DMWARN("Unable to interpret geometry settings.");
@@ -1437,7 +1438,7 @@ static int target_message(struct dm_ioctl *param, size_t param_size)
 
 	if (!argc) {
 		DMWARN("Empty message received.");
-		goto out;
+		goto out_argv;
 	}
 
 	table = dm_get_live_table(md);

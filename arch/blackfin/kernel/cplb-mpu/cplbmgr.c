@@ -120,6 +120,7 @@ MGR_ATTR static noinline int dcplb_miss(unsigned int cpu)
 		d_data = L2_DMEMORY;
 	} else if (addr >= physical_mem_end) {
 		if (addr >= ASYNC_BANK0_BASE && addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE) {
+#if defined(CONFIG_ROMFS_ON_MTD) && defined(CONFIG_MTD_ROM)
 			mask = current_rwx_mask[cpu];
 			if (mask) {
 				int page = (addr - (ASYNC_BANK0_BASE - _ramend)) >> PAGE_SHIFT;
@@ -129,6 +130,7 @@ MGR_ATTR static noinline int dcplb_miss(unsigned int cpu)
 				if (mask[idx] & bit)
 					d_data |= CPLB_USER_RD;
 			}
+#endif
 		} else if (addr >= BOOT_ROM_START && addr < BOOT_ROM_START + BOOT_ROM_LENGTH
 		    && (status & (FAULT_RW | FAULT_USERSUPV)) == FAULT_USERSUPV) {
 			addr &= ~(1 * 1024 * 1024 - 1);

@@ -6,7 +6,7 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 static const char *skip_arg(const char *cp)
 {

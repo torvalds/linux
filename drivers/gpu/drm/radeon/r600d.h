@@ -78,6 +78,20 @@
 
 #define CB_COLOR0_SIZE                                  0x28060
 #define CB_COLOR0_VIEW                                  0x28080
+#define R_028080_CB_COLOR0_VIEW                      0x028080
+#define   S_028080_SLICE_START(x)                      (((x) & 0x7FF) << 0)
+#define   G_028080_SLICE_START(x)                      (((x) >> 0) & 0x7FF)
+#define   C_028080_SLICE_START                         0xFFFFF800
+#define   S_028080_SLICE_MAX(x)                        (((x) & 0x7FF) << 13)
+#define   G_028080_SLICE_MAX(x)                        (((x) >> 13) & 0x7FF)
+#define   C_028080_SLICE_MAX                           0xFF001FFF
+#define R_028084_CB_COLOR1_VIEW                      0x028084
+#define R_028088_CB_COLOR2_VIEW                      0x028088
+#define R_02808C_CB_COLOR3_VIEW                      0x02808C
+#define R_028090_CB_COLOR4_VIEW                      0x028090
+#define R_028094_CB_COLOR5_VIEW                      0x028094
+#define R_028098_CB_COLOR6_VIEW                      0x028098
+#define R_02809C_CB_COLOR7_VIEW                      0x02809C
 #define CB_COLOR0_INFO                                  0x280a0
 #	define CB_FORMAT(x)				((x) << 2)
 #       define CB_ARRAY_MODE(x)                         ((x) << 8)
@@ -181,6 +195,14 @@
 #define		PREZ_MUST_WAIT_FOR_POSTZ_DONE			(1 << 31)
 #define	DB_DEPTH_BASE					0x2800C
 #define	DB_HTILE_DATA_BASE				0x28014
+#define	DB_HTILE_SURFACE				0x28D24
+#define   S_028D24_HTILE_WIDTH(x)                      (((x) & 0x1) << 0)
+#define   G_028D24_HTILE_WIDTH(x)                      (((x) >> 0) & 0x1)
+#define   C_028D24_HTILE_WIDTH                         0xFFFFFFFE
+#define   S_028D24_HTILE_HEIGHT(x)                      (((x) & 0x1) << 1)
+#define   G_028D24_HTILE_HEIGHT(x)                      (((x) >> 1) & 0x1)
+#define   C_028D24_HTILE_HEIGHT                         0xFFFFFFFD
+#define   G_028D24_LINEAR(x)                           (((x) >> 2) & 0x1)
 #define	DB_WATERMARKS					0x9838
 #define		DEPTH_FREE(x)					((x) << 0)
 #define		DEPTH_FLUSH(x)					((x) << 5)
@@ -493,6 +515,11 @@
 #define	VGT_STRMOUT_BUFFER_OFFSET_1			0x28AEC
 #define	VGT_STRMOUT_BUFFER_OFFSET_2			0x28AFC
 #define	VGT_STRMOUT_BUFFER_OFFSET_3			0x28B0C
+#define VGT_STRMOUT_BUFFER_SIZE_0			0x28AD0
+#define VGT_STRMOUT_BUFFER_SIZE_1			0x28AE0
+#define VGT_STRMOUT_BUFFER_SIZE_2			0x28AF0
+#define VGT_STRMOUT_BUFFER_SIZE_3			0x28B00
+
 #define	VGT_STRMOUT_EN					0x28AB0
 #define	VGT_VERTEX_REUSE_BLOCK_CNTL			0x28C58
 #define		VTX_REUSE_DEPTH_MASK				0x000000FF
@@ -573,6 +600,10 @@
 #define RLC_UCODE_CNTL                                    0x3f48
 #define RLC_UCODE_ADDR                                    0x3f2c
 #define RLC_UCODE_DATA                                    0x3f30
+
+/* new for TN */
+#define TN_RLC_SAVE_AND_RESTORE_BASE                      0x3f10
+#define TN_RLC_CLEAR_STATE_RESTORE_BASE                   0x3f20
 
 #define SRBM_SOFT_RESET                                   0xe60
 #       define SOFT_RESET_RLC                             (1 << 13)
@@ -831,9 +862,11 @@
 #define	PACKET3_STRMOUT_BUFFER_UPDATE			0x34
 #define	PACKET3_INDIRECT_BUFFER_MP			0x38
 #define	PACKET3_MEM_SEMAPHORE				0x39
+#              define PACKET3_SEM_WAIT_ON_SIGNAL    (0x1 << 12)
 #              define PACKET3_SEM_SEL_SIGNAL	    (0x6 << 29)
 #              define PACKET3_SEM_SEL_WAIT	    (0x7 << 29)
 #define	PACKET3_MPEG_INDEX				0x3A
+#define	PACKET3_COPY_DW					0x3B
 #define	PACKET3_WAIT_REG_MEM				0x3C
 #define	PACKET3_MEM_WRITE				0x3D
 #define	PACKET3_INDIRECT_BUFFER				0x32

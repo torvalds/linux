@@ -26,7 +26,6 @@
 #include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <mach/hardware.h>
 
 #include <asm/mach/pci.h>
@@ -243,8 +242,10 @@ int ixp2000_pci_setup(int nr, struct pci_sys_data *sys)
 	if (nr >= 1)
 		return 0;
 
-	pci_add_resource(&sys->resources, &ixp2000_pci_io_space);
-	pci_add_resource(&sys->resources, &ixp2000_pci_mem_space);
+	pci_add_resource_offset(&sys->resources,
+				&ixp2000_pci_io_space, sys->io_offset);
+	pci_add_resource_offset(&sys->resources,
+				&ixp2000_pci_mem_space, sys->mem_offset);
 
 	return 1;
 }

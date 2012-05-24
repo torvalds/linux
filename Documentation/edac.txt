@@ -334,8 +334,8 @@ Sdram memory scrubbing rate:
 
 	Reading the file will return the actual scrubbing rate employed.
 
-	If configuration fails or memory scrubbing is not implemented, the value
-	of the attribute file will be -1.
+	If configuration fails or memory scrubbing is not implemented, accessing
+	that attribute will fail.
 
 
 

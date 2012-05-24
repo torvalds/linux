@@ -34,14 +34,4 @@ static inline unsigned long rdsp(void)
 /* Write the user-mode stack pointer. */
 #define wrusp(usp) __asm__ __volatile__ ("move %0, $usp" : : "rm" (usp))
 
-#define nop() __asm__ __volatile__ ("nop");
-
-#define xchg(ptr,x) \
-	((__typeof__(*(ptr)))__xchg((unsigned long) (x),(ptr),sizeof(*(ptr))))
-
-#define tas(ptr) (xchg((ptr),1))
-
-struct __xchg_dummy { unsigned long a[100]; };
-#define __xg(x) ((struct __xchg_dummy *)(x))
-
 #endif /* _ASM_CRIS_ARCH_SYSTEM_H */

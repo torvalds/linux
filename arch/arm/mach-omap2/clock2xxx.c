@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
+#include <plat/cpu.h>
 #include <plat/clock.h>
 
 #include "clock.h"

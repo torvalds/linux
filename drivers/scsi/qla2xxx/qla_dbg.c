@@ -11,23 +11,27 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x0116       | 0xfa           |
- * | Mailbox commands             |       0x112b       |		|
- * | Device Discovery             |       0x2084       |		|
- * | Queue Command and IO tracing |       0x302f       | 0x3008,0x302d, |
- * |                              |                    | 0x302e         |
+ * | Module Init and Probe        |       0x0120       | 0x4b,0xba,0xfa |
+ * | Mailbox commands             |       0x113e       | 0x112c-0x112e  |
+ * |                              |                    | 0x113a         |
+ * | Device Discovery             |       0x2086       | 0x2020-0x2022  |
+ * | Queue Command and IO tracing |       0x302f       | 0x3006,0x3008  |
+ * |                              |                    | 0x302d-0x302e  |
  * | DPC Thread                   |       0x401c       |		|
- * | Async Events                 |       0x5057       | 0x5052		|
- * | Timer Routines               |       0x6011       | 0x600e,0x600f  |
- * | User Space Interactions      |       0x709e       | 0x7018,0x702e  |
- * |                              |                    | 0x7039,0x7045  |
+ * | Async Events                 |       0x505d       | 0x502b-0x502f  |
+ * |                              |                    | 0x5047,0x5052  |
+ * | Timer Routines               |       0x6011       | 0x600e-0x600f  |
+ * | User Space Interactions      |       0x709f       | 0x7018,0x702e, |
+ * |                              |                    | 0x7039,0x7045, |
+ * |                              |                    | 0x7073-0x7075, |
+ * |                              |                    | 0x708c         |
  * | Task Management              |       0x803c       | 0x8025-0x8026  |
  * |                              |                    | 0x800b,0x8039  |
  * | AER/EEH                      |       0x900f       |		|
  * | Virtual Port                 |       0xa007       |		|
- * | ISP82XX Specific             |       0xb052       |    		|
- * | MultiQ                       |       0xc00b       |		|
- * | Misc                         |       0xd00b       |		|
+ * | ISP82XX Specific             |       0xb054       | 0xb053         |
+ * | MultiQ                       |       0xc00c       |		|
+ * | Misc                         |       0xd010       |		|
  * ----------------------------------------------------------------------
  */
 
@@ -85,7 +89,7 @@ qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 	WRT_REG_WORD(&reg->mailbox0, MBC_DUMP_RISC_RAM_EXTENDED);
 	clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 
-	dwords = GID_LIST_SIZE / 4;
+	dwords = qla2x00_gid_list_size(ha) / 4;
 	for (cnt = 0; cnt < ram_dwords && rval == QLA_SUCCESS;
 	    cnt += dwords, addr += dwords) {
 		if (cnt + dwords > ram_dwords)
@@ -260,7 +264,7 @@ qla2xxx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint16_t *ram,
 	WRT_MAILBOX_REG(ha, reg, 0, MBC_DUMP_RISC_RAM_EXTENDED);
 	clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 
-	words = GID_LIST_SIZE / 2;
+	words = qla2x00_gid_list_size(ha) / 2;
 	for (cnt = 0; cnt < ram_words && rval == QLA_SUCCESS;
 	    cnt += words, addr += words) {
 		if (cnt + words > ram_words)
@@ -375,6 +379,77 @@ qla25xx_copy_fce(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 }
 
 static inline void *
+qla25xx_copy_mqueues(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
+{
+	struct qla2xxx_mqueue_chain *q;
+	struct qla2xxx_mqueue_header *qh;
+	struct req_que *req;
+	struct rsp_que *rsp;
+	int que;
+
+	if (!ha->mqenable)
+		return ptr;
+
+	/* Request queues */
+	for (que = 1; que < ha->max_req_queues; que++) {
+		req = ha->req_q_map[que];
+		if (!req)
+			break;
+
+		/* Add chain. */
+		q = ptr;
+		*last_chain = &q->type;
+		q->type = __constant_htonl(DUMP_CHAIN_QUEUE);
+		q->chain_size = htonl(
+		    sizeof(struct qla2xxx_mqueue_chain) +
+		    sizeof(struct qla2xxx_mqueue_header) +
+		    (req->length * sizeof(request_t)));
+		ptr += sizeof(struct qla2xxx_mqueue_chain);
+
+		/* Add header. */
+		qh = ptr;
+		qh->queue = __constant_htonl(TYPE_REQUEST_QUEUE);
+		qh->number = htonl(que);
+		qh->size = htonl(req->length * sizeof(request_t));
+		ptr += sizeof(struct qla2xxx_mqueue_header);
+
+		/* Add data. */
+		memcpy(ptr, req->ring, req->length * sizeof(request_t));
+		ptr += req->length * sizeof(request_t);
+	}
+
+	/* Response queues */
+	for (que = 1; que < ha->max_rsp_queues; que++) {
+		rsp = ha->rsp_q_map[que];
+		if (!rsp)
+			break;
+
+		/* Add chain. */
+		q = ptr;
+		*last_chain = &q->type;
+		q->type = __constant_htonl(DUMP_CHAIN_QUEUE);
+		q->chain_size = htonl(
+		    sizeof(struct qla2xxx_mqueue_chain) +
+		    sizeof(struct qla2xxx_mqueue_header) +
+		    (rsp->length * sizeof(response_t)));
+		ptr += sizeof(struct qla2xxx_mqueue_chain);
+
+		/* Add header. */
+		qh = ptr;
+		qh->queue = __constant_htonl(TYPE_RESPONSE_QUEUE);
+		qh->number = htonl(que);
+		qh->size = htonl(rsp->length * sizeof(response_t));
+		ptr += sizeof(struct qla2xxx_mqueue_header);
+
+		/* Add data. */
+		memcpy(ptr, rsp->ring, rsp->length * sizeof(response_t));
+		ptr += rsp->length * sizeof(response_t);
+	}
+
+	return ptr;
+}
+
+static inline void *
 qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 {
 	uint32_t cnt, que_idx;
@@ -382,7 +457,7 @@ qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	struct qla2xxx_mq_chain *mq = ptr;
 	struct device_reg_25xxmq __iomem *reg;
 
-	if (!ha->mqenable)
+	if (!ha->mqenable || IS_QLA83XX(ha))
 		return ptr;
 
 	mq = ptr;
@@ -1322,11 +1397,15 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	nxt = qla24xx_copy_eft(ha, nxt);
 
 	/* Chain entries -- started with MQ. */
-	qla25xx_copy_fce(ha, nxt_chain, &last_chain);
+	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
+	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
 	if (last_chain) {
 		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
 		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);
 	}
+
+	/* Adjust valid length. */
+	ha->fw_dump_len = (nxt_chain - (void *)ha->fw_dump);
 
 qla25xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);
@@ -1636,16 +1715,521 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	nxt = qla24xx_copy_eft(ha, nxt);
 
 	/* Chain entries -- started with MQ. */
-	qla25xx_copy_fce(ha, nxt_chain, &last_chain);
+	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
+	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
 	if (last_chain) {
 		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
 		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);
 	}
 
+	/* Adjust valid length. */
+	ha->fw_dump_len = (nxt_chain - (void *)ha->fw_dump);
+
 qla81xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);
 
 qla81xx_fw_dump_failed:
+	if (!hardware_locked)
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
+void
+qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+{
+	int		rval;
+	uint32_t	cnt, reg_data;
+	uint32_t	risc_address;
+	struct qla_hw_data *ha = vha->hw;
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+	uint32_t __iomem *dmp_reg;
+	uint32_t	*iter_reg;
+	uint16_t __iomem *mbx_reg;
+	unsigned long	flags;
+	struct qla83xx_fw_dump *fw;
+	uint32_t	ext_mem_cnt;
+	void		*nxt, *nxt_chain;
+	uint32_t	*last_chain = NULL;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
+
+	risc_address = ext_mem_cnt = 0;
+	flags = 0;
+
+	if (!hardware_locked)
+		spin_lock_irqsave(&ha->hardware_lock, flags);
+
+	if (!ha->fw_dump) {
+		ql_log(ql_log_warn, vha, 0xd00c,
+		    "No buffer available for dump!!!\n");
+		goto qla83xx_fw_dump_failed;
+	}
+
+	if (ha->fw_dumped) {
+		ql_log(ql_log_warn, vha, 0xd00d,
+		    "Firmware has been previously dumped (%p) -- ignoring "
+		    "request...\n", ha->fw_dump);
+		goto qla83xx_fw_dump_failed;
+	}
+	fw = &ha->fw_dump->isp.isp83;
+	qla2xxx_prep_dump(ha, ha->fw_dump);
+
+	fw->host_status = htonl(RD_REG_DWORD(&reg->host_status));
+
+	/* Pause RISC. */
+	rval = qla24xx_pause_risc(reg);
+	if (rval != QLA_SUCCESS)
+		goto qla83xx_fw_dump_failed_0;
+
+	WRT_REG_DWORD(&reg->iobase_addr, 0x6000);
+	dmp_reg = &reg->iobase_window;
+	reg_data = RD_REG_DWORD(dmp_reg);
+	WRT_REG_DWORD(dmp_reg, 0);
+
+	dmp_reg = &reg->unused_4_1[0];
+	reg_data = RD_REG_DWORD(dmp_reg);
+	WRT_REG_DWORD(dmp_reg, 0);
+
+	WRT_REG_DWORD(&reg->iobase_addr, 0x6010);
+	dmp_reg = &reg->unused_4_1[2];
+	reg_data = RD_REG_DWORD(dmp_reg);
+	WRT_REG_DWORD(dmp_reg, 0);
+
+	/* select PCR and disable ecc checking and correction */
+	WRT_REG_DWORD(&reg->iobase_addr, 0x0F70);
+	RD_REG_DWORD(&reg->iobase_addr);
+	WRT_REG_DWORD(&reg->iobase_select, 0x60000000);	/* write to F0h = PCR */
+
+	/* Host/Risc registers. */
+	iter_reg = fw->host_risc_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7000, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x7010, 16, iter_reg);
+	qla24xx_read_window(reg, 0x7040, 16, iter_reg);
+
+	/* PCIe registers. */
+	WRT_REG_DWORD(&reg->iobase_addr, 0x7C00);
+	RD_REG_DWORD(&reg->iobase_addr);
+	WRT_REG_DWORD(&reg->iobase_window, 0x01);
+	dmp_reg = &reg->iobase_c4;
+	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg++));
+	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg++));
+	fw->pcie_regs[2] = htonl(RD_REG_DWORD(dmp_reg));
+	fw->pcie_regs[3] = htonl(RD_REG_DWORD(&reg->iobase_window));
+
+	WRT_REG_DWORD(&reg->iobase_window, 0x00);
+	RD_REG_DWORD(&reg->iobase_window);
+
+	/* Host interface registers. */
+	dmp_reg = &reg->flash_addr;
+	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++)
+		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+
+	/* Disable interrupts. */
+	WRT_REG_DWORD(&reg->ictrl, 0);
+	RD_REG_DWORD(&reg->ictrl);
+
+	/* Shadow registers. */
+	WRT_REG_DWORD(&reg->iobase_addr, 0x0F70);
+	RD_REG_DWORD(&reg->iobase_addr);
+	WRT_REG_DWORD(&reg->iobase_select, 0xB0000000);
+	fw->shadow_reg[0] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+	WRT_REG_DWORD(&reg->iobase_select, 0xB0100000);
+	fw->shadow_reg[1] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+	WRT_REG_DWORD(&reg->iobase_select, 0xB0200000);
+	fw->shadow_reg[2] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+	WRT_REG_DWORD(&reg->iobase_select, 0xB0300000);
+	fw->shadow_reg[3] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+	WRT_REG_DWORD(&reg->iobase_select, 0xB0400000);
+	fw->shadow_reg[4] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+	WRT_REG_DWORD(&reg->iobase_select, 0xB0500000);
+	fw->shadow_reg[5] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+	WRT_REG_DWORD(&reg->iobase_select, 0xB0600000);
+	fw->shadow_reg[6] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+	WRT_REG_DWORD(&reg->iobase_select, 0xB0700000);
+	fw->shadow_reg[7] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+	WRT_REG_DWORD(&reg->iobase_select, 0xB0800000);
+	fw->shadow_reg[8] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+	WRT_REG_DWORD(&reg->iobase_select, 0xB0900000);
+	fw->shadow_reg[9] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+	WRT_REG_DWORD(&reg->iobase_select, 0xB0A00000);
+	fw->shadow_reg[10] = htonl(RD_REG_DWORD(&reg->iobase_sdata));
+
+	/* RISC I/O register. */
+	WRT_REG_DWORD(&reg->iobase_addr, 0x0010);
+	fw->risc_io_reg = htonl(RD_REG_DWORD(&reg->iobase_window));
+
+	/* Mailbox registers. */
+	mbx_reg = &reg->mailbox0;
+	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
+		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg++));
+
+	/* Transfer sequence registers. */
+	iter_reg = fw->xseq_gp_reg;
+	iter_reg = qla24xx_read_window(reg, 0xBE00, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBE10, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBE20, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBE30, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBE40, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBE50, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBE60, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBE70, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBF00, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBF10, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBF20, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBF30, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBF40, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBF50, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBF60, 16, iter_reg);
+	qla24xx_read_window(reg, 0xBF70, 16, iter_reg);
+
+	iter_reg = fw->xseq_0_reg;
+	iter_reg = qla24xx_read_window(reg, 0xBFC0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xBFD0, 16, iter_reg);
+	qla24xx_read_window(reg, 0xBFE0, 16, iter_reg);
+
+	qla24xx_read_window(reg, 0xBFF0, 16, fw->xseq_1_reg);
+
+	qla24xx_read_window(reg, 0xBEF0, 16, fw->xseq_2_reg);
+
+	/* Receive sequence registers. */
+	iter_reg = fw->rseq_gp_reg;
+	iter_reg = qla24xx_read_window(reg, 0xFE00, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFE10, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFE20, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFE30, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFE40, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFE50, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFE60, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFE70, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFF00, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFF10, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFF20, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFF30, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFF40, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFF50, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xFF60, 16, iter_reg);
+	qla24xx_read_window(reg, 0xFF70, 16, iter_reg);
+
+	iter_reg = fw->rseq_0_reg;
+	iter_reg = qla24xx_read_window(reg, 0xFFC0, 16, iter_reg);
+	qla24xx_read_window(reg, 0xFFD0, 16, iter_reg);
+
+	qla24xx_read_window(reg, 0xFFE0, 16, fw->rseq_1_reg);
+	qla24xx_read_window(reg, 0xFFF0, 16, fw->rseq_2_reg);
+	qla24xx_read_window(reg, 0xFEF0, 16, fw->rseq_3_reg);
+
+	/* Auxiliary sequence registers. */
+	iter_reg = fw->aseq_gp_reg;
+	iter_reg = qla24xx_read_window(reg, 0xB000, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB010, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB020, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB030, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB040, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB050, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB060, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB070, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB100, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB110, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB120, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB130, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB140, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB150, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0xB160, 16, iter_reg);
+	qla24xx_read_window(reg, 0xB170, 16, iter_reg);
+
+	iter_reg = fw->aseq_0_reg;
+	iter_reg = qla24xx_read_window(reg, 0xB0C0, 16, iter_reg);
+	qla24xx_read_window(reg, 0xB0D0, 16, iter_reg);
+
+	qla24xx_read_window(reg, 0xB0E0, 16, fw->aseq_1_reg);
+	qla24xx_read_window(reg, 0xB0F0, 16, fw->aseq_2_reg);
+	qla24xx_read_window(reg, 0xB1F0, 16, fw->aseq_3_reg);
+
+	/* Command DMA registers. */
+	iter_reg = fw->cmd_dma_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7100, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x7120, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x7130, 16, iter_reg);
+	qla24xx_read_window(reg, 0x71F0, 16, iter_reg);
+
+	/* Queues. */
+	iter_reg = fw->req0_dma_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7200, 8, iter_reg);
+	dmp_reg = &reg->iobase_q;
+	for (cnt = 0; cnt < 7; cnt++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+	iter_reg = fw->resp0_dma_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7300, 8, iter_reg);
+	dmp_reg = &reg->iobase_q;
+	for (cnt = 0; cnt < 7; cnt++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+	iter_reg = fw->req1_dma_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7400, 8, iter_reg);
+	dmp_reg = &reg->iobase_q;
+	for (cnt = 0; cnt < 7; cnt++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+
+	/* Transmit DMA registers. */
+	iter_reg = fw->xmt0_dma_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7600, 16, iter_reg);
+	qla24xx_read_window(reg, 0x7610, 16, iter_reg);
+
+	iter_reg = fw->xmt1_dma_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7620, 16, iter_reg);
+	qla24xx_read_window(reg, 0x7630, 16, iter_reg);
+
+	iter_reg = fw->xmt2_dma_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7640, 16, iter_reg);
+	qla24xx_read_window(reg, 0x7650, 16, iter_reg);
+
+	iter_reg = fw->xmt3_dma_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7660, 16, iter_reg);
+	qla24xx_read_window(reg, 0x7670, 16, iter_reg);
+
+	iter_reg = fw->xmt4_dma_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7680, 16, iter_reg);
+	qla24xx_read_window(reg, 0x7690, 16, iter_reg);
+
+	qla24xx_read_window(reg, 0x76A0, 16, fw->xmt_data_dma_reg);
+
+	/* Receive DMA registers. */
+	iter_reg = fw->rcvt0_data_dma_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7700, 16, iter_reg);
+	qla24xx_read_window(reg, 0x7710, 16, iter_reg);
+
+	iter_reg = fw->rcvt1_data_dma_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7720, 16, iter_reg);
+	qla24xx_read_window(reg, 0x7730, 16, iter_reg);
+
+	/* RISC registers. */
+	iter_reg = fw->risc_gp_reg;
+	iter_reg = qla24xx_read_window(reg, 0x0F00, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x0F10, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x0F20, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x0F30, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x0F40, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x0F50, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x0F60, 16, iter_reg);
+	qla24xx_read_window(reg, 0x0F70, 16, iter_reg);
+
+	/* Local memory controller registers. */
+	iter_reg = fw->lmc_reg;
+	iter_reg = qla24xx_read_window(reg, 0x3000, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x3010, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x3020, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x3030, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x3040, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x3050, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x3060, 16, iter_reg);
+	qla24xx_read_window(reg, 0x3070, 16, iter_reg);
+
+	/* Fibre Protocol Module registers. */
+	iter_reg = fw->fpm_hdw_reg;
+	iter_reg = qla24xx_read_window(reg, 0x4000, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x4010, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x4020, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x4030, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x4040, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x4050, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x4060, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x4070, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x4080, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x4090, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x40A0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x40B0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x40C0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x40D0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x40E0, 16, iter_reg);
+	qla24xx_read_window(reg, 0x40F0, 16, iter_reg);
+
+	/* RQ0 Array registers. */
+	iter_reg = fw->rq0_array_reg;
+	iter_reg = qla24xx_read_window(reg, 0x5C00, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5C10, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5C20, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5C30, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5C40, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5C50, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5C60, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5C70, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5C80, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5C90, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5CA0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5CB0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5CC0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5CD0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5CE0, 16, iter_reg);
+	qla24xx_read_window(reg, 0x5CF0, 16, iter_reg);
+
+	/* RQ1 Array registers. */
+	iter_reg = fw->rq1_array_reg;
+	iter_reg = qla24xx_read_window(reg, 0x5D00, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5D10, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5D20, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5D30, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5D40, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5D50, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5D60, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5D70, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5D80, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5D90, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5DA0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5DB0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5DC0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5DD0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5DE0, 16, iter_reg);
+	qla24xx_read_window(reg, 0x5DF0, 16, iter_reg);
+
+	/* RP0 Array registers. */
+	iter_reg = fw->rp0_array_reg;
+	iter_reg = qla24xx_read_window(reg, 0x5E00, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5E10, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5E20, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5E30, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5E40, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5E50, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5E60, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5E70, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5E80, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5E90, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5EA0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5EB0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5EC0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5ED0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5EE0, 16, iter_reg);
+	qla24xx_read_window(reg, 0x5EF0, 16, iter_reg);
+
+	/* RP1 Array registers. */
+	iter_reg = fw->rp1_array_reg;
+	iter_reg = qla24xx_read_window(reg, 0x5F00, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5F10, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5F20, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5F30, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5F40, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5F50, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5F60, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5F70, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5F80, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5F90, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5FA0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5FB0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5FC0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5FD0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x5FE0, 16, iter_reg);
+	qla24xx_read_window(reg, 0x5FF0, 16, iter_reg);
+
+	iter_reg = fw->at0_array_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7080, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x7090, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x70A0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x70B0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x70C0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x70D0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x70E0, 16, iter_reg);
+	qla24xx_read_window(reg, 0x70F0, 16, iter_reg);
+
+	/* I/O Queue Control registers. */
+	qla24xx_read_window(reg, 0x7800, 16, fw->queue_control_reg);
+
+	/* Frame Buffer registers. */
+	iter_reg = fw->fb_hdw_reg;
+	iter_reg = qla24xx_read_window(reg, 0x6000, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6010, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6020, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6030, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6040, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6060, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6070, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6100, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6130, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6150, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6170, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6190, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x61B0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x61C0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6530, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6540, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6550, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6560, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6570, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6580, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x6590, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x65A0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x65B0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x65C0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x65D0, 16, iter_reg);
+	iter_reg = qla24xx_read_window(reg, 0x65E0, 16, iter_reg);
+	qla24xx_read_window(reg, 0x6F00, 16, iter_reg);
+
+	/* Multi queue registers */
+	nxt_chain = qla25xx_copy_mq(ha, (void *)ha->fw_dump + ha->chain_offset,
+	    &last_chain);
+
+	rval = qla24xx_soft_reset(ha);
+	if (rval != QLA_SUCCESS) {
+		ql_log(ql_log_warn, vha, 0xd00e,
+		    "SOFT RESET FAILED, forcing continuation of dump!!!\n");
+		rval = QLA_SUCCESS;
+
+		ql_log(ql_log_warn, vha, 0xd00f, "try a bigger hammer!!!\n");
+
+		WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_RESET);
+		RD_REG_DWORD(&reg->hccr);
+
+		WRT_REG_DWORD(&reg->hccr, HCCRX_REL_RISC_PAUSE);
+		RD_REG_DWORD(&reg->hccr);
+
+		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_RESET);
+		RD_REG_DWORD(&reg->hccr);
+
+		for (cnt = 30000; cnt && (RD_REG_WORD(&reg->mailbox0)); cnt--)
+			udelay(5);
+
+		if (!cnt) {
+			nxt = fw->code_ram;
+			nxt += sizeof(fw->code_ram),
+			nxt += (ha->fw_memory_size - 0x100000 + 1);
+			goto copy_queue;
+		} else
+			ql_log(ql_log_warn, vha, 0xd010,
+			    "bigger hammer success?\n");
+	}
+
+	rval = qla24xx_dump_memory(ha, fw->code_ram, sizeof(fw->code_ram),
+	    &nxt);
+	if (rval != QLA_SUCCESS)
+		goto qla83xx_fw_dump_failed_0;
+
+copy_queue:
+	nxt = qla2xxx_copy_queues(ha, nxt);
+
+	nxt = qla24xx_copy_eft(ha, nxt);
+
+	/* Chain entries -- started with MQ. */
+	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
+	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
+	if (last_chain) {
+		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
+		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);
+	}
+
+	/* Adjust valid length. */
+	ha->fw_dump_len = (nxt_chain - (void *)ha->fw_dump);
+
+qla83xx_fw_dump_failed_0:
+	qla2xxx_dump_post_process(base_vha, rval);
+
+qla83xx_fw_dump_failed:
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
@@ -1782,13 +2366,13 @@ ql_log(uint32_t level, scsi_qla_host_t *vha, int32_t id, const char *fmt, ...)
 	vaf.va = &va;
 
 	switch (level) {
-	case 0: /* FATAL LOG */
+	case ql_log_fatal: /* FATAL LOG */
 		pr_crit("%s%pV", pbuf, &vaf);
 		break;
-	case 1:
+	case ql_log_warn:
 		pr_err("%s%pV", pbuf, &vaf);
 		break;
-	case 2:
+	case ql_log_info:
 		pr_warn("%s%pV", pbuf, &vaf);
 		break;
 	default:
@@ -1837,13 +2421,13 @@ ql_log_pci(uint32_t level, struct pci_dev *pdev, int32_t id,
 	vaf.va = &va;
 
 	switch (level) {
-	case 0: /* FATAL LOG */
+	case ql_log_fatal: /* FATAL LOG */
 		pr_crit("%s%pV", pbuf, &vaf);
 		break;
-	case 1:
+	case ql_log_warn:
 		pr_err("%s%pV", pbuf, &vaf);
 		break;
-	case 2:
+	case ql_log_info:
 		pr_warn("%s%pV", pbuf, &vaf);
 		break;
 	default:

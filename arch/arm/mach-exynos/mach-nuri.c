@@ -28,6 +28,7 @@
 
 #include <video/platform_lcd.h>
 #include <media/m5mols.h>
+#include <media/s5k6aa.h>
 #include <media/s5p_fimc.h>
 #include <media/v4l2-mediabus.h>
 
@@ -75,6 +76,7 @@ enum fixed_regulator_id {
 	FIXED_REG_ID_MAX8903,
 	FIXED_REG_ID_CAM_A28V,
 	FIXED_REG_ID_CAM_12V,
+	FIXED_REG_ID_CAM_VT_15V,
 };
 
 static struct s3c2410_uartcfg nuri_uartcfgs[] __initdata = {
@@ -109,13 +111,13 @@ static struct s3c_sdhci_platdata nuri_hsmmc0_data __initdata = {
 	.max_width		= 8,
 	.host_caps		= (MMC_CAP_8_BIT_DATA | MMC_CAP_4_BIT_DATA |
 				MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
-				MMC_CAP_DISABLE | MMC_CAP_ERASE),
+				MMC_CAP_ERASE),
 	.cd_type		= S3C_SDHCI_CD_PERMANENT,
 	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
 };
 
 static struct regulator_consumer_supply emmc_supplies[] = {
-	REGULATOR_SUPPLY("vmmc", "s3c-sdhci.0"),
+	REGULATOR_SUPPLY("vmmc", "exynos4-sdhci.0"),
 	REGULATOR_SUPPLY("vmmc", "dw_mmc"),
 };
 
@@ -148,8 +150,7 @@ static struct platform_device emmc_fixed_voltage = {
 static struct s3c_sdhci_platdata nuri_hsmmc2_data __initdata = {
 	.max_width		= 4,
 	.host_caps		= MMC_CAP_4_BIT_DATA |
-				MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
-				MMC_CAP_DISABLE,
+				MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
 	.ext_cd_gpio		= EXYNOS4_GPX3(3),	/* XEINT_27 */
 	.ext_cd_gpio_invert	= 1,
 	.cd_type		= S3C_SDHCI_CD_GPIO,
@@ -306,49 +307,7 @@ static struct i2c_board_info i2c1_devs[] __initdata = {
 };
 
 /* TSP */
-static u8 mxt_init_vals[] = {
-	/* MXT_GEN_COMMAND(6) */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	/* MXT_GEN_POWER(7) */
-	0x20, 0xff, 0x32,
-	/* MXT_GEN_ACQUIRE(8) */
-	0x0a, 0x00, 0x05, 0x00, 0x00, 0x00, 0x09, 0x23,
-	/* MXT_TOUCH_MULTI(9) */
-	0x00, 0x00, 0x00, 0x13, 0x0b, 0x00, 0x00, 0x00, 0x02, 0x00,
-	0x00, 0x01, 0x01, 0x0e, 0x0a, 0x0a, 0x0a, 0x0a, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00,
-	/* MXT_TOUCH_KEYARRAY(15) */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
-	0x00,
-	/* MXT_SPT_GPIOPWM(19) */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	/* MXT_PROCI_GRIPFACE(20) */
-	0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x50, 0x28, 0x04,
-	0x0f, 0x0a,
-	/* MXT_PROCG_NOISE(22) */
-	0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x23, 0x00,
-	0x00, 0x05, 0x0f, 0x19, 0x23, 0x2d, 0x03,
-	/* MXT_TOUCH_PROXIMITY(23) */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00,
-	/* MXT_PROCI_ONETOUCH(24) */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	/* MXT_SPT_SELFTEST(25) */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00,
-	/* MXT_PROCI_TWOTOUCH(27) */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	/* MXT_SPT_CTECONFIG(28) */
-	0x00, 0x00, 0x02, 0x08, 0x10, 0x00,
-};
-
 static struct mxt_platform_data mxt_platform_data = {
-	.config			= mxt_init_vals,
-	.config_length		= ARRAY_SIZE(mxt_init_vals),
-
 	.x_line			= 18,
 	.y_line			= 11,
 	.x_size			= 1024,
@@ -399,6 +358,9 @@ static struct regulator_consumer_supply __initdata max8997_ldo4_[] = {
 static struct regulator_consumer_supply __initdata max8997_ldo5_[] = {
 	REGULATOR_SUPPLY("vhsic", "modemctl"), /* MODEM */
 };
+static struct regulator_consumer_supply nuri_max8997_ldo6_consumer[] = {
+	REGULATOR_SUPPLY("vdd_reg", "6-003c"), /* S5K6AA camera */
+};
 static struct regulator_consumer_supply __initdata max8997_ldo7_[] = {
 	REGULATOR_SUPPLY("dig_18", "0-001f"), /* HCD803 */
 };
@@ -413,7 +375,7 @@ static struct regulator_consumer_supply __initdata max8997_ldo12_[] = {
 	REGULATOR_SUPPLY("vddio", "6-003c"), /* HDC802 */
 };
 static struct regulator_consumer_supply __initdata max8997_ldo13_[] = {
-	REGULATOR_SUPPLY("vmmc", "s3c-sdhci.2"), /* TFLASH */
+	REGULATOR_SUPPLY("vmmc", "exynos4-sdhci.2"), /* TFLASH */
 };
 static struct regulator_consumer_supply __initdata max8997_ldo14_[] = {
 	REGULATOR_SUPPLY("inmotor", "max8997-haptic"),
@@ -431,7 +393,7 @@ static struct regulator_consumer_supply __initdata max8997_buck1_[] = {
 	REGULATOR_SUPPLY("vdd_arm", NULL), /* CPUFREQ */
 };
 static struct regulator_consumer_supply __initdata max8997_buck2_[] = {
-	REGULATOR_SUPPLY("vdd_int", NULL), /* CPUFREQ */
+	REGULATOR_SUPPLY("vdd_int", "exynos4210-busfreq.0"), /* CPUFREQ */
 };
 static struct regulator_consumer_supply __initdata max8997_buck3_[] = {
 	REGULATOR_SUPPLY("vdd", "mali_dev.0"), /* G3D of Exynos 4 */
@@ -546,6 +508,8 @@ static struct regulator_init_data __initdata max8997_ldo6_data = {
 			.enabled	= 1,
 		},
 	},
+	.num_consumer_supplies	= ARRAY_SIZE(nuri_max8997_ldo6_consumer),
+	.consumer_supplies	= nuri_max8997_ldo6_consumer,
 };
 
 static struct regulator_init_data __initdata max8997_ldo7_data = {
@@ -565,7 +529,7 @@ static struct regulator_init_data __initdata max8997_ldo7_data = {
 
 static struct regulator_init_data __initdata max8997_ldo8_data = {
 	.constraints	= {
-		.name		= "VUSB/VDAC_3.3V_C210",
+		.name		= "VUSB+VDAC_3.3V_C210",
 		.min_uV		= 3300000,
 		.max_uV		= 3300000,
 		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
@@ -742,7 +706,7 @@ static struct regulator_init_data __initdata max8997_buck2_data = {
 	.constraints	= {
 		.name		= "VINT_1.1V_C210",
 		.min_uV		= 900000,
-		.max_uV		= 1100000,
+		.max_uV		= 1200000,
 		.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE,
 		.always_on	= 1,
 		.state_mem	= {
@@ -957,7 +921,6 @@ static struct max8997_platform_data __initdata nuri_max8997_pdata = {
 	.regulators		= nuri_max8997_regulators,
 
 	.buck125_gpios = { EXYNOS4_GPX0(5), EXYNOS4_GPX0(6), EXYNOS4_GPL0(0) },
-	.buck2_gpiodvs = true,
 
 	.buck1_voltage[0] = 1350000, /* 1.35V */
 	.buck1_voltage[1] = 1300000, /* 1.3V */
@@ -1116,7 +1079,30 @@ static void __init nuri_ehci_init(void)
 }
 
 /* CAMERA */
+static struct regulator_consumer_supply cam_vt_cam15_supply =
+	REGULATOR_SUPPLY("vdd_core", "6-003c");
+
+static struct regulator_init_data cam_vt_cam15_reg_init_data = {
+	.constraints = { .valid_ops_mask = REGULATOR_CHANGE_STATUS },
+	.num_consumer_supplies = 1,
+	.consumer_supplies = &cam_vt_cam15_supply,
+};
+
+static struct fixed_voltage_config cam_vt_cam15_fixed_voltage_cfg = {
+	.supply_name	= "VT_CAM_1.5V",
+	.microvolts	= 1500000,
+	.gpio		= EXYNOS4_GPE2(2), /* VT_CAM_1.5V_EN */
+	.enable_high	= 1,
+	.init_data	= &cam_vt_cam15_reg_init_data,
+};
+
+static struct platform_device cam_vt_cam15_fixed_rdev = {
+	.name = "reg-fixed-voltage", .id = FIXED_REG_ID_CAM_VT_15V,
+	.dev = { .platform_data	= &cam_vt_cam15_fixed_voltage_cfg },
+};
+
 static struct regulator_consumer_supply cam_vdda_supply[] = {
+	REGULATOR_SUPPLY("vdda", "6-003c"),
 	REGULATOR_SUPPLY("a_sensor", "0-001f"),
 };
 
@@ -1173,6 +1159,21 @@ static struct s5p_platform_mipi_csis mipi_csis_platdata = {
 
 #define GPIO_CAM_MEGA_RST	EXYNOS4_GPY3(7) /* ISP_RESET */
 #define GPIO_CAM_8M_ISP_INT	EXYNOS4_GPL2(5)
+#define GPIO_CAM_VT_NSTBY	EXYNOS4_GPL2(0)
+#define GPIO_CAM_VT_NRST	EXYNOS4_GPL2(1)
+
+static struct s5k6aa_platform_data s5k6aa_pldata = {
+	.mclk_frequency	= 24000000UL,
+	.gpio_reset	= { GPIO_CAM_VT_NRST, 0 },
+	.gpio_stby	= { GPIO_CAM_VT_NSTBY, 0 },
+	.bus_type	= V4L2_MBUS_PARALLEL,
+	.horiz_flip	= 1,
+};
+
+static struct i2c_board_info s5k6aa_board_info = {
+	I2C_BOARD_INFO("S5K6AA", 0x3c),
+	.platform_data = &s5k6aa_pldata,
+};
 
 static struct m5mols_platform_data m5mols_platdata = {
 	.gpio_reset = GPIO_CAM_MEGA_RST,
@@ -1185,6 +1186,13 @@ static struct i2c_board_info m5mols_board_info = {
 
 static struct s5p_fimc_isp_info nuri_camera_sensors[] = {
 	{
+		.flags		= V4L2_MBUS_PCLK_SAMPLE_RISING |
+				  V4L2_MBUS_VSYNC_ACTIVE_LOW,
+		.bus_type	= FIMC_ITU_601,
+		.board_info	= &s5k6aa_board_info,
+		.clk_frequency	= 24000000UL,
+		.i2c_bus_num	= 6,
+	}, {
 		.flags		= V4L2_MBUS_PCLK_SAMPLE_FALLING |
 				  V4L2_MBUS_VSYNC_ACTIVE_LOW,
 		.bus_type	= FIMC_MIPI_CSI2,
@@ -1200,11 +1208,13 @@ static struct s5p_platform_fimc fimc_md_platdata = {
 };
 
 static struct gpio nuri_camera_gpios[] = {
+	{ GPIO_CAM_VT_NSTBY,	GPIOF_OUT_INIT_LOW, "CAM_VGA_NSTBY" },
+	{ GPIO_CAM_VT_NRST,	GPIOF_OUT_INIT_LOW, "CAM_VGA_NRST"  },
 	{ GPIO_CAM_8M_ISP_INT,	GPIOF_IN,           "8M_ISP_INT"  },
 	{ GPIO_CAM_MEGA_RST,	GPIOF_OUT_INIT_LOW, "CAM_8M_NRST" },
 };
 
-static void nuri_camera_init(void)
+static void __init nuri_camera_init(void)
 {
 	s3c_set_platdata(&mipi_csis_platdata, sizeof(mipi_csis_platdata),
 			 &s5p_device_mipi_csis0);
@@ -1224,6 +1234,8 @@ static void nuri_camera_init(void)
 		pr_err("%s: Failed to configure 8M_ISP_INT GPIO\n", __func__);
 
 	/* Free GPIOs controlled directly by the sensor drivers. */
+	gpio_free(GPIO_CAM_VT_NRST);
+	gpio_free(GPIO_CAM_VT_NSTBY);
 	gpio_free(GPIO_CAM_MEGA_RST);
 
 	if (exynos4_fimc_setup_gpio(S5P_CAMPORT_A)) {
@@ -1234,15 +1246,27 @@ static void nuri_camera_init(void)
 	s5p_gpio_set_drvstr(EXYNOS4_GPJ1(3), S5P_GPIO_DRVSTR_LV4);
 }
 
+static struct s3c2410_platform_i2c nuri_i2c6_platdata __initdata = {
+	.frequency	= 400000U,
+	.sda_delay	= 200,
+	.bus_num	= 6,
+};
+
 static struct s3c2410_platform_i2c nuri_i2c0_platdata __initdata = {
 	.frequency	= 400000U,
 	.sda_delay	= 200,
+};
+
+/* DEVFREQ controlling memory/bus */
+static struct platform_device exynos4_bus_devfreq = {
+	.name			= "exynos4210-busfreq",
 };
 
 static struct platform_device *nuri_devices[] __initdata = {
 	/* Samsung Platform Devices */
 	&s3c_device_i2c5, /* PMIC should initialize first */
 	&s3c_device_i2c0,
+	&s3c_device_i2c6,
 	&emmc_fixed_voltage,
 	&s5p_device_mipi_csis0,
 	&s5p_device_fimc0,
@@ -1259,13 +1283,12 @@ static struct platform_device *nuri_devices[] __initdata = {
 	&s3c_device_i2c3,
 	&i2c9_gpio,
 	&s3c_device_adc,
+	&s5p_device_g2d,
+	&s5p_device_jpeg,
 	&s3c_device_rtc,
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
-	&exynos4_device_pd[PD_MFC],
-	&exynos4_device_pd[PD_LCD0],
-	&exynos4_device_pd[PD_CAM],
 	&s5p_device_fimc_md,
 
 	/* NURI Devices */
@@ -1274,12 +1297,15 @@ static struct platform_device *nuri_devices[] __initdata = {
 	&nuri_backlight_device,
 	&max8903_fixed_reg_dev,
 	&nuri_max8903_device,
+	&cam_vt_cam15_fixed_rdev,
 	&cam_vdda_fixed_rdev,
 	&cam_8m_12v_fixed_rdev,
+	&exynos4_bus_devfreq,
 };
 
 static void __init nuri_map_io(void)
 {
+	clk_xusbxti.rate = 24000000;
 	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(nuri_uartcfgs, ARRAY_SIZE(nuri_uartcfgs));
@@ -1305,24 +1331,16 @@ static void __init nuri_machine_init(void)
 	i2c_register_board_info(5, i2c5_devs, ARRAY_SIZE(i2c5_devs));
 	i2c9_devs[I2C9_MAX17042].irq = gpio_to_irq(EXYNOS4_GPX2(3));
 	i2c_register_board_info(9, i2c9_devs, ARRAY_SIZE(i2c9_devs));
+	s3c_i2c6_set_platdata(&nuri_i2c6_platdata);
 
 	s5p_fimd0_set_platdata(&nuri_fb_pdata);
 
 	nuri_camera_init();
 
 	nuri_ehci_init();
-	clk_xusbxti.rate = 24000000;
 
 	/* Last */
 	platform_add_devices(nuri_devices, ARRAY_SIZE(nuri_devices));
-	s5p_device_mfc.dev.parent = &exynos4_device_pd[PD_MFC].dev;
-	s5p_device_fimd0.dev.parent = &exynos4_device_pd[PD_LCD0].dev;
-
-	s5p_device_fimc0.dev.parent = &exynos4_device_pd[PD_CAM].dev;
-	s5p_device_fimc1.dev.parent = &exynos4_device_pd[PD_CAM].dev;
-	s5p_device_fimc2.dev.parent = &exynos4_device_pd[PD_CAM].dev;
-	s5p_device_fimc3.dev.parent = &exynos4_device_pd[PD_CAM].dev;
-	s5p_device_mipi_csis0.dev.parent = &exynos4_device_pd[PD_CAM].dev;
 }
 
 MACHINE_START(NURI, "NURI")

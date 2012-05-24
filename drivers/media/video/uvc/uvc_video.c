@@ -468,21 +468,29 @@ uvc_video_clock_decode(struct uvc_streaming *stream, struct uvc_buffer *buf,
 	spin_unlock_irqrestore(&stream->clock.lock, flags);
 }
 
+static void uvc_video_clock_reset(struct uvc_streaming *stream)
+{
+	struct uvc_clock *clock = &stream->clock;
+
+	clock->head = 0;
+	clock->count = 0;
+	clock->last_sof = -1;
+	clock->sof_offset = -1;
+}
+
 static int uvc_video_clock_init(struct uvc_streaming *stream)
 {
 	struct uvc_clock *clock = &stream->clock;
 
 	spin_lock_init(&clock->lock);
-	clock->head = 0;
-	clock->count = 0;
 	clock->size = 32;
-	clock->last_sof = -1;
-	clock->sof_offset = -1;
 
 	clock->samples = kmalloc(clock->size * sizeof(*clock->samples),
 				 GFP_KERNEL);
 	if (clock->samples == NULL)
 		return -ENOMEM;
+
+	uvc_video_clock_reset(stream);
 
 	return 0;
 }
@@ -611,9 +619,11 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 	delta_stc = buf->pts - (1UL << 31);
 	x1 = first->dev_stc - delta_stc;
 	x2 = last->dev_stc - delta_stc;
+	if (x1 == x2)
+		goto done;
+
 	y1 = (first->dev_sof + 2048) << 16;
 	y2 = (last->dev_sof + 2048) << 16;
-
 	if (y2 < y1)
 		y2 += 2048 << 16;
 
@@ -631,14 +641,16 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 		  x1, x2, y1, y2, clock->sof_offset);
 
 	/* Second step, SOF to host clock conversion. */
-	ts = timespec_sub(last->host_ts, first->host_ts);
 	x1 = (uvc_video_clock_host_sof(first) + 2048) << 16;
 	x2 = (uvc_video_clock_host_sof(last) + 2048) << 16;
-	y1 = NSEC_PER_SEC;
-	y2 = (ts.tv_sec + 1) * NSEC_PER_SEC + ts.tv_nsec;
-
 	if (x2 < x1)
 		x2 += 2048 << 16;
+	if (x1 == x2)
+		goto done;
+
+	ts = timespec_sub(last->host_ts, first->host_ts);
+	y1 = NSEC_PER_SEC;
+	y2 = (ts.tv_sec + 1) * NSEC_PER_SEC + ts.tv_nsec;
 
 	/* Interpolated and host SOF timestamps can wrap around at slightly
 	 * different times. Handle this by adding or removing 2048 to or from
@@ -1420,8 +1432,6 @@ static void uvc_uninit_video(struct uvc_streaming *stream, int free_buffers)
 
 	if (free_buffers)
 		uvc_free_urb_buffers(stream);
-
-	uvc_video_clock_cleanup(stream);
 }
 
 /*
@@ -1551,10 +1561,6 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 
 	uvc_video_stats_start(stream);
 
-	ret = uvc_video_clock_init(stream);
-	if (ret < 0)
-		return ret;
-
 	if (intf->num_altsetting > 1) {
 		struct usb_host_endpoint *best_ep = NULL;
 		unsigned int best_psize = 3 * 1024;
@@ -1678,6 +1684,8 @@ int uvc_video_resume(struct uvc_streaming *stream, int reset)
 		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
 
 	stream->frozen = 0;
+
+	uvc_video_clock_reset(stream);
 
 	ret = uvc_commit_video(stream, &stream->ctrl);
 	if (ret < 0) {
@@ -1815,25 +1823,35 @@ int uvc_video_enable(struct uvc_streaming *stream, int enable)
 		uvc_uninit_video(stream, 1);
 		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
 		uvc_queue_enable(&stream->queue, 0);
+		uvc_video_clock_cleanup(stream);
 		return 0;
 	}
 
-	ret = uvc_queue_enable(&stream->queue, 1);
+	ret = uvc_video_clock_init(stream);
 	if (ret < 0)
 		return ret;
 
+	ret = uvc_queue_enable(&stream->queue, 1);
+	if (ret < 0)
+		goto error_queue;
+
 	/* Commit the streaming parameters. */
 	ret = uvc_commit_video(stream, &stream->ctrl);
-	if (ret < 0) {
-		uvc_queue_enable(&stream->queue, 0);
-		return ret;
-	}
+	if (ret < 0)
+		goto error_commit;
 
 	ret = uvc_init_video(stream, GFP_KERNEL);
-	if (ret < 0) {
-		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
-		uvc_queue_enable(&stream->queue, 0);
-	}
+	if (ret < 0)
+		goto error_video;
+
+	return 0;
+
+error_video:
+	usb_set_interface(stream->dev->udev, stream->intfnum, 0);
+error_commit:
+	uvc_queue_enable(&stream->queue, 0);
+error_queue:
+	uvc_video_clock_cleanup(stream);
 
 	return ret;
 }

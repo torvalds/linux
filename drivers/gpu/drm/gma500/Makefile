@@ -37,4 +37,14 @@ gma500_gfx-$(CONFIG_DRM_GMA600) += oaktrail_device.o \
 	  oaktrail_hdmi.o \
 	  oaktrail_hdmi_i2c.o
 
+gma500_gfx-$(CONFIG_DRM_MEDFIELD) += mdfld_device.o \
+	  mdfld_output.o \
+	  mdfld_intel_display.o \
+	  mdfld_dsi_output.o \
+	  mdfld_dsi_dpi.o \
+	  mdfld_dsi_pkg_sender.o \
+	  mdfld_tpo_vid.o \
+	  mdfld_tmd_vid.o \
+	  tc35876x-dsi-lvds.o
+
 obj-$(CONFIG_DRM_GMA500) += gma500_gfx.o

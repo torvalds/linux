@@ -1566,11 +1566,6 @@ extern struct xfrm_algo_desc *xfrm_calg_get_byname(const char *name, int probe);
 extern struct xfrm_algo_desc *xfrm_aead_get_byname(const char *name, int icv_len,
 						   int probe);
 
-struct hash_desc;
-struct scatterlist;
-typedef int (icv_update_fn_t)(struct hash_desc *, struct scatterlist *,
-			      unsigned int);
-
 static inline int xfrm_addr_cmp(const xfrm_address_t *a,
 				const xfrm_address_t *b,
 				int family)

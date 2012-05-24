@@ -1220,7 +1220,5 @@ void zcrypt_api_exit(void)
 	misc_deregister(&zcrypt_misc_device);
 }
 
-#ifndef CONFIG_ZCRYPT_MONOLITHIC
 module_init(zcrypt_api_init);
 module_exit(zcrypt_api_exit);
-#endif

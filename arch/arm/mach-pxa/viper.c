@@ -57,6 +57,7 @@
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
+#include <asm/system_info.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -994,6 +995,7 @@ MACHINE_START(VIPER, "Arcom/Eurotech VIPER SBC")
 	/* Maintainer: Marc Zyngier <maz@misterjones.org> */
 	.atag_offset	= 0x100,
 	.map_io		= viper_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= viper_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
 	.timer          = &pxa_timer,

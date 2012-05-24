@@ -24,9 +24,9 @@
 #include <linux/prefetch.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
-#include <asm/system.h>
 #include <asm/fpu.h>
 #include <asm/syscalls.h>
+#include <asm/switch_to.h>
 
 void show_regs(struct pt_regs * regs)
 {

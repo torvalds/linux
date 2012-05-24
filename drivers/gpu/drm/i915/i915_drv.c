@@ -64,9 +64,13 @@ MODULE_PARM_DESC(semaphores,
 		"Use semaphores for inter-ring sync (default: -1 (use per-chip defaults))");
 
 int i915_enable_rc6 __read_mostly = -1;
-module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
+module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0400);
 MODULE_PARM_DESC(i915_enable_rc6,
-		"Enable power-saving render C-state 6 (default: -1 (use per-chip default)");
+		"Enable power-saving render C-state 6. "
+		"Different stages can be selected via bitmask values "
+		"(0 = disable; 1 = enable rc6; 2 = enable deep rc6; 4 = enable deepest rc6). "
+		"For example, 3 would enable rc6 and deep rc6, and 7 would enable everything. "
+		"default: -1 (use per-chip default)");
 
 int i915_enable_fbc __read_mostly = -1;
 module_param_named(i915_enable_fbc, i915_enable_fbc, int, 0600);
@@ -102,6 +106,11 @@ MODULE_PARM_DESC(enable_hangcheck,
 		"Periodically check GPU activity for detecting hangs. "
 		"WARNING: Disabling this can cause system wide hangs. "
 		"(default: true)");
+
+int i915_enable_ppgtt __read_mostly = -1;
+module_param_named(i915_enable_ppgtt, i915_enable_ppgtt, int, 0600);
+MODULE_PARM_DESC(i915_enable_ppgtt,
+		"Enable PPGTT (default: true)");
 
 static struct drm_driver driver;
 extern int intel_agp_enabled;
@@ -198,7 +207,7 @@ static const struct intel_device_info intel_pineview_info = {
 
 static const struct intel_device_info intel_ironlake_d_info = {
 	.gen = 5,
-	.need_gfx_hws = 1, .has_pipe_cxsr = 1, .has_hotplug = 1,
+	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 };
 
@@ -214,6 +223,7 @@ static const struct intel_device_info intel_sandybridge_d_info = {
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
+	.has_llc = 1,
 };
 
 static const struct intel_device_info intel_sandybridge_m_info = {
@@ -222,6 +232,7 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 	.has_fbc = 1,
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
+	.has_llc = 1,
 };
 
 static const struct intel_device_info intel_ivybridge_d_info = {
@@ -229,6 +240,7 @@ static const struct intel_device_info intel_ivybridge_d_info = {
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
+	.has_llc = 1,
 };
 
 static const struct intel_device_info intel_ivybridge_m_info = {
@@ -237,6 +249,7 @@ static const struct intel_device_info intel_ivybridge_m_info = {
 	.has_fbc = 0,	/* FBC is not enabled on Ivybridge mobile yet */
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
+	.has_llc = 1,
 };
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
@@ -283,6 +296,7 @@ static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_VGA_DEVICE(0x0152, &intel_ivybridge_d_info), /* GT1 desktop */
 	INTEL_VGA_DEVICE(0x0162, &intel_ivybridge_d_info), /* GT2 desktop */
 	INTEL_VGA_DEVICE(0x015a, &intel_ivybridge_d_info), /* GT1 server */
+	INTEL_VGA_DEVICE(0x016a, &intel_ivybridge_d_info), /* GT2 server */
 	{0, 0, 0}
 };
 
@@ -376,16 +390,27 @@ void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
 }
 
+static void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv)
+{
+	u32 gtfifodbg;
+	gtfifodbg = I915_READ_NOTRACE(GTFIFODBG);
+	if (WARN(gtfifodbg & GT_FIFO_CPU_ERROR_MASK,
+	     "MMIO read or write has been dropped %x\n", gtfifodbg))
+		I915_WRITE_NOTRACE(GTFIFODBG, GT_FIFO_CPU_ERROR_MASK);
+}
+
 void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE, 0);
-	POSTING_READ(FORCEWAKE);
+	/* The below doubles as a POSTING_READ */
+	gen6_gt_check_fifodbg(dev_priv);
 }
 
 void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, (1<<16) | 0);
-	POSTING_READ(FORCEWAKE_MT);
+	/* The below doubles as a POSTING_READ */
+	gen6_gt_check_fifodbg(dev_priv);
 }
 
 /*
@@ -401,8 +426,10 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
 }
 
-void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
+int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 {
+	int ret = 0;
+
 	if (dev_priv->gt_fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES) {
 		int loop = 500;
 		u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
@@ -410,10 +437,13 @@ void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 			udelay(10);
 			fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
 		}
-		WARN_ON(loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES);
+		if (WARN_ON(loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES))
+			++ret;
 		dev_priv->gt_fifo_count = fifo;
 	}
 	dev_priv->gt_fifo_count--;
+
+	return ret;
 }
 
 static int i915_drm_freeze(struct drm_device *dev)
@@ -441,6 +471,10 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	/* Modeset on resume, not lid events */
 	dev_priv->modeset_on_lid = 0;
+
+	console_lock();
+	intel_fbdev_set_suspend(dev, 1);
+	console_unlock();
 
 	return 0;
 }
@@ -494,7 +528,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		dev_priv->mm.suspended = 0;
 
-		error = i915_gem_init_ringbuffer(dev);
+		error = i915_gem_init_hw(dev);
 		mutex_unlock(&dev->struct_mutex);
 
 		if (HAS_PCH_SPLIT(dev))
@@ -504,7 +538,9 @@ static int i915_drm_thaw(struct drm_device *dev)
 		drm_irq_install(dev);
 
 		/* Resume the modeset for every activated CRTC */
+		mutex_lock(&dev->mode_config.mutex);
 		drm_helper_resume_force_mode(dev);
+		mutex_unlock(&dev->mode_config.mutex);
 
 		if (IS_IRONLAKE_M(dev))
 			ironlake_enable_rc6(dev);
@@ -514,6 +550,9 @@ static int i915_drm_thaw(struct drm_device *dev)
 
 	dev_priv->modeset_on_lid = 0;
 
+	console_lock();
+	intel_fbdev_set_suspend(dev, 0);
+	console_unlock();
 	return error;
 }
 
@@ -633,7 +672,7 @@ static int gen6_do_reset(struct drm_device *dev, u8 flags)
 }
 
 /**
- * i965_reset - reset chip after a hang
+ * i915_reset - reset chip after a hang
  * @dev: drm device to reset
  * @flags: reset domains
  *
@@ -709,11 +748,15 @@ int i915_reset(struct drm_device *dev, u8 flags)
 			!dev_priv->mm.suspended) {
 		dev_priv->mm.suspended = 0;
 
+		i915_gem_init_swizzling(dev);
+
 		dev_priv->ring[RCS].init(&dev_priv->ring[RCS]);
 		if (HAS_BSD(dev))
 		    dev_priv->ring[VCS].init(&dev_priv->ring[VCS]);
 		if (HAS_BLT(dev))
 		    dev_priv->ring[BCS].init(&dev_priv->ring[BCS]);
+
+		i915_gem_init_ppgtt(dev);
 
 		mutex_unlock(&dev->struct_mutex);
 		drm_irq_uninstall(dev);
@@ -977,11 +1020,15 @@ __i915_read(64, q)
 
 #define __i915_write(x, y) \
 void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
+	u32 __fifo_ret = 0; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val)); \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
-		__gen6_gt_wait_for_fifo(dev_priv); \
+		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
 	write##y(val, dev_priv->regs + reg); \
+	if (unlikely(__fifo_ret)) { \
+		gen6_gt_check_fifodbg(dev_priv); \
+	} \
 }
 __i915_write(8, b)
 __i915_write(16, w)

@@ -55,6 +55,7 @@ comment "Watchdog Device Drivers"
 
 config SOFT_WATCHDOG
 	tristate "Software watchdog"
+	select WATCHDOG_CORE
 	help
 	  A software monitoring watchdog. This will fail to reboot your system
 	  from some situations that the hardware watchdog will recover
@@ -74,6 +75,7 @@ config WM831X_WATCHDOG
 config WM8350_WATCHDOG
 	tristate "WM8350 watchdog"
 	depends on MFD_WM8350
+	select WATCHDOG_CORE
 	help
 	  Support for the watchdog in the WM8350 AudioPlus PMIC.  When
 	  the watchdog triggers the system will be reset.
@@ -170,7 +172,7 @@ config HAVE_S3C2410_WATCHDOG
 
 config S3C2410_WATCHDOG
 	tristate "S3C2410 Watchdog"
-	depends on ARCH_S3C2410 || HAVE_S3C2410_WATCHDOG
+	depends on HAVE_S3C2410_WATCHDOG
 	select WATCHDOG_CORE
 	help
 	  Watchdog timer block in the Samsung SoCs. This will reboot
@@ -217,6 +219,7 @@ config MPCORE_WATCHDOG
 config EP93XX_WATCHDOG
 	tristate "EP93xx Watchdog"
 	depends on ARCH_EP93XX
+	select WATCHDOG_CORE
 	help
 	  Say Y here if to include support for the watchdog timer
 	  embedded in the Cirrus Logic EP93xx family of devices.
@@ -234,6 +237,7 @@ config OMAP_WATCHDOG
 config PNX4008_WATCHDOG
 	tristate "PNX4008 and LPC32XX Watchdog"
 	depends on ARCH_PNX4008 || ARCH_LPC32XX
+	select WATCHDOG_CORE
 	help
 	  Say Y here if to include support for the watchdog timer
 	  in the PNX4008 or LPC32XX processor.
@@ -283,6 +287,7 @@ config COH901327_WATCHDOG
 	bool "ST-Ericsson COH 901 327 watchdog"
 	depends on ARCH_U300
 	default y if MACH_U300
+	select WATCHDOG_CORE
 	help
 	  Say Y here to include Watchdog timer support for the
 	  watchdog embedded into the ST-Ericsson U300 series platforms.
@@ -328,6 +333,7 @@ config TS72XX_WATCHDOG
 config MAX63XX_WATCHDOG
 	tristate "Max63xx watchdog"
 	depends on ARM && HAS_IOMEM
+	select WATCHDOG_CORE
 	help
 	  Support for memory mapped max63{69,70,71,72,73,74} watchdog timer.
 
@@ -955,6 +961,7 @@ config INDYDOG
 config JZ4740_WDT
 	tristate "Ingenic jz4740 SoC hardware watchdog"
 	depends on MACH_JZ4740
+	select WATCHDOG_CORE
 	help
 	  Hardware driver for the built-in watchdog timer on Ingenic jz4740 SoCs.
 
@@ -996,6 +1003,7 @@ config AR7_WDT
 config TXX9_WDT
 	tristate "Toshiba TXx9 Watchdog Timer"
 	depends on CPU_TX39XX || CPU_TX49XX
+	select WATCHDOG_CORE
 	help
 	  Hardware driver for the built-in watchdog timer on TXx9 MIPS SoCs.
 
@@ -1039,7 +1047,7 @@ config LANTIQ_WDT
 
 config GEF_WDT
 	tristate "GE Watchdog Timer"
-	depends on GEF_SBC610 || GEF_SBC310 || GEF_PPC9A
+	depends on GE_FPGA
 	---help---
 	  Watchdog timer found in a number of GE single board computers.
 

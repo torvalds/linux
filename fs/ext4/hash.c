@@ -200,8 +200,8 @@ int ext4fs_dirhash(const char *name, int len, struct dx_hash_info *hinfo)
 		return -1;
 	}
 	hash = hash & ~1;
-	if (hash == (EXT4_HTREE_EOF << 1))
-		hash = (EXT4_HTREE_EOF-1) << 1;
+	if (hash == (EXT4_HTREE_EOF_32BIT << 1))
+		hash = (EXT4_HTREE_EOF_32BIT - 1) << 1;
 	hinfo->hash = hash;
 	hinfo->minor_hash = minor_hash;
 	return 0;

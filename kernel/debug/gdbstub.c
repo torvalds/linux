@@ -1111,6 +1111,13 @@ void gdbstub_exit(int status)
 	unsigned char checksum, ch, buffer[3];
 	int loop;
 
+	if (!kgdb_connected)
+		return;
+	kgdb_connected = 0;
+
+	if (!dbg_io_ops || dbg_kdb_mode)
+		return;
+
 	buffer[0] = 'W';
 	buffer[1] = hex_asc_hi(status);
 	buffer[2] = hex_asc_lo(status);
@@ -1129,5 +1136,6 @@ void gdbstub_exit(int status)
 	dbg_io_ops->write_char(hex_asc_lo(checksum));
 
 	/* make sure the output is flushed, lest the bootloader clobber it */
-	dbg_io_ops->flush();
+	if (dbg_io_ops->flush)
+		dbg_io_ops->flush();
 }

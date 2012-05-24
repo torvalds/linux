@@ -20,6 +20,7 @@
  */
 #define SD_MAX_RETRIES		5
 #define SD_PASSTHROUGH_RETRIES	1
+#define SD_MAX_MEDIUM_TIMEOUTS	2
 
 /*
  * Size of the initial data buffer for mode and read capacity data
@@ -59,6 +60,8 @@ struct scsi_disk {
 	u32		unmap_alignment;
 	u32		index;
 	unsigned int	physical_block_size;
+	unsigned int	max_medium_access_timeouts;
+	unsigned int	medium_access_timed_out;
 	u8		media_present;
 	u8		write_prot;
 	u8		protection_type;/* Data Integrity Field */
@@ -87,6 +90,38 @@ static inline struct scsi_disk *scsi_disk(struct gendisk *disk)
 	sdev_printk(prefix, (sdsk)->device, "[%s] " fmt,		\
 		    (sdsk)->disk->disk_name, ##a) :			\
 	sdev_printk(prefix, (sdsk)->device, fmt, ##a)
+
+static inline int scsi_medium_access_command(struct scsi_cmnd *scmd)
+{
+	switch (scmd->cmnd[0]) {
+	case READ_6:
+	case READ_10:
+	case READ_12:
+	case READ_16:
+	case SYNCHRONIZE_CACHE:
+	case VERIFY:
+	case VERIFY_12:
+	case VERIFY_16:
+	case WRITE_6:
+	case WRITE_10:
+	case WRITE_12:
+	case WRITE_16:
+	case WRITE_SAME:
+	case WRITE_SAME_16:
+	case UNMAP:
+		return 1;
+	case VARIABLE_LENGTH_CMD:
+		switch (scmd->cmnd[9]) {
+		case READ_32:
+		case VERIFY_32:
+		case WRITE_32:
+		case WRITE_SAME_32:
+			return 1;
+		}
+	}
+
+	return 0;
+}
 
 /*
  * A DIF-capable target device can be formatted with different

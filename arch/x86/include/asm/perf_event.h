@@ -23,6 +23,7 @@
 #define ARCH_PERFMON_EVENTSEL_USR			(1ULL << 16)
 #define ARCH_PERFMON_EVENTSEL_OS			(1ULL << 17)
 #define ARCH_PERFMON_EVENTSEL_EDGE			(1ULL << 18)
+#define ARCH_PERFMON_EVENTSEL_PIN_CONTROL		(1ULL << 19)
 #define ARCH_PERFMON_EVENTSEL_INT			(1ULL << 20)
 #define ARCH_PERFMON_EVENTSEL_ANY			(1ULL << 21)
 #define ARCH_PERFMON_EVENTSEL_ENABLE			(1ULL << 22)
@@ -187,8 +188,6 @@ extern u32 get_ibs_caps(void);
 
 #ifdef CONFIG_PERF_EVENTS
 extern void perf_events_lapic_init(void);
-
-#define PERF_EVENT_INDEX_OFFSET			0
 
 /*
  * Abuse bit 3 of the cpu eflags register to indicate proper PEBS IP fixups.

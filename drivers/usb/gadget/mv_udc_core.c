@@ -34,7 +34,6 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/platform_data/mv_usb.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #include "mv_udc.h"
@@ -608,6 +607,7 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 	nuke(ep, -ESHUTDOWN);
 
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	ep->stopped = 1;
 
 	spin_unlock_irqrestore(&udc->lock, flags);
@@ -771,8 +771,7 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		udc->ep0_state = DATA_STATE_XMIT;
 
 	/* irq handler advances the queue */
-	if (req != NULL)
-		list_add_tail(&req->queue, &ep->queue);
+	list_add_tail(&req->queue, &ep->queue);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	return 0;
@@ -1384,7 +1383,8 @@ static int mv_udc_start(struct usb_gadget_driver *driver,
 	}
 
 	if (udc->transceiver) {
-		retval = otg_set_peripheral(udc->transceiver, &udc->gadget);
+		retval = otg_set_peripheral(udc->transceiver->otg,
+					&udc->gadget);
 		if (retval) {
 			dev_err(&udc->dev->dev,
 				"unable to register peripheral to otg\n");
@@ -2181,7 +2181,7 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 
 #ifdef CONFIG_USB_OTG_UTILS
 	if (pdata->mode == MV_USB_MODE_OTG)
-		udc->transceiver = otg_get_transceiver();
+		udc->transceiver = usb_get_transceiver();
 #endif
 
 	udc->clknum = pdata->clknum;

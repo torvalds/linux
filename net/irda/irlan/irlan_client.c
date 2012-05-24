@@ -37,7 +37,6 @@
 #include <linux/bitops.h>
 #include <net/arp.h>
 
-#include <asm/system.h>
 #include <asm/byteorder.h>
 
 #include <net/irda/irda.h>

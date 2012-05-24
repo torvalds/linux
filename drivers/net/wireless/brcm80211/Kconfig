@@ -26,16 +26,25 @@ config BRCMFMAC
 	  it'll be called brcmfmac.ko.
 
 config BRCMFMAC_SDIO
-	bool "SDIO bus interface support for FullMAC"
+	bool "SDIO bus interface support for FullMAC driver"
 	depends on MMC
 	depends on BRCMFMAC
 	select FW_LOADER
 	default y
 	---help---
 	  This option enables the SDIO bus interface support for Broadcom
-	  FullMAC WLAN driver.
-	  Say Y if you want to use brcmfmac for a compatible SDIO interface
-	  wireless card.
+	  IEEE802.11n embedded FullMAC WLAN driver. Say Y if you want to
+	  use the driver for a SDIO wireless card.
+
+config BRCMFMAC_USB
+	bool "USB bus interface support for FullMAC driver"
+	depends on USB
+	depends on BRCMFMAC
+	select FW_LOADER
+	---help---
+	  This option enables the USB bus interface support for Broadcom
+	  IEEE802.11n embedded FullMAC WLAN driver. Say Y if you want to
+	  use the driver for an USB wireless card.
 
 config BRCMDBG
 	bool "Broadcom driver debug functions"

@@ -245,6 +245,12 @@ config BACKLIGHT_DA903X
 	  If you have a LCD backlight connected to the WLED output of DA9030
 	  or DA9034 WLED output, say Y here to enable this driver.
 
+config BACKLIGHT_DA9052
+	tristate "Dialog DA9052/DA9053 WLED"
+	depends on PMIC_DA9052
+	help
+	  Enable the Backlight Driver for DA9052-BC and DA9053-AA/Bx PMICs.
+
 config BACKLIGHT_MAX8925
 	tristate "Backlight driver for MAX8925"
 	depends on MFD_MAX8925
@@ -332,6 +338,27 @@ config BACKLIGHT_AAT2870
 	depends on BACKLIGHT_CLASS_DEVICE && MFD_AAT2870_CORE
 	help
 	  If you have a AnalogicTech AAT2870 say Y to enable the
+	  backlight driver.
+
+config BACKLIGHT_LP855X
+	tristate "Backlight driver for TI LP855X"
+	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	help
+	  This supports TI LP8550, LP8551, LP8552, LP8553 and LP8556
+	  backlight driver.
+
+config BACKLIGHT_OT200
+	tristate "Backlight driver for ot200 visualisation device"
+	depends on BACKLIGHT_CLASS_DEVICE && CS5535_MFGPT && GPIO_CS5535
+	help
+	  To compile this driver as a module, choose M here: the module will be
+	  called ot200_bl.
+
+config BACKLIGHT_PANDORA
+	tristate "Backlight driver for Pandora console"
+	depends on TWL4030_CORE
+	help
+	  If you have a Pandora console, say Y to enable the
 	  backlight driver.
 
 endif # BACKLIGHT_CLASS_DEVICE

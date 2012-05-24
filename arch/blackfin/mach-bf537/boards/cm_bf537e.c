@@ -813,9 +813,8 @@ void __init native_machine_early_platform_add_devices(void)
 		ARRAY_SIZE(cm_bf537e_early_devices));
 }
 
-void bfin_get_ether_addr(char *addr)
+int bfin_get_ether_addr(char *addr)
 {
-	random_ether_addr(addr);
-	printk(KERN_WARNING "%s:%s: Setting Ethernet MAC to a random one\n", __FILE__, __func__);
+	return 1;
 }
 EXPORT_SYMBOL(bfin_get_ether_addr);

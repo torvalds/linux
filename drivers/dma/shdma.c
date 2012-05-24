@@ -30,6 +30,8 @@
 #include <linux/kdebug.h>
 #include <linux/spinlock.h>
 #include <linux/rculist.h>
+
+#include "dmaengine.h"
 #include "shdma.h"
 
 /* DMA descriptor control */
@@ -296,13 +298,7 @@ static dma_cookie_t sh_dmae_tx_submit(struct dma_async_tx_descriptor *tx)
 	else
 		power_up = false;
 
-	cookie = sh_chan->common.cookie;
-	cookie++;
-	if (cookie < 0)
-		cookie = 1;
-
-	sh_chan->common.cookie = cookie;
-	tx->cookie = cookie;
+	cookie = dma_cookie_assign(tx);
 
 	/* Mark all chunks of this descriptor as submitted, move to the queue */
 	list_for_each_entry_safe(chunk, c, desc->node.prev, node) {
@@ -673,7 +669,8 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_memcpy(
 
 static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 	struct dma_chan *chan, struct scatterlist *sgl, unsigned int sg_len,
-	enum dma_transfer_direction direction, unsigned long flags)
+	enum dma_transfer_direction direction, unsigned long flags,
+	void *context)
 {
 	struct sh_dmae_slave *param;
 	struct sh_dmae_chan *sh_chan;
@@ -764,12 +761,12 @@ static dma_async_tx_callback __ld_cleanup(struct sh_dmae_chan *sh_chan, bool all
 			cookie = tx->cookie;
 
 		if (desc->mark == DESC_COMPLETED && desc->chunks == 1) {
-			if (sh_chan->completed_cookie != desc->cookie - 1)
+			if (sh_chan->common.completed_cookie != desc->cookie - 1)
 				dev_dbg(sh_chan->dev,
 					"Completing cookie %d, expected %d\n",
 					desc->cookie,
-					sh_chan->completed_cookie + 1);
-			sh_chan->completed_cookie = desc->cookie;
+					sh_chan->common.completed_cookie + 1);
+			sh_chan->common.completed_cookie = desc->cookie;
 		}
 
 		/* Call callback on the last chunk */
@@ -823,7 +820,7 @@ static dma_async_tx_callback __ld_cleanup(struct sh_dmae_chan *sh_chan, bool all
 		 * Terminating and the loop completed normally: forgive
 		 * uncompleted cookies
 		 */
-		sh_chan->completed_cookie = sh_chan->common.cookie;
+		sh_chan->common.completed_cookie = sh_chan->common.cookie;
 
 	spin_unlock_irqrestore(&sh_chan->desc_lock, flags);
 
@@ -883,23 +880,14 @@ static enum dma_status sh_dmae_tx_status(struct dma_chan *chan,
 					struct dma_tx_state *txstate)
 {
 	struct sh_dmae_chan *sh_chan = to_sh_chan(chan);
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
 	enum dma_status status;
 	unsigned long flags;
 
 	sh_dmae_chan_ld_cleanup(sh_chan, false);
 
-	/* First read completed cookie to avoid a skew */
-	last_complete = sh_chan->completed_cookie;
-	rmb();
-	last_used = chan->cookie;
-	BUG_ON(last_complete < 0);
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-
 	spin_lock_irqsave(&sh_chan->desc_lock, flags);
 
-	status = dma_async_is_complete(cookie, last_complete, last_used);
+	status = dma_cookie_status(chan, cookie, txstate);
 
 	/*
 	 * If we don't find cookie on the queue, it has been aborted and we have
@@ -1102,6 +1090,7 @@ static int __devinit sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 
 	/* reference struct dma_device */
 	new_sh_chan->common.device = &shdev->common;
+	dma_cookie_init(&new_sh_chan->common);
 
 	new_sh_chan->dev = shdev->common.dev;
 	new_sh_chan->id = id;

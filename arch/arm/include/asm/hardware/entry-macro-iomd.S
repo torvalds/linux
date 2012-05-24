@@ -11,14 +11,6 @@
 /* IOC / IOMD based hardware */
 #include <asm/hardware/iomd.h>
 
-		.macro	disable_fiq
-		mov	r12, #ioc_base_high
-		.if	ioc_base_low
-		orr	r12, r12, #ioc_base_low
-		.endif
-		strb	r12, [r12, #0x38]	@ Disable FIQ register
-		.endm
-
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
 		ldrb	\irqstat, [\base, #IOMD_IRQREQB]	@ get high priority first
 		ldr	\tmp, =irq_prio_h

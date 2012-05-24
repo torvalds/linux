@@ -660,7 +660,7 @@ static void __attach_bond_to_agg(struct port *port)
 static void __detach_bond_from_agg(struct port *port)
 {
 	port = NULL; /* just to satisfy the compiler */
-	// This function does nothing sience the parser/multiplexer of the receive
+	// This function does nothing since the parser/multiplexer of the receive
 	// and the parser/multiplexer of the aggregator are already combined
 }
 

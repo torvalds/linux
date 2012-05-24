@@ -53,7 +53,6 @@ static const char version2[] =
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 
 #include "8390.h"

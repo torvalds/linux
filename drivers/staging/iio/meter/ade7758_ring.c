@@ -85,7 +85,7 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 /**
  * ade7758_ring_preenable() setup the parameters of the ring before enabling
  *
- * The complex nature of the setting of the nuber of bytes per datum is due
+ * The complex nature of the setting of the number of bytes per datum is due
  * to this driver currently ensuring that the timestamp is stored at an 8
  * byte boundary.
  **/
@@ -144,8 +144,6 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 		return ret;
 	}
 
-	/* Effectively select the ring buffer implementation */
-	indio_dev->buffer->access = &ring_sw_access_funcs;
 	indio_dev->setup_ops = &ade7758_ring_setup_ops;
 
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,

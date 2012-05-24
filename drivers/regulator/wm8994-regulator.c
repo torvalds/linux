@@ -241,7 +241,7 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENODEV;
 
-	ldo = kzalloc(sizeof(struct wm8994_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm8994_ldo), GFP_KERNEL);
 	if (ldo == NULL) {
 		dev_err(&pdev->dev, "Unable to allocate private data\n");
 		return -ENOMEM;
@@ -285,7 +285,6 @@ err_gpio:
 	if (gpio_is_valid(ldo->enable))
 		gpio_free(ldo->enable);
 err:
-	kfree(ldo);
 	return ret;
 }
 
@@ -298,7 +297,6 @@ static __devexit int wm8994_ldo_remove(struct platform_device *pdev)
 	regulator_unregister(ldo->regulator);
 	if (gpio_is_valid(ldo->enable))
 		gpio_free(ldo->enable);
-	kfree(ldo);
 
 	return 0;
 }

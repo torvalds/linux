@@ -5,7 +5,6 @@
 
 ROOT_IMG	:= /usr/src/root.img
 ELFTOAOUT	:= elftoaout
-MKIMAGE 	:= $(srctree)/scripts/mkuboot.sh
 
 hostprogs-y	:= piggyback btfixupprep
 targets		:= tftpboot.img btfix.o btfix.S image zImage vmlinux.aout
@@ -92,11 +91,9 @@ $(obj)/image.bin: $(obj)/image FORCE
 $(obj)/image.gz: $(obj)/image.bin
 	$(call if_changed,gzip)
 
-quiet_cmd_uimage = UIMAGE  $@
-      cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A sparc -O linux -T kernel \
-               -C gzip -a $(CONFIG_UBOOT_LOAD_ADDR) \
-	       -e $(CONFIG_UBOOT_ENTRY_ADDR) -n 'Linux-$(KERNELRELEASE)' \
-               -d $< $@
+UIMAGE_LOADADDR = $(CONFIG_UBOOT_LOAD_ADDR)
+UIMAGE_ENTRYADDR = $(CONFIG_UBOOT_ENTRY_ADDR)
+UIMAGE_COMPRESSION = gzip
 
 quiet_cmd_uimage.o = UIMAGE.O $@
       cmd_uimage.o = $(LD) -Tdata $(CONFIG_UBOOT_FLASH_ADDR) \

@@ -121,30 +121,6 @@ static const u8 aic3x_reg[AIC3X_CACHEREGNUM] = {
 	0x00, 0x00, 0x02,	/* 100 */
 };
 
-/*
- * read from the aic3x register space. Only use for this function is if
- * wanting to read volatile bits from those registers that has both read-only
- * and read/write bits. All other cases should use snd_soc_read.
- */
-static int aic3x_read(struct snd_soc_codec *codec, unsigned int reg,
-		      u8 *value)
-{
-	u8 *cache = codec->reg_cache;
-
-	if (codec->cache_only)
-		return -EINVAL;
-	if (reg >= AIC3X_CACHEREGNUM)
-		return -1;
-
-	codec->cache_bypass = 1;
-	*value = snd_soc_read(codec, reg);
-	codec->cache_bypass = 0;
-
-	cache[reg] = *value;
-
-	return 0;
-}
-
 #define SOC_DAPM_SINGLE_AIC3X(xname, reg, shift, mask, invert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_volsw, \
@@ -1185,25 +1161,6 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-void aic3x_set_gpio(struct snd_soc_codec *codec, int gpio, int state)
-{
-	u8 reg = gpio ? AIC3X_GPIO2_REG : AIC3X_GPIO1_REG;
-	u8 bit = gpio ? 3: 0;
-	u8 val = snd_soc_read(codec, reg) & ~(1 << bit);
-	snd_soc_write(codec, reg, val | (!!state << bit));
-}
-EXPORT_SYMBOL_GPL(aic3x_set_gpio);
-
-int aic3x_get_gpio(struct snd_soc_codec *codec, int gpio)
-{
-	u8 reg = gpio ? AIC3X_GPIO2_REG : AIC3X_GPIO1_REG;
-	u8 val = 0, bit = gpio ? 2 : 1;
-
-	aic3x_read(codec, reg, &val);
-	return (val >> bit) & 1;
-}
-EXPORT_SYMBOL_GPL(aic3x_get_gpio);
-
 void aic3x_set_headset_detection(struct snd_soc_codec *codec, int detect,
 				 int headset_debounce, int button_debounce)
 {
@@ -1221,23 +1178,6 @@ void aic3x_set_headset_detection(struct snd_soc_codec *codec, int detect,
 
 	snd_soc_write(codec, AIC3X_HEADSET_DETECT_CTRL_A, val);
 }
-EXPORT_SYMBOL_GPL(aic3x_set_headset_detection);
-
-int aic3x_headset_detected(struct snd_soc_codec *codec)
-{
-	u8 val = 0;
-	aic3x_read(codec, AIC3X_HEADSET_DETECT_CTRL_B, &val);
-	return (val >> 4) & 1;
-}
-EXPORT_SYMBOL_GPL(aic3x_headset_detected);
-
-int aic3x_button_pressed(struct snd_soc_codec *codec)
-{
-	u8 val = 0;
-	aic3x_read(codec, AIC3X_HEADSET_DETECT_CTRL_B, &val);
-	return (val >> 5) & 1;
-}
-EXPORT_SYMBOL_GPL(aic3x_button_pressed);
 
 #define AIC3X_RATES	SNDRV_PCM_RATE_8000_96000
 #define AIC3X_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
@@ -1377,7 +1317,6 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 
 	INIT_LIST_HEAD(&aic3x->list);
 	aic3x->codec = codec;
-	codec->dapm.idle_bias_off = 1;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, aic3x->control_type);
 	if (ret != 0) {
@@ -1426,10 +1365,10 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 			      (aic3x->setup->gpio_func[1] & 0xf) << 4);
 	}
 
-	snd_soc_add_controls(codec, aic3x_snd_controls,
+	snd_soc_add_codec_controls(codec, aic3x_snd_controls,
 			     ARRAY_SIZE(aic3x_snd_controls));
 	if (aic3x->model == AIC3X_MODEL_3007)
-		snd_soc_add_controls(codec, &aic3x_classd_amp_gain_ctrl, 1);
+		snd_soc_add_codec_controls(codec, &aic3x_classd_amp_gain_ctrl, 1);
 
 	aic3x_add_widgets(codec);
 	list_add(&aic3x->list, &reset_list);
@@ -1471,6 +1410,7 @@ static int aic3x_remove(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_dev_aic3x = {
 	.set_bias_level = aic3x_set_bias_level,
+	.idle_bias_off = true,
 	.reg_cache_size = ARRAY_SIZE(aic3x_reg),
 	.reg_word_size = sizeof(u8),
 	.reg_cache_default = aic3x_reg,

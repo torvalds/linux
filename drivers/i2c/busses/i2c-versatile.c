@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/of_i2c.h>
 
 #define I2C_CONTROL	0x00
 #define I2C_CONTROLS	0x00
@@ -99,6 +100,7 @@ static int i2c_versatile_probe(struct platform_device *dev)
 	strlcpy(i2c->adap.name, "Versatile I2C adapter", sizeof(i2c->adap.name));
 	i2c->adap.algo_data = &i2c->algo;
 	i2c->adap.dev.parent = &dev->dev;
+	i2c->adap.dev.of_node = dev->dev.of_node;
 	i2c->algo = i2c_versatile_algo;
 	i2c->algo.data = i2c;
 
@@ -111,6 +113,7 @@ static int i2c_versatile_probe(struct platform_device *dev)
 		ret = i2c_bit_add_bus(&i2c->adap);
 	if (ret >= 0) {
 		platform_set_drvdata(dev, i2c);
+		of_i2c_register_devices(&i2c->adap);
 		return 0;
 	}
 
@@ -133,12 +136,19 @@ static int i2c_versatile_remove(struct platform_device *dev)
 	return 0;
 }
 
+static const struct of_device_id i2c_versatile_match[] = {
+	{ .compatible = "arm,versatile-i2c", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, i2c_versatile_match);
+
 static struct platform_driver i2c_versatile_driver = {
 	.probe		= i2c_versatile_probe,
 	.remove		= i2c_versatile_remove,
 	.driver		= {
 		.name	= "versatile-i2c",
 		.owner	= THIS_MODULE,
+		.of_match_table = i2c_versatile_match,
 	},
 };
 

@@ -44,7 +44,7 @@
 #include <linux/atmdev.h>
 #include <linux/capability.h>
 #include <linux/ppp_defs.h>
-#include <linux/if_ppp.h>
+#include <linux/ppp-ioctl.h>
 #include <linux/ppp_channel.h>
 #include <linux/atmppp.h>
 

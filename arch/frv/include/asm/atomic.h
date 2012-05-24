@@ -16,7 +16,7 @@
 
 #include <linux/types.h>
 #include <asm/spr-regs.h>
-#include <asm/system.h>
+#include <asm/cmpxchg.h>
 
 #ifdef CONFIG_SMP
 #error not SMP safe
@@ -180,61 +180,6 @@ static inline void atomic64_dec(atomic64_t *v)
 #define atomic64_sub_and_test(i,v)	(atomic64_sub_return((i), (v)) == 0)
 #define atomic64_dec_and_test(v)	(atomic64_dec_return((v)) == 0)
 #define atomic64_inc_and_test(v)	(atomic64_inc_return((v)) == 0)
-
-/*****************************************************************************/
-/*
- * exchange value with memory
- */
-extern uint64_t __xchg_64(uint64_t i, volatile void *v);
-
-#ifndef CONFIG_FRV_OUTOFLINE_ATOMIC_OPS
-
-#define xchg(ptr, x)								\
-({										\
-	__typeof__(ptr) __xg_ptr = (ptr);					\
-	__typeof__(*(ptr)) __xg_orig;						\
-										\
-	switch (sizeof(__xg_orig)) {						\
-	case 4:									\
-		asm volatile(							\
-			"swap%I0 %M0,%1"					\
-			: "+m"(*__xg_ptr), "=r"(__xg_orig)			\
-			: "1"(x)						\
-			: "memory"						\
-			);							\
-		break;								\
-										\
-	default:								\
-		__xg_orig = (__typeof__(__xg_orig))0;				\
-		asm volatile("break");						\
-		break;								\
-	}									\
-										\
-	__xg_orig;								\
-})
-
-#else
-
-extern uint32_t __xchg_32(uint32_t i, volatile void *v);
-
-#define xchg(ptr, x)										\
-({												\
-	__typeof__(ptr) __xg_ptr = (ptr);							\
-	__typeof__(*(ptr)) __xg_orig;								\
-												\
-	switch (sizeof(__xg_orig)) {								\
-	case 4: __xg_orig = (__typeof__(*(ptr))) __xchg_32((uint32_t) x, __xg_ptr);	break;	\
-	default:										\
-		__xg_orig = (__typeof__(__xg_orig))0;									\
-		asm volatile("break");								\
-		break;										\
-	}											\
-	__xg_orig;										\
-})
-
-#endif
-
-#define tas(ptr) (xchg((ptr), 1))
 
 #define atomic_cmpxchg(v, old, new)	(cmpxchg(&(v)->counter, old, new))
 #define atomic_xchg(v, new)		(xchg(&(v)->counter, new))

@@ -16,16 +16,17 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/gpio.h>
 
 #include <pcmcia/ss.h>
 
 #include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <asm/gpio.h>
 
 #include <mach/board.h>
 #include <mach/at91rm9200_mc.h>
+#include <mach/at91_ramc.h>
 
 
 /*
@@ -69,7 +70,7 @@ static irqreturn_t at91_cf_irq(int irq, void *_cf)
 {
 	struct at91_cf_socket *cf = _cf;
 
-	if (irq == cf->board->det_pin) {
+	if (irq == gpio_to_irq(cf->board->det_pin)) {
 		unsigned present = at91_cf_present(cf);
 
 		/* kick pccard as needed */
@@ -95,8 +96,8 @@ static int at91_cf_get_status(struct pcmcia_socket *s, u_int *sp)
 
 	/* NOTE: CF is always 3VCARD */
 	if (at91_cf_present(cf)) {
-		int rdy	= cf->board->irq_pin;	/* RDY/nIRQ */
-		int vcc	= cf->board->vcc_pin;
+		int rdy	= gpio_is_valid(cf->board->irq_pin);	/* RDY/nIRQ */
+		int vcc	= gpio_is_valid(cf->board->vcc_pin);
 
 		*sp = SS_DETECT | SS_3VCARD;
 		if (!rdy || gpio_get_value(rdy))
@@ -117,7 +118,7 @@ at91_cf_set_socket(struct pcmcia_socket *sock, struct socket_state_t *s)
 	cf = container_of(sock, struct at91_cf_socket, socket);
 
 	/* switch Vcc if needed and possible */
-	if (cf->board->vcc_pin) {
+	if (gpio_is_valid(cf->board->vcc_pin)) {
 		switch (s->Vcc) {
 			case 0:
 				gpio_set_value(cf->board->vcc_pin, 0);
@@ -156,7 +157,7 @@ static int at91_cf_set_io_map(struct pcmcia_socket *s, struct pccard_io_map *io)
 	/*
 	 * Use 16 bit accesses unless/until we need 8-bit i/o space.
 	 */
-	csr = at91_sys_read(AT91_SMC_CSR(cf->board->chipselect)) & ~AT91_SMC_DBW;
+	csr = at91_ramc_read(0, AT91_SMC_CSR(cf->board->chipselect)) & ~AT91_SMC_DBW;
 
 	/*
 	 * NOTE: this CF controller ignores IOIS16, so we can't really do
@@ -175,7 +176,7 @@ static int at91_cf_set_io_map(struct pcmcia_socket *s, struct pccard_io_map *io)
 		csr |= AT91_SMC_DBW_16;
 		pr_debug("%s: 16bit i/o bus\n", driver_name);
 	}
-	at91_sys_write(AT91_SMC_CSR(cf->board->chipselect), csr);
+	at91_ramc_write(0, AT91_SMC_CSR(cf->board->chipselect), csr);
 
 	io->start = cf->socket.io_offset;
 	io->stop = io->start + SZ_2K - 1;
@@ -221,7 +222,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	struct resource		*io;
 	int			status;
 
-	if (!board || !board->det_pin || !board->rst_pin)
+	if (!board || !gpio_is_valid(board->det_pin) || !gpio_is_valid(board->rst_pin))
 		return -ENODEV;
 
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -241,7 +242,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	status = gpio_request(board->det_pin, "cf_det");
 	if (status < 0)
 		goto fail0;
-	status = request_irq(board->det_pin, at91_cf_irq, 0, driver_name, cf);
+	status = request_irq(gpio_to_irq(board->det_pin), at91_cf_irq, 0, driver_name, cf);
 	if (status < 0)
 		goto fail00;
 	device_init_wakeup(&pdev->dev, 1);
@@ -250,7 +251,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	if (status < 0)
 		goto fail0a;
 
-	if (board->vcc_pin) {
+	if (gpio_is_valid(board->vcc_pin)) {
 		status = gpio_request(board->vcc_pin, "cf_vcc");
 		if (status < 0)
 			goto fail0b;
@@ -262,15 +263,15 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	 * unless we report that we handle everything (sigh).
 	 * (Note:  DK board doesn't wire the IRQ pin...)
 	 */
-	if (board->irq_pin) {
+	if (gpio_is_valid(board->irq_pin)) {
 		status = gpio_request(board->irq_pin, "cf_irq");
 		if (status < 0)
 			goto fail0c;
-		status = request_irq(board->irq_pin, at91_cf_irq,
+		status = request_irq(gpio_to_irq(board->irq_pin), at91_cf_irq,
 				IRQF_SHARED, driver_name, cf);
 		if (status < 0)
 			goto fail0d;
-		cf->socket.pci_irq = board->irq_pin;
+		cf->socket.pci_irq = gpio_to_irq(board->irq_pin);
 	} else
 		cf->socket.pci_irq = nr_irqs + 1;
 
@@ -289,7 +290,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	}
 
 	pr_info("%s: irqs det #%d, io #%d\n", driver_name,
-		board->det_pin, board->irq_pin);
+		gpio_to_irq(board->det_pin), gpio_to_irq(board->irq_pin));
 
 	cf->socket.owner = THIS_MODULE;
 	cf->socket.dev.parent = &pdev->dev;
@@ -311,19 +312,19 @@ fail2:
 fail1:
 	if (cf->socket.io_offset)
 		iounmap((void __iomem *) cf->socket.io_offset);
-	if (board->irq_pin) {
-		free_irq(board->irq_pin, cf);
+	if (gpio_is_valid(board->irq_pin)) {
+		free_irq(gpio_to_irq(board->irq_pin), cf);
 fail0d:
 		gpio_free(board->irq_pin);
 	}
 fail0c:
-	if (board->vcc_pin)
+	if (gpio_is_valid(board->vcc_pin))
 		gpio_free(board->vcc_pin);
 fail0b:
 	gpio_free(board->rst_pin);
 fail0a:
 	device_init_wakeup(&pdev->dev, 0);
-	free_irq(board->det_pin, cf);
+	free_irq(gpio_to_irq(board->det_pin), cf);
 fail00:
 	gpio_free(board->det_pin);
 fail0:
@@ -340,15 +341,15 @@ static int __exit at91_cf_remove(struct platform_device *pdev)
 	pcmcia_unregister_socket(&cf->socket);
 	release_mem_region(io->start, resource_size(io));
 	iounmap((void __iomem *) cf->socket.io_offset);
-	if (board->irq_pin) {
-		free_irq(board->irq_pin, cf);
+	if (gpio_is_valid(board->irq_pin)) {
+		free_irq(gpio_to_irq(board->irq_pin), cf);
 		gpio_free(board->irq_pin);
 	}
-	if (board->vcc_pin)
+	if (gpio_is_valid(board->vcc_pin))
 		gpio_free(board->vcc_pin);
 	gpio_free(board->rst_pin);
 	device_init_wakeup(&pdev->dev, 0);
-	free_irq(board->det_pin, cf);
+	free_irq(gpio_to_irq(board->det_pin), cf);
 	gpio_free(board->det_pin);
 	kfree(cf);
 	return 0;
@@ -362,9 +363,9 @@ static int at91_cf_suspend(struct platform_device *pdev, pm_message_t mesg)
 	struct at91_cf_data	*board = cf->board;
 
 	if (device_may_wakeup(&pdev->dev)) {
-		enable_irq_wake(board->det_pin);
-		if (board->irq_pin)
-			enable_irq_wake(board->irq_pin);
+		enable_irq_wake(gpio_to_irq(board->det_pin));
+		if (gpio_is_valid(board->irq_pin))
+			enable_irq_wake(gpio_to_irq(board->irq_pin));
 	}
 	return 0;
 }
@@ -375,9 +376,9 @@ static int at91_cf_resume(struct platform_device *pdev)
 	struct at91_cf_data	*board = cf->board;
 
 	if (device_may_wakeup(&pdev->dev)) {
-		disable_irq_wake(board->det_pin);
-		if (board->irq_pin)
-			disable_irq_wake(board->irq_pin);
+		disable_irq_wake(gpio_to_irq(board->det_pin));
+		if (gpio_is_valid(board->irq_pin))
+			disable_irq_wake(gpio_to_irq(board->irq_pin));
 	}
 
 	return 0;

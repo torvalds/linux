@@ -202,8 +202,6 @@ struct	hw_txqueue {
 
 struct	xmit_priv {
 	spinlock_t lock;
-	struct semaphore xmit_sema;
-	struct semaphore terminate_xmitthread_sema;
 	struct  __queue	be_pending;
 	struct  __queue	bk_pending;
 	struct  __queue	vi_pending;
@@ -233,7 +231,6 @@ struct	xmit_priv {
 	uint	tx_drop;
 	struct hw_xmit *hwxmits;
 	u8	hwxmit_entry;
-	struct semaphore tx_retevt;/*all tx return event;*/
 	u8	txirp_cnt;
 	struct tasklet_struct xmit_tasklet;
 	_workitem xmit_pipe4_reset_wi;

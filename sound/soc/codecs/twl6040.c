@@ -26,7 +26,6 @@
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/i2c/twl.h>
 #include <linux/mfd/twl6040.h>
 
 #include <sound/core.h>
@@ -1052,6 +1051,19 @@ int twl6040_get_trim_value(struct snd_soc_codec *codec, enum twl6040_trim trim)
 }
 EXPORT_SYMBOL_GPL(twl6040_get_trim_value);
 
+int twl6040_get_hs_step_size(struct snd_soc_codec *codec)
+{
+	struct twl6040 *twl6040 = codec->control_data;
+
+	if (twl6040_get_revid(twl6040) < TWL6040_REV_ES1_2)
+		/* For ES under ES_1.3 HS step is 2 mV */
+		return 2;
+	else
+		/* For ES_1.3 HS step is 1 mV */
+		return 1;
+}
+EXPORT_SYMBOL_GPL(twl6040_get_hs_step_size);
+
 static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 	/* Capture gains */
 	SOC_DOUBLE_TLV("Capture Preamplifier Volume",
@@ -1125,14 +1137,14 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			TWL6040_REG_MICRCTL, 2, 0),
 
 	/* Microphone bias */
-	SND_SOC_DAPM_MICBIAS("Headset Mic Bias",
-			TWL6040_REG_AMICBCTL, 0, 0),
-	SND_SOC_DAPM_MICBIAS("Main Mic Bias",
-			TWL6040_REG_AMICBCTL, 4, 0),
-	SND_SOC_DAPM_MICBIAS("Digital Mic1 Bias",
-			TWL6040_REG_DMICBCTL, 0, 0),
-	SND_SOC_DAPM_MICBIAS("Digital Mic2 Bias",
-			TWL6040_REG_DMICBCTL, 4, 0),
+	SND_SOC_DAPM_SUPPLY("Headset Mic Bias",
+			    TWL6040_REG_AMICBCTL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Main Mic Bias",
+			    TWL6040_REG_AMICBCTL, 4, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Digital Mic1 Bias",
+			    TWL6040_REG_DMICBCTL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Digital Mic2 Bias",
+			    TWL6040_REG_DMICBCTL, 4, 0, NULL, 0),
 
 	/* DACs */
 	SND_SOC_DAPM_DAC("HSDAC Left", "Headset Playback", SND_SOC_NOPM, 0, 0),
@@ -1515,7 +1527,7 @@ static int twl6040_resume(struct snd_soc_codec *codec)
 static int twl6040_probe(struct snd_soc_codec *codec)
 {
 	struct twl6040_data *priv;
-	struct twl4030_codec_data *pdata = dev_get_platdata(codec->dev);
+	struct twl6040_codec_data *pdata = dev_get_platdata(codec->dev);
 	struct platform_device *pdev = container_of(codec->dev,
 						   struct platform_device, dev);
 	int ret = 0;
@@ -1527,7 +1539,6 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 
 	priv->codec = codec;
 	codec->control_data = dev_get_drvdata(codec->dev->parent);
-	codec->ignore_pmdown_time = 1;
 
 	if (pdata && pdata->hs_left_step && pdata->hs_right_step) {
 		priv->hs_left_step = pdata->hs_left_step;
@@ -1613,6 +1624,7 @@ static struct snd_soc_codec_driver soc_codec_dev_twl6040 = {
 	.reg_cache_size = ARRAY_SIZE(twl6040_reg),
 	.reg_word_size = sizeof(u8),
 	.reg_cache_default = twl6040_reg,
+	.ignore_pmdown_time = true,
 
 	.controls = twl6040_snd_controls,
 	.num_controls = ARRAY_SIZE(twl6040_snd_controls),

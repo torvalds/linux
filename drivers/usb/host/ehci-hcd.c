@@ -45,7 +45,6 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #if defined(CONFIG_PPC_PS3)
@@ -348,6 +347,8 @@ static int ehci_reset (struct ehci_hcd *ehci)
 	if (ehci->debug)
 		dbgp_external_startup();
 
+	ehci->port_c_suspend = ehci->suspended_ports =
+			ehci->resuming_ports = 0;
 	return retval;
 }
 
@@ -857,8 +858,13 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		goto dead;
 	}
 
+	/*
+	 * We don't use STS_FLR, but some controllers don't like it to
+	 * remain on, so mask it out along with the other status bits.
+	 */
+	masked_status = status & (INTR_MASK | STS_FLR);
+
 	/* Shared IRQ? */
-	masked_status = status & INTR_MASK;
 	if (!masked_status || unlikely(ehci->rh_state == EHCI_RH_HALTED)) {
 		spin_unlock(&ehci->lock);
 		return IRQ_NONE;
@@ -909,7 +915,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		pcd_status = status;
 
 		/* resume root hub? */
-		if (!(cmd & CMD_RUN))
+		if (ehci->rh_state == EHCI_RH_SUSPENDED)
 			usb_hcd_resume_root_hub(hcd);
 
 		/* get per-port change detect bits */
@@ -940,6 +946,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 			 * like usb_port_resume() does.
 			 */
 			ehci->reset_done[i] = jiffies + msecs_to_jiffies(25);
+			set_bit(i, &ehci->resuming_ports);
 			ehci_dbg (ehci, "port %d remote wakeup\n", i + 1);
 			mod_timer(&hcd->rh_timer, ehci->reset_done[i]);
 		}
@@ -1351,19 +1358,9 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		s5p_ehci_driver
 #endif
 
-#ifdef CONFIG_USB_EHCI_ATH79
-#include "ehci-ath79.c"
-#define PLATFORM_DRIVER		ehci_ath79_driver
-#endif
-
 #ifdef CONFIG_SPARC_LEON
 #include "ehci-grlib.c"
 #define PLATFORM_DRIVER		ehci_grlib_driver
-#endif
-
-#ifdef CONFIG_USB_PXA168_EHCI
-#include "ehci-pxa168.c"
-#define PLATFORM_DRIVER		ehci_pxa168_driver
 #endif
 
 #ifdef CONFIG_CPU_XLR
@@ -1374,6 +1371,16 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_USB_EHCI_MV
 #include "ehci-mv.c"
 #define        PLATFORM_DRIVER         ehci_mv_driver
+#endif
+
+#ifdef CONFIG_MACH_LOONGSON1
+#include "ehci-ls1x.c"
+#define PLATFORM_DRIVER		ehci_ls1x_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_HCD_PLATFORM
+#include "ehci-platform.c"
+#define PLATFORM_DRIVER		ehci_platform_driver
 #endif
 
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \

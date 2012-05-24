@@ -3807,10 +3807,8 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	struct skge_port *skge;
 	struct net_device *dev = alloc_etherdev(sizeof(*skge));
 
-	if (!dev) {
-		dev_err(&hw->pdev->dev, "etherdev alloc failed\n");
+	if (!dev)
 		return NULL;
-	}
 
 	SET_NETDEV_DEV(dev, &hw->pdev->dev);
 	dev->netdev_ops = &skge_netdev_ops;

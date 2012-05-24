@@ -44,7 +44,7 @@ struct intel_hdmi {
 	uint32_t color_range;
 	bool has_hdmi_sink;
 	bool has_audio;
-	int force_audio;
+	enum hdmi_force_audio force_audio;
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				struct dip_infoframe *frame);
 };
@@ -339,7 +339,9 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	if (edid) {
 		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
 			status = connector_status_connected;
-			intel_hdmi->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
+			if (intel_hdmi->force_audio != HDMI_AUDIO_OFF_DVI)
+				intel_hdmi->has_hdmi_sink =
+						drm_detect_hdmi_monitor(edid);
 			intel_hdmi->has_audio = drm_detect_monitor_audio(edid);
 		}
 		connector->display_info.raw_edid = NULL;
@@ -347,8 +349,9 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	}
 
 	if (status == connector_status_connected) {
-		if (intel_hdmi->force_audio)
-			intel_hdmi->has_audio = intel_hdmi->force_audio > 0;
+		if (intel_hdmi->force_audio != HDMI_AUDIO_AUTO)
+			intel_hdmi->has_audio =
+				(intel_hdmi->force_audio == HDMI_AUDIO_ON);
 	}
 
 	return status;
@@ -402,7 +405,7 @@ intel_hdmi_set_property(struct drm_connector *connector,
 		return ret;
 
 	if (property == dev_priv->force_audio_property) {
-		int i = val;
+		enum hdmi_force_audio i = val;
 		bool has_audio;
 
 		if (i == intel_hdmi->force_audio)
@@ -410,13 +413,13 @@ intel_hdmi_set_property(struct drm_connector *connector,
 
 		intel_hdmi->force_audio = i;
 
-		if (i == 0)
+		if (i == HDMI_AUDIO_AUTO)
 			has_audio = intel_hdmi_detect_audio(connector);
 		else
-			has_audio = i > 0;
+			has_audio = (i == HDMI_AUDIO_ON);
 
-		if (has_audio == intel_hdmi->has_audio)
-			return 0;
+		if (i == HDMI_AUDIO_OFF_DVI)
+			intel_hdmi->has_hdmi_sink = 0;
 
 		intel_hdmi->has_audio = has_audio;
 		goto done;
@@ -514,7 +517,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
-	connector->interlace_allowed = 0;
+	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 

@@ -150,6 +150,7 @@ MACHINE_START(CAPC7117,
 	      "Embedian CAPC-7117 evaluation kit based on the MXM-8x10 CoM")
 	.atag_offset = 0x100,
 	.map_io = pxa3xx_map_io,
+	.nr_irqs = PXA_NR_IRQS,
 	.init_irq = pxa3xx_init_irq,
 	.handle_irq = pxa3xx_handle_irq,
 	.timer = &pxa_timer,

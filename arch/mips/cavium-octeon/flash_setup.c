@@ -60,7 +60,7 @@ static int __init flash_init(void)
 		if (mymtd) {
 			mymtd->owner = THIS_MODULE;
 			mtd_device_parse_register(mymtd, part_probe_types,
-						  0, NULL, 0);
+						  NULL, NULL, 0);
 		} else {
 			pr_err("Failed to register MTD device for flash\n");
 		}

@@ -134,6 +134,8 @@
 #define E1000_RCTL_SZ_256         0x00030000    /* rx buffer size 256 */
 #define E1000_RCTL_VFE            0x00040000    /* vlan filter enable */
 #define E1000_RCTL_CFIEN          0x00080000    /* canonical form enable */
+#define E1000_RCTL_DPF            0x00400000    /* Discard Pause Frames */
+#define E1000_RCTL_PMCF           0x00800000    /* pass MAC control frames */
 #define E1000_RCTL_SECRC          0x04000000    /* Strip Ethernet CRC */
 
 /*

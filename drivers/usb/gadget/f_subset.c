@@ -74,7 +74,7 @@ static inline struct f_gether *func_to_geth(struct usb_function *f)
 
 /* interface descriptor: */
 
-static struct usb_interface_descriptor subset_data_intf __initdata = {
+static struct usb_interface_descriptor subset_data_intf = {
 	.bLength =		sizeof subset_data_intf,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
@@ -87,7 +87,7 @@ static struct usb_interface_descriptor subset_data_intf __initdata = {
 	/* .iInterface = DYNAMIC */
 };
 
-static struct usb_cdc_header_desc mdlm_header_desc __initdata = {
+static struct usb_cdc_header_desc mdlm_header_desc = {
 	.bLength =		sizeof mdlm_header_desc,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_HEADER_TYPE,
@@ -95,7 +95,7 @@ static struct usb_cdc_header_desc mdlm_header_desc __initdata = {
 	.bcdCDC =		cpu_to_le16(0x0110),
 };
 
-static struct usb_cdc_mdlm_desc mdlm_desc __initdata = {
+static struct usb_cdc_mdlm_desc mdlm_desc = {
 	.bLength =		sizeof mdlm_desc,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_MDLM_TYPE,
@@ -111,7 +111,7 @@ static struct usb_cdc_mdlm_desc mdlm_desc __initdata = {
  * can't really use its struct.  All we do here is say that we're using
  * the submode of "SAFE" which directly matches the CDC Subset.
  */
-static u8 mdlm_detail_desc[] __initdata = {
+static u8 mdlm_detail_desc[] = {
 	6,
 	USB_DT_CS_INTERFACE,
 	USB_CDC_MDLM_DETAIL_TYPE,
@@ -121,7 +121,7 @@ static u8 mdlm_detail_desc[] __initdata = {
 	0,	/* network data capabilities ("raw" encapsulation) */
 };
 
-static struct usb_cdc_ether_desc ether_desc __initdata = {
+static struct usb_cdc_ether_desc ether_desc = {
 	.bLength =		sizeof ether_desc,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_ETHERNET_TYPE,
@@ -136,7 +136,7 @@ static struct usb_cdc_ether_desc ether_desc __initdata = {
 
 /* full speed support: */
 
-static struct usb_endpoint_descriptor fs_subset_in_desc __initdata = {
+static struct usb_endpoint_descriptor fs_subset_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -144,7 +144,7 @@ static struct usb_endpoint_descriptor fs_subset_in_desc __initdata = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_endpoint_descriptor fs_subset_out_desc __initdata = {
+static struct usb_endpoint_descriptor fs_subset_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -152,7 +152,7 @@ static struct usb_endpoint_descriptor fs_subset_out_desc __initdata = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_descriptor_header *fs_eth_function[] __initdata = {
+static struct usb_descriptor_header *fs_eth_function[] = {
 	(struct usb_descriptor_header *) &subset_data_intf,
 	(struct usb_descriptor_header *) &mdlm_header_desc,
 	(struct usb_descriptor_header *) &mdlm_desc,
@@ -165,7 +165,7 @@ static struct usb_descriptor_header *fs_eth_function[] __initdata = {
 
 /* high speed support: */
 
-static struct usb_endpoint_descriptor hs_subset_in_desc __initdata = {
+static struct usb_endpoint_descriptor hs_subset_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -173,7 +173,7 @@ static struct usb_endpoint_descriptor hs_subset_in_desc __initdata = {
 	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
-static struct usb_endpoint_descriptor hs_subset_out_desc __initdata = {
+static struct usb_endpoint_descriptor hs_subset_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -181,7 +181,7 @@ static struct usb_endpoint_descriptor hs_subset_out_desc __initdata = {
 	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
-static struct usb_descriptor_header *hs_eth_function[] __initdata = {
+static struct usb_descriptor_header *hs_eth_function[] = {
 	(struct usb_descriptor_header *) &subset_data_intf,
 	(struct usb_descriptor_header *) &mdlm_header_desc,
 	(struct usb_descriptor_header *) &mdlm_desc,
@@ -194,7 +194,7 @@ static struct usb_descriptor_header *hs_eth_function[] __initdata = {
 
 /* super speed support: */
 
-static struct usb_endpoint_descriptor ss_subset_in_desc __initdata = {
+static struct usb_endpoint_descriptor ss_subset_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -202,7 +202,7 @@ static struct usb_endpoint_descriptor ss_subset_in_desc __initdata = {
 	.wMaxPacketSize =	cpu_to_le16(1024),
 };
 
-static struct usb_endpoint_descriptor ss_subset_out_desc __initdata = {
+static struct usb_endpoint_descriptor ss_subset_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -210,7 +210,7 @@ static struct usb_endpoint_descriptor ss_subset_out_desc __initdata = {
 	.wMaxPacketSize =	cpu_to_le16(1024),
 };
 
-static struct usb_ss_ep_comp_descriptor ss_subset_bulk_comp_desc __initdata = {
+static struct usb_ss_ep_comp_descriptor ss_subset_bulk_comp_desc = {
 	.bLength =		sizeof ss_subset_bulk_comp_desc,
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
 
@@ -219,7 +219,7 @@ static struct usb_ss_ep_comp_descriptor ss_subset_bulk_comp_desc __initdata = {
 	/* .bmAttributes =	0, */
 };
 
-static struct usb_descriptor_header *ss_eth_function[] __initdata = {
+static struct usb_descriptor_header *ss_eth_function[] = {
 	(struct usb_descriptor_header *) &subset_data_intf,
 	(struct usb_descriptor_header *) &mdlm_header_desc,
 	(struct usb_descriptor_header *) &mdlm_desc,
@@ -290,7 +290,7 @@ static void geth_disable(struct usb_function *f)
 
 /* serial function driver setup/binding */
 
-static int __init
+static int
 geth_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
@@ -404,7 +404,7 @@ geth_unbind(struct usb_configuration *c, struct usb_function *f)
  * Caller must have called @gether_setup().  Caller is also responsible
  * for calling @gether_cleanup() before module unload.
  */
-int __init geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
+int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 {
 	struct f_gether	*geth;
 	int		status;

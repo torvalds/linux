@@ -18,7 +18,6 @@
 #include <linux/string.h>
 #include <asm/ebcdic.h>
 #include <asm/cpcmd.h>
-#include <asm/system.h>
 #include <asm/io.h>
 
 static DEFINE_SPINLOCK(cpcmd_lock);

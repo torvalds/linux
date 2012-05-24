@@ -17,8 +17,9 @@
 
 #include <mach/hardware.h>
 #include <asm/leds.h>
-#include <asm/system.h>
 #include <asm/mach-types.h>
+
+#include "core.h"
 
 static spinlock_t leds_lock;
 

@@ -139,9 +139,9 @@ int xenbus_transaction_start(struct xenbus_transaction *t);
 int xenbus_transaction_end(struct xenbus_transaction t, int abort);
 
 /* Single read and scanf: returns -errno or num scanned if > 0. */
+__scanf(4, 5)
 int xenbus_scanf(struct xenbus_transaction t,
-		 const char *dir, const char *node, const char *fmt, ...)
-	__attribute__((format(scanf, 4, 5)));
+		 const char *dir, const char *node, const char *fmt, ...);
 
 /* Single printf and write: returns -errno or 0. */
 __printf(4, 5)

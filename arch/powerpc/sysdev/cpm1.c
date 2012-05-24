@@ -54,7 +54,7 @@ cpm8xx_t __iomem *cpmp;  /* Pointer to comm processor space */
 immap_t __iomem *mpc8xx_immr;
 static cpic8xx_t __iomem *cpic_reg;
 
-static struct irq_host *cpm_pic_host;
+static struct irq_domain *cpm_pic_host;
 
 static void cpm_mask_irq(struct irq_data *d)
 {
@@ -98,7 +98,7 @@ int cpm_get_irq(void)
 	return irq_linear_revmap(cpm_pic_host, cpm_vec);
 }
 
-static int cpm_pic_host_map(struct irq_host *h, unsigned int virq,
+static int cpm_pic_host_map(struct irq_domain *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
 	pr_debug("cpm_pic_host_map(%d, 0x%lx)\n", virq, hw);
@@ -123,7 +123,7 @@ static struct irqaction cpm_error_irqaction = {
 	.name = "error",
 };
 
-static struct irq_host_ops cpm_pic_host_ops = {
+static const struct irq_domain_ops cpm_pic_host_ops = {
 	.map = cpm_pic_host_map,
 };
 
@@ -164,8 +164,7 @@ unsigned int cpm_pic_init(void)
 
 	out_be32(&cpic_reg->cpic_cimr, 0);
 
-	cpm_pic_host = irq_alloc_host(np, IRQ_HOST_MAP_LINEAR,
-				      64, &cpm_pic_host_ops, 64);
+	cpm_pic_host = irq_domain_add_linear(np, 64, &cpm_pic_host_ops, NULL);
 	if (cpm_pic_host == NULL) {
 		printk(KERN_ERR "CPM2 PIC: failed to allocate irq host!\n");
 		sirq = NO_IRQ;

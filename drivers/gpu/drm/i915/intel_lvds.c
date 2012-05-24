@@ -187,6 +187,8 @@ centre_horizontally(struct drm_display_mode *mode,
 
 	mode->crtc_hsync_start = mode->crtc_hblank_start + sync_pos;
 	mode->crtc_hsync_end = mode->crtc_hsync_start + sync_width;
+
+	mode->private_flags |= INTEL_MODE_CRTC_TIMINGS_SET;
 }
 
 static void
@@ -208,6 +210,8 @@ centre_vertically(struct drm_display_mode *mode,
 
 	mode->crtc_vsync_start = mode->crtc_vblank_start + sync_pos;
 	mode->crtc_vsync_end = mode->crtc_vsync_start + sync_width;
+
+	mode->private_flags |= INTEL_MODE_CRTC_TIMINGS_SET;
 }
 
 static inline u32 panel_fitter_scaling(u32 source, u32 target)
@@ -282,6 +286,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	 */
 	for_each_pipe(pipe)
 		I915_WRITE(BCLRPAT(pipe), 0);
+
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	switch (intel_lvds->fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
@@ -739,6 +745,30 @@ static const struct dmi_system_id intel_no_lvds[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "AT5NM10T-I"),
 		},
 	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Hewlett-Packard t5745",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_BOARD_NAME, "hp t5745"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Hewlett-Packard st5747",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_BOARD_NAME, "hp st5747"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "MSI Wind Box DC500",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "MICRO-STAR INTERNATIONAL CO., LTD"),
+			DMI_MATCH(DMI_BOARD_NAME, "MS-7469"),
+		},
+	},
 
 	{ }	/* terminating entry */
 };
@@ -844,6 +874,18 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 	return false;
 }
 
+static bool intel_lvds_supported(struct drm_device *dev)
+{
+	/* With the introduction of the PCH we gained a dedicated
+	 * LVDS presence pin, use it. */
+	if (HAS_PCH_SPLIT(dev))
+		return true;
+
+	/* Otherwise LVDS was only attached to mobile products,
+	 * except for the inglorious 830gm */
+	return IS_MOBILE(dev) && !IS_I830(dev);
+}
+
 /**
  * intel_lvds_init - setup LVDS connectors on this device
  * @dev: drm device
@@ -864,6 +906,9 @@ bool intel_lvds_init(struct drm_device *dev)
 	u32 lvds;
 	int pipe;
 	u8 pin;
+
+	if (!intel_lvds_supported(dev))
+		return false;
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds))

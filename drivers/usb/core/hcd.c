@@ -1978,6 +1978,18 @@ int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
 	if (status == 0) {
 		usb_set_device_state(rhdev, USB_STATE_SUSPENDED);
 		hcd->state = HC_STATE_SUSPENDED;
+
+		/* Did we race with a root-hub wakeup event? */
+		if (rhdev->do_remote_wakeup) {
+			char	buffer[6];
+
+			status = hcd->driver->hub_status_data(hcd, buffer);
+			if (status != 0) {
+				dev_dbg(&rhdev->dev, "suspend raced with wakeup event\n");
+				hcd_bus_resume(rhdev, PMSG_AUTO_RESUME);
+				status = -EBUSY;
+			}
+		}
 	} else {
 		spin_lock_irq(&hcd_root_hub_lock);
 		if (!HCD_DEAD(hcd)) {
@@ -2352,7 +2364,7 @@ static int usb_hcd_request_irqs(struct usb_hcd *hcd,
 					"io mem" : "io base",
 					(unsigned long long)hcd->rsrc_start);
 	} else {
-		hcd->irq = -1;
+		hcd->irq = 0;
 		if (hcd->rsrc_start)
 			dev_info(hcd->self.controller, "%s 0x%08llx\n",
 					(hcd->driver->flags & HCD_MEMORY) ?
@@ -2508,7 +2520,7 @@ err_register_root_hub:
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	del_timer_sync(&hcd->rh_timer);
 err_hcd_driver_start:
-	if (usb_hcd_is_primary_hcd(hcd) && hcd->irq >= 0)
+	if (usb_hcd_is_primary_hcd(hcd) && hcd->irq > 0)
 		free_irq(irqnum, hcd);
 err_request_irq:
 err_hcd_driver_setup:
@@ -2573,7 +2585,7 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	del_timer_sync(&hcd->rh_timer);
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
-		if (hcd->irq >= 0)
+		if (hcd->irq > 0)
 			free_irq(hcd->irq, hcd);
 	}
 

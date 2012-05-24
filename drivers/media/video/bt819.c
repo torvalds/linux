@@ -514,15 +514,4 @@ static struct i2c_driver bt819_driver = {
 	.id_table	= bt819_id,
 };
 
-static __init int init_bt819(void)
-{
-	return i2c_add_driver(&bt819_driver);
-}
-
-static __exit void exit_bt819(void)
-{
-	i2c_del_driver(&bt819_driver);
-}
-
-module_init(init_bt819);
-module_exit(exit_bt819);
+module_i2c_driver(bt819_driver);

@@ -20,14 +20,12 @@ ENDPROC(copy_page_c)
 
 ENTRY(copy_page)
 	CFI_STARTPROC
-	subq	$3*8,%rsp
-	CFI_ADJUST_CFA_OFFSET 3*8
+	subq	$2*8,%rsp
+	CFI_ADJUST_CFA_OFFSET 2*8
 	movq	%rbx,(%rsp)
 	CFI_REL_OFFSET rbx, 0
 	movq	%r12,1*8(%rsp)
 	CFI_REL_OFFSET r12, 1*8
-	movq	%r13,2*8(%rsp)
-	CFI_REL_OFFSET r13, 2*8
 
 	movl	$(4096/64)-5,%ecx
 	.p2align 4
@@ -91,10 +89,8 @@ ENTRY(copy_page)
 	CFI_RESTORE rbx
 	movq	1*8(%rsp),%r12
 	CFI_RESTORE r12
-	movq	2*8(%rsp),%r13
-	CFI_RESTORE r13
-	addq	$3*8,%rsp
-	CFI_ADJUST_CFA_OFFSET -3*8
+	addq	$2*8,%rsp
+	CFI_ADJUST_CFA_OFFSET -2*8
 	ret
 .Lcopy_page_end:
 	CFI_ENDPROC

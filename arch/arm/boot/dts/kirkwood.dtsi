@@ -1,0 +1,36 @@
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "mrvl,kirkwood";
+
+	ocp@f1000000 {
+		compatible = "simple-bus";
+		ranges = <0 0xf1000000 0x1000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		serial@12000 {
+			compatible = "ns16550a";
+			reg = <0x12000 0x100>;
+			reg-shift = <2>;
+			interrupts = <33>;
+			/* set clock-frequency in board dts */
+			status = "disabled";
+		};
+
+		serial@12100 {
+			compatible = "ns16550a";
+			reg = <0x12100 0x100>;
+			reg-shift = <2>;
+			interrupts = <34>;
+			/* set clock-frequency in board dts */
+			status = "disabled";
+		};
+
+		rtc@10300 {
+			compatible = "mrvl,kirkwood-rtc", "mrvl,orion-rtc";
+			reg = <0x10300 0x20>;
+			interrupts = <53>;
+		};
+	};
+};

@@ -212,7 +212,10 @@ struct mlx4_wqe_ctrl_seg {
 	 * [1]   SE (solicited event)
 	 * [0]   FL (force loopback)
 	 */
-	__be32			srcrb_flags;
+	union {
+		__be32			srcrb_flags;
+		__be16			srcrb_flags16[2];
+	};
 	/*
 	 * imm is immediate data for send/RDMA write w/ immediate;
 	 * also invalidation key for send with invalidate; input

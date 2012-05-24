@@ -28,7 +28,6 @@
 
 #include <asm/asm-offsets.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
 #include <asm/tlb.h>
@@ -92,9 +91,7 @@ void cpu_idle(void)
 				idle();
 		}
 
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 	}
 }
 

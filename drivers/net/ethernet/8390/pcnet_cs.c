@@ -49,7 +49,6 @@
 #include <pcmcia/cisreg.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 
@@ -326,7 +325,7 @@ static hw_info_t *get_prom(struct pcmcia_device *link)
     u_char prom[32];
     int i, j;
 
-    /* This is lifted straight from drivers/net/ne.c */
+    /* This is lifted straight from drivers/net/ethernet/8390/ne.c */
     struct {
 	u_char value, offset;
     } program_seq[] = {

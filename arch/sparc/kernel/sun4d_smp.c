@@ -14,6 +14,7 @@
 #include <asm/sbi.h>
 #include <asm/mmu.h>
 #include <asm/tlbflush.h>
+#include <asm/switch_to.h>
 #include <asm/cacheflush.h>
 
 #include "kernel.h"

@@ -569,7 +569,7 @@ int xenbus_map_ring(struct xenbus_device *dev, int gnt_ref,
 {
 	struct gnttab_map_grant_ref op;
 
-	gnttab_set_map_op(&op, (phys_addr_t)vaddr, GNTMAP_host_map, gnt_ref,
+	gnttab_set_map_op(&op, (unsigned long)vaddr, GNTMAP_host_map, gnt_ref,
 			  dev->otherend_id);
 
 	if (HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, &op, 1))
@@ -662,7 +662,7 @@ static int xenbus_unmap_ring_vfree_hvm(struct xenbus_device *dev, void *vaddr)
 			goto found;
 		}
 	}
-	node = NULL;
+	node = addr = NULL;
  found:
 	spin_unlock(&xenbus_valloc_lock);
 
@@ -698,7 +698,7 @@ int xenbus_unmap_ring(struct xenbus_device *dev,
 {
 	struct gnttab_unmap_grant_ref op;
 
-	gnttab_set_unmap_op(&op, (phys_addr_t)vaddr, GNTMAP_host_map, handle);
+	gnttab_set_unmap_op(&op, (unsigned long)vaddr, GNTMAP_host_map, handle);
 
 	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &op, 1))
 		BUG();

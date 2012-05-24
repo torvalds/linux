@@ -462,3 +462,4 @@ int lpfc_issue_unreg_vfi(struct lpfc_vport *);
 int lpfc_selective_reset(struct lpfc_hba *);
 int lpfc_sli4_read_config(struct lpfc_hba *phba);
 int lpfc_scsi_buf_update(struct lpfc_hba *phba);
+void lpfc_sli4_node_prep(struct lpfc_hba *phba);

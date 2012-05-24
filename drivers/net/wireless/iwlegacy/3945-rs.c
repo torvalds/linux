@@ -342,7 +342,7 @@ il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 	int i;
 
 	D_INFO("enter\n");
-	if (sta_id == il->ctx.bcast_sta_id)
+	if (sta_id == il->hw_params.bcast_id)
 		goto out;
 
 	psta = (struct il3945_sta_priv *)sta->drv_priv;
@@ -821,12 +821,6 @@ out:
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-static int
-il3945_open_file_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
 
 static ssize_t
 il3945_sta_dbgfs_stats_table_read(struct file *file, char __user *user_buf,
@@ -862,7 +856,7 @@ il3945_sta_dbgfs_stats_table_read(struct file *file, char __user *user_buf,
 
 static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
 	.read = il3945_sta_dbgfs_stats_table_read,
-	.open = il3945_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -927,8 +921,7 @@ il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 
 	rcu_read_lock();
 
-	sta =
-	    ieee80211_find_sta(il->ctx.vif, il->stations[sta_id].sta.sta.addr);
+	sta = ieee80211_find_sta(il->vif, il->stations[sta_id].sta.sta.addr);
 	if (!sta) {
 		D_RATE("Unable to find station to initialize rate scaling.\n");
 		rcu_read_unlock();
@@ -944,7 +937,7 @@ il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 	switch (il->band) {
 	case IEEE80211_BAND_2GHZ:
 		/* TODO: this always does G, not a regression */
-		if (il->ctx.active.flags & RXON_FLG_TGG_PROTECT_MSK) {
+		if (il->active.flags & RXON_FLG_TGG_PROTECT_MSK) {
 			rs_sta->tgg = 1;
 			rs_sta->expected_tpt = il3945_expected_tpt_g_prot;
 		} else

@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/etherdevice.h>
-#include <asm/system.h>
 #include <asm/setup.h>
 #include <asm/soc.h>
 

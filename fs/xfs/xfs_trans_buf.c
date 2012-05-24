@@ -463,19 +463,7 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 	 * Default to a normal brelse() call if the tp is NULL.
 	 */
 	if (tp == NULL) {
-		struct xfs_log_item	*lip = bp->b_fspriv;
-
 		ASSERT(bp->b_transp == NULL);
-
-		/*
-		 * If there's a buf log item attached to the buffer,
-		 * then let the AIL know that the buffer is being
-		 * unlocked.
-		 */
-		if (lip != NULL && lip->li_type == XFS_LI_BUF) {
-			bip = bp->b_fspriv;
-			xfs_trans_unlocked_item(bip->bli_item.li_ailp, lip);
-		}
 		xfs_buf_relse(bp);
 		return;
 	}
@@ -550,21 +538,10 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 		ASSERT(!(bip->bli_item.li_flags & XFS_LI_IN_AIL));
 		ASSERT(!(bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF));
 		xfs_buf_item_relse(bp);
-		bip = NULL;
 	}
+
 	bp->b_transp = NULL;
-
-	/*
-	 * If we've still got a buf log item on the buffer, then
-	 * tell the AIL that the buffer is being unlocked.
-	 */
-	if (bip != NULL) {
-		xfs_trans_unlocked_item(bip->bli_item.li_ailp,
-					(xfs_log_item_t*)bip);
-	}
-
 	xfs_buf_relse(bp);
-	return;
 }
 
 /*

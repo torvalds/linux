@@ -536,18 +536,7 @@ static struct spi_driver ad5421_driver = {
 	.probe = ad5421_probe,
 	.remove = __devexit_p(ad5421_remove),
 };
-
-static __init int ad5421_init(void)
-{
-	return spi_register_driver(&ad5421_driver);
-}
-module_init(ad5421_init);
-
-static __exit void ad5421_exit(void)
-{
-	spi_unregister_driver(&ad5421_driver);
-}
-module_exit(ad5421_exit);
+module_spi_driver(ad5421_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("Analog Devices AD5421 DAC");

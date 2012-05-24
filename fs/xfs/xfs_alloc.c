@@ -35,6 +35,7 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 
+struct workqueue_struct *xfs_alloc_wq;
 
 #define XFS_ABSDIFF(a,b)	(((a) <= (b)) ? ((b) - (a)) : ((a) - (b)))
 
@@ -68,7 +69,7 @@ xfs_alloc_lookup_eq(
  * Lookup the first record greater than or equal to [bno, len]
  * in the btree given by cur.
  */
-STATIC int				/* error */
+int				/* error */
 xfs_alloc_lookup_ge(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	xfs_agblock_t		bno,	/* starting block of extent */
@@ -2207,7 +2208,7 @@ xfs_alloc_read_agf(
  * group or loop over the allocation groups to find the result.
  */
 int				/* error */
-xfs_alloc_vextent(
+__xfs_alloc_vextent(
 	xfs_alloc_arg_t	*args)	/* allocation argument structure */
 {
 	xfs_agblock_t	agsize;	/* allocation group size */
@@ -2415,6 +2416,37 @@ xfs_alloc_vextent(
 error0:
 	xfs_perag_put(args->pag);
 	return error;
+}
+
+static void
+xfs_alloc_vextent_worker(
+	struct work_struct	*work)
+{
+	struct xfs_alloc_arg	*args = container_of(work,
+						struct xfs_alloc_arg, work);
+	unsigned long		pflags;
+
+	/* we are in a transaction context here */
+	current_set_flags_nested(&pflags, PF_FSTRANS);
+
+	args->result = __xfs_alloc_vextent(args);
+	complete(args->done);
+
+	current_restore_flags_nested(&pflags, PF_FSTRANS);
+}
+
+
+int				/* error */
+xfs_alloc_vextent(
+	xfs_alloc_arg_t	*args)	/* allocation argument structure */
+{
+	DECLARE_COMPLETION_ONSTACK(done);
+
+	args->done = &done;
+	INIT_WORK(&args->work, xfs_alloc_vextent_worker);
+	queue_work(xfs_alloc_wq, &args->work);
+	wait_for_completion(&done);
+	return args->result;
 }
 
 /*

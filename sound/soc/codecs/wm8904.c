@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -47,6 +48,7 @@ static const char *wm8904_supply_names[WM8904_NUM_SUPPLIES] = {
 
 /* codec private data */
 struct wm8904_priv {
+	struct regmap *regmap;
 
 	enum wm8904_type devtype;
 
@@ -86,517 +88,230 @@ struct wm8904_priv {
 	int dcs_state[WM8904_NUM_DCS_CHANNELS];
 };
 
-static const u16 wm8904_reg[WM8904_MAX_REGISTER + 1] = {
-	0x8904,     /* R0   - SW Reset and ID */
-	0x0000,     /* R1   - Revision */
-	0x0000,     /* R2 */
-	0x0000,     /* R3 */
-	0x0018,     /* R4   - Bias Control 0 */
-	0x0000,     /* R5   - VMID Control 0 */
-	0x0000,     /* R6   - Mic Bias Control 0 */
-	0x0000,     /* R7   - Mic Bias Control 1 */
-	0x0001,     /* R8   - Analogue DAC 0 */
-	0x9696,     /* R9   - mic Filter Control */
-	0x0001,     /* R10  - Analogue ADC 0 */
-	0x0000,     /* R11 */
-	0x0000,     /* R12  - Power Management 0 */
-	0x0000,     /* R13 */
-	0x0000,     /* R14  - Power Management 2 */
-	0x0000,     /* R15  - Power Management 3 */
-	0x0000,     /* R16 */
-	0x0000,     /* R17 */
-	0x0000,     /* R18  - Power Management 6 */
-	0x0000,     /* R19 */
-	0x945E,     /* R20  - Clock Rates 0 */
-	0x0C05,     /* R21  - Clock Rates 1 */
-	0x0006,     /* R22  - Clock Rates 2 */
-	0x0000,     /* R23 */
-	0x0050,     /* R24  - Audio Interface 0 */
-	0x000A,     /* R25  - Audio Interface 1 */
-	0x00E4,     /* R26  - Audio Interface 2 */
-	0x0040,     /* R27  - Audio Interface 3 */
-	0x0000,     /* R28 */
-	0x0000,     /* R29 */
-	0x00C0,     /* R30  - DAC Digital Volume Left */
-	0x00C0,     /* R31  - DAC Digital Volume Right */
-	0x0000,     /* R32  - DAC Digital 0 */
-	0x0008,     /* R33  - DAC Digital 1 */
-	0x0000,     /* R34 */
-	0x0000,     /* R35 */
-	0x00C0,     /* R36  - ADC Digital Volume Left */
-	0x00C0,     /* R37  - ADC Digital Volume Right */
-	0x0010,     /* R38  - ADC Digital 0 */
-	0x0000,     /* R39  - Digital Microphone 0 */
-	0x01AF,     /* R40  - DRC 0 */
-	0x3248,     /* R41  - DRC 1 */
-	0x0000,     /* R42  - DRC 2 */
-	0x0000,     /* R43  - DRC 3 */
-	0x0085,     /* R44  - Analogue Left Input 0 */
-	0x0085,     /* R45  - Analogue Right Input 0 */
-	0x0044,     /* R46  - Analogue Left Input 1 */
-	0x0044,     /* R47  - Analogue Right Input 1 */
-	0x0000,     /* R48 */
-	0x0000,     /* R49 */
-	0x0000,     /* R50 */
-	0x0000,     /* R51 */
-	0x0000,     /* R52 */
-	0x0000,     /* R53 */
-	0x0000,     /* R54 */
-	0x0000,     /* R55 */
-	0x0000,     /* R56 */
-	0x002D,     /* R57  - Analogue OUT1 Left */
-	0x002D,     /* R58  - Analogue OUT1 Right */
-	0x0039,     /* R59  - Analogue OUT2 Left */
-	0x0039,     /* R60  - Analogue OUT2 Right */
-	0x0000,     /* R61  - Analogue OUT12 ZC */
-	0x0000,     /* R62 */
-	0x0000,     /* R63 */
-	0x0000,     /* R64 */
-	0x0000,     /* R65 */
-	0x0000,     /* R66 */
-	0x0000,     /* R67  - DC Servo 0 */
-	0x0000,     /* R68  - DC Servo 1 */
-	0xAAAA,     /* R69  - DC Servo 2 */
-	0x0000,     /* R70 */
-	0xAAAA,     /* R71  - DC Servo 4 */
-	0xAAAA,     /* R72  - DC Servo 5 */
-	0x0000,     /* R73  - DC Servo 6 */
-	0x0000,     /* R74  - DC Servo 7 */
-	0x0000,     /* R75  - DC Servo 8 */
-	0x0000,     /* R76  - DC Servo 9 */
-	0x0000,     /* R77  - DC Servo Readback 0 */
-	0x0000,     /* R78 */
-	0x0000,     /* R79 */
-	0x0000,     /* R80 */
-	0x0000,     /* R81 */
-	0x0000,     /* R82 */
-	0x0000,     /* R83 */
-	0x0000,     /* R84 */
-	0x0000,     /* R85 */
-	0x0000,     /* R86 */
-	0x0000,     /* R87 */
-	0x0000,     /* R88 */
-	0x0000,     /* R89 */
-	0x0000,     /* R90  - Analogue HP 0 */
-	0x0000,     /* R91 */
-	0x0000,     /* R92 */
-	0x0000,     /* R93 */
-	0x0000,     /* R94  - Analogue Lineout 0 */
-	0x0000,     /* R95 */
-	0x0000,     /* R96 */
-	0x0000,     /* R97 */
-	0x0000,     /* R98  - Charge Pump 0 */
-	0x0000,     /* R99 */
-	0x0000,     /* R100 */
-	0x0000,     /* R101 */
-	0x0000,     /* R102 */
-	0x0000,     /* R103 */
-	0x0004,     /* R104 - Class W 0 */
-	0x0000,     /* R105 */
-	0x0000,     /* R106 */
-	0x0000,     /* R107 */
-	0x0000,     /* R108 - Write Sequencer 0 */
-	0x0000,     /* R109 - Write Sequencer 1 */
-	0x0000,     /* R110 - Write Sequencer 2 */
-	0x0000,     /* R111 - Write Sequencer 3 */
-	0x0000,     /* R112 - Write Sequencer 4 */
-	0x0000,     /* R113 */
-	0x0000,     /* R114 */
-	0x0000,     /* R115 */
-	0x0000,     /* R116 - FLL Control 1 */
-	0x0007,     /* R117 - FLL Control 2 */
-	0x0000,     /* R118 - FLL Control 3 */
-	0x2EE0,     /* R119 - FLL Control 4 */
-	0x0004,     /* R120 - FLL Control 5 */
-	0x0014,     /* R121 - GPIO Control 1 */
-	0x0010,     /* R122 - GPIO Control 2 */
-	0x0010,     /* R123 - GPIO Control 3 */
-	0x0000,     /* R124 - GPIO Control 4 */
-	0x0000,     /* R125 */
-	0x0000,     /* R126 - Digital Pulls */
-	0x0000,     /* R127 - Interrupt Status */
-	0xFFFF,     /* R128 - Interrupt Status Mask */
-	0x0000,     /* R129 - Interrupt Polarity */
-	0x0000,     /* R130 - Interrupt Debounce */
-	0x0000,     /* R131 */
-	0x0000,     /* R132 */
-	0x0000,     /* R133 */
-	0x0000,     /* R134 - EQ1 */
-	0x000C,     /* R135 - EQ2 */
-	0x000C,     /* R136 - EQ3 */
-	0x000C,     /* R137 - EQ4 */
-	0x000C,     /* R138 - EQ5 */
-	0x000C,     /* R139 - EQ6 */
-	0x0FCA,     /* R140 - EQ7 */
-	0x0400,     /* R141 - EQ8 */
-	0x00D8,     /* R142 - EQ9 */
-	0x1EB5,     /* R143 - EQ10 */
-	0xF145,     /* R144 - EQ11 */
-	0x0B75,     /* R145 - EQ12 */
-	0x01C5,     /* R146 - EQ13 */
-	0x1C58,     /* R147 - EQ14 */
-	0xF373,     /* R148 - EQ15 */
-	0x0A54,     /* R149 - EQ16 */
-	0x0558,     /* R150 - EQ17 */
-	0x168E,     /* R151 - EQ18 */
-	0xF829,     /* R152 - EQ19 */
-	0x07AD,     /* R153 - EQ20 */
-	0x1103,     /* R154 - EQ21 */
-	0x0564,     /* R155 - EQ22 */
-	0x0559,     /* R156 - EQ23 */
-	0x4000,     /* R157 - EQ24 */
-	0x0000,     /* R158 */
-	0x0000,     /* R159 */
-	0x0000,     /* R160 */
-	0x0000,     /* R161 - Control Interface Test 1 */
-	0x0000,     /* R162 */
-	0x0000,     /* R163 */
-	0x0000,     /* R164 */
-	0x0000,     /* R165 */
-	0x0000,     /* R166 */
-	0x0000,     /* R167 */
-	0x0000,     /* R168 */
-	0x0000,     /* R169 */
-	0x0000,     /* R170 */
-	0x0000,     /* R171 */
-	0x0000,     /* R172 */
-	0x0000,     /* R173 */
-	0x0000,     /* R174 */
-	0x0000,     /* R175 */
-	0x0000,     /* R176 */
-	0x0000,     /* R177 */
-	0x0000,     /* R178 */
-	0x0000,     /* R179 */
-	0x0000,     /* R180 */
-	0x0000,     /* R181 */
-	0x0000,     /* R182 */
-	0x0000,     /* R183 */
-	0x0000,     /* R184 */
-	0x0000,     /* R185 */
-	0x0000,     /* R186 */
-	0x0000,     /* R187 */
-	0x0000,     /* R188 */
-	0x0000,     /* R189 */
-	0x0000,     /* R190 */
-	0x0000,     /* R191 */
-	0x0000,     /* R192 */
-	0x0000,     /* R193 */
-	0x0000,     /* R194 */
-	0x0000,     /* R195 */
-	0x0000,     /* R196 */
-	0x0000,     /* R197 */
-	0x0000,     /* R198 */
-	0x0000,     /* R199 */
-	0x0000,     /* R200 */
-	0x0000,     /* R201 */
-	0x0000,     /* R202 */
-	0x0000,     /* R203 */
-	0x0000,     /* R204 - Analogue Output Bias 0 */
-	0x0000,     /* R205 */
-	0x0000,     /* R206 */
-	0x0000,     /* R207 */
-	0x0000,     /* R208 */
-	0x0000,     /* R209 */
-	0x0000,     /* R210 */
-	0x0000,     /* R211 */
-	0x0000,     /* R212 */
-	0x0000,     /* R213 */
-	0x0000,     /* R214 */
-	0x0000,     /* R215 */
-	0x0000,     /* R216 */
-	0x0000,     /* R217 */
-	0x0000,     /* R218 */
-	0x0000,     /* R219 */
-	0x0000,     /* R220 */
-	0x0000,     /* R221 */
-	0x0000,     /* R222 */
-	0x0000,     /* R223 */
-	0x0000,     /* R224 */
-	0x0000,     /* R225 */
-	0x0000,     /* R226 */
-	0x0000,     /* R227 */
-	0x0000,     /* R228 */
-	0x0000,     /* R229 */
-	0x0000,     /* R230 */
-	0x0000,     /* R231 */
-	0x0000,     /* R232 */
-	0x0000,     /* R233 */
-	0x0000,     /* R234 */
-	0x0000,     /* R235 */
-	0x0000,     /* R236 */
-	0x0000,     /* R237 */
-	0x0000,     /* R238 */
-	0x0000,     /* R239 */
-	0x0000,     /* R240 */
-	0x0000,     /* R241 */
-	0x0000,     /* R242 */
-	0x0000,     /* R243 */
-	0x0000,     /* R244 */
-	0x0000,     /* R245 */
-	0x0000,     /* R246 */
-	0x0000,     /* R247 - FLL NCO Test 0 */
-	0x0019,     /* R248 - FLL NCO Test 1 */
+static const struct reg_default wm8904_reg_defaults[] = {
+	{ 4,   0x0018 },     /* R4   - Bias Control 0 */
+	{ 5,   0x0000 },     /* R5   - VMID Control 0 */
+	{ 6,   0x0000 },     /* R6   - Mic Bias Control 0 */
+	{ 7,   0x0000 },     /* R7   - Mic Bias Control 1 */
+	{ 8,   0x0001 },     /* R8   - Analogue DAC 0 */
+	{ 9,   0x9696 },     /* R9   - mic Filter Control */
+	{ 10,  0x0001 },     /* R10  - Analogue ADC 0 */
+	{ 12,  0x0000 },     /* R12  - Power Management 0 */
+	{ 14,  0x0000 },     /* R14  - Power Management 2 */
+	{ 15,  0x0000 },     /* R15  - Power Management 3 */
+	{ 18,  0x0000 },     /* R18  - Power Management 6 */
+	{ 19,  0x945E },     /* R20  - Clock Rates 0 */
+	{ 21,  0x0C05 },     /* R21  - Clock Rates 1 */
+	{ 22,  0x0006 },     /* R22  - Clock Rates 2 */
+	{ 24,  0x0050 },     /* R24  - Audio Interface 0 */
+	{ 25,  0x000A },     /* R25  - Audio Interface 1 */
+	{ 26,  0x00E4 },     /* R26  - Audio Interface 2 */
+	{ 27,  0x0040 },     /* R27  - Audio Interface 3 */
+	{ 30,  0x00C0 },     /* R30  - DAC Digital Volume Left */
+	{ 31,  0x00C0 },     /* R31  - DAC Digital Volume Right */
+	{ 32,  0x0000 },     /* R32  - DAC Digital 0 */
+	{ 33,  0x0008 },     /* R33  - DAC Digital 1 */
+	{ 36,  0x00C0 },     /* R36  - ADC Digital Volume Left */
+	{ 37,  0x00C0 },     /* R37  - ADC Digital Volume Right */
+	{ 38,  0x0010 },     /* R38  - ADC Digital 0 */
+	{ 39,  0x0000 },     /* R39  - Digital Microphone 0 */
+	{ 40,  0x01AF },     /* R40  - DRC 0 */
+	{ 41,  0x3248 },     /* R41  - DRC 1 */
+	{ 42,  0x0000 },     /* R42  - DRC 2 */
+	{ 43,  0x0000 },     /* R43  - DRC 3 */
+	{ 44,  0x0085 },     /* R44  - Analogue Left Input 0 */
+	{ 45,  0x0085 },     /* R45  - Analogue Right Input 0 */
+	{ 46,  0x0044 },     /* R46  - Analogue Left Input 1 */
+	{ 47,  0x0044 },     /* R47  - Analogue Right Input 1 */
+	{ 57,  0x002D },     /* R57  - Analogue OUT1 Left */
+	{ 58,  0x002D },     /* R58  - Analogue OUT1 Right */
+	{ 59,  0x0039 },     /* R59  - Analogue OUT2 Left */
+	{ 60,  0x0039 },     /* R60  - Analogue OUT2 Right */
+	{ 61,  0x0000 },     /* R61  - Analogue OUT12 ZC */
+	{ 67,  0x0000 },     /* R67  - DC Servo 0 */
+	{ 69,  0xAAAA },     /* R69  - DC Servo 2 */
+	{ 71,  0xAAAA },     /* R71  - DC Servo 4 */
+	{ 72,  0xAAAA },     /* R72  - DC Servo 5 */
+	{ 90,  0x0000 },     /* R90  - Analogue HP 0 */
+	{ 94,  0x0000 },     /* R94  - Analogue Lineout 0 */
+	{ 98,  0x0000 },     /* R98  - Charge Pump 0 */
+	{ 104, 0x0004 },     /* R104 - Class W 0 */
+	{ 108, 0x0000 },     /* R108 - Write Sequencer 0 */
+	{ 109, 0x0000 },     /* R109 - Write Sequencer 1 */
+	{ 110, 0x0000 },     /* R110 - Write Sequencer 2 */
+	{ 111, 0x0000 },     /* R111 - Write Sequencer 3 */
+	{ 112, 0x0000 },     /* R112 - Write Sequencer 4 */
+	{ 116, 0x0000 },     /* R116 - FLL Control 1 */
+	{ 117, 0x0007 },     /* R117 - FLL Control 2 */
+	{ 118, 0x0000 },     /* R118 - FLL Control 3 */
+	{ 119, 0x2EE0 },     /* R119 - FLL Control 4 */
+	{ 120, 0x0004 },     /* R120 - FLL Control 5 */
+	{ 121, 0x0014 },     /* R121 - GPIO Control 1 */
+	{ 122, 0x0010 },     /* R122 - GPIO Control 2 */
+	{ 123, 0x0010 },     /* R123 - GPIO Control 3 */
+	{ 124, 0x0000 },     /* R124 - GPIO Control 4 */
+	{ 126, 0x0000 },     /* R126 - Digital Pulls */
+	{ 128, 0xFFFF },     /* R128 - Interrupt Status Mask */
+	{ 129, 0x0000 },     /* R129 - Interrupt Polarity */
+	{ 130, 0x0000 },     /* R130 - Interrupt Debounce */
+	{ 134, 0x0000 },     /* R134 - EQ1 */
+	{ 135, 0x000C },     /* R135 - EQ2 */
+	{ 136, 0x000C },     /* R136 - EQ3 */
+	{ 137, 0x000C },     /* R137 - EQ4 */
+	{ 138, 0x000C },     /* R138 - EQ5 */
+	{ 139, 0x000C },     /* R139 - EQ6 */
+	{ 140, 0x0FCA },     /* R140 - EQ7 */
+	{ 141, 0x0400 },     /* R141 - EQ8 */
+	{ 142, 0x00D8 },     /* R142 - EQ9 */
+	{ 143, 0x1EB5 },     /* R143 - EQ10 */
+	{ 144, 0xF145 },     /* R144 - EQ11 */
+	{ 145, 0x0B75 },     /* R145 - EQ12 */
+	{ 146, 0x01C5 },     /* R146 - EQ13 */
+	{ 147, 0x1C58 },     /* R147 - EQ14 */
+	{ 148, 0xF373 },     /* R148 - EQ15 */
+	{ 149, 0x0A54 },     /* R149 - EQ16 */
+	{ 150, 0x0558 },     /* R150 - EQ17 */
+	{ 151, 0x168E },     /* R151 - EQ18 */
+	{ 152, 0xF829 },     /* R152 - EQ19 */
+	{ 153, 0x07AD },     /* R153 - EQ20 */
+	{ 154, 0x1103 },     /* R154 - EQ21 */
+	{ 155, 0x0564 },     /* R155 - EQ22 */
+	{ 156, 0x0559 },     /* R156 - EQ23 */
+	{ 157, 0x4000 },     /* R157 - EQ24 */
+	{ 161, 0x0000 },     /* R161 - Control Interface Test 1 */
+	{ 204, 0x0000 },     /* R204 - Analogue Output Bias 0 */
+	{ 247, 0x0000 },     /* R247 - FLL NCO Test 0 */
+	{ 248, 0x0019 },     /* R248 - FLL NCO Test 1 */
 };
 
-static struct {
-	int readable;
-	int writable;
-	int vol;
-} wm8904_access[] = {
-	{ 0xFFFF, 0xFFFF, 1 }, /* R0   - SW Reset and ID */
-	{ 0x0000, 0x0000, 0 }, /* R1   - Revision */
-	{ 0x0000, 0x0000, 0 }, /* R2 */
-	{ 0x0000, 0x0000, 0 }, /* R3 */
-	{ 0x001F, 0x001F, 0 }, /* R4   - Bias Control 0 */
-	{ 0x0047, 0x0047, 0 }, /* R5   - VMID Control 0 */
-	{ 0x007F, 0x007F, 0 }, /* R6   - Mic Bias Control 0 */
-	{ 0xC007, 0xC007, 0 }, /* R7   - Mic Bias Control 1 */
-	{ 0x001E, 0x001E, 0 }, /* R8   - Analogue DAC 0 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R9   - mic Filter Control */
-	{ 0x0001, 0x0001, 0 }, /* R10  - Analogue ADC 0 */
-	{ 0x0000, 0x0000, 0 }, /* R11 */
-	{ 0x0003, 0x0003, 0 }, /* R12  - Power Management 0 */
-	{ 0x0000, 0x0000, 0 }, /* R13 */
-	{ 0x0003, 0x0003, 0 }, /* R14  - Power Management 2 */
-	{ 0x0003, 0x0003, 0 }, /* R15  - Power Management 3 */
-	{ 0x0000, 0x0000, 0 }, /* R16 */
-	{ 0x0000, 0x0000, 0 }, /* R17 */
-	{ 0x000F, 0x000F, 0 }, /* R18  - Power Management 6 */
-	{ 0x0000, 0x0000, 0 }, /* R19 */
-	{ 0x7001, 0x7001, 0 }, /* R20  - Clock Rates 0 */
-	{ 0x3C07, 0x3C07, 0 }, /* R21  - Clock Rates 1 */
-	{ 0xD00F, 0xD00F, 0 }, /* R22  - Clock Rates 2 */
-	{ 0x0000, 0x0000, 0 }, /* R23 */
-	{ 0x1FFF, 0x1FFF, 0 }, /* R24  - Audio Interface 0 */
-	{ 0x3DDF, 0x3DDF, 0 }, /* R25  - Audio Interface 1 */
-	{ 0x0F1F, 0x0F1F, 0 }, /* R26  - Audio Interface 2 */
-	{ 0x0FFF, 0x0FFF, 0 }, /* R27  - Audio Interface 3 */
-	{ 0x0000, 0x0000, 0 }, /* R28 */
-	{ 0x0000, 0x0000, 0 }, /* R29 */
-	{ 0x00FF, 0x01FF, 0 }, /* R30  - DAC Digital Volume Left */
-	{ 0x00FF, 0x01FF, 0 }, /* R31  - DAC Digital Volume Right */
-	{ 0x0FFF, 0x0FFF, 0 }, /* R32  - DAC Digital 0 */
-	{ 0x1E4E, 0x1E4E, 0 }, /* R33  - DAC Digital 1 */
-	{ 0x0000, 0x0000, 0 }, /* R34 */
-	{ 0x0000, 0x0000, 0 }, /* R35 */
-	{ 0x00FF, 0x01FF, 0 }, /* R36  - ADC Digital Volume Left */
-	{ 0x00FF, 0x01FF, 0 }, /* R37  - ADC Digital Volume Right */
-	{ 0x0073, 0x0073, 0 }, /* R38  - ADC Digital 0 */
-	{ 0x1800, 0x1800, 0 }, /* R39  - Digital Microphone 0 */
-	{ 0xDFEF, 0xDFEF, 0 }, /* R40  - DRC 0 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R41  - DRC 1 */
-	{ 0x003F, 0x003F, 0 }, /* R42  - DRC 2 */
-	{ 0x07FF, 0x07FF, 0 }, /* R43  - DRC 3 */
-	{ 0x009F, 0x009F, 0 }, /* R44  - Analogue Left Input 0 */
-	{ 0x009F, 0x009F, 0 }, /* R45  - Analogue Right Input 0 */
-	{ 0x007F, 0x007F, 0 }, /* R46  - Analogue Left Input 1 */
-	{ 0x007F, 0x007F, 0 }, /* R47  - Analogue Right Input 1 */
-	{ 0x0000, 0x0000, 0 }, /* R48 */
-	{ 0x0000, 0x0000, 0 }, /* R49 */
-	{ 0x0000, 0x0000, 0 }, /* R50 */
-	{ 0x0000, 0x0000, 0 }, /* R51 */
-	{ 0x0000, 0x0000, 0 }, /* R52 */
-	{ 0x0000, 0x0000, 0 }, /* R53 */
-	{ 0x0000, 0x0000, 0 }, /* R54 */
-	{ 0x0000, 0x0000, 0 }, /* R55 */
-	{ 0x0000, 0x0000, 0 }, /* R56 */
-	{ 0x017F, 0x01FF, 0 }, /* R57  - Analogue OUT1 Left */
-	{ 0x017F, 0x01FF, 0 }, /* R58  - Analogue OUT1 Right */
-	{ 0x017F, 0x01FF, 0 }, /* R59  - Analogue OUT2 Left */
-	{ 0x017F, 0x01FF, 0 }, /* R60  - Analogue OUT2 Right */
-	{ 0x000F, 0x000F, 0 }, /* R61  - Analogue OUT12 ZC */
-	{ 0x0000, 0x0000, 0 }, /* R62 */
-	{ 0x0000, 0x0000, 0 }, /* R63 */
-	{ 0x0000, 0x0000, 0 }, /* R64 */
-	{ 0x0000, 0x0000, 0 }, /* R65 */
-	{ 0x0000, 0x0000, 0 }, /* R66 */
-	{ 0x000F, 0x000F, 0 }, /* R67  - DC Servo 0 */
-	{ 0xFFFF, 0xFFFF, 1 }, /* R68  - DC Servo 1 */
-	{ 0x0F0F, 0x0F0F, 0 }, /* R69  - DC Servo 2 */
-	{ 0x0000, 0x0000, 0 }, /* R70 */
-	{ 0x007F, 0x007F, 0 }, /* R71  - DC Servo 4 */
-	{ 0x007F, 0x007F, 0 }, /* R72  - DC Servo 5 */
-	{ 0x00FF, 0x00FF, 1 }, /* R73  - DC Servo 6 */
-	{ 0x00FF, 0x00FF, 1 }, /* R74  - DC Servo 7 */
-	{ 0x00FF, 0x00FF, 1 }, /* R75  - DC Servo 8 */
-	{ 0x00FF, 0x00FF, 1 }, /* R76  - DC Servo 9 */
-	{ 0x0FFF, 0x0000, 1 }, /* R77  - DC Servo Readback 0 */
-	{ 0x0000, 0x0000, 0 }, /* R78 */
-	{ 0x0000, 0x0000, 0 }, /* R79 */
-	{ 0x0000, 0x0000, 0 }, /* R80 */
-	{ 0x0000, 0x0000, 0 }, /* R81 */
-	{ 0x0000, 0x0000, 0 }, /* R82 */
-	{ 0x0000, 0x0000, 0 }, /* R83 */
-	{ 0x0000, 0x0000, 0 }, /* R84 */
-	{ 0x0000, 0x0000, 0 }, /* R85 */
-	{ 0x0000, 0x0000, 0 }, /* R86 */
-	{ 0x0000, 0x0000, 0 }, /* R87 */
-	{ 0x0000, 0x0000, 0 }, /* R88 */
-	{ 0x0000, 0x0000, 0 }, /* R89 */
-	{ 0x00FF, 0x00FF, 0 }, /* R90  - Analogue HP 0 */
-	{ 0x0000, 0x0000, 0 }, /* R91 */
-	{ 0x0000, 0x0000, 0 }, /* R92 */
-	{ 0x0000, 0x0000, 0 }, /* R93 */
-	{ 0x00FF, 0x00FF, 0 }, /* R94  - Analogue Lineout 0 */
-	{ 0x0000, 0x0000, 0 }, /* R95 */
-	{ 0x0000, 0x0000, 0 }, /* R96 */
-	{ 0x0000, 0x0000, 0 }, /* R97 */
-	{ 0x0001, 0x0001, 0 }, /* R98  - Charge Pump 0 */
-	{ 0x0000, 0x0000, 0 }, /* R99 */
-	{ 0x0000, 0x0000, 0 }, /* R100 */
-	{ 0x0000, 0x0000, 0 }, /* R101 */
-	{ 0x0000, 0x0000, 0 }, /* R102 */
-	{ 0x0000, 0x0000, 0 }, /* R103 */
-	{ 0x0001, 0x0001, 0 }, /* R104 - Class W 0 */
-	{ 0x0000, 0x0000, 0 }, /* R105 */
-	{ 0x0000, 0x0000, 0 }, /* R106 */
-	{ 0x0000, 0x0000, 0 }, /* R107 */
-	{ 0x011F, 0x011F, 0 }, /* R108 - Write Sequencer 0 */
-	{ 0x7FFF, 0x7FFF, 0 }, /* R109 - Write Sequencer 1 */
-	{ 0x4FFF, 0x4FFF, 0 }, /* R110 - Write Sequencer 2 */
-	{ 0x003F, 0x033F, 0 }, /* R111 - Write Sequencer 3 */
-	{ 0x03F1, 0x0000, 0 }, /* R112 - Write Sequencer 4 */
-	{ 0x0000, 0x0000, 0 }, /* R113 */
-	{ 0x0000, 0x0000, 0 }, /* R114 */
-	{ 0x0000, 0x0000, 0 }, /* R115 */
-	{ 0x0007, 0x0007, 0 }, /* R116 - FLL Control 1 */
-	{ 0x3F77, 0x3F77, 0 }, /* R117 - FLL Control 2 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R118 - FLL Control 3 */
-	{ 0x7FEF, 0x7FEF, 0 }, /* R119 - FLL Control 4 */
-	{ 0x001B, 0x001B, 0 }, /* R120 - FLL Control 5 */
-	{ 0x003F, 0x003F, 0 }, /* R121 - GPIO Control 1 */
-	{ 0x003F, 0x003F, 0 }, /* R122 - GPIO Control 2 */
-	{ 0x003F, 0x003F, 0 }, /* R123 - GPIO Control 3 */
-	{ 0x038F, 0x038F, 0 }, /* R124 - GPIO Control 4 */
-	{ 0x0000, 0x0000, 0 }, /* R125 */
-	{ 0x00FF, 0x00FF, 0 }, /* R126 - Digital Pulls */
-	{ 0x07FF, 0x03FF, 1 }, /* R127 - Interrupt Status */
-	{ 0x03FF, 0x03FF, 0 }, /* R128 - Interrupt Status Mask */
-	{ 0x03FF, 0x03FF, 0 }, /* R129 - Interrupt Polarity */
-	{ 0x03FF, 0x03FF, 0 }, /* R130 - Interrupt Debounce */
-	{ 0x0000, 0x0000, 0 }, /* R131 */
-	{ 0x0000, 0x0000, 0 }, /* R132 */
-	{ 0x0000, 0x0000, 0 }, /* R133 */
-	{ 0x0001, 0x0001, 0 }, /* R134 - EQ1 */
-	{ 0x001F, 0x001F, 0 }, /* R135 - EQ2 */
-	{ 0x001F, 0x001F, 0 }, /* R136 - EQ3 */
-	{ 0x001F, 0x001F, 0 }, /* R137 - EQ4 */
-	{ 0x001F, 0x001F, 0 }, /* R138 - EQ5 */
-	{ 0x001F, 0x001F, 0 }, /* R139 - EQ6 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R140 - EQ7 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R141 - EQ8 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R142 - EQ9 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R143 - EQ10 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R144 - EQ11 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R145 - EQ12 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R146 - EQ13 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R147 - EQ14 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R148 - EQ15 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R149 - EQ16 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R150 - EQ17 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R151wm8523_dai - EQ18 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R152 - EQ19 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R153 - EQ20 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R154 - EQ21 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R155 - EQ22 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R156 - EQ23 */
-	{ 0xFFFF, 0xFFFF, 0 }, /* R157 - EQ24 */
-	{ 0x0000, 0x0000, 0 }, /* R158 */
-	{ 0x0000, 0x0000, 0 }, /* R159 */
-	{ 0x0000, 0x0000, 0 }, /* R160 */
-	{ 0x0002, 0x0002, 0 }, /* R161 - Control Interface Test 1 */
-	{ 0x0000, 0x0000, 0 }, /* R162 */
-	{ 0x0000, 0x0000, 0 }, /* R163 */
-	{ 0x0000, 0x0000, 0 }, /* R164 */
-	{ 0x0000, 0x0000, 0 }, /* R165 */
-	{ 0x0000, 0x0000, 0 }, /* R166 */
-	{ 0x0000, 0x0000, 0 }, /* R167 */
-	{ 0x0000, 0x0000, 0 }, /* R168 */
-	{ 0x0000, 0x0000, 0 }, /* R169 */
-	{ 0x0000, 0x0000, 0 }, /* R170 */
-	{ 0x0000, 0x0000, 0 }, /* R171 */
-	{ 0x0000, 0x0000, 0 }, /* R172 */
-	{ 0x0000, 0x0000, 0 }, /* R173 */
-	{ 0x0000, 0x0000, 0 }, /* R174 */
-	{ 0x0000, 0x0000, 0 }, /* R175 */
-	{ 0x0000, 0x0000, 0 }, /* R176 */
-	{ 0x0000, 0x0000, 0 }, /* R177 */
-	{ 0x0000, 0x0000, 0 }, /* R178 */
-	{ 0x0000, 0x0000, 0 }, /* R179 */
-	{ 0x0000, 0x0000, 0 }, /* R180 */
-	{ 0x0000, 0x0000, 0 }, /* R181 */
-	{ 0x0000, 0x0000, 0 }, /* R182 */
-	{ 0x0000, 0x0000, 0 }, /* R183 */
-	{ 0x0000, 0x0000, 0 }, /* R184 */
-	{ 0x0000, 0x0000, 0 }, /* R185 */
-	{ 0x0000, 0x0000, 0 }, /* R186 */
-	{ 0x0000, 0x0000, 0 }, /* R187 */
-	{ 0x0000, 0x0000, 0 }, /* R188 */
-	{ 0x0000, 0x0000, 0 }, /* R189 */
-	{ 0x0000, 0x0000, 0 }, /* R190 */
-	{ 0x0000, 0x0000, 0 }, /* R191 */
-	{ 0x0000, 0x0000, 0 }, /* R192 */
-	{ 0x0000, 0x0000, 0 }, /* R193 */
-	{ 0x0000, 0x0000, 0 }, /* R194 */
-	{ 0x0000, 0x0000, 0 }, /* R195 */
-	{ 0x0000, 0x0000, 0 }, /* R196 */
-	{ 0x0000, 0x0000, 0 }, /* R197 */
-	{ 0x0000, 0x0000, 0 }, /* R198 */
-	{ 0x0000, 0x0000, 0 }, /* R199 */
-	{ 0x0000, 0x0000, 0 }, /* R200 */
-	{ 0x0000, 0x0000, 0 }, /* R201 */
-	{ 0x0000, 0x0000, 0 }, /* R202 */
-	{ 0x0000, 0x0000, 0 }, /* R203 */
-	{ 0x0070, 0x0070, 0 }, /* R204 - Analogue Output Bias 0 */
-	{ 0x0000, 0x0000, 0 }, /* R205 */
-	{ 0x0000, 0x0000, 0 }, /* R206 */
-	{ 0x0000, 0x0000, 0 }, /* R207 */
-	{ 0x0000, 0x0000, 0 }, /* R208 */
-	{ 0x0000, 0x0000, 0 }, /* R209 */
-	{ 0x0000, 0x0000, 0 }, /* R210 */
-	{ 0x0000, 0x0000, 0 }, /* R211 */
-	{ 0x0000, 0x0000, 0 }, /* R212 */
-	{ 0x0000, 0x0000, 0 }, /* R213 */
-	{ 0x0000, 0x0000, 0 }, /* R214 */
-	{ 0x0000, 0x0000, 0 }, /* R215 */
-	{ 0x0000, 0x0000, 0 }, /* R216 */
-	{ 0x0000, 0x0000, 0 }, /* R217 */
-	{ 0x0000, 0x0000, 0 }, /* R218 */
-	{ 0x0000, 0x0000, 0 }, /* R219 */
-	{ 0x0000, 0x0000, 0 }, /* R220 */
-	{ 0x0000, 0x0000, 0 }, /* R221 */
-	{ 0x0000, 0x0000, 0 }, /* R222 */
-	{ 0x0000, 0x0000, 0 }, /* R223 */
-	{ 0x0000, 0x0000, 0 }, /* R224 */
-	{ 0x0000, 0x0000, 0 }, /* R225 */
-	{ 0x0000, 0x0000, 0 }, /* R226 */
-	{ 0x0000, 0x0000, 0 }, /* R227 */
-	{ 0x0000, 0x0000, 0 }, /* R228 */
-	{ 0x0000, 0x0000, 0 }, /* R229 */
-	{ 0x0000, 0x0000, 0 }, /* R230 */
-	{ 0x0000, 0x0000, 0 }, /* R231 */
-	{ 0x0000, 0x0000, 0 }, /* R232 */
-	{ 0x0000, 0x0000, 0 }, /* R233 */
-	{ 0x0000, 0x0000, 0 }, /* R234 */
-	{ 0x0000, 0x0000, 0 }, /* R235 */
-	{ 0x0000, 0x0000, 0 }, /* R236 */
-	{ 0x0000, 0x0000, 0 }, /* R237 */
-	{ 0x0000, 0x0000, 0 }, /* R238 */
-	{ 0x0000, 0x0000, 0 }, /* R239 */
-	{ 0x0000, 0x0000, 0 }, /* R240 */
-	{ 0x0000, 0x0000, 0 }, /* R241 */
-	{ 0x0000, 0x0000, 0 }, /* R242 */
-	{ 0x0000, 0x0000, 0 }, /* R243 */
-	{ 0x0000, 0x0000, 0 }, /* R244 */
-	{ 0x0000, 0x0000, 0 }, /* R245 */
-	{ 0x0000, 0x0000, 0 }, /* R246 */
-	{ 0x0001, 0x0001, 0 }, /* R247 - FLL NCO Test 0 */
-	{ 0x003F, 0x003F, 0 }, /* R248 - FLL NCO Test 1 */
-};
-
-static int wm8904_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
+static bool wm8904_volatile_register(struct device *dev, unsigned int reg)
 {
-	return wm8904_access[reg].vol;
+	switch (reg) {
+	case WM8904_SW_RESET_AND_ID:
+	case WM8904_REVISION:
+	case WM8904_DC_SERVO_1:
+	case WM8904_DC_SERVO_6:
+	case WM8904_DC_SERVO_7:
+	case WM8904_DC_SERVO_8:
+	case WM8904_DC_SERVO_9:
+	case WM8904_DC_SERVO_READBACK_0:
+	case WM8904_INTERRUPT_STATUS:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool wm8904_readable_register(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case WM8904_SW_RESET_AND_ID:
+	case WM8904_REVISION:
+	case WM8904_BIAS_CONTROL_0:
+	case WM8904_VMID_CONTROL_0:
+	case WM8904_MIC_BIAS_CONTROL_0:
+	case WM8904_MIC_BIAS_CONTROL_1:
+	case WM8904_ANALOGUE_DAC_0:
+	case WM8904_MIC_FILTER_CONTROL:
+	case WM8904_ANALOGUE_ADC_0:
+	case WM8904_POWER_MANAGEMENT_0:
+	case WM8904_POWER_MANAGEMENT_2:
+	case WM8904_POWER_MANAGEMENT_3:
+	case WM8904_POWER_MANAGEMENT_6:
+	case WM8904_CLOCK_RATES_0:
+	case WM8904_CLOCK_RATES_1:
+	case WM8904_CLOCK_RATES_2:
+	case WM8904_AUDIO_INTERFACE_0:
+	case WM8904_AUDIO_INTERFACE_1:
+	case WM8904_AUDIO_INTERFACE_2:
+	case WM8904_AUDIO_INTERFACE_3:
+	case WM8904_DAC_DIGITAL_VOLUME_LEFT:
+	case WM8904_DAC_DIGITAL_VOLUME_RIGHT:
+	case WM8904_DAC_DIGITAL_0:
+	case WM8904_DAC_DIGITAL_1:
+	case WM8904_ADC_DIGITAL_VOLUME_LEFT:
+	case WM8904_ADC_DIGITAL_VOLUME_RIGHT:
+	case WM8904_ADC_DIGITAL_0:
+	case WM8904_DIGITAL_MICROPHONE_0:
+	case WM8904_DRC_0:
+	case WM8904_DRC_1:
+	case WM8904_DRC_2:
+	case WM8904_DRC_3:
+	case WM8904_ANALOGUE_LEFT_INPUT_0:
+	case WM8904_ANALOGUE_RIGHT_INPUT_0:
+	case WM8904_ANALOGUE_LEFT_INPUT_1:
+	case WM8904_ANALOGUE_RIGHT_INPUT_1:
+	case WM8904_ANALOGUE_OUT1_LEFT:
+	case WM8904_ANALOGUE_OUT1_RIGHT:
+	case WM8904_ANALOGUE_OUT2_LEFT:
+	case WM8904_ANALOGUE_OUT2_RIGHT:
+	case WM8904_ANALOGUE_OUT12_ZC:
+	case WM8904_DC_SERVO_0:
+	case WM8904_DC_SERVO_1:
+	case WM8904_DC_SERVO_2:
+	case WM8904_DC_SERVO_4:
+	case WM8904_DC_SERVO_5:
+	case WM8904_DC_SERVO_6:
+	case WM8904_DC_SERVO_7:
+	case WM8904_DC_SERVO_8:
+	case WM8904_DC_SERVO_9:
+	case WM8904_DC_SERVO_READBACK_0:
+	case WM8904_ANALOGUE_HP_0:
+	case WM8904_ANALOGUE_LINEOUT_0:
+	case WM8904_CHARGE_PUMP_0:
+	case WM8904_CLASS_W_0:
+	case WM8904_WRITE_SEQUENCER_0:
+	case WM8904_WRITE_SEQUENCER_1:
+	case WM8904_WRITE_SEQUENCER_2:
+	case WM8904_WRITE_SEQUENCER_3:
+	case WM8904_WRITE_SEQUENCER_4:
+	case WM8904_FLL_CONTROL_1:
+	case WM8904_FLL_CONTROL_2:
+	case WM8904_FLL_CONTROL_3:
+	case WM8904_FLL_CONTROL_4:
+	case WM8904_FLL_CONTROL_5:
+	case WM8904_GPIO_CONTROL_1:
+	case WM8904_GPIO_CONTROL_2:
+	case WM8904_GPIO_CONTROL_3:
+	case WM8904_GPIO_CONTROL_4:
+	case WM8904_DIGITAL_PULLS:
+	case WM8904_INTERRUPT_STATUS:
+	case WM8904_INTERRUPT_STATUS_MASK:
+	case WM8904_INTERRUPT_POLARITY:
+	case WM8904_INTERRUPT_DEBOUNCE:
+	case WM8904_EQ1:
+	case WM8904_EQ2:
+	case WM8904_EQ3:
+	case WM8904_EQ4:
+	case WM8904_EQ5:
+	case WM8904_EQ6:
+	case WM8904_EQ7:
+	case WM8904_EQ8:
+	case WM8904_EQ9:
+	case WM8904_EQ10:
+	case WM8904_EQ11:
+	case WM8904_EQ12:
+	case WM8904_EQ13:
+	case WM8904_EQ14:
+	case WM8904_EQ15:
+	case WM8904_EQ16:
+	case WM8904_EQ17:
+	case WM8904_EQ18:
+	case WM8904_EQ19:
+	case WM8904_EQ20:
+	case WM8904_EQ21:
+	case WM8904_EQ22:
+	case WM8904_EQ23:
+	case WM8904_EQ24:
+	case WM8904_CONTROL_INTERFACE_TEST_1:
+	case WM8904_ADC_TEST_0:
+	case WM8904_ANALOGUE_OUTPUT_BIAS_0:
+	case WM8904_FLL_NCO_TEST_0:
+	case WM8904_FLL_NCO_TEST_1:
+		return true;
+	default:
+		return true;
+	}
 }
 
 static int wm8904_reset(struct snd_soc_codec *codec)
@@ -855,6 +570,29 @@ static const char *hpf_mode_text[] = {
 static const struct soc_enum hpf_mode =
 	SOC_ENUM_SINGLE(WM8904_ADC_DIGITAL_0, 5, 4, hpf_mode_text);
 
+static int wm8904_adc_osr_put(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned int val;
+	int ret;
+
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+	if (ret < 0)
+		return ret;
+
+	if (ucontrol->value.integer.value[0])
+		val = 0;
+	else
+		val = WM8904_ADC_128_OSR_TST_MODE | WM8904_ADC_BIASX1P5;
+
+	snd_soc_update_bits(codec, WM8904_ADC_TEST_0,
+			    WM8904_ADC_128_OSR_TST_MODE | WM8904_ADC_BIASX1P5,
+			    val);
+
+	return ret;
+}
+
 static const struct snd_kcontrol_new wm8904_adc_snd_controls[] = {
 SOC_DOUBLE_R_TLV("Digital Capture Volume", WM8904_ADC_DIGITAL_VOLUME_LEFT,
 		 WM8904_ADC_DIGITAL_VOLUME_RIGHT, 1, 119, 0, digital_tlv),
@@ -871,7 +609,12 @@ SOC_DOUBLE_R("Capture Switch", WM8904_ANALOGUE_LEFT_INPUT_0,
 SOC_SINGLE("High Pass Filter Switch", WM8904_ADC_DIGITAL_0, 4, 1, 0),
 SOC_ENUM("High Pass Filter Mode", hpf_mode),
 
-SOC_SINGLE("ADC 128x OSR Switch", WM8904_ANALOGUE_ADC_0, 0, 1, 0),
+{       .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "ADC 128x OSR Switch",
+	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,
+	.put = wm8904_adc_osr_put,
+	.private_value = SOC_SINGLE_VALUE(WM8904_ANALOGUE_ADC_0, 0, 1, 0),
+},
 };
 
 static const char *drc_path_text[] = {
@@ -1433,11 +1176,11 @@ static int wm8904_add_widgets(struct snd_soc_codec *codec)
 
 	switch (wm8904->devtype) {
 	case WM8904:
-		snd_soc_add_controls(codec, wm8904_adc_snd_controls,
+		snd_soc_add_codec_controls(codec, wm8904_adc_snd_controls,
 				     ARRAY_SIZE(wm8904_adc_snd_controls));
-		snd_soc_add_controls(codec, wm8904_dac_snd_controls,
+		snd_soc_add_codec_controls(codec, wm8904_dac_snd_controls,
 				     ARRAY_SIZE(wm8904_dac_snd_controls));
-		snd_soc_add_controls(codec, wm8904_snd_controls,
+		snd_soc_add_codec_controls(codec, wm8904_snd_controls,
 				     ARRAY_SIZE(wm8904_snd_controls));
 
 		snd_soc_dapm_new_controls(dapm, wm8904_adc_dapm_widgets,
@@ -1458,7 +1201,7 @@ static int wm8904_add_widgets(struct snd_soc_codec *codec)
 		break;
 
 	case WM8912:
-		snd_soc_add_controls(codec, wm8904_dac_snd_controls,
+		snd_soc_add_codec_controls(codec, wm8904_dac_snd_controls,
 				     ARRAY_SIZE(wm8904_dac_snd_controls));
 
 		snd_soc_dapm_new_controls(dapm, wm8904_dac_dapm_widgets,
@@ -2088,32 +1831,6 @@ static int wm8904_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
-static void wm8904_sync_cache(struct snd_soc_codec *codec)
-{
-	u16 *reg_cache = codec->reg_cache;
-	int i;
-
-	if (!codec->cache_sync)
-		return;
-
-	codec->cache_only = 0;
-
-	/* Sync back cached values if they're different from the
-	 * hardware default.
-	 */
-	for (i = 1; i < codec->driver->reg_cache_size; i++) {
-		if (!wm8904_access[i].writable)
-			continue;
-
-		if (reg_cache[i] == wm8904_reg[i])
-			continue;
-
-		snd_soc_write(codec, i, reg_cache[i]);
-	}
-
-	codec->cache_sync = 0;
-}
-
 static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
@@ -2146,7 +1863,7 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 				return ret;
 			}
 
-			wm8904_sync_cache(codec);
+			regcache_sync(wm8904->regmap);
 
 			/* Enable bias */
 			snd_soc_update_bits(codec, WM8904_BIAS_CONTROL_0,
@@ -2303,7 +2020,7 @@ static void wm8904_handle_retune_mobile_pdata(struct snd_soc_codec *codec)
 	wm8904->retune_mobile_enum.max = wm8904->num_retune_mobile_texts;
 	wm8904->retune_mobile_enum.texts = wm8904->retune_mobile_texts;
 
-	ret = snd_soc_add_controls(codec, &control, 1);
+	ret = snd_soc_add_codec_controls(codec, &control, 1);
 	if (ret != 0)
 		dev_err(codec->dev,
 			"Failed to add ReTune Mobile control: %d\n", ret);
@@ -2316,7 +2033,7 @@ static void wm8904_handle_pdata(struct snd_soc_codec *codec)
 	int ret, i;
 
 	if (!pdata) {
-		snd_soc_add_controls(codec, wm8904_eq_controls,
+		snd_soc_add_codec_controls(codec, wm8904_eq_controls,
 				     ARRAY_SIZE(wm8904_eq_controls));
 		return;
 	}
@@ -2344,7 +2061,7 @@ static void wm8904_handle_pdata(struct snd_soc_codec *codec)
 		wm8904->drc_enum.max = pdata->num_drc_cfgs;
 		wm8904->drc_enum.texts = wm8904->drc_texts;
 
-		ret = snd_soc_add_controls(codec, &control, 1);
+		ret = snd_soc_add_codec_controls(codec, &control, 1);
 		if (ret != 0)
 			dev_err(codec->dev,
 				"Failed to add DRC mode control: %d\n", ret);
@@ -2358,7 +2075,7 @@ static void wm8904_handle_pdata(struct snd_soc_codec *codec)
 	if (pdata->num_retune_mobile_cfgs)
 		wm8904_handle_retune_mobile_pdata(codec);
 	else
-		snd_soc_add_controls(codec, wm8904_eq_controls,
+		snd_soc_add_codec_controls(codec, wm8904_eq_controls,
 				     ARRAY_SIZE(wm8904_eq_controls));
 }
 
@@ -2371,7 +2088,7 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 	int ret, i;
 
 	codec->cache_sync = 1;
-	codec->dapm.idle_bias_off = 1;
+	codec->control_data = wm8904->regmap;
 
 	switch (wm8904->devtype) {
 	case WM8904:
@@ -2385,7 +2102,7 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 		return -EINVAL;
 	}
 
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
+	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
@@ -2413,7 +2130,7 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to read ID register\n");
 		goto err_enable;
 	}
-	if (ret != wm8904_reg[WM8904_SW_RESET_AND_ID]) {
+	if (ret != 0x8904) {
 		dev_err(codec->dev, "Device is not a WM8904, ID is %x\n", ret);
 		ret = -EINVAL;
 		goto err_enable;
@@ -2519,22 +2236,40 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8904 = {
 	.suspend =	wm8904_suspend,
 	.resume =	wm8904_resume,
 	.set_bias_level = wm8904_set_bias_level,
-	.reg_cache_size = ARRAY_SIZE(wm8904_reg),
-	.reg_word_size = sizeof(u16),
-	.reg_cache_default = wm8904_reg,
-	.volatile_register = wm8904_volatile_register,
+	.idle_bias_off = true,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+static const struct regmap_config wm8904_regmap = {
+	.reg_bits = 8,
+	.val_bits = 16,
+
+	.max_register = WM8904_MAX_REGISTER,
+	.volatile_reg = wm8904_volatile_register,
+	.readable_reg = wm8904_readable_register,
+
+	.cache_type = REGCACHE_RBTREE,
+	.reg_defaults = wm8904_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(wm8904_reg_defaults),
+};
+
 static __devinit int wm8904_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8904_priv *wm8904;
 	int ret;
 
-	wm8904 = kzalloc(sizeof(struct wm8904_priv), GFP_KERNEL);
+	wm8904 = devm_kzalloc(&i2c->dev, sizeof(struct wm8904_priv),
+			      GFP_KERNEL);
 	if (wm8904 == NULL)
 		return -ENOMEM;
+
+	wm8904->regmap = regmap_init_i2c(i2c, &wm8904_regmap);
+	if (IS_ERR(wm8904->regmap)) {
+		ret = PTR_ERR(wm8904->regmap);
+		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
+			ret);
+		return ret;
+	}
 
 	wm8904->devtype = id->driver_data;
 	i2c_set_clientdata(i2c, wm8904);
@@ -2542,15 +2277,21 @@ static __devinit int wm8904_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8904, &wm8904_dai, 1);
-	if (ret < 0)
-		kfree(wm8904);
+	if (ret != 0)
+		goto err;
+
+	return 0;
+
+err:
+	regmap_exit(wm8904->regmap);
 	return ret;
 }
 
 static __devexit int wm8904_i2c_remove(struct i2c_client *client)
 {
+	struct wm8904_priv *wm8904 = i2c_get_clientdata(client);
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+	regmap_exit(wm8904->regmap);
 	return 0;
 }
 
@@ -2571,27 +2312,22 @@ static struct i2c_driver wm8904_i2c_driver = {
 	.remove =   __devexit_p(wm8904_i2c_remove),
 	.id_table = wm8904_i2c_id,
 };
-#endif
 
 static int __init wm8904_modinit(void)
 {
 	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&wm8904_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register wm8904 I2C driver: %d\n",
 		       ret);
 	}
-#endif
 	return ret;
 }
 module_init(wm8904_modinit);
 
 static void __exit wm8904_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8904_i2c_driver);
-#endif
 }
 module_exit(wm8904_exit);
 

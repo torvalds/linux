@@ -16,6 +16,7 @@
 
 #include <asm/processor.h>
 #include <asm/spitfire.h>
+#include <asm/cacheflush.h>
 
 #include "entry.h"
 

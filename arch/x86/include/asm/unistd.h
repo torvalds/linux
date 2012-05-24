@@ -1,7 +1,17 @@
 #ifndef _ASM_X86_UNISTD_H
 #define _ASM_X86_UNISTD_H 1
 
+/* x32 syscall flag bit */
+#define __X32_SYSCALL_BIT	0x40000000
+
 #ifdef __KERNEL__
+
+# ifdef CONFIG_X86_X32_ABI
+#  define __SYSCALL_MASK (~(__X32_SYSCALL_BIT))
+# else
+#  define __SYSCALL_MASK (~0)
+# endif
+
 # ifdef CONFIG_X86_32
 
 #  include <asm/unistd_32.h>
@@ -14,6 +24,7 @@
 # else
 
 #  include <asm/unistd_64.h>
+#  include <asm/unistd_64_x32.h>
 #  define __ARCH_WANT_COMPAT_SYS_TIME
 
 # endif
@@ -52,8 +63,10 @@
 #else
 # ifdef __i386__
 #  include <asm/unistd_32.h>
-# else
+# elif defined(__LP64__)
 #  include <asm/unistd_64.h>
+# else
+#  include <asm/unistd_x32.h>
 # endif
 #endif
 

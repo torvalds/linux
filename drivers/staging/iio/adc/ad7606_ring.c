@@ -110,8 +110,6 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_ret;
 	}
 
-	/* Effectively select the ring buffer implementation */
-	indio_dev->buffer->access = &ring_sw_access_funcs;
 	indio_dev->pollfunc = iio_alloc_pollfunc(&ad7606_trigger_handler_th_bh,
 						 &ad7606_trigger_handler_th_bh,
 						 0,

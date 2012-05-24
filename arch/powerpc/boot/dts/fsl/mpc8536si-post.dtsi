@@ -202,7 +202,7 @@
 /include/ "pq3-etsec1-timer-0.dtsi"
 
 	usb@22000 {
-		compatible = "fsl,mpc8536-usb2-mph", "fsl-usb2-mph";
+		compatible = "fsl-usb2-mph-v1.2", "fsl,mpc8536-usb2-mph", "fsl-usb2-mph";
 		reg = <0x22000 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -210,7 +210,7 @@
 	};
 
 	usb@23000 {
-		compatible = "fsl,mpc8536-usb2-mph", "fsl-usb2-mph";
+		compatible = "fsl-usb2-mph-v1.2", "fsl,mpc8536-usb2-mph", "fsl-usb2-mph";
 		reg = <0x23000 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <0>;

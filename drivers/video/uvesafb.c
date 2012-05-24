@@ -121,7 +121,7 @@ static int uvesafb_helper_start(void)
 		NULL,
 	};
 
-	return call_usermodehelper(v86d_path, argv, envp, 1);
+	return call_usermodehelper(v86d_path, argv, envp, UMH_WAIT_PROC);
 }
 
 /*
@@ -362,7 +362,7 @@ static u8 *uvesafb_vbe_state_save(struct uvesafb_par *par)
 
 	state = kmalloc(par->vbe_state_size, GFP_KERNEL);
 	if (!state)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	task = uvesafb_prep();
 	if (!task) {
@@ -815,8 +815,15 @@ static int __devinit uvesafb_vbe_init(struct fb_info *info)
 	par->pmi_setpal = pmi_setpal;
 	par->ypan = ypan;
 
-	if (par->pmi_setpal || par->ypan)
-		uvesafb_vbe_getpmi(task, par);
+	if (par->pmi_setpal || par->ypan) {
+		if (__supported_pte_mask & _PAGE_NX) {
+			par->pmi_setpal = par->ypan = 0;
+			printk(KERN_WARNING "uvesafb: NX protection is actively."
+				"We have better not to use the PMI.\n");
+		} else {
+			uvesafb_vbe_getpmi(task, par);
+		}
+	}
 #else
 	/* The protected mode interface is not available on non-x86. */
 	par->pmi_setpal = par->ypan = 0;
@@ -1172,9 +1179,17 @@ static int uvesafb_open(struct fb_info *info, int user)
 {
 	struct uvesafb_par *par = info->par;
 	int cnt = atomic_read(&par->ref_count);
+	u8 *buf = NULL;
 
-	if (!cnt && par->vbe_state_size)
-		par->vbe_state_orig = uvesafb_vbe_state_save(par);
+	if (!cnt && par->vbe_state_size) {
+		buf =  uvesafb_vbe_state_save(par);
+		if (IS_ERR(buf)) {
+			printk(KERN_WARNING "uvesafb: save hardware state"
+				"failed, error code is %ld!\n", PTR_ERR(buf));
+		} else {
+			par->vbe_state_orig = buf;
+		}
+	}
 
 	atomic_inc(&par->ref_count);
 	return 0;

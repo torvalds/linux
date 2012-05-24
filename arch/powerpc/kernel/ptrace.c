@@ -36,7 +36,7 @@
 #include <asm/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
+#include <asm/switch_to.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>

@@ -143,10 +143,12 @@ struct dvb_frontend_private {
 static void dvb_frontend_wakeup(struct dvb_frontend *fe);
 static int dtv_get_frontend(struct dvb_frontend *fe,
 			    struct dvb_frontend_parameters *p_out);
+static int dtv_property_legacy_params_sync(struct dvb_frontend *fe,
+					   struct dvb_frontend_parameters *p);
 
 static bool has_get_frontend(struct dvb_frontend *fe)
 {
-	return fe->ops.get_frontend;
+	return fe->ops.get_frontend != NULL;
 }
 
 /*
@@ -655,6 +657,8 @@ restart:
 					dprintk("%s: Retune requested, FESTATE_RETUNE\n", __func__);
 					re_tune = true;
 					fepriv->state = FESTATE_TUNED;
+				} else {
+					re_tune = false;
 				}
 
 				if (fe->ops.tune)
@@ -695,6 +699,7 @@ restart:
 					fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
 					fepriv->delay = HZ / 2;
 				}
+				dtv_property_legacy_params_sync(fe, &fepriv->parameters_out);
 				fe->ops.read_status(fe, &s);
 				if (s != fepriv->status) {
 					dvb_frontend_add_event(fe, s); /* update event list */
@@ -1441,6 +1446,28 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 				__func__);
 			return -EINVAL;
 		}
+		/*
+		 * Get a delivery system that is compatible with DVBv3
+		 * NOTE: in order for this to work with softwares like Kaffeine that
+		 *	uses a DVBv5 call for DVB-S2 and a DVBv3 call to go back to
+		 *	DVB-S, drivers that support both should put the SYS_DVBS entry
+		 *	before the SYS_DVBS2, otherwise it won't switch back to DVB-S.
+		 *	The real fix is that userspace applications should not use DVBv3
+		 *	and not trust on calling FE_SET_FRONTEND to switch the delivery
+		 *	system.
+		 */
+		ncaps = 0;
+		while (fe->ops.delsys[ncaps] && ncaps < MAX_DELSYS) {
+			if (fe->ops.delsys[ncaps] == desired_system) {
+				delsys = desired_system;
+				break;
+			}
+			ncaps++;
+		}
+		if (delsys == SYS_UNDEFINED) {
+			dprintk("%s() Couldn't find a delivery system that matches %d\n",
+				__func__, desired_system);
+		}
 	} else {
 		/*
 		 * This is a DVBv5 call. So, it likely knows the supported
@@ -1489,8 +1516,9 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 				__func__);
 			return -EINVAL;
 		}
-		c->delivery_system = delsys;
 	}
+
+	c->delivery_system = delsys;
 
 	/*
 	 * The DVBv3 or DVBv5 call is requesting a different system. So,
@@ -1829,6 +1857,13 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 
 	if (dvb_frontend_check_parameters(fe) < 0)
 		return -EINVAL;
+
+	/*
+	 * Initialize output parameters to match the values given by
+	 * the user. FE_SET_FRONTEND triggers an initial frontend event
+	 * with status = 0, which copies output parameters to userspace.
+	 */
+	dtv_property_legacy_params_sync(fe, &fepriv->parameters_out);
 
 	/*
 	 * Be sure that the bandwidth will be filled for all

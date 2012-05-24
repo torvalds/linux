@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,6 +67,7 @@
 
 struct iwl_priv;
 struct iwl_shared;
+struct iwl_trans;
 
 /*
  * EEPROM access time values:
@@ -301,14 +302,14 @@ extern const u8 iwl_eeprom_band_1[14];
 
 struct iwl_eeprom_ops {
 	const u32 regulatory_bands[7];
-	void (*update_enhanced_txpower) (struct iwl_priv *priv);
+	bool enhanced_txpower;
 };
 
 
-int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev);
+int iwl_eeprom_init(struct iwl_trans *trans, u32 hw_rev);
 void iwl_eeprom_free(struct iwl_shared *shrd);
 int  iwl_eeprom_check_version(struct iwl_priv *priv);
-int  iwl_eeprom_check_sku(struct iwl_priv *priv);
+int iwl_eeprom_init_hw_params(struct iwl_priv *priv);
 const u8 *iwl_eeprom_query_addr(const struct iwl_shared *shrd, size_t offset);
 u16 iwl_eeprom_query16(const struct iwl_shared *shrd, size_t offset);
 int iwl_init_channel_map(struct iwl_priv *priv);

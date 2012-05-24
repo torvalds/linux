@@ -145,22 +145,23 @@
 /* Bit fields */
 
 /* Global Configuration Register */
-#define DWC3_GCTL_PWRDNSCALE(n)	(n << 19)
+#define DWC3_GCTL_PWRDNSCALE(n)	((n) << 19)
 #define DWC3_GCTL_U2RSTECN	(1 << 16)
-#define DWC3_GCTL_RAMCLKSEL(x)	((x & DWC3_GCTL_CLK_MASK) << 6)
+#define DWC3_GCTL_RAMCLKSEL(x)	(((x) & DWC3_GCTL_CLK_MASK) << 6)
 #define DWC3_GCTL_CLK_BUS	(0)
 #define DWC3_GCTL_CLK_PIPE	(1)
 #define DWC3_GCTL_CLK_PIPEHALF	(2)
 #define DWC3_GCTL_CLK_MASK	(3)
 
 #define DWC3_GCTL_PRTCAP(n)	(((n) & (3 << 12)) >> 12)
-#define DWC3_GCTL_PRTCAPDIR(n)	(n << 12)
+#define DWC3_GCTL_PRTCAPDIR(n)	((n) << 12)
 #define DWC3_GCTL_PRTCAP_HOST	1
 #define DWC3_GCTL_PRTCAP_DEVICE	2
 #define DWC3_GCTL_PRTCAP_OTG	3
 
 #define DWC3_GCTL_CORESOFTRESET	(1 << 11)
-#define DWC3_GCTL_SCALEDOWN(n)	(n << 4)
+#define DWC3_GCTL_SCALEDOWN(n)	((n) << 4)
+#define DWC3_GCTL_SCALEDOWN_MASK DWC3_GCTL_SCALEDOWN(3)
 #define DWC3_GCTL_DISSCRAMBLE	(1 << 3)
 #define DWC3_GCTL_DSBLCLKGTNG	(1 << 0)
 
@@ -172,8 +173,12 @@
 #define DWC3_GUSB3PIPECTL_PHYSOFTRST (1 << 31)
 #define DWC3_GUSB3PIPECTL_SUSPHY (1 << 17)
 
+/* Global TX Fifo Size Register */
+#define DWC3_GTXFIFOSIZ_TXFDEF(n) ((n) & 0xffff)
+#define DWC3_GTXFIFOSIZ_TXFSTADDR(n) ((n) & 0xffff0000)
+
 /* Global HWPARAMS1 Register */
-#define DWC3_GHWPARAMS1_EN_PWROPT(n)	((n & (3 << 24)) >> 24)
+#define DWC3_GHWPARAMS1_EN_PWROPT(n)	(((n) & (3 << 24)) >> 24)
 #define DWC3_GHWPARAMS1_EN_PWROPT_NO	0
 #define DWC3_GHWPARAMS1_EN_PWROPT_CLK	1
 
@@ -197,6 +202,15 @@
 #define DWC3_DCTL_HIRD_THRES(n)	(((n) & DWC3_DCTL_HIRD_THRES_MASK) >> 24)
 
 #define DWC3_DCTL_APPL1RES	(1 << 23)
+
+#define DWC3_DCTL_TRGTULST_MASK	(0x0f << 17)
+#define DWC3_DCTL_TRGTULST(n)	((n) << 17)
+
+#define DWC3_DCTL_TRGTULST_U2	(DWC3_DCTL_TRGTULST(2))
+#define DWC3_DCTL_TRGTULST_U3	(DWC3_DCTL_TRGTULST(3))
+#define DWC3_DCTL_TRGTULST_SS_DIS (DWC3_DCTL_TRGTULST(4))
+#define DWC3_DCTL_TRGTULST_RX_DET (DWC3_DCTL_TRGTULST(5))
+#define DWC3_DCTL_TRGTULST_SS_INACT (DWC3_DCTL_TRGTULST(6))
 
 #define DWC3_DCTL_INITU2ENA	(1 << 12)
 #define DWC3_DCTL_ACCEPTU2ENA	(1 << 11)
@@ -260,10 +274,10 @@
 
 /* Device Endpoint Command Register */
 #define DWC3_DEPCMD_PARAM_SHIFT		16
-#define DWC3_DEPCMD_PARAM(x)		(x << DWC3_DEPCMD_PARAM_SHIFT)
-#define DWC3_DEPCMD_GET_RSC_IDX(x)	((x >> DWC3_DEPCMD_PARAM_SHIFT) & 0x7f)
+#define DWC3_DEPCMD_PARAM(x)		((x) << DWC3_DEPCMD_PARAM_SHIFT)
+#define DWC3_DEPCMD_GET_RSC_IDX(x)     (((x) >> DWC3_DEPCMD_PARAM_SHIFT) & 0x7f)
 #define DWC3_DEPCMD_STATUS_MASK		(0x0f << 12)
-#define DWC3_DEPCMD_STATUS(x)		((x & DWC3_DEPCMD_STATUS_MASK) >> 12)
+#define DWC3_DEPCMD_STATUS(x)		(((x) & DWC3_DEPCMD_STATUS_MASK) >> 12)
 #define DWC3_DEPCMD_HIPRI_FORCERM	(1 << 11)
 #define DWC3_DEPCMD_CMDACT		(1 << 10)
 #define DWC3_DEPCMD_CMDIOC		(1 << 8)
@@ -288,7 +302,7 @@
 
 /* Structures */
 
-struct dwc3_trb_hw;
+struct dwc3_trb;
 
 /**
  * struct dwc3_event_buffer - Software event buffer representation
@@ -343,7 +357,7 @@ struct dwc3_ep {
 	struct list_head	request_list;
 	struct list_head	req_queued;
 
-	struct dwc3_trb_hw	*trb_pool;
+	struct dwc3_trb		*trb_pool;
 	dma_addr_t		trb_pool_dma;
 	u32			free_slot;
 	u32			busy_slot;
@@ -418,101 +432,48 @@ enum dwc3_device_state {
 	DWC3_CONFIGURED_STATE,
 };
 
-/**
- * struct dwc3_trb - transfer request block
- * @bpl: lower 32bit of the buffer
- * @bph: higher 32bit of the buffer
- * @length: buffer size (up to 16mb - 1)
- * @pcm1: packet count m1
- * @trbsts: trb status
- *	0 = ok
- *	1 = missed isoc
- *	2 = setup pending
- * @hwo: hardware owner of descriptor
- * @lst: last trb
- * @chn: chain buffers
- * @csp: continue on short packets (only supported on isoc eps)
- * @trbctl: trb control
- *	1 = normal
- *	2 = control-setup
- *	3 = control-status-2
- *	4 = control-status-3
- *	5 = control-data (first trb of data stage)
- *	6 = isochronous-first (first trb of service interval)
- *	7 = isochronous
- *	8 = link trb
- *	others = reserved
- * @isp_imi: interrupt on short packet / interrupt on missed isoc
- * @ioc: interrupt on complete
- * @sid_sofn: Stream ID / SOF Number
- */
-struct dwc3_trb {
-	u64             bplh;
+/* TRB Length, PCM and Status */
+#define DWC3_TRB_SIZE_MASK	(0x00ffffff)
+#define DWC3_TRB_SIZE_LENGTH(n)	((n) & DWC3_TRB_SIZE_MASK)
+#define DWC3_TRB_SIZE_PCM1(n)	(((n) & 0x03) << 24)
+#define DWC3_TRB_SIZE_TRBSTS(n)	(((n) & (0x0f << 28) >> 28))
 
-	union {
-		struct {
-			u32             length:24;
-			u32             pcm1:2;
-			u32             reserved27_26:2;
-			u32             trbsts:4;
-#define DWC3_TRB_STS_OKAY                       0
-#define DWC3_TRB_STS_MISSED_ISOC                1
-#define DWC3_TRB_STS_SETUP_PENDING              2
-		};
-		u32 len_pcm;
-	};
+#define DWC3_TRBSTS_OK			0
+#define DWC3_TRBSTS_MISSED_ISOC		1
+#define DWC3_TRBSTS_SETUP_PENDING	2
 
-	union {
-		struct {
-			u32             hwo:1;
-			u32             lst:1;
-			u32             chn:1;
-			u32             csp:1;
-			u32             trbctl:6;
-			u32             isp_imi:1;
-			u32             ioc:1;
-			u32             reserved13_12:2;
-			u32             sid_sofn:16;
-			u32             reserved31_30:2;
-		};
-		u32 control;
-	};
-} __packed;
+/* TRB Control */
+#define DWC3_TRB_CTRL_HWO		(1 << 0)
+#define DWC3_TRB_CTRL_LST		(1 << 1)
+#define DWC3_TRB_CTRL_CHN		(1 << 2)
+#define DWC3_TRB_CTRL_CSP		(1 << 3)
+#define DWC3_TRB_CTRL_TRBCTL(n)		(((n) & 0x3f) << 4)
+#define DWC3_TRB_CTRL_ISP_IMI		(1 << 10)
+#define DWC3_TRB_CTRL_IOC		(1 << 11)
+#define DWC3_TRB_CTRL_SID_SOFN(n)	(((n) & 0xffff) << 14)
+
+#define DWC3_TRBCTL_NORMAL		DWC3_TRB_CTRL_TRBCTL(1)
+#define DWC3_TRBCTL_CONTROL_SETUP	DWC3_TRB_CTRL_TRBCTL(2)
+#define DWC3_TRBCTL_CONTROL_STATUS2	DWC3_TRB_CTRL_TRBCTL(3)
+#define DWC3_TRBCTL_CONTROL_STATUS3	DWC3_TRB_CTRL_TRBCTL(4)
+#define DWC3_TRBCTL_CONTROL_DATA	DWC3_TRB_CTRL_TRBCTL(5)
+#define DWC3_TRBCTL_ISOCHRONOUS_FIRST	DWC3_TRB_CTRL_TRBCTL(6)
+#define DWC3_TRBCTL_ISOCHRONOUS		DWC3_TRB_CTRL_TRBCTL(7)
+#define DWC3_TRBCTL_LINK_TRB		DWC3_TRB_CTRL_TRBCTL(8)
 
 /**
- * struct dwc3_trb_hw - transfer request block (hw format)
+ * struct dwc3_trb - transfer request block (hw format)
  * @bpl: DW0-3
  * @bph: DW4-7
  * @size: DW8-B
  * @trl: DWC-F
  */
-struct dwc3_trb_hw {
-	__le32		bpl;
-	__le32		bph;
-	__le32		size;
-	__le32		ctrl;
+struct dwc3_trb {
+	u32		bpl;
+	u32		bph;
+	u32		size;
+	u32		ctrl;
 } __packed;
-
-static inline void dwc3_trb_to_hw(struct dwc3_trb *nat, struct dwc3_trb_hw *hw)
-{
-	hw->bpl = cpu_to_le32(lower_32_bits(nat->bplh));
-	hw->bph = cpu_to_le32(upper_32_bits(nat->bplh));
-	hw->size = cpu_to_le32p(&nat->len_pcm);
-	/* HWO is written last */
-	hw->ctrl = cpu_to_le32p(&nat->control);
-}
-
-static inline void dwc3_trb_to_nat(struct dwc3_trb_hw *hw, struct dwc3_trb *nat)
-{
-	u64 bplh;
-
-	bplh = le32_to_cpup(&hw->bpl);
-	bplh |= (u64) le32_to_cpup(&hw->bph) << 32;
-	nat->bplh = bplh;
-
-	nat->len_pcm = le32_to_cpup(&hw->size);
-	nat->control = le32_to_cpup(&hw->ctrl);
-}
 
 /**
  * dwc3_hwparams - copy of HWPARAMS registers
@@ -546,8 +507,13 @@ struct dwc3_hwparams {
 #define DWC3_MODE_DRD		2
 #define DWC3_MODE_HUB		3
 
+#define DWC3_MDWIDTH(n)		(((n) & 0xff00) >> 8)
+
 /* HWPARAMS1 */
-#define DWC3_NUM_INT(n)	(((n) & (0x3f << 15)) >> 15)
+#define DWC3_NUM_INT(n)		(((n) & (0x3f << 15)) >> 15)
+
+/* HWPARAMS7 */
+#define DWC3_RAM1_DEPTH(n)	((n) & 0xffff)
 
 struct dwc3_request {
 	struct usb_request	request;
@@ -555,7 +521,7 @@ struct dwc3_request {
 	struct dwc3_ep		*dep;
 
 	u8			epnum;
-	struct dwc3_trb_hw	*trb;
+	struct dwc3_trb		*trb;
 	dma_addr_t		trb_dma;
 
 	unsigned		direction:1;
@@ -572,7 +538,6 @@ struct dwc3_request {
  * @ctrl_req_addr: dma address of ctrl_req
  * @ep0_trb: dma address of ep0_trb
  * @ep0_usb_req: dummy req used while handling STD USB requests
- * @setup_buf_addr: dma address of setup_buf
  * @ep0_bounce_addr: dma address of ep0_bounce
  * @lock: for synchronizing
  * @dev: pointer to our struct device
@@ -594,6 +559,8 @@ struct dwc3_request {
  * @ep0_expect_in: true when we expect a DATA IN transfer
  * @start_config_issued: true when StartConfig command has been issued
  * @setup_packet_pending: true when there's a Setup Packet in FIFO. Workaround
+ * @needs_fifo_resize: not all users might want fifo resizing, flag it
+ * @resize_fifos: tells us it's ok to reconfigure our TxFIFO sizes.
  * @ep0_next_event: hold the next expected event
  * @ep0state: state of endpoint zero
  * @link_state: link state
@@ -604,12 +571,11 @@ struct dwc3_request {
  */
 struct dwc3 {
 	struct usb_ctrlrequest	*ctrl_req;
-	struct dwc3_trb_hw	*ep0_trb;
+	struct dwc3_trb		*ep0_trb;
 	void			*ep0_bounce;
 	u8			*setup_buf;
 	dma_addr_t		ctrl_req_addr;
 	dma_addr_t		ep0_trb_addr;
-	dma_addr_t		setup_buf_addr;
 	dma_addr_t		ep0_bounce_addr;
 	struct dwc3_request	ep0_usb_req;
 	/* device lock */
@@ -651,6 +617,8 @@ struct dwc3 {
 	unsigned		start_config_issued:1;
 	unsigned		setup_packet_pending:1;
 	unsigned		delayed_status:1;
+	unsigned		needs_fifo_resize:1;
+	unsigned		resize_fifos:1;
 
 	enum dwc3_ep0_next	ep0_next_event;
 	enum dwc3_ep0_state	ep0state;
@@ -662,22 +630,12 @@ struct dwc3 {
 
 	struct dwc3_hwparams	hwparams;
 	struct dentry		*root;
+
+	u8			test_mode;
+	u8			test_mode_nr;
 };
 
 /* -------------------------------------------------------------------------- */
-
-#define DWC3_TRBSTS_OK			0
-#define DWC3_TRBSTS_MISSED_ISOC		1
-#define DWC3_TRBSTS_SETUP_PENDING	2
-
-#define DWC3_TRBCTL_NORMAL		1
-#define DWC3_TRBCTL_CONTROL_SETUP	2
-#define DWC3_TRBCTL_CONTROL_STATUS2	3
-#define DWC3_TRBCTL_CONTROL_STATUS3	4
-#define DWC3_TRBCTL_CONTROL_DATA	5
-#define DWC3_TRBCTL_ISOCHRONOUS_FIRST	6
-#define DWC3_TRBCTL_ISOCHRONOUS		7
-#define DWC3_TRBCTL_LINK_TRB		8
 
 /* -------------------------------------------------------------------------- */
 
@@ -719,9 +677,14 @@ struct dwc3_event_depevt {
 	u32	endpoint_event:4;
 	u32	reserved11_10:2;
 	u32	status:4;
-#define DEPEVT_STATUS_BUSERR    (1 << 0)
-#define DEPEVT_STATUS_SHORT     (1 << 1)
-#define DEPEVT_STATUS_IOC       (1 << 2)
+
+/* Within XferNotReady */
+#define DEPEVT_STATUS_TRANSFER_ACTIVE	(1 << 3)
+
+/* Within XferComplete */
+#define DEPEVT_STATUS_BUSERR	(1 << 0)
+#define DEPEVT_STATUS_SHORT	(1 << 1)
+#define DEPEVT_STATUS_IOC	(1 << 2)
 #define DEPEVT_STATUS_LST	(1 << 3)
 
 /* Stream event only */
@@ -807,6 +770,7 @@ union dwc3_event {
 
 /* prototypes */
 void dwc3_set_mode(struct dwc3 *dwc, u32 mode);
+int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc);
 
 int dwc3_host_init(struct dwc3 *dwc);
 void dwc3_host_exit(struct dwc3 *dwc);

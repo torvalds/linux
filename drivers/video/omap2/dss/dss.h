@@ -202,9 +202,6 @@ void dss_uninit_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev);
 bool dss_use_replication(struct omap_dss_device *dssdev,
 		enum omap_color_mode mode);
-void default_get_overlay_fifo_thresholds(enum omap_plane plane,
-		u32 fifo_size, u32 burst_size,
-		u32 *fifo_low, u32 *fifo_high);
 
 /* manager */
 int dss_init_overlay_managers(struct platform_device *pdev);
@@ -313,9 +310,6 @@ int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev, bool is_tft,
 int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 		bool enable_hsdiv);
 void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes);
-void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
-		u32 fifo_size, u32 burst_size,
-		u32 *fifo_low, u32 *fifo_high);
 void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev);
 void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev);
 struct platform_device *dsi_get_dsidev_from_id(int module);
@@ -429,8 +423,8 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 
 
 void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high);
-u32 dispc_ovl_get_fifo_size(enum omap_plane plane);
-u32 dispc_ovl_get_burst_size(enum omap_plane plane);
+void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
+		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge);
 int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 		bool ilace, bool replication);
 int dispc_ovl_enable(enum omap_plane plane, bool enable);

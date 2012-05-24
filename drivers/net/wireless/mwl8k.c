@@ -402,6 +402,7 @@ static const struct ieee80211_rate mwl8k_rates_50[] = {
 #define MWL8K_CMD_SET_MAC_ADDR		0x0202		/* per-vif */
 #define MWL8K_CMD_SET_RATEADAPT_MODE	0x0203
 #define MWL8K_CMD_GET_WATCHDOG_BITMAP	0x0205
+#define MWL8K_CMD_DEL_MAC_ADDR		0x0206		/* per-vif */
 #define MWL8K_CMD_BSS_START		0x1100		/* per-vif */
 #define MWL8K_CMD_SET_NEW_STN		0x1111		/* per-vif */
 #define MWL8K_CMD_UPDATE_ENCRYPTION	0x1122		/* per-vif */
@@ -1330,7 +1331,7 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 								wh->addr1);
 
 			if (mwl8k_vif != NULL &&
-			    mwl8k_vif->is_hw_crypto_enabled == true) {
+			    mwl8k_vif->is_hw_crypto_enabled) {
 				/*
 				 * When MMIC ERROR is encountered
 				 * by the firmware, payload is
@@ -1993,8 +1994,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	 */
 
 	if (txq->len >= MWL8K_TX_DESCS - 2) {
-		if (mgmtframe == false ||
-			txq->len == MWL8K_TX_DESCS) {
+		if (!mgmtframe || txq->len == MWL8K_TX_DESCS) {
 			if (start_ba_session) {
 				spin_lock(&priv->stream_lock);
 				mwl8k_remove_stream(hw, stream);
@@ -3430,10 +3430,7 @@ static int mwl8k_cmd_enable_sniffer(struct ieee80211_hw *hw, bool enable)
 	return rc;
 }
 
-/*
- * CMD_SET_MAC_ADDR.
- */
-struct mwl8k_cmd_set_mac_addr {
+struct mwl8k_cmd_update_mac_addr {
 	struct mwl8k_cmd_pkt header;
 	union {
 		struct {
@@ -3449,12 +3446,12 @@ struct mwl8k_cmd_set_mac_addr {
 #define MWL8K_MAC_TYPE_PRIMARY_AP		2
 #define MWL8K_MAC_TYPE_SECONDARY_AP		3
 
-static int mwl8k_cmd_set_mac_addr(struct ieee80211_hw *hw,
-				  struct ieee80211_vif *vif, u8 *mac)
+static int mwl8k_cmd_update_mac_addr(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif, u8 *mac, bool set)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_vif *mwl8k_vif = MWL8K_VIF(vif);
-	struct mwl8k_cmd_set_mac_addr *cmd;
+	struct mwl8k_cmd_update_mac_addr *cmd;
 	int mac_type;
 	int rc;
 
@@ -3475,7 +3472,11 @@ static int mwl8k_cmd_set_mac_addr(struct ieee80211_hw *hw,
 	if (cmd == NULL)
 		return -ENOMEM;
 
-	cmd->header.code = cpu_to_le16(MWL8K_CMD_SET_MAC_ADDR);
+	if (set)
+		cmd->header.code = cpu_to_le16(MWL8K_CMD_SET_MAC_ADDR);
+	else
+		cmd->header.code = cpu_to_le16(MWL8K_CMD_DEL_MAC_ADDR);
+
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	if (priv->ap_fw) {
 		cmd->mbss.mac_type = cpu_to_le16(mac_type);
@@ -3488,6 +3489,24 @@ static int mwl8k_cmd_set_mac_addr(struct ieee80211_hw *hw,
 	kfree(cmd);
 
 	return rc;
+}
+
+/*
+ * MWL8K_CMD_SET_MAC_ADDR.
+ */
+static inline int mwl8k_cmd_set_mac_addr(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif, u8 *mac)
+{
+	return mwl8k_cmd_update_mac_addr(hw, vif, mac, true);
+}
+
+/*
+ * MWL8K_CMD_DEL_MAC_ADDR.
+ */
+static inline int mwl8k_cmd_del_mac_addr(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif, u8 *mac)
+{
+	return mwl8k_cmd_update_mac_addr(hw, vif, mac, false);
 }
 
 /*
@@ -4093,7 +4112,7 @@ static int mwl8k_set_key(struct ieee80211_hw *hw,
 		return -EOPNOTSUPP;
 
 	if (sta == NULL)
-		addr = hw->wiphy->perm_addr;
+		addr = vif->addr;
 	else
 		addr = sta->addr;
 
@@ -4542,7 +4561,7 @@ static void mwl8k_remove_interface(struct ieee80211_hw *hw,
 	if (priv->ap_fw)
 		mwl8k_cmd_set_new_stn_del(hw, vif, vif->addr);
 
-	mwl8k_cmd_set_mac_addr(hw, vif, "\x00\x00\x00\x00\x00\x00");
+	mwl8k_cmd_del_mac_addr(hw, vif, vif->addr);
 
 	mwl8k_remove_vif(priv, mwl8k_vif);
 }

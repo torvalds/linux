@@ -11,6 +11,27 @@
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 
+#ifdef CONFIG_PPC64
+
+/*
+ * PACA flags in paca->irq_happened.
+ *
+ * This bits are set when interrupts occur while soft-disabled
+ * and allow a proper replay. Additionally, PACA_IRQ_HARD_DIS
+ * is set whenever we manually hard disable.
+ */
+#define PACA_IRQ_HARD_DIS	0x01
+#define PACA_IRQ_DBELL		0x02
+#define PACA_IRQ_EE		0x04
+#define PACA_IRQ_DEC		0x08 /* Or FIT */
+#define PACA_IRQ_EE_EDGE	0x10 /* BookE only */
+
+#endif /* CONFIG_PPC64 */
+
+#ifndef __ASSEMBLY__
+
+extern void __replay_interrupt(unsigned int vector);
+
 extern void timer_interrupt(struct pt_regs *);
 
 #ifdef CONFIG_PPC64
@@ -42,7 +63,6 @@ static inline unsigned long arch_local_irq_disable(void)
 }
 
 extern void arch_local_irq_restore(unsigned long);
-extern void iseries_handle_interrupts(void);
 
 static inline void arch_local_irq_enable(void)
 {
@@ -68,16 +88,33 @@ static inline bool arch_irqs_disabled(void)
 #define __hard_irq_enable()	asm volatile("wrteei 1" : : : "memory");
 #define __hard_irq_disable()	asm volatile("wrteei 0" : : : "memory");
 #else
-#define __hard_irq_enable()	__mtmsrd(mfmsr() | MSR_EE, 1)
-#define __hard_irq_disable()	__mtmsrd(mfmsr() & ~MSR_EE, 1)
+#define __hard_irq_enable()	__mtmsrd(local_paca->kernel_msr | MSR_EE, 1)
+#define __hard_irq_disable()	__mtmsrd(local_paca->kernel_msr, 1)
 #endif
 
-#define  hard_irq_disable()			\
-	do {					\
-		__hard_irq_disable();		\
-		get_paca()->soft_enabled = 0;	\
-		get_paca()->hard_enabled = 0;	\
-	} while(0)
+static inline void hard_irq_disable(void)
+{
+	__hard_irq_disable();
+	get_paca()->soft_enabled = 0;
+	get_paca()->irq_happened |= PACA_IRQ_HARD_DIS;
+}
+
+/*
+ * This is called by asynchronous interrupts to conditionally
+ * re-enable hard interrupts when soft-disabled after having
+ * cleared the source of the interrupt
+ */
+static inline void may_hard_irq_enable(void)
+{
+	get_paca()->irq_happened &= ~PACA_IRQ_HARD_DIS;
+	if (!(get_paca()->irq_happened & PACA_IRQ_EE))
+		__hard_irq_enable();
+}
+
+static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
+{
+	return !regs->softe;
+}
 
 #else /* CONFIG_PPC64 */
 
@@ -139,6 +176,13 @@ static inline bool arch_irqs_disabled(void)
 
 #define hard_irq_disable()		arch_local_irq_disable()
 
+static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
+{
+	return !(regs->msr & MSR_EE);
+}
+
+static inline void may_hard_irq_enable(void) { }
+
 #endif /* CONFIG_PPC64 */
 
 #define ARCH_IRQ_INIT_FLAGS	IRQ_NOREQUEST
@@ -149,5 +193,6 @@ static inline bool arch_irqs_disabled(void)
  */
 struct irq_chip;
 
+#endif  /* __ASSEMBLY__ */
 #endif	/* __KERNEL__ */
 #endif	/* _ASM_POWERPC_HW_IRQ_H */

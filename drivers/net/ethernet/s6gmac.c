@@ -370,12 +370,13 @@ struct s6gmac {
 	} link;
 };
 
-static void s6gmac_rx_fillfifo(struct s6gmac *pd)
+static void s6gmac_rx_fillfifo(struct net_device *dev)
 {
+	struct s6gmac *pd = netdev_priv(dev);
 	struct sk_buff *skb;
 	while ((((u8)(pd->rx_skb_i - pd->rx_skb_o)) < S6_NUM_RX_SKB) &&
 	       (!s6dmac_fifo_full(pd->rx_dma, pd->rx_chan)) &&
-	       (skb = dev_alloc_skb(S6_MAX_FRLEN + 2))) {
+	       (skb = netdev_alloc_skb(dev, S6_MAX_FRLEN + 2))) {
 		pd->rx_skb[(pd->rx_skb_i++) % S6_NUM_RX_SKB] = skb;
 		s6dmac_put_fifo_cache(pd->rx_dma, pd->rx_chan,
 			pd->io, (u32)skb->data, S6_MAX_FRLEN);
@@ -514,7 +515,7 @@ static irqreturn_t s6gmac_interrupt(int irq, void *dev_id)
 	spin_lock(&pd->lock);
 	if (s6dmac_termcnt_irq(pd->rx_dma, pd->rx_chan))
 		s6gmac_rx_interrupt(dev);
-	s6gmac_rx_fillfifo(pd);
+	s6gmac_rx_fillfifo(dev);
 	if (s6dmac_termcnt_irq(pd->tx_dma, pd->tx_chan))
 		s6gmac_tx_interrupt(dev);
 	s6gmac_stats_interrupt(pd, 0);
@@ -894,7 +895,7 @@ static int s6gmac_open(struct net_device *dev)
 	s6gmac_init_device(dev);
 	s6gmac_init_stats(dev);
 	s6gmac_init_dmac(dev);
-	s6gmac_rx_fillfifo(pd);
+	s6gmac_rx_fillfifo(dev);
 	s6dmac_enable_chan(pd->rx_dma, pd->rx_chan,
 		2, 1, 0, 1, 0, 0, 0, 7, -1, 2, 0, 1);
 	s6dmac_enable_chan(pd->tx_dma, pd->tx_chan,
@@ -960,11 +961,11 @@ static int __devinit s6gmac_probe(struct platform_device *pdev)
 	int res;
 	unsigned long i;
 	struct mii_bus *mb;
+
 	dev = alloc_etherdev(sizeof(*pd));
-	if (!dev) {
-		printk(KERN_ERR DRV_PRMT "etherdev alloc failed, aborting.\n");
+	if (!dev)
 		return -ENOMEM;
-	}
+
 	dev->open = s6gmac_open;
 	dev->stop = s6gmac_stop;
 	dev->hard_start_xmit = s6gmac_tx;

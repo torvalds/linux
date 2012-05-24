@@ -471,7 +471,7 @@ int ext4_ext_migrate(struct inode *inode)
 	tmp_inode = ext4_new_inode(handle, inode->i_sb->s_root->d_inode,
 				   S_IFREG, NULL, goal, owner);
 	if (IS_ERR(tmp_inode)) {
-		retval = PTR_ERR(inode);
+		retval = PTR_ERR(tmp_inode);
 		ext4_journal_stop(handle);
 		return retval;
 	}

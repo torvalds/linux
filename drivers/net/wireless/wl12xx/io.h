@@ -43,6 +43,8 @@
 
 #define HW_ACCESS_PRAM_MAX_RANGE	0x3c000
 
+extern struct wl1271_partition_set wl12xx_part_table[PART_TABLE_LEN];
+
 struct wl1271;
 
 void wl1271_disable_interrupts(struct wl1271 *wl);

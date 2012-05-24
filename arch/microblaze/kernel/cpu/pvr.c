@@ -12,7 +12,6 @@
 
 #include <linux/kernel.h>
 #include <linux/compiler.h>
-#include <asm/system.h>
 #include <asm/exceptions.h>
 #include <asm/pvr.h>
 

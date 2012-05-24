@@ -189,7 +189,7 @@ unmap:
  *
  * @return - void.
  */
-void board_flash_init(struct flash_partitions partition_info[],
+void __init board_flash_init(struct flash_partitions partition_info[],
 			char chip_sel_board[][GPMC_CS_NUM], int nand_type)
 {
 	u8		cs = 0;

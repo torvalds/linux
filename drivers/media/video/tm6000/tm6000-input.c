@@ -481,8 +481,6 @@ int tm6000_ir_fini(struct tm6000_core *dev)
 
 	dprintk(2, "%s\n",__func__);
 
-	rc_unregister_device(ir->rc);
-
 	if (!ir->polling)
 		__tm6000_ir_int_stop(ir->rc);
 
@@ -492,6 +490,7 @@ int tm6000_ir_fini(struct tm6000_core *dev)
 	tm6000_flash_led(dev, 0);
 	ir->pwled = 0;
 
+	rc_unregister_device(ir->rc);
 
 	kfree(ir);
 	dev->ir = NULL;

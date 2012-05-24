@@ -118,17 +118,6 @@ xfs_rename(
 	new_parent = (src_dp != target_dp);
 	src_is_directory = S_ISDIR(src_ip->i_d.di_mode);
 
-	if (src_is_directory) {
-		/*
-		 * Check for link count overflow on target_dp
-		 */
-		if (target_ip == NULL && new_parent &&
-		    target_dp->i_d.di_nlink >= XFS_MAXLINK) {
-			error = XFS_ERROR(EMLINK);
-			goto std_return;
-		}
-	}
-
 	xfs_sort_for_rename(src_dp, target_dp, src_ip, target_ip,
 				inodes, &num_inodes);
 

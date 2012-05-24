@@ -220,8 +220,8 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *dir)
 		return 0;
 
 	d = debugfs_create_dir(pwrdm->name, (struct dentry *)dir);
-
-	(void) debugfs_create_file("suspend", S_IRUGO|S_IWUSR, d,
+	if (!(IS_ERR_OR_NULL(d)))
+		(void) debugfs_create_file("suspend", S_IRUGO|S_IWUSR, d,
 			(void *)pwrdm, &pwrdm_suspend_fops);
 
 	return 0;
@@ -264,7 +264,7 @@ static int __init pm_dbg_init(void)
 		return 0;
 
 	d = debugfs_create_dir("pm_debug", NULL);
-	if (IS_ERR(d))
+	if (IS_ERR_OR_NULL(d))
 		return PTR_ERR(d);
 
 	(void) debugfs_create_file("count", S_IRUGO,

@@ -8,7 +8,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/tc3589x.h>
 #include <linux/input/matrix_keypad.h>

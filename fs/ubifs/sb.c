@@ -410,13 +410,23 @@ static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
 	}
 
 	if (c->main_lebs < UBIFS_MIN_MAIN_LEBS) {
-		err = 7;
+		ubifs_err("too few main LEBs count %d, must be at least %d",
+			  c->main_lebs, UBIFS_MIN_MAIN_LEBS);
 		goto failed;
 	}
 
-	if (c->max_bud_bytes < (long long)c->leb_size * UBIFS_MIN_BUD_LEBS ||
-	    c->max_bud_bytes > (long long)c->leb_size * c->main_lebs) {
-		err = 8;
+	max_bytes = (long long)c->leb_size * UBIFS_MIN_BUD_LEBS;
+	if (c->max_bud_bytes < max_bytes) {
+		ubifs_err("too small journal (%lld bytes), must be at least "
+			  "%lld bytes",  c->max_bud_bytes, max_bytes);
+		goto failed;
+	}
+
+	max_bytes = (long long)c->leb_size * c->main_lebs;
+	if (c->max_bud_bytes > max_bytes) {
+		ubifs_err("too large journal size (%lld bytes), only %lld bytes"
+			  "available in the main area",
+			  c->max_bud_bytes, max_bytes);
 		goto failed;
 	}
 
@@ -450,7 +460,6 @@ static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
 		goto failed;
 	}
 
-	max_bytes = c->main_lebs * (long long)c->leb_size;
 	if (c->rp_size < 0 || max_bytes < c->rp_size) {
 		err = 14;
 		goto failed;

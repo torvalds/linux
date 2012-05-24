@@ -151,6 +151,7 @@ extern int ec_write(u8 addr, u8 val);
 extern int ec_transaction(u8 command,
                           const u8 *wdata, unsigned wdata_len,
                           u8 *rdata, unsigned rdata_len);
+extern acpi_handle ec_get_handle(void);
 
 #if defined(CONFIG_ACPI_WMI) || defined(CONFIG_ACPI_WMI_MODULE)
 
@@ -370,5 +371,15 @@ static inline int acpi_nvs_for_each_region(int (*func)(__u64, __u64, void *),
 }
 
 #endif	/* !CONFIG_ACPI */
+
+#ifdef CONFIG_ACPI
+void acpi_os_set_prepare_sleep(int (*func)(u8 sleep_state,
+			       u32 pm1a_ctrl,  u32 pm1b_ctrl));
+
+acpi_status acpi_os_prepare_sleep(u8 sleep_state,
+				  u32 pm1a_control, u32 pm1b_control);
+#else
+#define acpi_os_set_prepare_sleep(func, pm1a_ctrl, pm1b_ctrl) do { } while (0)
+#endif
 
 #endif	/*_LINUX_ACPI_H*/

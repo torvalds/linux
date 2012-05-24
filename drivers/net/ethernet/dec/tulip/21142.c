@@ -1,5 +1,5 @@
 /*
-	drivers/net/tulip/21142.c
+	drivers/net/ethernet/dec/tulip/21142.c
 
 	Copyright 2000,2001  The Linux Kernel Team
 	Written/copyright 1994-2001 by Donald Becker.

@@ -124,12 +124,6 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 	vcpu->arch.shared->msr = new_msr;
 
 	kvmppc_mmu_msr_notify(vcpu, old_msr);
-
-	if (vcpu->arch.shared->msr & MSR_WE) {
-		kvm_vcpu_block(vcpu);
-		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
-	};
-
 	kvmppc_vcpu_sync_spe(vcpu);
 }
 
@@ -258,9 +252,11 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		allowed = vcpu->arch.shared->msr & MSR_ME;
 		msr_mask = 0;
 		break;
-	case BOOKE_IRQPRIO_EXTERNAL:
 	case BOOKE_IRQPRIO_DECREMENTER:
 	case BOOKE_IRQPRIO_FIT:
+		keep_irq = true;
+		/* fall through */
+	case BOOKE_IRQPRIO_EXTERNAL:
 		allowed = vcpu->arch.shared->msr & MSR_EE;
 		allowed = allowed && !crit;
 		msr_mask = MSR_CE|MSR_ME|MSR_DE;
@@ -276,7 +272,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		vcpu->arch.shared->srr1 = vcpu->arch.shared->msr;
 		vcpu->arch.pc = vcpu->arch.ivpr | vcpu->arch.ivor[priority];
 		if (update_esr == true)
-			vcpu->arch.esr = vcpu->arch.queued_esr;
+			vcpu->arch.shared->esr = vcpu->arch.queued_esr;
 		if (update_dear == true)
 			vcpu->arch.shared->dar = vcpu->arch.queued_dear;
 		kvmppc_set_msr(vcpu, vcpu->arch.shared->msr & msr_mask);
@@ -288,12 +284,25 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	return allowed;
 }
 
-/* Check pending exceptions and deliver one, if possible. */
-void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
+static void update_timer_ints(struct kvm_vcpu *vcpu)
+{
+	if ((vcpu->arch.tcr & TCR_DIE) && (vcpu->arch.tsr & TSR_DIS))
+		kvmppc_core_queue_dec(vcpu);
+	else
+		kvmppc_core_dequeue_dec(vcpu);
+}
+
+static void kvmppc_core_check_exceptions(struct kvm_vcpu *vcpu)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
-	unsigned long old_pending = vcpu->arch.pending_exceptions;
 	unsigned int priority;
+
+	if (vcpu->requests) {
+		if (kvm_check_request(KVM_REQ_PENDING_TIMER, vcpu)) {
+			smp_mb();
+			update_timer_ints(vcpu);
+		}
+	}
 
 	priority = __ffs(*pending);
 	while (priority <= BOOKE_IRQPRIO_MAX) {
@@ -306,10 +315,24 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 	}
 
 	/* Tell the guest about our interrupt status */
-	if (*pending)
-		vcpu->arch.shared->int_pending = 1;
-	else if (old_pending)
-		vcpu->arch.shared->int_pending = 0;
+	vcpu->arch.shared->int_pending = !!*pending;
+}
+
+/* Check pending exceptions and deliver one, if possible. */
+void kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
+{
+	WARN_ON_ONCE(!irqs_disabled());
+
+	kvmppc_core_check_exceptions(vcpu);
+
+	if (vcpu->arch.shared->msr & MSR_WE) {
+		local_irq_enable();
+		kvm_vcpu_block(vcpu);
+		local_irq_disable();
+
+		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
+		kvmppc_core_check_exceptions(vcpu);
+	};
 }
 
 int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
@@ -322,11 +345,21 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	}
 
 	local_irq_disable();
+
+	kvmppc_core_prepare_to_enter(vcpu);
+
+	if (signal_pending(current)) {
+		kvm_run->exit_reason = KVM_EXIT_INTR;
+		ret = -EINTR;
+		goto out;
+	}
+
 	kvm_guest_enter();
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 	kvm_guest_exit();
-	local_irq_enable();
 
+out:
+	local_irq_enable();
 	return ret;
 }
 
@@ -603,7 +636,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	local_irq_disable();
 
-	kvmppc_core_deliver_interrupts(vcpu);
+	kvmppc_core_prepare_to_enter(vcpu);
 
 	if (!(r & RESUME_HOST)) {
 		/* To avoid clobbering exit_reason, only check for signals if
@@ -628,6 +661,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.pc = 0;
 	vcpu->arch.shared->msr = 0;
 	vcpu->arch.shadow_msr = MSR_USER | MSR_DE | MSR_IS | MSR_DS;
+	vcpu->arch.shared->pir = vcpu->vcpu_id;
 	kvmppc_set_gpr(vcpu, 1, (16<<20) - 8); /* -8 for the callee-save LR slot */
 
 	vcpu->arch.shadow_pid = 1;
@@ -662,10 +696,10 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->sprg1 = vcpu->arch.shared->sprg1;
 	regs->sprg2 = vcpu->arch.shared->sprg2;
 	regs->sprg3 = vcpu->arch.shared->sprg3;
-	regs->sprg4 = vcpu->arch.sprg4;
-	regs->sprg5 = vcpu->arch.sprg5;
-	regs->sprg6 = vcpu->arch.sprg6;
-	regs->sprg7 = vcpu->arch.sprg7;
+	regs->sprg4 = vcpu->arch.shared->sprg4;
+	regs->sprg5 = vcpu->arch.shared->sprg5;
+	regs->sprg6 = vcpu->arch.shared->sprg6;
+	regs->sprg7 = vcpu->arch.shared->sprg7;
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		regs->gpr[i] = kvmppc_get_gpr(vcpu, i);
@@ -690,10 +724,10 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	vcpu->arch.shared->sprg1 = regs->sprg1;
 	vcpu->arch.shared->sprg2 = regs->sprg2;
 	vcpu->arch.shared->sprg3 = regs->sprg3;
-	vcpu->arch.sprg4 = regs->sprg4;
-	vcpu->arch.sprg5 = regs->sprg5;
-	vcpu->arch.sprg6 = regs->sprg6;
-	vcpu->arch.sprg7 = regs->sprg7;
+	vcpu->arch.shared->sprg4 = regs->sprg4;
+	vcpu->arch.shared->sprg5 = regs->sprg5;
+	vcpu->arch.shared->sprg6 = regs->sprg6;
+	vcpu->arch.shared->sprg7 = regs->sprg7;
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		kvmppc_set_gpr(vcpu, i, regs->gpr[i]);
@@ -711,7 +745,7 @@ static void get_sregs_base(struct kvm_vcpu *vcpu,
 	sregs->u.e.csrr0 = vcpu->arch.csrr0;
 	sregs->u.e.csrr1 = vcpu->arch.csrr1;
 	sregs->u.e.mcsr = vcpu->arch.mcsr;
-	sregs->u.e.esr = vcpu->arch.esr;
+	sregs->u.e.esr = vcpu->arch.shared->esr;
 	sregs->u.e.dear = vcpu->arch.shared->dar;
 	sregs->u.e.tsr = vcpu->arch.tsr;
 	sregs->u.e.tcr = vcpu->arch.tcr;
@@ -729,28 +763,19 @@ static int set_sregs_base(struct kvm_vcpu *vcpu,
 	vcpu->arch.csrr0 = sregs->u.e.csrr0;
 	vcpu->arch.csrr1 = sregs->u.e.csrr1;
 	vcpu->arch.mcsr = sregs->u.e.mcsr;
-	vcpu->arch.esr = sregs->u.e.esr;
+	vcpu->arch.shared->esr = sregs->u.e.esr;
 	vcpu->arch.shared->dar = sregs->u.e.dear;
 	vcpu->arch.vrsave = sregs->u.e.vrsave;
-	vcpu->arch.tcr = sregs->u.e.tcr;
+	kvmppc_set_tcr(vcpu, sregs->u.e.tcr);
 
-	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_DEC)
+	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_DEC) {
 		vcpu->arch.dec = sregs->u.e.dec;
-
-	kvmppc_emulate_dec(vcpu);
+		kvmppc_emulate_dec(vcpu);
+	}
 
 	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_TSR) {
-		/*
-		 * FIXME: existing KVM timer handling is incomplete.
-		 * TSR cannot be read by the guest, and its value in
-		 * vcpu->arch is always zero.  For now, just handle
-		 * the case where the caller is trying to inject a
-		 * decrementer interrupt.
-		 */
-
-		if ((sregs->u.e.tsr & TSR_DIS) &&
-		    (vcpu->arch.tcr & TCR_DIE))
-			kvmppc_core_queue_dec(vcpu);
+		vcpu->arch.tsr = sregs->u.e.tsr;
+		update_timer_ints(vcpu);
 	}
 
 	return 0;
@@ -761,7 +786,7 @@ static void get_sregs_arch206(struct kvm_vcpu *vcpu,
 {
 	sregs->u.e.features |= KVM_SREGS_E_ARCH206;
 
-	sregs->u.e.pir = 0;
+	sregs->u.e.pir = vcpu->vcpu_id;
 	sregs->u.e.mcsrr0 = vcpu->arch.mcsrr0;
 	sregs->u.e.mcsrr1 = vcpu->arch.mcsrr1;
 	sregs->u.e.decar = vcpu->arch.decar;
@@ -774,7 +799,7 @@ static int set_sregs_arch206(struct kvm_vcpu *vcpu,
 	if (!(sregs->u.e.features & KVM_SREGS_E_ARCH206))
 		return 0;
 
-	if (sregs->u.e.pir != 0)
+	if (sregs->u.e.pir != vcpu->vcpu_id)
 		return -EINVAL;
 
 	vcpu->arch.mcsrr0 = sregs->u.e.mcsrr0;
@@ -862,6 +887,16 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	return kvmppc_core_set_sregs(vcpu, sregs);
 }
 
+int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+{
+	return -EINVAL;
+}
+
+int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+{
+	return -EINVAL;
+}
+
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
 	return -ENOTSUPP;
@@ -904,6 +939,33 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 
 void kvmppc_core_destroy_vm(struct kvm *kvm)
 {
+}
+
+void kvmppc_set_tcr(struct kvm_vcpu *vcpu, u32 new_tcr)
+{
+	vcpu->arch.tcr = new_tcr;
+	update_timer_ints(vcpu);
+}
+
+void kvmppc_set_tsr_bits(struct kvm_vcpu *vcpu, u32 tsr_bits)
+{
+	set_bits(tsr_bits, &vcpu->arch.tsr);
+	smp_wmb();
+	kvm_make_request(KVM_REQ_PENDING_TIMER, vcpu);
+	kvm_vcpu_kick(vcpu);
+}
+
+void kvmppc_clr_tsr_bits(struct kvm_vcpu *vcpu, u32 tsr_bits)
+{
+	clear_bits(tsr_bits, &vcpu->arch.tsr);
+	update_timer_ints(vcpu);
+}
+
+void kvmppc_decrementer_func(unsigned long data)
+{
+	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
+
+	kvmppc_set_tsr_bits(vcpu, TSR_DIS);
 }
 
 int __init kvmppc_booke_init(void)

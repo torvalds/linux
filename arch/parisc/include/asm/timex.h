@@ -6,7 +6,6 @@
 #ifndef _ASMPARISC_TIMEX_H
 #define _ASMPARISC_TIMEX_H
 
-#include <asm/system.h>
 
 #define CLOCK_TICK_RATE	1193180 /* Underlying HZ */
 

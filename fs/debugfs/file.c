@@ -33,18 +33,10 @@ static ssize_t default_write_file(struct file *file, const char __user *buf,
 	return count;
 }
 
-static int default_open(struct inode *inode, struct file *file)
-{
-	if (inode->i_private)
-		file->private_data = inode->i_private;
-
-	return 0;
-}
-
 const struct file_operations debugfs_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
-	.open =		default_open,
+	.open =		simple_open,
 	.llseek =	noop_llseek,
 };
 
@@ -447,7 +439,7 @@ static ssize_t write_file_bool(struct file *file, const char __user *user_buf,
 static const struct file_operations fops_bool = {
 	.read =		read_file_bool,
 	.write =	write_file_bool,
-	.open =		default_open,
+	.open =		simple_open,
 	.llseek =	default_llseek,
 };
 
@@ -492,7 +484,7 @@ static ssize_t read_file_blob(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_blob = {
 	.read =		read_file_blob,
-	.open =		default_open,
+	.open =		simple_open,
 	.llseek =	default_llseek,
 };
 
@@ -611,7 +603,7 @@ static const struct file_operations fops_regset32 = {
  * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
  * code.
  */
-struct dentry *debugfs_create_regset32(const char *name, mode_t mode,
+struct dentry *debugfs_create_regset32(const char *name, umode_t mode,
 				       struct dentry *parent,
 				       struct debugfs_regset32 *regset)
 {

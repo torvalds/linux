@@ -25,8 +25,6 @@
 #include <dspbridge/host_os.h>
 
 
-#ifdef CONFIG_TIDSPBRIDGE_WDT3
-
 #define OMAP34XX_WDT3_BASE 		(L4_PER_34XX_BASE + 0x30000)
 
 static struct dsp_wdt_setting dsp_wdt;
@@ -84,7 +82,7 @@ int dsp_wdt_init(void)
 void dsp_wdt_sm_set(void *data)
 {
 	dsp_wdt.sm_wdt = data;
-	dsp_wdt.sm_wdt->wdt_overflow = CONFIG_TIDSPBRIDGE_WDT_TIMEOUT;
+	dsp_wdt.sm_wdt->wdt_overflow = 5;	/* in seconds */
 }
 
 
@@ -128,23 +126,3 @@ void dsp_wdt_enable(bool enable)
 		clk_disable(dsp_wdt.fclk);
 	}
 }
-
-#else
-void dsp_wdt_enable(bool enable)
-{
-}
-
-void dsp_wdt_sm_set(void *data)
-{
-}
-
-int dsp_wdt_init(void)
-{
-	return 0;
-}
-
-void dsp_wdt_exit(void)
-{
-}
-#endif
-

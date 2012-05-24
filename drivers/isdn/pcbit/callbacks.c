@@ -2,16 +2,16 @@
  * Callbacks for the FSM
  *
  * Copyright (C) 1996 Universidade de Lisboa
- * 
+ *
  * Written by Pedro Roque Marques (roque@di.fc.ul.pt)
  *
- * This software may be used and distributed according to the terms of 
+ * This software may be used and distributed according to the terms of
  * the GNU General Public License, incorporated herein by reference.
  */
 
 /*
  * Fix: 19981230 - Carlos Morgado <chbm@techie.com>
- * Port of Nelson Escravana's <nelson.escravana@usa.net> fix to CalledPN 
+ * Port of Nelson Escravana's <nelson.escravana@usa.net> fix to CalledPN
  * NULL pointer dereference in cb_in_1 (originally fixed in 2.0)
  */
 
@@ -39,86 +39,86 @@ ushort last_ref_num = 1;
  *
  */
 
-void cb_out_1(struct pcbit_dev * dev, struct pcbit_chan* chan, 
-	      struct callb_data *cbdata) 
+void cb_out_1(struct pcbit_dev *dev, struct pcbit_chan *chan,
+	      struct callb_data *cbdata)
 {
 	struct sk_buff *skb;
 	int len;
-        ushort refnum;
+	ushort refnum;
 
 
 #ifdef DEBUG
-        printk(KERN_DEBUG "Called Party Number: %s\n", 
-               cbdata->data.setup.CalledPN);
+	printk(KERN_DEBUG "Called Party Number: %s\n",
+	       cbdata->data.setup.CalledPN);
 #endif
-        /*
-         * hdr - kmalloc in capi_conn_req
-         *     - kfree   when msg has been sent
-         */
+	/*
+	 * hdr - kmalloc in capi_conn_req
+	 *     - kfree   when msg has been sent
+	 */
 
-        if ((len = capi_conn_req(cbdata->data.setup.CalledPN, &skb, 
+	if ((len = capi_conn_req(cbdata->data.setup.CalledPN, &skb,
 				 chan->proto)) < 0)
-        {
-                printk("capi_conn_req failed\n");
-                return;
-        }
+	{
+		printk("capi_conn_req failed\n");
+		return;
+	}
 
 
-        refnum = last_ref_num++ & 0x7fffU;
+	refnum = last_ref_num++ & 0x7fffU;
 
-        chan->callref = 0;
-        chan->layer2link = 0;
-        chan->snum = 0;
-        chan->s_refnum = refnum;
+	chan->callref = 0;
+	chan->layer2link = 0;
+	chan->snum = 0;
+	chan->s_refnum = refnum;
 
-        pcbit_l2_write(dev, MSG_CONN_REQ, refnum, skb, len);
+	pcbit_l2_write(dev, MSG_CONN_REQ, refnum, skb, len);
 }
 
 /*
  *  rcv CONNECT
  *  will go into ACTIVE state
  *  send CONN_ACTIVE_RESP
- *  send Select protocol request 
+ *  send Select protocol request
  */
 
-void cb_out_2(struct pcbit_dev * dev, struct pcbit_chan* chan, 
-	      struct callb_data *data) 
+void cb_out_2(struct pcbit_dev *dev, struct pcbit_chan *chan,
+	      struct callb_data *data)
 {
-        isdn_ctrl ictl;
- 	struct sk_buff *skb;
+	isdn_ctrl ictl;
+	struct sk_buff *skb;
 	int len;
-        ushort refnum;
+	ushort refnum;
 
-        if ((len=capi_conn_active_resp(chan, &skb)) < 0)
-        {
-                printk("capi_conn_active_req failed\n");
-                return;
-        }
+	if ((len = capi_conn_active_resp(chan, &skb)) < 0)
+	{
+		printk("capi_conn_active_req failed\n");
+		return;
+	}
 
-        refnum = last_ref_num++ & 0x7fffU;
-        chan->s_refnum = refnum;
+	refnum = last_ref_num++ & 0x7fffU;
+	chan->s_refnum = refnum;
 
-        pcbit_l2_write(dev, MSG_CONN_ACTV_RESP, refnum, skb, len);
+	pcbit_l2_write(dev, MSG_CONN_ACTV_RESP, refnum, skb, len);
 
 
-        ictl.command = ISDN_STAT_DCONN;
-        ictl.driver=dev->id;
-        ictl.arg=chan->id;
-        dev->dev_if->statcallb(&ictl);
+	ictl.command = ISDN_STAT_DCONN;
+	ictl.driver = dev->id;
+	ictl.arg = chan->id;
+	dev->dev_if->statcallb(&ictl);
 
-        /* ACTIVE D-channel */
+	/* ACTIVE D-channel */
 
-        /* Select protocol  */
+	/* Select protocol  */
 
-        if ((len=capi_select_proto_req(chan, &skb, 1 /*outgoing*/)) < 0) { 
-                printk("capi_select_proto_req failed\n");
-                return;
-        }
+	if ((len = capi_select_proto_req(chan, &skb, 1 /*outgoing*/)) < 0) {
+		printk("capi_select_proto_req failed\n");
+		return;
+	}
 
-        refnum = last_ref_num++ & 0x7fffU;
-        chan->s_refnum = refnum;
+	refnum = last_ref_num++ & 0x7fffU;
+	chan->s_refnum = refnum;
 
-        pcbit_l2_write(dev, MSG_SELP_REQ, refnum, skb, len);
+	pcbit_l2_write(dev, MSG_SELP_REQ, refnum, skb, len);
 }
 
 
@@ -127,22 +127,22 @@ void cb_out_2(struct pcbit_dev * dev, struct pcbit_chan* chan,
  * inform user
  */
 
-void cb_in_1(struct pcbit_dev * dev, struct pcbit_chan* chan,
-	     struct callb_data *cbdata) 
+void cb_in_1(struct pcbit_dev *dev, struct pcbit_chan *chan,
+	     struct callb_data *cbdata)
 {
-        isdn_ctrl ictl;
-        unsigned short refnum;
- 	struct sk_buff *skb;
+	isdn_ctrl ictl;
+	unsigned short refnum;
+	struct sk_buff *skb;
 	int len;
 
 
-        ictl.command = ISDN_STAT_ICALL;
-        ictl.driver=dev->id;
-        ictl.arg=chan->id;
-        
-        /*
-         *  ictl.num >= strlen() + strlen() + 5
-         */
+	ictl.command = ISDN_STAT_ICALL;
+	ictl.driver = dev->id;
+	ictl.arg = chan->id;
+
+	/*
+	 *  ictl.num >= strlen() + strlen() + 5
+	 */
 
 	if (cbdata->data.setup.CallingPN == NULL) {
 		printk(KERN_DEBUG "NULL CallingPN to phone; using 0\n");
@@ -167,18 +167,18 @@ void cb_in_1(struct pcbit_dev * dev, struct pcbit_chan* chan,
 	printk(KERN_DEBUG "statstr: %s\n", ictl.num);
 #endif
 
-        dev->dev_if->statcallb(&ictl);
+	dev->dev_if->statcallb(&ictl);
 
-        
-        if ((len=capi_conn_resp(chan, &skb)) < 0) {
-                printk(KERN_DEBUG "capi_conn_resp failed\n");
-                return;
+
+	if ((len = capi_conn_resp(chan, &skb)) < 0) {
+		printk(KERN_DEBUG "capi_conn_resp failed\n");
+		return;
 	}
 
-        refnum = last_ref_num++ & 0x7fffU;
-        chan->s_refnum = refnum;
+	refnum = last_ref_num++ & 0x7fffU;
+	chan->s_refnum = refnum;
 
-        pcbit_l2_write(dev, MSG_CONN_RESP, refnum, skb, len);
+	pcbit_l2_write(dev, MSG_CONN_RESP, refnum, skb, len);
 }
 
 /*
@@ -187,24 +187,24 @@ void cb_in_1(struct pcbit_dev * dev, struct pcbit_chan* chan,
  * send CONNECT message CONNECT_ACTIVE_REQ in CAPI
  */
 
-void cb_in_2(struct pcbit_dev * dev, struct pcbit_chan* chan,
+void cb_in_2(struct pcbit_dev *dev, struct pcbit_chan *chan,
 	     struct callb_data *data)
 {
-        unsigned short refnum;
+	unsigned short refnum;
 	struct sk_buff *skb;
-        int len;
-        
-        if ((len = capi_conn_active_req(chan, &skb)) < 0) {        
-                printk(KERN_DEBUG "capi_conn_active_req failed\n");
-                return;
-        }
+	int len;
+
+	if ((len = capi_conn_active_req(chan, &skb)) < 0) {
+		printk(KERN_DEBUG "capi_conn_active_req failed\n");
+		return;
+	}
 
 
-        refnum = last_ref_num++ & 0x7fffU;
-        chan->s_refnum = refnum;
+	refnum = last_ref_num++ & 0x7fffU;
+	chan->s_refnum = refnum;
 
 	printk(KERN_DEBUG "sending MSG_CONN_ACTV_REQ\n");
-        pcbit_l2_write(dev, MSG_CONN_ACTV_REQ, refnum, skb, len);
+	pcbit_l2_write(dev, MSG_CONN_ACTV_REQ, refnum, skb, len);
 }
 
 /*
@@ -213,23 +213,23 @@ void cb_in_2(struct pcbit_dev * dev, struct pcbit_chan* chan,
  *
  */
 
-void cb_in_3(struct pcbit_dev * dev, struct pcbit_chan* chan, 
+void cb_in_3(struct pcbit_dev *dev, struct pcbit_chan *chan,
 	     struct callb_data *data)
 {
-        unsigned short refnum;
- 	struct sk_buff *skb;
+	unsigned short refnum;
+	struct sk_buff *skb;
 	int len;
-        
-        if ((len = capi_select_proto_req(chan, &skb, 0 /*incoming*/)) < 0)
-        {
-                printk("capi_select_proto_req failed\n");
-                return;
-        }
 
-        refnum = last_ref_num++ & 0x7fffU;
-        chan->s_refnum = refnum;
+	if ((len = capi_select_proto_req(chan, &skb, 0 /*incoming*/)) < 0)
+	{
+		printk("capi_select_proto_req failed\n");
+		return;
+	}
 
-        pcbit_l2_write(dev, MSG_SELP_REQ, refnum, skb, len);
+	refnum = last_ref_num++ & 0x7fffU;
+	chan->s_refnum = refnum;
+
+	pcbit_l2_write(dev, MSG_SELP_REQ, refnum, skb, len);
 
 }
 
@@ -239,52 +239,52 @@ void cb_in_3(struct pcbit_dev * dev, struct pcbit_chan* chan,
  * send disconnect resp
  * send msg to user
  */
-void cb_disc_1(struct pcbit_dev * dev, struct pcbit_chan* chan, 
+void cb_disc_1(struct pcbit_dev *dev, struct pcbit_chan *chan,
 	       struct callb_data *data)
 {
- 	struct sk_buff *skb;
+	struct sk_buff *skb;
 	int len;
-        ushort refnum;
-        isdn_ctrl ictl;
-  
-        if ((len = capi_disc_resp(chan, &skb)) < 0) {
-                printk("capi_disc_resp failed\n");
-                return;
-        }
+	ushort refnum;
+	isdn_ctrl ictl;
 
-        refnum = last_ref_num++ & 0x7fffU;
-        chan->s_refnum = refnum;
+	if ((len = capi_disc_resp(chan, &skb)) < 0) {
+		printk("capi_disc_resp failed\n");
+		return;
+	}
 
-        pcbit_l2_write(dev, MSG_DISC_RESP, refnum, skb, len);    
+	refnum = last_ref_num++ & 0x7fffU;
+	chan->s_refnum = refnum;
 
-        ictl.command = ISDN_STAT_BHUP;
-        ictl.driver=dev->id;
-        ictl.arg=chan->id;
-        dev->dev_if->statcallb(&ictl);
+	pcbit_l2_write(dev, MSG_DISC_RESP, refnum, skb, len);
+
+	ictl.command = ISDN_STAT_BHUP;
+	ictl.driver = dev->id;
+	ictl.arg = chan->id;
+	dev->dev_if->statcallb(&ictl);
 }
 
-        
+
 /*
  *  User HANGUP on active/call proceeding state
  *  send disc.req
  */
-void cb_disc_2(struct pcbit_dev * dev, struct pcbit_chan* chan, 
+void cb_disc_2(struct pcbit_dev *dev, struct pcbit_chan *chan,
 	       struct callb_data *data)
 {
- 	struct sk_buff *skb;
+	struct sk_buff *skb;
 	int len;
-        ushort refnum;
+	ushort refnum;
 
-        if ((len = capi_disc_req(chan->callref, &skb, CAUSE_NORMAL)) < 0)
-        {
-                printk("capi_disc_req failed\n");
-                return;
-        }
+	if ((len = capi_disc_req(chan->callref, &skb, CAUSE_NORMAL)) < 0)
+	{
+		printk("capi_disc_req failed\n");
+		return;
+	}
 
-        refnum = last_ref_num++ & 0x7fffU;
-        chan->s_refnum = refnum;
+	refnum = last_ref_num++ & 0x7fffU;
+	chan->s_refnum = refnum;
 
-        pcbit_l2_write(dev, MSG_DISC_REQ, refnum, skb, len);  
+	pcbit_l2_write(dev, MSG_DISC_REQ, refnum, skb, len);
 }
 
 /*
@@ -292,18 +292,18 @@ void cb_disc_2(struct pcbit_dev * dev, struct pcbit_chan* chan,
  *  Problem: when the HL driver sends the disc req itself
  *           LL receives BHUP
  */
-void cb_disc_3(struct pcbit_dev * dev, struct pcbit_chan* chan, 
+void cb_disc_3(struct pcbit_dev *dev, struct pcbit_chan *chan,
 	       struct callb_data *data)
 {
-        isdn_ctrl ictl;
+	isdn_ctrl ictl;
 
-        ictl.command = ISDN_STAT_BHUP;
-        ictl.driver=dev->id;
-        ictl.arg=chan->id;
-        dev->dev_if->statcallb(&ictl);
+	ictl.command = ISDN_STAT_BHUP;
+	ictl.driver = dev->id;
+	ictl.arg = chan->id;
+	dev->dev_if->statcallb(&ictl);
 }
 
-void cb_notdone(struct pcbit_dev * dev, struct pcbit_chan* chan, 
+void cb_notdone(struct pcbit_dev *dev, struct pcbit_chan *chan,
 		struct callb_data *data)
 {
 }
@@ -311,38 +311,35 @@ void cb_notdone(struct pcbit_dev * dev, struct pcbit_chan* chan,
 /*
  * send activate b-chan protocol
  */
-void cb_selp_1(struct pcbit_dev * dev, struct pcbit_chan* chan, 
-	       struct callb_data *data) 
+void cb_selp_1(struct pcbit_dev *dev, struct pcbit_chan *chan,
+	       struct callb_data *data)
 {
- 	struct sk_buff *skb;
+	struct sk_buff *skb;
 	int len;
-        ushort refnum;
+	ushort refnum;
 
-        if ((len = capi_activate_transp_req(chan, &skb)) < 0)
-        {
-                printk("capi_conn_activate_transp_req failed\n");
-                return;
-        }
+	if ((len = capi_activate_transp_req(chan, &skb)) < 0)
+	{
+		printk("capi_conn_activate_transp_req failed\n");
+		return;
+	}
 
-        refnum = last_ref_num++ & 0x7fffU;
-        chan->s_refnum = refnum;
+	refnum = last_ref_num++ & 0x7fffU;
+	chan->s_refnum = refnum;
 
-        pcbit_l2_write(dev, MSG_ACT_TRANSP_REQ, refnum, skb, len);
+	pcbit_l2_write(dev, MSG_ACT_TRANSP_REQ, refnum, skb, len);
 }
 
 /*
  *  Inform User that the B-channel is available
  */
-void cb_open(struct pcbit_dev * dev, struct pcbit_chan* chan, 
-	     struct callb_data *data) 
+void cb_open(struct pcbit_dev *dev, struct pcbit_chan *chan,
+	     struct callb_data *data)
 {
-        isdn_ctrl ictl;
+	isdn_ctrl ictl;
 
-        ictl.command = ISDN_STAT_BCONN;
-        ictl.driver=dev->id;
-        ictl.arg=chan->id;
-        dev->dev_if->statcallb(&ictl);
+	ictl.command = ISDN_STAT_BCONN;
+	ictl.driver = dev->id;
+	ictl.arg = chan->id;
+	dev->dev_if->statcallb(&ictl);
 }
-
-
-

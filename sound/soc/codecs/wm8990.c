@@ -1356,7 +1356,7 @@ static int wm8990_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8990_LEFT_OUTPUT_VOLUME, 0x50 | (1<<8));
 	snd_soc_write(codec, WM8990_RIGHT_OUTPUT_VOLUME, 0x50 | (1<<8));
 
-	snd_soc_add_controls(codec, wm8990_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8990_snd_controls,
 				ARRAY_SIZE(wm8990_snd_controls));
 	wm8990_add_widgets(codec);
 

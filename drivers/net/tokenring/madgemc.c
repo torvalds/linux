@@ -28,7 +28,6 @@ static const char version[] = "madgemc.c: v0.91 23/01/2000 by Adam Fritzler\n";
 #include <linux/netdevice.h>
 #include <linux/trdevice.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -171,7 +170,6 @@ static int __devinit madgemc_probe(struct device *device)
 
 	card = kmalloc(sizeof(struct card_info), GFP_KERNEL);
 	if (card==NULL) {
-		printk("madgemc: unable to allocate card struct\n");
 		ret = -ENOMEM;
 		goto getout1;
 	}

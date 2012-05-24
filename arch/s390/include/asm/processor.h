@@ -14,6 +14,7 @@
 #define __ASM_S390_PROCESSOR_H
 
 #include <linux/linkage.h>
+#include <linux/irqflags.h>
 #include <asm/cpu.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
@@ -155,6 +156,14 @@ unsigned long get_wchan(struct task_struct *p);
         (task_stack_page(tsk) + THREAD_SIZE) - 1)
 #define KSTK_EIP(tsk)	(task_pt_regs(tsk)->psw.addr)
 #define KSTK_ESP(tsk)	(task_pt_regs(tsk)->gprs[15])
+
+static inline unsigned short stap(void)
+{
+	unsigned short cpu_address;
+
+	asm volatile("stap %0" : "=m" (cpu_address));
+	return cpu_address;
+}
 
 /*
  * Give up the time slice of the virtual PU.
@@ -302,6 +311,21 @@ static inline void __noreturn disabled_wait(unsigned long code)
 #endif /* __s390x__ */
 	while (1);
 }
+
+/*
+ * Use to set psw mask except for the first byte which
+ * won't be changed by this function.
+ */
+static inline void
+__set_psw_mask(unsigned long mask)
+{
+	__load_psw_mask(mask | (arch_local_save_flags() & ~(-1UL >> 8)));
+}
+
+#define local_mcck_enable() \
+	__set_psw_mask(psw_kernel_bits | PSW_MASK_DAT | PSW_MASK_MCHECK)
+#define local_mcck_disable() \
+	__set_psw_mask(psw_kernel_bits | PSW_MASK_DAT)
 
 /*
  * Basic Machine Check/Program Check Handler.

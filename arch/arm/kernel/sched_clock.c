@@ -10,6 +10,7 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/syscore_ops.h>
 #include <linux/timer.h>
 
 #include <asm/sched_clock.h>
@@ -164,3 +165,20 @@ void __init sched_clock_postinit(void)
 
 	sched_clock_poll(sched_clock_timer.data);
 }
+
+static int sched_clock_suspend(void)
+{
+	sched_clock_poll(sched_clock_timer.data);
+	return 0;
+}
+
+static struct syscore_ops sched_clock_ops = {
+	.suspend = sched_clock_suspend,
+};
+
+static int __init sched_clock_syscore_init(void)
+{
+	register_syscore_ops(&sched_clock_ops);
+	return 0;
+}
+device_initcall(sched_clock_syscore_init);

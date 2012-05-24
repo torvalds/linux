@@ -55,8 +55,6 @@ int r8712_init_recv_priv(struct recv_priv *precvpriv, struct _adapter *padapter)
 	int alignment = 0;
 	struct sk_buff *pskb = NULL;
 
-	sema_init(&precvpriv->recv_sema, 0);
-	sema_init(&precvpriv->terminate_recvthread_sema, 0);
 	/*init recv_buf*/
 	_init_queue(&precvpriv->free_recv_buf_queue);
 	precvpriv->pallocated_recv_buf = _malloc(NR_RECVBUFF *

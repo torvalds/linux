@@ -63,7 +63,7 @@ The slave DMA usage consists of following steps:
 				  struct dma_slave_config *config)
 
    Please see the dma_slave_config structure definition in dmaengine.h
-   for a detailed explaination of the struct members.  Please note
+   for a detailed explanation of the struct members.  Please note
    that the 'direction' member will be going away as it duplicates the
    direction given in the prepare call.
 

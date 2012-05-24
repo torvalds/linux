@@ -543,7 +543,7 @@ init_map_ipmac(struct ip_set *set, struct bitmap_ipmac *map,
 	map->timeout = IPSET_NO_TIMEOUT;
 
 	set->data = map;
-	set->family = AF_INET;
+	set->family = NFPROTO_IPV4;
 
 	return true;
 }
@@ -623,7 +623,7 @@ static struct ip_set_type bitmap_ipmac_type = {
 	.protocol	= IPSET_PROTOCOL,
 	.features	= IPSET_TYPE_IP | IPSET_TYPE_MAC,
 	.dimension	= IPSET_DIM_TWO,
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.revision_min	= 0,
 	.revision_max	= 0,
 	.create		= bitmap_ipmac_create,

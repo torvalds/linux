@@ -23,9 +23,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- This */
 #include <dspbridge/uuidutil.h>
 
@@ -41,8 +38,6 @@ void uuid_uuid_to_string(struct dsp_uuid *uuid_obj, char *sz_uuid,
 {
 	s32 i;			/* return result from snprintf. */
 
-	DBC_REQUIRE(uuid_obj && sz_uuid);
-
 	i = snprintf(sz_uuid, size,
 		     "%.8X_%.4X_%.4X_%.2X%.2X_%.2X%.2X%.2X%.2X%.2X%.2X",
 		     uuid_obj->data1, uuid_obj->data2, uuid_obj->data3,
@@ -50,8 +45,6 @@ void uuid_uuid_to_string(struct dsp_uuid *uuid_obj, char *sz_uuid,
 		     uuid_obj->data6[0], uuid_obj->data6[1],
 		     uuid_obj->data6[2], uuid_obj->data6[3],
 		     uuid_obj->data6[4], uuid_obj->data6[5]);
-
-	DBC_ENSURE(i != -1);
 }
 
 static s32 uuid_hex_to_bin(char *buf, s32 len)

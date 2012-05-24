@@ -633,8 +633,8 @@ ep93xx_spi_dma_prepare(struct ep93xx_spi *espi, enum dma_data_direction dir)
 	if (!nents)
 		return ERR_PTR(-ENOMEM);
 
-	txd = chan->device->device_prep_slave_sg(chan, sgt->sgl, nents,
-						 slave_dirn, DMA_CTRL_ACK);
+	txd = dmaengine_prep_slave_sg(chan, sgt->sgl, nents,
+					slave_dirn, DMA_CTRL_ACK);
 	if (!txd) {
 		dma_unmap_sg(chan->device->dev, sgt->sgl, sgt->nents, dir);
 		return ERR_PTR(-ENOMEM);

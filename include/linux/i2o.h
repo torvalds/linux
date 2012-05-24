@@ -24,6 +24,7 @@
 #define I2O_MAX_DRIVERS		8
 
 #include <linux/pci.h>
+#include <linux/bug.h>
 #include <linux/dma-mapping.h>
 #include <linux/string.h>
 #include <linux/slab.h>

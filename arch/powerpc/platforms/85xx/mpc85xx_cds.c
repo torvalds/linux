@@ -3,7 +3,7 @@
  *
  * Maintained by Kumar Gala (see MAINTAINERS for contact information)
  *
- * Copyright 2005 Freescale Semiconductor Inc.
+ * Copyright 2005, 2011-2012 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -27,7 +27,6 @@
 #include <linux/fsl_devices.h>
 #include <linux/of_platform.h>
 
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <linux/atomic.h>
@@ -48,17 +47,24 @@
 
 #include "mpc85xx.h"
 
-/* CADMUS info */
-/* xxx - galak, move into device tree */
-#define CADMUS_BASE (0xf8004000)
-#define CADMUS_SIZE (256)
-#define CM_VER	(0)
-#define CM_CSR	(1)
-#define CM_RST	(2)
+/*
+ * The CDS board contains an FPGA/CPLD called "Cadmus", which collects
+ * various logic and performs system control functions.
+ * Here is the FPGA/CPLD register map.
+ */
+struct cadmus_reg {
+	u8 cm_ver;		/* Board version */
+	u8 cm_csr;		/* General control/status */
+	u8 cm_rst;		/* Reset control */
+	u8 cm_hsclk;	/* High speed clock */
+	u8 cm_hsxclk;	/* High speed clock extended */
+	u8 cm_led;		/* LED data */
+	u8 cm_pci;		/* PCI control/status */
+	u8 cm_dma;		/* DMA control */
+	u8 res[248];	/* Total 256 bytes */
+};
 
-
-static int cds_pci_slot = 2;
-static volatile u8 *cadmus;
+static struct cadmus_reg *cadmus;
 
 #ifdef CONFIG_PCI
 
@@ -158,6 +164,33 @@ DECLARE_PCI_FIXUP_EARLY(0x1957, 0x3fff, skip_fake_bridge);
 DECLARE_PCI_FIXUP_EARLY(0x3fff, 0x1957, skip_fake_bridge);
 DECLARE_PCI_FIXUP_EARLY(0xff3f, 0x5719, skip_fake_bridge);
 
+#define PCI_DEVICE_ID_IDT_TSI310	0x01a7
+
+/*
+ * Fix Tsi310 PCI-X bridge resource.
+ * Force the bridge to open a window from 0x0000-0x1fff in PCI I/O space.
+ * This allows legacy I/O(i8259, etc) on the VIA southbridge to be accessed.
+ */
+void mpc85xx_cds_fixup_bus(struct pci_bus *bus)
+{
+	struct pci_dev *dev = bus->self;
+	struct resource *res = bus->resource[0];
+
+	if (dev != NULL &&
+	    dev->vendor == PCI_VENDOR_ID_IBM &&
+	    dev->device == PCI_DEVICE_ID_IDT_TSI310) {
+		if (res) {
+			res->start = 0;
+			res->end   = 0x1fff;
+			res->flags = IORESOURCE_IO;
+			pr_info("mpc85xx_cds: PCI bridge resource fixup applied\n");
+			pr_info("mpc85xx_cds: %pR\n", res);
+		}
+	}
+
+	fsl_pcibios_fixup_bus(bus);
+}
+
 #ifdef CONFIG_PPC_I8259
 static void mpc85xx_8259_cascade_handler(unsigned int irq,
 					 struct irq_desc *desc)
@@ -188,8 +221,7 @@ static struct irqaction mpc85xxcds_8259_irqaction = {
 static void __init mpc85xx_cds_pic_init(void)
 {
 	struct mpic *mpic;
-	mpic = mpic_alloc(NULL, 0,
-			MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
+	mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
 			0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
 	mpic_init(mpic);
@@ -249,20 +281,30 @@ machine_device_initcall(mpc85xx_cds, mpc85xx_cds_8259_attach);
  */
 static void __init mpc85xx_cds_setup_arch(void)
 {
-#ifdef CONFIG_PCI
 	struct device_node *np;
-#endif
+	int cds_pci_slot;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_cds_setup_arch()", 0);
 
-	cadmus = ioremap(CADMUS_BASE, CADMUS_SIZE);
-	cds_pci_slot = ((cadmus[CM_CSR] >> 6) & 0x3) + 1;
+	np = of_find_compatible_node(NULL, NULL, "fsl,mpc8548cds-fpga");
+	if (!np) {
+		pr_err("Could not find FPGA node.\n");
+		return;
+	}
+
+	cadmus = of_iomap(np, 0);
+	of_node_put(np);
+	if (!cadmus) {
+		pr_err("Fail to map FPGA area.\n");
+		return;
+	}
 
 	if (ppc_md.progress) {
 		char buf[40];
+		cds_pci_slot = ((in_8(&cadmus->cm_csr) >> 6) & 0x3) + 1;
 		snprintf(buf, 40, "CDS Version = 0x%x in slot %d\n",
-				cadmus[CM_VER], cds_pci_slot);
+				in_8(&cadmus->cm_ver), cds_pci_slot);
 		ppc_md.progress(buf, 0);
 	}
 
@@ -292,7 +334,8 @@ static void mpc85xx_cds_show_cpuinfo(struct seq_file *m)
 	svid = mfspr(SPRN_SVR);
 
 	seq_printf(m, "Vendor\t\t: Freescale Semiconductor\n");
-	seq_printf(m, "Machine\t\t: MPC85xx CDS (0x%x)\n", cadmus[CM_VER]);
+	seq_printf(m, "Machine\t\t: MPC85xx CDS (0x%x)\n",
+			in_8(&cadmus->cm_ver));
 	seq_printf(m, "PVR\t\t: 0x%x\n", pvid);
 	seq_printf(m, "SVR\t\t: 0x%x\n", svid);
 
@@ -323,7 +366,7 @@ define_machine(mpc85xx_cds) {
 	.get_irq	= mpic_get_irq,
 #ifdef CONFIG_PCI
 	.restart	= mpc85xx_cds_restart,
-	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+	.pcibios_fixup_bus	= mpc85xx_cds_fixup_bus,
 #else
 	.restart	= fsl_rstcr_restart,
 #endif

@@ -61,28 +61,18 @@ But that is my personal preference.
 2.2 Configuration
 
   The configuration requires module configuration and device
-configuration.  I like kmod or kerneld process with the
-/etc/modprobe.conf file so the modules can automatically load/unload as
-they are used.  The video devices could already exist, be generated
-using MAKEDEV, or need to be created.  The following sections detail
-these procedures.
+configuration.  The following sections detail these procedures.
 
 
 2.1 Module Configuration
 
   Using modules requires a bit of work to install and pass the
-parameters.  Understand that entries in /etc/modprobe.conf of:
+parameters.  Understand that entries in /etc/modprobe.d/*.conf of:
 
    alias parport_lowlevel parport_pc
    options parport_pc io=0x378 irq=none
    alias char-major-81 videodev
    alias char-major-81-0 c-qcam
-
-will cause the kmod/modprobe to do certain things.  If you are
-using kmod, then a request for a 'char-major-81-0' will cause
-the 'c-qcam' module to load.  If you have other video sources with
-modules, you might want to assign the different minor numbers to
-different modules.
 
 2.2 Device Configuration
 

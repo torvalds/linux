@@ -951,21 +951,7 @@ static struct i2c_driver tw9910_i2c_driver = {
 	.id_table = tw9910_id,
 };
 
-/*
- * module function
- */
-static int __init tw9910_module_init(void)
-{
-	return i2c_add_driver(&tw9910_i2c_driver);
-}
-
-static void __exit tw9910_module_exit(void)
-{
-	i2c_del_driver(&tw9910_i2c_driver);
-}
-
-module_init(tw9910_module_init);
-module_exit(tw9910_module_exit);
+module_i2c_driver(tw9910_i2c_driver);
 
 MODULE_DESCRIPTION("SoC Camera driver for tw9910");
 MODULE_AUTHOR("Kuninori Morimoto");

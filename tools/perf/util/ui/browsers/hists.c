@@ -125,6 +125,9 @@ static int callchain__count_rows(struct rb_root *chain)
 
 static bool map_symbol__toggle_fold(struct map_symbol *self)
 {
+	if (!self)
+		return false;
+
 	if (!self->has_children)
 		return false;
 
@@ -805,8 +808,11 @@ static struct hist_browser *hist_browser__new(struct hists *hists)
 		self->hists = hists;
 		self->b.refresh = hist_browser__refresh;
 		self->b.seek = ui_browser__hists_seek;
-		self->b.use_navkeypressed = true,
-		self->has_symbols = sort_sym.list.next != NULL;
+		self->b.use_navkeypressed = true;
+		if (sort__branch_mode == 1)
+			self->has_symbols = sort_sym_from.list.next != NULL;
+		else
+			self->has_symbols = sort_sym.list.next != NULL;
 	}
 
 	return self;
@@ -837,17 +843,30 @@ static int hists__browser_title(struct hists *self, char *bf, size_t size,
 	unsigned long nr_events = self->stats.nr_events[PERF_RECORD_SAMPLE];
 
 	nr_events = convert_unit(nr_events, &unit);
-	printed = snprintf(bf, size, "Events: %lu%c %s", nr_events, unit, ev_name);
+	printed = scnprintf(bf, size, "Events: %lu%c %s", nr_events, unit, ev_name);
 
-	if (thread)
+	if (self->uid_filter_str)
 		printed += snprintf(bf + printed, size - printed,
+				    ", UID: %s", self->uid_filter_str);
+	if (thread)
+		printed += scnprintf(bf + printed, size - printed,
 				    ", Thread: %s(%d)",
 				    (thread->comm_set ? thread->comm : ""),
 				    thread->pid);
 	if (dso)
-		printed += snprintf(bf + printed, size - printed,
+		printed += scnprintf(bf + printed, size - printed,
 				    ", DSO: %s", dso->short_name);
 	return printed;
+}
+
+static inline void free_popup_options(char **options, int n)
+{
+	int i;
+
+	for (i = 0; i < n; ++i) {
+		free(options[i]);
+		options[i] = NULL;
+	}
 }
 
 static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
@@ -858,8 +877,12 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 {
 	struct hists *self = &evsel->hists;
 	struct hist_browser *browser = hist_browser__new(self);
+	struct branch_info *bi;
 	struct pstack *fstack;
+	char *options[16];
+	int nr_options = 0;
 	int key = -1;
+	char buf[64];
 
 	if (browser == NULL)
 		return -1;
@@ -870,13 +893,16 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 	ui_helpline__push(helpline);
 
+	memset(options, 0, sizeof(options));
+
 	while (1) {
 		const struct thread *thread = NULL;
 		const struct dso *dso = NULL;
-		char *options[16];
-		int nr_options = 0, choice = 0, i,
+		int choice = 0,
 		    annotate = -2, zoom_dso = -2, zoom_thread = -2,
-		    browse_map = -2;
+		    annotate_f = -2, annotate_t = -2, browse_map = -2;
+
+		nr_options = 0;
 
 		key = hist_browser__run(browser, ev_name, timer, arg, delay_secs);
 
@@ -884,7 +910,6 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			thread = hist_browser__selected_thread(browser);
 			dso = browser->selection->map ? browser->selection->map->dso : NULL;
 		}
-
 		switch (key) {
 		case K_TAB:
 		case K_UNTAB:
@@ -899,7 +924,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			if (!browser->has_symbols) {
 				ui_browser__warning(&browser->b, delay_secs * 2,
 			"Annotation is only available for symbolic views, "
-			"include \"sym\" in --sort to use it.");
+			"include \"sym*\" in --sort to use it.");
 				continue;
 			}
 
@@ -912,6 +937,16 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			goto zoom_dso;
 		case 't':
 			goto zoom_thread;
+		case 's':
+			if (ui_browser__input_window("Symbol to show",
+					"Please enter the name of symbol you want to see",
+					buf, "ENTER: OK, ESC: Cancel",
+					delay_secs * 2) == K_ENTER) {
+				self->symbol_filter_str = *buf ? buf : NULL;
+				hists__filter_by_symbol(self);
+				hist_browser__reset(browser);
+			}
+			continue;
 		case K_F1:
 		case 'h':
 		case '?':
@@ -929,7 +964,8 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 					"C             Collapse all callchains\n"
 					"E             Expand all callchains\n"
 					"d             Zoom into current DSO\n"
-					"t             Zoom into current Thread");
+					"t             Zoom into current Thread\n"
+					"s             Filter symbol by name");
 			continue;
 		case K_ENTER:
 		case K_RIGHT:
@@ -969,12 +1005,34 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		if (!browser->has_symbols)
 			goto add_exit_option;
 
-		if (browser->selection != NULL &&
-		    browser->selection->sym != NULL &&
-		    !browser->selection->map->dso->annotate_warned &&
-		    asprintf(&options[nr_options], "Annotate %s",
-			     browser->selection->sym->name) > 0)
-			annotate = nr_options++;
+		if (sort__branch_mode == 1) {
+			bi = browser->he_selection->branch_info;
+			if (browser->selection != NULL &&
+			    bi &&
+			    bi->from.sym != NULL &&
+			    !bi->from.map->dso->annotate_warned &&
+				asprintf(&options[nr_options], "Annotate %s",
+					 bi->from.sym->name) > 0)
+				annotate_f = nr_options++;
+
+			if (browser->selection != NULL &&
+			    bi &&
+			    bi->to.sym != NULL &&
+			    !bi->to.map->dso->annotate_warned &&
+			    (bi->to.sym != bi->from.sym ||
+			     bi->to.map->dso != bi->from.map->dso) &&
+				asprintf(&options[nr_options], "Annotate %s",
+					 bi->to.sym->name) > 0)
+				annotate_t = nr_options++;
+		} else {
+
+			if (browser->selection != NULL &&
+			    browser->selection->sym != NULL &&
+			    !browser->selection->map->dso->annotate_warned &&
+				asprintf(&options[nr_options], "Annotate %s",
+					 browser->selection->sym->name) > 0)
+				annotate = nr_options++;
+		}
 
 		if (thread != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
@@ -995,25 +1053,39 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			browse_map = nr_options++;
 add_exit_option:
 		options[nr_options++] = (char *)"Exit";
-
+retry_popup_menu:
 		choice = ui__popup_menu(nr_options, options);
-
-		for (i = 0; i < nr_options - 1; ++i)
-			free(options[i]);
 
 		if (choice == nr_options - 1)
 			break;
 
-		if (choice == -1)
+		if (choice == -1) {
+			free_popup_options(options, nr_options - 1);
 			continue;
+		}
 
-		if (choice == annotate) {
+		if (choice == annotate || choice == annotate_t || choice == annotate_f) {
 			struct hist_entry *he;
 			int err;
 do_annotate:
 			he = hist_browser__selected_entry(browser);
 			if (he == NULL)
 				continue;
+
+			/*
+			 * we stash the branch_info symbol + map into the
+			 * the ms so we don't have to rewrite all the annotation
+			 * code to use branch_info.
+			 * in branch mode, the ms struct is not used
+			 */
+			if (choice == annotate_f) {
+				he->ms.sym = he->branch_info->from.sym;
+				he->ms.map = he->branch_info->from.map;
+			}  else if (choice == annotate_t) {
+				he->ms.sym = he->branch_info->to.sym;
+				he->ms.map = he->branch_info->to.map;
+			}
+
 			/*
 			 * Don't let this be freed, say, by hists__decay_entry.
 			 */
@@ -1021,9 +1093,18 @@ do_annotate:
 			err = hist_entry__tui_annotate(he, evsel->idx,
 						       timer, arg, delay_secs);
 			he->used = false;
+			/*
+			 * offer option to annotate the other branch source or target
+			 * (if they exists) when returning from annotate
+			 */
+			if ((err == 'q' || err == CTRL('c'))
+			    && annotate_t != -2 && annotate_f != -2)
+				goto retry_popup_menu;
+
 			ui_browser__update_nr_entries(&browser->b, browser->hists->nr_entries);
 			if (err)
 				ui_browser__handle_resize(&browser->b);
+
 		} else if (choice == browse_map)
 			map__browse(browser->selection->map);
 		else if (choice == zoom_dso) {
@@ -1069,6 +1150,7 @@ out_free_stack:
 	pstack__delete(fstack);
 out:
 	hist_browser__delete(browser);
+	free_popup_options(options, nr_options - 1);
 	return key;
 }
 
@@ -1095,7 +1177,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 						       HE_COLORSET_NORMAL);
 
 	nr_events = convert_unit(nr_events, &unit);
-	printed = snprintf(bf, sizeof(bf), "%lu%c%s%s", nr_events,
+	printed = scnprintf(bf, sizeof(bf), "%lu%c%s%s", nr_events,
 			   unit, unit == ' ' ? "" : " ", ev_name);
 	slsmg_printf("%s", bf);
 
@@ -1105,8 +1187,8 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 		if (!current_entry)
 			ui_browser__set_color(browser, HE_COLORSET_TOP);
 		nr_events = convert_unit(nr_events, &unit);
-		snprintf(bf, sizeof(bf), ": %ld%c%schunks LOST!", nr_events,
-			 unit, unit == ' ' ? "" : " ");
+		printed += scnprintf(bf, sizeof(bf), ": %ld%c%schunks LOST!",
+				     nr_events, unit, unit == ' ' ? "" : " ");
 		warn = bf;
 	}
 

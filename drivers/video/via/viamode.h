@@ -31,11 +31,6 @@ struct VPITTable {
 	unsigned char AR[StdAR];
 };
 
-struct VideoModeTable {
-	struct crt_mode_table *crtc;
-	int mode_array;
-};
-
 struct patch_table {
 	int table_length;
 	struct io_reg *io_reg_table;
@@ -60,7 +55,9 @@ extern struct io_reg PM1024x768[];
 extern struct patch_table res_patch_table[];
 extern struct VPITTable VPIT;
 
-struct crt_mode_table *viafb_get_best_mode(int hres, int vres, int refresh);
-struct crt_mode_table *viafb_get_best_rb_mode(int hres, int vres, int refresh);
+const struct fb_videomode *viafb_get_best_mode(int hres, int vres,
+	int refresh);
+const struct fb_videomode *viafb_get_best_rb_mode(int hres, int vres,
+	int refresh);
 
 #endif /* __VIAMODE_H__ */

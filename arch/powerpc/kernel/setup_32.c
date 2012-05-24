@@ -30,7 +30,6 @@
 #include <asm/btext.h>
 #include <asm/machdep.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/pmac_feature.h>
 #include <asm/sections.h>
 #include <asm/nvram.h>

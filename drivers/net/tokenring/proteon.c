@@ -31,7 +31,6 @@ static const char version[] = "proteon.c: v1.00 02/01/2003 by Jochen Friedrich\n
 #include <linux/trdevice.h>
 #include <linux/platform_device.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/pci.h>

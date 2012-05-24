@@ -38,36 +38,36 @@ struct exynos_drm_hdmi_context {
 	void			*ctx;
 };
 
-struct exynos_hdmi_display_ops {
+struct exynos_hdmi_ops {
+	/* display */
 	bool (*is_connected)(void *ctx);
 	int (*get_edid)(void *ctx, struct drm_connector *connector,
 			u8 *edid, int len);
 	int (*check_timing)(void *ctx, void *timing);
 	int (*power_on)(void *ctx, int mode);
-};
 
-struct exynos_hdmi_manager_ops {
+	/* manager */
+	void (*mode_fixup)(void *ctx, struct drm_connector *connector,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode);
 	void (*mode_set)(void *ctx, void *mode);
+	void (*get_max_resol)(void *ctx, unsigned int *width,
+				unsigned int *height);
 	void (*commit)(void *ctx);
 	void (*disable)(void *ctx);
 };
 
-struct exynos_hdmi_overlay_ops {
+struct exynos_mixer_ops {
+	/* manager */
 	int (*enable_vblank)(void *ctx, int pipe);
 	void (*disable_vblank)(void *ctx);
+
+	/* overlay */
 	void (*win_mode_set)(void *ctx, struct exynos_drm_overlay *overlay);
 	void (*win_commit)(void *ctx, int zpos);
 	void (*win_disable)(void *ctx, int zpos);
 };
 
-extern struct platform_driver hdmi_driver;
-extern struct platform_driver mixer_driver;
-
-void exynos_drm_display_ops_register(struct exynos_hdmi_display_ops
-					*display_ops);
-void exynos_drm_manager_ops_register(struct exynos_hdmi_manager_ops
-					*manager_ops);
-void exynos_drm_overlay_ops_register(struct exynos_hdmi_overlay_ops
-					*overlay_ops);
-
+void exynos_hdmi_ops_register(struct exynos_hdmi_ops *ops);
+void exynos_mixer_ops_register(struct exynos_mixer_ops *ops);
 #endif

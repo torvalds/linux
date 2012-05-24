@@ -1583,15 +1583,4 @@ static struct i2c_driver ov7670_driver = {
 	.id_table	= ov7670_id,
 };
 
-static __init int init_ov7670(void)
-{
-	return i2c_add_driver(&ov7670_driver);
-}
-
-static __exit void exit_ov7670(void)
-{
-	i2c_del_driver(&ov7670_driver);
-}
-
-module_init(init_ov7670);
-module_exit(exit_ov7670);
+module_i2c_driver(ov7670_driver);

@@ -51,4 +51,6 @@ do {						\
 
 #include <asm-generic/bug.h>
 
+extern void die_if_kernel(const char *, ...) __attribute__((format(printf, 1, 2)));
+
 #endif

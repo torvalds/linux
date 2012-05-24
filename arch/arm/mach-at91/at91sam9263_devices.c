@@ -23,6 +23,7 @@
 #include <mach/board.h>
 #include <mach/at91sam9263.h>
 #include <mach/at91sam9263_matrix.h>
+#include <mach/at91_matrix.h>
 #include <mach/at91sam9_smc.h>
 
 #include "generic.h"
@@ -71,7 +72,8 @@ void __init at91_add_device_usbh(struct at91_usbh_data *data)
 	/* Enable VBus control for UHP ports */
 	for (i = 0; i < data->ports; i++) {
 		if (gpio_is_valid(data->vbus_pin[i]))
-			at91_set_gpio_output(data->vbus_pin[i], 0);
+			at91_set_gpio_output(data->vbus_pin[i],
+					     data->vbus_pin_active_low[i]);
 	}
 
 	/* Enable overcurrent notification */
@@ -409,7 +411,7 @@ void __init at91_add_device_cf(struct at91_cf_data *data)
 	 * we assume SMC timings are configured by board code,
 	 * except True IDE where timings are controlled by driver
 	 */
-	ebi0_csa = at91_sys_read(AT91_MATRIX_EBI0CSA);
+	ebi0_csa = at91_matrix_read(AT91_MATRIX_EBI0CSA);
 	switch (data->chipselect) {
 	case 4:
 		at91_set_A_periph(AT91_PIN_PD6, 0);  /* EBI0_NCS4/CFCS0 */
@@ -428,7 +430,7 @@ void __init at91_add_device_cf(struct at91_cf_data *data)
 		       data->chipselect);
 		return;
 	}
-	at91_sys_write(AT91_MATRIX_EBI0CSA, ebi0_csa);
+	at91_matrix_write(AT91_MATRIX_EBI0CSA, ebi0_csa);
 
 	if (gpio_is_valid(data->det_pin)) {
 		at91_set_gpio_input(data->det_pin, 1);
@@ -496,8 +498,8 @@ void __init at91_add_device_nand(struct atmel_nand_data *data)
 	if (!data)
 		return;
 
-	csa = at91_sys_read(AT91_MATRIX_EBI0CSA);
-	at91_sys_write(AT91_MATRIX_EBI0CSA, csa | AT91_MATRIX_EBI0_CS3A_SMC_SMARTMEDIA);
+	csa = at91_matrix_read(AT91_MATRIX_EBI0CSA);
+	at91_matrix_write(AT91_MATRIX_EBI0CSA, csa | AT91_MATRIX_EBI0_CS3A_SMC_SMARTMEDIA);
 
 	/* enable pin */
 	if (gpio_is_valid(data->enable_pin))
@@ -669,6 +671,9 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices)
 			cs_pin = spi0_standard_cs[devices[i].chip_select];
 		else
 			cs_pin = spi1_standard_cs[devices[i].chip_select];
+
+		if (!gpio_is_valid(cs_pin))
+			continue;
 
 		if (devices[i].bus_num == 0)
 			enable_spi0 = 1;
@@ -891,7 +896,8 @@ static struct platform_device at91sam9263_isi_device = {
 	.num_resources	= ARRAY_SIZE(isi_resources),
 };
 
-void __init at91_add_device_isi(void)
+void __init at91_add_device_isi(struct isi_platform_data *data,
+		bool use_pck_as_mck)
 {
 	at91_set_A_periph(AT91_PIN_PE0, 0);	/* ISI_D0 */
 	at91_set_A_periph(AT91_PIN_PE1, 0);	/* ISI_D1 */
@@ -904,14 +910,20 @@ void __init at91_add_device_isi(void)
 	at91_set_A_periph(AT91_PIN_PE8, 0);	/* ISI_PCK */
 	at91_set_A_periph(AT91_PIN_PE9, 0);	/* ISI_HSYNC */
 	at91_set_A_periph(AT91_PIN_PE10, 0);	/* ISI_VSYNC */
-	at91_set_B_periph(AT91_PIN_PE11, 0);	/* ISI_MCK (PCK3) */
 	at91_set_B_periph(AT91_PIN_PE12, 0);	/* ISI_PD8 */
 	at91_set_B_periph(AT91_PIN_PE13, 0);	/* ISI_PD9 */
 	at91_set_B_periph(AT91_PIN_PE14, 0);	/* ISI_PD10 */
 	at91_set_B_periph(AT91_PIN_PE15, 0);	/* ISI_PD11 */
+
+	if (use_pck_as_mck) {
+		at91_set_B_periph(AT91_PIN_PE11, 0);	/* ISI_MCK (PCK3) */
+
+		/* TODO: register the PCK for ISI_MCK and set its parent */
+	}
 }
 #else
-void __init at91_add_device_isi(void) {}
+void __init at91_add_device_isi(struct isi_platform_data *data,
+		bool use_pck_as_mck) {}
 #endif
 
 
@@ -959,6 +971,8 @@ static struct resource rtt0_resources[] = {
 		.start	= AT91SAM9263_BASE_RTT0,
 		.end	= AT91SAM9263_BASE_RTT0 + SZ_16 - 1,
 		.flags	= IORESOURCE_MEM,
+	}, {
+		.flags	= IORESOURCE_MEM,
 	}
 };
 
@@ -966,13 +980,14 @@ static struct platform_device at91sam9263_rtt0_device = {
 	.name		= "at91_rtt",
 	.id		= 0,
 	.resource	= rtt0_resources,
-	.num_resources	= ARRAY_SIZE(rtt0_resources),
 };
 
 static struct resource rtt1_resources[] = {
 	{
 		.start	= AT91SAM9263_BASE_RTT1,
 		.end	= AT91SAM9263_BASE_RTT1 + SZ_16 - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
 		.flags	= IORESOURCE_MEM,
 	}
 };
@@ -981,11 +996,53 @@ static struct platform_device at91sam9263_rtt1_device = {
 	.name		= "at91_rtt",
 	.id		= 1,
 	.resource	= rtt1_resources,
-	.num_resources	= ARRAY_SIZE(rtt1_resources),
 };
+
+#if IS_ENABLED(CONFIG_RTC_DRV_AT91SAM9)
+static void __init at91_add_device_rtt_rtc(void)
+{
+	struct platform_device *pdev;
+	struct resource *r;
+
+	switch (CONFIG_RTC_DRV_AT91SAM9_RTT) {
+	case 0:
+		/*
+		 * The second resource is needed only for the chosen RTT:
+		 * GPBR will serve as the storage for RTC time offset
+		 */
+		at91sam9263_rtt0_device.num_resources = 2;
+		at91sam9263_rtt1_device.num_resources = 1;
+		pdev = &at91sam9263_rtt0_device;
+		r = rtt0_resources;
+		break;
+	case 1:
+		at91sam9263_rtt0_device.num_resources = 1;
+		at91sam9263_rtt1_device.num_resources = 2;
+		pdev = &at91sam9263_rtt1_device;
+		r = rtt1_resources;
+		break;
+	default:
+		pr_err("at91sam9263: only supports 2 RTT (%d)\n",
+		       CONFIG_RTC_DRV_AT91SAM9_RTT);
+		return;
+	}
+
+	pdev->name = "rtc-at91sam9";
+	r[1].start = AT91SAM9263_BASE_GPBR + 4 * CONFIG_RTC_DRV_AT91SAM9_GPBR;
+	r[1].end = r[1].start + 3;
+}
+#else
+static void __init at91_add_device_rtt_rtc(void)
+{
+	/* Only one resource is needed: RTT not used as RTC */
+	at91sam9263_rtt0_device.num_resources = 1;
+	at91sam9263_rtt1_device.num_resources = 1;
+}
+#endif
 
 static void __init at91_add_device_rtt(void)
 {
+	at91_add_device_rtt_rtc();
 	platform_device_register(&at91sam9263_rtt0_device);
 	platform_device_register(&at91sam9263_rtt1_device);
 }
@@ -1371,7 +1428,6 @@ static inline void configure_usart2_pins(unsigned pins)
 }
 
 static struct platform_device *__initdata at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
-struct platform_device *atmel_default_console_device;	/* the serial console device */
 
 void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins)
 {

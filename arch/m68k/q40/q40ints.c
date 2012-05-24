@@ -18,7 +18,6 @@
 #include <linux/irq.h>
 
 #include <asm/ptrace.h>
-#include <asm/system.h>
 #include <asm/traps.h>
 
 #include <asm/q40_master.h>

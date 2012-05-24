@@ -46,4 +46,8 @@ enum iio_modifier {
 	IIO_MOD_LIGHT_IR,
 };
 
+#define IIO_VAL_INT 1
+#define IIO_VAL_INT_PLUS_MICRO 2
+#define IIO_VAL_INT_PLUS_NANO 3
+
 #endif /* _IIO_TYPES_H_ */

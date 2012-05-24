@@ -321,7 +321,7 @@ static int ad7291_read_event_value(struct iio_dev *indio_dev,
 
 	switch (IIO_EVENT_CODE_EXTRACT_CHAN_TYPE(event_code)) {
 	case IIO_VOLTAGE:
-		reg = ad7291_limit_regs[IIO_EVENT_CODE_EXTRACT_NUM(event_code)]
+		reg = ad7291_limit_regs[IIO_EVENT_CODE_EXTRACT_CHAN(event_code)]
 			[!(IIO_EVENT_CODE_EXTRACT_DIR(event_code) ==
 			   IIO_EV_DIR_RISING)];
 
@@ -359,7 +359,7 @@ static int ad7291_write_event_value(struct iio_dev *indio_dev,
 	case IIO_VOLTAGE:
 		if (val > AD7291_VALUE_MASK || val < 0)
 			return -EINVAL;
-		reg = ad7291_limit_regs[IIO_EVENT_CODE_EXTRACT_NUM(event_code)]
+		reg = ad7291_limit_regs[IIO_EVENT_CODE_EXTRACT_CHAN(event_code)]
 			[!(IIO_EVENT_CODE_EXTRACT_DIR(event_code) ==
 			   IIO_EV_DIR_RISING)];
 		return ad7291_i2c_write(chip, reg, val);
@@ -386,7 +386,7 @@ static int ad7291_read_event_config(struct iio_dev *indio_dev,
 	switch (IIO_EVENT_CODE_EXTRACT_CHAN_TYPE(event_code)) {
 	case IIO_VOLTAGE:
 		if (chip->c_mask &
-		    (1 << (15 - IIO_EVENT_CODE_EXTRACT_NUM(event_code))))
+		    (1 << (15 - IIO_EVENT_CODE_EXTRACT_CHAN(event_code))))
 			return 1;
 		else
 			return 0;
@@ -418,12 +418,12 @@ static int ad7291_write_event_config(struct iio_dev *indio_dev,
 	switch (IIO_EVENT_CODE_EXTRACT_TYPE(event_code)) {
 	case IIO_VOLTAGE:
 		if ((!state) && (chip->c_mask & (1 << (15 -
-				IIO_EVENT_CODE_EXTRACT_NUM(event_code)))))
-			chip->c_mask &= ~(1 << (15 - IIO_EVENT_CODE_EXTRACT_NUM
+				IIO_EVENT_CODE_EXTRACT_CHAN(event_code)))))
+			chip->c_mask &= ~(1 << (15 - IIO_EVENT_CODE_EXTRACT_CHAN
 							(event_code)));
 		else if (state && (!(chip->c_mask & (1 << (15 -
-				IIO_EVENT_CODE_EXTRACT_NUM(event_code))))))
-			chip->c_mask |= (1 << (15 - IIO_EVENT_CODE_EXTRACT_NUM
+				IIO_EVENT_CODE_EXTRACT_CHAN(event_code))))))
+			chip->c_mask |= (1 << (15 - IIO_EVENT_CODE_EXTRACT_CHAN
 							(event_code)));
 		else
 			break;

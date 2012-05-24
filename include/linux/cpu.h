@@ -14,10 +14,11 @@
 #ifndef _LINUX_CPU_H_
 #define _LINUX_CPU_H_
 
-#include <linux/device.h>
 #include <linux/node.h>
 #include <linux/compiler.h>
 #include <linux/cpumask.h>
+
+struct device;
 
 struct cpu {
 	int node_id;		/* The node which contains the CPU */
@@ -43,6 +44,13 @@ extern ssize_t arch_cpu_probe(const char *, size_t);
 extern ssize_t arch_cpu_release(const char *, size_t);
 #endif
 struct notifier_block;
+
+#ifdef CONFIG_ARCH_HAS_CPU_AUTOPROBE
+extern int arch_cpu_uevent(struct device *dev, struct kobj_uevent_env *env);
+extern ssize_t arch_print_cpu_modalias(struct device *dev,
+				       struct device_attribute *attr,
+				       char *bufptr);
+#endif
 
 /*
  * CPU notifier priorities.

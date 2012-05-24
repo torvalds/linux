@@ -891,17 +891,7 @@ static struct platform_driver spear_pcie_gadget_driver = {
 	},
 };
 
-static int __init spear_pcie_gadget_init(void)
-{
-	return platform_driver_register(&spear_pcie_gadget_driver);
-}
-module_init(spear_pcie_gadget_init);
-
-static void __exit spear_pcie_gadget_exit(void)
-{
-	platform_driver_unregister(&spear_pcie_gadget_driver);
-}
-module_exit(spear_pcie_gadget_exit);
+module_platform_driver(spear_pcie_gadget_driver);
 
 MODULE_ALIAS("platform:pcie-gadget-spear");
 MODULE_AUTHOR("Pratyush Anand");

@@ -388,7 +388,6 @@ int ip6_forward(struct sk_buff *skb)
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct inet6_skb_parm *opt = IP6CB(skb);
 	struct net *net = dev_net(dst->dev);
-	struct neighbour *n;
 	u32 mtu;
 
 	if (net->ipv6.devconf_all->forwarding == 0)
@@ -463,8 +462,7 @@ int ip6_forward(struct sk_buff *skb)
 	   send redirects to source routed frames.
 	   We don't send redirects to frames decapsulated from IPsec.
 	 */
-	n = dst_get_neighbour_noref(dst);
-	if (skb->dev == dst->dev && n && opt->srcrt == 0 && !skb_sec_path(skb)) {
+	if (skb->dev == dst->dev && opt->srcrt == 0 && !skb_sec_path(skb)) {
 		struct in6_addr *target = NULL;
 		struct rt6_info *rt;
 
@@ -474,8 +472,8 @@ int ip6_forward(struct sk_buff *skb)
 		 */
 
 		rt = (struct rt6_info *) dst;
-		if ((rt->rt6i_flags & RTF_GATEWAY))
-			target = (struct in6_addr*)&n->primary_key;
+		if (rt->rt6i_flags & RTF_GATEWAY)
+			target = &rt->rt6i_gateway;
 		else
 			target = &hdr->daddr;
 
@@ -486,7 +484,7 @@ int ip6_forward(struct sk_buff *skb)
 		   and by source (inside ndisc_send_redirect)
 		 */
 		if (inet_peer_xrlim_allow(rt->rt6i_peer, 1*HZ))
-			ndisc_send_redirect(skb, n, target);
+			ndisc_send_redirect(skb, target);
 	} else {
 		int addrtype = ipv6_addr_type(&hdr->saddr);
 
@@ -1416,8 +1414,9 @@ alloc_new_skb:
 			 */
 			skb->ip_summed = csummode;
 			skb->csum = 0;
-			/* reserve for fragmentation */
-			skb_reserve(skb, hh_len+sizeof(struct frag_hdr));
+			/* reserve for fragmentation and ipsec header */
+			skb_reserve(skb, hh_len + sizeof(struct frag_hdr) +
+				    dst_exthdrlen);
 
 			if (sk->sk_type == SOCK_DGRAM)
 				skb_shinfo(skb)->tx_flags = tx_flags;
@@ -1425,9 +1424,9 @@ alloc_new_skb:
 			/*
 			 *	Find where to start putting bytes
 			 */
-			data = skb_put(skb, fraglen + dst_exthdrlen);
-			skb_set_network_header(skb, exthdrlen + dst_exthdrlen);
-			data += fragheaderlen + dst_exthdrlen;
+			data = skb_put(skb, fraglen);
+			skb_set_network_header(skb, exthdrlen);
+			data += fragheaderlen;
 			skb->transport_header = (skb->network_header +
 						 fragheaderlen);
 			if (fraggap) {

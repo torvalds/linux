@@ -18,14 +18,106 @@
 #include "glock.h"
 #include "util.h"
 #include "sys.h"
+#include "trace_gfs2.h"
 
 extern struct workqueue_struct *gfs2_control_wq;
 
+/**
+ * gfs2_update_stats - Update time based stats
+ * @mv: Pointer to mean/variance structure to update
+ * @sample: New data to include
+ *
+ * @delta is the difference between the current rtt sample and the
+ * running average srtt. We add 1/8 of that to the srtt in order to
+ * update the current srtt estimate. The varience estimate is a bit
+ * more complicated. We subtract the abs value of the @delta from
+ * the current variance estimate and add 1/4 of that to the running
+ * total.
+ *
+ * Note that the index points at the array entry containing the smoothed
+ * mean value, and the variance is always in the following entry
+ *
+ * Reference: TCP/IP Illustrated, vol 2, p. 831,832
+ * All times are in units of integer nanoseconds. Unlike the TCP/IP case,
+ * they are not scaled fixed point.
+ */
+
+static inline void gfs2_update_stats(struct gfs2_lkstats *s, unsigned index,
+				     s64 sample)
+{
+	s64 delta = sample - s->stats[index];
+	s->stats[index] += (delta >> 3);
+	index++;
+	s->stats[index] += ((abs64(delta) - s->stats[index]) >> 2);
+}
+
+/**
+ * gfs2_update_reply_times - Update locking statistics
+ * @gl: The glock to update
+ *
+ * This assumes that gl->gl_dstamp has been set earlier.
+ *
+ * The rtt (lock round trip time) is an estimate of the time
+ * taken to perform a dlm lock request. We update it on each
+ * reply from the dlm.
+ *
+ * The blocking flag is set on the glock for all dlm requests
+ * which may potentially block due to lock requests from other nodes.
+ * DLM requests where the current lock state is exclusive, the
+ * requested state is null (or unlocked) or where the TRY or
+ * TRY_1CB flags are set are classified as non-blocking. All
+ * other DLM requests are counted as (potentially) blocking.
+ */
+static inline void gfs2_update_reply_times(struct gfs2_glock *gl)
+{
+	struct gfs2_pcpu_lkstats *lks;
+	const unsigned gltype = gl->gl_name.ln_type;
+	unsigned index = test_bit(GLF_BLOCKING, &gl->gl_flags) ?
+			 GFS2_LKS_SRTTB : GFS2_LKS_SRTT;
+	s64 rtt;
+
+	preempt_disable();
+	rtt = ktime_to_ns(ktime_sub(ktime_get_real(), gl->gl_dstamp));
+	lks = this_cpu_ptr(gl->gl_sbd->sd_lkstats);
+	gfs2_update_stats(&gl->gl_stats, index, rtt);		/* Local */
+	gfs2_update_stats(&lks->lkstats[gltype], index, rtt);	/* Global */
+	preempt_enable();
+
+	trace_gfs2_glock_lock_time(gl, rtt);
+}
+
+/**
+ * gfs2_update_request_times - Update locking statistics
+ * @gl: The glock to update
+ *
+ * The irt (lock inter-request times) measures the average time
+ * between requests to the dlm. It is updated immediately before
+ * each dlm call.
+ */
+
+static inline void gfs2_update_request_times(struct gfs2_glock *gl)
+{
+	struct gfs2_pcpu_lkstats *lks;
+	const unsigned gltype = gl->gl_name.ln_type;
+	ktime_t dstamp;
+	s64 irt;
+
+	preempt_disable();
+	dstamp = gl->gl_dstamp;
+	gl->gl_dstamp = ktime_get_real();
+	irt = ktime_to_ns(ktime_sub(gl->gl_dstamp, dstamp));
+	lks = this_cpu_ptr(gl->gl_sbd->sd_lkstats);
+	gfs2_update_stats(&gl->gl_stats, GFS2_LKS_SIRT, irt);		/* Local */
+	gfs2_update_stats(&lks->lkstats[gltype], GFS2_LKS_SIRT, irt);	/* Global */
+	preempt_enable();
+}
+ 
 static void gdlm_ast(void *arg)
 {
 	struct gfs2_glock *gl = arg;
 	unsigned ret = gl->gl_state;
 
+	gfs2_update_reply_times(gl);
 	BUG_ON(gl->gl_lksb.sb_flags & DLM_SBF_DEMOTED);
 
 	if (gl->gl_lksb.sb_flags & DLM_SBF_VALNOTVALID)
@@ -111,7 +203,7 @@ static int make_mode(const unsigned int lmstate)
 static u32 make_flags(const u32 lkid, const unsigned int gfs_flags,
 		      const int req)
 {
-	u32 lkf = 0;
+	u32 lkf = DLM_LKF_VALBLK;
 
 	if (gfs_flags & LM_FLAG_TRY)
 		lkf |= DLM_LKF_NOQUEUE;
@@ -138,9 +230,15 @@ static u32 make_flags(const u32 lkid, const unsigned int gfs_flags,
 	if (lkid != 0) 
 		lkf |= DLM_LKF_CONVERT;
 
-	lkf |= DLM_LKF_VALBLK;
-
 	return lkf;
+}
+
+static void gfs2_reverse_hex(char *c, u64 value)
+{
+	while (value) {
+		*c-- = hex_asc[value & 0x0f];
+		value >>= 4;
+	}
 }
 
 static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
@@ -149,15 +247,26 @@ static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 	struct lm_lockstruct *ls = &gl->gl_sbd->sd_lockstruct;
 	int req;
 	u32 lkf;
+	char strname[GDLM_STRNAME_BYTES] = "";
 
 	req = make_mode(req_state);
 	lkf = make_flags(gl->gl_lksb.sb_lkid, flags, req);
-
+	gfs2_glstats_inc(gl, GFS2_LKS_DCOUNT);
+	gfs2_sbstats_inc(gl, GFS2_LKS_DCOUNT);
+	if (gl->gl_lksb.sb_lkid) {
+		gfs2_update_request_times(gl);
+	} else {
+		memset(strname, ' ', GDLM_STRNAME_BYTES - 1);
+		strname[GDLM_STRNAME_BYTES - 1] = '\0';
+		gfs2_reverse_hex(strname + 7, gl->gl_name.ln_type);
+		gfs2_reverse_hex(strname + 23, gl->gl_name.ln_number);
+		gl->gl_dstamp = ktime_get_real();
+	}
 	/*
 	 * Submit the actual lock request.
 	 */
 
-	return dlm_lock(ls->ls_dlm, req, &gl->gl_lksb, lkf, gl->gl_strname,
+	return dlm_lock(ls->ls_dlm, req, &gl->gl_lksb, lkf, strname,
 			GDLM_STRNAME_BYTES - 1, 0, gdlm_ast, gl, gdlm_bast);
 }
 
@@ -172,6 +281,10 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 		return;
 	}
 
+	clear_bit(GLF_BLOCKING, &gl->gl_flags);
+	gfs2_glstats_inc(gl, GFS2_LKS_DCOUNT);
+	gfs2_sbstats_inc(gl, GFS2_LKS_DCOUNT);
+	gfs2_update_request_times(gl);
 	error = dlm_unlock(ls->ls_dlm, gl->gl_lksb.sb_lkid, DLM_LKF_VALBLK,
 			   NULL, gl);
 	if (error) {

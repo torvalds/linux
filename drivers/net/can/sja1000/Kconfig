@@ -43,12 +43,33 @@ config CAN_EMS_PCI
 	  CPC-PCIe and CPC-104P cards from EMS Dr. Thomas Wuensche
 	  (http://www.ems-wuensche.de).
 
+config CAN_PEAK_PCMCIA
+	tristate "PEAK PCAN-PC Card"
+	depends on PCMCIA
+	---help---
+	  This driver is for the PCAN-PC Card PCMCIA adapter (1 or 2 channels)
+	  from PEAK-System (http://www.peak-system.com). To compile this
+	  driver as a module, choose M here: the module will be called
+	  peak_pcmcia.
+
 config CAN_PEAK_PCI
-	tristate "PEAK PCAN PCI/PCIe Cards"
+	tristate "PEAK PCAN-PCI/PCIe/miniPCI Cards"
 	depends on PCI
 	---help---
-	  This driver is for the PCAN PCI/PCIe cards (1, 2, 3 or 4 channels)
-	  from PEAK Systems (http://www.peak-system.com).
+	  This driver is for the PCAN-PCI/PCIe/miniPCI cards
+	  (1, 2, 3 or 4 channels) from PEAK-System Technik
+	  (http://www.peak-system.com).
+
+config CAN_PEAK_PCIEC
+	bool "PEAK PCAN-ExpressCard Cards"
+	depends on CAN_PEAK_PCI
+	select I2C
+	select I2C_ALGOBIT
+	default y
+	---help---
+	  Say Y here if you want to use a PCAN-ExpressCard from PEAK-System
+	  Technik. This will also automatically select I2C and I2C_ALGO
+	  configuration options.
 
 config CAN_KVASER_PCI
 	tristate "Kvaser PCIcanx and Kvaser PCIcan PCI Cards"
@@ -71,6 +92,7 @@ config CAN_PLX_PCI
 	   - esd CAN-PCIe/2000
 	   - Marathon CAN-bus-PCI card (http://www.marathon.ru/)
 	   - TEWS TECHNOLOGIES TPMC810 card (http://www.tews.com/)
+	   - IXXAT Automation PC-I 04/PCI card (http://www.ixxat.com/)
 
 config CAN_TSCAN1
 	tristate "TS-CAN1 PC104 boards"

@@ -42,7 +42,6 @@
 #include <linux/seq_file.h>
 #include <linux/module.h>
 
-#include <asm/system.h>
 #include <asm/traps.h>
 
 #include <asm/atarihw.h>

@@ -72,16 +72,19 @@ static inline void
 qla2x00_clean_dsd_pool(struct qla_hw_data *ha, srb_t *sp)
 {
 	struct dsd_dma *dsd_ptr, *tdsd_ptr;
+	struct crc_context *ctx;
+
+	ctx = (struct crc_context *)GET_CMD_CTX_SP(sp);
 
 	/* clean up allocated prev pool */
 	list_for_each_entry_safe(dsd_ptr, tdsd_ptr,
-	    &((struct crc_context *)sp->ctx)->dsd_list, list) {
+	    &ctx->dsd_list, list) {
 		dma_pool_free(ha->dl_dma_pool, dsd_ptr->dsd_addr,
 		    dsd_ptr->dsd_list_dma);
 		list_del(&dsd_ptr->list);
 		kfree(dsd_ptr);
 	}
-	INIT_LIST_HEAD(&((struct crc_context *)sp->ctx)->dsd_list);
+	INIT_LIST_HEAD(&ctx->dsd_list);
 }
 
 static inline void
@@ -113,8 +116,7 @@ qla2x00_hba_err_chk_enabled(srb_t *sp)
 		return 0;
 	 *
 	 */
-
-	switch (scsi_get_prot_op(sp->cmd)) {
+	switch (scsi_get_prot_op(GET_CMD_SP(sp))) {
 	case SCSI_PROT_READ_STRIP:
 	case SCSI_PROT_WRITE_INSERT:
 		if (ql2xenablehba_err_chk >= 1)
@@ -143,4 +145,45 @@ qla2x00_reset_active(scsi_qla_host_t *vha)
 	    test_bit(ISP_ABORT_RETRY, &base_vha->dpc_flags) ||
 	    test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
 	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags);
+}
+
+static inline srb_t *
+qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
+{
+	srb_t *sp = NULL;
+	struct qla_hw_data *ha = vha->hw;
+	uint8_t bail;
+
+	QLA_VHA_MARK_BUSY(vha, bail);
+	if (unlikely(bail))
+		return NULL;
+
+	sp = mempool_alloc(ha->srb_mempool, flag);
+	if (!sp)
+		goto done;
+
+	memset(sp, 0, sizeof(*sp));
+	sp->fcport = fcport;
+	sp->iocbs = 1;
+done:
+	if (!sp)
+		QLA_VHA_MARK_NOT_BUSY(vha);
+	return sp;
+}
+
+static inline void
+qla2x00_init_timer(srb_t *sp, unsigned long tmo)
+{
+	init_timer(&sp->u.iocb_cmd.timer);
+	sp->u.iocb_cmd.timer.expires = jiffies + tmo * HZ;
+	sp->u.iocb_cmd.timer.data = (unsigned long)sp;
+	sp->u.iocb_cmd.timer.function = qla2x00_sp_timeout;
+	add_timer(&sp->u.iocb_cmd.timer);
+	sp->free = qla2x00_sp_free;
+}
+
+static inline int
+qla2x00_gid_list_size(struct qla_hw_data *ha)
+{
+	return sizeof(struct gid_list_info) * ha->max_fibre_devices;
 }

@@ -154,8 +154,8 @@ const struct bcma_host_ops bcma_host_pci_ops = {
 	.awrite32	= bcma_host_pci_awrite32,
 };
 
-static int bcma_host_pci_probe(struct pci_dev *dev,
-			     const struct pci_device_id *id)
+static int __devinit bcma_host_pci_probe(struct pci_dev *dev,
+					 const struct pci_device_id *id)
 {
 	struct bcma_bus *bus;
 	int err = -ENOMEM;

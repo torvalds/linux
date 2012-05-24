@@ -31,12 +31,6 @@ config TIDSPBRIDGE_MEMPOOL_SIZE
 	  Allocate specified size of memory at booting time to avoid allocation
 	  failure under heavy memory fragmentation after some use time.
 
-config TIDSPBRIDGE_DEBUG
-	bool "Debug Support"
-	depends on TIDSPBRIDGE
-	help
-	  Say Y to enable Bridge debugging capabilities
-
 config TIDSPBRIDGE_RECOVERY
 	bool "Recovery Support"
 	depends on TIDSPBRIDGE
@@ -57,22 +51,6 @@ config TIDSPBRIDGE_CACHE_LINE_CHECK
 	  the next 128-Byte boundary will be loaded and written back as well.
 	  This can lead to heap corruption. Say Y, to enforce the check for 128
 	  byte alignment, buffers failing this check will be rejected.
-
-config TIDSPBRIDGE_WDT3
-	bool "Enable watchdog timer"
-	depends on TIDSPBRIDGE
-	help
-	  WTD3 is managed by DSP and once it is enabled, DSP side bridge is in
-	  charge of refreshing the timer before overflow, if the DSP hangs MPU
-	  will caught the interrupt and try to recover DSP.
-
-config TIDSPBRIDGE_WDT_TIMEOUT
-	int "Watchdog timer timeout (in secs)"
-	depends on TIDSPBRIDGE && TIDSPBRIDGE_WDT3
-	default 5
-	help
-	   Watchdog timer timeout value, after that time if the watchdog timer
-	   counter is not reset the wdt overflow interrupt will be triggered
 
 config TIDSPBRIDGE_NTFY_PWRERR
 	bool "Notify power errors"

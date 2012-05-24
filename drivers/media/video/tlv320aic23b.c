@@ -227,15 +227,4 @@ static struct i2c_driver tlv320aic23b_driver = {
 	.id_table	= tlv320aic23b_id,
 };
 
-static __init int init_tlv320aic23b(void)
-{
-	return i2c_add_driver(&tlv320aic23b_driver);
-}
-
-static __exit void exit_tlv320aic23b(void)
-{
-	i2c_del_driver(&tlv320aic23b_driver);
-}
-
-module_init(init_tlv320aic23b);
-module_exit(exit_tlv320aic23b);
+module_i2c_driver(tlv320aic23b_driver);

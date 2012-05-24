@@ -30,7 +30,6 @@
 #include <mach/hardware.h>
 #include <asm/memory.h>
 #include <asm/suspend.h>
-#include <asm/system.h>
 #include <asm/mach/time.h>
 
 extern int sa1100_finish_suspend(unsigned long);

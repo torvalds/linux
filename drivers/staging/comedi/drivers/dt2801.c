@@ -720,12 +720,20 @@ static int dt2801_dio_insn_config(struct comedi_device *dev,
 		which = 1;
 
 	/* configure */
-	if (data[0]) {
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_OUTPUT:
 		s->io_bits = 0xff;
 		dt2801_writecmd(dev, DT_C_SET_DIGOUT);
-	} else {
+		break;
+	case INSN_CONFIG_DIO_INPUT:
 		s->io_bits = 0;
 		dt2801_writecmd(dev, DT_C_SET_DIGIN);
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = s->io_bits ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+	default:
+		return -EINVAL;
 	}
 	dt2801_writedata(dev, which);
 

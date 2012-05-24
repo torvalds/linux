@@ -10,6 +10,7 @@
 #define USE_BSD
 #include <endian.h>
 #include <regex.h>
+#include <tools/le_byteshift.h>
 
 static void die(char *fmt, ...);
 
@@ -605,10 +606,7 @@ static void emit_relocs(int as_text)
 		fwrite("\0\0\0\0", 4, 1, stdout);
 		/* Now print each relocation */
 		for (i = 0; i < reloc_count; i++) {
-			buf[0] = (relocs[i] >>  0) & 0xff;
-			buf[1] = (relocs[i] >>  8) & 0xff;
-			buf[2] = (relocs[i] >> 16) & 0xff;
-			buf[3] = (relocs[i] >> 24) & 0xff;
+			put_unaligned_le32(relocs[i], buf);
 			fwrite(buf, 4, 1, stdout);
 		}
 	}

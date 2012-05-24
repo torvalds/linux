@@ -11,7 +11,8 @@ config TMS320C6X
 	select HAVE_DMA_API_DEBUG
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_MEMBLOCK
-	select HAVE_SPARSE_IRQ
+	select SPARSE_IRQ
+	select IRQ_DOMAIN
 	select OF
 	select OF_EARLY_FLATTREE
 

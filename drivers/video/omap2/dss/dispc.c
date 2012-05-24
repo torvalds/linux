@@ -37,7 +37,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <plat/sram.h>
 #include <plat/clock.h>
 
 #include <video/omapdss.h>
@@ -736,11 +735,11 @@ static void dispc_ovl_set_color_mode(enum omap_plane plane,
 		switch (color_mode) {
 		case OMAP_DSS_COLOR_NV12:
 			m = 0x0; break;
-		case OMAP_DSS_COLOR_RGB12U:
+		case OMAP_DSS_COLOR_RGBX16:
 			m = 0x1; break;
 		case OMAP_DSS_COLOR_RGBA16:
 			m = 0x2; break;
-		case OMAP_DSS_COLOR_RGBX16:
+		case OMAP_DSS_COLOR_RGB12U:
 			m = 0x4; break;
 		case OMAP_DSS_COLOR_ARGB16:
 			m = 0x5; break;
@@ -789,9 +788,9 @@ static void dispc_ovl_set_color_mode(enum omap_plane plane,
 			m = 0x8; break;
 		case OMAP_DSS_COLOR_RGB24P:
 			m = 0x9; break;
-		case OMAP_DSS_COLOR_YUV2:
+		case OMAP_DSS_COLOR_RGBX16:
 			m = 0xa; break;
-		case OMAP_DSS_COLOR_UYVY:
+		case OMAP_DSS_COLOR_RGBA16:
 			m = 0xb; break;
 		case OMAP_DSS_COLOR_ARGB32:
 			m = 0xc; break;
@@ -909,7 +908,7 @@ static void dispc_configure_burst_sizes(void)
 		dispc_ovl_set_burst_size(i, burst_size);
 }
 
-u32 dispc_ovl_get_burst_size(enum omap_plane plane)
+static u32 dispc_ovl_get_burst_size(enum omap_plane plane)
 {
 	unsigned unit = dss_feat_get_burst_size_unit();
 	/* burst multiplier is always x8 (see dispc_configure_burst_sizes()) */
@@ -1018,7 +1017,7 @@ static void dispc_read_plane_fifo_sizes(void)
 	}
 }
 
-u32 dispc_ovl_get_fifo_size(enum omap_plane plane)
+static u32 dispc_ovl_get_fifo_size(enum omap_plane plane)
 {
 	return dispc.fifo_size[plane];
 }
@@ -1039,13 +1038,13 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 	dss_feat_get_reg_field(FEAT_REG_FIFOHIGHTHRESHOLD, &hi_start, &hi_end);
 	dss_feat_get_reg_field(FEAT_REG_FIFOLOWTHRESHOLD, &lo_start, &lo_end);
 
-	DSSDBG("fifo(%d) low/high old %u/%u, new %u/%u\n",
+	DSSDBG("fifo(%d) threshold (bytes), old %u/%u, new %u/%u\n",
 			plane,
 			REG_GET(DISPC_OVL_FIFO_THRESHOLD(plane),
-				lo_start, lo_end),
+				lo_start, lo_end) * unit,
 			REG_GET(DISPC_OVL_FIFO_THRESHOLD(plane),
-				hi_start, hi_end),
-			low, high);
+				hi_start, hi_end) * unit,
+			low * unit, high * unit);
 
 	dispc_write_reg(DISPC_OVL_FIFO_THRESHOLD(plane),
 			FLD_VAL(high, hi_start, hi_end) |
@@ -1054,8 +1053,51 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 
 void dispc_enable_fifomerge(bool enable)
 {
+	if (!dss_has_feature(FEAT_FIFO_MERGE)) {
+		WARN_ON(enable);
+		return;
+	}
+
 	DSSDBG("FIFO merge %s\n", enable ? "enabled" : "disabled");
 	REG_FLD_MOD(DISPC_CONFIG, enable ? 1 : 0, 14, 14);
+}
+
+void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
+		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge)
+{
+	/*
+	 * All sizes are in bytes. Both the buffer and burst are made of
+	 * buffer_units, and the fifo thresholds must be buffer_unit aligned.
+	 */
+
+	unsigned buf_unit = dss_feat_get_buffer_size_unit();
+	unsigned ovl_fifo_size, total_fifo_size, burst_size;
+	int i;
+
+	burst_size = dispc_ovl_get_burst_size(plane);
+	ovl_fifo_size = dispc_ovl_get_fifo_size(plane);
+
+	if (use_fifomerge) {
+		total_fifo_size = 0;
+		for (i = 0; i < omap_dss_get_num_overlays(); ++i)
+			total_fifo_size += dispc_ovl_get_fifo_size(i);
+	} else {
+		total_fifo_size = ovl_fifo_size;
+	}
+
+	/*
+	 * We use the same low threshold for both fifomerge and non-fifomerge
+	 * cases, but for fifomerge we calculate the high threshold using the
+	 * combined fifo size
+	 */
+
+	if (dss_has_feature(FEAT_OMAP3_DSI_FIFO_BUG)) {
+		*fifo_low = ovl_fifo_size - burst_size * 2;
+		*fifo_high = total_fifo_size - burst_size;
+	} else {
+		*fifo_low = ovl_fifo_size - burst_size;
+		*fifo_high = total_fifo_size - buf_unit;
+	}
 }
 
 static void dispc_ovl_set_fir(enum omap_plane plane,
@@ -1651,6 +1693,7 @@ static unsigned long calc_fclk(enum omap_channel channel, u16 width,
 		u16 height, u16 out_width, u16 out_height)
 {
 	unsigned int hf, vf;
+	unsigned long pclk = dispc_mgr_pclk_rate(channel);
 
 	/*
 	 * FIXME how to determine the 'A' factor
@@ -1673,13 +1716,16 @@ static unsigned long calc_fclk(enum omap_channel channel, u16 width,
 
 	if (cpu_is_omap24xx()) {
 		if (vf > 1 && hf > 1)
-			return dispc_mgr_pclk_rate(channel) * 4;
+			return pclk * 4;
 		else
-			return dispc_mgr_pclk_rate(channel) * 2;
+			return pclk * 2;
 	} else if (cpu_is_omap34xx()) {
-		return dispc_mgr_pclk_rate(channel) * vf * hf;
+		return pclk * vf * hf;
 	} else {
-		return dispc_mgr_pclk_rate(channel) * hf;
+		if (hf > 1)
+			return DIV_ROUND_UP(pclk, out_width) * width;
+		else
+			return pclk;
 	}
 }
 
@@ -3272,11 +3318,6 @@ static void _omap_dispc_initial_config(void)
 	if (dss_has_feature(FEAT_FUNCGATED))
 		REG_FLD_MOD(DISPC_CONFIG, 1, 9, 9);
 
-	/* L3 firewall setting: enable access to OCM RAM */
-	/* XXX this should be somewhere in plat-omap */
-	if (cpu_is_omap24xx())
-		__raw_writel(0x402000b0, OMAP2_L3_IO_ADDRESS(0x680050a0));
-
 	_dispc_setup_color_conv_coef();
 
 	dispc_set_loadmode(OMAP_DSS_LOAD_FRAME_ONLY);
@@ -3298,15 +3339,6 @@ static int omap_dispchw_probe(struct platform_device *pdev)
 
 	dispc.pdev = pdev;
 
-	clk = clk_get(&pdev->dev, "fck");
-	if (IS_ERR(clk)) {
-		DSSERR("can't get fck\n");
-		r = PTR_ERR(clk);
-		goto err_get_clk;
-	}
-
-	dispc.dss_clk = clk;
-
 	spin_lock_init(&dispc.irq_lock);
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
@@ -3319,28 +3351,37 @@ static int omap_dispchw_probe(struct platform_device *pdev)
 	dispc_mem = platform_get_resource(dispc.pdev, IORESOURCE_MEM, 0);
 	if (!dispc_mem) {
 		DSSERR("can't get IORESOURCE_MEM DISPC\n");
-		r = -EINVAL;
-		goto err_ioremap;
+		return -EINVAL;
 	}
-	dispc.base = ioremap(dispc_mem->start, resource_size(dispc_mem));
+
+	dispc.base = devm_ioremap(&pdev->dev, dispc_mem->start,
+				  resource_size(dispc_mem));
 	if (!dispc.base) {
 		DSSERR("can't ioremap DISPC\n");
-		r = -ENOMEM;
-		goto err_ioremap;
+		return -ENOMEM;
 	}
+
 	dispc.irq = platform_get_irq(dispc.pdev, 0);
 	if (dispc.irq < 0) {
 		DSSERR("platform_get_irq failed\n");
-		r = -ENODEV;
-		goto err_irq;
+		return -ENODEV;
 	}
 
-	r = request_irq(dispc.irq, omap_dispc_irq_handler, IRQF_SHARED,
-		"OMAP DISPC", dispc.pdev);
+	r = devm_request_irq(&pdev->dev, dispc.irq, omap_dispc_irq_handler,
+			     IRQF_SHARED, "OMAP DISPC", dispc.pdev);
 	if (r < 0) {
 		DSSERR("request_irq failed\n");
-		goto err_irq;
+		return r;
 	}
+
+	clk = clk_get(&pdev->dev, "fck");
+	if (IS_ERR(clk)) {
+		DSSERR("can't get fck\n");
+		r = PTR_ERR(clk);
+		return r;
+	}
+
+	dispc.dss_clk = clk;
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -3362,12 +3403,7 @@ static int omap_dispchw_probe(struct platform_device *pdev)
 
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
-	free_irq(dispc.irq, dispc.pdev);
-err_irq:
-	iounmap(dispc.base);
-err_ioremap:
 	clk_put(dispc.dss_clk);
-err_get_clk:
 	return r;
 }
 
@@ -3377,8 +3413,6 @@ static int omap_dispchw_remove(struct platform_device *pdev)
 
 	clk_put(dispc.dss_clk);
 
-	free_irq(dispc.irq, dispc.pdev);
-	iounmap(dispc.base);
 	return 0;
 }
 

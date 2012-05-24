@@ -129,9 +129,38 @@ enum perf_event_sample_format {
 	PERF_SAMPLE_PERIOD			= 1U << 8,
 	PERF_SAMPLE_STREAM_ID			= 1U << 9,
 	PERF_SAMPLE_RAW				= 1U << 10,
+	PERF_SAMPLE_BRANCH_STACK		= 1U << 11,
 
-	PERF_SAMPLE_MAX = 1U << 11,		/* non-ABI */
+	PERF_SAMPLE_MAX = 1U << 12,		/* non-ABI */
 };
+
+/*
+ * values to program into branch_sample_type when PERF_SAMPLE_BRANCH is set
+ *
+ * If the user does not pass priv level information via branch_sample_type,
+ * the kernel uses the event's priv level. Branch and event priv levels do
+ * not have to match. Branch priv level is checked for permissions.
+ *
+ * The branch types can be combined, however BRANCH_ANY covers all types
+ * of branches and therefore it supersedes all the other types.
+ */
+enum perf_branch_sample_type {
+	PERF_SAMPLE_BRANCH_USER		= 1U << 0, /* user branches */
+	PERF_SAMPLE_BRANCH_KERNEL	= 1U << 1, /* kernel branches */
+	PERF_SAMPLE_BRANCH_HV		= 1U << 2, /* hypervisor branches */
+
+	PERF_SAMPLE_BRANCH_ANY		= 1U << 3, /* any branch types */
+	PERF_SAMPLE_BRANCH_ANY_CALL	= 1U << 4, /* any call branch */
+	PERF_SAMPLE_BRANCH_ANY_RETURN	= 1U << 5, /* any return branch */
+	PERF_SAMPLE_BRANCH_IND_CALL	= 1U << 6, /* indirect calls */
+
+	PERF_SAMPLE_BRANCH_MAX		= 1U << 7, /* non-ABI */
+};
+
+#define PERF_SAMPLE_BRANCH_PLM_ALL \
+	(PERF_SAMPLE_BRANCH_USER|\
+	 PERF_SAMPLE_BRANCH_KERNEL|\
+	 PERF_SAMPLE_BRANCH_HV)
 
 /*
  * The format of the data returned by read() on a perf event fd,
@@ -163,6 +192,8 @@ enum perf_event_read_format {
 };
 
 #define PERF_ATTR_SIZE_VER0	64	/* sizeof first published struct */
+#define PERF_ATTR_SIZE_VER1	72	/* add: config2 */
+#define PERF_ATTR_SIZE_VER2	80	/* add: branch_sample_type */
 
 /*
  * Hardware event_id to monitor via a performance monitoring event:
@@ -240,6 +271,7 @@ struct perf_event_attr {
 		__u64		bp_len;
 		__u64		config2; /* extension of config1 */
 	};
+	__u64	branch_sample_type; /* enum branch_sample_type */
 };
 
 /*
@@ -267,18 +299,31 @@ struct perf_event_mmap_page {
 	/*
 	 * Bits needed to read the hw events in user-space.
 	 *
-	 *   u32 seq;
-	 *   s64 count;
+	 *   u32 seq, time_mult, time_shift, idx, width;
+	 *   u64 count, enabled, running;
+	 *   u64 cyc, time_offset;
+	 *   s64 pmc = 0;
 	 *
 	 *   do {
 	 *     seq = pc->lock;
-	 *
 	 *     barrier()
-	 *     if (pc->index) {
-	 *       count = pmc_read(pc->index - 1);
-	 *       count += pc->offset;
-	 *     } else
-	 *       goto regular_read;
+	 *
+	 *     enabled = pc->time_enabled;
+	 *     running = pc->time_running;
+	 *
+	 *     if (pc->cap_usr_time && enabled != running) {
+	 *       cyc = rdtsc();
+	 *       time_offset = pc->time_offset;
+	 *       time_mult   = pc->time_mult;
+	 *       time_shift  = pc->time_shift;
+	 *     }
+	 *
+	 *     idx = pc->index;
+	 *     count = pc->offset;
+	 *     if (pc->cap_usr_rdpmc && idx) {
+	 *       width = pc->pmc_width;
+	 *       pmc = rdpmc(idx - 1);
+	 *     }
 	 *
 	 *     barrier();
 	 *   } while (pc->lock != seq);
@@ -291,12 +336,57 @@ struct perf_event_mmap_page {
 	__s64	offset;			/* add to hardware event value */
 	__u64	time_enabled;		/* time event active */
 	__u64	time_running;		/* time event on cpu */
+	union {
+		__u64	capabilities;
+		__u64	cap_usr_time  : 1,
+			cap_usr_rdpmc : 1,
+			cap_____res   : 62;
+	};
+
+	/*
+	 * If cap_usr_rdpmc this field provides the bit-width of the value
+	 * read using the rdpmc() or equivalent instruction. This can be used
+	 * to sign extend the result like:
+	 *
+	 *   pmc <<= 64 - width;
+	 *   pmc >>= 64 - width; // signed shift right
+	 *   count += pmc;
+	 */
+	__u16	pmc_width;
+
+	/*
+	 * If cap_usr_time the below fields can be used to compute the time
+	 * delta since time_enabled (in ns) using rdtsc or similar.
+	 *
+	 *   u64 quot, rem;
+	 *   u64 delta;
+	 *
+	 *   quot = (cyc >> time_shift);
+	 *   rem = cyc & ((1 << time_shift) - 1);
+	 *   delta = time_offset + quot * time_mult +
+	 *              ((rem * time_mult) >> time_shift);
+	 *
+	 * Where time_offset,time_mult,time_shift and cyc are read in the
+	 * seqcount loop described above. This delta can then be added to
+	 * enabled and possible running (if idx), improving the scaling:
+	 *
+	 *   enabled += delta;
+	 *   if (idx)
+	 *     running += delta;
+	 *
+	 *   quot = count / running;
+	 *   rem  = count % running;
+	 *   count = quot * enabled + (rem * enabled) / running;
+	 */
+	__u16	time_shift;
+	__u32	time_mult;
+	__u64	time_offset;
 
 		/*
 		 * Hole for extension of the self monitor capabilities
 		 */
 
-	__u64	__reserved[123];	/* align to 1k */
+	__u64	__reserved[120];	/* align to 1k */
 
 	/*
 	 * Control data for the mmap() data buffer.
@@ -456,6 +546,8 @@ enum perf_event_type {
 	 *
 	 *	{ u32			size;
 	 *	  char                  data[size];}&& PERF_SAMPLE_RAW
+	 *
+	 *	{ u64 from, to, flags } lbr[nr];} && PERF_SAMPLE_BRANCH_STACK
 	 * };
 	 */
 	PERF_RECORD_SAMPLE			= 9,
@@ -512,8 +604,9 @@ struct perf_guest_info_callbacks {
 #include <linux/ftrace.h>
 #include <linux/cpu.h>
 #include <linux/irq_work.h>
-#include <linux/jump_label.h>
+#include <linux/static_key.h>
 #include <linux/atomic.h>
+#include <linux/sysfs.h>
 #include <asm/local.h>
 
 #define PERF_MAX_STACK_DEPTH		255
@@ -528,12 +621,34 @@ struct perf_raw_record {
 	void				*data;
 };
 
+/*
+ * single taken branch record layout:
+ *
+ *      from: source instruction (may not always be a branch insn)
+ *        to: branch target
+ *   mispred: branch target was mispredicted
+ * predicted: branch target was predicted
+ *
+ * support for mispred, predicted is optional. In case it
+ * is not supported mispred = predicted = 0.
+ */
 struct perf_branch_entry {
-	__u64				from;
-	__u64				to;
-	__u64				flags;
+	__u64	from;
+	__u64	to;
+	__u64	mispred:1,  /* target mispredicted */
+		predicted:1,/* target predicted */
+		reserved:62;
 };
 
+/*
+ * branch stack layout:
+ *  nr: number of taken branches stored in entries[]
+ *
+ * Note that nr can vary from sample to sample
+ * branches (to, from) are stored from most recent
+ * to least recent, i.e., entries[0] contains the most
+ * recent branch.
+ */
 struct perf_branch_stack {
 	__u64				nr;
 	struct perf_branch_entry	entries[0];
@@ -564,7 +679,9 @@ struct hw_perf_event {
 			unsigned long	event_base;
 			int		idx;
 			int		last_cpu;
+
 			struct hw_perf_event_extra extra_reg;
+			struct hw_perf_event_extra branch_reg;
 		};
 		struct { /* software */
 			struct hrtimer	hrtimer;
@@ -616,6 +733,7 @@ struct pmu {
 	struct list_head		entry;
 
 	struct device			*dev;
+	const struct attribute_group	**attr_groups;
 	char				*name;
 	int				type;
 
@@ -681,6 +799,17 @@ struct pmu {
 	 * for each successful ->add() during the transaction.
 	 */
 	void (*cancel_txn)		(struct pmu *pmu); /* optional */
+
+	/*
+	 * Will return the value for perf_event_mmap_page::index for this event,
+	 * if no implementation is provided it will default to: event->hw.idx + 1.
+	 */
+	int (*event_idx)		(struct perf_event *event); /*optional */
+
+	/*
+	 * flush branch stack on context-switches (needed in cpu-wide mode)
+	 */
+	void (*flush_branch_stack)	(void);
 };
 
 /**
@@ -850,6 +979,9 @@ struct perf_event {
 #ifdef CONFIG_EVENT_TRACING
 	struct ftrace_event_call	*tp_event;
 	struct event_filter		*filter;
+#ifdef CONFIG_FUNCTION_TRACER
+	struct ftrace_ops               ftrace_ops;
+#endif
 #endif
 
 #ifdef CONFIG_CGROUP_PERF
@@ -911,7 +1043,8 @@ struct perf_event_context {
 	u64				parent_gen;
 	u64				generation;
 	int				pin_count;
-	int				nr_cgroups; /* cgroup events present */
+	int				nr_cgroups;	 /* cgroup evts */
+	int				nr_branch_stack; /* branch_stack evt */
 	struct rcu_head			rcu_head;
 };
 
@@ -976,6 +1109,7 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr,
 extern u64 perf_event_read_value(struct perf_event *event,
 				 u64 *enabled, u64 *running);
 
+
 struct perf_sample_data {
 	u64				type;
 
@@ -995,12 +1129,14 @@ struct perf_sample_data {
 	u64				period;
 	struct perf_callchain_entry	*callchain;
 	struct perf_raw_record		*raw;
+	struct perf_branch_stack	*br_stack;
 };
 
 static inline void perf_sample_data_init(struct perf_sample_data *data, u64 addr)
 {
 	data->addr = addr;
 	data->raw  = NULL;
+	data->br_stack = NULL;
 }
 
 extern void perf_output_sample(struct perf_output_handle *handle,
@@ -1029,7 +1165,7 @@ static inline int is_software_event(struct perf_event *event)
 	return event->pmu->task_ctx_nr == perf_sw_context;
 }
 
-extern struct jump_label_key perf_swevent_enabled[PERF_COUNT_SW_MAX];
+extern struct static_key perf_swevent_enabled[PERF_COUNT_SW_MAX];
 
 extern void __perf_sw_event(u32, u64, struct pt_regs *, u64);
 
@@ -1057,7 +1193,7 @@ perf_sw_event(u32 event_id, u64 nr, struct pt_regs *regs, u64 addr)
 {
 	struct pt_regs hot_regs;
 
-	if (static_branch(&perf_swevent_enabled[event_id])) {
+	if (static_key_false(&perf_swevent_enabled[event_id])) {
 		if (!regs) {
 			perf_fetch_caller_regs(&hot_regs);
 			regs = &hot_regs;
@@ -1066,12 +1202,12 @@ perf_sw_event(u32 event_id, u64 nr, struct pt_regs *regs, u64 addr)
 	}
 }
 
-extern struct jump_label_key_deferred perf_sched_events;
+extern struct static_key_deferred perf_sched_events;
 
 static inline void perf_event_task_sched_in(struct task_struct *prev,
 					    struct task_struct *task)
 {
-	if (static_branch(&perf_sched_events.key))
+	if (static_key_false(&perf_sched_events.key))
 		__perf_event_task_sched_in(prev, task);
 }
 
@@ -1080,7 +1216,7 @@ static inline void perf_event_task_sched_out(struct task_struct *prev,
 {
 	perf_sw_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, NULL, 0);
 
-	if (static_branch(&perf_sched_events.key))
+	if (static_key_false(&perf_sched_events.key))
 		__perf_event_task_sched_out(prev, next);
 }
 
@@ -1138,6 +1274,11 @@ extern void perf_bp_event(struct perf_event *event, void *data);
 		(user_mode(regs) ? PERF_RECORD_MISC_USER : PERF_RECORD_MISC_KERNEL)
 # define perf_instruction_pointer(regs)	instruction_pointer(regs)
 #endif
+
+static inline bool has_branch_stack(struct perf_event *event)
+{
+	return event->attr.sample_type & PERF_SAMPLE_BRANCH_STACK;
+}
 
 extern int perf_output_begin(struct perf_output_handle *handle,
 			     struct perf_event *event, unsigned int size);
@@ -1206,6 +1347,19 @@ do {									\
 		(void *)(unsigned long)smp_processor_id());		\
 	register_cpu_notifier(&fn##_nb);				\
 } while (0)
+
+
+#define PMU_FORMAT_ATTR(_name, _format)					\
+static ssize_t								\
+_name##_show(struct device *dev,					\
+			       struct device_attribute *attr,		\
+			       char *page)				\
+{									\
+	BUILD_BUG_ON(sizeof(_format) >= PAGE_SIZE);			\
+	return sprintf(page, _format "\n");				\
+}									\
+									\
+static struct device_attribute format_attr_##_name = __ATTR_RO(_name)
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_PERF_EVENT_H */

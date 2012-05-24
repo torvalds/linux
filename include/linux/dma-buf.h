@@ -26,11 +26,12 @@
 
 #include <linux/file.h>
 #include <linux/err.h>
-#include <linux/device.h>
 #include <linux/scatterlist.h>
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
+#include <linux/fs.h>
 
+struct device;
 struct dma_buf;
 struct dma_buf_attachment;
 
@@ -49,6 +50,17 @@ struct dma_buf_attachment;
  * @unmap_dma_buf: decreases usecount of buffer, might deallocate scatter
  *		   pages.
  * @release: release this buffer; to be called after the last dma_buf_put.
+ * @begin_cpu_access: [optional] called before cpu access to invalidate cpu
+ * 		      caches and allocate backing storage (if not yet done)
+ * 		      respectively pin the objet into memory.
+ * @end_cpu_access: [optional] called after cpu access to flush cashes.
+ * @kmap_atomic: maps a page from the buffer into kernel address
+ * 		 space, users may not block until the subsequent unmap call.
+ * 		 This callback must not sleep.
+ * @kunmap_atomic: [optional] unmaps a atomically mapped page from the buffer.
+ * 		   This Callback must not sleep.
+ * @kmap: maps a page from the buffer into kernel address space.
+ * @kunmap: [optional] unmaps a page from the buffer.
  */
 struct dma_buf_ops {
 	int (*attach)(struct dma_buf *, struct device *,
@@ -63,7 +75,8 @@ struct dma_buf_ops {
 	struct sg_table * (*map_dma_buf)(struct dma_buf_attachment *,
 						enum dma_data_direction);
 	void (*unmap_dma_buf)(struct dma_buf_attachment *,
-						struct sg_table *);
+						struct sg_table *,
+						enum dma_data_direction);
 	/* TODO: Add try_map_dma_buf version, to return immed with -EBUSY
 	 * if the call would block.
 	 */
@@ -71,6 +84,14 @@ struct dma_buf_ops {
 	/* after final dma_buf_put() */
 	void (*release)(struct dma_buf *);
 
+	int (*begin_cpu_access)(struct dma_buf *, size_t, size_t,
+				enum dma_data_direction);
+	void (*end_cpu_access)(struct dma_buf *, size_t, size_t,
+			       enum dma_data_direction);
+	void *(*kmap_atomic)(struct dma_buf *, unsigned long);
+	void (*kunmap_atomic)(struct dma_buf *, unsigned long, void *);
+	void *(*kmap)(struct dma_buf *, unsigned long);
+	void (*kunmap)(struct dma_buf *, unsigned long, void *);
 };
 
 /**
@@ -86,7 +107,7 @@ struct dma_buf {
 	struct file *file;
 	struct list_head attachments;
 	const struct dma_buf_ops *ops;
-	/* mutex to serialize list manipulation and other ops */
+	/* mutex to serialize list manipulation and attach/detach */
 	struct mutex lock;
 	void *priv;
 };
@@ -109,20 +130,43 @@ struct dma_buf_attachment {
 	void *priv;
 };
 
+/**
+ * get_dma_buf - convenience wrapper for get_file.
+ * @dmabuf:	[in]	pointer to dma_buf
+ *
+ * Increments the reference count on the dma-buf, needed in case of drivers
+ * that either need to create additional references to the dmabuf on the
+ * kernel side.  For example, an exporter that needs to keep a dmabuf ptr
+ * so that subsequent exports don't create a new dmabuf.
+ */
+static inline void get_dma_buf(struct dma_buf *dmabuf)
+{
+	get_file(dmabuf->file);
+}
+
 #ifdef CONFIG_DMA_SHARED_BUFFER
 struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 							struct device *dev);
 void dma_buf_detach(struct dma_buf *dmabuf,
 				struct dma_buf_attachment *dmabuf_attach);
-struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
-			size_t size, int flags);
-int dma_buf_fd(struct dma_buf *dmabuf);
+struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
+			       size_t size, int flags);
+int dma_buf_fd(struct dma_buf *dmabuf, int flags);
 struct dma_buf *dma_buf_get(int fd);
 void dma_buf_put(struct dma_buf *dmabuf);
 
 struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
 					enum dma_data_direction);
-void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *);
+void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *,
+				enum dma_data_direction);
+int dma_buf_begin_cpu_access(struct dma_buf *dma_buf, size_t start, size_t len,
+			     enum dma_data_direction dir);
+void dma_buf_end_cpu_access(struct dma_buf *dma_buf, size_t start, size_t len,
+			    enum dma_data_direction dir);
+void *dma_buf_kmap_atomic(struct dma_buf *, unsigned long);
+void dma_buf_kunmap_atomic(struct dma_buf *, unsigned long, void *);
+void *dma_buf_kmap(struct dma_buf *, unsigned long);
+void dma_buf_kunmap(struct dma_buf *, unsigned long, void *);
 #else
 
 static inline struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
@@ -138,13 +182,13 @@ static inline void dma_buf_detach(struct dma_buf *dmabuf,
 }
 
 static inline struct dma_buf *dma_buf_export(void *priv,
-						struct dma_buf_ops *ops,
-						size_t size, int flags)
+					     const struct dma_buf_ops *ops,
+					     size_t size, int flags)
 {
 	return ERR_PTR(-ENODEV);
 }
 
-static inline int dma_buf_fd(struct dma_buf *dmabuf)
+static inline int dma_buf_fd(struct dma_buf *dmabuf, int flags)
 {
 	return -ENODEV;
 }
@@ -166,11 +210,44 @@ static inline struct sg_table *dma_buf_map_attachment(
 }
 
 static inline void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
-						struct sg_table *sg)
+			struct sg_table *sg, enum dma_data_direction dir)
 {
 	return;
 }
 
+static inline int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
+					   size_t start, size_t len,
+					   enum dma_data_direction dir)
+{
+	return -ENODEV;
+}
+
+static inline void dma_buf_end_cpu_access(struct dma_buf *dmabuf,
+					  size_t start, size_t len,
+					  enum dma_data_direction dir)
+{
+}
+
+static inline void *dma_buf_kmap_atomic(struct dma_buf *dmabuf,
+					unsigned long pnum)
+{
+	return NULL;
+}
+
+static inline void dma_buf_kunmap_atomic(struct dma_buf *dmabuf,
+					 unsigned long pnum, void *vaddr)
+{
+}
+
+static inline void *dma_buf_kmap(struct dma_buf *dmabuf, unsigned long pnum)
+{
+	return NULL;
+}
+
+static inline void dma_buf_kunmap(struct dma_buf *dmabuf,
+				  unsigned long pnum, void *vaddr)
+{
+}
 #endif /* CONFIG_DMA_SHARED_BUFFER */
 
 #endif /* __DMA_BUF_H__ */

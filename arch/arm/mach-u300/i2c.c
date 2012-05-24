@@ -60,7 +60,6 @@ static struct regulator_consumer_supply supply_ldo_c[] = {
  */
 static struct regulator_consumer_supply supply_ldo_d[] = {
 	{
-		.dev = NULL,
 		.supply = "vana15", /* Powers the SoC (CPU etc) */
 	},
 };
@@ -92,7 +91,6 @@ static struct regulator_consumer_supply supply_ldo_k[] = {
  */
 static struct regulator_consumer_supply supply_ldo_ext[] = {
 	{
-		.dev = NULL,
 		.supply = "vext", /* External power */
 	},
 };

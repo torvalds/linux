@@ -1,5 +1,5 @@
 /*
- * drivers/net/ibm_newemac/debug.c
+ * drivers/net/ethernet/ibm/emac/debug.c
  *
  * Driver for PowerPC 4xx on-chip ethernet controller, debug print routines.
  *

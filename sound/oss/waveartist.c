@@ -42,7 +42,6 @@
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 
-#include <asm/system.h>
 
 #include "sound_config.h"
 #include "waveartist.h"

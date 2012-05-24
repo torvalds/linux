@@ -1642,9 +1642,10 @@ static void fc_exch_recv_bls(struct fc_exch_mgr *mp, struct fc_frame *fp)
 		case FC_RCTL_ACK_0:
 			break;
 		default:
-			FC_EXCH_DBG(ep, "BLS rctl %x - %s received",
-				    fh->fh_r_ctl,
-				    fc_exch_rctl_name(fh->fh_r_ctl));
+			if (ep)
+				FC_EXCH_DBG(ep, "BLS rctl %x - %s received",
+					    fh->fh_r_ctl,
+					    fc_exch_rctl_name(fh->fh_r_ctl));
 			break;
 		}
 		fc_frame_free(fp);
@@ -2262,7 +2263,18 @@ struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lport,
 	mp->class = class;
 	/* adjust em exch xid range for offload */
 	mp->min_xid = min_xid;
-	mp->max_xid = max_xid;
+
+       /* reduce range so per cpu pool fits into PCPU_MIN_UNIT_SIZE pool */
+	pool_exch_range = (PCPU_MIN_UNIT_SIZE - sizeof(*pool)) /
+		sizeof(struct fc_exch *);
+	if ((max_xid - min_xid + 1) / (fc_cpu_mask + 1) > pool_exch_range) {
+		mp->max_xid = pool_exch_range * (fc_cpu_mask + 1) +
+			min_xid - 1;
+	} else {
+		mp->max_xid = max_xid;
+		pool_exch_range = (mp->max_xid - mp->min_xid + 1) /
+			(fc_cpu_mask + 1);
+	}
 
 	mp->ep_pool = mempool_create_slab_pool(2, fc_em_cachep);
 	if (!mp->ep_pool)
@@ -2273,7 +2285,6 @@ struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lport,
 	 * divided across all cpus. The exch pointers array memory is
 	 * allocated for exch range per pool.
 	 */
-	pool_exch_range = (mp->max_xid - mp->min_xid + 1) / (fc_cpu_mask + 1);
 	mp->pool_max_index = pool_exch_range - 1;
 
 	/*

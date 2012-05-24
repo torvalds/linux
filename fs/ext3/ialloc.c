@@ -12,21 +12,10 @@
  *        David S. Miller (davem@caip.rutgers.edu), 1995
  */
 
-#include <linux/time.h>
-#include <linux/fs.h>
-#include <linux/jbd.h>
-#include <linux/ext3_fs.h>
-#include <linux/ext3_jbd.h>
-#include <linux/stat.h>
-#include <linux/string.h>
 #include <linux/quotaops.h>
-#include <linux/buffer_head.h>
 #include <linux/random.h>
-#include <linux/bitops.h>
-#include <trace/events/ext3.h>
 
-#include <asm/byteorder.h>
-
+#include "ext3.h"
 #include "xattr.h"
 #include "acl.h"
 

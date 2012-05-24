@@ -134,6 +134,8 @@ void omap4_map_io(void);
 void ti81xx_map_io(void);
 void omap_barriers_init(void);
 
+extern void __init omap_init_consistent_dma_size(void);
+
 /**
  * omap_test_timeout - busy-loop, testing a condition
  * @cond: condition to test until it evaluates to true
@@ -173,6 +175,18 @@ void omap3_intc_handle_irq(struct pt_regs *regs);
 
 #ifdef CONFIG_CACHE_L2X0
 extern void __iomem *omap4_get_l2cache_base(void);
+#endif
+
+struct device_node;
+#ifdef CONFIG_OF
+int __init omap_intc_of_init(struct device_node *node,
+			     struct device_node *parent);
+#else
+int __init omap_intc_of_init(struct device_node *node,
+			     struct device_node *parent)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_SMP
@@ -236,5 +250,10 @@ static inline u32 omap4_mpuss_read_prev_context_state(void)
 	return 0;
 }
 #endif
+
+struct omap_sdrc_params;
+extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
+				      struct omap_sdrc_params *sdrc_cs1);
+
 #endif /* __ASSEMBLER__ */
 #endif /* __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H */

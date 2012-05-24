@@ -79,7 +79,8 @@ enum {
 			       (1ull << MLX4_EVENT_TYPE_SRQ_LIMIT)	    | \
 			       (1ull << MLX4_EVENT_TYPE_CMD)		    | \
 			       (1ull << MLX4_EVENT_TYPE_COMM_CHANNEL)       | \
-			       (1ull << MLX4_EVENT_TYPE_FLR_EVENT))
+			       (1ull << MLX4_EVENT_TYPE_FLR_EVENT)	    | \
+			       (1ull << MLX4_EVENT_TYPE_FATAL_WARNING))
 
 static void eq_set_ci(struct mlx4_eq *eq, int req_not)
 {
@@ -443,6 +444,35 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			queue_work(priv->mfunc.master.comm_wq,
 				   &priv->mfunc.master.slave_flr_event_work);
 			break;
+
+		case MLX4_EVENT_TYPE_FATAL_WARNING:
+			if (eqe->subtype == MLX4_FATAL_WARNING_SUBTYPE_WARMING) {
+				if (mlx4_is_master(dev))
+					for (i = 0; i < dev->num_slaves; i++) {
+						mlx4_dbg(dev, "%s: Sending "
+							"MLX4_FATAL_WARNING_SUBTYPE_WARMING"
+							" to slave: %d\n", __func__, i);
+						if (i == dev->caps.function)
+							continue;
+						mlx4_slave_event(dev, i, eqe);
+					}
+				mlx4_err(dev, "Temperature Threshold was reached! "
+					"Threshold: %d celsius degrees; "
+					"Current Temperature: %d\n",
+					be16_to_cpu(eqe->event.warming.warning_threshold),
+					be16_to_cpu(eqe->event.warming.current_temperature));
+			} else
+				mlx4_warn(dev, "Unhandled event FATAL WARNING (%02x), "
+					  "subtype %02x on EQ %d at index %u. owner=%x, "
+					  "nent=0x%x, slave=%x, ownership=%s\n",
+					  eqe->type, eqe->subtype, eq->eqn,
+					  eq->cons_index, eqe->owner, eq->nent,
+					  eqe->slave_id,
+					  !!(eqe->owner & 0x80) ^
+					  !!(eq->cons_index & eq->nent) ? "HW" : "SW");
+
+			break;
+
 		case MLX4_EVENT_TYPE_EEC_CATAS_ERROR:
 		case MLX4_EVENT_TYPE_ECC_DETECT:
 		default:

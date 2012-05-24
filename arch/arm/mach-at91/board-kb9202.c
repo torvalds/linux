@@ -38,6 +38,7 @@
 #include <mach/board.h>
 #include <mach/cpu.h>
 #include <mach/at91rm9200_mc.h>
+#include <mach/at91_ramc.h>
 
 #include "generic.h"
 
@@ -107,6 +108,7 @@ static struct atmel_nand_data __initdata kb9202_nand_data = {
 	.det_pin	= -EINVAL,
 	.rdy_pin	= AT91_PIN_PC29,
 	.enable_pin	= AT91_PIN_PC28,
+	.ecc_mode	= NAND_ECC_SOFT,
 	.parts		= kb9202_nand_partition,
 	.num_parts	= ARRAY_SIZE(kb9202_nand_partition),
 };

@@ -1358,6 +1358,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		iinfo->i_unique = le64_to_cpu(fe->uniqueID);
 		iinfo->i_lenEAttr = le32_to_cpu(fe->lengthExtendedAttr);
 		iinfo->i_lenAlloc = le32_to_cpu(fe->lengthAllocDescs);
+		iinfo->i_checkpoint = le32_to_cpu(fe->checkpoint);
 		offset = sizeof(struct fileEntry) + iinfo->i_lenEAttr;
 	} else {
 		inode->i_blocks = le64_to_cpu(efe->logicalBlocksRecorded) <<
@@ -1379,6 +1380,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		iinfo->i_unique = le64_to_cpu(efe->uniqueID);
 		iinfo->i_lenEAttr = le32_to_cpu(efe->lengthExtendedAttr);
 		iinfo->i_lenAlloc = le32_to_cpu(efe->lengthAllocDescs);
+		iinfo->i_checkpoint = le32_to_cpu(efe->checkpoint);
 		offset = sizeof(struct extendedFileEntry) +
 							iinfo->i_lenEAttr;
 	}
@@ -1495,6 +1497,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	struct buffer_head *bh = NULL;
 	struct fileEntry *fe;
 	struct extendedFileEntry *efe;
+	uint64_t lb_recorded;
 	uint32_t udfperms;
 	uint16_t icbflags;
 	uint16_t crclen;
@@ -1589,13 +1592,18 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		dsea->minorDeviceIdent = cpu_to_le32(iminor(inode));
 	}
 
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
+		lb_recorded = 0; /* No extents => no blocks! */
+	else
+		lb_recorded =
+			(inode->i_blocks + (1 << (blocksize_bits - 9)) - 1) >>
+			(blocksize_bits - 9);
+
 	if (iinfo->i_efe == 0) {
 		memcpy(bh->b_data + sizeof(struct fileEntry),
 		       iinfo->i_ext.i_data,
 		       inode->i_sb->s_blocksize - sizeof(struct fileEntry));
-		fe->logicalBlocksRecorded = cpu_to_le64(
-			(inode->i_blocks + (1 << (blocksize_bits - 9)) - 1) >>
-			(blocksize_bits - 9));
+		fe->logicalBlocksRecorded = cpu_to_le64(lb_recorded);
 
 		udf_time_to_disk_stamp(&fe->accessTime, inode->i_atime);
 		udf_time_to_disk_stamp(&fe->modificationTime, inode->i_mtime);
@@ -1607,6 +1615,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		fe->uniqueID = cpu_to_le64(iinfo->i_unique);
 		fe->lengthExtendedAttr = cpu_to_le32(iinfo->i_lenEAttr);
 		fe->lengthAllocDescs = cpu_to_le32(iinfo->i_lenAlloc);
+		fe->checkpoint = cpu_to_le32(iinfo->i_checkpoint);
 		fe->descTag.tagIdent = cpu_to_le16(TAG_IDENT_FE);
 		crclen = sizeof(struct fileEntry);
 	} else {
@@ -1615,9 +1624,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		       inode->i_sb->s_blocksize -
 					sizeof(struct extendedFileEntry));
 		efe->objectSize = cpu_to_le64(inode->i_size);
-		efe->logicalBlocksRecorded = cpu_to_le64(
-			(inode->i_blocks + (1 << (blocksize_bits - 9)) - 1) >>
-			(blocksize_bits - 9));
+		efe->logicalBlocksRecorded = cpu_to_le64(lb_recorded);
 
 		if (iinfo->i_crtime.tv_sec > inode->i_atime.tv_sec ||
 		    (iinfo->i_crtime.tv_sec == inode->i_atime.tv_sec &&
@@ -1646,6 +1653,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		efe->uniqueID = cpu_to_le64(iinfo->i_unique);
 		efe->lengthExtendedAttr = cpu_to_le32(iinfo->i_lenEAttr);
 		efe->lengthAllocDescs = cpu_to_le32(iinfo->i_lenAlloc);
+		efe->checkpoint = cpu_to_le32(iinfo->i_checkpoint);
 		efe->descTag.tagIdent = cpu_to_le16(TAG_IDENT_EFE);
 		crclen = sizeof(struct extendedFileEntry);
 	}

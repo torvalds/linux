@@ -119,7 +119,6 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <net/flow.h>
-#include <asm/system.h>
 #include <asm/ioctls.h>
 #include <linux/capability.h>
 #include <linux/mm.h>

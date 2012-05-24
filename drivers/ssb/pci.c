@@ -331,7 +331,6 @@ static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 {
 	int i;
 	u16 v;
-	s8 gain;
 	u16 loc[3];
 
 	if (out->revision == 3)			/* rev 3 moved MAC */
@@ -390,20 +389,12 @@ static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 		SPEX(boardflags_hi, SSB_SPROM2_BFLHI, 0xFFFF, 0);
 
 	/* Extract the antenna gain values. */
-	gain = r123_extract_antgain(out->revision, in,
-				    SSB_SPROM1_AGAIN_BG,
-				    SSB_SPROM1_AGAIN_BG_SHIFT);
-	out->antenna_gain.ghz24.a0 = gain;
-	out->antenna_gain.ghz24.a1 = gain;
-	out->antenna_gain.ghz24.a2 = gain;
-	out->antenna_gain.ghz24.a3 = gain;
-	gain = r123_extract_antgain(out->revision, in,
-				    SSB_SPROM1_AGAIN_A,
-				    SSB_SPROM1_AGAIN_A_SHIFT);
-	out->antenna_gain.ghz5.a0 = gain;
-	out->antenna_gain.ghz5.a1 = gain;
-	out->antenna_gain.ghz5.a2 = gain;
-	out->antenna_gain.ghz5.a3 = gain;
+	out->antenna_gain.a0 = r123_extract_antgain(out->revision, in,
+						    SSB_SPROM1_AGAIN_BG,
+						    SSB_SPROM1_AGAIN_BG_SHIFT);
+	out->antenna_gain.a1 = r123_extract_antgain(out->revision, in,
+						    SSB_SPROM1_AGAIN_A,
+						    SSB_SPROM1_AGAIN_A_SHIFT);
 }
 
 /* Revs 4 5 and 8 have partially shared layout */
@@ -504,16 +495,14 @@ static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 	}
 
 	/* Extract the antenna gain values. */
-	SPEX(antenna_gain.ghz24.a0, SSB_SPROM4_AGAIN01,
+	SPEX(antenna_gain.a0, SSB_SPROM4_AGAIN01,
 	     SSB_SPROM4_AGAIN0, SSB_SPROM4_AGAIN0_SHIFT);
-	SPEX(antenna_gain.ghz24.a1, SSB_SPROM4_AGAIN01,
+	SPEX(antenna_gain.a1, SSB_SPROM4_AGAIN01,
 	     SSB_SPROM4_AGAIN1, SSB_SPROM4_AGAIN1_SHIFT);
-	SPEX(antenna_gain.ghz24.a2, SSB_SPROM4_AGAIN23,
+	SPEX(antenna_gain.a2, SSB_SPROM4_AGAIN23,
 	     SSB_SPROM4_AGAIN2, SSB_SPROM4_AGAIN2_SHIFT);
-	SPEX(antenna_gain.ghz24.a3, SSB_SPROM4_AGAIN23,
+	SPEX(antenna_gain.a3, SSB_SPROM4_AGAIN23,
 	     SSB_SPROM4_AGAIN3, SSB_SPROM4_AGAIN3_SHIFT);
-	memcpy(&out->antenna_gain.ghz5, &out->antenna_gain.ghz24,
-	       sizeof(out->antenna_gain.ghz5));
 
 	sprom_extract_r458(out, in);
 
@@ -523,7 +512,13 @@ static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 {
 	int i;
-	u16 v;
+	u16 v, o;
+	u16 pwr_info_offset[] = {
+		SSB_SROM8_PWR_INFO_CORE0, SSB_SROM8_PWR_INFO_CORE1,
+		SSB_SROM8_PWR_INFO_CORE2, SSB_SROM8_PWR_INFO_CORE3
+	};
+	BUILD_BUG_ON(ARRAY_SIZE(pwr_info_offset) !=
+			ARRAY_SIZE(out->core_pwr_info));
 
 	/* extract the MAC address */
 	for (i = 0; i < 3; i++) {
@@ -596,16 +591,46 @@ static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 	SPEX32(ofdm5ghpo, SSB_SPROM8_OFDM5GHPO, 0xFFFFFFFF, 0);
 
 	/* Extract the antenna gain values. */
-	SPEX(antenna_gain.ghz24.a0, SSB_SPROM8_AGAIN01,
+	SPEX(antenna_gain.a0, SSB_SPROM8_AGAIN01,
 	     SSB_SPROM8_AGAIN0, SSB_SPROM8_AGAIN0_SHIFT);
-	SPEX(antenna_gain.ghz24.a1, SSB_SPROM8_AGAIN01,
+	SPEX(antenna_gain.a1, SSB_SPROM8_AGAIN01,
 	     SSB_SPROM8_AGAIN1, SSB_SPROM8_AGAIN1_SHIFT);
-	SPEX(antenna_gain.ghz24.a2, SSB_SPROM8_AGAIN23,
+	SPEX(antenna_gain.a2, SSB_SPROM8_AGAIN23,
 	     SSB_SPROM8_AGAIN2, SSB_SPROM8_AGAIN2_SHIFT);
-	SPEX(antenna_gain.ghz24.a3, SSB_SPROM8_AGAIN23,
+	SPEX(antenna_gain.a3, SSB_SPROM8_AGAIN23,
 	     SSB_SPROM8_AGAIN3, SSB_SPROM8_AGAIN3_SHIFT);
-	memcpy(&out->antenna_gain.ghz5, &out->antenna_gain.ghz24,
-	       sizeof(out->antenna_gain.ghz5));
+
+	/* Extract cores power info info */
+	for (i = 0; i < ARRAY_SIZE(pwr_info_offset); i++) {
+		o = pwr_info_offset[i];
+		SPEX(core_pwr_info[i].itssi_2g, o + SSB_SROM8_2G_MAXP_ITSSI,
+			SSB_SPROM8_2G_ITSSI, SSB_SPROM8_2G_ITSSI_SHIFT);
+		SPEX(core_pwr_info[i].maxpwr_2g, o + SSB_SROM8_2G_MAXP_ITSSI,
+			SSB_SPROM8_2G_MAXP, 0);
+
+		SPEX(core_pwr_info[i].pa_2g[0], o + SSB_SROM8_2G_PA_0, ~0, 0);
+		SPEX(core_pwr_info[i].pa_2g[1], o + SSB_SROM8_2G_PA_1, ~0, 0);
+		SPEX(core_pwr_info[i].pa_2g[2], o + SSB_SROM8_2G_PA_2, ~0, 0);
+
+		SPEX(core_pwr_info[i].itssi_5g, o + SSB_SROM8_5G_MAXP_ITSSI,
+			SSB_SPROM8_5G_ITSSI, SSB_SPROM8_5G_ITSSI_SHIFT);
+		SPEX(core_pwr_info[i].maxpwr_5g, o + SSB_SROM8_5G_MAXP_ITSSI,
+			SSB_SPROM8_5G_MAXP, 0);
+		SPEX(core_pwr_info[i].maxpwr_5gh, o + SSB_SPROM8_5GHL_MAXP,
+			SSB_SPROM8_5GH_MAXP, 0);
+		SPEX(core_pwr_info[i].maxpwr_5gl, o + SSB_SPROM8_5GHL_MAXP,
+			SSB_SPROM8_5GL_MAXP, SSB_SPROM8_5GL_MAXP_SHIFT);
+
+		SPEX(core_pwr_info[i].pa_5gl[0], o + SSB_SROM8_5GL_PA_0, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gl[1], o + SSB_SROM8_5GL_PA_1, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gl[2], o + SSB_SROM8_5GL_PA_2, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5g[0], o + SSB_SROM8_5G_PA_0, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5g[1], o + SSB_SROM8_5G_PA_1, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5g[2], o + SSB_SROM8_5G_PA_2, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gh[0], o + SSB_SROM8_5GH_PA_0, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gh[1], o + SSB_SROM8_5GH_PA_1, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gh[2], o + SSB_SROM8_5GH_PA_2, ~0, 0);
+	}
 
 	/* Extract FEM info */
 	SPEX(fem.ghz2.tssipos, SSB_SPROM8_FEM2G,

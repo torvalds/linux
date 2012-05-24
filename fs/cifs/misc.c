@@ -213,55 +213,62 @@ cifs_small_buf_release(void *buf_to_free)
 }
 
 /*
-	Find a free multiplex id (SMB mid). Otherwise there could be
-	mid collisions which might cause problems, demultiplexing the
-	wrong response to this request. Multiplex ids could collide if
-	one of a series requests takes much longer than the others, or
-	if a very large number of long lived requests (byte range
-	locks or FindNotify requests) are pending.  No more than
-	64K-1 requests can be outstanding at one time.  If no
-	mids are available, return zero.  A future optimization
-	could make the combination of mids and uid the key we use
-	to demultiplex on (rather than mid alone).
-	In addition to the above check, the cifs demultiplex
-	code already used the command code as a secondary
-	check of the frame and if signing is negotiated the
-	response would be discarded if the mid were the same
-	but the signature was wrong.  Since the mid is not put in the
-	pending queue until later (when it is about to be dispatched)
-	we do have to limit the number of outstanding requests
-	to somewhat less than 64K-1 although it is hard to imagine
-	so many threads being in the vfs at one time.
-*/
-__u16 GetNextMid(struct TCP_Server_Info *server)
+ * Find a free multiplex id (SMB mid). Otherwise there could be
+ * mid collisions which might cause problems, demultiplexing the
+ * wrong response to this request. Multiplex ids could collide if
+ * one of a series requests takes much longer than the others, or
+ * if a very large number of long lived requests (byte range
+ * locks or FindNotify requests) are pending. No more than
+ * 64K-1 requests can be outstanding at one time. If no
+ * mids are available, return zero. A future optimization
+ * could make the combination of mids and uid the key we use
+ * to demultiplex on (rather than mid alone).
+ * In addition to the above check, the cifs demultiplex
+ * code already used the command code as a secondary
+ * check of the frame and if signing is negotiated the
+ * response would be discarded if the mid were the same
+ * but the signature was wrong. Since the mid is not put in the
+ * pending queue until later (when it is about to be dispatched)
+ * we do have to limit the number of outstanding requests
+ * to somewhat less than 64K-1 although it is hard to imagine
+ * so many threads being in the vfs at one time.
+ */
+__u64 GetNextMid(struct TCP_Server_Info *server)
 {
-	__u16 mid = 0;
-	__u16 last_mid;
+	__u64 mid = 0;
+	__u16 last_mid, cur_mid;
 	bool collision;
 
 	spin_lock(&GlobalMid_Lock);
-	last_mid = server->CurrentMid; /* we do not want to loop forever */
-	server->CurrentMid++;
-	/* This nested loop looks more expensive than it is.
-	In practice the list of pending requests is short,
-	fewer than 50, and the mids are likely to be unique
-	on the first pass through the loop unless some request
-	takes longer than the 64 thousand requests before it
-	(and it would also have to have been a request that
-	 did not time out) */
-	while (server->CurrentMid != last_mid) {
+
+	/* mid is 16 bit only for CIFS/SMB */
+	cur_mid = (__u16)((server->CurrentMid) & 0xffff);
+	/* we do not want to loop forever */
+	last_mid = cur_mid;
+	cur_mid++;
+
+	/*
+	 * This nested loop looks more expensive than it is.
+	 * In practice the list of pending requests is short,
+	 * fewer than 50, and the mids are likely to be unique
+	 * on the first pass through the loop unless some request
+	 * takes longer than the 64 thousand requests before it
+	 * (and it would also have to have been a request that
+	 * did not time out).
+	 */
+	while (cur_mid != last_mid) {
 		struct mid_q_entry *mid_entry;
 		unsigned int num_mids;
 
 		collision = false;
-		if (server->CurrentMid == 0)
-			server->CurrentMid++;
+		if (cur_mid == 0)
+			cur_mid++;
 
 		num_mids = 0;
 		list_for_each_entry(mid_entry, &server->pending_mid_q, qhead) {
 			++num_mids;
-			if (mid_entry->mid == server->CurrentMid &&
-			    mid_entry->midState == MID_REQUEST_SUBMITTED) {
+			if (mid_entry->mid == cur_mid &&
+			    mid_entry->mid_state == MID_REQUEST_SUBMITTED) {
 				/* This mid is in use, try a different one */
 				collision = true;
 				break;
@@ -282,10 +289,11 @@ __u16 GetNextMid(struct TCP_Server_Info *server)
 			server->tcpStatus = CifsNeedReconnect;
 
 		if (!collision) {
-			mid = server->CurrentMid;
+			mid = (__u64)cur_mid;
+			server->CurrentMid = mid;
 			break;
 		}
-		server->CurrentMid++;
+		cur_mid++;
 	}
 	spin_unlock(&GlobalMid_Lock);
 	return mid;
@@ -420,8 +428,10 @@ check_smb_hdr(struct smb_hdr *smb, __u16 mid)
 }
 
 int
-checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int total_read)
+checkSMB(char *buf, unsigned int total_read)
 {
+	struct smb_hdr *smb = (struct smb_hdr *)buf;
+	__u16 mid = smb->Mid;
 	__u32 rfclen = be32_to_cpu(smb->smb_buf_length);
 	__u32 clc_len;  /* calculated length */
 	cFYI(0, "checkSMB Length: 0x%x, smb_buf_length: 0x%x",
@@ -502,8 +512,9 @@ checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int total_read)
 }
 
 bool
-is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
+is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 {
+	struct smb_hdr *buf = (struct smb_hdr *)buffer;
 	struct smb_com_lock_req *pSMB = (struct smb_com_lock_req *)buf;
 	struct list_head *tmp, *tmp1, *tmp2;
 	struct cifs_ses *ses;
@@ -584,7 +595,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 
 				cifs_set_oplock_level(pCifsInode,
 					pSMB->OplockLevel ? OPLOCK_READ : 0);
-				queue_work(system_nrt_wq,
+				queue_work(cifsiod_wq,
 					   &netfile->oplock_break);
 				netfile->oplock_break_cancelled = false;
 
@@ -604,16 +615,15 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 }
 
 void
-dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
+dump_smb(void *buf, int smb_buf_length)
 {
 	int i, j;
 	char debug_line[17];
-	unsigned char *buffer;
+	unsigned char *buffer = buf;
 
 	if (traceSMB == 0)
 		return;
 
-	buffer = (unsigned char *) smb_buf;
 	for (i = 0, j = 0; i < smb_buf_length; i++, j++) {
 		if (i % 8 == 0) {
 			/* have reached the beginning of line */
@@ -689,4 +699,23 @@ backup_cred(struct cifs_sb_info *cifs_sb)
 	}
 
 	return false;
+}
+
+void
+cifs_add_credits(struct TCP_Server_Info *server, const unsigned int add)
+{
+	spin_lock(&server->req_lock);
+	server->credits += add;
+	server->in_flight--;
+	spin_unlock(&server->req_lock);
+	wake_up(&server->request_q);
+}
+
+void
+cifs_set_credits(struct TCP_Server_Info *server, const int val)
+{
+	spin_lock(&server->req_lock);
+	server->credits = val;
+	server->oplocks = val > 1 ? enable_oplocks : false;
+	spin_unlock(&server->req_lock);
 }

@@ -1,8 +1,8 @@
 /*
  * lm80.c - From lm_sensors, Linux kernel modules for hardware
- * monitoring
+ *	    monitoring
  * Copyright (C) 1998, 1999  Frodo Looijaard <frodol@dds.nl>
- * and Philip Edelbrock <phil@netroedge.com>
+ *			     and Philip Edelbrock <phil@netroedge.com>
  *
  * Ported to Linux 2.6 by Tiago Sousa <mirage@kaotik.org>
  *
@@ -60,11 +60,17 @@ static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 #define LM80_REG_FANDIV			0x05
 #define LM80_REG_RES			0x06
 
+#define LM96080_REG_CONV_RATE		0x07
+#define LM96080_REG_MAN_ID		0x3e
+#define LM96080_REG_DEV_ID		0x3f
 
-/* Conversions. Rounding and limit checking is only done on the TO_REG
-   variants. Note that you should be a bit careful with which arguments
-   these macros are called: arguments may be evaluated more than once.
-   Fixing this is just not worth it. */
+
+/*
+ * Conversions. Rounding and limit checking is only done on the TO_REG
+ * variants. Note that you should be a bit careful with which arguments
+ * these macros are called: arguments may be evaluated more than once.
+ * Fixing this is just not worth it.
+ */
 
 #define IN_TO_REG(val)		(SENSORS_LIMIT(((val) + 5) / 10, 0, 255))
 #define IN_FROM_REG(val)	((val) * 10)
@@ -108,6 +114,7 @@ static inline long TEMP_FROM_REG(u16 temp)
 struct lm80_data {
 	struct device *hwmon_dev;
 	struct mutex update_lock;
+	char error;		/* !=0 if error occurred during last update */
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -144,6 +151,7 @@ static int lm80_write_value(struct i2c_client *client, u8 reg, u8 value);
 
 static const struct i2c_device_id lm80_id[] = {
 	{ "lm80", 0 },
+	{ "lm96080", 1 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm80_id);
@@ -170,6 +178,8 @@ static ssize_t show_in_##suffix(struct device *dev, \
 { \
 	int nr = to_sensor_dev_attr(attr)->index; \
 	struct lm80_data *data = lm80_update_device(dev); \
+	if (IS_ERR(data)) \
+		return PTR_ERR(data); \
 	return sprintf(buf, "%d\n", IN_FROM_REG(data->value[nr])); \
 }
 show_in(min, in_min)
@@ -183,7 +193,10 @@ static ssize_t set_in_##suffix(struct device *dev, \
 	int nr = to_sensor_dev_attr(attr)->index; \
 	struct i2c_client *client = to_i2c_client(dev); \
 	struct lm80_data *data = i2c_get_clientdata(client); \
-	long val = simple_strtol(buf, NULL, 10); \
+	long val; \
+	int err = kstrtol(buf, 10, &val); \
+	if (err < 0) \
+		return err; \
 \
 	mutex_lock(&data->update_lock);\
 	data->value[nr] = IN_TO_REG(val); \
@@ -200,6 +213,8 @@ static ssize_t show_fan_##suffix(struct device *dev, \
 { \
 	int nr = to_sensor_dev_attr(attr)->index; \
 	struct lm80_data *data = lm80_update_device(dev); \
+	if (IS_ERR(data)) \
+		return PTR_ERR(data); \
 	return sprintf(buf, "%d\n", FAN_FROM_REG(data->value[nr], \
 		       DIV_FROM_REG(data->fan_div[nr]))); \
 }
@@ -211,6 +226,8 @@ static ssize_t show_fan_div(struct device *dev, struct device_attribute *attr,
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm80_data *data = lm80_update_device(dev);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 	return sprintf(buf, "%d\n", DIV_FROM_REG(data->fan_div[nr]));
 }
 
@@ -220,7 +237,10 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm80_data *data = i2c_get_clientdata(client);
-	long val = simple_strtoul(buf, NULL, 10);
+	unsigned long val;
+	int err = kstrtoul(buf, 10, &val);
+	if (err < 0)
+		return err;
 
 	mutex_lock(&data->update_lock);
 	data->fan_min[nr] = FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr]));
@@ -229,18 +249,23 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-/* Note: we save and restore the fan minimum here, because its value is
-   determined in part by the fan divisor.  This follows the principle of
-   least surprise; the user doesn't expect the fan minimum to change just
-   because the divisor changed. */
+/*
+ * Note: we save and restore the fan minimum here, because its value is
+ * determined in part by the fan divisor.  This follows the principle of
+ * least surprise; the user doesn't expect the fan minimum to change just
+ * because the divisor changed.
+ */
 static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 	const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm80_data *data = i2c_get_clientdata(client);
-	unsigned long min, val = simple_strtoul(buf, NULL, 10);
+	unsigned long min, val;
 	u8 reg;
+	int err = kstrtoul(buf, 10, &val);
+	if (err < 0)
+		return err;
 
 	/* Save fan_min */
 	mutex_lock(&data->update_lock);
@@ -283,6 +308,8 @@ static ssize_t show_temp_input1(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct lm80_data *data = lm80_update_device(dev);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 	return sprintf(buf, "%ld\n", TEMP_FROM_REG(data->temp));
 }
 
@@ -291,6 +318,8 @@ static ssize_t show_temp_##suffix(struct device *dev, \
 	struct device_attribute *attr, char *buf) \
 { \
 	struct lm80_data *data = lm80_update_device(dev); \
+	if (IS_ERR(data)) \
+		return PTR_ERR(data); \
 	return sprintf(buf, "%d\n", TEMP_LIMIT_FROM_REG(data->value)); \
 }
 show_temp(hot_max, temp_hot_max);
@@ -304,7 +333,10 @@ static ssize_t set_temp_##suffix(struct device *dev, \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
 	struct lm80_data *data = i2c_get_clientdata(client); \
-	long val = simple_strtoul(buf, NULL, 10); \
+	long val; \
+	int err = kstrtol(buf, 10, &val); \
+	if (err < 0) \
+		return err; \
 \
 	mutex_lock(&data->update_lock); \
 	data->value = TEMP_LIMIT_TO_REG(val); \
@@ -321,6 +353,8 @@ static ssize_t show_alarms(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct lm80_data *data = lm80_update_device(dev);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 	return sprintf(buf, "%u\n", data->alarms);
 }
 
@@ -329,6 +363,8 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 {
 	int bitnr = to_sensor_dev_attr(attr)->index;
 	struct lm80_data *data = lm80_update_device(dev);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
 }
 
@@ -459,23 +495,44 @@ static const struct attribute_group lm80_group = {
 static int lm80_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	int i, cur;
+	int i, cur, man_id, dev_id;
+	const char *name = NULL;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	/* Now, we do the remaining detection. It is lousy. */
-	if (lm80_read_value(client, LM80_REG_ALARM2) & 0xc0)
+	/* First check for unused bits, common to both chip types */
+	if ((lm80_read_value(client, LM80_REG_ALARM2) & 0xc0)
+	 || (lm80_read_value(client, LM80_REG_CONFIG) & 0x80))
 		return -ENODEV;
-	for (i = 0x2a; i <= 0x3d; i++) {
-		cur = i2c_smbus_read_byte_data(client, i);
-		if ((i2c_smbus_read_byte_data(client, i + 0x40) != cur)
-		 || (i2c_smbus_read_byte_data(client, i + 0x80) != cur)
-		 || (i2c_smbus_read_byte_data(client, i + 0xc0) != cur))
+
+	/*
+	 * The LM96080 has manufacturer and stepping/die rev registers so we
+	 * can just check that. The LM80 does not have such registers so we
+	 * have to use a more expensive trick.
+	 */
+	man_id = lm80_read_value(client, LM96080_REG_MAN_ID);
+	dev_id = lm80_read_value(client, LM96080_REG_DEV_ID);
+	if (man_id == 0x01 && dev_id == 0x08) {
+		/* Check more unused bits for confirmation */
+		if (lm80_read_value(client, LM96080_REG_CONV_RATE) & 0xfe)
 			return -ENODEV;
+
+		name = "lm96080";
+	} else {
+		/* Check 6-bit addressing */
+		for (i = 0x2a; i <= 0x3d; i++) {
+			cur = i2c_smbus_read_byte_data(client, i);
+			if ((i2c_smbus_read_byte_data(client, i + 0x40) != cur)
+			 || (i2c_smbus_read_byte_data(client, i + 0x80) != cur)
+			 || (i2c_smbus_read_byte_data(client, i + 0xc0) != cur))
+				return -ENODEV;
+		}
+
+		name = "lm80";
 	}
 
-	strlcpy(info->type, "lm80", I2C_NAME_SIZE);
+	strlcpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -547,9 +604,11 @@ static int lm80_write_value(struct i2c_client *client, u8 reg, u8 value)
 /* Called when we have found a new LM80. */
 static void lm80_init_client(struct i2c_client *client)
 {
-	/* Reset all except Watchdog values and last conversion values
-	   This sets fan-divs to 2, among others. This makes most other
-	   initializations unnecessary */
+	/*
+	 * Reset all except Watchdog values and last conversion values
+	 * This sets fan-divs to 2, among others. This makes most other
+	 * initializations unnecessary
+	 */
 	lm80_write_value(client, LM80_REG_CONFIG, 0x80);
 	/* Set 11-bit temperature resolution */
 	lm80_write_value(client, LM80_REG_RES, 0x08);
@@ -563,66 +622,116 @@ static struct lm80_data *lm80_update_device(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm80_data *data = i2c_get_clientdata(client);
 	int i;
+	int rv;
+	int prev_rv;
+	struct lm80_data *ret = data;
 
 	mutex_lock(&data->update_lock);
+
+	if (data->error)
+		lm80_init_client(client);
 
 	if (time_after(jiffies, data->last_updated + 2 * HZ) || !data->valid) {
 		dev_dbg(&client->dev, "Starting lm80 update\n");
 		for (i = 0; i <= 6; i++) {
-			data->in[i] =
-			    lm80_read_value(client, LM80_REG_IN(i));
-			data->in_min[i] =
-			    lm80_read_value(client, LM80_REG_IN_MIN(i));
-			data->in_max[i] =
-			    lm80_read_value(client, LM80_REG_IN_MAX(i));
+			rv = lm80_read_value(client, LM80_REG_IN(i));
+			if (rv < 0)
+				goto abort;
+			data->in[i] = rv;
+
+			rv = lm80_read_value(client, LM80_REG_IN_MIN(i));
+			if (rv < 0)
+				goto abort;
+			data->in_min[i] = rv;
+
+			rv = lm80_read_value(client, LM80_REG_IN_MAX(i));
+			if (rv < 0)
+				goto abort;
+			data->in_max[i] = rv;
 		}
-		data->fan[0] = lm80_read_value(client, LM80_REG_FAN1);
-		data->fan_min[0] =
-		    lm80_read_value(client, LM80_REG_FAN_MIN(1));
-		data->fan[1] = lm80_read_value(client, LM80_REG_FAN2);
-		data->fan_min[1] =
-		    lm80_read_value(client, LM80_REG_FAN_MIN(2));
 
-		data->temp =
-		    (lm80_read_value(client, LM80_REG_TEMP) << 8) |
-		    (lm80_read_value(client, LM80_REG_RES) & 0xf0);
-		data->temp_os_max =
-		    lm80_read_value(client, LM80_REG_TEMP_OS_MAX);
-		data->temp_os_hyst =
-		    lm80_read_value(client, LM80_REG_TEMP_OS_HYST);
-		data->temp_hot_max =
-		    lm80_read_value(client, LM80_REG_TEMP_HOT_MAX);
-		data->temp_hot_hyst =
-		    lm80_read_value(client, LM80_REG_TEMP_HOT_HYST);
+		rv = lm80_read_value(client, LM80_REG_FAN1);
+		if (rv < 0)
+			goto abort;
+		data->fan[0] = rv;
 
-		i = lm80_read_value(client, LM80_REG_FANDIV);
-		data->fan_div[0] = (i >> 2) & 0x03;
-		data->fan_div[1] = (i >> 4) & 0x03;
-		data->alarms = lm80_read_value(client, LM80_REG_ALARM1) +
-		    (lm80_read_value(client, LM80_REG_ALARM2) << 8);
+		rv = lm80_read_value(client, LM80_REG_FAN_MIN(1));
+		if (rv < 0)
+			goto abort;
+		data->fan_min[0] = rv;
+
+		rv = lm80_read_value(client, LM80_REG_FAN2);
+		if (rv < 0)
+			goto abort;
+		data->fan[1] = rv;
+
+		rv = lm80_read_value(client, LM80_REG_FAN_MIN(2));
+		if (rv < 0)
+			goto abort;
+		data->fan_min[1] = rv;
+
+		prev_rv = rv = lm80_read_value(client, LM80_REG_TEMP);
+		if (rv < 0)
+			goto abort;
+		rv = lm80_read_value(client, LM80_REG_RES);
+		if (rv < 0)
+			goto abort;
+		data->temp = (prev_rv << 8) | (rv & 0xf0);
+
+		rv = lm80_read_value(client, LM80_REG_TEMP_OS_MAX);
+		if (rv < 0)
+			goto abort;
+		data->temp_os_max = rv;
+
+		rv = lm80_read_value(client, LM80_REG_TEMP_OS_HYST);
+		if (rv < 0)
+			goto abort;
+		data->temp_os_hyst = rv;
+
+		rv = lm80_read_value(client, LM80_REG_TEMP_HOT_MAX);
+		if (rv < 0)
+			goto abort;
+		data->temp_hot_max = rv;
+
+		rv = lm80_read_value(client, LM80_REG_TEMP_HOT_HYST);
+		if (rv < 0)
+			goto abort;
+		data->temp_hot_hyst = rv;
+
+		rv = lm80_read_value(client, LM80_REG_FANDIV);
+		if (rv < 0)
+			goto abort;
+		data->fan_div[0] = (rv >> 2) & 0x03;
+		data->fan_div[1] = (rv >> 4) & 0x03;
+
+		prev_rv = rv = lm80_read_value(client, LM80_REG_ALARM1);
+		if (rv < 0)
+			goto abort;
+		rv = lm80_read_value(client, LM80_REG_ALARM2);
+		if (rv < 0)
+			goto abort;
+		data->alarms = prev_rv + (rv << 8);
+
 		data->last_updated = jiffies;
 		data->valid = 1;
+		data->error = 0;
 	}
+	goto done;
 
+abort:
+	ret = ERR_PTR(rv);
+	data->valid = 0;
+	data->error = 1;
+
+done:
 	mutex_unlock(&data->update_lock);
 
-	return data;
+	return ret;
 }
 
-static int __init sensors_lm80_init(void)
-{
-	return i2c_add_driver(&lm80_driver);
-}
-
-static void __exit sensors_lm80_exit(void)
-{
-	i2c_del_driver(&lm80_driver);
-}
+module_i2c_driver(lm80_driver);
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl> and "
 	"Philip Edelbrock <phil@netroedge.com>");
 MODULE_DESCRIPTION("LM80 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_lm80_init);
-module_exit(sensors_lm80_exit);

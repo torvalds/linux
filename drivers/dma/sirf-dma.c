@@ -18,6 +18,8 @@
 #include <linux/of_platform.h>
 #include <linux/sirfsoc_dma.h>
 
+#include "dmaengine.h"
+
 #define SIRFSOC_DMA_DESCRIPTORS                 16
 #define SIRFSOC_DMA_CHANNELS                    16
 
@@ -59,7 +61,6 @@ struct sirfsoc_dma_chan {
 	struct list_head		queued;
 	struct list_head		active;
 	struct list_head		completed;
-	dma_cookie_t			completed_cookie;
 	unsigned long			happened_cyclic;
 	unsigned long			completed_cyclic;
 
@@ -208,7 +209,7 @@ static void sirfsoc_dma_process_completed(struct sirfsoc_dma *sdma)
 			/* Free descriptors */
 			spin_lock_irqsave(&schan->lock, flags);
 			list_splice_tail_init(&list, &schan->free);
-			schan->completed_cookie = last_cookie;
+			schan->chan.completed_cookie = last_cookie;
 			spin_unlock_irqrestore(&schan->lock, flags);
 		} else {
 			/* for cyclic channel, desc is always in active list */
@@ -258,13 +259,7 @@ static dma_cookie_t sirfsoc_dma_tx_submit(struct dma_async_tx_descriptor *txd)
 	/* Move descriptor to queue */
 	list_move_tail(&sdesc->node, &schan->queued);
 
-	/* Update cookie */
-	cookie = schan->chan.cookie + 1;
-	if (cookie <= 0)
-		cookie = 1;
-
-	schan->chan.cookie = cookie;
-	sdesc->desc.cookie = cookie;
+	cookie = dma_cookie_assign(txd);
 
 	spin_unlock_irqrestore(&schan->lock, flags);
 
@@ -414,16 +409,13 @@ sirfsoc_dma_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 {
 	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	unsigned long flags;
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
+	enum dma_status ret;
 
 	spin_lock_irqsave(&schan->lock, flags);
-	last_used = schan->chan.cookie;
-	last_complete = schan->completed_cookie;
+	ret = dma_cookie_status(chan, cookie, txstate);
 	spin_unlock_irqrestore(&schan->lock, flags);
 
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-	return dma_async_is_complete(cookie, last_complete, last_used);
+	return ret;
 }
 
 static struct dma_async_tx_descriptor *sirfsoc_dma_prep_interleaved(
@@ -497,7 +489,7 @@ err_dir:
 static struct dma_async_tx_descriptor *
 sirfsoc_dma_prep_cyclic(struct dma_chan *chan, dma_addr_t addr,
 	size_t buf_len, size_t period_len,
-	enum dma_transfer_direction direction)
+	enum dma_transfer_direction direction, void *context)
 {
 	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	struct sirfsoc_dma_desc *sdesc = NULL;
@@ -635,8 +627,7 @@ static int __devinit sirfsoc_dma_probe(struct platform_device *op)
 		schan = &sdma->channels[i];
 
 		schan->chan.device = dma;
-		schan->chan.cookie = 1;
-		schan->completed_cookie = schan->chan.cookie;
+		dma_cookie_init(&schan->chan);
 
 		INIT_LIST_HEAD(&schan->free);
 		INIT_LIST_HEAD(&schan->prepared);

@@ -679,17 +679,16 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	 * different modal values.
 	 */
 	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
-		REG_WRITE_ARRAY(&ah->iniModesAdditional,
+		REG_WRITE_ARRAY(&ah->iniModesFastClock,
 				modesIndex, regWrites);
 
-	if (AR_SREV_9330(ah))
-		REG_WRITE_ARRAY(&ah->iniModesAdditional, 1, regWrites);
-
-	if (AR_SREV_9340(ah) && !ah->is_clk_25mhz)
-		REG_WRITE_ARRAY(&ah->iniModesAdditional_40M, 1, regWrites);
+	REG_WRITE_ARRAY(&ah->iniAdditional, 1, regWrites);
 
 	if (AR_SREV_9462(ah))
 		ar9003_hw_prog_ini(ah, &ah->ini_BTCOEX_MAX_TXPWR, 1);
+
+	if (chan->channel == 2484)
+		ar9003_hw_prog_ini(ah, &ah->ini_japan2484, 1);
 
 	ah->modes_index = modesIndex;
 	ar9003_hw_override_ini(ah);
@@ -1099,13 +1098,20 @@ static void ar9003_hw_set_nf_limits(struct ath_hw *ah)
 {
 	ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_2GHZ;
 	ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9300_2GHZ;
-	if (AR_SREV_9330(ah))
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9330_2GHZ;
-	else
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9300_2GHZ;
+	ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9300_2GHZ;
 	ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_5GHZ;
 	ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9300_5GHZ;
 	ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_9300_5GHZ;
+
+	if (AR_SREV_9330(ah))
+		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9330_2GHZ;
+
+	if (AR_SREV_9462(ah)) {
+		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9462_2GHZ;
+		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9462_2GHZ;
+		ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9462_5GHZ;
+		ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_9462_5GHZ;
+	}
 }
 
 /*
@@ -1313,13 +1319,9 @@ static int ar9003_hw_fast_chan_change(struct ath_hw *ah,
 	 * different modal values.
 	 */
 	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
-		REG_WRITE_ARRAY(&ah->iniModesAdditional, modesIndex, regWrites);
+		REG_WRITE_ARRAY(&ah->iniModesFastClock, modesIndex, regWrites);
 
-	if (AR_SREV_9330(ah))
-		REG_WRITE_ARRAY(&ah->iniModesAdditional, 1, regWrites);
-
-	if (AR_SREV_9340(ah) && !ah->is_clk_25mhz)
-		REG_WRITE_ARRAY(&ah->iniModesAdditional_40M, 1, regWrites);
+	REG_WRITE_ARRAY(&ah->iniAdditional, 1, regWrites);
 
 	ah->modes_index = modesIndex;
 	*ini_reloaded = true;

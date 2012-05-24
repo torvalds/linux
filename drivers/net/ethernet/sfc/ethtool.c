@@ -52,11 +52,6 @@ static u64 efx_get_uint_stat(void *field)
 	return *(unsigned int *)field;
 }
 
-static u64 efx_get_ulong_stat(void *field)
-{
-	return *(unsigned long *)field;
-}
-
 static u64 efx_get_u64_stat(void *field)
 {
 	return *(u64 *) field;
@@ -67,12 +62,8 @@ static u64 efx_get_atomic_stat(void *field)
 	return atomic_read((atomic_t *) field);
 }
 
-#define EFX_ETHTOOL_ULONG_MAC_STAT(field)			\
-	EFX_ETHTOOL_STAT(field, mac_stats, field, 		\
-			  unsigned long, efx_get_ulong_stat)
-
 #define EFX_ETHTOOL_U64_MAC_STAT(field)				\
-	EFX_ETHTOOL_STAT(field, mac_stats, field, 		\
+	EFX_ETHTOOL_STAT(field, mac_stats, field,		\
 			  u64, efx_get_u64_stat)
 
 #define EFX_ETHTOOL_UINT_NIC_STAT(name)				\
@@ -91,36 +82,36 @@ static u64 efx_get_atomic_stat(void *field)
 	EFX_ETHTOOL_STAT(tx_##field, tx_queue, field,		\
 			 unsigned int, efx_get_uint_stat)
 
-static struct efx_ethtool_stat efx_ethtool_stats[] = {
+static const struct efx_ethtool_stat efx_ethtool_stats[] = {
 	EFX_ETHTOOL_U64_MAC_STAT(tx_bytes),
 	EFX_ETHTOOL_U64_MAC_STAT(tx_good_bytes),
 	EFX_ETHTOOL_U64_MAC_STAT(tx_bad_bytes),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_packets),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_bad),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_pause),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_control),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_unicast),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_multicast),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_broadcast),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_lt64),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_64),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_65_to_127),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_128_to_255),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_256_to_511),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_512_to_1023),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_1024_to_15xx),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_15xx_to_jumbo),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_gtjumbo),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_collision),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_single_collision),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_multiple_collision),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_excessive_collision),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_deferred),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_late_collision),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_excessive_deferred),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_non_tcpudp),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_mac_src_error),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_ip_src_error),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_packets),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_bad),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_pause),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_control),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_unicast),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_multicast),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_broadcast),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_lt64),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_64),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_65_to_127),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_128_to_255),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_256_to_511),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_512_to_1023),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_1024_to_15xx),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_15xx_to_jumbo),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_gtjumbo),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_collision),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_single_collision),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_multiple_collision),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_excessive_collision),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_deferred),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_late_collision),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_excessive_deferred),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_non_tcpudp),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_mac_src_error),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_ip_src_error),
 	EFX_ETHTOOL_UINT_TXQ_STAT(tso_bursts),
 	EFX_ETHTOOL_UINT_TXQ_STAT(tso_long_headers),
 	EFX_ETHTOOL_UINT_TXQ_STAT(tso_packets),
@@ -128,34 +119,34 @@ static struct efx_ethtool_stat efx_ethtool_stats[] = {
 	EFX_ETHTOOL_U64_MAC_STAT(rx_bytes),
 	EFX_ETHTOOL_U64_MAC_STAT(rx_good_bytes),
 	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_bytes),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_packets),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_good),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_bad),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_pause),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_control),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_unicast),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_multicast),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_broadcast),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_lt64),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_64),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_65_to_127),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_128_to_255),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_256_to_511),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_512_to_1023),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_1024_to_15xx),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_15xx_to_jumbo),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_gtjumbo),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_bad_lt64),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_bad_64_to_15xx),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_bad_15xx_to_jumbo),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_bad_gtjumbo),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_overflow),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_missed),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_false_carrier),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_symbol_error),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_align_error),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_length_error),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_internal_error),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_packets),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_good),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_bad),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_pause),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_control),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_unicast),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_multicast),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_broadcast),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_lt64),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_64),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_65_to_127),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_128_to_255),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_256_to_511),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_512_to_1023),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_1024_to_15xx),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_15xx_to_jumbo),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_gtjumbo),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_lt64),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_64_to_15xx),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_15xx_to_jumbo),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_gtjumbo),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_overflow),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_missed),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_false_carrier),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_symbol_error),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_align_error),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_length_error),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_internal_error),
 	EFX_ETHTOOL_UINT_NIC_STAT(rx_nodesc_drop_cnt),
 	EFX_ETHTOOL_ATOMIC_NIC_ERROR_STAT(rx_reset),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_tobe_disc),
@@ -404,10 +395,6 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 			      &tests->eventq_int[channel->channel],
 			      EFX_CHANNEL_NAME(channel),
 			      "eventq.int", NULL);
-		efx_fill_test(n++, strings, data,
-			      &tests->eventq_poll[channel->channel],
-			      EFX_CHANNEL_NAME(channel),
-			      "eventq.poll", NULL);
 	}
 
 	efx_fill_test(n++, strings, data, &tests->registers,
@@ -486,16 +473,17 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
-	struct efx_ethtool_stat *stat;
+	const struct efx_ethtool_stat *stat;
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
-	struct rtnl_link_stats64 temp;
 	int i;
 
 	EFX_BUG_ON_PARANOID(stats->n_stats != EFX_ETHTOOL_NUM_STATS);
 
+	spin_lock_bh(&efx->stats_lock);
+
 	/* Update MAC and NIC statistics */
-	dev_get_stats(net_dev, &temp);
+	efx->type->update_stats(efx);
 
 	/* Fill detailed statistics buffer */
 	for (i = 0; i < EFX_ETHTOOL_NUM_STATS; i++) {
@@ -525,6 +513,8 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 			break;
 		}
 	}
+
+	spin_unlock_bh(&efx->stats_lock);
 }
 
 static void efx_ethtool_self_test(struct net_device *net_dev,
@@ -747,7 +737,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 			/* Recover by resetting the EM block */
 			falcon_stop_nic_stats(efx);
 			falcon_drain_tx_fifo(efx);
-			efx->mac_op->reconfigure(efx);
+			falcon_reconfigure_xmac(efx);
 			falcon_start_nic_stats(efx);
 		} else {
 			/* Schedule a reset to recover */
@@ -772,7 +762,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	/* Reconfigure the MAC. The PHY *may* generate a link state change event
 	 * if the user just changed the advertised capabilities, but there's no
 	 * harm doing this twice */
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 
 out:
 	mutex_unlock(&efx->mac_lock);
@@ -818,11 +808,16 @@ static int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 	return efx_reset(efx, rc);
 }
 
+/* MAC address mask including only MC flag */
+static const u8 mac_addr_mc_mask[ETH_ALEN] = { 0x01, 0, 0, 0, 0, 0 };
+
 static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 				      struct ethtool_rx_flow_spec *rule)
 {
 	struct ethtool_tcpip4_spec *ip_entry = &rule->h_u.tcp_ip4_spec;
 	struct ethtool_tcpip4_spec *ip_mask = &rule->m_u.tcp_ip4_spec;
+	struct ethhdr *mac_entry = &rule->h_u.ether_spec;
+	struct ethhdr *mac_mask = &rule->m_u.ether_spec;
 	struct efx_filter_spec spec;
 	u16 vid;
 	u8 proto;
@@ -838,11 +833,18 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 	else
 		rule->ring_cookie = spec.dmaq_id;
 
-	rc = efx_filter_get_eth_local(&spec, &vid,
-				      rule->h_u.ether_spec.h_dest);
+	if (spec.type == EFX_FILTER_MC_DEF || spec.type == EFX_FILTER_UC_DEF) {
+		rule->flow_type = ETHER_FLOW;
+		memcpy(mac_mask->h_dest, mac_addr_mc_mask, ETH_ALEN);
+		if (spec.type == EFX_FILTER_MC_DEF)
+			memcpy(mac_entry->h_dest, mac_addr_mc_mask, ETH_ALEN);
+		return 0;
+	}
+
+	rc = efx_filter_get_eth_local(&spec, &vid, mac_entry->h_dest);
 	if (rc == 0) {
 		rule->flow_type = ETHER_FLOW;
-		memset(rule->m_u.ether_spec.h_dest, ~0, ETH_ALEN);
+		memset(mac_mask->h_dest, ~0, ETH_ALEN);
 		if (vid != EFX_FILTER_VID_UNSPEC) {
 			rule->flow_type |= FLOW_EXT;
 			rule->h_ext.vlan_tci = htons(vid);
@@ -1011,27 +1013,40 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	}
 
 	case ETHER_FLOW | FLOW_EXT:
-		/* Must match all or none of VID */
-		if (rule->m_ext.vlan_tci != htons(0xfff) &&
-		    rule->m_ext.vlan_tci != 0)
-			return -EINVAL;
-	case ETHER_FLOW:
-		/* Must match all of destination */
-		if (!is_broadcast_ether_addr(mac_mask->h_dest))
-			return -EINVAL;
-		/* and nothing else */
+	case ETHER_FLOW: {
+		u16 vlan_tag_mask = (rule->flow_type & FLOW_EXT ?
+				     ntohs(rule->m_ext.vlan_tci) : 0);
+
+		/* Must not match on source address or Ethertype */
 		if (!is_zero_ether_addr(mac_mask->h_source) ||
 		    mac_mask->h_proto)
 			return -EINVAL;
 
-		rc = efx_filter_set_eth_local(
-			&spec,
-			(rule->flow_type & FLOW_EXT && rule->m_ext.vlan_tci) ?
-			ntohs(rule->h_ext.vlan_tci) : EFX_FILTER_VID_UNSPEC,
-			mac_entry->h_dest);
+		/* Is it a default UC or MC filter? */
+		if (!compare_ether_addr(mac_mask->h_dest, mac_addr_mc_mask) &&
+		    vlan_tag_mask == 0) {
+			if (is_multicast_ether_addr(mac_entry->h_dest))
+				rc = efx_filter_set_mc_def(&spec);
+			else
+				rc = efx_filter_set_uc_def(&spec);
+		}
+		/* Otherwise, it must match all of destination and all
+		 * or none of VID.
+		 */
+		else if (is_broadcast_ether_addr(mac_mask->h_dest) &&
+			 (vlan_tag_mask == 0xfff || vlan_tag_mask == 0)) {
+			rc = efx_filter_set_eth_local(
+				&spec,
+				vlan_tag_mask ?
+				ntohs(rule->h_ext.vlan_tci) : EFX_FILTER_VID_UNSPEC,
+				mac_entry->h_dest);
+		} else {
+			rc = -EINVAL;
+		}
 		if (rc)
 			return rc;
 		break;
+	}
 
 	default:
 		return -EINVAL;
@@ -1070,7 +1085,8 @@ static u32 efx_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	return (efx_nic_rev(efx) < EFX_REV_FALCON_B0 ?
+	return ((efx_nic_rev(efx) < EFX_REV_FALCON_B0 ||
+		 efx->n_rx_channels == 1) ?
 		0 : ARRAY_SIZE(efx->rx_indir_table));
 }
 

@@ -12,6 +12,7 @@
 #include <linux/highmem.h>
 #include <linux/slab.h>
 
+#include <asm/cp15.h>
 #include <asm/pgalloc.h>
 #include <asm/page.h>
 #include <asm/tlbflush.h>

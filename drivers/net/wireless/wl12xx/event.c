@@ -30,133 +30,6 @@
 #include "scan.h"
 #include "wl12xx_80211.h"
 
-void wl1271_pspoll_work(struct work_struct *work)
-{
-	struct ieee80211_vif *vif;
-	struct wl12xx_vif *wlvif;
-	struct delayed_work *dwork;
-	struct wl1271 *wl;
-	int ret;
-
-	dwork = container_of(work, struct delayed_work, work);
-	wlvif = container_of(dwork, struct wl12xx_vif, pspoll_work);
-	vif = container_of((void *)wlvif, struct ieee80211_vif, drv_priv);
-	wl = wlvif->wl;
-
-	wl1271_debug(DEBUG_EVENT, "pspoll work");
-
-	mutex_lock(&wl->mutex);
-
-	if (unlikely(wl->state == WL1271_STATE_OFF))
-		goto out;
-
-	if (!test_and_clear_bit(WLVIF_FLAG_PSPOLL_FAILURE, &wlvif->flags))
-		goto out;
-
-	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
-		goto out;
-
-	/*
-	 * if we end up here, then we were in powersave when the pspoll
-	 * delivery failure occurred, and no-one changed state since, so
-	 * we should go back to powersave.
-	 */
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto out;
-
-	wl1271_ps_set_mode(wl, wlvif, STATION_POWER_SAVE_MODE,
-			   wlvif->basic_rate, true);
-
-	wl1271_ps_elp_sleep(wl);
-out:
-	mutex_unlock(&wl->mutex);
-};
-
-static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl,
-					      struct wl12xx_vif *wlvif)
-{
-	int delay = wl->conf.conn.ps_poll_recovery_period;
-	int ret;
-
-	wlvif->ps_poll_failures++;
-	if (wlvif->ps_poll_failures == 1)
-		wl1271_info("AP with dysfunctional ps-poll, "
-			    "trying to work around it.");
-
-	/* force active mode receive data from the AP */
-	if (test_bit(WLVIF_FLAG_PSM, &wlvif->flags)) {
-		ret = wl1271_ps_set_mode(wl, wlvif, STATION_ACTIVE_MODE,
-					 wlvif->basic_rate, true);
-		if (ret < 0)
-			return;
-		set_bit(WLVIF_FLAG_PSPOLL_FAILURE, &wlvif->flags);
-		ieee80211_queue_delayed_work(wl->hw, &wlvif->pspoll_work,
-					     msecs_to_jiffies(delay));
-	}
-
-	/*
-	 * If already in active mode, lets we should be getting data from
-	 * the AP right away. If we enter PSM too fast after this, and data
-	 * remains on the AP, we will get another event like this, and we'll
-	 * go into active once more.
-	 */
-}
-
-static int wl1271_event_ps_report(struct wl1271 *wl,
-				  struct wl12xx_vif *wlvif,
-				  struct event_mailbox *mbox,
-				  bool *beacon_loss)
-{
-	int ret = 0;
-	u32 total_retries = wl->conf.conn.psm_entry_retries;
-
-	wl1271_debug(DEBUG_EVENT, "ps_status: 0x%x", mbox->ps_status);
-
-	switch (mbox->ps_status) {
-	case EVENT_ENTER_POWER_SAVE_FAIL:
-		wl1271_debug(DEBUG_PSM, "PSM entry failed");
-
-		if (!test_bit(WLVIF_FLAG_PSM, &wlvif->flags)) {
-			/* remain in active mode */
-			wlvif->psm_entry_retry = 0;
-			break;
-		}
-
-		if (wlvif->psm_entry_retry < total_retries) {
-			wlvif->psm_entry_retry++;
-			ret = wl1271_ps_set_mode(wl, wlvif,
-						 STATION_POWER_SAVE_MODE,
-						 wlvif->basic_rate, true);
-		} else {
-			wl1271_info("No ack to nullfunc from AP.");
-			wlvif->psm_entry_retry = 0;
-			*beacon_loss = true;
-		}
-		break;
-	case EVENT_ENTER_POWER_SAVE_SUCCESS:
-		wlvif->psm_entry_retry = 0;
-
-		/*
-		 * BET has only a minor effect in 5GHz and masks
-		 * channel switch IEs, so we only enable BET on 2.4GHz
-		*/
-		if (wlvif->band == IEEE80211_BAND_2GHZ)
-			/* enable beacon early termination */
-			ret = wl1271_acx_bet_enable(wl, wlvif, true);
-
-		if (wlvif->ps_compl) {
-			complete(wlvif->ps_compl);
-			wlvif->ps_compl = NULL;
-		}
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
 static void wl1271_event_rssi_trigger(struct wl1271 *wl,
 				      struct wl12xx_vif *wlvif,
 				      struct event_mailbox *mbox)
@@ -205,21 +78,13 @@ static void wl1271_stop_ba_event(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 static void wl12xx_event_soft_gemini_sense(struct wl1271 *wl,
 					       u8 enable)
 {
-	struct ieee80211_vif *vif;
 	struct wl12xx_vif *wlvif;
 
 	if (enable) {
-		/* disable dynamic PS when requested by the firmware */
-		wl12xx_for_each_wlvif_sta(wl, wlvif) {
-			vif = wl12xx_wlvif_to_vif(wlvif);
-			ieee80211_disable_dyn_ps(vif);
-		}
 		set_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags);
 	} else {
 		clear_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags);
 		wl12xx_for_each_wlvif_sta(wl, wlvif) {
-			vif = wl12xx_wlvif_to_vif(wlvif);
-			ieee80211_enable_dyn_ps(vif);
 			wl1271_recalc_rx_streaming(wl, wlvif);
 		}
 	}
@@ -237,7 +102,6 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 {
 	struct ieee80211_vif *vif;
 	struct wl12xx_vif *wlvif;
-	int ret;
 	u32 vector;
 	bool beacon_loss = false;
 	bool disconnect_sta = false;
@@ -293,21 +157,6 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		beacon_loss = true;
 	}
 
-	if (vector & PS_REPORT_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT, "PS_REPORT_EVENT");
-		wl12xx_for_each_wlvif_sta(wl, wlvif) {
-			ret = wl1271_event_ps_report(wl, wlvif,
-						     mbox, &beacon_loss);
-			if (ret < 0)
-				return ret;
-		}
-	}
-
-	if (vector & PSPOLL_DELIVERY_FAILURE_EVENT_ID)
-		wl12xx_for_each_wlvif_sta(wl, wlvif) {
-			wl1271_event_pspoll_delivery_fail(wl, wlvif);
-		}
-
 	if (vector & RSSI_SNR_TRIGGER_0_EVENT_ID) {
 		/* TODO: check actual multi-role support */
 		wl1271_debug(DEBUG_EVENT, "RSSI_SNR_TRIGGER_0_EVENT");
@@ -344,7 +193,6 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 
 		/* TODO: configure only the relevant vif */
 		wl12xx_for_each_wlvif_sta(wl, wlvif) {
-			struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 			bool success;
 
 			if (!test_and_clear_bit(WLVIF_FLAG_CS_PROGRESS,
@@ -352,6 +200,8 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 				continue;
 
 			success = mbox->channel_switch_status ? false : true;
+			vif = wl12xx_wlvif_to_vif(wlvif);
+
 			ieee80211_chswitch_done(vif, success);
 		}
 	}

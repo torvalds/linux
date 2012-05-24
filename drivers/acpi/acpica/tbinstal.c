@@ -114,7 +114,6 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 {
 	u32 i;
 	acpi_status status = AE_OK;
-	struct acpi_table_header *override_table = NULL;
 
 	ACPI_FUNCTION_TRACE(tb_add_table);
 
@@ -224,25 +223,10 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 	/*
 	 * ACPI Table Override:
 	 * Allow the host to override dynamically loaded tables.
+	 * NOTE: the table is fully mapped at this point, and the mapping will
+	 * be deleted by tb_table_override if the table is actually overridden.
 	 */
-	status = acpi_os_table_override(table_desc->pointer, &override_table);
-	if (ACPI_SUCCESS(status) && override_table) {
-		ACPI_INFO((AE_INFO,
-			   "%4.4s @ 0x%p Table override, replaced with:",
-			   table_desc->pointer->signature,
-			   ACPI_CAST_PTR(void, table_desc->address)));
-
-		/* We can delete the table that was passed as a parameter */
-
-		acpi_tb_delete_table(table_desc);
-
-		/* Setup descriptor for the new table */
-
-		table_desc->address = ACPI_PTR_TO_PHYSADDR(override_table);
-		table_desc->pointer = override_table;
-		table_desc->length = override_table->length;
-		table_desc->flags = ACPI_TABLE_ORIGIN_OVERRIDE;
-	}
+	(void)acpi_tb_table_override(table_desc->pointer, table_desc);
 
 	/* Add the table to the global root table list */
 
@@ -259,6 +243,95 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
       release:
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_table_override
+ *
+ * PARAMETERS:  table_header        - Header for the original table
+ *              table_desc          - Table descriptor initialized for the
+ *                                    original table. May or may not be mapped.
+ *
+ * RETURN:      Pointer to the entire new table. NULL if table not overridden.
+ *              If overridden, installs the new table within the input table
+ *              descriptor.
+ *
+ * DESCRIPTION: Attempt table override by calling the OSL override functions.
+ *              Note: If the table is overridden, then the entire new table
+ *              is mapped and returned by this function.
+ *
+ ******************************************************************************/
+
+struct acpi_table_header *acpi_tb_table_override(struct acpi_table_header
+						 *table_header,
+						 struct acpi_table_desc
+						 *table_desc)
+{
+	acpi_status status;
+	struct acpi_table_header *new_table = NULL;
+	acpi_physical_address new_address = 0;
+	u32 new_table_length = 0;
+	u8 new_flags;
+	char *override_type;
+
+	/* (1) Attempt logical override (returns a logical address) */
+
+	status = acpi_os_table_override(table_header, &new_table);
+	if (ACPI_SUCCESS(status) && new_table) {
+		new_address = ACPI_PTR_TO_PHYSADDR(new_table);
+		new_table_length = new_table->length;
+		new_flags = ACPI_TABLE_ORIGIN_OVERRIDE;
+		override_type = "Logical";
+		goto finish_override;
+	}
+
+	/* (2) Attempt physical override (returns a physical address) */
+
+	status = acpi_os_physical_table_override(table_header,
+						 &new_address,
+						 &new_table_length);
+	if (ACPI_SUCCESS(status) && new_address && new_table_length) {
+
+		/* Map the entire new table */
+
+		new_table = acpi_os_map_memory(new_address, new_table_length);
+		if (!new_table) {
+			ACPI_EXCEPTION((AE_INFO, AE_NO_MEMORY,
+					"%4.4s %p Attempted physical table override failed",
+					table_header->signature,
+					ACPI_CAST_PTR(void,
+						      table_desc->address)));
+			return (NULL);
+		}
+
+		override_type = "Physical";
+		new_flags = ACPI_TABLE_ORIGIN_MAPPED;
+		goto finish_override;
+	}
+
+	return (NULL);		/* There was no override */
+
+      finish_override:
+
+	ACPI_INFO((AE_INFO,
+		   "%4.4s %p %s table override, new table: %p",
+		   table_header->signature,
+		   ACPI_CAST_PTR(void, table_desc->address),
+		   override_type, new_table));
+
+	/* We can now unmap/delete the original table (if fully mapped) */
+
+	acpi_tb_delete_table(table_desc);
+
+	/* Setup descriptor for the new table */
+
+	table_desc->address = new_address;
+	table_desc->pointer = new_table;
+	table_desc->length = new_table_length;
+	table_desc->flags = new_flags;
+
+	return (new_table);
 }
 
 /*******************************************************************************
@@ -396,7 +469,11 @@ void acpi_tb_delete_table(struct acpi_table_desc *table_desc)
 	case ACPI_TABLE_ORIGIN_ALLOCATED:
 		ACPI_FREE(table_desc->pointer);
 		break;
-	default:;
+
+		/* Not mapped or allocated, there is nothing we can do */
+
+	default:
+		return;
 	}
 
 	table_desc->pointer = NULL;

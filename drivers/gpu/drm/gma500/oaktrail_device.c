@@ -141,7 +141,7 @@ static const struct backlight_ops oaktrail_ops = {
 	.update_status  = oaktrail_set_brightness,
 };
 
-int oaktrail_backlight_init(struct drm_device *dev)
+static int oaktrail_backlight_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	int ret;
@@ -176,10 +176,6 @@ int oaktrail_backlight_init(struct drm_device *dev)
  *	for power management
  */
 
-static void oaktrail_init_pm(struct drm_device *dev)
-{
-}
-
 /**
  *	oaktrail_save_display_registers	-	save registers lost on suspend
  *	@dev: our DRM device
@@ -190,81 +186,82 @@ static void oaktrail_init_pm(struct drm_device *dev)
 static int oaktrail_save_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_save_area *regs = &dev_priv->regs;
 	int i;
 	u32 pp_stat;
 
 	/* Display arbitration control + watermarks */
-	dev_priv->saveDSPARB = PSB_RVDC32(DSPARB);
-	dev_priv->saveDSPFW1 = PSB_RVDC32(DSPFW1);
-	dev_priv->saveDSPFW2 = PSB_RVDC32(DSPFW2);
-	dev_priv->saveDSPFW3 = PSB_RVDC32(DSPFW3);
-	dev_priv->saveDSPFW4 = PSB_RVDC32(DSPFW4);
-	dev_priv->saveDSPFW5 = PSB_RVDC32(DSPFW5);
-	dev_priv->saveDSPFW6 = PSB_RVDC32(DSPFW6);
-	dev_priv->saveCHICKENBIT = PSB_RVDC32(DSPCHICKENBIT);
+	regs->psb.saveDSPARB = PSB_RVDC32(DSPARB);
+	regs->psb.saveDSPFW1 = PSB_RVDC32(DSPFW1);
+	regs->psb.saveDSPFW2 = PSB_RVDC32(DSPFW2);
+	regs->psb.saveDSPFW3 = PSB_RVDC32(DSPFW3);
+	regs->psb.saveDSPFW4 = PSB_RVDC32(DSPFW4);
+	regs->psb.saveDSPFW5 = PSB_RVDC32(DSPFW5);
+	regs->psb.saveDSPFW6 = PSB_RVDC32(DSPFW6);
+	regs->psb.saveCHICKENBIT = PSB_RVDC32(DSPCHICKENBIT);
 
 	/* Pipe & plane A info */
-	dev_priv->savePIPEACONF = PSB_RVDC32(PIPEACONF);
-	dev_priv->savePIPEASRC = PSB_RVDC32(PIPEASRC);
-	dev_priv->saveFPA0 = PSB_RVDC32(MRST_FPA0);
-	dev_priv->saveFPA1 = PSB_RVDC32(MRST_FPA1);
-	dev_priv->saveDPLL_A = PSB_RVDC32(MRST_DPLL_A);
-	dev_priv->saveHTOTAL_A = PSB_RVDC32(HTOTAL_A);
-	dev_priv->saveHBLANK_A = PSB_RVDC32(HBLANK_A);
-	dev_priv->saveHSYNC_A = PSB_RVDC32(HSYNC_A);
-	dev_priv->saveVTOTAL_A = PSB_RVDC32(VTOTAL_A);
-	dev_priv->saveVBLANK_A = PSB_RVDC32(VBLANK_A);
-	dev_priv->saveVSYNC_A = PSB_RVDC32(VSYNC_A);
-	dev_priv->saveBCLRPAT_A = PSB_RVDC32(BCLRPAT_A);
-	dev_priv->saveDSPACNTR = PSB_RVDC32(DSPACNTR);
-	dev_priv->saveDSPASTRIDE = PSB_RVDC32(DSPASTRIDE);
-	dev_priv->saveDSPAADDR = PSB_RVDC32(DSPABASE);
-	dev_priv->saveDSPASURF = PSB_RVDC32(DSPASURF);
-	dev_priv->saveDSPALINOFF = PSB_RVDC32(DSPALINOFF);
-	dev_priv->saveDSPATILEOFF = PSB_RVDC32(DSPATILEOFF);
+	regs->psb.savePIPEACONF = PSB_RVDC32(PIPEACONF);
+	regs->psb.savePIPEASRC = PSB_RVDC32(PIPEASRC);
+	regs->psb.saveFPA0 = PSB_RVDC32(MRST_FPA0);
+	regs->psb.saveFPA1 = PSB_RVDC32(MRST_FPA1);
+	regs->psb.saveDPLL_A = PSB_RVDC32(MRST_DPLL_A);
+	regs->psb.saveHTOTAL_A = PSB_RVDC32(HTOTAL_A);
+	regs->psb.saveHBLANK_A = PSB_RVDC32(HBLANK_A);
+	regs->psb.saveHSYNC_A = PSB_RVDC32(HSYNC_A);
+	regs->psb.saveVTOTAL_A = PSB_RVDC32(VTOTAL_A);
+	regs->psb.saveVBLANK_A = PSB_RVDC32(VBLANK_A);
+	regs->psb.saveVSYNC_A = PSB_RVDC32(VSYNC_A);
+	regs->psb.saveBCLRPAT_A = PSB_RVDC32(BCLRPAT_A);
+	regs->psb.saveDSPACNTR = PSB_RVDC32(DSPACNTR);
+	regs->psb.saveDSPASTRIDE = PSB_RVDC32(DSPASTRIDE);
+	regs->psb.saveDSPAADDR = PSB_RVDC32(DSPABASE);
+	regs->psb.saveDSPASURF = PSB_RVDC32(DSPASURF);
+	regs->psb.saveDSPALINOFF = PSB_RVDC32(DSPALINOFF);
+	regs->psb.saveDSPATILEOFF = PSB_RVDC32(DSPATILEOFF);
 
 	/* Save cursor regs */
-	dev_priv->saveDSPACURSOR_CTRL = PSB_RVDC32(CURACNTR);
-	dev_priv->saveDSPACURSOR_BASE = PSB_RVDC32(CURABASE);
-	dev_priv->saveDSPACURSOR_POS = PSB_RVDC32(CURAPOS);
+	regs->psb.saveDSPACURSOR_CTRL = PSB_RVDC32(CURACNTR);
+	regs->psb.saveDSPACURSOR_BASE = PSB_RVDC32(CURABASE);
+	regs->psb.saveDSPACURSOR_POS = PSB_RVDC32(CURAPOS);
 
 	/* Save palette (gamma) */
 	for (i = 0; i < 256; i++)
-		dev_priv->save_palette_a[i] = PSB_RVDC32(PALETTE_A + (i << 2));
+		regs->psb.save_palette_a[i] = PSB_RVDC32(PALETTE_A + (i << 2));
 
 	if (dev_priv->hdmi_priv)
 		oaktrail_hdmi_save(dev);
 
 	/* Save performance state */
-	dev_priv->savePERF_MODE = PSB_RVDC32(MRST_PERF_MODE);
+	regs->psb.savePERF_MODE = PSB_RVDC32(MRST_PERF_MODE);
 
 	/* LVDS state */
-	dev_priv->savePP_CONTROL = PSB_RVDC32(PP_CONTROL);
-	dev_priv->savePFIT_PGM_RATIOS = PSB_RVDC32(PFIT_PGM_RATIOS);
-	dev_priv->savePFIT_AUTO_RATIOS = PSB_RVDC32(PFIT_AUTO_RATIOS);
-	dev_priv->saveBLC_PWM_CTL = PSB_RVDC32(BLC_PWM_CTL);
-	dev_priv->saveBLC_PWM_CTL2 = PSB_RVDC32(BLC_PWM_CTL2);
-	dev_priv->saveLVDS = PSB_RVDC32(LVDS);
-	dev_priv->savePFIT_CONTROL = PSB_RVDC32(PFIT_CONTROL);
-	dev_priv->savePP_ON_DELAYS = PSB_RVDC32(LVDSPP_ON);
-	dev_priv->savePP_OFF_DELAYS = PSB_RVDC32(LVDSPP_OFF);
-	dev_priv->savePP_DIVISOR = PSB_RVDC32(PP_CYCLE);
+	regs->psb.savePP_CONTROL = PSB_RVDC32(PP_CONTROL);
+	regs->psb.savePFIT_PGM_RATIOS = PSB_RVDC32(PFIT_PGM_RATIOS);
+	regs->psb.savePFIT_AUTO_RATIOS = PSB_RVDC32(PFIT_AUTO_RATIOS);
+	regs->saveBLC_PWM_CTL = PSB_RVDC32(BLC_PWM_CTL);
+	regs->saveBLC_PWM_CTL2 = PSB_RVDC32(BLC_PWM_CTL2);
+	regs->psb.saveLVDS = PSB_RVDC32(LVDS);
+	regs->psb.savePFIT_CONTROL = PSB_RVDC32(PFIT_CONTROL);
+	regs->psb.savePP_ON_DELAYS = PSB_RVDC32(LVDSPP_ON);
+	regs->psb.savePP_OFF_DELAYS = PSB_RVDC32(LVDSPP_OFF);
+	regs->psb.savePP_DIVISOR = PSB_RVDC32(PP_CYCLE);
 
 	/* HW overlay */
-	dev_priv->saveOV_OVADD = PSB_RVDC32(OV_OVADD);
-	dev_priv->saveOV_OGAMC0 = PSB_RVDC32(OV_OGAMC0);
-	dev_priv->saveOV_OGAMC1 = PSB_RVDC32(OV_OGAMC1);
-	dev_priv->saveOV_OGAMC2 = PSB_RVDC32(OV_OGAMC2);
-	dev_priv->saveOV_OGAMC3 = PSB_RVDC32(OV_OGAMC3);
-	dev_priv->saveOV_OGAMC4 = PSB_RVDC32(OV_OGAMC4);
-	dev_priv->saveOV_OGAMC5 = PSB_RVDC32(OV_OGAMC5);
+	regs->psb.saveOV_OVADD = PSB_RVDC32(OV_OVADD);
+	regs->psb.saveOV_OGAMC0 = PSB_RVDC32(OV_OGAMC0);
+	regs->psb.saveOV_OGAMC1 = PSB_RVDC32(OV_OGAMC1);
+	regs->psb.saveOV_OGAMC2 = PSB_RVDC32(OV_OGAMC2);
+	regs->psb.saveOV_OGAMC3 = PSB_RVDC32(OV_OGAMC3);
+	regs->psb.saveOV_OGAMC4 = PSB_RVDC32(OV_OGAMC4);
+	regs->psb.saveOV_OGAMC5 = PSB_RVDC32(OV_OGAMC5);
 
 	/* DPST registers */
-	dev_priv->saveHISTOGRAM_INT_CONTROL_REG =
+	regs->psb.saveHISTOGRAM_INT_CONTROL_REG =
 					PSB_RVDC32(HISTOGRAM_INT_CONTROL);
-	dev_priv->saveHISTOGRAM_LOGIC_CONTROL_REG =
+	regs->psb.saveHISTOGRAM_LOGIC_CONTROL_REG =
 					PSB_RVDC32(HISTOGRAM_LOGIC_CONTROL);
-	dev_priv->savePWM_CONTROL_LOGIC = PSB_RVDC32(PWM_CONTROL_LOGIC);
+	regs->psb.savePWM_CONTROL_LOGIC = PSB_RVDC32(PWM_CONTROL_LOGIC);
 
 	if (dev_priv->iLVDS_enable) {
 		/* Shut down the panel */
@@ -302,79 +299,80 @@ static int oaktrail_save_display_registers(struct drm_device *dev)
 static int oaktrail_restore_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_save_area *regs = &dev_priv->regs;
 	u32 pp_stat;
 	int i;
 
 	/* Display arbitration + watermarks */
-	PSB_WVDC32(dev_priv->saveDSPARB, DSPARB);
-	PSB_WVDC32(dev_priv->saveDSPFW1, DSPFW1);
-	PSB_WVDC32(dev_priv->saveDSPFW2, DSPFW2);
-	PSB_WVDC32(dev_priv->saveDSPFW3, DSPFW3);
-	PSB_WVDC32(dev_priv->saveDSPFW4, DSPFW4);
-	PSB_WVDC32(dev_priv->saveDSPFW5, DSPFW5);
-	PSB_WVDC32(dev_priv->saveDSPFW6, DSPFW6);
-	PSB_WVDC32(dev_priv->saveCHICKENBIT, DSPCHICKENBIT);
+	PSB_WVDC32(regs->psb.saveDSPARB, DSPARB);
+	PSB_WVDC32(regs->psb.saveDSPFW1, DSPFW1);
+	PSB_WVDC32(regs->psb.saveDSPFW2, DSPFW2);
+	PSB_WVDC32(regs->psb.saveDSPFW3, DSPFW3);
+	PSB_WVDC32(regs->psb.saveDSPFW4, DSPFW4);
+	PSB_WVDC32(regs->psb.saveDSPFW5, DSPFW5);
+	PSB_WVDC32(regs->psb.saveDSPFW6, DSPFW6);
+	PSB_WVDC32(regs->psb.saveCHICKENBIT, DSPCHICKENBIT);
 
 	/* Make sure VGA plane is off. it initializes to on after reset!*/
 	PSB_WVDC32(0x80000000, VGACNTRL);
 
 	/* set the plls */
-	PSB_WVDC32(dev_priv->saveFPA0, MRST_FPA0);
-	PSB_WVDC32(dev_priv->saveFPA1, MRST_FPA1);
+	PSB_WVDC32(regs->psb.saveFPA0, MRST_FPA0);
+	PSB_WVDC32(regs->psb.saveFPA1, MRST_FPA1);
 
 	/* Actually enable it */
-	PSB_WVDC32(dev_priv->saveDPLL_A, MRST_DPLL_A);
+	PSB_WVDC32(regs->psb.saveDPLL_A, MRST_DPLL_A);
 	DRM_UDELAY(150);
 
 	/* Restore mode */
-	PSB_WVDC32(dev_priv->saveHTOTAL_A, HTOTAL_A);
-	PSB_WVDC32(dev_priv->saveHBLANK_A, HBLANK_A);
-	PSB_WVDC32(dev_priv->saveHSYNC_A, HSYNC_A);
-	PSB_WVDC32(dev_priv->saveVTOTAL_A, VTOTAL_A);
-	PSB_WVDC32(dev_priv->saveVBLANK_A, VBLANK_A);
-	PSB_WVDC32(dev_priv->saveVSYNC_A, VSYNC_A);
-	PSB_WVDC32(dev_priv->savePIPEASRC, PIPEASRC);
-	PSB_WVDC32(dev_priv->saveBCLRPAT_A, BCLRPAT_A);
+	PSB_WVDC32(regs->psb.saveHTOTAL_A, HTOTAL_A);
+	PSB_WVDC32(regs->psb.saveHBLANK_A, HBLANK_A);
+	PSB_WVDC32(regs->psb.saveHSYNC_A, HSYNC_A);
+	PSB_WVDC32(regs->psb.saveVTOTAL_A, VTOTAL_A);
+	PSB_WVDC32(regs->psb.saveVBLANK_A, VBLANK_A);
+	PSB_WVDC32(regs->psb.saveVSYNC_A, VSYNC_A);
+	PSB_WVDC32(regs->psb.savePIPEASRC, PIPEASRC);
+	PSB_WVDC32(regs->psb.saveBCLRPAT_A, BCLRPAT_A);
 
 	/* Restore performance mode*/
-	PSB_WVDC32(dev_priv->savePERF_MODE, MRST_PERF_MODE);
+	PSB_WVDC32(regs->psb.savePERF_MODE, MRST_PERF_MODE);
 
 	/* Enable the pipe*/
 	if (dev_priv->iLVDS_enable)
-		PSB_WVDC32(dev_priv->savePIPEACONF, PIPEACONF);
+		PSB_WVDC32(regs->psb.savePIPEACONF, PIPEACONF);
 
 	/* Set up the plane*/
-	PSB_WVDC32(dev_priv->saveDSPALINOFF, DSPALINOFF);
-	PSB_WVDC32(dev_priv->saveDSPASTRIDE, DSPASTRIDE);
-	PSB_WVDC32(dev_priv->saveDSPATILEOFF, DSPATILEOFF);
+	PSB_WVDC32(regs->psb.saveDSPALINOFF, DSPALINOFF);
+	PSB_WVDC32(regs->psb.saveDSPASTRIDE, DSPASTRIDE);
+	PSB_WVDC32(regs->psb.saveDSPATILEOFF, DSPATILEOFF);
 
 	/* Enable the plane */
-	PSB_WVDC32(dev_priv->saveDSPACNTR, DSPACNTR);
-	PSB_WVDC32(dev_priv->saveDSPASURF, DSPASURF);
+	PSB_WVDC32(regs->psb.saveDSPACNTR, DSPACNTR);
+	PSB_WVDC32(regs->psb.saveDSPASURF, DSPASURF);
 
 	/* Enable Cursor A */
-	PSB_WVDC32(dev_priv->saveDSPACURSOR_CTRL, CURACNTR);
-	PSB_WVDC32(dev_priv->saveDSPACURSOR_POS, CURAPOS);
-	PSB_WVDC32(dev_priv->saveDSPACURSOR_BASE, CURABASE);
+	PSB_WVDC32(regs->psb.saveDSPACURSOR_CTRL, CURACNTR);
+	PSB_WVDC32(regs->psb.saveDSPACURSOR_POS, CURAPOS);
+	PSB_WVDC32(regs->psb.saveDSPACURSOR_BASE, CURABASE);
 
 	/* Restore palette (gamma) */
 	for (i = 0; i < 256; i++)
-		PSB_WVDC32(dev_priv->save_palette_a[i], PALETTE_A + (i << 2));
+		PSB_WVDC32(regs->psb.save_palette_a[i], PALETTE_A + (i << 2));
 
 	if (dev_priv->hdmi_priv)
 		oaktrail_hdmi_restore(dev);
 
 	if (dev_priv->iLVDS_enable) {
-		PSB_WVDC32(dev_priv->saveBLC_PWM_CTL2, BLC_PWM_CTL2);
-		PSB_WVDC32(dev_priv->saveLVDS, LVDS); /*port 61180h*/
-		PSB_WVDC32(dev_priv->savePFIT_CONTROL, PFIT_CONTROL);
-		PSB_WVDC32(dev_priv->savePFIT_PGM_RATIOS, PFIT_PGM_RATIOS);
-		PSB_WVDC32(dev_priv->savePFIT_AUTO_RATIOS, PFIT_AUTO_RATIOS);
-		PSB_WVDC32(dev_priv->saveBLC_PWM_CTL, BLC_PWM_CTL);
-		PSB_WVDC32(dev_priv->savePP_ON_DELAYS, LVDSPP_ON);
-		PSB_WVDC32(dev_priv->savePP_OFF_DELAYS, LVDSPP_OFF);
-		PSB_WVDC32(dev_priv->savePP_DIVISOR, PP_CYCLE);
-		PSB_WVDC32(dev_priv->savePP_CONTROL, PP_CONTROL);
+		PSB_WVDC32(regs->saveBLC_PWM_CTL2, BLC_PWM_CTL2);
+		PSB_WVDC32(regs->psb.saveLVDS, LVDS); /*port 61180h*/
+		PSB_WVDC32(regs->psb.savePFIT_CONTROL, PFIT_CONTROL);
+		PSB_WVDC32(regs->psb.savePFIT_PGM_RATIOS, PFIT_PGM_RATIOS);
+		PSB_WVDC32(regs->psb.savePFIT_AUTO_RATIOS, PFIT_AUTO_RATIOS);
+		PSB_WVDC32(regs->saveBLC_PWM_CTL, BLC_PWM_CTL);
+		PSB_WVDC32(regs->psb.savePP_ON_DELAYS, LVDSPP_ON);
+		PSB_WVDC32(regs->psb.savePP_OFF_DELAYS, LVDSPP_OFF);
+		PSB_WVDC32(regs->psb.savePP_DIVISOR, PP_CYCLE);
+		PSB_WVDC32(regs->psb.savePP_CONTROL, PP_CONTROL);
 	}
 
 	/* Wait for cycle delay */
@@ -388,20 +386,20 @@ static int oaktrail_restore_display_registers(struct drm_device *dev)
 	} while (pp_stat & 0x10000000);
 
 	/* Restore HW overlay */
-	PSB_WVDC32(dev_priv->saveOV_OVADD, OV_OVADD);
-	PSB_WVDC32(dev_priv->saveOV_OGAMC0, OV_OGAMC0);
-	PSB_WVDC32(dev_priv->saveOV_OGAMC1, OV_OGAMC1);
-	PSB_WVDC32(dev_priv->saveOV_OGAMC2, OV_OGAMC2);
-	PSB_WVDC32(dev_priv->saveOV_OGAMC3, OV_OGAMC3);
-	PSB_WVDC32(dev_priv->saveOV_OGAMC4, OV_OGAMC4);
-	PSB_WVDC32(dev_priv->saveOV_OGAMC5, OV_OGAMC5);
+	PSB_WVDC32(regs->psb.saveOV_OVADD, OV_OVADD);
+	PSB_WVDC32(regs->psb.saveOV_OGAMC0, OV_OGAMC0);
+	PSB_WVDC32(regs->psb.saveOV_OGAMC1, OV_OGAMC1);
+	PSB_WVDC32(regs->psb.saveOV_OGAMC2, OV_OGAMC2);
+	PSB_WVDC32(regs->psb.saveOV_OGAMC3, OV_OGAMC3);
+	PSB_WVDC32(regs->psb.saveOV_OGAMC4, OV_OGAMC4);
+	PSB_WVDC32(regs->psb.saveOV_OGAMC5, OV_OGAMC5);
 
 	/* DPST registers */
-	PSB_WVDC32(dev_priv->saveHISTOGRAM_INT_CONTROL_REG,
+	PSB_WVDC32(regs->psb.saveHISTOGRAM_INT_CONTROL_REG,
 						HISTOGRAM_INT_CONTROL);
-	PSB_WVDC32(dev_priv->saveHISTOGRAM_LOGIC_CONTROL_REG,
+	PSB_WVDC32(regs->psb.saveHISTOGRAM_LOGIC_CONTROL_REG,
 						HISTOGRAM_LOGIC_CONTROL);
-	PSB_WVDC32(dev_priv->savePWM_CONTROL_LOGIC, PWM_CONTROL_LOGIC);
+	PSB_WVDC32(regs->psb.savePWM_CONTROL_LOGIC, PWM_CONTROL_LOGIC);
 
 	return 0;
 }
@@ -502,7 +500,6 @@ const struct psb_ops oaktrail_chip_ops = {
 	.backlight_init = oaktrail_backlight_init,
 #endif
 
-	.init_pm = oaktrail_init_pm,
 	.save_regs = oaktrail_save_display_registers,
 	.restore_regs = oaktrail_restore_display_registers,
 	.power_down = oaktrail_power_down,

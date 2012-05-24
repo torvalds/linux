@@ -81,12 +81,14 @@ void mcfslt_profile_init(void)
 static u32 mcfslt_cycles_per_jiffy;
 static u32 mcfslt_cnt;
 
+static irq_handler_t timer_interrupt;
+
 static irqreturn_t mcfslt_tick(int irq, void *dummy)
 {
 	/* Reset Slice Timer 0 */
 	__raw_writel(MCFSLT_SSR_BE | MCFSLT_SSR_TE, TA(MCFSLT_SSR));
 	mcfslt_cnt += mcfslt_cycles_per_jiffy;
-	return arch_timer_interrupt(irq, dummy);
+	return timer_interrupt(irq, dummy);
 }
 
 static struct irqaction mcfslt_timer_irq = {
@@ -121,7 +123,7 @@ static struct clocksource mcfslt_clk = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-void hw_timer_init(void)
+void hw_timer_init(irq_handler_t handler)
 {
 	mcfslt_cycles_per_jiffy = MCF_BUSCLK / HZ;
 	/*
@@ -136,6 +138,7 @@ void hw_timer_init(void)
 	/* initialize mcfslt_cnt knowing that slice timers count down */
 	mcfslt_cnt = mcfslt_cycles_per_jiffy;
 
+	timer_interrupt = handler;
 	setup_irq(MCF_IRQ_TIMER, &mcfslt_timer_irq);
 
 	clocksource_register_hz(&mcfslt_clk, MCF_BUSCLK);

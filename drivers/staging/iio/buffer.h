@@ -91,8 +91,6 @@ struct iio_buffer {
  **/
 void iio_buffer_init(struct iio_buffer *buffer);
 
-void iio_buffer_deinit(struct iio_buffer *buffer);
-
 /**
  * __iio_update_buffer() - update common elements of buffers
  * @buffer:		buffer that is the event source

@@ -163,7 +163,7 @@ static int __init create_sysfs_entries(void)
 
 #define create_hv_attr(name)						\
 	if (!err)							\
-		err = sysfs_create_file(hypervisor_kobj, &dev_attr_##name);
+		err = sysfs_create_file(hypervisor_kobj, &dev_attr_##name.attr);
 	create_hv_attr(type);
 	create_hv_attr(version);
 	create_hv_attr(config_version);

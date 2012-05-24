@@ -37,7 +37,6 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx51.h>
-#include <mach/audmux.h>
 
 #include "devices-imx51.h"
 

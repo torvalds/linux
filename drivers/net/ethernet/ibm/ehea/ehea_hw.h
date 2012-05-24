@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/net/ehea/ehea_hw.h
+ *  linux/drivers/net/ethernet/ibm/ehea/ehea_hw.h
  *
  *  eHEA ethernet device driver for IBM eServer System p
  *

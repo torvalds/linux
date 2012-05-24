@@ -179,7 +179,8 @@ do:
 
 	modprobe usbcore autosuspend=5
 
-Equivalently, you could add to /etc/modprobe.conf a line saying:
+Equivalently, you could add to a configuration file in /etc/modprobe.d
+a line saying:
 
 	options usbcore autosuspend=5
 
@@ -345,7 +346,7 @@ autosuspend the device.
 Drivers need not be concerned about balancing changes to the usage
 counter; the USB core will undo any remaining "get"s when a driver
 is unbound from its interface.  As a corollary, drivers must not call
-any of the usb_autopm_* functions after their diconnect() routine has
+any of the usb_autopm_* functions after their disconnect() routine has
 returned.
 
 Drivers using the async routines are responsible for their own

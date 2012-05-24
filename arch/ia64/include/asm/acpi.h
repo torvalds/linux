@@ -32,7 +32,6 @@
 
 #include <linux/init.h>
 #include <linux/numa.h>
-#include <asm/system.h>
 #include <asm/numa.h>
 
 #define COMPILER_DEPENDENT_INT64	long

@@ -33,6 +33,7 @@
 #define WATCHDOG_INTERVAL	round_jiffies_relative(HZ)
 #define LINK_TUNE_INTERVAL	round_jiffies_relative(HZ)
 #define AGC_INTERVAL		round_jiffies_relative(4 * HZ)
+#define VCO_INTERVAL		round_jiffies_relative(10 * HZ) /* 10 sec */
 
 /*
  * rt2x00_rate: Per rate device information
@@ -278,10 +279,22 @@ void rt2x00link_stop_watchdog(struct rt2x00_dev *rt2x00dev);
 void rt2x00link_start_agc(struct rt2x00_dev *rt2x00dev);
 
 /**
+ * rt2x00link_start_vcocal - Start periodic VCO calibration
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ */
+void rt2x00link_start_vcocal(struct rt2x00_dev *rt2x00dev);
+
+/**
  * rt2x00link_stop_agc - Stop periodic gain calibration
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  */
 void rt2x00link_stop_agc(struct rt2x00_dev *rt2x00dev);
+
+/**
+ * rt2x00link_stop_vcocal - Stop periodic VCO calibration
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ */
+void rt2x00link_stop_vcocal(struct rt2x00_dev *rt2x00dev);
 
 /**
  * rt2x00link_register - Initialize link tuning & watchdog functionality

@@ -4,6 +4,7 @@
 
 config NET_PACKET_ENGINE
 	bool "Packet Engine devices"
+	default y
 	depends on PCI
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

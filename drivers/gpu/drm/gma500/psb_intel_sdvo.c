@@ -1301,7 +1301,7 @@ psb_intel_sdvo_get_analog_edid(struct drm_connector *connector)
 	return NULL;
 }
 
-enum drm_connector_status
+static enum drm_connector_status
 psb_intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 {
 	struct psb_intel_sdvo *psb_intel_sdvo = intel_attached_sdvo(connector);
@@ -2312,10 +2312,8 @@ static bool psb_intel_sdvo_tv_create_property(struct psb_intel_sdvo *psb_intel_s
 		psb_intel_sdvo_connector->max_##name = data_value[0]; \
 		psb_intel_sdvo_connector->cur_##name = response; \
 		psb_intel_sdvo_connector->name = \
-			drm_property_create(dev, DRM_MODE_PROP_RANGE, #name, 2); \
+			drm_property_create_range(dev, 0, #name, 0, data_value[0]); \
 		if (!psb_intel_sdvo_connector->name) return false; \
-		psb_intel_sdvo_connector->name->values[0] = 0; \
-		psb_intel_sdvo_connector->name->values[1] = data_value[0]; \
 		drm_connector_attach_property(connector, \
 					      psb_intel_sdvo_connector->name, \
 					      psb_intel_sdvo_connector->cur_##name); \
@@ -2349,25 +2347,19 @@ psb_intel_sdvo_create_enhance_property_tv(struct psb_intel_sdvo *psb_intel_sdvo,
 		psb_intel_sdvo_connector->left_margin = data_value[0] - response;
 		psb_intel_sdvo_connector->right_margin = psb_intel_sdvo_connector->left_margin;
 		psb_intel_sdvo_connector->left =
-			drm_property_create(dev, DRM_MODE_PROP_RANGE,
-					    "left_margin", 2);
+			drm_property_create_range(dev, 0, "left_margin", 0, data_value[0]);
 		if (!psb_intel_sdvo_connector->left)
 			return false;
 
-		psb_intel_sdvo_connector->left->values[0] = 0;
-		psb_intel_sdvo_connector->left->values[1] = data_value[0];
 		drm_connector_attach_property(connector,
 					      psb_intel_sdvo_connector->left,
 					      psb_intel_sdvo_connector->left_margin);
 
 		psb_intel_sdvo_connector->right =
-			drm_property_create(dev, DRM_MODE_PROP_RANGE,
-					    "right_margin", 2);
+			drm_property_create_range(dev, 0, "right_margin", 0, data_value[0]);
 		if (!psb_intel_sdvo_connector->right)
 			return false;
 
-		psb_intel_sdvo_connector->right->values[0] = 0;
-		psb_intel_sdvo_connector->right->values[1] = data_value[0];
 		drm_connector_attach_property(connector,
 					      psb_intel_sdvo_connector->right,
 					      psb_intel_sdvo_connector->right_margin);
@@ -2391,25 +2383,19 @@ psb_intel_sdvo_create_enhance_property_tv(struct psb_intel_sdvo *psb_intel_sdvo,
 		psb_intel_sdvo_connector->top_margin = data_value[0] - response;
 		psb_intel_sdvo_connector->bottom_margin = psb_intel_sdvo_connector->top_margin;
 		psb_intel_sdvo_connector->top =
-			drm_property_create(dev, DRM_MODE_PROP_RANGE,
-					    "top_margin", 2);
+			drm_property_create_range(dev, 0, "top_margin", 0, data_value[0]);
 		if (!psb_intel_sdvo_connector->top)
 			return false;
 
-		psb_intel_sdvo_connector->top->values[0] = 0;
-		psb_intel_sdvo_connector->top->values[1] = data_value[0];
 		drm_connector_attach_property(connector,
 					      psb_intel_sdvo_connector->top,
 					      psb_intel_sdvo_connector->top_margin);
 
 		psb_intel_sdvo_connector->bottom =
-			drm_property_create(dev, DRM_MODE_PROP_RANGE,
-					    "bottom_margin", 2);
+			drm_property_create_range(dev, 0, "bottom_margin", 0, data_value[0]);
 		if (!psb_intel_sdvo_connector->bottom)
 			return false;
 
-		psb_intel_sdvo_connector->bottom->values[0] = 0;
-		psb_intel_sdvo_connector->bottom->values[1] = data_value[0];
 		drm_connector_attach_property(connector,
 					      psb_intel_sdvo_connector->bottom,
 					      psb_intel_sdvo_connector->bottom_margin);
@@ -2438,12 +2424,10 @@ psb_intel_sdvo_create_enhance_property_tv(struct psb_intel_sdvo *psb_intel_sdvo,
 		psb_intel_sdvo_connector->max_dot_crawl = 1;
 		psb_intel_sdvo_connector->cur_dot_crawl = response & 0x1;
 		psb_intel_sdvo_connector->dot_crawl =
-			drm_property_create(dev, DRM_MODE_PROP_RANGE, "dot_crawl", 2);
+			drm_property_create_range(dev, 0, "dot_crawl", 0, 1);
 		if (!psb_intel_sdvo_connector->dot_crawl)
 			return false;
 
-		psb_intel_sdvo_connector->dot_crawl->values[0] = 0;
-		psb_intel_sdvo_connector->dot_crawl->values[1] = 1;
 		drm_connector_attach_property(connector,
 					      psb_intel_sdvo_connector->dot_crawl,
 					      psb_intel_sdvo_connector->cur_dot_crawl);

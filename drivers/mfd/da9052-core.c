@@ -16,7 +16,6 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/mutex.h>
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -646,8 +645,6 @@ int __devinit da9052_device_init(struct da9052 *da9052, u8 chip_id)
 	struct da9052_pdata *pdata = da9052->dev->platform_data;
 	struct irq_desc *desc;
 	int ret;
-
-	mutex_init(&da9052->io_lock);
 
 	if (pdata && pdata->init != NULL)
 		pdata->init(da9052);

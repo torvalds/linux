@@ -231,7 +231,6 @@
 #include <linux/syscore_ops.h>
 #include <linux/i8253.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/desc.h>
 #include <asm/olpc.h>
@@ -1234,8 +1233,7 @@ static int suspend(int vetoable)
 	struct apm_user	*as;
 
 	dpm_suspend_start(PMSG_SUSPEND);
-
-	dpm_suspend_noirq(PMSG_SUSPEND);
+	dpm_suspend_end(PMSG_SUSPEND);
 
 	local_irq_disable();
 	syscore_suspend();
@@ -1259,9 +1257,9 @@ static int suspend(int vetoable)
 	syscore_resume();
 	local_irq_enable();
 
-	dpm_resume_noirq(PMSG_RESUME);
-
+	dpm_resume_start(PMSG_RESUME);
 	dpm_resume_end(PMSG_RESUME);
+
 	queue_event(APM_NORMAL_RESUME, NULL);
 	spin_lock(&user_list_lock);
 	for (as = user_list; as != NULL; as = as->next) {
@@ -1277,7 +1275,7 @@ static void standby(void)
 {
 	int err;
 
-	dpm_suspend_noirq(PMSG_SUSPEND);
+	dpm_suspend_end(PMSG_SUSPEND);
 
 	local_irq_disable();
 	syscore_suspend();
@@ -1291,7 +1289,7 @@ static void standby(void)
 	syscore_resume();
 	local_irq_enable();
 
-	dpm_resume_noirq(PMSG_RESUME);
+	dpm_resume_start(PMSG_RESUME);
 }
 
 static apm_event_t get_event(void)

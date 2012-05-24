@@ -525,6 +525,13 @@ static void asic3_gpio_set(struct gpio_chip *chip,
 	return;
 }
 
+static int asic3_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	struct asic3 *asic = container_of(chip, struct asic3, gpio);
+
+	return (offset < ASIC3_NUM_GPIOS) ? asic->irq_base + offset : -ENXIO;
+}
+
 static __init int asic3_gpio_probe(struct platform_device *pdev,
 				   u16 *gpio_config, int num)
 {
@@ -976,6 +983,7 @@ static int __init asic3_probe(struct platform_device *pdev)
 	asic->gpio.set = asic3_gpio_set;
 	asic->gpio.direction_input = asic3_gpio_direction_input;
 	asic->gpio.direction_output = asic3_gpio_direction_output;
+	asic->gpio.to_irq = asic3_gpio_to_irq;
 
 	ret = asic3_gpio_probe(pdev,
 			       pdata->gpio_config,

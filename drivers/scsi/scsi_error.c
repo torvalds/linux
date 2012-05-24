@@ -30,6 +30,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_driver.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_host.h>
@@ -141,11 +142,11 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 	else if (host->hostt->eh_timed_out)
 		rtn = host->hostt->eh_timed_out(scmd);
 
+	scmd->result |= DID_TIME_OUT << 16;
+
 	if (unlikely(rtn == BLK_EH_NOT_HANDLED &&
-		     !scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD))) {
-		scmd->result |= DID_TIME_OUT << 16;
+		     !scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD)))
 		rtn = BLK_EH_HANDLED;
-	}
 
 	return rtn;
 }
@@ -366,6 +367,14 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 			return TARGET_ERROR;
 
 	case ILLEGAL_REQUEST:
+		if (sshdr.asc == 0x20 || /* Invalid command operation code */
+		    sshdr.asc == 0x21 || /* Logical block address out of range */
+		    sshdr.asc == 0x24 || /* Invalid field in cdb */
+		    sshdr.asc == 0x26) { /* Parameter value invalid */
+			return TARGET_ERROR;
+		}
+		return SUCCESS;
+
 	default:
 		return SUCCESS;
 	}
@@ -770,6 +779,7 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, unsigned char *cmnd,
 			     int cmnd_size, int timeout, unsigned sense_bytes)
 {
 	struct scsi_device *sdev = scmd->device;
+	struct scsi_driver *sdrv = scsi_cmd_to_driver(scmd);
 	struct Scsi_Host *shost = sdev->host;
 	DECLARE_COMPLETION_ONSTACK(done);
 	unsigned long timeleft;
@@ -824,6 +834,10 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, unsigned char *cmnd,
 	}
 
 	scsi_eh_restore_cmnd(scmd, &ses);
+
+	if (sdrv && sdrv->eh_action)
+		rtn = sdrv->eh_action(scmd, cmnd, cmnd_size, rtn);
+
 	return rtn;
 }
 
@@ -1540,7 +1554,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 			 * Need to modify host byte to signal a
 			 * permanent target failure
 			 */
-			scmd->result |= (DID_TARGET_FAILURE << 16);
+			set_host_byte(scmd, DID_TARGET_FAILURE);
 			rtn = SUCCESS;
 		}
 		/* if rtn == FAILED, we have no sense information;
@@ -1560,7 +1574,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 	case RESERVATION_CONFLICT:
 		sdev_printk(KERN_INFO, scmd->device,
 			    "reservation conflict\n");
-		scmd->result |= (DID_NEXUS_FAILURE << 16);
+		set_host_byte(scmd, DID_NEXUS_FAILURE);
 		return SUCCESS; /* causes immediate i/o error */
 	default:
 		return FAILED;

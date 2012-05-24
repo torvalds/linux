@@ -27,9 +27,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/drv.h>
 #include <dspbridge/sync.h>
@@ -256,9 +253,6 @@ static void bad_page_dump(u32 pa, struct page *pg)
 void bridge_drv_entry(struct bridge_drv_interface **drv_intf,
 		   const char *driver_file_name)
 {
-
-	DBC_REQUIRE(driver_file_name != NULL);
-
 	if (strcmp(driver_file_name, "UMA") == 0)
 		*drv_intf = &drv_interface_fxns;
 	else
@@ -389,6 +383,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	u32 clk_cmd;
 	struct io_mgr *hio_mgr;
 	u32 ul_load_monitor_timer;
+	u32 wdt_en = 0;
 	struct omap_dsp_platform_data *pdata =
 		omap_dspbridge_dev->dev.platform_data;
 
@@ -399,16 +394,13 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	(void)dev_get_symbol(dev_context->dev_obj, SHMBASENAME,
 			     &ul_shm_base_virt);
 	ul_shm_base_virt *= DSPWORDSIZE;
-	DBC_ASSERT(ul_shm_base_virt != 0);
 	/* DSP Virtual address */
 	ul_tlb_base_virt = dev_context->atlb_entry[0].dsp_va;
-	DBC_ASSERT(ul_tlb_base_virt <= ul_shm_base_virt);
 	ul_shm_offset_virt =
 	    ul_shm_base_virt - (ul_tlb_base_virt * DSPWORDSIZE);
 	/* Kernel logical address */
 	ul_shm_base = dev_context->atlb_entry[0].gpp_va + ul_shm_offset_virt;
 
-	DBC_ASSERT(ul_shm_base != 0);
 	/* 2nd wd is used as sync field */
 	dw_sync_addr = ul_shm_base + SHMSYNCOFFSET;
 	/* Write a signature into the shm base + offset; this will
@@ -603,9 +595,12 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		if (!wait_for_start(dev_context, dw_sync_addr))
 			status = -ETIMEDOUT;
 
-		/* Start wdt */
-		dsp_wdt_sm_set((void *)ul_shm_base);
-		dsp_wdt_enable(true);
+		dev_get_symbol(dev_context->dev_obj, "_WDT_enable", &wdt_en);
+		if (wdt_en) {
+			/* Start wdt */
+			dsp_wdt_sm_set((void *)ul_shm_base);
+			dsp_wdt_enable(true);
+		}
 
 		status = dev_get_io_mgr(dev_context->dev_obj, &hio_mgr);
 		if (hio_mgr) {

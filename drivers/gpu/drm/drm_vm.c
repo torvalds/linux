@@ -519,7 +519,6 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_RESERVED;	/* Don't swap */
 	vma->vm_flags |= VM_DONTEXPAND;
 
-	vma->vm_file = filp;	/* Needed for drm_vm_open() */
 	drm_vm_open_locked(vma);
 	return 0;
 }
@@ -671,7 +670,6 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_RESERVED;	/* Don't swap */
 	vma->vm_flags |= VM_DONTEXPAND;
 
-	vma->vm_file = filp;	/* Needed for drm_vm_open() */
 	drm_vm_open_locked(vma);
 	return 0;
 }
@@ -681,6 +679,9 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
 	int ret;
+
+	if (drm_device_is_unplugged(dev))
+		return -ENODEV;
 
 	mutex_lock(&dev->struct_mutex);
 	ret = drm_mmap_locked(filp, vma);

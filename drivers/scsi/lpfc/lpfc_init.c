@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -32,6 +32,7 @@
 #include <linux/aer.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
+#include <linux/miscdevice.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -1474,8 +1475,12 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 				phba->sli4_hba.u.if_type2.STATUSregaddr,
 				&portstat_reg.word0);
 		/* consider PCI bus read error as pci_channel_offline */
-		if (pci_rd_rc1 == -EIO)
+		if (pci_rd_rc1 == -EIO) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3151 PCI bus read access failure: x%x\n",
+				readl(phba->sli4_hba.u.if_type2.STATUSregaddr));
 			return;
+		}
 		reg_err1 = readl(phba->sli4_hba.u.if_type2.ERR1regaddr);
 		reg_err2 = readl(phba->sli4_hba.u.if_type2.ERR2regaddr);
 		if (bf_get(lpfc_sliport_status_oti, &portstat_reg)) {
@@ -1525,6 +1530,9 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			}
 			/* fall through for not able to recover */
 		}
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3152 Unrecoverable error, bring the port "
+				"offline\n");
 		lpfc_sli4_offline_eratt(phba);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
@@ -2333,13 +2341,20 @@ lpfc_cleanup(struct lpfc_vport *vport)
 			continue;
 		}
 
+		/* take care of nodes in unused state before the state
+		 * machine taking action.
+		 */
+		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+			lpfc_nlp_put(ndlp);
+			continue;
+		}
+
 		if (ndlp->nlp_type & NLP_FABRIC)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RECOVERY);
 
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					     NLP_EVT_DEVICE_RM);
-
 	}
 
 	/* At this point, ALL ndlp's should be gone
@@ -2513,6 +2528,42 @@ lpfc_block_mgmt_io(struct lpfc_hba * phba)
 }
 
 /**
+ * lpfc_sli4_node_prep - Assign RPIs for active nodes.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * Allocate RPIs for all active remote nodes. This is needed whenever
+ * an SLI4 adapter is reset and the driver is not unloading. Its purpose
+ * is to fixup the temporary rpi assignments.
+ **/
+void
+lpfc_sli4_node_prep(struct lpfc_hba *phba)
+{
+	struct lpfc_nodelist  *ndlp, *next_ndlp;
+	struct lpfc_vport **vports;
+	int i;
+
+	if (phba->sli_rev != LPFC_SLI_REV4)
+		return;
+
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL) {
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
+			if (vports[i]->load_flag & FC_UNLOADING)
+				continue;
+
+			list_for_each_entry_safe(ndlp, next_ndlp,
+						 &vports[i]->fc_nodes,
+						 nlp_listp) {
+				if (NLP_CHK_NODE_ACT(ndlp))
+					ndlp->nlp_rpi =
+						lpfc_sli4_alloc_rpi(phba);
+			}
+		}
+	}
+	lpfc_destroy_vport_work_array(phba, vports);
+}
+
+/**
  * lpfc_online - Initialize and bring a HBA online
  * @phba: pointer to lpfc hba data structure.
  *
@@ -2654,6 +2705,13 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 				spin_lock_irq(shost->host_lock);
 				ndlp->nlp_flag &= ~NLP_NPR_ADISC;
 				spin_unlock_irq(shost->host_lock);
+				/*
+				 * Whenever an SLI4 port goes offline, free the
+				 * RPI. Get a new RPI when the adapter port
+				 * comes back online.
+				 */
+				if (phba->sli_rev == LPFC_SLI_REV4)
+					lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
 				lpfc_unreg_rpi(vports[i], ndlp);
 			}
 		}
@@ -2726,9 +2784,13 @@ lpfc_scsi_buf_update(struct lpfc_hba *phba)
 
 	spin_lock_irq(&phba->hbalock);
 	spin_lock(&phba->scsi_buf_list_lock);
-	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list, list)
+	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list, list) {
 		sb->cur_iocbq.sli4_xritag =
 			phba->sli4_hba.xri_ids[sb->cur_iocbq.sli4_lxritag];
+		set_bit(sb->cur_iocbq.sli4_lxritag, phba->sli4_hba.xri_bmask);
+		phba->sli4_hba.max_cfg_param.xri_used++;
+		phba->sli4_hba.xri_count++;
+	}
 	spin_unlock(&phba->scsi_buf_list_lock);
 	spin_unlock_irq(&phba->hbalock);
 	return 0;
@@ -3663,6 +3725,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		break;
 
 	case LPFC_FIP_EVENT_TYPE_FCF_DEAD:
+		phba->fcoe_cvl_eventtag = acqe_fip->event_tag;
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
 			"2549 FCF (x%x) disconnected from network, "
 			"tag:x%x\n", acqe_fip->index, acqe_fip->event_tag);
@@ -3724,6 +3787,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		}
 		break;
 	case LPFC_FIP_EVENT_TYPE_CVL:
+		phba->fcoe_cvl_eventtag = acqe_fip->event_tag;
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
 			"2718 Clear Virtual Link Received for VPI 0x%x"
 			" tag 0x%x\n", acqe_fip->index, acqe_fip->event_tag);
@@ -4327,6 +4391,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	uint8_t pn_page[LPFC_MAX_SUPPORTED_PAGES] = {0};
 	struct lpfc_mqe *mqe;
 	int longs, sli_family;
+	int sges_per_segment;
 
 	/* Before proceed, wait for POST done and device ready */
 	rc = lpfc_sli4_post_status_check(phba);
@@ -4390,6 +4455,11 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	phba->fc_map[1] = LPFC_FCOE_FCF_MAP1;
 	phba->fc_map[2] = LPFC_FCOE_FCF_MAP2;
 
+	/* With BlockGuard we can have multiple SGEs per Data Segemnt */
+	sges_per_segment = 1;
+	if (phba->cfg_enable_bg)
+		sges_per_segment = 2;
+
 	/*
 	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
@@ -4398,7 +4468,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 * sgl sizes of must be a power of 2.
 	 */
 	buf_size = (sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp) +
-		    ((phba->cfg_sg_seg_cnt + 2) * sizeof(struct sli4_sge)));
+		    (((phba->cfg_sg_seg_cnt * sges_per_segment) + 2) *
+		    sizeof(struct sli4_sge)));
 
 	sli_family = bf_get(lpfc_sli_intf_sli_family, &phba->sli4_hba.sli_intf);
 	max_buf_size = LPFC_SLI4_MAX_BUF_SIZE;
@@ -4415,6 +4486,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	default:
 		break;
 	}
+
 	for (dma_buf_size = LPFC_SLI4_MIN_BUF_SIZE;
 	     dma_buf_size < max_buf_size && buf_size > dma_buf_size;
 	     dma_buf_size = dma_buf_size << 1)
@@ -5158,8 +5230,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	 * rpi is normalized to a zero base because the physical rpi is
 	 * port based.
 	 */
-	curr_rpi_range = phba->sli4_hba.next_rpi -
-		phba->sli4_hba.max_cfg_param.rpi_base;
+	curr_rpi_range = phba->sli4_hba.next_rpi;
 	spin_unlock_irq(&phba->hbalock);
 
 	/*
@@ -5750,10 +5821,9 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 					readl(phba->sli4_hba.u.if_type2.
 					      ERR2regaddr);
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2888 Port Error Detected "
-					"during POST: "
-					"port status reg 0x%x, "
-					"port_smphr reg 0x%x, "
+					"2888 Unrecoverable port error "
+					"following POST: port status reg "
+					"0x%x, port_smphr reg 0x%x, "
 					"error 1=0x%x, error 2=0x%x\n",
 					reg_data.word0,
 					portsmphr_reg.word0,
@@ -6074,7 +6144,6 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		phba->sli4_hba.next_xri = phba->sli4_hba.max_cfg_param.xri_base;
 		phba->vpi_base = phba->sli4_hba.max_cfg_param.vpi_base;
 		phba->vfi_base = phba->sli4_hba.max_cfg_param.vfi_base;
-		phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.rpi_base;
 		phba->max_vpi = (phba->sli4_hba.max_cfg_param.max_vpi > 0) ?
 				(phba->sli4_hba.max_cfg_param.max_vpi - 1) : 0;
 		phba->max_vports = phba->max_vpi;
@@ -7163,6 +7232,7 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 	uint32_t rdy_chk, num_resets = 0, reset_again = 0;
 	union lpfc_sli4_cfg_shdr *shdr;
 	struct lpfc_register reg_data;
+	uint16_t devid;
 
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
 	switch (if_type) {
@@ -7209,7 +7279,9 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			       LPFC_SLIPORT_INIT_PORT);
 			writel(reg_data.word0, phba->sli4_hba.u.if_type2.
 			       CTRLregaddr);
-
+			/* flush */
+			pci_read_config_word(phba->pcidev,
+					     PCI_DEVICE_ID, &devid);
 			/*
 			 * Poll the Port Status Register and wait for RDY for
 			 * up to 10 seconds.  If the port doesn't respond, treat
@@ -7223,19 +7295,17 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 					rc = -ENODEV;
 					goto out;
 				}
+				if (bf_get(lpfc_sliport_status_rn, &reg_data))
+					reset_again++;
 				if (bf_get(lpfc_sliport_status_rdy, &reg_data))
 					break;
-				if (bf_get(lpfc_sliport_status_rn, &reg_data)) {
-					reset_again++;
-					break;
-				}
 			}
 
 			/*
 			 * If the port responds to the init request with
 			 * reset needed, delay for a bit and restart the loop.
 			 */
-			if (reset_again) {
+			if (reset_again && (rdy_chk < 1000)) {
 				msleep(10);
 				reset_again = 0;
 				continue;
@@ -7249,11 +7319,10 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 				phba->work_status[1] = readl(
 					phba->sli4_hba.u.if_type2.ERR2regaddr);
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2890 Port Error Detected "
-					"during Port Reset: "
-					"port status reg 0x%x, "
+					"2890 Port error detected during port "
+					"reset(%d): port status reg 0x%x, "
 					"error 1=0x%x, error 2=0x%x\n",
-					reg_data.word0,
+					num_resets, reg_data.word0,
 					phba->work_status[0],
 					phba->work_status[1]);
 				rc = -ENODEV;
@@ -8112,6 +8181,9 @@ lpfc_unset_hba(struct lpfc_hba *phba)
 	vport->load_flag |= FC_UNLOADING;
 	spin_unlock_irq(shost->host_lock);
 
+	kfree(phba->vpi_bmask);
+	kfree(phba->vpi_ids);
+
 	lpfc_stop_hba_timers(phba);
 
 	phba->pport->work_port_events = 0;
@@ -8644,6 +8716,9 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 	/* Final cleanup of txcmplq and reset the HBA */
 	lpfc_sli_brdrestart(phba);
 
+	kfree(phba->vpi_bmask);
+	kfree(phba->vpi_ids);
+
 	lpfc_stop_hba_timers(phba);
 	spin_lock_irq(&phba->hbalock);
 	list_del_init(&vport->listentry);
@@ -9058,7 +9133,7 @@ lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *phba)
 int
 lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 {
-	char fwrev[32];
+	char fwrev[FW_REV_STR_SIZE];
 	struct lpfc_grp_hdr *image = (struct lpfc_grp_hdr *)fw->data;
 	struct list_head dma_buffer_list;
 	int i, rc = 0;
@@ -10012,6 +10087,36 @@ lpfc_io_resume(struct pci_dev *pdev)
 	return;
 }
 
+/**
+ * lpfc_mgmt_open - method called when 'lpfcmgmt' is opened from userspace
+ * @inode: pointer to the inode representing the lpfcmgmt device
+ * @filep: pointer to the file representing the open lpfcmgmt device
+ *
+ * This routine puts a reference count on the lpfc module whenever the
+ * character device is opened
+ **/
+static int
+lpfc_mgmt_open(struct inode *inode, struct file *filep)
+{
+	try_module_get(THIS_MODULE);
+	return 0;
+}
+
+/**
+ * lpfc_mgmt_release - method called when 'lpfcmgmt' is closed in userspace
+ * @inode: pointer to the inode representing the lpfcmgmt device
+ * @filep: pointer to the file representing the open lpfcmgmt device
+ *
+ * This routine removes a reference count from the lpfc module when the
+ * character device is closed
+ **/
+static int
+lpfc_mgmt_release(struct inode *inode, struct file *filep)
+{
+	module_put(THIS_MODULE);
+	return 0;
+}
+
 static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_VIPER,
 		PCI_ANY_ID, PCI_ANY_ID, },
@@ -10124,6 +10229,17 @@ static struct pci_driver lpfc_driver = {
 	.err_handler    = &lpfc_err_handler,
 };
 
+static const struct file_operations lpfc_mgmt_fop = {
+	.open = lpfc_mgmt_open,
+	.release = lpfc_mgmt_release,
+};
+
+static struct miscdevice lpfc_mgmt_dev = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "lpfcmgmt",
+	.fops = &lpfc_mgmt_fop,
+};
+
 /**
  * lpfc_init - lpfc module initialization routine
  *
@@ -10143,6 +10259,11 @@ lpfc_init(void)
 
 	printk(LPFC_MODULE_DESC "\n");
 	printk(LPFC_COPYRIGHT "\n");
+
+	error = misc_register(&lpfc_mgmt_dev);
+	if (error)
+		printk(KERN_ERR "Could not register lpfcmgmt device, "
+			"misc_register returned with status %d", error);
 
 	if (lpfc_enable_npiv) {
 		lpfc_transport_functions.vport_create = lpfc_vport_create;
@@ -10180,6 +10301,7 @@ lpfc_init(void)
 static void __exit
 lpfc_exit(void)
 {
+	misc_deregister(&lpfc_mgmt_dev);
 	pci_unregister_driver(&lpfc_driver);
 	fc_release_transport(lpfc_transport_template);
 	if (lpfc_enable_npiv)

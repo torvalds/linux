@@ -135,8 +135,8 @@ static int __init h1910_init(void)
 	}
 
 	/* Register the partitions */
-	mtd_device_parse_register(h1910_nand_mtd, NULL, 0,
-			partition_info, NUM_PARTITIONS);
+	mtd_device_parse_register(h1910_nand_mtd, NULL, NULL, partition_info,
+				  NUM_PARTITIONS);
 
 	/* Return happy */
 	return 0;

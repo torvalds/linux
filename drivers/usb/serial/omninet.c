@@ -62,7 +62,6 @@ static struct usb_driver omninet_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
-	.no_dynamic_id = 	1,
 };
 
 
@@ -72,7 +71,6 @@ static struct usb_serial_driver zyxel_omninet_device = {
 		.name =		"omninet",
 	},
 	.description =		"ZyXEL - omni.net lcd plus usb",
-	.usb_driver =		&omninet_driver,
 	.id_table =		id_table,
 	.num_ports =		1,
 	.attach =		omninet_attach,
@@ -84,6 +82,10 @@ static struct usb_serial_driver zyxel_omninet_device = {
 	.write_bulk_callback =	omninet_write_bulk_callback,
 	.disconnect =		omninet_disconnect,
 	.release =		omninet_release,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&zyxel_omninet_device, NULL
 };
 
 
@@ -254,7 +256,7 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 	result = usb_submit_urb(wport->write_urb, GFP_ATOMIC);
 	if (result) {
 		set_bit(0, &wport->write_urbs_free);
-		dev_err(&port->dev,
+		dev_err_console(port,
 			"%s - failed submitting write urb, error %d\n",
 			__func__, result);
 	} else
@@ -319,35 +321,7 @@ static void omninet_release(struct usb_serial *serial)
 	kfree(usb_get_serial_port_data(port));
 }
 
-
-static int __init omninet_init(void)
-{
-	int retval;
-	retval = usb_serial_register(&zyxel_omninet_device);
-	if (retval)
-		goto failed_usb_serial_register;
-	retval = usb_register(&omninet_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&zyxel_omninet_device);
-failed_usb_serial_register:
-	return retval;
-}
-
-
-static void __exit omninet_exit(void)
-{
-	usb_deregister(&omninet_driver);
-	usb_serial_deregister(&zyxel_omninet_device);
-}
-
-
-module_init(omninet_init);
-module_exit(omninet_exit);
+module_usb_serial_driver(omninet_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

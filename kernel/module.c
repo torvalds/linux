@@ -105,6 +105,7 @@ struct list_head *kdb_modules = &modules; /* kdb needs the list of modules */
 
 /* Block module loading/unloading? */
 int modules_disabled = 0;
+core_param(nomodule, modules_disabled, bint, 0);
 
 /* Waiting for a module to finish initializing? */
 static DECLARE_WAIT_QUEUE_HEAD(module_wq);
@@ -902,6 +903,36 @@ static ssize_t show_refcnt(struct module_attribute *mattr,
 
 static struct module_attribute modinfo_refcnt =
 	__ATTR(refcnt, 0444, show_refcnt, NULL);
+
+void __module_get(struct module *module)
+{
+	if (module) {
+		preempt_disable();
+		__this_cpu_inc(module->refptr->incs);
+		trace_module_get(module, _RET_IP_);
+		preempt_enable();
+	}
+}
+EXPORT_SYMBOL(__module_get);
+
+bool try_module_get(struct module *module)
+{
+	bool ret = true;
+
+	if (module) {
+		preempt_disable();
+
+		if (likely(module_is_live(module))) {
+			__this_cpu_inc(module->refptr->incs);
+			trace_module_get(module, _RET_IP_);
+		} else
+			ret = false;
+
+		preempt_enable();
+	}
+	return ret;
+}
+EXPORT_SYMBOL(try_module_get);
 
 void module_put(struct module *module)
 {
@@ -2380,8 +2411,7 @@ static int copy_and_check(struct load_info *info,
 		return -ENOEXEC;
 
 	/* Suck in entire file: we'll want most of it. */
-	/* vmalloc barfs on "unusual" numbers.  Check here */
-	if (len > 64 * 1024 * 1024 || (hdr = vmalloc(len)) == NULL)
+	if ((hdr = vmalloc(len)) == NULL)
 		return -ENOMEM;
 
 	if (copy_from_user(hdr, umod, len) != 0) {
@@ -2922,7 +2952,8 @@ static struct module *load_module(void __user *umod,
 	mutex_unlock(&module_mutex);
 
 	/* Module is ready to execute: parsing args may do that. */
-	err = parse_args(mod->name, mod->args, mod->kp, mod->num_kp, NULL);
+	err = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
+			 -32768, 32767, NULL);
 	if (err < 0)
 		goto unlink;
 

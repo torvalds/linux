@@ -1,0 +1,23 @@
+* Marvell PXA GPIO controller
+
+Required properties:
+- compatible : Should be "mrvl,pxa-gpio" or "mrvl,mmp-gpio"
+- reg : Address and length of the register set for the device
+- interrupts : Should be the port interrupt shared by all gpio pins, if
+- interrupt-name : Should be the name of irq resource.
+  one number.
+- gpio-controller : Marks the device node as a gpio controller.
+- #gpio-cells : Should be one.  It is the pin number.
+
+Example:
+
+	gpio: gpio@d4019000 {
+		compatible = "mrvl,mmp-gpio", "mrvl,pxa-gpio";
+		reg = <0xd4019000 0x1000>;
+		interrupts = <49>, <17>, <18>;
+		interrupt-name = "gpio_mux", "gpio0", "gpio1";
+		gpio-controller;
+		#gpio-cells = <1>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+      };

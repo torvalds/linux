@@ -12,6 +12,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <plat/clock.h>
 #include <mach/misc_regs.h>
@@ -641,8 +642,8 @@ static struct clk_lookup spear_clk_lookups[] = {
 	{ .con_id = "gpt0_synth_clk",	.clk = &gpt0_synth_clk},
 	{ .con_id = "gpt2_synth_clk",	.clk = &gpt2_synth_clk},
 	{ .con_id = "gpt3_synth_clk",	.clk = &gpt3_synth_clk},
-	{ .dev_id = "uart0",		.clk = &uart0_clk},
-	{ .dev_id = "uart1",		.clk = &uart1_clk},
+	{ .dev_id = "d0000000.serial",	.clk = &uart0_clk},
+	{ .dev_id = "d0080000.serial",	.clk = &uart1_clk},
 	{ .dev_id = "firda",		.clk = &firda_clk},
 	{ .dev_id = "clcd",		.clk = &clcd_clk},
 	{ .dev_id = "gpt0",		.clk = &gpt0_clk},
@@ -655,20 +656,20 @@ static struct clk_lookup spear_clk_lookups[] = {
 	{ .con_id = "usbh.1_clk",	.clk = &usbh1_clk},
 	/* clock derived from ahb clk */
 	{ .con_id = "apb_clk",		.clk = &apb_clk},
-	{ .dev_id = "i2c_designware.0",	.clk = &i2c_clk},
+	{ .dev_id = "d0200000.i2c",	.clk = &i2c_clk},
 	{ .dev_id = "dma",		.clk = &dma_clk},
 	{ .dev_id = "jpeg",		.clk = &jpeg_clk},
 	{ .dev_id = "gmac",		.clk = &gmac_clk},
 	{ .dev_id = "smi",		.clk = &smi_clk},
-	{ .con_id = "fsmc",		.clk = &fsmc_clk},
+	{ .dev_id = "fsmc-nand",	.clk = &fsmc_clk},
 	/* clock derived from apb clk */
 	{ .dev_id = "adc",		.clk = &adc_clk},
 	{ .dev_id = "ssp-pl022.0",	.clk = &ssp0_clk},
 	{ .dev_id = "ssp-pl022.1",	.clk = &ssp1_clk},
 	{ .dev_id = "ssp-pl022.2",	.clk = &ssp2_clk},
-	{ .dev_id = "gpio0",		.clk = &gpio0_clk},
-	{ .dev_id = "gpio1",		.clk = &gpio1_clk},
-	{ .dev_id = "gpio2",		.clk = &gpio2_clk},
+	{ .dev_id = "f0100000.gpio",	.clk = &gpio0_clk},
+	{ .dev_id = "fc980000.gpio",	.clk = &gpio1_clk},
+	{ .dev_id = "d8100000.gpio",	.clk = &gpio2_clk},
 };
 
 void __init spear6xx_clk_init(void)

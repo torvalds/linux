@@ -89,6 +89,8 @@ enum nfc_commands {
  * @NFC_ATTR_TARGET_SEL_RES: NFC-A targets extra information (useful if the
  *	target is not NFC-Forum compliant)
  * @NFC_ATTR_TARGET_NFCID1: NFC-A targets identifier, max 10 bytes
+ * @NFC_ATTR_TARGET_SENSB_RES: NFC-B targets extra information, max 12 bytes
+ * @NFC_ATTR_TARGET_SENSF_RES: NFC-F targets extra information, max 18 bytes
  * @NFC_ATTR_COMM_MODE: Passive or active mode
  * @NFC_ATTR_RF_MODE: Initiator or target
  */
@@ -101,14 +103,20 @@ enum nfc_attrs {
 	NFC_ATTR_TARGET_SENS_RES,
 	NFC_ATTR_TARGET_SEL_RES,
 	NFC_ATTR_TARGET_NFCID1,
+	NFC_ATTR_TARGET_SENSB_RES,
+	NFC_ATTR_TARGET_SENSF_RES,
 	NFC_ATTR_COMM_MODE,
 	NFC_ATTR_RF_MODE,
+	NFC_ATTR_DEVICE_POWERED,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };
 #define NFC_ATTR_MAX (__NFC_ATTR_AFTER_LAST - 1)
 
 #define NFC_DEVICE_NAME_MAXSIZE 8
+#define NFC_NFCID1_MAXSIZE 10
+#define NFC_SENSB_RES_MAXSIZE 12
+#define NFC_SENSF_RES_MAXSIZE 18
 
 /* NFC protocols */
 #define NFC_PROTO_JEWEL		1

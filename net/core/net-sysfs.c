@@ -608,10 +608,10 @@ static ssize_t store_rps_map(struct netdev_rx_queue *queue,
 	spin_unlock(&rps_map_lock);
 
 	if (map)
-		jump_label_inc(&rps_needed);
+		static_key_slow_inc(&rps_needed);
 	if (old_map) {
 		kfree_rcu(old_map, rcu);
-		jump_label_dec(&rps_needed);
+		static_key_slow_dec(&rps_needed);
 	}
 	free_cpumask_var(mask);
 	return len;

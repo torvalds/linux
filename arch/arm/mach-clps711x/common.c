@@ -37,6 +37,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/hardware/clps7111.h>
+#include <asm/system_misc.h>
 
 /*
  * This maps the generic CLPS711x registers
@@ -225,3 +226,19 @@ void clps711x_restart(char mode, const char *cmd)
 {
 	soft_restart(0);
 }
+
+static void clps711x_idle(void)
+{
+	clps_writel(1, HALT);
+	__asm__ __volatile__(
+	"mov    r0, r0\n\
+	mov     r0, r0");
+}
+
+static int __init clps711x_idle_init(void)
+{
+	arm_pm_idle = clps711x_idle;
+	return 0;
+}
+
+arch_initcall(clps711x_idle_init);

@@ -2,7 +2,8 @@
 #define __ARCH_M68K_ATOMIC__
 
 #include <linux/types.h>
-#include <asm/system.h>
+#include <linux/irqflags.h>
+#include <asm/cmpxchg.h>
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for

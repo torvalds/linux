@@ -17,11 +17,11 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/serial_core.h>
+#include <linux/sunserialcore.h>
 #include <linux/init.h>
 
 #include <asm/prom.h>
 
-#include "suncore.h"
 
 static int sunserial_current_minor = 64;
 

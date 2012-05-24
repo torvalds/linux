@@ -228,7 +228,7 @@ void efx_mdio_set_mmds_lpower(struct efx_nic *efx,
 /**
  * efx_mdio_set_settings - Set (some of) the PHY settings over MDIO.
  * @efx:		Efx NIC
- * @ecmd: 		New settings
+ * @ecmd:		New settings
  */
 int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {

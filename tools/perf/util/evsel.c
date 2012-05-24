@@ -34,7 +34,7 @@ int __perf_evsel__sample_size(u64 sample_type)
 	return size;
 }
 
-static void hists__init(struct hists *hists)
+void hists__init(struct hists *hists)
 {
 	memset(hists, 0, sizeof(*hists));
 	hists->entries_in_array[0] = hists->entries_in_array[1] = RB_ROOT;
@@ -63,12 +63,13 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
-void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
+void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
+			struct perf_evsel *first)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
 
-	attr->sample_id_all = opts->sample_id_all_avail ? 1 : 0;
+	attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
 	attr->inherit	    = !opts->no_inherit;
 	attr->read_format   = PERF_FORMAT_TOTAL_TIME_ENABLED |
 			      PERF_FORMAT_TOTAL_TIME_RUNNING |
@@ -111,7 +112,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
 	if (opts->period)
 		attr->sample_type	|= PERF_SAMPLE_PERIOD;
 
-	if (opts->sample_id_all_avail &&
+	if (!opts->sample_id_all_missing &&
 	    (opts->sample_time || opts->system_wide ||
 	     !opts->no_inherit || opts->cpu_list))
 		attr->sample_type	|= PERF_SAMPLE_TIME;
@@ -126,11 +127,16 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
 		attr->watermark = 0;
 		attr->wakeup_events = 1;
 	}
+	if (opts->branch_stack) {
+		attr->sample_type	|= PERF_SAMPLE_BRANCH_STACK;
+		attr->branch_sample_type = opts->branch_stack;
+	}
 
 	attr->mmap = track;
 	attr->comm = track;
 
-	if (opts->target_pid == -1 && opts->target_tid == -1 && !opts->system_wide) {
+	if (!opts->target_pid && !opts->target_tid && !opts->system_wide &&
+	    (!opts->group || evsel == first)) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
@@ -536,7 +542,7 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_READ) {
-		fprintf(stderr, "PERF_SAMPLE_READ is unsuported for now\n");
+		fprintf(stderr, "PERF_SAMPLE_READ is unsupported for now\n");
 		return -1;
 	}
 
@@ -574,8 +580,20 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 			return -EFAULT;
 
 		data->raw_data = (void *) pdata;
+
+		array = (void *)array + data->raw_size + sizeof(u32);
 	}
 
+	if (type & PERF_SAMPLE_BRANCH_STACK) {
+		u64 sz;
+
+		data->branch_stack = (struct branch_stack *)array;
+		array++; /* nr */
+
+		sz = data->branch_stack->nr * sizeof(struct branch_entry);
+		sz /= sizeof(u64);
+		array += sz;
+	}
 	return 0;
 }
 

@@ -31,7 +31,7 @@
 #include <linux/mfd/aat2870.h>
 
 struct aat2870_regulator {
-	struct platform_device *pdev;
+	struct aat2870_data *aat2870;
 	struct regulator_desc desc;
 
 	const int *voltages; /* uV */
@@ -60,7 +60,7 @@ static int aat2870_ldo_set_voltage_sel(struct regulator_dev *rdev,
 				       unsigned selector)
 {
 	struct aat2870_regulator *ri = rdev_get_drvdata(rdev);
-	struct aat2870_data *aat2870 = dev_get_drvdata(ri->pdev->dev.parent);
+	struct aat2870_data *aat2870 = ri->aat2870;
 
 	return aat2870->update(aat2870, ri->voltage_addr, ri->voltage_mask,
 			       selector << ri->voltage_shift);
@@ -69,7 +69,7 @@ static int aat2870_ldo_set_voltage_sel(struct regulator_dev *rdev,
 static int aat2870_ldo_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct aat2870_regulator *ri = rdev_get_drvdata(rdev);
-	struct aat2870_data *aat2870 = dev_get_drvdata(ri->pdev->dev.parent);
+	struct aat2870_data *aat2870 = ri->aat2870;
 	u8 val;
 	int ret;
 
@@ -83,7 +83,7 @@ static int aat2870_ldo_get_voltage_sel(struct regulator_dev *rdev)
 static int aat2870_ldo_enable(struct regulator_dev *rdev)
 {
 	struct aat2870_regulator *ri = rdev_get_drvdata(rdev);
-	struct aat2870_data *aat2870 = dev_get_drvdata(ri->pdev->dev.parent);
+	struct aat2870_data *aat2870 = ri->aat2870;
 
 	return aat2870->update(aat2870, ri->enable_addr, ri->enable_mask,
 			       ri->enable_mask);
@@ -92,7 +92,7 @@ static int aat2870_ldo_enable(struct regulator_dev *rdev)
 static int aat2870_ldo_disable(struct regulator_dev *rdev)
 {
 	struct aat2870_regulator *ri = rdev_get_drvdata(rdev);
-	struct aat2870_data *aat2870 = dev_get_drvdata(ri->pdev->dev.parent);
+	struct aat2870_data *aat2870 = ri->aat2870;
 
 	return aat2870->update(aat2870, ri->enable_addr, ri->enable_mask, 0);
 }
@@ -100,7 +100,7 @@ static int aat2870_ldo_disable(struct regulator_dev *rdev)
 static int aat2870_ldo_is_enabled(struct regulator_dev *rdev)
 {
 	struct aat2870_regulator *ri = rdev_get_drvdata(rdev);
-	struct aat2870_data *aat2870 = dev_get_drvdata(ri->pdev->dev.parent);
+	struct aat2870_data *aat2870 = ri->aat2870;
 	u8 val;
 	int ret;
 
@@ -185,7 +185,7 @@ static int aat2870_regulator_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Invalid device ID, %d\n", pdev->id);
 		return -EINVAL;
 	}
-	ri->pdev = pdev;
+	ri->aat2870 = dev_get_drvdata(pdev->dev.parent);
 
 	rdev = regulator_register(&ri->desc, &pdev->dev,
 				  pdev->dev.platform_data, ri, NULL);

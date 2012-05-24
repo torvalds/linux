@@ -1,7 +1,7 @@
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/interface_capabilities
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/device_capabilities
+What:		/sys/bus/usb/drivers/usbtmc/*/interface_capabilities
+What:		/sys/bus/usb/drivers/usbtmc/*/device_capabilities
 Date:		August 2008
-Contact:	Greg Kroah-Hartman <gregkh@suse.de>
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
 		These files show the various USB TMC capabilities as described
 		by the device itself.  The full description of the bitfields
@@ -12,10 +12,10 @@ Description:
 		The files are read only.
 
 
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/usb488_interface_capabilities
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/usb488_device_capabilities
+What:		/sys/bus/usb/drivers/usbtmc/*/usb488_interface_capabilities
+What:		/sys/bus/usb/drivers/usbtmc/*/usb488_device_capabilities
 Date:		August 2008
-Contact:	Greg Kroah-Hartman <gregkh@suse.de>
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
 		These files show the various USB TMC capabilities as described
 		by the device itself.  The full description of the bitfields
@@ -27,9 +27,9 @@ Description:
 		The files are read only.
 
 
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/TermChar
+What:		/sys/bus/usb/drivers/usbtmc/*/TermChar
 Date:		August 2008
-Contact:	Greg Kroah-Hartman <gregkh@suse.de>
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
 		This file is the TermChar value to be sent to the USB TMC
 		device as described by the document, "Universal Serial Bus Test
@@ -40,9 +40,9 @@ Description:
 		sent to the device or not.
 
 
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/TermCharEnabled
+What:		/sys/bus/usb/drivers/usbtmc/*/TermCharEnabled
 Date:		August 2008
-Contact:	Greg Kroah-Hartman <gregkh@suse.de>
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
 		This file determines if the TermChar is to be sent to the
 		device on every transaction or not.  For more details about
@@ -51,11 +51,11 @@ Description:
 		published by the USB-IF.
 
 
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/auto_abort
+What:		/sys/bus/usb/drivers/usbtmc/*/auto_abort
 Date:		August 2008
-Contact:	Greg Kroah-Hartman <gregkh@suse.de>
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
-		This file determines if the the transaction of the USB TMC
+		This file determines if the transaction of the USB TMC
 		device is to be automatically aborted if there is any error.
 		For more details about this, please see the document,
 		"Universal Serial Bus Test and Measurement Class Specification

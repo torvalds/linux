@@ -11,6 +11,7 @@
  * warranty of any kind, whether express or implied.
  */
 #include <linux/io.h>
+#include <asm/system_misc.h>
 #include <asm/hardware/sp810.h>
 #include <mach/hardware.h>
 #include <mach/generic.h>

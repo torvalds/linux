@@ -657,7 +657,8 @@ try_again:
 			goto error;
 
 		down_read(&cred->request_key_auth->sem);
-		if (cred->request_key_auth->flags & KEY_FLAG_REVOKED) {
+		if (test_bit(KEY_FLAG_REVOKED,
+			     &cred->request_key_auth->flags)) {
 			key_ref = ERR_PTR(-EKEYREVOKED);
 			key = NULL;
 		} else {

@@ -95,9 +95,9 @@ static int mscan_set_mode(struct net_device *dev, u8 mode)
 			 * any, at once.
 			 */
 			if (i >= MSCAN_SET_MODE_RETRIES)
-				dev_dbg(dev->dev.parent,
-					"device failed to enter sleep mode. "
-					"We proceed anyhow.\n");
+				netdev_dbg(dev,
+					   "device failed to enter sleep mode. "
+					   "We proceed anyhow.\n");
 			else
 				priv->can.state = CAN_STATE_SLEEPING;
 		}
@@ -213,7 +213,7 @@ static netdev_tx_t mscan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	switch (hweight8(i)) {
 	case 0:
 		netif_stop_queue(dev);
-		dev_err(dev->dev.parent, "Tx Ring full when queue awake!\n");
+		netdev_err(dev, "Tx Ring full when queue awake!\n");
 		return NETDEV_TX_BUSY;
 	case 1:
 		/*
@@ -352,7 +352,7 @@ static void mscan_get_err_frame(struct net_device *dev, struct can_frame *frame,
 	struct net_device_stats *stats = &dev->stats;
 	enum can_state old_state;
 
-	dev_dbg(dev->dev.parent, "error interrupt (canrflg=%#x)\n", canrflg);
+	netdev_dbg(dev, "error interrupt (canrflg=%#x)\n", canrflg);
 	frame->can_id = CAN_ERR_FLAG;
 
 	if (canrflg & MSCAN_OVRIF) {
@@ -427,7 +427,7 @@ static int mscan_rx_poll(struct napi_struct *napi, int quota)
 		skb = alloc_can_skb(dev, &frame);
 		if (!skb) {
 			if (printk_ratelimit())
-				dev_notice(dev->dev.parent, "packet dropped\n");
+				netdev_notice(dev, "packet dropped\n");
 			stats->rx_dropped++;
 			out_8(&regs->canrflg, canrflg);
 			continue;
@@ -551,11 +551,22 @@ static int mscan_do_set_bittiming(struct net_device *dev)
 		BTR1_SET_TSEG2(bt->phase_seg2) |
 		BTR1_SET_SAM(priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES));
 
-	dev_info(dev->dev.parent, "setting BTR0=0x%02x BTR1=0x%02x\n",
-		btr0, btr1);
+	netdev_info(dev, "setting BTR0=0x%02x BTR1=0x%02x\n", btr0, btr1);
 
 	out_8(&regs->canbtr0, btr0);
 	out_8(&regs->canbtr1, btr1);
+
+	return 0;
+}
+
+static int mscan_get_berr_counter(const struct net_device *dev,
+				  struct can_berr_counter *bec)
+{
+	struct mscan_priv *priv = netdev_priv(dev);
+	struct mscan_regs __iomem *regs = priv->reg_base;
+
+	bec->txerr = in_8(&regs->cantxerr);
+	bec->rxerr = in_8(&regs->canrxerr);
 
 	return 0;
 }
@@ -575,7 +586,7 @@ static int mscan_open(struct net_device *dev)
 
 	ret = request_irq(dev->irq, mscan_isr, 0, dev->name, dev);
 	if (ret < 0) {
-		dev_err(dev->dev.parent, "failed to attach interrupt\n");
+		netdev_err(dev, "failed to attach interrupt\n");
 		goto exit_napi_disable;
 	}
 
@@ -639,8 +650,10 @@ int register_mscandev(struct net_device *dev, int mscan_clksrc)
 	else
 		ctl1 &= ~MSCAN_CLKSRC;
 
-	if (priv->type == MSCAN_TYPE_MPC5121)
+	if (priv->type == MSCAN_TYPE_MPC5121) {
+		priv->can.do_get_berr_counter = mscan_get_berr_counter;
 		ctl1 |= MSCAN_BORM; /* bus-off recovery upon request */
+	}
 
 	ctl1 |= MSCAN_CANE;
 	out_8(&regs->canctl1, ctl1);

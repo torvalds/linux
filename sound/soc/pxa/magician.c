@@ -411,7 +411,7 @@ static int magician_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "VINR");
 
 	/* Add magician specific controls */
-	err = snd_soc_add_controls(codec, uda1380_magician_controls,
+	err = snd_soc_add_codec_controls(codec, uda1380_magician_controls,
 				ARRAY_SIZE(uda1380_magician_controls));
 	if (err < 0)
 		return err;

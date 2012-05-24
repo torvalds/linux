@@ -167,7 +167,7 @@ static void sdk7786_pcie_clk_disable(struct clk *clk)
 	fpga_write_reg(fpga_read_reg(PCIECR) & ~PCIECR_CLKEN, PCIECR);
 }
 
-static struct clk_ops sdk7786_pcie_clk_ops = {
+static struct sh_clk_ops sdk7786_pcie_clk_ops = {
 	.enable		= sdk7786_pcie_clk_enable,
 	.disable	= sdk7786_pcie_clk_disable,
 };

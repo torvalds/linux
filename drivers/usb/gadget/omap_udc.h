@@ -164,7 +164,7 @@ struct omap_udc {
 	struct omap_ep			ep[32];
 	u16				devstat;
 	u16				clr_halt;
-	struct otg_transceiver		*transceiver;
+	struct usb_phy			*transceiver;
 	struct list_head		iso;
 	unsigned			softconnect:1;
 	unsigned			vbus_active:1;

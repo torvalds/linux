@@ -21,7 +21,6 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <asm/system.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/buffer_head.h>

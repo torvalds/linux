@@ -27,6 +27,10 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+#include <linux/of_mtd.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -34,21 +38,9 @@
 #include <linux/dmaengine.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/platform_data/atmel.h>
 
-#include <mach/board.h>
 #include <mach/cpu.h>
-
-#ifdef CONFIG_MTD_NAND_ATMEL_ECC_HW
-#define hard_ecc	1
-#else
-#define hard_ecc	0
-#endif
-
-#ifdef CONFIG_MTD_NAND_ATMEL_ECC_NONE
-#define no_ecc		1
-#else
-#define no_ecc		0
-#endif
 
 static int use_dma = 1;
 module_param(use_dma, int, 0);
@@ -95,7 +87,7 @@ struct atmel_nand_host {
 	struct mtd_info		mtd;
 	void __iomem		*io_base;
 	dma_addr_t		io_phys;
-	struct atmel_nand_data	*board;
+	struct atmel_nand_data	board;
 	struct device		*dev;
 	void __iomem		*ecc;
 
@@ -113,8 +105,8 @@ static int cpu_has_dma(void)
  */
 static void atmel_nand_enable(struct atmel_nand_host *host)
 {
-	if (gpio_is_valid(host->board->enable_pin))
-		gpio_set_value(host->board->enable_pin, 0);
+	if (gpio_is_valid(host->board.enable_pin))
+		gpio_set_value(host->board.enable_pin, 0);
 }
 
 /*
@@ -122,8 +114,8 @@ static void atmel_nand_enable(struct atmel_nand_host *host)
  */
 static void atmel_nand_disable(struct atmel_nand_host *host)
 {
-	if (gpio_is_valid(host->board->enable_pin))
-		gpio_set_value(host->board->enable_pin, 1);
+	if (gpio_is_valid(host->board.enable_pin))
+		gpio_set_value(host->board.enable_pin, 1);
 }
 
 /*
@@ -144,9 +136,9 @@ static void atmel_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl
 		return;
 
 	if (ctrl & NAND_CLE)
-		writeb(cmd, host->io_base + (1 << host->board->cle));
+		writeb(cmd, host->io_base + (1 << host->board.cle));
 	else
-		writeb(cmd, host->io_base + (1 << host->board->ale));
+		writeb(cmd, host->io_base + (1 << host->board.ale));
 }
 
 /*
@@ -157,8 +149,8 @@ static int atmel_nand_device_ready(struct mtd_info *mtd)
 	struct nand_chip *nand_chip = mtd->priv;
 	struct atmel_nand_host *host = nand_chip->priv;
 
-	return gpio_get_value(host->board->rdy_pin) ^
-                !!host->board->rdy_pin_active_low;
+	return gpio_get_value(host->board.rdy_pin) ^
+                !!host->board.rdy_pin_active_low;
 }
 
 /*
@@ -273,7 +265,7 @@ static void atmel_read_buf(struct mtd_info *mtd, u8 *buf, int len)
 		if (atmel_nand_dma_op(mtd, buf, len, 1) == 0)
 			return;
 
-	if (host->board->bus_width_16)
+	if (host->board.bus_width_16)
 		atmel_read_buf16(mtd, buf, len);
 	else
 		atmel_read_buf8(mtd, buf, len);
@@ -289,7 +281,7 @@ static void atmel_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
 		if (atmel_nand_dma_op(mtd, (void *)buf, len, 0) == 0)
 			return;
 
-	if (host->board->bus_width_16)
+	if (host->board.bus_width_16)
 		atmel_write_buf16(mtd, buf, len);
 	else
 		atmel_write_buf8(mtd, buf, len);
@@ -481,6 +473,56 @@ static void atmel_nand_hwctl(struct mtd_info *mtd, int mode)
 	}
 }
 
+#if defined(CONFIG_OF)
+static int __devinit atmel_of_init_port(struct atmel_nand_host *host,
+					 struct device_node *np)
+{
+	u32 val;
+	int ecc_mode;
+	struct atmel_nand_data *board = &host->board;
+	enum of_gpio_flags flags;
+
+	if (of_property_read_u32(np, "atmel,nand-addr-offset", &val) == 0) {
+		if (val >= 32) {
+			dev_err(host->dev, "invalid addr-offset %u\n", val);
+			return -EINVAL;
+		}
+		board->ale = val;
+	}
+
+	if (of_property_read_u32(np, "atmel,nand-cmd-offset", &val) == 0) {
+		if (val >= 32) {
+			dev_err(host->dev, "invalid cmd-offset %u\n", val);
+			return -EINVAL;
+		}
+		board->cle = val;
+	}
+
+	ecc_mode = of_get_nand_ecc_mode(np);
+
+	board->ecc_mode = ecc_mode < 0 ? NAND_ECC_SOFT : ecc_mode;
+
+	board->on_flash_bbt = of_get_nand_on_flash_bbt(np);
+
+	if (of_get_nand_bus_width(np) == 16)
+		board->bus_width_16 = 1;
+
+	board->rdy_pin = of_get_gpio_flags(np, 0, &flags);
+	board->rdy_pin_active_low = (flags == OF_GPIO_ACTIVE_LOW);
+
+	board->enable_pin = of_get_gpio(np, 1);
+	board->det_pin = of_get_gpio(np, 2);
+
+	return 0;
+}
+#else
+static int __devinit atmel_of_init_port(struct atmel_nand_host *host,
+					 struct device_node *np)
+{
+	return -EINVAL;
+}
+#endif
+
 /*
  * Probe for the NAND device.
  */
@@ -491,6 +533,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	struct nand_chip *nand_chip;
 	struct resource *regs;
 	struct resource *mem;
+	struct mtd_part_parser_data ppdata = {};
 	int res;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -517,8 +560,15 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 
 	mtd = &host->mtd;
 	nand_chip = &host->nand_chip;
-	host->board = pdev->dev.platform_data;
 	host->dev = &pdev->dev;
+	if (pdev->dev.of_node) {
+		res = atmel_of_init_port(host, pdev->dev.of_node);
+		if (res)
+			goto err_nand_ioremap;
+	} else {
+		memcpy(&host->board, pdev->dev.platform_data,
+		       sizeof(struct atmel_nand_data));
+	}
 
 	nand_chip->priv = host;		/* link the private data structures */
 	mtd->priv = nand_chip;
@@ -529,36 +579,36 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	nand_chip->IO_ADDR_W = host->io_base;
 	nand_chip->cmd_ctrl = atmel_nand_cmd_ctrl;
 
-	if (gpio_is_valid(host->board->rdy_pin))
+	if (gpio_is_valid(host->board.rdy_pin))
 		nand_chip->dev_ready = atmel_nand_device_ready;
 
+	nand_chip->ecc.mode = host->board.ecc_mode;
+
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!regs && hard_ecc) {
+	if (!regs && nand_chip->ecc.mode == NAND_ECC_HW) {
 		printk(KERN_ERR "atmel_nand: can't get I/O resource "
 				"regs\nFalling back on software ECC\n");
+		nand_chip->ecc.mode = NAND_ECC_SOFT;
 	}
 
-	nand_chip->ecc.mode = NAND_ECC_SOFT;	/* enable ECC */
-	if (no_ecc)
-		nand_chip->ecc.mode = NAND_ECC_NONE;
-	if (hard_ecc && regs) {
+	if (nand_chip->ecc.mode == NAND_ECC_HW) {
 		host->ecc = ioremap(regs->start, resource_size(regs));
 		if (host->ecc == NULL) {
 			printk(KERN_ERR "atmel_nand: ioremap failed\n");
 			res = -EIO;
 			goto err_ecc_ioremap;
 		}
-		nand_chip->ecc.mode = NAND_ECC_HW;
 		nand_chip->ecc.calculate = atmel_nand_calculate;
 		nand_chip->ecc.correct = atmel_nand_correct;
 		nand_chip->ecc.hwctl = atmel_nand_hwctl;
 		nand_chip->ecc.read_page = atmel_nand_read_page;
 		nand_chip->ecc.bytes = 4;
+		nand_chip->ecc.strength = 1;
 	}
 
 	nand_chip->chip_delay = 20;		/* 20us command delay time */
 
-	if (host->board->bus_width_16)	/* 16-bit bus width */
+	if (host->board.bus_width_16)	/* 16-bit bus width */
 		nand_chip->options |= NAND_BUSWIDTH_16;
 
 	nand_chip->read_buf = atmel_read_buf;
@@ -567,15 +617,15 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 	atmel_nand_enable(host);
 
-	if (gpio_is_valid(host->board->det_pin)) {
-		if (gpio_get_value(host->board->det_pin)) {
+	if (gpio_is_valid(host->board.det_pin)) {
+		if (gpio_get_value(host->board.det_pin)) {
 			printk(KERN_INFO "No SmartMedia card inserted.\n");
 			res = -ENXIO;
 			goto err_no_card;
 		}
 	}
 
-	if (on_flash_bbt) {
+	if (host->board.on_flash_bbt || on_flash_bbt) {
 		printk(KERN_INFO "atmel_nand: Use On Flash BBT\n");
 		nand_chip->bbt_options |= NAND_BBT_USE_FLASH;
 	}
@@ -650,8 +700,9 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	}
 
 	mtd->name = "atmel_nand";
-	res = mtd_device_parse_register(mtd, NULL, 0,
-			host->board->parts, host->board->num_parts);
+	ppdata.of_node = pdev->dev.of_node;
+	res = mtd_device_parse_register(mtd, NULL, &ppdata,
+			host->board.parts, host->board.num_parts);
 	if (!res)
 		return res;
 
@@ -695,11 +746,21 @@ static int __exit atmel_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id atmel_nand_dt_ids[] = {
+	{ .compatible = "atmel,at91rm9200-nand" },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(of, atmel_nand_dt_ids);
+#endif
+
 static struct platform_driver atmel_nand_driver = {
 	.remove		= __exit_p(atmel_nand_remove),
 	.driver		= {
 		.name	= "atmel_nand",
 		.owner	= THIS_MODULE,
+		.of_match_table	= of_match_ptr(atmel_nand_dt_ids),
 	},
 };
 

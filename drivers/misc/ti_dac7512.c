@@ -82,20 +82,9 @@ static struct spi_driver dac7512_driver = {
 	.remove	= __devexit_p(dac7512_remove),
 };
 
-static int __init dac7512_init(void)
-{
-	return spi_register_driver(&dac7512_driver);
-}
-
-static void __exit dac7512_exit(void)
-{
-	spi_unregister_driver(&dac7512_driver);
-}
+module_spi_driver(dac7512_driver);
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("DAC7512 16-bit DAC");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRIVER_VERSION);
-
-module_init(dac7512_init);
-module_exit(dac7512_exit);

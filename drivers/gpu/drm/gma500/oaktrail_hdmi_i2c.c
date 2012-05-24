@@ -127,7 +127,7 @@ static int oaktrail_hdmi_i2c_access(struct i2c_adapter *adap,
 {
 	struct oaktrail_hdmi_dev *hdmi_dev = i2c_get_adapdata(adap);
 	struct hdmi_i2c_dev *i2c_dev = hdmi_dev->i2c_dev;
-	int i, err = 0;
+	int i;
 
 	mutex_lock(&i2c_dev->i2c_lock);
 
@@ -139,9 +139,9 @@ static int oaktrail_hdmi_i2c_access(struct i2c_adapter *adap,
 	for (i = 0; i < num; i++) {
 		if (pmsg->len && pmsg->buf) {
 			if (pmsg->flags & I2C_M_RD)
-				err = xfer_read(adap, pmsg);
+				xfer_read(adap, pmsg);
 			else
-				err = xfer_write(adap, pmsg);
+				xfer_write(adap, pmsg);
 		}
 		pmsg++;         /* next message */
 	}

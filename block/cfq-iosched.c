@@ -295,6 +295,7 @@ struct cfq_data {
 	unsigned int cfq_slice_idle;
 	unsigned int cfq_group_idle;
 	unsigned int cfq_latency;
+	unsigned int cfq_target_latency;
 
 	/*
 	 * Fallback dummy cfqq for extreme OOM conditions
@@ -604,7 +605,7 @@ cfq_group_slice(struct cfq_data *cfqd, struct cfq_group *cfqg)
 {
 	struct cfq_rb_root *st = &cfqd->grp_service_tree;
 
-	return cfq_target_latency * cfqg->weight / st->total_weight;
+	return cfqd->cfq_target_latency * cfqg->weight / st->total_weight;
 }
 
 static inline unsigned
@@ -2271,7 +2272,8 @@ new_workload:
 		 * to have higher weight. A more accurate thing would be to
 		 * calculate system wide asnc/sync ratio.
 		 */
-		tmp = cfq_target_latency * cfqg_busy_async_queues(cfqd, cfqg);
+		tmp = cfqd->cfq_target_latency *
+			cfqg_busy_async_queues(cfqd, cfqg);
 		tmp = tmp/cfqd->busy_queues;
 		slice = min_t(unsigned, slice, tmp);
 
@@ -3470,20 +3472,20 @@ cfq_set_request(struct request_queue *q, struct request *rq, gfp_t gfp_mask)
 	const int rw = rq_data_dir(rq);
 	const bool is_sync = rq_is_sync(rq);
 	struct cfq_queue *cfqq;
+	unsigned int changed;
 
 	might_sleep_if(gfp_mask & __GFP_WAIT);
 
 	spin_lock_irq(q->queue_lock);
 
 	/* handle changed notifications */
-	if (unlikely(cic->icq.changed)) {
-		if (test_and_clear_bit(ICQ_IOPRIO_CHANGED, &cic->icq.changed))
-			changed_ioprio(cic);
+	changed = icq_get_changed(&cic->icq);
+	if (unlikely(changed & ICQ_IOPRIO_CHANGED))
+		changed_ioprio(cic);
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-		if (test_and_clear_bit(ICQ_CGROUP_CHANGED, &cic->icq.changed))
-			changed_cgroup(cic);
+	if (unlikely(changed & ICQ_CGROUP_CHANGED))
+		changed_cgroup(cic);
 #endif
-	}
 
 new_queue:
 	cfqq = cic_to_cfqq(cic, is_sync);
@@ -3737,6 +3739,7 @@ static void *cfq_init_queue(struct request_queue *q)
 	cfqd->cfq_back_penalty = cfq_back_penalty;
 	cfqd->cfq_slice[0] = cfq_slice_async;
 	cfqd->cfq_slice[1] = cfq_slice_sync;
+	cfqd->cfq_target_latency = cfq_target_latency;
 	cfqd->cfq_slice_async_rq = cfq_slice_async_rq;
 	cfqd->cfq_slice_idle = cfq_slice_idle;
 	cfqd->cfq_group_idle = cfq_group_idle;
@@ -3788,6 +3791,7 @@ SHOW_FUNCTION(cfq_slice_sync_show, cfqd->cfq_slice[1], 1);
 SHOW_FUNCTION(cfq_slice_async_show, cfqd->cfq_slice[0], 1);
 SHOW_FUNCTION(cfq_slice_async_rq_show, cfqd->cfq_slice_async_rq, 0);
 SHOW_FUNCTION(cfq_low_latency_show, cfqd->cfq_latency, 0);
+SHOW_FUNCTION(cfq_target_latency_show, cfqd->cfq_target_latency, 1);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, __CONV)			\
@@ -3821,6 +3825,7 @@ STORE_FUNCTION(cfq_slice_async_store, &cfqd->cfq_slice[0], 1, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_async_rq_store, &cfqd->cfq_slice_async_rq, 1,
 		UINT_MAX, 0);
 STORE_FUNCTION(cfq_low_latency_store, &cfqd->cfq_latency, 0, 1, 0);
+STORE_FUNCTION(cfq_target_latency_store, &cfqd->cfq_target_latency, 1, UINT_MAX, 1);
 #undef STORE_FUNCTION
 
 #define CFQ_ATTR(name) \
@@ -3838,6 +3843,7 @@ static struct elv_fs_entry cfq_attrs[] = {
 	CFQ_ATTR(slice_idle),
 	CFQ_ATTR(group_idle),
 	CFQ_ATTR(low_latency),
+	CFQ_ATTR(target_latency),
 	__ATTR_NULL
 };
 

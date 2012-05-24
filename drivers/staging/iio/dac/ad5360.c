@@ -439,8 +439,8 @@ static int __devinit ad5360_alloc_channels(struct iio_dev *indio_dev)
 	struct iio_chan_spec *channels;
 	unsigned int i;
 
-	channels = kcalloc(sizeof(struct iio_chan_spec),
-			st->chip_info->num_channels, GFP_KERNEL);
+	channels = kcalloc(st->chip_info->num_channels,
+			   sizeof(struct iio_chan_spec), GFP_KERNEL);
 
 	if (!channels)
 		return -ENOMEM;

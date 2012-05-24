@@ -203,7 +203,7 @@ static bool make_all_cpus_request(struct kvm *kvm, unsigned int req)
 
 void kvm_flush_remote_tlbs(struct kvm *kvm)
 {
-	int dirty_count = kvm->tlbs_dirty;
+	long dirty_count = kvm->tlbs_dirty;
 
 	smp_mb();
 	if (make_all_cpus_request(kvm, KVM_REQ_TLB_FLUSH))
@@ -289,15 +289,15 @@ static void kvm_mmu_notifier_invalidate_page(struct mmu_notifier *mn,
 	 */
 	idx = srcu_read_lock(&kvm->srcu);
 	spin_lock(&kvm->mmu_lock);
+
 	kvm->mmu_notifier_seq++;
 	need_tlb_flush = kvm_unmap_hva(kvm, address) | kvm->tlbs_dirty;
-	spin_unlock(&kvm->mmu_lock);
-	srcu_read_unlock(&kvm->srcu, idx);
-
 	/* we've to flush the tlb before the pages can be freed */
 	if (need_tlb_flush)
 		kvm_flush_remote_tlbs(kvm);
 
+	spin_unlock(&kvm->mmu_lock);
+	srcu_read_unlock(&kvm->srcu, idx);
 }
 
 static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
@@ -335,12 +335,12 @@ static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 	for (; start < end; start += PAGE_SIZE)
 		need_tlb_flush |= kvm_unmap_hva(kvm, start);
 	need_tlb_flush |= kvm->tlbs_dirty;
-	spin_unlock(&kvm->mmu_lock);
-	srcu_read_unlock(&kvm->srcu, idx);
-
 	/* we've to flush the tlb before the pages can be freed */
 	if (need_tlb_flush)
 		kvm_flush_remote_tlbs(kvm);
+
+	spin_unlock(&kvm->mmu_lock);
+	srcu_read_unlock(&kvm->srcu, idx);
 }
 
 static void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
@@ -357,11 +357,11 @@ static void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
 	 * been freed.
 	 */
 	kvm->mmu_notifier_seq++;
+	smp_wmb();
 	/*
 	 * The above sequence increase must be visible before the
-	 * below count decrease but both values are read by the kvm
-	 * page fault under mmu_lock spinlock so we don't need to add
-	 * a smb_wmb() here in between the two.
+	 * below count decrease, which is ensured by the smp_wmb above
+	 * in conjunction with the smp_rmb in mmu_notifier_retry().
 	 */
 	kvm->mmu_notifier_count--;
 	spin_unlock(&kvm->mmu_lock);
@@ -378,12 +378,13 @@ static int kvm_mmu_notifier_clear_flush_young(struct mmu_notifier *mn,
 
 	idx = srcu_read_lock(&kvm->srcu);
 	spin_lock(&kvm->mmu_lock);
-	young = kvm_age_hva(kvm, address);
-	spin_unlock(&kvm->mmu_lock);
-	srcu_read_unlock(&kvm->srcu, idx);
 
+	young = kvm_age_hva(kvm, address);
 	if (young)
 		kvm_flush_remote_tlbs(kvm);
+
+	spin_unlock(&kvm->mmu_lock);
+	srcu_read_unlock(&kvm->srcu, idx);
 
 	return young;
 }
@@ -449,7 +450,7 @@ static void kvm_init_memslots_id(struct kvm *kvm)
 		slots->id_to_index[i] = slots->memslots[i].id = i;
 }
 
-static struct kvm *kvm_create_vm(void)
+static struct kvm *kvm_create_vm(unsigned long type)
 {
 	int r, i;
 	struct kvm *kvm = kvm_arch_alloc_vm();
@@ -457,7 +458,7 @@ static struct kvm *kvm_create_vm(void)
 	if (!kvm)
 		return ERR_PTR(-ENOMEM);
 
-	r = kvm_arch_init_vm(kvm);
+	r = kvm_arch_init_vm(kvm, type);
 	if (r)
 		goto out_err_nodisable;
 
@@ -535,21 +536,13 @@ static void kvm_destroy_dirty_bitmap(struct kvm_memory_slot *memslot)
 static void kvm_free_physmem_slot(struct kvm_memory_slot *free,
 				  struct kvm_memory_slot *dont)
 {
-	int i;
-
 	if (!dont || free->rmap != dont->rmap)
 		vfree(free->rmap);
 
 	if (!dont || free->dirty_bitmap != dont->dirty_bitmap)
 		kvm_destroy_dirty_bitmap(free);
 
-
-	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
-		if (!dont || free->lpage_info[i] != dont->lpage_info[i]) {
-			vfree(free->lpage_info[i]);
-			free->lpage_info[i] = NULL;
-		}
-	}
+	kvm_arch_free_memslot(free, dont);
 
 	free->npages = 0;
 	free->rmap = NULL;
@@ -616,7 +609,6 @@ static int kvm_vm_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-#ifndef CONFIG_S390
 /*
  * Allocation size is twice as large as the actual dirty bitmap size.
  * This makes it possible to do double buffering: see x86's
@@ -624,6 +616,7 @@ static int kvm_vm_release(struct inode *inode, struct file *filp)
  */
 static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 {
+#ifndef CONFIG_S390
 	unsigned long dirty_bytes = 2 * kvm_dirty_bitmap_bytes(memslot);
 
 	if (dirty_bytes > PAGE_SIZE)
@@ -636,21 +629,8 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 
 	memslot->dirty_bitmap_head = memslot->dirty_bitmap;
 	memslot->nr_dirty_pages = 0;
-	return 0;
-}
 #endif /* !CONFIG_S390 */
-
-static struct kvm_memory_slot *
-search_memslots(struct kvm_memslots *slots, gfn_t gfn)
-{
-	struct kvm_memory_slot *memslot;
-
-	kvm_for_each_memslot(memslot, slots)
-		if (gfn >= memslot->base_gfn &&
-		      gfn < memslot->base_gfn + memslot->npages)
-			return memslot;
-
-	return NULL;
+	return 0;
 }
 
 static int cmp_memslot(const void *slot1, const void *slot2)
@@ -778,57 +758,17 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	r = -ENOMEM;
 
 	/* Allocate if a slot is being created */
-#ifndef CONFIG_S390
-	if (npages && !new.rmap) {
-		new.rmap = vzalloc(npages * sizeof(*new.rmap));
-
-		if (!new.rmap)
-			goto out_free;
-
+	if (npages && !old.npages) {
 		new.user_alloc = user_alloc;
 		new.userspace_addr = mem->userspace_addr;
-	}
-	if (!npages)
-		goto skip_lpage;
-
-	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
-		unsigned long ugfn;
-		unsigned long j;
-		int lpages;
-		int level = i + 2;
-
-		/* Avoid unused variable warning if no large pages */
-		(void)level;
-
-		if (new.lpage_info[i])
-			continue;
-
-		lpages = 1 + ((base_gfn + npages - 1)
-			     >> KVM_HPAGE_GFN_SHIFT(level));
-		lpages -= base_gfn >> KVM_HPAGE_GFN_SHIFT(level);
-
-		new.lpage_info[i] = vzalloc(lpages * sizeof(*new.lpage_info[i]));
-
-		if (!new.lpage_info[i])
+#ifndef CONFIG_S390
+		new.rmap = vzalloc(npages * sizeof(*new.rmap));
+		if (!new.rmap)
 			goto out_free;
-
-		if (base_gfn & (KVM_PAGES_PER_HPAGE(level) - 1))
-			new.lpage_info[i][0].write_count = 1;
-		if ((base_gfn+npages) & (KVM_PAGES_PER_HPAGE(level) - 1))
-			new.lpage_info[i][lpages - 1].write_count = 1;
-		ugfn = new.userspace_addr >> PAGE_SHIFT;
-		/*
-		 * If the gfn and userspace address are not aligned wrt each
-		 * other, or if explicitly asked to, disable large page
-		 * support for this slot
-		 */
-		if ((base_gfn ^ ugfn) & (KVM_PAGES_PER_HPAGE(level) - 1) ||
-		    !largepages_enabled)
-			for (j = 0; j < lpages; ++j)
-				new.lpage_info[i][j].write_count = 1;
+#endif /* not defined CONFIG_S390 */
+		if (kvm_arch_create_memslot(&new, npages))
+			goto out_free;
 	}
-
-skip_lpage:
 
 	/* Allocate page dirty bitmap if needed */
 	if ((new.flags & KVM_MEM_LOG_DIRTY_PAGES) && !new.dirty_bitmap) {
@@ -836,11 +776,6 @@ skip_lpage:
 			goto out_free;
 		/* destroy any largepage mappings for dirty tracking */
 	}
-#else  /* not defined CONFIG_S390 */
-	new.user_alloc = user_alloc;
-	if (user_alloc)
-		new.userspace_addr = mem->userspace_addr;
-#endif /* not defined CONFIG_S390 */
 
 	if (!npages) {
 		struct kvm_memory_slot *slot;
@@ -873,12 +808,13 @@ skip_lpage:
 	if (r)
 		goto out_free;
 
-	/* map the pages in iommu page table */
+	/* map/unmap the pages in iommu page table */
 	if (npages) {
 		r = kvm_iommu_map_pages(kvm, &new);
 		if (r)
 			goto out_free;
-	}
+	} else
+		kvm_iommu_unmap_pages(kvm, &old);
 
 	r = -ENOMEM;
 	slots = kmemdup(kvm->memslots, sizeof(struct kvm_memslots),
@@ -890,8 +826,7 @@ skip_lpage:
 	if (!npages) {
 		new.rmap = NULL;
 		new.dirty_bitmap = NULL;
-		for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i)
-			new.lpage_info[i] = NULL;
+		memset(&new.arch, 0, sizeof(new.arch));
 	}
 
 	update_memslots(slots, &new);
@@ -978,6 +913,11 @@ out:
 	return r;
 }
 
+bool kvm_largepages_enabled(void)
+{
+	return largepages_enabled;
+}
+
 void kvm_disable_largepages(void)
 {
 	largepages_enabled = false;
@@ -1030,12 +970,6 @@ int kvm_is_error_hva(unsigned long addr)
 	return addr == bad_hva();
 }
 EXPORT_SYMBOL_GPL(kvm_is_error_hva);
-
-static struct kvm_memory_slot *__gfn_to_memslot(struct kvm_memslots *slots,
-						gfn_t gfn)
-{
-	return search_memslots(slots, gfn);
-}
 
 struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 {
@@ -1459,7 +1393,7 @@ int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 
 	ghc->gpa = gpa;
 	ghc->generation = slots->generation;
-	ghc->memslot = __gfn_to_memslot(slots, gfn);
+	ghc->memslot = gfn_to_memslot(kvm, gfn);
 	ghc->hva = gfn_to_hva_many(ghc->memslot, gfn, NULL);
 	if (!kvm_is_error_hva(ghc->hva))
 		ghc->hva += offset;
@@ -1657,7 +1591,7 @@ static int kvm_vcpu_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		page = virt_to_page(vcpu->kvm->coalesced_mmio_ring);
 #endif
 	else
-		return VM_FAULT_SIGBUS;
+		return kvm_arch_vcpu_fault(vcpu, vmf);
 	get_page(page);
 	vmf->page = page;
 	return 0;
@@ -1718,6 +1652,10 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 		goto vcpu_destroy;
 
 	mutex_lock(&kvm->lock);
+	if (!kvm_vcpu_compatible(vcpu)) {
+		r = -EINVAL;
+		goto unlock_vcpu_destroy;
+	}
 	if (atomic_read(&kvm->online_vcpus) == KVM_MAX_VCPUS) {
 		r = -EINVAL;
 		goto unlock_vcpu_destroy;
@@ -2198,12 +2136,12 @@ static struct file_operations kvm_vm_fops = {
 	.llseek		= noop_llseek,
 };
 
-static int kvm_dev_ioctl_create_vm(void)
+static int kvm_dev_ioctl_create_vm(unsigned long type)
 {
 	int r;
 	struct kvm *kvm;
 
-	kvm = kvm_create_vm();
+	kvm = kvm_create_vm(type);
 	if (IS_ERR(kvm))
 		return PTR_ERR(kvm);
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
@@ -2254,10 +2192,7 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = KVM_API_VERSION;
 		break;
 	case KVM_CREATE_VM:
-		r = -EINVAL;
-		if (arg)
-			goto out;
-		r = kvm_dev_ioctl_create_vm();
+		r = kvm_dev_ioctl_create_vm(arg);
 		break;
 	case KVM_CHECK_EXTENSION:
 		r = kvm_dev_ioctl_check_extension_generic(arg);

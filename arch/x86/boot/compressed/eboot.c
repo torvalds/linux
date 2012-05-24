@@ -539,7 +539,7 @@ static efi_status_t handle_ramdisks(efi_loaded_image_t *image,
 		struct initrd *initrd;
 		efi_file_handle_t *h;
 		efi_file_info_t *info;
-		efi_char16_t filename[256];
+		efi_char16_t filename_16[256];
 		unsigned long info_sz;
 		efi_guid_t info_guid = EFI_FILE_INFO_ID;
 		efi_char16_t *p;
@@ -552,14 +552,14 @@ static efi_status_t handle_ramdisks(efi_loaded_image_t *image,
 		str += 7;
 
 		initrd = &initrds[i];
-		p = filename;
+		p = filename_16;
 
 		/* Skip any leading slashes */
 		while (*str == '/' || *str == '\\')
 			str++;
 
 		while (*str && *str != ' ' && *str != '\n') {
-			if (p >= filename + sizeof(filename))
+			if ((u8 *)p >= (u8 *)filename_16 + sizeof(filename_16))
 				break;
 
 			*p++ = *str++;
@@ -583,7 +583,7 @@ static efi_status_t handle_ramdisks(efi_loaded_image_t *image,
 				goto free_initrds;
 		}
 
-		status = efi_call_phys5(fh->open, fh, &h, filename,
+		status = efi_call_phys5(fh->open, fh, &h, filename_16,
 					EFI_FILE_MODE_READ, (u64)0);
 		if (status != EFI_SUCCESS)
 			goto close_handles;

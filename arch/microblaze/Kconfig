@@ -1,6 +1,7 @@
 config MICROBLAZE
 	def_bool y
 	select HAVE_MEMBLOCK
+	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -14,6 +15,7 @@ config MICROBLAZE
 	select TRACING_SUPPORT
 	select OF
 	select OF_EARLY_FLATTREE
+	select IRQ_DOMAIN
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -25,6 +27,12 @@ config SWAP
 	def_bool n
 
 config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config ZONE_DMA
+	def_bool y
+
+config ARCH_POPULATES_NODE_MAP
 	def_bool y
 
 config RWSEM_XCHGADD_ALGORITHM
@@ -152,20 +160,18 @@ config XILINX_UNCACHED_SHADOW
 	  The feature requires the design to define the RAM memory controller
 	  window to be twice as large as the actual physical memory.
 
-config HIGHMEM_START_BOOL
-	bool "Set high memory pool address"
-	depends on ADVANCED_OPTIONS && HIGHMEM
-	help
-	  This option allows you to set the base address of the kernel virtual
-	  area used to map high memory pages.  This can be useful in
-	  optimizing the layout of kernel virtual memory.
-
-	  Say N here unless you know what you are doing.
-
-config HIGHMEM_START
-	hex "Virtual start address of high memory pool" if HIGHMEM_START_BOOL
+config HIGHMEM
+	bool "High memory support"
 	depends on MMU
-	default "0xfe000000"
+	help
+	  The address space of Microblaze processors is only 4 Gigabytes large
+	  and it has to accommodate user address space, kernel address
+	  space as well as some memory mapped IO. That means that, if you
+	  have a large amount of physical memory and/or IO, not all of the
+	  memory can be "permanently mapped" by the kernel. The physical
+	  memory that is not permanently mapped is called "high memory".
+
+	  If unsure, say n.
 
 config LOWMEM_SIZE_BOOL
 	bool "Set maximum low memory"
@@ -253,6 +259,10 @@ config MICROBLAZE_32K_PAGES
 	bool "32k page size"
 
 endchoice
+
+config KERNEL_PAD
+	hex "Kernel PAD for unpacking" if ADVANCED_OPTIONS
+	default "0x80000" if MMU
 
 endmenu
 

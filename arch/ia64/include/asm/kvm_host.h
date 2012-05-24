@@ -459,6 +459,9 @@ struct kvm_sal_data {
 	unsigned long boot_gp;
 };
 
+struct kvm_arch_memory_slot {
+};
+
 struct kvm_arch {
 	spinlock_t dirty_log_lock;
 

@@ -77,6 +77,7 @@ DEFINE_GUEST_HANDLE(int);
 DEFINE_GUEST_HANDLE(long);
 DEFINE_GUEST_HANDLE(void);
 DEFINE_GUEST_HANDLE(uint64_t);
+DEFINE_GUEST_HANDLE(uint32_t);
 
 typedef unsigned long xen_pfn_t;
 DEFINE_GUEST_HANDLE(xen_pfn_t);

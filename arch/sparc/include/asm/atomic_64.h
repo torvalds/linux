@@ -8,7 +8,7 @@
 #define __ARCH_SPARC64_ATOMIC__
 
 #include <linux/types.h>
-#include <asm/system.h>
+#include <asm/cmpxchg.h>
 
 #define ATOMIC_INIT(i)		{ (i) }
 #define ATOMIC64_INIT(i)	{ (i) }
@@ -84,7 +84,6 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 	}
 	return c;
 }
-
 
 #define atomic64_cmpxchg(v, o, n) \
 	((__typeof__((v)->counter))cmpxchg(&((v)->counter), (o), (n)))

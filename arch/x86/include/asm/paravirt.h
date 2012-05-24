@@ -10,6 +10,7 @@
 #include <asm/paravirt_types.h>
 
 #ifndef __ASSEMBLY__
+#include <linux/bug.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
 
@@ -230,9 +231,9 @@ static inline unsigned long long paravirt_sched_clock(void)
 	return PVOP_CALL0(unsigned long long, pv_time_ops.sched_clock);
 }
 
-struct jump_label_key;
-extern struct jump_label_key paravirt_steal_enabled;
-extern struct jump_label_key paravirt_steal_rq_enabled;
+struct static_key;
+extern struct static_key paravirt_steal_enabled;
+extern struct static_key paravirt_steal_rq_enabled;
 
 static inline u64 paravirt_steal_clock(int cpu)
 {

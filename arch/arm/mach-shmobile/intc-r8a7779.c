@@ -42,8 +42,8 @@ static int r8a7779_set_wake(struct irq_data *data, unsigned int on)
 
 void __init r8a7779_init_irq(void)
 {
-	void __iomem *gic_dist_base = __io(0xf0001000);
-	void __iomem *gic_cpu_base = __io(0xf0000100);
+	void __iomem *gic_dist_base = IOMEM(0xf0001000);
+	void __iomem *gic_cpu_base = IOMEM(0xf0000100);
 
 	/* use GIC to handle interrupts */
 	gic_init(0, 29, gic_dist_base, gic_cpu_base);

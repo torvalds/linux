@@ -113,7 +113,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	 * In PLT mode we seem to get frames and mac80211 warns about them,
 	 * workaround this by not retrieving them at all.
 	 */
-	if (unlikely(wl->state == WL1271_STATE_PLT))
+	if (unlikely(wl->plt))
 		return -EINVAL;
 
 	/* the data read starts with the descriptor */

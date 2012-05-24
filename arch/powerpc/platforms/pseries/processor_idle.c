@@ -14,9 +14,9 @@
 
 #include <asm/paca.h>
 #include <asm/reg.h>
-#include <asm/system.h>
 #include <asm/machdep.h>
 #include <asm/firmware.h>
+#include <asm/runlatch.h>
 
 #include "plpar_wrappers.h"
 #include "pseries.h"
@@ -96,6 +96,20 @@ out:
 	return index;
 }
 
+static void check_and_cede_processor(void)
+{
+	/*
+	 * Interrupts are soft-disabled at this point,
+	 * but not hard disabled. So an interrupt might have
+	 * occurred before entering NAP, and would be potentially
+	 * lost (edge events, decrementer events, etc...) unless
+	 * we first hard disable then check.
+	 */
+	hard_irq_disable();
+	if (get_paca()->irq_happened == 0)
+		cede_processor();
+}
+
 static int dedicated_cede_loop(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index)
@@ -108,7 +122,7 @@ static int dedicated_cede_loop(struct cpuidle_device *dev,
 
 	ppc64_runlatch_off();
 	HMT_medium();
-	cede_processor();
+	check_and_cede_processor();
 
 	get_lppaca()->donate_dedicated_cpu = 0;
 	dev->last_residency =
@@ -132,7 +146,7 @@ static int shared_cede_loop(struct cpuidle_device *dev,
 	 * processor. When returning here, external interrupts
 	 * are enabled.
 	 */
-	cede_processor();
+	check_and_cede_processor();
 
 	dev->last_residency =
 		(int)idle_loop_epilog(in_purr, kt_before);

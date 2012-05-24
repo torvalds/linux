@@ -36,9 +36,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/proc_fs.h>
 #include <linux/platform_device.h>
-
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 
 #include "bfin_adv7393fb.h"
 
@@ -411,12 +409,13 @@ static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
 
 	/* Workaround "PPI Does Not Start Properly In Specific Mode" */
 	if (ANOMALY_05000400) {
-		if (gpio_request(P_IDENT(P_PPI0_FS3), "PPI0_FS3")) {
+		ret = gpio_request_one(P_IDENT(P_PPI0_FS3), GPIOF_OUT_INIT_LOW,
+					"PPI0_FS3")
+		if (ret) {
 			dev_err(&client->dev, "PPI0_FS3 GPIO request failed\n");
 			ret = -EBUSY;
 			goto out_8;
 		}
-		gpio_direction_output(P_IDENT(P_PPI0_FS3), 0);
 	}
 
 	if (peripheral_request_list(ppi_pins, DRIVER_NAME)) {

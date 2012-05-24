@@ -61,7 +61,6 @@
 #include <asm/mmzone.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
-#include <asm/system.h>
 #include <asm/iommu.h>
 #include <asm/abs_addr.h>
 #include <asm/vdso.h>

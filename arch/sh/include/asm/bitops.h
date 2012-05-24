@@ -7,7 +7,6 @@
 #error only <linux/bitops.h> can be included directly
 #endif
 
-#include <asm/system.h>
 /* For __swab32 */
 #include <asm/byteorder.h>
 

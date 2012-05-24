@@ -717,33 +717,6 @@ ENTRY(sys_ftruncate64_c6x)
 #endif
 ENDPROC(sys_ftruncate64_c6x)
 
-#ifdef __ARCH_WANT_SYSCALL_OFF_T
-;; On Entry
-;;   A4 - fd
-;;   B4 - offset_lo (LE), offset_hi (BE)
-;;   A6 - offset_lo (BE), offset_hi (LE)
-;;   B6 - len
-;;   A8 - advice
-ENTRY(sys_fadvise64_c6x)
-#ifdef CONFIG_C6X_BIG_KERNEL
-	MVKL	.S1	sys_fadvise64,A0
-	MVKH	.S1	sys_fadvise64,A0
-	BNOP	.S2X	A0,2
-#else
-	B	.S2	sys_fadvise64
-	NOP	2
-#endif
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	MV	.L2	B4,B5
- ||	MV	.D2X	A6,B4
-#else
-	MV	.D2X	A6,B5
-#endif
-	MV	.D1X	B6,A6
-	MV	.D2X	A8,B6
-#endif
-ENDPROC(sys_fadvise64_c6x)
-
 ;; On Entry
 ;;   A4 - fd
 ;;   B4 - offset_lo (LE), offset_hi (BE)

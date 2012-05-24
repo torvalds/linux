@@ -72,11 +72,15 @@ Default is to monitor all CPUS.
 
 -p <pid>::
 --pid=<pid>::
-	Profile events on existing Process ID.
+	Profile events on existing Process ID (comma separated list).
 
 -t <tid>::
 --tid=<tid>::
-        Profile events on existing thread ID.
+        Profile events on existing thread ID (comma separated list).
+
+-u::
+--uid=::
+        Record events in threads owned by uid. Name or number.
 
 -r <priority>::
 --realtime=<priority>::

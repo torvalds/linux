@@ -84,7 +84,8 @@ struct svc_serv {
 	unsigned int		sv_nrpools;	/* number of thread pools */
 	struct svc_pool *	sv_pools;	/* array of thread pools */
 
-	void			(*sv_shutdown)(struct svc_serv *serv);
+	void			(*sv_shutdown)(struct svc_serv *serv,
+					       struct net *net);
 						/* Callback to use when last thread
 						 * exits.
 						 */
@@ -413,22 +414,24 @@ struct svc_procedure {
 /*
  * Function prototypes.
  */
-void svc_rpcb_cleanup(struct svc_serv *serv);
+int svc_rpcb_setup(struct svc_serv *serv, struct net *net);
+void svc_rpcb_cleanup(struct svc_serv *serv, struct net *net);
 struct svc_serv *svc_create(struct svc_program *, unsigned int,
-			    void (*shutdown)(struct svc_serv *));
+			    void (*shutdown)(struct svc_serv *, struct net *net));
 struct svc_rqst *svc_prepare_thread(struct svc_serv *serv,
 					struct svc_pool *pool, int node);
 void		   svc_exit_thread(struct svc_rqst *);
 struct svc_serv *  svc_create_pooled(struct svc_program *, unsigned int,
-			void (*shutdown)(struct svc_serv *),
+			void (*shutdown)(struct svc_serv *, struct net *net),
 			svc_thread_fn, struct module *);
 int		   svc_set_num_threads(struct svc_serv *, struct svc_pool *, int);
 int		   svc_pool_stats_open(struct svc_serv *serv, struct file *file);
 void		   svc_destroy(struct svc_serv *);
+void		   svc_shutdown_net(struct svc_serv *, struct net *);
 int		   svc_process(struct svc_rqst *);
 int		   bc_svc_process(struct svc_serv *, struct rpc_rqst *,
 			struct svc_rqst *);
-int		   svc_register(const struct svc_serv *, const int,
+int		   svc_register(const struct svc_serv *, struct net *, const int,
 				const unsigned short, const unsigned short);
 
 void		   svc_wake_up(struct svc_serv *);

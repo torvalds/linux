@@ -549,14 +549,13 @@ static inline int init_rx_bufs(struct net_device *dev)
 	/* First build the Receive Buffer Descriptor List */
 
 	for (i = 0, rbd = lp->rbds; i < rx_ring_size; i++, rbd++) {
-		struct sk_buff *skb = dev_alloc_skb(PKT_BUF_SZ);
+		struct sk_buff *skb = netdev_alloc_skb(dev, PKT_BUF_SZ);
 
 		if (skb == NULL) {
 			remove_rx_bufs(dev);
 			return -ENOMEM;
 		}
 
-		skb->dev = dev;
 		rbd->v_next = rbd+1;
 		rbd->b_next = WSWAPrbd(virt_to_bus(rbd+1));
 		rbd->b_addr = WSWAPrbd(virt_to_bus(rbd));
@@ -810,7 +809,7 @@ static inline int i596_rx(struct net_device *dev)
 				struct sk_buff *newskb;
 
 				/* Get fresh skbuff to replace filled one. */
-				newskb = dev_alloc_skb(PKT_BUF_SZ);
+				newskb = netdev_alloc_skb(dev, PKT_BUF_SZ);
 				if (newskb == NULL) {
 					skb = NULL;	/* drop pkt */
 					goto memory_squeeze;
@@ -819,7 +818,6 @@ static inline int i596_rx(struct net_device *dev)
 				skb_put(skb, pkt_len);
 				rx_in_place = 1;
 				rbd->skb = newskb;
-				newskb->dev = dev;
 				rbd->v_data = newskb->data;
 				rbd->b_data = WSWAPchar(virt_to_bus(newskb->data));
 #ifdef __mc68000__
@@ -827,7 +825,7 @@ static inline int i596_rx(struct net_device *dev)
 #endif
 			}
 			else
-				skb = dev_alloc_skb(pkt_len + 2);
+				skb = netdev_alloc_skb(dev, pkt_len + 2);
 memory_squeeze:
 			if (skb == NULL) {
 				/* XXX tulip.c can defer packets here!! */

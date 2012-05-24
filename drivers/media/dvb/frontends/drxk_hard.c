@@ -28,7 +28,6 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/version.h>
 #include <asm/div64.h>
 
 #include "dvb_frontend.h"
@@ -89,10 +88,6 @@ bool IsA1WithRomCode(struct drxk_state *state)
 
 #ifndef DRXK_MPEG_PARALLEL_OUTPUT_PIN_DRIVE_STRENGTH
 #define DRXK_MPEG_PARALLEL_OUTPUT_PIN_DRIVE_STRENGTH (0x03)
-#endif
-
-#ifndef DRXK_MPEG_OUTPUT_CLK_DRIVE_STRENGTH
-#define DRXK_MPEG_OUTPUT_CLK_DRIVE_STRENGTH (0x06)
 #endif
 
 #define DEFAULT_DRXK_MPEG_LOCK_TIMEOUT 700
@@ -650,9 +645,6 @@ static int init_state(struct drxk_state *state)
 	u32 ulQual83 = DEFAULT_MER_83;
 	u32 ulQual93 = DEFAULT_MER_93;
 
-	u32 ulDVBTStaticTSClock = 1;
-	u32 ulDVBCStaticTSClock = 1;
-
 	u32 ulMpegLockTimeOut = DEFAULT_DRXK_MPEG_LOCK_TIMEOUT;
 	u32 ulDemodLockTimeOut = DEFAULT_DRXK_DEMOD_LOCK_TIMEOUT;
 
@@ -662,7 +654,6 @@ static int init_state(struct drxk_state *state)
 	u32 ulGPIOCfg = 0x0113;
 	u32 ulInvertTSClock = 0;
 	u32 ulTSDataStrength = DRXK_MPEG_SERIAL_OUTPUT_PIN_DRIVE_STRENGTH;
-	u32 ulTSClockkStrength = DRXK_MPEG_OUTPUT_CLK_DRIVE_STRENGTH;
 	u32 ulDVBTBitrate = 50000000;
 	u32 ulDVBCBitrate = DRXK_QAM_SYMBOLRATE_MAX * 8;
 
@@ -815,8 +806,7 @@ static int init_state(struct drxk_state *state)
 	state->m_invertSTR = false;	/* If TRUE; invert STR signals */
 	state->m_invertVAL = false;	/* If TRUE; invert VAL signals */
 	state->m_invertCLK = (ulInvertTSClock != 0);	/* If TRUE; invert CLK signals */
-	state->m_DVBTStaticCLK = (ulDVBTStaticTSClock != 0);
-	state->m_DVBCStaticCLK = (ulDVBCStaticTSClock != 0);
+
 	/* If TRUE; static MPEG clockrate will be used;
 	   otherwise clockrate will adapt to the bitrate of the TS */
 
@@ -824,7 +814,6 @@ static int init_state(struct drxk_state *state)
 	state->m_DVBCBitrate = ulDVBCBitrate;
 
 	state->m_TSDataStrength = (ulTSDataStrength & 0x07);
-	state->m_TSClockkStrength = (ulTSClockkStrength & 0x07);
 
 	/* Maximum bitrate in b/s in case static clockrate is selected */
 	state->m_mpegTsStaticBitrate = 19392658;
@@ -1189,6 +1178,7 @@ static int MPEGTSConfigurePins(struct drxk_state *state, bool mpegEnable)
 	int status = -1;
 	u16 sioPdrMclkCfg = 0;
 	u16 sioPdrMdxCfg = 0;
+	u16 err_cfg = 0;
 
 	dprintk(1, ": mpeg %s, %s mode\n",
 		mpegEnable ? "enable" : "disable",
@@ -1254,12 +1244,17 @@ static int MPEGTSConfigurePins(struct drxk_state *state, bool mpegEnable)
 		status = write16(state, SIO_PDR_MSTRT_CFG__A, sioPdrMdxCfg);
 		if (status < 0)
 			goto error;
-		status = write16(state, SIO_PDR_MERR_CFG__A, 0x0000);	/* Disable */
+
+		if (state->enable_merr_cfg)
+			err_cfg = sioPdrMdxCfg;
+
+		status = write16(state, SIO_PDR_MERR_CFG__A, err_cfg);
 		if (status < 0)
 			goto error;
-		status = write16(state, SIO_PDR_MVAL_CFG__A, 0x0000);	/* Disable */
+		status = write16(state, SIO_PDR_MVAL_CFG__A, err_cfg);
 		if (status < 0)
 			goto error;
+
 		if (state->m_enableParallel == true) {
 			/* paralel -> enable MD1 to MD7 */
 			status = write16(state, SIO_PDR_MD1_CFG__A, sioPdrMdxCfg);
@@ -1525,8 +1520,10 @@ static int scu_command(struct drxk_state *state,
 	dprintk(1, "\n");
 
 	if ((cmd == 0) || ((parameterLen > 0) && (parameter == NULL)) ||
-	    ((resultLen > 0) && (result == NULL)))
-		goto error;
+	    ((resultLen > 0) && (result == NULL))) {
+		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
+		return status;
+	}
 
 	mutex_lock(&state->mutex);
 
@@ -6070,9 +6067,7 @@ static int init_drxk(struct drxk_state *state)
 		if (status < 0)
 			goto error;
 
-		if (!state->microcode_name)
-			load_microcode(state, "drxk_a3.mc");
-		else
+		if (state->microcode_name)
 			load_microcode(state, state->microcode_name);
 
 		/* disable token-ring bus through OFDM block for possible ucode upload */
@@ -6323,15 +6318,12 @@ static int drxk_get_tune_settings(struct dvb_frontend *fe, struct dvb_frontend_t
 	switch (p->delivery_system) {
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
+	case SYS_DVBT:
 		sets->min_delay_ms = 3000;
 		sets->max_drift = 0;
 		sets->step_size = 0;
 		return 0;
 	default:
-		/*
-		 * For DVB-T, let it use the default DVB core way, that is:
-		 *	fepriv->step_size = fe->ops.info.frequency_stepsize * 2
-		 */
 		return -EINVAL;
 	}
 }
@@ -6391,6 +6383,21 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	state->antenna_gpio = config->antenna_gpio;
 	state->antenna_dvbt = config->antenna_dvbt;
 	state->m_ChunkSize = config->chunk_size;
+	state->enable_merr_cfg = config->enable_merr_cfg;
+
+	if (config->dynamic_clk) {
+		state->m_DVBTStaticCLK = 0;
+		state->m_DVBCStaticCLK = 0;
+	} else {
+		state->m_DVBTStaticCLK = 1;
+		state->m_DVBCStaticCLK = 1;
+	}
+
+
+	if (config->mpeg_out_clk_strength)
+		state->m_TSClockkStrength = config->mpeg_out_clk_strength & 0x07;
+	else
+		state->m_TSClockkStrength = 0x06;
 
 	if (config->parallel_ts)
 		state->m_enableParallel = true;

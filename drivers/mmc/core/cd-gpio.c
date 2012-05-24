@@ -12,6 +12,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
+#include <linux/mmc/cd-gpio.h>
 #include <linux/mmc/host.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -28,13 +29,17 @@ static irqreturn_t mmc_cd_gpio_irqt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int mmc_cd_gpio_request(struct mmc_host *host, unsigned int gpio,
-			unsigned int irq, unsigned long flags)
+int mmc_cd_gpio_request(struct mmc_host *host, unsigned int gpio)
 {
 	size_t len = strlen(dev_name(host->parent)) + 4;
-	struct mmc_cd_gpio *cd = kmalloc(sizeof(*cd) + len, GFP_KERNEL);
+	struct mmc_cd_gpio *cd;
+	int irq = gpio_to_irq(gpio);
 	int ret;
 
+	if (irq < 0)
+		return irq;
+
+	cd = kmalloc(sizeof(*cd) + len, GFP_KERNEL);
 	if (!cd)
 		return -ENOMEM;
 
@@ -45,7 +50,8 @@ int mmc_cd_gpio_request(struct mmc_host *host, unsigned int gpio,
 		goto egpioreq;
 
 	ret = request_threaded_irq(irq, NULL, mmc_cd_gpio_irqt,
-				   flags, cd->label, host);
+				   IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				   cd->label, host);
 	if (ret < 0)
 		goto eirqreq;
 

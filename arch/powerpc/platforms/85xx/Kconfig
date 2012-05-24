@@ -6,12 +6,22 @@ menuconfig FSL_SOC_BOOKE
 	select MPIC
 	select PPC_PCI_CHOICE
 	select FSL_PCI if PCI
+	select SERIAL_8250_EXTENDED if SERIAL_8250
 	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
 	default y
 
 if FSL_SOC_BOOKE
 
 if PPC32
+
+config FSL_85XX_CACHE_SRAM
+	bool
+	select PPC_LIB_RHEAP
+	help
+	  When selected, this option enables cache-sram support
+	  for memory allocation on P1/P2 QorIQ platforms.
+	  cache-sram-size and cache-sram-offset kernel boot
+	  parameters should be passed when this option is enabled.
 
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
@@ -30,6 +40,7 @@ config MPC85xx_CDS
 	bool "Freescale MPC85xx CDS"
 	select DEFAULT_UIMAGE
 	select PPC_I8259
+	select HAS_RAPIDIO
 	help
 	  This option enables support for the MPC85xx CDS board
 
@@ -80,7 +91,6 @@ config P1010_RDB
 config P1022_DS
 	bool "Freescale P1022 DS"
 	select DEFAULT_UIMAGE
-	select PHYS_64BIT	# The DTS has 36-bit addresses
 	select SWIOTLB
 	help
 	  This option enables support for the Freescale P1022DS reference board.
@@ -170,6 +180,21 @@ config SBC8560
 	select DEFAULT_UIMAGE
 	help
 	  This option enables support for the Wind River SBC8560 board
+
+config GE_IMP3A
+	bool "GE Intelligent Platforms IMP3A"
+	select DEFAULT_UIMAGE
+	select SWIOTLB
+	select MMIO_NVRAM
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GE_FPGA
+	help
+	  This option enables support for the GE Intelligent Platforms IMP3A
+	  board.
+
+	  This board is a 3U CompactPCI Single Board Computer with a Freescale
+	  P2020 processor.
 
 config P2041_RDB
 	bool "Freescale P2041 RDB"

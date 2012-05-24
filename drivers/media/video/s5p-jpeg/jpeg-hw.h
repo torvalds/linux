@@ -13,6 +13,7 @@
 #define JPEG_HW_H_
 
 #include <linux/io.h>
+#include <linux/videodev2.h>
 
 #include "jpeg-hw.h"
 #include "jpeg-regs.h"
@@ -25,8 +26,6 @@
 #define S5P_JPEG_DECODE			1
 #define S5P_JPEG_RAW_IN_565		0
 #define S5P_JPEG_RAW_IN_422		1
-#define S5P_JPEG_SUBSAMPLING_422	0
-#define S5P_JPEG_SUBSAMPLING_420	1
 #define S5P_JPEG_RAW_OUT_422		0
 #define S5P_JPEG_RAW_OUT_420		1
 
@@ -91,19 +90,24 @@ static inline void jpeg_proc_mode(void __iomem *regs, unsigned long mode)
 	writel(reg, regs + S5P_JPGMOD);
 }
 
-static inline void jpeg_subsampling_mode(void __iomem *regs, unsigned long mode)
+static inline void jpeg_subsampling_mode(void __iomem *regs, unsigned int mode)
 {
 	unsigned long reg, m;
 
-	m = S5P_SUBSAMPLING_MODE_422;
-	if (mode == S5P_JPEG_SUBSAMPLING_422)
-		m = S5P_SUBSAMPLING_MODE_422;
-	else if (mode == S5P_JPEG_SUBSAMPLING_420)
+	if (mode == V4L2_JPEG_CHROMA_SUBSAMPLING_420)
 		m = S5P_SUBSAMPLING_MODE_420;
+	else
+		m = S5P_SUBSAMPLING_MODE_422;
+
 	reg = readl(regs + S5P_JPGMOD);
 	reg &= ~S5P_SUBSAMPLING_MODE_MASK;
 	reg |= m;
 	writel(reg, regs + S5P_JPGMOD);
+}
+
+static inline unsigned int jpeg_get_subsampling_mode(void __iomem *regs)
+{
+	return readl(regs + S5P_JPGMOD) & S5P_SUBSAMPLING_MODE_MASK;
 }
 
 static inline void jpeg_dri(void __iomem *regs, unsigned int dri)

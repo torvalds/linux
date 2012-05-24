@@ -16,9 +16,6 @@
 #include <linux/seq_file.h>
 #include "pinctrl.h"
 
-/* This struct is private to the core and should be regarded as a cookie */
-struct pinmux;
-
 #ifdef CONFIG_PINMUX
 
 struct pinctrl_dev;
@@ -87,55 +84,6 @@ struct pinmux_ops {
 				   unsigned offset,
 				   bool input);
 };
-
-/* External interface to pinmux */
-extern int pinmux_request_gpio(unsigned gpio);
-extern void pinmux_free_gpio(unsigned gpio);
-extern int pinmux_gpio_direction_input(unsigned gpio);
-extern int pinmux_gpio_direction_output(unsigned gpio);
-extern struct pinmux * __must_check pinmux_get(struct device *dev, const char *name);
-extern void pinmux_put(struct pinmux *pmx);
-extern int pinmux_enable(struct pinmux *pmx);
-extern void pinmux_disable(struct pinmux *pmx);
-
-#else /* !CONFIG_PINMUX */
-
-static inline int pinmux_request_gpio(unsigned gpio)
-{
-	return 0;
-}
-
-static inline void pinmux_free_gpio(unsigned gpio)
-{
-}
-
-static inline int pinmux_gpio_direction_input(unsigned gpio)
-{
-	return 0;
-}
-
-static inline int pinmux_gpio_direction_output(unsigned gpio)
-{
-	return 0;
-}
-
-static inline struct pinmux * __must_check pinmux_get(struct device *dev, const char *name)
-{
-	return NULL;
-}
-
-static inline void pinmux_put(struct pinmux *pmx)
-{
-}
-
-static inline int pinmux_enable(struct pinmux *pmx)
-{
-	return 0;
-}
-
-static inline void pinmux_disable(struct pinmux *pmx)
-{
-}
 
 #endif /* CONFIG_PINMUX */
 

@@ -31,7 +31,6 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 
-#include <asm/system.h>
 
 /*
  * The apm_bios device is one of the misc char devices.
@@ -302,7 +301,7 @@ apm_ioctl(struct file *filp, u_int cmd, u_long arg)
 			 * anything critical, chill a bit on each iteration.
 			 */
 			while (wait_event_freezable(apm_suspend_waitqueue,
-					as->suspend_state == SUSPEND_DONE))
+					as->suspend_state != SUSPEND_ACKED))
 				msleep(10);
 			break;
 		case SUSPEND_ACKTO:

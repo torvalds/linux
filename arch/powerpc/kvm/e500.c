@@ -71,9 +71,6 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.pvr = mfspr(SPRN_PVR);
 	vcpu_e500->svr = mfspr(SPRN_SVR);
 
-	/* Since booke kvm only support one core, update all vcpus' PIR to 0 */
-	vcpu->vcpu_id = 0;
-
 	vcpu->arch.cpu_type = KVM_CPU_E500V2;
 
 	return 0;
@@ -118,12 +115,12 @@ void kvmppc_core_get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 	sregs->u.e.impl.fsl.hid0 = vcpu_e500->hid0;
 	sregs->u.e.impl.fsl.mcar = vcpu_e500->mcar;
 
-	sregs->u.e.mas0 = vcpu_e500->mas0;
-	sregs->u.e.mas1 = vcpu_e500->mas1;
-	sregs->u.e.mas2 = vcpu_e500->mas2;
-	sregs->u.e.mas7_3 = ((u64)vcpu_e500->mas7 << 32) | vcpu_e500->mas3;
-	sregs->u.e.mas4 = vcpu_e500->mas4;
-	sregs->u.e.mas6 = vcpu_e500->mas6;
+	sregs->u.e.mas0 = vcpu->arch.shared->mas0;
+	sregs->u.e.mas1 = vcpu->arch.shared->mas1;
+	sregs->u.e.mas2 = vcpu->arch.shared->mas2;
+	sregs->u.e.mas7_3 = vcpu->arch.shared->mas7_3;
+	sregs->u.e.mas4 = vcpu->arch.shared->mas4;
+	sregs->u.e.mas6 = vcpu->arch.shared->mas6;
 
 	sregs->u.e.mmucfg = mfspr(SPRN_MMUCFG);
 	sregs->u.e.tlbcfg[0] = vcpu_e500->tlb0cfg;
@@ -151,13 +148,12 @@ int kvmppc_core_set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 	}
 
 	if (sregs->u.e.features & KVM_SREGS_E_ARCH206_MMU) {
-		vcpu_e500->mas0 = sregs->u.e.mas0;
-		vcpu_e500->mas1 = sregs->u.e.mas1;
-		vcpu_e500->mas2 = sregs->u.e.mas2;
-		vcpu_e500->mas7 = sregs->u.e.mas7_3 >> 32;
-		vcpu_e500->mas3 = (u32)sregs->u.e.mas7_3;
-		vcpu_e500->mas4 = sregs->u.e.mas4;
-		vcpu_e500->mas6 = sregs->u.e.mas6;
+		vcpu->arch.shared->mas0 = sregs->u.e.mas0;
+		vcpu->arch.shared->mas1 = sregs->u.e.mas1;
+		vcpu->arch.shared->mas2 = sregs->u.e.mas2;
+		vcpu->arch.shared->mas7_3 = sregs->u.e.mas7_3;
+		vcpu->arch.shared->mas4 = sregs->u.e.mas4;
+		vcpu->arch.shared->mas6 = sregs->u.e.mas6;
 	}
 
 	if (!(sregs->u.e.features & KVM_SREGS_E_IVOR))
@@ -232,6 +228,10 @@ static int __init kvmppc_e500_init(void)
 	int r, i;
 	unsigned long ivor[3];
 	unsigned long max_ivor = 0;
+
+	r = kvmppc_core_check_processor_compat();
+	if (r)
+		return r;
 
 	r = kvmppc_booke_init();
 	if (r)

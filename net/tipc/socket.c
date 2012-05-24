@@ -126,7 +126,7 @@ static atomic_t tipc_queue_size = ATOMIC_INIT(0);
 
 static void advance_rx_queue(struct sock *sk)
 {
-	buf_discard(__skb_dequeue(&sk->sk_receive_queue));
+	kfree_skb(__skb_dequeue(&sk->sk_receive_queue));
 	atomic_dec(&tipc_queue_size);
 }
 
@@ -142,7 +142,7 @@ static void discard_rx_queue(struct sock *sk)
 
 	while ((buf = __skb_dequeue(&sk->sk_receive_queue))) {
 		atomic_dec(&tipc_queue_size);
-		buf_discard(buf);
+		kfree_skb(buf);
 	}
 }
 
@@ -288,7 +288,7 @@ static int release(struct socket *sock)
 			break;
 		atomic_dec(&tipc_queue_size);
 		if (TIPC_SKB_CB(buf)->handle != 0)
-			buf_discard(buf);
+			kfree_skb(buf);
 		else {
 			if ((sock->state == SS_CONNECTING) ||
 			    (sock->state == SS_CONNECTED)) {
@@ -354,6 +354,9 @@ static int bind(struct socket *sock, struct sockaddr *uaddr, int uaddr_len)
 		addr->addr.nameseq.upper = addr->addr.nameseq.lower;
 	else if (addr->addrtype != TIPC_ADDR_NAMESEQ)
 		return -EAFNOSUPPORT;
+
+	if (addr->addr.nameseq.type < TIPC_RESERVED_TYPES)
+		return -EACCES;
 
 	return (addr->scope > 0) ?
 		tipc_publish(portref, addr->scope, &addr->addr.nameseq) :
@@ -1612,7 +1615,7 @@ restart:
 		if (buf) {
 			atomic_dec(&tipc_queue_size);
 			if (TIPC_SKB_CB(buf)->handle != 0) {
-				buf_discard(buf);
+				kfree_skb(buf);
 				goto restart;
 			}
 			tipc_disconnect(tport->ref);

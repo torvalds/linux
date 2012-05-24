@@ -265,12 +265,9 @@ struct kvm_debug_exit_arch {
 struct kvm_guest_debug_arch {
 };
 
-#define KVM_REG_MASK		0x001f
-#define KVM_REG_EXT_MASK	0xffe0
-#define KVM_REG_GPR		0x0000
-#define KVM_REG_FPR		0x0020
-#define KVM_REG_QPR		0x0040
-#define KVM_REG_FQPR		0x0060
+/* definition of registers in kvm_run */
+struct kvm_sync_regs {
+};
 
 #define KVM_INTERRUPT_SET	-1U
 #define KVM_INTERRUPT_UNSET	-2U
@@ -291,5 +288,42 @@ struct kvm_create_spapr_tce {
 struct kvm_allocate_rma {
 	__u64 rma_size;
 };
+
+struct kvm_book3e_206_tlb_entry {
+	__u32 mas8;
+	__u32 mas1;
+	__u64 mas2;
+	__u64 mas7_3;
+};
+
+struct kvm_book3e_206_tlb_params {
+	/*
+	 * For mmu types KVM_MMU_FSL_BOOKE_NOHV and KVM_MMU_FSL_BOOKE_HV:
+	 *
+	 * - The number of ways of TLB0 must be a power of two between 2 and
+	 *   16.
+	 * - TLB1 must be fully associative.
+	 * - The size of TLB0 must be a multiple of the number of ways, and
+	 *   the number of sets must be a power of two.
+	 * - The size of TLB1 may not exceed 64 entries.
+	 * - TLB0 supports 4 KiB pages.
+	 * - The page sizes supported by TLB1 are as indicated by
+	 *   TLB1CFG (if MMUCFG[MAVN] = 0) or TLB1PS (if MMUCFG[MAVN] = 1)
+	 *   as returned by KVM_GET_SREGS.
+	 * - TLB2 and TLB3 are reserved, and their entries in tlb_sizes[]
+	 *   and tlb_ways[] must be zero.
+	 *
+	 * tlb_ways[n] = tlb_sizes[n] means the array is fully associative.
+	 *
+	 * KVM will adjust TLBnCFG based on the sizes configured here,
+	 * though arrays greater than 2048 entries will have TLBnCFG[NENTRY]
+	 * set to zero.
+	 */
+	__u32 tlb_sizes[4];
+	__u32 tlb_ways[4];
+	__u32 reserved[8];
+};
+
+#define KVM_REG_PPC_HIOR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x1)
 
 #endif /* __LINUX_KVM_POWERPC_H */

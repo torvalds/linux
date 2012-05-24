@@ -57,7 +57,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/system.h>
 
 /*====================================================================*/
 
@@ -1002,7 +1001,7 @@ static void fjn_rx(struct net_device *dev)
 		dev->stats.rx_errors++;
 		break;
 	    }
-	    skb = dev_alloc_skb(pkt_len+2);
+	    skb = netdev_alloc_skb(dev, pkt_len + 2);
 	    if (skb == NULL) {
 		netdev_notice(dev, "Memory squeeze, dropping packet (len %d)\n",
 			      pkt_len);

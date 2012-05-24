@@ -31,6 +31,7 @@
 #include <plat/iic.h>
 #include <plat/pm.h>
 #include <plat/s5p-time.h>
+#include <plat/mfc.h>
 
 #include "common.h"
 
@@ -94,6 +95,13 @@ static struct platform_device *smdkc110_devices[] __initdata = {
 	&s3c_device_i2c2,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
+	&s5p_device_fimc0,
+	&s5p_device_fimc1,
+	&s5p_device_fimc2,
+	&s5p_device_fimc_md,
+	&s5p_device_mfc,
+	&s5p_device_mfc_l,
+	&s5p_device_mfc_r,
 };
 
 static struct i2c_board_info smdkc110_i2c_devs0[] __initdata = {
@@ -115,6 +123,11 @@ static void __init smdkc110_map_io(void)
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(smdkv210_uartcfgs, ARRAY_SIZE(smdkv210_uartcfgs));
 	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
+}
+
+static void __init smdkc110_reserve(void)
+{
+	s5p_mfc_reserve_mem(0x43000000, 8 << 20, 0x51000000, 8 << 20);
 }
 
 static void __init smdkc110_machine_init(void)
@@ -145,4 +158,5 @@ MACHINE_START(SMDKC110, "SMDKC110")
 	.init_machine	= smdkc110_machine_init,
 	.timer		= &s5p_timer,
 	.restart	= s5pv210_restart,
+	.reserve	= &smdkc110_reserve,
 MACHINE_END

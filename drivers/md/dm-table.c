@@ -268,8 +268,7 @@ void dm_table_destroy(struct dm_table *t)
 	vfree(t->highs);
 
 	/* free the device list */
-	if (t->devices.next != &t->devices)
-		free_devices(&t->devices);
+	free_devices(&t->devices);
 
 	dm_free_md_mempools(t->mempools);
 
@@ -464,10 +463,11 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 	struct dm_dev_internal *dd;
 	unsigned int major, minor;
 	struct dm_table *t = ti->table;
+	char dummy;
 
 	BUG_ON(!t);
 
-	if (sscanf(path, "%u:%u", &major, &minor) == 2) {
+	if (sscanf(path, "%u:%u%c", &major, &minor, &dummy) == 2) {
 		/* Extract the major/minor numbers */
 		dev = MKDEV(major, minor);
 		if (MAJOR(dev) != major || MINOR(dev) != minor)
@@ -842,9 +842,10 @@ static int validate_next_arg(struct dm_arg *arg, struct dm_arg_set *arg_set,
 			     unsigned *value, char **error, unsigned grouped)
 {
 	const char *arg_str = dm_shift_arg(arg_set);
+	char dummy;
 
 	if (!arg_str ||
-	    (sscanf(arg_str, "%u", value) != 1) ||
+	    (sscanf(arg_str, "%u%c", value, &dummy) != 1) ||
 	    (*value < arg->min) ||
 	    (*value > arg->max) ||
 	    (grouped && arg_set->argc < *value)) {

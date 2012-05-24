@@ -58,7 +58,6 @@
 #include "host.h"
 #include "isci.h"
 #include "port.h"
-#include "host.h"
 #include "probe_roms.h"
 #include "remote_device.h"
 #include "request.h"
@@ -650,15 +649,13 @@ static void isci_host_start_complete(struct isci_host *ihost, enum sci_status co
 
 int isci_host_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
-	struct isci_host *ihost = SHOST_TO_SAS_HA(shost)->lldd_ha;
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct isci_host *ihost = ha->lldd_ha;
 
 	if (test_bit(IHOST_START_PENDING, &ihost->flags))
 		return 0;
 
-	/* todo: use sas_flush_discovery once it is upstream */
-	scsi_flush_work(shost);
-
-	scsi_flush_work(shost);
+	sas_drain_work(ha);
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: ihost->status = %d, time = %ld\n",
@@ -1491,6 +1488,15 @@ sci_controller_set_interrupt_coalescence(struct isci_host *ihost,
 static void sci_controller_ready_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_host *ihost = container_of(sm, typeof(*ihost), sm);
+	u32 val;
+
+	/* enable clock gating for power control of the scu unit */
+	val = readl(&ihost->smu_registers->clock_gating_control);
+	val &= ~(SMU_CGUCR_GEN_BIT(REGCLK_ENABLE) |
+		 SMU_CGUCR_GEN_BIT(TXCLK_ENABLE) |
+		 SMU_CGUCR_GEN_BIT(XCLK_ENABLE));
+	val |= SMU_CGUCR_GEN_BIT(IDLE_ENABLE);
+	writel(val, &ihost->smu_registers->clock_gating_control);
 
 	/* set the default interrupt coalescence number and timeout value. */
 	sci_controller_set_interrupt_coalescence(ihost, 0, 0);

@@ -125,7 +125,7 @@ static volatile u32 __iomem *psurge_start;
 static int psurge_type = PSURGE_NONE;
 
 /* irq for secondary cpus to report */
-static struct irq_host *psurge_host;
+static struct irq_domain *psurge_host;
 int psurge_secondary_virq;
 
 /*
@@ -176,7 +176,7 @@ static void smp_psurge_cause_ipi(int cpu, unsigned long data)
 	psurge_set_ipi(cpu);
 }
 
-static int psurge_host_map(struct irq_host *h, unsigned int virq,
+static int psurge_host_map(struct irq_domain *h, unsigned int virq,
 			 irq_hw_number_t hw)
 {
 	irq_set_chip_and_handler(virq, &dummy_irq_chip, handle_percpu_irq);
@@ -184,7 +184,7 @@ static int psurge_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-struct irq_host_ops psurge_host_ops = {
+static const struct irq_domain_ops psurge_host_ops = {
 	.map	= psurge_host_map,
 };
 
@@ -192,8 +192,7 @@ static int psurge_secondary_ipi_init(void)
 {
 	int rc = -ENOMEM;
 
-	psurge_host = irq_alloc_host(NULL, IRQ_HOST_MAP_NOMAP, 0,
-		&psurge_host_ops, 0);
+	psurge_host = irq_domain_add_nomap(NULL, 0, &psurge_host_ops, NULL);
 
 	if (psurge_host)
 		psurge_secondary_virq = irq_create_direct_mapping(psurge_host);

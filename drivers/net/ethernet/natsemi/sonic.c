@@ -51,7 +51,7 @@ static int sonic_open(struct net_device *dev)
 		printk("sonic_open: initializing sonic driver.\n");
 
 	for (i = 0; i < SONIC_NUM_RRS; i++) {
-		struct sk_buff *skb = dev_alloc_skb(SONIC_RBSIZE + 2);
+		struct sk_buff *skb = netdev_alloc_skb(dev, SONIC_RBSIZE + 2);
 		if (skb == NULL) {
 			while(i > 0) { /* free any that were allocated successfully */
 				i--;
@@ -422,7 +422,7 @@ static void sonic_rx(struct net_device *dev)
 		status = sonic_rda_get(dev, entry, SONIC_RD_STATUS);
 		if (status & SONIC_RCR_PRX) {
 			/* Malloc up new buffer. */
-			new_skb = dev_alloc_skb(SONIC_RBSIZE + 2);
+			new_skb = netdev_alloc_skb(dev, SONIC_RBSIZE + 2);
 			if (new_skb == NULL) {
 				printk(KERN_ERR "%s: Memory squeeze, dropping packet.\n", dev->name);
 				lp->stats.rx_dropped++;

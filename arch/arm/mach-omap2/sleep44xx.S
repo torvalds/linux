@@ -10,7 +10,6 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/system.h>
 #include <asm/smp_scu.h>
 #include <asm/memory.h>
 #include <asm/hardware/cache-l2x0.h>

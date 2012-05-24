@@ -18,7 +18,8 @@ struct clk_mapping {
 	struct kref		ref;
 };
 
-struct clk_ops {
+
+struct sh_clk_ops {
 #ifdef CONFIG_SH_CLK_CPG_LEGACY
 	void (*init)(struct clk *clk);
 #endif
@@ -37,7 +38,7 @@ struct clk {
 	unsigned short		parent_num;	/* choose between */
 	unsigned char		src_shift;	/* source clock field in the */
 	unsigned char		src_width;	/* configuration register */
-	struct clk_ops		*ops;
+	struct sh_clk_ops	*ops;
 
 	struct list_head	children;
 	struct list_head	sibling;	/* node for children */

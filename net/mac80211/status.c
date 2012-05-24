@@ -10,7 +10,9 @@
  */
 
 #include <linux/export.h>
+#include <linux/etherdevice.h>
 #include <net/mac80211.h>
+#include <asm/unaligned.h>
 #include "ieee80211_i.h"
 #include "rate.h"
 #include "mesh.h"
@@ -350,7 +352,6 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	bool send_to_cooked;
 	bool acked;
 	struct ieee80211_bar *bar;
-	u16 tid;
 	int rtap_len;
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
@@ -377,7 +378,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	for_each_sta_info(local, hdr->addr1, sta, tmp) {
 		/* skip wrong virtual interface */
-		if (memcmp(hdr->addr2, sta->sdata->vif.addr, ETH_ALEN))
+		if (compare_ether_addr(hdr->addr2, sta->sdata->vif.addr))
 			continue;
 
 		if (info->flags & IEEE80211_TX_STATUS_EOSP)
@@ -412,7 +413,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 
 		if (!acked && ieee80211_is_back_req(fc)) {
-			u16 control;
+			u16 tid, control;
 
 			/*
 			 * BAR failed, store the last SSN and retry sending
@@ -516,7 +517,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 		if (ieee80211_is_nullfunc(hdr->frame_control) ||
 		    ieee80211_is_qos_nullfunc(hdr->frame_control)) {
-			bool acked = info->flags & IEEE80211_TX_STAT_ACK;
+			acked = info->flags & IEEE80211_TX_STAT_ACK;
+
 			cfg80211_probe_status(skb->dev, hdr->addr1,
 					      cookie, acked, GFP_ATOMIC);
 		} else {

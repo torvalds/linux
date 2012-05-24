@@ -88,7 +88,6 @@ Revision History:
 #include <linux/crc32.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
@@ -336,7 +335,8 @@ static int amd8111e_init_ring(struct net_device *dev)
 	/* Allocating receive  skbs */
 	for (i = 0; i < NUM_RX_BUFFERS; i++) {
 
-		if (!(lp->rx_skbuff[i] = dev_alloc_skb(lp->rx_buff_len))) {
+		lp->rx_skbuff[i] = netdev_alloc_skb(dev, lp->rx_buff_len);
+		if (!lp->rx_skbuff[i]) {
 				/* Release previos allocated skbs */
 				for(--i; i >= 0 ;i--)
 					dev_kfree_skb(lp->rx_skbuff[i]);
@@ -768,7 +768,8 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 			}
 			if(--rx_pkt_limit < 0)
 				goto rx_not_empty;
-			if(!(new_skb = dev_alloc_skb(lp->rx_buff_len))){
+			new_skb = netdev_alloc_skb(dev, lp->rx_buff_len);
+			if (!new_skb) {
 				/* if allocation fail,
 				   ignore that pkt and go to next one */
 				lp->rx_ring[rx_index].rx_flags &= RESET_RX_FLAGS;
@@ -1859,7 +1860,6 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 
 	dev = alloc_etherdev(sizeof(struct amd8111e_priv));
 	if (!dev) {
-		printk(KERN_ERR "amd8111e: Etherdev alloc failed, exiting.\n");
 		err = -ENOMEM;
 		goto err_free_reg;
 	}

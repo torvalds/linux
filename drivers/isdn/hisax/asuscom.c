@@ -22,7 +22,7 @@
 
 static const char *Asuscom_revision = "$Revision: 1.14.2.4 $";
 
-#define byteout(addr,val) outb(val,addr)
+#define byteout(addr, val) outb(val, addr)
 #define bytein(addr) inb(addr)
 
 #define ASUS_ISAC	0
@@ -51,7 +51,7 @@ readreg(unsigned int ale, unsigned int adr, u_char off)
 }
 
 static inline void
-readfifo(unsigned int ale, unsigned int adr, u_char off, u_char * data, int size)
+readfifo(unsigned int ale, unsigned int adr, u_char off, u_char *data, int size)
 {
 	byteout(ale, off);
 	insb(adr, data, size);
@@ -66,7 +66,7 @@ writereg(unsigned int ale, unsigned int adr, u_char off, u_char data)
 }
 
 static inline void
-writefifo(unsigned int ale, unsigned int adr, u_char off, u_char * data, int size)
+writefifo(unsigned int ale, unsigned int adr, u_char off, u_char *data, int size)
 {
 	byteout(ale, off);
 	outsb(adr, data, size);
@@ -87,13 +87,13 @@ WriteISAC(struct IsdnCardState *cs, u_char offset, u_char value)
 }
 
 static void
-ReadISACfifo(struct IsdnCardState *cs, u_char * data, int size)
+ReadISACfifo(struct IsdnCardState *cs, u_char *data, int size)
 {
 	readfifo(cs->hw.asus.adr, cs->hw.asus.isac, 0, data, size);
 }
 
 static void
-WriteISACfifo(struct IsdnCardState *cs, u_char * data, int size)
+WriteISACfifo(struct IsdnCardState *cs, u_char *data, int size)
 {
 	writefifo(cs->hw.asus.adr, cs->hw.asus.isac, 0, data, size);
 }
@@ -101,23 +101,23 @@ WriteISACfifo(struct IsdnCardState *cs, u_char * data, int size)
 static u_char
 ReadISAC_IPAC(struct IsdnCardState *cs, u_char offset)
 {
-	return (readreg(cs->hw.asus.adr, cs->hw.asus.isac, offset|0x80));
+	return (readreg(cs->hw.asus.adr, cs->hw.asus.isac, offset | 0x80));
 }
 
 static void
 WriteISAC_IPAC(struct IsdnCardState *cs, u_char offset, u_char value)
 {
-	writereg(cs->hw.asus.adr, cs->hw.asus.isac, offset|0x80, value);
+	writereg(cs->hw.asus.adr, cs->hw.asus.isac, offset | 0x80, value);
 }
 
 static void
-ReadISACfifo_IPAC(struct IsdnCardState *cs, u_char * data, int size)
+ReadISACfifo_IPAC(struct IsdnCardState *cs, u_char *data, int size)
 {
 	readfifo(cs->hw.asus.adr, cs->hw.asus.isac, 0x80, data, size);
 }
 
 static void
-WriteISACfifo_IPAC(struct IsdnCardState *cs, u_char * data, int size)
+WriteISACfifo_IPAC(struct IsdnCardState *cs, u_char *data, int size)
 {
 	writefifo(cs->hw.asus.adr, cs->hw.asus.isac, 0x80, data, size);
 }
@@ -140,16 +140,16 @@ WriteHSCX(struct IsdnCardState *cs, int hscx, u_char offset, u_char value)
  * fast interrupt HSCX stuff goes here
  */
 
-#define READHSCX(cs, nr, reg) readreg(cs->hw.asus.adr, \
-		cs->hw.asus.hscx, reg + (nr ? 0x40 : 0))
-#define WRITEHSCX(cs, nr, reg, data) writereg(cs->hw.asus.adr, \
-		cs->hw.asus.hscx, reg + (nr ? 0x40 : 0), data)
+#define READHSCX(cs, nr, reg) readreg(cs->hw.asus.adr,			\
+				      cs->hw.asus.hscx, reg + (nr ? 0x40 : 0))
+#define WRITEHSCX(cs, nr, reg, data) writereg(cs->hw.asus.adr,		\
+					      cs->hw.asus.hscx, reg + (nr ? 0x40 : 0), data)
 
-#define READHSCXFIFO(cs, nr, ptr, cnt) readfifo(cs->hw.asus.adr, \
-		cs->hw.asus.hscx, (nr ? 0x40 : 0), ptr, cnt)
+#define READHSCXFIFO(cs, nr, ptr, cnt) readfifo(cs->hw.asus.adr,	\
+						cs->hw.asus.hscx, (nr ? 0x40 : 0), ptr, cnt)
 
-#define WRITEHSCXFIFO(cs, nr, ptr, cnt) writefifo(cs->hw.asus.adr, \
-		cs->hw.asus.hscx, (nr ? 0x40 : 0), ptr, cnt)
+#define WRITEHSCXFIFO(cs, nr, ptr, cnt) writefifo(cs->hw.asus.adr,	\
+						  cs->hw.asus.hscx, (nr ? 0x40 : 0), ptr, cnt)
 
 #include "hscx_irq.c"
 
@@ -162,11 +162,11 @@ asuscom_interrupt(int intno, void *dev_id)
 
 	spin_lock_irqsave(&cs->lock, flags);
 	val = readreg(cs->hw.asus.adr, cs->hw.asus.hscx, HSCX_ISTA + 0x40);
-      Start_HSCX:
+Start_HSCX:
 	if (val)
 		hscx_int_main(cs, val);
 	val = readreg(cs->hw.asus.adr, cs->hw.asus.isac, ISAC_ISTA);
-      Start_ISAC:
+Start_ISAC:
 	if (val)
 		isac_interrupt(cs, val);
 	val = readreg(cs->hw.asus.adr, cs->hw.asus.hscx, HSCX_ISTA + 0x40);
@@ -274,39 +274,39 @@ Asus_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	u_long flags;
 
 	switch (mt) {
-		case CARD_RESET:
-			spin_lock_irqsave(&cs->lock, flags);
-			reset_asuscom(cs);
-			spin_unlock_irqrestore(&cs->lock, flags);
-			return(0);
-		case CARD_RELEASE:
-			release_io_asuscom(cs);
-			return(0);
-		case CARD_INIT:
-			spin_lock_irqsave(&cs->lock, flags);
-			cs->debug |= L1_DEB_IPAC;
-			inithscxisac(cs, 3);
-			spin_unlock_irqrestore(&cs->lock, flags);
-			return(0);
-		case CARD_TEST:
-			return(0);
+	case CARD_RESET:
+		spin_lock_irqsave(&cs->lock, flags);
+		reset_asuscom(cs);
+		spin_unlock_irqrestore(&cs->lock, flags);
+		return (0);
+	case CARD_RELEASE:
+		release_io_asuscom(cs);
+		return (0);
+	case CARD_INIT:
+		spin_lock_irqsave(&cs->lock, flags);
+		cs->debug |= L1_DEB_IPAC;
+		inithscxisac(cs, 3);
+		spin_unlock_irqrestore(&cs->lock, flags);
+		return (0);
+	case CARD_TEST:
+		return (0);
 	}
-	return(0);
+	return (0);
 }
 
 #ifdef __ISAPNP__
 static struct isapnp_device_id asus_ids[] __devinitdata = {
 	{ ISAPNP_VENDOR('A', 'S', 'U'), ISAPNP_FUNCTION(0x1688),
-	  ISAPNP_VENDOR('A', 'S', 'U'), ISAPNP_FUNCTION(0x1688), 
+	  ISAPNP_VENDOR('A', 'S', 'U'), ISAPNP_FUNCTION(0x1688),
 	  (unsigned long) "Asus1688 PnP" },
 	{ ISAPNP_VENDOR('A', 'S', 'U'), ISAPNP_FUNCTION(0x1690),
-	  ISAPNP_VENDOR('A', 'S', 'U'), ISAPNP_FUNCTION(0x1690), 
+	  ISAPNP_VENDOR('A', 'S', 'U'), ISAPNP_FUNCTION(0x1690),
 	  (unsigned long) "Asus1690 PnP" },
 	{ ISAPNP_VENDOR('S', 'I', 'E'), ISAPNP_FUNCTION(0x0020),
-	  ISAPNP_VENDOR('S', 'I', 'E'), ISAPNP_FUNCTION(0x0020), 
+	  ISAPNP_VENDOR('S', 'I', 'E'), ISAPNP_FUNCTION(0x0020),
 	  (unsigned long) "Isurf2 PnP" },
 	{ ISAPNP_VENDOR('E', 'L', 'F'), ISAPNP_FUNCTION(0x0000),
-	  ISAPNP_VENDOR('E', 'L', 'F'), ISAPNP_FUNCTION(0x0000), 
+	  ISAPNP_VENDOR('E', 'L', 'F'), ISAPNP_FUNCTION(0x0000),
 	  (unsigned long) "Iscas TE320" },
 	{ 0, }
 };
@@ -330,30 +330,30 @@ setup_asuscom(struct IsdnCard *card)
 #ifdef __ISAPNP__
 	if (!card->para[1] && isapnp_present()) {
 		struct pnp_dev *pnp_d;
-		while(ipid->card_vendor) {
+		while (ipid->card_vendor) {
 			if ((pnp_c = pnp_find_card(ipid->card_vendor,
-				ipid->card_device, pnp_c))) {
+						   ipid->card_device, pnp_c))) {
 				pnp_d = NULL;
 				if ((pnp_d = pnp_find_dev(pnp_c,
-					ipid->vendor, ipid->function, pnp_d))) {
+							  ipid->vendor, ipid->function, pnp_d))) {
 					int err;
 
 					printk(KERN_INFO "HiSax: %s detected\n",
-						(char *)ipid->driver_data);
+					       (char *)ipid->driver_data);
 					pnp_disable_dev(pnp_d);
 					err = pnp_activate_dev(pnp_d);
-					if (err<0) {
+					if (err < 0) {
 						printk(KERN_WARNING "%s: pnp_activate_dev ret(%d)\n",
-							__func__, err);
-						return(0);
+						       __func__, err);
+						return (0);
 					}
 					card->para[1] = pnp_port_start(pnp_d, 0);
 					card->para[0] = pnp_irq(pnp_d, 0);
 					if (!card->para[0] || !card->para[1]) {
 						printk(KERN_ERR "AsusPnP:some resources are missing %ld/%lx\n",
-							card->para[0], card->para[1]);
+						       card->para[0], card->para[1]);
 						pnp_disable_dev(pnp_d);
-						return(0);
+						return (0);
 					}
 					break;
 				} else {
@@ -362,10 +362,10 @@ setup_asuscom(struct IsdnCard *card)
 			}
 			ipid++;
 			pnp_c = NULL;
-		} 
+		}
 		if (!ipid->card_vendor) {
 			printk(KERN_INFO "AsusPnP: no ISAPnP card found\n");
-			return(0);
+			return (0);
 		}
 	}
 #endif
@@ -380,14 +380,14 @@ setup_asuscom(struct IsdnCard *card)
 		return (0);
 	}
 	printk(KERN_INFO "ISDNLink: defined at 0x%x IRQ %d\n",
-		cs->hw.asus.cfg_reg, cs->irq);
+	       cs->hw.asus.cfg_reg, cs->irq);
 	setup_isac(cs);
 	cs->BC_Read_Reg = &ReadHSCX;
 	cs->BC_Write_Reg = &WriteHSCX;
 	cs->BC_Send_Data = &hscx_fill_fifo;
 	cs->cardmsg = &Asus_card_msg;
-	val = readreg(cs->hw.asus.cfg_reg + ASUS_IPAC_ALE, 
-		cs->hw.asus.cfg_reg + ASUS_IPAC_DATA, IPAC_ID);
+	val = readreg(cs->hw.asus.cfg_reg + ASUS_IPAC_ALE,
+		      cs->hw.asus.cfg_reg + ASUS_IPAC_DATA, IPAC_ID);
 	if ((val == 1) || (val == 2)) {
 		cs->subtyp = ASUS_IPAC;
 		cs->hw.asus.adr  = cs->hw.asus.cfg_reg + ASUS_IPAC_ALE;
@@ -415,7 +415,7 @@ setup_asuscom(struct IsdnCard *card)
 		ISACVersion(cs, "ISDNLink:");
 		if (HscxVersion(cs, "ISDNLink:")) {
 			printk(KERN_WARNING
-		     	"ISDNLink: wrong HSCX versions check IO address\n");
+			       "ISDNLink: wrong HSCX versions check IO address\n");
 			release_io_asuscom(cs);
 			return (0);
 		}

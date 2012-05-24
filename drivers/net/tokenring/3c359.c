@@ -68,7 +68,6 @@
 #include <net/checksum.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include "3c359.h"
 
@@ -674,15 +673,11 @@ static int xl_open(struct net_device *dev)
 	/* These MUST be on 8 byte boundaries */
 	xl_priv->xl_tx_ring = kzalloc((sizeof(struct xl_tx_desc) * XL_TX_RING_SIZE) + 7, GFP_DMA | GFP_KERNEL);
 	if (xl_priv->xl_tx_ring == NULL) {
-		printk(KERN_WARNING "%s: Not enough memory to allocate tx buffers.\n",
-				     dev->name);
 		free_irq(dev->irq,dev);
 		return -ENOMEM;
 	}
 	xl_priv->xl_rx_ring = kzalloc((sizeof(struct xl_rx_desc) * XL_RX_RING_SIZE) +7, GFP_DMA | GFP_KERNEL);
 	if (xl_priv->xl_rx_ring == NULL) {
-		printk(KERN_WARNING "%s: Not enough memory to allocate rx buffers.\n",
-				     dev->name);
 		free_irq(dev->irq,dev);
 		kfree(xl_priv->xl_tx_ring);
 		return -ENOMEM;

@@ -205,17 +205,23 @@ static int dn_neigh_output_packet(struct sk_buff *skb)
 	struct neighbour *neigh = dst_get_neighbour_noref(dst);
 	struct net_device *dev = neigh->dev;
 	char mac_addr[ETH_ALEN];
+	unsigned int seq;
+	int err;
 
 	dn_dn2eth(mac_addr, rt->rt_local_src);
-	if (dev_hard_header(skb, dev, ntohs(skb->protocol), neigh->ha,
-			    mac_addr, skb->len) >= 0)
-		return dev_queue_xmit(skb);
+	do {
+		seq = read_seqbegin(&neigh->ha_lock);
+		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
+				      neigh->ha, mac_addr, skb->len);
+	} while (read_seqretry(&neigh->ha_lock, seq));
 
-	if (net_ratelimit())
-		printk(KERN_DEBUG "dn_neigh_output_packet: oops, can't send packet\n");
-
-	kfree_skb(skb);
-	return -EINVAL;
+	if (err >= 0)
+		err = dev_queue_xmit(skb);
+	else {
+		kfree_skb(skb);
+		err = -EINVAL;
+	}
+	return err;
 }
 
 static int dn_long_output(struct neighbour *neigh, struct sk_buff *skb)

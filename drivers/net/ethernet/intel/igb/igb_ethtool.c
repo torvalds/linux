@@ -1577,7 +1577,9 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 	union e1000_adv_rx_desc *rx_desc;
 	struct igb_rx_buffer *rx_buffer_info;
 	struct igb_tx_buffer *tx_buffer_info;
+	struct netdev_queue *txq;
 	u16 rx_ntc, tx_ntc, count = 0;
+	unsigned int total_bytes = 0, total_packets = 0;
 
 	/* initialize next to clean and descriptor values */
 	rx_ntc = rx_ring->next_to_clean;
@@ -1601,6 +1603,8 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 
 		/* unmap buffer on tx side */
 		tx_buffer_info = &tx_ring->tx_buffer_info[tx_ntc];
+		total_bytes += tx_buffer_info->bytecount;
+		total_packets += tx_buffer_info->gso_segs;
 		igb_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
 
 		/* increment rx/tx next to clean counters */
@@ -1614,6 +1618,9 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 		/* fetch next descriptor */
 		rx_desc = IGB_RX_DESC(rx_ring, rx_ntc);
 	}
+
+	txq = netdev_get_tx_queue(tx_ring->netdev, tx_ring->queue_index);
+	netdev_tx_completed_queue(txq, total_packets, total_bytes);
 
 	/* re-map buffers to ring, store next to clean values */
 	igb_alloc_rx_buffers(rx_ring, count);

@@ -51,7 +51,6 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
@@ -1632,6 +1631,9 @@ sl811h_probe(struct platform_device *dev)
 	u8			tmp, ioaddr = 0;
 	unsigned long		irqflags;
 
+	if (usb_disabled())
+		return -ENODEV;
+
 	/* basic sanity checks first.  board-specific init logic should
 	 * have initialized these three resources and probably board
 	 * specific platform_data.  we don't probe for IRQs, and do only
@@ -1817,20 +1819,4 @@ struct platform_driver sl811h_driver = {
 };
 EXPORT_SYMBOL(sl811h_driver);
 
-/*-------------------------------------------------------------------------*/
-
-static int __init sl811h_init(void)
-{
-	if (usb_disabled())
-		return -ENODEV;
-
-	INFO("driver %s, %s\n", hcd_name, DRIVER_VERSION);
-	return platform_driver_register(&sl811h_driver);
-}
-module_init(sl811h_init);
-
-static void __exit sl811h_cleanup(void)
-{
-	platform_driver_unregister(&sl811h_driver);
-}
-module_exit(sl811h_cleanup);
+module_platform_driver(sl811h_driver);

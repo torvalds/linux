@@ -165,7 +165,8 @@ struct fcoe_ctlr {
  * @switch_name: WWN of switch from advertisement
  * @fabric_name: WWN of fabric from advertisement
  * @fc_map:	 FC_MAP value from advertisement
- * @fcf_mac:	 Ethernet address of the FCF
+ * @fcf_mac:	 Ethernet address of the FCF for FIP traffic
+ * @fcoe_mac:	 Ethernet address of the FCF for FCoE traffic
  * @vfid:	 virtual fabric ID
  * @pri:	 selection priority, smaller values are better
  * @flogi_sent:	 current FLOGI sent to this FCF
@@ -188,6 +189,7 @@ struct fcoe_fcf {
 	u32 fc_map;
 	u16 vfid;
 	u8 fcf_mac[ETH_ALEN];
+	u8 fcoe_mac[ETH_ALEN];
 
 	u8 pri;
 	u8 flogi_sent;

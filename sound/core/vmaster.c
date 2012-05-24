@@ -37,6 +37,8 @@ struct link_master {
 	struct link_ctl_info info;
 	int val;		/* the master value */
 	unsigned int tlv[4];
+	void (*hook)(void *private_data, int);
+	void *hook_private_data;
 };
 
 /*
@@ -126,7 +128,9 @@ static int master_init(struct link_master *master)
 		master->info.count = 1; /* always mono */
 		/* set full volume as default (= no attenuation) */
 		master->val = master->info.max_val;
-		return 0;
+		if (master->hook)
+			master->hook(master->hook_private_data, master->val);
+		return 1;
 	}
 	return -ENOENT;
 }
@@ -329,6 +333,8 @@ static int master_put(struct snd_kcontrol *kcontrol,
 		slave_put_val(slave, uval);
 	}
 	kfree(uval);
+	if (master->hook && !err)
+		master->hook(master->hook_private_data, master->val);
 	return 1;
 }
 
@@ -408,3 +414,42 @@ struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 	return kctl;
 }
 EXPORT_SYMBOL(snd_ctl_make_virtual_master);
+
+/**
+ * snd_ctl_add_vmaster_hook - Add a hook to a vmaster control
+ * @kcontrol: vmaster kctl element
+ * @hook: the hook function
+ * @private_data: the private_data pointer to be saved
+ *
+ * Adds the given hook to the vmaster control element so that it's called
+ * at each time when the value is changed.
+ */
+int snd_ctl_add_vmaster_hook(struct snd_kcontrol *kcontrol,
+			     void (*hook)(void *private_data, int),
+			     void *private_data)
+{
+	struct link_master *master = snd_kcontrol_chip(kcontrol);
+	master->hook = hook;
+	master->hook_private_data = private_data;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_ctl_add_vmaster_hook);
+
+/**
+ * snd_ctl_sync_vmaster_hook - Sync the vmaster hook
+ * @kcontrol: vmaster kctl element
+ *
+ * Call the hook function to synchronize with the current value of the given
+ * vmaster element.  NOP when NULL is passed to @kcontrol or the hook doesn't
+ * exist.
+ */
+void snd_ctl_sync_vmaster_hook(struct snd_kcontrol *kcontrol)
+{
+	struct link_master *master;
+	if (!kcontrol)
+		return;
+	master = snd_kcontrol_chip(kcontrol);
+	if (master->hook)
+		master->hook(master->hook_private_data, master->val);
+}
+EXPORT_SYMBOL_GPL(snd_ctl_sync_vmaster_hook);

@@ -12,6 +12,8 @@
 
 #ifndef CONFIG_ARCH_OMAP1
 #warning Please update the board to use matrix-keypad driver
+#define omap_readw(reg)		0
+#define omap_writew(val, reg)	do {} while (0)
 #endif
 #include <linux/input/matrix_keypad.h>
 

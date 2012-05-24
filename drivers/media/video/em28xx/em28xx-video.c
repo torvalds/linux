@@ -760,17 +760,19 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 			goto fail;
 	}
 
-	if (!dev->isoc_ctl.num_bufs)
+	if (!dev->isoc_ctl.analog_bufs.num_bufs)
 		urb_init = 1;
 
 	if (urb_init) {
 		if (em28xx_vbi_supported(dev) == 1)
-			rc = em28xx_init_isoc(dev, EM28XX_NUM_PACKETS,
+			rc = em28xx_init_isoc(dev, EM28XX_ANALOG_MODE,
+					      EM28XX_NUM_PACKETS,
 					      EM28XX_NUM_BUFS,
 					      dev->max_pkt_size,
 					      em28xx_isoc_copy_vbi);
 		else
-			rc = em28xx_init_isoc(dev, EM28XX_NUM_PACKETS,
+			rc = em28xx_init_isoc(dev, EM28XX_ANALOG_MODE,
+					      EM28XX_NUM_PACKETS,
 					      EM28XX_NUM_BUFS,
 					      dev->max_pkt_size,
 					      em28xx_isoc_copy);
@@ -2267,7 +2269,7 @@ static int em28xx_v4l2_close(struct file *filp)
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_power, 0);
 
 		/* do this before setting alternate! */
-		em28xx_uninit_isoc(dev);
+		em28xx_uninit_isoc(dev, EM28XX_ANALOG_MODE);
 		em28xx_set_mode(dev, EM28XX_SUSPEND);
 
 		/* set alternate 0 */

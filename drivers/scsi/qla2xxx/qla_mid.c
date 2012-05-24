@@ -479,7 +479,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	host->max_channel = MAX_BUSES - 1;
 	host->max_lun = ql2xmaxlun;
 	host->unique_id = host->host_no;
-	host->max_id = MAX_TARGETS_2200;
+	host->max_id = ha->max_fibre_devices;
 	host->transportt = qla2xxx_transport_vport_template;
 
 	ql_dbg(ql_dbg_vport, vha, 0xa007,

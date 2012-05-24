@@ -47,7 +47,6 @@
 
 #include <asm/irq.h>
 #include <asm/setup.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/atarihw.h>
 #include <asm/atarikb.h>

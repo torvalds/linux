@@ -232,7 +232,7 @@ The parameter can be given:
    # modprobe snd-usb-audio index=1 device_setup=0x09
 
  * Or while configuring the modules options in your modules configuration file
-   - For Fedora distributions, edit the /etc/modprobe.conf file:
+   (tipically a .conf file in /etc/modprobe.d/ directory:
        alias snd-card-1 snd-usb-audio
        options snd-usb-audio index=1 device_setup=0x09
 
@@ -253,7 +253,7 @@ CAUTION when initializing the device
    - first turn off the device
    - de-register the snd-usb-audio module (modprobe -r)
    - change the device_setup parameter by changing the device_setup
-     option in /etc/modprobe.conf 
+     option in /etc/modprobe.d/*.conf
    - turn on the device
  * A workaround for this last issue has been applied to kernel 2.6.23, but it may not
    be enough to ensure the 'stability' of the device initialization.

@@ -25,6 +25,8 @@ struct xfs_perag;
 struct xfs_trans;
 struct xfs_busy_extent;
 
+extern struct workqueue_struct *xfs_alloc_wq;
+
 /*
  * Freespace allocation types.  Argument to xfs_alloc_[v]extent.
  */
@@ -119,6 +121,9 @@ typedef struct xfs_alloc_arg {
 	char		isfl;		/* set if is freelist blocks - !acctg */
 	char		userdata;	/* set if this is user data */
 	xfs_fsblock_t	firstblock;	/* io first block allocated */
+	struct completion *done;
+	struct work_struct work;
+	int		result;
 } xfs_alloc_arg_t;
 
 /*
@@ -238,6 +243,13 @@ xfs_free_extent(
 
 int					/* error */
 xfs_alloc_lookup_le(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agblock_t		bno,	/* starting block of extent */
+	xfs_extlen_t		len,	/* length of extent */
+	int			*stat);	/* success/failure */
+
+int				/* error */
+xfs_alloc_lookup_ge(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	xfs_agblock_t		bno,	/* starting block of extent */
 	xfs_extlen_t		len,	/* length of extent */

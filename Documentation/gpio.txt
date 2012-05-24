@@ -271,9 +271,26 @@ Some platforms may also use knowledge about what GPIOs are active for
 power management, such as by powering down unused chip sectors and, more
 easily, gating off unused clocks.
 
-Note that requesting a GPIO does NOT cause it to be configured in any
-way; it just marks that GPIO as in use.  Separate code must handle any
-pin setup (e.g. controlling which pin the GPIO uses, pullup/pulldown).
+For GPIOs that use pins known to the pinctrl subsystem, that subsystem should
+be informed of their use; a gpiolib driver's .request() operation may call
+pinctrl_request_gpio(), and a gpiolib driver's .free() operation may call
+pinctrl_free_gpio(). The pinctrl subsystem allows a pinctrl_request_gpio()
+to succeed concurrently with a pin or pingroup being "owned" by a device for
+pin multiplexing.
+
+Any programming of pin multiplexing hardware that is needed to route the
+GPIO signal to the appropriate pin should occur within a GPIO driver's
+.direction_input() or .direction_output() operations, and occur after any
+setup of an output GPIO's value. This allows a glitch-free migration from a
+pin's special function to GPIO. This is sometimes required when using a GPIO
+to implement a workaround on signals typically driven by a non-GPIO HW block.
+
+Some platforms allow some or all GPIO signals to be routed to different pins.
+Similarly, other aspects of the GPIO or pin may need to be configured, such as
+pullup/pulldown. Platform software should arrange that any such details are
+configured prior to gpio_request() being called for those GPIOs, e.g. using
+the pinctrl subsystem's mapping table, so that GPIO users need not be aware
+of these details.
 
 Also note that it's your responsibility to have stopped using a GPIO
 before you free it.
@@ -302,6 +319,8 @@ where 'flags' is currently defined to specify the following properties:
 
 	* GPIOF_INIT_LOW	- as output, set initial level to LOW
 	* GPIOF_INIT_HIGH	- as output, set initial level to HIGH
+	* GPIOF_OPEN_DRAIN	- gpio pin is open drain type.
+	* GPIOF_OPEN_SOURCE	- gpio pin is open source type.
 
 since GPIOF_INIT_* are only valid when configured as output, so group valid
 combinations as:
@@ -310,8 +329,19 @@ combinations as:
 	* GPIOF_OUT_INIT_LOW	- configured as output, initial level LOW
 	* GPIOF_OUT_INIT_HIGH	- configured as output, initial level HIGH
 
-In the future, these flags can be extended to support more properties such
-as open-drain status.
+When setting the flag as GPIOF_OPEN_DRAIN then it will assume that pins is
+open drain type. Such pins will not be driven to 1 in output mode. It is
+require to connect pull-up on such pins. By enabling this flag, gpio lib will
+make the direction to input when it is asked to set value of 1 in output mode
+to make the pin HIGH. The pin is make to LOW by driving value 0 in output mode.
+
+When setting the flag as GPIOF_OPEN_SOURCE then it will assume that pins is
+open source type. Such pins will not be driven to 0 in output mode. It is
+require to connect pull-down on such pin. By enabling this flag, gpio lib will
+make the direction to input when it is asked to set value of 0 in output mode
+to make the pin LOW. The pin is make to HIGH by driving value 1 in output mode.
+
+In the future, these flags can be extended to support more properties.
 
 Further more, to ease the claim/release of multiple GPIOs, 'struct gpio' is
 introduced to encapsulate all three fields as:

@@ -1,9 +1,6 @@
 menuconfig SND_IMX_SOC
 	tristate "SoC Audio for Freescale i.MX CPUs"
 	depends on ARCH_MXC
-	select SND_PCM
-	select FIQ
-	select SND_SOC_AC97_BUS
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the i.MX SSI interface.
@@ -11,10 +8,23 @@ menuconfig SND_IMX_SOC
 
 if SND_IMX_SOC
 
-config SND_MXC_SOC_FIQ
+config SND_SOC_IMX_SSI
 	tristate
 
+config SND_SOC_IMX_PCM
+	tristate
+
+config SND_MXC_SOC_FIQ
+	tristate
+	select FIQ
+	select SND_SOC_IMX_PCM
+
 config SND_MXC_SOC_MX2
+	select SND_SOC_DMAENGINE_PCM
+	tristate
+	select SND_SOC_IMX_PCM
+
+config SND_SOC_IMX_AUDMUX
 	tristate
 
 config SND_MXC_SOC_WM1133_EV1
@@ -22,6 +32,8 @@ config SND_MXC_SOC_WM1133_EV1
 	depends on MACH_MX31ADS_WM1133_EV1 && EXPERIMENTAL
 	select SND_SOC_WM8350
 	select SND_MXC_SOC_FIQ
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_SSI
 	help
 	  Enable support for audio on the i.MX31ADS with the WM1133-EV1
 	  PMIC board with WM8835x fitted.
@@ -31,6 +43,8 @@ config SND_SOC_MX27VIS_AIC32X4
 	depends on MACH_IMX27_VISSTRIM_M10 && I2C
 	select SND_SOC_TLV320AIC32X4
 	select SND_MXC_SOC_MX2
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_SSI
 	help
 	  Say Y if you want to add support for SoC audio on Visstrim SM10
 	  board with TLV320AIC32X4 codec.
@@ -38,8 +52,11 @@ config SND_SOC_MX27VIS_AIC32X4
 config SND_SOC_PHYCORE_AC97
 	tristate "SoC Audio support for Phytec phyCORE (and phyCARD) boards"
 	depends on MACH_PCM043 || MACH_PCA100
+	select SND_SOC_AC97_BUS
 	select SND_SOC_WM9712
 	select SND_MXC_SOC_FIQ
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_SSI
 	help
 	  Say Y if you want to add support for SoC audio on Phytec phyCORE
 	  and phyCARD boards in AC97 mode
@@ -53,6 +70,8 @@ config SND_SOC_EUKREA_TLV320
 	depends on I2C
 	select SND_SOC_TLV320AIC23
 	select SND_MXC_SOC_FIQ
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_SSI
 	help
 	  Enable I2S based access to the TLV320AIC23B codec attached
 	  to the SSI interface

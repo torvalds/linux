@@ -30,84 +30,18 @@ unsigned char ledbank = 0xff;
 
 /***************************************************************************/
 
-static struct mcf_platform_uart m5272_uart_platform[] = {
-	{
-		.mapbase	= MCF_MBAR + MCFUART_BASE1,
-		.irq		= MCF_IRQ_UART1,
-	},
-	{
-		.mapbase 	= MCF_MBAR + MCFUART_BASE2,
-		.irq		= MCF_IRQ_UART2,
-	},
-	{ },
-};
-
-static struct platform_device m5272_uart = {
-	.name			= "mcfuart",
-	.id			= 0,
-	.dev.platform_data	= m5272_uart_platform,
-};
-
-static struct resource m5272_fec_resources[] = {
-	{
-		.start		= MCF_MBAR + 0x840,
-		.end		= MCF_MBAR + 0x840 + 0x1cf,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= MCF_IRQ_ERX,
-		.end		= MCF_IRQ_ERX,
-		.flags		= IORESOURCE_IRQ,
-	},
-	{
-		.start		= MCF_IRQ_ETX,
-		.end		= MCF_IRQ_ETX,
-		.flags		= IORESOURCE_IRQ,
-	},
-	{
-		.start		= MCF_IRQ_ENTC,
-		.end		= MCF_IRQ_ENTC,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device m5272_fec = {
-	.name			= "fec",
-	.id			= 0,
-	.num_resources		= ARRAY_SIZE(m5272_fec_resources),
-	.resource		= m5272_fec_resources,
-};
-
-static struct platform_device *m5272_devices[] __initdata = {
-	&m5272_uart,
-	&m5272_fec,
-};
-
-/***************************************************************************/
-
-static void __init m5272_uart_init_line(int line, int irq)
+static void __init m5272_uarts_init(void)
 {
 	u32 v;
 
-	if ((line >= 0) && (line < 2)) {
-		/* Enable the output lines for the serial ports */
-		v = readl(MCF_MBAR + MCFSIM_PBCNT);
-		v = (v & ~0x000000ff) | 0x00000055;
-		writel(v, MCF_MBAR + MCFSIM_PBCNT);
+	/* Enable the output lines for the serial ports */
+	v = readl(MCF_MBAR + MCFSIM_PBCNT);
+	v = (v & ~0x000000ff) | 0x00000055;
+	writel(v, MCF_MBAR + MCFSIM_PBCNT);
 
-		v = readl(MCF_MBAR + MCFSIM_PDCNT);
-		v = (v & ~0x000003fc) | 0x000002a8;
-		writel(v, MCF_MBAR + MCFSIM_PDCNT);
-	}
-}
-
-static void __init m5272_uarts_init(void)
-{
-	const int nrlines = ARRAY_SIZE(m5272_uart_platform);
-	int line;
-
-	for (line = 0; (line < nrlines); line++)
-		m5272_uart_init_line(line, m5272_uart_platform[line].irq);
+	v = readl(MCF_MBAR + MCFSIM_PDCNT);
+	v = (v & ~0x000003fc) | 0x000002a8;
+	writel(v, MCF_MBAR + MCFSIM_PDCNT);
 }
 
 /***************************************************************************/
@@ -146,6 +80,7 @@ void __init config_BSP(char *commandp, int size)
 #endif
 
 	mach_reset = m5272_cpu_reset;
+	mach_sched_init = hw_timer_init;
 }
 
 /***************************************************************************/
@@ -167,7 +102,6 @@ static int __init init_BSP(void)
 {
 	m5272_uarts_init();
 	fixed_phy_add(PHY_POLL, 0, &nettel_fixed_phy_status);
-	platform_add_devices(m5272_devices, ARRAY_SIZE(m5272_devices));
 	return 0;
 }
 

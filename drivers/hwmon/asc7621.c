@@ -268,9 +268,11 @@ static ssize_t store_fan16(struct device *dev,
 	if (kstrtol(buf, 10, &reqval))
 		return -EINVAL;
 
-	/* If a minimum RPM of zero is requested, then we set the register to
-	   0xffff. This value allows the fan to be stopped completely without
-	   generating an alarm. */
+	/*
+	 * If a minimum RPM of zero is requested, then we set the register to
+	 * 0xffff. This value allows the fan to be stopped completely without
+	 * generating an alarm.
+	 */
 	reqval =
 	    (reqval <= 0 ? 0xffff : SENSORS_LIMIT(5400000 / reqval, 0, 0xfffe));
 

@@ -201,7 +201,9 @@ enum {
 	Opt_ip,
 	Opt_last_string,
 	/* string args above */
+	Opt_share,
 	Opt_noshare,
+	Opt_crc,
 	Opt_nocrc,
 };
 
@@ -217,7 +219,9 @@ static match_table_t opt_tokens = {
 	{Opt_key, "key=%s"},
 	{Opt_ip, "ip=%s"},
 	/* string args above */
+	{Opt_share, "share"},
 	{Opt_noshare, "noshare"},
+	{Opt_crc, "crc"},
 	{Opt_nocrc, "nocrc"},
 	{-1, NULL}
 };
@@ -277,10 +281,11 @@ out:
 	return err;
 }
 
-int ceph_parse_options(struct ceph_options **popt, char *options,
-		       const char *dev_name, const char *dev_name_end,
-		       int (*parse_extra_token)(char *c, void *private),
-		       void *private)
+struct ceph_options *
+ceph_parse_options(char *options, const char *dev_name,
+			const char *dev_name_end,
+			int (*parse_extra_token)(char *c, void *private),
+			void *private)
 {
 	struct ceph_options *opt;
 	const char *c;
@@ -289,7 +294,7 @@ int ceph_parse_options(struct ceph_options **popt, char *options,
 
 	opt = kzalloc(sizeof(*opt), GFP_KERNEL);
 	if (!opt)
-		return err;
+		return ERR_PTR(-ENOMEM);
 	opt->mon_addr = kcalloc(CEPH_MAX_MON, sizeof(*opt->mon_addr),
 				GFP_KERNEL);
 	if (!opt->mon_addr)
@@ -398,10 +403,16 @@ int ceph_parse_options(struct ceph_options **popt, char *options,
 			opt->mount_timeout = intval;
 			break;
 
+		case Opt_share:
+			opt->flags &= ~CEPH_OPT_NOSHARE;
+			break;
 		case Opt_noshare:
 			opt->flags |= CEPH_OPT_NOSHARE;
 			break;
 
+		case Opt_crc:
+			opt->flags &= ~CEPH_OPT_NOCRC;
+			break;
 		case Opt_nocrc:
 			opt->flags |= CEPH_OPT_NOCRC;
 			break;
@@ -412,12 +423,11 @@ int ceph_parse_options(struct ceph_options **popt, char *options,
 	}
 
 	/* success */
-	*popt = opt;
-	return 0;
+	return opt;
 
 out:
 	ceph_destroy_options(opt);
-	return err;
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(ceph_parse_options);
 

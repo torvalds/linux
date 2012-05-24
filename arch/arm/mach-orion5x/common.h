@@ -57,5 +57,14 @@ struct meminfo;
 struct tag;
 extern void __init tag_fixup_mem32(struct tag *, char **, struct meminfo *);
 
+/*****************************************************************************
+ * Helpers to access Orion registers
+ ****************************************************************************/
+/*
+ * These are not preempt-safe.  Locks, if needed, must be taken
+ * care of by the caller.
+ */
+#define orion5x_setbits(r, mask)	writel(readl(r) | (mask), (r))
+#define orion5x_clrbits(r, mask)	writel(readl(r) & ~(mask), (r))
 
 #endif

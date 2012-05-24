@@ -33,8 +33,8 @@ struct vtimer_queue {
 	spinlock_t lock;
 	__u64 timer;		/* last programmed timer */
 	__u64 elapsed;		/* elapsed time of timer expire values */
-	__u64 idle;		/* temp var for idle */
-	int do_spt;		/* =1: reprogram cpu timer in idle */
+	__u64 idle_enter;	/* cpu timer on idle enter */
+	__u64 idle_exit;	/* cpu timer on idle exit */
 };
 
 extern void init_virt_timer(struct vtimer_list *timer);

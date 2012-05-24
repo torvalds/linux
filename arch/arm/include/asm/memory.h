@@ -116,6 +116,8 @@
 #define MODULES_END		(END_MEM)
 #define MODULES_VADDR		(PHYS_OFFSET)
 
+#define XIP_VIRT_ADDR(physaddr)  (physaddr)
+
 #endif /* !CONFIG_MMU */
 
 /*

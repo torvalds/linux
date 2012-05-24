@@ -396,7 +396,7 @@ static int svc_partial_recvfrom(struct svc_rqst *rqstp,
 				int buflen, unsigned int base)
 {
 	size_t save_iovlen;
-	void __user *save_iovbase;
+	void *save_iovbase;
 	unsigned int i;
 	int ret;
 
@@ -1381,8 +1381,6 @@ void svc_sock_update_bufs(struct svc_serv *serv)
 	spin_lock_bh(&serv->sv_lock);
 	list_for_each_entry(svsk, &serv->sv_permsocks, sk_xprt.xpt_list)
 		set_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags);
-	list_for_each_entry(svsk, &serv->sv_tempsocks, sk_xprt.xpt_list)
-		set_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags);
 	spin_unlock_bh(&serv->sv_lock);
 }
 EXPORT_SYMBOL_GPL(svc_sock_update_bufs);
@@ -1409,7 +1407,8 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 
 	/* Register socket with portmapper */
 	if (*errp >= 0 && pmap_register)
-		*errp = svc_register(serv, inet->sk_family, inet->sk_protocol,
+		*errp = svc_register(serv, sock_net(sock->sk), inet->sk_family,
+				     inet->sk_protocol,
 				     ntohs(inet_sk(inet)->inet_sport));
 
 	if (*errp < 0) {

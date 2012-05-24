@@ -24,12 +24,12 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/time.h>
+#include <linux/fsl/mxs-dma.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/saif.h>
-#include <mach/dma.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <mach/mxs.h>
@@ -630,7 +630,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	if (pdev->id >= ARRAY_SIZE(mxs_saif))
 		return -EINVAL;
 
-	saif = kzalloc(sizeof(*saif), GFP_KERNEL);
+	saif = devm_kzalloc(&pdev->dev, sizeof(*saif), GFP_KERNEL);
 	if (!saif)
 		return -ENOMEM;
 
@@ -655,29 +655,16 @@ static int mxs_saif_probe(struct platform_device *pdev)
 		ret = PTR_ERR(saif->clk);
 		dev_err(&pdev->dev, "Cannot get the clock: %d\n",
 			ret);
-		goto failed_clk;
+		return ret;
 	}
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iores) {
-		ret = -ENODEV;
-		dev_err(&pdev->dev, "failed to get io resource: %d\n",
-			ret);
-		goto failed_get_resource;
-	}
 
-	if (!request_mem_region(iores->start, resource_size(iores),
-				"mxs-saif")) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		ret = -EBUSY;
-		goto failed_get_resource;
-	}
-
-	saif->base = ioremap(iores->start, resource_size(iores));
+	saif->base = devm_request_and_ioremap(&pdev->dev, iores);
 	if (!saif->base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENODEV;
-		goto failed_ioremap;
+		goto failed_get_resource;
 	}
 
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -685,7 +672,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		dev_err(&pdev->dev, "failed to get dma resource: %d\n",
 			ret);
-		goto failed_ioremap;
+		goto failed_get_resource;
 	}
 	saif->dma_param.chan_num = dmares->start;
 
@@ -694,14 +681,15 @@ static int mxs_saif_probe(struct platform_device *pdev)
 		ret = saif->irq;
 		dev_err(&pdev->dev, "failed to get irq resource: %d\n",
 			ret);
-		goto failed_get_irq1;
+		goto failed_get_resource;
 	}
 
 	saif->dev = &pdev->dev;
-	ret = request_irq(saif->irq, mxs_saif_irq, 0, "mxs-saif", saif);
+	ret = devm_request_irq(&pdev->dev, saif->irq, mxs_saif_irq, 0,
+			       "mxs-saif", saif);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
-		goto failed_get_irq1;
+		goto failed_get_resource;
 	}
 
 	saif->dma_param.chan_irq = platform_get_irq(pdev, 1);
@@ -709,7 +697,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 		ret = saif->dma_param.chan_irq;
 		dev_err(&pdev->dev, "failed to get dma irq resource: %d\n",
 			ret);
-		goto failed_get_irq2;
+		goto failed_get_resource;
 	}
 
 	platform_set_drvdata(pdev, saif);
@@ -717,7 +705,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	ret = snd_soc_register_dai(&pdev->dev, &mxs_saif_dai);
 	if (ret) {
 		dev_err(&pdev->dev, "register DAI failed\n");
-		goto failed_register;
+		goto failed_get_resource;
 	}
 
 	saif->soc_platform_pdev = platform_device_alloc(
@@ -740,36 +728,19 @@ failed_pdev_add:
 	platform_device_put(saif->soc_platform_pdev);
 failed_pdev_alloc:
 	snd_soc_unregister_dai(&pdev->dev);
-failed_register:
-failed_get_irq2:
-	free_irq(saif->irq, saif);
-failed_get_irq1:
-	iounmap(saif->base);
-failed_ioremap:
-	release_mem_region(iores->start, resource_size(iores));
 failed_get_resource:
 	clk_put(saif->clk);
-failed_clk:
-	kfree(saif);
 
 	return ret;
 }
 
 static int __devexit mxs_saif_remove(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct mxs_saif *saif = platform_get_drvdata(pdev);
 
 	platform_device_unregister(saif->soc_platform_pdev);
-
 	snd_soc_unregister_dai(&pdev->dev);
-
-	iounmap(saif->base);
-	release_mem_region(res->start, resource_size(res));
-	free_irq(saif->irq, saif);
-
 	clk_put(saif->clk);
-	kfree(saif);
 
 	return 0;
 }

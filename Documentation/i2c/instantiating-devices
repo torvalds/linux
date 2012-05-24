@@ -87,11 +87,11 @@ it may have different addresses from one board to the next (manufacturer
 changing its design without notice). In this case, you can call
 i2c_new_probed_device() instead of i2c_new_device().
 
-Example (from the pnx4008 OHCI driver):
+Example (from the nxp OHCI driver):
 
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
-static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
+static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 {
 	(...)
 	struct i2c_adapter *i2c_adap;
@@ -100,7 +100,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 	(...)
 	i2c_adap = i2c_get_adapter(2);
 	memset(&i2c_info, 0, sizeof(struct i2c_board_info));
-	strlcpy(i2c_info.type, "isp1301_pnx", I2C_NAME_SIZE);
+	strlcpy(i2c_info.type, "isp1301_nxp", I2C_NAME_SIZE);
 	isp1301_i2c_client = i2c_new_probed_device(i2c_adap, &i2c_info,
 						   normal_i2c, NULL);
 	i2c_put_adapter(i2c_adap);

@@ -33,6 +33,10 @@
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 
+#define PMUXCR_ELBCDIU_MASK	0xc0000000
+#define PMUXCR_ELBCDIU_NOR16	0x80000000
+#define PMUXCR_ELBCDIU_DIU	0x40000000
+
 /*
  * Board-specific initialization of the DIU.  This code should probably be
  * executed when the DIU is opened, rather than in arch code, but the DIU
@@ -50,10 +54,21 @@
 #define CLKDVDR_PXCLK_MASK	0x00FF0000
 
 /* Some ngPIXIS register definitions */
+#define PX_CTL		3
+#define PX_BRDCFG0	8
+#define PX_BRDCFG1	9
+
+#define PX_BRDCFG0_ELBC_SPI_MASK	0xc0
+#define PX_BRDCFG0_ELBC_SPI_ELBC	0x00
+#define PX_BRDCFG0_ELBC_SPI_NULL	0xc0
+#define PX_BRDCFG0_ELBC_DIU		0x02
+
 #define PX_BRDCFG1_DVIEN	0x80
 #define PX_BRDCFG1_DFPEN	0x40
 #define PX_BRDCFG1_BACKLIGHT	0x20
 #define PX_BRDCFG1_DDCEN	0x10
+
+#define PX_CTL_ALTACC		0x80
 
 /*
  * DIU Area Descriptor
@@ -133,44 +148,117 @@ static void p1022ds_set_gamma_table(enum fsl_diu_monitor_port port,
  */
 static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 {
-	struct device_node *np;
-	void __iomem *pixis;
-	u8 __iomem *brdcfg1;
+	struct device_node *guts_node;
+	struct device_node *indirect_node = NULL;
+	struct ccsr_guts __iomem *guts;
+	u8 __iomem *lbc_lcs0_ba = NULL;
+	u8 __iomem *lbc_lcs1_ba = NULL;
+	u8 b;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,p1022ds-fpga");
-	if (!np)
-		/* older device trees used "fsl,p1022ds-pixis" */
-		np = of_find_compatible_node(NULL, NULL, "fsl,p1022ds-pixis");
-	if (!np) {
-		pr_err("p1022ds: missing ngPIXIS node\n");
+	/* Map the global utilities registers. */
+	guts_node = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
+	if (!guts_node) {
+		pr_err("p1022ds: missing global utilties device node\n");
 		return;
 	}
 
-	pixis = of_iomap(np, 0);
-	if (!pixis) {
-		pr_err("p1022ds: could not map ngPIXIS registers\n");
-		return;
+	guts = of_iomap(guts_node, 0);
+	if (!guts) {
+		pr_err("p1022ds: could not map global utilties device\n");
+		goto exit;
 	}
-	brdcfg1 = pixis + 9;	/* BRDCFG1 is at offset 9 in the ngPIXIS */
+
+	indirect_node = of_find_compatible_node(NULL, NULL,
+					     "fsl,p1022ds-indirect-pixis");
+	if (!indirect_node) {
+		pr_err("p1022ds: missing pixis indirect mode node\n");
+		goto exit;
+	}
+
+	lbc_lcs0_ba = of_iomap(indirect_node, 0);
+	if (!lbc_lcs0_ba) {
+		pr_err("p1022ds: could not map localbus chip select 0\n");
+		goto exit;
+	}
+
+	lbc_lcs1_ba = of_iomap(indirect_node, 1);
+	if (!lbc_lcs1_ba) {
+		pr_err("p1022ds: could not map localbus chip select 1\n");
+		goto exit;
+	}
+
+	/* Make sure we're in indirect mode first. */
+	if ((in_be32(&guts->pmuxcr) & PMUXCR_ELBCDIU_MASK) !=
+	    PMUXCR_ELBCDIU_DIU) {
+		struct device_node *pixis_node;
+		void __iomem *pixis;
+
+		pixis_node =
+			of_find_compatible_node(NULL, NULL, "fsl,p1022ds-fpga");
+		if (!pixis_node) {
+			pr_err("p1022ds: missing pixis node\n");
+			goto exit;
+		}
+
+		pixis = of_iomap(pixis_node, 0);
+		of_node_put(pixis_node);
+		if (!pixis) {
+			pr_err("p1022ds: could not map pixis registers\n");
+			goto exit;
+		}
+
+		/* Enable indirect PIXIS mode.  */
+		setbits8(pixis + PX_CTL, PX_CTL_ALTACC);
+		iounmap(pixis);
+
+		/* Switch the board mux to the DIU */
+		out_8(lbc_lcs0_ba, PX_BRDCFG0);	/* BRDCFG0 */
+		b = in_8(lbc_lcs1_ba);
+		b |= PX_BRDCFG0_ELBC_DIU;
+		out_8(lbc_lcs1_ba, b);
+
+		/* Set the chip mux to DIU mode. */
+		clrsetbits_be32(&guts->pmuxcr, PMUXCR_ELBCDIU_MASK,
+				PMUXCR_ELBCDIU_DIU);
+		in_be32(&guts->pmuxcr);
+	}
+
 
 	switch (port) {
 	case FSL_DIU_PORT_DVI:
-		printk(KERN_INFO "%s:%u\n", __func__, __LINE__);
 		/* Enable the DVI port, disable the DFP and the backlight */
-		clrsetbits_8(brdcfg1, PX_BRDCFG1_DFPEN | PX_BRDCFG1_BACKLIGHT,
-			     PX_BRDCFG1_DVIEN);
+		out_8(lbc_lcs0_ba, PX_BRDCFG1);
+		b = in_8(lbc_lcs1_ba);
+		b &= ~(PX_BRDCFG1_DFPEN | PX_BRDCFG1_BACKLIGHT);
+		b |= PX_BRDCFG1_DVIEN;
+		out_8(lbc_lcs1_ba, b);
 		break;
 	case FSL_DIU_PORT_LVDS:
-		printk(KERN_INFO "%s:%u\n", __func__, __LINE__);
+		/*
+		 * LVDS also needs backlight enabled, otherwise the display
+		 * will be blank.
+		 */
 		/* Enable the DFP port, disable the DVI and the backlight */
-		clrsetbits_8(brdcfg1, PX_BRDCFG1_DVIEN | PX_BRDCFG1_BACKLIGHT,
-			     PX_BRDCFG1_DFPEN);
+		out_8(lbc_lcs0_ba, PX_BRDCFG1);
+		b = in_8(lbc_lcs1_ba);
+		b &= ~PX_BRDCFG1_DVIEN;
+		b |= PX_BRDCFG1_DFPEN | PX_BRDCFG1_BACKLIGHT;
+		out_8(lbc_lcs1_ba, b);
 		break;
 	default:
 		pr_err("p1022ds: unsupported monitor port %i\n", port);
 	}
 
-	iounmap(pixis);
+exit:
+	if (lbc_lcs1_ba)
+		iounmap(lbc_lcs1_ba);
+	if (lbc_lcs0_ba)
+		iounmap(lbc_lcs0_ba);
+	if (guts)
+		iounmap(guts);
+
+	of_node_put(indirect_node);
+	of_node_put(guts_node);
 }
 
 /**
@@ -181,7 +269,7 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 void p1022ds_set_pixel_clock(unsigned int pixclock)
 {
 	struct device_node *guts_np = NULL;
-	struct ccsr_guts_85xx __iomem *guts;
+	struct ccsr_guts __iomem *guts;
 	unsigned long freq;
 	u64 temp;
 	u32 pxclk;
@@ -242,14 +330,55 @@ p1022ds_valid_monitor_port(enum fsl_diu_monitor_port port)
 
 void __init p1022_ds_pic_init(void)
 {
-	struct mpic *mpic = mpic_alloc(NULL, 0,
-		MPIC_WANTS_RESET |
-		MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS |
+	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
 		MPIC_SINGLE_DEST_CPU,
 		0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
 	mpic_init(mpic);
 }
+
+#if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
+
+/*
+ * Disables a node in the device tree.
+ *
+ * This function is called before kmalloc() is available, so the 'new' object
+ * should be allocated in the global area.  The easiest way is to do that is
+ * to allocate one static local variable for each call to this function.
+ */
+static void __init disable_one_node(struct device_node *np, struct property *new)
+{
+	struct property *old;
+
+	old = of_find_property(np, new->name, NULL);
+	if (old)
+		prom_update_property(np, new, old);
+	else
+		prom_add_property(np, new);
+}
+
+/* TRUE if there is a "video=fslfb" command-line parameter. */
+static bool fslfb;
+
+/*
+ * Search for a "video=fslfb" command-line parameter, and set 'fslfb' to
+ * true if we find it.
+ *
+ * We need to use early_param() instead of __setup() because the normal
+ * __setup() gets called to late.  However, early_param() gets called very
+ * early, before the device tree is unflattened, so all we can do now is set a
+ * global variable.  Later on, p1022_ds_setup_arch() will use that variable
+ * to determine if we need to update the device tree.
+ */
+static int __init early_video_setup(char *options)
+{
+	fslfb = (strncmp(options, "fslfb:", 6) == 0);
+
+	return 0;
+}
+early_param("video", early_video_setup);
+
+#endif
 
 /*
  * Setup the architecture
@@ -288,6 +417,34 @@ static void __init p1022_ds_setup_arch(void)
 	diu_ops.set_monitor_port	= p1022ds_set_monitor_port;
 	diu_ops.set_pixel_clock		= p1022ds_set_pixel_clock;
 	diu_ops.valid_monitor_port	= p1022ds_valid_monitor_port;
+
+	/*
+	 * Disable the NOR flash node if there is video=fslfb... command-line
+	 * parameter.  When the DIU is active, NOR flash is unavailable, so we
+	 * have to disable the node before the MTD driver loads.
+	 */
+	if (fslfb) {
+		struct device_node *np =
+			of_find_compatible_node(NULL, NULL, "fsl,p1022-elbc");
+
+		if (np) {
+			np = of_find_compatible_node(np, NULL, "cfi-flash");
+			if (np) {
+				static struct property nor_status = {
+					.name = "status",
+					.value = "disabled",
+					.length = sizeof("disabled"),
+				};
+
+				pr_info("p1022ds: disabling %s node",
+					np->full_name);
+				disable_one_node(np, &nor_status);
+				of_node_put(np);
+			}
+		}
+
+	}
+
 #endif
 
 	mpc85xx_smp_init();

@@ -33,7 +33,6 @@
 #include <linux/kdebug.h>
 #include <linux/export.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/oplib.h>
@@ -46,6 +45,7 @@
 #include <asm/machines.h>
 #include <asm/cpudata.h>
 #include <asm/setup.h>
+#include <asm/cacheflush.h>
 
 #include "kernel.h"
 

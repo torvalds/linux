@@ -221,7 +221,7 @@ static const struct sierra_iface_info typeB_interface_list = {
 };
 
 /* 'blacklist' of interfaces not served by this driver */
-static const u8 direct_ip_non_serial_ifaces[] = { 7, 8, 9, 10, 11 };
+static const u8 direct_ip_non_serial_ifaces[] = { 7, 8, 9, 10, 11, 19, 20 };
 static const struct sierra_iface_info direct_ip_interface_blacklist = {
 	.infolen = ARRAY_SIZE(direct_ip_non_serial_ifaces),
 	.ifaceinfo = direct_ip_non_serial_ifaces,
@@ -298,6 +298,9 @@ static const struct usb_device_id id_table[] = {
 	/* Sierra Wireless HSPA Non-Composite Device */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6892, 0xFF, 0xFF, 0xFF)},
 	{ USB_DEVICE(0x1199, 0x6893) },	/* Sierra Wireless Device */
+	{ USB_DEVICE(0x1199, 0x68A2),   /* Sierra Wireless MC77xx in QMI mode */
+	  .driver_info = (kernel_ulong_t)&direct_ip_interface_blacklist
+	},
 	{ USB_DEVICE(0x1199, 0x68A3), 	/* Sierra Wireless Direct IP modems */
 	  .driver_info = (kernel_ulong_t)&direct_ip_interface_blacklist
 	},
@@ -1084,7 +1087,6 @@ static struct usb_driver sierra_driver = {
 	.resume     = usb_serial_resume,
 	.reset_resume = sierra_reset_resume,
 	.id_table   = id_table,
-	.no_dynamic_id = 	1,
 	.supports_autosuspend =	1,
 };
 
@@ -1095,7 +1097,6 @@ static struct usb_serial_driver sierra_device = {
 	},
 	.description       = "Sierra USB modem",
 	.id_table          = id_table,
-	.usb_driver        = &sierra_driver,
 	.calc_num_ports	   = sierra_calc_num_ports,
 	.probe		   = sierra_probe,
 	.open              = sierra_open,
@@ -1113,38 +1114,11 @@ static struct usb_serial_driver sierra_device = {
 	.read_int_callback = sierra_instat_callback,
 };
 
-/* Functions used by new usb-serial code. */
-static int __init sierra_init(void)
-{
-	int retval;
-	retval = usb_serial_register(&sierra_device);
-	if (retval)
-		goto failed_device_register;
+static struct usb_serial_driver * const serial_drivers[] = {
+	&sierra_device, NULL
+};
 
-
-	retval = usb_register(&sierra_driver);
-	if (retval)
-		goto failed_driver_register;
-
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-
-	return 0;
-
-failed_driver_register:
-	usb_serial_deregister(&sierra_device);
-failed_device_register:
-	return retval;
-}
-
-static void __exit sierra_exit(void)
-{
-	usb_deregister(&sierra_driver);
-	usb_serial_deregister(&sierra_device);
-}
-
-module_init(sierra_init);
-module_exit(sierra_exit);
+module_usb_serial_driver(sierra_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -172,7 +172,7 @@ static void ath9k_iowrite32(void *hw_priv, u32 val, u32 reg_offset)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		unsigned long flags;
 		spin_lock_irqsave(&sc->sc_serial_rw, flags);
 		iowrite32(val, sc->mem + reg_offset);
@@ -188,7 +188,7 @@ static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 	u32 val;
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		unsigned long flags;
 		spin_lock_irqsave(&sc->sc_serial_rw, flags);
 		val = ioread32(sc->mem + reg_offset);
@@ -219,7 +219,7 @@ static unsigned int ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 cl
 	unsigned long uninitialized_var(flags);
 	u32 val;
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		spin_lock_irqsave(&sc->sc_serial_rw, flags);
 		val = __ath9k_reg_rmw(sc, reg_offset, set, clr);
 		spin_unlock_irqrestore(&sc->sc_serial_rw, flags);
@@ -419,66 +419,6 @@ fail:
 	return error;
 }
 
-static int ath9k_init_btcoex(struct ath_softc *sc)
-{
-	struct ath_txq *txq;
-	struct ath_hw *ah = sc->sc_ah;
-	int r;
-
-	switch (ath9k_hw_get_btcoex_scheme(sc->sc_ah)) {
-	case ATH_BTCOEX_CFG_NONE:
-		break;
-	case ATH_BTCOEX_CFG_2WIRE:
-		ath9k_hw_btcoex_init_2wire(sc->sc_ah);
-		break;
-	case ATH_BTCOEX_CFG_3WIRE:
-		ath9k_hw_btcoex_init_3wire(sc->sc_ah);
-		r = ath_init_btcoex_timer(sc);
-		if (r)
-			return -1;
-		txq = sc->tx.txq_map[WME_AC_BE];
-		ath9k_hw_init_btcoex_hw(sc->sc_ah, txq->axq_qnum);
-		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
-		break;
-	case ATH_BTCOEX_CFG_MCI:
-		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
-		sc->btcoex.duty_cycle = ATH_BTCOEX_DEF_DUTY_CYCLE;
-		INIT_LIST_HEAD(&sc->btcoex.mci.info);
-
-		r = ath_mci_setup(sc);
-		if (r)
-			return r;
-
-		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI) {
-			ah->btcoex_hw.mci.ready = false;
-			ah->btcoex_hw.mci.bt_state = 0;
-			ah->btcoex_hw.mci.bt_ver_major = 3;
-			ah->btcoex_hw.mci.bt_ver_minor = 0;
-			ah->btcoex_hw.mci.bt_version_known = false;
-			ah->btcoex_hw.mci.update_2g5g = true;
-			ah->btcoex_hw.mci.is_2g = true;
-			ah->btcoex_hw.mci.wlan_channels_update = false;
-			ah->btcoex_hw.mci.wlan_channels[0] = 0x00000000;
-			ah->btcoex_hw.mci.wlan_channels[1] = 0xffffffff;
-			ah->btcoex_hw.mci.wlan_channels[2] = 0xffffffff;
-			ah->btcoex_hw.mci.wlan_channels[3] = 0x7fffffff;
-			ah->btcoex_hw.mci.query_bt = true;
-			ah->btcoex_hw.mci.unhalt_bt_gpm = true;
-			ah->btcoex_hw.mci.halted_bt_gpm = false;
-			ah->btcoex_hw.mci.need_flush_btinfo = false;
-			ah->btcoex_hw.mci.wlan_cal_seq = 0;
-			ah->btcoex_hw.mci.wlan_cal_done = 0;
-			ah->btcoex_hw.mci.config = 0x2201;
-		}
-		break;
-	default:
-		WARN_ON(1);
-		break;
-	}
-
-	return 0;
-}
-
 static int ath9k_init_queues(struct ath_softc *sc)
 {
 	int i = 0;
@@ -544,19 +484,11 @@ static void ath9k_init_misc(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int i = 0;
+
 	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
 
 	sc->config.txpowlimit = ATH_TXPOWER_MAX;
-
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
-		sc->sc_flags |= SC_OP_TXAGGR;
-		sc->sc_flags |= SC_OP_RXAGGR;
-	}
-
-	sc->rx.defant = ath9k_hw_getdefantenna(sc->sc_ah);
-
 	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
-
 	sc->beacon.slottime = ATH9K_SLOT_TIME_9;
 
 	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++)
@@ -615,8 +547,10 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	mutex_init(&sc->mutex);
 #ifdef CONFIG_ATH9K_DEBUGFS
 	spin_lock_init(&sc->nodes_lock);
-	spin_lock_init(&sc->debug.samp_lock);
 	INIT_LIST_HEAD(&sc->nodes);
+#endif
+#ifdef CONFIG_ATH9K_MAC_DEBUG
+	spin_lock_init(&sc->debug.samp_lock);
 #endif
 	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);
 	tasklet_init(&sc->bcon_tasklet, ath_beacon_tasklet,
@@ -746,7 +680,7 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->queues = 4;
 	hw->max_rates = 4;
 	hw->channel_change_time = 5000;
-	hw->max_listen_interval = 10;
+	hw->max_listen_interval = 1;
 	hw->max_rate_tries = 10;
 	hw->sta_data_size = sizeof(struct ath_node);
 	hw->vif_data_size = sizeof(struct ath_vif);
@@ -880,12 +814,7 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 	if (sc->sbands[IEEE80211_BAND_5GHZ].channels)
 		kfree(sc->sbands[IEEE80211_BAND_5GHZ].channels);
 
-        if ((sc->btcoex.no_stomp_timer) &&
-	    ath9k_hw_get_btcoex_scheme(sc->sc_ah) == ATH_BTCOEX_CFG_3WIRE)
-		ath_gen_timer_free(sc->sc_ah, sc->btcoex.no_stomp_timer);
-
-	if (ath9k_hw_get_btcoex_scheme(sc->sc_ah) == ATH_BTCOEX_CFG_MCI)
-		ath_mci_cleanup(sc);
+	ath9k_deinit_btcoex(sc);
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))

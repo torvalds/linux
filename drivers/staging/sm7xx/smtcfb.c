@@ -41,7 +41,6 @@
 
 #ifdef CONFIG_PM
 #include <linux/pm.h>
-#include <linux/module.h>
 #endif
 
 #include "smtcfb.h"
@@ -443,7 +442,7 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 }
 
 #ifdef __BIG_ENDIAN
-static ssize_t smtcfb_read(struct fb_info *info, char __user * buf, size_t
+static ssize_t smtcfb_read(struct fb_info *info, char __user *buf, size_t
 				count, loff_t *ppos)
 {
 	unsigned long p = *ppos;

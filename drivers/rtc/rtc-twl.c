@@ -112,6 +112,7 @@ static const u8 twl6030_rtc_reg_map[] = {
 #define BIT_RTC_CTRL_REG_TEST_MODE_M             0x10
 #define BIT_RTC_CTRL_REG_SET_32_COUNTER_M        0x20
 #define BIT_RTC_CTRL_REG_GET_TIME_M              0x40
+#define BIT_RTC_CTRL_REG_RTC_V_OPT               0x80
 
 /* RTC_STATUS_REG bitfields */
 #define BIT_RTC_STATUS_REG_RUN_M                 0x02
@@ -176,6 +177,10 @@ static int set_rtc_irq_bit(unsigned char bit)
 	unsigned char val;
 	int ret;
 
+	/* if the bit is set, return from here */
+	if (rtc_irq_bits & bit)
+		return 0;
+
 	val = rtc_irq_bits | bit;
 	val &= ~BIT_RTC_INTERRUPTS_REG_EVERY_M;
 	ret = twl_rtc_write_u8(val, REG_RTC_INTERRUPTS_REG);
@@ -192,6 +197,10 @@ static int mask_rtc_irq_bit(unsigned char bit)
 {
 	unsigned char val;
 	int ret;
+
+	/* if the bit is clear, return from here */
+	if (!(rtc_irq_bits & bit))
+		return 0;
 
 	val = rtc_irq_bits & ~bit;
 	ret = twl_rtc_write_u8(val, REG_RTC_INTERRUPTS_REG);
@@ -227,23 +236,55 @@ static int twl_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	unsigned char rtc_data[ALL_TIME_REGS + 1];
 	int ret;
 	u8 save_control;
+	u8 rtc_control;
 
 	ret = twl_rtc_read_u8(&save_control, REG_RTC_CTRL_REG);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(dev, "%s: reading CTRL_REG, error %d\n", __func__, ret);
 		return ret;
+	}
+	/* for twl6030/32 make sure BIT_RTC_CTRL_REG_GET_TIME_M is clear */
+	if (twl_class_is_6030()) {
+		if (save_control & BIT_RTC_CTRL_REG_GET_TIME_M) {
+			save_control &= ~BIT_RTC_CTRL_REG_GET_TIME_M;
+			ret = twl_rtc_write_u8(save_control, REG_RTC_CTRL_REG);
+			if (ret < 0) {
+				dev_err(dev, "%s clr GET_TIME, error %d\n",
+					__func__, ret);
+				return ret;
+			}
+		}
+	}
 
-	save_control |= BIT_RTC_CTRL_REG_GET_TIME_M;
+	/* Copy RTC counting registers to static registers or latches */
+	rtc_control = save_control | BIT_RTC_CTRL_REG_GET_TIME_M;
 
-	ret = twl_rtc_write_u8(save_control, REG_RTC_CTRL_REG);
-	if (ret < 0)
+	/* for twl6030/32 enable read access to static shadowed registers */
+	if (twl_class_is_6030())
+		rtc_control |= BIT_RTC_CTRL_REG_RTC_V_OPT;
+
+	ret = twl_rtc_write_u8(rtc_control, REG_RTC_CTRL_REG);
+	if (ret < 0) {
+		dev_err(dev, "%s: writing CTRL_REG, error %d\n", __func__, ret);
 		return ret;
+	}
 
 	ret = twl_i2c_read(TWL_MODULE_RTC, rtc_data,
 			(rtc_reg_map[REG_SECONDS_REG]), ALL_TIME_REGS);
 
 	if (ret < 0) {
-		dev_err(dev, "rtc_read_time error %d\n", ret);
+		dev_err(dev, "%s: reading data, error %d\n", __func__, ret);
 		return ret;
+	}
+
+	/* for twl6030 restore original state of rtc control register */
+	if (twl_class_is_6030()) {
+		ret = twl_rtc_write_u8(save_control, REG_RTC_CTRL_REG);
+		if (ret < 0) {
+			dev_err(dev, "%s: restore CTRL_REG, error %d\n",
+				__func__, ret);
+			return ret;
+		}
 	}
 
 	tm->tm_sec = bcd2bin(rtc_data[0]);
@@ -357,7 +398,7 @@ out:
 
 static irqreturn_t twl_rtc_interrupt(int irq, void *rtc)
 {
-	unsigned long events = 0;
+	unsigned long events;
 	int ret = IRQ_NONE;
 	int res;
 	u8 rd_reg;
@@ -372,11 +413,11 @@ static irqreturn_t twl_rtc_interrupt(int irq, void *rtc)
 	 * by reading RTS_INTERRUPTS_REGISTER[IT_TIMER,IT_ALARM]
 	 */
 	if (rd_reg & BIT_RTC_STATUS_REG_ALARM_M)
-		events |= RTC_IRQF | RTC_AF;
+		events = RTC_IRQF | RTC_AF;
 	else
-		events |= RTC_IRQF | RTC_UF;
+		events = RTC_IRQF | RTC_PF;
 
-	res = twl_rtc_write_u8(rd_reg | BIT_RTC_STATUS_REG_ALARM_M,
+	res = twl_rtc_write_u8(BIT_RTC_STATUS_REG_ALARM_M,
 				   REG_RTC_STATUS_REG);
 	if (res)
 		goto out;
@@ -449,18 +490,10 @@ static int __devinit twl_rtc_probe(struct platform_device *pdev)
 			REG_INT_MSK_STS_A);
 	}
 
-	/* Check RTC module status, Enable if it is off */
-	ret = twl_rtc_read_u8(&rd_reg, REG_RTC_CTRL_REG);
+	dev_info(&pdev->dev, "Enabling TWL-RTC\n");
+	ret = twl_rtc_write_u8(BIT_RTC_CTRL_REG_STOP_RTC_M, REG_RTC_CTRL_REG);
 	if (ret < 0)
 		goto out1;
-
-	if (!(rd_reg & BIT_RTC_CTRL_REG_STOP_RTC_M)) {
-		dev_info(&pdev->dev, "Enabling TWL-RTC.\n");
-		rd_reg = BIT_RTC_CTRL_REG_STOP_RTC_M;
-		ret = twl_rtc_write_u8(rd_reg, REG_RTC_CTRL_REG);
-		if (ret < 0)
-			goto out1;
-	}
 
 	/* init cached IRQ enable bits */
 	ret = twl_rtc_read_u8(&rtc_irq_bits, REG_RTC_INTERRUPTS_REG);

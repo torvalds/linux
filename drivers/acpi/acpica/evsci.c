@@ -48,7 +48,7 @@
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evsci")
-
+#if (!ACPI_REDUCED_HARDWARE)	/* Entire module */
 /* Local prototypes */
 static u32 ACPI_SYSTEM_XFACE acpi_ev_sci_xrupt_handler(void *context);
 
@@ -181,3 +181,5 @@ acpi_status acpi_ev_remove_sci_handler(void)
 
 	return_ACPI_STATUS(status);
 }
+
+#endif				/* !ACPI_REDUCED_HARDWARE */

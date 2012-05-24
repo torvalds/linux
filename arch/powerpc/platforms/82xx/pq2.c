@@ -17,7 +17,6 @@
 #include <asm/cpm2.h>
 #include <asm/io.h>
 #include <asm/pci-bridge.h>
-#include <asm/system.h>
 
 #include <platforms/82xx/pq2.h>
 

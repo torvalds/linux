@@ -20,6 +20,7 @@
 
 void sh_mv_setup(void);
 void check_for_initrd(void);
+void per_cpu_trap_init(void);
 
 #endif /* __KERNEL__ */
 

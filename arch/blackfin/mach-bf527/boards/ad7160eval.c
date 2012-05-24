@@ -846,7 +846,7 @@ void native_machine_restart(char *cmd)
 		bfin_reset_boot_spi_cs(P_DEFAULT_BOOT_SPI_CS);
 }
 
-void bfin_get_ether_addr(char *addr)
+int bfin_get_ether_addr(char *addr)
 {
 	/* the MAC is stored in OTP memory page 0xDF */
 	u32 ret;
@@ -859,5 +859,6 @@ void bfin_get_ether_addr(char *addr)
 		for (ret = 0; ret < 6; ++ret)
 			addr[ret] = otp_mac_p[5 - ret];
 	}
+	return 0;
 }
 EXPORT_SYMBOL(bfin_get_ether_addr);

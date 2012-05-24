@@ -32,7 +32,6 @@
 #include <linux/bitops.h>
 #include <linux/ftrace.h>
 
-#include <asm/system.h>
 #include <linux/atomic.h>
 #include <asm/current.h>
 #include <asm/delay.h>
@@ -291,8 +290,7 @@ smp_cpu_init(int cpunum)
 	mb();
 
 	/* Well, support 2.4 linux scheme as well. */
-	if (cpu_isset(cpunum, cpu_online_map))
-	{
+	if (cpu_online(cpunum))	{
 		extern void machine_halt(void); /* arch/parisc.../process.c */
 
 		printk(KERN_CRIT "CPU#%d already initialized!\n", cpunum);

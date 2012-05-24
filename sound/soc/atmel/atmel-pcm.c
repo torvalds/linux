@@ -362,7 +362,7 @@ static struct snd_pcm_ops atmel_pcm_ops = {
 /*--------------------------------------------------------------------------*\
  * ASoC platform driver
 \*--------------------------------------------------------------------------*/
-static u64 atmel_pcm_dmamask = 0xffffffff;
+static u64 atmel_pcm_dmamask = DMA_BIT_MASK(32);
 
 static int atmel_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
@@ -373,7 +373,7 @@ static int atmel_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &atmel_pcm_dmamask;
 	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = 0xffffffff;
+		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = atmel_pcm_preallocate_dma_buffer(pcm,

@@ -73,6 +73,7 @@ extern int __pci_pme_wakeup(struct pci_dev *dev, void *ign);
 extern void pci_pm_init(struct pci_dev *dev);
 extern void platform_pci_wakeup_init(struct pci_dev *dev);
 extern void pci_allocate_cap_save_buffers(struct pci_dev *dev);
+void pci_free_cap_save_buffers(struct pci_dev *dev);
 
 static inline void pci_wakeup_event(struct pci_dev *dev)
 {
@@ -148,7 +149,7 @@ static inline void pci_no_msi(void) { }
 static inline void pci_msi_init_pci_dev(struct pci_dev *dev) { }
 #endif
 
-extern void pci_realloc(void);
+void pci_realloc_get_opt(char *);
 
 static inline int pci_no_d1d2(struct pci_dev *dev)
 {
@@ -207,6 +208,8 @@ enum pci_bar_type {
 	pci_bar_mem64,		/* A 64-bit memory BAR */
 };
 
+bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *pl,
+				int crs_timeout);
 extern int pci_setup_device(struct pci_dev *dev);
 extern int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 				struct resource *res, unsigned int reg);
@@ -225,11 +228,8 @@ static inline int pci_ari_enabled(struct pci_bus *bus)
 	return bus->self && bus->self->ari_enabled;
 }
 
-#ifdef CONFIG_PCI_QUIRKS
-extern int pci_is_reassigndev(struct pci_dev *dev);
-resource_size_t pci_specified_resource_alignment(struct pci_dev *dev);
+void pci_reassigndev_resource_alignment(struct pci_dev *dev);
 extern void pci_disable_bridge_window(struct pci_dev *dev);
-#endif
 
 /* Single Root I/O Virtualization */
 struct pci_sriov {

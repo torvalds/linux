@@ -60,18 +60,15 @@
 #include "scu_event_codes.h"
 #include "scu_task_context.h"
 
+#undef C
+#define C(a) (#a)
+const char *rnc_state_name(enum scis_sds_remote_node_context_states state)
+{
+	static const char * const strings[] = RNC_STATES;
 
-/**
- *
- * @sci_rnc: The RNC for which the is posted request is being made.
- *
- * This method will return true if the RNC is not in the initial state.  In all
- * other states the RNC is considered active and this will return true. The
- * destroy request of the state machine drives the RNC back to the initial
- * state.  If the state machine changes then this routine will also have to be
- * changed. bool true if the state machine is not in the initial state false if
- * the state machine is in the initial state
- */
+	return strings[state];
+}
+#undef C
 
 /**
  *

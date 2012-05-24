@@ -116,6 +116,8 @@ static void fc_lport_enter_ns(struct fc_lport *, enum fc_lport_state);
 static void fc_lport_enter_scr(struct fc_lport *);
 static void fc_lport_enter_ready(struct fc_lport *);
 static void fc_lport_enter_logo(struct fc_lport *);
+static void fc_lport_enter_fdmi(struct fc_lport *lport);
+static void fc_lport_enter_ms(struct fc_lport *, enum fc_lport_state);
 
 static const char *fc_lport_state_names[] = {
 	[LPORT_ST_DISABLED] = "disabled",
@@ -126,6 +128,11 @@ static const char *fc_lport_state_names[] = {
 	[LPORT_ST_RSPN_ID] =  "RSPN_ID",
 	[LPORT_ST_RFT_ID] =   "RFT_ID",
 	[LPORT_ST_RFF_ID] =   "RFF_ID",
+	[LPORT_ST_FDMI] =     "FDMI",
+	[LPORT_ST_RHBA] =     "RHBA",
+	[LPORT_ST_RPA] =      "RPA",
+	[LPORT_ST_DHBA] =     "DHBA",
+	[LPORT_ST_DPRT] =     "DPRT",
 	[LPORT_ST_SCR] =      "SCR",
 	[LPORT_ST_READY] =    "Ready",
 	[LPORT_ST_LOGO] =     "LOGO",
@@ -183,11 +190,14 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 		if (lport->state == LPORT_ST_DNS) {
 			lport->dns_rdata = rdata;
 			fc_lport_enter_ns(lport, LPORT_ST_RNN_ID);
+		} else if (lport->state == LPORT_ST_FDMI) {
+			lport->ms_rdata = rdata;
+			fc_lport_enter_ms(lport, LPORT_ST_DHBA);
 		} else {
 			FC_LPORT_DBG(lport, "Received an READY event "
 				     "on port (%6.6x) for the directory "
 				     "server, but the lport is not "
-				     "in the DNS state, it's in the "
+				     "in the DNS or FDMI state, it's in the "
 				     "%d state", rdata->ids.port_id,
 				     lport->state);
 			lport->tt.rport_logoff(rdata);
@@ -196,7 +206,10 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 	case RPORT_EV_LOGO:
 	case RPORT_EV_FAILED:
 	case RPORT_EV_STOP:
-		lport->dns_rdata = NULL;
+		if (rdata->ids.port_id == FC_FID_DIR_SERV)
+			lport->dns_rdata = NULL;
+		else if (rdata->ids.port_id == FC_FID_MGMT_SERV)
+			lport->ms_rdata = NULL;
 		break;
 	case RPORT_EV_NONE:
 		break;
@@ -1148,7 +1161,10 @@ static void fc_lport_ns_resp(struct fc_seq *sp, struct fc_frame *fp,
 			fc_lport_enter_ns(lport, LPORT_ST_RFF_ID);
 			break;
 		case LPORT_ST_RFF_ID:
-			fc_lport_enter_scr(lport);
+			if (lport->fdmi_enabled)
+				fc_lport_enter_fdmi(lport);
+			else
+				fc_lport_enter_scr(lport);
 			break;
 		default:
 			/* should have already been caught by state checks */
@@ -1156,6 +1172,85 @@ static void fc_lport_ns_resp(struct fc_seq *sp, struct fc_frame *fp,
 		}
 	else
 		fc_lport_error(lport, fp);
+out:
+	fc_frame_free(fp);
+err:
+	mutex_unlock(&lport->lp_mutex);
+}
+
+/**
+ * fc_lport_ms_resp() - Handle response to a management server
+ *			exchange
+ * @sp:	    current sequence in exchange
+ * @fp:	    response frame
+ * @lp_arg: Fibre Channel host port instance
+ *
+ * Locking Note: This function will be called without the lport lock
+ * held, but it will lock, call an _enter_* function or fc_lport_error()
+ * and then unlock the lport.
+ */
+static void fc_lport_ms_resp(struct fc_seq *sp, struct fc_frame *fp,
+			     void *lp_arg)
+{
+	struct fc_lport *lport = lp_arg;
+	struct fc_frame_header *fh;
+	struct fc_ct_hdr *ct;
+
+	FC_LPORT_DBG(lport, "Received a ms %s\n", fc_els_resp_type(fp));
+
+	if (fp == ERR_PTR(-FC_EX_CLOSED))
+		return;
+
+	mutex_lock(&lport->lp_mutex);
+
+	if (lport->state < LPORT_ST_RHBA || lport->state > LPORT_ST_DPRT) {
+		FC_LPORT_DBG(lport, "Received a management server response, "
+			     "but in state %s\n", fc_lport_state(lport));
+		if (IS_ERR(fp))
+			goto err;
+		goto out;
+	}
+
+	if (IS_ERR(fp)) {
+		fc_lport_error(lport, fp);
+		goto err;
+	}
+
+	fh = fc_frame_header_get(fp);
+	ct = fc_frame_payload_get(fp, sizeof(*ct));
+
+	if (fh && ct && fh->fh_type == FC_TYPE_CT &&
+	    ct->ct_fs_type == FC_FST_MGMT &&
+	    ct->ct_fs_subtype == FC_FDMI_SUBTYPE) {
+		FC_LPORT_DBG(lport, "Received a management server response, "
+				    "reason=%d explain=%d\n",
+				    ct->ct_reason,
+				    ct->ct_explan);
+
+		switch (lport->state) {
+		case LPORT_ST_RHBA:
+			if (ntohs(ct->ct_cmd) == FC_FS_ACC)
+				fc_lport_enter_ms(lport, LPORT_ST_RPA);
+			else /* Error Skip RPA */
+				fc_lport_enter_scr(lport);
+			break;
+		case LPORT_ST_RPA:
+			fc_lport_enter_scr(lport);
+			break;
+		case LPORT_ST_DPRT:
+			fc_lport_enter_ms(lport, LPORT_ST_RHBA);
+			break;
+		case LPORT_ST_DHBA:
+			fc_lport_enter_ms(lport, LPORT_ST_DPRT);
+			break;
+		default:
+			/* should have already been caught by state checks */
+			break;
+		}
+	} else {
+		/* Invalid Frame? */
+		fc_lport_error(lport, fp);
+	}
 out:
 	fc_frame_free(fp);
 err:
@@ -1339,6 +1434,123 @@ err:
 }
 
 /**
+ * fc_lport_enter_ms() - management server commands
+ * @lport: Fibre Channel local port to register
+ *
+ * Locking Note: The lport lock is expected to be held before calling
+ * this routine.
+ */
+static void fc_lport_enter_ms(struct fc_lport *lport, enum fc_lport_state state)
+{
+	struct fc_frame *fp;
+	enum fc_fdmi_req cmd;
+	int size = sizeof(struct fc_ct_hdr);
+	size_t len;
+	int numattrs;
+
+	FC_LPORT_DBG(lport, "Entered %s state from %s state\n",
+		     fc_lport_state_names[state],
+		     fc_lport_state(lport));
+
+	fc_lport_state_enter(lport, state);
+
+	switch (state) {
+	case LPORT_ST_RHBA:
+		cmd = FC_FDMI_RHBA;
+		/* Number of HBA Attributes */
+		numattrs = 10;
+		len = sizeof(struct fc_fdmi_rhba);
+		len -= sizeof(struct fc_fdmi_attr_entry);
+		len += (numattrs * FC_FDMI_ATTR_ENTRY_HEADER_LEN);
+		len += FC_FDMI_HBA_ATTR_NODENAME_LEN;
+		len += FC_FDMI_HBA_ATTR_MANUFACTURER_LEN;
+		len += FC_FDMI_HBA_ATTR_SERIALNUMBER_LEN;
+		len += FC_FDMI_HBA_ATTR_MODEL_LEN;
+		len += FC_FDMI_HBA_ATTR_MODELDESCR_LEN;
+		len += FC_FDMI_HBA_ATTR_HARDWAREVERSION_LEN;
+		len += FC_FDMI_HBA_ATTR_DRIVERVERSION_LEN;
+		len += FC_FDMI_HBA_ATTR_OPTIONROMVERSION_LEN;
+		len += FC_FDMI_HBA_ATTR_FIRMWAREVERSION_LEN;
+		len += FC_FDMI_HBA_ATTR_OSNAMEVERSION_LEN;
+
+		size += len;
+		break;
+	case LPORT_ST_RPA:
+		cmd = FC_FDMI_RPA;
+		/* Number of Port Attributes */
+		numattrs = 6;
+		len = sizeof(struct fc_fdmi_rpa);
+		len -= sizeof(struct fc_fdmi_attr_entry);
+		len += (numattrs * FC_FDMI_ATTR_ENTRY_HEADER_LEN);
+		len += FC_FDMI_PORT_ATTR_FC4TYPES_LEN;
+		len += FC_FDMI_PORT_ATTR_SUPPORTEDSPEED_LEN;
+		len += FC_FDMI_PORT_ATTR_CURRENTPORTSPEED_LEN;
+		len += FC_FDMI_PORT_ATTR_MAXFRAMESIZE_LEN;
+		len += FC_FDMI_PORT_ATTR_OSDEVICENAME_LEN;
+		len += FC_FDMI_PORT_ATTR_HOSTNAME_LEN;
+
+		size += len;
+		break;
+	case LPORT_ST_DPRT:
+		cmd = FC_FDMI_DPRT;
+		len = sizeof(struct fc_fdmi_dprt);
+		size += len;
+		break;
+	case LPORT_ST_DHBA:
+		cmd = FC_FDMI_DHBA;
+		len = sizeof(struct fc_fdmi_dhba);
+		size += len;
+		break;
+	default:
+		fc_lport_error(lport, NULL);
+		return;
+	}
+
+	FC_LPORT_DBG(lport, "Cmd=0x%x Len %d size %d\n",
+			     cmd, (int)len, size);
+	fp = fc_frame_alloc(lport, size);
+	if (!fp) {
+		fc_lport_error(lport, fp);
+		return;
+	}
+
+	if (!lport->tt.elsct_send(lport, FC_FID_MGMT_SERV, fp, cmd,
+				  fc_lport_ms_resp,
+				  lport, 3 * lport->r_a_tov))
+		fc_lport_error(lport, fp);
+}
+
+/**
+ * fc_rport_enter_fdmi() - Create a fc_rport for the management server
+ * @lport: The local port requesting a remote port for the management server
+ *
+ * Locking Note: The lport lock is expected to be held before calling
+ * this routine.
+ */
+static void fc_lport_enter_fdmi(struct fc_lport *lport)
+{
+	struct fc_rport_priv *rdata;
+
+	FC_LPORT_DBG(lport, "Entered FDMI state from %s state\n",
+		     fc_lport_state(lport));
+
+	fc_lport_state_enter(lport, LPORT_ST_FDMI);
+
+	mutex_lock(&lport->disc.disc_mutex);
+	rdata = lport->tt.rport_create(lport, FC_FID_MGMT_SERV);
+	mutex_unlock(&lport->disc.disc_mutex);
+	if (!rdata)
+		goto err;
+
+	rdata->ops = &fc_lport_rport_ops;
+	lport->tt.rport_login(rdata);
+	return;
+
+err:
+	fc_lport_error(lport, NULL);
+}
+
+/**
  * fc_lport_timeout() - Handler for the retry_work timer
  * @work: The work struct of the local port
  */
@@ -1370,6 +1582,15 @@ static void fc_lport_timeout(struct work_struct *work)
 	case LPORT_ST_RFT_ID:
 	case LPORT_ST_RFF_ID:
 		fc_lport_enter_ns(lport, lport->state);
+		break;
+	case LPORT_ST_FDMI:
+		fc_lport_enter_fdmi(lport);
+		break;
+	case LPORT_ST_RHBA:
+	case LPORT_ST_RPA:
+	case LPORT_ST_DHBA:
+	case LPORT_ST_DPRT:
+		fc_lport_enter_ms(lport, lport->state);
 		break;
 	case LPORT_ST_SCR:
 		fc_lport_enter_scr(lport);
@@ -1522,8 +1743,16 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	mfs = ntohs(flp->fl_csp.sp_bb_data) &
 		FC_SP_BB_DATA_MASK;
 	if (mfs >= FC_SP_MIN_MAX_PAYLOAD &&
-	    mfs < lport->mfs)
+	    mfs <= lport->mfs) {
 		lport->mfs = mfs;
+		fc_host_maxframe_size(lport->host) = mfs;
+	} else {
+		FC_LPORT_DBG(lport, "FLOGI bad mfs:%hu response, "
+			     "lport->mfs:%hu\n", mfs, lport->mfs);
+		fc_lport_error(lport, fp);
+		goto err;
+	}
+
 	csp_flags = ntohs(flp->fl_csp.sp_features);
 	r_a_tov = ntohl(flp->fl_csp.sp_r_a_tov);
 	e_d_tov = ntohl(flp->fl_csp.sp_e_d_tov);
@@ -1698,7 +1927,7 @@ static void fc_lport_bsg_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 	job->reply->reply_payload_rcv_len +=
 		fc_copy_buffer_to_sglist(buf, len, info->sg, &info->nents,
-					 &info->offset, KM_BIO_SRC_IRQ, NULL);
+					 &info->offset, NULL);
 
 	if (fr_eof(fp) == FC_EOF_T &&
 	    (ntoh24(fh->fh_f_ctl) & (FC_FC_LAST_SEQ | FC_FC_END_SEQ)) ==

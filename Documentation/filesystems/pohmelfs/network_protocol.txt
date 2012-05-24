@@ -20,7 +20,7 @@ Commands can be embedded into transaction command (which in turn has own command
 so one can extend protocol as needed without breaking backward compatibility as long
 as old commands are supported. All string lengths include tail 0 byte.
 
-All commands are transferred over the network in big-endian. CPU endianess is used at the end peers.
+All commands are transferred over the network in big-endian. CPU endianness is used at the end peers.
 
 @cmd - command number, which specifies command to be processed. Following
 	commands are used currently:

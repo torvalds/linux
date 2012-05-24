@@ -66,8 +66,8 @@ enum cpupower_cpu_vendor {X86_VENDOR_UNKNOWN = 0, X86_VENDOR_INTEL,
 #define CPUPOWER_CAP_AMD_CBP		0x00000004
 #define CPUPOWER_CAP_PERF_BIAS		0x00000008
 #define CPUPOWER_CAP_HAS_TURBO_RATIO	0x00000010
-#define CPUPOWER_CAP_IS_SNB		0x00000011
-#define CPUPOWER_CAP_INTEL_IDA		0x00000012
+#define CPUPOWER_CAP_IS_SNB		0x00000020
+#define CPUPOWER_CAP_INTEL_IDA		0x00000040
 
 #define MAX_HW_PSTATES 10
 
@@ -132,8 +132,11 @@ extern unsigned long long msr_intel_get_turbo_ratio(unsigned int cpu);
 
 /* PCI stuff ****************************/
 extern int amd_pci_get_num_boost_states(int *active, int *states);
-extern struct pci_dev *pci_acc_init(struct pci_access **pacc, int vendor_id,
-				    int *dev_ids);
+extern struct pci_dev *pci_acc_init(struct pci_access **pacc, int domain,
+				    int bus, int slot, int func, int vendor,
+				    int dev);
+extern struct pci_dev *pci_slot_func_init(struct pci_access **pacc,
+					      int slot, int func);
 
 /* PCI stuff ****************************/
 

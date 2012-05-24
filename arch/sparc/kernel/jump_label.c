@@ -6,6 +6,8 @@
 #include <linux/jump_label.h>
 #include <linux/memory.h>
 
+#include <asm/cacheflush.h>
+
 #ifdef HAVE_JUMP_LABEL
 
 void arch_jump_label_transform(struct jump_entry *entry,

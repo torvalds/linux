@@ -26,7 +26,7 @@ static void sh_clk_mstp32_disable(struct clk *clk)
 		  clk->mapped_reg);
 }
 
-static struct clk_ops sh_clk_mstp32_clk_ops = {
+static struct sh_clk_ops sh_clk_mstp32_clk_ops = {
 	.enable		= sh_clk_mstp32_enable,
 	.disable	= sh_clk_mstp32_disable,
 	.recalc		= followparent_recalc,
@@ -150,7 +150,7 @@ static void sh_clk_div6_disable(struct clk *clk)
 	iowrite32(value, clk->mapped_reg);
 }
 
-static struct clk_ops sh_clk_div6_clk_ops = {
+static struct sh_clk_ops sh_clk_div6_clk_ops = {
 	.recalc		= sh_clk_div6_recalc,
 	.round_rate	= sh_clk_div_round_rate,
 	.set_rate	= sh_clk_div6_set_rate,
@@ -158,7 +158,7 @@ static struct clk_ops sh_clk_div6_clk_ops = {
 	.disable	= sh_clk_div6_disable,
 };
 
-static struct clk_ops sh_clk_div6_reparent_clk_ops = {
+static struct sh_clk_ops sh_clk_div6_reparent_clk_ops = {
 	.recalc		= sh_clk_div6_recalc,
 	.round_rate	= sh_clk_div_round_rate,
 	.set_rate	= sh_clk_div6_set_rate,
@@ -200,7 +200,7 @@ static int __init sh_clk_init_parent(struct clk *clk)
 }
 
 static int __init sh_clk_div6_register_ops(struct clk *clks, int nr,
-					   struct clk_ops *ops)
+					   struct sh_clk_ops *ops)
 {
 	struct clk *clkp;
 	void *freq_table;
@@ -317,13 +317,13 @@ static void sh_clk_div4_disable(struct clk *clk)
 	iowrite32(ioread32(clk->mapped_reg) | (1 << 8), clk->mapped_reg);
 }
 
-static struct clk_ops sh_clk_div4_clk_ops = {
+static struct sh_clk_ops sh_clk_div4_clk_ops = {
 	.recalc		= sh_clk_div4_recalc,
 	.set_rate	= sh_clk_div4_set_rate,
 	.round_rate	= sh_clk_div_round_rate,
 };
 
-static struct clk_ops sh_clk_div4_enable_clk_ops = {
+static struct sh_clk_ops sh_clk_div4_enable_clk_ops = {
 	.recalc		= sh_clk_div4_recalc,
 	.set_rate	= sh_clk_div4_set_rate,
 	.round_rate	= sh_clk_div_round_rate,
@@ -331,7 +331,7 @@ static struct clk_ops sh_clk_div4_enable_clk_ops = {
 	.disable	= sh_clk_div4_disable,
 };
 
-static struct clk_ops sh_clk_div4_reparent_clk_ops = {
+static struct sh_clk_ops sh_clk_div4_reparent_clk_ops = {
 	.recalc		= sh_clk_div4_recalc,
 	.set_rate	= sh_clk_div4_set_rate,
 	.round_rate	= sh_clk_div_round_rate,
@@ -341,7 +341,7 @@ static struct clk_ops sh_clk_div4_reparent_clk_ops = {
 };
 
 static int __init sh_clk_div4_register_ops(struct clk *clks, int nr,
-			struct clk_div4_table *table, struct clk_ops *ops)
+			struct clk_div4_table *table, struct sh_clk_ops *ops)
 {
 	struct clk *clkp;
 	void *freq_table;

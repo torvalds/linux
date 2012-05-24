@@ -1,12 +1,12 @@
 /* $Id: diddfunc.c,v 1.14.6.2 2004/08/28 20:03:53 armin Exp $
  *
  * DIDD Interface module for Eicon active cards.
- * 
- * Functions are in dadapter.c 
- * 
- * Copyright 2002-2003 by Armin Schindler (mac@melware.de) 
+ *
+ * Functions are in dadapter.c
+ *
+ * Copyright 2002-2003 by Armin Schindler (mac@melware.de)
  * Copyright 2002-2003 Cytronics & Melware (info@melware.de)
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  */
@@ -28,12 +28,12 @@ static DESCRIPTOR _DAdapter;
 /*
  * didd callback function
  */
-static void *didd_callback(void *context, DESCRIPTOR * adapter,
+static void *didd_callback(void *context, DESCRIPTOR *adapter,
 			   int removal)
 {
 	if (adapter->type == IDI_DADAPTER) {
 		DBG_ERR(("Notification about IDI_DADAPTER change ! Oops."))
-		return (NULL);
+			return (NULL);
 	} else if (adapter->type == IDI_DIMAINT) {
 		if (removal) {
 			DbgDeregister();
@@ -62,10 +62,10 @@ static int DIVA_INIT_FUNCTION connect_didd(void)
 			memcpy(&_DAdapter, &DIDD_Table[x], sizeof(_DAdapter));
 			req.didd_notify.e.Req = 0;
 			req.didd_notify.e.Rc =
-			    IDI_SYNC_REQ_DIDD_REGISTER_ADAPTER_NOTIFY;
+				IDI_SYNC_REQ_DIDD_REGISTER_ADAPTER_NOTIFY;
 			req.didd_notify.info.callback = (void *)didd_callback;
 			req.didd_notify.info.context = NULL;
-			_DAdapter.request((ENTITY *) & req);
+			_DAdapter.request((ENTITY *)&req);
 			if (req.didd_notify.e.Rc != 0xff)
 				return (0);
 			notify_handle = req.didd_notify.info.handle;
@@ -86,7 +86,7 @@ static void DIVA_EXIT_FUNCTION disconnect_didd(void)
 	req.didd_notify.e.Req = 0;
 	req.didd_notify.e.Rc = IDI_SYNC_REQ_DIDD_REMOVE_ADAPTER_NOTIFY;
 	req.didd_notify.info.handle = notify_handle;
-	_DAdapter.request((ENTITY *) & req);
+	_DAdapter.request((ENTITY *)&req);
 }
 
 /*
@@ -98,7 +98,7 @@ int DIVA_INIT_FUNCTION diddfunc_init(void)
 
 	if (!connect_didd()) {
 		DBG_ERR(("init: failed to connect to DIDD."))
-		diva_didd_load_time_finit();
+			diva_didd_load_time_finit();
 		return (0);
 	}
 	return (1);

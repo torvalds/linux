@@ -355,8 +355,7 @@ static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
 		}
 	}
 
-	if (clk125en == false ||
-	    (phydev->dev_flags & PHY_BRCM_AUTO_PWRDWN_ENABLE))
+	if (!clk125en || (phydev->dev_flags & PHY_BRCM_AUTO_PWRDWN_ENABLE))
 		val &= ~BCM54XX_SHD_SCR3_DLLAPD_DIS;
 	else
 		val |= BCM54XX_SHD_SCR3_DLLAPD_DIS;
@@ -373,8 +372,7 @@ static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
 
 	orig = val;
 
-	if (clk125en == false ||
-	    (phydev->dev_flags & PHY_BRCM_AUTO_PWRDWN_ENABLE))
+	if (!clk125en || (phydev->dev_flags & PHY_BRCM_AUTO_PWRDWN_ENABLE))
 		val |= BCM54XX_SHD_APD_EN;
 	else
 		val &= ~BCM54XX_SHD_APD_EN;

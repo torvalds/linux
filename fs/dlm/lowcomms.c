@@ -52,6 +52,7 @@
 #include <linux/mutex.h>
 #include <linux/sctp.h>
 #include <linux/slab.h>
+#include <net/sctp/sctp.h>
 #include <net/sctp/user.h>
 #include <net/ipv6.h>
 
@@ -474,9 +475,6 @@ static void process_sctp_notification(struct connection *con,
 			int prim_len, ret;
 			int addr_len;
 			struct connection *new_con;
-			sctp_peeloff_arg_t parg;
-			int parglen = sizeof(parg);
-			int err;
 
 			/*
 			 * We get this before any data for an association.
@@ -525,23 +523,19 @@ static void process_sctp_notification(struct connection *con,
 				return;
 
 			/* Peel off a new sock */
-			parg.associd = sn->sn_assoc_change.sac_assoc_id;
-			ret = kernel_getsockopt(con->sock, IPPROTO_SCTP,
-						SCTP_SOCKOPT_PEELOFF,
-						(void *)&parg, &parglen);
+			sctp_lock_sock(con->sock->sk);
+			ret = sctp_do_peeloff(con->sock->sk,
+				sn->sn_assoc_change.sac_assoc_id,
+				&new_con->sock);
+			sctp_release_sock(con->sock->sk);
 			if (ret < 0) {
 				log_print("Can't peel off a socket for "
 					  "connection %d to node %d: err=%d",
-					  parg.associd, nodeid, ret);
-				return;
-			}
-			new_con->sock = sockfd_lookup(parg.sd, &err);
-			if (!new_con->sock) {
-				log_print("sockfd_lookup error %d", err);
+					  (int)sn->sn_assoc_change.sac_assoc_id,
+					  nodeid, ret);
 				return;
 			}
 			add_sock(new_con->sock, new_con);
-			sockfd_put(new_con->sock);
 
 			log_print("connecting to %d sctp association %d",
 				 nodeid, (int)sn->sn_assoc_change.sac_assoc_id);
@@ -1082,7 +1076,7 @@ static void init_local(void)
 	int i;
 
 	dlm_local_count = 0;
-	for (i = 0; i < DLM_MAX_ADDR_COUNT - 1; i++) {
+	for (i = 0; i < DLM_MAX_ADDR_COUNT; i++) {
 		if (dlm_our_addr(&sas, i))
 			break;
 

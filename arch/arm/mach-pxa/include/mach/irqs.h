@@ -100,7 +100,7 @@
  */
 #define IRQ_BOARD_START		(PXA_GPIO_IRQ_BASE + PXA_NR_BUILTIN_GPIO)
 
-#define NR_IRQS			(IRQ_BOARD_START)
+#define PXA_NR_IRQS		(IRQ_BOARD_START)
 
 #ifndef __ASSEMBLY__
 struct irq_data;

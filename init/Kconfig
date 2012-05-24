@@ -438,15 +438,6 @@ config PREEMPT_RCU
 	  This option enables preemptible-RCU code that is common between
 	  the TREE_PREEMPT_RCU and TINY_PREEMPT_RCU implementations.
 
-config RCU_TRACE
-	bool "Enable tracing for RCU"
-	help
-	  This option provides tracing in RCU which presents stats
-	  in debugfs for debugging RCU implementation.
-
-	  Say Y here if you want to enable RCU tracing
-	  Say N if you are unsure.
-
 config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
 	range 2 64 if 64BIT
@@ -1423,8 +1414,8 @@ endif # MODULES
 config INIT_ALL_POSSIBLE
 	bool
 	help
-	  Back when each arch used to define their own cpu_online_map and
-	  cpu_possible_map, some of them chose to initialize cpu_possible_map
+	  Back when each arch used to define their own cpu_online_mask and
+	  cpu_possible_mask, some of them chose to initialize cpu_possible_mask
 	  with all 1s, and others with all 0s.  When they were centralised,
 	  it was better to provide this option than to break all the archs
 	  and have several arch maintainers pursuing me down dark alleys.

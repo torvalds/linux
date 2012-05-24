@@ -25,6 +25,173 @@
 #ifndef _HYPERV_H
 #define _HYPERV_H
 
+#include <linux/types.h>
+
+/*
+ * An implementation of HyperV key value pair (KVP) functionality for Linux.
+ *
+ *
+ * Copyright (C) 2010, Novell, Inc.
+ * Author : K. Y. Srinivasan <ksrinivasan@novell.com>
+ *
+ */
+
+/*
+ * Maximum value size - used for both key names and value data, and includes
+ * any applicable NULL terminators.
+ *
+ * Note:  This limit is somewhat arbitrary, but falls easily within what is
+ * supported for all native guests (back to Win 2000) and what is reasonable
+ * for the IC KVP exchange functionality.  Note that Windows Me/98/95 are
+ * limited to 255 character key names.
+ *
+ * MSDN recommends not storing data values larger than 2048 bytes in the
+ * registry.
+ *
+ * Note:  This value is used in defining the KVP exchange message - this value
+ * cannot be modified without affecting the message size and compatibility.
+ */
+
+/*
+ * bytes, including any null terminators
+ */
+#define HV_KVP_EXCHANGE_MAX_VALUE_SIZE          (2048)
+
+
+/*
+ * Maximum key size - the registry limit for the length of an entry name
+ * is 256 characters, including the null terminator
+ */
+
+#define HV_KVP_EXCHANGE_MAX_KEY_SIZE            (512)
+
+/*
+ * In Linux, we implement the KVP functionality in two components:
+ * 1) The kernel component which is packaged as part of the hv_utils driver
+ * is responsible for communicating with the host and responsible for
+ * implementing the host/guest protocol. 2) A user level daemon that is
+ * responsible for data gathering.
+ *
+ * Host/Guest Protocol: The host iterates over an index and expects the guest
+ * to assign a key name to the index and also return the value corresponding to
+ * the key. The host will have atmost one KVP transaction outstanding at any
+ * given point in time. The host side iteration stops when the guest returns
+ * an error. Microsoft has specified the following mapping of key names to
+ * host specified index:
+ *
+ *	Index		Key Name
+ *	0		FullyQualifiedDomainName
+ *	1		IntegrationServicesVersion
+ *	2		NetworkAddressIPv4
+ *	3		NetworkAddressIPv6
+ *	4		OSBuildNumber
+ *	5		OSName
+ *	6		OSMajorVersion
+ *	7		OSMinorVersion
+ *	8		OSVersion
+ *	9		ProcessorArchitecture
+ *
+ * The Windows host expects the Key Name and Key Value to be encoded in utf16.
+ *
+ * Guest Kernel/KVP Daemon Protocol: As noted earlier, we implement all of the
+ * data gathering functionality in a user mode daemon. The user level daemon
+ * is also responsible for binding the key name to the index as well. The
+ * kernel and user-level daemon communicate using a connector channel.
+ *
+ * The user mode component first registers with the
+ * the kernel component. Subsequently, the kernel component requests, data
+ * for the specified keys. In response to this message the user mode component
+ * fills in the value corresponding to the specified key. We overload the
+ * sequence field in the cn_msg header to define our KVP message types.
+ *
+ *
+ * The kernel component simply acts as a conduit for communication between the
+ * Windows host and the user-level daemon. The kernel component passes up the
+ * index received from the Host to the user-level daemon. If the index is
+ * valid (supported), the corresponding key as well as its
+ * value (both are strings) is returned. If the index is invalid
+ * (not supported), a NULL key string is returned.
+ */
+
+
+/*
+ * Registry value types.
+ */
+
+#define REG_SZ 1
+#define REG_U32 4
+#define REG_U64 8
+
+enum hv_kvp_exchg_op {
+	KVP_OP_GET = 0,
+	KVP_OP_SET,
+	KVP_OP_DELETE,
+	KVP_OP_ENUMERATE,
+	KVP_OP_REGISTER,
+	KVP_OP_COUNT /* Number of operations, must be last. */
+};
+
+enum hv_kvp_exchg_pool {
+	KVP_POOL_EXTERNAL = 0,
+	KVP_POOL_GUEST,
+	KVP_POOL_AUTO,
+	KVP_POOL_AUTO_EXTERNAL,
+	KVP_POOL_AUTO_INTERNAL,
+	KVP_POOL_COUNT /* Number of pools, must be last. */
+};
+
+struct hv_kvp_hdr {
+	__u8 operation;
+	__u8 pool;
+	__u16 pad;
+} __attribute__((packed));
+
+struct hv_kvp_exchg_msg_value {
+	__u32 value_type;
+	__u32 key_size;
+	__u32 value_size;
+	__u8 key[HV_KVP_EXCHANGE_MAX_KEY_SIZE];
+	union {
+		__u8 value[HV_KVP_EXCHANGE_MAX_VALUE_SIZE];
+		__u32 value_u32;
+		__u64 value_u64;
+	};
+} __attribute__((packed));
+
+struct hv_kvp_msg_enumerate {
+	__u32 index;
+	struct hv_kvp_exchg_msg_value data;
+} __attribute__((packed));
+
+struct hv_kvp_msg_get {
+	struct hv_kvp_exchg_msg_value data;
+};
+
+struct hv_kvp_msg_set {
+	struct hv_kvp_exchg_msg_value data;
+};
+
+struct hv_kvp_msg_delete {
+	__u32 key_size;
+	__u8 key[HV_KVP_EXCHANGE_MAX_KEY_SIZE];
+};
+
+struct hv_kvp_register {
+	__u8 version[HV_KVP_EXCHANGE_MAX_KEY_SIZE];
+};
+
+struct hv_kvp_msg {
+	struct hv_kvp_hdr	kvp_hdr;
+	union {
+		struct hv_kvp_msg_get		kvp_get;
+		struct hv_kvp_msg_set		kvp_set;
+		struct hv_kvp_msg_delete	kvp_delete;
+		struct hv_kvp_msg_enumerate	kvp_enum_data;
+		struct hv_kvp_register		kvp_register;
+	} body;
+} __attribute__((packed));
+
+#ifdef __KERNEL__
 #include <linux/scatterlist.h>
 #include <linux/list.h>
 #include <linux/uuid.h>
@@ -785,6 +952,7 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
 
 #define HV_S_OK				0x00000000
 #define HV_E_FAIL			0x80004005
+#define HV_S_CONT			0x80070103
 #define HV_ERROR_NOT_SUPPORTED		0x80070032
 #define HV_ERROR_MACHINE_LOCKED		0x800704F7
 
@@ -870,4 +1038,9 @@ struct hyperv_service_callback {
 extern void vmbus_prep_negotiate_resp(struct icmsg_hdr *,
 				      struct icmsg_negotiate *, u8 *);
 
+int hv_kvp_init(struct hv_util_service *);
+void hv_kvp_deinit(void);
+void hv_kvp_onchannelcallback(void *);
+
+#endif /* __KERNEL__ */
 #endif /* _HYPERV_H */

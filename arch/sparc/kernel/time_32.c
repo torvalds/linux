@@ -37,7 +37,6 @@
 #include <asm/oplib.h>
 #include <asm/timex.h>
 #include <asm/timer.h>
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/idprom.h>

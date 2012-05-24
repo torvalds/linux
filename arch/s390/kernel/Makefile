@@ -23,7 +23,7 @@ CFLAGS_sysinfo.o += -Iinclude/math-emu -Iarch/s390/math-emu -w
 obj-y	:=  bitmap.o traps.o time.o process.o base.o early.o setup.o vtime.o \
 	    processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o \
 	    debug.o irq.o ipl.o dis.o diag.o mem_detect.o sclp.o vdso.o \
-	    sysinfo.o jump_label.o
+	    sysinfo.o jump_label.o lgr.o os_info.o
 
 obj-y	+= $(if $(CONFIG_64BIT),entry64.o,entry.o)
 obj-y	+= $(if $(CONFIG_64BIT),reipl64.o,reipl.o)
@@ -34,8 +34,6 @@ extra-y				+= $(if $(CONFIG_64BIT),head64.o,head31.o)
 obj-$(CONFIG_MODULES)		+= s390_ksyms.o module.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_SCHED_BOOK)	+= topology.o
-obj-$(CONFIG_SMP)		+= $(if $(CONFIG_64BIT),switch_cpu64.o, \
-							switch_cpu.o)
 obj-$(CONFIG_HIBERNATION)	+= suspend.o swsusp_asm64.o
 obj-$(CONFIG_AUDIT)		+= audit.o
 compat-obj-$(CONFIG_AUDIT)	+= compat_audit.o
@@ -50,6 +48,7 @@ obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER) += ftrace.o
 obj-$(CONFIG_FTRACE_SYSCALLS)  += ftrace.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
+obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf.o
 
 # Kexec part
 S390_KEXEC_OBJS := machine_kexec.o crash.o

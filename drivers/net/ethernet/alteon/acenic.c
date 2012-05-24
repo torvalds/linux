@@ -78,7 +78,6 @@
 #include <net/sock.h>
 #include <net/ip.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/byteorder.h>
@@ -463,11 +462,8 @@ static int __devinit acenic_probe_one(struct pci_dev *pdev,
 	static int boards_found;
 
 	dev = alloc_etherdev(sizeof(struct ace_private));
-	if (dev == NULL) {
-		printk(KERN_ERR "acenic: Unable to allocate "
-		       "net_device structure!\n");
+	if (dev == NULL)
 		return -ENOMEM;
-	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 

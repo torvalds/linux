@@ -621,10 +621,8 @@ static void *ni65_alloc_mem(struct net_device *dev,char *what,int size,int type)
 	}
 	else {
 		ret = ptr = kmalloc(T_BUF_SIZE,GFP_KERNEL | GFP_DMA);
-		if(!ret) {
-			printk(KERN_WARNING "%s: unable to allocate %s memory.\n",dev->name,what);
+		if(!ret)
 			return NULL;
-		}
 	}
 	if( (u32) virt_to_phys(ptr+size) > 0x1000000) {
 		printk(KERN_WARNING "%s: unable to allocate %s memory in lower 16MB!\n",dev->name,what);
@@ -1091,7 +1089,7 @@ static void ni65_recv_intr(struct net_device *dev,int csr0)
 			if (skb)
 				skb_reserve(skb,16);
 #else
-			struct sk_buff *skb = dev_alloc_skb(len+2);
+			struct sk_buff *skb = netdev_alloc_skb(dev, len + 2);
 #endif
 			if(skb)
 			{

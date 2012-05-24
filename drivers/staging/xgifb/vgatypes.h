@@ -2,6 +2,9 @@
 #define _VGATYPES_
 
 #include <linux/ioctl.h>
+#include <linux/fb.h>	/* for struct fb_var_screeninfo for sis.h */
+#include "../../video/sis/vgatypes.h"
+#include "../../video/sis/sis.h"		/* for LCD_TYPE */
 
 #ifndef XGI_VB_CHIP_TYPE
 enum XGI_VB_CHIP_TYPE {
@@ -19,6 +22,12 @@ enum XGI_VB_CHIP_TYPE {
 };
 #endif
 
+
+#define XGI_LCD_TYPE
+/* Since the merge with video/sis the LCD_TYPEs are used from
+ drivers/video/sis/sis.h . Nevertheless we keep this (for the moment) for
+ future reference until the code is merged completely and we are sure
+ nothing of this should be added to the sis.h header */
 #ifndef XGI_LCD_TYPE
 enum XGI_LCD_TYPE {
 	LCD_INVALID = 0,

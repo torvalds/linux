@@ -141,7 +141,8 @@ static int omapbl_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENXIO;
 
-	bl = kzalloc(sizeof(struct omap_backlight), GFP_KERNEL);
+	bl = devm_kzalloc(&pdev->dev, sizeof(struct omap_backlight),
+			  GFP_KERNEL);
 	if (unlikely(!bl))
 		return -ENOMEM;
 
@@ -150,10 +151,8 @@ static int omapbl_probe(struct platform_device *pdev)
 	props.max_brightness = OMAPBL_MAX_INTENSITY;
 	dev = backlight_device_register("omap-bl", &pdev->dev, bl, &omapbl_ops,
 					&props);
-	if (IS_ERR(dev)) {
-		kfree(bl);
+	if (IS_ERR(dev))
 		return PTR_ERR(dev);
-	}
 
 	bl->powermode = FB_BLANK_POWERDOWN;
 	bl->current_intensity = 0;
@@ -177,10 +176,8 @@ static int omapbl_probe(struct platform_device *pdev)
 static int omapbl_remove(struct platform_device *pdev)
 {
 	struct backlight_device *dev = platform_get_drvdata(pdev);
-	struct omap_backlight *bl = dev_get_drvdata(&dev->dev);
 
 	backlight_device_unregister(dev);
-	kfree(bl);
 
 	return 0;
 }

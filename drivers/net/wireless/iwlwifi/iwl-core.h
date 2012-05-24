@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,13 +76,7 @@ struct iwl_cmd;
 
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
-	int (*set_hw_params)(struct iwl_priv *priv);
-	/* setup BT Rx handler */
-	void (*bt_rx_handler_setup)(struct iwl_priv *priv);
-	/* setup BT related deferred work */
-	void (*bt_setup_deferred_work)(struct iwl_priv *priv);
-	/* cancel deferred work */
-	void (*cancel_deferred_work)(struct iwl_priv *priv);
+	void (*set_hw_params)(struct iwl_priv *priv);
 	int (*set_channel_switch)(struct iwl_priv *priv,
 				  struct ieee80211_channel_switch *ch_switch);
 	/* device specific configuration */
@@ -95,72 +89,6 @@ struct iwl_lib_ops {
 	void (*temperature)(struct iwl_priv *priv);
 };
 
-/*
- * @max_ll_items: max number of OTP blocks
- * @shadow_ram_support: shadow support for OTP memory
- * @led_compensation: compensate on the led on/off time per HW according
- *	to the deviation to achieve the desired led frequency.
- *	The detail algorithm is described in iwl-led.c
- * @chain_noise_num_beacons: number of beacons used to compute chain noise
- * @adv_thermal_throttle: support advance thermal throttle
- * @support_ct_kill_exit: support ct kill exit condition
- * @support_wimax_coexist: support wimax/wifi co-exist
- * @plcp_delta_threshold: plcp error rate threshold used to trigger
- *	radio tuning when there is a high receiving plcp error rate
- * @chain_noise_scale: default chain noise scale used for gain computation
- * @wd_timeout: TX queues watchdog timeout
- * @max_event_log_size: size of event log buffer size for ucode event logging
- * @shadow_reg_enable: HW shadhow register bit
- * @no_idle_support: do not support idle mode
- * @hd_v2: v2 of enhanced sensitivity value, used for 2000 series and up
- * wd_disable: disable watchdog timer
- */
-struct iwl_base_params {
-	int eeprom_size;
-	int num_of_queues;	/* def: HW dependent */
-	int num_of_ampdu_queues;/* def: HW dependent */
-	/* for iwl_apm_init() */
-	u32 pll_cfg_val;
-
-	const u16 max_ll_items;
-	const bool shadow_ram_support;
-	u16 led_compensation;
-	bool adv_thermal_throttle;
-	bool support_ct_kill_exit;
-	const bool support_wimax_coexist;
-	u8 plcp_delta_threshold;
-	s32 chain_noise_scale;
-	unsigned int wd_timeout;
-	u32 max_event_log_size;
-	const bool shadow_reg_enable;
-	const bool no_idle_support;
-	const bool hd_v2;
-	const bool wd_disable;
-};
-/*
- * @advanced_bt_coexist: support advanced bt coexist
- * @bt_init_traffic_load: specify initial bt traffic load
- * @bt_prio_boost: default bt priority boost value
- * @agg_time_limit: maximum number of uSec in aggregation
- * @bt_sco_disable: uCode should not response to BT in SCO/ESCO mode
- */
-struct iwl_bt_params {
-	bool advanced_bt_coexist;
-	u8 bt_init_traffic_load;
-	u8 bt_prio_boost;
-	u16 agg_time_limit;
-	bool bt_sco_disable;
-	bool bt_session_2;
-};
-/*
- * @use_rts_for_aggregation: use rts/cts protection for HT traffic
- */
-struct iwl_ht_params {
-	const bool ht_greenfield_support; /* if used set to true */
-	bool use_rts_for_aggregation;
-	enum ieee80211_smps_mode smps_mode;
-};
-
 /***************************
  *   L i b                 *
  ***************************/
@@ -169,7 +97,7 @@ void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   int hw_decrypt);
 int iwl_check_rxon_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 int iwl_full_rxon_required(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
-int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
+void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 			 struct iwl_rxon_context *ctx);
 void iwl_set_flags_for_band(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx,
@@ -197,6 +125,8 @@ const char *get_ctrl_string(int cmd);
 void iwl_clear_traffic_stats(struct iwl_priv *priv);
 void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc,
 		      u16 len);
+void iwl_reset_traffic_log(struct iwl_priv *priv);
+
 #else
 static inline int iwl_alloc_traffic_mem(struct iwl_priv *priv)
 {
@@ -242,8 +172,6 @@ void iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
 void iwl_force_scan_end(struct iwl_priv *priv);
 void iwl_internal_short_hw_scan(struct iwl_priv *priv);
 int iwl_force_reset(struct iwl_priv *priv, int mode, bool external);
-u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
-		       const u8 *ta, const u8 *ie, int ie_len, int left);
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv);
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv);
 void iwl_cancel_scan_deferred_work(struct iwl_priv *priv);
@@ -262,6 +190,10 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 #define IWL_PLCP_QUIET_THRESH       cpu_to_le16(1)  /* packets */
 
 #define IWL_SCAN_CHECK_WATCHDOG		(HZ * 7)
+
+/* traffic log definitions */
+#define IWL_TRAFFIC_ENTRIES	(256)
+#define IWL_TRAFFIC_ENTRY_SIZE  (64)
 
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *
@@ -295,12 +227,6 @@ static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 {
 	return cfg(priv)->bt_params &&
 	       cfg(priv)->bt_params->advanced_bt_coexist;
-}
-
-static inline void iwl_enable_rfkill_int(struct iwl_priv *priv)
-{
-	IWL_DEBUG_ISR(priv, "Enabling rfkill interrupt\n");
-	iwl_write32(bus(priv), CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
 }
 
 extern bool bt_siso_mode;

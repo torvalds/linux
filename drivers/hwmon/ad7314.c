@@ -128,6 +128,7 @@ static int __devinit ad7314_probe(struct spi_device *spi_dev)
 		ret = PTR_ERR(chip->hwmon_dev);
 		goto error_remove_group;
 	}
+	chip->spi_dev = spi_dev;
 
 	return 0;
 error_remove_group:
@@ -167,17 +168,7 @@ static struct spi_driver ad7314_driver = {
 	.id_table = ad7314_id,
 };
 
-static __init int ad7314_init(void)
-{
-	return spi_register_driver(&ad7314_driver);
-}
-module_init(ad7314_init);
-
-static __exit void ad7314_exit(void)
-{
-	spi_unregister_driver(&ad7314_driver);
-}
-module_exit(ad7314_exit);
+module_spi_driver(ad7314_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7314, ADT7301 and ADT7302 digital"

@@ -433,7 +433,6 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	struct qib_pportdata *ppd;
 	struct qib_ibport *ibp;
 	struct ib_port_info *pip = (struct ib_port_info *)smp->data;
-	u16 lid;
 	u8 mtu;
 	int ret;
 	u32 state;
@@ -469,8 +468,7 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	      ibp->mkeyprot == 1))
 		pip->mkey = ibp->mkey;
 	pip->gid_prefix = ibp->gid_prefix;
-	lid = ppd->lid;
-	pip->lid = lid ? cpu_to_be16(lid) : IB_LID_PERMISSIVE;
+	pip->lid = cpu_to_be16(ppd->lid);
 	pip->sm_lid = cpu_to_be16(ibp->sm_lid);
 	pip->cap_mask = cpu_to_be32(ibp->port_cap_flags);
 	/* pip->diag_code; */

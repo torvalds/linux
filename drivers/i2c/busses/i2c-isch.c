@@ -47,7 +47,7 @@
 #define SMBBLKDAT	(0x20 + sch_smba)
 
 /* Other settings */
-#define MAX_TIMEOUT	500
+#define MAX_RETRIES	5000
 
 /* I2C constants */
 #define SCH_QUICK		0x00
@@ -68,7 +68,7 @@ static int sch_transaction(void)
 {
 	int temp;
 	int result = 0;
-	int timeout = 0;
+	int retries = 0;
 
 	dev_dbg(&sch_adapter.dev, "Transaction (pre): CNT=%02x, CMD=%02x, "
 		"ADD=%02x, DAT0=%02x, DAT1=%02x\n", inb(SMBHSTCNT),
@@ -100,12 +100,12 @@ static int sch_transaction(void)
 	outb(inb(SMBHSTCNT) | 0x10, SMBHSTCNT);
 
 	do {
-		msleep(1);
+		usleep_range(100, 200);
 		temp = inb(SMBHSTSTS) & 0x0f;
-	} while ((temp & 0x08) && (timeout++ < MAX_TIMEOUT));
+	} while ((temp & 0x08) && (retries++ < MAX_RETRIES));
 
 	/* If the SMBus is still busy, we give up */
-	if (timeout > MAX_TIMEOUT) {
+	if (retries > MAX_RETRIES) {
 		dev_err(&sch_adapter.dev, "SMBus Timeout!\n");
 		result = -ETIMEDOUT;
 	}

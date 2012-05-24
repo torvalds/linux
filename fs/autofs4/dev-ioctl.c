@@ -230,7 +230,7 @@ static void autofs_dev_ioctl_fd_install(unsigned int fd, struct file *file)
 	fdt = files_fdtable(files);
 	BUG_ON(fdt->fd[fd] != NULL);
 	rcu_assign_pointer(fdt->fd[fd], file);
-	FD_SET(fd, fdt->close_on_exec);
+	__set_close_on_exec(fd, fdt);
 	spin_unlock(&files->file_lock);
 }
 

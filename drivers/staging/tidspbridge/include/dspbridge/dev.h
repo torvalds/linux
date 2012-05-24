@@ -478,33 +478,6 @@ extern int dev_get_bridge_context(struct dev_object *hdev_obj,
 				      **phbridge_context);
 
 /*
- *  ======== dev_exit ========
- *  Purpose:
- *      Decrement reference count, and free resources when reference count is
- *      0.
- *  Parameters:
- *  Returns:
- *  Requires:
- *      DEV is initialized.
- *  Ensures:
- *      When reference count == 0, DEV's private resources are freed.
- */
-extern void dev_exit(void);
-
-/*
- *  ======== dev_init ========
- *  Purpose:
- *      Initialize DEV's private state, keeping a reference count on each call.
- *  Parameters:
- *  Returns:
- *      TRUE if initialized; FALSE if error occurred.
- *  Requires:
- *  Ensures:
- *      TRUE: A requirement for the other public DEV functions.
- */
-extern bool dev_init(void);
-
-/*
  *  ======== dev_insert_proc_object ========
  *  Purpose:
  *      Inserts the Processor Object into the List of PROC Objects

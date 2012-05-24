@@ -32,7 +32,6 @@
 #include <linux/spinlock.h>
 #include <linux/init.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 
 #include "scsi.h"

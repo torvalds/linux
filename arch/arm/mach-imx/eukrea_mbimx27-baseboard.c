@@ -32,7 +32,6 @@
 #include <mach/common.h>
 #include <mach/iomux-mx27.h>
 #include <mach/hardware.h>
-#include <mach/audmux.h>
 
 #include "devices-imx27.h"
 
@@ -305,25 +304,6 @@ void __init eukrea_mbimx27_baseboard_init(void)
 {
 	mxc_gpio_setup_multiple_pins(eukrea_mbimx27_pins,
 		ARRAY_SIZE(eukrea_mbimx27_pins), "MBIMX27");
-
-#if defined(CONFIG_SND_SOC_EUKREA_TLV320) \
-	|| defined(CONFIG_SND_SOC_EUKREA_TLV320_MODULE)
-	/* SSI unit master I2S codec connected to SSI_PINS_4*/
-	mxc_audmux_v1_configure_port(MX27_AUDMUX_HPCR1_SSI0,
-			MXC_AUDMUX_V1_PCR_SYN |
-			MXC_AUDMUX_V1_PCR_TFSDIR |
-			MXC_AUDMUX_V1_PCR_TCLKDIR |
-			MXC_AUDMUX_V1_PCR_RFSDIR |
-			MXC_AUDMUX_V1_PCR_RCLKDIR |
-			MXC_AUDMUX_V1_PCR_TFCSEL(MX27_AUDMUX_HPCR3_SSI_PINS_4) |
-			MXC_AUDMUX_V1_PCR_RFCSEL(MX27_AUDMUX_HPCR3_SSI_PINS_4) |
-			MXC_AUDMUX_V1_PCR_RXDSEL(MX27_AUDMUX_HPCR3_SSI_PINS_4)
-	);
-	mxc_audmux_v1_configure_port(MX27_AUDMUX_HPCR3_SSI_PINS_4,
-			MXC_AUDMUX_V1_PCR_SYN |
-			MXC_AUDMUX_V1_PCR_RXDSEL(MX27_AUDMUX_HPCR1_SSI0)
-	);
-#endif
 
 	imx27_add_imx_uart1(&uart_pdata);
 	imx27_add_imx_uart2(&uart_pdata);

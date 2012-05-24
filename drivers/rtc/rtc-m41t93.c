@@ -206,17 +206,7 @@ static struct spi_driver m41t93_driver = {
 	.remove = __devexit_p(m41t93_remove),
 };
 
-static __init int m41t93_init(void)
-{
-	return spi_register_driver(&m41t93_driver);
-}
-module_init(m41t93_init);
-
-static __exit void m41t93_exit(void)
-{
-	spi_unregister_driver(&m41t93_driver);
-}
-module_exit(m41t93_exit);
+module_spi_driver(m41t93_driver);
 
 MODULE_AUTHOR("Nikolaus Voss <n.voss@weinmann.de>");
 MODULE_DESCRIPTION("Driver for ST M41T93 SPI RTC");
