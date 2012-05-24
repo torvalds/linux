@@ -200,6 +200,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_EXECBUFFER2	0x29
 #define DRM_I915_GET_SPRITE_COLORKEY	0x2a
 #define DRM_I915_SET_SPRITE_COLORKEY	0x2b
+#define DRM_I915_GEM_WAIT	0x2c
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -243,6 +244,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_OVERLAY_ATTRS	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_OVERLAY_ATTRS, struct drm_intel_overlay_attrs)
 #define DRM_IOCTL_I915_SET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_SET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
 #define DRM_IOCTL_I915_GET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_SET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
+#define DRM_IOCTL_I915_GEM_WAIT		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_WAIT, struct drm_i915_gem_wait)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -884,6 +886,14 @@ struct drm_intel_sprite_colorkey {
 	__u32 channel_mask;
 	__u32 max_value;
 	__u32 flags;
+};
+
+struct drm_i915_gem_wait {
+	/** Handle of BO we shall wait on */
+	__u32 bo_handle;
+	__u32 flags;
+	/** Number of nanoseconds to wait, Returns time remaining. */
+	__u64 timeout_ns;
 };
 
 #endif				/* _I915_DRM_H_ */

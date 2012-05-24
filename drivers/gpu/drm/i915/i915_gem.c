@@ -2001,6 +2001,92 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj)
 }
 
 /**
+ * i915_gem_wait_ioctl - implements DRM_IOCTL_I915_GEM_WAIT
+ * @DRM_IOCTL_ARGS: standard ioctl arguments
+ *
+ * Returns 0 if successful, else an error is returned with the remaining time in
+ * the timeout parameter.
+ *  -ETIME: object is still busy after timeout
+ *  -ERESTARTSYS: signal interrupted the wait
+ *  -ENONENT: object doesn't exist
+ * Also possible, but rare:
+ *  -EAGAIN: GPU wedged
+ *  -ENOMEM: damn
+ *  -ENODEV: Internal IRQ fail
+ *  -E?: The add request failed
+ *
+ * The wait ioctl with a timeout of 0 reimplements the busy ioctl. With any
+ * non-zero timeout parameter the wait ioctl will wait for the given number of
+ * nanoseconds on an object becoming unbusy. Since the wait itself does so
+ * without holding struct_mutex the object may become re-busied before this
+ * function completes. A similar but shorter * race condition exists in the busy
+ * ioctl
+ */
+int
+i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
+{
+	struct drm_i915_gem_wait *args = data;
+	struct drm_i915_gem_object *obj;
+	struct intel_ring_buffer *ring = NULL;
+	struct timespec timeout;
+	u32 seqno = 0;
+	int ret = 0;
+
+	timeout = ns_to_timespec(args->timeout_ns);
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->bo_handle));
+	if (&obj->base == NULL) {
+		mutex_unlock(&dev->struct_mutex);
+		return -ENOENT;
+	}
+
+	/* Need to make sure the object is flushed first. This non-obvious
+	 * flush is required to enforce that (active && !olr) == no wait
+	 * necessary.
+	 */
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
+	if (ret)
+		goto out;
+
+	if (obj->active) {
+		seqno = obj->last_rendering_seqno;
+		ring = obj->ring;
+	}
+
+	if (seqno == 0)
+		 goto out;
+
+	ret = i915_gem_check_olr(ring, seqno);
+	if (ret)
+		goto out;
+
+	/* Do this after OLR check to make sure we make forward progress polling
+	 * on this IOCTL with a 0 timeout (like busy ioctl)
+	 */
+	if (!args->timeout_ns) {
+		ret = -ETIME;
+		goto out;
+	}
+
+	drm_gem_object_unreference(&obj->base);
+	mutex_unlock(&dev->struct_mutex);
+
+	ret = __wait_seqno(ring, seqno, true, &timeout);
+	WARN_ON(!timespec_valid(&timeout));
+	args->timeout_ns = timespec_to_ns(&timeout);
+	return ret;
+
+out:
+	drm_gem_object_unreference(&obj->base);
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
+}
+
+/**
  * i915_gem_object_sync - sync an object to a ring.
  *
  * @obj: object which may be in use on another ring.
