@@ -226,10 +226,10 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	NEW_AUX_ENT(AT_BASE, interp_load_addr);
 	NEW_AUX_ENT(AT_FLAGS, 0);
 	NEW_AUX_ENT(AT_ENTRY, exec->e_entry);
-	NEW_AUX_ENT(AT_UID, cred->uid);
-	NEW_AUX_ENT(AT_EUID, cred->euid);
-	NEW_AUX_ENT(AT_GID, cred->gid);
-	NEW_AUX_ENT(AT_EGID, cred->egid);
+	NEW_AUX_ENT(AT_UID, from_kuid_munged(cred->user_ns, cred->uid));
+	NEW_AUX_ENT(AT_EUID, from_kuid_munged(cred->user_ns, cred->euid));
+	NEW_AUX_ENT(AT_GID, from_kgid_munged(cred->user_ns, cred->gid));
+	NEW_AUX_ENT(AT_EGID, from_kgid_munged(cred->user_ns, cred->egid));
  	NEW_AUX_ENT(AT_SECURE, security_bprm_secureexec(bprm));
 	NEW_AUX_ENT(AT_RANDOM, (elf_addr_t)(unsigned long)u_rand_bytes);
 	NEW_AUX_ENT(AT_EXECFN, bprm->exec);
@@ -1356,8 +1356,8 @@ static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 	psinfo->pr_flag = p->flags;
 	rcu_read_lock();
 	cred = __task_cred(p);
-	SET_UID(psinfo->pr_uid, cred->uid);
-	SET_GID(psinfo->pr_gid, cred->gid);
+	SET_UID(psinfo->pr_uid, from_kuid_munged(cred->user_ns, cred->uid));
+	SET_GID(psinfo->pr_gid, from_kgid_munged(cred->user_ns, cred->gid));
 	rcu_read_unlock();
 	strncpy(psinfo->pr_fname, p->comm, sizeof(psinfo->pr_fname));
 	

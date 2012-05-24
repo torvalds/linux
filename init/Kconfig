@@ -873,7 +873,10 @@ config IPC_NS
 config USER_NS
 	bool "User namespace (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	default y
+	depends on UIDGID_CONVERTED
+	select UIDGID_STRICT_TYPE_CHECKS
+
+	default n
 	help
 	  This allows containers, i.e. vservers, to use user namespaces
 	  to provide different user info for different servers.
@@ -896,6 +899,131 @@ config NET_NS
 	  of the network stack.
 
 endif # NAMESPACES
+
+config UIDGID_CONVERTED
+	# True if all of the selected software conmponents are known
+	# to have uid_t and gid_t converted to kuid_t and kgid_t
+	# where appropriate and are otherwise safe to use with
+	# the user namespace.
+	bool
+	default y
+
+	# List of kernel pieces that need user namespace work
+	# Features
+	depends on SYSVIPC = n
+	depends on IMA = n
+	depends on EVM = n
+	depends on KEYS = n
+	depends on AUDIT = n
+	depends on AUDITSYSCALL = n
+	depends on TASKSTATS = n
+	depends on TRACING = n
+	depends on FS_POSIX_ACL = n
+	depends on QUOTA = n
+	depends on QUOTACTL = n
+	depends on DEBUG_CREDENTIALS = n
+	depends on BSD_PROCESS_ACCT = n
+	depends on DRM = n
+	depends on PROC_EVENTS = n
+
+	# Networking
+	depends on NET = n
+	depends on NET_9P = n
+	depends on IPX = n
+	depends on PHONET = n
+	depends on NET_CLS_FLOW = n
+	depends on NETFILTER_XT_MATCH_OWNER = n
+	depends on NETFILTER_XT_MATCH_RECENT = n
+	depends on NETFILTER_XT_TARGET_LOG = n
+	depends on NETFILTER_NETLINK_LOG = n
+	depends on INET = n
+	depends on IPV6 = n
+	depends on IP_SCTP = n
+	depends on AF_RXRPC = n
+	depends on LLC2 = n
+	depends on NET_KEY = n
+	depends on INET_DIAG = n
+	depends on DNS_RESOLVER = n
+	depends on AX25 = n
+	depends on ATALK = n
+
+	# Filesystems
+	depends on USB_DEVICEFS = n
+	depends on USB_GADGETFS = n
+	depends on USB_FUNCTIONFS = n
+	depends on DEVTMPFS = n
+	depends on XENFS = n
+
+	depends on 9P_FS = n
+	depends on ADFS_FS = n
+	depends on AFFS_FS = n
+	depends on AFS_FS = n
+	depends on AUTOFS4_FS = n
+	depends on BEFS_FS = n
+	depends on BFS_FS = n
+	depends on BTRFS_FS = n
+	depends on CEPH_FS = n
+	depends on CIFS = n
+	depends on CODA_FS = n
+	depends on CONFIGFS_FS = n
+	depends on CRAMFS = n
+	depends on DEBUG_FS = n
+	depends on ECRYPT_FS = n
+	depends on EFS_FS = n
+	depends on EXOFS_FS = n
+	depends on FAT_FS = n
+	depends on FUSE_FS = n
+	depends on GFS2_FS = n
+	depends on HFS_FS = n
+	depends on HFSPLUS_FS = n
+	depends on HPFS_FS = n
+	depends on HUGETLBFS = n
+	depends on ISO9660_FS = n
+	depends on JFFS2_FS = n
+	depends on JFS_FS = n
+	depends on LOGFS = n
+	depends on MINIX_FS = n
+	depends on NCP_FS = n
+	depends on NFSD = n
+	depends on NFS_FS = n
+	depends on NILFS2_FS = n
+	depends on NTFS_FS = n
+	depends on OCFS2_FS = n
+	depends on OMFS_FS = n
+	depends on QNX4FS_FS = n
+	depends on QNX6FS_FS = n
+	depends on REISERFS_FS = n
+	depends on SQUASHFS = n
+	depends on SYSV_FS = n
+	depends on UBIFS_FS = n
+	depends on UDF_FS = n
+	depends on UFS_FS = n
+	depends on VXFS_FS = n
+	depends on XFS_FS = n
+
+	depends on !UML || HOSTFS = n
+
+	# The rare drivers that won't build
+	depends on AIRO = n
+	depends on AIRO_CS = n
+	depends on TUN = n
+	depends on INFINIBAND_QIB = n
+	depends on BLK_DEV_LOOP = n
+	depends on ANDROID_BINDER_IPC = n
+
+	# Security modules
+	depends on SECURITY_TOMOYO = n
+	depends on SECURITY_APPARMOR = n
+
+config UIDGID_STRICT_TYPE_CHECKS
+	bool "Require conversions between uid/gids and their internal representation"
+	depends on UIDGID_CONVERTED
+	default n
+	help
+	 While the nececessary conversions are being added to all subsystems this option allows
+	 the code to continue to build for unconverted subsystems.
+
+	 Say Y here if you want the strict type checking enabled
 
 config SCHED_AUTOGROUP
 	bool "Automatic process group scheduling"

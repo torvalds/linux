@@ -617,13 +617,15 @@ static int ext3_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",grpid");
 	if (!test_opt(sb, GRPID) && (def_mount_opts & EXT3_DEFM_BSDGROUPS))
 		seq_puts(seq, ",nogrpid");
-	if (sbi->s_resuid != EXT3_DEF_RESUID ||
+	if (!uid_eq(sbi->s_resuid, make_kuid(&init_user_ns, EXT3_DEF_RESUID)) ||
 	    le16_to_cpu(es->s_def_resuid) != EXT3_DEF_RESUID) {
-		seq_printf(seq, ",resuid=%u", sbi->s_resuid);
+		seq_printf(seq, ",resuid=%u",
+				from_kuid_munged(&init_user_ns, sbi->s_resuid));
 	}
-	if (sbi->s_resgid != EXT3_DEF_RESGID ||
+	if (!gid_eq(sbi->s_resgid, make_kgid(&init_user_ns, EXT3_DEF_RESGID)) ||
 	    le16_to_cpu(es->s_def_resgid) != EXT3_DEF_RESGID) {
-		seq_printf(seq, ",resgid=%u", sbi->s_resgid);
+		seq_printf(seq, ",resgid=%u",
+				from_kgid_munged(&init_user_ns, sbi->s_resgid));
 	}
 	if (test_opt(sb, ERRORS_RO)) {
 		int def_errors = le16_to_cpu(es->s_errors);
@@ -967,6 +969,8 @@ static int parse_options (char *options, struct super_block *sb,
 	substring_t args[MAX_OPT_ARGS];
 	int data_opt = 0;
 	int option;
+	kuid_t uid;
+	kgid_t gid;
 #ifdef CONFIG_QUOTA
 	int qfmt;
 #endif
@@ -1000,12 +1004,23 @@ static int parse_options (char *options, struct super_block *sb,
 		case Opt_resuid:
 			if (match_int(&args[0], &option))
 				return 0;
-			sbi->s_resuid = option;
+			uid = make_kuid(current_user_ns(), option);
+			if (!uid_valid(uid)) {
+				ext3_msg(sb, KERN_ERR, "Invalid uid value %d", option);
+				return -1;
+
+			}
+			sbi->s_resuid = uid;
 			break;
 		case Opt_resgid:
 			if (match_int(&args[0], &option))
 				return 0;
-			sbi->s_resgid = option;
+			gid = make_kgid(current_user_ns(), option);
+			if (!gid_valid(gid)) {
+				ext3_msg(sb, KERN_ERR, "Invalid gid value %d", option);
+				return -1;
+			}
+			sbi->s_resgid = gid;
 			break;
 		case Opt_sb:
 			/* handled by get_sb_block() instead of here */
@@ -1651,8 +1666,8 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	}
 	sb->s_fs_info = sbi;
 	sbi->s_mount_opt = 0;
-	sbi->s_resuid = EXT3_DEF_RESUID;
-	sbi->s_resgid = EXT3_DEF_RESGID;
+	sbi->s_resuid = make_kuid(&init_user_ns, EXT3_DEF_RESUID);
+	sbi->s_resgid = make_kgid(&init_user_ns, EXT3_DEF_RESGID);
 	sbi->s_sb_block = sb_block;
 
 	blocksize = sb_min_blocksize(sb, EXT3_MIN_BLOCK_SIZE);
@@ -1716,8 +1731,8 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	else
 		set_opt(sbi->s_mount_opt, ERRORS_RO);
 
-	sbi->s_resuid = le16_to_cpu(es->s_def_resuid);
-	sbi->s_resgid = le16_to_cpu(es->s_def_resgid);
+	sbi->s_resuid = make_kuid(&init_user_ns, le16_to_cpu(es->s_def_resuid));
+	sbi->s_resgid = make_kgid(&init_user_ns, le16_to_cpu(es->s_def_resgid));
 
 	/* enable barriers by default */
 	set_opt(sbi->s_mount_opt, BARRIER);
