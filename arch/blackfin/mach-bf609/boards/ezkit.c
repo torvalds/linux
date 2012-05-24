@@ -967,11 +967,6 @@ static struct resource bfin_crypto_crc_resources[] = {
 		.end = CH_MEM_STREAM0_SRC_CRC0,
 		.flags = IORESOURCE_DMA,
 	},
-	{
-		.start = CH_MEM_STREAM0_DEST_CRC0,
-		.end = CH_MEM_STREAM0_DEST_CRC0,
-		.flags = IORESOURCE_DMA,
-	},
 };
 
 static struct platform_device bfin_crypto_crc_device = {
