@@ -525,9 +525,10 @@ const struct fw_address_region fw_high_memory_region =
 	{ .start = 0x000100000000ULL, .end = 0xffffe0000000ULL,  };
 EXPORT_SYMBOL(fw_high_memory_region);
 
-#if 0
-const struct fw_address_region fw_low_memory_region =
+static const struct fw_address_region low_memory_region =
 	{ .start = 0x000000000000ULL, .end = 0x000100000000ULL,  };
+
+#if 0
 const struct fw_address_region fw_private_region =
 	{ .start = 0xffffe0000000ULL, .end = 0xfffff0000000ULL,  };
 const struct fw_address_region fw_csr_region =
@@ -1189,6 +1190,23 @@ static struct fw_address_handler registers = {
 	.address_callback	= handle_registers,
 };
 
+static void handle_low_memory(struct fw_card *card, struct fw_request *request,
+		int tcode, int destination, int source, int generation,
+		unsigned long long offset, void *payload, size_t length,
+		void *callback_data)
+{
+	/*
+	 * This catches requests not handled by the physical DMA unit,
+	 * i.e., wrong transaction types or unauthorized source nodes.
+	 */
+	fw_send_response(card, request, RCODE_TYPE_ERROR);
+}
+
+static struct fw_address_handler low_memory = {
+	.length			= 0x000100000000ULL,
+	.address_callback	= handle_low_memory,
+};
+
 MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");
 MODULE_DESCRIPTION("Core IEEE1394 transaction logic");
 MODULE_LICENSE("GPL");
@@ -1250,6 +1268,7 @@ static int __init fw_core_init(void)
 
 	fw_core_add_address_handler(&topology_map, &topology_map_region);
 	fw_core_add_address_handler(&registers, &registers_region);
+	fw_core_add_address_handler(&low_memory, &low_memory_region);
 	fw_core_add_descriptor(&vendor_id_descriptor);
 	fw_core_add_descriptor(&model_id_descriptor);
 
