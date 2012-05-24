@@ -253,32 +253,6 @@ int do_unknown_trapa(unsigned long scId, struct pt_regs *regs)
 	return -ENOSYS;
 }
 
-void show_stack(struct task_struct *tsk, unsigned long *sp)
-{
-#ifdef CONFIG_KALLSYMS
-	extern void sh64_unwind(struct pt_regs *regs);
-	struct pt_regs *regs;
-
-	regs = tsk ? tsk->thread.kregs : NULL;
-
-	sh64_unwind(regs);
-#else
-	printk(KERN_ERR "Can't backtrace on sh64 without CONFIG_KALLSYMS\n");
-#endif
-}
-
-void show_task(unsigned long *sp)
-{
-	show_stack(NULL, sp);
-}
-
-void dump_stack(void)
-{
-	show_task(NULL);
-}
-/* Needed by any user of WARN_ON in view of the defn in include/asm-sh/bug.h */
-EXPORT_SYMBOL(dump_stack);
-
 static void do_unhandled_exception(int trapnr, int signr, char *str, char *fn_name,
 		unsigned long error_code, struct pt_regs *regs, struct task_struct *tsk)
 {

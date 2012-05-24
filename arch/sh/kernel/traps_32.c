@@ -48,33 +48,6 @@
 #define TRAP_ILLEGAL_SLOT_INST	13
 #endif
 
-static void dump_mem(const char *str, unsigned long bottom, unsigned long top)
-{
-	unsigned long p;
-	int i;
-
-	printk("%s(0x%08lx to 0x%08lx)\n", str, bottom, top);
-
-	for (p = bottom & ~31; p < top; ) {
-		printk("%04lx: ", p & 0xffff);
-
-		for (i = 0; i < 8; i++, p += 4) {
-			unsigned int val;
-
-			if (p < bottom || p >= top)
-				printk("         ");
-			else {
-				if (__get_user(val, (unsigned int __user *)p)) {
-					printk("\n");
-					return;
-				}
-				printk("%08x ", val);
-			}
-		}
-		printk("\n");
-	}
-}
-
 static DEFINE_SPINLOCK(die_lock);
 
 void die(const char * str, struct pt_regs * regs, long err)
@@ -900,26 +873,3 @@ void __init trap_init(void)
 	set_exception_table_vec(TRAP_UBC, breakpoint_trap_handler);
 #endif
 }
-
-void show_stack(struct task_struct *tsk, unsigned long *sp)
-{
-	unsigned long stack;
-
-	if (!tsk)
-		tsk = current;
-	if (tsk == current)
-		sp = (unsigned long *)current_stack_pointer;
-	else
-		sp = (unsigned long *)tsk->thread.sp;
-
-	stack = (unsigned long)sp;
-	dump_mem("Stack: ", stack, THREAD_SIZE +
-		 (unsigned long)task_stack_page(tsk));
-	show_trace(tsk, sp, NULL);
-}
-
-void dump_stack(void)
-{
-	show_stack(NULL, NULL);
-}
-EXPORT_SYMBOL(dump_stack);
