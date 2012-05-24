@@ -103,7 +103,6 @@ static int wl1271_event_process(struct wl1271 *wl)
 	struct ieee80211_vif *vif;
 	struct wl12xx_vif *wlvif;
 	u32 vector;
-	bool beacon_loss = false;
 	bool disconnect_sta = false;
 	unsigned long sta_bitmap = 0;
 
@@ -141,20 +140,23 @@ static int wl1271_event_process(struct wl1271 *wl)
 					       mbox->soft_gemini_sense_info);
 
 	/*
-	 * The BSS_LOSE_EVENT_ID is only needed while psm (and hence beacon
-	 * filtering) is enabled. Without PSM, the stack will receive all
-	 * beacons and can detect beacon loss by itself.
-	 *
-	 * As there's possibility that the driver disables PSM before receiving
-	 * BSS_LOSE_EVENT, beacon loss has to be reported to the stack.
-	 *
+	 * We are HW_MONITOR device. On beacon loss - queue
+	 * connection loss work. Cancel it on REGAINED event.
 	 */
 	if (vector & BSS_LOSE_EVENT_ID) {
 		/* TODO: check for multi-role */
+		int delay = wl->conf.conn.synch_fail_thold *
+					wl->conf.conn.bss_lose_timeout;
 		wl1271_info("Beacon loss detected.");
+		cancel_delayed_work_sync(&wl->connection_loss_work);
+		ieee80211_queue_delayed_work(wl->hw, &wl->connection_loss_work,
+		      msecs_to_jiffies(delay));
+	}
 
-		/* indicate to the stack, that beacons have been lost */
-		beacon_loss = true;
+	if (vector & REGAINED_BSS_EVENT_ID) {
+		/* TODO: check for multi-role */
+		wl1271_info("Beacon regained.");
+		cancel_delayed_work_sync(&wl->connection_loss_work);
 	}
 
 	if (vector & RSSI_SNR_TRIGGER_0_EVENT_ID) {
@@ -257,13 +259,6 @@ static int wl1271_event_process(struct wl1271 *wl)
 			rcu_read_unlock();
 		}
 	}
-
-	if (beacon_loss)
-		wl12xx_for_each_wlvif_sta(wl, wlvif) {
-			vif = wl12xx_wlvif_to_vif(wlvif);
-			ieee80211_connection_loss(vif);
-		}
-
 	return 0;
 }
 

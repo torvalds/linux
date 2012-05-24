@@ -440,6 +440,11 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 		do_gettimeofday(&tstamp);
 		dev_dbg(adapter->dev, "event: %lu.%lu: cause: %#x\n",
 			tstamp.tv_sec, tstamp.tv_usec, eventcause);
+	} else {
+		/* Handle PS_SLEEP/AWAKE events on STA */
+		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+		if (!priv)
+			priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	}
 
 	ret = mwifiex_process_sta_event(priv);
@@ -540,8 +545,20 @@ int mwifiex_send_cmd_async(struct mwifiex_private *priv, uint16_t cmd_no,
 
 	/* Prepare command */
 	if (cmd_no) {
-		ret = mwifiex_sta_prepare_cmd(priv, cmd_no, cmd_action,
-					      cmd_oid, data_buf, cmd_ptr);
+		switch (cmd_no) {
+		case HostCmd_CMD_UAP_SYS_CONFIG:
+		case HostCmd_CMD_UAP_BSS_START:
+		case HostCmd_CMD_UAP_BSS_STOP:
+			ret = mwifiex_uap_prepare_cmd(priv, cmd_no, cmd_action,
+						      cmd_oid, data_buf,
+						      cmd_ptr);
+			break;
+		default:
+			ret = mwifiex_sta_prepare_cmd(priv, cmd_no, cmd_action,
+						      cmd_oid, data_buf,
+						      cmd_ptr);
+			break;
+		}
 	} else {
 		ret = mwifiex_cmd_host_cmd(priv, cmd_ptr, data_buf);
 		cmd_node->cmd_flag |= CMD_F_HOSTCMD;

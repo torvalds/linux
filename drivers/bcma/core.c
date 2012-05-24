@@ -30,6 +30,7 @@ void bcma_core_disable(struct bcma_device *core, u32 flags)
 	udelay(10);
 
 	bcma_awrite32(core, BCMA_RESET_CTL, BCMA_RESET_CTL_RESET);
+	bcma_aread32(core, BCMA_RESET_CTL);
 	udelay(1);
 }
 EXPORT_SYMBOL_GPL(bcma_core_disable);
@@ -77,7 +78,7 @@ void bcma_core_set_clockmode(struct bcma_device *core,
 			pr_err("HT force timeout\n");
 		break;
 	case BCMA_CLKMODE_DYNAMIC:
-		pr_warn("Dynamic clockmode not supported yet!\n");
+		bcma_set32(core, BCMA_CLKCTLST, ~BCMA_CLKCTLST_FORCEHT);
 		break;
 	}
 }

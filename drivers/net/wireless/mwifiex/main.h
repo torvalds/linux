@@ -116,6 +116,7 @@ enum {
 #define MAX_FREQUENCY_BAND_BG   2484
 
 #define MWIFIEX_EVENT_HEADER_LEN           4
+#define MWIFIEX_UAP_EVENT_EXTRA_HEADER	   2
 
 #define MWIFIEX_TYPE_LEN			4
 #define MWIFIEX_USB_TYPE_CMD			0xF00DFACE
@@ -370,6 +371,7 @@ struct mwifiex_private {
 	u8 bss_role;
 	u8 bss_priority;
 	u8 bss_num;
+	u8 bss_started;
 	u8 frame_type;
 	u8 curr_addr[ETH_ALEN];
 	u8 media_connected;
@@ -470,12 +472,16 @@ struct mwifiex_private {
 	struct cfg80211_scan_request *scan_request;
 	struct mwifiex_user_scan_cfg *user_scan_cfg;
 	u8 cfg_bssid[6];
-	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	struct wps wps;
 	u8 scan_block;
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
 	u8 subsc_evt_rssi_state;
+	struct mwifiex_ie mgmt_ie[MAX_MGMT_IE_INDEX];
+	u16 beacon_idx;
+	u16 proberesp_idx;
+	u16 assocresp_idx;
+	u16 rsn_idx;
 };
 
 enum mwifiex_ba_status {
@@ -571,6 +577,7 @@ struct mwifiex_adapter {
 	char fw_name[32];
 	int winner;
 	struct device *dev;
+	struct wiphy *wiphy;
 	bool surprise_removed;
 	u32 fw_release_number;
 	u16 init_wait_q_woken;
@@ -677,6 +684,8 @@ struct mwifiex_adapter {
 	struct cmd_ctrl_node *cmd_queued;
 	spinlock_t queue_lock;		/* lock for tx queues */
 	struct completion fw_load;
+	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
+	u16 max_mgmt_ie_index;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
@@ -760,6 +769,9 @@ int mwifiex_process_rx_packet(struct mwifiex_adapter *adapter,
 int mwifiex_sta_prepare_cmd(struct mwifiex_private *, uint16_t cmd_no,
 			    u16 cmd_action, u32 cmd_oid,
 			    void *data_buf, void *cmd_buf);
+int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
+			    u16 cmd_action, u32 cmd_oid,
+			    void *data_buf, void *cmd_buf);
 int mwifiex_process_sta_cmdresp(struct mwifiex_private *, u16 cmdresp_no,
 				struct host_cmd_ds_command *resp);
 int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *,
@@ -820,6 +832,9 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 int is_command_pending(struct mwifiex_adapter *adapter);
 void mwifiex_init_priv_params(struct mwifiex_private *priv,
 						struct net_device *dev);
+int mwifiex_set_secure_params(struct mwifiex_private *priv,
+			      struct mwifiex_uap_bss_param *bss_config,
+			      struct cfg80211_ap_settings *params);
 
 /*
  * This function checks if the queuing is RA based or not.
@@ -933,7 +948,8 @@ int mwifiex_set_radio(struct mwifiex_private *priv, u8 option);
 int mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, u16 channel);
 
 int mwifiex_set_encode(struct mwifiex_private *priv, const u8 *key,
-		       int key_len, u8 key_index, int disable);
+		       int key_len, u8 key_index, const u8 *mac_addr,
+		       int disable);
 
 int mwifiex_set_gen_ie(struct mwifiex_private *priv, u8 *ie, int ie_len);
 
@@ -969,6 +985,7 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 
 int mwifiex_main_process(struct mwifiex_adapter *);
 
+int mwifiex_uap_set_channel(struct mwifiex_private *priv, int channel);
 int mwifiex_bss_set_channel(struct mwifiex_private *,
 			    struct mwifiex_chan_freq_power *cfp);
 int mwifiex_get_bss_info(struct mwifiex_private *,
@@ -986,6 +1003,11 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 					u32 *flags, struct vif_params *params);
 int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct net_device *dev);
 
+void mwifiex_set_sys_config_invalid_data(struct mwifiex_uap_bss_param *config);
+
+int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
+			 struct cfg80211_ap_settings *params);
+int mwifiex_del_mgmt_ies(struct mwifiex_private *priv);
 u8 *mwifiex_11d_code_2_region(u8 code);
 
 #ifdef CONFIG_DEBUG_FS
