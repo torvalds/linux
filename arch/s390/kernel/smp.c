@@ -297,26 +297,27 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
 			  void *data, unsigned long stack)
 {
-	struct _lowcore *lc = pcpu->lowcore;
-	unsigned short this_cpu;
+	struct _lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
+	struct {
+		unsigned long	stack;
+		void		*func;
+		void		*data;
+		unsigned long	source;
+	} restart = { stack, func, data, stap() };
 
 	__load_psw_mask(psw_kernel_bits);
-	this_cpu = stap();
-	if (pcpu->address == this_cpu)
+	if (pcpu->address == restart.source)
 		func(data);	/* should not return */
 	/* Stop target cpu (if func returns this stops the current cpu). */
 	pcpu_sigp_retry(pcpu, sigp_stop, 0);
 	/* Restart func on the target cpu and stop the current cpu. */
-	lc->restart_stack = stack;
-	lc->restart_fn = (unsigned long) func;
-	lc->restart_data = (unsigned long) data;
-	lc->restart_source = (unsigned long) this_cpu;
+	memcpy_absolute(&lc->restart_stack, &restart, sizeof(restart));
 	asm volatile(
 		"0:	sigp	0,%0,6	# sigp restart to target cpu\n"
 		"	brc	2,0b	# busy, try again\n"
 		"1:	sigp	0,%1,5	# sigp stop to current cpu\n"
 		"	brc	2,1b	# busy, try again\n"
-		: : "d" (pcpu->address), "d" (this_cpu) : "0", "1", "cc");
+		: : "d" (pcpu->address), "d" (restart.source) : "0", "1", "cc");
 	for (;;) ;
 }
 
