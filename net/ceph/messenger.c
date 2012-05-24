@@ -1559,7 +1559,6 @@ static int process_connect(struct ceph_connection *con)
 			return -1;
 		}
 		clear_bit(NEGOTIATING, &con->state);
-		clear_bit(CONNECTING, &con->state);
 		set_bit(CONNECTED, &con->state);
 		con->peer_global_seq = le32_to_cpu(con->in_reply.global_seq);
 		con->connect_seq++;
@@ -2000,7 +1999,8 @@ more_kvec:
 	}
 
 do_next:
-	if (!test_bit(CONNECTING, &con->state)) {
+	if (!test_bit(CONNECTING, &con->state) &&
+			!test_bit(NEGOTIATING, &con->state)) {
 		/* is anything else pending? */
 		if (!list_empty(&con->out_queue)) {
 			prepare_write_message(con);
@@ -2057,25 +2057,29 @@ more:
 	}
 
 	if (test_bit(CONNECTING, &con->state)) {
-		if (!test_bit(NEGOTIATING, &con->state)) {
-			dout("try_read connecting\n");
-			ret = read_partial_banner(con);
-			if (ret <= 0)
-				goto out;
-			ret = process_banner(con);
-			if (ret < 0)
-				goto out;
-
-			/* Banner is good, exchange connection info */
-			ret = prepare_write_connect(con);
-			if (ret < 0)
-				goto out;
-			prepare_read_connect(con);
-			set_bit(NEGOTIATING, &con->state);
-
-			/* Send connection info before awaiting response */
+		dout("try_read connecting\n");
+		ret = read_partial_banner(con);
+		if (ret <= 0)
 			goto out;
-		}
+		ret = process_banner(con);
+		if (ret < 0)
+			goto out;
+
+		clear_bit(CONNECTING, &con->state);
+		set_bit(NEGOTIATING, &con->state);
+
+		/* Banner is good, exchange connection info */
+		ret = prepare_write_connect(con);
+		if (ret < 0)
+			goto out;
+		prepare_read_connect(con);
+
+		/* Send connection info before awaiting response */
+		goto out;
+	}
+
+	if (test_bit(NEGOTIATING, &con->state)) {
+		dout("try_read negotiating\n");
 		ret = read_partial_connect(con);
 		if (ret <= 0)
 			goto out;
@@ -2197,12 +2201,12 @@ restart:
 	if (test_and_clear_bit(SOCK_CLOSED, &con->flags)) {
 		if (test_and_clear_bit(CONNECTED, &con->state))
 			con->error_msg = "socket closed";
-		else if (test_and_clear_bit(CONNECTING, &con->state)) {
-			clear_bit(NEGOTIATING, &con->state);
+		else if (test_and_clear_bit(NEGOTIATING, &con->state))
+			con->error_msg = "negotiation failed";
+		else if (test_and_clear_bit(CONNECTING, &con->state))
 			con->error_msg = "connection failed";
-		} else {
+		else
 			con->error_msg = "unrecognized con state";
-		}
 		goto fault;
 	}
 
