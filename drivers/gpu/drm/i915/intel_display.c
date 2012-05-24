@@ -6438,6 +6438,19 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	unsigned long flags;
 	int ret;
 
+	/* Can't change pixel format via MI display flips. */
+	if (fb->pixel_format != crtc->fb->pixel_format)
+		return -EINVAL;
+
+	/*
+	 * TILEOFF/LINOFF registers can't be changed via MI display flips.
+	 * Note that pitch changes could also affect these register.
+	 */
+	if (INTEL_INFO(dev)->gen > 3 &&
+	    (fb->offsets[0] != crtc->fb->offsets[0] ||
+	     fb->pitches[0] != crtc->fb->pitches[0]))
+		return -EINVAL;
+
 	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL)
 		return -ENOMEM;
