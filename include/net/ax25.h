@@ -157,7 +157,7 @@ enum {
 typedef struct ax25_uid_assoc {
 	struct hlist_node	uid_node;
 	atomic_t		refcount;
-	uid_t			uid;
+	kuid_t			uid;
 	ax25_address		call;
 } ax25_uid_assoc;
 
@@ -434,7 +434,7 @@ extern unsigned long ax25_display_timer(struct timer_list *);
 
 /* ax25_uid.c */
 extern int  ax25_uid_policy;
-extern ax25_uid_assoc *ax25_findbyuid(uid_t);
+extern ax25_uid_assoc *ax25_findbyuid(kuid_t);
 extern int __must_check ax25_uid_ioctl(int, struct sockaddr_ax25 *);
 extern const struct file_operations ax25_uid_fops;
 extern void ax25_uid_free(void);

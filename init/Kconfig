@@ -952,7 +952,6 @@ config UIDGID_CONVERTED
 	depends on NET_KEY = n
 	depends on INET_DIAG = n
 	depends on DNS_RESOLVER = n
-	depends on AX25 = n
 
 	# Filesystems
 	depends on USB_GADGETFS = n
