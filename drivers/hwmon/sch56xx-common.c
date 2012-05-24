@@ -464,9 +464,9 @@ struct sch56xx_watchdog_data *sch56xx_watchdog_register(struct device *parent,
 	data->wddev.min_timeout = 1;
 	data->wddev.max_timeout = 255 * 60;
 	if (nowayout)
-		data->wddev.status |= WDOG_NO_WAY_OUT;
+		set_bit(WDOG_NO_WAY_OUT, &data->wddev.status);
 	if (output_enable & SCH56XX_WDOG_OUTPUT_ENABLE)
-		data->wddev.status |= WDOG_ACTIVE;
+		set_bit(WDOG_ACTIVE, &data->wddev.status);
 
 	/* Since the watchdog uses a downcounter there is no register to read
 	   the BIOS set timeout from (if any was set at all) ->
