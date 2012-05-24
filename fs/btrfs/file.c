@@ -65,6 +65,21 @@ struct inode_defrag {
 	int cycled;
 };
 
+static int __compare_inode_defrag(struct inode_defrag *defrag1,
+				  struct inode_defrag *defrag2)
+{
+	if (defrag1->root > defrag2->root)
+		return 1;
+	else if (defrag1->root < defrag2->root)
+		return -1;
+	else if (defrag1->ino > defrag2->ino)
+		return 1;
+	else if (defrag1->ino < defrag2->ino)
+		return -1;
+	else
+		return 0;
+}
+
 /* pop a record for an inode into the defrag tree.  The lock
  * must be held already
  *
@@ -81,15 +96,17 @@ static void __btrfs_add_inode_defrag(struct inode *inode,
 	struct inode_defrag *entry;
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
+	int ret;
 
 	p = &root->fs_info->defrag_inodes.rb_node;
 	while (*p) {
 		parent = *p;
 		entry = rb_entry(parent, struct inode_defrag, rb_node);
 
-		if (defrag->ino < entry->ino)
+		ret = __compare_inode_defrag(defrag, entry);
+		if (ret < 0)
 			p = &parent->rb_left;
-		else if (defrag->ino > entry->ino)
+		else if (ret > 0)
 			p = &parent->rb_right;
 		else {
 			/* if we're reinserting an entry for
@@ -159,28 +176,35 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 /*
  * must be called with the defrag_inodes lock held
  */
-struct inode_defrag *btrfs_find_defrag_inode(struct btrfs_fs_info *info, u64 ino,
+struct inode_defrag *btrfs_find_defrag_inode(struct btrfs_fs_info *info,
+					     u64 root, u64 ino,
 					     struct rb_node **next)
 {
 	struct inode_defrag *entry = NULL;
+	struct inode_defrag tmp;
 	struct rb_node *p;
 	struct rb_node *parent = NULL;
+	int ret;
+
+	tmp.ino = ino;
+	tmp.root = root;
 
 	p = info->defrag_inodes.rb_node;
 	while (p) {
 		parent = p;
 		entry = rb_entry(parent, struct inode_defrag, rb_node);
 
-		if (ino < entry->ino)
+		ret = __compare_inode_defrag(&tmp, entry);
+		if (ret < 0)
 			p = parent->rb_left;
-		else if (ino > entry->ino)
+		else if (ret > 0)
 			p = parent->rb_right;
 		else
 			return entry;
 	}
 
 	if (next) {
-		while (parent && ino > entry->ino) {
+		while (parent && __compare_inode_defrag(&tmp, entry) > 0) {
 			parent = rb_next(parent);
 			entry = rb_entry(parent, struct inode_defrag, rb_node);
 		}
@@ -202,6 +226,7 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 	struct btrfs_key key;
 	struct btrfs_ioctl_defrag_range_args range;
 	u64 first_ino = 0;
+	u64 root_objectid = 0;
 	int num_defrag;
 	int defrag_batch = 1024;
 
@@ -214,11 +239,14 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 		n = NULL;
 
 		/* find an inode to defrag */
-		defrag = btrfs_find_defrag_inode(fs_info, first_ino, &n);
+		defrag = btrfs_find_defrag_inode(fs_info, root_objectid,
+						 first_ino, &n);
 		if (!defrag) {
-			if (n)
-				defrag = rb_entry(n, struct inode_defrag, rb_node);
-			else if (first_ino) {
+			if (n) {
+				defrag = rb_entry(n, struct inode_defrag,
+						  rb_node);
+			} else if (root_objectid || first_ino) {
+				root_objectid = 0;
 				first_ino = 0;
 				continue;
 			} else {
@@ -228,6 +256,7 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 
 		/* remove it from the rbtree */
 		first_ino = defrag->ino + 1;
+		root_objectid = defrag->root;
 		rb_erase(&defrag->rb_node, &fs_info->defrag_inodes);
 
 		if (btrfs_fs_closing(fs_info))
