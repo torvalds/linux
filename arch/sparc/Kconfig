@@ -32,6 +32,7 @@ config SPARC
 	select HAVE_NMI_WATCHDOG if SPARC64
 	select HAVE_BPF_JIT
 	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_STRNCPY_FROM_USER
 
 config SPARC32
 	def_bool !64BIT
