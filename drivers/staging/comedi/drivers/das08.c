@@ -863,7 +863,7 @@ static int das08_counter_config(struct comedi_device *dev,
 static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static void das08_detach(struct comedi_device *dev);
 
-static struct comedi_driver driver_das08 = {
+static struct comedi_driver das08_driver = {
 	.driver_name = DRV_NAME,
 	.module = THIS_MODULE,
 	.attach = das08_attach,
@@ -1087,52 +1087,44 @@ static void das08_detach(struct comedi_device *dev)
 #endif /* DO_COMEDI_DRIVER_REGISTER */
 
 #if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
-static int __devinit driver_das08_pci_probe(struct pci_dev *dev,
+static int __devinit das08_pci_probe(struct pci_dev *dev,
 					    const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &driver_das08);
+	return comedi_pci_auto_config(dev, &das08_driver);
 }
 
-static void __devexit driver_das08_pci_remove(struct pci_dev *dev)
+static void __devexit das08_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_das08_pci_driver = {
+static struct pci_driver das08_pci_driver = {
 	.id_table = das08_pci_table,
-	.probe = &driver_das08_pci_probe,
-	.remove = __devexit_p(&driver_das08_pci_remove)
+	.name =  DRV_NAME,
+	.probe = &das08_pci_probe,
+	.remove = __devexit_p(&das08_pci_remove)
 };
 #endif /* CONFIG_COMEDI_DAS08_PCI */
 
-static int __init driver_das08_init_module(void)
-{
-	int retval = 0;
-
 #ifdef DO_COMEDI_DRIVER_REGISTER
-	retval = comedi_driver_register(&driver_das08);
-	if (retval < 0)
-		return retval;
-#endif
 #if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
-	driver_das08_pci_driver.name = (char *)driver_das08.driver_name;
-	retval = pci_register_driver(&driver_das08_pci_driver);
+module_comedi_pci_driver(das08_driver, das08_pci_driver);
+#else
+module_comedi_driver(das08_driver);
 #endif
-	return retval;
+#else /* DO_COMEDI_DRIVER_REGISTER */
+static int __init das08_init(void)
+{
+	return 0;
 }
 
-static void __exit driver_das08_cleanup_module(void)
+static void __exit das08_exit(void)
 {
-#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
-	pci_unregister_driver(&driver_das08_pci_driver);
-#endif
-#ifdef DO_COMEDI_DRIVER_REGISTER
-	comedi_driver_unregister(&driver_das08);
-#endif
 }
 
-module_init(driver_das08_init_module);
-module_exit(driver_das08_cleanup_module);
+module_init(das08_init);
+module_exit(das08_exit);
+#endif /* DO_COMEDI_DRIVER_REGISTER */
 
 #if IS_ENABLED(CONFIG_COMEDI_DAS08_CS)
 EXPORT_SYMBOL_GPL(das08_cs_boards);
