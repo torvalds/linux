@@ -1869,34 +1869,82 @@ i915_gem_check_olr(struct intel_ring_buffer *ring, u32 seqno)
 	return ret;
 }
 
+/**
+ * __wait_seqno - wait until execution of seqno has finished
+ * @ring: the ring expected to report seqno
+ * @seqno: duh!
+ * @interruptible: do an interruptible wait (normally yes)
+ * @timeout: in - how long to wait (NULL forever); out - how much time remaining
+ *
+ * Returns 0 if the seqno was found within the alloted time. Else returns the
+ * errno with remaining time filled in timeout argument.
+ */
 static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
-			bool interruptible)
+			bool interruptible, struct timespec *timeout)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	int ret = 0;
+	struct timespec before, now, wait_time={1,0};
+	unsigned long timeout_jiffies;
+	long end;
+	bool wait_forever = true;
 
 	if (i915_seqno_passed(ring->get_seqno(ring), seqno))
 		return 0;
 
 	trace_i915_gem_request_wait_begin(ring, seqno);
+
+	if (timeout != NULL) {
+		wait_time = *timeout;
+		wait_forever = false;
+	}
+
+	timeout_jiffies = timespec_to_jiffies(&wait_time);
+
 	if (WARN_ON(!ring->irq_get(ring)))
 		return -ENODEV;
+
+	/* Record current time in case interrupted by signal, or wedged * */
+	getrawmonotonic(&before);
 
 #define EXIT_COND \
 	(i915_seqno_passed(ring->get_seqno(ring), seqno) || \
 	atomic_read(&dev_priv->mm.wedged))
+	do {
+		if (interruptible)
+			end = wait_event_interruptible_timeout(ring->irq_queue,
+							       EXIT_COND,
+							       timeout_jiffies);
+		else
+			end = wait_event_timeout(ring->irq_queue, EXIT_COND,
+						 timeout_jiffies);
 
-	if (interruptible)
-		ret = wait_event_interruptible(ring->irq_queue,
-					       EXIT_COND);
-	else
-		wait_event(ring->irq_queue, EXIT_COND);
+		if (atomic_read(&dev_priv->mm.wedged))
+			end = -EAGAIN;
+	} while (end == 0 && wait_forever);
+
+	getrawmonotonic(&now);
 
 	ring->irq_put(ring);
 	trace_i915_gem_request_wait_end(ring, seqno);
 #undef EXIT_COND
 
-	return ret;
+	if (timeout) {
+		struct timespec sleep_time = timespec_sub(now, before);
+		*timeout = timespec_sub(*timeout, sleep_time);
+	}
+
+	switch (end) {
+	case -EAGAIN: /* Wedged */
+	case -ERESTARTSYS: /* Signal */
+		return (int)end;
+	case 0: /* Timeout */
+		if (timeout)
+			set_normalized_timespec(timeout, 0, 0);
+		return -ETIME;
+	default: /* Completed */
+		WARN_ON(end < 0); /* We're not aware of other errors */
+		return 0;
+	}
 }
 
 /**
@@ -1920,9 +1968,7 @@ i915_wait_request(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	ret = __wait_seqno(ring, seqno, dev_priv->mm.interruptible);
-	if (atomic_read(&dev_priv->mm.wedged))
-		ret = -EAGAIN;
+	ret = __wait_seqno(ring, seqno, dev_priv->mm.interruptible, NULL);
 
 	return ret;
 }
@@ -3002,7 +3048,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (seqno == 0)
 		return 0;
 
-	ret = __wait_seqno(ring, seqno, true);
+	ret = __wait_seqno(ring, seqno, true, NULL);
 	if (ret == 0)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
 
