@@ -52,10 +52,12 @@ static inline void idle_init(unsigned int cpu)
  */
 void __init idle_threads_init(void)
 {
-	unsigned int cpu;
+	unsigned int cpu, boot_cpu;
+
+	boot_cpu = smp_processor_id();
 
 	for_each_possible_cpu(cpu) {
-		if (cpu != smp_processor_id())
+		if (cpu != boot_cpu)
 			idle_init(cpu);
 	}
 }
