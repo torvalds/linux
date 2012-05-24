@@ -53,23 +53,11 @@ struct fdpic_func_descriptor {
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 asmlinkage int
-sys_sigsuspend(old_sigset_t mask,
-	       unsigned long r5, unsigned long r6, unsigned long r7,
-	       struct pt_regs __regs)
+sys_sigsuspend(old_sigset_t mask)
 {
 	sigset_t blocked;
-
-	current->saved_sigmask = current->blocked;
-
-	mask &= _BLOCKABLE;
 	siginitset(&blocked, mask);
-	set_current_blocked(&blocked);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_restore_sigmask();
-
-	return -ERESTARTNOHAND;
+	return sigsuspend(&blocked);
 }
 
 asmlinkage int
@@ -83,10 +71,10 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 		old_sigset_t mask;
 		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
+		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
+		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
+		    __get_user(mask, &act->sa_mask))
 			return -EFAULT;
-		__get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		__get_user(mask, &act->sa_mask);
 		siginitset(&new_ka.sa.sa_mask, mask);
 	}
 
@@ -95,10 +83,10 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 	if (!ret && oact) {
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
+		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
+		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
+		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
 			return -EFAULT;
-		__put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
 	}
 
 	return ret;
@@ -162,12 +150,11 @@ static inline int save_sigcontext_fpu(struct sigcontext __user *sc,
 	if (!(boot_cpu_data.flags & CPU_HAS_FPU))
 		return 0;
 
-	if (!used_math()) {
-		__put_user(0, &sc->sc_ownedfp);
-		return 0;
-	}
+	if (!used_math())
+		return __put_user(0, &sc->sc_ownedfp);
 
-	__put_user(1, &sc->sc_ownedfp);
+	if (__put_user(1, &sc->sc_ownedfp))
+		return -EFAULT;
 
 	/* This will cause a "finit" to be triggered by the next
 	   attempted FPU operation by the 'current' process.
@@ -207,7 +194,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *r0_p
 		regs->sr |= SR_FD; /* Release FPU */
 		clear_fpu(tsk, regs);
 		clear_used_math();
-		__get_user (owned_fp, &sc->sc_ownedfp);
+		err |= __get_user (owned_fp, &sc->sc_ownedfp);
 		if (owned_fp)
 			err |= restore_sigcontext_fpu(sc);
 	}
@@ -398,10 +385,13 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		struct fdpic_func_descriptor __user *funcptr =
 			(struct fdpic_func_descriptor __user *)ka->sa.sa_handler;
 
-		__get_user(regs->pc, &funcptr->text);
-		__get_user(regs->regs[12], &funcptr->GOT);
+		err |= __get_user(regs->pc, &funcptr->text);
+		err |= __get_user(regs->regs[12], &funcptr->GOT);
 	} else
 		regs->pc = (unsigned long)ka->sa.sa_handler;
+
+	if (err)
+		goto give_sigsegv;
 
 	set_fs(USER_DS);
 
@@ -482,10 +472,13 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		struct fdpic_func_descriptor __user *funcptr =
 			(struct fdpic_func_descriptor __user *)ka->sa.sa_handler;
 
-		__get_user(regs->pc, &funcptr->text);
-		__get_user(regs->regs[12], &funcptr->GOT);
+		err |= __get_user(regs->pc, &funcptr->text);
+		err |= __get_user(regs->regs[12], &funcptr->GOT);
 	} else
 		regs->pc = (unsigned long)ka->sa.sa_handler;
+
+	if (err)
+		goto give_sigsegv;
 
 	set_fs(USER_DS);
 
