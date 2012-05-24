@@ -1307,6 +1307,7 @@ static int dwc3_gadget_wakeup(struct usb_gadget *g)
 	/* Recent versions do this automatically */
 	if (dwc->revision < DWC3_REVISION_194A) {
 		/* write zeroes to Link Change Request */
+		reg = dwc3_readl(dwc->regs, DWC3_DCTL);
 		reg &= ~DWC3_DCTL_ULSTCHNGREQ_MASK;
 		dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 	}
