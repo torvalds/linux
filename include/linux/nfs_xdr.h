@@ -1125,6 +1125,12 @@ struct nfs41_impl_id {
 	struct nfstime4			date;
 };
 
+struct nfs41_bind_conn_to_session_res {
+	struct nfs4_session		*session;
+	u32				dir;
+	bool				use_conn_in_rdma_mode;
+};
+
 struct nfs41_exchange_id_res {
 	struct nfs_client		*client;
 	u32				flags;
