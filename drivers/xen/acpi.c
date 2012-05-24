@@ -1,9 +1,9 @@
 /******************************************************************************
- * evtchn.h
+ * acpi.c
+ * acpi file for domain 0 kernel
  *
- * Interface to /dev/xen/xenbus_backend.
- *
- * Copyright (c) 2011 Bastian Blank <waldi@debian.org>
+ * Copyright (c) 2011 Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+ * Copyright (c) 2011 Yu Ke ke.yu@intel.com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
@@ -30,15 +30,33 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef __LINUX_XEN_XENBUS_DEV_H__
-#define __LINUX_XEN_XENBUS_DEV_H__
+#include <xen/acpi.h>
+#include <xen/interface/platform.h>
+#include <asm/xen/hypercall.h>
+#include <asm/xen/hypervisor.h>
 
-#include <linux/ioctl.h>
+int xen_acpi_notify_hypervisor_state(u8 sleep_state,
+				     u32 pm1a_cnt, u32 pm1b_cnt)
+{
+	struct xen_platform_op op = {
+		.cmd = XENPF_enter_acpi_sleep,
+		.interface_version = XENPF_INTERFACE_VERSION,
+		.u = {
+			.enter_acpi_sleep = {
+				.pm1a_cnt_val = (u16)pm1a_cnt,
+				.pm1b_cnt_val = (u16)pm1b_cnt,
+				.sleep_state = sleep_state,
+			},
+		},
+	};
 
-#define IOCTL_XENBUS_BACKEND_EVTCHN			\
-	_IOC(_IOC_NONE, 'B', 0, 0)
+	if ((pm1a_cnt & 0xffff0000) || (pm1b_cnt & 0xffff0000)) {
+		WARN(1, "Using more than 16bits of PM1A/B 0x%x/0x%x!"
+		     "Email xen-devel@lists.xensource.com  Thank you.\n", \
+		     pm1a_cnt, pm1b_cnt);
+		return -1;
+	}
 
-#define IOCTL_XENBUS_BACKEND_SETUP			\
-	_IOC(_IOC_NONE, 'B', 1, 0)
-
-#endif /* __LINUX_XEN_XENBUS_DEV_H__ */
+	HYPERVISOR_dom0_op(&op);
+	return 1;
+}

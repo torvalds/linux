@@ -1,9 +1,9 @@
 /******************************************************************************
- * evtchn.h
+ * acpi.h
+ * acpi file for domain 0 kernel
  *
- * Interface to /dev/xen/xenbus_backend.
- *
- * Copyright (c) 2011 Bastian Blank <waldi@debian.org>
+ * Copyright (c) 2011 Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+ * Copyright (c) 2011 Yu Ke <ke.yu@intel.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
@@ -30,15 +30,29 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef __LINUX_XEN_XENBUS_DEV_H__
-#define __LINUX_XEN_XENBUS_DEV_H__
+#ifndef _XEN_ACPI_H
+#define _XEN_ACPI_H
 
-#include <linux/ioctl.h>
+#include <linux/types.h>
 
-#define IOCTL_XENBUS_BACKEND_EVTCHN			\
-	_IOC(_IOC_NONE, 'B', 0, 0)
+#ifdef CONFIG_XEN_DOM0
+#include <asm/xen/hypervisor.h>
+#include <xen/xen.h>
+#include <linux/acpi.h>
 
-#define IOCTL_XENBUS_BACKEND_SETUP			\
-	_IOC(_IOC_NONE, 'B', 1, 0)
+int xen_acpi_notify_hypervisor_state(u8 sleep_state,
+				     u32 pm1a_cnt, u32 pm1b_cnd);
 
-#endif /* __LINUX_XEN_XENBUS_DEV_H__ */
+static inline void xen_acpi_sleep_register(void)
+{
+	if (xen_initial_domain())
+		acpi_os_set_prepare_sleep(
+			&xen_acpi_notify_hypervisor_state);
+}
+#else
+static inline void xen_acpi_sleep_register(void)
+{
+}
+#endif
+
+#endif	/* _XEN_ACPI_H */
