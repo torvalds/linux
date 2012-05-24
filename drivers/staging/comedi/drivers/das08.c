@@ -60,17 +60,7 @@
 
 #define DRV_NAME "das08"
 
-#ifdef CONFIG_COMEDI_DAS08_ISA_MODULE
-#define CONFIG_COMEDI_DAS08_ISA
-#endif
-#ifdef CONFIG_COMEDI_DAS08_PCI_MODULE
-#define CONFIG_COMEDI_DAS08_PCI
-#endif
-#ifdef CONFIG_COMEDI_DAS08_CS_MODULE
-#define CONFIG_COMEDI_DAS08_CS
-#endif
-
-#if defined(CONFIG_COMEDI_DAS08_ISA) || defined(CONFIG_COMEDI_DAS08_PCI)
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) || IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 #define DO_COMEDI_DRIVER_REGISTER
 #endif
 
@@ -173,7 +163,7 @@ static int das08_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data);
 static int das08_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data);
-#ifdef CONFIG_COMEDI_DAS08_ISA
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_ISA)
 static int das08jr_di_rbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data);
@@ -270,7 +260,7 @@ static const int *const das08_gainlists[] = {
 
 #ifdef DO_COMEDI_DRIVER_REGISTER
 static const struct das08_board_struct das08_boards[] = {
-#ifdef CONFIG_COMEDI_DAS08_ISA
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_ISA)
 	{
 	 .name = "isa-das08",	/*  cio-das08.pdf */
 	 .bustype = isa,
@@ -460,8 +450,8 @@ static const struct das08_board_struct das08_boards[] = {
 	 .name = "das08-pga-g2",	/*  a KM board */
 	 },
 #endif
-#endif /* CONFIG_COMEDI_DAS08_ISA */
-#ifdef CONFIG_COMEDI_DAS08_PCI
+#endif /* IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) */
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 	{
 	 .name = "das08",	/*  pci-das08 */
 	 .id = PCI_DEVICE_ID_PCIDAS08,
@@ -479,11 +469,11 @@ static const struct das08_board_struct das08_boards[] = {
 	 .i8254_offset = 4,
 	 .iosize = 8,
 	 },
-#endif /* CONFIG_COMEDI_DAS08_PCI */
+#endif /* IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) */
 };
 #endif /* DO_COMEDI_DRIVER_REGISTER */
 
-#ifdef CONFIG_COMEDI_DAS08_CS
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_CS)
 struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 	{
 	 .name = "pcm-das08",
@@ -523,7 +513,7 @@ struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 };
 #endif
 
-#ifdef CONFIG_COMEDI_DAS08_PCI
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 static DEFINE_PCI_DEVICE_TABLE(das08_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_PCIDAS08) },
 	{0}
@@ -638,7 +628,7 @@ static int das08_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 2;
 }
 
-#ifdef CONFIG_COMEDI_DAS08_ISA
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_ISA)
 static int das08jr_di_rbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -650,7 +640,7 @@ static int das08jr_di_rbits(struct comedi_device *dev,
 }
 #endif
 
-#ifdef CONFIG_COMEDI_DAS08_ISA
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_ISA)
 static int das08jr_do_wbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -667,7 +657,7 @@ static int das08jr_do_wbits(struct comedi_device *dev,
 }
 #endif
 
-#ifdef CONFIG_COMEDI_DAS08_ISA
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_ISA)
 static int das08jr_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -704,7 +694,7 @@ static int das08jr_ao_winsn(struct comedi_device *dev,
  * a different method to force an update.
  *
  */
-#ifdef CONFIG_COMEDI_DAS08_ISA
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_ISA)
 static int das08ao_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -1006,7 +996,7 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	unsigned long iobase;
-#ifdef CONFIG_COMEDI_DAS08_PCI
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 	unsigned long pci_iobase = 0;
 	struct pci_dev *pdev = NULL;
 #endif
@@ -1016,7 +1006,7 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	printk(KERN_INFO "comedi%d: das08: ", dev->minor);
-#ifdef CONFIG_COMEDI_DAS08_PCI
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 	/*  deal with a pci board */
 	if (thisboard->bustype == pci) {
 		if (it->options[0] || it->options[1]) {
@@ -1068,7 +1058,7 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		outw(INTR1_ENABLE | PCI_INTR_ENABLE, pci_iobase + INTCSR);
 #endif
 	} else
-#endif /* CONFIG_COMEDI_DAS08_PCI */
+#endif /* IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) */
 	{
 		iobase = it->options[0];
 	}
@@ -1086,7 +1076,7 @@ void das08_common_detach(struct comedi_device *dev)
 		if (dev->iobase)
 			release_region(dev->iobase, thisboard->iosize);
 	}
-#ifdef CONFIG_COMEDI_DAS08_PCI
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 	if (devpriv) {
 		if (devpriv->pdev) {
 			if (devpriv->pci_iobase)
@@ -1099,7 +1089,7 @@ void das08_common_detach(struct comedi_device *dev)
 }
 EXPORT_SYMBOL_GPL(das08_common_detach);
 
-#ifdef CONFIG_COMEDI_DAS08_PCI
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 static int __devinit driver_das08_pci_probe(struct pci_dev *dev,
 					    const struct pci_device_id *ent)
 {
@@ -1127,7 +1117,7 @@ static int __init driver_das08_init_module(void)
 	if (retval < 0)
 		return retval;
 #endif
-#ifdef CONFIG_COMEDI_DAS08_PCI
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 	driver_das08_pci_driver.name = (char *)driver_das08.driver_name;
 	retval = pci_register_driver(&driver_das08_pci_driver);
 #endif
@@ -1136,7 +1126,7 @@ static int __init driver_das08_init_module(void)
 
 static void __exit driver_das08_cleanup_module(void)
 {
-#ifdef CONFIG_COMEDI_DAS08_PCI
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 	pci_unregister_driver(&driver_das08_pci_driver);
 #endif
 #ifdef DO_COMEDI_DRIVER_REGISTER
@@ -1147,7 +1137,7 @@ static void __exit driver_das08_cleanup_module(void)
 module_init(driver_das08_init_module);
 module_exit(driver_das08_cleanup_module);
 
-#ifdef CONFIG_COMEDI_DAS08_CS
+#if IS_ENABLED(CONFIG_COMEDI_DAS08_CS)
 EXPORT_SYMBOL_GPL(das08_cs_boards);
 #endif
 
