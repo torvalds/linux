@@ -1,5 +1,6 @@
 #include <linux/module.h>
 #include <linux/uaccess.h>
+#include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/bug.h>
 
@@ -10,8 +11,6 @@ void copy_from_user_overflow(void)
 	WARN(1, "Buffer overflow detected!\n");
 }
 EXPORT_SYMBOL(copy_from_user_overflow);
-
-#define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
 
 static inline long find_zero(unsigned long mask)
 {
