@@ -51,7 +51,6 @@ static struct omap_gpio_reg_offs omap7xx_mpuio_regs = {
 };
 
 static struct __initdata omap_gpio_platform_data omap7xx_mpu_gpio_config = {
-	.virtual_irq_start	= IH_MPUIO_BASE,
 	.is_mpuio		= true,
 	.bank_width		= 16,
 	.bank_stride		= 2,
@@ -93,7 +92,6 @@ static struct omap_gpio_reg_offs omap7xx_gpio_regs = {
 };
 
 static struct __initdata omap_gpio_platform_data omap7xx_gpio1_config = {
-	.virtual_irq_start	= IH_GPIO_BASE,
 	.bank_width		= 32,
 	.regs			= &omap7xx_gpio_regs,
 };
@@ -122,7 +120,6 @@ static struct __initdata resource omap7xx_gpio2_resources[] = {
 };
 
 static struct __initdata omap_gpio_platform_data omap7xx_gpio2_config = {
-	.virtual_irq_start	= IH_GPIO_BASE + 32,
 	.bank_width		= 32,
 	.regs			= &omap7xx_gpio_regs,
 };
@@ -151,7 +148,6 @@ static struct __initdata resource omap7xx_gpio3_resources[] = {
 };
 
 static struct __initdata omap_gpio_platform_data omap7xx_gpio3_config = {
-	.virtual_irq_start	= IH_GPIO_BASE + 64,
 	.bank_width		= 32,
 	.regs			= &omap7xx_gpio_regs,
 };
@@ -180,7 +176,6 @@ static struct __initdata resource omap7xx_gpio4_resources[] = {
 };
 
 static struct __initdata omap_gpio_platform_data omap7xx_gpio4_config = {
-	.virtual_irq_start	= IH_GPIO_BASE + 96,
 	.bank_width		= 32,
 	.regs			= &omap7xx_gpio_regs,
 };
@@ -209,7 +204,6 @@ static struct __initdata resource omap7xx_gpio5_resources[] = {
 };
 
 static struct __initdata omap_gpio_platform_data omap7xx_gpio5_config = {
-	.virtual_irq_start	= IH_GPIO_BASE + 128,
 	.bank_width		= 32,
 	.regs			= &omap7xx_gpio_regs,
 };
@@ -238,7 +232,6 @@ static struct __initdata resource omap7xx_gpio6_resources[] = {
 };
 
 static struct __initdata omap_gpio_platform_data omap7xx_gpio6_config = {
-	.virtual_irq_start	= IH_GPIO_BASE + 160,
 	.bank_width		= 32,
 	.regs			= &omap7xx_gpio_regs,
 };

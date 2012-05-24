@@ -244,7 +244,7 @@ static int __devinit mxs_gpio_probe(struct platform_device *pdev)
 	err = bgpio_init(&port->bgc, &pdev->dev, 4,
 			 port->base + PINCTRL_DIN(port->id),
 			 port->base + PINCTRL_DOUT(port->id), NULL,
-			 port->base + PINCTRL_DOE(port->id), NULL, false);
+			 port->base + PINCTRL_DOE(port->id), NULL, 0);
 	if (err)
 		goto out_iounmap;
 

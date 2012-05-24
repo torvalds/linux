@@ -46,7 +46,6 @@ static struct omap_gpio_reg_offs omap15xx_mpuio_regs = {
 };
 
 static struct __initdata omap_gpio_platform_data omap15xx_mpu_gpio_config = {
-	.virtual_irq_start	= IH_MPUIO_BASE,
 	.is_mpuio		= true,
 	.bank_width		= 16,
 	.bank_stride		= 1,
@@ -89,7 +88,6 @@ static struct omap_gpio_reg_offs omap15xx_gpio_regs = {
 };
 
 static struct __initdata omap_gpio_platform_data omap15xx_gpio_config = {
-	.virtual_irq_start	= IH_GPIO_BASE,
 	.bank_width		= 16,
 	.regs                   = &omap15xx_gpio_regs,
 };

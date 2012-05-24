@@ -417,7 +417,7 @@ static int __devinit mxc_gpio_probe(struct platform_device *pdev)
 	err = bgpio_init(&port->bgc, &pdev->dev, 4,
 			 port->base + GPIO_PSR,
 			 port->base + GPIO_DR, NULL,
-			 port->base + GPIO_GDIR, NULL, false);
+			 port->base + GPIO_GDIR, NULL, 0);
 	if (err)
 		goto out_iounmap;
 
