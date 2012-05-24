@@ -49,9 +49,6 @@
 #define PA_LED		0xb0C00000	/* LED */
 #define LED_SHIFT       0
 #define PA_DIPSW	0xb0900000	/* Dip switch 31 */
-#define PA_CPLD_MODESET	0xb1400004	/* CPLD Mode set register */
-#define PA_CPLD_ST	0xb1400008	/* CPLD Interrupt status register */
-#define PA_CPLD_IMSK	0xb140000a	/* CPLD Interrupt mask register */
 /* Area 5 */
 #define PA_EXT5		0x14000000
 #define PA_EXT5_SIZE	0x04000000
@@ -134,8 +131,10 @@
 
 #define SE7343_FPGA_IRQ_NR	12
 
+struct irq_domain;
+
 /* arch/sh/boards/se/7343/irq.c */
-extern unsigned int se7343_fpga_irq[];
+extern struct irq_domain *se7343_irq_domain;
 
 void init_7343se_IRQ(void);
 

@@ -81,6 +81,8 @@ config SH_7780_SOLUTION_ENGINE
 config SH_7343_SOLUTION_ENGINE
 	bool "SolutionEngine7343"
 	select SOLUTION_ENGINE
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
 	depends on CPU_SUBTYPE_SH7343
 	help
 	  Select 7343 SolutionEngine if configuring for a Hitachi
