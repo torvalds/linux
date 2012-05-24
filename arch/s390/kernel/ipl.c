@@ -1528,12 +1528,15 @@ static struct shutdown_action __refdata dump_action = {
 
 static void dump_reipl_run(struct shutdown_trigger *trigger)
 {
-	u32 csum;
+	struct {
+		void	*addr;
+		__u32	csum;
+	} __packed ipib;
 
-	csum = csum_partial(reipl_block_actual, reipl_block_actual->hdr.len, 0);
-	copy_to_absolute_zero(&S390_lowcore.ipib_checksum, &csum, sizeof(csum));
-	copy_to_absolute_zero(&S390_lowcore.ipib, &reipl_block_actual,
-			      sizeof(reipl_block_actual));
+	ipib.csum = csum_partial(reipl_block_actual,
+				 reipl_block_actual->hdr.len, 0);
+	ipib.addr = reipl_block_actual;
+	memcpy_absolute(&S390_lowcore.ipib, &ipib, sizeof(ipib));
 	dump_run(trigger);
 }
 

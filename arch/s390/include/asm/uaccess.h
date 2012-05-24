@@ -377,7 +377,7 @@ clear_user(void __user *to, unsigned long n)
 }
 
 extern int memcpy_real(void *, void *, size_t);
-extern void copy_to_absolute_zero(void *dest, void *src, size_t count);
+extern void memcpy_absolute(void *, void *, size_t);
 extern int copy_to_user_real(void __user *dest, void *src, size_t count);
 extern int copy_from_user_real(void *dest, void __user *src, size_t count);
 

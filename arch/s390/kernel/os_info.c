@@ -60,7 +60,7 @@ void __init os_info_init(void)
 	os_info.version_minor = OS_INFO_VERSION_MINOR;
 	os_info.magic = OS_INFO_MAGIC;
 	os_info.csum = os_info_csum(&os_info);
-	copy_to_absolute_zero(&S390_lowcore.os_info, &ptr, sizeof(ptr));
+	memcpy_absolute(&S390_lowcore.os_info, &ptr, sizeof(ptr));
 }
 
 #ifdef CONFIG_CRASH_DUMP
