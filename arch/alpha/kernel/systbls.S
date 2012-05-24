@@ -241,11 +241,11 @@ sys_call_table:
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
-	.quad alpha_ni_syscall
-	.quad alpha_ni_syscall			/* 225 */
-	.quad alpha_ni_syscall
-	.quad alpha_ni_syscall
-	.quad alpha_ni_syscall
+	.quad sys_osf_stat
+	.quad sys_osf_lstat			/* 225 */
+	.quad sys_osf_fstat
+	.quad sys_osf_statfs64
+	.quad sys_osf_fstatfs64
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall			/* 230 */
 	.quad alpha_ni_syscall
