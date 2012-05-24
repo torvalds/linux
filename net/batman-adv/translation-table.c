@@ -657,8 +657,8 @@ batadv_tt_global_add_orig_entry(struct tt_global_entry *tt_global_entry,
 
 /* caller must hold orig_node refcount */
 int batadv_tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
-			 const unsigned char *tt_addr, uint8_t ttvn,
-			 bool roaming, bool wifi)
+			 const unsigned char *tt_addr, uint8_t flags,
+			 uint8_t ttvn)
 {
 	struct tt_global_entry *tt_global_entry = NULL;
 	int ret = 0;
@@ -668,15 +668,14 @@ int batadv_tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	tt_global_entry = batadv_tt_global_hash_find(bat_priv, tt_addr);
 
 	if (!tt_global_entry) {
-		tt_global_entry = kzalloc(sizeof(*tt_global_entry),
-					  GFP_ATOMIC);
+		tt_global_entry = kzalloc(sizeof(*tt_global_entry), GFP_ATOMIC);
 		if (!tt_global_entry)
 			goto out;
 
 		common = &tt_global_entry->common;
 		memcpy(common->addr, tt_addr, ETH_ALEN);
 
-		common->flags = NO_FLAGS;
+		common->flags = flags;
 		tt_global_entry->roam_at = 0;
 		atomic_set(&common->refcount, 2);
 
@@ -718,9 +717,6 @@ int batadv_tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
 							orig_node, ttvn);
 	}
 
-	if (wifi)
-		tt_global_entry->common.flags |= TT_CLIENT_WIFI;
-
 	batadv_dbg(DBG_TT, bat_priv,
 		   "Creating new global tt entry: %pM (via %pM)\n",
 		   tt_global_entry->common.addr, orig_node->orig);
@@ -728,7 +724,7 @@ int batadv_tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
 out_remove:
 	/* remove address from local hash if present */
 	batadv_tt_local_remove(bat_priv, tt_global_entry->common.addr,
-			       "global tt received", roaming);
+			       "global tt received", flags & TT_CLIENT_ROAM);
 	ret = 1;
 out:
 	if (tt_global_entry)
@@ -1755,7 +1751,6 @@ static void _batadv_tt_update_changes(struct bat_priv *bat_priv,
 				      uint16_t tt_num_changes, uint8_t ttvn)
 {
 	int i;
-	int is_wifi;
 	int roams;
 
 	for (i = 0; i < tt_num_changes; i++) {
@@ -1763,13 +1758,12 @@ static void _batadv_tt_update_changes(struct bat_priv *bat_priv,
 			roams = (tt_change + i)->flags & TT_CLIENT_ROAM;
 			batadv_tt_global_del(bat_priv, orig_node,
 					     (tt_change + i)->addr,
-					      "tt removed by changes",
-					      roams);
+					     "tt removed by changes",
+					     roams);
 		} else {
-			is_wifi = (tt_change + i)->flags & TT_CLIENT_WIFI;
 			if (!batadv_tt_global_add(bat_priv, orig_node,
-						  (tt_change + i)->addr, ttvn,
-						  false, is_wifi))
+						  (tt_change + i)->addr,
+						  (tt_change + i)->flags, ttvn))
 				/* In case of problem while storing a
 				 * global_entry, we stop the updating
 				 * procedure without committing the

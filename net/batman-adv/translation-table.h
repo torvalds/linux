@@ -32,8 +32,8 @@ void batadv_tt_global_add_orig(struct bat_priv *bat_priv,
 			       struct orig_node *orig_node,
 			       const unsigned char *tt_buff, int tt_buff_len);
 int batadv_tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
-			 const unsigned char *addr, uint8_t ttvn, bool roaming,
-			 bool wifi);
+			 const unsigned char *addr, uint8_t flags,
+			 uint8_t ttvn);
 int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset);
 void batadv_tt_global_del_orig(struct bat_priv *bat_priv,
 			       struct orig_node *orig_node,
