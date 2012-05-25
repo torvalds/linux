@@ -2557,18 +2557,19 @@ recovery_tree_root:
 
 static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 {
-	char b[BDEVNAME_SIZE];
-
 	if (uptodate) {
 		set_buffer_uptodate(bh);
 	} else {
+		struct btrfs_device *device = (struct btrfs_device *)
+			bh->b_private;
+
 		printk_ratelimited(KERN_WARNING "lost page write due to "
-					"I/O error on %s\n",
-				       bdevname(bh->b_bdev, b));
+				   "I/O error on %s\n", device->name);
 		/* note, we dont' set_buffer_write_io_error because we have
 		 * our own ways of dealing with the IO errors
 		 */
 		clear_buffer_uptodate(bh);
+		btrfs_dev_stat_inc_and_print(device, BTRFS_DEV_STAT_WRITE_ERRS);
 	}
 	unlock_buffer(bh);
 	put_bh(bh);
@@ -2683,6 +2684,7 @@ static int write_dev_supers(struct btrfs_device *device,
 			set_buffer_uptodate(bh);
 			lock_buffer(bh);
 			bh->b_end_io = btrfs_end_buffer_write_sync;
+			bh->b_private = device;
 		}
 
 		/*
@@ -2741,6 +2743,9 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 		}
 		if (!bio_flagged(bio, BIO_UPTODATE)) {
 			ret = -EIO;
+			if (!bio_flagged(bio, BIO_EOPNOTSUPP))
+				btrfs_dev_stat_inc_and_print(device,
+					BTRFS_DEV_STAT_FLUSH_ERRS);
 		}
 
 		/* drop the reference from the wait == 0 run */
