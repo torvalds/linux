@@ -2220,6 +2220,15 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "hmac(crc32)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = bfin_crc_tv_template,
+				.count = BFIN_CRC_TEST_VECTORS
+			}
+		}
+	}, {
 		.alg = "hmac(md5)",
 		.test = alg_test_hash,
 		.suite = {
