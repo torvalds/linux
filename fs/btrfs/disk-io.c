@@ -2354,6 +2354,13 @@ retry_root_backup:
 	fs_info->generation = generation;
 	fs_info->last_trans_committed = generation;
 
+	ret = btrfs_init_dev_stats(fs_info);
+	if (ret) {
+		printk(KERN_ERR "btrfs: failed to init dev_stats: %d\n",
+		       ret);
+		goto fail_block_groups;
+	}
+
 	ret = btrfs_init_space_info(fs_info);
 	if (ret) {
 		printk(KERN_ERR "Failed to initial space info: %d\n", ret);

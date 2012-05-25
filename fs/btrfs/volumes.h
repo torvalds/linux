@@ -109,6 +109,7 @@ struct btrfs_device {
 
 	/* disk I/O failure stats. For detailed description refer to
 	 * enum btrfs_dev_stat_values in ioctl.h */
+	int dev_stats_valid;
 	int dev_stats_dirty; /* counters need to be written to disk */
 	atomic_t dev_stat_values[BTRFS_DEV_STAT_VALUES_MAX];
 };
@@ -293,6 +294,9 @@ void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index);
 int btrfs_get_dev_stats(struct btrfs_root *root,
 			struct btrfs_ioctl_get_dev_stats *stats,
 			int reset_after_read);
+int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info);
+int btrfs_run_dev_stats(struct btrfs_trans_handle *trans,
+			struct btrfs_fs_info *fs_info);
 
 static inline void btrfs_dev_stat_inc(struct btrfs_device *dev,
 				      int index)
