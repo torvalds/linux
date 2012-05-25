@@ -372,8 +372,39 @@ execute_in_high_mem:
 		sethi	%hi(linux_dbvec), %g1
 		st	%o1, [%g1 + %lo(linux_dbvec)]
 
-/* Get the machine type via the mysterious romvec node operations. */
+		/* Check if this is a LEON CPU.
+		 * Skip getprops call if it is
+		 */
+		srl	%g3, PSR_IMPL_SHIFT, %g3
+		and	%g3, PSR_IMPL_SHIFTED_MASK, %g3
+		cmp	%g3, PSR_IMPL_LEON
+		 bne	get_cputype
 
+
+		/* LEON CPU - set boot_cpu_id */
+		sethi	%hi(boot_cpu_id), %g2	! boot-cpu index
+
+#ifdef CONFIG_SMP
+		ldub	[%g2 + %lo(boot_cpu_id)], %g1
+		cmp	%g1, 0xff		! unset means first CPU
+#ifdef CONFIG_SPARC_LEON
+		/* XXX Hack to allow build - remove ifdef later */
+		bne	leon_smp_cpu_startup	! continue only with master
+		 nop
+#endif
+#endif
+		/* Get CPU-ID from most significant 4-bit of ASR17 */
+		rd     %asr17, %g1
+		srl    %g1, 28, %g1
+
+		/* Update boot_cpu_id only on boot cpu */
+		stub	%g1, [%g2 + %lo(boot_cpu_id)]
+
+		ba continue_boot
+		 nop
+
+/* Get the machine type via the mysterious romvec node operations. */
+get_cputype:
 		add	%g7, 0x1c, %l1
 		ld	[%l1], %l0
 		ld	[%l0], %l0
@@ -392,32 +423,9 @@ execute_in_high_mem:
 						! to a buf where above string
 						! will get stored by the prom.
 
-#ifdef CONFIG_SPARC_LEON
-	        /* no cpu-type check is needed, it is a SPARC-LEON */
-
-		sethi	%hi(boot_cpu_id), %g2	! boot-cpu index
-
-#ifdef CONFIG_SMP
-		ldub	[%g2 + %lo(boot_cpu_id)], %g1
-		cmp	%g1, 0xff		! unset means first CPU
-		bne	leon_smp_cpu_startup	! continue only with master
-		 nop
-#endif
-		/* Get CPU-ID from most significant 4-bit of ASR17 */
-		rd     %asr17, %g1
-		srl    %g1, 28, %g1
-
-		/* Update boot_cpu_id only on boot cpu */
-		stub	%g1, [%g2 + %lo(boot_cpu_id)]
-
-		ba continue_boot
-		 nop
-#endif
-
 /* Check to cputype. We may be booted on a sun4u (64 bit box),
  * and sun4d needs special treatment.
  */
-
 		set	cputypval, %o2
 		ldub	[%o2 + 0x4], %l1
 
@@ -467,9 +475,9 @@ sun4m_init:
 /* This sucks, apparently this makes Vikings call prom panic, will fix later */
 2:
 		rd	%psr, %o1
-		srl	%o1, 28, %o1		! Get a type of the CPU
+		srl	%o1, PSR_IMPL_SHIFT, %o1	! Get a type of the CPU
 
-		subcc	%o1, 4, %g0		! TI: Viking or MicroSPARC
+		subcc	%o1, PSR_IMPL_TI, %g0		! TI: Viking or MicroSPARC
 		be	continue_boot
 		 nop
 
