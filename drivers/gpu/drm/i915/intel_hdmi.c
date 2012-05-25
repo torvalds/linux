@@ -459,14 +459,11 @@ static bool g4x_hdmi_connected(struct intel_hdmi *intel_hdmi)
 	uint32_t bit;
 
 	switch (intel_hdmi->sdvox_reg) {
-	case HDMIB:
+	case SDVOB:
 		bit = HDMIB_HOTPLUG_LIVE_STATUS;
 		break;
-	case HDMIC:
+	case SDVOC:
 		bit = HDMIC_HOTPLUG_LIVE_STATUS;
-		break;
-	case HDMID:
-		bit = HDMID_HOTPLUG_LIVE_STATUS;
 		break;
 	default:
 		bit = 0;
