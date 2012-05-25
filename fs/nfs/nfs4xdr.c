@@ -338,6 +338,8 @@ static int nfs4_stat_to_errno(int);
 				     1 /* bctsr_use_conn_in_rdma_mode */)
 #define encode_destroy_session_maxsz    (op_encode_hdr_maxsz + 4)
 #define decode_destroy_session_maxsz    (op_decode_hdr_maxsz)
+#define encode_destroy_clientid_maxsz   (op_encode_hdr_maxsz + 2)
+#define decode_destroy_clientid_maxsz   (op_decode_hdr_maxsz)
 #define encode_sequence_maxsz	(op_encode_hdr_maxsz + \
 				XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN) + 4)
 #define decode_sequence_maxsz	(op_decode_hdr_maxsz + \
@@ -751,6 +753,10 @@ static int nfs4_stat_to_errno(int);
 					 encode_destroy_session_maxsz)
 #define NFS4_dec_destroy_session_sz	(compound_decode_hdr_maxsz + \
 					 decode_destroy_session_maxsz)
+#define NFS4_enc_destroy_clientid_sz	(compound_encode_hdr_maxsz + \
+					 encode_destroy_clientid_maxsz)
+#define NFS4_dec_destroy_clientid_sz	(compound_decode_hdr_maxsz + \
+					 decode_destroy_clientid_maxsz)
 #define NFS4_enc_sequence_sz \
 				(compound_decode_hdr_maxsz + \
 				 encode_sequence_maxsz)
@@ -1804,6 +1810,14 @@ static void encode_destroy_session(struct xdr_stream *xdr,
 	encode_opaque_fixed(xdr, session->sess_id.data, NFS4_MAX_SESSIONID_LEN);
 }
 
+static void encode_destroy_clientid(struct xdr_stream *xdr,
+				   uint64_t clientid,
+				   struct compound_hdr *hdr)
+{
+	encode_op_hdr(xdr, OP_DESTROY_CLIENTID, decode_destroy_clientid_maxsz, hdr);
+	encode_uint64(xdr, clientid);
+}
+
 static void encode_reclaim_complete(struct xdr_stream *xdr,
 				    struct nfs41_reclaim_complete_args *args,
 				    struct compound_hdr *hdr)
@@ -2720,6 +2734,22 @@ static void nfs4_xdr_enc_destroy_session(struct rpc_rqst *req,
 
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_destroy_session(xdr, session, &hdr);
+	encode_nops(&hdr);
+}
+
+/*
+ * a DESTROY_CLIENTID request
+ */
+static void nfs4_xdr_enc_destroy_clientid(struct rpc_rqst *req,
+					 struct xdr_stream *xdr,
+					 struct nfs_client *clp)
+{
+	struct compound_hdr hdr = {
+		.minorversion = clp->cl_mvops->minor_version,
+	};
+
+	encode_compound_hdr(xdr, req, &hdr);
+	encode_destroy_clientid(xdr, clp->cl_clientid, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -5479,6 +5509,11 @@ static int decode_destroy_session(struct xdr_stream *xdr, void *dummy)
 	return decode_op_hdr(xdr, OP_DESTROY_SESSION);
 }
 
+static int decode_destroy_clientid(struct xdr_stream *xdr, void *dummy)
+{
+	return decode_op_hdr(xdr, OP_DESTROY_CLIENTID);
+}
+
 static int decode_reclaim_complete(struct xdr_stream *xdr, void *dummy)
 {
 	return decode_op_hdr(xdr, OP_RECLAIM_COMPLETE);
@@ -6789,6 +6824,22 @@ static int nfs4_xdr_dec_destroy_session(struct rpc_rqst *rqstp,
 }
 
 /*
+ * Decode DESTROY_CLIENTID response
+ */
+static int nfs4_xdr_dec_destroy_clientid(struct rpc_rqst *rqstp,
+					struct xdr_stream *xdr,
+					void *res)
+{
+	struct compound_hdr hdr;
+	int status;
+
+	status = decode_compound_hdr(xdr, &hdr);
+	if (!status)
+		status = decode_destroy_clientid(xdr, res);
+	return status;
+}
+
+/*
  * Decode SEQUENCE response
  */
 static int nfs4_xdr_dec_sequence(struct rpc_rqst *rqstp,
@@ -7237,6 +7288,7 @@ struct rpc_procinfo	nfs4_procedures[] = {
 	PROC(GETDEVICELIST,	enc_getdevicelist,	dec_getdevicelist),
 	PROC(BIND_CONN_TO_SESSION,
 			enc_bind_conn_to_session, dec_bind_conn_to_session),
+	PROC(DESTROY_CLIENTID,	enc_destroy_clientid,	dec_destroy_clientid),
 #endif /* CONFIG_NFS_V4_1 */
 };
 
