@@ -423,6 +423,15 @@ out:
 	return rc;
 }
 
+static void mv_save_digest_state(struct mv_req_hash_ctx *ctx)
+{
+	ctx->state[0] = readl(cpg->reg + DIGEST_INITIAL_VAL_A);
+	ctx->state[1] = readl(cpg->reg + DIGEST_INITIAL_VAL_B);
+	ctx->state[2] = readl(cpg->reg + DIGEST_INITIAL_VAL_C);
+	ctx->state[3] = readl(cpg->reg + DIGEST_INITIAL_VAL_D);
+	ctx->state[4] = readl(cpg->reg + DIGEST_INITIAL_VAL_E);
+}
+
 static void mv_hash_algo_completion(void)
 {
 	struct ahash_request *req = ahash_request_cast(cpg->cur_req);
@@ -437,14 +446,12 @@ static void mv_hash_algo_completion(void)
 			memcpy(req->result, cpg->sram + SRAM_DIGEST_BUF,
 			       crypto_ahash_digestsize(crypto_ahash_reqtfm
 						       (req)));
-		} else
+		} else {
+			mv_save_digest_state(ctx);
 			mv_hash_final_fallback(req);
+		}
 	} else {
-		ctx->state[0] = readl(cpg->reg + DIGEST_INITIAL_VAL_A);
-		ctx->state[1] = readl(cpg->reg + DIGEST_INITIAL_VAL_B);
-		ctx->state[2] = readl(cpg->reg + DIGEST_INITIAL_VAL_C);
-		ctx->state[3] = readl(cpg->reg + DIGEST_INITIAL_VAL_D);
-		ctx->state[4] = readl(cpg->reg + DIGEST_INITIAL_VAL_E);
+		mv_save_digest_state(ctx);
 	}
 }
 
