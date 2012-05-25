@@ -144,7 +144,6 @@ const_debug unsigned int sysctl_sched_features =
 
 static const char * const sched_feat_names[] = {
 #include "features.h"
-	NULL
 };
 
 #undef SCHED_FEAT
