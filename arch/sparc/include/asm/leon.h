@@ -257,9 +257,7 @@ extern int leon_ipi_irq;
 #ifndef CONFIG_SPARC_LEON
 
 /* nop definitions for !LEON case */
-#define leon_init() do {} while (0)
 #define leon_switch_mm() do {} while (0)
-#define leon_init_IRQ() do {} while (0)
 #define init_leon() do {} while (0)
 #define leon_smp_done() do {} while (0)
 #define leon_boot_cpus() do {} while (0)
