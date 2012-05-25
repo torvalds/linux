@@ -1700,7 +1700,7 @@ static int rcu_torture_barrier(void *arg)
 		schedule_timeout_interruptible(HZ / 10);
 	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
 	VERBOSE_PRINTK_STRING("rcu_torture_barrier task stopping");
-	rcutorture_shutdown_absorb("rcu_torture_barrier_cbs");
+	rcutorture_shutdown_absorb("rcu_torture_barrier");
 	while (!kthread_should_stop())
 		schedule_timeout_interruptible(1);
 	return 0;
