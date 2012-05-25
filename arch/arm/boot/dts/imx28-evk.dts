@@ -22,6 +22,12 @@
 
 	apb@80000000 {
 		apbh@80000000 {
+			gpmi-nand@8000c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg>;
+				status = "okay";
+			};
+
 			ssp0: ssp@80010000 {
 				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";

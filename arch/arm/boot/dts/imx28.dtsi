@@ -68,15 +68,15 @@
 				status = "disabled";
 			};
 
-			bch@8000a000 {
-				reg = <0x8000a000 2000>;
-				interrupts = <41>;
-				status = "disabled";
-			};
-
-			gpmi@8000c000 {
-				reg = <0x8000c000 2000>;
-				interrupts = <42 88>;
+			gpmi-nand@8000c000 {
+				compatible = "fsl,imx28-gpmi-nand";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x8000c000 2000>, <0x8000a000 2000>;
+				reg-names = "gpmi-nand", "bch";
+				interrupts = <88>, <41>;
+				interrupt-names = "gpmi-dma", "bch";
+				fsl,gpmi-dma-channel = <4>;
 				status = "disabled";
 			};
 
@@ -165,6 +165,23 @@
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
+				};
+
+				gpmi_pins_a: gpmi-nand@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <0x0000 0x0010 0x0020
+						0x0030 0x0040 0x0050 0x0060
+						0x0070 0x0100 0x0110 0x0140
+						0x0150 0x0180 0x0190 0x01a0
+						0x01b0 0x01c0>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				gpmi_status_cfg: gpmi-status-cfg {
+					fsl,pinmux-ids = <0x0180 0x0190 0x01c0>;
+					fsl,drive-strength = <2>;
 				};
 
 				mac0_pins_a: mac0@0 {
