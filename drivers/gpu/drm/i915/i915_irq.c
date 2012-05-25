@@ -1889,13 +1889,13 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 		   DE_PIPEA_VBLANK_IVB);
 	POSTING_READ(DEIER);
 
-	dev_priv->gt_irq_mask = ~0;
+	dev_priv->gt_irq_mask = ~GT_GEN7_L3_PARITY_ERROR_INTERRUPT;
 
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 
 	render_irqs = GT_USER_INTERRUPT | GEN6_BSD_USER_INTERRUPT |
-		GEN6_BLITTER_USER_INTERRUPT;
+		GEN6_BLITTER_USER_INTERRUPT | GT_GEN7_L3_PARITY_ERROR_INTERRUPT;
 	I915_WRITE(GTIER, render_irqs);
 	POSTING_READ(GTIER);
 
