@@ -100,6 +100,28 @@ static unsigned long sh_clk_div_recalc(struct clk *clk)
 	return clk->freq_table[idx].frequency;
 }
 
+static int sh_clk_div_set_rate(struct clk *clk, unsigned long rate)
+{
+	struct clk_div_table *dt = clk_to_div_table(clk);
+	unsigned long value;
+	int idx;
+
+	idx = clk_rate_table_find(clk, clk->freq_table, rate);
+	if (idx < 0)
+		return idx;
+
+	value = sh_clk_read(clk);
+	value &= ~(clk->div_mask << clk->enable_bit);
+	value |= (idx << clk->enable_bit);
+	sh_clk_write(value, clk);
+
+	/* XXX: Should use a post-change notifier */
+	if (dt->kick)
+		dt->kick(clk);
+
+	return 0;
+}
+
 /*
  * div6 support
  */
@@ -152,28 +174,12 @@ static int sh_clk_div6_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
-static int sh_clk_div6_set_rate(struct clk *clk, unsigned long rate)
-{
-	unsigned long value;
-	int idx;
-
-	idx = clk_rate_table_find(clk, clk->freq_table, rate);
-	if (idx < 0)
-		return idx;
-
-	value = sh_clk_read(clk);
-	value &= ~clk->div_mask;
-	value |= idx;
-	sh_clk_write(value, clk);
-	return 0;
-}
-
 static int sh_clk_div6_enable(struct clk *clk)
 {
 	unsigned long value;
 	int ret;
 
-	ret = sh_clk_div6_set_rate(clk, clk->rate);
+	ret = sh_clk_div_set_rate(clk, clk->rate);
 	if (ret == 0) {
 		value = sh_clk_read(clk);
 		value &= ~0x100; /* clear stop bit to enable clock */
@@ -195,7 +201,7 @@ static void sh_clk_div6_disable(struct clk *clk)
 static struct sh_clk_ops sh_clk_div6_clk_ops = {
 	.recalc		= sh_clk_div_recalc,
 	.round_rate	= sh_clk_div_round_rate,
-	.set_rate	= sh_clk_div6_set_rate,
+	.set_rate	= sh_clk_div_set_rate,
 	.enable		= sh_clk_div6_enable,
 	.disable	= sh_clk_div6_disable,
 };
@@ -203,7 +209,7 @@ static struct sh_clk_ops sh_clk_div6_clk_ops = {
 static struct sh_clk_ops sh_clk_div6_reparent_clk_ops = {
 	.recalc		= sh_clk_div_recalc,
 	.round_rate	= sh_clk_div_round_rate,
-	.set_rate	= sh_clk_div6_set_rate,
+	.set_rate	= sh_clk_div_set_rate,
 	.enable		= sh_clk_div6_enable,
 	.disable	= sh_clk_div6_disable,
 	.set_parent	= sh_clk_div6_set_parent,
@@ -319,26 +325,6 @@ static int sh_clk_div4_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
-static int sh_clk_div4_set_rate(struct clk *clk, unsigned long rate)
-{
-	struct clk_div_table *dt = clk_to_div_table(clk);
-	unsigned long value;
-	int idx = clk_rate_table_find(clk, clk->freq_table, rate);
-	if (idx < 0)
-		return idx;
-
-	value = sh_clk_read(clk);
-	value &= ~(clk->div_mask << clk->enable_bit);
-	value |= (idx << clk->enable_bit);
-	sh_clk_write(value, clk);
-
-	/* XXX: Should use a post-change notifier */
-	if (dt->kick)
-		dt->kick(clk);
-
-	return 0;
-}
-
 static int sh_clk_div4_enable(struct clk *clk)
 {
 	sh_clk_write(sh_clk_read(clk) & ~(1 << 8), clk);
@@ -352,13 +338,13 @@ static void sh_clk_div4_disable(struct clk *clk)
 
 static struct sh_clk_ops sh_clk_div4_clk_ops = {
 	.recalc		= sh_clk_div_recalc,
-	.set_rate	= sh_clk_div4_set_rate,
+	.set_rate	= sh_clk_div_set_rate,
 	.round_rate	= sh_clk_div_round_rate,
 };
 
 static struct sh_clk_ops sh_clk_div4_enable_clk_ops = {
 	.recalc		= sh_clk_div_recalc,
-	.set_rate	= sh_clk_div4_set_rate,
+	.set_rate	= sh_clk_div_set_rate,
 	.round_rate	= sh_clk_div_round_rate,
 	.enable		= sh_clk_div4_enable,
 	.disable	= sh_clk_div4_disable,
@@ -366,7 +352,7 @@ static struct sh_clk_ops sh_clk_div4_enable_clk_ops = {
 
 static struct sh_clk_ops sh_clk_div4_reparent_clk_ops = {
 	.recalc		= sh_clk_div_recalc,
-	.set_rate	= sh_clk_div4_set_rate,
+	.set_rate	= sh_clk_div_set_rate,
 	.round_rate	= sh_clk_div_round_rate,
 	.enable		= sh_clk_div4_enable,
 	.disable	= sh_clk_div4_disable,
