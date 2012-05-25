@@ -2903,19 +2903,6 @@ int write_ctree_super(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-/* Kill all outstanding I/O */
-void btrfs_abort_devices(struct btrfs_root *root)
-{
-	struct list_head *head;
-	struct btrfs_device *dev;
-	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
-	head = &root->fs_info->fs_devices->devices;
-	list_for_each_entry_rcu(dev, head, dev_list) {
-		blk_abort_queue(dev->bdev->bd_disk->queue);
-	}
-	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
-}
-
 void btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 {
 	spin_lock(&fs_info->fs_roots_radix_lock);
