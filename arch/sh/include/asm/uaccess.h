@@ -25,6 +25,8 @@
 	(__chk_user_ptr(addr),		\
 	 __access_ok((unsigned long __force)(addr), (size)))
 
+#define user_addr_max()	(current_thread_info()->addr_limit.seg)
+
 /*
  * Uh, these should become the main single-value transfer routines ...
  * They automatically use the right size if we just have the right
@@ -100,6 +102,8 @@ struct __large_struct { unsigned long buf[100]; };
 # include "uaccess_64.h"
 #endif
 
+extern long strncpy_from_user(char *dest, const char __user *src, long count);
+
 /* Generic arbitrary sized copy.  */
 /* Return the number of bytes NOT copied */
 __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n);
@@ -135,37 +139,6 @@ __kernel_size_t __clear_user(void *addr, __kernel_size_t size);
 		__cl_size = __clear_user(__cl_addr, __cl_size);		\
 									\
 	__cl_size;							\
-})
-
-/**
- * strncpy_from_user: - Copy a NUL terminated string from userspace.
- * @dst:   Destination address, in kernel space.  This buffer must be at
- *         least @count bytes long.
- * @src:   Source address, in user space.
- * @count: Maximum number of bytes to copy, including the trailing NUL.
- *
- * Copies a NUL-terminated string from userspace to kernel space.
- *
- * On success, returns the length of the string (not including the trailing
- * NUL).
- *
- * If access to userspace fails, returns -EFAULT (some data may have been
- * copied).
- *
- * If @count is smaller than the length of the string, copies @count bytes
- * and returns @count.
- */
-#define strncpy_from_user(dest,src,count)				\
-({									\
-	unsigned long __sfu_src = (unsigned long)(src);			\
-	int __sfu_count = (int)(count);					\
-	long __sfu_res = -EFAULT;					\
-									\
-	if (__access_ok(__sfu_src, __sfu_count))			\
-		__sfu_res = __strncpy_from_user((unsigned long)(dest),	\
-				__sfu_src, __sfu_count);		\
-									\
-	__sfu_res;							\
 })
 
 static inline unsigned long

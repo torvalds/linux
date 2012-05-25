@@ -170,45 +170,6 @@ __asm__ __volatile__( \
 
 extern void __put_user_unknown(void);
 
-static inline int
-__strncpy_from_user(unsigned long __dest, unsigned long __user __src, int __count)
-{
-	__kernel_size_t res;
-	unsigned long __dummy, _d, _s, _c;
-
-	__asm__ __volatile__(
-		"9:\n"
-		"mov.b	@%2+, %1\n\t"
-		"cmp/eq	#0, %1\n\t"
-		"bt/s	2f\n"
-		"1:\n"
-		"mov.b	%1, @%3\n\t"
-		"dt	%4\n\t"
-		"bf/s	9b\n\t"
-		" add	#1, %3\n\t"
-		"2:\n\t"
-		"sub	%4, %0\n"
-		"3:\n"
-		".section .fixup,\"ax\"\n"
-		"4:\n\t"
-		"mov.l	5f, %1\n\t"
-		"jmp	@%1\n\t"
-		" mov	%9, %0\n\t"
-		".balign 4\n"
-		"5:	.long 3b\n"
-		".previous\n"
-		".section __ex_table,\"a\"\n"
-		"	.balign 4\n"
-		"	.long 9b,4b\n"
-		".previous"
-		: "=r" (res), "=&z" (__dummy), "=r" (_s), "=r" (_d), "=r"(_c)
-		: "0" (__count), "2" (__src), "3" (__dest), "4" (__count),
-		  "i" (-EFAULT)
-		: "memory", "t");
-
-	return res;
-}
-
 /*
  * Return the size of a string (including the ending 0 even when we have
  * exceeded the maximum string length).
