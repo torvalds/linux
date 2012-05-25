@@ -1828,6 +1828,7 @@ static void rk_camera_reinit_work(struct work_struct *work)
             	spin_unlock_irqrestore(pcdev->video_vq->irqlock, flags);
             
             #endif
+        	RKCAMERA_TR("the %d reinit times ,wake up video buffers!\n ",pcdev->reinit_times);
         }else{ //the first time,just reinit sensor ,don't wake up vb
            // rk_cif_poweroff(pcdev);
         	RKCAMERA_DG("first time to reinit\n");
@@ -1866,10 +1867,9 @@ static void rk_camera_reinit_work(struct work_struct *work)
         	xlate = soc_camera_xlate_by_fourcc(pcdev->icd, pcdev->icd->current_fmt->host_fmt->fourcc);	
         	mf.code = xlate->code;
         	ret |= v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
-            
+        	RKCAMERA_TR("first time Camera host haven't recevie data from sensor,Reinit sensor now! ret:0x%x\n",ret);
             }
 	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)|ENABLE_CAPTURE));
-	RKCAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor now! ret:0x%x\n",ret);
 }
 static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
 {
@@ -1883,7 +1883,7 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
 
 	RKCAMERA_DG("rk_camera_fps_func fps:0x%x\n",pcdev->fps);
 	if ((pcdev->fps < 1) || (pcdev->last_fps == pcdev->fps)) {
-		RKCAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor delay,last fps = %d!\n",pcdev->last_fps);
+		RKCAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor delay,last fps = %d,pcdev->fps = %d!\n",pcdev->last_fps,pcdev->fps);
 		pcdev->camera_reinit_work.pcdev = pcdev;
 		//INIT_WORK(&(pcdev->camera_reinit_work.work), rk_camera_reinit_work);
 		queue_work(pcdev->camera_wq,&(pcdev->camera_reinit_work.work));
@@ -1950,7 +1950,8 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
 	}
     pcdev->last_fps = pcdev->fps ;
     pcdev->fps_timer.timer.node.expires= ktime_add_us(pcdev->fps_timer.timer.node.expires, ktime_to_us(ktime_set(3, 0)));
-	//return HRTIMER_NORESTART;
+    pcdev->fps_timer.timer._softexpires= ktime_add_us(pcdev->fps_timer.timer._softexpires, ktime_to_us(ktime_set(3, 0)));
+    //return HRTIMER_NORESTART;
     return HRTIMER_RESTART;
 }
 static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
