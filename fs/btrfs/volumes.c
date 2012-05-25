@@ -4673,3 +4673,37 @@ void btrfs_dev_stat_print_on_error(struct btrfs_device *dev)
 			   btrfs_dev_stat_read(dev,
 					       BTRFS_DEV_STAT_GENERATION_ERRS));
 }
+
+int btrfs_get_dev_stats(struct btrfs_root *root,
+			struct btrfs_ioctl_get_dev_stats *stats,
+			int reset_after_read)
+{
+	struct btrfs_device *dev;
+	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
+	int i;
+
+	mutex_lock(&fs_devices->device_list_mutex);
+	dev = btrfs_find_device(root, stats->devid, NULL, NULL);
+	mutex_unlock(&fs_devices->device_list_mutex);
+
+	if (!dev) {
+		printk(KERN_WARNING
+		       "btrfs: get dev_stats failed, device not found\n");
+		return -ENODEV;
+	} else if (reset_after_read) {
+		for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++) {
+			if (stats->nr_items > i)
+				stats->values[i] =
+					btrfs_dev_stat_read_and_reset(dev, i);
+			else
+				btrfs_dev_stat_reset(dev, i);
+		}
+	} else {
+		for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++)
+			if (stats->nr_items > i)
+				stats->values[i] = btrfs_dev_stat_read(dev, i);
+	}
+	if (stats->nr_items > BTRFS_DEV_STAT_VALUES_MAX)
+		stats->nr_items = BTRFS_DEV_STAT_VALUES_MAX;
+	return 0;
+}
