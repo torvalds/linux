@@ -219,6 +219,7 @@ enum pl08x_dma_chan_state {
  * @cd: channel platform data
  * @runtime_addr: address for RX/TX according to the runtime config
  * @pend_list: queued transactions pending on this channel
+ * @done_list: list of completed transactions
  * @at: active transaction on this channel
  * @lock: a lock for this channel data
  * @host: a pointer to the host (internal use)
@@ -238,6 +239,7 @@ struct pl08x_dma_chan {
 	const struct pl08x_channel_data *cd;
 	struct dma_slave_config cfg;
 	struct list_head pend_list;
+	struct list_head done_list;
 	struct pl08x_txd *at;
 	spinlock_t lock;
 	struct pl08x_driver_data *host;
@@ -1673,18 +1675,11 @@ static void pl08x_tasklet(unsigned long data)
 {
 	struct pl08x_dma_chan *plchan = (struct pl08x_dma_chan *) data;
 	struct pl08x_driver_data *pl08x = plchan->host;
-	struct pl08x_txd *txd;
 	unsigned long flags;
+	LIST_HEAD(head);
 
 	spin_lock_irqsave(&plchan->lock, flags);
-
-	txd = plchan->at;
-	plchan->at = NULL;
-
-	if (txd) {
-		/* Update last completed */
-		dma_cookie_complete(&txd->tx);
-	}
+	list_splice_tail_init(&plchan->done_list, &head);
 
 	/* If a new descriptor is queued, set it up plchan->at is NULL here */
 	if (!list_empty(&plchan->pend_list)) {
@@ -1739,9 +1734,13 @@ static void pl08x_tasklet(unsigned long data)
 
 	spin_unlock_irqrestore(&plchan->lock, flags);
 
-	if (txd) {
+	while (!list_empty(&head)) {
+		struct pl08x_txd *txd = list_first_entry(&head,
+						struct pl08x_txd, node);
 		dma_async_tx_callback callback = txd->tx.callback;
 		void *callback_param = txd->tx.callback_param;
+
+		list_del(&txd->node);
 
 		/* Don't try to unmap buffers on slave channels */
 		if (!plchan->slave)
@@ -1782,6 +1781,7 @@ static irqreturn_t pl08x_irq(int irq, void *dev)
 			/* Locate physical channel */
 			struct pl08x_phy_chan *phychan = &pl08x->phy_chans[i];
 			struct pl08x_dma_chan *plchan = phychan->serving;
+			struct pl08x_txd *tx;
 
 			if (!plchan) {
 				dev_err(&pl08x->adev->dev,
@@ -1789,6 +1789,15 @@ static irqreturn_t pl08x_irq(int irq, void *dev)
 					__func__, i);
 				continue;
 			}
+
+			spin_lock(&plchan->lock);
+			tx = plchan->at;
+			if (tx) {
+				plchan->at = NULL;
+				dma_cookie_complete(&tx->tx);
+				list_add_tail(&tx->node, &plchan->done_list);
+			}
+			spin_unlock(&plchan->lock);
 
 			/* Schedule tasklet on this channel */
 			tasklet_schedule(&plchan->tasklet);
@@ -1856,6 +1865,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 
 		spin_lock_init(&chan->lock);
 		INIT_LIST_HEAD(&chan->pend_list);
+		INIT_LIST_HEAD(&chan->done_list);
 		tasklet_init(&chan->tasklet, pl08x_tasklet,
 			     (unsigned long) chan);
 
