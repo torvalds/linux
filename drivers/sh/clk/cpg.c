@@ -14,6 +14,8 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 
+#define CPG_CKSTP_BIT	BIT(8)
+
 static unsigned int sh_clk_read(struct clk *clk)
 {
 	if (clk->flags & CLK_ENABLE_REG_8BIT)
@@ -122,6 +124,30 @@ static int sh_clk_div_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
+static int sh_clk_div_enable(struct clk *clk)
+{
+	sh_clk_write(sh_clk_read(clk) & ~CPG_CKSTP_BIT, clk);
+	return 0;
+}
+
+static void sh_clk_div_disable(struct clk *clk)
+{
+	unsigned int val;
+
+	val = sh_clk_read(clk);
+	val |= CPG_CKSTP_BIT;
+
+	/*
+	 * div6 clocks require the divisor field to be non-zero or the
+	 * above CKSTP toggle silently fails. Ensure that the divisor
+	 * array is reset to its initial state on disable.
+	 */
+	if (clk->flags & CLK_MASK_DIV_ON_DISABLE)
+		val |= clk->div_mask;
+
+	sh_clk_write(val, clk);
+}
+
 /*
  * div6 support
  */
@@ -174,44 +200,20 @@ static int sh_clk_div6_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
-static int sh_clk_div6_enable(struct clk *clk)
-{
-	unsigned long value;
-	int ret;
-
-	ret = sh_clk_div_set_rate(clk, clk->rate);
-	if (ret == 0) {
-		value = sh_clk_read(clk);
-		value &= ~0x100; /* clear stop bit to enable clock */
-		sh_clk_write(value, clk);
-	}
-	return ret;
-}
-
-static void sh_clk_div6_disable(struct clk *clk)
-{
-	unsigned long value;
-
-	value = sh_clk_read(clk);
-	value |= 0x100; /* stop clock */
-	value |= clk->div_mask; /* VDIV bits must be non-zero, overwrite divider */
-	sh_clk_write(value, clk);
-}
-
 static struct sh_clk_ops sh_clk_div6_clk_ops = {
 	.recalc		= sh_clk_div_recalc,
 	.round_rate	= sh_clk_div_round_rate,
 	.set_rate	= sh_clk_div_set_rate,
-	.enable		= sh_clk_div6_enable,
-	.disable	= sh_clk_div6_disable,
+	.enable		= sh_clk_div_enable,
+	.disable	= sh_clk_div_disable,
 };
 
 static struct sh_clk_ops sh_clk_div6_reparent_clk_ops = {
 	.recalc		= sh_clk_div_recalc,
 	.round_rate	= sh_clk_div_round_rate,
 	.set_rate	= sh_clk_div_set_rate,
-	.enable		= sh_clk_div6_enable,
-	.disable	= sh_clk_div6_disable,
+	.enable		= sh_clk_div_enable,
+	.disable	= sh_clk_div_disable,
 	.set_parent	= sh_clk_div6_set_parent,
 };
 
@@ -325,17 +327,6 @@ static int sh_clk_div4_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
-static int sh_clk_div4_enable(struct clk *clk)
-{
-	sh_clk_write(sh_clk_read(clk) & ~(1 << 8), clk);
-	return 0;
-}
-
-static void sh_clk_div4_disable(struct clk *clk)
-{
-	sh_clk_write(sh_clk_read(clk) | (1 << 8), clk);
-}
-
 static struct sh_clk_ops sh_clk_div4_clk_ops = {
 	.recalc		= sh_clk_div_recalc,
 	.set_rate	= sh_clk_div_set_rate,
@@ -346,16 +337,16 @@ static struct sh_clk_ops sh_clk_div4_enable_clk_ops = {
 	.recalc		= sh_clk_div_recalc,
 	.set_rate	= sh_clk_div_set_rate,
 	.round_rate	= sh_clk_div_round_rate,
-	.enable		= sh_clk_div4_enable,
-	.disable	= sh_clk_div4_disable,
+	.enable		= sh_clk_div_enable,
+	.disable	= sh_clk_div_disable,
 };
 
 static struct sh_clk_ops sh_clk_div4_reparent_clk_ops = {
 	.recalc		= sh_clk_div_recalc,
 	.set_rate	= sh_clk_div_set_rate,
 	.round_rate	= sh_clk_div_round_rate,
-	.enable		= sh_clk_div4_enable,
-	.disable	= sh_clk_div4_disable,
+	.enable		= sh_clk_div_enable,
+	.disable	= sh_clk_div_disable,
 	.set_parent	= sh_clk_div4_set_parent,
 };
 

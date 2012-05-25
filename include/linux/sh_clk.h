@@ -69,6 +69,8 @@ struct clk {
 #define CLK_ENABLE_REG_16BIT	BIT(2)
 #define CLK_ENABLE_REG_8BIT	BIT(3)
 
+#define CLK_MASK_DIV_ON_DISABLE	BIT(4)
+
 #define CLK_ENABLE_REG_MASK	(CLK_ENABLE_REG_32BIT | \
 				 CLK_ENABLE_REG_16BIT | \
 				 CLK_ENABLE_REG_8BIT)
@@ -173,7 +175,7 @@ int sh_clk_div4_reparent_register(struct clk *clks, int nr,
 {								\
 	.enable_reg = (void __iomem *)_reg,			\
 	.enable_bit = 0, /* unused */				\
-	.flags = _flags,					\
+	.flags = _flags | CLK_MASK_DIV_ON_DISABLE,		\
 	.div_mask = SH_CLK_DIV6_MSK,				\
 	.parent_table = _parents,				\
 	.parent_num = _num_parents,				\
@@ -187,7 +189,7 @@ int sh_clk_div4_reparent_register(struct clk *clks, int nr,
 	.enable_reg	= (void __iomem *)_reg,			\
 	.enable_bit	= 0,	/* unused */			\
 	.div_mask	= SH_CLK_DIV6_MSK,			\
-	.flags		= _flags,				\
+	.flags		= _flags | CLK_MASK_DIV_ON_DISABLE,	\
 }
 
 int sh_clk_div6_register(struct clk *clks, int nr);
