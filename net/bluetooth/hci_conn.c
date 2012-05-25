@@ -40,15 +40,15 @@ static void hci_le_connect(struct hci_conn *conn)
 	conn->sec_level = BT_SECURITY_LOW;
 
 	memset(&cp, 0, sizeof(cp));
-	cp.scan_interval = cpu_to_le16(0x0060);
-	cp.scan_window = cpu_to_le16(0x0030);
+	cp.scan_interval = __constant_cpu_to_le16(0x0060);
+	cp.scan_window = __constant_cpu_to_le16(0x0030);
 	bacpy(&cp.peer_addr, &conn->dst);
 	cp.peer_addr_type = conn->dst_type;
-	cp.conn_interval_min = cpu_to_le16(0x0028);
-	cp.conn_interval_max = cpu_to_le16(0x0038);
-	cp.supervision_timeout = cpu_to_le16(0x002a);
-	cp.min_ce_len = cpu_to_le16(0x0000);
-	cp.max_ce_len = cpu_to_le16(0x0000);
+	cp.conn_interval_min = __constant_cpu_to_le16(0x0028);
+	cp.conn_interval_max = __constant_cpu_to_le16(0x0038);
+	cp.supervision_timeout = __constant_cpu_to_le16(0x002a);
+	cp.min_ce_len = __constant_cpu_to_le16(0x0000);
+	cp.max_ce_len = __constant_cpu_to_le16(0x0000);
 
 	hci_send_cmd(hdev, HCI_OP_LE_CREATE_CONN, sizeof(cp), &cp);
 }
@@ -85,7 +85,7 @@ void hci_acl_connect(struct hci_conn *conn)
 			cp.pscan_rep_mode = ie->data.pscan_rep_mode;
 			cp.pscan_mode     = ie->data.pscan_mode;
 			cp.clock_offset   = ie->data.clock_offset |
-							cpu_to_le16(0x8000);
+					    __constant_cpu_to_le16(0x8000);
 		}
 
 		memcpy(conn->dev_class, ie->data.dev_class, 3);
@@ -161,9 +161,9 @@ void hci_setup_sync(struct hci_conn *conn, __u16 handle)
 	cp.handle   = cpu_to_le16(handle);
 	cp.pkt_type = cpu_to_le16(conn->pkt_type);
 
-	cp.tx_bandwidth   = cpu_to_le32(0x00001f40);
-	cp.rx_bandwidth   = cpu_to_le32(0x00001f40);
-	cp.max_latency    = cpu_to_le16(0xffff);
+	cp.tx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
+	cp.rx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
+	cp.max_latency    = __constant_cpu_to_le16(0xffff);
 	cp.voice_setting  = cpu_to_le16(hdev->voice_setting);
 	cp.retrans_effort = 0xff;
 
@@ -183,8 +183,8 @@ void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
 	cp.conn_interval_max	= cpu_to_le16(max);
 	cp.conn_latency		= cpu_to_le16(latency);
 	cp.supervision_timeout	= cpu_to_le16(to_multiplier);
-	cp.min_ce_len		= cpu_to_le16(0x0001);
-	cp.max_ce_len		= cpu_to_le16(0x0001);
+	cp.min_ce_len		= __constant_cpu_to_le16(0x0001);
+	cp.max_ce_len		= __constant_cpu_to_le16(0x0001);
 
 	hci_send_cmd(hdev, HCI_OP_LE_CONN_UPDATE, sizeof(cp), &cp);
 }
@@ -279,9 +279,9 @@ static void hci_conn_enter_sniff_mode(struct hci_conn *conn)
 	if (lmp_sniffsubr_capable(hdev) && lmp_sniffsubr_capable(conn)) {
 		struct hci_cp_sniff_subrate cp;
 		cp.handle             = cpu_to_le16(conn->handle);
-		cp.max_latency        = cpu_to_le16(0);
-		cp.min_remote_timeout = cpu_to_le16(0);
-		cp.min_local_timeout  = cpu_to_le16(0);
+		cp.max_latency        = __constant_cpu_to_le16(0);
+		cp.min_remote_timeout = __constant_cpu_to_le16(0);
+		cp.min_local_timeout  = __constant_cpu_to_le16(0);
 		hci_send_cmd(hdev, HCI_OP_SNIFF_SUBRATE, sizeof(cp), &cp);
 	}
 
@@ -290,8 +290,8 @@ static void hci_conn_enter_sniff_mode(struct hci_conn *conn)
 		cp.handle       = cpu_to_le16(conn->handle);
 		cp.max_interval = cpu_to_le16(hdev->sniff_max_interval);
 		cp.min_interval = cpu_to_le16(hdev->sniff_min_interval);
-		cp.attempt      = cpu_to_le16(4);
-		cp.timeout      = cpu_to_le16(1);
+		cp.attempt      = __constant_cpu_to_le16(4);
+		cp.timeout      = __constant_cpu_to_le16(1);
 		hci_send_cmd(hdev, HCI_OP_SNIFF_MODE, sizeof(cp), &cp);
 	}
 }

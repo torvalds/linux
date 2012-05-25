@@ -1869,9 +1869,9 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			bacpy(&cp.bdaddr, &ev->bdaddr);
 			cp.pkt_type = cpu_to_le16(conn->pkt_type);
 
-			cp.tx_bandwidth   = cpu_to_le32(0x00001f40);
-			cp.rx_bandwidth   = cpu_to_le32(0x00001f40);
-			cp.max_latency    = cpu_to_le16(0xffff);
+			cp.tx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
+			cp.rx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
+			cp.max_latency    = __constant_cpu_to_le16(0xffff);
 			cp.content_format = cpu_to_le16(hdev->voice_setting);
 			cp.retrans_effort = 0xff;
 
