@@ -46,6 +46,40 @@
 #define RCU_TREE_NONCORE
 #include "rcutree.h"
 
+static void print_rcubarrier(struct seq_file *m, struct rcu_state *rsp)
+{
+	seq_printf(m, "%c bcc: %d nbd: %lu\n",
+		   rsp->rcu_barrier_in_progress ? 'B' : '.',
+		   atomic_read(&rsp->barrier_cpu_count),
+		   rsp->n_barrier_done);
+}
+
+static int show_rcubarrier(struct seq_file *m, void *unused)
+{
+#ifdef CONFIG_TREE_PREEMPT_RCU
+	seq_puts(m, "rcu_preempt: ");
+	print_rcubarrier(m, &rcu_preempt_state);
+#endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+	seq_puts(m, "rcu_sched: ");
+	print_rcubarrier(m, &rcu_sched_state);
+	seq_puts(m, "rcu_bh: ");
+	print_rcubarrier(m, &rcu_bh_state);
+	return 0;
+}
+
+static int rcubarrier_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, show_rcubarrier, NULL);
+}
+
+static const struct file_operations rcubarrier_fops = {
+	.owner = THIS_MODULE,
+	.open = rcubarrier_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 #ifdef CONFIG_RCU_BOOST
 
 static char convert_kthread_status(unsigned int kthread_status)
@@ -451,6 +485,11 @@ static int __init rcutree_trace_init(void)
 
 	rcudir = debugfs_create_dir("rcu", NULL);
 	if (!rcudir)
+		goto free_out;
+
+	retval = debugfs_create_file("rcubarrier", 0444, rcudir,
+						NULL, &rcubarrier_fops);
+	if (!retval)
 		goto free_out;
 
 	retval = debugfs_create_file("rcudata", 0444, rcudir,
