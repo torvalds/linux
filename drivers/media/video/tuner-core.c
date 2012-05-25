@@ -1178,7 +1178,7 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 		return 0;
 	if (vt->type == t->mode && analog_ops->get_afc)
 		vt->afc = analog_ops->get_afc(&t->fe);
-	if (t->mode != V4L2_TUNER_RADIO) {
+	if (vt->type != V4L2_TUNER_RADIO) {
 		vt->capability |= V4L2_TUNER_CAP_NORM;
 		vt->rangelow = tv_range[0] * 16;
 		vt->rangehigh = tv_range[1] * 16;
