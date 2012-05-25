@@ -4575,7 +4575,7 @@ void nfsd_forget_openowners(u64 num)
 	printk(KERN_INFO "NFSD: Forgot %d open owners", count);
 }
 
-int nfsd_process_n_delegations(u64 num, void (*deleg_func)(struct nfs4_delegation *))
+int nfsd_process_n_delegations(u64 num, struct list_head *list)
 {
 	int i, count = 0;
 	struct nfs4_file *fp, *fnext;
@@ -4584,7 +4584,7 @@ int nfsd_process_n_delegations(u64 num, void (*deleg_func)(struct nfs4_delegatio
 	for (i = 0; i < FILE_HASH_SIZE; i++) {
 		list_for_each_entry_safe(fp, fnext, &file_hashtbl[i], fi_hash) {
 			list_for_each_entry_safe(dp, dnext, &fp->fi_delegations, dl_perfile) {
-				deleg_func(dp);
+				list_move(&dp->dl_recall_lru, list);
 				if (++count == num)
 					return count;
 			}
@@ -4597,9 +4597,16 @@ int nfsd_process_n_delegations(u64 num, void (*deleg_func)(struct nfs4_delegatio
 void nfsd_forget_delegations(u64 num)
 {
 	unsigned int count;
+	LIST_HEAD(victims);
+	struct nfs4_delegation *dp, *dnext;
+
+	spin_lock(&recall_lock);
+	count = nfsd_process_n_delegations(num, &victims);
+	spin_unlock(&recall_lock);
 
 	nfs4_lock_state();
-	count = nfsd_process_n_delegations(num, unhash_delegation);
+	list_for_each_entry_safe(dp, dnext, &victims, dl_recall_lru)
+		unhash_delegation(dp);
 	nfs4_unlock_state();
 
 	printk(KERN_INFO "NFSD: Forgot %d delegations", count);
@@ -4608,12 +4615,16 @@ void nfsd_forget_delegations(u64 num)
 void nfsd_recall_delegations(u64 num)
 {
 	unsigned int count;
+	LIST_HEAD(victims);
+	struct nfs4_delegation *dp, *dnext;
 
-	nfs4_lock_state();
 	spin_lock(&recall_lock);
-	count = nfsd_process_n_delegations(num, nfsd_break_one_deleg);
+	count = nfsd_process_n_delegations(num, &victims);
+	list_for_each_entry_safe(dp, dnext, &victims, dl_recall_lru) {
+		list_del(&dp->dl_recall_lru);
+		nfsd_break_one_deleg(dp);
+	}
 	spin_unlock(&recall_lock);
-	nfs4_unlock_state();
 
 	printk(KERN_INFO "NFSD: Recalled %d delegations", count);
 }
