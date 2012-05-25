@@ -654,8 +654,7 @@ void init_timer_deferrable_key(struct timer_list *timer,
 }
 EXPORT_SYMBOL(init_timer_deferrable_key);
 
-static inline void detach_timer(struct timer_list *timer,
-				int clear_pending)
+static inline void detach_timer(struct timer_list *timer, bool clear_pending)
 {
 	struct list_head *entry = &timer->entry;
 
@@ -665,6 +664,19 @@ static inline void detach_timer(struct timer_list *timer,
 	if (clear_pending)
 		entry->next = NULL;
 	entry->prev = LIST_POISON2;
+}
+
+static int detach_if_pending(struct timer_list *timer, struct tvec_base *base,
+			     bool clear_pending)
+{
+	if (!timer_pending(timer))
+		return 0;
+
+	detach_timer(timer, clear_pending);
+	if (timer->expires == base->next_timer &&
+	    !tbase_get_deferrable(timer->base))
+		base->next_timer = base->timer_jiffies;
+	return 1;
 }
 
 /*
@@ -712,16 +724,9 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 
 	base = lock_timer_base(timer, &flags);
 
-	if (timer_pending(timer)) {
-		detach_timer(timer, 0);
-		if (timer->expires == base->next_timer &&
-		    !tbase_get_deferrable(timer->base))
-			base->next_timer = base->timer_jiffies;
-		ret = 1;
-	} else {
-		if (pending_only)
-			goto out_unlock;
-	}
+	ret = detach_if_pending(timer, base, false);
+	if (!ret && pending_only)
+		goto out_unlock;
 
 	debug_activate(timer, expires);
 
@@ -959,13 +964,7 @@ int del_timer(struct timer_list *timer)
 	timer_stats_timer_clear_start_info(timer);
 	if (timer_pending(timer)) {
 		base = lock_timer_base(timer, &flags);
-		if (timer_pending(timer)) {
-			detach_timer(timer, 1);
-			if (timer->expires == base->next_timer &&
-			    !tbase_get_deferrable(timer->base))
-				base->next_timer = base->timer_jiffies;
-			ret = 1;
-		}
+		ret = detach_if_pending(timer, base, true);
 		spin_unlock_irqrestore(&base->lock, flags);
 	}
 
@@ -990,19 +989,10 @@ int try_to_del_timer_sync(struct timer_list *timer)
 
 	base = lock_timer_base(timer, &flags);
 
-	if (base->running_timer == timer)
-		goto out;
-
-	timer_stats_timer_clear_start_info(timer);
-	ret = 0;
-	if (timer_pending(timer)) {
-		detach_timer(timer, 1);
-		if (timer->expires == base->next_timer &&
-		    !tbase_get_deferrable(timer->base))
-			base->next_timer = base->timer_jiffies;
-		ret = 1;
+	if (base->running_timer != timer) {
+		timer_stats_timer_clear_start_info(timer);
+		ret = detach_if_pending(timer, base, true);
 	}
-out:
 	spin_unlock_irqrestore(&base->lock, flags);
 
 	return ret;
@@ -1178,7 +1168,7 @@ static inline void __run_timers(struct tvec_base *base)
 			timer_stats_account_timer(timer);
 
 			base->running_timer = timer;
-			detach_timer(timer, 1);
+			detach_timer(timer, true);
 
 			spin_unlock_irq(&base->lock);
 			call_timer_fn(timer, fn, data);
@@ -1714,7 +1704,7 @@ static void migrate_timer_list(struct tvec_base *new_base, struct list_head *hea
 
 	while (!list_empty(head)) {
 		timer = list_first_entry(head, struct timer_list, entry);
-		detach_timer(timer, 0);
+		detach_timer(timer, false);
 		timer_set_base(timer, new_base);
 		if (time_before(timer->expires, new_base->next_timer) &&
 		    !tbase_get_deferrable(timer->base))
