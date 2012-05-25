@@ -162,6 +162,72 @@ static struct sh_clk_ops sh_clk_div_enable_clk_ops = {
 	.disable	= sh_clk_div_disable,
 };
 
+static int __init sh_clk_init_parent(struct clk *clk)
+{
+	u32 val;
+
+	if (clk->parent)
+		return 0;
+
+	if (!clk->parent_table || !clk->parent_num)
+		return 0;
+
+	if (!clk->src_width) {
+		pr_err("sh_clk_init_parent: cannot select parent clock\n");
+		return -EINVAL;
+	}
+
+	val  = (sh_clk_read(clk) >> clk->src_shift);
+	val &= (1 << clk->src_width) - 1;
+
+	if (val >= clk->parent_num) {
+		pr_err("sh_clk_init_parent: parent table size failed\n");
+		return -EINVAL;
+	}
+
+	clk_reparent(clk, clk->parent_table[val]);
+	if (!clk->parent) {
+		pr_err("sh_clk_init_parent: unable to set parent");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int __init sh_clk_div_register_ops(struct clk *clks, int nr,
+			struct clk_div_table *table, struct sh_clk_ops *ops)
+{
+	struct clk *clkp;
+	void *freq_table;
+	int nr_divs = table->div_mult_table->nr_divisors;
+	int freq_table_size = sizeof(struct cpufreq_frequency_table);
+	int ret = 0;
+	int k;
+
+	freq_table_size *= (nr_divs + 1);
+	freq_table = kzalloc(freq_table_size * nr, GFP_KERNEL);
+	if (!freq_table) {
+		pr_err("%s: unable to alloc memory\n", __func__);
+		return -ENOMEM;
+	}
+
+	for (k = 0; !ret && (k < nr); k++) {
+		clkp = clks + k;
+
+		clkp->ops = ops;
+		clkp->priv = table;
+
+		clkp->freq_table = freq_table + (k * freq_table_size);
+		clkp->freq_table[nr_divs].frequency = CPUFREQ_TABLE_END;
+
+		ret = clk_register(clkp);
+		if (ret == 0)
+			ret = sh_clk_init_parent(clkp);
+	}
+
+	return ret;
+}
+
 /*
  * div6 support
  */
@@ -223,82 +289,16 @@ static struct sh_clk_ops sh_clk_div6_reparent_clk_ops = {
 	.set_parent	= sh_clk_div6_set_parent,
 };
 
-static int __init sh_clk_init_parent(struct clk *clk)
-{
-	u32 val;
-
-	if (clk->parent)
-		return 0;
-
-	if (!clk->parent_table || !clk->parent_num)
-		return 0;
-
-	if (!clk->src_width) {
-		pr_err("sh_clk_init_parent: cannot select parent clock\n");
-		return -EINVAL;
-	}
-
-	val  = (sh_clk_read(clk) >> clk->src_shift);
-	val &= (1 << clk->src_width) - 1;
-
-	if (val >= clk->parent_num) {
-		pr_err("sh_clk_init_parent: parent table size failed\n");
-		return -EINVAL;
-	}
-
-	clk_reparent(clk, clk->parent_table[val]);
-	if (!clk->parent) {
-		pr_err("sh_clk_init_parent: unable to set parent");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int __init sh_clk_div6_register_ops(struct clk *clks, int nr,
-					   struct sh_clk_ops *ops)
-{
-	struct clk *clkp;
-	void *freq_table;
-	struct clk_div_table *table = &sh_clk_div6_table;
-	int nr_divs = table->div_mult_table->nr_divisors;
-	int freq_table_size = sizeof(struct cpufreq_frequency_table);
-	int ret = 0;
-	int k;
-
-	freq_table_size *= (nr_divs + 1);
-	freq_table = kzalloc(freq_table_size * nr, GFP_KERNEL);
-	if (!freq_table) {
-		pr_err("sh_clk_div6_register: unable to alloc memory\n");
-		return -ENOMEM;
-	}
-
-	for (k = 0; !ret && (k < nr); k++) {
-		clkp = clks + k;
-
-		clkp->ops = ops;
-		clkp->priv = table;
-		clkp->freq_table = freq_table + (k * freq_table_size);
-		clkp->freq_table[nr_divs].frequency = CPUFREQ_TABLE_END;
-		ret = clk_register(clkp);
-		if (ret < 0)
-			break;
-
-		ret = sh_clk_init_parent(clkp);
-	}
-
-	return ret;
-}
-
 int __init sh_clk_div6_register(struct clk *clks, int nr)
 {
-	return sh_clk_div6_register_ops(clks, nr, &sh_clk_div_enable_clk_ops);
+	return sh_clk_div_register_ops(clks, nr, &sh_clk_div6_table,
+				       &sh_clk_div_enable_clk_ops);
 }
 
 int __init sh_clk_div6_reparent_register(struct clk *clks, int nr)
 {
-	return sh_clk_div6_register_ops(clks, nr,
-					&sh_clk_div6_reparent_clk_ops);
+	return sh_clk_div_register_ops(clks, nr, &sh_clk_div6_table,
+				       &sh_clk_div6_reparent_clk_ops);
 }
 
 /*
@@ -342,54 +342,22 @@ static struct sh_clk_ops sh_clk_div4_reparent_clk_ops = {
 	.set_parent	= sh_clk_div4_set_parent,
 };
 
-static int __init sh_clk_div4_register_ops(struct clk *clks, int nr,
-			struct clk_div4_table *table, struct sh_clk_ops *ops)
-{
-	struct clk *clkp;
-	void *freq_table;
-	int nr_divs = table->div_mult_table->nr_divisors;
-	int freq_table_size = sizeof(struct cpufreq_frequency_table);
-	int ret = 0;
-	int k;
-
-	freq_table_size *= (nr_divs + 1);
-	freq_table = kzalloc(freq_table_size * nr, GFP_KERNEL);
-	if (!freq_table) {
-		pr_err("sh_clk_div4_register: unable to alloc memory\n");
-		return -ENOMEM;
-	}
-
-	for (k = 0; !ret && (k < nr); k++) {
-		clkp = clks + k;
-
-		clkp->ops = ops;
-		clkp->priv = table;
-
-		clkp->freq_table = freq_table + (k * freq_table_size);
-		clkp->freq_table[nr_divs].frequency = CPUFREQ_TABLE_END;
-
-		ret = clk_register(clkp);
-	}
-
-	return ret;
-}
-
 int __init sh_clk_div4_register(struct clk *clks, int nr,
 				struct clk_div4_table *table)
 {
-	return sh_clk_div4_register_ops(clks, nr, table, &sh_clk_div_clk_ops);
+	return sh_clk_div_register_ops(clks, nr, table, &sh_clk_div_clk_ops);
 }
 
 int __init sh_clk_div4_enable_register(struct clk *clks, int nr,
 				struct clk_div4_table *table)
 {
-	return sh_clk_div4_register_ops(clks, nr, table,
-					&sh_clk_div_enable_clk_ops);
+	return sh_clk_div_register_ops(clks, nr, table,
+				       &sh_clk_div_enable_clk_ops);
 }
 
 int __init sh_clk_div4_reparent_register(struct clk *clks, int nr,
 				struct clk_div4_table *table)
 {
-	return sh_clk_div4_register_ops(clks, nr, table,
-					&sh_clk_div4_reparent_clk_ops);
+	return sh_clk_div_register_ops(clks, nr, table,
+				       &sh_clk_div4_reparent_clk_ops);
 }
