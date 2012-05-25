@@ -31,6 +31,7 @@
 #define HCI_MAX_FRAME_SIZE	(HCI_MAX_ACL_SIZE + 4)
 
 #define HCI_LINK_KEY_SIZE	16
+#define HCI_AMP_LINK_KEY_SIZE	(2 * HCI_LINK_KEY_SIZE)
 
 /* HCI dev events */
 #define HCI_DEV_REG			1
@@ -525,6 +526,28 @@ struct hci_cp_io_capability_neg_reply {
 	__u8     reason;
 } __packed;
 
+#define HCI_OP_CREATE_PHY_LINK		0x0435
+struct hci_cp_create_phy_link {
+	__u8     phy_handle;
+	__u8     key_len;
+	__u8     key_type;
+	__u8     key[HCI_AMP_LINK_KEY_SIZE];
+} __packed;
+
+#define HCI_OP_ACCEPT_PHY_LINK		0x0436
+struct hci_cp_accept_phy_link {
+	__u8     phy_handle;
+	__u8     key_len;
+	__u8     key_type;
+	__u8     key[HCI_AMP_LINK_KEY_SIZE];
+} __packed;
+
+#define HCI_OP_DISCONN_PHY_LINK	0x0437
+struct hci_cp_disconn_phy_link {
+	__u8     phy_handle;
+	__u8     reason;
+} __packed;
+
 #define HCI_OP_SNIFF_MODE		0x0803
 struct hci_cp_sniff_mode {
 	__le16   handle;
@@ -818,6 +841,31 @@ struct hci_rp_read_local_amp_info {
 	__le16   max_assoc_size;
 	__le32   max_flush_to;
 	__le32   be_flush_to;
+} __packed;
+
+#define HCI_OP_READ_LOCAL_AMP_ASSOC	0x140a
+struct hci_cp_read_local_amp_assoc {
+	__u8     phy_handle;
+	__le16   len_so_far;
+	__le16   max_len;
+} __packed;
+struct hci_rp_read_local_amp_assoc {
+	__u8     status;
+	__u8     phy_handle;
+	__le16   rem_len;
+	__u8     frag[0];
+} __packed;
+
+#define HCI_OP_WRITE_REMOTE_AMP_ASSOC	0x140b
+struct hci_cp_write_remote_amp_assoc {
+	__u8     phy_handle;
+	__le16   len_so_far;
+	__le16   rem_len;
+	__u8     frag[0];
+} __packed;
+struct hci_rp_write_remote_amp_assoc {
+	__u8     status;
+	__u8     phy_handle;
 } __packed;
 
 #define HCI_OP_LE_SET_EVENT_MASK	0x2001
@@ -1190,6 +1238,39 @@ struct hci_ev_remote_host_features {
 #define HCI_EV_LE_META			0x3e
 struct hci_ev_le_meta {
 	__u8     subevent;
+} __packed;
+
+#define HCI_EV_PHY_LINK_COMPLETE	0x40
+struct hci_ev_phy_link_complete {
+	__u8     status;
+	__u8     phy_handle;
+} __packed;
+
+#define HCI_EV_CHANNEL_SELECTED		0x41
+struct hci_ev_channel_selected {
+	__u8     phy_handle;
+} __packed;
+
+#define HCI_EV_DISCONN_PHY_LINK_COMPLETE	0x42
+struct hci_ev_disconn_phy_link_complete {
+	__u8     status;
+	__u8     phy_handle;
+	__u8     reason;
+} __packed;
+
+#define HCI_EV_LOGICAL_LINK_COMPLETE		0x45
+struct hci_ev_logical_link_complete {
+	__u8     status;
+	__le16   handle;
+	__u8     phy_handle;
+	__u8     flow_spec_id;
+} __packed;
+
+#define HCI_EV_DISCONN_LOGICAL_LINK_COMPLETE	0x46
+struct hci_ev_disconn_logical_link_complete {
+	__u8     status;
+	__le16   handle;
+	__u8     reason;
 } __packed;
 
 #define HCI_EV_NUM_COMP_BLOCKS		0x48
