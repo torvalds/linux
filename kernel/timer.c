@@ -1326,18 +1326,21 @@ static unsigned long cmp_next_hrtimer_event(unsigned long now,
 unsigned long get_next_timer_interrupt(unsigned long now)
 {
 	struct tvec_base *base = __this_cpu_read(tvec_bases);
-	unsigned long expires;
+	unsigned long expires = now + NEXT_TIMER_MAX_DELTA;
 
 	/*
 	 * Pretend that there is no timer pending if the cpu is offline.
 	 * Possible pending timers will be migrated later to an active cpu.
 	 */
 	if (cpu_is_offline(smp_processor_id()))
-		return now + NEXT_TIMER_MAX_DELTA;
+		return expires;
+
 	spin_lock(&base->lock);
-	if (time_before_eq(base->next_timer, base->timer_jiffies))
-		base->next_timer = __next_timer_interrupt(base);
-	expires = base->next_timer;
+	if (base->active_timers) {
+		if (time_before_eq(base->next_timer, base->timer_jiffies))
+			base->next_timer = __next_timer_interrupt(base);
+		expires = base->next_timer;
+	}
 	spin_unlock(&base->lock);
 
 	if (time_before_eq(expires, now))
