@@ -275,6 +275,7 @@ struct dvb_usb_device_properties {
 	struct dvb_usb_adapter_properties adapter[MAX_NO_OF_ADAPTER_PER_DEVICE];
 
 	int (*power_ctrl)       (struct dvb_usb_device *, int);
+	int (*read_config) (struct dvb_usb_device *d);
 	int (*read_mac_address) (struct dvb_usb_device *, u8 []);
 
 #define WARM                  0

@@ -190,6 +190,13 @@ static int dvb_usb_init(struct dvb_usb_device *d)
 	/* check the capabilities and set appropriate variables */
 	dvb_usb_device_power_ctrl(d, 1);
 
+	/* read config */
+	if (d->props.read_config) {
+		ret = d->props.read_config(d);
+		if (ret < 0)
+			goto err;
+	}
+
 	ret = dvb_usb_i2c_init(d);
 	if (ret == 0)
 		ret = dvb_usb_adapter_init(d);
@@ -209,6 +216,9 @@ static int dvb_usb_init(struct dvb_usb_device *d)
 	dvb_usb_device_power_ctrl(d, 0);
 
 	return 0;
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+	return ret;
 }
 
 int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
