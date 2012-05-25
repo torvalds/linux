@@ -166,23 +166,6 @@ static inline void srmmu_flush_whole_tlb(void)
 
 }
 
-/* These flush types are not available on all chips... */
-#ifndef CONFIG_SPARC_LEON
-static inline unsigned long srmmu_hwprobe(unsigned long vaddr)
-{
-	unsigned long retval;
-
-	vaddr &= PAGE_MASK;
-	__asm__ __volatile__("lda [%1] %2, %0\n\t" :
-			     "=r" (retval) :
-			     "r" (vaddr | 0x400), "i" (ASI_M_FLUSH_PROBE));
-
-	return retval;
-}
-#else
-#define srmmu_hwprobe(addr) srmmu_swprobe(addr, 0)
-#endif
-
 static inline int
 srmmu_get_pte (unsigned long addr)
 {

@@ -197,7 +197,7 @@ static inline int sparc_leon3_cpuid(void)
 #ifndef __ASSEMBLY__
 struct vm_area_struct;
 
-extern unsigned long srmmu_swprobe(unsigned long vaddr, unsigned long *paddr);
+extern unsigned long leon_swprobe(unsigned long vaddr, unsigned long *paddr);
 extern void leon_flush_icache_all(void);
 extern void leon_flush_dcache_all(void);
 extern void leon_flush_cache_all(void);
