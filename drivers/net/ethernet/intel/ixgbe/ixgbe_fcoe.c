@@ -616,11 +616,11 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 	int i, fcoe_q, fcoe_i;
 	u32 etqf;
 
-	/* leave registers unconfigued if FCoE is disabled */
-	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
+	/* Minimal functionality for FCoE requires at least CRC offloads */
+	if (!(adapter->netdev->features & NETIF_F_FCOE_CRC))
 		return;
 
-	/* Enable L2 EtherType filter for FCoE, necessary for FCoE Rx CRC */
+	/* Enable L2 EtherType filter for FCoE, needed for FCoE CRC and DDP */
 	etqf = ETH_P_FCOE | IXGBE_ETQF_FCOE | IXGBE_ETQF_FILTER_EN;
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
 		etqf |= IXGBE_ETQF_POOL_ENABLE;
@@ -628,6 +628,10 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 	}
 	IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_FCOE), etqf);
 	IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FCOE), 0);
+
+	/* leave registers un-configured if FCoE is disabled */
+	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
+		return;
 
 	/* Use one or more Rx queues for FCoE by redirection table */
 	for (i = 0; i < IXGBE_FCRETA_SIZE; i++) {
@@ -804,7 +808,7 @@ int ixgbe_fcoe_enable(struct net_device *netdev)
 
 	/* enable FCoE and notify stack */
 	adapter->flags |= IXGBE_FLAG_FCOE_ENABLED;
-	netdev->features |= NETIF_F_FSO | NETIF_F_FCOE_CRC | NETIF_F_FCOE_MTU;
+	netdev->features |= NETIF_F_FCOE_MTU;
 	netdev_features_change(netdev);
 
 	/* release existing queues and reallocate them */
@@ -844,9 +848,7 @@ int ixgbe_fcoe_disable(struct net_device *netdev)
 
 	/* disable FCoE and notify stack */
 	adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
-	netdev->features &= ~(NETIF_F_FCOE_CRC |
-			      NETIF_F_FSO |
-			      NETIF_F_FCOE_MTU);
+	netdev->features &= ~NETIF_F_FCOE_MTU;
 
 	netdev_features_change(netdev);
 

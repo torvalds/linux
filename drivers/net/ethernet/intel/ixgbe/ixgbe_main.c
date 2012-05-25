@@ -6382,7 +6382,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 #ifdef IXGBE_FCOE
 	/* setup tx offload for FCoE */
 	if ((protocol == __constant_htons(ETH_P_FCOE)) &&
-	    (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)) {
+	    (tx_ring->netdev->features & (NETIF_F_FSO | NETIF_F_FCOE_CRC))) {
 		tso = ixgbe_fso(tx_ring, first, &hdr_len);
 		if (tso < 0)
 			goto out_drop;
@@ -7256,6 +7256,9 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		}
 
 		adapter->ring_feature[RING_F_FCOE].limit = IXGBE_FCRETA_SIZE;
+
+		netdev->features |= NETIF_F_FSO |
+				    NETIF_F_FCOE_CRC;
 
 		netdev->vlan_features |= NETIF_F_FSO |
 					 NETIF_F_FCOE_CRC |
