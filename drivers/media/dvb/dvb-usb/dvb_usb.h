@@ -219,12 +219,13 @@ struct dvb_usb_device_properties {
 #define CYPRESS_FX2     3
 	int        usb_ctrl;
 
+	int size_of_priv;
+
+	const char *firmware;
+	int (*get_firmware_name) (struct dvb_usb_device *, const char **);
 #define RECONNECTS_USB                  1
 	int (*download_firmware) (struct dvb_usb_device *,
 			const struct firmware *);
-	int (*get_firmware_name) (struct dvb_usb_device *, const char **);
-
-	int size_of_priv;
 
 	int num_adapters;
 	int (*get_adapter_count) (struct dvb_usb_device *);

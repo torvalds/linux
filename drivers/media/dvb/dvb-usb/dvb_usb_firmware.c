@@ -96,9 +96,13 @@ int dvb_usb_download_firmware(struct dvb_usb_device *d)
 	const struct firmware *fw = NULL;
 	const char *name;
 
-	ret = d->props.get_firmware_name(d, &name);
-	if (ret < 0)
-		return ret;
+	/* resolve firmware name */
+	name = d->props.firmware;
+	if (d->props.get_firmware_name) {
+		ret = d->props.get_firmware_name(d, &name);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = request_firmware(&fw, name, &d->udev->dev);
 	if (ret != 0) {
