@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -742,7 +743,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			struct dw_desc	*desc;
 			u32		len, dlen, mem;
 
-			mem = sg_phys(sg);
+			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 
 			if (!((mem | len) & 7))
@@ -809,7 +810,7 @@ slave_sg_todev_fill_desc:
 			struct dw_desc	*desc;
 			u32		len, dlen, mem;
 
-			mem = sg_phys(sg);
+			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 
 			if (!((mem | len) & 7))
@@ -1429,7 +1430,7 @@ static int __init dw_probe(struct platform_device *pdev)
 		err = PTR_ERR(dw->clk);
 		goto err_clk;
 	}
-	clk_enable(dw->clk);
+	clk_prepare_enable(dw->clk);
 
 	/* force dma off, just in case */
 	dw_dma_off(dw);
@@ -1510,7 +1511,7 @@ static int __init dw_probe(struct platform_device *pdev)
 	return 0;
 
 err_irq:
-	clk_disable(dw->clk);
+	clk_disable_unprepare(dw->clk);
 	clk_put(dw->clk);
 err_clk:
 	iounmap(dw->regs);
@@ -1540,7 +1541,7 @@ static int __exit dw_remove(struct platform_device *pdev)
 		channel_clear_bit(dw, CH_EN, dwc->mask);
 	}
 
-	clk_disable(dw->clk);
+	clk_disable_unprepare(dw->clk);
 	clk_put(dw->clk);
 
 	iounmap(dw->regs);
@@ -1559,7 +1560,7 @@ static void dw_shutdown(struct platform_device *pdev)
 	struct dw_dma	*dw = platform_get_drvdata(pdev);
 
 	dw_dma_off(platform_get_drvdata(pdev));
-	clk_disable(dw->clk);
+	clk_disable_unprepare(dw->clk);
 }
 
 static int dw_suspend_noirq(struct device *dev)
@@ -1568,7 +1569,7 @@ static int dw_suspend_noirq(struct device *dev)
 	struct dw_dma	*dw = platform_get_drvdata(pdev);
 
 	dw_dma_off(platform_get_drvdata(pdev));
-	clk_disable(dw->clk);
+	clk_disable_unprepare(dw->clk);
 
 	return 0;
 }
@@ -1578,7 +1579,7 @@ static int dw_resume_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_dma	*dw = platform_get_drvdata(pdev);
 
-	clk_enable(dw->clk);
+	clk_prepare_enable(dw->clk);
 	dma_writel(dw, CFG, DW_CFG_DMA_EN);
 	return 0;
 }
@@ -1592,12 +1593,21 @@ static const struct dev_pm_ops dw_dev_pm_ops = {
 	.poweroff_noirq = dw_suspend_noirq,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id dw_dma_id_table[] = {
+	{ .compatible = "snps,dma-spear1340" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, dw_dma_id_table);
+#endif
+
 static struct platform_driver dw_driver = {
 	.remove		= __exit_p(dw_remove),
 	.shutdown	= dw_shutdown,
 	.driver = {
 		.name	= "dw_dmac",
 		.pm	= &dw_dev_pm_ops,
+		.of_match_table = of_match_ptr(dw_dma_id_table),
 	},
 };
 

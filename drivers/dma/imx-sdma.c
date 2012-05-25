@@ -24,7 +24,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/clk.h>
-#include <linux/wait.h>
+#include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
 #include <linux/spinlock.h>
@@ -271,6 +271,7 @@ struct sdma_channel {
 	enum dma_status			status;
 	unsigned int			chn_count;
 	unsigned int			chn_real_count;
+	struct tasklet_struct		tasklet;
 };
 
 #define IMX_DMA_SG_LOOP		BIT(0)
@@ -323,7 +324,7 @@ struct sdma_engine {
 	dma_addr_t			context_phys;
 	struct dma_device		dma_device;
 	struct clk			*clk;
-	struct mutex			channel_0_lock;
+	spinlock_t			channel_0_lock;
 	struct sdma_script_start_addrs	*script_addrs;
 };
 
@@ -401,19 +402,27 @@ static void sdma_enable_channel(struct sdma_engine *sdma, int channel)
 }
 
 /*
- * sdma_run_channel - run a channel and wait till it's done
+ * sdma_run_channel0 - run a channel and wait till it's done
  */
-static int sdma_run_channel(struct sdma_channel *sdmac)
+static int sdma_run_channel0(struct sdma_engine *sdma)
 {
-	struct sdma_engine *sdma = sdmac->sdma;
-	int channel = sdmac->channel;
 	int ret;
+	unsigned long timeout = 500;
 
-	init_completion(&sdmac->done);
+	sdma_enable_channel(sdma, 0);
 
-	sdma_enable_channel(sdma, channel);
+	while (!(ret = readl_relaxed(sdma->regs + SDMA_H_INTR) & 1)) {
+		if (timeout-- <= 0)
+			break;
+		udelay(1);
+	}
 
-	ret = wait_for_completion_timeout(&sdmac->done, HZ);
+	if (ret) {
+		/* Clear the interrupt status */
+		writel_relaxed(ret, sdma->regs + SDMA_H_INTR);
+	} else {
+		dev_err(sdma->dev, "Timeout waiting for CH0 ready\n");
+	}
 
 	return ret ? 0 : -ETIMEDOUT;
 }
@@ -425,16 +434,16 @@ static int sdma_load_script(struct sdma_engine *sdma, void *buf, int size,
 	void *buf_virt;
 	dma_addr_t buf_phys;
 	int ret;
-
-	mutex_lock(&sdma->channel_0_lock);
+	unsigned long flags;
 
 	buf_virt = dma_alloc_coherent(NULL,
 			size,
 			&buf_phys, GFP_KERNEL);
 	if (!buf_virt) {
-		ret = -ENOMEM;
-		goto err_out;
+		return -ENOMEM;
 	}
+
+	spin_lock_irqsave(&sdma->channel_0_lock, flags);
 
 	bd0->mode.command = C0_SETPM;
 	bd0->mode.status = BD_DONE | BD_INTR | BD_WRAP | BD_EXTD;
@@ -444,12 +453,11 @@ static int sdma_load_script(struct sdma_engine *sdma, void *buf, int size,
 
 	memcpy(buf_virt, buf, size);
 
-	ret = sdma_run_channel(&sdma->channel[0]);
+	ret = sdma_run_channel0(sdma);
+
+	spin_unlock_irqrestore(&sdma->channel_0_lock, flags);
 
 	dma_free_coherent(NULL, size, buf_virt, buf_phys);
-
-err_out:
-	mutex_unlock(&sdma->channel_0_lock);
 
 	return ret;
 }
@@ -534,13 +542,11 @@ static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
 		sdmac->desc.callback(sdmac->desc.callback_param);
 }
 
-static void mxc_sdma_handle_channel(struct sdma_channel *sdmac)
+static void sdma_tasklet(unsigned long data)
 {
-	complete(&sdmac->done);
+	struct sdma_channel *sdmac = (struct sdma_channel *) data;
 
-	/* not interested in channel 0 interrupts */
-	if (sdmac->channel == 0)
-		return;
+	complete(&sdmac->done);
 
 	if (sdmac->flags & IMX_DMA_SG_LOOP)
 		sdma_handle_channel_loop(sdmac);
@@ -554,13 +560,15 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 	unsigned long stat;
 
 	stat = readl_relaxed(sdma->regs + SDMA_H_INTR);
+	/* not interested in channel 0 interrupts */
+	stat &= ~1;
 	writel_relaxed(stat, sdma->regs + SDMA_H_INTR);
 
 	while (stat) {
 		int channel = fls(stat) - 1;
 		struct sdma_channel *sdmac = &sdma->channel[channel];
 
-		mxc_sdma_handle_channel(sdmac);
+		tasklet_schedule(&sdmac->tasklet);
 
 		__clear_bit(channel, &stat);
 	}
@@ -659,6 +667,7 @@ static int sdma_load_context(struct sdma_channel *sdmac)
 	struct sdma_context_data *context = sdma->context;
 	struct sdma_buffer_descriptor *bd0 = sdma->channel[0].bd;
 	int ret;
+	unsigned long flags;
 
 	if (sdmac->direction == DMA_DEV_TO_MEM) {
 		load_address = sdmac->pc_from_device;
@@ -676,7 +685,7 @@ static int sdma_load_context(struct sdma_channel *sdmac)
 	dev_dbg(sdma->dev, "event_mask0 = 0x%08x\n", (u32)sdmac->event_mask[0]);
 	dev_dbg(sdma->dev, "event_mask1 = 0x%08x\n", (u32)sdmac->event_mask[1]);
 
-	mutex_lock(&sdma->channel_0_lock);
+	spin_lock_irqsave(&sdma->channel_0_lock, flags);
 
 	memset(context, 0, sizeof(*context));
 	context->channel_state.pc = load_address;
@@ -695,10 +704,9 @@ static int sdma_load_context(struct sdma_channel *sdmac)
 	bd0->mode.count = sizeof(*context) / 4;
 	bd0->buffer_addr = sdma->context_phys;
 	bd0->ext_buffer_addr = 2048 + (sizeof(*context) / 4) * channel;
+	ret = sdma_run_channel0(sdma);
 
-	ret = sdma_run_channel(&sdma->channel[0]);
-
-	mutex_unlock(&sdma->channel_0_lock);
+	spin_unlock_irqrestore(&sdma->channel_0_lock, flags);
 
 	return ret;
 }
@@ -938,7 +946,7 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 
 		bd->buffer_addr = sg->dma_address;
 
-		count = sg->length;
+		count = sg_dma_len(sg);
 
 		if (count > 0xffff) {
 			dev_err(sdma->dev, "SDMA channel %d: maximum bytes for sg entry exceeded: %d > %d\n",
@@ -1297,7 +1305,7 @@ static int __init sdma_probe(struct platform_device *pdev)
 	if (!sdma)
 		return -ENOMEM;
 
-	mutex_init(&sdma->channel_0_lock);
+	spin_lock_init(&sdma->channel_0_lock);
 
 	sdma->dev = &pdev->dev;
 
@@ -1359,6 +1367,8 @@ static int __init sdma_probe(struct platform_device *pdev)
 		dma_cookie_init(&sdmac->chan);
 		sdmac->channel = i;
 
+		tasklet_init(&sdmac->tasklet, sdma_tasklet,
+			     (unsigned long) sdmac);
 		/*
 		 * Add the channel to the DMAC list. Do not add channel 0 though
 		 * because we need it internally in the SDMA driver. This also means

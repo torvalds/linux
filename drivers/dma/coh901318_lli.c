@@ -270,10 +270,10 @@ coh901318_lli_fill_sg(struct coh901318_pool *pool,
 
 		if (dir == DMA_MEM_TO_DEV)
 			/* increment source address */
-			src = sg_phys(sg);
+			src = sg_dma_address(sg);
 		else
 			/* increment destination address */
-			dst =  sg_phys(sg);
+			dst = sg_dma_address(sg);
 
 		bytes_to_transfer = sg_dma_len(sg);
 
