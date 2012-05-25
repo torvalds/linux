@@ -354,19 +354,24 @@ static int pl08x_phy_channel_busy(struct pl08x_phy_chan *ch)
  * been set when the LLIs were constructed.  Poke them into the hardware
  * and start the transfer.
  */
-static void pl08x_start_txd(struct pl08x_dma_chan *plchan,
-	struct pl08x_txd *txd)
+static void pl08x_start_next_txd(struct pl08x_dma_chan *plchan)
 {
 	struct pl08x_driver_data *pl08x = plchan->host;
 	struct pl08x_phy_chan *phychan = plchan->phychan;
-	struct pl08x_lli *lli = &txd->llis_va[0];
+	struct pl08x_lli *lli;
+	struct pl08x_txd *txd;
 	u32 val;
+
+	txd = list_first_entry(&plchan->pend_list, struct pl08x_txd, node);
+	list_del(&txd->node);
 
 	plchan->at = txd;
 
 	/* Wait for channel inactive */
 	while (pl08x_phy_channel_busy(phychan))
 		cpu_relax();
+
+	lli = &txd->llis_va[0];
 
 	dev_vdbg(&pl08x->adev->dev,
 		"WRITE channel %d: csrc=0x%08x, cdst=0x%08x, "
@@ -1272,15 +1277,8 @@ static void pl08x_issue_pending(struct dma_chan *chan)
 
 	/* Take the first element in the queue and execute it */
 	if (!list_empty(&plchan->pend_list)) {
-		struct pl08x_txd *next;
-
-		next = list_first_entry(&plchan->pend_list,
-					struct pl08x_txd,
-					node);
-		list_del(&next->node);
 		plchan->state = PL08X_CHAN_RUNNING;
-
-		pl08x_start_txd(plchan, next);
+		pl08x_start_next_txd(plchan);
 	}
 
 	spin_unlock_irqrestore(&plchan->lock, flags);
@@ -1661,14 +1659,7 @@ static void pl08x_tasklet(unsigned long data)
 
 	/* If a new descriptor is queued, set it up plchan->at is NULL here */
 	if (!list_empty(&plchan->pend_list)) {
-		struct pl08x_txd *next;
-
-		next = list_first_entry(&plchan->pend_list,
-					struct pl08x_txd,
-					node);
-		list_del(&next->node);
-
-		pl08x_start_txd(plchan, next);
+		pl08x_start_next_txd(plchan);
 	} else if (plchan->phychan_hold) {
 		/*
 		 * This channel is still in use - we have a new txd being
@@ -1700,7 +1691,13 @@ static void pl08x_tasklet(unsigned long data)
 				BUG_ON(ret);
 				waiting->phychan_hold--;
 				waiting->state = PL08X_CHAN_RUNNING;
-				pl08x_issue_pending(&waiting->chan);
+				/*
+				 * Eww.  We know this isn't going to deadlock
+				 * but lockdep probably doens't.
+				 */
+				spin_lock(&waiting->lock);
+				pl08x_start_next_txd(waiting);
+				spin_unlock(&waiting->lock);
 				break;
 			}
 		}
