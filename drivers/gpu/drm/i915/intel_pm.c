@@ -3603,8 +3603,9 @@ static void gen6_sanitize_pm(struct drm_device *dev)
 		limits |= (dev_priv->min_delay & 0x3f) << 16;
 
 	if (old != limits) {
-		DRM_ERROR("Power management discrepancy: GEN6_RP_INTERRUPT_LIMITS expected %08x, was %08x\n",
-			  limits, old);
+		/* Note that the known failure case is to read back 0. */
+		DRM_DEBUG_DRIVER("Power management discrepancy: GEN6_RP_INTERRUPT_LIMITS "
+				 "expected %08x, was %08x\n", limits, old);
 		I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, limits);
 	}
 
