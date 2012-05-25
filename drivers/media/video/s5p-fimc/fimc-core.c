@@ -641,7 +641,7 @@ void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active)
 	if (!ctrls->ready)
 		return;
 
-	mutex_lock(&ctrls->handler.lock);
+	mutex_lock(ctrls->handler.lock);
 	v4l2_ctrl_activate(ctrls->rotate, active);
 	v4l2_ctrl_activate(ctrls->hflip, active);
 	v4l2_ctrl_activate(ctrls->vflip, active);
@@ -660,7 +660,7 @@ void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active)
 		ctx->hflip    = 0;
 		ctx->vflip    = 0;
 	}
-	mutex_unlock(&ctrls->handler.lock);
+	mutex_unlock(ctrls->handler.lock);
 }
 
 /* Update maximum value of the alpha color control */
