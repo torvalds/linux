@@ -196,6 +196,11 @@ struct smb_version_operations {
 	bool (*need_neg)(struct TCP_Server_Info *);
 	/* negotiate to the server */
 	int (*negotiate)(const unsigned int, struct cifs_ses *);
+	/* setup smb sessionn */
+	int (*sess_setup)(const unsigned int, struct cifs_ses *,
+			  const struct nls_table *);
+	/* close smb session */
+	int (*logoff)(const unsigned int, struct cifs_ses *);
 };
 
 struct smb_version_values {

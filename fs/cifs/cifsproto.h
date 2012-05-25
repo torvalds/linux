@@ -112,8 +112,8 @@ extern void header_assemble(struct smb_hdr *, char /* command */ ,
 extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
 				struct cifs_ses *ses,
 				void **request_buf);
-extern int CIFS_SessSetup(unsigned int xid, struct cifs_ses *ses,
-			     const struct nls_table *nls_cp);
+extern int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
+			  const struct nls_table *nls_cp);
 extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
 extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
@@ -180,8 +180,8 @@ void cifs_proc_clean(void);
 
 extern int cifs_negotiate_protocol(const unsigned int xid,
 				   struct cifs_ses *ses);
-extern int cifs_setup_session(unsigned int xid, struct cifs_ses *ses,
-			struct nls_table *nls_info);
+extern int cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
+			      struct nls_table *nls_info);
 extern int CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses);
 
 extern int CIFSTCon(unsigned int xid, struct cifs_ses *ses,
@@ -391,7 +391,7 @@ extern int CIFSSMBPosixLock(const int xid, struct cifs_tcon *tcon,
 			const bool waitFlag);
 extern int CIFSSMBTDis(const int xid, struct cifs_tcon *tcon);
 extern int CIFSSMBEcho(struct TCP_Server_Info *server);
-extern int CIFSSMBLogoff(const int xid, struct cifs_ses *ses);
+extern int CIFSSMBLogoff(const unsigned int xid, struct cifs_ses *ses);
 
 extern struct cifs_ses *sesInfoAlloc(void);
 extern void sesInfoFree(struct cifs_ses *);

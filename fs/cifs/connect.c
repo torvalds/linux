@@ -2253,7 +2253,7 @@ cifs_find_smb_ses(struct TCP_Server_Info *server, struct smb_vol *vol)
 static void
 cifs_put_smb_ses(struct cifs_ses *ses)
 {
-	int xid;
+	unsigned int xid;
 	struct TCP_Server_Info *server = ses->server;
 
 	cFYI(1, "%s: ses_count=%d", __func__, ses->ses_count);
@@ -2266,9 +2266,9 @@ cifs_put_smb_ses(struct cifs_ses *ses)
 	list_del_init(&ses->smb_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	if (ses->status == CifsGood) {
+	if (ses->status == CifsGood && server->ops->logoff) {
 		xid = GetXid();
-		CIFSSMBLogoff(xid, ses);
+		server->ops->logoff(xid, ses);
 		_FreeXid(xid);
 	}
 	sesInfoFree(ses);
@@ -3989,11 +3989,11 @@ cifs_negotiate_protocol(const unsigned int xid, struct cifs_ses *ses)
 	return rc;
 }
 
-
-int cifs_setup_session(unsigned int xid, struct cifs_ses *ses,
-			struct nls_table *nls_info)
+int
+cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
+		   struct nls_table *nls_info)
 {
-	int rc = 0;
+	int rc = -ENOSYS;
 	struct TCP_Server_Info *server = ses->server;
 
 	ses->flags = 0;
@@ -4004,7 +4004,9 @@ int cifs_setup_session(unsigned int xid, struct cifs_ses *ses,
 	cFYI(1, "Security Mode: 0x%x Capabilities: 0x%x TimeAdjust: %d",
 		 server->sec_mode, server->capabilities, server->timeAdj);
 
-	rc = CIFS_SessSetup(xid, ses, nls_info);
+	if (server->ops->sess_setup)
+		rc = server->ops->sess_setup(xid, ses, nls_info);
+
 	if (rc) {
 		cERROR(1, "Send error in SessSetup = %d", rc);
 	} else {

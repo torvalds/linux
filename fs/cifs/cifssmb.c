@@ -781,7 +781,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 }
 
 int
-CIFSSMBLogoff(const int xid, struct cifs_ses *ses)
+CIFSSMBLogoff(const unsigned int xid, struct cifs_ses *ses)
 {
 	LOGOFF_ANDX_REQ *pSMB;
 	int rc = 0;

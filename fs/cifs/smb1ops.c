@@ -430,6 +430,8 @@ struct smb_version_operations smb1_operations = {
 	.check_trans2 = cifs_check_trans2,
 	.need_neg = cifs_need_neg,
 	.negotiate = cifs_negotiate,
+	.sess_setup = CIFS_SessSetup,
+	.logoff = CIFSSMBLogoff,
 };
 
 struct smb_version_values smb1_values = {
