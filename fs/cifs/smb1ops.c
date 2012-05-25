@@ -551,6 +551,7 @@ struct smb_version_operations smb1_operations = {
 	.query_path_info = cifs_query_path_info,
 	.get_srv_inum = cifs_get_srv_inum,
 	.build_path_to_root = cifs_build_path_to_root,
+	.echo = CIFSSMBEcho,
 };
 
 struct smb_version_values smb1_values = {

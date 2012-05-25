@@ -406,15 +406,17 @@ cifs_echo_request(struct work_struct *work)
 					struct TCP_Server_Info, echo.work);
 
 	/*
-	 * We cannot send an echo until the NEGOTIATE_PROTOCOL request is
-	 * done, which is indicated by maxBuf != 0. Also, no need to ping if
-	 * we got a response recently
+	 * We cannot send an echo if it is disabled or until the
+	 * NEGOTIATE_PROTOCOL request is done, which is indicated by
+	 * server->ops->need_neg() == true. Also, no need to ping if
+	 * we got a response recently.
 	 */
 	if (!server->ops->need_neg || server->ops->need_neg(server) ||
+	    (server->ops->can_echo && !server->ops->can_echo(server)) ||
 	    time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
 		goto requeue_echo;
 
-	rc = CIFSSMBEcho(server);
+	rc = server->ops->echo ? server->ops->echo(server) : -ENOSYS;
 	if (rc)
 		cFYI(1, "Unable to send echo request to server: %s",
 			server->hostname);
