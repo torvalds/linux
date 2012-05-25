@@ -1907,6 +1907,15 @@ static void iommu_detach_dev(struct intel_iommu *iommu, u8 bus, u8 devfn)
 	iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH);
 }
 
+static inline void unlink_domain_info(struct device_domain_info *info)
+{
+	assert_spin_locked(&device_domain_lock);
+	list_del(&info->link);
+	list_del(&info->global);
+	if (info->dev)
+		info->dev->dev.archdata.iommu = NULL;
+}
+
 static void domain_remove_dev_info(struct dmar_domain *domain)
 {
 	struct device_domain_info *info;
@@ -1917,10 +1926,7 @@ static void domain_remove_dev_info(struct dmar_domain *domain)
 	while (!list_empty(&domain->devices)) {
 		info = list_entry(domain->devices.next,
 			struct device_domain_info, link);
-		list_del(&info->link);
-		list_del(&info->global);
-		if (info->dev)
-			info->dev->dev.archdata.iommu = NULL;
+		unlink_domain_info(info);
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 
 		iommu_disable_dev_iotlb(info);
@@ -2302,9 +2308,7 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 	ret = domain_context_mapping(domain, pdev, translation);
 	if (ret) {
 		spin_lock_irqsave(&device_domain_lock, flags);
-		list_del(&info->link);
-		list_del(&info->global);
-		pdev->dev.archdata.iommu = NULL;
+		unlink_domain_info(info);
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 		free_devinfo_mem(info);
 		return ret;
@@ -3733,10 +3737,7 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 		if (info->segment == pci_domain_nr(pdev->bus) &&
 		    info->bus == pdev->bus->number &&
 		    info->devfn == pdev->devfn) {
-			list_del(&info->link);
-			list_del(&info->global);
-			if (info->dev)
-				info->dev->dev.archdata.iommu = NULL;
+			unlink_domain_info(info);
 			spin_unlock_irqrestore(&device_domain_lock, flags);
 
 			iommu_disable_dev_iotlb(info);
@@ -3791,11 +3792,7 @@ static void vm_domain_remove_all_dev_info(struct dmar_domain *domain)
 	while (!list_empty(&domain->devices)) {
 		info = list_entry(domain->devices.next,
 			struct device_domain_info, link);
-		list_del(&info->link);
-		list_del(&info->global);
-		if (info->dev)
-			info->dev->dev.archdata.iommu = NULL;
-
+		unlink_domain_info(info);
 		spin_unlock_irqrestore(&device_domain_lock, flags1);
 
 		iommu_disable_dev_iotlb(info);
