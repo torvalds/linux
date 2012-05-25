@@ -1040,20 +1040,22 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 {
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_pipeline *p = &fimc->pipeline;
+	struct v4l2_subdev *sd = p->subdevs[IDX_SENSOR];
 	int ret;
 
 	if (fimc_capture_active(fimc))
 		return -EBUSY;
 
-	ret = media_entity_pipeline_start(&p->subdevs[IDX_SENSOR]->entity,
-				    p->m_pipeline);
+	ret = media_entity_pipeline_start(&sd->entity, p->m_pipeline);
 	if (ret < 0)
 		return ret;
 
 	if (fimc->vid_cap.user_subdev_api) {
 		ret = fimc_pipeline_validate(fimc);
-		if (ret)
+		if (ret < 0) {
+			media_entity_pipeline_stop(&sd->entity);
 			return ret;
+		}
 	}
 	return vb2_streamon(&fimc->vid_cap.vbq, type);
 }
