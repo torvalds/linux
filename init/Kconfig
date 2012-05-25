@@ -938,8 +938,6 @@ config UIDGID_CONVERTED
 
 	# Networking
 	depends on NET_9P = n
-	depends on AF_RXRPC = n
-	depends on DNS_RESOLVER = n
 
 	# Filesystems
 	depends on USB_GADGETFS = n
