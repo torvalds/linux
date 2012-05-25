@@ -1779,7 +1779,14 @@ static int nfs4_recall_slot(struct nfs_client *clp)
 
 static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 {
-	return nfs4_proc_bind_conn_to_session(clp);
+	struct rpc_cred *cred;
+	int ret;
+
+	cred = nfs4_get_exchange_id_cred(clp);
+	ret = nfs4_proc_bind_conn_to_session(clp, cred);
+	if (cred)
+		put_rpccred(cred);
+	return ret;
 }
 #else /* CONFIG_NFS_V4_1 */
 static int nfs4_reset_session(struct nfs_client *clp) { return 0; }

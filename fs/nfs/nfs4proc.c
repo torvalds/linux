@@ -5105,7 +5105,7 @@ nfs41_same_server_scope(struct nfs41_server_scope *a,
  * The 4.1 client currently uses the same TCP connection for the
  * fore and backchannel.
  */
-int nfs4_proc_bind_conn_to_session(struct nfs_client *clp)
+int nfs4_proc_bind_conn_to_session(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	int status;
 	struct nfs41_bind_conn_to_session_res res;
@@ -5114,6 +5114,7 @@ int nfs4_proc_bind_conn_to_session(struct nfs_client *clp)
 			&nfs4_procedures[NFSPROC4_CLNT_BIND_CONN_TO_SESSION],
 		.rpc_argp = clp,
 		.rpc_resp = &res,
+		.rpc_cred = cred,
 	};
 
 	dprintk("--> %s\n", __func__);
