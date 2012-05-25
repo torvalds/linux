@@ -1744,6 +1744,15 @@ fc_host_statistic(fcp_output_requests);
 fc_host_statistic(fcp_control_requests);
 fc_host_statistic(fcp_input_megabytes);
 fc_host_statistic(fcp_output_megabytes);
+fc_host_statistic(fcp_packet_alloc_failures);
+fc_host_statistic(fcp_packet_aborts);
+fc_host_statistic(fcp_frame_alloc_failures);
+fc_host_statistic(fc_no_free_exch);
+fc_host_statistic(fc_no_free_exch_xid);
+fc_host_statistic(fc_xid_not_found);
+fc_host_statistic(fc_xid_busy);
+fc_host_statistic(fc_seq_not_found);
+fc_host_statistic(fc_non_bls_resp);
 
 static ssize_t
 fc_reset_statistics(struct device *dev, struct device_attribute *attr,
@@ -1784,6 +1793,15 @@ static struct attribute *fc_statistics_attrs[] = {
 	&device_attr_host_fcp_control_requests.attr,
 	&device_attr_host_fcp_input_megabytes.attr,
 	&device_attr_host_fcp_output_megabytes.attr,
+	&device_attr_host_fcp_packet_alloc_failures.attr,
+	&device_attr_host_fcp_packet_aborts.attr,
+	&device_attr_host_fcp_frame_alloc_failures.attr,
+	&device_attr_host_fc_no_free_exch.attr,
+	&device_attr_host_fc_no_free_exch_xid.attr,
+	&device_attr_host_fc_xid_not_found.attr,
+	&device_attr_host_fc_xid_busy.attr,
+	&device_attr_host_fc_seq_not_found.attr,
+	&device_attr_host_fc_non_bls_resp.attr,
 	&device_attr_host_reset_statistics.attr,
 	NULL
 };
