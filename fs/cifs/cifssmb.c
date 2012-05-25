@@ -694,7 +694,7 @@ neg_err_exit:
 }
 
 int
-CIFSSMBTDis(const int xid, struct cifs_tcon *tcon)
+CIFSSMBTDis(const unsigned int xid, struct cifs_tcon *tcon)
 {
 	struct smb_hdr *smb_buffer;
 	int rc = 0;

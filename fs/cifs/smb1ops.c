@@ -432,6 +432,8 @@ struct smb_version_operations smb1_operations = {
 	.negotiate = cifs_negotiate,
 	.sess_setup = CIFS_SessSetup,
 	.logoff = CIFSSMBLogoff,
+	.tree_connect = CIFSTCon,
+	.tree_disconnect = CIFSSMBTDis,
 };
 
 struct smb_version_values smb1_values = {

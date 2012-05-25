@@ -184,9 +184,9 @@ extern int cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 			      struct nls_table *nls_info);
 extern int CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses);
 
-extern int CIFSTCon(unsigned int xid, struct cifs_ses *ses,
-			const char *tree, struct cifs_tcon *tcon,
-			const struct nls_table *);
+extern int CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
+		    const char *tree, struct cifs_tcon *tcon,
+		    const struct nls_table *);
 
 extern int CIFSFindFirst(const int xid, struct cifs_tcon *tcon,
 		const char *searchName, const struct nls_table *nls_codepage,
@@ -389,7 +389,7 @@ extern int CIFSSMBPosixLock(const int xid, struct cifs_tcon *tcon,
 			const loff_t start_offset, const __u64 len,
 			struct file_lock *, const __u16 lock_type,
 			const bool waitFlag);
-extern int CIFSSMBTDis(const int xid, struct cifs_tcon *tcon);
+extern int CIFSSMBTDis(const unsigned int xid, struct cifs_tcon *tcon);
 extern int CIFSSMBEcho(struct TCP_Server_Info *server);
 extern int CIFSSMBLogoff(const unsigned int xid, struct cifs_ses *ses);
 

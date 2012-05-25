@@ -2542,7 +2542,7 @@ cifs_find_tcon(struct cifs_ses *ses, const char *unc)
 static void
 cifs_put_tcon(struct cifs_tcon *tcon)
 {
-	int xid;
+	unsigned int xid;
 	struct cifs_ses *ses = tcon->ses;
 
 	cFYI(1, "%s: tc_count=%d", __func__, tcon->tc_count);
@@ -2556,7 +2556,8 @@ cifs_put_tcon(struct cifs_tcon *tcon)
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	xid = GetXid();
-	CIFSSMBTDis(xid, tcon);
+	if (ses->server->ops->tree_disconnect)
+		ses->server->ops->tree_disconnect(xid, tcon);
 	_FreeXid(xid);
 
 	cifs_fscache_release_super_cookie(tcon);
@@ -2581,6 +2582,11 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 		return tcon;
 	}
 
+	if (!ses->server->ops->tree_connect) {
+		rc = -ENOSYS;
+		goto out_fail;
+	}
+
 	tcon = tconInfoAlloc();
 	if (tcon == NULL) {
 		rc = -ENOMEM;
@@ -2603,13 +2609,15 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 		goto out_fail;
 	}
 
-	/* BB Do we need to wrap session_mutex around
-	 * this TCon call and Unix SetFS as
-	 * we do on SessSetup and reconnect? */
+	/*
+	 * BB Do we need to wrap session_mutex around this TCon call and Unix
+	 * SetFS as we do on SessSetup and reconnect?
+	 */
 	xid = GetXid();
-	rc = CIFSTCon(xid, ses, volume_info->UNC, tcon, volume_info->local_nls);
+	rc = ses->server->ops->tree_connect(xid, ses, volume_info->UNC, tcon,
+					    volume_info->local_nls);
 	FreeXid(xid);
-	cFYI(1, "CIFS Tcon rc = %d", rc);
+	cFYI(1, "Tcon rc = %d", rc);
 	if (rc)
 		goto out_fail;
 
@@ -2618,10 +2626,11 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 		cFYI(1, "DFS disabled (%d)", tcon->Flags);
 	}
 	tcon->seal = volume_info->seal;
-	/* we can have only one retry value for a connection
-	   to a share so for resources mounted more than once
-	   to the same server share the last value passed in
-	   for the retry flag is used */
+	/*
+	 * We can have only one retry value for a connection to a share so for
+	 * resources mounted more than once to the same server share the last
+	 * value passed in for the retry flag is used.
+	 */
 	tcon->retry = volume_info->retry;
 	tcon->nocase = volume_info->nocase;
 	tcon->local_lease = volume_info->local_lease;
@@ -2755,37 +2764,41 @@ out:
 }
 
 int
-get_dfs_path(int xid, struct cifs_ses *pSesInfo, const char *old_path,
-	     const struct nls_table *nls_codepage, unsigned int *pnum_referrals,
-	     struct dfs_info3_param **preferrals, int remap)
+get_dfs_path(int xid, struct cifs_ses *ses, const char *old_path,
+	     const struct nls_table *nls_codepage, unsigned int *num_referrals,
+	     struct dfs_info3_param **referrals, int remap)
 {
 	char *temp_unc;
 	int rc = 0;
 
-	*pnum_referrals = 0;
-	*preferrals = NULL;
+	if (!ses->server->ops->tree_connect)
+		return -ENOSYS;
 
-	if (pSesInfo->ipc_tid == 0) {
+	*num_referrals = 0;
+	*referrals = NULL;
+
+	if (ses->ipc_tid == 0) {
 		temp_unc = kmalloc(2 /* for slashes */ +
-			strnlen(pSesInfo->serverName,
-				SERVER_NAME_LEN_WITH_NULL * 2)
-				 + 1 + 4 /* slash IPC$ */  + 2,
-				GFP_KERNEL);
+			strnlen(ses->serverName, SERVER_NAME_LEN_WITH_NULL * 2)
+				+ 1 + 4 /* slash IPC$ */ + 2, GFP_KERNEL);
 		if (temp_unc == NULL)
 			return -ENOMEM;
 		temp_unc[0] = '\\';
 		temp_unc[1] = '\\';
-		strcpy(temp_unc + 2, pSesInfo->serverName);
-		strcpy(temp_unc + 2 + strlen(pSesInfo->serverName), "\\IPC$");
-		rc = CIFSTCon(xid, pSesInfo, temp_unc, NULL, nls_codepage);
-		cFYI(1, "CIFS Tcon rc = %d ipc_tid = %d", rc, pSesInfo->ipc_tid);
+		strcpy(temp_unc + 2, ses->serverName);
+		strcpy(temp_unc + 2 + strlen(ses->serverName), "\\IPC$");
+		rc = ses->server->ops->tree_connect(xid, ses, temp_unc, NULL,
+						    nls_codepage);
+		cFYI(1, "Tcon rc = %d ipc_tid = %d", rc, ses->ipc_tid);
 		kfree(temp_unc);
 	}
 	if (rc == 0)
-		rc = CIFSGetDFSRefer(xid, pSesInfo, old_path, preferrals,
-				     pnum_referrals, nls_codepage, remap);
-	/* BB map targetUNCs to dfs_info3 structures, here or
-		in CIFSGetDFSRefer BB */
+		rc = CIFSGetDFSRefer(xid, ses, old_path, referrals,
+				     num_referrals, nls_codepage, remap);
+	/*
+	 * BB - map targetUNCs to dfs_info3 structures, here or in
+	 * CIFSGetDFSRefer.
+	 */
 
 	return rc;
 }
@@ -3777,7 +3790,7 @@ out:
  * pointer may be NULL.
  */
 int
-CIFSTCon(unsigned int xid, struct cifs_ses *ses,
+CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 	 const char *tree, struct cifs_tcon *tcon,
 	 const struct nls_table *nls_codepage)
 {

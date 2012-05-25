@@ -160,6 +160,7 @@ struct mid_q_entry;
 struct TCP_Server_Info;
 struct cifsFileInfo;
 struct cifs_ses;
+struct cifs_tcon;
 
 struct smb_version_operations {
 	int (*send_cancel)(struct TCP_Server_Info *, void *,
@@ -201,6 +202,11 @@ struct smb_version_operations {
 			  const struct nls_table *);
 	/* close smb session */
 	int (*logoff)(const unsigned int, struct cifs_ses *);
+	/* connect to a server share */
+	int (*tree_connect)(const unsigned int, struct cifs_ses *, const char *,
+			    struct cifs_tcon *, const struct nls_table *);
+	/* close tree connecion */
+	int (*tree_disconnect)(const unsigned int, struct cifs_tcon *);
 };
 
 struct smb_version_values {
