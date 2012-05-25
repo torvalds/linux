@@ -853,11 +853,6 @@ static void __ipoctal_remove(struct ipoctal *ipoctal)
 
 	tty_unregister_driver(ipoctal->tty_drv);
 	put_tty_driver(ipoctal->tty_drv);
-
-	/* Tell the carrier board to free all the resources for this device */
-	if (ipoctal->dev->bus->ops->remove_device != NULL)
-		ipoctal->dev->bus->ops->remove_device(ipoctal->dev);
-
 	list_del(&ipoctal->list);
 	kfree(ipoctal);
 }
@@ -889,7 +884,7 @@ static void __exit ipoctal_exit(void)
 	struct ipoctal *p, *next;
 
 	list_for_each_entry_safe(p, next, &ipoctal_list, list)
-		__ipoctal_remove(p);
+		p->dev->bus->ops->remove_device(p->dev);
 
 	ipack_driver_unregister(&driver);
 }
