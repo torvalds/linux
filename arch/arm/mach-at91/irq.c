@@ -55,6 +55,15 @@ static void at91_aic_unmask_irq(struct irq_data *d)
 	at91_aic_write(AT91_AIC_IECR, 1 << d->hwirq);
 }
 
+static void at91_aic_eoi(struct irq_data *d)
+{
+	/*
+	 * Mark end-of-interrupt on AIC, the controller doesn't care about
+	 * the value written. Moreover it's a write-only register.
+	 */
+	at91_aic_write(AT91_AIC_EOICR, 0);
+}
+
 unsigned int at91_extern_irq;
 
 #define is_extern_irq(hwirq) ((1 << (hwirq)) & at91_extern_irq)
@@ -128,11 +137,11 @@ void at91_irq_resume(void)
 
 static struct irq_chip at91_aic_chip = {
 	.name		= "AIC",
-	.irq_ack	= at91_aic_mask_irq,
 	.irq_mask	= at91_aic_mask_irq,
 	.irq_unmask	= at91_aic_unmask_irq,
 	.irq_set_type	= at91_aic_set_type,
 	.irq_set_wake	= at91_aic_set_wake,
+	.irq_eoi	= at91_aic_eoi,
 };
 
 static void __init at91_aic_hw_init(unsigned int spu_vector)
@@ -171,7 +180,7 @@ static int at91_aic_irq_map(struct irq_domain *h, unsigned int virq,
 	/* Active Low interrupt, without priority */
 	at91_aic_write(AT91_AIC_SMR(hw), AT91_AIC_SRCTYPE_LOW);
 
-	irq_set_chip_and_handler(virq, &at91_aic_chip, handle_level_irq);
+	irq_set_chip_and_handler(virq, &at91_aic_chip, handle_fasteoi_irq);
 	set_irq_flags(virq, IRQF_VALID | IRQF_PROBE);
 
 	return 0;
@@ -238,7 +247,7 @@ void __init at91_aic_init(unsigned int priority[NR_AIC_IRQS])
 		/* Active Low interrupt, with the specified priority */
 		at91_aic_write(AT91_AIC_SMR(i), AT91_AIC_SRCTYPE_LOW | priority[i]);
 
-		irq_set_chip_and_handler(i, &at91_aic_chip, handle_level_irq);
+		irq_set_chip_and_handler(i, &at91_aic_chip, handle_fasteoi_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 
