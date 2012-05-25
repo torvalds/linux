@@ -182,9 +182,6 @@ static int dvb_usb_init(struct dvb_usb_device *d)
 {
 	int ret = 0;
 
-	mutex_init(&d->usb_mutex);
-	mutex_init(&d->i2c_mutex);
-
 	d->state = DVB_USB_STATE_INIT;
 
 	/* check the capabilities and set appropriate variables */
@@ -261,6 +258,8 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 	d->name = driver_info->name;
 	d->rc_map = driver_info->rc_map;
 	memcpy(&d->props, props, sizeof(struct dvb_usb_device_properties));
+	mutex_init(&d->usb_mutex);
+	mutex_init(&d->i2c_mutex);
 
 	if (d->props.size_of_priv > 0) {
 		d->priv = kzalloc(d->props.size_of_priv, GFP_KERNEL);
