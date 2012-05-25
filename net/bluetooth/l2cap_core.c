@@ -1228,10 +1228,7 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 
 	l2cap_chan_add(conn, chan);
 
-	__set_chan_timer(chan, sk->sk_sndtimeo);
-
-	__l2cap_state_change(chan, BT_CONNECTED);
-	parent->sk_data_ready(parent, 0);
+	l2cap_chan_ready(chan);
 
 clean:
 	release_sock(parent);
