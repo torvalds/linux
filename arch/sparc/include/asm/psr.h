@@ -35,6 +35,12 @@
 #define PSR_VERS    0x0f000000         /* cpu-version field          */
 #define PSR_IMPL    0xf0000000         /* cpu-implementation field   */
 
+#define PSR_IMPL_SHIFT		28
+#define PSR_IMPL_SHIFTED_MASK	0xf
+
+#define PSR_IMPL_TI		0x4
+#define PSR_IMPL_LEON		0xf
+
 #ifdef __KERNEL__
 
 #ifndef __ASSEMBLY__
