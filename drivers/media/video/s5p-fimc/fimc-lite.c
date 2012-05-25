@@ -764,7 +764,9 @@ static int fimc_lite_streamon(struct file *file, void *priv,
 	if (fimc_lite_active(fimc))
 		return -EBUSY;
 
-	media_entity_pipeline_start(&sensor->entity, p->m_pipeline);
+	ret = media_entity_pipeline_start(&sensor->entity, p->m_pipeline);
+	if (ret < 0)
+		return ret;
 
 	ret = fimc_pipeline_validate(fimc);
 	if (ret) {
