@@ -227,6 +227,7 @@ enum pl08x_dma_chan_state {
  * @waiting: a TX descriptor on this channel which is waiting for a physical
  * channel to become available
  * @signal: the physical DMA request signal which this channel is using
+ * @mux_use: count of descriptors using this DMA request signal setting
  */
 struct pl08x_dma_chan {
 	struct dma_chan chan;
@@ -244,6 +245,7 @@ struct pl08x_dma_chan {
 	bool slave;
 	struct pl08x_txd *waiting;
 	int signal;
+	unsigned mux_use;
 };
 
 /**
@@ -310,10 +312,12 @@ static int pl08x_request_mux(struct pl08x_dma_chan *plchan)
 	const struct pl08x_platform_data *pd = plchan->host->pd;
 	int ret;
 
-	if (pd->get_signal) {
+	if (plchan->mux_use++ == 0 && pd->get_signal) {
 		ret = pd->get_signal(plchan->cd);
-		if (ret < 0)
+		if (ret < 0) {
+			plchan->mux_use = 0;
 			return ret;
+		}
 
 		plchan->signal = ret;
 	}
@@ -324,9 +328,13 @@ static void pl08x_release_mux(struct pl08x_dma_chan *plchan)
 {
 	const struct pl08x_platform_data *pd = plchan->host->pd;
 
-	if (plchan->signal >= 0 && pd->put_signal) {
-		pd->put_signal(plchan->cd, plchan->signal);
-		plchan->signal = -1;
+	if (plchan->signal >= 0) {
+		WARN_ON(plchan->mux_use == 0);
+
+		if (--plchan->mux_use == 0 && pd->put_signal) {
+			pd->put_signal(plchan->cd, plchan->signal);
+			plchan->signal = -1;
+		}
 	}
 }
 
