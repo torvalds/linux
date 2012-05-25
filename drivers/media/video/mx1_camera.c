@@ -403,7 +403,7 @@ static void mx1_camera_activate(struct mx1_camera_dev *pcdev)
 
 	dev_dbg(pcdev->icd->parent, "Activate device\n");
 
-	clk_enable(pcdev->clk);
+	clk_prepare_enable(pcdev->clk);
 
 	/* enable CSI before doing anything else */
 	__raw_writel(csicr1, pcdev->base + CSICR1);
@@ -422,7 +422,7 @@ static void mx1_camera_deactivate(struct mx1_camera_dev *pcdev)
 	/* Disable all CSI interface */
 	__raw_writel(0x00, pcdev->base + CSICR1);
 
-	clk_disable(pcdev->clk);
+	clk_disable_unprepare(pcdev->clk);
 }
 
 /*
