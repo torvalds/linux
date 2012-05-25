@@ -831,7 +831,6 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 			return rc | POLLERR;
 		return rc | videobuf_poll_stream(file, &fh->vbiq, wait);
 	}
-
 	mutex_lock(&fh->vidq.vb_lock);
 	if (res_check(fh,RESOURCE_VIDEO)) {
 		/* streaming capture */
@@ -1222,8 +1221,8 @@ int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i)
 	if ((CX88_VMUX_TELEVISION == INPUT(n).type) ||
 	    (CX88_VMUX_CABLE      == INPUT(n).type)) {
 		i->type = V4L2_INPUT_TYPE_TUNER;
-		i->std = CX88_NORMS;
 	}
+	i->std = CX88_NORMS;
 	return 0;
 }
 EXPORT_SYMBOL(cx88_enum_input);
@@ -1249,6 +1248,8 @@ static int vidioc_s_input (struct file *file, void *priv, unsigned int i)
 
 	if (i >= 4)
 		return -EINVAL;
+	if (0 == INPUT(i).type)
+		return -EINVAL;
 
 	mutex_lock(&core->lock);
 	cx88_newstation(core);
@@ -1269,9 +1270,9 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 		return -EINVAL;
 
 	strcpy(t->name, "Television");
-	t->type       = V4L2_TUNER_ANALOG_TV;
 	t->capability = V4L2_TUNER_CAP_NORM;
 	t->rangehigh  = 0xffffffffUL;
+	call_all(core, tuner, g_tuner, t);
 
 	cx88_get_stereo(core ,t);
 	reg = cx_read(MO_DEVICE_STATUS);
@@ -1301,6 +1302,8 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 
 	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
+	if (f->tuner)
+		return -EINVAL;
 
 	f->frequency = core->freq;
 
@@ -1318,9 +1321,10 @@ int cx88_set_freq (struct cx88_core  *core,
 		return -EINVAL;
 
 	mutex_lock(&core->lock);
-	core->freq = f->frequency;
 	cx88_newstation(core);
 	call_all(core, tuner, s_frequency, f);
+	call_all(core, tuner, g_frequency, f);
+	core->freq = f->frequency;
 
 	/* When changing channels it is required to reset TVAUDIO */
 	msleep (10);
@@ -1339,6 +1343,16 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 	struct cx88_core  *core = fh->dev->core;
 
 	return cx88_set_freq(core, f);
+}
+
+static int vidioc_g_chip_ident(struct file *file, void *priv,
+				struct v4l2_dbg_chip_ident *chip)
+{
+	if (!v4l2_chip_match_host(&chip->match))
+		return -EINVAL;
+	chip->revision = 0;
+	chip->ident = V4L2_IDENT_UNKNOWN;
+	return 0;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -1380,7 +1394,6 @@ static int radio_g_tuner (struct file *file, void *priv,
 		return -EINVAL;
 
 	strcpy(t->name, "Radio");
-	t->type = V4L2_TUNER_RADIO;
 
 	call_all(core, tuner, g_tuner, t);
 	return 0;
@@ -1395,6 +1408,8 @@ static int radio_s_tuner (struct file *file, void *priv,
 
 	if (0 != t->index)
 		return -EINVAL;
+	if (t->audmode > V4L2_TUNER_MODE_STEREO)
+		t->audmode = V4L2_TUNER_MODE_STEREO;
 
 	call_all(core, tuner, s_tuner, t);
 
@@ -1543,6 +1558,39 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
+	.vidioc_reqbufs       = vidioc_reqbufs,
+	.vidioc_querybuf      = vidioc_querybuf,
+	.vidioc_qbuf          = vidioc_qbuf,
+	.vidioc_dqbuf         = vidioc_dqbuf,
+	.vidioc_s_std         = vidioc_s_std,
+	.vidioc_enum_input    = vidioc_enum_input,
+	.vidioc_g_input       = vidioc_g_input,
+	.vidioc_s_input       = vidioc_s_input,
+	.vidioc_streamon      = vidioc_streamon,
+	.vidioc_streamoff     = vidioc_streamoff,
+	.vidioc_g_tuner       = vidioc_g_tuner,
+	.vidioc_s_tuner       = vidioc_s_tuner,
+	.vidioc_g_frequency   = vidioc_g_frequency,
+	.vidioc_s_frequency   = vidioc_s_frequency,
+	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
+	.vidioc_g_chip_ident  = vidioc_g_chip_ident,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register    = vidioc_g_register,
+	.vidioc_s_register    = vidioc_s_register,
+#endif
+};
+
+static const struct video_device cx8800_video_template = {
+	.name                 = "cx8800-video",
+	.fops                 = &video_fops,
+	.ioctl_ops 	      = &video_ioctl_ops,
+	.tvnorms              = CX88_NORMS,
+	.current_norm         = V4L2_STD_NTSC_M,
+};
+
+static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
+	.vidioc_querycap      = vidioc_querycap,
 	.vidioc_g_fmt_vbi_cap     = cx8800_vbi_fmt,
 	.vidioc_try_fmt_vbi_cap   = cx8800_vbi_fmt,
 	.vidioc_s_fmt_vbi_cap     = cx8800_vbi_fmt,
@@ -1560,20 +1608,17 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
-	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
-	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
+	.vidioc_g_chip_ident  = vidioc_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
 #endif
 };
 
-static struct video_device cx8800_vbi_template;
-
-static const struct video_device cx8800_video_template = {
-	.name                 = "cx8800-video",
+static const struct video_device cx8800_vbi_template = {
+	.name                 = "cx8800-vbi",
 	.fops                 = &video_fops,
-	.ioctl_ops 	      = &video_ioctl_ops,
+	.ioctl_ops	      = &vbi_ioctl_ops,
 	.tvnorms              = CX88_NORMS,
 	.current_norm         = V4L2_STD_NTSC_M,
 };
@@ -1595,6 +1640,7 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_frequency   = vidioc_s_frequency,
 	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
+	.vidioc_g_chip_ident  = vidioc_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
@@ -1681,11 +1727,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		err = -EIO;
 		goto fail_core;
 	}
-
-	/* Initialize VBI template */
-	memcpy( &cx8800_vbi_template, &cx8800_video_template,
-		sizeof(cx8800_vbi_template) );
-	strcpy(cx8800_vbi_template.name,"cx8800-vbi");
 
 	/* initialize driver struct */
 	spin_lock_init(&dev->slock);

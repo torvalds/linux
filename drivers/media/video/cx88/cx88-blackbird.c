@@ -709,6 +709,7 @@ static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 
 	strlcpy(f->description, "MPEG", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_MPEG;
+	f->flags = V4L2_FMT_FLAG_COMPRESSED;
 	return 0;
 }
 
@@ -720,8 +721,8 @@ static int vidioc_g_fmt_vid_cap (struct file *file, void *priv,
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count; /* 188 * 4 * 1024; */
-	f->fmt.pix.colorspace   = 0;
+	f->fmt.pix.sizeimage    = 188 * 4 * mpegbufs; /* 188 * 4 * 1024; */;
+	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
 	f->fmt.pix.width        = dev->width;
 	f->fmt.pix.height       = dev->height;
 	f->fmt.pix.field        = fh->mpegq.field;
@@ -738,8 +739,8 @@ static int vidioc_try_fmt_vid_cap (struct file *file, void *priv,
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count; /* 188 * 4 * 1024; */;
-	f->fmt.pix.colorspace   = 0;
+	f->fmt.pix.sizeimage    = 188 * 4 * mpegbufs; /* 188 * 4 * 1024; */;
+	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
 	dprintk(1, "VIDIOC_TRY_FMT: w: %d, h: %d, f: %d\n",
 		dev->width, dev->height, fh->mpegq.field );
 	return 0;
@@ -754,8 +755,8 @@ static int vidioc_s_fmt_vid_cap (struct file *file, void *priv,
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count; /* 188 * 4 * 1024; */;
-	f->fmt.pix.colorspace   = 0;
+	f->fmt.pix.sizeimage    = 188 * 4 * mpegbufs; /* 188 * 4 * 1024; */;
+	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
 	dev->width              = f->fmt.pix.width;
 	dev->height             = f->fmt.pix.height;
 	fh->mpegq.field         = f->fmt.pix.field;
@@ -819,6 +820,10 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 	struct cx8802_dev *dev  = fh->dev;
 	struct cx88_core  *core = dev->core;
 
+	if (unlikely(UNSET == core->board.tuner_type))
+		return -EINVAL;
+	if (unlikely(f->tuner != 0))
+		return -EINVAL;
 	if (dev->mpeg_active)
 		blackbird_stop_codec(dev);
 
@@ -856,8 +861,9 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 
 	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
+	if (unlikely(f->tuner != 0))
+		return -EINVAL;
 
-	f->type = V4L2_TUNER_ANALOG_TV;
 	f->frequency = core->freq;
 	call_all(core, tuner, g_frequency, f);
 
@@ -877,6 +883,8 @@ static int vidioc_s_input (struct file *file, void *priv, unsigned int i)
 	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
 
 	if (i >= 4)
+		return -EINVAL;
+	if (0 == INPUT(i).type)
 		return -EINVAL;
 
 	mutex_lock(&core->lock);
@@ -898,9 +906,9 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 		return -EINVAL;
 
 	strcpy(t->name, "Television");
-	t->type       = V4L2_TUNER_ANALOG_TV;
 	t->capability = V4L2_TUNER_CAP_NORM;
 	t->rangehigh  = 0xffffffffUL;
+	call_all(core, tuner, g_tuner, t);
 
 	cx88_get_stereo(core ,t);
 	reg = cx_read(MO_DEVICE_STATUS);
