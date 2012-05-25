@@ -27,6 +27,8 @@ static int exynos_dp_init_dp(struct exynos_dp_device *dp)
 {
 	exynos_dp_reset(dp);
 
+	exynos_dp_swreset(dp);
+
 	/* SW defined function Normal operation */
 	exynos_dp_enable_sw_function(dp);
 

@@ -109,8 +109,6 @@ void exynos_dp_reset(struct exynos_dp_device *dp)
 {
 	u32 reg;
 
-	writel(RESET_DP_TX, dp->reg_base + EXYNOS_DP_TX_SW_RESET);
-
 	exynos_dp_stop_video(dp);
 	exynos_dp_enable_video_mute(dp, 0);
 
@@ -153,6 +151,11 @@ void exynos_dp_reset(struct exynos_dp_device *dp)
 
 	exynos_dp_init_analog_param(dp);
 	exynos_dp_init_interrupt(dp);
+}
+
+void exynos_dp_swreset(struct exynos_dp_device *dp)
+{
+	writel(RESET_DP_TX, dp->reg_base + EXYNOS_DP_TX_SW_RESET);
 }
 
 void exynos_dp_config_interrupt(struct exynos_dp_device *dp)

@@ -41,6 +41,7 @@ void exynos_dp_lane_swap(struct exynos_dp_device *dp, bool enable);
 void exynos_dp_init_analog_param(struct exynos_dp_device *dp);
 void exynos_dp_init_interrupt(struct exynos_dp_device *dp);
 void exynos_dp_reset(struct exynos_dp_device *dp);
+void exynos_dp_swreset(struct exynos_dp_device *dp);
 void exynos_dp_config_interrupt(struct exynos_dp_device *dp);
 u32 exynos_dp_get_pll_lock_status(struct exynos_dp_device *dp);
 void exynos_dp_set_pll_power_down(struct exynos_dp_device *dp, bool enable);
