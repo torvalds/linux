@@ -139,6 +139,7 @@
 	 restore %g0, %g0, %g0;
 
 #ifndef __ASSEMBLY__
+extern unsigned long last_valid_pfn;
 
 /* This makes sense. Honest it does - Anton */
 /* XXX Yes but it's ugly as sin.  FIXME. -KMW */
