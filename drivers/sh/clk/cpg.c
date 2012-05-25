@@ -66,11 +66,6 @@ int __init sh_clk_mstp_register(struct clk *clks, int nr)
 	return ret;
 }
 
-static long sh_clk_div_round_rate(struct clk *clk, unsigned long rate)
-{
-	return clk_rate_table_round(clk, clk->freq_table, rate);
-}
-
 /*
  * Div/mult table lookup helpers
  */
@@ -82,6 +77,27 @@ static inline struct clk_div_table *clk_to_div_table(struct clk *clk)
 static inline struct clk_div_mult_table *clk_to_div_mult_table(struct clk *clk)
 {
 	return clk_to_div_table(clk)->div_mult_table;
+}
+
+/*
+ * Common div ops
+ */
+static long sh_clk_div_round_rate(struct clk *clk, unsigned long rate)
+{
+	return clk_rate_table_round(clk, clk->freq_table, rate);
+}
+
+static unsigned long sh_clk_div_recalc(struct clk *clk)
+{
+	struct clk_div_mult_table *table = clk_to_div_mult_table(clk);
+	unsigned int idx;
+
+	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
+			     table, clk->arch_flags ? &clk->arch_flags : NULL);
+
+	idx = (sh_clk_read(clk) >> clk->enable_bit) & clk->div_mask;
+
+	return clk->freq_table[idx].frequency;
 }
 
 /*
@@ -102,19 +118,6 @@ static struct clk_div_mult_table div6_div_mult_table = {
 static struct clk_div_table sh_clk_div6_table = {
 	.div_mult_table	= &div6_div_mult_table,
 };
-
-static unsigned long sh_clk_div6_recalc(struct clk *clk)
-{
-	struct clk_div_mult_table *table = clk_to_div_mult_table(clk);
-	unsigned int idx;
-
-	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
-			     table, NULL);
-
-	idx = sh_clk_read(clk) & clk->div_mask;
-
-	return clk->freq_table[idx].frequency;
-}
 
 static int sh_clk_div6_set_parent(struct clk *clk, struct clk *parent)
 {
@@ -190,7 +193,7 @@ static void sh_clk_div6_disable(struct clk *clk)
 }
 
 static struct sh_clk_ops sh_clk_div6_clk_ops = {
-	.recalc		= sh_clk_div6_recalc,
+	.recalc		= sh_clk_div_recalc,
 	.round_rate	= sh_clk_div_round_rate,
 	.set_rate	= sh_clk_div6_set_rate,
 	.enable		= sh_clk_div6_enable,
@@ -198,7 +201,7 @@ static struct sh_clk_ops sh_clk_div6_clk_ops = {
 };
 
 static struct sh_clk_ops sh_clk_div6_reparent_clk_ops = {
-	.recalc		= sh_clk_div6_recalc,
+	.recalc		= sh_clk_div_recalc,
 	.round_rate	= sh_clk_div_round_rate,
 	.set_rate	= sh_clk_div6_set_rate,
 	.enable		= sh_clk_div6_enable,
@@ -287,19 +290,6 @@ int __init sh_clk_div6_reparent_register(struct clk *clks, int nr)
 /*
  * div4 support
  */
-static unsigned long sh_clk_div4_recalc(struct clk *clk)
-{
-	struct clk_div_mult_table *table = clk_to_div_mult_table(clk);
-	unsigned int idx;
-
-	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
-			     table, &clk->arch_flags);
-
-	idx = (sh_clk_read(clk) >> clk->enable_bit) & clk->div_mask;
-
-	return clk->freq_table[idx].frequency;
-}
-
 static int sh_clk_div4_set_parent(struct clk *clk, struct clk *parent)
 {
 	struct clk_div_mult_table *table = clk_to_div_mult_table(clk);
@@ -361,13 +351,13 @@ static void sh_clk_div4_disable(struct clk *clk)
 }
 
 static struct sh_clk_ops sh_clk_div4_clk_ops = {
-	.recalc		= sh_clk_div4_recalc,
+	.recalc		= sh_clk_div_recalc,
 	.set_rate	= sh_clk_div4_set_rate,
 	.round_rate	= sh_clk_div_round_rate,
 };
 
 static struct sh_clk_ops sh_clk_div4_enable_clk_ops = {
-	.recalc		= sh_clk_div4_recalc,
+	.recalc		= sh_clk_div_recalc,
 	.set_rate	= sh_clk_div4_set_rate,
 	.round_rate	= sh_clk_div_round_rate,
 	.enable		= sh_clk_div4_enable,
@@ -375,7 +365,7 @@ static struct sh_clk_ops sh_clk_div4_enable_clk_ops = {
 };
 
 static struct sh_clk_ops sh_clk_div4_reparent_clk_ops = {
-	.recalc		= sh_clk_div4_recalc,
+	.recalc		= sh_clk_div_recalc,
 	.set_rate	= sh_clk_div4_set_rate,
 	.round_rate	= sh_clk_div_round_rate,
 	.enable		= sh_clk_div4_enable,

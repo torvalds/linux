@@ -172,6 +172,7 @@ int sh_clk_div4_reparent_register(struct clk *clks, int nr,
 			_num_parents, _src_shift, _src_width)	\
 {								\
 	.enable_reg = (void __iomem *)_reg,			\
+	.enable_bit = 0, /* unused */				\
 	.flags = _flags,					\
 	.div_mask = SH_CLK_DIV6_MSK,				\
 	.parent_table = _parents,				\
@@ -184,6 +185,7 @@ int sh_clk_div4_reparent_register(struct clk *clks, int nr,
 {								\
 	.parent		= _parent,				\
 	.enable_reg	= (void __iomem *)_reg,			\
+	.enable_bit	= 0,	/* unused */			\
 	.div_mask	= SH_CLK_DIV6_MSK,			\
 	.flags		= _flags,				\
 }
