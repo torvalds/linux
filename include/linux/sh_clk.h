@@ -30,6 +30,10 @@ struct sh_clk_ops {
 	long (*round_rate)(struct clk *clk, unsigned long rate);
 };
 
+#define SH_CLK_DIV_MSK(div)	((1 << (div)) - 1)
+#define SH_CLK_DIV4_MSK		SH_CLK_DIV_MSK(4)
+#define SH_CLK_DIV6_MSK		SH_CLK_DIV_MSK(6)
+
 struct clk {
 	struct list_head	node;
 	struct clk		*parent;
@@ -51,6 +55,7 @@ struct clk {
 	unsigned int		enable_bit;
 	void __iomem		*mapped_reg;
 
+	unsigned int		div_mask;
 	unsigned long		arch_flags;
 	void			*priv;
 	struct clk_mapping	*mapping;
@@ -145,6 +150,7 @@ static inline int __deprecated sh_clk_mstp32_register(struct clk *clks, int nr)
 	.enable_reg = (void __iomem *)_reg,			\
 	.enable_bit = _shift,					\
 	.arch_flags = _div_bitmap,				\
+	.div_mask = SH_CLK_DIV4_MSK,				\
 	.flags = _flags,					\
 }
 
@@ -167,6 +173,7 @@ int sh_clk_div4_reparent_register(struct clk *clks, int nr,
 {								\
 	.enable_reg = (void __iomem *)_reg,			\
 	.flags = _flags,					\
+	.div_mask = SH_CLK_DIV6_MSK,				\
 	.parent_table = _parents,				\
 	.parent_num = _num_parents,				\
 	.src_shift = _src_shift,				\
@@ -177,6 +184,7 @@ int sh_clk_div4_reparent_register(struct clk *clks, int nr,
 {								\
 	.parent		= _parent,				\
 	.enable_reg	= (void __iomem *)_reg,			\
+	.div_mask	= SH_CLK_DIV6_MSK,			\
 	.flags		= _flags,				\
 }
 

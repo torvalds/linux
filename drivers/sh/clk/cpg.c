@@ -111,7 +111,7 @@ static unsigned long sh_clk_div6_recalc(struct clk *clk)
 	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
 			     table, NULL);
 
-	idx = sh_clk_read(clk) & 0x003f;
+	idx = sh_clk_read(clk) & clk->div_mask;
 
 	return clk->freq_table[idx].frequency;
 }
@@ -159,7 +159,7 @@ static int sh_clk_div6_set_rate(struct clk *clk, unsigned long rate)
 		return idx;
 
 	value = sh_clk_read(clk);
-	value &= ~0x3f;
+	value &= ~clk->div_mask;
 	value |= idx;
 	sh_clk_write(value, clk);
 	return 0;
@@ -185,7 +185,7 @@ static void sh_clk_div6_disable(struct clk *clk)
 
 	value = sh_clk_read(clk);
 	value |= 0x100; /* stop clock */
-	value |= 0x3f; /* VDIV bits must be non-zero, overwrite divider */
+	value |= clk->div_mask; /* VDIV bits must be non-zero, overwrite divider */
 	sh_clk_write(value, clk);
 }
 
@@ -295,7 +295,7 @@ static unsigned long sh_clk_div4_recalc(struct clk *clk)
 	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
 			     table, &clk->arch_flags);
 
-	idx = (sh_clk_read(clk) >> clk->enable_bit) & 0x000f;
+	idx = (sh_clk_read(clk) >> clk->enable_bit) & clk->div_mask;
 
 	return clk->freq_table[idx].frequency;
 }
@@ -338,7 +338,7 @@ static int sh_clk_div4_set_rate(struct clk *clk, unsigned long rate)
 		return idx;
 
 	value = sh_clk_read(clk);
-	value &= ~(0xf << clk->enable_bit);
+	value &= ~(clk->div_mask << clk->enable_bit);
 	value |= (idx << clk->enable_bit);
 	sh_clk_write(value, clk);
 
