@@ -751,23 +751,12 @@ out:
 	return res;
 }
 
-static void tpci200_slot_remove(struct tpci200_slot *slot)
-{
-	if ((slot->dev == NULL) ||
-	    (slot->dev->driver == NULL) ||
-	    (slot->dev->driver->ops == NULL) ||
-	    (slot->dev->driver->ops->remove == NULL))
-		return;
-
-	slot->dev->driver->ops->remove(slot->dev);
-}
-
 static void tpci200_uninstall(struct tpci200_board *tpci200)
 {
 	int i;
 
 	for (i = 0; i < TPCI200_NB_SLOT; i++)
-		tpci200_slot_remove(&tpci200->slots[i]);
+		tpci200_slot_unregister(tpci200->slots[i].dev);
 
 	tpci200_unregister(tpci200);
 	kfree(tpci200->slots);
