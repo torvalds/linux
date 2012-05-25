@@ -389,6 +389,27 @@ cifs_check_trans2(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 	return true;
 }
 
+static bool
+cifs_need_neg(struct TCP_Server_Info *server)
+{
+	return server->maxBuf == 0;
+}
+
+static int
+cifs_negotiate(const unsigned int xid, struct cifs_ses *ses)
+{
+	int rc;
+	rc = CIFSSMBNegotiate(xid, ses);
+	if (rc == -EAGAIN) {
+		/* retry only once on 1st time connection */
+		set_credits(ses->server, 1);
+		rc = CIFSSMBNegotiate(xid, ses);
+		if (rc == -EAGAIN)
+			rc = -EHOSTDOWN;
+	}
+	return rc;
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -407,6 +428,8 @@ struct smb_version_operations smb1_operations = {
 	.dump_detail = cifs_dump_detail,
 	.is_oplock_break = is_valid_oplock_break,
 	.check_trans2 = cifs_check_trans2,
+	.need_neg = cifs_need_neg,
+	.negotiate = cifs_negotiate,
 };
 
 struct smb_version_values smb1_values = {

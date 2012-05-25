@@ -407,7 +407,7 @@ cifs_echo_request(struct work_struct *work)
 	 * done, which is indicated by maxBuf != 0. Also, no need to ping if
 	 * we got a response recently
 	 */
-	if (server->maxBuf == 0 ||
+	if (!server->ops->need_neg || server->ops->need_neg(server) ||
 	    time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
 		goto requeue_echo;
 
@@ -2406,7 +2406,8 @@ static bool warned_on_ntlm;  /* globals init to false automatically */
 static struct cifs_ses *
 cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 {
-	int rc = -ENOMEM, xid;
+	int rc = -ENOMEM;
+	unsigned int xid;
 	struct cifs_ses *ses;
 	struct sockaddr_in *addr = (struct sockaddr_in *)&server->dstaddr;
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&server->dstaddr;
@@ -3960,24 +3961,22 @@ cifs_umount(struct cifs_sb_info *cifs_sb)
 	kfree(cifs_sb);
 }
 
-int cifs_negotiate_protocol(unsigned int xid, struct cifs_ses *ses)
+int
+cifs_negotiate_protocol(const unsigned int xid, struct cifs_ses *ses)
 {
 	int rc = 0;
 	struct TCP_Server_Info *server = ses->server;
 
+	if (!server->ops->need_neg || !server->ops->negotiate)
+		return -ENOSYS;
+
 	/* only send once per connect */
-	if (server->maxBuf != 0)
+	if (!server->ops->need_neg(server))
 		return 0;
 
 	set_credits(server, 1);
-	rc = CIFSSMBNegotiate(xid, ses);
-	if (rc == -EAGAIN) {
-		/* retry only once on 1st time connection */
-		set_credits(server, 1);
-		rc = CIFSSMBNegotiate(xid, ses);
-		if (rc == -EAGAIN)
-			rc = -EHOSTDOWN;
-	}
+
+	rc = server->ops->negotiate(xid, ses);
 	if (rc == 0) {
 		spin_lock(&GlobalMid_Lock);
 		if (server->tcpStatus == CifsNeedNegotiate)
@@ -3985,7 +3984,6 @@ int cifs_negotiate_protocol(unsigned int xid, struct cifs_ses *ses)
 		else
 			rc = -EHOSTDOWN;
 		spin_unlock(&GlobalMid_Lock);
-
 	}
 
 	return rc;

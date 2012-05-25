@@ -178,11 +178,11 @@ extern void cifs_dfs_release_automount_timer(void);
 void cifs_proc_init(void);
 void cifs_proc_clean(void);
 
-extern int cifs_negotiate_protocol(unsigned int xid,
-				  struct cifs_ses *ses);
+extern int cifs_negotiate_protocol(const unsigned int xid,
+				   struct cifs_ses *ses);
 extern int cifs_setup_session(unsigned int xid, struct cifs_ses *ses,
 			struct nls_table *nls_info);
-extern int CIFSSMBNegotiate(unsigned int xid, struct cifs_ses *ses);
+extern int CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses);
 
 extern int CIFSTCon(unsigned int xid, struct cifs_ses *ses,
 			const char *tree, struct cifs_tcon *tcon,
