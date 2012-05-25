@@ -3853,10 +3853,10 @@ setCifsAclRetry:
 
 /* Legacy Query Path Information call for lookup to old servers such
    as Win9x/WinME */
-int SMBQueryInformation(const unsigned int xid, struct cifs_tcon *tcon,
-			const unsigned char *searchName,
-			FILE_ALL_INFO *pFinfo,
-			const struct nls_table *nls_codepage, int remap)
+int
+SMBQueryInformation(const unsigned int xid, struct cifs_tcon *tcon,
+		    const char *search_name, FILE_ALL_INFO *data,
+		    const struct nls_table *nls_codepage, int remap)
 {
 	QUERY_INFORMATION_REQ *pSMB;
 	QUERY_INFORMATION_RSP *pSMBr;
@@ -3864,7 +3864,7 @@ int SMBQueryInformation(const unsigned int xid, struct cifs_tcon *tcon,
 	int bytes_returned;
 	int name_len;
 
-	cFYI(1, "In SMBQPath path %s", searchName);
+	cFYI(1, "In SMBQPath path %s", search_name);
 QInfRetry:
 	rc = smb_init(SMB_COM_QUERY_INFORMATION, 0, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -3874,14 +3874,14 @@ QInfRetry:
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
 			cifsConvertToUTF16((__le16 *) pSMB->FileName,
-					   searchName, PATH_MAX, nls_codepage,
+					   search_name, PATH_MAX, nls_codepage,
 					   remap);
 		name_len++;     /* trailing null */
 		name_len *= 2;
 	} else {
-		name_len = strnlen(searchName, PATH_MAX);
+		name_len = strnlen(search_name, PATH_MAX);
 		name_len++;     /* trailing null */
-		strncpy(pSMB->FileName, searchName, name_len);
+		strncpy(pSMB->FileName, search_name, name_len);
 	}
 	pSMB->BufferFormat = 0x04;
 	name_len++; /* account for buffer type byte */
@@ -3892,23 +3892,23 @@ QInfRetry:
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
 		cFYI(1, "Send error in QueryInfo = %d", rc);
-	} else if (pFinfo) {
+	} else if (data) {
 		struct timespec ts;
 		__u32 time = le32_to_cpu(pSMBr->last_write_time);
 
 		/* decode response */
 		/* BB FIXME - add time zone adjustment BB */
-		memset(pFinfo, 0, sizeof(FILE_ALL_INFO));
+		memset(data, 0, sizeof(FILE_ALL_INFO));
 		ts.tv_nsec = 0;
 		ts.tv_sec = time;
 		/* decode time fields */
-		pFinfo->ChangeTime = cpu_to_le64(cifs_UnixTimeToNT(ts));
-		pFinfo->LastWriteTime = pFinfo->ChangeTime;
-		pFinfo->LastAccessTime = 0;
-		pFinfo->AllocationSize =
+		data->ChangeTime = cpu_to_le64(cifs_UnixTimeToNT(ts));
+		data->LastWriteTime = data->ChangeTime;
+		data->LastAccessTime = 0;
+		data->AllocationSize =
 			cpu_to_le64(le32_to_cpu(pSMBr->size));
-		pFinfo->EndOfFile = pFinfo->AllocationSize;
-		pFinfo->Attributes =
+		data->EndOfFile = data->AllocationSize;
+		data->Attributes =
 			cpu_to_le32(le16_to_cpu(pSMBr->attr));
 	} else
 		rc = -EIO; /* bad buffer passed in */
@@ -3990,12 +3990,11 @@ QFileInfoRetry:
 
 int
 CIFSSMBQPathInfo(const unsigned int xid, struct cifs_tcon *tcon,
-		 const unsigned char *searchName,
-		 FILE_ALL_INFO *pFindData,
+		 const char *search_name, FILE_ALL_INFO *data,
 		 int legacy /* old style infolevel */,
 		 const struct nls_table *nls_codepage, int remap)
 {
-/* level 263 SMB_QUERY_FILE_ALL_INFO */
+	/* level 263 SMB_QUERY_FILE_ALL_INFO */
 	TRANSACTION2_QPI_REQ *pSMB = NULL;
 	TRANSACTION2_QPI_RSP *pSMBr = NULL;
 	int rc = 0;
@@ -4003,7 +4002,7 @@ CIFSSMBQPathInfo(const unsigned int xid, struct cifs_tcon *tcon,
 	int name_len;
 	__u16 params, byte_count;
 
-/* cFYI(1, "In QPathInfo path %s", searchName); */
+	/* cFYI(1, "In QPathInfo path %s", search_name); */
 QPathInfoRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
@@ -4012,14 +4011,14 @@ QPathInfoRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUTF16((__le16 *) pSMB->FileName, searchName,
+		    cifsConvertToUTF16((__le16 *) pSMB->FileName, search_name,
 				       PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {	/* BB improve the check for buffer overruns BB */
-		name_len = strnlen(searchName, PATH_MAX);
+		name_len = strnlen(search_name, PATH_MAX);
 		name_len++;	/* trailing null */
-		strncpy(pSMB->FileName, searchName, name_len);
+		strncpy(pSMB->FileName, search_name, name_len);
 	}
 
 	params = 2 /* level */ + 4 /* reserved */ + name_len /* includes NUL */;
@@ -4064,20 +4063,21 @@ QPathInfoRetry:
 		else if (legacy && get_bcc(&pSMBr->hdr) < 24)
 			rc = -EIO;  /* 24 or 26 expected but we do not read
 					last field */
-		else if (pFindData) {
+		else if (data) {
 			int size;
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 
-			/* On legacy responses we do not read the last field,
-			EAsize, fortunately since it varies by subdialect and
-			also note it differs on Set vs. Get, ie two bytes or 4
-			bytes depending but we don't care here */
+			/*
+			 * On legacy responses we do not read the last field,
+			 * EAsize, fortunately since it varies by subdialect and
+			 * also note it differs on Set vs Get, ie two bytes or 4
+			 * bytes depending but we don't care here.
+			 */
 			if (legacy)
 				size = sizeof(FILE_INFO_STANDARD);
 			else
 				size = sizeof(FILE_ALL_INFO);
-			memcpy((char *) pFindData,
-			       (char *) &pSMBr->hdr.Protocol +
+			memcpy((char *) data, (char *) &pSMBr->hdr.Protocol +
 			       data_offset, size);
 		} else
 		    rc = -ENOMEM;

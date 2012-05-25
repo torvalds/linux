@@ -417,6 +417,30 @@ cifs_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 	CIFSSMBQFSAttributeInfo(xid, tcon);
 }
 
+static int
+cifs_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
+			struct cifs_sb_info *cifs_sb, const char *full_path)
+{
+	int rc;
+	FILE_ALL_INFO *file_info;
+
+	file_info = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
+	if (file_info == NULL)
+		return -ENOMEM;
+
+	rc = CIFSSMBQPathInfo(xid, tcon, full_path, file_info,
+			      0 /* not legacy */, cifs_sb->local_nls,
+			      cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	if (rc == -EOPNOTSUPP || rc == -EINVAL)
+		rc = SMBQueryInformation(xid, tcon, full_path, file_info,
+				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+				  CIFS_MOUNT_MAP_SPECIAL_CHR);
+	kfree(file_info);
+	return rc;
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -443,6 +467,7 @@ struct smb_version_operations smb1_operations = {
 	.tree_disconnect = CIFSSMBTDis,
 	.get_dfs_refer = CIFSGetDFSRefer,
 	.qfs_tcon = cifs_qfs_tcon,
+	.is_path_accessible = cifs_is_path_accessible,
 };
 
 struct smb_version_values smb1_values = {

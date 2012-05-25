@@ -215,6 +215,9 @@ struct smb_version_operations {
 			     unsigned int *, const struct nls_table *, int);
 	/* informational QFS call */
 	void (*qfs_tcon)(const unsigned int, struct cifs_tcon *);
+	/* check if a path is accessible or not */
+	int (*is_path_accessible)(const unsigned int, struct cifs_tcon *,
+				  struct cifs_sb_info *, const char *);
 };
 
 struct smb_version_values {
