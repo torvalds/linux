@@ -104,58 +104,6 @@ __clear_user:
 		.long 9b, 99b		// write fault
 	.previous
 
-/*
- * long strncpy_from_user(char *dst, const char *src, long count)
- *
- *
- */
-	.global	__strncpy_from_user
-__strncpy_from_user:
-	l.addi  r1,r1,-16
-	l.sw    0(r1),r6
-	l.sw    4(r1),r5
-	l.sw    8(r1),r4
-	l.sw    12(r1),r3
-
-	l.addi  r11,r5,0
-2:  	l.sfeq  r5,r0
-	l.bf    1f
-	l.addi  r5,r5,-1
-8:    	l.lbz   r6,0(r4)
-	l.sfeq  r6,r0
-	l.bf    1f
-9:    	l.sb    0(r3),r6
-	l.addi  r3,r3,1
-	l.j     2b
-	l.addi  r4,r4,1
-1:
-	l.lwz   r6,0(r1)
-	l.addi  r5,r5,1
-	l.sub   r11,r11,r5              // r11 holds the return value
-
-	l.lwz   r6,0(r1)
-	l.lwz   r5,4(r1)
-	l.lwz   r4,8(r1)
-	l.lwz   r3,12(r1)
-	l.jr    r9
-	l.addi  r1,r1,16
-
-	.section .fixup, "ax"
-99:
-		l.movhi r11,hi(-EFAULT)
-		l.ori   r11,r11,lo(-EFAULT)
-
-		l.lwz   r6,0(r1)
-		l.lwz   r5,4(r1)
-		l.lwz   r4,8(r1)
-		l.lwz   r3,12(r1)
-		l.jr	r9
-		l.addi  r1,r1,16
-	.previous
-
-	.section __ex_table, "a"
-		.long 8b, 99b		// read fault
-	.previous
 
 /*
  * extern int __strnlen_user(const char *str, long len, unsigned long top);

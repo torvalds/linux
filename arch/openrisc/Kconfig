@@ -19,6 +19,7 @@ config OPENRISC
 	select GENERIC_CPU_DEVICES
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_STRNCPY_FROM_USER
 
 config MMU
 	def_bool y
