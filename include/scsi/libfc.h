@@ -1121,6 +1121,7 @@ void fc_fill_hdr(struct fc_frame *, const struct fc_frame *,
  * EXCHANGE MANAGER LAYER
  *****************************/
 int fc_exch_init(struct fc_lport *);
+void fc_exch_update_stats(struct fc_lport *lport);
 struct fc_exch_mgr_anchor *fc_exch_mgr_add(struct fc_lport *,
 					   struct fc_exch_mgr *,
 					   bool (*match)(struct fc_frame *));

@@ -329,6 +329,9 @@ struct fc_host_statistics *fc_get_host_stats(struct Scsi_Host *shost)
 		fc_stats->fcp_control_requests += stats->ControlRequests;
 		fcp_in_bytes += stats->InputBytes;
 		fcp_out_bytes += stats->OutputBytes;
+		fc_stats->fcp_packet_alloc_failures += stats->FcpPktAllocFails;
+		fc_stats->fcp_packet_aborts += stats->FcpPktAborts;
+		fc_stats->fcp_frame_alloc_failures += stats->FcpFrameAllocFails;
 		fc_stats->link_failure_count += stats->LinkFailureCount;
 	}
 	fc_stats->fcp_input_megabytes = div_u64(fcp_in_bytes, 1000000);
@@ -339,6 +342,10 @@ struct fc_host_statistics *fc_get_host_stats(struct Scsi_Host *shost)
 	fc_stats->loss_of_signal_count = -1;
 	fc_stats->prim_seq_protocol_err_count = -1;
 	fc_stats->dumped_frames = -1;
+
+	/* update exches stats */
+	fc_exch_update_stats(lport);
+
 	return fc_stats;
 }
 EXPORT_SYMBOL(fc_get_host_stats);
