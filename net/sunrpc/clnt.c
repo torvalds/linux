@@ -688,6 +688,7 @@ rpc_release_client(struct rpc_clnt *clnt)
 	if (atomic_dec_and_test(&clnt->cl_count))
 		rpc_free_auth(clnt);
 }
+EXPORT_SYMBOL_GPL(rpc_release_client);
 
 /**
  * rpc_bind_new_program - bind a new RPC program to an existing client

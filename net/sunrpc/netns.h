@@ -23,6 +23,9 @@ struct sunrpc_net {
 	struct rpc_clnt *rpcb_local_clnt4;
 	spinlock_t rpcb_clnt_lock;
 	unsigned int rpcb_users;
+
+	struct mutex gssp_lock;
+	struct rpc_clnt *gssp_clnt;
 };
 
 extern int sunrpc_net_id;
