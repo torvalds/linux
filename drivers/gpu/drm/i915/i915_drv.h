@@ -816,6 +816,8 @@ typedef struct drm_i915_private {
 
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
+
+	struct work_struct parity_error_work;
 } drm_i915_private_t;
 
 /* Iterate over initialised rings */

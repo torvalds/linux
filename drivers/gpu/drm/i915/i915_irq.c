@@ -398,6 +398,86 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
+
+/**
+ * ivybridge_parity_work - Workqueue called when a parity error interrupt
+ * occurred.
+ * @work: workqueue struct
+ *
+ * Doesn't actually do anything except notify userspace. As a consequence of
+ * this event, userspace should try to remap the bad rows since statistically
+ * it is likely the same row is more likely to go bad again.
+ */
+static void ivybridge_parity_work(struct work_struct *work)
+{
+	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
+						    parity_error_work);
+	u32 error_status, row, bank, subbank;
+	char *parity_event[5];
+	uint32_t misccpctl;
+	unsigned long flags;
+
+	/* We must turn off DOP level clock gating to access the L3 registers.
+	 * In order to prevent a get/put style interface, acquire struct mutex
+	 * any time we access those registers.
+	 */
+	mutex_lock(&dev_priv->dev->struct_mutex);
+
+	misccpctl = I915_READ(GEN7_MISCCPCTL);
+	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
+	POSTING_READ(GEN7_MISCCPCTL);
+
+	error_status = I915_READ(GEN7_L3CDERRST1);
+	row = GEN7_PARITY_ERROR_ROW(error_status);
+	bank = GEN7_PARITY_ERROR_BANK(error_status);
+	subbank = GEN7_PARITY_ERROR_SUBBANK(error_status);
+
+	I915_WRITE(GEN7_L3CDERRST1, GEN7_PARITY_ERROR_VALID |
+				    GEN7_L3CDERRST1_ENABLE);
+	POSTING_READ(GEN7_L3CDERRST1);
+
+	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
+
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	dev_priv->gt_irq_mask &= ~GT_GEN7_L3_PARITY_ERROR_INTERRUPT;
+	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+
+	mutex_unlock(&dev_priv->dev->struct_mutex);
+
+	parity_event[0] = "L3_PARITY_ERROR=1";
+	parity_event[1] = kasprintf(GFP_KERNEL, "ROW=%d", row);
+	parity_event[2] = kasprintf(GFP_KERNEL, "BANK=%d", bank);
+	parity_event[3] = kasprintf(GFP_KERNEL, "SUBBANK=%d", subbank);
+	parity_event[4] = NULL;
+
+	kobject_uevent_env(&dev_priv->dev->primary->kdev.kobj,
+			   KOBJ_CHANGE, parity_event);
+
+	DRM_DEBUG("Parity error: Row = %d, Bank = %d, Sub bank = %d.\n",
+		  row, bank, subbank);
+
+	kfree(parity_event[3]);
+	kfree(parity_event[2]);
+	kfree(parity_event[1]);
+}
+
+void ivybridge_handle_parity_error(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	unsigned long flags;
+
+	if (!IS_IVYBRIDGE(dev))
+		return;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	dev_priv->gt_irq_mask |= GT_GEN7_L3_PARITY_ERROR_INTERRUPT;
+	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+
+	queue_work(dev_priv->wq, &dev_priv->parity_error_work);
+}
+
 static void snb_gt_irq_handler(struct drm_device *dev,
 			       struct drm_i915_private *dev_priv,
 			       u32 gt_iir)
@@ -417,6 +497,9 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 		DRM_ERROR("GT error interrupt 0x%08x\n", gt_iir);
 		i915_handle_error(dev, false);
 	}
+
+	if (gt_iir & GT_GEN7_L3_PARITY_ERROR_INTERRUPT)
+		ivybridge_handle_parity_error(dev);
 }
 
 static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
@@ -1640,6 +1723,9 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 
 	atomic_set(&dev_priv->irq_received, 0);
 
+
+	if (IS_IVYBRIDGE(dev))
+		INIT_WORK(&dev_priv->parity_error_work, ivybridge_parity_work);
 
 	I915_WRITE(HWSTAM, 0xeffe);
 
