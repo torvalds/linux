@@ -661,16 +661,10 @@ continue_boot:
 		wr	%g3, PSR_ET, %psr
 		WRITE_PAUSE
 
-		/* First we call prom_init() to set up PROMLIB, then
-		 * off to start_kernel().
-		 */
-
+		/* Call sparc32_start_kernel(struct linux_romvec *rp) */
 		sethi	%hi(prom_vector_p), %g5
 		ld	[%g5 + %lo(prom_vector_p)], %o0
-		call	prom_init
-		 nop
-
-		call	start_kernel
+		call	sparc32_start_kernel
 		 nop
 
 		/* We should not get here. */

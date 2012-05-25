@@ -32,6 +32,7 @@
 #include <linux/cpu.h>
 #include <linux/kdebug.h>
 #include <linux/export.h>
+#include <linux/start_kernel.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -243,6 +244,15 @@ EXPORT_SYMBOL(sparc_cpu_model);
 struct tt_entry *sparc_ttable;
 
 struct pt_regs fake_swapper_regs;
+
+/* Called from head_32.S - before we have setup anything
+ * in the kernel. Be very careful with what you do here.
+ */
+void __init sparc32_start_kernel(struct linux_romvec *rp)
+{
+	prom_init(rp);
+	start_kernel();
+}
 
 void __init setup_arch(char **cmdline_p)
 {
