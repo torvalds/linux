@@ -953,7 +953,7 @@ try_again:
 				attr->config = PERF_COUNT_SW_CPU_CLOCK;
 				if (counter->name) {
 					free(counter->name);
-					counter->name = strdup(event_name(counter));
+					counter->name = NULL;
 				}
 				goto try_again;
 			}
