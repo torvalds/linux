@@ -770,7 +770,7 @@ static int exynos_dp_config_video(struct exynos_dp_device *dp,
 			return -ETIMEDOUT;
 		}
 
-		mdelay(100);
+		udelay(1);
 	}
 
 	/* Set to use the register calculated M/N video */
@@ -804,7 +804,7 @@ static int exynos_dp_config_video(struct exynos_dp_device *dp,
 			return -ETIMEDOUT;
 		}
 
-		mdelay(100);
+		mdelay(1);
 	}
 
 	if (retval != 0)
