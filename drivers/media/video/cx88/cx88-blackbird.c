@@ -930,6 +930,14 @@ static int vidioc_s_tuner (struct file *file, void *priv,
 	return 0;
 }
 
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvnorm)
+{
+	struct cx88_core *core = ((struct cx8802_fh *)priv)->dev->core;
+
+	*tvnorm = core->tvnorm;
+	return 0;
+}
+
 static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
@@ -1104,6 +1112,7 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_s_input       = vidioc_s_input,
 	.vidioc_g_tuner       = vidioc_g_tuner,
 	.vidioc_s_tuner       = vidioc_s_tuner,
+	.vidioc_g_std         = vidioc_g_std,
 	.vidioc_s_std         = vidioc_s_std,
 	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
@@ -1114,7 +1123,6 @@ static struct video_device cx8802_mpeg_template = {
 	.fops                 = &mpeg_fops,
 	.ioctl_ops 	      = &mpeg_ioctl_ops,
 	.tvnorms              = CX88_NORMS,
-	.current_norm         = V4L2_STD_NTSC_M,
 };
 
 /* ------------------------------------------------------------------ */
@@ -1213,8 +1221,6 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 	err = -ENODEV;
 	if (!(core->board.mpeg & CX88_MPEG_BLACKBIRD))
 		goto fail_core;
-
-	cx8802_mpeg_template.current_norm = core->tvnorm;
 
 	dev->width = 720;
 	if (core->tvnorm & V4L2_STD_525_60) {

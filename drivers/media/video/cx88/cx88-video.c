@@ -1185,6 +1185,14 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	return 0;
 }
 
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvnorm)
+{
+	struct cx88_core *core = ((struct cx8800_fh *)priv)->dev->core;
+
+	*tvnorm = core->tvnorm;
+	return 0;
+}
+
 static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *tvnorms)
 {
 	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
@@ -1562,6 +1570,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querybuf      = vidioc_querybuf,
 	.vidioc_qbuf          = vidioc_qbuf,
 	.vidioc_dqbuf         = vidioc_dqbuf,
+	.vidioc_g_std         = vidioc_g_std,
 	.vidioc_s_std         = vidioc_s_std,
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
@@ -1586,7 +1595,6 @@ static const struct video_device cx8800_video_template = {
 	.fops                 = &video_fops,
 	.ioctl_ops 	      = &video_ioctl_ops,
 	.tvnorms              = CX88_NORMS,
-	.current_norm         = V4L2_STD_NTSC_M,
 };
 
 static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
@@ -1598,6 +1606,7 @@ static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
 	.vidioc_querybuf      = vidioc_querybuf,
 	.vidioc_qbuf          = vidioc_qbuf,
 	.vidioc_dqbuf         = vidioc_dqbuf,
+	.vidioc_g_std         = vidioc_g_std,
 	.vidioc_s_std         = vidioc_s_std,
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
@@ -1620,7 +1629,6 @@ static const struct video_device cx8800_vbi_template = {
 	.fops                 = &video_fops,
 	.ioctl_ops	      = &vbi_ioctl_ops,
 	.tvnorms              = CX88_NORMS,
-	.current_norm         = V4L2_STD_NTSC_M,
 };
 
 static const struct v4l2_file_operations radio_fops =
@@ -1730,7 +1738,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* initialize driver struct */
 	spin_lock_init(&dev->slock);
-	core->tvnorm = cx8800_video_template.current_norm;
+	core->tvnorm = V4L2_STD_NTSC_M;
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
