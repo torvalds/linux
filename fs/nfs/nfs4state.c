@@ -1580,6 +1580,11 @@ out:
 static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 {
 	switch (status) {
+	case -NFS4ERR_SEQ_MISORDERED:
+		if (test_and_set_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state))
+			return -ESERVERFAULT;
+		/* Lease confirmation error: retry after purging the lease */
+		ssleep(1);
 	case -NFS4ERR_CLID_INUSE:
 	case -NFS4ERR_STALE_CLIENTID:
 		clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
