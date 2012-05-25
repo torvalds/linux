@@ -437,6 +437,14 @@ static inline void mce_gather_info(struct mce *m, struct pt_regs *regs)
 		if (m->mcgstatus & (MCG_STATUS_RIPV|MCG_STATUS_EIPV)) {
 			m->ip = regs->ip;
 			m->cs = regs->cs;
+
+			/*
+			 * When in VM86 mode make the cs look like ring 3
+			 * always. This is a lie, but it's better than passing
+			 * the additional vm86 bit around everywhere.
+			 */
+			if (v8086_mode(regs))
+				m->cs |= 3;
 		}
 		/* Use accurate RIP reporting if available. */
 		if (rip_msr)
@@ -641,16 +649,18 @@ EXPORT_SYMBOL_GPL(machine_check_poll);
  * Do a quick check if any of the events requires a panic.
  * This decides if we keep the events around or clear them.
  */
-static int mce_no_way_out(struct mce *m, char **msg)
+static int mce_no_way_out(struct mce *m, char **msg, unsigned long *validp)
 {
-	int i;
+	int i, ret = 0;
 
 	for (i = 0; i < banks; i++) {
 		m->status = mce_rdmsrl(MSR_IA32_MCx_STATUS(i));
+		if (m->status & MCI_STATUS_VAL)
+			__set_bit(i, validp);
 		if (mce_severity(m, tolerant, msg) >= MCE_PANIC_SEVERITY)
-			return 1;
+			ret = 1;
 	}
-	return 0;
+	return ret;
 }
 
 /*
@@ -1013,6 +1023,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 */
 	int kill_it = 0;
 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
+	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
 	char *msg = "Unknown";
 
 	atomic_inc(&mce_entry);
@@ -1027,7 +1038,8 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	final = &__get_cpu_var(mces_seen);
 	*final = m;
 
-	no_way_out = mce_no_way_out(&m, &msg);
+	memset(valid_banks, 0, sizeof(valid_banks));
+	no_way_out = mce_no_way_out(&m, &msg, valid_banks);
 
 	barrier();
 
@@ -1047,6 +1059,8 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	order = mce_start(&no_way_out);
 	for (i = 0; i < banks; i++) {
 		__clear_bit(i, toclear);
+		if (!test_bit(i, valid_banks))
+			continue;
 		if (!mce_banks[i].ctl)
 			continue;
 
