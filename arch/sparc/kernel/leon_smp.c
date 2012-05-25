@@ -48,8 +48,6 @@
 
 #include "kernel.h"
 
-#ifdef CONFIG_SPARC_LEON
-
 #include "irq.h"
 
 extern ctxd_t *srmmu_ctx_table_phys;
@@ -507,5 +505,3 @@ void __init leon_init_smp(void)
 
 	sparc32_ipi_ops = &leon_ipi_ops;
 }
-
-#endif /* CONFIG_SPARC_LEON */

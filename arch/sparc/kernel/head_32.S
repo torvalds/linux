@@ -387,11 +387,8 @@ execute_in_high_mem:
 #ifdef CONFIG_SMP
 		ldub	[%g2 + %lo(boot_cpu_id)], %g1
 		cmp	%g1, 0xff		! unset means first CPU
-#ifdef CONFIG_SPARC_LEON
-		/* XXX Hack to allow build - remove ifdef later */
 		bne	leon_smp_cpu_startup	! continue only with master
 		 nop
-#endif
 #endif
 		/* Get CPU-ID from most significant 4-bit of ASR17 */
 		rd     %asr17, %g1

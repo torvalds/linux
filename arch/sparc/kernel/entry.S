@@ -393,7 +393,6 @@ linux_trap_ipi15_sun4d:
 	/* FIXME */
 1:	b,a	1b
 
-#ifdef CONFIG_SPARC_LEON
 	.globl	smpleon_ipi
 	.extern leon_ipi_interrupt
 	/* SMP per-cpu IPI interrupts are handled specially. */
@@ -423,8 +422,6 @@ linux_trap_ipi15_leon:
 	 nop
 	b	ret_trap_lockless_ipi
 	 clr	%l6
-
-#endif /* CONFIG_SPARC_LEON */
 
 #endif /* CONFIG_SMP */
 

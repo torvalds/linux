@@ -254,16 +254,4 @@ extern int leon_ipi_irq;
 #define _pfn_valid(pfn)	 ((pfn < last_valid_pfn) && (pfn >= PFN(phys_base)))
 #define _SRMMU_PTE_PMASK_LEON 0xffffffff
 
-#ifndef CONFIG_SPARC_LEON
-
-/* nop definitions for !LEON case */
-#define leon_switch_mm() do {} while (0)
-#define init_leon() do {} while (0)
-#define leon_smp_done() do {} while (0)
-#define leon_boot_cpus() do {} while (0)
-#define leon_boot_one_cpu(i, t) 1
-#define leon_init_smp() do {} while (0)
-
-#endif /* !defined(CONFIG_SPARC_LEON) */
-
 #endif
