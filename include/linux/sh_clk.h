@@ -18,7 +18,6 @@ struct clk_mapping {
 	struct kref		ref;
 };
 
-
 struct sh_clk_ops {
 #ifdef CONFIG_SH_CLK_CPG_LEGACY
 	void (*init)(struct clk *clk);
@@ -149,10 +148,12 @@ static inline int __deprecated sh_clk_mstp32_register(struct clk *clks, int nr)
 	.flags = _flags,					\
 }
 
-struct clk_div4_table {
+struct clk_div_table {
 	struct clk_div_mult_table *div_mult_table;
 	void (*kick)(struct clk *clk);
 };
+
+#define clk_div4_table clk_div_table
 
 int sh_clk_div4_register(struct clk *clks, int nr,
 			 struct clk_div4_table *table);

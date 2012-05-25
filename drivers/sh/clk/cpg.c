@@ -71,6 +71,22 @@ static long sh_clk_div_round_rate(struct clk *clk, unsigned long rate)
 	return clk_rate_table_round(clk, clk->freq_table, rate);
 }
 
+/*
+ * Div/mult table lookup helpers
+ */
+static inline struct clk_div_table *clk_to_div_table(struct clk *clk)
+{
+	return clk->priv;
+}
+
+static inline struct clk_div_mult_table *clk_to_div_mult_table(struct clk *clk)
+{
+	return clk_to_div_table(clk)->div_mult_table;
+}
+
+/*
+ * div6 support
+ */
 static int sh_clk_div6_divisors[64] = {
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 	17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
@@ -78,14 +94,18 @@ static int sh_clk_div6_divisors[64] = {
 	49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
 };
 
-static struct clk_div_mult_table sh_clk_div6_table = {
+static struct clk_div_mult_table div6_div_mult_table = {
 	.divisors = sh_clk_div6_divisors,
 	.nr_divisors = ARRAY_SIZE(sh_clk_div6_divisors),
 };
 
+static struct clk_div_table sh_clk_div6_table = {
+	.div_mult_table	= &div6_div_mult_table,
+};
+
 static unsigned long sh_clk_div6_recalc(struct clk *clk)
 {
-	struct clk_div_mult_table *table = &sh_clk_div6_table;
+	struct clk_div_mult_table *table = clk_to_div_mult_table(clk);
 	unsigned int idx;
 
 	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
@@ -98,7 +118,7 @@ static unsigned long sh_clk_div6_recalc(struct clk *clk)
 
 static int sh_clk_div6_set_parent(struct clk *clk, struct clk *parent)
 {
-	struct clk_div_mult_table *table = &sh_clk_div6_table;
+	struct clk_div_mult_table *table = clk_to_div_mult_table(clk);
 	u32 value;
 	int ret, i;
 
@@ -223,7 +243,8 @@ static int __init sh_clk_div6_register_ops(struct clk *clks, int nr,
 {
 	struct clk *clkp;
 	void *freq_table;
-	int nr_divs = sh_clk_div6_table.nr_divisors;
+	struct clk_div_table *table = &sh_clk_div6_table;
+	int nr_divs = table->div_mult_table->nr_divisors;
 	int freq_table_size = sizeof(struct cpufreq_frequency_table);
 	int ret = 0;
 	int k;
@@ -239,6 +260,7 @@ static int __init sh_clk_div6_register_ops(struct clk *clks, int nr,
 		clkp = clks + k;
 
 		clkp->ops = ops;
+		clkp->priv = table;
 		clkp->freq_table = freq_table + (k * freq_table_size);
 		clkp->freq_table[nr_divs].frequency = CPUFREQ_TABLE_END;
 		ret = clk_register(clkp);
@@ -262,10 +284,12 @@ int __init sh_clk_div6_reparent_register(struct clk *clks, int nr)
 					&sh_clk_div6_reparent_clk_ops);
 }
 
+/*
+ * div4 support
+ */
 static unsigned long sh_clk_div4_recalc(struct clk *clk)
 {
-	struct clk_div4_table *d4t = clk->priv;
-	struct clk_div_mult_table *table = d4t->div_mult_table;
+	struct clk_div_mult_table *table = clk_to_div_mult_table(clk);
 	unsigned int idx;
 
 	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
@@ -278,8 +302,7 @@ static unsigned long sh_clk_div4_recalc(struct clk *clk)
 
 static int sh_clk_div4_set_parent(struct clk *clk, struct clk *parent)
 {
-	struct clk_div4_table *d4t = clk->priv;
-	struct clk_div_mult_table *table = d4t->div_mult_table;
+	struct clk_div_mult_table *table = clk_to_div_mult_table(clk);
 	u32 value;
 	int ret;
 
@@ -308,7 +331,7 @@ static int sh_clk_div4_set_parent(struct clk *clk, struct clk *parent)
 
 static int sh_clk_div4_set_rate(struct clk *clk, unsigned long rate)
 {
-	struct clk_div4_table *d4t = clk->priv;
+	struct clk_div_table *dt = clk_to_div_table(clk);
 	unsigned long value;
 	int idx = clk_rate_table_find(clk, clk->freq_table, rate);
 	if (idx < 0)
@@ -319,8 +342,9 @@ static int sh_clk_div4_set_rate(struct clk *clk, unsigned long rate)
 	value |= (idx << clk->enable_bit);
 	sh_clk_write(value, clk);
 
-	if (d4t->kick)
-		d4t->kick(clk);
+	/* XXX: Should use a post-change notifier */
+	if (dt->kick)
+		dt->kick(clk);
 
 	return 0;
 }
