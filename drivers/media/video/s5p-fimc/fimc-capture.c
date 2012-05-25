@@ -1045,8 +1045,10 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 	if (fimc_capture_active(fimc))
 		return -EBUSY;
 
-	media_entity_pipeline_start(&p->subdevs[IDX_SENSOR]->entity,
+	ret = media_entity_pipeline_start(&p->subdevs[IDX_SENSOR]->entity,
 				    p->m_pipeline);
+	if (ret < 0)
+		return ret;
 
 	if (fimc->vid_cap.user_subdev_api) {
 		ret = fimc_pipeline_validate(fimc);
