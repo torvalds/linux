@@ -158,6 +158,9 @@ static struct fc_fcp_pkt *fc_fcp_pkt_alloc(struct fc_lport *lport, gfp_t gfp)
 		fsp->timer.data = (unsigned long)fsp;
 		INIT_LIST_HEAD(&fsp->list);
 		spin_lock_init(&fsp->scsi_pkt_lock);
+	} else {
+		per_cpu_ptr(lport->stats, get_cpu())->FcpPktAllocFails++;
+		put_cpu();
 	}
 	return fsp;
 }
@@ -263,6 +266,9 @@ static int fc_fcp_send_abort(struct fc_fcp_pkt *fsp)
 {
 	if (!fsp->seq_ptr)
 		return -EINVAL;
+
+	per_cpu_ptr(fsp->lp->stats, get_cpu())->FcpPktAborts++;
+	put_cpu();
 
 	fsp->state |= FC_SRB_ABORT_PENDING;
 	return fsp->lp->tt.seq_exch_abort(fsp->seq_ptr, 0);
@@ -420,6 +426,8 @@ static inline struct fc_frame *fc_fcp_frame_alloc(struct fc_lport *lport,
 	if (likely(fp))
 		return fp;
 
+	per_cpu_ptr(lport->stats, get_cpu())->FcpFrameAllocFails++;
+	put_cpu();
 	/* error case */
 	fc_fcp_can_queue_ramp_down(lport);
 	return NULL;

@@ -232,6 +232,9 @@ struct fc_rport_priv {
  * @RxWords:               Number of received words
  * @ErrorFrames:           Number of received error frames
  * @DumpedFrames:          Number of dumped frames
+ * @FcpPktAllocFails:      Number of fcp packet allocation failures
+ * @FcpPktAborts:          Number of fcp packet aborts
+ * @FcpFrameAllocFails:    Number of fcp frame allocation failures
  * @LinkFailureCount:      Number of link failures
  * @LossOfSignalCount:     Number for signal losses
  * @InvalidTxWordCount:    Number of invalid transmitted words
@@ -252,6 +255,9 @@ struct fc_stats {
 	u64		RxWords;
 	u64		ErrorFrames;
 	u64		DumpedFrames;
+	u64		FcpPktAllocFails;
+	u64		FcpPktAborts;
+	u64		FcpFrameAllocFails;
 	u64		LinkFailureCount;
 	u64		LossOfSignalCount;
 	u64		InvalidTxWordCount;
