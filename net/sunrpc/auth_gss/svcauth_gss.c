@@ -497,7 +497,8 @@ static int rsc_parse(struct cache_detail *cd,
 		len = qword_get(&mesg, buf, mlen);
 		if (len < 0)
 			goto out;
-		status = gss_import_sec_context(buf, len, gm, &rsci.mechctx, GFP_KERNEL);
+		status = gss_import_sec_context(buf, len, gm, &rsci.mechctx,
+						NULL, GFP_KERNEL);
 		if (status)
 			goto out;
 
