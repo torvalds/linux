@@ -1048,14 +1048,14 @@ static int fimc_m2m_g_fmt_mplane(struct file *file, void *fh,
  * @mask: the color flags to match
  * @index: offset in the fimc_formats array, ignored if negative
  */
-struct fimc_fmt *fimc_find_format(u32 *pixelformat, u32 *mbus_code,
+struct fimc_fmt *fimc_find_format(const u32 *pixelformat, const u32 *mbus_code,
 				  unsigned int mask, int index)
 {
 	struct fimc_fmt *fmt, *def_fmt = NULL;
 	unsigned int i;
 	int id = 0;
 
-	if (index >= ARRAY_SIZE(fimc_formats))
+	if (index >= (int)ARRAY_SIZE(fimc_formats))
 		return NULL;
 
 	for (i = 0; i < ARRAY_SIZE(fimc_formats); ++i) {

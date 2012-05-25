@@ -134,6 +134,9 @@ KBUILD_CFLAGS += $(call cc-option,-mno-avx,)
 KBUILD_CFLAGS += $(mflags-y)
 KBUILD_AFLAGS += $(mflags-y)
 
+archscripts:
+	$(Q)$(MAKE) $(build)=arch/x86/tools relocs
+
 ###
 # Syscall table generation
 

@@ -1834,10 +1834,15 @@ static int tid_fd_revalidate(struct dentry *dentry, struct nameidata *nd)
 	if (task) {
 		files = get_files_struct(task);
 		if (files) {
+			struct file *file;
 			rcu_read_lock();
-			if (fcheck_files(files, fd)) {
+			file = fcheck_files(files, fd);
+			if (file) {
+				unsigned i_mode, f_mode = file->f_mode;
+
 				rcu_read_unlock();
 				put_files_struct(files);
+
 				if (task_dumpable(task)) {
 					rcu_read_lock();
 					cred = __task_cred(task);
@@ -1848,7 +1853,14 @@ static int tid_fd_revalidate(struct dentry *dentry, struct nameidata *nd)
 					inode->i_uid = 0;
 					inode->i_gid = 0;
 				}
-				inode->i_mode &= ~(S_ISUID | S_ISGID);
+
+				i_mode = S_IFLNK;
+				if (f_mode & FMODE_READ)
+					i_mode |= S_IRUSR | S_IXUSR;
+				if (f_mode & FMODE_WRITE)
+					i_mode |= S_IWUSR | S_IXUSR;
+				inode->i_mode = i_mode;
+
 				security_task_to_inode(task, inode);
 				put_task_struct(task);
 				return 1;
@@ -1872,8 +1884,6 @@ static struct dentry *proc_fd_instantiate(struct inode *dir,
 	struct dentry *dentry, struct task_struct *task, const void *ptr)
 {
 	unsigned fd = *(const unsigned *)ptr;
-	struct file *file;
-	struct files_struct *files;
  	struct inode *inode;
  	struct proc_inode *ei;
 	struct dentry *error = ERR_PTR(-ENOENT);
@@ -1883,25 +1893,6 @@ static struct dentry *proc_fd_instantiate(struct inode *dir,
 		goto out;
 	ei = PROC_I(inode);
 	ei->fd = fd;
-	files = get_files_struct(task);
-	if (!files)
-		goto out_iput;
-	inode->i_mode = S_IFLNK;
-
-	/*
-	 * We are not taking a ref to the file structure, so we must
-	 * hold ->file_lock.
-	 */
-	spin_lock(&files->file_lock);
-	file = fcheck_files(files, fd);
-	if (!file)
-		goto out_unlock;
-	if (file->f_mode & FMODE_READ)
-		inode->i_mode |= S_IRUSR | S_IXUSR;
-	if (file->f_mode & FMODE_WRITE)
-		inode->i_mode |= S_IWUSR | S_IXUSR;
-	spin_unlock(&files->file_lock);
-	put_files_struct(files);
 
 	inode->i_op = &proc_pid_link_inode_operations;
 	inode->i_size = 64;
@@ -1914,12 +1905,6 @@ static struct dentry *proc_fd_instantiate(struct inode *dir,
 
  out:
 	return error;
-out_unlock:
-	spin_unlock(&files->file_lock);
-	put_files_struct(files);
-out_iput:
-	iput(inode);
-	goto out;
 }
 
 static struct dentry *proc_lookupfd_common(struct inode *dir,
@@ -2212,16 +2197,16 @@ static struct dentry *proc_map_files_lookup(struct inode *dir,
 		goto out;
 
 	result = ERR_PTR(-EACCES);
-	if (lock_trace(task))
+	if (!ptrace_may_access(task, PTRACE_MODE_READ))
 		goto out_put_task;
 
 	result = ERR_PTR(-ENOENT);
 	if (dname_to_vma_addr(dentry, &vm_start, &vm_end))
-		goto out_unlock;
+		goto out_put_task;
 
 	mm = get_task_mm(task);
 	if (!mm)
-		goto out_unlock;
+		goto out_put_task;
 
 	down_read(&mm->mmap_sem);
 	vma = find_exact_vma(mm, vm_start, vm_end);
@@ -2233,8 +2218,6 @@ static struct dentry *proc_map_files_lookup(struct inode *dir,
 out_no_vma:
 	up_read(&mm->mmap_sem);
 	mmput(mm);
-out_unlock:
-	unlock_trace(task);
 out_put_task:
 	put_task_struct(task);
 out:
@@ -2268,7 +2251,7 @@ proc_map_files_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		goto out;
 
 	ret = -EACCES;
-	if (lock_trace(task))
+	if (!ptrace_may_access(task, PTRACE_MODE_READ))
 		goto out_put_task;
 
 	ret = 0;
@@ -2276,12 +2259,12 @@ proc_map_files_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	case 0:
 		ino = inode->i_ino;
 		if (filldir(dirent, ".", 1, 0, ino, DT_DIR) < 0)
-			goto out_unlock;
+			goto out_put_task;
 		filp->f_pos++;
 	case 1:
 		ino = parent_ino(dentry);
 		if (filldir(dirent, "..", 2, 1, ino, DT_DIR) < 0)
-			goto out_unlock;
+			goto out_put_task;
 		filp->f_pos++;
 	default:
 	{
@@ -2292,7 +2275,7 @@ proc_map_files_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 		mm = get_task_mm(task);
 		if (!mm)
-			goto out_unlock;
+			goto out_put_task;
 		down_read(&mm->mmap_sem);
 
 		nr_files = 0;
@@ -2322,7 +2305,7 @@ proc_map_files_readdir(struct file *filp, void *dirent, filldir_t filldir)
 					flex_array_free(fa);
 				up_read(&mm->mmap_sem);
 				mmput(mm);
-				goto out_unlock;
+				goto out_put_task;
 			}
 			for (i = 0, vma = mm->mmap, pos = 2; vma;
 					vma = vma->vm_next) {
@@ -2367,8 +2350,6 @@ proc_map_files_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	}
 	}
 
-out_unlock:
-	unlock_trace(task);
 out_put_task:
 	put_task_struct(task);
 out:

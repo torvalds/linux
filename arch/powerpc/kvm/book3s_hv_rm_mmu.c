@@ -463,6 +463,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 				/* insert R and C bits from PTE */
 				rcbits = rev->guest_rpte & (HPTE_R_R|HPTE_R_C);
 				args[j] |= rcbits << (56 - 5);
+				hp[0] = 0;
 				continue;
 			}
 

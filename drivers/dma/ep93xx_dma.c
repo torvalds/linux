@@ -703,7 +703,9 @@ static void ep93xx_dma_tasklet(unsigned long data)
 	desc = ep93xx_dma_get_active(edmac);
 	if (desc) {
 		if (desc->complete) {
-			dma_cookie_complete(&desc->txd);
+			/* mark descriptor complete for non cyclic case only */
+			if (!test_bit(EP93XX_DMA_IS_CYCLIC, &edmac->flags))
+				dma_cookie_complete(&desc->txd);
 			list_splice_init(&edmac->active, &list);
 		}
 		callback = desc->txd.callback;
