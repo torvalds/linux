@@ -26,7 +26,6 @@ struct link_train {
 
 struct exynos_dp_device {
 	struct device		*dev;
-	struct resource		*res;
 	struct clk		*clock;
 	unsigned int		irq;
 	void __iomem		*reg_base;
