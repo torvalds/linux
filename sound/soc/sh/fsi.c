@@ -1172,9 +1172,14 @@ static int fsi_dma_transfer(struct fsi_priv *fsi, struct fsi_stream *io)
 static void fsi_dma_push_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
 				 int start)
 {
+	struct fsi_master *master = fsi_get_master(fsi);
+	u32 clk  = fsi_is_port_a(fsi) ? CRA  : CRB;
 	u32 enable = start ? DMA_ON : 0;
 
 	fsi_reg_mask_set(fsi, OUT_DMAC, DMA_ON, enable);
+
+	if (fsi_is_clk_master(fsi))
+		fsi_master_mask_set(master, CLK_RST, clk, (enable) ? clk : 0);
 }
 
 static int fsi_dma_probe(struct fsi_priv *fsi, struct fsi_stream *io)
