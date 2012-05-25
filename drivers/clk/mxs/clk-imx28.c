@@ -174,7 +174,7 @@ static struct clk_lookup lcdif_lookups[] __initdata = {
 
 static struct clk_lookup gpmi_lookups[] __initdata = {
 	{ .dev_id = "imx28-gpmi-nand", },
-	{ .dev_id = "8000c000.gpmi", },
+	{ .dev_id = "8000c000.gpmi-nand", },
 };
 
 static struct clk_lookup fec_lookups[] __initdata = {
