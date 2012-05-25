@@ -290,8 +290,6 @@ static void tpci200_unregister(struct tpci200_board *tpci200)
 	pci_disable_device(tpci200->info->pdev);
 	pci_dev_put(tpci200->info->pdev);
 
-	kfree(tpci200->info);
-
 	for (i = 0; i < TPCI200_NB_SLOT; i++) {
 		tpci200->slots[i].io_phys.address = NULL;
 		tpci200->slots[i].io_phys.size = 0;
