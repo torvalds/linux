@@ -405,6 +405,7 @@ struct dwc3_event_buffer {
  * @number: endpoint number (1 - 15)
  * @type: set to bmAttributes & USB_ENDPOINT_XFERTYPE_MASK
  * @res_trans_idx: Resource transfer index
+ * @current_uf: Current uf received through last event parameter
  * @interval: the intervall on which the ISOC transfer is started
  * @name: a human readable name e.g. ep1out-bulk
  * @direction: true for TX, false for RX
@@ -428,6 +429,7 @@ struct dwc3_ep {
 #define DWC3_EP_WEDGE		(1 << 2)
 #define DWC3_EP_BUSY		(1 << 4)
 #define DWC3_EP_PENDING_REQUEST	(1 << 5)
+#define DWC3_EP_MISSED_ISOC	(1 << 6)
 
 	/* This last one is specific to EP0 */
 #define DWC3_EP0_DIR_IN		(1 << 31)
@@ -437,6 +439,7 @@ struct dwc3_ep {
 	u8			number;
 	u8			type;
 	u8			res_trans_idx;
+	u16			current_uf;
 	u32			interval;
 
 	char			name[20];
