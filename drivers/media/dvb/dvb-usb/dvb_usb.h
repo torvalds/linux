@@ -62,23 +62,9 @@
 
 struct dvb_usb_driver_info {
 	const char *name;
+	const char *rc_map;
 	const struct dvb_usb_device_properties *props;
 };
-
-static inline u8 rc5_custom(struct rc_map_table *key)
-{
-	return (key->scancode >> 8) & 0xff;
-}
-
-static inline u8 rc5_data(struct rc_map_table *key)
-{
-	return key->scancode & 0xff;
-}
-
-static inline u16 rc5_scan(struct rc_map_table *key)
-{
-	return key->scancode & 0xffff;
-}
 
 struct dvb_usb_device;
 struct dvb_usb_adapter;
@@ -161,25 +147,6 @@ struct dvb_usb_adapter_properties {
 };
 
 /**
- * struct dvb_rc_legacy - old properties of remote controller
- * @rc_map_table: a hard-wired array of struct rc_map_table (NULL to disable
- *  remote control handling).
- * @rc_map_size: number of items in @rc_map_table.
- * @rc_query: called to query an event event.
- * @rc_interval: time in ms between two queries.
- */
-struct dvb_rc_legacy {
-/* remote control properties */
-#define REMOTE_NO_KEY_PRESSED      0x00
-#define REMOTE_KEY_PRESSED         0x01
-#define REMOTE_KEY_REPEAT          0x02
-	struct rc_map_table  *rc_map_table;
-	int rc_map_size;
-	int (*rc_query) (struct dvb_usb_device *, u32 *, int *);
-	int rc_interval;
-};
-
-/**
  * struct dvb_rc properties of remote controller, using rc-core
  * @rc_codes: name of rc codes table
  * @protocol: type of protocol(s) currently used by the driver
@@ -200,17 +167,6 @@ struct dvb_rc {
 	int (*rc_query) (struct dvb_usb_device *d);
 	int rc_interval;
 	bool bulk_mode;				/* uses bulk mode */
-};
-
-/**
- * enum dvb_usb_mode - Specifies if it is using a legacy driver or a new one
- *		       based on rc-core
- * This is initialized/used only inside dvb-usb-remote.c.
- * It shouldn't be set by the drivers.
- */
-enum dvb_usb_mode {
-	DVB_RC_LEGACY,
-	DVB_RC_CORE,
 };
 
 /**
@@ -283,16 +239,12 @@ struct dvb_usb_device_properties {
 	int (*identify_state) (struct dvb_usb_device *);
 	int (*init) (struct dvb_usb_device *);
 
-	struct {
-		enum dvb_usb_mode mode;	/* Drivers shouldn't touch on it */
-		struct dvb_rc_legacy legacy;
-		struct dvb_rc core;
-	} rc;
-
 	struct i2c_algorithm *i2c_algo;
 
 	int generic_bulk_ctrl_endpoint;
 	int generic_bulk_ctrl_endpoint_response;
+
+	struct dvb_rc rc;
 };
 
 /**
@@ -419,7 +371,7 @@ struct dvb_usb_adapter {
 struct dvb_usb_device {
 	struct dvb_usb_device_properties props;
 	const char *name;
-
+	const char *rc_map;
 	struct usb_device *udev;
 
 #define DVB_USB_STATE_INIT        0x000
@@ -459,10 +411,6 @@ extern void dvb_usbv2_device_exit(struct usb_interface *);
 extern int dvb_usbv2_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16,
 		int);
 extern int dvb_usbv2_generic_write(struct dvb_usb_device *, u8 *, u16);
-
-/* commonly used remote control parsing */
-extern int dvb_usbv2_nec_rc_key_to_event(struct dvb_usb_device *, u8[], u32 *,
-		int *);
 
 /* commonly used firmware download types and function */
 struct hexline {

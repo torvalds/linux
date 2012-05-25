@@ -259,6 +259,7 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 
 	d->udev = udev;
 	d->name = driver_info->name;
+	d->rc_map = driver_info->rc_map;
 	memcpy(&d->props, props, sizeof(struct dvb_usb_device_properties));
 
 	if (d->props.size_of_priv > 0) {
