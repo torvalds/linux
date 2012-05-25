@@ -85,8 +85,7 @@
 MODULE_AUTHOR("Victor Soriano <vjsoriano@agere.com>");
 MODULE_AUTHOR("Mark Einon <mark.einon@gmail.com>");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver "
-		   "for the ET1310 by Agere Systems");
+MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere Systems");
 
 /* EEPROM defines */
 #define MAX_NUM_REGISTER_POLLS          1000
@@ -2967,11 +2966,10 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 		(ring_index == 0 &&
 		buff_index > rx_local->fbr[1]->num_entries - 1) ||
 		(ring_index == 1 &&
-		buff_index > rx_local->fbr[0]->num_entries - 1))
+		buff_index > rx_local->fbr[0]->num_entries - 1)) {
 #else
-	if (ring_index != 1 || buff_index > rx_local->fbr[0]->num_entries - 1)
+	if (ring_index != 1 || buff_index > rx_local->fbr[0]->num_entries - 1) {
 #endif
-	{
 		/* Illegal buffer or ring index cannot be used by S/W*/
 		dev_err(&adapter->pdev->dev,
 			  "NICRxPkts PSR Entry %d indicates "
@@ -4326,8 +4324,7 @@ static int et131x_mii_probe(struct net_device *netdev)
 	phydev->advertising = phydev->supported;
 	adapter->phydev = phydev;
 
-	dev_info(&adapter->pdev->dev, "attached PHY driver [%s] "
-		 "(mii_bus:phy_addr=%s)\n",
+	dev_info(&adapter->pdev->dev, "attached PHY driver [%s] (mii_bus:phy_addr=%s)\n",
 		 phydev->drv->name, dev_name(&phydev->dev));
 
 	return 0;
