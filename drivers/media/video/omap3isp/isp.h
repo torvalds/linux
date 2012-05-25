@@ -90,10 +90,11 @@ enum isp_sbl_resource {
 
 enum isp_subclk_resource {
 	OMAP3_ISP_SUBCLK_CCDC		= (1 << 0),
-	OMAP3_ISP_SUBCLK_H3A		= (1 << 1),
-	OMAP3_ISP_SUBCLK_HIST		= (1 << 2),
-	OMAP3_ISP_SUBCLK_PREVIEW	= (1 << 3),
-	OMAP3_ISP_SUBCLK_RESIZER	= (1 << 4),
+	OMAP3_ISP_SUBCLK_AEWB		= (1 << 1),
+	OMAP3_ISP_SUBCLK_AF		= (1 << 2),
+	OMAP3_ISP_SUBCLK_HIST		= (1 << 3),
+	OMAP3_ISP_SUBCLK_PREVIEW	= (1 << 4),
+	OMAP3_ISP_SUBCLK_RESIZER	= (1 << 5),
 };
 
 /* ISP: OMAP 34xx ES 1.0 */

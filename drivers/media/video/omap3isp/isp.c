@@ -1281,7 +1281,9 @@ static void __isp_subclk_update(struct isp_device *isp)
 {
 	u32 clk = 0;
 
-	if (isp->subclk_resources & OMAP3_ISP_SUBCLK_H3A)
+	/* AEWB and AF share the same clock. */
+	if (isp->subclk_resources &
+	    (OMAP3_ISP_SUBCLK_AEWB | OMAP3_ISP_SUBCLK_AF))
 		clk |= ISPCTRL_H3A_CLK_EN;
 
 	if (isp->subclk_resources & OMAP3_ISP_SUBCLK_HIST)

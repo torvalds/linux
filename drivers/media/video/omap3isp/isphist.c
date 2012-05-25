@@ -167,13 +167,11 @@ static void hist_enable(struct ispstat *hist, int enable)
 	if (enable) {
 		isp_reg_set(hist->isp, OMAP3_ISP_IOMEM_HIST, ISPHIST_PCR,
 			    ISPHIST_PCR_ENABLE);
-		isp_reg_set(hist->isp, OMAP3_ISP_IOMEM_MAIN, ISP_CTRL,
-			    ISPCTRL_HIST_CLK_EN);
+		omap3isp_subclk_enable(hist->isp, OMAP3_ISP_SUBCLK_HIST);
 	} else {
 		isp_reg_clr(hist->isp, OMAP3_ISP_IOMEM_HIST, ISPHIST_PCR,
 			    ISPHIST_PCR_ENABLE);
-		isp_reg_clr(hist->isp, OMAP3_ISP_IOMEM_MAIN, ISP_CTRL,
-			    ISPCTRL_HIST_CLK_EN);
+		omap3isp_subclk_disable(hist->isp, OMAP3_ISP_SUBCLK_HIST);
 	}
 }
 

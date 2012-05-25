@@ -143,17 +143,11 @@ static void h3a_af_enable(struct ispstat *af, int enable)
 	if (enable) {
 		isp_reg_set(af->isp, OMAP3_ISP_IOMEM_H3A, ISPH3A_PCR,
 			    ISPH3A_PCR_AF_EN);
-		/* This bit is already set if AEWB is enabled */
-		if (af->isp->isp_aewb.state != ISPSTAT_ENABLED)
-			isp_reg_set(af->isp, OMAP3_ISP_IOMEM_MAIN, ISP_CTRL,
-				    ISPCTRL_H3A_CLK_EN);
+		omap3isp_subclk_enable(af->isp, OMAP3_ISP_SUBCLK_AF);
 	} else {
 		isp_reg_clr(af->isp, OMAP3_ISP_IOMEM_H3A, ISPH3A_PCR,
 			    ISPH3A_PCR_AF_EN);
-		/* This bit can't be cleared if AEWB is enabled */
-		if (af->isp->isp_aewb.state != ISPSTAT_ENABLED)
-			isp_reg_clr(af->isp, OMAP3_ISP_IOMEM_MAIN, ISP_CTRL,
-				    ISPCTRL_H3A_CLK_EN);
+		omap3isp_subclk_disable(af->isp, OMAP3_ISP_SUBCLK_AF);
 	}
 }
 
