@@ -148,6 +148,20 @@ static void sh_clk_div_disable(struct clk *clk)
 	sh_clk_write(val, clk);
 }
 
+static struct sh_clk_ops sh_clk_div_clk_ops = {
+	.recalc		= sh_clk_div_recalc,
+	.set_rate	= sh_clk_div_set_rate,
+	.round_rate	= sh_clk_div_round_rate,
+};
+
+static struct sh_clk_ops sh_clk_div_enable_clk_ops = {
+	.recalc		= sh_clk_div_recalc,
+	.set_rate	= sh_clk_div_set_rate,
+	.round_rate	= sh_clk_div_round_rate,
+	.enable		= sh_clk_div_enable,
+	.disable	= sh_clk_div_disable,
+};
+
 /*
  * div6 support
  */
@@ -199,14 +213,6 @@ static int sh_clk_div6_set_parent(struct clk *clk, struct clk *parent)
 
 	return 0;
 }
-
-static struct sh_clk_ops sh_clk_div6_clk_ops = {
-	.recalc		= sh_clk_div_recalc,
-	.round_rate	= sh_clk_div_round_rate,
-	.set_rate	= sh_clk_div_set_rate,
-	.enable		= sh_clk_div_enable,
-	.disable	= sh_clk_div_disable,
-};
 
 static struct sh_clk_ops sh_clk_div6_reparent_clk_ops = {
 	.recalc		= sh_clk_div_recalc,
@@ -286,7 +292,7 @@ static int __init sh_clk_div6_register_ops(struct clk *clks, int nr,
 
 int __init sh_clk_div6_register(struct clk *clks, int nr)
 {
-	return sh_clk_div6_register_ops(clks, nr, &sh_clk_div6_clk_ops);
+	return sh_clk_div6_register_ops(clks, nr, &sh_clk_div_enable_clk_ops);
 }
 
 int __init sh_clk_div6_reparent_register(struct clk *clks, int nr)
@@ -326,20 +332,6 @@ static int sh_clk_div4_set_parent(struct clk *clk, struct clk *parent)
 
 	return 0;
 }
-
-static struct sh_clk_ops sh_clk_div4_clk_ops = {
-	.recalc		= sh_clk_div_recalc,
-	.set_rate	= sh_clk_div_set_rate,
-	.round_rate	= sh_clk_div_round_rate,
-};
-
-static struct sh_clk_ops sh_clk_div4_enable_clk_ops = {
-	.recalc		= sh_clk_div_recalc,
-	.set_rate	= sh_clk_div_set_rate,
-	.round_rate	= sh_clk_div_round_rate,
-	.enable		= sh_clk_div_enable,
-	.disable	= sh_clk_div_disable,
-};
 
 static struct sh_clk_ops sh_clk_div4_reparent_clk_ops = {
 	.recalc		= sh_clk_div_recalc,
@@ -385,14 +377,14 @@ static int __init sh_clk_div4_register_ops(struct clk *clks, int nr,
 int __init sh_clk_div4_register(struct clk *clks, int nr,
 				struct clk_div4_table *table)
 {
-	return sh_clk_div4_register_ops(clks, nr, table, &sh_clk_div4_clk_ops);
+	return sh_clk_div4_register_ops(clks, nr, table, &sh_clk_div_clk_ops);
 }
 
 int __init sh_clk_div4_enable_register(struct clk *clks, int nr,
 				struct clk_div4_table *table)
 {
 	return sh_clk_div4_register_ops(clks, nr, table,
-					&sh_clk_div4_enable_clk_ops);
+					&sh_clk_div_enable_clk_ops);
 }
 
 int __init sh_clk_div4_reparent_register(struct clk *clks, int nr,
