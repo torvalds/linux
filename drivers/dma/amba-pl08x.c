@@ -1671,10 +1671,7 @@ static void pl08x_tasklet(unsigned long data)
 	spin_lock_irqsave(&plchan->lock, flags);
 	list_splice_tail_init(&plchan->done_list, &head);
 
-	/* If a new descriptor is queued, set it up plchan->at is NULL here */
-	if (!list_empty(&plchan->issued_list)) {
-		pl08x_start_next_txd(plchan);
-	} else if (!list_empty(&plchan->pend_list) || plchan->phychan_hold) {
+	if (plchan->at || !list_empty(&plchan->pend_list) || plchan->phychan_hold) {
 		/*
 		 * This channel is still in use - we have a new txd being
 		 * prepared and will soon be queued.  Don't give up the
@@ -1786,6 +1783,10 @@ static irqreturn_t pl08x_irq(int irq, void *dev)
 				pl08x_release_mux(plchan);
 				dma_cookie_complete(&tx->tx);
 				list_add_tail(&tx->node, &plchan->done_list);
+
+				/* And start the next descriptor */
+				if (!list_empty(&plchan->issued_list))
+					pl08x_start_next_txd(plchan);
 			}
 			spin_unlock(&plchan->lock);
 
