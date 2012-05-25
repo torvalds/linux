@@ -21,8 +21,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
-#include <asm/rtc.h>
-
 
 #include <arch/svinto.h>
 #include <asm/fasttimer.h>
