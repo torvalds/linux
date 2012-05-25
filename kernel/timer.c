@@ -77,6 +77,7 @@ struct tvec_base {
 	struct timer_list *running_timer;
 	unsigned long timer_jiffies;
 	unsigned long next_timer;
+	unsigned long active_timers;
 	struct tvec_root tv1;
 	struct tvec tv2;
 	struct tvec tv3;
@@ -377,11 +378,13 @@ static void internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 {
 	__internal_add_timer(base, timer);
 	/*
-	 * Update base->next_timer if this is the earliest one.
+	 * Update base->active_timers and base->next_timer
 	 */
-	if (time_before(timer->expires, base->next_timer) &&
-	    !tbase_get_deferrable(timer->base))
-		base->next_timer = timer->expires;
+	if (!tbase_get_deferrable(timer->base)) {
+		if (time_before(timer->expires, base->next_timer))
+			base->next_timer = timer->expires;
+		base->active_timers++;
+	}
 }
 
 #ifdef CONFIG_TIMER_STATS
@@ -678,6 +681,14 @@ static inline void detach_timer(struct timer_list *timer, bool clear_pending)
 	entry->prev = LIST_POISON2;
 }
 
+static inline void
+detach_expired_timer(struct timer_list *timer, struct tvec_base *base)
+{
+	detach_timer(timer, true);
+	if (!tbase_get_deferrable(timer->base))
+		timer->base->active_timers--;
+}
+
 static int detach_if_pending(struct timer_list *timer, struct tvec_base *base,
 			     bool clear_pending)
 {
@@ -685,9 +696,11 @@ static int detach_if_pending(struct timer_list *timer, struct tvec_base *base,
 		return 0;
 
 	detach_timer(timer, clear_pending);
-	if (timer->expires == base->next_timer &&
-	    !tbase_get_deferrable(timer->base))
-		base->next_timer = base->timer_jiffies;
+	if (!tbase_get_deferrable(timer->base)) {
+		timer->base->active_timers--;
+		if (timer->expires == base->next_timer)
+			base->next_timer = base->timer_jiffies;
+	}
 	return 1;
 }
 
@@ -1175,7 +1188,7 @@ static inline void __run_timers(struct tvec_base *base)
 			timer_stats_account_timer(timer);
 
 			base->running_timer = timer;
-			detach_timer(timer, true);
+			detach_expired_timer(timer, base);
 
 			spin_unlock_irq(&base->lock);
 			call_timer_fn(timer, fn, data);
@@ -1701,6 +1714,7 @@ static int __cpuinit init_timers_cpu(int cpu)
 
 	base->timer_jiffies = jiffies;
 	base->next_timer = base->timer_jiffies;
+	base->active_timers = 0;
 	return 0;
 }
 
@@ -1711,6 +1725,7 @@ static void migrate_timer_list(struct tvec_base *new_base, struct list_head *hea
 
 	while (!list_empty(head)) {
 		timer = list_first_entry(head, struct timer_list, entry);
+		/* We ignore the accounting on the dying cpu */
 		detach_timer(timer, false);
 		timer_set_base(timer, new_base);
 		internal_add_timer(new_base, timer);
