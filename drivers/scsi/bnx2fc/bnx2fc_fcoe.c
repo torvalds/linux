@@ -286,7 +286,7 @@ static int bnx2fc_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	struct fcoe_port	*port;
 	struct fcoe_hdr		*hp;
 	struct bnx2fc_rport	*tgt;
-	struct fcoe_dev_stats	*stats;
+	struct fc_stats		*stats;
 	u8			sof, eof;
 	u32			crc;
 	unsigned int		hlen, tlen, elen;
@@ -412,7 +412,7 @@ static int bnx2fc_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	}
 
 	/*update tx stats */
-	stats = per_cpu_ptr(lport->dev_stats, get_cpu());
+	stats = per_cpu_ptr(lport->stats, get_cpu());
 	stats->TxFrames++;
 	stats->TxWords += wlen;
 	put_cpu();
@@ -522,7 +522,7 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
 	u32 fr_len;
 	struct fc_lport *lport;
 	struct fcoe_rcv_info *fr;
-	struct fcoe_dev_stats *stats;
+	struct fc_stats *stats;
 	struct fc_frame_header *fh;
 	struct fcoe_crc_eof crc_eof;
 	struct fc_frame *fp;
@@ -551,7 +551,7 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
 	skb_pull(skb, sizeof(struct fcoe_hdr));
 	fr_len = skb->len - sizeof(struct fcoe_crc_eof);
 
-	stats = per_cpu_ptr(lport->dev_stats, get_cpu());
+	stats = per_cpu_ptr(lport->stats, get_cpu());
 	stats->RxFrames++;
 	stats->RxWords += fr_len / FCOE_WORD_TO_BYTE;
 
@@ -942,7 +942,7 @@ static void bnx2fc_indicate_netevent(void *context, unsigned long event,
 							FC_PORTTYPE_UNKNOWN;
 			mutex_unlock(&lport->lp_mutex);
 			fc_host_port_type(lport->host) = FC_PORTTYPE_UNKNOWN;
-			per_cpu_ptr(lport->dev_stats,
+			per_cpu_ptr(lport->stats,
 				    get_cpu())->LinkFailureCount++;
 			put_cpu();
 			fcoe_clean_pending_queue(lport);

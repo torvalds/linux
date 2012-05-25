@@ -1980,7 +1980,7 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	struct bnx2fc_interface *interface = port->priv;
 	struct bnx2fc_hba *hba = interface->hba;
 	struct fc_lport *lport = port->lport;
-	struct fcoe_dev_stats *stats;
+	struct fc_stats *stats;
 	int task_idx, index;
 	u16 xid;
 
@@ -1991,7 +1991,7 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	io_req->data_xfer_len = scsi_bufflen(sc_cmd);
 	sc_cmd->SCp.ptr = (char *)io_req;
 
-	stats = per_cpu_ptr(lport->dev_stats, get_cpu());
+	stats = per_cpu_ptr(lport->stats, get_cpu());
 	if (sc_cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		io_req->io_req_flags = BNX2FC_READ;
 		stats->InputRequests++;

@@ -124,7 +124,7 @@ struct fc_exch_mgr {
  * for each anchor to determine if that EM should be used. The last
  * anchor in the list will always match to handle any exchanges not
  * handled by other EMs. The non-default EMs would be added to the
- * anchor list by HW that provides FCoE offloads.
+ * anchor list by HW that provides offloads.
  */
 struct fc_exch_mgr_anchor {
 	struct list_head ema_list;
@@ -986,7 +986,7 @@ static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_lport *lport,
 				/*
 				 * Update sequence_id based on incoming last
 				 * frame of sequence exchange. This is needed
-				 * for FCoE target where DDP has been used
+				 * for FC target where DDP has been used
 				 * on target where, stack is indicated only
 				 * about last frame's (payload _header) header.
 				 * Whereas "seq_id" which is part of

@@ -224,7 +224,7 @@ struct fc_rport_priv {
 };
 
 /**
- * struct fcoe_dev_stats - fcoe stats structure
+ * struct fc_stats - fc stats structure
  * @SecondsSinceLastReset: Seconds since the last reset
  * @TxFrames:              Number of transmitted frames
  * @TxWords:               Number of transmitted words
@@ -244,7 +244,7 @@ struct fc_rport_priv {
  * @VLinkFailureCount:     Number of virtual link failures
  * @MissDiscAdvCount:      Number of missing FIP discovery advertisement
  */
-struct fcoe_dev_stats {
+struct fc_stats {
 	u64		SecondsSinceLastReset;
 	u64		TxFrames;
 	u64		TxWords;
@@ -510,7 +510,7 @@ struct libfc_function_template {
 	int (*ddp_done)(struct fc_lport *, u16);
 	/*
 	 * Sets up the DDP context for a given exchange id on the given
-	 * scatterlist if LLD supports DDP for FCoE target.
+	 * scatterlist if LLD supports DDP for target.
 	 *
 	 * STATUS: OPTIONAL
 	 */
@@ -817,8 +817,7 @@ enum fc_lport_event {
  * @state:                 Identifies the state
  * @boot_time:             Timestamp indicating when the local port came online
  * @host_stats:            SCSI host statistics
- * @dev_stats:             FCoE device stats (TODO: libfc should not be
- *                         FCoE aware)
+ * @stats:                 FC local port stats (TODO separate libfc LLD stats)
  * @retry_count:           Number of retries in the current state
  * @port_id:               FC Port ID
  * @wwpn:                  World Wide Port Name
@@ -867,7 +866,7 @@ struct fc_lport {
 	enum fc_lport_state	       state;
 	unsigned long		       boot_time;
 	struct fc_host_statistics      host_stats;
-	struct fcoe_dev_stats __percpu *dev_stats;
+	struct fc_stats	__percpu       *stats;
 	u8			       retry_count;
 
 	/* Fabric information */
@@ -980,8 +979,8 @@ static inline void fc_lport_state_enter(struct fc_lport *lport,
  */
 static inline int fc_lport_init_stats(struct fc_lport *lport)
 {
-	lport->dev_stats = alloc_percpu(struct fcoe_dev_stats);
-	if (!lport->dev_stats)
+	lport->stats = alloc_percpu(struct fc_stats);
+	if (!lport->stats)
 		return -ENOMEM;
 	return 0;
 }
@@ -992,7 +991,7 @@ static inline int fc_lport_init_stats(struct fc_lport *lport)
  */
 static inline void fc_lport_free_stats(struct fc_lport *lport)
 {
-	free_percpu(lport->dev_stats);
+	free_percpu(lport->stats);
 }
 
 /**

@@ -89,7 +89,7 @@ void __fcoe_get_lesb(struct fc_lport *lport,
 {
 	unsigned int cpu;
 	u32 lfc, vlfc, mdac;
-	struct fcoe_dev_stats *devst;
+	struct fc_stats *stats;
 	struct fcoe_fc_els_lesb *lesb;
 	struct rtnl_link_stats64 temp;
 
@@ -99,10 +99,10 @@ void __fcoe_get_lesb(struct fc_lport *lport,
 	lesb = (struct fcoe_fc_els_lesb *)fc_lesb;
 	memset(lesb, 0, sizeof(*lesb));
 	for_each_possible_cpu(cpu) {
-		devst = per_cpu_ptr(lport->dev_stats, cpu);
-		lfc += devst->LinkFailureCount;
-		vlfc += devst->VLinkFailureCount;
-		mdac += devst->MissDiscAdvCount;
+		stats = per_cpu_ptr(lport->stats, cpu);
+		lfc += stats->LinkFailureCount;
+		vlfc += stats->VLinkFailureCount;
+		mdac += stats->MissDiscAdvCount;
 	}
 	lesb->lesb_link_fail = htonl(lfc);
 	lesb->lesb_vlink_fail = htonl(vlfc);
