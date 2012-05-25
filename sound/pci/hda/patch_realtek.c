@@ -2368,6 +2368,7 @@ static struct alc_codec_rename_table rename_tbl[] = {
 	{ 0x10ec0269, 0xffff, 0xa023, "ALC259" },
 	{ 0x10ec0269, 0xffff, 0x6023, "ALC281X" },
 	{ 0x10ec0269, 0x00f0, 0x0020, "ALC269VC" },
+	{ 0x10ec0269, 0x00f0, 0x0030, "ALC269VD" },
 	{ 0x10ec0887, 0x00f0, 0x0030, "ALC887-VD" },
 	{ 0x10ec0888, 0x00f0, 0x0030, "ALC888-VD" },
 	{ 0x10ec0888, 0xf0f0, 0x3020, "ALC886" },
@@ -5614,6 +5615,7 @@ enum {
 	ALC269_TYPE_ALC269VA,
 	ALC269_TYPE_ALC269VB,
 	ALC269_TYPE_ALC269VC,
+	ALC269_TYPE_ALC269VD,
 };
 
 /*
@@ -5625,8 +5627,21 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	static const hda_nid_t alc269_ssids[] = { 0, 0x1b, 0x14, 0x21 };
 	static const hda_nid_t alc269va_ssids[] = { 0x15, 0x1b, 0x14, 0 };
 	struct alc_spec *spec = codec->spec;
-	const hda_nid_t *ssids = spec->codec_variant == ALC269_TYPE_ALC269VA ?
-		alc269va_ssids : alc269_ssids;
+	const hda_nid_t *ssids;
+
+	switch (spec->codec_variant) {
+	case ALC269_TYPE_ALC269VA:
+	case ALC269_TYPE_ALC269VC:
+		ssids = alc269va_ssids;
+		break;
+	case ALC269_TYPE_ALC269VB:
+	case ALC269_TYPE_ALC269VD:
+		ssids = alc269_ssids;
+		break;
+	default:
+		ssids = alc269_ssids;
+		break;
+	}
 
 	return alc_parse_auto_config(codec, alc269_ignore, ssids);
 }
@@ -5643,6 +5658,11 @@ static void alc269_toggle_power_output(struct hda_codec *codec, int power_up)
 
 static void alc269_shutup(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
+
+	if (spec->codec_variant != ALC269_TYPE_ALC269VB)
+		return;
+
 	if ((alc_get_coef0(codec) & 0x00ff) == 0x017)
 		alc269_toggle_power_output(codec, 0);
 	if ((alc_get_coef0(codec) & 0x00ff) == 0x018) {
@@ -5654,19 +5674,24 @@ static void alc269_shutup(struct hda_codec *codec)
 #ifdef CONFIG_PM
 static int alc269_resume(struct hda_codec *codec)
 {
-	if ((alc_get_coef0(codec) & 0x00ff) == 0x018) {
+	struct alc_spec *spec = codec->spec;
+
+	if (spec->codec_variant == ALC269_TYPE_ALC269VB ||
+			(alc_get_coef0(codec) & 0x00ff) == 0x018) {
 		alc269_toggle_power_output(codec, 0);
 		msleep(150);
 	}
 
 	codec->patch_ops.init(codec);
 
-	if ((alc_get_coef0(codec) & 0x00ff) == 0x017) {
+	if (spec->codec_variant == ALC269_TYPE_ALC269VB ||
+			(alc_get_coef0(codec) & 0x00ff) == 0x017) {
 		alc269_toggle_power_output(codec, 1);
 		msleep(200);
 	}
 
-	if ((alc_get_coef0(codec) & 0x00ff) == 0x018)
+	if (spec->codec_variant == ALC269_TYPE_ALC269VB ||
+			(alc_get_coef0(codec) & 0x00ff) == 0x018)
 		alc269_toggle_power_output(codec, 1);
 
 	snd_hda_codec_resume_amp(codec);
@@ -6080,6 +6105,9 @@ static int patch_alc269(struct hda_codec *codec)
 			    codec->bus->pci->subsystem_device == 0x21f3)
 				err = alc_codec_rename(codec, "ALC3202");
 			spec->codec_variant = ALC269_TYPE_ALC269VC;
+			break;
+		case 0x0030:
+			spec->codec_variant = ALC269_TYPE_ALC269VD;
 			break;
 		default:
 			alc_fix_pll_init(codec, 0x20, 0x04, 15);
