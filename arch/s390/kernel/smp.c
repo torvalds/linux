@@ -932,19 +932,6 @@ static struct attribute_group cpu_common_attr_group = {
 	.attrs = cpu_common_attrs,
 };
 
-static ssize_t show_capability(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	unsigned int capability;
-	int rc;
-
-	rc = get_cpu_capability(&capability);
-	if (rc)
-		return rc;
-	return sprintf(buf, "%u\n", capability);
-}
-static DEVICE_ATTR(capability, 0444, show_capability, NULL);
-
 static ssize_t show_idle_count(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -982,7 +969,6 @@ static ssize_t show_idle_time(struct device *dev,
 static DEVICE_ATTR(idle_time_us, 0444, show_idle_time, NULL);
 
 static struct attribute *cpu_online_attrs[] = {
-	&dev_attr_capability.attr,
 	&dev_attr_idle_count.attr,
 	&dev_attr_idle_time_us.attr,
 	NULL,

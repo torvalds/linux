@@ -32,7 +32,6 @@ static inline void get_cpu_id(struct cpuid *ptr)
 }
 
 extern void s390_adjust_jiffies(void);
-extern int get_cpu_capability(unsigned int *);
 extern const struct seq_operations cpuinfo_op;
 extern int sysctl_ieee_emulation_warnings;
 
