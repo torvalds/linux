@@ -2130,7 +2130,13 @@ static int l2cap_segment_sdu(struct l2cap_chan *chan,
 	pdu_len = min_t(size_t, pdu_len, L2CAP_BREDR_MAX_PAYLOAD);
 
 	/* Adjust for largest possible L2CAP overhead. */
-	pdu_len -= L2CAP_EXT_HDR_SIZE + L2CAP_FCS_SIZE;
+	if (chan->fcs)
+		pdu_len -= L2CAP_FCS_SIZE;
+
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		pdu_len -= L2CAP_EXT_HDR_SIZE;
+	else
+		pdu_len -= L2CAP_ENH_HDR_SIZE;
 
 	/* Remote device may have requested smaller PDUs */
 	pdu_len = min_t(size_t, pdu_len, chan->remote_mps);
