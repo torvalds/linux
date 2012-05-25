@@ -40,7 +40,7 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 		if (IS_ERR(mxc_ahb_clk))
 			return PTR_ERR(mxc_ahb_clk);
 
-		ret = clk_enable(mxc_ahb_clk);
+		ret = clk_prepare_enable(mxc_ahb_clk);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "clk_enable(\"usb_ahb\") failed\n");
 			goto eenahb;
@@ -65,7 +65,7 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 		}
 	}
 
-	ret = clk_enable(mxc_usb_clk);
+	ret = clk_prepare_enable(mxc_usb_clk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "clk_enable(\"usb_clk\") failed\n");
 		goto eenusb;
@@ -79,7 +79,7 @@ eclkrate:
 	mxc_usb_clk = NULL;
 egusb:
 	if (!cpu_is_mx35())
-		clk_disable(mxc_ahb_clk);
+		clk_disable_unprepare(mxc_ahb_clk);
 eenahb:
 	if (!cpu_is_mx35())
 		clk_put(mxc_ahb_clk);
@@ -104,7 +104,7 @@ void fsl_udc_clk_finalize(struct platform_device *pdev)
 
 	/* ULPI transceivers don't need usbpll */
 	if (pdata->phy_mode == FSL_USB2_PHY_ULPI) {
-		clk_disable(mxc_usb_clk);
+		clk_disable_unprepare(mxc_usb_clk);
 		clk_put(mxc_usb_clk);
 		mxc_usb_clk = NULL;
 	}
@@ -113,11 +113,11 @@ void fsl_udc_clk_finalize(struct platform_device *pdev)
 void fsl_udc_clk_release(void)
 {
 	if (mxc_usb_clk) {
-		clk_disable(mxc_usb_clk);
+		clk_disable_unprepare(mxc_usb_clk);
 		clk_put(mxc_usb_clk);
 	}
 	if (!cpu_is_mx35()) {
-		clk_disable(mxc_ahb_clk);
+		clk_disable_unprepare(mxc_ahb_clk);
 		clk_put(mxc_ahb_clk);
 	}
 }
