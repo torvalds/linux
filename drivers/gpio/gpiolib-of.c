@@ -21,7 +21,7 @@
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
 
-/* Private data structure for of_gpiochip_is_match */
+/* Private data structure for of_gpiochip_find_and_xlate */
 struct gg_data {
 	enum of_gpio_flags *flags;
 	struct of_phandle_args gpiospec;
