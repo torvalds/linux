@@ -11,8 +11,6 @@
  * Software Foundation; version 2 of the License.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -116,7 +114,8 @@ static int ipoctal_port_activate(struct tty_port *port, struct tty_struct *tty)
 	ipoctal = ipoctal_find_board(tty);
 
 	if (ipoctal == NULL) {
-		pr_err("Device not found. Major %d\n", tty->driver->major);
+		dev_err(tty->dev, "Device not found. Major %d\n",
+			tty->driver->major);
 		return -ENODEV;
 	}
 
@@ -136,7 +135,8 @@ static int ipoctal_open(struct tty_struct *tty, struct file *file)
 	ipoctal = ipoctal_find_board(tty);
 
 	if (ipoctal == NULL) {
-		pr_err("Device not found. Major %d\n", tty->driver->major);
+		dev_err(tty->dev, "Device not found. Major %d\n",
+			tty->driver->major);
 		return -ENODEV;
 	}
 
@@ -381,7 +381,9 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev, 0,
 						IPACK_ID_SPACE);
 	if (res) {
-		pr_err("Unable to map slot [%d:%d] ID space!\n", bus_nr, slot);
+		dev_err(&ipoctal->dev->dev,
+			"Unable to map slot [%d:%d] ID space!\n",
+			bus_nr, slot);
 		return res;
 	}
 
@@ -396,14 +398,18 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev, 0,
 						IPACK_IO_SPACE);
 	if (res) {
-		pr_err("Unable to map slot [%d:%d] IO space!\n", bus_nr, slot);
+		dev_err(&ipoctal->dev->dev,
+			"Unable to map slot [%d:%d] IO space!\n",
+			bus_nr, slot);
 		goto out_unregister_id_space;
 	}
 
 	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev,
 					   0x8000, IPACK_MEM_SPACE);
 	if (res) {
-		pr_err("Unable to map slot [%d:%d] MEM space!\n", bus_nr, slot);
+		dev_err(&ipoctal->dev->dev,
+			"Unable to map slot [%d:%d] MEM space!\n",
+			bus_nr, slot);
 		goto out_unregister_io_space;
 	}
 
@@ -472,7 +478,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	tty_set_operations(tty, &ipoctal_fops);
 	res = tty_register_driver(tty);
 	if (res) {
-		pr_err("Can't register tty driver.\n");
+		dev_err(&ipoctal->dev->dev, "Can't register tty driver.\n");
 		put_tty_driver(tty);
 		goto out_unregister_slot_unmap;
 	}
