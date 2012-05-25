@@ -319,7 +319,7 @@ replay:
 		}
 	}
 
-	err = tp->ops->change(tp, cl, t->tcm_handle, tca, &fh);
+	err = tp->ops->change(skb, tp, cl, t->tcm_handle, tca, &fh);
 	if (err == 0) {
 		if (tp_created) {
 			spin_lock_bh(root_lock);
