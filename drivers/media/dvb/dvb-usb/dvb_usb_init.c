@@ -34,9 +34,19 @@ MODULE_PARM_DESC(force_pid_filter_usage, "force all dvb-usb-devices to use a" \
 static int dvb_usb_adapter_init(struct dvb_usb_device *d)
 {
 	struct dvb_usb_adapter *adap;
-	int ret, n, o;
+	int ret, n, o, adapter_count;
 
-	for (n = 0; n < d->props.num_adapters; n++) {
+	/* resolve adapter count */
+	adapter_count = d->props.num_adapters;
+	if (d->props.get_adapter_count) {
+		ret = d->props.get_adapter_count(d);
+		if (ret < 0)
+			goto err;
+
+		adapter_count = ret;
+	}
+
+	for (n = 0; n < adapter_count; n++) {
 		adap = &d->adapter[n];
 		adap->dev = d;
 		adap->id  = n;
@@ -133,6 +143,9 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d)
 	}
 
 	return 0;
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+	return ret;
 }
 
 static int dvb_usb_adapter_exit(struct dvb_usb_device *d)
@@ -297,7 +310,7 @@ EXPORT_SYMBOL(dvb_usbv2_device_init);
 void dvb_usbv2_device_exit(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	const char *name;
+	const char *name = NULL;
 
 	usb_set_intfdata(intf, NULL);
 	if (d) {

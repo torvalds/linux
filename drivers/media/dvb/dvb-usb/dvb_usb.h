@@ -271,6 +271,7 @@ struct dvb_usb_device_properties {
 	int size_of_priv;
 
 	int num_adapters;
+	int (*get_adapter_count) (struct dvb_usb_device *);
 	struct dvb_usb_adapter_properties adapter[MAX_NO_OF_ADAPTER_PER_DEVICE];
 
 	int (*power_ctrl)       (struct dvb_usb_device *, int);
