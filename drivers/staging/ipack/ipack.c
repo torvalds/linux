@@ -141,8 +141,6 @@ struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
 
 	ret = device_register(&dev->dev);
 	if (ret < 0) {
-		pr_err("error registering the device.\n");
-		dev->driver->ops->remove(dev);
 		kfree(dev);
 		return NULL;
 	}
