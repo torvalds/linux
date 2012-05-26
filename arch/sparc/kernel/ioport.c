@@ -55,17 +55,13 @@ const struct sparc32_dma_ops *sparc32_dma_ops;
 /* This function must make sure that caches and memory are coherent after DMA
  * On LEON systems without cache snooping it flushes the entire D-CACHE.
  */
-#ifndef CONFIG_SPARC_LEON
 static inline void dma_make_coherent(unsigned long pa, unsigned long len)
 {
+	if (sparc_cpu_model == sparc_leon) {
+		if (!sparc_leon3_snooping_enabled())
+			leon_flush_dcache_all();
+	}
 }
-#else
-static inline void dma_make_coherent(unsigned long pa, unsigned long len)
-{
-	if (!sparc_leon3_snooping_enabled())
-		leon_flush_dcache_all();
-}
-#endif
 
 static void __iomem *_sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz);
 static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
