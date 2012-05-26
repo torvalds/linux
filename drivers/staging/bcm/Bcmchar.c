@@ -16,10 +16,10 @@
 static int bcm_char_open(struct inode *inode, struct file * filp)
 {
 	PMINI_ADAPTER       Adapter = NULL;
-	PPER_TARANG_DATA    pTarang = NULL;
+	struct bcm_tarang_data *pTarang = NULL;
 
 	Adapter = GET_BCM_ADAPTER(gblpnetdev);
-	pTarang = kzalloc(sizeof(PER_TARANG_DATA), GFP_KERNEL);
+	pTarang = kzalloc(sizeof(struct bcm_tarang_data), GFP_KERNEL);
 	if (!pTarang)
 		return -ENOMEM;
 
@@ -43,11 +43,11 @@ static int bcm_char_open(struct inode *inode, struct file * filp)
 
 static int bcm_char_release(struct inode *inode, struct file *filp)
 {
-	PPER_TARANG_DATA pTarang, tmp, ptmp;
+	struct bcm_tarang_data *pTarang, *tmp, *ptmp;
 	PMINI_ADAPTER Adapter = NULL;
 	struct sk_buff *pkt, *npkt;
 
-	pTarang = (PPER_TARANG_DATA)filp->private_data;
+	pTarang = (struct bcm_tarang_data *)filp->private_data;
 
 	if (pTarang == NULL) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
@@ -97,7 +97,7 @@ static int bcm_char_release(struct inode *inode, struct file *filp)
 static ssize_t bcm_char_read(struct file *filp, char __user *buf, size_t size,
 			     loff_t *f_pos)
 {
-	PPER_TARANG_DATA pTarang = filp->private_data;
+	struct bcm_tarang_data *pTarang = filp->private_data;
 	PMINI_ADAPTER	Adapter = pTarang->Adapter;
 	struct sk_buff *Packet = NULL;
 	ssize_t PktLen = 0;
@@ -155,7 +155,7 @@ static ssize_t bcm_char_read(struct file *filp, char __user *buf, size_t size,
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
-	PPER_TARANG_DATA  pTarang = filp->private_data;
+	struct bcm_tarang_data *pTarang = filp->private_data;
 	void __user *argp = (void __user *)arg;
 	PMINI_ADAPTER Adapter = pTarang->Adapter;
 	INT Status = STATUS_FAILURE;

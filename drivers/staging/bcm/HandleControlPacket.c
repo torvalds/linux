@@ -13,7 +13,7 @@
  */
 static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 {
-	PPER_TARANG_DATA pTarang = NULL;
+	struct bcm_tarang_data *pTarang = NULL;
 	BOOLEAN HighPriorityMessage = FALSE;
 	struct sk_buff *newPacket = NULL;
 	CHAR cntrl_msg_mask_bit = 0;
@@ -214,7 +214,7 @@ int control_packet_handler(PMINI_ADAPTER Adapter /* pointer to adapter object*/)
 INT flushAllAppQ(void)
 {
 	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
-	PPER_TARANG_DATA pTarang = NULL;
+	struct bcm_tarang_data *pTarang = NULL;
 	struct sk_buff *PacketToDrop = NULL;
 	for (pTarang = Adapter->pTarangs; pTarang; pTarang = pTarang->next) {
 		while (pTarang->RxAppControlHead != NULL) {

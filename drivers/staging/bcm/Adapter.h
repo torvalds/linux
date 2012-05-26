@@ -239,8 +239,8 @@ struct _packet_info {
 };
 typedef struct _packet_info PacketInfo;
 
-typedef struct _PER_TARANG_DATA {
-	struct _PER_TARANG_DATA	*next;
+struct bcm_tarang_data {
+	struct bcm_tarang_data	*next;
 	struct _MINI_ADAPTER	*Adapter;
 	struct sk_buff		*RxAppControlHead;
 	struct sk_buff		*RxAppControlTail;
@@ -249,7 +249,7 @@ typedef struct _PER_TARANG_DATA {
 	BOOLEAN			bApplicationToExit;
 	S_MIBS_DROPPED_APP_CNTRL_MESSAGES	stDroppedAppCntrlMsgs;
 	ULONG			RxCntrlMsgBitMask;
-} PER_TARANG_DATA, *PPER_TARANG_DATA;
+};
 
 struct bcm_targetdsx_buffer {
 	ULONG		ulTargetDsxBuffer;
@@ -280,7 +280,7 @@ struct _MINI_ADAPTER {
 	struct sk_buff		*RxControlTail;
 	struct semaphore	RxAppControlQueuelock;
 	struct semaphore	fw_download_sema;
-	PPER_TARANG_DATA	pTarangs;
+	struct bcm_tarang_data	*pTarangs;
 	spinlock_t		control_queue_lock;
 	wait_queue_head_t	process_read_wait_queue;
 

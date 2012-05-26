@@ -89,7 +89,7 @@ void SendIdleModeResponse(PMINI_ADAPTER Adapter);
 
 
 int  ProcessGetHostMibs(PMINI_ADAPTER Adapter, S_MIBS_HOST_STATS_MIBS *buf);
-void GetDroppedAppCntrlPktMibs(S_MIBS_HOST_STATS_MIBS *ioBuffer, PPER_TARANG_DATA pTarang);
+void GetDroppedAppCntrlPktMibs(S_MIBS_HOST_STATS_MIBS *ioBuffer, struct bcm_tarang_data *pTarang);
 void beceem_parse_target_struct(PMINI_ADAPTER Adapter);
 
 int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, struct bcm_firmware_info *psFwInfo);
