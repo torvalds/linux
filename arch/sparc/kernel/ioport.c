@@ -427,9 +427,6 @@ arch_initcall(sparc_register_ioport);
 #endif /* CONFIG_SBUS */
 
 
-/* LEON reuses PCI DMA ops */
-#if defined(CONFIG_PCI) || defined(CONFIG_SPARC_LEON)
-
 /* Allocate and map kernel buffer using consistent mode DMA for a device.
  * hwdev should be valid struct pci_dev pointer for PCI devices.
  */
@@ -657,13 +654,9 @@ struct dma_map_ops pci32_dma_ops = {
 };
 EXPORT_SYMBOL(pci32_dma_ops);
 
-#endif /* CONFIG_PCI || CONFIG_SPARC_LEON */
-
-#ifdef CONFIG_SPARC_LEON
-struct dma_map_ops *dma_ops = &pci32_dma_ops;
-#elif defined(CONFIG_SBUS)
+/* leon re-uses pci32_dma_ops */
+struct dma_map_ops *leon_dma_ops = &pci32_dma_ops;
 struct dma_map_ops *dma_ops = &sbus_dma_ops;
-#endif
 
 EXPORT_SYMBOL(dma_ops);
 
