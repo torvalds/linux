@@ -321,7 +321,7 @@ static int queue_userspace_packet(int dp_ifindex, struct sk_buff *skb,
 			return -ENOMEM;
 
 		nskb = __vlan_put_tag(nskb, vlan_tx_tag_get(nskb));
-		if (!skb)
+		if (!nskb)
 			return -ENOMEM;
 
 		nskb->vlan_tci = 0;

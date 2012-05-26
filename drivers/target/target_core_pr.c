@@ -220,6 +220,9 @@ int target_scsi2_reservation_release(struct se_task *task)
 	if (dev->dev_reserved_node_acl != sess->se_node_acl)
 		goto out_unlock;
 
+	if (dev->dev_res_bin_isid != sess->sess_bin_isid)
+		goto out_unlock;
+
 	dev->dev_reserved_node_acl = NULL;
 	dev->dev_flags &= ~DF_SPC2_RESERVATIONS;
 	if (dev->dev_flags & DF_SPC2_RESERVATIONS_WITH_ISID) {

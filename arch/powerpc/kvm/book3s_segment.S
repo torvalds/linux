@@ -197,7 +197,8 @@ kvmppc_interrupt:
 	/* Save guest PC and MSR */
 #ifdef CONFIG_PPC64
 BEGIN_FTR_SECTION
-	andi.	r0,r12,0x2
+	andi.	r0, r12, 0x2
+	cmpwi	cr1, r0, 0
 	beq	1f
 	mfspr	r3,SPRN_HSRR0
 	mfspr	r4,SPRN_HSRR1
@@ -250,6 +251,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	beq	ld_last_prev_inst
 	cmpwi	r12, BOOK3S_INTERRUPT_ALIGNMENT
 	beq-	ld_last_inst
+#ifdef CONFIG_PPC64
+BEGIN_FTR_SECTION
+	cmpwi	r12, BOOK3S_INTERRUPT_H_EMUL_ASSIST
+	beq-	ld_last_inst
+END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
+#endif
 
 	b	no_ld_last_inst
 
@@ -316,23 +323,17 @@ no_dcbz32_off:
 	 * Having set up SRR0/1 with the address where we want
 	 * to continue with relocation on (potentially in module
 	 * space), we either just go straight there with rfi[d],
-	 * or we jump to an interrupt handler with bctr if there
-	 * is an interrupt to be handled first.  In the latter
-	 * case, the rfi[d] at the end of the interrupt handler
-	 * will get us back to where we want to continue.
+	 * or we jump to an interrupt handler if there is an
+	 * interrupt to be handled first.  In the latter case,
+	 * the rfi[d] at the end of the interrupt handler will
+	 * get us back to where we want to continue.
 	 */
-
-	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
-	beq	1f
-	cmpwi	r12, BOOK3S_INTERRUPT_DECREMENTER
-	beq	1f
-	cmpwi	r12, BOOK3S_INTERRUPT_PERFMON
-1:	mtctr	r12
 
 	/* Register usage at this point:
 	 *
 	 * R1       = host R1
 	 * R2       = host R2
+	 * R10      = raw exit handler id
 	 * R12      = exit handler id
 	 * R13      = shadow vcpu (32-bit) or PACA (64-bit)
 	 * SVCPU.*  = guest *
@@ -342,12 +343,25 @@ no_dcbz32_off:
 	PPC_LL	r6, HSTATE_HOST_MSR(r13)
 	PPC_LL	r8, HSTATE_VMHANDLER(r13)
 
-	/* Restore host msr -> SRR1 */
+#ifdef CONFIG_PPC64
+BEGIN_FTR_SECTION
+	beq	cr1, 1f
+	mtspr	SPRN_HSRR1, r6
+	mtspr	SPRN_HSRR0, r8
+END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
+#endif
+1:	/* Restore host msr -> SRR1 */
 	mtsrr1	r6
 	/* Load highmem handler address */
 	mtsrr0	r8
 
 	/* RFI into the highmem handler, or jump to interrupt handler */
-	beqctr
+	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
+	beqa	BOOK3S_INTERRUPT_EXTERNAL
+	cmpwi	r12, BOOK3S_INTERRUPT_DECREMENTER
+	beqa	BOOK3S_INTERRUPT_DECREMENTER
+	cmpwi	r12, BOOK3S_INTERRUPT_PERFMON
+	beqa	BOOK3S_INTERRUPT_PERFMON
+
 	RFI
 kvmppc_handler_trampoline_exit_end:

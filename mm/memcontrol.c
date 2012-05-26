@@ -5481,7 +5481,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
 	 *    part of thp split is not executed yet.
 	 */
 	if (pmd_trans_huge_lock(pmd, vma) == 1) {
-		if (!mc.precharge) {
+		if (mc.precharge < HPAGE_PMD_NR) {
 			spin_unlock(&vma->vm_mm->page_table_lock);
 			return 0;
 		}

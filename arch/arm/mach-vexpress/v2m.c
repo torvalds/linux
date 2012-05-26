@@ -14,7 +14,6 @@
 #include <linux/ata_platform.h>
 #include <linux/smsc911x.h>
 #include <linux/spinlock.h>
-#include <linux/device.h>
 #include <linux/usb/isp1760.h>
 #include <linux/clkdev.h>
 #include <linux/mtd/physmap.h>
@@ -29,7 +28,6 @@
 #include <asm/hardware/gic.h>
 #include <asm/hardware/timer-sp.h>
 #include <asm/hardware/sp810.h>
-#include <asm/hardware/gic.h>
 
 #include <mach/ct-ca9x4.h>
 #include <mach/motherboard.h>
