@@ -170,6 +170,10 @@
 			gpio-bank = <8>;
 		};
 
+		pinctrl {
+			compatible = "stericsson,nmk_pinctrl";
+		};
+
 		usb@a03e0000 {
 			compatible = "stericsson,db8500-musb",
 				"mentor,musb";
