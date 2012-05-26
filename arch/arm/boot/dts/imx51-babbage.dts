@@ -17,10 +17,6 @@
 	model = "Freescale i.MX51 Babbage Board";
 	compatible = "fsl,imx51-babbage", "fsl,imx51";
 
-	chosen {
-		bootargs = "console=ttymxc0,115200 root=/dev/mmcblk0p3 rootwait";
-	};
-
 	memory {
 		reg = <0x90000000 0x20000000>;
 	};
@@ -40,7 +36,7 @@
 					status = "okay";
 				};
 
-				uart3: uart@7000c000 {
+				uart3: serial@7000c000 {
 					fsl,uart-has-rtscts;
 					status = "okay";
 				};
@@ -166,6 +162,11 @@
 						};
 					};
 				};
+
+				ssi2: ssi@70014000 {
+					fsl,mode = "i2s-slave";
+					status = "okay";
+				};
 			};
 
 			wdog@73f98000 { /* WDOG1 */
@@ -177,12 +178,12 @@
 				reg = <0x73fa8000 0x4000>;
 			};
 
-			uart1: uart@73fbc000 {
+			uart1: serial@73fbc000 {
 				fsl,uart-has-rtscts;
 				status = "okay";
 			};
 
-			uart2: uart@73fc0000 {
+			uart2: serial@73fc0000 {
 				status = "okay";
 			};
 		};
@@ -195,13 +196,20 @@
 			i2c@83fc4000 { /* I2C2 */
 				status = "okay";
 
-				codec: sgtl5000@0a {
+				sgtl5000: codec@0a {
 					compatible = "fsl,sgtl5000";
 					reg = <0x0a>;
+					clock-frequency = <26000000>;
+					VDDA-supply = <&vdig_reg>;
+					VDDIO-supply = <&vvideo_reg>;
 				};
 			};
 
-			fec@83fec000 {
+			audmux@83fd0000 {
+				status = "okay";
+			};
+
+			ethernet@83fec000 {
 				phy-mode = "mii";
 				status = "okay";
 			};
@@ -217,5 +225,19 @@
 			linux,code = <116>; /* KEY_POWER */
 			gpio-key,wakeup;
 		};
+	};
+
+	sound {
+		compatible = "fsl,imx51-babbage-sgtl5000",
+			     "fsl,imx-audio-sgtl5000";
+		model = "imx51-babbage-sgtl5000";
+		ssi-controller = <&ssi2>;
+		audio-codec = <&sgtl5000>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <2>;
+		mux-ext-port = <3>;
 	};
 };

@@ -81,19 +81,20 @@ static struct clk_lookup uart_lookups[] __initdata = {
 };
 
 static struct clk_lookup hbus_lookups[] __initdata = {
-	{ .dev_id = "mxs-dma-apbh", },
+	{ .dev_id = "imx23-dma-apbh", },
 	{ .dev_id = "80004000.dma-apbh", },
 };
 
 static struct clk_lookup xbus_lookups[] __initdata = {
 	{ .dev_id = "duart", .con_id = "apb_pclk"},
-	{ .dev_id = "mxs-dma-apbx", },
+	{ .dev_id = "80070000.serial", .con_id = "apb_pclk"},
+	{ .dev_id = "imx23-dma-apbx", },
 	{ .dev_id = "80024000.dma-apbx", },
 };
 
 static struct clk_lookup ssp_lookups[] __initdata = {
-	{ .dev_id = "mxs-mmc.0", },
-	{ .dev_id = "mxs-mmc.1", },
+	{ .dev_id = "imx23-mmc.0", },
+	{ .dev_id = "imx23-mmc.1", },
 	{ .dev_id = "80010000.ssp", },
 	{ .dev_id = "80034000.ssp", },
 };

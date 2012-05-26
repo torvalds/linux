@@ -28,6 +28,9 @@
 #include <linux/io.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/stmp_device.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_i2c.h>
 
 #define DRIVER_NAME "mxs-i2c"
 
@@ -366,6 +369,7 @@ static int __devinit mxs_i2c_probe(struct platform_device *pdev)
 	adap->algo = &mxs_i2c_algo;
 	adap->dev.parent = dev;
 	adap->nr = pdev->id;
+	adap->dev.of_node = pdev->dev.of_node;
 	i2c_set_adapdata(adap, i2c);
 	err = i2c_add_numbered_adapter(adap);
 	if (err) {
@@ -374,6 +378,8 @@ static int __devinit mxs_i2c_probe(struct platform_device *pdev)
 				i2c->regs + MXS_I2C_CTRL0_SET);
 		return err;
 	}
+
+	of_i2c_register_devices(adap);
 
 	return 0;
 }
@@ -394,10 +400,17 @@ static int __devexit mxs_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id mxs_i2c_dt_ids[] = {
+	{ .compatible = "fsl,imx28-i2c", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxs_i2c_dt_ids);
+
 static struct platform_driver mxs_i2c_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .owner = THIS_MODULE,
+		   .of_match_table = mxs_i2c_dt_ids,
 		   },
 	.remove = __devexit_p(mxs_i2c_remove),
 };

@@ -209,6 +209,14 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX50 or i.MX53.
 
+	config DEBUG_IMX6Q_UART2
+		bool "i.MX6Q Debug UART2"
+		depends on SOC_IMX6Q
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX6Q UART2. This is correct for e.g. the SabreLite
+                  board.
+
 	config DEBUG_IMX6Q_UART4
 		bool "i.MX6Q Debug UART4"
 		depends on SOC_IMX6Q

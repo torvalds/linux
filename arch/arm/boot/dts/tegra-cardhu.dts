@@ -7,10 +7,10 @@
 	compatible = "nvidia,cardhu", "nvidia,tegra30";
 
 	memory {
-		reg = < 0x80000000 0x40000000 >;
+		reg = <0x80000000 0x40000000>;
 	};
 
-	pinmux@70000000 {
+	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -64,42 +64,40 @@
 	};
 
 	serial@70006000 {
-		clock-frequency = < 408000000 >;
-	};
-
-	serial@70006040 {
-		status = "disable";
-	};
-
-	serial@70006200 {
-		status = "disable";
-	};
-
-	serial@70006300 {
-		status = "disable";
-	};
-
-	serial@70006400 {
-		status = "disable";
+		status = "okay";
+		clock-frequency = <408000000>;
 	};
 
 	i2c@7000c000 {
+		status = "okay";
 		clock-frequency = <100000>;
 	};
 
 	i2c@7000c400 {
+		status = "okay";
 		clock-frequency = <100000>;
 	};
 
 	i2c@7000c500 {
+		status = "okay";
 		clock-frequency = <100000>;
+
+		/* ALS and Proximity sensor */
+		isl29028@44 {
+			compatible = "isil,isl29028";
+			reg = <0x44>;
+			interrupt-parent = <&gpio>;
+			interrupts = <88 0x04>; /*gpio PL0 */
+		};
 	};
 
 	i2c@7000c700 {
+		status = "okay";
 		clock-frequency = <100000>;
 	};
 
 	i2c@7000d000 {
+		status = "okay";
 		clock-frequency = <100000>;
 
 		wm8903: wm8903@1a {
@@ -115,44 +113,39 @@
 			micdet-delay = <100>;
 			gpio-cfg = <0xffffffff 0xffffffff 0 0xffffffff 0xffffffff>;
 		};
+
+		tps62361 {
+			compatible = "ti,tps62361";
+			reg = <0x60>;
+
+			regulator-name = "tps62361-vout";
+			regulator-min-microvolt = <500000>;
+			regulator-max-microvolt = <1500000>;
+			regulator-boot-on;
+			regulator-always-on;
+			ti,vsel0-state-high;
+			ti,vsel1-state-high;
+		};
+	};
+
+	ahub {
+		i2s@70080400 {
+			status = "okay";
+		};
 	};
 
 	sdhci@78000000 {
+		status = "okay";
 		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
 		wp-gpios = <&gpio 155 0>; /* gpio PT3 */
 		power-gpios = <&gpio 31 0>; /* gpio PD7 */
 		bus-width = <4>;
 	};
 
-	sdhci@78000200 {
-		status = "disable";
-	};
-
-	sdhci@78000400 {
-		status = "disable";
-	};
-
-	sdhci@78000400 {
+	sdhci@78000600 {
+		status = "okay";
 		support-8bit;
 		bus-width = <8>;
-	};
-
-	ahub@70080000 {
-		i2s@70080300 {
-			status = "disable";
-		};
-
-		i2s@70080500 {
-			status = "disable";
-		};
-
-		i2s@70080600 {
-			status = "disable";
-		};
-
-		i2s@70080700 {
-			status = "disable";
-		};
 	};
 
 	sound {

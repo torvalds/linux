@@ -136,33 +136,34 @@ static struct clk_lookup uart_lookups[] __initdata = {
 };
 
 static struct clk_lookup hbus_lookups[] __initdata = {
-	{ .dev_id = "mxs-dma-apbh", },
+	{ .dev_id = "imx28-dma-apbh", },
 	{ .dev_id = "80004000.dma-apbh", },
 };
 
 static struct clk_lookup xbus_lookups[] __initdata = {
 	{ .dev_id = "duart", .con_id = "apb_pclk"},
-	{ .dev_id = "mxs-dma-apbx", },
+	{ .dev_id = "80074000.serial", .con_id = "apb_pclk"},
+	{ .dev_id = "imx28-dma-apbx", },
 	{ .dev_id = "80024000.dma-apbx", },
 };
 
 static struct clk_lookup ssp0_lookups[] __initdata = {
-	{ .dev_id = "mxs-mmc.0", },
+	{ .dev_id = "imx28-mmc.0", },
 	{ .dev_id = "80010000.ssp", },
 };
 
 static struct clk_lookup ssp1_lookups[] __initdata = {
-	{ .dev_id = "mxs-mmc.1", },
+	{ .dev_id = "imx28-mmc.1", },
 	{ .dev_id = "80012000.ssp", },
 };
 
 static struct clk_lookup ssp2_lookups[] __initdata = {
-	{ .dev_id = "mxs-mmc.2", },
+	{ .dev_id = "imx28-mmc.2", },
 	{ .dev_id = "80014000.ssp", },
 };
 
 static struct clk_lookup ssp3_lookups[] __initdata = {
-	{ .dev_id = "mxs-mmc.3", },
+	{ .dev_id = "imx28-mmc.3", },
 	{ .dev_id = "80016000.ssp", },
 };
 

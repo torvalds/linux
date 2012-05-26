@@ -7,10 +7,10 @@
 	compatible = "nvidia,ventana", "nvidia,tegra20";
 
 	memory {
-		reg = < 0x00000000 0x40000000 >;
+		reg = <0x00000000 0x40000000>;
 	};
 
-	pinmux@70000000 {
+	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -240,38 +240,82 @@
 		};
 	};
 
+	i2s@70002800 {
+		status = "okay";
+	};
+
+	serial@70006300 {
+		status = "okay";
+		clock-frequency = <216000000>;
+	};
+
 	i2c@7000c000 {
+		status = "okay";
 		clock-frequency = <400000>;
 
 		wm8903: wm8903@1a {
 			compatible = "wlf,wm8903";
 			reg = <0x1a>;
 			interrupt-parent = <&gpio>;
-			interrupts = < 187 0x04 >;
+			interrupts = <187 0x04>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
 
 			micdet-cfg = <0>;
 			micdet-delay = <100>;
-			gpio-cfg = < 0xffffffff 0xffffffff 0 0xffffffff 0xffffffff >;
+			gpio-cfg = <0xffffffff 0xffffffff 0 0xffffffff 0xffffffff>;
+		};
+
+		/* ALS and proximity sensor */
+		isl29018@44 {
+			compatible = "isil,isl29018";
+			reg = <0x44>;
+			interrupt-parent = <&gpio>;
+			interrupts = <202 0x04>; /*gpio PZ2 */
 		};
 	};
 
 	i2c@7000c400 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@7000c500 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@7000d000 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
-	i2s@70002a00 {
-		status = "disable";
+	usb@c5000000 {
+		status = "okay";
+	};
+
+	usb@c5004000 {
+		status = "okay";
+		nvidia,phy-reset-gpio = <&gpio 169 0>; /* gpio PV1 */
+	};
+
+	usb@c5008000 {
+		status = "okay";
+	};
+
+	sdhci@c8000400 {
+		status = "okay";
+		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
+		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
+		power-gpios = <&gpio 70 0>; /* gpio PI6 */
+		bus-width = <4>;
+	};
+
+	sdhci@c8000600 {
+		status = "okay";
+		support-8bit;
+		bus-width = <8>;
 	};
 
 	sound {
@@ -294,51 +338,7 @@
 
 		nvidia,spkr-en-gpios = <&wm8903 2 0>;
 		nvidia,hp-det-gpios = <&gpio 178 0>; /* gpio PW2 */
-		nvidia,int-mic-en-gpios = <&gpio 184 0>; /*gpio PX0 */
+		nvidia,int-mic-en-gpios = <&gpio 184 0>; /* gpio PX0 */
 		nvidia,ext-mic-en-gpios = <&gpio 185 0>; /* gpio PX1 */
-	};
-
-	serial@70006000 {
-		status = "disable";
-	};
-
-	serial@70006040 {
-		status = "disable";
-	};
-
-	serial@70006200 {
-		status = "disable";
-	};
-
-	serial@70006300 {
-		clock-frequency = < 216000000 >;
-	};
-
-	serial@70006400 {
-		status = "disable";
-	};
-
-	sdhci@c8000000 {
-		status = "disable";
-	};
-
-	sdhci@c8000200 {
-		status = "disable";
-	};
-
-	sdhci@c8000400 {
-		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
-		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
-		power-gpios = <&gpio 70 0>; /* gpio PI6 */
-		bus-width = <4>;
-	};
-
-	sdhci@c8000600 {
-		support-8bit;
-		bus-width = <8>;
-	};
-
-	usb@c5004000 {
-		nvidia,phy-reset-gpio = <&gpio 169 0>; /* gpio PV1 */
 	};
 };
