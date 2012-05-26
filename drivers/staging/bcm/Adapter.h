@@ -28,11 +28,10 @@ struct _CONTROL_PACKET {
 } __packed;
 typedef struct _CONTROL_PACKET CONTROL_PACKET, *PCONTROL_PACKET;
 
-struct link_request {
+struct bcm_link_request {
 	LEADER	Leader;
 	UCHAR	szData[4];
 } __packed;
-typedef struct link_request LINK_REQUEST, *PLINK_REQUEST;
 
 #define MAX_IP_RANGE_LENGTH 4
 #define MAX_PORT_RANGE 4
@@ -416,8 +415,6 @@ struct bcm_firmware_info {
 
 /* holds the value of net_device structure.. */
 extern struct net_device *gblpnetdev;
-
-typedef LINK_REQUEST CONTROL_MESSAGE;
 
 struct bcm_ddr_setting {
 	UINT ulRegAddress;

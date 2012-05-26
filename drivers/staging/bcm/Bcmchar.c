@@ -722,7 +722,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
 			return -EFAULT;
 
-		if (IoBuffer.InputLength < sizeof(struct link_request))
+		if (IoBuffer.InputLength < sizeof(struct bcm_link_request))
 			return -EINVAL;
 
 		if (IoBuffer.InputLength > MAX_CNTL_PKT_SIZE)

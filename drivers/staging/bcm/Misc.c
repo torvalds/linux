@@ -237,7 +237,7 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter, PVOID ioBuffer)
 	INT Status = 0;
 	unsigned char *ctrl_buff = NULL;
 	UINT pktlen = 0;
-	PLINK_REQUEST pLinkReq = NULL;
+	struct bcm_link_request *pLinkReq = NULL;
 	PUCHAR pucAddIndication = NULL;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "======>");
@@ -246,7 +246,7 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter, PVOID ioBuffer)
 		return -EINVAL;
 	}
 
-	pLinkReq = (PLINK_REQUEST)ioBuffer;
+	pLinkReq = (struct bcm_link_request *)ioBuffer;
 	pLeader = (PLEADER)ioBuffer; /* ioBuffer Contains sw_Status and Payload */
 
 	if (Adapter->bShutStatus == TRUE &&
@@ -414,7 +414,7 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter, PVOID ioBuffer)
 *
 * Returns     - None.
 *****************************************************************/
-static VOID SendStatisticsPointerRequest(PMINI_ADAPTER Adapter, PLINK_REQUEST pstStatisticsPtrRequest)
+static VOID SendStatisticsPointerRequest(PMINI_ADAPTER Adapter, struct bcm_link_request *pstStatisticsPtrRequest)
 {
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "======>");
 	pstStatisticsPtrRequest->Leader.Status = STATS_POINTER_REQ_STATUS;
@@ -438,10 +438,10 @@ static VOID SendStatisticsPointerRequest(PMINI_ADAPTER Adapter, PLINK_REQUEST ps
 *******************************************************************/
 VOID LinkMessage(PMINI_ADAPTER Adapter)
 {
-	PLINK_REQUEST pstLinkRequest = NULL;
+	struct bcm_link_request *pstLinkRequest = NULL;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "=====>");
 	if (Adapter->LinkStatus == SYNC_UP_REQUEST && Adapter->AutoSyncup) {
-		pstLinkRequest = kzalloc(sizeof(LINK_REQUEST), GFP_ATOMIC);
+		pstLinkRequest = kzalloc(sizeof(struct bcm_link_request), GFP_ATOMIC);
 		if (!pstLinkRequest) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Can not allocate memory for Link request!");
 			return;
@@ -456,7 +456,7 @@ VOID LinkMessage(PMINI_ADAPTER Adapter)
 		Adapter->bSyncUpRequestSent = TRUE;
 
 	} else if (Adapter->LinkStatus == PHY_SYNC_ACHIVED && Adapter->AutoLinkUp) {
-		pstLinkRequest = kzalloc(sizeof(LINK_REQUEST), GFP_ATOMIC);
+		pstLinkRequest = kzalloc(sizeof(struct bcm_link_request), GFP_ATOMIC);
 		if (!pstLinkRequest) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Can not allocate memory for Link request!");
 			return;
@@ -584,7 +584,7 @@ void SendIdleModeResponse(PMINI_ADAPTER Adapter)
 {
 	INT status = 0, NVMAccess = 0, lowPwrAbortMsg = 0;
 	struct timeval tv;
-	CONTROL_MESSAGE stIdleResponse = {{0} };
+	struct bcm_link_request stIdleResponse = {{0} };
 	memset(&tv, 0, sizeof(tv));
 	stIdleResponse.Leader.Status = IDLE_MESSAGE;
 	stIdleResponse.Leader.PLength = IDLE_MODE_PAYLOAD_LENGTH;
@@ -1392,11 +1392,11 @@ static VOID HandleShutDownModeWakeup(PMINI_ADAPTER Adapter)
 
 static VOID SendShutModeResponse(PMINI_ADAPTER Adapter)
 {
-	CONTROL_MESSAGE stShutdownResponse;
+	struct bcm_link_request stShutdownResponse;
 	UINT NVMAccess = 0, lowPwrAbortMsg = 0;
 	UINT Status = 0;
 
-	memset(&stShutdownResponse, 0, sizeof(CONTROL_MESSAGE));
+	memset(&stShutdownResponse, 0, sizeof(struct bcm_link_request));
 	stShutdownResponse.Leader.Status  = LINK_UP_CONTROL_REQ;
 	stShutdownResponse.Leader.PLength = 8; /* 8 bytes; */
 	stShutdownResponse.szData[0] = LINK_UP_ACK;
