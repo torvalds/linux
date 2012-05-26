@@ -299,7 +299,7 @@ struct pci9118_private {
 	short *ai_data;
 	short ao_data[2];			/* data output buffer */
 	unsigned int ai_scans;			/* number of scans to do */
-	char dma_doublebuf;			/* we can use double buffring */
+	char dma_doublebuf;			/* we can use double buffering */
 	unsigned int dma_actbuf;		/* which buffer is used now */
 	short *dmabuf_virt[2];			/*
 						 * pointers to begin of

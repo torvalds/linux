@@ -57,8 +57,8 @@ range and aref.
 AI Triggering:
    For start_src == TRIG_EXT, the A/D EXTERNAL TRIGGER IN (pin 45) is used.
    For 1602 series, the start_arg is interpreted as follows:
-     start_arg == 0                   => gated triger (level high)
-     start_arg == CR_INVERT           => gated triger (level low)
+     start_arg == 0                   => gated trigger (level high)
+     start_arg == CR_INVERT           => gated trigger (level low)
      start_arg == CR_EDGE             => Rising edge
      start_arg == CR_EDGE | CR_INVERT => Falling edge
    For the other boards the trigger will be done on rising edge

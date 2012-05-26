@@ -450,7 +450,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		/* otherwise, stop taking data */
 	} else {
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-		disable_das800(dev);	/* diable hardware triggered conversions */
+		disable_das800(dev);	/* disable hardware triggered conversions */
 		async->events |= COMEDI_CB_EOA;
 	}
 	comedi_event(dev, s);

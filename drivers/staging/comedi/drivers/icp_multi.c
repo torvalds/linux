@@ -835,7 +835,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 	printk(KERN_WARNING
 	       "icp_multi EDBG: BGN: icp_multi_attach(...)\n");
 
-	/*  Alocate private data storage space */
+	/*  Allocate private data storage space */
 	ret = alloc_private(dev, sizeof(struct icp_multi_private));
 	if (ret < 0)
 		return ret;

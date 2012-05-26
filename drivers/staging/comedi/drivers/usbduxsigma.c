@@ -1358,7 +1358,7 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 		/* 32 bits big endian from the A/D converter */
 		one = be32_to_cpu(*((int32_t *)
 				    ((this_usbduxsub->insnBuffer)+1)));
-		/* mask out the staus byte */
+		/* mask out the status byte */
 		one = one & 0x00ffffff;
 		/* turn it into an unsigned integer */
 		one = one ^ 0x00800000;

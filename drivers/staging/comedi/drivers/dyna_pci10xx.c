@@ -141,7 +141,7 @@ static int dyna_pci10xx_insn_read_ai(struct comedi_device *dev,
 		for (counter = 0; counter < READ_TIMEOUT; counter++) {
 			d = inw_p(devpriv->BADR2);
 
-			/* check if read is successfull if the EOC bit is set */
+			/* check if read is successful if the EOC bit is set */
 			if (d & (1 << 15))
 				goto conv_finish;
 		}

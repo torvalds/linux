@@ -631,7 +631,7 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	printk(KERN_WARNING " irq %u\n", dev->irq);
 
-	/*  alocate pci dma buffers */
+	/*  allocate pci dma buffers */
 	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 		priv(dev)->dio_buffer[i] =
 		    pci_alloc_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE,
