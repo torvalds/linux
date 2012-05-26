@@ -923,10 +923,6 @@ config UIDGID_CONVERTED
 	bool
 	default y
 
-	# List of kernel pieces that need user namespace work
-	# Features
-	depends on IMA = n
-
 	# Networking
 	depends on NET_9P = n
 
