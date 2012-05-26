@@ -4,37 +4,7 @@
 #include <linux/errno.h>
 
 #include <asm/byteorder.h>
-
-static inline long find_zero(unsigned long mask)
-{
-	long byte = 0;
-
-#ifdef __BIG_ENDIAN
-#ifdef CONFIG_64BIT
-	if (mask >> 32)
-		mask >>= 32;
-	else
-		byte = 4;
-#endif
-	if (mask >> 16)
-		mask >>= 16;
-	else
-		byte += 2;
-	return (mask >> 8) ? byte : byte + 1;
-#else
-#ifdef CONFIG_64BIT
-	if (!((unsigned int) mask)) {
-		mask >>= 32;
-		byte = 4;
-	}
-#endif
-	if (!(mask & 0xffff)) {
-		mask >>= 16;
-		byte += 2;
-	}
-	return (mask & 0xff) ? byte : byte + 1;
-#endif
-}
+#include <asm/word-at-a-time.h>
 
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 #define IS_UNALIGNED(src, dst)	0
@@ -51,8 +21,7 @@ static inline long find_zero(unsigned long mask)
  */
 static inline long do_strncpy_from_user(char *dst, const char __user *src, long count, unsigned long max)
 {
-	const unsigned long high_bits = REPEAT_BYTE(0xfe) + 1;
-	const unsigned long low_bits = REPEAT_BYTE(0x7f);
+	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
 	long res = 0;
 
 	/*
@@ -66,18 +35,16 @@ static inline long do_strncpy_from_user(char *dst, const char __user *src, long 
 		goto byte_at_a_time;
 
 	while (max >= sizeof(unsigned long)) {
-		unsigned long c, v, rhs;
+		unsigned long c, data;
 
 		/* Fall back to byte-at-a-time if we get a page fault */
 		if (unlikely(__get_user(c,(unsigned long __user *)(src+res))))
 			break;
-		rhs = c | low_bits;
-		v = (c + high_bits) & ~rhs;
 		*(unsigned long *)(dst+res) = c;
-		if (v) {
-			v = (c & low_bits) + low_bits;
-			v = ~(v | rhs);
-			return res + find_zero(v);
+		if (has_zero(c, &data, &constants)) {
+			data = prep_zero_mask(c, data, &constants);
+			data = create_zero_mask(data);
+			return res + find_zero(data);
 		}
 		res += sizeof(unsigned long);
 		max -= sizeof(unsigned long);
