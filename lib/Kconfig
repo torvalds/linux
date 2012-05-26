@@ -36,6 +36,9 @@ config GENERIC_IO
 	boolean
 	default n
 
+config STMP_DEVICE
+	bool
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
