@@ -332,11 +332,11 @@ typedef struct _TARGET_PARAMS {
 } STARGETPARAMS, *PSTARGETPARAMS;
 #endif
 
-typedef struct _STTARGETDSXBUFFER {
+struct bcm_targetdsx_buffer {
 	ULONG		ulTargetDsxBuffer;
 	B_UINT16	tid;
 	BOOLEAN		valid;
-} STTARGETDSXBUFFER, *PSTTARGETDSXBUFFER;
+};
 
 typedef int (*FP_FLASH_WRITE)(struct _MINI_ADAPTER *, UINT, PVOID);
 
@@ -404,7 +404,7 @@ struct _MINI_ADAPTER {
 	UINT			index_datpkt;
 	struct semaphore	rdmwrmsync;
 
-	STTARGETDSXBUFFER	astTargetDsxBuffer[MAX_TARGET_DSX_BUFFERS];
+	struct bcm_targetdsx_buffer	astTargetDsxBuffer[MAX_TARGET_DSX_BUFFERS];
 	ULONG			ulFreeTargetBufferCnt;
 	ULONG			ulCurrentTargetBuffer;
 	ULONG			ulTotalTargetBuffersAvailable;
