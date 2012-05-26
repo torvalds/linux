@@ -86,6 +86,11 @@ static void led_timer_function(unsigned long data)
 		return;
 	}
 
+	if (led_cdev->flags & LED_BLINK_ONESHOT_STOP) {
+		led_cdev->flags &= ~LED_BLINK_ONESHOT_STOP;
+		return;
+	}
+
 	brightness = led_get_brightness(led_cdev);
 	if (!brightness) {
 		/* Time to switch the LED on. */
@@ -101,6 +106,20 @@ static void led_timer_function(unsigned long data)
 	}
 
 	led_set_brightness(led_cdev, brightness);
+
+	/* Return in next iteration if led is in one-shot mode and we are in
+	 * the final blink state so that the led is toggled each delay_on +
+	 * delay_off milliseconds in worst case.
+	 */
+	if (led_cdev->flags & LED_BLINK_ONESHOT) {
+		if (led_cdev->flags & LED_BLINK_INVERT) {
+			if (brightness)
+				led_cdev->flags |= LED_BLINK_ONESHOT_STOP;
+		} else {
+			if (!brightness)
+				led_cdev->flags |= LED_BLINK_ONESHOT_STOP;
+		}
+	}
 
 	mod_timer(&led_cdev->blink_timer, jiffies + msecs_to_jiffies(delay));
 }
