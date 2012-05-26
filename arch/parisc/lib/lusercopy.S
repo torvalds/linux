@@ -61,47 +61,6 @@
 	.endm
 
 	/*
-	 * long lstrncpy_from_user(char *dst, const char *src, long n)
-	 *
-	 * Returns -EFAULT if exception before terminator,
-	 *         N if the entire buffer filled,
-	 *         otherwise strlen (i.e. excludes zero byte)
-	 */
-
-ENTRY(lstrncpy_from_user)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-	comib,=     0,%r24,$lsfu_done
-	copy        %r24,%r23
-	get_sr
-1:      ldbs,ma     1(%sr1,%r25),%r1
-$lsfu_loop:
-	stbs,ma     %r1,1(%r26)
-	comib,=,n   0,%r1,$lsfu_done
-	addib,<>,n  -1,%r24,$lsfu_loop
-2:      ldbs,ma     1(%sr1,%r25),%r1
-$lsfu_done:
-	sub         %r23,%r24,%r28
-$lsfu_exit:
-	bv          %r0(%r2)
-	nop
-	.exit
-ENDPROC(lstrncpy_from_user)
-
-	.section .fixup,"ax"
-3:      fixup_branch $lsfu_exit
-	ldi         -EFAULT,%r28
-	.previous
-
-	.section __ex_table,"aw"
-	ASM_ULONG_INSN 1b,3b
-	ASM_ULONG_INSN 2b,3b
-	.previous
-
-	.procend
-
-	/*
 	 * unsigned long lclear_user(void *to, unsigned long n)
 	 *
 	 * Returns 0 for success.
