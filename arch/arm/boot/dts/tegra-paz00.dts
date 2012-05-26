@@ -159,16 +159,12 @@
 			};
 			conf_ata {
 				nvidia,pins = "ata", "atb", "atc", "atd", "ate",
-					"cdev1", "dap1", "dap2", "dtf", "gma",
-					"gmb", "gmc", "gmd", "gme", "gpu",
-					"gpu7", "gpv", "i2cp", "pta", "rm",
-					"sdio1", "slxk", "spdo", "uac", "uda";
+					"cdev1", "cdev2", "dap1", "dap2", "dtf",
+					"gma", "gmb", "gmc", "gmd", "gme",
+					"gpu", "gpu7", "gpv", "i2cp", "pta",
+					"rm", "sdio1", "slxk", "spdo", "uac",
+					"uda";
 				nvidia,pull = <0>;
-				nvidia,tristate = <0>;
-			};
-			conf_cdev2 {
-				nvidia,pins = "cdev2";
-				nvidia,pull = <1>;
 				nvidia,tristate = <0>;
 			};
 			conf_ck32 {
@@ -317,6 +313,7 @@
 		cd-gpios = <&gpio 173 0>; /* gpio PV5 */
 		wp-gpios = <&gpio 57 0>;  /* gpio PH1 */
 		power-gpios = <&gpio 169 0>; /* gpio PV1 */
+		bus-width = <4>;
 	};
 
 	sdhci@c8000200 {
@@ -329,6 +326,7 @@
 
 	sdhci@c8000600 {
 		support-8bit;
+		bus-width = <8>;
 	};
 
 	gpio-keys {
@@ -350,5 +348,9 @@
 			gpios = <&gpio 24 0>;
 			linux,default-trigger = "rfkill0";
 		};
+	};
+
+	usb@c5004000 {
+		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
 	};
 };

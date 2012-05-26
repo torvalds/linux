@@ -41,7 +41,7 @@
 			};
 
 			usdhc@0219c000 { /* uSDHC4 */
-				fsl,card-wired;
+				non-removable;
 				vmmc-supply = <&reg_3p3v>;
 				status = "okay";
 			};

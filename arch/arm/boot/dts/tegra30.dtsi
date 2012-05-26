@@ -183,4 +183,45 @@
 		reg = < 0x70000868 0xd0     /* Pad control registers */
 			0x70003000 0x3e0 >; /* Mux registers */
 	};
+
+	ahub {
+		compatible = "nvidia,tegra30-ahub";
+		reg = <0x70080000 0x200 0x70080200 0x100>;
+		interrupts = < 0 103 0x04 >;
+		nvidia,dma-request-selector = <&apbdma 1>;
+
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		tegra_i2s0: i2s@70080300 {
+			compatible = "nvidia,tegra30-i2s";
+			reg = <0x70080300 0x100>;
+			nvidia,ahub-cif-ids = <4 4>;
+		};
+
+		tegra_i2s1: i2s@70080400 {
+			compatible = "nvidia,tegra30-i2s";
+			reg = <0x70080400 0x100>;
+			nvidia,ahub-cif-ids = <5 5>;
+		};
+
+		tegra_i2s2: i2s@70080500 {
+			compatible = "nvidia,tegra30-i2s";
+			reg = <0x70080500 0x100>;
+			nvidia,ahub-cif-ids = <6 6>;
+		};
+
+		tegra_i2s3: i2s@70080600 {
+			compatible = "nvidia,tegra30-i2s";
+			reg = <0x70080600 0x100>;
+			nvidia,ahub-cif-ids = <7 7>;
+		};
+
+		tegra_i2s4: i2s@70080700 {
+			compatible = "nvidia,tegra30-i2s";
+			reg = <0x70080700 0x100>;
+			nvidia,ahub-cif-ids = <8 8>;
+		};
+	};
 };

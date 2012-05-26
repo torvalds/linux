@@ -51,6 +51,15 @@
 				nvidia,pull = <2>;
 				nvidia,tristate = <0>;
 			};
+			dap2_fs_pa2 {
+				nvidia,pins =	"dap2_fs_pa2",
+						"dap2_sclk_pa3",
+						"dap2_din_pa4",
+						"dap2_dout_pa5";
+				nvidia,function = "i2s1";
+				nvidia,pull = <0>;
+				nvidia,tristate = <0>;
+			};
 		};
 	};
 
@@ -92,12 +101,27 @@
 
 	i2c@7000d000 {
 		clock-frequency = <100000>;
+
+		wm8903: wm8903@1a {
+			compatible = "wlf,wm8903";
+			reg = <0x1a>;
+			interrupt-parent = <&gpio>;
+			interrupts = <179 0x04>; /* gpio PW3 */
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			micdet-cfg = <0>;
+			micdet-delay = <100>;
+			gpio-cfg = <0xffffffff 0xffffffff 0 0xffffffff 0xffffffff>;
+		};
 	};
 
 	sdhci@78000000 {
 		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
 		wp-gpios = <&gpio 155 0>; /* gpio PT3 */
 		power-gpios = <&gpio 31 0>; /* gpio PD7 */
+		bus-width = <4>;
 	};
 
 	sdhci@78000200 {
@@ -110,5 +134,46 @@
 
 	sdhci@78000400 {
 		support-8bit;
+		bus-width = <8>;
+	};
+
+	ahub@70080000 {
+		i2s@70080300 {
+			status = "disable";
+		};
+
+		i2s@70080500 {
+			status = "disable";
+		};
+
+		i2s@70080600 {
+			status = "disable";
+		};
+
+		i2s@70080700 {
+			status = "disable";
+		};
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-wm8903-cardhu",
+			     "nvidia,tegra-audio-wm8903";
+		nvidia,model = "NVIDIA Tegra Cardhu";
+
+		nvidia,audio-routing =
+			"Headphone Jack", "HPOUTR",
+			"Headphone Jack", "HPOUTL",
+			"Int Spk", "ROP",
+			"Int Spk", "RON",
+			"Int Spk", "LOP",
+			"Int Spk", "LON",
+			"Mic Jack", "MICBIAS",
+			"IN1L", "Mic Jack";
+
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&wm8903>;
+
+		nvidia,spkr-en-gpios = <&wm8903 2 0>;
+		nvidia,hp-det-gpios = <&gpio 178 0>; /* gpio PW2 */
 	};
 };

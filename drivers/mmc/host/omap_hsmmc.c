@@ -1781,7 +1781,7 @@ static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 		pdata->slots[0].nonremovable = true;
 		pdata->slots[0].no_regulator_off_init = true;
 	}
-	of_property_read_u32(np, "ti,bus-width", &bus_width);
+	of_property_read_u32(np, "bus-width", &bus_width);
 	if (bus_width == 4)
 		pdata->slots[0].caps |= MMC_CAP_4_BIT_DATA;
 	else if (bus_width == 8)

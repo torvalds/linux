@@ -118,6 +118,8 @@ static void trimslice_usb_init(void)
 	pdata = tegra_ehci1_device.dev.platform_data;
 	pdata->vbus_gpio = TRIMSLICE_GPIO_USB1_MODE;
 
+	tegra_ehci2_ulpi_phy_config.reset_gpio = TEGRA_GPIO_PV0;
+
 	platform_device_register(&tegra_ehci3_device);
 	platform_device_register(&tegra_ehci2_device);
 	platform_device_register(&tegra_ehci1_device);

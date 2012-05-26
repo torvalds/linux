@@ -404,7 +404,7 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 	if (!np)
 		return -ENODEV;
 
-	if (of_get_property(np, "fsl,card-wired", NULL))
+	if (of_get_property(np, "non-removable", NULL))
 		boarddata->cd_type = ESDHC_CD_PERMANENT;
 
 	if (of_get_property(np, "fsl,cd-controller", NULL))
