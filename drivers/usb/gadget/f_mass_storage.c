@@ -124,7 +124,7 @@
  *				backing storage.
  *	ro=b[,b...]	Default false, boolean for read-only access.
  *	removable=b[,b...]
- *			Default true, boolean for removable media.
+ *			Default false, boolean for removable media.
  *	cdrom=b[,b...]	Default false, boolean for whether to emulate
  *				a CD-ROM drive.
  *	nofua=b[,b...]	Default false, booleans for ignore FUA flag
@@ -3167,8 +3167,7 @@ fsg_config_from_params(struct fsg_config *cfg,
 	for (i = 0, lun = cfg->luns; i < cfg->nluns; ++i, ++lun) {
 		lun->ro = !!params->ro[i];
 		lun->cdrom = !!params->cdrom[i];
-		lun->removable = /* Removable by default */
-			params->removable_count <= i || params->removable[i];
+		lun->removable = !!params->removable[i];
 		lun->filename =
 			params->file_count > i && params->file[i][0]
 			? params->file[i]
@@ -3203,4 +3202,3 @@ fsg_common_from_params(struct fsg_common *common,
 	fsg_config_from_params(&cfg, params);
 	return fsg_common_init(common, cdev, &cfg);
 }
-
