@@ -34,26 +34,6 @@ struct link_request {
 } __packed;
 typedef struct link_request LINK_REQUEST, *PLINK_REQUEST;
 
-/* classification extension is added */
-typedef struct _ADD_CONNECTION {
-	ULONG	SrcIpAddressCount;
-	ULONG	SrcIpAddress[MAX_CONNECTIONS];
-	ULONG	SrcIpMask[MAX_CONNECTIONS];
-
-	ULONG	DestIpAddressCount;
-	ULONG	DestIpAddress[MAX_CONNECTIONS];
-	ULONG	DestIpMask[MAX_CONNECTIONS];
-
-	USHORT	SrcPortBegin;
-	USHORT	SrcPortEnd;
-
-	USHORT	DestPortBegin;
-	USHORT	DestPortEnd;
-
-	UCHAR	SrcTOS;
-	UCHAR	SrcProtocol;
-} ADD_CONNECTION, *PADD_CONNECTION;
-
 #define MAX_IP_RANGE_LENGTH 4
 #define MAX_PORT_RANGE 4
 #define MAX_PROTOCOL_LENGTH   32
