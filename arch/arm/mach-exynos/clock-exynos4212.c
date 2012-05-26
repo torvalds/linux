@@ -92,6 +92,16 @@ static struct clk init_clocks_off[] = {
 		.devname	= SYSMMU_CLOCK_DEVNAME(isp, 9),
 		.enable		= exynos4212_clk_ip_isp1_ctrl,
 		.ctrlbit	= (1 << 4),
+	}, {
+		.name		= "flite",
+		.devname	= "exynos-fimc-lite.0",
+		.enable		= exynos4212_clk_ip_isp0_ctrl,
+		.ctrlbit	= (1 << 4),
+	}, {
+		.name		= "flite",
+		.devname	= "exynos-fimc-lite.1",
+		.enable		= exynos4212_clk_ip_isp0_ctrl,
+		.ctrlbit	= (1 << 3),
 	}
 };
 
