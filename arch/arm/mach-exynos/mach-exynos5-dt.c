@@ -76,6 +76,7 @@ DT_MACHINE_START(EXYNOS5_DT, "SAMSUNG EXYNOS5 (Flattened Device Tree)")
 	.map_io		= exynos5250_dt_map_io,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= exynos5250_dt_machine_init,
+	.init_late	= exynos_init_late,
 	.timer		= &exynos4_timer,
 	.dt_compat	= exynos5250_dt_compat,
 	.restart        = exynos5_restart,

@@ -53,8 +53,18 @@ static inline void omap16xx_map_io(void)
 }
 #endif
 
+#ifdef CONFIG_OMAP_SERIAL_WAKE
+int omap_serial_wakeup_init(void);
+#else
+static inline int omap_serial_wakeup_init(void)
+{
+	return 0;
+}
+#endif
+
 void omap1_init_early(void);
 void omap1_init_irq(void);
+void omap1_init_late(void);
 void omap1_restart(char, const char *);
 
 extern void __init omap_check_revision(void);

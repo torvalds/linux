@@ -225,5 +225,6 @@ MACHINE_START(PAZ00, "Toshiba AC100 / Dynabook AZ")
 	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_paz00_init,
+	.init_late	= tegra_init_late,
 	.restart	= tegra_assert_system_reset,
 MACHINE_END

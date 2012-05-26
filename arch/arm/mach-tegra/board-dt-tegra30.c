@@ -90,6 +90,7 @@ DT_MACHINE_START(TEGRA30_DT, "NVIDIA Tegra30 (Flattened Device Tree)")
 	.handle_irq	= gic_handle_irq,
 	.timer		= &tegra_timer,
 	.init_machine	= tegra30_dt_init,
+	.init_late	= tegra_init_late,
 	.restart	= tegra_assert_system_reset,
 	.dt_compat	= tegra30_dt_board_compat,
 MACHINE_END
