@@ -1533,12 +1533,12 @@ S_CLASSIFIER_RULE *GetFragIPClsEntry(PMINI_ADAPTER Adapter, USHORT usIpIdentific
 	return NULL;
 }
 
-void AddFragIPClsEntry(PMINI_ADAPTER Adapter, PS_FRAGMENTED_PACKET_INFO psFragPktInfo)
+void AddFragIPClsEntry(PMINI_ADAPTER Adapter, struct bcm_fragmented_packet_info *psFragPktInfo)
 {
 	UINT uiIndex = 0;
 	for (uiIndex = 0; uiIndex < MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES; uiIndex++) {
 		if (!Adapter->astFragmentedPktClassifierTable[uiIndex].bUsed) {
-			memcpy(&Adapter->astFragmentedPktClassifierTable[uiIndex], psFragPktInfo, sizeof(S_FRAGMENTED_PACKET_INFO));
+			memcpy(&Adapter->astFragmentedPktClassifierTable[uiIndex], psFragPktInfo, sizeof(struct bcm_fragmented_packet_info));
 			break;
 		}
 	}
@@ -1552,7 +1552,7 @@ void DelFragIPClsEntry(PMINI_ADAPTER Adapter, USHORT usIpIdentification, ULONG S
 			(Adapter->astFragmentedPktClassifierTable[uiIndex].usIpIdentification == usIpIdentification) &&
 			(Adapter->astFragmentedPktClassifierTable[uiIndex].ulSrcIpAddress == SrcIp))
 
-			memset(&Adapter->astFragmentedPktClassifierTable[uiIndex], 0, sizeof(S_FRAGMENTED_PACKET_INFO));
+			memset(&Adapter->astFragmentedPktClassifierTable[uiIndex], 0, sizeof(struct bcm_fragmented_packet_info));
 	}
 }
 
@@ -1652,7 +1652,7 @@ static void beceem_protocol_reset(PMINI_ADAPTER Adapter)
 	if (Adapter->TimerActive == TRUE)
 		Adapter->TimerActive = FALSE;
 
-	memset(Adapter->astFragmentedPktClassifierTable, 0, sizeof(S_FRAGMENTED_PACKET_INFO) * MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES);
+	memset(Adapter->astFragmentedPktClassifierTable, 0, sizeof(struct bcm_fragmented_packet_info) * MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES);
 
 	for (i = 0; i < HiPriority; i++) {
 		/* resetting only the first size (S_MIBS_SERVICEFLOW_TABLE) for the SF. */

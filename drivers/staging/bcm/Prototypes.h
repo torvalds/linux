@@ -103,7 +103,7 @@ int InitLedSettings(PMINI_ADAPTER Adapter);
 
 S_CLASSIFIER_RULE *GetFragIPClsEntry(PMINI_ADAPTER Adapter,USHORT usIpIdentification,ULONG SrcIP);
 
-void AddFragIPClsEntry(PMINI_ADAPTER Adapter,PS_FRAGMENTED_PACKET_INFO psFragPktInfo);
+void AddFragIPClsEntry(PMINI_ADAPTER Adapter, struct bcm_fragmented_packet_info *psFragPktInfo);
 
 void DelFragIPClsEntry(PMINI_ADAPTER Adapter,USHORT usIpIdentification,ULONG SrcIp);
 

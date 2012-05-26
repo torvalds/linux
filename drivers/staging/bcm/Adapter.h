@@ -159,13 +159,13 @@ typedef struct _S_CLASSIFIER_RULE {
 } S_CLASSIFIER_RULE;
 /* typedef struct _S_CLASSIFIER_RULE S_CLASSIFIER_RULE; */
 
-typedef struct _S_FRAGMENTED_PACKET_INFO {
+struct bcm_fragmented_packet_info {
 	BOOLEAN			bUsed;
 	ULONG			ulSrcIpAddress;
 	USHORT			usIpIdentification;
 	S_CLASSIFIER_RULE	*pstMatchedClassifierEntry;
 	BOOLEAN			bOutOfOrderFragment;
-} S_FRAGMENTED_PACKET_INFO, *PS_FRAGMENTED_PACKET_INFO;
+};
 
 struct bcm_packet_info {
 	/* classification extension Rule */
@@ -389,7 +389,7 @@ struct _MINI_ADAPTER {
 	BOOLEAN			bDPLLConfig;
 	UINT32			aTxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
 	UINT32			aRxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
-	S_FRAGMENTED_PACKET_INFO astFragmentedPktClassifierTable[MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES];
+	struct bcm_fragmented_packet_info astFragmentedPktClassifierTable[MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES];
 	atomic_t		uiMBupdate;
 	UINT32			PmuMode;
 	NVM_TYPE		eNVMType;

@@ -631,7 +631,7 @@ USHORT ClassifyPacket(PMINI_ADAPTER Adapter,struct sk_buff* skb)
 		if(bFragmentedPkt && (usCurrFragment == 0))
 		{
 			//First Fragment of Fragmented Packet. Create Frag CLS Entry
-			S_FRAGMENTED_PACKET_INFO stFragPktInfo;
+			struct bcm_fragmented_packet_info stFragPktInfo;
 			stFragPktInfo.bUsed = TRUE;
 			stFragPktInfo.ulSrcIpAddress = pIpHeader->saddr;
 			stFragPktInfo.usIpIdentification = pIpHeader->id;
