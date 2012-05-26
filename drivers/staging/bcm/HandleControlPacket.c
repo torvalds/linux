@@ -11,7 +11,7 @@
  * Enqueue the control packet for Application.
  * @return None
  */
-static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
+static VOID handle_rx_control_packet(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
 {
 	struct bcm_tarang_data *pTarang = NULL;
 	BOOLEAN HighPriorityMessage = FALSE;
@@ -154,7 +154,7 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
  * @ingroup ctrl_pkt_functions
  * Thread to handle control pkt reception
  */
-int control_packet_handler(PMINI_ADAPTER Adapter /* pointer to adapter object*/)
+int control_packet_handler(struct bcm_mini_adapter *Adapter /* pointer to adapter object*/)
 {
 	struct sk_buff *ctrl_packet = NULL;
 	unsigned long flags = 0;
@@ -213,7 +213,7 @@ int control_packet_handler(PMINI_ADAPTER Adapter /* pointer to adapter object*/)
 
 INT flushAllAppQ(void)
 {
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	struct bcm_tarang_data *pTarang = NULL;
 	struct sk_buff *PacketToDrop = NULL;
 	for (pTarang = Adapter->pTarangs; pTarang; pTarang = pTarang->next) {

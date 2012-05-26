@@ -15,7 +15,7 @@
 
 static int bcm_char_open(struct inode *inode, struct file * filp)
 {
-	PMINI_ADAPTER       Adapter = NULL;
+	struct bcm_mini_adapter *Adapter = NULL;
 	struct bcm_tarang_data *pTarang = NULL;
 
 	Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -44,7 +44,7 @@ static int bcm_char_open(struct inode *inode, struct file * filp)
 static int bcm_char_release(struct inode *inode, struct file *filp)
 {
 	struct bcm_tarang_data *pTarang, *tmp, *ptmp;
-	PMINI_ADAPTER Adapter = NULL;
+	struct bcm_mini_adapter *Adapter = NULL;
 	struct sk_buff *pkt, *npkt;
 
 	pTarang = (struct bcm_tarang_data *)filp->private_data;
@@ -98,7 +98,7 @@ static ssize_t bcm_char_read(struct file *filp, char __user *buf, size_t size,
 			     loff_t *f_pos)
 {
 	struct bcm_tarang_data *pTarang = filp->private_data;
-	PMINI_ADAPTER	Adapter = pTarang->Adapter;
+	struct bcm_mini_adapter *Adapter = pTarang->Adapter;
 	struct sk_buff *Packet = NULL;
 	ssize_t PktLen = 0;
 	int wait_ret_val = 0;
@@ -157,7 +157,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
 	struct bcm_tarang_data *pTarang = filp->private_data;
 	void __user *argp = (void __user *)arg;
-	PMINI_ADAPTER Adapter = pTarang->Adapter;
+	struct bcm_mini_adapter *Adapter = pTarang->Adapter;
 	INT Status = STATUS_FAILURE;
 	int timeout = 0;
 	IOCTL_BUFFER IoBuffer;
@@ -2014,7 +2014,7 @@ static const struct file_operations bcm_fops = {
 	.llseek = no_llseek,
 };
 
-int register_control_device_interface(PMINI_ADAPTER Adapter)
+int register_control_device_interface(struct bcm_mini_adapter *Adapter)
 {
 
 	if (Adapter->major > 0)
@@ -2039,7 +2039,7 @@ int register_control_device_interface(PMINI_ADAPTER Adapter)
 	return 0;
 }
 
-void unregister_control_device_interface(PMINI_ADAPTER Adapter)
+void unregister_control_device_interface(struct bcm_mini_adapter *Adapter)
 {
 	if (Adapter->major > 0) {
 		device_destroy(bcm_class, MKDEV(Adapter->major, 0));

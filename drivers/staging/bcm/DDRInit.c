@@ -772,7 +772,7 @@ static struct bcm_ddr_setting asT3LPB_DDRSetting80MHz[]= {//	# DPLL Clock Settin
 };
 
 
-int ddr_init(MINI_ADAPTER *Adapter)
+int ddr_init(struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_ddr_setting *psDDRSetting=NULL;
 	ULONG RegCount=0;
@@ -1099,7 +1099,7 @@ int ddr_init(MINI_ADAPTER *Adapter)
 	return retval;
 }
 
-int download_ddr_settings(PMINI_ADAPTER Adapter)
+int download_ddr_settings(struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_ddr_setting *psDDRSetting=NULL;
 	ULONG RegCount=0;

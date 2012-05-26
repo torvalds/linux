@@ -1,6 +1,6 @@
 #include "headers.h"
 
-static int SearchVcid(PMINI_ADAPTER Adapter,unsigned short usVcid)
+static int SearchVcid(struct bcm_mini_adapter *Adapter,unsigned short usVcid)
 {
 	int iIndex=0;
 
@@ -45,7 +45,7 @@ static void read_bulk_callback(struct urb *urb)
 	//int idleflag = 0 ;
 	PUSB_RCB pRcb = (PUSB_RCB)urb->context;
 	PS_INTERFACE_ADAPTER psIntfAdapter = pRcb->psIntfAdapter;
-	PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter;
+	struct bcm_mini_adapter *Adapter = psIntfAdapter->psAdapter;
 	struct bcm_leader *pLeader = urb->transfer_buffer;
 
 	if (unlikely(netif_msg_rx_status(Adapter)))
@@ -232,7 +232,7 @@ Function:				InterfaceRx
 Description:			This is the hardware specific Function for Receiving
 						data packet/control packets from the device.
 
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
+Input parameters:		IN struct bcm_mini_adapter *Adapter   - Miniport Adapter Context
 
 
 

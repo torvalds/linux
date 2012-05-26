@@ -41,7 +41,7 @@ SendPacketFromQueue->SetupNextSend->bcm_cmd53
 This function dispatches control packet to the h/w interface
 @return zero(success) or -ve value(failure)
 */
-INT SendControlPacket(PMINI_ADAPTER Adapter, char *pControlPacket)
+INT SendControlPacket(struct bcm_mini_adapter *Adapter, char *pControlPacket)
 {
 	struct bcm_leader *PLeader = (struct bcm_leader *)pControlPacket;
 
@@ -84,7 +84,7 @@ This function despatches the IP packets with the given vcid
 to the target via the host h/w interface.
 @return  zero(success) or -ve value(failure)
 */
-INT SetupNextSend(PMINI_ADAPTER Adapter,  struct sk_buff *Packet, USHORT Vcid)
+INT SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USHORT Vcid)
 {
 	int		status=0;
 	BOOLEAN bHeaderSupressionEnabled = FALSE;
@@ -180,7 +180,7 @@ errExit:
 	return status;
 }
 
-static int tx_pending(PMINI_ADAPTER Adapter)
+static int tx_pending(struct bcm_mini_adapter *Adapter)
 {
 	return (atomic_read(&Adapter->TxPktAvail)
 		&& MINIMUM_PENDING_DESCRIPTORS < atomic_read(&Adapter->CurrNumFreeTxDesc))
@@ -191,7 +191,7 @@ static int tx_pending(PMINI_ADAPTER Adapter)
 @ingroup tx_functions
 Transmit thread
 */
-int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
+int tx_pkt_handler(struct bcm_mini_adapter *Adapter  /**< pointer to adapter object*/
 				)
 {
 	int status = 0;

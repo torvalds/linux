@@ -22,7 +22,7 @@ static int compare_packet_info(void const *a, void const *b)
 	return pa->u8TrafficPriority - pb->u8TrafficPriority;
 }
 
-VOID SortPackInfo(PMINI_ADAPTER Adapter)
+VOID SortPackInfo(struct bcm_mini_adapter *Adapter)
 {
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG,
 			DBG_LVL_ALL, "<=======");
@@ -42,7 +42,7 @@ static int compare_classifiers(void const *a, void const *b)
 	return pa->u8ClassifierRulePriority - pb->u8ClassifierRulePriority;
 }
 
-VOID SortClassifiers(PMINI_ADAPTER Adapter)
+VOID SortClassifiers(struct bcm_mini_adapter *Adapter)
 {
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG,
 			DBG_LVL_ALL, "<=======");

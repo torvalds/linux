@@ -7,7 +7,7 @@ Description:			This is the hardware specific Function for waking up HW device fr
 						A software abort pattern is written to the device to wake it and necessary power state
 						transitions from host are performed here.
 
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
+Input parameters:		IN struct bcm_mini_adapter *Adapter   - Miniport Adapter Context
 
 
 Return:				BCM_STATUS_SUCCESS - If Wakeup of the HW Interface was successful.
@@ -22,7 +22,7 @@ Description:			This is the hardware specific Function for responding to Idle mod
 						Necessary power state transitions from host for idle mode or other device specific
 						initializations are performed here.
 
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
+Input parameters:		IN struct bcm_mini_adapter * Adapter   - Miniport Adapter Context
 
 
 Return:				BCM_STATUS_SUCCESS - If Idle mode response related HW configuration was successful.
@@ -42,7 +42,7 @@ send to f/w with in 200 ms after the Idle/Shutdown req issued
 */
 
 
-int InterfaceIdleModeRespond(PMINI_ADAPTER Adapter, unsigned int* puiBuffer)
+int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter, unsigned int* puiBuffer)
 {
 	int	status = STATUS_SUCCESS;
 	unsigned int	uiRegRead = 0;
@@ -147,7 +147,7 @@ int InterfaceIdleModeRespond(PMINI_ADAPTER Adapter, unsigned int* puiBuffer)
 	return status;
 }
 
-static int InterfaceAbortIdlemode(PMINI_ADAPTER Adapter, unsigned int Pattern)
+static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter, unsigned int Pattern)
 {
 	int 	status = STATUS_SUCCESS;
 	unsigned int value;
@@ -246,7 +246,7 @@ static int InterfaceAbortIdlemode(PMINI_ADAPTER Adapter, unsigned int Pattern)
 	}
 	return status;
 }
-int InterfaceIdleModeWakeup(PMINI_ADAPTER Adapter)
+int InterfaceIdleModeWakeup(struct bcm_mini_adapter *Adapter)
 {
 	ULONG	Status = 0;
 	if(Adapter->bTriedToWakeUpFromlowPowerMode)
@@ -263,7 +263,7 @@ int InterfaceIdleModeWakeup(PMINI_ADAPTER Adapter)
 	return Status;
 }
 
-void InterfaceHandleShutdownModeWakeup(PMINI_ADAPTER Adapter)
+void InterfaceHandleShutdownModeWakeup(struct bcm_mini_adapter *Adapter)
 {
 	unsigned int uiRegVal = 0;
 	INT Status = 0;

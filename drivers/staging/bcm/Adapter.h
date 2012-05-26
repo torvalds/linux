@@ -192,7 +192,7 @@ struct bcm_packet_info {
 
 struct bcm_tarang_data {
 	struct bcm_tarang_data	*next;
-	struct _MINI_ADAPTER	*Adapter;
+	struct bcm_mini_adapter	*Adapter;
 	struct sk_buff		*RxAppControlHead;
 	struct sk_buff		*RxAppControlTail;
 	int			AppCtrlQueueLen;
@@ -208,15 +208,15 @@ struct bcm_targetdsx_buffer {
 	BOOLEAN		valid;
 };
 
-typedef int (*FP_FLASH_WRITE)(struct _MINI_ADAPTER *, UINT, PVOID);
+typedef int (*FP_FLASH_WRITE)(struct bcm_mini_adapter *, UINT, PVOID);
 
-typedef int (*FP_FLASH_WRITE_STATUS)(struct _MINI_ADAPTER *, UINT, PVOID);
+typedef int (*FP_FLASH_WRITE_STATUS)(struct bcm_mini_adapter *, UINT, PVOID);
 
 /*
  * Driver adapter data structure
  */
-struct _MINI_ADAPTER {
-	struct _MINI_ADAPTER	*next;
+struct bcm_mini_adapter {
+	struct bcm_mini_adapter	*next;
 	struct net_device	*dev;
 	u32			msg_enable;
 	CHAR			*caDsxReqResp;
@@ -394,7 +394,6 @@ struct _MINI_ADAPTER {
 	UINT			gpioBitMap;
 	S_BCM_DEBUG_STATE	stDebugState;
 };
-typedef struct _MINI_ADAPTER MINI_ADAPTER, *PMINI_ADAPTER;
 
 #define GET_BCM_ADAPTER(net_dev) netdev_priv(net_dev)
 
@@ -417,7 +416,7 @@ struct bcm_ddr_setting {
 	UINT ulRegAddress;
 	UINT ulRegValue;
 };
-int InitAdapter(PMINI_ADAPTER psAdapter);
+int InitAdapter(struct bcm_mini_adapter *psAdapter);
 
 /* =====================================================================
  * Beceem vendor request codes for EP0

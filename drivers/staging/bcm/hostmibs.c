@@ -9,7 +9,7 @@
 
 #include "headers.h"
 
-INT ProcessGetHostMibs(PMINI_ADAPTER Adapter, S_MIBS_HOST_STATS_MIBS *pstHostMibs)
+INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, S_MIBS_HOST_STATS_MIBS *pstHostMibs)
 {
 	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
 	S_PHS_RULE *pstPhsRule = NULL;
@@ -101,7 +101,7 @@ VOID GetDroppedAppCntrlPktMibs(S_MIBS_HOST_STATS_MIBS *pstHostMibs, struct bcm_t
 	       sizeof(S_MIBS_DROPPED_APP_CNTRL_MESSAGES));
 }
 
-VOID CopyMIBSExtendedSFParameters(PMINI_ADAPTER Adapter, CServiceFlowParamSI *psfLocalSet, UINT uiSearchRuleIndex)
+VOID CopyMIBSExtendedSFParameters(struct bcm_mini_adapter *Adapter, CServiceFlowParamSI *psfLocalSet, UINT uiSearchRuleIndex)
 {
 	S_MIBS_EXTSERVICEFLOW_PARAMETERS *t = &Adapter->PackInfo[uiSearchRuleIndex].stMibsExtServiceFlowTable;
 

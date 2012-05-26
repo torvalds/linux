@@ -2,54 +2,54 @@
 
 #define DWORD unsigned int
 
-static INT BcmDoChipSelect(PMINI_ADAPTER Adapter, UINT offset);
-static INT BcmGetActiveDSD(PMINI_ADAPTER Adapter);
-static INT BcmGetActiveISO(PMINI_ADAPTER Adapter);
-static UINT BcmGetEEPROMSize(PMINI_ADAPTER Adapter);
-static INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter);
-static UINT BcmGetFlashSectorSize(PMINI_ADAPTER Adapter, UINT FlashSectorSizeSig, UINT FlashSectorSize);
+static INT BcmDoChipSelect(struct bcm_mini_adapter *Adapter, UINT offset);
+static INT BcmGetActiveDSD(struct bcm_mini_adapter *Adapter);
+static INT BcmGetActiveISO(struct bcm_mini_adapter *Adapter);
+static UINT BcmGetEEPROMSize(struct bcm_mini_adapter *Adapter);
+static INT BcmGetFlashCSInfo(struct bcm_mini_adapter *Adapter);
+static UINT BcmGetFlashSectorSize(struct bcm_mini_adapter *Adapter, UINT FlashSectorSizeSig, UINT FlashSectorSize);
 
-static VOID BcmValidateNvmType(PMINI_ADAPTER Adapter);
-static INT BcmGetNvmSize(PMINI_ADAPTER Adapter);
-static UINT BcmGetFlashSize(PMINI_ADAPTER Adapter);
-static NVM_TYPE BcmGetNvmType(PMINI_ADAPTER Adapter);
+static VOID BcmValidateNvmType(struct bcm_mini_adapter *Adapter);
+static INT BcmGetNvmSize(struct bcm_mini_adapter *Adapter);
+static UINT BcmGetFlashSize(struct bcm_mini_adapter *Adapter);
+static NVM_TYPE BcmGetNvmType(struct bcm_mini_adapter *Adapter);
 
-static INT BcmGetSectionValEndOffset(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
+static INT BcmGetSectionValEndOffset(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
 
-static B_UINT8 IsOffsetWritable(PMINI_ADAPTER Adapter, UINT uiOffset);
-static INT IsSectionWritable(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL Section);
-static INT IsSectionExistInVendorInfo(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL section);
+static B_UINT8 IsOffsetWritable(struct bcm_mini_adapter *Adapter, UINT uiOffset);
+static INT IsSectionWritable(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL Section);
+static INT IsSectionExistInVendorInfo(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL section);
 
-static INT ReadDSDPriority(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL dsd);
-static INT ReadDSDSignature(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL dsd);
-static INT ReadISOPriority(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL iso);
-static INT ReadISOSignature(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL iso);
+static INT ReadDSDPriority(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL dsd);
+static INT ReadDSDSignature(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL dsd);
+static INT ReadISOPriority(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL iso);
+static INT ReadISOSignature(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL iso);
 
-static INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
-static INT CorruptISOSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
-static INT SaveHeaderIfPresent(PMINI_ADAPTER Adapter, PUCHAR pBuff, UINT uiSectAlignAddr);
-static INT WriteToFlashWithoutSectorErase(PMINI_ADAPTER Adapter, PUINT pBuff,
+static INT CorruptDSDSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
+static INT CorruptISOSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
+static INT SaveHeaderIfPresent(struct bcm_mini_adapter *Adapter, PUCHAR pBuff, UINT uiSectAlignAddr);
+static INT WriteToFlashWithoutSectorErase(struct bcm_mini_adapter *Adapter, PUINT pBuff,
 					  FLASH2X_SECTION_VAL eFlash2xSectionVal,
 					  UINT uiOffset, UINT uiNumBytes);
-static FLASH2X_SECTION_VAL getHighestPriDSD(PMINI_ADAPTER Adapter);
-static FLASH2X_SECTION_VAL getHighestPriISO(PMINI_ADAPTER Adapter);
+static FLASH2X_SECTION_VAL getHighestPriDSD(struct bcm_mini_adapter *Adapter);
+static FLASH2X_SECTION_VAL getHighestPriISO(struct bcm_mini_adapter *Adapter);
 
 static INT BeceemFlashBulkRead(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
 	UINT uiNumBytes);
 
 static INT BeceemFlashBulkWrite(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
 	UINT uiNumBytes,
 	BOOLEAN bVerify);
 
-static INT GetFlashBaseAddr(PMINI_ADAPTER Adapter);
+static INT GetFlashBaseAddr(struct bcm_mini_adapter *Adapter);
 
-static INT ReadBeceemEEPROMBulk(PMINI_ADAPTER Adapter,UINT dwAddress, UINT *pdwData, UINT dwNumData);
+static INT ReadBeceemEEPROMBulk(struct bcm_mini_adapter *Adapter,UINT dwAddress, UINT *pdwData, UINT dwNumData);
 
 // Procedure:	ReadEEPROMStatusRegister
 //
@@ -62,7 +62,7 @@ static INT ReadBeceemEEPROMBulk(PMINI_ADAPTER Adapter,UINT dwAddress, UINT *pdwD
 //
 //-----------------------------------------------------------------------------
 
-static UCHAR ReadEEPROMStatusRegister( PMINI_ADAPTER Adapter )
+static UCHAR ReadEEPROMStatusRegister(struct bcm_mini_adapter *Adapter )
 {
 	UCHAR uiData = 0;
 	DWORD dwRetries = MAX_EEPROM_RETRIES*RETRIES_PER_DELAY;
@@ -128,7 +128,7 @@ static UCHAR ReadEEPROMStatusRegister( PMINI_ADAPTER Adapter )
 //		OSAL_STATUS_CODE:
 //-----------------------------------------------------------------------------
 
-INT ReadBeceemEEPROMBulk( PMINI_ADAPTER Adapter,
+INT ReadBeceemEEPROMBulk(struct bcm_mini_adapter *Adapter,
 									   DWORD dwAddress,
 									   DWORD *pdwData,
 									   DWORD dwNumWords
@@ -255,7 +255,7 @@ INT ReadBeceemEEPROMBulk( PMINI_ADAPTER Adapter,
 //		OSAL_STATUS_CODE:
 //-----------------------------------------------------------------------------
 
-INT ReadBeceemEEPROM( PMINI_ADAPTER Adapter,
+INT ReadBeceemEEPROM(struct bcm_mini_adapter *Adapter,
 								   DWORD uiOffset,
 								   DWORD *pBuffer
 								 )
@@ -285,7 +285,7 @@ INT ReadBeceemEEPROM( PMINI_ADAPTER Adapter,
 
 
 
-INT ReadMacAddressFromNVM(PMINI_ADAPTER Adapter)
+INT ReadMacAddressFromNVM(struct bcm_mini_adapter *Adapter)
 {
 	INT Status;
 	unsigned char puMacAddr[6];
@@ -318,7 +318,7 @@ INT ReadMacAddressFromNVM(PMINI_ADAPTER Adapter)
 //-----------------------------------------------------------------------------
 
 INT BeceemEEPROMBulkRead(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
 	UINT uiNumBytes)
@@ -436,7 +436,7 @@ INT BeceemEEPROMBulkRead(
 //-----------------------------------------------------------------------------
 
 static INT BeceemFlashBulkRead(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
 	UINT uiNumBytes)
@@ -518,7 +518,7 @@ static INT BeceemFlashBulkRead(
 //
 //-----------------------------------------------------------------------------
 
-static UINT BcmGetFlashSize(PMINI_ADAPTER Adapter)
+static UINT BcmGetFlashSize(struct bcm_mini_adapter *Adapter)
 {
 	if(IsFlash2x(Adapter))
 		return 	(Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(DSD_HEADER));
@@ -541,7 +541,7 @@ static UINT BcmGetFlashSize(PMINI_ADAPTER Adapter)
 //
 //-----------------------------------------------------------------------------
 
-static UINT BcmGetEEPROMSize(PMINI_ADAPTER Adapter)
+static UINT BcmGetEEPROMSize(struct bcm_mini_adapter *Adapter)
 {
 	UINT uiData = 0;
 	UINT uiIndex = 0;
@@ -607,7 +607,7 @@ static UINT BcmGetEEPROMSize(PMINI_ADAPTER Adapter)
 //-----------------------------------------------------------------------------
 
 
-static INT FlashSectorErase(PMINI_ADAPTER Adapter,
+static INT FlashSectorErase(struct bcm_mini_adapter *Adapter,
 	UINT addr,
 	UINT numOfSectors)
 {
@@ -672,7 +672,7 @@ static INT FlashSectorErase(PMINI_ADAPTER Adapter,
 //-----------------------------------------------------------------------------
 
 static INT flashByteWrite(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	UINT uiOffset,
 	PVOID pData)
 {
@@ -762,7 +762,7 @@ static INT flashByteWrite(
 //-----------------------------------------------------------------------------
 
 static INT flashWrite(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	UINT uiOffset,
 	PVOID pData)
 
@@ -848,7 +848,7 @@ static INT flashWrite(
 //
 //-----------------------------------------------------------------------------
 static INT flashByteWriteStatus(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	UINT uiOffset,
 	PVOID pData)
 {
@@ -935,7 +935,7 @@ static INT flashByteWriteStatus(
 //-----------------------------------------------------------------------------
 
 static INT flashWriteStatus(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	UINT uiOffset,
 	PVOID pData)
 {
@@ -1014,7 +1014,7 @@ static INT flashWriteStatus(
 //
 //-----------------------------------------------------------------------------
 
-static VOID BcmRestoreBlockProtectStatus(PMINI_ADAPTER Adapter,ULONG ulWriteStatus)
+static VOID BcmRestoreBlockProtectStatus(struct bcm_mini_adapter *Adapter,ULONG ulWriteStatus)
 {
 	UINT value;
 	value = (FLASH_CMD_WRITE_ENABLE<< 24);
@@ -1037,7 +1037,7 @@ static VOID BcmRestoreBlockProtectStatus(PMINI_ADAPTER Adapter,ULONG ulWriteStat
 //		ULONG   - Status value before UnProtect.
 //
 //-----------------------------------------------------------------------------
-static ULONG BcmFlashUnProtectBlock(PMINI_ADAPTER Adapter,UINT uiOffset, UINT uiLength)
+static ULONG BcmFlashUnProtectBlock(struct bcm_mini_adapter *Adapter,UINT uiOffset, UINT uiLength)
 {
 	ULONG ulStatus      = 0;
 	ULONG ulWriteStatus = 0;
@@ -1146,7 +1146,7 @@ static ULONG BcmFlashUnProtectBlock(PMINI_ADAPTER Adapter,UINT uiOffset, UINT ui
 //-----------------------------------------------------------------------------
 
 static INT BeceemFlashBulkWrite(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
 	UINT uiNumBytes,
@@ -1365,7 +1365,7 @@ BeceemFlashBulkWrite_EXIT:
 //-----------------------------------------------------------------------------
 
 static INT BeceemFlashBulkWriteStatus(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
 	UINT uiNumBytes,
@@ -1545,7 +1545,7 @@ BeceemFlashBulkWriteStatus_EXIT:
 //-----------------------------------------------------------------------------
 
 
-INT PropagateCalParamsFromEEPROMToMemory(PMINI_ADAPTER Adapter)
+INT PropagateCalParamsFromEEPROMToMemory(struct bcm_mini_adapter *Adapter)
 {
 	PCHAR pBuff = kmalloc(BUFFER_4K, GFP_KERNEL);
 	UINT uiEepromSize = 0;
@@ -1614,7 +1614,7 @@ INT PropagateCalParamsFromEEPROMToMemory(PMINI_ADAPTER Adapter)
 //
 //-----------------------------------------------------------------------------
 
-INT PropagateCalParamsFromFlashToMemory(PMINI_ADAPTER Adapter)
+INT PropagateCalParamsFromFlashToMemory(struct bcm_mini_adapter *Adapter)
 {
 	PCHAR pBuff, pPtr;
 	UINT uiEepromSize = 0;
@@ -1699,7 +1699,7 @@ INT PropagateCalParamsFromFlashToMemory(PMINI_ADAPTER Adapter)
 //-----------------------------------------------------------------------------
 
 static INT BeceemEEPROMReadBackandVerify(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
 	UINT uiNumBytes)
@@ -1798,7 +1798,7 @@ static VOID BcmSwapWord(UINT *ptr1) {
 //		OSAL_STATUS_CODE
 //
 //-----------------------------------------------------------------------------
-static INT BeceemEEPROMWritePage( PMINI_ADAPTER Adapter, UINT uiData[], UINT uiOffset )
+static INT BeceemEEPROMWritePage(struct bcm_mini_adapter *Adapter, UINT uiData[], UINT uiOffset )
 {
 	UINT uiRetries = MAX_EEPROM_RETRIES*RETRIES_PER_DELAY;
 	UINT uiStatus = 0;
@@ -1934,7 +1934,7 @@ static INT BeceemEEPROMWritePage( PMINI_ADAPTER Adapter, UINT uiData[], UINT uiO
 //-----------------------------------------------------------------------------
 
 INT BeceemEEPROMBulkWrite(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	PUCHAR pBuffer,
 	UINT uiOffset,
 	UINT uiNumBytes,
@@ -2036,7 +2036,7 @@ INT BeceemEEPROMBulkWrite(
 //-----------------------------------------------------------------------------
 
 INT BeceemNVMRead(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
 	UINT uiNumBytes)
@@ -2099,7 +2099,7 @@ INT BeceemNVMRead(
 //-----------------------------------------------------------------------------
 
 INT BeceemNVMWrite(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
 	UINT uiNumBytes,
@@ -2233,7 +2233,7 @@ INT BeceemNVMWrite(
 //		<FAILURE>			- if failed.
 //-----------------------------------------------------------------------------
 
-INT BcmUpdateSectorSize(PMINI_ADAPTER Adapter,UINT uiSectorSize)
+INT BcmUpdateSectorSize(struct bcm_mini_adapter *Adapter,UINT uiSectorSize)
 {
 	INT Status = -1;
 	FLASH_CS_INFO sFlashCsInfo = {0};
@@ -2308,7 +2308,7 @@ INT BcmUpdateSectorSize(PMINI_ADAPTER Adapter,UINT uiSectorSize)
 //
 //-----------------------------------------------------------------------------
 
-static UINT BcmGetFlashSectorSize(PMINI_ADAPTER Adapter, UINT FlashSectorSizeSig, UINT FlashSectorSize)
+static UINT BcmGetFlashSectorSize(struct bcm_mini_adapter *Adapter, UINT FlashSectorSizeSig, UINT FlashSectorSize)
 {
 	UINT uiSectorSize = 0;
 	UINT uiSectorSig = 0;
@@ -2377,7 +2377,7 @@ static UINT BcmGetFlashSectorSize(PMINI_ADAPTER Adapter, UINT FlashSectorSizeSig
 //		<OSAL_STATUS_CODE>
 //-----------------------------------------------------------------------------
 
-static INT BcmInitEEPROMQueues(PMINI_ADAPTER Adapter)
+static INT BcmInitEEPROMQueues(struct bcm_mini_adapter *Adapter)
 {
 	UINT value = 0;
 	/* CHIP Bug : Clear the Avail bits on the Read queue. The default
@@ -2413,7 +2413,7 @@ static INT BcmInitEEPROMQueues(PMINI_ADAPTER Adapter)
 //		<OSAL_STATUS_CODE>
 //-----------------------------------------------------------------------------
 
-INT BcmInitNVM(PMINI_ADAPTER ps_adapter)
+INT BcmInitNVM(struct bcm_mini_adapter *ps_adapter)
 {
 	BcmValidateNvmType(ps_adapter);
 	BcmInitEEPROMQueues(ps_adapter);
@@ -2445,7 +2445,7 @@ INT BcmInitNVM(PMINI_ADAPTER ps_adapter)
 */
 /***************************************************************************/
 
-static INT BcmGetNvmSize(PMINI_ADAPTER Adapter)
+static INT BcmGetNvmSize(struct bcm_mini_adapter *Adapter)
 {
 	if(Adapter->eNVMType == NVM_EEPROM)
 	{
@@ -2469,7 +2469,7 @@ static INT BcmGetNvmSize(PMINI_ADAPTER Adapter)
 // Returns:
 //		<VOID>
 //-----------------------------------------------------------------------------
-static VOID BcmValidateNvmType(PMINI_ADAPTER Adapter)
+static VOID BcmValidateNvmType(struct bcm_mini_adapter *Adapter)
 {
 
 	//
@@ -2495,7 +2495,7 @@ static VOID BcmValidateNvmType(PMINI_ADAPTER Adapter)
 // Returns:
 //		Flash ID
 //-----------------------------------------------------------------------------
-static ULONG BcmReadFlashRDID(PMINI_ADAPTER Adapter)
+static ULONG BcmReadFlashRDID(struct bcm_mini_adapter *Adapter)
 {
 	ULONG ulRDID = 0;
 	UINT value;
@@ -2518,7 +2518,7 @@ static ULONG BcmReadFlashRDID(PMINI_ADAPTER Adapter)
 
 }
 
-INT BcmAllocFlashCSStructure(PMINI_ADAPTER psAdapter)
+INT BcmAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter)
 {
 	if(psAdapter == NULL)
 	{
@@ -2552,7 +2552,7 @@ INT BcmAllocFlashCSStructure(PMINI_ADAPTER psAdapter)
 	return STATUS_SUCCESS;
 }
 
-INT BcmDeAllocFlashCSStructure(PMINI_ADAPTER psAdapter)
+INT BcmDeAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter)
 {
 	if(psAdapter == NULL)
 	{
@@ -2565,7 +2565,7 @@ INT BcmDeAllocFlashCSStructure(PMINI_ADAPTER psAdapter)
 	return STATUS_SUCCESS ;
 }
 
-static INT	BcmDumpFlash2XCSStructure(PFLASH2X_CS_INFO psFlash2xCSInfo,PMINI_ADAPTER Adapter)
+static INT	BcmDumpFlash2XCSStructure(PFLASH2X_CS_INFO psFlash2xCSInfo,struct bcm_mini_adapter *Adapter)
 {
 	UINT Index = 0;
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "**********************FLASH2X CS Structure *******************");
@@ -2715,14 +2715,14 @@ static INT	ConvertEndianOfCSStructure(PFLASH_CS_INFO psFlashCSInfo)
 	return STATUS_SUCCESS;
 }
 
-static INT IsSectionExistInVendorInfo(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL section)
+static INT IsSectionExistInVendorInfo(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL section)
 {
  	return ( Adapter->uiVendorExtnFlag &&
  		(Adapter->psFlash2xVendorInfo->VendorSection[section].AccessFlags & FLASH2X_SECTION_PRESENT) &&
  		(Adapter->psFlash2xVendorInfo->VendorSection[section].OffsetFromZeroForSectionStart != UNINIT_PTR_IN_CS) );
 }
 
-static VOID UpdateVendorInfo(PMINI_ADAPTER Adapter)
+static VOID UpdateVendorInfo(struct bcm_mini_adapter *Adapter)
 {
 	B_UINT32 i = 0;
 	UINT uiSizeSection = 0;
@@ -2813,7 +2813,7 @@ static VOID UpdateVendorInfo(PMINI_ADAPTER Adapter)
 //		<VOID>
 //-----------------------------------------------------------------------------
 
-static INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
+static INT BcmGetFlashCSInfo(struct bcm_mini_adapter *Adapter)
 {
 	//FLASH_CS_INFO sFlashCsInfo = {0};
 
@@ -2960,7 +2960,7 @@ static INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 //
 //-----------------------------------------------------------------------------
 
-static NVM_TYPE BcmGetNvmType(PMINI_ADAPTER Adapter)
+static NVM_TYPE BcmGetNvmType(struct bcm_mini_adapter *Adapter)
 {
 	UINT uiData = 0;
 
@@ -3004,7 +3004,7 @@ static NVM_TYPE BcmGetNvmType(PMINI_ADAPTER Adapter)
 *	On Failure -returns STATUS_FAILURE
 **/
 
-INT BcmGetSectionValStartOffset(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlashSectionVal)
+INT BcmGetSectionValStartOffset(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlashSectionVal)
 {
 	/*
 	*	Considering all the section for which end offset can be calculated or directly given
@@ -3098,7 +3098,7 @@ INT BcmGetSectionValStartOffset(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlas
 *	On Failure -returns STATUS_FAILURE
 **/
 
-INT BcmGetSectionValEndOffset(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
+INT BcmGetSectionValEndOffset(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 {
 	INT SectEndOffset = 0 ;
 	SectEndOffset = INVALID_OFFSET;
@@ -3188,7 +3188,7 @@ INT BcmGetSectionValEndOffset(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2
 */
 
 INT BcmFlash2xBulkRead(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
 	FLASH2X_SECTION_VAL eFlash2xSectionVal,
 	UINT uiOffsetWithinSectionVal,
@@ -3257,7 +3257,7 @@ INT BcmFlash2xBulkRead(
 */
 
 INT BcmFlash2xBulkWrite(
-	PMINI_ADAPTER Adapter,
+	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
 	FLASH2X_SECTION_VAL eFlash2xSectVal,
 	UINT uiOffset,
@@ -3322,7 +3322,7 @@ INT BcmFlash2xBulkWrite(
 *		Return STATUS_SUCESS if get success in setting the right DSD else negaive error code
 *
 **/
-static INT BcmGetActiveDSD(PMINI_ADAPTER Adapter)
+static INT BcmGetActiveDSD(struct bcm_mini_adapter *Adapter)
 {
 	FLASH2X_SECTION_VAL uiHighestPriDSD = 0 ;
 
@@ -3371,7 +3371,7 @@ static INT BcmGetActiveDSD(PMINI_ADAPTER Adapter)
 *
 **/
 
-static INT BcmGetActiveISO(PMINI_ADAPTER Adapter)
+static INT BcmGetActiveISO(struct bcm_mini_adapter *Adapter)
 {
 
 	INT HighestPriISO = 0 ;
@@ -3399,7 +3399,7 @@ static INT BcmGetActiveISO(PMINI_ADAPTER Adapter)
 *	Failure:-FALSE, offset is RO
 *
 **/
-B_UINT8 IsOffsetWritable(PMINI_ADAPTER Adapter, UINT uiOffset)
+B_UINT8 IsOffsetWritable(struct bcm_mini_adapter *Adapter, UINT uiOffset)
 {
 	UINT uiSectorNum = 0;
 	UINT uiWordOfSectorPermission =0;
@@ -3424,7 +3424,7 @@ B_UINT8 IsOffsetWritable(PMINI_ADAPTER Adapter, UINT uiOffset)
 
 static INT BcmDumpFlash2xSectionBitMap(PFLASH2X_BITMAP psFlash2xBitMap)
 {
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "***************Flash 2.x Section Bitmap***************");
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"ISO_IMAGE1  :0X%x", psFlash2xBitMap->ISO_IMAGE1);
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"ISO_IMAGE2  :0X%x", psFlash2xBitMap->ISO_IMAGE2);
@@ -3456,7 +3456,7 @@ static INT BcmDumpFlash2xSectionBitMap(PFLASH2X_BITMAP psFlash2xBitMap)
 *	Failure:- negative error code
 **/
 
-INT BcmGetFlash2xSectionalBitMap(PMINI_ADAPTER Adapter, PFLASH2X_BITMAP psFlash2xBitMap)
+INT BcmGetFlash2xSectionalBitMap(struct bcm_mini_adapter *Adapter, PFLASH2X_BITMAP psFlash2xBitMap)
 {
 
 
@@ -3752,7 +3752,7 @@ BcmSetActiveSection :- Set Active section is used to make priority field highest
 Return Value:- Make the priorit highest else return erorr code
 
 **/
-INT BcmSetActiveSection(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectVal)
+INT BcmSetActiveSection(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlash2xSectVal)
 {
 	unsigned int SectImagePriority = 0;
 	INT Status =STATUS_SUCCESS;
@@ -3958,7 +3958,7 @@ BcmCopyISO - Used only for copying the ISO section
 Return value:- SUCCESS if copies successfully else negative error code
 
 **/
-INT BcmCopyISO(PMINI_ADAPTER Adapter, FLASH2X_COPY_SECTION sCopySectStrut)
+INT BcmCopyISO(struct bcm_mini_adapter *Adapter, FLASH2X_COPY_SECTION sCopySectStrut)
 {
 
 	PCHAR Buff = NULL;
@@ -4289,7 +4289,7 @@ Return Value :-
 
 
 **/
-INT BcmFlash2xCorruptSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
+INT BcmFlash2xCorruptSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 {
 
 	INT Status = STATUS_SUCCESS ;
@@ -4321,7 +4321,7 @@ Return Value :-
 	Failure :-Return negative error code
 
 **/
-INT BcmFlash2xWriteSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlashSectionVal)
+INT BcmFlash2xWriteSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlashSectionVal)
 {
 
 	UINT uiSignature = 0 ;
@@ -4394,7 +4394,7 @@ Return values:-Return TRUE is request is valid else FALSE.
 
 
 **/
-INT	validateFlash2xReadWrite(PMINI_ADAPTER Adapter, PFLASH2X_READWRITE psFlash2xReadWrite)
+INT	validateFlash2xReadWrite(struct bcm_mini_adapter *Adapter, PFLASH2X_READWRITE psFlash2xReadWrite)
 {
 	UINT uiNumOfBytes = 0 ;
 	UINT uiSectStartOffset = 0 ;
@@ -4459,7 +4459,7 @@ Return value:-
 	return TRUE if flah2.x of hgher version else return false.
 **/
 
-INT IsFlash2x(PMINI_ADAPTER Adapter)
+INT IsFlash2x(struct bcm_mini_adapter *Adapter)
 {
 	if(Adapter->uiFlashLayoutMajorVersion >= FLASH_2X_MAJOR_NUMBER)
 		return TRUE ;
@@ -4474,7 +4474,7 @@ Return Value:-
 	Success :- Base Address of the Flash
 **/
 
-static INT GetFlashBaseAddr(PMINI_ADAPTER Adapter)
+static INT GetFlashBaseAddr(struct bcm_mini_adapter *Adapter)
 {
 
 	UINT uiBaseAddr = 0;
@@ -4525,7 +4525,7 @@ Return Values-
 
 **/
 
-INT	BcmCopySection(PMINI_ADAPTER Adapter,
+INT	BcmCopySection(struct bcm_mini_adapter *Adapter,
 						FLASH2X_SECTION_VAL SrcSection,
 						FLASH2X_SECTION_VAL DstSection,
 						UINT offset,
@@ -4642,7 +4642,7 @@ Return value :-
 
 **/
 
-INT SaveHeaderIfPresent(PMINI_ADAPTER Adapter, PUCHAR pBuff, UINT uiOffset)
+INT SaveHeaderIfPresent(struct bcm_mini_adapter *Adapter, PUCHAR pBuff, UINT uiOffset)
 {
 	UINT offsetToProtect = 0,HeaderSizeToProtect =0;
 	BOOLEAN bHasHeader = FALSE ;
@@ -4715,7 +4715,7 @@ BcmDoChipSelect : This will selcet the appropriate chip for writing.
 OutPut:-
 	Select the Appropriate chip and retrn status Success
 **/
-static INT BcmDoChipSelect(PMINI_ADAPTER Adapter, UINT offset)
+static INT BcmDoChipSelect(struct bcm_mini_adapter *Adapter, UINT offset)
 {
 	UINT FlashConfig = 0;
 	INT ChipNum = 0;
@@ -4791,7 +4791,7 @@ static INT BcmDoChipSelect(PMINI_ADAPTER Adapter, UINT offset)
 	return STATUS_SUCCESS;
 
 }
-INT ReadDSDSignature(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL dsd)
+INT ReadDSDSignature(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL dsd)
 {
 		UINT uiDSDsig = 0;
 		//UINT sigoffsetInMap = 0;
@@ -4816,7 +4816,7 @@ INT ReadDSDSignature(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL dsd)
 
 		return uiDSDsig ;
 }
-INT ReadDSDPriority(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL dsd)
+INT ReadDSDPriority(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL dsd)
 {
 	//UINT priOffsetInMap = 0 ;
 	unsigned int uiDSDPri = STATUS_FAILURE;
@@ -4839,7 +4839,7 @@ INT ReadDSDPriority(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL dsd)
 	}
 	return uiDSDPri;
 }
-FLASH2X_SECTION_VAL getHighestPriDSD(PMINI_ADAPTER Adapter)
+FLASH2X_SECTION_VAL getHighestPriDSD(struct bcm_mini_adapter *Adapter)
 {
 	INT DSDHighestPri = STATUS_FAILURE;
 	INT  DsdPri= 0 ;
@@ -4873,7 +4873,7 @@ FLASH2X_SECTION_VAL getHighestPriDSD(PMINI_ADAPTER Adapter)
 	return  HighestPriDSD ;
 }
 
-INT ReadISOSignature(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL iso)
+INT ReadISOSignature(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL iso)
 {
 		UINT uiISOsig = 0;
 		//UINT sigoffsetInMap = 0;
@@ -4898,7 +4898,7 @@ INT ReadISOSignature(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL iso)
 
 		return uiISOsig ;
 }
-INT ReadISOPriority(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL iso)
+INT ReadISOPriority(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL iso)
 {
 
 	unsigned int ISOPri = STATUS_FAILURE;
@@ -4919,7 +4919,7 @@ INT ReadISOPriority(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL iso)
 	}
 	return ISOPri;
 }
-FLASH2X_SECTION_VAL getHighestPriISO(PMINI_ADAPTER Adapter)
+FLASH2X_SECTION_VAL getHighestPriISO(struct bcm_mini_adapter *Adapter)
 {
 	INT ISOHighestPri = STATUS_FAILURE;
 	INT  ISOPri= 0 ;
@@ -4943,7 +4943,7 @@ FLASH2X_SECTION_VAL getHighestPriISO(PMINI_ADAPTER Adapter)
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Highest ISO :%x and its Pri :%x",HighestPriISO,ISOHighestPri);
 	return	HighestPriISO ;
 }
-INT WriteToFlashWithoutSectorErase(PMINI_ADAPTER Adapter,
+INT WriteToFlashWithoutSectorErase(struct bcm_mini_adapter *Adapter,
 										PUINT pBuff,
 										FLASH2X_SECTION_VAL eFlash2xSectionVal,
 										UINT uiOffset,
@@ -5006,7 +5006,7 @@ INT WriteToFlashWithoutSectorErase(PMINI_ADAPTER Adapter,
 	return Status;
 }
 
-BOOLEAN IsSectionExistInFlash(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL section)
+BOOLEAN IsSectionExistInFlash(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL section)
 {
 
 	BOOLEAN SectionPresent = FALSE ;
@@ -5062,7 +5062,7 @@ BOOLEAN IsSectionExistInFlash(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL section
 	}
 	return SectionPresent ;
 }
-INT IsSectionWritable(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL Section)
+INT IsSectionWritable(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL Section)
 {
 		INT offset = STATUS_FAILURE;
 		INT Status = FALSE;
@@ -5087,7 +5087,7 @@ INT IsSectionWritable(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL Section)
 		return Status ;
 }
 
-static INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
+static INT CorruptDSDSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 {
 
 	PUCHAR pBuff = NULL;
@@ -5160,7 +5160,7 @@ static INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSect
 	return STATUS_SUCCESS ;
 }
 
-static INT CorruptISOSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
+static INT CorruptISOSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 {
 
 	PUCHAR pBuff = NULL;
@@ -5212,7 +5212,7 @@ static INT CorruptISOSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSect
 	return STATUS_SUCCESS ;
 }
 
-BOOLEAN IsNonCDLessDevice(PMINI_ADAPTER Adapter)
+BOOLEAN IsNonCDLessDevice(struct bcm_mini_adapter *Adapter)
 {
 	if(Adapter->psFlash2xCSInfo->IsCDLessDeviceBootSig == NON_CDLESS_DEVICE_BOOT_SIG)
 		return TRUE;

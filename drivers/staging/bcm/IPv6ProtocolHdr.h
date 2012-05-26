@@ -102,7 +102,7 @@ typedef enum _E_IPADDR_CONTEXT
 
 //Function Prototypes
 
-USHORT	IpVersion6(PMINI_ADAPTER Adapter, /**< Pointer to the driver control structure */
+USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, /**< Pointer to the driver control structure */
 					PVOID pcIpHeader, /**<Pointer to the IP Hdr of the packet*/
 					struct bcm_classifier_rule *pstClassifierRule );
 

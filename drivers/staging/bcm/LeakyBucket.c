@@ -15,7 +15,7 @@
 * Returns     - None
 **********************************************************************/
 
-static VOID UpdateTokenCount(register PMINI_ADAPTER Adapter)
+static VOID UpdateTokenCount(register struct bcm_mini_adapter *Adapter)
 {
 	ULONG 	liCurrentTime;
 	INT 	i = 0;
@@ -75,7 +75,7 @@ static VOID UpdateTokenCount(register PMINI_ADAPTER Adapter)
 * Returns     - The number of bytes allowed for transmission.
 *
 ***********************************************************************/
-static ULONG GetSFTokenCount(PMINI_ADAPTER Adapter, struct bcm_packet_info *psSF)
+static ULONG GetSFTokenCount(struct bcm_mini_adapter *Adapter, struct bcm_packet_info *psSF)
 {
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL, "IsPacketAllowedForFlow ===>");
 	/* Validate the parameters */
@@ -112,7 +112,7 @@ static ULONG GetSFTokenCount(PMINI_ADAPTER Adapter, struct bcm_packet_info *psSF
 This function despatches packet from the specified queue.
 @return Zero(success) or Negative value(failure)
 */
-static INT SendPacketFromQueue(PMINI_ADAPTER Adapter,/**<Logical Adapter*/
+static INT SendPacketFromQueue(struct bcm_mini_adapter *Adapter,/**<Logical Adapter*/
 			struct bcm_packet_info *psSF, /**<Queue identifier*/
 			       struct sk_buff*  Packet)	/**<Pointer to the packet to be sent*/
 {
@@ -156,7 +156,7 @@ static INT SendPacketFromQueue(PMINI_ADAPTER Adapter,/**<Logical Adapter*/
 * Returns     - None.
 *
 ****************************************************************************/
-static VOID CheckAndSendPacketFromIndex(PMINI_ADAPTER Adapter, struct bcm_packet_info *psSF)
+static VOID CheckAndSendPacketFromIndex(struct bcm_mini_adapter *Adapter, struct bcm_packet_info *psSF)
 {
 	struct sk_buff	*QueuePacket=NULL;
 	char 			*pControlPacket = NULL;
@@ -273,7 +273,7 @@ static VOID CheckAndSendPacketFromIndex(PMINI_ADAPTER Adapter, struct bcm_packet
 *
 * Returns     - None.
 ********************************************************************/
-VOID transmit_packets(PMINI_ADAPTER Adapter)
+VOID transmit_packets(struct bcm_mini_adapter *Adapter)
 {
 	UINT 	uiPrevTotalCount = 0;
 	int iIndex = 0;
