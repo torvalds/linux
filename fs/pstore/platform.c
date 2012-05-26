@@ -41,10 +41,12 @@
  * whether the system is actually still running well enough
  * to let someone see the entry
  */
-static int pstore_update_ms = 60000;
+static int pstore_update_ms = -1;
 module_param_named(update_ms, pstore_update_ms, int, 0600);
 MODULE_PARM_DESC(update_ms, "milliseconds before pstore updates its content "
-		 "(default is 60000; -1 means runtime updates are disabled)");
+		 "(default is -1, which means runtime updates are disabled; "
+		 "enabling this option is not safe, it may lead to further "
+		 "corruption on Oopses)");
 
 static int pstore_new_entry;
 
