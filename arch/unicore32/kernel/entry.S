@@ -544,8 +544,6 @@ fast_work_pending:
 work_pending:
 	cand.a	r1, #_TIF_NEED_RESCHED
 	bne	work_resched
-	cand.a	r1, #_TIF_SIGPENDING|_TIF_NOTIFY_RESUME
-	beq	no_work_pending
 	mov	r0, sp				@ 'regs'
 	mov	r2, why				@ 'syscall'
 	cand.a	r1, #_TIF_SIGPENDING		@ delivering a signal?
