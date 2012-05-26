@@ -146,7 +146,6 @@ struct pl08x_driver_data {
 	int pool_ctr;
 	u8 lli_buses;
 	u8 mem_buses;
-	spinlock_t lock;
 };
 
 /*
@@ -1896,8 +1895,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		ret = -ENOMEM;
 		goto out_no_lli_pool;
 	}
-
-	spin_lock_init(&pl08x->lock);
 
 	pl08x->base = ioremap(adev->res.start, resource_size(&adev->res));
 	if (!pl08x->base) {
