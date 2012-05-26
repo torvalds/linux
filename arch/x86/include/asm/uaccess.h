@@ -32,6 +32,7 @@
 
 #define segment_eq(a, b)	((a).seg == (b).seg)
 
+#define user_addr_max() (current_thread_info()->addr_limit.seg)
 #define __addr_ok(addr)					\
 	((unsigned long __force)(addr) <		\
 	 (current_thread_info()->addr_limit.seg))
