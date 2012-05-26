@@ -1617,7 +1617,7 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 			goto expire_client;
 		}
 		if (verfs_match) { /* case 2 */
-			exid->flags |= EXCHGID4_FLAG_CONFIRMED_R;
+			conf->cl_exchange_flags |= EXCHGID4_FLAG_CONFIRMED_R;
 			new = conf;
 			goto out_copy;
 		}
