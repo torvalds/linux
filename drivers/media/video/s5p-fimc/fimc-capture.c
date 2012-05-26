@@ -1161,7 +1161,7 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 }
 
 /* Return 1 if rectangle a is enclosed in rectangle b, or 0 otherwise. */
-int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
+static int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
 {
 	if (a->left < b->left || a->top < b->top)
 		return 0;
