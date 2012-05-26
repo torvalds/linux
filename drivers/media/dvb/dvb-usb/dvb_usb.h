@@ -157,16 +157,14 @@ struct dvb_usb_adapter_properties {
  * @rc_interval: time in ms between two queries.
  * @bulk_mode: device supports bulk mode for RC (disable polling mode)
  */
-struct dvb_rc {
-	char *rc_codes;
-	u64 protocol;
+struct dvb_usb_rc {
+	char *map_name;
 	u64 allowed_protos;
-	enum rc_driver_type driver_type;
 	int (*change_protocol)(struct rc_dev *dev, u64 rc_type);
-	char *module_name;
-	int (*rc_query) (struct dvb_usb_device *d);
-	int rc_interval;
-	bool bulk_mode;				/* uses bulk mode */
+	int (*query) (struct dvb_usb_device *d);
+	int interval;
+	const enum rc_driver_type driver_type;
+	bool bulk_mode;
 };
 
 /**
@@ -207,6 +205,7 @@ struct dvb_rc {
  */
 #define MAX_NO_OF_ADAPTER_PER_DEVICE 2
 struct dvb_usb_device_properties {
+	const char *driver_name;
 	struct module *owner;
 	short *adapter_nr;
 
@@ -234,18 +233,18 @@ struct dvb_usb_device_properties {
 	int (*power_ctrl)       (struct dvb_usb_device *, int);
 	int (*read_config) (struct dvb_usb_device *d);
 	int (*read_mac_address) (struct dvb_usb_device *, u8 []);
+	int (*tuner_attach) (struct dvb_frontend *);
 
 #define WARM                  0
 #define COLD                  1
 	int (*identify_state) (struct dvb_usb_device *);
 	int (*init) (struct dvb_usb_device *);
+	int (*get_rc_config) (struct dvb_usb_device *, struct dvb_usb_rc *);
 
 	struct i2c_algorithm *i2c_algo;
 
 	int generic_bulk_ctrl_endpoint;
 	int generic_bulk_ctrl_endpoint_response;
-
-	struct dvb_rc rc;
 };
 
 /**
@@ -373,6 +372,7 @@ struct dvb_usb_device {
 	struct dvb_usb_device_properties props;
 	const char *name;
 	const char *rc_map;
+	struct dvb_usb_rc rc;
 	struct usb_device *udev;
 
 #define DVB_USB_STATE_INIT        0x000

@@ -16,9 +16,9 @@
  */
 static void dvb_usb_read_remote_control(struct work_struct *work)
 {
-	struct dvb_usb_device *d =
-		container_of(work, struct dvb_usb_device, rc_query_work.work);
-	int err;
+	struct dvb_usb_device *d = container_of(work,
+			struct dvb_usb_device, rc_query_work.work);
+	int ret;
 
 	/* TODO: need a lock here.  We can simply skip checking for the remote
 	   control if we're busy. */
@@ -26,87 +26,82 @@ static void dvb_usb_read_remote_control(struct work_struct *work)
 	/* when the parameter has been set to 1 via sysfs while the
 	 * driver was running, or when bulk mode is enabled after IR init
 	 */
-	if (dvb_usb_disable_rc_polling || d->props.rc.bulk_mode)
+	if (dvb_usb_disable_rc_polling || d->rc.bulk_mode)
 		return;
 
-	err = d->props.rc.rc_query(d);
-	if (err)
-		err("error %d while querying for an remote control event.",
-			err);
+	ret = d->rc.query(d);
+	if (ret < 0)
+		err("error %d while querying for an remote control event", ret);
 
 	schedule_delayed_work(&d->rc_query_work,
-			      msecs_to_jiffies(d->props.rc.rc_interval));
+			      msecs_to_jiffies(d->rc.interval));
 }
 
-static int rc_core_dvb_usb_remote_init(struct dvb_usb_device *d)
+int dvb_usb_remote_init(struct dvb_usb_device *d)
 {
-	int err, rc_interval;
+	int ret;
 	struct rc_dev *dev;
 
+	if (dvb_usb_disable_rc_polling || !d->props.get_rc_config)
+		return 0;
+
+	ret = d->props.get_rc_config(d, &d->rc);
+	if (ret < 0)
+		goto err;
+
 	dev = rc_allocate_device();
-	if (!dev)
-		return -ENOMEM;
+	if (!dev) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
-	dev->driver_name = d->props.rc.module_name;
-	dev->map_name = d->rc_map;
-	dev->change_protocol = d->props.rc.change_protocol;
-	dev->allowed_protos = d->props.rc.allowed_protos;
-	dev->driver_type = d->props.rc.driver_type;
-	usb_to_input_id(d->udev, &dev->input_id);
-	dev->input_name = "IR-receiver inside an USB DVB receiver";
-	dev->input_phys = d->rc_phys;
 	dev->dev.parent = &d->udev->dev;
+	dev->input_name = "IR-receiver inside an USB DVB receiver";
+	usb_make_path(d->udev, d->rc_phys, sizeof(d->rc_phys));
+	strlcat(d->rc_phys, "/ir0", sizeof(d->rc_phys));
+	dev->input_phys = d->rc_phys;
+	usb_to_input_id(d->udev, &dev->input_id);
+	/* TODO: likely RC-core should took const char * */
+	dev->driver_name = (char *) d->props.driver_name;
+	dev->driver_type = d->rc.driver_type;
+	dev->allowed_protos = d->rc.allowed_protos;
+	dev->change_protocol = d->rc.change_protocol;
 	dev->priv = d;
+	/* select used keymap */
+	if (d->rc.map_name)
+		dev->map_name = d->rc.map_name;
+	else if (d->rc_map)
+		dev->map_name = d->rc_map;
+	else
+		dev->map_name = RC_MAP_EMPTY; /* keep rc enabled */
 
-	/* leave remote controller enabled even there is no default map */
-	if (dev->map_name == NULL)
-		dev->map_name = RC_MAP_EMPTY;
-
-	err = rc_register_device(dev);
-	if (err < 0) {
+	ret = rc_register_device(dev);
+	if (ret < 0) {
 		rc_free_device(dev);
-		return err;
+		goto err;
 	}
 
 	d->input_dev = NULL;
 	d->rc_dev = dev;
 
-	if (!d->props.rc.rc_query || d->props.rc.bulk_mode)
-		return 0;
+	/* start polling if needed */
+	if (d->rc.query && !d->rc.bulk_mode) {
+		/* initialize a work queue for handling polling */
+		INIT_DELAYED_WORK(&d->rc_query_work,
+				dvb_usb_read_remote_control);
 
-	/* Polling mode - initialize a work queue for handling it */
-	INIT_DELAYED_WORK(&d->rc_query_work, dvb_usb_read_remote_control);
-
-	rc_interval = d->props.rc.rc_interval;
-
-	info("schedule remote query interval to %d msecs.", rc_interval);
-	schedule_delayed_work(&d->rc_query_work,
-			      msecs_to_jiffies(rc_interval));
-
-	return 0;
-}
-
-int dvb_usb_remote_init(struct dvb_usb_device *d)
-{
-	int err;
-
-	if (dvb_usb_disable_rc_polling)
-		return 0;
-
-	if (d->props.rc.module_name == NULL)
-		return 0;
-
-	usb_make_path(d->udev, d->rc_phys, sizeof(d->rc_phys));
-	strlcat(d->rc_phys, "/ir0", sizeof(d->rc_phys));
-
-	/* Start the remote-control polling. */
-	err = rc_core_dvb_usb_remote_init(d);
-	if (err)
-		return err;
+		info("schedule remote query interval to %d msecs",
+				d->rc.interval);
+		schedule_delayed_work(&d->rc_query_work,
+				msecs_to_jiffies(d->rc.interval));
+	}
 
 	d->state |= DVB_USB_STATE_REMOTE;
 
 	return 0;
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+	return ret;
 }
 
 int dvb_usb_remote_exit(struct dvb_usb_device *d)
@@ -115,6 +110,8 @@ int dvb_usb_remote_exit(struct dvb_usb_device *d)
 		cancel_delayed_work_sync(&d->rc_query_work);
 		rc_unregister_device(d->rc_dev);
 	}
+
 	d->state &= ~DVB_USB_STATE_REMOTE;
+
 	return 0;
 }
