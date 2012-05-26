@@ -132,7 +132,7 @@ exit:
 	return Status;
 }
 
-static int bcm_download_config_file(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
+static int bcm_download_config_file(PMINI_ADAPTER Adapter, struct bcm_firmware_info *psFwInfo)
 {
 	int retval = STATUS_SUCCESS;
 	B_UINT32 value = 0;
@@ -229,7 +229,7 @@ static int bcm_compare_buff_contents(unsigned char *readbackbuff, unsigned char 
 	return retval;
 }
 
-int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
+int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, struct bcm_firmware_info *psFwInfo)
 {
 	int retval = STATUS_SUCCESS;
 	PUCHAR buff = NULL;

@@ -787,7 +787,7 @@ cntrlEnd:
 	}
 
 	case IOCTL_BCM_BUFFER_DOWNLOAD: {
-		FIRMWARE_INFO *psFwInfo = NULL;
+		struct bcm_firmware_info *psFwInfo = NULL;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Starting the firmware download PID =0x%x!!!!\n", current->pid);
 
 		if (!down_trylock(&Adapter->fw_download_sema)) {
@@ -807,7 +807,7 @@ cntrlEnd:
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 				"Length for FW DLD is : %lx\n", IoBuffer.InputLength);
 
-		if (IoBuffer.InputLength > sizeof(FIRMWARE_INFO)) {
+		if (IoBuffer.InputLength > sizeof(struct bcm_firmware_info)) {
 			up(&Adapter->fw_download_sema);
 			return -EINVAL;
 		}

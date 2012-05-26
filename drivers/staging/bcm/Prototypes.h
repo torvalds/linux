@@ -92,7 +92,7 @@ int  ProcessGetHostMibs(PMINI_ADAPTER Adapter, S_MIBS_HOST_STATS_MIBS *buf);
 void GetDroppedAppCntrlPktMibs(S_MIBS_HOST_STATS_MIBS *ioBuffer, PPER_TARANG_DATA pTarang);
 void beceem_parse_target_struct(PMINI_ADAPTER Adapter);
 
-int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo);
+int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, struct bcm_firmware_info *psFwInfo);
 
 void CopyMIBSExtendedSFParameters(PMINI_ADAPTER Adapter,
 		CServiceFlowParamSI *psfLocalSet, UINT uiSearchRuleIndex);

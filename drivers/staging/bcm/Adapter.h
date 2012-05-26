@@ -535,11 +535,11 @@ struct _ETH_HEADER_STRUC {
 } __packed;
 typedef struct _ETH_HEADER_STRUC ETH_HEADER_STRUC, *PETH_HEADER_STRUC;
 
-typedef struct FirmwareInfo {
+struct bcm_firmware_info {
 	void	__user *pvMappedFirmwareAddress;
 	ULONG	u32FirmwareLength;
 	ULONG	u32StartingAddress;
-} __packed FIRMWARE_INFO, *PFIRMWARE_INFO;
+} __packed;
 
 /* holds the value of net_device structure.. */
 extern struct net_device *gblpnetdev;
