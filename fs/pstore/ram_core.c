@@ -250,23 +250,24 @@ static void notrace persistent_ram_update(struct persistent_ram_zone *prz,
 	persistent_ram_update_ecc(prz, start, count);
 }
 
-static void __init
-persistent_ram_save_old(struct persistent_ram_zone *prz)
+void persistent_ram_save_old(struct persistent_ram_zone *prz)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
 	size_t size = buffer_size(prz);
 	size_t start = buffer_start(prz);
-	char *dest;
 
-	persistent_ram_ecc_old(prz);
+	if (!size)
+		return;
 
-	dest = kmalloc(size, GFP_KERNEL);
-	if (dest == NULL) {
+	if (!prz->old_log) {
+		persistent_ram_ecc_old(prz);
+		prz->old_log = kmalloc(size, GFP_KERNEL);
+	}
+	if (!prz->old_log) {
 		pr_err("persistent_ram: failed to allocate buffer\n");
 		return;
 	}
 
-	prz->old_log = dest;
 	prz->old_log_size = size;
 	memcpy(prz->old_log, &buffer->data[start], size - start);
 	memcpy(prz->old_log + size - start, &buffer->data[0], start);

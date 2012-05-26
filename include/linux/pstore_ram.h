@@ -75,6 +75,7 @@ struct persistent_ram_zone *persistent_ram_init_ringbuffer(struct device *dev,
 int persistent_ram_write(struct persistent_ram_zone *prz, const void *s,
 	unsigned int count);
 
+void persistent_ram_save_old(struct persistent_ram_zone *prz);
 size_t persistent_ram_old_size(struct persistent_ram_zone *prz);
 void *persistent_ram_old(struct persistent_ram_zone *prz);
 void persistent_ram_free_old(struct persistent_ram_zone *prz);
