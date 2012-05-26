@@ -109,10 +109,10 @@
 #define LEADER_STATUS         0x00
 #define LEADER_STATUS_TCP_ACK 0x1
 #define LEADER_SIZE           sizeof(LEADER)
-#define MAC_ADDR_REQ_SIZE     sizeof(PACKETTOSEND)
-#define SS_INFO_REQ_SIZE      sizeof(PACKETTOSEND)
+#define MAC_ADDR_REQ_SIZE     sizeof(struct bcm_packettosend)
+#define SS_INFO_REQ_SIZE      sizeof(struct bcm_packettosend)
 #define CM_REQUEST_SIZE       (LEADER_SIZE + sizeof(stLocalSFChangeRequest))
-#define IDLE_REQ_SIZE         sizeof(PACKETTOSEND)
+#define IDLE_REQ_SIZE         sizeof(struct bcm_packettosend)
 
 
 #define MAX_TRANSFER_CTRL_BYTE_USB (2*1024)

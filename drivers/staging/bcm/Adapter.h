@@ -15,11 +15,10 @@ struct _LEADER {
 } __packed;
 typedef struct _LEADER LEADER, *PLEADER;
 
-struct _PACKETTOSEND {
+struct bcm_packettosend {
 	LEADER	Leader;
 	UCHAR	ucPayload;
 } __packed;
-typedef struct _PACKETTOSEND PACKETTOSEND, *PPACKETTOSEND;
 
 struct bcm_control_packet {
 	PVOID	ControlBuff;
