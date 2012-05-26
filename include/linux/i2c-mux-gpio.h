@@ -1,5 +1,5 @@
 /*
- * gpio-i2cmux interface to platform code
+ * i2c-mux-gpio interface to platform code
  *
  * Peter Korsgaard <peter.korsgaard@barco.com>
  *
@@ -8,14 +8,14 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _LINUX_GPIO_I2CMUX_H
-#define _LINUX_GPIO_I2CMUX_H
+#ifndef _LINUX_I2C_MUX_GPIO_H
+#define _LINUX_I2C_MUX_GPIO_H
 
 /* MUX has no specific idle mode */
-#define GPIO_I2CMUX_NO_IDLE	((unsigned)-1)
+#define I2C_MUX_GPIO_NO_IDLE	((unsigned)-1)
 
 /**
- * struct gpio_i2cmux_platform_data - Platform-dependent data for gpio-i2cmux
+ * struct i2c_mux_gpio_platform_data - Platform-dependent data for i2c-mux-gpio
  * @parent: Parent I2C bus adapter number
  * @base_nr: Base I2C bus number to number adapters from or zero for dynamic
  * @values: Array of bitmasks of GPIO settings (low/high) for each
@@ -25,7 +25,7 @@
  * @n_gpios: Number of GPIOs used to control MUX
  * @idle: Bitmask to write to MUX when idle or GPIO_I2CMUX_NO_IDLE if not used
  */
-struct gpio_i2cmux_platform_data {
+struct i2c_mux_gpio_platform_data {
 	int parent;
 	int base_nr;
 	const unsigned *values;
@@ -35,4 +35,4 @@ struct gpio_i2cmux_platform_data {
 	unsigned idle;
 };
 
-#endif /* _LINUX_GPIO_I2CMUX_H */
+#endif /* _LINUX_I2C_MUX_GPIO_H */
