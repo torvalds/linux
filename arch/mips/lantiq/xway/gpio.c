@@ -36,18 +36,6 @@ struct ltq_gpio {
 
 static struct ltq_gpio ltq_gpio_port[MAX_PORTS];
 
-int gpio_to_irq(unsigned int gpio)
-{
-	return -EINVAL;
-}
-EXPORT_SYMBOL(gpio_to_irq);
-
-int irq_to_gpio(unsigned int gpio)
-{
-	return -EINVAL;
-}
-EXPORT_SYMBOL(irq_to_gpio);
-
 int ltq_gpio_request(unsigned int pin, unsigned int alt0,
 	unsigned int alt1, unsigned int dir, const char *name)
 {

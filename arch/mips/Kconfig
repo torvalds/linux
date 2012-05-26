@@ -228,8 +228,9 @@ config LANTIQ
 	select ARCH_REQUIRE_GPIOLIB
 	select SWAP_IO_SPACE
 	select BOOT_RAW
-	select HAVE_CLK
-	select MIPS_MACHINE
+	select HAVE_MACH_CLKDEV
+	select CLKDEV_LOOKUP
+	select USE_OF
 
 config LASAT
 	bool "LASAT Networks platforms"
