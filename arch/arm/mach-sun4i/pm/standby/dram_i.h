@@ -14,7 +14,7 @@
 #define __DRAM_I_H__
 
 #include <mach/dram.h>
-#include "./../standby_i.h"
+#include "standby_i.h"
 
 #define DRAMC_IO_BASE       SW_VA_DRAM_IO_BASE
 #define DRAMC_MEM_SIZE      0x400
