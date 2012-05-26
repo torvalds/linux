@@ -93,6 +93,7 @@ struct ramoops_platform_data {
 	unsigned long	mem_size;
 	unsigned long	mem_address;
 	unsigned long	record_size;
+	unsigned long	console_size;
 	int		dump_oops;
 	bool		ecc;
 };
