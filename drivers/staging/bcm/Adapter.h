@@ -54,18 +54,6 @@ typedef struct _ADD_CONNECTION {
 	UCHAR	SrcProtocol;
 } ADD_CONNECTION, *PADD_CONNECTION;
 
-typedef struct _CLASSIFICATION_RULE {
-	UCHAR	ucIPSrcAddrLen;
-	UCHAR	ucIPSrcAddr[32];
-	UCHAR	ucIPDestAddrLen;
-	UCHAR	ucIPDestAddr[32];
-	UCHAR	ucSrcPortRangeLen;
-	UCHAR	ucSrcPortRange[4];
-	UCHAR	ucDestPortRangeLen;
-	UCHAR	ucDestPortRange[4];
-	USHORT	usVcid;
-} CLASSIFICATION_RULE, *PCLASSIFICATION_RULE;
-
 #define MAX_IP_RANGE_LENGTH 4
 #define MAX_PORT_RANGE 4
 #define MAX_PROTOCOL_LENGTH   32
