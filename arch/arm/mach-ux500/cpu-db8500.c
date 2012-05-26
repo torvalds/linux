@@ -237,7 +237,6 @@ struct device * __init u8500_of_init_devices(void)
 
 	parent = db8500_soc_device_init();
 
-	db8500_add_rtc(parent);
 	db8500_add_usb(parent, usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
 
 	platform_device_register_data(parent,

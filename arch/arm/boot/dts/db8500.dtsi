@@ -48,7 +48,7 @@
 		};
 
 		rtc@80154000 {
-			compatible = "stericsson,db8500-rtc";
+			compatible = "arm,rtc-pl031", "arm,primecell";
 			reg = <0x80154000 0x1000>;
 			interrupts = <0 18 0x4>;
 		};
