@@ -7,16 +7,15 @@
 #define MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES 256
 #include "Debug.h"
 
-struct _LEADER {
+struct bcm_leader {
 	USHORT	Vcid;
 	USHORT	PLength;
 	UCHAR	Status;
 	UCHAR	Unused[3];
 } __packed;
-typedef struct _LEADER LEADER, *PLEADER;
 
 struct bcm_packettosend {
-	LEADER	Leader;
+	struct bcm_leader Leader;
 	UCHAR	ucPayload;
 } __packed;
 
@@ -27,7 +26,7 @@ struct bcm_control_packet {
 } __packed;
 
 struct bcm_link_request {
-	LEADER	Leader;
+	struct bcm_leader Leader;
 	UCHAR	szData[4];
 } __packed;
 

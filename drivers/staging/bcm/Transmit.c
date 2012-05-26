@@ -43,7 +43,7 @@ This function dispatches control packet to the h/w interface
 */
 INT SendControlPacket(PMINI_ADAPTER Adapter, char *pControlPacket)
 {
-	PLEADER PLeader = (PLEADER)pControlPacket;
+	struct bcm_leader *PLeader = (struct bcm_leader *)pControlPacket;
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Tx");
 	if(!pControlPacket || !Adapter)
@@ -90,7 +90,7 @@ INT SetupNextSend(PMINI_ADAPTER Adapter,  struct sk_buff *Packet, USHORT Vcid)
 	BOOLEAN bHeaderSupressionEnabled = FALSE;
 	B_UINT16            uiClassifierRuleID;
 	u16	QueueIndex = skb_get_queue_mapping(Packet);
-	LEADER Leader={0};
+	struct bcm_leader Leader={0};
 
 	if(Packet->len > MAX_DEVICE_DESC_SIZE)
 	{
@@ -143,7 +143,7 @@ INT SetupNextSend(PMINI_ADAPTER Adapter,  struct sk_buff *Packet, USHORT Vcid)
 	else
 	{
 		Leader.PLength = Packet->len - ETH_HLEN;
-		memcpy((LEADER*)skb_pull(Packet, (ETH_HLEN - LEADER_SIZE)), &Leader, LEADER_SIZE);
+		memcpy((struct bcm_leader *)skb_pull(Packet, (ETH_HLEN - LEADER_SIZE)), &Leader, LEADER_SIZE);
 	}
 
 	status = Adapter->interface_transmit(Adapter->pvInterfaceAdapter,

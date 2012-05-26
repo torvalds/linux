@@ -1663,7 +1663,7 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /* <Pointer to the Adap
 	stServiceFlowParamSI *psfLocalSet = NULL;
 	stLocalSFAddIndicationAlt *pstAddIndication = NULL;
 	stLocalSFChangeIndicationAlt *pstChangeIndication = NULL;
-	PLEADER pLeader = NULL;
+	struct bcm_leader *pLeader = NULL;
 
 	/*
 	 * Otherwise the message contains a target address from where we need to
@@ -1678,7 +1678,7 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /* <Pointer to the Adap
 
 	DumpCmControlPacket(pstAddIndication);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "====>");
-	pLeader = (PLEADER)Adapter->caDsxReqResp;
+	pLeader = (struct bcm_leader *)Adapter->caDsxReqResp;
 
 	pLeader->Status = CM_CONTROL_NEWDSX_MULTICLASSIFIER_REQ;
 	pLeader->Vcid = 0;

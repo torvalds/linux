@@ -46,7 +46,7 @@ static void read_bulk_callback(struct urb *urb)
 	PUSB_RCB pRcb = (PUSB_RCB)urb->context;
 	PS_INTERFACE_ADAPTER psIntfAdapter = pRcb->psIntfAdapter;
 	PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter;
-	PLEADER pLeader = urb->transfer_buffer;
+	struct bcm_leader *pLeader = urb->transfer_buffer;
 
 	if (unlikely(netif_msg_rx_status(Adapter)))
 		pr_info(PFX "%s: rx urb status %d length %d\n",
@@ -126,7 +126,7 @@ static void read_bulk_callback(struct urb *urb)
 	    BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_CTRL, DBG_LVL_ALL, "Received control pkt...");
 		*(PUSHORT)skb->data = pLeader->Status;
        	memcpy(skb->data+sizeof(USHORT), urb->transfer_buffer +
-			(sizeof(LEADER)), pLeader->PLength);
+			(sizeof(struct bcm_leader)), pLeader->PLength);
 		skb->len = pLeader->PLength + sizeof(USHORT);
 
 		spin_lock(&Adapter->control_queue_lock);
@@ -144,7 +144,7 @@ static void read_bulk_callback(struct urb *urb)
 		  */
         BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "Received Data pkt...");
 		skb_reserve(skb, 2 + SKB_RESERVE_PHS_BYTES);
-		memcpy(skb->data+ETH_HLEN, (PUCHAR)urb->transfer_buffer + sizeof(LEADER), pLeader->PLength);
+		memcpy(skb->data+ETH_HLEN, (PUCHAR)urb->transfer_buffer + sizeof(struct bcm_leader), pLeader->PLength);
 		skb->dev = Adapter->dev;
 
 		/* currently skb->len has extra ETH_HLEN bytes in the beginning */

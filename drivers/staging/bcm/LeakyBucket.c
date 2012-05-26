@@ -243,10 +243,10 @@ static VOID CheckAndSendPacketFromIndex(PMINI_ADAPTER Adapter, struct bcm_packet
 				{
 					spin_lock_bh(&psSF->SFQueueLock);
 					psSF->NumOfPacketsSent++;
-					psSF->uiSentBytes+=((PLEADER)pControlPacket)->PLength;
+					psSF->uiSentBytes+=((struct bcm_leader *)pControlPacket)->PLength;
 					psSF->uiSentPackets++;
 					atomic_dec(&Adapter->TotalPacketCount);
-					psSF->uiCurrentBytesOnHost -= ((PLEADER)pControlPacket)->PLength;
+					psSF->uiCurrentBytesOnHost -= ((struct bcm_leader *)pControlPacket)->PLength;
 					psSF->uiCurrentPacketsOnHost--;
 					atomic_inc(&Adapter->index_rd_txcntrlpkt);
 					spin_unlock_bh(&psSF->SFQueueLock);

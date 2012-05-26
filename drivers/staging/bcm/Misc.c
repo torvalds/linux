@@ -233,7 +233,7 @@ exit_download:
  */
 INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter, PVOID ioBuffer)
 {
-	PLEADER	pLeader = NULL;
+	struct bcm_leader *pLeader = NULL;
 	INT Status = 0;
 	unsigned char *ctrl_buff = NULL;
 	UINT pktlen = 0;
@@ -247,7 +247,7 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter, PVOID ioBuffer)
 	}
 
 	pLinkReq = (struct bcm_link_request *)ioBuffer;
-	pLeader = (PLEADER)ioBuffer; /* ioBuffer Contains sw_Status and Payload */
+	pLeader = (struct bcm_leader *)ioBuffer; /* ioBuffer Contains sw_Status and Payload */
 
 	if (Adapter->bShutStatus == TRUE &&
 		pLinkReq->szData[0] == LINK_DOWN_REQ_PAYLOAD &&
@@ -373,7 +373,7 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter, PVOID ioBuffer)
 
 		memset(ctrl_buff, 0, pktlen+LEADER_SIZE);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Copying the Control Packet Buffer with length=%d\n", pLeader->PLength);
-		*(PLEADER)ctrl_buff = *pLeader;
+		*(struct bcm_leader *)ctrl_buff = *pLeader;
 		memcpy(ctrl_buff + LEADER_SIZE, ((PUCHAR)ioBuffer + LEADER_SIZE), pLeader->PLength);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Enqueuing the Control Packet");
 
