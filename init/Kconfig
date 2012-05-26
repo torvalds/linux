@@ -926,7 +926,6 @@ config UIDGID_CONVERTED
 	# List of kernel pieces that need user namespace work
 	# Features
 	depends on IMA = n
-	depends on EVM = n
 
 	# Networking
 	depends on NET_9P = n
