@@ -33,8 +33,8 @@ VOID SortPackInfo(PMINI_ADAPTER Adapter)
 
 static int compare_classifiers(void const *a, void const *b)
 {
-	S_CLASSIFIER_RULE const *pa = a;
-	S_CLASSIFIER_RULE const *pb = b;
+	struct bcm_classifier_rule const *pa = a;
+	struct bcm_classifier_rule const *pb = b;
 
 	if (!pa->bUsed || !pb->bUsed)
 		return 0;
@@ -48,5 +48,5 @@ VOID SortClassifiers(PMINI_ADAPTER Adapter)
 			DBG_LVL_ALL, "<=======");
 
 	sort(Adapter->astClassifierTable, MAX_CLASSIFIERS,
-		sizeof(S_CLASSIFIER_RULE), compare_classifiers, NULL);
+		sizeof(struct bcm_classifier_rule), compare_classifiers, NULL);
 }

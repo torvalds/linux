@@ -5,10 +5,10 @@ This file contains the routines related to Quality of Service.
 #include "headers.h"
 
 static void EThCSGetPktInfo(PMINI_ADAPTER Adapter,PVOID pvEthPayload,PS_ETHCS_PKT_INFO pstEthCsPktInfo);
-static BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo,S_CLASSIFIER_RULE *pstClassifierRule, B_UINT8 EthCSCupport);
+static BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo,struct bcm_classifier_rule *pstClassifierRule, B_UINT8 EthCSCupport);
 
 static USHORT	IpVersion4(PMINI_ADAPTER Adapter, struct iphdr *iphd,
-			   S_CLASSIFIER_RULE *pstClassifierRule );
+			   struct bcm_classifier_rule *pstClassifierRule );
 
 static VOID PruneQueue(PMINI_ADAPTER Adapter, INT iIndex);
 
@@ -24,7 +24,7 @@ static VOID PruneQueue(PMINI_ADAPTER Adapter, INT iIndex);
 *
 * Returns     - TRUE(If address matches) else FAIL .
 *********************************************************************/
-BOOLEAN MatchSrcIpAddress(S_CLASSIFIER_RULE *pstClassifierRule,ULONG ulSrcIP)
+BOOLEAN MatchSrcIpAddress(struct bcm_classifier_rule *pstClassifierRule,ULONG ulSrcIP)
 {
     UCHAR 	ucLoopIndex=0;
 
@@ -58,7 +58,7 @@ BOOLEAN MatchSrcIpAddress(S_CLASSIFIER_RULE *pstClassifierRule,ULONG ulSrcIP)
 *
 * Returns     - TRUE(If address matches) else FAIL .
 *********************************************************************/
-BOOLEAN MatchDestIpAddress(S_CLASSIFIER_RULE *pstClassifierRule,ULONG ulDestIP)
+BOOLEAN MatchDestIpAddress(struct bcm_classifier_rule *pstClassifierRule,ULONG ulDestIP)
 {
 	UCHAR 	ucLoopIndex=0;
     PMINI_ADAPTER	Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -91,7 +91,7 @@ BOOLEAN MatchDestIpAddress(S_CLASSIFIER_RULE *pstClassifierRule,ULONG ulDestIP)
 *
 * Returns     - TRUE(If address matches) else FAIL.
 **************************************************************************/
-BOOLEAN MatchTos(S_CLASSIFIER_RULE *pstClassifierRule,UCHAR ucTypeOfService)
+BOOLEAN MatchTos(struct bcm_classifier_rule *pstClassifierRule,UCHAR ucTypeOfService)
 {
 
 	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -117,7 +117,7 @@ BOOLEAN MatchTos(S_CLASSIFIER_RULE *pstClassifierRule,UCHAR ucTypeOfService)
 *
 * Returns     - TRUE(If address matches) else FAIL.
 ****************************************************************************/
-BOOLEAN MatchProtocol(S_CLASSIFIER_RULE *pstClassifierRule,UCHAR ucProtocol)
+BOOLEAN MatchProtocol(struct bcm_classifier_rule *pstClassifierRule,UCHAR ucProtocol)
 {
    	UCHAR 	ucLoopIndex=0;
 	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -146,7 +146,7 @@ BOOLEAN MatchProtocol(S_CLASSIFIER_RULE *pstClassifierRule,UCHAR ucProtocol)
 *
 * Returns     - TRUE(If address matches) else FAIL.
 ***************************************************************************/
-BOOLEAN MatchSrcPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushSrcPort)
+BOOLEAN MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule,USHORT ushSrcPort)
 {
     	UCHAR 	ucLoopIndex=0;
 
@@ -178,7 +178,7 @@ BOOLEAN MatchSrcPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushSrcPort)
 *
 * Returns     - TRUE(If address matches) else FAIL.
 ***************************************************************************/
-BOOLEAN MatchDestPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushDestPort)
+BOOLEAN MatchDestPort(struct bcm_classifier_rule *pstClassifierRule,USHORT ushDestPort)
 {
     	UCHAR 	ucLoopIndex=0;
 		PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -206,7 +206,7 @@ Compares IPV4 Ip address and port number
 */
 static USHORT	IpVersion4(PMINI_ADAPTER Adapter,
 			   struct iphdr *iphd,
-			   S_CLASSIFIER_RULE *pstClassifierRule )
+			   struct bcm_classifier_rule *pstClassifierRule)
 {
 	xporthdr     		*xprt_hdr=NULL;
 	BOOLEAN	bClassificationSucceed=FALSE;
@@ -445,7 +445,7 @@ VOID flush_all_queues(PMINI_ADAPTER Adapter)
 USHORT ClassifyPacket(PMINI_ADAPTER Adapter,struct sk_buff* skb)
 {
 	INT			uiLoopIndex=0;
-	S_CLASSIFIER_RULE *pstClassifierRule = NULL;
+	struct bcm_classifier_rule *pstClassifierRule = NULL;
 	S_ETHCS_PKT_INFO stEthCsPktInfo;
 	PVOID pvEThPayload = NULL;
 	struct iphdr 		*pIpHeader = NULL;
@@ -649,7 +649,7 @@ USHORT ClassifyPacket(PMINI_ADAPTER Adapter,struct sk_buff* skb)
 		return INVALID_QUEUE_INDEX;
 }
 
-static BOOLEAN EthCSMatchSrcMACAddress(S_CLASSIFIER_RULE *pstClassifierRule,PUCHAR Mac)
+static BOOLEAN EthCSMatchSrcMACAddress(struct bcm_classifier_rule *pstClassifierRule,PUCHAR Mac)
 {
 	UINT i=0;
     PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -666,7 +666,7 @@ static BOOLEAN EthCSMatchSrcMACAddress(S_CLASSIFIER_RULE *pstClassifierRule,PUCH
 	return TRUE;
 }
 
-static BOOLEAN EthCSMatchDestMACAddress(S_CLASSIFIER_RULE *pstClassifierRule,PUCHAR Mac)
+static BOOLEAN EthCSMatchDestMACAddress(struct bcm_classifier_rule *pstClassifierRule,PUCHAR Mac)
 {
 	UINT i=0;
     PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -683,7 +683,7 @@ static BOOLEAN EthCSMatchDestMACAddress(S_CLASSIFIER_RULE *pstClassifierRule,PUC
 	return TRUE;
 }
 
-static BOOLEAN EthCSMatchEThTypeSAP(S_CLASSIFIER_RULE *pstClassifierRule,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo)
+static BOOLEAN EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo)
 {
     PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	if((pstClassifierRule->ucEtherTypeLen==0)||
@@ -718,7 +718,7 @@ static BOOLEAN EthCSMatchEThTypeSAP(S_CLASSIFIER_RULE *pstClassifierRule,struct 
 
 }
 
-static BOOLEAN EthCSMatchVLANRules(S_CLASSIFIER_RULE *pstClassifierRule,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo)
+static BOOLEAN EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo)
 {
 	BOOLEAN bClassificationSucceed = FALSE;
 	USHORT usVLANID;
@@ -770,7 +770,7 @@ static BOOLEAN EthCSMatchVLANRules(S_CLASSIFIER_RULE *pstClassifierRule,struct s
 
 static BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,
 				PS_ETHCS_PKT_INFO pstEthCsPktInfo,
-				S_CLASSIFIER_RULE *pstClassifierRule,
+				struct bcm_classifier_rule *pstClassifierRule,
 				B_UINT8 EthCSCupport)
 {
 	BOOLEAN bClassificationSucceed = FALSE;

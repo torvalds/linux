@@ -1,8 +1,8 @@
 #include "headers.h"
 
-static BOOLEAN MatchSrcIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,
+static BOOLEAN MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	IPV6Header *pstIpv6Header);
-static BOOLEAN MatchDestIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,
+static BOOLEAN MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	IPV6Header *pstIpv6Header);
 static VOID DumpIpv6Header(IPV6Header *pstIpv6Header);
 
@@ -181,7 +181,7 @@ static UCHAR GetIpv6ProtocolPorts(UCHAR *pucPayload, USHORT *pusSrcPort,
  * Arg 2 PVOID pcIpHeader is a pointer to the IP header of the packet
  */
 USHORT	IpVersion6(PMINI_ADAPTER Adapter, PVOID pcIpHeader,
-					S_CLASSIFIER_RULE *pstClassifierRule)
+					struct bcm_classifier_rule *pstClassifierRule)
 {
 	USHORT	ushDestPort = 0;
 	USHORT	ushSrcPort = 0;
@@ -288,7 +288,7 @@ USHORT	IpVersion6(PMINI_ADAPTER Adapter, PVOID pcIpHeader,
 }
 
 
-static BOOLEAN MatchSrcIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,
+static BOOLEAN MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	IPV6Header *pstIpv6Header)
 {
 	UINT uiLoopIndex = 0;
@@ -344,7 +344,7 @@ static BOOLEAN MatchSrcIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,
 	return FALSE;
 }
 
-static BOOLEAN MatchDestIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,
+static BOOLEAN MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	IPV6Header *pstIpv6Header)
 {
 	UINT uiLoopIndex = 0;

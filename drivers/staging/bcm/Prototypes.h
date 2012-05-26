@@ -33,9 +33,9 @@ INT SearchSfid(PMINI_ADAPTER Adapter,UINT uiSfid);
 
 USHORT ClassifyPacket(PMINI_ADAPTER Adapter,struct sk_buff* skb);
 
-BOOLEAN MatchSrcPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushSrcPort);
-BOOLEAN MatchDestPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushSrcPort);
-BOOLEAN MatchProtocol(S_CLASSIFIER_RULE *pstClassifierRule,UCHAR ucProtocol);
+BOOLEAN MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule,USHORT ushSrcPort);
+BOOLEAN MatchDestPort(struct bcm_classifier_rule *pstClassifierRule,USHORT ushSrcPort);
+BOOLEAN MatchProtocol(struct bcm_classifier_rule *pstClassifierRule,UCHAR ucProtocol);
 
 
 INT SetupNextSend(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
@@ -101,7 +101,7 @@ VOID ResetCounters(PMINI_ADAPTER Adapter);
 
 int InitLedSettings(PMINI_ADAPTER Adapter);
 
-S_CLASSIFIER_RULE *GetFragIPClsEntry(PMINI_ADAPTER Adapter,USHORT usIpIdentification,ULONG SrcIP);
+struct bcm_classifier_rule *GetFragIPClsEntry(PMINI_ADAPTER Adapter,USHORT usIpIdentification,ULONG SrcIP);
 
 void AddFragIPClsEntry(PMINI_ADAPTER Adapter, struct bcm_fragmented_packet_info *psFragPktInfo);
 

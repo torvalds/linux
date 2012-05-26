@@ -112,7 +112,7 @@ static VOID deleteSFBySfid(PMINI_ADAPTER Adapter, UINT uiSearchRuleIndex)
 }
 
 static inline VOID
-CopyIpAddrToClassifier(S_CLASSIFIER_RULE *pstClassifierEntry,
+CopyIpAddrToClassifier(struct bcm_classifier_rule *pstClassifierEntry,
 		B_UINT8 u8IpAddressLen, B_UINT8 *pu8IpAddressMaskSrc,
 		BOOLEAN bIpVersion6, E_IPADDR_CONTEXT eIpAddrContext)
 {
@@ -238,7 +238,7 @@ void ClearTargetDSXBuffer(PMINI_ADAPTER Adapter, B_UINT16 TID, BOOLEAN bFreeAll)
  */
 static inline VOID CopyClassifierRuleToSF(PMINI_ADAPTER Adapter, stConvergenceSLTypes  *psfCSType, UINT uiSearchRuleIndex, UINT nClassifierIndex)
 {
-	S_CLASSIFIER_RULE *pstClassifierEntry = NULL;
+	struct bcm_classifier_rule *pstClassifierEntry = NULL;
 	/* VOID *pvPhsContext = NULL; */
 	int i;
 	/* UCHAR ucProtocolLength=0; */
@@ -367,7 +367,7 @@ static inline VOID CopyClassifierRuleToSF(PMINI_ADAPTER Adapter, stConvergenceSL
  */
 static inline VOID DeleteClassifierRuleFromSF(PMINI_ADAPTER Adapter, UINT uiSearchRuleIndex, UINT nClassifierIndex)
 {
-	S_CLASSIFIER_RULE *pstClassifierEntry = NULL;
+	struct bcm_classifier_rule *pstClassifierEntry = NULL;
 	B_UINT16 u16PacketClassificationRuleIndex;
 	USHORT usVCID;
 	/* VOID *pvPhsContext = NULL; */
@@ -386,7 +386,7 @@ static inline VOID DeleteClassifierRuleFromSF(PMINI_ADAPTER Adapter, UINT uiSear
 	if (pstClassifierEntry) {
 		pstClassifierEntry->bUsed = FALSE;
 		pstClassifierEntry->uiClassifierRuleIndex = 0;
-		memset(pstClassifierEntry, 0, sizeof(S_CLASSIFIER_RULE));
+		memset(pstClassifierEntry, 0, sizeof(struct bcm_classifier_rule));
 
 		/* Delete the PHS Rule for this classifier */
 		PhsDeleteClassifierRule(&Adapter->stBCMPhsContext, usVCID, u16PacketClassificationRuleIndex);
@@ -398,7 +398,7 @@ static inline VOID DeleteClassifierRuleFromSF(PMINI_ADAPTER Adapter, UINT uiSear
  */
 VOID DeleteAllClassifiersForSF(PMINI_ADAPTER Adapter, UINT uiSearchRuleIndex)
 {
-	S_CLASSIFIER_RULE *pstClassifierEntry = NULL;
+	struct bcm_classifier_rule *pstClassifierEntry = NULL;
 	int i;
 	/* B_UINT16  u16PacketClassificationRuleIndex; */
 	USHORT ulVCID;

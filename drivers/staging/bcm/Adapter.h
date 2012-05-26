@@ -105,7 +105,7 @@ typedef struct _S_HDR_SUPRESSION_CONTEXTINFO {
 	UCHAR ucaHdrSupressionOutBuf[MAX_PHS_LENGTHS + PHSI_LEN]; /* Intermediate buffer containing pkt Header after PHS */
 } S_HDR_SUPRESSION_CONTEXTINFO;
 
-typedef struct _S_CLASSIFIER_RULE {
+struct bcm_classifier_rule {
 	ULONG		ulSFID;
 	UCHAR		ucReserved[2];
 	B_UINT16	uiClassifierRuleIndex;
@@ -156,14 +156,13 @@ typedef struct _S_CLASSIFIER_RULE {
 	UCHAR		usUserPriority[2];
 	USHORT		usVLANID;
 	USHORT		usValidityBitMap;
-} S_CLASSIFIER_RULE;
-/* typedef struct _S_CLASSIFIER_RULE S_CLASSIFIER_RULE; */
+};
 
 struct bcm_fragmented_packet_info {
 	BOOLEAN			bUsed;
 	ULONG			ulSrcIpAddress;
 	USHORT			usIpIdentification;
-	S_CLASSIFIER_RULE	*pstMatchedClassifierEntry;
+	struct bcm_classifier_rule *pstMatchedClassifierEntry;
 	BOOLEAN			bOutOfOrderFragment;
 };
 
@@ -295,7 +294,7 @@ struct _MINI_ADAPTER {
 	USHORT			CurrNumRecvDescs;
 	UINT			u32TotalDSD;
 	struct bcm_packet_info	PackInfo[NO_OF_QUEUES];
-	S_CLASSIFIER_RULE	astClassifierTable[MAX_CLASSIFIERS];
+	struct bcm_classifier_rule astClassifierTable[MAX_CLASSIFIERS];
 	BOOLEAN			TransferMode;
 
 	/*************** qos ******************/

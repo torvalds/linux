@@ -684,7 +684,7 @@ VOID DumpPackInfo(PMINI_ADAPTER Adapter)
 	UINT uiLoopIndex = 0;
 	UINT uiIndex = 0;
 	UINT uiClsfrIndex = 0;
-	S_CLASSIFIER_RULE *pstClassifierEntry = NULL;
+	struct bcm_classifier_rule *pstClassifierEntry = NULL;
 
 	for (uiLoopIndex = 0; uiLoopIndex < NO_OF_QUEUES; uiLoopIndex++) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "*********** Showing Details Of Queue %d***** ******", uiLoopIndex);
@@ -1519,7 +1519,7 @@ VOID ResetCounters(PMINI_ADAPTER Adapter)
 	Adapter->bShutStatus = FALSE;
 }
 
-S_CLASSIFIER_RULE *GetFragIPClsEntry(PMINI_ADAPTER Adapter, USHORT usIpIdentification, ULONG SrcIP)
+struct bcm_classifier_rule *GetFragIPClsEntry(PMINI_ADAPTER Adapter, USHORT usIpIdentification, ULONG SrcIP)
 {
 	UINT uiIndex = 0;
 	for (uiIndex = 0; uiIndex < MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES; uiIndex++) {
