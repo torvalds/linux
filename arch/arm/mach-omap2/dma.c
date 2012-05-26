@@ -227,10 +227,6 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 
 	dma_stride		= OMAP2_DMA_STRIDE;
 	dma_common_ch_start	= CSDP;
-	if (cpu_is_omap3630() || cpu_is_omap44xx())
-		dma_common_ch_end = CCDN;
-	else
-		dma_common_ch_end = CCFN;
 
 	p = kzalloc(sizeof(struct omap_system_dma_plat_info), GFP_KERNEL);
 	if (!p) {
@@ -277,6 +273,13 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 		dev_err(&pdev->dev, "%s: kzalloc fail\n", __func__);
 		return -ENOMEM;
 	}
+
+	/* Check the capabilities register for descriptor loading feature */
+	if (dma_read(CAPS_0, 0) & DMA_HAS_DESCRIPTOR_CAPS)
+		dma_common_ch_end = CCDN;
+	else
+		dma_common_ch_end = CCFN;
+
 	return 0;
 }
 

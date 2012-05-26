@@ -55,7 +55,7 @@ static inline void omap34xx_map_common_io(void)
 }
 #endif
 
-#ifdef CONFIG_SOC_OMAPTI81XX
+#ifdef CONFIG_SOC_TI81XX
 extern void omapti81xx_map_common_io(void);
 #else
 static inline void omapti81xx_map_common_io(void)
@@ -63,7 +63,7 @@ static inline void omapti81xx_map_common_io(void)
 }
 #endif
 
-#ifdef CONFIG_SOC_OMAPAM33XX
+#ifdef CONFIG_SOC_AM33XX
 extern void omapam33xx_map_common_io(void);
 #else
 static inline void omapam33xx_map_common_io(void)
