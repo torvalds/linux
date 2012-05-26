@@ -29,6 +29,7 @@
 enum pstore_type_id {
 	PSTORE_TYPE_DMESG	= 0,
 	PSTORE_TYPE_MCE		= 1,
+	PSTORE_TYPE_CONSOLE	= 2,
 	PSTORE_TYPE_UNKNOWN	= 255
 };
 

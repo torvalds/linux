@@ -1,6 +1,7 @@
 /*
  * Persistent Storage - platform driver interface parts.
  *
+ * Copyright (C) 2007-2008 Google, Inc.
  * Copyright (C) 2010 Intel Corporation <tony.luck@intel.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -22,6 +23,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kmsg_dump.h>
+#include <linux/console.h>
 #include <linux/module.h>
 #include <linux/pstore.h>
 #include <linux/string.h>
@@ -156,6 +158,40 @@ static struct kmsg_dumper pstore_dumper = {
 	.dump = pstore_dump,
 };
 
+#ifdef CONFIG_PSTORE_CONSOLE
+static void pstore_console_write(struct console *con, const char *s, unsigned c)
+{
+	const char *e = s + c;
+
+	while (s < e) {
+		unsigned long flags;
+
+		if (c > psinfo->bufsize)
+			c = psinfo->bufsize;
+		spin_lock_irqsave(&psinfo->buf_lock, flags);
+		memcpy(psinfo->buf, s, c);
+		psinfo->write(PSTORE_TYPE_CONSOLE, 0, NULL, 0, c, psinfo);
+		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
+		s += c;
+		c = e - s;
+	}
+}
+
+static struct console pstore_console = {
+	.name	= "pstore",
+	.write	= pstore_console_write,
+	.flags	= CON_PRINTBUFFER | CON_ENABLED | CON_ANYTIME,
+	.index	= -1,
+};
+
+static void pstore_register_console(void)
+{
+	register_console(&pstore_console);
+}
+#else
+static void pstore_register_console(void) {}
+#endif
+
 /*
  * platform specific persistent storage driver registers with
  * us here. If pstore is already mounted, call the platform
@@ -193,6 +229,7 @@ int pstore_register(struct pstore_info *psi)
 		pstore_get_records(0);
 
 	kmsg_dump_register(&pstore_dumper);
+	pstore_register_console();
 
 	pstore_timer.expires = jiffies + PSTORE_INTERVAL;
 	add_timer(&pstore_timer);
