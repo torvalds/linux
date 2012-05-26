@@ -1,0 +1,17 @@
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "brcm,bcm2835";
+	model = "BCM2835";
+
+	chosen {
+		bootargs = "earlyprintk";
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x7e000000 0x20000000 0x02000000>;
+	};
+};

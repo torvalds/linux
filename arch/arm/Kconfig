@@ -350,6 +350,23 @@ config ARCH_AT91
 	  This enables support for systems based on Atmel
 	  AT91RM9200 and AT91SAM9* processors.
 
+config ARCH_BCM2835
+	bool "Broadcom BCM2835 family"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_AMBA
+	select ARM_ERRATA_411920
+	select ARM_TIMER_SP804
+	select CLKDEV_LOOKUP
+	select COMMON_CLK
+	select CPU_V6
+	select GENERIC_CLOCKEVENTS
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  This enables support for the Broadcom BCM2835 SoC. This SoC is
+	  use in the Raspberry Pi, and Roku 2 devices.
+
 config ARCH_BCMRING
 	bool "Broadcom BCMRING"
 	depends on MMU
