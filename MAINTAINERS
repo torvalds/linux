@@ -1905,6 +1905,16 @@ F:	Documentation/filesystems/coda.txt
 F:	fs/coda/
 F:	include/linux/coda*.h
 
+COMMON CLK FRAMEWORK
+M:	Mike Turquette <mturquette@ti.com>
+M:	Mike Turquette <mturquette@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (same as CLK API & CLKDEV)
+T:	git git://git.linaro.org/people/mturquette/linux.git
+S:	Maintained
+F:	drivers/clk/clk.c
+F:	drivers/clk/clk-*
+F:	include/linux/clk-pr*
+
 COMMON INTERNET FILE SYSTEM (CIFS)
 M:	Steve French <sfrench@samba.org>
 L:	linux-cifs@vger.kernel.org
@@ -6368,9 +6378,7 @@ L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
-F:	arch/arm/mach-spear*/clock.c
-F:	arch/arm/plat-spear/clock.c
-F:	arch/arm/plat-spear/include/plat/clock.h
+F:	drivers/clk/spear/
 
 SPI SUBSYSTEM
 M:	Grant Likely <grant.likely@secretlab.ca>

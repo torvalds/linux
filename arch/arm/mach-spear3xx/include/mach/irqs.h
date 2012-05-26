@@ -16,7 +16,6 @@
 
 /* FIXME: probe all these from DT */
 #define SPEAR3XX_IRQ_INTRCOMM_RAS_ARM		1
-#define SPEAR3XX_IRQ_CPU_GPT1_1			2
 #define SPEAR3XX_IRQ_GEN_RAS_1			28
 #define SPEAR3XX_IRQ_GEN_RAS_2			29
 #define SPEAR3XX_IRQ_GEN_RAS_3			30
