@@ -473,10 +473,8 @@ static u32 pl08x_getbytes_chan(struct pl08x_dma_chan *plchan)
 {
 	struct pl08x_phy_chan *ch;
 	struct pl08x_txd *txd;
-	unsigned long flags;
 	size_t bytes = 0;
 
-	spin_lock_irqsave(&plchan->vc.lock, flags);
 	ch = plchan->phychan;
 	txd = plchan->at;
 
@@ -515,27 +513,6 @@ static u32 pl08x_getbytes_chan(struct pl08x_dma_chan *plchan)
 			}
 		}
 	}
-
-	/* Sum up all queued transactions */
-	if (!list_empty(&plchan->vc.desc_issued)) {
-		struct pl08x_txd *txdi;
-		list_for_each_entry(txdi, &plchan->vc.desc_issued, vd.node) {
-			struct pl08x_sg *dsg;
-			list_for_each_entry(dsg, &txd->dsg_list, node)
-				bytes += dsg->len;
-		}
-	}
-
-	if (!list_empty(&plchan->vc.desc_submitted)) {
-		struct pl08x_txd *txdi;
-		list_for_each_entry(txdi, &plchan->vc.desc_submitted, vd.node) {
-			struct pl08x_sg *dsg;
-			list_for_each_entry(dsg, &txd->dsg_list, node)
-				bytes += dsg->len;
-		}
-	}
-
-	spin_unlock_irqrestore(&plchan->vc.lock, flags);
 
 	return bytes;
 }
@@ -1171,23 +1148,53 @@ static enum dma_status pl08x_dma_tx_status(struct dma_chan *chan,
 		dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
+	struct virt_dma_desc *vd;
+	unsigned long flags;
 	enum dma_status ret;
+	size_t bytes = 0;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
 	if (ret == DMA_SUCCESS)
 		return ret;
 
 	/*
+	 * There's no point calculating the residue if there's
+	 * no txstate to store the value.
+	 */
+	if (!txstate) {
+		if (plchan->state == PL08X_CHAN_PAUSED)
+			ret = DMA_PAUSED;
+		return ret;
+	}
+
+	spin_lock_irqsave(&plchan->vc.lock, flags);
+	ret = dma_cookie_status(chan, cookie, txstate);
+	if (ret != DMA_SUCCESS) {
+		vd = vchan_find_desc(&plchan->vc, cookie);
+		if (vd) {
+			/* On the issued list, so hasn't been processed yet */
+			struct pl08x_txd *txd = to_pl08x_txd(&vd->tx);
+			struct pl08x_sg *dsg;
+
+			list_for_each_entry(dsg, &txd->dsg_list, node)
+				bytes += dsg->len;
+		} else {
+			bytes = pl08x_getbytes_chan(plchan);
+		}
+	}
+	spin_unlock_irqrestore(&plchan->vc.lock, flags);
+
+	/*
 	 * This cookie not complete yet
 	 * Get number of bytes left in the active transactions and queue
 	 */
-	dma_set_residue(txstate, pl08x_getbytes_chan(plchan));
+	dma_set_residue(txstate, bytes);
 
-	if (plchan->state == PL08X_CHAN_PAUSED)
-		return DMA_PAUSED;
+	if (plchan->state == PL08X_CHAN_PAUSED && ret == DMA_IN_PROGRESS)
+		ret = DMA_PAUSED;
 
 	/* Whether waiting or running, we're in progress */
-	return DMA_IN_PROGRESS;
+	return ret;
 }
 
 /* PrimeCell DMA extension */
