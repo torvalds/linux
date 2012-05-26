@@ -186,6 +186,7 @@ static int ramoops_pstore_erase(enum pstore_type_id type, u64 id,
 		return -EINVAL;
 
 	persistent_ram_free_old(cxt->przs[id]);
+	persistent_ram_zap(cxt->przs[id]);
 
 	return 0;
 }
