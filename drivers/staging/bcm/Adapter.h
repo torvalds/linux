@@ -528,12 +528,11 @@ typedef struct _MINI_ADAPTER MINI_ADAPTER, *PMINI_ADAPTER;
 
 #define GET_BCM_ADAPTER(net_dev) netdev_priv(net_dev)
 
-struct _ETH_HEADER_STRUC {
+struct bcm_eth_header {
 	UCHAR	au8DestinationAddress[6];
 	UCHAR	au8SourceAddress[6];
 	USHORT	u16Etype;
 } __packed;
-typedef struct _ETH_HEADER_STRUC ETH_HEADER_STRUC, *PETH_HEADER_STRUC;
 
 struct bcm_firmware_info {
 	void	__user *pvMappedFirmwareAddress;

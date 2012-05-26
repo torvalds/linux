@@ -733,7 +733,7 @@ static BOOLEAN EthCSMatchVLANRules(S_CLASSIFIER_RULE *pstClassifierRule,struct s
 		if(pstEthCsPktInfo->eNwpktEthFrameType!=eEth802QVLANFrame)
 				return FALSE;
 
-		uPriority = (ntohs(*(USHORT *)(skb->data + sizeof(ETH_HEADER_STRUC))) & 0xF000) >> 13;
+		uPriority = (ntohs(*(USHORT *)(skb->data + sizeof(struct bcm_eth_header))) & 0xF000) >> 13;
 
 		if((uPriority >= pstClassifierRule->usUserPriority[0]) && (uPriority <= pstClassifierRule->usUserPriority[1]))
 				bClassificationSucceed = TRUE;
@@ -751,7 +751,7 @@ static BOOLEAN EthCSMatchVLANRules(S_CLASSIFIER_RULE *pstClassifierRule,struct s
 		if(pstEthCsPktInfo->eNwpktEthFrameType!=eEth802QVLANFrame)
 				return FALSE;
 
-		usVLANID = ntohs(*(USHORT *)(skb->data + sizeof(ETH_HEADER_STRUC))) & 0xFFF;
+		usVLANID = ntohs(*(USHORT *)(skb->data + sizeof(struct bcm_eth_header))) & 0xFFF;
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "%s  Pkt VLANID %x Priority: %d\n",__FUNCTION__,usVLANID, uPriority);
 
@@ -774,12 +774,12 @@ static BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,
 				B_UINT8 EthCSCupport)
 {
 	BOOLEAN bClassificationSucceed = FALSE;
-	bClassificationSucceed = EthCSMatchSrcMACAddress(pstClassifierRule,((ETH_HEADER_STRUC *)(skb->data))->au8SourceAddress);
+	bClassificationSucceed = EthCSMatchSrcMACAddress(pstClassifierRule,((struct bcm_eth_header *)(skb->data))->au8SourceAddress);
 	if(!bClassificationSucceed)
 		return FALSE;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS SrcMAC Matched\n");
 
-	bClassificationSucceed = EthCSMatchDestMACAddress(pstClassifierRule,((ETH_HEADER_STRUC*)(skb->data))->au8DestinationAddress);
+	bClassificationSucceed = EthCSMatchDestMACAddress(pstClassifierRule,((struct bcm_eth_header *)(skb->data))->au8DestinationAddress);
 	if(!bClassificationSucceed)
 		return FALSE;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS DestMAC Matched\n");
@@ -804,7 +804,7 @@ static BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,
 static void EThCSGetPktInfo(PMINI_ADAPTER Adapter,PVOID pvEthPayload,
 			    PS_ETHCS_PKT_INFO pstEthCsPktInfo)
 {
-	USHORT u16Etype = ntohs(((ETH_HEADER_STRUC*)pvEthPayload)->u16Etype);
+	USHORT u16Etype = ntohs(((struct bcm_eth_header *)pvEthPayload)->u16Etype);
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "EthCSGetPktInfo : Eth Hdr Type : %X\n",u16Etype);
 	if(u16Etype > 0x5dc)
@@ -845,7 +845,7 @@ static void EThCSGetPktInfo(PMINI_ADAPTER Adapter,PVOID pvEthPayload,
 	else
 		pstEthCsPktInfo->eNwpktIPFrameType = eNonIPPacket;
 
-	pstEthCsPktInfo->usEtherType = ((ETH_HEADER_STRUC*)pvEthPayload)->u16Etype;
+	pstEthCsPktInfo->usEtherType = ((struct bcm_eth_header *)pvEthPayload)->u16Etype;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "EthCsPktInfo->eNwpktIPFrameType : %x\n",pstEthCsPktInfo->eNwpktIPFrameType);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "EthCsPktInfo->eNwpktEthFrameType : %x\n",pstEthCsPktInfo->eNwpktEthFrameType);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "EthCsPktInfo->usEtherType : %x\n",pstEthCsPktInfo->usEtherType);
