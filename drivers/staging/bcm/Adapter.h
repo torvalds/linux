@@ -549,11 +549,10 @@ typedef struct _cntl_pkt {
 } cntl_pkt;
 typedef LINK_REQUEST CONTROL_MESSAGE;
 
-typedef struct _DDR_SETTING {
+struct bcm_ddr_setting {
 	UINT ulRegAddress;
 	UINT ulRegValue;
-} DDR_SETTING, *PDDR_SETTING;
-typedef DDR_SETTING DDR_SET_NODE, *PDDR_SET_NODE;
+};
 int InitAdapter(PMINI_ADAPTER psAdapter);
 
 /* =====================================================================
