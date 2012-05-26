@@ -304,14 +304,13 @@ static int postconfig(struct comedi_device *dev)
  * that register their supported board names */
 static void *comedi_recognize(struct comedi_driver *driv, const char *name)
 {
-	unsigned i;
-	const char *const *name_ptr = driv->board_name;
+	char **name_ptr = (char **)driv->board_name;
+	int i;
+
 	for (i = 0; i < driv->num_names; i++) {
 		if (strcmp(*name_ptr, name) == 0)
-			return (void *)name_ptr;
-		name_ptr =
-		    (const char *const *)((const char *)name_ptr +
-					  driv->offset);
+			return name_ptr;
+		name_ptr = (void *)name_ptr + driv->offset;
 	}
 
 	return NULL;
