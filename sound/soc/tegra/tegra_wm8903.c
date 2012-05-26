@@ -331,9 +331,9 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 		}
 
 		tegra_wm8903_dai.cpu_dai_name = NULL;
-		tegra_wm8903_dai.cpu_dai_of_node = of_parse_phandle(np,
+		tegra_wm8903_dai.cpu_of_node = of_parse_phandle(np,
 				"nvidia,i2s-controller", 0);
-		if (!tegra_wm8903_dai.cpu_dai_of_node) {
+		if (!tegra_wm8903_dai.cpu_of_node) {
 			dev_err(&pdev->dev,
 				"Property 'nvidia,i2s-controller' missing or invalid\n");
 			ret = -EINVAL;
@@ -342,7 +342,7 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 
 		tegra_wm8903_dai.platform_name = NULL;
 		tegra_wm8903_dai.platform_of_node =
-					tegra_wm8903_dai.cpu_dai_of_node;
+					tegra_wm8903_dai.cpu_of_node;
 	} else {
 		card->dapm_routes = harmony_audio_map;
 		card->num_dapm_routes = ARRAY_SIZE(harmony_audio_map);

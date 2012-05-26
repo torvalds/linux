@@ -785,13 +785,36 @@ struct snd_soc_dai_link {
 	/* config - must be set by machine driver */
 	const char *name;			/* Codec name */
 	const char *stream_name;		/* Stream name */
-	const char *codec_name;		/* for multi-codec */
-	const struct device_node *codec_of_node;
-	const char *platform_name;	/* for multi-platform */
-	const struct device_node *platform_of_node;
+	/*
+	 * You MAY specify the link's CPU-side device, either by device name,
+	 * or by DT/OF node, but not both. If this information is omitted,
+	 * the CPU-side DAI is matched using .cpu_dai_name only, which hence
+	 * must be globally unique. These fields are currently typically used
+	 * only for codec to codec links, or systems using device tree.
+	 */
+	const char *cpu_name;
+	const struct device_node *cpu_of_node;
+	/*
+	 * You MAY specify the DAI name of the CPU DAI. If this information is
+	 * omitted, the CPU-side DAI is matched using .cpu_name/.cpu_of_node
+	 * only, which only works well when that device exposes a single DAI.
+	 */
 	const char *cpu_dai_name;
-	const struct device_node *cpu_dai_of_node;
+	/*
+	 * You MUST specify the link's codec, either by device name, or by
+	 * DT/OF node, but not both.
+	 */
+	const char *codec_name;
+	const struct device_node *codec_of_node;
+	/* You MUST specify the DAI name within the codec */
 	const char *codec_dai_name;
+	/*
+	 * You MAY specify the link's platform/PCM/DMA driver, either by
+	 * device name, or by DT/OF node, but not both. Some forms of link
+	 * do not need a platform.
+	 */
+	const char *platform_name;
+	const struct device_node *platform_of_node;
 	int be_id;	/* optional ID for machine driver BE identification */
 
 	const struct snd_soc_pcm_stream *params;

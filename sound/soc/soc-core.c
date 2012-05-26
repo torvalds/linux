@@ -812,13 +812,15 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 
 	/* Find CPU DAI from registered DAIs*/
 	list_for_each_entry(cpu_dai, &dai_list, list) {
-		if (dai_link->cpu_dai_of_node) {
-			if (cpu_dai->dev->of_node != dai_link->cpu_dai_of_node)
-				continue;
-		} else {
-			if (strcmp(cpu_dai->name, dai_link->cpu_dai_name))
-				continue;
-		}
+		if (dai_link->cpu_of_node &&
+		    (cpu_dai->dev->of_node != dai_link->cpu_of_node))
+			continue;
+		if (dai_link->cpu_name &&
+		    strcmp(dev_name(cpu_dai->dev), dai_link->cpu_name))
+			continue;
+		if (dai_link->cpu_dai_name &&
+		    strcmp(cpu_dai->name, dai_link->cpu_dai_name))
+			continue;
 
 		rtd->cpu_dai = cpu_dai;
 	}
@@ -3346,6 +3348,12 @@ int snd_soc_register_card(struct snd_soc_card *card)
 				link->name);
 			return -EINVAL;
 		}
+		/* Codec DAI name must be specified */
+		if (!link->codec_dai_name) {
+			dev_err(card->dev, "codec_dai_name not set for %s\n",
+				link->name);
+			return -EINVAL;
+		}
 
 		/*
 		 * Platform may be specified by either name or OF node, but
@@ -3358,12 +3366,24 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		}
 
 		/*
-		 * CPU DAI must be specified by 1 of name or OF node,
-		 * not both or neither.
+		 * CPU device may be specified by either name or OF node, but
+		 * can be left unspecified, and will be matched based on DAI
+		 * name alone..
 		 */
-		if (!!link->cpu_dai_name == !!link->cpu_dai_of_node) {
+		if (link->cpu_name && link->cpu_of_node) {
 			dev_err(card->dev,
-				"Neither/both cpu_dai name/of_node are set for %s\n",
+				"Neither/both cpu name/of_node are set for %s\n",
+				link->name);
+			return -EINVAL;
+		}
+		/*
+		 * At least one of CPU DAI name or CPU device name/node must be
+		 * specified
+		 */
+		if (!link->cpu_dai_name &&
+		    !(link->cpu_name || link->cpu_of_node)) {
+			dev_err(card->dev,
+				"Neither cpu_dai_name nor cpu_name/of_node are set for %s\n",
 				link->name);
 			return -EINVAL;
 		}

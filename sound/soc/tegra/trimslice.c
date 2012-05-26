@@ -162,9 +162,9 @@ static __devinit int tegra_snd_trimslice_probe(struct platform_device *pdev)
 		}
 
 		trimslice_tlv320aic23_dai.cpu_dai_name = NULL;
-		trimslice_tlv320aic23_dai.cpu_dai_of_node = of_parse_phandle(
+		trimslice_tlv320aic23_dai.cpu_of_node = of_parse_phandle(
 				pdev->dev.of_node, "nvidia,i2s-controller", 0);
-		if (!trimslice_tlv320aic23_dai.cpu_dai_of_node) {
+		if (!trimslice_tlv320aic23_dai.cpu_of_node) {
 			dev_err(&pdev->dev,
 				"Property 'nvidia,i2s-controller' missing or invalid\n");
 			ret = -EINVAL;
@@ -173,7 +173,7 @@ static __devinit int tegra_snd_trimslice_probe(struct platform_device *pdev)
 
 		trimslice_tlv320aic23_dai.platform_name = NULL;
 		trimslice_tlv320aic23_dai.platform_of_node =
-				trimslice_tlv320aic23_dai.cpu_dai_of_node;
+				trimslice_tlv320aic23_dai.cpu_of_node;
 	}
 
 	ret = tegra_asoc_utils_init(&trimslice->util_data, &pdev->dev);
