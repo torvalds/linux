@@ -543,10 +543,7 @@ typedef struct FirmwareInfo {
 
 /* holds the value of net_device structure.. */
 extern struct net_device *gblpnetdev;
-typedef struct _cntl_pkt {
-	PMINI_ADAPTER	Adapter;
-	PLEADER		PLeader;
-} cntl_pkt;
+
 typedef LINK_REQUEST CONTROL_MESSAGE;
 
 struct bcm_ddr_setting {
