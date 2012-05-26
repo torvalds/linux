@@ -1117,6 +1117,8 @@ static int pl08x_alloc_chan_resources(struct dma_chan *chan)
 
 static void pl08x_free_chan_resources(struct dma_chan *chan)
 {
+	/* Ensure all queued descriptors are freed */
+	vchan_free_chan_resources(to_virt_chan(chan));
 }
 
 static struct dma_async_tx_descriptor *pl08x_prep_dma_interrupt(
