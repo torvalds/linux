@@ -15,8 +15,6 @@
 
 /* string functions */
 EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(__strlen_user);
-EXPORT_SYMBOL(__strnlen_user);
 EXPORT_SYMBOL(strncmp);
 
 /* mem* functions */

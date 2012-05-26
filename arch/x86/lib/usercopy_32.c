@@ -95,47 +95,6 @@ __clear_user(void __user *to, unsigned long n)
 }
 EXPORT_SYMBOL(__clear_user);
 
-/**
- * strnlen_user: - Get the size of a string in user space.
- * @s: The string to measure.
- * @n: The maximum valid length
- *
- * Get the size of a NUL-terminated string in user space.
- *
- * Returns the size of the string INCLUDING the terminating NUL.
- * On exception, returns 0.
- * If the string is too long, returns a value greater than @n.
- */
-long strnlen_user(const char __user *s, long n)
-{
-	unsigned long mask = -__addr_ok(s);
-	unsigned long res, tmp;
-
-	might_fault();
-
-	__asm__ __volatile__(
-		"	testl %0, %0\n"
-		"	jz 3f\n"
-		"	andl %0,%%ecx\n"
-		"0:	repne; scasb\n"
-		"	setne %%al\n"
-		"	subl %%ecx,%0\n"
-		"	addl %0,%%eax\n"
-		"1:\n"
-		".section .fixup,\"ax\"\n"
-		"2:	xorl %%eax,%%eax\n"
-		"	jmp 1b\n"
-		"3:	movb $1,%%al\n"
-		"	jmp 1b\n"
-		".previous\n"
-		_ASM_EXTABLE(0b,2b)
-		:"=&r" (n), "=&D" (s), "=&a" (res), "=&c" (tmp)
-		:"0" (n), "1" (s), "2" (0), "3" (mask)
-		:"cc");
-	return res & mask;
-}
-EXPORT_SYMBOL(strnlen_user);
-
 #ifdef CONFIG_X86_INTEL_USERCOPY
 static unsigned long
 __copy_user_intel(void __user *to, const void *from, unsigned long size)
