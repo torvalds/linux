@@ -1701,13 +1701,6 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 				return -ENOMEM;
 			}
 		}
-		if (chan->cd->circular_buffer) {
-			dev_err(&pl08x->adev->dev,
-				"channel %s: circular buffers not supported\n",
-				chan->name);
-			kfree(chan);
-			continue;
-		}
 		dev_dbg(&pl08x->adev->dev,
 			 "initialize virtual channel \"%s\"\n",
 			 chan->name);

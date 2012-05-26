@@ -51,9 +51,6 @@ enum {
  * can be the address of a FIFO register for burst requests for example.
  * This can be left undefined if the PrimeCell API is used for configuring
  * this.
- * @circular_buffer: whether the buffer passed in is circular and
- * shall simply be looped round round (like a record baby round
- * round round round)
  * @single: the device connected to this channel will request single DMA
  * transfers, not bursts. (Bursts are default.)
  * @periph_buses: the device connected to this channel is accessible via
@@ -66,7 +63,6 @@ struct pl08x_channel_data {
 	u32 muxval;
 	u32 cctl;
 	dma_addr_t addr;
-	bool circular_buffer;
 	bool single;
 	u8 periph_buses;
 };
