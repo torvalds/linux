@@ -952,9 +952,6 @@ config UIDGID_CONVERTED
 	depends on UFS_FS = n
 	depends on XFS_FS = n
 
-	# The rare drivers that won't build
-	depends on ANDROID_BINDER_IPC = n
-
 config UIDGID_STRICT_TYPE_CHECKS
 	bool "Require conversions between uid/gids and their internal representation"
 	depends on UIDGID_CONVERTED
