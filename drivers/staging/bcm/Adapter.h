@@ -585,9 +585,9 @@ int InitAdapter(PMINI_ADAPTER psAdapter);
 #define EP5 4
 #define EP6 5
 
-typedef enum eInterface_setting {
+enum bcm_einterface_setting {
 	DEFAULT_SETTING_0  = 0,
 	ALTERNATE_SETTING_1 = 1,
-} INTERFACE_SETTING;
+};
 
 #endif	/* __ADAPTER_H__ */
