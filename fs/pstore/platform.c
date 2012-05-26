@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
+#include <linux/jiffies.h>
 #include <linux/workqueue.h>
 
 #include "internal.h"
@@ -40,7 +41,10 @@
  * whether the system is actually still running well enough
  * to let someone see the entry
  */
-#define	PSTORE_INTERVAL	(60 * HZ)
+static int pstore_update_ms = 60000;
+module_param_named(update_ms, pstore_update_ms, int, 0600);
+MODULE_PARM_DESC(update_ms, "milliseconds before pstore updates its content "
+		 "(default is 60000; -1 means runtime updates are disabled)");
 
 static int pstore_new_entry;
 
@@ -231,8 +235,11 @@ int pstore_register(struct pstore_info *psi)
 	kmsg_dump_register(&pstore_dumper);
 	pstore_register_console();
 
-	pstore_timer.expires = jiffies + PSTORE_INTERVAL;
-	add_timer(&pstore_timer);
+	if (pstore_update_ms >= 0) {
+		pstore_timer.expires = jiffies +
+			msecs_to_jiffies(pstore_update_ms);
+		add_timer(&pstore_timer);
+	}
 
 	return 0;
 }
@@ -291,7 +298,7 @@ static void pstore_timefunc(unsigned long dummy)
 		schedule_work(&pstore_work);
 	}
 
-	mod_timer(&pstore_timer, jiffies + PSTORE_INTERVAL);
+	mod_timer(&pstore_timer, jiffies + msecs_to_jiffies(pstore_update_ms));
 }
 
 module_param(backend, charp, 0444);
