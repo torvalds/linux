@@ -99,7 +99,6 @@ typedef union _U_IP_ADDRESS {
 		UCHAR ucIpv6Mask[MAX_IP_RANGE_LENGTH * IPV6_ADDRESS_SIZEINBYTES];
 	};
 } U_IP_ADDRESS;
-struct _packet_info;
 
 typedef struct _S_HDR_SUPRESSION_CONTEXTINFO {
 	UCHAR ucaHdrSupressionInBuf[MAX_PHS_LENGTHS]; /* Intermediate buffer to accumulate pkt Header for PHS */
@@ -168,7 +167,7 @@ typedef struct _S_FRAGMENTED_PACKET_INFO {
 	BOOLEAN			bOutOfOrderFragment;
 } S_FRAGMENTED_PACKET_INFO, *PS_FRAGMENTED_PACKET_INFO;
 
-struct _packet_info {
+struct bcm_packet_info {
 	/* classification extension Rule */
 	ULONG		ulSFID;
 	USHORT		usVCID_Value;
@@ -237,7 +236,6 @@ struct _packet_info {
 	UCHAR		bIPCSSupport;
 	UCHAR		bEthCSSupport;
 };
-typedef struct _packet_info PacketInfo;
 
 struct bcm_tarang_data {
 	struct bcm_tarang_data	*next;
@@ -296,7 +294,7 @@ struct _MINI_ADAPTER {
 	USHORT			PrevNumRecvDescs;
 	USHORT			CurrNumRecvDescs;
 	UINT			u32TotalDSD;
-	PacketInfo		PackInfo[NO_OF_QUEUES];
+	struct bcm_packet_info	PackInfo[NO_OF_QUEUES];
 	S_CLASSIFIER_RULE	astClassifierTable[MAX_CLASSIFIERS];
 	BOOLEAN			TransferMode;
 

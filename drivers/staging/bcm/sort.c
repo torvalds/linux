@@ -13,8 +13,8 @@
 
 static int compare_packet_info(void const *a, void const *b)
 {
-	PacketInfo const *pa = a;
-	PacketInfo const *pb = b;
+	struct bcm_packet_info const *pa = a;
+	struct bcm_packet_info const *pb = b;
 
 	if (!pa->bValid || !pb->bValid)
 		return 0;
@@ -27,7 +27,7 @@ VOID SortPackInfo(PMINI_ADAPTER Adapter)
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG,
 			DBG_LVL_ALL, "<=======");
 
-	sort(Adapter->PackInfo, NO_OF_QUEUES, sizeof(PacketInfo),
+	sort(Adapter->PackInfo, NO_OF_QUEUES, sizeof(struct bcm_packet_info),
 		compare_packet_info, NULL);
 }
 

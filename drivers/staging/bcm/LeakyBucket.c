@@ -75,7 +75,7 @@ static VOID UpdateTokenCount(register PMINI_ADAPTER Adapter)
 * Returns     - The number of bytes allowed for transmission.
 *
 ***********************************************************************/
-static ULONG GetSFTokenCount(PMINI_ADAPTER Adapter, PacketInfo *psSF)
+static ULONG GetSFTokenCount(PMINI_ADAPTER Adapter, struct bcm_packet_info *psSF)
 {
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL, "IsPacketAllowedForFlow ===>");
 	/* Validate the parameters */
@@ -113,7 +113,7 @@ This function despatches packet from the specified queue.
 @return Zero(success) or Negative value(failure)
 */
 static INT SendPacketFromQueue(PMINI_ADAPTER Adapter,/**<Logical Adapter*/
-			       PacketInfo *psSF,		/**<Queue identifier*/
+			struct bcm_packet_info *psSF, /**<Queue identifier*/
 			       struct sk_buff*  Packet)	/**<Pointer to the packet to be sent*/
 {
 	INT  	Status=STATUS_FAILURE;
@@ -156,7 +156,7 @@ static INT SendPacketFromQueue(PMINI_ADAPTER Adapter,/**<Logical Adapter*/
 * Returns     - None.
 *
 ****************************************************************************/
-static VOID CheckAndSendPacketFromIndex(PMINI_ADAPTER Adapter, PacketInfo *psSF)
+static VOID CheckAndSendPacketFromIndex(PMINI_ADAPTER Adapter, struct bcm_packet_info *psSF)
 {
 	struct sk_buff	*QueuePacket=NULL;
 	char 			*pControlPacket = NULL;

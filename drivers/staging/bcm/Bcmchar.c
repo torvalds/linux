@@ -971,7 +971,7 @@ cntrlEnd:
 		break;
 
 	case IOCTL_GET_PACK_INFO:
-		if (copy_to_user(argp, &Adapter->PackInfo, sizeof(PacketInfo)*NO_OF_QUEUES))
+		if (copy_to_user(argp, &Adapter->PackInfo, sizeof(struct bcm_packet_info)*NO_OF_QUEUES))
 			return -EFAULT;
 		Status = STATUS_SUCCESS;
 		break;
