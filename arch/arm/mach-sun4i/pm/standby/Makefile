@@ -1,10 +1,8 @@
 always	:= standby.bin
 targets := standby.elf
 
-obj-y += dram/
-
 standby-y := common.o standby.o stack.o standby_clock.o \
-	     dram/dram.o dram/dram_init.o \
+	     dram.o dram_init.o \
 	     standby_int.o standby_ir.o standby_key.o standby_power.o \
 	     standby_tmr.o standby_twi.o standby_usb.o standby_delay.o
 
