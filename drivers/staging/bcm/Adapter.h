@@ -21,12 +21,11 @@ struct _PACKETTOSEND {
 } __packed;
 typedef struct _PACKETTOSEND PACKETTOSEND, *PPACKETTOSEND;
 
-struct _CONTROL_PACKET {
+struct bcm_control_packet {
 	PVOID	ControlBuff;
 	UINT	ControlBuffLen;
-	struct _CONTROL_PACKET *next;
+	struct bcm_control_packet *next;
 } __packed;
-typedef struct _CONTROL_PACKET CONTROL_PACKET, *PCONTROL_PACKET;
 
 struct bcm_link_request {
 	LEADER	Leader;
