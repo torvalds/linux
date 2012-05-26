@@ -85,6 +85,33 @@ static int ramoops_pstore_open(struct pstore_info *psi)
 	return 0;
 }
 
+static struct persistent_ram_zone *
+ramoops_get_next_prz(struct persistent_ram_zone *przs[], uint *c, uint max,
+		     u64 *id,
+		     enum pstore_type_id *typep, enum pstore_type_id type,
+		     bool update)
+{
+	struct persistent_ram_zone *prz;
+	int i = (*c)++;
+
+	if (i >= max)
+		return NULL;
+
+	prz = przs[i];
+
+	if (update) {
+		/* Update old/shadowed buffer. */
+		persistent_ram_save_old(prz);
+		if (!persistent_ram_old_size(prz))
+			return NULL;
+	}
+
+	*typep = type;
+	*id = i;
+
+	return prz;
+}
+
 static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 				   struct timespec *time,
 				   char **buf,
@@ -94,20 +121,16 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 	struct ramoops_context *cxt = psi->data;
 	struct persistent_ram_zone *prz;
 
-	if (cxt->dump_read_cnt >= cxt->max_dump_cnt)
-		return -EINVAL;
+	prz = ramoops_get_next_prz(cxt->przs, &cxt->dump_read_cnt,
+				   cxt->max_dump_cnt, id, type,
+				   PSTORE_TYPE_DMESG, 1);
+	if (!prz)
+		return 0;
 
-	*id = cxt->dump_read_cnt++;
-	prz = cxt->przs[*id];
-
-	/* Only supports dmesg output so far. */
-	*type = PSTORE_TYPE_DMESG;
 	/* TODO(kees): Bogus time for the moment. */
 	time->tv_sec = 0;
 	time->tv_nsec = 0;
 
-	/* Update old/shadowed buffer. */
-	persistent_ram_save_old(prz);
 	size = persistent_ram_old_size(prz);
 	*buf = kmalloc(size, GFP_KERNEL);
 	if (*buf == NULL)
