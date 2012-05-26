@@ -1132,7 +1132,8 @@ struct nfs41_bind_conn_to_session_res {
 };
 
 struct nfs41_exchange_id_res {
-	struct nfs_client		*client;
+	u64				clientid;
+	u32				seqid;
 	u32				flags;
 	struct nfs41_server_owner	*server_owner;
 	struct nfs41_server_scope	*server_scope;

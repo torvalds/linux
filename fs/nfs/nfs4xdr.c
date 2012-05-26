@@ -5319,7 +5319,6 @@ static int decode_exchange_id(struct xdr_stream *xdr,
 	uint32_t dummy;
 	char *dummy_str;
 	int status;
-	struct nfs_client *clp = res->client;
 	uint32_t impl_id_count;
 
 	status = decode_op_hdr(xdr, OP_EXCHANGE_ID);
@@ -5329,12 +5328,12 @@ static int decode_exchange_id(struct xdr_stream *xdr,
 	p = xdr_inline_decode(xdr, 8);
 	if (unlikely(!p))
 		goto out_overflow;
-	xdr_decode_hyper(p, &clp->cl_clientid);
+	xdr_decode_hyper(p, &res->clientid);
 	p = xdr_inline_decode(xdr, 12);
 	if (unlikely(!p))
 		goto out_overflow;
-	clp->cl_seqid = be32_to_cpup(p++);
-	clp->cl_exchange_flags = be32_to_cpup(p++);
+	res->seqid = be32_to_cpup(p++);
+	res->flags = be32_to_cpup(p++);
 
 	/* We ask for SP4_NONE */
 	dummy = be32_to_cpup(p);
