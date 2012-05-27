@@ -441,6 +441,54 @@ cifs_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+static int
+cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
+		     struct cifs_sb_info *cifs_sb, const char *full_path,
+		     FILE_ALL_INFO *data, bool *adjustTZ)
+{
+	int rc;
+
+	/* could do find first instead but this returns more info */
+	rc = CIFSSMBQPathInfo(xid, tcon, full_path, data, 0 /* not legacy */,
+			      cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+	/*
+	 * BB optimize code so we do not make the above call when server claims
+	 * no NT SMB support and the above call failed at least once - set flag
+	 * in tcon or mount.
+	 */
+	if ((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
+		rc = SMBQueryInformation(xid, tcon, full_path, data,
+					 cifs_sb->local_nls,
+					 cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+		*adjustTZ = true;
+	}
+	return rc;
+}
+
+static int
+cifs_get_srv_inum(const unsigned int xid, struct cifs_tcon *tcon,
+		  struct cifs_sb_info *cifs_sb, const char *full_path,
+		  u64 *uniqueid, FILE_ALL_INFO *data)
+{
+	/*
+	 * We can not use the IndexNumber field by default from Windows or
+	 * Samba (in ALL_INFO buf) but we can request it explicitly. The SNIA
+	 * CIFS spec claims that this value is unique within the scope of a
+	 * share, and the windows docs hint that it's actually unique
+	 * per-machine.
+	 *
+	 * There may be higher info levels that work but are there Windows
+	 * server or network appliances for which IndexNumber field is not
+	 * guaranteed unique?
+	 */
+	return CIFSGetSrvInodeNumber(xid, tcon, full_path, uniqueid,
+				     cifs_sb->local_nls,
+				     cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -468,6 +516,8 @@ struct smb_version_operations smb1_operations = {
 	.get_dfs_refer = CIFSGetDFSRefer,
 	.qfs_tcon = cifs_qfs_tcon,
 	.is_path_accessible = cifs_is_path_accessible,
+	.query_path_info = cifs_query_path_info,
+	.get_srv_inum = cifs_get_srv_inum,
 };
 
 struct smb_version_values smb1_values = {

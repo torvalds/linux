@@ -138,11 +138,9 @@ extern struct inode *cifs_iget(struct super_block *sb,
 			       struct cifs_fattr *fattr);
 
 extern int cifs_get_file_info(struct file *filp);
-extern int cifs_get_inode_info(struct inode **pinode,
-			const unsigned char *search_path,
-			FILE_ALL_INFO *pfile_info,
-			struct super_block *sb, unsigned int xid,
-			const __u16 *pfid);
+extern int cifs_get_inode_info(struct inode **inode, const char *full_path,
+			       FILE_ALL_INFO *data, struct super_block *sb,
+			       int xid, const __u16 *fid);
 extern int cifs_get_file_info_unix(struct file *filp);
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
@@ -376,9 +374,9 @@ extern int CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
 			unsigned int *nbytes, struct kvec *iov, const int nvec,
 			const int long_op);
 extern int CIFSGetSrvInodeNumber(const unsigned int xid, struct cifs_tcon *tcon,
-			const unsigned char *searchName, __u64 *inode_number,
-			const struct nls_table *nls_codepage,
-			int remap_special_chars);
+				 const char *search_name, __u64 *inode_number,
+				 const struct nls_table *nls_codepage,
+				 int remap);
 
 extern int cifs_lockv(const unsigned int xid, struct cifs_tcon *tcon,
 		      const __u16 netfid, const __u8 lock_type,

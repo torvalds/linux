@@ -600,61 +600,54 @@ cgfi_exit:
 	return rc;
 }
 
-int cifs_get_inode_info(struct inode **pinode,
-	const unsigned char *full_path, FILE_ALL_INFO *pfindData,
-	struct super_block *sb, unsigned int xid, const __u16 *pfid)
+int
+cifs_get_inode_info(struct inode **inode, const char *full_path,
+		    FILE_ALL_INFO *data, struct super_block *sb, int xid,
+		    const __u16 *fid)
 {
 	int rc = 0, tmprc;
-	struct cifs_tcon *pTcon;
+	struct cifs_tcon *tcon;
+	struct TCP_Server_Info *server;
 	struct tcon_link *tlink;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	char *buf = NULL;
-	bool adjustTZ = false;
+	bool adjust_tz = false;
 	struct cifs_fattr fattr;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
-	pTcon = tlink_tcon(tlink);
+	tcon = tlink_tcon(tlink);
+	server = tcon->ses->server;
 
 	cFYI(1, "Getting info on %s", full_path);
 
-	if ((pfindData == NULL) && (*pinode != NULL)) {
-		if (CIFS_I(*pinode)->clientCanCacheRead) {
+	if ((data == NULL) && (*inode != NULL)) {
+		if (CIFS_I(*inode)->clientCanCacheRead) {
 			cFYI(1, "No need to revalidate cached inode sizes");
 			goto cgii_exit;
 		}
 	}
 
-	/* if file info not passed in then get it from server */
-	if (pfindData == NULL) {
+	/* if inode info is not passed, get it from server */
+	if (data == NULL) {
+		if (!server->ops->query_path_info) {
+			rc = -ENOSYS;
+			goto cgii_exit;
+		}
 		buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
 		if (buf == NULL) {
 			rc = -ENOMEM;
 			goto cgii_exit;
 		}
-		pfindData = (FILE_ALL_INFO *)buf;
-
-		/* could do find first instead but this returns more info */
-		rc = CIFSSMBQPathInfo(xid, pTcon, full_path, pfindData,
-			      0 /* not legacy */,
-			      cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
-		/* BB optimize code so we do not make the above call
-		when server claims no NT SMB support and the above call
-		failed at least once - set flag in tcon or mount */
-		if ((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
-			rc = SMBQueryInformation(xid, pTcon, full_path,
-					pfindData, cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-					  CIFS_MOUNT_MAP_SPECIAL_CHR);
-			adjustTZ = true;
-		}
+		data = (FILE_ALL_INFO *)buf;
+		rc = server->ops->query_path_info(xid, tcon, cifs_sb, full_path,
+						  data, &adjust_tz);
 	}
 
 	if (!rc) {
-		cifs_all_info_to_fattr(&fattr, (FILE_ALL_INFO *) pfindData,
-				       cifs_sb, adjustTZ);
+		cifs_all_info_to_fattr(&fattr, (FILE_ALL_INFO *)data, cifs_sb,
+				       adjust_tz);
 	} else if (rc == -EREMOTE) {
 		cifs_create_dfs_fattr(&fattr, sb);
 		rc = 0;
@@ -668,28 +661,17 @@ int cifs_get_inode_info(struct inode **pinode,
 	 * Is an i_ino of zero legal? Can we use that to check if the server
 	 * supports returning inode numbers?  Are there other sanity checks we
 	 * can use to ensure that the server is really filling in that field?
-	 *
-	 * We can not use the IndexNumber field by default from Windows or
-	 * Samba (in ALL_INFO buf) but we can request it explicitly. The SNIA
-	 * CIFS spec claims that this value is unique within the scope of a
-	 * share, and the windows docs hint that it's actually unique
-	 * per-machine.
-	 *
-	 * There may be higher info levels that work but are there Windows
-	 * server or network appliances for which IndexNumber field is not
-	 * guaranteed unique?
 	 */
-	if (*pinode == NULL) {
+	if (*inode == NULL) {
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
-			int rc1 = 0;
-
-			rc1 = CIFSGetSrvInodeNumber(xid, pTcon,
-					full_path, &fattr.cf_uniqueid,
-					cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			if (rc1 || !fattr.cf_uniqueid) {
-				cFYI(1, "GetSrvInodeNum rc %d", rc1);
+			if (server->ops->get_srv_inum)
+				tmprc = server->ops->get_srv_inum(xid, tcon,
+					cifs_sb, full_path, &fattr.cf_uniqueid,
+					data);
+			else
+				tmprc = -ENOSYS;
+			if (tmprc || !fattr.cf_uniqueid) {
+				cFYI(1, "GetSrvInodeNum rc %d", tmprc);
 				fattr.cf_uniqueid = iunique(sb, ROOT_I);
 				cifs_autodisable_serverino(cifs_sb);
 			}
@@ -697,7 +679,7 @@ int cifs_get_inode_info(struct inode **pinode,
 			fattr.cf_uniqueid = iunique(sb, ROOT_I);
 		}
 	} else {
-		fattr.cf_uniqueid = CIFS_I(*pinode)->uniqueid;
+		fattr.cf_uniqueid = CIFS_I(*inode)->uniqueid;
 	}
 
 	/* query for SFU type info if supported and needed */
@@ -711,8 +693,7 @@ int cifs_get_inode_info(struct inode **pinode,
 #ifdef CONFIG_CIFS_ACL
 	/* fill in 0777 bits from ACL */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
-		rc = cifs_acl_to_fattr(cifs_sb, &fattr, *pinode, full_path,
-						pfid);
+		rc = cifs_acl_to_fattr(cifs_sb, &fattr, *inode, full_path, fid);
 		if (rc) {
 			cFYI(1, "%s: Getting ACL failed with error: %d",
 				__func__, rc);
@@ -732,12 +713,12 @@ int cifs_get_inode_info(struct inode **pinode,
 			cFYI(1, "CIFSCheckMFSymlink: %d", tmprc);
 	}
 
-	if (!*pinode) {
-		*pinode = cifs_iget(sb, &fattr);
-		if (!*pinode)
+	if (!*inode) {
+		*inode = cifs_iget(sb, &fattr);
+		if (!*inode)
 			rc = -ENOMEM;
 	} else {
-		cifs_fattr_to_inode(*pinode, &fattr);
+		cifs_fattr_to_inode(*inode, &fattr);
 	}
 
 cgii_exit:

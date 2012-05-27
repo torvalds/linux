@@ -4559,8 +4559,7 @@ CIFSFindClose(const unsigned int xid, struct cifs_tcon *tcon,
 
 int
 CIFSGetSrvInodeNumber(const unsigned int xid, struct cifs_tcon *tcon,
-		      const unsigned char *searchName,
-		      __u64 *inode_number,
+		      const char *search_name, __u64 *inode_number,
 		      const struct nls_table *nls_codepage, int remap)
 {
 	int rc = 0;
@@ -4569,7 +4568,7 @@ CIFSGetSrvInodeNumber(const unsigned int xid, struct cifs_tcon *tcon,
 	int name_len, bytes_returned;
 	__u16 params, byte_count;
 
-	cFYI(1, "In GetSrvInodeNum for %s", searchName);
+	cFYI(1, "In GetSrvInodeNum for %s", search_name);
 	if (tcon == NULL)
 		return -ENODEV;
 
@@ -4582,14 +4581,14 @@ GetInodeNumberRetry:
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
 			cifsConvertToUTF16((__le16 *) pSMB->FileName,
-					   searchName, PATH_MAX, nls_codepage,
+					   search_name, PATH_MAX, nls_codepage,
 					   remap);
 		name_len++;     /* trailing null */
 		name_len *= 2;
 	} else {	/* BB improve the check for buffer overruns BB */
-		name_len = strnlen(searchName, PATH_MAX);
+		name_len = strnlen(search_name, PATH_MAX);
 		name_len++;     /* trailing null */
-		strncpy(pSMB->FileName, searchName, name_len);
+		strncpy(pSMB->FileName, search_name, name_len);
 	}
 
 	params = 2 /* level */  + 4 /* rsrvd */  + name_len /* incl null */ ;

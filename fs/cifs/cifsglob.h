@@ -163,6 +163,7 @@ struct cifsFileInfo;
 struct cifs_ses;
 struct cifs_tcon;
 struct dfs_info3_param;
+struct cifs_fattr;
 
 struct smb_version_operations {
 	int (*send_cancel)(struct TCP_Server_Info *, void *,
@@ -218,6 +219,14 @@ struct smb_version_operations {
 	/* check if a path is accessible or not */
 	int (*is_path_accessible)(const unsigned int, struct cifs_tcon *,
 				  struct cifs_sb_info *, const char *);
+	/* query path data from the server */
+	int (*query_path_info)(const unsigned int, struct cifs_tcon *,
+			       struct cifs_sb_info *, const char *,
+			       FILE_ALL_INFO *, bool *);
+	/* get server index number */
+	int (*get_srv_inum)(const unsigned int, struct cifs_tcon *,
+			    struct cifs_sb_info *, const char *,
+			    u64 *uniqueid, FILE_ALL_INFO *);
 };
 
 struct smb_version_values {
