@@ -29,6 +29,8 @@ static void rk30_arch_reset(char mode, const char *cmd)
 	dsb();
 	/* disable remap */
 	writel_relaxed(1 << (12 + 16), RK30_GRF_BASE + GRF_SOC_CON0);
+	/* pll enter slow mode */
+	writel_relaxed(PLL_MODE_SLOW(APLL_ID) | PLL_MODE_SLOW(CPLL_ID) | PLL_MODE_SLOW(GPLL_ID), RK30_CRU_BASE + CRU_MODE_CON);
 	dsb();
 	writel_relaxed(0xeca8, RK30_CRU_BASE + CRU_GLB_SRST_SND);
 	dsb();
