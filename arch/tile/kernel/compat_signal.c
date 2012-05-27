@@ -411,15 +411,6 @@ int compat_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->regs[1] = ptr_to_compat_reg(&frame->info);
 	regs->regs[2] = ptr_to_compat_reg(&frame->uc);
 	regs->flags |= PT_FLAGS_CALLER_SAVES;
-
-	/*
-	 * Notify any tracer that was single-stepping it.
-	 * The tracer may want to single-step inside the
-	 * handler too.
-	 */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-
 	return 0;
 
 give_sigsegv:
