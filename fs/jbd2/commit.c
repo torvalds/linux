@@ -338,6 +338,26 @@ static void jbd2_descr_block_csum_set(journal_t *j,
 	tail->t_checksum = cpu_to_be32(csum);
 }
 
+static void jbd2_block_tag_csum_set(journal_t *j, journal_block_tag_t *tag,
+				    struct buffer_head *bh, __u32 sequence)
+{
+	struct page *page = bh->b_page;
+	__u8 *addr;
+	__u32 csum;
+
+	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
+		return;
+
+	sequence = cpu_to_be32(sequence);
+	addr = kmap_atomic(page, KM_USER0);
+	csum = jbd2_chksum(j, j->j_csum_seed, (__u8 *)&sequence,
+			  sizeof(sequence));
+	csum = jbd2_chksum(j, csum, addr + offset_in_page(bh->b_data),
+			  bh->b_size);
+	kunmap_atomic(addr, KM_USER0);
+
+	tag->t_checksum = cpu_to_be32(csum);
+}
 /*
  * jbd2_journal_commit_transaction
  *
@@ -669,6 +689,8 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		tag = (journal_block_tag_t *) tagp;
 		write_tag_block(tag_bytes, tag, jh2bh(jh)->b_blocknr);
 		tag->t_flags = cpu_to_be16(tag_flag);
+		jbd2_block_tag_csum_set(journal, tag, jh2bh(new_jh),
+					commit_transaction->t_tid);
 		tagp += tag_bytes;
 		space_left -= tag_bytes;
 
