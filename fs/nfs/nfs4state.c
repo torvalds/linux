@@ -1740,7 +1740,7 @@ static int nfs4_reset_session(struct nfs_client *clp)
 	memset(clp->cl_session->sess_id.data, 0, NFS4_MAX_SESSIONID_LEN);
 	status = nfs4_proc_create_session(clp, cred);
 	if (status) {
-		status = nfs4_recovery_handle_error(clp, status);
+		status = nfs4_handle_reclaim_lease_error(clp, status);
 		goto out;
 	}
 	clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
