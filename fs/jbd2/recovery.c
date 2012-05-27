@@ -706,6 +706,25 @@ static int do_one_pass(journal_t *journal,
 	return err;
 }
 
+static int jbd2_revoke_block_csum_verify(journal_t *j,
+					 void *buf)
+{
+	struct jbd2_journal_revoke_tail *tail;
+	__u32 provided, calculated;
+
+	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
+		return 1;
+
+	tail = (struct jbd2_journal_revoke_tail *)(buf + j->j_blocksize -
+			sizeof(struct jbd2_journal_revoke_tail));
+	provided = tail->r_checksum;
+	tail->r_checksum = 0;
+	calculated = jbd2_chksum(j, j->j_csum_seed, buf, j->j_blocksize);
+	tail->r_checksum = provided;
+
+	provided = be32_to_cpu(provided);
+	return provided == calculated;
+}
 
 /* Scan a revoke record, marking all blocks mentioned as revoked. */
 
@@ -719,6 +738,9 @@ static int scan_revoke_records(journal_t *journal, struct buffer_head *bh,
 	header = (jbd2_journal_revoke_header_t *) bh->b_data;
 	offset = sizeof(jbd2_journal_revoke_header_t);
 	max = be32_to_cpu(header->r_count);
+
+	if (!jbd2_revoke_block_csum_verify(journal, header))
+		return -EINVAL;
 
 	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_64BIT))
 		record_len = 8;
