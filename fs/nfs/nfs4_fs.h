@@ -313,9 +313,9 @@ struct rpc_cred *nfs4_get_renew_cred_locked(struct nfs_client *clp);
 #if defined(CONFIG_NFS_V4_1)
 struct rpc_cred *nfs4_get_machine_cred_locked(struct nfs_client *clp);
 struct rpc_cred *nfs4_get_exchange_id_cred(struct nfs_client *clp);
-extern void nfs4_schedule_session_recovery(struct nfs4_session *);
+extern void nfs4_schedule_session_recovery(struct nfs4_session *, int);
 #else
-static inline void nfs4_schedule_session_recovery(struct nfs4_session *session)
+static inline void nfs4_schedule_session_recovery(struct nfs4_session *session, int err)
 {
 }
 #endif /* CONFIG_NFS_V4_1 */

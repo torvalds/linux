@@ -306,7 +306,7 @@ static int nfs4_handle_exception(struct nfs_server *server, int errorcode, struc
 		case -NFS4ERR_SEQ_MISORDERED:
 			dprintk("%s ERROR: %d Reset session\n", __func__,
 				errorcode);
-			nfs4_schedule_session_recovery(clp->cl_session);
+			nfs4_schedule_session_recovery(clp->cl_session, errorcode);
 			exception->retry = 1;
 			break;
 #endif /* defined(CONFIG_NFS_V4_1) */
@@ -1330,7 +1330,7 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state 
 			case -NFS4ERR_BAD_HIGH_SLOT:
 			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 			case -NFS4ERR_DEADSESSION:
-				nfs4_schedule_session_recovery(server->nfs_client->cl_session);
+				nfs4_schedule_session_recovery(server->nfs_client->cl_session, err);
 				goto out;
 			case -NFS4ERR_STALE_CLIENTID:
 			case -NFS4ERR_STALE_STATEID:
@@ -3906,7 +3906,7 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 		case -NFS4ERR_SEQ_MISORDERED:
 			dprintk("%s ERROR %d, Reset session\n", __func__,
 				task->tk_status);
-			nfs4_schedule_session_recovery(clp->cl_session);
+			nfs4_schedule_session_recovery(clp->cl_session, task->tk_status);
 			task->tk_status = 0;
 			return -EAGAIN;
 #endif /* CONFIG_NFS_V4_1 */
@@ -4847,7 +4847,7 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
 			case -NFS4ERR_BAD_HIGH_SLOT:
 			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 			case -NFS4ERR_DEADSESSION:
-				nfs4_schedule_session_recovery(server->nfs_client->cl_session);
+				nfs4_schedule_session_recovery(server->nfs_client->cl_session, err);
 				goto out;
 			case -ERESTARTSYS:
 				/*

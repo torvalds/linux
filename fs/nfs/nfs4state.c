@@ -1635,11 +1635,17 @@ static int nfs4_reclaim_lease(struct nfs_client *clp)
 }
 
 #ifdef CONFIG_NFS_V4_1
-void nfs4_schedule_session_recovery(struct nfs4_session *session)
+void nfs4_schedule_session_recovery(struct nfs4_session *session, int err)
 {
 	struct nfs_client *clp = session->clp;
 
-	set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
+	switch (err) {
+	default:
+		set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
+		break;
+	case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+		set_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
+	}
 	nfs4_schedule_lease_recovery(clp);
 }
 EXPORT_SYMBOL_GPL(nfs4_schedule_session_recovery);
