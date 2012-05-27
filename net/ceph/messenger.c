@@ -521,14 +521,21 @@ void ceph_con_put(struct ceph_connection *con)
 /*
  * initialize a new connection.
  */
-void ceph_con_init(struct ceph_messenger *msgr, struct ceph_connection *con)
+void ceph_con_init(struct ceph_connection *con, void *private,
+	const struct ceph_connection_operations *ops,
+	struct ceph_messenger *msgr, __u8 entity_type, __u64 entity_num)
 {
 	dout("con_init %p\n", con);
 	memset(con, 0, sizeof(*con));
+	con->private = private;
+	con->ops = ops;
 	atomic_set(&con->nref, 1);
 	con->msgr = msgr;
 
 	con_sock_state_init(con);
+
+	con->peer_name.type = (__u8) entity_type;
+	con->peer_name.num = cpu_to_le64(entity_num);
 
 	mutex_init(&con->mutex);
 	INIT_LIST_HEAD(&con->out_queue);

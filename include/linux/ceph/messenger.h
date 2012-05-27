@@ -219,8 +219,10 @@ extern void ceph_messenger_init(struct ceph_messenger *msgr,
 			u32 required_features,
 			bool nocrc);
 
-extern void ceph_con_init(struct ceph_messenger *msgr,
-			  struct ceph_connection *con);
+extern void ceph_con_init(struct ceph_connection *con, void *private,
+			const struct ceph_connection_operations *ops,
+			struct ceph_messenger *msgr, __u8 entity_type,
+			__u64 entity_num);
 extern void ceph_con_open(struct ceph_connection *con,
 			  struct ceph_entity_addr *addr);
 extern bool ceph_con_opened(struct ceph_connection *con);
