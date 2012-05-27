@@ -226,17 +226,16 @@ extern int CIFSSMBUnixQPathInfo(const unsigned int xid,
 			const struct nls_table *nls_codepage, int remap);
 
 extern int CIFSGetDFSRefer(const unsigned int xid, struct cifs_ses *ses,
-			const unsigned char *searchName,
-			struct dfs_info3_param **target_nodes,
-			unsigned int *number_of_nodes_in_array,
-			const struct nls_table *nls_codepage, int remap);
+			   const char *search_name,
+			   struct dfs_info3_param **target_nodes,
+			   unsigned int *num_of_nodes,
+			   const struct nls_table *nls_codepage, int remap);
 
-extern int get_dfs_path(unsigned int xid, struct cifs_ses *pSesInfo,
+extern int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
 			const char *old_path,
 			const struct nls_table *nls_codepage,
-			unsigned int *pnum_referrals,
-			struct dfs_info3_param **preferrals,
-			int remap);
+			unsigned int *num_referrals,
+			struct dfs_info3_param **referrals, int remap);
 extern void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
 				 struct cifs_sb_info *cifs_sb,
 				 struct smb_vol *vol);

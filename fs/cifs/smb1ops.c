@@ -434,6 +434,7 @@ struct smb_version_operations smb1_operations = {
 	.logoff = CIFSSMBLogoff,
 	.tree_connect = CIFSTCon,
 	.tree_disconnect = CIFSSMBTDis,
+	.get_dfs_refer = CIFSGetDFSRefer,
 };
 
 struct smb_version_values smb1_values = {

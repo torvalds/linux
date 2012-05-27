@@ -4766,8 +4766,7 @@ parse_DFS_referrals_exit:
 
 int
 CIFSGetDFSRefer(const unsigned int xid, struct cifs_ses *ses,
-		const unsigned char *searchName,
-		struct dfs_info3_param **target_nodes,
+		const char *search_name, struct dfs_info3_param **target_nodes,
 		unsigned int *num_of_nodes,
 		const struct nls_table *nls_codepage, int remap)
 {
@@ -4781,7 +4780,7 @@ CIFSGetDFSRefer(const unsigned int xid, struct cifs_ses *ses,
 	*num_of_nodes = 0;
 	*target_nodes = NULL;
 
-	cFYI(1, "In GetDFSRefer the path %s", searchName);
+	cFYI(1, "In GetDFSRefer the path %s", search_name);
 	if (ses == NULL)
 		return -ENODEV;
 getDFSRetry:
@@ -4804,14 +4803,14 @@ getDFSRetry:
 		pSMB->hdr.Flags2 |= SMBFLG2_UNICODE;
 		name_len =
 		    cifsConvertToUTF16((__le16 *) pSMB->RequestFileName,
-				       searchName, PATH_MAX, nls_codepage,
+				       search_name, PATH_MAX, nls_codepage,
 				       remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {	/* BB improve the check for buffer overruns BB */
-		name_len = strnlen(searchName, PATH_MAX);
+		name_len = strnlen(search_name, PATH_MAX);
 		name_len++;	/* trailing null */
-		strncpy(pSMB->RequestFileName, searchName, name_len);
+		strncpy(pSMB->RequestFileName, search_name, name_len);
 	}
 
 	if (ses->server) {
@@ -4867,7 +4866,7 @@ getDFSRetry:
 	/* parse returned result into more usable form */
 	rc = parse_DFS_referrals(pSMBr, num_of_nodes,
 				 target_nodes, nls_codepage, remap,
-				 searchName);
+				 search_name);
 
 GetDFSRefExit:
 	cifs_buf_release(pSMB);

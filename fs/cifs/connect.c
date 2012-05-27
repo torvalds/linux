@@ -2767,14 +2767,14 @@ out:
 }
 
 int
-get_dfs_path(unsigned int xid, struct cifs_ses *ses, const char *old_path,
+get_dfs_path(const unsigned int xid, struct cifs_ses *ses, const char *old_path,
 	     const struct nls_table *nls_codepage, unsigned int *num_referrals,
 	     struct dfs_info3_param **referrals, int remap)
 {
 	char *temp_unc;
 	int rc = 0;
 
-	if (!ses->server->ops->tree_connect)
+	if (!ses->server->ops->tree_connect || !ses->server->ops->get_dfs_refer)
 		return -ENOSYS;
 
 	*num_referrals = 0;
@@ -2796,11 +2796,12 @@ get_dfs_path(unsigned int xid, struct cifs_ses *ses, const char *old_path,
 		kfree(temp_unc);
 	}
 	if (rc == 0)
-		rc = CIFSGetDFSRefer(xid, ses, old_path, referrals,
-				     num_referrals, nls_codepage, remap);
+		rc = ses->server->ops->get_dfs_refer(xid, ses, old_path,
+						     referrals, num_referrals,
+						     nls_codepage, remap);
 	/*
 	 * BB - map targetUNCs to dfs_info3 structures, here or in
-	 * CIFSGetDFSRefer.
+	 * ses->server->ops->get_dfs_refer.
 	 */
 
 	return rc;
@@ -3488,7 +3489,7 @@ build_unc_path_to_root(const struct smb_vol *vol,
  * determine whether there were referrals.
  */
 static int
-expand_dfs_referral(unsigned int xid, struct cifs_ses *pSesInfo,
+expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 		    struct smb_vol *volume_info, struct cifs_sb_info *cifs_sb,
 		    int check_prefix)
 {
@@ -3504,7 +3505,7 @@ expand_dfs_referral(unsigned int xid, struct cifs_ses *pSesInfo,
 	/* For DFS paths, skip the first '\' of the UNC */
 	ref_path = check_prefix ? full_path + 1 : volume_info->UNC + 1;
 
-	rc = get_dfs_path(xid, pSesInfo , ref_path, cifs_sb->local_nls,
+	rc = get_dfs_path(xid, ses, ref_path, cifs_sb->local_nls,
 			  &num_referrals, &referrals,
 			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 

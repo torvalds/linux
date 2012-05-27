@@ -162,6 +162,7 @@ struct TCP_Server_Info;
 struct cifsFileInfo;
 struct cifs_ses;
 struct cifs_tcon;
+struct dfs_info3_param;
 
 struct smb_version_operations {
 	int (*send_cancel)(struct TCP_Server_Info *, void *,
@@ -208,6 +209,10 @@ struct smb_version_operations {
 			    struct cifs_tcon *, const struct nls_table *);
 	/* close tree connecion */
 	int (*tree_disconnect)(const unsigned int, struct cifs_tcon *);
+	/* get DFS referrals */
+	int (*get_dfs_refer)(const unsigned int, struct cifs_ses *,
+			     const char *, struct dfs_info3_param **,
+			     unsigned int *, const struct nls_table *, int);
 };
 
 struct smb_version_values {
