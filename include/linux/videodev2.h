@@ -2039,6 +2039,8 @@ struct v4l2_modulator {
 /*  Flags for the 'capability' field */
 #define V4L2_TUNER_CAP_LOW		0x0001
 #define V4L2_TUNER_CAP_NORM		0x0002
+#define V4L2_TUNER_CAP_HWSEEK_BOUNDED	0x0004
+#define V4L2_TUNER_CAP_HWSEEK_WRAP	0x0008
 #define V4L2_TUNER_CAP_STEREO		0x0010
 #define V4L2_TUNER_CAP_LANG2		0x0020
 #define V4L2_TUNER_CAP_SAP		0x0020
