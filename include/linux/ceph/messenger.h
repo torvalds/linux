@@ -211,10 +211,11 @@ extern int ceph_msgr_init(void);
 extern void ceph_msgr_exit(void);
 extern void ceph_msgr_flush(void);
 
-extern struct ceph_messenger *ceph_messenger_create(
-	struct ceph_entity_addr *myaddr,
-	u32 features, u32 required);
-extern void ceph_messenger_destroy(struct ceph_messenger *);
+extern void ceph_messenger_init(struct ceph_messenger *msgr,
+			struct ceph_entity_addr *myaddr,
+			u32 supported_features,
+			u32 required_features,
+			bool nocrc);
 
 extern void ceph_con_init(struct ceph_messenger *msgr,
 			  struct ceph_connection *con);

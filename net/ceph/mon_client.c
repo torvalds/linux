@@ -763,7 +763,7 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	monc->con = kmalloc(sizeof(*monc->con), GFP_KERNEL);
 	if (!monc->con)
 		goto out_monmap;
-	ceph_con_init(monc->client->msgr, monc->con);
+	ceph_con_init(&monc->client->msgr, monc->con);
 	monc->con->private = monc;
 	monc->con->ops = &mon_con_ops;
 
@@ -880,8 +880,8 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 	} else if (!was_auth && monc->auth->ops->is_authenticated(monc->auth)) {
 		dout("authenticated, starting session\n");
 
-		monc->client->msgr->inst.name.type = CEPH_ENTITY_TYPE_CLIENT;
-		monc->client->msgr->inst.name.num =
+		monc->client->msgr.inst.name.type = CEPH_ENTITY_TYPE_CLIENT;
+		monc->client->msgr.inst.name.num =
 					cpu_to_le64(monc->auth->global_id);
 
 		__send_subscribe(monc);

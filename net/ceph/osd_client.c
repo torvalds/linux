@@ -639,7 +639,7 @@ static struct ceph_osd *create_osd(struct ceph_osd_client *osdc)
 	INIT_LIST_HEAD(&osd->o_osd_lru);
 	osd->o_incarnation = 1;
 
-	ceph_con_init(osdc->client->msgr, &osd->o_con);
+	ceph_con_init(&osdc->client->msgr, &osd->o_con);
 	osd->o_con.private = osd;
 	osd->o_con.ops = &osd_con_ops;
 	osd->o_con.peer_name.type = CEPH_ENTITY_TYPE_OSD;
@@ -1391,7 +1391,7 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 			     epoch, maplen);
 			newmap = osdmap_apply_incremental(&p, next,
 							  osdc->osdmap,
-							  osdc->client->msgr);
+							  &osdc->client->msgr);
 			if (IS_ERR(newmap)) {
 				err = PTR_ERR(newmap);
 				goto bad;

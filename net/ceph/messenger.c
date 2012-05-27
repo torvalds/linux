@@ -2245,18 +2245,14 @@ out:
 
 
 /*
- * create a new messenger instance
+ * initialize a new messenger instance
  */
-struct ceph_messenger *ceph_messenger_create(struct ceph_entity_addr *myaddr,
-					     u32 supported_features,
-					     u32 required_features)
+void ceph_messenger_init(struct ceph_messenger *msgr,
+			struct ceph_entity_addr *myaddr,
+			u32 supported_features,
+			u32 required_features,
+			bool nocrc)
 {
-	struct ceph_messenger *msgr;
-
-	msgr = kzalloc(sizeof(*msgr), GFP_KERNEL);
-	if (msgr == NULL)
-		return ERR_PTR(-ENOMEM);
-
 	msgr->supported_features = supported_features;
 	msgr->required_features = required_features;
 
@@ -2269,19 +2265,11 @@ struct ceph_messenger *ceph_messenger_create(struct ceph_entity_addr *myaddr,
 	msgr->inst.addr.type = 0;
 	get_random_bytes(&msgr->inst.addr.nonce, sizeof(msgr->inst.addr.nonce));
 	encode_my_addr(msgr);
+	msgr->nocrc = nocrc;
 
-	dout("messenger_create %p\n", msgr);
-	return msgr;
+	dout("%s %p\n", __func__, msgr);
 }
-EXPORT_SYMBOL(ceph_messenger_create);
-
-void ceph_messenger_destroy(struct ceph_messenger *msgr)
-{
-	dout("destroy %p\n", msgr);
-	kfree(msgr);
-	dout("destroyed messenger %p\n", msgr);
-}
-EXPORT_SYMBOL(ceph_messenger_destroy);
+EXPORT_SYMBOL(ceph_messenger_init);
 
 static void clear_standby(struct ceph_connection *con)
 {
