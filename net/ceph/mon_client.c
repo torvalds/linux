@@ -106,9 +106,9 @@ static void __send_prepared_auth_request(struct ceph_mon_client *monc, int len)
 	monc->pending_auth = 1;
 	monc->m_auth->front.iov_len = len;
 	monc->m_auth->hdr.front_len = cpu_to_le32(len);
-	ceph_con_revoke(monc->con, monc->m_auth);
+	ceph_con_revoke(&monc->con, monc->m_auth);
 	ceph_msg_get(monc->m_auth);  /* keep our ref */
-	ceph_con_send(monc->con, monc->m_auth);
+	ceph_con_send(&monc->con, monc->m_auth);
 }
 
 /*
@@ -117,8 +117,8 @@ static void __send_prepared_auth_request(struct ceph_mon_client *monc, int len)
 static void __close_session(struct ceph_mon_client *monc)
 {
 	dout("__close_session closing mon%d\n", monc->cur_mon);
-	ceph_con_revoke(monc->con, monc->m_auth);
-	ceph_con_close(monc->con);
+	ceph_con_revoke(&monc->con, monc->m_auth);
+	ceph_con_close(&monc->con);
 	monc->cur_mon = -1;
 	monc->pending_auth = 0;
 	ceph_auth_reset(monc->auth);
@@ -142,9 +142,9 @@ static int __open_session(struct ceph_mon_client *monc)
 		monc->want_next_osdmap = !!monc->want_next_osdmap;
 
 		dout("open_session mon%d opening\n", monc->cur_mon);
-		monc->con->peer_name.type = CEPH_ENTITY_TYPE_MON;
-		monc->con->peer_name.num = cpu_to_le64(monc->cur_mon);
-		ceph_con_open(monc->con,
+		monc->con.peer_name.type = CEPH_ENTITY_TYPE_MON;
+		monc->con.peer_name.num = cpu_to_le64(monc->cur_mon);
+		ceph_con_open(&monc->con,
 			      &monc->monmap->mon_inst[monc->cur_mon].addr);
 
 		/* initiatiate authentication handshake */
@@ -226,8 +226,8 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 
 		msg->front.iov_len = p - msg->front.iov_base;
 		msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
-		ceph_con_revoke(monc->con, msg);
-		ceph_con_send(monc->con, ceph_msg_get(msg));
+		ceph_con_revoke(&monc->con, msg);
+		ceph_con_send(&monc->con, ceph_msg_get(msg));
 
 		monc->sub_sent = jiffies | 1;  /* never 0 */
 	}
@@ -247,7 +247,7 @@ static void handle_subscribe_ack(struct ceph_mon_client *monc,
 	if (monc->hunting) {
 		pr_info("mon%d %s session established\n",
 			monc->cur_mon,
-			ceph_pr_addr(&monc->con->peer_addr.in_addr));
+			ceph_pr_addr(&monc->con.peer_addr.in_addr));
 		monc->hunting = false;
 	}
 	dout("handle_subscribe_ack after %d seconds\n", seconds);
@@ -461,7 +461,7 @@ static int do_generic_request(struct ceph_mon_client *monc,
 	req->request->hdr.tid = cpu_to_le64(req->tid);
 	__insert_generic_request(monc, req);
 	monc->num_generic_requests++;
-	ceph_con_send(monc->con, ceph_msg_get(req->request));
+	ceph_con_send(&monc->con, ceph_msg_get(req->request));
 	mutex_unlock(&monc->mutex);
 
 	err = wait_for_completion_interruptible(&req->completion);
@@ -684,8 +684,8 @@ static void __resend_generic_request(struct ceph_mon_client *monc)
 
 	for (p = rb_first(&monc->generic_request_tree); p; p = rb_next(p)) {
 		req = rb_entry(p, struct ceph_mon_generic_request, node);
-		ceph_con_revoke(monc->con, req->request);
-		ceph_con_send(monc->con, ceph_msg_get(req->request));
+		ceph_con_revoke(&monc->con, req->request);
+		ceph_con_send(&monc->con, ceph_msg_get(req->request));
 	}
 }
 
@@ -705,7 +705,7 @@ static void delayed_work(struct work_struct *work)
 		__close_session(monc);
 		__open_session(monc);  /* continue hunting */
 	} else {
-		ceph_con_keepalive(monc->con);
+		ceph_con_keepalive(&monc->con);
 
 		__validate_auth(monc);
 
@@ -760,19 +760,16 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 		goto out;
 
 	/* connection */
-	monc->con = kmalloc(sizeof(*monc->con), GFP_KERNEL);
-	if (!monc->con)
-		goto out_monmap;
-	ceph_con_init(&monc->client->msgr, monc->con);
-	monc->con->private = monc;
-	monc->con->ops = &mon_con_ops;
+	ceph_con_init(&monc->client->msgr, &monc->con);
+	monc->con.private = monc;
+	monc->con.ops = &mon_con_ops;
 
 	/* authentication */
 	monc->auth = ceph_auth_init(cl->options->name,
 				    cl->options->key);
 	if (IS_ERR(monc->auth)) {
 		err = PTR_ERR(monc->auth);
-		goto out_con;
+		goto out_monmap;
 	}
 	monc->auth->want_keys =
 		CEPH_ENTITY_TYPE_AUTH | CEPH_ENTITY_TYPE_MON |
@@ -824,8 +821,6 @@ out_subscribe_ack:
 	ceph_msg_put(monc->m_subscribe_ack);
 out_auth:
 	ceph_auth_destroy(monc->auth);
-out_con:
-	monc->con->ops->put(monc->con);
 out_monmap:
 	kfree(monc->monmap);
 out:
@@ -841,9 +836,7 @@ void ceph_monc_stop(struct ceph_mon_client *monc)
 	mutex_lock(&monc->mutex);
 	__close_session(monc);
 
-	monc->con->private = NULL;
-	monc->con->ops->put(monc->con);
-	monc->con = NULL;
+	monc->con.private = NULL;
 
 	mutex_unlock(&monc->mutex);
 
@@ -1021,7 +1014,7 @@ static void mon_fault(struct ceph_connection *con)
 	if (!monc->hunting)
 		pr_info("mon%d %s session lost, "
 			"hunting for new mon\n", monc->cur_mon,
-			ceph_pr_addr(&monc->con->peer_addr.in_addr));
+			ceph_pr_addr(&monc->con.peer_addr.in_addr));
 
 	__close_session(monc);
 	if (!monc->hunting) {
