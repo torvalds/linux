@@ -85,6 +85,24 @@ nope:
 	__brelse(bh);
 }
 
+static void jbd2_commit_block_csum_set(journal_t *j,
+				       struct journal_head *descriptor)
+{
+	struct commit_header *h;
+	__u32 csum;
+
+	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
+		return;
+
+	h = (struct commit_header *)(jh2bh(descriptor)->b_data);
+	h->h_chksum_type = 0;
+	h->h_chksum_size = 0;
+	h->h_chksum[0] = 0;
+	csum = jbd2_chksum(j, j->j_csum_seed, jh2bh(descriptor)->b_data,
+			   j->j_blocksize);
+	h->h_chksum[0] = cpu_to_be32(csum);
+}
+
 /*
  * Done it all: now submit the commit record.  We should have
  * cleaned up our previous buffers by now, so if we are in abort
@@ -128,6 +146,7 @@ static int journal_submit_commit_record(journal_t *journal,
 		tmp->h_chksum_size 	= JBD2_CRC32_CHKSUM_SIZE;
 		tmp->h_chksum[0] 	= cpu_to_be32(crc32_sum);
 	}
+	jbd2_commit_block_csum_set(journal, descriptor);
 
 	JBUFFER_TRACE(descriptor, "submit commit block");
 	lock_buffer(bh);
