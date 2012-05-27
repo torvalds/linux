@@ -980,13 +980,13 @@ config TOUCHSCREEN_PIXCIR
 	
 config TOUCHSCREEN_SYNAPTICS_RMI4_I2C_RK
 	tristate "Synaptics i2c rmi4 touchscreen"
-	depends on I2C2_RK30
+	depends on I2C_RK30
 	help
 	  This enables support for Synaptics RMI over I2C based touchscreens.
 	config TOUCHSCREEN_SYNAPTICS_S3202
 		tristate "SYNAPTICS S3202 touchscreen"
 		depends on TOUCHSCREEN_SYNAPTICS_RMI4_I2C_RK
-
+	source "drivers/input/touchscreen/rmi4/Kconfig"
 config D70_L3188A
 	tristate "D70-L3188A based touchscreens"
 	depends on I2C2_RK29

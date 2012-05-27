@@ -41,6 +41,12 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <linux/fb.h>
+
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_S3202
+#include <linux/interrupt.h>
+#include <linux/rmi.h>
+#endif
+
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -515,21 +521,6 @@ static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] =
 #endif /* CONFIG_VIDEO_RK29 */
 
 //hhb@rock-chips.com 2012-04-27
-#if defined(CONFIG_TOUCHSCREEN_SYNAPTICS_S3202)
-#include "../../../drivers/input/touchscreen/synaptics_i2c_rmi4.h"
-struct synaptics_rmi4_platform_data synaptics_s3202_info = {
-		.irq_type = IRQF_TRIGGER_FALLING,
-		.virtual_keys = true,
-		.lcd_width = 640,
-		.lcd_height = 960,
-		.h_delta = 40,
-		.w_delta = 0,
-		.x_flip = false,
-		.y_flip = false,
-		.regulator_en = false,
-};
-#endif
-
 
 #if defined(CONFIG_TOUCHSCREEN_FT5306)
 
@@ -595,6 +586,85 @@ struct ft5x0x_platform_data ft5306_info = {
 
 
 #endif
+
+#if defined (CONFIG_TOUCHSCREEN_SYNAPTICS_S3202)
+
+#define TOUCH_RESET_PIN -1
+#define TOUCH_INT_PIN	RK30_PIN4_PC2
+#define TOUCH_POWER_PIN -1
+#define TOUCH_IO_POWER_PIN -1
+
+struct syna_gpio_data {
+	u16 gpio_number;
+	char* gpio_name;
+};
+
+int syna_init_platform_hw(void)
+{
+    return 0;
+}
+
+static int synaptics_touchpad_gpio_setup(void *gpio_data, bool configure)
+{
+	int retval=0;
+	struct syna_gpio_data *data = gpio_data;
+
+	if (configure) {
+		retval = gpio_request(data->gpio_number, "rmi4_attn");
+		if (retval) {
+			pr_err("%s: Failed to get attn gpio %d. Code: %d.",
+			       __func__, data->gpio_number, retval);
+			return retval;
+		}
+		rk30_mux_api_set(GPIO4C2_SMCDATA2_TRACEDATA2_NAME, 0);
+		retval = gpio_direction_input(data->gpio_number);
+		if (retval) {
+			pr_err("%s: Failed to setup attn gpio %d. Code: %d.",
+			       __func__, data->gpio_number, retval);
+			gpio_free(data->gpio_number);
+		}
+	} else {
+		printk("%s: No way to deconfigure gpio %d.",
+		       __func__, data->gpio_number);
+	}
+
+	return retval;
+
+}
+
+static struct syna_gpio_data s3202_gpiodata = {
+	.gpio_number = TOUCH_INT_PIN,
+	.gpio_name = "GPIO4_C2",
+};
+static unsigned char s3202_key_array[4]={ KEY_BACK, KEY_MENU, KEY_HOMEPAGE, KEY_SEARCH };
+
+struct rmi_f1a_button_map s3202_buttons = {
+		.nbuttons = 4,
+		.map = s3202_key_array,
+};
+
+static struct rmi_device_platform_data s3202_platformdata = {
+	.sensor_name = "Espresso",
+	.driver_name = "rmi_generic",
+	.attn_gpio = TOUCH_INT_PIN,
+	.attn_polarity = RMI_ATTN_ACTIVE_LOW,
+	.level_triggered = false,	/* For testing */
+	.gpio_data = &s3202_gpiodata,
+	.gpio_config = synaptics_touchpad_gpio_setup,
+	.init_hw = syna_init_platform_hw,
+	.axis_align = {
+		.flip_x = 1,
+		.flip_y = 1,
+		.clip_X_low = 0,
+		.clip_Y_low = 0,
+		.clip_X_high = 0,
+		.clip_Y_high = 0,
+	},
+	.f1a_button_map = &s3202_buttons,
+};
+
+#endif
+
 
 /***********************************************************
 *	rk30  backlight
@@ -1677,13 +1747,14 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 
 #if defined (CONFIG_TOUCHSCREEN_SYNAPTICS_S3202)
 {
-	.type           = "synaptics_rmi4_i2c",
-	.addr           = 0x20,  //0x70
+	.type           = "rmi_i2c",
+	.addr           = 0x20,
 	.flags          = 0,
 	.irq            = RK30_PIN4_PC2,
-	.platform_data = &synaptics_s3202_info,
+	.platform_data = &s3202_platformdata,
 },
 #endif
+
 
 #if defined (CONFIG_TOUCHSCREEN_FT5306)
 {
@@ -1775,6 +1846,7 @@ static void rk30_pm_power_off(void)
 	while (1);
 }
 
+#if 0
 /**********************************************************************************************
  *
  * The virtual keys for android "back", "home", "menu", "search", these four keys are touch key
@@ -1835,7 +1907,7 @@ static int rk_virtual_keys_init(void)
 }
 
 /*************************end of virtual_keys************************/
-
+#endif
 
 
 
@@ -1851,11 +1923,6 @@ static void __init machine_rk30_board_init(void)
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 	rk29sdk_wifi_bt_gpio_control_init();
 #endif
-
-#if (defined(CONFIG_TOUCHSCREEN_SYNAPTICS_S3202))
-	rk_virtual_keys_init();
-#endif
-
 }
 
 static void __init rk30_reserve(void)
