@@ -27,7 +27,7 @@
 /* Base */
 #define OUT_TYPE	    SCREEN_RGB
 
-#define OUT_FACE	 OUT_D888_P666 //OUT_P888
+#define OUT_FACE	   OUT_D888_P666// OUT_D888_P666 //OUT_P888
 
 
 #define OUT_CLK	         50000000    //50MHz
@@ -40,7 +40,7 @@
 #define H_FP			130
 
 #define V_PW			3
-#define V_BP			23
+#define V_BP			20//23
 #define V_VD			960
 #define V_FP			12
 
@@ -79,7 +79,7 @@
 	#define bits_9
 	#ifdef bits_9  //9bits
 	#define Write_ADDR(cmd)    spi_write_9bit(0, cmd)
-	#define Write_DATA(dat)    spi_write_9bit(1, dat)
+	#define Write_DATA(dat)    spi_write_9bit(0x100, dat)
 	#else  //16bits
 	#define Write_ADDR(cmd)    spi_write_16bit(0, cmd)
 	#define Write_DATA(dat)    spi_write_16bit(1, dat)
@@ -100,8 +100,6 @@
 #endif
 
 
-#define DRVDelayUs(i)   udelay(i)
-
 static struct rk29lcd_info *gLcd_info = NULL;
 int lcd_init(void);
 int lcd_standby(u8 enable);
@@ -110,27 +108,24 @@ int lcd_standby(u8 enable);
 /* spi write a data frame,type mean command or data */
 int spi_write_9bit(u32 type, u32 value)
 {
-    u32 i = 0;
-
-    if(type != 0 && type != 1)
-    	return -1;
-
+//    if(type != 0 && type != 1)
+//    	return -1;
     /*make a data frame of 9 bits,the 8th bit  0:mean command,1:mean data*/
     value &= 0xff;
-    value |= (type << 8);
-
+    value |= type;
+    type = 9;
 	CS_CLR();
-	DRVDelayUs(2);
-	for(i = 0; i < 9; i++)  //reg
-	{
+	//udelay(2);
+	while(type--) {
 		CLK_CLR();
-		if(value & (1 << (8-i)))
+		if(value & 0x100)
 			TXD_SET();
         else
 			TXD_CLR();
-		DRVDelayUs(2);
+		value <<= 1;
+		//udelay(2);
 		CLK_SET();
-		DRVDelayUs(2);
+		//udelay(2);
 	}
     CS_SET();
     TXD_SET();
@@ -145,17 +140,18 @@ int lcd_init(void)
         gLcd_info->io_init();
 
     printk("lcd hj050a_06a...\n");
-
+#if 1
 	gpio_direction_output(LCD_RST_PORT, 0);
-	usleep_range(1*1000, 3*1000);
+	usleep_range(2*1000, 3*1000);
 	gpio_set_value(LCD_RST_PORT, 1);
-	usleep_range(5*1000, 7*1000);
+	usleep_range(7*1000, 7*1000);
+#endif
 
-    Write_ADDR(0x0001);     // Software Reset
-    mdelay(10);
+//    Write_ADDR(0x0001);     // Software Reset
+//    msleep(100);
 
     Write_ADDR(0x0011);     // Sleep Out
-    mdelay(60);
+    msleep(60);
 
 //<<<<<<<<<<<<<<<MANUFACTURE COMMAND ACCESS PROTECT>>>>>>>>>>>>>>>
     Write_ADDR(0x00B0);     //Manufacture Command Access Protect
@@ -172,6 +168,19 @@ int lcd_init(void)
     Write_DATA(0x0045);
     Write_DATA(0x0000);
 
+//<<<<<<<<<<<<BACK LIGHT CONTROL SET>>>>>>>>>>>>
+    Write_ADDR(0x00B8);     //Back Light Control(1)
+    Write_DATA(0x0000);     //P1: CABCON = 0;
+    Write_DATA(0x001A);     //P2: SSD_THRE = 1A;
+    Write_DATA(0x0018);     //P3: SD_THRE = 18;
+    Write_DATA(0x0002);     //P4: IPK_INTPO = 02;
+    Write_DATA(0x0040);     //P5: IPK_TRANS = 40;
+
+    Write_ADDR(0x00BB);     //Back Light Control(1)
+    Write_DATA(0x0000);     //LEDPWME[3] = 1,PWMWM[1] = 0,PWMON[0] = 0;
+    Write_DATA(0x00FF);     //BDCV = FF;
+    Write_DATA(0x0001);     //PWMDIC=1
+
 //<<<<<<<<<<<<PANEL DRIVING SETTING>>>>>>>>>>>>
     Write_ADDR(0x00C0);     //PANEL DRIVING SETTING 1   (36h=00)
     Write_DATA(0x000B);     //BLREV[5:4];REV[3];UD[2]=0:forward;BGR[1]=1:RGB->BGR;SS=1:S1920->S1
@@ -184,11 +193,11 @@ int lcd_init(void)
 
     Write_ADDR(0x00C1);     //PANEL DRIVING SETTING 2
     Write_DATA(0x0000);     //GDS_MODE = 0 : GIP Ctrl(single scan)
-    Write_DATA(0x0050);     //LINEINV[6:4]:2 Line inversion; MFPOL[1]:No Phase inversion; PNSER[0]:Spatial mode1
-    Write_DATA(0x0003);     //SEQMODE[7]:Source Pre-charge Mode;    SEQGND[3:0]: GND Pre-charge 3clk
-    Write_DATA(0x0022);     //SEQVN[7:4]:VCL pre-charge 2clk   ;SEQVP[3:0]:VCL pre-charge 2clk
-    Write_DATA(0x0012);     //DPM[7:6]: ;GEQ2W[5:3]/GEQ1W[2:0]:Gate pre-charge
-    Write_DATA(0x0008);     //SDT[5:0] = 8 : Source output delay
+    Write_DATA(0x0010);     //LINEINV[6:4]:2 Line inversion; MFPOL[1]:No Phase inversion; PNSER[0]:Spatial mode1
+    Write_DATA(0x0004);     //SEQMODE[7]:Source Pre-charge Mode;    SEQGND[3:0]: GND Pre-charge 3clk
+    Write_DATA(0x0088);     //SEQVN[7:4]:VCL pre-charge 2clk   ;SEQVP[3:0]:VCL pre-charge 2clk
+    Write_DATA(0x001B);     //DPM[7:6]: ;GEQ2W[5:3]/GEQ1W[2:0]:Gate pre-charge
+    Write_DATA(0x0001);     //SDT[5:0] = 8 : Source output delay
     Write_DATA(0x0060);     //PSEUDO_EN = 0;
     Write_DATA(0x0001);     //GEM
 
@@ -210,46 +219,75 @@ int lcd_init(void)
     Write_DATA(0x00FE);     //GOFF_R[15:8]
     Write_DATA(0x0003);     //GOFF_R[17:16]
 
+//<<<<<<<<<<TCON Unusual Operation Setting>>>>>>>>>>
+    Write_ADDR(0x00C7);     //TCON Unusual Operation Setting
+    Write_DATA(0x0000);     //P1:
+    Write_DATA(0x0000);     //P2:
+    Write_DATA(0x0000);     //P3:
+    Write_DATA(0x0000);     //P4:
+    Write_DATA(0x0000);     //P5:
+    Write_DATA(0x0000);     //P6:
+    Write_DATA(0x0000);     //P7:
+    Write_DATA(0x0000);     //P8:
+    Write_DATA(0x0000);     //P9:
+    Write_DATA(0x0000);     //P10:
+    Write_DATA(0x0000);     //P11:
+    Write_DATA(0x0000);     //P12:
+    Write_DATA(0x0000);     //P13:
+    Write_DATA(0x0000);     //P14:
+
 //<<<<<<<<<<Gamma Setting>>>>>>>>>>
     Write_ADDR(0x00C8);     //Gamma Setting
-    Write_DATA(0x0000);
-    Write_DATA(0x0008);
-    Write_DATA(0x0010);
+    Write_DATA(0x0003);
+    Write_DATA(0x000F);
+    Write_DATA(0x0015);
+    Write_DATA(0x0018);
     Write_DATA(0x001A);
     Write_DATA(0x0023);
-    Write_DATA(0x0026);
-    Write_DATA(0x0026);
-    Write_DATA(0x0023);
-    Write_DATA(0x001A);
-    Write_DATA(0x0012);
-    Write_DATA(0x000C);
-    Write_DATA(0x0006);
-    Write_DATA(0x0000);
-    Write_DATA(0x0008);
-    Write_DATA(0x0010);
-    Write_DATA(0x001A);
-    Write_DATA(0x0023);
-    Write_DATA(0x0026);
-    Write_DATA(0x0026);
-    Write_DATA(0x0023);
-    Write_DATA(0x001A);
-    Write_DATA(0x0012);
-    Write_DATA(0x000C);
-    Write_DATA(0x0006);
+    Write_DATA(0x0025);
+    Write_DATA(0x0024);
+    Write_DATA(0x0021);
+    Write_DATA(0x001E);
+    Write_DATA(0x0015);
+    Write_DATA(0x000A);
 
-//<<<<<<<<<<<TIG Mode Setting>>>>>>>>>>>
-    Write_ADDR(0x00CA);     //TIG Mode Setting
-    Write_DATA(0x00FF);     //P1:
-    Write_DATA(0x0007);     //P2:
+    Write_DATA(0x0003);
+    Write_DATA(0x000F);
+    Write_DATA(0x0015);
+    Write_DATA(0x0018);
+    Write_DATA(0x001A);
+    Write_DATA(0x0023);
+    Write_DATA(0x0025);
+    Write_DATA(0x0024);
+    Write_DATA(0x0021);
+    Write_DATA(0x001E);
+    Write_DATA(0x0015);
+    Write_DATA(0x000A);
+
+//<<<<<<<<<<COLOR ENHANCEMENT SETTING>>>>>>>>>>
+    Write_ADDR(0x00C9);     //COLOR ENHANCEMENT SETTING
+    Write_DATA(0x0000);     //CE_ON = 0;
+    Write_DATA(0x0080);
+    Write_DATA(0x0080);
+    Write_DATA(0x0080);
+    Write_DATA(0x0080);
+    Write_DATA(0x0080);
+    Write_DATA(0x0080);
+    Write_DATA(0x0080);
+    Write_DATA(0x0080);
+    Write_DATA(0x0000);
+    Write_DATA(0x0000);
+    Write_DATA(0x0002);
+    Write_DATA(0x0080);
 
 //<<<<<<<<<<<<<<<<<<<<POWER SETTING>>>>>>>>>>>>>>>>>>>
     Write_ADDR(0x00D0);     //POWER SETTING(CHARGE PUMP)
-    Write_DATA(0x0074);     //P1:VC1 = 7; DC23 = 4
-    Write_DATA(0x0029);     //P2:BT3 = 2; BT2 = 1
-    Write_DATA(0x00FF);     //P3:VLMT1M = D; VLMT1 = D
-    Write_DATA(0x00BB);     //P4:VC3 = B; VC2 =B
-    Write_DATA(0x0010);     //P5:VLMT2B = 0; VLMT2 = 0A
-    Write_DATA(0x002F);     //P6:VLMT3B = 0; VLMT3 = 0F
+    Write_DATA(0x0054);     //P1:VC1 = 7; DC23 = 4
+    Write_DATA(0x0019);     //P2:BT3 = 2; BT2 = 1           09
+    Write_DATA(0x00DD);     //P3:VLMT1M = D; VLMT1 = D
+    Write_DATA(0x0016);     //P4:VC3 = B; VC2 =B            3B
+    Write_DATA(0x0092);     //P5:VLMT2B = 0; VLMT2 = 0A
+    Write_DATA(0x00A1);     //P6:VLMT3B = 0; VLMT3 = 0F   A1
     Write_DATA(0x0000);     //P7:VBSON = 0; VBS = 00
     Write_DATA(0x00C0);     //P8:VGGON = 0; LVGLON = 0; VC6 = 0
     Write_DATA(0x00CC);     //P9:DC56 = ?
@@ -266,8 +304,8 @@ int lcd_init(void)
 
 //<<<<<<<<<<<<<<<VPLVL/VNLVL SETTING>>>>>>>>>>>>>>>
     Write_ADDR(0x00D5);     //VPLVL/VNLVL SETTING
-    Write_DATA(0x002A);     //P1:PVH = 24
-    Write_DATA(0x002A);     //P2:NVH = 24
+    Write_DATA(0x0020);     //P1:PVH = 24
+    Write_DATA(0x0020);     //P2:NVH = 24
 
 //<<<<<<<<<<<<<<<DSI Setting>>>>>>>>>>>>>>>>
     Write_ADDR(0x00D6);
@@ -276,21 +314,22 @@ int lcd_init(void)
 //<<<<<<<<<<<<<<<VCOMDC SETTING>>>>>>>>>>>>>>>
     Write_ADDR(0x00DE);     //VCOMDC SETTING
     Write_DATA(0x0003);     //P1:WCVDCB.[1] = 1; WCVDCF.[0] = 1
-    Write_DATA(0x0090);
-    Write_DATA(0x0090);
+    Write_DATA(0x005A);     //P2:VDCF.[7:0] = ?     //57
+    Write_DATA(0x005A);     //P3:VDCB.[7:0] = ?     //57
+
 
 //<<<<<<<<<<<<<<<MANUFACTURE COMMAND ACCESS PROTECT>>>>>>>>>>>>>>>
     Write_ADDR(0x00B0);     //MANUFACTURE COMMAND ACCESS PROTECT
     Write_DATA(0x0003);     //
-    mdelay(50);
+    msleep(17);
 
     Write_ADDR(0x0036);     //
     Write_DATA(0x0000);     //
-    mdelay(17);
-    Write_ADDR(0x003A);     //Set Pixel_Format
-    Write_DATA(0x0077);     //
-    mdelay(17);
-    Write_ADDR(0x0029);     //  Display On
+    msleep(17);
+    Write_ADDR(0x003A);     //
+    Write_DATA(0x0060);     //
+    msleep(17);
+    Write_ADDR(0x0029);     //
 
     if(gLcd_info)
         gLcd_info->io_deinit();
@@ -316,8 +355,9 @@ int lcd_standby(u8 enable)
 		Write_ADDR(0x00b1);
 		Write_DATA(0x0001);
 		msleep(1);				//wait at least 1ms
-#endif
 		gpio_direction_output(LCD_RST_PORT, 0);
+#endif
+
 	    if(gLcd_info)
 	        gLcd_info->io_deinit();
 
@@ -376,6 +416,5 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
     		gpio_free(LCD_RST_PORT);
     		printk("%s: request LCD_RST_PORT error\n", __func__);
     	}
-
     }
 }
