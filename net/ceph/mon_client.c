@@ -119,6 +119,7 @@ static void __close_session(struct ceph_mon_client *monc)
 	dout("__close_session closing mon%d\n", monc->cur_mon);
 	ceph_con_revoke(&monc->con, monc->m_auth);
 	ceph_con_close(&monc->con);
+	monc->con.private = NULL;
 	monc->cur_mon = -1;
 	monc->pending_auth = 0;
 	ceph_auth_reset(monc->auth);
@@ -141,9 +142,13 @@ static int __open_session(struct ceph_mon_client *monc)
 		monc->sub_renew_after = jiffies;  /* i.e., expired */
 		monc->want_next_osdmap = !!monc->want_next_osdmap;
 
-		dout("open_session mon%d opening\n", monc->cur_mon);
+		ceph_con_init(&monc->client->msgr, &monc->con);
+		monc->con.private = monc;
+		monc->con.ops = &mon_con_ops;
 		monc->con.peer_name.type = CEPH_ENTITY_TYPE_MON;
 		monc->con.peer_name.num = cpu_to_le64(monc->cur_mon);
+
+		dout("open_session mon%d opening\n", monc->cur_mon);
 		ceph_con_open(&monc->con,
 			      &monc->monmap->mon_inst[monc->cur_mon].addr);
 
@@ -760,10 +765,6 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 		goto out;
 
 	/* connection */
-	ceph_con_init(&monc->client->msgr, &monc->con);
-	monc->con.private = monc;
-	monc->con.ops = &mon_con_ops;
-
 	/* authentication */
 	monc->auth = ceph_auth_init(cl->options->name,
 				    cl->options->key);
@@ -835,8 +836,6 @@ void ceph_monc_stop(struct ceph_mon_client *monc)
 
 	mutex_lock(&monc->mutex);
 	__close_session(monc);
-
-	monc->con.private = NULL;
 
 	mutex_unlock(&monc->mutex);
 
