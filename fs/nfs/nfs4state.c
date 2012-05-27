@@ -1788,7 +1788,17 @@ static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 	if (cred)
 		put_rpccred(cred);
 	clear_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
-	return ret;
+	switch (ret) {
+	case 0:
+		break;
+	case -NFS4ERR_DELAY:
+		ssleep(1);
+		set_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
+		break;
+	default:
+		return nfs4_recovery_handle_error(clp, ret);
+	}
+	return 0;
 }
 #else /* CONFIG_NFS_V4_1 */
 static int nfs4_reset_session(struct nfs_client *clp) { return 0; }
@@ -1858,6 +1868,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			status = nfs4_bind_conn_to_session(clp);
 			if (status < 0)
 				goto out_error;
+			continue;
 		}
 
 		/* First recover reboot state... */
