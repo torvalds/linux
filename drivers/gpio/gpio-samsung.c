@@ -2382,8 +2382,8 @@ static struct samsung_gpio_chip exynos4_gpios_3[] = {
 #endif
 };
 
-static struct samsung_gpio_chip exynos5_gpios_1[] = {
 #ifdef CONFIG_ARCH_EXYNOS5
+static struct samsung_gpio_chip exynos5_gpios_1[] = {
 	{
 		.chip	= {
 			.base	= EXYNOS5_GPA0(0),
@@ -2541,11 +2541,11 @@ static struct samsung_gpio_chip exynos5_gpios_1[] = {
 			.to_irq	= samsung_gpiolib_to_irq,
 		},
 	},
-#endif
 };
+#endif
 
-static struct samsung_gpio_chip exynos5_gpios_2[] = {
 #ifdef CONFIG_ARCH_EXYNOS5
+static struct samsung_gpio_chip exynos5_gpios_2[] = {
 	{
 		.chip	= {
 			.base	= EXYNOS5_GPE0(0),
@@ -2602,11 +2602,11 @@ static struct samsung_gpio_chip exynos5_gpios_2[] = {
 
 		},
 	},
-#endif
 };
+#endif
 
-static struct samsung_gpio_chip exynos5_gpios_3[] = {
 #ifdef CONFIG_ARCH_EXYNOS5
+static struct samsung_gpio_chip exynos5_gpios_3[] = {
 	{
 		.chip	= {
 			.base	= EXYNOS5_GPV0(0),
@@ -2638,11 +2638,11 @@ static struct samsung_gpio_chip exynos5_gpios_3[] = {
 			.label	= "GPV4",
 		},
 	},
-#endif
 };
+#endif
 
-static struct samsung_gpio_chip exynos5_gpios_4[] = {
 #ifdef CONFIG_ARCH_EXYNOS5
+static struct samsung_gpio_chip exynos5_gpios_4[] = {
 	{
 		.chip	= {
 			.base	= EXYNOS5_GPZ(0),
@@ -2650,8 +2650,8 @@ static struct samsung_gpio_chip exynos5_gpios_4[] = {
 			.label	= "GPZ",
 		},
 	},
-#endif
 };
+#endif
 
 
 #if defined(CONFIG_ARCH_EXYNOS) && defined(CONFIG_OF)

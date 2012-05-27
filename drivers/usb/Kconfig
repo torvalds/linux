@@ -2,14 +2,6 @@
 # USB device configuration
 #
 
-menuconfig USB_SUPPORT
-	bool "USB support"
-	depends on HAS_IOMEM
-	default y
-	---help---
-	  This option adds core support for Universal Serial Bus (USB).
-	  You will also need drivers from the following menu to make use of it.
-
 # many non-PCI SOC chips embed OHCI
 config USB_ARCH_HAS_OHCI
 	boolean
@@ -62,6 +54,14 @@ config USB_ARCH_HAS_EHCI
 config USB_ARCH_HAS_XHCI
 	boolean
 	default PCI
+
+menuconfig USB_SUPPORT
+	bool "USB support"
+	depends on HAS_IOMEM
+	default y
+	---help---
+	  This option adds core support for Universal Serial Bus (USB).
+	  You will also need drivers from the following menu to make use of it.
 
 if USB_SUPPORT
 

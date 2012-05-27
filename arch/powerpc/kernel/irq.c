@@ -560,12 +560,6 @@ void do_softirq(void)
 	local_irq_restore(flags);
 }
 
-irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
-{
-	return d->hwirq;
-}
-EXPORT_SYMBOL_GPL(irqd_to_hwirq);
-
 irq_hw_number_t virq_to_hw(unsigned int virq)
 {
 	struct irq_data *irq_data = irq_get_irq_data(virq);

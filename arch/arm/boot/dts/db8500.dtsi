@@ -24,7 +24,6 @@
 			#interrupt-cells = <3>;
 			#address-cells = <1>;
 			interrupt-controller;
-			interrupt-parent;
 			reg = <0xa0411000 0x1000>,
 			      <0xa0410100 0x100>;
 		};

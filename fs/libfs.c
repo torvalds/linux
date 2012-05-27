@@ -529,6 +529,7 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	return 0;
 out:
 	d_genocide(root);
+	shrink_dcache_parent(root);
 	dput(root);
 	return -ENOMEM;
 }

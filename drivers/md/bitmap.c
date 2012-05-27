@@ -539,9 +539,6 @@ static int bitmap_new_disk_sb(struct bitmap *bitmap)
 	bitmap->events_cleared = bitmap->mddev->events;
 	sb->events_cleared = cpu_to_le64(bitmap->mddev->events);
 
-	bitmap->flags |= BITMAP_HOSTENDIAN;
-	sb->version = cpu_to_le32(BITMAP_MAJOR_HOSTENDIAN);
-
 	kunmap_atomic(sb);
 
 	return 0;
@@ -1788,7 +1785,9 @@ int bitmap_load(struct mddev *mddev)
 		 * re-add of a missing device */
 		start = mddev->recovery_cp;
 
+	mutex_lock(&mddev->bitmap_info.mutex);
 	err = bitmap_init_from_disk(bitmap, start);
+	mutex_unlock(&mddev->bitmap_info.mutex);
 
 	if (err)
 		goto out;

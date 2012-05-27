@@ -42,7 +42,7 @@
 #include <plat/board.h>
 #include "common.h"
 #include <video/omapdss.h>
-#include <video/omap-panel-dvi.h>
+#include <video/omap-panel-tfp410.h>
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
@@ -189,33 +189,17 @@ static struct mtd_partition omap3beagle_nand_partitions[] = {
 
 /* DSS */
 
-static int beagle_enable_dvi(struct omap_dss_device *dssdev)
-{
-	if (gpio_is_valid(dssdev->reset_gpio))
-		gpio_set_value(dssdev->reset_gpio, 1);
-
-	return 0;
-}
-
-static void beagle_disable_dvi(struct omap_dss_device *dssdev)
-{
-	if (gpio_is_valid(dssdev->reset_gpio))
-		gpio_set_value(dssdev->reset_gpio, 0);
-}
-
-static struct panel_dvi_platform_data dvi_panel = {
-	.platform_enable = beagle_enable_dvi,
-	.platform_disable = beagle_disable_dvi,
+static struct tfp410_platform_data dvi_panel = {
 	.i2c_bus_num = 3,
+	.power_down_gpio = -1,
 };
 
 static struct omap_dss_device beagle_dvi_device = {
 	.type = OMAP_DISPLAY_TYPE_DPI,
 	.name = "dvi",
-	.driver_name = "dvi",
+	.driver_name = "tfp410",
 	.data = &dvi_panel,
 	.phy.dpi.data_lines = 24,
-	.reset_gpio = -EINVAL,
 };
 
 static struct omap_dss_device beagle_tv_device = {
@@ -235,16 +219,6 @@ static struct omap_dss_board_info beagle_dss_data = {
 	.devices = beagle_dss_devices,
 	.default_device = &beagle_dvi_device,
 };
-
-static void __init beagle_display_init(void)
-{
-	int r;
-
-	r = gpio_request_one(beagle_dvi_device.reset_gpio, GPIOF_OUT_INIT_LOW,
-			     "DVI reset");
-	if (r < 0)
-		printk(KERN_ERR "Unable to get DVI reset GPIO\n");
-}
 
 #include "sdram-micron-mt46h32m32lf-6.h"
 
@@ -309,7 +283,7 @@ static int beagle_twl_gpio_setup(struct device *dev,
 		if (gpio_request_one(gpio + 1, GPIOF_IN, "EHCI_nOC"))
 			pr_err("%s: unable to configure EHCI_nOC\n", __func__);
 	}
-	beagle_dvi_device.reset_gpio = beagle_config.reset_gpio;
+	dvi_panel.power_down_gpio = beagle_config.reset_gpio;
 
 	gpio_request_one(gpio + TWL4030_GPIO_MAX, beagle_config.usb_pwr_level,
 			"nEN_USB_PWR");
@@ -552,7 +526,6 @@ static void __init omap3_beagle_init(void)
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
 
-	beagle_display_init();
 	beagle_opp_init();
 }
 
