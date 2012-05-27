@@ -318,33 +318,7 @@ clear_user(void *addr, unsigned long size)
 
 extern long strncpy_from_user(char *dest, const char __user *src, long count);
 
-/*
- * Return the size of a string (including the ending 0)
- *
- * Return 0 for error
- */
-
-extern int __strnlen_user(const char *str, long len, unsigned long top);
-
-/*
- * Returns the length of the string at str (including the null byte),
- * or 0 if we hit a page we can't access,
- * or something > len if we didn't find a null byte.
- *
- * The `top' parameter to __strnlen_user is to make sure that
- * we can never overflow from the user area into kernel space.
- */
-static inline long strnlen_user(const char __user *str, long len)
-{
-	unsigned long top = (unsigned long)get_fs();
-	unsigned long res = 0;
-
-	if (__addr_ok(str))
-		res = __strnlen_user(str, len, top);
-
-	return res;
-}
-
-#define strlen_user(str) strnlen_user(str, TASK_SIZE-1)
+extern __must_check long strlen_user(const char __user *str);
+extern __must_check long strnlen_user(const char __user *str, long n);
 
 #endif /* __ASM_OPENRISC_UACCESS_H */
