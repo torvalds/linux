@@ -1782,10 +1782,12 @@ static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 	struct rpc_cred *cred;
 	int ret;
 
+	nfs4_begin_drain_session(clp);
 	cred = nfs4_get_exchange_id_cred(clp);
 	ret = nfs4_proc_bind_conn_to_session(clp, cred);
 	if (cred)
 		put_rpccred(cred);
+	clear_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
 	return ret;
 }
 #else /* CONFIG_NFS_V4_1 */
