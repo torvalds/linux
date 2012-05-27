@@ -25,11 +25,11 @@
 /* Each frame is two 16 bit integers (one per channel) */
 #define BYTES_PER_FRAME 4
 #define FRAMES_PER_MSEC (SAMPLE_RATE / 1000)
-/* Add one to FRAMES_PER_MSEC to adjust for round-off above */
-#define IN_EP_MAX_PACKET_SIZE ((FRAMES_PER_MSEC + 1) * BYTES_PER_FRAME)
+
+#define IN_EP_MAX_PACKET_SIZE 256
 
 /* Number of requests to allocate */
-#define IN_EP_REQ_COUNT 16
+#define IN_EP_REQ_COUNT 4
 
 #define AUDIO_AC_INTERFACE	0
 #define AUDIO_AS_INTERFACE	1
@@ -339,13 +339,10 @@ static void audio_send(struct audio_dev *audio)
 
 	runtime = audio->substream->runtime;
 
+	/* compute number of frames to send */
 	now = ktime_get();
 	msecs = ktime_to_ns(now) - ktime_to_ns(audio->start_time);
 	do_div(msecs, 1000000);
-	/* Add a bit to msecs so we queue some extra requests in case
-	 * we miss a few SOFs due to interrupts being disabled or CPU load.
-	 */
-	msecs += IN_EP_REQ_COUNT/2;
 	frames = msecs * SAMPLE_RATE;
 	do_div(frames, 1000);
 
@@ -353,10 +350,14 @@ static void audio_send(struct audio_dev *audio)
 	 * If we get too far behind it is better to drop some frames than
 	 * to keep sending data too fast in an attempt to catch up.
 	 */
-	if (frames - audio->frames_sent > 2 * FRAMES_PER_MSEC * IN_EP_REQ_COUNT)
+	if (frames - audio->frames_sent > 10 * FRAMES_PER_MSEC)
 		audio->frames_sent = frames - FRAMES_PER_MSEC;
 
 	frames -= audio->frames_sent;
+
+	/* We need to send something to keep the pipeline going */
+	if (frames <= 0)
+		frames = FRAMES_PER_MSEC;
 
 	while (frames > 0) {
 		req = audio_req_get(audio);
