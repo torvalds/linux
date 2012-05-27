@@ -317,10 +317,6 @@ static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	regs->d0 = sig;
 	regs->d1 = (unsigned long) &frame->sc;
 
-	/* the tracer may want to single-step inside the handler */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-
 #if DEBUG_SIG
 	printk(KERN_DEBUG "SIG deliver %d (%s:%d): sp=%p pc=%lx ra=%p\n",
 	       sig, current->comm, current->pid, frame, regs->pc,
@@ -397,10 +393,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->pc = (unsigned long) ka->sa.sa_handler;
 	regs->d0 = sig;
 	regs->d1 = (long) &frame->info;
-
-	/* the tracer may want to single-step inside the handler */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
 
 #if DEBUG_SIG
 	printk(KERN_DEBUG "SIG deliver %d (%s:%d): sp=%p pc=%lx ra=%p\n",
