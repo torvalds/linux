@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pm.h>
-#include <linux/sysdev.h>
 #include <linux/fs.h>
 #include <linux/io.h>
 #include <linux/kernel.h>

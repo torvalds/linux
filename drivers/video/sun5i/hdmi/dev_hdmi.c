@@ -1,3 +1,4 @@
+#include <linux/module.h>
 #include "dev_hdmi.h"
 #include "drv_hdmi_i.h"
 

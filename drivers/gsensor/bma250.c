@@ -24,7 +24,9 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
+#endif
 
 #include <mach/system.h>
 #include <mach/hardware.h>

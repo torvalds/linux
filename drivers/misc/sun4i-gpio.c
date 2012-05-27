@@ -16,11 +16,12 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pm.h>
-#include <linux/sysdev.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
+#endif
 #include <linux/miscdevice.h>
 #include <linux/device.h>
 

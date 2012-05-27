@@ -11,6 +11,7 @@
  * License, or (at your option) any later version.
  */
 
+#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>

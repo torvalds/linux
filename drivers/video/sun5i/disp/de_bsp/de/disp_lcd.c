@@ -1,3 +1,5 @@
+#include <linux/export.h>
+
 #include "disp_lcd.h"
 #include "disp_display.h"
 #include "disp_event.h"

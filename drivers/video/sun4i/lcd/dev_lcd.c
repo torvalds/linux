@@ -1,3 +1,4 @@
+#include <linux/module.h>
 #include "dev_lcd.h"
 
 static struct cdev *my_cdev;

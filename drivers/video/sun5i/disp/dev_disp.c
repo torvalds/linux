@@ -1,3 +1,4 @@
+#include <linux/module.h>
 #include "dev_disp.h"
 
 #ifdef CONFIG_HAS_EARLYSUSPEND

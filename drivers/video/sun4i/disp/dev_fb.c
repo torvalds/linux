@@ -1,3 +1,4 @@
+#include <linux/module.h>
 #include "drv_disp_i.h"
 #include "dev_disp.h"
 

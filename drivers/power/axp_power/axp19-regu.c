@@ -383,7 +383,7 @@ static int __devinit axp_regulator_probe(struct platform_device *pdev)
 		ri->desc.ops = &axp19_ldoio0_ops;
 	
 	rdev = regulator_register(&ri->desc, &pdev->dev,
-				  pdev->dev.platform_data, ri);
+				  pdev->dev.platform_data, ri, NULL);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 				ri->desc.name);

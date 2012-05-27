@@ -14,6 +14,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>

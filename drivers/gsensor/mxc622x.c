@@ -41,7 +41,9 @@
 #include <mach/sys_config.h>
 #include "mxc622x.h"
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
+#endif
 
 #define DEBUG			0
 #define MAX_FAILURE_COUNT	3

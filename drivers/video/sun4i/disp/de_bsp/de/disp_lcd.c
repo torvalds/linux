@@ -1,3 +1,4 @@
+#include <linux/module.h>
 #include "disp_lcd.h"
 #include "disp_display.h"
 #include "disp_event.h"

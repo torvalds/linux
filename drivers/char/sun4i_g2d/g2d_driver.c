@@ -1,3 +1,5 @@
+#include <linux/module.h>
+
 #include"g2d_driver_i.h"
 #include<linux/g2d_driver.h>
 #include"g2d.h"
