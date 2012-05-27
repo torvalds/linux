@@ -38,4 +38,7 @@
 #define IOCTL_XENBUS_BACKEND_EVTCHN			\
 	_IOC(_IOC_NONE, 'B', 0, 0)
 
+#define IOCTL_XENBUS_BACKEND_SETUP			\
+	_IOC(_IOC_NONE, 'B', 1, 0)
+
 #endif /* __LINUX_XEN_XENBUS_DEV_H__ */

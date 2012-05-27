@@ -396,7 +396,6 @@ int rs600_asic_reset(struct radeon_device *rdev)
 	/* Check if GPU is idle */
 	if (G_000E40_GA_BUSY(status) || G_000E40_VAP_BUSY(status)) {
 		dev_err(rdev->dev, "failed to reset GPU\n");
-		rdev->gpu_lockup = true;
 		ret = -1;
 	} else
 		dev_info(rdev->dev, "GPU reset succeed\n");
@@ -553,6 +552,12 @@ int rs600_irq_set(struct radeon_device *rdev)
 		~S_007D08_DC_HOT_PLUG_DETECT1_INT_EN(1);
 	u32 hpd2 = RREG32(R_007D18_DC_HOT_PLUG_DETECT2_INT_CONTROL) &
 		~S_007D18_DC_HOT_PLUG_DETECT2_INT_EN(1);
+	u32 hdmi0;
+	if (ASIC_IS_DCE2(rdev))
+		hdmi0 = RREG32(R_007408_HDMI0_AUDIO_PACKET_CONTROL) &
+			~S_007408_HDMI0_AZ_FORMAT_WTRIG_MASK(1);
+	else
+		hdmi0 = 0;
 
 	if (!rdev->irq.installed) {
 		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
@@ -579,10 +584,15 @@ int rs600_irq_set(struct radeon_device *rdev)
 	if (rdev->irq.hpd[1]) {
 		hpd2 |= S_007D18_DC_HOT_PLUG_DETECT2_INT_EN(1);
 	}
+	if (rdev->irq.afmt[0]) {
+		hdmi0 |= S_007408_HDMI0_AZ_FORMAT_WTRIG_MASK(1);
+	}
 	WREG32(R_000040_GEN_INT_CNTL, tmp);
 	WREG32(R_006540_DxMODE_INT_MASK, mode_int);
 	WREG32(R_007D08_DC_HOT_PLUG_DETECT1_INT_CONTROL, hpd1);
 	WREG32(R_007D18_DC_HOT_PLUG_DETECT2_INT_CONTROL, hpd2);
+	if (ASIC_IS_DCE2(rdev))
+		WREG32(R_007408_HDMI0_AUDIO_PACKET_CONTROL, hdmi0);
 	return 0;
 }
 
@@ -622,6 +632,17 @@ static inline u32 rs600_irq_ack(struct radeon_device *rdev)
 		rdev->irq.stat_regs.r500.disp_int = 0;
 	}
 
+	if (ASIC_IS_DCE2(rdev)) {
+		rdev->irq.stat_regs.r500.hdmi0_status = RREG32(R_007404_HDMI0_STATUS) &
+			S_007404_HDMI0_AZ_FORMAT_WTRIG(1);
+		if (G_007404_HDMI0_AZ_FORMAT_WTRIG(rdev->irq.stat_regs.r500.hdmi0_status)) {
+			tmp = RREG32(R_007408_HDMI0_AUDIO_PACKET_CONTROL);
+			tmp |= S_007408_HDMI0_AZ_FORMAT_WTRIG_ACK(1);
+			WREG32(R_007408_HDMI0_AUDIO_PACKET_CONTROL, tmp);
+		}
+	} else
+		rdev->irq.stat_regs.r500.hdmi0_status = 0;
+
 	if (irqs) {
 		WREG32(R_000044_GEN_INT_STATUS, irqs);
 	}
@@ -630,6 +651,9 @@ static inline u32 rs600_irq_ack(struct radeon_device *rdev)
 
 void rs600_irq_disable(struct radeon_device *rdev)
 {
+	u32 hdmi0 = RREG32(R_007408_HDMI0_AUDIO_PACKET_CONTROL) &
+		~S_007408_HDMI0_AZ_FORMAT_WTRIG_MASK(1);
+	WREG32(R_007408_HDMI0_AUDIO_PACKET_CONTROL, hdmi0);
 	WREG32(R_000040_GEN_INT_CNTL, 0);
 	WREG32(R_006540_DxMODE_INT_MASK, 0);
 	/* Wait and acknowledge irq */
@@ -641,15 +665,20 @@ int rs600_irq_process(struct radeon_device *rdev)
 {
 	u32 status, msi_rearm;
 	bool queue_hotplug = false;
+	bool queue_hdmi = false;
 
 	/* reset gui idle ack.  the status bit is broken */
 	rdev->irq.gui_idle_acked = false;
 
 	status = rs600_irq_ack(rdev);
-	if (!status && !rdev->irq.stat_regs.r500.disp_int) {
+	if (!status &&
+	    !rdev->irq.stat_regs.r500.disp_int &&
+	    !rdev->irq.stat_regs.r500.hdmi0_status) {
 		return IRQ_NONE;
 	}
-	while (status || rdev->irq.stat_regs.r500.disp_int) {
+	while (status ||
+	       rdev->irq.stat_regs.r500.disp_int ||
+	       rdev->irq.stat_regs.r500.hdmi0_status) {
 		/* SW interrupt */
 		if (G_000044_SW_INT(status)) {
 			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
@@ -687,12 +716,18 @@ int rs600_irq_process(struct radeon_device *rdev)
 			queue_hotplug = true;
 			DRM_DEBUG("HPD2\n");
 		}
+		if (G_007404_HDMI0_AZ_FORMAT_WTRIG(rdev->irq.stat_regs.r500.hdmi0_status)) {
+			queue_hdmi = true;
+			DRM_DEBUG("HDMI0\n");
+		}
 		status = rs600_irq_ack(rdev);
 	}
 	/* reset gui idle ack.  the status bit is broken */
 	rdev->irq.gui_idle_acked = false;
 	if (queue_hotplug)
 		schedule_work(&rdev->hotplug_work);
+	if (queue_hdmi)
+		schedule_work(&rdev->audio_work);
 	if (rdev->msi_enabled) {
 		switch (rdev->family) {
 		case CHIP_RS600:
@@ -883,12 +918,9 @@ static int rs600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
-	if (r) {
-		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
-		rdev->accel_working = false;
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
 		return r;
-	}
 
 	return 0;
 }

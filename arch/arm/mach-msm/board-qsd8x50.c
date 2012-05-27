@@ -190,11 +190,17 @@ static void __init qsd8x50_init(void)
 	qsd8x50_init_mmc();
 }
 
+static void __init qsd8x50_init_late(void)
+{
+	smd_debugfs_init();
+}
+
 MACHINE_START(QSD8X50_SURF, "QCT QSD8X50 SURF")
 	.atag_offset = 0x100,
 	.map_io = qsd8x50_map_io,
 	.init_irq = qsd8x50_init_irq,
 	.init_machine = qsd8x50_init,
+	.init_late = qsd8x50_init_late,
 	.timer = &msm_timer,
 MACHINE_END
 
@@ -203,5 +209,6 @@ MACHINE_START(QSD8X50A_ST1_5, "QCT QSD8X50A ST1.5")
 	.map_io = qsd8x50_map_io,
 	.init_irq = qsd8x50_init_irq,
 	.init_machine = qsd8x50_init,
+	.init_late = qsd8x50_init_late,
 	.timer = &msm_timer,
 MACHINE_END

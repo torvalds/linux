@@ -175,15 +175,4 @@ static struct serio_driver fujitsu_drv = {
 	.disconnect	= fujitsu_disconnect,
 };
 
-static int __init fujitsu_init(void)
-{
-	return serio_register_driver(&fujitsu_drv);
-}
-
-static void __exit fujitsu_exit(void)
-{
-	serio_unregister_driver(&fujitsu_drv);
-}
-
-module_init(fujitsu_init);
-module_exit(fujitsu_exit);
+module_serio_driver(fujitsu_drv);

@@ -125,6 +125,7 @@ DT_MACHINE_START(OMAP4_DT, "Generic OMAP4 (Flattened Device Tree)")
 	.init_irq	= omap_init_irq,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= omap_generic_init,
+	.init_late	= omap4430_init_late,
 	.timer		= &omap4_timer,
 	.dt_compat	= omap4_boards_compat,
 	.restart	= omap_prcm_restart,

@@ -54,6 +54,7 @@ config SH_7724_SOLUTION_ENGINE
 	select SOLUTION_ENGINE
 	depends on CPU_SUBTYPE_SH7724
 	select ARCH_REQUIRE_GPIOLIB
+	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 	help
 	  Select 7724 SolutionEngine if configuring for a Hitachi SH7724
 	  evaluation board.
@@ -133,7 +134,8 @@ config SH_RTS7751R2D
 
 config SH_RSK
 	bool "Renesas Starter Kit"
-	depends on CPU_SUBTYPE_SH7201 || CPU_SUBTYPE_SH7203
+	depends on CPU_SUBTYPE_SH7201 || CPU_SUBTYPE_SH7203 || \
+	  CPU_SUBTYPE_SH7264 || CPU_SUBTYPE_SH7269
 	help
 	 Select this option if configuring for any of the RSK+ MCU
 	 evaluation platforms.
@@ -223,6 +225,7 @@ config SH_ECOVEC
 	bool "EcoVec"
 	depends on CPU_SUBTYPE_SH7724
 	select ARCH_REQUIRE_GPIOLIB
+	select SND_SOC_DA7210 if SND_SIMPLE_CARD
 	help
 	  Renesas "R0P7724LC0011/21RL (EcoVec)" support.
 
@@ -338,8 +341,6 @@ config SH_APSH4AD0A
 	help
 	  Select AP-SH4AD-0A if configuring for an ALPHAPROJECT AP-SH4AD-0A.
 
-endmenu
-
 source "arch/sh/boards/mach-r2d/Kconfig"
 source "arch/sh/boards/mach-highlander/Kconfig"
 source "arch/sh/boards/mach-sdk7780/Kconfig"
@@ -359,3 +360,5 @@ config SH_MAGIC_PANEL_R2_VERSION
 endmenu
 
 endif
+
+endmenu

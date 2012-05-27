@@ -343,12 +343,6 @@ SYMBOL_NAME_LABEL(sys_call_table)
 SYMBOL_NAME_LABEL(sys_clone)	
 	call_sp	h8300_clone
 	
-SYMBOL_NAME_LABEL(sys_sigsuspend)
-	call_sp	do_sigsuspend
-
-SYMBOL_NAME_LABEL(sys_rt_sigsuspend)
-	call_sp	do_rt_sigsuspend
-
 SYMBOL_NAME_LABEL(sys_sigreturn)
 	call_sp	do_sigreturn
 

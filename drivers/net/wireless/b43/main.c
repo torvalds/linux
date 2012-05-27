@@ -5243,10 +5243,10 @@ static void b43_sprom_fixup(struct ssb_bus *bus)
 
 	/* boardflags workarounds */
 	if (bus->boardinfo.vendor == SSB_BOARDVENDOR_DELL &&
-	    bus->chip_id == 0x4301 && bus->boardinfo.rev == 0x74)
+	    bus->chip_id == 0x4301 && bus->sprom.board_rev == 0x74)
 		bus->sprom.boardflags_lo |= B43_BFL_BTCOEXIST;
 	if (bus->boardinfo.vendor == PCI_VENDOR_ID_APPLE &&
-	    bus->boardinfo.type == 0x4E && bus->boardinfo.rev > 0x40)
+	    bus->boardinfo.type == 0x4E && bus->sprom.board_rev > 0x40)
 		bus->sprom.boardflags_lo |= B43_BFL_PACTRL;
 	if (bus->bustype == SSB_BUSTYPE_PCI) {
 		pdev = bus->host_pci;

@@ -346,43 +346,17 @@ int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 	return status;
 }
 
-/* Read client card reg */
-static int
-brcmf_sdioh_card_regread(struct brcmf_sdio_dev *sdiodev, int func, u32 regaddr,
-			 int regsize, u32 *data)
-{
-
-	if ((func == 0) || (regsize == 1)) {
-		u8 temp = 0;
-
-		brcmf_sdioh_request_byte(sdiodev, SDIOH_READ, func, regaddr,
-					 &temp);
-		*data = temp;
-		*data &= 0xff;
-		brcmf_dbg(DATA, "byte read data=0x%02x\n", *data);
-	} else {
-		brcmf_sdioh_request_word(sdiodev, SDIOH_READ, func, regaddr,
-					 data, regsize);
-		if (regsize == 2)
-			*data &= 0xffff;
-
-		brcmf_dbg(DATA, "word read data=0x%08x\n", *data);
-	}
-
-	return SUCCESS;
-}
-
 static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr)
 {
 	/* read 24 bits and return valid 17 bit addr */
-	int i;
+	int i, ret;
 	u32 scratch, regdata;
 	__le32 scratch_le;
 	u8 *ptr = (u8 *)&scratch_le;
 
 	for (i = 0; i < 3; i++) {
-		if ((brcmf_sdioh_card_regread(sdiodev, 0, regaddr, 1,
-				&regdata)) != SUCCESS)
+		regdata = brcmf_sdio_regrl(sdiodev, regaddr, &ret);
+		if (ret != 0)
 			brcmf_dbg(ERROR, "Can't read!\n");
 
 		*ptr++ = (u8) regdata;

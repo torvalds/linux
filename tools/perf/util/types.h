@@ -16,4 +16,9 @@ typedef signed short	   s16;
 typedef unsigned char	   u8;
 typedef signed char	   s8;
 
+union u64_swap {
+	u64 val64;
+	u32 val32[2];
+};
+
 #endif /* __PERF_TYPES_H */

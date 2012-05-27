@@ -522,12 +522,11 @@ static void kvm_destroy_dirty_bitmap(struct kvm_memory_slot *memslot)
 		return;
 
 	if (2 * kvm_dirty_bitmap_bytes(memslot) > PAGE_SIZE)
-		vfree(memslot->dirty_bitmap_head);
+		vfree(memslot->dirty_bitmap);
 	else
-		kfree(memslot->dirty_bitmap_head);
+		kfree(memslot->dirty_bitmap);
 
 	memslot->dirty_bitmap = NULL;
-	memslot->dirty_bitmap_head = NULL;
 }
 
 /*
@@ -611,8 +610,7 @@ static int kvm_vm_release(struct inode *inode, struct file *filp)
 
 /*
  * Allocation size is twice as large as the actual dirty bitmap size.
- * This makes it possible to do double buffering: see x86's
- * kvm_vm_ioctl_get_dirty_log().
+ * See x86's kvm_vm_ioctl_get_dirty_log() why this is needed.
  */
 static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 {
@@ -627,8 +625,6 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 	if (!memslot->dirty_bitmap)
 		return -ENOMEM;
 
-	memslot->dirty_bitmap_head = memslot->dirty_bitmap;
-	memslot->nr_dirty_pages = 0;
 #endif /* !CONFIG_S390 */
 	return 0;
 }
@@ -1477,8 +1473,8 @@ void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	if (memslot && memslot->dirty_bitmap) {
 		unsigned long rel_gfn = gfn - memslot->base_gfn;
 
-		if (!test_and_set_bit_le(rel_gfn, memslot->dirty_bitmap))
-			memslot->nr_dirty_pages++;
+		/* TODO: introduce set_bit_le() and use it */
+		test_and_set_bit_le(rel_gfn, memslot->dirty_bitmap);
 	}
 }
 
@@ -1515,6 +1511,30 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 	finish_wait(&vcpu->wq, &wait);
 }
 
+#ifndef CONFIG_S390
+/*
+ * Kick a sleeping VCPU, or a guest VCPU in guest mode, into host kernel mode.
+ */
+void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
+{
+	int me;
+	int cpu = vcpu->cpu;
+	wait_queue_head_t *wqp;
+
+	wqp = kvm_arch_vcpu_wq(vcpu);
+	if (waitqueue_active(wqp)) {
+		wake_up_interruptible(wqp);
+		++vcpu->stat.halt_wakeup;
+	}
+
+	me = get_cpu();
+	if (cpu != me && (unsigned)cpu < nr_cpu_ids && cpu_online(cpu))
+		if (kvm_arch_vcpu_should_kick(vcpu))
+			smp_send_reschedule(cpu);
+	put_cpu();
+}
+#endif /* !CONFIG_S390 */
+
 void kvm_resched(struct kvm_vcpu *vcpu)
 {
 	if (!need_resched())
@@ -1522,6 +1542,31 @@ void kvm_resched(struct kvm_vcpu *vcpu)
 	cond_resched();
 }
 EXPORT_SYMBOL_GPL(kvm_resched);
+
+bool kvm_vcpu_yield_to(struct kvm_vcpu *target)
+{
+	struct pid *pid;
+	struct task_struct *task = NULL;
+
+	rcu_read_lock();
+	pid = rcu_dereference(target->pid);
+	if (pid)
+		task = get_pid_task(target->pid, PIDTYPE_PID);
+	rcu_read_unlock();
+	if (!task)
+		return false;
+	if (task->flags & PF_VCPU) {
+		put_task_struct(task);
+		return false;
+	}
+	if (yield_to(task, 1)) {
+		put_task_struct(task);
+		return true;
+	}
+	put_task_struct(task);
+	return false;
+}
+EXPORT_SYMBOL_GPL(kvm_vcpu_yield_to);
 
 void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 {
@@ -1541,8 +1586,6 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 	 */
 	for (pass = 0; pass < 2 && !yielded; pass++) {
 		kvm_for_each_vcpu(i, vcpu, kvm) {
-			struct task_struct *task = NULL;
-			struct pid *pid;
 			if (!pass && i < last_boosted_vcpu) {
 				i = last_boosted_vcpu;
 				continue;
@@ -1552,24 +1595,11 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 				continue;
 			if (waitqueue_active(&vcpu->wq))
 				continue;
-			rcu_read_lock();
-			pid = rcu_dereference(vcpu->pid);
-			if (pid)
-				task = get_pid_task(vcpu->pid, PIDTYPE_PID);
-			rcu_read_unlock();
-			if (!task)
-				continue;
-			if (task->flags & PF_VCPU) {
-				put_task_struct(task);
-				continue;
-			}
-			if (yield_to(task, 1)) {
-				put_task_struct(task);
+			if (kvm_vcpu_yield_to(vcpu)) {
 				kvm->last_boosted_vcpu = i;
 				yielded = 1;
 				break;
 			}
-			put_task_struct(task);
 		}
 	}
 }
@@ -2040,6 +2070,17 @@ static long kvm_vm_ioctl(struct file *filp,
 		mutex_unlock(&kvm->lock);
 		break;
 #endif
+#ifdef CONFIG_HAVE_KVM_MSI
+	case KVM_SIGNAL_MSI: {
+		struct kvm_msi msi;
+
+		r = -EFAULT;
+		if (copy_from_user(&msi, argp, sizeof msi))
+			goto out;
+		r = kvm_send_userspace_msi(kvm, &msi);
+		break;
+	}
+#endif
 	default:
 		r = kvm_arch_vm_ioctl(filp, ioctl, arg);
 		if (r == -ENOTTY)
@@ -2168,6 +2209,9 @@ static long kvm_dev_ioctl_check_extension_generic(long arg)
 	case KVM_CAP_SET_BOOT_CPU_ID:
 #endif
 	case KVM_CAP_INTERNAL_ERROR_DATA:
+#ifdef CONFIG_HAVE_KVM_MSI
+	case KVM_CAP_SIGNAL_MSI:
+#endif
 		return 1;
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 	case KVM_CAP_IRQ_ROUTING:
@@ -2394,9 +2438,6 @@ int kvm_io_bus_sort_cmp(const void *p1, const void *p2)
 int kvm_io_bus_insert_dev(struct kvm_io_bus *bus, struct kvm_io_device *dev,
 			  gpa_t addr, int len)
 {
-	if (bus->dev_count == NR_IOBUS_DEVS)
-		return -ENOSPC;
-
 	bus->range[bus->dev_count++] = (struct kvm_io_range) {
 		.addr = addr,
 		.len = len,
@@ -2496,12 +2537,15 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 	struct kvm_io_bus *new_bus, *bus;
 
 	bus = kvm->buses[bus_idx];
-	if (bus->dev_count > NR_IOBUS_DEVS-1)
+	if (bus->dev_count > NR_IOBUS_DEVS - 1)
 		return -ENOSPC;
 
-	new_bus = kmemdup(bus, sizeof(struct kvm_io_bus), GFP_KERNEL);
+	new_bus = kzalloc(sizeof(*bus) + ((bus->dev_count + 1) *
+			  sizeof(struct kvm_io_range)), GFP_KERNEL);
 	if (!new_bus)
 		return -ENOMEM;
+	memcpy(new_bus, bus, sizeof(*bus) + (bus->dev_count *
+	       sizeof(struct kvm_io_range)));
 	kvm_io_bus_insert_dev(new_bus, dev, addr, len);
 	rcu_assign_pointer(kvm->buses[bus_idx], new_bus);
 	synchronize_srcu_expedited(&kvm->srcu);
@@ -2518,27 +2562,25 @@ int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	struct kvm_io_bus *new_bus, *bus;
 
 	bus = kvm->buses[bus_idx];
-
-	new_bus = kmemdup(bus, sizeof(*bus), GFP_KERNEL);
-	if (!new_bus)
-		return -ENOMEM;
-
 	r = -ENOENT;
-	for (i = 0; i < new_bus->dev_count; i++)
-		if (new_bus->range[i].dev == dev) {
+	for (i = 0; i < bus->dev_count; i++)
+		if (bus->range[i].dev == dev) {
 			r = 0;
-			new_bus->dev_count--;
-			new_bus->range[i] = new_bus->range[new_bus->dev_count];
-			sort(new_bus->range, new_bus->dev_count,
-			     sizeof(struct kvm_io_range),
-			     kvm_io_bus_sort_cmp, NULL);
 			break;
 		}
 
-	if (r) {
-		kfree(new_bus);
+	if (r)
 		return r;
-	}
+
+	new_bus = kzalloc(sizeof(*bus) + ((bus->dev_count - 1) *
+			  sizeof(struct kvm_io_range)), GFP_KERNEL);
+	if (!new_bus)
+		return -ENOMEM;
+
+	memcpy(new_bus, bus, sizeof(*bus) + i * sizeof(struct kvm_io_range));
+	new_bus->dev_count--;
+	memcpy(new_bus->range + i, bus->range + i + 1,
+	       (new_bus->dev_count - i) * sizeof(struct kvm_io_range));
 
 	rcu_assign_pointer(kvm->buses[bus_idx], new_bus);
 	synchronize_srcu_expedited(&kvm->srcu);

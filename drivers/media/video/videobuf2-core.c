@@ -19,6 +19,9 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 
+#include <media/v4l2-dev.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-event.h>
 #include <media/videobuf2-core.h>
 
 static int debug;
@@ -1642,32 +1645,46 @@ static int __vb2_cleanup_fileio(struct vb2_queue *q);
  * For OUTPUT queues, if a buffer is ready to be dequeued, the file descriptor
  * will be reported as available for writing.
  *
+ * If the driver uses struct v4l2_fh, then vb2_poll() will also check for any
+ * pending events.
+ *
  * The return values from this function are intended to be directly returned
  * from poll handler in driver.
  */
 unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 {
-	unsigned long flags;
-	unsigned int ret;
+	struct video_device *vfd = video_devdata(file);
+	unsigned long req_events = poll_requested_events(wait);
 	struct vb2_buffer *vb = NULL;
+	unsigned int res = 0;
+	unsigned long flags;
+
+	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
+		struct v4l2_fh *fh = file->private_data;
+
+		if (v4l2_event_pending(fh))
+			res = POLLPRI;
+		else if (req_events & POLLPRI)
+			poll_wait(file, &fh->wait, wait);
+	}
 
 	/*
 	 * Start file I/O emulator only if streaming API has not been used yet.
 	 */
 	if (q->num_buffers == 0 && q->fileio == NULL) {
-		if (!V4L2_TYPE_IS_OUTPUT(q->type) && (q->io_modes & VB2_READ)) {
-			ret = __vb2_init_fileio(q, 1);
-			if (ret)
-				return POLLERR;
+		if (!V4L2_TYPE_IS_OUTPUT(q->type) && (q->io_modes & VB2_READ) &&
+				(req_events & (POLLIN | POLLRDNORM))) {
+			if (__vb2_init_fileio(q, 1))
+				return res | POLLERR;
 		}
-		if (V4L2_TYPE_IS_OUTPUT(q->type) && (q->io_modes & VB2_WRITE)) {
-			ret = __vb2_init_fileio(q, 0);
-			if (ret)
-				return POLLERR;
+		if (V4L2_TYPE_IS_OUTPUT(q->type) && (q->io_modes & VB2_WRITE) &&
+				(req_events & (POLLOUT | POLLWRNORM))) {
+			if (__vb2_init_fileio(q, 0))
+				return res | POLLERR;
 			/*
 			 * Write to OUTPUT queue can be done immediately.
 			 */
-			return POLLOUT | POLLWRNORM;
+			return res | POLLOUT | POLLWRNORM;
 		}
 	}
 
@@ -1675,7 +1692,7 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 	 * There is nothing to wait for if no buffers have already been queued.
 	 */
 	if (list_empty(&q->queued_list))
-		return POLLERR;
+		return res | POLLERR;
 
 	poll_wait(file, &q->done_wq, wait);
 
@@ -1690,10 +1707,11 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 
 	if (vb && (vb->state == VB2_BUF_STATE_DONE
 			|| vb->state == VB2_BUF_STATE_ERROR)) {
-		return (V4L2_TYPE_IS_OUTPUT(q->type)) ? POLLOUT | POLLWRNORM :
-			POLLIN | POLLRDNORM;
+		return (V4L2_TYPE_IS_OUTPUT(q->type)) ?
+				res | POLLOUT | POLLWRNORM :
+				res | POLLIN | POLLRDNORM;
 	}
-	return 0;
+	return res;
 }
 EXPORT_SYMBOL_GPL(vb2_poll);
 
@@ -1839,7 +1857,6 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	 * (multiplane buffers are not supported).
 	 */
 	if (q->bufs[0]->num_planes != 1) {
-		fileio->req.count = 0;
 		ret = -EBUSY;
 		goto err_reqbufs;
 	}
@@ -1886,6 +1903,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	return ret;
 
 err_reqbufs:
+	fileio->req.count = 0;
 	vb2_reqbufs(q, &fileio->req);
 
 err_kfree:

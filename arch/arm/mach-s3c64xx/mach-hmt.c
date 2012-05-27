@@ -272,6 +272,7 @@ MACHINE_START(HMT, "Airgoo-HMT")
 	.handle_irq	= vic_handle_irq,
 	.map_io		= hmt_map_io,
 	.init_machine	= hmt_machine_init,
+	.init_late	= s3c64xx_init_late,
 	.timer		= &s3c24xx_timer,
 	.restart	= s3c64xx_restart,
 MACHINE_END

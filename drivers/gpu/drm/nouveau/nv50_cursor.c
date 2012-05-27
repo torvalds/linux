@@ -53,15 +53,15 @@ nv50_cursor_show(struct nouveau_crtc *nv_crtc, bool update)
 	}
 
 	if (dev_priv->chipset != 0x50) {
-		BEGIN_RING(evo, 0, NV84_EVO_CRTC(nv_crtc->index, CURSOR_DMA), 1);
+		BEGIN_NV04(evo, 0, NV84_EVO_CRTC(nv_crtc->index, CURSOR_DMA), 1);
 		OUT_RING(evo, NvEvoVRAM);
 	}
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, CURSOR_CTRL), 2);
+	BEGIN_NV04(evo, 0, NV50_EVO_CRTC(nv_crtc->index, CURSOR_CTRL), 2);
 	OUT_RING(evo, NV50_EVO_CRTC_CURSOR_CTRL_SHOW);
 	OUT_RING(evo, nv_crtc->cursor.offset >> 8);
 
 	if (update) {
-		BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
+		BEGIN_NV04(evo, 0, NV50_EVO_UPDATE, 1);
 		OUT_RING(evo, 0);
 		FIRE_RING(evo);
 		nv_crtc->cursor.visible = true;
@@ -86,16 +86,16 @@ nv50_cursor_hide(struct nouveau_crtc *nv_crtc, bool update)
 		NV_ERROR(dev, "no space while hiding cursor\n");
 		return;
 	}
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, CURSOR_CTRL), 2);
+	BEGIN_NV04(evo, 0, NV50_EVO_CRTC(nv_crtc->index, CURSOR_CTRL), 2);
 	OUT_RING(evo, NV50_EVO_CRTC_CURSOR_CTRL_HIDE);
 	OUT_RING(evo, 0);
 	if (dev_priv->chipset != 0x50) {
-		BEGIN_RING(evo, 0, NV84_EVO_CRTC(nv_crtc->index, CURSOR_DMA), 1);
+		BEGIN_NV04(evo, 0, NV84_EVO_CRTC(nv_crtc->index, CURSOR_DMA), 1);
 		OUT_RING(evo, NV84_EVO_CRTC_CURSOR_DMA_HANDLE_NONE);
 	}
 
 	if (update) {
-		BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
+		BEGIN_NV04(evo, 0, NV50_EVO_UPDATE, 1);
 		OUT_RING(evo, 0);
 		FIRE_RING(evo);
 		nv_crtc->cursor.visible = false;

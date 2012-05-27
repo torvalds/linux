@@ -595,9 +595,8 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 {
 	const struct cx18_api_info *info = find_api_info(cmd);
-	u32 state, irq, req, ack, err;
+	u32 irq, req, ack, err;
 	struct cx18_mailbox __iomem *mb;
-	u32 __iomem *xpu_state;
 	wait_queue_head_t *waitq;
 	struct mutex *mb_lock;
 	unsigned long int t0, timeout, ret;
@@ -628,14 +627,12 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 		mb_lock = &cx->epu2apu_mb_lock;
 		irq = IRQ_EPU_TO_APU;
 		mb = &cx->scb->epu2apu_mb;
-		xpu_state = &cx->scb->apu_state;
 		break;
 	case CPU:
 		waitq = &cx->mb_cpu_waitq;
 		mb_lock = &cx->epu2cpu_mb_lock;
 		irq = IRQ_EPU_TO_CPU;
 		mb = &cx->scb->epu2cpu_mb;
-		xpu_state = &cx->scb->cpu_state;
 		break;
 	default:
 		CX18_WARN("Unknown RPU (%d) for API call\n", info->rpu);
@@ -653,7 +650,6 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	 * by a signal, we may get here and find a busy mailbox.  After waiting,
 	 * mark it "not busy" from our end, if the XPU hasn't ack'ed it still.
 	 */
-	state = cx18_readl(cx, xpu_state);
 	req = cx18_readl(cx, &mb->request);
 	timeout = msecs_to_jiffies(10);
 	ret = wait_event_timeout(*waitq,

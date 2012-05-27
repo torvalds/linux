@@ -74,6 +74,15 @@ config STRIP_ASM_SYMS
 	  that look like '.Lxxx') so they don't pollute the output of
 	  get_wchan() and suchlike.
 
+config READABLE_ASM
+        bool "Generate readable assembler code"
+        depends on DEBUG_KERNEL
+        help
+          Disable some compiler optimizations that tend to generate human unreadable
+          assembler output. This may make the kernel slightly slower, but it helps
+          to keep kernel developers who have to stare a lot at assembler listings
+          sane.
+
 config UNUSED_SYMBOLS
 	bool "Enable unused/obsolete exported symbols"
 	default y if X86

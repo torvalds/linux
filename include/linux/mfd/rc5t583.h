@@ -292,6 +292,7 @@ struct rc5t583 {
  * rc5t583_platform_data: Platform data for ricoh rc5t583 pmu.
  * The board specific data is provided through this structure.
  * @irq_base: Irq base number on which this device registers their interrupts.
+ * @gpio_base: GPIO base from which gpio of this device will start.
  * @enable_shutdown: Enable shutdown through the input pin "shutdown".
  * @regulator_deepsleep_slot: The slot number on which device goes to sleep
  *		in device sleep mode.
@@ -303,6 +304,7 @@ struct rc5t583 {
 
 struct rc5t583_platform_data {
 	int		irq_base;
+	int		gpio_base;
 	bool		enable_shutdown;
 	int		regulator_deepsleep_slot[RC5T583_REGULATOR_MAX];
 	unsigned long	regulator_ext_pwr_control[RC5T583_REGULATOR_MAX];

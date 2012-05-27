@@ -40,6 +40,7 @@
  *	device address with IOMMU.
  * @sgt: sg table to transfer page data.
  * @pages: contain all pages to allocated memory region.
+ * @page_size: could be 4K, 64K or 1MB.
  * @size: size of allocated memory region.
  */
 struct exynos_drm_gem_buf {
@@ -47,6 +48,7 @@ struct exynos_drm_gem_buf {
 	dma_addr_t		dma_addr;
 	struct sg_table		*sgt;
 	struct page		**pages;
+	unsigned long		page_size;
 	unsigned long		size;
 };
 
@@ -74,8 +76,14 @@ struct exynos_drm_gem_obj {
 	unsigned int			flags;
 };
 
+struct page **exynos_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
+
 /* destroy a buffer with gem object */
 void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj);
+
+/* create a private gem object and initialize it. */
+struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
+						      unsigned long size);
 
 /* create a new buffer with gem object */
 struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
@@ -118,6 +126,10 @@ int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,
  */
 int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
+
+/* get buffer information to memory region allocated by gem. */
+int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file_priv);
 
 /* initialize gem object. */
 int exynos_drm_gem_init_object(struct drm_gem_object *obj);

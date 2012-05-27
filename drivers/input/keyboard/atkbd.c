@@ -433,7 +433,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 		if (printk_ratelimit())
 			dev_warn(&serio->dev,
 				 "Spurious %s on %s. "
-				 "Some program might be trying access hardware directly.\n",
+				 "Some program might be trying to access hardware directly.\n",
 				 data == ATKBD_RET_ACK ? "ACK" : "NAK", serio->phys);
 		goto out;
 	case ATKBD_RET_ERR:

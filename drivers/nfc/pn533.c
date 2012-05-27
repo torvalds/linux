@@ -394,9 +394,6 @@ static void pn533_wq_cmd_complete(struct work_struct *work)
 	struct pn533_frame *in_frame;
 	int rc;
 
-	if (dev == NULL)
-		return;
-
 	in_frame = dev->wq_in_frame;
 
 	if (dev->wq_in_error)
@@ -1194,8 +1191,8 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 	return rc;
 }
 
-static int pn533_activate_target(struct nfc_dev *nfc_dev, u32 target_idx,
-								u32 protocol)
+static int pn533_activate_target(struct nfc_dev *nfc_dev,
+				 struct nfc_target *target, u32 protocol)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	int rc;
@@ -1243,7 +1240,8 @@ static int pn533_activate_target(struct nfc_dev *nfc_dev, u32 target_idx,
 	return 0;
 }
 
-static void pn533_deactivate_target(struct nfc_dev *nfc_dev, u32 target_idx)
+static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
+				    struct nfc_target *target)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	u8 tg;
@@ -1351,7 +1349,7 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 	return 0;
 }
 
-static int pn533_dep_link_up(struct nfc_dev *nfc_dev, int target_idx,
+static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 			     u8 comm_mode, u8* gb, size_t gb_len)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
@@ -1552,10 +1550,9 @@ error:
 	return 0;
 }
 
-static int pn533_data_exchange(struct nfc_dev *nfc_dev, u32 target_idx,
-						struct sk_buff *skb,
-						data_exchange_cb_t cb,
-						void *cb_context)
+static int pn533_data_exchange(struct nfc_dev *nfc_dev,
+			       struct nfc_target *target, struct sk_buff *skb,
+			       data_exchange_cb_t cb, void *cb_context)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	struct pn533_frame *out_frame, *in_frame;

@@ -1910,6 +1910,8 @@ enum iwl_bt_kill_idx {
 					IWLAGN_BT_VALID_REDUCED_TX_PWR | \
 					IWLAGN_BT_VALID_3W_LUT)
 
+#define IWLAGN_BT_REDUCED_TX_PWR	BIT(0)
+
 #define IWLAGN_BT_DECISION_LUT_SIZE	12
 
 struct iwl_basic_bt_cmd {
@@ -1923,6 +1925,10 @@ struct iwl_basic_bt_cmd {
 	u8 bt3_timer_t2_value;
 	__le16 bt4_reaction_time; /* unused */
 	__le32 bt3_lookup_table[IWLAGN_BT_DECISION_LUT_SIZE];
+	/*
+	 * bit 0: use reduced tx power for control frame
+	 * bit 1 - 7: reserved
+	 */
 	u8 reduce_txpower;
 	u8 reserved;
 	__le16 valid;
@@ -2272,7 +2278,6 @@ struct iwl_ssid_ie {
 #define IWL_GOOD_CRC_TH_DISABLED	0
 #define IWL_GOOD_CRC_TH_DEFAULT		cpu_to_le16(1)
 #define IWL_GOOD_CRC_TH_NEVER		cpu_to_le16(0xffff)
-#define IWL_MAX_SCAN_SIZE 1024
 #define IWL_MAX_CMD_SIZE 4096
 
 /*

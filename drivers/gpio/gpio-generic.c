@@ -364,7 +364,7 @@ EXPORT_SYMBOL_GPL(bgpio_remove);
 int bgpio_init(struct bgpio_chip *bgc, struct device *dev,
 	       unsigned long sz, void __iomem *dat, void __iomem *set,
 	       void __iomem *clr, void __iomem *dirout, void __iomem *dirin,
-	       bool big_endian)
+	       unsigned long flags)
 {
 	int ret;
 
@@ -385,7 +385,7 @@ int bgpio_init(struct bgpio_chip *bgc, struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = bgpio_setup_accessors(dev, bgc, big_endian);
+	ret = bgpio_setup_accessors(dev, bgc, flags & BGPIOF_BIG_ENDIAN);
 	if (ret)
 		return ret;
 
@@ -394,6 +394,11 @@ int bgpio_init(struct bgpio_chip *bgc, struct device *dev,
 		return ret;
 
 	bgc->data = bgc->read_reg(bgc->reg_dat);
+	if (bgc->gc.set == bgpio_set_set &&
+			!(flags & BGPIOF_UNREADABLE_REG_SET))
+		bgc->data = bgc->read_reg(bgc->reg_set);
+	if (bgc->reg_dir && !(flags & BGPIOF_UNREADABLE_REG_DIR))
+		bgc->dir = bgc->read_reg(bgc->reg_dir);
 
 	return ret;
 }
@@ -449,7 +454,7 @@ static int __devinit bgpio_pdev_probe(struct platform_device *pdev)
 	void __iomem *dirout;
 	void __iomem *dirin;
 	unsigned long sz;
-	bool be;
+	unsigned long flags = 0;
 	int err;
 	struct bgpio_chip *bgc;
 	struct bgpio_pdata *pdata = dev_get_platdata(dev);
@@ -480,13 +485,14 @@ static int __devinit bgpio_pdev_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	be = !strcmp(platform_get_device_id(pdev)->name, "basic-mmio-gpio-be");
+	if (!strcmp(platform_get_device_id(pdev)->name, "basic-mmio-gpio-be"))
+		flags |= BGPIOF_BIG_ENDIAN;
 
 	bgc = devm_kzalloc(&pdev->dev, sizeof(*bgc), GFP_KERNEL);
 	if (!bgc)
 		return -ENOMEM;
 
-	err = bgpio_init(bgc, dev, sz, dat, set, clr, dirout, dirin, be);
+	err = bgpio_init(bgc, dev, sz, dat, set, clr, dirout, dirin, flags);
 	if (err)
 		return err;
 

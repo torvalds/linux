@@ -47,4 +47,10 @@ int __init msm_add_sdcc(unsigned int controller,
 			struct msm_mmc_platform_data *plat,
 			unsigned int stat_irq, unsigned long stat_irq_flags);
 
+#if defined(CONFIG_MSM_SMD) && defined(CONFIG_DEBUG_FS)
+int smd_debugfs_init(void);
+#else
+static inline int smd_debugfs_init(void) { return 0; }
+#endif
+
 #endif

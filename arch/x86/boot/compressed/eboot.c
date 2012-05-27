@@ -904,10 +904,18 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table)
 
 	memset(boot_params, 0x0, 0x4000);
 
-	/* Copy first two sectors to boot_params */
-	memcpy(boot_params, image->image_base, 1024);
-
 	hdr = &boot_params->hdr;
+
+	/* Copy the second sector to boot_params */
+	memcpy(&hdr->jump, image->image_base + 512, 512);
+
+	/*
+	 * Fill out some of the header fields ourselves because the
+	 * EFI firmware loader doesn't load the first sector.
+	 */
+	hdr->root_flags = 1;
+	hdr->vid_mode = 0xffff;
+	hdr->boot_flag = 0xAA55;
 
 	/*
 	 * The EFI firmware loader could have placed the kernel image

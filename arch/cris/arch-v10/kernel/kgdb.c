@@ -264,7 +264,7 @@ static int write_register (int regno, char *val);
 
 /* Write a value to a specified register in the stack of a thread other
    than the current thread. */
-static write_stack_register (int thread_id, int regno, char *valptr);
+static int write_stack_register(int thread_id, int regno, char *valptr);
 
 /* Read a value from a specified register in the register image. Returns the
    status of the read operation. The register value is returned in valptr. */

@@ -93,6 +93,20 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define CAL_SNR(RSSI, NF)		((s16)((s16)(RSSI)-(s16)(NF)))
 
+#define UAP_BSS_PARAMS_I			0
+#define UAP_CUSTOM_IE_I				1
+#define MWIFIEX_AUTO_IDX_MASK			0xffff
+#define MWIFIEX_DELETE_MASK			0x0000
+#define MGMT_MASK_ASSOC_REQ			0x01
+#define MGMT_MASK_REASSOC_REQ			0x04
+#define MGMT_MASK_ASSOC_RESP			0x02
+#define MGMT_MASK_REASSOC_RESP			0x08
+#define MGMT_MASK_PROBE_REQ			0x10
+#define MGMT_MASK_PROBE_RESP			0x20
+#define MGMT_MASK_BEACON			0x100
+
+#define TLV_TYPE_UAP_SSID			0x0000
+
 #define PROPRIETARY_TLV_BASE_ID                 0x0100
 #define TLV_TYPE_KEY_MATERIAL       (PROPRIETARY_TLV_BASE_ID + 0)
 #define TLV_TYPE_CHANLIST           (PROPRIETARY_TLV_BASE_ID + 1)
@@ -104,14 +118,26 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_TSFTIMESTAMP       (PROPRIETARY_TLV_BASE_ID + 19)
 #define TLV_TYPE_RSSI_HIGH          (PROPRIETARY_TLV_BASE_ID + 22)
 #define TLV_TYPE_AUTH_TYPE          (PROPRIETARY_TLV_BASE_ID + 31)
+#define TLV_TYPE_STA_MAC_ADDR       (PROPRIETARY_TLV_BASE_ID + 32)
 #define TLV_TYPE_CHANNELBANDLIST    (PROPRIETARY_TLV_BASE_ID + 42)
+#define TLV_TYPE_UAP_BEACON_PERIOD  (PROPRIETARY_TLV_BASE_ID + 44)
+#define TLV_TYPE_UAP_DTIM_PERIOD    (PROPRIETARY_TLV_BASE_ID + 45)
+#define TLV_TYPE_UAP_RTS_THRESHOLD  (PROPRIETARY_TLV_BASE_ID + 51)
+#define TLV_TYPE_UAP_WPA_PASSPHRASE (PROPRIETARY_TLV_BASE_ID + 60)
+#define TLV_TYPE_UAP_ENCRY_PROTOCOL (PROPRIETARY_TLV_BASE_ID + 64)
+#define TLV_TYPE_UAP_AKMP           (PROPRIETARY_TLV_BASE_ID + 65)
+#define TLV_TYPE_UAP_FRAG_THRESHOLD (PROPRIETARY_TLV_BASE_ID + 70)
 #define TLV_TYPE_RATE_DROP_CONTROL  (PROPRIETARY_TLV_BASE_ID + 82)
 #define TLV_TYPE_RATE_SCOPE         (PROPRIETARY_TLV_BASE_ID + 83)
 #define TLV_TYPE_POWER_GROUP        (PROPRIETARY_TLV_BASE_ID + 84)
+#define TLV_TYPE_UAP_RETRY_LIMIT    (PROPRIETARY_TLV_BASE_ID + 93)
 #define TLV_TYPE_WAPI_IE            (PROPRIETARY_TLV_BASE_ID + 94)
+#define TLV_TYPE_UAP_MGMT_FRAME     (PROPRIETARY_TLV_BASE_ID + 104)
 #define TLV_TYPE_MGMT_IE            (PROPRIETARY_TLV_BASE_ID + 105)
 #define TLV_TYPE_AUTO_DS_PARAM      (PROPRIETARY_TLV_BASE_ID + 113)
 #define TLV_TYPE_PS_PARAM           (PROPRIETARY_TLV_BASE_ID + 114)
+#define TLV_TYPE_PWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 145)
+#define TLV_TYPE_GWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 146)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -209,6 +235,9 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_RSSI_INFO                         0x00a4
 #define HostCmd_CMD_FUNC_INIT                         0x00a9
 #define HostCmd_CMD_FUNC_SHUTDOWN                     0x00aa
+#define HostCmd_CMD_UAP_SYS_CONFIG                    0x00b0
+#define HostCmd_CMD_UAP_BSS_START                     0x00b1
+#define HostCmd_CMD_UAP_BSS_STOP                      0x00b2
 #define HostCmd_CMD_11N_CFG                           0x00cd
 #define HostCmd_CMD_11N_ADDBA_REQ                     0x00ce
 #define HostCmd_CMD_11N_ADDBA_RSP                     0x00cf
@@ -222,6 +251,19 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_CAU_REG_ACCESS                    0x00ed
 #define HostCmd_CMD_SET_BSS_MODE                      0x00f7
 #define HostCmd_CMD_PCIE_DESC_DETAILS                 0x00fa
+
+#define PROTOCOL_NO_SECURITY        0x01
+#define PROTOCOL_STATIC_WEP         0x02
+#define PROTOCOL_WPA                0x08
+#define PROTOCOL_WPA2               0x20
+#define PROTOCOL_WPA2_MIXED         0x28
+#define PROTOCOL_EAP                0x40
+#define KEY_MGMT_NONE               0x04
+#define KEY_MGMT_PSK                0x02
+#define KEY_MGMT_EAP                0x01
+#define CIPHER_TKIP                 0x04
+#define CIPHER_AES_CCMP             0x08
+#define VALID_CIPHER_BITMAP         0x0c
 
 enum ENH_PS_MODES {
 	EN_PS = 1,
@@ -313,15 +355,20 @@ enum ENH_PS_MODES {
 #define EVENT_DATA_SNR_HIGH             0x00000027
 #define EVENT_LINK_QUALITY              0x00000028
 #define EVENT_PORT_RELEASE              0x0000002b
+#define EVENT_UAP_STA_DEAUTH            0x0000002c
+#define EVENT_UAP_STA_ASSOC             0x0000002d
+#define EVENT_UAP_BSS_START             0x0000002e
 #define EVENT_PRE_BEACON_LOST           0x00000031
 #define EVENT_ADDBA                     0x00000033
 #define EVENT_DELBA                     0x00000034
 #define EVENT_BA_STREAM_TIEMOUT         0x00000037
 #define EVENT_AMSDU_AGGR_CTRL           0x00000042
+#define EVENT_UAP_BSS_IDLE              0x00000043
+#define EVENT_UAP_BSS_ACTIVE            0x00000044
 #define EVENT_WEP_ICV_ERR               0x00000046
 #define EVENT_HS_ACT_REQ                0x00000047
 #define EVENT_BW_CHANGE                 0x00000048
-
+#define EVENT_UAP_MIC_COUNTERMEASURES   0x0000004c
 #define EVENT_HOSTWAKE_STAIE		0x0000004d
 
 #define EVENT_ID_MASK                   0xffff
@@ -1103,6 +1150,101 @@ struct host_cmd_ds_802_11_eeprom_access {
 	u8 value;
 } __packed;
 
+struct host_cmd_tlv {
+	__le16 type;
+	__le16 len;
+} __packed;
+
+struct mwifiex_assoc_event {
+	u8 sta_addr[ETH_ALEN];
+	__le16 type;
+	__le16 len;
+	__le16 frame_control;
+	__le16 cap_info;
+	__le16 listen_interval;
+	u8 data[0];
+} __packed;
+
+struct host_cmd_ds_sys_config {
+	__le16 action;
+	u8 tlv[0];
+};
+
+struct host_cmd_tlv_akmp {
+	struct host_cmd_tlv tlv;
+	__le16 key_mgmt;
+	__le16 key_mgmt_operation;
+} __packed;
+
+struct host_cmd_tlv_pwk_cipher {
+	struct host_cmd_tlv tlv;
+	__le16 proto;
+	u8 cipher;
+	u8 reserved;
+} __packed;
+
+struct host_cmd_tlv_gwk_cipher {
+	struct host_cmd_tlv tlv;
+	u8 cipher;
+	u8 reserved;
+} __packed;
+
+struct host_cmd_tlv_passphrase {
+	struct host_cmd_tlv tlv;
+	u8 passphrase[0];
+} __packed;
+
+struct host_cmd_tlv_auth_type {
+	struct host_cmd_tlv tlv;
+	u8 auth_type;
+} __packed;
+
+struct host_cmd_tlv_encrypt_protocol {
+	struct host_cmd_tlv tlv;
+	__le16 proto;
+} __packed;
+
+struct host_cmd_tlv_ssid {
+	struct host_cmd_tlv tlv;
+	u8 ssid[0];
+} __packed;
+
+struct host_cmd_tlv_beacon_period {
+	struct host_cmd_tlv tlv;
+	__le16 period;
+} __packed;
+
+struct host_cmd_tlv_dtim_period {
+	struct host_cmd_tlv tlv;
+	u8 period;
+} __packed;
+
+struct host_cmd_tlv_frag_threshold {
+	struct host_cmd_tlv tlv;
+	__le16 frag_thr;
+} __packed;
+
+struct host_cmd_tlv_rts_threshold {
+	struct host_cmd_tlv tlv;
+	__le16 rts_thr;
+} __packed;
+
+struct host_cmd_tlv_retry_limit {
+	struct host_cmd_tlv tlv;
+	u8 limit;
+} __packed;
+
+struct host_cmd_tlv_mac_addr {
+	struct host_cmd_tlv tlv;
+	u8 mac_addr[ETH_ALEN];
+} __packed;
+
+struct host_cmd_tlv_channel_band {
+	struct host_cmd_tlv tlv;
+	u8 band_config;
+	u8 channel;
+} __packed;
+
 struct host_cmd_ds_802_11_rf_channel {
 	__le16 action;
 	__le16 current_channel;
@@ -1167,6 +1309,20 @@ struct host_cmd_ds_802_11_subsc_evt {
 	__le16 events;
 } __packed;
 
+struct mwifiex_ie {
+	__le16 ie_index;
+	__le16 mgmt_subtype_mask;
+	__le16 ie_length;
+	u8 ie_buffer[IEEE_MAX_IE_SIZE];
+} __packed;
+
+#define MAX_MGMT_IE_INDEX	16
+struct mwifiex_ie_list {
+	__le16 type;
+	__le16 len;
+	struct mwifiex_ie ie_list[MAX_MGMT_IE_INDEX];
+} __packed;
+
 struct host_cmd_ds_command {
 	__le16 command;
 	__le16 size;
@@ -1217,6 +1373,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_pcie_details pcie_host_spec;
 		struct host_cmd_ds_802_11_eeprom_access eeprom;
 		struct host_cmd_ds_802_11_subsc_evt subsc_evt;
+		struct host_cmd_ds_sys_config uap_sys_config;
 	} params;
 } __packed;
 

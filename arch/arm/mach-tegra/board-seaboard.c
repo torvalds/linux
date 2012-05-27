@@ -156,7 +156,6 @@ static struct platform_device *seaboard_devices[] __initdata = {
 	&seaboard_gpio_keys_device,
 	&tegra_i2s_device1,
 	&tegra_das_device,
-	&tegra_pcm_device,
 	&seaboard_audio_device,
 };
 
@@ -278,6 +277,7 @@ MACHINE_START(SEABOARD, "seaboard")
 	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_seaboard_init,
+	.init_late	= tegra_init_late,
 	.restart	= tegra_assert_system_reset,
 MACHINE_END
 
@@ -289,6 +289,7 @@ MACHINE_START(KAEN, "kaen")
 	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_kaen_init,
+	.init_late	= tegra_init_late,
 	.restart	= tegra_assert_system_reset,
 MACHINE_END
 
@@ -300,5 +301,6 @@ MACHINE_START(WARIO, "wario")
 	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_wario_init,
+	.init_late	= tegra_init_late,
 	.restart	= tegra_assert_system_reset,
 MACHINE_END

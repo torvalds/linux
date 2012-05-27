@@ -338,7 +338,6 @@ static int tm6000_set_audio_std(struct tm6000_core *dev)
 	uint8_t areg_02 = 0x04; /* GC1 Fixed gain 0dB */
 	uint8_t areg_05 = 0x01; /* Auto 4.5 = M Japan, Auto 6.5 = DK */
 	uint8_t areg_06 = 0x02; /* Auto de-emphasis, mannual channel mode */
-	uint8_t nicam_flag = 0; /* No NICAM */
 
 	if (dev->radio) {
 		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
@@ -398,7 +397,6 @@ static int tm6000_set_audio_std(struct tm6000_core *dev)
 		} else {
 			areg_05 = 0x07;
 		}
-		nicam_flag = 1;
 		break;
 	/* other */
 	case 3:

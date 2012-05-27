@@ -40,6 +40,7 @@ config VIDEO_VPSS_SYSTEM
 config VIDEO_VPFE_CAPTURE
 	tristate "VPFE Video Capture Driver"
 	depends on VIDEO_V4L2 && (ARCH_DAVINCI || ARCH_OMAP3)
+	depends on I2C
 	select VIDEOBUF_DMA_CONTIG
 	help
 	  Support for DMx/AMx VPFE based frame grabber. This is the

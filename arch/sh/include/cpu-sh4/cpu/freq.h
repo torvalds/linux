@@ -47,6 +47,11 @@
 #define MSTPCR1			0xa4150034
 #define MSTPCR2			0xa4150038
 
+#elif defined(CONFIG_CPU_SUBTYPE_SH7734)
+#define FRQCR0			0xffc80000
+#define FRQCR2			0xffc80008
+#define FRQMR1			0xffc80014
+#define FRQMR2			0xffc80018
 #elif defined(CONFIG_CPU_SUBTYPE_SH7785)
 #define FRQCR0			0xffc80000
 #define FRQCR1			0xffc80004

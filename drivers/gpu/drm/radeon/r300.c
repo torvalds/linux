@@ -377,28 +377,6 @@ void r300_gpu_init(struct radeon_device *rdev)
 		 rdev->num_gb_pipes, rdev->num_z_pipes);
 }
 
-bool r300_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
-{
-	u32 rbbm_status;
-	int r;
-
-	rbbm_status = RREG32(R_000E40_RBBM_STATUS);
-	if (!G_000E40_GUI_ACTIVE(rbbm_status)) {
-		r100_gpu_lockup_update(&rdev->config.r300.lockup, ring);
-		return false;
-	}
-	/* force CP activities */
-	r = radeon_ring_lock(rdev, ring, 2);
-	if (!r) {
-		/* PACKET2 NOP */
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_unlock_commit(rdev, ring);
-	}
-	ring->rptr = RREG32(RADEON_CP_RB_RPTR);
-	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r300.lockup, ring);
-}
-
 int r300_asic_reset(struct radeon_device *rdev)
 {
 	struct r100_mc_save save;
@@ -449,7 +427,6 @@ int r300_asic_reset(struct radeon_device *rdev)
 	/* Check if GPU is idle */
 	if (G_000E40_GA_BUSY(status) || G_000E40_VAP_BUSY(status)) {
 		dev_err(rdev->dev, "failed to reset GPU\n");
-		rdev->gpu_lockup = true;
 		ret = -1;
 	} else
 		dev_info(rdev->dev, "GPU reset succeed\n");
@@ -627,7 +604,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	int r;
 	u32 idx_value;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	track = (struct r100_cs_track *)p->track;
 	idx_value = radeon_get_ib_value(p, idx);
 
@@ -1169,7 +1146,7 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 	unsigned idx;
 	int r;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	idx = pkt->idx + 1;
 	track = (struct r100_cs_track *)p->track;
 	switch(pkt->opcode) {
@@ -1418,12 +1395,9 @@ static int r300_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
-	if (r) {
-		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
-		rdev->accel_working = false;
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
 		return r;
-	}
 
 	return 0;
 }

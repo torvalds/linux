@@ -338,5 +338,6 @@ MACHINE_START(G3EVM, "g3evm")
 	.init_irq	= sh7367_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= g3evm_init,
+	.init_late	= shmobile_init_late,
 	.timer		= &shmobile_timer,
 MACHINE_END

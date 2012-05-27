@@ -77,18 +77,11 @@ register struct thread_info *current_thread_info_reg asm("g6");
 /*
  * thread information allocation
  */
-#define THREAD_INFO_ORDER  1
-
-struct thread_info * alloc_thread_info_node(struct task_struct *tsk, int node);
-void free_thread_info(struct thread_info *);
+#define THREAD_SIZE_ORDER  1
 
 #endif /* __ASSEMBLY__ */
 
-/*
- * Size of kernel stack for each process.
- * Observe the order of get_free_pages() in alloc_thread_info_node().
- * The sun4 has 8K stack too, because it's short on memory, and 16K is a waste.
- */
+/* Size of kernel stack for each process */
 #define THREAD_SIZE		(2 * PAGE_SIZE)
 
 /*

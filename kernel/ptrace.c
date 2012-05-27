@@ -198,15 +198,14 @@ int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 		return 0;
 	rcu_read_lock();
 	tcred = __task_cred(task);
-	if (cred->user->user_ns == tcred->user->user_ns &&
-	    (cred->uid == tcred->euid &&
-	     cred->uid == tcred->suid &&
-	     cred->uid == tcred->uid  &&
-	     cred->gid == tcred->egid &&
-	     cred->gid == tcred->sgid &&
-	     cred->gid == tcred->gid))
+	if (uid_eq(cred->uid, tcred->euid) &&
+	    uid_eq(cred->uid, tcred->suid) &&
+	    uid_eq(cred->uid, tcred->uid)  &&
+	    gid_eq(cred->gid, tcred->egid) &&
+	    gid_eq(cred->gid, tcred->sgid) &&
+	    gid_eq(cred->gid, tcred->gid))
 		goto ok;
-	if (ptrace_has_cap(tcred->user->user_ns, mode))
+	if (ptrace_has_cap(tcred->user_ns, mode))
 		goto ok;
 	rcu_read_unlock();
 	return -EPERM;

@@ -41,6 +41,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
+#include <linux/user_namespace.h>
 
 #include <linux/sunrpc/auth_gss.h>
 #include <linux/sunrpc/gss_err.h>
@@ -470,9 +471,13 @@ static int rsc_parse(struct cache_detail *cd,
 		status = -EINVAL;
 		for (i=0; i<N; i++) {
 			gid_t gid;
+			kgid_t kgid;
 			if (get_int(&mesg, &gid))
 				goto out;
-			GROUP_AT(rsci.cred.cr_group_info, i) = gid;
+			kgid = make_kgid(&init_user_ns, gid);
+			if (!gid_valid(kgid))
+				goto out;
+			GROUP_AT(rsci.cred.cr_group_info, i) = kgid;
 		}
 
 		/* mech name */

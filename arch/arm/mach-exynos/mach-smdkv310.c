@@ -295,7 +295,6 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
 	&exynos4_device_spdif,
-	&exynos4_device_sysmmu,
 	&samsung_asoc_dma,
 	&samsung_asoc_idma,
 	&s5p_device_fimd0,
@@ -412,6 +411,7 @@ MACHINE_START(SMDKC210, "SMDKC210")
 	.map_io		= smdkv310_map_io,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= smdkv310_machine_init,
+	.init_late	= exynos_init_late,
 	.timer		= &exynos4_timer,
 	.restart	= exynos4_restart,
 MACHINE_END

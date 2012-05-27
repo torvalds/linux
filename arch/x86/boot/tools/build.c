@@ -198,11 +198,18 @@ int main(int argc, char ** argv)
 
 	pe_header = get_unaligned_le32(&buf[0x3c]);
 
-	/* Size of code */
-	put_unaligned_le32(file_sz, &buf[pe_header + 0x1c]);
-
 	/* Size of image */
 	put_unaligned_le32(file_sz, &buf[pe_header + 0x50]);
+
+	/*
+	 * Subtract the size of the first section (512 bytes) which
+	 * includes the header and .reloc section. The remaining size
+	 * is that of the .text section.
+	 */
+	file_sz -= 512;
+
+	/* Size of code */
+	put_unaligned_le32(file_sz, &buf[pe_header + 0x1c]);
 
 #ifdef CONFIG_X86_32
 	/*
@@ -216,8 +223,14 @@ int main(int argc, char ** argv)
 	/* .text size */
 	put_unaligned_le32(file_sz, &buf[pe_header + 0xb0]);
 
+	/* .text vma */
+	put_unaligned_le32(0x200, &buf[pe_header + 0xb4]);
+
 	/* .text size of initialised data */
 	put_unaligned_le32(file_sz, &buf[pe_header + 0xb8]);
+
+	/* .text file offset */
+	put_unaligned_le32(0x200, &buf[pe_header + 0xbc]);
 #else
 	/*
 	 * Address of entry point. startup_32 is at the beginning and
@@ -231,9 +244,14 @@ int main(int argc, char ** argv)
 	/* .text size */
 	put_unaligned_le32(file_sz, &buf[pe_header + 0xc0]);
 
+	/* .text vma */
+	put_unaligned_le32(0x200, &buf[pe_header + 0xc4]);
+
 	/* .text size of initialised data */
 	put_unaligned_le32(file_sz, &buf[pe_header + 0xc8]);
 
+	/* .text file offset */
+	put_unaligned_le32(0x200, &buf[pe_header + 0xcc]);
 #endif /* CONFIG_X86_32 */
 #endif /* CONFIG_EFI_STUB */
 

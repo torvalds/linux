@@ -69,6 +69,8 @@ struct em28xx_hash_table {
 	unsigned int  tuner;
 };
 
+static void em28xx_pre_card_setup(struct em28xx *dev);
+
 /*
  *  Reset sequences for analog/digital modes
  */
@@ -2361,7 +2363,7 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
  * this won't work for boards with generic PCI IDs
  */
-void em28xx_pre_card_setup(struct em28xx *dev)
+static void em28xx_pre_card_setup(struct em28xx *dev)
 {
 	/* Set the initial XCLK and I2C clock values based on the board
 	   definition */
@@ -2661,55 +2663,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 	return -1;
 }
 
-/* ----------------------------------------------------------------------- */
-void em28xx_register_i2c_ir(struct em28xx *dev)
-{
-	/* Leadtek winfast tv USBII deluxe can find a non working IR-device */
-	/* at address 0x18, so if that address is needed for another board in */
-	/* the future, please put it after 0x1f. */
-	struct i2c_board_info info;
-	const unsigned short addr_list[] = {
-		 0x1f, 0x30, 0x47, I2C_CLIENT_END
-	};
-
-	if (disable_ir)
-		return;
-
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	memset(&dev->init_data, 0, sizeof(dev->init_data));
-	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
-
-	/* detect & configure */
-	switch (dev->model) {
-	case EM2800_BOARD_TERRATEC_CINERGY_200:
-	case EM2820_BOARD_TERRATEC_CINERGY_250:
-		dev->init_data.ir_codes = RC_MAP_EM_TERRATEC;
-		dev->init_data.get_key = em28xx_get_key_terratec;
-		dev->init_data.name = "i2c IR (EM28XX Terratec)";
-		break;
-	case EM2820_BOARD_PINNACLE_USB_2:
-		dev->init_data.ir_codes = RC_MAP_PINNACLE_GREY;
-		dev->init_data.get_key = em28xx_get_key_pinnacle_usb_grey;
-		dev->init_data.name = "i2c IR (EM28XX Pinnacle PCTV)";
-		break;
-	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
-		dev->init_data.ir_codes = RC_MAP_HAUPPAUGE;
-		dev->init_data.get_key = em28xx_get_key_em_haup;
-		dev->init_data.name = "i2c IR (EM2840 Hauppauge)";
-		break;
-	case EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE:
-		dev->init_data.ir_codes = RC_MAP_WINFAST_USBII_DELUXE;
-		dev->init_data.get_key = em28xx_get_key_winfast_usbii_deluxe;
-		dev->init_data.name = "i2c IR (EM2820 Winfast TV USBII Deluxe)";
-		break;
-	}
-
-	if (dev->init_data.name)
-		info.platform_data = &dev->init_data;
-	i2c_new_probed_device(&dev->i2c_adap, &info, addr_list, NULL);
-}
-
-void em28xx_card_setup(struct em28xx *dev)
+static void em28xx_card_setup(struct em28xx *dev)
 {
 	/*
 	 * If the device can be a webcam, seek for a sensor.
@@ -2849,13 +2803,6 @@ void em28xx_card_setup(struct em28xx *dev)
 		break;
 	}
 
-#if defined(CONFIG_MODULES) && defined(MODULE)
-	if (dev->board.has_ir_i2c && !disable_ir)
-		request_module("ir-kbd-i2c");
-#endif
-	if (dev->board.has_snapshot_button)
-		em28xx_register_snapshot_button(dev);
-
 	if (dev->board.valid == EM28XX_BOARD_NOT_VALIDATED) {
 		em28xx_errdev("\n\n");
 		em28xx_errdev("The support for this board weren't "
@@ -2929,9 +2876,6 @@ void em28xx_card_setup(struct em28xx *dev)
 	}
 
 	em28xx_tuner_setup(dev);
-
-	if(!disable_ir)
-		em28xx_ir_init(dev);
 }
 
 
@@ -2948,6 +2892,8 @@ static void request_module_async(struct work_struct *work)
 
 	if (dev->board.has_dvb)
 		request_module("em28xx-dvb");
+	if (dev->board.has_ir_i2c && !disable_ir)
+		request_module("em28xx-rc");
 }
 
 static void request_modules(struct em28xx *dev)
@@ -2972,12 +2918,6 @@ static void flush_request_modules(struct em28xx *dev)
 */
 void em28xx_release_resources(struct em28xx *dev)
 {
-	if (dev->sbutton_input_dev)
-		em28xx_deregister_snapshot_button(dev);
-
-	if (dev->ir)
-		em28xx_ir_fini(dev);
-
 	/*FIXME: I2C IR should be disconnected */
 
 	em28xx_release_analog_resources(dev);
@@ -3005,9 +2945,6 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	dev->udev = udev;
 	mutex_init(&dev->ctrl_urb_lock);
 	spin_lock_init(&dev->slock);
-	init_waitqueue_head(&dev->open);
-	init_waitqueue_head(&dev->wait_frame);
-	init_waitqueue_head(&dev->wait_stream);
 
 	dev->em28xx_write_regs = em28xx_write_regs;
 	dev->em28xx_read_reg = em28xx_read_reg;
@@ -3140,9 +3077,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
-	INIT_LIST_HEAD(&dev->vidq.queued);
 	INIT_LIST_HEAD(&dev->vbiq.active);
-	INIT_LIST_HEAD(&dev->vbiq.queued);
 
 	if (dev->board.has_msp34xx) {
 		/* Send a reset to other chips via gpio */
@@ -3447,8 +3382,6 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 	   resources */
 	mutex_lock(&dev->lock);
 
-	wake_up_interruptible_all(&dev->open);
-
 	v4l2_device_disconnect(&dev->v4l2_dev);
 
 	if (dev->users) {
@@ -3460,8 +3393,6 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		dev->state |= DEV_MISCONFIGURED;
 		em28xx_uninit_isoc(dev, dev->mode);
 		dev->state |= DEV_DISCONNECTED;
-		wake_up_interruptible(&dev->wait_frame);
-		wake_up_interruptible(&dev->wait_stream);
 	} else {
 		dev->state |= DEV_DISCONNECTED;
 		em28xx_release_resources(dev);

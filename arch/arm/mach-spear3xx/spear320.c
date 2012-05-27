@@ -27,7 +27,6 @@
 #define SPEAR320_UART2_BASE		UL(0xA4000000)
 #define SPEAR320_SSP0_BASE		UL(0xA5000000)
 #define SPEAR320_SSP1_BASE		UL(0xA6000000)
-#define SPEAR320_SOC_CONFIG_BASE	UL(0xB3000000)
 
 /* Interrupt registers offsets and masks */
 #define SPEAR320_INT_STS_MASK_REG		0x04
@@ -481,10 +480,19 @@ static const char * const spear320_dt_board_compat[] = {
 	NULL,
 };
 
+struct map_desc spear320_io_desc[] __initdata = {
+	{
+		.virtual	= VA_SPEAR320_SOC_CONFIG_BASE,
+		.pfn		= __phys_to_pfn(SPEAR320_SOC_CONFIG_BASE),
+		.length		= SZ_16M,
+		.type		= MT_DEVICE
+	},
+};
+
 static void __init spear320_map_io(void)
 {
+	iotable_init(spear320_io_desc, ARRAY_SIZE(spear320_io_desc));
 	spear3xx_map_io();
-	spear320_clk_init();
 }
 
 DT_MACHINE_START(SPEAR320_DT, "ST SPEAr320 SoC with Flattened Device Tree")

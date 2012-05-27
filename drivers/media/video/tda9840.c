@@ -66,41 +66,11 @@ static void tda9840_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 				val, reg);
 }
 
-static int tda9840_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *t)
-{
-	int byte;
-
-	if (t->index)
-		return -EINVAL;
-
-	switch (t->audmode) {
-	case V4L2_TUNER_MODE_STEREO:
-		byte = TDA9840_SET_STEREO;
-		break;
-	case V4L2_TUNER_MODE_LANG1_LANG2:
-		byte = TDA9840_SET_BOTH;
-		break;
-	case V4L2_TUNER_MODE_LANG1:
-		byte = TDA9840_SET_LANG1;
-		break;
-	case V4L2_TUNER_MODE_LANG2:
-		byte = TDA9840_SET_LANG2;
-		break;
-	default:
-		byte = TDA9840_SET_MONO;
-		break;
-	}
-	v4l2_dbg(1, debug, sd, "TDA9840_SWITCH: 0x%02x\n", byte);
-	tda9840_write(sd, SWITCH, byte);
-	return 0;
-}
-
-static int tda9840_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *t)
+static int tda9840_status(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u8 byte;
 
-	t->rxsubchans = V4L2_TUNER_SUB_MONO;
 	if (1 != i2c_master_recv(client, &byte, 1)) {
 		v4l2_dbg(1, debug, sd,
 			"i2c_master_recv() failed\n");
@@ -114,8 +84,51 @@ static int tda9840_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *t)
 	}
 
 	v4l2_dbg(1, debug, sd, "TDA9840_DETECT: byte: 0x%02x\n", byte);
+	return byte & 0x60;
+}
 
-	switch (byte & 0x60) {
+static int tda9840_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *t)
+{
+	int stat = tda9840_status(sd);
+	int byte;
+
+	if (t->index)
+		return -EINVAL;
+
+	stat = stat < 0 ? 0 : stat;
+	if (stat == 0 || stat == 0x60) /* mono input */
+		byte = TDA9840_SET_MONO;
+	else if (stat == 0x40) /* stereo input */
+		byte = (t->audmode == V4L2_TUNER_MODE_MONO) ?
+			TDA9840_SET_MONO : TDA9840_SET_STEREO;
+	else { /* bilingual */
+		switch (t->audmode) {
+		case V4L2_TUNER_MODE_LANG1_LANG2:
+			byte = TDA9840_SET_BOTH;
+			break;
+		case V4L2_TUNER_MODE_LANG2:
+			byte = TDA9840_SET_LANG2;
+			break;
+		default:
+			byte = TDA9840_SET_LANG1;
+			break;
+		}
+	}
+	v4l2_dbg(1, debug, sd, "TDA9840_SWITCH: 0x%02x\n", byte);
+	tda9840_write(sd, SWITCH, byte);
+	return 0;
+}
+
+static int tda9840_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *t)
+{
+	int stat = tda9840_status(sd);
+
+	if (stat < 0)
+		return stat;
+
+	t->rxsubchans = V4L2_TUNER_SUB_MONO;
+
+	switch (stat & 0x60) {
 	case 0x00:
 		t->rxsubchans = V4L2_TUNER_SUB_MONO;
 		break;

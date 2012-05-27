@@ -39,6 +39,8 @@ struct nfc_hci_ops {
 	int (*data_exchange) (struct nfc_hci_dev *hdev,
 			      struct nfc_target *target,
 			      struct sk_buff *skb, struct sk_buff **res_skb);
+	int (*check_presence)(struct nfc_hci_dev *hdev,
+			      struct nfc_target *target);
 };
 
 #define NFC_HCI_MAX_CUSTOM_GATES	15
@@ -81,10 +83,6 @@ struct nfc_hci_dev {
 	void *clientdata;
 
 	u8 gate2pipe[NFC_HCI_MAX_GATES];
-
-	bool poll_started;
-	struct nfc_target *targets;
-	int target_count;
 
 	u8 sw_romlib;
 	u8 sw_patch;

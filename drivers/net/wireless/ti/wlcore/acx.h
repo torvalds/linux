@@ -1147,6 +1147,32 @@ struct wl12xx_acx_config_hangover {
 	u8 padding[2];
 } __packed;
 
+
+struct acx_default_rx_filter {
+	struct acx_header header;
+	u8 enable;
+
+	/* action of type FILTER_XXX */
+	u8 default_action;
+
+	u8 pad[2];
+} __packed;
+
+
+struct acx_rx_filter_cfg {
+	struct acx_header header;
+
+	u8 enable;
+
+	/* 0 - WL1271_MAX_RX_FILTERS-1 */
+	u8 index;
+
+	u8 action;
+
+	u8 num_fields;
+	u8 fields[0];
+} __packed;
+
 enum {
 	ACX_WAKE_UP_CONDITIONS           = 0x0000,
 	ACX_MEM_CFG                      = 0x0001,
@@ -1304,5 +1330,9 @@ int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr);
 int wl1271_acx_fm_coex(struct wl1271 *wl);
 int wl12xx_acx_set_rate_mgmt_params(struct wl1271 *wl);
 int wl12xx_acx_config_hangover(struct wl1271 *wl);
+int wl1271_acx_default_rx_filter_enable(struct wl1271 *wl, bool enable,
+					enum rx_filter_action action);
+int wl1271_acx_set_rx_filter(struct wl1271 *wl, u8 index, bool enable,
+			     struct wl12xx_rx_filter *filter);
 
 #endif /* __WL1271_ACX_H__ */

@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <sys/ioctl.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
@@ -29,6 +30,14 @@ static void keep_alive(void)
  * The main program.  Run the program with "-d" to disable the card,
  * or "-e" to enable the card.
  */
+
+void term(int sig)
+{
+    close(fd);
+    fprintf(stderr, "Stopping watchdog ticks...\n");
+    exit(0);
+}
+
 int main(int argc, char *argv[])
 {
     int flags;
@@ -47,26 +56,31 @@ int main(int argc, char *argv[])
 	    ioctl(fd, WDIOC_SETOPTIONS, &flags);
 	    fprintf(stderr, "Watchdog card disabled.\n");
 	    fflush(stderr);
-	    exit(0);
+	    goto end;
 	} else if (!strncasecmp(argv[1], "-e", 2)) {
 	    flags = WDIOS_ENABLECARD;
 	    ioctl(fd, WDIOC_SETOPTIONS, &flags);
 	    fprintf(stderr, "Watchdog card enabled.\n");
 	    fflush(stderr);
-	    exit(0);
+	    goto end;
 	} else {
 	    fprintf(stderr, "-d to disable, -e to enable.\n");
 	    fprintf(stderr, "run by itself to tick the card.\n");
 	    fflush(stderr);
-	    exit(0);
+	    goto end;
 	}
     } else {
 	fprintf(stderr, "Watchdog Ticking Away!\n");
 	fflush(stderr);
     }
 
+    signal(SIGINT, term);
+
     while(1) {
 	keep_alive();
 	sleep(1);
     }
+end:
+    close(fd);
+    return 0;
 }

@@ -16,6 +16,7 @@ config ALPHA
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_CMOS_UPDATE
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
 	  marketed by the Digital Equipment Corporation of blessed memory,
@@ -47,9 +48,6 @@ config ARCH_HAS_ILOG2_U64
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
-
-config GENERIC_CMOS_UPDATE
-        def_bool y
 
 config GENERIC_GPIO
 	bool

@@ -2,7 +2,7 @@
  * tegra_wm8903.c - Tegra machine ASoC driver for boards using WM8903 codec.
  *
  * Author: Stephen Warren <swarren@nvidia.com>
- * Copyright (C) 2010-2011 - NVIDIA, Inc.
+ * Copyright (C) 2010-2012 - NVIDIA, Inc.
  *
  * Based on code copyright/by:
  *
@@ -46,9 +46,6 @@
 
 #include "../codecs/wm8903.h"
 
-#include "tegra_das.h"
-#include "tegra_i2s.h"
-#include "tegra_pcm.h"
 #include "tegra_asoc_utils.h"
 
 #define DRV_NAME "tegra-snd-wm8903"
@@ -61,7 +58,6 @@
 
 struct tegra_wm8903 {
 	struct tegra_wm8903_platform_data pdata;
-	struct platform_device *pcm_dev;
 	struct tegra_asoc_utils_data util_data;
 	int gpio_requested;
 };
@@ -354,8 +350,8 @@ static struct snd_soc_dai_link tegra_wm8903_dai = {
 	.name = "WM8903",
 	.stream_name = "WM8903 PCM",
 	.codec_name = "wm8903.0-001a",
-	.platform_name = "tegra-pcm-audio",
-	.cpu_dai_name = "tegra-i2s.0",
+	.platform_name = "tegra20-i2s.0",
+	.cpu_dai_name = "tegra20-i2s.0",
 	.codec_dai_name = "wm8903-hifi",
 	.init = tegra_wm8903_init,
 	.ops = &tegra_wm8903_ops,
@@ -392,7 +388,6 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err;
 	}
-	machine->pcm_dev = ERR_PTR(-EINVAL);
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
@@ -428,14 +423,9 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 			goto err;
 		}
 
-		machine->pcm_dev = platform_device_register_simple(
-					"tegra-pcm-audio", -1, NULL, 0);
-		if (IS_ERR(machine->pcm_dev)) {
-			dev_err(&pdev->dev,
-				"Can't instantiate tegra-pcm-audio\n");
-			ret = PTR_ERR(machine->pcm_dev);
-			goto err;
-		}
+		tegra_wm8903_dai.platform_name = NULL;
+		tegra_wm8903_dai.platform_of_node =
+					tegra_wm8903_dai.cpu_dai_of_node;
 	} else {
 		if (machine_is_harmony()) {
 			card->dapm_routes = harmony_audio_map;
@@ -454,7 +444,7 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)
-		goto err_unregister;
+		goto err;
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
@@ -467,9 +457,6 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 
 err_fini_utils:
 	tegra_asoc_utils_fini(&machine->util_data);
-err_unregister:
-	if (!IS_ERR(machine->pcm_dev))
-		platform_device_unregister(machine->pcm_dev);
 err:
 	return ret;
 }
@@ -497,8 +484,6 @@ static int __devexit tegra_wm8903_driver_remove(struct platform_device *pdev)
 	snd_soc_unregister_card(card);
 
 	tegra_asoc_utils_fini(&machine->util_data);
-	if (!IS_ERR(machine->pcm_dev))
-		platform_device_unregister(machine->pcm_dev);
 
 	return 0;
 }

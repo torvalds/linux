@@ -2362,7 +2362,7 @@ dma40_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 	}
 
 	sg[periods].offset = 0;
-	sg[periods].length = 0;
+	sg_dma_len(&sg[periods]) = 0;
 	sg[periods].page_link =
 		((unsigned long)sg | 0x01) & ~0x02;
 

@@ -32,8 +32,13 @@
 
 #include "sdhci-pltfm.h"
 
+/* Tegra SDHOST controller vendor register definitions */
+#define SDHCI_TEGRA_VENDOR_MISC_CTRL		0x120
+#define SDHCI_MISC_CTRL_ENABLE_SDHCI_SPEC_300	0x20
+
 #define NVQUIRK_FORCE_SDHCI_SPEC_200	BIT(0)
 #define NVQUIRK_ENABLE_BLOCK_GAP_DET	BIT(1)
+#define NVQUIRK_ENABLE_SDHCI_SPEC_300	BIT(2)
 
 struct sdhci_tegra_soc_data {
 	struct sdhci_pltfm_data *pdata;
@@ -120,6 +125,25 @@ static irqreturn_t carddetect_irq(int irq, void *data)
 	return IRQ_HANDLED;
 };
 
+static void tegra_sdhci_reset_exit(struct sdhci_host *host, u8 mask)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_tegra *tegra_host = pltfm_host->priv;
+	const struct sdhci_tegra_soc_data *soc_data = tegra_host->soc_data;
+
+	if (!(mask & SDHCI_RESET_ALL))
+		return;
+
+	/* Erratum: Enable SDHCI spec v3.00 support */
+	if (soc_data->nvquirks & NVQUIRK_ENABLE_SDHCI_SPEC_300) {
+		u32 misc_ctrl;
+
+		misc_ctrl = sdhci_readb(host, SDHCI_TEGRA_VENDOR_MISC_CTRL);
+		misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_SDHCI_SPEC_300;
+		sdhci_writeb(host, misc_ctrl, SDHCI_TEGRA_VENDOR_MISC_CTRL);
+	}
+}
+
 static int tegra_sdhci_8bit(struct sdhci_host *host, int bus_width)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -148,6 +172,7 @@ static struct sdhci_ops tegra_sdhci_ops = {
 	.read_w     = tegra_sdhci_readw,
 	.write_l    = tegra_sdhci_writel,
 	.platform_8bit_width = tegra_sdhci_8bit,
+	.platform_reset_exit = tegra_sdhci_reset_exit,
 };
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
@@ -178,6 +203,7 @@ static struct sdhci_pltfm_data sdhci_tegra30_pdata = {
 
 static struct sdhci_tegra_soc_data soc_data_tegra30 = {
 	.pdata = &sdhci_tegra30_pdata,
+	.nvquirks = NVQUIRK_ENABLE_SDHCI_SPEC_300,
 };
 #endif
 

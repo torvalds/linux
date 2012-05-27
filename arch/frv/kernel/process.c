@@ -165,17 +165,6 @@ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
 	return do_fork(clone_flags, newsp, __frame, 0, parent_tidptr, child_tidptr);
 } /* end sys_clone() */
 
-/*****************************************************************************/
-/*
- * This gets called before we allocate a new thread and copy
- * the current task into it.
- */
-void prepare_to_copy(struct task_struct *tsk)
-{
-	//unlazy_fpu(tsk);
-} /* end prepare_to_copy() */
-
-/*****************************************************************************/
 /*
  * set up the kernel stack and exception frames for a new process
  */

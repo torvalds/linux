@@ -117,3 +117,10 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 err:
 	panic("davinci_common_init: SoC Initialization failed\n");
 }
+
+void __init davinci_init_late(void)
+{
+	davinci_cpufreq_init();
+	davinci_pm_init();
+	davinci_clk_disable_unused();
+}

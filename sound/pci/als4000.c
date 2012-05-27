@@ -1036,7 +1036,7 @@ static int snd_als4000_resume(struct pci_dev *pci)
 #endif /* CONFIG_PM */
 
 
-static struct pci_driver driver = {
+static struct pci_driver als4000_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_als4000_ids,
 	.probe = snd_card_als4000_probe,
@@ -1047,15 +1047,4 @@ static struct pci_driver driver = {
 #endif
 };
 
-static int __init alsa_card_als4000_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_als4000_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_als4000_init)
-module_exit(alsa_card_als4000_exit)
+module_pci_driver(als4000_driver);

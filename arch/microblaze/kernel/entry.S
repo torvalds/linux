@@ -430,13 +430,12 @@ C_ENTRY(ret_from_trap):
 5:	/* get thread info from current task*/
 	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;
 	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
-	andi	r11, r11, _TIF_SIGPENDING;
+	andi	r11, r11, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
 	beqi	r11, 1f;		/* Signals to handle, handle them */
 
 	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
-	addi	r7, r0, 1;		/* Arg 3: int in_syscall */
-	bralid	r15, do_signal;	/* Handle any signals */
-	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
+	bralid	r15, do_notify_resume;	/* Handle any signals */
+	addi	r6, r0, 1;		/* Arg 2: int in_syscall */
 
 /* Finally, return to user state.  */
 1:	set_bip;			/*  Ints masked for state restore */
@@ -622,7 +621,7 @@ C_ENTRY(ret_from_exc):
 	/* Maybe handle a signal */
 5:	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
 	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
-	andi	r11, r11, _TIF_SIGPENDING;
+	andi	r11, r11, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
 	beqi	r11, 1f;		/* Signals to handle, handle them */
 
 	/*
@@ -635,11 +634,10 @@ C_ENTRY(ret_from_exc):
 	 * traps), but signal handlers may want to examine or change the
 	 * complete register state.  Here we save anything not saved by
 	 * the normal entry sequence, so that it may be safely restored
-	 * (in a possibly modified form) after do_signal returns. */
+	 * (in a possibly modified form) after do_notify_resume returns. */
 	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
-	addi	r7, r0, 0;		/* Arg 3: int in_syscall */
-	bralid	r15, do_signal;	/* Handle any signals */
-	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
+	bralid	r15, do_notify_resume;	/* Handle any signals */
+	addi	r6, r0, 0;		/* Arg 2: int in_syscall */
 
 /* Finally, return to user state.  */
 1:	set_bip;			/* Ints masked for state restore */
@@ -732,13 +730,12 @@ ret_from_irq:
     /* Maybe handle a signal */
 5:	lwi	r11, CURRENT_TASK, TS_THREAD_INFO; /* MS: get thread info */
 	lwi	r11, r11, TI_FLAGS; /* get flags in thread info */
-	andi	r11, r11, _TIF_SIGPENDING;
+	andi	r11, r11, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
 	beqid	r11, no_intr_resched
 /* Handle a signal return; Pending signals should be in r18. */
-	addi	r7, r0, 0; /* Arg 3: int in_syscall */
 	addik	r5, r1, 0; /* Arg 1: struct pt_regs *regs */
-	bralid	r15, do_signal;	/* Handle any signals */
-	add	r6, r0, r0; /* Arg 2: sigset_t *oldset */
+	bralid	r15, do_notify_resume;	/* Handle any signals */
+	addi	r6, r0, 0; /* Arg 2: int in_syscall */
 
 /* Finally, return to user state. */
 no_intr_resched:
@@ -869,13 +866,12 @@ dbtrap_call: /* Return point for kernel/user entry + 8 because of rtsd r15, 8 */
 	/* Maybe handle a signal */
 5:	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
 	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
-	andi	r11, r11, _TIF_SIGPENDING;
+	andi	r11, r11, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
 	beqi	r11, 1f;		/* Signals to handle, handle them */
 
 	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
-	addi  r7, r0, 0;	/* Arg 3: int in_syscall */
-	bralid	r15, do_signal;	/* Handle any signals */
-	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
+	bralid	r15, do_notify_resume;	/* Handle any signals */
+	addi  r6, r0, 0;	/* Arg 2: int in_syscall */
 
 /* Finally, return to user state.  */
 1:	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
