@@ -3600,9 +3600,9 @@ cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 {
 	int rc;
 	unsigned int xid;
-	struct cifs_ses *pSesInfo;
+	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
-	struct TCP_Server_Info *srvTcp;
+	struct TCP_Server_Info *server;
 	char   *full_path;
 	struct tcon_link *tlink;
 #ifdef CONFIG_CIFS_DFS_UPCALL
@@ -3619,39 +3619,39 @@ try_mount_again:
 	if (referral_walks_count) {
 		if (tcon)
 			cifs_put_tcon(tcon);
-		else if (pSesInfo)
-			cifs_put_smb_ses(pSesInfo);
+		else if (ses)
+			cifs_put_smb_ses(ses);
 
 		free_xid(xid);
 	}
 #endif
 	rc = 0;
 	tcon = NULL;
-	pSesInfo = NULL;
-	srvTcp = NULL;
+	ses = NULL;
+	server = NULL;
 	full_path = NULL;
 	tlink = NULL;
 
 	xid = get_xid();
 
 	/* get a reference to a tcp session */
-	srvTcp = cifs_get_tcp_session(volume_info);
-	if (IS_ERR(srvTcp)) {
-		rc = PTR_ERR(srvTcp);
+	server = cifs_get_tcp_session(volume_info);
+	if (IS_ERR(server)) {
+		rc = PTR_ERR(server);
 		bdi_destroy(&cifs_sb->bdi);
 		goto out;
 	}
 
 	/* get a reference to a SMB session */
-	pSesInfo = cifs_get_smb_ses(srvTcp, volume_info);
-	if (IS_ERR(pSesInfo)) {
-		rc = PTR_ERR(pSesInfo);
-		pSesInfo = NULL;
+	ses = cifs_get_smb_ses(server, volume_info);
+	if (IS_ERR(ses)) {
+		rc = PTR_ERR(ses);
+		ses = NULL;
 		goto mount_fail_check;
 	}
 
 	/* search for existing tcon to this server share */
-	tcon = cifs_get_tcon(pSesInfo, volume_info);
+	tcon = cifs_get_tcon(ses, volume_info);
 	if (IS_ERR(tcon)) {
 		rc = PTR_ERR(tcon);
 		tcon = NULL;
@@ -3672,11 +3672,9 @@ try_mount_again:
 	} else
 		tcon->unix_ext = 0; /* server does not support them */
 
-	/* do not care if following two calls succeed - informational */
-	if (!tcon->ipc) {
-		CIFSSMBQFSDeviceInfo(xid, tcon);
-		CIFSSMBQFSAttributeInfo(xid, tcon);
-	}
+	/* do not care if a following call succeed - informational */
+	if (!tcon->ipc && server->ops->qfs_tcon)
+		server->ops->qfs_tcon(xid, tcon);
 
 	cifs_sb->wsize = cifs_negotiate_wsize(tcon, volume_info);
 	cifs_sb->rsize = cifs_negotiate_rsize(tcon, volume_info);
@@ -3694,8 +3692,8 @@ remote_path_check:
 	 * Chase the referral if found, otherwise continue normally.
 	 */
 	if (referral_walks_count == 0) {
-		int refrc = expand_dfs_referral(xid, pSesInfo, volume_info,
-						cifs_sb, false);
+		int refrc = expand_dfs_referral(xid, ses, volume_info, cifs_sb,
+						false);
 		if (!refrc) {
 			referral_walks_count++;
 			goto try_mount_again;
@@ -3733,8 +3731,7 @@ remote_path_check:
 			goto mount_fail_check;
 		}
 
-		rc = expand_dfs_referral(xid, pSesInfo, volume_info, cifs_sb,
-					 true);
+		rc = expand_dfs_referral(xid, ses, volume_info, cifs_sb, true);
 
 		if (!rc) {
 			referral_walks_count++;
@@ -3756,7 +3753,7 @@ remote_path_check:
 		goto mount_fail_check;
 	}
 
-	tlink->tl_uid = pSesInfo->linux_uid;
+	tlink->tl_uid = ses->linux_uid;
 	tlink->tl_tcon = tcon;
 	tlink->tl_time = jiffies;
 	set_bit(TCON_LINK_MASTER, &tlink->tl_flags);
@@ -3777,10 +3774,10 @@ mount_fail_check:
 		/* up accidentally freeing someone elses tcon struct */
 		if (tcon)
 			cifs_put_tcon(tcon);
-		else if (pSesInfo)
-			cifs_put_smb_ses(pSesInfo);
+		else if (ses)
+			cifs_put_smb_ses(ses);
 		else
-			cifs_put_tcp_session(srvTcp);
+			cifs_put_tcp_session(server);
 		bdi_destroy(&cifs_sb->bdi);
 	}
 

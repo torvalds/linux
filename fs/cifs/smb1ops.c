@@ -410,6 +410,13 @@ cifs_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	return rc;
 }
 
+static void
+cifs_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
+{
+	CIFSSMBQFSDeviceInfo(xid, tcon);
+	CIFSSMBQFSAttributeInfo(xid, tcon);
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -435,6 +442,7 @@ struct smb_version_operations smb1_operations = {
 	.tree_connect = CIFSTCon,
 	.tree_disconnect = CIFSSMBTDis,
 	.get_dfs_refer = CIFSGetDFSRefer,
+	.qfs_tcon = cifs_qfs_tcon,
 };
 
 struct smb_version_values smb1_values = {

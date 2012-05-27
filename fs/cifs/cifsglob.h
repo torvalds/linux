@@ -213,6 +213,8 @@ struct smb_version_operations {
 	int (*get_dfs_refer)(const unsigned int, struct cifs_ses *,
 			     const char *, struct dfs_info3_param **,
 			     unsigned int *, const struct nls_table *, int);
+	/* informational QFS call */
+	void (*qfs_tcon)(const unsigned int, struct cifs_tcon *);
 };
 
 struct smb_version_values {
