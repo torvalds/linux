@@ -969,6 +969,9 @@ struct journal_s
 
 	/* Reference to checksum algorithm driver via cryptoapi */
 	struct crypto_shash *j_chksum_driver;
+
+	/* Precomputed journal UUID checksum for seeding other checksums */
+	__u32 j_csum_seed;
 };
 
 /*

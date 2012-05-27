@@ -106,6 +106,34 @@ int jbd2_verify_csum_type(journal_t *j, journal_superblock_t *sb)
 	return sb->s_checksum_type == JBD2_CRC32C_CHKSUM;
 }
 
+static __u32 jbd2_superblock_csum(journal_t *j, journal_superblock_t *sb)
+{
+	__u32 csum, old_csum;
+
+	old_csum = sb->s_checksum;
+	sb->s_checksum = 0;
+	csum = jbd2_chksum(j, ~0, (char *)sb, sizeof(journal_superblock_t));
+	sb->s_checksum = old_csum;
+
+	return cpu_to_be32(csum);
+}
+
+int jbd2_superblock_csum_verify(journal_t *j, journal_superblock_t *sb)
+{
+	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
+		return 1;
+
+	return sb->s_checksum == jbd2_superblock_csum(j, sb);
+}
+
+void jbd2_superblock_csum_set(journal_t *j, journal_superblock_t *sb)
+{
+	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
+		return;
+
+	sb->s_checksum = jbd2_superblock_csum(j, sb);
+}
+
 /*
  * Helper function used to manage commit timeouts
  */
@@ -1357,6 +1385,7 @@ static void jbd2_journal_update_sb_errno(journal_t *journal)
 	jbd_debug(1, "JBD2: updating superblock error (errno %d)\n",
 		  journal->j_errno);
 	sb->s_errno    = cpu_to_be32(journal->j_errno);
+	jbd2_superblock_csum_set(journal, sb);
 	read_unlock(&journal->j_state_lock);
 
 	jbd2_write_superblock(journal, WRITE_SYNC);
@@ -1448,6 +1477,17 @@ static int journal_get_superblock(journal_t *journal)
 			goto out;
 		}
 	}
+
+	/* Check superblock checksum */
+	if (!jbd2_superblock_csum_verify(journal, sb)) {
+		printk(KERN_ERR "JBD: journal checksum error\n");
+		goto out;
+	}
+
+	/* Precompute checksum seed for all metadata */
+	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
+		journal->j_csum_seed = jbd2_chksum(journal, ~0, sb->s_uuid,
+						   sizeof(sb->s_uuid));
 
 	set_buffer_verified(bh);
 
@@ -1732,6 +1772,13 @@ int jbd2_journal_set_features (journal_t *journal, unsigned long compat,
 				return 0;
 			}
 		}
+
+		/* Precompute checksum seed for all metadata */
+		if (JBD2_HAS_INCOMPAT_FEATURE(journal,
+					      JBD2_FEATURE_INCOMPAT_CSUM_V2))
+			journal->j_csum_seed = jbd2_chksum(journal, ~0,
+							   sb->s_uuid,
+							   sizeof(sb->s_uuid));
 	}
 
 	/* If enabling v1 checksums, downgrade superblock */
