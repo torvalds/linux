@@ -688,7 +688,7 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	int lane_count, clock;
 	int max_lane_count = intel_dp_max_lane_count(intel_dp);
 	int max_clock = intel_dp_max_link_bw(intel_dp) == DP_LINK_BW_2_7 ? 1 : 0;
-	int bpp;
+	int bpp, mode_rate;
 	static int bws[2] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7 };
 
 	if (is_edp(intel_dp) && intel_dp->panel_fixed_mode) {
@@ -702,24 +702,30 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		mode->clock = intel_dp->panel_fixed_mode->clock;
 	}
 
+	DRM_DEBUG_KMS("DP link computation with max lane count %i "
+		      "max bw %02x pixel clock %iKHz\n",
+		      max_lane_count, bws[max_clock], mode->clock);
+
 	if (!intel_dp_adjust_dithering(intel_dp, mode, adjusted_mode))
 		return false;
 
 	bpp = adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC ? 18 : 24;
+	mode_rate = intel_dp_link_required(mode->clock, bpp);
 
 	for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
 		for (clock = 0; clock <= max_clock; clock++) {
 			int link_avail = intel_dp_max_data_rate(intel_dp_link_clock(bws[clock]), lane_count);
 
-			if (intel_dp_link_required(mode->clock, bpp)
-					<= link_avail) {
+			if (mode_rate <= link_avail) {
 				intel_dp->link_bw = bws[clock];
 				intel_dp->lane_count = lane_count;
 				adjusted_mode->clock = intel_dp_link_clock(intel_dp->link_bw);
-				DRM_DEBUG_KMS("Display port link bw %02x lane "
-						"count %d clock %d\n",
+				DRM_DEBUG_KMS("DP link bw %02x lane "
+						"count %d clock %d bpp %d\n",
 				       intel_dp->link_bw, intel_dp->lane_count,
-				       adjusted_mode->clock);
+				       adjusted_mode->clock, bpp);
+				DRM_DEBUG_KMS("DP link bw required %i available %i\n",
+					      mode_rate, link_avail);
 				return true;
 			}
 		}
@@ -1149,6 +1155,7 @@ static void ironlake_edp_panel_off(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("Turn eDP power off\n");
 
 	WARN(intel_dp->want_panel_vdd, "Cannot turn power off while VDD is on\n");
+	ironlake_panel_vdd_off_sync(intel_dp); /* finish any pending work */
 
 	pp = ironlake_get_pp_control(dev_priv);
 	pp &= ~(POWER_TARGET_ON | EDP_FORCE_VDD | PANEL_POWER_RESET | EDP_BLC_ENABLE);
@@ -1954,6 +1961,23 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	return false;
 }
 
+static void
+intel_dp_probe_oui(struct intel_dp *intel_dp)
+{
+	u8 buf[3];
+
+	if (!(intel_dp->dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_OUI_SUPPORT))
+		return;
+
+	if (intel_dp_aux_native_read_retry(intel_dp, DP_SINK_OUI, buf, 3))
+		DRM_DEBUG_KMS("Sink OUI: %02hx%02hx%02hx\n",
+			      buf[0], buf[1], buf[2]);
+
+	if (intel_dp_aux_native_read_retry(intel_dp, DP_BRANCH_OUI, buf, 3))
+		DRM_DEBUG_KMS("Branch OUI: %02hx%02hx%02hx\n",
+			      buf[0], buf[1], buf[2]);
+}
+
 static bool
 intel_dp_get_sink_irq(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 {
@@ -2136,6 +2160,8 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 
 	if (status != connector_status_connected)
 		return status;
+
+	intel_dp_probe_oui(intel_dp);
 
 	if (intel_dp->force_audio != HDMI_AUDIO_AUTO) {
 		intel_dp->has_audio = (intel_dp->force_audio == HDMI_AUDIO_ON);
@@ -2438,6 +2464,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	}
 
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
@@ -2482,6 +2509,13 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 		pp_on = I915_READ(PCH_PP_ON_DELAYS);
 		pp_off = I915_READ(PCH_PP_OFF_DELAYS);
 		pp_div = I915_READ(PCH_PP_DIVISOR);
+
+		if (!pp_on || !pp_off || !pp_div) {
+			DRM_INFO("bad panel power sequencing delays, disabling panel\n");
+			intel_dp_encoder_destroy(&intel_dp->base.base);
+			intel_dp_destroy(&intel_connector->base);
+			return;
+		}
 
 		/* Pull timing values out of registers */
 		cur.t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>

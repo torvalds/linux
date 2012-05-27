@@ -343,7 +343,6 @@ static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 static int snd_em28xx_hw_capture_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *hw_params)
 {
-	unsigned int channels, rate, format;
 	int ret;
 
 	dprintk("Setting capture parameters\n");
@@ -352,13 +351,17 @@ static int snd_em28xx_hw_capture_params(struct snd_pcm_substream *substream,
 				params_buffer_bytes(hw_params));
 	if (ret < 0)
 		return ret;
-	format = params_format(hw_params);
-	rate = params_rate(hw_params);
-	channels = params_channels(hw_params);
-
+#if 0
 	/* TODO: set up em28xx audio chip to deliver the correct audio format,
 	   current default is 48000hz multiplexed => 96000hz mono
 	   which shouldn't matter since analogue TV only supports mono */
+	unsigned int channels, rate, format;
+
+	format = params_format(hw_params);
+	rate = params_rate(hw_params);
+	channels = params_channels(hw_params);
+#endif
+
 	return 0;
 }
 

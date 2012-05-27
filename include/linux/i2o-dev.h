@@ -124,7 +124,7 @@ typedef struct i2o_sg_io_hdr {
 #define I2O_BUS_LOCAL	0
 #define I2O_BUS_ISA	1
 #define I2O_BUS_EISA	2
-#define I2O_BUS_MCA	3
+/* was  I2O_BUS_MCA	3 */
 #define I2O_BUS_PCI	4
 #define I2O_BUS_PCMCIA	5
 #define I2O_BUS_NUBUS	6

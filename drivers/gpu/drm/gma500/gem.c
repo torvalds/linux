@@ -124,6 +124,8 @@ static int psb_gem_create(struct drm_file *file,
 		dev_err(dev->dev, "GEM init failed for %lld\n", size);
 		return -ENOMEM;
 	}
+	/* Limit the object to 32bit mappings */
+	mapping_set_gfp_mask(r->gem.filp->f_mapping, GFP_KERNEL | __GFP_DMA32);
 	/* Give the object a handle so we can carry it more easily */
 	ret = drm_gem_handle_create(file, &r->gem, &handle);
 	if (ret) {

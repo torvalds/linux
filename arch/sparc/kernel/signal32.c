@@ -215,8 +215,9 @@ void do_sigreturn32(struct pt_regs *regs)
 	    (((unsigned long) sf) & 3))
 		goto segv;
 
-	get_user(pc, &sf->info.si_regs.pc);
-	__get_user(npc, &sf->info.si_regs.npc);
+	if (get_user(pc, &sf->info.si_regs.pc) ||
+	    __get_user(npc, &sf->info.si_regs.npc))
+		goto segv;
 
 	if ((pc | npc) & 3)
 		goto segv;
@@ -305,8 +306,9 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 	    (((unsigned long) sf) & 3))
 		goto segv;
 
-	get_user(pc, &sf->regs.pc);
-	__get_user(npc, &sf->regs.npc);
+	if (get_user(pc, &sf->regs.pc) || 
+	    __get_user(npc, &sf->regs.npc))
+		goto segv;
 
 	if ((pc | npc) & 3)
 		goto segv;

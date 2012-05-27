@@ -13,8 +13,8 @@ config HEXAGON
 	# select ARCH_REQUIRE_GPIOLIB
 	# select HAVE_CLK
 	# select IRQ_PER_CPU
-	select HAVE_IRQ_WORK
 	# select GENERIC_PENDING_IRQ if SMP
+	select HAVE_IRQ_WORK
 	select GENERIC_ATOMIC64
 	select HAVE_PERF_EVENTS
 	select HAVE_GENERIC_HARDIRQS
@@ -26,7 +26,10 @@ config HEXAGON
 	select NO_IOPORT
 	select GENERIC_IOMAP
 	select GENERIC_SMP_IDLE_THREAD
-	# mostly generic routines, with some accelerated ones
+	select STACKTRACE_SUPPORT
+	select KTIME_SCALAR
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CLOCKEVENTS_BROADCAST
 	---help---
 	  Qualcomm Hexagon is a processor architecture designed for high
 	  performance and low power across a wide variety of applications.
@@ -55,9 +58,6 @@ config PCI
 config EARLY_PRINTK
 	def_bool y
 
-config KTIME_SCALAR
-	def_bool y
-
 config MMU
 	def_bool y
 
@@ -72,15 +72,6 @@ config GENERIC_CSUM
 #
 config GENERIC_IRQ_PROBE
 	def_bool y
-
-#config ZONE_DMA
-#	bool
-#	default y
-
-config HAS_DMA
-	bool
-	select HAVE_DMA_ATTRS
-	default y
 
 config NEED_SG_DMA_LENGTH
 	def_bool y
@@ -97,15 +88,6 @@ config GENERIC_FIND_NEXT_BIT
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_TIME
-	def_bool y
-
-config GENERIC_CLOCKEVENTS
-	def_bool y
-
-config GENERIC_CLOCKEVENTS_BROADCAST
-	def_bool y
-
 config STACKTRACE_SUPPORT
 	def_bool y
 	select STACKTRACE
@@ -114,14 +96,11 @@ config GENERIC_BUG
 	def_bool y
 	depends on BUG
 
-config BUG
-	def_bool y
-
 menu "Machine selection"
 
 choice
 	prompt "System type"
-	default HEXAGON_ARCH_V2
+	default HEXAGON_COMET
 
 config HEXAGON_COMET
 	bool "Comet Board"
@@ -191,11 +170,9 @@ endchoice
 source "mm/Kconfig"
 
 source "kernel/Kconfig.hz"
-source "kernel/time/Kconfig"
 
 config GENERIC_GPIO
-	bool "Generic GPIO support"
-	default n
+	def_bool n
 
 endmenu
 

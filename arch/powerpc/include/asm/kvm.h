@@ -277,6 +277,7 @@ struct kvm_sync_regs {
 #define KVM_CPU_E500V2		2
 #define KVM_CPU_3S_32		3
 #define KVM_CPU_3S_64		4
+#define KVM_CPU_E500MC		5
 
 /* for KVM_CAP_SPAPR_TCE */
 struct kvm_create_spapr_tce {

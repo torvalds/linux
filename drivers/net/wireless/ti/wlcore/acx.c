@@ -1714,3 +1714,83 @@ out:
 	return ret;
 
 }
+
+/* Set the global behaviour of RX filters - On/Off + default action */
+int wl1271_acx_default_rx_filter_enable(struct wl1271 *wl, bool enable,
+					enum rx_filter_action action)
+{
+	struct acx_default_rx_filter *acx;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx default rx filter en: %d act: %d",
+		     enable, action);
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx)
+		return -ENOMEM;
+
+	acx->enable = enable;
+	acx->default_action = action;
+
+	ret = wl1271_cmd_configure(wl, ACX_ENABLE_RX_DATA_FILTER, acx,
+				   sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx default rx filter enable failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+/* Configure or disable a specific RX filter pattern */
+int wl1271_acx_set_rx_filter(struct wl1271 *wl, u8 index, bool enable,
+			     struct wl12xx_rx_filter *filter)
+{
+	struct acx_rx_filter_cfg *acx;
+	int fields_size = 0;
+	int acx_size;
+	int ret;
+
+	WARN_ON(enable && !filter);
+	WARN_ON(index >= WL1271_MAX_RX_FILTERS);
+
+	wl1271_debug(DEBUG_ACX,
+		     "acx set rx filter idx: %d enable: %d filter: %p",
+		     index, enable, filter);
+
+	if (enable) {
+		fields_size = wl1271_rx_filter_get_fields_size(filter);
+
+		wl1271_debug(DEBUG_ACX, "act: %d num_fields: %d field_size: %d",
+		      filter->action, filter->num_fields, fields_size);
+	}
+
+	acx_size = ALIGN(sizeof(*acx) + fields_size, 4);
+	acx = kzalloc(acx_size, GFP_KERNEL);
+
+	if (!acx)
+		return -ENOMEM;
+
+	acx->enable = enable;
+	acx->index = index;
+
+	if (enable) {
+		acx->num_fields = filter->num_fields;
+		acx->action = filter->action;
+		wl1271_rx_filter_flatten_fields(filter, acx->fields);
+	}
+
+	wl1271_dump(DEBUG_ACX, "RX_FILTER: ", acx, acx_size);
+
+	ret = wl1271_cmd_configure(wl, ACX_SET_RX_DATA_FILTER, acx, acx_size);
+	if (ret < 0) {
+		wl1271_warning("setting rx filter failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}

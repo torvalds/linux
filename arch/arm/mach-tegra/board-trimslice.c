@@ -89,7 +89,6 @@ static struct platform_device *trimslice_devices[] __initdata = {
 	&tegra_sdhci_device4,
 	&tegra_i2s_device1,
 	&tegra_das_device,
-	&tegra_pcm_device,
 	&trimslice_audio_device,
 };
 
@@ -118,6 +117,8 @@ static void trimslice_usb_init(void)
 
 	pdata = tegra_ehci1_device.dev.platform_data;
 	pdata->vbus_gpio = TRIMSLICE_GPIO_USB1_MODE;
+
+	tegra_ehci2_ulpi_phy_config.reset_gpio = TEGRA_GPIO_PV0;
 
 	platform_device_register(&tegra_ehci3_device);
 	platform_device_register(&tegra_ehci2_device);
@@ -177,5 +178,6 @@ MACHINE_START(TRIMSLICE, "trimslice")
 	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_trimslice_init,
+	.init_late	= tegra_init_late,
 	.restart	= tegra_assert_system_reset,
 MACHINE_END

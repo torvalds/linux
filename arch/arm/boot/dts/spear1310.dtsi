@@ -1,0 +1,184 @@
+/*
+ * DTS file for all SPEAr1310 SoCs
+ *
+ * Copyright 2012 Viresh Kumar <viresh.kumar@st.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/include/ "spear13xx.dtsi"
+
+/ {
+	compatible = "st,spear1310";
+
+	ahb {
+		ahci@b1000000 {
+			compatible = "snps,spear-ahci";
+			reg = <0xb1000000 0x10000>;
+			interrupts = <0 68 0x4>;
+			status = "disabled";
+		};
+
+		ahci@b1800000 {
+			compatible = "snps,spear-ahci";
+			reg = <0xb1800000 0x10000>;
+			interrupts = <0 69 0x4>;
+			status = "disabled";
+		};
+
+		ahci@b4000000 {
+			compatible = "snps,spear-ahci";
+			reg = <0xb4000000 0x10000>;
+			interrupts = <0 70 0x4>;
+			status = "disabled";
+		};
+
+		gmac1: eth@5c400000 {
+			compatible = "st,spear600-gmac";
+			reg = <0x5c400000 0x8000>;
+			interrupts = <0 95 0x4>;
+			interrupt-names = "macirq";
+			status = "disabled";
+		};
+
+		gmac2: eth@5c500000 {
+			compatible = "st,spear600-gmac";
+			reg = <0x5c500000 0x8000>;
+			interrupts = <0 96 0x4>;
+			interrupt-names = "macirq";
+			status = "disabled";
+		};
+
+		gmac3: eth@5c600000 {
+			compatible = "st,spear600-gmac";
+			reg = <0x5c600000 0x8000>;
+			interrupts = <0 97 0x4>;
+			interrupt-names = "macirq";
+			status = "disabled";
+		};
+
+		gmac4: eth@5c700000 {
+			compatible = "st,spear600-gmac";
+			reg = <0x5c700000 0x8000>;
+			interrupts = <0 98 0x4>;
+			interrupt-names = "macirq";
+			status = "disabled";
+		};
+
+		spi1: spi@5d400000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x5d400000 0x1000>;
+			interrupts = <0 99 0x4>;
+			status = "disabled";
+		};
+
+		apb {
+			i2c1: i2c@5cd00000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,designware-i2c";
+				reg = <0x5cd00000 0x1000>;
+				interrupts = <0 87 0x4>;
+				status = "disabled";
+			};
+
+			i2c2: i2c@5ce00000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,designware-i2c";
+				reg = <0x5ce00000 0x1000>;
+				interrupts = <0 88 0x4>;
+				status = "disabled";
+			};
+
+			i2c3: i2c@5cf00000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,designware-i2c";
+				reg = <0x5cf00000 0x1000>;
+				interrupts = <0 89 0x4>;
+				status = "disabled";
+			};
+
+			i2c4: i2c@5d000000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,designware-i2c";
+				reg = <0x5d000000 0x1000>;
+				interrupts = <0 90 0x4>;
+				status = "disabled";
+			};
+
+			i2c5: i2c@5d100000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,designware-i2c";
+				reg = <0x5d100000 0x1000>;
+				interrupts = <0 91 0x4>;
+				status = "disabled";
+			};
+
+			i2c6: i2c@5d200000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,designware-i2c";
+				reg = <0x5d200000 0x1000>;
+				interrupts = <0 92 0x4>;
+				status = "disabled";
+			};
+
+			i2c7: i2c@5d300000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,designware-i2c";
+				reg = <0x5d300000 0x1000>;
+				interrupts = <0 93 0x4>;
+				status = "disabled";
+			};
+
+			serial@5c800000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x5c800000 0x1000>;
+				interrupts = <0 82 0x4>;
+				status = "disabled";
+			};
+
+			serial@5c900000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x5c900000 0x1000>;
+				interrupts = <0 83 0x4>;
+				status = "disabled";
+			};
+
+			serial@5ca00000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x5ca00000 0x1000>;
+				interrupts = <0 84 0x4>;
+				status = "disabled";
+			};
+
+			serial@5cb00000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x5cb00000 0x1000>;
+				interrupts = <0 85 0x4>;
+				status = "disabled";
+			};
+
+			serial@5cc00000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x5cc00000 0x1000>;
+				interrupts = <0 86 0x4>;
+				status = "disabled";
+			};
+
+			thermal@e07008c4 {
+				st,thermal-flags = <0x7000>;
+			};
+		};
+	};
+};

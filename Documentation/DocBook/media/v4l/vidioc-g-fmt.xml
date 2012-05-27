@@ -116,7 +116,7 @@ this ioctl.</para>
 	<colspec colname="c4" />
 	<tbody valign="top">
 	  <row>
-	    <entry>&v4l2-buf-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry></entry>
 	    <entry>Type of the data stream, see <xref

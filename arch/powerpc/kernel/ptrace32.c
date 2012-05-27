@@ -39,30 +39,6 @@
  * in exit.c or in signal.c.
  */
 
-/*
- * Here are the old "legacy" powerpc specific getregs/setregs ptrace calls,
- * we mark them as obsolete now, they will be removed in a future version
- */
-static long compat_ptrace_old(struct task_struct *child, long request,
-			      long addr, long data)
-{
-	switch (request) {
-	case PPC_PTRACE_GETREGS:	/* Get GPRs 0 - 31. */
-		return copy_regset_to_user(child,
-					   task_user_regset_view(current), 0,
-					   0, 32 * sizeof(compat_long_t),
-					   compat_ptr(data));
-
-	case PPC_PTRACE_SETREGS:	/* Set GPRs 0 - 31. */
-		return copy_regset_from_user(child,
-					     task_user_regset_view(current), 0,
-					     0, 32 * sizeof(compat_long_t),
-					     compat_ptr(data));
-	}
-
-	return -EPERM;
-}
-
 /* Macros to workout the correct index for the FPR in the thread struct */
 #define FPRNUMBER(i) (((i) - PT_FPR0) >> 1)
 #define FPRHALF(i) (((i) - PT_FPR0) & 1)
@@ -308,8 +284,6 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 	case PTRACE_SETVSRREGS:
 	case PTRACE_GETREGS64:
 	case PTRACE_SETREGS64:
-	case PPC_PTRACE_GETFPREGS:
-	case PPC_PTRACE_SETFPREGS:
 	case PTRACE_KILL:
 	case PTRACE_SINGLESTEP:
 	case PTRACE_DETACH:
@@ -320,12 +294,6 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 	case PPC_PTRACE_SETHWDEBUG:
 	case PPC_PTRACE_DELHWDEBUG:
 		ret = arch_ptrace(child, request, addr, data);
-		break;
-
-	/* Old reverse args ptrace callss */
-	case PPC_PTRACE_GETREGS: /* Get GPRs 0 - 31. */
-	case PPC_PTRACE_SETREGS: /* Set GPRs 0 - 31. */
-		ret = compat_ptrace_old(child, request, addr, data);
 		break;
 
 	default:

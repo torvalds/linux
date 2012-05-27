@@ -1409,10 +1409,8 @@ static int ngene_start(struct ngene *dev)
 	if (stat < 0)
 		goto fail;
 
-	if (!stat)
-		return stat;
+	return 0;
 
-	/* otherwise error: fall through */
 fail:
 	ngwritel(0, NGENE_INT_ENABLE);
 	free_irq(dev->pci_dev->irq, dev);

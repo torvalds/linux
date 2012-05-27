@@ -98,6 +98,12 @@ static int caam_probe(struct platform_device *pdev)
 	rspec = 0;
 	for_each_compatible_node(np, NULL, "fsl,sec-v4.0-job-ring")
 		rspec++;
+	if (!rspec) {
+		/* for backward compatible with device trees */
+		for_each_compatible_node(np, NULL, "fsl,sec4.0-job-ring")
+			rspec++;
+	}
+
 	ctrlpriv->jrdev = kzalloc(sizeof(struct device *) * rspec, GFP_KERNEL);
 	if (ctrlpriv->jrdev == NULL) {
 		iounmap(&topregs->ctrl);
@@ -110,6 +116,13 @@ static int caam_probe(struct platform_device *pdev)
 		caam_jr_probe(pdev, np, ring);
 		ctrlpriv->total_jobrs++;
 		ring++;
+	}
+	if (!ring) {
+		for_each_compatible_node(np, NULL, "fsl,sec4.0-job-ring") {
+			caam_jr_probe(pdev, np, ring);
+			ctrlpriv->total_jobrs++;
+			ring++;
+		}
 	}
 
 	/* Check to see if QI present. If so, enable */
@@ -225,6 +238,9 @@ static int caam_probe(struct platform_device *pdev)
 static struct of_device_id caam_match[] = {
 	{
 		.compatible = "fsl,sec-v4.0",
+	},
+	{
+		.compatible = "fsl,sec4.0",
 	},
 	{},
 };

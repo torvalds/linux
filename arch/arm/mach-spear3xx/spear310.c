@@ -478,7 +478,6 @@ static const char * const spear310_dt_board_compat[] = {
 static void __init spear310_map_io(void)
 {
 	spear3xx_map_io();
-	spear310_clk_init();
 }
 
 DT_MACHINE_START(SPEAR310_DT, "ST SPEAr310 SoC with Flattened Device Tree")

@@ -348,12 +348,6 @@ enum ath9k_int {
 	 CHANNEL_HT40MINUS)
 
 #define MAX_RTT_TABLE_ENTRY     6
-#define RTT_HIST_MAX            3
-struct ath9k_rtt_hist {
-	u32 table[AR9300_MAX_CHAINS][RTT_HIST_MAX][MAX_RTT_TABLE_ENTRY];
-	u8 num_readings;
-};
-
 #define MAX_IQCAL_MEASUREMENT	8
 #define MAX_CL_TAB_ENTRY	16
 
@@ -363,6 +357,7 @@ struct ath9k_hw_cal_data {
 	int32_t CalValid;
 	int8_t iCoff;
 	int8_t qCoff;
+	bool rtt_done;
 	bool paprd_done;
 	bool nfcal_pending;
 	bool nfcal_interference;
@@ -373,8 +368,8 @@ struct ath9k_hw_cal_data {
 	u32 num_measures[AR9300_MAX_CHAINS];
 	int tx_corr_coeff[MAX_IQCAL_MEASUREMENT][AR9300_MAX_CHAINS];
 	u32 tx_clcal[AR9300_MAX_CHAINS][MAX_CL_TAB_ENTRY];
+	u32 rtt_table[AR9300_MAX_CHAINS][MAX_RTT_TABLE_ENTRY];
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
-	struct ath9k_rtt_hist rtt_hist;
 };
 
 struct ath9k_channel {

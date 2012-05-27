@@ -52,6 +52,8 @@ enum {
 /* SCSPTR, optional */
 #define SCSPTR_RTSIO	(1 << 7)
 #define SCSPTR_CTSIO	(1 << 5)
+#define SCSPTR_SPB2IO	(1 << 1)
+#define SCSPTR_SPB2DT	(1 << 0)
 
 /* Offsets into the sci_port->irqs array */
 enum {

@@ -241,15 +241,6 @@ config SERIAL_8250_RSA
 	help
 	  ::: To be written :::
 
-config SERIAL_8250_MCA
-	tristate "Support 8250-type ports on MCA buses"
-	depends on SERIAL_8250 != n && MCA
-	help
-	  Say Y here if you have a MCA serial ports.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_mca.
-
 config SERIAL_8250_ACORN
 	tristate "Acorn expansion card serial port support"
 	depends on ARCH_ACORN && SERIAL_8250

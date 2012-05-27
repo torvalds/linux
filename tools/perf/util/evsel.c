@@ -108,7 +108,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 	if (opts->call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
-	if (opts->target.system_wide)
+	if (perf_target__has_cpu(&opts->target))
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 
 	if (opts->period)
@@ -462,10 +462,7 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	 * used for cross-endian analysis. See git commit 65014ab3
 	 * for why this goofiness is needed.
 	 */
-	union {
-		u64 val64;
-		u32 val32[2];
-	} u;
+	union u64_swap u;
 
 	memset(data, 0, sizeof(*data));
 	data->cpu = data->pid = data->tid = -1;
@@ -608,10 +605,7 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 	 * used for cross-endian analysis. See git commit 65014ab3
 	 * for why this goofiness is needed.
 	 */
-	union {
-		u64 val64;
-		u32 val32[2];
-	} u;
+	union u64_swap u;
 
 	array = event->sample.array;
 

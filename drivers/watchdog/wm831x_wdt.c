@@ -247,21 +247,14 @@ static int __devinit wm831x_wdt_probe(struct platform_device *pdev)
 		reg |= pdata->software << WM831X_WDOG_RST_SRC_SHIFT;
 
 		if (pdata->update_gpio) {
-			ret = gpio_request(pdata->update_gpio,
-					   "Watchdog update");
+			ret = gpio_request_one(pdata->update_gpio,
+					       GPIOF_DIR_OUT | GPIOF_INIT_LOW,
+					       "Watchdog update");
 			if (ret < 0) {
 				dev_err(wm831x->dev,
 					"Failed to request update GPIO: %d\n",
 					ret);
 				goto err;
-			}
-
-			ret = gpio_direction_output(pdata->update_gpio, 0);
-			if (ret != 0) {
-				dev_err(wm831x->dev,
-					"gpio_direction_output returned: %d\n",
-					ret);
-				goto err_gpio;
 			}
 
 			driver_data->update_gpio = pdata->update_gpio;

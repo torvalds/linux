@@ -20,10 +20,10 @@ There are two drivers that work with the different families of Stallion
 multiport serial boards. One is for the Stallion smart boards - that is
 EasyIO, EasyConnection 8/32 and EasyConnection 8/64-PCI, the other for
 the true Stallion intelligent multiport boards - EasyConnection 8/64
-(ISA, EISA, MCA), EasyConnection/RA-PCI, ONboard and Brumby.
+(ISA, EISA), EasyConnection/RA-PCI, ONboard and Brumby.
 
 If you are using any of the Stallion intelligent multiport boards (Brumby,
-ONboard, EasyConnection 8/64 (ISA, EISA, MCA), EasyConnection/RA-PCI) with
+ONboard, EasyConnection 8/64 (ISA, EISA), EasyConnection/RA-PCI) with
 Linux you will need to get the driver utility package.  This contains a
 firmware loader and the firmware images necessary to make the devices operate.
 
@@ -40,7 +40,7 @@ If you are using the EasyIO, EasyConnection 8/32 or EasyConnection 8/64-PCI
 boards then you don't need this package, although it does have a serial stats
 display program.
 
-If you require DIP switch settings, EISA or MCA configuration files, or any
+If you require DIP switch settings, or EISA configuration files, or any
 other information related to Stallion boards then have a look at Stallion's
 web pages at http://www.stallion.com.
 
@@ -51,13 +51,13 @@ web pages at http://www.stallion.com.
 The drivers can be used as loadable modules or compiled into the kernel.
 You can choose which when doing a "config" on the kernel.
 
-All ISA, EISA and MCA boards that you want to use need to be configured into
+All ISA, and EISA boards that you want to use need to be configured into
 the driver(s). All PCI boards will be automatically detected when you load
 the driver - so they do not need to be entered into the driver(s)
 configuration structure. Note that kernel PCI support is required to use PCI
 boards.
 
-There are two methods of configuring ISA, EISA and MCA boards into the drivers.
+There are two methods of configuring ISA and EISA boards into the drivers.
 If using the driver as a loadable module then the simplest method is to pass
 the driver configuration as module arguments. The other method is to modify
 the driver source to add configuration lines for each board in use.
@@ -71,12 +71,12 @@ That makes things pretty simple to get going.
 2.1 MODULE DRIVER CONFIGURATION:
 
 The simplest configuration for modules is to use the module load arguments
-to configure any ISA, EISA or MCA boards. PCI boards are automatically
+to configure any ISA or EISA boards. PCI boards are automatically
 detected, so do not need any additional configuration at all.
 
-If using EasyIO, EasyConnection 8/32 ISA or MCA, or EasyConnection 8/63-PCI
+If using EasyIO, EasyConnection 8/32 ISA, or EasyConnection 8/63-PCI
 boards then use the "stallion" driver module, Otherwise if you are using
-an EasyConnection 8/64 ISA, EISA or MCA, EasyConnection/RA-PCI, ONboard,
+an EasyConnection 8/64 ISA or EISA, EasyConnection/RA-PCI, ONboard,
 Brumby or original Stallion board then use the "istallion" driver module.
 
 Typically to load up the smart board driver use:
@@ -146,7 +146,7 @@ on each system boot. Typically configuration files are put in the
 2.2 STATIC DRIVER CONFIGURATION:
 
 For static driver configuration you need to modify the driver source code.
-Entering ISA, EISA and MCA boards into the driver(s) configuration structure
+Entering ISA and EISA boards into the driver(s) configuration structure
 involves editing the driver(s) source file. It's pretty easy if you follow
 the instructions below. Both drivers can support up to 4 boards. The smart
 card driver (the stallion.c driver) supports any combination of EasyIO and
@@ -157,7 +157,7 @@ supports any combination of ONboards, Brumbys, Stallions and EasyConnection
 To set up the driver(s) for the boards that you want to use you need to
 edit the appropriate driver file and add configuration entries.
 
-If using EasyIO or EasyConnection 8/32 ISA or MCA boards,
+If using EasyIO or EasyConnection 8/32 ISA boards,
    In drivers/char/stallion.c:
       - find the definition of the stl_brdconf array (of structures)
         near the top of the file
@@ -243,7 +243,7 @@ change it on the board.
 On EasyIO and EasyConnection 8/32 boards the IRQ is software programmable, so
 if there is a conflict you may need to change the IRQ used for a board. There
 are no interrupts to worry about for ONboard, Brumby or EasyConnection 8/64
-(ISA, EISA and MCA) boards. The memory region on EasyConnection 8/64 and
+(ISA and EISA) boards. The memory region on EasyConnection 8/64 and
 ONboard boards is software programmable, but not on the Brumby boards.
 
 

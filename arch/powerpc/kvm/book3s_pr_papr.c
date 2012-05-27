@@ -15,6 +15,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/anon_inodes.h>
+
 #include <asm/uaccess.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -98,6 +100,83 @@ static int kvmppc_h_pr_remove(struct kvm_vcpu *vcpu)
 	return EMULATE_DONE;
 }
 
+/* Request defs for kvmppc_h_pr_bulk_remove() */
+#define H_BULK_REMOVE_TYPE             0xc000000000000000ULL
+#define   H_BULK_REMOVE_REQUEST        0x4000000000000000ULL
+#define   H_BULK_REMOVE_RESPONSE       0x8000000000000000ULL
+#define   H_BULK_REMOVE_END            0xc000000000000000ULL
+#define H_BULK_REMOVE_CODE             0x3000000000000000ULL
+#define   H_BULK_REMOVE_SUCCESS        0x0000000000000000ULL
+#define   H_BULK_REMOVE_NOT_FOUND      0x1000000000000000ULL
+#define   H_BULK_REMOVE_PARM           0x2000000000000000ULL
+#define   H_BULK_REMOVE_HW             0x3000000000000000ULL
+#define H_BULK_REMOVE_RC               0x0c00000000000000ULL
+#define H_BULK_REMOVE_FLAGS            0x0300000000000000ULL
+#define   H_BULK_REMOVE_ABSOLUTE       0x0000000000000000ULL
+#define   H_BULK_REMOVE_ANDCOND        0x0100000000000000ULL
+#define   H_BULK_REMOVE_AVPN           0x0200000000000000ULL
+#define H_BULK_REMOVE_PTEX             0x00ffffffffffffffULL
+#define H_BULK_REMOVE_MAX_BATCH        4
+
+static int kvmppc_h_pr_bulk_remove(struct kvm_vcpu *vcpu)
+{
+	int i;
+	int paramnr = 4;
+	int ret = H_SUCCESS;
+
+	for (i = 0; i < H_BULK_REMOVE_MAX_BATCH; i++) {
+		unsigned long tsh = kvmppc_get_gpr(vcpu, paramnr+(2*i));
+		unsigned long tsl = kvmppc_get_gpr(vcpu, paramnr+(2*i)+1);
+		unsigned long pteg, rb, flags;
+		unsigned long pte[2];
+		unsigned long v = 0;
+
+		if ((tsh & H_BULK_REMOVE_TYPE) == H_BULK_REMOVE_END) {
+			break; /* Exit success */
+		} else if ((tsh & H_BULK_REMOVE_TYPE) !=
+			   H_BULK_REMOVE_REQUEST) {
+			ret = H_PARAMETER;
+			break; /* Exit fail */
+		}
+
+		tsh &= H_BULK_REMOVE_PTEX | H_BULK_REMOVE_FLAGS;
+		tsh |= H_BULK_REMOVE_RESPONSE;
+
+		if ((tsh & H_BULK_REMOVE_ANDCOND) &&
+		    (tsh & H_BULK_REMOVE_AVPN)) {
+			tsh |= H_BULK_REMOVE_PARM;
+			kvmppc_set_gpr(vcpu, paramnr+(2*i), tsh);
+			ret = H_PARAMETER;
+			break; /* Exit fail */
+		}
+
+		pteg = get_pteg_addr(vcpu, tsh & H_BULK_REMOVE_PTEX);
+		copy_from_user(pte, (void __user *)pteg, sizeof(pte));
+
+		/* tsl = AVPN */
+		flags = (tsh & H_BULK_REMOVE_FLAGS) >> 26;
+
+		if ((pte[0] & HPTE_V_VALID) == 0 ||
+		    ((flags & H_AVPN) && (pte[0] & ~0x7fUL) != tsl) ||
+		    ((flags & H_ANDCOND) && (pte[0] & tsl) != 0)) {
+			tsh |= H_BULK_REMOVE_NOT_FOUND;
+		} else {
+			/* Splat the pteg in (userland) hpt */
+			copy_to_user((void __user *)pteg, &v, sizeof(v));
+
+			rb = compute_tlbie_rb(pte[0], pte[1],
+					      tsh & H_BULK_REMOVE_PTEX);
+			vcpu->arch.mmu.tlbie(vcpu, rb, rb & 1 ? true : false);
+			tsh |= H_BULK_REMOVE_SUCCESS;
+			tsh |= (pte[1] & (HPTE_R_C | HPTE_R_R)) << 43;
+		}
+		kvmppc_set_gpr(vcpu, paramnr+(2*i), tsh);
+	}
+	kvmppc_set_gpr(vcpu, 3, ret);
+
+	return EMULATE_DONE;
+}
+
 static int kvmppc_h_pr_protect(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags = kvmppc_get_gpr(vcpu, 4);
@@ -134,6 +213,20 @@ static int kvmppc_h_pr_protect(struct kvm_vcpu *vcpu)
 	return EMULATE_DONE;
 }
 
+static int kvmppc_h_pr_put_tce(struct kvm_vcpu *vcpu)
+{
+	unsigned long liobn = kvmppc_get_gpr(vcpu, 4);
+	unsigned long ioba = kvmppc_get_gpr(vcpu, 5);
+	unsigned long tce = kvmppc_get_gpr(vcpu, 6);
+	long rc;
+
+	rc = kvmppc_h_put_tce(vcpu, liobn, ioba, tce);
+	if (rc == H_TOO_HARD)
+		return EMULATE_FAIL;
+	kvmppc_set_gpr(vcpu, 3, rc);
+	return EMULATE_DONE;
+}
+
 int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 {
 	switch (cmd) {
@@ -144,12 +237,12 @@ int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 	case H_PROTECT:
 		return kvmppc_h_pr_protect(vcpu);
 	case H_BULK_REMOVE:
-		/* We just flush all PTEs, so user space can
-		   handle the HPT modifications */
-		kvmppc_mmu_pte_flush(vcpu, 0, 0);
-		break;
+		return kvmppc_h_pr_bulk_remove(vcpu);
+	case H_PUT_TCE:
+		return kvmppc_h_pr_put_tce(vcpu);
 	case H_CEDE:
 		kvm_vcpu_block(vcpu);
+		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
 		vcpu->stat.halt_wakeup++;
 		return EMULATE_DONE;
 	}

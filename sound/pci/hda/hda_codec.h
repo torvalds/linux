@@ -704,8 +704,6 @@ struct hda_codec_ops {
 				unsigned int power_state);
 #ifdef CONFIG_PM
 	int (*suspend)(struct hda_codec *codec, pm_message_t state);
-	int (*post_suspend)(struct hda_codec *codec);
-	int (*pre_resume)(struct hda_codec *codec);
 	int (*resume)(struct hda_codec *codec);
 #endif
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -829,6 +827,7 @@ struct hda_codec {
 
 	struct mutex spdif_mutex;
 	struct mutex control_mutex;
+	struct mutex hash_mutex;
 	struct snd_array spdif_out;
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */
 	const hda_nid_t *slave_dig_outs; /* optional digital out slave widgets */
@@ -861,12 +860,13 @@ struct hda_codec {
 	unsigned int no_jack_detect:1;	/* Machine has no jack-detection */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	unsigned int power_on :1;	/* current (global) power-state */
-	unsigned int power_transition :1; /* power-state in transition */
+	int power_transition;	/* power-state in transition */
 	int power_count;	/* current (global) power refcount */
 	struct delayed_work power_work; /* delayed task for powerdown */
 	unsigned long power_on_acct;
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
+	spinlock_t power_lock;
 #endif
 
 	/* codec-specific additional proc output */
@@ -911,10 +911,13 @@ int snd_hda_get_sub_nodes(struct hda_codec *codec, hda_nid_t nid,
 			  hda_nid_t *start_id);
 int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 			    hda_nid_t *conn_list, int max_conns);
+static inline int
+snd_hda_get_num_conns(struct hda_codec *codec, hda_nid_t nid)
+{
+	return snd_hda_get_connections(codec, nid, NULL, 0);
+}
 int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 			    hda_nid_t *conn_list, int max_conns);
-int snd_hda_get_conn_list(struct hda_codec *codec, hda_nid_t nid,
-			  const hda_nid_t **listp);
 int snd_hda_override_conn_list(struct hda_codec *codec, hda_nid_t nid, int nums,
 			  const hda_nid_t *list);
 int snd_hda_get_conn_index(struct hda_codec *codec, hda_nid_t mux,
@@ -1020,6 +1023,9 @@ void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 				    unsigned int power_state,
 				    bool eapd_workaround);
 
+int snd_hda_lock_devices(struct hda_bus *bus);
+void snd_hda_unlock_devices(struct hda_bus *bus);
+
 /*
  * power management
  */
@@ -1051,12 +1057,10 @@ const char *snd_hda_get_jack_location(u32 cfg);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 void snd_hda_power_up(struct hda_codec *codec);
 void snd_hda_power_down(struct hda_codec *codec);
-#define snd_hda_codec_needs_resume(codec) codec->power_count
 void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
 static inline void snd_hda_power_up(struct hda_codec *codec) {}
 static inline void snd_hda_power_down(struct hda_codec *codec) {}
-#define snd_hda_codec_needs_resume(codec) 1
 #endif
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER

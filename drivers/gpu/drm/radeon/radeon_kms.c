@@ -57,8 +57,6 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	}
 	dev->dev_private = (void *)rdev;
 
-	pci_set_master(dev->pdev);
-
 	/* update BUS flag */
 	if (drm_pci_device_is_agp(dev)) {
 		flags |= RADEON_IS_AGP;

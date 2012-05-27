@@ -7,6 +7,7 @@
 static const char *cpu_name[] = {
 	[CPU_SH7201]	= "SH7201",
 	[CPU_SH7203]	= "SH7203",	[CPU_SH7263]	= "SH7263",
+	[CPU_SH7264]	= "SH7264",	[CPU_SH7269]	= "SH7269",
 	[CPU_SH7206]	= "SH7206",	[CPU_SH7619]	= "SH7619",
 	[CPU_SH7705]	= "SH7705",	[CPU_SH7706]	= "SH7706",
 	[CPU_SH7707]	= "SH7707",	[CPU_SH7708]	= "SH7708",
@@ -25,7 +26,8 @@ static const char *cpu_name[] = {
 	[CPU_SH5_101]	= "SH5-101",	[CPU_SH5_103]	= "SH5-103",
 	[CPU_MXG]	= "MX-G",	[CPU_SH7723]	= "SH7723",
 	[CPU_SH7366]	= "SH7366",	[CPU_SH7724]	= "SH7724",
-	[CPU_SH7372]	= "SH7372",	[CPU_SH_NONE]	= "Unknown"
+	[CPU_SH7372]	= "SH7372",	[CPU_SH7734]	= "SH7734",
+	[CPU_SH_NONE]	= "Unknown"
 };
 
 const char *get_cpu_subtype(struct sh_cpuinfo *c)

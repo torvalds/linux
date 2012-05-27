@@ -252,6 +252,7 @@ extern int do_sigtimedwait(const sigset_t *, siginfo_t *,
 extern int sigprocmask(int, sigset_t *, sigset_t *);
 extern void set_current_blocked(const sigset_t *);
 extern int show_unhandled_signals;
+extern int sigsuspend(sigset_t *);
 
 extern int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka, struct pt_regs *regs, void *cookie);
 extern void block_sigmask(struct k_sigaction *ka, int signr);

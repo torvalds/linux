@@ -4555,6 +4555,11 @@ static bool tcp_try_coalesce(struct sock *sk,
 
 	if (tcp_hdr(from)->fin)
 		return false;
+
+	/* Its possible this segment overlaps with prior segment in queue */
+	if (TCP_SKB_CB(from)->seq != TCP_SKB_CB(to)->end_seq)
+		return false;
+
 	if (!skb_try_coalesce(to, from, fragstolen, &delta))
 		return false;
 

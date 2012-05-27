@@ -33,6 +33,7 @@ static void imx5_idle(void)
 		gpc_dvfs_clk = clk_get(NULL, "gpc_dvfs");
 		if (IS_ERR(gpc_dvfs_clk))
 			return;
+		clk_prepare(gpc_dvfs_clk);
 	}
 	clk_enable(gpc_dvfs_clk);
 	mx5_cpu_lp_set(WAIT_UNCLOCKED_POWER_OFF);
@@ -235,4 +236,9 @@ void __init imx53_soc_init(void)
 	/* i.mx53 has the i.mx31 type audmux */
 	platform_device_register_simple("imx31-audmux", 0, imx53_audmux_res,
 					ARRAY_SIZE(imx53_audmux_res));
+}
+
+void __init imx51_init_late(void)
+{
+	mx51_neon_fixup();
 }

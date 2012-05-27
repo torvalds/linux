@@ -64,6 +64,7 @@ config MACH_AP4EVB
 	depends on ARCH_SH7372
 	select ARCH_REQUIRE_GPIOLIB
 	select SH_LCD_MIPI_DSI
+	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 
 choice
 	prompt "AP4EVB LCD panel selection"
@@ -88,6 +89,7 @@ config MACH_MACKEREL
 	bool "mackerel board"
 	depends on ARCH_SH7372
 	select ARCH_REQUIRE_GPIOLIB
+	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 
 config MACH_KOTA2
 	bool "KOTA2 board"

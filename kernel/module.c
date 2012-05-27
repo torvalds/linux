@@ -2429,7 +2429,8 @@ static int copy_and_check(struct load_info *info,
 		goto free_hdr;
 	}
 
-	if (len < hdr->e_shoff + hdr->e_shnum * sizeof(Elf_Shdr)) {
+	if (hdr->e_shoff >= len ||
+	    hdr->e_shnum * sizeof(Elf_Shdr) > len - hdr->e_shoff) {
 		err = -ENOEXEC;
 		goto free_hdr;
 	}

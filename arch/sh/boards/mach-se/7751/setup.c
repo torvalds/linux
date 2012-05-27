@@ -55,6 +55,5 @@ device_initcall(se7751_devices_setup);
  */
 static struct sh_machine_vector mv_7751se __initmv = {
 	.mv_name		= "7751 SolutionEngine",
-	.mv_nr_irqs		= 72,
 	.mv_init_irq		= init_7751se_IRQ,
 };

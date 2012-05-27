@@ -102,6 +102,8 @@
 #define PL080_WIDTH_16BIT			(0x1)
 #define PL080_WIDTH_32BIT			(0x2)
 
+#define PL080N_CONFIG_ITPROT			(1 << 20)
+#define PL080N_CONFIG_SECPROT			(1 << 19)
 #define PL080_CONFIG_HALT			(1 << 18)
 #define PL080_CONFIG_ACTIVE			(1 << 17)  /* RO */
 #define PL080_CONFIG_LOCK			(1 << 16)

@@ -47,14 +47,14 @@ int inode_change_ok(const struct inode *inode, struct iattr *attr)
 
 	/* Make sure a caller can chown. */
 	if ((ia_valid & ATTR_UID) &&
-	    (current_fsuid() != inode->i_uid ||
-	     attr->ia_uid != inode->i_uid) && !capable(CAP_CHOWN))
+	    (!uid_eq(current_fsuid(), inode->i_uid) ||
+	     !uid_eq(attr->ia_uid, inode->i_uid)) && !capable(CAP_CHOWN))
 		return -EPERM;
 
 	/* Make sure caller can chgrp. */
 	if ((ia_valid & ATTR_GID) &&
-	    (current_fsuid() != inode->i_uid ||
-	    (!in_group_p(attr->ia_gid) && attr->ia_gid != inode->i_gid)) &&
+	    (!uid_eq(current_fsuid(), inode->i_uid) ||
+	    (!in_group_p(attr->ia_gid) && !gid_eq(attr->ia_gid, inode->i_gid))) &&
 	    !capable(CAP_CHOWN))
 		return -EPERM;
 

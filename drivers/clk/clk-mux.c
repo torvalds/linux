@@ -55,7 +55,6 @@ static u8 clk_mux_get_parent(struct clk_hw *hw)
 
 	return val;
 }
-EXPORT_SYMBOL_GPL(clk_mux_get_parent);
 
 static int clk_mux_set_parent(struct clk_hw *hw, u8 index)
 {
@@ -82,27 +81,34 @@ static int clk_mux_set_parent(struct clk_hw *hw, u8 index)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(clk_mux_set_parent);
 
-struct clk_ops clk_mux_ops = {
+const struct clk_ops clk_mux_ops = {
 	.get_parent = clk_mux_get_parent,
 	.set_parent = clk_mux_set_parent,
 };
 EXPORT_SYMBOL_GPL(clk_mux_ops);
 
 struct clk *clk_register_mux(struct device *dev, const char *name,
-		char **parent_names, u8 num_parents, unsigned long flags,
+		const char **parent_names, u8 num_parents, unsigned long flags,
 		void __iomem *reg, u8 shift, u8 width,
 		u8 clk_mux_flags, spinlock_t *lock)
 {
 	struct clk_mux *mux;
+	struct clk *clk;
+	struct clk_init_data init;
 
-	mux = kmalloc(sizeof(struct clk_mux), GFP_KERNEL);
-
+	/* allocate the mux */
+	mux = kzalloc(sizeof(struct clk_mux), GFP_KERNEL);
 	if (!mux) {
 		pr_err("%s: could not allocate mux clk\n", __func__);
 		return ERR_PTR(-ENOMEM);
 	}
+
+	init.name = name;
+	init.ops = &clk_mux_ops;
+	init.flags = flags;
+	init.parent_names = parent_names;
+	init.num_parents = num_parents;
 
 	/* struct clk_mux assignments */
 	mux->reg = reg;
@@ -110,7 +116,12 @@ struct clk *clk_register_mux(struct device *dev, const char *name,
 	mux->width = width;
 	mux->flags = clk_mux_flags;
 	mux->lock = lock;
+	mux->hw.init = &init;
 
-	return clk_register(dev, name, &clk_mux_ops, &mux->hw,
-			parent_names, num_parents, flags);
+	clk = clk_register(dev, &mux->hw);
+
+	if (IS_ERR(clk))
+		kfree(mux);
+
+	return clk;
 }

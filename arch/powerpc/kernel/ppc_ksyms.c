@@ -190,3 +190,7 @@ EXPORT_SYMBOL(__arch_hweight16);
 EXPORT_SYMBOL(__arch_hweight32);
 EXPORT_SYMBOL(__arch_hweight64);
 #endif
+
+#ifdef CONFIG_PPC_BOOK3S_64
+EXPORT_SYMBOL_GPL(mmu_psize_defs);
+#endif

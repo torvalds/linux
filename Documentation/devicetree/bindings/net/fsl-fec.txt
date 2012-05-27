@@ -14,7 +14,7 @@ Optional properties:
 
 Example:
 
-fec@83fec000 {
+ethernet@83fec000 {
 	compatible = "fsl,imx51-fec", "fsl,imx27-fec";
 	reg = <0x83fec000 0x4000>;
 	interrupts = <87>;

@@ -808,8 +808,8 @@ got:
 	}
 	if (owner) {
 		inode->i_mode = mode;
-		inode->i_uid = owner[0];
-		inode->i_gid = owner[1];
+		i_uid_write(inode, owner[0]);
+		i_gid_write(inode, owner[1]);
 	} else if (test_opt(sb, GRPID)) {
 		inode->i_mode = mode;
 		inode->i_uid = current_fsuid();

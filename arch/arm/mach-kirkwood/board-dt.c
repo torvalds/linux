@@ -43,6 +43,9 @@ static void __init kirkwood_dt_init(void)
 	kirkwood_l2_init();
 #endif
 
+	/* Setup root of clk tree */
+	kirkwood_clk_init();
+
 	/* internal devices that every board has */
 	kirkwood_wdt_init();
 	kirkwood_xor0_init();

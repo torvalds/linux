@@ -2424,27 +2424,18 @@ bool evergreen_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *rin
 	u32 srbm_status;
 	u32 grbm_status;
 	u32 grbm_status_se0, grbm_status_se1;
-	struct r100_gpu_lockup *lockup = &rdev->config.evergreen.lockup;
-	int r;
 
 	srbm_status = RREG32(SRBM_STATUS);
 	grbm_status = RREG32(GRBM_STATUS);
 	grbm_status_se0 = RREG32(GRBM_STATUS_SE0);
 	grbm_status_se1 = RREG32(GRBM_STATUS_SE1);
 	if (!(grbm_status & GUI_ACTIVE)) {
-		r100_gpu_lockup_update(lockup, ring);
+		radeon_ring_lockup_update(ring);
 		return false;
 	}
 	/* force CP activities */
-	r = radeon_ring_lock(rdev, ring, 2);
-	if (!r) {
-		/* PACKET2 NOP */
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_unlock_commit(rdev, ring);
-	}
-	ring->rptr = RREG32(CP_RB_RPTR);
-	return r100_gpu_cp_is_lockup(rdev, lockup, ring);
+	radeon_ring_force_activity(rdev, ring);
+	return radeon_ring_test_lockup(rdev, ring);
 }
 
 static int evergreen_gpu_soft_reset(struct radeon_device *rdev)
@@ -2594,6 +2585,7 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	u32 hpd1, hpd2, hpd3, hpd4, hpd5, hpd6;
 	u32 grbm_int_cntl = 0;
 	u32 grph1 = 0, grph2 = 0, grph3 = 0, grph4 = 0, grph5 = 0, grph6 = 0;
+	u32 afmt1 = 0, afmt2 = 0, afmt3 = 0, afmt4 = 0, afmt5 = 0, afmt6 = 0;
 
 	if (!rdev->irq.installed) {
 		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
@@ -2613,6 +2605,13 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	hpd4 = RREG32(DC_HPD4_INT_CONTROL) & ~DC_HPDx_INT_EN;
 	hpd5 = RREG32(DC_HPD5_INT_CONTROL) & ~DC_HPDx_INT_EN;
 	hpd6 = RREG32(DC_HPD6_INT_CONTROL) & ~DC_HPDx_INT_EN;
+
+	afmt1 = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET) & ~AFMT_AZ_FORMAT_WTRIG_MASK;
+	afmt2 = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET) & ~AFMT_AZ_FORMAT_WTRIG_MASK;
+	afmt3 = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET) & ~AFMT_AZ_FORMAT_WTRIG_MASK;
+	afmt4 = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET) & ~AFMT_AZ_FORMAT_WTRIG_MASK;
+	afmt5 = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET) & ~AFMT_AZ_FORMAT_WTRIG_MASK;
+	afmt6 = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET) & ~AFMT_AZ_FORMAT_WTRIG_MASK;
 
 	if (rdev->family >= CHIP_CAYMAN) {
 		/* enable CP interrupts on all rings */
@@ -2690,6 +2689,30 @@ int evergreen_irq_set(struct radeon_device *rdev)
 		DRM_DEBUG("evergreen_irq_set: hpd 6\n");
 		hpd6 |= DC_HPDx_INT_EN;
 	}
+	if (rdev->irq.afmt[0]) {
+		DRM_DEBUG("evergreen_irq_set: hdmi 0\n");
+		afmt1 |= AFMT_AZ_FORMAT_WTRIG_MASK;
+	}
+	if (rdev->irq.afmt[1]) {
+		DRM_DEBUG("evergreen_irq_set: hdmi 1\n");
+		afmt2 |= AFMT_AZ_FORMAT_WTRIG_MASK;
+	}
+	if (rdev->irq.afmt[2]) {
+		DRM_DEBUG("evergreen_irq_set: hdmi 2\n");
+		afmt3 |= AFMT_AZ_FORMAT_WTRIG_MASK;
+	}
+	if (rdev->irq.afmt[3]) {
+		DRM_DEBUG("evergreen_irq_set: hdmi 3\n");
+		afmt4 |= AFMT_AZ_FORMAT_WTRIG_MASK;
+	}
+	if (rdev->irq.afmt[4]) {
+		DRM_DEBUG("evergreen_irq_set: hdmi 4\n");
+		afmt5 |= AFMT_AZ_FORMAT_WTRIG_MASK;
+	}
+	if (rdev->irq.afmt[5]) {
+		DRM_DEBUG("evergreen_irq_set: hdmi 5\n");
+		afmt6 |= AFMT_AZ_FORMAT_WTRIG_MASK;
+	}
 	if (rdev->irq.gui_idle) {
 		DRM_DEBUG("gui idle\n");
 		grbm_int_cntl |= GUI_IDLE_INT_ENABLE;
@@ -2732,6 +2755,13 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	WREG32(DC_HPD5_INT_CONTROL, hpd5);
 	WREG32(DC_HPD6_INT_CONTROL, hpd6);
 
+	WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET, afmt1);
+	WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET, afmt2);
+	WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET, afmt3);
+	WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET, afmt4);
+	WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET, afmt5);
+	WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET, afmt6);
+
 	return 0;
 }
 
@@ -2755,6 +2785,13 @@ static void evergreen_irq_ack(struct radeon_device *rdev)
 		rdev->irq.stat_regs.evergreen.d5grph_int = RREG32(GRPH_INT_STATUS + EVERGREEN_CRTC4_REGISTER_OFFSET);
 		rdev->irq.stat_regs.evergreen.d6grph_int = RREG32(GRPH_INT_STATUS + EVERGREEN_CRTC5_REGISTER_OFFSET);
 	}
+
+	rdev->irq.stat_regs.evergreen.afmt_status1 = RREG32(AFMT_STATUS + EVERGREEN_CRTC0_REGISTER_OFFSET);
+	rdev->irq.stat_regs.evergreen.afmt_status2 = RREG32(AFMT_STATUS + EVERGREEN_CRTC1_REGISTER_OFFSET);
+	rdev->irq.stat_regs.evergreen.afmt_status3 = RREG32(AFMT_STATUS + EVERGREEN_CRTC2_REGISTER_OFFSET);
+	rdev->irq.stat_regs.evergreen.afmt_status4 = RREG32(AFMT_STATUS + EVERGREEN_CRTC3_REGISTER_OFFSET);
+	rdev->irq.stat_regs.evergreen.afmt_status5 = RREG32(AFMT_STATUS + EVERGREEN_CRTC4_REGISTER_OFFSET);
+	rdev->irq.stat_regs.evergreen.afmt_status6 = RREG32(AFMT_STATUS + EVERGREEN_CRTC5_REGISTER_OFFSET);
 
 	if (rdev->irq.stat_regs.evergreen.d1grph_int & GRPH_PFLIP_INT_OCCURRED)
 		WREG32(GRPH_INT_STATUS + EVERGREEN_CRTC0_REGISTER_OFFSET, GRPH_PFLIP_INT_CLEAR);
@@ -2829,6 +2866,36 @@ static void evergreen_irq_ack(struct radeon_device *rdev)
 		tmp |= DC_HPDx_INT_ACK;
 		WREG32(DC_HPD6_INT_CONTROL, tmp);
 	}
+	if (rdev->irq.stat_regs.evergreen.afmt_status1 & AFMT_AZ_FORMAT_WTRIG) {
+		tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET);
+		tmp |= AFMT_AZ_FORMAT_WTRIG_ACK;
+		WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET, tmp);
+	}
+	if (rdev->irq.stat_regs.evergreen.afmt_status2 & AFMT_AZ_FORMAT_WTRIG) {
+		tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET);
+		tmp |= AFMT_AZ_FORMAT_WTRIG_ACK;
+		WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET, tmp);
+	}
+	if (rdev->irq.stat_regs.evergreen.afmt_status3 & AFMT_AZ_FORMAT_WTRIG) {
+		tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET);
+		tmp |= AFMT_AZ_FORMAT_WTRIG_ACK;
+		WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET, tmp);
+	}
+	if (rdev->irq.stat_regs.evergreen.afmt_status4 & AFMT_AZ_FORMAT_WTRIG) {
+		tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET);
+		tmp |= AFMT_AZ_FORMAT_WTRIG_ACK;
+		WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET, tmp);
+	}
+	if (rdev->irq.stat_regs.evergreen.afmt_status5 & AFMT_AZ_FORMAT_WTRIG) {
+		tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET);
+		tmp |= AFMT_AZ_FORMAT_WTRIG_ACK;
+		WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET, tmp);
+	}
+	if (rdev->irq.stat_regs.evergreen.afmt_status6 & AFMT_AZ_FORMAT_WTRIG) {
+		tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET);
+		tmp |= AFMT_AZ_FORMAT_WTRIG_ACK;
+		WREG32(AFMT_AUDIO_PACKET_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET, tmp);
+	}
 }
 
 void evergreen_irq_disable(struct radeon_device *rdev)
@@ -2878,6 +2945,7 @@ int evergreen_irq_process(struct radeon_device *rdev)
 	u32 ring_index;
 	unsigned long flags;
 	bool queue_hotplug = false;
+	bool queue_hdmi = false;
 
 	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
@@ -3111,6 +3179,55 @@ restart_ih:
 				break;
 			}
 			break;
+		case 44: /* hdmi */
+			switch (src_data) {
+			case 0:
+				if (rdev->irq.stat_regs.evergreen.afmt_status1 & AFMT_AZ_FORMAT_WTRIG) {
+					rdev->irq.stat_regs.evergreen.afmt_status1 &= ~AFMT_AZ_FORMAT_WTRIG;
+					queue_hdmi = true;
+					DRM_DEBUG("IH: HDMI0\n");
+				}
+				break;
+			case 1:
+				if (rdev->irq.stat_regs.evergreen.afmt_status2 & AFMT_AZ_FORMAT_WTRIG) {
+					rdev->irq.stat_regs.evergreen.afmt_status2 &= ~AFMT_AZ_FORMAT_WTRIG;
+					queue_hdmi = true;
+					DRM_DEBUG("IH: HDMI1\n");
+				}
+				break;
+			case 2:
+				if (rdev->irq.stat_regs.evergreen.afmt_status3 & AFMT_AZ_FORMAT_WTRIG) {
+					rdev->irq.stat_regs.evergreen.afmt_status3 &= ~AFMT_AZ_FORMAT_WTRIG;
+					queue_hdmi = true;
+					DRM_DEBUG("IH: HDMI2\n");
+				}
+				break;
+			case 3:
+				if (rdev->irq.stat_regs.evergreen.afmt_status4 & AFMT_AZ_FORMAT_WTRIG) {
+					rdev->irq.stat_regs.evergreen.afmt_status4 &= ~AFMT_AZ_FORMAT_WTRIG;
+					queue_hdmi = true;
+					DRM_DEBUG("IH: HDMI3\n");
+				}
+				break;
+			case 4:
+				if (rdev->irq.stat_regs.evergreen.afmt_status5 & AFMT_AZ_FORMAT_WTRIG) {
+					rdev->irq.stat_regs.evergreen.afmt_status5 &= ~AFMT_AZ_FORMAT_WTRIG;
+					queue_hdmi = true;
+					DRM_DEBUG("IH: HDMI4\n");
+				}
+				break;
+			case 5:
+				if (rdev->irq.stat_regs.evergreen.afmt_status6 & AFMT_AZ_FORMAT_WTRIG) {
+					rdev->irq.stat_regs.evergreen.afmt_status6 &= ~AFMT_AZ_FORMAT_WTRIG;
+					queue_hdmi = true;
+					DRM_DEBUG("IH: HDMI5\n");
+				}
+				break;
+			default:
+				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				break;
+			}
+			break;
 		case 176: /* CP_INT in ring buffer */
 		case 177: /* CP_INT in IB1 */
 		case 178: /* CP_INT in IB2 */
@@ -3154,6 +3271,8 @@ restart_ih:
 		goto restart_ih;
 	if (queue_hotplug)
 		schedule_work(&rdev->hotplug_work);
+	if (queue_hdmi)
+		schedule_work(&rdev->audio_work);
 	rdev->ih.rptr = rptr;
 	WREG32(IH_RB_RPTR, rdev->ih.rptr);
 	spin_unlock_irqrestore(&rdev->ih.lock, flags);
@@ -3248,12 +3367,9 @@ static int evergreen_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
-	if (r) {
-		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
-		rdev->accel_working = false;
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
 		return r;
-	}
 
 	r = r600_audio_init(rdev);
 	if (r) {
@@ -3319,10 +3435,6 @@ int evergreen_init(struct radeon_device *rdev)
 {
 	int r;
 
-	/* This don't do much */
-	r = radeon_gem_init(rdev);
-	if (r)
-		return r;
 	/* Read BIOS */
 	if (!radeon_get_bios(rdev)) {
 		if (ASIC_IS_AVIVO(rdev))
@@ -3434,7 +3546,6 @@ void evergreen_fini(struct radeon_device *rdev)
 	evergreen_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
-	radeon_semaphore_driver_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_agp_fini(rdev);
 	radeon_bo_fini(rdev);

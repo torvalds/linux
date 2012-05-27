@@ -213,7 +213,7 @@ EXPORT_SYMBOL(clk_unregister);
 /*
  * Disable any unused clocks left on by the bootloader
  */
-static int __init clk_disable_unused(void)
+int __init davinci_clk_disable_unused(void)
 {
 	struct clk *ck;
 
@@ -237,7 +237,6 @@ static int __init clk_disable_unused(void)
 
 	return 0;
 }
-late_initcall(clk_disable_unused);
 #endif
 
 static unsigned long clk_sysclk_recalc(struct clk *clk)

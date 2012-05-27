@@ -228,7 +228,7 @@ config SND_OXYGEN
 	  Say Y here to include support for sound cards based on the
 	  C-Media CMI8788 (Oxygen HD Audio) chip:
 	   * Asound A-8788
-	   * Asus Xonar DG
+	   * Asus Xonar DG/DGX
 	   * AuzenTech X-Meridian
 	   * AuzenTech X-Meridian 2G
 	   * Bgears b-Enspirer

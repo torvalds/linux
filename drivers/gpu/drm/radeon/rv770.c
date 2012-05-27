@@ -1114,12 +1114,9 @@ static int rv770_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
-	if (r) {
-		dev_err(rdev->dev, "IB test failed (%d).\n", r);
-		rdev->accel_working = false;
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
 		return r;
-	}
 
 	return 0;
 }
@@ -1178,10 +1175,6 @@ int rv770_init(struct radeon_device *rdev)
 {
 	int r;
 
-	/* This don't do much */
-	r = radeon_gem_init(rdev);
-	if (r)
-		return r;
 	/* Read BIOS */
 	if (!radeon_get_bios(rdev)) {
 		if (ASIC_IS_AVIVO(rdev))
@@ -1281,7 +1274,6 @@ void rv770_fini(struct radeon_device *rdev)
 	rv770_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
-	radeon_semaphore_driver_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_agp_fini(rdev);
 	radeon_bo_fini(rdev);

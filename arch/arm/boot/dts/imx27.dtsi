@@ -59,28 +59,28 @@
 				status = "disabled";
 			};
 
-			uart1: uart@1000a000 {
+			uart1: serial@1000a000 {
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1000a000 0x1000>;
 				interrupts = <20>;
 				status = "disabled";
 			};
 
-			uart2: uart@1000b000 {
+			uart2: serial@1000b000 {
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1000b000 0x1000>;
 				interrupts = <19>;
 				status = "disabled";
 			};
 
-			uart3: uart@1000c000 {
+			uart3: serial@1000c000 {
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1000c000 0x1000>;
 				interrupts = <18>;
 				status = "disabled";
 			};
 
-			uart4: uart@1000d000 {
+			uart4: serial@1000d000 {
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1000d000 0x1000>;
 				interrupts = <17>;
@@ -183,14 +183,14 @@
 				status = "disabled";
 			};
 
-			uart5: uart@1001b000 {
+			uart5: serial@1001b000 {
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1001b000 0x1000>;
 				interrupts = <49>;
 				status = "disabled";
 			};
 
-			uart6: uart@1001c000 {
+			uart6: serial@1001c000 {
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1001c000 0x1000>;
 				interrupts = <48>;
@@ -206,7 +206,7 @@
 				status = "disabled";
 			};
 
-			fec: fec@1002b000 {
+			fec: ethernet@1002b000 {
 				compatible = "fsl,imx27-fec";
 				reg = <0x1002b000 0x4000>;
 				interrupts = <50>;

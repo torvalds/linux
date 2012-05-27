@@ -900,6 +900,9 @@ static void perf_top__start_counters(struct perf_top *top)
 			attr->read_format |= PERF_FORMAT_ID;
 		}
 
+		if (perf_target__has_cpu(&top->target))
+			attr->sample_type |= PERF_SAMPLE_CPU;
+
 		if (symbol_conf.use_callchain)
 			attr->sample_type |= PERF_SAMPLE_CALLCHAIN;
 
@@ -1159,7 +1162,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	struct perf_top top = {
 		.count_filter	     = 5,
 		.delay_secs	     = 2,
-		.freq		     = 1000, /* 1 KHz */
+		.freq		     = 4000, /* 4 KHz */
 		.mmap_pages	     = 128,
 		.sym_pcnt_filter     = 5,
 		.target		     = {

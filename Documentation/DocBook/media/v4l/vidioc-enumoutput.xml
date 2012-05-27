@@ -170,7 +170,7 @@ input/output interface to linux-media@vger.kernel.org on 19 Oct 2009.
 	  <row>
 	    <entry><constant>V4L2_OUT_CAP_CUSTOM_TIMINGS</constant></entry>
 	    <entry>0x00000002</entry>
-	    <entry>This output supports setting custom video timings by using VIDIOC_S_DV_TIMINGS.</entry>
+	    <entry>This output supports setting video timings by using VIDIOC_S_DV_TIMINGS.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_OUT_CAP_STD</constant></entry>

@@ -1075,19 +1075,19 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	if (request_irq(nvt->cir_irq, nvt_cir_isr, IRQF_SHARED,
 			NVT_DRIVER_NAME, (void *)nvt))
-		goto failure;
+		goto failure2;
 
 	if (!request_region(nvt->cir_wake_addr,
 			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME))
-		goto failure;
+		goto failure3;
 
 	if (request_irq(nvt->cir_wake_irq, nvt_cir_wake_isr, IRQF_SHARED,
 			NVT_DRIVER_NAME, (void *)nvt))
-		goto failure;
+		goto failure4;
 
 	ret = rc_register_device(rdev);
 	if (ret)
-		goto failure;
+		goto failure5;
 
 	device_init_wakeup(&pdev->dev, true);
 	nvt->rdev = rdev;
@@ -1099,17 +1099,15 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	return 0;
 
+failure5:
+	free_irq(nvt->cir_wake_irq, nvt);
+failure4:
+	release_region(nvt->cir_wake_addr, CIR_IOREG_LENGTH);
+failure3:
+	free_irq(nvt->cir_irq, nvt);
+failure2:
+	release_region(nvt->cir_addr, CIR_IOREG_LENGTH);
 failure:
-	if (nvt->cir_irq)
-		free_irq(nvt->cir_irq, nvt);
-	if (nvt->cir_addr)
-		release_region(nvt->cir_addr, CIR_IOREG_LENGTH);
-
-	if (nvt->cir_wake_irq)
-		free_irq(nvt->cir_wake_irq, nvt);
-	if (nvt->cir_wake_addr)
-		release_region(nvt->cir_wake_addr, CIR_IOREG_LENGTH);
-
 	rc_free_device(rdev);
 	kfree(nvt);
 

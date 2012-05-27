@@ -361,14 +361,6 @@ static int __devinit twl4030_kp_probe(struct platform_device *pdev)
 	kp->irq = platform_get_irq(pdev, 0);
 
 	/* setup input device */
-	__set_bit(EV_KEY, input->evbit);
-
-	/* Enable auto repeat feature of Linux input subsystem */
-	if (pdata->rep)
-		__set_bit(EV_REP, input->evbit);
-
-	input_set_capability(input, EV_MSC, MSC_SCAN);
-
 	input->name		= "TWL4030 Keypad";
 	input->phys		= "twl4030_keypad/input0";
 	input->dev.parent	= &pdev->dev;
@@ -378,12 +370,19 @@ static int __devinit twl4030_kp_probe(struct platform_device *pdev)
 	input->id.product	= 0x0001;
 	input->id.version	= 0x0003;
 
-	input->keycode		= kp->keymap;
-	input->keycodesize	= sizeof(kp->keymap[0]);
-	input->keycodemax	= ARRAY_SIZE(kp->keymap);
+	error = matrix_keypad_build_keymap(keymap_data, NULL,
+					   TWL4030_MAX_ROWS,
+					   1 << TWL4030_ROW_SHIFT,
+					   kp->keymap, input);
+	if (error) {
+		dev_err(kp->dbg_dev, "Failed to build keymap\n");
+		goto err1;
+	}
 
-	matrix_keypad_build_keymap(keymap_data, TWL4030_ROW_SHIFT,
-				   input->keycode, input->keybit);
+	input_set_capability(input, EV_MSC, MSC_SCAN);
+	/* Enable auto repeat feature of Linux input subsystem */
+	if (pdata->rep)
+		__set_bit(EV_REP, input->evbit);
 
 	error = input_register_device(input);
 	if (error) {

@@ -224,7 +224,7 @@ static int __devinit sdv_gpio_probe(struct pci_dev *pdev,
 
 	ret = bgpio_init(&sd->bgpio, &pdev->dev, 4,
 			sd->gpio_pub_base + GPINR, sd->gpio_pub_base + GPOUTR,
-			NULL, sd->gpio_pub_base + GPOER, NULL, false);
+			NULL, sd->gpio_pub_base + GPOER, NULL, 0);
 	if (ret)
 		goto unmap;
 	sd->bgpio.gc.ngpio = SDV_NUM_PUB_GPIOS;
@@ -282,17 +282,7 @@ static struct pci_driver sdv_gpio_driver = {
 	.remove = sdv_gpio_remove,
 };
 
-static int __init sdv_gpio_init(void)
-{
-	return pci_register_driver(&sdv_gpio_driver);
-}
-module_init(sdv_gpio_init);
-
-static void __exit sdv_gpio_exit(void)
-{
-	pci_unregister_driver(&sdv_gpio_driver);
-}
-module_exit(sdv_gpio_exit);
+module_pci_driver(sdv_gpio_driver);
 
 MODULE_AUTHOR("Hans J. Koch <hjk@linutronix.de>");
 MODULE_DESCRIPTION("GPIO interface for Intel Sodaville SoCs");
