@@ -61,11 +61,13 @@ static DEFINE_PER_CPU_READ_MOSTLY(int, tlb_vector_offset);
  */
 void leave_mm(int cpu)
 {
+	struct mm_struct *active_mm = this_cpu_read(cpu_tlbstate.active_mm);
 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
 		BUG();
-	cpumask_clear_cpu(cpu,
-			  mm_cpumask(this_cpu_read(cpu_tlbstate.active_mm)));
-	load_cr3(swapper_pg_dir);
+	if (cpumask_test_cpu(cpu, mm_cpumask(active_mm))) {
+		cpumask_clear_cpu(cpu, mm_cpumask(active_mm));
+		load_cr3(swapper_pg_dir);
+	}
 }
 EXPORT_SYMBOL_GPL(leave_mm);
 

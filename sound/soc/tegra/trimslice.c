@@ -27,6 +27,7 @@
 #include <asm/mach-types.h>
 
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -38,9 +39,6 @@
 
 #include "../codecs/tlv320aic23.h"
 
-#include "tegra_das.h"
-#include "tegra_i2s.h"
-#include "tegra_pcm.h"
 #include "tegra_asoc_utils.h"
 
 #define DRV_NAME "tegra-snd-trimslice"
@@ -119,8 +117,8 @@ static struct snd_soc_dai_link trimslice_tlv320aic23_dai = {
 	.name = "TLV320AIC23",
 	.stream_name = "AIC23",
 	.codec_name = "tlv320aic23-codec.2-001a",
-	.platform_name = "tegra-pcm-audio",
-	.cpu_dai_name = "tegra-i2s.0",
+	.platform_name = "tegra20-i2s.0",
+	.cpu_dai_name = "tegra20-i2s.0",
 	.codec_dai_name = "tlv320aic23-hifi",
 	.ops = &trimslice_asoc_ops,
 };
@@ -150,6 +148,32 @@ static __devinit int tegra_snd_trimslice_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't allocate tegra_trimslice\n");
 		ret = -ENOMEM;
 		goto err;
+	}
+
+	if (pdev->dev.of_node) {
+		trimslice_tlv320aic23_dai.codec_name = NULL;
+		trimslice_tlv320aic23_dai.codec_of_node = of_parse_phandle(
+				pdev->dev.of_node, "nvidia,audio-codec", 0);
+		if (!trimslice_tlv320aic23_dai.codec_of_node) {
+			dev_err(&pdev->dev,
+				"Property 'nvidia,audio-codec' missing or invalid\n");
+			ret = -EINVAL;
+			goto err;
+		}
+
+		trimslice_tlv320aic23_dai.cpu_dai_name = NULL;
+		trimslice_tlv320aic23_dai.cpu_dai_of_node = of_parse_phandle(
+				pdev->dev.of_node, "nvidia,i2s-controller", 0);
+		if (!trimslice_tlv320aic23_dai.cpu_dai_of_node) {
+			dev_err(&pdev->dev,
+				"Property 'nvidia,i2s-controller' missing or invalid\n");
+			ret = -EINVAL;
+			goto err;
+		}
+
+		trimslice_tlv320aic23_dai.platform_name = NULL;
+		trimslice_tlv320aic23_dai.platform_of_node =
+				trimslice_tlv320aic23_dai.cpu_dai_of_node;
 	}
 
 	ret = tegra_asoc_utils_init(&trimslice->util_data, &pdev->dev);
@@ -187,10 +211,17 @@ static int __devexit tegra_snd_trimslice_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id trimslice_of_match[] __devinitconst = {
+	{ .compatible = "nvidia,tegra-audio-trimslice", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, trimslice_of_match);
+
 static struct platform_driver tegra_snd_trimslice_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table = trimslice_of_match,
 	},
 	.probe = tegra_snd_trimslice_probe,
 	.remove = __devexit_p(tegra_snd_trimslice_remove),

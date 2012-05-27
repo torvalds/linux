@@ -2,6 +2,14 @@
 # GPIO infrastructure and drivers
 #
 
+config ARCH_HAVE_CUSTOM_GPIO_H
+	bool
+	help
+	  Selecting this config option from the architecture Kconfig allows
+	  the architecture to provide a custom asm/gpio.h implementation
+	  overriding the default implementations.  New uses of this are
+	  strongly discouraged.
+
 config ARCH_WANT_OPTIONAL_GPIOLIB
 	bool
 	help
@@ -36,6 +44,10 @@ menuconfig GPIOLIB
 	  If unsure, say N.
 
 if GPIOLIB
+
+config OF_GPIO
+	def_bool y
+	depends on OF && !SPARC
 
 config DEBUG_GPIO
 	bool "Debug GPIO calls"
@@ -249,7 +261,7 @@ config GPIO_MC9S08DZ60
 	  Select this to enable the MC9S08DZ60 GPIO driver
 
 config GPIO_PCA953X
-	tristate "PCA953x, PCA955x, TCA64xx, and MAX7310 I/O ports"
+	tristate "PCA953x, PCA955x, PCA957x, TCA64xx, and MAX7310 I/O ports"
 	depends on I2C
 	help
 	  Say yes here to provide access to several register-oriented
@@ -258,10 +270,11 @@ config GPIO_PCA953X
 
 	  4 bits:	pca9536, pca9537
 
-	  8 bits:	max7310, pca9534, pca9538, pca9554, pca9557,
-	  		tca6408
+	  8 bits:	max7310, max7315, pca6107, pca9534, pca9538, pca9554,
+			pca9556, pca9557, pca9574, tca6408
 
-	  16 bits:	pca9535, pca9539, pca9555, tca6416
+	  16 bits:	max7312, max7313, pca9535, pca9539, pca9555, pca9575,
+			tca6416
 
 config GPIO_PCA953X_IRQ
 	bool "Interrupt controller support for PCA953x"
@@ -293,6 +306,15 @@ config GPIO_PCF857X
 
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
+
+config GPIO_RC5T583
+	bool "RICOH RC5T583 GPIO"
+	depends on MFD_RC5T583
+	help
+	  Select this option to enable GPIO driver for the Ricoh RC5T583
+	  chip family.
+	  This driver provides the support for driving/reading the gpio pins
+	  of RC5T583 device through standard gpio library.
 
 config GPIO_SX150X
 	bool "Semtech SX150x I2C GPIO expander"
@@ -405,6 +427,7 @@ config GPIO_BT8XX
 config GPIO_LANGWELL
 	bool "Intel Langwell/Penwell GPIO support"
 	depends on PCI && X86
+	select IRQ_DOMAIN
 	help
 	  Say Y here to support Intel Langwell/Penwell GPIO.
 
@@ -520,4 +543,12 @@ config GPIO_TPS65910
 	help
 	  Select this option to enable GPIO driver for the TPS65910
 	  chip family.
+
+config GPIO_MSIC
+	bool "Intel MSIC mixed signal gpio support"
+	depends on MFD_INTEL_MSIC
+	help
+	  Enable support for GPIO on intel MSIC controllers found in
+	  intel MID devices
+
 endif

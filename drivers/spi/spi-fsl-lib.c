@@ -22,7 +22,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/of_platform.h>
-#include <linux/of_spi.h>
+#include <linux/spi/spi.h>
 #include <sysdev/fsl_soc.h>
 
 #include "spi-fsl-lib.h"

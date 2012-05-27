@@ -1046,6 +1046,13 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	if (cx23885_boards[dev->board].ci_type > 0)
 		cx_clear(RDR_RDRCTL1, 1 << 8);
 
+	switch (dev->board) {
+	case CX23885_BOARD_TEVII_S470:
+	case CX23885_BOARD_TEVII_S471:
+		cx_clear(RDR_RDRCTL1, 1 << 8);
+		break;
+	}
+
 	return 0;
 }
 

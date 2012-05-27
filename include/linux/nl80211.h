@@ -1594,6 +1594,8 @@ enum nl80211_sta_flags {
 	NL80211_STA_FLAG_MAX = __NL80211_STA_FLAG_AFTER_LAST - 1
 };
 
+#define NL80211_STA_FLAG_MAX_OLD_API	NL80211_STA_FLAG_TDLS_PEER
+
 /**
  * struct nl80211_sta_flag_update - station flags mask/set
  * @mask: mask of station flags to set
@@ -1994,9 +1996,9 @@ enum nl80211_reg_rule_flags {
  * enum nl80211_dfs_regions - regulatory DFS regions
  *
  * @NL80211_DFS_UNSET: Country has no DFS master region specified
- * @NL80211_DFS_FCC_: Country follows DFS master rules from FCC
- * @NL80211_DFS_FCC_: Country follows DFS master rules from ETSI
- * @NL80211_DFS_JP_: Country follows DFS master rules from JP/MKK/Telec
+ * @NL80211_DFS_FCC: Country follows DFS master rules from FCC
+ * @NL80211_DFS_ETSI: Country follows DFS master rules from ETSI
+ * @NL80211_DFS_JP: Country follows DFS master rules from JP/MKK/Telec
  */
 enum nl80211_dfs_regions {
 	NL80211_DFS_UNSET	= 0,

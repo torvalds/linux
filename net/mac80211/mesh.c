@@ -109,8 +109,10 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 
 	/* Disallow HT40+/- mismatch */
 	if (ie->ht_operation &&
-	    local->_oper_channel_type > NL80211_CHAN_HT20 &&
-	    sta_channel_type > NL80211_CHAN_HT20 &&
+	    (local->_oper_channel_type == NL80211_CHAN_HT40MINUS ||
+	    local->_oper_channel_type == NL80211_CHAN_HT40PLUS) &&
+	    (sta_channel_type == NL80211_CHAN_HT40MINUS ||
+	     sta_channel_type == NL80211_CHAN_HT40PLUS) &&
 	    local->_oper_channel_type != sta_channel_type)
 		goto mismatch;
 

@@ -1702,10 +1702,10 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 	 * For AR9462, make sure that calibration data for
 	 * re-using are present.
 	 */
-	if (AR_SREV_9462(ah) && (!ah->caldata ||
-				 !ah->caldata->done_txiqcal_once ||
-				 !ah->caldata->done_txclcal_once ||
-				 !ah->caldata->rtt_hist.num_readings))
+	if (AR_SREV_9462(ah) && (ah->caldata &&
+				 (!ah->caldata->done_txiqcal_once ||
+				  !ah->caldata->done_txclcal_once ||
+				  !ah->caldata->rtt_done)))
 		goto fail;
 
 	ath_dbg(common, RESET, "FastChannelChange for %d -> %d\n",
@@ -1941,7 +1941,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (caldata) {
 		caldata->done_txiqcal_once = false;
 		caldata->done_txclcal_once = false;
-		caldata->rtt_hist.num_readings = 0;
 	}
 	if (!ath9k_hw_init_cal(ah, chan))
 		return -EIO;

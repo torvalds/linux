@@ -432,6 +432,7 @@
 #define  SIO_PDR_UIO_OUT_LO__A                                             0x7F0016
 #define  SIO_PDR_OHW_CFG__A                                                0x7F001F
 #define    SIO_PDR_OHW_CFG_FREF_SEL__M                                     0x3
+#define  SIO_PDR_GPIO_CFG__A                                               0x7F0021
 #define  SIO_PDR_MSTRT_CFG__A                                              0x7F0025
 #define  SIO_PDR_MERR_CFG__A                                               0x7F0026
 #define  SIO_PDR_MCLK_CFG__A                                               0x7F0028
@@ -446,4 +447,5 @@
 #define  SIO_PDR_MD5_CFG__A                                                0x7F0030
 #define  SIO_PDR_MD6_CFG__A                                                0x7F0031
 #define  SIO_PDR_MD7_CFG__A                                                0x7F0032
+#define  SIO_PDR_SMA_RX_CFG__A                                             0x7F0037
 #define  SIO_PDR_SMA_TX_CFG__A                                             0x7F0038

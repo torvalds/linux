@@ -53,8 +53,18 @@ static inline void omap16xx_map_io(void)
 }
 #endif
 
+#ifdef CONFIG_OMAP_SERIAL_WAKE
+int omap_serial_wakeup_init(void);
+#else
+static inline int omap_serial_wakeup_init(void)
+{
+	return 0;
+}
+#endif
+
 void omap1_init_early(void);
 void omap1_init_irq(void);
+void omap1_init_late(void);
 void omap1_restart(char, const char *);
 
 extern void __init omap_check_revision(void);
@@ -63,7 +73,14 @@ extern void omap1_nand_cmd_ctl(struct mtd_info *mtd, int cmd,
 			       unsigned int ctrl);
 
 extern struct sys_timer omap1_timer;
-extern bool omap_32k_timer_init(void);
+#ifdef CONFIG_OMAP_32K_TIMER
+extern int omap_32k_timer_init(void);
+#else
+static inline int __init omap_32k_timer_init(void)
+{
+	return -ENODEV;
+}
+#endif
 
 extern u32 omap_irq_flags;
 

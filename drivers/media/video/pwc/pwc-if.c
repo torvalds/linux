@@ -357,6 +357,7 @@ handler_end:
 		PWC_ERROR("Error (%d) re-submitting urb in pwc_isoc_handler.\n", i);
 }
 
+/* Both v4l2_lock and vb_queue_lock should be locked when calling this */
 static int pwc_isoc_init(struct pwc_device *pdev)
 {
 	struct usb_device *udev;
@@ -365,9 +366,6 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	struct usb_interface *intf;
 	struct usb_host_interface *idesc = NULL;
 	int compression = 0; /* 0..3 = uncompressed..high */
-
-	if (pdev->iso_init)
-		return 0;
 
 	pdev->vsync = 0;
 	pdev->vlast_packet_size = 0;
@@ -418,7 +416,6 @@ retry:
 		urb = usb_alloc_urb(ISO_FRAMES_PER_DESC, GFP_KERNEL);
 		if (urb == NULL) {
 			PWC_ERROR("Failed to allocate urb %d\n", i);
-			pdev->iso_init = 1;
 			pwc_isoc_cleanup(pdev);
 			return -ENOMEM;
 		}
@@ -435,7 +432,6 @@ retry:
 							  &urb->transfer_dma);
 		if (urb->transfer_buffer == NULL) {
 			PWC_ERROR("Failed to allocate urb buffer %d\n", i);
-			pdev->iso_init = 1;
 			pwc_isoc_cleanup(pdev);
 			return -ENOMEM;
 		}
@@ -455,13 +451,11 @@ retry:
 		ret = usb_submit_urb(pdev->urbs[i], GFP_KERNEL);
 		if (ret == -ENOSPC && compression < 3) {
 			compression++;
-			pdev->iso_init = 1;
 			pwc_isoc_cleanup(pdev);
 			goto retry;
 		}
 		if (ret) {
 			PWC_ERROR("isoc_init() submit_urb %d failed with error %d\n", i, ret);
-			pdev->iso_init = 1;
 			pwc_isoc_cleanup(pdev);
 			return ret;
 		}
@@ -469,7 +463,6 @@ retry:
 	}
 
 	/* All is done... */
-	pdev->iso_init = 1;
 	PWC_DEBUG_OPEN("<< pwc_isoc_init()\n");
 	return 0;
 }
@@ -507,21 +500,19 @@ static void pwc_iso_free(struct pwc_device *pdev)
 	}
 }
 
+/* Both v4l2_lock and vb_queue_lock should be locked when calling this */
 static void pwc_isoc_cleanup(struct pwc_device *pdev)
 {
 	PWC_DEBUG_OPEN(">> pwc_isoc_cleanup()\n");
-
-	if (pdev->iso_init == 0)
-		return;
 
 	pwc_iso_stop(pdev);
 	pwc_iso_free(pdev);
 	usb_set_interface(pdev->udev, 0, 0);
 
-	pdev->iso_init = 0;
 	PWC_DEBUG_OPEN("<< pwc_isoc_cleanup()\n");
 }
 
+/* Must be called with vb_queue_lock hold */
 static void pwc_cleanup_queued_bufs(struct pwc_device *pdev)
 {
 	unsigned long flags = 0;
@@ -573,18 +564,13 @@ static const char *pwc_sensor_type_to_string(unsigned int sensor_type)
 
 int pwc_test_n_set_capt_file(struct pwc_device *pdev, struct file *file)
 {
-	int r = 0;
-
-	mutex_lock(&pdev->capt_file_lock);
 	if (pdev->capt_file != NULL &&
-	    pdev->capt_file != file) {
-		r = -EBUSY;
-		goto leave;
-	}
+	    pdev->capt_file != file)
+		return -EBUSY;
+
 	pdev->capt_file = file;
-leave:
-	mutex_unlock(&pdev->capt_file_lock);
-	return r;
+
+	return 0;
 }
 
 static void pwc_video_release(struct v4l2_device *v)
@@ -592,6 +578,7 @@ static void pwc_video_release(struct v4l2_device *v)
 	struct pwc_device *pdev = container_of(v, struct pwc_device, v4l2_dev);
 
 	v4l2_ctrl_handler_free(&pdev->ctrl_handler);
+	v4l2_device_unregister(&pdev->v4l2_dev);
 	kfree(pdev->ctrl_buf);
 	kfree(pdev);
 }
@@ -600,10 +587,25 @@ static int pwc_video_close(struct file *file)
 {
 	struct pwc_device *pdev = video_drvdata(file);
 
+	/*
+	 * If we're still streaming vb2_queue_release will call stream_stop
+	 * so we must take both the v4l2_lock and the vb_queue_lock.
+	 */
+	if (mutex_lock_interruptible(&pdev->v4l2_lock))
+		return -ERESTARTSYS;
+	if (mutex_lock_interruptible(&pdev->vb_queue_lock)) {
+		mutex_unlock(&pdev->v4l2_lock);
+		return -ERESTARTSYS;
+	}
+
 	if (pdev->capt_file == file) {
 		vb2_queue_release(&pdev->vb_queue);
 		pdev->capt_file = NULL;
 	}
+
+	mutex_unlock(&pdev->vb_queue_lock);
+	mutex_unlock(&pdev->v4l2_lock);
+
 	return v4l2_fh_release(file);
 }
 
@@ -611,35 +613,81 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 			      size_t count, loff_t *ppos)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+	int lock_v4l2 = 0;
+	ssize_t ret;
 
-	if (!pdev->udev)
-		return -ENODEV;
+	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
+		return -ERESTARTSYS;
 
-	if (pwc_test_n_set_capt_file(pdev, file))
-		return -EBUSY;
+	ret = pwc_test_n_set_capt_file(pdev, file);
+	if (ret)
+		goto out;
 
-	return vb2_read(&pdev->vb_queue, buf, count, ppos,
-			file->f_flags & O_NONBLOCK);
+	/* stream_start will get called so we must take the v4l2_lock */
+	if (pdev->vb_queue.fileio == NULL)
+		lock_v4l2 = 1;
+
+	/* Use try_lock, since we're taking the locks in the *wrong* order! */
+	if (lock_v4l2 && !mutex_trylock(&pdev->v4l2_lock)) {
+		ret = -ERESTARTSYS;
+		goto out;
+	}
+	ret = vb2_read(&pdev->vb_queue, buf, count, ppos,
+		       file->f_flags & O_NONBLOCK);
+	if (lock_v4l2)
+		mutex_unlock(&pdev->v4l2_lock);
+out:
+	mutex_unlock(&pdev->vb_queue_lock);
+	return ret;
 }
 
 static unsigned int pwc_video_poll(struct file *file, poll_table *wait)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+	struct vb2_queue *q = &pdev->vb_queue;
+	unsigned long req_events = poll_requested_events(wait);
+	unsigned int ret = POLL_ERR;
+	int lock_v4l2 = 0;
 
-	if (!pdev->udev)
+	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
 		return POLL_ERR;
 
-	return vb2_poll(&pdev->vb_queue, file, wait);
+	/* Will this start fileio and thus call start_stream? */
+	if ((req_events & (POLLIN | POLLRDNORM)) &&
+	    q->num_buffers == 0 && !q->streaming && q->fileio == NULL) {
+		if (pwc_test_n_set_capt_file(pdev, file))
+			goto out;
+		lock_v4l2 = 1;
+	}
+
+	/* Use try_lock, since we're taking the locks in the *wrong* order! */
+	if (lock_v4l2 && !mutex_trylock(&pdev->v4l2_lock))
+		goto out;
+	ret = vb2_poll(&pdev->vb_queue, file, wait);
+	if (lock_v4l2)
+		mutex_unlock(&pdev->v4l2_lock);
+
+out:
+	if (!pdev->udev)
+		ret |= POLLHUP;
+	mutex_unlock(&pdev->vb_queue_lock);
+	return ret;
 }
 
 static int pwc_video_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+	int ret;
 
-	if (pdev->capt_file != file)
-		return -EBUSY;
+	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
+		return -ERESTARTSYS;
 
-	return vb2_mmap(&pdev->vb_queue, vma);
+	ret = pwc_test_n_set_capt_file(pdev, file);
+	if (ret == 0)
+		ret = vb2_mmap(&pdev->vb_queue, vma);
+
+	mutex_unlock(&pdev->vb_queue_lock);
+	return ret;
 }
 
 /***************************************************************************/
@@ -715,12 +763,14 @@ static void buffer_queue(struct vb2_buffer *vb)
 	struct pwc_frame_buf *buf = container_of(vb, struct pwc_frame_buf, vb);
 	unsigned long flags = 0;
 
-	spin_lock_irqsave(&pdev->queued_bufs_lock, flags);
 	/* Check the device has not disconnected between prep and queuing */
-	if (pdev->udev)
-		list_add_tail(&buf->list, &pdev->queued_bufs);
-	else
+	if (!pdev->udev) {
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		return;
+	}
+
+	spin_lock_irqsave(&pdev->queued_bufs_lock, flags);
+	list_add_tail(&buf->list, &pdev->queued_bufs);
 	spin_unlock_irqrestore(&pdev->queued_bufs_lock, flags);
 }
 
@@ -729,11 +779,8 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 	int r;
 
-	mutex_lock(&pdev->udevlock);
-	if (!pdev->udev) {
-		r = -ENODEV;
-		goto leave;
-	}
+	if (!pdev->udev)
+		return -ENODEV;
 
 	/* Turn on camera and set LEDS on */
 	pwc_camera_power(pdev, 1);
@@ -747,8 +794,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 		/* And cleanup any queued bufs!! */
 		pwc_cleanup_queued_bufs(pdev);
 	}
-leave:
-	mutex_unlock(&pdev->udevlock);
+
 	return r;
 }
 
@@ -756,17 +802,27 @@ static int stop_streaming(struct vb2_queue *vq)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 
-	mutex_lock(&pdev->udevlock);
 	if (pdev->udev) {
 		pwc_set_leds(pdev, 0, 0);
 		pwc_camera_power(pdev, 0);
 		pwc_isoc_cleanup(pdev);
 	}
-	mutex_unlock(&pdev->udevlock);
 
 	pwc_cleanup_queued_bufs(pdev);
 
 	return 0;
+}
+
+static void wait_prepare(struct vb2_queue *vq)
+{
+	struct pwc_device *pdev = vb2_get_drv_priv(vq);
+	mutex_unlock(&pdev->vb_queue_lock);
+}
+
+static void wait_finish(struct vb2_queue *vq)
+{
+	struct pwc_device *pdev = vb2_get_drv_priv(vq);
+	mutex_lock(&pdev->vb_queue_lock);
 }
 
 static struct vb2_ops pwc_vb_queue_ops = {
@@ -778,6 +834,8 @@ static struct vb2_ops pwc_vb_queue_ops = {
 	.buf_queue		= buffer_queue,
 	.start_streaming	= start_streaming,
 	.stop_streaming		= stop_streaming,
+	.wait_prepare		= wait_prepare,
+	.wait_finish		= wait_finish,
 };
 
 /***************************************************************************/
@@ -1057,8 +1115,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pdev->features = features;
 	pwc_construct(pdev); /* set min/max sizes correct */
 
-	mutex_init(&pdev->capt_file_lock);
-	mutex_init(&pdev->udevlock);
+	mutex_init(&pdev->v4l2_lock);
+	mutex_init(&pdev->vb_queue_lock);
 	spin_lock_init(&pdev->queued_bufs_lock);
 	INIT_LIST_HEAD(&pdev->queued_bufs);
 
@@ -1130,6 +1188,16 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	pdev->v4l2_dev.ctrl_handler = &pdev->ctrl_handler;
 	pdev->vdev.v4l2_dev = &pdev->v4l2_dev;
+	pdev->vdev.lock = &pdev->v4l2_lock;
+
+	/*
+	 * Don't take v4l2_lock for these ioctls. This improves latency if
+	 * v4l2_lock is taken for a long time, e.g. when changing a control
+	 * value, and a new frame is ready to be dequeued.
+	 */
+	v4l2_disable_ioctl_locking(&pdev->vdev, VIDIOC_DQBUF);
+	v4l2_disable_ioctl_locking(&pdev->vdev, VIDIOC_QBUF);
+	v4l2_disable_ioctl_locking(&pdev->vdev, VIDIOC_QUERYBUF);
 
 	rc = video_register_device(&pdev->vdev, VFL_TYPE_GRABBER, -1);
 	if (rc < 0) {
@@ -1185,16 +1253,20 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 	struct v4l2_device *v = usb_get_intfdata(intf);
 	struct pwc_device *pdev = container_of(v, struct pwc_device, v4l2_dev);
 
-	mutex_lock(&pdev->udevlock);
+	mutex_lock(&pdev->v4l2_lock);
+
+	mutex_lock(&pdev->vb_queue_lock);
 	/* No need to keep the urbs around after disconnection */
-	pwc_isoc_cleanup(pdev);
+	if (pdev->vb_queue.streaming)
+		pwc_isoc_cleanup(pdev);
 	pdev->udev = NULL;
-	mutex_unlock(&pdev->udevlock);
-
 	pwc_cleanup_queued_bufs(pdev);
+	mutex_unlock(&pdev->vb_queue_lock);
 
+	v4l2_device_disconnect(&pdev->v4l2_dev);
 	video_unregister_device(&pdev->vdev);
-	v4l2_device_unregister(&pdev->v4l2_dev);
+
+	mutex_unlock(&pdev->v4l2_lock);
 
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 	if (pdev->button_dev)
@@ -1229,15 +1301,4 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("pwcx");
 MODULE_VERSION( PWC_VERSION );
 
-static int __init usb_pwc_init(void)
-{
-	return usb_register(&pwc_driver);
-}
-
-static void __exit usb_pwc_exit(void)
-{
-	usb_deregister(&pwc_driver);
-}
-
-module_init(usb_pwc_init);
-module_exit(usb_pwc_exit);
+module_usb_driver(pwc_driver);

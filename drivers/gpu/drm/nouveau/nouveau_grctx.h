@@ -18,7 +18,6 @@ struct nouveau_grctx {
 	uint32_t ctxvals_base;
 };
 
-#ifdef CP_CTX
 static inline void
 cp_out(struct nouveau_grctx *ctx, uint32_t inst)
 {
@@ -88,10 +87,8 @@ _cp_bra(struct nouveau_grctx *ctx, u32 mod, int flag, int state, int name)
 		    (state ? 0 : CP_BRA_IF_CLEAR));
 }
 #define cp_bra(c, f, s, n) _cp_bra((c), 0, CP_FLAG_##f, CP_FLAG_##f##_##s, n)
-#ifdef CP_BRA_MOD
 #define cp_cal(c, f, s, n) _cp_bra((c), 1, CP_FLAG_##f, CP_FLAG_##f##_##s, n)
 #define cp_ret(c, f, s) _cp_bra((c), 2, CP_FLAG_##f, CP_FLAG_##f##_##s, 0)
-#endif
 
 static inline void
 _cp_wait(struct nouveau_grctx *ctx, int flag, int state)
@@ -128,6 +125,5 @@ gr_def(struct nouveau_grctx *ctx, uint32_t reg, uint32_t val)
 
 	nv_wo32(ctx->data, reg * 4, val);
 }
-#endif
 
 #endif

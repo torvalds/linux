@@ -381,14 +381,15 @@ static DEFINE_PRCC_CLK(5, usb,		0,  0, NULL);
 /* Peripheral Cluster #6 */
 
 /* MTU ID in data */
-static DEFINE_PRCC_CLK_CUSTOM(6, mtu1, 8, -1, NULL, clk_mtu_get_rate, 1);
-static DEFINE_PRCC_CLK_CUSTOM(6, mtu0, 7, -1, NULL, clk_mtu_get_rate, 0);
-static DEFINE_PRCC_CLK(6, cfgreg,	6,  6, NULL);
-static DEFINE_PRCC_CLK(6, hash1,	5, -1, NULL);
-static DEFINE_PRCC_CLK(6, unipro,	4,  1, &clk_uniproclk);
-static DEFINE_PRCC_CLK(6, pka,		3, -1, NULL);
-static DEFINE_PRCC_CLK(6, hash0,	2, -1, NULL);
-static DEFINE_PRCC_CLK(6, cryp0,	1, -1, NULL);
+static DEFINE_PRCC_CLK_CUSTOM(6, mtu1, 9, -1, NULL, clk_mtu_get_rate, 1);
+static DEFINE_PRCC_CLK_CUSTOM(6, mtu0, 8, -1, NULL, clk_mtu_get_rate, 0);
+static DEFINE_PRCC_CLK(6, cfgreg,	7,  7, NULL);
+static DEFINE_PRCC_CLK(6, hash1,	6, -1, NULL);
+static DEFINE_PRCC_CLK(6, unipro,	5,  1, &clk_uniproclk);
+static DEFINE_PRCC_CLK(6, pka,		4, -1, NULL);
+static DEFINE_PRCC_CLK(6, hash0,	3, -1, NULL);
+static DEFINE_PRCC_CLK(6, cryp0,	2, -1, NULL);
+static DEFINE_PRCC_CLK(6, cryp1,    1, -1, NULL);
 static DEFINE_PRCC_CLK(6, rng,	0,  0, &clk_rngclk);
 
 static struct clk clk_dummy_apb_pclk = {
@@ -430,6 +431,7 @@ static struct clk_lookup u8500_clks[] = {
 	CLK(pka,	"pka",		NULL),
 	CLK(hash0,	"hash0",	NULL),
 	CLK(cryp0,	"cryp0",	NULL),
+	CLK(cryp1,  "cryp1",    NULL),
 
 	/* PRCMU level clock gating */
 
@@ -633,7 +635,7 @@ static int clk_debugfs_register(struct clk *c)
 	return 0;
 }
 
-static int __init clk_debugfs_init(void)
+int __init clk_debugfs_init(void)
 {
 	struct clk *c;
 	struct dentry *d;
@@ -655,7 +657,6 @@ err_out:
 	return err;
 }
 
-late_initcall(clk_debugfs_init);
 #endif /* defined(CONFIG_DEBUG_FS) */
 
 unsigned long clk_smp_twd_rate = 500000000;
@@ -694,12 +695,11 @@ static struct notifier_block clk_twd_cpufreq_nb = {
 	.notifier_call = clk_twd_cpufreq_transition,
 };
 
-static int clk_init_smp_twd_cpufreq(void)
+int clk_init_smp_twd_cpufreq(void)
 {
 	return cpufreq_register_notifier(&clk_twd_cpufreq_nb,
 				  CPUFREQ_TRANSITION_NOTIFIER);
 }
-late_initcall(clk_init_smp_twd_cpufreq);
 
 #endif
 

@@ -990,7 +990,7 @@ void __init mp_config_acpi_legacy_irqs(void)
 	int i;
 	struct mpc_intsrc mp_irq;
 
-#if defined (CONFIG_MCA) || defined (CONFIG_EISA)
+#ifdef CONFIG_EISA
 	/*
 	 * Fabricate the legacy ISA bus (bus #31).
 	 */

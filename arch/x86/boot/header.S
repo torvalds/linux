@@ -147,7 +147,7 @@ optional_header:
 	# Filled in by build.c
 	.long	0x0000				# AddressOfEntryPoint
 
-	.long	0x0000				# BaseOfCode
+	.long	0x0200				# BaseOfCode
 #ifdef CONFIG_X86_32
 	.long	0				# data
 #endif
@@ -189,7 +189,7 @@ extra_header_fields:
 	.quad	0				# SizeOfHeapCommit
 #endif
 	.long	0				# LoaderFlags
-	.long	0x1				# NumberOfRvaAndSizes
+	.long	0x6				# NumberOfRvaAndSizes
 
 	.quad	0				# ExportTable
 	.quad	0				# ImportTable
@@ -217,18 +217,17 @@ section_table:
 
 	#
 	# The EFI application loader requires a relocation section
-	# because EFI applications are relocatable and not having
-	# this section seems to confuse it. But since we don't need
-	# the loader to fixup any relocs for us just fill it with a
-	# single dummy reloc.
+	# because EFI applications must be relocatable. But since
+	# we don't need the loader to fixup any relocs for us, we
+	# just create an empty (zero-length) .reloc section header.
 	#
 	.ascii	".reloc"
 	.byte	0
 	.byte	0
-	.long	reloc_end - reloc_start
-	.long	reloc_start
-	.long	reloc_end - reloc_start		# SizeOfRawData
-	.long	reloc_start			# PointerToRawData
+	.long	0
+	.long	0
+	.long	0				# SizeOfRawData
+	.long	0				# PointerToRawData
 	.long	0				# PointerToRelocations
 	.long	0				# PointerToLineNumbers
 	.word	0				# NumberOfRelocations
@@ -469,10 +468,3 @@ setup_corrupt:
 
 	.data
 dummy:	.long	0
-
-	.section .reloc
-reloc_start:
-	.long	dummy - reloc_start
-	.long	10
-	.word	0
-reloc_end:

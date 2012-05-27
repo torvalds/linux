@@ -216,22 +216,22 @@ static void cdv_sb_reset(struct drm_device *dev)
  */
 static int
 cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
-			       struct cdv_intel_clock_t *clock)
+			       struct cdv_intel_clock_t *clock, bool is_lvds)
 {
-	struct psb_intel_crtc *psb_crtc =
-				to_psb_intel_crtc(crtc);
+	struct psb_intel_crtc *psb_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_crtc->pipe;
 	u32 m, n_vco, p;
 	int ret = 0;
 	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
+	int ref_sfr = (pipe == 0) ? SB_REF_DPLLA : SB_REF_DPLLB;
 	u32 ref_value;
+	u32 lane_reg, lane_value;
 
 	cdv_sb_reset(dev);
 
-	if ((REG_READ(dpll_reg) & DPLL_SYNCLOCK_ENABLE) == 0) {
-		DRM_ERROR("Attempting to set DPLL with refclk disabled\n");
-		return -EBUSY;
-	}
+	REG_WRITE(dpll_reg, DPLL_SYNCLOCK_ENABLE | DPLL_VGA_MODE_DIS);
+
+	udelay(100);
 
 	/* Follow the BIOS and write the REF/SFR Register. Hardcoded value */
 	ref_value = 0x68A701;
@@ -241,6 +241,35 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 	/* We don't know what the other fields of these regs are, so
 	 * leave them in place.
 	 */
+	/* 
+	 * The BIT 14:13 of 0x8010/0x8030 is used to select the ref clk
+	 * for the pipe A/B. Display spec 1.06 has wrong definition.
+	 * Correct definition is like below:
+	 *
+	 * refclka mean use clock from same PLL
+	 *
+	 * if DPLLA sets 01 and DPLLB sets 01, they use clock from their pll
+	 *
+	 * if DPLLA sets 01 and DPLLB sets 02, both use clk from DPLLA
+	 *
+	 */  
+	ret = cdv_sb_read(dev, ref_sfr, &ref_value);
+	if (ret)
+		return ret;
+	ref_value &= ~(REF_CLK_MASK);
+
+	/* use DPLL_A for pipeB on CRT/HDMI */
+	if (pipe == 1 && !is_lvds) {
+		DRM_DEBUG_KMS("use DPLLA for pipe B\n");
+		ref_value |= REF_CLK_DPLLA;
+	} else {
+		DRM_DEBUG_KMS("use their DPLL for pipe A/B\n");
+		ref_value |= REF_CLK_DPLL;
+	}
+	ret = cdv_sb_write(dev, ref_sfr, ref_value);
+	if (ret)
+		return ret;
+
 	ret = cdv_sb_read(dev, SB_M(pipe), &m);
 	if (ret)
 		return ret;
@@ -307,36 +336,29 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	/* always Program the Lane Register for the Pipe A*/
-	if (pipe == 0) {
-		/* Program the Lane0/1 for HDMI B */
-		u32 lane_reg, lane_value;
+	lane_reg = PSB_LANE0;
+	cdv_sb_read(dev, lane_reg, &lane_value);
+	lane_value &= ~(LANE_PLL_MASK);
+	lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
+	cdv_sb_write(dev, lane_reg, lane_value);
 
-		lane_reg = PSB_LANE0;
-		cdv_sb_read(dev, lane_reg, &lane_value);
-		lane_value &= ~(LANE_PLL_MASK);
-		lane_value |= LANE_PLL_ENABLE;
-		cdv_sb_write(dev, lane_reg, lane_value);
+	lane_reg = PSB_LANE1;
+	cdv_sb_read(dev, lane_reg, &lane_value);
+	lane_value &= ~(LANE_PLL_MASK);
+	lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
+	cdv_sb_write(dev, lane_reg, lane_value);
 
-		lane_reg = PSB_LANE1;
-		cdv_sb_read(dev, lane_reg, &lane_value);
-		lane_value &= ~(LANE_PLL_MASK);
-		lane_value |= LANE_PLL_ENABLE;
-		cdv_sb_write(dev, lane_reg, lane_value);
+	lane_reg = PSB_LANE2;
+	cdv_sb_read(dev, lane_reg, &lane_value);
+	lane_value &= ~(LANE_PLL_MASK);
+	lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
+	cdv_sb_write(dev, lane_reg, lane_value);
 
-		/* Program the Lane2/3 for HDMI C */
-		lane_reg = PSB_LANE2;
-		cdv_sb_read(dev, lane_reg, &lane_value);
-		lane_value &= ~(LANE_PLL_MASK);
-		lane_value |= LANE_PLL_ENABLE;
-		cdv_sb_write(dev, lane_reg, lane_value);
-
-		lane_reg = PSB_LANE3;
-		cdv_sb_read(dev, lane_reg, &lane_value);
-		lane_value &= ~(LANE_PLL_MASK);
-		lane_value |= LANE_PLL_ENABLE;
-		cdv_sb_write(dev, lane_reg, lane_value);
-	}
+	lane_reg = PSB_LANE3;
+	cdv_sb_read(dev, lane_reg, &lane_value);
+	lane_value &= ~(LANE_PLL_MASK);
+	lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
+	cdv_sb_write(dev, lane_reg, lane_value);
 
 	return 0;
 }
@@ -480,14 +502,12 @@ static int cdv_intel_pipe_set_base(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
 	int pipe = psb_intel_crtc->pipe;
+	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
-	int dspbase = (pipe == 0 ? DSPABASE : DSPBBASE);
-	int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
-	int dspstride = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
-	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
 	u32 dspcntr;
 	int ret = 0;
 
@@ -509,9 +529,9 @@ static int cdv_intel_pipe_set_base(struct drm_crtc *crtc,
 	start = psbfb->gtt->offset;
 	offset = y * crtc->fb->pitches[0] + x * (crtc->fb->bits_per_pixel / 8);
 
-	REG_WRITE(dspstride, crtc->fb->pitches[0]);
+	REG_WRITE(map->stride, crtc->fb->pitches[0]);
 
-	dspcntr = REG_READ(dspcntr_reg);
+	dspcntr = REG_READ(map->cntr);
 	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
 
 	switch (crtc->fb->bits_per_pixel) {
@@ -533,15 +553,15 @@ static int cdv_intel_pipe_set_base(struct drm_crtc *crtc,
 		ret = -EINVAL;
 		goto psb_intel_pipe_set_base_exit;
 	}
-	REG_WRITE(dspcntr_reg, dspcntr);
+	REG_WRITE(map->cntr, dspcntr);
 
 	dev_dbg(dev->dev,
 		"Writing base %08lX %08lX %d %d\n", start, offset, x, y);
 
-	REG_WRITE(dspbase, offset);
-	REG_READ(dspbase);
-	REG_WRITE(dspsurf, start);
-	REG_READ(dspsurf);
+	REG_WRITE(map->base, offset);
+	REG_READ(map->base);
+	REG_WRITE(map->surf, start);
+	REG_READ(map->surf);
 
 psb_intel_pipe_cleaner:
 	/* If there was a previous display we can now unpin it */
@@ -553,6 +573,199 @@ psb_intel_pipe_set_base_exit:
 	return ret;
 }
 
+#define		FIFO_PIPEA		(1 << 0)
+#define		FIFO_PIPEB		(1 << 1)
+
+static bool cdv_intel_pipe_enabled(struct drm_device *dev, int pipe)
+{
+	struct drm_crtc *crtc;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_intel_crtc *psb_intel_crtc = NULL;
+
+	crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	psb_intel_crtc = to_psb_intel_crtc(crtc);
+
+	if (crtc->fb == NULL || !psb_intel_crtc->active)
+		return false;
+	return true;
+}
+
+static bool cdv_intel_single_pipe_active (struct drm_device *dev)
+{
+	uint32_t pipe_enabled = 0;
+
+	if (cdv_intel_pipe_enabled(dev, 0))
+		pipe_enabled |= FIFO_PIPEA;
+
+	if (cdv_intel_pipe_enabled(dev, 1))
+		pipe_enabled |= FIFO_PIPEB;
+
+
+	DRM_DEBUG_KMS("pipe enabled %x\n", pipe_enabled);
+
+	if (pipe_enabled == FIFO_PIPEA || pipe_enabled == FIFO_PIPEB)
+		return true;
+	else
+		return false;
+}
+
+static bool is_pipeb_lvds(struct drm_device *dev, struct drm_crtc *crtc)
+{
+	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_connector *connector;
+
+	if (psb_intel_crtc->pipe != 1)
+		return false;
+
+	list_for_each_entry(connector, &mode_config->connector_list, head) {
+		struct psb_intel_encoder *psb_intel_encoder =
+					psb_intel_attached_encoder(connector);
+
+		if (!connector->encoder
+		    || connector->encoder->crtc != crtc)
+			continue;
+
+		if (psb_intel_encoder->type == INTEL_OUTPUT_LVDS)
+			return true;
+	}
+
+	return false;
+}
+
+static void cdv_intel_disable_self_refresh (struct drm_device *dev)
+{
+	if (REG_READ(FW_BLC_SELF) & FW_BLC_SELF_EN) {
+
+		/* Disable self-refresh before adjust WM */
+		REG_WRITE(FW_BLC_SELF, (REG_READ(FW_BLC_SELF) & ~FW_BLC_SELF_EN));
+		REG_READ(FW_BLC_SELF);
+
+		cdv_intel_wait_for_vblank(dev);
+
+		/* Cedarview workaround to write ovelay plane, which force to leave
+		 * MAX_FIFO state.
+		 */
+		REG_WRITE(OV_OVADD, 0/*dev_priv->ovl_offset*/);
+		REG_READ(OV_OVADD);
+
+		cdv_intel_wait_for_vblank(dev);
+	}
+
+}
+
+static void cdv_intel_update_watermark (struct drm_device *dev, struct drm_crtc *crtc)
+{
+
+	if (cdv_intel_single_pipe_active(dev)) {
+		u32 fw;
+
+		fw = REG_READ(DSPFW1);
+		fw &= ~DSP_FIFO_SR_WM_MASK;
+		fw |= (0x7e << DSP_FIFO_SR_WM_SHIFT);
+		fw &= ~CURSOR_B_FIFO_WM_MASK;
+		fw |= (0x4 << CURSOR_B_FIFO_WM_SHIFT);
+		REG_WRITE(DSPFW1, fw);
+
+		fw = REG_READ(DSPFW2);
+		fw &= ~CURSOR_A_FIFO_WM_MASK;
+		fw |= (0x6 << CURSOR_A_FIFO_WM_SHIFT);
+		fw &= ~DSP_PLANE_C_FIFO_WM_MASK;
+		fw |= (0x8 << DSP_PLANE_C_FIFO_WM_SHIFT);
+		REG_WRITE(DSPFW2, fw);
+
+		REG_WRITE(DSPFW3, 0x36000000);
+
+		/* ignore FW4 */
+
+		if (is_pipeb_lvds(dev, crtc)) {
+			REG_WRITE(DSPFW5, 0x00040330);
+		} else {
+			fw = (3 << DSP_PLANE_B_FIFO_WM1_SHIFT) |
+			     (4 << DSP_PLANE_A_FIFO_WM1_SHIFT) |
+			     (3 << CURSOR_B_FIFO_WM1_SHIFT) |
+			     (4 << CURSOR_FIFO_SR_WM1_SHIFT);
+			REG_WRITE(DSPFW5, fw);
+		}
+
+		REG_WRITE(DSPFW6, 0x10);
+
+		cdv_intel_wait_for_vblank(dev);
+
+		/* enable self-refresh for single pipe active */
+		REG_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
+		REG_READ(FW_BLC_SELF);
+		cdv_intel_wait_for_vblank(dev);
+
+	} else {
+
+		/* HW team suggested values... */
+		REG_WRITE(DSPFW1, 0x3f880808);
+		REG_WRITE(DSPFW2, 0x0b020202);
+		REG_WRITE(DSPFW3, 0x24000000);
+		REG_WRITE(DSPFW4, 0x08030202);
+		REG_WRITE(DSPFW5, 0x01010101);
+		REG_WRITE(DSPFW6, 0x1d0);
+
+		cdv_intel_wait_for_vblank(dev);
+
+		cdv_intel_disable_self_refresh(dev);
+	
+	}
+}
+
+/** Loads the palette/gamma unit for the CRTC with the prepared values */
+static void cdv_intel_crtc_load_lut(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	int palreg = PALETTE_A;
+	int i;
+
+	/* The clocks have to be on to load the palette. */
+	if (!crtc->enabled)
+		return;
+
+	switch (psb_intel_crtc->pipe) {
+	case 0:
+		break;
+	case 1:
+		palreg = PALETTE_B;
+		break;
+	case 2:
+		palreg = PALETTE_C;
+		break;
+	default:
+		dev_err(dev->dev, "Illegal Pipe Number.\n");
+		return;
+	}
+
+	if (gma_power_begin(dev, false)) {
+		for (i = 0; i < 256; i++) {
+			REG_WRITE(palreg + 4 * i,
+				  ((psb_intel_crtc->lut_r[i] +
+				  psb_intel_crtc->lut_adj[i]) << 16) |
+				  ((psb_intel_crtc->lut_g[i] +
+				  psb_intel_crtc->lut_adj[i]) << 8) |
+				  (psb_intel_crtc->lut_b[i] +
+				  psb_intel_crtc->lut_adj[i]));
+		}
+		gma_power_end(dev);
+	} else {
+		for (i = 0; i < 256; i++) {
+			dev_priv->regs.pipe[0].palette[i] =
+				  ((psb_intel_crtc->lut_r[i] +
+				  psb_intel_crtc->lut_adj[i]) << 16) |
+				  ((psb_intel_crtc->lut_g[i] +
+				  psb_intel_crtc->lut_adj[i]) << 8) |
+				  (psb_intel_crtc->lut_b[i] +
+				  psb_intel_crtc->lut_adj[i]);
+		}
+
+	}
+}
+
 /**
  * Sets the power management mode of the pipe and plane.
  *
@@ -562,62 +775,80 @@ psb_intel_pipe_set_base_exit:
 static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
-	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
-	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
-	int dspbase_reg = (pipe == 0) ? DSPABASE : DSPBBASE;
-	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
+	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 temp;
 
 	/* XXX: When our outputs are all unaware of DPMS modes other than off
 	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
 	 */
+	cdv_intel_disable_self_refresh(dev);
+
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
+		if (psb_intel_crtc->active)
+			return;
+
+		psb_intel_crtc->active = true;
+
 		/* Enable the DPLL */
-		temp = REG_READ(dpll_reg);
+		temp = REG_READ(map->dpll);
 		if ((temp & DPLL_VCO_ENABLE) == 0) {
-			REG_WRITE(dpll_reg, temp);
-			REG_READ(dpll_reg);
+			REG_WRITE(map->dpll, temp);
+			REG_READ(map->dpll);
 			/* Wait for the clocks to stabilize. */
 			udelay(150);
-			REG_WRITE(dpll_reg, temp | DPLL_VCO_ENABLE);
-			REG_READ(dpll_reg);
+			REG_WRITE(map->dpll, temp | DPLL_VCO_ENABLE);
+			REG_READ(map->dpll);
 			/* Wait for the clocks to stabilize. */
 			udelay(150);
-			REG_WRITE(dpll_reg, temp | DPLL_VCO_ENABLE);
-			REG_READ(dpll_reg);
+			REG_WRITE(map->dpll, temp | DPLL_VCO_ENABLE);
+			REG_READ(map->dpll);
 			/* Wait for the clocks to stabilize. */
 			udelay(150);
 		}
 
 		/* Jim Bish - switch plan and pipe per scott */
 		/* Enable the plane */
-		temp = REG_READ(dspcntr_reg);
+		temp = REG_READ(map->cntr);
 		if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
-			REG_WRITE(dspcntr_reg,
+			REG_WRITE(map->cntr,
 				  temp | DISPLAY_PLANE_ENABLE);
 			/* Flush the plane changes */
-			REG_WRITE(dspbase_reg, REG_READ(dspbase_reg));
+			REG_WRITE(map->base, REG_READ(map->base));
 		}
 
 		udelay(150);
 
 		/* Enable the pipe */
-		temp = REG_READ(pipeconf_reg);
+		temp = REG_READ(map->conf);
 		if ((temp & PIPEACONF_ENABLE) == 0)
-			REG_WRITE(pipeconf_reg, temp | PIPEACONF_ENABLE);
+			REG_WRITE(map->conf, temp | PIPEACONF_ENABLE);
 
-		psb_intel_crtc_load_lut(crtc);
+		temp = REG_READ(map->status);
+		temp &= ~(0xFFFF);
+		temp |= PIPE_FIFO_UNDERRUN;
+		REG_WRITE(map->status, temp);
+		REG_READ(map->status);
+
+		cdv_intel_update_watermark(dev, crtc);
+		cdv_intel_crtc_load_lut(crtc);
 
 		/* Give the overlay scaler a chance to enable
 		 * if it's on this pipe */
 		/* psb_intel_crtc_dpms_video(crtc, true); TODO */
+		psb_intel_crtc->crtc_enable = true;
 		break;
 	case DRM_MODE_DPMS_OFF:
+		if (!psb_intel_crtc->active)
+			return;
+
+		psb_intel_crtc->active = false;
+
 		/* Give the overlay scaler a chance to disable
 		 * if it's on this pipe */
 		/* psb_intel_crtc_dpms_video(crtc, FALSE); TODO */
@@ -627,14 +858,15 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		/* Jim Bish - changed pipe/plane here as well. */
 
+		drm_vblank_off(dev, pipe);
 		/* Wait for vblank for the disable to take effect */
 		cdv_intel_wait_for_vblank(dev);
 
 		/* Next, disable display pipes */
-		temp = REG_READ(pipeconf_reg);
+		temp = REG_READ(map->conf);
 		if ((temp & PIPEACONF_ENABLE) != 0) {
-			REG_WRITE(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
-			REG_READ(pipeconf_reg);
+			REG_WRITE(map->conf, temp & ~PIPEACONF_ENABLE);
+			REG_READ(map->conf);
 		}
 
 		/* Wait for vblank for the disable to take effect. */
@@ -643,23 +875,25 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		udelay(150);
 
 		/* Disable display plane */
-		temp = REG_READ(dspcntr_reg);
+		temp = REG_READ(map->cntr);
 		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
-			REG_WRITE(dspcntr_reg,
+			REG_WRITE(map->cntr,
 				  temp & ~DISPLAY_PLANE_ENABLE);
 			/* Flush the plane changes */
-			REG_WRITE(dspbase_reg, REG_READ(dspbase_reg));
-			REG_READ(dspbase_reg);
+			REG_WRITE(map->base, REG_READ(map->base));
+			REG_READ(map->base);
 		}
 
-		temp = REG_READ(dpll_reg);
+		temp = REG_READ(map->dpll);
 		if ((temp & DPLL_VCO_ENABLE) != 0) {
-			REG_WRITE(dpll_reg, temp & ~DPLL_VCO_ENABLE);
-			REG_READ(dpll_reg);
+			REG_WRITE(map->dpll, temp & ~DPLL_VCO_ENABLE);
+			REG_READ(map->dpll);
 		}
 
 		/* Wait for the clocks to turn off. */
 		udelay(150);
+		cdv_intel_update_watermark(dev, crtc);
+		psb_intel_crtc->crtc_enable = false;
 		break;
 	}
 	/*Set FIFO Watermarks*/
@@ -709,21 +943,10 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
-	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
-	int dpll_md_reg = (psb_intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
-	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
-	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
-	int htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
-	int hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
-	int hsync_reg = (pipe == 0) ? HSYNC_A : HSYNC_B;
-	int vtot_reg = (pipe == 0) ? VTOTAL_A : VTOTAL_B;
-	int vblank_reg = (pipe == 0) ? VBLANK_A : VBLANK_B;
-	int vsync_reg = (pipe == 0) ? VSYNC_A : VSYNC_B;
-	int dspsize_reg = (pipe == 0) ? DSPASIZE : DSPBSIZE;
-	int dsppos_reg = (pipe == 0) ? DSPAPOS : DSPBPOS;
-	int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
+	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	int refclk;
 	struct cdv_intel_clock_t clock;
 	u32 dpll = 0, dspcntr, pipeconf;
@@ -757,12 +980,17 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	refclk = 96000;
-
-	/* Hack selection about ref clk for CRT */
-	/* Select 27MHz as the reference clk for HDMI */
-	if (is_crt || is_hdmi)
+	if (dev_priv->dplla_96mhz)
+		/* low-end sku, 96/100 mhz */
+		refclk = 96000;
+	else
+		/* high-end sku, 27/100 mhz */
 		refclk = 27000;
+
+	if (is_lvds && dev_priv->lvds_use_ssc) {
+		refclk = dev_priv->lvds_ssc_freq * 1000;
+		DRM_DEBUG_KMS("Use SSC reference clock %d Mhz\n", dev_priv->lvds_ssc_freq);
+	}
 
 	drm_mode_debug_printmodeline(adjusted_mode);
 
@@ -779,18 +1007,17 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 /*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
 		dpll |= 3;
 	}
-		dpll |= PLL_REF_INPUT_DREFCLK;
+/*		dpll |= PLL_REF_INPUT_DREFCLK; */
 
 	dpll |= DPLL_SYNCLOCK_ENABLE;
-	dpll |= DPLL_VGA_MODE_DIS;
-	if (is_lvds)
+/*	if (is_lvds)
 		dpll |= DPLLB_MODE_LVDS;
 	else
-		dpll |= DPLLB_MODE_DAC_SERIAL;
+		dpll |= DPLLB_MODE_DAC_SERIAL; */
 	/* dpll |= (2 << 11); */
 
 	/* setup pipeconf */
-	pipeconf = REG_READ(pipeconf_reg);
+	pipeconf = REG_READ(map->conf);
 
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
@@ -803,10 +1030,10 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	dspcntr |= DISPLAY_PLANE_ENABLE;
 	pipeconf |= PIPEACONF_ENABLE;
 
-	REG_WRITE(dpll_reg, dpll | DPLL_VGA_MODE_DIS | DPLL_SYNCLOCK_ENABLE);
-	REG_READ(dpll_reg);
+	REG_WRITE(map->dpll, dpll | DPLL_VGA_MODE_DIS | DPLL_SYNCLOCK_ENABLE);
+	REG_READ(map->dpll);
 
-	cdv_dpll_set_clock_cdv(dev, crtc, &clock);
+	cdv_dpll_set_clock_cdv(dev, crtc, &clock, is_lvds);
 
 	udelay(150);
 
@@ -848,48 +1075,48 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
 
-	REG_WRITE(dpll_reg,
-		(REG_READ(dpll_reg) & ~DPLL_LOCK) | DPLL_VCO_ENABLE);
-	REG_READ(dpll_reg);
+	REG_WRITE(map->dpll,
+		(REG_READ(map->dpll) & ~DPLL_LOCK) | DPLL_VCO_ENABLE);
+	REG_READ(map->dpll);
 	/* Wait for the clocks to stabilize. */
 	udelay(150); /* 42 usec w/o calibration, 110 with.  rounded up. */
 
-	if (!(REG_READ(dpll_reg) & DPLL_LOCK)) {
+	if (!(REG_READ(map->dpll) & DPLL_LOCK)) {
 		dev_err(dev->dev, "Failed to get DPLL lock\n");
 		return -EBUSY;
 	}
 
 	{
 		int sdvo_pixel_multiply = adjusted_mode->clock / mode->clock;
-		REG_WRITE(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) | ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
+		REG_WRITE(map->dpll_md, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) | ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
 	}
 
-	REG_WRITE(htot_reg, (adjusted_mode->crtc_hdisplay - 1) |
+	REG_WRITE(map->htotal, (adjusted_mode->crtc_hdisplay - 1) |
 		  ((adjusted_mode->crtc_htotal - 1) << 16));
-	REG_WRITE(hblank_reg, (adjusted_mode->crtc_hblank_start - 1) |
+	REG_WRITE(map->hblank, (adjusted_mode->crtc_hblank_start - 1) |
 		  ((adjusted_mode->crtc_hblank_end - 1) << 16));
-	REG_WRITE(hsync_reg, (adjusted_mode->crtc_hsync_start - 1) |
+	REG_WRITE(map->hsync, (adjusted_mode->crtc_hsync_start - 1) |
 		  ((adjusted_mode->crtc_hsync_end - 1) << 16));
-	REG_WRITE(vtot_reg, (adjusted_mode->crtc_vdisplay - 1) |
+	REG_WRITE(map->vtotal, (adjusted_mode->crtc_vdisplay - 1) |
 		  ((adjusted_mode->crtc_vtotal - 1) << 16));
-	REG_WRITE(vblank_reg, (adjusted_mode->crtc_vblank_start - 1) |
+	REG_WRITE(map->vblank, (adjusted_mode->crtc_vblank_start - 1) |
 		  ((adjusted_mode->crtc_vblank_end - 1) << 16));
-	REG_WRITE(vsync_reg, (adjusted_mode->crtc_vsync_start - 1) |
+	REG_WRITE(map->vsync, (adjusted_mode->crtc_vsync_start - 1) |
 		  ((adjusted_mode->crtc_vsync_end - 1) << 16));
 	/* pipesrc and dspsize control the size that is scaled from,
 	 * which should always be the user's requested size.
 	 */
-	REG_WRITE(dspsize_reg,
+	REG_WRITE(map->size,
 		  ((mode->vdisplay - 1) << 16) | (mode->hdisplay - 1));
-	REG_WRITE(dsppos_reg, 0);
-	REG_WRITE(pipesrc_reg,
+	REG_WRITE(map->pos, 0);
+	REG_WRITE(map->src,
 		  ((mode->hdisplay - 1) << 16) | (mode->vdisplay - 1));
-	REG_WRITE(pipeconf_reg, pipeconf);
-	REG_READ(pipeconf_reg);
+	REG_WRITE(map->conf, pipeconf);
+	REG_READ(map->conf);
 
 	cdv_intel_wait_for_vblank(dev);
 
-	REG_WRITE(dspcntr_reg, dspcntr);
+	REG_WRITE(map->cntr, dspcntr);
 
 	/* Flush the plane changes */
 	{
@@ -903,58 +1130,6 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	return 0;
 }
 
-/** Loads the palette/gamma unit for the CRTC with the prepared values */
-static void cdv_intel_crtc_load_lut(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv =
-				(struct drm_psb_private *)dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int palreg = PALETTE_A;
-	int i;
-
-	/* The clocks have to be on to load the palette. */
-	if (!crtc->enabled)
-		return;
-
-	switch (psb_intel_crtc->pipe) {
-	case 0:
-		break;
-	case 1:
-		palreg = PALETTE_B;
-		break;
-	case 2:
-		palreg = PALETTE_C;
-		break;
-	default:
-		dev_err(dev->dev, "Illegal Pipe Number.\n");
-		return;
-	}
-
-	if (gma_power_begin(dev, false)) {
-		for (i = 0; i < 256; i++) {
-			REG_WRITE(palreg + 4 * i,
-				  ((psb_intel_crtc->lut_r[i] +
-				  psb_intel_crtc->lut_adj[i]) << 16) |
-				  ((psb_intel_crtc->lut_g[i] +
-				  psb_intel_crtc->lut_adj[i]) << 8) |
-				  (psb_intel_crtc->lut_b[i] +
-				  psb_intel_crtc->lut_adj[i]));
-		}
-		gma_power_end(dev);
-	} else {
-		for (i = 0; i < 256; i++) {
-			dev_priv->regs.psb.save_palette_a[i] =
-				  ((psb_intel_crtc->lut_r[i] +
-				  psb_intel_crtc->lut_adj[i]) << 16) |
-				  ((psb_intel_crtc->lut_g[i] +
-				  psb_intel_crtc->lut_adj[i]) << 8) |
-				  (psb_intel_crtc->lut_b[i] +
-				  psb_intel_crtc->lut_adj[i]);
-		}
-
-	}
-}
 
 /**
  * Save HW states of giving crtc
@@ -962,11 +1137,10 @@ static void cdv_intel_crtc_load_lut(struct drm_crtc *crtc)
 static void cdv_intel_crtc_save(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	/* struct drm_psb_private *dev_priv =
-			(struct drm_psb_private *)dev->dev_private; */
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct psb_intel_crtc_state *crtc_state = psb_intel_crtc->crtc_state;
-	int pipeA = (psb_intel_crtc->pipe == 0);
+	const struct psb_offset *map = &dev_priv->regmap[psb_intel_crtc->pipe];
 	uint32_t paletteReg;
 	int i;
 
@@ -975,25 +1149,25 @@ static void cdv_intel_crtc_save(struct drm_crtc *crtc)
 		return;
 	}
 
-	crtc_state->saveDSPCNTR = REG_READ(pipeA ? DSPACNTR : DSPBCNTR);
-	crtc_state->savePIPECONF = REG_READ(pipeA ? PIPEACONF : PIPEBCONF);
-	crtc_state->savePIPESRC = REG_READ(pipeA ? PIPEASRC : PIPEBSRC);
-	crtc_state->saveFP0 = REG_READ(pipeA ? FPA0 : FPB0);
-	crtc_state->saveFP1 = REG_READ(pipeA ? FPA1 : FPB1);
-	crtc_state->saveDPLL = REG_READ(pipeA ? DPLL_A : DPLL_B);
-	crtc_state->saveHTOTAL = REG_READ(pipeA ? HTOTAL_A : HTOTAL_B);
-	crtc_state->saveHBLANK = REG_READ(pipeA ? HBLANK_A : HBLANK_B);
-	crtc_state->saveHSYNC = REG_READ(pipeA ? HSYNC_A : HSYNC_B);
-	crtc_state->saveVTOTAL = REG_READ(pipeA ? VTOTAL_A : VTOTAL_B);
-	crtc_state->saveVBLANK = REG_READ(pipeA ? VBLANK_A : VBLANK_B);
-	crtc_state->saveVSYNC = REG_READ(pipeA ? VSYNC_A : VSYNC_B);
-	crtc_state->saveDSPSTRIDE = REG_READ(pipeA ? DSPASTRIDE : DSPBSTRIDE);
+	crtc_state->saveDSPCNTR = REG_READ(map->cntr);
+	crtc_state->savePIPECONF = REG_READ(map->conf);
+	crtc_state->savePIPESRC = REG_READ(map->src);
+	crtc_state->saveFP0 = REG_READ(map->fp0);
+	crtc_state->saveFP1 = REG_READ(map->fp1);
+	crtc_state->saveDPLL = REG_READ(map->dpll);
+	crtc_state->saveHTOTAL = REG_READ(map->htotal);
+	crtc_state->saveHBLANK = REG_READ(map->hblank);
+	crtc_state->saveHSYNC = REG_READ(map->hsync);
+	crtc_state->saveVTOTAL = REG_READ(map->vtotal);
+	crtc_state->saveVBLANK = REG_READ(map->vblank);
+	crtc_state->saveVSYNC = REG_READ(map->vsync);
+	crtc_state->saveDSPSTRIDE = REG_READ(map->stride);
 
 	/*NOTE: DSPSIZE DSPPOS only for psb*/
-	crtc_state->saveDSPSIZE = REG_READ(pipeA ? DSPASIZE : DSPBSIZE);
-	crtc_state->saveDSPPOS = REG_READ(pipeA ? DSPAPOS : DSPBPOS);
+	crtc_state->saveDSPSIZE = REG_READ(map->size);
+	crtc_state->saveDSPPOS = REG_READ(map->pos);
 
-	crtc_state->saveDSPBASE = REG_READ(pipeA ? DSPABASE : DSPBBASE);
+	crtc_state->saveDSPBASE = REG_READ(map->base);
 
 	DRM_DEBUG("(%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x)\n",
 			crtc_state->saveDSPCNTR,
@@ -1014,7 +1188,7 @@ static void cdv_intel_crtc_save(struct drm_crtc *crtc)
 			crtc_state->saveDSPBASE
 		);
 
-	paletteReg = pipeA ? PALETTE_A : PALETTE_B;
+	paletteReg = map->palette;
 	for (i = 0; i < 256; ++i)
 		crtc_state->savePalette[i] = REG_READ(paletteReg + (i << 2));
 }
@@ -1025,12 +1199,10 @@ static void cdv_intel_crtc_save(struct drm_crtc *crtc)
 static void cdv_intel_crtc_restore(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	/* struct drm_psb_private * dev_priv =
-				(struct drm_psb_private *)dev->dev_private; */
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc =  to_psb_intel_crtc(crtc);
 	struct psb_intel_crtc_state *crtc_state = psb_intel_crtc->crtc_state;
-	/* struct drm_crtc_helper_funcs * crtc_funcs = crtc->helper_private; */
-	int pipeA = (psb_intel_crtc->pipe == 0);
+	const struct psb_offset *map = &dev_priv->regmap[psb_intel_crtc->pipe];
 	uint32_t paletteReg;
 	int i;
 
@@ -1041,23 +1213,23 @@ static void cdv_intel_crtc_restore(struct drm_crtc *crtc)
 
 	DRM_DEBUG(
 		"current:(%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x)\n",
-		REG_READ(pipeA ? DSPACNTR : DSPBCNTR),
-		REG_READ(pipeA ? PIPEACONF : PIPEBCONF),
-		REG_READ(pipeA ? PIPEASRC : PIPEBSRC),
-		REG_READ(pipeA ? FPA0 : FPB0),
-		REG_READ(pipeA ? FPA1 : FPB1),
-		REG_READ(pipeA ? DPLL_A : DPLL_B),
-		REG_READ(pipeA ? HTOTAL_A : HTOTAL_B),
-		REG_READ(pipeA ? HBLANK_A : HBLANK_B),
-		REG_READ(pipeA ? HSYNC_A : HSYNC_B),
-		REG_READ(pipeA ? VTOTAL_A : VTOTAL_B),
-		REG_READ(pipeA ? VBLANK_A : VBLANK_B),
-		REG_READ(pipeA ? VSYNC_A : VSYNC_B),
-		REG_READ(pipeA ? DSPASTRIDE : DSPBSTRIDE),
-		REG_READ(pipeA ? DSPASIZE : DSPBSIZE),
-		REG_READ(pipeA ? DSPAPOS : DSPBPOS),
-		REG_READ(pipeA ? DSPABASE : DSPBBASE)
-		);
+		REG_READ(map->cntr),
+		REG_READ(map->conf),
+		REG_READ(map->src),
+		REG_READ(map->fp0),
+		REG_READ(map->fp1),
+		REG_READ(map->dpll),
+		REG_READ(map->htotal),
+		REG_READ(map->hblank),
+		REG_READ(map->hsync),
+		REG_READ(map->vtotal),
+		REG_READ(map->vblank),
+		REG_READ(map->vsync),
+		REG_READ(map->stride),
+		REG_READ(map->size),
+		REG_READ(map->pos),
+		REG_READ(map->base)
+	);
 
 	DRM_DEBUG(
 		"saved: (%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x)\n",
@@ -1077,51 +1249,51 @@ static void cdv_intel_crtc_restore(struct drm_crtc *crtc)
 		crtc_state->saveDSPSIZE,
 		crtc_state->saveDSPPOS,
 		crtc_state->saveDSPBASE
-		);
+	);
 
 
 	if (crtc_state->saveDPLL & DPLL_VCO_ENABLE) {
-		REG_WRITE(pipeA ? DPLL_A : DPLL_B,
-			crtc_state->saveDPLL & ~DPLL_VCO_ENABLE);
-		REG_READ(pipeA ? DPLL_A : DPLL_B);
+		REG_WRITE(map->dpll,
+				crtc_state->saveDPLL & ~DPLL_VCO_ENABLE);
+		REG_READ(map->dpll);
 		DRM_DEBUG("write dpll: %x\n",
-				REG_READ(pipeA ? DPLL_A : DPLL_B));
+				REG_READ(map->dpll));
 		udelay(150);
 	}
 
-	REG_WRITE(pipeA ? FPA0 : FPB0, crtc_state->saveFP0);
-	REG_READ(pipeA ? FPA0 : FPB0);
+	REG_WRITE(map->fp0, crtc_state->saveFP0);
+	REG_READ(map->fp0);
 
-	REG_WRITE(pipeA ? FPA1 : FPB1, crtc_state->saveFP1);
-	REG_READ(pipeA ? FPA1 : FPB1);
+	REG_WRITE(map->fp1, crtc_state->saveFP1);
+	REG_READ(map->fp1);
 
-	REG_WRITE(pipeA ? DPLL_A : DPLL_B, crtc_state->saveDPLL);
-	REG_READ(pipeA ? DPLL_A : DPLL_B);
+	REG_WRITE(map->dpll, crtc_state->saveDPLL);
+	REG_READ(map->dpll);
 	udelay(150);
 
-	REG_WRITE(pipeA ? HTOTAL_A : HTOTAL_B, crtc_state->saveHTOTAL);
-	REG_WRITE(pipeA ? HBLANK_A : HBLANK_B, crtc_state->saveHBLANK);
-	REG_WRITE(pipeA ? HSYNC_A : HSYNC_B, crtc_state->saveHSYNC);
-	REG_WRITE(pipeA ? VTOTAL_A : VTOTAL_B, crtc_state->saveVTOTAL);
-	REG_WRITE(pipeA ? VBLANK_A : VBLANK_B, crtc_state->saveVBLANK);
-	REG_WRITE(pipeA ? VSYNC_A : VSYNC_B, crtc_state->saveVSYNC);
-	REG_WRITE(pipeA ? DSPASTRIDE : DSPBSTRIDE, crtc_state->saveDSPSTRIDE);
+	REG_WRITE(map->htotal, crtc_state->saveHTOTAL);
+	REG_WRITE(map->hblank, crtc_state->saveHBLANK);
+	REG_WRITE(map->hsync, crtc_state->saveHSYNC);
+	REG_WRITE(map->vtotal, crtc_state->saveVTOTAL);
+	REG_WRITE(map->vblank, crtc_state->saveVBLANK);
+	REG_WRITE(map->vsync, crtc_state->saveVSYNC);
+	REG_WRITE(map->stride, crtc_state->saveDSPSTRIDE);
 
-	REG_WRITE(pipeA ? DSPASIZE : DSPBSIZE, crtc_state->saveDSPSIZE);
-	REG_WRITE(pipeA ? DSPAPOS : DSPBPOS, crtc_state->saveDSPPOS);
+	REG_WRITE(map->size, crtc_state->saveDSPSIZE);
+	REG_WRITE(map->pos, crtc_state->saveDSPPOS);
 
-	REG_WRITE(pipeA ? PIPEASRC : PIPEBSRC, crtc_state->savePIPESRC);
-	REG_WRITE(pipeA ? DSPABASE : DSPBBASE, crtc_state->saveDSPBASE);
-	REG_WRITE(pipeA ? PIPEACONF : PIPEBCONF, crtc_state->savePIPECONF);
-
-	cdv_intel_wait_for_vblank(dev);
-
-	REG_WRITE(pipeA ? DSPACNTR : DSPBCNTR, crtc_state->saveDSPCNTR);
-	REG_WRITE(pipeA ? DSPABASE : DSPBBASE, crtc_state->saveDSPBASE);
+	REG_WRITE(map->src, crtc_state->savePIPESRC);
+	REG_WRITE(map->base, crtc_state->saveDSPBASE);
+	REG_WRITE(map->conf, crtc_state->savePIPECONF);
 
 	cdv_intel_wait_for_vblank(dev);
 
-	paletteReg = pipeA ? PALETTE_A : PALETTE_B;
+	REG_WRITE(map->cntr, crtc_state->saveDSPCNTR);
+	REG_WRITE(map->base, crtc_state->saveDSPBASE);
+
+	cdv_intel_wait_for_vblank(dev);
+
+	paletteReg = map->palette;
 	for (i = 0; i < 256; ++i)
 		REG_WRITE(paletteReg + (i << 2), crtc_state->savePalette[i]);
 }
@@ -1296,35 +1468,30 @@ static void i8xx_clock(int refclk, struct cdv_intel_clock_t *clock)
 static int cdv_intel_crtc_clock_get(struct drm_device *dev,
 				struct drm_crtc *crtc)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
+	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 dpll;
 	u32 fp;
 	struct cdv_intel_clock_t clock;
 	bool is_lvds;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_pipe *p = &dev_priv->regs.pipe[pipe];
 
 	if (gma_power_begin(dev, false)) {
-		dpll = REG_READ((pipe == 0) ? DPLL_A : DPLL_B);
+		dpll = REG_READ(map->dpll);
 		if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
-			fp = REG_READ((pipe == 0) ? FPA0 : FPB0);
+			fp = REG_READ(map->fp0);
 		else
-			fp = REG_READ((pipe == 0) ? FPA1 : FPB1);
+			fp = REG_READ(map->fp1);
 		is_lvds = (pipe == 1) && (REG_READ(LVDS) & LVDS_PORT_EN);
 		gma_power_end(dev);
 	} else {
-		dpll = (pipe == 0) ?
-			dev_priv->regs.psb.saveDPLL_A :
-			dev_priv->regs.psb.saveDPLL_B;
-
+		dpll = p->dpll;
 		if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
-			fp = (pipe == 0) ?
-				dev_priv->regs.psb.saveFPA0 :
-				dev_priv->regs.psb.saveFPB0;
+			fp = p->fp0;
 		else
-			fp = (pipe == 0) ?
-				dev_priv->regs.psb.saveFPA1 :
-				dev_priv->regs.psb.saveFPB1;
+			fp = p->fp1;
 
 		is_lvds = (pipe == 1) &&
 				(dev_priv->regs.psb.saveLVDS & LVDS_PORT_EN);
@@ -1382,32 +1549,26 @@ struct drm_display_mode *cdv_intel_crtc_mode_get(struct drm_device *dev,
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_pipe *p = &dev_priv->regs.pipe[pipe];
+	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	struct drm_display_mode *mode;
 	int htot;
 	int hsync;
 	int vtot;
 	int vsync;
-	struct drm_psb_private *dev_priv = dev->dev_private;
 
 	if (gma_power_begin(dev, false)) {
-		htot = REG_READ((pipe == 0) ? HTOTAL_A : HTOTAL_B);
-		hsync = REG_READ((pipe == 0) ? HSYNC_A : HSYNC_B);
-		vtot = REG_READ((pipe == 0) ? VTOTAL_A : VTOTAL_B);
-		vsync = REG_READ((pipe == 0) ? VSYNC_A : VSYNC_B);
+		htot = REG_READ(map->htotal);
+		hsync = REG_READ(map->hsync);
+		vtot = REG_READ(map->vtotal);
+		vsync = REG_READ(map->vsync);
 		gma_power_end(dev);
 	} else {
-		htot = (pipe == 0) ?
-			dev_priv->regs.psb.saveHTOTAL_A :
-			dev_priv->regs.psb.saveHTOTAL_B;
-		hsync = (pipe == 0) ?
-			dev_priv->regs.psb.saveHSYNC_A :
-			dev_priv->regs.psb.saveHSYNC_B;
-		vtot = (pipe == 0) ?
-			dev_priv->regs.psb.saveVTOTAL_A :
-			dev_priv->regs.psb.saveVTOTAL_B;
-		vsync = (pipe == 0) ?
-			dev_priv->regs.psb.saveVSYNC_A :
-			dev_priv->regs.psb.saveVSYNC_B;
+		htot = p->htotal;
+		hsync = p->hsync;
+		vtot = p->vtotal;
+		vsync = p->vsync;
 	}
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);

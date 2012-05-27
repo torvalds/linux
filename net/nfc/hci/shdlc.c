@@ -816,6 +816,17 @@ static int nfc_shdlc_data_exchange(struct nfc_hci_dev *hdev,
 	return -EPERM;
 }
 
+static int nfc_shdlc_check_presence(struct nfc_hci_dev *hdev,
+				    struct nfc_target *target)
+{
+	struct nfc_shdlc *shdlc = nfc_hci_get_clientdata(hdev);
+
+	if (shdlc->ops->check_presence)
+		return shdlc->ops->check_presence(shdlc, target);
+
+	return 0;
+}
+
 static struct nfc_hci_ops shdlc_ops = {
 	.open = nfc_shdlc_open,
 	.close = nfc_shdlc_close,
@@ -825,6 +836,7 @@ static struct nfc_hci_ops shdlc_ops = {
 	.target_from_gate = nfc_shdlc_target_from_gate,
 	.complete_target_discovered = nfc_shdlc_complete_target_discovered,
 	.data_exchange = nfc_shdlc_data_exchange,
+	.check_presence = nfc_shdlc_check_presence,
 };
 
 struct nfc_shdlc *nfc_shdlc_allocate(struct nfc_shdlc_ops *ops,

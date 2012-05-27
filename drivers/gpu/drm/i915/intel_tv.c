@@ -811,7 +811,7 @@ intel_tv_mode_lookup(const char *tv_format)
 {
 	int i;
 
-	for (i = 0; i < sizeof(tv_modes) / sizeof(tv_modes[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
 		const struct tv_mode *tv_mode = &tv_modes[i];
 
 		if (!strcmp(tv_format, tv_mode->name))
@@ -1153,6 +1153,15 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 		   DAC_B_0_7_V |
 		   DAC_C_0_7_V);
 
+
+	/*
+	 * The TV sense state should be cleared to zero on cantiga platform. Otherwise
+	 * the TV is misdetected. This is hardware requirement.
+	 */
+	if (IS_GM45(dev))
+		tv_dac &= ~(TVDAC_STATE_CHG_EN | TVDAC_A_SENSE_CTL |
+			    TVDAC_B_SENSE_CTL | TVDAC_C_SENSE_CTL);
+
 	I915_WRITE(TV_CTL, tv_ctl);
 	I915_WRITE(TV_DAC, tv_dac);
 	POSTING_READ(TV_DAC);
@@ -1240,11 +1249,8 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 	int type;
 
 	mode = reported_modes[0];
-	drm_mode_set_crtcinfo(&mode, 0);
 
-	if (intel_tv->base.base.crtc && intel_tv->base.base.crtc->enabled) {
-		type = intel_tv_detect_type(intel_tv, connector);
-	} else if (force) {
+	if (force) {
 		struct intel_load_detect_pipe tmp;
 
 		if (intel_get_load_detect_pipe(&intel_tv->base, connector,

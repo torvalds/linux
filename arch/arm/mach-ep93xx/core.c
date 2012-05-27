@@ -675,7 +675,7 @@ int ep93xx_keypad_acquire_gpio(struct platform_device *pdev)
 fail_gpio_d:
 	gpio_free(EP93XX_GPIO_LINE_C(i));
 fail_gpio_c:
-	for ( ; i >= 0; --i) {
+	for (--i; i >= 0; --i) {
 		gpio_free(EP93XX_GPIO_LINE_C(i));
 		gpio_free(EP93XX_GPIO_LINE_D(i));
 	}
@@ -833,4 +833,9 @@ void ep93xx_restart(char mode, const char *cmd)
 
 	while (1)
 		;
+}
+
+void __init ep93xx_init_late(void)
+{
+	crunch_init();
 }

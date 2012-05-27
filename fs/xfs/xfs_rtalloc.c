@@ -20,7 +20,6 @@
 #include "xfs_types.h"
 #include "xfs_bit.h"
 #include "xfs_log.h"
-#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -34,7 +33,6 @@
 #include "xfs_rtalloc.h"
 #include "xfs_fsops.h"
 #include "xfs_error.h"
-#include "xfs_rw.h"
 #include "xfs_inode_item.h"
 #include "xfs_trans_space.h"
 #include "xfs_utils.h"
@@ -1872,9 +1870,9 @@ xfs_growfs_rt(
 	/*
 	 * Read in the last block of the device, make sure it exists.
 	 */
-	bp = xfs_buf_read_uncached(mp, mp->m_rtdev_targp,
+	bp = xfs_buf_read_uncached(mp->m_rtdev_targp,
 				XFS_FSB_TO_BB(mp, nrblocks - 1),
-				XFS_FSB_TO_B(mp, 1), 0);
+				XFS_FSB_TO_BB(mp, 1), 0);
 	if (!bp)
 		return EIO;
 	xfs_buf_relse(bp);
@@ -2219,9 +2217,9 @@ xfs_rtmount_init(
 			(unsigned long long) mp->m_sb.sb_rblocks);
 		return XFS_ERROR(EFBIG);
 	}
-	bp = xfs_buf_read_uncached(mp, mp->m_rtdev_targp,
+	bp = xfs_buf_read_uncached(mp->m_rtdev_targp,
 					d - XFS_FSB_TO_BB(mp, 1),
-					XFS_FSB_TO_B(mp, 1), 0);
+					XFS_FSB_TO_BB(mp, 1), 0);
 	if (!bp) {
 		xfs_warn(mp, "realtime device size check failed");
 		return EIO;

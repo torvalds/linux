@@ -437,7 +437,7 @@ static bool perf_session__read_build_ids(struct perf_session *session, bool with
 	return ret;
 }
 
-static int write_trace_info(int fd, struct perf_header *h __used,
+static int write_tracing_data(int fd, struct perf_header *h __used,
 			    struct perf_evlist *evlist)
 {
 	return read_tracing_data(fd, &evlist->entries);
@@ -1472,7 +1472,7 @@ out:
 	return err;
 }
 
-static int process_trace_info(struct perf_file_section *section __unused,
+static int process_tracing_data(struct perf_file_section *section __unused,
 			      struct perf_header *ph __unused,
 			      int feat __unused, int fd)
 {
@@ -1508,11 +1508,11 @@ struct feature_ops {
 		.full_only = true }
 
 /* feature_ops not implemented: */
-#define print_trace_info		NULL
-#define print_build_id			NULL
+#define print_tracing_data	NULL
+#define print_build_id		NULL
 
 static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
-	FEAT_OPP(HEADER_TRACE_INFO,	trace_info),
+	FEAT_OPP(HEADER_TRACING_DATA,	tracing_data),
 	FEAT_OPP(HEADER_BUILD_ID,	build_id),
 	FEAT_OPA(HEADER_HOSTNAME,	hostname),
 	FEAT_OPA(HEADER_OSRELEASE,	osrelease),

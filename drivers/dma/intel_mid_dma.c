@@ -394,11 +394,11 @@ static int midc_lli_fill_sg(struct intel_mid_dma_chan *midc,
 			}
 		}
 		/*Populate CTL_HI values*/
-		ctl_hi.ctlx.block_ts = get_block_ts(sg->length,
+		ctl_hi.ctlx.block_ts = get_block_ts(sg_dma_len(sg),
 							desc->width,
 							midc->dma->block_size);
 		/*Populate SAR and DAR values*/
-		sg_phy_addr = sg_phys(sg);
+		sg_phy_addr = sg_dma_address(sg);
 		if (desc->dirn ==  DMA_MEM_TO_DEV) {
 			lli_bloc_desc->sar  = sg_phy_addr;
 			lli_bloc_desc->dar  = mids->dma_slave.dst_addr;
@@ -747,7 +747,7 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_slave_sg(
 			txd = intel_mid_dma_prep_memcpy(chan,
 						mids->dma_slave.dst_addr,
 						mids->dma_slave.src_addr,
-						sgl->length,
+						sg_dma_len(sgl),
 						flags);
 			return txd;
 		} else {
@@ -759,7 +759,7 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_slave_sg(
 	pr_debug("MDMA: SG Length = %d, direction = %d, Flags = %#lx\n",
 			sg_len, direction, flags);
 
-	txd = intel_mid_dma_prep_memcpy(chan, 0, 0, sgl->length, flags);
+	txd = intel_mid_dma_prep_memcpy(chan, 0, 0, sg_dma_len(sgl), flags);
 	if (NULL == txd) {
 		pr_err("MDMA: Prep memcpy failed\n");
 		return NULL;

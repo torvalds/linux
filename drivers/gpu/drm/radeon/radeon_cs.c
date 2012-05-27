@@ -118,44 +118,33 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 {
 	bool sync_to_ring[RADEON_NUM_RINGS] = { };
+	bool need_sync = false;
 	int i, r;
 
 	for (i = 0; i < p->nrelocs; i++) {
+		struct radeon_fence *fence;
+
 		if (!p->relocs[i].robj || !p->relocs[i].robj->tbo.sync_obj)
 			continue;
 
-		if (!(p->relocs[i].flags & RADEON_RELOC_DONT_SYNC)) {
-			struct radeon_fence *fence = p->relocs[i].robj->tbo.sync_obj;
-			if (!radeon_fence_signaled(fence)) {
-				sync_to_ring[fence->ring] = true;
-			}
+		fence = p->relocs[i].robj->tbo.sync_obj;
+		if (fence->ring != p->ring && !radeon_fence_signaled(fence)) {
+			sync_to_ring[fence->ring] = true;
+			need_sync = true;
 		}
 	}
 
-	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-		/* no need to sync to our own or unused rings */
-		if (i == p->ring || !sync_to_ring[i] || !p->rdev->ring[i].ready)
-			continue;
-
-		if (!p->ib->fence->semaphore) {
-			r = radeon_semaphore_create(p->rdev, &p->ib->fence->semaphore);
-			if (r)
-				return r;
-		}
-
-		r = radeon_ring_lock(p->rdev, &p->rdev->ring[i], 3);
-		if (r)
-			return r;
-		radeon_semaphore_emit_signal(p->rdev, i, p->ib->fence->semaphore);
-		radeon_ring_unlock_commit(p->rdev, &p->rdev->ring[i]);
-
-		r = radeon_ring_lock(p->rdev, &p->rdev->ring[p->ring], 3);
-		if (r)
-			return r;
-		radeon_semaphore_emit_wait(p->rdev, p->ring, p->ib->fence->semaphore);
-		radeon_ring_unlock_commit(p->rdev, &p->rdev->ring[p->ring]);
+	if (!need_sync) {
+		return 0;
 	}
-	return 0;
+
+	r = radeon_semaphore_create(p->rdev, &p->ib.semaphore);
+	if (r) {
+		return r;
+	}
+
+	return radeon_semaphore_sync_rings(p->rdev, p->ib.semaphore,
+					   sync_to_ring, p->ring);
 }
 
 int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
@@ -172,6 +161,10 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	/* get chunks */
 	INIT_LIST_HEAD(&p->validated);
 	p->idx = 0;
+	p->ib.sa_bo = NULL;
+	p->ib.semaphore = NULL;
+	p->const_ib.sa_bo = NULL;
+	p->const_ib.semaphore = NULL;
 	p->chunk_ib_idx = -1;
 	p->chunk_relocs_idx = -1;
 	p->chunk_flags_idx = -1;
@@ -278,11 +271,16 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 				  p->chunks[p->chunk_ib_idx].length_dw);
 			return -EINVAL;
 		}
-		p->chunks[p->chunk_ib_idx].kpage[0] = kmalloc(PAGE_SIZE, GFP_KERNEL);
-		p->chunks[p->chunk_ib_idx].kpage[1] = kmalloc(PAGE_SIZE, GFP_KERNEL);
-		if (p->chunks[p->chunk_ib_idx].kpage[0] == NULL ||
-		    p->chunks[p->chunk_ib_idx].kpage[1] == NULL)
-			return -ENOMEM;
+		if ((p->rdev->flags & RADEON_IS_AGP)) {
+			p->chunks[p->chunk_ib_idx].kpage[0] = kmalloc(PAGE_SIZE, GFP_KERNEL);
+			p->chunks[p->chunk_ib_idx].kpage[1] = kmalloc(PAGE_SIZE, GFP_KERNEL);
+			if (p->chunks[p->chunk_ib_idx].kpage[0] == NULL ||
+			    p->chunks[p->chunk_ib_idx].kpage[1] == NULL) {
+				kfree(p->chunks[i].kpage[0]);
+				kfree(p->chunks[i].kpage[1]);
+				return -ENOMEM;
+			}
+		}
 		p->chunks[p->chunk_ib_idx].kpage_idx[0] = -1;
 		p->chunks[p->chunk_ib_idx].kpage_idx[1] = -1;
 		p->chunks[p->chunk_ib_idx].last_copied_page = -1;
@@ -305,10 +303,9 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 {
 	unsigned i;
 
-
-	if (!error && parser->ib)
+	if (!error)
 		ttm_eu_fence_buffer_objects(&parser->validated,
-					    parser->ib->fence);
+					    parser->ib.fence);
 	else
 		ttm_eu_backoff_reservation(&parser->validated);
 
@@ -323,12 +320,15 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 	kfree(parser->relocs_ptr);
 	for (i = 0; i < parser->nchunks; i++) {
 		kfree(parser->chunks[i].kdata);
-		kfree(parser->chunks[i].kpage[0]);
-		kfree(parser->chunks[i].kpage[1]);
+		if ((parser->rdev->flags & RADEON_IS_AGP)) {
+			kfree(parser->chunks[i].kpage[0]);
+			kfree(parser->chunks[i].kpage[1]);
+		}
 	}
 	kfree(parser->chunks);
 	kfree(parser->chunks_array);
 	radeon_ib_free(parser->rdev, &parser->ib);
+	radeon_ib_free(parser->rdev, &parser->const_ib);
 }
 
 static int radeon_cs_ib_chunk(struct radeon_device *rdev,
@@ -354,7 +354,7 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		DRM_ERROR("Failed to get ib !\n");
 		return r;
 	}
-	parser->ib->length_dw = ib_chunk->length_dw;
+	parser->ib.length_dw = ib_chunk->length_dw;
 	r = radeon_cs_parse(rdev, parser->ring, parser);
 	if (r || parser->parser_error) {
 		DRM_ERROR("Invalid command stream !\n");
@@ -369,8 +369,8 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 	if (r) {
 		DRM_ERROR("Failed to synchronize rings !\n");
 	}
-	parser->ib->vm_id = 0;
-	r = radeon_ib_schedule(rdev, parser->ib);
+	parser->ib.vm_id = 0;
+	r = radeon_ib_schedule(rdev, &parser->ib);
 	if (r) {
 		DRM_ERROR("Failed to schedule IB !\n");
 	}
@@ -421,14 +421,14 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 			DRM_ERROR("Failed to get const ib !\n");
 			return r;
 		}
-		parser->const_ib->is_const_ib = true;
-		parser->const_ib->length_dw = ib_chunk->length_dw;
+		parser->const_ib.is_const_ib = true;
+		parser->const_ib.length_dw = ib_chunk->length_dw;
 		/* Copy the packet into the IB */
-		if (DRM_COPY_FROM_USER(parser->const_ib->ptr, ib_chunk->user_ptr,
+		if (DRM_COPY_FROM_USER(parser->const_ib.ptr, ib_chunk->user_ptr,
 				       ib_chunk->length_dw * 4)) {
 			return -EFAULT;
 		}
-		r = radeon_ring_ib_parse(rdev, parser->ring, parser->const_ib);
+		r = radeon_ring_ib_parse(rdev, parser->ring, &parser->const_ib);
 		if (r) {
 			return r;
 		}
@@ -445,13 +445,13 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 		DRM_ERROR("Failed to get ib !\n");
 		return r;
 	}
-	parser->ib->length_dw = ib_chunk->length_dw;
+	parser->ib.length_dw = ib_chunk->length_dw;
 	/* Copy the packet into the IB */
-	if (DRM_COPY_FROM_USER(parser->ib->ptr, ib_chunk->user_ptr,
+	if (DRM_COPY_FROM_USER(parser->ib.ptr, ib_chunk->user_ptr,
 			       ib_chunk->length_dw * 4)) {
 		return -EFAULT;
 	}
-	r = radeon_ring_ib_parse(rdev, parser->ring, parser->ib);
+	r = radeon_ring_ib_parse(rdev, parser->ring, &parser->ib);
 	if (r) {
 		return r;
 	}
@@ -472,31 +472,41 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
-		parser->const_ib->vm_id = vm->id;
+		parser->const_ib.vm_id = vm->id;
 		/* ib pool is bind at 0 in virtual address space to gpu_addr is the
 		 * offset inside the pool bo
 		 */
-		parser->const_ib->gpu_addr = parser->const_ib->sa_bo.offset;
-		r = radeon_ib_schedule(rdev, parser->const_ib);
+		parser->const_ib.gpu_addr = parser->const_ib.sa_bo->soffset;
+		r = radeon_ib_schedule(rdev, &parser->const_ib);
 		if (r)
 			goto out;
 	}
 
-	parser->ib->vm_id = vm->id;
+	parser->ib.vm_id = vm->id;
 	/* ib pool is bind at 0 in virtual address space to gpu_addr is the
 	 * offset inside the pool bo
 	 */
-	parser->ib->gpu_addr = parser->ib->sa_bo.offset;
-	parser->ib->is_const_ib = false;
-	r = radeon_ib_schedule(rdev, parser->ib);
+	parser->ib.gpu_addr = parser->ib.sa_bo->soffset;
+	parser->ib.is_const_ib = false;
+	r = radeon_ib_schedule(rdev, &parser->ib);
 out:
 	if (!r) {
 		if (vm->fence) {
 			radeon_fence_unref(&vm->fence);
 		}
-		vm->fence = radeon_fence_ref(parser->ib->fence);
+		vm->fence = radeon_fence_ref(parser->ib.fence);
 	}
 	mutex_unlock(&fpriv->vm.mutex);
+	return r;
+}
+
+static int radeon_cs_handle_lockup(struct radeon_device *rdev, int r)
+{
+	if (r == -EDEADLK) {
+		r = radeon_gpu_reset(rdev);
+		if (!r)
+			r = -EAGAIN;
+	}
 	return r;
 }
 
@@ -521,6 +531,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (r) {
 		DRM_ERROR("Failed to initialize parser !\n");
 		radeon_cs_parser_fini(&parser, r);
+		r = radeon_cs_handle_lockup(rdev, r);
 		radeon_mutex_unlock(&rdev->cs_mutex);
 		return r;
 	}
@@ -529,6 +540,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("Failed to parse relocation %d!\n", r);
 		radeon_cs_parser_fini(&parser, r);
+		r = radeon_cs_handle_lockup(rdev, r);
 		radeon_mutex_unlock(&rdev->cs_mutex);
 		return r;
 	}
@@ -542,6 +554,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	}
 out:
 	radeon_cs_parser_fini(&parser, r);
+	r = radeon_cs_handle_lockup(rdev, r);
 	radeon_mutex_unlock(&rdev->cs_mutex);
 	return r;
 }
@@ -559,7 +572,7 @@ int radeon_cs_finish_pages(struct radeon_cs_parser *p)
 				size = PAGE_SIZE;
 		}
 		
-		if (DRM_COPY_FROM_USER(p->ib->ptr + (i * (PAGE_SIZE/4)),
+		if (DRM_COPY_FROM_USER(p->ib.ptr + (i * (PAGE_SIZE/4)),
 				       ibc->user_ptr + (i * PAGE_SIZE),
 				       size))
 			return -EFAULT;
@@ -573,9 +586,10 @@ int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 	struct radeon_cs_chunk *ibc = &p->chunks[p->chunk_ib_idx];
 	int i;
 	int size = PAGE_SIZE;
+	bool copy1 = (p->rdev->flags & RADEON_IS_AGP) ? false : true;
 
 	for (i = ibc->last_copied_page + 1; i < pg_idx; i++) {
-		if (DRM_COPY_FROM_USER(p->ib->ptr + (i * (PAGE_SIZE/4)),
+		if (DRM_COPY_FROM_USER(p->ib.ptr + (i * (PAGE_SIZE/4)),
 				       ibc->user_ptr + (i * PAGE_SIZE),
 				       PAGE_SIZE)) {
 			p->parser_error = -EFAULT;
@@ -583,13 +597,15 @@ int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 		}
 	}
 
-	new_page = ibc->kpage_idx[0] < ibc->kpage_idx[1] ? 0 : 1;
-
 	if (pg_idx == ibc->last_page_index) {
 		size = (ibc->length_dw * 4) % PAGE_SIZE;
-			if (size == 0)
-				size = PAGE_SIZE;
+		if (size == 0)
+			size = PAGE_SIZE;
 	}
+
+	new_page = ibc->kpage_idx[0] < ibc->kpage_idx[1] ? 0 : 1;
+	if (copy1)
+		ibc->kpage[new_page] = p->ib.ptr + (pg_idx * (PAGE_SIZE / 4));
 
 	if (DRM_COPY_FROM_USER(ibc->kpage[new_page],
 			       ibc->user_ptr + (pg_idx * PAGE_SIZE),
@@ -598,8 +614,9 @@ int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 		return 0;
 	}
 
-	/* copy to IB here */
-	memcpy((void *)(p->ib->ptr+(pg_idx*(PAGE_SIZE/4))), ibc->kpage[new_page], size);
+	/* copy to IB for non single case */
+	if (!copy1)
+		memcpy((void *)(p->ib.ptr+(pg_idx*(PAGE_SIZE/4))), ibc->kpage[new_page], size);
 
 	ibc->last_copied_page = pg_idx;
 	ibc->kpage_idx[new_page] = pg_idx;

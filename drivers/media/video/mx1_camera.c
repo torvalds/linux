@@ -126,13 +126,8 @@ static int mx1_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 			      unsigned int *size)
 {
 	struct soc_camera_device *icd = vq->priv_data;
-	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-						icd->current_fmt->host_fmt);
 
-	if (bytes_per_line < 0)
-		return bytes_per_line;
-
-	*size = bytes_per_line * icd->user_height;
+	*size = icd->sizeimage;
 
 	if (!*count)
 		*count = 32;
@@ -171,11 +166,6 @@ static int mx1_videobuf_prepare(struct videobuf_queue *vq,
 	struct soc_camera_device *icd = vq->priv_data;
 	struct mx1_buffer *buf = container_of(vb, struct mx1_buffer, vb);
 	int ret;
-	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-						icd->current_fmt->host_fmt);
-
-	if (bytes_per_line < 0)
-		return bytes_per_line;
 
 	dev_dbg(icd->parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
@@ -202,7 +192,7 @@ static int mx1_videobuf_prepare(struct videobuf_queue *vq,
 		vb->state	= VIDEOBUF_NEEDS_INIT;
 	}
 
-	vb->size = bytes_per_line * vb->height;
+	vb->size = icd->sizeimage;
 	if (0 != vb->baddr && vb->bsize < vb->size) {
 		ret = -EINVAL;
 		goto out;

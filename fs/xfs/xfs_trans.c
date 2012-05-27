@@ -19,9 +19,7 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_bit.h"
 #include "xfs_log.h"
-#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -36,6 +34,7 @@
 #include "xfs_btree.h"
 #include "xfs_ialloc.h"
 #include "xfs_alloc.h"
+#include "xfs_extent_busy.h"
 #include "xfs_bmap.h"
 #include "xfs_quota.h"
 #include "xfs_trans_priv.h"
@@ -608,8 +607,8 @@ STATIC void
 xfs_trans_free(
 	struct xfs_trans	*tp)
 {
-	xfs_alloc_busy_sort(&tp->t_busy);
-	xfs_alloc_busy_clear(tp->t_mountp, &tp->t_busy, false);
+	xfs_extent_busy_sort(&tp->t_busy);
+	xfs_extent_busy_clear(tp->t_mountp, &tp->t_busy, false);
 
 	atomic_dec(&tp->t_mountp->m_active_trans);
 	xfs_trans_free_dqinfo(tp);

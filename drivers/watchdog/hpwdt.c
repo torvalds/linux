@@ -861,16 +861,6 @@ static struct pci_driver hpwdt_driver = {
 	.remove = __devexit_p(hpwdt_exit),
 };
 
-static void __exit hpwdt_cleanup(void)
-{
-	pci_unregister_driver(&hpwdt_driver);
-}
-
-static int __init hpwdt_init(void)
-{
-	return pci_register_driver(&hpwdt_driver);
-}
-
 MODULE_AUTHOR("Tom Mingarelli");
 MODULE_DESCRIPTION("hp watchdog driver");
 MODULE_LICENSE("GPL");
@@ -889,5 +879,4 @@ module_param(allow_kdump, int, 0);
 MODULE_PARM_DESC(allow_kdump, "Start a kernel dump after NMI occurs");
 #endif /* !CONFIG_HPWDT_NMI_DECODING */
 
-module_init(hpwdt_init);
-module_exit(hpwdt_cleanup);
+module_pci_driver(hpwdt_driver);

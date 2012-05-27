@@ -119,6 +119,7 @@
 		sdhc@2e000 {
 			status = "disabled";
 			sdhci,1-bit-only;
+			bus-width = <1>;
 		};
 
 		par_io@e0100 {

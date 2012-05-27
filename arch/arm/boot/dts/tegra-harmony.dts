@@ -6,11 +6,11 @@
 	model = "NVIDIA Tegra2 Harmony evaluation board";
 	compatible = "nvidia,harmony", "nvidia,tegra20";
 
-	memory@0 {
-		reg = < 0x00000000 0x40000000 >;
+	memory {
+		reg = <0x00000000 0x40000000>;
 	};
 
-	pinmux@70000000 {
+	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -167,28 +167,28 @@
 			};
 			conf_ata {
 				nvidia,pins = "ata", "atb", "atc", "atd", "ate",
-					"cdev1", "dap1", "dtb", "gma", "gmb",
-					"gmc", "gmd", "gme", "gpu7", "gpv",
-					"i2cp", "pta", "rm", "slxa", "slxk",
-					"spia", "spib";
+					"cdev1", "cdev2", "dap1", "dtb", "gma",
+					"gmb", "gmc", "gmd", "gme", "gpu7",
+					"gpv", "i2cp", "pta", "rm", "slxa",
+					"slxk", "spia", "spib", "uac";
 				nvidia,pull = <0>;
 				nvidia,tristate = <0>;
-			};
-			conf_cdev2 {
-				nvidia,pins = "cdev2", "csus", "spid", "spif";
-				nvidia,pull = <1>;
-				nvidia,tristate = <1>;
 			};
 			conf_ck32 {
 				nvidia,pins = "ck32", "ddrc", "pmca", "pmcb",
 					"pmcc", "pmcd", "pmce", "xm2c", "xm2d";
 				nvidia,pull = <0>;
 			};
+			conf_csus {
+				nvidia,pins = "csus", "spid", "spif";
+				nvidia,pull = <1>;
+				nvidia,tristate = <1>;
+			};
 			conf_crtp {
 				nvidia,pins = "crtp", "dap2", "dap3", "dap4",
 					"dtc", "dte", "dtf", "gpu", "sdio1",
 					"slxc", "slxd", "spdi", "spdo", "spig",
-					"uac", "uda";
+					"uda";
 				nvidia,pull = <0>;
 				nvidia,tristate = <1>;
 			};
@@ -234,42 +234,81 @@
 		};
 	};
 
-	pmc@7000f400 {
-		nvidia,invert-interrupt;
+	i2s@70002800 {
+		status = "okay";
+	};
+
+	serial@70006300 {
+		status = "okay";
+		clock-frequency = <216000000>;
 	};
 
 	i2c@7000c000 {
+		status = "okay";
 		clock-frequency = <400000>;
 
 		wm8903: wm8903@1a {
 			compatible = "wlf,wm8903";
 			reg = <0x1a>;
 			interrupt-parent = <&gpio>;
-			interrupts = < 187 0x04 >;
+			interrupts = <187 0x04>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
 
 			micdet-cfg = <0>;
 			micdet-delay = <100>;
-			gpio-cfg = < 0xffffffff 0xffffffff 0 0xffffffff 0xffffffff >;
+			gpio-cfg = <0xffffffff 0xffffffff 0 0xffffffff 0xffffffff>;
 		};
 	};
 
 	i2c@7000c400 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@7000c500 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@7000d000 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
-	i2s@70002a00 {
-		status = "disable";
+	pmc {
+		nvidia,invert-interrupt;
+	};
+
+	usb@c5000000 {
+		status = "okay";
+	};
+
+	usb@c5004000 {
+		status = "okay";
+		nvidia,phy-reset-gpio = <&gpio 169 0>; /* gpio PV1 */
+	};
+
+	usb@c5008000 {
+		status = "okay";
+	};
+
+	sdhci@c8000200 {
+		status = "okay";
+		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
+		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
+		power-gpios = <&gpio 155 0>; /* gpio PT3 */
+		bus-width = <4>;
+	};
+
+	sdhci@c8000600 {
+		status = "okay";
+		cd-gpios = <&gpio 58 0>; /* gpio PH2 */
+		wp-gpios = <&gpio 59 0>; /* gpio PH3 */
+		power-gpios = <&gpio 70 0>; /* gpio PI6 */
+		support-8bit;
+		bus-width = <8>;
 	};
 
 	sound {
@@ -294,46 +333,5 @@
 		nvidia,hp-det-gpios = <&gpio 178 0>; /* gpio PW2 */
 		nvidia,int-mic-en-gpios = <&gpio 184 0>; /*gpio PX0 */
 		nvidia,ext-mic-en-gpios = <&gpio 185 0>; /* gpio PX1 */
-	};
-
-	serial@70006000 {
-		status = "disable";
-	};
-
-	serial@70006040 {
-		status = "disable";
-	};
-
-	serial@70006200 {
-		status = "disable";
-	};
-
-	serial@70006300 {
-		clock-frequency = < 216000000 >;
-	};
-
-	serial@70006400 {
-		status = "disable";
-	};
-
-	sdhci@c8000000 {
-		status = "disable";
-	};
-
-	sdhci@c8000200 {
-		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
-		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
-		power-gpios = <&gpio 155 0>; /* gpio PT3 */
-	};
-
-	sdhci@c8000400 {
-		status = "disable";
-	};
-
-	sdhci@c8000600 {
-		cd-gpios = <&gpio 58 0>; /* gpio PH2 */
-		wp-gpios = <&gpio 59 0>; /* gpio PH3 */
-		power-gpios = <&gpio 70 0>; /* gpio PI6 */
-		support-8bit;
 	};
 };

@@ -219,9 +219,6 @@ static void spi_lm70llp_attach(struct parport *p)
 	}
 	pp = spi_master_get_devdata(master);
 
-	master->bus_num = -1;	/* dynamic alloc of a bus number */
-	master->num_chipselect = 1;
-
 	/*
 	 * SPI and bitbang hookup.
 	 */

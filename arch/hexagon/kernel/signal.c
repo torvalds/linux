@@ -272,6 +272,7 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
 		if (current->replacement_session_keyring)
 			key_replace_session_keyring();
 	}
@@ -292,6 +293,9 @@ asmlinkage int sys_rt_sigreturn(void)
 	struct pt_regs *regs = current_thread_info()->regs;
 	struct rt_sigframe __user *frame;
 	sigset_t blocked;
+
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	frame = (struct rt_sigframe __user *)pt_psp(regs);
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))

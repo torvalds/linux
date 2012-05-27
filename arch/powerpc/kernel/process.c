@@ -124,7 +124,7 @@ void enable_kernel_altivec(void)
 	if (current->thread.regs && (current->thread.regs->msr & MSR_VEC))
 		giveup_altivec(current);
 	else
-		giveup_altivec(NULL);	/* just enable AltiVec for kernel - force */
+		giveup_altivec_notask();
 #else
 	giveup_altivec(last_task_used_altivec);
 #endif /* CONFIG_SMP */
@@ -711,18 +711,21 @@ release_thread(struct task_struct *t)
 }
 
 /*
- * This gets called before we allocate a new thread and copy
- * the current task into it.
+ * this gets called so that we can store coprocessor state into memory and
+ * copy the current task into the new thread.
  */
-void prepare_to_copy(struct task_struct *tsk)
+int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
-	flush_fp_to_thread(current);
-	flush_altivec_to_thread(current);
-	flush_vsx_to_thread(current);
-	flush_spe_to_thread(current);
+	flush_fp_to_thread(src);
+	flush_altivec_to_thread(src);
+	flush_vsx_to_thread(src);
+	flush_spe_to_thread(src);
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-	flush_ptrace_hw_breakpoint(tsk);
+	flush_ptrace_hw_breakpoint(src);
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
+
+	*dst = *src;
+	return 0;
 }
 
 /*

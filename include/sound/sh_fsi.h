@@ -21,10 +21,11 @@
 /*
  * flags format
  *
- * 0x000000BA
+ * 0x00000CBA
  *
  * A:  inversion
  * B:  format mode
+ * C:  chip specific
  */
 
 /* A: clock inversion */
@@ -39,6 +40,9 @@
 #define SH_FSI_FMT_DAI		(0 << 4)
 #define SH_FSI_FMT_SPDIF	(1 << 4)
 
+/* C: chip specific */
+#define SH_FSI_OPTION_MASK	0x00000F00
+#define SH_FSI_ENABLE_STREAM_MODE	(1 << 8) /* for 16bit data */
 
 /*
  * set_rate return value
@@ -82,18 +86,6 @@ struct sh_fsi_port_info {
 struct sh_fsi_platform_info {
 	struct sh_fsi_port_info port_a;
 	struct sh_fsi_port_info port_b;
-};
-
-/*
- * for fsi-ak4642
- */
-struct fsi_ak4642_info {
-	const char *name;
-	const char *card;
-	const char *cpu_dai;
-	const char *codec;
-	const char *platform;
-	int id;
 };
 
 #endif /* __SOUND_FSI_H */

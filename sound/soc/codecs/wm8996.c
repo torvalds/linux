@@ -1770,7 +1770,13 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
+		break;
 	case SND_SOC_BIAS_PREPARE:
+		/* Put the MICBIASes into regulating mode */
+		snd_soc_update_bits(codec, WM8996_MICBIAS_1,
+				    WM8996_MICB1_MODE, 0);
+		snd_soc_update_bits(codec, WM8996_MICBIAS_2,
+				    WM8996_MICB2_MODE, 0);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
@@ -1793,6 +1799,12 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 			regcache_cache_only(codec->control_data, false);
 			regcache_sync(codec->control_data);
 		}
+
+		/* Bypass the MICBIASes for lowest power */
+		snd_soc_update_bits(codec, WM8996_MICBIAS_1,
+				    WM8996_MICB1_MODE, WM8996_MICB1_MODE);
+		snd_soc_update_bits(codec, WM8996_MICBIAS_2,
+				    WM8996_MICB2_MODE, WM8996_MICB2_MODE);
 		break;
 
 	case SND_SOC_BIAS_OFF:

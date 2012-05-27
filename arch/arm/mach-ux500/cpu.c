@@ -73,6 +73,12 @@ void __init ux500_init_irq(void)
 	clk_init();
 }
 
+void __init ux500_init_late(void)
+{
+	clk_debugfs_init();
+	clk_init_smp_twd_cpufreq();
+}
+
 static const char * __init ux500_get_machine(void)
 {
 	return kasprintf(GFP_KERNEL, "DB%4x", dbx500_partnumber());

@@ -328,9 +328,6 @@ struct mm_struct;
 extern void release_thread(struct task_struct *);
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
-/* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk)	do { } while (0)
-
 extern void map_hpux_gateway_page(struct task_struct *tsk, struct mm_struct *mm);
 
 extern unsigned long get_wchan(struct task_struct *p);

@@ -28,6 +28,7 @@
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
 #include <linux/uaccess.h>
+#include <linux/tracehook.h>
 
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>
@@ -152,6 +153,9 @@ score_rt_sigreturn(struct pt_regs *regs)
 	stack_t st;
 	int sig;
 
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
 	frame = (struct rt_sigframe __user *) regs->regs[0];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -159,10 +163,7 @@ score_rt_sigreturn(struct pt_regs *regs)
 		goto badframe;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	set_current_blocked(&set);
 
 	sig = restore_sigcontext(regs, &frame->rs_uc.uc_mcontext);
 	if (sig < 0)
@@ -236,9 +237,7 @@ static int setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	return 0;
 
 give_sigsegv:
-	if (signr == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	force_sig(SIGSEGV, current);
+	force_sigsegv(signr, current);
 	return -EFAULT;
 }
 
@@ -272,12 +271,8 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 	 */
 	ret = setup_rt_frame(ka, regs, sig, oldset, info);
 
-	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&current->blocked, sig);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	if (ret == 0)
+		block_sigmask(ka, sig);
 
 	return ret;
 }
@@ -356,6 +351,12 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 				__u32 thread_info_flags)
 {
 	/* deal with pending signal delivery */
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
+	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs);
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
+	}
 }

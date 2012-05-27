@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 #include <asm/mach-types.h>
@@ -654,8 +655,8 @@ static void ulpi_phy_power_off(struct tegra_usb_phy *phy)
 	clk_disable(phy->clk);
 }
 
-struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
-			void *config, enum tegra_usb_phy_mode phy_mode)
+struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
+	void __iomem *regs, void *config, enum tegra_usb_phy_mode phy_mode)
 {
 	struct tegra_usb_phy *phy;
 	struct tegra_ulpi_config *ulpi_config;
@@ -709,6 +710,16 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 		if (IS_ERR(phy->clk)) {
 			pr_err("%s: can't get ulpi clock\n", __func__);
 			err = -ENXIO;
+			goto err1;
+		}
+		if (!gpio_is_valid(ulpi_config->reset_gpio))
+			ulpi_config->reset_gpio =
+				of_get_named_gpio(dev->of_node,
+						  "nvidia,phy-reset-gpio", 0);
+		if (!gpio_is_valid(ulpi_config->reset_gpio)) {
+			pr_err("%s: invalid reset gpio: %d\n", __func__,
+			       ulpi_config->reset_gpio);
+			err = -EINVAL;
 			goto err1;
 		}
 		gpio_request(ulpi_config->reset_gpio, "ulpi_phy_reset_b");

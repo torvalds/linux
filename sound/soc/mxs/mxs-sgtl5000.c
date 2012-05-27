@@ -18,6 +18,8 @@
 
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -90,7 +92,7 @@ static struct snd_soc_dai_link mxs_sgtl5000_dai[] = {
 		.codec_dai_name	= "sgtl5000",
 		.codec_name	= "sgtl5000.0-000a",
 		.cpu_dai_name	= "mxs-saif.0",
-		.platform_name	= "mxs-pcm-audio.0",
+		.platform_name	= "mxs-saif.0",
 		.ops		= &mxs_sgtl5000_hifi_ops,
 	}, {
 		.name		= "HiFi Rx",
@@ -98,7 +100,7 @@ static struct snd_soc_dai_link mxs_sgtl5000_dai[] = {
 		.codec_dai_name	= "sgtl5000",
 		.codec_name	= "sgtl5000.0-000a",
 		.cpu_dai_name	= "mxs-saif.1",
-		.platform_name	= "mxs-pcm-audio.1",
+		.platform_name	= "mxs-saif.1",
 		.ops		= &mxs_sgtl5000_hifi_ops,
 	},
 };
@@ -110,10 +112,47 @@ static struct snd_soc_card mxs_sgtl5000 = {
 	.num_links	= ARRAY_SIZE(mxs_sgtl5000_dai),
 };
 
+static int __devinit mxs_sgtl5000_probe_dt(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *saif_np[2], *codec_np;
+	int i, ret = 0;
+
+	if (!np)
+		return 1; /* no device tree */
+
+	saif_np[0] = of_parse_phandle(np, "saif-controllers", 0);
+	saif_np[1] = of_parse_phandle(np, "saif-controllers", 1);
+	codec_np = of_parse_phandle(np, "audio-codec", 0);
+	if (!saif_np[0] || !saif_np[1] || !codec_np) {
+		dev_err(&pdev->dev, "phandle missing or invalid\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < 2; i++) {
+		mxs_sgtl5000_dai[i].codec_name = NULL;
+		mxs_sgtl5000_dai[i].codec_of_node = codec_np;
+		mxs_sgtl5000_dai[i].cpu_dai_name = NULL;
+		mxs_sgtl5000_dai[i].cpu_dai_of_node = saif_np[i];
+		mxs_sgtl5000_dai[i].platform_name = NULL;
+		mxs_sgtl5000_dai[i].platform_of_node = saif_np[i];
+	}
+
+	of_node_put(codec_np);
+	of_node_put(saif_np[0]);
+	of_node_put(saif_np[1]);
+
+	return ret;
+}
+
 static int __devinit mxs_sgtl5000_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mxs_sgtl5000;
 	int ret;
+
+	ret = mxs_sgtl5000_probe_dt(pdev);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * Set an init clock(11.28Mhz) for sgtl5000 initialization(i2c r/w).
@@ -148,10 +187,17 @@ static int __devexit mxs_sgtl5000_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id mxs_sgtl5000_dt_ids[] = {
+	{ .compatible = "fsl,mxs-audio-sgtl5000", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxs_sgtl5000_dt_ids);
+
 static struct platform_driver mxs_sgtl5000_audio_driver = {
 	.driver = {
 		.name = "mxs-sgtl5000",
 		.owner = THIS_MODULE,
+		.of_match_table = mxs_sgtl5000_dt_ids,
 	},
 	.probe = mxs_sgtl5000_probe,
 	.remove = __devexit_p(mxs_sgtl5000_remove),

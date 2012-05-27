@@ -83,11 +83,12 @@ handle_syscall_restart(struct pt_regs *regs, struct sigaction *sa)
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
-static int do_signal(struct pt_regs *regs, sigset_t *oldset)
+static void do_signal(struct pt_regs *regs)
 {
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
+	sigset_t *oldset;
 
 	/*
 	 * We want the common case to go fast, which
@@ -96,11 +97,11 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	 * if so.
 	 */
 	if (!user_mode(regs))
-		return 1;
+		return;
 
 	if (current_thread_info()->status & TS_RESTORE_SIGMASK)
 		oldset = &current->saved_sigmask;
-	else if (!oldset)
+	else
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, 0);
@@ -118,7 +119,7 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset)
 
 			tracehook_signal_handler(signr, &info, &ka, regs,
 					test_thread_flag(TIF_SINGLESTEP));
-			return 1;
+			return;
 		}
 	}
 
@@ -147,71 +148,18 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset)
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
 
-	return 0;
+	return;
 }
 
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 asmlinkage int
-sys_sigsuspend(old_sigset_t mask,
-	       unsigned long r3, unsigned long r4, unsigned long r5,
-	       unsigned long r6, unsigned long r7,
-	       struct pt_regs * regs)
+sys_sigsuspend(old_sigset_t mask)
 {
-	sigset_t saveset, blocked;
-
-	saveset = current->blocked;
-
-	mask &= _BLOCKABLE;
+	sigset_t blocked;
 	siginitset(&blocked, mask);
-	set_current_blocked(&blocked);
-
-	REF_REG_RET = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		set_restore_sigmask();
-		regs->pc += 4;    /* because sys_sigreturn decrements the pc */
-		if (do_signal(regs, &saveset)) {
-			/* pc now points at signal handler. Need to decrement
-			   it because entry.S will increment it. */
-			regs->pc -= 4;
-			return -EINTR;
-		}
-	}
-}
-
-asmlinkage int
-sys_rt_sigsuspend(sigset_t *unewset, size_t sigsetsize,
-	          unsigned long r4, unsigned long r5, unsigned long r6,
-	          unsigned long r7,
-	          struct pt_regs * regs)
-{
-	sigset_t saveset, newset;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset, unewset, sizeof(newset)))
-		return -EFAULT;
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-	saveset = current->blocked;
-	set_current_blocked(&newset);
-
-	REF_REG_RET = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		regs->pc += 4;    /* because sys_sigreturn decrements the pc */
-		if (do_signal(regs, &saveset)) {
-			/* pc now points at signal handler. Need to decrement
-			   it because entry.S will increment it. */
-			regs->pc -= 4;
-			return -EINTR;
-		}
-	}
+	return sigsuspend(&blocked);
 }
 
 asmlinkage int
@@ -225,10 +173,10 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 		old_sigset_t mask;
 		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
+		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
+		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
+		    __get_user(mask, &act->sa_mask))
 			return -EFAULT;
-		__get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		__get_user(mask, &act->sa_mask);
 		siginitset(&new_ka.sa.sa_mask, mask);
 	}
 
@@ -237,10 +185,10 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 	if (!ret && oact) {
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
+		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
+		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
+		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
 			return -EFAULT;
-		__put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
 	}
 
 	return ret;
@@ -732,7 +680,7 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 asmlinkage void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 {
 	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal(regs, 0);
+		do_signal(regs);
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);

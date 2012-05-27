@@ -170,15 +170,4 @@ static struct serio_driver skbd_drv = {
 	.disconnect	= skbd_disconnect,
 };
 
-static int __init skbd_init(void)
-{
-	return serio_register_driver(&skbd_drv);
-}
-
-static void __exit skbd_exit(void)
-{
-	serio_unregister_driver(&skbd_drv);
-}
-
-module_init(skbd_init);
-module_exit(skbd_exit);
+module_serio_driver(skbd_drv);

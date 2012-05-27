@@ -6,6 +6,7 @@ config MN10300
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_KGDB
 	select HAVE_NMI_WATCHDOG if MN10300_WD_TIMER
+	select GENERIC_CLOCKEVENTS
 
 config AM33_2
 	def_bool n
@@ -42,13 +43,7 @@ config RWSEM_XCHGADD_ALGORITHM
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
-config GENERIC_CMOS_UPDATE
-        def_bool n
-
 config GENERIC_HWEIGHT
-	def_bool y
-
-config GENERIC_CLOCKEVENTS
 	def_bool y
 
 config GENERIC_BUG
@@ -231,7 +226,6 @@ config MN10300_USING_JTAG
 	  single-stepping, which are taken over completely by the JTAG unit.
 
 source "kernel/Kconfig.hz"
-source "kernel/time/Kconfig"
 
 config MN10300_RTC
 	bool "Using MN10300 RTC"

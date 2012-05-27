@@ -1,6 +1,6 @@
 config WLCORE
 	tristate "TI wlcore support"
-	depends on WL_TI && GENERIC_HARDIRQS
+	depends on WL_TI && GENERIC_HARDIRQS && MAC80211
 	depends on INET
 	select FW_LOADER
 	---help---

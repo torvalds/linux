@@ -50,8 +50,3 @@ head-y := arch/hexagon/kernel/head.o
 core-y += arch/hexagon/kernel/ \
 	arch/hexagon/mm/ \
 	arch/hexagon/lib/
-
-#	arch/hexagon/platform/common/
-#
-#core-$(CONFIG_HEXAGON_COMET)		+= arch/hexagon/platform/comet/
-#machine-$(CONFIG_HEXAGON_COMET)		:= comet

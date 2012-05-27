@@ -204,10 +204,10 @@ static inline int get_old_sigaction(struct k_sigaction *new_ka,
 
 	if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 			__get_user(new_ka->sa.sa_handler, &act->sa_handler) ||
-			__get_user(new_ka->sa.sa_restorer, &act->sa_restorer))
+			__get_user(new_ka->sa.sa_restorer, &act->sa_restorer) ||
+			__get_user(new_ka->sa.sa_flags, &act->sa_flags) ||
+			__get_user(mask, &act->sa_mask))
 		return -EFAULT;
-	__get_user(new_ka->sa.sa_flags, &act->sa_flags);
-	__get_user(mask, &act->sa_mask);
 	siginitset(&new_ka->sa.sa_mask, mask);
 	return 0;
 }
@@ -244,17 +244,8 @@ static inline int restore_general_regs(struct pt_regs *regs,
 long sys_sigsuspend(old_sigset_t mask)
 {
 	sigset_t blocked;
-
-	current->saved_sigmask = current->blocked;
-
-	mask &= _BLOCKABLE;
 	siginitset(&blocked, mask);
-	set_current_blocked(&blocked);
-
- 	current->state = TASK_INTERRUPTIBLE;
- 	schedule();
-	set_restore_sigmask();
- 	return -ERESTARTNOHAND;
+	return sigsuspend(&blocked);
 }
 
 long sys_sigaction(int sig, struct old_sigaction __user *act,

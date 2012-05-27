@@ -77,8 +77,27 @@
 #define H_MR_CONDITION  -43
 #define H_NOT_ENOUGH_RESOURCES -44
 #define H_R_STATE       -45
-#define H_RESCINDEND    -46
-#define H_MULTI_THREADS_ACTIVE -9005
+#define H_RESCINDED     -46
+#define H_P2		-55
+#define H_P3		-56
+#define H_P4		-57
+#define H_P5		-58
+#define H_P6		-59
+#define H_P7		-60
+#define H_P8		-61
+#define H_P9		-62
+#define H_TOO_BIG	-64
+#define H_OVERLAP	-68
+#define H_INTERRUPT	-69
+#define H_BAD_DATA	-70
+#define H_NOT_ACTIVE	-71
+#define H_SG_LIST	-72
+#define H_OP_MODE	-73
+#define H_COP_HW	-74
+#define H_UNSUPPORTED_FLAG_START	-256
+#define H_UNSUPPORTED_FLAG_END		-511
+#define H_MULTI_THREADS_ACTIVE	-9005
+#define H_OUTSTANDING_COP_OPS	-9006
 
 
 /* Long Busy is a condition that can be returned by the firmware
@@ -113,6 +132,16 @@
 #define H_N			(1UL<<(63-61))
 #define H_PP1			(1UL<<(63-62))
 #define H_PP2			(1UL<<(63-63))
+
+/* Flags for H_REGISTER_VPA subfunction field */
+#define H_VPA_FUNC_SHIFT	(63-18)	/* Bit posn of subfunction code */
+#define H_VPA_FUNC_MASK		7UL
+#define H_VPA_REG_VPA		1UL	/* Register Virtual Processor Area */
+#define H_VPA_REG_DTL		2UL	/* Register Dispatch Trace Log */
+#define H_VPA_REG_SLB		3UL	/* Register SLB shadow buffer */
+#define H_VPA_DEREG_VPA		5UL	/* Deregister Virtual Processor Area */
+#define H_VPA_DEREG_DTL		6UL	/* Deregister Dispatch Trace Log */
+#define H_VPA_DEREG_SLB		7UL	/* Deregister SLB shadow buffer */
 
 /* VASI States */
 #define H_VASI_INVALID          0
@@ -240,6 +269,8 @@
 #define H_GET_MPP		0x2D4
 #define H_HOME_NODE_ASSOCIATIVITY 0x2EC
 #define H_BEST_ENERGY		0x2F4
+#define H_RANDOM		0x300
+#define H_COP			0x304
 #define H_GET_MPP_X		0x314
 #define MAX_HCALL_OPCODE	H_GET_MPP_X
 
