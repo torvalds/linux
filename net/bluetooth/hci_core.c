@@ -26,6 +26,7 @@
 /* Bluetooth HCI core. */
 
 #include <linux/export.h>
+#include <linux/idr.h>
 
 #include <linux/rfkill.h>
 
@@ -45,6 +46,9 @@ DEFINE_RWLOCK(hci_dev_list_lock);
 /* HCI callback list */
 LIST_HEAD(hci_cb_list);
 DEFINE_RWLOCK(hci_cb_list_lock);
+
+/* HCI ID Numbering */
+static DEFINE_IDA(hci_index_ida);
 
 /* ---- HCI notifications ---- */
 
@@ -1689,37 +1693,35 @@ EXPORT_SYMBOL(hci_free_dev);
 /* Register HCI device */
 int hci_register_dev(struct hci_dev *hdev)
 {
-	struct list_head *head, *p;
 	int id, error;
 
 	if (!hdev->open || !hdev->close)
 		return -EINVAL;
 
-	write_lock(&hci_dev_list_lock);
-
 	/* Do not allow HCI_AMP devices to register at index 0,
 	 * so the index can be used as the AMP controller ID.
 	 */
-	id = (hdev->dev_type == HCI_BREDR) ? 0 : 1;
-	head = &hci_dev_list;
-
-	/* Find first available device id */
-	list_for_each(p, &hci_dev_list) {
-		int nid = list_entry(p, struct hci_dev, list)->id;
-		if (nid > id)
-			break;
-		if (nid == id)
-			id++;
-		head = p;
+	switch (hdev->dev_type) {
+	case HCI_BREDR:
+		id = ida_simple_get(&hci_index_ida, 0, 0, GFP_KERNEL);
+		break;
+	case HCI_AMP:
+		id = ida_simple_get(&hci_index_ida, 1, 0, GFP_KERNEL);
+		break;
+	default:
+		return -EINVAL;
 	}
+
+	if (id < 0)
+		return id;
 
 	sprintf(hdev->name, "hci%d", id);
 	hdev->id = id;
 
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
-	list_add(&hdev->list, head);
-
+	write_lock(&hci_dev_list_lock);
+	list_add(&hdev->list, &hci_dev_list);
 	write_unlock(&hci_dev_list_lock);
 
 	hdev->workqueue = alloc_workqueue(hdev->name, WQ_HIGHPRI | WQ_UNBOUND |
@@ -1755,6 +1757,7 @@ int hci_register_dev(struct hci_dev *hdev)
 err_wqueue:
 	destroy_workqueue(hdev->workqueue);
 err:
+	ida_simple_remove(&hci_index_ida, hdev->id);
 	write_lock(&hci_dev_list_lock);
 	list_del(&hdev->list);
 	write_unlock(&hci_dev_list_lock);
@@ -1766,11 +1769,13 @@ EXPORT_SYMBOL(hci_register_dev);
 /* Unregister HCI device */
 void hci_unregister_dev(struct hci_dev *hdev)
 {
-	int i;
+	int i, id;
 
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
 	set_bit(HCI_UNREGISTER, &hdev->dev_flags);
+
+	id = hdev->id;
 
 	write_lock(&hci_dev_list_lock);
 	list_del(&hdev->list);
@@ -1812,6 +1817,8 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	hci_dev_unlock(hdev);
 
 	hci_dev_put(hdev);
+
+	ida_simple_remove(&hci_index_ida, id);
 }
 EXPORT_SYMBOL(hci_unregister_dev);
 
