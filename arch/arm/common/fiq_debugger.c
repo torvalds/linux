@@ -658,6 +658,8 @@ static bool debug_fiq_exec(struct fiq_debugger_state *state,
 		dump_stacktrace(state, (struct pt_regs *)regs, 100, svc_sp);
 	} else if (!strcmp(cmd, "reboot")) {
 		arch_reset(0, 0);
+	} else if (!strncmp(cmd, "reboot ", 7)) {
+		arch_reset(0, &cmd[7]);
 	} else if (!strcmp(cmd, "irqs")) {
 		dump_irqs(state);
 	} else if (!strcmp(cmd, "kmsg")) {
