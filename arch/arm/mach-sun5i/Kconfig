@@ -4,4 +4,13 @@ config SUN5I_FPGA
 	bool "FPGA Board Support"
 	help
 	  Only for FPGA board.
+
+config SW_DEBUG_UART
+	int "UART to use for low-level debug"
+	depends on DEBUG_LL
+	default 0
+	help
+	  Choose the UART on which kernel low-level debug messages should be
+	  output.
+
 endif
