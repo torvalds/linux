@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>

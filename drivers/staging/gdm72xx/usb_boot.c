@@ -13,7 +13,6 @@
 
 #include <linux/uaccess.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/usb.h>
