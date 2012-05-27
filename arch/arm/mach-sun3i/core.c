@@ -105,8 +105,9 @@ static struct irqaction softwinner_timer_irq = {
 	.handler = softwinner_timer_interrupt,
 };
 
-void softwinner_irq_ack(unsigned int irq)
+void softwinner_irq_ack(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	volatile u32 val;
 
 	if (irq < 32) {
@@ -124,8 +125,9 @@ void softwinner_irq_ack(unsigned int irq)
 }
 
 /* Disable irq */
-static void softwinner_irq_mask(unsigned int irq)
+static void softwinner_irq_mask(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	volatile u32 val;
 
 	if (irq < 32) {
@@ -143,8 +145,9 @@ static void softwinner_irq_mask(unsigned int irq)
 }
 
 /* Enable irq */
-static void softwinner_irq_unmask(unsigned int irq)
+static void softwinner_irq_unmask(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	volatile u32 val;
 
 	if (irq < 32) {
@@ -163,9 +166,9 @@ static void softwinner_irq_unmask(unsigned int irq)
 
 static struct irq_chip sw_f20_sic_chip = {
 	.name	= "SW_F20_SIC",
-	.ack = softwinner_irq_ack,
-	.mask = softwinner_irq_mask,
-	.unmask = softwinner_irq_unmask,
+	.irq_ack = softwinner_irq_ack,
+	.irq_mask = softwinner_irq_mask,
+	.irq_unmask = softwinner_irq_unmask,
 };
 
 void __init softwinner_init_irq(void)
@@ -181,8 +184,7 @@ void __init softwinner_init_irq(void)
 	writel(0xffffffff, SW_INT_PENDING_REG1);
 
 	for (i = SW_INT_START; i < SW_INT_END; i++) {
-		set_irq_chip(i, &sw_f20_sic_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &sw_f20_sic_chip, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 }
@@ -252,9 +254,6 @@ struct sys_timer softwinner_timer = {
 };
 
 MACHINE_START(SUN3I, "sun3i")
-        /* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-        .phys_io        = 0x01c00000,
-        .io_pg_offst    = ((0xf1c00000) >> 18) & 0xfffc,
         .map_io         = softwinner_map_io,
         .init_irq       = softwinner_init_irq,
         .timer          = &softwinner_timer,
@@ -264,5 +263,3 @@ MACHINE_END
 
 extern void _eLIBs_CleanFlushDCacheRegion(void *addr, __u32 len);
 EXPORT_SYMBOL(_eLIBs_CleanFlushDCacheRegion);
-
-
