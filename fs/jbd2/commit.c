@@ -301,6 +301,24 @@ static void write_tag_block(int tag_bytes, journal_block_tag_t *tag,
 		tag->t_blocknr_high = cpu_to_be32((block >> 31) >> 1);
 }
 
+static void jbd2_descr_block_csum_set(journal_t *j,
+				      struct journal_head *descriptor)
+{
+	struct jbd2_journal_block_tail *tail;
+	__u32 csum;
+
+	if (!JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V2))
+		return;
+
+	tail = (struct jbd2_journal_block_tail *)
+			(jh2bh(descriptor)->b_data + j->j_blocksize -
+			sizeof(struct jbd2_journal_block_tail));
+	tail->t_checksum = 0;
+	csum = jbd2_chksum(j, j->j_csum_seed, jh2bh(descriptor)->b_data,
+			   j->j_blocksize);
+	tail->t_checksum = cpu_to_be32(csum);
+}
+
 /*
  * jbd2_journal_commit_transaction
  *
@@ -334,6 +352,10 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	unsigned long first_block;
 	tid_t first_tid;
 	int update_tail;
+	int csum_size = 0;
+
+	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_CSUM_V2))
+		csum_size = sizeof(struct jbd2_journal_block_tail);
 
 	/*
 	 * First job: lock down the current transaction and wait for
@@ -643,7 +665,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 		if (bufs == journal->j_wbufsize ||
 		    commit_transaction->t_buffers == NULL ||
-		    space_left < tag_bytes + 16) {
+		    space_left < tag_bytes + 16 + csum_size) {
 
 			jbd_debug(4, "JBD2: Submit %d IOs\n", bufs);
 
@@ -653,6 +675,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 			tag->t_flags |= cpu_to_be16(JBD2_FLAG_LAST_TAG);
 
+			jbd2_descr_block_csum_set(journal, descriptor);
 start_journal_io:
 			for (i = 0; i < bufs; i++) {
 				struct buffer_head *bh = wbuf[i];
