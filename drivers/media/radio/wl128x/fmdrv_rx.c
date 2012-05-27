@@ -251,7 +251,7 @@ again:
 	if (!timeleft) {
 		fmerr("Timeout(%d sec),didn't get tune ended int\n",
 			   jiffies_to_msecs(FM_DRV_RX_SEEK_TIMEOUT) / 1000);
-		return -ETIMEDOUT;
+		return -ENODATA;
 	}
 
 	int_reason = fmdev->irq_info.flag & (FM_TUNE_COMPLETE | FM_BAND_LIMIT);

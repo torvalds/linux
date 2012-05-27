@@ -363,7 +363,7 @@ stop:
 
 	/* try again, if timed out */
 	if (retval == 0 && timed_out)
-		return -EAGAIN;
+		return -ENODATA;
 	return retval;
 }
 
@@ -596,7 +596,9 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 	strcpy(tuner->name, "FM");
 	tuner->type = V4L2_TUNER_RADIO;
 	tuner->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
-			    V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO;
+			    V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO |
+			    V4L2_TUNER_CAP_HWSEEK_BOUNDED |
+			    V4L2_TUNER_CAP_HWSEEK_WRAP;
 
 	/* range limits */
 	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_BAND) >> 6) {
