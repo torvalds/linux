@@ -625,7 +625,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int even
             break;
         }
 
-        #if CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
+        #ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
         case CPUFREQ_GOV_USRENET: {
             /* cpu frequency limitation has changed, adjust current frequency */
             if(!mutex_trylock(&this_dbs_info->timer_mutex)) {
