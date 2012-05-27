@@ -549,8 +549,8 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 	char *s, *p;
 	char sep;
 
-	full_path = cifs_build_path_to_root(vol, cifs_sb,
-					    cifs_sb_master_tcon(cifs_sb));
+	full_path = build_path_to_root(vol, cifs_sb,
+				       cifs_sb_master_tcon(cifs_sb));
 	if (full_path == NULL)
 		return ERR_PTR(-ENOMEM);
 

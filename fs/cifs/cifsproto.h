@@ -57,9 +57,6 @@ extern int init_cifs_idmap(void);
 extern void exit_cifs_idmap(void);
 extern void cifs_destroy_idmaptrees(void);
 extern char *build_path_from_dentry(struct dentry *);
-extern char *cifs_build_path_to_root(struct smb_vol *vol,
-				     struct cifs_sb_info *cifs_sb,
-				     struct cifs_tcon *tcon);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
 extern char *cifs_compose_mount_options(const char *sb_mountdata,
 		const char *fullpath, const struct dfs_info3_param *ref,

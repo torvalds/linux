@@ -3684,7 +3684,7 @@ remote_path_check:
 			goto mount_fail_check;
 		}
 		/* build_path_to_root works only when we have a valid tcon */
-		full_path = cifs_build_path_to_root(volume_info, cifs_sb, tcon);
+		full_path = build_path_to_root(volume_info, cifs_sb, tcon);
 		if (full_path == NULL) {
 			rc = -ENOMEM;
 			goto mount_fail_check;

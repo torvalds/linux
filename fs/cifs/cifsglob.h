@@ -164,6 +164,7 @@ struct cifs_ses;
 struct cifs_tcon;
 struct dfs_info3_param;
 struct cifs_fattr;
+struct smb_vol;
 
 struct smb_version_operations {
 	int (*send_cancel)(struct TCP_Server_Info *, void *,
@@ -227,6 +228,9 @@ struct smb_version_operations {
 	int (*get_srv_inum)(const unsigned int, struct cifs_tcon *,
 			    struct cifs_sb_info *, const char *,
 			    u64 *uniqueid, FILE_ALL_INFO *);
+	/* build a full path to the root of the mount */
+	char * (*build_path_to_root)(struct smb_vol *, struct cifs_sb_info *,
+				     struct cifs_tcon *);
 };
 
 struct smb_version_values {
@@ -801,6 +805,15 @@ convert_delimiter(char *path, char delim)
 		if (path[i] == old_delim)
 			path[i] = delim;
 	}
+}
+
+static inline char *
+build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
+		   struct cifs_tcon *tcon)
+{
+	if (!vol->ops->build_path_to_root)
+		return NULL;
+	return vol->ops->build_path_to_root(vol, cifs_sb, tcon);
 }
 
 #ifdef CONFIG_CIFS_STATS
