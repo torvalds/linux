@@ -82,6 +82,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
 	struct pcm20 *dev = video_drvdata(file);
+	int res;
 
 	if (v->index)
 		return -EINVAL;
@@ -89,8 +90,13 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = 87*16000;
 	v->rangehigh = 108*16000;
-	v->signal = 0xffff;
-	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
+	res = snd_aci_cmd(dev->aci, ACI_READ_TUNERSTATION, -1, -1);
+	v->signal = (res & 0x80) ? 0 : 0xffff;
+	/* Note: stereo detection does not work if the audio is muted,
+	   it will default to mono in that case. */
+	res = snd_aci_cmd(dev->aci, ACI_READ_TUNERSTEREO, -1, -1);
+	v->rxsubchans = (res & 0x40) ? V4L2_TUNER_SUB_MONO :
+					V4L2_TUNER_SUB_STEREO;
 	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
 	v->audmode = dev->audmode;
 	return 0;
