@@ -1,6 +1,7 @@
 config DVB_FE_CUSTOMISE
 	bool "Customise the frontend modules to build"
 	depends on DVB_CORE
+	depends on EXPERT
 	default y if EXPERT
 	help
 	  This allows the user to select/deselect frontend drivers for their

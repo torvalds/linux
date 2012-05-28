@@ -1,21 +1,12 @@
-menuconfig RC_CORE
-	tristate "Remote Controller adapters"
+config RC_CORE
+	tristate
+	depends on MEDIA_RC_SUPPORT
 	depends on INPUT
-	default INPUT
-	---help---
-	  Enable support for Remote Controllers on Linux. This is
-	  needed in order to support several video capture adapters,
-	  standalone IR receivers/transmitters, and RF receivers.
-
-	  Enable this option if you have a video capture board even
-	  if you don't need IR, as otherwise, you may not be able to
-	  compile the driver for your adapter.
-
-if RC_CORE
+	default y
 
 config LIRC
-	tristate
-	default y
+	tristate "LIRC interface driver"
+	depends on RC_CORE
 
 	---help---
 	   Enable this option to build the Linux Infrared Remote
@@ -108,6 +99,12 @@ config IR_MCE_KBD_DECODER
 	   Enable this option if you have a Microsoft Remote Keyboard for
 	   Windows Media Center Edition, which you would like to use with
 	   a raw IR receiver in your system.
+
+menuconfig RC_DEVICES
+	bool "Remote Controller devices"
+	depends on RC_CORE
+
+if RC_DEVICES
 
 config IR_LIRC_CODEC
 	tristate "Enable IR to LIRC bridge"
@@ -276,4 +273,4 @@ config IR_GPIO_CIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called gpio-ir-recv.
 
-endif #RC_CORE
+endif #RC_DEVICES

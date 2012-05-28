@@ -2,6 +2,7 @@ config MEDIA_ATTACH
 	bool "Load and attach frontend and tuner driver modules as needed"
 	depends on VIDEO_MEDIA
 	depends on MODULES
+	default y if !EXPERT
 	help
 	  Remove the static dependency of DVB card drivers on all
 	  frontend modules for all possible card variants. Instead,
