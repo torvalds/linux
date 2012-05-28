@@ -153,7 +153,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 
 	/* Don't calculate ACKs for QoS Frames with NoAck Policy set */
 	if (ieee80211_is_data_qos(hdr->frame_control) &&
-	    *(ieee80211_get_qos_ctl(hdr)) | IEEE80211_QOS_CTL_ACK_POLICY_NOACK)
+	    *(ieee80211_get_qos_ctl(hdr)) & IEEE80211_QOS_CTL_ACK_POLICY_NOACK)
 		dur = 0;
 	else
 		/* Time needed to transmit ACK
