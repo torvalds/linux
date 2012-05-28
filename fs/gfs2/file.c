@@ -142,6 +142,7 @@ static const u32 fsflags_to_gfs2[32] = {
 	[7] = GFS2_DIF_NOATIME,
 	[12] = GFS2_DIF_EXHASH,
 	[14] = GFS2_DIF_INHERIT_JDATA,
+	[17] = GFS2_DIF_TOPDIR,
 };
 
 static const u32 gfs2_to_fsflags[32] = {
@@ -150,6 +151,7 @@ static const u32 gfs2_to_fsflags[32] = {
 	[gfs2fl_AppendOnly] = FS_APPEND_FL,
 	[gfs2fl_NoAtime] = FS_NOATIME_FL,
 	[gfs2fl_ExHash] = FS_INDEX_FL,
+	[gfs2fl_TopLevel] = FS_TOPDIR_FL,
 	[gfs2fl_InheritJdata] = FS_JOURNAL_DATA_FL,
 };
 
@@ -203,6 +205,7 @@ void gfs2_set_inode_flags(struct inode *inode)
 			     GFS2_DIF_NOATIME|			\
 			     GFS2_DIF_SYNC|			\
 			     GFS2_DIF_SYSTEM|			\
+			     GFS2_DIF_TOPDIR|			\
 			     GFS2_DIF_INHERIT_JDATA)
 
 /**
@@ -298,6 +301,7 @@ static int gfs2_set_flags(struct file *filp, u32 __user *ptr)
 
 	gfsflags = fsflags_cvt(fsflags_to_gfs2, fsflags);
 	if (!S_ISDIR(inode->i_mode)) {
+		gfsflags &= ~GFS2_DIF_TOPDIR;
 		if (gfsflags & GFS2_DIF_INHERIT_JDATA)
 			gfsflags ^= (GFS2_DIF_JDATA | GFS2_DIF_INHERIT_JDATA);
 		return do_gfs2_set_flags(filp, gfsflags, ~0);
