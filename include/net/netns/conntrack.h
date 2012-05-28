@@ -4,6 +4,7 @@
 #include <linux/list.h>
 #include <linux/list_nulls.h>
 #include <linux/atomic.h>
+#include <linux/netfilter/nf_conntrack_tcp.h>
 
 struct ctl_table_header;
 struct nf_conntrack_ecache;
@@ -25,8 +26,17 @@ struct nf_generic_net {
 	unsigned int timeout;
 };
 
+struct nf_tcp_net {
+	struct nf_proto_net pn;
+	unsigned int timeouts[TCP_CONNTRACK_TIMEOUT_MAX];
+	unsigned int tcp_loose;
+	unsigned int tcp_be_liberal;
+	unsigned int tcp_max_retrans;
+};
+
 struct nf_ip_net {
 	struct nf_generic_net   generic;
+	struct nf_tcp_net	tcp;
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
 	struct ctl_table_header *ctl_table_header;
 	struct ctl_table	*ctl_table;

@@ -303,6 +303,8 @@ static struct nf_proto_net *nf_ct_l4proto_net(struct net *net,
 					      struct nf_conntrack_l4proto *l4proto)
 {
 	switch (l4proto->l4proto) {
+	case IPPROTO_TCP:
+		return (struct nf_proto_net *)&net->ct.nf_ct_proto.tcp;
 	case 255: /* l4proto_generic */
 		return (struct nf_proto_net *)&net->ct.nf_ct_proto.generic;
 	default:
