@@ -1082,9 +1082,6 @@ static void iwl_tx_start(struct iwl_trans *trans)
 				SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
 	}
 
-	iwl_write_prph(trans, SCD_INTERRUPT_MASK,
-		       IWL_MASK(0, trans->cfg->base_params->num_of_queues));
-
 	/* Activate all Tx DMA/FIFO channels */
 	iwl_trans_txq_set_sched(trans, IWL_MASK(0, 7));
 

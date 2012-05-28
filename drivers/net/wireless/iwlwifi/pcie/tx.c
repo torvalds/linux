@@ -480,8 +480,6 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans, int txq_id, int fifo,
 			((frame_limit << SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
 				SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
 
-	iwl_set_bits_prph(trans, SCD_INTERRUPT_MASK, (1 << txq_id));
-
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	iwl_trans_tx_queue_set_status(trans, &trans_pcie->txq[txq_id],
 				      fifo, true);
@@ -505,8 +503,6 @@ void iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans, int txq_id)
 	trans_pcie->txq[txq_id].q.read_ptr = 0;
 	trans_pcie->txq[txq_id].q.write_ptr = 0;
 	iwl_trans_set_wr_ptrs(trans, txq_id, 0);
-
-	iwl_clear_bits_prph(trans, SCD_INTERRUPT_MASK, BIT(txq_id));
 
 	iwl_trans_tx_queue_set_status(trans, &trans_pcie->txq[txq_id],
 				      0, false);
