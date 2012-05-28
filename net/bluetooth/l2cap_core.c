@@ -1156,12 +1156,6 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 
 	lock_sock(parent);
 
-	/* Check for backlog size */
-	if (sk_acceptq_is_full(parent)) {
-		BT_DBG("backlog full %d", parent->sk_ack_backlog);
-		goto clean;
-	}
-
 	chan = pchan->ops->new_connection(pchan);
 	if (!chan)
 		goto clean;
@@ -3348,12 +3342,6 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	}
 
 	result = L2CAP_CR_NO_MEM;
-
-	/* Check for backlog size */
-	if (sk_acceptq_is_full(parent)) {
-		BT_DBG("backlog full %d", parent->sk_ack_backlog);
-		goto response;
-	}
 
 	chan = pchan->ops->new_connection(pchan);
 	if (!chan)
