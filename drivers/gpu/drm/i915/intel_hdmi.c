@@ -315,7 +315,7 @@ static void intel_set_infoframe(struct drm_encoder *encoder,
 	intel_hdmi->write_infoframe(encoder, frame);
 }
 
-void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
+static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 					 struct drm_display_mode *adjusted_mode)
 {
 	struct dip_infoframe avi_if = {
@@ -330,7 +330,7 @@ void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 	intel_set_infoframe(encoder, &avi_if);
 }
 
-void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
+static void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
 {
 	struct dip_infoframe spd_if;
 
@@ -343,6 +343,41 @@ void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
 	spd_if.body.spd.sdi = DIP_SPD_PC;
 
 	intel_set_infoframe(encoder, &spd_if);
+}
+
+static void g4x_set_infoframes(struct drm_encoder *encoder,
+			       struct drm_display_mode *adjusted_mode)
+{
+	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
+	intel_hdmi_set_spd_infoframe(encoder);
+}
+
+static void ibx_set_infoframes(struct drm_encoder *encoder,
+			       struct drm_display_mode *adjusted_mode)
+{
+	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
+	intel_hdmi_set_spd_infoframe(encoder);
+}
+
+static void cpt_set_infoframes(struct drm_encoder *encoder,
+			       struct drm_display_mode *adjusted_mode)
+{
+	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
+	intel_hdmi_set_spd_infoframe(encoder);
+}
+
+static void vlv_set_infoframes(struct drm_encoder *encoder,
+			       struct drm_display_mode *adjusted_mode)
+{
+	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
+	intel_hdmi_set_spd_infoframe(encoder);
+}
+
+static void hsw_set_infoframes(struct drm_encoder *encoder,
+			       struct drm_display_mode *adjusted_mode)
+{
+	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
+	intel_hdmi_set_spd_infoframe(encoder);
 }
 
 static void intel_hdmi_mode_set(struct drm_encoder *encoder,
@@ -388,8 +423,7 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	I915_WRITE(intel_hdmi->sdvox_reg, sdvox);
 	POSTING_READ(intel_hdmi->sdvox_reg);
 
-	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
-	intel_hdmi_set_spd_infoframe(encoder);
+	intel_hdmi->set_infoframes(encoder, adjusted_mode);
 }
 
 static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
@@ -734,9 +768,11 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 
 	if (!HAS_PCH_SPLIT(dev)) {
 		intel_hdmi->write_infoframe = g4x_write_infoframe;
+		intel_hdmi->set_infoframes = g4x_set_infoframes;
 		I915_WRITE(VIDEO_DIP_CTL, 0);
 	} else if (IS_VALLEYVIEW(dev)) {
 		intel_hdmi->write_infoframe = vlv_write_infoframe;
+		intel_hdmi->set_infoframes = vlv_set_infoframes;
 		for_each_pipe(i)
 			I915_WRITE(VLV_TVIDEO_DIP_CTL(i), 0);
 	} else if (IS_HASWELL(dev)) {
@@ -744,14 +780,17 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 		 * just doing the minimal required for HDMI to work at this stage.
 		 */
 		intel_hdmi->write_infoframe = hsw_write_infoframe;
+		intel_hdmi->set_infoframes = hsw_set_infoframes;
 		for_each_pipe(i)
 			I915_WRITE(HSW_TVIDEO_DIP_CTL(i), 0);
 	} else if (HAS_PCH_IBX(dev)) {
 		intel_hdmi->write_infoframe = ibx_write_infoframe;
+		intel_hdmi->set_infoframes = ibx_set_infoframes;
 		for_each_pipe(i)
 			I915_WRITE(TVIDEO_DIP_CTL(i), 0);
 	} else {
 		intel_hdmi->write_infoframe = cpt_write_infoframe;
+		intel_hdmi->set_infoframes = cpt_set_infoframes;
 		for_each_pipe(i)
 			I915_WRITE(TVIDEO_DIP_CTL(i), 0);
 	}

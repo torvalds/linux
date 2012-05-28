@@ -726,8 +726,7 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 
 	I915_WRITE(DDI_FUNC_CTL(pipe), temp);
 
-	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
-	intel_hdmi_set_spd_infoframe(encoder);
+	intel_hdmi->set_infoframes(encoder, adjusted_mode);
 }
 
 void intel_ddi_dpms(struct drm_encoder *encoder, int mode)

@@ -301,6 +301,8 @@ struct intel_hdmi {
 	enum hdmi_force_audio force_audio;
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				struct dip_infoframe *frame);
+	void (*set_infoframes)(struct drm_encoder *encoder,
+			       struct drm_display_mode *adjusted_mode);
 };
 
 static inline struct drm_crtc *
@@ -343,9 +345,6 @@ extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
 extern struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
-extern void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
-			    struct drm_display_mode *adjusted_mode);
-extern void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder);
 extern void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
 extern bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg,
 			    bool is_sdvob);
