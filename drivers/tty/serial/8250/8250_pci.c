@@ -1887,7 +1887,6 @@ enum pci_board_num_t {
 	pbn_panacom,
 	pbn_panacom2,
 	pbn_panacom4,
-	pbn_exsys_4055,
 	pbn_plx_romulus,
 	pbn_oxsemi,
 	pbn_oxsemi_1_4000000,
@@ -2391,13 +2390,6 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.base_baud	= 921600,
 		.uart_offset	= 0x400,
 		.reg_shift	= 7,
-	},
-
-	[pbn_exsys_4055] = {
-		.flags		= FL_BASE2,
-		.num_ports	= 4,
-		.base_baud	= 115200,
-		.uart_offset	= 8,
 	},
 
 	/* I think this entry is broken - the first_offset looks wrong --rmk */
@@ -3193,7 +3185,7 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
 		PCI_SUBVENDOR_ID_EXSYS,
 		PCI_SUBDEVICE_ID_EXSYS_4055, 0, 0,
-		pbn_exsys_4055 },
+		pbn_b2_4_115200 },
 	/*
 	 * Megawolf Romulus PCI Serial Card, from Mike Hudson
 	 * (Exoray@isys.ca)
