@@ -58,7 +58,7 @@ enum {
  * these buses (use PL08X_AHB1 | PL08X_AHB2).
  */
 struct pl08x_channel_data {
-	char *bus_id;
+	const char *bus_id;
 	int min_signal;
 	int max_signal;
 	u32 muxval;

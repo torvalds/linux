@@ -237,7 +237,7 @@ struct pl08x_dma_chan {
 	struct pl08x_phy_chan *phychan;
 	int phychan_hold;
 	struct tasklet_struct tasklet;
-	char *name;
+	const char *name;
 	const struct pl08x_channel_data *cd;
 	dma_addr_t src_addr;
 	dma_addr_t dst_addr;
