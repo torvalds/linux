@@ -603,7 +603,7 @@ ext4_ext_binsearch_idx(struct inode *inode,
 	}
 
 	path->p_idx = l - 1;
-	ext_debug("  -> %d->%lld ", le32_to_cpu(path->p_idx->ei_block),
+	ext_debug("  -> %u->%lld ", le32_to_cpu(path->p_idx->ei_block),
 		  ext4_idx_pblock(path->p_idx));
 
 #ifdef CHECK_BINSEARCH
