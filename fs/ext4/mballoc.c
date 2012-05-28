@@ -2375,7 +2375,7 @@ static int ext4_groupinfo_create_slab(size_t size)
 	return 0;
 }
 
-int ext4_mb_init(struct super_block *sb, int needs_recovery)
+int ext4_mb_init(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	unsigned i, j;

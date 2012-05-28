@@ -3768,7 +3768,7 @@ no_journal:
 	}
 
 	ext4_ext_init(sb);
-	err = ext4_mb_init(sb, needs_recovery);
+	err = ext4_mb_init(sb);
 	if (err) {
 		ext4_msg(sb, KERN_ERR, "failed to initialize mballoc (%d)",
 			 err);
