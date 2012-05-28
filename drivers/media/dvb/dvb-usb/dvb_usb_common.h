@@ -33,7 +33,8 @@ extern int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff);
 extern int usb_urb_init(struct usb_data_stream *stream,
 		struct usb_data_stream_properties *props);
 extern int usb_urb_exit(struct usb_data_stream *stream);
-extern int usb_urb_submit(struct usb_data_stream *stream);
+extern int usb_urb_submit(struct usb_data_stream *stream,
+		struct usb_data_stream_properties *props);
 extern int usb_urb_kill(struct usb_data_stream *stream);
 
 extern int dvb_usb_adapter_stream_init(struct dvb_usb_adapter *adap);

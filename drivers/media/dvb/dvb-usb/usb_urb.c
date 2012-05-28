@@ -11,6 +11,10 @@
 #include "dvb_usb_common.h"
 
 /* URB stuff for streaming */
+
+int usb_urb_reconfig(struct usb_data_stream *stream,
+		struct usb_data_stream_properties *props);
+
 static void usb_urb_complete(struct urb *urb)
 {
 	struct usb_data_stream *stream = urb->context;
@@ -79,9 +83,17 @@ int usb_urb_kill(struct usb_data_stream *stream)
 	return 0;
 }
 
-int usb_urb_submit(struct usb_data_stream *stream)
+int usb_urb_submit(struct usb_data_stream *stream,
+		struct usb_data_stream_properties *props)
 {
 	int i, ret;
+
+	if (props) {
+		ret = usb_urb_reconfig(stream, props);
+		if (ret < 0)
+			return ret;
+	}
+
 	for (i = 0; i < stream->urbs_initialized; i++) {
 		deb_ts("submitting URB no. %d\n", i);
 		ret = usb_submit_urb(stream->urb_list[i], GFP_ATOMIC);
@@ -96,7 +108,100 @@ int usb_urb_submit(struct usb_data_stream *stream)
 	return 0;
 }
 
-static int usb_free_stream_buffers(struct usb_data_stream *stream)
+int usb_urb_free_urbs(struct usb_data_stream *stream)
+{
+	int i;
+
+	usb_urb_kill(stream);
+
+	for (i = 0; i < stream->urbs_initialized; i++) {
+		if (stream->urb_list[i] != NULL) {
+			deb_mem("freeing URB no. %d.\n", i);
+			pr_debug("%s: free URB=%d\n", __func__, i);
+			/* free the URBs */
+			usb_free_urb(stream->urb_list[i]);
+		}
+	}
+	stream->urbs_initialized = 0;
+
+	return 0;
+}
+
+static int usb_urb_alloc_bulk_urbs(struct usb_data_stream *stream)
+{
+	int i, j;
+
+	/* allocate the URBs */
+	for (i = 0; i < stream->props.count; i++) {
+		pr_debug("%s: alloc URB=%d\n", __func__, i);
+		stream->urb_list[i] = usb_alloc_urb(0, GFP_ATOMIC);
+		if (!stream->urb_list[i]) {
+			deb_mem("not enough memory for urb_alloc_urb!.\n");
+			for (j = 0; j < i; j++)
+				usb_free_urb(stream->urb_list[j]);
+			return -ENOMEM;
+		}
+		usb_fill_bulk_urb(stream->urb_list[i],
+				stream->udev,
+				usb_rcvbulkpipe(stream->udev,
+						stream->props.endpoint),
+				stream->buf_list[i],
+				stream->props.u.bulk.buffersize,
+				usb_urb_complete, stream);
+
+		stream->urb_list[i]->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+		stream->urb_list[i]->transfer_dma = stream->dma_addr[i];
+		stream->urbs_initialized++;
+	}
+	return 0;
+}
+
+static int usb_urb_alloc_isoc_urbs(struct usb_data_stream *stream)
+{
+	int i, j;
+
+	/* allocate the URBs */
+	for (i = 0; i < stream->props.count; i++) {
+		struct urb *urb;
+		int frame_offset = 0;
+		pr_debug("%s: alloc URB=%d\n", __func__, i);
+		stream->urb_list[i] = usb_alloc_urb(
+				stream->props.u.isoc.framesperurb, GFP_ATOMIC);
+		if (!stream->urb_list[i]) {
+			deb_mem("not enough memory for urb_alloc_urb!\n");
+			for (j = 0; j < i; j++)
+				usb_free_urb(stream->urb_list[j]);
+			return -ENOMEM;
+		}
+
+		urb = stream->urb_list[i];
+
+		urb->dev = stream->udev;
+		urb->context = stream;
+		urb->complete = usb_urb_complete;
+		urb->pipe = usb_rcvisocpipe(stream->udev,
+				stream->props.endpoint);
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
+		urb->interval = stream->props.u.isoc.interval;
+		urb->number_of_packets = stream->props.u.isoc.framesperurb;
+		urb->transfer_buffer_length = stream->props.u.isoc.framesize *
+				stream->props.u.isoc.framesperurb;
+		urb->transfer_buffer = stream->buf_list[i];
+		urb->transfer_dma = stream->dma_addr[i];
+
+		for (j = 0; j < stream->props.u.isoc.framesperurb; j++) {
+			urb->iso_frame_desc[j].offset = frame_offset;
+			urb->iso_frame_desc[j].length =
+					stream->props.u.isoc.framesize;
+			frame_offset += stream->props.u.isoc.framesize;
+		}
+
+		stream->urbs_initialized++;
+	}
+	return 0;
+}
+
+int usb_free_stream_buffers(struct usb_data_stream *stream)
 {
 	if (stream->state & USB_STATE_URB_BUF) {
 		while (stream->buf_num) {
@@ -113,7 +218,7 @@ static int usb_free_stream_buffers(struct usb_data_stream *stream)
 	return 0;
 }
 
-static int usb_allocate_stream_buffers(struct usb_data_stream *stream, int num,
+int usb_alloc_stream_buffers(struct usb_data_stream *stream, int num,
 		unsigned long size)
 {
 	stream->buf_num = 0;
@@ -144,91 +249,62 @@ static int usb_allocate_stream_buffers(struct usb_data_stream *stream, int num,
 	return 0;
 }
 
-static int usb_bulk_urb_init(struct usb_data_stream *stream)
+int usb_urb_reconfig(struct usb_data_stream *stream,
+		struct usb_data_stream_properties *props)
 {
-	int i, j;
+	int buf_size;
 
-	i = usb_allocate_stream_buffers(stream, stream->props.count,
-			stream->props.u.bulk.buffersize);
-	if (i < 0)
-		return i;
+	if (props == NULL)
+		return 0;
 
-	/* allocate the URBs */
-	for (i = 0; i < stream->props.count; i++) {
-		stream->urb_list[i] = usb_alloc_urb(0, GFP_ATOMIC);
-		if (!stream->urb_list[i]) {
-			deb_mem("not enough memory for urb_alloc_urb!.\n");
-			for (j = 0; j < i; j++)
-				usb_free_urb(stream->urb_list[j]);
-			return -ENOMEM;
-		}
-		usb_fill_bulk_urb(stream->urb_list[i], stream->udev,
-				usb_rcvbulkpipe(stream->udev,
-					stream->props.endpoint),
-				stream->buf_list[i],
-				stream->props.u.bulk.buffersize,
-				usb_urb_complete, stream);
+	/* check allocated buffers are large enough for the request */
+	if (props->type == USB_BULK)
+		buf_size = stream->props.u.bulk.buffersize;
+	else if (props->type == USB_ISOC)
+		buf_size = props->u.isoc.framesize * props->u.isoc.framesperurb;
+	else
+		return -EINVAL;
 
-		stream->urb_list[i]->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
-		stream->urb_list[i]->transfer_dma = stream->dma_addr[i];
-		stream->urbs_initialized++;
+	if (stream->buf_num < props->count || stream->buf_size < buf_size) {
+		err("cannot reconfigure as allocated buffers are too small");
+		return -EINVAL;
 	}
-	return 0;
-}
 
-static int usb_isoc_urb_init(struct usb_data_stream *stream)
-{
-	int i, j;
-
-	i = usb_allocate_stream_buffers(stream, stream->props.count,
-			stream->props.u.isoc.framesize *
-			stream->props.u.isoc.framesperurb);
-	if (i < 0)
-		return i;
-
-	/* allocate the URBs */
-	for (i = 0; i < stream->props.count; i++) {
-		struct urb *urb;
-		int frame_offset = 0;
-
-		stream->urb_list[i] = usb_alloc_urb(
-				stream->props.u.isoc.framesperurb, GFP_ATOMIC);
-		if (!stream->urb_list[i]) {
-			deb_mem("not enough memory for urb_alloc_urb!\n");
-			for (j = 0; j < i; j++)
-				usb_free_urb(stream->urb_list[j]);
-			return -ENOMEM;
-		}
-
-		urb = stream->urb_list[i];
-
-		urb->dev = stream->udev;
-		urb->context = stream;
-		urb->complete = usb_urb_complete;
-		urb->pipe = usb_rcvisocpipe(stream->udev,
-				stream->props.endpoint);
-		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
-		urb->interval = stream->props.u.isoc.interval;
-		urb->number_of_packets = stream->props.u.isoc.framesperurb;
-		urb->transfer_buffer_length = stream->buf_size;
-		urb->transfer_buffer = stream->buf_list[i];
-		urb->transfer_dma = stream->dma_addr[i];
-
-		for (j = 0; j < stream->props.u.isoc.framesperurb; j++) {
-			urb->iso_frame_desc[j].offset = frame_offset;
-			urb->iso_frame_desc[j].length =
-					stream->props.u.isoc.framesize;
-			frame_offset += stream->props.u.isoc.framesize;
-		}
-
-		stream->urbs_initialized++;
+	/* check if all fields are same */
+	if (stream->props.type == props->type &&
+			stream->props.count == props->count &&
+			stream->props.endpoint == props->endpoint) {
+		if (props->type == USB_BULK &&
+				props->u.bulk.buffersize ==
+				stream->props.u.bulk.buffersize)
+			return 0;
+		else if (props->type == USB_ISOC &&
+				props->u.isoc.framesperurb ==
+				stream->props.u.isoc.framesperurb &&
+				props->u.isoc.framesize ==
+				stream->props.u.isoc.framesize &&
+				props->u.isoc.interval ==
+				stream->props.u.isoc.interval)
+			return 0;
 	}
+
+	pr_debug("%s: re-alloc URBs\n", __func__);
+
+	usb_urb_free_urbs(stream);
+	memcpy(&stream->props, props, sizeof(*props));
+	if (props->type == USB_BULK)
+		return usb_urb_alloc_bulk_urbs(stream);
+	else if (props->type == USB_ISOC)
+		return usb_urb_alloc_isoc_urbs(stream);
+
 	return 0;
 }
 
 int usb_urb_init(struct usb_data_stream *stream,
 		struct usb_data_stream_properties *props)
 {
+	int ret;
+
 	if (stream == NULL || props == NULL)
 		return -EINVAL;
 
@@ -244,9 +320,20 @@ int usb_urb_init(struct usb_data_stream *stream,
 
 	switch (stream->props.type) {
 	case USB_BULK:
-		return usb_bulk_urb_init(stream);
+		ret = usb_alloc_stream_buffers(stream, stream->props.count,
+				stream->props.u.bulk.buffersize);
+		if (ret < 0)
+			return ret;
+
+		return usb_urb_alloc_bulk_urbs(stream);
 	case USB_ISOC:
-		return usb_isoc_urb_init(stream);
+		ret = usb_alloc_stream_buffers(stream, stream->props.count,
+				stream->props.u.isoc.framesize *
+				stream->props.u.isoc.framesperurb);
+		if (ret < 0)
+			return ret;
+
+		return usb_urb_alloc_isoc_urbs(stream);
 	default:
 		err("unknown URB-type for data transfer.");
 		return -EINVAL;
@@ -255,19 +342,8 @@ int usb_urb_init(struct usb_data_stream *stream,
 
 int usb_urb_exit(struct usb_data_stream *stream)
 {
-	int i;
-
-	usb_urb_kill(stream);
-
-	for (i = 0; i < stream->urbs_initialized; i++) {
-		if (stream->urb_list[i] != NULL) {
-			deb_mem("freeing URB no. %d.\n", i);
-			/* free the URBs */
-			usb_free_urb(stream->urb_list[i]);
-		}
-	}
-	stream->urbs_initialized = 0;
-
+	usb_urb_free_urbs(stream);
 	usb_free_stream_buffers(stream);
+
 	return 0;
 }
