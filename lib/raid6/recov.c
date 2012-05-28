@@ -22,8 +22,8 @@
 #include <linux/raid/pq.h>
 
 /* Recover two failed data blocks. */
-void raid6_2data_recov_intx1(int disks, size_t bytes, int faila, int failb,
-		       void **ptrs)
+static void raid6_2data_recov_intx1(int disks, size_t bytes, int faila,
+		int failb, void **ptrs)
 {
 	u8 *p, *q, *dp, *dq;
 	u8 px, qx, db;
@@ -66,7 +66,8 @@ void raid6_2data_recov_intx1(int disks, size_t bytes, int faila, int failb,
 }
 
 /* Recover failure of one data block plus the P block */
-void raid6_datap_recov_intx1(int disks, size_t bytes, int faila, void **ptrs)
+static void raid6_datap_recov_intx1(int disks, size_t bytes, int faila,
+		void **ptrs)
 {
 	u8 *p, *q, *dq;
 	const u8 *qmul;		/* Q multiplier table */
