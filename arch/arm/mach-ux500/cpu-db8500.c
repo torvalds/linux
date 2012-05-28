@@ -140,7 +140,6 @@ static struct platform_device *platform_devs[] __initdata = {
 static struct platform_device *of_platform_devs[] __initdata = {
 	&u8500_dma40_device,
 	&db8500_pmu_device,
-	&db8500_prcmu_device,
 };
 
 static resource_size_t __initdata db8500_gpio_base[] = {
@@ -251,7 +250,7 @@ struct device * __init u8500_of_init_devices(void)
 	 * Devices to be DT:ed:
 	 *   u8500_dma40_device  = todo
 	 *   db8500_pmu_device   = todo
-	 *   db8500_prcmu_device = todo
+	 *   db8500_prcmu_device = done
 	 */
 	platform_add_devices(of_platform_devs, ARRAY_SIZE(of_platform_devs));
 
