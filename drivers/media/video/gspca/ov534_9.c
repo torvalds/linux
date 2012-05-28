@@ -1008,6 +1008,7 @@ static int sccb_check_status(struct gspca_dev *gspca_dev)
 	int i;
 
 	for (i = 0; i < 5; i++) {
+		msleep(10);
 		data = reg_r(gspca_dev, OV534_REG_STATUS);
 
 		switch (data) {
