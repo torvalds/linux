@@ -743,7 +743,6 @@ int ath6kl_wmi_force_roam_cmd(struct wmi *wmi, const u8 *bssid)
 		return -ENOMEM;
 
 	cmd = (struct roam_ctrl_cmd *) skb->data;
-	memset(cmd, 0, sizeof(*cmd));
 
 	memcpy(cmd->info.bssid, bssid, ETH_ALEN);
 	cmd->roam_ctrl = WMI_FORCE_ROAM;
@@ -763,7 +762,6 @@ int ath6kl_wmi_set_roam_mode_cmd(struct wmi *wmi, enum wmi_roam_mode mode)
 		return -ENOMEM;
 
 	cmd = (struct roam_ctrl_cmd *) skb->data;
-	memset(cmd, 0, sizeof(*cmd));
 
 	cmd->info.roam_mode = mode;
 	cmd->roam_ctrl = WMI_SET_ROAM_MODE;
