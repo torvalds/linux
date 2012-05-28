@@ -308,9 +308,6 @@ static void intel_set_infoframe(struct drm_encoder *encoder,
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 
-	if (!intel_hdmi->has_hdmi_sink)
-		return;
-
 	intel_dip_infoframe_csum(frame);
 	intel_hdmi->write_infoframe(encoder, frame);
 }
@@ -348,6 +345,30 @@ static void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
 static void g4x_set_infoframes(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode)
 {
+	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	u32 reg = VIDEO_DIP_CTL;
+	u32 val = I915_READ(reg);
+
+	/* If the registers were not initialized yet, they might be zeroes,
+	 * which means we're selecting the AVI DIP and we're setting its
+	 * frequency to once. This seems to really confuse the HW and make
+	 * things stop working (the register spec says the AVI always needs to
+	 * be sent every VSync). So here we avoid writing to the register more
+	 * than we need and also explicitly select the AVI DIP and explicitly
+	 * set its frequency to every VSync. Avoiding to write it twice seems to
+	 * be enough to solve the problem, but being defensive shouldn't hurt us
+	 * either. */
+	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
+
+	if (!intel_hdmi->has_hdmi_sink) {
+		if (!(val & VIDEO_DIP_ENABLE))
+			return;
+		val &= ~VIDEO_DIP_ENABLE;
+		I915_WRITE(reg, val);
+		return;
+	}
+
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
 }
@@ -355,6 +376,23 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 static void ibx_set_infoframes(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode)
 {
+	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	u32 reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
+	u32 val = I915_READ(reg);
+
+	/* See the big comment in g4x_set_infoframes() */
+	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
+
+	if (!intel_hdmi->has_hdmi_sink) {
+		if (!(val & VIDEO_DIP_ENABLE))
+			return;
+		val &= ~VIDEO_DIP_ENABLE;
+		I915_WRITE(reg, val);
+		return;
+	}
+
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
 }
@@ -362,6 +400,23 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 static void cpt_set_infoframes(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode)
 {
+	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	u32 reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
+	u32 val = I915_READ(reg);
+
+	/* See the big comment in g4x_set_infoframes() */
+	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
+
+	if (!intel_hdmi->has_hdmi_sink) {
+		if (!(val & VIDEO_DIP_ENABLE))
+			return;
+		val &= ~(VIDEO_DIP_ENABLE | VIDEO_DIP_ENABLE_AVI);
+		I915_WRITE(reg, val);
+		return;
+	}
+
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
 }
@@ -369,6 +424,23 @@ static void cpt_set_infoframes(struct drm_encoder *encoder,
 static void vlv_set_infoframes(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode)
 {
+	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	u32 reg = VLV_TVIDEO_DIP_CTL(intel_crtc->pipe);
+	u32 val = I915_READ(reg);
+
+	/* See the big comment in g4x_set_infoframes() */
+	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
+
+	if (!intel_hdmi->has_hdmi_sink) {
+		if (!(val & VIDEO_DIP_ENABLE))
+			return;
+		val &= ~VIDEO_DIP_ENABLE;
+		I915_WRITE(reg, val);
+		return;
+	}
+
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
 }
@@ -376,6 +448,16 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 static void hsw_set_infoframes(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode)
 {
+	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	u32 reg = HSW_TVIDEO_DIP_CTL(intel_crtc->pipe);
+
+	if (!intel_hdmi->has_hdmi_sink) {
+		I915_WRITE(reg, 0);
+		return;
+	}
+
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
 }
