@@ -147,8 +147,8 @@ int lcd_init(void)
 	usleep_range(7*1000, 7*1000);
 #endif
 
-//    Write_ADDR(0x0001);     // Software Reset
-//    msleep(100);
+    Write_ADDR(0x0001);     // Software Reset
+    msleep(10);
 
     Write_ADDR(0x0011);     // Sleep Out
     msleep(60);
