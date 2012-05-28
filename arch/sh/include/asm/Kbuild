@@ -1,5 +1,34 @@
 include include/asm-generic/Kbuild.asm
 
+generic-y += bitsperlong.h
+generic-y += cputime.h
+generic-y += current.h
+generic-y += div64.h
+generic-y += emergency-restart.h
+generic-y += errno.h
+generic-y += fcntl.h
+generic-y += ioctl.h
+generic-y += ipcbuf.h
+generic-y += irq_regs.h
+generic-y += local.h
+generic-y += param.h
+generic-y += parport.h
+generic-y += percpu.h
+generic-y += poll.h
+generic-y += mman.h
+generic-y += msgbuf.h
+generic-y += resource.h
+generic-y += sembuf.h
+generic-y += serial.h
+generic-y += shmbuf.h
+generic-y += siginfo.h
+generic-y += socket.h
+generic-y += statfs.h
+generic-y += termbits.h
+generic-y += termios.h
+generic-y += ucontext.h
+generic-y += xor.h
+
 header-y += cachectl.h
 header-y += cpu-features.h
 header-y += hw_breakpoint.h
