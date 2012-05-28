@@ -1,6 +1,6 @@
 config MEDIA_ATTACH
 	bool "Load and attach frontend and tuner driver modules as needed"
-	depends on VIDEO_MEDIA
+	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_RADIO_SUPPORT
 	depends on MODULES
 	default y if !EXPERT
 	help
@@ -20,15 +20,15 @@ config MEDIA_ATTACH
 
 config MEDIA_TUNER
 	tristate
-	default VIDEO_MEDIA && I2C
-	depends on VIDEO_MEDIA && I2C
+	depends on (MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT) && I2C
+	default y
 	select MEDIA_TUNER_XC2028 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_XC5000 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_XC4000 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MT20XX if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_TDA8290 if !MEDIA_TUNER_CUSTOMISE
-	select MEDIA_TUNER_TEA5761 if !MEDIA_TUNER_CUSTOMISE && EXPERIMENTAL
-	select MEDIA_TUNER_TEA5767 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_TEA5761 if !MEDIA_TUNER_CUSTOMISE && MEDIA_RADIO_SUPPORT && EXPERIMENTAL
+	select MEDIA_TUNER_TEA5767 if !MEDIA_TUNER_CUSTOMISE && MEDIA_RADIO_SUPPORT
 	select MEDIA_TUNER_SIMPLE if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_TDA9887 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MC44S803 if !MEDIA_TUNER_CUSTOMISE
@@ -48,10 +48,11 @@ config MEDIA_TUNER_CUSTOMISE
 
 menu "Customize TV tuners"
 	visible if MEDIA_TUNER_CUSTOMISE
+	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_RADIO_SUPPORT
 
 config MEDIA_TUNER_SIMPLE
 	tristate "Simple tuner support"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	select MEDIA_TUNER_TDA9887
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
@@ -59,7 +60,7 @@ config MEDIA_TUNER_SIMPLE
 
 config MEDIA_TUNER_TDA8290
 	tristate "TDA 8290/8295 + 8275(a)/18271 tuner combo"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	select MEDIA_TUNER_TDA827X
 	select MEDIA_TUNER_TDA18271
 	default m if MEDIA_TUNER_CUSTOMISE
@@ -68,21 +69,21 @@ config MEDIA_TUNER_TDA8290
 
 config MEDIA_TUNER_TDA827X
 	tristate "Philips TDA827X silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A DVB-T silicon tuner module. Say Y when you want to support this tuner.
 
 config MEDIA_TUNER_TDA18271
 	tristate "NXP TDA18271 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A silicon tuner module. Say Y when you want to support this tuner.
 
 config MEDIA_TUNER_TDA9887
 	tristate "TDA 9885/6/7 analog IF demodulator"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to include support for Philips TDA9885/6/7
@@ -90,7 +91,7 @@ config MEDIA_TUNER_TDA9887
 
 config MEDIA_TUNER_TEA5761
 	tristate "TEA 5761 radio tuner (EXPERIMENTAL)"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	depends on EXPERIMENTAL
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
@@ -98,63 +99,63 @@ config MEDIA_TUNER_TEA5761
 
 config MEDIA_TUNER_TEA5767
 	tristate "TEA 5767 radio tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to include support for the Philips TEA5767 radio tuner.
 
 config MEDIA_TUNER_MT20XX
 	tristate "Microtune 2032 / 2050 tuners"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to include support for the MT2032 / MT2050 tuner.
 
 config MEDIA_TUNER_MT2060
 	tristate "Microtune MT2060 silicon IF tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A driver for the silicon IF tuner MT2060 from Microtune.
 
 config MEDIA_TUNER_MT2063
 	tristate "Microtune MT2063 silicon IF tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A driver for the silicon IF tuner MT2063 from Microtune.
 
 config MEDIA_TUNER_MT2266
 	tristate "Microtune MT2266 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A driver for the silicon baseband tuner MT2266 from Microtune.
 
 config MEDIA_TUNER_MT2131
 	tristate "Microtune MT2131 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A driver for the silicon baseband tuner MT2131 from Microtune.
 
 config MEDIA_TUNER_QT1010
 	tristate "Quantek QT1010 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A driver for the silicon tuner QT1010 from Quantek.
 
 config MEDIA_TUNER_XC2028
 	tristate "XCeive xc2028/xc3028 tuners"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to include support for the xc2028/xc3028 tuners.
 
 config MEDIA_TUNER_XC5000
 	tristate "Xceive XC5000 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A driver for the silicon tuner XC5000 from Xceive.
@@ -163,7 +164,7 @@ config MEDIA_TUNER_XC5000
 
 config MEDIA_TUNER_XC4000
 	tristate "Xceive XC4000 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A driver for the silicon tuner XC4000 from Xceive.
@@ -172,70 +173,70 @@ config MEDIA_TUNER_XC4000
 
 config MEDIA_TUNER_MXL5005S
 	tristate "MaxLinear MSL5005S silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A driver for the silicon tuner MXL5005S from MaxLinear.
 
 config MEDIA_TUNER_MXL5007T
 	tristate "MaxLinear MxL5007T silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A driver for the silicon tuner MxL5007T from MaxLinear.
 
 config MEDIA_TUNER_MC44S803
 	tristate "Freescale MC44S803 Low Power CMOS Broadband tuners"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the Freescale MC44S803 based tuners
 
 config MEDIA_TUNER_MAX2165
 	tristate "Maxim MAX2165 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A driver for the silicon tuner MAX2165 from Maxim.
 
 config MEDIA_TUNER_TDA18218
 	tristate "NXP TDA18218 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  NXP TDA18218 silicon tuner driver.
 
 config MEDIA_TUNER_FC0011
 	tristate "Fitipower FC0011 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  Fitipower FC0011 silicon tuner driver.
 
 config MEDIA_TUNER_FC0012
 	tristate "Fitipower FC0012 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  Fitipower FC0012 silicon tuner driver.
 
 config MEDIA_TUNER_FC0013
 	tristate "Fitipower FC0013 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  Fitipower FC0013 silicon tuner driver.
 
 config MEDIA_TUNER_TDA18212
 	tristate "NXP TDA18212 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  NXP TDA18212 silicon tuner driver.
 
 config MEDIA_TUNER_TUA9001
 	tristate "Infineon TUA 9001 silicon tuner"
-	depends on VIDEO_MEDIA && I2C
+	depends on MEDIA_SUPPORT && I2C
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  Infineon TUA 9001 silicon tuner driver.

@@ -138,10 +138,6 @@ config DVB_NET
 	  You may want to disable the network support on embedded devices. If
 	  unsure say Y.
 
-config VIDEO_MEDIA
-	tristate
-	default (DVB_CORE && (VIDEO_DEV = n)) || (VIDEO_DEV && (DVB_CORE = n)) || (DVB_CORE && VIDEO_DEV)
-
 source "drivers/media/common/Kconfig"
 source "drivers/media/rc/Kconfig"
 
