@@ -1717,8 +1717,10 @@
 #define   VIDEO_DIP_PORT_C		(2 << 29)
 #define   VIDEO_DIP_PORT_D		(3 << 29)
 #define   VIDEO_DIP_PORT_MASK		(3 << 29)
+#define   VIDEO_DIP_ENABLE_GCP		(1 << 25)
 #define   VIDEO_DIP_ENABLE_AVI		(1 << 21)
 #define   VIDEO_DIP_ENABLE_VENDOR	(2 << 21)
+#define   VIDEO_DIP_ENABLE_GAMUT	(4 << 21)
 #define   VIDEO_DIP_ENABLE_SPD		(8 << 21)
 #define   VIDEO_DIP_SELECT_AVI		(0 << 19)
 #define   VIDEO_DIP_SELECT_VENDOR	(1 << 19)
@@ -1729,7 +1731,11 @@
 #define   VIDEO_DIP_FREQ_2VSYNC		(2 << 16)
 #define   VIDEO_DIP_FREQ_MASK		(3 << 16)
 /* HSW and later: */
+#define   VIDEO_DIP_ENABLE_VSC_HSW	(1 << 20)
+#define   VIDEO_DIP_ENABLE_GCP_HSW	(1 << 16)
 #define   VIDEO_DIP_ENABLE_AVI_HSW	(1 << 12)
+#define   VIDEO_DIP_ENABLE_VS_HSW	(1 << 8)
+#define   VIDEO_DIP_ENABLE_GMP_HSW	(1 << 4)
 #define   VIDEO_DIP_ENABLE_SPD_HSW	(1 << 0)
 
 /* Panel power sequencing */

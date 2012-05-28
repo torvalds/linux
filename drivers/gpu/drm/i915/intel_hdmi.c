@@ -350,6 +350,7 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 	}
 
 	val |= VIDEO_DIP_ENABLE;
+	val &= ~VIDEO_DIP_ENABLE_VENDOR;
 
 	I915_WRITE(reg, val);
 
@@ -393,6 +394,8 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 	}
 
 	val |= VIDEO_DIP_ENABLE;
+	val &= ~(VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
+		 VIDEO_DIP_ENABLE_GCP);
 
 	I915_WRITE(reg, val);
 
@@ -422,6 +425,8 @@ static void cpt_set_infoframes(struct drm_encoder *encoder,
 
 	/* Set both together, unset both together: see the spec. */
 	val |= VIDEO_DIP_ENABLE | VIDEO_DIP_ENABLE_AVI;
+	val &= ~(VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
+		 VIDEO_DIP_ENABLE_GCP);
 
 	I915_WRITE(reg, val);
 
@@ -450,6 +455,8 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 	}
 
 	val |= VIDEO_DIP_ENABLE;
+	val &= ~(VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
+		 VIDEO_DIP_ENABLE_GCP);
 
 	I915_WRITE(reg, val);
 
@@ -464,11 +471,17 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	u32 reg = HSW_TVIDEO_DIP_CTL(intel_crtc->pipe);
+	u32 val = I915_READ(reg);
 
 	if (!intel_hdmi->has_hdmi_sink) {
 		I915_WRITE(reg, 0);
 		return;
 	}
+
+	val &= ~(VIDEO_DIP_ENABLE_VSC_HSW | VIDEO_DIP_ENABLE_GCP_HSW |
+		 VIDEO_DIP_ENABLE_VS_HSW | VIDEO_DIP_ENABLE_GMP_HSW);
+
+	I915_WRITE(reg, val);
 
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
