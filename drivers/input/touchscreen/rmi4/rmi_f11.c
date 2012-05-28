@@ -581,7 +581,7 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 
 		if (axis_align->flip_y)
 			y = max(sensor->max_y - y, 0);
-		//printk("+x:%d, y:%d\n", x , y);
+
 		/*
 		** here checking if X offset or y offset are specified is
 		**  redundant.  We just add the offsets or, clip the values
@@ -609,7 +609,7 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 			w_min = max(1, w_min);
 		}
 #endif
-
+		//printk("+finger:%d, state:%d x:%d, y:%d\n",n_finger, finger_state, x , y);
 		input_mt_slot(sensor->input, n_finger);
 		input_mt_report_slot_state(sensor->input, MT_TOOL_FINGER, true);
 		input_report_abs(sensor->input, ABS_MT_TRACKING_ID, n_finger);
@@ -668,7 +668,6 @@ static void rmi_f11_finger_handler(struct f11_2d_sensor *sensor)
 	u8 finger_state;
 	u8 finger_pressed_count;
 	u8 i;
-
 	for (i = 0, finger_pressed_count = 0; i < sensor->nbr_fingers; i++) {
 		/* Possible of having 4 fingers per f_statet register */
 		finger_state = GET_FINGER_STATE(f_state, i);
@@ -677,9 +676,10 @@ static void rmi_f11_finger_handler(struct f11_2d_sensor *sensor)
 			pr_err("%s: Invalid finger state[%d]:0x%02x.", __func__,
 					i, finger_state);
 			continue;
-		} else if ((finger_state == F11_PRESENT) ||
-				(finger_state == F11_INACCURATE)) {
+		} else if (finger_state == F11_PRESENT) {
 			finger_pressed_count++;
+		} else if (finger_state == F11_INACCURATE) {
+			continue;
 		}
 
 		if (sensor->data.abs_pos)
@@ -1174,7 +1174,7 @@ static void f11_set_abs_params(struct rmi_function_container *fc, int index)
 static int rmi_f11_init(struct rmi_function_container *fc)
 {
 	int rc;
-
+	char buf[10];
 	rc = rmi_f11_initialize(fc);
 	if (rc < 0)
 		goto err_free_data;
@@ -1187,6 +1187,10 @@ static int rmi_f11_init(struct rmi_function_container *fc)
 	if (rc < 0)
 		goto err_free_data;
 
+	//hhb@rock-chips.com
+	buf[0] = 0x09;
+	//buf[1] = 0x1b;
+	rmi_write_block(fc->rmi_dev, fc->fd.control_base_addr, buf, 1);
 	return 0;
 
 err_free_data:
@@ -1505,7 +1509,6 @@ static int rmi_f11_config(struct rmi_function_container *fc)
 		if (rc < 0)
 			return rc;
 	}
-
 	return 0;
 }
 
