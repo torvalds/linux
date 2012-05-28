@@ -1058,13 +1058,15 @@ cifs_demultiplex_thread(void *p)
 		if (mid_entry != NULL) {
 			if (!mid_entry->multiRsp || mid_entry->multiEnd)
 				mid_entry->callback(mid_entry);
-		} else if (!server->ops->is_oplock_break(buf, server)) {
+		} else if (!server->ops->is_oplock_break ||
+			   !server->ops->is_oplock_break(buf, server)) {
 			cERROR(1, "No task to wake, unknown frame received! "
 				   "NumMids %d", atomic_read(&midCount));
 			cifs_dump_mem("Received Data is: ", buf,
 				      HEADER_SIZE(server));
 #ifdef CONFIG_CIFS_DEBUG2
-			server->ops->dump_detail(buf);
+			if (server->ops->dump_detail)
+				server->ops->dump_detail(buf);
 			cifs_dump_mids(server);
 #endif /* CIFS_DEBUG2 */
 
