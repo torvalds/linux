@@ -243,8 +243,6 @@
 #define BATTERY_DETECT_THRESHOLD	((BATTERY_RESISTOR + SIMULATOR_RESISTOR) / 2)   //battery voltage threshold divided by 22uA
 #define CHARGING_CAPACITY_UPDATE_PERIOD	(1000 * 60 * 1)
 
-#define PMU_CHRG_DET_N RK30_PIN0_PC7
-
 /* To get VBUS input limit from twl6030_usb */
 #if CONFIG_TWL6030_USB
 extern unsigned int twl6030_get_usb_max_power(struct otg_transceiver *x);
@@ -313,6 +311,8 @@ struct twl6030_bci_device_info {
 	struct otg_transceiver	*otg;
 	struct notifier_block	nb;
 	struct work_struct	usb_work;
+
+	struct workqueue_struct	*freezable_work;
 
 	struct delayed_work	twl6030_bci_monitor_work;
 	struct delayed_work	twl6030_current_avg_work;
@@ -991,7 +991,7 @@ static irqreturn_t twl6030charger_ctrl_interrupt(int irq, void *_di)
 		power_supply_changed(&di->bat);
 	else {
 		cancel_delayed_work(&di->twl6030_bci_monitor_work);
-		schedule_delayed_work(&di->twl6030_bci_monitor_work, 0);
+		queue_delayed_work(di->freezable_work, &di->twl6030_bci_monitor_work, 0);
 	}
 err:
 	return IRQ_HANDLED;
@@ -1511,7 +1511,7 @@ static void twl6030_current_avg(struct work_struct *work)
 		di->current_avg_uA = current_avg_uA * 1000;
 	}
 
-	schedule_delayed_work(&di->twl6030_current_avg_work,
+	queue_delayed_work(di->freezable_work, &di->twl6030_current_avg_work,
 		msecs_to_jiffies(1000 * di->current_avg_interval));
 	return;
 err:
@@ -1639,7 +1639,7 @@ static void twl6030_bci_battery_work(struct work_struct *work)
 	req.func_cb = NULL;
 	ret = twl6030_gpadc_conversion(&req);
 
-	schedule_delayed_work(&di->twl6030_bci_monitor_work,
+	queue_delayed_work(di->freezable_work, &di->twl6030_bci_monitor_work,
 			msecs_to_jiffies(1000 * di->monitoring_interval));
 	if (ret < 0) {
 		dev_info(di->dev, "gpadc conversion failed: %d\n", ret);
@@ -1688,7 +1688,7 @@ static void twl6030_current_mode_changed(struct twl6030_bci_device_info *di)
 		goto err;
 
 	cancel_delayed_work(&di->twl6030_current_avg_work);
-	schedule_delayed_work(&di->twl6030_current_avg_work,
+	queue_delayed_work(di->freezable_work, &di->twl6030_current_avg_work,
 		msecs_to_jiffies(1000 * di->current_avg_interval));
 	return;
 err:
@@ -1698,7 +1698,7 @@ err:
 static void twl6030_work_interval_changed(struct twl6030_bci_device_info *di)
 {
 	cancel_delayed_work(&di->twl6030_bci_monitor_work);
-	schedule_delayed_work(&di->twl6030_bci_monitor_work,
+	queue_delayed_work(di->freezable_work, &di->twl6030_bci_monitor_work,
 		msecs_to_jiffies(1000 * di->monitoring_interval));
 }
 
@@ -1710,7 +1710,7 @@ static void twl6030_bci_battery_external_power_changed(struct power_supply *psy)
 	struct twl6030_bci_device_info *di = to_twl6030_bci_device_info(psy);
 
 	cancel_delayed_work(&di->twl6030_bci_monitor_work);
-	schedule_delayed_work(&di->twl6030_bci_monitor_work, 0);
+	queue_delayed_work(di->freezable_work, &di->twl6030_bci_monitor_work, 0);
 }
 
 #define to_twl6030_ac_device_info(x) container_of((x), \
@@ -2425,24 +2425,19 @@ static void twl6030_battery_work(struct work_struct *work)
 {
 	struct twl6030_bci_device_info *di = container_of(work, struct twl6030_bci_device_info, work.work); 
 	twl6030_battery_update_status(di);
-	int ret;
-	u8 reg;
 	//set charging current
-		gpio_request(PMU_CHRG_DET_N, "NULL");
 		twl_i2c_write_u8(TWL6030_MODULE_CHARGER,0x00,CHARGERUSB_CTRL1);
 		if(2 == dwc_vbus_status()){
-			gpio_direction_output(PMU_CHRG_DET_N, 0);
 			twl_i2c_write_u8(TWL6030_MODULE_CHARGER, 0x29,CHARGERUSB_CINLIMIT);	//set vbus input current is 1A
 			twl_i2c_write_u8(TWL6030_MODULE_CHARGER, 0x09,CHARGERUSB_VICHRG);	//set mos output current is 1A
 		}
 		else if(1 == dwc_vbus_status()){
-			gpio_direction_output(PMU_CHRG_DET_N, 1);
 			twl_i2c_write_u8(TWL6030_MODULE_CHARGER, 0x09,CHARGERUSB_CINLIMIT);//set vbus input current is 500ma
 			twl_i2c_write_u8(TWL6030_MODULE_CHARGER, 0x04,CHARGERUSB_VICHRG);	//set mos output current is 500ma
 		
 		}
 	/* reschedule for the next time */
-	schedule_delayed_work(&di->work, di->interval);
+	queue_delayed_work(di->freezable_work, &di->work, di->interval);
 }
 
 static int __devinit twl6030_bci_battery_probe(struct platform_device *pdev)
@@ -2633,13 +2628,15 @@ static int __devinit twl6030_bci_battery_probe(struct platform_device *pdev)
 	di->charge_n1 = 0;
 	di->timer_n1 = 0;
 
-	INIT_DELAYED_WORK_DEFERRABLE(&di->twl6030_bci_monitor_work,
+	//di->freezable_work = create_freezable_workqueue("battery");
+	di->freezable_work = system_freezable_wq;
+	INIT_DELAYED_WORK(&di->twl6030_bci_monitor_work,
 				twl6030_bci_battery_work);
-	schedule_delayed_work(&di->twl6030_bci_monitor_work, 0);
+	queue_delayed_work(di->freezable_work, &di->twl6030_bci_monitor_work, 0);
 
 	INIT_DELAYED_WORK_DEFERRABLE(&di->twl6030_current_avg_work,
 						twl6030_current_avg);
-	schedule_delayed_work(&di->twl6030_current_avg_work, 500);
+	queue_delayed_work(di->freezable_work, &di->twl6030_current_avg_work, 500);
 
 	ret = twl6030battery_voltage_setup(di);
 	if (ret)
@@ -2763,7 +2760,7 @@ static int __devinit twl6030_bci_battery_probe(struct platform_device *pdev)
 	
 	di->interval = msecs_to_jiffies(1 * 1000);
 	INIT_DELAYED_WORK(&di->work, twl6030_battery_work);
-	schedule_delayed_work(&di->work, 1*HZ);
+	queue_delayed_work(di->freezable_work, &di->work, 1*HZ);
 	
 	ret = twl6030backupbatt_setup();
 	if (ret)
@@ -2862,8 +2859,9 @@ static int twl6030_bci_battery_suspend(struct device *dev)
 	if (ret)
 		goto err;
 
-	cancel_delayed_work(&di->twl6030_bci_monitor_work);
-	cancel_delayed_work(&di->twl6030_current_avg_work);
+        //cancel_delayed_work(&di->work);
+	//cancel_delayed_work(&di->twl6030_bci_monitor_work);
+	//cancel_delayed_work(&di->twl6030_current_avg_work);
 
 	/* We cannot tolarate a sleep longer than 30 seconds
 	 * while on ac charging we have to reset the BQ watchdog timer.
@@ -2929,8 +2927,9 @@ static int twl6030_bci_battery_resume(struct device *dev)
 	if (ret)
 		goto err;
 
-	schedule_delayed_work(&di->twl6030_bci_monitor_work, 0);
-	schedule_delayed_work(&di->twl6030_current_avg_work, 50);
+	//queue_delayed_work(di->freezable_work, &di->twl6030_bci_monitor_work, 0);
+	//queue_delayed_work(di->freezable_work, &di->twl6030_current_avg_work, 50);
+	//queue_delayed_work(di->freezable_work, &di->work, di->interval);
 
 	events = BQ2415x_RESET_TIMER;
 	blocking_notifier_call_chain(&notifier_list, events, NULL);

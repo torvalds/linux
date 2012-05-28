@@ -87,6 +87,7 @@
 #define LDO7_CFG_VOLTAGE 0x77
 #define CLK32KG_CFG_STATE  0x11
 #define CLK32KAUDIO_CFG_STATE 0x14
+#define CHARGERUSB_CTRLLIMIT2	0x10
 static inline int twl_reg_read(unsigned base, unsigned slave_subgp)
 {
 	u8 value;
@@ -126,6 +127,9 @@ int tps80032_pre_init(void){
 
 	twl_reg_write(CLK32KG_CFG_STATE,TWL_MODULE_PM_SLAVE_RES,0x01);  //set clk32kg on when we use
 	twl_reg_write(CLK32KAUDIO_CFG_STATE,TWL_MODULE_PM_SLAVE_RES,0x01);  //set clk32kaudio on when we use
+
+	twl_i2c_write_u8(CHARGERUSB_CTRLLIMIT2,TWL6030_MODULE_CHARGER, 0x0f);
+	twl_i2c_write_u8(CHARGERUSB_CTRLLIMIT2,TWL6030_MODULE_CHARGER, 0x1f);
 	
 	twl_reg_write(LDO5_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03);   //set ldo5 is disabled when in sleep mode 
 	twl_reg_write(LDO7_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03);   //set ldo7 is disabled when in sleep mode
