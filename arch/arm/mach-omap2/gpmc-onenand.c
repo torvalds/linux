@@ -181,10 +181,8 @@ omap2_onenand_calc_sync_timings(struct omap_onenand_platform_data *cfg,
 	const int t_wpl  = 40;
 	const int t_wph  = 30;
 	int min_gpmc_clk_period, t_ces, t_avds, t_avdh, t_ach, t_aavdh, t_rdyo;
-	u32 reg;
 	int div, fclk_offset_ns, gpmc_clk_ns;
 	int ticks_cez;
-	int cs = cfg->cs;
 
 	if (cfg->flags & ONENAND_SYNC_READ)
 		onenand_flags = ONENAND_FLAG_SYNCREAD;
@@ -254,27 +252,10 @@ omap2_onenand_calc_sync_timings(struct omap_onenand_platform_data *cfg,
 	memset(&t, 0, sizeof(t));
 
 	if (div == 1) {
-		reg = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG2);
-		reg |= (1 << 7);
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG2, reg);
-		reg = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG3);
-		reg |= (1 << 7);
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG3, reg);
-		reg = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG4);
-		reg |= (1 << 7);
-		reg |= (1 << 23);
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG4, reg);
-	} else {
-		reg = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG2);
-		reg &= ~(1 << 7);
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG2, reg);
-		reg = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG3);
-		reg &= ~(1 << 7);
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG3, reg);
-		reg = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG4);
-		reg &= ~(1 << 7);
-		reg &= ~(1 << 23);
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG4, reg);
+		t.bool_timings.cs_extra_delay = true;
+		t.bool_timings.adv_extra_delay = true;
+		t.bool_timings.oe_extra_delay = true;
+		t.bool_timings.we_extra_delay = true;
 	}
 
 	t.sync_clk = min_gpmc_clk_period;
@@ -296,6 +277,8 @@ omap2_onenand_calc_sync_timings(struct omap_onenand_platform_data *cfg,
 	ticks_cez = ((gpmc_ns_to_ticks(t_cez) + div - 1) / div) * div;
 	t.rd_cycle = gpmc_ticks_to_ns(fclk_offset + (latency + 1) * div +
 		     ticks_cez);
+
+	t.clk_activation = fclk_offset_ns;
 
 	/* Write */
 	if (onenand_flags & ONENAND_FLAG_SYNCWRITE) {
@@ -338,7 +321,6 @@ static int gpmc_set_sync_mode(int cs, struct gpmc_timings *t)
 			  (sync_read ? GPMC_CONFIG1_READTYPE_SYNC : 0) |
 			  (sync_write ? GPMC_CONFIG1_WRITEMULTIPLE_SUPP : 0) |
 			  (sync_write ? GPMC_CONFIG1_WRITETYPE_SYNC : 0) |
-			  GPMC_CONFIG1_CLKACTIVATIONTIME(fclk_offset) |
 			  GPMC_CONFIG1_PAGE_LEN(2) |
 			  (cpu_is_omap34xx() ? 0 :
 				(GPMC_CONFIG1_WAIT_READ_MON |

@@ -175,6 +175,8 @@ static int tusb_set_sync_mode(unsigned sysclk_ps, unsigned fclk_ps)
 	tmp = t.cs_wr_off * 1000 + 7000 /* t_scsn_rdy_z */;
 	t.wr_cycle = next_clk(t.cs_wr_off, tmp, fclk_ps);
 
+	t.clk_activation = gpmc_ticks_to_ns(1);
+
 	return gpmc_cs_set_timings(sync_cs, &t);
 }
 
@@ -284,7 +286,6 @@ tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
 			| GPMC_CONFIG1_READTYPE_SYNC
 			| GPMC_CONFIG1_WRITEMULTIPLE_SUPP
 			| GPMC_CONFIG1_WRITETYPE_SYNC
-			| GPMC_CONFIG1_CLKACTIVATIONTIME(1)
 			| GPMC_CONFIG1_PAGE_LEN(2)
 			| GPMC_CONFIG1_WAIT_READ_MON
 			| GPMC_CONFIG1_WAIT_WRITE_MON
