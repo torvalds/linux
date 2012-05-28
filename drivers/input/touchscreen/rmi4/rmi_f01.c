@@ -1247,14 +1247,13 @@ static int rmi_f01_suspend(struct rmi_function_container *fc)
 	struct f01_data *data = driver_data->f01_container->data;
 	int retval = 0;
 
-	dev_info(&fc->dev, "Suspending...\n");
+	dev_dbg(&fc->dev, "Suspending...\n");
 	if (data->suspended)
 		return 0;
 
 	data->old_nosleep = data->device_control.ctrl0.nosleep;
 	data->device_control.ctrl0.nosleep = 0;
 	data->device_control.ctrl0.sleep_mode = RMI_SLEEP_MODE_SENSOR_SLEEP;
-	printk("++sleep_mode:%x\n", data->device_control.ctrl0.reg);
 	retval = rmi_write_block(rmi_dev,
 			driver_data->f01_container->fd.control_base_addr,
 			(u8 *)&data->device_control.ctrl0,
@@ -1279,13 +1278,12 @@ static int rmi_f01_resume(struct rmi_function_container *fc)
 	struct f01_data *data = driver_data->f01_container->data;
 	int retval = 0;
 
-	dev_info(&fc->dev, "Resuming...\n");
+	dev_dbg(&fc->dev, "Resuming...\n");
 	if (!data->suspended)
 		return 0;
 
 	data->device_control.ctrl0.nosleep = data->old_nosleep;
 	data->device_control.ctrl0.sleep_mode = RMI_SLEEP_MODE_NORMAL;
-	printk("++sleep_mode:%x\n", data->device_control.ctrl0.reg);
 	retval = rmi_write_block(rmi_dev,
 			driver_data->f01_container->fd.control_base_addr,
 			(u8 *)&data->device_control.ctrl0,
@@ -1349,15 +1347,13 @@ static struct rmi_function_handler function_handler = {
 	.config = rmi_f01_config,
 	.reset = rmi_f01_reset,
 	.attention = rmi_f01_attention,
-#ifdef	CONFIG_PM
-
+#ifdef CONFIG_PM
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	.early_suspend = rmi_f01_suspend,
 	.late_resume = rmi_f01_resume,
-#else
+#endif  /* CONFIG_HAS_EARLYSUSPEND */
 	.suspend = rmi_f01_suspend,
 	.resume = rmi_f01_resume,
-#endif  /* CONFIG_HAS_EARLYSUSPEND */
 #endif  /* CONFIG_PM */
 	.remove = rmi_f01_remove,
 };
