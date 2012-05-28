@@ -1030,6 +1030,10 @@ static void iwl_tx_start(struct iwl_trans *trans)
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
+	/* make sure all queue are not stopped/used */
+	memset(trans_pcie->queue_stopped, 0, sizeof(trans_pcie->queue_stopped));
+	memset(trans_pcie->queue_used, 0, sizeof(trans_pcie->queue_used));
+
 	trans_pcie->scd_base_addr =
 		iwl_read_prph(trans, SCD_SRAM_BASE_ADDR);
 	a = trans_pcie->scd_base_addr + SCD_CONTEXT_MEM_LOWER_BOUND;
@@ -1049,17 +1053,6 @@ static void iwl_tx_start(struct iwl_trans *trans)
 
 	iwl_write_prph(trans, SCD_DRAM_BASE_ADDR,
 		       trans_pcie->scd_bc_tbls.dma >> 10);
-
-	/* Enable DMA channel */
-	for (chan = 0; chan < FH_TCSR_CHNL_NUM ; chan++)
-		iwl_write_direct32(trans, FH_TCSR_CHNL_TX_CONFIG_REG(chan),
-				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
-				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
-
-	/* Update FH chicken bits */
-	reg_val = iwl_read_direct32(trans, FH_TX_CHICKEN_BITS_REG);
-	iwl_write_direct32(trans, FH_TX_CHICKEN_BITS_REG,
-			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	iwl_write_prph(trans, SCD_QUEUECHAIN_SEL,
 		       SCD_QUEUECHAIN_SEL_ALL(trans, trans_pcie));
@@ -1082,14 +1075,7 @@ static void iwl_tx_start(struct iwl_trans *trans)
 				SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
 	}
 
-	/* Activate all Tx DMA/FIFO channels */
-	iwl_trans_txq_set_sched(trans, IWL_MASK(0, 7));
-
 	iwl_trans_set_wr_ptrs(trans, trans_pcie->cmd_queue, 0);
-
-	/* make sure all queue are not stopped/used */
-	memset(trans_pcie->queue_stopped, 0, sizeof(trans_pcie->queue_stopped));
-	memset(trans_pcie->queue_used, 0, sizeof(trans_pcie->queue_used));
 
 	for (i = 0; i < trans_pcie->n_q_to_fifo; i++) {
 		int fifo = trans_pcie->setup_q_to_fifo[i];
@@ -1099,6 +1085,20 @@ static void iwl_tx_start(struct iwl_trans *trans)
 		iwl_trans_tx_queue_set_status(trans, &trans_pcie->txq[i],
 					      fifo, true);
 	}
+
+	/* Activate all Tx DMA/FIFO channels */
+	iwl_trans_txq_set_sched(trans, IWL_MASK(0, 7));
+
+	/* Enable DMA channel */
+	for (chan = 0; chan < FH_TCSR_CHNL_NUM ; chan++)
+		iwl_write_direct32(trans, FH_TCSR_CHNL_TX_CONFIG_REG(chan),
+				   FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
+				   FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
+
+	/* Update FH chicken bits */
+	reg_val = iwl_read_direct32(trans, FH_TX_CHICKEN_BITS_REG);
+	iwl_write_direct32(trans, FH_TX_CHICKEN_BITS_REG,
+			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
