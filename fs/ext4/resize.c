@@ -1145,7 +1145,7 @@ static int ext4_setup_new_descs(handle_t *handle, struct super_block *sb,
 		 */
 		gdb_bh = sbi->s_group_desc[gdb_num];
 		/* Update group descriptor block for new group */
-		gdp = (struct ext4_group_desc *)((char *)gdb_bh->b_data +
+		gdp = (struct ext4_group_desc *)(gdb_bh->b_data +
 						 gdb_off * EXT4_DESC_SIZE(sb));
 
 		memset(gdp, 0, EXT4_DESC_SIZE(sb));
