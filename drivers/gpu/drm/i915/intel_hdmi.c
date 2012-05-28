@@ -317,6 +317,7 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	u32 reg = VIDEO_DIP_CTL;
 	u32 val = I915_READ(reg);
+	u32 port;
 
 	/* If the registers were not initialized yet, they might be zeroes,
 	 * which means we're selecting the AVI DIP and we're setting its
@@ -337,16 +338,24 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 		return;
 	}
 
-	val &= ~VIDEO_DIP_PORT_MASK;
 	switch (intel_hdmi->sdvox_reg) {
 	case SDVOB:
-		val |= VIDEO_DIP_PORT_B;
+		port = VIDEO_DIP_PORT_B;
 		break;
 	case SDVOC:
-		val |= VIDEO_DIP_PORT_C;
+		port = VIDEO_DIP_PORT_C;
 		break;
 	default:
 		return;
+	}
+
+	if (port != (val & VIDEO_DIP_PORT_MASK)) {
+		if (val & VIDEO_DIP_ENABLE) {
+			val &= ~VIDEO_DIP_ENABLE;
+			I915_WRITE(reg, val);
+		}
+		val &= ~VIDEO_DIP_PORT_MASK;
+		val |= port;
 	}
 
 	val |= VIDEO_DIP_ENABLE;
@@ -366,6 +375,7 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	u32 reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
 	u32 val = I915_READ(reg);
+	u32 port;
 
 	/* See the big comment in g4x_set_infoframes() */
 	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
@@ -378,19 +388,27 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 		return;
 	}
 
-	val &= ~VIDEO_DIP_PORT_MASK;
 	switch (intel_hdmi->sdvox_reg) {
 	case HDMIB:
-		val |= VIDEO_DIP_PORT_B;
+		port = VIDEO_DIP_PORT_B;
 		break;
 	case HDMIC:
-		val |= VIDEO_DIP_PORT_C;
+		port = VIDEO_DIP_PORT_C;
 		break;
 	case HDMID:
-		val |= VIDEO_DIP_PORT_D;
+		port = VIDEO_DIP_PORT_D;
 		break;
 	default:
 		return;
+	}
+
+	if (port != (val & VIDEO_DIP_PORT_MASK)) {
+		if (val & VIDEO_DIP_ENABLE) {
+			val &= ~VIDEO_DIP_ENABLE;
+			I915_WRITE(reg, val);
+		}
+		val &= ~VIDEO_DIP_PORT_MASK;
+		val |= port;
 	}
 
 	val |= VIDEO_DIP_ENABLE;
