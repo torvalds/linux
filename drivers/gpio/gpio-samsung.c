@@ -2454,6 +2454,12 @@ static struct samsung_gpio_chip exynos5_gpios_1[] = {
 		},
 	}, {
 		.chip	= {
+			.base	= EXYNOS5_GPC4(0),
+			.ngpio	= EXYNOS5_GPIO_C4_NR,
+			.label	= "GPC4",
+		},
+	}, {
+		.chip	= {
 			.base	= EXYNOS5_GPD0(0),
 			.ngpio	= EXYNOS5_GPIO_D0_NR,
 			.label	= "GPD0",
@@ -2826,8 +2832,11 @@ static __init void exynos5_gpiolib_init(void)
 		goto err_ioremap1;
 	}
 
+	/* need to set base address for gpc4 */
+	exonys5_gpios_1[11].base = gpio_base1 + 0x2E0;
+
 	/* need to set base address for gpx */
-	chip = &exynos5_gpios_1[20];
+	chip = &exynos5_gpios_1[21];
 	gpx_base = gpio_base1 + 0xC00;
 	for (i = 0; i < 4; i++, chip++, gpx_base += 0x20)
 		chip->base = gpx_base;

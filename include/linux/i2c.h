@@ -232,6 +232,7 @@ struct i2c_client {
 #define to_i2c_client(d) container_of(d, struct i2c_client, dev)
 
 extern struct i2c_client *i2c_verify_client(struct device *dev);
+extern struct i2c_adapter *i2c_verify_adapter(struct device *dev);
 
 static inline struct i2c_client *kobj_to_i2c_client(struct kobject *kobj)
 {

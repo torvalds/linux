@@ -48,6 +48,14 @@ config NEED_PER_CPU_PAGE_FIRST_CHUNK
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y
 
+# Support for additional huge page sizes besides HPAGE_SIZE.
+# The software support is currently only present in the TILE-Gx
+# hypervisor. TILEPro in any case does not support page sizes
+# larger than the default HPAGE_SIZE.
+config HUGETLB_SUPER_PAGES
+	depends on HUGETLB_PAGE && TILEGX
+	def_bool y
+
 # FIXME: tilegx can implement a more efficient rwsem.
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
@@ -107,16 +115,14 @@ config HVC_TILE
 	select HVC_DRIVER
 	def_bool y
 
-# Please note: TILE-Gx support is not yet finalized; this is
-# the preliminary support.  TILE-Gx drivers are only provided
-# with the alpha or beta test versions for Tilera customers.
 config TILEGX
-	depends on EXPERIMENTAL
 	bool "Building with TILE-Gx (64-bit) compiler and toolchain"
 
+config TILEPRO
+	def_bool !TILEGX
+
 config 64BIT
-	depends on TILEGX
-	def_bool y
+	def_bool TILEGX
 
 config ARCH_DEFCONFIG
 	string
@@ -136,6 +142,31 @@ config NR_CPUS
 	  Building with 64 is the recommended value, but a slightly
 	  smaller kernel memory footprint results from using a smaller
 	  value on chips with fewer tiles.
+
+if TILEGX
+
+choice
+	prompt "Kernel page size"
+	default PAGE_SIZE_64KB
+	help
+	  This lets you select the page size of the kernel.  For best
+	  performance on memory-intensive applications, a page size of 64KB
+	  is recommended.  For workloads involving many small files, many
+	  connections, etc., it may be better to select 16KB, which uses
+	  memory more efficiently at some cost in TLB performance.
+
+	  Note that this option is TILE-Gx specific; currently
+	  TILEPro page size is set by rebuilding the hypervisor.
+
+config PAGE_SIZE_16KB
+	bool "16KB"
+
+config PAGE_SIZE_64KB
+	bool "64KB"
+
+endchoice
+
+endif
 
 source "kernel/Kconfig.hz"
 

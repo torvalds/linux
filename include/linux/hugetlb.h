@@ -284,6 +284,14 @@ static inline unsigned int blocks_per_huge_page(struct hstate *h)
 
 #include <asm/hugetlb.h>
 
+#ifndef arch_make_huge_pte
+static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+				       struct page *page, int writable)
+{
+	return entry;
+}
+#endif
+
 static inline struct hstate *page_hstate(struct page *page)
 {
 	return size_to_hstate(PAGE_SIZE << compound_order(page));

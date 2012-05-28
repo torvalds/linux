@@ -242,9 +242,6 @@ long compat_sys_fallocate(int fd, int mode,
 long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 				      struct compat_timespec __user *interval);
 
-/* Tilera Linux syscalls that don't have "compat" versions. */
-#define compat_sys_flush_cache sys_flush_cache
-
 /* These are the intvec_64.S trampolines. */
 long _compat_sys_execve(const char __user *path,
 			const compat_uptr_t __user *argv,

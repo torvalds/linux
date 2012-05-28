@@ -15,7 +15,7 @@ Optional properties:
 ti,dual-volt: boolean, supports dual voltage cards
 <supply-name>-supply: phandle to the regulator device tree node
 "supply-name" examples are "vmmc", "vmmc_aux" etc
-ti,bus-width: Number of data lines, default assumed is 1 if the property is missing.
+bus-width: Number of data lines, default assumed is 1 if the property is missing.
 cd-gpios: GPIOs for card detection
 wp-gpios: GPIOs for write protection
 ti,non-removable: non-removable slot (like eMMC)
@@ -27,7 +27,7 @@ Example:
 		reg = <0x4809c000 0x400>;
 		ti,hwmods = "mmc1";
 		ti,dual-volt;
-		ti,bus-width = <4>;
+		bus-width = <4>;
 		vmmc-supply = <&vmmc>; /* phandle to regulator node */
 		ti,non-removable;
 	};

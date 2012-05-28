@@ -32,11 +32,17 @@
 #include <asm/syscalls.h>
 #include <asm/pgtable.h>
 #include <asm/homecache.h>
+#include <asm/cachectl.h>
 #include <arch/chip.h>
 
-SYSCALL_DEFINE0(flush_cache)
+SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, len,
+		unsigned long, flags)
 {
-	homecache_evict(cpumask_of(smp_processor_id()));
+	if (flags & DCACHE)
+		homecache_evict(cpumask_of(smp_processor_id()));
+	if (flags & ICACHE)
+		flush_remote(0, HV_FLUSH_EVICT_L1I, mm_cpumask(current->mm),
+			     0, 0, 0, NULL, NULL, 0);
 	return 0;
 }
 

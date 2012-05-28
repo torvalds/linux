@@ -766,6 +766,7 @@ MACHINE_START(ORIGEN, "ORIGEN")
 	.map_io		= origen_map_io,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= origen_machine_init,
+	.init_late	= exynos_init_late,
 	.timer		= &exynos4_timer,
 	.reserve	= &origen_reserve,
 	.restart	= exynos4_restart,

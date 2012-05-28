@@ -353,9 +353,10 @@ static int irq2ctlr(int irq)
  *****************************************************************************/
 static irqreturn_t dma_irq_handler(int irq, void *data)
 {
-	int i;
 	int ctlr;
-	unsigned int cnt = 0;
+	u32 sh_ier;
+	u32 sh_ipr;
+	u32 bank;
 
 	ctlr = irq2ctlr(irq);
 	if (ctlr < 0)
@@ -363,41 +364,39 @@ static irqreturn_t dma_irq_handler(int irq, void *data)
 
 	dev_dbg(data, "dma_irq_handler\n");
 
-	if ((edma_shadow0_read_array(ctlr, SH_IPR, 0) == 0) &&
-	    (edma_shadow0_read_array(ctlr, SH_IPR, 1) == 0))
-		return IRQ_NONE;
-
-	while (1) {
-		int j;
-		if (edma_shadow0_read_array(ctlr, SH_IPR, 0) &
-				edma_shadow0_read_array(ctlr, SH_IER, 0))
-			j = 0;
-		else if (edma_shadow0_read_array(ctlr, SH_IPR, 1) &
-				edma_shadow0_read_array(ctlr, SH_IER, 1))
-			j = 1;
-		else
-			break;
-		dev_dbg(data, "IPR%d %08x\n", j,
-				edma_shadow0_read_array(ctlr, SH_IPR, j));
-		for (i = 0; i < 32; i++) {
-			int k = (j << 5) + i;
-			if ((edma_shadow0_read_array(ctlr, SH_IPR, j) & BIT(i))
-					&& (edma_shadow0_read_array(ctlr,
-							SH_IER, j) & BIT(i))) {
-				/* Clear the corresponding IPR bits */
-				edma_shadow0_write_array(ctlr, SH_ICR, j,
-							BIT(i));
-				if (edma_cc[ctlr]->intr_data[k].callback)
-					edma_cc[ctlr]->intr_data[k].callback(
-						k, DMA_COMPLETE,
-						edma_cc[ctlr]->intr_data[k].
-						data);
-			}
-		}
-		cnt++;
-		if (cnt > 10)
-			break;
+	sh_ipr = edma_shadow0_read_array(ctlr, SH_IPR, 0);
+	if (!sh_ipr) {
+		sh_ipr = edma_shadow0_read_array(ctlr, SH_IPR, 1);
+		if (!sh_ipr)
+			return IRQ_NONE;
+		sh_ier = edma_shadow0_read_array(ctlr, SH_IER, 1);
+		bank = 1;
+	} else {
+		sh_ier = edma_shadow0_read_array(ctlr, SH_IER, 0);
+		bank = 0;
 	}
+
+	do {
+		u32 slot;
+		u32 channel;
+
+		dev_dbg(data, "IPR%d %08x\n", bank, sh_ipr);
+
+		slot = __ffs(sh_ipr);
+		sh_ipr &= ~(BIT(slot));
+
+		if (sh_ier & BIT(slot)) {
+			channel = (bank << 5) | slot;
+			/* Clear the corresponding IPR bits */
+			edma_shadow0_write_array(ctlr, SH_ICR, bank,
+					BIT(slot));
+			if (edma_cc[ctlr]->intr_data[channel].callback)
+				edma_cc[ctlr]->intr_data[channel].callback(
+					channel, DMA_COMPLETE,
+					edma_cc[ctlr]->intr_data[channel].data);
+		}
+	} while (sh_ipr);
+
 	edma_shadow0_write(ctlr, SH_IEVAL, 1);
 	return IRQ_HANDLED;
 }

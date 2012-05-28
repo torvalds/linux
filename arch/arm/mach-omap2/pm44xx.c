@@ -141,14 +141,11 @@ static void omap_default_idle(void)
  * Initializes all powerdomain and clockdomain target states
  * and all PRCM settings.
  */
-static int __init omap4_pm_init(void)
+int __init omap4_pm_init(void)
 {
 	int ret;
 	struct clockdomain *emif_clkdm, *mpuss_clkdm, *l3_1_clkdm, *l4wkup;
 	struct clockdomain *ducati_clkdm, *l3_2_clkdm, *l4_per_clkdm;
-
-	if (!cpu_is_omap44xx())
-		return -ENODEV;
 
 	if (omap_rev() == OMAP4430_REV_ES1_0) {
 		WARN(1, "Power Management not supported on OMAP4430 ES1.0\n");
@@ -217,4 +214,3 @@ static int __init omap4_pm_init(void)
 err2:
 	return ret;
 }
-late_initcall(omap4_pm_init);
