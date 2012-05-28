@@ -121,17 +121,8 @@ static void g4x_write_infoframe(struct drm_encoder *encoder,
 	uint32_t *data = (uint32_t *)frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	u32 val = I915_READ(VIDEO_DIP_CTL);
 	unsigned i, len = DIP_HEADER_SIZE + frame->len;
-
-	val &= ~VIDEO_DIP_PORT_MASK;
-	if (intel_hdmi->sdvox_reg == SDVOB)
-		val |= VIDEO_DIP_PORT_B;
-	else if (intel_hdmi->sdvox_reg == SDVOC)
-		val |= VIDEO_DIP_PORT_C;
-	else
-		return;
 
 	val &= ~(VIDEO_DIP_SELECT_MASK | 0xf); /* clear DIP data offset */
 	val |= g4x_infoframe_index(frame);
@@ -160,25 +151,9 @@ static void ibx_write_infoframe(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	int reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
 	unsigned i, len = DIP_HEADER_SIZE + frame->len;
 	u32 val = I915_READ(reg);
-
-	val &= ~VIDEO_DIP_PORT_MASK;
-	switch (intel_hdmi->sdvox_reg) {
-	case HDMIB:
-		val |= VIDEO_DIP_PORT_B;
-		break;
-	case HDMIC:
-		val |= VIDEO_DIP_PORT_C;
-		break;
-	case HDMID:
-		val |= VIDEO_DIP_PORT_D;
-		break;
-	default:
-		return;
-	}
 
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
@@ -369,6 +344,20 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 		return;
 	}
 
+	val &= ~VIDEO_DIP_PORT_MASK;
+	switch (intel_hdmi->sdvox_reg) {
+	case SDVOB:
+		val |= VIDEO_DIP_PORT_B;
+		break;
+	case SDVOC:
+		val |= VIDEO_DIP_PORT_C;
+		break;
+	default:
+		return;
+	}
+
+	I915_WRITE(reg, val);
+
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
 }
@@ -392,6 +381,23 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 		I915_WRITE(reg, val);
 		return;
 	}
+
+	val &= ~VIDEO_DIP_PORT_MASK;
+	switch (intel_hdmi->sdvox_reg) {
+	case HDMIB:
+		val |= VIDEO_DIP_PORT_B;
+		break;
+	case HDMIC:
+		val |= VIDEO_DIP_PORT_C;
+		break;
+	case HDMID:
+		val |= VIDEO_DIP_PORT_D;
+		break;
+	default:
+		return;
+	}
+
+	I915_WRITE(reg, val);
 
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
