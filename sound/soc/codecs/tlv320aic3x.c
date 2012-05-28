@@ -368,7 +368,7 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 static DECLARE_TLV_DB_SCALE(classd_amp_tlv, 0, 600, 0);
 
 static const struct snd_kcontrol_new aic3x_classd_amp_gain_ctrl =
-	SOC_DOUBLE_TLV("Class-D Amplifier Gain", CLASSD_CTRL, 6, 4, 3, 0, classd_amp_tlv);
+	SOC_DOUBLE_TLV("Class-D Playback Volume", CLASSD_CTRL, 6, 4, 3, 0, classd_amp_tlv);
 
 /* Left DAC Mux */
 static const struct snd_kcontrol_new aic3x_left_dac_mux_controls =
