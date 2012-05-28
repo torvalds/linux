@@ -652,8 +652,10 @@ static int __devinit sunximmc_probe(struct platform_device *pdev)
     mmc->caps	    = MMC_CAP_4_BIT_DATA|MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED|MMC_CAP_SDIO_IRQ;
     mmc->f_min 	    = 400000;
     mmc->f_max      = SMC_MAX_IO_CLOCK(pdev->id);
+#ifdef MMC_PM_IGNORE_PM_NOTIFY
     if (pdev->id==3 && !mmc_pm_io_shd_suspend_host())
         mmc->pm_flags = MMC_PM_IGNORE_PM_NOTIFY;
+#endif
 
     mmc->max_blk_count	= 4095;
     mmc->max_blk_size	= 4095;
