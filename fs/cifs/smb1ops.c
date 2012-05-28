@@ -520,6 +520,72 @@ cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 	return full_path;
 }
 
+static void
+cifs_clear_stats(struct cifs_tcon *tcon)
+{
+#ifdef CONFIG_CIFS_STATS
+	atomic_set(&tcon->stats.cifs_stats.num_writes, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_reads, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_flushes, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_oplock_brks, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_opens, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_posixopens, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_posixmkdirs, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_closes, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_deletes, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_mkdirs, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_rmdirs, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_renames, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_t2renames, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_ffirst, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_fnext, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_fclose, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_hardlinks, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_symlinks, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_locks, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_acl_get, 0);
+	atomic_set(&tcon->stats.cifs_stats.num_acl_set, 0);
+#endif
+}
+
+static void
+cifs_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
+{
+#ifdef CONFIG_CIFS_STATS
+	seq_printf(m, " Oplocks breaks: %d",
+		   atomic_read(&tcon->stats.cifs_stats.num_oplock_brks));
+	seq_printf(m, "\nReads:  %d Bytes: %llu",
+		   atomic_read(&tcon->stats.cifs_stats.num_reads),
+		   (long long)(tcon->bytes_read));
+	seq_printf(m, "\nWrites: %d Bytes: %llu",
+		   atomic_read(&tcon->stats.cifs_stats.num_writes),
+		   (long long)(tcon->bytes_written));
+	seq_printf(m, "\nFlushes: %d",
+		   atomic_read(&tcon->stats.cifs_stats.num_flushes));
+	seq_printf(m, "\nLocks: %d HardLinks: %d Symlinks: %d",
+		   atomic_read(&tcon->stats.cifs_stats.num_locks),
+		   atomic_read(&tcon->stats.cifs_stats.num_hardlinks),
+		   atomic_read(&tcon->stats.cifs_stats.num_symlinks));
+	seq_printf(m, "\nOpens: %d Closes: %d Deletes: %d",
+		   atomic_read(&tcon->stats.cifs_stats.num_opens),
+		   atomic_read(&tcon->stats.cifs_stats.num_closes),
+		   atomic_read(&tcon->stats.cifs_stats.num_deletes));
+	seq_printf(m, "\nPosix Opens: %d Posix Mkdirs: %d",
+		   atomic_read(&tcon->stats.cifs_stats.num_posixopens),
+		   atomic_read(&tcon->stats.cifs_stats.num_posixmkdirs));
+	seq_printf(m, "\nMkdirs: %d Rmdirs: %d",
+		   atomic_read(&tcon->stats.cifs_stats.num_mkdirs),
+		   atomic_read(&tcon->stats.cifs_stats.num_rmdirs));
+	seq_printf(m, "\nRenames: %d T2 Renames %d",
+		   atomic_read(&tcon->stats.cifs_stats.num_renames),
+		   atomic_read(&tcon->stats.cifs_stats.num_t2renames));
+	seq_printf(m, "\nFindFirst: %d FNext %d FClose %d",
+		   atomic_read(&tcon->stats.cifs_stats.num_ffirst),
+		   atomic_read(&tcon->stats.cifs_stats.num_fnext),
+		   atomic_read(&tcon->stats.cifs_stats.num_fclose));
+#endif
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -537,6 +603,8 @@ struct smb_version_operations smb1_operations = {
 	.find_mid = cifs_find_mid,
 	.check_message = checkSMB,
 	.dump_detail = cifs_dump_detail,
+	.clear_stats = cifs_clear_stats,
+	.print_stats = cifs_print_stats,
 	.is_oplock_break = is_valid_oplock_break,
 	.check_trans2 = cifs_check_trans2,
 	.need_neg = cifs_need_neg,
