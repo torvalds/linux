@@ -562,14 +562,16 @@ static int sctp_nlattr_size(void)
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
 
-static int sctp_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+static int sctp_timeout_nlattr_to_obj(struct nlattr *tb[],
+				      struct net *net, void *data)
 {
 	unsigned int *timeouts = data;
+	struct sctp_net *sn = sctp_pernet(net);
 	int i;
 
 	/* set default SCTP timeouts. */
 	for (i=0; i<SCTP_CONNTRACK_MAX; i++)
-		timeouts[i] = sctp_timeouts[i];
+		timeouts[i] = sn->timeouts[i];
 
 	/* there's a 1:1 mapping between attributes and protocol states. */
 	for (i=CTA_TIMEOUT_SCTP_UNSPEC+1; i<CTA_TIMEOUT_SCTP_MAX+1; i++) {

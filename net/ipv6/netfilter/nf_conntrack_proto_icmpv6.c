@@ -286,16 +286,18 @@ static int icmpv6_nlattr_tuple_size(void)
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
 
-static int icmpv6_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+static int icmpv6_timeout_nlattr_to_obj(struct nlattr *tb[],
+					struct net *net, void *data)
 {
 	unsigned int *timeout = data;
+	struct nf_icmp_net *in = icmpv6_pernet(net);
 
 	if (tb[CTA_TIMEOUT_ICMPV6_TIMEOUT]) {
 		*timeout =
 		    ntohl(nla_get_be32(tb[CTA_TIMEOUT_ICMPV6_TIMEOUT])) * HZ;
 	} else {
 		/* Set default ICMPv6 timeout. */
-		*timeout = nf_ct_icmpv6_timeout;
+		*timeout = in->timeout;
 	}
 	return 0;
 }

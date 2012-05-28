@@ -75,16 +75,18 @@ static bool generic_new(struct nf_conn *ct, const struct sk_buff *skb,
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
 
-static int generic_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+static int generic_timeout_nlattr_to_obj(struct nlattr *tb[],
+					 struct net *net, void *data)
 {
 	unsigned int *timeout = data;
+	struct nf_generic_net *gn = generic_pernet(net);
 
 	if (tb[CTA_TIMEOUT_GENERIC_TIMEOUT])
 		*timeout =
 		    ntohl(nla_get_be32(tb[CTA_TIMEOUT_GENERIC_TIMEOUT])) * HZ;
 	else {
 		/* Set default generic timeout. */
-		*timeout = nf_ct_generic_timeout;
+		*timeout = gn->timeout;
 	}
 
 	return 0;

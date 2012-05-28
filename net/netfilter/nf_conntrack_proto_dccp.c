@@ -712,9 +712,10 @@ static int dccp_nlattr_size(void)
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
 
-static int dccp_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+static int dccp_timeout_nlattr_to_obj(struct nlattr *tb[],
+				      struct net *net, void *data)
 {
-	struct dccp_net *dn = dccp_pernet(&init_net);
+	struct dccp_net *dn = dccp_pernet(net);
 	unsigned int *timeouts = data;
 	int i;
 

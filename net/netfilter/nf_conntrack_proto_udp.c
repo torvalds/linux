@@ -156,13 +156,15 @@ static int udp_error(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
 
-static int udp_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+static int udp_timeout_nlattr_to_obj(struct nlattr *tb[],
+				     struct net *net, void *data)
 {
 	unsigned int *timeouts = data;
+	struct nf_udp_net *un = udp_pernet(net);
 
 	/* set default timeouts for UDP. */
-	timeouts[UDP_CT_UNREPLIED] = udp_timeouts[UDP_CT_UNREPLIED];
-	timeouts[UDP_CT_REPLIED] = udp_timeouts[UDP_CT_REPLIED];
+	timeouts[UDP_CT_UNREPLIED] = un->timeouts[UDP_CT_UNREPLIED];
+	timeouts[UDP_CT_REPLIED] = un->timeouts[UDP_CT_REPLIED];
 
 	if (tb[CTA_TIMEOUT_UDP_UNREPLIED]) {
 		timeouts[UDP_CT_UNREPLIED] =

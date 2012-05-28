@@ -1260,14 +1260,16 @@ static int tcp_nlattr_tuple_size(void)
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
 
-static int tcp_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+static int tcp_timeout_nlattr_to_obj(struct nlattr *tb[],
+				     struct net *net, void *data)
 {
 	unsigned int *timeouts = data;
+	struct nf_tcp_net *tn = tcp_pernet(net);
 	int i;
 
 	/* set default TCP timeouts. */
 	for (i=0; i<TCP_CONNTRACK_TIMEOUT_MAX; i++)
-		timeouts[i] = tcp_timeouts[i];
+		timeouts[i] = tn->timeouts[i];
 
 	if (tb[CTA_TIMEOUT_TCP_SYN_SENT]) {
 		timeouts[TCP_CONNTRACK_SYN_SENT] =

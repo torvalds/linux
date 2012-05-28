@@ -172,13 +172,15 @@ static int udplite_error(struct net *net, struct nf_conn *tmpl,
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
 
-static int udplite_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+static int udplite_timeout_nlattr_to_obj(struct nlattr *tb[],
+					 struct net *net, void *data)
 {
 	unsigned int *timeouts = data;
+	struct udplite_net *un = udplite_pernet(net);
 
 	/* set default timeouts for UDPlite. */
-	timeouts[UDPLITE_CT_UNREPLIED] = udplite_timeouts[UDPLITE_CT_UNREPLIED];
-	timeouts[UDPLITE_CT_REPLIED] = udplite_timeouts[UDPLITE_CT_REPLIED];
+	timeouts[UDPLITE_CT_UNREPLIED] = un->timeouts[UDPLITE_CT_UNREPLIED];
+	timeouts[UDPLITE_CT_REPLIED] = un->timeouts[UDPLITE_CT_REPLIED];
 
 	if (tb[CTA_TIMEOUT_UDPLITE_UNREPLIED]) {
 		timeouts[UDPLITE_CT_UNREPLIED] =

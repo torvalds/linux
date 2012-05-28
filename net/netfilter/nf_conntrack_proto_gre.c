@@ -304,13 +304,15 @@ static void gre_destroy(struct nf_conn *ct)
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
 
-static int gre_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+static int gre_timeout_nlattr_to_obj(struct nlattr *tb[],
+				     struct net *net, void *data)
 {
 	unsigned int *timeouts = data;
+	struct netns_proto_gre *net_gre = gre_pernet(net);
 
 	/* set default timeouts for GRE. */
-	timeouts[GRE_CT_UNREPLIED] = gre_timeouts[GRE_CT_UNREPLIED];
-	timeouts[GRE_CT_REPLIED] = gre_timeouts[GRE_CT_REPLIED];
+	timeouts[GRE_CT_UNREPLIED] = net_gre->gre_timeouts[GRE_CT_UNREPLIED];
+	timeouts[GRE_CT_REPLIED] = net_gre->gre_timeouts[GRE_CT_REPLIED];
 
 	if (tb[CTA_TIMEOUT_GRE_UNREPLIED]) {
 		timeouts[GRE_CT_UNREPLIED] =
