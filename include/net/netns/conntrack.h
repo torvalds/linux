@@ -34,9 +34,21 @@ struct nf_tcp_net {
 	unsigned int tcp_max_retrans;
 };
 
+enum udp_conntrack {
+	UDP_CT_UNREPLIED,
+	UDP_CT_REPLIED,
+	UDP_CT_MAX
+};
+
+struct nf_udp_net {
+	struct nf_proto_net pn;
+	unsigned int timeouts[UDP_CT_MAX];
+};
+
 struct nf_ip_net {
 	struct nf_generic_net   generic;
 	struct nf_tcp_net	tcp;
+	struct nf_udp_net	udp;
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
 	struct ctl_table_header *ctl_table_header;
 	struct ctl_table	*ctl_table;
