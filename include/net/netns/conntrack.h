@@ -55,6 +55,7 @@ struct nf_ip_net {
 	struct nf_tcp_net	tcp;
 	struct nf_udp_net	udp;
 	struct nf_icmp_net	icmp;
+	struct nf_icmp_net	icmpv6;
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
 	struct ctl_table_header *ctl_table_header;
 	struct ctl_table	*ctl_table;

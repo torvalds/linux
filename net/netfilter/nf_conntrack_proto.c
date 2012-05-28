@@ -309,6 +309,8 @@ static struct nf_proto_net *nf_ct_l4proto_net(struct net *net,
 		return (struct nf_proto_net *)&net->ct.nf_ct_proto.udp;
 	case IPPROTO_ICMP:
 		return (struct nf_proto_net *)&net->ct.nf_ct_proto.icmp;
+	case IPPROTO_ICMPV6:
+		return (struct nf_proto_net *)&net->ct.nf_ct_proto.icmpv6;
 	case 255: /* l4proto_generic */
 		return (struct nf_proto_net *)&net->ct.nf_ct_proto.generic;
 	default:
