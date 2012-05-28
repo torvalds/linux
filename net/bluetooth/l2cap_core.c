@@ -3343,20 +3343,15 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 
 	result = L2CAP_CR_NO_MEM;
 
+	/* Check if we already have channel with that dcid */
+	if (__l2cap_get_chan_by_dcid(conn, scid))
+		goto response;
+
 	chan = pchan->ops->new_connection(pchan);
 	if (!chan)
 		goto response;
 
 	sk = chan->sk;
-
-	/* Check if we already have channel with that dcid */
-	if (__l2cap_get_chan_by_dcid(conn, scid)) {
-		if (chan->ops->teardown)
-			chan->ops->teardown(chan, 0);
-
-		chan->ops->close(chan);
-		goto response;
-	}
 
 	hci_conn_hold(conn->hcon);
 
