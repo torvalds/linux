@@ -1436,8 +1436,9 @@ static int sep_lli_table_secure_dma(struct sep_device *sep,
 	start_page = app_virt_addr >> PAGE_SHIFT;
 	num_pages = end_page - start_page + 1;
 
-	dev_dbg(&sep->pdev->dev, "[PID%d] lock user pages"
-		" app_virt_addr is %x\n", current->pid, app_virt_addr);
+	dev_dbg(&sep->pdev->dev,
+		"[PID%d] lock user pages  app_virt_addr is %x\n",
+		current->pid, app_virt_addr);
 
 	dev_dbg(&sep->pdev->dev, "[PID%d] data_size is (hex) %x\n",
 		current->pid, data_size);
@@ -1931,9 +1932,9 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 	void *dma_lli_table_alloc_addr = NULL;
 	void *dma_in_lli_table_ptr = NULL;
 
-	dev_dbg(&sep->pdev->dev, "[PID%d] prepare intput dma "
-				 "tbl data size: (hex) %x\n",
-					current->pid, data_size);
+	dev_dbg(&sep->pdev->dev,
+		"[PID%d] prepare intput dma tbl data size: (hex) %x\n",
+		current->pid, data_size);
 
 	dev_dbg(&sep->pdev->dev, "[PID%d] block_size is (hex) %x\n",
 					current->pid, block_size);
@@ -2542,17 +2543,18 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 		}
 	}
 
-	dev_dbg(&sep->pdev->dev, "[PID%d] After lock; prep input output dma "
-		"table sep_in_num_pages is (hex) %x\n", current->pid,
+	dev_dbg(&sep->pdev->dev,
+		"[PID%d] After lock; prep input output dma table sep_in_num_pages is (hex) %x\n",
+		current->pid,
 		dma_ctx->dma_res_arr[dma_ctx->nr_dcb_creat].in_num_pages);
 
 	dev_dbg(&sep->pdev->dev, "[PID%d] sep_out_num_pages is (hex) %x\n",
 		current->pid,
 		dma_ctx->dma_res_arr[dma_ctx->nr_dcb_creat].out_num_pages);
 
-	dev_dbg(&sep->pdev->dev, "[PID%d] SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP"
-		" is (hex) %x\n", current->pid,
-		SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP);
+	dev_dbg(&sep->pdev->dev,
+		"[PID%d] SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP is (hex) %x\n",
+		current->pid, SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP);
 
 	/* Call the fucntion that creates table from the lli arrays */
 	dev_dbg(&sep->pdev->dev, "[PID%d] calling create table from lli\n",
@@ -3844,8 +3846,9 @@ static ssize_t sep_write(struct file *filp,
 	 * buffers created. Only SEP_DOUBLEBUF_USERS_LIMIT number
 	 * of threads can progress further at a time
 	 */
-	dev_dbg(&sep->pdev->dev, "[PID%d] waiting for double buffering "
-				 "region access\n", current->pid);
+	dev_dbg(&sep->pdev->dev,
+		"[PID%d] waiting for double buffering region access\n",
+		current->pid);
 	error = down_interruptible(&sep->sep_doublebuf);
 	dev_dbg(&sep->pdev->dev, "[PID%d] double buffering region start\n",
 					current->pid);
@@ -3889,8 +3892,8 @@ static ssize_t sep_write(struct file *filp,
 				     current->comm, sizeof(current->comm));
 
 	if (!my_queue_elem) {
-		dev_dbg(&sep->pdev->dev, "[PID%d] updating queue"
-					"status error\n", current->pid);
+		dev_dbg(&sep->pdev->dev,
+			"[PID%d] updating queue status error\n", current->pid);
 		error = -ENOMEM;
 		goto end_function_error_doublebuf;
 	}
@@ -4155,8 +4158,8 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 
 	INIT_LIST_HEAD(&sep->sep_queue_status);
 
-	dev_dbg(&sep->pdev->dev, "sep probe: PCI obtained, "
-		"device being prepared\n");
+	dev_dbg(&sep->pdev->dev,
+		"sep probe: PCI obtained, device being prepared\n");
 
 	/* Set up our register area */
 	sep->reg_physical_addr = pci_resource_start(sep->pdev, 0);
@@ -4318,7 +4321,7 @@ static void sep_remove(struct pci_dev *pdev)
 static DEFINE_PCI_DEVICE_TABLE(sep_pci_id_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0826)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x08e9)},
- 	{0}
+	{0}
 };
 
 /* Export our pci_device_id structure to user space */

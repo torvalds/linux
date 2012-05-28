@@ -1095,8 +1095,8 @@ static int sep_crypto_take_sep(struct this_task_ctx *ta_ctx)
 		current->comm, sizeof(current->comm));
 
 	if (!ta_ctx->queue_elem) {
-		dev_dbg(&sep->pdev->dev, "[PID%d] updating queue"
-			" status error\n", current->pid);
+		dev_dbg(&sep->pdev->dev,
+			"[PID%d] updating queue status error\n", current->pid);
 		return -EINVAL;
 	}
 
