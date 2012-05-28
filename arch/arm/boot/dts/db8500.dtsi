@@ -169,12 +169,12 @@
 		prcmu@80157000 {
 			compatible = "stericsson,db8500-prcmu";
 			reg = <0x80157000 0x1000>;
-			interrupts = <46 47>;
+			interrupts = <0 47 0x4>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
 
-				prcmu-timer-4@80157450 {
+			prcmu-timer-4@80157450 {
 				compatible = "stericsson,db8500-prcmu-timer-4";
 				reg = <0x80157450 0xC>;
 			};
