@@ -282,10 +282,8 @@ small_smb2_init(__le16 smb2_command, struct cifs_tcon *tcon,
 
 	if (tcon != NULL) {
 #ifdef CONFIG_CIFS_STATS2
-		/*
 		uint16_t com_code = le16_to_cpu(smb2_command);
 		cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_sent[com_code]);
-		*/
 #endif
 		cifs_stats_inc(&tcon->num_smbs_sent);
 	}
@@ -677,7 +675,7 @@ SMB2_logoff(const unsigned int xid, struct cifs_ses *ses)
 
 static inline void cifs_stats_fail_inc(struct cifs_tcon *tcon, uint16_t code)
 {
-	/* cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_fail[code]); */
+	cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_failed[code]);
 }
 
 #define MAX_SHARENAME_LENGTH (255 /* server */ + 80 /* share */ + 1 /* NULL */)

@@ -213,6 +213,85 @@ smb2_can_echo(struct TCP_Server_Info *server)
 	return server->echoes;
 }
 
+static void
+smb2_clear_stats(struct cifs_tcon *tcon)
+{
+#ifdef CONFIG_CIFS_STATS
+	int i;
+	for (i = 0; i < NUMBER_OF_SMB2_COMMANDS; i++) {
+		atomic_set(&tcon->stats.smb2_stats.smb2_com_sent[i], 0);
+		atomic_set(&tcon->stats.smb2_stats.smb2_com_failed[i], 0);
+	}
+#endif
+}
+
+static void
+smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
+{
+#ifdef CONFIG_CIFS_STATS
+	atomic_t *sent = tcon->stats.smb2_stats.smb2_com_sent;
+	atomic_t *failed = tcon->stats.smb2_stats.smb2_com_failed;
+	seq_printf(m, "\nNegotiates: %d sent %d failed",
+		   atomic_read(&sent[SMB2_NEGOTIATE_HE]),
+		   atomic_read(&failed[SMB2_NEGOTIATE_HE]));
+	seq_printf(m, "\nSessionSetups: %d sent %d failed",
+		   atomic_read(&sent[SMB2_SESSION_SETUP_HE]),
+		   atomic_read(&failed[SMB2_SESSION_SETUP_HE]));
+#define SMB2LOGOFF		0x0002 /* trivial request/resp */
+	seq_printf(m, "\nLogoffs: %d sent %d failed",
+		   atomic_read(&sent[SMB2_LOGOFF_HE]),
+		   atomic_read(&failed[SMB2_LOGOFF_HE]));
+	seq_printf(m, "\nTreeConnects: %d sent %d failed",
+		   atomic_read(&sent[SMB2_TREE_CONNECT_HE]),
+		   atomic_read(&failed[SMB2_TREE_CONNECT_HE]));
+	seq_printf(m, "\nTreeDisconnects: %d sent %d failed",
+		   atomic_read(&sent[SMB2_TREE_DISCONNECT_HE]),
+		   atomic_read(&failed[SMB2_TREE_DISCONNECT_HE]));
+	seq_printf(m, "\nCreates: %d sent %d failed",
+		   atomic_read(&sent[SMB2_CREATE_HE]),
+		   atomic_read(&failed[SMB2_CREATE_HE]));
+	seq_printf(m, "\nCloses: %d sent %d failed",
+		   atomic_read(&sent[SMB2_CLOSE_HE]),
+		   atomic_read(&failed[SMB2_CLOSE_HE]));
+	seq_printf(m, "\nFlushes: %d sent %d failed",
+		   atomic_read(&sent[SMB2_FLUSH_HE]),
+		   atomic_read(&failed[SMB2_FLUSH_HE]));
+	seq_printf(m, "\nReads: %d sent %d failed",
+		   atomic_read(&sent[SMB2_READ_HE]),
+		   atomic_read(&failed[SMB2_READ_HE]));
+	seq_printf(m, "\nWrites: %d sent %d failed",
+		   atomic_read(&sent[SMB2_WRITE_HE]),
+		   atomic_read(&failed[SMB2_WRITE_HE]));
+	seq_printf(m, "\nLocks: %d sent %d failed",
+		   atomic_read(&sent[SMB2_LOCK_HE]),
+		   atomic_read(&failed[SMB2_LOCK_HE]));
+	seq_printf(m, "\nIOCTLs: %d sent %d failed",
+		   atomic_read(&sent[SMB2_IOCTL_HE]),
+		   atomic_read(&failed[SMB2_IOCTL_HE]));
+	seq_printf(m, "\nCancels: %d sent %d failed",
+		   atomic_read(&sent[SMB2_CANCEL_HE]),
+		   atomic_read(&failed[SMB2_CANCEL_HE]));
+	seq_printf(m, "\nEchos: %d sent %d failed",
+		   atomic_read(&sent[SMB2_ECHO_HE]),
+		   atomic_read(&failed[SMB2_ECHO_HE]));
+	seq_printf(m, "\nQueryDirectories: %d sent %d failed",
+		   atomic_read(&sent[SMB2_QUERY_DIRECTORY_HE]),
+		   atomic_read(&failed[SMB2_QUERY_DIRECTORY_HE]));
+	seq_printf(m, "\nChangeNotifies: %d sent %d failed",
+		   atomic_read(&sent[SMB2_CHANGE_NOTIFY_HE]),
+		   atomic_read(&failed[SMB2_CHANGE_NOTIFY_HE]));
+	seq_printf(m, "\nQueryInfos: %d sent %d failed",
+		   atomic_read(&sent[SMB2_QUERY_INFO_HE]),
+		   atomic_read(&failed[SMB2_QUERY_INFO_HE]));
+	seq_printf(m, "\nSetInfos: %d sent %d failed",
+		   atomic_read(&sent[SMB2_SET_INFO_HE]),
+		   atomic_read(&failed[SMB2_SET_INFO_HE]));
+	seq_printf(m, "\nOplockBreaks: %d sent %d failed",
+		   atomic_read(&sent[SMB2_OPLOCK_BREAK_HE]),
+		   atomic_read(&failed[SMB2_OPLOCK_BREAK_HE]));
+#endif
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.setup_async_request = smb2_setup_async_request,
@@ -225,6 +304,8 @@ struct smb_version_operations smb21_operations = {
 	.find_mid = smb2_find_mid,
 	.check_message = smb2_check_message,
 	.dump_detail = smb2_dump_detail,
+	.clear_stats = smb2_clear_stats,
+	.print_stats = smb2_print_stats,
 	.need_neg = smb2_need_neg,
 	.negotiate = smb2_negotiate,
 	.sess_setup = SMB2_sess_setup,
