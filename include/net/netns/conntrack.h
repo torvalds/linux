@@ -20,7 +20,13 @@ struct nf_proto_net {
 	unsigned int		users;
 };
 
+struct nf_generic_net {
+	struct nf_proto_net pn;
+	unsigned int timeout;
+};
+
 struct nf_ip_net {
+	struct nf_generic_net   generic;
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
 	struct ctl_table_header *ctl_table_header;
 	struct ctl_table	*ctl_table;

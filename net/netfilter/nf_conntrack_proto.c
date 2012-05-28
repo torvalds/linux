@@ -302,10 +302,16 @@ EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_unregister);
 static struct nf_proto_net *nf_ct_l4proto_net(struct net *net,
 					      struct nf_conntrack_l4proto *l4proto)
 {
-	if (l4proto->net_id)
-		return net_generic(net, *l4proto->net_id);
-	else
-		return NULL;
+	switch (l4proto->l4proto) {
+	case 255: /* l4proto_generic */
+		return (struct nf_proto_net *)&net->ct.nf_ct_proto.generic;
+	default:
+		if (l4proto->net_id)
+			return net_generic(net, *l4proto->net_id);
+		else
+			return NULL;
+	}
+	return NULL;
 }
 
 static
@@ -487,28 +493,34 @@ void nf_conntrack_l4proto_unregister(struct net *net,
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_unregister);
 
-int nf_conntrack_proto_init(void)
+int nf_conntrack_proto_init(struct net *net)
 {
 	unsigned int i;
 	int err;
-
-	err = nf_ct_l4proto_register_sysctl(&init_net, &nf_conntrack_l4proto_generic);
+	err = nf_conntrack_l4proto_generic.init_net(net);
+	if (err < 0)
+		return err;
+	err = nf_ct_l4proto_register_sysctl(net,
+					    &nf_conntrack_l4proto_generic);
 	if (err < 0)
 		return err;
 
-	for (i = 0; i < AF_MAX; i++)
-		rcu_assign_pointer(nf_ct_l3protos[i],
-				   &nf_conntrack_l3proto_generic);
+	if (net == &init_net) {
+		for (i = 0; i < AF_MAX; i++)
+			rcu_assign_pointer(nf_ct_l3protos[i],
+					   &nf_conntrack_l3proto_generic);
+	}
 	return 0;
 }
 
-void nf_conntrack_proto_fini(void)
+void nf_conntrack_proto_fini(struct net *net)
 {
 	unsigned int i;
-
-	nf_ct_l4proto_unregister_sysctl(&init_net, &nf_conntrack_l4proto_generic);
-
-	/* free l3proto protocol tables */
-	for (i = 0; i < PF_MAX; i++)
-		kfree(nf_ct_protos[i]);
+	nf_ct_l4proto_unregister_sysctl(net,
+					&nf_conntrack_l4proto_generic);
+	if (net == &init_net) {
+		/* free l3proto protocol tables */
+		for (i = 0; i < PF_MAX; i++)
+			kfree(nf_ct_protos[i]);
+	}
 }

@@ -14,6 +14,11 @@
 
 static unsigned int nf_ct_generic_timeout __read_mostly = 600*HZ;
 
+static inline struct nf_generic_net *generic_pernet(struct net *net)
+{
+	return &net->ct.nf_ct_proto.generic;
+}
+
 static bool generic_pkt_to_tuple(const struct sk_buff *skb,
 				 unsigned int dataoff,
 				 struct nf_conntrack_tuple *tuple)
@@ -42,7 +47,7 @@ static int generic_print_tuple(struct seq_file *s,
 
 static unsigned int *generic_get_timeouts(struct net *net)
 {
-	return &nf_ct_generic_timeout;
+	return &(generic_pernet(net)->timeout);
 }
 
 /* Returns verdict for packet, or -1 for invalid. */
@@ -110,7 +115,6 @@ static struct ctl_table_header *generic_sysctl_header;
 static struct ctl_table generic_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_generic_timeout",
-		.data		= &nf_ct_generic_timeout,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
@@ -121,7 +125,6 @@ static struct ctl_table generic_sysctl_table[] = {
 static struct ctl_table generic_compat_sysctl_table[] = {
 	{
 		.procname	= "ip_conntrack_generic_timeout",
-		.data		= &nf_ct_generic_timeout,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
@@ -130,6 +133,34 @@ static struct ctl_table generic_compat_sysctl_table[] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
+
+static int generic_init_net(struct net *net)
+{
+	struct nf_generic_net *gn = generic_pernet(net);
+	struct nf_proto_net *pn = (struct nf_proto_net *)gn;
+	gn->timeout = nf_ct_generic_timeout;
+#ifdef CONFIG_SYSCTL
+	pn->ctl_table = kmemdup(generic_sysctl_table,
+				sizeof(generic_sysctl_table),
+				GFP_KERNEL);
+	if (!pn->ctl_table)
+		return -ENOMEM;
+	pn->ctl_table[0].data = &gn->timeout;
+
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+	pn->ctl_compat_table = kmemdup(generic_compat_sysctl_table,
+				       sizeof(generic_compat_sysctl_table),
+				       GFP_KERNEL);
+	if (!pn->ctl_compat_table) {
+		kfree(pn->ctl_table);
+		pn->ctl_table = NULL;
+		return -ENOMEM;
+	}
+	pn->ctl_compat_table[0].data = &gn->timeout;
+#endif
+#endif
+	return 0;
+}
 
 struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
 {
@@ -158,4 +189,5 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
 	.ctl_compat_table	= generic_compat_sysctl_table,
 #endif
 #endif
+	.init_net		= generic_init_net,
 };
