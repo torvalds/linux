@@ -8,7 +8,7 @@
 
 #include <mach/platform.h>
 
-	.macro	addruart, rp, rv
+	.macro	addruart, rp, rv, tmp
 	ldr	\rp, =SW_PA_UART0_IO_BASE
 	ldr	\rv, =SW_VA_UART0_IO_BASE
 #if CONFIG_SW_DEBUG_UART != 0
