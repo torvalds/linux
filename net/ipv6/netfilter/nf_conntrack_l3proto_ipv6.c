@@ -340,19 +340,19 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 	need_conntrack();
 	nf_defrag_ipv6_enable();
 
-	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_tcp6);
+	ret = nf_conntrack_l4proto_register(&init_net, &nf_conntrack_l4proto_tcp6);
 	if (ret < 0) {
 		pr_err("nf_conntrack_ipv6: can't register tcp.\n");
 		return ret;
 	}
 
-	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_udp6);
+	ret = nf_conntrack_l4proto_register(&init_net, &nf_conntrack_l4proto_udp6);
 	if (ret < 0) {
 		pr_err("nf_conntrack_ipv6: can't register udp.\n");
 		goto cleanup_tcp;
 	}
 
-	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_icmpv6);
+	ret = nf_conntrack_l4proto_register(&init_net, &nf_conntrack_l4proto_icmpv6);
 	if (ret < 0) {
 		pr_err("nf_conntrack_ipv6: can't register icmpv6.\n");
 		goto cleanup_udp;
@@ -376,11 +376,11 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
  cleanup_ipv6:
 	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
  cleanup_icmpv6:
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_icmpv6);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_icmpv6);
  cleanup_udp:
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_udp6);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_udp6);
  cleanup_tcp:
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_tcp6);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_tcp6);
 	return ret;
 }
 
@@ -389,9 +389,9 @@ static void __exit nf_conntrack_l3proto_ipv6_fini(void)
 	synchronize_net();
 	nf_unregister_hooks(ipv6_conntrack_ops, ARRAY_SIZE(ipv6_conntrack_ops));
 	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_icmpv6);
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_udp6);
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_tcp6);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_icmpv6);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_udp6);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_tcp6);
 }
 
 module_init(nf_conntrack_l3proto_ipv6_init);

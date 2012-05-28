@@ -8,6 +8,18 @@
 struct ctl_table_header;
 struct nf_conntrack_ecache;
 
+struct nf_proto_net {
+#ifdef CONFIG_SYSCTL
+	struct ctl_table_header *ctl_table_header;
+	struct ctl_table        *ctl_table;
+#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
+	struct ctl_table_header *ctl_compat_header;
+	struct ctl_table        *ctl_compat_table;
+#endif
+#endif
+	unsigned int		users;
+};
+
 struct netns_ct {
 	atomic_t		count;
 	unsigned int		expect_count;

@@ -12,6 +12,7 @@
 #include <linux/netlink.h>
 #include <net/netlink.h>
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netns/generic.h>
 
 struct seq_file;
 
@@ -103,6 +104,10 @@ struct nf_conntrack_l4proto {
 	struct ctl_table	*ctl_compat_table;
 #endif
 #endif
+	int	*net_id;
+	/* Init l4proto pernet data */
+	int (*init_net)(struct net *net);
+
 	/* Protocol name */
 	const char *name;
 
@@ -123,8 +128,10 @@ nf_ct_l4proto_find_get(u_int16_t l3proto, u_int8_t l4proto);
 extern void nf_ct_l4proto_put(struct nf_conntrack_l4proto *p);
 
 /* Protocol registration. */
-extern int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *proto);
-extern void nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *proto);
+extern int nf_conntrack_l4proto_register(struct net *net,
+					 struct nf_conntrack_l4proto *proto);
+extern void nf_conntrack_l4proto_unregister(struct net *net,
+					    struct nf_conntrack_l4proto *proto);
 
 /* Generic netlink helpers */
 extern int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,

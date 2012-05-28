@@ -945,17 +945,17 @@ static int __init nf_conntrack_proto_dccp_init(void)
 	if (err < 0)
 		goto err1;
 
-	err = nf_conntrack_l4proto_register(&dccp_proto4);
+	err = nf_conntrack_l4proto_register(&init_net, &dccp_proto4);
 	if (err < 0)
 		goto err2;
 
-	err = nf_conntrack_l4proto_register(&dccp_proto6);
+	err = nf_conntrack_l4proto_register(&init_net, &dccp_proto6);
 	if (err < 0)
 		goto err3;
 	return 0;
 
 err3:
-	nf_conntrack_l4proto_unregister(&dccp_proto4);
+	nf_conntrack_l4proto_unregister(&init_net, &dccp_proto4);
 err2:
 	unregister_pernet_subsys(&dccp_net_ops);
 err1:
@@ -965,8 +965,8 @@ err1:
 static void __exit nf_conntrack_proto_dccp_fini(void)
 {
 	unregister_pernet_subsys(&dccp_net_ops);
-	nf_conntrack_l4proto_unregister(&dccp_proto6);
-	nf_conntrack_l4proto_unregister(&dccp_proto4);
+	nf_conntrack_l4proto_unregister(&init_net, &dccp_proto6);
+	nf_conntrack_l4proto_unregister(&init_net, &dccp_proto4);
 }
 
 module_init(nf_conntrack_proto_dccp_init);

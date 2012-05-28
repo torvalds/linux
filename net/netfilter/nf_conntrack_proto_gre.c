@@ -396,18 +396,18 @@ static int __init nf_ct_proto_gre_init(void)
 {
 	int rv;
 
-	rv = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_gre4);
+	rv = nf_conntrack_l4proto_register(&init_net, &nf_conntrack_l4proto_gre4);
 	if (rv < 0)
 		return rv;
 	rv = register_pernet_subsys(&proto_gre_net_ops);
 	if (rv < 0)
-		nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_gre4);
+		nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_gre4);
 	return rv;
 }
 
 static void __exit nf_ct_proto_gre_fini(void)
 {
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_gre4);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_gre4);
 	unregister_pernet_subsys(&proto_gre_net_ops);
 }
 

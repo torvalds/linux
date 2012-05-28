@@ -791,12 +791,12 @@ static int __init nf_conntrack_proto_sctp_init(void)
 {
 	int ret;
 
-	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_sctp4);
+	ret = nf_conntrack_l4proto_register(&init_net, &nf_conntrack_l4proto_sctp4);
 	if (ret) {
 		pr_err("nf_conntrack_l4proto_sctp4: protocol register failed\n");
 		goto out;
 	}
-	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_sctp6);
+	ret = nf_conntrack_l4proto_register(&init_net, &nf_conntrack_l4proto_sctp6);
 	if (ret) {
 		pr_err("nf_conntrack_l4proto_sctp6: protocol register failed\n");
 		goto cleanup_sctp4;
@@ -805,15 +805,15 @@ static int __init nf_conntrack_proto_sctp_init(void)
 	return ret;
 
  cleanup_sctp4:
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_sctp4);
  out:
 	return ret;
 }
 
 static void __exit nf_conntrack_proto_sctp_fini(void)
 {
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp6);
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_sctp6);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_sctp4);
 }
 
 module_init(nf_conntrack_proto_sctp_init);

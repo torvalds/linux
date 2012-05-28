@@ -299,23 +299,23 @@ static int __init nf_conntrack_proto_udplite_init(void)
 {
 	int err;
 
-	err = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_udplite4);
+	err = nf_conntrack_l4proto_register(&init_net, &nf_conntrack_l4proto_udplite4);
 	if (err < 0)
 		goto err1;
-	err = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_udplite6);
+	err = nf_conntrack_l4proto_register(&init_net, &nf_conntrack_l4proto_udplite6);
 	if (err < 0)
 		goto err2;
 	return 0;
 err2:
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_udplite4);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_udplite4);
 err1:
 	return err;
 }
 
 static void __exit nf_conntrack_proto_udplite_exit(void)
 {
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_udplite6);
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_udplite4);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_udplite6);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_udplite4);
 }
 
 module_init(nf_conntrack_proto_udplite_init);

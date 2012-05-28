@@ -391,19 +391,19 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 		return ret;
 	}
 
-	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_tcp4);
+	ret = nf_conntrack_l4proto_register(&init_net, &nf_conntrack_l4proto_tcp4);
 	if (ret < 0) {
 		pr_err("nf_conntrack_ipv4: can't register tcp.\n");
 		goto cleanup_sockopt;
 	}
 
-	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_udp4);
+	ret = nf_conntrack_l4proto_register(&init_net, &nf_conntrack_l4proto_udp4);
 	if (ret < 0) {
 		pr_err("nf_conntrack_ipv4: can't register udp.\n");
 		goto cleanup_tcp;
 	}
 
-	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_icmp);
+	ret = nf_conntrack_l4proto_register(&init_net, &nf_conntrack_l4proto_icmp);
 	if (ret < 0) {
 		pr_err("nf_conntrack_ipv4: can't register icmp.\n");
 		goto cleanup_udp;
@@ -434,11 +434,11 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
  cleanup_ipv4:
 	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
  cleanup_icmp:
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_icmp);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_icmp);
  cleanup_udp:
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_udp4);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_udp4);
  cleanup_tcp:
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_tcp4);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_tcp4);
  cleanup_sockopt:
 	nf_unregister_sockopt(&so_getorigdst);
 	return ret;
@@ -452,9 +452,9 @@ static void __exit nf_conntrack_l3proto_ipv4_fini(void)
 #endif
 	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
 	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_icmp);
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_udp4);
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_tcp4);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_icmp);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_udp4);
+	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_tcp4);
 	nf_unregister_sockopt(&so_getorigdst);
 }
 
