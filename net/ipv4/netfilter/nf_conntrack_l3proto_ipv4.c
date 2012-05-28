@@ -409,7 +409,7 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 		goto cleanup_udp;
 	}
 
-	ret = nf_conntrack_l3proto_register(&nf_conntrack_l3proto_ipv4);
+	ret = nf_conntrack_l3proto_register(&init_net, &nf_conntrack_l3proto_ipv4);
 	if (ret < 0) {
 		pr_err("nf_conntrack_ipv4: can't register ipv4\n");
 		goto cleanup_icmp;
@@ -432,7 +432,7 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
 #endif
  cleanup_ipv4:
-	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
+	nf_conntrack_l3proto_unregister(&init_net, &nf_conntrack_l3proto_ipv4);
  cleanup_icmp:
 	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_icmp);
  cleanup_udp:
@@ -451,7 +451,7 @@ static void __exit nf_conntrack_l3proto_ipv4_fini(void)
 	nf_conntrack_ipv4_compat_fini();
 #endif
 	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
-	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
+	nf_conntrack_l3proto_unregister(&init_net, &nf_conntrack_l3proto_ipv4);
 	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_icmp);
 	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_udp4);
 	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_tcp4);

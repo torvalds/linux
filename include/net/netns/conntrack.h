@@ -20,6 +20,13 @@ struct nf_proto_net {
 	unsigned int		users;
 };
 
+struct nf_ip_net {
+#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
+	struct ctl_table_header *ctl_table_header;
+	struct ctl_table	*ctl_table;
+#endif
+};
+
 struct netns_ct {
 	atomic_t		count;
 	unsigned int		expect_count;
@@ -40,6 +47,7 @@ struct netns_ct {
 	unsigned int		sysctl_log_invalid; /* Log invalid packets */
 	int			sysctl_auto_assign_helper;
 	bool			auto_assign_helper_warned;
+	struct nf_ip_net	nf_ct_proto;
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*sysctl_header;
 	struct ctl_table_header	*acct_sysctl_header;

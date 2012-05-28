@@ -168,31 +168,57 @@ static int kill_l4proto(struct nf_conn *i, void *data)
 	       nf_ct_l3num(i) == l4proto->l3proto;
 }
 
-static int nf_ct_l3proto_register_sysctl(struct nf_conntrack_l3proto *l3proto)
+static struct nf_ip_net *nf_ct_l3proto_net(struct net *net,
+					   struct nf_conntrack_l3proto *l3proto)
+{
+	if (l3proto->l3proto == PF_INET)
+		return &net->ct.nf_ct_proto;
+	else
+		return NULL;
+}
+
+static int nf_ct_l3proto_register_sysctl(struct net *net,
+					 struct nf_conntrack_l3proto *l3proto)
 {
 	int err = 0;
+	struct nf_ip_net *in = nf_ct_l3proto_net(net, l3proto);
+	/* nf_conntrack_l3proto_ipv6 doesn't support sysctl */
+	if (in == NULL)
+		return 0;
 
-#ifdef CONFIG_SYSCTL
-	if (l3proto->ctl_table != NULL) {
-		err = nf_ct_register_sysctl(&init_net,
-					    &l3proto->ctl_table_header,
+#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
+	if (in->ctl_table != NULL) {
+		err = nf_ct_register_sysctl(net,
+					    &in->ctl_table_header,
 					    l3proto->ctl_table_path,
-					    l3proto->ctl_table, NULL);
+					    in->ctl_table,
+					    NULL);
+		if (err < 0) {
+			kfree(in->ctl_table);
+			in->ctl_table = NULL;
+		}
 	}
 #endif
 	return err;
 }
 
-static void nf_ct_l3proto_unregister_sysctl(struct nf_conntrack_l3proto *l3proto)
+static void nf_ct_l3proto_unregister_sysctl(struct net *net,
+					    struct nf_conntrack_l3proto *l3proto)
 {
-#ifdef CONFIG_SYSCTL
-	if (l3proto->ctl_table_header != NULL)
-		nf_ct_unregister_sysctl(&l3proto->ctl_table_header,
-					&l3proto->ctl_table, NULL);
+	struct nf_ip_net *in = nf_ct_l3proto_net(net, l3proto);
+
+	if (in == NULL)
+		return;
+#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
+	if (in->ctl_table_header != NULL)
+		nf_ct_unregister_sysctl(&in->ctl_table_header,
+					&in->ctl_table,
+					NULL);
 #endif
 }
 
-int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto)
+static int
+nf_conntrack_l3proto_register_net(struct nf_conntrack_l3proto *proto)
 {
 	int ret = 0;
 	struct nf_conntrack_l3proto *old;
@@ -211,10 +237,6 @@ int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto)
 		goto out_unlock;
 	}
 
-	ret = nf_ct_l3proto_register_sysctl(proto);
-	if (ret < 0)
-		goto out_unlock;
-
 	if (proto->nlattr_tuple_size)
 		proto->nla_size = 3 * proto->nlattr_tuple_size();
 
@@ -223,13 +245,32 @@ int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto)
 out_unlock:
 	mutex_unlock(&nf_ct_proto_mutex);
 	return ret;
+
+}
+
+int nf_conntrack_l3proto_register(struct net *net,
+				  struct nf_conntrack_l3proto *proto)
+{
+	int ret = 0;
+
+	if (net == &init_net)
+		ret = nf_conntrack_l3proto_register_net(proto);
+
+	if (ret < 0)
+		return ret;
+
+	if (proto->init_net) {
+		ret = proto->init_net(net);
+		if (ret < 0)
+			return ret;
+	}
+	return nf_ct_l3proto_register_sysctl(net, proto);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_register);
 
-void nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
+static void
+nf_conntrack_l3proto_unregister_net(struct nf_conntrack_l3proto *proto)
 {
-	struct net *net;
-
 	BUG_ON(proto->l3proto >= AF_MAX);
 
 	mutex_lock(&nf_ct_proto_mutex);
@@ -238,15 +279,22 @@ void nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 					 ) != proto);
 	rcu_assign_pointer(nf_ct_l3protos[proto->l3proto],
 			   &nf_conntrack_l3proto_generic);
-	nf_ct_l3proto_unregister_sysctl(proto);
 	mutex_unlock(&nf_ct_proto_mutex);
 
 	synchronize_rcu();
+}
+
+void nf_conntrack_l3proto_unregister(struct net *net,
+				     struct nf_conntrack_l3proto *proto)
+{
+	if (net == &init_net)
+		nf_conntrack_l3proto_unregister_net(proto);
+
+	nf_ct_l3proto_unregister_sysctl(net, proto);
 
 	/* Remove all contrack entries for this protocol */
 	rtnl_lock();
-	for_each_net(net)
-		nf_ct_iterate_cleanup(net, kill_l3proto, proto);
+	nf_ct_iterate_cleanup(net, kill_l3proto, proto);
 	rtnl_unlock();
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_unregister);

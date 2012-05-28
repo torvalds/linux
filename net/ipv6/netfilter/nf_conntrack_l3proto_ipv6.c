@@ -358,7 +358,7 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 		goto cleanup_udp;
 	}
 
-	ret = nf_conntrack_l3proto_register(&nf_conntrack_l3proto_ipv6);
+	ret = nf_conntrack_l3proto_register(&init_net, &nf_conntrack_l3proto_ipv6);
 	if (ret < 0) {
 		pr_err("nf_conntrack_ipv6: can't register ipv6\n");
 		goto cleanup_icmpv6;
@@ -374,7 +374,7 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 	return ret;
 
  cleanup_ipv6:
-	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
+	nf_conntrack_l3proto_unregister(&init_net, &nf_conntrack_l3proto_ipv6);
  cleanup_icmpv6:
 	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_icmpv6);
  cleanup_udp:
@@ -388,7 +388,7 @@ static void __exit nf_conntrack_l3proto_ipv6_fini(void)
 {
 	synchronize_net();
 	nf_unregister_hooks(ipv6_conntrack_ops, ARRAY_SIZE(ipv6_conntrack_ops));
-	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
+	nf_conntrack_l3proto_unregister(&init_net, &nf_conntrack_l3proto_ipv6);
 	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_icmpv6);
 	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_udp6);
 	nf_conntrack_l4proto_unregister(&init_net, &nf_conntrack_l4proto_tcp6);
