@@ -816,7 +816,6 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
 	struct intel_hdmi *intel_hdmi;
-	int i;
 
 	intel_hdmi = kzalloc(sizeof(struct intel_hdmi), GFP_KERNEL);
 	if (!intel_hdmi)
@@ -894,30 +893,21 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	if (!HAS_PCH_SPLIT(dev)) {
 		intel_hdmi->write_infoframe = g4x_write_infoframe;
 		intel_hdmi->set_infoframes = g4x_set_infoframes;
-		I915_WRITE(VIDEO_DIP_CTL, 0);
 	} else if (IS_VALLEYVIEW(dev)) {
 		intel_hdmi->write_infoframe = vlv_write_infoframe;
 		intel_hdmi->set_infoframes = vlv_set_infoframes;
-		for_each_pipe(i)
-			I915_WRITE(VLV_TVIDEO_DIP_CTL(i), 0);
 	} else if (IS_HASWELL(dev)) {
 		/* FIXME: Haswell has a new set of DIP frame registers, but we are
 		 * just doing the minimal required for HDMI to work at this stage.
 		 */
 		intel_hdmi->write_infoframe = hsw_write_infoframe;
 		intel_hdmi->set_infoframes = hsw_set_infoframes;
-		for_each_pipe(i)
-			I915_WRITE(HSW_TVIDEO_DIP_CTL(i), 0);
 	} else if (HAS_PCH_IBX(dev)) {
 		intel_hdmi->write_infoframe = ibx_write_infoframe;
 		intel_hdmi->set_infoframes = ibx_set_infoframes;
-		for_each_pipe(i)
-			I915_WRITE(TVIDEO_DIP_CTL(i), 0);
 	} else {
 		intel_hdmi->write_infoframe = cpt_write_infoframe;
 		intel_hdmi->set_infoframes = cpt_set_infoframes;
-		for_each_pipe(i)
-			I915_WRITE(TVIDEO_DIP_CTL(i), 0);
 	}
 
 	if (IS_HASWELL(dev))
