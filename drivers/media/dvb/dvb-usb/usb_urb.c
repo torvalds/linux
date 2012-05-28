@@ -37,7 +37,8 @@ static void usb_urb_complete(struct urb *urb)
 	case -ESHUTDOWN:
 		return;
 	default:        /* error */
-		deb_ts("urb completition error %d.\n", urb->status);
+		pr_debug("%s: URB completition failed=%d\n", __func__,
+				urb->status);
 		break;
 	}
 
@@ -46,9 +47,9 @@ static void usb_urb_complete(struct urb *urb)
 	case PIPE_ISOCHRONOUS:
 		for (i = 0; i < urb->number_of_packets; i++) {
 			if (urb->iso_frame_desc[i].status != 0)
-				deb_ts("iso frame descriptor has an" \
-					" error: %d\n",
-					urb->iso_frame_desc[i].status);
+				pr_debug("%s: iso frame descriptor has an" \
+						" error=%d\n", __func__,
+						urb->iso_frame_desc[i].status);
 			else if (urb->iso_frame_desc[i].actual_length > 0)
 				stream->complete(stream,
 					b + urb->iso_frame_desc[i].offset,
@@ -74,8 +75,7 @@ int usb_urb_kill(struct usb_data_stream *stream)
 {
 	int i;
 	for (i = 0; i < stream->urbs_submitted; i++) {
-		deb_ts("killing URB no. %d.\n", i);
-
+		pr_debug("%s: kill URB=%d\n", __func__, i);
 		/* stop the URB */
 		usb_kill_urb(stream->urb_list[i]);
 	}
@@ -95,7 +95,7 @@ int usb_urb_submit(struct usb_data_stream *stream,
 	}
 
 	for (i = 0; i < stream->urbs_initialized; i++) {
-		deb_ts("submitting URB no. %d\n", i);
+		pr_debug("%s: submit URB=%d\n", __func__, i);
 		ret = usb_submit_urb(stream->urb_list[i], GFP_ATOMIC);
 		if (ret) {
 			err("could not submit URB no. %d - get them all back",
@@ -116,7 +116,6 @@ int usb_urb_free_urbs(struct usb_data_stream *stream)
 
 	for (i = 0; i < stream->urbs_initialized; i++) {
 		if (stream->urb_list[i] != NULL) {
-			deb_mem("freeing URB no. %d.\n", i);
 			pr_debug("%s: free URB=%d\n", __func__, i);
 			/* free the URBs */
 			usb_free_urb(stream->urb_list[i]);
@@ -136,7 +135,7 @@ static int usb_urb_alloc_bulk_urbs(struct usb_data_stream *stream)
 		pr_debug("%s: alloc URB=%d\n", __func__, i);
 		stream->urb_list[i] = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!stream->urb_list[i]) {
-			deb_mem("not enough memory for urb_alloc_urb!.\n");
+			pr_debug("%s: failed\n", __func__);
 			for (j = 0; j < i; j++)
 				usb_free_urb(stream->urb_list[j]);
 			return -ENOMEM;
@@ -168,7 +167,7 @@ static int usb_urb_alloc_isoc_urbs(struct usb_data_stream *stream)
 		stream->urb_list[i] = usb_alloc_urb(
 				stream->props.u.isoc.framesperurb, GFP_ATOMIC);
 		if (!stream->urb_list[i]) {
-			deb_mem("not enough memory for urb_alloc_urb!\n");
+			pr_debug("%s: failed\n", __func__);
 			for (j = 0; j < i; j++)
 				usb_free_urb(stream->urb_list[j]);
 			return -ENOMEM;
@@ -206,7 +205,8 @@ int usb_free_stream_buffers(struct usb_data_stream *stream)
 	if (stream->state & USB_STATE_URB_BUF) {
 		while (stream->buf_num) {
 			stream->buf_num--;
-			deb_mem("freeing buffer %d\n", stream->buf_num);
+			pr_debug("%s: free buf=%d\n", __func__,
+				stream->buf_num);
 			usb_free_coherent(stream->udev, stream->buf_size,
 					  stream->buf_list[stream->buf_num],
 					  stream->dma_addr[stream->buf_num]);
@@ -224,27 +224,27 @@ int usb_alloc_stream_buffers(struct usb_data_stream *stream, int num,
 	stream->buf_num = 0;
 	stream->buf_size = size;
 
-	deb_mem("all in all I will use %lu bytes for streaming\n", num * size);
+	pr_debug("%s: all in all I will use %lu bytes for streaming\n",
+			__func__,  num * size);
 
 	for (stream->buf_num = 0; stream->buf_num < num; stream->buf_num++) {
-		deb_mem("allocating buffer %d\n", stream->buf_num);
+		pr_debug("%s: alloc buf=%d\n", __func__, stream->buf_num);
 		stream->buf_list[stream->buf_num] = usb_alloc_coherent(
 				stream->udev, size, GFP_ATOMIC,
 				&stream->dma_addr[stream->buf_num]);
 		if (stream->buf_list[stream->buf_num] == NULL) {
-			deb_mem("not enough memory for urb-buffer" \
-					" allocation.\n");
+			pr_debug("%s: failed\n", __func__);
 			usb_free_stream_buffers(stream);
 			return -ENOMEM;
 		}
-		deb_mem("buffer %d: %p (dma: %llu)\n",
+
+		pr_debug("%s: buf %d: %p (dma %llu)\n", __func__,
 				stream->buf_num,
 				stream->buf_list[stream->buf_num],
 				(long long)stream->dma_addr[stream->buf_num]);
 		memset(stream->buf_list[stream->buf_num], 0, size);
 		stream->state |= USB_STATE_URB_BUF;
 	}
-	deb_mem("allocation successful\n");
 
 	return 0;
 }
@@ -258,12 +258,14 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 		return 0;
 
 	/* check allocated buffers are large enough for the request */
-	if (props->type == USB_BULK)
+	if (props->type == USB_BULK) {
 		buf_size = stream->props.u.bulk.buffersize;
-	else if (props->type == USB_ISOC)
+	} else if (props->type == USB_ISOC) {
 		buf_size = props->u.isoc.framesize * props->u.isoc.framesperurb;
-	else
+	} else {
+		err("invalid endpoint type=%d", props->type);
 		return -EINVAL;
+	}
 
 	if (stream->buf_num < props->count || stream->buf_size < buf_size) {
 		err("cannot reconfigure as allocated buffers are too small");
