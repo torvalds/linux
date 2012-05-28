@@ -929,7 +929,7 @@ static int rk_headset_io_init(int gpio, char *iomux_name, int iomux_mode)
 
 struct rk_headset_pdata rk_headset_info = {
 	.Headset_gpio		= RK30_PIN0_PD3,
-	.headset_in_type = HEADSET_IN_HIGH,
+	.headset_in_type = HEADSET_IN_LOW,
 	.Hook_adc_chn = 2,
 	.hook_key_code = KEY_MEDIA,
 	.headset_gpio_info = {GPIO0D3_I2S22CHLRCKTX_SMCADVN_NAME, GPIO0D_GPIO0D3},
