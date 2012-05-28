@@ -147,8 +147,8 @@ int lcd_init(void)
 	usleep_range(7*1000, 7*1000);
 #endif
 
-//    Write_ADDR(0x0001);     // Software Reset
-//    msleep(100);
+    Write_ADDR(0x0001);     // Software Reset
+    msleep(10);
 
     Write_ADDR(0x0011);     // Sleep Out
     msleep(60);
@@ -357,7 +357,6 @@ int lcd_standby(u8 enable)
 		msleep(1);				//wait at least 1ms
 		gpio_direction_output(LCD_RST_PORT, 0);
 #endif
-
 	    if(gLcd_info)
 	        gLcd_info->io_deinit();
 
