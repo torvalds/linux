@@ -897,9 +897,6 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 		intel_hdmi->write_infoframe = vlv_write_infoframe;
 		intel_hdmi->set_infoframes = vlv_set_infoframes;
 	} else if (IS_HASWELL(dev)) {
-		/* FIXME: Haswell has a new set of DIP frame registers, but we are
-		 * just doing the minimal required for HDMI to work at this stage.
-		 */
 		intel_hdmi->write_infoframe = hsw_write_infoframe;
 		intel_hdmi->set_infoframes = hsw_set_infoframes;
 	} else if (HAS_PCH_IBX(dev)) {
