@@ -158,8 +158,6 @@ static void ibx_write_infoframe(struct drm_encoder *encoder,
 
 	WARN(!(val & VIDEO_DIP_ENABLE), "Writing DIP with CTL reg disabled\n");
 
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
-
 	val &= ~(VIDEO_DIP_SELECT_MASK | 0xf); /* clear DIP data offset */
 	val |= g4x_infoframe_index(frame);
 
@@ -191,8 +189,6 @@ static void cpt_write_infoframe(struct drm_encoder *encoder,
 	u32 val = I915_READ(reg);
 
 	WARN(!(val & VIDEO_DIP_ENABLE), "Writing DIP with CTL reg disabled\n");
-
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	val &= ~(VIDEO_DIP_SELECT_MASK | 0xf); /* clear DIP data offset */
 	val |= g4x_infoframe_index(frame);
@@ -229,8 +225,6 @@ static void vlv_write_infoframe(struct drm_encoder *encoder,
 
 	WARN(!(val & VIDEO_DIP_ENABLE), "Writing DIP with CTL reg disabled\n");
 
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
-
 	val &= ~(VIDEO_DIP_SELECT_MASK | 0xf); /* clear DIP data offset */
 	val |= g4x_infoframe_index(frame);
 
@@ -264,8 +258,6 @@ static void hsw_write_infoframe(struct drm_encoder *encoder,
 
 	if (data_reg == 0)
 		return;
-
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	val &= ~hsw_infoframe_enable(frame);
 	I915_WRITE(ctl_reg, val);
