@@ -5,6 +5,7 @@
 menuconfig RADIO_ADAPTERS
 	bool "Radio Adapters"
 	depends on VIDEO_V4L2
+	depends on MEDIA_RADIO_SUPPORT
 	default y
 	---help---
 	  Say Y here to enable selecting AM/FM radio adapters.
