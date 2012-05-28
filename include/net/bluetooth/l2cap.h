@@ -530,6 +530,7 @@ struct l2cap_ops {
 	struct l2cap_chan	*(*new_connection) (struct l2cap_chan *chan);
 	int			(*recv) (struct l2cap_chan * chan,
 					 struct sk_buff *skb);
+	void			(*teardown) (struct l2cap_chan *chan, int err);
 	void			(*close) (struct l2cap_chan *chan);
 	void			(*state_change) (struct l2cap_chan *chan,
 						 int state);

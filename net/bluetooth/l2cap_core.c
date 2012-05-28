@@ -493,9 +493,7 @@ static void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 
 static void l2cap_chan_del(struct l2cap_chan *chan, int err)
 {
-	struct sock *sk = chan->sk;
 	struct l2cap_conn *conn = chan->conn;
-	struct sock *parent = bt_sk(sk)->parent;
 
 	__clear_chan_timer(chan);
 
@@ -511,21 +509,8 @@ static void l2cap_chan_del(struct l2cap_chan *chan, int err)
 		hci_conn_put(conn->hcon);
 	}
 
-	lock_sock(sk);
-
-	__l2cap_state_change(chan, BT_CLOSED);
-	sock_set_flag(sk, SOCK_ZAPPED);
-
-	if (err)
-		__l2cap_chan_set_err(chan, err);
-
-	if (parent) {
-		bt_accept_unlink(sk);
-		parent->sk_data_ready(parent, 0);
-	} else
-		sk->sk_state_change(sk);
-
-	release_sock(sk);
+	if (chan->ops->teardown)
+		chan->ops->teardown(chan, err);
 
 	if (test_bit(CONF_NOT_COMPLETE, &chan->conf_state))
 		return;
@@ -554,25 +539,6 @@ static void l2cap_chan_del(struct l2cap_chan *chan, int err)
 	return;
 }
 
-static void l2cap_chan_cleanup_listen(struct sock *parent)
-{
-	struct sock *sk;
-
-	BT_DBG("parent %p", parent);
-
-	/* Close not yet accepted channels */
-	while ((sk = bt_accept_dequeue(parent, NULL))) {
-		struct l2cap_chan *chan = l2cap_pi(sk)->chan;
-
-		l2cap_chan_lock(chan);
-		__clear_chan_timer(chan);
-		l2cap_chan_close(chan, ECONNRESET);
-		l2cap_chan_unlock(chan);
-
-		chan->ops->close(chan);
-	}
-}
-
 void l2cap_chan_close(struct l2cap_chan *chan, int reason)
 {
 	struct l2cap_conn *conn = chan->conn;
@@ -583,12 +549,8 @@ void l2cap_chan_close(struct l2cap_chan *chan, int reason)
 
 	switch (chan->state) {
 	case BT_LISTEN:
-		lock_sock(sk);
-		l2cap_chan_cleanup_listen(sk);
-
-		__l2cap_state_change(chan, BT_CLOSED);
-		sock_set_flag(sk, SOCK_ZAPPED);
-		release_sock(sk);
+		if (chan->ops->teardown)
+			chan->ops->teardown(chan, 0);
 		break;
 
 	case BT_CONNECTED:
@@ -630,9 +592,8 @@ void l2cap_chan_close(struct l2cap_chan *chan, int reason)
 		break;
 
 	default:
-		lock_sock(sk);
-		sock_set_flag(sk, SOCK_ZAPPED);
-		release_sock(sk);
+		if (chan->ops->teardown)
+			chan->ops->teardown(chan, 0);
 		break;
 	}
 }
@@ -3419,7 +3380,9 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 
 	/* Check if we already have channel with that dcid */
 	if (__l2cap_get_chan_by_dcid(conn, scid)) {
-		sock_set_flag(sk, SOCK_ZAPPED);
+		if (chan->ops->teardown)
+			chan->ops->teardown(chan, 0);
+
 		chan->ops->close(chan);
 		goto response;
 	}
