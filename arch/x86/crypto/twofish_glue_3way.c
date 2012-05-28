@@ -45,8 +45,10 @@ asmlinkage void twofish_dec_blk(struct twofish_ctx *ctx, u8 *dst,
 /* 3-way parallel cipher functions */
 asmlinkage void __twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
 				       const u8 *src, bool xor);
+EXPORT_SYMBOL_GPL(__twofish_enc_blk_3way);
 asmlinkage void twofish_dec_blk_3way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src);
+EXPORT_SYMBOL_GPL(twofish_dec_blk_3way);
 
 static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
 					const u8 *src)
