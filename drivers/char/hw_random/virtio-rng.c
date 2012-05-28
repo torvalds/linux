@@ -124,6 +124,19 @@ static void __devexit virtrng_remove(struct virtio_device *vdev)
 	remove_common(vdev);
 }
 
+#ifdef CONFIG_PM
+static int virtrng_freeze(struct virtio_device *vdev)
+{
+	remove_common(vdev);
+	return 0;
+}
+
+static int virtrng_restore(struct virtio_device *vdev)
+{
+	return probe_common(vdev);
+}
+#endif
+
 static struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_RNG, VIRTIO_DEV_ANY_ID },
 	{ 0 },
@@ -135,6 +148,10 @@ static struct virtio_driver virtio_rng_driver = {
 	.id_table =	id_table,
 	.probe =	virtrng_probe,
 	.remove =	__devexit_p(virtrng_remove),
+#ifdef CONFIG_PM
+	.freeze =	virtrng_freeze,
+	.restore =	virtrng_restore,
+#endif
 };
 
 static int __init init(void)
