@@ -85,8 +85,6 @@ EXPORT_SYMBOL(csum_tcpudp_magic);
 
 EXPORT_SYMBOL(__copy_tofrom_user);
 EXPORT_SYMBOL(__clear_user);
-EXPORT_SYMBOL(__strncpy_from_user);
-EXPORT_SYMBOL(__strnlen_user);
 EXPORT_SYMBOL(copy_page);
 
 #if defined(CONFIG_PCI) && defined(CONFIG_PPC32)
