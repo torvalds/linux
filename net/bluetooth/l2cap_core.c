@@ -931,26 +931,14 @@ static void l2cap_send_conn_req(struct l2cap_chan *chan)
 
 static void l2cap_chan_ready(struct l2cap_chan *chan)
 {
-	struct sock *sk = chan->sk;
-	struct sock *parent;
-
-	lock_sock(sk);
-
-	parent = bt_sk(sk)->parent;
-
-	BT_DBG("sk %p, parent %p", sk, parent);
-
 	/* This clears all conf flags, including CONF_NOT_COMPLETE */
 	chan->conf_state = 0;
 	__clear_chan_timer(chan);
 
-	__l2cap_state_change(chan, BT_CONNECTED);
-	sk->sk_state_change(sk);
+	chan->state = BT_CONNECTED;
 
-	if (parent)
-		parent->sk_data_ready(parent, 0);
-
-	release_sock(sk);
+	if (chan->ops->ready)
+		chan->ops->ready(chan);
 }
 
 static void l2cap_do_start(struct l2cap_chan *chan)
