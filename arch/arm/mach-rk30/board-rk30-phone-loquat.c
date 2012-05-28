@@ -1910,7 +1910,41 @@ static int rk_virtual_keys_init(void)
 /*************************end of virtual_keys************************/
 #endif
 
+void board_gpio_suspend(void) {
+	gpio_request(RK30_PIN2_PC3, NULL);
+	rk30_mux_api_set(GPIO2C3_LCDC1DATA19_SPI1CLK_HSADCDATA0_NAME,GPIO2C_GPIO2C3);
+	gpio_direction_input(RK30_PIN2_PC3);
+	gpio_pull_updown(RK30_PIN2_PC3, 0);
+	
+	gpio_request(RK30_PIN2_PC5, NULL);
+	rk30_mux_api_set(GPIO2C5_LCDC1DATA21_SPI1TXD_HSADCDATA2_NAME,GPIO2C_GPIO2C5);
+	gpio_direction_input(RK30_PIN2_PC5);
+	gpio_pull_updown(RK30_PIN2_PC5, 0);
+	
+	gpio_request(RK30_PIN2_PC6, NULL);
+	rk30_mux_api_set(GPIO2C6_LCDC1DATA22_SPI1RXD_HSADCDATA3_NAME,GPIO2C_GPIO2C6);
+	gpio_direction_input(RK30_PIN2_PC6);
+	gpio_pull_updown(RK30_PIN2_PC6, 0);
+	
+}
+ void board_gpio_resume(void) {
 
+	gpio_request(RK30_PIN2_PC3, NULL);
+	gpio_pull_updown(RK30_PIN2_PC3, 1);
+	rk30_mux_api_set(GPIO2C3_LCDC1DATA19_SPI1CLK_HSADCDATA0_NAME,GPIO2C_SPI1_CLK);
+	
+	gpio_request(RK30_PIN2_PC5, NULL);
+	gpio_pull_updown(RK30_PIN2_PC5, 1);
+	rk30_mux_api_set(GPIO2C5_LCDC1DATA21_SPI1TXD_HSADCDATA2_NAME,GPIO2C_SPI1_TXD);
+	
+	gpio_request(RK30_PIN2_PC6, NULL);
+	gpio_pull_updown(RK30_PIN2_PC6, 1);
+	rk30_mux_api_set(GPIO2C6_LCDC1DATA22_SPI1RXD_HSADCDATA3_NAME,GPIO2C_SPI1_RXD);
+
+	gpio_free(RK30_PIN2_PC3);
+	gpio_free(RK30_PIN2_PC5);
+	gpio_free(RK30_PIN2_PC6);
+}
 
 static void __init machine_rk30_board_init(void)
 {

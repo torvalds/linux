@@ -1330,12 +1330,26 @@ static void clocks_init(struct device *dev,
 #ifdef CONFIG_PM
 static int twl_suspend(struct i2c_client *client, pm_message_t mesg)
 {		
+	twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER,0x1a,SMPS4_CFG_VOLTAGE);//dc4 vcc_io is 2.8v in sleep mode
+	twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER,0x01,LDO4_CFG_VOLTAGE);//ld4 vdd_11 is 1v in sleep mode
+	twl_i2c_write_u8(TWL_MODULE_PM_DVS,0x20,SMPS1_CFG_VOLTAGE);
+	twl_i2c_write_u8(TWL_MODULE_PM_DVS,0xe0,SMPS1_CFG_FORCE);//dc1 vdd_arm is 1v in sleep mode
+	twl_i2c_write_u8(TWL_MODULE_PM_DVS,0x20,SMPS2_CFG_VOLTAGE);
+	twl_i2c_write_u8(TWL_MODULE_PM_DVS,0xe0,SMPS2_CFG_FORCE);//dc2 vdd_logic is 1v in sleep mode
 	return irq_set_irq_wake(client->irq, 1);
 }
 
 static int twl_resume(struct i2c_client *client)
 {
-	return irq_set_irq_wake(client->irq, 0);
+	//	return irq_set_irq_wake(client->irq, 0);
+	irq_set_irq_wake(client->irq, 0);
+	twl_i2c_write_u8(TWL_MODULE_PM_DVS,0x28,SMPS1_CFG_VOLTAGE);
+	twl_i2c_write_u8(TWL_MODULE_PM_DVS,0xe8,SMPS1_CFG_FORCE);
+	twl_i2c_write_u8(TWL_MODULE_PM_DVS,0x28,SMPS2_CFG_VOLTAGE);
+	twl_i2c_write_u8(TWL_MODULE_PM_DVS,0xe8,SMPS2_CFG_FORCE);
+	twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER,0x02,LDO4_CFG_VOLTAGE);  
+	twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER,0x1f,SMPS4_CFG_VOLTAGE);
+	return 0;
 }
 #else
 #define twl_suspend	NULL
