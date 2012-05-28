@@ -3527,6 +3527,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 					  GFP_KERNEL);
 	if (sbi->s_group_desc == NULL) {
 		ext4_msg(sb, KERN_ERR, "not enough memory");
+		ret = -ENOMEM;
 		goto failed_mount;
 	}
 
@@ -3584,6 +3585,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	if (err) {
 		ext4_msg(sb, KERN_ERR, "insufficient memory");
+		ret = err;
 		goto failed_mount3;
 	}
 
