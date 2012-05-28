@@ -525,19 +525,19 @@ static int ab8500_registers_print(struct device *dev, u32 bank,
 			}
 
 			if (s) {
-				err = seq_printf(s, "  [%u/0x%02X]: 0x%02X\n",
+				err = seq_printf(s, "  [0x%02X/0x%02X]: 0x%02X\n",
 					bank, reg, value);
 				if (err < 0) {
 					dev_err(dev,
-					"seq_printf overflow bank=%d reg=%d\n",
+					"seq_printf overflow bank=0x%02X reg=0x%02X\n",
 						bank, reg);
 					/* Error is not returned here since
 					 * the output is wanted in any case */
 					return 0;
 				}
 			} else {
-				printk(KERN_INFO" [%u/0x%02X]: 0x%02X\n", bank,
-					reg, value);
+				printk(KERN_INFO" [0x%02X/0x%02X]: 0x%02X\n",
+					bank, reg, value);
 			}
 		}
 	}
@@ -551,7 +551,7 @@ static int ab8500_print_bank_registers(struct seq_file *s, void *p)
 
 	seq_printf(s, AB8500_NAME_STRING " register values:\n");
 
-	seq_printf(s, " bank %u:\n", bank);
+	seq_printf(s, " bank 0x%02X:\n", bank);
 
 	ab8500_registers_print(dev, bank, s);
 	return 0;
@@ -579,9 +579,9 @@ static int ab8500_print_all_banks(struct seq_file *s, void *p)
 	seq_printf(s, AB8500_NAME_STRING " register values:\n");
 
 	for (i = 1; i < AB8500_NUM_BANKS; i++) {
-		err = seq_printf(s, " bank %u:\n", i);
+		err = seq_printf(s, " bank 0x%02X:\n", i);
 		if (err < 0)
-			dev_err(dev, "seq_printf overflow, bank=%d\n", i);
+			dev_err(dev, "seq_printf overflow, bank=0x%02X\n", i);
 
 		ab8500_registers_print(dev, i, s);
 	}
@@ -596,7 +596,7 @@ void ab8500_dump_all_banks(struct device *dev)
 	printk(KERN_INFO"ab8500 register values:\n");
 
 	for (i = 1; i < AB8500_NUM_BANKS; i++) {
-		printk(KERN_INFO" bank %u:\n", i);
+		printk(KERN_INFO" bank 0x%02X:\n", i);
 		ab8500_registers_print(dev, i, NULL);
 	}
 }
@@ -630,7 +630,7 @@ static const struct file_operations ab8500_all_banks_fops = {
 
 static int ab8500_bank_print(struct seq_file *s, void *p)
 {
-	return seq_printf(s, "%d\n", debug_bank);
+	return seq_printf(s, "0x%02X\n", debug_bank);
 }
 
 static int ab8500_bank_open(struct inode *inode, struct file *file)
