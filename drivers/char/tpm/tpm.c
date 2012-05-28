@@ -1330,6 +1330,9 @@ EXPORT_SYMBOL_GPL(tpm_pm_resume);
 
 void tpm_dev_vendor_release(struct tpm_chip *chip)
 {
+	if (!chip)
+		return;
+
 	if (chip->vendor.release)
 		chip->vendor.release(chip->dev);
 
@@ -1346,6 +1349,9 @@ EXPORT_SYMBOL_GPL(tpm_dev_vendor_release);
 void tpm_dev_release(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
+
+	if (!chip)
+		return;
 
 	tpm_dev_vendor_release(chip);
 
