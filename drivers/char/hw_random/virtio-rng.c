@@ -55,6 +55,7 @@ static void register_buffer(u8 *buf, size_t size)
 
 static int virtio_read(struct hwrng *rng, void *buf, size_t size, bool wait)
 {
+	int ret;
 
 	if (!busy) {
 		busy = true;
@@ -65,7 +66,9 @@ static int virtio_read(struct hwrng *rng, void *buf, size_t size, bool wait)
 	if (!wait)
 		return 0;
 
-	wait_for_completion(&have_data);
+	ret = wait_for_completion_killable(&have_data);
+	if (ret < 0)
+		return ret;
 
 	busy = false;
 
