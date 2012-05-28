@@ -2,6 +2,7 @@
 #include <linux/mfd/wm831x/pdata.h>
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/gpio.h>
+#include <linux/mfd/wm831x/pmu.h>
 
 #include <mach/sram.h>
 
@@ -102,6 +103,7 @@ static int wm831x_pre_init(struct wm831x *parm)
 	ret = wm831x_reg_read(parm, WM831X_POWER_STATE) & 0xffff;
 	wm831x_reg_write(parm, WM831X_POWER_STATE, (ret & 0xfff8) | 0x04);
 
+	wm831x_set_bits(parm, WM831X_RTC_CONTROL, WM831X_RTC_ALAM_ENA_MASK, 0x0400);//enable rtc alam
 	//BATT_FET_ENA = 1
 	wm831x_reg_write(parm, WM831X_SECURITY_KEY, 0x9716);	// unlock security key
 	wm831x_set_bits(parm, WM831X_RESET_CONTROL, 0x1003, 0x1001);
