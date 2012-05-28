@@ -229,7 +229,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define RK_CAM_H_MAX        2764
 #define RK_CAM_FRAME_INVAL_INIT 3
 #define RK_CAM_FRAME_INVAL_DC 3          /* ddl@rock-chips.com :  */
-
+#define RK30_CAM_FRAME_MEASURE  5
 extern void videobuf_dma_contig_free(struct videobuf_queue *q, struct videobuf_buffer *buf);
 extern dma_addr_t videobuf_to_dma_contig(struct videobuf_buffer *buf);
 
@@ -307,6 +307,7 @@ struct rk_camera_dev
 	unsigned int irq;
 	unsigned int fps;
     unsigned int last_fps;
+    unsigned long frame_interval;
 	unsigned int pixfmt;
 	//for ipp	
 	unsigned int vipmem_phybase;
@@ -318,6 +319,8 @@ struct rk_camera_dev
 	int host_left;  //sensor output size ?
 	int host_top;
 	int hostid;
+    int icd_width;
+    int icd_height;
 
 	struct rk29camera_platform_data *pdata;
 	struct resource		*res;
@@ -340,6 +343,7 @@ struct rk_camera_dev
     bool timer_get_fps;
     unsigned int reinit_times; 
     struct videobuf_queue *video_vq;
+    struct timeval first_tv;
 };
 
 static const struct v4l2_queryctrl rk_camera_controls[] =
@@ -668,9 +672,13 @@ static irqreturn_t rk_camera_irq(int irq, void *data)
     struct rk_camera_dev *pcdev = data;
     struct videobuf_buffer *vb;
 	struct rk_camera_work *wk;
+    struct timeval tv;
 	write_cif_reg(pcdev->base,CIF_CIF_INTSTAT,0xFFFFFFFF);  /* clear vip interrupte single  */
     /* ddl@rock-chps.com : Current VIP is run in One Frame Mode, Frame 1 is validate */
     if (read_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS) & 0x01) {
+        if (!pcdev->fps) {
+            do_gettimeofday(&pcdev->first_tv);            
+        }
 		pcdev->fps++;
 		if (!pcdev->active)
 			goto RK_CAMERA_IRQ_END;
@@ -681,6 +689,11 @@ static irqreturn_t rk_camera_irq(int irq, void *data)
         } else if (pcdev->frame_inval) {
         	RKCAMERA_TR("frame_inval : %0x",pcdev->frame_inval);
             pcdev->frame_inval = 0;
+        }
+        if(pcdev->fps == RK30_CAM_FRAME_MEASURE) {
+            do_gettimeofday(&tv);            
+            pcdev->frame_interval = ((tv.tv_sec*1000000 + tv.tv_usec) - (pcdev->first_tv.tv_sec*1000000 + pcdev->first_tv.tv_usec))
+                                    /(RK30_CAM_FRAME_MEASURE-1);
         }
         vb = pcdev->active;
         if(!vb){
@@ -1478,7 +1491,9 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
     	pix->height = usr_h;
     	pix->field = mf.field;
     	pix->colorspace = mf.colorspace;
-    	icd->current_fmt = xlate;        
+    	icd->current_fmt = xlate;   
+        pcdev->icd_width = mf.width;
+        pcdev->icd_height = mf.height;
     }
 
 RK_CAMERA_SET_FMT_END:
@@ -1915,15 +1930,11 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
                     fival_nxt->fival.width = pcdev->icd->user_width;
                     fival_nxt->fival.height= pcdev->icd->user_height;
                     fival_nxt->fival.pixel_format = pcdev->pixfmt;
-                    fival_nxt->fival.discrete.denominator = pcdev->fps+2;
-                    fival_nxt->fival.discrete.numerator = 1;
+                    fival_nxt->fival.discrete.denominator = pcdev->frame_interval;
+                    fival_nxt->fival.reserved[1] = (pcdev->icd_width<<16)
+                                                    |(pcdev->icd_height);
+                    fival_nxt->fival.discrete.numerator = 1000000;
                     fival_nxt->fival.type = V4L2_FRMIVAL_TYPE_DISCRETE;
-                } else {                
-                    if (abs(pcdev->fps + 2 - fival_nxt->fival.discrete.numerator) > 2) {
-                        fival_nxt->fival.discrete.denominator = pcdev->fps+2;
-                        fival_nxt->fival.discrete.numerator = 1;
-                        fival_nxt->fival.type = V4L2_FRMIVAL_TYPE_DISCRETE;
-                    }
                 }
                 rec_flag = 1;
                 fival_rec = fival_nxt;
@@ -1940,8 +1951,10 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
                 fival_pre->nxt->fival.height= pcdev->icd->user_height;
                 fival_pre->nxt->fival.pixel_format = pcdev->pixfmt;
 
-                fival_pre->nxt->fival.discrete.denominator = pcdev->fps+2;
-                fival_pre->nxt->fival.discrete.numerator = 1;
+                fival_pre->nxt->fival.discrete.denominator = pcdev->frame_interval;
+                fival_pre->nxt->fival.reserved[1] = (pcdev->icd_width<<16)
+                                                    |(pcdev->icd_height);
+                fival_pre->nxt->fival.discrete.numerator = 1000000;
                 fival_pre->nxt->fival.type = V4L2_FRMIVAL_TYPE_DISCRETE;
                 rec_flag = 1;
                 fival_rec = fival_pre->nxt;
@@ -1967,6 +1980,7 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 	if (enable) {
 		pcdev->fps = 0;
         pcdev->last_fps = 0;
+        pcdev->frame_interval = 0;
 		hrtimer_cancel(&(pcdev->fps_timer.timer));
 		pcdev->fps_timer.pcdev = pcdev;
         pcdev->timer_get_fps = false;
