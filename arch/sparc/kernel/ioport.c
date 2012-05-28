@@ -652,8 +652,9 @@ EXPORT_SYMBOL(pci32_dma_ops);
 
 /* leon re-uses pci32_dma_ops */
 struct dma_map_ops *leon_dma_ops = &pci32_dma_ops;
-struct dma_map_ops *dma_ops = &sbus_dma_ops;
+EXPORT_SYMBOL(leon_dma_ops);
 
+struct dma_map_ops *dma_ops = &sbus_dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 
