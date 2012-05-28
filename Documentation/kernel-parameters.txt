@@ -397,8 +397,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	atkbd.softrepeat= [HW]
 			Use software keyboard repeat
 
-	autotest	[IA-64]
-
 	baycom_epp=	[HW,AX25]
 			Format: <io>,<mode>
 
@@ -1452,8 +1450,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			of statically allocating a predefined number, loop
 			devices can be requested on-demand with the
 			/dev/loop-control interface.
-
-	mcatest=	[IA-64]
 
 	mce		[X86-32] Machine Check Exception
 
