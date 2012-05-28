@@ -527,10 +527,12 @@ struct l2cap_chan {
 struct l2cap_ops {
 	char			*name;
 
-	struct l2cap_chan	*(*new_connection) (void *data);
-	int			(*recv) (void *data, struct sk_buff *skb);
-	void			(*close) (void *data);
-	void			(*state_change) (void *data, int state);
+	struct l2cap_chan	*(*new_connection) (struct l2cap_chan *chan);
+	int			(*recv) (struct l2cap_chan * chan,
+					 struct sk_buff *skb);
+	void			(*close) (struct l2cap_chan *chan);
+	void			(*state_change) (struct l2cap_chan *chan,
+						 int state);
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
 					       unsigned long len, int nb);
 };

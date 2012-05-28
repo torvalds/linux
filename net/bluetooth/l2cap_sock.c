@@ -872,9 +872,9 @@ static int l2cap_sock_release(struct socket *sock)
 	return err;
 }
 
-static struct l2cap_chan *l2cap_sock_new_connection_cb(void *data)
+static struct l2cap_chan *l2cap_sock_new_connection_cb(struct l2cap_chan *chan)
 {
-	struct sock *sk, *parent = data;
+	struct sock *sk, *parent = chan->data;
 
 	sk = l2cap_sock_alloc(sock_net(parent), NULL, BTPROTO_L2CAP,
 								GFP_ATOMIC);
@@ -888,10 +888,10 @@ static struct l2cap_chan *l2cap_sock_new_connection_cb(void *data)
 	return l2cap_pi(sk)->chan;
 }
 
-static int l2cap_sock_recv_cb(void *data, struct sk_buff *skb)
+static int l2cap_sock_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 {
 	int err;
-	struct sock *sk = data;
+	struct sock *sk = chan->data;
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 
 	lock_sock(sk);
@@ -924,16 +924,16 @@ done:
 	return err;
 }
 
-static void l2cap_sock_close_cb(void *data)
+static void l2cap_sock_close_cb(struct l2cap_chan *chan)
 {
-	struct sock *sk = data;
+	struct sock *sk = chan->data;
 
 	l2cap_sock_kill(sk);
 }
 
-static void l2cap_sock_state_change_cb(void *data, int state)
+static void l2cap_sock_state_change_cb(struct l2cap_chan *chan, int state)
 {
-	struct sock *sk = data;
+	struct sock *sk = chan->data;
 
 	sk->sk_state = state;
 }
