@@ -1442,21 +1442,17 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		goto done;
 	}
 
-	lock_sock(sk);
-
-	switch (sk->sk_state) {
+	switch (chan->state) {
 	case BT_CONNECT:
 	case BT_CONNECT2:
 	case BT_CONFIG:
 		/* Already connecting */
 		err = 0;
-		release_sock(sk);
 		goto done;
 
 	case BT_CONNECTED:
 		/* Already connected */
 		err = -EISCONN;
-		release_sock(sk);
 		goto done;
 
 	case BT_OPEN:
@@ -1466,13 +1462,12 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 	default:
 		err = -EBADFD;
-		release_sock(sk);
 		goto done;
 	}
 
 	/* Set destination address and psm */
+	lock_sock(sk);
 	bacpy(&bt_sk(sk)->dst, dst);
-
 	release_sock(sk);
 
 	chan->psm = psm;
