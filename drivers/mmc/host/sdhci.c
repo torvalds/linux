@@ -2914,7 +2914,7 @@ int sdhci_add_host(struct sdhci_host *host)
 			mmc->caps |= MMC_CAP_MAX_CURRENT_600;
 		else if (max_current_180 >= 400)
 			mmc->caps |= MMC_CAP_MAX_CURRENT_400;
-		else
+		else if (max_current_180 >= 200)
 			mmc->caps |= MMC_CAP_MAX_CURRENT_200;
 	}
 

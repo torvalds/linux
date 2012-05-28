@@ -553,13 +553,13 @@ static int sd_set_bus_speed_mode(struct mmc_card *card, u8 *status)
 
 static int sd_set_current_limit(struct mmc_card *card, u8 *status)
 {
-	int current_limit = 0;
+	int current_limit = SD_SET_CURRENT_NO_CHANGE;
 	int err;
 
 	/*
 	 * Current limit switch is only defined for SDR50, SDR104, and DDR50
-	 * bus speed modes. For other bus speed modes, we set the default
-	 * current limit of 200mA.
+	 * bus speed modes. For other bus speed modes, we do not change the
+	 * current limit.
 	 */
 	if ((card->sd_bus_speed == UHS_SDR50_BUS_SPEED) ||
 	    (card->sd_bus_speed == UHS_SDR104_BUS_SPEED) ||
@@ -595,17 +595,18 @@ static int sd_set_current_limit(struct mmc_card *card, u8 *status)
 			if (card->sw_caps.sd3_curr_limit & SD_MAX_CURRENT_200)
 				current_limit = SD_SET_CURRENT_LIMIT_200;
 		}
-	} else
-		current_limit = SD_SET_CURRENT_LIMIT_200;
+	}
 
-	err = mmc_sd_switch(card, 1, 3, current_limit, status);
-	if (err)
-		return err;
+	if (current_limit != SD_SET_CURRENT_NO_CHANGE) {
+		err = mmc_sd_switch(card, 1, 3, current_limit, status);
+		if (err)
+			return err;
 
-	if (((status[15] >> 4) & 0x0F) != current_limit)
-		pr_warning("%s: Problem setting current limit!\n",
-			mmc_hostname(card->host));
+		if (((status[15] >> 4) & 0x0F) != current_limit)
+			pr_warning("%s: Problem setting current limit!\n",
+				mmc_hostname(card->host));
 
+	}
 	return 0;
 }
 
