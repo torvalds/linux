@@ -1060,8 +1060,7 @@ static void iwl_tx_start(struct iwl_trans *trans)
 
 	/* initiate the queues */
 	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
-		iwl_write_prph(trans, SCD_QUEUE_RDPTR(i), 0);
-		iwl_write_direct32(trans, HBUS_TARG_WRPTR, 0 | (i << 8));
+		iwl_trans_set_wr_ptrs(trans, i, 0);
 		iwl_write_targ_mem(trans, trans_pcie->scd_base_addr +
 				SCD_CONTEXT_QUEUE_OFFSET(i), 0);
 		iwl_write_targ_mem(trans, trans_pcie->scd_base_addr +
@@ -1074,8 +1073,6 @@ static void iwl_tx_start(struct iwl_trans *trans)
 				SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
 				SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
 	}
-
-	iwl_trans_set_wr_ptrs(trans, trans_pcie->cmd_queue, 0);
 
 	for (i = 0; i < trans_pcie->n_q_to_fifo; i++) {
 		int fifo = trans_pcie->setup_q_to_fifo[i];
