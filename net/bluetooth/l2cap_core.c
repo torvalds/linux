@@ -824,17 +824,20 @@ static inline void __pack_control(struct l2cap_chan *chan,
 	}
 }
 
+static inline unsigned int __ertm_hdr_size(struct l2cap_chan *chan)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return L2CAP_EXT_HDR_SIZE;
+	else
+		return L2CAP_ENH_HDR_SIZE;
+}
+
 static struct sk_buff *l2cap_create_sframe_pdu(struct l2cap_chan *chan,
 					       u32 control)
 {
 	struct sk_buff *skb;
 	struct l2cap_hdr *lh;
-	int hlen;
-
-	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
-		hlen = L2CAP_EXT_HDR_SIZE;
-	else
-		hlen = L2CAP_ENH_HDR_SIZE;
+	int hlen = __ertm_hdr_size(chan);
 
 	if (chan->fcs == L2CAP_FCS_CRC16)
 		hlen += L2CAP_FCS_SIZE;
@@ -2018,10 +2021,7 @@ static struct sk_buff *l2cap_create_iframe_pdu(struct l2cap_chan *chan,
 	if (!conn)
 		return ERR_PTR(-ENOTCONN);
 
-	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
-		hlen = L2CAP_EXT_HDR_SIZE;
-	else
-		hlen = L2CAP_ENH_HDR_SIZE;
+	hlen = __ertm_hdr_size(chan);
 
 	if (sdulen)
 		hlen += L2CAP_SDULEN_SIZE;
@@ -2087,10 +2087,7 @@ static int l2cap_segment_sdu(struct l2cap_chan *chan,
 	if (chan->fcs)
 		pdu_len -= L2CAP_FCS_SIZE;
 
-	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
-		pdu_len -= L2CAP_EXT_HDR_SIZE;
-	else
-		pdu_len -= L2CAP_ENH_HDR_SIZE;
+	pdu_len -= __ertm_hdr_size(chan);
 
 	/* Remote device may have requested smaller PDUs */
 	pdu_len = min_t(size_t, pdu_len, chan->remote_mps);
