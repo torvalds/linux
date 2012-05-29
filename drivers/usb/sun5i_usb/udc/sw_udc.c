@@ -3013,9 +3013,9 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		return -EBUSY;
     }
 
-	if (!bind || !driver->setup || driver->speed < USB_SPEED_FULL) {
+	if (!bind || !driver->setup || driver->max_speed < USB_SPEED_FULL) {
 		DMSG_PANIC("ERR: Invalid driver: bind %p setup %p speed %d\n",
-			       bind, driver->setup, driver->speed);
+			       bind, driver->setup, driver->max_speed);
 		return -EINVAL;
 	}
 
