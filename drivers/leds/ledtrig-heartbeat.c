@@ -83,15 +83,17 @@ static void heartbeat_trig_activate(struct led_classdev *led_cdev)
 		    led_heartbeat_function, (unsigned long) led_cdev);
 	heartbeat_data->phase = 0;
 	led_heartbeat_function(heartbeat_data->timer.data);
+	led_cdev->activated = true;
 }
 
 static void heartbeat_trig_deactivate(struct led_classdev *led_cdev)
 {
 	struct heartbeat_trig_data *heartbeat_data = led_cdev->trigger_data;
 
-	if (heartbeat_data) {
+	if (led_cdev->activated) {
 		del_timer_sync(&heartbeat_data->timer);
 		kfree(heartbeat_data);
+		led_cdev->activated = false;
 	}
 }
 
