@@ -167,4 +167,6 @@ extern const struct clksel_rate div31_1to31_rates[];
 extern struct clk virt_19200000_ck;
 extern struct clk virt_26000000_ck;
 
+extern int am33xx_clk_init(void);
+
 #endif
