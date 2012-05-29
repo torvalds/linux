@@ -355,28 +355,6 @@ void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
 	return __alloc_bootmem_node(pgdat, size, align, goal);
 }
 
-#ifdef CONFIG_SPARSEMEM
-/**
- * alloc_bootmem_section - allocate boot memory from a specific section
- * @size: size of the request in bytes
- * @section_nr: sparse map section to allocate from
- *
- * Return NULL on failure.
- */
-void * __init alloc_bootmem_section(unsigned long size,
-				    unsigned long section_nr)
-{
-	unsigned long pfn, goal, limit;
-
-	pfn = section_nr_to_pfn(section_nr);
-	goal = pfn << PAGE_SHIFT;
-	limit = section_nr_to_pfn(section_nr + 1) << PAGE_SHIFT;
-
-	return __alloc_memory_core_early(early_pfn_to_nid(pfn), size,
-					 SMP_CACHE_BYTES, goal, limit);
-}
-#endif
-
 #ifndef ARCH_LOW_ADDRESS_LIMIT
 #define ARCH_LOW_ADDRESS_LIMIT	0xffffffffUL
 #endif
