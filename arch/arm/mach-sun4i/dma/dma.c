@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/io.h>

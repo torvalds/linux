@@ -17,7 +17,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
@@ -29,6 +29,7 @@
 #include <linux/clockchips.h>
 #include <linux/memblock.h>
 #include <linux/bootmem.h>
+#include <linux/export.h>
 
 #include <asm/clkdev.h>
 #include <asm/system.h>
@@ -39,12 +40,14 @@
 #include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
+#include <asm/memory.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
+#include <mach/memory.h>
 #include <mach/system.h>
 #include <mach/timex.h>
 #include <mach/sys_config.h>
@@ -96,9 +99,8 @@ static u32 DRAMC_get_dram_size(void)
 	return dram_size;
 }
 
-static void __init sw_core_fixup(struct machine_desc *desc,
-                  struct tag *tags, char **cmdline,
-                  struct meminfo *mi)
+static void __init sw_core_fixup(struct tag *tags, char **cmdline,
+				 struct meminfo *mi)
 {
 	u32 size;
 
@@ -430,7 +432,7 @@ EXPORT_SYMBOL(sw_get_ic_ver);
 
 
 MACHINE_START(SUN4I, "sun4i")
-	.boot_params    = PLAT_PHYS_OFFSET + 0x100,
+	.atag_offset	= 0x100,
 	.timer          = &sw_sys_timer,
 	.fixup          = sw_core_fixup,
 	.map_io         = sw_core_map_io,
