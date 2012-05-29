@@ -471,7 +471,7 @@ static struct net_device_ops ar6000_netdev_ops = {
     .ndo_get_stats          = ar6000_get_stats,
     .ndo_do_ioctl           = ar6000_ioctl,
     .ndo_start_xmit         = ar6000_data_tx,
-    .ndo_set_multicast_list = ar6000_set_multicast_list,
+    .ndo_set_rx_mode        = ar6000_set_multicast_list,
     .ndo_change_mtu         = eth_change_mtu,
 };
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29) */

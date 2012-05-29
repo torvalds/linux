@@ -1575,7 +1575,7 @@ const struct net_device_ops nanonet_ops = {
    .ndo_get_stats		= nrx_get_stats,
    .ndo_tx_timeout		= nrx_tx_timeout,
    .ndo_set_mac_address		= nrx_set_mac_address,
-   .ndo_set_multicast_list      = nrx_set_multicast_list,
+   .ndo_set_rx_mode		= nrx_set_multicast_list,
 #ifdef USE_MULTIQUEUE
    .ndo_select_queue            = nrx_select_queue,
 #endif

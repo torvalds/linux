@@ -23,6 +23,7 @@
 
 #include <linux/module.h>
 #include <linux/ioport.h>
+#include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
@@ -1669,7 +1670,7 @@ static const struct net_device_ops wemac_netdev_ops = {
 	.ndo_stop		= wemac_stop,
 	.ndo_start_xmit		= wemac_start_xmit,
 	.ndo_tx_timeout		= wemac_timeout,
-	.ndo_set_multicast_list	= wemac_hash_table,
+	.ndo_set_rx_mode	= wemac_hash_table,
 	.ndo_do_ioctl		= wemac_ioctl,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
