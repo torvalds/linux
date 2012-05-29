@@ -1101,6 +1101,8 @@ static void __devexit mei_remove(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
+
+	misc_deregister(&mei_misc_device);
 }
 #ifdef CONFIG_PM
 static int mei_pci_suspend(struct device *device)
@@ -1216,7 +1218,6 @@ module_init(mei_init_module);
  */
 static void __exit mei_exit_module(void)
 {
-	misc_deregister(&mei_misc_device);
 	pci_unregister_driver(&mei_driver);
 
 	pr_debug("unloaded successfully.\n");
