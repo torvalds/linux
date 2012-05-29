@@ -93,43 +93,39 @@ static void dvb_usb_data_complete_raw(struct usb_data_stream *stream,
 
 int dvb_usb_adapter_stream_init(struct dvb_usb_adapter *adap)
 {
-	int i, ret = 0;
+	int ret;
 	struct usb_data_stream_properties stream_props;
 
-	for (i = 0; i < adap->props.num_frontends; i++) {
-		adap->fe_adap[i].stream.udev      = adap->dev->udev;
-		if (adap->props.fe[i].caps & DVB_USB_ADAP_RECEIVES_204_BYTE_TS)
-			adap->fe_adap[i].stream.complete =
-				dvb_usb_data_complete_204;
-		else
-		if (adap->props.fe[i].caps & DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD)
-			adap->fe_adap[i].stream.complete =
-				dvb_usb_data_complete_raw;
-		else
-		adap->fe_adap[i].stream.complete  = dvb_usb_data_complete;
-		adap->fe_adap[i].stream.user_priv = adap;
+	/*
+	 * FIXME: We should config demux callback for each time streaming is
+	 * started. Same for the USB data stream config.
+	 */
 
-		/* resolve USB stream configuration */
-		if (adap->dev->props.get_usb_stream_config) {
-			ret = adap->dev->props.get_usb_stream_config(NULL,
-					&stream_props);
-			if (ret < 0)
-				break;
-		} else {
-			stream_props = adap->props.fe[i].stream;
-		}
+	adap->stream.udev = adap->dev->udev;
+	if (adap->props.fe[0].caps & DVB_USB_ADAP_RECEIVES_204_BYTE_TS)
+		adap->stream.complete = dvb_usb_data_complete_204;
+	else if (adap->props.fe[0].caps & DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD)
+		adap->stream.complete = dvb_usb_data_complete_raw;
+	else
+		adap->stream.complete = dvb_usb_data_complete;
 
-		ret = usb_urb_init(&adap->fe_adap[i].stream, &stream_props);
+	adap->stream.user_priv = adap;
+
+	/* resolve USB stream configuration */
+	if (adap->dev->props.get_usb_stream_config) {
+		ret = adap->dev->props.get_usb_stream_config(NULL,
+				&stream_props);
 		if (ret < 0)
-			break;
+			return ret;
+	} else {
+		stream_props = adap->props.fe[0].stream;
 	}
-	return ret;
+
+	return usb_urb_init(&adap->stream, &stream_props);
 }
 
 int dvb_usb_adapter_stream_exit(struct dvb_usb_adapter *adap)
 {
-	int i;
-	for (i = 0; i < adap->props.num_frontends; i++)
-		usb_urb_exit(&adap->fe_adap[i].stream);
+	usb_urb_exit(&adap->stream);
 	return 0;
 }

@@ -27,7 +27,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	/* stop feed before setting a new pid if there will be no pid anymore */
 	if (newfeedcount == 0) {
 		deb_ts("stop feeding\n");
-		usb_urb_kill(&adap->fe_adap[adap->active_fe].stream);
+		usb_urb_kill(&adap->stream);
 
 		if (adap->props.fe[adap->active_fe].streaming_ctrl != NULL) {
 			ret = adap->props.fe[adap->active_fe].streaming_ctrl(
@@ -70,8 +70,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		}
 
 		deb_ts("submitting all URBs\n");
-		usb_urb_submit(&adap->fe_adap[adap->active_fe].stream,
-				&stream_props);
+		usb_urb_submit(&adap->stream, &stream_props);
 
 		deb_ts("controlling pid parser\n");
 		if (adap->props.fe[adap->active_fe].caps & DVB_USB_ADAP_HAS_PID_FILTER &&

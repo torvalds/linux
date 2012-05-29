@@ -314,8 +314,6 @@ struct dvb_usb_fe_adapter {
 	int (*fe_init)  (struct dvb_frontend *);
 	int (*fe_sleep) (struct dvb_frontend *);
 
-	struct usb_data_stream stream;
-
 	int pid_filtering;
 	int max_feed_count;
 
@@ -325,6 +323,7 @@ struct dvb_usb_fe_adapter {
 struct dvb_usb_adapter {
 	struct dvb_usb_device *dev;
 	struct dvb_usb_adapter_properties props;
+	struct usb_data_stream stream;
 
 #define DVB_USB_ADAP_STATE_INIT 0x000
 #define DVB_USB_ADAP_STATE_DVB  0x001
