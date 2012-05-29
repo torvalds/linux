@@ -30,10 +30,6 @@
  * the cpu-type
  */
 	.align 4
-cputyp:
-        .word   1
-
-	.align 4
 	.globl cputypval
 cputypval:
 	.asciz "sun4m"
@@ -509,10 +505,6 @@ continue_boot:
 /* Aieee, now set PC and nPC, enable traps, give ourselves a stack and it's
  * show-time!
  */
-
-		sethi	%hi(cputyp), %o0
-		st	%g4, [%o0 + %lo(cputyp)]
-
 		/* Turn on Supervisor, EnableFloating, and all the PIL bits.
 		 * Also puts us in register window zero with traps off.
 		 */
