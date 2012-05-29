@@ -2068,7 +2068,6 @@ static int l2cap_segment_sdu(struct l2cap_chan *chan,
 	struct sk_buff *skb;
 	u16 sdu_len;
 	size_t pdu_len;
-	int err = 0;
 	u8 sar;
 
 	BT_DBG("chan %p, msg %p, len %d", chan, msg, (int)len);
@@ -2127,7 +2126,7 @@ static int l2cap_segment_sdu(struct l2cap_chan *chan,
 		}
 	}
 
-	return err;
+	return 0;
 }
 
 int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
