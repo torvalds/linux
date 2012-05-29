@@ -32,7 +32,9 @@
 #include <linux/hwmon.h>
 #include <linux/input-polldev.h>
 #include <linux/device.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
+#endif
 
 #include <mach/system.h>
 #include <mach/hardware.h>
