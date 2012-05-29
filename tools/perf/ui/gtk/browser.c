@@ -11,8 +11,8 @@
 
 static void perf_gtk__signal(int sig)
 {
+	perf_gtk__exit(false);
 	psignal(sig, "perf");
-	gtk_main_quit();
 }
 
 static void perf_gtk__resize_window(GtkWidget *window)
@@ -143,6 +143,10 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 
 	g_signal_connect(window, "delete_event", gtk_main_quit, NULL);
 
+	pgctx = perf_gtk__activate_context(window);
+	if (!pgctx)
+		return -1;
+
 	notebook = gtk_notebook_new();
 
 	list_for_each_entry(pos, &evlist->entries, node) {
@@ -173,6 +177,8 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
 
 	gtk_main();
+
+	perf_gtk__deactivate_context(&pgctx);
 
 	return 0;
 }
