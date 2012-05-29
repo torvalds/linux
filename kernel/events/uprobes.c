@@ -853,12 +853,12 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 		}
 
 		mm = vi->mm;
-		down_read(&mm->mmap_sem);
+		down_write(&mm->mmap_sem);
 		vma = find_vma(mm, (unsigned long)vi->vaddr);
 		if (!vma || !valid_vma(vma, is_register)) {
 			list_del(&vi->probe_list);
 			kfree(vi);
-			up_read(&mm->mmap_sem);
+			up_write(&mm->mmap_sem);
 			mmput(mm);
 			continue;
 		}
@@ -867,7 +867,7 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 						vaddr != vi->vaddr) {
 			list_del(&vi->probe_list);
 			kfree(vi);
-			up_read(&mm->mmap_sem);
+			up_write(&mm->mmap_sem);
 			mmput(mm);
 			continue;
 		}
@@ -877,7 +877,7 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 		else
 			remove_breakpoint(uprobe, mm, vi->vaddr);
 
-		up_read(&mm->mmap_sem);
+		up_write(&mm->mmap_sem);
 		mmput(mm);
 		if (is_register) {
 			if (ret && ret == -EEXIST)
