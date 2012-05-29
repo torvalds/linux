@@ -47,7 +47,7 @@ int dvb_usb_adapter_stream_init(struct dvb_usb_adapter *adap)
 		if (ret < 0)
 			return ret;
 	} else {
-		stream_props = adap->props.fe[0].stream;
+		stream_props = adap->props.stream;
 	}
 
 	/* FIXME: can be removed as set later in anyway */
@@ -139,7 +139,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			if (ret < 0)
 				return ret;
 		} else {
-			stream_props = adap->props.fe[adap->active_fe].stream;
+			stream_props = adap->props.stream;
 		}
 
 		deb_ts("submitting all URBs\n");

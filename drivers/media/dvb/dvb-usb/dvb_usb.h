@@ -129,8 +129,6 @@ struct dvb_usb_adapter_fe_properties {
 	int (*frontend_attach) (struct dvb_usb_adapter *);
 	int (*tuner_attach)    (struct dvb_usb_adapter *);
 
-	struct usb_data_stream_properties stream;
-
 	int size_of_priv;
 };
 
@@ -144,6 +142,7 @@ struct dvb_usb_adapter_properties {
 
 	int num_frontends;
 	struct dvb_usb_adapter_fe_properties fe[MAX_NO_OF_FE_PER_ADAP];
+	struct usb_data_stream_properties stream;
 };
 
 /**
