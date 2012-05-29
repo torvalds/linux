@@ -211,8 +211,10 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 	u32 dest_addr, val;
 	u8 *nvs_ptr, *nvs_aligned;
 
-	if (wl->nvs == NULL)
+	if (wl->nvs == NULL) {
+		wl1271_error("NVS file is needed during boot");
 		return -ENODEV;
+	}
 
 	if (wl->quirks & WLCORE_QUIRK_LEGACY_NVS) {
 		struct wl1271_nvs_file *nvs =

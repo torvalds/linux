@@ -715,7 +715,7 @@ out:
 	return ret;
 }
 
-static int wl1271_fetch_nvs(struct wl1271 *wl)
+static void wl1271_fetch_nvs(struct wl1271 *wl)
 {
 	const struct firmware *fw;
 	int ret;
@@ -723,16 +723,15 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 	ret = request_firmware(&fw, WL12XX_NVS_NAME, wl->dev);
 
 	if (ret < 0) {
-		wl1271_error("could not get nvs file %s: %d", WL12XX_NVS_NAME,
-			     ret);
-		return ret;
+		wl1271_debug(DEBUG_BOOT, "could not get nvs file %s: %d",
+			     WL12XX_NVS_NAME, ret);
+		return;
 	}
 
 	wl->nvs = kmemdup(fw->data, fw->size, GFP_KERNEL);
 
 	if (!wl->nvs) {
 		wl1271_error("could not allocate memory for the nvs file");
-		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -740,8 +739,6 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 
 out:
 	release_firmware(fw);
-
-	return ret;
 }
 
 void wl12xx_queue_recovery_work(struct wl1271 *wl)
@@ -988,13 +985,6 @@ static int wl12xx_chip_wakeup(struct wl1271 *wl, bool plt)
 	ret = wl12xx_fetch_firmware(wl, plt);
 	if (ret < 0)
 		goto out;
-
-	/* No NVS from netlink, try to get it from the filesystem */
-	if (wl->nvs == NULL) {
-		ret = wl1271_fetch_nvs(wl);
-		if (ret < 0)
-			goto out;
-	}
 
 out:
 	return ret;
@@ -4937,8 +4927,8 @@ static int wl1271_register_hw(struct wl1271 *wl)
 	if (wl->mac80211_registered)
 		return 0;
 
-	ret = wl1271_fetch_nvs(wl);
-	if (ret == 0) {
+	wl1271_fetch_nvs(wl);
+	if (wl->nvs != NULL) {
 		/* NOTE: The wl->nvs->nvs element must be first, in
 		 * order to simplify the casting, we assume it is at
 		 * the beginning of the wl->nvs structure.
