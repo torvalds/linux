@@ -400,6 +400,7 @@ struct rcu_state {
 	struct task_struct *rcu_barrier_in_progress;
 						/* Task doing rcu_barrier(), */
 						/*  or NULL if no barrier. */
+	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */
 	raw_spinlock_t fqslock;			/* Only one task forcing */
 						/*  quiescent states. */
 	unsigned long jiffies_force_qs;		/* Time at which to invoke */

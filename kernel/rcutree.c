@@ -157,7 +157,6 @@ unsigned long rcutorture_vernum;
 
 /* State information for rcu_barrier() and friends. */
 
-static atomic_t rcu_barrier_cpu_count;
 static DEFINE_MUTEX(rcu_barrier_mutex);
 static struct completion rcu_barrier_completion;
 
@@ -2270,9 +2269,12 @@ static int rcu_cpu_has_callbacks(int cpu)
  * RCU callback function for _rcu_barrier().  If we are last, wake
  * up the task executing _rcu_barrier().
  */
-static void rcu_barrier_callback(struct rcu_head *notused)
+static void rcu_barrier_callback(struct rcu_head *rhp)
 {
-	if (atomic_dec_and_test(&rcu_barrier_cpu_count))
+	struct rcu_data *rdp = container_of(rhp, struct rcu_data, barrier_head);
+	struct rcu_state *rsp = rdp->rsp;
+
+	if (atomic_dec_and_test(&rsp->barrier_cpu_count))
 		complete(&rcu_barrier_completion);
 }
 
@@ -2284,7 +2286,7 @@ static void rcu_barrier_func(void *type)
 	struct rcu_state *rsp = type;
 	struct rcu_data *rdp = __this_cpu_ptr(rsp->rda);
 
-	atomic_inc(&rcu_barrier_cpu_count);
+	atomic_inc(&rsp->barrier_cpu_count);
 	rsp->call(&rdp->barrier_head, rcu_barrier_callback);
 }
 
@@ -2297,9 +2299,9 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	int cpu;
 	unsigned long flags;
 	struct rcu_data *rdp;
-	struct rcu_head rh;
+	struct rcu_data rd;
 
-	init_rcu_head_on_stack(&rh);
+	init_rcu_head_on_stack(&rd.barrier_head);
 
 	/* Take mutex to serialize concurrent rcu_barrier() requests. */
 	mutex_lock(&rcu_barrier_mutex);
@@ -2324,7 +2326,7 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	 *	us -- but before CPU 1's orphaned callbacks are invoked!!!
 	 */
 	init_completion(&rcu_barrier_completion);
-	atomic_set(&rcu_barrier_cpu_count, 1);
+	atomic_set(&rsp->barrier_cpu_count, 1);
 	raw_spin_lock_irqsave(&rsp->onofflock, flags);
 	rsp->rcu_barrier_in_progress = current;
 	raw_spin_unlock_irqrestore(&rsp->onofflock, flags);
@@ -2363,15 +2365,16 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	rcu_adopt_orphan_cbs(rsp);
 	rsp->rcu_barrier_in_progress = NULL;
 	raw_spin_unlock_irqrestore(&rsp->onofflock, flags);
-	atomic_inc(&rcu_barrier_cpu_count);
+	atomic_inc(&rsp->barrier_cpu_count);
 	smp_mb__after_atomic_inc(); /* Ensure atomic_inc() before callback. */
-	rsp->call(&rh, rcu_barrier_callback);
+	rd.rsp = rsp;
+	rsp->call(&rd.barrier_head, rcu_barrier_callback);
 
 	/*
 	 * Now that we have an rcu_barrier_callback() callback on each
 	 * CPU, and thus each counted, remove the initial count.
 	 */
-	if (atomic_dec_and_test(&rcu_barrier_cpu_count))
+	if (atomic_dec_and_test(&rsp->barrier_cpu_count))
 		complete(&rcu_barrier_completion);
 
 	/* Wait for all rcu_barrier_callback() callbacks to be invoked. */
@@ -2380,7 +2383,7 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	/* Other rcu_barrier() invocations can now safely proceed. */
 	mutex_unlock(&rcu_barrier_mutex);
 
-	destroy_rcu_head_on_stack(&rh);
+	destroy_rcu_head_on_stack(&rd.barrier_head);
 }
 
 /**
