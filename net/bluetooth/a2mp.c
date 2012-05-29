@@ -483,8 +483,7 @@ static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn)
 
 	hci_conn_hold(conn->hcon);
 
-	chan->omtu = L2CAP_A2MP_DEFAULT_MTU;
-	chan->imtu = L2CAP_A2MP_DEFAULT_MTU;
+	chan->chan_type = L2CAP_CHAN_CONN_FIX_A2MP;
 	chan->flush_to = L2CAP_DEFAULT_FLUSH_TO;
 
 	chan->ops = &a2mp_chan_ops;
