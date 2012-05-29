@@ -636,7 +636,6 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
 					unsigned long haddr, pmd_t *pmd,
 					struct page *page)
 {
-	int ret = 0;
 	pgtable_t pgtable;
 
 	VM_BUG_ON(!PageCompound(page));
@@ -675,7 +674,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
 		spin_unlock(&mm->page_table_lock);
 	}
 
-	return ret;
+	return 0;
 }
 
 static inline gfp_t alloc_hugepage_gfpmask(int defrag, gfp_t extra_gfp)
