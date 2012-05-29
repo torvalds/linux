@@ -1750,16 +1750,10 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		cs_slot = &conf->cl_cs_slot;
 		status = check_slot_seqid(cr_ses->seqid, cs_slot->sl_seqid, 0);
 		if (status == nfserr_replay_cache) {
-			dprintk("Got a create_session replay! seqid= %d\n",
-				cs_slot->sl_seqid);
-			/* Return the cached reply status */
 			status = nfsd4_replay_create_session(cr_ses, cs_slot);
 			goto out;
 		} else if (cr_ses->seqid != cs_slot->sl_seqid + 1) {
 			status = nfserr_seq_misordered;
-			dprintk("Sequence misordered!\n");
-			dprintk("Expected seqid= %d but got seqid= %d\n",
-				cs_slot->sl_seqid, cr_ses->seqid);
 			goto out;
 		}
 	} else if (unconf) {
@@ -1768,7 +1762,6 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 			status = nfserr_clid_inuse;
 			goto out;
 		}
-
 		cs_slot = &unconf->cl_cs_slot;
 		status = check_slot_seqid(cr_ses->seqid, cs_slot->sl_seqid, 0);
 		if (status) {
@@ -1776,7 +1769,6 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 			status = nfserr_seq_misordered;
 			goto out;
 		}
-
 		confirm_me = true;
 		conf = unconf;
 	} else {
