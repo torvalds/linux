@@ -1857,10 +1857,12 @@ static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 static void nfs4_state_manager(struct nfs_client *clp)
 {
 	int status = 0;
+	const char *section = "", *section_sep = "";
 
 	/* Ensure exclusive access to NFSv4 state */
 	do {
 		if (test_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state)) {
+			section = "purge state";
 			status = nfs4_reclaim_lease(clp);
 			if (status < 0)
 				goto out_error;
@@ -1869,6 +1871,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		}
 
 		if (test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state)) {
+			section = "lease expired";
 			/* We're going to have to re-establish a clientid */
 			status = nfs4_reclaim_lease(clp);
 			if (status < 0)
@@ -1888,6 +1891,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		}
 
 		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {
+			section = "check lease";
 			status = nfs4_check_lease(clp);
 			if (status < 0)
 				goto out_error;
@@ -1898,6 +1902,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		/* Initialize or reset the session */
 		if (test_and_clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state)
 		   && nfs4_has_session(clp)) {
+			section = "reset session";
 			status = nfs4_reset_session(clp);
 			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
 				continue;
@@ -1908,6 +1913,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		/* Send BIND_CONN_TO_SESSION */
 		if (test_and_clear_bit(NFS4CLNT_BIND_CONN_TO_SESSION,
 				&clp->cl_state) && nfs4_has_session(clp)) {
+			section = "bind conn to session";
 			status = nfs4_bind_conn_to_session(clp);
 			if (status < 0)
 				goto out_error;
@@ -1916,6 +1922,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 
 		/* First recover reboot state... */
 		if (test_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state)) {
+			section = "reclaim reboot";
 			status = nfs4_do_reclaim(clp,
 				clp->cl_mvops->reboot_recovery_ops);
 			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) ||
@@ -1930,6 +1937,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 
 		/* Now recover expired state... */
 		if (test_and_clear_bit(NFS4CLNT_RECLAIM_NOGRACE, &clp->cl_state)) {
+			section = "reclaim nograce";
 			status = nfs4_do_reclaim(clp,
 				clp->cl_mvops->nograce_recovery_ops);
 			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) ||
@@ -1948,6 +1956,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		/* Recall session slots */
 		if (test_and_clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state)
 		   && nfs4_has_session(clp)) {
+			section = "recall slot";
 			status = nfs4_recall_slot(clp);
 			if (status < 0)
 				goto out_error;
@@ -1964,8 +1973,11 @@ static void nfs4_state_manager(struct nfs_client *clp)
 	} while (atomic_read(&clp->cl_count) > 1);
 	return;
 out_error:
-	pr_warn_ratelimited("NFS: state manager failed on NFSv4 server %s"
-			" with error %d\n", clp->cl_hostname, -status);
+	if (strlen(section))
+		section_sep = ": ";
+	pr_warn_ratelimited("NFS: state manager%s%s failed on NFSv4 server %s"
+			" with error %d\n", section_sep, section,
+			clp->cl_hostname, -status);
 	nfs4_end_drain_session(clp);
 	nfs4_clear_state_manager_bit(clp);
 }
