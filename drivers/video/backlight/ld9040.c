@@ -846,7 +846,6 @@ static void ld9040_shutdown(struct spi_device *spi)
 static struct spi_driver ld9040_driver = {
 	.driver = {
 		.name	= "ld9040",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ld9040_probe,
