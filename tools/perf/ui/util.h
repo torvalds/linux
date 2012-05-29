@@ -9,6 +9,13 @@ int ui__help_window(const char *text);
 int ui__dialog_yesno(const char *msg);
 int ui__question_window(const char *title, const char *text,
 			const char *exit_msg, int delay_secs);
-int __ui__warning(const char *title, const char *format, va_list args);
+
+struct perf_error_ops {
+	int (*error)(const char *format, va_list args);
+	int (*warning)(const char *format, va_list args);
+};
+
+int perf_error__register(struct perf_error_ops *eops);
+int perf_error__unregister(struct perf_error_ops *eops);
 
 #endif /* _PERF_UI_UTIL_H_ */
