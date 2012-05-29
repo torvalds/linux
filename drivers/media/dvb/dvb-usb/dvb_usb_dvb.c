@@ -83,9 +83,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		deb_ts("stop feeding\n");
 		usb_urb_kill(&adap->stream);
 
-		if (adap->props.fe[adap->active_fe].streaming_ctrl != NULL) {
-			ret = adap->props.fe[adap->active_fe].streaming_ctrl(
-				adap, 0);
+		if (adap->props.streaming_ctrl != NULL) {
+			ret = adap->props.streaming_ctrl(adap, 0);
 			if (ret < 0) {
 				err("error while stopping stream.");
 				return ret;
@@ -159,9 +158,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			}
 		}
 		deb_ts("start feeding\n");
-		if (adap->props.fe[adap->active_fe].streaming_ctrl != NULL) {
-			ret = adap->props.fe[adap->active_fe].streaming_ctrl(
-				adap, 1);
+		if (adap->props.streaming_ctrl != NULL) {
+			ret = adap->props.streaming_ctrl(adap, 1);
 			if (ret < 0) {
 				err("error while enabling fifo.");
 				return ret;
@@ -319,7 +317,7 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 	/* register all given adapter frontends */
 	for (i = 0; i < adap->props.num_frontends; i++) {
 
-		if (adap->props.fe[i].frontend_attach == NULL) {
+		if (adap->props.frontend_attach == NULL) {
 			err("strange: '%s' #%d,%d " \
 			    "doesn't want to attach a frontend.",
 			    adap->dev->name, adap->id, i);
@@ -327,7 +325,7 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 			return 0;
 		}
 
-		ret = adap->props.fe[i].frontend_attach(adap);
+		ret = adap->props.frontend_attach(adap);
 		if (ret || adap->fe_adap[i].fe == NULL) {
 			/* only print error when there is no FE at all */
 			if (i == 0)
@@ -359,8 +357,8 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		}
 
 		/* only attach the tuner if the demod is there */
-		if (adap->props.fe[i].tuner_attach != NULL)
-			adap->props.fe[i].tuner_attach(adap);
+		if (adap->props.tuner_attach != NULL)
+			adap->props.tuner_attach(adap);
 
 		adap->num_frontends_initialized++;
 	}

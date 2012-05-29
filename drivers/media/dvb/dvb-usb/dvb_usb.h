@@ -114,11 +114,6 @@ struct usb_data_stream_properties {
  * @stream: configuration of the USB streaming
  */
 struct dvb_usb_adapter_fe_properties {
-	int (*streaming_ctrl)  (struct dvb_usb_adapter *, int);
-
-	int (*frontend_attach) (struct dvb_usb_adapter *);
-	int (*tuner_attach)    (struct dvb_usb_adapter *);
-
 	int size_of_priv;
 };
 
@@ -136,9 +131,12 @@ struct dvb_usb_adapter_properties {
 	int (*pid_filter_ctrl) (struct dvb_usb_adapter *, int);
 	int (*pid_filter) (struct dvb_usb_adapter *, int, u16, int);
 
-	int (*frontend_ctrl)   (struct dvb_frontend *, int);
+	int (*frontend_attach) (struct dvb_usb_adapter *);
+	int (*tuner_attach) (struct dvb_usb_adapter *);
+	int (*frontend_ctrl) (struct dvb_frontend *, int);
+	int (*streaming_ctrl) (struct dvb_usb_adapter *, int);
 	int (*fe_ioctl_override) (struct dvb_frontend *,
-				  unsigned int, void *, unsigned int);
+			unsigned int, void *, unsigned int);
 
 	int num_frontends;
 	struct dvb_usb_adapter_fe_properties fe[MAX_NO_OF_FE_PER_ADAP];
