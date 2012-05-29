@@ -22,6 +22,7 @@
 #include <linux/vermagic.h>
 
 static int ac_online			= 1;
+static int usb_online			= 1;
 static int battery_status		= POWER_SUPPLY_STATUS_DISCHARGING;
 static int battery_health		= POWER_SUPPLY_HEALTH_GOOD;
 static int battery_present		= 1; /* true */
@@ -35,6 +36,20 @@ static int test_power_get_ac_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = ac_online;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int test_power_get_usb_property(struct power_supply *psy,
+				      enum power_supply_property psp,
+				      union power_supply_propval *val)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = usb_online;
 		break;
 	default:
 		return -EINVAL;
@@ -135,6 +150,14 @@ static struct power_supply test_power_supplies[] = {
 		.properties = test_power_battery_props,
 		.num_properties = ARRAY_SIZE(test_power_battery_props),
 		.get_property = test_power_get_battery_property,
+	}, {
+		.name = "test_usb",
+		.type = POWER_SUPPLY_TYPE_USB,
+		.supplied_to = test_power_ac_supplied_to,
+		.num_supplicants = ARRAY_SIZE(test_power_ac_supplied_to),
+		.properties = test_power_ac_props,
+		.num_properties = ARRAY_SIZE(test_power_ac_props),
+		.get_property = test_power_get_usb_property,
 	},
 };
 
@@ -167,6 +190,7 @@ static void __exit test_power_exit(void)
 
 	/* Let's see how we handle changes... */
 	ac_online = 0;
+	usb_online = 0;
 	battery_status = POWER_SUPPLY_STATUS_DISCHARGING;
 	for (i = 0; i < ARRAY_SIZE(test_power_supplies); i++)
 		power_supply_changed(&test_power_supplies[i]);
@@ -275,6 +299,19 @@ static int param_get_ac_online(char *buffer, const struct kernel_param *kp)
 	return strlen(buffer);
 }
 
+static int param_set_usb_online(const char *key, const struct kernel_param *kp)
+{
+	usb_online = map_get_value(map_ac_online, key, usb_online);
+	power_supply_changed(&test_power_supplies[2]);
+	return 0;
+}
+
+static int param_get_usb_online(char *buffer, const struct kernel_param *kp)
+{
+	strcpy(buffer, map_get_key(map_ac_online, usb_online, "unknown"));
+	return strlen(buffer);
+}
+
 static int param_set_battery_status(const char *key,
 					const struct kernel_param *kp)
 {
@@ -350,11 +387,14 @@ static int param_set_battery_capacity(const char *key,
 
 #define param_get_battery_capacity param_get_int
 
-
-
 static struct kernel_param_ops param_ops_ac_online = {
 	.set = param_set_ac_online,
 	.get = param_get_ac_online,
+};
+
+static struct kernel_param_ops param_ops_usb_online = {
+	.set = param_set_usb_online,
+	.get = param_get_usb_online,
 };
 
 static struct kernel_param_ops param_ops_battery_status = {
@@ -384,6 +424,7 @@ static struct kernel_param_ops param_ops_battery_capacity = {
 
 
 #define param_check_ac_online(name, p) __param_check(name, p, void);
+#define param_check_usb_online(name, p) __param_check(name, p, void);
 #define param_check_battery_status(name, p) __param_check(name, p, void);
 #define param_check_battery_present(name, p) __param_check(name, p, void);
 #define param_check_battery_technology(name, p) __param_check(name, p, void);
@@ -393,6 +434,9 @@ static struct kernel_param_ops param_ops_battery_capacity = {
 
 module_param(ac_online, ac_online, 0644);
 MODULE_PARM_DESC(ac_online, "AC charging state <on|off>");
+
+module_param(usb_online, usb_online, 0644);
+MODULE_PARM_DESC(usb_online, "USB charging state <on|off>");
 
 module_param(battery_status, battery_status, 0644);
 MODULE_PARM_DESC(battery_status,
