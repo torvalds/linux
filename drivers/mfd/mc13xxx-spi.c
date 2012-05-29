@@ -49,6 +49,7 @@ static struct regmap_config mc13xxx_regmap_spi_config = {
 	.reg_bits = 7,
 	.pad_bits = 1,
 	.val_bits = 24,
+	.write_flag_mask = 0x80,
 
 	.max_register = MC13XXX_NUMREGS,
 
@@ -73,7 +74,6 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 
 	dev_set_drvdata(&spi->dev, mc13xxx);
 	spi->mode = SPI_MODE_0 | SPI_CS_HIGH;
-	spi->bits_per_word = 32;
 
 	mc13xxx->dev = &spi->dev;
 	mutex_init(&mc13xxx->lock);
