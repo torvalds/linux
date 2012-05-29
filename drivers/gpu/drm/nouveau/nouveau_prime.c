@@ -61,6 +61,11 @@ static void nouveau_gem_kunmap(struct dma_buf *dma_buf, unsigned long page_num, 
 
 }
 
+static int nouveau_gem_prime_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
+{
+	return -EINVAL;
+}
+
 static const struct dma_buf_ops nouveau_dmabuf_ops =  {
 	.map_dma_buf = nouveau_gem_map_dma_buf,
 	.unmap_dma_buf = nouveau_gem_unmap_dma_buf,
@@ -69,6 +74,7 @@ static const struct dma_buf_ops nouveau_dmabuf_ops =  {
 	.kmap_atomic = nouveau_gem_kmap_atomic,
 	.kunmap = nouveau_gem_kunmap,
 	.kunmap_atomic = nouveau_gem_kunmap_atomic,
+	.mmap = nouveau_gem_prime_mmap,
 };
 
 static int
