@@ -71,6 +71,7 @@ static struct lock_class_key rcu_node_class[RCU_NUM_LVLS];
 	.onofflock = __RAW_SPIN_LOCK_UNLOCKED(&sname##_state.onofflock), \
 	.orphan_nxttail = &sname##_state.orphan_nxtlist, \
 	.orphan_donetail = &sname##_state.orphan_donelist, \
+	.barrier_mutex = __MUTEX_INITIALIZER(sname##_state.barrier_mutex), \
 	.fqslock = __RAW_SPIN_LOCK_UNLOCKED(&sname##_state.fqslock), \
 	.n_force_qs = 0, \
 	.n_force_qs_ngp = 0, \
@@ -154,10 +155,6 @@ static void invoke_rcu_callbacks(struct rcu_state *rsp, struct rcu_data *rdp);
  */
 unsigned long rcutorture_testseq;
 unsigned long rcutorture_vernum;
-
-/* State information for rcu_barrier() and friends. */
-
-static DEFINE_MUTEX(rcu_barrier_mutex);
 
 /*
  * Return true if an RCU grace period is in progress.  The ACCESS_ONCE()s
@@ -2303,7 +2300,7 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	init_rcu_head_on_stack(&rd.barrier_head);
 
 	/* Take mutex to serialize concurrent rcu_barrier() requests. */
-	mutex_lock(&rcu_barrier_mutex);
+	mutex_lock(&rsp->barrier_mutex);
 
 	smp_mb();  /* Prevent any prior operations from leaking in. */
 
@@ -2380,7 +2377,7 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	wait_for_completion(&rsp->barrier_completion);
 
 	/* Other rcu_barrier() invocations can now safely proceed. */
-	mutex_unlock(&rcu_barrier_mutex);
+	mutex_unlock(&rsp->barrier_mutex);
 
 	destroy_rcu_head_on_stack(&rd.barrier_head);
 }
