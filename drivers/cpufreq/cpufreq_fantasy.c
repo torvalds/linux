@@ -205,15 +205,15 @@ static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu, cputime64_t 
 
     cur_wall_time = jiffies64_to_cputime64(get_jiffies_64());
 
-    busy_time = cputime64_add(kstat_cpu(cpu).cpustat.user,
-            kstat_cpu(cpu).cpustat.system);
+	busy_time = kcpustat_cpu(cpu).cpustat[CPUTIME_USER] +
+		kcpustat_cpu(cpu).cpustat[CPUTIME_SYSTEM];
 
-    busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.irq);
-    busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.softirq);
-    busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.steal);
-    busy_time = cputime64_add(busy_time, kstat_cpu(cpu).cpustat.nice);
+	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_IRQ];
+	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_SOFTIRQ];
+	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_STEAL];
+	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_NICE];
 
-    idle_time = cputime64_sub(cur_wall_time, busy_time);
+	idle_time = cur_wall_time - busy_time;
     if (wall)
         *wall = (cputime64_t)jiffies_to_usecs(cur_wall_time);
 
@@ -264,7 +264,7 @@ static inline cputime64_t get_cpu_idle_time(cputime64_t *wall)
 static inline cputime64_t get_cpu_iowait_time_jiffy(unsigned int cpu)
 {
     cputime64_t iowait_time;
-    iowait_time = kstat_cpu(cpu).cpustat.iowait;
+    iowait_time = kcpustat_cpu(cpu).cpustat[CPUTIME_IOWAIT];
 
     return (cputime64_t)jiffies_to_usecs(iowait_time);
 }
@@ -354,9 +354,12 @@ static void do_dbs_timer(struct work_struct *work)
             cur_iowait_time = get_cpu_iowait_time(&cur_wall_time);
 
             /* calculate idle/io-wait/total run time in last statistic cycle */
-            wall_time = (unsigned int) cputime64_sub(cur_wall_time, fantasy_dbs_info.prev_cpu_wall);
-            idle_time = (unsigned int) cputime64_sub(cur_idle_time, fantasy_dbs_info.prev_cpu_idle);
-            iowait_time = (unsigned int) cputime64_sub(cur_iowait_time, fantasy_dbs_info.prev_cpu_iowait);
+		wall_time = (unsigned int)
+			(cur_wall_time - fantasy_dbs_info.prev_cpu_wall);
+		idle_time = (unsigned int)
+			(cur_idle_time - fantasy_dbs_info.prev_cpu_idle);
+		iowait_time = (unsigned int)
+			(cur_iowait_time - fantasy_dbs_info.prev_cpu_iowait);
 
             if(dbs_tuners_ins.io_is_busy) {
                 idle_time -= iowait_time;
