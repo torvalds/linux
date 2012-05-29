@@ -24,6 +24,7 @@
 #include <linux/tick.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/tracehook.h>
 
 /*
  * Program thread launch.  Often defined as a macro in processor.h,
@@ -201,4 +202,44 @@ unsigned long get_wchan(struct task_struct *p)
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 {
 	return 0;
+}
+
+
+/*
+ * Called on the exit path of event entry; see vm_entry.S
+ *
+ * Interrupts will already be disabled.
+ *
+ * Returns 0 if there's no need to re-check for more work.
+ */
+
+int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
+{
+	if (!(thread_info_flags & _TIF_ALLWORK_MASK)) {
+		return 0;
+	}  /* shortcut -- no work to be done */
+
+	local_irq_enable();
+
+	if (thread_info_flags & _TIF_NEED_RESCHED) {
+		schedule();
+		return 1;
+	}
+
+	if (thread_info_flags & _TIF_SIGPENDING) {
+		do_signal(regs);
+		return 1;
+	}
+
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
+		return 1;
+	}
+
+	/* Should not even reach here */
+	panic("%s: bad thread_info flags 0x%08x\n", __func__,
+		thread_info_flags);
 }

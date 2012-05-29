@@ -199,7 +199,7 @@ static void handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
 /*
  * Called from return-from-event code.
  */
-static void do_signal(struct pt_regs *regs)
+void do_signal(struct pt_regs *regs)
 {
 	struct k_sigaction sigact;
 	siginfo_t info;
@@ -216,8 +216,9 @@ static void do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	 * If we came from a system call, handle the restart.
+	 * No (more) signals; if we came from a system call, handle the restart.
 	 */
+
 	if (regs->syscall_nr >= 0) {
 		switch (regs->r00) {
 		case -ERESTARTNOHAND:
@@ -238,17 +239,6 @@ static void do_signal(struct pt_regs *regs)
 no_restart:
 	/* If there's no signal to deliver, put the saved sigmask back */
 	restore_saved_sigmask();
-}
-
-void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
-{
-	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal(regs);
-
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
-	}
 }
 
 /*
@@ -278,21 +268,12 @@ asmlinkage int sys_rt_sigreturn(void)
 	/* Restore the user's stack as well */
 	pt_psp(regs) = regs->r29;
 
-	/*
-	 * Leave a trace in the stack frame that this was a sigreturn.
-	 * If the system call is to replay, we've already restored the
-	 * number in the GPR slot and it will be regenerated on the
-	 * new system call trap entry. Note that if restore_sigcontext()
-	 * did something other than a bulk copy of the pt_regs struct,
-	 * we could avoid this assignment by simply not overwriting
-	 * regs->syscall_nr.
-	 */
-	regs->syscall_nr = __NR_rt_sigreturn;
+	regs->syscall_nr = -1;
 
 	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
-	return 0;
+	return regs->r00;
 
 badframe:
 	force_sig(SIGSEGV, current);

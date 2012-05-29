@@ -356,7 +356,6 @@ long sys_syscall(void)
 
 void do_trap0(struct pt_regs *regs)
 {
-	unsigned long syscallret = 0;
 	syscall_fn syscall;
 
 	switch (pt_cause(regs)) {
@@ -396,20 +395,10 @@ void do_trap0(struct pt_regs *regs)
 		} else {
 			syscall = (syscall_fn)
 				  (sys_call_table[regs->syscall_nr]);
-			syscallret = syscall(regs->r00, regs->r01,
+			regs->r00 = syscall(regs->r00, regs->r01,
 				   regs->r02, regs->r03,
 				   regs->r04, regs->r05);
 		}
-
-		/*
-		 * If it was a sigreturn system call, don't overwrite
-		 * r0 value in stack frame with return value.
-		 *
-		 * __NR_sigreturn doesn't seem to exist in new unistd.h
-		 */
-
-		if (regs->syscall_nr != __NR_rt_sigreturn)
-			regs->r00 = syscallret;
 
 		/* allow strace to get the syscall return state  */
 		if (unlikely(test_thread_flag(TIF_SYSCALL_TRACE)))

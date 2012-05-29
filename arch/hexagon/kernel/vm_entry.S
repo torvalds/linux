@@ -274,6 +274,9 @@ event_dispatch:
 	callr	r1
 
 	/*
+	 * Coming back from the C-world, our thread info pointer
+	 * should be in the designated register (usually R19)
+	 *
 	 * If we were in kernel mode, we don't need to check scheduler
 	 * or signals if CONFIG_PREEMPT is not set.  If set, then it has
 	 * to jump to a need_resched kind of block.
@@ -286,67 +289,43 @@ event_dispatch:
 #endif
 
 	/*  "Nested control path" -- if the previous mode was kernel  */
-	R0 = memw(R29 + #_PT_ER_VMEST);
+	{
+		R0 = memw(R29 + #_PT_ER_VMEST);
+		R16.L = #LO(do_work_pending);
+	}
 	{
 		P0 = tstbit(R0, #HVM_VMEST_UM_SFT);
 		if (!P0.new) jump:nt restore_all;
+		R16.H = #HI(do_work_pending);
+		R0 = #VM_INT_DISABLE;
 	}
+
 	/*
-	 * Returning from system call, normally coming back from user mode
+	 * Check also the return from fork/system call, normally coming back from
+	 * user mode
+	 *
+	 * R16 needs to have do_work_pending, and R0 should have VM_INT_DISABLE
 	 */
-return_from_syscall:
+
+check_work_pending:
 	/*  Disable interrupts while checking TIF  */
-	R0 = #VM_INT_DISABLE
 	trap1(#HVM_TRAP1_VMSETIE)
+	{
+		R0 = R29;  /*  regs should still be at top of stack  */
+		R1 = memw(THREADINFO_REG + #_THREAD_INFO_FLAGS);
+		callr R16;
+	}
 
-	/*
-	 * Coming back from the C-world, our thread info pointer
-	 * should be in the designated register (usually R19)
-	 */
-#if CONFIG_HEXAGON_ARCH_VERSION < 4
-	R1.L = #LO(_TIF_ALLWORK_MASK)
 	{
-		R1.H = #HI(_TIF_ALLWORK_MASK);
-		R0 = memw(THREADINFO_REG + #_THREAD_INFO_FLAGS);
+		P0 = cmp.eq(R0, #0); if (!P0.new) jump:nt check_work_pending;
+		R0 = #VM_INT_DISABLE;
 	}
-#else
-	{
-		R1 = ##_TIF_ALLWORK_MASK;
-		R0 = memw(THREADINFO_REG + #_THREAD_INFO_FLAGS);
-	}
-#endif
-
-	/*
-	 * Compare against the "return to userspace" _TIF_WORK_MASK
-	 */
-	R1 = and(R1,R0);
-	{ P0 = cmp.eq(R1,#0); if (!P0.new) jump:t work_pending;}
-	jump restore_all;  /*  we're outta here!  */
-
-work_pending:
-	{
-		P0 = tstbit(R1, #TIF_NEED_RESCHED);
-		if (!P0.new) jump:nt work_notifysig;
-	}
-	call schedule
-	jump return_from_syscall;  /*  check for more work  */
-
-work_notifysig:
-	/*  this is the part that's kind of fuzzy.  */
-	R1 = and(R0, #(_TIF_SIGPENDING | _TIF_NOTIFY_RESUME));
-	{
-		P0 = cmp.eq(R1, #0);
-		if P0.new jump:t restore_all;
-	}
-	{
-		R1 = R0; 	/* unsigned long thread_info_flags */
-		R0 = R29;	/* regs should still be at top of stack  */
-	}
-	call do_notify_resume
 
 restore_all:
-	/* Disable interrupts, if they weren't already, before reg restore.  */
-	R0 = #VM_INT_DISABLE
+	/*
+	 * Disable interrupts, if they weren't already, before reg restore.
+	 * R0 gets preloaded with #VM_INT_DISABLE before we get here.
+	 */
 	trap1(#HVM_TRAP1_VMSETIE)
 
 	/*  do the setregs here for VM 0.5  */
@@ -371,6 +350,7 @@ restore_all:
 	trap1(#HVM_TRAP1_VMRTE)
 	/* Notreached */
 
+
 	.globl _K_enter_genex
 _K_enter_genex:
 	vm_event_entry(do_genex)
@@ -390,9 +370,12 @@ _K_enter_machcheck:
 
 	.globl ret_from_fork
 ret_from_fork:
-	call schedule_tail
-	P0 = cmp.eq(R24, #0);
-	if P0 jump return_from_syscall
-	R0 = R25;
-	callr R24
-	jump return_from_syscall
+	{
+		call schedule_tail;
+		R16.H = #HI(do_work_pending);
+	}
+	{
+		R16.L = #LO(do_work_pending);
+		R0 = #VM_INT_DISABLE;
+		jump check_work_pending;
+	}
