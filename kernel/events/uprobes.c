@@ -312,7 +312,7 @@ static int read_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_
 	void *vaddr_new;
 	int ret;
 
-	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 0, &page, NULL);
+	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
 	if (ret <= 0)
 		return ret;
 
