@@ -598,7 +598,7 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 			DRM_DEBUG_KMS("edid data is null.\n");
 			return -EINVAL;
 		}
-		raw_edid = (struct edid *)vidi->edid;
+		raw_edid = (struct edid *)(uint32_t)vidi->edid;
 		edid_len = (1 + raw_edid->extensions) * EDID_LENGTH;
 		ctx->raw_edid = kzalloc(edid_len, GFP_KERNEL);
 		if (!ctx->raw_edid) {
