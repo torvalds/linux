@@ -111,6 +111,7 @@ static int __devinit pcf50633_bl_probe(struct platform_device *pdev)
 	if (!pcf_bl)
 		return -ENOMEM;
 
+	memset(&bl_props, 0, sizeof(bl_props));
 	bl_props.type = BACKLIGHT_RAW;
 	bl_props.max_brightness = 0x3f;
 	bl_props.power = FB_BLANK_UNBLANK;
