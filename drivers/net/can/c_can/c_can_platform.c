@@ -42,27 +42,27 @@
  * Handle the same by providing a common read/write interface.
  */
 static u16 c_can_plat_read_reg_aligned_to_16bit(struct c_can_priv *priv,
-						void *reg)
+						enum reg index)
 {
-	return readw(reg);
+	return readw(priv->base + priv->regs[index]);
 }
 
 static void c_can_plat_write_reg_aligned_to_16bit(struct c_can_priv *priv,
-						void *reg, u16 val)
+						enum reg index, u16 val)
 {
-	writew(val, reg);
+	writew(val, priv->base + priv->regs[index]);
 }
 
 static u16 c_can_plat_read_reg_aligned_to_32bit(struct c_can_priv *priv,
-						void *reg)
+						enum reg index)
 {
-	return readw(reg + (long)reg - (long)priv->regs);
+	return readw(priv->base + 2 * priv->regs[index]);
 }
 
 static void c_can_plat_write_reg_aligned_to_32bit(struct c_can_priv *priv,
-						void *reg, u16 val)
+						enum reg index, u16 val)
 {
-	writew(val, reg + (long)reg - (long)priv->regs);
+	writew(val, priv->base + 2 * priv->regs[index]);
 }
 
 static int __devinit c_can_plat_probe(struct platform_device *pdev)
@@ -115,9 +115,10 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 	}
 
 	priv = netdev_priv(dev);
+	priv->regs = reg_map_c_can;
 
 	dev->irq = irq;
-	priv->regs = addr;
+	priv->base = addr;
 #ifdef CONFIG_HAVE_CLK
 	priv->can.clock.freq = clk_get_rate(clk);
 	priv->priv = clk;
@@ -146,7 +147,7 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "%s device registered (regs=%p, irq=%d)\n",
-		 KBUILD_MODNAME, priv->regs, dev->irq);
+		 KBUILD_MODNAME, priv->base, dev->irq);
 	return 0;
 
 exit_free_device:
@@ -176,7 +177,7 @@ static int __devexit c_can_plat_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	free_c_can_dev(dev);
-	iounmap(priv->regs);
+	iounmap(priv->base);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, resource_size(mem));
