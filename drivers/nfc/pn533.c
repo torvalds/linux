@@ -2112,13 +2112,17 @@ static int pn533_probe(struct usb_interface *interface,
 	if (rc) {
 		nfc_dev_err(&dev->interface->dev, "Error on setting MAX_RETRIES"
 								" config");
-		goto free_nfc_dev;
+		goto unregister_nfc_dev;
 	}
 
 	return 0;
 
+unregister_nfc_dev:
+	nfc_unregister_device(dev->nfc_dev);
+
 free_nfc_dev:
 	nfc_free_device(dev->nfc_dev);
+
 destroy_wq:
 	destroy_workqueue(dev->wq);
 error:
