@@ -50,10 +50,15 @@
 
 #define segment_eq(a,b) ((a).ar4 == (b).ar4)
 
-#define __access_ok(addr, size)	\
-({				\
-	__chk_user_ptr(addr);	\
-	1;			\
+static inline int __range_ok(unsigned long addr, unsigned long size)
+{
+	return 1;
+}
+
+#define __access_ok(addr, size)				\
+({							\
+	__chk_user_ptr(addr);				\
+	__range_ok((unsigned long)(addr), (size));	\
 })
 
 #define access_ok(type, addr, size) __access_ok(addr, size)
