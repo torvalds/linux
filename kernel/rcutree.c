@@ -157,7 +157,6 @@ unsigned long rcutorture_vernum;
 
 /* State information for rcu_barrier() and friends. */
 
-static DEFINE_PER_CPU(struct rcu_head, rcu_barrier_head) = {NULL};
 static atomic_t rcu_barrier_cpu_count;
 static DEFINE_MUTEX(rcu_barrier_mutex);
 static struct completion rcu_barrier_completion;
@@ -2282,12 +2281,11 @@ static void rcu_barrier_callback(struct rcu_head *notused)
  */
 static void rcu_barrier_func(void *type)
 {
-	int cpu = smp_processor_id();
-	struct rcu_head *head = &per_cpu(rcu_barrier_head, cpu);
 	struct rcu_state *rsp = type;
+	struct rcu_data *rdp = __this_cpu_ptr(rsp->rda);
 
 	atomic_inc(&rcu_barrier_cpu_count);
-	rsp->call(head, rcu_barrier_callback);
+	rsp->call(&rdp->barrier_head, rcu_barrier_callback);
 }
 
 /*

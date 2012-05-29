@@ -314,6 +314,9 @@ struct rcu_data {
 	unsigned long n_rp_need_fqs;
 	unsigned long n_rp_need_nothing;
 
+	/* 6) _rcu_barrier() callback. */
+	struct rcu_head barrier_head;
+
 	int cpu;
 	struct rcu_state *rsp;
 };
