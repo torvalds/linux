@@ -151,13 +151,10 @@ struct pc236_private {
  * bus and slot.
  */
 #if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
-static int
-pc236_find_pci(struct comedi_device *dev, int bus, int slot,
-	       struct pci_dev **pci_dev_p)
+struct pci_dev *
+pc236_find_pci(struct comedi_device *dev, int bus, int slot)
 {
 	struct pci_dev *pci_dev = NULL;
-
-	*pci_dev_p = NULL;
 
 	/* Look for matching PCI device. */
 	for (pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON, PCI_ANY_ID, NULL);
@@ -192,8 +189,7 @@ pc236_find_pci(struct comedi_device *dev, int bus, int slot,
 		}
 
 		/* Found a match. */
-		*pci_dev_p = pci_dev;
-		return 0;
+		return pci_dev;
 	}
 	/* No match found. */
 	if (bus || slot) {
@@ -204,7 +200,7 @@ pc236_find_pci(struct comedi_device *dev, int bus, int slot,
 		dev_err(dev->class_dev, "error! no %s found!\n",
 			thisboard->name);
 	}
-	return -EIO;
+	return NULL;
 }
 #endif
 
@@ -499,9 +495,9 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		slot = it->options[1];
 		share_irq = 1;
 
-		ret = pc236_find_pci(dev, bus, slot, &pci_dev);
-		if (ret < 0)
-			return ret;
+		pci_dev = pc236_find_pci(dev, bus, slot);
+		if (pci_dev == NULL)
+			return -EIO;
 		devpriv->pci_dev = pci_dev;
 		break;
 #endif
