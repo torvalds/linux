@@ -10,6 +10,8 @@
 
 struct perf_gtk_context {
 	GtkWidget *main_window;
+	GtkWidget *statbar;
+	guint statbar_ctx_id;
 };
 
 extern struct perf_gtk_context *pgctx;

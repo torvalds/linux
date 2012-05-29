@@ -122,13 +122,30 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 	gtk_container_add(GTK_CONTAINER(window), view);
 }
 
+static GtkWidget *perf_gtk__setup_statusbar(void)
+{
+	GtkWidget *stbar;
+	unsigned ctxid;
+
+	stbar = gtk_statusbar_new();
+
+	ctxid = gtk_statusbar_get_context_id(GTK_STATUSBAR(stbar),
+					     "perf report");
+	pgctx->statbar = stbar;
+	pgctx->statbar_ctx_id = ctxid;
+
+	return stbar;
+}
+
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 				  const char *help __used,
 				  void (*timer) (void *arg)__used,
 				  void *arg __used, int delay_secs __used)
 {
 	struct perf_evsel *pos;
+	GtkWidget *vbox;
 	GtkWidget *notebook;
+	GtkWidget *statbar;
 	GtkWidget *window;
 
 	signal(SIGSEGV, perf_gtk__signal);
@@ -146,6 +163,8 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 	pgctx = perf_gtk__activate_context(window);
 	if (!pgctx)
 		return -1;
+
+	vbox = gtk_vbox_new(FALSE, 0);
 
 	notebook = gtk_notebook_new();
 
@@ -168,7 +187,12 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 		gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scrolled_window, tab_label);
 	}
 
-	gtk_container_add(GTK_CONTAINER(window), notebook);
+	gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
+
+	statbar = perf_gtk__setup_statusbar();
+	gtk_box_pack_start(GTK_BOX(vbox), statbar, FALSE, FALSE, 0);
+
+	gtk_container_add(GTK_CONTAINER(window), vbox);
 
 	gtk_widget_show_all(window);
 
