@@ -740,6 +740,18 @@ static inline __u16 __next_seq(struct l2cap_chan *chan, __u16 seq)
 	return (seq + 1) % (chan->tx_win_max + 1);
 }
 
+static inline struct l2cap_chan *l2cap_chan_no_new_connection(struct l2cap_chan *chan)
+{
+	return NULL;
+}
+
+static inline void l2cap_chan_no_teardown(struct l2cap_chan *chan, int err)
+{
+}
+
+static inline void l2cap_chan_no_ready(struct l2cap_chan *chan)
+{
+}
 
 extern bool disable_ertm;
 

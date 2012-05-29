@@ -440,23 +440,6 @@ static struct sk_buff *a2mp_chan_alloc_skb_cb(struct l2cap_chan *chan,
 	return bt_skb_alloc(len, GFP_KERNEL);
 }
 
-static struct l2cap_chan *a2mp_chan_no_new_conn_cb(struct l2cap_chan *chan)
-{
-	BT_ERR("new_connection for chan %p not implemented", chan);
-
-	return NULL;
-}
-
-static void a2mp_chan_no_teardown_cb(struct l2cap_chan *chan, int err)
-{
-	BT_ERR("teardown for chan %p not implemented", chan);
-}
-
-static void a2mp_chan_no_ready(struct l2cap_chan *chan)
-{
-	BT_ERR("ready for chan %p not implemented", chan);
-}
-
 static struct l2cap_ops a2mp_chan_ops = {
 	.name = "L2CAP A2MP channel",
 	.recv = a2mp_chan_recv_cb,
@@ -465,9 +448,9 @@ static struct l2cap_ops a2mp_chan_ops = {
 	.alloc_skb = a2mp_chan_alloc_skb_cb,
 
 	/* Not implemented for A2MP */
-	.new_connection = a2mp_chan_no_new_conn_cb,
-	.teardown = a2mp_chan_no_teardown_cb,
-	.ready = a2mp_chan_no_ready,
+	.new_connection = l2cap_chan_no_new_connection,
+	.teardown = l2cap_chan_no_teardown,
+	.ready = l2cap_chan_no_ready,
 };
 
 static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn)
