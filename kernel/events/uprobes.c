@@ -1489,7 +1489,7 @@ static bool can_skip_sstep(struct uprobe *uprobe, struct pt_regs *regs)
 	return false;
 }
 
-static struct uprobe *find_active_uprobe(unsigned long bp_vaddr)
+static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 {
 	struct mm_struct *mm = current->mm;
 	struct uprobe *uprobe = NULL;
@@ -1497,7 +1497,6 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr)
 
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, bp_vaddr);
-
 	if (vma && vma->vm_start <= bp_vaddr) {
 		if (valid_vma(vma, false)) {
 			struct inode *inode;
@@ -1508,6 +1507,11 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr)
 			offset += (vma->vm_pgoff << PAGE_SHIFT);
 			uprobe = find_uprobe(inode, offset);
 		}
+
+		if (!uprobe)
+			*is_swbp = is_swbp_at_addr(mm, bp_vaddr);
+	} else {
+		*is_swbp = -EFAULT;
 	}
 
 	srcu_read_unlock_raw(&uprobes_srcu, current->uprobe_srcu_id);
@@ -1526,9 +1530,10 @@ static void handle_swbp(struct pt_regs *regs)
 	struct uprobe_task *utask;
 	struct uprobe *uprobe;
 	unsigned long bp_vaddr;
+	int is_swbp;
 
 	bp_vaddr = uprobe_get_swbp_addr(regs);
-	uprobe = find_active_uprobe(bp_vaddr);
+	uprobe = find_active_uprobe(bp_vaddr, &is_swbp);
 
 	if (!uprobe) {
 		/* No matching uprobe; signal SIGTRAP. */
