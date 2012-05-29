@@ -300,10 +300,11 @@ void omap_rfbi_write_pixels(const void __iomem *buf, int scr_width,
 }
 EXPORT_SYMBOL(omap_rfbi_write_pixels);
 
-static void rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
+static int rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
 		u16 height, void (*callback)(void *data), void *data)
 {
 	u32 l;
+	int r;
 	struct omap_video_timings timings = {
 		.hsw		= 1,
 		.hfp		= 1,
@@ -322,7 +323,9 @@ static void rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
 
 	dss_mgr_set_timings(dssdev->manager, &timings);
 
-	dispc_mgr_enable(dssdev->manager->id, true);
+	r = dss_mgr_enable(dssdev->manager);
+	if (r)
+		return r;
 
 	rfbi.framedone_callback = callback;
 	rfbi.framedone_callback_data = data;
@@ -335,6 +338,8 @@ static void rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
 		l = FLD_MOD(l, 1, 4, 4); /* ITE */
 
 	rfbi_write_reg(RFBI_CONTROL, l);
+
+	return 0;
 }
 
 static void framedone_callback(void *data, u32 mask)
@@ -814,8 +819,11 @@ int omap_rfbi_update(struct omap_dss_device *dssdev,
 		u16 x, u16 y, u16 w, u16 h,
 		void (*callback)(void *), void *data)
 {
-	rfbi_transfer_area(dssdev, w, h, callback, data);
-	return 0;
+	int r;
+
+	r = rfbi_transfer_area(dssdev, w, h, callback, data);
+
+	return r;
 }
 EXPORT_SYMBOL(omap_rfbi_update);
 
