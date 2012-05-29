@@ -31,21 +31,17 @@ static ssize_t led_delay_on_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	int ret = -EINVAL;
-	char *after;
-	unsigned long state = simple_strtoul(buf, &after, 10);
-	size_t count = after - buf;
+	unsigned long state;
+	ssize_t ret = -EINVAL;
 
-	if (isspace(*after))
-		count++;
+	ret = kstrtoul(buf, 10, &state);
+	if (ret)
+		return ret;
 
-	if (count == size) {
-		led_blink_set(led_cdev, &state, &led_cdev->blink_delay_off);
-		led_cdev->blink_delay_on = state;
-		ret = count;
-	}
+	led_blink_set(led_cdev, &state, &led_cdev->blink_delay_off);
+	led_cdev->blink_delay_on = state;
 
-	return ret;
+	return size;
 }
 
 static ssize_t led_delay_off_show(struct device *dev,
@@ -60,21 +56,17 @@ static ssize_t led_delay_off_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	int ret = -EINVAL;
-	char *after;
-	unsigned long state = simple_strtoul(buf, &after, 10);
-	size_t count = after - buf;
+	unsigned long state;
+	ssize_t ret = -EINVAL;
 
-	if (isspace(*after))
-		count++;
+	ret = kstrtoul(buf, 10, &state);
+	if (ret)
+		return ret;
 
-	if (count == size) {
-		led_blink_set(led_cdev, &led_cdev->blink_delay_on, &state);
-		led_cdev->blink_delay_off = state;
-		ret = count;
-	}
+	led_blink_set(led_cdev, &led_cdev->blink_delay_on, &state);
+	led_cdev->blink_delay_off = state;
 
-	return ret;
+	return size;
 }
 
 static DEVICE_ATTR(delay_on, 0644, led_delay_on_show, led_delay_on_store);
