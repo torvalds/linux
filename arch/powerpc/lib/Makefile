@@ -24,7 +24,7 @@ obj-$(CONFIG_HAVE_HW_BREAKPOINT)	+= sstep.o ldstfp.o
 
 ifeq ($(CONFIG_PPC64),y)
 obj-$(CONFIG_SMP)	+= locks.o
-obj-$(CONFIG_ALTIVEC)	+= copyuser_power7_vmx.o
+obj-$(CONFIG_ALTIVEC)	+= vmx-helper.o
 endif
 
 obj-$(CONFIG_PPC_LIB_RHEAP) += rheap.o
