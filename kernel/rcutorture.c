@@ -206,6 +206,7 @@ static unsigned long boost_starttime;	/* jiffies of next boost test start. */
 DEFINE_MUTEX(boost_mutex);		/* protect setting boost_starttime */
 					/*  and boost task create/destroy. */
 static atomic_t barrier_cbs_count;	/* Barrier callbacks registered. */
+static bool barrier_phase;		/* Test phase. */
 static atomic_t barrier_cbs_invoked;	/* Barrier callbacks invoked. */
 static wait_queue_head_t *barrier_cbs_wq; /* Coordinate barrier testing. */
 static DECLARE_WAIT_QUEUE_HEAD(barrier_wq);
@@ -1642,6 +1643,7 @@ void rcu_torture_barrier_cbf(struct rcu_head *rcu)
 static int rcu_torture_barrier_cbs(void *arg)
 {
 	long myid = (long)arg;
+	bool lastphase = 0;
 	struct rcu_head rcu;
 
 	init_rcu_head_on_stack(&rcu);
@@ -1649,9 +1651,11 @@ static int rcu_torture_barrier_cbs(void *arg)
 	set_user_nice(current, 19);
 	do {
 		wait_event(barrier_cbs_wq[myid],
-			   atomic_read(&barrier_cbs_count) == n_barrier_cbs ||
+			   barrier_phase != lastphase ||
 			   kthread_should_stop() ||
 			   fullstop != FULLSTOP_DONTSTOP);
+		lastphase = barrier_phase;
+		smp_mb(); /* ensure barrier_phase load before ->call(). */
 		if (kthread_should_stop() || fullstop != FULLSTOP_DONTSTOP)
 			break;
 		cur_ops->call(&rcu, rcu_torture_barrier_cbf);
@@ -1676,7 +1680,8 @@ static int rcu_torture_barrier(void *arg)
 	do {
 		atomic_set(&barrier_cbs_invoked, 0);
 		atomic_set(&barrier_cbs_count, n_barrier_cbs);
-		/* wake_up() path contains the required barriers. */
+		smp_mb(); /* Ensure barrier_phase after prior assignments. */
+		barrier_phase = !barrier_phase;
 		for (i = 0; i < n_barrier_cbs; i++)
 			wake_up(&barrier_cbs_wq[i]);
 		wait_event(barrier_wq,
