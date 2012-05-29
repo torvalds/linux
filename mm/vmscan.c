@@ -1488,13 +1488,12 @@ static int inactive_anon_is_low_global(struct zone *zone)
 
 /**
  * inactive_anon_is_low - check if anonymous pages need to be deactivated
- * @zone: zone to check
- * @sc:   scan control of this context
+ * @lruvec: LRU vector to check
  *
  * Returns true if the zone does not have enough inactive anon pages,
  * meaning some active anon pages need to be deactivated.
  */
-static int inactive_anon_is_low(struct mem_cgroup_zone *mz)
+static int inactive_anon_is_low(struct lruvec *lruvec)
 {
 	/*
 	 * If we don't have swap space, anonymous page deactivation
@@ -1504,13 +1503,12 @@ static int inactive_anon_is_low(struct mem_cgroup_zone *mz)
 		return 0;
 
 	if (!mem_cgroup_disabled())
-		return mem_cgroup_inactive_anon_is_low(mz->mem_cgroup,
-						       mz->zone);
+		return mem_cgroup_inactive_anon_is_low(lruvec);
 
-	return inactive_anon_is_low_global(mz->zone);
+	return inactive_anon_is_low_global(lruvec_zone(lruvec));
 }
 #else
-static inline int inactive_anon_is_low(struct mem_cgroup_zone *mz)
+static inline int inactive_anon_is_low(struct lruvec *lruvec)
 {
 	return 0;
 }
@@ -1528,7 +1526,7 @@ static int inactive_file_is_low_global(struct zone *zone)
 
 /**
  * inactive_file_is_low - check if file pages need to be deactivated
- * @mz: memory cgroup and zone to check
+ * @lruvec: LRU vector to check
  *
  * When the system is doing streaming IO, memory pressure here
  * ensures that active file pages get deactivated, until more
@@ -1540,21 +1538,20 @@ static int inactive_file_is_low_global(struct zone *zone)
  * This uses a different ratio than the anonymous pages, because
  * the page cache uses a use-once replacement algorithm.
  */
-static int inactive_file_is_low(struct mem_cgroup_zone *mz)
+static int inactive_file_is_low(struct lruvec *lruvec)
 {
 	if (!mem_cgroup_disabled())
-		return mem_cgroup_inactive_file_is_low(mz->mem_cgroup,
-						       mz->zone);
+		return mem_cgroup_inactive_file_is_low(lruvec);
 
-	return inactive_file_is_low_global(mz->zone);
+	return inactive_file_is_low_global(lruvec_zone(lruvec));
 }
 
-static int inactive_list_is_low(struct mem_cgroup_zone *mz, int file)
+static int inactive_list_is_low(struct lruvec *lruvec, int file)
 {
 	if (file)
-		return inactive_file_is_low(mz);
+		return inactive_file_is_low(lruvec);
 	else
-		return inactive_anon_is_low(mz);
+		return inactive_anon_is_low(lruvec);
 }
 
 static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
@@ -1564,7 +1561,10 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
 	int file = is_file_lru(lru);
 
 	if (is_active_lru(lru)) {
-		if (inactive_list_is_low(mz, file))
+		struct lruvec *lruvec = mem_cgroup_zone_lruvec(mz->zone,
+							       mz->mem_cgroup);
+
+		if (inactive_list_is_low(lruvec, file))
 			shrink_active_list(nr_to_scan, mz, sc, lru);
 		return 0;
 	}
@@ -1793,6 +1793,9 @@ static void shrink_mem_cgroup_zone(struct mem_cgroup_zone *mz,
 	unsigned long nr_reclaimed, nr_scanned;
 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
 	struct blk_plug plug;
+	struct lruvec *lruvec;
+
+	lruvec = mem_cgroup_zone_lruvec(mz->zone, mz->mem_cgroup);
 
 restart:
 	nr_reclaimed = 0;
@@ -1831,7 +1834,7 @@ restart:
 	 * Even if we did not try to evict anon pages at all, we want to
 	 * rebalance the anon lru active/inactive ratio.
 	 */
-	if (inactive_anon_is_low(mz))
+	if (inactive_anon_is_low(lruvec))
 		shrink_active_list(SWAP_CLUSTER_MAX, mz,
 				   sc, LRU_ACTIVE_ANON);
 
@@ -2264,12 +2267,13 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc)
 
 	memcg = mem_cgroup_iter(NULL, NULL, NULL);
 	do {
+		struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
 		struct mem_cgroup_zone mz = {
 			.mem_cgroup = memcg,
 			.zone = zone,
 		};
 
-		if (inactive_anon_is_low(&mz))
+		if (inactive_anon_is_low(lruvec))
 			shrink_active_list(SWAP_CLUSTER_MAX, &mz,
 					   sc, LRU_ACTIVE_ANON);
 

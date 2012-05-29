@@ -1208,19 +1208,15 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
 	return ret;
 }
 
-int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg, struct zone *zone)
+int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
 {
 	unsigned long inactive_ratio;
-	int nid = zone_to_nid(zone);
-	int zid = zone_idx(zone);
 	unsigned long inactive;
 	unsigned long active;
 	unsigned long gb;
 
-	inactive = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
-						BIT(LRU_INACTIVE_ANON));
-	active = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
-					      BIT(LRU_ACTIVE_ANON));
+	inactive = mem_cgroup_get_lruvec_size(lruvec, LRU_INACTIVE_ANON);
+	active = mem_cgroup_get_lruvec_size(lruvec, LRU_ACTIVE_ANON);
 
 	gb = (inactive + active) >> (30 - PAGE_SHIFT);
 	if (gb)
@@ -1231,17 +1227,13 @@ int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg, struct zone *zone)
 	return inactive * inactive_ratio < active;
 }
 
-int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg, struct zone *zone)
+int mem_cgroup_inactive_file_is_low(struct lruvec *lruvec)
 {
 	unsigned long active;
 	unsigned long inactive;
-	int zid = zone_idx(zone);
-	int nid = zone_to_nid(zone);
 
-	inactive = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
-						BIT(LRU_INACTIVE_FILE));
-	active = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
-					      BIT(LRU_ACTIVE_FILE));
+	inactive = mem_cgroup_get_lruvec_size(lruvec, LRU_INACTIVE_FILE);
+	active = mem_cgroup_get_lruvec_size(lruvec, LRU_ACTIVE_FILE);
 
 	return (active > inactive);
 }
