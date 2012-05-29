@@ -160,9 +160,14 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 	return old;
 }
 
-#define cmpxchg(ptr, o, n)						\
-	((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o),	\
-				       (unsigned long)(n), sizeof(*(ptr))))
+#define cmpxchg(ptr, o, n)						 \
+({									 \
+	__typeof__(*(ptr)) __ret;					 \
+	__ret = (__typeof__(*(ptr)))					 \
+		__cmpxchg((ptr), (unsigned long)(o), (unsigned long)(n), \
+			  sizeof(*(ptr)));				 \
+	__ret;								 \
+})
 
 #ifdef CONFIG_64BIT
 #define cmpxchg64(ptr, o, n)						\
@@ -184,10 +189,16 @@ static inline unsigned long long __cmpxchg64(void *ptr,
 		: "memory", "cc");
 	return rp_old.pair;
 }
-#define cmpxchg64(ptr, o, n)						\
-	((__typeof__(*(ptr)))__cmpxchg64((ptr),				\
-					 (unsigned long long)(o),	\
-					 (unsigned long long)(n)))
+
+#define cmpxchg64(ptr, o, n)				\
+({							\
+	__typeof__(*(ptr)) __ret;			\
+	__ret = (__typeof__(*(ptr)))			\
+		__cmpxchg64((ptr),			\
+			    (unsigned long long)(o),	\
+			    (unsigned long long)(n));	\
+	__ret;						\
+})
 #endif /* CONFIG_64BIT */
 
 #include <asm-generic/cmpxchg-local.h>
@@ -216,8 +227,13 @@ static inline unsigned long __cmpxchg_local(void *ptr,
  * them available.
  */
 #define cmpxchg_local(ptr, o, n)					\
-	((__typeof__(*(ptr)))__cmpxchg_local((ptr), (unsigned long)(o),	\
-			(unsigned long)(n), sizeof(*(ptr))))
+({									\
+	__typeof__(*(ptr)) __ret;					\
+	__ret = (__typeof__(*(ptr)))					\
+		__cmpxchg_local((ptr), (unsigned long)(o),		\
+				(unsigned long)(n), sizeof(*(ptr)));	\
+	__ret;								\
+})
 
 #define cmpxchg64_local(ptr, o, n)	cmpxchg64((ptr), (o), (n))
 
