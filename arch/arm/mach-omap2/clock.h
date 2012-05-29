@@ -155,4 +155,16 @@ extern const struct clkops clkops_omap3_noncore_dpll_ops;
 extern const struct clkops clkops_omap3_core_dpll_ops;
 extern const struct clkops clkops_omap4_dpllmx_ops;
 
+/* clksel_rate blocks shared between OMAP44xx and AM33xx */
+extern const struct clksel_rate div_1_0_rates[];
+extern const struct clksel_rate div_1_1_rates[];
+extern const struct clksel_rate div_1_2_rates[];
+extern const struct clksel_rate div_1_3_rates[];
+extern const struct clksel_rate div_1_4_rates[];
+extern const struct clksel_rate div31_1to31_rates[];
+
+/* clocks shared between various OMAP SoCs */
+extern struct clk virt_19200000_ck;
+extern struct clk virt_26000000_ck;
+
 #endif

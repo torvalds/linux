@@ -93,18 +93,6 @@ static struct clk virt_16_8m_ck = {
 	.rate		= 16800000,
 };
 
-static struct clk virt_19_2m_ck = {
-	.name		= "virt_19_2m_ck",
-	.ops		= &clkops_null,
-	.rate		= 19200000,
-};
-
-static struct clk virt_26m_ck = {
-	.name		= "virt_26m_ck",
-	.ops		= &clkops_null,
-	.rate		= 26000000,
-};
-
 static struct clk virt_38_4m_ck = {
 	.name		= "virt_38_4m_ck",
 	.ops		= &clkops_null,
@@ -145,8 +133,8 @@ static const struct clksel osc_sys_clksel[] = {
 	{ .parent = &virt_12m_ck,   .rates = osc_sys_12m_rates },
 	{ .parent = &virt_13m_ck,   .rates = osc_sys_13m_rates },
 	{ .parent = &virt_16_8m_ck, .rates = osc_sys_16_8m_rates },
-	{ .parent = &virt_19_2m_ck, .rates = osc_sys_19_2m_rates },
-	{ .parent = &virt_26m_ck,   .rates = osc_sys_26m_rates },
+	{ .parent = &virt_19200000_ck, .rates = osc_sys_19_2m_rates },
+	{ .parent = &virt_26000000_ck,   .rates = osc_sys_26m_rates },
 	{ .parent = &virt_38_4m_ck, .rates = osc_sys_38_4m_rates },
 	{ .parent = NULL },
 };
@@ -3230,8 +3218,8 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"virt_12m_ck",	&virt_12m_ck,	CK_3XXX),
 	CLK(NULL,	"virt_13m_ck",	&virt_13m_ck,	CK_3XXX),
 	CLK(NULL,	"virt_16_8m_ck", &virt_16_8m_ck, CK_3430ES2PLUS | CK_AM35XX  | CK_36XX),
-	CLK(NULL,	"virt_19_2m_ck", &virt_19_2m_ck, CK_3XXX),
-	CLK(NULL,	"virt_26m_ck",	&virt_26m_ck,	CK_3XXX),
+	CLK(NULL,	"virt_19200000_ck", &virt_19200000_ck, CK_3XXX),
+	CLK(NULL,	"virt_26000000_ck",	&virt_26000000_ck,	CK_3XXX),
 	CLK(NULL,	"virt_38_4m_ck", &virt_38_4m_ck, CK_3XXX),
 	CLK(NULL,	"osc_sys_ck",	&osc_sys_ck,	CK_3XXX),
 	CLK(NULL,	"sys_ck",	&sys_ck,	CK_3XXX),
