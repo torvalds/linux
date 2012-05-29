@@ -204,7 +204,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 			unsigned long off = 0;
 
 			vec >>= start & (BITS_PER_LONG - 1);
-			while (vec && off < BITS_PER_LONG) {
+			while (vec) {
 				if (vec & 1) {
 					page = pfn_to_page(start + off);
 					__free_pages_bootmem(page, 0);
