@@ -1178,6 +1178,8 @@ static void fsi_dma_push_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
 
 	fsi_reg_mask_set(fsi, OUT_DMAC, DMA_ON, enable);
 
+	dmaengine_terminate_all(io->chan);
+
 	if (fsi_is_clk_master(fsi))
 		fsi_master_mask_set(master, CLK_RST, clk, (enable) ? clk : 0);
 }
