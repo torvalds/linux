@@ -98,7 +98,6 @@ enum pc236_model { pc36at_model, pci236_model, anypci_model };
 
 struct pc236_board {
 	const char *name;
-	const char *fancy_name;
 	unsigned short devid;
 	enum pc236_bustype bustype;
 	enum pc236_model model;
@@ -106,27 +105,24 @@ struct pc236_board {
 static const struct pc236_board pc236_boards[] = {
 #if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_ISA)
 	{
-	 .name = "pc36at",
-	 .fancy_name = "PC36AT",
-	 .bustype = isa_bustype,
-	 .model = pc36at_model,
-	 },
+		.name = "pc36at",
+		.bustype = isa_bustype,
+		.model = pc36at_model,
+	},
 #endif
 #if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
 	{
-	 .name = "pci236",
-	 .fancy_name = "PCI236",
-	 .devid = PCI_DEVICE_ID_AMPLICON_PCI236,
-	 .bustype = pci_bustype,
-	 .model = pci236_model,
-	 },
+		.name = "pci236",
+		.devid = PCI_DEVICE_ID_AMPLICON_PCI236,
+		.bustype = pci_bustype,
+		.model = pci236_model,
+	},
 	{
-	 .name = PC236_DRIVER_NAME,
-	 .fancy_name = PC236_DRIVER_NAME,
-	 .devid = PCI_DEVICE_ID_INVALID,
-	 .bustype = pci_bustype,
-	 .model = anypci_model,	/* wildcard */
-	 },
+		.name = PC236_DRIVER_NAME,
+		.devid = PCI_DEVICE_ID_INVALID,
+		.bustype = pci_bustype,
+		.model = anypci_model,	/* wildcard */
+	},
 #endif
 };
 
