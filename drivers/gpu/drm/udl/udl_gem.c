@@ -257,8 +257,6 @@ static int udl_prime_create(struct drm_device *dev,
 {
 	struct udl_gem_object *obj;
 	int npages;
-	int i;
-	struct scatterlist *iter;
 
 	npages = size / PAGE_SIZE;
 
