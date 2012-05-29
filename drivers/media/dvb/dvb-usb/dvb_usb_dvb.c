@@ -97,14 +97,14 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 
 	/* activate the pid on the device specific pid_filter */
 	deb_ts("setting pid (%s): %5d %04x at index %d '%s'\n",
-		adap->fe_adap[adap->active_fe].pid_filtering ?
+		adap->pid_filtering ?
 		"yes" : "no", dvbdmxfeed->pid, dvbdmxfeed->pid,
 		dvbdmxfeed->index, onoff ? "on" : "off");
-	if (adap->props.fe[adap->active_fe].caps & DVB_USB_ADAP_HAS_PID_FILTER &&
-		adap->fe_adap[adap->active_fe].pid_filtering &&
-		adap->props.fe[adap->active_fe].pid_filter != NULL)
-		adap->props.fe[adap->active_fe].pid_filter(adap,
-			dvbdmxfeed->index, dvbdmxfeed->pid, onoff);
+	if (adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER &&
+			adap->pid_filtering &&
+			adap->props.pid_filter != NULL)
+		adap->props.pid_filter(adap, dvbdmxfeed->index,
+				dvbdmxfeed->pid, onoff);
 
 	/* start the feed if this was the first feed and there is still a feed
 	 * for reception.
@@ -146,13 +146,13 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		usb_urb_submit(&adap->stream, &stream_props);
 
 		deb_ts("controlling pid parser\n");
-		if (adap->props.fe[adap->active_fe].caps & DVB_USB_ADAP_HAS_PID_FILTER &&
-			adap->props.fe[adap->active_fe].caps &
+		if (adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER &&
+			adap->props.caps &
 			DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF &&
-			adap->props.fe[adap->active_fe].pid_filter_ctrl != NULL) {
-			ret = adap->props.fe[adap->active_fe].pid_filter_ctrl(
+			adap->props.pid_filter_ctrl != NULL) {
+			ret = adap->props.pid_filter_ctrl(
 				adap,
-				adap->fe_adap[adap->active_fe].pid_filtering);
+				adap->pid_filtering);
 			if (ret < 0) {
 				err("could not handle pid_parser");
 				return ret;
@@ -214,8 +214,8 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
 
 	adap->demux.filternum        = 0;
 	for (i = 0; i < adap->props.num_frontends; i++) {
-		if (adap->demux.filternum < adap->fe_adap[i].max_feed_count)
-			adap->demux.filternum = adap->fe_adap[i].max_feed_count;
+		if (adap->demux.filternum < adap->max_feed_count)
+			adap->demux.filternum = adap->max_feed_count;
 	}
 	adap->demux.feednum          = adap->demux.filternum;
 	adap->demux.start_feed       = dvb_usb_start_feed;

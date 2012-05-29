@@ -114,17 +114,7 @@ struct usb_data_stream_properties {
  * @stream: configuration of the USB streaming
  */
 struct dvb_usb_adapter_fe_properties {
-#define DVB_USB_ADAP_HAS_PID_FILTER               0x01
-#define DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF 0x02
-#define DVB_USB_ADAP_NEED_PID_FILTERING           0x04
-#define DVB_USB_ADAP_RECEIVES_204_BYTE_TS         0x08
-#define DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD         0x10
-	int caps;
-	int pid_filter_count;
-
 	int (*streaming_ctrl)  (struct dvb_usb_adapter *, int);
-	int (*pid_filter_ctrl) (struct dvb_usb_adapter *, int);
-	int (*pid_filter)      (struct dvb_usb_adapter *, int, u16, int);
 
 	int (*frontend_attach) (struct dvb_usb_adapter *);
 	int (*tuner_attach)    (struct dvb_usb_adapter *);
@@ -134,7 +124,17 @@ struct dvb_usb_adapter_fe_properties {
 
 #define MAX_NO_OF_FE_PER_ADAP 3
 struct dvb_usb_adapter_properties {
+#define DVB_USB_ADAP_HAS_PID_FILTER               0x01
+#define DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF 0x02
+#define DVB_USB_ADAP_NEED_PID_FILTERING           0x04
+#define DVB_USB_ADAP_RECEIVES_204_BYTE_TS         0x08
+#define DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD         0x10
+	int caps;
 	int size_of_priv;
+
+	int pid_filter_count;
+	int (*pid_filter_ctrl) (struct dvb_usb_adapter *, int);
+	int (*pid_filter) (struct dvb_usb_adapter *, int, u16, int);
 
 	int (*frontend_ctrl)   (struct dvb_frontend *, int);
 	int (*fe_ioctl_override) (struct dvb_frontend *,
@@ -314,24 +314,21 @@ struct dvb_usb_fe_adapter {
 	int (*fe_init)  (struct dvb_frontend *);
 	int (*fe_sleep) (struct dvb_frontend *);
 
-	int pid_filtering;
-	int max_feed_count;
-
 	void *priv;
 };
 
 struct dvb_usb_adapter {
-	struct dvb_usb_device *dev;
-	struct dvb_usb_adapter_properties props;
-	struct usb_data_stream stream;
-
 #define DVB_USB_ADAP_STATE_INIT 0x000
 #define DVB_USB_ADAP_STATE_DVB  0x001
 	int state;
-
+	struct dvb_usb_device *dev;
+	struct dvb_usb_adapter_properties props;
+	struct usb_data_stream stream;
 	u8  id;
 
+	int pid_filtering;
 	int feedcount;
+	int max_feed_count;
 
 	/* dvb */
 	struct dvb_adapter   dvb_adap;
