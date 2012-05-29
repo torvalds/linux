@@ -13,7 +13,7 @@
 #define RECLAIM_WB_ANON		0x0001u
 #define RECLAIM_WB_FILE		0x0002u
 #define RECLAIM_WB_MIXED	0x0010u
-#define RECLAIM_WB_SYNC		0x0004u
+#define RECLAIM_WB_SYNC		0x0004u /* Unused, all reclaim async */
 #define RECLAIM_WB_ASYNC	0x0008u
 
 #define show_reclaim_flags(flags)				\
@@ -27,13 +27,13 @@
 
 #define trace_reclaim_flags(page, sync) ( \
 	(page_is_file_cache(page) ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
-	(sync & RECLAIM_MODE_SYNC ? RECLAIM_WB_SYNC : RECLAIM_WB_ASYNC)   \
+	(RECLAIM_WB_ASYNC) \
 	)
 
-#define trace_shrink_flags(file, sync) ( \
-	(sync & RECLAIM_MODE_SYNC ? RECLAIM_WB_MIXED : \
-			(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON)) |  \
-	(sync & RECLAIM_MODE_SYNC ? RECLAIM_WB_SYNC : RECLAIM_WB_ASYNC) \
+#define trace_shrink_flags(file, sync) \
+	( \
+		(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
+		(RECLAIM_WB_ASYNC) \
 	)
 
 TRACE_EVENT(mm_vmscan_kswapd_sleep,
