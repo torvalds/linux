@@ -87,8 +87,7 @@ static void timer_trig_activate(struct led_classdev *led_cdev)
 
 	led_blink_set(led_cdev, &led_cdev->blink_delay_on,
 		      &led_cdev->blink_delay_off);
-
-	led_cdev->trigger_data = (void *)1;
+	led_cdev->activated = true;
 
 	return;
 
@@ -98,9 +97,10 @@ err_out_delayon:
 
 static void timer_trig_deactivate(struct led_classdev *led_cdev)
 {
-	if (led_cdev->trigger_data) {
+	if (led_cdev->activated) {
 		device_remove_file(led_cdev->dev, &dev_attr_delay_on);
 		device_remove_file(led_cdev->dev, &dev_attr_delay_off);
+		led_cdev->activated = false;
 	}
 
 	/* Stop blinking */
