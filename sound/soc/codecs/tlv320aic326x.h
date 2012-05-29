@@ -173,7 +173,7 @@ struct aic3262_priv {
 	struct aic3262_pdata *pdata;
 	int mute_asi; // Bit 0 -> ASI1, Bit 1-> ASI2, Bit 2 -> ASI3
 	int dsp_runstate;
-	struct firmware *cur_fw;
+	const struct firmware *cur_fw;
 	int isdefault_fw;
 };
 /*struct aic3262_configs {

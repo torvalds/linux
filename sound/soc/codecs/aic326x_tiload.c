@@ -269,10 +269,10 @@ static ssize_t tiload_write(struct file *file, const char __user * buf,
 	
 }
 
-static int tiload_ioctl(struct file *filp,
+static long tiload_ioctl(struct file *filp,
 			unsigned int cmd, unsigned long arg)
 {
-	int num = 0;
+	long num = 0;
 	void __user *argp = (void __user *)arg;
 	if (_IOC_TYPE(cmd) != aic3262_IOC_MAGIC)
 		return -ENOTTY;

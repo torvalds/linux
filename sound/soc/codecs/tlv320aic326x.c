@@ -262,10 +262,13 @@ static const struct snd_kcontrol_new aic3262_snd_controls[] = {
 #endif
 	/*HP Driver Gain Control*/
 	SOC_DOUBLE_R_SX_TLV("HeadPhone Driver Amplifier Volume", AIC3262_HPL_VOL, AIC3262_HPR_VOL, 6, 0xffffffb9, 0xffffffce, output_gain_tlv),
+	SOC_DOUBLE_R_SX_TLV("Headphone Volume", AIC3262_HPL_VOL, AIC3262_HPR_VOL, 6, 0xffffffb9, 0xffffffce, output_gain_tlv),	
 	/*LO Driver Gain Control*/
 	SOC_DOUBLE_TLV("Speaker Amplifier Volume", AIC3262_SPK_AMP_CNTL_R4, 4, 0, 5, 0, spk_gain_tlv),
+	SOC_DOUBLE_TLV("Speaker Volume", AIC3262_SPK_AMP_CNTL_R4, 4, 0, 5, 0, spk_gain_tlv),
 
 	SOC_DOUBLE_R_SX_TLV("Receiver Amplifier Volume", AIC3262_REC_AMP_CNTL_R5, AIC3262_RAMPR_VOL, 6, 0xffffffb9, 0xffffffd6, output_gain_tlv),
+	SOC_DOUBLE_R_SX_TLV("Earpiece Volume", AIC3262_REC_AMP_CNTL_R5, AIC3262_RAMPR_VOL, 6, 0xffffffb9, 0xffffffd6, output_gain_tlv),
 
 	SOC_DOUBLE_R_SX_TLV("PCM Capture Volume", 
 			AIC3262_LADC_VOL, AIC3262_RADC_VOL, 7,0xffffff68, 0xffffffa8, adc_vol_tlv),
