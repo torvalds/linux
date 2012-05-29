@@ -113,9 +113,9 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 			"	nr	%1,%5\n"
 			"	jnz	0b\n"
 			"1:"
-			: "=&d" (prev), "=&d" (tmp), "=Q" (*(int *) ptr)
+			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) addr)
 			: "d" (old << shift), "d" (new << shift),
-			  "d" (~(255 << shift)), "Q" (*(int *) ptr)
+			  "d" (~(255 << shift))
 			: "memory", "cc");
 		return prev >> shift;
 	case 2:
@@ -134,9 +134,9 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 			"	nr	%1,%5\n"
 			"	jnz	0b\n"
 			"1:"
-			: "=&d" (prev), "=&d" (tmp), "=Q" (*(int *) ptr)
+			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) addr)
 			: "d" (old << shift), "d" (new << shift),
-			  "d" (~(65535 << shift)), "Q" (*(int *) ptr)
+			  "d" (~(65535 << shift))
 			: "memory", "cc");
 		return prev >> shift;
 	case 4:
