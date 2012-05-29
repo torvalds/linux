@@ -17,6 +17,52 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/a2mp.h>
 
+/* A2MP build & send command helper functions */
+static struct a2mp_cmd *__a2mp_build(u8 code, u8 ident, u16 len, void *data)
+{
+	struct a2mp_cmd *cmd;
+	int plen;
+
+	plen = sizeof(*cmd) + len;
+	cmd = kzalloc(plen, GFP_KERNEL);
+	if (!cmd)
+		return NULL;
+
+	cmd->code = code;
+	cmd->ident = ident;
+	cmd->len = cpu_to_le16(len);
+
+	memcpy(cmd->data, data, len);
+
+	return cmd;
+}
+
+static void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len,
+		      void *data)
+{
+	struct l2cap_chan *chan = mgr->a2mp_chan;
+	struct a2mp_cmd *cmd;
+	u16 total_len = len + sizeof(*cmd);
+	struct kvec iv;
+	struct msghdr msg;
+
+	cmd = __a2mp_build(code, ident, len, data);
+	if (!cmd)
+		return;
+
+	iv.iov_base = cmd;
+	iv.iov_len = total_len;
+
+	memset(&msg, 0, sizeof(msg));
+
+	msg.msg_iov = (struct iovec *) &iv;
+	msg.msg_iovlen = 1;
+
+	l2cap_chan_send(chan, &msg, total_len, 0);
+
+	kfree(cmd);
+}
+
 static struct l2cap_ops a2mp_chan_ops = {
 	.name = "L2CAP A2MP channel",
 };
