@@ -1305,15 +1305,8 @@ config COMEDI_8255
 	  called 8255.
 
 config COMEDI_FC
-	tristate "Comedi shared functions for low-level driver support"
+	tristate
 	depends on COMEDI
-	---help---
-	  Enable support for shared functions for low-level drivers.
-	  This module is not used directly by end-users. Rather, it
-	  is used by many other comedi drivers.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called comedi_fc.
 
 config COMEDI_AMPLC_DIO200
 	tristate
