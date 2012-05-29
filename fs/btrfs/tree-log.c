@@ -2667,6 +2667,8 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 		btrfs_release_path(path);
 	}
 	btrfs_release_path(path);
+	if (ret > 0)
+		ret = 0;
 	return ret;
 }
 
