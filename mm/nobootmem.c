@@ -305,11 +305,17 @@ again:
 
 	ptr = __alloc_memory_core_early(MAX_NUMNODES, size, align,
 					goal, -1ULL);
-	if (!ptr && goal) {
+	if (ptr)
+		return ptr;
+
+	if (goal) {
 		goal = 0;
 		goto again;
 	}
-	return ptr;
+
+	printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", size);
+	panic("Out of memory");
+	return NULL;
 }
 
 void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
@@ -407,6 +413,12 @@ void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
 	if (ptr)
 		return ptr;
 
-	return  __alloc_memory_core_early(MAX_NUMNODES, size, align,
-				goal, ARCH_LOW_ADDRESS_LIMIT);
+	ptr = __alloc_memory_core_early(MAX_NUMNODES, size, align,
+					goal, ARCH_LOW_ADDRESS_LIMIT);
+	if (ptr)
+		return ptr;
+
+	printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", size);
+	panic("Out of memory");
+	return NULL;
 }
