@@ -28,6 +28,7 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <net/bluetooth/a2mp.h>
 
 static void hci_le_connect(struct hci_conn *conn)
 {
@@ -410,6 +411,9 @@ int hci_conn_del(struct hci_conn *conn)
 	}
 
 	hci_chan_list_flush(conn);
+
+	if (conn->amp_mgr)
+		amp_mgr_put(conn->amp_mgr);
 
 	hci_conn_hash_del(hdev, conn);
 	if (hdev->notify)

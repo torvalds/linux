@@ -15,6 +15,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
+#include <net/bluetooth/a2mp.h>
 
 static struct l2cap_ops a2mp_chan_ops = {
 	.name = "L2CAP A2MP channel",
@@ -66,4 +67,57 @@ static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn)
 	chan->state = BT_CONNECTED;
 
 	return chan;
+}
+
+/* AMP Manager functions */
+void amp_mgr_get(struct amp_mgr *mgr)
+{
+	BT_DBG("mgr %p", mgr);
+
+	kref_get(&mgr->kref);
+}
+
+static void amp_mgr_destroy(struct kref *kref)
+{
+	struct amp_mgr *mgr = container_of(kref, struct amp_mgr, kref);
+
+	BT_DBG("mgr %p", mgr);
+
+	kfree(mgr);
+}
+
+int amp_mgr_put(struct amp_mgr *mgr)
+{
+	BT_DBG("mgr %p", mgr);
+
+	return kref_put(&mgr->kref, &amp_mgr_destroy);
+}
+
+static struct amp_mgr *amp_mgr_create(struct l2cap_conn *conn)
+{
+	struct amp_mgr *mgr;
+	struct l2cap_chan *chan;
+
+	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
+	if (!mgr)
+		return NULL;
+
+	BT_DBG("conn %p mgr %p", conn, mgr);
+
+	mgr->l2cap_conn = conn;
+
+	chan = a2mp_chan_open(conn);
+	if (!chan) {
+		kfree(mgr);
+		return NULL;
+	}
+
+	mgr->a2mp_chan = chan;
+	chan->data = mgr;
+
+	conn->hcon->amp_mgr = mgr;
+
+	kref_init(&mgr->kref);
+
+	return mgr;
 }
