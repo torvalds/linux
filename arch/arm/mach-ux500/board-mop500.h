@@ -92,4 +92,7 @@ void __init hrefv60_pinmaps_init(void);
 void mop500_uib_i2c_add(int busnum, struct i2c_board_info *info,
 		unsigned n);
 
+/* TODO: Once all pieces are DT:ed, remove completely. */
+struct device * __init u8500_of_init_devices(void);
+
 #endif

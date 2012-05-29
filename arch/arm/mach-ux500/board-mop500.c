@@ -859,7 +859,7 @@ static void __init u8500_init_machine(void)
 	else if (of_machine_is_compatible("st-ericsson,hrefv60+"))
 		hrefv60_pinmaps_init();
 
-	parent = u8500_init_devices();
+	parent = u8500_of_init_devices();
 
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
 		mop500_platform_devs[i]->dev.parent = parent;
