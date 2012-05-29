@@ -364,6 +364,8 @@ struct rcu_state {
 	u32 levelcnt[MAX_RCU_LVLS + 1];		/* # nodes in each level. */
 	u8 levelspread[RCU_NUM_LVLS];		/* kids/node in each level. */
 	struct rcu_data __percpu *rda;		/* pointer of percu rcu_data. */
+	void (*call)(struct rcu_head *head,	/* call_rcu() flavor. */
+		     void (*func)(struct rcu_head *head));
 
 	/* The following fields are guarded by the root rcu_node's lock. */
 

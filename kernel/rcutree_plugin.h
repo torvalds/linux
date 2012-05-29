@@ -78,7 +78,8 @@ static void __init rcu_bootup_announce_oddness(void)
 
 #ifdef CONFIG_TREE_PREEMPT_RCU
 
-struct rcu_state rcu_preempt_state = RCU_STATE_INITIALIZER(rcu_preempt);
+struct rcu_state rcu_preempt_state =
+	RCU_STATE_INITIALIZER(rcu_preempt, call_rcu);
 DEFINE_PER_CPU(struct rcu_data, rcu_preempt_data);
 static struct rcu_state *rcu_state = &rcu_preempt_state;
 
@@ -944,7 +945,7 @@ static int rcu_preempt_cpu_has_callbacks(int cpu)
  */
 void rcu_barrier(void)
 {
-	_rcu_barrier(&rcu_preempt_state, call_rcu);
+	_rcu_barrier(&rcu_preempt_state);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier);
 

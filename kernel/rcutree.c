@@ -62,8 +62,9 @@
 
 static struct lock_class_key rcu_node_class[RCU_NUM_LVLS];
 
-#define RCU_STATE_INITIALIZER(sname) { \
+#define RCU_STATE_INITIALIZER(sname, cr) { \
 	.level = { &sname##_state.node[0] }, \
+	.call = cr, \
 	.fqs_state = RCU_GP_IDLE, \
 	.gpnum = -300, \
 	.completed = -300, \
@@ -76,10 +77,11 @@ static struct lock_class_key rcu_node_class[RCU_NUM_LVLS];
 	.name = #sname, \
 }
 
-struct rcu_state rcu_sched_state = RCU_STATE_INITIALIZER(rcu_sched);
+struct rcu_state rcu_sched_state =
+	RCU_STATE_INITIALIZER(rcu_sched, call_rcu_sched);
 DEFINE_PER_CPU(struct rcu_data, rcu_sched_data);
 
-struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh);
+struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh, call_rcu_bh);
 DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
 static struct rcu_state *rcu_state;
@@ -2282,21 +2284,17 @@ static void rcu_barrier_func(void *type)
 {
 	int cpu = smp_processor_id();
 	struct rcu_head *head = &per_cpu(rcu_barrier_head, cpu);
-	void (*call_rcu_func)(struct rcu_head *head,
-			      void (*func)(struct rcu_head *head));
+	struct rcu_state *rsp = type;
 
 	atomic_inc(&rcu_barrier_cpu_count);
-	call_rcu_func = type;
-	call_rcu_func(head, rcu_barrier_callback);
+	rsp->call(head, rcu_barrier_callback);
 }
 
 /*
  * Orchestrate the specified type of RCU barrier, waiting for all
  * RCU callbacks of the specified type to complete.
  */
-static void _rcu_barrier(struct rcu_state *rsp,
-			 void (*call_rcu_func)(struct rcu_head *head,
-					       void (*func)(struct rcu_head *head)))
+static void _rcu_barrier(struct rcu_state *rsp)
 {
 	int cpu;
 	unsigned long flags;
@@ -2348,8 +2346,7 @@ static void _rcu_barrier(struct rcu_state *rsp,
 			while (cpu_is_offline(cpu) && ACCESS_ONCE(rdp->qlen))
 				schedule_timeout_interruptible(1);
 		} else if (ACCESS_ONCE(rdp->qlen)) {
-			smp_call_function_single(cpu, rcu_barrier_func,
-						 (void *)call_rcu_func, 1);
+			smp_call_function_single(cpu, rcu_barrier_func, rsp, 1);
 			preempt_enable();
 		} else {
 			preempt_enable();
@@ -2370,7 +2367,7 @@ static void _rcu_barrier(struct rcu_state *rsp,
 	raw_spin_unlock_irqrestore(&rsp->onofflock, flags);
 	atomic_inc(&rcu_barrier_cpu_count);
 	smp_mb__after_atomic_inc(); /* Ensure atomic_inc() before callback. */
-	call_rcu_func(&rh, rcu_barrier_callback);
+	rsp->call(&rh, rcu_barrier_callback);
 
 	/*
 	 * Now that we have an rcu_barrier_callback() callback on each
@@ -2393,7 +2390,7 @@ static void _rcu_barrier(struct rcu_state *rsp,
  */
 void rcu_barrier_bh(void)
 {
-	_rcu_barrier(&rcu_bh_state, call_rcu_bh);
+	_rcu_barrier(&rcu_bh_state);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_bh);
 
@@ -2402,7 +2399,7 @@ EXPORT_SYMBOL_GPL(rcu_barrier_bh);
  */
 void rcu_barrier_sched(void)
 {
-	_rcu_barrier(&rcu_sched_state, call_rcu_sched);
+	_rcu_barrier(&rcu_sched_state);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_sched);
 
