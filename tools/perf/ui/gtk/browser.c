@@ -122,6 +122,34 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 	gtk_container_add(GTK_CONTAINER(window), view);
 }
 
+#ifdef HAVE_GTK_INFO_BAR
+static GtkWidget *perf_gtk__setup_info_bar(void)
+{
+	GtkWidget *info_bar;
+	GtkWidget *label;
+	GtkWidget *content_area;
+
+	info_bar = gtk_info_bar_new();
+	gtk_widget_set_no_show_all(info_bar, TRUE);
+
+	label = gtk_label_new("");
+	gtk_widget_show(label);
+
+	content_area = gtk_info_bar_get_content_area(GTK_INFO_BAR(info_bar));
+	gtk_container_add(GTK_CONTAINER(content_area), label);
+
+	gtk_info_bar_add_button(GTK_INFO_BAR(info_bar), GTK_STOCK_OK,
+				GTK_RESPONSE_OK);
+	g_signal_connect(info_bar, "response",
+			 G_CALLBACK(gtk_widget_hide), NULL);
+
+	pgctx->info_bar = info_bar;
+	pgctx->message_label = label;
+
+	return info_bar;
+}
+#endif
+
 static GtkWidget *perf_gtk__setup_statusbar(void)
 {
 	GtkWidget *stbar;
@@ -145,6 +173,7 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 	struct perf_evsel *pos;
 	GtkWidget *vbox;
 	GtkWidget *notebook;
+	GtkWidget *info_bar;
 	GtkWidget *statbar;
 	GtkWidget *window;
 
@@ -188,6 +217,10 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 	}
 
 	gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
+
+	info_bar = perf_gtk__setup_info_bar();
+	if (info_bar)
+		gtk_box_pack_start(GTK_BOX(vbox), info_bar, FALSE, FALSE, 0);
 
 	statbar = perf_gtk__setup_statusbar();
 	gtk_box_pack_start(GTK_BOX(vbox), statbar, FALSE, FALSE, 0);

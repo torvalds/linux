@@ -10,6 +10,11 @@
 
 struct perf_gtk_context {
 	GtkWidget *main_window;
+
+#ifdef HAVE_GTK_INFO_BAR
+	GtkWidget *info_bar;
+	GtkWidget *message_label;
+#endif
 	GtkWidget *statbar;
 	guint statbar_ctx_id;
 };
@@ -23,5 +28,12 @@ static inline bool perf_gtk__is_active_context(struct perf_gtk_context *ctx)
 
 struct perf_gtk_context *perf_gtk__activate_context(GtkWidget *window);
 int perf_gtk__deactivate_context(struct perf_gtk_context **ctx);
+
+#ifndef HAVE_GTK_INFO_BAR
+static inline GtkWidget *perf_gtk__setup_info_bar(void)
+{
+	return NULL;
+}
+#endif
 
 #endif /* _PERF_GTK_H_ */
