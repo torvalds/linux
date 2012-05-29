@@ -805,7 +805,6 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 
 		handled = IRQ_HANDLED;
 		sw_hcd->is_active = 1;
-		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 
 		sw_hcd->ep0_stage = SW_HCD_EP0_START;
 
