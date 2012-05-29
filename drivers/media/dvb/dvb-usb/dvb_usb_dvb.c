@@ -56,8 +56,22 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	 * for reception.
 	 */
 	if (adap->feedcount == onoff && adap->feedcount > 0) {
+		struct usb_data_stream_properties stream_props;
+
+		/* resolve USB stream configuration */
+		if (adap->dev->props.get_usb_stream_config) {
+			ret = adap->dev->props.get_usb_stream_config(
+					adap->fe_adap[adap->active_fe].fe,
+					&stream_props);
+			if (ret < 0)
+				return ret;
+		} else {
+			stream_props = adap->props.fe[adap->active_fe].stream;
+		}
+
 		deb_ts("submitting all URBs\n");
-		usb_urb_submit(&adap->fe_adap[adap->active_fe].stream, NULL);
+		usb_urb_submit(&adap->fe_adap[adap->active_fe].stream,
+				&stream_props);
 
 		deb_ts("controlling pid parser\n");
 		if (adap->props.fe[adap->active_fe].caps & DVB_USB_ADAP_HAS_PID_FILTER &&

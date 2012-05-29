@@ -94,8 +94,9 @@ static void dvb_usb_data_complete_raw(struct usb_data_stream *stream,
 int dvb_usb_adapter_stream_init(struct dvb_usb_adapter *adap)
 {
 	int i, ret = 0;
-	for (i = 0; i < adap->props.num_frontends; i++) {
+	struct usb_data_stream_properties stream_props;
 
+	for (i = 0; i < adap->props.num_frontends; i++) {
 		adap->fe_adap[i].stream.udev      = adap->dev->udev;
 		if (adap->props.fe[i].caps & DVB_USB_ADAP_RECEIVES_204_BYTE_TS)
 			adap->fe_adap[i].stream.complete =
@@ -107,8 +108,18 @@ int dvb_usb_adapter_stream_init(struct dvb_usb_adapter *adap)
 		else
 		adap->fe_adap[i].stream.complete  = dvb_usb_data_complete;
 		adap->fe_adap[i].stream.user_priv = adap;
-		ret = usb_urb_init(&adap->fe_adap[i].stream,
-				   &adap->props.fe[i].stream);
+
+		/* resolve USB stream configuration */
+		if (adap->dev->props.get_usb_stream_config) {
+			ret = adap->dev->props.get_usb_stream_config(NULL,
+					&stream_props);
+			if (ret < 0)
+				break;
+		} else {
+			stream_props = adap->props.fe[i].stream;
+		}
+
+		ret = usb_urb_init(&adap->fe_adap[i].stream, &stream_props);
 		if (ret < 0)
 			break;
 	}
