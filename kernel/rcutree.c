@@ -62,18 +62,18 @@
 
 static struct lock_class_key rcu_node_class[RCU_NUM_LVLS];
 
-#define RCU_STATE_INITIALIZER(structname) { \
-	.level = { &structname##_state.node[0] }, \
+#define RCU_STATE_INITIALIZER(sname) { \
+	.level = { &sname##_state.node[0] }, \
 	.fqs_state = RCU_GP_IDLE, \
 	.gpnum = -300, \
 	.completed = -300, \
-	.onofflock = __RAW_SPIN_LOCK_UNLOCKED(&structname##_state.onofflock), \
-	.orphan_nxttail = &structname##_state.orphan_nxtlist, \
-	.orphan_donetail = &structname##_state.orphan_donelist, \
-	.fqslock = __RAW_SPIN_LOCK_UNLOCKED(&structname##_state.fqslock), \
+	.onofflock = __RAW_SPIN_LOCK_UNLOCKED(&sname##_state.onofflock), \
+	.orphan_nxttail = &sname##_state.orphan_nxtlist, \
+	.orphan_donetail = &sname##_state.orphan_donelist, \
+	.fqslock = __RAW_SPIN_LOCK_UNLOCKED(&sname##_state.fqslock), \
 	.n_force_qs = 0, \
 	.n_force_qs_ngp = 0, \
-	.name = #structname, \
+	.name = #sname, \
 }
 
 struct rcu_state rcu_sched_state = RCU_STATE_INITIALIZER(rcu_sched);
