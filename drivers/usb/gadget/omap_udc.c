@@ -2535,7 +2535,7 @@ static inline void remove_proc_file(void) {}
  * UDC_SYSCON_1.CFG_LOCK is set can now work.  We won't use that
  * capability yet though.
  */
-static unsigned __init
+static unsigned __devinit
 omap_ep_setup(char *name, u8 addr, u8 type,
 		unsigned buf, unsigned maxp, int dbuf)
 {
@@ -2653,7 +2653,7 @@ static void omap_udc_release(struct device *dev)
 	udc = NULL;
 }
 
-static int __init
+static int __devinit
 omap_udc_setup(struct platform_device *odev, struct usb_phy *xceiv)
 {
 	unsigned	tmp, buf;
@@ -2790,7 +2790,7 @@ omap_udc_setup(struct platform_device *odev, struct usb_phy *xceiv)
 	return 0;
 }
 
-static int __init omap_udc_probe(struct platform_device *pdev)
+static int __devinit omap_udc_probe(struct platform_device *pdev)
 {
 	int			status = -ENODEV;
 	int			hmc;
@@ -3003,7 +3003,7 @@ cleanup0:
 	return status;
 }
 
-static int __exit omap_udc_remove(struct platform_device *pdev)
+static int __devexit omap_udc_remove(struct platform_device *pdev)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 
@@ -3088,7 +3088,8 @@ static int omap_udc_resume(struct platform_device *dev)
 /*-------------------------------------------------------------------------*/
 
 static struct platform_driver udc_driver = {
-	.remove		= __exit_p(omap_udc_remove),
+	.probe		= omap_udc_probe,
+	.remove		= __devexit_p(omap_udc_remove),
 	.suspend	= omap_udc_suspend,
 	.resume		= omap_udc_resume,
 	.driver		= {
@@ -3097,17 +3098,7 @@ static struct platform_driver udc_driver = {
 	},
 };
 
-static int __init udc_init(void)
-{
-	return platform_driver_probe(&udc_driver, omap_udc_probe);
-}
-module_init(udc_init);
-
-static void __exit udc_exit(void)
-{
-	platform_driver_unregister(&udc_driver);
-}
-module_exit(udc_exit);
+module_platform_driver(udc_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
