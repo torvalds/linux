@@ -54,6 +54,67 @@ static struct regmap_config mc13xxx_regmap_spi_config = {
 	.max_register = MC13XXX_NUMREGS,
 
 	.cache_type = REGCACHE_NONE,
+	.use_single_rw = 1,
+};
+
+static int mc13xxx_spi_read(void *context, const void *reg, size_t reg_size,
+				void *val, size_t val_size)
+{
+	unsigned char w[4] = { *((unsigned char *) reg), 0, 0, 0};
+	unsigned char r[4];
+	unsigned char *p = val;
+	struct device *dev = context;
+	struct spi_device *spi = to_spi_device(dev);
+	struct spi_transfer t = {
+		.tx_buf = w,
+		.rx_buf = r,
+		.len = 4,
+	};
+
+	struct spi_message m;
+	int ret;
+
+	if (val_size != 3 || reg_size != 1)
+		return -ENOTSUPP;
+
+	spi_message_init(&m);
+	spi_message_add_tail(&t, &m);
+	ret = spi_sync(spi, &m);
+
+	memcpy(p, &r[1], 3);
+
+	return ret;
+}
+
+static int mc13xxx_spi_write(void *context, const void *data, size_t count)
+{
+	struct device *dev = context;
+	struct spi_device *spi = to_spi_device(dev);
+
+	if (count != 4)
+		return -ENOTSUPP;
+
+	return spi_write(spi, data, count);
+}
+
+/*
+ * We cannot use regmap-spi generic bus implementation here.
+ * The MC13783 chip will get corrupted if CS signal is deasserted
+ * and on i.Mx31 SoC (the target SoC for MC13783 PMIC) the SPI controller
+ * has the following errata (DSPhl22960):
+ * "The CSPI negates SS when the FIFO becomes empty with
+ * SSCTL= 0. Software cannot guarantee that the FIFO will not
+ * drain because of higher priority interrupts and the
+ * non-realtime characteristics of the operating system. As a
+ * result, the SS will negate before all of the data has been
+ * transferred to/from the peripheral."
+ * We workaround this by accessing the SPI controller with a
+ * single transfert.
+ */
+
+static struct regmap_bus regmap_mc13xxx_bus = {
+	.write = mc13xxx_spi_write,
+	.read = mc13xxx_spi_read,
 };
 
 static int mc13xxx_spi_probe(struct spi_device *spi)
@@ -78,7 +139,9 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 	mc13xxx->dev = &spi->dev;
 	mutex_init(&mc13xxx->lock);
 
-	mc13xxx->regmap = regmap_init_spi(spi, &mc13xxx_regmap_spi_config);
+	mc13xxx->regmap = regmap_init(&spi->dev, &regmap_mc13xxx_bus, &spi->dev,
+					&mc13xxx_regmap_spi_config);
+
 	if (IS_ERR(mc13xxx->regmap)) {
 		ret = PTR_ERR(mc13xxx->regmap);
 		dev_err(mc13xxx->dev, "Failed to initialize register map: %d\n",
