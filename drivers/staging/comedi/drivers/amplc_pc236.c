@@ -98,7 +98,9 @@ enum pc236_model { pc36at_model, pci236_model, anypci_model };
 
 struct pc236_board {
 	const char *name;
+#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
 	unsigned short devid;
+#endif
 	enum pc236_bustype bustype;
 	enum pc236_model model;
 };
@@ -140,6 +142,22 @@ struct pc236_private {
 };
 
 /*
+ * This function looks for a board matching the supplied PCI device.
+ */
+#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
+static const struct pc236_board *pc236_find_pci_board(struct pci_dev *pci_dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(pc236_boards); i++)
+		if (pc236_boards[i].bustype == pci_bustype &&
+		    pci_dev->device == pc236_boards[i].devid)
+			return &pc236_boards[i];
+	return NULL;
+}
+#endif
+
+/*
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
  */
@@ -162,21 +180,13 @@ pc236_find_pci(struct comedi_device *dev, int bus, int slot)
 				continue;
 		}
 		if (thisboard->model == anypci_model) {
-			/* Match any supported model. */
-			int i;
-
-			for (i = 0; i < ARRAY_SIZE(pc236_boards); i++) {
-				if (pc236_boards[i].bustype != pci_bustype)
-					continue;
-				if (pci_dev->device == pc236_boards[i].devid) {
-					/* Change board_ptr to matched board. */
-					dev->board_ptr = &pc236_boards[i];
-					thisboard = comedi_board(dev);
-					break;
-				}
-			}
-			if (i == ARRAY_SIZE(pc236_boards))
+			/* Wildcard board matches any supported PCI board. */
+			const struct pc236_board *foundboard;
+			foundboard = pc236_find_pci_board(pci_dev);
+			if (foundboard == NULL)
 				continue;
+			/* Replace wildcard board_ptr. */
+			dev->board_ptr = thisboard = foundboard;
 		} else {
 			/* Match specific model name. */
 			if (pci_dev->device != thisboard->devid)
@@ -458,86 +468,14 @@ static void pc236_report_attach(struct comedi_device *dev, unsigned int irq)
 		 dev->board_name, tmpbuf);
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int pc236_common_attach(struct comedi_device *dev, unsigned long iobase,
+			       unsigned int irq, unsigned long req_irq_flags)
 {
 	const struct pc236_board *thisboard = comedi_board(dev);
 	struct comedi_subdevice *s;
-	unsigned long iobase = 0;
-	unsigned int irq = 0;
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
-	struct pc236_private *devpriv = dev->private;
-	struct pci_dev *pci_dev = NULL;
-	int bus = 0, slot = 0;
-#endif
-	int share_irq = 0;
 	int ret;
 
-	dev_info(dev->class_dev, PC236_DRIVER_NAME ": attach\n");
-	ret = alloc_private(dev, sizeof(struct pc236_private));
-	if (ret < 0) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
-		return ret;
-	}
-	/* Process options. */
-	switch (thisboard->bustype) {
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_ISA)
-	case isa_bustype:
-		iobase = it->options[0];
-		irq = it->options[1];
-		share_irq = 0;
-		break;
-#endif
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
-	case pci_bustype:
-		bus = it->options[0];
-		slot = it->options[1];
-		share_irq = 1;
-
-		pci_dev = pc236_find_pci(dev, bus, slot);
-		if (pci_dev == NULL)
-			return -EIO;
-		thisboard = comedi_board(dev);	/* replaced wildcard board */
-		devpriv->pci_dev = pci_dev;
-		break;
-#endif
-	default:
-		dev_err(dev->class_dev, PC236_DRIVER_NAME
-			": BUG! cannot determine board type!\n");
-		return -EINVAL;
-		break;
-	}
-
-	/* Initialize dev->board_name. */
 	dev->board_name = thisboard->name;
-
-	/* Enable device and reserve I/O spaces. */
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
-	if (pci_dev) {
-
-		ret = comedi_pci_enable(pci_dev, PC236_DRIVER_NAME);
-		if (ret < 0) {
-			dev_err(dev->class_dev,
-				"error! cannot enable PCI device and request regions!\n");
-			return ret;
-		}
-		devpriv->lcr_iobase = pci_resource_start(pci_dev, 1);
-		iobase = pci_resource_start(pci_dev, 2);
-		irq = pci_dev->irq;
-	} else
-#endif
-	{
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_ISA)
-		ret = pc236_request_region(dev, iobase, PC236_IO_SIZE);
-		if (ret < 0)
-			return ret;
-#endif
-	}
 	dev->iobase = iobase;
 
 	ret = alloc_subdevices(dev, 2);
@@ -558,9 +496,7 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->type = COMEDI_SUBD_UNUSED;
 	pc236_intr_disable(dev);
 	if (irq) {
-		unsigned long flags = share_irq ? IRQF_SHARED : 0;
-
-		if (request_irq(irq, pc236_interrupt, flags,
+		if (request_irq(irq, pc236_interrupt, req_irq_flags,
 				PC236_DRIVER_NAME, dev) >= 0) {
 			dev->irq = irq;
 			s->type = COMEDI_SUBD_DI;
@@ -577,6 +513,105 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	pc236_report_attach(dev, irq);
 	return 1;
 }
+
+#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
+static int pc236_pci_common_attach(struct comedi_device *dev,
+				   struct pci_dev *pci_dev)
+{
+	struct pc236_private *devpriv = dev->private;
+	unsigned long iobase;
+	int ret;
+
+	devpriv->pci_dev = pci_dev;
+	ret = comedi_pci_enable(pci_dev, PC236_DRIVER_NAME);
+	if (ret < 0) {
+		dev_err(dev->class_dev,
+			"error! cannot enable PCI device and request regions!\n");
+		return ret;
+	}
+	devpriv->lcr_iobase = pci_resource_start(pci_dev, 1);
+	iobase = pci_resource_start(pci_dev, 2);
+	return pc236_common_attach(dev, iobase, pci_dev->irq, IRQF_SHARED);
+}
+#endif
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that
+ * address.
+ */
+static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	const struct pc236_board *thisboard = comedi_board(dev);
+	int ret;
+
+	dev_info(dev->class_dev, PC236_DRIVER_NAME ": attach\n");
+	ret = alloc_private(dev, sizeof(struct pc236_private));
+	if (ret < 0) {
+		dev_err(dev->class_dev, "error! out of memory!\n");
+		return ret;
+	}
+	/* Process options according to bus type. */
+	switch (thisboard->bustype) {
+#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_ISA)
+	case isa_bustype: {
+			unsigned long iobase = it->options[0];
+			unsigned int irq = it->options[1];
+			ret = pc236_request_region(dev, iobase, PC236_IO_SIZE);
+			if (ret < 0)
+				return ret;
+			return pc236_common_attach(dev, iobase, irq, 0);
+		}
+		break;
+#endif
+#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
+	case pci_bustype: {
+			int bus = it->options[0];
+			int slot = it->options[1];
+			struct pci_dev *pci_dev;
+
+			pci_dev = pc236_find_pci(dev, bus, slot);
+			if (pci_dev == NULL)
+				return -EIO;
+			return pc236_pci_common_attach(dev, pci_dev);
+		}
+		break;
+#endif
+	default:
+		dev_err(dev->class_dev, PC236_DRIVER_NAME
+			": BUG! cannot determine board type!\n");
+		break;
+	}
+	return -EINVAL;
+}
+
+/*
+ * The attach_pci hook (if non-NULL) is called at PCI probe time in preference
+ * to the "manual" attach hook.  dev->board_ptr is NULL on entry.  There should
+ * be a board entry matching the supplied PCI device.
+ */
+#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
+static int __devinit pc236_attach_pci(struct comedi_device *dev,
+				      struct pci_dev *pci_dev)
+{
+	int ret;
+
+	dev_info(dev->class_dev, PC236_DRIVER_NAME ": attach pci %s\n",
+		 pci_name(pci_dev));
+	ret = alloc_private(dev, sizeof(struct pc236_private));
+	if (ret < 0) {
+		dev_err(dev->class_dev, "error! out of memory!\n");
+		return ret;
+	}
+	dev->board_ptr = pc236_find_pci_board(pci_dev);
+	if (dev->board_ptr == NULL) {
+		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
+		return -EINVAL;
+	}
+	return pc236_pci_common_attach(dev, pci_dev);
+}
+#endif
 
 static void pc236_detach(struct comedi_device *dev)
 {
@@ -615,6 +650,9 @@ static struct comedi_driver amplc_pc236_driver = {
 	.driver_name = PC236_DRIVER_NAME,
 	.module = THIS_MODULE,
 	.attach = pc236_attach,
+#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
+	.attach_pci = pc236_attach_pci,
+#endif
 	.detach = pc236_detach,
 	.board_name = &pc236_boards[0].name,
 	.offset = sizeof(struct pc236_board),
