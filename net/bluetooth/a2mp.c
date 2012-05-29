@@ -63,6 +63,36 @@ static void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len,
 	kfree(cmd);
 }
 
+static inline void __a2mp_cl_bredr(struct a2mp_cl *cl)
+{
+	cl->id = 0;
+	cl->type = 0;
+	cl->status = 1;
+}
+
+/* hci_dev_list shall be locked */
+static void __a2mp_add_cl(struct amp_mgr *mgr, struct a2mp_cl *cl, u8 num_ctrl)
+{
+	int i = 0;
+	struct hci_dev *hdev;
+
+	__a2mp_cl_bredr(cl);
+
+	list_for_each_entry(hdev, &hci_dev_list, list) {
+		/* Iterate through AMP controllers */
+		if (hdev->id == HCI_BREDR_ID)
+			continue;
+
+		/* Starting from second entry */
+		if (++i >= num_ctrl)
+			return;
+
+		cl[i].id = hdev->id;
+		cl[i].type = hdev->amp_type;
+		cl[i].status = hdev->amp_status;
+	}
+}
+
 /* Processing A2MP messages */
 static int a2mp_command_rej(struct amp_mgr *mgr, struct sk_buff *skb,
 			    struct a2mp_cmd *hdr)
@@ -76,6 +106,58 @@ static int a2mp_command_rej(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	skb_pull(skb, sizeof(*rej));
 
+	return 0;
+}
+
+static int a2mp_discover_req(struct amp_mgr *mgr, struct sk_buff *skb,
+			     struct a2mp_cmd *hdr)
+{
+	struct a2mp_discov_req *req = (void *) skb->data;
+	u16 len = le16_to_cpu(hdr->len);
+	struct a2mp_discov_rsp *rsp;
+	u16 ext_feat;
+	u8 num_ctrl;
+
+	if (len < sizeof(*req))
+		return -EINVAL;
+
+	skb_pull(skb, sizeof(*req));
+
+	ext_feat = le16_to_cpu(req->ext_feat);
+
+	BT_DBG("mtu %d efm 0x%4.4x", le16_to_cpu(req->mtu), ext_feat);
+
+	/* check that packet is not broken for now */
+	while (ext_feat & A2MP_FEAT_EXT) {
+		if (len < sizeof(ext_feat))
+			return -EINVAL;
+
+		ext_feat = get_unaligned_le16(skb->data);
+		BT_DBG("efm 0x%4.4x", ext_feat);
+		len -= sizeof(ext_feat);
+		skb_pull(skb, sizeof(ext_feat));
+	}
+
+	read_lock(&hci_dev_list_lock);
+
+	num_ctrl = __hci_num_ctrl();
+	len = num_ctrl * sizeof(struct a2mp_cl) + sizeof(*rsp);
+	rsp = kmalloc(len, GFP_ATOMIC);
+	if (!rsp) {
+		read_unlock(&hci_dev_list_lock);
+		return -ENOMEM;
+	}
+
+	rsp->mtu = __constant_cpu_to_le16(L2CAP_A2MP_DEFAULT_MTU);
+	rsp->ext_feat = 0;
+
+	__a2mp_add_cl(mgr, rsp->cl, num_ctrl);
+
+	read_unlock(&hci_dev_list_lock);
+
+	a2mp_send(mgr, A2MP_DISCOVER_RSP, hdr->ident, len, rsp);
+
+	kfree(rsp);
 	return 0;
 }
 
@@ -109,6 +191,9 @@ static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 			break;
 
 		case A2MP_DISCOVER_REQ:
+			err = a2mp_discover_req(mgr, skb, hdr);
+			break;
+
 		case A2MP_CHANGE_NOTIFY:
 		case A2MP_GETINFO_REQ:
 		case A2MP_GETAMPASSOC_REQ:

@@ -59,6 +59,9 @@
 #define HCI_BREDR	0x00
 #define HCI_AMP		0x01
 
+/* First BR/EDR Controller shall have ID = 0 */
+#define HCI_BREDR_ID	0
+
 /* HCI device quirks */
 enum {
 	HCI_QUIRK_RESET_ON_CLOSE,

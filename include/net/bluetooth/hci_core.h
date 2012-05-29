@@ -641,6 +641,19 @@ static inline void hci_set_drvdata(struct hci_dev *hdev, void *data)
 	dev_set_drvdata(&hdev->dev, data);
 }
 
+/* hci_dev_list shall be locked */
+static inline uint8_t __hci_num_ctrl(void)
+{
+	uint8_t count = 0;
+	struct list_head *p;
+
+	list_for_each(p, &hci_dev_list) {
+		count++;
+	}
+
+	return count;
+}
+
 struct hci_dev *hci_dev_get(int index);
 struct hci_dev *hci_get_route(bdaddr_t *src, bdaddr_t *dst);
 
