@@ -29,7 +29,6 @@
  */
 #define SWI_SYS_SIGRETURN	(0xef000000|(__NR_sigreturn)|(__NR_OABI_SYSCALL_BASE))
 #define SWI_SYS_RT_SIGRETURN	(0xef000000|(__NR_rt_sigreturn)|(__NR_OABI_SYSCALL_BASE))
-#define SWI_SYS_RESTART		(0xef000000|__NR_restart_syscall|__NR_OABI_SYSCALL_BASE)
 
 /*
  * With EABI, the syscall number has to be loaded into r7.
@@ -47,18 +46,6 @@
 const unsigned long sigreturn_codes[7] = {
 	MOV_R7_NR_SIGRETURN,    SWI_SYS_SIGRETURN,    SWI_THUMB_SIGRETURN,
 	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
-};
-
-/*
- * Either we support OABI only, or we have EABI with the OABI
- * compat layer enabled.  In the later case we don't know if
- * user space is EABI or not, and if not we must not clobber r7.
- * Always using the OABI syscall solves that issue and works for
- * all those cases.
- */
-const unsigned long syscall_restart_code[2] = {
-	SWI_SYS_RESTART,	/* swi	__NR_restart_syscall */
-	0xe49df004,		/* ldr	pc, [sp], #4 */
 };
 
 /*
@@ -91,10 +78,10 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 		old_sigset_t mask;
 		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
+		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
+		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
+		    __get_user(mask, &act->sa_mask))
 			return -EFAULT;
-		__get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		__get_user(mask, &act->sa_mask);
 		siginitset(&new_ka.sa.sa_mask, mask);
 	}
 
@@ -103,10 +90,10 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 	if (!ret && oact) {
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
+		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
+		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
+		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
 			return -EFAULT;
-		__put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
 	}
 
 	return ret;
@@ -611,15 +598,6 @@ static void do_signal(struct pt_regs *regs, int syscall)
 	int signr;
 
 	/*
-	 * We want the common case to go fast, which
-	 * is why we may in certain cases get here from
-	 * kernel mode. Just return without doing anything
-	 * if so.
-	 */
-	if (!user_mode(regs))
-		return;
-
-	/*
 	 * If we were from a system call, check for system call restarting...
 	 */
 	if (syscall) {
@@ -635,17 +613,12 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:
+		case -ERESTART_RESTARTBLOCK:
 			regs->ARM_r0 = regs->ARM_ORIG_r0;
 			regs->ARM_pc = restart_addr;
 			break;
-		case -ERESTART_RESTARTBLOCK:
-			regs->ARM_r0 = -EINTR;
-			break;
 		}
 	}
-
-	if (try_to_freeze())
-		goto no_signal;
 
 	/*
 	 * Get the signal to deliver.  When running under ptrace, at this
@@ -661,12 +634,14 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		 * debugger has chosen to restart at a different PC.
 		 */
 		if (regs->ARM_pc == restart_addr) {
-			if (retval == -ERESTARTNOHAND
+			if (retval == -ERESTARTNOHAND ||
+			    retval == -ERESTART_RESTARTBLOCK
 			    || (retval == -ERESTARTSYS
 				&& !(ka.sa.sa_flags & SA_RESTART))) {
 				regs->ARM_r0 = -EINTR;
 				regs->ARM_pc = continue_addr;
 			}
+			clear_thread_flag(TIF_SYSCALL_RESTARTSYS);
 		}
 
 		if (test_thread_flag(TIF_RESTORE_SIGMASK))
@@ -686,7 +661,6 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		return;
 	}
 
- no_signal:
 	if (syscall) {
 		/*
 		 * Handle restarting a different system call.  As above,
@@ -694,38 +668,15 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		 * ignore the restart.
 		 */
 		if (retval == -ERESTART_RESTARTBLOCK
-		    && regs->ARM_pc == continue_addr) {
-			if (thumb_mode(regs)) {
-				regs->ARM_r7 = __NR_restart_syscall - __NR_SYSCALL_BASE;
-				regs->ARM_pc -= 2;
-			} else {
-#if defined(CONFIG_AEABI) && !defined(CONFIG_OABI_COMPAT)
-				regs->ARM_r7 = __NR_restart_syscall;
-				regs->ARM_pc -= 4;
-#else
-				u32 __user *usp;
-
-				regs->ARM_sp -= 4;
-				usp = (u32 __user *)regs->ARM_sp;
-
-				if (put_user(regs->ARM_pc, usp) == 0) {
-					regs->ARM_pc = KERN_RESTART_CODE;
-				} else {
-					regs->ARM_sp += 4;
-					force_sigsegv(0, current);
-				}
-#endif
-			}
-		}
-
-		/* If there's no signal to deliver, we just put the saved sigmask
-		 * back.
-		 */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-		}
+		    && regs->ARM_pc == restart_addr)
+			set_thread_flag(TIF_SYSCALL_RESTARTSYS);
 	}
+
+	/* If there's no signal to deliver, we just put the saved sigmask
+	 * back.
+	 */
+	if (test_and_clear_thread_flag(TIF_RESTORE_SIGMASK))
+		set_current_blocked(&current->saved_sigmask);
 }
 
 asmlinkage void
