@@ -50,6 +50,19 @@ config LEDS_LM3530
 	  controlled manually or using PWM input or using ambient
 	  light automatically.
 
+config LEDS_LM3533
+	tristate "LED support for LM3533"
+	depends on LEDS_CLASS
+	depends on MFD_LM3533
+	help
+	  This option enables support for the LEDs on National Semiconductor /
+	  TI LM3533 Lighting Power chips.
+
+	  The LEDs can be controlled directly, through PWM input, or by the
+	  ambient-light-sensor interface. The chip supports
+	  hardware-accelerated blinking with maximum on and off periods of 9.8
+	  and 77 seconds respectively.
+
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
 	depends on LEDS_CLASS
