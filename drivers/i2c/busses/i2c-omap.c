@@ -1061,8 +1061,6 @@ omap_i2c_probe(struct platform_device *pdev)
 	dev_info(dev->dev, "bus %d rev%d.%d.%d at %d kHz\n", pdev->id,
 		 dev->dtrev, dev->rev >> 4, dev->rev & 0xf, dev->speed);
 
-	pm_runtime_put(dev->dev);
-
 	adap = &dev->adapter;
 	i2c_set_adapdata(adap, dev);
 	adap->owner = THIS_MODULE;
@@ -1081,6 +1079,8 @@ omap_i2c_probe(struct platform_device *pdev)
 	}
 
 	of_i2c_register_devices(adap);
+
+	pm_runtime_put(dev->dev);
 
 	return 0;
 
