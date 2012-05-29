@@ -29,7 +29,7 @@ static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
 			"	cs	%0,0,%4\n"
 			"	jl	0b\n"
 			: "=&d" (old), "=Q" (*(int *) addr)
-			: "d" (x << shift), "d" (~(255 << shift)),
+			: "d" ((x & 0xff) << shift), "d" (~(0xff << shift)),
 			  "Q" (*(int *) addr) : "memory", "cc", "0");
 		return old >> shift;
 	case 2:
@@ -44,7 +44,7 @@ static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
 			"	cs	%0,0,%4\n"
 			"	jl	0b\n"
 			: "=&d" (old), "=Q" (*(int *) addr)
-			: "d" (x << shift), "d" (~(65535 << shift)),
+			: "d" ((x & 0xffff) << shift), "d" (~(0xffff << shift)),
 			  "Q" (*(int *) addr) : "memory", "cc", "0");
 		return old >> shift;
 	case 4:
@@ -114,8 +114,9 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 			"	jnz	0b\n"
 			"1:"
 			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) addr)
-			: "d" (old << shift), "d" (new << shift),
-			  "d" (~(255 << shift))
+			: "d" ((old & 0xff) << shift),
+			  "d" ((new & 0xff) << shift),
+			  "d" (~(0xff << shift))
 			: "memory", "cc");
 		return prev >> shift;
 	case 2:
@@ -135,8 +136,9 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 			"	jnz	0b\n"
 			"1:"
 			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) addr)
-			: "d" (old << shift), "d" (new << shift),
-			  "d" (~(65535 << shift))
+			: "d" ((old & 0xffff) << shift),
+			  "d" ((new & 0xffff) << shift),
+			  "d" (~(0xffff << shift))
 			: "memory", "cc");
 		return prev >> shift;
 	case 4:
