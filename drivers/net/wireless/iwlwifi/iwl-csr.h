@@ -97,13 +97,10 @@
 /*
  * Hardware revision info
  * Bit fields:
- * 31-8:  Reserved
- *  7-4:  Type of device:  see CSR_HW_REV_TYPE_xxx definitions
+ * 31-16:  Reserved
+ *  15-4:  Type of device:  see CSR_HW_REV_TYPE_xxx definitions
  *  3-2:  Revision step:  0 = A, 1 = B, 2 = C, 3 = D
  *  1-0:  "Dash" (-) value, as in A-1, etc.
- *
- * NOTE:  Revision step affects calculation of CCK txpower for 4965.
- * NOTE:  See also CSR_HW_REV_WA_REG (work-around for bug in 4965).
  */
 #define CSR_HW_REV              (CSR_BASE+0x028)
 
@@ -282,7 +279,10 @@
 
 
 /* HW REV */
-#define CSR_HW_REV_TYPE_MSK            (0x00001F0)
+#define CSR_HW_REV_DASH(_val)          (((_val) & 0x0000003) >> 0)
+#define CSR_HW_REV_STEP(_val)          (((_val) & 0x000000C) >> 2)
+
+#define CSR_HW_REV_TYPE_MSK            (0x000FFF0)
 #define CSR_HW_REV_TYPE_5300           (0x0000020)
 #define CSR_HW_REV_TYPE_5350           (0x0000030)
 #define CSR_HW_REV_TYPE_5100           (0x0000050)

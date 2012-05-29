@@ -2218,6 +2218,15 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
+	/* SKU Control */
+	iwl_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
+			  CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
+			  CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP,
+			  (CSR_HW_REV_STEP(priv->trans->hw_rev) <<
+				CSR_HW_IF_CONFIG_REG_POS_MAC_STEP) |
+			  (CSR_HW_REV_DASH(priv->trans->hw_rev) <<
+				CSR_HW_IF_CONFIG_REG_POS_MAC_DASH));
+
 	priv->lib->nic_config(priv);
 }
 
