@@ -282,8 +282,7 @@ omap_free_request(struct usb_ep *ep, struct usb_request *_req)
 {
 	struct omap_req	*req = container_of(_req, struct omap_req, req);
 
-	if (_req)
-		kfree(req);
+	kfree(req);
 }
 
 /*-------------------------------------------------------------------------*/
