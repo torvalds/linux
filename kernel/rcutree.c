@@ -2294,13 +2294,41 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	unsigned long flags;
 	struct rcu_data *rdp;
 	struct rcu_data rd;
+	unsigned long snap = ACCESS_ONCE(rsp->n_barrier_done);
+	unsigned long snap_done;
 
 	init_rcu_head_on_stack(&rd.barrier_head);
 
 	/* Take mutex to serialize concurrent rcu_barrier() requests. */
 	mutex_lock(&rsp->barrier_mutex);
 
-	smp_mb();  /* Prevent any prior operations from leaking in. */
+	/*
+	 * Ensure that all prior references, including to ->n_barrier_done,
+	 * are ordered before the _rcu_barrier() machinery.
+	 */
+	smp_mb();  /* See above block comment. */
+
+	/*
+	 * Recheck ->n_barrier_done to see if others did our work for us.
+	 * This means checking ->n_barrier_done for an even-to-odd-to-even
+	 * transition.  The "if" expression below therefore rounds the old
+	 * value up to the next even number and adds two before comparing.
+	 */
+	snap_done = ACCESS_ONCE(rsp->n_barrier_done);
+	if (ULONG_CMP_GE(snap_done, ((snap + 1) & ~0x1) + 2)) {
+		smp_mb(); /* caller's subsequent code after above check. */
+		mutex_unlock(&rsp->barrier_mutex);
+		return;
+	}
+
+	/*
+	 * Increment ->n_barrier_done to avoid duplicate work.  Use
+	 * ACCESS_ONCE() to prevent the compiler from speculating
+	 * the increment to precede the early-exit check.
+	 */
+	ACCESS_ONCE(rsp->n_barrier_done)++;
+	WARN_ON_ONCE((rsp->n_barrier_done & 0x1) != 1);
+	smp_mb(); /* Order ->n_barrier_done increment with below mechanism. */
 
 	/*
 	 * Initialize the count to one rather than to zero in order to
@@ -2370,6 +2398,12 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	 */
 	if (atomic_dec_and_test(&rsp->barrier_cpu_count))
 		complete(&rsp->barrier_completion);
+
+	/* Increment ->n_barrier_done to prevent duplicate work. */
+	smp_mb(); /* Keep increment after above mechanism. */
+	ACCESS_ONCE(rsp->n_barrier_done)++;
+	WARN_ON_ONCE((rsp->n_barrier_done & 0x1) != 0);
+	smp_mb(); /* Keep increment before caller's subsequent code. */
 
 	/* Wait for all rcu_barrier_callback() callbacks to be invoked. */
 	wait_for_completion(&rsp->barrier_completion);
