@@ -102,6 +102,51 @@ static const u16 reg_map_c_can[] = {
 	[C_CAN_MSGVAL2_REG]	= 0xB2,
 };
 
+static const u16 reg_map_d_can[] = {
+	[C_CAN_CTRL_REG]	= 0x00,
+	[C_CAN_STS_REG]		= 0x04,
+	[C_CAN_ERR_CNT_REG]	= 0x08,
+	[C_CAN_BTR_REG]		= 0x0C,
+	[C_CAN_BRPEXT_REG]	= 0x0E,
+	[C_CAN_INT_REG]		= 0x10,
+	[C_CAN_TEST_REG]	= 0x14,
+	[C_CAN_TXRQST1_REG]	= 0x88,
+	[C_CAN_TXRQST2_REG]	= 0x8A,
+	[C_CAN_NEWDAT1_REG]	= 0x9C,
+	[C_CAN_NEWDAT2_REG]	= 0x9E,
+	[C_CAN_INTPND1_REG]	= 0xB0,
+	[C_CAN_INTPND2_REG]	= 0xB2,
+	[C_CAN_MSGVAL1_REG]	= 0xC4,
+	[C_CAN_MSGVAL2_REG]	= 0xC6,
+	[C_CAN_IF1_COMREQ_REG]	= 0x100,
+	[C_CAN_IF1_COMMSK_REG]	= 0x102,
+	[C_CAN_IF1_MASK1_REG]	= 0x104,
+	[C_CAN_IF1_MASK2_REG]	= 0x106,
+	[C_CAN_IF1_ARB1_REG]	= 0x108,
+	[C_CAN_IF1_ARB2_REG]	= 0x10A,
+	[C_CAN_IF1_MSGCTRL_REG]	= 0x10C,
+	[C_CAN_IF1_DATA1_REG]	= 0x110,
+	[C_CAN_IF1_DATA2_REG]	= 0x112,
+	[C_CAN_IF1_DATA3_REG]	= 0x114,
+	[C_CAN_IF1_DATA4_REG]	= 0x116,
+	[C_CAN_IF2_COMREQ_REG]	= 0x120,
+	[C_CAN_IF2_COMMSK_REG]	= 0x122,
+	[C_CAN_IF2_MASK1_REG]	= 0x124,
+	[C_CAN_IF2_MASK2_REG]	= 0x126,
+	[C_CAN_IF2_ARB1_REG]	= 0x128,
+	[C_CAN_IF2_ARB2_REG]	= 0x12A,
+	[C_CAN_IF2_MSGCTRL_REG]	= 0x12C,
+	[C_CAN_IF2_DATA1_REG]	= 0x130,
+	[C_CAN_IF2_DATA2_REG]	= 0x132,
+	[C_CAN_IF2_DATA3_REG]	= 0x134,
+	[C_CAN_IF2_DATA4_REG]	= 0x136,
+};
+
+enum c_can_dev_id {
+	C_CAN_DEVTYPE,
+	D_CAN_DEVTYPE,
+};
+
 /* c_can private data structure */
 struct c_can_priv {
 	struct can_priv can;	/* must be the first member */

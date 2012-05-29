@@ -71,6 +71,7 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 	void __iomem *addr;
 	struct net_device *dev;
 	struct c_can_priv *priv;
+	const struct platform_device_id *id;
 	struct resource *mem;
 	int irq;
 #ifdef CONFIG_HAVE_CLK
@@ -115,7 +116,32 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 	}
 
 	priv = netdev_priv(dev);
-	priv->regs = reg_map_c_can;
+	id = platform_get_device_id(pdev);
+	switch (id->driver_data) {
+	case C_CAN_DEVTYPE:
+		priv->regs = reg_map_c_can;
+		switch (mem->flags & IORESOURCE_MEM_TYPE_MASK) {
+		case IORESOURCE_MEM_32BIT:
+			priv->read_reg = c_can_plat_read_reg_aligned_to_32bit;
+			priv->write_reg = c_can_plat_write_reg_aligned_to_32bit;
+			break;
+		case IORESOURCE_MEM_16BIT:
+		default:
+			priv->read_reg = c_can_plat_read_reg_aligned_to_16bit;
+			priv->write_reg = c_can_plat_write_reg_aligned_to_16bit;
+			break;
+		}
+		break;
+	case D_CAN_DEVTYPE:
+		priv->regs = reg_map_d_can;
+		priv->can.ctrlmode_supported |= CAN_CTRLMODE_3_SAMPLES;
+		priv->read_reg = c_can_plat_read_reg_aligned_to_16bit;
+		priv->write_reg = c_can_plat_write_reg_aligned_to_16bit;
+		break;
+	default:
+		ret = -EINVAL;
+		goto exit_free_device;
+	}
 
 	dev->irq = irq;
 	priv->base = addr;
@@ -123,18 +149,6 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 	priv->can.clock.freq = clk_get_rate(clk);
 	priv->priv = clk;
 #endif
-
-	switch (mem->flags & IORESOURCE_MEM_TYPE_MASK) {
-	case IORESOURCE_MEM_32BIT:
-		priv->read_reg = c_can_plat_read_reg_aligned_to_32bit;
-		priv->write_reg = c_can_plat_write_reg_aligned_to_32bit;
-		break;
-	case IORESOURCE_MEM_16BIT:
-	default:
-		priv->read_reg = c_can_plat_read_reg_aligned_to_16bit;
-		priv->write_reg = c_can_plat_write_reg_aligned_to_16bit;
-		break;
-	}
 
 	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -189,6 +203,20 @@ static int __devexit c_can_plat_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id c_can_id_table[] = {
+	{
+		.name = KBUILD_MODNAME,
+		.driver_data = C_CAN_DEVTYPE,
+	}, {
+		.name = "c_can",
+		.driver_data = C_CAN_DEVTYPE,
+	}, {
+		.name = "d_can",
+		.driver_data = D_CAN_DEVTYPE,
+	}, {
+	}
+};
+
 static struct platform_driver c_can_plat_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
@@ -196,6 +224,7 @@ static struct platform_driver c_can_plat_driver = {
 	},
 	.probe = c_can_plat_probe,
 	.remove = __devexit_p(c_can_plat_remove),
+	.id_table = c_can_id_table,
 };
 
 module_platform_driver(c_can_plat_driver);
