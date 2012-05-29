@@ -77,16 +77,16 @@ unsigned long __init bootmem_bootmap_pages(unsigned long pages)
  */
 static void __init link_bootmem(bootmem_data_t *bdata)
 {
-	struct list_head *iter;
+	bootmem_data_t *ent;
 
-	list_for_each(iter, &bdata_list) {
-		bootmem_data_t *ent;
-
-		ent = list_entry(iter, bootmem_data_t, list);
-		if (bdata->node_min_pfn < ent->node_min_pfn)
-			break;
+	list_for_each_entry(ent, &bdata_list, list) {
+		if (bdata->node_min_pfn < ent->node_min_pfn) {
+			list_add_tail(&bdata->list, &ent->list);
+			return;
+		}
 	}
-	list_add_tail(&bdata->list, iter);
+
+	list_add_tail(&bdata->list, &bdata_list);
 }
 
 /*
