@@ -181,7 +181,7 @@ static inline unsigned long long __cmpxchg64(void *ptr,
 		"	cds	%0,%2,%1"
 		: "+&d" (rp_old), "=Q" (ptr)
 		: "d" (rp_new), "Q" (ptr)
-		: "cc");
+		: "memory", "cc");
 	return rp_old.pair;
 }
 #define cmpxchg64(ptr, o, n)						\
