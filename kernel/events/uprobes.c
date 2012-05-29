@@ -38,7 +38,6 @@
 #define UINSNS_PER_PAGE			(PAGE_SIZE/UPROBE_XOL_SLOT_BYTES)
 #define MAX_UPROBE_XOL_SLOTS		UINSNS_PER_PAGE
 
-static struct srcu_struct uprobes_srcu;
 static struct rb_root uprobes_tree = RB_ROOT;
 
 static DEFINE_SPINLOCK(uprobes_treelock);	/* serialize rbtree access */
@@ -738,20 +737,14 @@ remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, loff_t vaddr)
 }
 
 /*
- * There could be threads that have hit the breakpoint and are entering the
- * notifier code and trying to acquire the uprobes_treelock. The thread
- * calling delete_uprobe() that is removing the uprobe from the rb_tree can
- * race with these threads and might acquire the uprobes_treelock compared
- * to some of the breakpoint hit threads. In such a case, the breakpoint
- * hit threads will not find the uprobe. The current unregistering thread
- * waits till all other threads have hit a breakpoint, to acquire the
- * uprobes_treelock before the uprobe is removed from the rbtree.
+ * There could be threads that have already hit the breakpoint. They
+ * will recheck the current insn and restart if find_uprobe() fails.
+ * See find_active_uprobe().
  */
 static void delete_uprobe(struct uprobe *uprobe)
 {
 	unsigned long flags;
 
-	synchronize_srcu(&uprobes_srcu);
 	spin_lock_irqsave(&uprobes_treelock, flags);
 	rb_erase(&uprobe->rb_node, &uprobes_tree);
 	spin_unlock_irqrestore(&uprobes_treelock, flags);
@@ -1388,9 +1381,6 @@ void uprobe_free_utask(struct task_struct *t)
 {
 	struct uprobe_task *utask = t->utask;
 
-	if (t->uprobe_srcu_id != -1)
-		srcu_read_unlock_raw(&uprobes_srcu, t->uprobe_srcu_id);
-
 	if (!utask)
 		return;
 
@@ -1408,7 +1398,6 @@ void uprobe_free_utask(struct task_struct *t)
 void uprobe_copy_process(struct task_struct *t)
 {
 	t->utask = NULL;
-	t->uprobe_srcu_id = -1;
 }
 
 /*
@@ -1513,9 +1502,6 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	} else {
 		*is_swbp = -EFAULT;
 	}
-
-	srcu_read_unlock_raw(&uprobes_srcu, current->uprobe_srcu_id);
-	current->uprobe_srcu_id = -1;
 	up_read(&mm->mmap_sem);
 
 	return uprobe;
@@ -1656,7 +1642,6 @@ int uprobe_pre_sstep_notifier(struct pt_regs *regs)
 		utask->state = UTASK_BP_HIT;
 
 	set_thread_flag(TIF_UPROBE);
-	current->uprobe_srcu_id = srcu_read_lock_raw(&uprobes_srcu);
 
 	return 1;
 }
@@ -1691,7 +1676,6 @@ static int __init init_uprobes(void)
 		mutex_init(&uprobes_mutex[i]);
 		mutex_init(&uprobes_mmap_mutex[i]);
 	}
-	init_srcu_struct(&uprobes_srcu);
 
 	return register_die_notifier(&uprobe_exception_nb);
 }
