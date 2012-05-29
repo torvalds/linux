@@ -3373,7 +3373,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
 void mem_cgroup_replace_page_cache(struct page *oldpage,
 				  struct page *newpage)
 {
-	struct mem_cgroup *memcg;
+	struct mem_cgroup *memcg = NULL;
 	struct page_cgroup *pc;
 	enum charge_type type = MEM_CGROUP_CHARGE_TYPE_CACHE;
 
@@ -3383,10 +3383,19 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
 	pc = lookup_page_cgroup(oldpage);
 	/* fix accounting on old pages */
 	lock_page_cgroup(pc);
-	memcg = pc->mem_cgroup;
-	mem_cgroup_charge_statistics(memcg, false, -1);
-	ClearPageCgroupUsed(pc);
+	if (PageCgroupUsed(pc)) {
+		memcg = pc->mem_cgroup;
+		mem_cgroup_charge_statistics(memcg, false, -1);
+		ClearPageCgroupUsed(pc);
+	}
 	unlock_page_cgroup(pc);
+
+	/*
+	 * When called from shmem_replace_page(), in some cases the
+	 * oldpage has already been charged, and in some cases not.
+	 */
+	if (!memcg)
+		return;
 
 	if (PageSwapBacked(oldpage))
 		type = MEM_CGROUP_CHARGE_TYPE_SHMEM;
