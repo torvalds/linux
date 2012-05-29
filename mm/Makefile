@@ -5,8 +5,11 @@
 mmu-y			:= nommu.o
 mmu-$(CONFIG_MMU)	:= fremap.o highmem.o madvise.o memory.o mincore.o \
 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
-			   vmalloc.o pagewalk.o pgtable-generic.o \
-			   process_vm_access.o
+			   vmalloc.o pagewalk.o pgtable-generic.o
+
+ifdef CONFIG_CROSS_MEMORY_ATTACH
+mmu-$(CONFIG_MMU)	+= process_vm_access.o
+endif
 
 obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
 			   maccess.o page_alloc.o page-writeback.o \
