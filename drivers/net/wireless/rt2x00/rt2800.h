@@ -72,6 +72,7 @@
 #define RF5370				0x5370
 #define RF5372				0x5372
 #define RF5390				0x5390
+#define RF5392				0x5392
 
 /*
  * Chipset revisions.
@@ -1944,6 +1945,11 @@ struct mac_iveiv_entry {
  * RFCSR 49:
  */
 #define RFCSR49_TX			FIELD8(0x3f)
+
+/*
+ * RFCSR 50:
+ */
+#define RFCSR50_TX			FIELD8(0x3f)
 
 /*
  * RF registers
