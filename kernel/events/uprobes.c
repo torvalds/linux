@@ -333,10 +333,20 @@ static int is_swbp_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	uprobe_opcode_t opcode;
 	int result;
 
+	if (current->mm == mm) {
+		pagefault_disable();
+		result = __copy_from_user_inatomic(&opcode, (void __user*)vaddr,
+								sizeof(opcode));
+		pagefault_enable();
+
+		if (likely(result == 0))
+			goto out;
+	}
+
 	result = read_opcode(mm, vaddr, &opcode);
 	if (result)
 		return result;
-
+out:
 	if (is_swbp_insn(&opcode))
 		return 1;
 
