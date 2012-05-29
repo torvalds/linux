@@ -1537,9 +1537,9 @@ static bool client_has_state(struct nfs4_client *clp)
 	 *
 	 * Also note we should probably be using this in 4.0 case too.
 	 */
-	return list_empty(&clp->cl_openowners)
-		&& list_empty(&clp->cl_delegations)
-		&& list_empty(&clp->cl_sessions);
+	return !list_empty(&clp->cl_openowners)
+		|| !list_empty(&clp->cl_delegations)
+		|| !list_empty(&clp->cl_sessions);
 }
 
 __be32
@@ -2069,13 +2069,6 @@ out:
 	return status;
 }
 
-static inline bool has_resources(struct nfs4_client *clp)
-{
-	return !list_empty(&clp->cl_openowners)
-		|| !list_empty(&clp->cl_delegations)
-		|| !list_empty(&clp->cl_sessions);
-}
-
 __be32
 nfsd4_destroy_clientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_destroy_clientid *dc)
 {
@@ -2089,7 +2082,7 @@ nfsd4_destroy_clientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *csta
 	if (conf) {
 		clp = conf;
 
-		if (!is_client_expired(conf) && has_resources(conf)) {
+		if (!is_client_expired(conf) && client_has_state(conf)) {
 			status = nfserr_clientid_busy;
 			goto out;
 		}
