@@ -959,16 +959,16 @@ try_again:
 			}
 
 			if (err == ENOENT) {
-				ui__warning("The %s event is not supported.\n",
+				ui__error("The %s event is not supported.\n",
 					    event_name(counter));
 				goto out_err;
 			} else if (err == EMFILE) {
-				ui__warning("Too many events are opened.\n"
+				ui__error("Too many events are opened.\n"
 					    "Try again after reducing the number of events\n");
 				goto out_err;
 			}
 
-			ui__warning("The sys_perf_event_open() syscall "
+			ui__error("The sys_perf_event_open() syscall "
 				    "returned with %d (%s).  /bin/dmesg "
 				    "may provide additional information.\n"
 				    "No CONFIG_PERF_EVENTS=y kernel support "
@@ -978,7 +978,7 @@ try_again:
 	}
 
 	if (perf_evlist__mmap(evlist, top->mmap_pages, false) < 0) {
-		ui__warning("Failed to mmap with %d (%s)\n",
+		ui__error("Failed to mmap with %d (%s)\n",
 			    errno, strerror(errno));
 		goto out_err;
 	}
@@ -994,12 +994,12 @@ static int perf_top__setup_sample_type(struct perf_top *top)
 {
 	if (!top->sort_has_symbols) {
 		if (symbol_conf.use_callchain) {
-			ui__warning("Selected -g but \"sym\" not present in --sort/-s.");
+			ui__error("Selected -g but \"sym\" not present in --sort/-s.");
 			return -EINVAL;
 		}
 	} else if (!top->dont_use_callchains && callchain_param.mode != CHAIN_NONE) {
 		if (callchain_register_param(&callchain_param) < 0) {
-			ui__warning("Can't register callchain params.\n");
+			ui__error("Can't register callchain params.\n");
 			return -EINVAL;
 		}
 	}
@@ -1041,7 +1041,7 @@ static int __cmd_top(struct perf_top *top)
 
 	if (pthread_create(&thread, NULL, (use_browser > 0 ? display_thread_tui :
 							    display_thread), top)) {
-		printf("Could not create display thread.\n");
+		ui__error("Could not create display thread.\n");
 		exit(-1);
 	}
 
@@ -1050,7 +1050,7 @@ static int __cmd_top(struct perf_top *top)
 
 		param.sched_priority = top->realtime_prio;
 		if (sched_setscheduler(0, SCHED_FIFO, &param)) {
-			printf("Could not set realtime priority.\n");
+			ui__error("Could not set realtime priority.\n");
 			exit(-1);
 		}
 	}
@@ -1274,7 +1274,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		int saved_errno = errno;
 
 		perf_target__strerror(&top.target, status, errbuf, BUFSIZ);
-		ui__warning("%s", errbuf);
+		ui__error("%s", errbuf);
 
 		status = -saved_errno;
 		goto out_delete_evlist;
@@ -1288,7 +1288,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	if (!top.evlist->nr_entries &&
 	    perf_evlist__add_default(top.evlist) < 0) {
-		pr_err("Not enough memory for event selector list\n");
+		ui__error("Not enough memory for event selector list\n");
 		return -ENOMEM;
 	}
 
@@ -1305,7 +1305,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	else if (top.freq) {
 		top.default_interval = top.freq;
 	} else {
-		fprintf(stderr, "frequency and count are zero, aborting\n");
+		ui__error("frequency and count are zero, aborting\n");
 		exit(EXIT_FAILURE);
 	}
 
