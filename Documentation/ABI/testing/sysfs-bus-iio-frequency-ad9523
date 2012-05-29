@@ -1,0 +1,37 @@
+What:		/sys/bus/iio/devices/iio:deviceX/pll2_feedback_clk_present
+What:		/sys/bus/iio/devices/iio:deviceX/pll2_reference_clk_present
+What:		/sys/bus/iio/devices/iio:deviceX/pll1_reference_clk_a_present
+What:		/sys/bus/iio/devices/iio:deviceX/pll1_reference_clk_b_present
+What:		/sys/bus/iio/devices/iio:deviceX/pll1_reference_clk_test_present
+What:		/sys/bus/iio/devices/iio:deviceX/vcxo_clk_present
+KernelVersion:	3.4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Reading returns either '1' or '0'.
+		'1' means that the clock in question is present.
+		'0' means that the clock is missing.
+
+What:		/sys/bus/iio/devices/iio:deviceX/pllY_locked
+KernelVersion:	3.4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Reading returns either '1' or '0'. '1' means that the
+		pllY is locked.
+
+What:		/sys/bus/iio/devices/iio:deviceX/store_eeprom
+KernelVersion:	3.4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Writing '1' stores the current device configuration into
+		on-chip EEPROM. After power-up or chip reset the device will
+		automatically load the saved configuration.
+
+What:		/sys/bus/iio/devices/iio:deviceX/sync_dividers
+KernelVersion:	3.4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Writing '1' triggers the clock distribution synchronization
+		functionality. All dividers are reset and the channels start
+		with their predefined phase offsets (out_altvoltageY_phase).
+		Writing this file has the effect as driving the external
+		/SYNC pin low.
