@@ -2039,7 +2039,7 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 	.tx = iwl_trans_pcie_tx,
 	.reclaim = iwl_trans_pcie_reclaim,
 
-	.tx_agg_disable = iwl_trans_pcie_tx_agg_disable,
+	.txq_disable = iwl_trans_pcie_txq_disable,
 	.tx_agg_setup = iwl_trans_pcie_tx_agg_setup,
 
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,

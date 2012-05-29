@@ -487,7 +487,7 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans, int txq_id, int fifo,
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 }
 
-void iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans, int txq_id)
+void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 

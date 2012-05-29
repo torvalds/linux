@@ -339,7 +339,7 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans,
 void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 				       struct iwl_tx_queue *txq,
 				       u16 byte_cnt);
-void iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans, int queue);
+void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int queue);
 void iwl_trans_set_wr_ptrs(struct iwl_trans *trans, int txq_id, u32 index);
 void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
 				   struct iwl_tx_queue *txq,

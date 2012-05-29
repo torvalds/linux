@@ -358,7 +358,7 @@ struct iwl_trans;
  * @tx_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
  *	ready and a successful ADDBA response has been received.
  *	May sleep
- * @tx_agg_disable: de-configure a Tx queue to send AMPDUs
+ * @txq_disable: de-configure a Tx queue to send AMPDUs
  *	Must be atomic
  * @wait_tx_queue_empty: wait until all tx queues are empty
  *	May sleep
@@ -393,7 +393,7 @@ struct iwl_trans_ops {
 
 	void (*tx_agg_setup)(struct iwl_trans *trans, int queue, int fifo,
 			     int sta_id, int tid, int frame_limit, u16 ssn);
-	void (*tx_agg_disable)(struct iwl_trans *trans, int queue);
+	void (*txq_disable)(struct iwl_trans *trans, int queue);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans);
@@ -543,12 +543,12 @@ static inline void iwl_trans_reclaim(struct iwl_trans *trans, int queue,
 	trans->ops->reclaim(trans, queue, ssn, skbs);
 }
 
-static inline void iwl_trans_tx_agg_disable(struct iwl_trans *trans, int queue)
+static inline void iwl_trans_txq_disable(struct iwl_trans *trans, int queue)
 {
 	WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
 		  "%s bad state = %d", __func__, trans->state);
 
-	trans->ops->tx_agg_disable(trans, queue);
+	trans->ops->txq_disable(trans, queue);
 }
 
 static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans, int queue,
