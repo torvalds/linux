@@ -716,63 +716,17 @@ static void wl18xx_pre_upload(struct wl1271 *wl)
 static void wl18xx_set_mac_and_phy(struct wl1271 *wl)
 {
 	struct wl18xx_priv *priv = wl->priv;
-	struct wl18xx_conf_phy *phy = &priv->conf.phy;
-	struct wl18xx_mac_and_phy_params params;
 	size_t len;
-
-	memset(&params, 0, sizeof(params));
-
-	params.phy_standalone = phy->phy_standalone;
-	params.rdl = phy->rdl;
-	params.enable_clpc = phy->enable_clpc;
-	params.enable_tx_low_pwr_on_siso_rdl =
-		phy->enable_tx_low_pwr_on_siso_rdl;
-	params.auto_detect = phy->auto_detect;
-	params.dedicated_fem = phy->dedicated_fem;
-	params.low_band_component = phy->low_band_component;
-	params.low_band_component_type =
-		phy->low_band_component_type;
-	params.high_band_component = phy->high_band_component;
-	params.high_band_component_type =
-		phy->high_band_component_type;
-	params.number_of_assembled_ant2_4 =
-		n_antennas_2_param;
-	params.number_of_assembled_ant5 =
-		n_antennas_5_param;
-	params.external_pa_dc2dc = dc2dc_param;
-	params.tcxo_ldo_voltage = phy->tcxo_ldo_voltage;
-	params.xtal_itrim_val = phy->xtal_itrim_val;
-	params.srf_state = phy->srf_state;
-	params.io_configuration = phy->io_configuration;
-	params.sdio_configuration = phy->sdio_configuration;
-	params.settings = phy->settings;
-	params.rx_profile = phy->rx_profile;
-	params.primary_clock_setting_time =
-		phy->primary_clock_setting_time;
-	params.clock_valid_on_wake_up =
-		phy->clock_valid_on_wake_up;
-	params.secondary_clock_setting_time =
-		phy->secondary_clock_setting_time;
-	params.pwr_limit_reference_11_abg =
-		phy->pwr_limit_reference_11_abg;
-
-	params.board_type = priv->board_type;
-
-	/* for PG2 only */
-	params.psat = phy->psat;
-	params.low_power_val = phy->low_power_val;
-	params.med_power_val = phy->med_power_val;
-	params.high_power_val = phy->high_power_val;
 
 	/* the parameters struct is smaller for PG1 */
 	if (wl->chip.id == CHIP_ID_185x_PG10)
 		len = offsetof(struct wl18xx_mac_and_phy_params, psat) + 1;
 	else
-		len = sizeof(params);
+		len = sizeof(struct wl18xx_mac_and_phy_params);
 
 	wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
-	wl1271_write(wl, WL18XX_PHY_INIT_MEM_ADDR, (u8 *)&params,
-		     len, false);
+	wl1271_write(wl, WL18XX_PHY_INIT_MEM_ADDR, (u8 *)&priv->conf.phy, len,
+		     false);
 }
 
 static void wl18xx_enable_interrupts(struct wl1271 *wl)
