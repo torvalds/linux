@@ -1233,6 +1233,8 @@ err_out_mdio_irq:
 err_out_mdio:
 	mdiobus_free(lp->mii_bus);
 err_out_unmap:
+	netif_napi_del(&lp->napi);
+	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ioaddr);
 err_out_free_res:
 	pci_release_regions(pdev);
@@ -1253,6 +1255,9 @@ static void __devexit r6040_remove_one(struct pci_dev *pdev)
 	mdiobus_unregister(lp->mii_bus);
 	kfree(lp->mii_bus->irq);
 	mdiobus_free(lp->mii_bus);
+	netif_napi_del(&lp->napi);
+	pci_set_drvdata(pdev, NULL);
+	pci_iounmap(pdev, lp->base);
 	pci_release_regions(pdev);
 	free_netdev(dev);
 	pci_disable_device(pdev);
