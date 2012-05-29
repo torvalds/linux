@@ -104,6 +104,16 @@ struct a2mp_physlink_rsp {
 	__u8	status;
 } __packed;
 
+/* A2MP response status */
+#define A2MP_STATUS_SUCCESS			0x00
+#define A2MP_STATUS_INVALID_CTRL_ID		0x01
+#define A2MP_STATUS_UNABLE_START_LINK_CREATION	0x02
+#define A2MP_STATUS_NO_PHYSICAL_LINK_EXISTS	0x02
+#define A2MP_STATUS_COLLISION_OCCURED		0x03
+#define A2MP_STATUS_DISCONN_REQ_RECVD		0x04
+#define A2MP_STATUS_PHYS_LINK_EXISTS		0x05
+#define A2MP_STATUS_SECURITY_VIOLATION		0x06
+
 void amp_mgr_get(struct amp_mgr *mgr);
 int amp_mgr_put(struct amp_mgr *mgr);
 
