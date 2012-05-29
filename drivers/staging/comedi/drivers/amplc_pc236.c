@@ -126,11 +126,6 @@ static const struct pc236_board pc236_boards[] = {
 #endif
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct pc236_board *)dev->board_ptr)
-
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.
@@ -144,8 +139,6 @@ struct pc236_private {
 	int enable_irq;
 };
 
-#define devpriv ((struct pc236_private *)dev->private)
-
 /*
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
@@ -154,6 +147,7 @@ struct pc236_private {
 struct pci_dev *
 pc236_find_pci(struct comedi_device *dev, int bus, int slot)
 {
+	const struct pc236_board *thisboard = comedi_board(dev);
 	struct pci_dev *pci_dev = NULL;
 
 	/* Look for matching PCI device. */
@@ -177,6 +171,7 @@ pc236_find_pci(struct comedi_device *dev, int bus, int slot)
 				if (pci_dev->device == pc236_boards[i].devid) {
 					/* Change board_ptr to matched board. */
 					dev->board_ptr = &pc236_boards[i];
+					thisboard = comedi_board(dev);
 					break;
 				}
 			}
@@ -228,6 +223,7 @@ static int pc236_request_region(struct comedi_device *dev, unsigned long from,
  */
 static void pc236_intr_disable(struct comedi_device *dev)
 {
+	struct pc236_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -246,6 +242,7 @@ static void pc236_intr_disable(struct comedi_device *dev)
  */
 static void pc236_intr_enable(struct comedi_device *dev)
 {
+	struct pc236_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -266,6 +263,7 @@ static void pc236_intr_enable(struct comedi_device *dev)
  */
 static int pc236_intr_check(struct comedi_device *dev)
 {
+	struct pc236_private *devpriv = dev->private;
 	int retval = 0;
 	unsigned long flags;
 
@@ -425,6 +423,7 @@ static irqreturn_t pc236_interrupt(int irq, void *d)
 
 static void pc236_report_attach(struct comedi_device *dev, unsigned int irq)
 {
+	const struct pc236_board *thisboard = comedi_board(dev);
 	char tmpbuf[60];
 	int tmplen;
 
@@ -436,9 +435,12 @@ static void pc236_report_attach(struct comedi_device *dev, unsigned int irq)
 		break;
 #endif
 #if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
-	case pci_bustype:
-		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
-				   "(pci %s) ", pci_name(devpriv->pci_dev));
+	case pci_bustype: {
+			struct pc236_private *devpriv = dev->private;
+			struct pci_dev *pci_dev = devpriv->pci_dev;
+			tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
+					   "(pci %s) ", pci_name(pci_dev));
+		}
 		break;
 #endif
 	default:
@@ -464,10 +466,12 @@ static void pc236_report_attach(struct comedi_device *dev, unsigned int irq)
  */
 static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct pc236_board *thisboard = comedi_board(dev);
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 #if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
+	struct pc236_private *devpriv = dev->private;
 	struct pci_dev *pci_dev = NULL;
 	int bus = 0, slot = 0;
 #endif
@@ -498,6 +502,7 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		pci_dev = pc236_find_pci(dev, bus, slot);
 		if (pci_dev == NULL)
 			return -EIO;
+		thisboard = comedi_board(dev);	/* replaced wildcard board */
 		devpriv->pci_dev = pci_dev;
 		break;
 #endif
@@ -575,6 +580,8 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void pc236_detach(struct comedi_device *dev)
 {
+	struct pc236_private *devpriv = dev->private;
+
 	if (devpriv)
 		pc236_intr_disable(dev);
 	if (dev->irq)
