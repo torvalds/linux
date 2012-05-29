@@ -2540,7 +2540,7 @@ void ath6kl_check_wow_status(struct ath6kl *ar)
 static int ath6kl_set_htcap(struct ath6kl_vif *vif, enum ieee80211_band band,
 			    bool ht_enable)
 {
-	struct ath6kl_htcap *htcap = &vif->htcap;
+	struct ath6kl_htcap *htcap = &vif->htcap[band];
 
 	if (htcap->ht_enable == ht_enable)
 		return 0;
@@ -3526,7 +3526,8 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	vif->listen_intvl_t = ATH6KL_DEFAULT_LISTEN_INTVAL;
 	vif->bmiss_time_t = ATH6KL_DEFAULT_BMISS_TIME;
 	vif->bg_scan_period = 0;
-	vif->htcap.ht_enable = true;
+	vif->htcap[IEEE80211_BAND_2GHZ].ht_enable = true;
+	vif->htcap[IEEE80211_BAND_5GHZ].ht_enable = true;
 
 	memcpy(ndev->dev_addr, ar->mac_addr, ETH_ALEN);
 	if (fw_vif_idx != 0)

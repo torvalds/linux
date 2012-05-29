@@ -560,7 +560,7 @@ struct ath6kl_vif {
 	struct ath6kl_wep_key wep_key_list[WMI_MAX_KEY_INDEX + 1];
 	struct ath6kl_key keys[WMI_MAX_KEY_INDEX + 1];
 	struct aggr_info *aggr_cntxt;
-	struct ath6kl_htcap htcap;
+	struct ath6kl_htcap htcap[IEEE80211_NUM_BANDS];
 
 	struct timer_list disconnect_timer;
 	struct timer_list sched_scan_timer;
