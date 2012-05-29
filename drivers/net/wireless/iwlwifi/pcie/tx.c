@@ -442,29 +442,34 @@ void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
 		IWL_DEBUG_TX_QUEUES(trans, "Deactivate queue %d\n", txq_id);
 }
 
-void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans, int txq_id, int fifo,
-				 int sta_id, int tid, int frame_limit, u16 ssn)
+void __iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id,
+					int fifo, int sta_id, int tid,
+					int frame_limit, u16 ssn)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
-	u16 ra_tid = BUILD_RAxTID(sta_id, tid);
+
+	lockdep_assert_held(&trans_pcie->irq_lock);
 
 	if (test_and_set_bit(txq_id, trans_pcie->queue_used))
 		WARN_ONCE(1, "queue %d already used - expect issues", txq_id);
 
-	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
-
 	/* Stop this Tx queue before configuring it */
 	iwlagn_tx_queue_stop_scheduler(trans, txq_id);
 
-	/* Map receiver-address / traffic-ID to this queue */
-	iwlagn_tx_queue_set_q2ratid(trans, ra_tid, txq_id);
+	/* Set this queue as a chain-building queue unless it is CMD queue */
+	if (txq_id != trans_pcie->cmd_queue)
+		iwl_set_bits_prph(trans, SCD_QUEUECHAIN_SEL, BIT(txq_id));
 
-	/* Set this queue as a chain-building queue */
-	iwl_set_bits_prph(trans, SCD_QUEUECHAIN_SEL, BIT(txq_id));
+	/* If this queue is mapped to a certain station: it is an AGG queue */
+	if (sta_id != IWL_INVALID_STATION) {
+		u16 ra_tid = BUILD_RAxTID(sta_id, tid);
 
-	/* enable aggregations for the queue */
-	iwl_set_bits_prph(trans, SCD_AGGR_SEL, BIT(txq_id));
+		/* Map receiver-address / traffic-ID to this queue */
+		iwlagn_tx_queue_set_q2ratid(trans, ra_tid, txq_id);
+
+		/* enable aggregations for the queue */
+		iwl_set_bits_prph(trans, SCD_AGGR_SEL, BIT(txq_id));
+	}
 
 	/* Place first TFD at index corresponding to start sequence number.
 	 * Assumes that ssn_idx is valid (!= 0xFFF) */
@@ -473,6 +478,8 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans, int txq_id, int fifo,
 	iwl_trans_set_wr_ptrs(trans, txq_id, ssn);
 
 	/* Set up Tx window size and frame limit for this queue */
+	iwl_write_targ_mem(trans, trans_pcie->scd_base_addr +
+			SCD_CONTEXT_QUEUE_OFFSET(txq_id), 0);
 	iwl_write_targ_mem(trans, trans_pcie->scd_base_addr +
 			SCD_CONTEXT_QUEUE_OFFSET(txq_id) + sizeof(u32),
 			((frame_limit << SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
@@ -483,6 +490,18 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans, int txq_id, int fifo,
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	iwl_trans_tx_queue_set_status(trans, &trans_pcie->txq[txq_id],
 				      fifo, true);
+}
+
+void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
+			       int sta_id, int tid, int frame_limit, u16 ssn)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	unsigned long flags;
+
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
+
+	__iwl_trans_pcie_txq_enable(trans, txq_id, fifo, sta_id,
+				    tid, frame_limit, ssn);
 
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 }

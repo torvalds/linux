@@ -1054,33 +1054,12 @@ static void iwl_tx_start(struct iwl_trans *trans)
 	iwl_write_prph(trans, SCD_DRAM_BASE_ADDR,
 		       trans_pcie->scd_bc_tbls.dma >> 10);
 
-	iwl_write_prph(trans, SCD_QUEUECHAIN_SEL,
-		       SCD_QUEUECHAIN_SEL_ALL(trans, trans_pcie));
-	iwl_write_prph(trans, SCD_AGGR_SEL, 0);
-
-	/* initiate the queues */
-	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
-		iwl_trans_set_wr_ptrs(trans, i, 0);
-		iwl_write_targ_mem(trans, trans_pcie->scd_base_addr +
-				SCD_CONTEXT_QUEUE_OFFSET(i), 0);
-		iwl_write_targ_mem(trans, trans_pcie->scd_base_addr +
-				SCD_CONTEXT_QUEUE_OFFSET(i) +
-				sizeof(u32),
-				((SCD_WIN_SIZE <<
-				SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
-				SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
-				((SCD_FRAME_LIMIT <<
-				SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
-				SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
-	}
-
 	for (i = 0; i < trans_pcie->n_q_to_fifo; i++) {
 		int fifo = trans_pcie->setup_q_to_fifo[i];
 
-		set_bit(i, trans_pcie->queue_used);
-
-		iwl_trans_tx_queue_set_status(trans, &trans_pcie->txq[i],
-					      fifo, true);
+		__iwl_trans_pcie_txq_enable(trans, i, fifo, IWL_INVALID_STATION,
+					    IWL_TID_NON_QOS,
+					    SCD_FRAME_LIMIT, 0);
 	}
 
 	/* Activate all Tx DMA/FIFO channels */
@@ -2040,7 +2019,7 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 	.reclaim = iwl_trans_pcie_reclaim,
 
 	.txq_disable = iwl_trans_pcie_txq_disable,
-	.tx_agg_setup = iwl_trans_pcie_tx_agg_setup,
+	.txq_enable = iwl_trans_pcie_txq_enable,
 
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
 

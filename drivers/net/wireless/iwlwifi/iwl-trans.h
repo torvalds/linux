@@ -355,7 +355,7 @@ struct iwl_trans;
  *	Must be atomic
  * @reclaim: free packet until ssn. Returns a list of freed packets.
  *	Must be atomic
- * @tx_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
+ * @txq_enable: setup a tx queue for AMPDU - will be called once the HW is
  *	ready and a successful ADDBA response has been received.
  *	May sleep
  * @txq_disable: de-configure a Tx queue to send AMPDUs
@@ -391,8 +391,8 @@ struct iwl_trans_ops {
 	void (*reclaim)(struct iwl_trans *trans, int queue, int ssn,
 			struct sk_buff_head *skbs);
 
-	void (*tx_agg_setup)(struct iwl_trans *trans, int queue, int fifo,
-			     int sta_id, int tid, int frame_limit, u16 ssn);
+	void (*txq_enable)(struct iwl_trans *trans, int queue, int fifo,
+			   int sta_id, int tid, int frame_limit, u16 ssn);
 	void (*txq_disable)(struct iwl_trans *trans, int queue);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
@@ -551,16 +551,16 @@ static inline void iwl_trans_txq_disable(struct iwl_trans *trans, int queue)
 	trans->ops->txq_disable(trans, queue);
 }
 
-static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans, int queue,
-					  int fifo, int sta_id, int tid,
-					  int frame_limit, u16 ssn)
+static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
+					int fifo, int sta_id, int tid,
+					int frame_limit, u16 ssn)
 {
 	might_sleep();
 
 	WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
 		  "%s bad state = %d", __func__, trans->state);
 
-	trans->ops->tx_agg_setup(trans, queue, fifo, sta_id, tid,
+	trans->ops->txq_enable(trans, queue, fifo, sta_id, tid,
 				 frame_limit, ssn);
 }
 

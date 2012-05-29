@@ -344,8 +344,11 @@ void iwl_trans_set_wr_ptrs(struct iwl_trans *trans, int txq_id, u32 index);
 void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
 				   struct iwl_tx_queue *txq,
 				   int tx_fifo_id, bool active);
-void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans, int queue, int fifo,
-				 int sta_id, int tid, int frame_limit, u16 ssn);
+void __iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id,
+					int fifo, int sta_id, int tid,
+					int frame_limit, u16 ssn);
+void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
+			       int sta_id, int tid, int frame_limit, u16 ssn);
 void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 		      enum dma_data_direction dma_dir);
 int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,

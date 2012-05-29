@@ -665,7 +665,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		ret = iwl_sta_rx_agg_stop(priv, sta, tid);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!priv->trans->ops->tx_agg_setup)
+		if (!priv->trans->ops->txq_enable)
 			break;
 		if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
 			break;

@@ -688,9 +688,8 @@ int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 	fifo = ctx->ac_to_fifo[tid_to_ac[tid]];
 
-	iwl_trans_tx_agg_setup(priv->trans, q, fifo,
-			       sta_priv->sta_id, tid,
-			       buf_size, ssn);
+	iwl_trans_txq_enable(priv->trans, q, fifo, sta_priv->sta_id, tid,
+			     buf_size, ssn);
 
 	/*
 	 * If the limit is 0, then it wasn't initialised yet,
