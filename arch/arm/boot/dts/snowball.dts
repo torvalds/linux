@@ -103,11 +103,13 @@
 
 		sdi@80126000 {
 			status = "enabled";
+			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 			cd-gpios  = <&gpio6 26 0x4>; // 218
 		};
 
 		sdi@80114000 {
 			status = "enabled";
+			vmmc-supply = <&ab8500_ldo_aux2_reg>;
 		};
 
 		uart@80120000 {
