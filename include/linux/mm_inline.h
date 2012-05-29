@@ -21,7 +21,7 @@ static inline int page_is_file_cache(struct page *page)
 	return !PageSwapBacked(page);
 }
 
-static inline void
+static __always_inline void
 add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list lru)
 {
 	struct lruvec *lruvec;
@@ -31,7 +31,7 @@ add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list lru)
 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, hpage_nr_pages(page));
 }
 
-static inline void
+static __always_inline void
 del_page_from_lru_list(struct zone *zone, struct page *page, enum lru_list lru)
 {
 	mem_cgroup_lru_del_list(page, lru);
@@ -61,7 +61,7 @@ static inline enum lru_list page_lru_base_type(struct page *page)
  * Returns the LRU list a page was on, as an index into the array of LRU
  * lists; and clears its Unevictable or Active flags, ready for freeing.
  */
-static inline enum lru_list page_off_lru(struct page *page)
+static __always_inline enum lru_list page_off_lru(struct page *page)
 {
 	enum lru_list lru;
 
@@ -85,7 +85,7 @@ static inline enum lru_list page_off_lru(struct page *page)
  * Returns the LRU list a page should be on, as an index
  * into the array of LRU lists.
  */
-static inline enum lru_list page_lru(struct page *page)
+static __always_inline enum lru_list page_lru(struct page *page)
 {
 	enum lru_list lru;
 
