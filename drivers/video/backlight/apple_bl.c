@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/atomic.h>
+#include <linux/apple_bl.h>
 
 static struct backlight_device *apple_backlight_device;
 
