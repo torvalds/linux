@@ -1614,7 +1614,8 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 				status = nfserr_clid_inuse;
 				goto out;
 			}
-			goto expire_client;
+			expire_client(conf);
+			goto out_new;
 		}
 		if (verfs_match) { /* case 2 */
 			conf->cl_exchange_flags |= EXCHGID4_FLAG_CONFIRMED_R;
@@ -1622,8 +1623,6 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 			goto out_copy;
 		}
 		/* case 5, client reboot */
-expire_client:
-		expire_client(conf);
 		goto out_new;
 	}
 
@@ -1805,8 +1804,14 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 
 	/* cache solo and embedded create sessions under the state lock */
 	nfsd4_cache_create_session(cr_ses, cs_slot, status);
-	if (confirm_me)
+	if (confirm_me) {
+		unsigned int hash = clientstr_hashval(unconf->cl_recdir);
+		struct nfs4_client *old =
+			find_confirmed_client_by_str(conf->cl_recdir, hash);
+		if (old)
+			expire_client(old);
 		move_to_confirmed(conf);
+	}
 out:
 	nfs4_unlock_state();
 	dprintk("%s returns %d\n", __func__, ntohl(status));
