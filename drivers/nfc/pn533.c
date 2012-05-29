@@ -1126,6 +1126,13 @@ static int pn533_init_target_frame(struct pn533_frame *frame,
 {
 	struct pn533_cmd_init_target *cmd;
 	size_t cmd_len;
+	u8 felica_params[18] = {0x1, 0xfe, /* DEP */
+				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, /* random */
+				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+				0xff, 0xff}; /* System code */
+	u8 mifare_params[6] = {0x1, 0x1, /* SENS_RES */
+			       0x0, 0x0, 0x0,
+			       0x40}; /* SEL_RES for DEP */
 
 	cmd_len = sizeof(struct pn533_cmd_init_target) + gb_len + 1;
 	cmd = kzalloc(cmd_len, GFP_KERNEL);
@@ -1136,16 +1143,32 @@ static int pn533_init_target_frame(struct pn533_frame *frame,
 
 	/* DEP support only */
 	cmd->mode |= PN533_INIT_TARGET_DEP;
-	get_random_bytes(cmd->nfcid3, 10);
+
+	/* Felica params */
+	memcpy(cmd->felica, felica_params, 18);
+	get_random_bytes(cmd->felica + 2, 6);
+
+	/* NFCID3 */
+	memset(cmd->nfcid3, 0, 10);
+	memcpy(cmd->nfcid3, cmd->felica, 8);
+
+	/* MIFARE params */
+	memcpy(cmd->mifare, mifare_params, 6);
+
+	/* General bytes */
 	cmd->gb_len = gb_len;
 	memcpy(cmd->gb, gb, gb_len);
+
 	/* Len Tk */
 	cmd->gb[gb_len] = 0;
 
 	memcpy(PN533_FRAME_CMD_PARAMS_PTR(frame), cmd, cmd_len);
+
 	frame->datalen += cmd_len;
 
 	pn533_tx_frame_finish(frame);
+
+	kfree(cmd);
 
 	return 0;
 }
