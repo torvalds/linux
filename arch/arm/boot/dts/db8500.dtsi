@@ -58,6 +58,8 @@
 				"st,nomadik-gpio";
 			reg =  <0x8012e000 0x80>;
 			interrupts = <0 119 0x4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -69,6 +71,8 @@
 				"st,nomadik-gpio";
 			reg =  <0x8012e080 0x80>;
 			interrupts = <0 120 0x4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -80,6 +84,8 @@
 				"st,nomadik-gpio";
 			reg =  <0x8000e000 0x80>;
 			interrupts = <0 121 0x4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -91,6 +97,8 @@
 				"st,nomadik-gpio";
 			reg =  <0x8000e080 0x80>;
 			interrupts = <0 122 0x4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -102,6 +110,8 @@
 				"st,nomadik-gpio";
 			reg =  <0x8000e100 0x80>;
 			interrupts = <0 123 0x4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -113,6 +123,8 @@
 				"st,nomadik-gpio";
 			reg =  <0x8000e180 0x80>;
 			interrupts = <0 124 0x4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -124,6 +136,8 @@
 				"st,nomadik-gpio";
 			reg =  <0x8011e000 0x80>;
 			interrupts = <0 125 0x4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -135,6 +149,8 @@
 				"st,nomadik-gpio";
 			reg =  <0x8011e080 0x80>;
 			interrupts = <0 126 0x4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -146,6 +162,8 @@
 				"st,nomadik-gpio";
 			reg =  <0xa03fe000 0x80>;
 			interrupts = <0 127 0x4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -235,7 +253,8 @@
 			status = "disabled";
 
 			// Add one of these for each child device
-			cs-gpios = <&gpio0 31 &gpio4 14 &gpio4 16 &gpio6 22 &gpio7 0>;
+			cs-gpios = <&gpio0 31 0x4 &gpio4 14 0x4 &gpio4 16 0x4
+				    &gpio6 22 0x4 &gpio7 0 0x4>;
 
 		};
 

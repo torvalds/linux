@@ -30,35 +30,35 @@
 			wakeup = <1>;
 			linux,code = <2>;
 			label = "userpb";
-			gpios = <&gpio1 0 0>;
+			gpios = <&gpio1 0 0x4>;
 		};
 		button@2 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <3>;
 			label = "extkb1";
-			gpios = <&gpio4 23 0>;
+			gpios = <&gpio4 23 0x4>;
 		};
 		button@3 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <4>;
 			label = "extkb2";
-			gpios = <&gpio4 24 0>;
+			gpios = <&gpio4 24 0x4>;
 		};
 		button@4 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <5>;
 			label = "extkb3";
-			gpios = <&gpio5 1 0>;
+			gpios = <&gpio5 1 0x4>;
 		};
 		button@5 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <6>;
 			label = "extkb4";
-			gpios = <&gpio5 2 0>;
+			gpios = <&gpio5 2 0x4>;
 		};
 	};
 
@@ -66,12 +66,11 @@
 		compatible = "gpio-leds";
 		used-led {
 			label = "user_led";
-			gpios = <&gpio4 14>;
+			gpios = <&gpio4 14 0x4>;
 		};
 	};
 
 	soc-u9500 {
-
 		external-bus@50000000 {
 			status = "okay";
 
@@ -91,7 +90,7 @@
 
 		sdi@80126000 {
 			status = "enabled";
-			cd-gpios = <&gpio6 26>;
+			cd-gpios  = <&gpio6 26 0x4>; // 218
 		};
 
 		sdi@80114000 {
@@ -114,7 +113,7 @@
 			tc3589x@42 {
 				//compatible = "tc3589x";
 				reg = <0x42>;
-				interrupts = <25>;
+				gpios = <&gpio6 25 0x4>;
 				interrupt-parent = <&gpio6>;
 			};
 			tps61052@33 {
