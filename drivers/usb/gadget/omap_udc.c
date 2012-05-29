@@ -59,8 +59,6 @@
 #define	DRIVER_DESC	"OMAP UDC driver"
 #define	DRIVER_VERSION	"4 October 2004"
 
-#define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
-
 /*
  * The OMAP UDC needs _very_ early endpoint setup:  before enabling the
  * D+ pullup to allow enumeration.  That's too early for the gadget
@@ -271,7 +269,6 @@ omap_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	if (!req)
 		return NULL;
 
-	req->req.dma = DMA_ADDR_INVALID;
 	INIT_LIST_HEAD(&req->queue);
 
 	return &req->req;
@@ -290,6 +287,7 @@ omap_free_request(struct usb_ep *ep, struct usb_request *_req)
 static void
 done(struct omap_ep *ep, struct omap_req *req, int status)
 {
+	struct omap_udc		*udc = ep->udc;
 	unsigned		stopped = ep->stopped;
 
 	list_del_init(&req->queue);
@@ -299,22 +297,9 @@ done(struct omap_ep *ep, struct omap_req *req, int status)
 	else
 		status = req->req.status;
 
-	if (use_dma && ep->has_dma) {
-		if (req->mapped) {
-			dma_unmap_single(ep->udc->gadget.dev.parent,
-				req->req.dma, req->req.length,
-				(ep->bEndpointAddress & USB_DIR_IN)
-					? DMA_TO_DEVICE
-					: DMA_FROM_DEVICE);
-			req->req.dma = DMA_ADDR_INVALID;
-			req->mapped = 0;
-		} else
-			dma_sync_single_for_cpu(ep->udc->gadget.dev.parent,
-				req->req.dma, req->req.length,
-				(ep->bEndpointAddress & USB_DIR_IN)
-					? DMA_TO_DEVICE
-					: DMA_FROM_DEVICE);
-	}
+	if (use_dma && ep->has_dma)
+		usb_gadget_unmap_request(&udc->gadget, &req->req,
+				(ep->bEndpointAddress & USB_DIR_IN));
 
 #ifndef	USB_TRACE
 	if (status && status != -ESHUTDOWN)
@@ -915,26 +900,9 @@ omap_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN)
 		return -ESHUTDOWN;
 
-	if (use_dma && ep->has_dma) {
-		if (req->req.dma == DMA_ADDR_INVALID) {
-			req->req.dma = dma_map_single(
-				ep->udc->gadget.dev.parent,
-				req->req.buf,
-				req->req.length,
-				(ep->bEndpointAddress & USB_DIR_IN)
-					? DMA_TO_DEVICE
-					: DMA_FROM_DEVICE);
-			req->mapped = 1;
-		} else {
-			dma_sync_single_for_device(
-				ep->udc->gadget.dev.parent,
-				req->req.dma, req->req.length,
-				(ep->bEndpointAddress & USB_DIR_IN)
-					? DMA_TO_DEVICE
-					: DMA_FROM_DEVICE);
-			req->mapped = 0;
-		}
-	}
+	if (use_dma && ep->has_dma)
+		usb_gadget_map_request(&udc->gadget, &req->req,
+				(ep->bEndpointAddress & USB_DIR_IN));
 
 	VDBG("%s queue req %p, len %d buf %p\n",
 		ep->ep.name, _req, _req->length, _req->buf);
