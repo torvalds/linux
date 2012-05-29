@@ -104,7 +104,13 @@ struct pn533_fw_version {
 };
 
 /* PN533_CMD_RF_CONFIGURATION */
+#define PN533_CFGITEM_TIMING 0x02
 #define PN533_CFGITEM_MAX_RETRIES 0x05
+
+#define PN533_CONFIG_TIMING_102 0xb
+#define PN533_CONFIG_TIMING_204 0xc
+#define PN533_CONFIG_TIMING_409 0xd
+#define PN533_CONFIG_TIMING_819 0xe
 
 #define PN533_CONFIG_MAX_RETRIES_NO_RETRY 0x00
 #define PN533_CONFIG_MAX_RETRIES_ENDLESS 0xFF
@@ -113,6 +119,12 @@ struct pn533_config_max_retries {
 	u8 mx_rty_atr;
 	u8 mx_rty_psl;
 	u8 mx_rty_passive_act;
+} __packed;
+
+struct pn533_config_timing {
+	u8 rfu;
+	u8 atr_res_timeout;
+	u8 dep_timeout;
 } __packed;
 
 /* PN533_CMD_IN_LIST_PASSIVE_TARGET */
@@ -2004,6 +2016,7 @@ static int pn533_probe(struct usb_interface *interface,
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	struct pn533_config_max_retries max_retries;
+	struct pn533_config_timing timing;
 	int in_endpoint = 0;
 	int out_endpoint = 0;
 	int rc = -ENOMEM;
@@ -2112,6 +2125,18 @@ static int pn533_probe(struct usb_interface *interface,
 	if (rc) {
 		nfc_dev_err(&dev->interface->dev, "Error on setting MAX_RETRIES"
 								" config");
+		goto unregister_nfc_dev;
+	}
+
+	timing.rfu = PN533_CONFIG_TIMING_102;
+	timing.atr_res_timeout = PN533_CONFIG_TIMING_204;
+	timing.dep_timeout = PN533_CONFIG_TIMING_409;
+
+	rc = pn533_set_configuration(dev, PN533_CFGITEM_TIMING,
+				(u8 *) &timing, sizeof(timing));
+	if (rc) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Error on setting RF timings");
 		goto unregister_nfc_dev;
 	}
 
