@@ -199,4 +199,17 @@ static inline bool btrfs_is_free_space_inode(struct btrfs_root *root,
 	return false;
 }
 
+static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	int ret = 0;
+
+	mutex_lock(&root->log_mutex);
+	if (BTRFS_I(inode)->logged_trans == generation &&
+	    BTRFS_I(inode)->last_sub_trans <= root->last_log_commit)
+		ret = 1;
+	mutex_unlock(&root->log_mutex);
+	return ret;
+}
+
 #endif
