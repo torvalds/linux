@@ -38,6 +38,7 @@
 #include <linux/namei.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
+#include <linux/ratelimit.h>
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/sunrpc/clnt.h>
 #include "xdr4.h"
@@ -3338,18 +3339,26 @@ static __be32 check_stateid_generation(stateid_t *in, stateid_t *ref, bool has_s
 	return nfserr_old_stateid;
 }
 
-__be32 nfs4_validate_stateid(struct nfs4_client *cl, stateid_t *stateid)
+static __be32 nfsd4_validate_stateid(struct nfs4_client *cl, stateid_t *stateid)
 {
 	struct nfs4_stid *s;
 	struct nfs4_ol_stateid *ols;
 	__be32 status;
 
-	if (STALE_STATEID(stateid))
-		return nfserr_stale_stateid;
-
+	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid))
+		return nfserr_bad_stateid;
+	/* Client debugging aid. */
+	if (!same_clid(&stateid->si_opaque.so_clid, &cl->cl_clientid)) {
+		char addr_str[INET6_ADDRSTRLEN];
+		rpc_ntop((struct sockaddr *)&cl->cl_addr, addr_str,
+				 sizeof(addr_str));
+		pr_warn_ratelimited("NFSD: client %s testing state ID "
+					"with incorrect client ID\n", addr_str);
+		return nfserr_bad_stateid;
+	}
 	s = find_stateid(cl, stateid);
 	if (!s)
-		 return nfserr_stale_stateid;
+		return nfserr_bad_stateid;
 	status = check_stateid_generation(stateid, &s->sc_stateid, 1);
 	if (status)
 		return status;
@@ -3468,7 +3477,8 @@ nfsd4_test_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfs4_lock_state();
 	list_for_each_entry(stateid, &test_stateid->ts_stateid_list, ts_id_list)
-		stateid->ts_id_status = nfs4_validate_stateid(cl, &stateid->ts_id_stateid);
+		stateid->ts_id_status =
+			nfsd4_validate_stateid(cl, &stateid->ts_id_stateid);
 	nfs4_unlock_state();
 
 	return nfs_ok;
