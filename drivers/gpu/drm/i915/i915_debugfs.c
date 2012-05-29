@@ -2032,6 +2032,8 @@ void i915_debugfs_cleanup(struct drm_minor *minor)
 				 1, minor);
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_ring_stop_fops,
 				 1, minor);
+	drm_debugfs_remove_files((struct drm_info_list *) &i915_error_state_fops,
+				 1, minor);
 }
 
 #endif /* CONFIG_DEBUG_FS */
