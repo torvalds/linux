@@ -717,9 +717,7 @@ static void __cpuinit smp_start_secondary(void *cpuvoid)
 	init_cpu_vtimer();
 	pfault_init();
 	notify_cpu_starting(smp_processor_id());
-	ipi_call_lock();
 	set_cpu_online(smp_processor_id(), true);
-	ipi_call_unlock();
 	local_irq_enable();
 	/* cpu_idle will call schedule for us */
 	cpu_idle();
