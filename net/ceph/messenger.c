@@ -454,11 +454,14 @@ void ceph_con_close(struct ceph_connection *con)
 {
 	dout("con_close %p peer %s\n", con,
 	     ceph_pr_addr(&con->peer_addr.in_addr));
-	set_bit(CLOSED, &con->state);  /* in case there's queued work */
+	clear_bit(NEGOTIATING, &con->state);
 	clear_bit(STANDBY, &con->state);  /* avoid connect_seq bump */
+	set_bit(CLOSED, &con->state);
+
 	clear_bit(LOSSYTX, &con->flags);  /* so we retry next connect */
 	clear_bit(KEEPALIVE_PENDING, &con->flags);
 	clear_bit(WRITE_PENDING, &con->flags);
+
 	mutex_lock(&con->mutex);
 	reset_connection(con);
 	con->peer_global_seq = 0;
@@ -475,7 +478,8 @@ void ceph_con_open(struct ceph_connection *con, struct ceph_entity_addr *addr)
 {
 	dout("con_open %p %s\n", con, ceph_pr_addr(&addr->in_addr));
 	set_bit(OPENING, &con->state);
-	clear_bit(CLOSED, &con->state);
+	WARN_ON(!test_and_clear_bit(CLOSED, &con->state));
+
 	memcpy(&con->peer_addr, addr, sizeof(*addr));
 	con->delay = 0;      /* reset backoff memory */
 	queue_con(con);
@@ -530,6 +534,8 @@ void ceph_con_init(struct ceph_messenger *msgr, struct ceph_connection *con)
 	INIT_LIST_HEAD(&con->out_queue);
 	INIT_LIST_HEAD(&con->out_sent);
 	INIT_DELAYED_WORK(&con->work, con_work);
+
+	set_bit(CLOSED, &con->state);
 }
 EXPORT_SYMBOL(ceph_con_init);
 
@@ -1933,14 +1939,15 @@ more:
 
 	/* open the socket first? */
 	if (con->sock == NULL) {
+		clear_bit(NEGOTIATING, &con->state);
+		set_bit(CONNECTING, &con->state);
+
 		con_out_kvec_reset(con);
 		prepare_write_banner(con);
 		ret = prepare_write_connect(con);
 		if (ret < 0)
 			goto out;
 		prepare_read_banner(con);
-		set_bit(CONNECTING, &con->state);
-		clear_bit(NEGOTIATING, &con->state);
 
 		BUG_ON(con->in_msg);
 		con->in_tag = CEPH_MSGR_TAG_READY;
