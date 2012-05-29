@@ -390,7 +390,7 @@ static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask,
 {
 	if (!pol)
 		return;
-	if (!mpol_store_user_nodemask(pol) && step == 0 &&
+	if (!mpol_store_user_nodemask(pol) && step == MPOL_REBIND_ONCE &&
 	    nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
 		return;
 
