@@ -1052,6 +1052,13 @@ static int fsi_dma_quit(struct fsi_priv *fsi, struct fsi_stream *io)
 	return 0;
 }
 
+static dma_addr_t fsi_dma_get_area(struct fsi_stream *io)
+{
+	struct snd_pcm_runtime *runtime = io->substream->runtime;
+
+	return io->dma + samples_to_bytes(runtime, io->buff_sample_pos);
+}
+
 static void fsi_dma_complete(void *data)
 {
 	struct fsi_stream *io = (struct fsi_stream *)data;
@@ -1061,7 +1068,7 @@ static void fsi_dma_complete(void *data)
 	enum dma_data_direction dir = fsi_stream_is_play(fsi, io) ?
 		DMA_TO_DEVICE : DMA_FROM_DEVICE;
 
-	dma_sync_single_for_cpu(dai->dev, io->dma,
+	dma_sync_single_for_cpu(dai->dev, fsi_dma_get_area(io),
 			samples_to_bytes(runtime, io->period_samples), dir);
 
 	io->buff_sample_pos += io->period_samples;
@@ -1076,13 +1083,6 @@ static void fsi_dma_complete(void *data)
 	fsi_stream_transfer(io);
 
 	snd_pcm_period_elapsed(io->substream);
-}
-
-static dma_addr_t fsi_dma_get_area(struct fsi_stream *io)
-{
-	struct snd_pcm_runtime *runtime = io->substream->runtime;
-
-	return io->dma + samples_to_bytes(runtime, io->buff_sample_pos);
 }
 
 static void fsi_dma_do_tasklet(unsigned long data)
@@ -1110,7 +1110,7 @@ static void fsi_dma_do_tasklet(unsigned long data)
 	len	= samples_to_bytes(runtime, io->period_samples);
 	buf	= fsi_dma_get_area(io);
 
-	dma_sync_single_for_device(dai->dev, io->dma, len, dir);
+	dma_sync_single_for_device(dai->dev, buf, len, dir);
 
 	sg_init_table(&sg, 1);
 	sg_set_page(&sg, pfn_to_page(PFN_DOWN(buf)),
