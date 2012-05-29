@@ -268,10 +268,12 @@ omap_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	struct omap_req	*req;
 
 	req = kzalloc(sizeof(*req), gfp_flags);
-	if (req) {
-		req->req.dma = DMA_ADDR_INVALID;
-		INIT_LIST_HEAD(&req->queue);
-	}
+	if (!req)
+		return NULL;
+
+	req->req.dma = DMA_ADDR_INVALID;
+	INIT_LIST_HEAD(&req->queue);
+
 	return &req->req;
 }
 
