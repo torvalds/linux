@@ -8,6 +8,60 @@
  */
 #include "dvb_usb_common.h"
 
+static void dvb_usb_data_complete(struct usb_data_stream *stream, u8 *buffer,
+		size_t length)
+{
+	struct dvb_usb_adapter *adap = stream->user_priv;
+	if (adap->feedcount > 0 && adap->state & DVB_USB_ADAP_STATE_DVB)
+		dvb_dmx_swfilter(&adap->demux, buffer, length);
+}
+
+static void dvb_usb_data_complete_204(struct usb_data_stream *stream,
+		u8 *buffer, size_t length)
+{
+	struct dvb_usb_adapter *adap = stream->user_priv;
+	if (adap->feedcount > 0 && adap->state & DVB_USB_ADAP_STATE_DVB)
+		dvb_dmx_swfilter_204(&adap->demux, buffer, length);
+}
+
+static void dvb_usb_data_complete_raw(struct usb_data_stream *stream,
+				      u8 *buffer, size_t length)
+{
+	struct dvb_usb_adapter *adap = stream->user_priv;
+	if (adap->feedcount > 0 && adap->state & DVB_USB_ADAP_STATE_DVB)
+		dvb_dmx_swfilter_raw(&adap->demux, buffer, length);
+}
+
+int dvb_usb_adapter_stream_init(struct dvb_usb_adapter *adap)
+{
+	int ret;
+	struct usb_data_stream_properties stream_props;
+
+	adap->stream.udev = adap->dev->udev;
+	adap->stream.user_priv = adap;
+
+	/* resolve USB stream configuration for buffer alloc */
+	if (adap->dev->props.get_usb_stream_config) {
+		ret = adap->dev->props.get_usb_stream_config(NULL,
+				&stream_props);
+		if (ret < 0)
+			return ret;
+	} else {
+		stream_props = adap->props.fe[0].stream;
+	}
+
+	/* FIXME: can be removed as set later in anyway */
+	adap->stream.complete = dvb_usb_data_complete;
+
+	return usb_urb_init(&adap->stream, &stream_props);
+}
+
+int dvb_usb_adapter_stream_exit(struct dvb_usb_adapter *adap)
+{
+	usb_urb_exit(&adap->stream);
+	return 0;
+}
+
 /* does the complete input transfer handling */
 static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 {
@@ -57,6 +111,25 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	 */
 	if (adap->feedcount == onoff && adap->feedcount > 0) {
 		struct usb_data_stream_properties stream_props;
+		unsigned int ts_props;
+
+		/* resolve TS configuration */
+		if (adap->dev->props.get_ts_config) {
+			ret = adap->dev->props.get_ts_config(
+					adap->fe_adap[adap->active_fe].fe,
+					&ts_props);
+			if (ret < 0)
+				return ret;
+		} else {
+			ts_props = 0; /* normal 188 payload only TS */
+		}
+
+		if (ts_props & DVB_USB_ADAP_RECEIVES_204_BYTE_TS)
+			adap->stream.complete = dvb_usb_data_complete_204;
+		else if (ts_props & DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD)
+			adap->stream.complete = dvb_usb_data_complete_raw;
+		else
+			adap->stream.complete = dvb_usb_data_complete;
 
 		/* resolve USB stream configuration */
 		if (adap->dev->props.get_usb_stream_config) {

@@ -242,6 +242,7 @@ struct dvb_usb_device_properties {
 	int (*get_rc_config) (struct dvb_usb_device *, struct dvb_usb_rc *);
 	int (*get_usb_stream_config) (struct dvb_frontend *,
 			struct usb_data_stream_properties *);
+	int (*get_ts_config) (struct dvb_frontend *, unsigned int *);
 
 	struct i2c_algorithm *i2c_algo;
 
