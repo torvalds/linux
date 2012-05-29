@@ -602,6 +602,7 @@ extern const u16 wm8352_mode2_defaults[];
 extern const u16 wm8352_mode3_defaults[];
 
 struct wm8350;
+struct regmap;
 
 struct wm8350_hwmon {
 	struct platform_device *pdev;
@@ -612,13 +613,7 @@ struct wm8350 {
 	struct device *dev;
 
 	/* device IO */
-	union {
-		struct i2c_client *i2c_client;
-		struct spi_device *spi_device;
-	};
-	int (*read_dev)(struct wm8350 *wm8350, char reg, int size, void *dest);
-	int (*write_dev)(struct wm8350 *wm8350, char reg, int size,
-			 void *src);
+	struct regmap *regmap;
 	u16 *reg_cache;
 
 	struct mutex auxadc_mutex;
