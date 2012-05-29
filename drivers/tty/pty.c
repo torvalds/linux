@@ -633,7 +633,6 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	mutex_unlock(&devpts_mutex);
 
 	mutex_lock(&tty_mutex);
-	mutex_lock(&devpts_mutex);
 	tty = tty_init_dev(ptm_driver, index);
 
 	if (IS_ERR(tty)) {
@@ -643,7 +642,6 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 
 	/* The tty returned here is locked so we can safely
 	   drop the mutex */
-	mutex_unlock(&devpts_mutex);
 	mutex_unlock(&tty_mutex);
 
 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
