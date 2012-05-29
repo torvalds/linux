@@ -17,7 +17,11 @@ PPC64_CACHES:
         .section        ".text"
 
 _GLOBAL(copy_page)
+BEGIN_FTR_SECTION
 	lis	r5,PAGE_SIZE@h
+FTR_SECTION_ELSE
+	b	.copypage_power7
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_VMX_COPY)
 	ori	r5,r5,PAGE_SIZE@l
 BEGIN_FTR_SECTION
 	ld      r10,PPC64_CACHES@toc(r2)
