@@ -85,6 +85,11 @@ static void radeon_gem_kunmap(struct dma_buf *dma_buf, unsigned long page_num, v
 
 }
 
+static int radeon_gem_prime_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
+{
+	return -EINVAL;
+}
+
 const static struct dma_buf_ops radeon_dmabuf_ops =  {
 	.map_dma_buf = radeon_gem_map_dma_buf,
 	.unmap_dma_buf = radeon_gem_unmap_dma_buf,
@@ -93,6 +98,7 @@ const static struct dma_buf_ops radeon_dmabuf_ops =  {
 	.kmap_atomic = radeon_gem_kmap_atomic,
 	.kunmap = radeon_gem_kunmap,
 	.kunmap_atomic = radeon_gem_kunmap_atomic,
+	.mmap = radeon_gem_prime_mmap,
 };
 
 static int radeon_prime_create(struct drm_device *dev,
