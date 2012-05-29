@@ -15,6 +15,8 @@
 #ifndef __A2MP_H
 #define __A2MP_H
 
+#include <net/bluetooth/l2cap.h>
+
 #define A2MP_FEAT_EXT	0x8000
 
 struct amp_mgr {
@@ -118,5 +120,7 @@ struct a2mp_physlink_rsp {
 
 void amp_mgr_get(struct amp_mgr *mgr);
 int amp_mgr_put(struct amp_mgr *mgr);
+struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
+				       struct sk_buff *skb);
 
 #endif /* __A2MP_H */

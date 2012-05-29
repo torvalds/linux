@@ -569,3 +569,19 @@ static struct amp_mgr *amp_mgr_create(struct l2cap_conn *conn)
 
 	return mgr;
 }
+
+struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
+				       struct sk_buff *skb)
+{
+	struct amp_mgr *mgr;
+
+	mgr = amp_mgr_create(conn);
+	if (!mgr) {
+		BT_ERR("Could not create AMP manager");
+		return NULL;
+	}
+
+	BT_DBG("mgr: %p chan %p", mgr, mgr->a2mp_chan);
+
+	return mgr->a2mp_chan;
+}

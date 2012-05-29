@@ -37,6 +37,7 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/smp.h>
+#include <net/bluetooth/a2mp.h>
 
 bool disable_ertm;
 
@@ -5132,10 +5133,20 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 
 	chan = l2cap_get_chan_by_scid(conn, cid);
 	if (!chan) {
-		BT_DBG("unknown cid 0x%4.4x", cid);
-		/* Drop packet and return */
-		kfree_skb(skb);
-		return 0;
+		if (cid == L2CAP_CID_A2MP) {
+			chan = a2mp_channel_create(conn, skb);
+			if (!chan) {
+				kfree_skb(skb);
+				return 0;
+			}
+
+			l2cap_chan_lock(chan);
+		} else {
+			BT_DBG("unknown cid 0x%4.4x", cid);
+			/* Drop packet and return */
+			kfree_skb(skb);
+			return 0;
+		}
 	}
 
 	BT_DBG("chan %p, len %d", chan, skb->len);
