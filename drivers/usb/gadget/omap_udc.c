@@ -2800,6 +2800,9 @@ static int __init omap_udc_probe(struct platform_device *pdev)
 	struct clk		*dc_clk = NULL;
 	struct clk		*hhc_clk = NULL;
 
+	if (cpu_is_omap7xx())
+		use_dma = 0;
+
 	/* NOTE:  "knows" the order of the resources! */
 	if (!request_mem_region(pdev->resource[0].start,
 			pdev->resource[0].end - pdev->resource[0].start + 1,
@@ -3096,16 +3099,6 @@ static struct platform_driver udc_driver = {
 
 static int __init udc_init(void)
 {
-	/* Disable DMA for omap7xx -- it doesn't work right. */
-	if (cpu_is_omap7xx())
-		use_dma = 0;
-
-	INFO("%s, version: " DRIVER_VERSION
-#ifdef	USE_ISO
-		" (iso)"
-#endif
-		"%s\n", driver_desc,
-		use_dma ?  " (dma)" : "");
 	return platform_driver_probe(&udc_driver, omap_udc_probe);
 }
 module_init(udc_init);
