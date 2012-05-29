@@ -679,7 +679,6 @@ static struct platform_device *snowball_platform_devs[] __initdata = {
 static struct platform_device *snowball_of_platform_devs[] __initdata = {
 	&snowball_led_dev,
 	&snowball_key_dev,
-	&snowball_sbnet_dev,
 	&ab8500_device,
 };
 
@@ -887,7 +886,7 @@ static void __init u8500_init_machine(void)
 		 * Devices to be DT:ed:
 		 *   snowball_led_dev   = todo
 		 *   snowball_key_dev   = todo
-		 *   snowball_sbnet_dev = todo
+		 *   snowball_sbnet_dev = done
 		 *   ab8500_device      = todo
 		 */
 		platform_add_devices(snowball_of_platform_devs,
