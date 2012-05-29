@@ -1628,7 +1628,9 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 	int i;
 	int ret;
 
-	btrfs_read_buffer(eb, gen);
+	ret = btrfs_read_buffer(eb, gen);
+	if (ret)
+		return ret;
 
 	level = btrfs_header_level(eb);
 
@@ -1749,7 +1751,11 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 			path->slots[*level]++;
 			if (wc->free) {
-				btrfs_read_buffer(next, ptr_gen);
+				ret = btrfs_read_buffer(next, ptr_gen);
+				if (ret) {
+					free_extent_buffer(next);
+					return ret;
+				}
 
 				btrfs_tree_lock(next);
 				btrfs_set_lock_blocking(next);
@@ -1766,7 +1772,11 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 			free_extent_buffer(next);
 			continue;
 		}
-		btrfs_read_buffer(next, ptr_gen);
+		ret = btrfs_read_buffer(next, ptr_gen);
+		if (ret) {
+			free_extent_buffer(next);
+			return ret;
+		}
 
 		WARN_ON(*level <= 0);
 		if (path->nodes[*level-1])

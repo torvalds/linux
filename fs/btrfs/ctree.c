@@ -739,7 +739,11 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 				if (!cur)
 					return -EIO;
 			} else if (!uptodate) {
-				btrfs_read_buffer(cur, gen);
+				err = btrfs_read_buffer(cur, gen);
+				if (err) {
+					free_extent_buffer(cur);
+					return err;
+				}
 			}
 		}
 		if (search_start == 0)
