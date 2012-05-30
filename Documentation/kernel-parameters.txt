@@ -335,6 +335,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					  requirements as needed. This option
 					  does not override iommu=pt
 
+	amd_iommu_dump=	[HW,X86-64]
+			Enable AMD IOMMU driver option to dump the ACPI table
+			for AMD IOMMU. With this option enabled, AMD IOMMU
+			driver will print ACPI tables for AMD IOMMU during
+			IOMMU initialization.
+
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
 			Format: <a>,<b>
