@@ -334,6 +334,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 #endif
 #ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
+	case pci_bustype:
 		printk("(pci %s) ", pci_name(pci_dev));
 		break;
 #endif
