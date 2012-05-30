@@ -830,7 +830,7 @@ static noinline int cow_file_range(struct inode *inode,
 	if (IS_ERR(trans)) {
 		extent_clear_unlock_delalloc(inode,
 			     &BTRFS_I(inode)->io_tree,
-			     start, end, NULL,
+			     start, end, locked_page,
 			     EXTENT_CLEAR_UNLOCK_PAGE |
 			     EXTENT_CLEAR_UNLOCK |
 			     EXTENT_CLEAR_DELALLOC |
@@ -963,7 +963,7 @@ out:
 out_unlock:
 	extent_clear_unlock_delalloc(inode,
 		     &BTRFS_I(inode)->io_tree,
-		     start, end, NULL,
+		     start, end, locked_page,
 		     EXTENT_CLEAR_UNLOCK_PAGE |
 		     EXTENT_CLEAR_UNLOCK |
 		     EXTENT_CLEAR_DELALLOC |
