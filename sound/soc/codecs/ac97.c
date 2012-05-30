@@ -91,11 +91,6 @@ static int ac97_soc_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int ac97_soc_remove(struct snd_soc_codec *codec)
-{
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static int ac97_soc_suspend(struct snd_soc_codec *codec)
 {
@@ -119,7 +114,6 @@ static struct snd_soc_codec_driver soc_codec_dev_ac97 = {
 	.write =	ac97_write,
 	.read =		ac97_read,
 	.probe = 	ac97_soc_probe,
-	.remove = 	ac97_soc_remove,
 	.suspend =	ac97_soc_suspend,
 	.resume =	ac97_soc_resume,
 };
