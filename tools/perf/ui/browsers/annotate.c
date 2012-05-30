@@ -300,10 +300,14 @@ static void annotate_browser__set_rb_top(struct annotate_browser *browser,
 {
 	struct browser_disasm_line *bpos;
 	struct disasm_line *pos;
+	u32 idx;
 
 	bpos = rb_entry(nd, struct browser_disasm_line, rb_node);
 	pos = ((struct disasm_line *)bpos) - 1;
-	annotate_browser__set_top(browser, pos, bpos->idx);
+	idx = bpos->idx;
+	if (browser->hide_src_code)
+		idx = bpos->idx_asm;
+	annotate_browser__set_top(browser, pos, idx);
 	browser->curr_hot = nd;
 }
 

@@ -15,6 +15,7 @@
 #include "cpumap.h"
 #include "thread_map.h"
 #include "target.h"
+#include "../../include/linux/perf_event.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define GROUP_FD(group_fd, cpu) (*(int *)xyarray__entry(group_fd, cpu, 0))
@@ -62,6 +63,95 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 		perf_evsel__init(evsel, attr, idx);
 
 	return evsel;
+}
+
+static const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
+	"cycles",
+	"instructions",
+	"cache-references",
+	"cache-misses",
+	"branches",
+	"branch-misses",
+	"bus-cycles",
+	"stalled-cycles-frontend",
+	"stalled-cycles-backend",
+	"ref-cycles",
+};
+
+const char *__perf_evsel__hw_name(u64 config)
+{
+	if (config < PERF_COUNT_HW_MAX && perf_evsel__hw_names[config])
+		return perf_evsel__hw_names[config];
+
+	return "unknown-hardware";
+}
+
+static int perf_evsel__hw_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int colon = 0;
+	struct perf_event_attr *attr = &evsel->attr;
+	int r = scnprintf(bf, size, "%s", __perf_evsel__hw_name(attr->config));
+	bool exclude_guest_default = false;
+
+#define MOD_PRINT(context, mod)	do {					\
+		if (!attr->exclude_##context) {				\
+			if (!colon) colon = r++;			\
+			r += scnprintf(bf + r, size - r, "%c", mod);	\
+		} } while(0)
+
+	if (attr->exclude_kernel || attr->exclude_user || attr->exclude_hv) {
+		MOD_PRINT(kernel, 'k');
+		MOD_PRINT(user, 'u');
+		MOD_PRINT(hv, 'h');
+		exclude_guest_default = true;
+	}
+
+	if (attr->precise_ip) {
+		if (!colon)
+			colon = r++;
+		r += scnprintf(bf + r, size - r, "%.*s", attr->precise_ip, "ppp");
+		exclude_guest_default = true;
+	}
+
+	if (attr->exclude_host || attr->exclude_guest == exclude_guest_default) {
+		MOD_PRINT(host, 'H');
+		MOD_PRINT(guest, 'G');
+	}
+#undef MOD_PRINT
+	if (colon)
+		bf[colon] = ':';
+	return r;
+}
+
+int perf_evsel__name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int ret;
+
+	switch (evsel->attr.type) {
+	case PERF_TYPE_RAW:
+		ret = scnprintf(bf, size, "raw 0x%" PRIx64, evsel->attr.config);
+		break;
+
+	case PERF_TYPE_HARDWARE:
+		ret = perf_evsel__hw_name(evsel, bf, size);
+		break;
+	default:
+		/*
+		 * FIXME
+ 		 *
+		 * This is the minimal perf_evsel__name so that we can
+		 * reconstruct event names taking into account event modifiers.
+		 *
+		 * The old event_name uses it now for raw anr hw events, so that
+		 * we don't drag all the parsing stuff into the python binding.
+		 *
+		 * On the next devel cycle the rest of the event naming will be
+		 * brought here.
+ 		 */
+		return 0;
+	}
+
+	return ret;
 }
 
 void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
