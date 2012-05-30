@@ -11,12 +11,14 @@
 #include <linux/dynamic_queue_limits.h>
 
 #define POSDIFF(A, B) ((int)((A) - (B)) > 0 ? (A) - (B) : 0)
+#define AFTER_EQ(A, B) ((int)((A) - (B)) >= 0)
 
 /* Records completed count and recalculates the queue limit */
 void dql_completed(struct dql *dql, unsigned int count)
 {
 	unsigned int inprogress, prev_inprogress, limit;
-	unsigned int ovlimit, all_prev_completed, completed;
+	unsigned int ovlimit, completed;
+	bool all_prev_completed;
 
 	/* Can't complete more than what's in queue */
 	BUG_ON(count > dql->num_queued - dql->num_completed);
@@ -26,7 +28,7 @@ void dql_completed(struct dql *dql, unsigned int count)
 	ovlimit = POSDIFF(dql->num_queued - dql->num_completed, limit);
 	inprogress = dql->num_queued - completed;
 	prev_inprogress = dql->prev_num_queued - dql->num_completed;
-	all_prev_completed = POSDIFF(completed, dql->prev_num_queued);
+	all_prev_completed = AFTER_EQ(completed, dql->prev_num_queued);
 
 	if ((ovlimit && !inprogress) ||
 	    (dql->prev_ovlimit && all_prev_completed)) {
