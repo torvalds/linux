@@ -225,7 +225,7 @@ static struct virtio_config_ops rproc_virtio_config_ops = {
 
 /*
  * This function is called whenever vdev is released, and is responsible
- * to decrement the remote processor's refcount taken when vdev was
+ * to decrement the remote processor's refcount which was taken when vdev was
  * added.
  *
  * Never call this function directly; it will be called by the driver
@@ -240,7 +240,7 @@ static void rproc_vdev_release(struct device *dev)
 	list_del(&rvdev->node);
 	kfree(rvdev);
 
-	kref_put(&rproc->refcount, rproc_release);
+	put_device(&rproc->dev);
 }
 
 /**
@@ -272,11 +272,11 @@ int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 	 * Therefore we must increment the rproc refcount here, and decrement
 	 * it _only_ when the vdev is released.
 	 */
-	kref_get(&rproc->refcount);
+	get_device(&rproc->dev);
 
 	ret = register_virtio_device(vdev);
 	if (ret) {
-		kref_put(&rproc->refcount, rproc_release);
+		put_device(&rproc->dev);
 		dev_err(dev, "failed to register vdev: %d\n", ret);
 		goto out;
 	}

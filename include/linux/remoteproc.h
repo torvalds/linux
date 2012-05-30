@@ -36,7 +36,6 @@
 #define REMOTEPROC_H
 
 #include <linux/types.h>
-#include <linux/kref.h>
 #include <linux/klist.h>
 #include <linux/mutex.h>
 #include <linux/virtio.h>
@@ -370,7 +369,6 @@ enum rproc_state {
  * @priv: private data which belongs to the platform-specific rproc module
  * @ops: platform-specific start/stop rproc handlers
  * @dev: virtual device for refcounting and common remoteproc behavior
- * @refcount: refcount of users that have a valid pointer to this rproc
  * @power: refcount of users who need this rproc powered up
  * @state: state of the device
  * @lock: lock which protects concurrent manipulations of the rproc
@@ -393,7 +391,6 @@ struct rproc {
 	void *priv;
 	const struct rproc_ops *ops;
 	struct device dev;
-	struct kref refcount;
 	atomic_t power;
 	unsigned int state;
 	struct mutex lock;

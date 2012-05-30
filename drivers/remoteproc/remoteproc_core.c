@@ -1257,42 +1257,12 @@ out:
 }
 EXPORT_SYMBOL(rproc_shutdown);
 
-/**
- * rproc_release() - completely deletes the existence of a remote processor
- * @kref: the rproc's kref
- *
- * This function should _never_ be called directly.
- *
- * The only reasonable location to use it is as an argument when kref_put'ing
- * @rproc's refcount.
- *
- * This way it will be called when no one holds a valid pointer to this @rproc
- * anymore (and obviously after it is removed from the rprocs klist).
- *
- * Note: this function is not static because rproc_vdev_release() needs it when
- * it decrements @rproc's refcount.
- */
-void rproc_release(struct kref *kref)
-{
-	struct rproc *rproc = container_of(kref, struct rproc, refcount);
-
-	dev_info(&rproc->dev, "removing %s\n", rproc->name);
-
-	rproc_delete_debug_dir(rproc);
-
-	/*
-	 * At this point no one holds a reference to rproc anymore,
-	 * so we can directly unroll rproc_alloc()
-	 */
-	rproc_free(rproc);
-}
-
 /* will be called when an rproc is added to the rprocs klist */
 static void klist_rproc_get(struct klist_node *n)
 {
 	struct rproc *rproc = container_of(n, struct rproc, node);
 
-	kref_get(&rproc->refcount);
+	get_device(&rproc->dev);
 }
 
 /* will be called when an rproc is removed from the rprocs klist */
@@ -1300,7 +1270,7 @@ static void klist_rproc_put(struct klist_node *n)
 {
 	struct rproc *rproc = container_of(n, struct rproc, node);
 
-	kref_put(&rproc->refcount, rproc_release);
+	put_device(&rproc->dev);
 }
 
 static struct rproc *next_rproc(struct klist_iter *i)
@@ -1342,7 +1312,7 @@ struct rproc *rproc_get_by_name(const char *name)
 	klist_iter_init(&rprocs, &i);
 	while ((rproc = next_rproc(&i)) != NULL)
 		if (!strcmp(rproc->name, name)) {
-			kref_get(&rproc->refcount);
+			get_device(&rproc->dev);
 			break;
 		}
 	klist_iter_exit(&i);
@@ -1355,7 +1325,7 @@ struct rproc *rproc_get_by_name(const char *name)
 
 	ret = rproc_boot(rproc);
 	if (ret < 0) {
-		kref_put(&rproc->refcount, rproc_release);
+		put_device(&rproc->dev);
 		return NULL;
 	}
 
@@ -1382,7 +1352,7 @@ void rproc_put(struct rproc *rproc)
 	rproc_shutdown(rproc);
 
 	/* downref rproc's refcount */
-	kref_put(&rproc->refcount, rproc_release);
+	put_device(&rproc->dev);
 }
 EXPORT_SYMBOL(rproc_put);
 
@@ -1463,6 +1433,10 @@ static void rproc_type_release(struct device *dev)
 {
 	struct rproc *rproc = container_of(dev, struct rproc, dev);
 
+	dev_info(&rproc->dev, "releasing %s\n", rproc->name);
+
+	rproc_delete_debug_dir(rproc);
+
 	idr_remove_all(&rproc->notifyids);
 	idr_destroy(&rproc->notifyids);
 
@@ -1536,8 +1510,6 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 
 	atomic_set(&rproc->power, 0);
 
-	kref_init(&rproc->refcount);
-
 	mutex_init(&rproc->lock);
 
 	idr_init(&rproc->notifyids);
@@ -1608,8 +1580,8 @@ int rproc_unregister(struct rproc *rproc)
 
 	device_del(&rproc->dev);
 
-	/* the rproc will only be released after its refcount drops to zero */
-	kref_put(&rproc->refcount, rproc_release);
+	/* unroll rproc_alloc. TODO: we may want to let the users do that */
+	put_device(&rproc->dev);
 
 	return 0;
 }
