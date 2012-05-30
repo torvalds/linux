@@ -1914,7 +1914,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 			DP |= DP_LINK_TRAIN_OFF;
 	}
 
-	if (!HAS_PCH_CPT(dev) &&
+	if (HAS_PCH_IBX(dev) &&
 	    I915_READ(intel_dp->output_reg) & DP_PIPEB_SELECT) {
 		struct drm_crtc *crtc = intel_dp->base.base.crtc;
 
