@@ -330,8 +330,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* all outputs */
 	s->io_bits = 0xffff;
 	/* read initial relay state */
-	s->state = inb(dev->iobase);
-	s->state = s->state | (inb(dev->iobase) << 8);
+	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
 
 	printk(KERN_INFO "comedi%d: %s ", dev->minor, dev->board_name);
 	switch (thisboard->bustype) {
