@@ -3633,7 +3633,10 @@ skip_create_disk:
 	set_bit(QUEUE_FLAG_NONROT, &dd->queue->queue_flags);
 	blk_queue_max_segments(dd->queue, MTIP_MAX_SG);
 	blk_queue_physical_block_size(dd->queue, 4096);
+	blk_queue_max_hw_sectors(dd->queue, 0xffff);
+	blk_queue_max_segment_size(dd->queue, 0x400000);
 	blk_queue_io_min(dd->queue, 4096);
+
 	/*
 	 * write back cache is not supported in the device. FUA depends on
 	 * write back cache support, hence setting flush support to zero.
