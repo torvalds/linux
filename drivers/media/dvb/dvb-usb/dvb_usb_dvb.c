@@ -115,7 +115,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		/* resolve TS configuration */
 		if (adap->dev->props.get_ts_config) {
 			ret = adap->dev->props.get_ts_config(
-					adap->fe_adap[adap->active_fe].fe,
+					adap->fe[adap->active_fe],
 					&ts_props);
 			if (ret < 0)
 				return ret;
@@ -133,7 +133,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		/* resolve USB stream configuration */
 		if (adap->dev->props.get_usb_stream_config) {
 			ret = adap->dev->props.get_usb_stream_config(
-					adap->fe_adap[adap->active_fe].fe,
+					adap->fe[adap->active_fe],
 					&stream_props);
 			if (ret < 0)
 				return ret;
@@ -292,8 +292,8 @@ static int dvb_usb_fe_wakeup(struct dvb_frontend *fe)
 
 	dvb_usb_set_active_fe(fe, 1);
 
-	if (adap->fe_adap[fe->id].fe_init)
-		adap->fe_adap[fe->id].fe_init(fe);
+	if (adap->fe_init[fe->id])
+		adap->fe_init[fe->id](fe);
 
 	return 0;
 }
@@ -302,8 +302,8 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 {
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 
-	if (adap->fe_adap[fe->id].fe_sleep)
-		adap->fe_adap[fe->id].fe_sleep(fe);
+	if (adap->fe_sleep[fe->id])
+		adap->fe_sleep[fe->id](fe);
 
 	dvb_usb_set_active_fe(fe, 0);
 
@@ -314,56 +314,66 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 {
 	int ret, i;
 
-	/* register all given adapter frontends */
-	for (i = 0; i < adap->props.num_frontends; i++) {
+	memset(adap->fe, 0, sizeof(adap->fe));
 
-		if (adap->props.frontend_attach == NULL) {
-			err("strange: '%s' #%d,%d " \
-			    "doesn't want to attach a frontend.",
-			    adap->dev->name, adap->id, i);
+	adap->active_fe = 0;
 
-			return 0;
-		}
+	if (adap->props.frontend_attach == NULL) {
+		err("strange: '%s' doesn't want to attach a frontend.",
+				adap->dev->name);
+		ret = 0;
+		goto err;
+	}
 
-		ret = adap->props.frontend_attach(adap);
-		if (ret || adap->fe_adap[i].fe == NULL) {
-			/* only print error when there is no FE at all */
-			if (i == 0)
-				err("no frontend was attached by '%s'",
-					adap->dev->name);
+	/* attach all given adapter frontends */
+	ret = adap->props.frontend_attach(adap);
+	if (ret < 0)
+		goto err;
 
-			return 0;
-		}
+	if (adap->fe[0] == NULL) {
+		err("no frontend was attached by '%s'", adap->dev->name);
+		goto err;
+	}
 
-		adap->fe_adap[i].fe->id = i;
+	for (i = 0; i < MAX_NO_OF_FE_PER_ADAP; i++) {
+		if (adap->fe[i] == NULL)
+			break;
+
+		adap->fe[i]->id = i;
 
 		/* re-assign sleep and wakeup functions */
-		adap->fe_adap[i].fe_init = adap->fe_adap[i].fe->ops.init;
-		adap->fe_adap[i].fe->ops.init  = dvb_usb_fe_wakeup;
-		adap->fe_adap[i].fe_sleep = adap->fe_adap[i].fe->ops.sleep;
-		adap->fe_adap[i].fe->ops.sleep = dvb_usb_fe_sleep;
+		adap->fe_init[i] = adap->fe[i]->ops.init;
+		adap->fe[i]->ops.init  = dvb_usb_fe_wakeup;
+		adap->fe_sleep[i] = adap->fe[i]->ops.sleep;
+		adap->fe[i]->ops.sleep = dvb_usb_fe_sleep;
 
-		if (dvb_register_frontend(&adap->dvb_adap,
-				adap->fe_adap[i].fe)) {
+		ret = dvb_register_frontend(&adap->dvb_adap, adap->fe[i]);
+		if (ret < 0) {
 			err("Frontend %d registration failed.", i);
-			dvb_frontend_detach(adap->fe_adap[i].fe);
-			adap->fe_adap[i].fe = NULL;
+			dvb_frontend_detach(adap->fe[i]);
+			adap->fe[i] = NULL;
 			/* In error case, do not try register more FEs,
 			 * still leaving already registered FEs alive. */
 			if (i == 0)
-				return -ENODEV;
+				goto err;
 			else
-				return 0;
+				break;
 		}
-
-		/* only attach the tuner if the demod is there */
-		if (adap->props.tuner_attach != NULL)
-			adap->props.tuner_attach(adap);
 
 		adap->num_frontends_initialized++;
 	}
 
+	/* attach all given adapter tuners */
+	if (adap->props.tuner_attach) {
+		ret = adap->props.tuner_attach(adap);
+		if (ret < 0)
+			err("tuner attach failed - will continue");
+	}
+
 	return 0;
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+	return ret;
 }
 
 int dvb_usb_adapter_frontend_exit(struct dvb_usb_adapter *adap)
@@ -372,9 +382,9 @@ int dvb_usb_adapter_frontend_exit(struct dvb_usb_adapter *adap)
 
 	/* unregister all given adapter frontends */
 	for (; i >= 0; i--) {
-		if (adap->fe_adap[i].fe != NULL) {
-			dvb_unregister_frontend(adap->fe_adap[i].fe);
-			dvb_frontend_detach(adap->fe_adap[i].fe);
+		if (adap->fe[i] != NULL) {
+			dvb_unregister_frontend(adap->fe[i]);
+			dvb_frontend_detach(adap->fe[i]);
 		}
 	}
 	adap->num_frontends_initialized = 0;

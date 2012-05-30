@@ -113,9 +113,6 @@ struct usb_data_stream_properties {
  *  pll_desc and pll_init_buf of struct dvb_usb_device).
  * @stream: configuration of the USB streaming
  */
-struct dvb_usb_adapter_fe_properties {
-	int size_of_priv;
-};
 
 #define MAX_NO_OF_FE_PER_ADAP 3
 struct dvb_usb_adapter_properties {
@@ -139,7 +136,6 @@ struct dvb_usb_adapter_properties {
 			unsigned int, void *, unsigned int);
 
 	int num_frontends;
-	struct dvb_usb_adapter_fe_properties fe[MAX_NO_OF_FE_PER_ADAP];
 	struct usb_data_stream_properties stream;
 };
 
@@ -306,15 +302,6 @@ struct usb_data_stream {
  *
  * @stream: the usb data stream.
  */
-struct dvb_usb_fe_adapter {
-	struct dvb_frontend *fe;
-
-	int (*fe_init)  (struct dvb_frontend *);
-	int (*fe_sleep) (struct dvb_frontend *);
-
-	void *priv;
-};
-
 struct dvb_usb_adapter {
 #define DVB_USB_ADAP_STATE_INIT 0x000
 #define DVB_USB_ADAP_STATE_DVB  0x001
@@ -334,7 +321,10 @@ struct dvb_usb_adapter {
 	struct dvb_demux     demux;
 	struct dvb_net       dvb_net;
 
-	struct dvb_usb_fe_adapter fe_adap[MAX_NO_OF_FE_PER_ADAP];
+	struct dvb_frontend *fe[MAX_NO_OF_FE_PER_ADAP];
+	int (*fe_init[MAX_NO_OF_FE_PER_ADAP]) (struct dvb_frontend *);
+	int (*fe_sleep[MAX_NO_OF_FE_PER_ADAP]) (struct dvb_frontend *);
+
 	int active_fe;
 	int num_frontends_initialized;
 
