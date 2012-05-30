@@ -18,7 +18,6 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/sysdev.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/io.h>
@@ -1070,7 +1069,7 @@ int sw_dma_free(unsigned int channel, struct sw_dma_client *client)
 
 EXPORT_SYMBOL(sw_dma_free);
 
-static int sw_dma_dostop(struct sw_dma_chan *chan)
+int sw_dma_dostop(struct sw_dma_chan *chan)
 {
 	unsigned long flags;
 	unsigned long tmp;
@@ -1095,6 +1094,7 @@ static int sw_dma_dostop(struct sw_dma_chan *chan)
 
 	return 0;
 }
+EXPORT_SYMBOL(sw_dma_dostop);
 
 static void sw_dma_waitforstop(struct sw_dma_chan *chan)
 {
@@ -1490,66 +1490,6 @@ int sw_dma_getcurposition(unsigned int channel, dma_addr_t *src, dma_addr_t *dst
 EXPORT_SYMBOL(sw_dma_getcurposition);
 
 
-/* system device class */
-
-#ifdef CONFIG_PM
-
-static struct sw_dma_chan *to_dma_chan(struct sys_device *dev)
-{
-	return container_of(dev, struct sw_dma_chan, dev);
-}
-
-static int sw_dma_suspend(struct sys_device *dev, pm_message_t state)
-{
-	struct sw_dma_chan *cp = to_dma_chan(dev);
-
-	printk(KERN_DEBUG "suspending dma channel %d\n", cp->number);
-
-	if (dma_rdreg(cp, SW_DMA_DCONF) & SW_DCONF_BUSY) {
-		/* the dma channel is still working, which is probably
-		 * a bad thing to do over suspend/resume. We stop the
-		 * channel and assume that the client is either going to
-		 * retry after resume, or that it is broken.
-		 */
-
-		printk(KERN_INFO "dma: stopping channel %d due to suspend\n",
-		       cp->number);
-
-		sw_dma_dostop(cp);
-	}
-
-	return 0;
-}
-
-static int sw_dma_resume(struct sys_device *dev)
-{
-#if 0
-	struct sw_dma_chan *cp = to_dma_chan(dev);
-	unsigned int no = cp->number | DMACH_LOW_LEVEL;
-
-	/* restore channel's hardware configuration */
-
-	if (!cp->in_use)
-		return 0;
-
-	printk(KERN_INFO "dma%d: restoring configuration\n", cp->number);
-
-	sw_dma_config(no, NULL);
-#endif
-	return 0;
-}
-
-#else
-#define sw_dma_suspend NULL
-#define sw_dma_resume  NULL
-#endif /* CONFIG_PM */
-
-struct sysdev_class dma_sysclass = {
-	.name		= "sw-dma",
-	.suspend	= sw_dma_suspend,
-	.resume		= sw_dma_resume,
-};
-
 /* kmem cache implementation */
 
 static void sw_dma_cache_ctor(void *p)
@@ -1558,40 +1498,6 @@ static void sw_dma_cache_ctor(void *p)
 }
 
 /* initialisation code */
-
-static int __init sw_dma_sysclass_init(void)
-{
-	int ret = sysdev_class_register(&dma_sysclass);
-
-	if (ret != 0)
-		printk(KERN_ERR "dma sysclass registration failed\n");
-
-	return ret;
-}
-
-core_initcall(sw_dma_sysclass_init);
-
-static int __init sw_dma_sysdev_register(void)
-{
-	struct sw_dma_chan *cp = sw_chans;
-	int channel, ret;
-
-	for (channel = 0; channel < dma_channels; cp++, channel++) {
-		cp->dev.cls = &dma_sysclass;
-		cp->dev.id  = channel;
-		ret = sysdev_register(&cp->dev);
-
-		if (ret) {
-			printk(KERN_ERR "error registering dev for dma %d\n",
-			       channel);
- 			return ret;
-		}
-	}
-
-	return 0;
-}
-
-late_initcall(sw_dma_sysdev_register);
 
 int __init sw_dma_init(unsigned int channels, unsigned int irq,
 			    unsigned int stride)

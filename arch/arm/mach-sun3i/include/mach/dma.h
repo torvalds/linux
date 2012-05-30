@@ -13,7 +13,7 @@
 #ifndef __ASM_ARCH_DMA_H
 #define __ASM_ARCH_DMA_H __FILE__
 
-#include <linux/sysdev.h>
+#include <linux/platform_device.h>
 #include <mach/hardware.h>
 
 
@@ -452,7 +452,7 @@ struct sw_dma_chan {
 	struct sw_dma_buf	*end;		/* end of queue */
 
 	/* system device */
-	struct sys_device	dev;
+	struct platform_device	dev;
 	void * dev_id;
 };
 
@@ -554,6 +554,8 @@ extern int sw_dma_setflags(unsigned int channel,
 */
 
 extern int sw_dma_free(unsigned int channel, struct sw_dma_client *);
+
+extern int sw_dma_dostop(struct sw_dma_chan *chan);
 
 /* sw_dma_enqueue
  *

@@ -2,8 +2,10 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
+#include <linux/platform_device.h>
 
 #include <mach/dma.h>
+#include <mach/dma_regs.h>
 #include <mach/system.h>
 
 static struct sw_dma_map __initdata sw_dma_mappings[DMACH_MAX] = {
@@ -107,21 +109,98 @@ static struct sw_dma_selection __initdata sw_dma_sel = {
 	.map_size	= ARRAY_SIZE(sw_dma_mappings),
 };
 
-static int __init sw_dma_add(struct sys_device *sysdev)
+static int __init sw_dmac_probe(struct platform_device *dev)
 {
+	int ret;
+
 	sw15_dma_init();
-	return sw_dma_init_map(&sw_dma_sel);
+
+	ret = sw_dma_init_map(&sw_dma_sel);
+
+	if (ret) {
+		printk("DMAC: failed to init map\n");
+	} else {
+		pr_info("Initialize DMAC OK\n");
+	}
+
+	return ret;
 }
 
-static struct sysdev_driver __initdata sw_dma_driver = {
-	.add	= sw_dma_add,
+static int __devexit sw_dmac_remove(struct platform_device *dev)
+{
+	printk("[%s] enter\n", __FUNCTION__);
+	return 0;
+}
+
+#ifdef CONFIG_PM
+
+static inline struct sw_dma_chan *to_dma_chan(struct platform_device *dev)
+{
+	return container_of(dev, struct sw_dma_chan, dev);
+}
+#define dma_rdreg(chan, reg) readl((chan)->regs + (reg))
+
+static int sw_dmac_suspend(struct platform_device *dev, pm_message_t state)
+{
+	struct sw_dma_chan *cp = to_dma_chan(dev);
+
+	printk(KERN_DEBUG "suspending dma channel %d\n", cp->number);
+
+	if (dma_rdreg(cp, SW_DMA_DCONF) & SW_DCONF_BUSY) {
+		/* the dma channel is still working, which is probably
+		 * a bad thing to do over suspend/resume. We stop the
+		 * channel and assume that the client is either going to
+		 * retry after resume, or that it is broken.
+		 */
+
+		printk(KERN_INFO "dma: stopping channel %d due to suspend\n",
+		       cp->number);
+
+		sw_dma_dostop(cp);
+	}
+
+	return 0;
+}
+
+static int sw_dmac_resume(struct platform_device *dev)
+{
+#if 0
+	struct sw_dma_chan *cp = to_dma_chan(dev);
+	unsigned int no = cp->number | DMACH_LOW_LEVEL;
+
+	/* restore channel's hardware configuration */
+
+	if (!cp->in_use)
+		return 0;
+
+	printk(KERN_INFO "dma%d: restoring configuration\n",
+	       cp->number);
+
+	sw_dma_config(no, NULL);
+#endif
+	return 0;
+}
+
+#else
+#define sw_dmac_suspend NULL
+#define sw_dmca_resume  NULL
+#endif /* CONFIG_PM */
+
+static struct platform_driver __initdata sw_dmac_driver = {
+	.probe		= sw_dmac_probe,
+	.remove		= __devexit_p(sw_dmac_remove),
+	.suspend	= sw_dmac_suspend,
+	.resume		= sw_dmac_resume,
+	.driver		= {
+		.name	= "sw_dmac",
+		.owner	= THIS_MODULE,
+	},
 };
 
 static int __init sw_dma_drvinit(void)
 {
-	return sysdev_driver_register(&sw_sysclass, &sw_dma_driver);
+	platform_driver_register(&sw_dmac_driver);
+	return 0;
 }
 
 arch_initcall(sw_dma_drvinit);
-
-
