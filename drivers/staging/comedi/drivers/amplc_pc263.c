@@ -113,13 +113,10 @@ struct pc263_private {
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
  */
-static int
-pc263_find_pci(struct comedi_device *dev, int bus, int slot,
-	       struct pci_dev **pci_dev_p)
+static struct pci_dev *
+pc263_find_pci(struct comedi_device *dev, int bus, int slot)
 {
 	struct pci_dev *pci_dev = NULL;
-
-	*pci_dev_p = NULL;
 
 	/* Look for matching PCI device. */
 	for (pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON, PCI_ANY_ID, NULL);
@@ -154,8 +151,7 @@ pc263_find_pci(struct comedi_device *dev, int bus, int slot,
 		}
 
 		/* Found a match. */
-		*pci_dev_p = pci_dev;
-		return 0;
+		return pci_dev;
 	}
 	/* No match found. */
 	if (bus || slot) {
@@ -166,7 +162,7 @@ pc263_find_pci(struct comedi_device *dev, int bus, int slot,
 		dev_err(dev->class_dev, "error! no %s found!\n",
 			thisboard->name);
 	}
-	return -EIO;
+	return NULL;
 }
 /*
  * This function checks and requests an I/O region, reporting an error
@@ -251,9 +247,9 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		bus = it->options[0];
 		slot = it->options[1];
-		ret = pc263_find_pci(dev, bus, slot, &pci_dev);
-		if (ret < 0)
-			return ret;
+		pci_dev = pc263_find_pci(dev, bus, slot);
+		if (pci_dev == NULL)
+			return -EIO;
 		devpriv->pci_dev = pci_dev;
 		ret = comedi_pci_enable(pci_dev, PC263_DRIVER_NAME);
 		if (ret < 0) {
