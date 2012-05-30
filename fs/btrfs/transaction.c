@@ -28,6 +28,7 @@
 #include "locking.h"
 #include "tree-log.h"
 #include "inode-map.h"
+#include "volumes.h"
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
@@ -757,6 +758,9 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
 	if (ret)
 		return ret;
+
+	ret = btrfs_run_dev_stats(trans, root->fs_info);
+	BUG_ON(ret);
 
 	while (!list_empty(&fs_info->dirty_cowonly_roots)) {
 		next = fs_info->dirty_cowonly_roots.next;

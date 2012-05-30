@@ -739,7 +739,11 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 				if (!cur)
 					return -EIO;
 			} else if (!uptodate) {
-				btrfs_read_buffer(cur, gen);
+				err = btrfs_read_buffer(cur, gen);
+				if (err) {
+					free_extent_buffer(cur);
+					return err;
+				}
 			}
 		}
 		if (search_start == 0)
@@ -854,20 +858,18 @@ static noinline int generic_bin_search(struct extent_buffer *eb,
 static int bin_search(struct extent_buffer *eb, struct btrfs_key *key,
 		      int level, int *slot)
 {
-	if (level == 0) {
+	if (level == 0)
 		return generic_bin_search(eb,
 					  offsetof(struct btrfs_leaf, items),
 					  sizeof(struct btrfs_item),
 					  key, btrfs_header_nritems(eb),
 					  slot);
-	} else {
+	else
 		return generic_bin_search(eb,
 					  offsetof(struct btrfs_node, ptrs),
 					  sizeof(struct btrfs_key_ptr),
 					  key, btrfs_header_nritems(eb),
 					  slot);
-	}
-	return -1;
 }
 
 int btrfs_bin_search(struct extent_buffer *eb, struct btrfs_key *key,

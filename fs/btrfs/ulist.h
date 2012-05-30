@@ -59,10 +59,9 @@ struct ulist {
 void ulist_init(struct ulist *ulist);
 void ulist_fini(struct ulist *ulist);
 void ulist_reinit(struct ulist *ulist);
-struct ulist *ulist_alloc(unsigned long gfp_mask);
+struct ulist *ulist_alloc(gfp_t gfp_mask);
 void ulist_free(struct ulist *ulist);
-int ulist_add(struct ulist *ulist, u64 val, unsigned long aux,
-	      unsigned long gfp_mask);
+int ulist_add(struct ulist *ulist, u64 val, unsigned long aux, gfp_t gfp_mask);
 struct ulist_node *ulist_next(struct ulist *ulist, struct ulist_node *prev);
 
 #endif
