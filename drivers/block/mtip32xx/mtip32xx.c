@@ -2564,40 +2564,58 @@ static ssize_t mtip_hw_show_registers(struct device *dev,
 	int size = 0;
 	int n;
 
-	size += sprintf(&buf[size], "S ACTive:\n");
+	size += sprintf(&buf[size], "Hardware\n--------\n");
+	size += sprintf(&buf[size], "S ACTive      : [ 0x");
 
-	for (n = 0; n < dd->slot_groups; n++)
-		size += sprintf(&buf[size], "0x%08x\n",
+	for (n = dd->slot_groups-1; n >= 0; n--)
+		size += sprintf(&buf[size], "%08X ",
 					 readl(dd->port->s_active[n]));
 
-	size += sprintf(&buf[size], "Command Issue:\n");
+	size += sprintf(&buf[size], "]\n");
+	size += sprintf(&buf[size], "Command Issue : [ 0x");
 
-	for (n = 0; n < dd->slot_groups; n++)
-		size += sprintf(&buf[size], "0x%08x\n",
+	for (n = dd->slot_groups-1; n >= 0; n--)
+		size += sprintf(&buf[size], "%08X ",
 					readl(dd->port->cmd_issue[n]));
 
-	size += sprintf(&buf[size], "Allocated:\n");
+	size += sprintf(&buf[size], "]\n");
+	size += sprintf(&buf[size], "Completed     : [ 0x");
 
-	for (n = 0; n < dd->slot_groups; n++) {
+	for (n = dd->slot_groups-1; n >= 0; n--)
+		size += sprintf(&buf[size], "%08X ",
+				readl(dd->port->completed[n]));
+
+	size += sprintf(&buf[size], "]\n");
+	size += sprintf(&buf[size], "PORT IRQ STAT : [ 0x%08X ]\n",
+				readl(dd->port->mmio + PORT_IRQ_STAT));
+	size += sprintf(&buf[size], "HOST IRQ STAT : [ 0x%08X ]\n",
+				readl(dd->mmio + HOST_IRQ_STAT));
+	size += sprintf(&buf[size], "\n");
+
+	size += sprintf(&buf[size], "Local\n-----\n");
+	size += sprintf(&buf[size], "Allocated    : [ 0x");
+
+	for (n = dd->slot_groups-1; n >= 0; n--) {
 		if (sizeof(long) > sizeof(u32))
 			group_allocated =
 				dd->port->allocated[n/2] >> (32*(n&1));
 		else
 			group_allocated = dd->port->allocated[n];
-		size += sprintf(&buf[size], "0x%08x\n",
-				 group_allocated);
+		size += sprintf(&buf[size], "%08X ", group_allocated);
 	}
+	size += sprintf(&buf[size], "]\n");
 
-	size += sprintf(&buf[size], "Completed:\n");
+	size += sprintf(&buf[size], "Commands in Q: [ 0x");
 
-	for (n = 0; n < dd->slot_groups; n++)
-		size += sprintf(&buf[size], "0x%08x\n",
-				readl(dd->port->completed[n]));
-
-	size += sprintf(&buf[size], "PORT IRQ STAT : 0x%08x\n",
-				readl(dd->port->mmio + PORT_IRQ_STAT));
-	size += sprintf(&buf[size], "HOST IRQ STAT : 0x%08x\n",
-				readl(dd->mmio + HOST_IRQ_STAT));
+	for (n = dd->slot_groups-1; n >= 0; n--) {
+		if (sizeof(long) > sizeof(u32))
+			group_allocated =
+				dd->port->cmds_to_issue[n/2] >> (32*(n&1));
+		else
+			group_allocated = dd->port->cmds_to_issue[n];
+		size += sprintf(&buf[size], "%08X ", group_allocated);
+	}
+	size += sprintf(&buf[size], "]\n");
 
 	return size;
 }
@@ -2619,8 +2637,24 @@ static ssize_t mtip_hw_show_status(struct device *dev,
 	return size;
 }
 
+static ssize_t mtip_hw_show_flags(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct driver_data *dd = dev_to_disk(dev)->private_data;
+	int size = 0;
+
+	size += sprintf(&buf[size], "Flag in port struct : [ %08lX ]\n",
+							dd->port->flags);
+	size += sprintf(&buf[size], "Flag in dd struct   : [ %08lX ]\n",
+							dd->dd_flag);
+
+	return size;
+}
+
 static DEVICE_ATTR(registers, S_IRUGO, mtip_hw_show_registers, NULL);
 static DEVICE_ATTR(status, S_IRUGO, mtip_hw_show_status, NULL);
+static DEVICE_ATTR(flags, S_IRUGO, mtip_hw_show_flags, NULL);
 
 /*
  * Create the sysfs related attributes.
@@ -2643,6 +2677,9 @@ static int mtip_hw_sysfs_init(struct driver_data *dd, struct kobject *kobj)
 	if (sysfs_create_file(kobj, &dev_attr_status.attr))
 		dev_warn(&dd->pdev->dev,
 			"Error creating 'status' sysfs entry\n");
+	if (sysfs_create_file(kobj, &dev_attr_flags.attr))
+		dev_warn(&dd->pdev->dev,
+			"Error creating 'flags' sysfs entry\n");
 	return 0;
 }
 
@@ -2663,6 +2700,7 @@ static int mtip_hw_sysfs_exit(struct driver_data *dd, struct kobject *kobj)
 
 	sysfs_remove_file(kobj, &dev_attr_registers.attr);
 	sysfs_remove_file(kobj, &dev_attr_status.attr);
+	sysfs_remove_file(kobj, &dev_attr_flags.attr);
 
 	return 0;
 }
