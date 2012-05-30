@@ -154,12 +154,9 @@ static struct comedi_driver driver_amplc_pc263 = {
 static int pc263_request_region(unsigned minor, unsigned long from,
 				unsigned long extent);
 #endif
-static int pc263_dio_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-static int pc263_dio_insn_config(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data);
+static int pc263_do_insn_bits(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data);
 
 /*
  * This function looks for a PCI device matching the requested board name,
@@ -319,16 +316,13 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	s = dev->subdevices + 0;
-	/* digital i/o subdevice */
-	s->type = COMEDI_SUBD_DIO;
+	/* digital output subdevice */
+	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->insn_bits = pc263_dio_insn_bits;
-	s->insn_config = pc263_dio_insn_config;
-	/* all outputs */
-	s->io_bits = 0xffff;
+	s->insn_bits = pc263_do_insn_bits;
 	/* read initial relay state */
 	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
 
@@ -391,14 +385,9 @@ static int pc263_request_region(unsigned minor, unsigned long from,
 }
 #endif
 
-/* DIO devices are slightly special.  Although it is possible to
- * implement the insn_read/insn_write interface, it is much more
- * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write */
-static int pc263_dio_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int pc263_do_insn_bits(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -420,15 +409,6 @@ static int pc263_dio_insn_bits(struct comedi_device *dev,
 	data[1] = s->state;
 
 	return 2;
-}
-
-static int pc263_dio_insn_config(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
-{
-	if (insn->n != 1)
-		return -EINVAL;
-	return 1;
 }
 
 /*
