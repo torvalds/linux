@@ -2002,6 +2002,32 @@ static unsigned int implicit_sector(unsigned char command,
 	return rv;
 }
 
+static void mtip_set_timeout(struct host_to_dev_fis *fis, unsigned int *timeout)
+{
+	switch (fis->command) {
+	case ATA_CMD_DOWNLOAD_MICRO:
+		*timeout = 120000; /* 2 minutes */
+		break;
+	case ATA_CMD_SEC_ERASE_UNIT:
+	case 0xFC:
+		*timeout = 240000; /* 4 minutes */
+		break;
+	case ATA_CMD_STANDBYNOW1:
+		*timeout = 10000;  /* 10 seconds */
+		break;
+	case 0xF7:
+	case 0xFA:
+		*timeout = 60000;  /* 60 seconds */
+		break;
+	case ATA_CMD_SMART:
+		*timeout = 15000;  /* 15 seconds */
+		break;
+	default:
+		*timeout = MTIP_IOCTL_COMMAND_TIMEOUT_MS;
+		break;
+	}
+}
+
 /*
  * Executes a taskfile
  * See ide_taskfile_ioctl() for derivation
@@ -2022,7 +2048,7 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	unsigned int taskin = 0;
 	unsigned int taskout = 0;
 	u8 nsect = 0;
-	unsigned int timeout = MTIP_IOCTL_COMMAND_TIMEOUT_MS;
+	unsigned int timeout;
 	unsigned int force_single_sector;
 	unsigned int transfer_size;
 	unsigned long task_file_data;
@@ -2152,32 +2178,7 @@ static int exec_drive_taskfile(struct driver_data *dd,
 		fis.lba_hi,
 		fis.device);
 
-	switch (fis.command) {
-	case ATA_CMD_DOWNLOAD_MICRO:
-		/* Change timeout for Download Microcode to 2 minutes */
-		timeout = 120000;
-		break;
-	case ATA_CMD_SEC_ERASE_UNIT:
-		/* Change timeout for Security Erase Unit to 4 minutes.*/
-		timeout = 240000;
-		break;
-	case ATA_CMD_STANDBYNOW1:
-		/* Change timeout for standby immediate to 10 seconds.*/
-		timeout = 10000;
-		break;
-	case 0xF7:
-	case 0xFA:
-		/* Change timeout for vendor unique command to 10 secs */
-		timeout = 10000;
-		break;
-	case ATA_CMD_SMART:
-		/* Change timeout for vendor unique command to 15 secs */
-		timeout = 15000;
-		break;
-	default:
-		timeout = MTIP_IOCTL_COMMAND_TIMEOUT_MS;
-		break;
-	}
+	mtip_set_timeout(&fis, &timeout);
 
 	/* Determine the correct transfer size.*/
 	if (force_single_sector)
