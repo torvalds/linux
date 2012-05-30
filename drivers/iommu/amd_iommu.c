@@ -254,6 +254,14 @@ static bool check_device(struct device *dev)
 	return true;
 }
 
+static void swap_pci_ref(struct pci_dev **from, struct pci_dev *to)
+{
+	pci_dev_put(*from);
+	*from = to;
+}
+
+#define REQ_ACS_FLAGS	(PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF)
+
 static int iommu_init_device(struct device *dev)
 {
 	struct pci_dev *dma_pdev, *pdev = to_pci_dev(dev);
@@ -285,6 +293,23 @@ static int iommu_init_device(struct device *dev)
 		dma_pdev = pci_get_bus_and_slot(alias >> 8, alias & 0xff);
 	} else
 		dma_pdev = pci_dev_get(pdev);
+
+	swap_pci_ref(&dma_pdev, pci_get_dma_source(dma_pdev));
+
+	if (dma_pdev->multifunction &&
+	    !pci_acs_enabled(dma_pdev, REQ_ACS_FLAGS))
+		swap_pci_ref(&dma_pdev,
+			     pci_get_slot(dma_pdev->bus,
+					  PCI_DEVFN(PCI_SLOT(dma_pdev->devfn),
+					  0)));
+
+	while (!pci_is_root_bus(dma_pdev->bus)) {
+		if (pci_acs_path_enabled(dma_pdev->bus->self,
+					 NULL, REQ_ACS_FLAGS))
+			break;
+
+		swap_pci_ref(&dma_pdev, pci_dev_get(dma_pdev->bus->self));
+	}
 
 	group = iommu_group_get(&dma_pdev->dev);
 	pci_dev_put(dma_pdev);
