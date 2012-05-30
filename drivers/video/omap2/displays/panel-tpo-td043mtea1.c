@@ -401,24 +401,6 @@ static void tpo_td043_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static int tpo_td043_suspend(struct omap_dss_device *dssdev)
-{
-	dev_dbg(&dssdev->dev, "suspend\n");
-
-	tpo_td043_disable_dss(dssdev);
-
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-
-	return 0;
-}
-
-static int tpo_td043_resume(struct omap_dss_device *dssdev)
-{
-	dev_dbg(&dssdev->dev, "resume\n");
-
-	return tpo_td043_enable_dss(dssdev);
-}
-
 static int tpo_td043_probe(struct omap_dss_device *dssdev)
 {
 	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(&dssdev->dev);
@@ -500,8 +482,6 @@ static struct omap_dss_driver tpo_td043_driver = {
 
 	.enable		= tpo_td043_enable,
 	.disable	= tpo_td043_disable,
-	.suspend	= tpo_td043_suspend,
-	.resume		= tpo_td043_resume,
 	.set_mirror	= tpo_td043_set_hmirror,
 	.get_mirror	= tpo_td043_get_hmirror,
 

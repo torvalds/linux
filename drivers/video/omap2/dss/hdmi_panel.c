@@ -280,58 +280,6 @@ static void hdmi_panel_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&hdmi.lock);
 }
 
-static int hdmi_panel_suspend(struct omap_dss_device *dssdev)
-{
-	int r = 0;
-
-	mutex_lock(&hdmi.lock);
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
-		r = -EINVAL;
-		goto err;
-	}
-
-	/*
-	 * TODO: notify audio users that the display was suspended. For now,
-	 * disable audio locally to not break our audio state machine.
-	 */
-	hdmi_panel_audio_disable(dssdev);
-
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-	omapdss_hdmi_display_disable(dssdev);
-
-err:
-	mutex_unlock(&hdmi.lock);
-
-	return r;
-}
-
-static int hdmi_panel_resume(struct omap_dss_device *dssdev)
-{
-	int r = 0;
-
-	mutex_lock(&hdmi.lock);
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_SUSPENDED) {
-		r = -EINVAL;
-		goto err;
-	}
-
-	r = omapdss_hdmi_display_enable(dssdev);
-	if (r) {
-		DSSERR("failed to power on\n");
-		goto err;
-	}
-	/* TODO: notify audio users that the panel resumed. */
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-err:
-	mutex_unlock(&hdmi.lock);
-
-	return r;
-}
-
 static void hdmi_get_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
@@ -379,10 +327,13 @@ static int hdmi_check_timings(struct omap_dss_device *dssdev,
 static int hdmi_read_edid(struct omap_dss_device *dssdev, u8 *buf, int len)
 {
 	int r;
+	bool need_enable;
 
 	mutex_lock(&hdmi.lock);
 
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
+	need_enable = dssdev->state == OMAP_DSS_DISPLAY_DISABLED;
+
+	if (need_enable) {
 		r = omapdss_hdmi_display_enable(dssdev);
 		if (r)
 			goto err;
@@ -390,8 +341,7 @@ static int hdmi_read_edid(struct omap_dss_device *dssdev, u8 *buf, int len)
 
 	r = omapdss_hdmi_read_edid(buf, len);
 
-	if (dssdev->state == OMAP_DSS_DISPLAY_DISABLED ||
-			dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
+	if (need_enable)
 		omapdss_hdmi_display_disable(dssdev);
 err:
 	mutex_unlock(&hdmi.lock);
@@ -402,10 +352,13 @@ err:
 static bool hdmi_detect(struct omap_dss_device *dssdev)
 {
 	int r;
+	bool need_enable;
 
 	mutex_lock(&hdmi.lock);
 
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
+	need_enable = dssdev->state == OMAP_DSS_DISPLAY_DISABLED;
+
+	if (need_enable) {
 		r = omapdss_hdmi_display_enable(dssdev);
 		if (r)
 			goto err;
@@ -413,8 +366,7 @@ static bool hdmi_detect(struct omap_dss_device *dssdev)
 
 	r = omapdss_hdmi_detect();
 
-	if (dssdev->state == OMAP_DSS_DISPLAY_DISABLED ||
-			dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
+	if (need_enable)
 		omapdss_hdmi_display_disable(dssdev);
 err:
 	mutex_unlock(&hdmi.lock);
@@ -427,8 +379,6 @@ static struct omap_dss_driver hdmi_driver = {
 	.remove		= hdmi_panel_remove,
 	.enable		= hdmi_panel_enable,
 	.disable	= hdmi_panel_disable,
-	.suspend	= hdmi_panel_suspend,
-	.resume		= hdmi_panel_resume,
 	.get_timings	= hdmi_get_timings,
 	.set_timings	= hdmi_set_timings,
 	.check_timings	= hdmi_check_timings,

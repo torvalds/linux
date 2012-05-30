@@ -1258,11 +1258,10 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 
 	switch (blank) {
 	case FB_BLANK_UNBLANK:
-		if (display->state != OMAP_DSS_DISPLAY_SUSPENDED)
+		if (display->state == OMAP_DSS_DISPLAY_ACTIVE)
 			goto exit;
 
-		if (display->driver->resume)
-			r = display->driver->resume(display);
+		r = display->driver->enable(display);
 
 		if ((display->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) &&
 				d->update_mode == OMAPFB_AUTO_UPDATE &&
@@ -1283,8 +1282,7 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 		if (d->auto_update_work_enabled)
 			omapfb_stop_auto_update(fbdev, display);
 
-		if (display->driver->suspend)
-			r = display->driver->suspend(display);
+		display->driver->disable(display);
 
 		break;
 

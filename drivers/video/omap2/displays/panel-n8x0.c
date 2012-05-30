@@ -574,54 +574,6 @@ static void n8x0_panel_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&ddata->lock);
 }
 
-static int n8x0_panel_suspend(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = get_drv_data(dssdev);
-
-	dev_dbg(&dssdev->dev, "suspend\n");
-
-	mutex_lock(&ddata->lock);
-
-	rfbi_bus_lock();
-
-	n8x0_panel_power_off(dssdev);
-
-	rfbi_bus_unlock();
-
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-
-	mutex_unlock(&ddata->lock);
-
-	return 0;
-}
-
-static int n8x0_panel_resume(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = get_drv_data(dssdev);
-	int r;
-
-	dev_dbg(&dssdev->dev, "resume\n");
-
-	mutex_lock(&ddata->lock);
-
-	rfbi_bus_lock();
-
-	r = n8x0_panel_power_on(dssdev);
-
-	rfbi_bus_unlock();
-
-	if (r) {
-		mutex_unlock(&ddata->lock);
-		return r;
-	}
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	mutex_unlock(&ddata->lock);
-
-	return 0;
-}
-
 static void n8x0_panel_get_resolution(struct omap_dss_device *dssdev,
 		u16 *xres, u16 *yres)
 {
@@ -683,8 +635,6 @@ static struct omap_dss_driver n8x0_panel_driver = {
 
 	.enable		= n8x0_panel_enable,
 	.disable	= n8x0_panel_disable,
-	.suspend	= n8x0_panel_suspend,
-	.resume		= n8x0_panel_resume,
 
 	.update		= n8x0_panel_update,
 	.sync		= n8x0_panel_sync,
