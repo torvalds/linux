@@ -74,6 +74,8 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 #define PN533_CMD_IN_RELEASE 0x52
 #define PN533_CMD_IN_JUMP_FOR_DEP 0x56
 
+#define PN533_CMD_TG_INIT_AS_TARGET 0x8c
+
 #define PN533_CMD_RESPONSE(cmd) (cmd + 1)
 
 /* PN533 Return codes */
@@ -251,6 +253,25 @@ struct pn533_cmd_jump_dep_response {
 	u8 ppt;
 	/* optional */
 	u8 gt[];
+} __packed;
+
+
+/* PN533_TG_INIT_AS_TARGET */
+#define PN533_INIT_TARGET_PASSIVE 0x1
+#define PN533_INIT_TARGET_DEP 0x2
+
+struct pn533_cmd_init_target {
+	u8 mode;
+	u8 mifare[6];
+	u8 felica[18];
+	u8 nfcid3[10];
+	u8 gb_len;
+	u8 gb[];
+} __packed;
+
+struct pn533_cmd_init_target_response {
+	u8 mode;
+	u8 cmd[];
 } __packed;
 
 struct pn533 {
@@ -1078,9 +1099,86 @@ stop_poll:
 	return 0;
 }
 
+static int pn533_init_target_frame(struct pn533_frame *frame,
+				   u8 *gb, size_t gb_len)
+{
+	struct pn533_cmd_init_target *cmd;
+	size_t cmd_len;
+
+	cmd_len = sizeof(struct pn533_cmd_init_target) + gb_len + 1;
+	cmd = kzalloc(cmd_len, GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENOMEM;
+
+	pn533_tx_frame_init(frame, PN533_CMD_TG_INIT_AS_TARGET);
+
+	/* DEP support only */
+	cmd->mode |= PN533_INIT_TARGET_DEP;
+	get_random_bytes(cmd->nfcid3, 10);
+	cmd->gb_len = gb_len;
+	memcpy(cmd->gb, gb, gb_len);
+	/* Len Tk */
+	cmd->gb[gb_len] = 0;
+
+	memcpy(PN533_FRAME_CMD_PARAMS_PTR(frame), cmd, cmd_len);
+	frame->datalen += cmd_len;
+
+	pn533_tx_frame_finish(frame);
+
+	return 0;
+}
+
+static int pn533_init_target_complete(struct pn533 *dev, void *arg,
+				      u8 *params, int params_len)
+{
+	struct pn533_cmd_init_target_response *resp;
+
+	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	if (params_len < 0) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Error %d when starting as a target",
+			    params_len);
+
+		return params_len;
+	}
+
+	resp = (struct pn533_cmd_init_target_response *) params;
+
+	nfc_dev_dbg(&dev->interface->dev, "Target mode 0x%x\n", resp->mode);
+
+	return 0;
+}
+
 static int pn533_init_target(struct nfc_dev *nfc_dev, u32 protocols)
 {
-	return 0;
+	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+	u8 *gb;
+	size_t gb_len;
+	int rc;
+
+	pn533_poll_reset_mod_list(dev);
+
+	gb = nfc_get_local_general_bytes(nfc_dev, &gb_len);
+	if (gb == NULL)
+		return -ENOMEM;
+
+	rc = pn533_init_target_frame(dev->out_frame, gb, gb_len);
+	if (rc < 0)
+		return rc;
+
+	rc = pn533_send_cmd_frame_async(dev, dev->out_frame, dev->in_frame,
+					dev->in_maxlen,
+					pn533_init_target_complete,
+					NULL, GFP_KERNEL);
+
+	if (rc)
+		nfc_dev_err(&dev->interface->dev,
+			    "Error %d when trying to initiate as a target", rc);
+
+	dev->poll_mod_count++;
+
+	return rc;
 }
 
 static int pn533_start_im_poll(struct nfc_dev *nfc_dev, u32 protocols)
@@ -1146,12 +1244,13 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev,
 		return -EBUSY;
 	}
 
-	if (!tm_protocols)
+	if (im_protocols)
 		return pn533_start_im_poll(nfc_dev, im_protocols);
-	else if (!im_protocols)
+
+	if (tm_protocols)
 		return pn533_init_target(nfc_dev, tm_protocols);
-	else
-		return -EINVAL;
+
+	return -EINVAL;
 }
 
 static void pn533_stop_poll(struct nfc_dev *nfc_dev)
