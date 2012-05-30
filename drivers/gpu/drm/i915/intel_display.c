@@ -4652,16 +4652,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		if (is_lvds && has_reduced_clock && i915_powersave) {
 			I915_WRITE(intel_crtc->pch_pll->fp1_reg, fp2);
 			intel_crtc->lowfreq_avail = true;
-			if (HAS_PIPE_CXSR(dev)) {
-				DRM_DEBUG_KMS("enabling CxSR downclocking\n");
-				pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
-			}
 		} else {
 			I915_WRITE(intel_crtc->pch_pll->fp1_reg, fp);
-			if (HAS_PIPE_CXSR(dev)) {
-				DRM_DEBUG_KMS("disabling CxSR downclocking\n");
-				pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
-			}
 		}
 	}
 
