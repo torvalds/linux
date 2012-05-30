@@ -35,6 +35,7 @@
 #include <target/target_core_fabric.h>
 
 #include "target_core_internal.h"
+#include "target_core_alua.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
@@ -940,7 +941,8 @@ static int spc_emulate_testunitready(struct se_cmd *cmd)
 
 int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 {
-	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
+	struct se_device *dev = cmd->se_dev;
+	struct se_subsystem_dev *su_dev = dev->se_sub_dev;
 	unsigned char *cdb = cmd->t_task_cdb;
 
 	switch (cdb[0]) {
@@ -1049,6 +1051,44 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 	case TEST_UNIT_READY:
 		cmd->execute_cmd = spc_emulate_testunitready;
 		*size = 0;
+		break;
+	case MAINTENANCE_IN:
+		if (dev->transport->get_device_type(dev) != TYPE_ROM) {
+			/*
+			 * MAINTENANCE_IN from SCC-2
+			 * Check for emulated MI_REPORT_TARGET_PGS
+			 */
+			if ((cdb[1] & 0x1f) == MI_REPORT_TARGET_PGS &&
+			    su_dev->t10_alua.alua_type == SPC3_ALUA_EMULATED) {
+				cmd->execute_cmd =
+					target_emulate_report_target_port_groups;
+			}
+			*size = get_unaligned_be32(&cdb[6]);
+		} else {
+			/*
+			 * GPCMD_SEND_KEY from multi media commands
+			 */
+			*size = get_unaligned_be16(&cdb[8]);
+		}
+		break;
+	case MAINTENANCE_OUT:
+		if (dev->transport->get_device_type(dev) != TYPE_ROM) {
+			/*
+			 * MAINTENANCE_OUT from SCC-2
+			 * Check for emulated MO_SET_TARGET_PGS.
+			 */
+			if (cdb[1] == MO_SET_TARGET_PGS &&
+			    su_dev->t10_alua.alua_type == SPC3_ALUA_EMULATED) {
+				cmd->execute_cmd =
+					target_emulate_set_target_port_groups;
+			}
+			*size = get_unaligned_be32(&cdb[6]);
+		} else {
+			/*
+			 * GPCMD_SEND_KEY from multi media commands
+			 */
+			*size = get_unaligned_be16(&cdb[8]);
+		}
 		break;
 	default:
 		pr_warn("TARGET_CORE[%s]: Unsupported SCSI Opcode"
