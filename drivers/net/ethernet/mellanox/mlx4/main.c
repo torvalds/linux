@@ -485,14 +485,14 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	dev->caps.num_mgms              = 0;
 	dev->caps.num_amgms             = 0;
 
-	for (i = 1; i <= dev->caps.num_ports; ++i)
-		dev->caps.port_mask[i] = dev->caps.port_type[i];
-
 	if (dev->caps.num_ports > MLX4_MAX_PORTS) {
 		mlx4_err(dev, "HCA has %d ports, but we only support %d, "
 			 "aborting.\n", dev->caps.num_ports, MLX4_MAX_PORTS);
 		return -ENODEV;
 	}
+
+	for (i = 1; i <= dev->caps.num_ports; ++i)
+		dev->caps.port_mask[i] = dev->caps.port_type[i];
 
 	if (dev->caps.uar_page_size * (dev->caps.num_uars -
 				       dev->caps.reserved_uars) >
