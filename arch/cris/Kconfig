@@ -40,6 +40,7 @@ config CRIS
 	bool
 	default y
 	select HAVE_IDE
+	select GENERIC_ATOMIC64
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IOMAP

@@ -390,7 +390,7 @@ static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask,
 {
 	if (!pol)
 		return;
-	if (!mpol_store_user_nodemask(pol) && step == 0 &&
+	if (!mpol_store_user_nodemask(pol) && step == MPOL_REBIND_ONCE &&
 	    nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
 		return;
 
@@ -950,8 +950,8 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
  *
  * Returns the number of page that could not be moved.
  */
-int do_migrate_pages(struct mm_struct *mm,
-	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags)
+int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
+		     const nodemask_t *to, int flags)
 {
 	int busy = 0;
 	int err;
@@ -963,7 +963,7 @@ int do_migrate_pages(struct mm_struct *mm,
 
 	down_read(&mm->mmap_sem);
 
-	err = migrate_vmas(mm, from_nodes, to_nodes, flags);
+	err = migrate_vmas(mm, from, to, flags);
 	if (err)
 		goto out;
 
@@ -998,14 +998,34 @@ int do_migrate_pages(struct mm_struct *mm,
 	 * moved to an empty node, then there is nothing left worth migrating.
 	 */
 
-	tmp = *from_nodes;
+	tmp = *from;
 	while (!nodes_empty(tmp)) {
 		int s,d;
 		int source = -1;
 		int dest = 0;
 
 		for_each_node_mask(s, tmp) {
-			d = node_remap(s, *from_nodes, *to_nodes);
+
+			/*
+			 * do_migrate_pages() tries to maintain the relative
+			 * node relationship of the pages established between
+			 * threads and memory areas.
+                         *
+			 * However if the number of source nodes is not equal to
+			 * the number of destination nodes we can not preserve
+			 * this node relative relationship.  In that case, skip
+			 * copying memory from a node that is in the destination
+			 * mask.
+			 *
+			 * Example: [2,3,4] -> [3,4,5] moves everything.
+			 *          [0-7] - > [3,4,5] moves only 0,1,2,6,7.
+			 */
+
+			if ((nodes_weight(*from) != nodes_weight(*to)) &&
+						(node_isset(s, *to)))
+				continue;
+
+			d = node_remap(s, *from, *to);
 			if (s == d)
 				continue;
 
@@ -1065,8 +1085,8 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
 {
 }
 
-int do_migrate_pages(struct mm_struct *mm,
-	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags)
+int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
+		     const nodemask_t *to, int flags)
 {
 	return -ENOSYS;
 }

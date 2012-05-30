@@ -9,6 +9,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/fb.h>
 #include <linux/kernel.h>
@@ -44,7 +46,7 @@ static int jornada_lcd_get_contrast(struct lcd_device *dev)
 	jornada_ssp_start();
 
 	if (jornada_ssp_byte(GETCONTRAST) != TXDUMMY) {
-		printk(KERN_ERR "lcd: get contrast failed\n");
+		pr_err("get contrast failed\n");
 		jornada_ssp_end();
 		return -ETIMEDOUT;
 	} else {
@@ -65,7 +67,7 @@ static int jornada_lcd_set_contrast(struct lcd_device *dev, int value)
 
 	/* push the new value */
 	if (jornada_ssp_byte(value) != TXDUMMY) {
-		printk(KERN_ERR "lcd : set contrast failed\n");
+		pr_err("set contrast failed\n");
 		jornada_ssp_end();
 		return -ETIMEDOUT;
 	}
@@ -103,7 +105,7 @@ static int jornada_lcd_probe(struct platform_device *pdev)
 
 	if (IS_ERR(lcd_device)) {
 		ret = PTR_ERR(lcd_device);
-		printk(KERN_ERR "lcd : failed to register device\n");
+		pr_err("failed to register device\n");
 		return ret;
 	}
 
