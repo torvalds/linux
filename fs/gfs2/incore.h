@@ -89,6 +89,7 @@ struct gfs2_rgrpd {
 	u64 rd_igeneration;
 	struct gfs2_bitmap *rd_bits;
 	struct gfs2_sbd *rd_sbd;
+	struct gfs2_rgrp_lvb *rd_rgl;
 	u32 rd_last_alloc;
 	u32 rd_flags;
 #define GFS2_RDF_CHECK		0x10000000 /* check for unlinked inodes */
@@ -470,6 +471,7 @@ struct gfs2_args {
 	unsigned int ar_discard:1;		/* discard requests */
 	unsigned int ar_errors:2;               /* errors=withdraw | panic */
 	unsigned int ar_nobarrier:1;            /* do not send barriers */
+	unsigned int ar_rgrplvb:1;		/* use lvbs for rgrp info */
 	int ar_commit;				/* Commit interval */
 	int ar_statfs_quantum;			/* The fast statfs interval */
 	int ar_quota_quantum;			/* The quota interval */

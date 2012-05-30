@@ -769,6 +769,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	gl->gl_stats.stats[GFS2_LKS_DCOUNT] = 0;
 	gl->gl_stats.stats[GFS2_LKS_QCOUNT] = 0;
 	memset(&gl->gl_lksb, 0, sizeof(struct dlm_lksb));
+	memset(gl->gl_lvb, 0, 32 * sizeof(char));
 	gl->gl_lksb.sb_lvbptr = gl->gl_lvb;
 	gl->gl_tchange = jiffies;
 	gl->gl_object = NULL;

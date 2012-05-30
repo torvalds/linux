@@ -78,6 +78,8 @@ enum {
 	Opt_quota_quantum,
 	Opt_barrier,
 	Opt_nobarrier,
+	Opt_rgrplvb,
+	Opt_norgrplvb,
 	Opt_error,
 };
 
@@ -115,6 +117,8 @@ static const match_table_t tokens = {
 	{Opt_quota_quantum, "quota_quantum=%d"},
 	{Opt_barrier, "barrier"},
 	{Opt_nobarrier, "nobarrier"},
+	{Opt_rgrplvb, "rgrplvb"},
+	{Opt_norgrplvb, "norgrplvb"},
 	{Opt_error, NULL}
 };
 
@@ -266,6 +270,12 @@ int gfs2_mount_args(struct gfs2_args *args, char *options)
 			break;
 		case Opt_nobarrier:
 			args->ar_nobarrier = 1;
+			break;
+		case Opt_rgrplvb:
+			args->ar_rgrplvb = 1;
+			break;
+		case Opt_norgrplvb:
+			args->ar_rgrplvb = 0;
 			break;
 		case Opt_error:
 		default:
@@ -1379,6 +1389,8 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",nobarrier");
 	if (test_bit(SDF_DEMOTE, &sdp->sd_flags))
 		seq_printf(s, ",demote_interface_used");
+	if (args->ar_rgrplvb)
+		seq_printf(s, ",rgrplvb");
 	return 0;
 }
 

@@ -170,6 +170,16 @@ struct gfs2_rindex {
 #define GFS2_RGF_NOALLOC	0x00000008
 #define GFS2_RGF_TRIMMED	0x00000010
 
+struct gfs2_rgrp_lvb {
+	__be32 rl_magic;
+	__be32 rl_flags;
+	__be32 rl_free;
+	__be32 rl_dinodes;
+	__be64 rl_igeneration;
+	__be32 rl_unlinked;
+	__be32 __pad;
+};
+
 struct gfs2_rgrp {
 	struct gfs2_meta_header rg_header;
 
