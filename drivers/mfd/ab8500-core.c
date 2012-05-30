@@ -111,6 +111,13 @@
 
 #define AB8500_TURN_ON_STATUS		0x00
 
+#define AB8500_CH_USBCH_STAT1_REG	0x02
+#define VBUS_DET_DBNC100		0x02
+#define VBUS_DET_DBNC1			0x01
+
+static DEFINE_SPINLOCK(on_stat_lock);
+static u8 turn_on_stat_mask = 0xFF;
+static u8 turn_on_stat_set;
 static bool no_bm; /* No battery management */
 module_param(no_bm, bool, S_IRUGO);
 
@@ -1171,6 +1178,15 @@ static ssize_t show_switch_off_status(struct device *dev,
 	return sprintf(buf, "%#x\n", value);
 }
 
+/* use mask and set to override the register turn_on_stat value */
+void ab8500_override_turn_on_stat(u8 mask, u8 set)
+{
+	spin_lock(&on_stat_lock);
+	turn_on_stat_mask = mask;
+	turn_on_stat_set = set;
+	spin_unlock(&on_stat_lock);
+}
+
 /*
  * ab8500 has turned on due to (TURN_ON_STATUS):
  * 0x01 PORnVbat
@@ -1194,6 +1210,20 @@ static ssize_t show_turn_on_status(struct device *dev,
 		AB8500_TURN_ON_STATUS, &value);
 	if (ret < 0)
 		return ret;
+
+	/*
+	 * In L9540, turn_on_status register is not updated correctly if
+	 * the device is rebooted with AC/USB charger connected. Due to
+	 * this, the device boots android instead of entering into charge
+	 * only mode. Read the AC/USB status register to detect the charger
+	 * presence and update the turn on status manually.
+	 */
+	if (is_ab9540(ab8500)) {
+		spin_lock(&on_stat_lock);
+		value = (value & turn_on_stat_mask) | turn_on_stat_set;
+		spin_unlock(&on_stat_lock);
+	}
+
 	return sprintf(buf, "%#x\n", value);
 }
 
@@ -1399,6 +1429,15 @@ static int ab8500_probe(struct platform_device *pdev)
 
 	if (plat && plat->init)
 		plat->init(ab8500);
+	if (is_ab9540(ab8500)) {
+		ret = get_register_interruptible(ab8500, AB8500_CHARGER,
+			AB8500_CH_USBCH_STAT1_REG, &value);
+		if (ret < 0)
+			return ret;
+		if ((value & VBUS_DET_DBNC1) && (value & VBUS_DET_DBNC100))
+			ab8500_override_turn_on_stat(~AB8500_POW_KEY_1_ON,
+						     AB8500_VBUS_DET);
+	}
 
 	/* Clear and mask all interrupts */
 	for (i = 0; i < ab8500->mask_size; i++) {
