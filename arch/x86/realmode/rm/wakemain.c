@@ -65,7 +65,8 @@ void main(void)
 {
 	/* Kill machine if structures are wrong */
 	if (wakeup_header.real_magic != 0x12345678)
-		while (1);
+		while (1)
+			;
 
 	if (wakeup_header.realmode_flags & 4)
 		send_morse("...-");

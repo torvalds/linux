@@ -274,10 +274,7 @@ num_subarch_entries = (. - subarch_entries) / 4
  * If cpu hotplug is not supported then this code can go in init section
  * which will be freed later
  */
-
 __CPUINIT
-
-#ifdef CONFIG_SMP
 ENTRY(startup_32_smp)
 	cld
 	movl $(__BOOT_DS),%eax
@@ -288,7 +285,7 @@ ENTRY(startup_32_smp)
 	movl pa(stack_start),%ecx
 	movl %eax,%ss
 	leal -__PAGE_OFFSET(%ecx),%esp
-#endif /* CONFIG_SMP */
+
 default_entry:
 
 /*

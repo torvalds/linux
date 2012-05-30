@@ -1,50 +1,47 @@
 /*
  * ACPI wakeup real mode startup stub
  */
+#include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/msr-index.h>
 #include <asm/page_types.h>
 #include <asm/pgtable_types.h>
 #include <asm/processor-flags.h>
+#include "realmode.h"
 #include "wakeup.h"
 
 	.code16
-	.section ".jump", "ax"
-	.globl	_start
-_start:
-	cli
-	jmp	wakeup_code
 
 /* This should match the structure in wakeup.h */
-		.section ".header", "a"
-		.globl	wakeup_header
-wakeup_header:
-video_mode:	.short	0	/* Video mode number */
-pmode_return:	.byte	0x66, 0xea	/* ljmpl */
-		.long	0	/* offset goes here */
-		.short	__KERNEL_CS
-pmode_cr0:	.long	0	/* Saved %cr0 */
-pmode_cr3:	.long	0	/* Saved %cr3 */
-pmode_cr4:	.long	0	/* Saved %cr4 */
-pmode_efer:	.quad	0	/* Saved EFER */
-pmode_gdt:	.quad	0
-pmode_misc_en:	.quad	0	/* Saved MISC_ENABLE MSR */
-pmode_behavior:	.long	0	/* Wakeup behavior flags */
-realmode_flags:	.long	0
-real_magic:	.long	0
-trampoline_segment:	.word 0
-_pad1:		.byte	0
-wakeup_jmp:	.byte	0xea	/* ljmpw */
-wakeup_jmp_off:	.word	3f
-wakeup_jmp_seg:	.word	0
-wakeup_gdt:	.quad	0, 0, 0
-signature:	.long	WAKEUP_HEADER_SIGNATURE
+	.section ".data", "aw"
+
+	.balign	16
+GLOBAL(wakeup_header)
+	video_mode:	.short	0	/* Video mode number */
+	pmode_entry:	.long	0
+	pmode_cs:	.short	__KERNEL_CS
+	pmode_cr0:	.long	0	/* Saved %cr0 */
+	pmode_cr3:	.long	0	/* Saved %cr3 */
+	pmode_cr4:	.long	0	/* Saved %cr4 */
+	pmode_efer:	.quad	0	/* Saved EFER */
+	pmode_gdt:	.quad	0
+	pmode_misc_en:	.quad	0	/* Saved MISC_ENABLE MSR */
+	pmode_behavior:	.long	0	/* Wakeup behavior flags */
+	realmode_flags:	.long	0
+	real_magic:	.long	0
+	signature:	.long	WAKEUP_HEADER_SIGNATURE
+END(wakeup_header)
 
 	.text
 	.code16
-wakeup_code:
+
+	.balign	16
+ENTRY(wakeup_start)
+	cli
 	cld
 
+	LJMPW_RM(3f)
+3:
 	/* Apparently some dimwit BIOS programmers don't know how to
 	   program a PM to RM transition, and we might end up here with
 	   junk in the data segment descriptor registers.  The only way
@@ -54,8 +51,7 @@ wakeup_code:
 	movl	%cr0, %eax
 	orb	$X86_CR0_PE, %al
 	movl	%eax, %cr0
-	jmp	1f
-1:	ljmpw	$8, $2f
+	ljmpw	$8, $2f
 2:
 	movw	%cx, %ds
 	movw	%cx, %es
@@ -65,16 +61,18 @@ wakeup_code:
 
 	andb	$~X86_CR0_PE, %al
 	movl	%eax, %cr0
-	jmp	wakeup_jmp
+	LJMPW_RM(3f)
 3:
 	/* Set up segments */
 	movw	%cs, %ax
+	movw	%ax, %ss
+	movl	$rm_stack_end, %esp
 	movw	%ax, %ds
 	movw	%ax, %es
-	movw	%ax, %ss
-	lidtl	wakeup_idt
+	movw	%ax, %fs
+	movw	%ax, %gs
 
-	movl	$wakeup_stack_end, %esp
+	lidtl	wakeup_idt
 
 	/* Clear the EFLAGS */
 	pushl	$0
@@ -87,7 +85,7 @@ wakeup_code:
 
 	/* Check we really have everything... */
 	movl	end_signature, %eax
-	cmpl	$WAKEUP_END_SIGNATURE, %eax
+	cmpl	$REALMODE_END_SIGNATURE, %eax
 	jne	bogus_real_magic
 
 	/* Call the C code */
@@ -128,14 +126,13 @@ wakeup_code:
 	lgdtl	pmode_gdt
 
 	/* This really couldn't... */
-	movl	pmode_cr0, %eax
-	movl	%eax, %cr0
-	jmp	pmode_return
+	movl	pmode_entry, %eax
+	movl	pmode_cr0, %ecx
+	movl	%ecx, %cr0
+	ljmpl	$__KERNEL_CS, $pa_startup_32
+	/* -> jmp *%eax in trampoline_32.S */
 #else
-	pushw	$0
-	pushw	trampoline_segment
-	pushw	$0
-	lret
+	jmp	trampoline_start
 #endif
 
 bogus_real_magic:
@@ -143,28 +140,38 @@ bogus_real_magic:
 	hlt
 	jmp	1b
 
-	.data
+	.section ".rodata","a"
+
+	/*
+	 * Set up the wakeup GDT.  We set these up as Big Real Mode,
+	 * that is, with limits set to 4 GB.  At least the Lenovo
+	 * Thinkpad X61 is known to need this for the video BIOS
+	 * initialization quirk to work; this is likely to also
+	 * be the case for other laptops or integrated video devices.
+	 */
+
+	.balign	16
+GLOBAL(wakeup_gdt)
+	.word	3*8-1		/* Self-descriptor */
+	.long	pa_wakeup_gdt
+	.word	0
+
+	.word	0xffff		/* 16-bit code segment @ real_mode_base */
+	.long	0x9b000000 + pa_real_mode_base
+	.word	0x008f		/* big real mode */
+
+	.word	0xffff		/* 16-bit data segment @ real_mode_base */
+	.long	0x93000000 + pa_real_mode_base
+	.word	0x008f		/* big real mode */
+END(wakeup_gdt)
+
+	.section ".rodata","a"
 	.balign	8
 
 	/* This is the standard real-mode IDT */
-wakeup_idt:
+	.balign	16
+GLOBAL(wakeup_idt)
 	.word	0xffff		/* limit */
 	.long	0		/* address */
 	.word	0
-
-	.globl	HEAP, heap_end
-HEAP:
-	.long	wakeup_heap
-heap_end:
-	.long	wakeup_stack
-
-	.bss
-wakeup_heap:
-	.space	2048
-wakeup_stack:
-	.space	2048
-wakeup_stack_end:
-
-	.section ".signature","a"
-end_signature:
-	.long	WAKEUP_END_SIGNATURE
+END(wakeup_idt)
