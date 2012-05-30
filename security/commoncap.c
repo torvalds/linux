@@ -958,6 +958,29 @@ int cap_vm_enough_memory(struct mm_struct *mm, long pages)
 }
 
 /*
+ * cap_mmap_addr - check if able to map given addr
+ * @addr: address attempting to be mapped
+ *
+ * If the process is attempting to map memory below dac_mmap_min_addr they need
+ * CAP_SYS_RAWIO.  The other parameters to this function are unused by the
+ * capability security module.  Returns 0 if this mapping should be allowed
+ * -EPERM if not.
+ */
+int cap_mmap_addr(unsigned long addr)
+{
+	int ret = 0;
+
+	if (addr < dac_mmap_min_addr) {
+		ret = cap_capable(current_cred(), &init_user_ns, CAP_SYS_RAWIO,
+				  SECURITY_CAP_AUDIT);
+		/* set PF_SUPERPRIV if it turns out we allow the low mmap */
+		if (ret == 0)
+			current->flags |= PF_SUPERPRIV;
+	}
+	return ret;
+}
+
+/*
  * cap_file_mmap - check if able to map given addr
  * @file: unused
  * @reqprot: unused
@@ -975,14 +998,5 @@ int cap_file_mmap(struct file *file, unsigned long reqprot,
 		  unsigned long prot, unsigned long flags,
 		  unsigned long addr, unsigned long addr_only)
 {
-	int ret = 0;
-
-	if (addr < dac_mmap_min_addr) {
-		ret = cap_capable(current_cred(), &init_user_ns, CAP_SYS_RAWIO,
-				  SECURITY_CAP_AUDIT);
-		/* set PF_SUPERPRIV if it turns out we allow the low mmap */
-		if (ret == 0)
-			current->flags |= PF_SUPERPRIV;
-	}
-	return ret;
+	return cap_mmap_addr(addr);
 }

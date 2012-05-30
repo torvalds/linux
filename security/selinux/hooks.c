@@ -3104,7 +3104,7 @@ static int selinux_file_mmap(struct file *file, unsigned long reqprot,
 	}
 
 	/* do DAC check on address space usage */
-	rc = cap_file_mmap(file, reqprot, prot, flags, addr, addr_only);
+	rc = cap_mmap_addr(addr);
 	if (rc || addr_only)
 		return rc;
 
