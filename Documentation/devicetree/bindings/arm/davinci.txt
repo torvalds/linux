@@ -5,6 +5,10 @@ DA850/OMAP-L138/AM18x Evaluation Module (EVM) board
 Required root node properties:
     - compatible = "ti,da850-evm", "ti,da850";
 
+EnBW AM1808 based CMC board
+Required root node properties:
+    - compatible = "enbw,cmc", "ti,da850;
+
 Generic DaVinci Boards
 ----------------------
 
