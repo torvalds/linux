@@ -2295,13 +2295,12 @@ static int mtip_hw_ioctl(struct driver_data *dd, unsigned int cmd,
 {
 	switch (cmd) {
 	case HDIO_GET_IDENTITY:
-		if (mtip_get_identify(dd->port, (void __user *) arg) < 0) {
-			dev_warn(&dd->pdev->dev,
-				"Unable to read identity\n");
-			return -EIO;
-		}
-
+	{
+		if (copy_to_user((void __user *)arg, dd->port->identify,
+						sizeof(u16) * ATA_ID_WORDS))
+			return -EFAULT;
 		break;
+	}
 	case HDIO_DRIVE_CMD:
 	{
 		u8 drive_command[4];
