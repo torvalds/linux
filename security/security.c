@@ -660,36 +660,46 @@ int security_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return security_ops->file_ioctl(file, cmd, arg);
 }
 
-int security_mmap_file(struct file *file, unsigned long prot,
-			unsigned long flags)
+static inline unsigned long mmap_prot(struct file *file, unsigned long prot)
 {
-	unsigned long reqprot = prot;
-	int ret;
 	/*
-	 * Does the application expect PROT_READ to imply PROT_EXEC?
-	 *
-	 * (the exception is when the underlying filesystem is noexec
-	 *  mounted, in which case we dont add PROT_EXEC.)
+	 * Does we have PROT_READ and does the application expect
+	 * it to imply PROT_EXEC?  If not, nothing to talk about...
 	 */
-	if (!(reqprot & PROT_READ))
-		goto out;
+	if ((prot & (PROT_READ | PROT_EXEC)) != PROT_READ)
+		return prot;
 	if (!(current->personality & READ_IMPLIES_EXEC))
-		goto out;
-	if (!file) {
-		prot |= PROT_EXEC;
-	} else if (!(file->f_path.mnt->mnt_flags & MNT_NOEXEC)) {
+		return prot;
+	/*
+	 * if that's an anonymous mapping, let it.
+	 */
+	if (!file)
+		return prot | PROT_EXEC;
+	/*
+	 * ditto if it's not on noexec mount, except that on !MMU we need
+	 * BDI_CAP_EXEC_MMAP (== VM_MAYEXEC) in this case
+	 */
+	if (!(file->f_path.mnt->mnt_flags & MNT_NOEXEC)) {
 #ifndef CONFIG_MMU
 		unsigned long caps = 0;
 		struct address_space *mapping = file->f_mapping;
 		if (mapping && mapping->backing_dev_info)
 			caps = mapping->backing_dev_info->capabilities;
 		if (!(caps & BDI_CAP_EXEC_MAP))
-			goto out;
+			return prot;
 #endif
-		prot |= PROT_EXEC;
+		return prot | PROT_EXEC;
 	}
-out:
-	ret = security_ops->mmap_file(file, reqprot, prot, flags);
+	/* anything on noexec mount won't get PROT_EXEC */
+	return prot;
+}
+
+int security_mmap_file(struct file *file, unsigned long prot,
+			unsigned long flags)
+{
+	int ret;
+	ret = security_ops->mmap_file(file, prot,
+					mmap_prot(file, prot), flags);
 	if (ret)
 		return ret;
 	return ima_file_mmap(file, prot);
