@@ -1025,7 +1025,11 @@ rcu_torture_fakewriter(void *arg)
 	do {
 		schedule_timeout_uninterruptible(1 + rcu_random(&rand)%10);
 		udelay(rcu_random(&rand) & 0x3ff);
-		cur_ops->sync();
+		if (cur_ops->cb_barrier != NULL &&
+		    rcu_random(&rand) % (nfakewriters * 8) == 0)
+			cur_ops->cb_barrier();
+		else
+			cur_ops->sync();
 		rcu_stutter_wait("rcu_torture_fakewriter");
 	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
 
