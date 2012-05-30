@@ -66,7 +66,7 @@ static int omap_rproc_mbox_callback(struct notifier_block *this,
 {
 	mbox_msg_t msg = (mbox_msg_t) data;
 	struct omap_rproc *oproc = container_of(this, struct omap_rproc, nb);
-	struct device *dev = oproc->rproc->dev;
+	struct device *dev = oproc->rproc->dev.parent;
 	const char *name = oproc->rproc->name;
 
 	dev_dbg(dev, "mbox msg: 0x%x\n", msg);
@@ -92,12 +92,13 @@ static int omap_rproc_mbox_callback(struct notifier_block *this,
 static void omap_rproc_kick(struct rproc *rproc, int vqid)
 {
 	struct omap_rproc *oproc = rproc->priv;
+	struct device *dev = rproc->dev.parent;
 	int ret;
 
 	/* send the index of the triggered virtqueue in the mailbox payload */
 	ret = omap_mbox_msg_send(oproc->mbox, vqid);
 	if (ret)
-		dev_err(rproc->dev, "omap_mbox_msg_send failed: %d\n", ret);
+		dev_err(dev, "omap_mbox_msg_send failed: %d\n", ret);
 }
 
 /*
@@ -110,7 +111,8 @@ static void omap_rproc_kick(struct rproc *rproc, int vqid)
 static int omap_rproc_start(struct rproc *rproc)
 {
 	struct omap_rproc *oproc = rproc->priv;
-	struct platform_device *pdev = to_platform_device(rproc->dev);
+	struct device *dev = rproc->dev.parent;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	int ret;
 
@@ -120,7 +122,7 @@ static int omap_rproc_start(struct rproc *rproc)
 	oproc->mbox = omap_mbox_get(pdata->mbox_name, &oproc->nb);
 	if (IS_ERR(oproc->mbox)) {
 		ret = PTR_ERR(oproc->mbox);
-		dev_err(rproc->dev, "omap_mbox_get failed: %d\n", ret);
+		dev_err(dev, "omap_mbox_get failed: %d\n", ret);
 		return ret;
 	}
 
@@ -133,13 +135,13 @@ static int omap_rproc_start(struct rproc *rproc)
 	 */
 	ret = omap_mbox_msg_send(oproc->mbox, RP_MBOX_ECHO_REQUEST);
 	if (ret) {
-		dev_err(rproc->dev, "omap_mbox_get failed: %d\n", ret);
+		dev_err(dev, "omap_mbox_get failed: %d\n", ret);
 		goto put_mbox;
 	}
 
 	ret = pdata->device_enable(pdev);
 	if (ret) {
-		dev_err(rproc->dev, "omap_device_enable failed: %d\n", ret);
+		dev_err(dev, "omap_device_enable failed: %d\n", ret);
 		goto put_mbox;
 	}
 
@@ -153,7 +155,8 @@ put_mbox:
 /* power off the remote processor */
 static int omap_rproc_stop(struct rproc *rproc)
 {
-	struct platform_device *pdev = to_platform_device(rproc->dev);
+	struct device *dev = rproc->dev.parent;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	struct omap_rproc *oproc = rproc->priv;
 	int ret;

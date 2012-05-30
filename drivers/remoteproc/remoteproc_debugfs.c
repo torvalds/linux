@@ -124,7 +124,7 @@ struct dentry *rproc_create_trace_file(const char *name, struct rproc *rproc,
 	tfile = debugfs_create_file(name, 0400, rproc->dbg_dir,
 						trace, &trace_rproc_ops);
 	if (!tfile) {
-		dev_err(rproc->dev, "failed to create debugfs trace entry\n");
+		dev_err(&rproc->dev, "failed to create debugfs trace entry\n");
 		return NULL;
 	}
 
@@ -141,7 +141,7 @@ void rproc_delete_debug_dir(struct rproc *rproc)
 
 void rproc_create_debug_dir(struct rproc *rproc)
 {
-	struct device *dev = rproc->dev;
+	struct device *dev = &rproc->dev;
 
 	if (!rproc_dbg)
 		return;
