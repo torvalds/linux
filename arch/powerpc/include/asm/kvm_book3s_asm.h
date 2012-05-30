@@ -79,6 +79,9 @@ struct kvmppc_host_state {
 	u8 napping;
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
+	u8 hwthread_req;
+	u8 hwthread_state;
+
 	struct kvm_vcpu *kvm_vcpu;
 	struct kvmppc_vcore *kvm_vcore;
 	unsigned long xics_phys;
@@ -121,5 +124,10 @@ struct kvmppc_book3s_shadow_vcpu {
 };
 
 #endif /*__ASSEMBLY__ */
+
+/* Values for kvm_state */
+#define KVM_HWTHREAD_IN_KERNEL	0
+#define KVM_HWTHREAD_IN_NAP	1
+#define KVM_HWTHREAD_IN_KVM	2
 
 #endif /* __ASM_KVM_BOOK3S_ASM_H__ */

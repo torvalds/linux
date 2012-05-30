@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/memory.h>
+#include <linux/clk.h>
 #include <plat/mv_xor.h>
 
 #include "dmaengine.h"
@@ -1307,11 +1308,25 @@ static int mv_xor_shared_probe(struct platform_device *pdev)
 	if (dram)
 		mv_xor_conf_mbus_windows(msp, dram);
 
+	/* Not all platforms can gate the clock, so it is not
+	 * an error if the clock does not exists.
+	 */
+	msp->clk = clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(msp->clk))
+		clk_prepare_enable(msp->clk);
+
 	return 0;
 }
 
 static int mv_xor_shared_remove(struct platform_device *pdev)
 {
+	struct mv_xor_shared_private *msp = platform_get_drvdata(pdev);
+
+	if (!IS_ERR(msp->clk)) {
+		clk_disable_unprepare(msp->clk);
+		clk_put(msp->clk);
+	}
+
 	return 0;
 }
 

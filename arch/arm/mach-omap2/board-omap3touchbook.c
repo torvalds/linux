@@ -387,6 +387,7 @@ MACHINE_START(TOUCHBOOK, "OMAP3 touchbook Board")
 	.init_irq	= omap3_init_irq,
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap3_touchbook_init,
+	.init_late	= omap3430_init_late,
 	.timer		= &omap3_secure_timer,
 	.restart	= omap_prcm_restart,
 MACHINE_END

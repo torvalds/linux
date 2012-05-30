@@ -635,7 +635,7 @@ static int clk_debugfs_register(struct clk *c)
 	return 0;
 }
 
-static int __init clk_debugfs_init(void)
+int __init clk_debugfs_init(void)
 {
 	struct clk *c;
 	struct dentry *d;
@@ -657,7 +657,6 @@ err_out:
 	return err;
 }
 
-late_initcall(clk_debugfs_init);
 #endif /* defined(CONFIG_DEBUG_FS) */
 
 unsigned long clk_smp_twd_rate = 500000000;
@@ -696,12 +695,11 @@ static struct notifier_block clk_twd_cpufreq_nb = {
 	.notifier_call = clk_twd_cpufreq_transition,
 };
 
-static int clk_init_smp_twd_cpufreq(void)
+int clk_init_smp_twd_cpufreq(void)
 {
 	return cpufreq_register_notifier(&clk_twd_cpufreq_nb,
 				  CPUFREQ_TRANSITION_NOTIFIER);
 }
-late_initcall(clk_init_smp_twd_cpufreq);
 
 #endif
 

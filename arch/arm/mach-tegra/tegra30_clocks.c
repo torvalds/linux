@@ -3015,6 +3015,15 @@ struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("sbc6", "spi_slave_tegra.5", NULL),
 	CLK_DUPLICATE("twd", "smp_twd", NULL),
 	CLK_DUPLICATE("vcp", "nvavp", "vcp"),
+	CLK_DUPLICATE("i2s0", NULL, "i2s0"),
+	CLK_DUPLICATE("i2s1", NULL, "i2s1"),
+	CLK_DUPLICATE("i2s2", NULL, "i2s2"),
+	CLK_DUPLICATE("i2s3", NULL, "i2s3"),
+	CLK_DUPLICATE("i2s4", NULL, "i2s4"),
+	CLK_DUPLICATE("dam0", NULL, "dam0"),
+	CLK_DUPLICATE("dam1", NULL, "dam1"),
+	CLK_DUPLICATE("dam2", NULL, "dam2"),
+	CLK_DUPLICATE("spdif_in", NULL, "spdif_in"),
 };
 
 struct clk *tegra_ptr_clks[] = {

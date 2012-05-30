@@ -8,9 +8,8 @@ Introduction
   weblink : http://www.st.com/spear
 
   The ST Microelectronics SPEAr range of ARM9/CortexA9 System-on-Chip CPUs are
-  supported by the 'spear' platform of ARM Linux. Currently SPEAr300,
-  SPEAr310, SPEAr320 and SPEAr600 SOCs are supported. Support for the SPEAr13XX
-  series is in progress.
+  supported by the 'spear' platform of ARM Linux. Currently SPEAr1310,
+  SPEAr1340, SPEAr300, SPEAr310, SPEAr320 and SPEAr600 SOCs are supported.
 
   Hierarchy in SPEAr is as follows:
 
@@ -26,33 +25,36 @@ Introduction
 		- SPEAr600 (SOC)
 			- SPEAr600 Evaluation Board
 	- SPEAr13XX (13XX SOC series, based on ARM CORTEXA9)
-		- SPEAr1300 (SOC)
+		- SPEAr1310 (SOC)
+			- SPEAr1310 Evaluation Board
+		- SPEAr1340 (SOC)
+			- SPEAr1340 Evaluation Board
 
   Configuration
   -------------
 
   A generic configuration is provided for each machine, and can be used as the
   default by
-	make spear600_defconfig
-	make spear300_defconfig
-	make spear310_defconfig
-	make spear320_defconfig
+	make spear13xx_defconfig
+	make spear3xx_defconfig
+	make spear6xx_defconfig
 
   Layout
   ------
 
-  The common files for multiple machine families (SPEAr3XX, SPEAr6XX and
-  SPEAr13XX) are located in the platform code contained in arch/arm/plat-spear
+  The common files for multiple machine families (SPEAr3xx, SPEAr6xx and
+  SPEAr13xx) are located in the platform code contained in arch/arm/plat-spear
   with headers in plat/.
 
   Each machine series have a directory with name arch/arm/mach-spear followed by
   series name. Like mach-spear3xx, mach-spear6xx and mach-spear13xx.
 
-  Common file for machines of spear3xx family is mach-spear3xx/spear3xx.c and for
-  spear6xx is mach-spear6xx/spear6xx.c. mach-spear* also contain soc/machine
-  specific files, like spear300.c, spear310.c, spear320.c and spear600.c.
-  mach-spear* doesn't contains board specific files as they fully support
-  Flattened Device Tree.
+  Common file for machines of spear3xx family is mach-spear3xx/spear3xx.c, for
+  spear6xx is mach-spear6xx/spear6xx.c and for spear13xx family is
+  mach-spear13xx/spear13xx.c. mach-spear* also contain soc/machine specific
+  files, like spear1310.c, spear1340.c spear300.c, spear310.c, spear320.c and
+  spear600.c.  mach-spear* doesn't contains board specific files as they fully
+  support Flattened Device Tree.
 
 
   Document Author

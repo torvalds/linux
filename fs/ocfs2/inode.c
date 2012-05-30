@@ -1069,7 +1069,7 @@ static void ocfs2_clear_inode(struct inode *inode)
 	int status;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
-	end_writeback(inode);
+	clear_inode(inode);
 	trace_ocfs2_clear_inode((unsigned long long)oi->ip_blkno,
 				inode->i_nlink);
 

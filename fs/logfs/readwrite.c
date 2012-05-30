@@ -2175,7 +2175,7 @@ void logfs_evict_inode(struct inode *inode)
 		}
 	}
 	truncate_inode_pages(&inode->i_data, 0);
-	end_writeback(inode);
+	clear_inode(inode);
 
 	/* Cheaper version of write_inode.  All changes are concealed in
 	 * aliases, which are moved back.  No write to the medium happens.

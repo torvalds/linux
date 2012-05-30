@@ -41,39 +41,26 @@
 #include <linux/of_address.h>
 #include <linux/mfd/anatop.h>
 
-u32 anatop_get_bits(struct anatop *adata, u32 addr, int bit_shift,
-		    int bit_width)
+u32 anatop_read_reg(struct anatop *adata, u32 addr)
 {
-	u32 val, mask;
-
-	if (bit_width == 32)
-		mask = ~0;
-	else
-		mask = (1 << bit_width) - 1;
-
-	val = readl(adata->ioreg + addr);
-	val = (val >> bit_shift) & mask;
-
-	return val;
+	return readl(adata->ioreg + addr);
 }
-EXPORT_SYMBOL_GPL(anatop_get_bits);
+EXPORT_SYMBOL_GPL(anatop_read_reg);
 
-void anatop_set_bits(struct anatop *adata, u32 addr, int bit_shift,
-		     int bit_width, u32 data)
+void anatop_write_reg(struct anatop *adata, u32 addr, u32 data, u32 mask)
 {
-	u32 val, mask;
+	u32 val;
 
-	if (bit_width == 32)
-		mask = ~0;
-	else
-		mask = (1 << bit_width) - 1;
+	data &= mask;
 
 	spin_lock(&adata->reglock);
-	val = readl(adata->ioreg + addr) & ~(mask << bit_shift);
-	writel((data << bit_shift) | val, adata->ioreg + addr);
+	val = readl(adata->ioreg + addr);
+	val &= ~mask;
+	val |= data;
+	writel(val, adata->ioreg + addr);
 	spin_unlock(&adata->reglock);
 }
-EXPORT_SYMBOL_GPL(anatop_set_bits);
+EXPORT_SYMBOL_GPL(anatop_write_reg);
 
 static const struct of_device_id of_anatop_match[] = {
 	{ .compatible = "fsl,imx6q-anatop", },

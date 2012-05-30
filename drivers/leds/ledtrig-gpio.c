@@ -200,6 +200,7 @@ static void gpio_trig_activate(struct led_classdev *led)
 	gpio_data->led = led;
 	led->trigger_data = gpio_data;
 	INIT_WORK(&gpio_data->work, gpio_trig_work);
+	led->activated = true;
 
 	return;
 
@@ -217,7 +218,7 @@ static void gpio_trig_deactivate(struct led_classdev *led)
 {
 	struct gpio_trig_data *gpio_data = led->trigger_data;
 
-	if (gpio_data) {
+	if (led->activated) {
 		device_remove_file(led->dev, &dev_attr_gpio);
 		device_remove_file(led->dev, &dev_attr_inverted);
 		device_remove_file(led->dev, &dev_attr_desired_brightness);
@@ -225,6 +226,7 @@ static void gpio_trig_deactivate(struct led_classdev *led)
 		if (gpio_data->gpio != 0)
 			free_irq(gpio_to_irq(gpio_data->gpio), led);
 		kfree(gpio_data);
+		led->activated = false;
 	}
 }
 

@@ -511,7 +511,7 @@ static void mx3_camera_activate(struct mx3_camera_dev *mx3_cam,
 	/* ipu_csi_init_interface() */
 	csi_reg_write(mx3_cam, conf, CSI_SENS_CONF);
 
-	clk_enable(mx3_cam->clk);
+	clk_prepare_enable(mx3_cam->clk);
 	rate = clk_round_rate(mx3_cam->clk, mx3_cam->mclk);
 	dev_dbg(icd->parent, "Set SENS_CONF to %x, rate %ld\n", conf, rate);
 	if (rate)
@@ -552,7 +552,7 @@ static void mx3_camera_remove_device(struct soc_camera_device *icd)
 		*ichan = NULL;
 	}
 
-	clk_disable(mx3_cam->clk);
+	clk_disable_unprepare(mx3_cam->clk);
 
 	mx3_cam->icd = NULL;
 

@@ -449,6 +449,30 @@ struct kvm_ppc_pvinfo {
 	__u8  pad[108];
 };
 
+/* for KVM_PPC_GET_SMMU_INFO */
+#define KVM_PPC_PAGE_SIZES_MAX_SZ	8
+
+struct kvm_ppc_one_page_size {
+	__u32 page_shift;	/* Page shift (or 0) */
+	__u32 pte_enc;		/* Encoding in the HPTE (>>12) */
+};
+
+struct kvm_ppc_one_seg_page_size {
+	__u32 page_shift;	/* Base page shift of segment (or 0) */
+	__u32 slb_enc;		/* SLB encoding for BookS */
+	struct kvm_ppc_one_page_size enc[KVM_PPC_PAGE_SIZES_MAX_SZ];
+};
+
+#define KVM_PPC_PAGE_SIZES_REAL		0x00000001
+#define KVM_PPC_1T_SEGMENTS		0x00000002
+
+struct kvm_ppc_smmu_info {
+	__u64 flags;
+	__u32 slb_size;
+	__u32 pad;
+	struct kvm_ppc_one_seg_page_size sps[KVM_PPC_PAGE_SIZES_MAX_SZ];
+};
+
 #define KVMIO 0xAE
 
 /* machine type bits, to be used as argument to KVM_CREATE_VM */
@@ -589,6 +613,10 @@ struct kvm_ppc_pvinfo {
 #define KVM_CAP_S390_UCONTROL 73
 #define KVM_CAP_SYNC_REGS 74
 #define KVM_CAP_PCI_2_3 75
+#define KVM_CAP_KVMCLOCK_CTRL 76
+#define KVM_CAP_SIGNAL_MSI 77
+#define KVM_CAP_PPC_GET_SMMU_INFO 78
+#define KVM_CAP_S390_COW 79
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -714,6 +742,14 @@ struct kvm_one_reg {
 	__u64 addr;
 };
 
+struct kvm_msi {
+	__u32 address_lo;
+	__u32 address_hi;
+	__u32 data;
+	__u32 flags;
+	__u8  pad[16];
+};
+
 /*
  * ioctls for VM fds
  */
@@ -788,6 +824,10 @@ struct kvm_s390_ucas_mapping {
 /* Available with KVM_CAP_PCI_2_3 */
 #define KVM_ASSIGN_SET_INTX_MASK  _IOW(KVMIO,  0xa4, \
 				       struct kvm_assigned_pci_dev)
+/* Available with KVM_CAP_SIGNAL_MSI */
+#define KVM_SIGNAL_MSI            _IOW(KVMIO,  0xa5, struct kvm_msi)
+/* Available with KVM_CAP_PPC_GET_SMMU_INFO */
+#define KVM_PPC_GET_SMMU_INFO	  _IOR(KVMIO,  0xa6, struct kvm_ppc_smmu_info)
 
 /*
  * ioctls for vcpu fds
@@ -859,6 +899,8 @@ struct kvm_s390_ucas_mapping {
 /* Available with KVM_CAP_ONE_REG */
 #define KVM_GET_ONE_REG		  _IOW(KVMIO,  0xab, struct kvm_one_reg)
 #define KVM_SET_ONE_REG		  _IOW(KVMIO,  0xac, struct kvm_one_reg)
+/* VM is being stopped by host */
+#define KVM_KVMCLOCK_CTRL	  _IO(KVMIO,   0xad)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 #define KVM_DEV_ASSIGN_PCI_2_3		(1 << 1)

@@ -76,6 +76,17 @@ struct async_tlb {
 
 #ifdef CONFIG_HARDWALL
 struct hardwall_info;
+struct hardwall_task {
+	/* Which hardwall is this task tied to? (or NULL if none) */
+	struct hardwall_info *info;
+	/* Chains this task into the list at info->task_head. */
+	struct list_head list;
+};
+#ifdef __tilepro__
+#define HARDWALL_TYPES 1   /* udn */
+#else
+#define HARDWALL_TYPES 3   /* udn, idn, and ipi */
+#endif
 #endif
 
 struct thread_struct {
@@ -116,10 +127,8 @@ struct thread_struct {
 	unsigned long dstream_pf;
 #endif
 #ifdef CONFIG_HARDWALL
-	/* Is this task tied to an activated hardwall? */
-	struct hardwall_info *hardwall;
-	/* Chains this task into the list at hardwall->list. */
-	struct list_head hardwall_list;
+	/* Hardwall information for various resources. */
+	struct hardwall_task hardwall[HARDWALL_TYPES];
 #endif
 #if CHIP_HAS_TILE_DMA()
 	/* Async DMA TLB fault information */

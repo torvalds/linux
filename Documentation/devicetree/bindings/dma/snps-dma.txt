@@ -1,0 +1,17 @@
+* Synopsys Designware DMA Controller
+
+Required properties:
+- compatible: "snps,dma-spear1340"
+- reg: Address range of the DMAC registers
+- interrupt-parent: Should be the phandle for the interrupt controller
+  that services interrupts for this device
+- interrupt: Should contain the DMAC interrupt number
+
+Example:
+
+	dma@fc000000 {
+		compatible = "snps,dma-spear1340";
+		reg = <0xfc000000 0x1000>;
+		interrupt-parent = <&vic1>;
+		interrupts = <12>;
+	};

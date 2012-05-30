@@ -43,6 +43,7 @@
 
 #define CIFS_MIN_RCV_POOL 4
 
+#define MAX_REOPEN_ATT	5 /* these many maximum attempts to reopen a file */
 /*
  * default attribute cache timeout (jiffies)
  */
@@ -150,6 +151,57 @@ struct cifs_cred {
  *****************************************************************
  */
 
+enum smb_version {
+	Smb_1 = 1,
+	Smb_21,
+};
+
+struct mid_q_entry;
+struct TCP_Server_Info;
+struct cifsFileInfo;
+struct cifs_ses;
+
+struct smb_version_operations {
+	int (*send_cancel)(struct TCP_Server_Info *, void *,
+			   struct mid_q_entry *);
+	bool (*compare_fids)(struct cifsFileInfo *, struct cifsFileInfo *);
+	/* setup request: allocate mid, sign message */
+	int (*setup_request)(struct cifs_ses *, struct kvec *, unsigned int,
+			     struct mid_q_entry **);
+	/* check response: verify signature, map error */
+	int (*check_receive)(struct mid_q_entry *, struct TCP_Server_Info *,
+			     bool);
+	void (*add_credits)(struct TCP_Server_Info *, const unsigned int);
+	void (*set_credits)(struct TCP_Server_Info *, const int);
+	int * (*get_credits_field)(struct TCP_Server_Info *);
+	/* data offset from read response message */
+	unsigned int (*read_data_offset)(char *);
+	/* data length from read response message */
+	unsigned int (*read_data_length)(char *);
+	/* map smb to linux error */
+	int (*map_error)(char *, bool);
+	/* find mid corresponding to the response message */
+	struct mid_q_entry * (*find_mid)(struct TCP_Server_Info *, char *);
+	void (*dump_detail)(void *);
+	/* verify the message */
+	int (*check_message)(char *, unsigned int);
+	bool (*is_oplock_break)(char *, struct TCP_Server_Info *);
+};
+
+struct smb_version_values {
+	char		*version_string;
+	__u32		large_lock_type;
+	__u32		exclusive_lock_type;
+	__u32		shared_lock_type;
+	__u32		unlock_lock_type;
+	size_t		header_size;
+	size_t		max_header_size;
+	size_t		read_rsp_size;
+};
+
+#define HEADER_SIZE(server) (server->vals->header_size)
+#define MAX_HEADER_SIZE(server) (server->vals->max_header_size)
+
 struct smb_vol {
 	char *username;
 	char *password;
@@ -205,6 +257,8 @@ struct smb_vol {
 	bool sockopt_tcp_nodelay:1;
 	unsigned short int port;
 	unsigned long actimeo; /* attribute cache timeout (jiffies) */
+	struct smb_version_operations *ops;
+	struct smb_version_values *vals;
 	char *prepath;
 	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
 	struct nls_table *local_nls;
@@ -242,6 +296,8 @@ struct TCP_Server_Info {
 	int srv_count; /* reference counter */
 	/* 15 character server name + 0x20 16th byte indicating type = srv */
 	char server_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
+	struct smb_version_operations	*ops;
+	struct smb_version_values	*vals;
 	enum statusEnum tcpStatus; /* what we think the status is */
 	char *hostname; /* hostname portion of UNC string */
 	struct socket *ssocket;
@@ -321,16 +377,6 @@ in_flight(struct TCP_Server_Info *server)
 	return num;
 }
 
-static inline int*
-get_credits_field(struct TCP_Server_Info *server)
-{
-	/*
-	 * This will change to switch statement when we reserve slots for echos
-	 * and oplock breaks.
-	 */
-	return &server->credits;
-}
-
 static inline bool
 has_credits(struct TCP_Server_Info *server, int *credits)
 {
@@ -341,16 +387,16 @@ has_credits(struct TCP_Server_Info *server, int *credits)
 	return num > 0;
 }
 
-static inline size_t
-header_size(void)
+static inline void
+add_credits(struct TCP_Server_Info *server, const unsigned int add)
 {
-	return sizeof(struct smb_hdr);
+	server->ops->add_credits(server, add);
 }
 
-static inline size_t
-max_header_size(void)
+static inline void
+set_credits(struct TCP_Server_Info *server, const int val)
 {
-	return MAX_CIFS_HDR_SIZE;
+	server->ops->set_credits(server, val);
 }
 
 /*
@@ -547,8 +593,7 @@ struct cifsLockInfo {
 	__u64 offset;
 	__u64 length;
 	__u32 pid;
-	__u8 type;
-	__u16 netfid;
+	__u32 type;
 };
 
 /*
@@ -573,6 +618,10 @@ struct cifs_search_info {
 struct cifsFileInfo {
 	struct list_head tlist;	/* pointer to next fid owned by tcon */
 	struct list_head flist;	/* next fid (file instance) for this inode */
+	struct list_head llist;	/*
+				 * brlocks held by this fid, protected by
+				 * lock_mutex from cifsInodeInfo structure
+				 */
 	unsigned int uid;	/* allows finding which FileInfo structure */
 	__u32 pid;		/* process id who opened file */
 	__u16 netfid;		/* file id from remote */
@@ -615,9 +664,12 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
  */
 
 struct cifsInodeInfo {
-	struct list_head llist;		/* brlocks for this inode */
 	bool can_cache_brlcks;
-	struct mutex lock_mutex;	/* protect two fields above */
+	struct mutex lock_mutex;	/*
+					 * protect the field above and llist
+					 * from every cifsFileInfo structure
+					 * from openFileList
+					 */
 	/* BB add in lists for dirty pages i.e. write caching info for oplock */
 	struct list_head openFileList;
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
@@ -703,7 +755,6 @@ static inline void cifs_stats_bytes_read(struct cifs_tcon *tcon,
 
 #endif
 
-struct mid_q_entry;
 
 /*
  * This is the prototype for the mid receive function. This function is for
@@ -1042,12 +1093,7 @@ GLOBAL_EXTERN atomic_t smBufAllocCount;
 GLOBAL_EXTERN atomic_t midCount;
 
 /* Misc globals */
-GLOBAL_EXTERN unsigned int multiuser_mount; /* if enabled allows new sessions
-				to be established on existing mount if we
-				have the uid/password or Kerberos credential
-				or equivalent for current user */
-/* enable or disable oplocks */
-GLOBAL_EXTERN bool enable_oplocks;
+GLOBAL_EXTERN bool enable_oplocks; /* enable or disable oplocks */
 GLOBAL_EXTERN unsigned int lookupCacheEnabled;
 GLOBAL_EXTERN unsigned int global_secflags;	/* if on, session setup sent
 				with more secure ntlmssp2 challenge/resp */
@@ -1074,4 +1120,11 @@ void cifs_oplock_break(struct work_struct *work);
 extern const struct slow_work_ops cifs_oplock_break_ops;
 extern struct workqueue_struct *cifsiod_wq;
 
+/* Operations for different SMB versions */
+#define SMB1_VERSION_STRING	"1.0"
+extern struct smb_version_operations smb1_operations;
+extern struct smb_version_values smb1_values;
+#define SMB21_VERSION_STRING	"2.1"
+extern struct smb_version_operations smb21_operations;
+extern struct smb_version_values smb21_values;
 #endif	/* _CIFS_GLOB_H */

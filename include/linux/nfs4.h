@@ -69,6 +69,10 @@
 #define NFS4_CDFC4_FORE_OR_BOTH 0x3
 #define NFS4_CDFC4_BACK_OR_BOTH 0x7
 
+#define NFS4_CDFS4_FORE 0x1
+#define NFS4_CDFS4_BACK 0x2
+#define NFS4_CDFS4_BOTH 0x3
+
 #define NFS4_SET_TO_SERVER_TIME	0
 #define NFS4_SET_TO_CLIENT_TIME	1
 
@@ -526,6 +530,13 @@ enum lock_type4 {
 #define FATTR4_WORD1_MOUNTED_ON_FILEID  (1UL << 23)
 #define FATTR4_WORD1_FS_LAYOUT_TYPES    (1UL << 30)
 #define FATTR4_WORD2_LAYOUT_BLKSIZE     (1UL << 1)
+#define FATTR4_WORD2_MDSTHRESHOLD       (1UL << 4)
+
+/* MDS threshold bitmap bits */
+#define THRESHOLD_RD                    (1UL << 0)
+#define THRESHOLD_WR                    (1UL << 1)
+#define THRESHOLD_RD_IO                 (1UL << 2)
+#define THRESHOLD_WR_IO                 (1UL << 3)
 
 #define NFSPROC4_NULL 0
 #define NFSPROC4_COMPOUND 1
@@ -596,6 +607,8 @@ enum {
 	NFSPROC4_CLNT_TEST_STATEID,
 	NFSPROC4_CLNT_FREE_STATEID,
 	NFSPROC4_CLNT_GETDEVICELIST,
+	NFSPROC4_CLNT_BIND_CONN_TO_SESSION,
+	NFSPROC4_CLNT_DESTROY_CLIENTID,
 };
 
 /* nfs41 types */

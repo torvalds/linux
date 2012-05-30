@@ -10,6 +10,9 @@
  * Based on work by Dan Hollis <goemon at anime dot net> and others.
  *	http://www.anime.net/~goemon/linux-ecc/
  *
+ * Datasheet:
+ *	http://www.intel.com/content/www/us/en/chipsets/e7501-chipset-memory-controller-hub-datasheet.html
+ *
  * Contributors:
  *	Eric Biederman (Linux Networx)
  *	Tom Zimmerman (Linux Networx)
@@ -71,7 +74,7 @@
 #endif				/* PCI_DEVICE_ID_INTEL_7505_1_ERR */
 
 #define E7XXX_NR_CSROWS		8	/* number of csrows */
-#define E7XXX_NR_DIMMS		8	/* FIXME - is this correct? */
+#define E7XXX_NR_DIMMS		8	/* 2 channels, 4 dimms/channel */
 
 /* E7XXX register addresses - device 0 function 0 */
 #define E7XXX_DRB		0x60	/* DRAM row boundary register (8b) */
@@ -216,13 +219,15 @@ static void process_ce(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 	row = edac_mc_find_csrow_by_page(mci, page);
 	/* convert syndrome to channel */
 	channel = e7xxx_find_channel(syndrome);
-	edac_mc_handle_ce(mci, page, 0, syndrome, row, channel, "e7xxx CE");
+	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, page, 0, syndrome,
+			     row, channel, -1, "e7xxx CE", "", NULL);
 }
 
 static void process_ce_no_info(struct mem_ctl_info *mci)
 {
 	debugf3("%s()\n", __func__);
-	edac_mc_handle_ce_no_info(mci, "e7xxx CE log register overflow");
+	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0, -1, -1, -1,
+			     "e7xxx CE log register overflow", "", NULL);
 }
 
 static void process_ue(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
@@ -236,13 +241,17 @@ static void process_ue(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 	/* FIXME - should use PAGE_SHIFT */
 	block_page = error_2b >> 6;	/* convert to 4k address */
 	row = edac_mc_find_csrow_by_page(mci, block_page);
-	edac_mc_handle_ue(mci, block_page, 0, row, "e7xxx UE");
+
+	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, block_page, 0, 0,
+			     row, -1, -1, "e7xxx UE", "", NULL);
 }
 
 static void process_ue_no_info(struct mem_ctl_info *mci)
 {
 	debugf3("%s()\n", __func__);
-	edac_mc_handle_ue_no_info(mci, "e7xxx UE log register overflow");
+
+	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0, -1, -1, -1,
+			     "e7xxx UE log register overflow", "", NULL);
 }
 
 static void e7xxx_get_error_info(struct mem_ctl_info *mci,
@@ -347,11 +356,12 @@ static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 			int dev_idx, u32 drc)
 {
 	unsigned long last_cumul_size;
-	int index;
+	int index, j;
 	u8 value;
-	u32 dra, cumul_size;
+	u32 dra, cumul_size, nr_pages;
 	int drc_chan, drc_drbg, drc_ddim, mem_dev;
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
 
 	pci_read_config_dword(pdev, E7XXX_DRA, &dra);
 	drc_chan = dual_channel_active(drc, dev_idx);
@@ -379,26 +389,32 @@ static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
-		csrow->nr_pages = cumul_size - last_cumul_size;
+		nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
-		csrow->grain = 1 << 12;	/* 4KiB - resolution of CELOG */
-		csrow->mtype = MEM_RDDR;	/* only one type supported */
-		csrow->dtype = mem_dev ? DEV_X4 : DEV_X8;
 
-		/*
-		 * if single channel or x8 devices then SECDED
-		 * if dual channel and x4 then S4ECD4ED
-		 */
-		if (drc_ddim) {
-			if (drc_chan && mem_dev) {
-				csrow->edac_mode = EDAC_S4ECD4ED;
-				mci->edac_cap |= EDAC_FLAG_S4ECD4ED;
-			} else {
-				csrow->edac_mode = EDAC_SECDED;
-				mci->edac_cap |= EDAC_FLAG_SECDED;
-			}
-		} else
-			csrow->edac_mode = EDAC_NONE;
+		for (j = 0; j < drc_chan + 1; j++) {
+			dimm = csrow->channels[j].dimm;
+
+			dimm->nr_pages = nr_pages / (drc_chan + 1);
+			dimm->grain = 1 << 12;	/* 4KiB - resolution of CELOG */
+			dimm->mtype = MEM_RDDR;	/* only one type supported */
+			dimm->dtype = mem_dev ? DEV_X4 : DEV_X8;
+
+			/*
+			* if single channel or x8 devices then SECDED
+			* if dual channel and x4 then S4ECD4ED
+			*/
+			if (drc_ddim) {
+				if (drc_chan && mem_dev) {
+					dimm->edac_mode = EDAC_S4ECD4ED;
+					mci->edac_cap |= EDAC_FLAG_S4ECD4ED;
+				} else {
+					dimm->edac_mode = EDAC_SECDED;
+					mci->edac_cap |= EDAC_FLAG_SECDED;
+				}
+			} else
+				dimm->edac_mode = EDAC_NONE;
+		}
 	}
 }
 
@@ -406,6 +422,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 {
 	u16 pci_data;
 	struct mem_ctl_info *mci = NULL;
+	struct edac_mc_layer layers[2];
 	struct e7xxx_pvt *pvt = NULL;
 	u32 drc;
 	int drc_chan;
@@ -416,8 +433,21 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	pci_read_config_dword(pdev, E7XXX_DRC, &drc);
 
 	drc_chan = dual_channel_active(drc, dev_idx);
-	mci = edac_mc_alloc(sizeof(*pvt), E7XXX_NR_CSROWS, drc_chan + 1, 0);
-
+	/*
+	 * According with the datasheet, this device has a maximum of
+	 * 4 DIMMS per channel, either single-rank or dual-rank. So, the
+	 * total amount of dimms is 8 (E7XXX_NR_DIMMS).
+	 * That means that the DIMM is mapped as CSROWs, and the channel
+	 * will map the rank. So, an error to either channel should be
+	 * attributed to the same dimm.
+	 */
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = E7XXX_NR_CSROWS;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = drc_chan + 1;
+	layers[1].is_virt_csrow = false;
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (mci == NULL)
 		return -ENOMEM;
 

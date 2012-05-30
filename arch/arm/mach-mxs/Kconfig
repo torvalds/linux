@@ -7,17 +7,27 @@ config MXS_OCOTP
 
 config SOC_IMX23
 	bool
+	select ARM_AMBA
 	select CPU_ARM926T
 	select HAVE_PWM
 	select PINCTRL_IMX23
 
 config SOC_IMX28
 	bool
+	select ARM_AMBA
 	select CPU_ARM926T
 	select HAVE_PWM
 	select PINCTRL_IMX28
 
 comment "MXS platforms:"
+
+config MACH_MXS_DT
+	bool "Support MXS platforms from device tree"
+	select SOC_IMX23
+	select SOC_IMX28
+	help
+	  Include support for Freescale MXS platforms(i.MX23 and i.MX28)
+	  using the device tree for discovery
 
 config MACH_STMP378X_DEVB
 	bool "Support STMP378x_devb Platform"

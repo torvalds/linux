@@ -73,11 +73,24 @@ static unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH + 1] __read_mostly;
 static struct kmem_cache *radix_tree_node_cachep;
 
 /*
+ * The radix tree is variable-height, so an insert operation not only has
+ * to build the branch to its corresponding item, it also has to build the
+ * branch to existing items if the size has to be increased (by
+ * radix_tree_extend).
+ *
+ * The worst case is a zero height tree with just a single item at index 0,
+ * and then inserting an item at index ULONG_MAX. This requires 2 new branches
+ * of RADIX_TREE_MAX_PATH size to be created, with only the root node shared.
+ * Hence:
+ */
+#define RADIX_TREE_PRELOAD_SIZE (RADIX_TREE_MAX_PATH * 2 - 1)
+
+/*
  * Per-cpu pool of preloaded nodes
  */
 struct radix_tree_preload {
 	int nr;
-	struct radix_tree_node *nodes[RADIX_TREE_MAX_PATH];
+	struct radix_tree_node *nodes[RADIX_TREE_PRELOAD_SIZE];
 };
 static DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
 

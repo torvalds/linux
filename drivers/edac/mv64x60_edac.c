@@ -611,12 +611,17 @@ static void mv64x60_mc_check(struct mem_ctl_info *mci)
 
 	/* first bit clear in ECC Err Reg, 1 bit error, correctable by HW */
 	if (!(reg & 0x1))
-		edac_mc_handle_ce(mci, err_addr >> PAGE_SHIFT,
-				  err_addr & PAGE_MASK, syndrome, 0, 0,
-				  mci->ctl_name);
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+				     err_addr >> PAGE_SHIFT,
+				     err_addr & PAGE_MASK, syndrome,
+				     0, 0, -1,
+				     mci->ctl_name, "", NULL);
 	else	/* 2 bit error, UE */
-		edac_mc_handle_ue(mci, err_addr >> PAGE_SHIFT,
-				  err_addr & PAGE_MASK, 0, mci->ctl_name);
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+				     err_addr >> PAGE_SHIFT,
+				     err_addr & PAGE_MASK, 0,
+				     0, 0, -1,
+				     mci->ctl_name, "", NULL);
 
 	/* clear the error */
 	out_le32(pdata->mc_vbase + MV64X60_SDRAM_ERR_ADDR, 0);
@@ -656,6 +661,8 @@ static void mv64x60_init_csrows(struct mem_ctl_info *mci,
 				struct mv64x60_mc_pdata *pdata)
 {
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
+
 	u32 devtype;
 	u32 ctl;
 
@@ -664,35 +671,36 @@ static void mv64x60_init_csrows(struct mem_ctl_info *mci,
 	ctl = in_le32(pdata->mc_vbase + MV64X60_SDRAM_CONFIG);
 
 	csrow = &mci->csrows[0];
-	csrow->first_page = 0;
-	csrow->nr_pages = pdata->total_mem >> PAGE_SHIFT;
-	csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
-	csrow->grain = 8;
+	dimm = csrow->channels[0].dimm;
 
-	csrow->mtype = (ctl & MV64X60_SDRAM_REGISTERED) ? MEM_RDDR : MEM_DDR;
+	dimm->nr_pages = pdata->total_mem >> PAGE_SHIFT;
+	dimm->grain = 8;
+
+	dimm->mtype = (ctl & MV64X60_SDRAM_REGISTERED) ? MEM_RDDR : MEM_DDR;
 
 	devtype = (ctl >> 20) & 0x3;
 	switch (devtype) {
 	case 0x0:
-		csrow->dtype = DEV_X32;
+		dimm->dtype = DEV_X32;
 		break;
 	case 0x2:		/* could be X8 too, but no way to tell */
-		csrow->dtype = DEV_X16;
+		dimm->dtype = DEV_X16;
 		break;
 	case 0x3:
-		csrow->dtype = DEV_X4;
+		dimm->dtype = DEV_X4;
 		break;
 	default:
-		csrow->dtype = DEV_UNKNOWN;
+		dimm->dtype = DEV_UNKNOWN;
 		break;
 	}
 
-	csrow->edac_mode = EDAC_SECDED;
+	dimm->edac_mode = EDAC_SECDED;
 }
 
 static int __devinit mv64x60_mc_err_probe(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci;
+	struct edac_mc_layer layers[2];
 	struct mv64x60_mc_pdata *pdata;
 	struct resource *r;
 	u32 ctl;
@@ -701,7 +709,14 @@ static int __devinit mv64x60_mc_err_probe(struct platform_device *pdev)
 	if (!devres_open_group(&pdev->dev, mv64x60_mc_err_probe, GFP_KERNEL))
 		return -ENOMEM;
 
-	mci = edac_mc_alloc(sizeof(struct mv64x60_mc_pdata), 1, 1, edac_mc_idx);
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = 1;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = 1;
+	layers[1].is_virt_csrow = false;
+	mci = edac_mc_alloc(edac_mc_idx, ARRAY_SIZE(layers), layers,
+			    sizeof(struct mv64x60_mc_pdata));
 	if (!mci) {
 		printk(KERN_ERR "%s: No memory for CPU err\n", __func__);
 		devres_release_group(&pdev->dev, mv64x60_mc_err_probe);

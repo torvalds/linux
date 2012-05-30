@@ -16,22 +16,22 @@ struct dsa_platform_data;
 void __init orion_uart0_init(unsigned int membase,
 			     resource_size_t mapbase,
 			     unsigned int irq,
-			     unsigned int uartclk);
+			     struct clk *clk);
 
 void __init orion_uart1_init(unsigned int membase,
 			     resource_size_t mapbase,
 			     unsigned int irq,
-			     unsigned int uartclk);
+			     struct clk *clk);
 
 void __init orion_uart2_init(unsigned int membase,
 			     resource_size_t mapbase,
 			     unsigned int irq,
-			     unsigned int uartclk);
+			     struct clk *clk);
 
 void __init orion_uart3_init(unsigned int membase,
 			     resource_size_t mapbase,
 			     unsigned int irq,
-			     unsigned int uartclk);
+			     struct clk *clk);
 
 void __init orion_rtc_init(unsigned long mapbase,
 			   unsigned long irq);
@@ -39,29 +39,26 @@ void __init orion_rtc_init(unsigned long mapbase,
 void __init orion_ge00_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
-			    int tclk);
+			    unsigned long irq_err);
 
 void __init orion_ge01_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
-			    int tclk);
+			    unsigned long irq_err);
 
 void __init orion_ge10_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
-			    int tclk);
+			    unsigned long irq_err);
 
 void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
-			    int tclk);
+			    unsigned long irq_err);
 
 void __init orion_ge00_switch_init(struct dsa_platform_data *d,
 				   int irq);
+
 void __init orion_i2c_init(unsigned long mapbase,
 			   unsigned long irq,
 			   unsigned long freq_m);
@@ -70,13 +67,11 @@ void __init orion_i2c_1_init(unsigned long mapbase,
 			     unsigned long irq,
 			     unsigned long freq_m);
 
-void __init orion_spi_init(unsigned long mapbase,
-			   unsigned long tclk);
+void __init orion_spi_init(unsigned long mapbase);
 
-void __init orion_spi_1_init(unsigned long mapbase,
-			     unsigned long tclk);
+void __init orion_spi_1_init(unsigned long mapbase);
 
-void __init orion_wdt_init(unsigned long tclk);
+void __init orion_wdt_init(void);
 
 void __init orion_xor0_init(unsigned long mapbase_low,
 			    unsigned long mapbase_high,
@@ -106,4 +101,9 @@ void __init orion_crypto_init(unsigned long mapbase,
 			      unsigned long srambase,
 			      unsigned long sram_size,
 			      unsigned long irq);
+
+void __init orion_clkdev_add(const char *con_id, const char *dev_id,
+			     struct clk *clk);
+
+void __init orion_clkdev_init(struct clk *tclk);
 #endif

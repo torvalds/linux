@@ -197,18 +197,6 @@ SECTIONS
 
 	INIT_DATA_SECTION(16)
 
-	/*
-	 * Code and data for a variety of lowlevel trampolines, to be
-	 * copied into base memory (< 1 MiB) during initialization.
-	 * Since it is copied early, the main copy can be discarded
-	 * afterwards.
-	 */
-	 .x86_trampoline : AT(ADDR(.x86_trampoline) - LOAD_OFFSET) {
-		x86_trampoline_start = .;
-		*(.x86_trampoline)
-		x86_trampoline_end = .;
-	}
-
 	.x86_cpu_dev.init : AT(ADDR(.x86_cpu_dev.init) - LOAD_OFFSET) {
 		__x86_cpu_dev_start = .;
 		*(.x86_cpu_dev.init)

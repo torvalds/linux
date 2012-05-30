@@ -30,6 +30,7 @@
 #include <linux/cache.h>
 #include <linux/smp.h>
 #include <linux/module.h>
+#include <linux/hugetlb.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>

@@ -17,8 +17,9 @@
 #include <mach/mx28.h>
 #include <mach/devices-common.h>
 
-#define mxs_mxs_mmc_data_entry_single(soc, _id, hwid)			\
+#define mxs_mxs_mmc_data_entry_single(soc, _devid, _id, hwid)		\
 	{								\
+		.devid = _devid,					\
 		.id = _id,						\
 		.iobase = soc ## _SSP ## hwid ## _BASE_ADDR,		\
 		.dma = soc ## _DMA_SSP ## hwid,				\
@@ -26,23 +27,23 @@
 		.irq_dma = soc ## _INT_SSP ## hwid ## _DMA,		\
 	}
 
-#define mxs_mxs_mmc_data_entry(soc, _id, hwid)				\
-	[_id] = mxs_mxs_mmc_data_entry_single(soc, _id, hwid)
+#define mxs_mxs_mmc_data_entry(soc, _devid, _id, hwid)			\
+	[_id] = mxs_mxs_mmc_data_entry_single(soc, _devid, _id, hwid)
 
 
 #ifdef CONFIG_SOC_IMX23
 const struct mxs_mxs_mmc_data mx23_mxs_mmc_data[] __initconst = {
-	mxs_mxs_mmc_data_entry(MX23, 0, 1),
-	mxs_mxs_mmc_data_entry(MX23, 1, 2),
+	mxs_mxs_mmc_data_entry(MX23, "imx23-mmc", 0, 1),
+	mxs_mxs_mmc_data_entry(MX23, "imx23-mmc", 1, 2),
 };
 #endif
 
 #ifdef CONFIG_SOC_IMX28
 const struct mxs_mxs_mmc_data mx28_mxs_mmc_data[] __initconst = {
-	mxs_mxs_mmc_data_entry(MX28, 0, 0),
-	mxs_mxs_mmc_data_entry(MX28, 1, 1),
-	mxs_mxs_mmc_data_entry(MX28, 2, 2),
-	mxs_mxs_mmc_data_entry(MX28, 3, 3),
+	mxs_mxs_mmc_data_entry(MX28, "imx28-mmc", 0, 0),
+	mxs_mxs_mmc_data_entry(MX28, "imx28-mmc", 1, 1),
+	mxs_mxs_mmc_data_entry(MX28, "imx28-mmc", 2, 2),
+	mxs_mxs_mmc_data_entry(MX28, "imx28-mmc", 3, 3),
 };
 #endif
 
@@ -70,6 +71,6 @@ struct platform_device *__init mxs_add_mxs_mmc(
 		},
 	};
 
-	return mxs_add_platform_device("mxs-mmc", data->id,
+	return mxs_add_platform_device(data->devid, data->id,
 			res, ARRAY_SIZE(res), pdata, sizeof(*pdata));
 }
