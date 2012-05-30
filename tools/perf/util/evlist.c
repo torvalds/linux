@@ -159,6 +159,17 @@ out_delete_partial_list:
 	return -1;
 }
 
+int __perf_evlist__add_default_attrs(struct perf_evlist *evlist,
+				     struct perf_event_attr *attrs, size_t nr_attrs)
+{
+	size_t i;
+
+	for (i = 0; i < nr_attrs; i++)
+		event_attr_init(attrs + i);
+
+	return perf_evlist__add_attrs(evlist, attrs, nr_attrs);
+}
+
 static int trace_event__id(const char *evname)
 {
 	char *filename, *colon;

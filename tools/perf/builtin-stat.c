@@ -1129,7 +1129,7 @@ static int add_default_attributes(void)
 		return 0;
 
 	if (!evsel_list->nr_entries) {
-		if (perf_evlist__add_attrs_array(evsel_list, default_attrs) < 0)
+		if (perf_evlist__add_default_attrs(evsel_list, default_attrs) < 0)
 			return -1;
 	}
 
@@ -1139,21 +1139,21 @@ static int add_default_attributes(void)
 		return 0;
 
 	/* Append detailed run extra attributes: */
-	if (perf_evlist__add_attrs_array(evsel_list, detailed_attrs) < 0)
+	if (perf_evlist__add_default_attrs(evsel_list, detailed_attrs) < 0)
 		return -1;
 
 	if (detailed_run < 2)
 		return 0;
 
 	/* Append very detailed run extra attributes: */
-	if (perf_evlist__add_attrs_array(evsel_list, very_detailed_attrs) < 0)
+	if (perf_evlist__add_default_attrs(evsel_list, very_detailed_attrs) < 0)
 		return -1;
 
 	if (detailed_run < 3)
 		return 0;
 
 	/* Append very, very detailed run extra attributes: */
-	return perf_evlist__add_attrs_array(evsel_list, very_very_detailed_attrs);
+	return perf_evlist__add_default_attrs(evsel_list, very_very_detailed_attrs);
 }
 
 int cmd_stat(int argc, const char **argv, const char *prefix __used)
