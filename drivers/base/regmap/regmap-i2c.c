@@ -42,7 +42,7 @@ static int regmap_i2c_gather_write(void *context,
 	/* If the I2C controller can't do a gather tell the core, it
 	 * will substitute in a linear write for us.
 	 */
-	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_PROTOCOL_MANGLING))
+	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_NOSTART))
 		return -ENOTSUPP;
 
 	xfer[0].addr = i2c->addr;
