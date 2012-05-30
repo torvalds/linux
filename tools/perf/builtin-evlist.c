@@ -116,7 +116,7 @@ static const char * const evlist_usage[] = {
 int cmd_evlist(int argc, const char **argv, const char *prefix __used)
 {
 	struct perf_attr_details details = { .verbose = false, };
-	const char *input_name;
+	const char *input_name = NULL;
 	const struct option options[] = {
 		OPT_STRING('i', "input", &input_name, "file",
 			    "Input file name"),

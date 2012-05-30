@@ -188,27 +188,26 @@ static struct thread_map *thread_map__new_by_pid_str(const char *pid_str)
 		nt = realloc(threads, (sizeof(*threads) +
 				       sizeof(pid_t) * total_tasks));
 		if (nt == NULL)
-			goto out_free_threads;
+			goto out_free_namelist;
 
 		threads = nt;
 
-		if (threads) {
-			for (i = 0; i < items; i++)
-				threads->map[j++] = atoi(namelist[i]->d_name);
-			threads->nr = total_tasks;
-		}
-
-		for (i = 0; i < items; i++)
+		for (i = 0; i < items; i++) {
+			threads->map[j++] = atoi(namelist[i]->d_name);
 			free(namelist[i]);
+		}
+		threads->nr = total_tasks;
 		free(namelist);
-
-		if (!threads)
-			break;
 	}
 
 out:
 	strlist__delete(slist);
 	return threads;
+
+out_free_namelist:
+	for (i = 0; i < items; i++)
+		free(namelist[i]);
+	free(namelist);
 
 out_free_threads:
 	free(threads);
