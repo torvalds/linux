@@ -1276,6 +1276,10 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 static bool debug;
 
+struct option_private {
+	u8 bInterfaceNumber;
+};
+
 module_usb_serial_driver(serial_drivers, option_ids);
 
 static bool is_blacklisted(const u8 ifnum, enum option_blacklist_reason reason,
@@ -1306,6 +1310,7 @@ static int option_probe(struct usb_serial *serial,
 			const struct usb_device_id *id)
 {
 	struct usb_wwan_intf_private *data;
+	struct option_private *priv;
 	struct usb_interface_descriptor *iface_desc =
 				&serial->interface->cur_altsetting->desc;
 	struct usb_device_descriptor *dev_desc = &serial->dev->descriptor;
@@ -1346,9 +1351,22 @@ static int option_probe(struct usb_serial *serial,
 	data = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	data->send_setup = option_send_setup;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		kfree(data);
+		return -ENOMEM;
+	}
+
+	priv->bInterfaceNumber = iface_desc->bInterfaceNumber;
+	data->private = priv;
+
+	if (!is_blacklisted(iface_desc->bInterfaceNumber,
+			OPTION_BLACKLIST_SENDSETUP,
+			(struct option_blacklist_info *)id->driver_info)) {
+		data->send_setup = option_send_setup;
+	}
 	spin_lock_init(&data->susp_lock);
-	data->private = (void *)id->driver_info;
 
 	usb_set_serial_data(serial, data);
 
@@ -1357,11 +1375,13 @@ static int option_probe(struct usb_serial *serial,
 
 static void option_release(struct usb_serial *serial)
 {
-	struct usb_wwan_intf_private *priv = usb_get_serial_data(serial);
+	struct usb_wwan_intf_private *intfdata = usb_get_serial_data(serial);
+	struct option_private *priv = intfdata->private;
 
 	usb_wwan_release(serial);
 
 	kfree(priv);
+	kfree(intfdata);
 }
 
 static void option_instat_callback(struct urb *urb)
@@ -1429,15 +1449,9 @@ static int option_send_setup(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct usb_wwan_intf_private *intfdata = usb_get_serial_data(serial);
+	struct option_private *priv = intfdata->private;
 	struct usb_wwan_port_private *portdata;
-	int ifNum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
 	int val = 0;
-
-	if (is_blacklisted(ifNum, OPTION_BLACKLIST_SENDSETUP,
-			(struct option_blacklist_info *) intfdata->private)) {
-		dbg("No send_setup on blacklisted interface #%d\n", ifNum);
-		return -EIO;
-	}
 
 	portdata = usb_get_serial_port_data(port);
 
@@ -1446,9 +1460,9 @@ static int option_send_setup(struct usb_serial_port *port)
 	if (portdata->rts_state)
 		val |= 0x02;
 
-	return usb_control_msg(serial->dev,
-		usb_rcvctrlpipe(serial->dev, 0),
-		0x22, 0x21, val, ifNum, NULL, 0, USB_CTRL_SET_TIMEOUT);
+	return usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
+				0x22, 0x21, val, priv->bInterfaceNumber, NULL,
+				0, USB_CTRL_SET_TIMEOUT);
 }
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
