@@ -676,6 +676,13 @@ static struct platform_device *snowball_platform_devs[] __initdata = {
 	&ab8500_device,
 };
 
+static struct platform_device *snowball_of_platform_devs[] __initdata = {
+	&snowball_led_dev,
+	&snowball_key_dev,
+	&snowball_sbnet_dev,
+	&ab8500_device,
+};
+
 static void __init mop500_init_machine(void)
 {
 	struct device *parent = NULL;
@@ -876,8 +883,15 @@ static void __init u8500_init_machine(void)
 					ARRAY_SIZE(mop500_i2c2_devices));
 
 	} else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
-		platform_add_devices(snowball_platform_devs,
-				ARRAY_SIZE(snowball_platform_devs));
+		/*
+		 * Devices to be DT:ed:
+		 *   snowball_led_dev   = todo
+		 *   snowball_key_dev   = todo
+		 *   snowball_sbnet_dev = todo
+		 *   ab8500_device      = todo
+		 */
+		platform_add_devices(snowball_of_platform_devs,
+				ARRAY_SIZE(snowball_of_platform_devs));
 
 		snowball_sdi_init(parent);
 	} else if (of_machine_is_compatible("st-ericsson,hrefv60+")) {
