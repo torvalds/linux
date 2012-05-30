@@ -673,6 +673,10 @@ static int sun4i_cpufreq_resume(struct cpufreq_policy *policy)
 
 #endif  /* #ifdef CONFIG_PM */
 
+static struct freq_attr *sun4i_cpufreq_attr[] = {
+	&cpufreq_freq_attr_scaling_available_freqs,
+	NULL,
+};
 
 static struct cpufreq_driver sun4i_cpufreq_driver = {
 	.flags		= CPUFREQ_STICKY,
@@ -683,6 +687,7 @@ static struct cpufreq_driver sun4i_cpufreq_driver = {
 	.suspend	= sun4i_cpufreq_suspend,
 	.resume		= sun4i_cpufreq_resume,
 	.name		= "sun4i",
+	.attr		= sun4i_cpufreq_attr,
 };
 
 
