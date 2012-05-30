@@ -848,7 +848,6 @@ struct radeon_cs_parser {
 	s32			priority;
 };
 
-extern int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx);
 extern int radeon_cs_finish_pages(struct radeon_cs_parser *p);
 extern u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx);
 
