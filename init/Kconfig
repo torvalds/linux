@@ -803,7 +803,7 @@ config RT_GROUP_SCHED
 endif #CGROUP_SCHED
 
 config BLK_CGROUP
-	tristate "Block IO controller"
+	bool "Block IO controller"
 	depends on BLOCK
 	default n
 	---help---
