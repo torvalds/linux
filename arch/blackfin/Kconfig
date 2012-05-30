@@ -404,8 +404,9 @@ config ROM_BASE
 	hex "Kernel ROM Base"
 	depends on ROMKERNEL
 	default "0x20040040"
-	range 0x20000000 0x20400000 if !(BF54x || BF561)
+	range 0x20000000 0x20400000 if !(BF54x || BF561 || BF60x)
 	range 0x20000000 0x30000000 if (BF54x || BF561)
+	range 0xB0000000 0xC0000000 if (BF60x)
 	help
 	  Make sure your ROM base does not include any file-header
 	  information that is prepended to the kernel.
