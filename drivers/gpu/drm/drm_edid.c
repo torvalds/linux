@@ -30,7 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/export.h>
+#include <linux/module.h>
 #include "drmP.h"
 #include "drm_edid.h"
 #include "drm_edid_modes.h"
@@ -149,6 +149,10 @@ int drm_edid_header_is_valid(const u8 *raw_edid)
 }
 EXPORT_SYMBOL(drm_edid_header_is_valid);
 
+static int edid_fixup __read_mostly = 6;
+module_param_named(edid_fixup, edid_fixup, int, 0400);
+MODULE_PARM_DESC(edid_fixup,
+		 "Minimum number of valid EDID header bytes (0-8, default 6)");
 
 /*
  * Sanity check the EDID block (base or extension).  Return 0 if the block
@@ -160,10 +164,13 @@ bool drm_edid_block_valid(u8 *raw_edid, int block)
 	u8 csum = 0;
 	struct edid *edid = (struct edid *)raw_edid;
 
+	if (edid_fixup > 8 || edid_fixup < 0)
+		edid_fixup = 6;
+
 	if (block == 0) {
 		int score = drm_edid_header_is_valid(raw_edid);
 		if (score == 8) ;
-		else if (score >= 6) {
+		else if (score >= edid_fixup) {
 			DRM_DEBUG("Fixing EDID header, your hardware may be failing\n");
 			memcpy(raw_edid, edid_header, sizeof(edid_header));
 		} else {
