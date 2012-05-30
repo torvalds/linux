@@ -23,5 +23,6 @@ generic-y += scatterlist.h
 generic-y += siginfo.h
 generic-y += statfs.h
 generic-y += topology.h
+generic-y += types.h
 generic-y += word-at-a-time.h
 generic-y += xor.h
