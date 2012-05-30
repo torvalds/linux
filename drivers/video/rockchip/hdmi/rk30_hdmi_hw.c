@@ -137,27 +137,15 @@ static void rk30_hdmi_config_phy(unsigned char vic)
 	{
 		case HDMI_1920x1080p_60Hz:
 		case HDMI_1920x1080p_50Hz:
-		#if 0	
 			rk30_hdmi_config_phy_reg(0x158, 0x0E);
 			rk30_hdmi_config_phy_reg(0x15c, 0x00);
 			rk30_hdmi_config_phy_reg(0x160, 0x60);
 			rk30_hdmi_config_phy_reg(0x164, 0x00);
 			rk30_hdmi_config_phy_reg(0x168, 0xDA);
-			rk30_hdmi_config_phy_reg(0x16c, 0xA2);
+			rk30_hdmi_config_phy_reg(0x16c, 0xA1);
 			rk30_hdmi_config_phy_reg(0x170, 0x0e);
 			rk30_hdmi_config_phy_reg(0x174, 0x22);
 			rk30_hdmi_config_phy_reg(0x178, 0x00);
-		#else	
-			rk30_hdmi_config_phy_reg(0x158, 0x0E);
-			rk30_hdmi_config_phy_reg(0x15c, 0x00);
-			rk30_hdmi_config_phy_reg(0x160, 0x77);
-			rk30_hdmi_config_phy_reg(0x164, 0x00);
-			rk30_hdmi_config_phy_reg(0x168, 0xDA);
-			rk30_hdmi_config_phy_reg(0x16c, 0xA1);
-			rk30_hdmi_config_phy_reg(0x170, 0x06);
-			rk30_hdmi_config_phy_reg(0x174, 0x22);
-			rk30_hdmi_config_phy_reg(0x178, 0x00);
-		#endif
 			break;
 			
 		case HDMI_1920x1080i_60Hz:
