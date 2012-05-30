@@ -1061,18 +1061,12 @@ static int pscsi_parse_cdb(struct se_cmd *cmd)
 	pscsi_clear_cdb_lun(cdb);
 
 	/*
-	 * For REPORT LUNS we always need to emulate the respone, and for everything
-	 * related to persistent reservations and ALUA we might optionally use our
-	 * handlers before passing on the command to the physical hardware.
+	 * For REPORT LUNS we always need to emulate the response, for everything
+	 * else the default for pSCSI is to pass the command to the underlying
+	 * LLD / physical hardware.
 	 */
 	switch (cdb[0]) {
 	case REPORT_LUNS:
-	case PERSISTENT_RESERVE_IN:
-	case PERSISTENT_RESERVE_OUT:
-	case RELEASE:
-	case RELEASE_10:
-	case RESERVE:
-	case RESERVE_10:
 		ret = spc_parse_cdb(cmd, &dummy_size);
 		if (ret)
 			return ret;
