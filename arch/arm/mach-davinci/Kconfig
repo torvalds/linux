@@ -4,6 +4,7 @@ config AINTC
 	bool
 
 config CP_INTC
+	select IRQ_DOMAIN
 	bool
 
 config ARCH_DAVINCI_DMx
