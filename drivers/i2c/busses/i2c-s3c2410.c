@@ -122,7 +122,7 @@ static inline unsigned int s3c24xx_get_device_quirks(struct platform_device *pde
 {
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
-		match = of_match_node(&s3c24xx_i2c_match, pdev->dev.of_node);
+		match = of_match_node(s3c24xx_i2c_match, pdev->dev.of_node);
 		return (unsigned int)match->data;
 	}
 
