@@ -1023,6 +1023,9 @@ void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 				    unsigned int power_state,
 				    bool eapd_workaround);
 
+int snd_hda_lock_devices(struct hda_bus *bus);
+void snd_hda_unlock_devices(struct hda_bus *bus);
+
 /*
  * power management
  */

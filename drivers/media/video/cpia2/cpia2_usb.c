@@ -54,6 +54,8 @@ static void cpia2_usb_complete(struct urb *urb);
 static int cpia2_usb_probe(struct usb_interface *intf,
 			   const struct usb_device_id *id);
 static void cpia2_usb_disconnect(struct usb_interface *intf);
+static int cpia2_usb_suspend(struct usb_interface *intf, pm_message_t message);
+static int cpia2_usb_resume(struct usb_interface *intf);
 
 static void free_sbufs(struct camera_data *cam);
 static void add_APPn(struct camera_data *cam);
@@ -74,6 +76,9 @@ static struct usb_driver cpia2_driver = {
 	.name		= "cpia2",
 	.probe		= cpia2_usb_probe,
 	.disconnect	= cpia2_usb_disconnect,
+	.suspend	= cpia2_usb_suspend,
+	.resume		= cpia2_usb_resume,
+	.reset_resume	= cpia2_usb_resume,
 	.id_table	= cpia2_id_table
 };
 
@@ -218,10 +223,9 @@ static void cpia2_usb_complete(struct urb *urb)
 		return;
 	}
 
-	if (!cam->streaming || !cam->present || cam->open_count == 0) {
-		LOG("Will now stop the streaming: streaming = %d, "
-		    "present=%d, open_count=%d\n",
-		    cam->streaming, cam->present, cam->open_count);
+	if (!cam->streaming || !video_is_registered(&cam->vdev)) {
+		LOG("Will now stop the streaming: streaming = %d, present=%d\n",
+		    cam->streaming, video_is_registered(&cam->vdev));
 		return;
 	}
 
@@ -392,7 +396,7 @@ static int configure_transfer_mode(struct camera_data *cam, unsigned int alt)
 	struct cpia2_command cmd;
 	unsigned char reg;
 
-	if(!cam->present)
+	if (!video_is_registered(&cam->vdev))
 		return -ENODEV;
 
 	/***
@@ -752,8 +756,8 @@ int cpia2_usb_stream_pause(struct camera_data *cam)
 {
 	int ret = 0;
 	if(cam->streaming) {
-		ret = set_alternate(cam, USBIF_CMDONLY);
 		free_sbufs(cam);
+		ret = set_alternate(cam, USBIF_CMDONLY);
 	}
 	return ret;
 }
@@ -770,6 +774,10 @@ int cpia2_usb_stream_resume(struct camera_data *cam)
 		cam->first_image_seen = 0;
 		ret = set_alternate(cam, cam->params.camera_state.stream_mode);
 		if(ret == 0) {
+			/* for some reason the user effects need to be set
+			   again when starting streaming. */
+			cpia2_do_command(cam, CPIA2_CMD_SET_USER_EFFECTS, TRANSFER_WRITE,
+					cam->params.vp_params.user_effects);
 			ret = submit_urbs(cam);
 		}
 	}
@@ -784,6 +792,7 @@ int cpia2_usb_stream_resume(struct camera_data *cam)
 int cpia2_usb_stream_stop(struct camera_data *cam)
 {
 	int ret;
+
 	ret = cpia2_usb_stream_pause(cam);
 	cam->streaming = 0;
 	configure_transfer_mode(cam, 0);
@@ -812,7 +821,8 @@ static int cpia2_usb_probe(struct usb_interface *intf,
 	/* If we get to this point, we found a CPiA2 camera */
 	LOG("CPiA2 USB camera found\n");
 
-	if((cam = cpia2_init_camera_struct()) == NULL)
+	cam = cpia2_init_camera_struct(intf);
+	if (cam == NULL)
 		return -ENOMEM;
 
 	cam->dev = udev;
@@ -825,16 +835,9 @@ static int cpia2_usb_probe(struct usb_interface *intf,
 		return ret;
 	}
 
-	if ((ret = cpia2_register_camera(cam)) < 0) {
-		ERR("%s: Failed to register cpia2 camera (ret = %d)\n", __func__, ret);
-		kfree(cam);
-		return ret;
-	}
-
 
 	if((ret = cpia2_init_camera(cam)) < 0) {
 		ERR("%s: failed to initialize cpia2 camera (ret = %d)\n", __func__, ret);
-		cpia2_unregister_camera(cam);
 		kfree(cam);
 		return ret;
 	}
@@ -853,6 +856,13 @@ static int cpia2_usb_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, cam);
 
+	ret = cpia2_register_camera(cam);
+	if (ret < 0) {
+		ERR("%s: Failed to register cpia2 camera (ret = %d)\n", __func__, ret);
+		kfree(cam);
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -865,13 +875,16 @@ static void cpia2_usb_disconnect(struct usb_interface *intf)
 {
 	struct camera_data *cam = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
-	cam->present = 0;
 
 	DBG("Stopping stream\n");
 	cpia2_usb_stream_stop(cam);
 
+	mutex_lock(&cam->v4l2_lock);
 	DBG("Unregistering camera\n");
 	cpia2_unregister_camera(cam);
+	v4l2_device_disconnect(&cam->v4l2_dev);
+	mutex_unlock(&cam->v4l2_lock);
+	v4l2_device_put(&cam->v4l2_dev);
 
 	if(cam->buffers) {
 		DBG("Wakeup waiting processes\n");
@@ -884,14 +897,41 @@ static void cpia2_usb_disconnect(struct usb_interface *intf)
 	DBG("Releasing interface\n");
 	usb_driver_release_interface(&cpia2_driver, intf);
 
-	if (cam->open_count == 0) {
-		DBG("Freeing camera structure\n");
-		kfree(cam);
-	}
-
 	LOG("CPiA2 camera disconnected.\n");
 }
 
+static int cpia2_usb_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct camera_data *cam = usb_get_intfdata(intf);
+
+	mutex_lock(&cam->v4l2_lock);
+	if (cam->streaming) {
+		cpia2_usb_stream_stop(cam);
+		cam->streaming = 1;
+	}
+	mutex_unlock(&cam->v4l2_lock);
+
+	dev_info(&intf->dev, "going into suspend..\n");
+	return 0;
+}
+
+/* Resume device - start device. */
+static int cpia2_usb_resume(struct usb_interface *intf)
+{
+	struct camera_data *cam = usb_get_intfdata(intf);
+
+	mutex_lock(&cam->v4l2_lock);
+	v4l2_ctrl_handler_setup(&cam->hdl);
+	if (cam->streaming) {
+		cam->streaming = 0;
+		cpia2_usb_stream_start(cam,
+				cam->params.camera_state.stream_mode);
+	}
+	mutex_unlock(&cam->v4l2_lock);
+
+	dev_info(&intf->dev, "coming out of suspend..\n");
+	return 0;
+}
 
 /******************************************************************************
  *

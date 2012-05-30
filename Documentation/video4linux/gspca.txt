@@ -276,6 +276,7 @@ pac7302		093a:2622	Genius Eye 312
 pac7302		093a:2624	PAC7302
 pac7302		093a:2625	Genius iSlim 310
 pac7302		093a:2626	Labtec 2200
+pac7302		093a:2627	Genius FaceCam 300
 pac7302		093a:2628	Genius iLook 300
 pac7302		093a:2629	Genious iSlim 300
 pac7302		093a:262a	Webcam 300k

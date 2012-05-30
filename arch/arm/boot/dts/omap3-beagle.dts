@@ -57,7 +57,7 @@
 &mmc1 {
 	vmmc-supply = <&vmmc1>;
 	vmmc_aux-supply = <&vsim>;
-	ti,bus-width = <8>;
+	bus-width = <8>;
 };
 
 &mmc2 {

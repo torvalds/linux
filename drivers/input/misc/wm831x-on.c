@@ -73,7 +73,7 @@ static int __devinit wm831x_on_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_on *wm831x_on;
-	int irq = platform_get_irq(pdev, 0);
+	int irq = wm831x_irq(wm831x, platform_get_irq(pdev, 0));
 	int ret;
 
 	wm831x_on = kzalloc(sizeof(struct wm831x_on), GFP_KERNEL);

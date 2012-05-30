@@ -107,7 +107,7 @@ user.<!-- FIXME Video inputs already have a name, the purpose of this
 field is not quite clear.--></para></entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-tuner-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry spanname="hspan">Type of the tuner, see <xref
 		linkend="v4l2-tuner-type" />.</entry>

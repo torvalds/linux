@@ -28,12 +28,6 @@ config ARCH_HAS_ILOG2_U64
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_TIME_VSYSCALL
-	def_bool y
-
-config GENERIC_CLOCKEVENTS
-	def_bool y
-
 config GENERIC_BUG
 	def_bool y if BUG
 
@@ -123,6 +117,9 @@ config S390
 	select ARCH_INLINE_WRITE_UNLOCK_IRQ
 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
 	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_TIME_VSYSCALL
+	select GENERIC_CLOCKEVENTS
+	select KTIME_SCALAR if 32BIT
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
@@ -135,8 +132,6 @@ menu "Base setup"
 
 comment "Processor type and features"
 
-source "kernel/time/Kconfig"
-
 config 64BIT
 	def_bool y
 	prompt "64 bit kernel"
@@ -146,9 +141,6 @@ config 64BIT
 
 config 32BIT
 	def_bool y if !64BIT
-
-config KTIME_SCALAR
-	def_bool 32BIT
 
 config SMP
 	def_bool y

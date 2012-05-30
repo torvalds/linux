@@ -78,12 +78,12 @@ config SOC_OMAP3430
 	default y
 	select ARCH_OMAP_OTG
 
-config SOC_OMAPTI81XX
+config SOC_TI81XX
 	bool "TI81XX support"
 	depends on ARCH_OMAP3
 	default y
 
-config SOC_OMAPAM33XX
+config SOC_AM33XX
 	bool "AM33XX support"
 	depends on ARCH_OMAP3
 	default y
@@ -320,12 +320,12 @@ config MACH_OMAP_3630SDP
 
 config MACH_TI8168EVM
 	bool "TI8168 Evaluation Module"
-	depends on SOC_OMAPTI81XX
+	depends on SOC_TI81XX
 	default y
 
 config MACH_TI8148EVM
 	bool "TI8148 Evaluation Module"
-	depends on SOC_OMAPTI81XX
+	depends on SOC_TI81XX
 	default y
 
 config MACH_OMAP_4430SDP

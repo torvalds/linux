@@ -934,33 +934,29 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 void cx231xx_enable656(struct cx231xx *dev)
 {
 	u8 temp = 0;
-	int status;
 	/*enable TS1 data[0:7] as output to export 656*/
 
-	status = vid_blk_write_byte(dev, TS1_PIN_CTL0, 0xFF);
+	vid_blk_write_byte(dev, TS1_PIN_CTL0, 0xFF);
 
 	/*enable TS1 clock as output to export 656*/
 
-	status = vid_blk_read_byte(dev, TS1_PIN_CTL1, &temp);
+	vid_blk_read_byte(dev, TS1_PIN_CTL1, &temp);
 	temp = temp|0x04;
 
-	status = vid_blk_write_byte(dev, TS1_PIN_CTL1, temp);
-
+	vid_blk_write_byte(dev, TS1_PIN_CTL1, temp);
 }
 EXPORT_SYMBOL_GPL(cx231xx_enable656);
 
 void cx231xx_disable656(struct cx231xx *dev)
 {
 	u8 temp = 0;
-	int status;
 
+	vid_blk_write_byte(dev, TS1_PIN_CTL0, 0x00);
 
-	status = vid_blk_write_byte(dev, TS1_PIN_CTL0, 0x00);
-
-	status = vid_blk_read_byte(dev, TS1_PIN_CTL1, &temp);
+	vid_blk_read_byte(dev, TS1_PIN_CTL1, &temp);
 	temp = temp&0xFB;
 
-	status = vid_blk_write_byte(dev, TS1_PIN_CTL1, temp);
+	vid_blk_write_byte(dev, TS1_PIN_CTL1, temp);
 }
 EXPORT_SYMBOL_GPL(cx231xx_disable656);
 
@@ -1320,117 +1316,115 @@ void update_HH_register_after_set_DIF(struct cx231xx *dev)
 
 void cx231xx_dump_HH_reg(struct cx231xx *dev)
 {
-	u8 status = 0;
 	u32 value = 0;
 	u16  i = 0;
 
 	value = 0x45005390;
-	status = vid_blk_write_word(dev, 0x104, value);
+	vid_blk_write_word(dev, 0x104, value);
 
 	for (i = 0x100; i < 0x140; i++) {
-		status = vid_blk_read_word(dev, i, &value);
+		vid_blk_read_word(dev, i, &value);
 		cx231xx_info("reg0x%x=0x%x\n", i, value);
 		i = i+3;
 	}
 
 	for (i = 0x300; i < 0x400; i++) {
-		status = vid_blk_read_word(dev, i, &value);
+		vid_blk_read_word(dev, i, &value);
 		cx231xx_info("reg0x%x=0x%x\n", i, value);
 		i = i+3;
 	}
 
 	for (i = 0x400; i < 0x440; i++) {
-		status = vid_blk_read_word(dev, i,  &value);
+		vid_blk_read_word(dev, i,  &value);
 		cx231xx_info("reg0x%x=0x%x\n", i, value);
 		i = i+3;
 	}
 
-	status = vid_blk_read_word(dev, AFE_CTRL_C2HH_SRC_CTRL, &value);
+	vid_blk_read_word(dev, AFE_CTRL_C2HH_SRC_CTRL, &value);
 	cx231xx_info("AFE_CTRL_C2HH_SRC_CTRL=0x%x\n", value);
 	vid_blk_write_word(dev, AFE_CTRL_C2HH_SRC_CTRL, 0x4485D390);
-	status = vid_blk_read_word(dev, AFE_CTRL_C2HH_SRC_CTRL, &value);
+	vid_blk_read_word(dev, AFE_CTRL_C2HH_SRC_CTRL, &value);
 	cx231xx_info("AFE_CTRL_C2HH_SRC_CTRL=0x%x\n", value);
 }
 
 void cx231xx_dump_SC_reg(struct cx231xx *dev)
 {
 	u8 value[4] = { 0, 0, 0, 0 };
-	int status = 0;
 	cx231xx_info("cx231xx_dump_SC_reg!\n");
 
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, BOARD_CFG_STAT,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, BOARD_CFG_STAT,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", BOARD_CFG_STAT, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, TS_MODE_REG,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, TS_MODE_REG,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", TS_MODE_REG, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, TS1_CFG_REG,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, TS1_CFG_REG,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", TS1_CFG_REG, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, TS1_LENGTH_REG,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, TS1_LENGTH_REG,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", TS1_LENGTH_REG, value[0],
 				 value[1], value[2], value[3]);
 
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, TS2_CFG_REG,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, TS2_CFG_REG,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", TS2_CFG_REG, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, TS2_LENGTH_REG,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, TS2_LENGTH_REG,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", TS2_LENGTH_REG, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, EP_MODE_SET,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, EP_MODE_SET,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", EP_MODE_SET, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_PWR_PTN1,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_PWR_PTN1,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", CIR_PWR_PTN1, value[0],
 				 value[1], value[2], value[3]);
 
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_PWR_PTN2,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_PWR_PTN2,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", CIR_PWR_PTN2, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_PWR_PTN3,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_PWR_PTN3,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", CIR_PWR_PTN3, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_PWR_MASK0,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_PWR_MASK0,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", CIR_PWR_MASK0, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_PWR_MASK1,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_PWR_MASK1,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", CIR_PWR_MASK1, value[0],
 				 value[1], value[2], value[3]);
 
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_PWR_MASK2,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_PWR_MASK2,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", CIR_PWR_MASK2, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_GAIN,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_GAIN,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", CIR_GAIN, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_CAR_REG,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_CAR_REG,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", CIR_CAR_REG, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_OT_CFG1,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_OT_CFG1,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", CIR_OT_CFG1, value[0],
 				 value[1], value[2], value[3]);
 
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_OT_CFG2,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, CIR_OT_CFG2,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", CIR_OT_CFG2, value[0],
 				 value[1], value[2], value[3]);
-	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, PWR_CTL_EN,
+	cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, PWR_CTL_EN,
 				 value, 4);
 	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", PWR_CTL_EN, value[0],
 				 value[1], value[2], value[3]);
@@ -1441,18 +1435,15 @@ void cx231xx_dump_SC_reg(struct cx231xx *dev)
 void cx231xx_Setup_AFE_for_LowIF(struct cx231xx *dev)
 
 {
-	u8 status = 0;
 	u8 value = 0;
 
-
-
-	status = afe_read_byte(dev, ADC_STATUS2_CH3, &value);
+	afe_read_byte(dev, ADC_STATUS2_CH3, &value);
 	value = (value & 0xFE)|0x01;
-	status = afe_write_byte(dev, ADC_STATUS2_CH3, value);
+	afe_write_byte(dev, ADC_STATUS2_CH3, value);
 
-	status = afe_read_byte(dev, ADC_STATUS2_CH3, &value);
+	afe_read_byte(dev, ADC_STATUS2_CH3, &value);
 	value = (value & 0xFE)|0x00;
-	status = afe_write_byte(dev, ADC_STATUS2_CH3, value);
+	afe_write_byte(dev, ADC_STATUS2_CH3, value);
 
 
 /*
@@ -1464,44 +1455,43 @@ void cx231xx_Setup_AFE_for_LowIF(struct cx231xx *dev)
 		for low-if agc defect
 */
 
-	status = afe_read_byte(dev, ADC_NTF_PRECLMP_EN_CH3, &value);
+	afe_read_byte(dev, ADC_NTF_PRECLMP_EN_CH3, &value);
 	value = (value & 0xFC)|0x00;
-	status = afe_write_byte(dev, ADC_NTF_PRECLMP_EN_CH3, value);
+	afe_write_byte(dev, ADC_NTF_PRECLMP_EN_CH3, value);
 
-	status = afe_read_byte(dev, ADC_INPUT_CH3, &value);
+	afe_read_byte(dev, ADC_INPUT_CH3, &value);
 	value = (value & 0xF9)|0x02;
-	status = afe_write_byte(dev, ADC_INPUT_CH3, value);
+	afe_write_byte(dev, ADC_INPUT_CH3, value);
 
-	status = afe_read_byte(dev, ADC_FB_FRCRST_CH3, &value);
+	afe_read_byte(dev, ADC_FB_FRCRST_CH3, &value);
 	value = (value & 0xFB)|0x04;
-	status = afe_write_byte(dev, ADC_FB_FRCRST_CH3, value);
+	afe_write_byte(dev, ADC_FB_FRCRST_CH3, value);
 
-	status = afe_read_byte(dev, ADC_DCSERVO_DEM_CH3, &value);
+	afe_read_byte(dev, ADC_DCSERVO_DEM_CH3, &value);
 	value = (value & 0xFC)|0x03;
-	status = afe_write_byte(dev, ADC_DCSERVO_DEM_CH3, value);
+	afe_write_byte(dev, ADC_DCSERVO_DEM_CH3, value);
 
-	status = afe_read_byte(dev, ADC_CTRL_DAC1_CH3, &value);
+	afe_read_byte(dev, ADC_CTRL_DAC1_CH3, &value);
 	value = (value & 0xFB)|0x04;
-	status = afe_write_byte(dev, ADC_CTRL_DAC1_CH3, value);
+	afe_write_byte(dev, ADC_CTRL_DAC1_CH3, value);
 
-	status = afe_read_byte(dev, ADC_CTRL_DAC23_CH3, &value);
+	afe_read_byte(dev, ADC_CTRL_DAC23_CH3, &value);
 	value = (value & 0xF8)|0x06;
-	status = afe_write_byte(dev, ADC_CTRL_DAC23_CH3, value);
+	afe_write_byte(dev, ADC_CTRL_DAC23_CH3, value);
 
-	status = afe_read_byte(dev, ADC_CTRL_DAC23_CH3, &value);
+	afe_read_byte(dev, ADC_CTRL_DAC23_CH3, &value);
 	value = (value & 0x8F)|0x40;
-	status = afe_write_byte(dev, ADC_CTRL_DAC23_CH3, value);
+	afe_write_byte(dev, ADC_CTRL_DAC23_CH3, value);
 
-	status = afe_read_byte(dev, ADC_PWRDN_CLAMP_CH3, &value);
+	afe_read_byte(dev, ADC_PWRDN_CLAMP_CH3, &value);
 	value = (value & 0xDF)|0x20;
-	status = afe_write_byte(dev, ADC_PWRDN_CLAMP_CH3, value);
+	afe_write_byte(dev, ADC_PWRDN_CLAMP_CH3, value);
 }
 
 void cx231xx_set_Colibri_For_LowIF(struct cx231xx *dev, u32 if_freq,
 		 u8 spectral_invert, u32 mode)
 {
 	u32 colibri_carrier_offset = 0;
-	u8 status = 0;
 	u32 func_mode = 0x01; /* Device has a DIF if this function is called */
 	u32 standard = 0;
 	u8 value[4] = { 0, 0, 0, 0 };
@@ -1511,15 +1501,15 @@ void cx231xx_set_Colibri_For_LowIF(struct cx231xx *dev, u32 if_freq,
 	value[1] = (u8) 0x6F;
 	value[2] = (u8) 0x6F;
 	value[3] = (u8) 0x6F;
-	status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
+	cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
 					PWR_CTL_EN, value, 4);
 
 	/*Set colibri for low IF*/
-	status = cx231xx_afe_set_mode(dev, AFE_MODE_LOW_IF);
+	cx231xx_afe_set_mode(dev, AFE_MODE_LOW_IF);
 
 	/* Set C2HH for low IF operation.*/
 	standard = dev->norm;
-	status = cx231xx_dif_configure_C2HH_for_low_IF(dev, dev->active_mode,
+	cx231xx_dif_configure_C2HH_for_low_IF(dev, dev->active_mode,
 						       func_mode, standard);
 
 	/* Get colibri offsets.*/
@@ -1556,7 +1546,6 @@ void cx231xx_set_DIF_bandpass(struct cx231xx *dev, u32 if_freq,
 		 u8 spectral_invert, u32 mode)
 {
 	unsigned long pll_freq_word;
-	int status = 0;
 	u32 dif_misc_ctrl_value = 0;
 	u64 pll_freq_u64 = 0;
 	u32 i = 0;
@@ -1567,7 +1556,7 @@ void cx231xx_set_DIF_bandpass(struct cx231xx *dev, u32 if_freq,
 
 	if (mode == TUNER_MODE_FM_RADIO) {
 		pll_freq_word = 0x905A1CAC;
-		status = vid_blk_write_word(dev, DIF_PLL_FREQ_WORD,  pll_freq_word);
+		vid_blk_write_word(dev, DIF_PLL_FREQ_WORD,  pll_freq_word);
 
 	} else /*KSPROPERTY_TUNER_MODE_TV*/{
 		/* Calculate the PLL frequency word based on the adjusted if_freq*/
@@ -1576,23 +1565,23 @@ void cx231xx_set_DIF_bandpass(struct cx231xx *dev, u32 if_freq,
 		do_div(pll_freq_u64, 50000000);
 		pll_freq_word = (u32)pll_freq_u64;
 		/*pll_freq_word = 0x3463497;*/
-		status = vid_blk_write_word(dev, DIF_PLL_FREQ_WORD,  pll_freq_word);
+		vid_blk_write_word(dev, DIF_PLL_FREQ_WORD,  pll_freq_word);
 
 	if (spectral_invert) {
 		if_freq -= 400000;
 		/* Enable Spectral Invert*/
-		status = vid_blk_read_word(dev, DIF_MISC_CTRL,
+		vid_blk_read_word(dev, DIF_MISC_CTRL,
 					&dif_misc_ctrl_value);
 		dif_misc_ctrl_value = dif_misc_ctrl_value | 0x00200000;
-		status = vid_blk_write_word(dev, DIF_MISC_CTRL,
+		vid_blk_write_word(dev, DIF_MISC_CTRL,
 					dif_misc_ctrl_value);
 	} else {
 		if_freq += 400000;
 		/* Disable Spectral Invert*/
-		status = vid_blk_read_word(dev, DIF_MISC_CTRL,
+		vid_blk_read_word(dev, DIF_MISC_CTRL,
 					&dif_misc_ctrl_value);
 		dif_misc_ctrl_value = dif_misc_ctrl_value & 0xFFDFFFFF;
-		status = vid_blk_write_word(dev, DIF_MISC_CTRL,
+		vid_blk_write_word(dev, DIF_MISC_CTRL,
 					dif_misc_ctrl_value);
 	}
 
@@ -1606,10 +1595,10 @@ void cx231xx_set_DIF_bandpass(struct cx231xx *dev, u32 if_freq,
 	}
 
 	cx231xx_info("Enter IF=%zd\n",
-			sizeof(Dif_set_array)/sizeof(struct dif_settings));
-	for (i = 0; i < sizeof(Dif_set_array)/sizeof(struct dif_settings); i++) {
+			ARRAY_SIZE(Dif_set_array));
+	for (i = 0; i < ARRAY_SIZE(Dif_set_array); i++) {
 		if (Dif_set_array[i].if_freq == if_freq) {
-			status = vid_blk_write_word(dev,
+			vid_blk_write_word(dev,
 			Dif_set_array[i].register_address, Dif_set_array[i].value);
 		}
 	}
@@ -3090,31 +3079,30 @@ int cx231xx_gpio_i2c_read(struct cx231xx *dev, u8 dev_addr, u8 *buf, u8 len)
  */
 int cx231xx_gpio_i2c_write(struct cx231xx *dev, u8 dev_addr, u8 *buf, u8 len)
 {
-	int status = 0;
 	int i = 0;
 
 	/* get the lock */
 	mutex_lock(&dev->gpio_i2c_lock);
 
 	/* start */
-	status = cx231xx_gpio_i2c_start(dev);
+	cx231xx_gpio_i2c_start(dev);
 
 	/* write dev_addr */
-	status = cx231xx_gpio_i2c_write_byte(dev, dev_addr << 1);
+	cx231xx_gpio_i2c_write_byte(dev, dev_addr << 1);
 
 	/* read Ack */
-	status = cx231xx_gpio_i2c_read_ack(dev);
+	cx231xx_gpio_i2c_read_ack(dev);
 
 	for (i = 0; i < len; i++) {
 		/* Write data */
-		status = cx231xx_gpio_i2c_write_byte(dev, buf[i]);
+		cx231xx_gpio_i2c_write_byte(dev, buf[i]);
 
 		/* read Ack */
-		status = cx231xx_gpio_i2c_read_ack(dev);
+		cx231xx_gpio_i2c_read_ack(dev);
 	}
 
 	/* write End */
-	status = cx231xx_gpio_i2c_end(dev);
+	cx231xx_gpio_i2c_end(dev);
 
 	/* release the lock */
 	mutex_unlock(&dev->gpio_i2c_lock);

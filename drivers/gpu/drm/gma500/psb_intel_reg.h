@@ -91,6 +91,9 @@
 
 #define BLC_PWM_CTL		0x61254
 #define BLC_PWM_CTL2		0x61250
+#define  PWM_ENABLE		(1 << 31)
+#define  PWM_LEGACY_MODE	(1 << 30)
+#define  PWM_PIPE_B		(1 << 29)
 #define BLC_PWM_CTL_C		0x62254
 #define BLC_PWM_CTL2_C		0x62250
 #define BACKLIGHT_MODULATION_FREQ_SHIFT		(17)
@@ -216,7 +219,7 @@
 #define DPLLB_LVDS_P2_CLOCK_DIV_14	(0 << 24)	/* i915 */
 #define DPLLB_LVDS_P2_CLOCK_DIV_7	(1 << 24)	/* i915 */
 #define DPLL_P2_CLOCK_DIV_MASK		0x03000000	/* i915 */
-#define DPLL_FPA01_P1_POST_DIV_MASK	0x00ff0000	/* i915 */
+#define DPLL_FPA0h1_P1_POST_DIV_MASK	0x00ff0000	/* i915 */
 #define DPLL_LOCK			(1 << 15)	/* CDV */
 
 /*
@@ -343,6 +346,9 @@
 #define FP_M2_DIV_SHIFT			0
 
 #define PORT_HOTPLUG_EN		0x61110
+#define HDMIB_HOTPLUG_INT_EN		(1 << 29)
+#define HDMIC_HOTPLUG_INT_EN		(1 << 28)
+#define HDMID_HOTPLUG_INT_EN		(1 << 27)
 #define SDVOB_HOTPLUG_INT_EN		(1 << 26)
 #define SDVOC_HOTPLUG_INT_EN		(1 << 25)
 #define TV_HOTPLUG_INT_EN		(1 << 18)
@@ -501,10 +507,12 @@
 #define PIPE_VBLANK_INTERRUPT_ENABLE		(1UL << 17)
 #define PIPE_START_VBLANK_INTERRUPT_ENABLE	(1UL << 18)
 #define PIPE_TE_ENABLE				(1UL << 22)
+#define PIPE_LEGACY_BLC_EVENT_ENABLE		(1UL << 22)
 #define PIPE_DPST_EVENT_ENABLE			(1UL << 23)
 #define PIPE_VSYNC_ENABL			(1UL << 25)
 #define PIPE_HDMI_AUDIO_UNDERRUN		(1UL << 26)
 #define PIPE_HDMI_AUDIO_BUFFER_DONE		(1UL << 27)
+#define PIPE_FIFO_UNDERRUN			(1UL << 31)
 #define PIPE_HDMI_AUDIO_INT_MASK		(PIPE_HDMI_AUDIO_UNDERRUN | \
 						PIPE_HDMI_AUDIO_BUFFER_DONE)
 #define PIPE_EVENT_MASK ((1 << 29)|(1 << 28)|(1 << 27)|(1 << 26)|(1 << 24)|(1 << 23)|(1 << 22)|(1 << 21)|(1 << 20)|(1 << 16))
@@ -569,12 +577,27 @@ struct dpst_guardband {
 #define PIPE_PIXEL_MASK		0x00ffffff
 #define PIPE_PIXEL_SHIFT	0
 
+#define FW_BLC_SELF		0x20e0 
+#define FW_BLC_SELF_EN          (1<<15)
+
 #define DSPARB			0x70030
 #define DSPFW1			0x70034
+#define DSP_FIFO_SR_WM_MASK		0xFF800000
+#define DSP_FIFO_SR_WM_SHIFT		23
+#define CURSOR_B_FIFO_WM_MASK		0x003F0000
+#define CURSOR_B_FIFO_WM_SHIFT		16
 #define DSPFW2			0x70038
+#define CURSOR_A_FIFO_WM_MASK		0x3F00
+#define CURSOR_A_FIFO_WM_SHIFT		8
+#define DSP_PLANE_C_FIFO_WM_MASK	0x7F
+#define DSP_PLANE_C_FIFO_WM_SHIFT	0
 #define DSPFW3			0x7003c
 #define DSPFW4			0x70050
 #define DSPFW5			0x70054
+#define DSP_PLANE_B_FIFO_WM1_SHIFT	24
+#define DSP_PLANE_A_FIFO_WM1_SHIFT	16
+#define CURSOR_B_FIFO_WM1_SHIFT		8
+#define CURSOR_FIFO_SR_WM1_SHIFT	0
 #define DSPFW6			0x70058
 #define DSPCHICKENBIT		0x70400
 #define DSPACNTR		0x70180
@@ -1290,6 +1313,15 @@ No status bits are changed.
 #define SB_N_CB_TUNE_MASK			PSB_MASK(25, 24)
 #define SB_N_CB_TUNE_SHIFT			24
 
+/* the bit 14:13 is used to select between the different reference clock for Pipe A/B */
+#define SB_REF_DPLLA		0x8010
+#define SB_REF_DPLLB		0x8030
+#define	REF_CLK_MASK		(0x3 << 13)
+#define REF_CLK_CORE		(0 << 13)
+#define REF_CLK_DPLL		(1 << 13)
+#define REF_CLK_DPLLA		(2 << 13)
+/* For the DPLL B, it will use the reference clk from DPLL A when using (2 << 13) */
+
 #define _SB_REF_A		0x8018
 #define _SB_REF_B		0x8038
 #define SB_REF_SFR(pipe)	_PIPE(pipe, _SB_REF_A, _SB_REF_B)
@@ -1313,6 +1345,7 @@ No status bits are changed.
 
 #define LANE_PLL_MASK		(0x7 << 20)
 #define LANE_PLL_ENABLE		(0x3 << 20)
+#define LANE_PLL_PIPE(p)	(((p) == 0) ? (1 << 21) : (0 << 21))
 
 
 #endif

@@ -235,13 +235,6 @@ static int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 	targets->hci_reader_gate = gate;
 
 	r = nfc_targets_found(hdev->ndev, targets, 1);
-	if (r < 0)
-		goto exit;
-
-	kfree(hdev->targets);
-	hdev->targets = targets;
-	targets = NULL;
-	hdev->target_count = 1;
 
 exit:
 	kfree(targets);
@@ -258,11 +251,6 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 
 	switch (event) {
 	case NFC_HCI_EVT_TARGET_DISCOVERED:
-		if (hdev->poll_started == false) {
-			r = -EPROTO;
-			goto exit;
-		}
-
 		if (skb->len < 1) {	/* no status data? */
 			r = -EPROTO;
 			goto exit;
@@ -496,74 +484,42 @@ static int hci_dev_down(struct nfc_dev *nfc_dev)
 static int hci_start_poll(struct nfc_dev *nfc_dev, u32 protocols)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
-	int r;
 
 	if (hdev->ops->start_poll)
-		r = hdev->ops->start_poll(hdev, protocols);
+		return hdev->ops->start_poll(hdev, protocols);
 	else
-		r = nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
+		return nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
 				       NFC_HCI_EVT_READER_REQUESTED, NULL, 0);
-	if (r == 0)
-		hdev->poll_started = true;
-
-	return r;
 }
 
 static void hci_stop_poll(struct nfc_dev *nfc_dev)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
-	if (hdev->poll_started) {
-		nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
-				   NFC_HCI_EVT_END_OPERATION, NULL, 0);
-		hdev->poll_started = false;
-	}
+	nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
+			   NFC_HCI_EVT_END_OPERATION, NULL, 0);
 }
 
-static struct nfc_target *hci_find_target(struct nfc_hci_dev *hdev,
-					  u32 target_idx)
+static int hci_activate_target(struct nfc_dev *nfc_dev,
+			       struct nfc_target *target, u32 protocol)
 {
-	int i;
-	if (hdev->poll_started == false || hdev->targets == NULL)
-		return NULL;
-
-	for (i = 0; i < hdev->target_count; i++) {
-		if (hdev->targets[i].idx == target_idx)
-			return &hdev->targets[i];
-	}
-
-	return NULL;
-}
-
-static int hci_activate_target(struct nfc_dev *nfc_dev, u32 target_idx,
-			       u32 protocol)
-{
-	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
-
-	if (hci_find_target(hdev, target_idx) == NULL)
-		return -ENOMEDIUM;
-
 	return 0;
 }
 
-static void hci_deactivate_target(struct nfc_dev *nfc_dev, u32 target_idx)
+static void hci_deactivate_target(struct nfc_dev *nfc_dev,
+				  struct nfc_target *target)
 {
 }
 
-static int hci_data_exchange(struct nfc_dev *nfc_dev, u32 target_idx,
+static int hci_data_exchange(struct nfc_dev *nfc_dev, struct nfc_target *target,
 			     struct sk_buff *skb, data_exchange_cb_t cb,
 			     void *cb_context)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 	int r;
-	struct nfc_target *target;
 	struct sk_buff *res_skb = NULL;
 
-	pr_debug("target_idx=%d\n", target_idx);
-
-	target = hci_find_target(hdev, target_idx);
-	if (target == NULL)
-		return -ENOMEDIUM;
+	pr_debug("target_idx=%d\n", target->idx);
 
 	switch (target->hci_reader_gate) {
 	case NFC_HCI_RF_READER_A_GATE:
@@ -605,7 +561,18 @@ static int hci_data_exchange(struct nfc_dev *nfc_dev, u32 target_idx,
 	return 0;
 }
 
-struct nfc_ops hci_nfc_ops = {
+static int hci_check_presence(struct nfc_dev *nfc_dev,
+			      struct nfc_target *target)
+{
+	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
+
+	if (hdev->ops->check_presence)
+		return hdev->ops->check_presence(hdev, target);
+
+	return 0;
+}
+
+static struct nfc_ops hci_nfc_ops = {
 	.dev_up = hci_dev_up,
 	.dev_down = hci_dev_down,
 	.start_poll = hci_start_poll,
@@ -613,6 +580,7 @@ struct nfc_ops hci_nfc_ops = {
 	.activate_target = hci_activate_target,
 	.deactivate_target = hci_deactivate_target,
 	.data_exchange = hci_data_exchange,
+	.check_presence = hci_check_presence,
 };
 
 struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,

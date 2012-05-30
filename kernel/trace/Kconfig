@@ -372,6 +372,7 @@ config KPROBE_EVENT
 	depends on HAVE_REGS_AND_STACK_ACCESS_API
 	bool "Enable kprobes-based dynamic events"
 	select TRACING
+	select PROBE_EVENTS
 	default y
 	help
 	  This allows the user to add tracing events (similar to tracepoints)
@@ -383,6 +384,25 @@ config KPROBE_EVENT
 
 	  This option is also required by perf-probe subcommand of perf tools.
 	  If you want to use perf tools, this option is strongly recommended.
+
+config UPROBE_EVENT
+	bool "Enable uprobes-based dynamic events"
+	depends on ARCH_SUPPORTS_UPROBES
+	depends on MMU
+	select UPROBES
+	select PROBE_EVENTS
+	select TRACING
+	default n
+	help
+	  This allows the user to add tracing events on top of userspace
+	  dynamic events (similar to tracepoints) on the fly via the trace
+	  events interface. Those events can be inserted wherever uprobes
+	  can probe, and record various registers.
+	  This option is required if you plan to use perf-probe subcommand
+	  of perf tools on user space applications.
+
+config PROBE_EVENTS
+	def_bool n
 
 config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"

@@ -17,7 +17,6 @@
 #include <linux/mm.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/of_spi.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <sysdev/fsl_soc.h>

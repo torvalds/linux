@@ -1000,6 +1000,8 @@ static void setfreq(struct gspca_dev *gspca_dev)
 	}
 }
 
+#define WANT_REGULAR_AUTOGAIN
+#define WANT_COARSE_EXPO_AUTOGAIN
 #include "autogain_functions.h"
 
 static void do_autogain(struct gspca_dev *gspca_dev)

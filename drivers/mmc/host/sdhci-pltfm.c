@@ -42,7 +42,8 @@ static struct sdhci_ops sdhci_pltfm_ops = {
 #ifdef CONFIG_OF
 static bool sdhci_of_wp_inverted(struct device_node *np)
 {
-	if (of_get_property(np, "sdhci,wp-inverted", NULL))
+	if (of_get_property(np, "sdhci,wp-inverted", NULL) ||
+	    of_get_property(np, "wp-inverted", NULL))
 		return true;
 
 	/* Old device trees don't have the wp-inverted property. */
@@ -59,13 +60,16 @@ void sdhci_get_of_property(struct platform_device *pdev)
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	const __be32 *clk;
+	u32 bus_width;
 	int size;
 
 	if (of_device_is_available(np)) {
 		if (of_get_property(np, "sdhci,auto-cmd12", NULL))
 			host->quirks |= SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12;
 
-		if (of_get_property(np, "sdhci,1-bit-only", NULL))
+		if (of_get_property(np, "sdhci,1-bit-only", NULL) ||
+		    (of_property_read_u32(np, "bus-width", &bus_width) == 0 &&
+		    bus_width == 1))
 			host->quirks |= SDHCI_QUIRK_FORCE_1_BIT_DATA;
 
 		if (sdhci_of_wp_inverted(np))

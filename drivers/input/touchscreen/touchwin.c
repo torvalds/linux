@@ -183,19 +183,4 @@ static struct serio_driver tw_drv = {
 	.disconnect	= tw_disconnect,
 };
 
-/*
- * The functions for inserting/removing us as a module.
- */
-
-static int __init tw_init(void)
-{
-	return serio_register_driver(&tw_drv);
-}
-
-static void __exit tw_exit(void)
-{
-	serio_unregister_driver(&tw_drv);
-}
-
-module_init(tw_init);
-module_exit(tw_exit);
+module_serio_driver(tw_drv);

@@ -414,7 +414,6 @@ static int stv0297_set_frontend(struct dvb_frontend *fe)
 	int delay;
 	int sweeprate;
 	int carrieroffset;
-	unsigned long starttime;
 	unsigned long timeout;
 	fe_spectral_inversion_t inversion;
 
@@ -543,7 +542,6 @@ static int stv0297_set_frontend(struct dvb_frontend *fe)
 	stv0297_writereg_mask(state, 0x43, 0x10, 0x10);
 
 	/* wait for WGAGC lock */
-	starttime = jiffies;
 	timeout = jiffies + msecs_to_jiffies(2000);
 	while (time_before(jiffies, timeout)) {
 		msleep(10);

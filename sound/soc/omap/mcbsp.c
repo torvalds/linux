@@ -109,6 +109,47 @@ static void omap_mcbsp_dump_reg(struct omap_mcbsp *mcbsp)
 	dev_dbg(mcbsp->dev, "***********************\n");
 }
 
+static irqreturn_t omap_mcbsp_irq_handler(int irq, void *dev_id)
+{
+	struct omap_mcbsp *mcbsp = dev_id;
+	u16 irqst;
+
+	irqst = MCBSP_READ(mcbsp, IRQST);
+	dev_dbg(mcbsp->dev, "IRQ callback : 0x%x\n", irqst);
+
+	if (irqst & RSYNCERREN)
+		dev_err(mcbsp->dev, "RX Frame Sync Error!\n");
+	if (irqst & RFSREN)
+		dev_dbg(mcbsp->dev, "RX Frame Sync\n");
+	if (irqst & REOFEN)
+		dev_dbg(mcbsp->dev, "RX End Of Frame\n");
+	if (irqst & RRDYEN)
+		dev_dbg(mcbsp->dev, "RX Buffer Threshold Reached\n");
+	if (irqst & RUNDFLEN)
+		dev_err(mcbsp->dev, "RX Buffer Underflow!\n");
+	if (irqst & ROVFLEN)
+		dev_err(mcbsp->dev, "RX Buffer Overflow!\n");
+
+	if (irqst & XSYNCERREN)
+		dev_err(mcbsp->dev, "TX Frame Sync Error!\n");
+	if (irqst & XFSXEN)
+		dev_dbg(mcbsp->dev, "TX Frame Sync\n");
+	if (irqst & XEOFEN)
+		dev_dbg(mcbsp->dev, "TX End Of Frame\n");
+	if (irqst & XRDYEN)
+		dev_dbg(mcbsp->dev, "TX Buffer threshold Reached\n");
+	if (irqst & XUNDFLEN)
+		dev_err(mcbsp->dev, "TX Buffer Underflow!\n");
+	if (irqst & XOVFLEN)
+		dev_err(mcbsp->dev, "TX Buffer Overflow!\n");
+	if (irqst & XEMPTYEOFEN)
+		dev_dbg(mcbsp->dev, "TX Buffer empty at end of frame\n");
+
+	MCBSP_WRITE(mcbsp, IRQST, irqst);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id)
 {
 	struct omap_mcbsp *mcbsp_tx = dev_id;
@@ -176,6 +217,10 @@ void omap_mcbsp_config(struct omap_mcbsp *mcbsp,
 	/* Enable wakeup behavior */
 	if (mcbsp->pdata->has_wakeup)
 		MCBSP_WRITE(mcbsp, WAKEUPEN, XRDYEN | RRDYEN);
+
+	/* Enable TX/RX sync error interrupts by default */
+	if (mcbsp->irq)
+		MCBSP_WRITE(mcbsp, IRQEN, RSYNCERREN | XSYNCERREN);
 }
 
 /**
@@ -489,23 +534,25 @@ int omap_mcbsp_request(struct omap_mcbsp *mcbsp)
 	MCBSP_WRITE(mcbsp, SPCR1, 0);
 	MCBSP_WRITE(mcbsp, SPCR2, 0);
 
-	err = request_irq(mcbsp->tx_irq, omap_mcbsp_tx_irq_handler,
-				0, "McBSP", (void *)mcbsp);
-	if (err != 0) {
-		dev_err(mcbsp->dev, "Unable to request TX IRQ %d "
-				"for McBSP%d\n", mcbsp->tx_irq,
-				mcbsp->id);
-		goto err_clk_disable;
-	}
-
-	if (mcbsp->rx_irq) {
-		err = request_irq(mcbsp->rx_irq,
-				omap_mcbsp_rx_irq_handler,
-				0, "McBSP", (void *)mcbsp);
+	if (mcbsp->irq) {
+		err = request_irq(mcbsp->irq, omap_mcbsp_irq_handler, 0,
+				  "McBSP", (void *)mcbsp);
 		if (err != 0) {
-			dev_err(mcbsp->dev, "Unable to request RX IRQ %d "
-					"for McBSP%d\n", mcbsp->rx_irq,
-					mcbsp->id);
+			dev_err(mcbsp->dev, "Unable to request IRQ\n");
+			goto err_clk_disable;
+		}
+	} else {
+		err = request_irq(mcbsp->tx_irq, omap_mcbsp_tx_irq_handler, 0,
+				  "McBSP TX", (void *)mcbsp);
+		if (err != 0) {
+			dev_err(mcbsp->dev, "Unable to request TX IRQ\n");
+			goto err_clk_disable;
+		}
+
+		err = request_irq(mcbsp->rx_irq, omap_mcbsp_rx_irq_handler, 0,
+				  "McBSP RX", (void *)mcbsp);
+		if (err != 0) {
+			dev_err(mcbsp->dev, "Unable to request RX IRQ\n");
 			goto err_free_irq;
 		}
 	}
@@ -542,9 +589,16 @@ void omap_mcbsp_free(struct omap_mcbsp *mcbsp)
 	if (mcbsp->pdata->has_wakeup)
 		MCBSP_WRITE(mcbsp, WAKEUPEN, 0);
 
-	if (mcbsp->rx_irq)
+	/* Disable interrupt requests */
+	if (mcbsp->irq)
+		MCBSP_WRITE(mcbsp, IRQEN, 0);
+
+	if (mcbsp->irq) {
+		free_irq(mcbsp->irq, (void *)mcbsp);
+	} else {
 		free_irq(mcbsp->rx_irq, (void *)mcbsp);
-	free_irq(mcbsp->tx_irq, (void *)mcbsp);
+		free_irq(mcbsp->tx_irq, (void *)mcbsp);
+	}
 
 	reg_cache = mcbsp->reg_cache;
 
@@ -754,7 +808,7 @@ THRESHOLD_PROP_BUILDER(max_tx_thres);
 THRESHOLD_PROP_BUILDER(max_rx_thres);
 
 static const char *dma_op_modes[] = {
-	"element", "threshold", "frame",
+	"element", "threshold",
 };
 
 static ssize_t dma_op_mode_show(struct device *dev,
@@ -949,13 +1003,24 @@ int __devinit omap_mcbsp_init(struct platform_device *pdev)
 	else
 		mcbsp->phys_dma_base = res->start;
 
-	mcbsp->tx_irq = platform_get_irq_byname(pdev, "tx");
-	mcbsp->rx_irq = platform_get_irq_byname(pdev, "rx");
+	/*
+	 * OMAP1, 2 uses two interrupt lines: TX, RX
+	 * OMAP2430, OMAP3 SoC have combined IRQ line as well.
+	 * OMAP4 and newer SoC only have the combined IRQ line.
+	 * Use the combined IRQ if available since it gives better debugging
+	 * possibilities.
+	 */
+	mcbsp->irq = platform_get_irq_byname(pdev, "common");
+	if (mcbsp->irq == -ENXIO) {
+		mcbsp->tx_irq = platform_get_irq_byname(pdev, "tx");
 
-	/* From OMAP4 there will be a single irq line */
-	if (mcbsp->tx_irq == -ENXIO) {
-		mcbsp->tx_irq = platform_get_irq(pdev, 0);
-		mcbsp->rx_irq = 0;
+		if (mcbsp->tx_irq == -ENXIO) {
+			mcbsp->irq = platform_get_irq(pdev, 0);
+			mcbsp->tx_irq = 0;
+		} else {
+			mcbsp->rx_irq = platform_get_irq_byname(pdev, "rx");
+			mcbsp->irq = 0;
+		}
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");

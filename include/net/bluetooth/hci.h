@@ -102,6 +102,7 @@ enum {
 	HCI_DISCOVERABLE,
 	HCI_LINK_SECURITY,
 	HCI_PENDING_CLASS,
+	HCI_PERIODIC_INQ,
 };
 
 /* HCI ioctl defines */
@@ -323,6 +324,8 @@ struct hci_cp_inquiry {
 } __packed;
 
 #define HCI_OP_INQUIRY_CANCEL		0x0402
+
+#define HCI_OP_PERIODIC_INQ		0x0403
 
 #define HCI_OP_EXIT_PERIODIC_INQ	0x0404
 
@@ -717,6 +720,10 @@ struct hci_rp_read_local_oob_data {
 } __packed;
 
 #define HCI_OP_READ_INQ_RSP_TX_POWER	0x0c58
+struct hci_rp_read_inq_rsp_tx_power {
+	__u8     status;
+	__s8     tx_power;
+} __packed;
 
 #define HCI_OP_READ_FLOW_CONTROL_MODE	0x0c66
 struct hci_rp_read_flow_control_mode {
@@ -1431,6 +1438,5 @@ struct hci_inquiry_req {
 #define IREQ_CACHE_FLUSH 0x0001
 
 extern bool enable_hs;
-extern bool enable_le;
 
 #endif /* __HCI_H */

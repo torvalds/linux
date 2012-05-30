@@ -32,6 +32,7 @@
 
 #define segment_eq(a, b)	((a).seg == (b).seg)
 
+#define user_addr_max() (current_thread_info()->addr_limit.seg)
 #define __addr_ok(addr)					\
 	((unsigned long __force)(addr) <		\
 	 (current_thread_info()->addr_limit.seg))
@@ -564,6 +565,9 @@ extern unsigned long
 copy_from_user_nmi(void *to, const void __user *from, unsigned long n);
 extern __must_check long
 strncpy_from_user(char *dst, const char __user *src, long count);
+
+extern __must_check long strlen_user(const char __user *str);
+extern __must_check long strnlen_user(const char __user *str, long n);
 
 /*
  * movsl can be slow when source and dest are not both 8-byte aligned

@@ -24,10 +24,10 @@
 #define _H_CIFS_DEBUG
 
 void cifs_dump_mem(char *label, void *data, int length);
-#ifdef CONFIG_CIFS_DEBUG2
-#define DBG2 2
 void cifs_dump_detail(void *);
 void cifs_dump_mids(struct TCP_Server_Info *);
+#ifdef CONFIG_CIFS_DEBUG2
+#define DBG2 2
 #else
 #define DBG2 0
 #endif

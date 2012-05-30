@@ -29,7 +29,8 @@
 #define PCI_DEVICE_ID_INTEL_82975_0	0x277c
 #endif				/* PCI_DEVICE_ID_INTEL_82975_0 */
 
-#define I82975X_NR_CSROWS(nr_chans)		(8/(nr_chans))
+#define I82975X_NR_DIMMS		8
+#define I82975X_NR_CSROWS(nr_chans)	(I82975X_NR_DIMMS / (nr_chans))
 
 /* Intel 82975X register addresses - device 0 function 0 - DRAM Controller */
 #define I82975X_EAP		0x58	/* Dram Error Address Pointer (32b)
@@ -287,7 +288,8 @@ static int i82975x_process_error_info(struct mem_ctl_info *mci,
 		return 1;
 
 	if ((info->errsts ^ info->errsts2) & 0x0003) {
-		edac_mc_handle_ce_no_info(mci, "UE overwrote CE");
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
+				     -1, -1, -1, "UE overwrote CE", "", NULL);
 		info->errsts = info->errsts2;
 	}
 
@@ -309,13 +311,18 @@ static int i82975x_process_error_info(struct mem_ctl_info *mci,
 	chan = (mci->csrows[row].nr_channels == 1) ? 0 : info->eap & 1;
 	offst = info->eap
 			& ((1 << PAGE_SHIFT) -
-				(1 << mci->csrows[row].grain));
+			   (1 << mci->csrows[row].channels[chan].dimm->grain));
 
 	if (info->errsts & 0x0002)
-		edac_mc_handle_ue(mci, page, offst , row, "i82975x UE");
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+				     page, offst, 0,
+				     row, -1, -1,
+				     "i82975x UE", "", NULL);
 	else
-		edac_mc_handle_ce(mci, page, offst, info->derrsyn, row,
-				chan, "i82975x CE");
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+				     page, offst, info->derrsyn,
+				     row, chan ? chan : 0, -1,
+				     "i82975x CE", "", NULL);
 
 	return 1;
 }
@@ -370,8 +377,10 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 	struct csrow_info *csrow;
 	unsigned long last_cumul_size;
 	u8 value;
-	u32 cumul_size;
+	u32 cumul_size, nr_pages;
 	int index, chan;
+	struct dimm_info *dimm;
+	enum dev_type dtype;
 
 	last_cumul_size = 0;
 
@@ -400,28 +409,33 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
 			cumul_size);
 
+		nr_pages = cumul_size - last_cumul_size;
+		if (!nr_pages)
+			continue;
+
 		/*
 		 * Initialise dram labels
 		 * index values:
 		 *   [0-7] for single-channel; i.e. csrow->nr_channels = 1
 		 *   [0-3] for dual-channel; i.e. csrow->nr_channels = 2
 		 */
-		for (chan = 0; chan < csrow->nr_channels; chan++)
-			strncpy(csrow->channels[chan].label,
+		dtype = i82975x_dram_type(mch_window, index);
+		for (chan = 0; chan < csrow->nr_channels; chan++) {
+			dimm = mci->csrows[index].channels[chan].dimm;
+
+			dimm->nr_pages = nr_pages / csrow->nr_channels;
+			strncpy(csrow->channels[chan].dimm->label,
 					labels[(index >> 1) + (chan * 2)],
 					EDAC_MC_LABEL_LEN);
-
-		if (cumul_size == last_cumul_size)
-			continue;	/* not populated */
+			dimm->grain = 1 << 7;	/* 128Byte cache-line resolution */
+			dimm->dtype = i82975x_dram_type(mch_window, index);
+			dimm->mtype = MEM_DDR2; /* I82975x supports only DDR2 */
+			dimm->edac_mode = EDAC_SECDED; /* only supported */
+		}
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
-		csrow->nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
-		csrow->grain = 1 << 7;	/* 128Byte cache-line resolution */
-		csrow->mtype = MEM_DDR2; /* I82975x supports only DDR2 */
-		csrow->dtype = i82975x_dram_type(mch_window, index);
-		csrow->edac_mode = EDAC_SECDED; /* only supported */
 	}
 }
 
@@ -463,6 +477,7 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 {
 	int rc = -ENODEV;
 	struct mem_ctl_info *mci;
+	struct edac_mc_layer layers[2];
 	struct i82975x_pvt *pvt;
 	void __iomem *mch_window;
 	u32 mchbar;
@@ -531,8 +546,13 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 	chans = dual_channel_active(mch_window) + 1;
 
 	/* assuming only one controller, index thus is 0 */
-	mci = edac_mc_alloc(sizeof(*pvt), I82975X_NR_CSROWS(chans),
-					chans, 0);
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = I82975X_NR_DIMMS;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = I82975X_NR_CSROWS(chans);
+	layers[1].is_virt_csrow = false;
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (!mci) {
 		rc = -ENOMEM;
 		goto fail1;

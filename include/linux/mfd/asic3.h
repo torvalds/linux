@@ -31,6 +31,8 @@ struct asic3_platform_data {
 
 	unsigned int gpio_base;
 
+	unsigned int clock_rate;
+
 	struct asic3_led *leds;
 };
 

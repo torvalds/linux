@@ -2036,7 +2036,7 @@ static int saa7134_s_tuner(struct file *file, void *priv,
 	mode = dev->thread.mode;
 	if (UNSET == mode) {
 		rx   = saa7134_tvaudio_getstereo(dev);
-		mode = saa7134_tvaudio_rx2mode(t->rxsubchans);
+		mode = saa7134_tvaudio_rx2mode(rx);
 	}
 	if (mode != t->audmode)
 		dev->thread.mode = t->audmode;

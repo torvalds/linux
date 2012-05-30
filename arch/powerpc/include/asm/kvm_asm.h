@@ -20,6 +20,16 @@
 #ifndef __POWERPC_KVM_ASM_H__
 #define __POWERPC_KVM_ASM_H__
 
+#ifdef __ASSEMBLY__
+#ifdef CONFIG_64BIT
+#define PPC_STD(sreg, offset, areg)  std sreg, (offset)(areg)
+#define PPC_LD(treg, offset, areg)   ld treg, (offset)(areg)
+#else
+#define PPC_STD(sreg, offset, areg)  stw sreg, (offset+4)(areg)
+#define PPC_LD(treg, offset, areg)   lwz treg, (offset+4)(areg)
+#endif
+#endif
+
 /* IVPR must be 64KiB-aligned. */
 #define VCPU_SIZE_ORDER 4
 #define VCPU_SIZE_LOG   (VCPU_SIZE_ORDER + 12)
@@ -48,6 +58,14 @@
 #define BOOKE_INTERRUPT_SPE_FP_DATA 33
 #define BOOKE_INTERRUPT_SPE_FP_ROUND 34
 #define BOOKE_INTERRUPT_PERFORMANCE_MONITOR 35
+#define BOOKE_INTERRUPT_DOORBELL 36
+#define BOOKE_INTERRUPT_DOORBELL_CRITICAL 37
+
+/* booke_hv */
+#define BOOKE_INTERRUPT_GUEST_DBELL 38
+#define BOOKE_INTERRUPT_GUEST_DBELL_CRIT 39
+#define BOOKE_INTERRUPT_HV_SYSCALL 40
+#define BOOKE_INTERRUPT_HV_PRIV 41
 
 /* book3s */
 

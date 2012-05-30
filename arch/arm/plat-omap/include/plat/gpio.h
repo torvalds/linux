@@ -172,6 +172,8 @@ struct omap_gpio_reg_offs {
 	u16 clr_dataout;
 	u16 irqstatus;
 	u16 irqstatus2;
+	u16 irqstatus_raw0;
+	u16 irqstatus_raw1;
 	u16 irqenable;
 	u16 irqenable2;
 	u16 set_irqenable;
@@ -193,7 +195,6 @@ struct omap_gpio_reg_offs {
 };
 
 struct omap_gpio_platform_data {
-	u16 virtual_irq_start;
 	int bank_type;
 	int bank_width;		/* GPIO bank width */
 	int bank_stride;	/* Only needed for omap1 MPUIO */

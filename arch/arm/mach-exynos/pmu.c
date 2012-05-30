@@ -94,7 +94,7 @@ static struct exynos4_pmu_conf exynos4210_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
-static struct exynos4_pmu_conf exynos4212_pmu_config[] = {
+static struct exynos4_pmu_conf exynos4x12_pmu_config[] = {
 	{ S5P_ARM_CORE0_LOWPWR,			{ 0x0, 0x0, 0x2 } },
 	{ S5P_DIS_IRQ_CORE0,			{ 0x0, 0x0, 0x0 } },
 	{ S5P_DIS_IRQ_CENTRAL0,			{ 0x0, 0x0, 0x0 } },
@@ -202,6 +202,16 @@ static struct exynos4_pmu_conf exynos4212_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
+static struct exynos4_pmu_conf exynos4412_pmu_config[] = {
+	{ S5P_ARM_CORE2_LOWPWR,			{ 0x0, 0x0, 0x2 } },
+	{ S5P_DIS_IRQ_CORE2,			{ 0x0, 0x0, 0x0 } },
+	{ S5P_DIS_IRQ_CENTRAL2,			{ 0x0, 0x0, 0x0 } },
+	{ S5P_ARM_CORE3_LOWPWR,			{ 0x0, 0x0, 0x2 } },
+	{ S5P_DIS_IRQ_CORE3,			{ 0x0, 0x0, 0x0 } },
+	{ S5P_DIS_IRQ_CENTRAL3,			{ 0x0, 0x0, 0x0 } },
+	{ PMU_TABLE_END,},
+};
+
 void exynos4_sys_powerdown_conf(enum sys_powerdown mode)
 {
 	unsigned int i;
@@ -209,6 +219,12 @@ void exynos4_sys_powerdown_conf(enum sys_powerdown mode)
 	for (i = 0; (exynos4_pmu_config[i].reg != PMU_TABLE_END) ; i++)
 		__raw_writel(exynos4_pmu_config[i].val[mode],
 				exynos4_pmu_config[i].reg);
+
+	if (soc_is_exynos4412()) {
+		for (i = 0; exynos4412_pmu_config[i].reg != PMU_TABLE_END ; i++)
+			__raw_writel(exynos4412_pmu_config[i].val[mode],
+				exynos4412_pmu_config[i].reg);
+	}
 }
 
 static int __init exynos4_pmu_init(void)
@@ -218,9 +234,9 @@ static int __init exynos4_pmu_init(void)
 	if (soc_is_exynos4210()) {
 		exynos4_pmu_config = exynos4210_pmu_config;
 		pr_info("EXYNOS4210 PMU Initialize\n");
-	} else if (soc_is_exynos4212()) {
-		exynos4_pmu_config = exynos4212_pmu_config;
-		pr_info("EXYNOS4212 PMU Initialize\n");
+	} else if (soc_is_exynos4212() || soc_is_exynos4412()) {
+		exynos4_pmu_config = exynos4x12_pmu_config;
+		pr_info("EXYNOS4x12 PMU Initialize\n");
 	} else {
 		pr_info("EXYNOS4: PMU not supported\n");
 	}
