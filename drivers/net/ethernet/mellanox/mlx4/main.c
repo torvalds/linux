@@ -142,12 +142,6 @@ struct mlx4_port_config {
 	struct pci_dev *pdev;
 };
 
-static inline int mlx4_master_get_num_eqs(struct mlx4_dev *dev)
-{
-	return dev->caps.reserved_eqs +
-		MLX4_MFUNC_EQ_NUM * (dev->num_slaves + 1);
-}
-
 int mlx4_check_port_params(struct mlx4_dev *dev,
 			   enum mlx4_port_type *port_type)
 {
@@ -217,6 +211,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	}
 
 	dev->caps.num_ports	     = dev_cap->num_ports;
+	dev->phys_caps.num_phys_eqs  = MLX4_MAX_EQ_NUM;
 	for (i = 1; i <= dev->caps.num_ports; ++i) {
 		dev->caps.vl_cap[i]	    = dev_cap->max_vl[i];
 		dev->caps.ib_mtu_cap[i]	    = dev_cap->ib_mtu[i];
@@ -810,9 +805,8 @@ static int mlx4_init_cmpt_table(struct mlx4_dev *dev, u64 cmpt_base,
 	if (err)
 		goto err_srq;
 
-	num_eqs = (mlx4_is_master(dev)) ?
-		roundup_pow_of_two(mlx4_master_get_num_eqs(dev)) :
-		dev->caps.num_eqs;
+	num_eqs = (mlx4_is_master(dev)) ? dev->phys_caps.num_phys_eqs :
+		  dev->caps.num_eqs;
 	err = mlx4_init_icm_table(dev, &priv->eq_table.cmpt_table,
 				  cmpt_base +
 				  ((u64) (MLX4_CMPT_TYPE_EQ *
@@ -874,9 +868,8 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 	}
 
 
-	num_eqs = (mlx4_is_master(dev)) ?
-		roundup_pow_of_two(mlx4_master_get_num_eqs(dev)) :
-		dev->caps.num_eqs;
+	num_eqs = (mlx4_is_master(dev)) ? dev->phys_caps.num_phys_eqs :
+		   dev->caps.num_eqs;
 	err = mlx4_init_icm_table(dev, &priv->eq_table.table,
 				  init_hca->eqc_base, dev_cap->eqc_entry_sz,
 				  num_eqs, num_eqs, 0, 0);
