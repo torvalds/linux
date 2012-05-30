@@ -2027,9 +2027,12 @@ static void iwl_cmd_queue_full(struct iwl_op_mode *op_mode)
 	}
 }
 
+#define EEPROM_RF_CONFIG_TYPE_MAX      0x3
+
 static void iwl_nic_config(struct iwl_op_mode *op_mode)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+	u16 radio_cfg = priv->eeprom_data->radio_cfg;
 
 	/* SKU Control */
 	iwl_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
@@ -2039,6 +2042,34 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 				CSR_HW_IF_CONFIG_REG_POS_MAC_STEP) |
 			  (CSR_HW_REV_DASH(priv->trans->hw_rev) <<
 				CSR_HW_IF_CONFIG_REG_POS_MAC_DASH));
+
+	/* write radio config values to register */
+	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <= EEPROM_RF_CONFIG_TYPE_MAX) {
+		u32 reg_val =
+			EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <<
+				CSR_HW_IF_CONFIG_REG_POS_PHY_TYPE |
+			EEPROM_RF_CFG_STEP_MSK(radio_cfg) <<
+				CSR_HW_IF_CONFIG_REG_POS_PHY_STEP |
+			EEPROM_RF_CFG_DASH_MSK(radio_cfg) <<
+				CSR_HW_IF_CONFIG_REG_POS_PHY_DASH;
+
+		iwl_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
+				  CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE |
+				  CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
+				  CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH, reg_val);
+
+		IWL_INFO(priv, "Radio type=0x%x-0x%x-0x%x\n",
+			 EEPROM_RF_CFG_TYPE_MSK(radio_cfg),
+			 EEPROM_RF_CFG_STEP_MSK(radio_cfg),
+			 EEPROM_RF_CFG_DASH_MSK(radio_cfg));
+	} else {
+		WARN_ON(1);
+	}
+
+	/* set CSR_HW_CONFIG_REG for uCode use */
+	iwl_set_bit(priv->trans, CSR_HW_IF_CONFIG_REG,
+		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
+		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 
 	priv->lib->nic_config(priv);
 }

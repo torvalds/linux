@@ -36,41 +36,6 @@
 #include "commands.h"
 
 
-#define EEPROM_RF_CONFIG_TYPE_MAX      0x3
-
-static void iwl_rf_config(struct iwl_priv *priv)
-{
-	u16 radio_cfg = priv->eeprom_data->radio_cfg;
-
-	/* write radio config values to register */
-	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <= EEPROM_RF_CONFIG_TYPE_MAX) {
-		u32 reg_val =
-			EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <<
-				CSR_HW_IF_CONFIG_REG_POS_PHY_TYPE |
-			EEPROM_RF_CFG_STEP_MSK(radio_cfg) <<
-				CSR_HW_IF_CONFIG_REG_POS_PHY_STEP |
-			EEPROM_RF_CFG_DASH_MSK(radio_cfg) <<
-				CSR_HW_IF_CONFIG_REG_POS_PHY_DASH;
-
-		iwl_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
-				  CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE |
-				  CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
-				  CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH, reg_val);
-
-		IWL_INFO(priv, "Radio type=0x%x-0x%x-0x%x\n",
-			 EEPROM_RF_CFG_TYPE_MSK(radio_cfg),
-			 EEPROM_RF_CFG_STEP_MSK(radio_cfg),
-			 EEPROM_RF_CFG_DASH_MSK(radio_cfg));
-	} else {
-		WARN_ON(1);
-	}
-
-	/* set CSR_HW_CONFIG_REG for uCode use */
-	iwl_set_bit(priv->trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
-		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
-}
-
 /*
  * 1000 series
  * ===========
@@ -96,8 +61,6 @@ static void iwl1000_set_ct_threshold(struct iwl_priv *priv)
 /* NIC configuration for 1000 series */
 static void iwl1000_nic_config(struct iwl_priv *priv)
 {
-	iwl_rf_config(priv);
-
 	/* Setting digital SVR for 1000 card to 1.32V */
 	/* locking is acquired in iwl_set_bits_mask_prph() function */
 	iwl_set_bits_mask_prph(priv->trans, APMG_DIGITAL_SVR_REG,
@@ -233,8 +196,6 @@ static void iwl2000_set_ct_threshold(struct iwl_priv *priv)
 /* NIC configuration for 2000 series */
 static void iwl2000_nic_config(struct iwl_priv *priv)
 {
-	iwl_rf_config(priv);
-
 	iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
 		    CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER);
 }
@@ -291,8 +252,6 @@ struct iwl_lib_ops iwl2030_lib = {
 /* NIC configuration for 5000 series */
 static void iwl5000_nic_config(struct iwl_priv *priv)
 {
-	iwl_rf_config(priv);
-
 	/* W/A : NIC is stuck in a reset state after Early PCIe power off
 	 * (PCIe power is lost before PERST# is asserted),
 	 * causing ME FW to lose ownership and not being able to obtain it back.
@@ -502,8 +461,6 @@ static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 /* NIC configuration for 6000 series */
 static void iwl6000_nic_config(struct iwl_priv *priv)
 {
-	iwl_rf_config(priv);
-
 	switch (priv->cfg->device_family) {
 	case IWL_DEVICE_FAMILY_6005:
 	case IWL_DEVICE_FAMILY_6030:
