@@ -377,6 +377,9 @@ static int pn544_hci_open(struct nfc_shdlc *shdlc)
 
 	r = pn544_hci_enable(info, HCI_MODE);
 
+	if (r == 0)
+		info->state = PN544_ST_READY;
+
 out:
 	mutex_unlock(&info->info_lock);
 	return r;
@@ -392,6 +395,8 @@ static void pn544_hci_close(struct nfc_shdlc *shdlc)
 		goto out;
 
 	pn544_hci_disable(info);
+
+	info->state = PN544_ST_COLD;
 
 out:
 	mutex_unlock(&info->info_lock);
