@@ -106,6 +106,7 @@ struct __prelim_ref {
 	struct btrfs_key key_for_search;
 	int level;
 	int count;
+	struct extent_inode_elem *inode_list;
 	u64 parent;
 	u64 wanted_disk_byte;
 };
@@ -166,6 +167,7 @@ static int __add_prelim_ref(struct list_head *head, u64 root_id,
 	else
 		memset(&ref->key_for_search, 0, sizeof(ref->key_for_search));
 
+	ref->inode_list = NULL;
 	ref->level = level;
 	ref->count = count;
 	ref->parent = parent;
@@ -181,14 +183,21 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 				const u64 *extent_item_pos)
 {
 	int ret;
-	int slot;
+	int slot = path->slots[level];
 	struct extent_buffer *eb = path->nodes[level];
 	struct btrfs_file_extent_item *fi;
+	struct extent_inode_elem *eie = NULL;
 	u64 disk_byte;
 	u64 wanted_objectid = key->objectid;
 
 add_parent:
-	ret = ulist_add(parents, eb->start, 0, GFP_NOFS);
+	if (level == 0 && extent_item_pos) {
+		fi = btrfs_item_ptr(eb, slot, struct btrfs_file_extent_item);
+		ret = check_extent_in_eb(key, eb, fi, *extent_item_pos, &eie);
+		if (ret < 0)
+			return ret;
+	}
+	ret = ulist_add(parents, eb->start, (unsigned long)eie, GFP_NOFS);
 	if (ret < 0)
 		return ret;
 
@@ -202,6 +211,7 @@ add_parent:
 	 * repeat this until we don't find any additional EXTENT_DATA items.
 	 */
 	while (1) {
+		eie = NULL;
 		ret = btrfs_next_leaf(root, path);
 		if (ret < 0)
 			return ret;
@@ -346,6 +356,8 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 		ULIST_ITER_INIT(&uiter);
 		node = ulist_next(parents, &uiter);
 		ref->parent = node ? node->val : 0;
+		ref->inode_list =
+			node ? (struct extent_inode_elem *)node->aux : 0;
 
 		/* additional parents require new refs being added here */
 		while ((node = ulist_next(parents, &uiter))) {
@@ -356,6 +368,8 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 			}
 			memcpy(new_ref, ref, sizeof(*ref));
 			new_ref->parent = node->val;
+			new_ref->inode_list =
+					(struct extent_inode_elem *)node->aux;
 			list_add(&new_ref->list, &ref->list);
 		}
 		ulist_reinit(parents);
@@ -879,7 +893,7 @@ again:
 		}
 		if (ref->count && ref->parent) {
 			struct extent_inode_elem *eie = NULL;
-			if (extent_item_pos) {
+			if (extent_item_pos && !ref->inode_list) {
 				u32 bsz;
 				struct extent_buffer *eb;
 				bsz = btrfs_level_size(fs_info->extent_root,
@@ -889,10 +903,22 @@ again:
 				BUG_ON(!eb);
 				ret = find_extent_in_eb(eb, bytenr,
 							*extent_item_pos, &eie);
+				ref->inode_list = eie;
 				free_extent_buffer(eb);
 			}
-			ret = ulist_add(refs, ref->parent,
-					(unsigned long)eie, GFP_NOFS);
+			ret = ulist_add_merge(refs, ref->parent,
+					      (unsigned long)ref->inode_list,
+					      (unsigned long *)&eie, GFP_NOFS);
+			if (!ret && extent_item_pos) {
+				/*
+				 * we've recorded that parent, so we must extend
+				 * its inode list here
+				 */
+				BUG_ON(!eie);
+				while (eie->next)
+					eie = eie->next;
+				eie->next = ref->inode_list;
+			}
 			BUG_ON(ret < 0);
 		}
 		kfree(ref);
