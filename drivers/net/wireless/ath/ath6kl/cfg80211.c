@@ -2783,8 +2783,14 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	/* TODO:
 	 * info->interval
-	 * info->dtim_period
 	 */
+
+	ret = ath6kl_wmi_ap_set_dtim_cmd(ar->wmi, vif->fw_vif_idx,
+					 info->dtim_period);
+
+	/* ignore error, just print a warning and continue normally */
+	if (ret)
+		ath6kl_warn("Failed to set dtim_period in beacon: %d\n", ret);
 
 	if (info->beacon.head == NULL)
 		return -EINVAL;

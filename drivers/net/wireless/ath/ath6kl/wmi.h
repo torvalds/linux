@@ -1617,6 +1617,10 @@ struct roam_ctrl_cmd {
 	u8 roam_ctrl;
 } __packed;
 
+struct set_dtim_cmd {
+	__le32 dtim_period;
+} __packed;
+
 /* BSS INFO HDR version 2.0 */
 struct wmi_bss_info_hdr2 {
 	__le16 ch; /* frequency in MHz */
@@ -2589,6 +2593,7 @@ int ath6kl_wmi_add_wow_pattern_cmd(struct wmi *wmi, u8 if_idx,
 int ath6kl_wmi_del_wow_pattern_cmd(struct wmi *wmi, u8 if_idx,
 				   u16 list_id, u16 filter_id);
 int ath6kl_wmi_set_roam_lrssi_cmd(struct wmi *wmi, u8 lrssi);
+int ath6kl_wmi_ap_set_dtim_cmd(struct wmi *wmi, u8 if_idx, u32 dtim_period);
 int ath6kl_wmi_force_roam_cmd(struct wmi *wmi, const u8 *bssid);
 int ath6kl_wmi_set_roam_mode_cmd(struct wmi *wmi, enum wmi_roam_mode mode);
 int ath6kl_wmi_mcast_filter_cmd(struct wmi *wmi, u8 if_idx, bool mc_all_on);
