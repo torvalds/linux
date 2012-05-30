@@ -146,6 +146,7 @@ enum nfc_attrs {
 /* NFC RF modes */
 #define NFC_RF_INITIATOR 0
 #define NFC_RF_TARGET    1
+#define NFC_RF_NONE      2
 
 /* NFC protocols masks used in bitsets */
 #define NFC_PROTO_JEWEL_MASK	(1 << NFC_PROTO_JEWEL)

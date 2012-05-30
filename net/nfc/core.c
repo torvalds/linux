@@ -144,8 +144,10 @@ int nfc_start_poll(struct nfc_dev *dev, u32 im_protocols, u32 tm_protocols)
 	}
 
 	rc = dev->ops->start_poll(dev, im_protocols, tm_protocols);
-	if (!rc)
+	if (!rc) {
 		dev->polling = true;
+		dev->rf_mode = NFC_RF_NONE;
+	}
 
 error:
 	device_unlock(&dev->dev);
@@ -235,8 +237,10 @@ int nfc_dep_link_up(struct nfc_dev *dev, int target_index, u8 comm_mode)
 	}
 
 	rc = dev->ops->dep_link_up(dev, target, comm_mode, gb, gb_len);
-	if (!rc)
+	if (!rc) {
 		dev->active_target = target;
+		dev->rf_mode = NFC_RF_INITIATOR;
+	}
 
 error:
 	device_unlock(&dev->dev);
@@ -264,7 +268,7 @@ int nfc_dep_link_down(struct nfc_dev *dev)
 		goto error;
 	}
 
-	if (dev->dep_rf_mode == NFC_RF_TARGET) {
+	if (dev->rf_mode == NFC_RF_TARGET) {
 		rc = -EOPNOTSUPP;
 		goto error;
 	}
@@ -286,7 +290,6 @@ int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 		       u8 comm_mode, u8 rf_mode)
 {
 	dev->dep_link_up = true;
-	dev->dep_rf_mode = rf_mode;
 
 	nfc_llcp_mac_is_up(dev, target_idx, comm_mode, rf_mode);
 
@@ -330,6 +333,7 @@ int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol)
 	rc = dev->ops->activate_target(dev, target, protocol);
 	if (!rc) {
 		dev->active_target = target;
+		dev->rf_mode = NFC_RF_INITIATOR;
 
 		if (dev->ops->check_presence)
 			mod_timer(&dev->check_pres_timer, jiffies +
@@ -469,6 +473,8 @@ int nfc_tm_activated(struct nfc_dev *dev, u32 protocol, u8 comm_mode,
 		if (rc < 0)
 			goto out;
 	}
+
+	dev->rf_mode = NFC_RF_TARGET;
 
 	if (protocol == NFC_PROTO_NFC_DEP_MASK)
 		nfc_dep_link_is_up(dev, 0, comm_mode, NFC_RF_TARGET);

@@ -100,10 +100,10 @@ struct nfc_dev {
 	int targets_generation;
 	struct device dev;
 	bool dev_up;
+	u8 rf_mode;
 	bool polling;
 	struct nfc_target *active_target;
 	bool dep_link_up;
-	u32 dep_rf_mode;
 	struct nfc_genl_data genl_data;
 	u32 supported_protocols;
 
