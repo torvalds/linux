@@ -279,6 +279,7 @@ void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status *status)
 	wl12xx_rearm_rx_streaming(wl, active_hlids);
 }
 
+#ifdef CONFIG_PM
 int wl1271_rx_filter_enable(struct wl1271 *wl,
 			    int index, bool enable,
 			    struct wl12xx_rx_filter *filter)
@@ -314,3 +315,4 @@ void wl1271_rx_filter_clear_all(struct wl1271 *wl)
 		wl1271_rx_filter_enable(wl, i, 0, NULL);
 	}
 }
+#endif /* CONFIG_PM */

@@ -334,4 +334,7 @@ u8 *ar9003_get_spur_chan_ptr(struct ath_hw *ah, bool is_2ghz);
 
 unsigned int ar9003_get_paprd_scale_factor(struct ath_hw *ah,
 					   struct ath9k_channel *chan);
+
+void ar9003_hw_internal_regulator_apply(struct ath_hw *ah);
+
 #endif
