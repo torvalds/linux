@@ -65,7 +65,6 @@ enum pc263_model { pc263_model, pci263_model, anypci_model };
 
 struct pc263_board {
 	const char *name;
-	const char *fancy_name;
 	unsigned short devid;
 	enum pc263_bustype bustype;
 	enum pc263_model model;
@@ -74,7 +73,6 @@ static const struct pc263_board pc263_boards[] = {
 #if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA)
 	{
 		.name = "pc263",
-		.fancy_name = "PC263",
 		.bustype = isa_bustype,
 		.model = pc263_model,
 	},
@@ -82,14 +80,12 @@ static const struct pc263_board pc263_boards[] = {
 #if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI)
 	{
 		.name = "pci263",
-		.fancy_name = "PCI263",
 		.devid = PCI_DEVICE_ID_AMPLICON_PCI263,
 		.bustype = pci_bustype,
 		.model = pci263_model,
 	},
 	{
 		.name = PC263_DRIVER_NAME,
-		.fancy_name = PC263_DRIVER_NAME,
 		.devid = PCI_DEVICE_ID_INVALID,
 		.bustype = pci_bustype,
 		.model = anypci_model,	/* wildcard */
