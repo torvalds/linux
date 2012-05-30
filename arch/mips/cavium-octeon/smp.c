@@ -257,16 +257,12 @@ DEFINE_PER_CPU(int, cpu_state);
 
 extern void fixup_irqs(void);
 
-static DEFINE_SPINLOCK(smp_reserve_lock);
-
 static int octeon_cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
 
 	if (cpu == 0)
 		return -EBUSY;
-
-	spin_lock(&smp_reserve_lock);
 
 	set_cpu_online(cpu, false);
 	cpu_clear(cpu, cpu_callin_map);
@@ -276,8 +272,6 @@ static int octeon_cpu_disable(void)
 
 	flush_cache_all();
 	local_flush_tlb_all();
-
-	spin_unlock(&smp_reserve_lock);
 
 	return 0;
 }

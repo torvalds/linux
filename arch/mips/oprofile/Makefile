@@ -1,5 +1,3 @@
-ccflags-y := -Werror
-
 obj-$(CONFIG_OPROFILE) += oprofile.o
 
 DRIVER_OBJS = $(addprefix ../../../drivers/oprofile/, \
