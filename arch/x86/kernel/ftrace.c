@@ -168,7 +168,38 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ret;
 }
 
-int modifying_ftrace_code __read_mostly;
+/*
+ * The modifying_ftrace_code is used to tell the breakpoint
+ * handler to call ftrace_int3_handler(). If it fails to
+ * call this handler for a breakpoint added by ftrace, then
+ * the kernel may crash.
+ *
+ * As atomic_writes on x86 do not need a barrier, we do not
+ * need to add smp_mb()s for this to work. It is also considered
+ * that we can not read the modifying_ftrace_code before
+ * executing the breakpoint. That would be quite remarkable if
+ * it could do that. Here's the flow that is required:
+ *
+ *   CPU-0                          CPU-1
+ *
+ * atomic_inc(mfc);
+ * write int3s
+ *				<trap-int3> // implicit (r)mb
+ *				if (atomic_read(mfc))
+ *					call ftrace_int3_handler()
+ *
+ * Then when we are finished:
+ *
+ * atomic_dec(mfc);
+ *
+ * If we hit a breakpoint that was not set by ftrace, it does not
+ * matter if ftrace_int3_handler() is called or not. It will
+ * simply be ignored. But it is crucial that a ftrace nop/caller
+ * breakpoint is handled. No other user should ever place a
+ * breakpoint on an ftrace nop/caller location. It must only
+ * be done by this code.
+ */
+atomic_t modifying_ftrace_code __read_mostly;
 
 /*
  * A breakpoint was added to the code address we are about to
@@ -491,11 +522,12 @@ void ftrace_replace_code(int enable)
 
 void arch_ftrace_update_code(int command)
 {
-	modifying_ftrace_code++;
+	/* See comment above by declaration of modifying_ftrace_code */
+	atomic_inc(&modifying_ftrace_code);
 
 	ftrace_modify_all_code(command);
 
-	modifying_ftrace_code--;
+	atomic_dec(&modifying_ftrace_code);
 }
 
 int __init ftrace_dyn_arch_init(void *data)
