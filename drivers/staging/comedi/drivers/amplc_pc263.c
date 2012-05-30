@@ -97,15 +97,6 @@ static const struct pc263_board pc263_boards[] = {
 #endif
 };
 
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI)
-static DEFINE_PCI_DEVICE_TABLE(pc263_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263) },
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, pc263_pci_table);
-#endif /* CONFIG_COMEDI_AMPLC_PC263_PCI */
-
 /*
  * Useful for shorthand access to the particular board structure
  */
@@ -121,30 +112,6 @@ struct pc263_private {
 };
 
 #define devpriv ((struct pc263_private *)dev->private)
-
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static void pc263_detach(struct comedi_device *dev);
-static struct comedi_driver amplc_pc263_driver = {
-	.driver_name = PC263_DRIVER_NAME,
-	.module = THIS_MODULE,
-	.attach = pc263_attach,
-	.detach = pc263_detach,
-	.board_name = &pc263_boards[0].name,
-	.offset = sizeof(struct pc263_board),
-	.num_names = ARRAY_SIZE(pc263_boards),
-};
-
-static int pc263_request_region(unsigned minor, unsigned long from,
-				unsigned long extent);
-static int pc263_do_insn_bits(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data);
 
 /*
  * This function looks for a PCI device matching the requested board name,
@@ -204,6 +171,39 @@ pc263_find_pci(struct comedi_device *dev, int bus, int slot,
 		       dev->minor, thisboard->name);
 	}
 	return -EIO;
+}
+/*
+ * This function checks and requests an I/O region, reporting an error
+ * if there is a conflict.
+ */
+static int pc263_request_region(unsigned minor, unsigned long from,
+				unsigned long extent)
+{
+	if (!from || !request_region(from, extent, PC263_DRIVER_NAME)) {
+		printk(KERN_ERR "comedi%d: I/O port conflict (%#lx,%lu)!\n",
+		       minor, from, extent);
+		return -EIO;
+	}
+	return 0;
+}
+
+static int pc263_do_insn_bits(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data)
+{
+	if (insn->n != 2)
+		return -EINVAL;
+
+	/* The insn data is a mask in data[0] and the new data
+	 * in data[1], each channel cooresponding to a bit. */
+	if (data[0]) {
+		s->state &= ~data[0];
+		s->state |= data[0] & data[1];
+		/* Write out the new digital output lines */
+		outb(s->state & 0xFF, dev->iobase);
+		outb(s->state >> 8, dev->iobase + 1);
+	}
+	return 2;
 }
 
 /*
@@ -309,47 +309,28 @@ static void pc263_detach(struct comedi_device *dev)
 }
 
 /*
- * This function checks and requests an I/O region, reporting an error
- * if there is a conflict.
+ * The struct comedi_driver structure tells the Comedi core module
+ * which functions to call to configure/deconfigure (attach/detach)
+ * the board, and also about the kernel module that contains
+ * the device code.
  */
-static int pc263_request_region(unsigned minor, unsigned long from,
-				unsigned long extent)
-{
-	if (!from || !request_region(from, extent, PC263_DRIVER_NAME)) {
-		printk(KERN_ERR "comedi%d: I/O port conflict (%#lx,%lu)!\n",
-		       minor, from, extent);
-		return -EIO;
-	}
-	return 0;
-}
-
-static int pc263_do_insn_bits(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
-{
-	if (insn->n != 2)
-		return -EINVAL;
-
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-		/* Write out the new digital output lines */
-		outb(s->state & 0xFF, dev->iobase);
-		outb(s->state >> 8, dev->iobase + 1);
-	}
-
-	/* on return, data[1] contains the value of the digital
-	 * input and output lines. */
-	/* or we could just return the software copy of the output values if
-	 * it was a purely digital output subdevice */
-	data[1] = s->state;
-
-	return 2;
-}
+static struct comedi_driver amplc_pc263_driver = {
+	.driver_name = PC263_DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = pc263_attach,
+	.detach = pc263_detach,
+	.board_name = &pc263_boards[0].name,
+	.offset = sizeof(struct pc263_board),
+	.num_names = ARRAY_SIZE(pc263_boards),
+};
 
 #if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI)
+static DEFINE_PCI_DEVICE_TABLE(pc263_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263) },
+	{0}
+};
+MODULE_DEVICE_TABLE(pci, pc263_pci_table);
+
 static int __devinit amplc_pc263_pci_probe(struct pci_dev *dev,
 						  const struct pci_device_id
 						  *ent)
