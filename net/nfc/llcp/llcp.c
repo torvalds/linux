@@ -810,7 +810,7 @@ static void nfc_llcp_recv_hdlc(struct nfc_llcp_local *local,
 	else if (ptype == LLCP_PDU_RNR)
 		llcp_sock->remote_ready = false;
 
-	if (nfc_llcp_queue_i_frames(llcp_sock) == 0)
+	if (nfc_llcp_queue_i_frames(llcp_sock) == 0 && ptype == LLCP_PDU_I)
 		nfc_llcp_send_rr(llcp_sock);
 
 	release_sock(sk);
