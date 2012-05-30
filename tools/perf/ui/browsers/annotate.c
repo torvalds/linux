@@ -900,3 +900,52 @@ out_free_offsets:
 	free(browser.offsets);
 	return ret;
 }
+
+#define ANNOTATE_CFG(n) \
+	{ .name = #n, .value = &annotate_browser__opts.n, }
+	
+/*
+ * Keep the entries sorted, they are bsearch'ed
+ */
+static struct annotate__config {
+	const char *name;
+	bool *value;
+} annotate__configs[] = {
+	ANNOTATE_CFG(hide_src_code),
+	ANNOTATE_CFG(jump_arrows),
+	ANNOTATE_CFG(show_nr_jumps),
+	ANNOTATE_CFG(use_offset),
+};
+
+#undef ANNOTATE_CFG
+
+static int annotate_config__cmp(const void *name, const void *cfgp)
+{
+	const struct annotate__config *cfg = cfgp;
+
+	return strcmp(name, cfg->name);
+}
+
+static int annotate__config(const char *var, const char *value, void *data __used)
+{
+	struct annotate__config *cfg;
+	const char *name;
+
+	if (prefixcmp(var, "annotate.") != 0)
+		return 0;
+
+	name = var + 9;
+	cfg = bsearch(name, annotate__configs, ARRAY_SIZE(annotate__configs),
+		      sizeof(struct annotate__config), annotate_config__cmp);
+
+	if (cfg == NULL)
+		return -1;
+
+	*cfg->value = perf_config_bool(name, value);
+	return 0;
+}
+
+void annotate_browser__init(void)
+{
+	perf_config(annotate__config, NULL);
+}
