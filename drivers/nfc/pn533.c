@@ -45,6 +45,9 @@ static const struct usb_device_id pn533_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, pn533_table);
 
+/* How much time we spend listening for initiators */
+#define PN533_LISTEN_TIME 2
+
 /* frame definitions */
 #define PN533_FRAME_TAIL_SIZE 2
 #define PN533_FRAME_SIZE(f) (sizeof(struct pn533_frame) + f->datalen + \
@@ -163,6 +166,7 @@ enum {
 	PN533_POLL_MOD_424KBPS_FELICA,
 	PN533_POLL_MOD_106KBPS_JEWEL,
 	PN533_POLL_MOD_847KBPS_B,
+	PN533_LISTEN_MOD,
 
 	__PN533_POLL_MOD_AFTER_LAST,
 };
@@ -229,6 +233,9 @@ const struct pn533_poll_modulations poll_mod[] = {
 			},
 		},
 		.len = 3,
+	},
+	[PN533_LISTEN_MOD] = {
+		.len = 0,
 	},
 };
 
@@ -312,10 +319,13 @@ struct pn533 {
 
 	struct workqueue_struct	*wq;
 	struct work_struct cmd_work;
+	struct work_struct poll_work;
 	struct work_struct mi_work;
 	struct work_struct tg_work;
+	struct timer_list listen_timer;
 	struct pn533_frame *wq_in_frame;
 	int wq_in_error;
+	int cancel_listen;
 
 	pn533_cmd_complete_t cmd_complete;
 	void *cmd_complete_arg;
@@ -326,6 +336,10 @@ struct pn533 {
 	u8 poll_mod_count;
 	u8 poll_mod_curr;
 	u32 poll_protocols;
+	u32 listen_protocols;
+
+	u8 *gb;
+	size_t gb_len;
 
 	u8 tgt_available_prots;
 	u8 tgt_active_prot;
@@ -1006,6 +1020,11 @@ static int pn533_target_found(struct pn533 *dev,
 	return 0;
 }
 
+static inline void pn533_poll_next_mod(struct pn533 *dev)
+{
+	dev->poll_mod_curr = (dev->poll_mod_curr + 1) % dev->poll_mod_count;
+}
+
 static void pn533_poll_reset_mod_list(struct pn533 *dev)
 {
 	dev->poll_mod_count = 0;
@@ -1018,107 +1037,52 @@ static void pn533_poll_add_mod(struct pn533 *dev, u8 mod_index)
 	dev->poll_mod_count++;
 }
 
-static void pn533_poll_create_mod_list(struct pn533 *dev, u32 protocols)
+static void pn533_poll_create_mod_list(struct pn533 *dev,
+				       u32 im_protocols, u32 tm_protocols)
 {
 	pn533_poll_reset_mod_list(dev);
 
-	if (protocols & NFC_PROTO_MIFARE_MASK
-					|| protocols & NFC_PROTO_ISO14443_MASK
-					|| protocols & NFC_PROTO_NFC_DEP_MASK)
+	if (im_protocols & NFC_PROTO_MIFARE_MASK
+	    || im_protocols & NFC_PROTO_ISO14443_MASK
+	    || im_protocols & NFC_PROTO_NFC_DEP_MASK)
 		pn533_poll_add_mod(dev, PN533_POLL_MOD_106KBPS_A);
 
-	if (protocols & NFC_PROTO_FELICA_MASK
-					|| protocols & NFC_PROTO_NFC_DEP_MASK) {
+	if (im_protocols & NFC_PROTO_FELICA_MASK
+	    || im_protocols & NFC_PROTO_NFC_DEP_MASK) {
 		pn533_poll_add_mod(dev, PN533_POLL_MOD_212KBPS_FELICA);
 		pn533_poll_add_mod(dev, PN533_POLL_MOD_424KBPS_FELICA);
 	}
 
-	if (protocols & NFC_PROTO_JEWEL_MASK)
+	if (im_protocols & NFC_PROTO_JEWEL_MASK)
 		pn533_poll_add_mod(dev, PN533_POLL_MOD_106KBPS_JEWEL);
 
-	if (protocols & NFC_PROTO_ISO14443_MASK)
+	if (im_protocols & NFC_PROTO_ISO14443_MASK)
 		pn533_poll_add_mod(dev, PN533_POLL_MOD_847KBPS_B);
-}
 
-static void pn533_start_poll_frame(struct pn533_frame *frame,
-					struct pn533_poll_modulations *mod)
-{
-
-	pn533_tx_frame_init(frame, PN533_CMD_IN_LIST_PASSIVE_TARGET);
-
-	memcpy(PN533_FRAME_CMD_PARAMS_PTR(frame), &mod->data, mod->len);
-	frame->datalen += mod->len;
-
-	pn533_tx_frame_finish(frame);
+	if (tm_protocols)
+		pn533_poll_add_mod(dev, PN533_LISTEN_MOD);
 }
 
 static int pn533_start_poll_complete(struct pn533 *dev, void *arg,
-						u8 *params, int params_len)
+				     u8 *params, int params_len)
 {
 	struct pn533_poll_response *resp;
-	struct pn533_poll_modulations *next_mod;
 	int rc;
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
-
-	if (params_len == -ENOENT) {
-		nfc_dev_dbg(&dev->interface->dev, "Polling operation has been"
-								" stopped");
-		goto stop_poll;
-	}
-
-	if (params_len < 0) {
-		nfc_dev_err(&dev->interface->dev, "Error %d when running poll",
-								params_len);
-		goto stop_poll;
-	}
 
 	resp = (struct pn533_poll_response *) params;
 	if (resp->nbtg) {
 		rc = pn533_target_found(dev, resp, params_len);
 
 		/* We must stop the poll after a valid target found */
-		if (rc == 0)
-			goto stop_poll;
-
-		if (rc != -EAGAIN)
-			nfc_dev_err(&dev->interface->dev, "The target found is"
-					" not valid - continuing to poll");
+		if (rc == 0) {
+			pn533_poll_reset_mod_list(dev);
+			return 0;
+		}
 	}
 
-	dev->poll_mod_curr = (dev->poll_mod_curr + 1) % dev->poll_mod_count;
-
-	next_mod = dev->poll_mod_active[dev->poll_mod_curr];
-
-	nfc_dev_dbg(&dev->interface->dev, "Polling next modulation (0x%x)",
-							dev->poll_mod_curr);
-
-	pn533_start_poll_frame(dev->out_frame, next_mod);
-
-	/* Don't need to down the semaphore again */
-	rc = __pn533_send_cmd_frame_async(dev, dev->out_frame, dev->in_frame,
-				dev->in_maxlen, pn533_start_poll_complete,
-				NULL, GFP_ATOMIC);
-
-	if (rc == -EPERM) {
-		nfc_dev_dbg(&dev->interface->dev, "Cannot poll next modulation"
-					" because poll has been stopped");
-		goto stop_poll;
-	}
-
-	if (rc) {
-		nfc_dev_err(&dev->interface->dev, "Error %d when trying to poll"
-							" next modulation", rc);
-		goto stop_poll;
-	}
-
-	/* Inform caller function to do not up the semaphore */
-	return -EINPROGRESS;
-
-stop_poll:
-	pn533_poll_reset_mod_list(dev);
-	dev->poll_protocols = 0;
-	return 0;
+	return -EAGAIN;
 }
 
 static int pn533_init_target_frame(struct pn533_frame *frame,
@@ -1286,83 +1250,136 @@ static int pn533_init_target_complete(struct pn533 *dev, void *arg,
 	return 0;
 }
 
-static int pn533_init_target(struct nfc_dev *nfc_dev, u32 protocols)
+static void pn533_listen_mode_timer(unsigned long data)
 {
-	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
-	u8 *gb;
-	size_t gb_len;
+	struct pn533 *dev = (struct pn533 *) data;
+
+	nfc_dev_dbg(&dev->interface->dev, "Listen mode timeout");
+
+	/* An ack will cancel the last issued command (poll) */
+	pn533_send_ack(dev, GFP_ATOMIC);
+
+	dev->cancel_listen = 1;
+
+	up(&dev->cmd_lock);
+
+	pn533_poll_next_mod(dev);
+
+	queue_work(dev->wq, &dev->poll_work);
+}
+
+static int pn533_poll_complete(struct pn533 *dev, void *arg,
+			       u8 *params, int params_len)
+{
+	struct pn533_poll_modulations *cur_mod;
 	int rc;
 
+	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	if (params_len == -ENOENT) {
+		if (dev->poll_mod_count != 0)
+			return 0;
+
+		nfc_dev_err(&dev->interface->dev,
+			    "Polling operation has been stopped");
+
+		goto stop_poll;
+	}
+
+	if (params_len < 0) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Error %d when running poll", params_len);
+
+		goto stop_poll;
+	}
+
+	cur_mod = dev->poll_mod_active[dev->poll_mod_curr];
+
+	if (cur_mod->len == 0) {
+		del_timer(&dev->listen_timer);
+
+		return pn533_init_target_complete(dev, arg, params, params_len);
+	} else {
+		rc = pn533_start_poll_complete(dev, arg, params, params_len);
+		if (!rc)
+			return rc;
+	}
+
+	pn533_poll_next_mod(dev);
+
+	queue_work(dev->wq, &dev->poll_work);
+
+	return 0;
+
+stop_poll:
 	pn533_poll_reset_mod_list(dev);
+	dev->poll_protocols = 0;
+	return 0;
+}
 
-	gb = nfc_get_local_general_bytes(nfc_dev, &gb_len);
-	if (gb == NULL)
-		return -ENOMEM;
+static void pn533_build_poll_frame(struct pn533 *dev,
+				   struct pn533_frame *frame,
+				   struct pn533_poll_modulations *mod)
+{
+	nfc_dev_dbg(&dev->interface->dev, "mod len %d\n", mod->len);
 
-	rc = pn533_init_target_frame(dev->out_frame, gb, gb_len);
-	if (rc < 0)
-		return rc;
+	if (mod->len == 0) {
+		/* Listen mode */
+		pn533_init_target_frame(frame, dev->gb, dev->gb_len);
+	} else {
+		/* Polling mode */
+		pn533_tx_frame_init(frame, PN533_CMD_IN_LIST_PASSIVE_TARGET);
+
+		memcpy(PN533_FRAME_CMD_PARAMS_PTR(frame), &mod->data, mod->len);
+		frame->datalen += mod->len;
+
+		pn533_tx_frame_finish(frame);
+	}
+}
+
+static int pn533_send_poll_frame(struct pn533 *dev)
+{
+	struct pn533_poll_modulations *cur_mod;
+	int rc;
+
+	cur_mod = dev->poll_mod_active[dev->poll_mod_curr];
+
+	pn533_build_poll_frame(dev, dev->out_frame, cur_mod);
 
 	rc = pn533_send_cmd_frame_async(dev, dev->out_frame, dev->in_frame,
-					dev->in_maxlen,
-					pn533_init_target_complete,
-					NULL, GFP_KERNEL);
-
+				dev->in_maxlen,	pn533_poll_complete,
+				NULL, GFP_KERNEL);
 	if (rc)
-		nfc_dev_err(&dev->interface->dev,
-			    "Error %d when trying to initiate as a target", rc);
-
-	dev->poll_mod_count++;
+		nfc_dev_err(&dev->interface->dev, "Polling loop error %d", rc);
 
 	return rc;
 }
 
-static int pn533_start_im_poll(struct nfc_dev *nfc_dev, u32 protocols)
+static void pn533_wq_poll(struct work_struct *work)
 {
-	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
-	struct pn533_poll_modulations *start_mod;
+	struct pn533 *dev = container_of(work, struct pn533, poll_work);
+	struct pn533_poll_modulations *cur_mod;
 	int rc;
 
-	if (dev->poll_mod_count) {
-		nfc_dev_err(&dev->interface->dev, "Polling operation already"
-								" active");
-		return -EBUSY;
+	cur_mod = dev->poll_mod_active[dev->poll_mod_curr];
+
+	nfc_dev_dbg(&dev->interface->dev,
+		    "%s cancel_listen %d modulation len %d",
+		    __func__, dev->cancel_listen, cur_mod->len);
+
+	if (dev->cancel_listen == 1) {
+		dev->cancel_listen = 0;
+		usb_kill_urb(dev->in_urb);
 	}
 
-	pn533_poll_create_mod_list(dev, protocols);
+	rc = pn533_send_poll_frame(dev);
+	if (rc)
+		return;
 
-	if (!dev->poll_mod_count) {
-		nfc_dev_err(&dev->interface->dev, "No valid protocols"
-								" specified");
-		rc = -EINVAL;
-		goto error;
-	}
+	if (cur_mod->len == 0 && dev->poll_mod_count > 1)
+		mod_timer(&dev->listen_timer, jiffies + PN533_LISTEN_TIME * HZ);
 
-	nfc_dev_dbg(&dev->interface->dev, "It will poll %d modulations types",
-							dev->poll_mod_count);
-
-	dev->poll_mod_curr = 0;
-	start_mod = dev->poll_mod_active[dev->poll_mod_curr];
-
-	pn533_start_poll_frame(dev->out_frame, start_mod);
-
-	rc = pn533_send_cmd_frame_async(dev, dev->out_frame, dev->in_frame,
-				dev->in_maxlen,	pn533_start_poll_complete,
-				NULL, GFP_KERNEL);
-
-	if (rc) {
-		nfc_dev_err(&dev->interface->dev, "Error %d when trying to"
-							" start poll", rc);
-		goto error;
-	}
-
-	dev->poll_protocols = protocols;
-
-	return 0;
-
-error:
-	pn533_poll_reset_mod_list(dev);
-	return rc;
+	return;
 }
 
 static int pn533_start_poll(struct nfc_dev *nfc_dev,
@@ -1380,13 +1397,18 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev,
 		return -EBUSY;
 	}
 
-	if (im_protocols)
-		return pn533_start_im_poll(nfc_dev, im_protocols);
+	if (tm_protocols) {
+		dev->gb = nfc_get_local_general_bytes(nfc_dev, &dev->gb_len);
+		if (dev->gb == NULL)
+			tm_protocols = 0;
+	}
 
-	if (tm_protocols)
-		return pn533_init_target(nfc_dev, tm_protocols);
+	dev->poll_mod_curr = 0;
+	pn533_poll_create_mod_list(dev, im_protocols, tm_protocols);
+	dev->poll_protocols = im_protocols;
+	dev->listen_protocols = tm_protocols;
 
-	return -EINVAL;
+	return pn533_send_poll_frame(dev);
 }
 
 static void pn533_stop_poll(struct nfc_dev *nfc_dev)
@@ -1394,6 +1416,8 @@ static void pn533_stop_poll(struct nfc_dev *nfc_dev)
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	del_timer(&dev->listen_timer);
 
 	if (!dev->poll_mod_count) {
 		nfc_dev_dbg(&dev->interface->dev, "Polling operation was not"
@@ -1676,6 +1700,10 @@ out:
 
 static int pn533_dep_link_down(struct nfc_dev *nfc_dev)
 {
+	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+
+	pn533_poll_reset_mod_list(dev);
+
 	pn533_deactivate_target(nfc_dev, 0);
 
 	return 0;
@@ -2110,11 +2138,16 @@ static int pn533_probe(struct usb_interface *interface,
 	INIT_WORK(&dev->cmd_work, pn533_wq_cmd_complete);
 	INIT_WORK(&dev->mi_work, pn533_wq_mi_recv);
 	INIT_WORK(&dev->tg_work, pn533_wq_tg_get_data);
+	INIT_WORK(&dev->poll_work, pn533_wq_poll);
 	dev->wq = alloc_workqueue("pn533",
 				  WQ_NON_REENTRANT | WQ_UNBOUND | WQ_MEM_RECLAIM,
 				  1);
 	if (dev->wq == NULL)
 		goto error;
+
+	init_timer(&dev->listen_timer);
+	dev->listen_timer.data = (unsigned long) dev;
+	dev->listen_timer.function = pn533_listen_mode_timer;
 
 	skb_queue_head_init(&dev->resp_q);
 
@@ -2211,6 +2244,8 @@ static void pn533_disconnect(struct usb_interface *interface)
 	destroy_workqueue(dev->wq);
 
 	skb_queue_purge(&dev->resp_q);
+
+	del_timer(&dev->listen_timer);
 
 	kfree(dev->in_frame);
 	usb_free_urb(dev->in_urb);
