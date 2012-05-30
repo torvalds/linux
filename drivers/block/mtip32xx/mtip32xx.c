@@ -781,12 +781,23 @@ static void mtip_handle_tfe(struct driver_data *dd)
 
 	/* Stop the timer to prevent command timeouts. */
 	del_timer(&port->cmd_timer);
+	set_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
+
+	if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags) &&
+			test_bit(MTIP_TAG_INTERNAL, port->allocated)) {
+		cmd = &port->commands[MTIP_TAG_INTERNAL];
+		dbg_printk(MTIP_DRV_NAME " TFE for the internal command\n");
+
+		atomic_inc(&cmd->active); /* active > 1 indicates error */
+		if (cmd->comp_data && cmd->comp_func) {
+			cmd->comp_func(port, MTIP_TAG_INTERNAL,
+					cmd->comp_data, PORT_IRQ_TF_ERR);
+		}
+		goto handle_tfe_exit;
+	}
 
 	/* clear the tag accumulator */
 	memset(tagaccum, 0, SLOTBITS_IN_LONGS * sizeof(long));
-
-	/* Set eh_active */
-	set_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
 
 	/* Loop through all the groups */
 	for (group = 0; group < dd->slot_groups; group++) {
@@ -939,6 +950,7 @@ static void mtip_handle_tfe(struct driver_data *dd)
 	}
 	print_tags(dd, "reissued (TFE)", tagaccum, cmd_cnt);
 
+handle_tfe_exit:
 	/* clear eh_active */
 	clear_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
 	wake_up_interruptible(&port->svc_wait);
@@ -1328,22 +1340,6 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 			}
 			rv = -EAGAIN;
 		}
-
-		if (readl(port->cmd_issue[MTIP_TAG_INTERNAL])
-			& (1 << MTIP_TAG_INTERNAL)) {
-			dev_warn(&port->dd->pdev->dev,
-				"Retiring internal command but CI is 1.\n");
-			if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
-						&port->dd->dd_flag)) {
-				hba_reset_nosleep(port->dd);
-				rv = -ENXIO;
-			} else {
-				mtip_restart_port(port);
-				rv = -EAGAIN;
-			}
-			goto exec_ic_exit;
-		}
-
 	} else {
 		/* Spin for <timeout> checking if command still outstanding */
 		timeout = jiffies + msecs_to_jiffies(timeout);
@@ -1360,21 +1356,25 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 				rv = -ENXIO;
 				goto exec_ic_exit;
 			}
-		}
-
-		if (readl(port->cmd_issue[MTIP_TAG_INTERNAL])
-			& (1 << MTIP_TAG_INTERNAL)) {
-			dev_err(&port->dd->pdev->dev,
-				"Internal command did not complete [atomic]\n");
-			rv = -EAGAIN;
-			if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
-						&port->dd->dd_flag)) {
-				hba_reset_nosleep(port->dd);
-				rv = -ENXIO;
-			} else {
-				mtip_restart_port(port);
-				rv = -EAGAIN;
+			if (readl(port->mmio + PORT_IRQ_STAT) & PORT_IRQ_ERR) {
+				atomic_inc(&int_cmd->active); /* error */
+				break;
 			}
+		}
+	}
+
+	if (atomic_read(&int_cmd->active) > 1) {
+		dev_err(&port->dd->pdev->dev,
+			"Internal command [%02X] failed\n", fis->command);
+		rv = -EIO;
+	}
+	if (readl(port->cmd_issue[MTIP_TAG_INTERNAL])
+			& (1 << MTIP_TAG_INTERNAL)) {
+		rv = -ENXIO;
+		if (!test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
+					&port->dd->dd_flag)) {
+			mtip_restart_port(port);
+			rv = -EAGAIN;
 		}
 	}
 exec_ic_exit:
