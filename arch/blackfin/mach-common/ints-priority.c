@@ -1362,7 +1362,7 @@ int __init init_arch_irq(void)
 					 handle_level_irq);
 #else
 	for (irq = BFIN_IRQ(0); irq <= SYS_IRQS; irq++) {
-		if (irq < CORE_IRQS) {
+		if (irq < CORE_IRQS && irq != IRQ_CGU_EVT) {
 			irq_set_chip(irq, &bfin_sec_irqchip);
 			__irq_set_handler(irq, handle_sec_fault, 0, NULL);
 		} else if (irq >= BFIN_IRQ(21) && irq <= BFIN_IRQ(26)) {
