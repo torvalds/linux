@@ -430,11 +430,16 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	mlx4_log_num_mgm_entry_size = hca_param.log_mc_entry_sz;
 
 	memset(&dev_cap, 0, sizeof(dev_cap));
+	dev->caps.max_qp_dest_rdma = 1 << hca_param.log_rd_per_qp;
 	err = mlx4_dev_cap(dev, &dev_cap);
 	if (err) {
 		mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting.\n");
 		return err;
 	}
+
+	err = mlx4_QUERY_FW(dev);
+	if (err)
+		mlx4_err(dev, "QUERY_FW command failed: could not get FW version.\n");
 
 	page_size = ~dev->caps.page_size_cap + 1;
 	mlx4_warn(dev, "HCA minimum page size:%d\n", page_size);
@@ -499,18 +504,6 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		return -ENODEV;
 	}
 
-#if 0
-	mlx4_warn(dev, "sqp_demux:%d\n", dev->caps.sqp_demux);
-	mlx4_warn(dev, "num_uars:%d reserved_uars:%d uar region:0x%x bar2:0x%llx\n",
-		  dev->caps.num_uars, dev->caps.reserved_uars,
-		  dev->caps.uar_page_size * dev->caps.num_uars,
-		  pci_resource_len(dev->pdev, 2));
-	mlx4_warn(dev, "num_eqs:%d reserved_eqs:%d\n", dev->caps.num_eqs,
-		  dev->caps.reserved_eqs);
-	mlx4_warn(dev, "num_pds:%d reserved_pds:%d slave_pd_shift:%d pd_base:%d\n",
-		  dev->caps.num_pds, dev->caps.reserved_pds,
-		  dev->caps.slave_pd_shift, dev->caps.pd_base);
-#endif
 	return 0;
 }
 
