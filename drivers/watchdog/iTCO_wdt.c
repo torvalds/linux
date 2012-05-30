@@ -575,7 +575,7 @@ static int __devinit iTCO_wdt_probe(struct platform_device *dev)
 	if (!request_region(iTCO_wdt_private.smi_res->start,
 			resource_size(iTCO_wdt_private.smi_res), dev->name)) {
 		pr_err("I/O address 0x%04llx already in use, device disabled\n",
-		       SMI_EN);
+		       (u64)SMI_EN);
 		ret = -EBUSY;
 		goto unmap_gcs;
 	}
@@ -592,13 +592,13 @@ static int __devinit iTCO_wdt_probe(struct platform_device *dev)
 	if (!request_region(iTCO_wdt_private.tco_res->start,
 			resource_size(iTCO_wdt_private.tco_res), dev->name)) {
 		pr_err("I/O address 0x%04llx already in use, device disabled\n",
-		       TCOBASE);
+		       (u64)TCOBASE);
 		ret = -EBUSY;
 		goto unreg_smi;
 	}
 
 	pr_info("Found a %s TCO device (Version=%d, TCOBASE=0x%04llx)\n",
-		ich_info->name, ich_info->iTCO_version, TCOBASE);
+		ich_info->name, ich_info->iTCO_version, (u64)TCOBASE);
 
 	/* Clear out the (probably old) status */
 	outw(0x0008, TCO1_STS);	/* Clear the Time Out Status bit */
