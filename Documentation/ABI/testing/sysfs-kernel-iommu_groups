@@ -1,0 +1,14 @@
+What:		/sys/kernel/iommu_groups/
+Date:		May 2012
+KernelVersion:	v3.5
+Contact:	Alex Williamson <alex.williamson@redhat.com>
+Description:	/sys/kernel/iommu_groups/ contains a number of sub-
+		directories, each representing an IOMMU group.  The
+		name of the sub-directory matches the iommu_group_id()
+		for the group, which is an integer value.  Within each
+		subdirectory is another directory named "devices" with
+		links to the sysfs devices contained in this group.
+		The group directory also optionally contains a "name"
+		file if the IOMMU driver has chosen to register a more
+		common name for the group.
+Users:
