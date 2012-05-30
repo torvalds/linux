@@ -35,16 +35,16 @@ int ui_browser__set_color(struct ui_browser *browser, int color)
 	return ret;
 }
 
-void ui_browser__set_percent_color(struct ui_browser *self,
+void ui_browser__set_percent_color(struct ui_browser *browser,
 				   double percent, bool current)
 {
-	 int color = ui_browser__percent_color(self, percent, current);
-	 ui_browser__set_color(self, color);
+	 int color = ui_browser__percent_color(browser, percent, current);
+	 ui_browser__set_color(browser, color);
 }
 
-void ui_browser__gotorc(struct ui_browser *self, int y, int x)
+void ui_browser__gotorc(struct ui_browser *browser, int y, int x)
 {
-	SLsmg_gotorc(self->y + y, self->x + x);
+	SLsmg_gotorc(browser->y + y, browser->x + x);
 }
 
 static struct list_head *
@@ -73,23 +73,23 @@ ui_browser__list_head_filter_prev_entries(struct ui_browser *browser,
 	return NULL;
 }
 
-void ui_browser__list_head_seek(struct ui_browser *self, off_t offset, int whence)
+void ui_browser__list_head_seek(struct ui_browser *browser, off_t offset, int whence)
 {
-	struct list_head *head = self->entries;
+	struct list_head *head = browser->entries;
 	struct list_head *pos;
 
-	if (self->nr_entries == 0)
+	if (browser->nr_entries == 0)
 		return;
 
 	switch (whence) {
 	case SEEK_SET:
-		pos = ui_browser__list_head_filter_entries(self, head->next);
+		pos = ui_browser__list_head_filter_entries(browser, head->next);
 		break;
 	case SEEK_CUR:
-		pos = self->top;
+		pos = browser->top;
 		break;
 	case SEEK_END:
-		pos = ui_browser__list_head_filter_prev_entries(self, head->prev);
+		pos = ui_browser__list_head_filter_prev_entries(browser, head->prev);
 		break;
 	default:
 		return;
@@ -99,18 +99,18 @@ void ui_browser__list_head_seek(struct ui_browser *self, off_t offset, int whenc
 
 	if (offset > 0) {
 		while (offset-- != 0)
-			pos = ui_browser__list_head_filter_entries(self, pos->next);
+			pos = ui_browser__list_head_filter_entries(browser, pos->next);
 	} else {
 		while (offset++ != 0)
-			pos = ui_browser__list_head_filter_prev_entries(self, pos->prev);
+			pos = ui_browser__list_head_filter_prev_entries(browser, pos->prev);
 	}
 
-	self->top = pos;
+	browser->top = pos;
 }
 
-void ui_browser__rb_tree_seek(struct ui_browser *self, off_t offset, int whence)
+void ui_browser__rb_tree_seek(struct ui_browser *browser, off_t offset, int whence)
 {
-	struct rb_root *root = self->entries;
+	struct rb_root *root = browser->entries;
 	struct rb_node *nd;
 
 	switch (whence) {
@@ -118,7 +118,7 @@ void ui_browser__rb_tree_seek(struct ui_browser *self, off_t offset, int whence)
 		nd = rb_first(root);
 		break;
 	case SEEK_CUR:
-		nd = self->top;
+		nd = browser->top;
 		break;
 	case SEEK_END:
 		nd = rb_last(root);
@@ -135,23 +135,23 @@ void ui_browser__rb_tree_seek(struct ui_browser *self, off_t offset, int whence)
 			nd = rb_prev(nd);
 	}
 
-	self->top = nd;
+	browser->top = nd;
 }
 
-unsigned int ui_browser__rb_tree_refresh(struct ui_browser *self)
+unsigned int ui_browser__rb_tree_refresh(struct ui_browser *browser)
 {
 	struct rb_node *nd;
 	int row = 0;
 
-	if (self->top == NULL)
-                self->top = rb_first(self->entries);
+	if (browser->top == NULL)
+                browser->top = rb_first(browser->entries);
 
-	nd = self->top;
+	nd = browser->top;
 
 	while (nd != NULL) {
-		ui_browser__gotorc(self, row, 0);
-		self->write(self, nd, row);
-		if (++row == self->height)
+		ui_browser__gotorc(browser, row, 0);
+		browser->write(browser, nd, row);
+		if (++row == browser->height)
 			break;
 		nd = rb_next(nd);
 	}
@@ -159,17 +159,17 @@ unsigned int ui_browser__rb_tree_refresh(struct ui_browser *self)
 	return row;
 }
 
-bool ui_browser__is_current_entry(struct ui_browser *self, unsigned row)
+bool ui_browser__is_current_entry(struct ui_browser *browser, unsigned row)
 {
-	return self->top_idx + row == self->index;
+	return browser->top_idx + row == browser->index;
 }
 
-void ui_browser__refresh_dimensions(struct ui_browser *self)
+void ui_browser__refresh_dimensions(struct ui_browser *browser)
 {
-	self->width = SLtt_Screen_Cols - 1;
-	self->height = SLtt_Screen_Rows - 2;
-	self->y = 1;
-	self->x = 0;
+	browser->width = SLtt_Screen_Cols - 1;
+	browser->height = SLtt_Screen_Rows - 2;
+	browser->y = 1;
+	browser->x = 0;
 }
 
 void ui_browser__handle_resize(struct ui_browser *browser)
@@ -225,10 +225,10 @@ bool ui_browser__dialog_yesno(struct ui_browser *browser, const char *text)
 	return key == K_ENTER || toupper(key) == 'Y';
 }
 
-void ui_browser__reset_index(struct ui_browser *self)
+void ui_browser__reset_index(struct ui_browser *browser)
 {
-	self->index = self->top_idx = 0;
-	self->seek(self, 0, SEEK_SET);
+	browser->index = browser->top_idx = 0;
+	browser->seek(browser, 0, SEEK_SET);
 }
 
 void __ui_browser__show_title(struct ui_browser *browser, const char *title)
@@ -245,26 +245,26 @@ void ui_browser__show_title(struct ui_browser *browser, const char *title)
 	pthread_mutex_unlock(&ui__lock);
 }
 
-int ui_browser__show(struct ui_browser *self, const char *title,
+int ui_browser__show(struct ui_browser *browser, const char *title,
 		     const char *helpline, ...)
 {
 	int err;
 	va_list ap;
 
-	ui_browser__refresh_dimensions(self);
+	ui_browser__refresh_dimensions(browser);
 
 	pthread_mutex_lock(&ui__lock);
-	__ui_browser__show_title(self, title);
+	__ui_browser__show_title(browser, title);
 
-	self->title = title;
-	free(self->helpline);
-	self->helpline = NULL;
+	browser->title = title;
+	free(browser->helpline);
+	browser->helpline = NULL;
 
 	va_start(ap, helpline);
-	err = vasprintf(&self->helpline, helpline, ap);
+	err = vasprintf(&browser->helpline, helpline, ap);
 	va_end(ap);
 	if (err > 0)
-		ui_helpline__push(self->helpline);
+		ui_helpline__push(browser->helpline);
 	pthread_mutex_unlock(&ui__lock);
 	return err ? 0 : -1;
 }
@@ -350,7 +350,7 @@ void ui_browser__update_nr_entries(struct ui_browser *browser, u32 nr_entries)
 	browser->seek(browser, browser->top_idx, SEEK_SET);
 }
 
-int ui_browser__run(struct ui_browser *self, int delay_secs)
+int ui_browser__run(struct ui_browser *browser, int delay_secs)
 {
 	int err, key;
 
@@ -358,7 +358,7 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 		off_t offset;
 
 		pthread_mutex_lock(&ui__lock);
-		err = __ui_browser__refresh(self);
+		err = __ui_browser__refresh(browser);
 		SLsmg_refresh();
 		pthread_mutex_unlock(&ui__lock);
 		if (err < 0)
@@ -368,18 +368,18 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 
 		if (key == K_RESIZE) {
 			ui__refresh_dimensions(false);
-			ui_browser__refresh_dimensions(self);
-			__ui_browser__show_title(self, self->title);
-			ui_helpline__puts(self->helpline);
+			ui_browser__refresh_dimensions(browser);
+			__ui_browser__show_title(browser, browser->title);
+			ui_helpline__puts(browser->helpline);
 			continue;
 		}
 
-		if (self->use_navkeypressed && !self->navkeypressed) {
+		if (browser->use_navkeypressed && !browser->navkeypressed) {
 			if (key == K_DOWN || key == K_UP ||
 			    key == K_PGDN || key == K_PGUP ||
 			    key == K_HOME || key == K_END ||
 			    key == ' ') {
-				self->navkeypressed = true;
+				browser->navkeypressed = true;
 				continue;
 			} else
 				return key;
@@ -387,59 +387,59 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 
 		switch (key) {
 		case K_DOWN:
-			if (self->index == self->nr_entries - 1)
+			if (browser->index == browser->nr_entries - 1)
 				break;
-			++self->index;
-			if (self->index == self->top_idx + self->height) {
-				++self->top_idx;
-				self->seek(self, +1, SEEK_CUR);
+			++browser->index;
+			if (browser->index == browser->top_idx + browser->height) {
+				++browser->top_idx;
+				browser->seek(browser, +1, SEEK_CUR);
 			}
 			break;
 		case K_UP:
-			if (self->index == 0)
+			if (browser->index == 0)
 				break;
-			--self->index;
-			if (self->index < self->top_idx) {
-				--self->top_idx;
-				self->seek(self, -1, SEEK_CUR);
+			--browser->index;
+			if (browser->index < browser->top_idx) {
+				--browser->top_idx;
+				browser->seek(browser, -1, SEEK_CUR);
 			}
 			break;
 		case K_PGDN:
 		case ' ':
-			if (self->top_idx + self->height > self->nr_entries - 1)
+			if (browser->top_idx + browser->height > browser->nr_entries - 1)
 				break;
 
-			offset = self->height;
-			if (self->index + offset > self->nr_entries - 1)
-				offset = self->nr_entries - 1 - self->index;
-			self->index += offset;
-			self->top_idx += offset;
-			self->seek(self, +offset, SEEK_CUR);
+			offset = browser->height;
+			if (browser->index + offset > browser->nr_entries - 1)
+				offset = browser->nr_entries - 1 - browser->index;
+			browser->index += offset;
+			browser->top_idx += offset;
+			browser->seek(browser, +offset, SEEK_CUR);
 			break;
 		case K_PGUP:
-			if (self->top_idx == 0)
+			if (browser->top_idx == 0)
 				break;
 
-			if (self->top_idx < self->height)
-				offset = self->top_idx;
+			if (browser->top_idx < browser->height)
+				offset = browser->top_idx;
 			else
-				offset = self->height;
+				offset = browser->height;
 
-			self->index -= offset;
-			self->top_idx -= offset;
-			self->seek(self, -offset, SEEK_CUR);
+			browser->index -= offset;
+			browser->top_idx -= offset;
+			browser->seek(browser, -offset, SEEK_CUR);
 			break;
 		case K_HOME:
-			ui_browser__reset_index(self);
+			ui_browser__reset_index(browser);
 			break;
 		case K_END:
-			offset = self->height - 1;
-			if (offset >= self->nr_entries)
-				offset = self->nr_entries - 1;
+			offset = browser->height - 1;
+			if (offset >= browser->nr_entries)
+				offset = browser->nr_entries - 1;
 
-			self->index = self->nr_entries - 1;
-			self->top_idx = self->index - offset;
-			self->seek(self, -offset, SEEK_END);
+			browser->index = browser->nr_entries - 1;
+			browser->top_idx = browser->index - offset;
+			browser->seek(browser, -offset, SEEK_END);
 			break;
 		default:
 			return key;
@@ -448,22 +448,22 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 	return -1;
 }
 
-unsigned int ui_browser__list_head_refresh(struct ui_browser *self)
+unsigned int ui_browser__list_head_refresh(struct ui_browser *browser)
 {
 	struct list_head *pos;
-	struct list_head *head = self->entries;
+	struct list_head *head = browser->entries;
 	int row = 0;
 
-	if (self->top == NULL || self->top == self->entries)
-                self->top = ui_browser__list_head_filter_entries(self, head->next);
+	if (browser->top == NULL || browser->top == browser->entries)
+                browser->top = ui_browser__list_head_filter_entries(browser, head->next);
 
-	pos = self->top;
+	pos = browser->top;
 
 	list_for_each_from(pos, head) {
-		if (!self->filter || !self->filter(self, pos)) {
-			ui_browser__gotorc(self, row, 0);
-			self->write(self, pos, row);
-			if (++row == self->height)
+		if (!browser->filter || !browser->filter(browser, pos)) {
+			ui_browser__gotorc(browser, row, 0);
+			browser->write(browser, pos, row);
+			if (++row == browser->height)
 				break;
 		}
 	}
