@@ -945,8 +945,7 @@ static void l2cap_chan_ready(struct l2cap_chan *chan)
 
 	chan->state = BT_CONNECTED;
 
-	if (chan->ops->ready)
-		chan->ops->ready(chan);
+	chan->ops->ready(chan);
 }
 
 static void l2cap_do_start(struct l2cap_chan *chan)
