@@ -1306,33 +1306,41 @@ static int option_probe(struct usb_serial *serial,
 			const struct usb_device_id *id)
 {
 	struct usb_wwan_intf_private *data;
+	struct usb_interface_descriptor *iface_desc =
+				&serial->interface->cur_altsetting->desc;
+	struct usb_device_descriptor *dev_desc = &serial->dev->descriptor;
 
-	/* D-Link DWM 652 still exposes CD-Rom emulation interface in modem mode */
-	if (serial->dev->descriptor.idVendor == DLINK_VENDOR_ID &&
-		serial->dev->descriptor.idProduct == DLINK_PRODUCT_DWM_652 &&
-		serial->interface->cur_altsetting->desc.bInterfaceClass == 0x8)
+	/*
+	 * D-Link DWM 652 still exposes CD-Rom emulation interface in modem
+	 * mode.
+	 */
+	if (dev_desc->idVendor == DLINK_VENDOR_ID &&
+		dev_desc->idProduct == DLINK_PRODUCT_DWM_652 &&
+		iface_desc->bInterfaceClass == 0x08)
 		return -ENODEV;
 
 	/* Bandrich modem and AT command interface is 0xff */
-	if ((serial->dev->descriptor.idVendor == BANDRICH_VENDOR_ID ||
-		serial->dev->descriptor.idVendor == PIRELLI_VENDOR_ID) &&
-		serial->interface->cur_altsetting->desc.bInterfaceClass != 0xff)
+	if ((dev_desc->idVendor == BANDRICH_VENDOR_ID ||
+		dev_desc->idVendor == PIRELLI_VENDOR_ID) &&
+		iface_desc->bInterfaceClass != 0xff)
 		return -ENODEV;
-
-	/* Don't bind reserved interfaces (like network ones) which often have
+	/*
+	 * Don't bind reserved interfaces (like network ones) which often have
 	 * the same class/subclass/protocol as the serial interfaces.  Look at
 	 * the Windows driver .INF files for reserved interface numbers.
 	 */
 	if (is_blacklisted(
-		serial->interface->cur_altsetting->desc.bInterfaceNumber,
+		iface_desc->bInterfaceNumber,
 		OPTION_BLACKLIST_RESERVED_IF,
 		(const struct option_blacklist_info *) id->driver_info))
 		return -ENODEV;
-
-	/* Don't bind network interface on Samsung GT-B3730, it is handled by a separate module */
-	if (serial->dev->descriptor.idVendor == SAMSUNG_VENDOR_ID &&
-		serial->dev->descriptor.idProduct == SAMSUNG_PRODUCT_GT_B3730 &&
-		serial->interface->cur_altsetting->desc.bInterfaceClass != USB_CLASS_CDC_DATA)
+	/*
+	 * Don't bind network interface on Samsung GT-B3730, it is handled by
+	 * a separate module.
+	 */
+	if (dev_desc->idVendor == SAMSUNG_VENDOR_ID &&
+		dev_desc->idProduct == SAMSUNG_PRODUCT_GT_B3730 &&
+		iface_desc->bInterfaceClass != USB_CLASS_CDC_DATA)
 		return -ENODEV;
 
 	data = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
