@@ -329,6 +329,37 @@ err1;	stb	r0,0(r3)
 	dcbt	r0,r8,0b01010	/* GO */
 .machine pop
 
+	/*
+	 * We prefetch both the source and destination using enhanced touch
+	 * instructions. We use a stream ID of 0 for the load side and
+	 * 1 for the store side.
+	 */
+	clrrdi	r6,r4,7
+	clrrdi	r9,r3,7
+	ori	r9,r9,1		/* stream=1 */
+
+	srdi	r7,r5,7		/* length in cachelines, capped at 0x3FF */
+	cmpldi	cr1,r7,0x3FF
+	ble	cr1,1f
+	li	r7,0x3FF
+1:	lis	r0,0x0E00	/* depth=7 */
+	sldi	r7,r7,7
+	or	r7,r7,r0
+	ori	r10,r7,1	/* stream=1 */
+
+	lis	r8,0x8000	/* GO=1 */
+	clrldi	r8,r8,32
+
+.machine push
+.machine "power4"
+	dcbt	r0,r6,0b01000
+	dcbt	r0,r7,0b01010
+	dcbtst	r0,r9,0b01000
+	dcbtst	r0,r10,0b01010
+	eieio
+	dcbt	r0,r8,0b01010	/* GO */
+.machine pop
+
 	beq	.Lunwind_stack_nonvmx_copy
 
 	/*
