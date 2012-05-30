@@ -163,12 +163,12 @@ pc263_find_pci(struct comedi_device *dev, int bus, int slot,
 	}
 	/* No match found. */
 	if (bus || slot) {
-		printk(KERN_ERR
-		       "comedi%d: error! no %s found at pci %02x:%02x!\n",
-		       dev->minor, thisboard->name, bus, slot);
+		dev_err(dev->class_dev,
+			"error! no %s found at pci %02x:%02x!\n",
+			thisboard->name, bus, slot);
 	} else {
-		printk(KERN_ERR "comedi%d: error! no %s found!\n",
-		       dev->minor, thisboard->name);
+		dev_err(dev->class_dev, "error! no %s found!\n",
+			thisboard->name);
 	}
 	return -EIO;
 }
@@ -176,12 +176,12 @@ pc263_find_pci(struct comedi_device *dev, int bus, int slot,
  * This function checks and requests an I/O region, reporting an error
  * if there is a conflict.
  */
-static int pc263_request_region(unsigned minor, unsigned long from,
+static int pc263_request_region(struct comedi_device *dev, unsigned long from,
 				unsigned long extent)
 {
 	if (!from || !request_region(from, extent, PC263_DRIVER_NAME)) {
-		printk(KERN_ERR "comedi%d: I/O port conflict (%#lx,%lu)!\n",
-		       minor, from, extent);
+		dev_err(dev->class_dev, "I/O port conflict (%#lx,%lu)!\n",
+			from, extent);
 		return -EIO;
 	}
 	return 0;
@@ -206,6 +206,22 @@ static int pc263_do_insn_bits(struct comedi_device *dev,
 	return 2;
 }
 
+static void pc263_report_attach(struct comedi_device *dev)
+{
+	char tmpbuf[40];
+
+	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA) &&
+	    thisboard->bustype == isa_bustype)
+		snprintf(tmpbuf, sizeof(tmpbuf), "(base %#lx) ", dev->iobase);
+	else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI) &&
+		 thisboard->bustype == pci_bustype)
+		snprintf(tmpbuf, sizeof(tmpbuf), "(pci %s) ",
+			 pci_name(devpriv->pci_dev));
+	else
+		tmpbuf[0] = '\0';
+	dev_info(dev->class_dev, "%s %sattached\n", dev->board_name, tmpbuf);
+}
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.  If you specified a board_name array
@@ -218,14 +234,13 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long iobase = 0;
 	int ret;
 
-	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor,
-	       PC263_DRIVER_NAME);
+	dev_info(dev->class_dev, PC263_DRIVER_NAME ": attach\n");
 
 	/* Process options and reserve resources according to bus type. */
 	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA) &&
 	    thisboard->bustype == isa_bustype) {
 		iobase = it->options[0];
-		ret = pc263_request_region(dev->minor, iobase, PC263_IO_SIZE);
+		ret = pc263_request_region(dev, iobase, PC263_IO_SIZE);
 		if (ret < 0)
 			return ret;
 	} else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI) &&
@@ -235,8 +250,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		ret = alloc_private(dev, sizeof(struct pc263_private));
 		if (ret < 0) {
-			printk(KERN_ERR "comedi%d: error! out of memory!\n",
-			       dev->minor);
+			dev_err(dev->class_dev, "error! out of memory!\n");
 			return ret;
 		}
 		bus = it->options[0];
@@ -247,17 +261,14 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->pci_dev = pci_dev;
 		ret = comedi_pci_enable(pci_dev, PC263_DRIVER_NAME);
 		if (ret < 0) {
-			printk(KERN_ERR
-			       "comedi%d: error! cannot enable PCI device and "
-				"request regions!\n",
-			       dev->minor);
+			dev_err(dev->class_dev,
+				"error! cannot enable PCI device and request regions!\n");
 			return ret;
 		}
 		iobase = pci_resource_start(pci_dev, 2);
 	} else {
-		printk(KERN_ERR
-		       "comedi%d: %s: BUG! cannot determine board type!\n",
-		       dev->minor, PC263_DRIVER_NAME);
+		dev_err(dev->class_dev, PC263_DRIVER_NAME
+			": BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
 
@@ -266,8 +277,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	ret = alloc_subdevices(dev, 1);
 	if (ret < 0) {
-		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-		       dev->minor);
+		dev_err(dev->class_dev, "error! out of memory!\n");
 		return ret;
 	}
 
@@ -282,16 +292,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* read initial relay state */
 	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
 
-	printk(KERN_INFO "comedi%d: %s ", dev->minor, dev->board_name);
-	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA) &&
-	    thisboard->bustype == isa_bustype)
-		printk("(base %#lx) ", iobase);
-	else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI) &&
-		 thisboard->bustype == pci_bustype)
-		printk("(pci %s) ", pci_name(devpriv->pci_dev));
-
-	printk("attached\n");
-
+	pc263_report_attach(dev);
 	return 1;
 }
 
