@@ -29,6 +29,8 @@
 #define to_exynos_gem_obj(x)	container_of(x,\
 			struct exynos_drm_gem_obj, base)
 
+#define IS_NONCONTIG_BUFFER(f)		(f & EXYNOS_BO_NONCONTIG)
+
 /*
  * exynos drm gem buffer structure.
  *

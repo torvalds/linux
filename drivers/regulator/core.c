@@ -1431,7 +1431,10 @@ void devm_regulator_put(struct regulator *regulator)
 
 	rc = devres_destroy(regulator->dev, devm_regulator_release,
 			    devm_regulator_match, regulator);
-	WARN_ON(rc);
+	if (rc == 0)
+		regulator_put(regulator);
+	else
+		WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_regulator_put);
 

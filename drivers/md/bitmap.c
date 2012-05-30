@@ -539,9 +539,6 @@ static int bitmap_new_disk_sb(struct bitmap *bitmap)
 	bitmap->events_cleared = bitmap->mddev->events;
 	sb->events_cleared = cpu_to_le64(bitmap->mddev->events);
 
-	bitmap->flags |= BITMAP_HOSTENDIAN;
-	sb->version = cpu_to_le32(BITMAP_MAJOR_HOSTENDIAN);
-
 	kunmap_atomic(sb);
 
 	return 0;
@@ -1730,8 +1727,7 @@ int bitmap_create(struct mddev *mddev)
 	bitmap->chunkshift = (ffz(~mddev->bitmap_info.chunksize)
 			      - BITMAP_BLOCK_SHIFT);
 
-	/* now that chunksize and chunkshift are set, we can use these macros */
-	chunks = (blocks + bitmap->chunkshift - 1) >>
+	chunks = (blocks + (1 << bitmap->chunkshift) - 1) >>
 			bitmap->chunkshift;
 	pages = (chunks + PAGE_COUNTER_RATIO - 1) / PAGE_COUNTER_RATIO;
 
@@ -1788,7 +1784,9 @@ int bitmap_load(struct mddev *mddev)
 		 * re-add of a missing device */
 		start = mddev->recovery_cp;
 
+	mutex_lock(&mddev->bitmap_info.mutex);
 	err = bitmap_init_from_disk(bitmap, start);
+	mutex_unlock(&mddev->bitmap_info.mutex);
 
 	if (err)
 		goto out;

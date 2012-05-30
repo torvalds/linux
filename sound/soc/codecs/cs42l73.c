@@ -568,22 +568,22 @@ static const struct snd_kcontrol_new cs42l73_snd_controls[] = {
 			attn_tlv),
 
 	SOC_SINGLE_TLV("SPK-IP Mono Volume",
-			CS42L73_SPKMIPMA, 0, 0x3E, 1, attn_tlv),
+			CS42L73_SPKMIPMA, 0, 0x3F, 1, attn_tlv),
 	SOC_SINGLE_TLV("SPK-XSP Mono Volume",
-			CS42L73_SPKMXSPA, 0, 0x3E, 1, attn_tlv),
+			CS42L73_SPKMXSPA, 0, 0x3F, 1, attn_tlv),
 	SOC_SINGLE_TLV("SPK-ASP Mono Volume",
-			CS42L73_SPKMASPA, 0, 0x3E, 1, attn_tlv),
+			CS42L73_SPKMASPA, 0, 0x3F, 1, attn_tlv),
 	SOC_SINGLE_TLV("SPK-VSP Mono Volume",
-			CS42L73_SPKMVSPMA, 0, 0x3E, 1, attn_tlv),
+			CS42L73_SPKMVSPMA, 0, 0x3F, 1, attn_tlv),
 
 	SOC_SINGLE_TLV("ESL-IP Mono Volume",
-			CS42L73_ESLMIPMA, 0, 0x3E, 1, attn_tlv),
+			CS42L73_ESLMIPMA, 0, 0x3F, 1, attn_tlv),
 	SOC_SINGLE_TLV("ESL-XSP Mono Volume",
-			CS42L73_ESLMXSPA, 0, 0x3E, 1, attn_tlv),
+			CS42L73_ESLMXSPA, 0, 0x3F, 1, attn_tlv),
 	SOC_SINGLE_TLV("ESL-ASP Mono Volume",
-			CS42L73_ESLMASPA, 0, 0x3E, 1, attn_tlv),
+			CS42L73_ESLMASPA, 0, 0x3F, 1, attn_tlv),
 	SOC_SINGLE_TLV("ESL-VSP Mono Volume",
-			CS42L73_ESLMVSPMA, 0, 0x3E, 1, attn_tlv),
+			CS42L73_ESLMVSPMA, 0, 0x3F, 1, attn_tlv),
 
 	SOC_ENUM("IP Digital Swap/Mono Select", ip_swap_enum),
 
@@ -929,6 +929,8 @@ static int cs42l73_set_mclk(struct snd_soc_dai *dai, unsigned int freq)
 
 	/* MCLKX -> MCLK */
 	mclkx_coeff = cs42l73_get_mclkx_coeff(freq);
+	if (mclkx_coeff < 0)
+		return mclkx_coeff;
 
 	mclk = cs42l73_mclkx_coeffs[mclkx_coeff].mclkx /
 		cs42l73_mclkx_coeffs[mclkx_coeff].ratio;

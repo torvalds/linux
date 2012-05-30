@@ -85,7 +85,7 @@ static int timed_gpio_probe(struct platform_device *pdev)
 	struct timed_gpio_platform_data *pdata = pdev->dev.platform_data;
 	struct timed_gpio *cur_gpio;
 	struct timed_gpio_data *gpio_data, *gpio_dat;
-	int i, j, ret = 0;
+	int i, ret;
 
 	if (!pdata)
 		return -EBUSY;
@@ -108,18 +108,12 @@ static int timed_gpio_probe(struct platform_device *pdev)
 		gpio_dat->dev.get_time = gpio_get_time;
 		gpio_dat->dev.enable = gpio_enable;
 		ret = gpio_request(cur_gpio->gpio, cur_gpio->name);
-		if (ret >= 0) {
-			ret = timed_output_dev_register(&gpio_dat->dev);
-			if (ret < 0)
-				gpio_free(cur_gpio->gpio);
-		}
+		if (ret < 0)
+			goto err_out;
+		ret = timed_output_dev_register(&gpio_dat->dev);
 		if (ret < 0) {
-			for (j = 0; j < i; j++) {
-				timed_output_dev_unregister(&gpio_data[i].dev);
-				gpio_free(gpio_data[i].gpio);
-			}
-			kfree(gpio_data);
-			return ret;
+			gpio_free(cur_gpio->gpio);
+			goto err_out;
 		}
 
 		gpio_dat->gpio = cur_gpio->gpio;
@@ -131,6 +125,15 @@ static int timed_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gpio_data);
 
 	return 0;
+
+err_out:
+	while (--i >= 0) {
+		timed_output_dev_unregister(&gpio_data[i].dev);
+		gpio_free(gpio_data[i].gpio);
+	}
+	kfree(gpio_data);
+
+	return ret;
 }
 
 static int timed_gpio_remove(struct platform_device *pdev)

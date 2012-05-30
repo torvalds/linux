@@ -18,10 +18,6 @@
 #include <linux/atomic.h>
 
 
-/* Define a way to iterate across irqs. */
-#define for_each_irq(i) \
-	for ((i) = 0; (i) < NR_IRQS; ++(i))
-
 extern atomic_t ppc_n_lost_interrupts;
 
 /* This number is used when no interrupt has been assigned */
@@ -33,8 +29,6 @@ extern atomic_t ppc_n_lost_interrupts;
 /* Same thing, used by the generic IRQ code */
 #define NR_IRQS_LEGACY		NUM_ISA_INTERRUPTS
 
-struct irq_data;
-extern irq_hw_number_t irqd_to_hwirq(struct irq_data *d);
 extern irq_hw_number_t virq_to_hw(unsigned int virq);
 
 /**

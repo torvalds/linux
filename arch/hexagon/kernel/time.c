@@ -28,6 +28,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/module.h>
 
 #include <asm/timer-regs.h>
 #include <asm/hexagon_vm.h>

@@ -665,6 +665,11 @@ int hci_dev_open(__u16 dev)
 
 	hci_req_lock(hdev);
 
+	if (test_bit(HCI_UNREGISTER, &hdev->dev_flags)) {
+		ret = -ENODEV;
+		goto done;
+	}
+
 	if (hdev->rfkill && rfkill_blocked(hdev->rfkill)) {
 		ret = -ERFKILL;
 		goto done;
@@ -1210,40 +1215,40 @@ struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	return NULL;
 }
 
-static int hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
+static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 						u8 key_type, u8 old_key_type)
 {
 	/* Legacy key */
 	if (key_type < 0x03)
-		return 1;
+		return true;
 
 	/* Debug keys are insecure so don't store them persistently */
 	if (key_type == HCI_LK_DEBUG_COMBINATION)
-		return 0;
+		return false;
 
 	/* Changed combination key and there's no previous one */
 	if (key_type == HCI_LK_CHANGED_COMBINATION && old_key_type == 0xff)
-		return 0;
+		return false;
 
 	/* Security mode 3 case */
 	if (!conn)
-		return 1;
+		return true;
 
 	/* Neither local nor remote side had no-bonding as requirement */
 	if (conn->auth_type > 0x01 && conn->remote_auth > 0x01)
-		return 1;
+		return true;
 
 	/* Local side had dedicated bonding as requirement */
 	if (conn->auth_type == 0x02 || conn->auth_type == 0x03)
-		return 1;
+		return true;
 
 	/* Remote side had dedicated bonding as requirement */
 	if (conn->remote_auth == 0x02 || conn->remote_auth == 0x03)
-		return 1;
+		return true;
 
 	/* If none of the above criteria match, then don't store the key
 	 * persistently */
-	return 0;
+	return false;
 }
 
 struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8])
@@ -1280,7 +1285,8 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 		     bdaddr_t *bdaddr, u8 *val, u8 type, u8 pin_len)
 {
 	struct link_key *key, *old_key;
-	u8 old_key_type, persistent;
+	u8 old_key_type;
+	bool persistent;
 
 	old_key = hci_find_link_key(hdev, bdaddr);
 	if (old_key) {
@@ -1323,10 +1329,8 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 
 	mgmt_new_link_key(hdev, key, persistent);
 
-	if (!persistent) {
-		list_del(&key->list);
-		kfree(key);
-	}
+	if (conn)
+		conn->flush_key = !persistent;
 
 	return 0;
 }
@@ -1848,6 +1852,8 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	int i;
 
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
+
+	set_bit(HCI_UNREGISTER, &hdev->dev_flags);
 
 	write_lock(&hci_dev_list_lock);
 	list_del(&hdev->list);
@@ -2777,6 +2783,14 @@ static inline void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	if (conn) {
 		hci_conn_enter_active_mode(conn, BT_POWER_FORCE_ACTIVE_OFF);
+
+		hci_dev_lock(hdev);
+		if (test_bit(HCI_MGMT, &hdev->dev_flags) &&
+		    !test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
+			mgmt_device_connected(hdev, &conn->dst, conn->type,
+					      conn->dst_type, 0, NULL, 0,
+					      conn->dev_class);
+		hci_dev_unlock(hdev);
 
 		/* Send to upper protocol */
 		l2cap_recv_acldata(conn, skb, flags);

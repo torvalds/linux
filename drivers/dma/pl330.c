@@ -2225,11 +2225,8 @@ static inline void free_desc_list(struct list_head *list)
 {
 	struct dma_pl330_dmac *pdmac;
 	struct dma_pl330_desc *desc;
-	struct dma_pl330_chan *pch;
+	struct dma_pl330_chan *pch = NULL;
 	unsigned long flags;
-
-	if (list_empty(list))
-		return;
 
 	/* Finish off the work list */
 	list_for_each_entry(desc, list, node) {
@@ -2247,6 +2244,10 @@ static inline void free_desc_list(struct list_head *list)
 		desc->pchan = NULL;
 	}
 
+	/* pch will be unset if list was empty */
+	if (!pch)
+		return;
+
 	pdmac = pch->dmac;
 
 	spin_lock_irqsave(&pdmac->pool_lock, flags);
@@ -2257,11 +2258,8 @@ static inline void free_desc_list(struct list_head *list)
 static inline void handle_cyclic_desc_list(struct list_head *list)
 {
 	struct dma_pl330_desc *desc;
-	struct dma_pl330_chan *pch;
+	struct dma_pl330_chan *pch = NULL;
 	unsigned long flags;
-
-	if (list_empty(list))
-		return;
 
 	list_for_each_entry(desc, list, node) {
 		dma_async_tx_callback callback;
@@ -2273,6 +2271,10 @@ static inline void handle_cyclic_desc_list(struct list_head *list)
 		if (callback)
 			callback(desc->txd.callback_param);
 	}
+
+	/* pch will be unset if list was empty */
+	if (!pch)
+		return;
 
 	spin_lock_irqsave(&pch->lock, flags);
 	list_splice_tail_init(list, &pch->work_list);
@@ -2320,7 +2322,8 @@ static void pl330_tasklet(unsigned long data)
 	/* Pick up ripe tomatoes */
 	list_for_each_entry_safe(desc, _dt, &pch->work_list, node)
 		if (desc->status == DONE) {
-			dma_cookie_complete(&desc->txd);
+			if (pch->cyclic)
+				dma_cookie_complete(&desc->txd);
 			list_move_tail(&desc->node, &list);
 		}
 
@@ -2926,8 +2929,11 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	INIT_LIST_HEAD(&pd->channels);
 
 	/* Initialize channel parameters */
-	num_chan = max(pdat ? pdat->nr_valid_peri : (u8)pi->pcfg.num_peri,
-			(u8)pi->pcfg.num_chan);
+	if (pdat)
+		num_chan = max_t(int, pdat->nr_valid_peri, pi->pcfg.num_chan);
+	else
+		num_chan = max_t(int, pi->pcfg.num_peri, pi->pcfg.num_chan);
+
 	pdmac->peripherals = kzalloc(num_chan * sizeof(*pch), GFP_KERNEL);
 
 	for (i = 0; i < num_chan; i++) {

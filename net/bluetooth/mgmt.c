@@ -2523,13 +2523,18 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 
 	if (cp->val) {
 		type = PAGE_SCAN_TYPE_INTERLACED;
-		acp.interval = 0x0024;	/* 22.5 msec page scan interval */
+
+		/* 22.5 msec page scan interval */
+		acp.interval = __constant_cpu_to_le16(0x0024);
 	} else {
 		type = PAGE_SCAN_TYPE_STANDARD;	/* default */
-		acp.interval = 0x0800;	/* default 1.28 sec page scan */
+
+		/* default 1.28 sec page scan */
+		acp.interval = __constant_cpu_to_le16(0x0800);
 	}
 
-	acp.window = 0x0012;	/* default 11.25 msec page scan window */
+	/* default 11.25 msec page scan window */
+	acp.window = __constant_cpu_to_le16(0x0012);
 
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_PAGE_SCAN_ACTIVITY, sizeof(acp),
 			   &acp);
@@ -2879,7 +2884,7 @@ int mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status)
 	return 0;
 }
 
-int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key, u8 persistent)
+int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key, bool persistent)
 {
 	struct mgmt_ev_new_link_key ev;
 
@@ -2936,7 +2941,7 @@ int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 					  name, name_len);
 
 	if (dev_class && memcmp(dev_class, "\0\0\0", 3) != 0)
-		eir_len = eir_append_data(&ev->eir[eir_len], eir_len,
+		eir_len = eir_append_data(ev->eir, eir_len,
 					  EIR_CLASS_OF_DEV, dev_class, 3);
 
 	put_unaligned_le16(eir_len, &ev->eir_len);

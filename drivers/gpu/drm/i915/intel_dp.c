@@ -219,14 +219,38 @@ intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 	return (max_link_clock * max_lanes * 8) / 10;
 }
 
+static bool
+intel_dp_adjust_dithering(struct intel_dp *intel_dp,
+			  struct drm_display_mode *mode,
+			  struct drm_display_mode *adjusted_mode)
+{
+	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_dp));
+	int max_lanes = intel_dp_max_lane_count(intel_dp);
+	int max_rate, mode_rate;
+
+	mode_rate = intel_dp_link_required(mode->clock, 24);
+	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
+
+	if (mode_rate > max_rate) {
+		mode_rate = intel_dp_link_required(mode->clock, 18);
+		if (mode_rate > max_rate)
+			return false;
+
+		if (adjusted_mode)
+			adjusted_mode->private_flags
+				|= INTEL_MODE_DP_FORCE_6BPC;
+
+		return true;
+	}
+
+	return true;
+}
+
 static int
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
-	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_dp));
-	int max_lanes = intel_dp_max_lane_count(intel_dp);
-	int max_rate, mode_rate;
 
 	if (is_edp(intel_dp) && intel_dp->panel_fixed_mode) {
 		if (mode->hdisplay > intel_dp->panel_fixed_mode->hdisplay)
@@ -236,16 +260,8 @@ intel_dp_mode_valid(struct drm_connector *connector,
 			return MODE_PANEL;
 	}
 
-	mode_rate = intel_dp_link_required(mode->clock, 24);
-	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
-
-	if (mode_rate > max_rate) {
-			mode_rate = intel_dp_link_required(mode->clock, 18);
-			if (mode_rate > max_rate)
-				return MODE_CLOCK_HIGH;
-			else
-				mode->private_flags |= INTEL_MODE_DP_FORCE_6BPC;
-	}
+	if (!intel_dp_adjust_dithering(intel_dp, mode, NULL))
+		return MODE_CLOCK_HIGH;
 
 	if (mode->clock < 10000)
 		return MODE_CLOCK_LOW;
@@ -672,7 +688,7 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	int lane_count, clock;
 	int max_lane_count = intel_dp_max_lane_count(intel_dp);
 	int max_clock = intel_dp_max_link_bw(intel_dp) == DP_LINK_BW_2_7 ? 1 : 0;
-	int bpp = mode->private_flags & INTEL_MODE_DP_FORCE_6BPC ? 18 : 24;
+	int bpp;
 	static int bws[2] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7 };
 
 	if (is_edp(intel_dp) && intel_dp->panel_fixed_mode) {
@@ -685,6 +701,11 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		 */
 		mode->clock = intel_dp->panel_fixed_mode->clock;
 	}
+
+	if (!intel_dp_adjust_dithering(intel_dp, mode, adjusted_mode))
+		return false;
+
+	bpp = adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC ? 18 : 24;
 
 	for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
 		for (clock = 0; clock <= max_clock; clock++) {

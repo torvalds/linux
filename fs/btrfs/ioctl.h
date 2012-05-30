@@ -252,7 +252,7 @@ struct btrfs_data_container {
 
 struct btrfs_ioctl_ino_path_args {
 	__u64				inum;		/* in */
-	__u32				size;		/* in */
+	__u64				size;		/* in */
 	__u64				reserved[4];
 	/* struct btrfs_data_container	*fspath;	   out */
 	__u64				fspath;		/* out */
@@ -260,7 +260,7 @@ struct btrfs_ioctl_ino_path_args {
 
 struct btrfs_ioctl_logical_ino_args {
 	__u64				logical;	/* in */
-	__u32				size;		/* in */
+	__u64				size;		/* in */
 	__u64				reserved[4];
 	/* struct btrfs_data_container	*inodes;	out   */
 	__u64				inodes;

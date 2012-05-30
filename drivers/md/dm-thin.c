@@ -279,8 +279,10 @@ static void __cell_release(struct cell *cell, struct bio_list *inmates)
 
 	hlist_del(&cell->list);
 
-	bio_list_add(inmates, cell->holder);
-	bio_list_merge(inmates, &cell->bios);
+	if (inmates) {
+		bio_list_add(inmates, cell->holder);
+		bio_list_merge(inmates, &cell->bios);
+	}
 
 	mempool_free(cell, prison->cell_pool);
 }
@@ -303,9 +305,10 @@ static void cell_release(struct cell *cell, struct bio_list *bios)
  */
 static void __cell_release_singleton(struct cell *cell, struct bio *bio)
 {
-	hlist_del(&cell->list);
 	BUG_ON(cell->holder != bio);
 	BUG_ON(!bio_list_empty(&cell->bios));
+
+	__cell_release(cell, NULL);
 }
 
 static void cell_release_singleton(struct cell *cell, struct bio *bio)
@@ -1177,6 +1180,7 @@ static void no_space(struct cell *cell)
 static void process_discard(struct thin_c *tc, struct bio *bio)
 {
 	int r;
+	unsigned long flags;
 	struct pool *pool = tc->pool;
 	struct cell *cell, *cell2;
 	struct cell_key key, key2;
@@ -1218,7 +1222,9 @@ static void process_discard(struct thin_c *tc, struct bio *bio)
 			m->bio = bio;
 
 			if (!ds_add_work(&pool->all_io_ds, &m->list)) {
+				spin_lock_irqsave(&pool->lock, flags);
 				list_add(&m->list, &pool->prepared_discards);
+				spin_unlock_irqrestore(&pool->lock, flags);
 				wake_worker(pool);
 			}
 		} else {
@@ -1626,6 +1632,21 @@ static int bind_control_target(struct pool *pool, struct dm_target *ti)
 	pool->low_water_blocks = pt->low_water_blocks;
 	pool->pf = pt->pf;
 
+	/*
+	 * If discard_passdown was enabled verify that the data device
+	 * supports discards.  Disable discard_passdown if not; otherwise
+	 * -EOPNOTSUPP will be returned.
+	 */
+	if (pt->pf.discard_passdown) {
+		struct request_queue *q = bdev_get_queue(pt->data_dev->bdev);
+		if (!q || !blk_queue_discard(q)) {
+			char buf[BDEVNAME_SIZE];
+			DMWARN("Discard unsupported by data device (%s): Disabling discard passdown.",
+			       bdevname(pt->data_dev->bdev, buf));
+			pool->pf.discard_passdown = 0;
+		}
+	}
+
 	return 0;
 }
 
@@ -1980,19 +2001,6 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		ti->error = "Discard support cannot be disabled once enabled";
 		r = -EINVAL;
 		goto out_flags_changed;
-	}
-
-	/*
-	 * If discard_passdown was enabled verify that the data device
-	 * supports discards.  Disable discard_passdown if not; otherwise
-	 * -EOPNOTSUPP will be returned.
-	 */
-	if (pf.discard_passdown) {
-		struct request_queue *q = bdev_get_queue(data_dev->bdev);
-		if (!q || !blk_queue_discard(q)) {
-			DMWARN("Discard unsupported by data device: Disabling discard passdown.");
-			pf.discard_passdown = 0;
-		}
 	}
 
 	pt->pool = pool;
@@ -2379,7 +2387,7 @@ static int pool_status(struct dm_target *ti, status_type_t type,
 		       (unsigned long long)pt->low_water_blocks);
 
 		count = !pool->pf.zero_new_blocks + !pool->pf.discard_enabled +
-			!pool->pf.discard_passdown;
+			!pt->pf.discard_passdown;
 		DMEMIT("%u ", count);
 
 		if (!pool->pf.zero_new_blocks)
@@ -2388,7 +2396,7 @@ static int pool_status(struct dm_target *ti, status_type_t type,
 		if (!pool->pf.discard_enabled)
 			DMEMIT("ignore_discard ");
 
-		if (!pool->pf.discard_passdown)
+		if (!pt->pf.discard_passdown)
 			DMEMIT("no_discard_passdown ");
 
 		break;
@@ -2626,8 +2634,10 @@ static int thin_endio(struct dm_target *ti,
 	if (h->all_io_entry) {
 		INIT_LIST_HEAD(&work);
 		ds_dec(h->all_io_entry, &work);
+		spin_lock_irqsave(&pool->lock, flags);
 		list_for_each_entry_safe(m, tmp, &work, list)
 			list_add(&m->list, &pool->prepared_discards);
+		spin_unlock_irqrestore(&pool->lock, flags);
 	}
 
 	mempool_free(h, pool->endio_hook_pool);
@@ -2759,6 +2769,6 @@ static void dm_thin_exit(void)
 module_init(dm_thin_init);
 module_exit(dm_thin_exit);
 
-MODULE_DESCRIPTION(DM_NAME "device-mapper thin provisioning target");
+MODULE_DESCRIPTION(DM_NAME " thin provisioning target");
 MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
 MODULE_LICENSE("GPL");

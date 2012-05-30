@@ -14,6 +14,9 @@ LINK-y			+= $(call cc-option,-m32)
 
 export LDFLAGS
 
+LDS_EXTRA		:= -Ui386
+export LDS_EXTRA
+
 # First of all, tune CFLAGS for the specific CPU. This actually sets cflags-y.
 include $(srctree)/arch/x86/Makefile_32.cpu
 

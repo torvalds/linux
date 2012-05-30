@@ -11,6 +11,7 @@
 #include <linux/irq_work.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
+#include <linux/irqflags.h>
 #include <asm/processor.h>
 
 /*
