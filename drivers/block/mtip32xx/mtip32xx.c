@@ -294,18 +294,16 @@ static int hba_reset_nosleep(struct driver_data *dd)
  */
 static inline void mtip_issue_ncq_command(struct mtip_port *port, int tag)
 {
-	unsigned long flags = 0;
-
 	atomic_set(&port->commands[tag].active, 1);
 
-	spin_lock_irqsave(&port->cmd_issue_lock, flags);
+	spin_lock(&port->cmd_issue_lock);
 
 	writel((1 << MTIP_TAG_BIT(tag)),
 			port->s_active[MTIP_TAG_INDEX(tag)]);
 	writel((1 << MTIP_TAG_BIT(tag)),
 			port->cmd_issue[MTIP_TAG_INDEX(tag)]);
 
-	spin_unlock_irqrestore(&port->cmd_issue_lock, flags);
+	spin_unlock(&port->cmd_issue_lock);
 
 	/* Set the command's timeout value.*/
 	port->commands[tag].comp_time = jiffies + msecs_to_jiffies(
