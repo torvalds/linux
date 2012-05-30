@@ -27,7 +27,7 @@
 #include <mach/hardware.h>
 #include <mach/platform.h>
 
-extern struct sysdev_class sw_sysclass;
+extern struct bus_type sw_subsys;
 
 static inline void arch_idle(void)
 {

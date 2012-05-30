@@ -2,7 +2,6 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
 #include <linux/interrupt.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
@@ -12,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/gfp.h>
 #include <linux/clockchips.h>
+#include <linux/export.h>
 
 #include <asm/clkdev.h>
 #include <asm/system.h>
@@ -200,25 +200,26 @@ void __init softwinner_map_io(void)
 	iotable_init(softwinner_io_desc, ARRAY_SIZE(softwinner_io_desc));
 }
 
-struct sysdev_class sw_sysclass = {
+struct bus_type sw_subsys = {
 	.name = "sw-core",
+	.dev_name = "sw-core",
 };
 
-static struct sys_device sw_sysdev = {
-	.cls = &sw_sysclass,
+static struct device sw_dev = {
+	.bus = &sw_subsys,
 };
 
 static int __init sw_core_init(void)
 {
-        return sysdev_class_register(&sw_sysclass);
+        return subsys_system_register(&sw_subsys, NULL);
 }
 core_initcall(sw_core_init);
 
 
 extern int sw_register_clocks(void);
-void __init softwinner_init(void)
+static void __init softwinner_init(void)
 {
-	sysdev_register(&sw_sysdev);
+	device_register(&sw_dev);
 }
 
 static void __init softwinner_timer_init(void)
@@ -258,7 +259,6 @@ MACHINE_START(SUN3I, "sun3i")
         .init_irq       = softwinner_init_irq,
         .timer          = &softwinner_timer,
         .init_machine   = softwinner_init,
-        .boot_params = (unsigned long)(0x80000000),
 MACHINE_END
 
 extern void _eLIBs_CleanFlushDCacheRegion(void *addr, __u32 len);
