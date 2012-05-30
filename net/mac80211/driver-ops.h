@@ -1020,4 +1020,20 @@ static inline void drv_restart_complete(struct ieee80211_local *local)
 	trace_drv_return_void(local);
 }
 
+static inline void
+drv_set_default_unicast_key(struct ieee80211_local *local,
+			    struct ieee80211_sub_if_data *sdata,
+			    int key_idx)
+{
+	check_sdata_in_driver(sdata);
+
+	WARN_ON_ONCE(key_idx < -1 || key_idx > 3);
+
+	trace_drv_set_default_unicast_key(local, sdata, key_idx);
+	if (local->ops->set_default_unicast_key)
+		local->ops->set_default_unicast_key(&local->hw, &sdata->vif,
+						    key_idx);
+	trace_drv_return_void(local);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

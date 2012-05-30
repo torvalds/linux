@@ -1630,6 +1630,10 @@ void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
  * rekeying), it will not include a valid phase 1 key. The valid phase 1 key is
  * provided by update_tkip_key only. The trigger that makes mac80211 call this
  * handler is software decryption with wrap around of iv16.
+ *
+ * The set_default_unicast_key() call updates the default WEP key index
+ * configured to the hardware for WEP encryption type. This is required
+ * for devices that support offload of data packets (e.g. ARP responses).
  */
 
 /**
@@ -2208,6 +2212,10 @@ enum ieee80211_rate_control_changed {
  *	After rekeying was done it should (for example during resume) notify
  *	userspace of the new replay counter using ieee80211_gtk_rekey_notify().
  *
+ * @set_default_unicast_key: Set the default (unicast) key index, useful for
+ *	WEP when the device sends data packets autonomously, e.g. for ARP
+ *	offloading. The index can be 0-3, or -1 for unsetting it.
+ *
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack. The scan must honour the channel
  *	configuration done by the regulatory agent in the wiphy's
@@ -2539,6 +2547,8 @@ struct ieee80211_ops {
 	void (*set_rekey_data)(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct cfg80211_gtk_rekey_data *data);
+	void (*set_default_unicast_key)(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif, int idx);
 	int (*hw_scan)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct cfg80211_scan_request *req);
 	void (*cancel_hw_scan)(struct ieee80211_hw *hw,

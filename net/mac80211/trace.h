@@ -1821,6 +1821,29 @@ TRACE_EVENT(stop_queue,
 	)
 );
 
+TRACE_EVENT(drv_set_default_unicast_key,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 int key_idx),
+
+	TP_ARGS(local, sdata, key_idx),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(int, key_idx)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->key_idx = key_idx;
+	),
+
+	TP_printk(LOCAL_PR_FMT VIF_PR_FMT " key_idx:%d",
+		  LOCAL_PR_ARG, VIF_PR_ARG, __entry->key_idx)
+);
+
 #ifdef CONFIG_MAC80211_MESSAGE_TRACING
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM mac80211_msg
