@@ -1001,7 +1001,7 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 				       WMI_FRAME_PROBE_REQ,
 				       request->ie, request->ie_len);
 	if (ret) {
-		ath6kl_err("failed to set Probe Request appie for scan");
+		ath6kl_err("failed to set Probe Request appie for scan\n");
 		return ret;
 	}
 
@@ -3288,7 +3288,7 @@ static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
 				       WMI_FRAME_PROBE_REQ,
 				       request->ie, request->ie_len);
 	if (ret) {
-		ath6kl_warn("Failed to set probe request IE for scheduled scan: %d",
+		ath6kl_warn("Failed to set probe request IE for scheduled scan: %d\n",
 			    ret);
 		return ret;
 	}
