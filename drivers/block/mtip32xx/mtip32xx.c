@@ -970,6 +970,8 @@ static inline void mtip_process_sdbf(struct driver_data *dd)
 	/* walk all bits in all slot groups */
 	for (group = 0; group < dd->slot_groups; group++) {
 		completed = readl(port->completed[group]);
+		if (!completed)
+			continue;
 
 		/* clear completed status register in the hardware.*/
 		writel(completed, port->completed[group]);
