@@ -937,6 +937,21 @@ void nfc_llcp_recv(void *data, struct sk_buff *skb, int err)
 	return;
 }
 
+int nfc_llcp_data_received(struct nfc_dev *dev, struct sk_buff *skb)
+{
+	struct nfc_llcp_local *local;
+
+	local = nfc_llcp_find_local(dev);
+	if (local == NULL)
+		return -ENODEV;
+
+	local->rx_pending = skb_get(skb);
+	del_timer(&local->link_timer);
+	queue_work(local->rx_wq, &local->rx_work);
+
+	return 0;
+}
+
 void nfc_llcp_mac_is_down(struct nfc_dev *dev)
 {
 	struct nfc_llcp_local *local;

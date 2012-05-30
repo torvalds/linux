@@ -55,6 +55,7 @@ int nfc_llcp_register_device(struct nfc_dev *dev);
 void nfc_llcp_unregister_device(struct nfc_dev *dev);
 int nfc_llcp_set_remote_gb(struct nfc_dev *dev, u8 *gb, u8 gb_len);
 u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, size_t *general_bytes_len);
+int nfc_llcp_data_received(struct nfc_dev *dev, struct sk_buff *skb);
 int __init nfc_llcp_init(void);
 void nfc_llcp_exit(void);
 
@@ -88,6 +89,12 @@ static inline u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, size_t *gb_len)
 {
 	*gb_len = 0;
 	return NULL;
+}
+
+static inline int nfc_llcp_data_received(struct nfc_dev *dev,
+					 struct sk_buff *skb)
+{
+	return 0;
 }
 
 static inline int nfc_llcp_init(void)

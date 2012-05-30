@@ -462,6 +462,18 @@ u8 *nfc_get_local_general_bytes(struct nfc_dev *dev, size_t *gb_len)
 }
 EXPORT_SYMBOL(nfc_get_local_general_bytes);
 
+int nfc_tm_data_received(struct nfc_dev *dev, struct sk_buff *skb)
+{
+	/* Only LLCP target mode for now */
+	if (dev->dep_link_up == false) {
+		kfree_skb(skb);
+		return -ENOLINK;
+	}
+
+	return nfc_llcp_data_received(dev, skb);
+}
+EXPORT_SYMBOL(nfc_tm_data_received);
+
 int nfc_tm_activated(struct nfc_dev *dev, u32 protocol, u8 comm_mode,
 		     u8 *gb, size_t gb_len)
 {

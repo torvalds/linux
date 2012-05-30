@@ -202,5 +202,6 @@ int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 int nfc_tm_activated(struct nfc_dev *dev, u32 protocol, u8 comm_mode,
 		     u8 *gb, size_t gb_len);
 int nfc_tm_deactivated(struct nfc_dev *dev);
+int nfc_tm_data_received(struct nfc_dev *dev, struct sk_buff *skb);
 
 #endif /* __NET_NFC_H */
