@@ -1911,8 +1911,15 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	rp.addr.type = cp->addr.type;
 
 	if (IS_ERR(conn)) {
+		int status;
+
+		if (PTR_ERR(conn) == -EBUSY)
+			status = MGMT_STATUS_BUSY;
+		else
+			status = MGMT_STATUS_CONNECT_FAILED;
+
 		err = cmd_complete(sk, hdev->id, MGMT_OP_PAIR_DEVICE,
-				   MGMT_STATUS_CONNECT_FAILED, &rp,
+				   status, &rp,
 				   sizeof(rp));
 		goto unlock;
 	}
