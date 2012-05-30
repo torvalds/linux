@@ -1890,13 +1890,33 @@ static int exec_drive_command(struct mtip_port *port, u8 *command,
 				void __user *user_buffer)
 {
 	struct host_to_dev_fis	fis;
-	struct host_to_dev_fis *reply = (port->rxfis + RX_FIS_D2H_REG);
+	struct host_to_dev_fis *reply;
+	u8 *buf = NULL;
+	dma_addr_t dma_addr = 0;
+	int rv = 0, xfer_sz = command[3];
+
+	if (xfer_sz) {
+		if (user_buffer)
+			return -EFAULT;
+
+		buf = dmam_alloc_coherent(&port->dd->pdev->dev,
+				ATA_SECT_SIZE * xfer_sz,
+				&dma_addr,
+				GFP_KERNEL);
+		if (!buf) {
+			dev_err(&port->dd->pdev->dev,
+				"Memory allocation failed (%d bytes)\n",
+				ATA_SECT_SIZE * xfer_sz);
+			return -ENOMEM;
+		}
+		memset(buf, 0, ATA_SECT_SIZE * xfer_sz);
+	}
 
 	/* Build the FIS. */
 	memset(&fis, 0, sizeof(struct host_to_dev_fis));
-	fis.type		= 0x27;
-	fis.opts		= 1 << 7;
-	fis.command		= command[0];
+	fis.type	= 0x27;
+	fis.opts	= 1 << 7;
+	fis.command	= command[0];
 	fis.features	= command[2];
 	fis.sect_count	= command[3];
 	if (fis.command == ATA_CMD_SMART) {
@@ -1904,6 +1924,11 @@ static int exec_drive_command(struct mtip_port *port, u8 *command,
 		fis.cyl_low	= 0x4F;
 		fis.cyl_hi	= 0xC2;
 	}
+
+	if (xfer_sz)
+		reply = (port->rxfis + RX_FIS_PIO_SETUP);
+	else
+		reply = (port->rxfis + RX_FIS_D2H_REG);
 
 	dbg_printk(MTIP_DRV_NAME
 		" %s: User Command: cmd %x, sect %x, "
@@ -1914,43 +1939,46 @@ static int exec_drive_command(struct mtip_port *port, u8 *command,
 		command[2],
 		command[3]);
 
-	memset(port->sector_buffer, 0x00, ATA_SECT_SIZE);
-
 	/* Execute the command. */
 	if (mtip_exec_internal_command(port,
 				&fis,
 				 5,
-				 port->sector_buffer_dma,
-				 (command[3] != 0) ? ATA_SECT_SIZE : 0,
+				 (xfer_sz ? dma_addr : 0),
+				 (xfer_sz ? ATA_SECT_SIZE * xfer_sz : 0),
 				 0,
 				 GFP_KERNEL,
 				 MTIP_IOCTL_COMMAND_TIMEOUT_MS)
 				 < 0) {
-		return -1;
+		rv = -EFAULT;
+		goto exit_drive_command;
 	}
 
 	/* Collect the completion status. */
 	command[0] = reply->command; /* Status*/
 	command[1] = reply->features; /* Error*/
-	command[2] = command[3];
+	command[2] = reply->sect_count;
 
 	dbg_printk(MTIP_DRV_NAME
 		" %s: Completion Status: stat %x, "
-		"err %x, cmd %x\n",
+		"err %x, nsect %x\n",
 		__func__,
 		command[0],
 		command[1],
 		command[2]);
 
-	if (user_buffer && command[3]) {
+	if (xfer_sz) {
 		if (copy_to_user(user_buffer,
-				 port->sector_buffer,
+				 buf,
 				 ATA_SECT_SIZE * command[3])) {
-			return -EFAULT;
+			rv = -EFAULT;
+			goto exit_drive_command;
 		}
 	}
-
-	return 0;
+exit_drive_command:
+	if (buf)
+		dmam_free_coherent(&port->dd->pdev->dev,
+				ATA_SECT_SIZE * xfer_sz, buf, dma_addr);
+	return rv;
 }
 
 /*
