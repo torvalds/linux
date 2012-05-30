@@ -1356,11 +1356,6 @@ static void fail_protocol(struct ceph_connection *con)
 {
 	reset_connection(con);
 	set_bit(CLOSED, &con->state);  /* in case there's queued work */
-
-	mutex_unlock(&con->mutex);
-	if (con->ops->bad_proto)
-		con->ops->bad_proto(con);
-	mutex_lock(&con->mutex);
 }
 
 static int process_connect(struct ceph_connection *con)
