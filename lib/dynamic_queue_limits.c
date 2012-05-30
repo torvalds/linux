@@ -10,7 +10,7 @@
 #include <linux/jiffies.h>
 #include <linux/dynamic_queue_limits.h>
 
-#define POSDIFF(A, B) ((A) > (B) ? (A) - (B) : 0)
+#define POSDIFF(A, B) ((int)((A) - (B)) > 0 ? (A) - (B) : 0)
 
 /* Records completed count and recalculates the queue limit */
 void dql_completed(struct dql *dql, unsigned int count)
