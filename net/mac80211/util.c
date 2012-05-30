@@ -1224,7 +1224,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			enum ieee80211_sta_state state;
 
 			for (state = IEEE80211_STA_NOTEXIST;
-			     state < sta->sta_state - 1; state++)
+			     state < sta->sta_state; state++)
 				WARN_ON(drv_sta_state(local, sta->sdata, sta,
 						      state, state + 1));
 		}
