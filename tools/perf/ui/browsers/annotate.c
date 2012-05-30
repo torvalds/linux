@@ -19,6 +19,16 @@ struct browser_disasm_line {
 	int		jump_sources;
 };
 
+static struct annotate_browser_opt {
+	bool hide_src_code,
+	     use_offset,
+	     jump_arrows,
+	     show_nr_jumps;
+} annotate_browser__opts = {
+	.use_offset	= true,
+	.jump_arrows	= true,
+};
+
 struct annotate_browser {
 	struct ui_browser b;
 	struct rb_root	  entries;
@@ -30,10 +40,6 @@ struct annotate_browser {
 	int		    nr_entries;
 	int		    max_jump_sources;
 	int		    nr_jumps;
-	bool		    hide_src_code;
-	bool		    use_offset;
-	bool		    jump_arrows;
-	bool		    show_nr_jumps;
 	bool		    searching_backwards;
 	u8		    addr_width;
 	u8		    jumps_width;
@@ -48,11 +54,9 @@ static inline struct browser_disasm_line *disasm_line__browser(struct disasm_lin
 	return (struct browser_disasm_line *)(dl + 1);
 }
 
-static bool disasm_line__filter(struct ui_browser *browser, void *entry)
+static bool disasm_line__filter(struct ui_browser *browser __used, void *entry)
 {
-	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
-
-	if (ab->hide_src_code) {
+	if (annotate_browser__opts.hide_src_code) {
 		struct disasm_line *dl = list_entry(entry, struct disasm_line, node);
 		return dl->offset == -1;
 	}
@@ -79,30 +83,30 @@ static int annotate_browser__set_jumps_percent_color(struct annotate_browser *br
 	 return ui_browser__set_color(&browser->b, color);
 }
 
-static void annotate_browser__write(struct ui_browser *self, void *entry, int row)
+static void annotate_browser__write(struct ui_browser *browser, void *entry, int row)
 {
-	struct annotate_browser *ab = container_of(self, struct annotate_browser, b);
+	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	struct disasm_line *dl = list_entry(entry, struct disasm_line, node);
 	struct browser_disasm_line *bdl = disasm_line__browser(dl);
-	bool current_entry = ui_browser__is_current_entry(self, row);
-	bool change_color = (!ab->hide_src_code &&
-			     (!current_entry || (self->use_navkeypressed &&
-					         !self->navkeypressed)));
-	int width = self->width, printed;
+	bool current_entry = ui_browser__is_current_entry(browser, row);
+	bool change_color = (!annotate_browser__opts.hide_src_code &&
+			     (!current_entry || (browser->use_navkeypressed &&
+					         !browser->navkeypressed)));
+	int width = browser->width, printed;
 	char bf[256];
 
 	if (dl->offset != -1 && bdl->percent != 0.0) {
-		ui_browser__set_percent_color(self, bdl->percent, current_entry);
+		ui_browser__set_percent_color(browser, bdl->percent, current_entry);
 		slsmg_printf("%6.2f ", bdl->percent);
 	} else {
-		ui_browser__set_percent_color(self, 0, current_entry);
+		ui_browser__set_percent_color(browser, 0, current_entry);
 		slsmg_write_nstring(" ", 7);
 	}
 
 	SLsmg_write_char(' ');
 
 	/* The scroll bar isn't being used */
-	if (!self->navkeypressed)
+	if (!browser->navkeypressed)
 		width += 1;
 
 	if (!*dl->line)
@@ -116,14 +120,14 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		u64 addr = dl->offset;
 		int color = -1;
 
-		if (!ab->use_offset)
+		if (!annotate_browser__opts.use_offset)
 			addr += ab->start;
 
-		if (!ab->use_offset) {
+		if (!annotate_browser__opts.use_offset) {
 			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
 		} else {
 			if (bdl->jump_sources) {
-				if (ab->show_nr_jumps) {
+				if (annotate_browser__opts.show_nr_jumps) {
 					int prev;
 					printed = scnprintf(bf, sizeof(bf), "%*d ",
 							    ab->jumps_width,
@@ -131,7 +135,7 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 					prev = annotate_browser__set_jumps_percent_color(ab, bdl->jump_sources,
 											 current_entry);
 					slsmg_write_nstring(bf, printed);
-					ui_browser__set_color(self, prev);
+					ui_browser__set_color(browser, prev);
 				}
 
 				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ": ",
@@ -143,19 +147,19 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		}
 
 		if (change_color)
-			color = ui_browser__set_color(self, HE_COLORSET_ADDR);
+			color = ui_browser__set_color(browser, HE_COLORSET_ADDR);
 		slsmg_write_nstring(bf, printed);
 		if (change_color)
-			ui_browser__set_color(self, color);
+			ui_browser__set_color(browser, color);
 		if (dl->ins && dl->ins->ops->scnprintf) {
 			if (ins__is_jump(dl->ins)) {
 				bool fwd = dl->ops.target.offset > (u64)dl->offset;
 
-				ui_browser__write_graph(self, fwd ? SLSMG_DARROW_CHAR :
+				ui_browser__write_graph(browser, fwd ? SLSMG_DARROW_CHAR :
 								    SLSMG_UARROW_CHAR);
 				SLsmg_write_char(' ');
 			} else if (ins__is_call(dl->ins)) {
-				ui_browser__write_graph(self, SLSMG_RARROW_CHAR);
+				ui_browser__write_graph(browser, SLSMG_RARROW_CHAR);
 				SLsmg_write_char(' ');
 			} else {
 				slsmg_write_nstring(" ", 2);
@@ -164,12 +168,12 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 			if (strcmp(dl->name, "retq")) {
 				slsmg_write_nstring(" ", 2);
 			} else {
-				ui_browser__write_graph(self, SLSMG_LARROW_CHAR);
+				ui_browser__write_graph(browser, SLSMG_LARROW_CHAR);
 				SLsmg_write_char(' ');
 			}
 		}
 
-		disasm_line__scnprintf(dl, bf, sizeof(bf), !ab->use_offset);
+		disasm_line__scnprintf(dl, bf, sizeof(bf), !annotate_browser__opts.use_offset);
 		slsmg_write_nstring(bf, width - 10 - printed);
 	}
 
@@ -184,7 +188,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	struct browser_disasm_line *btarget, *bcursor;
 	unsigned int from, to;
 
-	if (!cursor->ins || !ins__is_jump(cursor->ins) ||
+	if (!cursor || !cursor->ins || !ins__is_jump(cursor->ins) ||
 	    !disasm_line__has_offset(cursor))
 		return;
 
@@ -195,7 +199,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	bcursor = disasm_line__browser(cursor);
 	btarget = disasm_line__browser(target);
 
-	if (ab->hide_src_code) {
+	if (annotate_browser__opts.hide_src_code) {
 		from = bcursor->idx_asm;
 		to = btarget->idx_asm;
 	} else {
@@ -209,10 +213,9 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 
 static unsigned int annotate_browser__refresh(struct ui_browser *browser)
 {
-	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	int ret = ui_browser__list_head_refresh(browser);
 
-	if (ab->jump_arrows)
+	if (annotate_browser__opts.jump_arrows)
 		annotate_browser__draw_current_jump(browser);
 
 	ui_browser__set_color(browser, HE_COLORSET_NORMAL);
@@ -272,27 +275,27 @@ static void disasm_rb_tree__insert(struct rb_root *root, struct browser_disasm_l
 	rb_insert_color(&bdl->rb_node, root);
 }
 
-static void annotate_browser__set_top(struct annotate_browser *self,
+static void annotate_browser__set_top(struct annotate_browser *browser,
 				      struct disasm_line *pos, u32 idx)
 {
 	unsigned back;
 
-	ui_browser__refresh_dimensions(&self->b);
-	back = self->b.height / 2;
-	self->b.top_idx = self->b.index = idx;
+	ui_browser__refresh_dimensions(&browser->b);
+	back = browser->b.height / 2;
+	browser->b.top_idx = browser->b.index = idx;
 
-	while (self->b.top_idx != 0 && back != 0) {
+	while (browser->b.top_idx != 0 && back != 0) {
 		pos = list_entry(pos->node.prev, struct disasm_line, node);
 
-		if (disasm_line__filter(&self->b, &pos->node))
+		if (disasm_line__filter(&browser->b, &pos->node))
 			continue;
 
-		--self->b.top_idx;
+		--browser->b.top_idx;
 		--back;
 	}
 
-	self->b.top = pos;
-	self->b.navkeypressed = true;
+	browser->b.top = pos;
+	browser->b.navkeypressed = true;
 }
 
 static void annotate_browser__set_rb_top(struct annotate_browser *browser,
@@ -305,7 +308,7 @@ static void annotate_browser__set_rb_top(struct annotate_browser *browser,
 	bpos = rb_entry(nd, struct browser_disasm_line, rb_node);
 	pos = ((struct disasm_line *)bpos) - 1;
 	idx = bpos->idx;
-	if (browser->hide_src_code)
+	if (annotate_browser__opts.hide_src_code)
 		idx = bpos->idx_asm;
 	annotate_browser__set_top(browser, pos, idx);
 	browser->curr_hot = nd;
@@ -347,12 +350,12 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 	dl = list_entry(browser->b.top, struct disasm_line, node);
 	bdl = disasm_line__browser(dl);
 
-	if (browser->hide_src_code) {
+	if (annotate_browser__opts.hide_src_code) {
 		if (bdl->idx_asm < offset)
 			offset = bdl->idx;
 
 		browser->b.nr_entries = browser->nr_entries;
-		browser->hide_src_code = false;
+		annotate_browser__opts.hide_src_code = false;
 		browser->b.seek(&browser->b, -offset, SEEK_CUR);
 		browser->b.top_idx = bdl->idx - offset;
 		browser->b.index = bdl->idx;
@@ -367,13 +370,19 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 			offset = bdl->idx_asm;
 
 		browser->b.nr_entries = browser->nr_asm_entries;
-		browser->hide_src_code = true;
+		annotate_browser__opts.hide_src_code = true;
 		browser->b.seek(&browser->b, -offset, SEEK_CUR);
 		browser->b.top_idx = bdl->idx_asm - offset;
 		browser->b.index = bdl->idx_asm;
 	}
 
 	return true;
+}
+
+static void annotate_browser__init_asm_mode(struct annotate_browser *browser)
+{
+	ui_browser__reset_index(&browser->b);
+	browser->b.nr_entries = browser->nr_asm_entries;
 }
 
 static bool annotate_browser__callq(struct annotate_browser *browser,
@@ -578,33 +587,46 @@ bool annotate_browser__continue_search_reverse(struct annotate_browser *browser,
 	return __annotate_browser__search_reverse(browser);
 }
 
-static int annotate_browser__run(struct annotate_browser *self, int evidx,
+static void annotate_browser__update_addr_width(struct annotate_browser *browser)
+{
+	if (annotate_browser__opts.use_offset)
+		browser->target_width = browser->min_addr_width;
+	else
+		browser->target_width = browser->max_addr_width;
+
+	browser->addr_width = browser->target_width;
+
+	if (annotate_browser__opts.show_nr_jumps)
+		browser->addr_width += browser->jumps_width + 1;
+}
+
+static int annotate_browser__run(struct annotate_browser *browser, int evidx,
 				 void(*timer)(void *arg),
 				 void *arg, int delay_secs)
 {
 	struct rb_node *nd = NULL;
-	struct map_symbol *ms = self->b.priv;
+	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	const char *help = "Press 'h' for help on key bindings";
 	int key;
 
-	if (ui_browser__show(&self->b, sym->name, help) < 0)
+	if (ui_browser__show(&browser->b, sym->name, help) < 0)
 		return -1;
 
-	annotate_browser__calc_percent(self, evidx);
+	annotate_browser__calc_percent(browser, evidx);
 
-	if (self->curr_hot) {
-		annotate_browser__set_rb_top(self, self->curr_hot);
-		self->b.navkeypressed = false;
+	if (browser->curr_hot) {
+		annotate_browser__set_rb_top(browser, browser->curr_hot);
+		browser->b.navkeypressed = false;
 	}
 
-	nd = self->curr_hot;
+	nd = browser->curr_hot;
 
 	while (1) {
-		key = ui_browser__run(&self->b, delay_secs);
+		key = ui_browser__run(&browser->b, delay_secs);
 
 		if (delay_secs != 0) {
-			annotate_browser__calc_percent(self, evidx);
+			annotate_browser__calc_percent(browser, evidx);
 			/*
 			 * Current line focus got out of the list of most active
 			 * lines, NULL it so that if TAB|UNTAB is pressed, we
@@ -626,21 +648,21 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 			if (nd != NULL) {
 				nd = rb_prev(nd);
 				if (nd == NULL)
-					nd = rb_last(&self->entries);
+					nd = rb_last(&browser->entries);
 			} else
-				nd = self->curr_hot;
+				nd = browser->curr_hot;
 			break;
 		case K_UNTAB:
 			if (nd != NULL)
 				nd = rb_next(nd);
 				if (nd == NULL)
-					nd = rb_first(&self->entries);
+					nd = rb_first(&browser->entries);
 			else
-				nd = self->curr_hot;
+				nd = browser->curr_hot;
 			break;
 		case K_F1:
 		case 'h':
-			ui_browser__help_window(&self->b,
+			ui_browser__help_window(&browser->b,
 		"UP/DOWN/PGUP\n"
 		"PGDN/SPACE    Navigate\n"
 		"q/ESC/CTRL+C  Exit\n\n"
@@ -656,57 +678,62 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 		"?             Search previous string\n");
 			continue;
 		case 'H':
-			nd = self->curr_hot;
+			nd = browser->curr_hot;
 			break;
 		case 's':
-			if (annotate_browser__toggle_source(self))
+			if (annotate_browser__toggle_source(browser))
 				ui_helpline__puts(help);
 			continue;
 		case 'o':
-			self->use_offset = !self->use_offset;
-			if (self->use_offset)
-				self->target_width = self->min_addr_width;
-			else
-				self->target_width = self->max_addr_width;
-update_addr_width:
-			self->addr_width = self->target_width;
-			if (self->show_nr_jumps)
-				self->addr_width += self->jumps_width + 1;
+			annotate_browser__opts.use_offset = !annotate_browser__opts.use_offset;
+			annotate_browser__update_addr_width(browser);
 			continue;
 		case 'j':
-			self->jump_arrows = !self->jump_arrows;
+			annotate_browser__opts.jump_arrows = !annotate_browser__opts.jump_arrows;
 			continue;
 		case 'J':
-			self->show_nr_jumps = !self->show_nr_jumps;
-			goto update_addr_width;
+			annotate_browser__opts.show_nr_jumps = !annotate_browser__opts.show_nr_jumps;
+			annotate_browser__update_addr_width(browser);
+			continue;
 		case '/':
-			if (annotate_browser__search(self, delay_secs)) {
+			if (annotate_browser__search(browser, delay_secs)) {
 show_help:
 				ui_helpline__puts(help);
 			}
 			continue;
 		case 'n':
-			if (self->searching_backwards ?
-			    annotate_browser__continue_search_reverse(self, delay_secs) :
-			    annotate_browser__continue_search(self, delay_secs))
+			if (browser->searching_backwards ?
+			    annotate_browser__continue_search_reverse(browser, delay_secs) :
+			    annotate_browser__continue_search(browser, delay_secs))
 				goto show_help;
 			continue;
 		case '?':
-			if (annotate_browser__search_reverse(self, delay_secs))
+			if (annotate_browser__search_reverse(browser, delay_secs))
 				goto show_help;
+			continue;
+		case 'D': {
+			static int seq;
+			ui_helpline__pop();
+			ui_helpline__fpush("%d: nr_ent=%d, height=%d, idx=%d, top_idx=%d, nr_asm_entries=%d",
+					   seq++, browser->b.nr_entries,
+					   browser->b.height,
+					   browser->b.index,
+					   browser->b.top_idx,
+					   browser->nr_asm_entries);
+		}
 			continue;
 		case K_ENTER:
 		case K_RIGHT:
-			if (self->selection == NULL)
+			if (browser->selection == NULL)
 				ui_helpline__puts("Huh? No selection. Report to linux-kernel@vger.kernel.org");
-			else if (self->selection->offset == -1)
+			else if (browser->selection->offset == -1)
 				ui_helpline__puts("Actions are only available for assembly lines.");
-			else if (!self->selection->ins) {
-				if (strcmp(self->selection->name, "retq"))
+			else if (!browser->selection->ins) {
+				if (strcmp(browser->selection->name, "retq"))
 					goto show_sup_ins;
 				goto out;
-			} else if (!(annotate_browser__jump(self) ||
-				     annotate_browser__callq(self, evidx, timer, arg, delay_secs))) {
+			} else if (!(annotate_browser__jump(browser) ||
+				     annotate_browser__callq(browser, evidx, timer, arg, delay_secs))) {
 show_sup_ins:
 				ui_helpline__puts("Actions are only available for 'callq', 'retq' & jump instructions.");
 			}
@@ -721,10 +748,10 @@ show_sup_ins:
 		}
 
 		if (nd != NULL)
-			annotate_browser__set_rb_top(self, nd);
+			annotate_browser__set_rb_top(browser, nd);
 	}
 out:
-	ui_browser__hide(&self->b);
+	ui_browser__hide(&browser->b);
 	return key;
 }
 
@@ -801,8 +828,6 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 			.priv	 = &ms,
 			.use_navkeypressed = true,
 		},
-		.use_offset = true,
-		.jump_arrows = true,
 	};
 	int ret = -1;
 
@@ -859,6 +884,12 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 	browser.b.nr_entries = browser.nr_entries;
 	browser.b.entries = &notes->src->source,
 	browser.b.width += 18; /* Percentage */
+
+	if (annotate_browser__opts.hide_src_code)
+		annotate_browser__init_asm_mode(&browser);
+
+	annotate_browser__update_addr_width(&browser);
+
 	ret = annotate_browser__run(&browser, evidx, timer, arg, delay_secs);
 	list_for_each_entry_safe(pos, n, &notes->src->source, node) {
 		list_del(&pos->node);
@@ -868,4 +899,53 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 out_free_offsets:
 	free(browser.offsets);
 	return ret;
+}
+
+#define ANNOTATE_CFG(n) \
+	{ .name = #n, .value = &annotate_browser__opts.n, }
+	
+/*
+ * Keep the entries sorted, they are bsearch'ed
+ */
+static struct annotate__config {
+	const char *name;
+	bool *value;
+} annotate__configs[] = {
+	ANNOTATE_CFG(hide_src_code),
+	ANNOTATE_CFG(jump_arrows),
+	ANNOTATE_CFG(show_nr_jumps),
+	ANNOTATE_CFG(use_offset),
+};
+
+#undef ANNOTATE_CFG
+
+static int annotate_config__cmp(const void *name, const void *cfgp)
+{
+	const struct annotate__config *cfg = cfgp;
+
+	return strcmp(name, cfg->name);
+}
+
+static int annotate__config(const char *var, const char *value, void *data __used)
+{
+	struct annotate__config *cfg;
+	const char *name;
+
+	if (prefixcmp(var, "annotate.") != 0)
+		return 0;
+
+	name = var + 9;
+	cfg = bsearch(name, annotate__configs, ARRAY_SIZE(annotate__configs),
+		      sizeof(struct annotate__config), annotate_config__cmp);
+
+	if (cfg == NULL)
+		return -1;
+
+	*cfg->value = perf_config_bool(name, value);
+	return 0;
+}
+
+void annotate_browser__init(void)
+{
+	perf_config(annotate__config, NULL);
 }
