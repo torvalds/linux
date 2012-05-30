@@ -436,8 +436,7 @@ static void mtip_init_port(struct mtip_port *port)
 		writel(0xFFFFFFFF, port->completed[i]);
 
 	/* Clear any pending interrupts for this port */
-	writel(readl(port->dd->mmio + PORT_IRQ_STAT),
-					port->dd->mmio + PORT_IRQ_STAT);
+	writel(readl(port->mmio + PORT_IRQ_STAT), port->mmio + PORT_IRQ_STAT);
 
 	/* Clear any pending interrupts on the HBA. */
 	writel(readl(port->dd->mmio + HOST_IRQ_STAT),
