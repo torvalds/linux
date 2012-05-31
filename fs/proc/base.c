@@ -2022,11 +2022,8 @@ static int map_files_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	if (!task)
 		goto out_notask;
 
-	if (!ptrace_may_access(task, PTRACE_MODE_READ))
-		goto out;
-
-	mm = get_task_mm(task);
-	if (!mm)
+	mm = mm_access(task, PTRACE_MODE_READ);
+	if (IS_ERR_OR_NULL(mm))
 		goto out;
 
 	if (!dname_to_vma_addr(dentry, &vm_start, &vm_end)) {
