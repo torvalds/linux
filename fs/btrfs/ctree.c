@@ -1076,7 +1076,9 @@ __tree_mod_log_rewind(struct extent_buffer *eb, u64 time_seq,
 			n--;
 			break;
 		case MOD_LOG_MOVE_KEYS:
-			memmove_extent_buffer(eb, tm->slot, tm->move.dst_slot,
+			o_dst = btrfs_node_key_ptr_offset(tm->slot);
+			o_src = btrfs_node_key_ptr_offset(tm->move.dst_slot);
+			memmove_extent_buffer(eb, o_dst, o_src,
 					      tm->move.nr_items * p_size);
 			break;
 		case MOD_LOG_ROOT_REPLACE:
@@ -1127,6 +1129,7 @@ tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
 		btrfs_set_header_backref_rev(eb_rewin,
 					     btrfs_header_backref_rev(eb));
 		btrfs_set_header_owner(eb_rewin, btrfs_header_owner(eb));
+		btrfs_set_header_level(eb_rewin, btrfs_header_level(eb));
 	} else {
 		eb_rewin = btrfs_clone_extent_buffer(eb);
 		BUG_ON(!eb_rewin);
@@ -2609,7 +2612,6 @@ int btrfs_search_old_slot(struct btrfs_root *root, struct btrfs_key *key,
 	}
 
 again:
-	level = 0;
 	b = get_old_root(root, time_seq);
 	extent_buffer_get(b);
 	level = btrfs_header_level(b);
