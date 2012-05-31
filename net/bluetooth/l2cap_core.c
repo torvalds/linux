@@ -449,7 +449,7 @@ static void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 	case L2CAP_CHAN_CONN_ORIENTED:
 		if (conn->hcon->type == LE_LINK) {
 			/* LE connection */
-			chan->omtu = L2CAP_LE_DEFAULT_MTU;
+			chan->omtu = L2CAP_DEFAULT_MTU;
 			chan->scid = L2CAP_CID_LE_DATA;
 			chan->dcid = L2CAP_CID_LE_DATA;
 		} else {
