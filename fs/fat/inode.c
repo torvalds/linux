@@ -490,6 +490,7 @@ static void fat_put_super(struct super_block *sb)
 	if (sb->s_dirt)
 		fat_write_super(sb);
 
+	iput(sbi->fsinfo_inode);
 	iput(sbi->fat_inode);
 
 	unload_nls(sbi->nls_disk);
@@ -1244,6 +1245,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 		   void (*setup)(struct super_block *))
 {
 	struct inode *root_inode = NULL, *fat_inode = NULL;
+	struct inode *fsinfo_inode = NULL;
 	struct buffer_head *bh;
 	struct fat_boot_sector *b;
 	struct msdos_sb_info *sbi;
@@ -1490,6 +1492,14 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 		goto out_fail;
 	MSDOS_I(fat_inode)->i_pos = 0;
 	sbi->fat_inode = fat_inode;
+
+	fsinfo_inode = new_inode(sb);
+	if (!fsinfo_inode)
+		goto out_fail;
+	fsinfo_inode->i_ino = MSDOS_FSINFO_INO;
+	sbi->fsinfo_inode = fsinfo_inode;
+	insert_inode_hash(fsinfo_inode);
+
 	root_inode = new_inode(sb);
 	if (!root_inode)
 		goto out_fail;
@@ -1516,6 +1526,8 @@ out_invalid:
 		fat_msg(sb, KERN_INFO, "Can't find a valid FAT filesystem");
 
 out_fail:
+	if (fsinfo_inode)
+		iput(fsinfo_inode);
 	if (fat_inode)
 		iput(fat_inode);
 	unload_nls(sbi->nls_io);

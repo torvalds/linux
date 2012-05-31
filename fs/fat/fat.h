@@ -82,6 +82,7 @@ struct msdos_sb_info {
 	int fatent_shift;
 	struct fatent_operations *fatent_ops;
 	struct inode *fat_inode;
+	struct inode *fsinfo_inode;
 
 	struct ratelimit_state ratelimit;
 
