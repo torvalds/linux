@@ -90,6 +90,8 @@ const char *ssb_core_name(u16 coreid)
 		return "ARM 1176";
 	case SSB_DEV_ARM_7TDMI:
 		return "ARM 7TDMI";
+	case SSB_DEV_ARM_CM3:
+		return "ARM Cortex M3";
 	}
 	return "UNKNOWN";
 }
