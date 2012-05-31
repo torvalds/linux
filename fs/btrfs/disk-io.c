@@ -3400,7 +3400,6 @@ int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 
 	delayed_refs = &trans->delayed_refs;
 
-again:
 	spin_lock(&delayed_refs->lock);
 	if (delayed_refs->num_entries == 0) {
 		spin_unlock(&delayed_refs->lock);
@@ -3408,31 +3407,36 @@ again:
 		return ret;
 	}
 
-	node = rb_first(&delayed_refs->root);
-	while (node) {
+	while ((node = rb_first(&delayed_refs->root)) != NULL) {
 		ref = rb_entry(node, struct btrfs_delayed_ref_node, rb_node);
-		node = rb_next(node);
-
-		ref->in_tree = 0;
-		rb_erase(&ref->rb_node, &delayed_refs->root);
-		delayed_refs->num_entries--;
 
 		atomic_set(&ref->refs, 1);
 		if (btrfs_delayed_ref_is_head(ref)) {
 			struct btrfs_delayed_ref_head *head;
 
 			head = btrfs_delayed_node_to_head(ref);
-			spin_unlock(&delayed_refs->lock);
-			mutex_lock(&head->mutex);
+			if (!mutex_trylock(&head->mutex)) {
+				atomic_inc(&ref->refs);
+				spin_unlock(&delayed_refs->lock);
+
+				/* Need to wait for the delayed ref to run */
+				mutex_lock(&head->mutex);
+				mutex_unlock(&head->mutex);
+				btrfs_put_delayed_ref(ref);
+
+				continue;
+			}
+
 			kfree(head->extent_op);
 			delayed_refs->num_heads--;
 			if (list_empty(&head->cluster))
 				delayed_refs->num_heads_ready--;
 			list_del_init(&head->cluster);
-			mutex_unlock(&head->mutex);
-			btrfs_put_delayed_ref(ref);
-			goto again;
 		}
+		ref->in_tree = 0;
+		rb_erase(&ref->rb_node, &delayed_refs->root);
+		delayed_refs->num_entries--;
+
 		spin_unlock(&delayed_refs->lock);
 		btrfs_put_delayed_ref(ref);
 
