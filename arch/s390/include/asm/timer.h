@@ -10,8 +10,6 @@
 #ifndef _ASM_S390_TIMER_H
 #define _ASM_S390_TIMER_H
 
-#ifdef __KERNEL__
-
 #include <linux/timer.h>
 
 #define VTIMER_MAX_SLICE (0x7ffffffffffff000LL)
@@ -49,7 +47,5 @@ extern void vtime_init(void);
 
 extern void vtime_stop_cpu(void);
 extern void vtime_start_leave(void);
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_S390_TIMER_H */
