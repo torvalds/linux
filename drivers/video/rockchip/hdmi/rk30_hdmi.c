@@ -198,6 +198,7 @@ err1:
 err0:
 	hdmi_dbg(hdmi->dev, "rk30 hdmi probe error.\n");
 	kfree(hdmi);
+	hdmi = NULL;
 	return ret;
 }
 
@@ -221,7 +222,18 @@ static int __devexit rk30_hdmi_remove(struct platform_device *pdev)
 
 static void rk30_hdmi_shutdown(struct platform_device *pdev)
 {
+	/* this func is called twice, bug? */
+	static bool first = true;
 
+	if (first) {
+		first = false;
+		return;
+	}
+	if (!hdmi)
+		return;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	unregister_early_suspend(&hdmi->early_suspend);
+#endif
 }
 
 static struct platform_driver rk30_hdmi_driver = {
