@@ -926,6 +926,11 @@ int evergreen_pcie_gart_enable(struct radeon_device *rdev)
 		WREG32(MC_VM_MD_L1_TLB0_CNTL, tmp);
 		WREG32(MC_VM_MD_L1_TLB1_CNTL, tmp);
 		WREG32(MC_VM_MD_L1_TLB2_CNTL, tmp);
+		if ((rdev->family == CHIP_JUNIPER) ||
+		    (rdev->family == CHIP_CYPRESS) ||
+		    (rdev->family == CHIP_HEMLOCK) ||
+		    (rdev->family == CHIP_BARTS))
+			WREG32(MC_VM_MD_L1_TLB3_CNTL, tmp);
 	}
 	WREG32(MC_VM_MB_L1_TLB0_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB1_CNTL, tmp);
