@@ -66,6 +66,43 @@ static int nouveau_gem_prime_mmap(struct dma_buf *dma_buf, struct vm_area_struct
 	return -EINVAL;
 }
 
+static void *nouveau_gem_prime_vmap(struct dma_buf *dma_buf)
+{
+	struct nouveau_bo *nvbo = dma_buf->priv;
+	struct drm_device *dev = nvbo->gem->dev;
+	int ret;
+
+	mutex_lock(&dev->struct_mutex);
+	if (nvbo->vmapping_count) {
+		nvbo->vmapping_count++;
+		goto out_unlock;
+	}
+
+	ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.num_pages,
+			  &nvbo->dma_buf_vmap);
+	if (ret) {
+		mutex_unlock(&dev->struct_mutex);
+		return ERR_PTR(ret);
+	}
+	nvbo->vmapping_count = 1;
+out_unlock:
+	mutex_unlock(&dev->struct_mutex);
+	return nvbo->dma_buf_vmap.virtual;
+}
+
+static void nouveau_gem_prime_vunmap(struct dma_buf *dma_buf, void *vaddr)
+{
+	struct nouveau_bo *nvbo = dma_buf->priv;
+	struct drm_device *dev = nvbo->gem->dev;
+
+	mutex_lock(&dev->struct_mutex);
+	nvbo->vmapping_count--;
+	if (nvbo->vmapping_count == 0) {
+		ttm_bo_kunmap(&nvbo->dma_buf_vmap);
+	}
+	mutex_unlock(&dev->struct_mutex);
+}
+
 static const struct dma_buf_ops nouveau_dmabuf_ops =  {
 	.map_dma_buf = nouveau_gem_map_dma_buf,
 	.unmap_dma_buf = nouveau_gem_unmap_dma_buf,
@@ -75,6 +112,8 @@ static const struct dma_buf_ops nouveau_dmabuf_ops =  {
 	.kunmap = nouveau_gem_kunmap,
 	.kunmap_atomic = nouveau_gem_kunmap_atomic,
 	.mmap = nouveau_gem_prime_mmap,
+	.vmap = nouveau_gem_prime_vmap,
+	.vunmap = nouveau_gem_prime_vunmap,
 };
 
 static int
