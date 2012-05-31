@@ -300,6 +300,11 @@ int machine__resolve_callchain(struct machine *self,
 
 	callchain_cursor_reset(&callchain_cursor);
 
+	if (chain->nr > PERF_MAX_STACK_DEPTH) {
+		pr_warning("corrupted callchain. skipping...\n");
+		return 0;
+	}
+
 	for (i = 0; i < chain->nr; i++) {
 		u64 ip;
 		struct addr_location al;
@@ -318,7 +323,14 @@ int machine__resolve_callchain(struct machine *self,
 			case PERF_CONTEXT_USER:
 				cpumode = PERF_RECORD_MISC_USER;	break;
 			default:
-				break;
+				pr_debug("invalid callchain context: "
+					 "%"PRId64"\n", (s64) ip);
+				/*
+				 * It seems the callchain is corrupted.
+				 * Discard all.
+				 */
+				callchain_cursor_reset(&callchain_cursor);
+				return 0;
 			}
 			continue;
 		}
