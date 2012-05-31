@@ -3524,11 +3524,9 @@ static int btrfs_destroy_marked_extents(struct btrfs_root *root,
 			     &(&BTRFS_I(page->mapping->host)->io_tree)->buffer,
 					       offset >> PAGE_CACHE_SHIFT);
 			spin_unlock(&dirty_pages->buffer_lock);
-			if (eb) {
+			if (eb)
 				ret = test_and_clear_bit(EXTENT_BUFFER_DIRTY,
 							 &eb->bflags);
-				atomic_set(&eb->refs, 1);
-			}
 			if (PageWriteback(page))
 				end_page_writeback(page);
 
@@ -3542,8 +3540,8 @@ static int btrfs_destroy_marked_extents(struct btrfs_root *root,
 				spin_unlock_irq(&page->mapping->tree_lock);
 			}
 
-			page->mapping->a_ops->invalidatepage(page, 0);
 			unlock_page(page);
+			page_cache_release(page);
 		}
 	}
 
