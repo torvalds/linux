@@ -5187,7 +5187,8 @@ done:
 	l2cap_chan_unlock(chan);
 }
 
-static inline int l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm, struct sk_buff *skb)
+static void l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm,
+				  struct sk_buff *skb)
 {
 	struct l2cap_chan *chan;
 
@@ -5204,12 +5205,10 @@ static inline int l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm, str
 		goto drop;
 
 	if (!chan->ops->recv(chan, skb))
-		return 0;
+		return;
 
 drop:
 	kfree_skb(skb);
-
-	return 0;
 }
 
 static inline int l2cap_att_channel(struct l2cap_conn *conn, u16 cid,
