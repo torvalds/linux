@@ -218,15 +218,14 @@ struct exception_data {
 extern unsigned long lcopy_to_user(void __user *, const void *, unsigned long);
 extern unsigned long lcopy_from_user(void *, const void __user *, unsigned long);
 extern unsigned long lcopy_in_user(void __user *, const void __user *, unsigned long);
-extern long lstrncpy_from_user(char *, const char __user *, long);
+extern long strncpy_from_user(char *, const char __user *, long);
 extern unsigned lclear_user(void __user *,unsigned long);
 extern long lstrnlen_user(const char __user *,long);
-
 /*
  * Complex access routines -- macros
  */
+#define user_addr_max() (~0UL)
 
-#define strncpy_from_user lstrncpy_from_user
 #define strnlen_user lstrnlen_user
 #define strlen_user(str) lstrnlen_user(str, 0x7fffffffL)
 #define clear_user lclear_user
