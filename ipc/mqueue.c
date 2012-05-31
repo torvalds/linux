@@ -680,26 +680,26 @@ static int mq_attr_ok(struct ipc_namespace *ipc_ns, struct mq_attr *attr)
 	unsigned long total_size;
 
 	if (attr->mq_maxmsg <= 0 || attr->mq_msgsize <= 0)
-		return 0;
+		return -EINVAL;
 	if (capable(CAP_SYS_RESOURCE)) {
 		if (attr->mq_maxmsg > HARD_MSGMAX ||
 		    attr->mq_msgsize > HARD_MSGSIZEMAX)
-			return 0;
+			return -EINVAL;
 	} else {
 		if (attr->mq_maxmsg > ipc_ns->mq_msg_max ||
 				attr->mq_msgsize > ipc_ns->mq_msgsize_max)
-			return 0;
+			return -EINVAL;
 	}
 	/* check for overflow */
 	if (attr->mq_msgsize > ULONG_MAX/attr->mq_maxmsg)
-		return 0;
+		return -EOVERFLOW;
 	mq_treesize = attr->mq_maxmsg * sizeof(struct msg_msg) +
 		min_t(unsigned int, attr->mq_maxmsg, MQ_PRIO_MAX) *
 		sizeof(struct posix_msg_tree_node);
 	total_size = attr->mq_maxmsg * attr->mq_msgsize;
 	if (total_size + mq_treesize < total_size)
-		return 0;
-	return 1;
+		return -EOVERFLOW;
+	return 0;
 }
 
 /*
@@ -714,12 +714,21 @@ static struct file *do_create(struct ipc_namespace *ipc_ns, struct dentry *dir,
 	int ret;
 
 	if (attr) {
-		if (!mq_attr_ok(ipc_ns, attr)) {
-			ret = -EINVAL;
+		ret = mq_attr_ok(ipc_ns, attr);
+		if (ret)
 			goto out;
-		}
 		/* store for use during create */
 		dentry->d_fsdata = attr;
+	} else {
+		struct mq_attr def_attr;
+
+		def_attr.mq_maxmsg = min(ipc_ns->mq_msg_max,
+					 ipc_ns->mq_msg_default);
+		def_attr.mq_msgsize = min(ipc_ns->mq_msgsize_max,
+					  ipc_ns->mq_msgsize_default);
+		ret = mq_attr_ok(ipc_ns, &def_attr);
+		if (ret)
+			goto out;
 	}
 
 	mode &= ~current_umask();
