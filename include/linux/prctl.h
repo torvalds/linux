@@ -118,6 +118,7 @@
 # define PR_SET_MM_ENV_START		10
 # define PR_SET_MM_ENV_END		11
 # define PR_SET_MM_AUXV			12
+# define PR_SET_MM_EXE_FILE		13
 
 /*
  * Set specific pid that is allowed to ptrace the current task.
