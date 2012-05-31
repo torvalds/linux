@@ -205,20 +205,18 @@ void i915_setup_sysfs(struct drm_device *dev)
 {
 	int ret;
 
-	/* ILK and below don't yet have relevant sysfs files */
-	if (INTEL_INFO(dev)->gen < 6)
-		return;
+	if (INTEL_INFO(dev)->gen >= 6) {
+		ret = sysfs_merge_group(&dev->primary->kdev.kobj,
+					&rc6_attr_group);
+		if (ret)
+			DRM_ERROR("RC6 residency sysfs setup failed\n");
+	}
 
-	ret = sysfs_merge_group(&dev->primary->kdev.kobj, &rc6_attr_group);
-	if (ret)
-		DRM_ERROR("RC6 residency sysfs setup failed\n");
-
-	if (!IS_IVYBRIDGE(dev))
-		return;
-
-	ret = device_create_bin_file(&dev->primary->kdev, &dpf_attrs);
-	if (ret)
-		DRM_ERROR("l3 parity sysfs setup failed\n");
+	if (IS_IVYBRIDGE(dev)) {
+		ret = device_create_bin_file(&dev->primary->kdev, &dpf_attrs);
+		if (ret)
+			DRM_ERROR("l3 parity sysfs setup failed\n");
+	}
 }
 
 void i915_teardown_sysfs(struct drm_device *dev)
