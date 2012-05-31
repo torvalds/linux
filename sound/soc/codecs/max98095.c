@@ -2216,7 +2216,7 @@ static irqreturn_t max98095_report_jack(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int max98095_jack_detect_enable(struct snd_soc_codec *codec)
+static int max98095_jack_detect_enable(struct snd_soc_codec *codec)
 {
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
@@ -2245,7 +2245,7 @@ int max98095_jack_detect_enable(struct snd_soc_codec *codec)
 	return ret;
 }
 
-int max98095_jack_detect_disable(struct snd_soc_codec *codec)
+static int max98095_jack_detect_disable(struct snd_soc_codec *codec)
 {
 	int ret = 0;
 
@@ -2286,6 +2286,7 @@ int max98095_jack_detect(struct snd_soc_codec *codec,
 	max98095_report_jack(client->irq, codec);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(max98095_jack_detect);
 
 #ifdef CONFIG_PM
 static int max98095_suspend(struct snd_soc_codec *codec)
