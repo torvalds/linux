@@ -1636,7 +1636,7 @@ static void eeprom_cmd(void __iomem *ee_addr, int cmd, int cmd_len)
 
 static void eeprom_cmd_end(void __iomem *ee_addr)
 {
-	writeb (~EE_CS, ee_addr);
+	writeb(0, ee_addr);
 	eeprom_delay ();
 }
 
