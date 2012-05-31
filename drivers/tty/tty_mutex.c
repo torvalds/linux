@@ -6,11 +6,17 @@
 
 /* Legacy tty mutex glue */
 
+enum {
+	TTY_MUTEX_NORMAL,
+	TTY_MUTEX_NESTED,
+};
+
 /*
  * Getting the big tty mutex.
  */
 
-void __lockfunc tty_lock(struct tty_struct *tty)
+static void __lockfunc tty_lock_nested(struct tty_struct *tty,
+				       unsigned int subclass)
 {
 	if (tty->magic != TTY_MAGIC) {
 		printk(KERN_ERR "L Bad %p\n", tty);
@@ -18,7 +24,12 @@ void __lockfunc tty_lock(struct tty_struct *tty)
 		return;
 	}
 	tty_kref_get(tty);
-	mutex_lock(&tty->legacy_mutex);
+	mutex_lock_nested(&tty->legacy_mutex, subclass);
+}
+
+void __lockfunc tty_lock(struct tty_struct *tty)
+{
+	return tty_lock_nested(tty, TTY_MUTEX_NORMAL);
 }
 EXPORT_SYMBOL(tty_lock);
 
@@ -43,11 +54,11 @@ void __lockfunc tty_lock_pair(struct tty_struct *tty,
 {
 	if (tty < tty2) {
 		tty_lock(tty);
-		tty_lock(tty2);
+		tty_lock_nested(tty2, TTY_MUTEX_NESTED);
 	} else {
 		if (tty2 && tty2 != tty)
 			tty_lock(tty2);
-		tty_lock(tty);
+		tty_lock_nested(tty, TTY_MUTEX_NESTED);
 	}
 }
 EXPORT_SYMBOL(tty_lock_pair);
