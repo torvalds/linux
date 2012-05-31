@@ -540,15 +540,18 @@ tree_mod_log_insert_move(struct btrfs_fs_info *fs_info,
 	int ret;
 	int i;
 
-	ret = tree_mod_alloc(fs_info, flags, &tm);
-	if (ret <= 0)
-		return ret;
+	if (tree_mod_dont_log(fs_info, eb))
+		return 0;
 
 	for (i = 0; i + dst_slot < src_slot && i < nr_items; i++) {
 		ret = tree_mod_log_insert_key(fs_info, eb, i + dst_slot,
 					      MOD_LOG_KEY_REMOVE_WHILE_MOVING);
 		BUG_ON(ret < 0);
 	}
+
+	ret = tree_mod_alloc(fs_info, flags, &tm);
+	if (ret <= 0)
+		return ret;
 
 	tm->index = eb->start >> PAGE_CACHE_SHIFT;
 	tm->slot = src_slot;
@@ -4548,9 +4551,7 @@ static void del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			      btrfs_node_key_ptr_offset(slot + 1),
 			      sizeof(struct btrfs_key_ptr) *
 			      (nritems - slot - 1));
-	}
-
-	if (tree_mod_log && level) {
+	} else if (tree_mod_log && level) {
 		ret = tree_mod_log_insert_key(root->fs_info, parent, slot,
 					      MOD_LOG_KEY_REMOVE);
 		BUG_ON(ret < 0);
