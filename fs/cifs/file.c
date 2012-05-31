@@ -876,7 +876,7 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 	struct cifsLockInfo *li, *tmp;
 	struct cifs_tcon *tcon;
 	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
-	unsigned int num, max_num;
+	unsigned int num, max_num, max_buf;
 	LOCKING_ANDX_RANGE *buf, *cur;
 	int types[] = {LOCKING_ANDX_LARGE_FILES,
 		       LOCKING_ANDX_SHARED_LOCK | LOCKING_ANDX_LARGE_FILES};
@@ -892,8 +892,19 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 		return rc;
 	}
 
-	max_num = (tcon->ses->server->maxBuf - sizeof(struct smb_hdr)) /
-		  sizeof(LOCKING_ANDX_RANGE);
+	/*
+	 * Accessing maxBuf is racy with cifs_reconnect - need to store value
+	 * and check it for zero before using.
+	 */
+	max_buf = tcon->ses->server->maxBuf;
+	if (!max_buf) {
+		mutex_unlock(&cinode->lock_mutex);
+		FreeXid(xid);
+		return -EINVAL;
+	}
+
+	max_num = (max_buf - sizeof(struct smb_hdr)) /
+						sizeof(LOCKING_ANDX_RANGE);
 	buf = kzalloc(max_num * sizeof(LOCKING_ANDX_RANGE), GFP_KERNEL);
 	if (!buf) {
 		mutex_unlock(&cinode->lock_mutex);
@@ -1218,7 +1229,7 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock, int xid)
 	int types[] = {LOCKING_ANDX_LARGE_FILES,
 		       LOCKING_ANDX_SHARED_LOCK | LOCKING_ANDX_LARGE_FILES};
 	unsigned int i;
-	unsigned int max_num, num;
+	unsigned int max_num, num, max_buf;
 	LOCKING_ANDX_RANGE *buf, *cur;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
@@ -1228,8 +1239,16 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock, int xid)
 
 	INIT_LIST_HEAD(&tmp_llist);
 
-	max_num = (tcon->ses->server->maxBuf - sizeof(struct smb_hdr)) /
-		  sizeof(LOCKING_ANDX_RANGE);
+	/*
+	 * Accessing maxBuf is racy with cifs_reconnect - need to store value
+	 * and check it for zero before using.
+	 */
+	max_buf = tcon->ses->server->maxBuf;
+	if (!max_buf)
+		return -EINVAL;
+
+	max_num = (max_buf - sizeof(struct smb_hdr)) /
+						sizeof(LOCKING_ANDX_RANGE);
 	buf = kzalloc(max_num * sizeof(LOCKING_ANDX_RANGE), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
