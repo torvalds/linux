@@ -514,7 +514,9 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 		l2cap_chan_put(chan);
 
 		chan->conn = NULL;
-		hci_conn_put(conn->hcon);
+
+		if (chan->chan_type != L2CAP_CHAN_CONN_FIX_A2MP)
+			hci_conn_put(conn->hcon);
 	}
 
 	if (chan->ops->teardown)

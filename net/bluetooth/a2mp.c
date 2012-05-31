@@ -481,8 +481,6 @@ static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn)
 
 	BT_DBG("chan %p", chan);
 
-	hci_conn_hold(conn->hcon);
-
 	chan->chan_type = L2CAP_CHAN_CONN_FIX_A2MP;
 	chan->flush_to = L2CAP_DEFAULT_FLUSH_TO;
 
