@@ -606,3 +606,9 @@ Why:	There are two mci drivers: at91-mci and atmel-mci. The PDC support
 Who:	Ludovic Desroches <ludovic.desroches@atmel.com>
 
 ----------------------------
+
+What:	net/wanrouter/
+When:	June 2013
+Why:	Unsupported/unmaintained/unused since 2.6
+
+----------------------------
