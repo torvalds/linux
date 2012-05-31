@@ -173,7 +173,7 @@ static int bfin_target(struct cpufreq_policy *poli,
 #else
 			ret = cpu_set_cclk(cpu, freqs.new * 1000);
 			if (ret != 0) {
-				pr_debug("cpufreq set freq failed %d\n", ret);
+				WARN_ONCE(ret, "cpufreq set freq failed %d\n", ret);
 				break;
 			}
 #endif
