@@ -5337,7 +5337,7 @@ M:	David Woodhouse <dwmw2@infradead.org>
 T:	git git://git.infradead.org/battery-2.6.git
 S:	Maintained
 F:	include/linux/power_supply.h
-F:	drivers/power/power_supply*
+F:	drivers/power/
 
 PNP SUPPORT
 M:	Adam Belay <abelay@mit.edu>
