@@ -870,7 +870,7 @@ int __init hpet_enable(void)
 	else
 		pr_warn("HPET initial state will not be saved\n");
 	cfg &= ~(HPET_CFG_ENABLE | HPET_CFG_LEGACY);
-	hpet_writel(cfg, HPET_Tn_CFG(i));
+	hpet_writel(cfg, HPET_CFG);
 	if (cfg)
 		pr_warn("HPET: Unrecognized bits %#x set in global cfg\n",
 			cfg);
