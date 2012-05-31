@@ -1723,10 +1723,6 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 
 	atomic_set(&dev_priv->irq_received, 0);
 
-
-	if (IS_IVYBRIDGE(dev))
-		INIT_WORK(&dev_priv->parity_error_work, ivybridge_parity_work);
-
 	I915_WRITE(HWSTAM, 0xeffe);
 
 	/* XXX hotplug from PCH */
@@ -2647,6 +2643,7 @@ void intel_irq_init(struct drm_device *dev)
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
 	INIT_WORK(&dev_priv->rps_work, gen6_pm_rps_work);
+	INIT_WORK(&dev_priv->parity_error_work, ivybridge_parity_work);
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
