@@ -462,7 +462,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 	kfree(parity_event[1]);
 }
 
-void ivybridge_handle_parity_error(struct drm_device *dev)
+static void ivybridge_handle_parity_error(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long flags;
