@@ -25,6 +25,7 @@ extern irqreturn_t hdmi_irq(int irq, void *priv);
 extern void hdmi_work(struct work_struct *work);
 extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent);
+extern void hdmi_unregister_display_sysfs(struct hdmi *hdmi);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void hdmi_early_suspend(struct early_suspend *h)
@@ -92,7 +93,7 @@ static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
 	hdmi = kmalloc(sizeof(struct hdmi), GFP_KERNEL);
 	if(!hdmi)
 	{
-    	dev_err(&pdev->dev, ">>rk30 lcdc inf kmalloc fail!");
+    	dev_err(&pdev->dev, ">>rk30 hdmi kmalloc fail!");
     	return -ENOMEM;
 	}
 	memset(hdmi, 0, sizeof(struct hdmi));
@@ -157,7 +158,7 @@ static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
 	register_early_suspend(&hdmi->early_suspend);
 	#endif
 		
-	hdmi_register_display_sysfs(hdmi, hdmi->dev);
+	hdmi_register_display_sysfs(hdmi, NULL);
 	#ifdef CONFIG_SWITCH
 	hdmi->switch_hdmi.name="hdmi";
 	switch_dev_register(&(hdmi->switch_hdmi));
@@ -188,6 +189,7 @@ err2:
 	#ifdef CONFIG_SWITCH
 	switch_dev_unregister(&(hdmi->switch_hdmi));
 	#endif
+	hdmi_unregister_display_sysfs(hdmi);
 	#ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&hdmi->early_suspend);
 	#endif
@@ -204,36 +206,43 @@ err0:
 
 static int __devexit rk30_hdmi_remove(struct platform_device *pdev)
 {
-	flush_scheduled_work();
-	destroy_workqueue(hdmi->workqueue);
-	#ifdef CONFIG_SWITCH
-	switch_dev_unregister(&(hdmi->switch_hdmi));
-	#endif
-	#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&hdmi->early_suspend);
-	#endif
-	iounmap((void*)hdmi->regbase);
-//	release_mem_region(res->start,(res->end - res->start) + 1);
-	clk_disable(hdmi->hclk);
-	kfree(hdmi);
-	hdmi_dbg(hdmi->dev, "rk30 hdmi unregistered.\n");
+	if(hdmi) {
+		flush_workqueue(hdmi->workqueue);
+		destroy_workqueue(hdmi->workqueue);
+		#ifdef CONFIG_SWITCH
+		switch_dev_unregister(&(hdmi->switch_hdmi));
+		#endif
+		hdmi_unregister_display_sysfs(hdmi);
+		#ifdef CONFIG_HAS_EARLYSUSPEND
+		unregister_early_suspend(&hdmi->early_suspend);
+		#endif
+		iounmap((void*)hdmi->regbase);
+	//	release_mem_region(res->start,(res->end - res->start) + 1);
+		clk_disable(hdmi->hclk);
+		kfree(hdmi);
+		hdmi = NULL;
+	}
+	printk(KERN_INFO "rk30 hdmi removed.\n");
 	return 0;
 }
 
 static void rk30_hdmi_shutdown(struct platform_device *pdev)
 {
-	/* this func is called twice, bug? */
-	static bool first = true;
-
-	if (first) {
-		first = false;
-		return;
+	if(hdmi) {
+		flush_workqueue(hdmi->workqueue);
+		destroy_workqueue(hdmi->workqueue);
+		#ifdef CONFIG_SWITCH
+		switch_dev_unregister(&(hdmi->switch_hdmi));
+		#endif
+		hdmi_unregister_display_sysfs(hdmi);
+		#ifdef CONFIG_HAS_EARLYSUSPEND
+		unregister_early_suspend(&hdmi->early_suspend);
+		#endif
+		clk_disable(hdmi->hclk);
+		kfree(hdmi);
+		hdmi = NULL;
 	}
-	if (!hdmi)
-		return;
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&hdmi->early_suspend);
-#endif
+	printk(KERN_INFO "rk30 hdmi shut down.\n");
 }
 
 static struct platform_driver rk30_hdmi_driver = {
