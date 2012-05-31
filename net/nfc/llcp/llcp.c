@@ -111,6 +111,7 @@ static void local_release(struct kref *ref)
 	skb_queue_purge(&local->tx_queue);
 	destroy_workqueue(local->tx_wq);
 	destroy_workqueue(local->rx_wq);
+	destroy_workqueue(local->timeout_wq);
 	kfree_skb(local->rx_pending);
 	kfree(local);
 }
