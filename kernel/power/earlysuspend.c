@@ -77,6 +77,11 @@ static void early_suspend(struct work_struct *work)
 	unsigned long irqflags;
 	int abort = 0;
 
+#ifdef CONFIG_PLAT_RK
+	if (system_state != SYSTEM_RUNNING)
+		return;
+#endif
+
 	mutex_lock(&early_suspend_lock);
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPEND_REQUESTED)
@@ -124,6 +129,11 @@ static void late_resume(struct work_struct *work)
 	unsigned long irqflags;
 	int abort = 0;
 
+#ifdef CONFIG_PLAT_RK
+	if (system_state != SYSTEM_RUNNING)
+		return;
+#endif
+
 	mutex_lock(&early_suspend_lock);
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPENDED)
@@ -157,6 +167,11 @@ void request_suspend_state(suspend_state_t new_state)
 {
 	unsigned long irqflags;
 	int old_sleep;
+
+#ifdef CONFIG_PLAT_RK
+	if (system_state != SYSTEM_RUNNING)
+		return;
+#endif
 
 	spin_lock_irqsave(&state_lock, irqflags);
 	old_sleep = state & SUSPEND_REQUESTED;
