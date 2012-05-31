@@ -37,6 +37,15 @@
 #define EVERGREEN_MAX_PIPES_MASK        0xFF
 #define EVERGREEN_MAX_LDS_NUM           0xFFFF
 
+#define CYPRESS_GB_ADDR_CONFIG_GOLDEN        0x02011003
+#define BARTS_GB_ADDR_CONFIG_GOLDEN          0x02011003
+#define CAYMAN_GB_ADDR_CONFIG_GOLDEN         0x02011003
+#define JUNIPER_GB_ADDR_CONFIG_GOLDEN        0x02010002
+#define REDWOOD_GB_ADDR_CONFIG_GOLDEN        0x02010002
+#define TURKS_GB_ADDR_CONFIG_GOLDEN          0x02010002
+#define CEDAR_GB_ADDR_CONFIG_GOLDEN          0x02010001
+#define CAICOS_GB_ADDR_CONFIG_GOLDEN         0x02010001
+
 /* Registers */
 
 #define RCU_IND_INDEX           			0x100
@@ -54,6 +63,7 @@
 #define		BACKEND_DISABLE(x)     			((x) << 16)
 #define GB_ADDR_CONFIG  				0x98F8
 #define		NUM_PIPES(x)				((x) << 0)
+#define		NUM_PIPES_MASK				0x0000000f
 #define		PIPE_INTERLEAVE_SIZE(x)			((x) << 4)
 #define		BANK_INTERLEAVE_SIZE(x)			((x) << 8)
 #define		NUM_SHADER_ENGINES(x)			((x) << 12)

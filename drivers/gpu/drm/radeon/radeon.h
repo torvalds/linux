@@ -1845,6 +1845,11 @@ extern struct radeon_hdmi_acr r600_hdmi_acr(uint32_t clock);
 extern void r600_hdmi_enable(struct drm_encoder *encoder);
 extern void r600_hdmi_disable(struct drm_encoder *encoder);
 extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
+extern u32 r6xx_remap_render_backend(struct radeon_device *rdev,
+				     u32 tiling_pipe_num,
+				     u32 max_rb_num,
+				     u32 total_max_rb_num,
+				     u32 enabled_rb_mask);
 
 /*
  * evergreen functions used by radeon_encoder.c
