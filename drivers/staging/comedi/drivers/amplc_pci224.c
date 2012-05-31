@@ -626,8 +626,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 			/* Nothing left to put in the FIFO. */
 			pci224_ao_stop(dev, s);
 			s->async->events |= COMEDI_CB_OVERFLOW;
-			printk(KERN_ERR "comedi%d: "
-			       "AO buffer underrun\n", dev->minor);
+			dev_err(dev->class_dev, "AO buffer underrun\n");
 		}
 	}
 	/* Determine how many new scans can be put in the FIFO. */
@@ -1295,14 +1294,27 @@ pci224_find_pci(struct comedi_device *dev, int bus, int slot,
 	}
 	/* No match found. */
 	if (bus || slot) {
-		printk(KERN_ERR "comedi%d: error! "
-		       "no %s found at pci %02x:%02x!\n",
-		       dev->minor, thisboard->name, bus, slot);
+		dev_err(dev->class_dev,
+			"error! no %s found at pci %02x:%02x!\n",
+			thisboard->name, bus, slot);
 	} else {
-		printk(KERN_ERR "comedi%d: error! no %s found!\n",
-		       dev->minor, thisboard->name);
+		dev_err(dev->class_dev, "error! no %s found!\n",
+			thisboard->name);
 	}
 	return -EIO;
+}
+
+static void pci224_report_attach(struct comedi_device *dev, unsigned int irq)
+{
+	char tmpbuf[30];
+
+	if (irq)
+		snprintf(tmpbuf, sizeof(tmpbuf), "irq %u%s", irq,
+			 (dev->irq ? "" : " UNAVAILABLE"));
+	else
+		snprintf(tmpbuf, sizeof(tmpbuf), "no irq");
+	dev_info(dev->class_dev, "%s (pci %s) (%s) attached\n",
+		 dev->board_name, pci_name(devpriv->pci_dev), tmpbuf);
 }
 
 /*
@@ -1319,9 +1331,9 @@ static int pci224_attach_common(struct comedi_device *dev,
 	devpriv->pci_dev = pci_dev;
 	ret = comedi_pci_enable(pci_dev, DRIVER_NAME);
 	if (ret < 0) {
-		printk(KERN_ERR
-		       "comedi%d: error! cannot enable PCI device "
-		       "and request regions!\n", dev->minor);
+		dev_err(dev->class_dev,
+			"error! cannot enable PCI device and request regions!\n"
+			);
 		return ret;
 	}
 	spin_lock_init(&devpriv->ao_spinlock);
@@ -1368,8 +1380,7 @@ static int pci224_attach_common(struct comedi_device *dev,
 	/* Allocate subdevices.  There is only one!  */
 	ret = alloc_subdevices(dev, 1);
 	if (ret < 0) {
-		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-		       dev->minor);
+		dev_err(dev->class_dev, "error! out of memory!\n");
 		return ret;
 	}
 
@@ -1403,10 +1414,9 @@ static int pci224_attach_common(struct comedi_device *dev,
 		if (options) {
 			for (n = 2; n < 3 + s->n_chan; n++) {
 				if (options[n] < 0 || options[n] > 1) {
-					printk(KERN_WARNING
-					       "comedi%d: %s: warning! bad options[%u]=%d\n",
-					       dev->minor, DRIVER_NAME, n,
-					       options[n]);
+					dev_warn(dev->class_dev, DRIVER_NAME
+						 ": warning! bad options[%u]=%d\n",
+						 n, options[n]);
 				}
 			}
 		}
@@ -1435,9 +1445,9 @@ static int pci224_attach_common(struct comedi_device *dev,
 			devpriv->hwrange = hwrange_pci224_external;
 		} else {
 			if (options && options[2] != 0) {
-				printk(KERN_WARNING "comedi%d: %s: warning! "
-				       "bad options[2]=%d\n",
-				       dev->minor, DRIVER_NAME, options[2]);
+				dev_warn(dev->class_dev, DRIVER_NAME
+					 ": warning! bad options[2]=%d\n",
+					 options[2]);
 			}
 			s->range_table = &range_pci224_internal;
 			devpriv->hwrange = hwrange_pci224_internal;
@@ -1450,24 +1460,15 @@ static int pci224_attach_common(struct comedi_device *dev,
 		ret = request_irq(irq, pci224_interrupt, IRQF_SHARED,
 				  DRIVER_NAME, dev);
 		if (ret < 0) {
-			printk(KERN_ERR "comedi%d: error! "
-			       "unable to allocate irq %u\n", dev->minor, irq);
+			dev_err(dev->class_dev,
+				"error! unable to allocate irq %u\n", irq);
 			return ret;
 		} else {
 			dev->irq = irq;
 		}
 	}
 
-	printk(KERN_INFO "comedi%d: %s ", dev->minor, dev->board_name);
-	printk("(pci %s) ", pci_name(pci_dev));
-	if (irq)
-		printk("(irq %u%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
-	else
-		printk("(no irq) ");
-
-
-	printk("attached\n");
-
+	pci224_report_attach(dev, irq);
 	return 1;
 }
 
@@ -1477,14 +1478,13 @@ static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int bus, slot;
 	int ret;
 
-	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor, DRIVER_NAME);
+	dev_info(dev->class_dev, DRIVER_NAME ": attach\n");
 
 	bus = it->options[0];
 	slot = it->options[1];
 	ret = alloc_private(dev, sizeof(struct pci224_private));
 	if (ret < 0) {
-		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-		       dev->minor);
+		dev_err(dev->class_dev, "error! out of memory!\n");
 		return ret;
 	}
 
@@ -1500,21 +1500,19 @@ pci224_attach_pci(struct comedi_device *dev, struct pci_dev *pci_dev)
 {
 	int ret;
 
-	printk(KERN_DEBUG "comedi%d: %s: attach_pci %s\n", dev->minor,
-	       DRIVER_NAME, pci_name(pci_dev));
+	dev_info(dev->class_dev, DRIVER_NAME ": attach_pci %s\n",
+		 pci_name(pci_dev));
 
 	ret = alloc_private(dev, sizeof(struct pci224_private));
 	if (ret < 0) {
-		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-		       dev->minor);
+		dev_err(dev->class_dev, "error! out of memory!\n");
 		return ret;
 	}
 
 	dev->board_ptr = pci224_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {
-		printk(KERN_ERR
-		       "comedi%d: %s: BUG! cannot determine board type!\n",
-		       dev->minor, DRIVER_NAME);
+		dev_err(dev->class_dev,
+			DRIVER_NAME ": BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
 	return pci224_attach_common(dev, pci_dev, NULL);
