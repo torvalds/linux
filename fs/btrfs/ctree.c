@@ -455,14 +455,25 @@ unlock:
 	return ret;
 }
 
+static inline int tree_mod_dont_log(struct btrfs_fs_info *fs_info,
+				    struct extent_buffer *eb) {
+	smp_mb();
+	if (list_empty(&(fs_info)->tree_mod_seq_list))
+		return 1;
+	if (!eb)
+		return 0;
+	if (btrfs_header_level(eb) == 0)
+		return 1;
+	return 0;
+}
+
 static inline int tree_mod_alloc(struct btrfs_fs_info *fs_info, gfp_t flags,
 				 struct tree_mod_elem **tm_ret)
 {
 	struct tree_mod_elem *tm;
 	int seq;
 
-	smp_mb();
-	if (list_empty(&fs_info->tree_mod_seq_list))
+	if (tree_mod_dont_log(fs_info, NULL))
 		return 0;
 
 	tm = *tm_ret = kzalloc(sizeof(*tm), flags);
@@ -643,8 +654,7 @@ tree_mod_log_eb_copy(struct btrfs_fs_info *fs_info, struct extent_buffer *dst,
 	int ret;
 	int i;
 
-	smp_mb();
-	if (list_empty(&fs_info->tree_mod_seq_list))
+	if (tree_mod_dont_log(fs_info, NULL))
 		return;
 
 	if (btrfs_header_level(dst) == 0 && btrfs_header_level(src) == 0)
@@ -691,11 +701,7 @@ static void tree_mod_log_free_eb(struct btrfs_fs_info *fs_info,
 	int ret;
 	u32 nritems;
 
-	smp_mb();
-	if (list_empty(&fs_info->tree_mod_seq_list))
-		return;
-
-	if (btrfs_header_level(eb) == 0)
+	if (tree_mod_dont_log(fs_info, eb))
 		return;
 
 	nritems = btrfs_header_nritems(eb);
