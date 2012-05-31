@@ -84,7 +84,7 @@ SYSCALL_DEFINE5(add_key, const char __user *, _type,
 	vm = false;
 	if (_payload) {
 		ret = -ENOMEM;
-		payload = kmalloc(plen, GFP_KERNEL);
+		payload = kmalloc(plen, GFP_KERNEL | __GFP_NOWARN);
 		if (!payload) {
 			if (plen <= PAGE_SIZE)
 				goto error2;
