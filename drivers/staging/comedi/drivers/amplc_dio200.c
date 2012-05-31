@@ -451,6 +451,21 @@ struct dio200_subdev_intr {
 };
 
 /*
+ * This function looks for a board matching the supplied PCI device.
+ */
+static const struct dio200_board *
+dio200_find_pci_board(struct pci_dev *pci_dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(dio200_boards); i++)
+		if (dio200_boards[i].bustype == pci_bustype &&
+		    pci_dev->device == dio200_boards[i].devid)
+			return &dio200_boards[i];
+	return NULL;
+}
+
+/*
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
  */
@@ -472,21 +487,15 @@ dio200_find_pci(struct comedi_device *dev, int bus, int slot)
 				continue;
 		}
 		if (thisboard->model == anypci_model) {
-			/* Match any supported model. */
-			int i;
+			/* Wildcard board matches any supported PCI board. */
+			const struct dio200_board *foundboard;
 
-			for (i = 0; i < ARRAY_SIZE(dio200_boards); i++) {
-				if (dio200_boards[i].bustype != pci_bustype)
-					continue;
-				if (pci_dev->device == dio200_boards[i].devid) {
-					/* Change board_ptr to matched board. */
-					dev->board_ptr = &dio200_boards[i];
-					thisboard = comedi_board(dev);
-					break;
-				}
-			}
-			if (i == ARRAY_SIZE(dio200_boards))
+			foundboard = dio200_find_pci_board(pci_dev);
+			if (foundboard == NULL)
 				continue;
+			/* Replace wildcard board_ptr. */
+			dev->board_ptr = foundboard;
+			thisboard = comedi_board(dev);
 		} else {
 			/* Match specific model name. */
 			if (pci_dev->device != thisboard->devid)
@@ -1249,82 +1258,26 @@ static void dio200_report_attach(struct comedi_device *dev, unsigned int irq)
 	dev_info(dev->class_dev, "%s %sattached\n", dev->board_name, tmpbuf);
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int dio200_common_attach(struct comedi_device *dev, unsigned long iobase,
+				unsigned int irq, unsigned long req_irq_flags)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv;
+	struct dio200_private *devpriv = dev->private;
+	const struct dio200_layout_struct *layout =
+		&dio200_layouts[thisboard->layout];
 	struct comedi_subdevice *s;
-	unsigned long iobase = 0;
-	unsigned int irq = 0;
-	const struct dio200_layout_struct *layout;
-	int share_irq = 0;
 	int sdx;
-	unsigned n;
+	unsigned int n;
 	int ret;
 
-	dev_info(dev->class_dev, DIO200_DRIVER_NAME ": attach\n");
-
-	ret = alloc_private(dev, sizeof(struct dio200_private));
-	if (ret < 0) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
-		return ret;
-	}
-	devpriv = dev->private;
-
-	/* Process options and reserve resources according to bus type. */
-	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_ISA) &&
-	    thisboard->bustype == isa_bustype) {
-		iobase = it->options[0];
-		irq = it->options[1];
-		share_irq = 0;
-		ret = dio200_request_region(dev, iobase, DIO200_IO_SIZE);
-		if (ret < 0)
-			return ret;
-	} else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_PCI) &&
-		   thisboard->bustype == pci_bustype) {
-		struct pci_dev *pci_dev;
-		int bus, slot;
-
-		bus = it->options[0];
-		slot = it->options[1];
-		share_irq = 1;
-		pci_dev = dio200_find_pci(dev, bus, slot);
-		if (pci_dev == NULL)
-			return -EIO;
-		thisboard = comedi_board(dev);	/* replaced wildcard board */
-		devpriv->pci_dev = pci_dev;
-		ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
-		if (ret < 0) {
-			dev_err(dev->class_dev,
-				"error! cannot enable PCI device and request regions!\n");
-			return ret;
-		}
-		iobase = pci_resource_start(pci_dev, 2);
-		irq = pci_dev->irq;
-	} else {
-		dev_err(dev->class_dev, DIO200_DRIVER_NAME
-			": BUG! cannot determine board type!\n");
-		return -EINVAL;
-	}
-
 	devpriv->intr_sd = -1;
-
 	dev->iobase = iobase;
-
-	layout = &dio200_layouts[thisboard->layout];
-
+	dev->board_name = thisboard->name;
 	ret = alloc_subdevices(dev, layout->n_subdevs);
 	if (ret < 0) {
 		dev_err(dev->class_dev, "error! out of memory!\n");
 		return ret;
 	}
-
 	for (n = 0; n < dev->n_subdevices; n++) {
 		s = &dev->subdevices[n];
 		switch (layout->sdtype[n]) {
@@ -1335,7 +1288,6 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 						      layout->has_clk_gat_sce);
 			if (ret < 0)
 				return ret;
-
 			break;
 		case sd_8255:
 			/* digital i/o subdevice (8255) */
@@ -1343,7 +1295,6 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 					       iobase + layout->sdinfo[n]);
 			if (ret < 0)
 				return ret;
-
 			break;
 		case sd_intr:
 			/* 'INTERRUPT' subdevice */
@@ -1356,7 +1307,6 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 							      has_int_sce);
 				if (ret < 0)
 					return ret;
-
 				devpriv->intr_sd = n;
 			} else {
 				s->type = COMEDI_SUBD_UNUSED;
@@ -1367,17 +1317,11 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			break;
 		}
 	}
-
 	sdx = devpriv->intr_sd;
 	if (sdx >= 0 && sdx < dev->n_subdevices)
 		dev->read_subdev = &dev->subdevices[sdx];
-
-	dev->board_name = thisboard->name;
-
 	if (irq) {
-		unsigned long flags = share_irq ? IRQF_SHARED : 0;
-
-		if (request_irq(irq, dio200_interrupt, flags,
+		if (request_irq(irq, dio200_interrupt, req_irq_flags,
 				DIO200_DRIVER_NAME, dev) >= 0) {
 			dev->irq = irq;
 		} else {
@@ -1385,9 +1329,103 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				 "warning! irq %u unavailable!\n", irq);
 		}
 	}
-
 	dio200_report_attach(dev, irq);
 	return 1;
+}
+
+static int dio200_pci_common_attach(struct comedi_device *dev,
+				    struct pci_dev *pci_dev)
+{
+	struct dio200_private *devpriv = dev->private;
+	unsigned long iobase;
+	int ret;
+
+	devpriv->pci_dev = pci_dev;
+	ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
+	if (ret < 0) {
+		dev_err(dev->class_dev,
+			"error! cannot enable PCI device and request regions!\n");
+		return ret;
+	}
+	iobase = pci_resource_start(pci_dev, 2);
+	return dio200_common_attach(dev, iobase, pci_dev->irq, IRQF_SHARED);
+}
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that
+ * address.
+ */
+static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	const struct dio200_board *thisboard = comedi_board(dev);
+	int ret;
+
+	dev_info(dev->class_dev, DIO200_DRIVER_NAME ": attach\n");
+
+	ret = alloc_private(dev, sizeof(struct dio200_private));
+	if (ret < 0) {
+		dev_err(dev->class_dev, "error! out of memory!\n");
+		return ret;
+	}
+
+	/* Process options and reserve resources according to bus type. */
+	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_ISA) &&
+	    thisboard->bustype == isa_bustype) {
+		unsigned long iobase;
+		unsigned int irq;
+
+		iobase = it->options[0];
+		irq = it->options[1];
+		ret = dio200_request_region(dev, iobase, DIO200_IO_SIZE);
+		if (ret < 0)
+			return ret;
+		return dio200_common_attach(dev, iobase, irq, 0);
+	} else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_PCI) &&
+		   thisboard->bustype == pci_bustype) {
+		struct pci_dev *pci_dev;
+		int bus, slot;
+
+		bus = it->options[0];
+		slot = it->options[1];
+		pci_dev = dio200_find_pci(dev, bus, slot);
+		if (pci_dev == NULL)
+			return -EIO;
+		return dio200_pci_common_attach(dev, pci_dev);
+	} else {
+		dev_err(dev->class_dev, DIO200_DRIVER_NAME
+			": BUG! cannot determine board type!\n");
+		return -EINVAL;
+	}
+}
+
+/*
+ * The attach_pci hook (if non-NULL) is called at PCI probe time in preference
+ * to the "manual" attach hook.  dev->board_ptr is NULL on entry.  There should
+ * be a board entry matching the supplied PCI device.
+ */
+static int __devinit dio200_attach_pci(struct comedi_device *dev,
+				       struct pci_dev *pci_dev)
+{
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_PCI))
+		return -EINVAL;
+
+	dev_info(dev->class_dev, DIO200_DRIVER_NAME ": attach pci %s\n",
+		 pci_name(pci_dev));
+	ret = alloc_private(dev, sizeof(struct dio200_private));
+	if (ret < 0) {
+		dev_err(dev->class_dev, "error! out of memory!\n");
+		return ret;
+	}
+	dev->board_ptr = dio200_find_pci_board(pci_dev);
+	if (dev->board_ptr == NULL) {
+		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
+		return -EINVAL;
+	}
+	return dio200_pci_common_attach(dev, pci_dev);
 }
 
 static void dio200_detach(struct comedi_device *dev)
@@ -1444,6 +1482,7 @@ static struct comedi_driver amplc_dio200_driver = {
 	.driver_name = DIO200_DRIVER_NAME,
 	.module = THIS_MODULE,
 	.attach = dio200_attach,
+	.attach_pci = dio200_attach_pci,
 	.detach = dio200_detach,
 	.board_name = &dio200_boards[0].name,
 	.offset = sizeof(struct dio200_board),
