@@ -641,11 +641,11 @@ static void dwc3_ep0_inspect_setup(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event)
 {
 	struct usb_ctrlrequest *ctrl = dwc->ctrl_req;
-	int ret;
+	int ret = -EINVAL;
 	u32 len;
 
 	if (!dwc->gadget_driver)
-		goto err;
+		goto out;
 
 	len = le16_to_cpu(ctrl->wLength);
 	if (!len) {
@@ -666,11 +666,9 @@ static void dwc3_ep0_inspect_setup(struct dwc3 *dwc,
 	if (ret == USB_GADGET_DELAYED_STATUS)
 		dwc->delayed_status = true;
 
-	if (ret >= 0)
-		return;
-
-err:
-	dwc3_ep0_stall_and_restart(dwc);
+out:
+	if (ret < 0)
+		dwc3_ep0_stall_and_restart(dwc);
 }
 
 static void dwc3_ep0_complete_data(struct dwc3 *dwc,
