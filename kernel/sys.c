@@ -2114,7 +2114,6 @@ int orderly_poweroff(bool force)
 		NULL
 	};
 	int ret = -ENOMEM;
-	struct subprocess_info *info;
 
 	if (argv == NULL) {
 		printk(KERN_WARNING "%s failed to allocate memory for \"%s\"\n",
@@ -2122,18 +2121,16 @@ int orderly_poweroff(bool force)
 		goto out;
 	}
 
-	info = call_usermodehelper_setup(argv[0], argv, envp, GFP_ATOMIC);
-	if (info == NULL) {
+	ret = call_usermodehelper_fns(argv[0], argv, envp, UMH_NO_WAIT,
+				      NULL, argv_cleanup, NULL);
+out:
+	if (likely(!ret))
+		return 0;
+
+	if (ret == -ENOMEM)
 		argv_free(argv);
-		goto out;
-	}
 
-	call_usermodehelper_setfns(info, NULL, argv_cleanup, NULL);
-
-	ret = call_usermodehelper_exec(info, UMH_NO_WAIT);
-
-  out:
-	if (ret && force) {
+	if (force) {
 		printk(KERN_WARNING "Failed to start orderly shutdown: "
 		       "forcing the issue\n");
 
