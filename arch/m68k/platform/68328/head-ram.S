@@ -76,8 +76,8 @@ pclp3:
 	beq	pclp3
 #endif /* DEBUG */
 	moveal	#0x007ffff0, %ssp
-	moveal	#_sbss, %a0
-	moveal	#_ebss, %a1
+	moveal	#__bss_start, %a0
+	moveal	#__bss_stop, %a1
 
 	/* Copy 0 to %a0 until %a0 >= %a1 */
 L1:

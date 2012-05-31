@@ -219,9 +219,9 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	pr_debug("KERNEL -> TEXT=0x%p-0x%p DATA=0x%p-0x%p BSS=0x%p-0x%p\n",
-		 _stext, _etext, _sdata, _edata, _sbss, _ebss);
+		 _stext, _etext, _sdata, _edata, __bss_start, __bss_stop);
 	pr_debug("MEMORY -> ROMFS=0x%p-0x%06lx MEM=0x%06lx-0x%06lx\n ",
-		 _ebss, memory_start, memory_start, memory_end);
+		 __bss_stop, memory_start, memory_start, memory_end);
 
 	/* Keep a copy of command line */
 	*cmdline_p = &command_line[0];
