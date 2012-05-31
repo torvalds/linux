@@ -121,7 +121,7 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 
 	/* Move ROMFS out of BSS before clearing it */
 	if (romfs_size > 0) {
-		memmove(&_ebss, (int *)romfs_base, romfs_size);
+		memmove(&__bss_stop, (int *)romfs_base, romfs_size);
 		klimit += romfs_size;
 	}
 #endif
@@ -165,7 +165,7 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 	BUG_ON(romfs_size < 0); /* What else can we do? */
 
 	printk("Moved 0x%08x bytes from 0x%08x to 0x%08x\n",
-			romfs_size, romfs_base, (unsigned)&_ebss);
+			romfs_size, romfs_base, (unsigned)&__bss_stop);
 
 	printk("New klimit: 0x%08x\n", (unsigned)klimit);
 #endif

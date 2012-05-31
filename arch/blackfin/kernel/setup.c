@@ -52,7 +52,6 @@ EXPORT_SYMBOL(reserved_mem_dcache_on);
 #ifdef CONFIG_MTD_UCLINUX
 extern struct map_info uclinux_ram_map;
 unsigned long memory_mtd_end, memory_mtd_start, mtd_size;
-unsigned long _ebss;
 EXPORT_SYMBOL(memory_mtd_end);
 EXPORT_SYMBOL(memory_mtd_start);
 EXPORT_SYMBOL(mtd_size);

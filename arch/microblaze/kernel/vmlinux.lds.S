@@ -131,7 +131,6 @@ SECTIONS {
 			*(COMMON)
 		. = ALIGN (4) ;
 		__bss_stop = . ;
-		_ebss = . ;
 	}
 	. = ALIGN(PAGE_SIZE);
 	_end = .;
