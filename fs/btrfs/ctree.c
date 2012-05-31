@@ -455,11 +455,11 @@ unlock:
 	return ret;
 }
 
-int tree_mod_alloc(struct btrfs_fs_info *fs_info, gfp_t flags,
-		   struct tree_mod_elem **tm_ret)
+static inline int tree_mod_alloc(struct btrfs_fs_info *fs_info, gfp_t flags,
+				 struct tree_mod_elem **tm_ret)
 {
 	struct tree_mod_elem *tm;
-	u64 seq = 0;
+	int seq;
 
 	smp_mb();
 	if (list_empty(&fs_info->tree_mod_seq_list))
@@ -469,9 +469,22 @@ int tree_mod_alloc(struct btrfs_fs_info *fs_info, gfp_t flags,
 	if (!tm)
 		return -ENOMEM;
 
-	__get_tree_mod_seq(fs_info, &tm->elem);
-	seq = tm->elem.seq;
 	tm->elem.flags = 0;
+	spin_lock(&fs_info->tree_mod_seq_lock);
+	if (list_empty(&fs_info->tree_mod_seq_list)) {
+		/*
+		 * someone emptied the list while we were waiting for the lock.
+		 * we must not add to the list, because no blocker exists. items
+		 * are removed from the list only when the existing blocker is
+		 * removed from the list.
+		 */
+		kfree(tm);
+		seq = 0;
+	} else {
+		__get_tree_mod_seq(fs_info, &tm->elem);
+		seq = tm->elem.seq;
+	}
+	spin_unlock(&fs_info->tree_mod_seq_lock);
 
 	return seq;
 }
