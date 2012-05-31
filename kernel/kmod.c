@@ -409,7 +409,7 @@ EXPORT_SYMBOL_GPL(usermodehelper_read_unlock);
 
 /**
  * __usermodehelper_set_disable_depth - Modify usermodehelper_disabled.
- * depth: New value to assign to usermodehelper_disabled.
+ * @depth: New value to assign to usermodehelper_disabled.
  *
  * Change the value of usermodehelper_disabled (under umhelper_sem locked for
  * writing) and wakeup tasks waiting for it to change.
