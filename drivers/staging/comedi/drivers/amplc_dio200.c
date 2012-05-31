@@ -420,20 +420,6 @@ static const struct dio200_layout_struct dio200_layouts[] = {
 };
 
 /*
- * PCI driver table.
- */
-
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_PCI)
-static DEFINE_PCI_DEVICE_TABLE(dio200_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272) },
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, dio200_pci_table);
-#endif /* CONFIG_COMEDI_AMPLC_DIO200_PCI */
-
-/*
  * Useful for shorthand access to the particular board structure
  */
 #define thisboard ((const struct dio200_board *)dev->board_ptr)
@@ -472,49 +458,6 @@ struct dio200_subdev_intr {
 	unsigned int stopcount;
 	int continuous;
 };
-
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int dio200_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static void dio200_detach(struct comedi_device *dev);
-static struct comedi_driver amplc_dio200_driver = {
-	.driver_name = DIO200_DRIVER_NAME,
-	.module = THIS_MODULE,
-	.attach = dio200_attach,
-	.detach = dio200_detach,
-	.board_name = &dio200_boards[0].name,
-	.offset = sizeof(struct dio200_board),
-	.num_names = ARRAY_SIZE(dio200_boards),
-};
-
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_PCI)
-static int __devinit amplc_dio200_pci_probe(struct pci_dev *dev,
-						   const struct pci_device_id
-						   *ent)
-{
-	return comedi_pci_auto_config(dev, &amplc_dio200_driver);
-}
-
-static void __devexit amplc_dio200_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver amplc_dio200_pci_driver = {
-	.name = DIO200_DRIVER_NAME,
-	.id_table = dio200_pci_table,
-	.probe = &amplc_dio200_pci_probe,
-	.remove = __devexit_p(&amplc_dio200_pci_remove)
-};
-module_comedi_pci_driver(amplc_dio200_driver, amplc_dio200_pci_driver);
-#else
-module_comedi_driver(amplc_dio200_driver);
-#endif
 
 /*
  * This function looks for a PCI device matching the requested board name,
@@ -1487,6 +1430,54 @@ static void dio200_detach(struct comedi_device *dev)
 		}
 	}
 }
+
+/*
+ * The struct comedi_driver structure tells the Comedi core module
+ * which functions to call to configure/deconfigure (attach/detach)
+ * the board, and also about the kernel module that contains
+ * the device code.
+ */
+static struct comedi_driver amplc_dio200_driver = {
+	.driver_name = DIO200_DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = dio200_attach,
+	.detach = dio200_detach,
+	.board_name = &dio200_boards[0].name,
+	.offset = sizeof(struct dio200_board),
+	.num_names = ARRAY_SIZE(dio200_boards),
+};
+
+#if IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_PCI)
+static DEFINE_PCI_DEVICE_TABLE(dio200_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272) },
+	{0}
+};
+
+MODULE_DEVICE_TABLE(pci, dio200_pci_table);
+
+static int __devinit amplc_dio200_pci_probe(struct pci_dev *dev,
+						   const struct pci_device_id
+						   *ent)
+{
+	return comedi_pci_auto_config(dev, &amplc_dio200_driver);
+}
+
+static void __devexit amplc_dio200_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver amplc_dio200_pci_driver = {
+	.name = DIO200_DRIVER_NAME,
+	.id_table = dio200_pci_table,
+	.probe = &amplc_dio200_pci_probe,
+	.remove = __devexit_p(&amplc_dio200_pci_remove)
+};
+module_comedi_pci_driver(amplc_dio200_driver, amplc_dio200_pci_driver);
+#else
+module_comedi_driver(amplc_dio200_driver);
+#endif
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
