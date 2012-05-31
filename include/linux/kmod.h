@@ -79,10 +79,6 @@ void call_usermodehelper_setfns(struct subprocess_info *info,
 /* Actually execute the sub-process */
 int call_usermodehelper_exec(struct subprocess_info *info, int wait);
 
-/* Free the subprocess_info. This is only needed if you're not going
-   to call call_usermodehelper_exec */
-void call_usermodehelper_freeinfo(struct subprocess_info *info);
-
 static inline int
 call_usermodehelper_fns(char *path, char **argv, char **envp, int wait,
 			int (*init)(struct subprocess_info *info, struct cred *new),
