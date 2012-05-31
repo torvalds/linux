@@ -459,36 +459,9 @@ static void fat_evict_inode(struct inode *inode)
 	fat_detach(inode);
 }
 
-static void fat_write_super(struct super_block *sb)
-{
-	lock_super(sb);
-	sb->s_dirt = 0;
-
-	if (!(sb->s_flags & MS_RDONLY))
-		fat_clusters_flush(sb);
-	unlock_super(sb);
-}
-
-static int fat_sync_fs(struct super_block *sb, int wait)
-{
-	int err = 0;
-
-	if (sb->s_dirt) {
-		lock_super(sb);
-		sb->s_dirt = 0;
-		err = fat_clusters_flush(sb);
-		unlock_super(sb);
-	}
-
-	return err;
-}
-
 static void fat_put_super(struct super_block *sb)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
-
-	if (sb->s_dirt)
-		fat_write_super(sb);
 
 	iput(sbi->fsinfo_inode);
 	iput(sbi->fat_inode);
@@ -662,7 +635,18 @@ retry:
 
 static int fat_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
-	return __fat_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
+	int err;
+
+	if (inode->i_ino == MSDOS_FSINFO_INO) {
+		struct super_block *sb = inode->i_sb;
+
+		lock_super(sb);
+		err = fat_clusters_flush(sb);
+		unlock_super(sb);
+	} else
+		err = __fat_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
+
+	return err;
 }
 
 int fat_sync_inode(struct inode *inode)
@@ -679,8 +663,6 @@ static const struct super_operations fat_sops = {
 	.write_inode	= fat_write_inode,
 	.evict_inode	= fat_evict_inode,
 	.put_super	= fat_put_super,
-	.write_super	= fat_write_super,
-	.sync_fs	= fat_sync_fs,
 	.statfs		= fat_statfs,
 	.remount_fs	= fat_remount,
 
