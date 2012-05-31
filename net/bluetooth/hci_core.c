@@ -1526,6 +1526,7 @@ static void le_scan_enable_req(struct hci_dev *hdev, unsigned long opt)
 
 	memset(&cp, 0, sizeof(cp));
 	cp.enable = 1;
+	cp.filter_dup = 1;
 
 	hci_send_cmd(hdev, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
 }
