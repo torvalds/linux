@@ -1495,7 +1495,7 @@ static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return pci224_attach_common(dev, pci_dev, it->options);
 }
 
-static int
+static int __devinit
 pci224_attach_pci(struct comedi_device *dev, struct pci_dev *pci_dev)
 {
 	int ret;
