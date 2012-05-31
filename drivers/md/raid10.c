@@ -3311,7 +3311,7 @@ static int run(struct mddev *mddev)
 				 (conf->raid_disks / conf->near_copies));
 
 	rdev_for_each(rdev, mddev) {
-
+		struct request_queue *q;
 		disk_idx = rdev->raid_disk;
 		if (disk_idx >= conf->raid_disks
 		    || disk_idx < 0)
@@ -3327,6 +3327,9 @@ static int run(struct mddev *mddev)
 				goto out_free_conf;
 			disk->rdev = rdev;
 		}
+		q = bdev_get_queue(rdev->bdev);
+		if (q->merge_bvec_fn)
+			mddev->merge_check_needed = 1;
 
 		disk_stack_limits(mddev->gendisk, rdev->bdev,
 				  rdev->data_offset << 9);
