@@ -343,6 +343,7 @@ struct pn533 {
 
 	u8 tgt_available_prots;
 	u8 tgt_active_prot;
+	u8 tgt_mode;
 };
 
 struct pn533_frame {
@@ -1158,6 +1159,8 @@ static int pn533_tm_get_data_complete(struct pn533 *dev, void *arg,
 	if (params_len > 0 && params[0] != 0) {
 		nfc_tm_deactivated(dev->nfc_dev);
 
+		dev->tgt_mode = 0;
+
 		kfree_skb(skb_resp);
 		return 0;
 	}
@@ -1244,6 +1247,8 @@ static int pn533_init_target_complete(struct pn533 *dev, void *arg,
 			    "Error when signaling target activation");
 		return rc;
 	}
+
+	dev->tgt_mode = 1;
 
 	queue_work(dev->wq, &dev->tg_work);
 
@@ -1394,6 +1399,12 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev,
 	if (dev->tgt_active_prot) {
 		nfc_dev_err(&dev->interface->dev,
 			    "Cannot poll with a target already activated");
+		return -EBUSY;
+	}
+
+	if (dev->tgt_mode) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Cannot poll while already being activated");
 		return -EBUSY;
 	}
 
@@ -1725,7 +1736,15 @@ static int pn533_dep_link_down(struct nfc_dev *nfc_dev)
 
 	pn533_poll_reset_mod_list(dev);
 
-	pn533_deactivate_target(nfc_dev, 0);
+	if (dev->tgt_mode || dev->tgt_active_prot) {
+		pn533_send_ack(dev, GFP_KERNEL);
+		usb_kill_urb(dev->in_urb);
+	}
+
+	dev->tgt_active_prot = 0;
+	dev->tgt_mode = 0;
+
+	skb_queue_purge(&dev->resp_q);
 
 	return 0;
 }
@@ -1955,6 +1974,8 @@ static int pn533_tm_send_complete(struct pn533 *dev, void *arg,
 
 	if (params_len > 0 && params[0] != 0) {
 		nfc_tm_deactivated(dev->nfc_dev);
+
+		dev->tgt_mode = 0;
 
 		return 0;
 	}
