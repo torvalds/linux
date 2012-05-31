@@ -870,13 +870,15 @@ static noinline_for_stack
 char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	      struct printf_spec spec)
 {
+	int default_width = 2 * sizeof(void *) + (spec.flags & SPECIAL ? 2 : 0);
+
 	if (!ptr && *fmt != 'K') {
 		/*
 		 * Print (null) with the same width as a pointer so it makes
 		 * tabular output look nice.
 		 */
 		if (spec.field_width == -1)
-			spec.field_width = 2 * sizeof(void *);
+			spec.field_width = default_width;
 		return string(buf, end, "(null)", spec);
 	}
 
@@ -931,7 +933,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		 */
 		if (in_irq() || in_serving_softirq() || in_nmi()) {
 			if (spec.field_width == -1)
-				spec.field_width = 2 * sizeof(void *);
+				spec.field_width = default_width;
 			return string(buf, end, "pK-error", spec);
 		}
 		if (!((kptr_restrict == 0) ||
@@ -948,7 +950,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	}
 	spec.flags |= SMALL;
 	if (spec.field_width == -1) {
-		spec.field_width = 2 * sizeof(void *);
+		spec.field_width = default_width;
 		spec.flags |= ZEROPAD;
 	}
 	spec.base = 16;
