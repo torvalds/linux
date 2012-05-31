@@ -31,8 +31,6 @@ struct vmalloc_info {
 	unsigned long	largest_chunk;
 };
 
-extern struct mm_struct *mm_for_maps(struct task_struct *);
-
 #ifdef CONFIG_MMU
 #define VMALLOC_TOTAL (VMALLOC_END - VMALLOC_START)
 extern void get_vmalloc_info(struct vmalloc_info *vmi);
