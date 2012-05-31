@@ -2825,6 +2825,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	struct dentry *de = dentry;
 	struct nfs4_state *state;
 	struct rpc_cred *cred = NULL;
+	struct nfs4_threshold **thp = NULL;
 	fmode_t fmode = 0;
 	int status = 0;
 
@@ -2832,9 +2833,10 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		cred = ctx->cred;
 		de = ctx->dentry;
 		fmode = ctx->mode;
+		thp = &ctx->mdsthreshold;
 	}
 	sattr->ia_mode &= ~current_umask();
-	state = nfs4_do_open(dir, de, fmode, flags, sattr, cred, NULL);
+	state = nfs4_do_open(dir, de, fmode, flags, sattr, cred, thp);
 	d_drop(dentry);
 	if (IS_ERR(state)) {
 		status = PTR_ERR(state);
