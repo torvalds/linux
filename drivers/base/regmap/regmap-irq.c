@@ -24,7 +24,7 @@ struct regmap_irq_chip_data {
 	struct mutex lock;
 
 	struct regmap *map;
-	struct regmap_irq_chip *chip;
+	const struct regmap_irq_chip *chip;
 
 	int irq_base;
 	struct irq_domain *domain;
@@ -103,7 +103,7 @@ static struct irq_chip regmap_irq_chip = {
 static irqreturn_t regmap_irq_thread(int irq, void *d)
 {
 	struct regmap_irq_chip_data *data = d;
-	struct regmap_irq_chip *chip = data->chip;
+	const struct regmap_irq_chip *chip = data->chip;
 	struct regmap *map = data->map;
 	int ret, i;
 	bool handled = false;
@@ -195,7 +195,7 @@ static struct irq_domain_ops regmap_domain_ops = {
  * register values used by the IRQ controller over suspend and resume.
  */
 int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
-			int irq_base, struct regmap_irq_chip *chip,
+			int irq_base, const struct regmap_irq_chip *chip,
 			struct regmap_irq_chip_data **data)
 {
 	struct regmap_irq_chip_data *d;
