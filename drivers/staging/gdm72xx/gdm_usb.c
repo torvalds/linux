@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <asm/byteorder.h>
+#include <linux/kthread.h>
 
 #include "gdm_usb.h"
 #include "gdm_wimax.h"
@@ -775,7 +776,7 @@ static struct usb_driver gdm_usb_driver = {
 static int __init usb_gdm_wimax_init(void)
 {
 #ifdef CONFIG_WIMAX_GDM72XX_K_MODE
-	kernel_thread(k_mode_thread, NULL, CLONE_KERNEL);
+	kthread_run(k_mode_thread, NULL, "WiMax_thread");
 #endif /* CONFIG_WIMAX_GDM72XX_K_MODE */
 	return usb_register(&gdm_usb_driver);
 }
