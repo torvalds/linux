@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
+#include <linux/pm_runtime.h>
 
 #include <asm/cputype.h>
 #include <asm/irq.h>
@@ -364,8 +365,6 @@ armpmu_release_hardware(struct arm_pmu *armpmu)
 {
 	int i, irq, irqs;
 	struct platform_device *pmu_device = armpmu->plat_device;
-	struct arm_pmu_platdata *plat =
-		dev_get_platdata(&pmu_device->dev);
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
 
@@ -373,13 +372,11 @@ armpmu_release_hardware(struct arm_pmu *armpmu)
 		if (!cpumask_test_and_clear_cpu(i, &armpmu->active_irqs))
 			continue;
 		irq = platform_get_irq(pmu_device, i);
-		if (irq >= 0) {
-			if (plat && plat->disable_irq)
-				plat->disable_irq(irq);
+		if (irq >= 0)
 			free_irq(irq, armpmu);
-		}
 	}
 
+	pm_runtime_put_sync(&pmu_device->dev);
 	release_pmu(armpmu->type);
 }
 
@@ -412,6 +409,8 @@ armpmu_reserve_hardware(struct arm_pmu *armpmu)
 		return -ENODEV;
 	}
 
+	pm_runtime_get_sync(&pmu_device->dev);
+
 	for (i = 0; i < irqs; ++i) {
 		err = 0;
 		irq = platform_get_irq(pmu_device, i);
@@ -437,8 +436,7 @@ armpmu_reserve_hardware(struct arm_pmu *armpmu)
 				irq);
 			armpmu_release_hardware(armpmu);
 			return err;
-		} else if (plat && plat->enable_irq)
-			plat->enable_irq(irq);
+		}
 
 		cpumask_set_cpu(i, &armpmu->active_irqs);
 	}
@@ -581,6 +579,28 @@ static void armpmu_disable(struct pmu *pmu)
 	armpmu->stop();
 }
 
+#ifdef CONFIG_PM_RUNTIME
+static int armpmu_runtime_resume(struct device *dev)
+{
+	struct arm_pmu_platdata *plat = dev_get_platdata(dev);
+
+	if (plat && plat->runtime_resume)
+		return plat->runtime_resume(dev);
+
+	return 0;
+}
+
+static int armpmu_runtime_suspend(struct device *dev)
+{
+	struct arm_pmu_platdata *plat = dev_get_platdata(dev);
+
+	if (plat && plat->runtime_suspend)
+		return plat->runtime_suspend(dev);
+
+	return 0;
+}
+#endif
+
 static void __init armpmu_init(struct arm_pmu *armpmu)
 {
 	atomic_set(&armpmu->active_events, 0);
@@ -647,9 +667,14 @@ static int __devinit armpmu_device_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct dev_pm_ops armpmu_dev_pm_ops = {
+	SET_RUNTIME_PM_OPS(armpmu_runtime_suspend, armpmu_runtime_resume, NULL)
+};
+
 static struct platform_driver armpmu_driver = {
 	.driver		= {
 		.name	= "arm-pmu",
+		.pm	= &armpmu_dev_pm_ops,
 		.of_match_table = armpmu_of_device_ids,
 	},
 	.probe		= armpmu_device_probe,

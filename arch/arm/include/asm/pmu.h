@@ -31,18 +31,22 @@ enum arm_pmu_type {
  *	interrupt and passed the address of the low level handler,
  *	and can be used to implement any platform specific handling
  *	before or after calling it.
- * @enable_irq: an optional handler which will be called after
- *	request_irq and be used to handle some platform specific
- *	irq enablement
- * @disable_irq: an optional handler which will be called before
- *	free_irq and be used to handle some platform specific
- *	irq disablement
+ * @runtime_resume: an optional handler which will be called by the
+ *	runtime PM framework following a call to pm_runtime_get().
+ *	Note that if pm_runtime_get() is called more than once in
+ *	succession this handler will only be called once.
+ * @runtime_suspend: an optional handler which will be called by the
+ *	runtime PM framework following a call to pm_runtime_put().
+ *	Note that if pm_runtime_get() is called more than once in
+ *	succession this handler will only be called following the
+ *	final call to pm_runtime_put() that actually disables the
+ *	hardware.
  */
 struct arm_pmu_platdata {
 	irqreturn_t (*handle_irq)(int irq, void *dev,
 				  irq_handler_t pmu_handler);
-	void (*enable_irq)(int irq);
-	void (*disable_irq)(int irq);
+	int (*runtime_resume)(struct device *dev);
+	int (*runtime_suspend)(struct device *dev);
 };
 
 #ifdef CONFIG_CPU_HAS_PMU
