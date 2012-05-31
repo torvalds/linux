@@ -5128,7 +5128,8 @@ drop:
 	return 0;
 }
 
-static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk_buff *skb)
+static void l2cap_data_channel(struct l2cap_conn *conn, u16 cid,
+			       struct sk_buff *skb)
 {
 	struct l2cap_chan *chan;
 
@@ -5138,7 +5139,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 			chan = a2mp_channel_create(conn, skb);
 			if (!chan) {
 				kfree_skb(skb);
-				return 0;
+				return;
 			}
 
 			l2cap_chan_lock(chan);
@@ -5146,7 +5147,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 			BT_DBG("unknown cid 0x%4.4x", cid);
 			/* Drop packet and return */
 			kfree_skb(skb);
-			return 0;
+			return;
 		}
 	}
 
@@ -5184,8 +5185,6 @@ drop:
 
 done:
 	l2cap_chan_unlock(chan);
-
-	return 0;
 }
 
 static inline int l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm, struct sk_buff *skb)
