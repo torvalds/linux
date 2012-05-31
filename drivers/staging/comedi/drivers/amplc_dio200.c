@@ -463,13 +463,10 @@ struct dio200_subdev_intr {
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
  */
-static int
-dio200_find_pci(struct comedi_device *dev, int bus, int slot,
-		struct pci_dev **pci_dev_p)
+static struct pci_dev *
+dio200_find_pci(struct comedi_device *dev, int bus, int slot)
 {
 	struct pci_dev *pci_dev = NULL;
-
-	*pci_dev_p = NULL;
 
 	/* Look for matching PCI device. */
 	for (pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON, PCI_ANY_ID, NULL);
@@ -504,8 +501,7 @@ dio200_find_pci(struct comedi_device *dev, int bus, int slot,
 		}
 
 		/* Found a match. */
-		*pci_dev_p = pci_dev;
-		return 0;
+		return pci_dev;
 	}
 	/* No match found. */
 	if (bus || slot) {
@@ -516,7 +512,7 @@ dio200_find_pci(struct comedi_device *dev, int bus, int slot,
 		dev_err(dev->class_dev, "error! no %s found!\n",
 			thisboard->name);
 	}
-	return -EIO;
+	return NULL;
 }
 
 /*
@@ -1293,15 +1289,15 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			return ret;
 	} else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_PCI) &&
 		   thisboard->bustype == pci_bustype) {
-		struct pci_dev *pci_dev = NULL;
+		struct pci_dev *pci_dev;
 		int bus, slot;
 
 		bus = it->options[0];
 		slot = it->options[1];
 		share_irq = 1;
-		ret = dio200_find_pci(dev, bus, slot, &pci_dev);
-		if (ret < 0)
-			return ret;
+		pci_dev = dio200_find_pci(dev, bus, slot);
+		if (pci_dev == NULL)
+			return -EIO;
 		devpriv->pci_dev = pci_dev;
 		ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
 		if (ret < 0) {
