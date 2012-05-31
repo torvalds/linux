@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.h 285387 2011-09-21 18:38:37Z $
+ * $Id: siutils.h 335486 2012-05-28 09:47:55Z $
  */
 
 
@@ -222,6 +222,8 @@ static INLINE void * si_seci_init(si_t *sih, uint8 use_seci) {return NULL;}
 extern bool si_is_otp_disabled(si_t *sih);
 extern bool si_is_otp_powered(si_t *sih);
 extern void si_otp_power(si_t *sih, bool on);
+extern void si_set_otp_wr_volts(si_t *sih);
+extern void si_set_otp_rd_volts(si_t *sih);
 
 
 extern bool si_is_sprom_available(si_t *sih);

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmdevs.h 295140 2011-11-09 17:22:01Z $
+ * $Id: bcmdevs.h 332966 2012-05-11 22:40:21Z $
  */
 
 
@@ -373,6 +373,7 @@
 #define BFL2_EXTLNA_TX		0x08000000  
 						
 #define BFL2_4313_RADIOREG	0x10000000
+#define BFL2_SECI_LOPWR_DIS	0x20000000  
 									   
 
 
