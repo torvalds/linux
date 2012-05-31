@@ -105,6 +105,8 @@ ENTRY(_enter_deepsleep)
 	sti r0;
 	SSYNC;
 
+	bfin_init_pm_bench_cycles;
+
 	/* Fall into deep sleep in idle*/
 	idle;
 	SSYNC;
