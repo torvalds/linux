@@ -59,9 +59,9 @@
 #endif
 #include "igb.h"
 
-#define MAJ 3
-#define MIN 4
-#define BUILD 7
+#define MAJ 4
+#define MIN 0
+#define BUILD 1
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 __stringify(BUILD) "-k"
 char igb_driver_name[] = "igb";
