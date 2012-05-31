@@ -377,11 +377,6 @@ static const struct pci224_board pci224_boards[] = {
 	 },
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((struct pci224_board *)dev->board_ptr)
-
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
@@ -405,8 +400,6 @@ struct pci224_private {
 	unsigned char intsce;
 };
 
-#define devpriv ((struct pci224_private *)dev->private)
-
 /*
  * Called from the 'insn_write' function to perform a single write.
  */
@@ -414,6 +407,8 @@ static void
 pci224_ao_set_data(struct comedi_device *dev, int chan, int range,
 		   unsigned int data)
 {
+	const struct pci224_board *thisboard = comedi_board(dev);
+	struct pci224_private *devpriv = dev->private;
 	unsigned short mangled;
 
 	/* Store unmangled data for readback. */
@@ -476,6 +471,7 @@ static int
 pci224_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci224_private *devpriv = dev->private;
 	int i;
 	int chan;
 
@@ -504,6 +500,7 @@ pci224_cascade_ns_to_timer(int osc_base, unsigned int *d1, unsigned int *d2,
 static void pci224_ao_stop(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
+	struct pci224_private *devpriv = dev->private;
 	unsigned long flags;
 
 	if (!test_and_clear_bit(AO_CMD_STARTED, &devpriv->state))
@@ -547,6 +544,7 @@ static void pci224_ao_stop(struct comedi_device *dev,
 static void pci224_ao_start(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct pci224_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 
@@ -575,6 +573,7 @@ static void pci224_ao_start(struct comedi_device *dev,
 static void pci224_ao_handle_fifo(struct comedi_device *dev,
 				  struct comedi_subdevice *s)
 {
+	struct pci224_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int num_scans;
 	unsigned int room;
@@ -721,6 +720,7 @@ static int
 pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		  struct comedi_cmd *cmd)
 {
+	struct pci224_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp;
 
@@ -991,6 +991,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
  */
 static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pci224_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int range;
 	unsigned int i, j;
@@ -1163,6 +1164,8 @@ static void
 pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 		void *data, unsigned int num_bytes, unsigned int chan_index)
 {
+	const struct pci224_board *thisboard = comedi_board(dev);
+	struct pci224_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	short *array = data;
 	unsigned int length = num_bytes / sizeof(*array);
@@ -1193,6 +1196,7 @@ pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 static irqreturn_t pci224_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pci224_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	struct comedi_cmd *cmd;
 	unsigned char intstat, valid_intstat;
@@ -1258,6 +1262,7 @@ static const struct pci224_board
 static struct pci_dev *
 pci224_find_pci(struct comedi_device *dev, int bus, int slot)
 {
+	const struct pci224_board *thisboard = comedi_board(dev);
 	struct pci_dev *pci_dev = NULL;
 
 	/* Look for matching PCI device. */
@@ -1279,6 +1284,7 @@ pci224_find_pci(struct comedi_device *dev, int bus, int slot)
 				continue;
 			/* Change board_ptr to matched board. */
 			dev->board_ptr = board_ptr;
+			thisboard = comedi_board(dev);
 		} else {
 			/* Match specific model name. */
 			if (thisboard->devid != pci_dev->device)
@@ -1302,6 +1308,7 @@ pci224_find_pci(struct comedi_device *dev, int bus, int slot)
 
 static void pci224_report_attach(struct comedi_device *dev, unsigned int irq)
 {
+	struct pci224_private *devpriv = dev->private;
 	char tmpbuf[30];
 
 	if (irq)
@@ -1319,6 +1326,8 @@ static void pci224_report_attach(struct comedi_device *dev, unsigned int irq)
 static int pci224_attach_common(struct comedi_device *dev,
 				struct pci_dev *pci_dev, int *options)
 {
+	const struct pci224_board *thisboard = comedi_board(dev);
+	struct pci224_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	unsigned int irq;
 	unsigned n;
@@ -1516,6 +1525,8 @@ pci224_attach_pci(struct comedi_device *dev, struct pci_dev *pci_dev)
 
 static void pci224_detach(struct comedi_device *dev)
 {
+	struct pci224_private *devpriv = dev->private;
+
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->subdevices) {
