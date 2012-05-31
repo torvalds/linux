@@ -3924,6 +3924,7 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 	eb->start = start;
 	eb->len = len;
 	eb->tree = tree;
+	eb->bflags = 0;
 	rwlock_init(&eb->lock);
 	atomic_set(&eb->write_locks, 0);
 	atomic_set(&eb->read_locks, 0);
@@ -3961,6 +3962,60 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 	return eb;
 }
 
+struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src)
+{
+	unsigned long i;
+	struct page *p;
+	struct extent_buffer *new;
+	unsigned long num_pages = num_extent_pages(src->start, src->len);
+
+	new = __alloc_extent_buffer(NULL, src->start, src->len, GFP_ATOMIC);
+	if (new == NULL)
+		return NULL;
+
+	for (i = 0; i < num_pages; i++) {
+		p = alloc_page(GFP_ATOMIC);
+		BUG_ON(!p);
+		attach_extent_buffer_page(new, p);
+		WARN_ON(PageDirty(p));
+		SetPageUptodate(p);
+		new->pages[i] = p;
+	}
+
+	copy_extent_buffer(new, src, 0, 0, src->len);
+	set_bit(EXTENT_BUFFER_UPTODATE, &new->bflags);
+	set_bit(EXTENT_BUFFER_DUMMY, &new->bflags);
+
+	return new;
+}
+
+struct extent_buffer *alloc_dummy_extent_buffer(u64 start, unsigned long len)
+{
+	struct extent_buffer *eb;
+	unsigned long num_pages = num_extent_pages(0, len);
+	unsigned long i;
+
+	eb = __alloc_extent_buffer(NULL, start, len, GFP_ATOMIC);
+	if (!eb)
+		return NULL;
+
+	for (i = 0; i < num_pages; i++) {
+		eb->pages[i] = alloc_page(GFP_ATOMIC);
+		if (!eb->pages[i])
+			goto err;
+	}
+	set_extent_buffer_uptodate(eb);
+	btrfs_set_header_nritems(eb, 0);
+	set_bit(EXTENT_BUFFER_DUMMY, &eb->bflags);
+
+	return eb;
+err:
+	for (i--; i > 0; i--)
+		__free_page(eb->pages[i]);
+	__free_extent_buffer(eb);
+	return NULL;
+}
+
 static int extent_buffer_under_io(struct extent_buffer *eb)
 {
 	return (atomic_read(&eb->io_pages) ||
@@ -3977,6 +4032,7 @@ static void btrfs_release_extent_buffer_page(struct extent_buffer *eb,
 	unsigned long index;
 	unsigned long num_pages;
 	struct page *page;
+	int mapped = !test_bit(EXTENT_BUFFER_DUMMY, &eb->bflags);
 
 	BUG_ON(extent_buffer_under_io(eb));
 
@@ -3988,7 +4044,7 @@ static void btrfs_release_extent_buffer_page(struct extent_buffer *eb,
 	do {
 		index--;
 		page = extent_buffer_page(eb, index);
-		if (page) {
+		if (page && mapped) {
 			spin_lock(&page->mapping->private_lock);
 			/*
 			 * We do this since we'll remove the pages after we've
@@ -4013,6 +4069,8 @@ static void btrfs_release_extent_buffer_page(struct extent_buffer *eb,
 			}
 			spin_unlock(&page->mapping->private_lock);
 
+		}
+		if (page) {
 			/* One for when we alloced the page */
 			page_cache_release(page);
 		}
@@ -4231,14 +4289,18 @@ static void release_extent_buffer(struct extent_buffer *eb, gfp_t mask)
 {
 	WARN_ON(atomic_read(&eb->refs) == 0);
 	if (atomic_dec_and_test(&eb->refs)) {
-		struct extent_io_tree *tree = eb->tree;
+		if (test_bit(EXTENT_BUFFER_DUMMY, &eb->bflags)) {
+			spin_unlock(&eb->refs_lock);
+		} else {
+			struct extent_io_tree *tree = eb->tree;
 
-		spin_unlock(&eb->refs_lock);
+			spin_unlock(&eb->refs_lock);
 
-		spin_lock(&tree->buffer_lock);
-		radix_tree_delete(&tree->buffer,
-				  eb->start >> PAGE_CACHE_SHIFT);
-		spin_unlock(&tree->buffer_lock);
+			spin_lock(&tree->buffer_lock);
+			radix_tree_delete(&tree->buffer,
+					  eb->start >> PAGE_CACHE_SHIFT);
+			spin_unlock(&tree->buffer_lock);
+		}
 
 		/* Should be safe to release our pages at this point */
 		btrfs_release_extent_buffer_page(eb, 0);
@@ -4255,6 +4317,10 @@ void free_extent_buffer(struct extent_buffer *eb)
 		return;
 
 	spin_lock(&eb->refs_lock);
+	if (atomic_read(&eb->refs) == 2 &&
+	    test_bit(EXTENT_BUFFER_DUMMY, &eb->bflags))
+		atomic_dec(&eb->refs);
+
 	if (atomic_read(&eb->refs) == 2 &&
 	    test_bit(EXTENT_BUFFER_STALE, &eb->bflags) &&
 	    !extent_buffer_under_io(eb) &&
