@@ -219,6 +219,15 @@ static int __devexit rk30_hdmi_remove(struct platform_device *pdev)
 		iounmap((void*)hdmi->regbase);
 	//	release_mem_region(res->start,(res->end - res->start) + 1);
 		clk_disable(hdmi->hclk);
+		fb_destroy_modelist(&hdmi->edid.modelist);
+		if(hdmi->edid.audio)
+			kfree(hdmi->edid.audio);
+		if(hdmi->edid.specs)
+		{
+			if(hdmi->edid.specs->modedb)
+				kfree(hdmi->edid.specs->modedb);
+			kfree(hdmi->edid.specs);
+		}
 		kfree(hdmi);
 		hdmi = NULL;
 	}
@@ -229,18 +238,9 @@ static int __devexit rk30_hdmi_remove(struct platform_device *pdev)
 static void rk30_hdmi_shutdown(struct platform_device *pdev)
 {
 	if(hdmi) {
-		flush_workqueue(hdmi->workqueue);
-		destroy_workqueue(hdmi->workqueue);
-		#ifdef CONFIG_SWITCH
-		switch_dev_unregister(&(hdmi->switch_hdmi));
-		#endif
-		hdmi_unregister_display_sysfs(hdmi);
 		#ifdef CONFIG_HAS_EARLYSUSPEND
 		unregister_early_suspend(&hdmi->early_suspend);
 		#endif
-		clk_disable(hdmi->hclk);
-		kfree(hdmi);
-		hdmi = NULL;
 	}
 	printk(KERN_INFO "rk30 hdmi shut down.\n");
 }
