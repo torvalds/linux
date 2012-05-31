@@ -1232,7 +1232,7 @@ enomem:
 /*
  * handle mapping creation for uClinux
  */
-static unsigned long do_mmap_pgoff(struct file *file,
+unsigned long do_mmap_pgoff(struct file *file,
 			    unsigned long addr,
 			    unsigned long len,
 			    unsigned long prot,
@@ -1470,7 +1470,7 @@ error_getting_region:
 	return -ENOMEM;
 }
 
-unsigned long do_mmap(struct file *file, unsigned long addr,
+static unsigned long do_mmap(struct file *file, unsigned long addr,
 	unsigned long len, unsigned long prot,
 	unsigned long flag, unsigned long offset)
 {
