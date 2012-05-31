@@ -3441,14 +3441,18 @@ static int ixgbe_write_uc_addr_list(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	unsigned int rar_entries = IXGBE_MAX_PF_MACVLANS;
+	unsigned int rar_entries = hw->mac.num_rar_entries - 1;
 	int count = 0;
+
+	/* In SR-IOV mode significantly less RAR entries are available */
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		rar_entries = IXGBE_MAX_PF_MACVLANS - 1;
 
 	/* return ENOMEM indicating insufficient memory for addresses */
 	if (netdev_uc_count(netdev) > rar_entries)
 		return -ENOMEM;
 
-	if (!netdev_uc_empty(netdev) && rar_entries) {
+	if (!netdev_uc_empty(netdev)) {
 		struct netdev_hw_addr *ha;
 		/* return error if we do not support writing to RAR table */
 		if (!hw->mac.ops.set_rar)
@@ -6861,7 +6865,10 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm,
 			     u16 flags)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	int err = -EOPNOTSUPP;
+	int err;
+
+	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
+		return -EOPNOTSUPP;
 
 	if (ndm->ndm_state & NUD_PERMANENT) {
 		pr_info("%s: FDB only supports static addresses\n",
@@ -6869,13 +6876,17 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm,
 		return -EINVAL;
 	}
 
-	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
-		if (is_unicast_ether_addr(addr))
+	if (is_unicast_ether_addr(addr)) {
+		u32 rar_uc_entries = IXGBE_MAX_PF_MACVLANS;
+
+		if (netdev_uc_count(dev) < rar_uc_entries)
 			err = dev_uc_add_excl(dev, addr);
-		else if (is_multicast_ether_addr(addr))
-			err = dev_mc_add_excl(dev, addr);
 		else
-			err = -EINVAL;
+			err = -ENOMEM;
+	} else if (is_multicast_ether_addr(addr)) {
+		err = dev_mc_add_excl(dev, addr);
+	} else {
+		err = -EINVAL;
 	}
 
 	/* Only return duplicate errors if NLM_F_EXCL is set */
