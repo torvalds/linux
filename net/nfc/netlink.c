@@ -597,11 +597,11 @@ static int nfc_genl_start_poll(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NFC_ATTR_TM_PROTOCOLS])
 		tm_protocols = nla_get_u32(info->attrs[NFC_ATTR_TM_PROTOCOLS]);
-	else if (info->attrs[NFC_ATTR_PROTOCOLS])
-		tm_protocols = nla_get_u32(info->attrs[NFC_ATTR_PROTOCOLS]);
 
 	if (info->attrs[NFC_ATTR_IM_PROTOCOLS])
 		im_protocols = nla_get_u32(info->attrs[NFC_ATTR_IM_PROTOCOLS]);
+	else if (info->attrs[NFC_ATTR_PROTOCOLS])
+		im_protocols = nla_get_u32(info->attrs[NFC_ATTR_PROTOCOLS]);
 
 	dev = nfc_get_device(idx);
 	if (!dev)
