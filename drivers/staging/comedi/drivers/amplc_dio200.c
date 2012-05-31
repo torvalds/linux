@@ -419,13 +419,6 @@ static const struct dio200_layout_struct dio200_layouts[] = {
 			  },
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct dio200_board *)dev->board_ptr)
-#define thislayout (&dio200_layouts[((struct dio200_board *) \
-		    dev->board_ptr)->layout])
-
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.
@@ -434,8 +427,6 @@ struct dio200_private {
 	struct pci_dev *pci_dev;	/* PCI device */
 	int intr_sd;
 };
-
-#define devpriv ((struct dio200_private *)dev->private)
 
 struct dio200_subdev_8254 {
 	unsigned long iobase;	/* Counter base address */
@@ -466,6 +457,7 @@ struct dio200_subdev_intr {
 static struct pci_dev *
 dio200_find_pci(struct comedi_device *dev, int bus, int slot)
 {
+	const struct dio200_board *thisboard = comedi_board(dev);
 	struct pci_dev *pci_dev = NULL;
 
 	/* Look for matching PCI device. */
@@ -489,6 +481,7 @@ dio200_find_pci(struct comedi_device *dev, int bus, int slot)
 				if (pci_dev->device == dio200_boards[i].devid) {
 					/* Change board_ptr to matched board. */
 					dev->board_ptr = &dio200_boards[i];
+					thisboard = comedi_board(dev);
 					break;
 				}
 			}
@@ -972,6 +965,7 @@ dio200_subdev_intr_cleanup(struct comedi_device *dev,
 static irqreturn_t dio200_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct dio200_private *devpriv = dev->private;
 	int handled;
 
 	if (!dev->attached)
@@ -1230,6 +1224,8 @@ dio200_subdev_8254_cleanup(struct comedi_device *dev,
 
 static void dio200_report_attach(struct comedi_device *dev, unsigned int irq)
 {
+	const struct dio200_board *thisboard = comedi_board(dev);
+	struct dio200_private *devpriv = dev->private;
 	char tmpbuf[60];
 	int tmplen;
 
@@ -1261,6 +1257,8 @@ static void dio200_report_attach(struct comedi_device *dev, unsigned int irq)
  */
 static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct dio200_board *thisboard = comedi_board(dev);
+	struct dio200_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
@@ -1277,6 +1275,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		dev_err(dev->class_dev, "error! out of memory!\n");
 		return ret;
 	}
+	devpriv = dev->private;
 
 	/* Process options and reserve resources according to bus type. */
 	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_ISA) &&
@@ -1298,6 +1297,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		pci_dev = dio200_find_pci(dev, bus, slot);
 		if (pci_dev == NULL)
 			return -EIO;
+		thisboard = comedi_board(dev);	/* replaced wildcard board */
 		devpriv->pci_dev = pci_dev;
 		ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
 		if (ret < 0) {
@@ -1317,7 +1317,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->iobase = iobase;
 
-	layout = thislayout;
+	layout = &dio200_layouts[thisboard->layout];
 
 	ret = alloc_subdevices(dev, layout->n_subdevs);
 	if (ret < 0) {
@@ -1392,13 +1392,15 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void dio200_detach(struct comedi_device *dev)
 {
+	const struct dio200_board *thisboard = comedi_board(dev);
+	struct dio200_private *devpriv = dev->private;
 	const struct dio200_layout_struct *layout;
 	unsigned n;
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->subdevices) {
-		layout = thislayout;
+		layout = &dio200_layouts[thisboard->layout];
 		for (n = 0; n < dev->n_subdevices; n++) {
 			struct comedi_subdevice *s = &dev->subdevices[n];
 			switch (layout->sdtype[n]) {
