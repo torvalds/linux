@@ -515,8 +515,8 @@ static void dwc3_ep0_set_sel_cmpl(struct usb_ep *ep, struct usb_request *req)
 
 	dwc->u1sel = timing.u1sel;
 	dwc->u1pel = timing.u1pel;
-	dwc->u2sel = timing.u2sel;
-	dwc->u2pel = timing.u2pel;
+	dwc->u2sel = le16_to_cpu(timing.u2sel);
+	dwc->u2pel = le16_to_cpu(timing.u2pel);
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
 	if (reg & DWC3_DCTL_INITU2ENA)
