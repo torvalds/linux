@@ -679,7 +679,7 @@ static const struct file_operations proc_single_file_operations = {
 	.release	= single_release,
 };
 
-static int mem_open(struct inode* inode, struct file* file)
+static int __mem_open(struct inode *inode, struct file *file, unsigned int mode)
 {
 	struct task_struct *task = get_proc_task(file->f_path.dentry->d_inode);
 	struct mm_struct *mm;
@@ -687,7 +687,7 @@ static int mem_open(struct inode* inode, struct file* file)
 	if (!task)
 		return -ESRCH;
 
-	mm = mm_access(task, PTRACE_MODE_ATTACH);
+	mm = mm_access(task, mode);
 	put_task_struct(task);
 
 	if (IS_ERR(mm))
@@ -705,6 +705,11 @@ static int mem_open(struct inode* inode, struct file* file)
 	file->private_data = mm;
 
 	return 0;
+}
+
+static int mem_open(struct inode *inode, struct file *file)
+{
+	return __mem_open(inode, file, PTRACE_MODE_ATTACH);
 }
 
 static ssize_t mem_rw(struct file *file, char __user *buf,
@@ -803,30 +808,29 @@ static const struct file_operations proc_mem_operations = {
 	.release	= mem_release,
 };
 
+static int environ_open(struct inode *inode, struct file *file)
+{
+	return __mem_open(inode, file, PTRACE_MODE_READ);
+}
+
 static ssize_t environ_read(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos)
 {
-	struct task_struct *task = get_proc_task(file->f_dentry->d_inode);
 	char *page;
 	unsigned long src = *ppos;
-	int ret = -ESRCH;
-	struct mm_struct *mm;
+	int ret = 0;
+	struct mm_struct *mm = file->private_data;
 
-	if (!task)
-		goto out_no_task;
+	if (!mm)
+		return 0;
 
-	ret = -ENOMEM;
 	page = (char *)__get_free_page(GFP_TEMPORARY);
 	if (!page)
-		goto out;
-
-
-	mm = mm_for_maps(task);
-	ret = PTR_ERR(mm);
-	if (!mm || IS_ERR(mm))
-		goto out_free;
+		return -ENOMEM;
 
 	ret = 0;
+	if (!atomic_inc_not_zero(&mm->mm_users))
+		goto free;
 	while (count > 0) {
 		int this_len, retval, max_len;
 
@@ -838,7 +842,7 @@ static ssize_t environ_read(struct file *file, char __user *buf,
 		max_len = (count > PAGE_SIZE) ? PAGE_SIZE : count;
 		this_len = (this_len > max_len) ? max_len : this_len;
 
-		retval = access_process_vm(task, (mm->env_start + src),
+		retval = access_remote_vm(mm, (mm->env_start + src),
 			page, this_len, 0);
 
 		if (retval <= 0) {
@@ -857,19 +861,18 @@ static ssize_t environ_read(struct file *file, char __user *buf,
 		count -= retval;
 	}
 	*ppos = src;
-
 	mmput(mm);
-out_free:
+
+free:
 	free_page((unsigned long) page);
-out:
-	put_task_struct(task);
-out_no_task:
 	return ret;
 }
 
 static const struct file_operations proc_environ_operations = {
+	.open		= environ_open,
 	.read		= environ_read,
 	.llseek		= generic_file_llseek,
+	.release	= mem_release,
 };
 
 static ssize_t oom_adjust_read(struct file *file, char __user *buf,
