@@ -95,9 +95,11 @@ extern int mq_init_ns(struct ipc_namespace *ns);
 #define DFLT_QUEUESMAX 256     /* max number of message queues */
 #define HARD_QUEUESMAX 1024
 #define MIN_MSGMAX     1
+#define DFLT_MSG       10U
 #define DFLT_MSGMAX    10      /* max number of messages in each queue */
 #define HARD_MSGMAX    (32768*sizeof(void *)/4)
 #define MIN_MSGSIZEMAX  128
+#define DFLT_MSGSIZE    8192U
 #define DFLT_MSGSIZEMAX 8192   /* max message size */
 #define HARD_MSGSIZEMAX (8192*128)
 #else
