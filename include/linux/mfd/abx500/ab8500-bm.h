@@ -235,6 +235,14 @@
 /* Battery type */
 #define BATTERY_UNKNOWN			00
 
+/* Registers for pcut feature in ab8505 and ab9540 */
+#define AB8505_RTC_PCUT_CTL_STATUS_REG	0x12
+#define AB8505_RTC_PCUT_TIME_REG	0x13
+#define AB8505_RTC_PCUT_MAX_TIME_REG	0x14
+#define AB8505_RTC_PCUT_FLAG_TIME_REG	0x15
+#define AB8505_RTC_PCUT_RESTART_REG	0x16
+#define AB8505_RTC_PCUT_DEBOUNCE_REG	0x17
+
 /**
  * struct res_to_temp - defines one point in a temp to res curve. To
  * be used in battery packs that combines the identification resistor with a
@@ -283,6 +291,11 @@ struct ab8500_fg;
  *				points.
  * @maint_thres			This is the threshold where we stop reporting
  *				battery full while in maintenance, in per cent
+ * @pcut_enable:			Enable power cut feature in ab8505
+ * @pcut_max_time:		Max time threshold
+ * @pcut_flag_time:		Flagtime threshold
+ * @pcut_max_restart:		Max number of restarts
+ * @pcut_debunce_time:	Sets battery debounce time
  */
 struct ab8500_fg_parameters {
 	int recovery_sleep_timer;
@@ -299,6 +312,11 @@ struct ab8500_fg_parameters {
 	int battok_raising_th_sel1;
 	int user_cap_limit;
 	int maint_thres;
+	bool pcut_enable;
+	u8 pcut_max_time;
+	u8 pcut_flag_time;
+	u8 pcut_max_restart;
+	u8 pcut_debunce_time;
 };
 
 /**

@@ -407,6 +407,11 @@ static const struct abx500_fg_parameters fg = {
 	.battok_raising_th_sel1 = 2860,
 	.maint_thres = 95,
 	.user_cap_limit = 15,
+	.pcut_enable = 1,
+	.pcut_max_time = 127,
+	.pcut_flag_time = 112,
+	.pcut_max_restart = 15,
+	.pcut_debounce_time = 2,
 };
 
 static const struct abx500_maxim_parameters maxi_params = {

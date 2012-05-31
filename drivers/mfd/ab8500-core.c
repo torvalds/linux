@@ -113,6 +113,7 @@
 #define AB8500_SWITCH_OFF_STATUS	0x00
 
 #define AB8500_TURN_ON_STATUS		0x00
+#define AB8505_TURN_ON_STATUS_2	0x04
 
 #define AB8500_CH_USBCH_STAT1_REG	0x02
 #define VBUS_DET_DBNC100		0x02
@@ -1401,6 +1402,21 @@ static ssize_t show_turn_on_status(struct device *dev,
 	return sprintf(buf, "%#x\n", value);
 }
 
+static ssize_t show_turn_on_status_2(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int ret;
+	u8 value;
+	struct ab8500 *ab8500;
+
+	ab8500 = dev_get_drvdata(dev);
+	ret = get_register_interruptible(ab8500, AB8500_SYS_CTRL1_BLOCK,
+		AB8505_TURN_ON_STATUS_2, &value);
+	if (ret < 0)
+		return ret;
+	return sprintf(buf, "%#x\n", (value & 0x1));
+}
+
 static ssize_t show_ab9540_dbbrstn(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -1457,6 +1473,7 @@ exit:
 static DEVICE_ATTR(chip_id, S_IRUGO, show_chip_id, NULL);
 static DEVICE_ATTR(switch_off_status, S_IRUGO, show_switch_off_status, NULL);
 static DEVICE_ATTR(turn_on_status, S_IRUGO, show_turn_on_status, NULL);
+static DEVICE_ATTR(turn_on_status_2, S_IRUGO, show_turn_on_status_2, NULL);
 static DEVICE_ATTR(dbbrstn, S_IRUGO | S_IWUSR,
 			show_ab9540_dbbrstn, store_ab9540_dbbrstn);
 
@@ -1464,6 +1481,11 @@ static struct attribute *ab8500_sysfs_entries[] = {
 	&dev_attr_chip_id.attr,
 	&dev_attr_switch_off_status.attr,
 	&dev_attr_turn_on_status.attr,
+	NULL,
+};
+
+static struct attribute *ab8505_sysfs_entries[] = {
+	&dev_attr_turn_on_status_2.attr,
 	NULL,
 };
 
@@ -1477,6 +1499,10 @@ static struct attribute *ab9540_sysfs_entries[] = {
 
 static struct attribute_group ab8500_attr_group = {
 	.attrs	= ab8500_sysfs_entries,
+};
+
+static struct attribute_group ab8505_attr_group = {
+	.attrs	= ab8505_sysfs_entries,
 };
 
 static struct attribute_group ab9540_attr_group = {
@@ -1719,6 +1745,12 @@ static int ab8500_probe(struct platform_device *pdev)
 	else
 		ret = sysfs_create_group(&ab8500->dev->kobj,
 					&ab8500_attr_group);
+
+	if ((is_ab8505(ab8500) || is_ab9540(ab8500)) &&
+			ab8500->chip_id >= AB8500_CUT2P0)
+		ret = sysfs_create_group(&ab8500->dev->kobj,
+					 &ab8505_attr_group);
+
 	if (ret)
 		dev_err(ab8500->dev, "error creating sysfs entries\n");
 
@@ -1734,6 +1766,10 @@ static int ab8500_remove(struct platform_device *pdev)
 		sysfs_remove_group(&ab8500->dev->kobj, &ab9540_attr_group);
 	else
 		sysfs_remove_group(&ab8500->dev->kobj, &ab8500_attr_group);
+
+	if ((is_ab8505(ab8500) || is_ab9540(ab8500)) &&
+			ab8500->chip_id >= AB8500_CUT2P0)
+		sysfs_remove_group(&ab8500->dev->kobj, &ab8505_attr_group);
 
 	mfd_remove_devices(ab8500->dev);
 
