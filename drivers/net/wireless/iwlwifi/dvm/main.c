@@ -81,6 +81,8 @@ MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
+static const struct iwl_op_mode_ops iwl_dvm_ops;
+
 void iwl_update_chain_flags(struct iwl_priv *priv)
 {
 	struct iwl_rxon_context *ctx;
@@ -2163,7 +2165,7 @@ static void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
 }
 
-const struct iwl_op_mode_ops iwl_dvm_ops = {
+static const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.start = iwl_op_mode_dvm_start,
 	.stop = iwl_op_mode_dvm_stop,
 	.rx = iwl_rx_dispatch,
