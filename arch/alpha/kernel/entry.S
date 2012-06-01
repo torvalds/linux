@@ -626,6 +626,19 @@ ret_from_kernel_thread:
 	jmp	$31, sys_exit
 .end ret_from_kernel_thread
 
+	.globl	ret_from_kernel_execve
+	.align	4
+	.ent	ret_from_kernel_execve
+ret_from_kernel_execve:
+	mov	$16, $sp
+	/* Avoid the HAE being gratuitously wrong, to avoid restoring it.  */
+	ldq	$2, alpha_mv+HAE_CACHE
+	stq	$2, 152($sp)		/* HAE */
+	mov	$31, $19		/* to disable syscall restarts */
+	br	$31, ret_to_user
+
+.end	ret_from_kernel_execve
+
 
 /*
  * Special system calls.  Most of these are special in that they either
