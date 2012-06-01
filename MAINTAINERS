@@ -7298,11 +7298,11 @@ F:	Documentation/DocBook/uio-howto.tmpl
 F:	drivers/uio/
 F:	include/linux/uio*.h
 
-UTIL-LINUX-NG PACKAGE
+UTIL-LINUX PACKAGE
 M:	Karel Zak <kzak@redhat.com>
-L:	util-linux-ng@vger.kernel.org
-W:	http://kernel.org/~kzak/util-linux-ng/
-T:	git git://git.kernel.org/pub/scm/utils/util-linux-ng/util-linux-ng.git
+L:	util-linux@vger.kernel.org
+W:	http://en.wikipedia.org/wiki/Util-linux
+T:	git git://git.kernel.org/pub/scm/utils/util-linux/util-linux.git
 S:	Maintained
 
 UVESAFB DRIVER
