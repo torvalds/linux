@@ -59,6 +59,8 @@ static struct usb_gadget_strings *uvc_function_strings[] = {
 #define UVC_INTF_VIDEO_CONTROL			0
 #define UVC_INTF_VIDEO_STREAMING		1
 
+#define STATUS_BYTECOUNT			16	/* 16 bytes status */
+
 static struct usb_interface_assoc_descriptor uvc_iad __initdata = {
 	.bLength		= sizeof(uvc_iad),
 	.bDescriptorType	= USB_DT_INTERFACE_ASSOCIATION,
@@ -87,7 +89,7 @@ static struct usb_endpoint_descriptor uvc_control_ep __initdata = {
 	.bDescriptorType	= USB_DT_ENDPOINT,
 	.bEndpointAddress	= USB_DIR_IN,
 	.bmAttributes		= USB_ENDPOINT_XFER_INT,
-	.wMaxPacketSize		= cpu_to_le16(16),
+	.wMaxPacketSize		= cpu_to_le16(STATUS_BYTECOUNT),
 	.bInterval		= 8,
 };
 
@@ -95,7 +97,7 @@ static struct uvc_control_endpoint_descriptor uvc_control_cs_ep __initdata = {
 	.bLength		= UVC_DT_CONTROL_ENDPOINT_SIZE,
 	.bDescriptorType	= USB_DT_CS_ENDPOINT,
 	.bDescriptorSubType	= UVC_EP_INTERRUPT,
-	.wMaxTransferSize	= cpu_to_le16(16),
+	.wMaxTransferSize	= cpu_to_le16(STATUS_BYTECOUNT),
 };
 
 static struct usb_interface_descriptor uvc_streaming_intf_alt0 __initdata = {
