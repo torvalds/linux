@@ -579,12 +579,6 @@ static const struct comedi_lrange pci230_ao_range = { 2, {
 /* PCI230 daccon bipolar flag for each analogue output range. */
 static const unsigned char pci230_ao_bipolar[2] = { 0, 1 };
 
-static void pci230_ao_stop(struct comedi_device *dev,
-			   struct comedi_subdevice *s);
-static void pci230_handle_ao_nofifo(struct comedi_device *dev,
-				    struct comedi_subdevice *s);
-static int pci230_handle_ao_fifo(struct comedi_device *dev,
-				 struct comedi_subdevice *s);
 static void pci230_ai_stop(struct comedi_device *dev,
 			   struct comedi_subdevice *s);
 static void pci230_handle_ai(struct comedi_device *dev,
@@ -1179,6 +1173,196 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
+static void pci230_ao_stop(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
+{
+	struct pci230_private *devpriv = dev->private;
+	unsigned long irqflags;
+	unsigned char intsrc;
+	int started;
+	struct comedi_cmd *cmd;
+
+	spin_lock_irqsave(&devpriv->ao_stop_spinlock, irqflags);
+	started = test_and_clear_bit(AO_CMD_STARTED, &devpriv->state);
+	spin_unlock_irqrestore(&devpriv->ao_stop_spinlock, irqflags);
+	if (!started)
+		return;
+	cmd = &s->async->cmd;
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		/* Stop scan rate generator. */
+		pci230_cancel_ct(dev, 1);
+	}
+	/* Determine interrupt source. */
+	if (devpriv->hwver < 2) {
+		/* Not using DAC FIFO.  Using CT1 interrupt. */
+		intsrc = PCI230_INT_ZCLK_CT1;
+	} else {
+		/* Using DAC FIFO interrupt. */
+		intsrc = PCI230P2_INT_DAC;
+	}
+	/* Disable interrupt and wait for interrupt routine to finish running
+	 * unless we are called from the interrupt routine. */
+	spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
+	devpriv->int_en &= ~intsrc;
+	while (devpriv->intr_running && devpriv->intr_cpuid != THISCPU) {
+		spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
+		spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
+	}
+	if (devpriv->ier != devpriv->int_en) {
+		devpriv->ier = devpriv->int_en;
+		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
+	}
+	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
+	if (devpriv->hwver >= 2) {
+		/* Using DAC FIFO.  Reset FIFO, clear underrun error,
+		 * disable FIFO. */
+		devpriv->daccon &= PCI230_DAC_OR_MASK;
+		outw(devpriv->daccon | PCI230P2_DAC_FIFO_RESET
+		     | PCI230P2_DAC_FIFO_UNDERRUN_CLEAR,
+		     dev->iobase + PCI230_DACCON);
+	}
+	/* Release resources. */
+	put_all_resources(dev, OWNER_AOCMD);
+}
+
+static void pci230_handle_ao_nofifo(struct comedi_device *dev,
+				    struct comedi_subdevice *s)
+{
+	struct pci230_private *devpriv = dev->private;
+	short data;
+	int i, ret;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+
+	if (!devpriv->ao_continuous && (devpriv->ao_scan_count == 0))
+		return;
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		/* Read sample from Comedi's circular buffer. */
+		ret = comedi_buf_get(s->async, &data);
+		if (ret == 0) {
+			s->async->events |= COMEDI_CB_OVERFLOW;
+			pci230_ao_stop(dev, s);
+			comedi_error(dev, "AO buffer underrun");
+			return;
+		}
+		/* Write value to DAC. */
+		pci230_ao_write_nofifo(dev, data, CR_CHAN(cmd->chanlist[i]));
+	}
+	async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+	if (!devpriv->ao_continuous) {
+		devpriv->ao_scan_count--;
+		if (devpriv->ao_scan_count == 0) {
+			/* End of acquisition. */
+			async->events |= COMEDI_CB_EOA;
+			pci230_ao_stop(dev, s);
+		}
+	}
+}
+
+/* Loads DAC FIFO (if using it) from buffer. */
+/* Returns 0 if AO finished due to completion or error, 1 if still going. */
+static int pci230_handle_ao_fifo(struct comedi_device *dev,
+				 struct comedi_subdevice *s)
+{
+	struct pci230_private *devpriv = dev->private;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int num_scans;
+	unsigned int room;
+	unsigned short dacstat;
+	unsigned int i, n;
+	unsigned int bytes_per_scan;
+	unsigned int events = 0;
+	int running;
+
+	/* Get DAC FIFO status. */
+	dacstat = inw(dev->iobase + PCI230_DACCON);
+	/* Determine number of scans available in buffer. */
+	bytes_per_scan = cmd->chanlist_len * sizeof(short);
+	num_scans = comedi_buf_read_n_available(async) / bytes_per_scan;
+	if (!devpriv->ao_continuous) {
+		/* Fixed number of scans. */
+		if (num_scans > devpriv->ao_scan_count)
+			num_scans = devpriv->ao_scan_count;
+		if (devpriv->ao_scan_count == 0) {
+			/* End of acquisition. */
+			events |= COMEDI_CB_EOA;
+		}
+	}
+	if (events == 0) {
+		/* Check for FIFO underrun. */
+		if ((dacstat & PCI230P2_DAC_FIFO_UNDERRUN_LATCHED) != 0) {
+			comedi_error(dev, "AO FIFO underrun");
+			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
+		}
+		/* Check for buffer underrun if FIFO less than half full
+		 * (otherwise there will be loads of "DAC FIFO not half full"
+		 * interrupts). */
+		if ((num_scans == 0)
+		    && ((dacstat & PCI230P2_DAC_FIFO_HALF) == 0)) {
+			comedi_error(dev, "AO buffer underrun");
+			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
+		}
+	}
+	if (events == 0) {
+		/* Determine how much room is in the FIFO (in samples). */
+		if ((dacstat & PCI230P2_DAC_FIFO_FULL) != 0)
+			room = PCI230P2_DAC_FIFOROOM_FULL;
+		else if ((dacstat & PCI230P2_DAC_FIFO_HALF) != 0)
+			room = PCI230P2_DAC_FIFOROOM_HALFTOFULL;
+		else if ((dacstat & PCI230P2_DAC_FIFO_EMPTY) != 0)
+			room = PCI230P2_DAC_FIFOROOM_EMPTY;
+		else
+			room = PCI230P2_DAC_FIFOROOM_ONETOHALF;
+		/* Convert room to number of scans that can be added. */
+		room /= cmd->chanlist_len;
+		/* Determine number of scans to process. */
+		if (num_scans > room)
+			num_scans = room;
+		/* Process scans. */
+		for (n = 0; n < num_scans; n++) {
+			for (i = 0; i < cmd->chanlist_len; i++) {
+				short datum;
+
+				comedi_buf_get(async, &datum);
+				pci230_ao_write_fifo(dev, datum,
+						     CR_CHAN(cmd->chanlist[i]));
+			}
+		}
+		events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
+		if (!devpriv->ao_continuous) {
+			devpriv->ao_scan_count -= num_scans;
+			if (devpriv->ao_scan_count == 0) {
+				/* All data for the command has been written
+				 * to FIFO.  Set FIFO interrupt trigger level
+				 * to 'empty'. */
+				devpriv->daccon = (devpriv->daccon
+						   &
+						   ~PCI230P2_DAC_INT_FIFO_MASK)
+				    | PCI230P2_DAC_INT_FIFO_EMPTY;
+				outw(devpriv->daccon,
+				     dev->iobase + PCI230_DACCON);
+			}
+		}
+		/* Check if FIFO underrun occurred while writing to FIFO. */
+		dacstat = inw(dev->iobase + PCI230_DACCON);
+		if ((dacstat & PCI230P2_DAC_FIFO_UNDERRUN_LATCHED) != 0) {
+			comedi_error(dev, "AO FIFO underrun");
+			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
+		}
+	}
+	if ((events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
+	    != 0) {
+		/* Stopping AO due to completion or error. */
+		pci230_ao_stop(dev, s);
+		running = 0;
+	} else {
+		running = 1;
+	}
+	async->events |= events;
+	return running;
+}
+
 static int pci230_ao_inttrig_scan_begin(struct comedi_device *dev,
 					struct comedi_subdevice *s,
 					unsigned int trig_num)
@@ -1391,6 +1575,13 @@ static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* N.B. cmd->start_src == TRIG_INT */
 	s->async->inttrig = pci230_ao_inttrig_start;
 
+	return 0;
+}
+
+static int pci230_ao_cancel(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
+{
+	pci230_ao_stop(dev, s);
 	return 0;
 }
 
@@ -2323,151 +2514,6 @@ static irqreturn_t pci230_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void pci230_handle_ao_nofifo(struct comedi_device *dev,
-				    struct comedi_subdevice *s)
-{
-	struct pci230_private *devpriv = dev->private;
-	short data;
-	int i, ret;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-
-	if (!devpriv->ao_continuous && (devpriv->ao_scan_count == 0))
-		return;
-
-
-	for (i = 0; i < cmd->chanlist_len; i++) {
-		/* Read sample from Comedi's circular buffer. */
-		ret = comedi_buf_get(s->async, &data);
-		if (ret == 0) {
-			s->async->events |= COMEDI_CB_OVERFLOW;
-			pci230_ao_stop(dev, s);
-			comedi_error(dev, "AO buffer underrun");
-			return;
-		}
-		/* Write value to DAC. */
-		pci230_ao_write_nofifo(dev, data, CR_CHAN(cmd->chanlist[i]));
-	}
-
-	async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-	if (!devpriv->ao_continuous) {
-		devpriv->ao_scan_count--;
-		if (devpriv->ao_scan_count == 0) {
-			/* End of acquisition. */
-			async->events |= COMEDI_CB_EOA;
-			pci230_ao_stop(dev, s);
-		}
-	}
-}
-
-/* Loads DAC FIFO (if using it) from buffer. */
-/* Returns 0 if AO finished due to completion or error, 1 if still going. */
-static int pci230_handle_ao_fifo(struct comedi_device *dev,
-				 struct comedi_subdevice *s)
-{
-	struct pci230_private *devpriv = dev->private;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int num_scans;
-	unsigned int room;
-	unsigned short dacstat;
-	unsigned int i, n;
-	unsigned int bytes_per_scan;
-	unsigned int events = 0;
-	int running;
-
-	/* Get DAC FIFO status. */
-	dacstat = inw(dev->iobase + PCI230_DACCON);
-
-	/* Determine number of scans available in buffer. */
-	bytes_per_scan = cmd->chanlist_len * sizeof(short);
-	num_scans = comedi_buf_read_n_available(async) / bytes_per_scan;
-	if (!devpriv->ao_continuous) {
-		/* Fixed number of scans. */
-		if (num_scans > devpriv->ao_scan_count)
-			num_scans = devpriv->ao_scan_count;
-
-		if (devpriv->ao_scan_count == 0) {
-			/* End of acquisition. */
-			events |= COMEDI_CB_EOA;
-		}
-	}
-	if (events == 0) {
-		/* Check for FIFO underrun. */
-		if ((dacstat & PCI230P2_DAC_FIFO_UNDERRUN_LATCHED) != 0) {
-			comedi_error(dev, "AO FIFO underrun");
-			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
-		}
-		/* Check for buffer underrun if FIFO less than half full
-		 * (otherwise there will be loads of "DAC FIFO not half full"
-		 * interrupts). */
-		if ((num_scans == 0)
-		    && ((dacstat & PCI230P2_DAC_FIFO_HALF) == 0)) {
-			comedi_error(dev, "AO buffer underrun");
-			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
-		}
-	}
-	if (events == 0) {
-		/* Determine how much room is in the FIFO (in samples). */
-		if ((dacstat & PCI230P2_DAC_FIFO_FULL) != 0)
-			room = PCI230P2_DAC_FIFOROOM_FULL;
-		else if ((dacstat & PCI230P2_DAC_FIFO_HALF) != 0)
-			room = PCI230P2_DAC_FIFOROOM_HALFTOFULL;
-		else if ((dacstat & PCI230P2_DAC_FIFO_EMPTY) != 0)
-			room = PCI230P2_DAC_FIFOROOM_EMPTY;
-		else
-			room = PCI230P2_DAC_FIFOROOM_ONETOHALF;
-
-		/* Convert room to number of scans that can be added. */
-		room /= cmd->chanlist_len;
-		/* Determine number of scans to process. */
-		if (num_scans > room)
-			num_scans = room;
-
-		/* Process scans. */
-		for (n = 0; n < num_scans; n++) {
-			for (i = 0; i < cmd->chanlist_len; i++) {
-				short datum;
-
-				comedi_buf_get(async, &datum);
-				pci230_ao_write_fifo(dev, datum,
-						     CR_CHAN(cmd->chanlist[i]));
-			}
-		}
-		events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
-		if (!devpriv->ao_continuous) {
-			devpriv->ao_scan_count -= num_scans;
-			if (devpriv->ao_scan_count == 0) {
-				/* All data for the command has been written
-				 * to FIFO.  Set FIFO interrupt trigger level
-				 * to 'empty'. */
-				devpriv->daccon = (devpriv->daccon
-						   &
-						   ~PCI230P2_DAC_INT_FIFO_MASK)
-				    | PCI230P2_DAC_INT_FIFO_EMPTY;
-				outw(devpriv->daccon,
-				     dev->iobase + PCI230_DACCON);
-			}
-		}
-		/* Check if FIFO underrun occurred while writing to FIFO. */
-		dacstat = inw(dev->iobase + PCI230_DACCON);
-		if ((dacstat & PCI230P2_DAC_FIFO_UNDERRUN_LATCHED) != 0) {
-			comedi_error(dev, "AO FIFO underrun");
-			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
-		}
-	}
-	if ((events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
-	    != 0) {
-		/* Stopping AO due to completion or error. */
-		pci230_ao_stop(dev, s);
-		running = 0;
-	} else {
-		running = 1;
-	}
-	async->events |= events;
-	return running;
-}
-
 static void pci230_handle_ai(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
@@ -2567,70 +2613,6 @@ static void pci230_handle_ai(struct comedi_device *dev,
 		/* update FIFO interrupt trigger level */
 		pci230_ai_update_fifo_trigger_level(dev, s);
 	}
-}
-
-static void pci230_ao_stop(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
-{
-	struct pci230_private *devpriv = dev->private;
-	unsigned long irqflags;
-	unsigned char intsrc;
-	int started;
-	struct comedi_cmd *cmd;
-
-	spin_lock_irqsave(&devpriv->ao_stop_spinlock, irqflags);
-	started = test_and_clear_bit(AO_CMD_STARTED, &devpriv->state);
-	spin_unlock_irqrestore(&devpriv->ao_stop_spinlock, irqflags);
-	if (!started)
-		return;
-
-
-	cmd = &s->async->cmd;
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/* Stop scan rate generator. */
-		pci230_cancel_ct(dev, 1);
-	}
-
-	/* Determine interrupt source. */
-	if (devpriv->hwver < 2) {
-		/* Not using DAC FIFO.  Using CT1 interrupt. */
-		intsrc = PCI230_INT_ZCLK_CT1;
-	} else {
-		/* Using DAC FIFO interrupt. */
-		intsrc = PCI230P2_INT_DAC;
-	}
-	/* Disable interrupt and wait for interrupt routine to finish running
-	 * unless we are called from the interrupt routine. */
-	spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
-	devpriv->int_en &= ~intsrc;
-	while (devpriv->intr_running && devpriv->intr_cpuid != THISCPU) {
-		spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
-		spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
-	}
-	if (devpriv->ier != devpriv->int_en) {
-		devpriv->ier = devpriv->int_en;
-		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
-	}
-	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
-
-	if (devpriv->hwver >= 2) {
-		/* Using DAC FIFO.  Reset FIFO, clear underrun error,
-		 * disable FIFO. */
-		devpriv->daccon &= PCI230_DAC_OR_MASK;
-		outw(devpriv->daccon | PCI230P2_DAC_FIFO_RESET
-		     | PCI230P2_DAC_FIFO_UNDERRUN_CLEAR,
-		     dev->iobase + PCI230_DACCON);
-	}
-
-	/* Release resources. */
-	put_all_resources(dev, OWNER_AOCMD);
-}
-
-static int pci230_ao_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s)
-{
-	pci230_ao_stop(dev, s);
-	return 0;
 }
 
 static void pci230_ai_stop(struct comedi_device *dev,
