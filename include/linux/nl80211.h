@@ -1522,6 +1522,8 @@ enum nl80211_attrs {
 #define NL80211_MAX_NR_CIPHER_SUITES		5
 #define NL80211_MAX_NR_AKM_SUITES		2
 
+#define NL80211_MIN_REMAIN_ON_CHANNEL_TIME	10
+
 /**
  * enum nl80211_iftype - (virtual) interface types
  *

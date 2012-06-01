@@ -5545,17 +5545,17 @@ static int nl80211_remain_on_channel(struct sk_buff *skb,
 
 	duration = nla_get_u32(info->attrs[NL80211_ATTR_DURATION]);
 
-	/*
-	 * We should be on that channel for at least one jiffie,
-	 * and more than 5 seconds seems excessive.
-	 */
-	if (!duration || !msecs_to_jiffies(duration) ||
-	    duration > rdev->wiphy.max_remain_on_channel_duration)
-		return -EINVAL;
-
 	if (!rdev->ops->remain_on_channel ||
 	    !(rdev->wiphy.flags & WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL))
 		return -EOPNOTSUPP;
+
+	/*
+	 * We should be on that channel for at least a minimum amount of
+	 * time (10ms) but no longer than the driver supports.
+	 */
+	if (duration < NL80211_MIN_REMAIN_ON_CHANNEL_TIME ||
+	    duration > rdev->wiphy.max_remain_on_channel_duration)
+		return -EINVAL;
 
 	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE] &&
 	    !nl80211_valid_channel_type(info, &channel_type))
@@ -5827,6 +5827,15 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 		if (!(rdev->wiphy.flags & WIPHY_FLAG_OFFCHAN_TX))
 			return -EINVAL;
 		wait = nla_get_u32(info->attrs[NL80211_ATTR_DURATION]);
+
+		/*
+		 * We should wait on the channel for at least a minimum amount
+		 * of time (10ms) but no longer than the driver supports.
+		 */
+		if (wait < NL80211_MIN_REMAIN_ON_CHANNEL_TIME ||
+		    wait > rdev->wiphy.max_remain_on_channel_duration)
+			return -EINVAL;
+
 	}
 
 	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
