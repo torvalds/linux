@@ -2307,7 +2307,7 @@ static void hci_link_tx_to(struct hci_dev *hdev, __u8 type)
 		if (c->type == type && c->sent) {
 			BT_ERR("%s killing stalled connection %s",
 			       hdev->name, batostr(&c->dst));
-			hci_acl_disconn(c, 0x13);
+			hci_acl_disconn(c, HCI_ERROR_REMOTE_USER_TERM);
 		}
 	}
 
