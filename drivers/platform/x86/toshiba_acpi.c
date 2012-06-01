@@ -1095,9 +1095,9 @@ static int __devinit toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 	ret = get_tr_backlight_status(dev, &enabled);
 	dev->tr_backlight_supported = !ret;
 
+	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
-	memset(&props, 0, sizeof(props));
 
 	/* adding an extra level and having 0 change to transflective mode */
 	if (dev->tr_backlight_supported)
