@@ -1730,19 +1730,19 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 		return -ENOMEM;
 	s->s_fs_info = sbi;
 	/* Set default values for options: non-aggressive tails, RO on errors */
-	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_SMALLTAIL);
-	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_ERROR_RO);
-	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_BARRIER_FLUSH);
+	sbi->s_mount_opt |= (1 << REISERFS_SMALLTAIL);
+	sbi->s_mount_opt |= (1 << REISERFS_ERROR_RO);
+	sbi->s_mount_opt |= (1 << REISERFS_BARRIER_FLUSH);
 	/* no preallocation minimum, be smart in
 	   reiserfs_file_write instead */
-	REISERFS_SB(s)->s_alloc_options.preallocmin = 0;
+	sbi->s_alloc_options.preallocmin = 0;
 	/* Preallocate by 16 blocks (17-1) at once */
-	REISERFS_SB(s)->s_alloc_options.preallocsize = 17;
+	sbi->s_alloc_options.preallocsize = 17;
 	/* setup default block allocator options */
 	reiserfs_init_alloc_options(s);
 
-	mutex_init(&REISERFS_SB(s)->lock);
-	REISERFS_SB(s)->lock_depth = -1;
+	mutex_init(&sbi->lock);
+	sbi->lock_depth = -1;
 
 	jdev_name = NULL;
 	if (reiserfs_parse_options
@@ -1751,8 +1751,8 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 		goto error_unlocked;
 	}
 	if (jdev_name && jdev_name[0]) {
-		REISERFS_SB(s)->s_jdev = kstrdup(jdev_name, GFP_KERNEL);
-		if (!REISERFS_SB(s)->s_jdev) {
+		sbi->s_jdev = kstrdup(jdev_name, GFP_KERNEL);
+		if (!sbi->s_jdev) {
 			SWARN(silent, s, "", "Cannot allocate memory for "
 				"journal device name");
 			goto error;
@@ -1810,7 +1810,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	/* make data=ordered the default */
 	if (!reiserfs_data_log(s) && !reiserfs_data_ordered(s) &&
 	    !reiserfs_data_writeback(s)) {
-		REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_DATA_ORDERED);
+		sbi->s_mount_opt |= (1 << REISERFS_DATA_ORDERED);
 	}
 
 	if (reiserfs_data_log(s)) {
