@@ -284,7 +284,7 @@ static int cap_path_chmod(struct path *path, umode_t mode)
 	return 0;
 }
 
-static int cap_path_chown(struct path *path, uid_t uid, gid_t gid)
+static int cap_path_chown(struct path *path, kuid_t uid, kgid_t gid)
 {
 	return 0;
 }
