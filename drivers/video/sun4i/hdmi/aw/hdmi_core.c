@@ -69,14 +69,14 @@ __s32 hdmi_main_task_loop(void)
 	        times = 0;
 	        __inf("unplug state\n");
 	    }
+                if(hdmi_state > HDMI_State_Wait_Hpd)
+                {
+                        __inf("plugout\n");
+                }
+
 		if(hdmi_state > HDMI_State_Idle)
 		{
 			hdmi_state = HDMI_State_Wait_Hpd;
-		}
-
-		if(hdmi_state > HDMI_State_Wait_Hpd)
-		{
-			__inf("plugout\n");
 		}
 	}
 	switch(hdmi_state)
