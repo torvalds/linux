@@ -280,12 +280,10 @@ static int read_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_
 	if (ret <= 0)
 		return ret;
 
-	lock_page(page);
 	vaddr_new = kmap_atomic(page);
 	vaddr &= ~PAGE_MASK;
 	memcpy(opcode, vaddr_new + vaddr, UPROBE_SWBP_INSN_SIZE);
 	kunmap_atomic(vaddr_new);
-	unlock_page(page);
 
 	put_page(page);
 
