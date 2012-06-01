@@ -673,7 +673,13 @@ static void __init u8500_cryp1_hash1_init(struct device *parent)
 static struct platform_device *snowball_platform_devs[] __initdata = {
 	&snowball_led_dev,
 	&snowball_key_dev,
+	&snowball_sbnet_dev,
 	&ab8500_device,
+};
+
+static struct platform_device *snowball_of_platform_devs[] __initdata = {
+	&snowball_led_dev,
+	&snowball_key_dev,
 };
 
 static void __init mop500_init_machine(void)
@@ -710,6 +716,8 @@ static void __init mop500_init_machine(void)
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
+
+	mop500_uib_init();
 }
 
 static void __init snowball_init_machine(void)
@@ -774,6 +782,8 @@ static void __init hrefv60_init_machine(void)
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
+
+	mop500_uib_init();
 }
 
 MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
@@ -834,6 +844,10 @@ struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 static const struct of_device_id u8500_local_bus_nodes[] = {
 	/* only create devices below soc node */
 	{ .compatible = "stericsson,db8500", },
+	{ .compatible = "stericsson,db8500-prcmu", },
+	{ .compatible = "stericsson,db8500-prcmu-regulator", },
+	{ .compatible = "stericsson,ab8500", },
+	{ .compatible = "stericsson,ab8500-regulator", },
 	{ .compatible = "simple-bus"},
 	{ },
 };
@@ -852,7 +866,7 @@ static void __init u8500_init_machine(void)
 	else if (of_machine_is_compatible("st-ericsson,hrefv60+"))
 		hrefv60_pinmaps_init();
 
-	parent = u8500_init_devices();
+	parent = u8500_of_init_devices();
 
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
 		mop500_platform_devs[i]->dev.parent = parent;
@@ -869,15 +883,23 @@ static void __init u8500_init_machine(void)
 				ARRAY_SIZE(mop500_platform_devs));
 
 		mop500_sdi_init(parent);
-
 		i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
 		i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
 		i2c_register_board_info(2, mop500_i2c2_devices,
 					ARRAY_SIZE(mop500_i2c2_devices));
 
+		mop500_uib_init();
+
 	} else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
-		platform_add_devices(snowball_platform_devs,
-				ARRAY_SIZE(snowball_platform_devs));
+		/*
+		 * Devices to be DT:ed:
+		 *   snowball_led_dev   = todo
+		 *   snowball_key_dev   = todo
+		 *   snowball_sbnet_dev = done
+		 *   ab8500_device      = done
+		 */
+		platform_add_devices(snowball_of_platform_devs,
+				ARRAY_SIZE(snowball_of_platform_devs));
 
 		snowball_sdi_init(parent);
 	} else if (of_machine_is_compatible("st-ericsson,hrefv60+")) {
@@ -898,6 +920,8 @@ static void __init u8500_init_machine(void)
 		i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
 		i2c_register_board_info(2, mop500_i2c2_devices,
 					ARRAY_SIZE(mop500_i2c2_devices));
+
+		mop500_uib_init();
 	}
 	mop500_i2c_init(parent);
 
