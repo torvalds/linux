@@ -178,7 +178,7 @@ static int next_valid_state(struct cpuidle_device *dev,
 	u32 mpu_deepest_state = PWRDM_POWER_RET;
 	u32 core_deepest_state = PWRDM_POWER_RET;
 	int idx;
-	int next_index = -1;
+	int next_index = 0; /* C1 is the default value */
 
 	if (enable_off_mode) {
 		mpu_deepest_state = PWRDM_POWER_OFF;
@@ -208,12 +208,6 @@ static int next_valid_state(struct cpuidle_device *dev,
 			break;
 		}
 	}
-
-	/*
-	 * C1 is always valid.
-	 * So, no need to check for 'next_index == -1' outside
-	 * this loop.
-	 */
 
 	return next_index;
 }
