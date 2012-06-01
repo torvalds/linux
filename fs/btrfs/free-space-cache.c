@@ -77,7 +77,8 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 		return ERR_PTR(-ENOENT);
 	}
 
-	inode->i_mapping->flags &= ~__GFP_FS;
+	mapping_set_gfp_mask(inode->i_mapping,
+			mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
 
 	return inode;
 }
@@ -367,7 +368,7 @@ static int io_ctl_prepare_pages(struct io_ctl *io_ctl, struct inode *inode,
 
 static void io_ctl_set_generation(struct io_ctl *io_ctl, u64 generation)
 {
-	u64 *val;
+	__le64 *val;
 
 	io_ctl_map_page(io_ctl, 1);
 
@@ -390,7 +391,7 @@ static void io_ctl_set_generation(struct io_ctl *io_ctl, u64 generation)
 
 static int io_ctl_check_generation(struct io_ctl *io_ctl, u64 generation)
 {
-	u64 *gen;
+	__le64 *gen;
 
 	/*
 	 * Skip the crc area.  If we don't check crcs then we just have a 64bit

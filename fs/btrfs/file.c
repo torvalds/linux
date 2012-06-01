@@ -1433,7 +1433,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		goto out;
 	}
 
-	err = btrfs_update_time(file);
+	err = file_update_time(file);
 	if (err) {
 		mutex_unlock(&inode->i_mutex);
 		goto out;

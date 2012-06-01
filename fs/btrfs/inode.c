@@ -4475,46 +4475,18 @@ int btrfs_dirty_inode(struct inode *inode)
  * This is a copy of file_update_time.  We need this so we can return error on
  * ENOSPC for updating the inode in the case of file write and mmap writes.
  */
-int btrfs_update_time(struct file *file)
+static int btrfs_update_time(struct inode *inode, struct timespec *now,
+			     int flags)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	struct timespec now;
-	int ret;
-	enum { S_MTIME = 1, S_CTIME = 2, S_VERSION = 4 } sync_it = 0;
-
-	/* First try to exhaust all avenues to not sync */
-	if (IS_NOCMTIME(inode))
-		return 0;
-
-	now = current_fs_time(inode->i_sb);
-	if (!timespec_equal(&inode->i_mtime, &now))
-		sync_it = S_MTIME;
-
-	if (!timespec_equal(&inode->i_ctime, &now))
-		sync_it |= S_CTIME;
-
-	if (IS_I_VERSION(inode))
-		sync_it |= S_VERSION;
-
-	if (!sync_it)
-		return 0;
-
-	/* Finally allowed to write? Takes lock. */
-	if (mnt_want_write_file(file))
-		return 0;
-
-	/* Only change inode inside the lock region */
-	if (sync_it & S_VERSION)
+	if (flags & S_VERSION)
 		inode_inc_iversion(inode);
-	if (sync_it & S_CTIME)
-		inode->i_ctime = now;
-	if (sync_it & S_MTIME)
-		inode->i_mtime = now;
-	ret = btrfs_dirty_inode(inode);
-	if (!ret)
-		mark_inode_dirty_sync(inode);
-	mnt_drop_write(file->f_path.mnt);
-	return ret;
+	if (flags & S_CTIME)
+		inode->i_ctime = *now;
+	if (flags & S_MTIME)
+		inode->i_mtime = *now;
+	if (flags & S_ATIME)
+		inode->i_atime = *now;
+	return btrfs_dirty_inode(inode);
 }
 
 /*
@@ -6565,7 +6537,7 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	ret  = btrfs_delalloc_reserve_space(inode, PAGE_CACHE_SIZE);
 	if (!ret) {
-		ret = btrfs_update_time(vma->vm_file);
+		ret = file_update_time(vma->vm_file);
 		reserved = 1;
 	}
 	if (ret) {
@@ -7635,6 +7607,7 @@ static const struct inode_operations btrfs_file_inode_operations = {
 	.permission	= btrfs_permission,
 	.fiemap		= btrfs_fiemap,
 	.get_acl	= btrfs_get_acl,
+	.update_time	= btrfs_update_time,
 };
 static const struct inode_operations btrfs_special_inode_operations = {
 	.getattr	= btrfs_getattr,
@@ -7645,6 +7618,7 @@ static const struct inode_operations btrfs_special_inode_operations = {
 	.listxattr	= btrfs_listxattr,
 	.removexattr	= btrfs_removexattr,
 	.get_acl	= btrfs_get_acl,
+	.update_time	= btrfs_update_time,
 };
 static const struct inode_operations btrfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
@@ -7658,6 +7632,7 @@ static const struct inode_operations btrfs_symlink_inode_operations = {
 	.listxattr	= btrfs_listxattr,
 	.removexattr	= btrfs_removexattr,
 	.get_acl	= btrfs_get_acl,
+	.update_time	= btrfs_update_time,
 };
 
 const struct dentry_operations btrfs_dentry_operations = {

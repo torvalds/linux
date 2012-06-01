@@ -1487,10 +1487,30 @@ static int relatime_need_update(struct vfsmount *mnt, struct inode *inode,
 	return 0;
 }
 
+/*
+ * This does the actual work of updating an inodes time or version.  Must have
+ * had called mnt_want_write() before calling this.
+ */
+static int update_time(struct inode *inode, struct timespec *time, int flags)
+{
+	if (inode->i_op->update_time)
+		return inode->i_op->update_time(inode, time, flags);
+
+	if (flags & S_ATIME)
+		inode->i_atime = *time;
+	if (flags & S_VERSION)
+		inode_inc_iversion(inode);
+	if (flags & S_CTIME)
+		inode->i_ctime = *time;
+	if (flags & S_MTIME)
+		inode->i_mtime = *time;
+	mark_inode_dirty_sync(inode);
+	return 0;
+}
+
 /**
  *	touch_atime	-	update the access time
- *	@mnt: mount the inode is accessed on
- *	@dentry: dentry accessed
+ *	@path: the &struct path to update
  *
  *	Update the accessed time on an inode and mark it for writeback.
  *	This function automatically handles read only file systems and media,
@@ -1525,11 +1545,82 @@ void touch_atime(struct path *path)
 	if (mnt_want_write(mnt))
 		return;
 
-	inode->i_atime = now;
-	mark_inode_dirty_sync(inode);
+	/*
+	 * File systems can error out when updating inodes if they need to
+	 * allocate new space to modify an inode (such is the case for
+	 * Btrfs), but since we touch atime while walking down the path we
+	 * really don't care if we failed to update the atime of the file,
+	 * so just ignore the return value.
+	 */
+	update_time(inode, &now, S_ATIME);
 	mnt_drop_write(mnt);
 }
 EXPORT_SYMBOL(touch_atime);
+
+/*
+ * The logic we want is
+ *
+ *	if suid or (sgid and xgrp)
+ *		remove privs
+ */
+int should_remove_suid(struct dentry *dentry)
+{
+	umode_t mode = dentry->d_inode->i_mode;
+	int kill = 0;
+
+	/* suid always must be killed */
+	if (unlikely(mode & S_ISUID))
+		kill = ATTR_KILL_SUID;
+
+	/*
+	 * sgid without any exec bits is just a mandatory locking mark; leave
+	 * it alone.  If some exec bits are set, it's a real sgid; kill it.
+	 */
+	if (unlikely((mode & S_ISGID) && (mode & S_IXGRP)))
+		kill |= ATTR_KILL_SGID;
+
+	if (unlikely(kill && !capable(CAP_FSETID) && S_ISREG(mode)))
+		return kill;
+
+	return 0;
+}
+EXPORT_SYMBOL(should_remove_suid);
+
+static int __remove_suid(struct dentry *dentry, int kill)
+{
+	struct iattr newattrs;
+
+	newattrs.ia_valid = ATTR_FORCE | kill;
+	return notify_change(dentry, &newattrs);
+}
+
+int file_remove_suid(struct file *file)
+{
+	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = dentry->d_inode;
+	int killsuid;
+	int killpriv;
+	int error = 0;
+
+	/* Fast path for nothing security related */
+	if (IS_NOSEC(inode))
+		return 0;
+
+	killsuid = should_remove_suid(dentry);
+	killpriv = security_inode_need_killpriv(dentry);
+
+	if (killpriv < 0)
+		return killpriv;
+	if (killpriv)
+		error = security_inode_killpriv(dentry);
+	if (!error && killsuid)
+		error = __remove_suid(dentry, killsuid);
+	if (!error && (inode->i_sb->s_flags & MS_NOSEC))
+		inode->i_flags |= S_NOSEC;
+
+	return error;
+}
+EXPORT_SYMBOL(file_remove_suid);
 
 /**
  *	file_update_time	-	update mtime and ctime time
@@ -1540,18 +1631,20 @@ EXPORT_SYMBOL(touch_atime);
  *	usage in the file write path of filesystems, and filesystems may
  *	choose to explicitly ignore update via this function with the
  *	S_NOCMTIME inode flag, e.g. for network filesystem where these
- *	timestamps are handled by the server.
+ *	timestamps are handled by the server.  This can return an error for
+ *	file systems who need to allocate space in order to update an inode.
  */
 
-void file_update_time(struct file *file)
+int file_update_time(struct file *file)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct timespec now;
-	enum { S_MTIME = 1, S_CTIME = 2, S_VERSION = 4 } sync_it = 0;
+	int sync_it = 0;
+	int ret;
 
 	/* First try to exhaust all avenues to not sync */
 	if (IS_NOCMTIME(inode))
-		return;
+		return 0;
 
 	now = current_fs_time(inode->i_sb);
 	if (!timespec_equal(&inode->i_mtime, &now))
@@ -1564,21 +1657,16 @@ void file_update_time(struct file *file)
 		sync_it |= S_VERSION;
 
 	if (!sync_it)
-		return;
+		return 0;
 
 	/* Finally allowed to write? Takes lock. */
 	if (mnt_want_write_file(file))
-		return;
+		return 0;
 
-	/* Only change inode inside the lock region */
-	if (sync_it & S_VERSION)
-		inode_inc_iversion(inode);
-	if (sync_it & S_CTIME)
-		inode->i_ctime = now;
-	if (sync_it & S_MTIME)
-		inode->i_mtime = now;
-	mark_inode_dirty_sync(inode);
+	ret = update_time(inode, &now, sync_it);
 	mnt_drop_write_file(file);
+
+	return ret;
 }
 EXPORT_SYMBOL(file_update_time);
 

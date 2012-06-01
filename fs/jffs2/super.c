@@ -63,21 +63,6 @@ static void jffs2_i_init_once(void *foo)
 	inode_init_once(&f->vfs_inode);
 }
 
-static void jffs2_write_super(struct super_block *sb)
-{
-	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
-
-	lock_super(sb);
-	sb->s_dirt = 0;
-
-	if (!(sb->s_flags & MS_RDONLY)) {
-		jffs2_dbg(1, "%s()\n", __func__);
-		jffs2_flush_wbuf_gc(c, 0);
-	}
-
-	unlock_super(sb);
-}
-
 static const char *jffs2_compr_name(unsigned int compr)
 {
 	switch (compr) {
@@ -112,8 +97,6 @@ static int jffs2_show_options(struct seq_file *s, struct dentry *root)
 static int jffs2_sync_fs(struct super_block *sb, int wait)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
-
-	jffs2_write_super(sb);
 
 	mutex_lock(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
@@ -251,7 +234,6 @@ static const struct super_operations jffs2_super_operations =
 	.alloc_inode =	jffs2_alloc_inode,
 	.destroy_inode =jffs2_destroy_inode,
 	.put_super =	jffs2_put_super,
-	.write_super =	jffs2_write_super,
 	.statfs =	jffs2_statfs,
 	.remount_fs =	jffs2_remount_fs,
 	.evict_inode =	jffs2_evict_inode,
@@ -318,9 +300,6 @@ static void jffs2_put_super (struct super_block *sb)
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
 
 	jffs2_dbg(2, "%s()\n", __func__);
-
-	if (sb->s_dirt)
-		jffs2_write_super(sb);
 
 	mutex_lock(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
