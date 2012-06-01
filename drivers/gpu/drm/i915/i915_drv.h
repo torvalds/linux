@@ -1006,15 +1006,10 @@ struct drm_i915_gem_object {
 
 	unsigned int has_aliasing_ppgtt_mapping:1;
 	unsigned int has_global_gtt_mapping:1;
+	unsigned int has_dma_mapping:1;
 
-	struct page **pages;
+	struct sg_table *pages;
 	int pages_pin_count;
-
-	/**
-	 * DMAR support
-	 */
-	struct scatterlist *sg_list;
-	int num_sg;
 
 	/* prime dma-buf support */
 	struct sg_table *sg_table;
@@ -1342,6 +1337,15 @@ void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
+static inline struct page *i915_gem_object_get_page(struct drm_i915_gem_object *obj, int n)
+{
+	struct scatterlist *sg = obj->pages->sgl;
+	while (n >= SG_MAX_SINGLE_ALLOC) {
+		sg = sg_chain_ptr(sg + SG_MAX_SINGLE_ALLOC - 1);
+		n -= SG_MAX_SINGLE_ALLOC - 1;
+	}
+	return sg_page(sg+n);
+}
 static inline void i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
 	BUG_ON(obj->pages == NULL);

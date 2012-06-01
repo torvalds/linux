@@ -210,7 +210,8 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		if (ret)
 			return ret;
 
-		vaddr = kmap_atomic(obj->pages[reloc->offset >> PAGE_SHIFT]);
+		vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+							     reloc->offset >> PAGE_SHIFT));
 		*(uint32_t *)(vaddr + page_offset) = reloc->delta;
 		kunmap_atomic(vaddr);
 	} else {

@@ -888,20 +888,20 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			 struct drm_i915_gem_object *src)
 {
 	struct drm_i915_error_object *dst;
-	int page, page_count;
+	int i, count;
 	u32 reloc_offset;
 
 	if (src == NULL || src->pages == NULL)
 		return NULL;
 
-	page_count = src->base.size / PAGE_SIZE;
+	count = src->base.size / PAGE_SIZE;
 
-	dst = kmalloc(sizeof(*dst) + page_count * sizeof(u32 *), GFP_ATOMIC);
+	dst = kmalloc(sizeof(*dst) + count * sizeof(u32 *), GFP_ATOMIC);
 	if (dst == NULL)
 		return NULL;
 
 	reloc_offset = src->gtt_offset;
-	for (page = 0; page < page_count; page++) {
+	for (i = 0; i < count; i++) {
 		unsigned long flags;
 		void *d;
 
@@ -924,30 +924,33 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			memcpy_fromio(d, s, PAGE_SIZE);
 			io_mapping_unmap_atomic(s);
 		} else {
+			struct page *page;
 			void *s;
 
-			drm_clflush_pages(&src->pages[page], 1);
+			page = i915_gem_object_get_page(src, i);
 
-			s = kmap_atomic(src->pages[page]);
+			drm_clflush_pages(&page, 1);
+
+			s = kmap_atomic(page);
 			memcpy(d, s, PAGE_SIZE);
 			kunmap_atomic(s);
 
-			drm_clflush_pages(&src->pages[page], 1);
+			drm_clflush_pages(&page, 1);
 		}
 		local_irq_restore(flags);
 
-		dst->pages[page] = d;
+		dst->pages[i] = d;
 
 		reloc_offset += PAGE_SIZE;
 	}
-	dst->page_count = page_count;
+	dst->page_count = count;
 	dst->gtt_offset = src->gtt_offset;
 
 	return dst;
 
 unwind:
-	while (page--)
-		kfree(dst->pages[page]);
+	while (i--)
+		kfree(dst->pages[i]);
 	kfree(dst);
 	return NULL;
 }

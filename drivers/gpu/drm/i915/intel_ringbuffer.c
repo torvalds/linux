@@ -464,7 +464,7 @@ init_pipe_control(struct intel_ring_buffer *ring)
 		goto err_unref;
 
 	pc->gtt_offset = obj->gtt_offset;
-	pc->cpu_page =  kmap(obj->pages[0]);
+	pc->cpu_page =  kmap(sg_page(obj->pages->sgl));
 	if (pc->cpu_page == NULL)
 		goto err_unpin;
 
@@ -491,7 +491,8 @@ cleanup_pipe_control(struct intel_ring_buffer *ring)
 		return;
 
 	obj = pc->obj;
-	kunmap(obj->pages[0]);
+
+	kunmap(sg_page(obj->pages->sgl));
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 
@@ -1026,7 +1027,7 @@ static void cleanup_status_page(struct intel_ring_buffer *ring)
 	if (obj == NULL)
 		return;
 
-	kunmap(obj->pages[0]);
+	kunmap(sg_page(obj->pages->sgl));
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 	ring->status_page.obj = NULL;
@@ -1053,7 +1054,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 	}
 
 	ring->status_page.gfx_addr = obj->gtt_offset;
-	ring->status_page.page_addr = kmap(obj->pages[0]);
+	ring->status_page.page_addr = kmap(sg_page(obj->pages->sgl));
 	if (ring->status_page.page_addr == NULL) {
 		ret = -ENOMEM;
 		goto err_unpin;
