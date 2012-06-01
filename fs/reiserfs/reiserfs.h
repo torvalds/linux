@@ -480,6 +480,11 @@ struct reiserfs_sb_info {
 	struct dentry *priv_root;	/* root of /.reiserfs_priv */
 	struct dentry *xattr_root;	/* root of /.reiserfs_priv/xattrs */
 	int j_errno;
+
+	int work_queued;              /* non-zero delayed work is queued */
+	struct delayed_work old_work; /* old transactions flush delayed work */
+	spinlock_t old_work_lock;     /* protects old_work and work_queued */
+
 #ifdef CONFIG_QUOTA
 	char *s_qf_names[MAXQUOTAS];
 	int s_jquota_fmt;
@@ -2487,6 +2492,7 @@ void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...);
 int reiserfs_allocate_list_bitmaps(struct super_block *s,
 				   struct reiserfs_list_bitmap *, unsigned int);
 
+void reiserfs_schedule_old_flush(struct super_block *s);
 void add_save_link(struct reiserfs_transaction_handle *th,
 		   struct inode *inode, int truncate);
 int remove_save_link(struct inode *inode, int truncate);

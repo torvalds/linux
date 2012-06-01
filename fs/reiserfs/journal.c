@@ -1923,6 +1923,8 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 	 * the workqueue job (flush_async_commit) needs this lock
 	 */
 	reiserfs_write_unlock(sb);
+
+	cancel_delayed_work_sync(&REISERFS_SB(sb)->old_work);
 	flush_workqueue(commit_wq);
 
 	if (!reiserfs_mounted_fs_count) {
@@ -3314,7 +3316,7 @@ int journal_mark_dirty(struct reiserfs_transaction_handle *th,
 		journal->j_first = cn;
 		journal->j_last = cn;
 	}
-	sb->s_dirt = 1;
+	reiserfs_schedule_old_flush(sb);
 	return 0;
 }
 
@@ -3952,7 +3954,7 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 	 ** it tells us if we should continue with the journal_end, or just return
 	 */
 	if (!check_journal_end(th, sb, nblocks, flags)) {
-		sb->s_dirt = 1;
+		reiserfs_schedule_old_flush(sb);
 		wake_queued_writers(sb);
 		reiserfs_async_progress_wait(sb);
 		goto out;
