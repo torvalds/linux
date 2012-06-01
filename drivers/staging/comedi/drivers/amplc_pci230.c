@@ -579,39 +579,17 @@ static const struct comedi_lrange pci230_ao_range = { 2, {
 /* PCI230 daccon bipolar flag for each analogue output range. */
 static const unsigned char pci230_ao_bipolar[2] = { 0, 1 };
 
-static int pci230_ai_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data);
-static int pci230_ao_winsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data);
-static int pci230_ao_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data);
 static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
 				    unsigned int mode, uint64_t ns,
 				    unsigned int round);
 static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round);
 static void pci230_cancel_ct(struct comedi_device *dev, unsigned int ct);
-static irqreturn_t pci230_interrupt(int irq, void *d);
-static int pci230_ao_cmdtest(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_cmd *cmd);
-static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int pci230_ao_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
 static void pci230_ao_stop(struct comedi_device *dev,
 			   struct comedi_subdevice *s);
 static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 				    struct comedi_subdevice *s);
 static int pci230_handle_ao_fifo(struct comedi_device *dev,
 				 struct comedi_subdevice *s);
-static int pci230_ai_cmdtest(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_cmd *cmd);
-static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int pci230_ai_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
 static void pci230_ai_stop(struct comedi_device *dev,
 			   struct comedi_subdevice *s);
 static void pci230_handle_ai(struct comedi_device *dev,
