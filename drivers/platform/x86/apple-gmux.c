@@ -88,7 +88,7 @@ static int gmux_update_status(struct backlight_device *bd)
 	u32 brightness = bd->props.brightness;
 
 	if (bd->props.state & BL_CORE_SUSPENDED)
-		brightness = 0;
+		return 0;
 
 	/*
 	 * Older gmux versions require writing out lower bytes first then
