@@ -755,13 +755,8 @@ static void __init do_initcalls(void)
 {
 	int level;
 
-	for (level = 0; level < ARRAY_SIZE(initcall_levels) - 1; level++) {
-		pr_info("initlevel:%d=%s, %d registered initcalls\n",
-			level, initcall_level_names[level],
-			(int) (initcall_levels[level+1]
-				- initcall_levels[level]));
+	for (level = 0; level < ARRAY_SIZE(initcall_levels) - 1; level++)
 		do_initcall_level(level);
-	}
 }
 
 /*
