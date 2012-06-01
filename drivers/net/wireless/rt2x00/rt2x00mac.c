@@ -277,7 +277,6 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	else
 		rt2x00dev->intf_sta_count++;
 
-	spin_lock_init(&intf->seqlock);
 	mutex_init(&intf->beacon_skb_mutex);
 	intf->beacon = entry;
 
