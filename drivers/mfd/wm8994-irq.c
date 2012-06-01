@@ -21,6 +21,7 @@
 #include <linux/regmap.h>
 
 #include <linux/mfd/wm8994/core.h>
+#include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/registers.h>
 
 #include <linux/delay.h>
@@ -139,6 +140,8 @@ static struct regmap_irq_chip wm8994_irq_chip = {
 int wm8994_irq_init(struct wm8994 *wm8994)
 {
 	int ret;
+	unsigned long irqflags;
+	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
 
 	if (!wm8994->irq) {
 		dev_warn(wm8994->dev,
@@ -147,8 +150,13 @@ int wm8994_irq_init(struct wm8994 *wm8994)
 		return 0;
 	}
 
+	/* select user or default irq flags */
+	irqflags = IRQF_TRIGGER_HIGH | IRQF_ONESHOT;
+	if (pdata->irq_flags)
+		irqflags = pdata->irq_flags;
+
 	ret = regmap_add_irq_chip(wm8994->regmap, wm8994->irq,
-				  IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+				  irqflags,
 				  wm8994->irq_base, &wm8994_irq_chip,
 				  &wm8994->irq_data);
 	if (ret != 0) {
