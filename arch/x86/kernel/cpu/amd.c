@@ -586,9 +586,9 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	    !cpu_has(c, X86_FEATURE_TOPOEXT)) {
 		u64 val;
 
-		if (!rdmsrl_amd_safe(0xc0011005, &val)) {
+		if (!rdmsrl_safe(0xc0011005, &val)) {
 			val |= 1ULL << 54;
-			wrmsrl_amd_safe(0xc0011005, val);
+			checking_wrmsrl(0xc0011005, val);
 			rdmsrl(0xc0011005, val);
 			if (val & (1ULL << 54)) {
 				set_cpu_cap(c, X86_FEATURE_TOPOEXT);
