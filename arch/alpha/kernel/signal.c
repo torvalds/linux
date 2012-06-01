@@ -226,7 +226,6 @@ do_sigreturn(struct sigcontext __user *sc, struct pt_regs *regs,
 	if (__get_user(set.sig[0], &sc->sc_mask))
 		goto give_sigsegv;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(sc, regs, sw))
@@ -261,7 +260,6 @@ do_rt_sigreturn(struct rt_sigframe __user *frame, struct pt_regs *regs,
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto give_sigsegv;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(&frame->uc.uc_mcontext, regs, sw))
@@ -468,11 +466,8 @@ static inline void
 handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 	      struct pt_regs * regs, struct switch_stack *sw)
 {
-	sigset_t *oldset = &current->blocked;
+	sigset_t *oldset = sigmask_to_save();
 	int ret;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
 
 	if (ka->sa.sa_flags & SA_SIGINFO)
 		ret = setup_rt_frame(sig, ka, info, oldset, regs, sw);
@@ -483,12 +478,7 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 		force_sigsegv(sig, current);
 		return;
 	}
-	block_sigmask(ka, sig);
-	/* A signal was successfully delivered, and the
-	   saved sigmask was stored on the signal frame,
-	   and will be restored by sigreturn.  So we can
-	   simply clear the restore sigmask flag.  */
-	clear_thread_flag(TIF_RESTORE_SIGMASK);
+	signal_delivered(sig, info, ka, regs, 0);
 }
 
 static inline void
@@ -572,9 +562,7 @@ do_signal(struct pt_regs * regs, struct switch_stack * sw,
 	}
 
 	/* If there's no signal to deliver, we just restore the saved mask.  */
-	if (test_and_clear_thread_flag(TIF_RESTORE_SIGMASK))
-		set_current_blocked(&current->saved_sigmask);
-
+	restore_saved_sigmask();
 	if (single_stepping)
 		ptrace_set_bpt(current);	/* re-set breakpoint */
 }

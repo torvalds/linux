@@ -48,9 +48,6 @@
 #define DBG(LEVEL, ...)
 #endif
 	
-
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /* gcc will complain if a pointer is cast to an integer of different
  * size.  If you really need to do this (and we do for an ELF32 user
  * application in an ELF64 kernel) then you have to do a cast to an
@@ -131,7 +128,6 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 			goto give_sigsegv;
 	}
 		
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	/* Good thing we saved the old gr[30], eh? */
@@ -443,8 +439,9 @@ give_sigsegv:
 
 static long
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
-		sigset_t *oldset, struct pt_regs *regs, int in_syscall)
+		struct pt_regs *regs, int in_syscall)
 {
+	sigset_t *oldset = sigmask_to_save();
 	DBG(1,"handle_signal: sig=%ld, ka=%p, info=%p, oldset=%p, regs=%p\n",
 	       sig, ka, info, oldset, regs);
 	
@@ -452,11 +449,12 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	if (!setup_rt_frame(sig, ka, info, oldset, regs, in_syscall))
 		return 0;
 
-	block_sigmask(ka, sig);
-
-	tracehook_signal_handler(sig, info, ka, regs, 
+	signal_delivered(sig, info, ka, regs, 
 		test_thread_flag(TIF_SINGLESTEP) ||
 		test_thread_flag(TIF_BLOCKSTEP));
+
+	DBG(1,KERN_DEBUG "do_signal: Exit (success), regs->gr[28] = %ld\n",
+		regs->gr[28]);
 
 	return 1;
 }
@@ -568,28 +566,17 @@ do_signal(struct pt_regs *regs, long in_syscall)
 	siginfo_t info;
 	struct k_sigaction ka;
 	int signr;
-	sigset_t *oldset;
 
-	DBG(1,"\ndo_signal: oldset=0x%p, regs=0x%p, sr7 %#lx, in_syscall=%d\n",
-	       oldset, regs, regs->sr[7], in_syscall);
+	DBG(1,"\ndo_signal: regs=0x%p, sr7 %#lx, in_syscall=%d\n",
+	       regs, regs->sr[7], in_syscall);
 
 	/* Everyone else checks to see if they are in kernel mode at
 	   this point and exits if that's the case.  I'm not sure why
 	   we would be called in that case, but for some reason we
 	   are. */
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
-	DBG(1,"do_signal: oldset %08lx / %08lx\n", 
-		oldset->sig[0], oldset->sig[1]);
-
-
 	/* May need to force signal if handle_signal failed to deliver */
 	while (1) {
-	  
 		signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 		DBG(3,"do_signal: signr = %d, regs->gr[28] = %ld\n", signr, regs->gr[28]); 
 	
@@ -603,14 +590,8 @@ do_signal(struct pt_regs *regs, long in_syscall)
 		/* Whee!  Actually deliver the signal.  If the
 		   delivery failed, we need to continue to iterate in
 		   this loop so we can deliver the SIGSEGV... */
-		if (handle_signal(signr, &info, &ka, oldset,
-				  regs, in_syscall)) {
-			DBG(1,KERN_DEBUG "do_signal: Exit (success), regs->gr[28] = %ld\n",
-				regs->gr[28]);
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
+		if (handle_signal(signr, &info, &ka, regs, in_syscall))
 			return;
-		}
 	}
 	/* end of while(1) looping forever if we can't force a signal */
 
@@ -621,18 +602,12 @@ do_signal(struct pt_regs *regs, long in_syscall)
 	DBG(1,"do_signal: Exit (not delivered), regs->gr[28] = %ld\n", 
 		regs->gr[28]);
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
-
-	return;
+	restore_saved_sigmask();
 }
 
 void do_notify_resume(struct pt_regs *regs, long in_syscall)
 {
-	if (test_thread_flag(TIF_SIGPENDING) ||
-	    test_thread_flag(TIF_RESTORE_SIGMASK))
+	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal(regs, in_syscall);
 
 	if (test_thread_flag(TIF_NOTIFY_RESUME)) {

@@ -33,9 +33,6 @@
 #include <asm/switch_to.h>
 #include "entry.h"
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
-
 typedef struct 
 {
 	__u8 callee_used_stack[__SIGNAL_FRAMESIZE];
@@ -169,7 +166,6 @@ SYSCALL_DEFINE0(sigreturn)
 		goto badframe;
 	if (__copy_from_user(&set.sig, &frame->sc.oldmask, _SIGMASK_COPY_SIZE))
 		goto badframe;
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	if (restore_sigregs(regs, &frame->sregs))
 		goto badframe;
@@ -189,7 +185,6 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		goto badframe;
 	if (__copy_from_user(&set.sig, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	if (restore_sigregs(regs, &frame->uc.uc_mcontext))
 		goto badframe;
@@ -367,7 +362,7 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-static int handle_signal(unsigned long sig, struct k_sigaction *ka,
+static void handle_signal(unsigned long sig, struct k_sigaction *ka,
 			 siginfo_t *info, sigset_t *oldset,
 			 struct pt_regs *regs)
 {
@@ -379,9 +374,9 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 	else
 		ret = setup_frame(sig, ka, oldset, regs);
 	if (ret)
-		return ret;
-	block_sigmask(ka, sig);
-	return 0;
+		return;
+	signal_delivered(sig, info, ka, regs,
+				 test_thread_flag(TIF_SINGLE_STEP));
 }
 
 /*
@@ -398,12 +393,7 @@ void do_signal(struct pt_regs *regs)
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
-	sigset_t *oldset;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
+	sigset_t *oldset = sigmask_to_save();
 
 	/*
 	 * Get signal to deliver. When running under ptrace, at this point
@@ -441,24 +431,10 @@ void do_signal(struct pt_regs *regs)
 		/* No longer in a system call */
 		clear_thread_flag(TIF_SYSCALL);
 
-		if ((is_compat_task() ?
-		     handle_signal32(signr, &ka, &info, oldset, regs) :
-		     handle_signal(signr, &ka, &info, oldset, regs)) == 0) {
-			/*
-			 * A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag.
-			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-
-			/*
-			 * Let tracing know that we've done the handler setup.
-			 */
-			tracehook_signal_handler(signr, &info, &ka, regs,
-					 test_thread_flag(TIF_SINGLE_STEP));
-		}
+		if (is_compat_task())
+			handle_signal32(signr, &ka, &info, oldset, regs);
+		else
+			handle_signal(signr, &ka, &info, oldset, regs);
 		return;
 	}
 
@@ -484,10 +460,7 @@ void do_signal(struct pt_regs *regs)
 	/*
 	 * If there's no signal to deliver, we just put the saved sigmask back.
 	 */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	restore_saved_sigmask();
 }
 
 void do_notify_resume(struct pt_regs *regs)

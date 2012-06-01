@@ -28,8 +28,6 @@
 
 #define DEBUG_SIG 0
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 struct fdpic_func_descriptor {
 	unsigned long	text;
 	unsigned long	GOT;
@@ -149,7 +147,6 @@ asmlinkage int sys_sigreturn(void)
 	    __copy_from_user(&set.sig[1], &frame->extramask, sizeof(frame->extramask)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(&frame->sc, &gr8))
@@ -172,7 +169,6 @@ asmlinkage int sys_rt_sigreturn(void)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(&frame->uc.uc_mcontext, &gr8))
@@ -426,9 +422,10 @@ give_sigsegv:
 /*
  * OK, we're invoking a handler
  */
-static int handle_signal(unsigned long sig, siginfo_t *info,
-			 struct k_sigaction *ka, sigset_t *oldset)
+static void handle_signal(unsigned long sig, siginfo_t *info,
+			 struct k_sigaction *ka)
 {
+	sigset_t *oldset = sigmask_to_save();
 	int ret;
 
 	/* Are we from a system call? */
@@ -460,11 +457,11 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 	else
 		ret = setup_frame(sig, ka, oldset);
 
-	if (ret == 0)
-		block_sigmask(ka, sig);
+	if (ret)
+		return;
 
-	return ret;
-
+	signal_delivered(sig, info, ka, __frame,
+				 test_thread_flag(TIF_SINGLESTEP));
 } /* end handle_signal() */
 
 /*****************************************************************************/
@@ -477,44 +474,14 @@ static void do_signal(void)
 {
 	struct k_sigaction ka;
 	siginfo_t info;
-	sigset_t *oldset;
 	int signr;
-
-	/*
-	 * We want the common case to go fast, which
-	 * is why we may in certain cases get here from
-	 * kernel mode. Just return without doing anything
-	 * if so.
-	 */
-	if (!user_mode(__frame))
-		return;
-
-	if (try_to_freeze())
-		goto no_signal;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, __frame, NULL);
 	if (signr > 0) {
-		if (handle_signal(signr, &info, &ka, oldset) == 0) {
-			/* a signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-
-			tracehook_signal_handler(signr, &info, &ka, __frame,
-						 test_thread_flag(TIF_SINGLESTEP));
-		}
-
+		handle_signal(signr, &info, &ka);
 		return;
 	}
 
-no_signal:
 	/* Did we come from a system call? */
 	if (__frame->syscallno != -1) {
 		/* Restart the system call - no handlers present */
@@ -536,11 +503,7 @@ no_signal:
 
 	/* if there's no signal to deliver, we just put the saved sigmask
 	 * back */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
-
+	restore_saved_sigmask();
 } /* end do_signal() */
 
 /*****************************************************************************/
@@ -555,7 +518,7 @@ asmlinkage void do_notify_resume(__u32 thread_info_flags)
 		clear_thread_flag(TIF_SINGLESTEP);
 
 	/* deal with pending signal delivery */
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
+	if (thread_info_flags & _TIF_SIGPENDING))
 		do_signal();
 
 	/* deal with notification on about to resume userspace execution */

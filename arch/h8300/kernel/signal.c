@@ -47,8 +47,6 @@
 #include <asm/traps.h>
 #include <asm/ucontext.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
@@ -186,7 +184,6 @@ asmlinkage int do_sigreturn(unsigned long __unused,...)
 			      sizeof(frame->extramask))))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	
 	if (restore_sigcontext(regs, &frame->sc, &er0))
@@ -211,7 +208,6 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused,...)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &er0))
@@ -412,8 +408,9 @@ give_sigsegv:
  */
 static void
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
-	      sigset_t *oldset,	struct pt_regs * regs)
+	      struct pt_regs * regs)
 {
+	sigset_t *oldset = sigmask_to_save();
 	int ret;
 	/* are we from a system call? */
 	if (regs->orig_er0 >= 0) {
@@ -441,10 +438,8 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	else
 		ret = setup_frame(sig, ka, oldset, regs);
 
-	if (!ret) {
-		block_sigmask(ka, sig);
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-	}
+	if (!ret)
+		signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*
@@ -457,7 +452,6 @@ statis void do_signal(struct pt_regs *regs)
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
-	sigset_t *oldset;
 
 	/*
 	 * We want the common case to go fast, which
@@ -468,23 +462,14 @@ statis void do_signal(struct pt_regs *regs)
 	if ((regs->ccr & 0x10))
 		return;
 
-	if (try_to_freeze())
-		goto no_signal;
-
 	current->thread.esp0 = (unsigned long) regs;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		handle_signal(signr, &info, &ka, oldset, regs);
+		handle_signal(signr, &info, &ka, regs);
 		return;
 	}
- no_signal:
 	/* Did we come from a system call? */
 	if (regs->orig_er0 >= 0) {
 		/* Restart the system call - no handlers present */
@@ -501,8 +486,7 @@ statis void do_signal(struct pt_regs *regs)
 	}
 
 	/* If there's no signal to deliver, we just restore the saved mask.  */
-	if (test_and_clear_thread_flag(TIF_RESTORE_SIGMASK))
-		set_current_blocked(&current->saved_sigmask);
+	restore_saved_sigmask();
 }
 
 asmlinkage void do_notify_resume(struct pt_regs *regs, u32 thread_info_flags)

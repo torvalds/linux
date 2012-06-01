@@ -7,8 +7,6 @@
 
 #include <asm/processor-flags.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 #define __FIX_EFLAGS	(X86_EFLAGS_AC | X86_EFLAGS_OF | \
 			 X86_EFLAGS_DF | X86_EFLAGS_TF | X86_EFLAGS_SF | \
 			 X86_EFLAGS_ZF | X86_EFLAGS_AF | X86_EFLAGS_PF | \

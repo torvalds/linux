@@ -22,8 +22,6 @@
 #include <asm/ucontext.h>
 #include <asm/syscalls.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 			       struct pt_regs *regs)
 {
@@ -89,7 +87,6 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
@@ -224,30 +221,27 @@ static inline void setup_syscall_restart(struct pt_regs *regs)
 
 static inline void
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
-	      sigset_t *oldset, struct pt_regs *regs, int syscall)
+	      struct pt_regs *regs, int syscall)
 {
 	int ret;
 
 	/*
 	 * Set up the stack frame
 	 */
-	ret = setup_rt_frame(sig, ka, info, oldset, regs);
+	ret = setup_rt_frame(sig, ka, info, sigmask_to_save(), regs);
 
 	/*
 	 * Check that the resulting registers are sane
 	 */
 	ret |= !valid_user_regs(regs);
 
-	if (ret != 0) {
-		force_sigsegv(sig, current);
-		return;
-	}
-
 	/*
 	 * Block the signal if we were successful.
 	 */
-	block_sigmask(ka, sig);
-	clear_thread_flag(TIF_RESTORE_SIGMASK);
+	if (ret != 0)
+		force_sigsegv(sig, current);
+	else
+		signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*
@@ -255,7 +249,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
  * doesn't want to handle. Thus you cannot kill init even with a
  * SIGKILL even by mistake.
  */
-int do_signal(struct pt_regs *regs, sigset_t *oldset, int syscall)
+static void do_signal(struct pt_regs *regs, int syscall)
 {
 	siginfo_t info;
 	int signr;
@@ -267,12 +261,7 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset, int syscall)
 	 * without doing anything if so.
 	 */
 	if (!user_mode(regs))
-		return 0;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else if (!oldset)
-		oldset = &current->blocked;
+		return;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (syscall) {
@@ -297,15 +286,11 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset, int syscall)
 
 	if (signr == 0) {
 		/* No signal to deliver -- put the saved sigmask back */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-		}
-		return 0;
+		restore_saved_sigmask();
+		return;
 	}
 
-	handle_signal(signr, &ka, &info, oldset, regs, syscall);
-	return 1;
+	handle_signal(signr, &ka, &info, regs, syscall);
 }
 
 asmlinkage void do_notify_resume(struct pt_regs *regs, struct thread_info *ti)
@@ -315,8 +300,8 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, struct thread_info *ti)
 	if ((sysreg_read(SR) & MODE_MASK) == MODE_SUPERVISOR)
 		syscall = 1;
 
-	if (ti->flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
-		do_signal(regs, &current->blocked, syscall);
+	if (ti->flags & _TIF_SIGPENDING))
+		do_signal(regs, syscall);
 
 	if (ti->flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);

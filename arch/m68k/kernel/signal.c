@@ -51,8 +51,6 @@
 #include <asm/traps.h>
 #include <asm/ucontext.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 #ifdef CONFIG_MMU
 
 /*
@@ -795,7 +793,6 @@ asmlinkage int do_sigreturn(unsigned long __unused)
 			      sizeof(frame->extramask))))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, &frame->sc, frame + 1))
@@ -820,7 +817,6 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (rt_restore_ucontext(regs, sw, &frame->uc))
@@ -1123,8 +1119,9 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
  */
 static void
 handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
-	      sigset_t *oldset, struct pt_regs *regs)
+	      struct pt_regs *regs)
 {
+	sigset_t *oldset = sigmask_to_save();
 	int err;
 	/* are we from a system call? */
 	if (regs->orig_d0 >= 0)
@@ -1140,14 +1137,12 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (err)
 		return;
 
-	block_sigmask(ka, sig);
+	signal_delivered(sig, info, ka, regs, 0);
 
 	if (test_thread_flag(TIF_DELAYED_TRACE)) {
 		regs->sr &= ~0x8000;
 		send_sig(SIGTRAP, current, 1);
 	}
-
-	clear_thread_flag(TIF_RESTORE_SIGMASK);
 }
 
 /*
@@ -1160,19 +1155,13 @@ static void do_signal(struct pt_regs *regs)
 	siginfo_t info;
 	struct k_sigaction ka;
 	int signr;
-	sigset_t *oldset;
 
 	current->thread.esp0 = (unsigned long) regs;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		handle_signal(signr, &ka, &info, oldset, regs);
+		handle_signal(signr, &ka, &info, regs);
 		return;
 	}
 
@@ -1182,10 +1171,7 @@ static void do_signal(struct pt_regs *regs)
 		handle_restart(regs, NULL, 0);
 
 	/* If there's no signal to deliver, we just restore the saved mask.  */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	restore_saved_sigmask();
 }
 
 void do_notify_resume(struct pt_regs *regs)
