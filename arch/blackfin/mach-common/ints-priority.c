@@ -496,7 +496,10 @@ static int bfin_internal_set_wake_chip(struct irq_data *d, unsigned int state)
 	return bfin_internal_set_wake(d->irq, state);
 }
 #else
-# define bfin_internal_set_wake(irq, state)
+inline int bfin_internal_set_wake(unsigned int irq, unsigned int state)
+{
+	return 0;
+}
 # define bfin_internal_set_wake_chip NULL
 #endif
 
@@ -527,6 +530,7 @@ static struct irq_chip bfin_sec_irqchip = {
 	.irq_eoi = bfin_sec_unmask_irq,
 	.irq_disable = bfin_sec_disable,
 	.irq_enable = bfin_sec_enable,
+	.irq_set_wake = bfin_internal_set_wake,
 };
 #endif
 
