@@ -1994,7 +1994,7 @@ void pci_enable_ari(struct pci_dev *dev)
 		return;
 
 	bridge = dev->bus->self;
-	if (!bridge || !pci_is_pcie(bridge))
+	if (!bridge)
 		return;
 
 	pos = pci_pcie_cap(bridge);
@@ -2054,9 +2054,6 @@ void pci_disable_ido(struct pci_dev *dev, unsigned long type)
 	int pos;
 	u16 ctrl;
 
-	if (!pci_is_pcie(dev))
-		return;
-
 	pos = pci_pcie_cap(dev);
 	if (!pos)
 		return;
@@ -2095,9 +2092,6 @@ int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type type)
 	u32 cap;
 	u16 ctrl;
 	int ret;
-
-	if (!pci_is_pcie(dev))
-		return -ENOTSUPP;
 
 	pos = pci_pcie_cap(dev);
 	if (!pos)
@@ -2149,9 +2143,6 @@ void pci_disable_obff(struct pci_dev *dev)
 	int pos;
 	u16 ctrl;
 
-	if (!pci_is_pcie(dev))
-		return;
-
 	pos = pci_pcie_cap(dev);
 	if (!pos)
 		return;
@@ -2173,9 +2164,6 @@ static bool pci_ltr_supported(struct pci_dev *dev)
 {
 	int pos;
 	u32 cap;
-
-	if (!pci_is_pcie(dev))
-		return false;
 
 	pos = pci_pcie_cap(dev);
 	if (!pos)
