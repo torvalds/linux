@@ -141,29 +141,6 @@
 #define	SWITCH_MODE_ERR	  0x06
 #define	SWITCH_PASS	  0x07
 
-#ifdef SUPPORT_SD_LOCK
-/* CMD42 Parameter */
-#define SD_ERASE		0x08
-#define SD_LOCK			0x04
-#define SD_UNLOCK		0x00
-#define SD_CLR_PWD		0x02
-#define SD_SET_PWD		0x01
-
-#define SD_PWD_LEN		0x10
-
-/* SD lock unlock Status */
-#define SD_LOCKED		0x80	/* Global lock status */
-#define SD_LOCK_1BIT_MODE	0x40 /**/
-#define SD_PWD_EXIST		0x20
-#define SD_UNLOCK_POW_ON	0x01 /**/
-#define SD_SDR_RST		0x02 /* Reset SD30 card with current DDR mode to SDR mode. */
-/* g_bySDEraseStatus */
-#define SD_NOT_ERASE		0x00
-#define SD_UNDER_ERASING	0x01
-#define SD_COMPLETE_ERASE	0x02
-/* SD_RW FAIL status */
-#define SD_RW_FORBIDDEN		0x0F	/* read/write is forbidden (SD card)  */
-#endif
 /* Function Group Definition */
 /* Function Group 1 */
 #define	HS_SUPPORT			0x01
@@ -282,16 +259,10 @@ struct timing_phase_path {
 int sd_select_card(struct rts51x_chip *chip, int select);
 int reset_sd_card(struct rts51x_chip *chip);
 int sd_switch_clock(struct rts51x_chip *chip);
-void sd_stop_seq_mode(struct rts51x_chip *chip);
 int sd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 	  u16 sector_cnt);
 void sd_cleanup_work(struct rts51x_chip *chip);
-int sd_power_off_card3v3(struct rts51x_chip *chip);
 int release_sd_card(struct rts51x_chip *chip);
-
-#ifdef SUPPORT_SD_LOCK
-int sd_update_lock_status(struct rts51x_chip *chip);
-#endif
 
 #ifdef SUPPORT_CPRM
 extern int reset_sd(struct rts51x_chip *chip);

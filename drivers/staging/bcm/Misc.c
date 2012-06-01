@@ -835,7 +835,7 @@ int reset_card_proc(PMINI_ADAPTER ps_adapter)
 	Bcm_kill_all_URBs(psIntfAdapter);
 	/* Reset the UMA-B Device */
 	if (ps_adapter->chip_id >= T3LPB) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Reseting UMA-B\n");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Resetting UMA-B\n");
 		retval = usb_reset_device(psIntfAdapter->udev);
 		psIntfAdapter->psAdapter->StopAllXaction = FALSE;
 

@@ -28,7 +28,6 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <linux/usb.h>
-#include <linux/version.h>
 #include <linux/mutex.h>
 
 /* driver and module definitions */
@@ -149,13 +148,29 @@ static void usb_keene_disconnect(struct usb_interface *intf)
 {
 	struct keene_device *radio = to_keene_dev(usb_get_intfdata(intf));
 
-	v4l2_device_get(&radio->v4l2_dev);
 	mutex_lock(&radio->lock);
 	usb_set_intfdata(intf, NULL);
 	video_unregister_device(&radio->vdev);
 	v4l2_device_disconnect(&radio->v4l2_dev);
 	mutex_unlock(&radio->lock);
 	v4l2_device_put(&radio->v4l2_dev);
+}
+
+static int usb_keene_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct keene_device *radio = to_keene_dev(usb_get_intfdata(intf));
+
+	return keene_cmd_main(radio, 0, false);
+}
+
+static int usb_keene_resume(struct usb_interface *intf)
+{
+	struct keene_device *radio = to_keene_dev(usb_get_intfdata(intf));
+
+	mdelay(50);
+	keene_cmd_set(radio);
+	keene_cmd_main(radio, radio->curfreq, true);
+	return 0;
 }
 
 static int vidioc_querycap(struct file *file, void *priv,
@@ -256,18 +271,6 @@ static int keene_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-static int vidioc_subscribe_event(struct v4l2_fh *fh,
-				struct v4l2_event_subscription *sub)
-{
-	switch (sub->type) {
-	case V4L2_EVENT_CTRL:
-		return v4l2_event_subscribe(fh, sub, 0);
-	default:
-		return -EINVAL;
-	}
-}
-
-
 /* File system interface */
 static const struct v4l2_file_operations usb_keene_fops = {
 	.owner		= THIS_MODULE,
@@ -288,7 +291,7 @@ static const struct v4l2_ioctl_ops usb_keene_ioctl_ops = {
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
 	.vidioc_log_status = v4l2_ctrl_log_status,
-	.vidioc_subscribe_event = vidioc_subscribe_event,
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
@@ -404,6 +407,9 @@ static struct usb_driver usb_keene_driver = {
 	.probe			= usb_keene_probe,
 	.disconnect		= usb_keene_disconnect,
 	.id_table		= usb_keene_device_table,
+	.suspend		= usb_keene_suspend,
+	.resume			= usb_keene_resume,
+	.reset_resume		= usb_keene_resume,
 };
 
 static int __init keene_init(void)

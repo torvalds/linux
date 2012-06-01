@@ -35,7 +35,6 @@
 static void medusa_enable_bluefield_output(struct cx25821_dev *dev, int channel,
 					   int enable)
 {
-	int ret_val = 1;
 	u32 value = 0;
 	u32 tmp = 0;
 	int out_ctrl = OUT_CTRL1;
@@ -79,13 +78,13 @@ static void medusa_enable_bluefield_output(struct cx25821_dev *dev, int channel,
 	value &= 0xFFFFFF7F;	/* clear BLUE_FIELD_EN */
 	if (enable)
 		value |= 0x00000080;	/* set BLUE_FIELD_EN */
-	ret_val = cx25821_i2c_write(&dev->i2c_bus[0], out_ctrl, value);
+	cx25821_i2c_write(&dev->i2c_bus[0], out_ctrl, value);
 
 	value = cx25821_i2c_read(&dev->i2c_bus[0], out_ctrl_ns, &tmp);
 	value &= 0xFFFFFF7F;
 	if (enable)
 		value |= 0x00000080;	/* set BLUE_FIELD_EN */
-	ret_val = cx25821_i2c_write(&dev->i2c_bus[0], out_ctrl_ns, value);
+	cx25821_i2c_write(&dev->i2c_bus[0], out_ctrl_ns, value);
 }
 
 static int medusa_initialize_ntsc(struct cx25821_dev *dev)
@@ -431,7 +430,6 @@ void medusa_set_resolution(struct cx25821_dev *dev, int width,
 {
 	int decoder = 0;
 	int decoder_count = 0;
-	int ret_val = 0;
 	u32 hscale = 0x0;
 	u32 vscale = 0x0;
 	const int MAX_WIDTH = 720;
@@ -482,9 +480,9 @@ void medusa_set_resolution(struct cx25821_dev *dev, int width,
 
 	for (; decoder < decoder_count; decoder++) {
 		/* write scaling values for each decoder */
-		ret_val = cx25821_i2c_write(&dev->i2c_bus[0],
+		cx25821_i2c_write(&dev->i2c_bus[0],
 				HSCALE_CTRL + (0x200 * decoder), hscale);
-		ret_val = cx25821_i2c_write(&dev->i2c_bus[0],
+		cx25821_i2c_write(&dev->i2c_bus[0],
 				VSCALE_CTRL + (0x200 * decoder), vscale);
 	}
 
@@ -494,7 +492,6 @@ void medusa_set_resolution(struct cx25821_dev *dev, int width,
 static void medusa_set_decoderduration(struct cx25821_dev *dev, int decoder,
 				       int duration)
 {
-	int ret_val = 0;
 	u32 fld_cnt = 0;
 	u32 tmp = 0;
 	u32 disp_cnt_reg = DISP_AB_CNT;
@@ -537,7 +534,7 @@ static void medusa_set_decoderduration(struct cx25821_dev *dev, int decoder,
 		fld_cnt |= ((u32) duration) << 16;
 	}
 
-	ret_val = cx25821_i2c_write(&dev->i2c_bus[0], disp_cnt_reg, fld_cnt);
+	cx25821_i2c_write(&dev->i2c_bus[0], disp_cnt_reg, fld_cnt);
 
 	mutex_unlock(&dev->lock);
 }

@@ -33,7 +33,7 @@ config ARCH_BINFMT_ELF_RANDOMIZE_PIE
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y
-	depends on (FRV || BLACKFIN || (SUPERH32 && !MMU))
+	depends on (FRV || BLACKFIN || (SUPERH32 && !MMU) || C6X)
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
 	  segments of a binary to be located in memory independently of each

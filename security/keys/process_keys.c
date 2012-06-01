@@ -732,6 +732,8 @@ try_again:
 	if (ret < 0)
 		goto invalid_key;
 
+	key->last_used_at = current_kernel_time().tv_sec;
+
 error:
 	put_cred(cred);
 	return key_ref;
@@ -858,7 +860,7 @@ void key_replace_session_keyring(void)
 	new-> sgid	= old-> sgid;
 	new->fsgid	= old->fsgid;
 	new->user	= get_uid(old->user);
-	new->user_ns	= new->user->user_ns;
+	new->user_ns	= get_user_ns(new->user_ns);
 	new->group_info	= get_group_info(old->group_info);
 
 	new->securebits	= old->securebits;

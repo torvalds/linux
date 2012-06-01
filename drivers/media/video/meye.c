@@ -1570,7 +1570,7 @@ static long vidioc_default(struct file *file, void *fh, bool valid_prio,
 		return meyeioc_stilljcapt((int *) arg);
 
 	default:
-		return -EINVAL;
+		return -ENOTTY;
 	}
 
 }

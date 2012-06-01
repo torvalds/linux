@@ -105,6 +105,8 @@ int exynos_drm_overlay_update(struct exynos_drm_overlay *overlay,
 	overlay->fb_y = pos->fb_y;
 	overlay->fb_width = fb->width;
 	overlay->fb_height = fb->height;
+	overlay->src_width = pos->src_w;
+	overlay->src_height = pos->src_h;
 	overlay->bpp = fb->bits_per_pixel;
 	overlay->pitch = fb->pitches[0];
 	overlay->pixel_format = fb->pixel_format;
@@ -153,6 +155,8 @@ static int exynos_drm_crtc_update(struct drm_crtc *crtc)
 	pos.crtc_y = 0;
 	pos.crtc_w = fb->width - crtc->x;
 	pos.crtc_h = fb->height - crtc->y;
+	pos.src_w = pos.crtc_w;
+	pos.src_h = pos.crtc_h;
 
 	return exynos_drm_overlay_update(overlay, crtc->fb, mode, &pos);
 }

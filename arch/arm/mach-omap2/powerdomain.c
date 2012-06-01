@@ -981,16 +981,6 @@ int pwrdm_state_switch(struct powerdomain *pwrdm)
 	return ret;
 }
 
-int pwrdm_clkdm_state_switch(struct clockdomain *clkdm)
-{
-	if (clkdm != NULL && clkdm->pwrdm.ptr != NULL) {
-		pwrdm_wait_transition(clkdm->pwrdm.ptr);
-		return pwrdm_state_switch(clkdm->pwrdm.ptr);
-	}
-
-	return -EINVAL;
-}
-
 int pwrdm_pre_transition(void)
 {
 	pwrdm_for_each(_pwrdm_pre_transition_cb, NULL);

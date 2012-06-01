@@ -1,0 +1,77 @@
+/*
+ * DTS file for SPEAr300 SoC
+ *
+ * Copyright 2012 Viresh Kumar <viresh.kumar@st.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/include/ "spear3xx.dtsi"
+
+/ {
+	ahb {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x60000000 0x60000000 0x50000000
+			  0xd0000000 0xd0000000 0x30000000>;
+
+		pinmux@99000000 {
+			compatible = "st,spear300-pinmux";
+			reg = <0x99000000 0x1000>;
+		};
+
+		clcd@60000000 {
+			compatible = "arm,clcd-pl110", "arm,primecell";
+			reg = <0x60000000 0x1000>;
+			interrupts = <30>;
+			status = "disabled";
+		};
+
+		fsmc: flash@94000000 {
+			compatible = "st,spear600-fsmc-nand";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x94000000 0x1000	/* FSMC Register */
+			       0x80000000 0x0010>;	/* NAND Base */
+			reg-names = "fsmc_regs", "nand_data";
+			st,ale-off = <0x20000>;
+			st,cle-off = <0x10000>;
+			status = "disabled";
+		};
+
+		sdhci@70000000 {
+			compatible = "st,sdhci-spear";
+			reg = <0x70000000 0x100>;
+			interrupts = <1>;
+			status = "disabled";
+		};
+
+		apb {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			ranges = <0xa0000000 0xa0000000 0x10000000
+				  0xd0000000 0xd0000000 0x30000000>;
+
+			gpio1: gpio@a9000000 {
+				#gpio-cells = <2>;
+				compatible = "arm,pl061", "arm,primecell";
+				gpio-controller;
+				reg = <0xa9000000 0x1000>;
+				status = "disabled";
+			};
+
+			kbd@a0000000 {
+				compatible = "st,spear300-kbd";
+				reg = <0xa0000000 0x1000>;
+				status = "disabled";
+			};
+		};
+	};
+};

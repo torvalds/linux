@@ -69,7 +69,6 @@
 #define TX_TIMEOUT  (400*HZ/1000)
 
 #include <linux/module.h>
-#include <linux/mca.h>
 #include <linux/isa.h>
 #include <linux/pnp.h>
 #include <linux/string.h>
@@ -102,7 +101,7 @@ static int el3_debug = 2;
 #endif
 
 /* Used to do a global count of all the cards in the system.  Must be
- * a global variable so that the mca/eisa probe routines can increment
+ * a global variable so that the eisa probe routines can increment
  * it */
 static int el3_cards = 0;
 #define EL3_MAX_CARDS 8
@@ -163,7 +162,7 @@ enum RxFilter {
  */
 #define SKB_QUEUE_SIZE	64
 
-enum el3_cardtype { EL3_ISA, EL3_PNP, EL3_MCA, EL3_EISA };
+enum el3_cardtype { EL3_ISA, EL3_PNP, EL3_EISA };
 
 struct el3_private {
 	spinlock_t lock;
@@ -505,41 +504,6 @@ static struct eisa_driver el3_eisa_driver = {
 static int eisa_registered;
 #endif
 
-#ifdef CONFIG_MCA
-static int el3_mca_probe(struct device *dev);
-
-static short el3_mca_adapter_ids[] __initdata = {
-		0x627c,
-		0x627d,
-		0x62db,
-		0x62f6,
-		0x62f7,
-		0x0000
-};
-
-static char *el3_mca_adapter_names[] __initdata = {
-		"3Com 3c529 EtherLink III (10base2)",
-		"3Com 3c529 EtherLink III (10baseT)",
-		"3Com 3c529 EtherLink III (test mode)",
-		"3Com 3c529 EtherLink III (TP or coax)",
-		"3Com 3c529 EtherLink III (TP)",
-		NULL
-};
-
-static struct mca_driver el3_mca_driver = {
-		.id_table = el3_mca_adapter_ids,
-		.driver = {
-				.name = "3c529",
-				.bus = &mca_bus_type,
-				.probe = el3_mca_probe,
-				.remove = __devexit_p(el3_device_remove),
-				.suspend = el3_suspend,
-				.resume  = el3_resume,
-		},
-};
-static int mca_registered;
-#endif /* CONFIG_MCA */
-
 static const struct net_device_ops netdev_ops = {
 	.ndo_open 		= el3_open,
 	.ndo_stop	 	= el3_close,
@@ -599,76 +563,6 @@ static void el3_common_remove (struct net_device *dev)
 	release_region(dev->base_addr, EL3_IO_EXTENT);
 	free_netdev (dev);
 }
-
-#ifdef CONFIG_MCA
-static int __init el3_mca_probe(struct device *device)
-{
-	/* Based on Erik Nygren's (nygren@mit.edu) 3c529 patch,
-	 * heavily modified by Chris Beauregard
-	 * (cpbeaure@csclub.uwaterloo.ca) to support standard MCA
-	 * probing.
-	 *
-	 * redone for multi-card detection by ZP Gu (zpg@castle.net)
-	 * now works as a module */
-
-	short i;
-	int ioaddr, irq, if_port;
-	__be16 phys_addr[3];
-	struct net_device *dev = NULL;
-	u_char pos4, pos5;
-	struct mca_device *mdev = to_mca_device(device);
-	int slot = mdev->slot;
-	int err;
-
-	pos4 = mca_device_read_stored_pos(mdev, 4);
-	pos5 = mca_device_read_stored_pos(mdev, 5);
-
-	ioaddr = ((short)((pos4&0xfc)|0x02)) << 8;
-	irq = pos5 & 0x0f;
-
-
-	pr_info("3c529: found %s at slot %d\n",
-		el3_mca_adapter_names[mdev->index], slot + 1);
-
-	/* claim the slot */
-	strncpy(mdev->name, el3_mca_adapter_names[mdev->index],
-			sizeof(mdev->name));
-	mca_device_set_claim(mdev, 1);
-
-	if_port = pos4 & 0x03;
-
-	irq = mca_device_transform_irq(mdev, irq);
-	ioaddr = mca_device_transform_ioport(mdev, ioaddr);
-	if (el3_debug > 2) {
-		pr_debug("3c529: irq %d  ioaddr 0x%x  ifport %d\n", irq, ioaddr, if_port);
-	}
-	EL3WINDOW(0);
-	for (i = 0; i < 3; i++)
-		phys_addr[i] = htons(read_eeprom(ioaddr, i));
-
-	dev = alloc_etherdev(sizeof (struct el3_private));
-	if (dev == NULL) {
-		release_region(ioaddr, EL3_IO_EXTENT);
-		return -ENOMEM;
-	}
-
-	netdev_boot_setup_check(dev);
-
-	el3_dev_fill(dev, phys_addr, ioaddr, irq, if_port, EL3_MCA);
-	dev_set_drvdata(device, dev);
-	err = el3_common_init(dev);
-
-	if (err) {
-		dev_set_drvdata(device, NULL);
-		free_netdev(dev);
-		return -ENOMEM;
-	}
-
-	el3_devs[el3_cards++] = dev;
-	return 0;
-}
-
-#endif /* CONFIG_MCA */
 
 #ifdef CONFIG_EISA
 static int __init el3_eisa_probe (struct device *device)
@@ -1547,11 +1441,6 @@ static int __init el3_init_module(void)
 	if (!ret)
 		eisa_registered = 1;
 #endif
-#ifdef CONFIG_MCA
-	ret = mca_register_driver(&el3_mca_driver);
-	if (!ret)
-		mca_registered = 1;
-#endif
 
 #ifdef CONFIG_PNP
 	if (pnp_registered)
@@ -1561,10 +1450,6 @@ static int __init el3_init_module(void)
 		ret = 0;
 #ifdef CONFIG_EISA
 	if (eisa_registered)
-		ret = 0;
-#endif
-#ifdef CONFIG_MCA
-	if (mca_registered)
 		ret = 0;
 #endif
 	return ret;
@@ -1583,10 +1468,6 @@ static void __exit el3_cleanup_module(void)
 #ifdef CONFIG_EISA
 	if (eisa_registered)
 		eisa_driver_unregister(&el3_eisa_driver);
-#endif
-#ifdef CONFIG_MCA
-	if (mca_registered)
-		mca_unregister_driver(&el3_mca_driver);
 #endif
 }
 

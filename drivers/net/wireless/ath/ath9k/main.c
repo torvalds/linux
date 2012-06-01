@@ -113,21 +113,25 @@ void ath9k_ps_restore(struct ath_softc *sc)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	enum ath9k_power_mode mode;
 	unsigned long flags;
+	bool reset;
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
 	if (--sc->ps_usecount != 0)
 		goto unlock;
 
-	if (sc->ps_idle && (sc->ps_flags & PS_WAIT_FOR_TX_ACK))
+	if (sc->ps_idle) {
+		ath9k_hw_setrxabort(sc->sc_ah, 1);
+		ath9k_hw_stopdmarecv(sc->sc_ah, &reset);
 		mode = ATH9K_PM_FULL_SLEEP;
-	else if (sc->ps_enabled &&
-		 !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
-			      PS_WAIT_FOR_CAB |
-			      PS_WAIT_FOR_PSPOLL_DATA |
-			      PS_WAIT_FOR_TX_ACK)))
+	} else if (sc->ps_enabled &&
+		   !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
+				     PS_WAIT_FOR_CAB |
+				     PS_WAIT_FOR_PSPOLL_DATA |
+				     PS_WAIT_FOR_TX_ACK))) {
 		mode = ATH9K_PM_NETWORK_SLEEP;
-	else
+	} else {
 		goto unlock;
+	}
 
 	spin_lock(&common->cc_lock);
 	ath_hw_cycle_counters_update(common);
@@ -241,6 +245,7 @@ static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
 
 	sc->hw_busy_count = 0;
 	del_timer_sync(&common->ani.timer);
+	del_timer_sync(&sc->rx_poll_timer);
 
 	ath9k_debug_samp_bb_mac(sc);
 	ath9k_hw_disable_interrupts(ah);
@@ -282,6 +287,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 
 		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/2);
+		ath_start_rx_poll(sc, 3);
 		if (!common->disable_ani)
 			ath_start_ani(common);
 	}
@@ -690,17 +696,6 @@ void ath9k_tasklet(unsigned long data)
 		goto out;
 	}
 
-	/*
-	 * Only run the baseband hang check if beacons stop working in AP or
-	 * IBSS mode, because it has a high false positive rate. For station
-	 * mode it should not be necessary, since the upper layers will detect
-	 * this through a beacon miss automatically and the following channel
-	 * change will trigger a hardware reset anyway
-	 */
-	if (ath9k_hw_numtxpending(ah, sc->beacon.beaconq) != 0 &&
-	    !ath9k_hw_check_alive(ah))
-		ieee80211_queue_work(sc->hw, &sc->hw_check_work);
-
 	if ((status & ATH9K_INT_TSFOOR) && sc->ps_enabled) {
 		/*
 		 * TSF sync does not look correct; remain awake to sync with
@@ -912,10 +907,19 @@ void ath_hw_check(struct work_struct *work)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	unsigned long flags;
 	int busy;
+	u8 is_alive, nbeacon = 1;
 
 	ath9k_ps_wakeup(sc);
-	if (ath9k_hw_check_alive(sc->sc_ah))
+	is_alive = ath9k_hw_check_alive(sc->sc_ah);
+
+	if (is_alive && !AR_SREV_9300(sc->sc_ah))
 		goto out;
+	else if (!is_alive && AR_SREV_9300(sc->sc_ah)) {
+		ath_dbg(common, RESET,
+			"DCU stuck is detected. Schedule chip reset\n");
+		RESET_STAT_INC(sc, RESET_TYPE_MAC_HANG);
+		goto sched_reset;
+	}
 
 	spin_lock_irqsave(&common->cc_lock, flags);
 	busy = ath_update_survey_stats(sc);
@@ -926,12 +930,18 @@ void ath_hw_check(struct work_struct *work)
 	if (busy >= 99) {
 		if (++sc->hw_busy_count >= 3) {
 			RESET_STAT_INC(sc, RESET_TYPE_BB_HANG);
-			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+			goto sched_reset;
 		}
-
-	} else if (busy >= 0)
+	} else if (busy >= 0) {
 		sc->hw_busy_count = 0;
+		nbeacon = 3;
+	}
 
+	ath_start_rx_poll(sc, nbeacon);
+	goto out;
+
+sched_reset:
+	ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 out:
 	ath9k_ps_restore(sc);
 }
@@ -1094,14 +1104,7 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 	}
 
-	/*
-	 * Cannot tx while the hardware is in full sleep, it first needs a full
-	 * chip reset to recover from that
-	 */
-	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_FULL_SLEEP))
-		goto exit;
-
-	if (unlikely(sc->sc_ah->power_mode != ATH9K_PM_AWAKE)) {
+	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_NETWORK_SLEEP)) {
 		/*
 		 * We are using PS-Poll and mac80211 can request TX while in
 		 * power save mode. Need to wake up hardware for the TX to be
@@ -1120,10 +1123,19 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 		/*
 		 * The actual restore operation will happen only after
-		 * the sc_flags bit is cleared. We are just dropping
+		 * the ps_flags bit is cleared. We are just dropping
 		 * the ps_usecount here.
 		 */
 		ath9k_ps_restore(sc);
+	}
+
+	/*
+	 * Cannot tx while the hardware is in full sleep, it first needs a full
+	 * chip reset to recover from that
+	 */
+	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_FULL_SLEEP)) {
+		ath_err(common, "TX while HW is in FULL_SLEEP mode\n");
+		goto exit;
 	}
 
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
@@ -1133,6 +1145,7 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (ath_tx_start(hw, skb, &txctl) != 0) {
 		ath_dbg(common, XMIT, "TX failed\n");
+		TX_STAT_INC(txctl.txq->axq_qnum, txfailed);
 		goto exit;
 	}
 
@@ -1151,6 +1164,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	mutex_lock(&sc->mutex);
 
 	ath_cancel_work(sc);
+	del_timer_sync(&sc->rx_poll_timer);
 
 	if (sc->sc_flags & SC_OP_INVALID) {
 		ath_dbg(common, ANY, "Device not present\n");
@@ -1237,7 +1251,6 @@ static void ath9k_reclaim_beacon(struct ath_softc *sc,
 	ath9k_set_beaconing_status(sc, false);
 	ath_beacon_return(sc, avp);
 	ath9k_set_beaconing_status(sc, true);
-	sc->sc_flags &= ~SC_OP_BEACONS;
 }
 
 static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
@@ -1368,21 +1381,31 @@ static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
 	ath9k_calculate_summary_state(hw, vif);
 
 	if (ath9k_uses_beacons(vif->type)) {
-		int error;
-		/* This may fail because upper levels do not have beacons
-		 * properly configured yet.  That's OK, we assume it
-		 * will be properly configured and then we will be notified
-		 * in the info_changed method and set up beacons properly
-		 * there.
-		 */
+		/* Reserve a beacon slot for the vif */
 		ath9k_set_beaconing_status(sc, false);
-		error = ath_beacon_alloc(sc, vif);
-		if (!error)
-			ath_beacon_config(sc, vif);
+		ath_beacon_alloc(sc, vif);
 		ath9k_set_beaconing_status(sc, true);
 	}
 }
 
+void ath_start_rx_poll(struct ath_softc *sc, u8 nbeacon)
+{
+	if (!AR_SREV_9300(sc->sc_ah))
+		return;
+
+	if (!(sc->sc_flags & SC_OP_PRIM_STA_VIF))
+		return;
+
+	mod_timer(&sc->rx_poll_timer, jiffies + msecs_to_jiffies
+			(nbeacon * sc->cur_beacon_conf.beacon_interval));
+}
+
+void ath_rx_poll(unsigned long data)
+{
+	struct ath_softc *sc = (struct ath_softc *)data;
+
+	ieee80211_queue_work(sc->hw, &sc->hw_check_work);
+}
 
 static int ath9k_add_interface(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif)
@@ -1511,6 +1534,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 static void ath9k_enable_ps(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	sc->ps_enabled = true;
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
@@ -1520,11 +1544,13 @@ static void ath9k_enable_ps(struct ath_softc *sc)
 		}
 		ath9k_hw_setrxabort(ah, 1);
 	}
+	ath_dbg(common, PS, "PowerSave enabled\n");
 }
 
 static void ath9k_disable_ps(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	sc->ps_enabled = false;
 	ath9k_hw_setpower(ah, ATH9K_PM_AWAKE);
@@ -1539,7 +1565,7 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 			ath9k_hw_set_interrupts(ah);
 		}
 	}
-
+	ath_dbg(common, PS, "PowerSave disabled\n");
 }
 
 static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
@@ -1911,6 +1937,8 @@ static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
+		ath_start_rx_poll(sc, 3);
+
 		if (!common->disable_ani) {
 			sc->sc_flags |= SC_OP_ANI_RUN;
 			ath_start_ani(common);
@@ -1950,6 +1978,7 @@ static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
 		/* Stop ANI */
 		sc->sc_flags &= ~SC_OP_ANI_RUN;
 		del_timer_sync(&common->ani.timer);
+		del_timer_sync(&sc->rx_poll_timer);
 		memset(&sc->caldata, 0, sizeof(sc->caldata));
 	}
 }
@@ -1964,7 +1993,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	int slottime;
-	int error;
 
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
@@ -1993,16 +2021,29 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		} else {
 			sc->sc_flags &= ~SC_OP_ANI_RUN;
 			del_timer_sync(&common->ani.timer);
+			del_timer_sync(&sc->rx_poll_timer);
 		}
 	}
 
-	/* Enable transmission of beacons (AP, IBSS, MESH) */
-	if ((changed & BSS_CHANGED_BEACON) ||
-	    ((changed & BSS_CHANGED_BEACON_ENABLED) && bss_conf->enable_beacon)) {
+	/*
+	 * In case of AP mode, the HW TSF has to be reset
+	 * when the beacon interval changes.
+	 */
+	if ((changed & BSS_CHANGED_BEACON_INT) &&
+	    (vif->type == NL80211_IFTYPE_AP))
+		sc->sc_flags |= SC_OP_TSF_RESET;
+
+	/* Configure beaconing (AP, IBSS, MESH) */
+	if (ath9k_uses_beacons(vif->type) &&
+	    ((changed & BSS_CHANGED_BEACON) ||
+	     (changed & BSS_CHANGED_BEACON_ENABLED) ||
+	     (changed & BSS_CHANGED_BEACON_INT))) {
 		ath9k_set_beaconing_status(sc, false);
-		error = ath_beacon_alloc(sc, vif);
-		if (!error)
-			ath_beacon_config(sc, vif);
+		if (bss_conf->enable_beacon)
+			ath_beacon_alloc(sc, vif);
+		else
+			avp->is_bslot_active = false;
+		ath_beacon_config(sc, vif);
 		ath9k_set_beaconing_status(sc, true);
 	}
 
@@ -2023,30 +2064,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			ah->slottime = slottime;
 			ath9k_hw_init_global_settings(ah);
 		}
-	}
-
-	/* Disable transmission of beacons */
-	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
-	    !bss_conf->enable_beacon) {
-		ath9k_set_beaconing_status(sc, false);
-		avp->is_bslot_active = false;
-		ath9k_set_beaconing_status(sc, true);
-	}
-
-	if (changed & BSS_CHANGED_BEACON_INT) {
-		/*
-		 * In case of AP mode, the HW TSF has to be reset
-		 * when the beacon interval changes.
-		 */
-		if (vif->type == NL80211_IFTYPE_AP) {
-			sc->sc_flags |= SC_OP_TSF_RESET;
-			ath9k_set_beaconing_status(sc, false);
-			error = ath_beacon_alloc(sc, vif);
-			if (!error)
-				ath_beacon_config(sc, vif);
-			ath9k_set_beaconing_status(sc, true);
-		} else
-			ath_beacon_config(sc, vif);
 	}
 
 	mutex_unlock(&sc->mutex);

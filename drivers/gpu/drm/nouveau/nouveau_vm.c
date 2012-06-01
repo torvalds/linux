@@ -77,6 +77,63 @@ nouveau_vm_map(struct nouveau_vma *vma, struct nouveau_mem *node)
 }
 
 void
+nouveau_vm_map_sg_table(struct nouveau_vma *vma, u64 delta, u64 length,
+			struct nouveau_mem *mem)
+{
+	struct nouveau_vm *vm = vma->vm;
+	int big = vma->node->type != vm->spg_shift;
+	u32 offset = vma->node->offset + (delta >> 12);
+	u32 bits = vma->node->type - 12;
+	u32 num  = length >> vma->node->type;
+	u32 pde  = (offset >> vm->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << vm->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (vm->pgt_bits - bits);
+	unsigned m, sglen;
+	u32 end, len;
+	int i;
+	struct scatterlist *sg;
+
+	for_each_sg(mem->sg->sgl, sg, mem->sg->nents, i) {
+		struct nouveau_gpuobj *pgt = vm->pgt[pde].obj[big];
+		sglen = sg_dma_len(sg) >> PAGE_SHIFT;
+
+		end = pte + sglen;
+		if (unlikely(end >= max))
+			end = max;
+		len = end - pte;
+
+		for (m = 0; m < len; m++) {
+			dma_addr_t addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
+
+			vm->map_sg(vma, pgt, mem, pte, 1, &addr);
+			num--;
+			pte++;
+
+			if (num == 0)
+				goto finish;
+		}
+		if (unlikely(end >= max)) {
+			pde++;
+			pte = 0;
+		}
+		if (m < sglen) {
+			for (; m < sglen; m++) {
+				dma_addr_t addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
+
+				vm->map_sg(vma, pgt, mem, pte, 1, &addr);
+				num--;
+				pte++;
+				if (num == 0)
+					goto finish;
+			}
+		}
+
+	}
+finish:
+	vm->flush(vm);
+}
+
+void
 nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 		  struct nouveau_mem *mem)
 {

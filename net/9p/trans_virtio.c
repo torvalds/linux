@@ -615,7 +615,8 @@ static void p9_virtio_remove(struct virtio_device *vdev)
 {
 	struct virtio_chan *chan = vdev->priv;
 
-	BUG_ON(chan->inuse);
+	if (chan->inuse)
+		p9_virtio_close(chan->client);
 	vdev->config->del_vqs(vdev);
 
 	mutex_lock(&virtio_9p_lock);

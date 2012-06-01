@@ -612,7 +612,7 @@ static int bsd_compress(void *state, struct sk_buff *skb_in, struct sk_buff *skb
 		db->n_bits++;
 
 	/* If output length is too large then this is an incompressible frame. */
-	if (!skb_out || (skb_out && skb_out->len >= skb_in->len)) {
+	if (!skb_out || skb_out->len >= skb_in->len) {
 		++db->incomp_count;
 		db->incomp_bytes += isize;
 		return 0;

@@ -1408,7 +1408,7 @@ static inline int sctp_peer_needs_update(struct sctp_association *asoc)
 }
 
 /* Increase asoc's rwnd by len and send any window update SACK if needed. */
-void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned len)
+void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned int len)
 {
 	struct sctp_chunk *sack;
 	struct timer_list *timer;
@@ -1465,7 +1465,7 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned len)
 }
 
 /* Decrease asoc's rwnd by len. */
-void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned len)
+void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned int len)
 {
 	int rx_count;
 	int over = 0;

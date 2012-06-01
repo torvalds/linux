@@ -24,6 +24,7 @@
  *	bit 16..18 - SLPM pull up/down state
  *	bit 19..20 - SLPM direction
  *	bit 21..22 - SLPM Value (if output)
+ *	bit 23..25 - PDIS value (if input)
  *
  * to facilitate the definition, the following macros are provided
  *
@@ -67,6 +68,10 @@ typedef unsigned long pin_cfg_t;
 /* These two replace the above in DB8500v2+ */
 #define PIN_SLPM_WAKEUP_ENABLE	(NMK_GPIO_SLPM_WAKEUP_ENABLE << PIN_SLPM_SHIFT)
 #define PIN_SLPM_WAKEUP_DISABLE	(NMK_GPIO_SLPM_WAKEUP_DISABLE << PIN_SLPM_SHIFT)
+#define PIN_SLPM_USE_MUX_SETTINGS_IN_SLEEP PIN_SLPM_WAKEUP_DISABLE
+
+#define PIN_SLPM_GPIO  PIN_SLPM_WAKEUP_ENABLE /* In SLPM, pin is a gpio */
+#define PIN_SLPM_ALTFUNC PIN_SLPM_WAKEUP_DISABLE /* In SLPM, pin is altfunc */
 
 #define PIN_DIR_SHIFT		14
 #define PIN_DIR_MASK		(0x1 << PIN_DIR_SHIFT)
@@ -104,6 +109,33 @@ typedef unsigned long pin_cfg_t;
 	(((x) & PIN_SLPM_VAL_MASK) >> PIN_SLPM_VAL_SHIFT)
 #define PIN_SLPM_VAL_LOW	((1 + 0) << PIN_SLPM_VAL_SHIFT)
 #define PIN_SLPM_VAL_HIGH	((1 + 1) << PIN_SLPM_VAL_SHIFT)
+
+#define PIN_SLPM_PDIS_SHIFT		23
+#define PIN_SLPM_PDIS_MASK		(0x3 << PIN_SLPM_PDIS_SHIFT)
+#define PIN_SLPM_PDIS(x)	\
+	(((x) & PIN_SLPM_PDIS_MASK) >> PIN_SLPM_PDIS_SHIFT)
+#define PIN_SLPM_PDIS_NO_CHANGE		(0 << PIN_SLPM_PDIS_SHIFT)
+#define PIN_SLPM_PDIS_DISABLED		(1 << PIN_SLPM_PDIS_SHIFT)
+#define PIN_SLPM_PDIS_ENABLED		(2 << PIN_SLPM_PDIS_SHIFT)
+
+#define PIN_LOWEMI_SHIFT	25
+#define PIN_LOWEMI_MASK		(0x1 << PIN_LOWEMI_SHIFT)
+#define PIN_LOWEMI(x)		(((x) & PIN_LOWEMI_MASK) >> PIN_LOWEMI_SHIFT)
+#define PIN_LOWEMI_DISABLED	(0 << PIN_LOWEMI_SHIFT)
+#define PIN_LOWEMI_ENABLED	(1 << PIN_LOWEMI_SHIFT)
+
+#define PIN_GPIOMODE_SHIFT	26
+#define PIN_GPIOMODE_MASK	(0x1 << PIN_GPIOMODE_SHIFT)
+#define PIN_GPIOMODE(x)		(((x) & PIN_GPIOMODE_MASK) >> PIN_GPIOMODE_SHIFT)
+#define PIN_GPIOMODE_DISABLED	(0 << PIN_GPIOMODE_SHIFT)
+#define PIN_GPIOMODE_ENABLED	(1 << PIN_GPIOMODE_SHIFT)
+
+#define PIN_SLEEPMODE_SHIFT	27
+#define PIN_SLEEPMODE_MASK	(0x1 << PIN_SLEEPMODE_SHIFT)
+#define PIN_SLEEPMODE(x)	(((x) & PIN_SLEEPMODE_MASK) >> PIN_SLEEPMODE_SHIFT)
+#define PIN_SLEEPMODE_DISABLED	(0 << PIN_SLEEPMODE_SHIFT)
+#define PIN_SLEEPMODE_ENABLED	(1 << PIN_SLEEPMODE_SHIFT)
+
 
 /* Shortcuts.  Use these instead of separate DIR, PULL, and VAL.  */
 #define PIN_INPUT_PULLDOWN	(PIN_DIR_INPUT | PIN_PULL_DOWN)

@@ -1,38 +1,34 @@
-Linux 2.4 on the CRIS architecture
-==================================
-$Id: README,v 1.7 2001/04/19 12:38:32 bjornw Exp $
+Linux on the CRIS architecture
+==============================
 
-This is a port of Linux 2.4 to Axis Communications ETRAX 100LX embedded 
-network CPU. For more information about CRIS and ETRAX please see further
-below.
+This is a port of Linux to Axis Communications ETRAX 100LX,
+ETRAX FS and ARTPEC-3 embedded network CPUs.
+
+For more information about CRIS and ETRAX please see further below.
 
 In order to compile this you need a version of gcc with support for the
-ETRAX chip family. Please see this link for more information on how to 
+ETRAX chip family. Please see this link for more information on how to
 download the compiler and other tools useful when building and booting
 software for the ETRAX platform:
 
-http://developer.axis.com/doc/software/devboard_lx/install-howto.html
-
-<more specific information should come in this document later>
+http://developer.axis.com/wiki/doku.php?id=axis:install-howto-2_20
 
 What is CRIS ?
 --------------
 
 CRIS is an acronym for 'Code Reduced Instruction Set'. It is the CPU
 architecture in Axis Communication AB's range of embedded network CPU's,
-called ETRAX. The latest CPU is called ETRAX 100LX, where LX stands for
-'Linux' because the chip was designed to be a good host for the Linux
-operating system.
+called ETRAX.
 
 The ETRAX 100LX chip
 --------------------
 
-For reference, please see the press-release:
+For reference, please see the following link:
 
-http://www.axis.com/news/us/001101_etrax.htm
+http://www.axis.com/products/dev_etrax_100lx/index.htm
 
-The ETRAX 100LX is a 100 MIPS processor with 8kB cache, MMU, and a very broad 
-range of  built-in interfaces, all with modern scatter/gather DMA.
+The ETRAX 100LX is a 100 MIPS processor with 8kB cache, MMU, and a very broad
+range of built-in interfaces, all with modern scatter/gather DMA.
 
 Memory interfaces:
 
@@ -51,20 +47,28 @@ I/O interfaces:
 	* SCSI
 	* two parallel-ports
 	* two generic 8-bit ports
-	
-	(not all interfaces are available at the same time due to chip pin 
+
+	(not all interfaces are available at the same time due to chip pin
          multiplexing)
 
-The previous version of the ETRAX, the ETRAX 100, sits in almost all of
-Axis shipping thin-servers like the Axis 2100 web camera or the ETRAX 100
-developer-board. It lacks an MMU so the Linux we run on that is a version
-of uClinux (Linux 2.0 without MM-support) ported to the CRIS architecture.
-The new Linux 2.4 port has full MM and needs a CPU with an MMU, so it will
-not run on the ETRAX 100.
+ETRAX 100LX is CRISv10 architecture.
 
-A version of the Axis developer-board with ETRAX 100LX (running Linux
-2.4) is now available. For more information please see developer.axis.com.
 
+The ETRAX FS and ARTPEC-3 chips
+-------------------------------
+
+The ETRAX FS is a 200MHz 32-bit RISC processor with on-chip 16kB
+I-cache and 16kB D-cache and with a wide range of device interfaces
+including multiple high speed serial ports and an integrated USB 1.1 PHY.
+
+The ARTPEC-3 is a variant of the ETRAX FS with additional IO-units
+used by the Axis Communications network cameras.
+
+See below link for more information:
+
+http://www.axis.com/products/dev_etrax_fs/index.htm
+
+ETRAX FS and ARTPEC-3 are both CRISv32 architectures.
 
 Bootlog
 -------
@@ -180,10 +184,6 @@ SwapFree:            0 kB
 -rwxr-xr-x  1 342      100         46036  Jan 01 00:00 sftpd
 -rwxr-xr-x  1 342      100         48104  Jan 01 00:00 sh
 -rwxr-xr-x  1 342      100         16252  Jan 01 00:00 telnetd
-
-
-(All programs are statically linked to the libc at this point - we have not ported the
- shared libraries yet)
 
 
 

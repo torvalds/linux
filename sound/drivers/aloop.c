@@ -117,6 +117,7 @@ struct loopback_pcm {
 	/* timer stuff */
 	unsigned int irq_pos;		/* fractional IRQ position */
 	unsigned int period_size_frac;
+	unsigned int last_drift;
 	unsigned long last_jiffies;
 	struct timer_list timer;
 };
@@ -264,6 +265,7 @@ static int loopback_trigger(struct snd_pcm_substream *substream, int cmd)
 			return err;
 		dpcm->last_jiffies = jiffies;
 		dpcm->pcm_rate_shift = 0;
+		dpcm->last_drift = 0;
 		spin_lock(&cable->lock);	
 		cable->running |= stream;
 		cable->pause &= ~stream;
@@ -444,34 +446,30 @@ static void copy_play_buf(struct loopback_pcm *play,
 	}
 }
 
-#define BYTEPOS_UPDATE_POSONLY	0
-#define BYTEPOS_UPDATE_CLEAR	1
-#define BYTEPOS_UPDATE_COPY	2
-
-static void loopback_bytepos_update(struct loopback_pcm *dpcm,
-				    unsigned int delta,
-				    unsigned int cmd)
+static inline unsigned int bytepos_delta(struct loopback_pcm *dpcm,
+					 unsigned int jiffies_delta)
 {
-	unsigned int count;
 	unsigned long last_pos;
+	unsigned int delta;
 
 	last_pos = byte_pos(dpcm, dpcm->irq_pos);
-	dpcm->irq_pos += delta * dpcm->pcm_bps;
-	count = byte_pos(dpcm, dpcm->irq_pos) - last_pos;
-	if (!count)
-		return;
-	if (cmd == BYTEPOS_UPDATE_CLEAR)
-		clear_capture_buf(dpcm, count);
-	else if (cmd == BYTEPOS_UPDATE_COPY)
-		copy_play_buf(dpcm->cable->streams[SNDRV_PCM_STREAM_PLAYBACK],
-			      dpcm->cable->streams[SNDRV_PCM_STREAM_CAPTURE],
-			      count);
-	dpcm->buf_pos += count;
-	dpcm->buf_pos %= dpcm->pcm_buffer_size;
+	dpcm->irq_pos += jiffies_delta * dpcm->pcm_bps;
+	delta = byte_pos(dpcm, dpcm->irq_pos) - last_pos;
+	if (delta >= dpcm->last_drift)
+		delta -= dpcm->last_drift;
+	dpcm->last_drift = 0;
 	if (dpcm->irq_pos >= dpcm->period_size_frac) {
 		dpcm->irq_pos %= dpcm->period_size_frac;
 		dpcm->period_update_pending = 1;
 	}
+	return delta;
+}
+
+static inline void bytepos_finish(struct loopback_pcm *dpcm,
+				  unsigned int delta)
+{
+	dpcm->buf_pos += delta;
+	dpcm->buf_pos %= dpcm->pcm_buffer_size;
 }
 
 static unsigned int loopback_pos_update(struct loopback_cable *cable)
@@ -481,7 +479,7 @@ static unsigned int loopback_pos_update(struct loopback_cable *cable)
 	struct loopback_pcm *dpcm_capt =
 			cable->streams[SNDRV_PCM_STREAM_CAPTURE];
 	unsigned long delta_play = 0, delta_capt = 0;
-	unsigned int running;
+	unsigned int running, count1, count2;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cable->lock, flags);
@@ -500,12 +498,13 @@ static unsigned int loopback_pos_update(struct loopback_cable *cable)
 		goto unlock;
 		
 	if (delta_play > delta_capt) {
-		loopback_bytepos_update(dpcm_play, delta_play - delta_capt,
-					BYTEPOS_UPDATE_POSONLY);
+		count1 = bytepos_delta(dpcm_play, delta_play - delta_capt);
+		bytepos_finish(dpcm_play, count1);
 		delta_play = delta_capt;
 	} else if (delta_play < delta_capt) {
-		loopback_bytepos_update(dpcm_capt, delta_capt - delta_play,
-					BYTEPOS_UPDATE_CLEAR);
+		count1 = bytepos_delta(dpcm_capt, delta_capt - delta_play);
+		clear_capture_buf(dpcm_capt, count1);
+		bytepos_finish(dpcm_capt, count1);
 		delta_capt = delta_play;
 	}
 
@@ -513,8 +512,17 @@ static unsigned int loopback_pos_update(struct loopback_cable *cable)
 		goto unlock;
 
 	/* note delta_capt == delta_play at this moment */
-	loopback_bytepos_update(dpcm_capt, delta_capt, BYTEPOS_UPDATE_COPY);
-	loopback_bytepos_update(dpcm_play, delta_play, BYTEPOS_UPDATE_POSONLY);
+	count1 = bytepos_delta(dpcm_play, delta_play);
+	count2 = bytepos_delta(dpcm_capt, delta_capt);
+	if (count1 < count2) {
+		dpcm_capt->last_drift = count2 - count1;
+		count1 = count2;
+	} else if (count1 > count2) {
+		dpcm_play->last_drift = count1 - count2;
+	}
+	copy_play_buf(dpcm_play, dpcm_capt, count1);
+	bytepos_finish(dpcm_play, count1);
+	bytepos_finish(dpcm_capt, count1);
  unlock:
 	spin_unlock_irqrestore(&cable->lock, flags);
 	return running;

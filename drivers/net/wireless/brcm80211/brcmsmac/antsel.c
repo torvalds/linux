@@ -108,7 +108,7 @@ brcms_c_antsel_init_cfg(struct antsel_info *asi, struct brcms_antselcfg *antsel,
 struct antsel_info *brcms_c_antsel_attach(struct brcms_c_info *wlc)
 {
 	struct antsel_info *asi;
-	struct si_pub *sih = wlc->hw->sih;
+	struct ssb_sprom *sprom = &wlc->hw->d11core->bus->sprom;
 
 	asi = kzalloc(sizeof(struct antsel_info), GFP_ATOMIC);
 	if (!asi)
@@ -118,7 +118,7 @@ struct antsel_info *brcms_c_antsel_attach(struct brcms_c_info *wlc)
 	asi->pub = wlc->pub;
 	asi->antsel_type = ANTSEL_NA;
 	asi->antsel_avail = false;
-	asi->antsel_antswitch = (u8) getintvar(sih, BRCMS_SROM_ANTSWITCH);
+	asi->antsel_antswitch = sprom->antswitch;
 
 	if ((asi->pub->sromrev >= 4) && (asi->antsel_antswitch != 0)) {
 		switch (asi->antsel_antswitch) {
@@ -128,12 +128,12 @@ struct antsel_info *brcms_c_antsel_attach(struct brcms_c_info *wlc)
 			/* 4321/2 board with 2x3 switch logic */
 			asi->antsel_type = ANTSEL_2x3;
 			/* Antenna selection availability */
-			if (((u16) getintvar(sih, BRCMS_SROM_AA2G) == 7) ||
-			    ((u16) getintvar(sih, BRCMS_SROM_AA5G) == 7)) {
+			if ((sprom->ant_available_bg == 7) ||
+			    (sprom->ant_available_a == 7)) {
 				asi->antsel_avail = true;
 			} else if (
-				(u16) getintvar(sih, BRCMS_SROM_AA2G) == 3 ||
-				(u16) getintvar(sih, BRCMS_SROM_AA5G) == 3) {
+				sprom->ant_available_bg == 3 ||
+				sprom->ant_available_a == 3) {
 				asi->antsel_avail = false;
 			} else {
 				asi->antsel_avail = false;
@@ -146,8 +146,8 @@ struct antsel_info *brcms_c_antsel_attach(struct brcms_c_info *wlc)
 			break;
 		}
 	} else if ((asi->pub->sromrev == 4) &&
-		   ((u16) getintvar(sih, BRCMS_SROM_AA2G) == 7) &&
-		   ((u16) getintvar(sih, BRCMS_SROM_AA5G) == 0)) {
+		   (sprom->ant_available_bg == 7) &&
+		   (sprom->ant_available_a == 0)) {
 		/* hack to match old 4321CB2 cards with 2of3 antenna switch */
 		asi->antsel_type = ANTSEL_2x3;
 		asi->antsel_avail = true;

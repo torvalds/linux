@@ -713,11 +713,10 @@ static void icmp_unreach(struct sk_buff *skb)
 
 	if (!net->ipv4.sysctl_icmp_ignore_bogus_error_responses &&
 	    inet_addr_type(net, iph->daddr) == RTN_BROADCAST) {
-		if (net_ratelimit())
-			pr_warn("%pI4 sent an invalid ICMP type %u, code %u error to a broadcast: %pI4 on %s\n",
-				&ip_hdr(skb)->saddr,
-				icmph->type, icmph->code,
-				&iph->daddr, skb->dev->name);
+		net_warn_ratelimited("%pI4 sent an invalid ICMP type %u, code %u error to a broadcast: %pI4 on %s\n",
+				     &ip_hdr(skb)->saddr,
+				     icmph->type, icmph->code,
+				     &iph->daddr, skb->dev->name);
 		goto out;
 	}
 
@@ -906,8 +905,7 @@ out_err:
 static void icmp_address(struct sk_buff *skb)
 {
 #if 0
-	if (net_ratelimit())
-		printk(KERN_DEBUG "a guy asks for address mask. Who is it?\n");
+	net_dbg_ratelimited("a guy asks for address mask. Who is it?\n");
 #endif
 }
 
@@ -943,10 +941,10 @@ static void icmp_address_reply(struct sk_buff *skb)
 			    inet_ifa_match(ip_hdr(skb)->saddr, ifa))
 				break;
 		}
-		if (!ifa && net_ratelimit()) {
-			pr_info("Wrong address mask %pI4 from %s/%pI4\n",
-				mp, dev->name, &ip_hdr(skb)->saddr);
-		}
+		if (!ifa)
+			net_info_ratelimited("Wrong address mask %pI4 from %s/%pI4\n",
+					     mp,
+					     dev->name, &ip_hdr(skb)->saddr);
 	}
 }
 

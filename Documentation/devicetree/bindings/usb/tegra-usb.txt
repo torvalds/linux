@@ -12,6 +12,9 @@ Required properties :
  - nvidia,vbus-gpio : If present, specifies a gpio that needs to be
    activated for the bus to be powered.
 
+Required properties for phy_type == ulpi:
+  - nvidia,phy-reset-gpio : The GPIO used to reset the PHY.
+
 Optional properties:
   - dr_mode : dual role mode. Indicates the working mode for
    nvidia,tegra20-ehci compatible controllers.  Can be "host", "peripheral",

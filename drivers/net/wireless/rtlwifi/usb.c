@@ -971,11 +971,6 @@ int __devinit rtl_usb_probe(struct usb_interface *intf,
 	rtlpriv->cfg->ops->read_chip_version(hw);
 	/*like read eeprom and so on */
 	rtlpriv->cfg->ops->read_eeprom_info(hw);
-	if (rtlpriv->cfg->ops->init_sw_vars(hw)) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Can't init_sw_vars\n");
-		goto error_out;
-	}
-	rtlpriv->cfg->ops->init_sw_leds(hw);
 	err = _rtl_usb_init(hw);
 	if (err)
 		goto error_out;
@@ -987,6 +982,11 @@ int __devinit rtl_usb_probe(struct usb_interface *intf,
 			 "Can't allocate sw for mac80211\n");
 		goto error_out;
 	}
+	if (rtlpriv->cfg->ops->init_sw_vars(hw)) {
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Can't init_sw_vars\n");
+		goto error_out;
+	}
+	rtlpriv->cfg->ops->init_sw_leds(hw);
 
 	return 0;
 error_out:

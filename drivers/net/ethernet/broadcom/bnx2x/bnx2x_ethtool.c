@@ -22,13 +22,10 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/crc32.h>
-
-
 #include "bnx2x.h"
 #include "bnx2x_cmn.h"
 #include "bnx2x_dump.h"
 #include "bnx2x_init.h"
-#include "bnx2x_sp.h"
 
 /* Note: in the format strings below %s is replaced by the queue-name which is
  * either its index or 'fcoe' for the fcoe queue. Make sure the format string
@@ -595,8 +592,8 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 #define IS_E3_ONLINE(info)	(((info) & RI_E3_ONLINE) == RI_E3_ONLINE)
 #define IS_E3B0_ONLINE(info)	(((info) & RI_E3B0_ONLINE) == RI_E3B0_ONLINE)
 
-static inline bool bnx2x_is_reg_online(struct bnx2x *bp,
-				       const struct reg_addr *reg_info)
+static bool bnx2x_is_reg_online(struct bnx2x *bp,
+				const struct reg_addr *reg_info)
 {
 	if (CHIP_IS_E1(bp))
 		return IS_E1_ONLINE(reg_info->info);
@@ -613,7 +610,7 @@ static inline bool bnx2x_is_reg_online(struct bnx2x *bp,
 }
 
 /******* Paged registers info selectors ********/
-static inline const u32 *__bnx2x_get_page_addr_ar(struct bnx2x *bp)
+static const u32 *__bnx2x_get_page_addr_ar(struct bnx2x *bp)
 {
 	if (CHIP_IS_E2(bp))
 		return page_vals_e2;
@@ -623,7 +620,7 @@ static inline const u32 *__bnx2x_get_page_addr_ar(struct bnx2x *bp)
 		return NULL;
 }
 
-static inline u32 __bnx2x_get_page_reg_num(struct bnx2x *bp)
+static u32 __bnx2x_get_page_reg_num(struct bnx2x *bp)
 {
 	if (CHIP_IS_E2(bp))
 		return PAGE_MODE_VALUES_E2;
@@ -633,7 +630,7 @@ static inline u32 __bnx2x_get_page_reg_num(struct bnx2x *bp)
 		return 0;
 }
 
-static inline const u32 *__bnx2x_get_page_write_ar(struct bnx2x *bp)
+static const u32 *__bnx2x_get_page_write_ar(struct bnx2x *bp)
 {
 	if (CHIP_IS_E2(bp))
 		return page_write_regs_e2;
@@ -643,7 +640,7 @@ static inline const u32 *__bnx2x_get_page_write_ar(struct bnx2x *bp)
 		return NULL;
 }
 
-static inline u32 __bnx2x_get_page_write_num(struct bnx2x *bp)
+static u32 __bnx2x_get_page_write_num(struct bnx2x *bp)
 {
 	if (CHIP_IS_E2(bp))
 		return PAGE_WRITE_REGS_E2;
@@ -653,7 +650,7 @@ static inline u32 __bnx2x_get_page_write_num(struct bnx2x *bp)
 		return 0;
 }
 
-static inline const struct reg_addr *__bnx2x_get_page_read_ar(struct bnx2x *bp)
+static const struct reg_addr *__bnx2x_get_page_read_ar(struct bnx2x *bp)
 {
 	if (CHIP_IS_E2(bp))
 		return page_read_regs_e2;
@@ -663,7 +660,7 @@ static inline const struct reg_addr *__bnx2x_get_page_read_ar(struct bnx2x *bp)
 		return NULL;
 }
 
-static inline u32 __bnx2x_get_page_read_num(struct bnx2x *bp)
+static u32 __bnx2x_get_page_read_num(struct bnx2x *bp)
 {
 	if (CHIP_IS_E2(bp))
 		return PAGE_READ_REGS_E2;
@@ -673,7 +670,7 @@ static inline u32 __bnx2x_get_page_read_num(struct bnx2x *bp)
 		return 0;
 }
 
-static inline int __bnx2x_get_regs_len(struct bnx2x *bp)
+static int __bnx2x_get_regs_len(struct bnx2x *bp)
 {
 	int num_pages = __bnx2x_get_page_reg_num(bp);
 	int page_write_num = __bnx2x_get_page_write_num(bp);
@@ -718,7 +715,7 @@ static int bnx2x_get_regs_len(struct net_device *dev)
  * ("read address"). There may be more than one write address per "page" and
  * more than one read address per write address.
  */
-static inline void bnx2x_read_pages_regs(struct bnx2x *bp, u32 *p)
+static void bnx2x_read_pages_regs(struct bnx2x *bp, u32 *p)
 {
 	u32 i, j, k, n;
 	/* addresses of the paged registers */
@@ -747,7 +744,7 @@ static inline void bnx2x_read_pages_regs(struct bnx2x *bp, u32 *p)
 	}
 }
 
-static inline void __bnx2x_get_regs(struct bnx2x *bp, u32 *p)
+static void __bnx2x_get_regs(struct bnx2x *bp, u32 *p)
 {
 	u32 i, j;
 
@@ -1433,7 +1430,7 @@ static void bnx2x_get_ringparam(struct net_device *dev,
 	else
 		ering->rx_pending = MAX_RX_AVAIL;
 
-	ering->tx_max_pending = MAX_TX_AVAIL;
+	ering->tx_max_pending = IS_MF_FCOE_AFEX(bp) ? 0 : MAX_TX_AVAIL;
 	ering->tx_pending = bp->tx_ring_size;
 }
 
@@ -1451,7 +1448,7 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 	if ((ering->rx_pending > MAX_RX_AVAIL) ||
 	    (ering->rx_pending < (bp->disable_tpa ? MIN_RX_SIZE_NONTPA :
 						    MIN_RX_SIZE_TPA)) ||
-	    (ering->tx_pending > MAX_TX_AVAIL) ||
+	    (ering->tx_pending > (IS_MF_FCOE_AFEX(bp) ? 0 : MAX_TX_AVAIL)) ||
 	    (ering->tx_pending <= MAX_SKB_FRAGS + 4)) {
 		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
 		return -EINVAL;
@@ -2212,7 +2209,7 @@ static void bnx2x_self_test(struct net_device *dev,
 /* ethtool statistics are displayed for all regular ethernet queues and the
  * fcoe L2 queue if not disabled
  */
-static inline int bnx2x_num_stat_queues(struct bnx2x *bp)
+static int bnx2x_num_stat_queues(struct bnx2x *bp)
 {
 	return BNX2X_NUM_ETH_QUEUES(bp);
 }
@@ -2396,10 +2393,7 @@ static int bnx2x_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 
 static u32 bnx2x_get_rxfh_indir_size(struct net_device *dev)
 {
-	struct bnx2x *bp = netdev_priv(dev);
-
-	return (bp->multi_mode == ETH_RSS_MODE_DISABLED ?
-		0 : T_ETH_INDIRECTION_TABLE_SIZE);
+	return T_ETH_INDIRECTION_TABLE_SIZE;
 }
 
 static int bnx2x_get_rxfh_indir(struct net_device *dev, u32 *indir)
@@ -2445,7 +2439,7 @@ static int bnx2x_set_rxfh_indir(struct net_device *dev, const u32 *indir)
 		ind_table[i] = indir[i] + bp->fp->cl_id;
 	}
 
-	return bnx2x_config_rss_pf(bp, ind_table, false);
+	return bnx2x_config_rss_eth(bp, ind_table, false);
 }
 
 static const struct ethtool_ops bnx2x_ethtool_ops = {

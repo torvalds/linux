@@ -2119,6 +2119,8 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
 	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync,
 	.release_swfw_sync      = &ixgbe_release_swfw_sync,
+	.get_thermal_sensor_data = &ixgbe_get_thermal_sensor_data_generic,
+	.init_thermal_sensor_thresh = &ixgbe_init_thermal_sensor_thresh_generic,
 
 };
 

@@ -27,10 +27,6 @@
  * module load parameters or the kernel boot parameters. If MTD devices were
  * specified, UBI does not attach any MTD device, but it is possible to do
  * later using the "UBI control device".
- *
- * At the moment we only attach UBI devices by scanning, which will become a
- * bottleneck when flashes reach certain large size. Then one may improve UBI
- * and add other methods, although it does not seem to be easy to do.
  */
 
 #include <linux/err.h>
@@ -554,10 +550,10 @@ static void uif_close(struct ubi_device *ubi)
 }
 
 /**
- * free_internal_volumes - free internal volumes.
+ * ubi_free_internal_volumes - free internal volumes.
  * @ubi: UBI device description object
  */
-static void free_internal_volumes(struct ubi_device *ubi)
+void ubi_free_internal_volumes(struct ubi_device *ubi)
 {
 	int i;
 
@@ -566,59 +562,6 @@ static void free_internal_volumes(struct ubi_device *ubi)
 		kfree(ubi->volumes[i]->eba_tbl);
 		kfree(ubi->volumes[i]);
 	}
-}
-
-/**
- * attach_by_scanning - attach an MTD device using scanning method.
- * @ubi: UBI device descriptor
- *
- * This function returns zero in case of success and a negative error code in
- * case of failure.
- *
- * Note, currently this is the only method to attach UBI devices. Hopefully in
- * the future we'll have more scalable attaching methods and avoid full media
- * scanning. But even in this case scanning will be needed as a fall-back
- * attaching method if there are some on-flash table corruptions.
- */
-static int attach_by_scanning(struct ubi_device *ubi)
-{
-	int err;
-	struct ubi_scan_info *si;
-
-	si = ubi_scan(ubi);
-	if (IS_ERR(si))
-		return PTR_ERR(si);
-
-	ubi->bad_peb_count = si->bad_peb_count;
-	ubi->good_peb_count = ubi->peb_count - ubi->bad_peb_count;
-	ubi->corr_peb_count = si->corr_peb_count;
-	ubi->max_ec = si->max_ec;
-	ubi->mean_ec = si->mean_ec;
-	ubi_msg("max. sequence number:       %llu", si->max_sqnum);
-
-	err = ubi_read_volume_table(ubi, si);
-	if (err)
-		goto out_si;
-
-	err = ubi_wl_init_scan(ubi, si);
-	if (err)
-		goto out_vtbl;
-
-	err = ubi_eba_init_scan(ubi, si);
-	if (err)
-		goto out_wl;
-
-	ubi_scan_destroy_si(si);
-	return 0;
-
-out_wl:
-	ubi_wl_close(ubi);
-out_vtbl:
-	free_internal_volumes(ubi);
-	vfree(ubi->vtbl);
-out_si:
-	ubi_scan_destroy_si(si);
-	return err;
 }
 
 /**
@@ -790,11 +733,11 @@ static int io_init(struct ubi_device *ubi)
 	ubi_msg("data offset:                %d", ubi->leb_start);
 
 	/*
-	 * Note, ideally, we have to initialize ubi->bad_peb_count here. But
+	 * Note, ideally, we have to initialize @ubi->bad_peb_count here. But
 	 * unfortunately, MTD does not provide this information. We should loop
 	 * over all physical eraseblocks and invoke mtd->block_is_bad() for
-	 * each physical eraseblock. So, we skip ubi->bad_peb_count
-	 * uninitialized and initialize it after scanning.
+	 * each physical eraseblock. So, we leave @ubi->bad_peb_count
+	 * uninitialized so far.
 	 */
 
 	return 0;
@@ -805,7 +748,7 @@ static int io_init(struct ubi_device *ubi)
  * @ubi: UBI device description object
  * @vol_id: ID of the volume to re-size
  *
- * This function re-sizes the volume marked by the @UBI_VTBL_AUTORESIZE_FLG in
+ * This function re-sizes the volume marked by the %UBI_VTBL_AUTORESIZE_FLG in
  * the volume table to the largest possible size. See comments in ubi-header.h
  * for more description of the flag. Returns zero in case of success and a
  * negative error code in case of failure.
@@ -881,7 +824,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	for (i = 0; i < UBI_MAX_DEVICES; i++) {
 		ubi = ubi_devices[i];
 		if (ubi && mtd->index == ubi->mtd->index) {
-			dbg_err("mtd%d is already attached to ubi%d",
+			ubi_err("mtd%d is already attached to ubi%d",
 				mtd->index, i);
 			return -EEXIST;
 		}
@@ -907,7 +850,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 			if (!ubi_devices[ubi_num])
 				break;
 		if (ubi_num == UBI_MAX_DEVICES) {
-			dbg_err("only %d UBI devices may be created",
+			ubi_err("only %d UBI devices may be created",
 				UBI_MAX_DEVICES);
 			return -ENFILE;
 		}
@@ -917,7 +860,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 
 		/* Make sure ubi_num is not busy */
 		if (ubi_devices[ubi_num]) {
-			dbg_err("ubi%d already exists", ubi_num);
+			ubi_err("ubi%d already exists", ubi_num);
 			return -EEXIST;
 		}
 	}
@@ -937,7 +880,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	spin_lock_init(&ubi->volumes_lock);
 
 	ubi_msg("attaching mtd%d to ubi%d", mtd->index, ubi_num);
-	dbg_msg("sizeof(struct ubi_scan_leb) %zu", sizeof(struct ubi_scan_leb));
+	dbg_msg("sizeof(struct ubi_ainf_peb) %zu", sizeof(struct ubi_ainf_peb));
 	dbg_msg("sizeof(struct ubi_wl_entry) %zu", sizeof(struct ubi_wl_entry));
 
 	err = io_init(ubi);
@@ -953,9 +896,9 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	if (err)
 		goto out_free;
 
-	err = attach_by_scanning(ubi);
+	err = ubi_attach(ubi);
 	if (err) {
-		dbg_err("failed to attach by scanning, error %d", err);
+		ubi_err("failed to attach mtd%d, error %d", mtd->index, err);
 		goto out_debugging;
 	}
 
@@ -1020,7 +963,7 @@ out_uif:
 	uif_close(ubi);
 out_detach:
 	ubi_wl_close(ubi);
-	free_internal_volumes(ubi);
+	ubi_free_internal_volumes(ubi);
 	vfree(ubi->vtbl);
 out_debugging:
 	ubi_debugging_exit_dev(ubi);
@@ -1092,7 +1035,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	ubi_debugfs_exit_dev(ubi);
 	uif_close(ubi);
 	ubi_wl_close(ubi);
-	free_internal_volumes(ubi);
+	ubi_free_internal_volumes(ubi);
 	vfree(ubi->vtbl);
 	put_mtd_device(ubi->mtd);
 	ubi_debugging_exit_dev(ubi);

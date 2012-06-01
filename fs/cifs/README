@@ -608,11 +608,6 @@ Stats			Lists summary resource usage information as well as per
 			in the kernel configuration.
 
 Configuration pseudo-files:
-MultiuserMount		If set to one, more than one CIFS session to 
-			the same server ip address can be established
-			if more than one uid accesses the same mount
-			point and if the uids user/password mapping
-			information is available. (default is 0)
 PacketSigningEnabled	If set to one, cifs packet signing is enabled
 			and will be used if the server requires 
 			it.  If set to two, cifs packet signing is

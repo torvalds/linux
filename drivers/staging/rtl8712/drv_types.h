@@ -146,7 +146,7 @@ struct dvobj_priv {
 /**
  * struct _adapter - the main adapter structure for this device.
  *
- * bup: True indicates that the interface is Up.
+ * bup: True indicates that the interface is up.
  */
 struct _adapter {
 	struct	dvobj_priv dvobjpriv;

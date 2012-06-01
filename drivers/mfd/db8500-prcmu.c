@@ -2720,6 +2720,7 @@ static struct regulator_consumer_supply db8500_vape_consumers[] = {
 	REGULATOR_SUPPLY("v-i2c", "nmk-i2c.1"),
 	REGULATOR_SUPPLY("v-i2c", "nmk-i2c.2"),
 	REGULATOR_SUPPLY("v-i2c", "nmk-i2c.3"),
+	REGULATOR_SUPPLY("v-i2c", "nmk-i2c.4"),
 	/* "v-mmc" changed to "vcore" in the mainline kernel */
 	REGULATOR_SUPPLY("vcore", "sdi0"),
 	REGULATOR_SUPPLY("vcore", "sdi1"),
@@ -2958,9 +2959,10 @@ static struct mfd_cell db8500_prcmu_devs[] = {
  * prcmu_fw_init - arch init call for the Linux PRCMU fw init logic
  *
  */
-static int __init db8500_prcmu_probe(struct platform_device *pdev)
+static int __devinit db8500_prcmu_probe(struct platform_device *pdev)
 {
-	int err = 0;
+	struct device_node *np = pdev->dev.of_node;
+	int irq = 0, err = 0;
 
 	if (ux500_is_svp())
 		return -ENODEV;
@@ -2970,8 +2972,14 @@ static int __init db8500_prcmu_probe(struct platform_device *pdev)
 	/* Clean up the mailbox interrupts after pre-kernel code. */
 	writel(ALL_MBOX_BITS, PRCM_ARM_IT1_CLR);
 
-	err = request_threaded_irq(IRQ_DB8500_PRCMU1, prcmu_irq_handler,
-		prcmu_irq_thread_fn, IRQF_NO_SUSPEND, "prcmu", NULL);
+	if (np)
+		irq = platform_get_irq(pdev, 0);
+
+	if (!np || irq <= 0)
+		irq = IRQ_DB8500_PRCMU1;
+
+	err = request_threaded_irq(irq, prcmu_irq_handler,
+	        prcmu_irq_thread_fn, IRQF_NO_SUSPEND, "prcmu", NULL);
 	if (err < 0) {
 		pr_err("prcmu: Failed to allocate IRQ_DB8500_PRCMU1.\n");
 		err = -EBUSY;
@@ -2981,14 +2989,16 @@ static int __init db8500_prcmu_probe(struct platform_device *pdev)
 	if (cpu_is_u8500v20_or_later())
 		prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
 
-	err = mfd_add_devices(&pdev->dev, 0, db8500_prcmu_devs,
-			      ARRAY_SIZE(db8500_prcmu_devs), NULL,
-			      0);
+	if (!np) {
+		err = mfd_add_devices(&pdev->dev, 0, db8500_prcmu_devs,
+				ARRAY_SIZE(db8500_prcmu_devs), NULL, 0);
+		if (err) {
+			pr_err("prcmu: Failed to add subdevices\n");
+			return err;
+		}
+	}
 
-	if (err)
-		pr_err("prcmu: Failed to add subdevices\n");
-	else
-		pr_info("DB8500 PRCMU initialized\n");
+	pr_info("DB8500 PRCMU initialized\n");
 
 no_irq_return:
 	return err;
@@ -2999,11 +3009,12 @@ static struct platform_driver db8500_prcmu_driver = {
 		.name = "db8500-prcmu",
 		.owner = THIS_MODULE,
 	},
+	.probe = db8500_prcmu_probe,
 };
 
 static int __init db8500_prcmu_init(void)
 {
-	return platform_driver_probe(&db8500_prcmu_driver, db8500_prcmu_probe);
+	return platform_driver_register(&db8500_prcmu_driver);
 }
 
 arch_initcall(db8500_prcmu_init);

@@ -531,6 +531,14 @@ config DVB_LGDT3305
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
+config DVB_LG2160
+	tristate "LG Electronics LG216x based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  An ATSC/MH demodulator module. Say Y when you want
+	  to support this frontend.
+
 config DVB_S5H1409
 	tristate "Samsung S5H1409 based"
 	depends on DVB_CORE && I2C
@@ -540,12 +548,26 @@ config DVB_S5H1409
 	  to support this frontend.
 
 config DVB_AU8522
-	tristate "Auvitek AU8522 based"
-	depends on DVB_CORE && I2C && VIDEO_V4L2
+	depends on I2C
+	tristate
+
+config DVB_AU8522_DTV
+	tristate "Auvitek AU8522 based DTV demod"
+	depends on DVB_CORE && I2C
+	select DVB_AU8522
 	default m if DVB_FE_CUSTOMISE
 	help
-	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
-	  to support this frontend.
+	  An ATSC 8VSB, QAM64/256 & NTSC demodulator module. Say Y when
+	  you want to enable DTV demodulation support for this frontend.
+
+config DVB_AU8522_V4L
+	tristate "Auvitek AU8522 based ATV demod"
+	depends on VIDEO_V4L2 && I2C
+	select DVB_AU8522
+	default m if DVB_FE_CUSTOMISE
+	help
+	  An ATSC 8VSB, QAM64/256 & NTSC demodulator module. Say Y when
+	  you want to enable ATV demodulation support for this frontend.
 
 config DVB_S5H1411
 	tristate "Samsung S5H1411 based"
@@ -712,6 +734,11 @@ config DVB_M88RS2000
 	help
 	  A DVB-S tuner module.
 	  Say Y when you want to support this frontend.
+
+config DVB_AF9033
+	tristate "Afatech AF9033 DVB-T demodulator"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
 
 comment "Tools to develop new frontends"
 

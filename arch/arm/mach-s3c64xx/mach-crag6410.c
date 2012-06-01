@@ -31,6 +31,7 @@
 #include <linux/spi/spi.h>
 
 #include <linux/i2c/pca953x.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <video/platform_lcd.h>
 
@@ -61,7 +62,6 @@
 #include <plat/sdhci.h>
 #include <plat/gpio-cfg.h>
 #include <plat/s3c64xx-spi.h>
-#include <plat/udc-hs.h>
 
 #include <plat/keypad.h>
 #include <plat/clock.h>
@@ -232,21 +232,10 @@ static struct platform_device crag6410_gpio_keydev = {
 };
 
 static struct resource crag6410_dm9k_resource[] = {
-	[0] = {
-		.start	= S3C64XX_PA_XM0CSN5,
-		.end	= S3C64XX_PA_XM0CSN5 + 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= S3C64XX_PA_XM0CSN5 + (1 << 8),
-		.end	= S3C64XX_PA_XM0CSN5 + (1 << 8) + 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[2] = {
-		.start	= S3C_EINT(17),
-		.end	= S3C_EINT(17),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	},
+	[0] = DEFINE_RES_MEM(S3C64XX_PA_XM0CSN5, 2),
+	[1] = DEFINE_RES_MEM(S3C64XX_PA_XM0CSN5 + (1 << 8), 2),
+	[2] = DEFINE_RES_NAMED(S3C_EINT(17), 1, NULL, IORESOURCE_IRQ \
+				| IORESOURCE_IRQ_HIGHLEVEL),
 };
 
 static struct dm9000_plat_data mini6410_dm9k_pdata = {
@@ -262,12 +251,7 @@ static struct platform_device crag6410_dm9k_device = {
 };
 
 static struct resource crag6410_mmgpio_resource[] = {
-	[0] = {
-		.name	= "dat",
-		.start	= S3C64XX_PA_XM0CSN4 + 1,
-		.end	= S3C64XX_PA_XM0CSN4 + 1,
-		.flags	= IORESOURCE_MEM,
-	},
+	[0] = DEFINE_RES_MEM_NAMED(S3C64XX_PA_XM0CSN4, 1, "dat"),
 };
 
 static struct platform_device crag6410_mmgpio = {
@@ -306,6 +290,24 @@ static struct regulator_consumer_supply wallvdd_consumers[] = {
 	REGULATOR_SUPPLY("SPKVDD2", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDDL", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDDR", "1-001a"),
+
+	REGULATOR_SUPPLY("DC1VDD", "0-0034"),
+	REGULATOR_SUPPLY("DC2VDD", "0-0034"),
+	REGULATOR_SUPPLY("DC3VDD", "0-0034"),
+	REGULATOR_SUPPLY("LDO1VDD", "0-0034"),
+	REGULATOR_SUPPLY("LDO2VDD", "0-0034"),
+	REGULATOR_SUPPLY("LDO4VDD", "0-0034"),
+	REGULATOR_SUPPLY("LDO5VDD", "0-0034"),
+	REGULATOR_SUPPLY("LDO6VDD", "0-0034"),
+	REGULATOR_SUPPLY("LDO7VDD", "0-0034"),
+	REGULATOR_SUPPLY("LDO8VDD", "0-0034"),
+	REGULATOR_SUPPLY("LDO9VDD", "0-0034"),
+	REGULATOR_SUPPLY("LDO10VDD", "0-0034"),
+	REGULATOR_SUPPLY("LDO11VDD", "0-0034"),
+
+	REGULATOR_SUPPLY("DC1VDD", "1-0034"),
+	REGULATOR_SUPPLY("DC2VDD", "1-0034"),
+	REGULATOR_SUPPLY("DC3VDD", "1-0034"),
 };
 
 static struct regulator_init_data wallvdd_data = {
@@ -811,6 +813,7 @@ MACHINE_START(WLF_CRAGG_6410, "Wolfson Cragganmore 6410")
 	.handle_irq	= vic_handle_irq,
 	.map_io		= crag6410_map_io,
 	.init_machine	= crag6410_machine_init,
+	.init_late	= s3c64xx_init_late,
 	.timer		= &s3c24xx_timer,
 	.restart	= s3c64xx_restart,
 MACHINE_END

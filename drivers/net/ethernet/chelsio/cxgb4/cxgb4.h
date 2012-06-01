@@ -51,6 +51,8 @@
 #define FW_VERSION_MINOR 1
 #define FW_VERSION_MICRO 0
 
+#define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
+
 enum {
 	MAX_NPORTS = 4,     /* max # of ports */
 	SERNUM_LEN = 24,    /* Serial # length */
@@ -62,6 +64,15 @@ enum {
 	MEM_EDC0,
 	MEM_EDC1,
 	MEM_MC
+};
+
+enum {
+	MEMWIN0_APERTURE = 65536,
+	MEMWIN0_BASE     = 0x30000,
+	MEMWIN1_APERTURE = 32768,
+	MEMWIN1_BASE     = 0x28000,
+	MEMWIN2_APERTURE = 2048,
+	MEMWIN2_BASE     = 0x1b800,
 };
 
 enum dev_master {
@@ -403,6 +414,9 @@ struct sge_txq {
 	struct tx_sw_desc *sdesc;   /* address of SW Tx descriptor ring */
 	struct sge_qstat *stat;     /* queue status entry */
 	dma_addr_t    phys_addr;    /* physical address of the ring */
+	spinlock_t db_lock;
+	int db_disabled;
+	unsigned short db_pidx;
 };
 
 struct sge_eth_txq {                /* state for an SGE Ethernet Tx queue */
@@ -475,6 +489,7 @@ struct adapter {
 	void __iomem *regs;
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
+	unsigned int mbox;
 	unsigned int fn;
 	unsigned int flags;
 
@@ -504,6 +519,8 @@ struct adapter {
 	void **tid_release_head;
 	spinlock_t tid_release_lock;
 	struct work_struct tid_release_task;
+	struct work_struct db_full_task;
+	struct work_struct db_drop_task;
 	bool tid_release_task_busy;
 
 	struct dentry *debugfs_root;
@@ -605,6 +622,7 @@ irqreturn_t t4_sge_intr_msix(int irq, void *cookie);
 void t4_sge_init(struct adapter *adap);
 void t4_sge_start(struct adapter *adap);
 void t4_sge_stop(struct adapter *adap);
+extern int dbfifo_int_thresh;
 
 #define for_each_port(adapter, iter) \
 	for (iter = 0; iter < (adapter)->params.nports; ++iter)
@@ -719,4 +737,9 @@ int t4_ctrl_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int eqid);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
+void t4_db_full(struct adapter *adapter);
+void t4_db_dropped(struct adapter *adapter);
+int t4_mem_win_read_len(struct adapter *adap, u32 addr, __be32 *data, int len);
+int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
+			 u32 addr, u32 val);
 #endif /* __CXGB4_H__ */

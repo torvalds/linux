@@ -1320,7 +1320,7 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	drm_mode_config_init(rdev->ddev);
 	rdev->mode_info.mode_config_initialized = true;
 
-	rdev->ddev->mode_config.funcs = (void *)&radeon_mode_funcs;
+	rdev->ddev->mode_config.funcs = &radeon_mode_funcs;
 
 	if (ASIC_IS_DCE5(rdev)) {
 		rdev->ddev->mode_config.max_width = 16384;

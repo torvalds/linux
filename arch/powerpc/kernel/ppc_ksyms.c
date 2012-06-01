@@ -85,8 +85,6 @@ EXPORT_SYMBOL(csum_tcpudp_magic);
 
 EXPORT_SYMBOL(__copy_tofrom_user);
 EXPORT_SYMBOL(__clear_user);
-EXPORT_SYMBOL(__strncpy_from_user);
-EXPORT_SYMBOL(__strnlen_user);
 EXPORT_SYMBOL(copy_page);
 
 #if defined(CONFIG_PCI) && defined(CONFIG_PPC32)
@@ -189,4 +187,8 @@ EXPORT_SYMBOL(__arch_hweight8);
 EXPORT_SYMBOL(__arch_hweight16);
 EXPORT_SYMBOL(__arch_hweight32);
 EXPORT_SYMBOL(__arch_hweight64);
+#endif
+
+#ifdef CONFIG_PPC_BOOK3S_64
+EXPORT_SYMBOL_GPL(mmu_psize_defs);
 #endif

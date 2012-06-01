@@ -5170,6 +5170,7 @@ static int snd_hdsp_create_hwdep(struct snd_card *card, struct hdsp *hdsp)
 	strcpy(hw->name, "HDSP hwdep interface");
 
 	hw->ops.ioctl = snd_hdsp_hwdep_ioctl;
+	hw->ops.ioctl_compat = snd_hdsp_hwdep_ioctl;
 
 	return 0;
 }
@@ -5635,22 +5636,11 @@ static void __devexit snd_hdsp_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver hdsp_driver = {
 	.name =     KBUILD_MODNAME,
 	.id_table = snd_hdsp_ids,
 	.probe =    snd_hdsp_probe,
 	.remove = __devexit_p(snd_hdsp_remove),
 };
 
-static int __init alsa_card_hdsp_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_hdsp_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_hdsp_init)
-module_exit(alsa_card_hdsp_exit)
+module_pci_driver(hdsp_driver);

@@ -36,7 +36,6 @@
 #include <asm/page.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/hardware/clps7111.h>
 #include <asm/system_misc.h>
 
 /*
@@ -44,8 +43,8 @@
  */
 static struct map_desc clps711x_io_desc[] __initdata = {
 	{
-		.virtual	= CLPS7111_VIRT_BASE,
-		.pfn		= __phys_to_pfn(CLPS7111_PHYS_BASE),
+		.virtual	= (unsigned long)CLPS711X_VIRT_BASE,
+		.pfn		= __phys_to_pfn(CLPS711X_PHYS_BASE),
 		.length		= SZ_1M,
 		.type		= MT_DEVICE
 	}
@@ -67,12 +66,6 @@ static void int1_mask(struct irq_data *d)
 
 static void int1_ack(struct irq_data *d)
 {
-	u32 intmr1;
-
-	intmr1 = clps_readl(INTMR1);
-	intmr1 &= ~(1 << d->irq);
-	clps_writel(intmr1, INTMR1);
-
 	switch (d->irq) {
 	case IRQ_CSINT:  clps_writel(0, COEOI);  break;
 	case IRQ_TC1OI:  clps_writel(0, TC1EOI); break;
@@ -109,12 +102,6 @@ static void int2_mask(struct irq_data *d)
 
 static void int2_ack(struct irq_data *d)
 {
-	u32 intmr2;
-
-	intmr2 = clps_readl(INTMR2);
-	intmr2 &= ~(1 << (d->irq - 16));
-	clps_writel(intmr2, INTMR2);
-
 	switch (d->irq) {
 	case IRQ_KBDINT: clps_writel(0, KBDEOI); break;
 	}

@@ -310,7 +310,7 @@ static int unix_diag_handler_dump(struct sk_buff *skb, struct nlmsghdr *h)
 		return unix_diag_get_exact(skb, h, (struct unix_diag_req *)NLMSG_DATA(h));
 }
 
-static struct sock_diag_handler unix_diag_handler = {
+static const struct sock_diag_handler unix_diag_handler = {
 	.family = AF_UNIX,
 	.dump = unix_diag_handler_dump,
 };

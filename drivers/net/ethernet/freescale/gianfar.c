@@ -136,7 +136,7 @@ static void gfar_netpoll(struct net_device *dev);
 int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit);
 static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue);
 static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
-			      int amount_pull);
+			      int amount_pull, struct napi_struct *napi);
 void gfar_halt(struct net_device *dev);
 static void gfar_halt_nodisable(struct net_device *dev);
 void gfar_start(struct net_device *dev);
@@ -1082,7 +1082,7 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	if (dev->features & NETIF_F_IP_CSUM ||
 			priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER)
-		dev->hard_header_len += GMAC_FCB_LEN;
+		dev->needed_headroom = GMAC_FCB_LEN;
 
 	/* Program the isrg regs only if number of grps > 1 */
 	if (priv->num_grps > 1) {
@@ -2675,12 +2675,12 @@ static inline void gfar_rx_checksum(struct sk_buff *skb, struct rxfcb *fcb)
 /* gfar_process_frame() -- handle one incoming packet if skb
  * isn't NULL.  */
 static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
-			      int amount_pull)
+			      int amount_pull, struct napi_struct *napi)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct rxfcb *fcb = NULL;
 
-	int ret;
+	gro_result_t ret;
 
 	/* fcb is at the beginning if exists */
 	fcb = (struct rxfcb *)skb->data;
@@ -2719,9 +2719,9 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 		__vlan_hwaccel_put_tag(skb, fcb->vlctl);
 
 	/* Send the packet up the stack */
-	ret = netif_receive_skb(skb);
+	ret = napi_gro_receive(napi, skb);
 
-	if (NET_RX_DROP == ret)
+	if (GRO_DROP == ret)
 		priv->extra_stats.kernel_dropped++;
 
 	return 0;
@@ -2783,7 +2783,8 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 				skb_put(skb, pkt_len);
 				rx_queue->stats.rx_bytes += pkt_len;
 				skb_record_rx_queue(skb, rx_queue->qindex);
-				gfar_process_frame(dev, skb, amount_pull);
+				gfar_process_frame(dev, skb, amount_pull,
+						&rx_queue->grp->napi);
 
 			} else {
 				netif_warn(priv, rx_err, dev, "Missing skb!\n");

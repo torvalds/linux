@@ -24,6 +24,7 @@
 #include <linux/sched.h>
 #include <linux/profile.h>
 #include <linux/smp.h>
+#include <linux/cpu.h>
 #include <asm/tlbflush.h>
 #include <asm/bitops.h>
 #include <asm/processor.h>
@@ -38,7 +39,6 @@
 #include "internal.h"
 
 #ifdef CONFIG_HOTPLUG_CPU
-#include <linux/cpu.h>
 #include <asm/cacheflush.h>
 
 static unsigned long sleep_mode[NR_CPUS];
@@ -874,10 +874,13 @@ static void __init smp_online(void)
 
 	cpu = smp_processor_id();
 
-	local_irq_enable();
+	notify_cpu_starting(cpu);
 
+	ipi_call_lock();
 	set_cpu_online(cpu, true);
-	smp_wmb();
+	ipi_call_unlock();
+
+	local_irq_enable();
 }
 
 /**
@@ -921,7 +924,7 @@ void initialize_secondary(void)
  * __cpu_up - Set smp_commenced_mask for the nominated CPU
  * @cpu: The target CPU.
  */
-int __devinit __cpu_up(unsigned int cpu)
+int __devinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int timeout;
 

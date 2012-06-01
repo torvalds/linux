@@ -342,7 +342,7 @@ static int ipv6_dev_ac_dec(struct net_device *dev, const struct in6_addr *addr)
  *	check if the interface has this anycast address
  *	called with rcu_read_lock()
  */
-static int ipv6_chk_acast_dev(struct net_device *dev, const struct in6_addr *addr)
+static bool ipv6_chk_acast_dev(struct net_device *dev, const struct in6_addr *addr)
 {
 	struct inet6_dev *idev;
 	struct ifacaddr6 *aca;
@@ -356,16 +356,16 @@ static int ipv6_chk_acast_dev(struct net_device *dev, const struct in6_addr *add
 		read_unlock_bh(&idev->lock);
 		return aca != NULL;
 	}
-	return 0;
+	return false;
 }
 
 /*
  *	check if given interface (or any, if dev==0) has this anycast address
  */
-int ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
-			const struct in6_addr *addr)
+bool ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
+			 const struct in6_addr *addr)
 {
-	int found = 0;
+	bool found = false;
 
 	rcu_read_lock();
 	if (dev)
@@ -373,7 +373,7 @@ int ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
 	else
 		for_each_netdev_rcu(net, dev)
 			if (ipv6_chk_acast_dev(dev, addr)) {
-				found = 1;
+				found = true;
 				break;
 			}
 	rcu_read_unlock();

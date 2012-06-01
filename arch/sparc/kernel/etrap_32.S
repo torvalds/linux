@@ -216,9 +216,7 @@ tsetup_patch6:
 	/* Call MMU-architecture dependent stack checking
 	 * routine.
 	 */
-	.globl	tsetup_mmu_patchme
-tsetup_mmu_patchme:
-	b	tsetup_sun4c_stackchk
+	b	tsetup_srmmu_stackchk
 	 andcc	%sp, 0x7, %g0
 
 	/* Architecture specific stack checking routines.  When either
@@ -227,52 +225,6 @@ tsetup_mmu_patchme:
 	 * pointer.  Thus the definition below for simplicity.
 	 */
 #define glob_tmp     g1
-
-tsetup_sun4c_stackchk:
-	/* Done by caller: andcc %sp, 0x7, %g0 */
-	bne	trap_setup_user_stack_is_bolixed
-	 sra	%sp, 29, %glob_tmp
-
-	add	%glob_tmp, 0x1, %glob_tmp
-	andncc	%glob_tmp, 0x1, %g0
-	bne	trap_setup_user_stack_is_bolixed
-	 and	%sp, 0xfff, %glob_tmp		! delay slot
-
-	/* See if our dump area will be on more than one
-	 * page.
-	 */
-	add	%glob_tmp, 0x38, %glob_tmp
-	andncc	%glob_tmp, 0xff8, %g0
-	be	tsetup_sun4c_onepage		! only one page to check
-	 lda	[%sp] ASI_PTE, %glob_tmp	! have to check first page anyways
-
-tsetup_sun4c_twopages:
-	/* Is first page ok permission wise? */
-	srl	%glob_tmp, 29, %glob_tmp
-	cmp	%glob_tmp, 0x6
-	bne	trap_setup_user_stack_is_bolixed
-	 add	%sp, 0x38, %glob_tmp		/* Is second page in vma hole? */
-
-	sra	%glob_tmp, 29, %glob_tmp
-	add	%glob_tmp, 0x1, %glob_tmp
-	andncc	%glob_tmp, 0x1, %g0
-	bne	trap_setup_user_stack_is_bolixed
-	 add	%sp, 0x38, %glob_tmp
-
-	lda	[%glob_tmp] ASI_PTE, %glob_tmp
-
-tsetup_sun4c_onepage:
-	srl	%glob_tmp, 29, %glob_tmp
-	cmp	%glob_tmp, 0x6				! can user write to it?
-	bne	trap_setup_user_stack_is_bolixed	! failure
-	 nop
-
-	STORE_WINDOW(sp)
-
-	restore %g0, %g0, %g0
-
-	jmpl	%t_retpc + 0x8, %g0
-	 mov	%t_kstack, %sp
 
 	.globl	tsetup_srmmu_stackchk
 tsetup_srmmu_stackchk:

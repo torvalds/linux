@@ -1209,8 +1209,6 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *table)
 	fsname++;
 
 	flags = DLM_LSFL_FS | DLM_LSFL_NEWEXCL;
-	if (ls->ls_nodir)
-		flags |= DLM_LSFL_NODIR;
 
 	/*
 	 * create/join lockspace

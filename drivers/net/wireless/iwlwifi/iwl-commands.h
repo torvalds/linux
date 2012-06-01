@@ -1877,9 +1877,16 @@ struct iwl_bt_cmd {
 
 #define IWLAGN_BT3_T7_DEFAULT		1
 
+enum iwl_bt_kill_idx {
+	IWL_BT_KILL_DEFAULT = 0,
+	IWL_BT_KILL_OVERRIDE = 1,
+	IWL_BT_KILL_REDUCE = 2,
+};
+
 #define IWLAGN_BT_KILL_ACK_MASK_DEFAULT	cpu_to_le32(0xffff0000)
 #define IWLAGN_BT_KILL_CTS_MASK_DEFAULT	cpu_to_le32(0xffff0000)
 #define IWLAGN_BT_KILL_ACK_CTS_MASK_SCO	cpu_to_le32(0xffffffff)
+#define IWLAGN_BT_KILL_ACK_CTS_MASK_REDUCE	cpu_to_le32(0)
 
 #define IWLAGN_BT3_PRIO_SAMPLE_DEFAULT	2
 
@@ -1891,7 +1898,7 @@ struct iwl_bt_cmd {
 #define IWLAGN_BT_VALID_3W_TIMERS	cpu_to_le16(BIT(3))
 #define IWLAGN_BT_VALID_KILL_ACK_MASK	cpu_to_le16(BIT(4))
 #define IWLAGN_BT_VALID_KILL_CTS_MASK	cpu_to_le16(BIT(5))
-#define IWLAGN_BT_VALID_BT4_TIMES	cpu_to_le16(BIT(6))
+#define IWLAGN_BT_VALID_REDUCED_TX_PWR	cpu_to_le16(BIT(6))
 #define IWLAGN_BT_VALID_3W_LUT		cpu_to_le16(BIT(7))
 
 #define IWLAGN_BT_ALL_VALID_MSK		(IWLAGN_BT_VALID_ENABLE_FLAGS | \
@@ -1900,8 +1907,12 @@ struct iwl_bt_cmd {
 					IWLAGN_BT_VALID_3W_TIMERS | \
 					IWLAGN_BT_VALID_KILL_ACK_MASK | \
 					IWLAGN_BT_VALID_KILL_CTS_MASK | \
-					IWLAGN_BT_VALID_BT4_TIMES | \
+					IWLAGN_BT_VALID_REDUCED_TX_PWR | \
 					IWLAGN_BT_VALID_3W_LUT)
+
+#define IWLAGN_BT_REDUCED_TX_PWR	BIT(0)
+
+#define IWLAGN_BT_DECISION_LUT_SIZE	12
 
 struct iwl_basic_bt_cmd {
 	u8 flags;
@@ -1913,12 +1924,17 @@ struct iwl_basic_bt_cmd {
 	u8 bt3_prio_sample_time;
 	u8 bt3_timer_t2_value;
 	__le16 bt4_reaction_time; /* unused */
-	__le32 bt3_lookup_table[12];
-	__le16 bt4_decision_time; /* unused */
+	__le32 bt3_lookup_table[IWLAGN_BT_DECISION_LUT_SIZE];
+	/*
+	 * bit 0: use reduced tx power for control frame
+	 * bit 1 - 7: reserved
+	 */
+	u8 reduce_txpower;
+	u8 reserved;
 	__le16 valid;
 };
 
-struct iwl6000_bt_cmd {
+struct iwl_bt_cmd_v1 {
 	struct iwl_basic_bt_cmd basic;
 	u8 prio_boost;
 	/*
@@ -1929,7 +1945,7 @@ struct iwl6000_bt_cmd {
 	__le16 rx_prio_boost;	/* SW boost of WiFi rx priority */
 };
 
-struct iwl2000_bt_cmd {
+struct iwl_bt_cmd_v2 {
 	struct iwl_basic_bt_cmd basic;
 	__le32 prio_boost;
 	/*
@@ -2262,7 +2278,6 @@ struct iwl_ssid_ie {
 #define IWL_GOOD_CRC_TH_DISABLED	0
 #define IWL_GOOD_CRC_TH_DEFAULT		cpu_to_le16(1)
 #define IWL_GOOD_CRC_TH_NEVER		cpu_to_le16(0xffff)
-#define IWL_MAX_SCAN_SIZE 1024
 #define IWL_MAX_CMD_SIZE 4096
 
 /*
@@ -3633,6 +3648,9 @@ enum iwl_bt_coex_profile_traffic_load {
 #define BT_UART_MSG_2_FRAME7RESERVED_MSK	\
 		(0x3<<BT_UART_MSG_2_FRAME7RESERVED_POS)
 
+
+#define BT_ENABLE_REDUCED_TXPOWER_THRESHOLD	(-62)
+#define BT_DISABLE_REDUCED_TXPOWER_THRESHOLD	(-65)
 
 struct iwl_bt_uart_msg {
 	u8 header;

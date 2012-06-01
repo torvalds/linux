@@ -16,8 +16,8 @@
 #include <linux/sysfs.h>
 #include <linux/regulator/consumer.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 #include "dac.h"
 
 #define AD5360_CMD(x)				((x) << 22)
@@ -103,7 +103,8 @@ enum ad5360_type {
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.output = 1,						\
-	.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT |	\
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT |		\
 		IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |		\
 		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |	\
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,	\
@@ -250,7 +251,7 @@ static ssize_t ad5360_read_dac_powerdown(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5360_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", (bool)(st->ctrl & AD5360_SF_CTRL_PWR_DOWN));
@@ -278,7 +279,7 @@ static int ad5360_update_ctrl(struct iio_dev *indio_dev, unsigned int set,
 static ssize_t ad5360_write_dac_powerdown(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool pwr_down;
 	int ret;
 
@@ -319,7 +320,7 @@ static int ad5360_write_raw(struct iio_dev *indio_dev,
 	unsigned int ofs_index;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		if (val >= max_val || val < 0)
 			return -EINVAL;
 
@@ -376,7 +377,7 @@ static int ad5360_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		ret = ad5360_read(indio_dev, AD5360_READBACK_X1A,
 			chan->address);
 		if (ret < 0)
@@ -464,7 +465,7 @@ static int __devinit ad5360_probe(struct spi_device *spi)
 	unsigned int i;
 	int ret;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
 		return  -ENOMEM;
@@ -519,7 +520,7 @@ error_free_reg:
 error_free_channels:
 	kfree(indio_dev->channels);
 error_free:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -536,7 +537,7 @@ static int __devexit ad5360_remove(struct spi_device *spi)
 	regulator_bulk_disable(st->chip_info->num_vrefs, st->vref_reg);
 	regulator_bulk_free(st->chip_info->num_vrefs, st->vref_reg);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

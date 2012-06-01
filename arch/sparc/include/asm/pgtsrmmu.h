@@ -173,17 +173,6 @@ static inline void srmmu_set_ctable_ptr(unsigned long paddr)
 			     "memory");
 }
 
-static inline unsigned long srmmu_get_ctable_ptr(void)
-{
-	unsigned int retval;
-
-	__asm__ __volatile__("lda [%1] %2, %0\n\t" :
-			     "=r" (retval) :
-			     "r" (SRMMU_CTXTBL_PTR),
-			     "i" (ASI_M_MMUREGS));
-	return (retval & SRMMU_CTX_PMASK) << 4;
-}
-
 static inline void srmmu_set_context(int context)
 {
 	__asm__ __volatile__("sta %0, [%1] %2\n\t" : :
@@ -231,42 +220,6 @@ static inline void srmmu_flush_whole_tlb(void)
 }
 
 /* These flush types are not available on all chips... */
-static inline void srmmu_flush_tlb_ctx(void)
-{
-	__asm__ __volatile__("sta %%g0, [%0] %1\n\t": :
-			     "r" (0x300),        /* Flush TLB ctx.. */
-			     "i" (ASI_M_FLUSH_PROBE) : "memory");
-
-}
-
-static inline void srmmu_flush_tlb_region(unsigned long addr)
-{
-	addr &= SRMMU_PGDIR_MASK;
-	__asm__ __volatile__("sta %%g0, [%0] %1\n\t": :
-			     "r" (addr | 0x200), /* Flush TLB region.. */
-			     "i" (ASI_M_FLUSH_PROBE) : "memory");
-
-}
-
-
-static inline void srmmu_flush_tlb_segment(unsigned long addr)
-{
-	addr &= SRMMU_REAL_PMD_MASK;
-	__asm__ __volatile__("sta %%g0, [%0] %1\n\t": :
-			     "r" (addr | 0x100), /* Flush TLB segment.. */
-			     "i" (ASI_M_FLUSH_PROBE) : "memory");
-
-}
-
-static inline void srmmu_flush_tlb_page(unsigned long page)
-{
-	page &= PAGE_MASK;
-	__asm__ __volatile__("sta %%g0, [%0] %1\n\t": :
-			     "r" (page),        /* Flush TLB page.. */
-			     "i" (ASI_M_FLUSH_PROBE) : "memory");
-
-}
-
 #ifndef CONFIG_SPARC_LEON
 static inline unsigned long srmmu_hwprobe(unsigned long vaddr)
 {
@@ -293,9 +246,6 @@ srmmu_get_pte (unsigned long addr)
 				"r" ((addr & 0xfffff000) | 0x400), "i" (ASI_M_FLUSH_PROBE));
 	return entry;
 }
-
-extern unsigned long (*srmmu_read_physical)(unsigned long paddr);
-extern void (*srmmu_write_physical)(unsigned long paddr, unsigned long word);
 
 #endif /* !(__ASSEMBLY__) */
 

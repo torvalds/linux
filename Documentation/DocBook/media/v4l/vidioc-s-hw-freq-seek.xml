@@ -73,10 +73,11 @@ same value as in the &v4l2-input; <structfield>tuner</structfield>
 field and the &v4l2-tuner; <structfield>index</structfield> field.</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-tuner-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry>The tuner type. This is the same value as in the
-&v4l2-tuner; <structfield>type</structfield> field.</entry>
+&v4l2-tuner; <structfield>type</structfield> field. See <xref
+	    linkend="v4l2-tuner-type" /></entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

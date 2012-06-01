@@ -21,7 +21,6 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/interrupt.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl330.h>
 #include <linux/pm_runtime.h>
@@ -2322,7 +2321,8 @@ static void pl330_tasklet(unsigned long data)
 	/* Pick up ripe tomatoes */
 	list_for_each_entry_safe(desc, _dt, &pch->work_list, node)
 		if (desc->status == DONE) {
-			dma_cookie_complete(&desc->txd);
+			if (pch->cyclic)
+				dma_cookie_complete(&desc->txd);
 			list_move_tail(&desc->node, &list);
 		}
 

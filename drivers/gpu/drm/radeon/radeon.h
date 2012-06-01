@@ -346,6 +346,9 @@ struct radeon_bo {
 	/* Constant after initialization */
 	struct radeon_device		*rdev;
 	struct drm_gem_object		gem_base;
+
+	struct ttm_bo_kmap_obj dma_buf_vmap;
+	int vmapping_count;
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
@@ -848,7 +851,6 @@ struct radeon_cs_parser {
 	s32			priority;
 };
 
-extern int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx);
 extern int radeon_cs_finish_pages(struct radeon_cs_parser *p);
 extern u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx);
 
@@ -1094,7 +1096,6 @@ int radeon_pm_get_type_index(struct radeon_device *rdev,
 			     int instance);
 
 struct r600_audio {
-	bool			enabled;
 	int			channels;
 	int			rate;
 	int			bits_per_sample;
@@ -1535,7 +1536,8 @@ struct radeon_device {
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
 	struct mutex vram_mutex;
-	struct r600_audio audio; /* audio stuff */
+	bool audio_enabled;
+	struct r600_audio audio_status; /* audio stuff */
 	struct notifier_block acpi_nb;
 	/* only one userspace can use Hyperz features or CMASK at a time */
 	struct drm_file *hyperz_filp;

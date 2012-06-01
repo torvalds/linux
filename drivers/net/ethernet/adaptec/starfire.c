@@ -114,15 +114,6 @@ static int rx_copybreak /* = 0 */;
 #define DMA_BURST_SIZE 128
 #endif
 
-/* Used to pass the media type, etc.
-   Both 'options[]' and 'full_duplex[]' exist for driver interoperability.
-   The media type is usually passed in 'options[]'.
-   These variables are deprecated, use ethtool instead. -Ion
-*/
-#define MAX_UNITS 8		/* More are supported, limit only on options */
-static int options[MAX_UNITS] = {0, };
-static int full_duplex[MAX_UNITS] = {0, };
-
 /* Operational parameters that are set at compile time. */
 
 /* The "native" ring sizes are either 256 or 2048.
@@ -192,8 +183,6 @@ module_param(debug, int, 0);
 module_param(rx_copybreak, int, 0);
 module_param(intr_latency, int, 0);
 module_param(small_frames, int, 0);
-module_param_array(options, int, NULL, 0);
-module_param_array(full_duplex, int, NULL, 0);
 module_param(enable_hw_cksum, int, 0);
 MODULE_PARM_DESC(max_interrupt_work, "Maximum events handled per interrupt");
 MODULE_PARM_DESC(mtu, "MTU (all boards)");
@@ -201,8 +190,6 @@ MODULE_PARM_DESC(debug, "Debug level (0-6)");
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 MODULE_PARM_DESC(intr_latency, "Maximum interrupt latency, in microseconds");
 MODULE_PARM_DESC(small_frames, "Maximum size of receive frames that bypass interrupt latency (0,64,128,256,512)");
-MODULE_PARM_DESC(options, "Deprecated: Bits 0-3: media type, bit 17: full duplex");
-MODULE_PARM_DESC(full_duplex, "Deprecated: Forced full-duplex setting (0/1)");
 MODULE_PARM_DESC(enable_hw_cksum, "Enable/disable hardware cksum support (0/1)");
 
 /*
@@ -657,10 +644,10 @@ static const struct net_device_ops netdev_ops = {
 static int __devinit starfire_init_one(struct pci_dev *pdev,
 				       const struct pci_device_id *ent)
 {
+	struct device *d = &pdev->dev;
 	struct netdev_private *np;
-	int i, irq, option, chip_idx = ent->driver_data;
+	int i, irq, chip_idx = ent->driver_data;
 	struct net_device *dev;
-	static int card_idx = -1;
 	long ioaddr;
 	void __iomem *base;
 	int drv_flags, io_size;
@@ -673,15 +660,13 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 		printk(version);
 #endif
 
-	card_idx++;
-
 	if (pci_enable_device (pdev))
 		return -EIO;
 
 	ioaddr = pci_resource_start(pdev, 0);
 	io_size = pci_resource_len(pdev, 0);
 	if (!ioaddr || ((pci_resource_flags(pdev, 0) & IORESOURCE_MEM) == 0)) {
-		printk(KERN_ERR DRV_NAME " %d: no PCI MEM resources, aborting\n", card_idx);
+		dev_err(d, "no PCI MEM resources, aborting\n");
 		return -ENODEV;
 	}
 
@@ -694,14 +679,14 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	irq = pdev->irq;
 
 	if (pci_request_regions (pdev, DRV_NAME)) {
-		printk(KERN_ERR DRV_NAME " %d: cannot reserve PCI resources, aborting\n", card_idx);
+		dev_err(d, "cannot reserve PCI resources, aborting\n");
 		goto err_out_free_netdev;
 	}
 
 	base = ioremap(ioaddr, io_size);
 	if (!base) {
-		printk(KERN_ERR DRV_NAME " %d: cannot remap %#x @ %#lx, aborting\n",
-			card_idx, io_size, ioaddr);
+		dev_err(d, "cannot remap %#x @ %#lx, aborting\n",
+			io_size, ioaddr);
 		goto err_out_free_res;
 	}
 
@@ -753,9 +738,6 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	/* wait a little longer */
 	udelay(1000);
 
-	dev->base_addr = (unsigned long)base;
-	dev->irq = irq;
-
 	np = netdev_priv(dev);
 	np->dev = dev;
 	np->base = base;
@@ -772,21 +754,6 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 
 	drv_flags = netdrv_tbl[chip_idx].drv_flags;
 
-	option = card_idx < MAX_UNITS ? options[card_idx] : 0;
-	if (dev->mem_start)
-		option = dev->mem_start;
-
-	/* The lower four bits are the media type. */
-	if (option & 0x200)
-		np->mii_if.full_duplex = 1;
-
-	if (card_idx < MAX_UNITS && full_duplex[card_idx] > 0)
-		np->mii_if.full_duplex = 1;
-
-	if (np->mii_if.full_duplex)
-		np->mii_if.force_media = 1;
-	else
-		np->mii_if.force_media = 0;
 	np->speed100 = 1;
 
 	/* timer resolution is 128 * 0.8us */
@@ -909,13 +876,14 @@ static int netdev_open(struct net_device *dev)
 	const __be32 *fw_rx_data, *fw_tx_data;
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
+	const int irq = np->pci_dev->irq;
 	int i, retval;
 	size_t tx_size, rx_size;
 	size_t tx_done_q_size, rx_done_q_size, tx_ring_size, rx_ring_size;
 
 	/* Do we ever need to reset the chip??? */
 
-	retval = request_irq(dev->irq, intr_handler, IRQF_SHARED, dev->name, dev);
+	retval = request_irq(irq, intr_handler, IRQF_SHARED, dev->name, dev);
 	if (retval)
 		return retval;
 
@@ -924,7 +892,7 @@ static int netdev_open(struct net_device *dev)
 	writel(1, ioaddr + PCIDeviceConfig);
 	if (debug > 1)
 		printk(KERN_DEBUG "%s: netdev_open() irq %d.\n",
-		       dev->name, dev->irq);
+		       dev->name, irq);
 
 	/* Allocate the various queues. */
 	if (!np->queue_mem) {
@@ -935,7 +903,7 @@ static int netdev_open(struct net_device *dev)
 		np->queue_mem_size = tx_done_q_size + rx_done_q_size + tx_ring_size + rx_ring_size;
 		np->queue_mem = pci_alloc_consistent(np->pci_dev, np->queue_mem_size, &np->queue_mem_dma);
 		if (np->queue_mem == NULL) {
-			free_irq(dev->irq, dev);
+			free_irq(irq, dev);
 			return -ENOMEM;
 		}
 
@@ -1962,7 +1930,7 @@ static int netdev_close(struct net_device *dev)
 		}
 	}
 
-	free_irq(dev->irq, dev);
+	free_irq(np->pci_dev->irq, dev);
 
 	/* Free all the skbuffs in the Rx queue. */
 	for (i = 0; i < RX_RING_SIZE; i++) {

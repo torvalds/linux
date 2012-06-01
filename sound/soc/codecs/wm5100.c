@@ -1265,29 +1265,12 @@ static const __devinitdata struct reg_default wm5100_reva_patches[] = {
 	{ WM5100_AUDIO_IF_3_19, 1 },
 };
 
-static int wm5100_dai_to_base(struct snd_soc_dai *dai)
-{
-	switch (dai->id) {
-	case 0:
-		return WM5100_AUDIO_IF_1_1 - 1;
-	case 1:
-		return WM5100_AUDIO_IF_2_1 - 1;
-	case 2:
-		return WM5100_AUDIO_IF_3_1 - 1;
-	default:
-		BUG();
-		return -EINVAL;
-	}
-}
-
 static int wm5100_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	int lrclk, bclk, mask, base;
 
-	base = wm5100_dai_to_base(dai);
-	if (base < 0)
-		return base;
+	base = dai->driver->base;
 
 	lrclk = 0;
 	bclk = 0;
@@ -1414,9 +1397,7 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 	int i, base, bclk, aif_rate, lrclk, wl, fl, sr;
 	int *bclk_rates;
 
-	base = wm5100_dai_to_base(dai);
-	if (base < 0)
-		return base;
+	base = dai->driver->base;
 
 	/* Data sizes if not using TDM */
 	wl = snd_pcm_format_width(params_format(params));
@@ -1897,6 +1878,7 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 static struct snd_soc_dai_driver wm5100_dai[] = {
 	{
 		.name = "wm5100-aif1",
+		.base = WM5100_AUDIO_IF_1_1 - 1,
 		.playback = {
 			.stream_name = "AIF1 Playback",
 			.channels_min = 2,
@@ -1916,6 +1898,7 @@ static struct snd_soc_dai_driver wm5100_dai[] = {
 	{
 		.name = "wm5100-aif2",
 		.id = 1,
+		.base = WM5100_AUDIO_IF_2_1 - 1,
 		.playback = {
 			.stream_name = "AIF2 Playback",
 			.channels_min = 2,
@@ -1935,6 +1918,7 @@ static struct snd_soc_dai_driver wm5100_dai[] = {
 	{
 		.name = "wm5100-aif3",
 		.id = 2,
+		.base = WM5100_AUDIO_IF_3_1 - 1,
 		.playback = {
 			.stream_name = "AIF3 Playback",
 			.channels_min = 2,
@@ -2454,7 +2438,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 
 	wm5100->dev = &i2c->dev;
 
-	wm5100->regmap = regmap_init_i2c(i2c, &wm5100_regmap);
+	wm5100->regmap = devm_regmap_init_i2c(i2c, &wm5100_regmap);
 	if (IS_ERR(wm5100->regmap)) {
 		ret = PTR_ERR(wm5100->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
@@ -2479,7 +2463,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to request core supplies: %d\n",
 			ret);
-		goto err_regmap;
+		goto err;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm5100->core_supplies),
@@ -2487,7 +2471,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to enable core supplies: %d\n",
 			ret);
-		goto err_regmap;
+		goto err;
 	}
 
 	if (wm5100->pdata.ldo_ena) {
@@ -2660,8 +2644,6 @@ err_ldo:
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm5100->core_supplies),
 			       wm5100->core_supplies);
-err_regmap:
-	regmap_exit(wm5100->regmap);
 err:
 	return ret;
 }
@@ -2682,7 +2664,6 @@ static __devexit int wm5100_i2c_remove(struct i2c_client *i2c)
 		gpio_set_value_cansleep(wm5100->pdata.ldo_ena, 0);
 		gpio_free(wm5100->pdata.ldo_ena);
 	}
-	regmap_exit(wm5100->regmap);
 
 	return 0;
 }
@@ -2749,17 +2730,7 @@ static struct i2c_driver wm5100_i2c_driver = {
 	.id_table = wm5100_i2c_id,
 };
 
-static int __init wm5100_modinit(void)
-{
-	return i2c_add_driver(&wm5100_i2c_driver);
-}
-module_init(wm5100_modinit);
-
-static void __exit wm5100_exit(void)
-{
-	i2c_del_driver(&wm5100_i2c_driver);
-}
-module_exit(wm5100_exit);
+module_i2c_driver(wm5100_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM5100 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

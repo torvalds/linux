@@ -271,14 +271,6 @@ static const struct usb_device_id id_table_4[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static struct usb_driver digi_driver = {
-	.name =		"digi_acceleport",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table_combined,
-};
-
-
 /* device info needed for the Digi serial converter */
 
 static struct usb_serial_driver digi_acceleport_2_device = {
@@ -657,9 +649,6 @@ static void digi_rx_throttle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 
-
-	dbg("digi_rx_throttle: TOP: port=%d", priv->dp_port_num);
-
 	/* stop receiving characters by not resubmitting the read urb */
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 	priv->dp_throttled = 1;
@@ -674,8 +663,6 @@ static void digi_rx_unthrottle(struct tty_struct *tty)
 	unsigned long flags;
 	struct usb_serial_port *port = tty->driver_data;
 	struct digi_port *priv = usb_get_serial_port_data(port);
-
-	dbg("digi_rx_unthrottle: TOP: port=%d", priv->dp_port_num);
 
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 
@@ -904,8 +891,6 @@ static int digi_tiocmget(struct tty_struct *tty)
 	unsigned int val;
 	unsigned long flags;
 
-	dbg("%s: TOP: port=%d", __func__, priv->dp_port_num);
-
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 	val = priv->dp_modem_signals;
 	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
@@ -920,8 +905,6 @@ static int digi_tiocmset(struct tty_struct *tty,
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	unsigned int val;
 	unsigned long flags;
-
-	dbg("%s: TOP: port=%d", __func__, priv->dp_port_num);
 
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 	val = (priv->dp_modem_signals & ~clear) | set;
@@ -1012,8 +995,6 @@ static void digi_write_bulk_callback(struct urb *urb)
 	struct digi_serial *serial_priv;
 	int ret = 0;
 	int status = urb->status;
-
-	dbg("digi_write_bulk_callback: TOP, status=%d", status);
 
 	/* port and serial sanity check */
 	if (port == NULL || (priv = usb_get_serial_port_data(port)) == NULL) {
@@ -1121,8 +1102,6 @@ static int digi_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	struct ktermios not_termios;
 
-	dbg("digi_open: TOP: port=%d", priv->dp_port_num);
-
 	/* be sure the device is started up */
 	if (digi_startup_device(port->serial) != 0)
 		return -ENXIO;
@@ -1159,8 +1138,6 @@ static void digi_close(struct usb_serial_port *port)
 	int ret;
 	unsigned char buf[32];
 	struct digi_port *priv = usb_get_serial_port_data(port);
-
-	dbg("digi_close: TOP: port=%d", priv->dp_port_num);
 
 	mutex_lock(&port->serial->disc_mutex);
 	/* if disconnected, just clear flags */
@@ -1220,7 +1197,6 @@ exit:
 	wake_up_interruptible(&priv->dp_close_wait);
 	spin_unlock_irq(&priv->dp_port_lock);
 	mutex_unlock(&port->serial->disc_mutex);
-	dbg("digi_close: done");
 }
 
 
@@ -1268,8 +1244,6 @@ static int digi_startup(struct usb_serial *serial)
 	int i;
 	struct digi_port *priv;
 	struct digi_serial *serial_priv;
-
-	dbg("digi_startup: TOP");
 
 	/* allocate the private data structures for all ports */
 	/* number of regular ports + 1 for the out-of-band port */
@@ -1325,7 +1299,6 @@ static int digi_startup(struct usb_serial *serial)
 static void digi_disconnect(struct usb_serial *serial)
 {
 	int i;
-	dbg("digi_disconnect: TOP, in_interrupt()=%ld", in_interrupt());
 
 	/* stop reads and writes on all ports */
 	for (i = 0; i < serial->type->num_ports + 1; i++) {
@@ -1338,7 +1311,6 @@ static void digi_disconnect(struct usb_serial *serial)
 static void digi_release(struct usb_serial *serial)
 {
 	int i;
-	dbg("digi_release: TOP, in_interrupt()=%ld", in_interrupt());
 
 	/* free the private data structures for all ports */
 	/* number of regular ports + 1 for the out-of-band port */
@@ -1355,8 +1327,6 @@ static void digi_read_bulk_callback(struct urb *urb)
 	struct digi_serial *serial_priv;
 	int ret;
 	int status = urb->status;
-
-	dbg("digi_read_bulk_callback: TOP");
 
 	/* port sanity check, do not resubmit if port is not valid */
 	if (port == NULL)
@@ -1507,9 +1477,6 @@ static int digi_read_oob_callback(struct urb *urb)
 	int i;
 	unsigned int rts;
 
-	dbg("digi_read_oob_callback: port=%d, len=%d",
-			priv->dp_port_num, urb->actual_length);
-
 	/* handle each oob command */
 	for (i = 0; i < urb->actual_length - 3;) {
 		opcode = ((unsigned char *)urb->transfer_buffer)[i++];
@@ -1580,7 +1547,7 @@ static int digi_read_oob_callback(struct urb *urb)
 
 }
 
-module_usb_serial_driver(digi_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table_combined);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

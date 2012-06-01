@@ -518,7 +518,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	int count = 0, ro, fail = 0;
 	struct drm_crtc_helper_funcs *crtc_funcs;
 	struct drm_mode_set save_set;
-	int ret = 0;
+	int ret;
 	int i;
 
 	DRM_DEBUG_KMS("\n");

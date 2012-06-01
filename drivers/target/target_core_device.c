@@ -643,9 +643,8 @@ void core_dev_unexport(
 	lun->lun_se_dev = NULL;
 }
 
-int target_report_luns(struct se_task *se_task)
+int target_report_luns(struct se_cmd *se_cmd)
 {
-	struct se_cmd *se_cmd = se_task->task_se_cmd;
 	struct se_dev_entry *deve;
 	struct se_session *se_sess = se_cmd->se_sess;
 	unsigned char *buf;
@@ -696,8 +695,7 @@ done:
 	buf[3] = (lun_count & 0xff);
 	transport_kunmap_data_sg(se_cmd);
 
-	se_task->task_scsi_status = GOOD;
-	transport_complete_task(se_task, 1);
+	target_complete_cmd(se_cmd, GOOD);
 	return 0;
 }
 
@@ -878,15 +876,12 @@ void se_dev_set_default_attribs(
 	dev->se_sub_dev->se_dev_attrib.hw_block_size = limits->logical_block_size;
 	dev->se_sub_dev->se_dev_attrib.block_size = limits->logical_block_size;
 	/*
-	 * max_sectors is based on subsystem plugin dependent requirements.
+	 * Align max_hw_sectors down to PAGE_SIZE I/O transfers
 	 */
-	dev->se_sub_dev->se_dev_attrib.hw_max_sectors = limits->max_hw_sectors;
-	/*
-	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
-	 */
-	limits->max_sectors = se_dev_align_max_sectors(limits->max_sectors,
+	limits->max_hw_sectors = se_dev_align_max_sectors(limits->max_hw_sectors,
 						limits->logical_block_size);
-	dev->se_sub_dev->se_dev_attrib.max_sectors = limits->max_sectors;
+	dev->se_sub_dev->se_dev_attrib.hw_max_sectors = limits->max_hw_sectors;
+
 	/*
 	 * Set fabric_max_sectors, which is reported in block limits
 	 * VPD page (B0h).
@@ -1170,64 +1165,6 @@ int se_dev_set_queue_depth(struct se_device *dev, u32 queue_depth)
 	return 0;
 }
 
-int se_dev_set_max_sectors(struct se_device *dev, u32 max_sectors)
-{
-	int force = 0; /* Force setting for VDEVS */
-
-	if (atomic_read(&dev->dev_export_obj.obj_access_count)) {
-		pr_err("dev[%p]: Unable to change SE Device"
-			" max_sectors while dev_export_obj: %d count exists\n",
-			dev, atomic_read(&dev->dev_export_obj.obj_access_count));
-		return -EINVAL;
-	}
-	if (!max_sectors) {
-		pr_err("dev[%p]: Illegal ZERO value for"
-			" max_sectors\n", dev);
-		return -EINVAL;
-	}
-	if (max_sectors < DA_STATUS_MAX_SECTORS_MIN) {
-		pr_err("dev[%p]: Passed max_sectors: %u less than"
-			" DA_STATUS_MAX_SECTORS_MIN: %u\n", dev, max_sectors,
-				DA_STATUS_MAX_SECTORS_MIN);
-		return -EINVAL;
-	}
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		if (max_sectors > dev->se_sub_dev->se_dev_attrib.hw_max_sectors) {
-			pr_err("dev[%p]: Passed max_sectors: %u"
-				" greater than TCM/SE_Device max_sectors:"
-				" %u\n", dev, max_sectors,
-				dev->se_sub_dev->se_dev_attrib.hw_max_sectors);
-			 return -EINVAL;
-		}
-	} else {
-		if (!force && (max_sectors >
-				 dev->se_sub_dev->se_dev_attrib.hw_max_sectors)) {
-			pr_err("dev[%p]: Passed max_sectors: %u"
-				" greater than TCM/SE_Device max_sectors"
-				": %u, use force=1 to override.\n", dev,
-				max_sectors, dev->se_sub_dev->se_dev_attrib.hw_max_sectors);
-			return -EINVAL;
-		}
-		if (max_sectors > DA_STATUS_MAX_SECTORS_MAX) {
-			pr_err("dev[%p]: Passed max_sectors: %u"
-				" greater than DA_STATUS_MAX_SECTORS_MAX:"
-				" %u\n", dev, max_sectors,
-				DA_STATUS_MAX_SECTORS_MAX);
-			return -EINVAL;
-		}
-	}
-	/*
-	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
-	 */
-	max_sectors = se_dev_align_max_sectors(max_sectors,
-				dev->se_sub_dev->se_dev_attrib.block_size);
-
-	dev->se_sub_dev->se_dev_attrib.max_sectors = max_sectors;
-	pr_debug("dev[%p]: SE Device max_sectors changed to %u\n",
-			dev, max_sectors);
-	return 0;
-}
-
 int se_dev_set_fabric_max_sectors(struct se_device *dev, u32 fabric_max_sectors)
 {
 	if (atomic_read(&dev->dev_export_obj.obj_access_count)) {
@@ -1341,7 +1278,6 @@ struct se_lun *core_dev_add_lun(
 	u32 lun)
 {
 	struct se_lun *lun_p;
-	u32 lun_access = 0;
 	int rc;
 
 	if (atomic_read(&dev->dev_access_obj.obj_access_count) != 0) {
@@ -1354,12 +1290,8 @@ struct se_lun *core_dev_add_lun(
 	if (IS_ERR(lun_p))
 		return lun_p;
 
-	if (dev->dev_flags & DF_READ_ONLY)
-		lun_access = TRANSPORT_LUNFLAGS_READ_ONLY;
-	else
-		lun_access = TRANSPORT_LUNFLAGS_READ_WRITE;
-
-	rc = core_tpg_post_addlun(tpg, lun_p, lun_access, dev);
+	rc = core_tpg_post_addlun(tpg, lun_p,
+				TRANSPORT_LUNFLAGS_READ_WRITE, dev);
 	if (rc < 0)
 		return ERR_PTR(rc);
 

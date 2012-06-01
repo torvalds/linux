@@ -147,12 +147,6 @@ int wm8994_irq_init(struct wm8994 *wm8994)
 		return 0;
 	}
 
-	if (!wm8994->irq_base) {
-		dev_err(wm8994->dev,
-			"No interrupt base specified, no interrupts\n");
-		return 0;
-	}
-
 	ret = regmap_add_irq_chip(wm8994->regmap, wm8994->irq,
 				  IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 				  wm8994->irq_base, &wm8994_irq_chip,

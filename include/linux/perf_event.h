@@ -1132,11 +1132,14 @@ struct perf_sample_data {
 	struct perf_branch_stack	*br_stack;
 };
 
-static inline void perf_sample_data_init(struct perf_sample_data *data, u64 addr)
+static inline void perf_sample_data_init(struct perf_sample_data *data,
+					 u64 addr, u64 period)
 {
+	/* remaining struct members initialized in perf_prepare_sample() */
 	data->addr = addr;
 	data->raw  = NULL;
 	data->br_stack = NULL;
+	data->period	= period;
 }
 
 extern void perf_output_sample(struct perf_output_handle *handle,

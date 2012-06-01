@@ -357,7 +357,7 @@ int cirrus_bo_create(struct drm_device *dev, int size, int align,
 	ret = ttm_bo_init(&cirrus->ttm.bdev, &cirrusbo->bo, size,
 			  ttm_bo_type_device, &cirrusbo->placement,
 			  align >> PAGE_SHIFT, 0, false, NULL, acc_size,
-			  cirrus_bo_ttm_destroy);
+			  NULL, cirrus_bo_ttm_destroy);
 	if (ret)
 		return ret;
 

@@ -278,6 +278,13 @@ static inline void isa_delay(void)
 #define readl(addr)      in_le32(addr)
 #define writel(val,addr) out_le32((addr),(val))
 
+#define readsb(port, buf, nr)     raw_insb((port), (u8 *)(buf), (nr))
+#define readsw(port, buf, nr)     raw_insw((port), (u16 *)(buf), (nr))
+#define readsl(port, buf, nr)     raw_insl((port), (u32 *)(buf), (nr))
+#define writesb(port, buf, nr)    raw_outsb((port), (u8 *)(buf), (nr))
+#define writesw(port, buf, nr)    raw_outsw((port), (u16 *)(buf), (nr))
+#define writesl(port, buf, nr)    raw_outsl((port), (u32 *)(buf), (nr))
+
 #define mmiowb()
 
 static inline void __iomem *ioremap(unsigned long physaddr, unsigned long size)

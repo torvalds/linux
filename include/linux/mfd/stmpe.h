@@ -117,7 +117,7 @@ struct matrix_keymap_data;
  * @no_autorepeat: disable key autorepeat
  */
 struct stmpe_keypad_platform_data {
-	struct matrix_keymap_data *keymap_data;
+	const struct matrix_keymap_data *keymap_data;
 	unsigned int debounce_ms;
 	unsigned int scan_count;
 	bool no_autorepeat;

@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/mbus.h>
+#include <linux/clk.h>
 #include <plat/ehci-orion.h>
 
 #define rdl(off)	__raw_readl(hcd->regs + (off))
@@ -198,6 +199,7 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
+	struct clk *clk;
 	void __iomem *regs;
 	int irq, err;
 
@@ -236,6 +238,14 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "error mapping memory\n");
 		err = -EFAULT;
 		goto err2;
+	}
+
+	/* Not all platforms can gate the clock, so it is not
+	   an error if the clock does not exists. */
+	clk = clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(clk)) {
+		clk_prepare_enable(clk);
+		clk_put(clk);
 	}
 
 	hcd = usb_create_hcd(&ehci_orion_hc_driver,
@@ -301,12 +311,18 @@ err1:
 static int __exit ehci_orion_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct clk *clk;
 
 	usb_remove_hcd(hcd);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 
+	clk = clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(clk)) {
+		clk_disable_unprepare(clk);
+		clk_put(clk);
+	}
 	return 0;
 }
 

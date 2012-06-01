@@ -32,6 +32,27 @@ static struct pci_hostbridge_probe pci_probes[] __initdata = {
 
 #define RANGE_NUM 16
 
+static struct pci_root_info __init *find_pci_root_info(int node, int link)
+{
+	struct pci_root_info *info;
+
+	/* find the position */
+	list_for_each_entry(info, &pci_root_infos, list)
+		if (info->node == node && info->link == link)
+			return info;
+
+	return NULL;
+}
+
+static void __init set_mp_bus_range_to_node(int min_bus, int max_bus, int node)
+{
+#ifdef CONFIG_NUMA
+	int j;
+
+	for (j = min_bus; j <= max_bus; j++)
+		set_mp_bus_to_node(j, node);
+#endif
+}
 /**
  * early_fill_mp_bus_to_node()
  * called before pcibios_scan_root and pci_scan_bus
@@ -41,7 +62,6 @@ static struct pci_hostbridge_probe pci_probes[] __initdata = {
 static int __init early_fill_mp_bus_info(void)
 {
 	int i;
-	int j;
 	unsigned bus;
 	unsigned slot;
 	int node;
@@ -50,7 +70,6 @@ static int __init early_fill_mp_bus_info(void)
 	int def_link;
 	struct pci_root_info *info;
 	u32 reg;
-	struct resource *res;
 	u64 start;
 	u64 end;
 	struct range range[RANGE_NUM];
@@ -86,7 +105,6 @@ static int __init early_fill_mp_bus_info(void)
 	if (!found)
 		return 0;
 
-	pci_root_num = 0;
 	for (i = 0; i < 4; i++) {
 		int min_bus;
 		int max_bus;
@@ -99,19 +117,11 @@ static int __init early_fill_mp_bus_info(void)
 		min_bus = (reg >> 16) & 0xff;
 		max_bus = (reg >> 24) & 0xff;
 		node = (reg >> 4) & 0x07;
-#ifdef CONFIG_NUMA
-		for (j = min_bus; j <= max_bus; j++)
-			set_mp_bus_to_node(j, node);
-#endif
+		set_mp_bus_range_to_node(min_bus, max_bus, node);
 		link = (reg >> 8) & 0x03;
 
-		info = &pci_root_info[pci_root_num];
-		info->bus_min = min_bus;
-		info->bus_max = max_bus;
-		info->node = node;
-		info->link = link;
+		info = alloc_pci_root_info(min_bus, max_bus, node, link);
 		sprintf(info->name, "PCI Bus #%02x", min_bus);
-		pci_root_num++;
 	}
 
 	/* get the default node and link for left over res */
@@ -134,16 +144,10 @@ static int __init early_fill_mp_bus_info(void)
 		link = (reg >> 4) & 0x03;
 		end = (reg & 0xfff000) | 0xfff;
 
-		/* find the position */
-		for (j = 0; j < pci_root_num; j++) {
-			info = &pci_root_info[j];
-			if (info->node == node && info->link == link)
-				break;
-		}
-		if (j == pci_root_num)
+		info = find_pci_root_info(node, link);
+		if (!info)
 			continue; /* not found */
 
-		info = &pci_root_info[j];
 		printk(KERN_DEBUG "node %d link %d: io port [%llx, %llx]\n",
 		       node, link, start, end);
 
@@ -155,13 +159,8 @@ static int __init early_fill_mp_bus_info(void)
 	}
 	/* add left over io port range to def node/link, [0, 0xffff] */
 	/* find the position */
-	for (j = 0; j < pci_root_num; j++) {
-		info = &pci_root_info[j];
-		if (info->node == def_node && info->link == def_link)
-			break;
-	}
-	if (j < pci_root_num) {
-		info = &pci_root_info[j];
+	info = find_pci_root_info(def_node, def_link);
+	if (info) {
 		for (i = 0; i < RANGE_NUM; i++) {
 			if (!range[i].end)
 				continue;
@@ -214,16 +213,10 @@ static int __init early_fill_mp_bus_info(void)
 		end <<= 8;
 		end |= 0xffff;
 
-		/* find the position */
-		for (j = 0; j < pci_root_num; j++) {
-			info = &pci_root_info[j];
-			if (info->node == node && info->link == link)
-				break;
-		}
-		if (j == pci_root_num)
-			continue; /* not found */
+		info = find_pci_root_info(node, link);
 
-		info = &pci_root_info[j];
+		if (!info)
+			continue;
 
 		printk(KERN_DEBUG "node %d link %d: mmio [%llx, %llx]",
 		       node, link, start, end);
@@ -291,14 +284,8 @@ static int __init early_fill_mp_bus_info(void)
 	 * add left over mmio range to def node/link ?
 	 * that is tricky, just record range in from start_min to 4G
 	 */
-	for (j = 0; j < pci_root_num; j++) {
-		info = &pci_root_info[j];
-		if (info->node == def_node && info->link == def_link)
-			break;
-	}
-	if (j < pci_root_num) {
-		info = &pci_root_info[j];
-
+	info = find_pci_root_info(def_node, def_link);
+	if (info) {
 		for (i = 0; i < RANGE_NUM; i++) {
 			if (!range[i].end)
 				continue;
@@ -309,20 +296,16 @@ static int __init early_fill_mp_bus_info(void)
 		}
 	}
 
-	for (i = 0; i < pci_root_num; i++) {
-		int res_num;
+	list_for_each_entry(info, &pci_root_infos, list) {
 		int busnum;
+		struct pci_root_res *root_res;
 
-		info = &pci_root_info[i];
-		res_num = info->res_num;
 		busnum = info->bus_min;
 		printk(KERN_DEBUG "bus: [%02x, %02x] on node %x link %x\n",
 		       info->bus_min, info->bus_max, info->node, info->link);
-		for (j = 0; j < res_num; j++) {
-			res = &info->res[j];
-			printk(KERN_DEBUG "bus: %02x index %x %pR\n",
-				       busnum, j, res);
-		}
+		list_for_each_entry(root_res, &info->resources, list)
+			printk(KERN_DEBUG "bus: %02x %pR\n",
+				       busnum, &root_res->res);
 	}
 
 	return 0;

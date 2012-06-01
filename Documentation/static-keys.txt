@@ -235,7 +235,7 @@ label case adds:
 6 (mov) + 2 (test) + 2 (jne) = 10 - 5 (5 byte jump 0) = 5 addition bytes.
 
 If we then include the padding bytes, the jump label code saves, 16 total bytes
-of instruction memory for this small fucntion. In this case the non-jump label
+of instruction memory for this small function. In this case the non-jump label
 function is 80 bytes long. Thus, we have have saved 20% of the instruction
 footprint. We can in fact improve this even further, since the 5-byte no-op
 really can be a 2-byte no-op since we can reach the branch with a 2-byte jmp.

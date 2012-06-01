@@ -241,15 +241,6 @@ config SERIAL_8250_RSA
 	help
 	  ::: To be written :::
 
-config SERIAL_8250_MCA
-	tristate "Support 8250-type ports on MCA buses"
-	depends on SERIAL_8250 != n && MCA
-	help
-	  Say Y here if you have a MCA serial ports.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_mca.
-
 config SERIAL_8250_ACORN
 	tristate "Acorn expansion card serial port support"
 	depends on ARCH_ACORN && SERIAL_8250
@@ -278,3 +269,11 @@ config SERIAL_8250_DW
 	help
 	  Selecting this option will enable handling of the extra features
 	  present in the Synopsys DesignWare APB UART.
+
+config SERIAL_8250_EM
+	tristate "Support for Emma Mobile intergrated serial port"
+	depends on SERIAL_8250 && ARM && HAVE_CLK
+	help
+	  Selecting this option will add support for the integrated serial
+	  port hardware found on the Emma Mobile line of processors.
+	  If unsure, say N.

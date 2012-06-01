@@ -633,14 +633,17 @@ static inline u8 bnx2x_vlan_mac_get_rx_tx_flag(struct bnx2x_vlan_mac_obj *o)
 }
 
 
-static inline void bnx2x_set_mac_in_nig(struct bnx2x *bp,
-				 bool add, unsigned char *dev_addr, int index)
+void bnx2x_set_mac_in_nig(struct bnx2x *bp,
+			  bool add, unsigned char *dev_addr, int index)
 {
 	u32 wb_data[2];
 	u32 reg_offset = BP_PORT(bp) ? NIG_REG_LLH1_FUNC_MEM :
 			 NIG_REG_LLH0_FUNC_MEM;
 
-	if (!IS_MF_SI(bp) || index > BNX2X_LLH_CAM_MAX_PF_LINE)
+	if (!IS_MF_SI(bp) && !IS_MF_AFEX(bp))
+		return;
+
+	if (index > BNX2X_LLH_CAM_MAX_PF_LINE)
 		return;
 
 	DP(BNX2X_MSG_SP, "Going to %s LLH configuration at entry %d\n",
@@ -4090,12 +4093,6 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 		rss_mode = ETH_RSS_MODE_DISABLED;
 	else if (test_bit(BNX2X_RSS_MODE_REGULAR, &p->rss_flags))
 		rss_mode = ETH_RSS_MODE_REGULAR;
-	else if (test_bit(BNX2X_RSS_MODE_VLAN_PRI, &p->rss_flags))
-		rss_mode = ETH_RSS_MODE_VLAN_PRI;
-	else if (test_bit(BNX2X_RSS_MODE_E1HOV_PRI, &p->rss_flags))
-		rss_mode = ETH_RSS_MODE_E1HOV_PRI;
-	else if (test_bit(BNX2X_RSS_MODE_IP_DSCP, &p->rss_flags))
-		rss_mode = ETH_RSS_MODE_IP_DSCP;
 
 	data->rss_mode = rss_mode;
 
@@ -4404,6 +4401,9 @@ static void bnx2x_q_fill_init_tx_data(struct bnx2x_queue_sp_obj *o,
 		test_bit(BNX2X_Q_FLG_TX_SWITCH, flags);
 	tx_data->anti_spoofing_flg =
 		test_bit(BNX2X_Q_FLG_ANTI_SPOOF, flags);
+	tx_data->force_default_pri_flg =
+		test_bit(BNX2X_Q_FLG_FORCE_DEFAULT_PRI, flags);
+
 	tx_data->tx_status_block_id = params->fw_sb_id;
 	tx_data->tx_sb_index_number = params->sb_cq_index;
 	tx_data->tss_leading_client_id = params->tss_leading_cl_id;
@@ -5331,6 +5331,17 @@ static int bnx2x_func_chk_transition(struct bnx2x *bp,
 	case BNX2X_F_STATE_STARTED:
 		if (cmd == BNX2X_F_CMD_STOP)
 			next_state = BNX2X_F_STATE_INITIALIZED;
+		/* afex ramrods can be sent only in started mode, and only
+		 * if not pending for function_stop ramrod completion
+		 * for these events - next state remained STARTED.
+		 */
+		else if ((cmd == BNX2X_F_CMD_AFEX_UPDATE) &&
+			 (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
+			next_state = BNX2X_F_STATE_STARTED;
+
+		else if ((cmd == BNX2X_F_CMD_AFEX_VIFLISTS) &&
+			 (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
+			next_state = BNX2X_F_STATE_STARTED;
 		else if (cmd == BNX2X_F_CMD_TX_STOP)
 			next_state = BNX2X_F_STATE_TX_STOPPED;
 
@@ -5618,6 +5629,83 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 			     U64_LO(data_mapping), NONE_CONNECTION_TYPE);
 }
 
+static inline int bnx2x_func_send_afex_update(struct bnx2x *bp,
+					 struct bnx2x_func_state_params *params)
+{
+	struct bnx2x_func_sp_obj *o = params->f_obj;
+	struct function_update_data *rdata =
+		(struct function_update_data *)o->afex_rdata;
+	dma_addr_t data_mapping = o->afex_rdata_mapping;
+	struct bnx2x_func_afex_update_params *afex_update_params =
+		&params->params.afex_update;
+
+	memset(rdata, 0, sizeof(*rdata));
+
+	/* Fill the ramrod data with provided parameters */
+	rdata->vif_id_change_flg = 1;
+	rdata->vif_id = cpu_to_le16(afex_update_params->vif_id);
+	rdata->afex_default_vlan_change_flg = 1;
+	rdata->afex_default_vlan =
+		cpu_to_le16(afex_update_params->afex_default_vlan);
+	rdata->allowed_priorities_change_flg = 1;
+	rdata->allowed_priorities = afex_update_params->allowed_priorities;
+
+	/*  No need for an explicit memory barrier here as long we would
+	 *  need to ensure the ordering of writing to the SPQ element
+	 *  and updating of the SPQ producer which involves a memory
+	 *  read and we will have to put a full memory barrier there
+	 *  (inside bnx2x_sp_post()).
+	 */
+	DP(BNX2X_MSG_SP,
+	   "afex: sending func_update vif_id 0x%x dvlan 0x%x prio 0x%x\n",
+	   rdata->vif_id,
+	   rdata->afex_default_vlan, rdata->allowed_priorities);
+
+	return bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_FUNCTION_UPDATE, 0,
+			     U64_HI(data_mapping),
+			     U64_LO(data_mapping), NONE_CONNECTION_TYPE);
+}
+
+static
+inline int bnx2x_func_send_afex_viflists(struct bnx2x *bp,
+					 struct bnx2x_func_state_params *params)
+{
+	struct bnx2x_func_sp_obj *o = params->f_obj;
+	struct afex_vif_list_ramrod_data *rdata =
+		(struct afex_vif_list_ramrod_data *)o->afex_rdata;
+	struct bnx2x_func_afex_viflists_params *afex_viflist_params =
+		&params->params.afex_viflists;
+	u64 *p_rdata = (u64 *)rdata;
+
+	memset(rdata, 0, sizeof(*rdata));
+
+	/* Fill the ramrod data with provided parameters */
+	rdata->vif_list_index = afex_viflist_params->vif_list_index;
+	rdata->func_bit_map = afex_viflist_params->func_bit_map;
+	rdata->afex_vif_list_command =
+		afex_viflist_params->afex_vif_list_command;
+	rdata->func_to_clear = afex_viflist_params->func_to_clear;
+
+	/* send in echo type of sub command */
+	rdata->echo = afex_viflist_params->afex_vif_list_command;
+
+	/*  No need for an explicit memory barrier here as long we would
+	 *  need to ensure the ordering of writing to the SPQ element
+	 *  and updating of the SPQ producer which involves a memory
+	 *  read and we will have to put a full memory barrier there
+	 *  (inside bnx2x_sp_post()).
+	 */
+
+	DP(BNX2X_MSG_SP, "afex: ramrod lists, cmd 0x%x index 0x%x func_bit_map 0x%x func_to_clr 0x%x\n",
+	   rdata->afex_vif_list_command, rdata->vif_list_index,
+	   rdata->func_bit_map, rdata->func_to_clear);
+
+	/* this ramrod sends data directly and not through DMA mapping */
+	return bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_AFEX_VIF_LISTS, 0,
+			     U64_HI(*p_rdata), U64_LO(*p_rdata),
+			     NONE_CONNECTION_TYPE);
+}
+
 static inline int bnx2x_func_send_stop(struct bnx2x *bp,
 				       struct bnx2x_func_state_params *params)
 {
@@ -5669,6 +5757,10 @@ static int bnx2x_func_send_cmd(struct bnx2x *bp,
 		return bnx2x_func_send_stop(bp, params);
 	case BNX2X_F_CMD_HW_RESET:
 		return bnx2x_func_hw_reset(bp, params);
+	case BNX2X_F_CMD_AFEX_UPDATE:
+		return bnx2x_func_send_afex_update(bp, params);
+	case BNX2X_F_CMD_AFEX_VIFLISTS:
+		return bnx2x_func_send_afex_viflists(bp, params);
 	case BNX2X_F_CMD_TX_STOP:
 		return bnx2x_func_send_tx_stop(bp, params);
 	case BNX2X_F_CMD_TX_START:
@@ -5682,6 +5774,7 @@ static int bnx2x_func_send_cmd(struct bnx2x *bp,
 void bnx2x_init_func_obj(struct bnx2x *bp,
 			 struct bnx2x_func_sp_obj *obj,
 			 void *rdata, dma_addr_t rdata_mapping,
+			 void *afex_rdata, dma_addr_t afex_rdata_mapping,
 			 struct bnx2x_func_sp_drv_ops *drv_iface)
 {
 	memset(obj, 0, sizeof(*obj));
@@ -5690,7 +5783,8 @@ void bnx2x_init_func_obj(struct bnx2x *bp,
 
 	obj->rdata = rdata;
 	obj->rdata_mapping = rdata_mapping;
-
+	obj->afex_rdata = afex_rdata;
+	obj->afex_rdata_mapping = afex_rdata_mapping;
 	obj->send_cmd = bnx2x_func_send_cmd;
 	obj->check_transition = bnx2x_func_chk_transition;
 	obj->complete_cmd = bnx2x_func_comp_cmd;

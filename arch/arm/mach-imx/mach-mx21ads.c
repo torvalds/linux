@@ -304,8 +304,7 @@ static void __init mx21ads_board_init(void)
 	imx21_add_mxc_nand(&mx21ads_nand_board_info);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
-	platform_device_register_full(
-			(struct platform_device_info *)&mx21ads_cs8900_devinfo);
+	platform_device_register_full(&mx21ads_cs8900_devinfo);
 }
 
 static void __init mx21ads_timer_init(void)

@@ -121,15 +121,6 @@ static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
 
 /*
 ==============================================================================
-	Forward declarations
-==============================================================================
-*/
-static int icp_multi_attach(struct comedi_device *dev,
-			    struct comedi_devconfig *it);
-static int icp_multi_detach(struct comedi_device *dev);
-
-/*
-==============================================================================
 	Data & Structure declarations
 ==============================================================================
 */
@@ -153,50 +144,6 @@ struct boardtype {
 	const char *rangecode;	/*  range codes for programming */
 	const struct comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
 };
-
-static const struct boardtype boardtypes[] = {
-	{"icp_multi",		/*  Driver name */
-	 DEVICE_ID,		/*  PCI device ID */
-	 IORANGE_ICP_MULTI,	/*  I/O range length */
-	 1,			/*  1=Card supports interrupts */
-	 TYPE_ICP_MULTI,	/*  Card type = ICP MULTI */
-	 16,			/*  Num of A/D channels */
-	 8,			/*  Num of A/D channels in diff mode */
-	 4,			/*  Num of D/A channels */
-	 16,			/*  Num of digital inputs */
-	 8,			/*  Num of digital outputs */
-	 4,			/*  Num of counters */
-	 0x0fff,		/*  Resolution of A/D */
-	 0x0fff,		/*  Resolution of D/A */
-	 &range_analog,		/*  Rangelist for A/D */
-	 range_codes_analog,	/*  Range codes for programming */
-	 &range_analog},	/*  Rangelist for D/A */
-};
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
-
-static struct comedi_driver driver_icp_multi = {
-	.driver_name = "icp_multi",
-	.module = THIS_MODULE,
-	.attach = icp_multi_attach,
-	.detach = icp_multi_detach,
-	.num_names = n_boardtypes,
-	.board_name = &boardtypes[0].name,
-	.offset = sizeof(struct boardtype),
-};
-
-static int __init driver_icp_multi_init_module(void)
-{
-	return comedi_driver_register(&driver_icp_multi);
-}
-
-static void __exit driver_icp_multi_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_icp_multi);
-}
-
-module_init(driver_icp_multi_init_module);
-module_exit(driver_icp_multi_cleanup_module);
 
 struct icp_multi_private {
 	struct pcilst_struct *card;	/*  pointer to card */
@@ -222,25 +169,81 @@ struct icp_multi_private {
 
 /*
 ==============================================================================
-	More forward declarations
+
+Name:	setup_channel_list
+
+Description:
+	This function sets the appropriate channel selection,
+	differential input mode and range bits in the ADC Command/
+	Status register.
+
+Parameters:
+	struct comedi_device *dev	Pointer to current service structure
+	struct comedi_subdevice *s	Pointer to current subdevice structure
+	unsigned int *chanlist	Pointer to packed channel list
+	unsigned int n_chan	Number of channels to scan
+
+Returns:Void
+
 ==============================================================================
 */
-
-#if 0
-static int check_channel_list(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      unsigned int *chanlist, unsigned int n_chan);
-#endif
 static void setup_channel_list(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       unsigned int *chanlist, unsigned int n_chan);
-static int icp_multi_reset(struct comedi_device *dev);
+			       unsigned int *chanlist, unsigned int n_chan)
+{
+	unsigned int i, range, chanprog;
+	unsigned int diff;
 
-/*
-==============================================================================
-	Functions
-==============================================================================
-*/
+#ifdef ICP_MULTI_EXTDEBUG
+	printk(KERN_DEBUG
+	       "icp multi EDBG:  setup_channel_list(...,%d)\n", n_chan);
+#endif
+	devpriv->act_chanlist_len = n_chan;
+	devpriv->act_chanlist_pos = 0;
+
+	for (i = 0; i < n_chan; i++) {
+		/*  Get channel */
+		chanprog = CR_CHAN(chanlist[i]);
+
+		/*  Determine if it is a differential channel (Bit 15  = 1) */
+		if (CR_AREF(chanlist[i]) == AREF_DIFF) {
+			diff = 1;
+			chanprog &= 0x0007;
+		} else {
+			diff = 0;
+			chanprog &= 0x000f;
+		}
+
+		/*  Clear channel, range and input mode bits
+		 *  in A/D command/status register */
+		devpriv->AdcCmdStatus &= 0xf00f;
+
+		/*  Set channel number and differential mode status bit */
+		if (diff) {
+			/*  Set channel number, bits 9-11 & mode, bit 6 */
+			devpriv->AdcCmdStatus |= (chanprog << 9);
+			devpriv->AdcCmdStatus |= ADC_DI;
+		} else
+			/*  Set channel number, bits 8-11 */
+			devpriv->AdcCmdStatus |= (chanprog << 8);
+
+		/*  Get range for current channel */
+		range = this_board->rangecode[CR_RANGE(chanlist[i])];
+		/*  Set range. bits 4-5 */
+		devpriv->AdcCmdStatus |= range;
+
+		/* Output channel, range, mode to ICP Multi */
+		writew(devpriv->AdcCmdStatus,
+		       devpriv->io_addr + ICP_MULTI_ADC_CSR);
+
+#ifdef ICP_MULTI_EXTDEBUG
+		printk(KERN_DEBUG
+		       "GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range,
+		       devpriv->act_chanlist[i]);
+#endif
+	}
+
+}
 
 /*
 ==============================================================================
@@ -764,84 +767,6 @@ static int check_channel_list(struct comedi_device *dev,
 /*
 ==============================================================================
 
-Name:	setup_channel_list
-
-Description:
-	This function sets the appropriate channel selection,
-	differential input mode and range bits in the ADC Command/
-	Status register.
-
-Parameters:
-	struct comedi_device *dev	Pointer to current service structure
-	struct comedi_subdevice *s	Pointer to current subdevice structure
-	unsigned int *chanlist	Pointer to packed channel list
-	unsigned int n_chan	Number of channels to scan
-
-Returns:Void
-
-==============================================================================
-*/
-static void setup_channel_list(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       unsigned int *chanlist, unsigned int n_chan)
-{
-	unsigned int i, range, chanprog;
-	unsigned int diff;
-
-#ifdef ICP_MULTI_EXTDEBUG
-	printk(KERN_DEBUG
-	       "icp multi EDBG:  setup_channel_list(...,%d)\n", n_chan);
-#endif
-	devpriv->act_chanlist_len = n_chan;
-	devpriv->act_chanlist_pos = 0;
-
-	for (i = 0; i < n_chan; i++) {
-		/*  Get channel */
-		chanprog = CR_CHAN(chanlist[i]);
-
-		/*  Determine if it is a differential channel (Bit 15  = 1) */
-		if (CR_AREF(chanlist[i]) == AREF_DIFF) {
-			diff = 1;
-			chanprog &= 0x0007;
-		} else {
-			diff = 0;
-			chanprog &= 0x000f;
-		}
-
-		/*  Clear channel, range and input mode bits
-		 *  in A/D command/status register */
-		devpriv->AdcCmdStatus &= 0xf00f;
-
-		/*  Set channel number and differential mode status bit */
-		if (diff) {
-			/*  Set channel number, bits 9-11 & mode, bit 6 */
-			devpriv->AdcCmdStatus |= (chanprog << 9);
-			devpriv->AdcCmdStatus |= ADC_DI;
-		} else
-			/*  Set channel number, bits 8-11 */
-			devpriv->AdcCmdStatus |= (chanprog << 8);
-
-		/*  Get range for current channel */
-		range = this_board->rangecode[CR_RANGE(chanlist[i])];
-		/*  Set range. bits 4-5 */
-		devpriv->AdcCmdStatus |= range;
-
-		/* Output channel, range, mode to ICP Multi */
-		writew(devpriv->AdcCmdStatus,
-		       devpriv->io_addr + ICP_MULTI_ADC_CSR);
-
-#ifdef ICP_MULTI_EXTDEBUG
-		printk(KERN_DEBUG
-		       "GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range,
-		       devpriv->act_chanlist[i]);
-#endif
-	}
-
-}
-
-/*
-==============================================================================
-
 Name:	icp_multi_reset
 
 Description:
@@ -897,23 +822,6 @@ static int icp_multi_reset(struct comedi_device *dev)
 	return 0;
 }
 
-/*
-==============================================================================
-
-Name:	icp_multi_attach
-
-Description:
-	This function sets up all the appropriate data for the current
-	device.
-
-Parameters:
-	struct comedi_device *dev	Pointer to current device structure
-	struct comedi_devconfig *it	Pointer to current device configuration
-
-Returns:int	0 = success
-
-==============================================================================
-*/
 static int icp_multi_attach(struct comedi_device *dev,
 			    struct comedi_devconfig *it)
 {
@@ -1099,43 +1007,52 @@ static int icp_multi_attach(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-
-Name:	icp_multi_detach
-
-Description:
-	This function releases all the resources used by the current
-	device.
-
-Parameters:
-	struct comedi_device *dev	Pointer to current device structure
-
-Returns:int	0 = success
-
-==============================================================================
-*/
-static int icp_multi_detach(struct comedi_device *dev)
+static void icp_multi_detach(struct comedi_device *dev)
 {
-
 	if (dev->private)
 		if (devpriv->valid)
 			icp_multi_reset(dev);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->private && devpriv->io_addr)
 		iounmap(devpriv->io_addr);
-
 	if (dev->private && devpriv->card)
 		pci_card_free(devpriv->card);
-
 	if (--pci_list_builded == 0)
 		pci_card_list_cleanup(PCI_VENDOR_ID_ICP);
-
-	return 0;
 }
+
+static const struct boardtype boardtypes[] = {
+	{
+		.name		= "icp_multi",
+		.device_id	= DEVICE_ID,
+		.iorange	= IORANGE_ICP_MULTI,
+		.have_irq	= 1,
+		.cardtype	= TYPE_ICP_MULTI,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.n_aochan	= 4,
+		.n_dichan	= 16,
+		.n_dochan	= 8,
+		.n_ctrs		= 4,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_analog,
+		.rangecode	= range_codes_analog,
+		.rangelist_ao	= &range_analog,
+	},
+};
+
+static struct comedi_driver icp_multi_driver = {
+	.driver_name	= "icp_multi",
+	.module		= THIS_MODULE,
+	.attach		= icp_multi_attach,
+	.detach		= icp_multi_detach,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.board_name	= &boardtypes[0].name,
+	.offset		= sizeof(struct boardtype),
+};
+module_comedi_driver(icp_multi_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

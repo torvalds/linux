@@ -67,6 +67,10 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
 			switch (from->si_code >> 16) {
 			case __SI_FAULT >> 16:
 				break;
+			case __SI_SYS >> 16:
+				put_user_ex(from->si_syscall, &to->si_syscall);
+				put_user_ex(from->si_arch, &to->si_arch);
+				break;
 			case __SI_CHLD >> 16:
 				if (ia32) {
 					put_user_ex(from->si_utime, &to->si_utime);
@@ -127,18 +131,8 @@ int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 asmlinkage long sys32_sigsuspend(int history0, int history1, old_sigset_t mask)
 {
 	sigset_t blocked;
-
-	current->saved_sigmask = current->blocked;
-
-	mask &= _BLOCKABLE;
 	siginitset(&blocked, mask);
-	set_current_blocked(&blocked);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-
-	set_restore_sigmask();
-	return -ERESTARTNOHAND;
+	return sigsuspend(&blocked);
 }
 
 asmlinkage long sys32_sigaltstack(const stack_ia32_t __user *uss_ptr,

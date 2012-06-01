@@ -161,7 +161,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	if (ieee->pHTInfo == NULL)
 	{
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for HTInfo\n");
-		return NULL;
+		goto failed;
 	}
 	HTUpdateDefaultSetting(ieee);
 	HTInitializeHTInfo(ieee); //may move to other place.

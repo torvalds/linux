@@ -227,6 +227,72 @@ static int __devexit i2c_powermac_remove(struct platform_device *dev)
 	return 0;
 }
 
+static void __devinit i2c_powermac_register_devices(struct i2c_adapter *adap,
+						    struct pmac_i2c_bus *bus)
+{
+	struct i2c_client *newdev;
+	struct device_node *node;
+
+	for_each_child_of_node(adap->dev.of_node, node) {
+		struct i2c_board_info info = {};
+		struct dev_archdata dev_ad = {};
+		const __be32 *reg;
+		char tmp[16];
+		u32 addr;
+		int len;
+
+		/* Get address & channel */
+		reg = of_get_property(node, "reg", &len);
+		if (!reg || (len < sizeof(int))) {
+			dev_err(&adap->dev, "i2c-powermac: invalid reg on %s\n",
+				node->full_name);
+			continue;
+		}
+		addr = be32_to_cpup(reg);
+
+		/* Multibus setup, check channel */
+		if (!pmac_i2c_match_adapter(node, adap))
+			continue;
+
+		dev_dbg(&adap->dev, "i2c-powermac: register %s\n",
+			node->full_name);
+
+		/* Make up a modalias. Note: we to _NOT_ want the standard
+		 * i2c drivers to match with any of our powermac stuff
+		 * unless they have been specifically modified to handle
+		 * it on a case by case basis. For example, for thermal
+		 * control, things like lm75 etc... shall match with their
+		 * corresponding windfarm drivers, _NOT_ the generic ones,
+		 * so we force a prefix of AAPL, onto the modalias to
+		 * make that happen
+		 */
+		if (of_modalias_node(node, tmp, sizeof(tmp)) < 0) {
+			dev_err(&adap->dev, "i2c-powermac: modalias failure"
+				" on %s\n", node->full_name);
+			continue;
+		}
+		snprintf(info.type, sizeof(info.type), "MAC,%s", tmp);
+
+		/* Fill out the rest of the info structure */
+		info.addr = (addr & 0xff) >> 1;
+		info.irq = irq_of_parse_and_map(node, 0);
+		info.of_node = of_node_get(node);
+		info.archdata = &dev_ad;
+
+		newdev = i2c_new_device(adap, &info);
+		if (!newdev) {
+			dev_err(&adap->dev, "i2c-powermac: Failure to register"
+				" %s\n", node->full_name);
+			of_node_put(node);
+			/* We do not dispose of the interrupt mapping on
+			 * purpose. It's not necessary (interrupt cannot be
+			 * re-used) and somebody else might have grabbed it
+			 * via direct DT lookup so let's not bother
+			 */
+			continue;
+		}
+	}
+}
 
 static int __devinit i2c_powermac_probe(struct platform_device *dev)
 {
@@ -272,6 +338,7 @@ static int __devinit i2c_powermac_probe(struct platform_device *dev)
 	adapter->algo = &i2c_powermac_algorithm;
 	i2c_set_adapdata(adapter, bus);
 	adapter->dev.parent = &dev->dev;
+	adapter->dev.of_node = dev->dev.of_node;
 	rc = i2c_add_adapter(adapter);
 	if (rc) {
 		printk(KERN_ERR "i2c-powermac: Adapter %s registration "
@@ -281,33 +348,10 @@ static int __devinit i2c_powermac_probe(struct platform_device *dev)
 
 	printk(KERN_INFO "PowerMac i2c bus %s registered\n", adapter->name);
 
-	if (!strncmp(basename, "uni-n", 5)) {
-		struct device_node *np;
-		const u32 *prop;
-		struct i2c_board_info info;
-
-		/* Instantiate I2C motion sensor if present */
-		np = of_find_node_by_name(NULL, "accelerometer");
-		if (np && of_device_is_compatible(np, "AAPL,accelerometer_1") &&
-		    (prop = of_get_property(np, "reg", NULL))) {
-			int i2c_bus;
-			const char *tmp_bus;
-
-			/* look for bus either using "reg" or by path */
-			tmp_bus = strstr(np->full_name, "/i2c-bus@");
-			if (tmp_bus)
-				i2c_bus = *(tmp_bus + 9) - '0';
-			else
-				i2c_bus = ((*prop) >> 8) & 0x0f;
-
-			if (pmac_i2c_get_channel(bus) == i2c_bus) {
-				memset(&info, 0, sizeof(struct i2c_board_info));
-				info.addr = ((*prop) & 0xff) >> 1;
-				strlcpy(info.type, "ams", I2C_NAME_SIZE);
-				i2c_new_device(adapter, &info);
-			}
-		}
-	}
+	/* Cannot use of_i2c_register_devices() due to Apple device-tree
+	 * funkyness
+	 */
+	i2c_powermac_register_devices(adapter, bus);
 
 	return rc;
 }

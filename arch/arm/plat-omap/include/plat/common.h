@@ -30,7 +30,9 @@
 #include <plat/i2c.h>
 #include <plat/omap_hwmod.h>
 
-extern int __init omap_init_clocksource_32k(void);
+extern int __init omap_init_clocksource_32k(void __iomem *vbase);
+
+extern void __init omap_check_revision(void);
 
 extern void omap_reserve(void);
 extern int omap_dss_reset(struct omap_hwmod *);

@@ -2804,7 +2804,7 @@ static void ov7xx0_configure(struct sd *sd)
 	/* add OV7670 here
 	 * it appears to be wrongly detected as a 7610 by default */
 	if (rc < 0) {
-		PDEBUG(D_ERR, "Error detecting sensor type");
+		pr_err("Error detecting sensor type\n");
 		return;
 	}
 	if ((rc & 3) == 3) {
@@ -2832,12 +2832,12 @@ static void ov7xx0_configure(struct sd *sd)
 		/* try to read product id registers */
 		high = i2c_r(sd, 0x0a);
 		if (high < 0) {
-			PDEBUG(D_ERR, "Error detecting camera chip PID");
+			pr_err("Error detecting camera chip PID\n");
 			return;
 		}
 		low = i2c_r(sd, 0x0b);
 		if (low < 0) {
-			PDEBUG(D_ERR, "Error detecting camera chip VER");
+			pr_err("Error detecting camera chip VER\n");
 			return;
 		}
 		if (high == 0x76) {
@@ -2863,7 +2863,7 @@ static void ov7xx0_configure(struct sd *sd)
 				sd->sensor = SEN_OV7660;
 				break;
 			default:
-				PDEBUG(D_PROBE, "Unknown sensor: 0x76%x", low);
+				pr_err("Unknown sensor: 0x76%02x\n", low);
 				return;
 			}
 		} else {
@@ -2884,7 +2884,7 @@ static void ov6xx0_configure(struct sd *sd)
 	/* Detect sensor (sub)type */
 	rc = i2c_r(sd, OV7610_REG_COM_I);
 	if (rc < 0) {
-		PDEBUG(D_ERR, "Error detecting sensor type");
+		pr_err("Error detecting sensor type\n");
 		return;
 	}
 

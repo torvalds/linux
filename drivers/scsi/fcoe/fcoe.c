@@ -411,19 +411,17 @@ out:
 }
 
 /**
- * fcoe_interface_cleanup() - Clean up a FCoE interface
+ * fcoe_interface_remove() - remove FCoE interface from netdev
  * @fcoe: The FCoE interface to be cleaned up
  *
  * Caller must be holding the RTNL mutex
  */
-static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
+static void fcoe_interface_remove(struct fcoe_interface *fcoe)
 {
 	struct net_device *netdev = fcoe->netdev;
 	struct fcoe_ctlr *fip = &fcoe->ctlr;
 	u8 flogi_maddr[ETH_ALEN];
 	const struct net_device_ops *ops;
-
-	rtnl_lock();
 
 	/*
 	 * Don't listen for Ethernet packets anymore.
@@ -453,12 +451,28 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 			FCOE_NETDEV_DBG(netdev, "Failed to disable FCoE"
 					" specific feature for LLD.\n");
 	}
+	fcoe->removed = 1;
+}
 
+
+/**
+ * fcoe_interface_cleanup() - Clean up a FCoE interface
+ * @fcoe: The FCoE interface to be cleaned up
+ */
+static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
+{
+	struct net_device *netdev = fcoe->netdev;
+	struct fcoe_ctlr *fip = &fcoe->ctlr;
+
+	rtnl_lock();
+	if (!fcoe->removed)
+		fcoe_interface_remove(fcoe);
 	rtnl_unlock();
 
 	/* Release the self-reference taken during fcoe_interface_create() */
 	/* tear-down the FCoE controller */
 	fcoe_ctlr_destroy(fip);
+	scsi_host_put(fcoe->ctlr.lp->host);
 	kfree(fcoe);
 	dev_put(netdev);
 	module_put(THIS_MODULE);
@@ -522,13 +536,11 @@ static void fcoe_update_src_mac(struct fc_lport *lport, u8 *addr)
 	struct fcoe_port *port = lport_priv(lport);
 	struct fcoe_interface *fcoe = port->priv;
 
-	rtnl_lock();
 	if (!is_zero_ether_addr(port->data_src_addr))
 		dev_uc_del(fcoe->netdev, port->data_src_addr);
 	if (!is_zero_ether_addr(addr))
 		dev_uc_add(fcoe->netdev, addr);
 	memcpy(port->data_src_addr, addr, ETH_ALEN);
-	rtnl_unlock();
 }
 
 /**
@@ -941,6 +953,10 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 	rtnl_lock();
 	if (!is_zero_ether_addr(port->data_src_addr))
 		dev_uc_del(netdev, port->data_src_addr);
+	if (lport->vport)
+		synchronize_net();
+	else
+		fcoe_interface_remove(fcoe);
 	rtnl_unlock();
 
 	/* Free queued packets for the per-CPU receive threads */
@@ -959,8 +975,12 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 	/* Free memory used by statistical counters */
 	fc_lport_free_stats(lport);
 
-	/* Release the Scsi_Host */
-	scsi_host_put(lport->host);
+	/*
+	 * Release the Scsi_Host for vport but hold on to
+	 * master lport until it fcoe interface fully cleaned-up.
+	 */
+	if (lport->vport)
+		scsi_host_put(lport->host);
 }
 
 /**
@@ -2274,10 +2294,9 @@ static void fcoe_percpu_clean(struct fc_lport *lport)
 			continue;
 
 		skb = dev_alloc_skb(0);
-		if (!skb) {
-			spin_unlock_bh(&pp->fcoe_rx_list.lock);
+		if (!skb)
 			continue;
-		}
+
 		skb->destructor = fcoe_percpu_flush_done;
 
 		spin_lock_bh(&pp->fcoe_rx_list.lock);

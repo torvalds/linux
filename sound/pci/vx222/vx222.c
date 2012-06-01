@@ -289,7 +289,7 @@ static int snd_vx222_resume(struct pci_dev *pci)
 }
 #endif
 
-static struct pci_driver driver = {
+static struct pci_driver vx222_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_vx222_ids,
 	.probe = snd_vx222_probe,
@@ -300,15 +300,4 @@ static struct pci_driver driver = {
 #endif
 };
 
-static int __init alsa_card_vx222_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_vx222_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_vx222_init)
-module_exit(alsa_card_vx222_exit)
+module_pci_driver(vx222_driver);

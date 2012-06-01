@@ -27,8 +27,8 @@
 #include "drmP.h"
 #include "drm.h"
 #include "nouveau_drv.h"
+#include "nouveau_fifo.h"
 #include "nouveau_ramht.h"
-#include "nouveau_grctx.h"
 #include "nouveau_dma.h"
 #include "nouveau_vm.h"
 #include "nv50_evo.h"
@@ -39,86 +39,6 @@ struct nv50_graph_engine {
 	u32 ctxprog_size;
 	u32 grctx_size;
 };
-
-static void
-nv50_graph_fifo_access(struct drm_device *dev, bool enabled)
-{
-	const uint32_t mask = 0x00010001;
-
-	if (enabled)
-		nv_wr32(dev, 0x400500, nv_rd32(dev, 0x400500) | mask);
-	else
-		nv_wr32(dev, 0x400500, nv_rd32(dev, 0x400500) & ~mask);
-}
-
-static struct nouveau_channel *
-nv50_graph_channel(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t inst;
-	int i;
-
-	/* Be sure we're not in the middle of a context switch or bad things
-	 * will happen, such as unloading the wrong pgraph context.
-	 */
-	if (!nv_wait(dev, 0x400300, 0x00000001, 0x00000000))
-		NV_ERROR(dev, "Ctxprog is still running\n");
-
-	inst = nv_rd32(dev, NV50_PGRAPH_CTXCTL_CUR);
-	if (!(inst & NV50_PGRAPH_CTXCTL_CUR_LOADED))
-		return NULL;
-	inst = (inst & NV50_PGRAPH_CTXCTL_CUR_INSTANCE) << 12;
-
-	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-		struct nouveau_channel *chan = dev_priv->channels.ptr[i];
-
-		if (chan && chan->ramin && chan->ramin->vinst == inst)
-			return chan;
-	}
-
-	return NULL;
-}
-
-static int
-nv50_graph_do_load_context(struct drm_device *dev, uint32_t inst)
-{
-	uint32_t fifo = nv_rd32(dev, 0x400500);
-
-	nv_wr32(dev, 0x400500, fifo & ~1);
-	nv_wr32(dev, 0x400784, inst);
-	nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) | 0x40);
-	nv_wr32(dev, 0x400320, nv_rd32(dev, 0x400320) | 0x11);
-	nv_wr32(dev, 0x400040, 0xffffffff);
-	(void)nv_rd32(dev, 0x400040);
-	nv_wr32(dev, 0x400040, 0x00000000);
-	nv_wr32(dev, 0x400304, nv_rd32(dev, 0x400304) | 1);
-
-	if (nouveau_wait_for_idle(dev))
-		nv_wr32(dev, 0x40032c, inst | (1<<31));
-	nv_wr32(dev, 0x400500, fifo);
-
-	return 0;
-}
-
-static int
-nv50_graph_unload_context(struct drm_device *dev)
-{
-	uint32_t inst;
-
-	inst  = nv_rd32(dev, NV50_PGRAPH_CTXCTL_CUR);
-	if (!(inst & NV50_PGRAPH_CTXCTL_CUR_LOADED))
-		return 0;
-	inst &= NV50_PGRAPH_CTXCTL_CUR_INSTANCE;
-
-	nouveau_wait_for_idle(dev);
-	nv_wr32(dev, 0x400784, inst);
-	nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) | 0x20);
-	nv_wr32(dev, 0x400304, nv_rd32(dev, 0x400304) | 0x01);
-	nouveau_wait_for_idle(dev);
-
-	nv_wr32(dev, NV50_PGRAPH_CTXCTL_CUR, inst);
-	return 0;
-}
 
 static int
 nv50_graph_init(struct drm_device *dev, int engine)
@@ -211,12 +131,6 @@ nv50_graph_init(struct drm_device *dev, int engine)
 static int
 nv50_graph_fini(struct drm_device *dev, int engine, bool suspend)
 {
-	nv_mask(dev, 0x400500, 0x00010001, 0x00000000);
-	if (!nv_wait(dev, 0x400700, ~0, 0) && suspend) {
-		nv_mask(dev, 0x400500, 0x00010001, 0x00010001);
-		return -EBUSY;
-	}
-	nv50_graph_unload_context(dev);
 	nv_wr32(dev, 0x40013c, 0x00000000);
 	return 0;
 }
@@ -229,7 +143,6 @@ nv50_graph_context_new(struct nouveau_channel *chan, int engine)
 	struct nouveau_gpuobj *ramin = chan->ramin;
 	struct nouveau_gpuobj *grctx = NULL;
 	struct nv50_graph_engine *pgraph = nv_engine(dev, engine);
-	struct nouveau_grctx ctx = {};
 	int hdr, ret;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
@@ -248,11 +161,7 @@ nv50_graph_context_new(struct nouveau_channel *chan, int engine)
 	nv_wo32(ramin, hdr + 0x10, 0);
 	nv_wo32(ramin, hdr + 0x14, 0x00010000);
 
-	ctx.dev = chan->dev;
-	ctx.mode = NOUVEAU_GRCTX_VALS;
-	ctx.data = grctx;
-	nv50_grctx_init(&ctx);
-
+	nv50_grctx_fill(dev, grctx);
 	nv_wo32(grctx, 0x00000, chan->ramin->vinst >> 12);
 
 	dev_priv->engine.instmem.flush(dev);
@@ -268,33 +177,14 @@ nv50_graph_context_del(struct nouveau_channel *chan, int engine)
 	struct nouveau_gpuobj *grctx = chan->engctx[engine];
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	int i, hdr = (dev_priv->chipset == 0x50) ? 0x200 : 0x20;
-	unsigned long flags;
-
-	NV_DEBUG(dev, "ch%d\n", chan->id);
-
-	if (!chan->ramin)
-		return;
-
-	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	pfifo->reassign(dev, false);
-	nv50_graph_fifo_access(dev, false);
-
-	if (nv50_graph_channel(dev) == chan)
-		nv50_graph_unload_context(dev);
 
 	for (i = hdr; i < hdr + 24; i += 4)
 		nv_wo32(chan->ramin, i, 0);
 	dev_priv->engine.instmem.flush(dev);
 
-	nv50_graph_fifo_access(dev, true);
-	pfifo->reassign(dev, true);
-	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
-
-	nouveau_gpuobj_ref(NULL, &grctx);
-
 	atomic_dec(&chan->vm->engref[engine]);
+	nouveau_gpuobj_ref(NULL, &grctx);
 	chan->engctx[engine] = NULL;
 }
 
@@ -323,85 +213,6 @@ nv50_graph_object_new(struct nouveau_channel *chan, int engine,
 	nouveau_gpuobj_ref(NULL, &obj);
 	return ret;
 }
-
-static void
-nv50_graph_context_switch(struct drm_device *dev)
-{
-	uint32_t inst;
-
-	nv50_graph_unload_context(dev);
-
-	inst  = nv_rd32(dev, NV50_PGRAPH_CTXCTL_NEXT);
-	inst &= NV50_PGRAPH_CTXCTL_NEXT_INSTANCE;
-	nv50_graph_do_load_context(dev, inst);
-
-	nv_wr32(dev, NV40_PGRAPH_INTR_EN, nv_rd32(dev,
-		NV40_PGRAPH_INTR_EN) | NV_PGRAPH_INTR_CONTEXT_SWITCH);
-}
-
-static int
-nv50_graph_nvsw_dma_vblsem(struct nouveau_channel *chan,
-			   u32 class, u32 mthd, u32 data)
-{
-	struct nouveau_gpuobj *gpuobj;
-
-	gpuobj = nouveau_ramht_find(chan, data);
-	if (!gpuobj)
-		return -ENOENT;
-
-	if (nouveau_notifier_offset(gpuobj, NULL))
-		return -EINVAL;
-
-	chan->nvsw.vblsem = gpuobj;
-	chan->nvsw.vblsem_offset = ~0;
-	return 0;
-}
-
-static int
-nv50_graph_nvsw_vblsem_offset(struct nouveau_channel *chan,
-			      u32 class, u32 mthd, u32 data)
-{
-	if (nouveau_notifier_offset(chan->nvsw.vblsem, &data))
-		return -ERANGE;
-
-	chan->nvsw.vblsem_offset = data >> 2;
-	return 0;
-}
-
-static int
-nv50_graph_nvsw_vblsem_release_val(struct nouveau_channel *chan,
-				   u32 class, u32 mthd, u32 data)
-{
-	chan->nvsw.vblsem_rval = data;
-	return 0;
-}
-
-static int
-nv50_graph_nvsw_vblsem_release(struct nouveau_channel *chan,
-			       u32 class, u32 mthd, u32 data)
-{
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	if (!chan->nvsw.vblsem || chan->nvsw.vblsem_offset == ~0 || data > 1)
-		return -EINVAL;
-
-	drm_vblank_get(dev, data);
-
-	chan->nvsw.vblsem_head = data;
-	list_add(&chan->nvsw.vbl_wait, &dev_priv->vbl_waiting);
-
-	return 0;
-}
-
-static int
-nv50_graph_nvsw_mthd_page_flip(struct nouveau_channel *chan,
-			       u32 class, u32 mthd, u32 data)
-{
-	nouveau_finish_page_flip(chan, NULL);
-	return 0;
-}
-
 
 static void
 nv50_graph_tlb_flush(struct drm_device *dev, int engine)
@@ -514,6 +325,7 @@ struct nouveau_enum nv50_data_error_names[] = {
 	{ 0x0000001f, "RT_BPP128_WITH_MS8", NULL },
 	{ 0x00000021, "Z_OUT_OF_BOUNDS", NULL },
 	{ 0x00000023, "XY_OUT_OF_BOUNDS", NULL },
+	{ 0x00000024, "VP_ZERO_INPUTS", NULL },
 	{ 0x00000027, "CP_MORE_PARAMS_THAN_SHARED", NULL },
 	{ 0x00000028, "CP_NO_REG_SPACE_STRIPED", NULL },
 	{ 0x00000029, "CP_NO_REG_SPACE_PACKED", NULL },
@@ -900,13 +712,14 @@ nv50_pgraph_trap_handler(struct drm_device *dev, u32 display, u64 inst, u32 chid
 int
 nv50_graph_isr_chid(struct drm_device *dev, u64 inst)
 {
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan;
 	unsigned long flags;
 	int i;
 
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
-	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
+	for (i = 0; i < pfifo->channels; i++) {
 		chan = dev_priv->channels.ptr[i];
 		if (!chan || !chan->ramin)
 			continue;
@@ -937,15 +750,6 @@ nv50_graph_isr(struct drm_device *dev)
 			if (!nouveau_gpuobj_mthd_call2(dev, chid, class,
 						       mthd, data))
 				show &= ~0x00000010;
-		}
-
-		if (stat & 0x00001000) {
-			nv_wr32(dev, 0x400500, 0x00000000);
-			nv_wr32(dev, 0x400100, 0x00001000);
-			nv_mask(dev, 0x40013c, 0x00001000, 0x00000000);
-			nv50_graph_context_switch(dev);
-			stat &= ~0x00001000;
-			show &= ~0x00001000;
 		}
 
 		show = (show && nouveau_ratelimit()) ? show : 0;
@@ -996,27 +800,20 @@ nv50_graph_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_graph_engine *pgraph;
-	struct nouveau_grctx ctx = {};
 	int ret;
 
 	pgraph = kzalloc(sizeof(*pgraph),GFP_KERNEL);
 	if (!pgraph)
 		return -ENOMEM;
 
-	ctx.dev = dev;
-	ctx.mode = NOUVEAU_GRCTX_PROG;
-	ctx.data = pgraph->ctxprog;
-	ctx.ctxprog_max = ARRAY_SIZE(pgraph->ctxprog);
-
-	ret = nv50_grctx_init(&ctx);
+	ret = nv50_grctx_init(dev, pgraph->ctxprog, ARRAY_SIZE(pgraph->ctxprog),
+				  &pgraph->ctxprog_size,
+				  &pgraph->grctx_size);
 	if (ret) {
 		NV_ERROR(dev, "PGRAPH: ctxprog build failed\n");
 		kfree(pgraph);
 		return 0;
 	}
-
-	pgraph->grctx_size = ctx.ctxvals_pos * 4;
-	pgraph->ctxprog_size = ctx.ctxprog_len;
 
 	pgraph->base.destroy = nv50_graph_destroy;
 	pgraph->base.init = nv50_graph_init;
@@ -1030,14 +827,6 @@ nv50_graph_create(struct drm_device *dev)
 		pgraph->base.tlb_flush = nv84_graph_tlb_flush;
 
 	nouveau_irq_register(dev, 12, nv50_graph_isr);
-
-	/* NVSW really doesn't live here... */
-	NVOBJ_CLASS(dev, 0x506e, SW); /* nvsw */
-	NVOBJ_MTHD (dev, 0x506e, 0x018c, nv50_graph_nvsw_dma_vblsem);
-	NVOBJ_MTHD (dev, 0x506e, 0x0400, nv50_graph_nvsw_vblsem_offset);
-	NVOBJ_MTHD (dev, 0x506e, 0x0404, nv50_graph_nvsw_vblsem_release_val);
-	NVOBJ_MTHD (dev, 0x506e, 0x0408, nv50_graph_nvsw_vblsem_release);
-	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv50_graph_nvsw_mthd_page_flip);
 
 	NVOBJ_ENGINE_ADD(dev, GR, &pgraph->base);
 	NVOBJ_CLASS(dev, 0x0030, GR); /* null */

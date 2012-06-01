@@ -476,19 +476,4 @@ static struct serio_driver h3600ts_drv = {
 	.disconnect	= h3600ts_disconnect,
 };
 
-/*
- * The functions for inserting/removing us as a module.
- */
-
-static int __init h3600ts_init(void)
-{
-	return serio_register_driver(&h3600ts_drv);
-}
-
-static void __exit h3600ts_exit(void)
-{
-	serio_unregister_driver(&h3600ts_drv);
-}
-
-module_init(h3600ts_init);
-module_exit(h3600ts_exit);
+module_serio_driver(h3600ts_drv);

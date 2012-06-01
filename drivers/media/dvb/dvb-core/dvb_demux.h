@@ -145,5 +145,7 @@ void dvb_dmx_swfilter_packets(struct dvb_demux *dvbdmx, const u8 *buf,
 void dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf, size_t count);
 void dvb_dmx_swfilter_204(struct dvb_demux *demux, const u8 *buf,
 			  size_t count);
+void dvb_dmx_swfilter_raw(struct dvb_demux *demux, const u8 *buf,
+			  size_t count);
 
 #endif /* _DVB_DEMUX_H_ */

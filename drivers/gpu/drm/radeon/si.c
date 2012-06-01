@@ -2976,7 +2976,8 @@ int si_rlc_init(struct radeon_device *rdev)
 	/* save restore block */
 	if (rdev->rlc.save_restore_obj == NULL) {
 		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE, PAGE_SIZE, true,
-				RADEON_GEM_DOMAIN_VRAM, &rdev->rlc.save_restore_obj);
+				     RADEON_GEM_DOMAIN_VRAM, NULL,
+				     &rdev->rlc.save_restore_obj);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) create RLC sr bo failed\n", r);
 			return r;
@@ -3000,7 +3001,8 @@ int si_rlc_init(struct radeon_device *rdev)
 	/* clear state block */
 	if (rdev->rlc.clear_state_obj == NULL) {
 		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE, PAGE_SIZE, true,
-				RADEON_GEM_DOMAIN_VRAM, &rdev->rlc.clear_state_obj);
+				     RADEON_GEM_DOMAIN_VRAM, NULL,
+				     &rdev->rlc.clear_state_obj);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) create RLC c bo failed\n", r);
 			si_rlc_fini(rdev);

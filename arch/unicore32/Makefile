@@ -33,7 +33,6 @@ endif
 CHECKFLAGS		+= -D__unicore32__
 
 head-y			:= arch/unicore32/kernel/head.o
-head-y			+= arch/unicore32/kernel/init_task.o
 
 core-y			+= arch/unicore32/kernel/
 core-y			+= arch/unicore32/mm/

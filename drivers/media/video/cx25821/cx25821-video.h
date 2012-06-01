@@ -86,8 +86,6 @@ extern struct cx25821_fmt formats[];
 extern struct cx25821_fmt *cx25821_format_by_fourcc(unsigned int fourcc);
 extern struct cx25821_data timeout_data[MAX_VID_CHANNEL_NUM];
 
-extern void cx25821_dump_video_queue(struct cx25821_dev *dev,
-				     struct cx25821_dmaqueue *q);
 extern void cx25821_video_wakeup(struct cx25821_dev *dev,
 				 struct cx25821_dmaqueue *q, u32 count);
 

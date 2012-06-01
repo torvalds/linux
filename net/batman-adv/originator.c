@@ -28,13 +28,15 @@
 #include "hard-interface.h"
 #include "unicast.h"
 #include "soft-interface.h"
+#include "bridge_loop_avoidance.h"
 
 static void purge_orig(struct work_struct *work);
 
 static void start_purge_timer(struct bat_priv *bat_priv)
 {
 	INIT_DELAYED_WORK(&bat_priv->orig_work, purge_orig);
-	queue_delayed_work(bat_event_workqueue, &bat_priv->orig_work, 1 * HZ);
+	queue_delayed_work(bat_event_workqueue,
+			   &bat_priv->orig_work, msecs_to_jiffies(1000));
 }
 
 /* returns 1 if they are the same originator */
@@ -83,35 +85,30 @@ struct neigh_node *orig_node_get_router(struct orig_node *orig_node)
 	return router;
 }
 
-struct neigh_node *create_neighbor(struct orig_node *orig_node,
-				   struct orig_node *orig_neigh_node,
-				   const uint8_t *neigh,
-				   struct hard_iface *if_incoming)
+struct neigh_node *batadv_neigh_node_new(struct hard_iface *hard_iface,
+					 const uint8_t *neigh_addr,
+					 uint32_t seqno)
 {
-	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct neigh_node *neigh_node;
-
-	bat_dbg(DBG_BATMAN, bat_priv,
-		"Creating new last-hop neighbor of originator\n");
 
 	neigh_node = kzalloc(sizeof(*neigh_node), GFP_ATOMIC);
 	if (!neigh_node)
-		return NULL;
+		goto out;
 
 	INIT_HLIST_NODE(&neigh_node->list);
-	INIT_LIST_HEAD(&neigh_node->bonding_list);
-	spin_lock_init(&neigh_node->tq_lock);
 
-	memcpy(neigh_node->addr, neigh, ETH_ALEN);
-	neigh_node->orig_node = orig_neigh_node;
-	neigh_node->if_incoming = if_incoming;
+	memcpy(neigh_node->addr, neigh_addr, ETH_ALEN);
+	spin_lock_init(&neigh_node->lq_update_lock);
 
 	/* extra reference for return */
 	atomic_set(&neigh_node->refcount, 2);
 
-	spin_lock_bh(&orig_node->neigh_list_lock);
-	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
-	spin_unlock_bh(&orig_node->neigh_list_lock);
+	bat_dbg(DBG_BATMAN, bat_priv,
+		"Creating new neighbor %pM, initial seqno %d\n",
+		neigh_addr, seqno);
+
+out:
 	return neigh_node;
 }
 
@@ -273,6 +270,7 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 	struct hlist_node *node, *node_tmp;
 	struct neigh_node *neigh_node;
 	bool neigh_purged = false;
+	unsigned long last_seen;
 
 	*best_neigh_node = NULL;
 
@@ -282,10 +280,12 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 	hlist_for_each_entry_safe(neigh_node, node, node_tmp,
 				  &orig_node->neigh_list, list) {
 
-		if ((has_timed_out(neigh_node->last_valid, PURGE_TIMEOUT)) ||
+		if ((has_timed_out(neigh_node->last_seen, PURGE_TIMEOUT)) ||
 		    (neigh_node->if_incoming->if_status == IF_INACTIVE) ||
 		    (neigh_node->if_incoming->if_status == IF_NOT_IN_USE) ||
 		    (neigh_node->if_incoming->if_status == IF_TO_BE_REMOVED)) {
+
+			last_seen = neigh_node->last_seen;
 
 			if ((neigh_node->if_incoming->if_status ==
 								IF_INACTIVE) ||
@@ -299,9 +299,9 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 					neigh_node->if_incoming->net_dev->name);
 			else
 				bat_dbg(DBG_BATMAN, bat_priv,
-					"neighbor timeout: originator %pM, neighbor: %pM, last_valid: %lu\n",
+					"neighbor timeout: originator %pM, neighbor: %pM, last_seen: %u\n",
 					orig_node->orig, neigh_node->addr,
-					(neigh_node->last_valid / HZ));
+					jiffies_to_msecs(last_seen));
 
 			neigh_purged = true;
 
@@ -324,10 +324,11 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 {
 	struct neigh_node *best_neigh_node;
 
-	if (has_timed_out(orig_node->last_valid, 2 * PURGE_TIMEOUT)) {
+	if (has_timed_out(orig_node->last_seen, 2 * PURGE_TIMEOUT)) {
 		bat_dbg(DBG_BATMAN, bat_priv,
-			"Originator timeout: originator %pM, last_valid %lu\n",
-			orig_node->orig, (orig_node->last_valid / HZ));
+			"Originator timeout: originator %pM, last_seen %u\n",
+			orig_node->orig,
+			jiffies_to_msecs(orig_node->last_seen));
 		return true;
 	} else {
 		if (purge_orig_neighbors(bat_priv, orig_node,
@@ -375,8 +376,6 @@ static void _purge_orig(struct bat_priv *bat_priv)
 
 	gw_node_purge(bat_priv);
 	gw_election(bat_priv);
-
-	softif_neigh_purge(bat_priv);
 }
 
 static void purge_orig(struct work_struct *work)
@@ -447,9 +446,9 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 				goto next;
 
 			last_seen_secs = jiffies_to_msecs(jiffies -
-						orig_node->last_valid) / 1000;
+						orig_node->last_seen) / 1000;
 			last_seen_msecs = jiffies_to_msecs(jiffies -
-						orig_node->last_valid) % 1000;
+						orig_node->last_seen) % 1000;
 
 			seq_printf(seq, "%pM %4i.%03is   (%3i) %pM [%10s]:",
 				   orig_node->orig, last_seen_secs,

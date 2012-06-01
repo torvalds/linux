@@ -576,9 +576,6 @@ int ft_register_configfs(void)
 	}
 	fabric->tf_ops = ft_fabric_ops;
 
-	/* Allowing support for task_sg_chaining */
-	fabric->tf_ops.task_sg_chaining = 1;
-
 	/*
 	 * Setup default attribute lists for various fabric->tf_cit_tmpl
 	 */

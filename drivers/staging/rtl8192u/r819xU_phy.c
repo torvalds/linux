@@ -40,7 +40,7 @@ static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
  *	     and do register read/write
  *   input:  u32	dwBitMask  //taget bit pos in the addr to be modified
  *  output:  none
- *  return:  u32	return the shift bit bit position of the mask
+ *  return:  u32	return the shift bit position of the mask
  * ****************************************************************************/
 u32 rtl8192_CalculateBitShift(u32 dwBitMask)
 {
@@ -176,7 +176,7 @@ u32 rtl8192_phy_RFSerialRead(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, 
 	rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2,  bLSSIReadEdge, 0x1);
 
 
-	// TODO: we should not delay such a  long time. Ask help from SD3
+	// TODO: we should not delay such a long time. Ask for help from SD3
 	msleep(1);
 
 	ret = rtl8192_QueryBBReg(dev, pPhyReg->rfLSSIReadBack, bLSSIReadBackData);
@@ -252,7 +252,7 @@ void rtl8192_phy_RFSerialWrite(struct net_device* dev, RF90_RADIO_PATH_E eRFPath
 		NewOffset = Offset;
 	}
 
-	// Put write addr in [5:0]  and write data in [31:16]
+	// Put write addr in [5:0] and write data in [31:16]
 	DataAndAddr = (Data<<16) | (NewOffset&0x3f);
 
 	// Write Operation
@@ -525,7 +525,7 @@ void rtl8192_phy_configmac(struct net_device* dev)
 }
 
 /******************************************************************************
- *function:  This function do dirty work
+ *function:  This function does dirty work
  *   input:  dev
  *  output:  none
  *  return:  none
@@ -578,7 +578,7 @@ void rtl8192_phyConfigBB(struct net_device* dev, u8 ConfigType)
 void rtl8192_InitBBRFRegDef(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-// RF Interface Sowrtware Control
+// RF Interface Software Control
 	priv->PHYRegDef[RF90_PATH_A].rfintfs = rFPGA0_XAB_RFInterfaceSW; // 16 LSBs if read 32-bit from 0x870
 	priv->PHYRegDef[RF90_PATH_B].rfintfs = rFPGA0_XAB_RFInterfaceSW; // 16 MSBs if read 32-bit from 0x870 (16-bit for 0x872)
 	priv->PHYRegDef[RF90_PATH_C].rfintfs = rFPGA0_XCD_RFInterfaceSW;// 16 LSBs if read 32-bit from 0x874
@@ -602,7 +602,7 @@ void rtl8192_InitBBRFRegDef(struct net_device* dev)
 	priv->PHYRegDef[RF90_PATH_C].rfintfe = rFPGA0_XC_RFInterfaceOE;// 16 MSBs if read 32-bit from 0x86A (16-bit for 0x86A)
 	priv->PHYRegDef[RF90_PATH_D].rfintfe = rFPGA0_XD_RFInterfaceOE;// 16 MSBs if read 32-bit from 0x86C (16-bit for 0x86E)
 
-	//Addr of LSSI. Wirte RF register by driver
+	//Addr of LSSI. Write RF register by driver
 	priv->PHYRegDef[RF90_PATH_A].rf3wireOffset = rFPGA0_XA_LSSIParameter; //LSSI Parameter
 	priv->PHYRegDef[RF90_PATH_B].rf3wireOffset = rFPGA0_XB_LSSIParameter;
 	priv->PHYRegDef[RF90_PATH_C].rf3wireOffset = rFPGA0_XC_LSSIParameter;
@@ -1384,7 +1384,7 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8* stage, u
 }
 
 /******************************************************************************
- *function:  This function does acturally set channel work
+ *function:  This function does actually set channel work
  *   input:  struct net_device *dev
  *   	     u8 		channel
  *  output:  none
@@ -1425,7 +1425,7 @@ void rtl8192_SwChnl_WorkItem(struct net_device *dev)
 }
 
 /******************************************************************************
- *function:  This function scheduled actural workitem to set channel
+ *function:  This function scheduled actual work item to set channel
  *   input:  net_device dev
  *   	     u8		channel //channel to set
  *  output:  none

@@ -19,6 +19,20 @@
 /* Data structures */
 
 /**
+ * enum mesh_config_capab_flags - mesh config IE capability flags
+ *
+ * @MESHCONF_CAPAB_ACCEPT_PLINKS: STA is willing to establish
+ * additional mesh peerings with other mesh STAs
+ * @MESHCONF_CAPAB_FORWARDING: the STA forwards MSDUs
+ * @MESHCONF_CAPAB_TBTT_ADJUSTING: TBTT adjustment procedure is ongoing
+ */
+enum mesh_config_capab_flags {
+	MESHCONF_CAPAB_ACCEPT_PLINKS = BIT(0),
+	MESHCONF_CAPAB_FORWARDING = BIT(3),
+	MESHCONF_CAPAB_TBTT_ADJUSTING = BIT(5),
+};
+
+/**
  * enum mesh_path_flags - mac80211 mesh path flags
  *
  *
@@ -56,12 +70,15 @@ enum mesh_path_flags {
  * @MESH_WORK_GROW_MPP_TABLE: the mesh portals table is full and needs to
  * grow
  * @MESH_WORK_ROOT: the mesh root station needs to send a frame
+ * @MESH_WORK_DRIFT_ADJUST: time to compensate for clock drift relative to other
+ * mesh nodes
  */
 enum mesh_deferred_task_flags {
 	MESH_WORK_HOUSEKEEPING,
 	MESH_WORK_GROW_MPATH_TABLE,
 	MESH_WORK_GROW_MPP_TABLE,
 	MESH_WORK_ROOT,
+	MESH_WORK_DRIFT_ADJUST,
 };
 
 /**
@@ -86,6 +103,7 @@ enum mesh_deferred_task_flags {
  * mpath itself.  No need to take this lock when adding or removing
  * an mpath to a hash bucket on a path table.
  * @rann_snd_addr: the RANN sender address
+ * @rann_metric: the aggregated path metric towards the root node
  * @is_root: the destination station of this path is a root node
  * @is_gate: the destination station of this path is a mesh gate
  *
@@ -112,6 +130,7 @@ struct mesh_path {
 	enum mesh_path_flags flags;
 	spinlock_t state_lock;
 	u8 rann_snd_addr[ETH_ALEN];
+	u32 rann_metric;
 	bool is_root;
 	bool is_gate;
 };
@@ -203,8 +222,8 @@ int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
 		char *addr6);
 int mesh_rmc_check(u8 *addr, struct ieee80211s_hdr *mesh_hdr,
 		struct ieee80211_sub_if_data *sdata);
-bool mesh_matches_local(struct ieee802_11_elems *ie,
-		struct ieee80211_sub_if_data *sdata);
+bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
+			struct ieee802_11_elems *ie);
 void mesh_ids_set_default(struct ieee80211_if_mesh *mesh);
 void mesh_mgmt_ies_add(struct sk_buff *skb,
 		struct ieee80211_sub_if_data *sdata);
@@ -220,7 +239,7 @@ int mesh_add_ds_params_ie(struct sk_buff *skb,
 			  struct ieee80211_sub_if_data *sdata);
 int mesh_add_ht_cap_ie(struct sk_buff *skb,
 		       struct ieee80211_sub_if_data *sdata);
-int mesh_add_ht_info_ie(struct sk_buff *skb,
+int mesh_add_ht_oper_ie(struct sk_buff *skb,
 			struct ieee80211_sub_if_data *sdata);
 void mesh_rmc_free(struct ieee80211_sub_if_data *sdata);
 int mesh_rmc_init(struct ieee80211_sub_if_data *sdata);
@@ -232,6 +251,7 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata);
 void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh);
+struct ieee80211_mesh_sync_ops *ieee80211_mesh_sync_ops_get(u8 method);
 
 /* Mesh paths */
 int mesh_nexthop_lookup(struct sk_buff *skb,
@@ -256,9 +276,9 @@ int mesh_path_add_gate(struct mesh_path *mpath);
 int mesh_path_send_to_gates(struct mesh_path *mpath);
 int mesh_gate_num(struct ieee80211_sub_if_data *sdata);
 /* Mesh plinks */
-void mesh_neighbour_update(u8 *hw_addr, u32 rates,
-		struct ieee80211_sub_if_data *sdata,
-		struct ieee802_11_elems *ie);
+void mesh_neighbour_update(struct ieee80211_sub_if_data *sdata,
+			   u8 *hw_addr,
+			   struct ieee802_11_elems *ie);
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie);
 void mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata);
 void mesh_plink_broken(struct sta_info *sta);
@@ -284,7 +304,6 @@ void mesh_pathtbl_unregister(void);
 int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata);
 void mesh_path_timer(unsigned long data);
 void mesh_path_flush_by_nexthop(struct sta_info *sta);
-void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata);
 void mesh_path_discard_frame(struct sk_buff *skb,
 		struct ieee80211_sub_if_data *sdata);
 void mesh_path_quiesce(struct ieee80211_sub_if_data *sdata);
@@ -325,6 +344,8 @@ void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata);
 void mesh_plink_quiesce(struct sta_info *sta);
 void mesh_plink_restart(struct sta_info *sta);
+void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata);
+void mesh_sync_adjust_tbtt(struct ieee80211_sub_if_data *sdata);
 #else
 #define mesh_allocated	0
 static inline void
@@ -337,6 +358,8 @@ static inline void mesh_plink_quiesce(struct sta_info *sta) {}
 static inline void mesh_plink_restart(struct sta_info *sta) {}
 static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
 { return false; }
+static inline void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata)
+{}
 #endif
 
 #endif /* IEEE80211S_H */

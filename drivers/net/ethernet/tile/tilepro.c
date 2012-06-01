@@ -843,7 +843,7 @@ static bool tile_net_poll_aux(struct tile_net_cpu *info, int index)
 		if (!is_multicast_ether_addr(buf)) {
 			/* Filter packets not for our address. */
 			const u8 *mine = dev->dev_addr;
-			filter = compare_ether_addr(mine, buf);
+			filter = !ether_addr_equal(mine, buf);
 		}
 	}
 

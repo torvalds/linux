@@ -53,12 +53,6 @@ static void __init ek_init_early(void)
 {
 	/* Initialize processor: 12.00 MHz crystal */
 	at91_initialize(12000000);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /*
@@ -175,6 +169,10 @@ static struct mtd_partition __initdata ek_nand_partition[] = {
 		.size	= SZ_128K,
 	}, {
 		.name	= "bareboxenv2",
+		.offset	= MTDPART_OFS_NXTBLK,
+		.size	= SZ_128K,
+	}, {
+		.name	= "oftree",
 		.offset	= MTDPART_OFS_NXTBLK,
 		.size	= SZ_128K,
 	}, {
@@ -325,6 +323,8 @@ static void __init ek_add_device_leds(void)
 static void __init ek_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
 	at91_add_device_serial();
 	/* USB Host */
 	at91_add_device_usbh(&ek_usbh_data);

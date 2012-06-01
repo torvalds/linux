@@ -367,7 +367,7 @@ static int as102_usb_probe(struct usb_interface *intf,
 	ENTER();
 
 	/* This should never actually happen */
-	if ((sizeof(as102_usb_id_table) / sizeof(struct usb_device_id)) !=
+	if (ARRAY_SIZE(as102_usb_id_table) !=
 	    (sizeof(as102_device_names) / sizeof(const char *))) {
 		pr_err("Device names table invalid size");
 		return -EINVAL;
@@ -375,13 +375,12 @@ static int as102_usb_probe(struct usb_interface *intf,
 
 	as102_dev = kzalloc(sizeof(struct as102_dev_t), GFP_KERNEL);
 	if (as102_dev == NULL) {
-		err("%s: kzalloc failed", __func__);
+		dev_err(&intf->dev, "%s: kzalloc failed\n", __func__);
 		return -ENOMEM;
 	}
 
 	/* Assign the user-friendly device name */
-	for (i = 0; i < (sizeof(as102_usb_id_table) /
-			 sizeof(struct usb_device_id)); i++) {
+	for (i = 0; i < ARRAY_SIZE(as102_usb_id_table); i++) {
 		if (id == &as102_usb_id_table[i]) {
 			as102_dev->name = as102_device_names[i];
 			as102_dev->elna_cfg = as102_elna_cfg[i];
@@ -411,8 +410,9 @@ static int as102_usb_probe(struct usb_interface *intf,
 	ret = usb_register_dev(intf, &as102_usb_class_driver);
 	if (ret < 0) {
 		/* something prevented us from registering this driver */
-		err("%s: usb_register_dev() failed (errno = %d)",
-		    __func__, ret);
+		dev_err(&intf->dev,
+			"%s: usb_register_dev() failed (errno = %d)\n",
+			__func__, ret);
 		goto failed;
 	}
 

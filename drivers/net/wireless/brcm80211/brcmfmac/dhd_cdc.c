@@ -421,6 +421,7 @@ int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
 	pktbuf->priority = h->priority & BDC_PRIORITY_MASK;
 
 	skb_pull(pktbuf, BDC_HEADER_LEN);
+	skb_pull(pktbuf, h->data_offset << 2);
 
 	return 0;
 }

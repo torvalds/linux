@@ -70,7 +70,7 @@ struct nouveau_mem;
 
 #define MAX_NUM_DCB_ENTRIES 16
 
-#define NOUVEAU_MAX_CHANNEL_NR 128
+#define NOUVEAU_MAX_CHANNEL_NR 4096
 #define NOUVEAU_MAX_TILE_NR 15
 
 struct nouveau_mem {
@@ -86,6 +86,7 @@ struct nouveau_mem {
 	u32 memtype;
 	u64 offset;
 	u64 size;
+	struct sg_table *sg;
 };
 
 struct nouveau_tile_reg {
@@ -122,6 +123,9 @@ struct nouveau_bo {
 
 	struct drm_gem_object *gem;
 	int pin_refcnt;
+
+	struct ttm_bo_kmap_obj dma_buf_vmap;
+	int vmapping_count;
 };
 
 #define nouveau_bo_tile_layout(nvbo)				\
@@ -164,8 +168,10 @@ enum nouveau_flags {
 #define NVOBJ_ENGINE_PPP	NVOBJ_ENGINE_MPEG
 #define NVOBJ_ENGINE_BSP	6
 #define NVOBJ_ENGINE_VP		7
-#define NVOBJ_ENGINE_DISPLAY	15
+#define NVOBJ_ENGINE_FIFO	14
+#define NVOBJ_ENGINE_FENCE	15
 #define NVOBJ_ENGINE_NR		16
+#define NVOBJ_ENGINE_DISPLAY	(NVOBJ_ENGINE_NR + 0) /*XXX*/
 
 #define NVOBJ_FLAG_DONT_MAP             (1 << 0)
 #define NVOBJ_FLAG_ZERO_ALLOC		(1 << 1)
@@ -233,17 +239,6 @@ struct nouveau_channel {
 	uint32_t user_get_hi;
 	uint32_t user_put;
 
-	/* Fencing */
-	struct {
-		/* lock protects the pending list only */
-		spinlock_t lock;
-		struct list_head pending;
-		uint32_t sequence;
-		uint32_t sequence_ack;
-		atomic_t last_sequence_irq;
-		struct nouveau_vma vma;
-	} fence;
-
 	/* DMA push buffer */
 	struct nouveau_gpuobj *pushbuf;
 	struct nouveau_bo     *pushbuf_bo;
@@ -257,8 +252,6 @@ struct nouveau_channel {
 
 	/* PFIFO context */
 	struct nouveau_gpuobj *ramfc;
-	struct nouveau_gpuobj *cache;
-	void *fifo_priv;
 
 	/* Execution engine contexts */
 	void *engctx[NVOBJ_ENGINE_NR];
@@ -291,18 +284,6 @@ struct nouveau_channel {
 		int ib_free;
 		int ib_put;
 	} dma;
-
-	uint32_t sw_subchannel[8];
-
-	struct nouveau_vma dispc_vma[4];
-	struct {
-		struct nouveau_gpuobj *vblsem;
-		uint32_t vblsem_head;
-		uint32_t vblsem_offset;
-		uint32_t vblsem_rval;
-		struct list_head vbl_wait;
-		struct list_head flip;
-	} nvsw;
 
 	struct {
 		bool active;
@@ -364,30 +345,6 @@ struct nouveau_fb_engine {
 				 uint32_t pitch, uint32_t flags);
 	void (*set_tile_region)(struct drm_device *dev, int i);
 	void (*free_tile_region)(struct drm_device *dev, int i);
-};
-
-struct nouveau_fifo_engine {
-	void *priv;
-	int  channels;
-
-	struct nouveau_gpuobj *playlist[2];
-	int cur_playlist;
-
-	int  (*init)(struct drm_device *);
-	void (*takedown)(struct drm_device *);
-
-	void (*disable)(struct drm_device *);
-	void (*enable)(struct drm_device *);
-	bool (*reassign)(struct drm_device *, bool enable);
-	bool (*cache_pull)(struct drm_device *dev, bool enable);
-
-	int  (*channel_id)(struct drm_device *);
-
-	int  (*create_context)(struct nouveau_channel *);
-	void (*destroy_context)(struct nouveau_channel *);
-	int  (*load_context)(struct nouveau_channel *);
-	int  (*unload_context)(struct drm_device *);
-	void (*tlb_flush)(struct drm_device *dev);
 };
 
 struct nouveau_display_engine {
@@ -597,7 +554,6 @@ struct nouveau_engine {
 	struct nouveau_mc_engine      mc;
 	struct nouveau_timer_engine   timer;
 	struct nouveau_fb_engine      fb;
-	struct nouveau_fifo_engine    fifo;
 	struct nouveau_display_engine display;
 	struct nouveau_gpio_engine    gpio;
 	struct nouveau_pm_engine      pm;
@@ -740,6 +696,9 @@ struct drm_nouveau_private {
 		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
 		atomic_t validate_sequence;
+		int (*move)(struct nouveau_channel *,
+			    struct ttm_buffer_object *,
+			    struct ttm_mem_reg *, struct ttm_mem_reg *);
 	} ttm;
 
 	struct {
@@ -977,7 +936,7 @@ extern void nouveau_channel_put_unlocked(struct nouveau_channel **);
 extern void nouveau_channel_put(struct nouveau_channel **);
 extern void nouveau_channel_ref(struct nouveau_channel *chan,
 				struct nouveau_channel **pchan);
-extern void nouveau_channel_idle(struct nouveau_channel *chan);
+extern int  nouveau_channel_idle(struct nouveau_channel *chan);
 
 /* nouveau_object.c */
 #define NVOBJ_ENGINE_ADD(d, e, p) do {                                         \
@@ -1209,56 +1168,6 @@ extern void nv50_fb_vm_trap(struct drm_device *, int display);
 extern int  nvc0_fb_init(struct drm_device *);
 extern void nvc0_fb_takedown(struct drm_device *);
 
-/* nv04_fifo.c */
-extern int  nv04_fifo_init(struct drm_device *);
-extern void nv04_fifo_fini(struct drm_device *);
-extern void nv04_fifo_disable(struct drm_device *);
-extern void nv04_fifo_enable(struct drm_device *);
-extern bool nv04_fifo_reassign(struct drm_device *, bool);
-extern bool nv04_fifo_cache_pull(struct drm_device *, bool);
-extern int  nv04_fifo_channel_id(struct drm_device *);
-extern int  nv04_fifo_create_context(struct nouveau_channel *);
-extern void nv04_fifo_destroy_context(struct nouveau_channel *);
-extern int  nv04_fifo_load_context(struct nouveau_channel *);
-extern int  nv04_fifo_unload_context(struct drm_device *);
-extern void nv04_fifo_isr(struct drm_device *);
-
-/* nv10_fifo.c */
-extern int  nv10_fifo_init(struct drm_device *);
-extern int  nv10_fifo_channel_id(struct drm_device *);
-extern int  nv10_fifo_create_context(struct nouveau_channel *);
-extern int  nv10_fifo_load_context(struct nouveau_channel *);
-extern int  nv10_fifo_unload_context(struct drm_device *);
-
-/* nv40_fifo.c */
-extern int  nv40_fifo_init(struct drm_device *);
-extern int  nv40_fifo_create_context(struct nouveau_channel *);
-extern int  nv40_fifo_load_context(struct nouveau_channel *);
-extern int  nv40_fifo_unload_context(struct drm_device *);
-
-/* nv50_fifo.c */
-extern int  nv50_fifo_init(struct drm_device *);
-extern void nv50_fifo_takedown(struct drm_device *);
-extern int  nv50_fifo_channel_id(struct drm_device *);
-extern int  nv50_fifo_create_context(struct nouveau_channel *);
-extern void nv50_fifo_destroy_context(struct nouveau_channel *);
-extern int  nv50_fifo_load_context(struct nouveau_channel *);
-extern int  nv50_fifo_unload_context(struct drm_device *);
-extern void nv50_fifo_tlb_flush(struct drm_device *dev);
-
-/* nvc0_fifo.c */
-extern int  nvc0_fifo_init(struct drm_device *);
-extern void nvc0_fifo_takedown(struct drm_device *);
-extern void nvc0_fifo_disable(struct drm_device *);
-extern void nvc0_fifo_enable(struct drm_device *);
-extern bool nvc0_fifo_reassign(struct drm_device *, bool);
-extern bool nvc0_fifo_cache_pull(struct drm_device *, bool);
-extern int  nvc0_fifo_channel_id(struct drm_device *);
-extern int  nvc0_fifo_create_context(struct nouveau_channel *);
-extern void nvc0_fifo_destroy_context(struct nouveau_channel *);
-extern int  nvc0_fifo_load_context(struct nouveau_channel *);
-extern int  nvc0_fifo_unload_context(struct drm_device *);
-
 /* nv04_graph.c */
 extern int  nv04_graph_create(struct drm_device *);
 extern int  nv04_graph_object_new(struct nouveau_channel *, int, u32, u16);
@@ -1277,17 +1186,22 @@ extern int  nv20_graph_create(struct drm_device *);
 
 /* nv40_graph.c */
 extern int  nv40_graph_create(struct drm_device *);
-extern void nv40_grctx_init(struct nouveau_grctx *);
+extern void nv40_grctx_init(struct drm_device *, u32 *size);
+extern void nv40_grctx_fill(struct drm_device *, struct nouveau_gpuobj *);
 
 /* nv50_graph.c */
 extern int  nv50_graph_create(struct drm_device *);
-extern int  nv50_grctx_init(struct nouveau_grctx *);
 extern struct nouveau_enum nv50_data_error_names[];
 extern int  nv50_graph_isr_chid(struct drm_device *dev, u64 inst);
+extern int  nv50_grctx_init(struct drm_device *, u32 *, u32, u32 *, u32 *);
+extern void nv50_grctx_fill(struct drm_device *, struct nouveau_gpuobj *);
 
 /* nvc0_graph.c */
 extern int  nvc0_graph_create(struct drm_device *);
 extern int  nvc0_graph_isr_chid(struct drm_device *dev, u64 inst);
+
+/* nve0_graph.c */
+extern int  nve0_graph_create(struct drm_device *);
 
 /* nv84_crypt.c */
 extern int  nv84_crypt_create(struct drm_device *);
@@ -1414,9 +1328,12 @@ extern int nv04_crtc_create(struct drm_device *, int index);
 
 /* nouveau_bo.c */
 extern struct ttm_bo_driver nouveau_bo_driver;
+extern void nouveau_bo_move_init(struct nouveau_channel *);
 extern int nouveau_bo_new(struct drm_device *, int size, int align,
 			  uint32_t flags, uint32_t tile_mode,
-			  uint32_t tile_flags, struct nouveau_bo **);
+			  uint32_t tile_flags,
+			  struct sg_table *sg,
+			  struct nouveau_bo **);
 extern int nouveau_bo_pin(struct nouveau_bo *, uint32_t flags);
 extern int nouveau_bo_unpin(struct nouveau_bo *);
 extern int nouveau_bo_map(struct nouveau_bo *);
@@ -1437,50 +1354,6 @@ extern int  nouveau_bo_vma_add(struct nouveau_bo *, struct nouveau_vm *,
 			       struct nouveau_vma *);
 extern void nouveau_bo_vma_del(struct nouveau_bo *, struct nouveau_vma *);
 
-/* nouveau_fence.c */
-struct nouveau_fence;
-extern int nouveau_fence_init(struct drm_device *);
-extern void nouveau_fence_fini(struct drm_device *);
-extern int nouveau_fence_channel_init(struct nouveau_channel *);
-extern void nouveau_fence_channel_fini(struct nouveau_channel *);
-extern void nouveau_fence_update(struct nouveau_channel *);
-extern int nouveau_fence_new(struct nouveau_channel *, struct nouveau_fence **,
-			     bool emit);
-extern int nouveau_fence_emit(struct nouveau_fence *);
-extern void nouveau_fence_work(struct nouveau_fence *fence,
-			       void (*work)(void *priv, bool signalled),
-			       void *priv);
-struct nouveau_channel *nouveau_fence_channel(struct nouveau_fence *);
-
-extern bool __nouveau_fence_signalled(void *obj, void *arg);
-extern int __nouveau_fence_wait(void *obj, void *arg, bool lazy, bool intr);
-extern int __nouveau_fence_flush(void *obj, void *arg);
-extern void __nouveau_fence_unref(void **obj);
-extern void *__nouveau_fence_ref(void *obj);
-
-static inline bool nouveau_fence_signalled(struct nouveau_fence *obj)
-{
-	return __nouveau_fence_signalled(obj, NULL);
-}
-static inline int
-nouveau_fence_wait(struct nouveau_fence *obj, bool lazy, bool intr)
-{
-	return __nouveau_fence_wait(obj, NULL, lazy, intr);
-}
-extern int nouveau_fence_sync(struct nouveau_fence *, struct nouveau_channel *);
-static inline int nouveau_fence_flush(struct nouveau_fence *obj)
-{
-	return __nouveau_fence_flush(obj, NULL);
-}
-static inline void nouveau_fence_unref(struct nouveau_fence **obj)
-{
-	__nouveau_fence_unref((void **)obj);
-}
-static inline struct nouveau_fence *nouveau_fence_ref(struct nouveau_fence *obj)
-{
-	return __nouveau_fence_ref(obj);
-}
-
 /* nouveau_gem.c */
 extern int nouveau_gem_new(struct drm_device *, int size, int align,
 			   uint32_t domain, uint32_t tile_mode,
@@ -1500,6 +1373,11 @@ extern int nouveau_gem_ioctl_cpu_fini(struct drm_device *, void *,
 				      struct drm_file *);
 extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 				  struct drm_file *);
+
+extern struct dma_buf *nouveau_gem_prime_export(struct drm_device *dev,
+				struct drm_gem_object *obj, int flags);
+extern struct drm_gem_object *nouveau_gem_prime_import(struct drm_device *dev,
+				struct dma_buf *dma_buf);
 
 /* nouveau_display.c */
 int nouveau_display_create(struct drm_device *dev);
@@ -1772,6 +1650,7 @@ nv44_graph_class(struct drm_device *dev)
 #define NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_EQUAL                 0x00000001
 #define NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG                    0x00000002
 #define NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL                0x00000004
+#define NVC0_SUBCHAN_SEMAPHORE_TRIGGER_YIELD                         0x00001000
 #define NV84_SUBCHAN_NOTIFY_INTR                                     0x00000020
 #define NV84_SUBCHAN_WRCACHE_FLUSH                                   0x00000024
 #define NV10_SUBCHAN_REF_CNT                                         0x00000050

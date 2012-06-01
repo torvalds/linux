@@ -705,8 +705,7 @@ static int alc5623_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int alc5623_pcm_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct alc5623_priv *alc5623 = snd_soc_codec_get_drvdata(codec);
 	int coeff, rate;
 	u16 iface;
@@ -1084,25 +1083,7 @@ static struct i2c_driver alc5623_i2c_driver = {
 	.id_table = alc5623_i2c_table,
 };
 
-static int __init alc5623_modinit(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&alc5623_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "%s: can't add i2c driver", __func__);
-		return ret;
-	}
-
-	return ret;
-}
-module_init(alc5623_modinit);
-
-static void __exit alc5623_modexit(void)
-{
-	i2c_del_driver(&alc5623_i2c_driver);
-}
-module_exit(alc5623_modexit);
+module_i2c_driver(alc5623_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC alc5621/2/3 driver");
 MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>");

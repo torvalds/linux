@@ -153,7 +153,7 @@ static void psbfb_vm_close(struct vm_area_struct *vma)
 {
 }
 
-static struct vm_operations_struct psbfb_vm_ops = {
+static const struct vm_operations_struct psbfb_vm_ops = {
 	.fault	= psbfb_vm_fault,
 	.open	= psbfb_vm_open,
 	.close	= psbfb_vm_close
@@ -782,7 +782,7 @@ void psb_modeset_init(struct drm_device *dev)
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
 
-	dev->mode_config.funcs = (void *) &psb_mode_funcs;
+	dev->mode_config.funcs = &psb_mode_funcs;
 
 	/* set memory base */
 	/* Oaktrail and Poulsbo should use BAR 2*/

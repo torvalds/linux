@@ -14,10 +14,10 @@
 #include <linux/i2c.h>
 #include <linux/bitops.h>
 
-#include "../iio.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
 #include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/trigger_consumer.h>
 
 #include "max1363.h"
 
@@ -54,7 +54,7 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 		d_size = numvals*2;
 	else
 		d_size = numvals;
-	if (indio_dev->buffer->scan_timestamp) {
+	if (indio_dev->scan_timestamp) {
 		d_size += sizeof(s64);
 		if (d_size % sizeof(s64))
 			d_size += sizeof(s64) - (d_size % sizeof(s64));
@@ -78,7 +78,7 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 
 	time_ns = iio_get_time_ns();
 
-	if (indio_dev->buffer->scan_timestamp)
+	if (indio_dev->scan_timestamp)
 		memcpy(rxbuf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
 	iio_push_to_buffer(indio_dev->buffer, rxbuf, time_ns);
 

@@ -80,7 +80,7 @@ int radeon_gart_table_vram_alloc(struct radeon_device *rdev)
 	if (rdev->gart.robj == NULL) {
 		r = radeon_bo_create(rdev, rdev->gart.table_size,
 				     PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
-				     &rdev->gart.robj);
+				     NULL, &rdev->gart.robj);
 		if (r) {
 			return r;
 		}
@@ -549,7 +549,7 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 
 	/* nothing to do if vm isn't bound */
 	if (vm->id == -1)
-		return 0;;
+		return 0;
 
 	bo_va = radeon_bo_va(bo, vm);
 	if (bo_va == NULL) {

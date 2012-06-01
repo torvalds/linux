@@ -105,14 +105,6 @@ extern void prom_write(const char *buf, unsigned int len);
 extern int prom_startcpu(int cpunode, struct linux_prom_registers *context_table,
 			 int context, char *program_counter);
 
-/* Sun4/sun4c specific memory-management startup hook. */
-
-/* Map the passed segment in the given context at the passed
- * virtual address.
- */
-extern void prom_putsegment(int context, unsigned long virt_addr,
-			    int physical_segment);
-
 /* Initialize the memory lists based upon the prom version. */
 void prom_meminit(void);
 

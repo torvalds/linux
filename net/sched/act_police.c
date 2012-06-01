@@ -356,11 +356,14 @@ tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 		opt.rate = police->tcfp_R_tab->rate;
 	if (police->tcfp_P_tab)
 		opt.peakrate = police->tcfp_P_tab->rate;
-	NLA_PUT(skb, TCA_POLICE_TBF, sizeof(opt), &opt);
-	if (police->tcfp_result)
-		NLA_PUT_U32(skb, TCA_POLICE_RESULT, police->tcfp_result);
-	if (police->tcfp_ewma_rate)
-		NLA_PUT_U32(skb, TCA_POLICE_AVRATE, police->tcfp_ewma_rate);
+	if (nla_put(skb, TCA_POLICE_TBF, sizeof(opt), &opt))
+		goto nla_put_failure;
+	if (police->tcfp_result &&
+	    nla_put_u32(skb, TCA_POLICE_RESULT, police->tcfp_result))
+		goto nla_put_failure;
+	if (police->tcfp_ewma_rate &&
+	    nla_put_u32(skb, TCA_POLICE_AVRATE, police->tcfp_ewma_rate))
+		goto nla_put_failure;
 	return skb->len;
 
 nla_put_failure:

@@ -59,13 +59,6 @@ struct thread_struct {
 #define cpu_relax() __vmyield()
 
 /*
- * "Unlazying all lazy status" occurs here.
- */
-static inline void prepare_to_copy(struct task_struct *tsk)
-{
-}
-
-/*
  * Decides where the kernel will search for a free chunk of vm space during
  * mmaps.
  * See also arch_get_unmapped_area.

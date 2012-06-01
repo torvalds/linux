@@ -30,6 +30,7 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/pwm_backlight.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #ifdef CONFIG_SMDK6410_WM1190_EV1
 #include <linux/mfd/wm8350/core.h>
@@ -72,7 +73,6 @@
 #include <plat/keypad.h>
 #include <plat/backlight.h>
 #include <plat/regs-fb-v4.h>
-#include <plat/udc-hs.h>
 
 #include "common.h"
 
@@ -182,16 +182,9 @@ static struct s3c_fb_platdata smdk6410_lcd_pdata __initdata = {
  */
 
 static struct resource smdk6410_smsc911x_resources[] = {
-	[0] = {
-		.start = S3C64XX_PA_XM0CSN1,
-		.end   = S3C64XX_PA_XM0CSN1 + SZ_64K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = S3C_EINT(10),
-		.end   = S3C_EINT(10),
-		.flags = IORESOURCE_IRQ | IRQ_TYPE_LEVEL_LOW,
-	},
+	[0] = DEFINE_RES_MEM(S3C64XX_PA_XM0CSN1, SZ_64K),
+	[1] = DEFINE_RES_NAMED(S3C_EINT(10), 1, NULL, IORESOURCE_IRQ \
+					| IRQ_TYPE_LEVEL_LOW),
 };
 
 static struct smsc911x_platform_config smdk6410_smsc911x_pdata = {
@@ -709,6 +702,7 @@ MACHINE_START(SMDK6410, "SMDK6410")
 	.handle_irq	= vic_handle_irq,
 	.map_io		= smdk6410_map_io,
 	.init_machine	= smdk6410_machine_init,
+	.init_late	= s3c64xx_init_late,
 	.timer		= &s3c24xx_timer,
 	.restart	= s3c64xx_restart,
 MACHINE_END
