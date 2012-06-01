@@ -793,10 +793,9 @@ static void xhci_free_tt_info(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,
 		int slot_id)
 {
-	struct list_head *tt;
 	struct list_head *tt_list_head;
-	struct list_head *tt_next;
-	struct xhci_tt_bw_info *tt_info;
+	struct xhci_tt_bw_info *tt_info, *next;
+	bool slot_found = false;
 
 	/* If the device never made it past the Set Address stage,
 	 * it may not have the real_port set correctly.
@@ -808,34 +807,16 @@ static void xhci_free_tt_info(struct xhci_hcd *xhci,
 	}
 
 	tt_list_head = &(xhci->rh_bw[virt_dev->real_port - 1].tts);
-	if (list_empty(tt_list_head))
-		return;
-
-	list_for_each(tt, tt_list_head) {
-		tt_info = list_entry(tt, struct xhci_tt_bw_info, tt_list);
-		if (tt_info->slot_id == slot_id)
+	list_for_each_entry_safe(tt_info, next, tt_list_head, tt_list) {
+		/* Multi-TT hubs will have more than one entry */
+		if (tt_info->slot_id == slot_id) {
+			slot_found = true;
+			list_del(&tt_info->tt_list);
+			kfree(tt_info);
+		} else if (slot_found) {
 			break;
+		}
 	}
-	/* Cautionary measure in case the hub was disconnected before we
-	 * stored the TT information.
-	 */
-	if (tt_info->slot_id != slot_id)
-		return;
-
-	tt_next = tt->next;
-	tt_info = list_entry(tt, struct xhci_tt_bw_info,
-			tt_list);
-	/* Multi-TT hubs will have more than one entry */
-	do {
-		list_del(tt);
-		kfree(tt_info);
-		tt = tt_next;
-		if (list_empty(tt_list_head))
-			break;
-		tt_next = tt->next;
-		tt_info = list_entry(tt, struct xhci_tt_bw_info,
-				tt_list);
-	} while (tt_info->slot_id == slot_id);
 }
 
 int xhci_alloc_tt_info(struct xhci_hcd *xhci,
