@@ -579,11 +579,6 @@ static const struct comedi_lrange pci230_ao_range = { 2, {
 /* PCI230 daccon bipolar flag for each analogue output range. */
 static const unsigned char pci230_ao_bipolar[2] = { 0, 1 };
 
-static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
-				    unsigned int mode, uint64_t ns,
-				    unsigned int round);
-static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round);
-static void pci230_cancel_ct(struct comedi_device *dev, unsigned int ct);
 static void pci230_ao_stop(struct comedi_device *dev,
 			   struct comedi_subdevice *s);
 static void pci230_handle_ao_nofifo(struct comedi_device *dev,
@@ -736,6 +731,86 @@ static inline void put_all_resources(struct comedi_device *dev,
 				     unsigned char owner)
 {
 	put_resources(dev, (1U << NUM_RESOURCES) - 1, owner);
+}
+
+static unsigned int divide_ns(uint64_t ns, unsigned int timebase,
+			      unsigned int round_mode)
+{
+	uint64_t div;
+	unsigned int rem;
+
+	div = ns;
+	rem = do_div(div, timebase);
+	round_mode &= TRIG_ROUND_MASK;
+	switch (round_mode) {
+	default:
+	case TRIG_ROUND_NEAREST:
+		div += (rem + (timebase / 2)) / timebase;
+		break;
+	case TRIG_ROUND_DOWN:
+		break;
+	case TRIG_ROUND_UP:
+		div += (rem + timebase - 1) / timebase;
+		break;
+	}
+	return div > UINT_MAX ? UINT_MAX : (unsigned int)div;
+}
+
+/* Given desired period in ns, returns the required internal clock source
+ * and gets the initial count. */
+static unsigned int pci230_choose_clk_count(uint64_t ns, unsigned int *count,
+					    unsigned int round_mode)
+{
+	unsigned int clk_src, cnt;
+
+	for (clk_src = CLK_10MHZ;; clk_src++) {
+		cnt = divide_ns(ns, pci230_timebase[clk_src], round_mode);
+		if ((cnt <= 65536) || (clk_src == CLK_1KHZ))
+			break;
+
+	}
+	*count = cnt;
+	return clk_src;
+}
+
+static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round)
+{
+	unsigned int count;
+	unsigned int clk_src;
+
+	clk_src = pci230_choose_clk_count(*ns, &count, round);
+	*ns = count * pci230_timebase[clk_src];
+	return;
+}
+
+static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
+				    unsigned int mode, uint64_t ns,
+				    unsigned int round)
+{
+	struct pci230_private *devpriv = dev->private;
+	unsigned int clk_src;
+	unsigned int count;
+
+	/* Set mode. */
+	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, mode);
+	/* Determine clock source and count. */
+	clk_src = pci230_choose_clk_count(ns, &count, round);
+	/* Program clock source. */
+	outb(CLK_CONFIG(ct, clk_src), devpriv->iobase1 + PCI230_ZCLK_SCE);
+	/* Set initial count. */
+	if (count >= 65536)
+		count = 0;
+
+	i8254_write(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, count);
+}
+
+static void pci230_cancel_ct(struct comedi_device *dev, unsigned int ct)
+{
+	struct pci230_private *devpriv = dev->private;
+
+	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct,
+		       I8254_MODE1);
+	/* Counter ct, 8254 mode 1, initial count not written. */
 }
 
 /*
@@ -2181,86 +2256,6 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	return 0;
-}
-
-static unsigned int divide_ns(uint64_t ns, unsigned int timebase,
-			      unsigned int round_mode)
-{
-	uint64_t div;
-	unsigned int rem;
-
-	div = ns;
-	rem = do_div(div, timebase);
-	round_mode &= TRIG_ROUND_MASK;
-	switch (round_mode) {
-	default:
-	case TRIG_ROUND_NEAREST:
-		div += (rem + (timebase / 2)) / timebase;
-		break;
-	case TRIG_ROUND_DOWN:
-		break;
-	case TRIG_ROUND_UP:
-		div += (rem + timebase - 1) / timebase;
-		break;
-	}
-	return div > UINT_MAX ? UINT_MAX : (unsigned int)div;
-}
-
-/* Given desired period in ns, returns the required internal clock source
- * and gets the initial count. */
-static unsigned int pci230_choose_clk_count(uint64_t ns, unsigned int *count,
-					    unsigned int round_mode)
-{
-	unsigned int clk_src, cnt;
-
-	for (clk_src = CLK_10MHZ;; clk_src++) {
-		cnt = divide_ns(ns, pci230_timebase[clk_src], round_mode);
-		if ((cnt <= 65536) || (clk_src == CLK_1KHZ))
-			break;
-
-	}
-	*count = cnt;
-	return clk_src;
-}
-
-static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round)
-{
-	unsigned int count;
-	unsigned int clk_src;
-
-	clk_src = pci230_choose_clk_count(*ns, &count, round);
-	*ns = count * pci230_timebase[clk_src];
-	return;
-}
-
-static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
-				    unsigned int mode, uint64_t ns,
-				    unsigned int round)
-{
-	struct pci230_private *devpriv = dev->private;
-	unsigned int clk_src;
-	unsigned int count;
-
-	/* Set mode. */
-	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, mode);
-	/* Determine clock source and count. */
-	clk_src = pci230_choose_clk_count(ns, &count, round);
-	/* Program clock source. */
-	outb(CLK_CONFIG(ct, clk_src), devpriv->iobase1 + PCI230_ZCLK_SCE);
-	/* Set initial count. */
-	if (count >= 65536)
-		count = 0;
-
-	i8254_write(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, count);
-}
-
-static void pci230_cancel_ct(struct comedi_device *dev, unsigned int ct)
-{
-	struct pci230_private *devpriv = dev->private;
-
-	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct,
-		       I8254_MODE1);
-	/* Counter ct, 8254 mode 1, initial count not written. */
 }
 
 /* Interrupt handler */
