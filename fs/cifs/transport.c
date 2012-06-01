@@ -345,7 +345,7 @@ wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *midQ)
 	return 0;
 }
 
-static int
+int
 cifs_setup_async_request(struct TCP_Server_Info *server, struct kvec *iov,
 			 unsigned int nvec, struct mid_q_entry **ret_mid)
 {
@@ -391,7 +391,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 		return rc;
 
 	mutex_lock(&server->srv_mutex);
-	rc = cifs_setup_async_request(server, iov, nvec, &mid);
+	rc = server->ops->setup_async_request(server, iov, nvec, &mid);
 	if (rc) {
 		mutex_unlock(&server->srv_mutex);
 		add_credits(server, 1, optype);

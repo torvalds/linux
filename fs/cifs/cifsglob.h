@@ -173,6 +173,9 @@ struct smb_version_operations {
 	/* setup request: allocate mid, sign message */
 	int (*setup_request)(struct cifs_ses *, struct kvec *, unsigned int,
 			     struct mid_q_entry **);
+	/* setup async request: allocate mid, sign message */
+	int (*setup_async_request)(struct TCP_Server_Info *, struct kvec *,
+				   unsigned int, struct mid_q_entry **);
 	/* check response: verify signature, map error */
 	int (*check_receive)(struct mid_q_entry *, struct TCP_Server_Info *,
 			     bool);

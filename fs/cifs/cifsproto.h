@@ -78,6 +78,8 @@ extern int SendReceiveNoRsp(const unsigned int xid, struct cifs_ses *ses,
 			    char *in_buf, int flags);
 extern int cifs_setup_request(struct cifs_ses *, struct kvec *, unsigned int,
 			      struct mid_q_entry **);
+extern int cifs_setup_async_request(struct TCP_Server_Info *, struct kvec *,
+				    unsigned int, struct mid_q_entry **);
 extern int cifs_check_receive(struct mid_q_entry *mid,
 			struct TCP_Server_Info *server, bool log_error);
 extern int SendReceive2(const unsigned int /* xid */ , struct cifs_ses *,
