@@ -1050,7 +1050,7 @@ config BFIN_EXTMEM_ICACHEABLE
 config BFIN_L2_ICACHEABLE
 	bool "Enable ICACHE for L2 SRAM"
 	depends on BFIN_ICACHE
-	depends on BF54x || BF561
+	depends on (BF54x || BF561 || BF60x) && !SMP
 	default n
 
 config BFIN_DCACHE
