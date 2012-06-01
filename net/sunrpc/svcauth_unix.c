@@ -746,6 +746,7 @@ svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 	struct svc_cred	*cred = &rqstp->rq_cred;
 
 	cred->cr_group_info = NULL;
+	cred->cr_principal = NULL;
 	rqstp->rq_client = NULL;
 
 	if (argv->iov_len < 3*4)
@@ -773,7 +774,7 @@ svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 	svc_putnl(resv, RPC_AUTH_NULL);
 	svc_putnl(resv, 0);
 
-	rqstp->rq_flavor = RPC_AUTH_NULL;
+	rqstp->rq_cred.cr_flavor = RPC_AUTH_NULL;
 	return SVC_OK;
 }
 
@@ -811,6 +812,7 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	int		len   = argv->iov_len;
 
 	cred->cr_group_info = NULL;
+	cred->cr_principal = NULL;
 	rqstp->rq_client = NULL;
 
 	if ((len -= 3*4) < 0)
@@ -847,7 +849,7 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	svc_putnl(resv, RPC_AUTH_NULL);
 	svc_putnl(resv, 0);
 
-	rqstp->rq_flavor = RPC_AUTH_UNIX;
+	rqstp->rq_cred.cr_flavor = RPC_AUTH_UNIX;
 	return SVC_OK;
 
 badcred:

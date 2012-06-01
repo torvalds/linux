@@ -706,7 +706,7 @@ static struct cache_head *svc_export_alloc(void)
 		return NULL;
 }
 
-struct cache_detail svc_export_cache_template = {
+static struct cache_detail svc_export_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= EXPORT_HASHMAX,
 	.name		= "nfsd.export",
@@ -904,13 +904,13 @@ __be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp)
 		return 0;
 	/* ip-address based client; check sec= export option: */
 	for (f = exp->ex_flavors; f < end; f++) {
-		if (f->pseudoflavor == rqstp->rq_flavor)
+		if (f->pseudoflavor == rqstp->rq_cred.cr_flavor)
 			return 0;
 	}
 	/* defaults in absence of sec= options: */
 	if (exp->ex_nflavors == 0) {
-		if (rqstp->rq_flavor == RPC_AUTH_NULL ||
-		    rqstp->rq_flavor == RPC_AUTH_UNIX)
+		if (rqstp->rq_cred.cr_flavor == RPC_AUTH_NULL ||
+		    rqstp->rq_cred.cr_flavor == RPC_AUTH_UNIX)
 			return 0;
 	}
 	return nfserr_wrongsec;

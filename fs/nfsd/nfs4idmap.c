@@ -605,7 +605,7 @@ numeric_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namel
 static __be32
 do_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen, uid_t *id)
 {
-	if (nfs4_disable_idmapping && rqstp->rq_flavor < RPC_AUTH_GSS)
+	if (nfs4_disable_idmapping && rqstp->rq_cred.cr_flavor < RPC_AUTH_GSS)
 		if (numeric_name_to_id(rqstp, type, name, namelen, id))
 			return 0;
 		/*
@@ -618,7 +618,7 @@ do_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen, u
 static int
 do_id_to_name(struct svc_rqst *rqstp, int type, uid_t id, char *name)
 {
-	if (nfs4_disable_idmapping && rqstp->rq_flavor < RPC_AUTH_GSS)
+	if (nfs4_disable_idmapping && rqstp->rq_cred.cr_flavor < RPC_AUTH_GSS)
 		return sprintf(name, "%u", id);
 	return idmap_id_to_name(rqstp, type, id, name);
 }
