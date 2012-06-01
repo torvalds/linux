@@ -63,7 +63,7 @@ struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 
 	init.name = name;
 	init.ops = &clk_fixed_rate_ops;
-	init.flags = flags;
+	init.flags = flags | CLK_IS_BASIC;
 	init.parent_names = (parent_name ? &parent_name: NULL);
 	init.num_parents = (parent_name ? 1 : 0);
 

@@ -82,7 +82,7 @@ struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
 
 	init.name = name;
 	init.ops = &clk_fixed_factor_ops;
-	init.flags = flags;
+	init.flags = flags | CLK_IS_BASIC;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 

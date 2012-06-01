@@ -253,7 +253,7 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 
 	init.name = name;
 	init.ops = &clk_divider_ops;
-	init.flags = flags;
+	init.flags = flags | CLK_IS_BASIC;
 	init.parent_names = (parent_name ? &parent_name: NULL);
 	init.num_parents = (parent_name ? 1 : 0);
 

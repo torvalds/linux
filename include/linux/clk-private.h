@@ -64,7 +64,7 @@ struct clk {
 		.parent_names = _parent_names,			\
 		.num_parents = ARRAY_SIZE(_parent_names),	\
 		.parents = _parents,				\
-		.flags = _flags,				\
+		.flags = _flags | CLK_IS_BASIC,			\
 	}
 
 #define DEFINE_CLK_FIXED_RATE(_name, _flags, _rate,		\
