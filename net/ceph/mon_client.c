@@ -106,7 +106,7 @@ static void __send_prepared_auth_request(struct ceph_mon_client *monc, int len)
 	monc->pending_auth = 1;
 	monc->m_auth->front.iov_len = len;
 	monc->m_auth->hdr.front_len = cpu_to_le32(len);
-	ceph_con_revoke(&monc->con, monc->m_auth);
+	ceph_msg_revoke(monc->m_auth);
 	ceph_msg_get(monc->m_auth);  /* keep our ref */
 	ceph_con_send(&monc->con, monc->m_auth);
 }
@@ -117,7 +117,7 @@ static void __send_prepared_auth_request(struct ceph_mon_client *monc, int len)
 static void __close_session(struct ceph_mon_client *monc)
 {
 	dout("__close_session closing mon%d\n", monc->cur_mon);
-	ceph_con_revoke(&monc->con, monc->m_auth);
+	ceph_msg_revoke(monc->m_auth);
 	ceph_con_close(&monc->con);
 	monc->con.private = NULL;
 	monc->cur_mon = -1;
@@ -229,7 +229,7 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 
 		msg->front.iov_len = p - msg->front.iov_base;
 		msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
-		ceph_con_revoke(&monc->con, msg);
+		ceph_msg_revoke(msg);
 		ceph_con_send(&monc->con, ceph_msg_get(msg));
 
 		monc->sub_sent = jiffies | 1;  /* never 0 */
@@ -688,7 +688,7 @@ static void __resend_generic_request(struct ceph_mon_client *monc)
 
 	for (p = rb_first(&monc->generic_request_tree); p; p = rb_next(p)) {
 		req = rb_entry(p, struct ceph_mon_generic_request, node);
-		ceph_con_revoke(&monc->con, req->request);
+		ceph_msg_revoke(req->request);
 		ceph_con_send(&monc->con, ceph_msg_get(req->request));
 	}
 }
