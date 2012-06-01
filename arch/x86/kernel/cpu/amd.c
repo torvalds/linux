@@ -19,6 +19,39 @@
 
 #include "cpu.h"
 
+static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
+{
+	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
+	u32 gprs[8] = { 0 };
+	int err;
+
+	WARN_ONCE((c->x86 != 0xf), "%s should only be used on K8!\n", __func__);
+
+	gprs[1] = msr;
+	gprs[7] = 0x9c5a203a;
+
+	err = rdmsr_safe_regs(gprs);
+
+	*p = gprs[0] | ((u64)gprs[2] << 32);
+
+	return err;
+}
+
+static inline int wrmsrl_amd_safe(unsigned msr, unsigned long long val)
+{
+	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
+	u32 gprs[8] = { 0 };
+
+	WARN_ONCE((c->x86 != 0xf), "%s should only be used on K8!\n", __func__);
+
+	gprs[0] = (u32)val;
+	gprs[1] = msr;
+	gprs[2] = val >> 32;
+	gprs[7] = 0x9c5a203a;
+
+	return wrmsr_safe_regs(gprs);
+}
+
 #ifdef CONFIG_X86_32
 /*
  *	B step AMD K6 before B 9730xxxx have hardware bugs that can cause
