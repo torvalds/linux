@@ -66,6 +66,7 @@ static DEFINE_SPINLOCK(clockfw_lock);
 #endif
 
 #ifdef CONFIG_COMMON_CLK
+static LIST_HEAD(clk_hw_omap_clocks);
 
 /*
  * Used for clocks that have the same value as the parent clock,
@@ -520,6 +521,64 @@ static int __init omap_clk_setup(char *str)
 	return 1;
 }
 __setup("mpurate=", omap_clk_setup);
+
+/**
+ * omap2_init_clk_hw_omap_clocks - initialize an OMAP clock
+ * @clk: struct clk * to initialize
+ *
+ * Add an OMAP clock @clk to the internal list of OMAP clocks.  Used
+ * temporarily for autoidle handling, until this support can be
+ * integrated into the common clock framework code in some way.  No
+ * return value.
+ */
+void omap2_init_clk_hw_omap_clocks(struct clk *clk)
+{
+	struct clk_hw_omap *c;
+
+	if (__clk_get_flags(clk) & CLK_IS_BASIC)
+		return;
+
+	c = to_clk_hw_omap(__clk_get_hw(clk));
+	list_add(&c->node, &clk_hw_omap_clocks);
+}
+
+/**
+ * omap2_clk_enable_autoidle_all - enable autoidle on all OMAP clocks that
+ * support it
+ *
+ * Enable clock autoidle on all OMAP clocks that have allow_idle
+ * function pointers associated with them.  This function is intended
+ * to be temporary until support for this is added to the common clock
+ * code.  Returns 0.
+ */
+int omap2_clk_enable_autoidle_all(void)
+{
+	struct clk_hw_omap *c;
+
+	list_for_each_entry(c, &clk_hw_omap_clocks, node)
+		if (c->ops && c->ops->allow_idle)
+			c->ops->allow_idle(c);
+	return 0;
+}
+
+/**
+ * omap2_clk_disable_autoidle_all - disable autoidle on all OMAP clocks that
+ * support it
+ *
+ * Disable clock autoidle on all OMAP clocks that have allow_idle
+ * function pointers associated with them.  This function is intended
+ * to be temporary until support for this is added to the common clock
+ * code.  Returns 0.
+ */
+int omap2_clk_disable_autoidle_all(void)
+{
+	struct clk_hw_omap *c;
+
+	list_for_each_entry(c, &clk_hw_omap_clocks, node)
+		if (c->ops && c->ops->deny_idle)
+			c->ops->deny_idle(c);
+	return 0;
+}
 
 const struct clk_hw_omap_ops clkhwops_wait = {
 	.find_idlest	= omap2_clk_dflt_find_idlest,
