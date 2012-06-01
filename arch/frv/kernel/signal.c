@@ -562,8 +562,6 @@ asmlinkage void do_notify_resume(__u32 thread_info_flags)
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(__frame);
-		if (current->replacement_session_keyring)
-			key_replace_session_keyring();
 	}
 
 } /* end do_notify_resume() */
