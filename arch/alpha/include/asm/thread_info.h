@@ -116,5 +116,7 @@ register struct thread_info *__current_thread_info __asm__("$8");
 		 (int __user *)(value));				\
 	})
 
+#define tsk_is_polling(t) test_tsk_thread_flag(t, TIF_POLLING_NRFLAG)
+
 #endif /* __KERNEL__ */
 #endif /* _ALPHA_THREAD_INFO_H */
