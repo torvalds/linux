@@ -2456,17 +2456,27 @@ void ceph_msg_revoke(struct ceph_msg *msg)
 /*
  * Revoke a message that we may be reading data into
  */
-void ceph_con_revoke_message(struct ceph_connection *con, struct ceph_msg *msg)
+void ceph_msg_revoke_incoming(struct ceph_msg *msg)
 {
+	struct ceph_connection *con;
+
+	BUG_ON(msg == NULL);
+	if (!msg->con) {
+		dout("%s msg %p null con\n", __func__, msg);
+
+		return;		/* Message not in our possession */
+	}
+
+	con = msg->con;
 	mutex_lock(&con->mutex);
-	if (con->in_msg && con->in_msg == msg) {
+	if (con->in_msg == msg) {
 		unsigned front_len = le32_to_cpu(con->in_hdr.front_len);
 		unsigned middle_len = le32_to_cpu(con->in_hdr.middle_len);
 		unsigned data_len = le32_to_cpu(con->in_hdr.data_len);
 
 		/* skip rest of message */
-		dout("con_revoke_pages %p msg %p revoked\n", con, msg);
-			con->in_base_pos = con->in_base_pos -
+		dout("%s %p msg %p revoked\n", __func__, con, msg);
+		con->in_base_pos = con->in_base_pos -
 				sizeof(struct ceph_msg_header) -
 				front_len -
 				middle_len -
@@ -2477,8 +2487,8 @@ void ceph_con_revoke_message(struct ceph_connection *con, struct ceph_msg *msg)
 		con->in_tag = CEPH_MSGR_TAG_READY;
 		con->in_seq++;
 	} else {
-		dout("con_revoke_pages %p msg %p pages %p no-op\n",
-		     con, con->in_msg, msg);
+		dout("%s %p in_msg %p msg %p no-op\n",
+		     __func__, con, con->in_msg, msg);
 	}
 	mutex_unlock(&con->mutex);
 }
