@@ -56,6 +56,10 @@
  *	%NFC_ATTR_PROTOCOLS)
  * @NFC_EVENT_DEVICE_REMOVED: event emitted when a device is removed
  *	(it sends %NFC_ATTR_DEVICE_INDEX)
+ * @NFC_EVENT_TM_ACTIVATED: event emitted when the adapter is activated in
+ *      target mode.
+ * @NFC_EVENT_DEVICE_DEACTIVATED: event emitted when the adapter is deactivated
+ *      from target mode.
  */
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
@@ -71,6 +75,8 @@ enum nfc_commands {
 	NFC_EVENT_DEVICE_ADDED,
 	NFC_EVENT_DEVICE_REMOVED,
 	NFC_EVENT_TARGET_LOST,
+	NFC_EVENT_TM_ACTIVATED,
+	NFC_EVENT_TM_DEACTIVATED,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };
@@ -122,6 +128,7 @@ enum nfc_attrs {
 #define NFC_NFCID1_MAXSIZE 10
 #define NFC_SENSB_RES_MAXSIZE 12
 #define NFC_SENSF_RES_MAXSIZE 18
+#define NFC_GB_MAXSIZE        48
 
 /* NFC protocols */
 #define NFC_PROTO_JEWEL		1

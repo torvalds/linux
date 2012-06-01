@@ -260,6 +260,10 @@ struct pn533_cmd_jump_dep_response {
 #define PN533_INIT_TARGET_PASSIVE 0x1
 #define PN533_INIT_TARGET_DEP 0x2
 
+#define PN533_INIT_TARGET_RESP_FRAME_MASK 0x3
+#define PN533_INIT_TARGET_RESP_ACTIVE     0x1
+#define PN533_INIT_TARGET_RESP_DEP        0x4
+
 struct pn533_cmd_init_target {
 	u8 mode;
 	u8 mifare[6];
@@ -1128,10 +1132,13 @@ static int pn533_init_target_frame(struct pn533_frame *frame,
 	return 0;
 }
 
+#define ATR_REQ_GB_OFFSET 17
 static int pn533_init_target_complete(struct pn533 *dev, void *arg,
 				      u8 *params, int params_len)
 {
 	struct pn533_cmd_init_target_response *resp;
+	u8 frame, comm_mode = NFC_COMM_PASSIVE, *gb;
+	size_t gb_len;
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
 
@@ -1143,11 +1150,27 @@ static int pn533_init_target_complete(struct pn533 *dev, void *arg,
 		return params_len;
 	}
 
+	if (params_len < ATR_REQ_GB_OFFSET + 1)
+		return -EINVAL;
+
 	resp = (struct pn533_cmd_init_target_response *) params;
 
-	nfc_dev_dbg(&dev->interface->dev, "Target mode 0x%x\n", resp->mode);
+	nfc_dev_dbg(&dev->interface->dev, "Target mode 0x%x param len %d\n",
+		    resp->mode, params_len);
 
-	return 0;
+	frame = resp->mode & PN533_INIT_TARGET_RESP_FRAME_MASK;
+	if (frame == PN533_INIT_TARGET_RESP_ACTIVE)
+		comm_mode = NFC_COMM_ACTIVE;
+
+	/* Again, only DEP */
+	if ((resp->mode & PN533_INIT_TARGET_RESP_DEP) == 0)
+		return -EOPNOTSUPP;
+
+	gb = resp->cmd + ATR_REQ_GB_OFFSET;
+	gb_len = params_len - (ATR_REQ_GB_OFFSET + 1);
+
+	return nfc_tm_activated(dev->nfc_dev, NFC_PROTO_NFC_DEP_MASK,
+				comm_mode, gb, gb_len);
 }
 
 static int pn533_init_target(struct nfc_dev *nfc_dev, u32 protocols)

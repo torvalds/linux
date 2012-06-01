@@ -455,6 +455,41 @@ u8 *nfc_get_local_general_bytes(struct nfc_dev *dev, size_t *gb_len)
 }
 EXPORT_SYMBOL(nfc_get_local_general_bytes);
 
+int nfc_tm_activated(struct nfc_dev *dev, u32 protocol, u8 comm_mode,
+		     u8 *gb, size_t gb_len)
+{
+	int rc;
+
+	device_lock(&dev->dev);
+
+	dev->polling = false;
+
+	if (gb != NULL) {
+		rc = nfc_set_remote_general_bytes(dev, gb, gb_len);
+		if (rc < 0)
+			goto out;
+	}
+
+	if (protocol == NFC_PROTO_NFC_DEP_MASK)
+		nfc_dep_link_is_up(dev, 0, comm_mode, NFC_RF_TARGET);
+
+	rc = nfc_genl_tm_activated(dev, protocol);
+
+out:
+	device_unlock(&dev->dev);
+
+	return rc;
+}
+EXPORT_SYMBOL(nfc_tm_activated);
+
+int nfc_tm_deactivated(struct nfc_dev *dev)
+{
+	dev->dep_link_up = false;
+
+	return nfc_genl_tm_deactivated(dev);
+}
+EXPORT_SYMBOL(nfc_tm_deactivated);
+
 /**
  * nfc_alloc_send_skb - allocate a skb for data exchange responses
  *
