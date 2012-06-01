@@ -680,6 +680,7 @@ static int __devinit intelfb_pci_register(struct pci_dev *pdev,
 		 + dinfo->fb.size);
 	if (!dinfo->aperture.virtual) {
 		ERR_MSG("Cannot remap FB region.\n");
+		agp_backend_release(bridge);
 		cleanup(dinfo);
 		return -ENODEV;
 	}
@@ -689,6 +690,7 @@ static int __devinit intelfb_pci_register(struct pci_dev *pdev,
 					      INTEL_REG_SIZE);
 	if (!dinfo->mmio_base) {
 		ERR_MSG("Cannot remap MMIO region.\n");
+		agp_backend_release(bridge);
 		cleanup(dinfo);
 		return -ENODEV;
 	}
