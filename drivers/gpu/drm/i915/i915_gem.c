@@ -2030,6 +2030,31 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj)
 }
 
 /**
+ * Ensures that an object will eventually get non-busy by flushing any required
+ * write domains, emitting any outstanding lazy request and retiring and
+ * completed requests.
+ */
+static int
+i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
+{
+	int ret;
+
+	if (obj->active) {
+		ret = i915_gem_object_flush_gpu_write_domain(obj);
+		if (ret)
+			return ret;
+
+		ret = i915_gem_check_olr(obj->ring,
+					 obj->last_rendering_seqno);
+		if (ret)
+			return ret;
+		i915_gem_retire_requests_ring(obj->ring);
+	}
+
+	return 0;
+}
+
+/**
  * i915_gem_wait_ioctl - implements DRM_IOCTL_I915_GEM_WAIT
  * @DRM_IOCTL_ARGS: standard ioctl arguments
  *
@@ -2073,11 +2098,8 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		return -ENOENT;
 	}
 
-	/* Need to make sure the object is flushed first. This non-obvious
-	 * flush is required to enforce that (active && !olr) == no wait
-	 * necessary.
-	 */
-	ret = i915_gem_object_flush_gpu_write_domain(obj);
+	/* Need to make sure the object gets inactive eventually. */
+	ret = i915_gem_object_flush_active(obj);
 	if (ret)
 		goto out;
 
@@ -2088,10 +2110,6 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	if (seqno == 0)
 		 goto out;
-
-	ret = i915_gem_check_olr(ring, seqno);
-	if (ret)
-		goto out;
 
 	/* Do this after OLR check to make sure we make forward progress polling
 	 * on this IOCTL with a 0 timeout (like busy ioctl)
@@ -3330,30 +3348,9 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	 * become non-busy without any further actions, therefore emit any
 	 * necessary flushes here.
 	 */
+	ret = i915_gem_object_flush_active(obj);
+
 	args->busy = obj->active;
-	if (args->busy) {
-		/* Unconditionally flush objects, even when the gpu still uses this
-		 * object. Userspace calling this function indicates that it wants to
-		 * use this buffer rather sooner than later, so issuing the required
-		 * flush earlier is beneficial.
-		 */
-		if (obj->base.write_domain & I915_GEM_GPU_DOMAINS) {
-			ret = i915_gem_flush_ring(obj->ring,
-						  0, obj->base.write_domain);
-		} else {
-			ret = i915_gem_check_olr(obj->ring,
-						 obj->last_rendering_seqno);
-		}
-
-		/* Update the active list for the hardware's current position.
-		 * Otherwise this only updates on a delayed timer or when irqs
-		 * are actually unmasked, and our working set ends up being
-		 * larger than required.
-		 */
-		i915_gem_retire_requests_ring(obj->ring);
-
-		args->busy = obj->active;
-	}
 
 	drm_gem_object_unreference(&obj->base);
 unlock:
