@@ -619,22 +619,28 @@ uvc_bind_config(struct usb_configuration *c,
 	uvc->desc.fs_streaming = fs_streaming;
 	uvc->desc.hs_streaming = hs_streaming;
 
-	/* Allocate string descriptor numbers. */
-	if ((ret = usb_string_id(c->cdev)) < 0)
-		goto error;
-	uvc_en_us_strings[UVC_STRING_ASSOCIATION_IDX].id = ret;
-	uvc_iad.iFunction = ret;
+	/* maybe allocate device-global string IDs, and patch descriptors */
+	if (uvc_en_us_strings[UVC_STRING_ASSOCIATION_IDX].id == 0) {
+		/* Allocate string descriptor numbers. */
+		ret = usb_string_id(c->cdev);
+		if (ret < 0)
+			goto error;
+		uvc_en_us_strings[UVC_STRING_ASSOCIATION_IDX].id = ret;
+		uvc_iad.iFunction = ret;
 
-	if ((ret = usb_string_id(c->cdev)) < 0)
-		goto error;
-	uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id = ret;
-	uvc_control_intf.iInterface = ret;
+		ret = usb_string_id(c->cdev);
+		if (ret < 0)
+			goto error;
+		uvc_en_us_strings[UVC_STRING_CONTROL_IDX].id = ret;
+		uvc_control_intf.iInterface = ret;
 
-	if ((ret = usb_string_id(c->cdev)) < 0)
-		goto error;
-	uvc_en_us_strings[UVC_STRING_STREAMING_IDX].id = ret;
-	uvc_streaming_intf_alt0.iInterface = ret;
-	uvc_streaming_intf_alt1.iInterface = ret;
+		ret = usb_string_id(c->cdev);
+		if (ret < 0)
+			goto error;
+		uvc_en_us_strings[UVC_STRING_STREAMING_IDX].id = ret;
+		uvc_streaming_intf_alt0.iInterface = ret;
+		uvc_streaming_intf_alt1.iInterface = ret;
+	}
 
 	/* Register the function. */
 	uvc->func.name = "uvc";
