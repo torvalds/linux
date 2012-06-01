@@ -77,20 +77,6 @@ static struct omap3_idle_statedata omap3_idle_data[] = {
 
 static struct powerdomain *mpu_pd, *core_pd, *per_pd, *cam_pd;
 
-static int _cpuidle_allow_idle(struct powerdomain *pwrdm,
-				struct clockdomain *clkdm)
-{
-	clkdm_allow_idle(clkdm);
-	return 0;
-}
-
-static int _cpuidle_deny_idle(struct powerdomain *pwrdm,
-				struct clockdomain *clkdm)
-{
-	clkdm_deny_idle(clkdm);
-	return 0;
-}
-
 static int __omap3_enter_idle(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index)
@@ -108,8 +94,8 @@ static int __omap3_enter_idle(struct cpuidle_device *dev,
 
 	/* Deny idle for C1 */
 	if (index == 0) {
-		pwrdm_for_each_clkdm(mpu_pd, _cpuidle_deny_idle);
-		pwrdm_for_each_clkdm(core_pd, _cpuidle_deny_idle);
+		clkdm_deny_idle(mpu_pd->pwrdm_clkdms[0]);
+		clkdm_deny_idle(core_pd->pwrdm_clkdms[0]);
 	}
 
 	/*
@@ -131,8 +117,8 @@ static int __omap3_enter_idle(struct cpuidle_device *dev,
 
 	/* Re-allow idle for C1 */
 	if (index == 0) {
-		pwrdm_for_each_clkdm(mpu_pd, _cpuidle_allow_idle);
-		pwrdm_for_each_clkdm(core_pd, _cpuidle_allow_idle);
+		clkdm_allow_idle(mpu_pd->pwrdm_clkdms[0]);
+		clkdm_allow_idle(core_pd->pwrdm_clkdms[0]);
 	}
 
 return_sleep_time:
