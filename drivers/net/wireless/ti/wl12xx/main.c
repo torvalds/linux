@@ -875,6 +875,7 @@ static int wl127x_boot_clk(struct wl1271 *wl)
 		/* ref clk: 19.2/38.4/38.4-XTAL */
 		clk = 0x3;
 	else if (priv->ref_clock == CONF_REF_CLK_26_E ||
+		 priv->ref_clock == CONF_REF_CLK_26_M_XTAL ||
 		 priv->ref_clock == CONF_REF_CLK_52_E)
 		/* ref clk: 26/52 */
 		clk = 0x5;
