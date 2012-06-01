@@ -3155,10 +3155,17 @@ out:
 static struct lock_manager nfsd4_manager = {
 };
 
+static bool grace_ended;
+
 static void
 nfsd4_end_grace(void)
 {
+	/* do nothing if grace period already ended */
+	if (grace_ended)
+		return;
+
 	dprintk("NFSD: end of grace period\n");
+	grace_ended = true;
 	nfsd4_record_grace_done(&init_net, boot_time);
 	locks_end_grace(&nfsd4_manager);
 	/*
@@ -3183,8 +3190,7 @@ nfs4_laundromat(void)
 	nfs4_lock_state();
 
 	dprintk("NFSD: laundromat service - starting\n");
-	if (locks_in_grace())
-		nfsd4_end_grace();
+	nfsd4_end_grace();
 	INIT_LIST_HEAD(&reaplist);
 	spin_lock(&client_lock);
 	list_for_each_safe(pos, next, &client_lru) {
@@ -4055,7 +4061,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfs4_openowner *open_sop = NULL;
 	struct nfs4_lockowner *lock_sop = NULL;
 	struct nfs4_ol_stateid *lock_stp;
-	struct nfs4_file *fp;
 	struct file *filp = NULL;
 	struct file_lock file_lock;
 	struct file_lock conflock;
@@ -4123,7 +4128,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			goto out;
 	}
 	lock_sop = lockowner(lock_stp->st_stateowner);
-	fp = lock_stp->st_file;
 
 	lkflg = setlkflg(lock->lk_type);
 	status = nfs4_check_openmode(lock_stp, lkflg);
@@ -4715,6 +4719,7 @@ nfs4_state_start(void)
 	nfsd4_client_tracking_init(&init_net);
 	boot_time = get_seconds();
 	locks_start_grace(&nfsd4_manager);
+	grace_ended = false;
 	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",
 	       nfsd4_grace);
 	ret = set_callback_cred();

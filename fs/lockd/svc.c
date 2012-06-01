@@ -295,11 +295,10 @@ static void lockd_down_net(struct net *net)
 /*
  * Bring up the lockd process if it's not already up.
  */
-int lockd_up(void)
+int lockd_up(struct net *net)
 {
 	struct svc_serv *serv;
 	int		error = 0;
-	struct net *net = current->nsproxy->net_ns;
 
 	mutex_lock(&nlmsvc_mutex);
 	/*
@@ -378,12 +377,12 @@ EXPORT_SYMBOL_GPL(lockd_up);
  * Decrement the user count and bring down lockd if we're the last.
  */
 void
-lockd_down(void)
+lockd_down(struct net *net)
 {
 	mutex_lock(&nlmsvc_mutex);
 	if (nlmsvc_users) {
 		if (--nlmsvc_users) {
-			lockd_down_net(current->nsproxy->net_ns);
+			lockd_down_net(net);
 			goto out;
 		}
 	} else {

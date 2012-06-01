@@ -16,7 +16,6 @@
 #include <linux/sunrpc/cache.h>
 #include <linux/hash.h>
 
-#define SVC_CRED_NGROUPS	32
 struct svc_cred {
 	uid_t			cr_uid;
 	gid_t			cr_gid;
@@ -131,7 +130,7 @@ extern struct auth_domain *auth_domain_lookup(char *name, struct auth_domain *ne
 extern struct auth_domain *auth_domain_find(char *name);
 extern struct auth_domain *auth_unix_lookup(struct net *net, struct in6_addr *addr);
 extern int auth_unix_forget_old(struct auth_domain *dom);
-extern void svcauth_unix_purge(void);
+extern void svcauth_unix_purge(struct net *net);
 extern void svcauth_unix_info_release(struct svc_xprt *xpt);
 extern int svcauth_unix_set_client(struct svc_rqst *rqstp);
 

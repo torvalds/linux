@@ -347,17 +347,12 @@ static inline int ip_map_update(struct net *net, struct ip_map *ipm,
 	return __ip_map_update(sn->ip_map_cache, ipm, udom, expiry);
 }
 
-
-void svcauth_unix_purge(void)
+void svcauth_unix_purge(struct net *net)
 {
-	struct net *net;
+	struct sunrpc_net *sn;
 
-	for_each_net(net) {
-		struct sunrpc_net *sn;
-
-		sn = net_generic(net, sunrpc_net_id);
-		cache_purge(sn->ip_map_cache);
-	}
+	sn = net_generic(net, sunrpc_net_id);
+	cache_purge(sn->ip_map_cache);
 }
 EXPORT_SYMBOL_GPL(svcauth_unix_purge);
 
