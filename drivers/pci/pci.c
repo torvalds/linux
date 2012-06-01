@@ -854,12 +854,6 @@ EXPORT_SYMBOL(pci_choose_state);
 		((flags & PCI_EXP_FLAGS_VERS) > 1 ||	\
 		 (type == PCI_EXP_TYPE_ROOT_PORT ||	\
 		  type == PCI_EXP_TYPE_RC_EC))
-#define pcie_cap_has_devctl2(type, flags)		\
-		((flags & PCI_EXP_FLAGS_VERS) > 1)
-#define pcie_cap_has_lnkctl2(type, flags)		\
-		((flags & PCI_EXP_FLAGS_VERS) > 1)
-#define pcie_cap_has_sltctl2(type, flags)		\
-		((flags & PCI_EXP_FLAGS_VERS) > 1)
 
 static struct pci_cap_saved_state *pci_find_saved_cap(
 	struct pci_dev *pci_dev, char cap)
@@ -902,13 +896,14 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 		pci_read_config_word(dev, pos + PCI_EXP_SLTCTL, &cap[i++]);
 	if (pcie_cap_has_rtctl(dev->pcie_type, flags))
 		pci_read_config_word(dev, pos + PCI_EXP_RTCTL, &cap[i++]);
-	if (pcie_cap_has_devctl2(dev->pcie_type, flags))
-		pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &cap[i++]);
-	if (pcie_cap_has_lnkctl2(dev->pcie_type, flags))
-		pci_read_config_word(dev, pos + PCI_EXP_LNKCTL2, &cap[i++]);
-	if (pcie_cap_has_sltctl2(dev->pcie_type, flags))
-		pci_read_config_word(dev, pos + PCI_EXP_SLTCTL2, &cap[i++]);
 
+	pos = pci_pcie_cap2(dev);
+	if (!pos)
+		return 0;
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &cap[i++]);
+	pci_read_config_word(dev, pos + PCI_EXP_LNKCTL2, &cap[i++]);
+	pci_read_config_word(dev, pos + PCI_EXP_SLTCTL2, &cap[i++]);
 	return 0;
 }
 
@@ -935,12 +930,14 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 		pci_write_config_word(dev, pos + PCI_EXP_SLTCTL, cap[i++]);
 	if (pcie_cap_has_rtctl(dev->pcie_type, flags))
 		pci_write_config_word(dev, pos + PCI_EXP_RTCTL, cap[i++]);
-	if (pcie_cap_has_devctl2(dev->pcie_type, flags))
-		pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, cap[i++]);
-	if (pcie_cap_has_lnkctl2(dev->pcie_type, flags))
-		pci_write_config_word(dev, pos + PCI_EXP_LNKCTL2, cap[i++]);
-	if (pcie_cap_has_sltctl2(dev->pcie_type, flags))
-		pci_write_config_word(dev, pos + PCI_EXP_SLTCTL2, cap[i++]);
+
+	pos = pci_pcie_cap2(dev);
+	if (!pos)
+		return;
+
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, cap[i++]);
+	pci_write_config_word(dev, pos + PCI_EXP_LNKCTL2, cap[i++]);
+	pci_write_config_word(dev, pos + PCI_EXP_SLTCTL2, cap[i++]);
 }
 
 
