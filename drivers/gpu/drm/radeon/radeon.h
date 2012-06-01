@@ -346,6 +346,9 @@ struct radeon_bo {
 	/* Constant after initialization */
 	struct radeon_device		*rdev;
 	struct drm_gem_object		gem_base;
+
+	struct ttm_bo_kmap_obj dma_buf_vmap;
+	int vmapping_count;
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
