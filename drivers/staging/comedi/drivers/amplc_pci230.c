@@ -499,8 +499,6 @@ static const struct pci230_board pci230_boards[] = {
 	 },
 };
 
-#define n_pci230_boards ARRAY_SIZE(pci230_boards)
-
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
@@ -684,281 +682,6 @@ static inline void pci230_ao_write_fifo(struct comedi_device *dev, short datum,
 	/* Write mangled datum to appropriate DACDATA register. */
 	outw(pci230_ao_mangle_datum(dev, datum),
 	     dev->iobase + PCI230P2_DACDATA);
-}
-
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
-{
-	const struct pci230_board *thisboard = comedi_board(dev);
-	struct pci230_private *devpriv;
-	struct comedi_subdevice *s;
-	unsigned long iobase1, iobase2;
-	/* PCI230's I/O spaces 1 and 2 respectively. */
-	struct pci_dev *pci_dev = NULL;
-	int i = 0, irq_hdl, rc;
-
-	dev_info(dev->class_dev, "amplc_pci230: attach %s %d,%d\n",
-		 thisboard->name, it->options[0], it->options[1]);
-
-	/* Allocate the private structure area using alloc_private().
-	 * Macro defined in comedidev.h - memsets struct fields to 0. */
-	if ((alloc_private(dev, sizeof(struct pci230_private))) < 0)
-		return -ENOMEM;
-	devpriv = dev->private;
-
-	spin_lock_init(&devpriv->isr_spinlock);
-	spin_lock_init(&devpriv->res_spinlock);
-	spin_lock_init(&devpriv->ai_stop_spinlock);
-	spin_lock_init(&devpriv->ao_stop_spinlock);
-	/* Find card */
-	for_each_pci_dev(pci_dev) {
-		if (it->options[0] || it->options[1]) {
-			/* Match against bus/slot options. */
-			if (it->options[0] != pci_dev->bus->number ||
-			    it->options[1] != PCI_SLOT(pci_dev->devfn))
-				continue;
-		}
-		if (pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
-			continue;
-		if (thisboard->id == PCI_DEVICE_ID_INVALID) {
-			/* The name was specified as "amplc_pci230" which is
-			 * used to match any supported device.  Replace the
-			 * current dev->board_ptr with one that matches the
-			 * PCI device ID. */
-			for (i = 0; i < n_pci230_boards; i++) {
-				if (pci_dev->device == pci230_boards[i].id) {
-					if (pci230_boards[i].min_hwver > 0) {
-						/* Check for a '+' model.
-						 * First check length of
-						 * registers. */
-						if (pci_resource_len(pci_dev, 3)
-						    < 32) {
-							/* Not a '+' model. */
-							continue;
-						}
-						/* TODO: temporarily enable the
-						 * PCI device and read the
-						 * hardware version register.
-						 * For now assume it's okay. */
-					}
-					/* Change board_ptr to matched board */
-					dev->board_ptr = &pci230_boards[i];
-					thisboard = comedi_board(dev);
-					break;
-				}
-			}
-			if (i < n_pci230_boards)
-				break;
-		} else {
-			/* The name was specified as a specific device name.
-			 * The current dev->board_ptr is correct.  Check
-			 * whether it matches the PCI device ID. */
-			if (thisboard->id == pci_dev->device) {
-				/* Check minimum hardware version. */
-				if (thisboard->min_hwver > 0) {
-					/* Looking for a '+' model.  First
-					 * check length of registers. */
-					if (pci_resource_len(pci_dev, 3) < 32) {
-						/* Not a '+' model. */
-						continue;
-					}
-					/* TODO: temporarily enable the PCI
-					 * device and read the hardware version
-					 * register.  For now, assume it's
-					 * okay. */
-					break;
-				} else {
-					break;
-				}
-			}
-		}
-	}
-	if (!pci_dev) {
-		dev_err(dev->class_dev, "No %s card found\n", thisboard->name);
-		return -EIO;
-	}
-	devpriv->pci_dev = pci_dev;
-
-	/*
-	 * Initialize dev->board_name.
-	 */
-	dev->board_name = thisboard->name;
-
-	/* Enable PCI device and reserve I/O spaces. */
-	if (comedi_pci_enable(pci_dev, "amplc_pci230") < 0) {
-		dev_err(dev->class_dev,
-			"failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
-
-	/* Read base addresses of the PCI230's two I/O regions from PCI
-	 * configuration register. */
-	iobase1 = pci_resource_start(pci_dev, 2);
-	iobase2 = pci_resource_start(pci_dev, 3);
-
-	dev_dbg(dev->class_dev,
-		"%s I/O region 1 0x%04lx I/O region 2 0x%04lx\n",
-		dev->board_name, iobase1, iobase2);
-
-	devpriv->iobase1 = iobase1;
-	dev->iobase = iobase2;
-
-	/* Read bits of DACCON register - only the output range. */
-	devpriv->daccon = inw(dev->iobase + PCI230_DACCON) & PCI230_DAC_OR_MASK;
-
-	/* Read hardware version register and set extended function register
-	 * if they exist. */
-	if (pci_resource_len(pci_dev, 3) >= 32) {
-		unsigned short extfunc = 0;
-
-		devpriv->hwver = inw(dev->iobase + PCI230P_HWVER);
-		if (devpriv->hwver < thisboard->min_hwver) {
-			dev_err(dev->class_dev,
-				"%s - bad hardware version - got %u, need %u\n",
-				dev->board_name, devpriv->hwver,
-				thisboard->min_hwver);
-			return -EIO;
-		}
-		if (devpriv->hwver > 0) {
-			if (!thisboard->have_dio) {
-				/* No DIO ports.  Route counters' external gates
-				 * to the EXTTRIG signal (PCI260+ pin 17).
-				 * (Otherwise, they would be routed to DIO
-				 * inputs PC0, PC1 and PC2 which don't exist
-				 * on PCI260[+].) */
-				extfunc |= PCI230P_EXTFUNC_GAT_EXTTRIG;
-			}
-			if ((thisboard->ao_chans > 0)
-			    && (devpriv->hwver >= 2)) {
-				/* Enable DAC FIFO functionality. */
-				extfunc |= PCI230P2_EXTFUNC_DACFIFO;
-			}
-		}
-		outw(extfunc, dev->iobase + PCI230P_EXTFUNC);
-		if ((extfunc & PCI230P2_EXTFUNC_DACFIFO) != 0) {
-			/* Temporarily enable DAC FIFO, reset it and disable
-			 * FIFO wraparound. */
-			outw(devpriv->daccon | PCI230P2_DAC_FIFO_EN
-			     | PCI230P2_DAC_FIFO_RESET,
-			     dev->iobase + PCI230_DACCON);
-			/* Clear DAC FIFO channel enable register. */
-			outw(0, dev->iobase + PCI230P2_DACEN);
-			/* Disable DAC FIFO. */
-			outw(devpriv->daccon, dev->iobase + PCI230_DACCON);
-		}
-	}
-
-	/* Disable board's interrupts. */
-	outb(0, devpriv->iobase1 + PCI230_INT_SCE);
-
-	/* Set ADC to a reasonable state. */
-	devpriv->adcg = 0;
-	devpriv->adccon = PCI230_ADC_TRIG_NONE | PCI230_ADC_IM_SE
-	    | PCI230_ADC_IR_BIP;
-	outw(1 << 0, dev->iobase + PCI230_ADCEN);
-	outw(devpriv->adcg, dev->iobase + PCI230_ADCG);
-	outw(devpriv->adccon | PCI230_ADC_FIFO_RESET,
-	     dev->iobase + PCI230_ADCCON);
-
-	/* Register the interrupt handler. */
-	irq_hdl = request_irq(devpriv->pci_dev->irq, pci230_interrupt,
-			      IRQF_SHARED, "amplc_pci230", dev);
-	if (irq_hdl < 0) {
-		dev_warn(dev->class_dev,
-			 "unable to register irq %u, commands will not be available\n",
-			 devpriv->pci_dev->irq);
-	} else {
-		dev->irq = devpriv->pci_dev->irq;
-		dev_dbg(dev->class_dev, "registered irq %u\n",
-			devpriv->pci_dev->irq);
-	}
-
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 */
-	if (alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
-
-	s = dev->subdevices + 0;
-	/* analog input subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
-	s->n_chan = thisboard->ai_chans;
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
-	s->range_table = &pci230_ai_range;
-	s->insn_read = &pci230_ai_rinsn;
-	s->len_chanlist = 256;	/* but there are restrictions. */
-	/* Only register commands if the interrupt handler is installed. */
-	if (irq_hdl == 0) {
-		dev->read_subdev = s;
-		s->subdev_flags |= SDF_CMD_READ;
-		s->do_cmd = &pci230_ai_cmd;
-		s->do_cmdtest = &pci230_ai_cmdtest;
-		s->cancel = pci230_ai_cancel;
-	}
-
-	s = dev->subdevices + 1;
-	/* analog output subdevice */
-	if (thisboard->ao_chans > 0) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = thisboard->ao_chans;
-		s->maxdata = (1 << thisboard->ao_bits) - 1;
-		s->range_table = &pci230_ao_range;
-		s->insn_write = &pci230_ao_winsn;
-		s->insn_read = &pci230_ao_rinsn;
-		s->len_chanlist = thisboard->ao_chans;
-		/* Only register commands if the interrupt handler is
-		 * installed. */
-		if (irq_hdl == 0) {
-			dev->write_subdev = s;
-			s->subdev_flags |= SDF_CMD_WRITE;
-			s->do_cmd = &pci230_ao_cmd;
-			s->do_cmdtest = &pci230_ao_cmdtest;
-			s->cancel = pci230_ao_cancel;
-		}
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
-
-	s = dev->subdevices + 2;
-	/* digital i/o subdevice */
-	if (thisboard->have_dio) {
-		rc = subdev_8255_init(dev, s, NULL,
-				      (devpriv->iobase1 + PCI230_PPI_X_BASE));
-		if (rc < 0)
-			return rc;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
-
-	dev_info(dev->class_dev, "attached\n");
-
-	return 1;
-}
-
-static void pci230_detach(struct comedi_device *dev)
-{
-	const struct pci230_board *thisboard = comedi_board(dev);
-	struct pci230_private *devpriv = dev->private;
-
-	if (dev->subdevices && thisboard->have_dio)
-		subdev_8255_cleanup(dev, dev->subdevices + 2);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (devpriv) {
-		if (devpriv->pci_dev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
-	}
 }
 
 static int get_resources(struct comedi_device *dev, unsigned int res_mask,
@@ -2995,10 +2718,311 @@ static int pci230_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
+/* Check if PCI device matches a specific board. */
+static bool pci230_match_pci_board(const struct pci230_board *board,
+				   struct pci_dev *pci_dev)
+{
+	/* assume pci_dev->device != PCI_DEVICE_ID_INVALID */
+	if (board->id != pci_dev->device)
+		return false;
+	if (board->min_hwver == 0)
+		return true;
+	/* Looking for a '+' model.  First check length of registers. */
+	if (pci_resource_len(pci_dev, 3) < 32)
+		return false;	/* Not a '+' model. */
+	/* TODO: temporarily enable PCI device and read the hardware version
+	 * register.  For now, assume it's okay. */
+	return true;
+}
+
+/* Look for board matching PCI device. */
+static const struct pci230_board *pci230_find_pci_board(struct pci_dev *pci_dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(pci230_boards); i++)
+		if (pci230_match_pci_board(&pci230_boards[i], pci_dev))
+			return &pci230_boards[i];
+	return NULL;
+}
+
+/* Look for PCI device matching requested board name, bus and slot. */
+static struct pci_dev *pci230_find_pci(struct comedi_device *dev,
+				       int bus, int slot)
+{
+	const struct pci230_board *thisboard = comedi_board(dev);
+	struct pci_dev *pci_dev = NULL;
+
+	for_each_pci_dev(pci_dev) {
+		/* Check vendor ID (same for all supported PCI boards). */
+		if (pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
+			continue;
+		/* If bus/slot specified, check them. */
+		if ((bus || slot) &&
+		    (bus != pci_dev->bus->number ||
+		     slot != PCI_SLOT(pci_dev->devfn)))
+			continue;
+		if (thisboard->id == PCI_DEVICE_ID_INVALID) {
+			/* Wildcard board matches any supported PCI board. */
+			const struct pci230_board *foundboard;
+
+			foundboard = pci230_find_pci_board(pci_dev);
+			if (foundboard == NULL)
+				continue;
+			/* Replace wildcard board_ptr. */
+			dev->board_ptr = foundboard;
+			thisboard = comedi_board(dev);
+		} else {
+			/* Need to match a specific board. */
+			if (!pci230_match_pci_board(thisboard, pci_dev))
+				continue;
+		}
+		/* Found a matching PCI device. */
+		return pci_dev;
+	}
+	/* No matching PCI device found. */
+	if (bus || slot)
+		dev_err(dev->class_dev,
+			"error! no %s found at pci %02x:%02x\n",
+			thisboard->name, bus, slot);
+	else
+		dev_err(dev->class_dev,
+			"error! no %s found\n", thisboard->name);
+	return NULL;
+}
+
+static int pci230_alloc_private(struct comedi_device *dev)
+{
+	struct pci230_private *devpriv;
+	int err;
+
+	/* sets dev->private to allocated memory */
+	err = alloc_private(dev, sizeof(struct pci230_private));
+	if (err) {
+		dev_err(dev->class_dev, "error! out of memory!\n");
+		return err;
+	}
+	devpriv = dev->private;
+	spin_lock_init(&devpriv->isr_spinlock);
+	spin_lock_init(&devpriv->res_spinlock);
+	spin_lock_init(&devpriv->ai_stop_spinlock);
+	spin_lock_init(&devpriv->ao_stop_spinlock);
+	return 0;
+}
+
+/* Common part of attach and attach_pci. */
+static int pci230_attach_common(struct comedi_device *dev,
+				struct pci_dev *pci_dev)
+{
+	const struct pci230_board *thisboard = comedi_board(dev);
+	struct pci230_private *devpriv = dev->private;
+	struct comedi_subdevice *s;
+	unsigned long iobase1, iobase2;
+	/* PCI230's I/O spaces 1 and 2 respectively. */
+	int irq_hdl, rc;
+
+	devpriv->pci_dev = pci_dev;
+	dev->board_name = thisboard->name;
+	/* Enable PCI device and reserve I/O spaces. */
+	if (comedi_pci_enable(pci_dev, "amplc_pci230") < 0) {
+		dev_err(dev->class_dev,
+			"failed to enable PCI device and request regions\n");
+		return -EIO;
+	}
+	/* Read base addresses of the PCI230's two I/O regions from PCI
+	 * configuration register. */
+	iobase1 = pci_resource_start(pci_dev, 2);
+	iobase2 = pci_resource_start(pci_dev, 3);
+	dev_dbg(dev->class_dev,
+		"%s I/O region 1 0x%04lx I/O region 2 0x%04lx\n",
+		dev->board_name, iobase1, iobase2);
+	devpriv->iobase1 = iobase1;
+	dev->iobase = iobase2;
+	/* Read bits of DACCON register - only the output range. */
+	devpriv->daccon = inw(dev->iobase + PCI230_DACCON) & PCI230_DAC_OR_MASK;
+	/* Read hardware version register and set extended function register
+	 * if they exist. */
+	if (pci_resource_len(pci_dev, 3) >= 32) {
+		unsigned short extfunc = 0;
+
+		devpriv->hwver = inw(dev->iobase + PCI230P_HWVER);
+		if (devpriv->hwver < thisboard->min_hwver) {
+			dev_err(dev->class_dev,
+				"%s - bad hardware version - got %u, need %u\n",
+				dev->board_name, devpriv->hwver,
+				thisboard->min_hwver);
+			return -EIO;
+		}
+		if (devpriv->hwver > 0) {
+			if (!thisboard->have_dio) {
+				/* No DIO ports.  Route counters' external gates
+				 * to the EXTTRIG signal (PCI260+ pin 17).
+				 * (Otherwise, they would be routed to DIO
+				 * inputs PC0, PC1 and PC2 which don't exist
+				 * on PCI260[+].) */
+				extfunc |= PCI230P_EXTFUNC_GAT_EXTTRIG;
+			}
+			if ((thisboard->ao_chans > 0)
+			    && (devpriv->hwver >= 2)) {
+				/* Enable DAC FIFO functionality. */
+				extfunc |= PCI230P2_EXTFUNC_DACFIFO;
+			}
+		}
+		outw(extfunc, dev->iobase + PCI230P_EXTFUNC);
+		if ((extfunc & PCI230P2_EXTFUNC_DACFIFO) != 0) {
+			/* Temporarily enable DAC FIFO, reset it and disable
+			 * FIFO wraparound. */
+			outw(devpriv->daccon | PCI230P2_DAC_FIFO_EN
+			     | PCI230P2_DAC_FIFO_RESET,
+			     dev->iobase + PCI230_DACCON);
+			/* Clear DAC FIFO channel enable register. */
+			outw(0, dev->iobase + PCI230P2_DACEN);
+			/* Disable DAC FIFO. */
+			outw(devpriv->daccon, dev->iobase + PCI230_DACCON);
+		}
+	}
+	/* Disable board's interrupts. */
+	outb(0, devpriv->iobase1 + PCI230_INT_SCE);
+	/* Set ADC to a reasonable state. */
+	devpriv->adcg = 0;
+	devpriv->adccon = PCI230_ADC_TRIG_NONE | PCI230_ADC_IM_SE
+	    | PCI230_ADC_IR_BIP;
+	outw(1 << 0, dev->iobase + PCI230_ADCEN);
+	outw(devpriv->adcg, dev->iobase + PCI230_ADCG);
+	outw(devpriv->adccon | PCI230_ADC_FIFO_RESET,
+	     dev->iobase + PCI230_ADCCON);
+	/* Register the interrupt handler. */
+	irq_hdl = request_irq(devpriv->pci_dev->irq, pci230_interrupt,
+			      IRQF_SHARED, "amplc_pci230", dev);
+	if (irq_hdl < 0) {
+		dev_warn(dev->class_dev,
+			 "unable to register irq %u, commands will not be available\n",
+			 devpriv->pci_dev->irq);
+	} else {
+		dev->irq = devpriv->pci_dev->irq;
+		dev_dbg(dev->class_dev, "registered irq %u\n",
+			devpriv->pci_dev->irq);
+	}
+	/*
+	 * Allocate the subdevice structures.  alloc_subdevice() is a
+	 * convenient macro defined in comedidev.h.
+	 */
+	if (alloc_subdevices(dev, 3) < 0)
+		return -ENOMEM;
+	s = dev->subdevices + 0;
+	/* analog input subdevice */
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
+	s->n_chan = thisboard->ai_chans;
+	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->range_table = &pci230_ai_range;
+	s->insn_read = &pci230_ai_rinsn;
+	s->len_chanlist = 256;	/* but there are restrictions. */
+	/* Only register commands if the interrupt handler is installed. */
+	if (irq_hdl == 0) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->do_cmd = &pci230_ai_cmd;
+		s->do_cmdtest = &pci230_ai_cmdtest;
+		s->cancel = pci230_ai_cancel;
+	}
+	s = dev->subdevices + 1;
+	/* analog output subdevice */
+	if (thisboard->ao_chans > 0) {
+		s->type = COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
+		s->n_chan = thisboard->ao_chans;
+		s->maxdata = (1 << thisboard->ao_bits) - 1;
+		s->range_table = &pci230_ao_range;
+		s->insn_write = &pci230_ao_winsn;
+		s->insn_read = &pci230_ao_rinsn;
+		s->len_chanlist = thisboard->ao_chans;
+		/* Only register commands if the interrupt handler is
+		 * installed. */
+		if (irq_hdl == 0) {
+			dev->write_subdev = s;
+			s->subdev_flags |= SDF_CMD_WRITE;
+			s->do_cmd = &pci230_ao_cmd;
+			s->do_cmdtest = &pci230_ao_cmdtest;
+			s->cancel = pci230_ao_cancel;
+		}
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
+	s = dev->subdevices + 2;
+	/* digital i/o subdevice */
+	if (thisboard->have_dio) {
+		rc = subdev_8255_init(dev, s, NULL,
+				      (devpriv->iobase1 + PCI230_PPI_X_BASE));
+		if (rc < 0)
+			return rc;
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
+	dev_info(dev->class_dev, "attached\n");
+	return 1;
+}
+
+static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	const struct pci230_board *thisboard = comedi_board(dev);
+	struct pci_dev *pci_dev;
+	int rc;
+
+	dev_info(dev->class_dev, "amplc_pci230: attach %s %d,%d\n",
+		 thisboard->name, it->options[0], it->options[1]);
+	rc = pci230_alloc_private(dev); /* sets dev->private */
+	if (rc)
+		return rc;
+	/* Find card. */
+	pci_dev = pci230_find_pci(dev, it->options[0], it->options[1]);
+	if (!pci_dev)
+		return -EIO;
+	return pci230_attach_common(dev, pci_dev);
+}
+
+static int __devinit pci230_attach_pci(struct comedi_device *dev,
+				       struct pci_dev *pci_dev)
+{
+	int rc;
+
+	dev_info(dev->class_dev, "amplc_pci230: attach pci %s\n",
+		 pci_name(pci_dev));
+	rc = pci230_alloc_private(dev); /* sets dev->private */
+	if (rc)
+		return rc;
+	dev->board_ptr = pci230_find_pci_board(pci_dev);
+	if (dev->board_ptr == NULL) {
+		dev_err(dev->class_dev,
+			"amplc_pci230: BUG! cannot determine board type!\n");
+		return -EINVAL;
+	}
+	return pci230_attach_common(dev, pci_dev);
+}
+
+static void pci230_detach(struct comedi_device *dev)
+{
+	const struct pci230_board *thisboard = comedi_board(dev);
+	struct pci230_private *devpriv = dev->private;
+
+	if (dev->subdevices && thisboard->have_dio)
+		subdev_8255_cleanup(dev, dev->subdevices + 2);
+	if (dev->irq)
+		free_irq(dev->irq, dev);
+	if (devpriv) {
+		if (devpriv->pci_dev) {
+			if (dev->iobase)
+				comedi_pci_disable(devpriv->pci_dev);
+			pci_dev_put(devpriv->pci_dev);
+		}
+	}
+}
+
 static struct comedi_driver amplc_pci230_driver = {
 	.driver_name	= "amplc_pci230",
 	.module		= THIS_MODULE,
 	.attach		= pci230_attach,
+	.attach_pci	= pci230_attach_pci,
 	.detach		= pci230_detach,
 	.board_name	= &pci230_boards[0].name,
 	.offset		= sizeof(pci230_boards[0]),
