@@ -135,7 +135,6 @@ struct dvb_usb_adapter_properties {
 	int (*fe_ioctl_override) (struct dvb_frontend *,
 			unsigned int, void *, unsigned int);
 
-	int num_frontends;
 	struct usb_data_stream_properties stream;
 };
 

@@ -186,7 +186,6 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
 {
-	int i;
 	int ret = dvb_register_adapter(&adap->dvb_adap, adap->dev->name,
 				       adap->dev->props.owner,
 				       &adap->dev->udev->dev,
@@ -211,10 +210,8 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
 	adap->demux.priv             = adap;
 
 	adap->demux.filternum        = 0;
-	for (i = 0; i < adap->props.num_frontends; i++) {
-		if (adap->demux.filternum < adap->max_feed_count)
-			adap->demux.filternum = adap->max_feed_count;
-	}
+	if (adap->demux.filternum < adap->max_feed_count)
+		adap->demux.filternum = adap->max_feed_count;
 	adap->demux.feednum          = adap->demux.filternum;
 	adap->demux.start_feed       = dvb_usb_start_feed;
 	adap->demux.stop_feed        = dvb_usb_stop_feed;
