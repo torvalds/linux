@@ -35,13 +35,6 @@
 
 #define CHKCOND(x,y) if (!(x)) printk y
 
-#ifdef DBG
-#define PRINTK(x) printk x
-#else
-#undef PRINTK
-#define PRINTK(x)
-#endif
-
 struct hpfs_inode_info {
 	loff_t mmu_private;
 	ino_t i_parent_dir;	/* (directories) gives fnode of parent dir */
