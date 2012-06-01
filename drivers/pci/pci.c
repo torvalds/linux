@@ -2169,7 +2169,7 @@ EXPORT_SYMBOL(pci_disable_obff);
  * RETURNS:
  * True if @dev supports latency tolerance reporting, false otherwise.
  */
-bool pci_ltr_supported(struct pci_dev *dev)
+static bool pci_ltr_supported(struct pci_dev *dev)
 {
 	int pos;
 	u32 cap;
@@ -2185,7 +2185,6 @@ bool pci_ltr_supported(struct pci_dev *dev)
 
 	return cap & PCI_EXP_DEVCAP2_LTR;
 }
-EXPORT_SYMBOL(pci_ltr_supported);
 
 /**
  * pci_enable_ltr - enable latency tolerance reporting

@@ -875,7 +875,6 @@ enum pci_obff_signal_type {
 int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type);
 void pci_disable_obff(struct pci_dev *dev);
 
-bool pci_ltr_supported(struct pci_dev *dev);
 int pci_enable_ltr(struct pci_dev *dev);
 void pci_disable_ltr(struct pci_dev *dev);
 int pci_set_ltr(struct pci_dev *dev, int snoop_lat_ns, int nosnoop_lat_ns);
