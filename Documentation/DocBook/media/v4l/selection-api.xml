@@ -53,10 +53,10 @@ cropping and composing rectangles have the same size.</para>
 	</mediaobject>
       </figure>
 
-For complete list of the available selection targets see table <xref
-linkend="v4l2-sel-target"/>
-
     </section>
+
+    See <xref linkend="v4l2-selection-targets-table" /> for more
+    information.
 
   <section>
 

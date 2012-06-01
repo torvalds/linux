@@ -1,0 +1,92 @@
+<section id="v4l2-selections-common">
+
+  <title>Selection targets</title>
+
+  <para>While the <link linkend="selection-api">V4L2 selection
+  API</link> and <link linkend="v4l2-subdev-selections">V4L2 subdev
+  selection APIs</link> are very similar, there's one fundamental
+  difference between the two. On sub-device API, the selection
+  rectangle refers to the media bus format, and is bound to a
+  sub-device's pad. On the V4L2 interface the selection rectangles
+  refer to the in-memory pixel format.</para>
+
+  <para>The precise meaning of the selection targets may thus be
+  affected on which of the two interfaces they are used.</para>
+
+  <table pgwide="1" frame="none" id="v4l2-selection-targets-table">
+  <title>Selection target definitions</title>
+    <tgroup cols="5">
+      <colspec colname="c1" />
+      <colspec colname="c2" />
+      <colspec colname="c3" />
+      <colspec colname="c4" />
+      <colspec colname="c5" />
+      &cs-def;
+      <thead>
+	<row rowsep="1">
+	  <entry align="left">Target name</entry>
+	  <entry align="left">id</entry>
+	  <entry align="left">Definition</entry>
+	  <entry align="left">Valid for V4L2</entry>
+	  <entry align="left">Valid for V4L2 subdev</entry>
+	</row>
+      </thead>
+      <tbody valign="top">
+	<row>
+	  <entry><constant>V4L2_SEL_TGT_CROP</constant></entry>
+	  <entry>0x0000</entry>
+	  <entry>Crop rectangle. Defines the cropped area.</entry>
+	  <entry>Yes</entry>
+	  <entry>Yes</entry>
+	</row>
+	<row>
+          <entry><constant>V4L2_SEL_TGT_CROP_DEFAULT</constant></entry>
+          <entry>0x0001</entry>
+          <entry>Suggested cropping rectangle that covers the "whole picture".</entry>
+	  <entry>Yes</entry>
+	  <entry>No</entry>
+	</row>
+	<row>
+	  <entry><constant>V4L2_SEL_TGT_CROP_BOUNDS</constant></entry>
+	  <entry>0x0002</entry>
+	  <entry>Bounds of the crop rectangle. All valid crop
+	  rectangles fit inside the crop bounds rectangle.
+	  </entry>
+	  <entry>Yes</entry>
+	  <entry>Yes</entry>
+	</row>
+	<row>
+	  <entry><constant>V4L2_SEL_TGT_COMPOSE</constant></entry>
+	  <entry>0x0100</entry>
+	  <entry>Compose rectangle. Used to configure scaling
+	  and composition.</entry>
+	  <entry>Yes</entry>
+	  <entry>Yes</entry>
+	</row>
+	<row>
+          <entry><constant>V4L2_SEL_TGT_COMPOSE_DEFAULT</constant></entry>
+          <entry>0x0101</entry>
+          <entry>Suggested composition rectangle that covers the "whole picture".</entry>
+	  <entry>Yes</entry>
+	  <entry>No</entry>
+	</row>
+	<row>
+	  <entry><constant>V4L2_SEL_TGT_COMPOSE_BOUNDS</constant></entry>
+	  <entry>0x0102</entry>
+	  <entry>Bounds of the compose rectangle. All valid compose
+	  rectangles fit inside the compose bounds rectangle.</entry>
+	  <entry>Yes</entry>
+	  <entry>Yes</entry>
+	</row>
+	<row>
+          <entry><constant>V4L2_SEL_TGT_COMPOSE_PADDED</constant></entry>
+          <entry>0x0103</entry>
+          <entry>The active area and all padding pixels that are inserted or
+	    modified by hardware.</entry>
+	  <entry>Yes</entry>
+	  <entry>No</entry>
+	</row>
+      </tbody>
+    </tgroup>
+  </table>
+</section>

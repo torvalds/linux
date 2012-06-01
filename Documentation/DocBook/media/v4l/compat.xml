@@ -2377,10 +2377,11 @@ that used it. It was originally scheduled for removal in 2.6.35.
 	  <para>V4L2_CTRL_FLAG_VOLATILE was added to signal volatile controls to userspace.</para>
         </listitem>
         <listitem>
-	  <para>Add selection API for extended control over cropping and
-composing. Does not affect the compatibility of current drivers and
-applications.  See <link linkend="selection-api"> selection API </link> for
-details.</para>
+	  <para>Add selection API for extended control over cropping
+	  and composing. Does not affect the compatibility of current
+	  drivers and applications. See <link
+	  linkend="selection-api"> selection API </link> for
+	  details.</para>
         </listitem>
       </orderedlist>
     </section>

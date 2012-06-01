@@ -276,7 +276,7 @@
       </para>
     </section>
 
-    <section>
+    <section id="v4l2-subdev-selections">
       <title>Selections: cropping, scaling and composition</title>
 
       <para>Many sub-devices support cropping frames on their input or output
@@ -289,9 +289,9 @@
       &v4l2-rect; by the coordinates of the top left corner and the rectangle
       size. Both the coordinates and sizes are expressed in pixels.</para>
 
-      <para>As for pad formats, drivers store try and active rectangles for
-      the selection targets <xref
-      linkend="v4l2-subdev-selection-targets" />.</para>
+      <para>As for pad formats, drivers store try and active
+      rectangles for the selection targets <xref
+      linkend="v4l2-selections-common" />.</para>
 
       <para>On sink pads, cropping is applied relative to the
       current pad format. The pad format represents the image size as
@@ -308,7 +308,7 @@
       <para>Scaling support is optional. When supported by a subdev,
       the crop rectangle on the subdev's sink pad is scaled to the
       size configured using the &VIDIOC-SUBDEV-S-SELECTION; IOCTL
-      using <constant>V4L2_SUBDEV_SEL_TGT_COMPOSE</constant>
+      using <constant>V4L2_SEL_TGT_COMPOSE</constant>
       selection target on the same pad. If the subdev supports scaling
       but not composing, the top and left values are not used and must
       always be set to zero.</para>
@@ -362,7 +362,7 @@
       performed by the user: the changes made will be propagated to
       any subsequent stages. If this behaviour is not desired, the
       user must set
-      <constant>V4L2_SUBDEV_SEL_FLAG_KEEP_CONFIG</constant> flag. This
+      <constant>V4L2_SEL_FLAG_KEEP_CONFIG</constant> flag. This
       flag causes no propagation of the changes are allowed in any
       circumstances. This may also cause the accessed rectangle to be
       adjusted by the driver, depending on the properties of the

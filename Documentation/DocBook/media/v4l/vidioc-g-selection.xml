@@ -67,7 +67,7 @@ Do not use multiplanar buffers.  Use <constant> V4L2_BUF_TYPE_VIDEO_CAPTURE
 setting the value of &v4l2-selection; <structfield>target</structfield> field
 to <constant> V4L2_SEL_TGT_CROP </constant> (<constant>
 V4L2_SEL_TGT_COMPOSE </constant>).  Please refer to table <xref
-linkend="v4l2-sel-target" /> or <xref linkend="selection-api" /> for additional
+linkend="v4l2-selections-common" /> or <xref linkend="selection-api" /> for additional
 targets.  The <structfield>flags</structfield> and <structfield>reserved
 </structfield> fields of &v4l2-selection; are ignored and they must be filled
 with zeros.  The driver fills the rest of the structure or
@@ -88,7 +88,7 @@ use multiplanar buffers.  Use <constant> V4L2_BUF_TYPE_VIDEO_CAPTURE
 setting the value of &v4l2-selection; <structfield>target</structfield> to
 <constant>V4L2_SEL_TGT_CROP</constant> (<constant>
 V4L2_SEL_TGT_COMPOSE </constant>). Please refer to table <xref
-linkend="v4l2-sel-target" /> or <xref linkend="selection-api" /> for additional
+linkend="v4l2-selections-common" /> or <xref linkend="selection-api" /> for additional
 targets.  The &v4l2-rect; <structfield>r</structfield> rectangle need to be
 set to the desired active area. Field &v4l2-selection; <structfield> reserved
 </structfield> is ignored and must be filled with zeros.  The driver may adjust
@@ -154,52 +154,8 @@ exist no rectangle </emphasis> that satisfies the constraints.</para>
 
   </refsect1>
 
-  <refsect1>
-    <table frame="none" pgwide="1" id="v4l2-sel-target">
-      <title>Selection targets.</title>
-      <tgroup cols="3">
-	&cs-def;
-	<tbody valign="top">
-	  <row>
-            <entry><constant>V4L2_SEL_TGT_CROP</constant></entry>
-            <entry>0x0000</entry>
-            <entry>The area that is currently cropped by hardware.</entry>
-	  </row>
-	  <row>
-            <entry><constant>V4L2_SEL_TGT_CROP_DEFAULT</constant></entry>
-            <entry>0x0001</entry>
-            <entry>Suggested cropping rectangle that covers the "whole picture".</entry>
-	  </row>
-	  <row>
-            <entry><constant>V4L2_SEL_TGT_CROP_BOUNDS</constant></entry>
-            <entry>0x0002</entry>
-            <entry>Limits for the cropping rectangle.</entry>
-	  </row>
-	  <row>
-            <entry><constant>V4L2_SEL_TGT_COMPOSE</constant></entry>
-            <entry>0x0100</entry>
-            <entry>The area to which data is composed by hardware.</entry>
-	  </row>
-	  <row>
-            <entry><constant>V4L2_SEL_TGT_COMPOSE_DEFAULT</constant></entry>
-            <entry>0x0101</entry>
-            <entry>Suggested composing rectangle that covers the "whole picture".</entry>
-	  </row>
-	  <row>
-            <entry><constant>V4L2_SEL_TGT_COMPOSE_BOUNDS</constant></entry>
-            <entry>0x0102</entry>
-            <entry>Limits for the composing rectangle.</entry>
-	  </row>
-	  <row>
-            <entry><constant>V4L2_SEL_TGT_COMPOSE_PADDED</constant></entry>
-            <entry>0x0103</entry>
-            <entry>The active area and all padding pixels that are inserted or
-	      modified by hardware.</entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </table>
-  </refsect1>
+  <para>Selection targets are documented in <xref
+  linkend="v4l2-selections-common"/>.</para>
 
   <refsect1>
     <table frame="none" pgwide="1" id="v4l2-sel-flags">
@@ -253,7 +209,7 @@ exist no rectangle </emphasis> that satisfies the constraints.</para>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>target</structfield></entry>
-            <entry>Used to select between <link linkend="v4l2-sel-target"> cropping
+            <entry>Used to select between <link linkend="v4l2-selections-common"> cropping
 	    and composing rectangles</link>.</entry>
 	  </row>
 	  <row>

@@ -87,36 +87,8 @@
       <constant>EINVAL</constant>.</para>
     </section>
 
-    <table pgwide="1" frame="none" id="v4l2-subdev-selection-targets">
-      <title>V4L2 subdev selection targets</title>
-      <tgroup cols="3">
-        &cs-def;
-	<tbody valign="top">
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_TGT_CROP</constant></entry>
-	    <entry>0x0000</entry>
-	    <entry>Actual crop. Defines the cropping
-	    performed by the processing step.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS</constant></entry>
-	    <entry>0x0002</entry>
-	    <entry>Bounds of the crop rectangle.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_TGT_COMPOSE</constant></entry>
-	    <entry>0x0100</entry>
-	    <entry>Actual compose rectangle. Used to configure scaling
-	    on sink pads and composition on source pads.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_TGT_COMPOSE_BOUNDS</constant></entry>
-	    <entry>0x0102</entry>
-	    <entry>Bounds of the compose rectangle.</entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </table>
+    <para>Selection targets are documented in <xref
+    linkend="v4l2-selections-common"/>.</para>
 
     <table pgwide="1" frame="none" id="v4l2-subdev-selection-flags">
       <title>V4L2 subdev selection flags</title>
@@ -173,7 +145,7 @@
 	    <entry>__u32</entry>
 	    <entry><structfield>target</structfield></entry>
 	    <entry>Target selection rectangle. See
-	    <xref linkend="v4l2-subdev-selection-targets">.</xref>.</entry>
+	    <xref linkend="v4l2-selections-common" />.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
