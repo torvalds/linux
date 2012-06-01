@@ -272,5 +272,10 @@
 			ti,hwmods = "mmc5";
 			ti,needs-special-reset;
 		};
+
+		wdt2: wdt@4a314000 {
+			compatible = "ti,omap4-wdt", "ti,omap3-wdt";
+			ti,hwmods = "wd_timer2";
+		};
 	};
 };
