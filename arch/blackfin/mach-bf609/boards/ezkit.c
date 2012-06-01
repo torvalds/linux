@@ -825,6 +825,10 @@ static struct adau1761_platform_data adau1761_info = {
 static const unsigned short ppi_req[] = {
 	P_PPI0_D0, P_PPI0_D1, P_PPI0_D2, P_PPI0_D3,
 	P_PPI0_D4, P_PPI0_D5, P_PPI0_D6, P_PPI0_D7,
+	P_PPI0_D8, P_PPI0_D9, P_PPI0_D10, P_PPI0_D11,
+	P_PPI0_D12, P_PPI0_D13, P_PPI0_D14, P_PPI0_D15,
+	P_PPI0_D16, P_PPI0_D17, P_PPI0_D18, P_PPI0_D19,
+	P_PPI0_D20, P_PPI0_D21, P_PPI0_D22, P_PPI0_D23,
 	P_PPI0_CLK, P_PPI0_FS1, P_PPI0_FS2,
 	0,
 };
@@ -872,6 +876,101 @@ static struct bfin_capture_config bfin_capture_data = {
 	.ppi_control = (PACK_EN | DLEN_8 | EPPI_CTL_FS1HI_FS2HI
 			| EPPI_CTL_POLC3 | EPPI_CTL_SYNC2 | EPPI_CTL_NON656),
 	.blank_clocks = 8,
+};
+#endif
+
+#if defined(CONFIG_VIDEO_ADV7842) \
+	|| defined(CONFIG_VIDEO_ADV7842_MODULE)
+#include <media/adv7842.h>
+
+static struct v4l2_input adv7842_inputs[] = {
+	{
+		.index = 0,
+		.name = "Composite",
+		.type = V4L2_INPUT_TYPE_CAMERA,
+		.std = V4L2_STD_ALL,
+	},
+	{
+		.index = 1,
+		.name = "S-Video",
+		.type = V4L2_INPUT_TYPE_CAMERA,
+		.std = V4L2_STD_ALL,
+	},
+	{
+		.index = 2,
+		.name = "Component",
+		.type = V4L2_INPUT_TYPE_CAMERA,
+		.std = V4L2_STD_ALL,
+	},
+	{
+		.index = 3,
+		.name = "VGA",
+		.type = V4L2_INPUT_TYPE_CAMERA,
+		.std = V4L2_STD_ALL,
+	},
+	{
+		.index = 4,
+		.name = "HDMI",
+		.type = V4L2_INPUT_TYPE_CAMERA,
+		.std = V4L2_STD_ALL,
+	},
+};
+
+static struct bcap_route adv7842_routes[] = {
+	{
+		.input = 3,
+	},
+	{
+		.input = 4,
+	},
+	{
+		.input = 2,
+	},
+	{
+		.input = 1,
+	},
+	{
+		.input = 0,
+	},
+};
+
+static struct adv7842_platform_data adv7842_data = {
+	.ain_sel = ADV7842_AIN10_11_12_NC_SYNC_4_1,
+	.op_ch_sel = ADV7842_OP_CH_SEL_BRG,
+	.prim_mode = ADV7842_PRIM_MODE_SDP,
+	.vid_std_select = ADV7842_SDP_VID_STD_CVBS_SD_4x1,
+	.inp_color_space = ADV7842_INP_COLOR_SPACE_AUTO,
+	.op_format_sel = ADV7842_OP_FORMAT_SEL_SDR_ITU656_8,
+	.op_656_range = 1,
+	.blank_data = 1,
+	.insert_av_codes = 1,
+	.i2c_sdp_io = 0x30,
+	.i2c_sdp = 0x31,
+	.i2c_cp = 0x32,
+	.i2c_vdp = 0x33,
+	.i2c_afe = 0x34,
+	.i2c_hdmi = 0x35,
+	.i2c_repeater = 0x36,
+	.i2c_edid = 0x37,
+	.i2c_infoframe = 0x38,
+	.i2c_cec = 0x39,
+	.i2c_avlink = 0x3a,
+};
+
+static struct bfin_capture_config bfin_capture_data = {
+	.card_name = "BF609",
+	.inputs = adv7842_inputs,
+	.num_inputs = ARRAY_SIZE(adv7842_inputs),
+	.routes = adv7842_routes,
+	.i2c_adapter_id = 0,
+	.board_info = {
+		.type = "adv7842",
+		.addr = 0x20,
+		.platform_data = (void *)&adv7842_data,
+	},
+	.ppi_info = &ppi_info,
+	.ppi_control = (PACK_EN | DLEN_8 | EPPI_CTL_FLDSEL
+			| EPPI_CTL_ACTIVE656),
 };
 #endif
 
