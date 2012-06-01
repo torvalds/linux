@@ -203,7 +203,7 @@ static struct sw_dma_map __initdata sw_dma_mappings[DMACH_MAX] = {
 	},
 };
 
-static struct sw_dma_selection __initdata sw_dma_sel = {
+static struct sw_dma_selection __refdata sw_dma_sel = {
 	.dcon_mask	= 0xffffffff,
 	.map		= sw_dma_mappings,
 	.map_size	= ARRAY_SIZE(sw_dma_mappings),

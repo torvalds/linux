@@ -129,7 +129,7 @@ static int __init sw_dmac_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int __devexit sw_dmac_remove(struct platform_device *dev)
+static int sw_dmac_remove(struct platform_device *dev)
 {
 	printk("[%s] enter\n", __FUNCTION__);
 	return 0;

@@ -1548,7 +1548,7 @@ static void sw_dma_cache_ctor(void *p)
 
 /* initialisation code */
 
-int __init sw_dma_init(unsigned int channels, unsigned int irq,
+int __devinit sw_dma_init(unsigned int channels, unsigned int irq,
 			    unsigned int stride)
 {
 	struct sw_dma_chan *cp;
@@ -1622,7 +1622,7 @@ int __init sw_dma_init(unsigned int channels, unsigned int irq,
 	return ret;
 }
 
-int __init sw15_dma_init(void)
+int __devinit sw15_dma_init(void)
 {
 	return sw_dma_init(SW_DMA_CHANNELS, SW_INT_IRQNO_DMA, 0x20);
 }
@@ -1680,7 +1680,7 @@ static int sw_dma_check_entry(struct sw_dma_map *map, int ch)
 	return 0;
 }
 
-int __init sw_dma_init_map(struct sw_dma_selection *sel)
+int __devinit sw_dma_init_map(struct sw_dma_selection *sel)
 {
 	struct sw_dma_map *nmap;
 	size_t map_sz = sizeof(*nmap) * sel->map_size;
