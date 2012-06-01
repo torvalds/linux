@@ -132,7 +132,6 @@ register struct thread_info *__current_thread_info asm(QUOTED_THREADINFO_REG);
 #define _TIF_NEED_RESCHED       (1 << TIF_NEED_RESCHED)
 #define _TIF_SINGLESTEP         (1 << TIF_SINGLESTEP)
 #define _TIF_IRET               (1 << TIF_IRET)
-#define _TIF_RESTORE_SIGMASK    (1 << TIF_RESTORE_SIGMASK)
 #define _TIF_POLLING_NRFLAG     (1 << TIF_POLLING_NRFLAG)
 
 /* work to do on interrupt/exception return - All but TIF_SYSCALL_TRACE */
