@@ -580,6 +580,27 @@ int omap2_clk_disable_autoidle_all(void)
 	return 0;
 }
 
+/**
+ * omap2_clk_enable_init_clocks - prepare & enable a list of clocks
+ * @clk_names: ptr to an array of strings of clock names to enable
+ * @num_clocks: number of clock names in @clk_names
+ *
+ * Prepare and enable a list of clocks, named by @clk_names.  No
+ * return value. XXX Deprecated; only needed until these clocks are
+ * properly claimed and enabled by the drivers or core code that uses
+ * them.  XXX What code disables & calls clk_put on these clocks?
+ */
+void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks)
+{
+	struct clk *init_clk;
+	int i;
+
+	for (i = 0; i < num_clocks; i++) {
+		init_clk = clk_get(NULL, clk_names[i]);
+		clk_prepare_enable(init_clk);
+	}
+}
+
 const struct clk_hw_omap_ops clkhwops_wait = {
 	.find_idlest	= omap2_clk_dflt_find_idlest,
 	.find_companion	= omap2_clk_dflt_find_companion,
