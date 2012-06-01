@@ -3492,7 +3492,7 @@ static void flush_async_commits(struct work_struct *work)
 ** flushes any old transactions to disk
 ** ends the current transaction if it is too old
 */
-int reiserfs_flush_old_commits(struct super_block *sb)
+void reiserfs_flush_old_commits(struct super_block *sb)
 {
 	time_t now;
 	struct reiserfs_transaction_handle th;
@@ -3502,9 +3502,8 @@ int reiserfs_flush_old_commits(struct super_block *sb)
 	/* safety check so we don't flush while we are replaying the log during
 	 * mount
 	 */
-	if (list_empty(&journal->j_journal_list)) {
-		return 0;
-	}
+	if (list_empty(&journal->j_journal_list))
+		return;
 
 	/* check the current transaction.  If there are no writers, and it is
 	 * too old, finish it, and force the commit blocks to disk
@@ -3526,7 +3525,6 @@ int reiserfs_flush_old_commits(struct super_block *sb)
 			do_journal_end(&th, sb, 1, COMMIT_NOW | WAIT);
 		}
 	}
-	return sb->s_dirt;
 }
 
 /*

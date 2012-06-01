@@ -2452,7 +2452,7 @@ struct reiserfs_transaction_handle *reiserfs_persistent_transaction(struct
 int reiserfs_end_persistent_transaction(struct reiserfs_transaction_handle *);
 int reiserfs_commit_page(struct inode *inode, struct page *page,
 			 unsigned from, unsigned to);
-int reiserfs_flush_old_commits(struct super_block *);
+void reiserfs_flush_old_commits(struct super_block *);
 int reiserfs_commit_for_inode(struct inode *);
 int reiserfs_inode_needs_commit(struct inode *);
 void reiserfs_update_inode_transaction(struct inode *);
