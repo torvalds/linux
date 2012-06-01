@@ -296,8 +296,6 @@ static const struct of_device_id fixed_of_match[] __devinitconst = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, fixed_of_match);
-#else
-#define fixed_of_match NULL
 #endif
 
 static struct platform_driver regulator_fixed_voltage_driver = {
@@ -306,7 +304,7 @@ static struct platform_driver regulator_fixed_voltage_driver = {
 	.driver		= {
 		.name		= "reg-fixed-voltage",
 		.owner		= THIS_MODULE,
-		.of_match_table = fixed_of_match,
+		.of_match_table = of_match_ptr(fixed_of_match),
 	},
 };
 
