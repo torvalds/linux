@@ -275,12 +275,17 @@ int cirrus_mm_init(struct cirrus_device *cirrus)
 				    pci_resource_len(dev->pdev, 0),
 				    DRM_MTRR_WC);
 
+	cirrus->mm_inited = true;
 	return 0;
 }
 
 void cirrus_mm_fini(struct cirrus_device *cirrus)
 {
 	struct drm_device *dev = cirrus->dev;
+
+	if (!cirrus->mm_inited)
+		return;
+
 	ttm_bo_device_release(&cirrus->ttm.bdev);
 
 	cirrus_ttm_global_release(cirrus);
