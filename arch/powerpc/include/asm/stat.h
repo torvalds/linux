@@ -30,7 +30,7 @@ struct stat {
 	unsigned long	st_dev;
 	ino_t		st_ino;
 #ifdef __powerpc64__
-	unsigned short	st_nlink;
+	unsigned long	st_nlink;
 	mode_t		st_mode;
 #else
 	mode_t		st_mode;
