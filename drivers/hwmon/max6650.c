@@ -545,7 +545,8 @@ static int max6650_probe(struct i2c_client *client,
 	struct max6650_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct max6650_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct max6650_data),
+			    GFP_KERNEL);
 	if (!data) {
 		dev_err(&client->dev, "out of memory.\n");
 		return -ENOMEM;
@@ -560,11 +561,11 @@ static int max6650_probe(struct i2c_client *client,
 	 */
 	err = max6650_init_client(client);
 	if (err)
-		goto err_free;
+		return err;
 
 	err = sysfs_create_group(&client->dev.kobj, &max6650_attr_grp);
 	if (err)
-		goto err_free;
+		return err;
 	/* 3 additional fan inputs for the MAX6651 */
 	if (data->nr_fans == 4) {
 		err = sysfs_create_group(&client->dev.kobj, &max6651_attr_grp);
@@ -582,8 +583,6 @@ static int max6650_probe(struct i2c_client *client,
 		sysfs_remove_group(&client->dev.kobj, &max6651_attr_grp);
 err_remove:
 	sysfs_remove_group(&client->dev.kobj, &max6650_attr_grp);
-err_free:
-	kfree(data);
 	return err;
 }
 
@@ -595,7 +594,6 @@ static int max6650_remove(struct i2c_client *client)
 	if (data->nr_fans == 4)
 		sysfs_remove_group(&client->dev.kobj, &max6651_attr_grp);
 	sysfs_remove_group(&client->dev.kobj, &max6650_attr_grp);
-	kfree(data);
 	return 0;
 }
 
