@@ -139,6 +139,7 @@ extern int rk29sdk_wifi_power_state;
 struct bt_ctrl gBtCtrl;
 struct timer_list bt_sleep_tl;
 
+void bcm4325_sleep(unsigned long bSleep);
 
 #if BT_WAKE_HOST_SUPPORT
 void resetBtHostSleepTimer(void)
@@ -169,8 +170,6 @@ static void timer_hostSleep(unsigned long arg)
 	DBG("b_HostWake=%d\n", gBtCtrl.b_HostWake);
     btWakeupHostUnlock();
 }
-
-void bcm4325_sleep(unsigned long bSleep);
 
 #ifdef CONFIG_PM
 static irqreturn_t bcm4329_wake_host_irq(int irq, void *dev)
@@ -250,6 +249,19 @@ static int bcm4329_rfkill_resume(struct platform_device *pdev)
 #define bcm4329_rfkill_resume  NULL
 #endif
 
+#else
+#ifdef CONFIG_PM
+static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t state)
+{
+#ifdef CONFIG_BT_AUTOSLEEP
+    bcm4325_sleep(1);
+#endif
+    return 0;
+}
+#else
+#define bcm4329_rfkill_suspend  NULL
+#endif
+#define bcm4329_rfkill_resume  NULL
 #endif
 
 void bcm4325_sleep(unsigned long bSleep)
@@ -408,10 +420,8 @@ static struct platform_driver bcm4329_rfkill_driver = {
 		.name = "rk29sdk_rfkill", 
 		.owner = THIS_MODULE,
 	},	
-#if BT_WAKE_HOST_SUPPORT
     .suspend = bcm4329_rfkill_suspend,
     .resume = bcm4329_rfkill_resume,
-#endif
 };
 
 /*
