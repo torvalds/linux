@@ -675,7 +675,7 @@ static struct rmi_device_platform_data s3202_platformdata = {
 #define PWM_MUX_MODE      GPIO0A_PWM0
 #define PWM_MUX_MODE_GPIO GPIO0A_GPIO0A3
 #define PWM_GPIO 	  RK30_PIN0_PA3
-#define PWM_EFFECT_VALUE  1
+#define PWM_EFFECT_VALUE  0
 
 #define LCD_DISP_ON_PIN
 
@@ -1990,10 +1990,10 @@ static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
 	//{.frequency = 252 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1050 * 1000},//0.975V/1.000V
 	//{.frequency = 504 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1050 * 1000},//0.975V/1.000V
 	{.frequency = 816 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1050 * 1000},//1.000V/1.025V
-	//{.frequency = 1008 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1050 * 1000},//1.025V/1.050V
-	//{.frequency = 1200 * 1000,	.cpu_volt = 1150 * 1000,	.logic_volt = 1100 * 1000},//1.100V/1.050V
-	//{.frequency = 1272 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1150 * 1000},//1.150V/1.100V
-	//{.frequency = 1416 * 1000,	.cpu_volt = 1275 * 1000,	.logic_volt = 1150 * 1000},//1.225V/1.100V
+	{.frequency = 1008 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1050 * 1000},//1.025V/1.050V
+	{.frequency = 1200 * 1000,	.cpu_volt = 1150 * 1000,	.logic_volt = 1100 * 1000},//1.100V/1.050V
+	{.frequency = 1272 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1150 * 1000},//1.150V/1.100V
+	{.frequency = 1416 * 1000,	.cpu_volt = 1275 * 1000,	.logic_volt = 1150 * 1000},//1.225V/1.100V
 	//{.frequency = 1512 * 1000,	.cpu_volt = 1325 * 1000,	.logic_volt = 1200 * 1000},//1.300V/1.150V
 	//{.frequency = 1608 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1200 * 1000},//1.325V/1.175V
 	{.frequency = CPUFREQ_TABLE_END},
