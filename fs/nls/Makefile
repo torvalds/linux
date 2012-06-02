@@ -2,18 +2,6 @@
 # Makefile for native language support
 #
 
-CONFIG_NLS_MACCELTIC=m
-CONFIG_NLS_MACCENTEURO=m
-CONFIG_NLS_MACCROATIAN=m
-CONFIG_NLS_MACCYRILLIC=m
-CONFIG_NLS_MACGAELIC=m
-CONFIG_NLS_MACGREEK=m
-CONFIG_NLS_MACICELAND=m
-CONFIG_NLS_MACINUIT=m
-CONFIG_NLS_MACROMANIAN=m
-CONFIG_NLS_MACROMAN=m
-CONFIG_NLS_MACTURKISH=m
-
 obj-$(CONFIG_NLS)		+= nls_base.o
 
 obj-$(CONFIG_NLS_CODEPAGE_437)	+= nls_cp437.o
@@ -54,14 +42,14 @@ obj-$(CONFIG_NLS_ISO8859_15)	+= nls_iso8859-15.o
 obj-$(CONFIG_NLS_KOI8_R)	+= nls_koi8-r.o
 obj-$(CONFIG_NLS_KOI8_U)	+= nls_koi8-u.o nls_koi8-ru.o
 obj-$(CONFIG_NLS_UTF8)		+= nls_utf8.o
-obj-$(CONFIG_NLS_MACCELTIC)     += nls_macceltic.o
-obj-$(CONFIG_NLS_MACCENTEURO)   += nls_maccenteuro.o
-obj-$(CONFIG_NLS_MACCROATIAN)   += nls_maccroatian.o
-obj-$(CONFIG_NLS_MACCYRILLIC)   += nls_maccyrillic.o
-obj-$(CONFIG_NLS_MACGAELIC)     += nls_macgaelic.o
-obj-$(CONFIG_NLS_MACGREEK)      += nls_macgreek.o
-obj-$(CONFIG_NLS_MACICELAND)    += nls_maciceland.o
-obj-$(CONFIG_NLS_MACINUIT)      += nls_macinuit.o
-obj-$(CONFIG_NLS_MACROMANIAN)   += nls_macromanian.o
-obj-$(CONFIG_NLS_MACROMAN)      += nls_macroman.o
-obj-$(CONFIG_NLS_MACTURKISH)    += nls_macturkish.o
+obj-$(CONFIG_NLS_MAC_CELTIC)    += mac-celtic.o
+obj-$(CONFIG_NLS_MAC_CENTEURO)  += mac-centeuro.o
+obj-$(CONFIG_NLS_MAC_CROATIAN)  += mac-croatian.o
+obj-$(CONFIG_NLS_MAC_CYRILLIC)  += mac-cyrillic.o
+obj-$(CONFIG_NLS_MAC_GAELIC)    += mac-gaelic.o
+obj-$(CONFIG_NLS_MAC_GREEK)     += mac-greek.o
+obj-$(CONFIG_NLS_MAC_ICELAND)   += mac-iceland.o
+obj-$(CONFIG_NLS_MAC_INUIT)     += mac-inuit.o
+obj-$(CONFIG_NLS_MAC_ROMANIAN)  += mac-romanian.o
+obj-$(CONFIG_NLS_MAC_ROMAN)     += mac-roman.o
+obj-$(CONFIG_NLS_MAC_TURKISH)   += mac-turkish.o
