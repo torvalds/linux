@@ -176,10 +176,11 @@ static int w83l785ts_detect(struct i2c_client *client,
 	return 0;
 }
 
-static int w83l785ts_probe(struct i2c_client *new_client,
+static int w83l785ts_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
 	struct w83l785ts_data *data;
+	struct device *dev = &client->dev;
 	int err = 0;
 
 	data = kzalloc(sizeof(struct w83l785ts_data), GFP_KERNEL);
@@ -188,7 +189,7 @@ static int w83l785ts_probe(struct i2c_client *new_client,
 		goto exit;
 	}
 
-	i2c_set_clientdata(new_client, data);
+	i2c_set_clientdata(client, data);
 	data->valid = 0;
 	mutex_init(&data->update_lock);
 
@@ -200,18 +201,16 @@ static int w83l785ts_probe(struct i2c_client *new_client,
 	 * Nothing yet, assume it is already started.
 	 */
 
-	err = device_create_file(&new_client->dev,
-				 &sensor_dev_attr_temp1_input.dev_attr);
+	err = device_create_file(dev, &sensor_dev_attr_temp1_input.dev_attr);
 	if (err)
 		goto exit_remove;
 
-	err = device_create_file(&new_client->dev,
-				 &sensor_dev_attr_temp1_max.dev_attr);
+	err = device_create_file(dev, &sensor_dev_attr_temp1_max.dev_attr);
 	if (err)
 		goto exit_remove;
 
 	/* Register sysfs hooks */
-	data->hwmon_dev = hwmon_device_register(&new_client->dev);
+	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove;
@@ -220,10 +219,8 @@ static int w83l785ts_probe(struct i2c_client *new_client,
 	return 0;
 
 exit_remove:
-	device_remove_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_input.dev_attr);
-	device_remove_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_max.dev_attr);
+	device_remove_file(dev, &sensor_dev_attr_temp1_input.dev_attr);
+	device_remove_file(dev, &sensor_dev_attr_temp1_max.dev_attr);
 	kfree(data);
 exit:
 	return err;
