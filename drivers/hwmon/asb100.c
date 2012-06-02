@@ -787,12 +787,10 @@ static int asb100_probe(struct i2c_client *client,
 	int err;
 	struct asb100_data *data;
 
-	data = kzalloc(sizeof(struct asb100_data), GFP_KERNEL);
-	if (!data) {
-		pr_debug("probe failed, kzalloc failed!\n");
-		err = -ENOMEM;
-		goto ERROR0;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct asb100_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->lock);
@@ -801,7 +799,7 @@ static int asb100_probe(struct i2c_client *client,
 	/* Attach secondary lm75 clients */
 	err = asb100_detect_subclients(client);
 	if (err)
-		goto ERROR1;
+		return err;
 
 	/* Initialize the chip */
 	asb100_init_client(client);
@@ -829,9 +827,6 @@ ERROR4:
 ERROR3:
 	i2c_unregister_device(data->lm75[1]);
 	i2c_unregister_device(data->lm75[0]);
-ERROR1:
-	kfree(data);
-ERROR0:
 	return err;
 }
 
@@ -844,8 +839,6 @@ static int asb100_remove(struct i2c_client *client)
 
 	i2c_unregister_device(data->lm75[1]);
 	i2c_unregister_device(data->lm75[0]);
-
-	kfree(data);
 
 	return 0;
 }
