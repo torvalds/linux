@@ -821,14 +821,19 @@ static void release_channel(dwc_otg_hcd_t *_hcd,
 	dwc_otg_transaction_type_e tr_type;
 	int free_qtd;
 	int continue_trans = 1;
-
-    if(((uint32_t) _qtd & 0xf0000000)==0){
-        DWC_PRINT("%s qtd %p, status %d\n", __func__, _qtd, _halt_status);
-        goto cleanup;
-    }
-    if(((uint32_t) _qtd->urb & 0xf0000000)==0){
-        DWC_PRINT("%s urb %p, status %d\n", __func__, _qtd->urb, _halt_status);
-        goto cleanup;
+    if(_halt_status != DWC_OTG_HC_XFER_URB_DEQUEUE){
+        if(((uint32_t) _qtd & 0xf0000000)==0){
+            DWC_PRINT("%s qtd %p, status %d\n", __func__, _qtd, _halt_status);
+            goto cleanup;
+        }
+        if(((uint32_t) _qtd & 0x80000000)==0){
+            DWC_PRINT("%s qtd %p, status %d 1\n", __func__, _qtd, _halt_status);
+            goto cleanup;
+        }
+        if(((uint32_t) _qtd->urb & 0xf0000000)==0){
+            DWC_PRINT("%s qtd %p urb %p, status %d\n", __func__, _qtd, _qtd->urb, _halt_status);
+            goto cleanup;
+        }
     }
         
 	DWC_DEBUGPL(DBG_HCDV, "  %s: channel %d, halt_status %d\n",
@@ -1566,10 +1571,21 @@ static int32_t handle_hc_xacterr_intr(dwc_otg_hcd_t *_hcd,
     dwc_otg_halt_status_e halt_status = DWC_OTG_HC_XFER_NO_HALT_STATUS;
 	DWC_DEBUGPL(DBG_HCD, "--Host Channel %d Interrupt: "
 		    "Transaction Error--\n", _hc->hc_num);
+    if (list_empty(&_hc->qh->qh_list_entry)){
+        DWC_PRINT("%s qh empty\n", __func__);
+        goto out;
+    }
     
-    if((_qtd==NULL)||(_qtd->urb == NULL))
-    {
-		DWC_PRINT("%s qtd->urb %p NULL\n", __func__, _qtd);
+    if(((uint32_t) _qtd & 0xf0000000)==0){
+        DWC_PRINT("%s qtd %p\n", __func__, _qtd);
+        goto out;
+    }
+    if(((uint32_t) _qtd & 0x80000000)==0){
+        DWC_PRINT("%s qtd %p 1\n", __func__, _qtd);
+        goto out;
+    }
+    if(((uint32_t) _qtd->urb & 0xf0000000)==0){
+        DWC_PRINT("%s qtd %p urb %p\n", __func__,_qtd, _qtd->urb);
         goto out;
     }
 	switch (usb_pipetype(_qtd->urb->pipe)) {
