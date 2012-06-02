@@ -361,12 +361,10 @@ static int thmc50_probe(struct i2c_client *client,
 	struct thmc50_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct thmc50_data), GFP_KERNEL);
-	if (!data) {
-		pr_debug("thmc50: detect failed, kzalloc failed!\n");
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct thmc50_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	data->type = id->driver_data;
@@ -377,7 +375,7 @@ static int thmc50_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &thmc50_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	/* Register ADM1022 sysfs hooks */
 	if (data->has_temp3) {
@@ -400,9 +398,6 @@ exit_remove_sysfs:
 		sysfs_remove_group(&client->dev.kobj, &temp3_group);
 exit_remove_sysfs_thmc50:
 	sysfs_remove_group(&client->dev.kobj, &thmc50_group);
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -414,8 +409,6 @@ static int thmc50_remove(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &thmc50_group);
 	if (data->has_temp3)
 		sysfs_remove_group(&client->dev.kobj, &temp3_group);
-
-	kfree(data);
 
 	return 0;
 }
