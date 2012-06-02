@@ -722,6 +722,9 @@ static int dwc_otg_pcd_ep_dequeue(struct usb_ep *_ep,
 	dwc_otg_pcd_ep_t *ep;
 	dwc_otg_pcd_t	*pcd;
 	unsigned long flags;
+    volatile depctl_data_t depctl = {.d32 = 0};
+    
+    dwc_otg_dev_out_ep_regs_t *out_regs;
 
 	DWC_DEBUGPL(DBG_PCDV,"%s(%p,%p)\n", __func__, _ep, _req);
 		
@@ -766,7 +769,14 @@ static int dwc_otg_pcd_ep_dequeue(struct usb_ep *_ep,
 	{
 		req = 0;
 	}
-		
+
+	// kevery@20120602 NAK out request before new queue request
+	if(!ep->dwc_ep.is_in){
+        out_regs = GET_CORE_IF(pcd)->dev_if->out_ep_regs[ep->dwc_ep.num];
+        depctl.d32 = dwc_read_reg32(&(out_regs->doepctl));
+    	depctl.b.snak = 1;
+        dwc_write_reg32( &(out_regs->doepctl), depctl.d32 );
+    }
 	SPIN_UNLOCK_IRQRESTORE(&pcd->lock, flags);
 
 	return req ? 0 : -EOPNOTSUPP;
@@ -1978,7 +1988,10 @@ void dwc_otg_pcd_start_vbus_timer( dwc_otg_pcd_t * _pcd )
 int dwc_vbus_status( void )
 {
     dwc_otg_pcd_t *pcd = s_pcd;
-    return pcd->vbus_status ;
+    if(!pcd)
+       return 0;
+    else
+        return pcd->vbus_status ;
 }
 EXPORT_SYMBOL(dwc_vbus_status);
 
