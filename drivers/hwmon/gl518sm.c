@@ -544,11 +544,10 @@ static int gl518_probe(struct i2c_client *client,
 	struct gl518_data *data;
 	int err, revision;
 
-	data = kzalloc(sizeof(struct gl518_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct gl518_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	revision = gl518_read_value(client, GL518_REG_REVISION);
@@ -562,7 +561,7 @@ static int gl518_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &gl518_group);
 	if (err)
-		goto exit_free;
+		return err;
 	if (data->type == gl518sm_r80) {
 		err = sysfs_create_group(&client->dev.kobj, &gl518_group_r80);
 		if (err)
@@ -581,9 +580,6 @@ exit_remove_files:
 	sysfs_remove_group(&client->dev.kobj, &gl518_group);
 	if (data->type == gl518sm_r80)
 		sysfs_remove_group(&client->dev.kobj, &gl518_group_r80);
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -617,7 +613,6 @@ static int gl518_remove(struct i2c_client *client)
 	if (data->type == gl518sm_r80)
 		sysfs_remove_group(&client->dev.kobj, &gl518_group_r80);
 
-	kfree(data);
 	return 0;
 }
 
