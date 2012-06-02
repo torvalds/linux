@@ -1039,6 +1039,11 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev);
 void mlx4_free_resource_tracker(struct mlx4_dev *dev,
 				enum mlx4_res_tracker_free_type type);
 
+int mlx4_QUERY_FW_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd);
 int mlx4_SET_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			  struct mlx4_vhcr *vhcr,
 			  struct mlx4_cmd_mailbox *inbox,
@@ -1054,6 +1059,11 @@ int mlx4_CLOSE_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			    struct mlx4_cmd_mailbox *inbox,
 			    struct mlx4_cmd_mailbox *outbox,
 			    struct mlx4_cmd_info *cmd);
+int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
+			       struct mlx4_vhcr *vhcr,
+			       struct mlx4_cmd_mailbox *inbox,
+			       struct mlx4_cmd_mailbox *outbox,
+			       struct mlx4_cmd_info *cmd);
 int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			    struct mlx4_vhcr *vhcr,
 			    struct mlx4_cmd_mailbox *inbox,
