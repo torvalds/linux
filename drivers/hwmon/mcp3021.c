@@ -103,7 +103,8 @@ static int mcp3021_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	data = kzalloc(sizeof(struct mcp3021_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct mcp3021_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -111,17 +112,14 @@ static int mcp3021_probe(struct i2c_client *client,
 
 	if (client->dev.platform_data) {
 		data->vdd = *(u32 *)client->dev.platform_data;
-		if (data->vdd > MCP3021_VDD_MAX ||
-				data->vdd < MCP3021_VDD_MIN) {
-			err = -EINVAL;
-			goto exit_free;
-		}
+		if (data->vdd > MCP3021_VDD_MAX || data->vdd < MCP3021_VDD_MIN)
+			return -EINVAL;
 	} else
 		data->vdd = MCP3021_VDD_REF;
 
 	err = sysfs_create_file(&client->dev.kobj, &dev_attr_in0_input.attr);
 	if (err)
-		goto exit_free;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -133,8 +131,6 @@ static int mcp3021_probe(struct i2c_client *client,
 
 exit_remove:
 	sysfs_remove_file(&client->dev.kobj, &dev_attr_in0_input.attr);
-exit_free:
-	kfree(data);
 	return err;
 }
 
@@ -144,7 +140,6 @@ static int mcp3021_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_file(&client->dev.kobj, &dev_attr_in0_input.attr);
-	kfree(data);
 
 	return 0;
 }
