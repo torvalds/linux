@@ -518,7 +518,7 @@ asmlinkage void do_notify_resume(__u32 thread_info_flags)
 		clear_thread_flag(TIF_SINGLESTEP);
 
 	/* deal with pending signal delivery */
-	if (thread_info_flags & _TIF_SIGPENDING))
+	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal();
 
 	/* deal with notification on about to resume userspace execution */
