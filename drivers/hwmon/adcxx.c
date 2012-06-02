@@ -171,7 +171,7 @@ static int __devinit adcxx_probe(struct spi_device *spi)
 	int status;
 	int i;
 
-	adc = kzalloc(sizeof *adc, GFP_KERNEL);
+	adc = devm_kzalloc(&spi->dev, sizeof(*adc), GFP_KERNEL);
 	if (!adc)
 		return -ENOMEM;
 
@@ -208,7 +208,6 @@ out_err:
 
 	spi_set_drvdata(spi, NULL);
 	mutex_unlock(&adc->lock);
-	kfree(adc);
 	return status;
 }
 
@@ -224,7 +223,6 @@ static int __devexit adcxx_remove(struct spi_device *spi)
 
 	spi_set_drvdata(spi, NULL);
 	mutex_unlock(&adc->lock);
-	kfree(adc);
 
 	return 0;
 }
