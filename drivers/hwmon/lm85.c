@@ -1387,7 +1387,7 @@ static int lm85_probe(struct i2c_client *client,
 	struct lm85_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct lm85_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct lm85_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -1419,7 +1419,7 @@ static int lm85_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &lm85_group);
 	if (err)
-		goto err_kfree;
+		return err;
 
 	/* minctl and temp_off exist on all chips except emc6d103s */
 	if (data->type != emc6d103s) {
@@ -1466,8 +1466,6 @@ static int lm85_probe(struct i2c_client *client,
 	/* Error out and cleanup code */
  err_remove_files:
 	lm85_remove_files(client, data);
- err_kfree:
-	kfree(data);
 	return err;
 }
 
@@ -1476,7 +1474,6 @@ static int lm85_remove(struct i2c_client *client)
 	struct lm85_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
 	lm85_remove_files(client, data);
-	kfree(data);
 	return 0;
 }
 
