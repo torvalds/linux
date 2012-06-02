@@ -149,7 +149,7 @@ static int __devinit lm70_probe(struct spi_device *spi)
 
 	/* NOTE:  we assume 8-bit words, and convert to 16 bits manually */
 
-	p_lm70 = kzalloc(sizeof *p_lm70, GFP_KERNEL);
+	p_lm70 = devm_kzalloc(&spi->dev, sizeof(*p_lm70), GFP_KERNEL);
 	if (!p_lm70)
 		return -ENOMEM;
 
@@ -181,7 +181,6 @@ out_dev_create_file_failed:
 	device_remove_file(&spi->dev, &dev_attr_temp1_input);
 out_dev_create_temp_file_failed:
 	spi_set_drvdata(spi, NULL);
-	kfree(p_lm70);
 	return status;
 }
 
@@ -193,7 +192,6 @@ static int __devexit lm70_remove(struct spi_device *spi)
 	device_remove_file(&spi->dev, &dev_attr_temp1_input);
 	device_remove_file(&spi->dev, &dev_attr_name);
 	spi_set_drvdata(spi, NULL);
-	kfree(p_lm70);
 
 	return 0;
 }
