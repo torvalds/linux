@@ -61,10 +61,10 @@ struct multipath {
 	struct list_head list;
 	struct dm_target *ti;
 
-	spinlock_t lock;
-
 	const char *hw_handler_name;
 	char *hw_handler_params;
+
+	spinlock_t lock;
 
 	unsigned nr_priority_groups;
 	struct list_head priority_groups;
@@ -81,16 +81,17 @@ struct multipath {
 	struct priority_group *next_pg;	/* Switch to this PG if set */
 	unsigned repeat_count;		/* I/Os left before calling PS again */
 
-	unsigned queue_io;		/* Must we queue all I/O? */
-	unsigned queue_if_no_path;	/* Queue I/O if last path fails? */
-	unsigned saved_queue_if_no_path;/* Saved state during suspension */
+	unsigned queue_io:1;		/* Must we queue all I/O? */
+	unsigned queue_if_no_path:1;	/* Queue I/O if last path fails? */
+	unsigned saved_queue_if_no_path:1; /* Saved state during suspension */
+
 	unsigned pg_init_retries;	/* Number of times to retry pg_init */
 	unsigned pg_init_count;		/* Number of times pg_init called */
 	unsigned pg_init_delay_msecs;	/* Number of msecs before pg_init retry */
 
+	unsigned queue_size;
 	struct work_struct process_queued_ios;
 	struct list_head queued_ios;
-	unsigned queue_size;
 
 	struct work_struct trigger_event;
 
