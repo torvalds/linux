@@ -198,7 +198,7 @@ static int __devinit fam15h_power_probe(struct pci_dev *pdev,
 					const struct pci_device_id *id)
 {
 	struct fam15h_power_data *data;
-	struct device *dev;
+	struct device *dev = &pdev->dev;
 	int err;
 
 	/*
@@ -208,23 +208,19 @@ static int __devinit fam15h_power_probe(struct pci_dev *pdev,
 	 */
 	tweak_runavg_range(pdev);
 
-	if (!fam15h_power_is_internal_node0(pdev)) {
-		err = -ENODEV;
-		goto exit;
-	}
+	if (!fam15h_power_is_internal_node0(pdev))
+		return -ENODEV;
 
-	data = kzalloc(sizeof(struct fam15h_power_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(dev, sizeof(struct fam15h_power_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	fam15h_power_init_data(pdev, data);
-	dev = &pdev->dev;
 
 	dev_set_drvdata(dev, data);
 	err = sysfs_create_group(&dev->kobj, &fam15h_power_attr_group);
 	if (err)
-		goto exit_free_data;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -236,9 +232,6 @@ static int __devinit fam15h_power_probe(struct pci_dev *pdev,
 
 exit_remove_group:
 	sysfs_remove_group(&dev->kobj, &fam15h_power_attr_group);
-exit_free_data:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -251,8 +244,6 @@ static void __devexit fam15h_power_remove(struct pci_dev *pdev)
 	data = dev_get_drvdata(dev);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&dev->kobj, &fam15h_power_attr_group);
-	dev_set_drvdata(dev, NULL);
-	kfree(data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(fam15h_power_id_table) = {
