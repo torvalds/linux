@@ -3646,18 +3646,12 @@ static int ixgbe_hpbthresh(struct ixgbe_adapter *adapter, int pb)
 
 #ifdef IXGBE_FCOE
 	/* FCoE traffic class uses FCOE jumbo frames */
-	if (dev->features & NETIF_F_FCOE_MTU) {
-		int fcoe_pb = 0;
-
-#ifdef CONFIG_IXGBE_DCB
-		fcoe_pb = netdev_get_prio_tc_map(dev, adapter->fcoe.up);
+	if ((dev->features & NETIF_F_FCOE_MTU) &&
+	    (tc < IXGBE_FCOE_JUMBO_FRAME_SIZE) &&
+	    (pb == ixgbe_fcoe_get_tc(adapter)))
+		tc = IXGBE_FCOE_JUMBO_FRAME_SIZE;
 
 #endif
-		if (fcoe_pb == pb && tc < IXGBE_FCOE_JUMBO_FRAME_SIZE)
-			tc = IXGBE_FCOE_JUMBO_FRAME_SIZE;
-	}
-#endif
-
 	/* Calculate delay value for device */
 	switch (hw->mac.type) {
 	case ixgbe_mac_X540:

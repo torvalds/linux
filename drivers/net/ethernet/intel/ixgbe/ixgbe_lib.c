@@ -49,8 +49,8 @@ static inline bool ixgbe_cache_ring_rss(struct ixgbe_adapter *adapter)
 
 	return true;
 }
-#ifdef CONFIG_IXGBE_DCB
 
+#ifdef CONFIG_IXGBE_DCB
 /* ixgbe_get_first_reg_idx - Return first register index associated with ring */
 static void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
 				    unsigned int *tx, unsigned int *rx)
@@ -343,13 +343,10 @@ static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 	 * configuration later.
 	 */
 	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
-		u8 prio_tc[MAX_USER_PRIORITY] = {0};
-		int tc;
+		u8 tc = ixgbe_fcoe_get_tc(adapter);
 		struct ixgbe_ring_feature *f =
 					&adapter->ring_feature[RING_F_FCOE];
 
-		ixgbe_dcb_unpack_map(&adapter->dcb_cfg, DCB_TX_CONFIG, prio_tc);
-		tc = prio_tc[adapter->fcoe.up];
 		f->indices = dev->tc_to_txq[tc].count;
 		f->offset = dev->tc_to_txq[tc].offset;
 	}

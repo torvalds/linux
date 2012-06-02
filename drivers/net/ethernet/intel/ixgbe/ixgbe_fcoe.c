@@ -960,3 +960,18 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 
 	return 0;
 }
+
+/**
+ * ixgbe_fcoe_get_tc - get the current TC that fcoe is mapped to
+ * @adapter - pointer to the device adapter structure
+ *
+ * Return : TC that FCoE is mapped to
+ */
+u8 ixgbe_fcoe_get_tc(struct ixgbe_adapter *adapter)
+{
+#ifdef CONFIG_IXGBE_DCB
+	return netdev_get_prio_tc_map(adapter->netdev, adapter->fcoe.up);
+#else
+	return 0;
+#endif
+}
