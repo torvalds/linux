@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls/nls_macgreek.c
+ * linux/fs/nls/mac-greek.c
  *
  * Charset macgreek translation tables.
  * Generated automatically from the Unicode and charset
