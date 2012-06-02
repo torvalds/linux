@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
 #include <scsi/scsi_dh.h>
 #include <linux/atomic.h>
 
@@ -486,9 +487,6 @@ static void process_queued_ios(struct work_struct *work)
 
 	spin_lock_irqsave(&m->lock, flags);
 
-	if (!m->queue_size)
-		goto out;
-
 	if (!m->current_pgpath)
 		__choose_pgpath(m, 0);
 
@@ -501,7 +499,6 @@ static void process_queued_ios(struct work_struct *work)
 	if (m->pg_init_required && !m->pg_init_in_progress && pgpath)
 		__pg_init_all_paths(m);
 
-out:
 	spin_unlock_irqrestore(&m->lock, flags);
 	if (!must_queue)
 		dispatch_queued_ios(m);
@@ -1522,11 +1519,16 @@ out:
 static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
 			   unsigned long arg)
 {
-	struct multipath *m = (struct multipath *) ti->private;
-	struct block_device *bdev = NULL;
-	fmode_t mode = 0;
+	struct multipath *m = ti->private;
+	struct block_device *bdev;
+	fmode_t mode;
 	unsigned long flags;
-	int r = 0;
+	int r;
+
+again:
+	bdev = NULL;
+	mode = 0;
+	r = 0;
 
 	spin_lock_irqsave(&m->lock, flags);
 
@@ -1550,6 +1552,12 @@ static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
 	 */
 	if (!r && ti->len != i_size_read(bdev->bd_inode) >> SECTOR_SHIFT)
 		r = scsi_verify_blk_ioctl(NULL, cmd);
+
+	if (r == -EAGAIN && !fatal_signal_pending(current)) {
+		queue_work(kmultipathd, &m->process_queued_ios);
+		msleep(10);
+		goto again;
+	}
 
 	return r ? : __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 }
@@ -1648,7 +1656,7 @@ out:
  *---------------------------------------------------------------*/
 static struct target_type multipath_target = {
 	.name = "multipath",
-	.version = {1, 3, 0},
+	.version = {1, 4, 0},
 	.module = THIS_MODULE,
 	.ctr = multipath_ctr,
 	.dtr = multipath_dtr,
