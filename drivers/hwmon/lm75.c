@@ -156,7 +156,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
 		return -EIO;
 
-	data = kzalloc(sizeof(struct lm75_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct lm75_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -174,7 +174,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	status = lm75_read_value(client, LM75_REG_CONF);
 	if (status < 0) {
 		dev_dbg(&client->dev, "Can't read config? %d\n", status);
-		goto exit_free;
+		return status;
 	}
 	data->orig_conf = status;
 	new = status & ~clr_mask;
@@ -186,7 +186,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Register sysfs hooks */
 	status = sysfs_create_group(&client->dev.kobj, &lm75_group);
 	if (status)
-		goto exit_free;
+		return status;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -201,8 +201,6 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &lm75_group);
-exit_free:
-	kfree(data);
 	return status;
 }
 
@@ -213,7 +211,6 @@ static int lm75_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm75_group);
 	lm75_write_value(client, LM75_REG_CONF, data->orig_conf);
-	kfree(data);
 	return 0;
 }
 
