@@ -343,11 +343,10 @@ static int lm83_probe(struct i2c_client *new_client,
 	struct lm83_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct lm83_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&new_client->dev, sizeof(struct lm83_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(new_client, data);
 	data->valid = 0;
@@ -362,7 +361,7 @@ static int lm83_probe(struct i2c_client *new_client,
 
 	err = sysfs_create_group(&new_client->dev.kobj, &lm83_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	if (id->driver_data == lm83) {
 		err = sysfs_create_group(&new_client->dev.kobj,
@@ -382,9 +381,6 @@ static int lm83_probe(struct i2c_client *new_client,
 exit_remove_files:
 	sysfs_remove_group(&new_client->dev.kobj, &lm83_group);
 	sysfs_remove_group(&new_client->dev.kobj, &lm83_group_opt);
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -396,7 +392,6 @@ static int lm83_remove(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &lm83_group);
 	sysfs_remove_group(&client->dev.kobj, &lm83_group_opt);
 
-	kfree(data);
 	return 0;
 }
 
