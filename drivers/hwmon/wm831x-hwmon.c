@@ -163,7 +163,8 @@ static int __devinit wm831x_hwmon_probe(struct platform_device *pdev)
 	struct wm831x_hwmon *hwmon;
 	int ret;
 
-	hwmon = kzalloc(sizeof(struct wm831x_hwmon), GFP_KERNEL);
+	hwmon = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_hwmon),
+			     GFP_KERNEL);
 	if (!hwmon)
 		return -ENOMEM;
 
@@ -171,7 +172,7 @@ static int __devinit wm831x_hwmon_probe(struct platform_device *pdev)
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &wm831x_attr_group);
 	if (ret)
-		goto err;
+		return ret;
 
 	hwmon->classdev = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(hwmon->classdev)) {
@@ -185,8 +186,6 @@ static int __devinit wm831x_hwmon_probe(struct platform_device *pdev)
 
 err_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &wm831x_attr_group);
-err:
-	kfree(hwmon);
 	return ret;
 }
 
@@ -196,8 +195,6 @@ static int __devexit wm831x_hwmon_remove(struct platform_device *pdev)
 
 	hwmon_device_unregister(hwmon->classdev);
 	sysfs_remove_group(&pdev->dev.kobj, &wm831x_attr_group);
-	platform_set_drvdata(pdev, NULL);
-	kfree(hwmon);
 
 	return 0;
 }
