@@ -42,6 +42,8 @@
 #include <mach/iomux.h>
 #include <linux/mpu.h>
 #include <linux/fb.h>
+#include <linux/wimo.h>
+
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -1217,6 +1219,20 @@ static struct platform_device device_fb = {
 	.resource	= resource_fb,
 };
 #endif
+#ifdef	CONFIG_FB_WIMO
+static struct wimo_platform_data wimo_pdata = {
+        .name           = "wimo",
+};
+
+static struct platform_device wimo_device = {
+        .name           = "wimo",
+        .id                 = -1,
+        .dev            = {
+        .platform_data = &wimo_pdata,
+        },
+};
+#endif
+
 
 #ifdef CONFIG_ANDROID_TIMED_GPIO
 static struct timed_gpio timed_gpios[] = {
@@ -1553,6 +1569,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_ION
 	&device_ion,
+#endif
+#ifdef CONFIG_FB_WIMO
+        &wimo_device,
 #endif
 #ifdef CONFIG_ANDROID_TIMED_GPIO
 	&rk29_device_vibrator,

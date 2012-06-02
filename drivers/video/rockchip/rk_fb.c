@@ -34,6 +34,13 @@
 
 
 
+#ifdef	FB_WIMO_FLAG
+
+
+int (*video_data_to_wimo)(struct fb_info *info,u32 yuv_phy[2]) = NULL;
+EXPORT_SYMBOL(video_data_to_wimo);
+
+#endif
 static struct platform_device *g_fb_pdev;
 
 static struct rk_fb_rgb def_rgb_16 = {
@@ -228,6 +235,10 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		#endif
 	#endif
 	dev_drv->pan_display(dev_drv,layer_id);
+	#ifdef	FB_WIMO_FLAG
+	if(video_data_to_wimo!=NULL)
+		video_data_to_wimo(info,NULL);
+ 	#endif
 	return 0;
 }
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
