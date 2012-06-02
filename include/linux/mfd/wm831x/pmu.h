@@ -14,7 +14,8 @@
 
 #ifndef __MFD_WM831X_PMU_H__
 #define __MFD_WM831X_PMU_H__
-
+/*    rtc cntrol (0x4025) */
+#define WM831X_RTC_ALAM_ENA_MASK 0x0400
 /*
  * R16387 (0x4003) - Power State
  */

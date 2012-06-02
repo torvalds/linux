@@ -60,8 +60,8 @@ struct hdmi {
 	int wait;
 	struct completion	complete;
 	
-#ifdef CONFIG_HAS_EARLYSUSPEND
 	int suspend;
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend	early_suspend;
 #endif
 	

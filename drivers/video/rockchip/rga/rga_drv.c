@@ -1189,7 +1189,6 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&rga_service.mutex);
-	rga_service.enable = false;
 	INIT_DELAYED_WORK(&data->power_off_work, rga_power_off);
 	data->rga_irq_callback = NULL;
 	

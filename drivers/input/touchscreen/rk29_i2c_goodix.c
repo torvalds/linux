@@ -629,7 +629,7 @@ static int goodix_ts_power(struct rk_ts_data * ts, int on)
 			ret = goodix_i2c_write_bytes(ts->client, i2c_control_buf, 2);
 			if(ret == 1)
 			{
-				printk(KERN_INFO"touch goodix Send suspend cmd successed \n");
+				printk(KERN_DEBUG "touch goodix Send suspend cmd successed \n");
 				break;
 			}
 		       retry++;
@@ -640,7 +640,7 @@ static int goodix_ts_power(struct rk_ts_data * ts, int on)
 	}
 	else if(on == 1)		//resume
 	{
-		printk(KERN_INFO"touch goodix int resume\n");
+		printk(KERN_DEBUG "touch goodix int resume\n");
 		gpio_set_value(ts->rst_pin,GPIO_LOW);	
 		msleep(20);
 	    gpio_set_value(ts->rst_pin,GPIO_HIGH);
@@ -895,7 +895,13 @@ static int rk_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
-
+static void rk_ts_shutdown(struct i2c_client *client)
+{
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct rk_ts_data *ts = i2c_get_clientdata(client);
+	unregister_early_suspend(&ts->early_suspend);
+#endif
+}
 
 //******************************Begin of firmware update surpport*******************************
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_IAP
@@ -1634,6 +1640,7 @@ static const struct i2c_device_id goodix_ts_id[] = {
 static struct i2c_driver rk_ts_driver = {
 	.probe		= rk_ts_probe,
 	.remove		= rk_ts_remove,
+	.shutdown	= rk_ts_shutdown,
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	.suspend	= rk_ts_suspend,
 	.resume		= rk_ts_resume,

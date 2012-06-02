@@ -15,6 +15,11 @@
 #define GPIO6_PB3_DO_HIGH  0x08000800
 #define GPIO6_PB3_EN_MASK  0x08000800
 #define GPIO6_PB3_UNEN_MASK  0x08000000
+#define GPIO6_PB1_DIR_OUT  0x02000200
+#define GPIO6_PB1_DO_LOW  0x02000000
+#define GPIO6_PB1_DO_HIGH  0x02000200
+#define GPIO6_PB1_EN_MASK  0x02000200
+#define GPIO6_PB1_UNEN_MASK  0x02000000
 
 #define	TWL60xx_IRQ_BASE	(NR_GIC_IRQS + NR_GPIO_IRQS  )
 #ifdef CONFIG_TWL4030_CORE
@@ -25,63 +30,7 @@
 #define TWL60xx_IRQ_END		(TWL60xx_IRQ_BASE + TWL60xx_BASE_NR_IRQS)
 
 #ifdef CONFIG_TWL4030_CORE
-#define PREQ1_RES_ASS_A 0x2a
-#define PREQ1_RES_ASS_B 0x2b
-#define PREQ1_RES_ASS_C 0x2c
-#define PREQ2_RES_ASS_A 0x2d
-#define PREQ3_RES_ASS_A 0x30
-#define PHOENIX_MSK_TRANSITION 0x01
-#define PHOENIX_SENS_TRANSITION 0x0b
-#define SMPS4_CFG_TRANS 0x11
-#define SMPS4_CFG_STATE 0x12
-#define SMPS4_CFG_VOLTAGE 0x13
-#define SMPS5_CFG_TRANS 0x17
-#define SMPS5_CFG_STATE 0x18
-#define SMPS5_CFG_FORCE 0x19
-#define SMPS5_CFG_VOLTAGE 0x1A
-#define SMPS5_CFG_STEP 0x1B
-#define SMPS1_CFG_TRANS 0x23
-#define SMPS1_CFG_STATE 0x24
-#define SMPS1_CFG_FORCE 0x25
-#define SMPS1_CFG_VOLTAGE 0x26
-#define SMPS1_CFG_STEP 0x27
-#define SMPS2_CFG_TRANS 0x29
-#define SMPS2_CFG_STATE 0x2a
-#define SMPS2_CFG_FORCE 0x2b
-#define SMPS2_CFG_VOLTAGE 0x2c
-#define SMPS2_CFG_STEP 0x2d
-#define VANA_CFG_TRANS 0x51
-#define VANA_CFG_STATE 0x52
-#define VANA_CFG_VOLTAGE 0x53
-#define LDO2_CFG_TRANS 0x55
-#define LDO2_CFG_STATE 0x56
-#define LDO2_CFG_VOLTAGE 0x57
-#define LDO4_CFG_TRANS 0x59
-#define LDO4_CFG_STATE 0x5a
-#define LDO4_CFG_VOLTAGE 0x5b
-#define LDO3_CFG_TRANS 0x5d
-#define LDO3_CFG_STATE 0x5e
-#define LDO3_CFG_VOLTAGE 0x5f
-#define LDO6_CFG_TRANS 0x61
-#define LDO6_CFG_STATE 0x62
-#define LDO6_CFG_VOLTAGE 0x63
-#define LDOLN_CFG_TRANS 0x65
-#define LDOLN_CFG_STATE 0x66
-#define LDOLN_CFG_VOLTAGE 0x67
-#define LDO5_CFG_TRANS 0x69
-#define LDO5_CFG_STATE 0x6A
-#define LDO5_CFG_VOLTAGE 0x6B
-#define LDO1_CFG_TRANS 0x6D
-#define LDO1_CFG_STATE 0x6E
-#define LDO1_CFG_VOLTAGE 0x6F
-#define LDOUSB_CFG_TRANS 0x71
-#define LDOUSB_CFG_STATE 0x72
-#define LDOUSB_CFG_VOLTAGE 0x73
-#define LDO7_CFG_TRANS 0x75
-#define LDO7_CFG_STATE 0x76
-#define LDO7_CFG_VOLTAGE 0x77
-#define CLK32KG_CFG_STATE  0x11
-#define CLK32KAUDIO_CFG_STATE 0x14
+
 static inline int twl_reg_read(unsigned base, unsigned slave_subgp)
 {
 	u8 value;
@@ -98,16 +47,19 @@ static inline int twl_reg_write(unsigned base, unsigned slave_subgp,
 }
 
 #define PMU_POWER_SLEEP RK30_PIN6_PB3	
-
+#define PMU_CHRG_DET_N RK30_PIN0_PC7
 int tps80032_pre_init(void){
 	
 	printk("%s\n", __func__);	
 
 	gpio_request(PMU_POWER_SLEEP, "NULL");
 	gpio_direction_output(PMU_POWER_SLEEP, GPIO_LOW);
+
+	gpio_request(PMU_CHRG_DET_N, "NULL");
+	gpio_direction_output(PMU_CHRG_DET_N, GPIO_HIGH);
 	
-	twl_reg_write(PREQ1_RES_ASS_A,TWL_MODULE_PM_SLAVE_RES,0x0b);
-	twl_reg_write(PREQ1_RES_ASS_B,TWL_MODULE_PM_SLAVE_RES,0x10);
+	twl_reg_write(PREQ1_RES_ASS_A,TWL_MODULE_PM_SLAVE_RES,0x2b);
+	twl_reg_write(PREQ1_RES_ASS_B,TWL_MODULE_PM_SLAVE_RES,0x50);
 	twl_reg_write(PREQ1_RES_ASS_C,TWL_MODULE_PM_SLAVE_RES,0x27);
 	twl_reg_write(PHOENIX_MSK_TRANSITION,TWL_MODULE_PM_MASTER,0x00);
 	twl_reg_write(PHOENIX_SENS_TRANSITION,TWL_MODULE_PM_MASTER,0xc0);   //set pmu enter sleep on a preq1 rising edge
@@ -118,10 +70,13 @@ int tps80032_pre_init(void){
 
 	twl_reg_write(CLK32KG_CFG_STATE,TWL_MODULE_PM_SLAVE_RES,0x01);  //set clk32kg on when we use
 	twl_reg_write(CLK32KAUDIO_CFG_STATE,TWL_MODULE_PM_SLAVE_RES,0x01);  //set clk32kaudio on when we use
-	
-//	twl_reg_write(LDO5_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03);   //set ldo5 is disabled when in sleep mode 
-//	twl_reg_write(LDO7_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03);   //set ldo7 is disabled when in sleep mode
 
+	twl_i2c_write_u8(CHARGERUSB_CTRLLIMIT2,TWL6030_MODULE_CHARGER, 0x0f);
+	twl_i2c_write_u8(CHARGERUSB_CTRLLIMIT2,TWL6030_MODULE_CHARGER, 0x1f);
+	
+	twl_reg_write(LDO5_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03);   //set ldo5 is disabled when in sleep mode 
+	twl_reg_write(LDO7_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03);   //set ldo7 is disabled when in sleep mode
+	twl_reg_write(LDOUSB_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03); 
 	return 0;
 
 }
@@ -782,16 +737,31 @@ static struct twl4030_power_data tps80032_scripts_data __initdata = {
 
 void __sramfunc board_pmu_suspend(void)
 {	
+	#ifdef CONFIG_CLK_SWITCH_TO_32K                 //switch clk to 32k
+	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
+	grf_writel(GPIO6_PB1_DO_HIGH, GRF_GPIO6L_DO_ADDR);  //set gpio6_b1 output low
+	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
+	#endif
+	
 	grf_writel(GPIO6_PB3_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
 	grf_writel(GPIO6_PB3_DO_HIGH, GRF_GPIO6L_DO_ADDR);  //set gpio6_b3 output low
 	grf_writel(GPIO6_PB3_EN_MASK, GRF_GPIO6L_EN_ADDR);
+	
 }
 void __sramfunc board_pmu_resume(void)
 {
 	grf_writel(GPIO6_PB3_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
 	grf_writel(GPIO6_PB3_DO_LOW, GRF_GPIO6L_DO_ADDR);     //set gpio6_b3 output high
 	grf_writel(GPIO6_PB3_EN_MASK, GRF_GPIO6L_EN_ADDR);
+	
+	#ifdef CONFIG_CLK_SWITCH_TO_32K                 //switch clk to 24M
+	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
+	grf_writel(GPIO6_PB1_DO_LOW, GRF_GPIO6L_DO_ADDR);  //set gpio6_b1 output low
+	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
+	sram_32k_udelay(10000);
+	#else
 	sram_udelay(2000);
+	#endif
 }
 
 static struct twl4030_platform_data tps80032_data = {

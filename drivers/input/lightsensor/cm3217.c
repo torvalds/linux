@@ -345,10 +345,17 @@ static const struct i2c_device_id cm3217_id[] = {
 	{ "lightsensor", 0 },
 };
 
+static void cm3217_shutdown(struct i2c_client *client)
+{
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	unregister_early_suspend(&cm3217_early_suspend);
+#endif
+}
 
 static struct i2c_driver cm3217_driver = {
 	.probe = cm3217_probe,
 	.remove = __devexit_p(cm3217_remove),
+	.shutdown = cm3217_shutdown,
 	.id_table = cm3217_id,
 	.driver = {
 		.owner = THIS_MODULE,

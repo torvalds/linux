@@ -82,25 +82,46 @@ static int inline calc_crc32(u32 addr, size_t len)
 	return crc32_le(~0, (const unsigned char *)addr, len);
 }
 
+extern __sramdata uint32_t mem_type;
 static void __sramfunc ddr_testmode(void)
 {
 	int32_t g_crc1, g_crc2;
 	uint32_t nMHz;
 	uint32_t n = 0;
+	uint32_t min,max;
 	extern char _stext[], _etext[];
 
+
 	if (ddr_debug == 1) {
+	    switch(mem_type)
+	    {
+	        case 0:  //LPDDR
+	        case 1:  //DDR
+	            max = 210;
+	            min = 100;
+	            break;
+	        case 2:  //DDR2
+	        case 4:  //LPDDR2
+	            max=410;
+	            min=100;
+	            break;
+	        case 3:  //DDR3
+	        default:
+	            max=500;
+	            min=100;
+	            break;
+	    }
 		for (;;) {
 			sram_printascii("\n change freq:");
 			g_crc1 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
 			do
 			{
-			    nMHz = 300 + random32();
-			    nMHz %= 500;
-			}while(nMHz < 300);
-			nMHz = ddr_change_freq(nMHz);
+			    nMHz = min + random32();
+			    nMHz %= max;
+			}while(nMHz < min);
 			sram_printhex(nMHz);
 			sram_printch(' ');
+			nMHz = ddr_change_freq(nMHz);			
 			sram_printhex(n++);
 			sram_printch(' ');
 			g_crc2 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));

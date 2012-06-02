@@ -41,6 +41,12 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <linux/fb.h>
+
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_S3202
+#include <linux/interrupt.h>
+#include <linux/rmi.h>
+#endif
+
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -515,21 +521,6 @@ static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] =
 #endif /* CONFIG_VIDEO_RK29 */
 
 //hhb@rock-chips.com 2012-04-27
-#if defined(CONFIG_TOUCHSCREEN_SYNAPTICS_S3202)
-#include "../../../drivers/input/touchscreen/synaptics_i2c_rmi4.h"
-struct synaptics_rmi4_platform_data synaptics_s3202_info = {
-		.irq_type = IRQF_TRIGGER_FALLING,
-		.virtual_keys = true,
-		.lcd_width = 640,
-		.lcd_height = 960,
-		.h_delta = 40,
-		.w_delta = 0,
-		.x_flip = false,
-		.y_flip = false,
-		.regulator_en = false,
-};
-#endif
-
 
 #if defined(CONFIG_TOUCHSCREEN_FT5306)
 
@@ -596,6 +587,85 @@ struct ft5x0x_platform_data ft5306_info = {
 
 #endif
 
+#if defined (CONFIG_TOUCHSCREEN_SYNAPTICS_S3202)
+
+#define TOUCH_RESET_PIN -1
+#define TOUCH_INT_PIN	RK30_PIN4_PC2
+#define TOUCH_POWER_PIN -1
+#define TOUCH_IO_POWER_PIN -1
+
+struct syna_gpio_data {
+	u16 gpio_number;
+	char* gpio_name;
+};
+
+int syna_init_platform_hw(void)
+{
+    return 0;
+}
+
+static int synaptics_touchpad_gpio_setup(void *gpio_data, bool configure)
+{
+	int retval=0;
+	struct syna_gpio_data *data = gpio_data;
+
+	if (configure) {
+		retval = gpio_request(data->gpio_number, "rmi4_attn");
+		if (retval) {
+			pr_err("%s: Failed to get attn gpio %d. Code: %d.",
+			       __func__, data->gpio_number, retval);
+			return retval;
+		}
+		rk30_mux_api_set(GPIO4C2_SMCDATA2_TRACEDATA2_NAME, 0);
+		retval = gpio_direction_input(data->gpio_number);
+		if (retval) {
+			pr_err("%s: Failed to setup attn gpio %d. Code: %d.",
+			       __func__, data->gpio_number, retval);
+			gpio_free(data->gpio_number);
+		}
+	} else {
+		printk("%s: No way to deconfigure gpio %d.",
+		       __func__, data->gpio_number);
+	}
+
+	return retval;
+
+}
+
+static struct syna_gpio_data s3202_gpiodata = {
+	.gpio_number = TOUCH_INT_PIN,
+	.gpio_name = "GPIO4_C2",
+};
+static unsigned char s3202_key_array[4]={ KEY_BACK, KEY_MENU, KEY_HOMEPAGE, KEY_SEARCH };
+
+struct rmi_f1a_button_map s3202_buttons = {
+		.nbuttons = 4,
+		.map = s3202_key_array,
+};
+
+static struct rmi_device_platform_data s3202_platformdata = {
+	.sensor_name = "Espresso",
+	.driver_name = "rmi_generic",
+	.attn_gpio = TOUCH_INT_PIN,
+	.attn_polarity = RMI_ATTN_ACTIVE_LOW,
+	.level_triggered = false,	/* For testing */
+	.gpio_data = &s3202_gpiodata,
+	.gpio_config = synaptics_touchpad_gpio_setup,
+	.init_hw = syna_init_platform_hw,
+	.axis_align = {
+		.flip_x = 1,
+		.flip_y = 1,
+		.clip_X_low = 0,
+		.clip_Y_low = 0,
+		.clip_X_high = 0,
+		.clip_Y_high = 0,
+	},
+	.f1a_button_map = &s3202_buttons,
+};
+
+#endif
+
+
 /***********************************************************
 *	rk30  backlight
 ************************************************************/
@@ -605,7 +675,7 @@ struct ft5x0x_platform_data ft5306_info = {
 #define PWM_MUX_MODE      GPIO0A_PWM0
 #define PWM_MUX_MODE_GPIO GPIO0A_GPIO0A3
 #define PWM_GPIO 	  RK30_PIN0_PA3
-#define PWM_EFFECT_VALUE  1
+#define PWM_EFFECT_VALUE  0
 
 #define LCD_DISP_ON_PIN
 
@@ -650,7 +720,7 @@ static int rk29_backlight_pwm_suspend(void)
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
 		return -1;
 	}
-	gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	gpio_direction_output(PWM_GPIO, GPIO_HIGH);
 #ifdef  LCD_DISP_ON_PIN
 	gpio_direction_output(BL_EN_PIN, 0);
 	gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
@@ -660,6 +730,7 @@ static int rk29_backlight_pwm_suspend(void)
 
 static int rk29_backlight_pwm_resume(void)
 {
+	gpio_direction_output(PWM_GPIO, GPIO_LOW);
 	gpio_free(PWM_GPIO);
 	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
 #ifdef  LCD_DISP_ON_PIN
@@ -858,7 +929,7 @@ static int rk_headset_io_init(int gpio, char *iomux_name, int iomux_mode)
 
 struct rk_headset_pdata rk_headset_info = {
 	.Headset_gpio		= RK30_PIN0_PD3,
-	.headset_in_type = HEADSET_IN_HIGH,
+	.headset_in_type = HEADSET_IN_LOW,
 	.Hook_adc_chn = 2,
 	.hook_key_code = KEY_MEDIA,
 	.headset_gpio_info = {GPIO0D3_I2S22CHLRCKTX_SMCADVN_NAME, GPIO0D_GPIO0D3},
@@ -880,8 +951,8 @@ static struct akm8975_platform_data akm8975_info =
 	.m_layout = 
 	{
 		{
-			{1, 0, 0},
 			{0, 0, 1},
+			{1, 0, 0},
 			{0, 1, 0},
 		},
 
@@ -920,7 +991,7 @@ static int l3g4200d_init_platform_hw(void)
 }
 
 static struct l3g4200d_platform_data l3g4200d_info = {
-	.orientation = {0, 1, 0, -1, 0, 0, 0, 0, 1},
+	.orientation = {1, 0, 0, 0, 1, 0, 0, 0, 1},
 	.init = l3g4200d_init_platform_hw,
 	.x_min = 40,//x_min,y_min,z_min = (0-100) according to hardware
 	.y_min = 40,
@@ -1586,7 +1657,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #if defined (CONFIG_INPUT_LPSENSOR_AL3006)
 	{
 		.type           = "al3006",
-		.addr           = 0x1d,             //sel = 0; if sel =1, then addr = 0x1D
+		.addr           = 0x1c,             //sel = 0; if sel =1, then addr = 0x1D
 		.flags          = 0,
 		.irq            = RK30_PIN6_PA2,
 	},
@@ -1677,13 +1748,14 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 
 #if defined (CONFIG_TOUCHSCREEN_SYNAPTICS_S3202)
 {
-	.type           = "synaptics_rmi4_i2c",
-	.addr           = 0x20,  //0x70
+	.type           = "rmi_i2c",
+	.addr           = 0x20,
 	.flags          = 0,
 	.irq            = RK30_PIN4_PC2,
-	.platform_data = &synaptics_s3202_info,
+	.platform_data = &s3202_platformdata,
 },
 #endif
+
 
 #if defined (CONFIG_TOUCHSCREEN_FT5306)
 {
@@ -1775,6 +1847,7 @@ static void rk30_pm_power_off(void)
 	while (1);
 }
 
+#if 0
 /**********************************************************************************************
  *
  * The virtual keys for android "back", "home", "menu", "search", these four keys are touch key
@@ -1835,9 +1908,43 @@ static int rk_virtual_keys_init(void)
 }
 
 /*************************end of virtual_keys************************/
+#endif
 
+void board_gpio_suspend(void) {
+	gpio_request(RK30_PIN2_PC3, NULL);
+	rk30_mux_api_set(GPIO2C3_LCDC1DATA19_SPI1CLK_HSADCDATA0_NAME,GPIO2C_GPIO2C3);
+	gpio_direction_input(RK30_PIN2_PC3);
+	gpio_pull_updown(RK30_PIN2_PC3, 0);
+	
+	gpio_request(RK30_PIN2_PC5, NULL);
+	rk30_mux_api_set(GPIO2C5_LCDC1DATA21_SPI1TXD_HSADCDATA2_NAME,GPIO2C_GPIO2C5);
+	gpio_direction_input(RK30_PIN2_PC5);
+	gpio_pull_updown(RK30_PIN2_PC5, 0);
+	
+	gpio_request(RK30_PIN2_PC6, NULL);
+	rk30_mux_api_set(GPIO2C6_LCDC1DATA22_SPI1RXD_HSADCDATA3_NAME,GPIO2C_GPIO2C6);
+	gpio_direction_input(RK30_PIN2_PC6);
+	gpio_pull_updown(RK30_PIN2_PC6, 0);
+	
+}
+ void board_gpio_resume(void) {
 
+	gpio_request(RK30_PIN2_PC3, NULL);
+	gpio_pull_updown(RK30_PIN2_PC3, 1);
+	rk30_mux_api_set(GPIO2C3_LCDC1DATA19_SPI1CLK_HSADCDATA0_NAME,GPIO2C_SPI1_CLK);
+	
+	gpio_request(RK30_PIN2_PC5, NULL);
+	gpio_pull_updown(RK30_PIN2_PC5, 1);
+	rk30_mux_api_set(GPIO2C5_LCDC1DATA21_SPI1TXD_HSADCDATA2_NAME,GPIO2C_SPI1_TXD);
+	
+	gpio_request(RK30_PIN2_PC6, NULL);
+	gpio_pull_updown(RK30_PIN2_PC6, 1);
+	rk30_mux_api_set(GPIO2C6_LCDC1DATA22_SPI1RXD_HSADCDATA3_NAME,GPIO2C_SPI1_RXD);
 
+	gpio_free(RK30_PIN2_PC3);
+	gpio_free(RK30_PIN2_PC5);
+	gpio_free(RK30_PIN2_PC6);
+}
 
 static void __init machine_rk30_board_init(void)
 {
@@ -1851,11 +1958,6 @@ static void __init machine_rk30_board_init(void)
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 	rk29sdk_wifi_bt_gpio_control_init();
 #endif
-
-#if (defined(CONFIG_TOUCHSCREEN_SYNAPTICS_S3202))
-	rk_virtual_keys_init();
-#endif
-
 }
 
 static void __init rk30_reserve(void)
@@ -1888,10 +1990,10 @@ static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
 	//{.frequency = 252 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1050 * 1000},//0.975V/1.000V
 	//{.frequency = 504 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1050 * 1000},//0.975V/1.000V
 	{.frequency = 816 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1050 * 1000},//1.000V/1.025V
-	//{.frequency = 1008 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1050 * 1000},//1.025V/1.050V
-	//{.frequency = 1200 * 1000,	.cpu_volt = 1150 * 1000,	.logic_volt = 1100 * 1000},//1.100V/1.050V
-	//{.frequency = 1272 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1150 * 1000},//1.150V/1.100V
-	//{.frequency = 1416 * 1000,	.cpu_volt = 1275 * 1000,	.logic_volt = 1150 * 1000},//1.225V/1.100V
+	{.frequency = 1008 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1050 * 1000},//1.025V/1.050V
+	{.frequency = 1200 * 1000,	.cpu_volt = 1150 * 1000,	.logic_volt = 1100 * 1000},//1.100V/1.050V
+	{.frequency = 1272 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1150 * 1000},//1.150V/1.100V
+	{.frequency = 1416 * 1000,	.cpu_volt = 1275 * 1000,	.logic_volt = 1150 * 1000},//1.225V/1.100V
 	//{.frequency = 1512 * 1000,	.cpu_volt = 1325 * 1000,	.logic_volt = 1200 * 1000},//1.300V/1.150V
 	//{.frequency = 1608 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1200 * 1000},//1.325V/1.175V
 	{.frequency = CPUFREQ_TABLE_END},

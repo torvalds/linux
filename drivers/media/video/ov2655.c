@@ -434,7 +434,7 @@ static struct reginfo sensor_xga[] =
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
 {
-    {0x3086,0x01},  //sleep on
+   // {0x3086,0x01},  //sleep on
     {0x300E, 0x34},
     {0x3011, 0x01},
     {0x3012, 0x10},
@@ -469,7 +469,7 @@ static struct reginfo sensor_svga[] =
     {0x331C, 0x00},
     {0x331D, 0x38},
     {0x3302, 0x11},
-    {0x3086,0x00}, //sleep off
+  //  {0x3086,0x00}, //sleep off
     {0x0, 0x0},
 };
 

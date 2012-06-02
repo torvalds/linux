@@ -92,12 +92,14 @@ int aic3xxx_cfw_setmode_cfg(void *pv, int mode, int cfg)
     cfw_state *ps = pv;
     cfw_project *pjt = ps->pjt;
     int which = 0;
-
+	cfw_pfw *pfw;
+	cfw_image *im;
+	
     if (mode >= pjt->nmode)
         return -1;
     if (pjt->mode[mode]->pfw < pjt->npfw) {   // New mode uses miniDSP
         // FIXME: Add support for entry and exit sequences
-        cfw_pfw *pfw = pjt->pfw[pjt->mode[mode]->pfw];
+        pfw = pjt->pfw[pjt->mode[mode]->pfw];
         // Make sure cfg is valid and supported in this mode
         if (cfg >= pfw->ncfg ||
                 !(pjt->mode[mode]->supported_cfgs&(1u<<cfg)))
@@ -109,7 +111,7 @@ int aic3xxx_cfw_setmode_cfg(void *pv, int mode, int cfg)
          * where the base PFW uses both miniDSPs where a particular
          * overlay applies only to one
          */
-        cfw_image *im = pfw->base;
+        im = pfw->base;
         if (im->block[CFW_BLOCK_A_INST])
             which |= AIC3XX_COPS_MDSP_A;
         if (im->block[CFW_BLOCK_D_INST])

@@ -6,6 +6,12 @@ config FB_ROCKCHIP
         select FB_CFB_IMAGEBLIT
         ---help---
           Framebuffer driver for rockchip based platform
+config FB_WIMO
+	bool "WiMO support"
+	depends on FB_ROCKCHIP
+	default y
+	help
+	    Support wimo
 
 config LCDC_RK30
         tristate "rk30 lcdc support "

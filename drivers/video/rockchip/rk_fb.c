@@ -34,6 +34,13 @@
 
 
 
+#ifdef	FB_WIMO_FLAG
+
+
+int (*video_data_to_wimo)(struct fb_info *info,u32 yuv_phy[2]) = NULL;
+EXPORT_SYMBOL(video_data_to_wimo);
+
+#endif
 static struct platform_device *g_fb_pdev;
 
 static struct rk_fb_rgb def_rgb_16 = {
@@ -228,6 +235,10 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		#endif
 	#endif
 	dev_drv->pan_display(dev_drv,layer_id);
+	#ifdef	FB_WIMO_FLAG
+	if(video_data_to_wimo!=NULL)
+		video_data_to_wimo(info,NULL);
+ 	#endif
 	return 0;
 }
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
@@ -1000,6 +1011,7 @@ int rk_fb_unregister(struct rk_lcdc_device_driver *dev_drv)
 		framebuffer_release(fbi);	
 	}
 	fb_inf->lcdc_dev_drv[dev_drv->id]= NULL;
+	fb_inf->num_lcdc--;
 
 	return 0;
 }
@@ -1020,6 +1032,8 @@ static void rkfb_early_suspend(struct early_suspend *h)
 	int i;
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
+		if (!inf->lcdc_dev_drv[i])
+			continue;
 		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable)
 			inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable();
 		if(inf->lcdc_dev_drv[i]->screen->standby)
@@ -1036,6 +1050,8 @@ static void rkfb_early_resume(struct early_suspend *h)
 	int i;
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
+		if (!inf->lcdc_dev_drv[i])
+			continue;
 		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_enable)
 			inf->lcdc_dev_drv[i]->screen_ctr_info->io_enable();
 		if(inf->lcdc_dev_drv[i]->screen->standby)
@@ -1093,9 +1109,12 @@ static int __devexit rk_fb_remove(struct platform_device *pdev)
 
 static void rk_fb_shutdown(struct platform_device *pdev)
 {
-	struct rk_fb_inf *fb_inf = platform_get_drvdata(pdev);
-	kfree(fb_inf);
-    	platform_set_drvdata(pdev, NULL);
+//	struct rk_fb_inf *fb_inf = platform_get_drvdata(pdev);
+//	kfree(fb_inf);
+//	platform_set_drvdata(pdev, NULL);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	unregister_early_suspend(&suspend_info.early_suspend);
+#endif
 }
 
 static struct platform_driver rk_fb_driver = {
@@ -1105,7 +1124,7 @@ static struct platform_driver rk_fb_driver = {
 		.name	= "rk-fb",
 		.owner	= THIS_MODULE,
 	},
-	//.shutdown   = rk_fb_shutdown,
+	.shutdown   = rk_fb_shutdown,
 };
 
 static int __init rk_fb_init(void)

@@ -294,8 +294,8 @@ static int rk29_aif2_hw_params(struct snd_pcm_substream *substream,
 	DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
 
 	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
-			SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_CBM_CFM);
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_LEFT_J |
+			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 	{
 		printk("%s: snd_soc_dai_set_fmt err =%d\n",__FUNCTION__,ret);
@@ -366,8 +366,8 @@ static int rk29_aif3_hw_params(struct snd_pcm_substream *substream,
 	DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
 
 	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
-			SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_CBS_CFS);
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_LEFT_J |
+			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 	{
 		printk("%s: snd_soc_dai_set_fmt err =%d\n",__FUNCTION__,ret);

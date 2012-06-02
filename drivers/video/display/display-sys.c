@@ -373,7 +373,8 @@ struct rk_display_device *rk_display_device_register(struct rk_display_driver *d
 			if (!IS_ERR(new_dev->dev)) {
 				new_dev->parent = parent;
 				new_dev->driver = driver;
-				new_dev->dev->driver = parent->driver;
+				if(parent)
+					new_dev->dev->driver = parent->driver;
 				mutex_init(&new_dev->lock);
 				// Add new device to display device list.
 				{

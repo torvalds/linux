@@ -29,7 +29,7 @@ int aic3xxx_cfw_set_pll(void *pv, int asi);
 typedef struct aic3xxx_codec_ops {
     int (*reg_read)(void *p, unsigned int reg);
     int (*reg_write)(void *p, unsigned int reg,
-            unsigned int val);
+            unsigned char val);
     int (*set_bits)(void *p, unsigned int reg, 
             unsigned char mask, unsigned char val);
     int (*bulk_read)(void *p, unsigned int reg, 

@@ -1595,7 +1595,6 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
     if (urb_qtd == qh->qtd_in_process) {
 	    /* The QTD is in process (it has been assigned to a channel). */
 	    if (dwc_otg_hcd->flags.b.port_connect_status) {
-            DWC_PRINT("%s urb %p in process\n", __func__, _urb);
 
 		    /*
 		     * If still connected (i.e. in host mode), halt the
@@ -2290,7 +2289,9 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
 			hprt0.b.prtres = 1;
 			dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
 			/* Clear Resume bit */
+            spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 			mdelay (100);
+            spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 			hprt0.b.prtres = 0;
 			dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
 			break;
@@ -2477,7 +2478,7 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
                         }
                         hprt0.d32 = dwc_otg_read_hprt0 (core_if);
                         hprt0.b.prtsusp = 1;
-			dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+			            dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
                         //DWC_PRINT( "SUSPEND: HPRT0=%0x\n", hprt0.d32);       
                         /* Suspend the Phy Clock */
                         {
@@ -2488,7 +2489,9 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
                         
                         /* For HNP the bus must be suspended for at least 200ms.*/
                         if (_hcd->self.b_hnp_enable) {
+                                spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
                                 mdelay(200);
+                                spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
                                 //DWC_PRINT( "SUSPEND: wait complete! (%d)\n", _hcd->state);
                         }
 			break;
