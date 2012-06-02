@@ -173,7 +173,7 @@ static const struct zr364xx_fmt formats[] = {
 struct zr364xx_camera {
 	struct usb_device *udev;	/* save off the usb device pointer */
 	struct usb_interface *interface;/* the interface for this device */
-	struct video_device *vdev;	/* v4l video device */
+	struct video_device vdev;	/* v4l video device */
 	int nb;
 	struct zr364xx_bufferi		buffer;
 	int skip;
@@ -1322,9 +1322,7 @@ static void zr364xx_destroy(struct zr364xx_camera *cam)
 		return;
 	}
 	mutex_lock(&cam->open_lock);
-	if (cam->vdev)
-		video_unregister_device(cam->vdev);
-	cam->vdev = NULL;
+	video_unregister_device(&cam->vdev);
 
 	/* stops the read pipe if it is running */
 	if (cam->b_acquire)
@@ -1346,7 +1344,6 @@ static void zr364xx_destroy(struct zr364xx_camera *cam)
 	cam->pipe->transfer_buffer = NULL;
 	mutex_unlock(&cam->open_lock);
 	kfree(cam);
-	cam = NULL;
 }
 
 /* release the camera */
@@ -1466,7 +1463,7 @@ static struct video_device zr364xx_template = {
 	.name = DRIVER_DESC,
 	.fops = &zr364xx_fops,
 	.ioctl_ops = &zr364xx_ioctl_ops,
-	.release = video_device_release,
+	.release = video_device_release_empty,
 };
 
 
@@ -1557,19 +1554,11 @@ static int zr364xx_probe(struct usb_interface *intf,
 	}
 	/* save the init method used by this camera */
 	cam->method = id->driver_info;
-
-	cam->vdev = video_device_alloc();
-	if (cam->vdev == NULL) {
-		dev_err(&udev->dev, "cam->vdev: out of memory !\n");
-		kfree(cam);
-		cam = NULL;
-		return -ENOMEM;
-	}
-	memcpy(cam->vdev, &zr364xx_template, sizeof(zr364xx_template));
-	cam->vdev->parent = &intf->dev;
-	video_set_drvdata(cam->vdev, cam);
+	cam->vdev = zr364xx_template;
+	cam->vdev.parent = &intf->dev;
+	video_set_drvdata(&cam->vdev, cam);
 	if (debug)
-		cam->vdev->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
+		cam->vdev.debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
 
 	cam->udev = udev;
 
@@ -1636,37 +1625,34 @@ static int zr364xx_probe(struct usb_interface *intf,
 
 	if (!cam->read_endpoint) {
 		dev_err(&intf->dev, "Could not find bulk-in endpoint\n");
-		video_device_release(cam->vdev);
 		kfree(cam);
-		cam = NULL;
 		return -ENOMEM;
 	}
 
 	/* v4l */
 	INIT_LIST_HEAD(&cam->vidq.active);
 	cam->vidq.cam = cam;
-	err = video_register_device(cam->vdev, VFL_TYPE_GRABBER, -1);
-	if (err) {
-		dev_err(&udev->dev, "video_register_device failed\n");
-		video_device_release(cam->vdev);
-		kfree(cam);
-		cam = NULL;
-		return err;
-	}
 
 	usb_set_intfdata(intf, cam);
 
 	/* load zr364xx board specific */
 	err = zr364xx_board_init(cam);
 	if (err) {
-		spin_lock_init(&cam->slock);
+		kfree(cam);
 		return err;
 	}
 
 	spin_lock_init(&cam->slock);
 
+	err = video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1);
+	if (err) {
+		dev_err(&udev->dev, "video_register_device failed\n");
+		kfree(cam);
+		return err;
+	}
+
 	dev_info(&udev->dev, DRIVER_DESC " controlling device %s\n",
-		 video_device_node_name(cam->vdev));
+		 video_device_node_name(&cam->vdev));
 	return 0;
 }
 
