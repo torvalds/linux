@@ -207,7 +207,8 @@ static int g760a_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	data = kzalloc(sizeof(struct g760a_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct g760a_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -223,7 +224,7 @@ static int g760a_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &g760a_group);
 	if (err)
-		goto error_sysfs_create_group;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -235,9 +236,6 @@ static int g760a_probe(struct i2c_client *client,
 
 error_hwmon_device_register:
 	sysfs_remove_group(&client->dev.kobj, &g760a_group);
-error_sysfs_create_group:
-	kfree(data);
-
 	return err;
 }
 
@@ -246,8 +244,6 @@ static int g760a_remove(struct i2c_client *client)
 	struct g760a_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &g760a_group);
-	kfree(data);
-
 	return 0;
 }
 
