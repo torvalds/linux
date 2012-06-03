@@ -16,8 +16,8 @@
  */
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include "./common.h"
-#include "./pipe.h"
+#include "common.h"
+#include "pipe.h"
 
 /*
  *		macros

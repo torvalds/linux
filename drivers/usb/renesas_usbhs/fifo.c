@@ -17,8 +17,8 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/scatterlist.h>
-#include "./common.h"
-#include "./pipe.h"
+#include "common.h"
+#include "pipe.h"
 
 #define usbhsf_get_cfifo(p)	(&((p)->fifo_info.cfifo))
 #define usbhsf_get_d0fifo(p)	(&((p)->fifo_info.d0fifo))

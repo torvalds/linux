@@ -17,8 +17,8 @@
 #ifndef RENESAS_USB_PIPE_H
 #define RENESAS_USB_PIPE_H
 
-#include "./common.h"
-#include "./fifo.h"
+#include "common.h"
+#include "fifo.h"
 
 /*
  *	struct

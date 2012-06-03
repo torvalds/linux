@@ -19,7 +19,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include "./common.h"
+#include "common.h"
 
 /*
  *		image of renesas_usbhs

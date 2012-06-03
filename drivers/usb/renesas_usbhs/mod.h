@@ -19,7 +19,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/usb/renesas_usbhs.h>
-#include "./common.h"
+#include "common.h"
 
 /*
  *	struct

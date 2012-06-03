@@ -16,8 +16,8 @@
  */
 #include <linux/interrupt.h>
 
-#include "./common.h"
-#include "./mod.h"
+#include "common.h"
+#include "mod.h"
 
 #define usbhs_priv_to_modinfo(priv) (&priv->mod_info)
 #define usbhs_mod_info_call(priv, func, param...)	\
