@@ -71,6 +71,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	int pass = 0;
 	unsigned long align_mask;
 	unsigned long boundary_size;
+	unsigned long flags;
 
 	align_mask = 0xffffffffffffffffl >> (64 - align_order);
 
@@ -82,6 +83,8 @@ static unsigned long iommu_range_alloc(struct device *dev,
 			WARN_ON(1);
 		return DMA_ERROR_CODE;
 	}
+
+	spin_lock_irqsave(&(tbl->it_lock), flags);
 
 	if (handle && *handle)
 		start = *handle;
@@ -136,6 +139,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
 			goto again;
 		} else {
 			/* Third failure, give up */
+			spin_unlock_irqrestore(&(tbl->it_lock), flags);
 			return DMA_ERROR_CODE;
 		}
 	}
@@ -156,6 +160,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	if (handle)
 		*handle = end;
 
+	spin_unlock_irqrestore(&(tbl->it_lock), flags);
 	return n;
 }
 
@@ -165,13 +170,11 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 			      unsigned long mask, unsigned int align_order,
 			      struct dma_attrs *attrs)
 {
-	unsigned long entry, flags;
+	unsigned long entry;
 	dma_addr_t ret = DMA_ERROR_CODE;
 	int build_fail;
 
-	spin_lock_irqsave(&(tbl->it_lock), flags);
 	entry = iommu_range_alloc(dev, tbl, npages, NULL, mask, align_order);
-	spin_unlock_irqrestore(&(tbl->it_lock), flags);
 
 	if (unlikely(entry == DMA_ERROR_CODE))
 		return DMA_ERROR_CODE;
@@ -232,23 +235,6 @@ static bool iommu_free_check(struct iommu_table *tbl, dma_addr_t dma_addr,
 	return true;
 }
 
-static void __iommu_free_locked(struct iommu_table *tbl, dma_addr_t dma_addr,
-			 unsigned int npages)
-{
-	unsigned long entry, free_entry;
-
-	BUG_ON(!spin_is_locked(&tbl->it_lock));
-
-	entry = dma_addr >> IOMMU_PAGE_SHIFT;
-	free_entry = entry - tbl->it_offset;
-
-	if (!iommu_free_check(tbl, dma_addr, npages))
-		return;
-
-	ppc_md.tce_free(tbl, entry, npages);
-	bitmap_clear(tbl->it_map, free_entry, npages);
-}
-
 static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 			 unsigned int npages)
 {
@@ -287,7 +273,6 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 		 struct dma_attrs *attrs)
 {
 	dma_addr_t dma_next = 0, dma_addr;
-	unsigned long flags;
 	struct scatterlist *s, *outs, *segstart;
 	int outcount, incount, i, build_fail = 0;
 	unsigned int align;
@@ -308,8 +293,6 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 	outs->dma_length = 0;
 
 	DBG("sg mapping %d elements:\n", nelems);
-
-	spin_lock_irqsave(&(tbl->it_lock), flags);
 
 	max_seg_size = dma_get_max_seg_size(dev);
 	for_each_sg(sglist, s, nelems, i) {
@@ -393,8 +376,6 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 	if (ppc_md.tce_flush)
 		ppc_md.tce_flush(tbl);
 
-	spin_unlock_irqrestore(&(tbl->it_lock), flags);
-
 	DBG("mapped %d elements:\n", outcount);
 
 	/* For the sake of iommu_unmap_sg, we clear out the length in the
@@ -419,14 +400,13 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 			vaddr = s->dma_address & IOMMU_PAGE_MASK;
 			npages = iommu_num_pages(s->dma_address, s->dma_length,
 						 IOMMU_PAGE_SIZE);
-			__iommu_free_locked(tbl, vaddr, npages);
+			__iommu_free(tbl, vaddr, npages);
 			s->dma_address = DMA_ERROR_CODE;
 			s->dma_length = 0;
 		}
 		if (s == outs)
 			break;
 	}
-	spin_unlock_irqrestore(&(tbl->it_lock), flags);
 	return 0;
 }
 
@@ -436,14 +416,11 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 		struct dma_attrs *attrs)
 {
 	struct scatterlist *sg;
-	unsigned long flags;
 
 	BUG_ON(direction == DMA_NONE);
 
 	if (!tbl)
 		return;
-
-	spin_lock_irqsave(&(tbl->it_lock), flags);
 
 	sg = sglist;
 	while (nelems--) {
@@ -454,7 +431,7 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 			break;
 		npages = iommu_num_pages(dma_handle, sg->dma_length,
 					 IOMMU_PAGE_SIZE);
-		__iommu_free_locked(tbl, dma_handle, npages);
+		__iommu_free(tbl, dma_handle, npages);
 		sg = sg_next(sg);
 	}
 
@@ -464,8 +441,6 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 	 */
 	if (ppc_md.tce_flush)
 		ppc_md.tce_flush(tbl);
-
-	spin_unlock_irqrestore(&(tbl->it_lock), flags);
 }
 
 static void iommu_table_clear(struct iommu_table *tbl)
