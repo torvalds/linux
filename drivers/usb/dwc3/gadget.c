@@ -1681,7 +1681,8 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		if (s_pkt)
 			break;
 		if ((event->status & DEPEVT_STATUS_LST) &&
-				(trb->ctrl & DWC3_TRB_CTRL_LST))
+				(trb->ctrl & (DWC3_TRB_CTRL_LST |
+						DWC3_TRB_CTRL_HWO)))
 			break;
 		if ((event->status & DEPEVT_STATUS_IOC) &&
 				(trb->ctrl & DWC3_TRB_CTRL_IOC))
