@@ -102,7 +102,7 @@ struct neigh_node *batadv_neigh_node_new(struct hard_iface *hard_iface,
 	/* extra reference for return */
 	atomic_set(&neigh_node->refcount, 2);
 
-	batadv_dbg(DBG_BATMAN, bat_priv,
+	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 		   "Creating new neighbor %pM, initial seqno %d\n",
 		   neigh_addr, seqno);
 
@@ -200,8 +200,8 @@ struct orig_node *batadv_get_orig_node(struct bat_priv *bat_priv,
 	if (orig_node)
 		return orig_node;
 
-	batadv_dbg(DBG_BATMAN, bat_priv, "Creating new originator: %pM\n",
-		   addr);
+	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
+		   "Creating new originator: %pM\n", addr);
 
 	orig_node = kzalloc(sizeof(*orig_node), GFP_ATOMIC);
 	if (!orig_node)
@@ -293,12 +293,12 @@ static bool batadv_purge_orig_neighbors(struct bat_priv *bat_priv,
 			if ((if_incoming->if_status == BATADV_IF_INACTIVE) ||
 			    (if_incoming->if_status == BATADV_IF_NOT_IN_USE) ||
 			    (if_incoming->if_status == BATADV_IF_TO_BE_REMOVED))
-				batadv_dbg(DBG_BATMAN, bat_priv,
+				batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 					   "neighbor purge: originator %pM, neighbor: %pM, iface: %s\n",
 					   orig_node->orig, neigh_node->addr,
 					   if_incoming->net_dev->name);
 			else
-				batadv_dbg(DBG_BATMAN, bat_priv,
+				batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 					   "neighbor timeout: originator %pM, neighbor: %pM, last_seen: %u\n",
 					   orig_node->orig, neigh_node->addr,
 					   jiffies_to_msecs(last_seen));
@@ -326,7 +326,7 @@ static bool batadv_purge_orig_node(struct bat_priv *bat_priv,
 
 	if (batadv_has_timed_out(orig_node->last_seen,
 				 2 * BATADV_PURGE_TIMEOUT)) {
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Originator timeout: originator %pM, last_seen %u\n",
 			   orig_node->orig,
 			   jiffies_to_msecs(orig_node->last_seen));

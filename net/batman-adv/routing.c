@@ -72,20 +72,20 @@ static void _batadv_update_route(struct bat_priv *bat_priv,
 
 	/* route deleted */
 	if ((curr_router) && (!neigh_node)) {
-		batadv_dbg(DBG_ROUTES, bat_priv, "Deleting route towards: %pM\n",
-			   orig_node->orig);
+		batadv_dbg(BATADV_DBG_ROUTES, bat_priv,
+			   "Deleting route towards: %pM\n", orig_node->orig);
 		batadv_tt_global_del_orig(bat_priv, orig_node,
 					  "Deleted route towards originator");
 
 	/* route added */
 	} else if ((!curr_router) && (neigh_node)) {
 
-		batadv_dbg(DBG_ROUTES, bat_priv,
+		batadv_dbg(BATADV_DBG_ROUTES, bat_priv,
 			   "Adding route towards: %pM (via %pM)\n",
 			   orig_node->orig, neigh_node->addr);
 	/* route changed */
 	} else if (neigh_node && curr_router) {
-		batadv_dbg(DBG_ROUTES, bat_priv,
+		batadv_dbg(BATADV_DBG_ROUTES, bat_priv,
 			   "Changing route towards: %pM (now via %pM - was via %pM)\n",
 			   orig_node->orig, neigh_node->addr,
 			   curr_router->addr);
@@ -240,7 +240,7 @@ int batadv_window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
 			return 1;
 
 		*last_reset = jiffies;
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "old packet received, start protection\n");
 	}
 
@@ -618,7 +618,7 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 			else
 				tt_flag = '.';
 
-			batadv_dbg(DBG_TT, bat_priv,
+			batadv_dbg(BATADV_DBG_TT, bat_priv,
 				   "Routing TT_REQUEST to %pM [%c]\n",
 				   tt_query->dst,
 				   tt_flag);
@@ -650,7 +650,7 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 				tt_flag =  'F';
 			else
 				tt_flag = '.';
-			batadv_dbg(DBG_TT, bat_priv,
+			batadv_dbg(BATADV_DBG_TT, bat_priv,
 				   "Routing TT_RESPONSE to %pM [%c]\n",
 				   tt_query->dst,
 				   tt_flag);
@@ -703,7 +703,7 @@ int batadv_recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 	if (!orig_node)
 		goto out;
 
-	batadv_dbg(DBG_TT, bat_priv,
+	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Received ROAMING_ADV from %pM (client %pM)\n",
 		   roam_adv_packet->src, roam_adv_packet->client);
 
@@ -992,7 +992,7 @@ static int batadv_check_unicast_ttvn(struct bat_priv *bat_priv,
 			batadv_orig_node_free_ref(orig_node);
 		}
 
-		batadv_dbg(DBG_ROUTES, bat_priv,
+		batadv_dbg(BATADV_DBG_ROUTES, bat_priv,
 			   "TTVN mismatch (old_ttvn %u new_ttvn %u)! Rerouting unicast packet (for %pM) to %pM\n",
 			   unicast_packet->ttvn, curr_ttvn, ethhdr->h_dest,
 			   unicast_packet->dest);

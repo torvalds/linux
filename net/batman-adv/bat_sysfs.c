@@ -485,7 +485,7 @@ BATADV_ATTR_SIF_UINT(gw_sel_class, S_IRUGO | S_IWUSR, 1, BATADV_TQ_MAX_VALUE,
 static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
 		   batadv_store_gw_bwidth);
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-BATADV_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, DBG_ALL, NULL);
+BATADV_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, BATADV_DBG_ALL, NULL);
 #endif
 
 static struct bat_attribute *batadv_mesh_attrs[] = {
@@ -723,8 +723,8 @@ void batadv_sysfs_del_hardif(struct kobject **hardif_obj)
 	*hardif_obj = NULL;
 }
 
-int batadv_throw_uevent(struct bat_priv *bat_priv, enum uev_type type,
-			enum uev_action action, const char *data)
+int batadv_throw_uevent(struct bat_priv *bat_priv, enum batadv_uev_type type,
+			enum batadv_uev_action action, const char *data)
 {
 	int ret = -ENOMEM;
 	struct hard_iface *primary_if = NULL;
@@ -756,7 +756,7 @@ int batadv_throw_uevent(struct bat_priv *bat_priv, enum uev_type type,
 		batadv_uev_action_str[action]);
 
 	/* If the event is DEL, ignore the data field */
-	if (action != UEV_DEL) {
+	if (action != BATADV_UEV_DEL) {
 		uevent_env[2] = kmalloc(strlen(BATADV_UEV_DATA_VAR) +
 					strlen(data) + 1, GFP_ATOMIC);
 		if (!uevent_env[2])
@@ -775,10 +775,10 @@ out:
 		batadv_hardif_free_ref(primary_if);
 
 	if (ret)
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Impossible to send uevent for (%s,%s,%s) event (err: %d)\n",
 			   batadv_uev_type_str[type],
 			   batadv_uev_action_str[action],
-			   (action == UEV_DEL ? "NULL" : data), ret);
+			   (action == BATADV_UEV_DEL ? "NULL" : data), ret);
 	return ret;
 }

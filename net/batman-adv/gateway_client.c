@@ -218,21 +218,24 @@ void batadv_gw_election(struct bat_priv *bat_priv)
 	}
 
 	if ((curr_gw) && (!next_gw)) {
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Removing selected gateway - no gateway in range\n");
-		batadv_throw_uevent(bat_priv, UEV_GW, UEV_DEL, NULL);
+		batadv_throw_uevent(bat_priv, BATADV_UEV_GW, BATADV_UEV_DEL,
+				    NULL);
 	} else if ((!curr_gw) && (next_gw)) {
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Adding route to gateway %pM (gw_flags: %i, tq: %i)\n",
 			   next_gw->orig_node->orig,
 			   next_gw->orig_node->gw_flags, router->tq_avg);
-		batadv_throw_uevent(bat_priv, UEV_GW, UEV_ADD, gw_addr);
+		batadv_throw_uevent(bat_priv, BATADV_UEV_GW, BATADV_UEV_ADD,
+				    gw_addr);
 	} else {
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Changing route to gateway %pM (gw_flags: %i, tq: %i)\n",
 			   next_gw->orig_node->orig,
 			   next_gw->orig_node->gw_flags, router->tq_avg);
-		batadv_throw_uevent(bat_priv, UEV_GW, UEV_CHANGE, gw_addr);
+		batadv_throw_uevent(bat_priv, BATADV_UEV_GW, BATADV_UEV_CHANGE,
+				    gw_addr);
 	}
 
 	batadv_gw_select(bat_priv, next_gw);
@@ -283,7 +286,7 @@ void batadv_gw_check_election(struct bat_priv *bat_priv,
 	    (orig_tq_avg - gw_tq_avg < atomic_read(&bat_priv->gw_sel_class)))
 		goto out;
 
-	batadv_dbg(DBG_BATMAN, bat_priv,
+	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 		   "Restarting gateway selection: better gateway found (tq curr: %i, tq new: %i)\n",
 		   gw_tq_avg, orig_tq_avg);
 
@@ -320,7 +323,7 @@ static void batadv_gw_node_add(struct bat_priv *bat_priv,
 	spin_unlock_bh(&bat_priv->gw_list_lock);
 
 	batadv_gw_bandwidth_to_kbit(new_gwflags, &down, &up);
-	batadv_dbg(DBG_BATMAN, bat_priv,
+	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 		   "Found new gateway %pM -> gw_class: %i - %i%s/%i%s\n",
 		   orig_node->orig, new_gwflags,
 		   (down > 2048 ? down / 1024 : down),
@@ -347,7 +350,7 @@ void batadv_gw_node_update(struct bat_priv *bat_priv,
 		if (gw_node->orig_node != orig_node)
 			continue;
 
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Gateway class of originator %pM changed from %i to %i\n",
 			   orig_node->orig, gw_node->orig_node->gw_flags,
 			   new_gwflags);
@@ -356,7 +359,7 @@ void batadv_gw_node_update(struct bat_priv *bat_priv,
 
 		if (new_gwflags == BATADV_NO_FLAGS) {
 			gw_node->deleted = jiffies;
-			batadv_dbg(DBG_BATMAN, bat_priv,
+			batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 				   "Gateway %pM removed from gateway list\n",
 				   orig_node->orig);
 
@@ -403,7 +406,7 @@ void batadv_gw_node_purge(struct bat_priv *bat_priv)
 				  &bat_priv->gw_list, list) {
 		if (((!gw_node->deleted) ||
 		     (time_before(jiffies, gw_node->deleted + timeout))) &&
-		    atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE)
+		    atomic_read(&bat_priv->mesh_state) == BATADV_MESH_ACTIVE)
 			continue;
 
 		if (curr_gw == gw_node)

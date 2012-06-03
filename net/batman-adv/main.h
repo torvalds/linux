@@ -95,23 +95,23 @@
 #define BATADV_RESET_PROTECTION_MS 30000
 #define BATADV_EXPECTED_SEQNO_RANGE	65536
 
-enum mesh_state {
-	MESH_INACTIVE,
-	MESH_ACTIVE,
-	MESH_DEACTIVATING
+enum batadv_mesh_state {
+	BATADV_MESH_INACTIVE,
+	BATADV_MESH_ACTIVE,
+	BATADV_MESH_DEACTIVATING,
 };
 
 #define BATADV_BCAST_QUEUE_LEN		256
 #define BATADV_BATMAN_QUEUE_LEN	256
 
-enum uev_action {
-	UEV_ADD = 0,
-	UEV_DEL,
-	UEV_CHANGE
+enum batadv_uev_action {
+	BATADV_UEV_ADD = 0,
+	BATADV_UEV_DEL,
+	BATADV_UEV_CHANGE,
 };
 
-enum uev_type {
-	UEV_GW = 0
+enum batadv_uev_type {
+	BATADV_UEV_GW = 0,
 };
 
 #define BATADV_GW_THRESHOLD	50
@@ -124,12 +124,12 @@ enum uev_type {
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 /* all messages related to routing / flooding / broadcasting / etc */
-enum dbg_level {
-	DBG_BATMAN = 1 << 0,
-	DBG_ROUTES = 1 << 1, /* route added / changed / deleted */
-	DBG_TT	   = 1 << 2, /* translation table operations */
-	DBG_BLA    = 1 << 3, /* bridge loop avoidance */
-	DBG_ALL    = 15
+enum batadv_dbg_level {
+	BATADV_DBG_BATMAN = 1 << 0,
+	BATADV_DBG_ROUTES = 1 << 1, /* route added / changed / deleted */
+	BATADV_DBG_TT	  = 1 << 2, /* translation table operations */
+	BATADV_DBG_BLA    = 1 << 3, /* bridge loop avoidance */
+	BATADV_DBG_ALL    = 15,
 };
 
 /* Kernel headers */
@@ -195,14 +195,14 @@ static inline void batadv_dbg(int type __always_unused,
 	do {								\
 		struct net_device *_netdev = (net_dev);                 \
 		struct bat_priv *_batpriv = netdev_priv(_netdev);       \
-		batadv_dbg(DBG_ALL, _batpriv, fmt, ## arg);		\
+		batadv_dbg(BATADV_DBG_ALL, _batpriv, fmt, ## arg);	\
 		pr_info("%s: " fmt, _netdev->name, ## arg);		\
 	} while (0)
 #define batadv_err(net_dev, fmt, arg...)				\
 	do {								\
 		struct net_device *_netdev = (net_dev);                 \
 		struct bat_priv *_batpriv = netdev_priv(_netdev);       \
-		batadv_dbg(DBG_ALL, _batpriv, fmt, ## arg);		\
+		batadv_dbg(BATADV_DBG_ALL, _batpriv, fmt, ## arg);	\
 		pr_err("%s: " fmt, _netdev->name, ## arg);		\
 	} while (0)
 

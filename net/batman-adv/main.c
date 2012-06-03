@@ -132,7 +132,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 		goto err;
 
 	atomic_set(&bat_priv->gw_reselect, 0);
-	atomic_set(&bat_priv->mesh_state, MESH_ACTIVE);
+	atomic_set(&bat_priv->mesh_state, BATADV_MESH_ACTIVE);
 
 	return 0;
 
@@ -145,7 +145,7 @@ void batadv_mesh_free(struct net_device *soft_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 
-	atomic_set(&bat_priv->mesh_state, MESH_DEACTIVATING);
+	atomic_set(&bat_priv->mesh_state, BATADV_MESH_DEACTIVATING);
 
 	batadv_purge_outstanding_packets(bat_priv, NULL);
 
@@ -160,7 +160,7 @@ void batadv_mesh_free(struct net_device *soft_iface)
 
 	free_percpu(bat_priv->bat_counters);
 
-	atomic_set(&bat_priv->mesh_state, MESH_INACTIVE);
+	atomic_set(&bat_priv->mesh_state, BATADV_MESH_INACTIVE);
 }
 
 void batadv_inc_module_count(void)
@@ -230,7 +230,7 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
+	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
 		goto err_free;
 
 	/* discard frames on not active interfaces */
@@ -240,7 +240,7 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	batman_ogm_packet = (struct batman_ogm_packet *)skb->data;
 
 	if (batman_ogm_packet->header.version != BATADV_COMPAT_VERSION) {
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Drop packet: incompatible batman version (%i)\n",
 			   batman_ogm_packet->header.version);
 		goto err_free;

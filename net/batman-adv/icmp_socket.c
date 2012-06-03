@@ -158,7 +158,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	size_t packet_len = sizeof(struct icmp_packet);
 
 	if (len < sizeof(struct icmp_packet)) {
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Error - can't send packet from char device: invalid packet size\n");
 		return -EINVAL;
 	}
@@ -188,14 +188,14 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	}
 
 	if (icmp_packet->header.packet_type != BATADV_ICMP) {
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Error - can't send packet from char device: got bogus packet type (expected: BAT_ICMP)\n");
 		len = -EINVAL;
 		goto free_skb;
 	}
 
 	if (icmp_packet->msg_type != BATADV_ECHO_REQUEST) {
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Error - can't send packet from char device: got bogus message type (expected: ECHO_REQUEST)\n");
 		len = -EINVAL;
 		goto free_skb;
@@ -211,7 +211,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 		goto free_skb;
 	}
 
-	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
+	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
 		goto dst_unreach;
 
 	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->dst);

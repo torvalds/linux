@@ -142,7 +142,8 @@ int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
 	struct sk_buff *newskb;
 
 	if (!batadv_atomic_dec_not_zero(&bat_priv->bcast_queue_left)) {
-		batadv_dbg(DBG_BATMAN, bat_priv, "bcast packet queue full\n");
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
+			   "bcast packet queue full\n");
 		goto out;
 	}
 
@@ -199,7 +200,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	hlist_del(&forw_packet->list);
 	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
 
-	if (atomic_read(&bat_priv->mesh_state) == MESH_DEACTIVATING)
+	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
 		goto out;
 
 	/* rebroadcast packet */
@@ -243,7 +244,7 @@ void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 	hlist_del(&forw_packet->list);
 	spin_unlock_bh(&bat_priv->forw_bat_list_lock);
 
-	if (atomic_read(&bat_priv->mesh_state) == MESH_DEACTIVATING)
+	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
 		goto out;
 
 	bat_priv->bat_algo_ops->bat_ogm_emit(forw_packet);
@@ -271,11 +272,11 @@ void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
 	bool pending;
 
 	if (hard_iface)
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "purge_outstanding_packets(): %s\n",
 			   hard_iface->net_dev->name);
 	else
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "purge_outstanding_packets()\n");
 
 	/* free bcast list */
