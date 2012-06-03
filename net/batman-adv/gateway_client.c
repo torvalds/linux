@@ -33,8 +33,8 @@
 /* This is the offset of the options field in a dhcp packet starting at
  * the beginning of the dhcp header
  */
-#define DHCP_OPTIONS_OFFSET 240
-#define DHCP_REQUEST 3
+#define BATADV_DHCP_OPTIONS_OFFSET 240
+#define BATADV_DHCP_REQUEST 3
 
 static void batadv_gw_node_free_ref(struct gw_node *gw_node)
 {
@@ -521,11 +521,11 @@ static bool batadv_is_type_dhcprequest(struct sk_buff *skb, int header_len)
 
 	pkt_len = skb_headlen(skb);
 
-	if (pkt_len < header_len + DHCP_OPTIONS_OFFSET + 1)
+	if (pkt_len < header_len + BATADV_DHCP_OPTIONS_OFFSET + 1)
 		goto out;
 
-	p = skb->data + header_len + DHCP_OPTIONS_OFFSET;
-	pkt_len -= header_len + DHCP_OPTIONS_OFFSET + 1;
+	p = skb->data + header_len + BATADV_DHCP_OPTIONS_OFFSET;
+	pkt_len -= header_len + BATADV_DHCP_OPTIONS_OFFSET + 1;
 
 	/* Access the dhcp option lists. Each entry is made up by:
 	 * - octet 1: option type
@@ -543,7 +543,7 @@ static bool batadv_is_type_dhcprequest(struct sk_buff *skb, int header_len)
 			p += 2;
 
 			/* check if the message type is what we need */
-			if (*p == DHCP_REQUEST)
+			if (*p == BATADV_DHCP_REQUEST)
 				ret = true;
 			break;
 		} else if (*p == 0) {

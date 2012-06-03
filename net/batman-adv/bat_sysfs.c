@@ -38,9 +38,9 @@ static struct bat_priv *batadv_kobj_to_batpriv(struct kobject *obj)
 	return netdev_priv(net_dev);
 }
 
-#define UEV_TYPE_VAR	"BATTYPE="
-#define UEV_ACTION_VAR	"BATACTION="
-#define UEV_DATA_VAR	"BATDATA="
+#define BATADV_UEV_TYPE_VAR	"BATTYPE="
+#define BATADV_UEV_ACTION_VAR	"BATACTION="
+#define BATADV_UEV_DATA_VAR	"BATDATA="
 
 static char *batadv_uev_action_str[] = {
 	"add",
@@ -53,15 +53,15 @@ static char *batadv_uev_type_str[] = {
 };
 
 /* Use this, if you have customized show and store functions */
-#define BAT_ATTR(_name, _mode, _show, _store)	\
-struct bat_attribute batadv_attr_##_name = {	\
-	.attr = {.name = __stringify(_name),	\
-		 .mode = _mode },		\
-	.show   = _show,			\
-	.store  = _store,			\
+#define BATADV_ATTR(_name, _mode, _show, _store)	\
+struct bat_attribute batadv_attr_##_name = {		\
+	.attr = {.name = __stringify(_name),		\
+		 .mode = _mode },			\
+	.show   = _show,				\
+	.store  = _store,				\
 };
 
-#define BAT_ATTR_SIF_STORE_BOOL(_name, _post_func)			\
+#define BATADV_ATTR_SIF_STORE_BOOL(_name, _post_func)			\
 ssize_t batadv_store_##_name(struct kobject *kobj,			\
 			     struct attribute *attr, char *buff,	\
 			     size_t count)				\
@@ -72,7 +72,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 					&bat_priv->_name, net_dev);	\
 }
 
-#define BAT_ATTR_SIF_SHOW_BOOL(_name)					\
+#define BATADV_ATTR_SIF_SHOW_BOOL(_name)				\
 ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
@@ -85,14 +85,14 @@ ssize_t batadv_show_##_name(struct kobject *kobj,			\
 /* Use this, if you are going to turn a [name] in the soft-interface
  * (bat_priv) on or off
  */
-#define BAT_ATTR_SIF_BOOL(_name, _mode, _post_func)			\
-	static BAT_ATTR_SIF_STORE_BOOL(_name, _post_func)		\
-	static BAT_ATTR_SIF_SHOW_BOOL(_name)				\
-	static BAT_ATTR(_name, _mode, batadv_show_##_name,		\
-			batadv_store_##_name)
+#define BATADV_ATTR_SIF_BOOL(_name, _mode, _post_func)			\
+	static BATADV_ATTR_SIF_STORE_BOOL(_name, _post_func)		\
+	static BATADV_ATTR_SIF_SHOW_BOOL(_name)				\
+	static BATADV_ATTR(_name, _mode, batadv_show_##_name,		\
+			   batadv_store_##_name)
 
 
-#define BAT_ATTR_SIF_STORE_UINT(_name, _min, _max, _post_func)		\
+#define BATADV_ATTR_SIF_STORE_UINT(_name, _min, _max, _post_func)	\
 ssize_t batadv_store_##_name(struct kobject *kobj,			\
 			     struct attribute *attr, char *buff,	\
 			     size_t count)				\
@@ -104,7 +104,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 					&bat_priv->_name, net_dev);	\
 }
 
-#define BAT_ATTR_SIF_SHOW_UINT(_name)					\
+#define BATADV_ATTR_SIF_SHOW_UINT(_name)				\
 ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
@@ -115,14 +115,14 @@ ssize_t batadv_show_##_name(struct kobject *kobj,			\
 /* Use this, if you are going to set [name] in the soft-interface
  * (bat_priv) to an unsigned integer value
  */
-#define BAT_ATTR_SIF_UINT(_name, _mode, _min, _max, _post_func)		\
-	static BAT_ATTR_SIF_STORE_UINT(_name, _min, _max, _post_func)	\
-	static BAT_ATTR_SIF_SHOW_UINT(_name)				\
-	static BAT_ATTR(_name, _mode, batadv_show_##_name,		\
-			batadv_store_##_name)
+#define BATADV_ATTR_SIF_UINT(_name, _mode, _min, _max, _post_func)	\
+	static BATADV_ATTR_SIF_STORE_UINT(_name, _min, _max, _post_func)\
+	static BATADV_ATTR_SIF_SHOW_UINT(_name)				\
+	static BATADV_ATTR(_name, _mode, batadv_show_##_name,		\
+			   batadv_store_##_name)
 
 
-#define BAT_ATTR_HIF_STORE_UINT(_name, _min, _max, _post_func)		\
+#define BATADV_ATTR_HIF_STORE_UINT(_name, _min, _max, _post_func)	\
 ssize_t batadv_store_##_name(struct kobject *kobj,			\
 			     struct attribute *attr, char *buff,	\
 			     size_t count)				\
@@ -143,7 +143,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 	return length;							\
 }
 
-#define BAT_ATTR_HIF_SHOW_UINT(_name)					\
+#define BATADV_ATTR_HIF_SHOW_UINT(_name)				\
 ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
@@ -164,11 +164,11 @@ ssize_t batadv_show_##_name(struct kobject *kobj,			\
 /* Use this, if you are going to set [name] in hard_iface to an
  * unsigned integer value
  */
-#define BAT_ATTR_HIF_UINT(_name, _mode, _min, _max, _post_func)		\
-	static BAT_ATTR_HIF_STORE_UINT(_name, _min, _max, _post_func)	\
-	static BAT_ATTR_HIF_SHOW_UINT(_name)				\
-	static BAT_ATTR(_name, _mode, batadv_show_##_name,		\
-			batadv_store_##_name)
+#define BATADV_ATTR_HIF_UINT(_name, _mode, _min, _max, _post_func)	\
+	static BATADV_ATTR_HIF_STORE_UINT(_name, _min, _max, _post_func)\
+	static BATADV_ATTR_HIF_SHOW_UINT(_name)				\
+	static BATADV_ATTR(_name, _mode, batadv_show_##_name,		\
+			   batadv_store_##_name)
 
 
 static int batadv_store_bool_attr(char *buff, size_t count,
@@ -454,26 +454,27 @@ static ssize_t batadv_store_gw_bwidth(struct kobject *kobj,
 	return batadv_gw_bandwidth_set(net_dev, buff, count);
 }
 
-BAT_ATTR_SIF_BOOL(aggregated_ogms, S_IRUGO | S_IWUSR, NULL);
-BAT_ATTR_SIF_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
+BATADV_ATTR_SIF_BOOL(aggregated_ogms, S_IRUGO | S_IWUSR, NULL);
+BATADV_ATTR_SIF_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
 #ifdef CONFIG_BATMAN_ADV_BLA
-BAT_ATTR_SIF_BOOL(bridge_loop_avoidance, S_IRUGO | S_IWUSR, NULL);
+BATADV_ATTR_SIF_BOOL(bridge_loop_avoidance, S_IRUGO | S_IWUSR, NULL);
 #endif
-BAT_ATTR_SIF_BOOL(fragmentation, S_IRUGO | S_IWUSR, batadv_update_min_mtu);
-BAT_ATTR_SIF_BOOL(ap_isolation, S_IRUGO | S_IWUSR, NULL);
-static BAT_ATTR(vis_mode, S_IRUGO | S_IWUSR, batadv_show_vis_mode,
-		batadv_store_vis_mode);
-static BAT_ATTR(routing_algo, S_IRUGO, batadv_show_bat_algo, NULL);
-static BAT_ATTR(gw_mode, S_IRUGO | S_IWUSR, batadv_show_gw_mode,
-		batadv_store_gw_mode);
-BAT_ATTR_SIF_UINT(orig_interval, S_IRUGO | S_IWUSR, 2 * JITTER, INT_MAX, NULL);
-BAT_ATTR_SIF_UINT(hop_penalty, S_IRUGO | S_IWUSR, 0, TQ_MAX_VALUE, NULL);
-BAT_ATTR_SIF_UINT(gw_sel_class, S_IRUGO | S_IWUSR, 1, TQ_MAX_VALUE,
-		  batadv_post_gw_deselect);
-static BAT_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
-		batadv_store_gw_bwidth);
+BATADV_ATTR_SIF_BOOL(fragmentation, S_IRUGO | S_IWUSR, batadv_update_min_mtu);
+BATADV_ATTR_SIF_BOOL(ap_isolation, S_IRUGO | S_IWUSR, NULL);
+static BATADV_ATTR(vis_mode, S_IRUGO | S_IWUSR, batadv_show_vis_mode,
+		   batadv_store_vis_mode);
+static BATADV_ATTR(routing_algo, S_IRUGO, batadv_show_bat_algo, NULL);
+static BATADV_ATTR(gw_mode, S_IRUGO | S_IWUSR, batadv_show_gw_mode,
+		   batadv_store_gw_mode);
+BATADV_ATTR_SIF_UINT(orig_interval, S_IRUGO | S_IWUSR, 2 * JITTER, INT_MAX,
+		     NULL);
+BATADV_ATTR_SIF_UINT(hop_penalty, S_IRUGO | S_IWUSR, 0, TQ_MAX_VALUE, NULL);
+BATADV_ATTR_SIF_UINT(gw_sel_class, S_IRUGO | S_IWUSR, 1, TQ_MAX_VALUE,
+		     batadv_post_gw_deselect);
+static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
+		   batadv_store_gw_bwidth);
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-BAT_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, DBG_ALL, NULL);
+BATADV_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, DBG_ALL, NULL);
 #endif
 
 static struct bat_attribute *batadv_mesh_attrs[] = {
@@ -656,9 +657,9 @@ static ssize_t batadv_show_iface_status(struct kobject *kobj,
 	return length;
 }
 
-static BAT_ATTR(mesh_iface, S_IRUGO | S_IWUSR,
-		batadv_show_mesh_iface, batadv_store_mesh_iface);
-static BAT_ATTR(iface_status, S_IRUGO, batadv_show_iface_status, NULL);
+static BATADV_ATTR(mesh_iface, S_IRUGO | S_IWUSR, batadv_show_mesh_iface,
+		   batadv_store_mesh_iface);
+static BATADV_ATTR(iface_status, S_IRUGO, batadv_show_iface_status, NULL);
 
 static struct bat_attribute *batadv_batman_attrs[] = {
 	&batadv_attr_mesh_iface,
@@ -720,31 +721,32 @@ int batadv_throw_uevent(struct bat_priv *bat_priv, enum uev_type type,
 
 	bat_kobj = &primary_if->soft_iface->dev.kobj;
 
-	uevent_env[0] = kmalloc(strlen(UEV_TYPE_VAR) +
+	uevent_env[0] = kmalloc(strlen(BATADV_UEV_TYPE_VAR) +
 				strlen(batadv_uev_type_str[type]) + 1,
 				GFP_ATOMIC);
 	if (!uevent_env[0])
 		goto out;
 
-	sprintf(uevent_env[0], "%s%s", UEV_TYPE_VAR, batadv_uev_type_str[type]);
+	sprintf(uevent_env[0], "%s%s", BATADV_UEV_TYPE_VAR,
+		batadv_uev_type_str[type]);
 
-	uevent_env[1] = kmalloc(strlen(UEV_ACTION_VAR) +
+	uevent_env[1] = kmalloc(strlen(BATADV_UEV_ACTION_VAR) +
 				strlen(batadv_uev_action_str[action]) + 1,
 				GFP_ATOMIC);
 	if (!uevent_env[1])
 		goto out;
 
-	sprintf(uevent_env[1], "%s%s", UEV_ACTION_VAR,
+	sprintf(uevent_env[1], "%s%s", BATADV_UEV_ACTION_VAR,
 		batadv_uev_action_str[action]);
 
 	/* If the event is DEL, ignore the data field */
 	if (action != UEV_DEL) {
-		uevent_env[2] = kmalloc(strlen(UEV_DATA_VAR) +
+		uevent_env[2] = kmalloc(strlen(BATADV_UEV_DATA_VAR) +
 					strlen(data) + 1, GFP_ATOMIC);
 		if (!uevent_env[2])
 			goto out;
 
-		sprintf(uevent_env[2], "%s%s", UEV_DATA_VAR, data);
+		sprintf(uevent_env[2], "%s%s", BATADV_UEV_DATA_VAR, data);
 	}
 
 	ret = kobject_uevent_env(bat_kobj, KOBJ_CHANGE, uevent_env);

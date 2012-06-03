@@ -26,7 +26,7 @@
 #include "hash.h"
 #include "originator.h"
 
-#define MAX_VIS_PACKET_SIZE 1000
+#define BATADV_MAX_VIS_PACKET_SIZE 1000
 
 static void batadv_start_vis_timer(struct bat_priv *bat_priv);
 
@@ -544,10 +544,12 @@ static int batadv_find_best_vis_server(struct bat_priv *bat_priv,
 static bool batadv_vis_packet_full(const struct vis_info *info)
 {
 	const struct vis_packet *packet;
-	packet = (struct vis_packet *)info->skb_packet->data;
+	size_t num_items;
 
-	if (MAX_VIS_PACKET_SIZE / sizeof(struct vis_info_entry)
-		< packet->entries + 1)
+	packet = (struct vis_packet *)info->skb_packet->data;
+	num_items = BATADV_MAX_VIS_PACKET_SIZE / sizeof(struct vis_info_entry);
+
+	if (num_items < packet->entries + 1)
 		return true;
 	return false;
 }
@@ -838,6 +840,7 @@ int batadv_vis_init(struct bat_priv *bat_priv)
 {
 	struct vis_packet *packet;
 	int hash_added;
+	unsigned int len;
 
 	if (bat_priv->vis_hash)
 		return 0;
@@ -850,13 +853,12 @@ int batadv_vis_init(struct bat_priv *bat_priv)
 		goto err;
 	}
 
-	bat_priv->my_vis_info = kmalloc(MAX_VIS_PACKET_SIZE, GFP_ATOMIC);
+	bat_priv->my_vis_info = kmalloc(BATADV_MAX_VIS_PACKET_SIZE, GFP_ATOMIC);
 	if (!bat_priv->my_vis_info)
 		goto err;
 
-	bat_priv->my_vis_info->skb_packet = dev_alloc_skb(sizeof(*packet) +
-							  MAX_VIS_PACKET_SIZE +
-							  ETH_HLEN);
+	len = sizeof(*packet) + BATADV_MAX_VIS_PACKET_SIZE + ETH_HLEN;
+	bat_priv->my_vis_info->skb_packet = dev_alloc_skb(len);
 	if (!bat_priv->my_vis_info->skb_packet)
 		goto free_info;
 
