@@ -314,13 +314,19 @@ struct kvm {
 	long tlbs_dirty;
 };
 
-/* The guest did something we don't support. */
-#define pr_unimpl(vcpu, fmt, ...)					\
-	pr_err_ratelimited("kvm: %i: cpu%i " fmt,			\
-			   current->tgid, (vcpu)->vcpu_id , ## __VA_ARGS__)
+#define kvm_err(fmt, ...) \
+	pr_err("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
+#define kvm_info(fmt, ...) \
+	pr_info("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
+#define kvm_debug(fmt, ...) \
+	pr_debug("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
+#define kvm_pr_unimpl(fmt, ...) \
+	pr_err_ratelimited("kvm [%i]: " fmt, \
+			   task_tgid_nr(current), ## __VA_ARGS__)
 
-#define kvm_printf(kvm, fmt ...) printk(KERN_DEBUG fmt)
-#define vcpu_printf(vcpu, fmt...) kvm_printf(vcpu->kvm, fmt)
+/* The guest did something we don't support. */
+#define vcpu_unimpl(vcpu, fmt, ...)					\
+	kvm_pr_unimpl("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
 
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 {

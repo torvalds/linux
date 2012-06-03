@@ -4549,7 +4549,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		break;
 	}
 	vcpu->run->exit_reason = 0;
-	pr_unimpl(vcpu, "unhandled control register: op %d cr %d\n",
+	vcpu_unimpl(vcpu, "unhandled control register: op %d cr %d\n",
 	       (int)(exit_qualification >> 4) & 3, cr);
 	return 0;
 }
