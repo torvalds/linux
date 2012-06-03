@@ -237,7 +237,7 @@ static void batadv_bla_del_backbone_claims(struct backbone_gw *backbone_gw)
 	}
 
 	/* all claims gone, intialize CRC */
-	backbone_gw->crc = BLA_CRC_INIT;
+	backbone_gw->crc = BATADV_BLA_CRC_INIT;
 }
 
 /* @bat_priv: the bat priv with all the soft interface information
@@ -375,7 +375,7 @@ static struct backbone_gw *batadv_bla_get_backbone_gw(struct bat_priv *bat_priv,
 
 	entry->vid = vid;
 	entry->lasttime = jiffies;
-	entry->crc = BLA_CRC_INIT;
+	entry->crc = BATADV_BLA_CRC_INIT;
 	entry->bat_priv = bat_priv;
 	atomic_set(&entry->request_sent, 0);
 	memcpy(entry->orig, orig, ETH_ALEN);
