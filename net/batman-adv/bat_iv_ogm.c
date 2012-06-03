@@ -209,8 +209,8 @@ static void batadv_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 	/* create clone because function is called more than once */
 	skb = skb_clone(forw_packet->skb, GFP_ATOMIC);
 	if (skb) {
-		batadv_inc_counter(bat_priv, BAT_CNT_MGMT_TX);
-		batadv_add_counter(bat_priv, BAT_CNT_MGMT_TX_BYTES,
+		batadv_inc_counter(bat_priv, BATADV_CNT_MGMT_TX);
+		batadv_add_counter(bat_priv, BATADV_CNT_MGMT_TX_BYTES,
 				   skb->len + ETH_HLEN);
 		batadv_send_skb_packet(skb, hard_iface, batadv_broadcast_addr);
 	}
@@ -1256,8 +1256,8 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 	if (bat_priv->bat_algo_ops->bat_ogm_emit != batadv_iv_ogm_emit)
 		return NET_RX_DROP;
 
-	batadv_inc_counter(bat_priv, BAT_CNT_MGMT_RX);
-	batadv_add_counter(bat_priv, BAT_CNT_MGMT_RX_BYTES,
+	batadv_inc_counter(bat_priv, BATADV_CNT_MGMT_RX);
+	batadv_add_counter(bat_priv, BATADV_CNT_MGMT_RX_BYTES,
 			   skb->len + ETH_HLEN);
 
 	packet_len = skb_headlen(skb);

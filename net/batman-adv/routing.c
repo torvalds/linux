@@ -607,7 +607,7 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	switch (tt_query->flags & BATADV_TT_QUERY_TYPE_MASK) {
 	case TT_REQUEST:
-		batadv_inc_counter(bat_priv, BAT_CNT_TT_REQUEST_RX);
+		batadv_inc_counter(bat_priv, BATADV_CNT_TT_REQUEST_RX);
 
 		/* If we cannot provide an answer the tt_request is
 		 * forwarded
@@ -622,7 +622,7 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 		}
 		break;
 	case TT_RESPONSE:
-		batadv_inc_counter(bat_priv, BAT_CNT_TT_RESPONSE_RX);
+		batadv_inc_counter(bat_priv, BATADV_CNT_TT_RESPONSE_RX);
 
 		if (batadv_is_my_mac(tt_query->dst)) {
 			/* packet needs to be linearized to access the TT
@@ -678,7 +678,7 @@ int batadv_recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 	if (is_broadcast_ether_addr(ethhdr->h_source))
 		goto out;
 
-	batadv_inc_counter(bat_priv, BAT_CNT_TT_ROAM_ADV_RX);
+	batadv_inc_counter(bat_priv, BATADV_CNT_TT_ROAM_ADV_RX);
 
 	roam_adv_packet = (struct roam_adv_packet *)skb->data;
 
@@ -900,8 +900,8 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 	unicast_packet->header.ttl--;
 
 	/* Update stats counter */
-	batadv_inc_counter(bat_priv, BAT_CNT_FORWARD);
-	batadv_add_counter(bat_priv, BAT_CNT_FORWARD_BYTES,
+	batadv_inc_counter(bat_priv, BATADV_CNT_FORWARD);
+	batadv_add_counter(bat_priv, BATADV_CNT_FORWARD_BYTES,
 			   skb->len + ETH_HLEN);
 
 	/* route it */

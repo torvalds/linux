@@ -366,6 +366,7 @@ struct net_device *batadv_softif_create(const char *name)
 	struct net_device *soft_iface;
 	struct bat_priv *bat_priv;
 	int ret;
+	size_t cnt_len = sizeof(uint64_t) * BATADV_CNT_NUM;
 
 	soft_iface = alloc_netdev(sizeof(*bat_priv), name,
 				  batadv_interface_setup);
@@ -411,8 +412,7 @@ struct net_device *batadv_softif_create(const char *name)
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;
 
-	bat_priv->bat_counters = __alloc_percpu(sizeof(uint64_t) * BAT_CNT_NUM,
-						__alignof__(uint64_t));
+	bat_priv->bat_counters = __alloc_percpu(cnt_len, __alignof__(uint64_t));
 	if (!bat_priv->bat_counters)
 		goto unreg_soft_iface;
 
@@ -542,14 +542,14 @@ static void batadv_get_ethtool_stats(struct net_device *dev,
 	struct bat_priv *bat_priv = netdev_priv(dev);
 	int i;
 
-	for (i = 0; i < BAT_CNT_NUM; i++)
+	for (i = 0; i < BATADV_CNT_NUM; i++)
 		data[i] = batadv_sum_counter(bat_priv, i);
 }
 
 static int batadv_get_sset_count(struct net_device *dev, int stringset)
 {
 	if (stringset == ETH_SS_STATS)
-		return BAT_CNT_NUM;
+		return BATADV_CNT_NUM;
 
 	return -EOPNOTSUPP;
 }

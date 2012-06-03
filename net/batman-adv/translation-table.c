@@ -1471,7 +1471,7 @@ static int batadv_send_tt_request(struct bat_priv *bat_priv,
 		   dst_orig_node->orig, neigh_node->addr,
 		   (full_table ? 'F' : '.'));
 
-	batadv_inc_counter(bat_priv, BAT_CNT_TT_REQUEST_TX);
+	batadv_inc_counter(bat_priv, BATADV_CNT_TT_REQUEST_TX);
 
 	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = 0;
@@ -1599,7 +1599,7 @@ static bool batadv_send_other_tt_response(struct bat_priv *bat_priv,
 		   res_dst_orig_node->orig, neigh_node->addr,
 		   req_dst_orig_node->orig, req_ttvn);
 
-	batadv_inc_counter(bat_priv, BAT_CNT_TT_RESPONSE_TX);
+	batadv_inc_counter(bat_priv, BATADV_CNT_TT_RESPONSE_TX);
 
 	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = true;
@@ -1720,7 +1720,7 @@ static bool batadv_send_my_tt_response(struct bat_priv *bat_priv,
 		   orig_node->orig, neigh_node->addr,
 		   (tt_response->flags & TT_FULL_TABLE ? 'F' : '.'));
 
-	batadv_inc_counter(bat_priv, BAT_CNT_TT_RESPONSE_TX);
+	batadv_inc_counter(bat_priv, BATADV_CNT_TT_RESPONSE_TX);
 
 	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = true;
@@ -2038,7 +2038,7 @@ static void batadv_send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 		   "Sending ROAMING_ADV to %pM (client %pM) via %pM\n",
 		   orig_node->orig, client, neigh_node->addr);
 
-	batadv_inc_counter(bat_priv, BAT_CNT_TT_ROAM_ADV_TX);
+	batadv_inc_counter(bat_priv, BATADV_CNT_TT_ROAM_ADV_TX);
 
 	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = 0;
