@@ -190,10 +190,7 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 	 * not altered.
 	 */
 	if (unlikely(build_fail)) {
-		spin_lock_irqsave(&(tbl->it_lock), flags);
 		__iommu_free(tbl, ret, npages);
-		spin_unlock_irqrestore(&(tbl->it_lock), flags);
-
 		return DMA_ERROR_CODE;
 	}
 
@@ -207,8 +204,8 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 	return ret;
 }
 
-static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr, 
-			 unsigned int npages)
+static bool iommu_free_check(struct iommu_table *tbl, dma_addr_t dma_addr,
+			     unsigned int npages)
 {
 	unsigned long entry, free_entry;
 
@@ -228,21 +225,53 @@ static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 			printk(KERN_INFO "\tindex     = 0x%llx\n", (u64)tbl->it_index);
 			WARN_ON(1);
 		}
-		return;
+
+		return false;
 	}
+
+	return true;
+}
+
+static void __iommu_free_locked(struct iommu_table *tbl, dma_addr_t dma_addr,
+			 unsigned int npages)
+{
+	unsigned long entry, free_entry;
+
+	BUG_ON(!spin_is_locked(&tbl->it_lock));
+
+	entry = dma_addr >> IOMMU_PAGE_SHIFT;
+	free_entry = entry - tbl->it_offset;
+
+	if (!iommu_free_check(tbl, dma_addr, npages))
+		return;
 
 	ppc_md.tce_free(tbl, entry, npages);
 	bitmap_clear(tbl->it_map, free_entry, npages);
 }
 
+static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
+			 unsigned int npages)
+{
+	unsigned long entry, free_entry;
+	unsigned long flags;
+
+	entry = dma_addr >> IOMMU_PAGE_SHIFT;
+	free_entry = entry - tbl->it_offset;
+
+	if (!iommu_free_check(tbl, dma_addr, npages))
+		return;
+
+	ppc_md.tce_free(tbl, entry, npages);
+
+	spin_lock_irqsave(&(tbl->it_lock), flags);
+	bitmap_clear(tbl->it_map, free_entry, npages);
+	spin_unlock_irqrestore(&(tbl->it_lock), flags);
+}
+
 static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 		unsigned int npages)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&(tbl->it_lock), flags);
 	__iommu_free(tbl, dma_addr, npages);
-	spin_unlock_irqrestore(&(tbl->it_lock), flags);
 
 	/* Make sure TLB cache is flushed if the HW needs it. We do
 	 * not do an mb() here on purpose, it is not needed on any of
@@ -390,7 +419,7 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 			vaddr = s->dma_address & IOMMU_PAGE_MASK;
 			npages = iommu_num_pages(s->dma_address, s->dma_length,
 						 IOMMU_PAGE_SIZE);
-			__iommu_free(tbl, vaddr, npages);
+			__iommu_free_locked(tbl, vaddr, npages);
 			s->dma_address = DMA_ERROR_CODE;
 			s->dma_length = 0;
 		}
@@ -425,7 +454,7 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 			break;
 		npages = iommu_num_pages(dma_handle, sg->dma_length,
 					 IOMMU_PAGE_SIZE);
-		__iommu_free(tbl, dma_handle, npages);
+		__iommu_free_locked(tbl, dma_handle, npages);
 		sg = sg_next(sg);
 	}
 
