@@ -20,13 +20,13 @@
 #ifndef _NET_BATMAN_ADV_HARD_INTERFACE_H_
 #define _NET_BATMAN_ADV_HARD_INTERFACE_H_
 
-enum hard_if_state {
-	IF_NOT_IN_USE,
-	IF_TO_BE_REMOVED,
-	IF_INACTIVE,
-	IF_ACTIVE,
-	IF_TO_BE_ACTIVATED,
-	IF_I_WANT_YOU
+enum batadv_hard_if_state {
+	BATADV_IF_NOT_IN_USE,
+	BATADV_IF_TO_BE_REMOVED,
+	BATADV_IF_INACTIVE,
+	BATADV_IF_ACTIVE,
+	BATADV_IF_TO_BE_ACTIVATED,
+	BATADV_IF_I_WANT_YOU,
 };
 
 extern struct notifier_block batadv_hard_if_notifier;

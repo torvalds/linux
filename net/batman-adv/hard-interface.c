@@ -85,7 +85,7 @@ batadv_hardif_get_active(const struct net_device *soft_iface)
 		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
-		if (hard_iface->if_status == IF_ACTIVE &&
+		if (hard_iface->if_status == BATADV_IF_ACTIVE &&
 		    atomic_inc_not_zero(&hard_iface->refcount))
 			goto out;
 	}
@@ -157,8 +157,8 @@ static void batadv_check_known_mac_addr(const struct net_device *net_dev)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
-		if ((hard_iface->if_status != IF_ACTIVE) &&
-		    (hard_iface->if_status != IF_TO_BE_ACTIVATED))
+		if ((hard_iface->if_status != BATADV_IF_ACTIVE) &&
+		    (hard_iface->if_status != BATADV_IF_TO_BE_ACTIVATED))
 			continue;
 
 		if (hard_iface->net_dev == net_dev)
@@ -189,8 +189,8 @@ int batadv_hardif_min_mtu(struct net_device *soft_iface)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
-		if ((hard_iface->if_status != IF_ACTIVE) &&
-		    (hard_iface->if_status != IF_TO_BE_ACTIVATED))
+		if ((hard_iface->if_status != BATADV_IF_ACTIVE) &&
+		    (hard_iface->if_status != BATADV_IF_TO_BE_ACTIVATED))
 			continue;
 
 		if (hard_iface->soft_iface != soft_iface)
@@ -220,13 +220,13 @@ static void batadv_hardif_activate_interface(struct hard_iface *hard_iface)
 	struct bat_priv *bat_priv;
 	struct hard_iface *primary_if = NULL;
 
-	if (hard_iface->if_status != IF_INACTIVE)
+	if (hard_iface->if_status != BATADV_IF_INACTIVE)
 		goto out;
 
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
 	bat_priv->bat_algo_ops->bat_iface_update_mac(hard_iface);
-	hard_iface->if_status = IF_TO_BE_ACTIVATED;
+	hard_iface->if_status = BATADV_IF_TO_BE_ACTIVATED;
 
 	/* the first active interface becomes our primary interface or
 	 * the next active interface after the old primary interface was removed
@@ -247,11 +247,11 @@ out:
 
 static void batadv_hardif_deactivate_interface(struct hard_iface *hard_iface)
 {
-	if ((hard_iface->if_status != IF_ACTIVE) &&
-	    (hard_iface->if_status != IF_TO_BE_ACTIVATED))
+	if ((hard_iface->if_status != BATADV_IF_ACTIVE) &&
+	    (hard_iface->if_status != BATADV_IF_TO_BE_ACTIVATED))
 		return;
 
-	hard_iface->if_status = IF_INACTIVE;
+	hard_iface->if_status = BATADV_IF_INACTIVE;
 
 	batadv_info(hard_iface->soft_iface, "Interface deactivated: %s\n",
 		    hard_iface->net_dev->name);
@@ -267,7 +267,7 @@ int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
 	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
 	int ret;
 
-	if (hard_iface->if_status != IF_NOT_IN_USE)
+	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
 		goto out;
 
 	if (!atomic_inc_not_zero(&hard_iface->refcount))
@@ -308,7 +308,7 @@ int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
 
 	hard_iface->if_num = bat_priv->num_ifaces;
 	bat_priv->num_ifaces++;
-	hard_iface->if_status = IF_INACTIVE;
+	hard_iface->if_status = BATADV_IF_INACTIVE;
 	batadv_orig_hash_add_if(hard_iface, bat_priv->num_ifaces);
 
 	hard_iface->batman_adv_ptype.type = ethertype;
@@ -359,10 +359,10 @@ void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct hard_iface *primary_if = NULL;
 
-	if (hard_iface->if_status == IF_ACTIVE)
+	if (hard_iface->if_status == BATADV_IF_ACTIVE)
 		batadv_hardif_deactivate_interface(hard_iface);
 
-	if (hard_iface->if_status != IF_INACTIVE)
+	if (hard_iface->if_status != BATADV_IF_INACTIVE)
 		goto out;
 
 	batadv_info(hard_iface->soft_iface, "Removing interface: %s\n",
@@ -384,7 +384,7 @@ void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
 	}
 
 	bat_priv->bat_algo_ops->bat_iface_disable(hard_iface);
-	hard_iface->if_status = IF_NOT_IN_USE;
+	hard_iface->if_status = BATADV_IF_NOT_IN_USE;
 
 	/* delete all references to this hard_iface */
 	batadv_purge_orig_ref(bat_priv);
@@ -428,7 +428,7 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	hard_iface->if_num = -1;
 	hard_iface->net_dev = net_dev;
 	hard_iface->soft_iface = NULL;
-	hard_iface->if_status = IF_NOT_IN_USE;
+	hard_iface->if_status = BATADV_IF_NOT_IN_USE;
 	INIT_LIST_HEAD(&hard_iface->list);
 	/* extra reference for return */
 	atomic_set(&hard_iface->refcount, 2);
@@ -457,13 +457,13 @@ static void batadv_hardif_remove_interface(struct hard_iface *hard_iface)
 	ASSERT_RTNL();
 
 	/* first deactivate interface */
-	if (hard_iface->if_status != IF_NOT_IN_USE)
+	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
 		batadv_hardif_disable_interface(hard_iface);
 
-	if (hard_iface->if_status != IF_NOT_IN_USE)
+	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
 		return;
 
-	hard_iface->if_status = IF_TO_BE_REMOVED;
+	hard_iface->if_status = BATADV_IF_TO_BE_REMOVED;
 	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
 	batadv_hardif_free_ref(hard_iface);
 }
@@ -513,7 +513,7 @@ static int batadv_hard_if_event(struct notifier_block *this,
 			batadv_update_min_mtu(hard_iface->soft_iface);
 		break;
 	case NETDEV_CHANGEADDR:
-		if (hard_iface->if_status == IF_NOT_IN_USE)
+		if (hard_iface->if_status == BATADV_IF_NOT_IN_USE)
 			goto hardif_put;
 
 		batadv_check_known_mac_addr(hard_iface->net_dev);

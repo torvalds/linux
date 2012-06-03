@@ -37,7 +37,7 @@ int batadv_send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 {
 	struct ethhdr *ethhdr;
 
-	if (hard_iface->if_status != IF_ACTIVE)
+	if (hard_iface->if_status != BATADV_IF_ACTIVE)
 		goto send_skb_err;
 
 	if (unlikely(!hard_iface->net_dev))
@@ -80,8 +80,8 @@ void batadv_schedule_bat_ogm(struct hard_iface *hard_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	if ((hard_iface->if_status == IF_NOT_IN_USE) ||
-	    (hard_iface->if_status == IF_TO_BE_REMOVED))
+	if ((hard_iface->if_status == BATADV_IF_NOT_IN_USE) ||
+	    (hard_iface->if_status == BATADV_IF_TO_BE_REMOVED))
 		return;
 
 	/* the interface gets activated here to avoid race conditions between
@@ -90,8 +90,8 @@ void batadv_schedule_bat_ogm(struct hard_iface *hard_iface)
 	 * outdated packets (especially uninitialized mac addresses) in the
 	 * packet queue
 	 */
-	if (hard_iface->if_status == IF_TO_BE_ACTIVATED)
-		hard_iface->if_status = IF_ACTIVE;
+	if (hard_iface->if_status == BATADV_IF_TO_BE_ACTIVATED)
+		hard_iface->if_status = BATADV_IF_ACTIVE;
 
 	bat_priv->bat_algo_ops->bat_ogm_schedule(hard_iface);
 }

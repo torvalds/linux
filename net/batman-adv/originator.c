@@ -286,13 +286,13 @@ static bool batadv_purge_orig_neighbors(struct bat_priv *bat_priv,
 		if_incoming = neigh_node->if_incoming;
 
 		if ((batadv_has_timed_out(last_seen, BATADV_PURGE_TIMEOUT)) ||
-		    (if_incoming->if_status == IF_INACTIVE) ||
-		    (if_incoming->if_status == IF_NOT_IN_USE) ||
-		    (if_incoming->if_status == IF_TO_BE_REMOVED)) {
+		    (if_incoming->if_status == BATADV_IF_INACTIVE) ||
+		    (if_incoming->if_status == BATADV_IF_NOT_IN_USE) ||
+		    (if_incoming->if_status == BATADV_IF_TO_BE_REMOVED)) {
 
-			if ((if_incoming->if_status == IF_INACTIVE) ||
-			    (if_incoming->if_status == IF_NOT_IN_USE) ||
-			    (if_incoming->if_status == IF_TO_BE_REMOVED))
+			if ((if_incoming->if_status == BATADV_IF_INACTIVE) ||
+			    (if_incoming->if_status == BATADV_IF_NOT_IN_USE) ||
+			    (if_incoming->if_status == BATADV_IF_TO_BE_REMOVED))
 				batadv_dbg(DBG_BATMAN, bat_priv,
 					   "neighbor purge: originator %pM, neighbor: %pM, iface: %s\n",
 					   orig_node->orig, neigh_node->addr,
@@ -422,7 +422,7 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 		goto out;
 	}
 
-	if (primary_if->if_status != IF_ACTIVE) {
+	if (primary_if->if_status != BATADV_IF_ACTIVE) {
 		ret = seq_printf(seq,
 				 "BATMAN mesh %s disabled - primary interface not active\n",
 				 net_dev->name);
@@ -627,7 +627,7 @@ int batadv_orig_hash_del_if(struct hard_iface *hard_iface, int max_if_num)
 	/* renumber remaining batman interfaces _inside_ of orig_hash_lock */
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface_tmp, &batadv_hardif_list, list) {
-		if (hard_iface_tmp->if_status == IF_NOT_IN_USE)
+		if (hard_iface_tmp->if_status == BATADV_IF_NOT_IN_USE)
 			continue;
 
 		if (hard_iface == hard_iface_tmp)

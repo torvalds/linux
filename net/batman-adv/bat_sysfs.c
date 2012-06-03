@@ -559,12 +559,17 @@ static ssize_t batadv_show_mesh_iface(struct kobject *kobj,
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
 	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	ssize_t length;
+	const char *ifname;
 
 	if (!hard_iface)
 		return 0;
 
-	length = sprintf(buff, "%s\n", hard_iface->if_status == IF_NOT_IN_USE ?
-			 "none" : hard_iface->soft_iface->name);
+	if (hard_iface->if_status == BATADV_IF_NOT_IN_USE)
+		ifname =  "none";
+	else
+		ifname = hard_iface->soft_iface->name;
+
+	length = sprintf(buff, "%s\n", ifname);
 
 	batadv_hardif_free_ref(hard_iface);
 
@@ -594,9 +599,9 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 	}
 
 	if (strncmp(buff, "none", 4) == 0)
-		status_tmp = IF_NOT_IN_USE;
+		status_tmp = BATADV_IF_NOT_IN_USE;
 	else
-		status_tmp = IF_I_WANT_YOU;
+		status_tmp = BATADV_IF_I_WANT_YOU;
 
 	if (hard_iface->if_status == status_tmp)
 		goto out;
@@ -610,13 +615,13 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 		goto out;
 	}
 
-	if (status_tmp == IF_NOT_IN_USE) {
+	if (status_tmp == BATADV_IF_NOT_IN_USE) {
 		batadv_hardif_disable_interface(hard_iface);
 		goto unlock;
 	}
 
 	/* if the interface already is in use */
-	if (hard_iface->if_status != IF_NOT_IN_USE)
+	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
 		batadv_hardif_disable_interface(hard_iface);
 
 	ret = batadv_hardif_enable_interface(hard_iface, buff);
@@ -639,19 +644,19 @@ static ssize_t batadv_show_iface_status(struct kobject *kobj,
 		return 0;
 
 	switch (hard_iface->if_status) {
-	case IF_TO_BE_REMOVED:
+	case BATADV_IF_TO_BE_REMOVED:
 		length = sprintf(buff, "disabling\n");
 		break;
-	case IF_INACTIVE:
+	case BATADV_IF_INACTIVE:
 		length = sprintf(buff, "inactive\n");
 		break;
-	case IF_ACTIVE:
+	case BATADV_IF_ACTIVE:
 		length = sprintf(buff, "active\n");
 		break;
-	case IF_TO_BE_ACTIVATED:
+	case BATADV_IF_TO_BE_ACTIVATED:
 		length = sprintf(buff, "enabling\n");
 		break;
-	case IF_NOT_IN_USE:
+	case BATADV_IF_NOT_IN_USE:
 	default:
 		length = sprintf(buff, "not in use\n");
 		break;

@@ -792,7 +792,7 @@ struct neigh_node *batadv_find_router(struct bat_priv *bat_priv,
 		router = batadv_find_ifalter_router(primary_orig_node, recv_if);
 
 return_router:
-	if (router && router->if_incoming->if_status != IF_ACTIVE)
+	if (router && router->if_incoming->if_status != BATADV_IF_ACTIVE)
 		goto err_unlock;
 
 	rcu_read_unlock();

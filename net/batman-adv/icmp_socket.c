@@ -225,7 +225,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	if (!neigh_node->if_incoming)
 		goto dst_unreach;
 
-	if (neigh_node->if_incoming->if_status != IF_ACTIVE)
+	if (neigh_node->if_incoming->if_status != BATADV_IF_ACTIVE)
 		goto dst_unreach;
 
 	memcpy(icmp_packet->orig,

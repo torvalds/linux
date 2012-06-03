@@ -599,7 +599,7 @@ static int batadv_generate_vis_packet(struct bat_priv *bat_priv)
 			if (!batadv_compare_eth(router->addr, orig_node->orig))
 				goto next;
 
-			if (router->if_incoming->if_status != IF_ACTIVE)
+			if (router->if_incoming->if_status != BATADV_IF_ACTIVE)
 				goto next;
 
 			if (router->tq_avg < 1)

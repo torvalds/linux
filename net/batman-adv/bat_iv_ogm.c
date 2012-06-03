@@ -165,7 +165,7 @@ static void batadv_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 	struct batman_ogm_packet *batman_ogm_packet;
 	struct sk_buff *skb;
 
-	if (hard_iface->if_status != IF_ACTIVE)
+	if (hard_iface->if_status != BATADV_IF_ACTIVE)
 		return;
 
 	packet_num = 0;
@@ -238,7 +238,7 @@ static void batadv_iv_ogm_emit(struct forw_packet *forw_packet)
 	soft_iface = forw_packet->if_incoming->soft_iface;
 	bat_priv = netdev_priv(soft_iface);
 
-	if (forw_packet->if_incoming->if_status != IF_ACTIVE)
+	if (forw_packet->if_incoming->if_status != BATADV_IF_ACTIVE)
 		goto out;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
@@ -1017,7 +1017,7 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
-		if (hard_iface->if_status != IF_ACTIVE)
+		if (hard_iface->if_status != BATADV_IF_ACTIVE)
 			continue;
 
 		if (hard_iface->soft_iface != if_incoming->soft_iface)

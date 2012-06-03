@@ -179,7 +179,7 @@ int batadv_is_my_mac(const uint8_t *addr)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
-		if (hard_iface->if_status != IF_ACTIVE)
+		if (hard_iface->if_status != BATADV_IF_ACTIVE)
 			continue;
 
 		if (batadv_compare_eth(hard_iface->net_dev->dev_addr, addr)) {
@@ -234,7 +234,7 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		goto err_free;
 
 	/* discard frames on not active interfaces */
-	if (hard_iface->if_status != IF_ACTIVE)
+	if (hard_iface->if_status != BATADV_IF_ACTIVE)
 		goto err_free;
 
 	batman_ogm_packet = (struct batman_ogm_packet *)skb->data;
