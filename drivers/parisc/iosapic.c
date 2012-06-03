@@ -146,7 +146,7 @@
 #endif
 
 #include <asm/ropes.h>
-#include "./iosapic_private.h"
+#include "iosapic_private.h"
 
 #define MODULE_NAME "iosapic"
 
