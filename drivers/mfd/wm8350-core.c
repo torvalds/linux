@@ -60,181 +60,32 @@
 /*
  * WM8350 Device IO
  */
-static DEFINE_MUTEX(io_mutex);
 static DEFINE_MUTEX(reg_lock_mutex);
-
-/* Perform a physical read from the device.
- */
-static int wm8350_phys_read(struct wm8350 *wm8350, u8 reg, int num_regs,
-			    u16 *dest)
-{
-	int i, ret;
-	int bytes = num_regs * 2;
-
-	dev_dbg(wm8350->dev, "volatile read\n");
-	ret = regmap_raw_read(wm8350->regmap, reg, dest, bytes);
-
-	for (i = reg; i < reg + num_regs; i++) {
-		/* Cache is CPU endian */
-		dest[i - reg] = be16_to_cpu(dest[i - reg]);
-
-		/* Mask out non-readable bits */
-		dest[i - reg] &= wm8350_reg_io_map[i].readable;
-	}
-
-	dump(num_regs, dest);
-
-	return ret;
-}
-
-static int wm8350_read(struct wm8350 *wm8350, u8 reg, int num_regs, u16 *dest)
-{
-	int i;
-	int end = reg + num_regs;
-	int ret = 0;
-	int bytes = num_regs * 2;
-
-	if ((reg + num_regs - 1) > WM8350_MAX_REGISTER) {
-		dev_err(wm8350->dev, "invalid reg %x\n",
-			reg + num_regs - 1);
-		return -EINVAL;
-	}
-
-	dev_dbg(wm8350->dev,
-		"%s R%d(0x%2.2x) %d regs\n", __func__, reg, reg, num_regs);
-
-#if WM8350_BUS_DEBUG
-	/* we can _safely_ read any register, but warn if read not supported */
-	for (i = reg; i < end; i++) {
-		if (!wm8350_reg_io_map[i].readable)
-			dev_warn(wm8350->dev,
-				"reg R%d is not readable\n", i);
-	}
-#endif
-
-	/* if any volatile registers are required, then read back all */
-	for (i = reg; i < end; i++)
-		if (wm8350_reg_io_map[i].vol)
-			return wm8350_phys_read(wm8350, reg, num_regs, dest);
-
-	/* no volatiles, then cache is good */
-	dev_dbg(wm8350->dev, "cache read\n");
-	memcpy(dest, &wm8350->reg_cache[reg], bytes);
-	dump(num_regs, dest);
-	return ret;
-}
-
-static inline int is_reg_locked(struct wm8350 *wm8350, u8 reg)
-{
-	if (reg == WM8350_SECURITY ||
-	    wm8350->reg_cache[WM8350_SECURITY] == WM8350_UNLOCK_KEY)
-		return 0;
-
-	if ((reg >= WM8350_GPIO_FUNCTION_SELECT_1 &&
-	     reg <= WM8350_GPIO_FUNCTION_SELECT_4) ||
-	    (reg >= WM8350_BATTERY_CHARGER_CONTROL_1 &&
-	     reg <= WM8350_BATTERY_CHARGER_CONTROL_3))
-		return 1;
-	return 0;
-}
-
-static int wm8350_write(struct wm8350 *wm8350, u8 reg, int num_regs, u16 *src)
-{
-	int i;
-	int end = reg + num_regs;
-	int bytes = num_regs * 2;
-
-	if ((reg + num_regs - 1) > WM8350_MAX_REGISTER) {
-		dev_err(wm8350->dev, "invalid reg %x\n",
-			reg + num_regs - 1);
-		return -EINVAL;
-	}
-
-	/* it's generally not a good idea to write to RO or locked registers */
-	for (i = reg; i < end; i++) {
-		if (!wm8350_reg_io_map[i].writable) {
-			dev_err(wm8350->dev,
-				"attempted write to read only reg R%d\n", i);
-			return -EINVAL;
-		}
-
-		if (is_reg_locked(wm8350, i)) {
-			dev_err(wm8350->dev,
-			       "attempted write to locked reg R%d\n", i);
-			return -EINVAL;
-		}
-
-		src[i - reg] &= wm8350_reg_io_map[i].writable;
-
-		wm8350->reg_cache[i] =
-			(wm8350->reg_cache[i] & ~wm8350_reg_io_map[i].writable)
-			| src[i - reg];
-
-		src[i - reg] = cpu_to_be16(src[i - reg]);
-	}
-
-	/* Actually write it out */
-	return regmap_raw_write(wm8350->regmap, reg, src, bytes);
-}
 
 /*
  * Safe read, modify, write methods
  */
 int wm8350_clear_bits(struct wm8350 *wm8350, u16 reg, u16 mask)
 {
-	u16 data;
-	int err;
-
-	mutex_lock(&io_mutex);
-	err = wm8350_read(wm8350, reg, 1, &data);
-	if (err) {
-		dev_err(wm8350->dev, "read from reg R%d failed\n", reg);
-		goto out;
-	}
-
-	data &= ~mask;
-	err = wm8350_write(wm8350, reg, 1, &data);
-	if (err)
-		dev_err(wm8350->dev, "write to reg R%d failed\n", reg);
-out:
-	mutex_unlock(&io_mutex);
-	return err;
+	return regmap_update_bits(wm8350->regmap, reg, mask, 0);
 }
 EXPORT_SYMBOL_GPL(wm8350_clear_bits);
 
 int wm8350_set_bits(struct wm8350 *wm8350, u16 reg, u16 mask)
 {
-	u16 data;
-	int err;
-
-	mutex_lock(&io_mutex);
-	err = wm8350_read(wm8350, reg, 1, &data);
-	if (err) {
-		dev_err(wm8350->dev, "read from reg R%d failed\n", reg);
-		goto out;
-	}
-
-	data |= mask;
-	err = wm8350_write(wm8350, reg, 1, &data);
-	if (err)
-		dev_err(wm8350->dev, "write to reg R%d failed\n", reg);
-out:
-	mutex_unlock(&io_mutex);
-	return err;
+	return regmap_update_bits(wm8350->regmap, reg, mask, mask);
 }
 EXPORT_SYMBOL_GPL(wm8350_set_bits);
 
 u16 wm8350_reg_read(struct wm8350 *wm8350, int reg)
 {
-	u16 data;
+	unsigned int data;
 	int err;
 
-	mutex_lock(&io_mutex);
-	err = wm8350_read(wm8350, reg, 1, &data);
+	err = regmap_read(wm8350->regmap, reg, &data);
 	if (err)
 		dev_err(wm8350->dev, "read from reg R%d failed\n", reg);
 
-	mutex_unlock(&io_mutex);
 	return data;
 }
 EXPORT_SYMBOL_GPL(wm8350_reg_read);
@@ -242,13 +93,11 @@ EXPORT_SYMBOL_GPL(wm8350_reg_read);
 int wm8350_reg_write(struct wm8350 *wm8350, int reg, u16 val)
 {
 	int ret;
-	u16 data = val;
 
-	mutex_lock(&io_mutex);
-	ret = wm8350_write(wm8350, reg, 1, &data);
+	ret = regmap_write(wm8350->regmap, reg, val);
+
 	if (ret)
 		dev_err(wm8350->dev, "write to reg R%d failed\n", reg);
-	mutex_unlock(&io_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm8350_reg_write);
@@ -258,12 +107,11 @@ int wm8350_block_read(struct wm8350 *wm8350, int start_reg, int regs,
 {
 	int err = 0;
 
-	mutex_lock(&io_mutex);
-	err = wm8350_read(wm8350, start_reg, regs, dest);
+	err = regmap_bulk_read(wm8350->regmap, start_reg, dest, regs);
 	if (err)
 		dev_err(wm8350->dev, "block read starting from R%d failed\n",
 			start_reg);
-	mutex_unlock(&io_mutex);
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(wm8350_block_read);
@@ -273,12 +121,11 @@ int wm8350_block_write(struct wm8350 *wm8350, int start_reg, int regs,
 {
 	int ret = 0;
 
-	mutex_lock(&io_mutex);
-	ret = wm8350_write(wm8350, start_reg, regs, src);
+	ret = regmap_bulk_write(wm8350->regmap, start_reg, src, regs);
 	if (ret)
 		dev_err(wm8350->dev, "block write starting at R%d failed\n",
 			start_reg);
-	mutex_unlock(&io_mutex);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm8350_block_write);
@@ -399,146 +246,6 @@ static irqreturn_t wm8350_auxadc_irq(int irq, void *irq_data)
 	complete(&wm8350->auxadc_done);
 
 	return IRQ_HANDLED;
-}
-
-/*
- * Cache is always host endian.
- */
-static int wm8350_create_cache(struct wm8350 *wm8350, int type, int mode)
-{
-	int i, ret = 0;
-	u16 value;
-	const u16 *reg_map;
-
-	switch (type) {
-	case 0:
-		switch (mode) {
-#ifdef CONFIG_MFD_WM8350_CONFIG_MODE_0
-		case 0:
-			reg_map = wm8350_mode0_defaults;
-			break;
-#endif
-#ifdef CONFIG_MFD_WM8350_CONFIG_MODE_1
-		case 1:
-			reg_map = wm8350_mode1_defaults;
-			break;
-#endif
-#ifdef CONFIG_MFD_WM8350_CONFIG_MODE_2
-		case 2:
-			reg_map = wm8350_mode2_defaults;
-			break;
-#endif
-#ifdef CONFIG_MFD_WM8350_CONFIG_MODE_3
-		case 3:
-			reg_map = wm8350_mode3_defaults;
-			break;
-#endif
-		default:
-			dev_err(wm8350->dev,
-				"WM8350 configuration mode %d not supported\n",
-				mode);
-			return -EINVAL;
-		}
-		break;
-
-	case 1:
-		switch (mode) {
-#ifdef CONFIG_MFD_WM8351_CONFIG_MODE_0
-		case 0:
-			reg_map = wm8351_mode0_defaults;
-			break;
-#endif
-#ifdef CONFIG_MFD_WM8351_CONFIG_MODE_1
-		case 1:
-			reg_map = wm8351_mode1_defaults;
-			break;
-#endif
-#ifdef CONFIG_MFD_WM8351_CONFIG_MODE_2
-		case 2:
-			reg_map = wm8351_mode2_defaults;
-			break;
-#endif
-#ifdef CONFIG_MFD_WM8351_CONFIG_MODE_3
-		case 3:
-			reg_map = wm8351_mode3_defaults;
-			break;
-#endif
-		default:
-			dev_err(wm8350->dev,
-				"WM8351 configuration mode %d not supported\n",
-				mode);
-			return -EINVAL;
-		}
-		break;
-
-	case 2:
-		switch (mode) {
-#ifdef CONFIG_MFD_WM8352_CONFIG_MODE_0
-		case 0:
-			reg_map = wm8352_mode0_defaults;
-			break;
-#endif
-#ifdef CONFIG_MFD_WM8352_CONFIG_MODE_1
-		case 1:
-			reg_map = wm8352_mode1_defaults;
-			break;
-#endif
-#ifdef CONFIG_MFD_WM8352_CONFIG_MODE_2
-		case 2:
-			reg_map = wm8352_mode2_defaults;
-			break;
-#endif
-#ifdef CONFIG_MFD_WM8352_CONFIG_MODE_3
-		case 3:
-			reg_map = wm8352_mode3_defaults;
-			break;
-#endif
-		default:
-			dev_err(wm8350->dev,
-				"WM8352 configuration mode %d not supported\n",
-				mode);
-			return -EINVAL;
-		}
-		break;
-
-	default:
-		dev_err(wm8350->dev,
-			"WM835x configuration mode %d not supported\n",
-			mode);
-		return -EINVAL;
-	}
-
-	wm8350->reg_cache =
-		kmalloc(sizeof(u16) * (WM8350_MAX_REGISTER + 1), GFP_KERNEL);
-	if (wm8350->reg_cache == NULL)
-		return -ENOMEM;
-
-	/* Read the initial cache state back from the device - this is
-	 * a PMIC so the device many not be in a virgin state and we
-	 * can't rely on the silicon values.
-	 */
-	ret = regmap_raw_read(wm8350->regmap, 0, wm8350->reg_cache,
-			      sizeof(u16) * (WM8350_MAX_REGISTER + 1));
-	if (ret < 0) {
-		dev_err(wm8350->dev,
-			"failed to read initial cache values\n");
-		goto out;
-	}
-
-	/* Mask out uncacheable/unreadable bits and the audio. */
-	for (i = 0; i < WM8350_MAX_REGISTER; i++) {
-		if (wm8350_reg_io_map[i].readable &&
-		    (i < WM8350_CLOCK_CONTROL_1 || i > WM8350_AIF_TEST)) {
-			value = be16_to_cpu(wm8350->reg_cache[i]);
-			value &= wm8350_reg_io_map[i].readable;
-			wm8350->reg_cache[i] = value;
-		} else
-			wm8350->reg_cache[i] = reg_map[i];
-	}
-
-out:
-	kfree(wm8350->reg_cache);
-	return ret;
 }
 
 /*
@@ -688,18 +395,12 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		goto err;
 	}
 
-	ret = wm8350_create_cache(wm8350, mask_rev, mode);
-	if (ret < 0) {
-		dev_err(wm8350->dev, "Failed to create register cache\n");
-		return ret;
-	}
-
 	mutex_init(&wm8350->auxadc_mutex);
 	init_completion(&wm8350->auxadc_done);
 
 	ret = wm8350_irq_init(wm8350, irq, pdata);
 	if (ret < 0)
-		goto err_free;
+		goto err;
 
 	if (wm8350->irq_base) {
 		ret = request_threaded_irq(wm8350->irq_base +
@@ -737,8 +438,6 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 
 err_irq:
 	wm8350_irq_exit(wm8350);
-err_free:
-	kfree(wm8350->reg_cache);
 err:
 	return ret;
 }
@@ -765,8 +464,6 @@ void wm8350_device_exit(struct wm8350 *wm8350)
 		free_irq(wm8350->irq_base + WM8350_IRQ_AUXADC_DATARDY, wm8350);
 
 	wm8350_irq_exit(wm8350);
-
-	kfree(wm8350->reg_cache);
 }
 EXPORT_SYMBOL_GPL(wm8350_device_exit);
 

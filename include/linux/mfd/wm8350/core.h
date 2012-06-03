@@ -587,24 +587,6 @@
 #define WM8350_NUM_IRQ_REGS 7
 
 extern const struct regmap_config wm8350_regmap;
-struct wm8350_reg_access {
-	u16 readable;		/* Mask of readable bits */
-	u16 writable;		/* Mask of writable bits */
-	u16 vol;		/* Mask of volatile bits */
-};
-extern const struct wm8350_reg_access wm8350_reg_io_map[];
-extern const u16 wm8350_mode0_defaults[];
-extern const u16 wm8350_mode1_defaults[];
-extern const u16 wm8350_mode2_defaults[];
-extern const u16 wm8350_mode3_defaults[];
-extern const u16 wm8351_mode0_defaults[];
-extern const u16 wm8351_mode1_defaults[];
-extern const u16 wm8351_mode2_defaults[];
-extern const u16 wm8351_mode3_defaults[];
-extern const u16 wm8352_mode0_defaults[];
-extern const u16 wm8352_mode1_defaults[];
-extern const u16 wm8352_mode2_defaults[];
-extern const u16 wm8352_mode3_defaults[];
 
 struct wm8350;
 
@@ -618,7 +600,6 @@ struct wm8350 {
 
 	/* device IO */
 	struct regmap *regmap;
-	u16 *reg_cache;
 	bool unlocked;
 
 	struct mutex auxadc_mutex;
