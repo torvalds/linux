@@ -217,7 +217,7 @@ int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
 /*
  * USB
  */
-int dvb_usbv2_device_init(struct usb_interface *intf,
+int dvb_usbv2_device_init_(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -295,12 +295,85 @@ err_kfree:
 
 	return ret;
 }
+
+/*
+ * udev, which is used for the firmware downloading, requires we cannot
+ * block during module_init(). module_init() calls USB probe() which
+ * is this routine. Due to that we delay actual operation using workqueue
+ * and return always success here.
+ */
+
+struct dvb_usb_delayed_init {
+	struct usb_interface *intf;
+	const struct usb_device_id *id;
+	struct work_struct work;
+};
+
+static void dvb_usbv2_init_work(struct work_struct *work)
+{
+	int ret;
+	struct dvb_usb_delayed_init *delayed_init =
+			container_of(work, struct dvb_usb_delayed_init, work);
+
+	ret = dvb_usbv2_device_init_(delayed_init->intf, delayed_init->id);
+	if (ret < 0) {
+		usb_driver_release_interface(
+				to_usb_driver(delayed_init->intf->dev.driver),
+				delayed_init->intf);
+		kfree(delayed_init);
+		goto err;
+	}
+
+	kfree(delayed_init);
+
+	return;
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+	return;
+}
+
+int dvb_usbv2_device_init(struct usb_interface *intf,
+		const struct usb_device_id *id)
+{
+	int ret;
+	struct dvb_usb_delayed_init *delayed_init;
+
+	delayed_init = kzalloc(sizeof(struct dvb_usb_delayed_init), GFP_KERNEL);
+	if (!delayed_init) {
+		pr_err("%s: kzalloc() failed", DVB_USB_LOG_PREFIX);
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	delayed_init->intf = intf;
+	delayed_init->id = id;
+	INIT_WORK(&delayed_init->work, dvb_usbv2_init_work);
+
+	ret = schedule_work(&delayed_init->work);
+	if (ret < 0) {
+		pr_err("%s: schedule_work() failed", DVB_USB_LOG_PREFIX);
+		goto err_kfree;
+	}
+
+	return 0;
+err_kfree:
+	kfree(delayed_init);
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+	return ret;
+}
+
 EXPORT_SYMBOL(dvb_usbv2_device_init);
 
 void dvb_usbv2_device_exit(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	const char *name = NULL;
+	const char *name = "generic DVB-USB module";
+
+	/*
+	 * FIXME: we should ensure our device initialization work is finished
+	 * until exit from this routine (cancel_work_sync?)
+	 */
 
 	usb_set_intfdata(intf, NULL);
 	if (d) {
