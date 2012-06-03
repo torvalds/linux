@@ -370,7 +370,7 @@ static void _batadv_purge_orig(struct bat_priv *bat_priv)
 			}
 
 			if (batadv_has_timed_out(orig_node->last_frag_packet,
-						 FRAG_TIMEOUT))
+						 BATADV_FRAG_TIMEOUT))
 				batadv_frag_list_free(&orig_node->frag_list);
 		}
 		spin_unlock_bh(list_lock);

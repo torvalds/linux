@@ -98,7 +98,7 @@ static int batadv_frag_create_buffer(struct list_head *head)
 	int i;
 	struct frag_packet_list_entry *tfp;
 
-	for (i = 0; i < FRAG_BUFFER_SIZE; i++) {
+	for (i = 0; i < BATADV_FRAG_BUFFER_SIZE; i++) {
 		tfp = kmalloc(sizeof(*tfp), GFP_ATOMIC);
 		if (!tfp) {
 			batadv_frag_list_free(head);

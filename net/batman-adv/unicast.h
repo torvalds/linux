@@ -22,8 +22,8 @@
 
 #include "packet.h"
 
-#define FRAG_TIMEOUT 10000	/* purge frag list entries after time in ms */
-#define FRAG_BUFFER_SIZE 6	/* number of list elements in buffer */
+#define BATADV_FRAG_TIMEOUT 10000 /* purge frag list entries after time in ms */
+#define BATADV_FRAG_BUFFER_SIZE 6 /* number of list elements in buffer */
 
 int batadv_frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 			       struct sk_buff **new_skb);
