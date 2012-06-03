@@ -1,6 +1,8 @@
 #ifndef _PARISC_BUG_H
 #define _PARISC_BUG_H
 
+#include <linux/kernel.h>	/* for BUGFLAG_TAINT */
+
 /*
  * Tell the user there is some problem.
  * The offending file and line are encoded in the __bug_table section.
