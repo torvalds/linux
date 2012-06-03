@@ -193,7 +193,7 @@ extern void ai_detach(struct si_pub *sih);
 extern uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val);
 extern void ai_clkctl_init(struct si_pub *sih);
 extern u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih);
-extern bool ai_clkctl_cc(struct si_pub *sih, uint mode);
+extern bool ai_clkctl_cc(struct si_pub *sih, enum bcma_clkmode mode);
 extern bool ai_deviceremoved(struct si_pub *sih);
 
 extern void ai_pci_down(struct si_pub *sih);

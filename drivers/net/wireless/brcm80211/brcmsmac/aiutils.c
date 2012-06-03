@@ -631,9 +631,8 @@ uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val)
 	cc = sii->icbus->drv_cc.core;
 
 	/* mask and set */
-	if (mask || val) {
+	if (mask || val)
 		bcma_maskset32(cc, regoff, ~mask, val);
-	}
 
 	/* readback */
 	w = bcma_read32(cc, regoff);
