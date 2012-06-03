@@ -194,7 +194,7 @@ void batadv_gw_election(struct bat_priv *bat_priv)
 	 * hear about. This check is based on the daemon's uptime which we
 	 * don't have.
 	 */
-	if (atomic_read(&bat_priv->gw_mode) != GW_MODE_CLIENT)
+	if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_CLIENT)
 		goto out;
 
 	if (!batadv_atomic_dec_not_zero(&bat_priv->gw_reselect))
@@ -663,13 +663,13 @@ bool batadv_gw_out_of_range(struct bat_priv *bat_priv,
 		goto out;
 
 	switch (atomic_read(&bat_priv->gw_mode)) {
-	case GW_MODE_SERVER:
+	case BATADV_GW_MODE_SERVER:
 		/* If we are a GW then we are our best GW. We can artificially
 		 * set the tq towards ourself as the maximum value
 		 */
 		curr_tq_avg = BATADV_TQ_MAX_VALUE;
 		break;
-	case GW_MODE_CLIENT:
+	case BATADV_GW_MODE_CLIENT:
 		curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 		if (!curr_gw)
 			goto out;
@@ -689,7 +689,7 @@ bool batadv_gw_out_of_range(struct bat_priv *bat_priv,
 
 		curr_tq_avg = neigh_curr->tq_avg;
 		break;
-	case GW_MODE_OFF:
+	case BATADV_GW_MODE_OFF:
 	default:
 		goto out;
 	}

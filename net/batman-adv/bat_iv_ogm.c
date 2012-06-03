@@ -611,7 +611,7 @@ static void batadv_iv_ogm_schedule(struct hard_iface *hard_iface)
 		batman_ogm_packet->flags &= ~VIS_SERVER;
 
 	if ((hard_iface == primary_if) &&
-	    (atomic_read(&bat_priv->gw_mode) == GW_MODE_SERVER))
+	    (atomic_read(&bat_priv->gw_mode) == BATADV_GW_MODE_SERVER))
 		batman_ogm_packet->gw_flags =
 				(uint8_t)atomic_read(&bat_priv->gw_bandwidth);
 	else
@@ -760,7 +760,7 @@ update_tt:
 
 	/* restart gateway selection if fast or late switching was enabled */
 	if ((orig_node->gw_flags) &&
-	    (atomic_read(&bat_priv->gw_mode) == GW_MODE_CLIENT) &&
+	    (atomic_read(&bat_priv->gw_mode) == BATADV_GW_MODE_CLIENT) &&
 	    (atomic_read(&bat_priv->gw_sel_class) > 2))
 		batadv_gw_check_election(bat_priv, orig_node);
 

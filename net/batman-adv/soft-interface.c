@@ -177,7 +177,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 		do_bcast = true;
 
 		switch (atomic_read(&bat_priv->gw_mode)) {
-		case GW_MODE_SERVER:
+		case BATADV_GW_MODE_SERVER:
 			/* gateway servers should not send dhcp
 			 * requests into the mesh
 			 */
@@ -185,7 +185,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 			if (ret)
 				goto dropped;
 			break;
-		case GW_MODE_CLIENT:
+		case BATADV_GW_MODE_CLIENT:
 			/* gateway clients should send dhcp requests
 			 * via unicast to their gateway
 			 */
@@ -193,7 +193,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 			if (ret)
 				do_bcast = false;
 			break;
-		case GW_MODE_OFF:
+		case BATADV_GW_MODE_OFF:
 		default:
 			break;
 		}
@@ -234,7 +234,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 
 	/* unicast packet */
 	} else {
-		if (atomic_read(&bat_priv->gw_mode) != GW_MODE_OFF) {
+		if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_OFF) {
 			ret = batadv_gw_out_of_range(bat_priv, skb, ethhdr);
 			if (ret)
 				goto dropped;
@@ -387,7 +387,7 @@ struct net_device *batadv_softif_create(const char *name)
 	atomic_set(&bat_priv->bridge_loop_avoidance, 0);
 	atomic_set(&bat_priv->ap_isolation, 0);
 	atomic_set(&bat_priv->vis_mode, VIS_TYPE_CLIENT_UPDATE);
-	atomic_set(&bat_priv->gw_mode, GW_MODE_OFF);
+	atomic_set(&bat_priv->gw_mode, BATADV_GW_MODE_OFF);
 	atomic_set(&bat_priv->gw_sel_class, 20);
 	atomic_set(&bat_priv->gw_bandwidth, 41);
 	atomic_set(&bat_priv->orig_interval, 1000);
