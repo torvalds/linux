@@ -21,7 +21,7 @@
 #define _NET_BATMAN_ADV_VIS_H_
 
 /* timeout of vis packets in miliseconds */
-#define VIS_TIMEOUT		200000
+#define BATADV_VIS_TIMEOUT		200000
 
 int batadv_vis_seq_print_text(struct seq_file *seq, void *offset);
 void batadv_receive_server_sync_packet(struct bat_priv *bat_priv,

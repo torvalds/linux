@@ -674,7 +674,7 @@ static void batadv_purge_vis_packets(struct bat_priv *bat_priv)
 				continue;
 
 			if (batadv_has_timed_out(info->first_seen,
-						 VIS_TIMEOUT)) {
+						 BATADV_VIS_TIMEOUT)) {
 				hlist_del(node);
 				batadv_send_list_del(info);
 				kref_put(&info->refcount, batadv_free_info);
