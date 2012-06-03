@@ -52,6 +52,8 @@
 #include "rs.h"
 #include "tt.h"
 
+#include "iwl-test.h"
+
 /* CT-KILL constants */
 #define CT_KILL_THRESHOLD_LEGACY   110 /* in Celsius */
 #define CT_KILL_THRESHOLD	   114 /* in Celsius */
@@ -596,24 +598,6 @@ struct iwl_lib_ops {
 	void (*temperature)(struct iwl_priv *priv);
 };
 
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-struct iwl_testmode_trace {
-	u32 buff_size;
-	u32 total_size;
-	u32 num_chunks;
-	u8 *cpu_addr;
-	u8 *trace_addr;
-	dma_addr_t dma_addr;
-	bool trace_enabled;
-};
-struct iwl_testmode_mem {
-	u32 buff_size;
-	u32 num_chunks;
-	u8 *buff_addr;
-	bool read_in_progress;
-};
-#endif
-
 struct iwl_wipan_noa_data {
 	struct rcu_head rcu_head;
 	u32 length;
@@ -670,8 +654,6 @@ struct iwl_priv {
 	enum ieee80211_band band;
 	u8 valid_contexts;
 
-	void (*pre_rx_handler)(struct iwl_priv *priv,
-			       struct iwl_rx_cmd_buffer *rxb);
 	int (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
 				       struct iwl_rx_cmd_buffer *rxb,
 				       struct iwl_device_cmd *cmd);
@@ -895,9 +877,9 @@ struct iwl_priv {
 	struct led_classdev led;
 	unsigned long blink_on, blink_off;
 	bool led_registered;
+
 #ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-	struct iwl_testmode_trace testmode_trace;
-	struct iwl_testmode_mem testmode_mem;
+	struct iwl_test tst;
 	u32 tm_fixed_rate;
 #endif
 

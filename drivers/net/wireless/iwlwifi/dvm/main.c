@@ -1548,7 +1548,7 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 
 	iwl_dbgfs_unregister(priv);
 
-	iwl_testmode_cleanup(priv);
+	iwl_testmode_free(priv);
 	iwlagn_mac_unregister(priv);
 
 	iwl_tt_exit(priv);
