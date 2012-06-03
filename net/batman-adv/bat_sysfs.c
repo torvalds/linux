@@ -361,13 +361,16 @@ static ssize_t batadv_show_gw_mode(struct kobject *kobj, struct attribute *attr,
 
 	switch (atomic_read(&bat_priv->gw_mode)) {
 	case GW_MODE_CLIENT:
-		bytes_written = sprintf(buff, "%s\n", GW_MODE_CLIENT_NAME);
+		bytes_written = sprintf(buff, "%s\n",
+					BATADV_GW_MODE_CLIENT_NAME);
 		break;
 	case GW_MODE_SERVER:
-		bytes_written = sprintf(buff, "%s\n", GW_MODE_SERVER_NAME);
+		bytes_written = sprintf(buff, "%s\n",
+					BATADV_GW_MODE_SERVER_NAME);
 		break;
 	default:
-		bytes_written = sprintf(buff, "%s\n", GW_MODE_OFF_NAME);
+		bytes_written = sprintf(buff, "%s\n",
+					BATADV_GW_MODE_OFF_NAME);
 		break;
 	}
 
@@ -386,15 +389,16 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	if (buff[count - 1] == '\n')
 		buff[count - 1] = '\0';
 
-	if (strncmp(buff, GW_MODE_OFF_NAME, strlen(GW_MODE_OFF_NAME)) == 0)
+	if (strncmp(buff, BATADV_GW_MODE_OFF_NAME,
+		    strlen(BATADV_GW_MODE_OFF_NAME)) == 0)
 		gw_mode_tmp = GW_MODE_OFF;
 
-	if (strncmp(buff, GW_MODE_CLIENT_NAME,
-		    strlen(GW_MODE_CLIENT_NAME)) == 0)
+	if (strncmp(buff, BATADV_GW_MODE_CLIENT_NAME,
+		    strlen(BATADV_GW_MODE_CLIENT_NAME)) == 0)
 		gw_mode_tmp = GW_MODE_CLIENT;
 
-	if (strncmp(buff, GW_MODE_SERVER_NAME,
-		    strlen(GW_MODE_SERVER_NAME)) == 0)
+	if (strncmp(buff, BATADV_GW_MODE_SERVER_NAME,
+		    strlen(BATADV_GW_MODE_SERVER_NAME)) == 0)
 		gw_mode_tmp = GW_MODE_SERVER;
 
 	if (gw_mode_tmp < 0) {
@@ -409,13 +413,13 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 
 	switch (atomic_read(&bat_priv->gw_mode)) {
 	case GW_MODE_CLIENT:
-		curr_gw_mode_str = GW_MODE_CLIENT_NAME;
+		curr_gw_mode_str = BATADV_GW_MODE_CLIENT_NAME;
 		break;
 	case GW_MODE_SERVER:
-		curr_gw_mode_str = GW_MODE_SERVER_NAME;
+		curr_gw_mode_str = BATADV_GW_MODE_SERVER_NAME;
 		break;
 	default:
-		curr_gw_mode_str = GW_MODE_OFF_NAME;
+		curr_gw_mode_str = BATADV_GW_MODE_OFF_NAME;
 		break;
 	}
 
