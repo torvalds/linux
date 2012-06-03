@@ -286,7 +286,7 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 
 	cfg.dev = &pdev->dev;
 	cfg.init_data = config->init_data;
-	cfg.driver_data = &drvdata;
+	cfg.driver_data = drvdata;
 
 	drvdata->dev = regulator_register(&drvdata->desc, &cfg);
 	if (IS_ERR(drvdata->dev)) {
