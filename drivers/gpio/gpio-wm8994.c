@@ -19,6 +19,7 @@
 #include <linux/mfd/core.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
+#include <linux/regmap.h>
 
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/pdata.h>
@@ -109,10 +110,7 @@ static int wm8994_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct wm8994_gpio *wm8994_gpio = to_wm8994_gpio(chip);
 	struct wm8994 *wm8994 = wm8994_gpio->wm8994;
 
-	if (!wm8994->irq_base)
-		return -EINVAL;
-
-	return wm8994->irq_base + offset;
+	return regmap_irq_get_virq(wm8994->irq_data, offset);
 }
 
 
