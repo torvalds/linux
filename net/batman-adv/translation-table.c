@@ -1441,7 +1441,7 @@ static int batadv_send_tt_request(struct bat_priv *bat_priv,
 				sizeof(struct tt_query_packet));
 
 	tt_request->header.packet_type = BAT_TT_QUERY;
-	tt_request->header.version = COMPAT_VERSION;
+	tt_request->header.version = BATADV_COMPAT_VERSION;
 	memcpy(tt_request->src, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(tt_request->dst, dst_orig_node->orig, ETH_ALEN);
 	tt_request->header.ttl = TTL;
@@ -1575,7 +1575,7 @@ static bool batadv_send_other_tt_response(struct bat_priv *bat_priv,
 	}
 
 	tt_response->header.packet_type = BAT_TT_QUERY;
-	tt_response->header.version = COMPAT_VERSION;
+	tt_response->header.version = BATADV_COMPAT_VERSION;
 	tt_response->header.ttl = TTL;
 	memcpy(tt_response->src, req_dst_orig_node->orig, ETH_ALEN);
 	memcpy(tt_response->dst, tt_request->src, ETH_ALEN);
@@ -1696,7 +1696,7 @@ static bool batadv_send_my_tt_response(struct bat_priv *bat_priv,
 	}
 
 	tt_response->header.packet_type = BAT_TT_QUERY;
-	tt_response->header.version = COMPAT_VERSION;
+	tt_response->header.version = BATADV_COMPAT_VERSION;
 	tt_response->header.ttl = TTL;
 	memcpy(tt_response->src, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(tt_response->dst, tt_request->src, ETH_ALEN);
@@ -2008,7 +2008,7 @@ static void batadv_send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 					sizeof(struct roam_adv_packet));
 
 	roam_adv_packet->header.packet_type = BAT_ROAM_ADV;
-	roam_adv_packet->header.version = COMPAT_VERSION;
+	roam_adv_packet->header.version = BATADV_COMPAT_VERSION;
 	roam_adv_packet->header.ttl = TTL;
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)

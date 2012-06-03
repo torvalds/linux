@@ -873,7 +873,7 @@ int batadv_vis_init(struct bat_priv *bat_priv)
 	INIT_LIST_HEAD(&bat_priv->my_vis_info->send_list);
 	kref_init(&bat_priv->my_vis_info->refcount);
 	bat_priv->my_vis_info->bat_priv = bat_priv;
-	packet->header.version = COMPAT_VERSION;
+	packet->header.version = BATADV_COMPAT_VERSION;
 	packet->header.packet_type = BAT_VIS;
 	packet->header.ttl = TTL;
 	packet->seqno = 0;

@@ -203,9 +203,9 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 
 	icmp_packet->uid = socket_client->index;
 
-	if (icmp_packet->header.version != COMPAT_VERSION) {
+	if (icmp_packet->header.version != BATADV_COMPAT_VERSION) {
 		icmp_packet->msg_type = PARAMETER_PROBLEM;
-		icmp_packet->header.version = COMPAT_VERSION;
+		icmp_packet->header.version = BATADV_COMPAT_VERSION;
 		batadv_socket_add_packet(socket_client, icmp_packet,
 					 packet_len);
 		goto free_skb;

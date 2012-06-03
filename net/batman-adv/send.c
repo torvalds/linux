@@ -58,11 +58,11 @@ int batadv_send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 	memcpy(ethhdr->h_source, hard_iface->net_dev->dev_addr, ETH_ALEN);
 	memcpy(ethhdr->h_dest, dst_addr, ETH_ALEN);
-	ethhdr->h_proto = __constant_htons(ETH_P_BATMAN);
+	ethhdr->h_proto = __constant_htons(BATADV_ETH_P_BATMAN);
 
 	skb_set_network_header(skb, ETH_HLEN);
 	skb->priority = TC_PRIO_CONTROL;
-	skb->protocol = __constant_htons(ETH_P_BATMAN);
+	skb->protocol = __constant_htons(BATADV_ETH_P_BATMAN);
 
 	skb->dev = hard_iface->net_dev;
 

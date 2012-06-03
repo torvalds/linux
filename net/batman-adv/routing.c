@@ -423,7 +423,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	/* add record route information if not full */
 	if ((hdr_size == sizeof(struct icmp_packet_rr)) &&
-	    (icmp_packet->rr_cur < BAT_RR_LEN)) {
+	    (icmp_packet->rr_cur < BATADV_RR_LEN)) {
 		memcpy(&(icmp_packet->rr[icmp_packet->rr_cur]),
 		       ethhdr->h_dest, ETH_ALEN);
 		icmp_packet->rr_cur++;
@@ -603,7 +603,7 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	tt_query = (struct tt_query_packet *)skb->data;
 
-	switch (tt_query->flags & TT_QUERY_TYPE_MASK) {
+	switch (tt_query->flags & BATADV_TT_QUERY_TYPE_MASK) {
 	case TT_REQUEST:
 		batadv_inc_counter(bat_priv, BAT_CNT_TT_REQUEST_RX);
 

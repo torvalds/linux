@@ -72,7 +72,7 @@ static int __init batadv_init(void)
 	register_netdevice_notifier(&batadv_hard_if_notifier);
 
 	pr_info("B.A.T.M.A.N. advanced %s (compatibility version %i) loaded\n",
-		SOURCE_VERSION, COMPAT_VERSION);
+		SOURCE_VERSION, BATADV_COMPAT_VERSION);
 
 	return 0;
 }
@@ -238,7 +238,7 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	batman_ogm_packet = (struct batman_ogm_packet *)skb->data;
 
-	if (batman_ogm_packet->header.version != COMPAT_VERSION) {
+	if (batman_ogm_packet->header.version != BATADV_COMPAT_VERSION) {
 		batadv_dbg(DBG_BATMAN, bat_priv,
 			   "Drop packet: incompatible batman version (%i)\n",
 			   batman_ogm_packet->header.version);

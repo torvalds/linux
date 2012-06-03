@@ -253,7 +253,7 @@ int batadv_frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	memcpy(frag1, &tmp_uc, sizeof(tmp_uc));
 
 	frag1->header.ttl--;
-	frag1->header.version = COMPAT_VERSION;
+	frag1->header.version = BATADV_COMPAT_VERSION;
 	frag1->header.packet_type = BAT_UNICAST_FRAG;
 
 	memcpy(frag1->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
@@ -319,7 +319,7 @@ find_router:
 
 	unicast_packet = (struct unicast_packet *)skb->data;
 
-	unicast_packet->header.version = COMPAT_VERSION;
+	unicast_packet->header.version = BATADV_COMPAT_VERSION;
 	/* batman packet type: unicast */
 	unicast_packet->header.packet_type = BAT_UNICAST;
 	/* set unicast ttl */

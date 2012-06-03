@@ -135,6 +135,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	struct hard_iface *primary_if = NULL;
 	struct bcast_packet *bcast_packet;
 	struct vlan_ethhdr *vhdr;
+	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
 	static const uint8_t stp_addr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00, 0x00,
 						   0x00};
 	unsigned int header_len = 0;
@@ -152,11 +153,11 @@ static int batadv_interface_tx(struct sk_buff *skb,
 		vhdr = (struct vlan_ethhdr *)skb->data;
 		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
 
-		if (ntohs(vhdr->h_vlan_encapsulated_proto) != ETH_P_BATMAN)
+		if (vhdr->h_vlan_encapsulated_proto != ethertype)
 			break;
 
 		/* fall through */
-	case ETH_P_BATMAN:
+	case BATADV_ETH_P_BATMAN:
 		goto dropped;
 	}
 
@@ -208,7 +209,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 			goto dropped;
 
 		bcast_packet = (struct bcast_packet *)skb->data;
-		bcast_packet->header.version = COMPAT_VERSION;
+		bcast_packet->header.version = BATADV_COMPAT_VERSION;
 		bcast_packet->header.ttl = TTL;
 
 		/* batman packet type: broadcast */
@@ -266,6 +267,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	struct ethhdr *ethhdr;
 	struct vlan_ethhdr *vhdr;
 	short vid __maybe_unused = -1;
+	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
 
 	/* check if enough space is available for pulling, and pull */
 	if (!pskb_may_pull(skb, hdr_size))
@@ -281,11 +283,11 @@ void batadv_interface_rx(struct net_device *soft_iface,
 		vhdr = (struct vlan_ethhdr *)skb->data;
 		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
 
-		if (ntohs(vhdr->h_vlan_encapsulated_proto) != ETH_P_BATMAN)
+		if (vhdr->h_vlan_encapsulated_proto != ethertype)
 			break;
 
 		/* fall through */
-	case ETH_P_BATMAN:
+	case BATADV_ETH_P_BATMAN:
 		goto dropped;
 	}
 

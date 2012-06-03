@@ -263,6 +263,7 @@ int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
 {
 	struct bat_priv *bat_priv;
 	struct net_device *soft_iface;
+	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
 	int ret;
 
 	if (hard_iface->if_status != IF_NOT_IN_USE)
@@ -309,7 +310,7 @@ int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
 	hard_iface->if_status = IF_INACTIVE;
 	batadv_orig_hash_add_if(hard_iface, bat_priv->num_ifaces);
 
-	hard_iface->batman_adv_ptype.type = __constant_htons(ETH_P_BATMAN);
+	hard_iface->batman_adv_ptype.type = ethertype;
 	hard_iface->batman_adv_ptype.func = batadv_batman_skb_recv;
 	hard_iface->batman_adv_ptype.dev = hard_iface->net_dev;
 	dev_add_pack(&hard_iface->batman_adv_ptype);

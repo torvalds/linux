@@ -64,7 +64,7 @@ static int batadv_iv_ogm_iface_enable(struct hard_iface *hard_iface)
 	get_random_bytes(&random_seqno, sizeof(random_seqno));
 	atomic_set(&hard_iface->seqno, random_seqno);
 
-	hard_iface->packet_len = BATMAN_OGM_HLEN;
+	hard_iface->packet_len = BATADV_OGM_HLEN;
 	hard_iface->packet_buff = kmalloc(hard_iface->packet_len, GFP_ATOMIC);
 
 	if (!hard_iface->packet_buff)
@@ -72,7 +72,7 @@ static int batadv_iv_ogm_iface_enable(struct hard_iface *hard_iface)
 
 	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
 	batman_ogm_packet->header.packet_type = BAT_IV_OGM;
-	batman_ogm_packet->header.version = COMPAT_VERSION;
+	batman_ogm_packet->header.version = BATADV_COMPAT_VERSION;
 	batman_ogm_packet->header.ttl = 2;
 	batman_ogm_packet->flags = NO_FLAGS;
 	batman_ogm_packet->tq = TQ_MAX_VALUE;
@@ -139,7 +139,7 @@ static int batadv_iv_ogm_aggr_packet(int buff_pos, int packet_len,
 {
 	int next_buff_pos = 0;
 
-	next_buff_pos += buff_pos + BATMAN_OGM_HLEN;
+	next_buff_pos += buff_pos + BATADV_OGM_HLEN;
 	next_buff_pos += batadv_tt_len(tt_num_changes);
 
 	return (next_buff_pos <= packet_len) &&
@@ -191,7 +191,7 @@ static void batadv_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 			   batman_ogm_packet->ttvn, hard_iface->net_dev->name,
 			   hard_iface->net_dev->dev_addr);
 
-		buff_pos += BATMAN_OGM_HLEN;
+		buff_pos += BATADV_OGM_HLEN;
 		buff_pos += batadv_tt_len(batman_ogm_packet->tt_num_changes);
 		packet_num++;
 		batman_ogm_packet = (struct batman_ogm_packet *)
@@ -561,7 +561,7 @@ static void batadv_iv_ogm_forward(struct orig_node *orig_node,
 		batman_ogm_packet->flags &= ~DIRECTLINK;
 
 	batadv_iv_ogm_queue_add(bat_priv, (unsigned char *)batman_ogm_packet,
-				BATMAN_OGM_HLEN + batadv_tt_len(tt_num_changes),
+				BATADV_OGM_HLEN + batadv_tt_len(tt_num_changes),
 				if_incoming, 0, batadv_iv_ogm_fwd_send_time());
 }
 
@@ -579,7 +579,7 @@ static void batadv_iv_ogm_schedule(struct hard_iface *hard_iface)
 		tt_num_changes = batadv_tt_append_diff(bat_priv,
 						       &hard_iface->packet_buff,
 						       &hard_iface->packet_len,
-						       BATMAN_OGM_HLEN);
+						       BATADV_OGM_HLEN);
 
 	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
 
@@ -1025,7 +1025,7 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 	}
 	rcu_read_unlock();
 
-	if (batman_ogm_packet->header.version != COMPAT_VERSION) {
+	if (batman_ogm_packet->header.version != BATADV_COMPAT_VERSION) {
 		batadv_dbg(DBG_BATMAN, bat_priv,
 			   "Drop packet: incompatible batman version (%i)\n",
 			   batman_ogm_packet->header.version);
@@ -1227,7 +1227,7 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 	unsigned char *tt_buff, *packet_buff;
 	bool ret;
 
-	ret = batadv_check_management_packet(skb, if_incoming, BATMAN_OGM_HLEN);
+	ret = batadv_check_management_packet(skb, if_incoming, BATADV_OGM_HLEN);
 	if (!ret)
 		return NET_RX_DROP;
 
@@ -1248,12 +1248,12 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 
 	/* unpack the aggregated packets and process them one by one */
 	do {
-		tt_buff = packet_buff + buff_pos + BATMAN_OGM_HLEN;
+		tt_buff = packet_buff + buff_pos + BATADV_OGM_HLEN;
 
 		batadv_iv_ogm_process(ethhdr, batman_ogm_packet, tt_buff,
 				      if_incoming);
 
-		buff_pos += BATMAN_OGM_HLEN;
+		buff_pos += BATADV_OGM_HLEN;
 		buff_pos += batadv_tt_len(batman_ogm_packet->tt_num_changes);
 
 		batman_ogm_packet = (struct batman_ogm_packet *)
