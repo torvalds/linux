@@ -54,7 +54,7 @@ struct tipc_sock {
 };
 
 #define tipc_sk(sk) ((struct tipc_sock *)(sk))
-#define tipc_sk_port(sk) ((struct tipc_port *)(tipc_sk(sk)->p))
+#define tipc_sk_port(sk) (tipc_sk(sk)->p)
 
 #define tipc_rx_ready(sock) (!skb_queue_empty(&sock->sk->sk_receive_queue) || \
 			(sock->state == SS_DISCONNECTING))

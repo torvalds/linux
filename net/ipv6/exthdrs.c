@@ -791,14 +791,14 @@ static int ipv6_renew_option(void *ohdr,
 		if (ohdr) {
 			memcpy(*p, ohdr, ipv6_optlen((struct ipv6_opt_hdr *)ohdr));
 			*hdr = (struct ipv6_opt_hdr *)*p;
-			*p += CMSG_ALIGN(ipv6_optlen(*(struct ipv6_opt_hdr **)hdr));
+			*p += CMSG_ALIGN(ipv6_optlen(*hdr));
 		}
 	} else {
 		if (newopt) {
 			if (copy_from_user(*p, newopt, newoptlen))
 				return -EFAULT;
 			*hdr = (struct ipv6_opt_hdr *)*p;
-			if (ipv6_optlen(*(struct ipv6_opt_hdr **)hdr) > newoptlen)
+			if (ipv6_optlen(*hdr) > newoptlen)
 				return -EINVAL;
 			*p += CMSG_ALIGN(newoptlen);
 		}

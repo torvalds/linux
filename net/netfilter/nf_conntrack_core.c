@@ -531,7 +531,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	tstamp = nf_conn_tstamp_find(ct);
 	if (tstamp) {
 		if (skb->tstamp.tv64 == 0)
-			__net_timestamp((struct sk_buff *)skb);
+			__net_timestamp(skb);
 
 		tstamp->start = ktime_to_ns(skb->tstamp);
 	}

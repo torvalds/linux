@@ -114,8 +114,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 
 	if (elems->tim && (!elems->parse_error ||
 			   !(bss->valid_data & IEEE80211_BSS_VALID_DTIM))) {
-		struct ieee80211_tim_ie *tim_ie =
-			(struct ieee80211_tim_ie *)elems->tim;
+		struct ieee80211_tim_ie *tim_ie = elems->tim;
 		bss->dtim_period = tim_ie->dtim_period;
 		if (!elems->parse_error)
 				bss->valid_data |= IEEE80211_BSS_VALID_DTIM;

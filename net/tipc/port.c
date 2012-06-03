@@ -909,8 +909,8 @@ int tipc_createport(void *usr_handle,
 		warn("Port creation failed, no memory\n");
 		return -ENOMEM;
 	}
-	p_ptr = (struct tipc_port *)tipc_createport_raw(NULL, port_dispatcher,
-						   port_wakeup, importance);
+	p_ptr = tipc_createport_raw(NULL, port_dispatcher, port_wakeup,
+				    importance);
 	if (!p_ptr) {
 		kfree(up_ptr);
 		return -ENOMEM;
@@ -1078,8 +1078,7 @@ int tipc_disconnect_port(struct tipc_port *tp_ptr)
 	if (tp_ptr->connected) {
 		tp_ptr->connected = 0;
 		/* let timer expire on it's own to avoid deadlock! */
-		tipc_nodesub_unsubscribe(
-			&((struct tipc_port *)tp_ptr)->subscription);
+		tipc_nodesub_unsubscribe(&tp_ptr->subscription);
 		res = 0;
 	} else {
 		res = -ENOTCONN;
@@ -1099,7 +1098,7 @@ int tipc_disconnect(u32 ref)
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr)
 		return -EINVAL;
-	res = tipc_disconnect_port((struct tipc_port *)p_ptr);
+	res = tipc_disconnect_port(p_ptr);
 	tipc_port_unlock(p_ptr);
 	return res;
 }
