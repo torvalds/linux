@@ -192,11 +192,14 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	long l, limit;
 	long tcenum_start = tcenum, npages_start = npages;
 	int ret = 0;
+	unsigned long flags;
 
 	if (npages == 1) {
 		return tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
 		                           direction, attrs);
 	}
+
+	local_irq_save(flags);	/* to protect tcep and the page behind it */
 
 	tcep = __get_cpu_var(tce_page);
 
@@ -207,6 +210,7 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 		tcep = (u64 *)__get_free_page(GFP_ATOMIC);
 		/* If allocation fails, fall back to the loop implementation */
 		if (!tcep) {
+			local_irq_restore(flags);
 			return tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
 					    direction, attrs);
 		}
@@ -239,6 +243,8 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 		npages -= limit;
 		tcenum += limit;
 	} while (npages > 0 && !rc);
+
+	local_irq_restore(flags);
 
 	if (unlikely(rc == H_NOT_ENOUGH_RESOURCES)) {
 		ret = (int)rc;
