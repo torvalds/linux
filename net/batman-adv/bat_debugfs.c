@@ -38,7 +38,7 @@ static struct dentry *batadv_debugfs;
 #define BATADV_LOG_BUFF_MASK (batadv_log_buff_len - 1)
 #define BATADV_LOG_BUFF(idx) (debug_log->log_buff[(idx) & BATADV_LOG_BUFF_MASK])
 
-static int batadv_log_buff_len = LOG_BUF_LEN;
+static int batadv_log_buff_len = BATADV_LOG_BUF_LEN;
 
 static void batadv_emit_log_char(struct debug_log *debug_log, char c)
 {

@@ -323,7 +323,7 @@ find_router:
 	/* batman packet type: unicast */
 	unicast_packet->header.packet_type = BAT_UNICAST;
 	/* set unicast ttl */
-	unicast_packet->header.ttl = TTL;
+	unicast_packet->header.ttl = BATADV_TTL;
 	/* copy the destination for faster routing */
 	memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
 	/* set the destination tt version number */

@@ -42,6 +42,7 @@ void batadv_slide_own_bcast_window(struct hard_iface *hard_iface)
 	unsigned long *word;
 	uint32_t i;
 	size_t word_index;
+	uint8_t *w;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
@@ -49,12 +50,12 @@ void batadv_slide_own_bcast_window(struct hard_iface *hard_iface)
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
 			spin_lock_bh(&orig_node->ogm_cnt_lock);
-			word_index = hard_iface->if_num * NUM_WORDS;
+			word_index = hard_iface->if_num * BATADV_NUM_WORDS;
 			word = &(orig_node->bcast_own[word_index]);
 
 			batadv_bit_get_packet(bat_priv, word, 1, 0);
-			orig_node->bcast_own_sum[hard_iface->if_num] =
-				bitmap_weight(word, TQ_LOCAL_WINDOW_SIZE);
+			w = &orig_node->bcast_own_sum[hard_iface->if_num];
+			*w = bitmap_weight(word, BATADV_TQ_LOCAL_WINDOW_SIZE);
 			spin_unlock_bh(&orig_node->ogm_cnt_lock);
 		}
 		rcu_read_unlock();
@@ -160,7 +161,7 @@ void batadv_bonding_candidate_add(struct orig_node *orig_node,
 		goto candidate_del;
 
 	/* ... and is good enough to be considered */
-	if (neigh_node->tq_avg < router->tq_avg - BONDING_TQ_THRESHOLD)
+	if (neigh_node->tq_avg < router->tq_avg - BATADV_BONDING_TQ_THRESHOLD)
 		goto candidate_del;
 
 	/* check if we have another candidate with the same mac address or
@@ -232,9 +233,10 @@ batadv_bonding_save_primary(const struct orig_node *orig_node,
 int batadv_window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
 			    unsigned long *last_reset)
 {
-	if ((seq_num_diff <= -TQ_LOCAL_WINDOW_SIZE) ||
-	    (seq_num_diff >= EXPECTED_SEQNO_RANGE)) {
-		if (!batadv_has_timed_out(*last_reset, RESET_PROTECTION_MS))
+	if (seq_num_diff <= -BATADV_TQ_LOCAL_WINDOW_SIZE ||
+	    seq_num_diff >= BATADV_EXPECTED_SEQNO_RANGE) {
+		if (!batadv_has_timed_out(*last_reset,
+					  BATADV_RESET_PROTECTION_MS))
 			return 1;
 
 		*last_reset = jiffies;
@@ -316,7 +318,7 @@ static int batadv_recv_my_icmp_packet(struct bat_priv *bat_priv,
 	memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
 	memcpy(icmp_packet->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 	icmp_packet->msg_type = ECHO_REPLY;
-	icmp_packet->header.ttl = TTL;
+	icmp_packet->header.ttl = BATADV_TTL;
 
 	batadv_send_skb_packet(skb, router->if_incoming, router->addr);
 	ret = NET_RX_SUCCESS;
@@ -371,7 +373,7 @@ static int batadv_recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 	memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
 	memcpy(icmp_packet->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 	icmp_packet->msg_type = TTL_EXCEEDED;
-	icmp_packet->header.ttl = TTL;
+	icmp_packet->header.ttl = BATADV_TTL;
 
 	batadv_send_skb_packet(skb, router->if_incoming, router->addr);
 	ret = NET_RX_SUCCESS;

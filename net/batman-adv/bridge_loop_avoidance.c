@@ -949,7 +949,7 @@ static void batadv_bla_purge_backbone_gw(struct bat_priv *bat_priv, int now)
 			if (now)
 				goto purge_now;
 			if (!batadv_has_timed_out(backbone_gw->lasttime,
-						  BLA_BACKBONE_TIMEOUT))
+						  BATADV_BLA_BACKBONE_TIMEOUT))
 				continue;
 
 			batadv_dbg(DBG_BLA, backbone_gw->bat_priv,
@@ -1001,7 +1001,7 @@ static void batadv_bla_purge_claims(struct bat_priv *bat_priv,
 						primary_if->net_dev->dev_addr))
 				continue;
 			if (!batadv_has_timed_out(claim->lasttime,
-						  BLA_CLAIM_TIMEOUT))
+						  BATADV_BLA_CLAIM_TIMEOUT))
 				continue;
 
 			batadv_dbg(DBG_BLA, bat_priv,
@@ -1075,7 +1075,7 @@ static void batadv_bla_start_timer(struct bat_priv *bat_priv)
 {
 	INIT_DELAYED_WORK(&bat_priv->bla_work, batadv_bla_periodic_work);
 	queue_delayed_work(batadv_event_workqueue, &bat_priv->bla_work,
-			   msecs_to_jiffies(BLA_PERIOD_LENGTH));
+			   msecs_to_jiffies(BATADV_BLA_PERIOD_LENGTH));
 }
 
 /* periodic work to do:
@@ -1162,9 +1162,9 @@ int batadv_bla_init(struct bat_priv *bat_priv)
 	}
 
 	/* initialize the duplicate list */
-	for (i = 0; i < DUPLIST_SIZE; i++)
+	for (i = 0; i < BATADV_DUPLIST_SIZE; i++)
 		bat_priv->bcast_duplist[i].entrytime =
-			jiffies - msecs_to_jiffies(DUPLIST_TIMEOUT);
+			jiffies - msecs_to_jiffies(BATADV_DUPLIST_TIMEOUT);
 	bat_priv->bcast_duplist_curr = 0;
 
 	if (bat_priv->claim_hash)
@@ -1216,14 +1216,15 @@ int batadv_bla_check_bcast_duplist(struct bat_priv *bat_priv,
 	/* calculate the crc ... */
 	crc = crc16(0, content, length);
 
-	for (i = 0 ; i < DUPLIST_SIZE; i++) {
-		curr = (bat_priv->bcast_duplist_curr + i) % DUPLIST_SIZE;
+	for (i = 0; i < BATADV_DUPLIST_SIZE; i++) {
+		curr = (bat_priv->bcast_duplist_curr + i) % BATADV_DUPLIST_SIZE;
 		entry = &bat_priv->bcast_duplist[curr];
 
 		/* we can stop searching if the entry is too old ;
 		 * later entries will be even older
 		 */
-		if (batadv_has_timed_out(entry->entrytime, DUPLIST_TIMEOUT))
+		if (batadv_has_timed_out(entry->entrytime,
+					 BATADV_DUPLIST_TIMEOUT))
 			break;
 
 		if (entry->crc != crc)
@@ -1238,7 +1239,8 @@ int batadv_bla_check_bcast_duplist(struct bat_priv *bat_priv,
 		return 1;
 	}
 	/* not found, add a new entry (overwrite the oldest entry) */
-	curr = (bat_priv->bcast_duplist_curr + DUPLIST_SIZE - 1) % DUPLIST_SIZE;
+	curr = (bat_priv->bcast_duplist_curr + BATADV_DUPLIST_SIZE - 1);
+	curr %= BATADV_DUPLIST_SIZE;
 	entry = &bat_priv->bcast_duplist[curr];
 	entry->crc = crc;
 	entry->entrytime = jiffies;

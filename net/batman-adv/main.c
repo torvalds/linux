@@ -72,7 +72,7 @@ static int __init batadv_init(void)
 	register_netdevice_notifier(&batadv_hard_if_notifier);
 
 	pr_info("B.A.T.M.A.N. advanced %s (compatibility version %i) loaded\n",
-		SOURCE_VERSION, BATADV_COMPAT_VERSION);
+		BATADV_SOURCE_VERSION, BATADV_COMPAT_VERSION);
 
 	return 0;
 }
@@ -120,7 +120,8 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	if (ret < 0)
 		goto err;
 
-	batadv_tt_local_add(soft_iface, soft_iface->dev_addr, NULL_IFINDEX);
+	batadv_tt_local_add(soft_iface, soft_iface->dev_addr,
+			    BATADV_NULL_IFINDEX);
 
 	ret = batadv_vis_init(bat_priv);
 	if (ret < 0)
@@ -420,7 +421,7 @@ module_exit(batadv_exit);
 
 MODULE_LICENSE("GPL");
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_SUPPORTED_DEVICE(DRIVER_DEVICE);
-MODULE_VERSION(SOURCE_VERSION);
+MODULE_AUTHOR(BATADV_DRIVER_AUTHOR);
+MODULE_DESCRIPTION(BATADV_DRIVER_DESC);
+MODULE_SUPPORTED_DEVICE(BATADV_DRIVER_DEVICE);
+MODULE_VERSION(BATADV_SOURCE_VERSION);

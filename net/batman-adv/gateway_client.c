@@ -138,8 +138,8 @@ static struct gw_node *batadv_gw_get_best_gw_node(struct bat_priv *bat_priv)
 
 			tmp_gw_factor = (router->tq_avg * router->tq_avg *
 					 down * 100 * 100) /
-					 (TQ_LOCAL_WINDOW_SIZE *
-					 TQ_LOCAL_WINDOW_SIZE * 64);
+					 (BATADV_TQ_LOCAL_WINDOW_SIZE *
+					  BATADV_TQ_LOCAL_WINDOW_SIZE * 64);
 
 			if ((tmp_gw_factor > max_gw_factor) ||
 			    ((tmp_gw_factor == max_gw_factor) &&
@@ -354,7 +354,7 @@ void batadv_gw_node_update(struct bat_priv *bat_priv,
 
 		gw_node->deleted = 0;
 
-		if (new_gwflags == NO_FLAGS) {
+		if (new_gwflags == BATADV_NO_FLAGS) {
 			gw_node->deleted = jiffies;
 			batadv_dbg(DBG_BATMAN, bat_priv,
 				   "Gateway %pM removed from gateway list\n",
@@ -367,7 +367,7 @@ void batadv_gw_node_update(struct bat_priv *bat_priv,
 		goto unlock;
 	}
 
-	if (new_gwflags == NO_FLAGS)
+	if (new_gwflags == BATADV_NO_FLAGS)
 		goto unlock;
 
 	batadv_gw_node_add(bat_priv, orig_node, new_gwflags);
@@ -392,7 +392,7 @@ void batadv_gw_node_purge(struct bat_priv *bat_priv)
 {
 	struct gw_node *gw_node, *curr_gw;
 	struct hlist_node *node, *node_tmp;
-	unsigned long timeout = msecs_to_jiffies(2 * PURGE_TIMEOUT);
+	unsigned long timeout = msecs_to_jiffies(2 * BATADV_PURGE_TIMEOUT);
 	int do_deselect = 0;
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
@@ -484,8 +484,8 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 
 	seq_printf(seq,
 		   "      %-12s (%s/%i) %17s [%10s]: gw_class ... [B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s)]\n",
-		   "Gateway", "#", TQ_MAX_VALUE, "Nexthop", "outgoingIF",
-		   SOURCE_VERSION, primary_if->net_dev->name,
+		   "Gateway", "#", BATADV_TQ_MAX_VALUE, "Nexthop", "outgoingIF",
+		   BATADV_SOURCE_VERSION, primary_if->net_dev->name,
 		   primary_if->net_dev->dev_addr, net_dev->name);
 
 	rcu_read_lock();
@@ -667,7 +667,7 @@ bool batadv_gw_out_of_range(struct bat_priv *bat_priv,
 		/* If we are a GW then we are our best GW. We can artificially
 		 * set the tq towards ourself as the maximum value
 		 */
-		curr_tq_avg = TQ_MAX_VALUE;
+		curr_tq_avg = BATADV_TQ_MAX_VALUE;
 		break;
 	case GW_MODE_CLIENT:
 		curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
@@ -698,7 +698,7 @@ bool batadv_gw_out_of_range(struct bat_priv *bat_priv,
 	if (!neigh_old)
 		goto out;
 
-	if (curr_tq_avg - neigh_old->tq_avg > GW_THRESHOLD)
+	if (curr_tq_avg - neigh_old->tq_avg > BATADV_GW_THRESHOLD)
 		out_of_range = true;
 
 out:

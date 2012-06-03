@@ -257,7 +257,7 @@ void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 		   (uint8_t)atomic_read(&bat_priv->ttvn));
 
 	memcpy(tt_local_entry->common.addr, addr, ETH_ALEN);
-	tt_local_entry->common.flags = NO_FLAGS;
+	tt_local_entry->common.flags = BATADV_NO_FLAGS;
 	if (batadv_is_wifi_iface(ifindex))
 		tt_local_entry->common.flags |= TT_CLIENT_WIFI;
 	atomic_set(&tt_local_entry->common.refcount, 2);
@@ -493,14 +493,17 @@ void batadv_tt_local_remove(struct bat_priv *bat_priv, const uint8_t *addr,
 			    const char *message, bool roaming)
 {
 	struct tt_local_entry *tt_local_entry = NULL;
+	uint16_t flags;
 
 	tt_local_entry = batadv_tt_local_hash_find(bat_priv, addr);
 	if (!tt_local_entry)
 		goto out;
 
-	batadv_tt_local_set_pending(bat_priv, tt_local_entry, TT_CLIENT_DEL |
-				    (roaming ? TT_CLIENT_ROAM : NO_FLAGS),
-				    message);
+	flags = TT_CLIENT_DEL;
+	if (roaming)
+		flags |= TT_CLIENT_ROAM;
+
+	batadv_tt_local_set_pending(bat_priv, tt_local_entry, flags, message);
 out:
 	if (tt_local_entry)
 		batadv_tt_local_entry_free_ref(tt_local_entry);
@@ -534,7 +537,7 @@ static void batadv_tt_local_purge(struct bat_priv *bat_priv)
 				continue;
 
 			if (!batadv_has_timed_out(tt_local_entry->last_seen,
-						  TT_LOCAL_TIMEOUT))
+						  BATADV_TT_LOCAL_TIMEOUT))
 				continue;
 
 			batadv_tt_local_set_pending(bat_priv, tt_local_entry,
@@ -1008,12 +1011,35 @@ void batadv_tt_global_del_orig(struct bat_priv *bat_priv,
 	orig_node->tt_initialised = false;
 }
 
-static void batadv_tt_global_roam_purge(struct bat_priv *bat_priv)
+static void batadv_tt_global_roam_purge_list(struct bat_priv *bat_priv,
+					     struct hlist_head *head)
 {
-	struct hashtable_t *hash = bat_priv->tt_global_hash;
 	struct tt_common_entry *tt_common_entry;
 	struct tt_global_entry *tt_global_entry;
 	struct hlist_node *node, *node_tmp;
+
+	hlist_for_each_entry_safe(tt_common_entry, node, node_tmp, head,
+				  hash_entry) {
+		tt_global_entry = container_of(tt_common_entry,
+					       struct tt_global_entry, common);
+		if (!(tt_global_entry->common.flags & TT_CLIENT_ROAM))
+			continue;
+		if (!batadv_has_timed_out(tt_global_entry->roam_at,
+					  BATADV_TT_CLIENT_ROAM_TIMEOUT))
+			continue;
+
+		batadv_dbg(DBG_TT, bat_priv,
+			   "Deleting global tt entry (%pM): Roaming timeout\n",
+			   tt_global_entry->common.addr);
+
+		hlist_del_rcu(node);
+		batadv_tt_global_entry_free_ref(tt_global_entry);
+	}
+}
+
+static void batadv_tt_global_roam_purge(struct bat_priv *bat_priv)
+{
+	struct hashtable_t *hash = bat_priv->tt_global_hash;
 	struct hlist_head *head;
 	spinlock_t *list_lock; /* protects write access to the hash lists */
 	uint32_t i;
@@ -1023,24 +1049,7 @@ static void batadv_tt_global_roam_purge(struct bat_priv *bat_priv)
 		list_lock = &hash->list_locks[i];
 
 		spin_lock_bh(list_lock);
-		hlist_for_each_entry_safe(tt_common_entry, node, node_tmp,
-					  head, hash_entry) {
-			tt_global_entry = container_of(tt_common_entry,
-						       struct tt_global_entry,
-						       common);
-			if (!(tt_global_entry->common.flags & TT_CLIENT_ROAM))
-				continue;
-			if (!batadv_has_timed_out(tt_global_entry->roam_at,
-						  TT_CLIENT_ROAM_TIMEOUT))
-				continue;
-
-			batadv_dbg(DBG_TT, bat_priv,
-				   "Deleting global tt entry (%pM): Roaming timeout\n",
-				   tt_global_entry->common.addr);
-
-			hlist_del_rcu(node);
-			batadv_tt_global_entry_free_ref(tt_global_entry);
-		}
+		batadv_tt_global_roam_purge_list(bat_priv, head);
 		spin_unlock_bh(list_lock);
 	}
 
@@ -1278,7 +1287,8 @@ static void batadv_tt_req_purge(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->tt_req_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_req_list, list) {
-		if (batadv_has_timed_out(node->issued_at, TT_REQUEST_TIMEOUT)) {
+		if (batadv_has_timed_out(node->issued_at,
+					 BATADV_TT_REQUEST_TIMEOUT)) {
 			list_del(&node->list);
 			kfree(node);
 		}
@@ -1298,7 +1308,7 @@ static struct tt_req_node *batadv_new_tt_req_node(struct bat_priv *bat_priv,
 	list_for_each_entry(tt_req_node_tmp, &bat_priv->tt_req_list, list) {
 		if (batadv_compare_eth(tt_req_node_tmp, orig_node) &&
 		    !batadv_has_timed_out(tt_req_node_tmp->issued_at,
-					  TT_REQUEST_TIMEOUT))
+					  BATADV_TT_REQUEST_TIMEOUT))
 			goto unlock;
 	}
 
@@ -1391,7 +1401,7 @@ batadv_tt_response_fill_table(uint16_t tt_len, uint8_t ttvn,
 
 			memcpy(tt_change->addr, tt_common_entry->addr,
 			       ETH_ALEN);
-			tt_change->flags = NO_FLAGS;
+			tt_change->flags = BATADV_NO_FLAGS;
 
 			tt_count++;
 			tt_change++;
@@ -1444,7 +1454,7 @@ static int batadv_send_tt_request(struct bat_priv *bat_priv,
 	tt_request->header.version = BATADV_COMPAT_VERSION;
 	memcpy(tt_request->src, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(tt_request->dst, dst_orig_node->orig, ETH_ALEN);
-	tt_request->header.ttl = TTL;
+	tt_request->header.ttl = BATADV_TTL;
 	tt_request->ttvn = ttvn;
 	tt_request->tt_data = htons(tt_crc);
 	tt_request->flags = TT_REQUEST;
@@ -1576,7 +1586,7 @@ static bool batadv_send_other_tt_response(struct bat_priv *bat_priv,
 
 	tt_response->header.packet_type = BAT_TT_QUERY;
 	tt_response->header.version = BATADV_COMPAT_VERSION;
-	tt_response->header.ttl = TTL;
+	tt_response->header.ttl = BATADV_TTL;
 	memcpy(tt_response->src, req_dst_orig_node->orig, ETH_ALEN);
 	memcpy(tt_response->dst, tt_request->src, ETH_ALEN);
 	tt_response->flags = TT_RESPONSE;
@@ -1697,7 +1707,7 @@ static bool batadv_send_my_tt_response(struct bat_priv *bat_priv,
 
 	tt_response->header.packet_type = BAT_TT_QUERY;
 	tt_response->header.version = BATADV_COMPAT_VERSION;
-	tt_response->header.ttl = TTL;
+	tt_response->header.ttl = BATADV_TTL;
 	memcpy(tt_response->src, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(tt_response->dst, tt_request->src, ETH_ALEN);
 	tt_response->flags = TT_RESPONSE;
@@ -1925,7 +1935,8 @@ static void batadv_tt_roam_purge(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->tt_roam_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_roam_list, list) {
-		if (!batadv_has_timed_out(node->first_time, ROAMING_MAX_TIME))
+		if (!batadv_has_timed_out(node->first_time,
+					  BATADV_ROAMING_MAX_TIME))
 			continue;
 
 		list_del(&node->list);
@@ -1955,7 +1966,7 @@ static bool batadv_tt_check_roam_count(struct bat_priv *bat_priv,
 			continue;
 
 		if (batadv_has_timed_out(tt_roam_node->first_time,
-					 ROAMING_MAX_TIME))
+					 BATADV_ROAMING_MAX_TIME))
 			continue;
 
 		if (!batadv_atomic_dec_not_zero(&tt_roam_node->counter))
@@ -1971,7 +1982,8 @@ static bool batadv_tt_check_roam_count(struct bat_priv *bat_priv,
 			goto unlock;
 
 		tt_roam_node->first_time = jiffies;
-		atomic_set(&tt_roam_node->counter, ROAMING_MAX_COUNT - 1);
+		atomic_set(&tt_roam_node->counter,
+			   BATADV_ROAMING_MAX_COUNT - 1);
 		memcpy(tt_roam_node->addr, client, ETH_ALEN);
 
 		list_add(&tt_roam_node->list, &bat_priv->tt_roam_list);
@@ -2009,7 +2021,7 @@ static void batadv_send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 
 	roam_adv_packet->header.packet_type = BAT_ROAM_ADV;
 	roam_adv_packet->header.version = BATADV_COMPAT_VERSION;
-	roam_adv_packet->header.ttl = TTL;
+	roam_adv_packet->header.ttl = BATADV_TTL;
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
@@ -2170,7 +2182,7 @@ static int batadv_tt_commit_changes(struct bat_priv *bat_priv,
 	bat_priv->tt_poss_change = false;
 
 	/* reset the sending counter */
-	atomic_set(&bat_priv->tt_ogm_append_cnt, TT_OGM_APPEND_MAX);
+	atomic_set(&bat_priv->tt_ogm_append_cnt, BATADV_TT_OGM_APPEND_MAX);
 
 	return batadv_tt_changes_fill_buff(bat_priv, packet_buff,
 					   packet_buff_len, packet_min_len);
@@ -2248,7 +2260,8 @@ void batadv_tt_update_orig(struct bat_priv *bat_priv,
 	if ((!orig_node->tt_initialised && ttvn == 1) ||
 	    ttvn - orig_ttvn == 1) {
 		/* the OGM could not contain the changes due to their size or
-		 * because they have already been sent TT_OGM_APPEND_MAX times.
+		 * because they have already been sent BATADV_TT_OGM_APPEND_MAX
+		 * times.
 		 * In this case send a tt request
 		 */
 		if (!tt_num_changes) {

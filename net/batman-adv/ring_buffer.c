@@ -24,7 +24,7 @@ void batadv_ring_buffer_set(uint8_t lq_recv[], uint8_t *lq_index,
 			    uint8_t value)
 {
 	lq_recv[*lq_index] = value;
-	*lq_index = (*lq_index + 1) % TQ_GLOBAL_WINDOW_SIZE;
+	*lq_index = (*lq_index + 1) % BATADV_TQ_GLOBAL_WINDOW_SIZE;
 }
 
 uint8_t batadv_ring_buffer_avg(const uint8_t lq_recv[])
@@ -34,7 +34,7 @@ uint8_t batadv_ring_buffer_avg(const uint8_t lq_recv[])
 
 	ptr = lq_recv;
 
-	while (i < TQ_GLOBAL_WINDOW_SIZE) {
+	while (i < BATADV_TQ_GLOBAL_WINDOW_SIZE) {
 		if (*ptr != 0) {
 			count++;
 			sum += *ptr;

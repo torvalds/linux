@@ -29,7 +29,7 @@ static inline int batadv_test_bit(const unsigned long *seq_bits,
 	int32_t diff;
 
 	diff = last_seqno - curr_seqno;
-	if (diff < 0 || diff >= TQ_LOCAL_WINDOW_SIZE)
+	if (diff < 0 || diff >= BATADV_TQ_LOCAL_WINDOW_SIZE)
 		return 0;
 	else
 		return  test_bit(diff, seq_bits);
@@ -39,7 +39,7 @@ static inline int batadv_test_bit(const unsigned long *seq_bits,
 static inline void batadv_set_bit(unsigned long *seq_bits, int32_t n)
 {
 	/* if too old, just drop it */
-	if (n < 0 || n >= TQ_LOCAL_WINDOW_SIZE)
+	if (n < 0 || n >= BATADV_TQ_LOCAL_WINDOW_SIZE)
 		return;
 
 	set_bit(n, seq_bits); /* turn the position on */

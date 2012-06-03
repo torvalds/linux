@@ -108,7 +108,7 @@ static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 	if (atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE) {
 		batadv_tt_local_remove(bat_priv, dev->dev_addr,
 				       "mac address changed", false);
-		batadv_tt_local_add(dev, addr->sa_data, NULL_IFINDEX);
+		batadv_tt_local_add(dev, addr->sa_data, BATADV_NULL_IFINDEX);
 	}
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
@@ -210,7 +210,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 
 		bcast_packet = (struct bcast_packet *)skb->data;
 		bcast_packet->header.version = BATADV_COMPAT_VERSION;
-		bcast_packet->header.ttl = TTL;
+		bcast_packet->header.ttl = BATADV_TTL;
 
 		/* batman packet type: broadcast */
 		bcast_packet->header.packet_type = BAT_BCAST;
@@ -394,8 +394,8 @@ struct net_device *batadv_softif_create(const char *name)
 	atomic_set(&bat_priv->hop_penalty, 30);
 	atomic_set(&bat_priv->log_level, 0);
 	atomic_set(&bat_priv->fragmentation, 1);
-	atomic_set(&bat_priv->bcast_queue_left, BCAST_QUEUE_LEN);
-	atomic_set(&bat_priv->batman_queue_left, BATMAN_QUEUE_LEN);
+	atomic_set(&bat_priv->bcast_queue_left, BATADV_BCAST_QUEUE_LEN);
+	atomic_set(&bat_priv->batman_queue_left, BATADV_BATMAN_QUEUE_LEN);
 
 	atomic_set(&bat_priv->mesh_state, MESH_INACTIVE);
 	atomic_set(&bat_priv->bcast_seqno, 1);
@@ -487,7 +487,7 @@ static void batadv_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
 	strcpy(info->driver, "B.A.T.M.A.N. advanced");
-	strcpy(info->version, SOURCE_VERSION);
+	strcpy(info->version, BATADV_SOURCE_VERSION);
 	strcpy(info->fw_version, "N/A");
 	strcpy(info->bus_info, "batman");
 }

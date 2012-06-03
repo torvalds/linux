@@ -575,7 +575,7 @@ static int batadv_generate_vis_packet(struct bat_priv *bat_priv)
 	packet->vis_type = atomic_read(&bat_priv->vis_mode);
 
 	memcpy(packet->target_orig, batadv_broadcast_addr, ETH_ALEN);
-	packet->header.ttl = TTL;
+	packet->header.ttl = BATADV_TTL;
 	packet->seqno = htonl(ntohl(packet->seqno) + 1);
 	packet->entries = 0;
 	skb_trim(info->skb_packet, sizeof(*packet));
@@ -841,6 +841,7 @@ int batadv_vis_init(struct bat_priv *bat_priv)
 	struct vis_packet *packet;
 	int hash_added;
 	unsigned int len;
+	unsigned long first_seen;
 
 	if (bat_priv->vis_hash)
 		return 0;
@@ -867,15 +868,15 @@ int batadv_vis_init(struct bat_priv *bat_priv)
 					      sizeof(*packet));
 
 	/* prefill the vis info */
-	bat_priv->my_vis_info->first_seen = jiffies -
-						msecs_to_jiffies(VIS_INTERVAL);
+	first_seen = jiffies - msecs_to_jiffies(BATADV_VIS_INTERVAL);
+	bat_priv->my_vis_info->first_seen = first_seen;
 	INIT_LIST_HEAD(&bat_priv->my_vis_info->recv_list);
 	INIT_LIST_HEAD(&bat_priv->my_vis_info->send_list);
 	kref_init(&bat_priv->my_vis_info->refcount);
 	bat_priv->my_vis_info->bat_priv = bat_priv;
 	packet->header.version = BATADV_COMPAT_VERSION;
 	packet->header.packet_type = BAT_VIS;
-	packet->header.ttl = TTL;
+	packet->header.ttl = BATADV_TTL;
 	packet->seqno = 0;
 	packet->entries = 0;
 
@@ -936,5 +937,5 @@ static void batadv_start_vis_timer(struct bat_priv *bat_priv)
 {
 	INIT_DELAYED_WORK(&bat_priv->vis_work, batadv_send_vis_packets);
 	queue_delayed_work(batadv_event_workqueue, &bat_priv->vis_work,
-			   msecs_to_jiffies(VIS_INTERVAL));
+			   msecs_to_jiffies(BATADV_VIS_INTERVAL));
 }

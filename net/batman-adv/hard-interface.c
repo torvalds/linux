@@ -548,7 +548,7 @@ bool batadv_is_wifi_iface(int ifindex)
 	struct net_device *net_device = NULL;
 	bool ret = false;
 
-	if (ifindex == NULL_IFINDEX)
+	if (ifindex == BATADV_NULL_IFINDEX)
 		goto out;
 
 	net_device = dev_get_by_index(&init_net, ifindex);
