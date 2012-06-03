@@ -1391,17 +1391,17 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int ret = 0, features;
 
 	if (!pdata) {
-		dev_dbg(&client->dev, "no platform data?\n");
+		dev_err(&client->dev, "no platform data?\n");
 		return -EINVAL;
 	}
 
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C) == 0) {
-		dev_dbg(&client->dev, "can't talk I2C?\n");
+		dev_err(&client->dev, "can't talk I2C?\n");
 		return -EIO;
 	}
 
 	if (inuse) {
-		dev_dbg(&client->dev, "driver is already in use\n");
+		dev_err(&client->dev, "driver is already in use\n");
 		return -EBUSY;
 	}
 
@@ -1512,6 +1512,7 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 fail:
 	if (status < 0)
 		twl_remove(client);
+	dev_info(&client->dev, "%s finished, status = %d\n", __func__, status);
 	return status;
 }
 

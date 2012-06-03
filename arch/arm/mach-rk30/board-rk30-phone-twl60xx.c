@@ -71,8 +71,8 @@ int tps80032_pre_init(void){
 	twl_reg_write(CLK32KG_CFG_STATE,TWL_MODULE_PM_SLAVE_RES,0x01);  //set clk32kg on when we use
 	twl_reg_write(CLK32KAUDIO_CFG_STATE,TWL_MODULE_PM_SLAVE_RES,0x01);  //set clk32kaudio on when we use
 
-	twl_i2c_write_u8(CHARGERUSB_CTRLLIMIT2,TWL6030_MODULE_CHARGER, 0x0f);
-	twl_i2c_write_u8(CHARGERUSB_CTRLLIMIT2,TWL6030_MODULE_CHARGER, 0x1f);
+	twl_reg_write(CHARGERUSB_CTRLLIMIT2,TWL6030_MODULE_CHARGER, 0x0f);
+	twl_reg_write(CHARGERUSB_CTRLLIMIT2,TWL6030_MODULE_CHARGER, 0x1f);
 	
 	twl_reg_write(LDO5_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03);   //set ldo5 is disabled when in sleep mode 
 	twl_reg_write(LDO7_CFG_TRANS,TWL_MODULE_PM_RECEIVER,0x03);   //set ldo7 is disabled when in sleep mode
