@@ -32,9 +32,6 @@
 #include <linux/mfd/wm8350/supply.h>
 #include <linux/mfd/wm8350/wdt.h>
 
-#define WM8350_UNLOCK_KEY		0x0013
-#define WM8350_LOCK_KEY			0x0000
-
 #define WM8350_CLOCK_CONTROL_1		0x28
 #define WM8350_AIF_TEST			0x74
 
@@ -295,15 +292,20 @@ EXPORT_SYMBOL_GPL(wm8350_block_write);
  */
 int wm8350_reg_lock(struct wm8350 *wm8350)
 {
-	u16 key = WM8350_LOCK_KEY;
 	int ret;
 
+	mutex_lock(&reg_lock_mutex);
+
 	ldbg(__func__);
-	mutex_lock(&io_mutex);
-	ret = wm8350_write(wm8350, WM8350_SECURITY, 1, &key);
+
+	ret = wm8350_reg_write(wm8350, WM8350_SECURITY, WM8350_LOCK_KEY);
 	if (ret)
 		dev_err(wm8350->dev, "lock failed\n");
-	mutex_unlock(&io_mutex);
+
+	wm8350->unlocked = false;
+
+	mutex_unlock(&reg_lock_mutex);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm8350_reg_lock);
@@ -319,15 +321,20 @@ EXPORT_SYMBOL_GPL(wm8350_reg_lock);
  */
 int wm8350_reg_unlock(struct wm8350 *wm8350)
 {
-	u16 key = WM8350_UNLOCK_KEY;
 	int ret;
 
+	mutex_lock(&reg_lock_mutex);
+
 	ldbg(__func__);
-	mutex_lock(&io_mutex);
-	ret = wm8350_write(wm8350, WM8350_SECURITY, 1, &key);
+
+	ret = wm8350_reg_write(wm8350, WM8350_SECURITY, WM8350_UNLOCK_KEY);
 	if (ret)
 		dev_err(wm8350->dev, "unlock failed\n");
-	mutex_unlock(&io_mutex);
+
+	wm8350->unlocked = true;
+
+	mutex_unlock(&reg_lock_mutex);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm8350_reg_unlock);
