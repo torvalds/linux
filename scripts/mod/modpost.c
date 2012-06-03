@@ -865,6 +865,11 @@ static void check_section(const char *modname, struct elf_info *elf,
 #define ALL_EXIT_TEXT_SECTIONS \
 	".exit.text$", ".devexit.text$", ".cpuexit.text$", ".memexit.text$"
 
+#define ALL_PCI_INIT_SECTIONS	\
+	".pci_fixup_early$", ".pci_fixup_header$", ".pci_fixup_final$", \
+	".pci_fixup_enable$", ".pci_fixup_resume$", \
+	".pci_fixup_resume_early$", ".pci_fixup_suspend$"
+
 #define ALL_XXXINIT_SECTIONS DEV_INIT_SECTIONS, CPU_INIT_SECTIONS, \
 	MEM_INIT_SECTIONS
 #define ALL_XXXEXIT_SECTIONS DEV_EXIT_SECTIONS, CPU_EXIT_SECTIONS, \
@@ -1026,6 +1031,12 @@ const struct sectioncheck sectioncheck[] = {
 	.tosec   = { ALL_INIT_SECTIONS, NULL },
 	.mismatch = ANY_EXIT_TO_ANY_INIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
+},
+{
+	.fromsec = { ALL_PCI_INIT_SECTIONS, NULL },
+	.tosec   = { INIT_SECTIONS, NULL },
+	.mismatch = ANY_INIT_TO_ANY_EXIT,
+	.symbol_white_list = { NULL },
 },
 /* Do not export init/exit functions or data */
 {
