@@ -351,7 +351,7 @@ static void batadv_interface_setup(struct net_device *dev)
 	 */
 	dev->mtu = ETH_DATA_LEN;
 	/* reserve more space in the skbuff for our header */
-	dev->hard_header_len = BAT_HEADER_LEN;
+	dev->hard_header_len = BATADV_HEADER_LEN;
 
 	/* generate random address */
 	eth_hw_addr_random(dev);

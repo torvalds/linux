@@ -22,12 +22,11 @@
 
 #include "packet.h"
 #include "bitarray.h"
+#include <linux/kernel.h>
 
-#define BAT_HEADER_LEN (ETH_HLEN + \
-	((sizeof(struct unicast_packet) > sizeof(struct bcast_packet) ? \
-	 sizeof(struct unicast_packet) : \
-	 sizeof(struct bcast_packet))))
-
+#define BATADV_HEADER_LEN \
+	(ETH_HLEN + max(sizeof(struct unicast_packet), \
+			sizeof(struct bcast_packet)))
 
 struct hard_iface {
 	struct list_head list;
