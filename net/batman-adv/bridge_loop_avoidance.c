@@ -292,7 +292,7 @@ static void batadv_bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 
 	/* now we pretend that the client would have sent this ... */
 	switch (claimtype) {
-	case CLAIM_TYPE_ADD:
+	case BATADV_CLAIM_TYPE_ADD:
 		/* normal claim frame
 		 * set Ethernet SRC to the clients mac
 		 */
@@ -300,7 +300,7 @@ static void batadv_bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 		batadv_dbg(DBG_BLA, bat_priv,
 			   "bla_send_claim(): CLAIM %pM on vid %d\n", mac, vid);
 		break;
-	case CLAIM_TYPE_DEL:
+	case BATADV_CLAIM_TYPE_DEL:
 		/* unclaim frame
 		 * set HW SRC to the clients mac
 		 */
@@ -309,7 +309,7 @@ static void batadv_bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 			   "bla_send_claim(): UNCLAIM %pM on vid %d\n", mac,
 			   vid);
 		break;
-	case CLAIM_TYPE_ANNOUNCE:
+	case BATADV_CLAIM_TYPE_ANNOUNCE:
 		/* announcement frame
 		 * set HW SRC to the special mac containg the crc
 		 */
@@ -318,7 +318,7 @@ static void batadv_bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 			   "bla_send_claim(): ANNOUNCE of %pM on vid %d\n",
 			   ethhdr->h_source, vid);
 		break;
-	case CLAIM_TYPE_REQUEST:
+	case BATADV_CLAIM_TYPE_REQUEST:
 		/* request frame
 		 * set HW SRC to the special mac containg the crc
 		 */
@@ -459,7 +459,7 @@ static void batadv_bla_answer_request(struct bat_priv *bat_priv,
 				continue;
 
 			batadv_bla_send_claim(bat_priv, claim->addr, claim->vid,
-					      CLAIM_TYPE_ADD);
+					      BATADV_CLAIM_TYPE_ADD);
 		}
 		rcu_read_unlock();
 	}
@@ -485,7 +485,7 @@ static void batadv_bla_send_request(struct backbone_gw *backbone_gw)
 
 	/* send request */
 	batadv_bla_send_claim(backbone_gw->bat_priv, backbone_gw->orig,
-			      backbone_gw->vid, CLAIM_TYPE_REQUEST);
+			      backbone_gw->vid, BATADV_CLAIM_TYPE_REQUEST);
 
 	/* no local broadcasts should be sent or received, for now. */
 	if (!atomic_read(&backbone_gw->request_sent)) {
@@ -511,7 +511,7 @@ static void batadv_bla_send_announce(struct bat_priv *bat_priv,
 	memcpy(&mac[4], &crc, 2);
 
 	batadv_bla_send_claim(bat_priv, mac, backbone_gw->vid,
-			      CLAIM_TYPE_ANNOUNCE);
+			      BATADV_CLAIM_TYPE_ANNOUNCE);
 
 }
 
@@ -694,7 +694,7 @@ static int batadv_handle_unclaim(struct bat_priv *bat_priv,
 	if (primary_if && batadv_compare_eth(backbone_addr,
 					     primary_if->net_dev->dev_addr))
 		batadv_bla_send_claim(bat_priv, claim_addr, vid,
-				      CLAIM_TYPE_DEL);
+				      BATADV_CLAIM_TYPE_DEL);
 
 	backbone_gw = batadv_backbone_hash_find(bat_priv, backbone_addr, vid);
 
@@ -730,7 +730,7 @@ static int batadv_handle_claim(struct bat_priv *bat_priv,
 	batadv_bla_add_claim(bat_priv, claim_addr, vid, backbone_gw);
 	if (batadv_compare_eth(backbone_addr, primary_if->net_dev->dev_addr))
 		batadv_bla_send_claim(bat_priv, claim_addr, vid,
-				      CLAIM_TYPE_ADD);
+				      BATADV_CLAIM_TYPE_ADD);
 
 	/* TODO: we could call something like tt_local_del() here. */
 
@@ -773,12 +773,12 @@ static int batadv_check_claim_group(struct bat_priv *bat_priv,
 	 * otherwise assume it is in the hw_src
 	 */
 	switch (bla_dst->type) {
-	case CLAIM_TYPE_ADD:
+	case BATADV_CLAIM_TYPE_ADD:
 		backbone_addr = hw_src;
 		break;
-	case CLAIM_TYPE_REQUEST:
-	case CLAIM_TYPE_ANNOUNCE:
-	case CLAIM_TYPE_DEL:
+	case BATADV_CLAIM_TYPE_REQUEST:
+	case BATADV_CLAIM_TYPE_ANNOUNCE:
+	case BATADV_CLAIM_TYPE_DEL:
 		backbone_addr = ethhdr->h_source;
 		break;
 	default:
@@ -894,23 +894,23 @@ static int batadv_bla_process_claim(struct bat_priv *bat_priv,
 
 	/* check for the different types of claim frames ... */
 	switch (bla_dst->type) {
-	case CLAIM_TYPE_ADD:
+	case BATADV_CLAIM_TYPE_ADD:
 		if (batadv_handle_claim(bat_priv, primary_if, hw_src,
 					ethhdr->h_source, vid))
 			return 1;
 		break;
-	case CLAIM_TYPE_DEL:
+	case BATADV_CLAIM_TYPE_DEL:
 		if (batadv_handle_unclaim(bat_priv, primary_if,
 					  ethhdr->h_source, hw_src, vid))
 			return 1;
 		break;
 
-	case CLAIM_TYPE_ANNOUNCE:
+	case BATADV_CLAIM_TYPE_ANNOUNCE:
 		if (batadv_handle_announce(bat_priv, hw_src, ethhdr->h_source,
 					   vid))
 			return 1;
 		break;
-	case CLAIM_TYPE_REQUEST:
+	case BATADV_CLAIM_TYPE_REQUEST:
 		if (batadv_handle_request(bat_priv, primary_if, hw_src, ethhdr,
 					  vid))
 			return 1;

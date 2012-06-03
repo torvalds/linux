@@ -42,7 +42,7 @@ batadv_frag_merge_packet(struct list_head *head,
 	int uni_diff = sizeof(*up) - hdr_len;
 
 	/* set skb to the first part and tmp_skb to the second part */
-	if (up->flags & UNI_FRAG_HEAD) {
+	if (up->flags & BATADV_UNI_FRAG_HEAD) {
 		tmp_skb = tfp->skb;
 	} else {
 		tmp_skb = skb;
@@ -66,7 +66,7 @@ batadv_frag_merge_packet(struct list_head *head,
 
 	memmove(skb->data + uni_diff, skb->data, hdr_len);
 	unicast_packet = (struct unicast_packet *)skb_pull(skb, uni_diff);
-	unicast_packet->header.packet_type = BAT_UNICAST;
+	unicast_packet->header.packet_type = BATADV_UNICAST;
 
 	return skb;
 
@@ -121,7 +121,7 @@ batadv_frag_search_packet(struct list_head *head,
 	struct unicast_frag_packet *tmp_up = NULL;
 	uint16_t search_seqno;
 
-	if (up->flags & UNI_FRAG_HEAD)
+	if (up->flags & BATADV_UNI_FRAG_HEAD)
 		search_seqno = ntohs(up->seqno)+1;
 	else
 		search_seqno = ntohs(up->seqno)-1;
@@ -138,8 +138,8 @@ batadv_frag_search_packet(struct list_head *head,
 
 		if (tfp->seqno == search_seqno) {
 
-			if ((tmp_up->flags & UNI_FRAG_HEAD) !=
-			    (up->flags & UNI_FRAG_HEAD))
+			if ((tmp_up->flags & BATADV_UNI_FRAG_HEAD) !=
+			    (up->flags & BATADV_UNI_FRAG_HEAD))
 				return tfp;
 			else
 				goto mov_tail;
@@ -254,15 +254,15 @@ int batadv_frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 
 	frag1->header.ttl--;
 	frag1->header.version = BATADV_COMPAT_VERSION;
-	frag1->header.packet_type = BAT_UNICAST_FRAG;
+	frag1->header.packet_type = BATADV_UNICAST_FRAG;
 
 	memcpy(frag1->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(frag2, frag1, sizeof(*frag2));
 
 	if (data_len & 1)
-		large_tail = UNI_FRAG_LARGETAIL;
+		large_tail = BATADV_UNI_FRAG_LARGETAIL;
 
-	frag1->flags = UNI_FRAG_HEAD | large_tail;
+	frag1->flags = BATADV_UNI_FRAG_HEAD | large_tail;
 	frag2->flags = large_tail;
 
 	seqno = atomic_add_return(2, &hard_iface->frag_seqno);
@@ -321,7 +321,7 @@ find_router:
 
 	unicast_packet->header.version = BATADV_COMPAT_VERSION;
 	/* batman packet type: unicast */
-	unicast_packet->header.packet_type = BAT_UNICAST;
+	unicast_packet->header.packet_type = BATADV_UNICAST;
 	/* set unicast ttl */
 	unicast_packet->header.ttl = BATADV_TTL;
 	/* copy the destination for faster routing */

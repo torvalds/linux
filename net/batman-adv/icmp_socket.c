@@ -187,14 +187,14 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 		goto free_skb;
 	}
 
-	if (icmp_packet->header.packet_type != BAT_ICMP) {
+	if (icmp_packet->header.packet_type != BATADV_ICMP) {
 		batadv_dbg(DBG_BATMAN, bat_priv,
 			   "Error - can't send packet from char device: got bogus packet type (expected: BAT_ICMP)\n");
 		len = -EINVAL;
 		goto free_skb;
 	}
 
-	if (icmp_packet->msg_type != ECHO_REQUEST) {
+	if (icmp_packet->msg_type != BATADV_ECHO_REQUEST) {
 		batadv_dbg(DBG_BATMAN, bat_priv,
 			   "Error - can't send packet from char device: got bogus message type (expected: ECHO_REQUEST)\n");
 		len = -EINVAL;
@@ -204,7 +204,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	icmp_packet->uid = socket_client->index;
 
 	if (icmp_packet->header.version != BATADV_COMPAT_VERSION) {
-		icmp_packet->msg_type = PARAMETER_PROBLEM;
+		icmp_packet->msg_type = BATADV_PARAMETER_PROBLEM;
 		icmp_packet->header.version = BATADV_COMPAT_VERSION;
 		batadv_socket_add_packet(socket_client, icmp_packet,
 					 packet_len);
@@ -239,7 +239,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	goto out;
 
 dst_unreach:
-	icmp_packet->msg_type = DESTINATION_UNREACHABLE;
+	icmp_packet->msg_type = BATADV_DESTINATION_UNREACHABLE;
 	batadv_socket_add_packet(socket_client, icmp_packet, packet_len);
 free_skb:
 	kfree_skb(skb);

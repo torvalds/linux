@@ -71,7 +71,7 @@ static int batadv_iv_ogm_iface_enable(struct hard_iface *hard_iface)
 		goto out;
 
 	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
-	batman_ogm_packet->header.packet_type = BAT_IV_OGM;
+	batman_ogm_packet->header.packet_type = BATADV_IV_OGM;
 	batman_ogm_packet->header.version = BATADV_COMPAT_VERSION;
 	batman_ogm_packet->header.ttl = 2;
 	batman_ogm_packet->flags = BATADV_NO_FLAGS;
@@ -107,7 +107,7 @@ static void batadv_iv_ogm_primary_iface_set(struct hard_iface *hard_iface)
 	struct batman_ogm_packet *batman_ogm_packet;
 
 	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
-	batman_ogm_packet->flags = PRIMARIES_FIRST_HOP;
+	batman_ogm_packet->flags = BATADV_PRIMARIES_FIRST_HOP;
 	batman_ogm_packet->header.ttl = BATADV_TTL;
 }
 
@@ -181,9 +181,9 @@ static void batadv_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 		 */
 		if ((forw_packet->direct_link_flags & (1 << packet_num)) &&
 		    (forw_packet->if_incoming == hard_iface))
-			batman_ogm_packet->flags |= DIRECTLINK;
+			batman_ogm_packet->flags |= BATADV_DIRECTLINK;
 		else
-			batman_ogm_packet->flags &= ~DIRECTLINK;
+			batman_ogm_packet->flags &= ~BATADV_DIRECTLINK;
 
 		fwd_str = (packet_num > 0 ? "Forwarding" : (forw_packet->own ?
 							    "Sending own" :
@@ -194,7 +194,7 @@ static void batadv_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 			   batman_ogm_packet->orig,
 			   ntohl(batman_ogm_packet->seqno),
 			   batman_ogm_packet->tq, batman_ogm_packet->header.ttl,
-			   (batman_ogm_packet->flags & DIRECTLINK ?
+			   (batman_ogm_packet->flags & BATADV_DIRECTLINK ?
 			    "on" : "off"),
 			   batman_ogm_packet->ttvn, hard_iface->net_dev->name,
 			   hard_iface->net_dev->dev_addr);
@@ -228,7 +228,7 @@ static void batadv_iv_ogm_emit(struct forw_packet *forw_packet)
 
 	batman_ogm_packet = (struct batman_ogm_packet *)
 						(forw_packet->skb->data);
-	directlink = (batman_ogm_packet->flags & DIRECTLINK ? 1 : 0);
+	directlink = (batman_ogm_packet->flags & BATADV_DIRECTLINK ? 1 : 0);
 
 	if (!forw_packet->if_incoming) {
 		pr_err("Error - can't forward packet: incoming iface not specified\n");
@@ -330,7 +330,7 @@ batadv_iv_ogm_can_aggregate(const struct batman_ogm_packet *new_bat_ogm_packet,
 		 * are flooded through the net
 		 */
 		if ((!directlink) &&
-		    (!(batman_ogm_packet->flags & DIRECTLINK)) &&
+		    (!(batman_ogm_packet->flags & BATADV_DIRECTLINK)) &&
 		    (batman_ogm_packet->header.ttl != 1) &&
 
 		    /* own packets originating non-primary
@@ -353,7 +353,7 @@ batadv_iv_ogm_can_aggregate(const struct batman_ogm_packet *new_bat_ogm_packet,
 		     * own secondary interface packets
 		     * (= secondary interface packets in general)
 		     */
-		    (batman_ogm_packet->flags & DIRECTLINK ||
+		    (batman_ogm_packet->flags & BATADV_DIRECTLINK ||
 		     (forw_packet->own &&
 		      forw_packet->if_incoming != primary_if))) {
 			res = true;
@@ -480,7 +480,7 @@ static void batadv_iv_ogm_queue_add(struct bat_priv *bat_priv,
 	unsigned long max_aggregation_jiffies;
 
 	batman_ogm_packet = (struct batman_ogm_packet *)packet_buff;
-	direct_link = batman_ogm_packet->flags & DIRECTLINK ? 1 : 0;
+	direct_link = batman_ogm_packet->flags & BATADV_DIRECTLINK ? 1 : 0;
 	max_aggregation_jiffies = msecs_to_jiffies(BATADV_MAX_AGGREGATION_MS);
 
 	/* find position for the packet in the forward queue */
@@ -547,7 +547,7 @@ static void batadv_iv_ogm_forward(struct orig_node *orig_node,
 		 * simply drop the ogm.
 		 */
 		if (is_single_hop_neigh)
-			batman_ogm_packet->flags |= NOT_BEST_NEXT_HOP;
+			batman_ogm_packet->flags |= BATADV_NOT_BEST_NEXT_HOP;
 		else
 			return;
 	}
@@ -566,11 +566,11 @@ static void batadv_iv_ogm_forward(struct orig_node *orig_node,
 		   batman_ogm_packet->tq, batman_ogm_packet->header.ttl);
 
 	/* switch of primaries first hop flag when forwarding */
-	batman_ogm_packet->flags &= ~PRIMARIES_FIRST_HOP;
+	batman_ogm_packet->flags &= ~BATADV_PRIMARIES_FIRST_HOP;
 	if (is_single_hop_neigh)
-		batman_ogm_packet->flags |= DIRECTLINK;
+		batman_ogm_packet->flags |= BATADV_DIRECTLINK;
 	else
-		batman_ogm_packet->flags &= ~DIRECTLINK;
+		batman_ogm_packet->flags &= ~BATADV_DIRECTLINK;
 
 	batadv_iv_ogm_queue_add(bat_priv, (unsigned char *)batman_ogm_packet,
 				BATADV_OGM_HLEN + batadv_tt_len(tt_num_changes),
@@ -605,10 +605,10 @@ static void batadv_iv_ogm_schedule(struct hard_iface *hard_iface)
 	if (tt_num_changes >= 0)
 		batman_ogm_packet->tt_num_changes = tt_num_changes;
 
-	if (vis_server == VIS_TYPE_SERVER_SYNC)
-		batman_ogm_packet->flags |= VIS_SERVER;
+	if (vis_server == BATADV_VIS_TYPE_SERVER_SYNC)
+		batman_ogm_packet->flags |= BATADV_VIS_SERVER;
 	else
-		batman_ogm_packet->flags &= ~VIS_SERVER;
+		batman_ogm_packet->flags &= ~BATADV_VIS_SERVER;
 
 	if ((hard_iface == primary_if) &&
 	    (atomic_read(&bat_priv->gw_mode) == BATADV_GW_MODE_SERVER))
@@ -746,7 +746,7 @@ update_tt:
 	 */
 	if (((batman_ogm_packet->orig != ethhdr->h_source) &&
 	     (batman_ogm_packet->header.ttl > 2)) ||
-	    (batman_ogm_packet->flags & PRIMARIES_FIRST_HOP))
+	    (batman_ogm_packet->flags & BATADV_PRIMARIES_FIRST_HOP))
 		batadv_tt_update_orig(bat_priv, orig_node, tt_buff,
 				      batman_ogm_packet->tt_num_changes,
 				      batman_ogm_packet->ttvn,
@@ -993,13 +993,16 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 	 * packet in an aggregation.  Here we expect that the padding
 	 * is always zero (or not 0x01)
 	 */
-	if (batman_ogm_packet->header.packet_type != BAT_IV_OGM)
+	if (batman_ogm_packet->header.packet_type != BATADV_IV_OGM)
 		return;
 
 	/* could be changed by schedule_own_packet() */
 	if_incoming_seqno = atomic_read(&if_incoming->seqno);
 
-	has_directlink_flag = (batman_ogm_packet->flags & DIRECTLINK ? 1 : 0);
+	if (batman_ogm_packet->flags & BATADV_DIRECTLINK)
+		has_directlink_flag = 1;
+	else
+		has_directlink_flag = 0;
 
 	if (batadv_compare_eth(ethhdr->h_source, batman_ogm_packet->orig))
 		is_single_hop_neigh = true;
@@ -1107,7 +1110,7 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 		return;
 	}
 
-	if (batman_ogm_packet->flags & NOT_BEST_NEXT_HOP) {
+	if (batman_ogm_packet->flags & BATADV_NOT_BEST_NEXT_HOP) {
 		batadv_dbg(DBG_BATMAN, bat_priv,
 			   "Drop packet: ignoring all packets not forwarded from the best next hop (sender: %pM)\n",
 			   ethhdr->h_source);
@@ -1299,7 +1302,8 @@ int __init batadv_iv_init(void)
 	int ret;
 
 	/* batman originator packet */
-	ret = batadv_recv_handler_register(BAT_IV_OGM, batadv_iv_ogm_receive);
+	ret = batadv_recv_handler_register(BATADV_IV_OGM,
+					   batadv_iv_ogm_receive);
 	if (ret < 0)
 		goto out;
 
@@ -1310,7 +1314,7 @@ int __init batadv_iv_init(void)
 	goto out;
 
 handler_unregister:
-	batadv_recv_handler_unregister(BAT_IV_OGM);
+	batadv_recv_handler_unregister(BATADV_IV_OGM);
 out:
 	return ret;
 }

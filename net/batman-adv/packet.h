@@ -22,80 +22,80 @@
 
 #define BATADV_ETH_P_BATMAN  0x4305 /* unofficial/not registered Ethertype */
 
-enum bat_packettype {
-	BAT_IV_OGM	 = 0x01,
-	BAT_ICMP	 = 0x02,
-	BAT_UNICAST	 = 0x03,
-	BAT_BCAST	 = 0x04,
-	BAT_VIS		 = 0x05,
-	BAT_UNICAST_FRAG = 0x06,
-	BAT_TT_QUERY	 = 0x07,
-	BAT_ROAM_ADV	 = 0x08
+enum batadv_packettype {
+	BATADV_IV_OGM	    = 0x01,
+	BATADV_ICMP	    = 0x02,
+	BATADV_UNICAST	    = 0x03,
+	BATADV_BCAST	    = 0x04,
+	BATADV_VIS	    = 0x05,
+	BATADV_UNICAST_FRAG = 0x06,
+	BATADV_TT_QUERY	    = 0x07,
+	BATADV_ROAM_ADV	    = 0x08,
 };
 
 /* this file is included by batctl which needs these defines */
 #define BATADV_COMPAT_VERSION 14
 
-enum batman_iv_flags {
-	NOT_BEST_NEXT_HOP   = 1 << 3,
-	PRIMARIES_FIRST_HOP = 1 << 4,
-	VIS_SERVER	    = 1 << 5,
-	DIRECTLINK	    = 1 << 6
+enum batadv_iv_flags {
+	BATADV_NOT_BEST_NEXT_HOP   = 1 << 3,
+	BATADV_PRIMARIES_FIRST_HOP = 1 << 4,
+	BATADV_VIS_SERVER	   = 1 << 5,
+	BATADV_DIRECTLINK	   = 1 << 6,
 };
 
 /* ICMP message types */
-enum icmp_packettype {
-	ECHO_REPLY		= 0,
-	DESTINATION_UNREACHABLE = 3,
-	ECHO_REQUEST		= 8,
-	TTL_EXCEEDED		= 11,
-	PARAMETER_PROBLEM	= 12
+enum batadv_icmp_packettype {
+	BATADV_ECHO_REPLY	       = 0,
+	BATADV_DESTINATION_UNREACHABLE = 3,
+	BATADV_ECHO_REQUEST	       = 8,
+	BATADV_TTL_EXCEEDED	       = 11,
+	BATADV_PARAMETER_PROBLEM       = 12,
 };
 
 /* vis defines */
-enum vis_packettype {
-	VIS_TYPE_SERVER_SYNC   = 0,
-	VIS_TYPE_CLIENT_UPDATE = 1
+enum batadv_vis_packettype {
+	BATADV_VIS_TYPE_SERVER_SYNC   = 0,
+	BATADV_VIS_TYPE_CLIENT_UPDATE = 1,
 };
 
 /* fragmentation defines */
-enum unicast_frag_flags {
-	UNI_FRAG_HEAD	   = 1 << 0,
-	UNI_FRAG_LARGETAIL = 1 << 1
+enum batadv_unicast_frag_flags {
+	BATADV_UNI_FRAG_HEAD	  = 1 << 0,
+	BATADV_UNI_FRAG_LARGETAIL = 1 << 1,
 };
 
 /* TT_QUERY subtypes */
 #define BATADV_TT_QUERY_TYPE_MASK 0x3
 
-enum tt_query_packettype {
-	TT_REQUEST    = 0,
-	TT_RESPONSE   = 1
+enum batadv_tt_query_packettype {
+	BATADV_TT_REQUEST  = 0,
+	BATADV_TT_RESPONSE = 1,
 };
 
 /* TT_QUERY flags */
-enum tt_query_flags {
-	TT_FULL_TABLE = 1 << 2
+enum batadv_tt_query_flags {
+	BATADV_TT_FULL_TABLE = 1 << 2,
 };
 
-/* TT_CLIENT flags.
+/* BATADV_TT_CLIENT flags.
  * Flags from 1 to 1 << 7 are sent on the wire, while flags from 1 << 8 to
  * 1 << 15 are used for local computation only
  */
-enum tt_client_flags {
-	TT_CLIENT_DEL     = 1 << 0,
-	TT_CLIENT_ROAM    = 1 << 1,
-	TT_CLIENT_WIFI    = 1 << 2,
-	TT_CLIENT_NOPURGE = 1 << 8,
-	TT_CLIENT_NEW     = 1 << 9,
-	TT_CLIENT_PENDING = 1 << 10
+enum batadv_tt_client_flags {
+	BATADV_TT_CLIENT_DEL     = 1 << 0,
+	BATADV_TT_CLIENT_ROAM    = 1 << 1,
+	BATADV_TT_CLIENT_WIFI    = 1 << 2,
+	BATADV_TT_CLIENT_NOPURGE = 1 << 8,
+	BATADV_TT_CLIENT_NEW     = 1 << 9,
+	BATADV_TT_CLIENT_PENDING = 1 << 10,
 };
 
 /* claim frame types for the bridge loop avoidance */
-enum bla_claimframe {
-	CLAIM_TYPE_ADD		= 0x00,
-	CLAIM_TYPE_DEL		= 0x01,
-	CLAIM_TYPE_ANNOUNCE	= 0x02,
-	CLAIM_TYPE_REQUEST	= 0x03
+enum batadv_bla_claimframe {
+	BATADV_CLAIM_TYPE_ADD		= 0x00,
+	BATADV_CLAIM_TYPE_DEL		= 0x01,
+	BATADV_CLAIM_TYPE_ANNOUNCE	= 0x02,
+	BATADV_CLAIM_TYPE_REQUEST	= 0x03,
 };
 
 /* the destination hardware field in the ARP frame is used to

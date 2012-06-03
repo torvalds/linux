@@ -219,7 +219,7 @@ batadv_bonding_save_primary(const struct orig_node *orig_node,
 			    struct orig_node *orig_neigh_node,
 			    const struct batman_ogm_packet *batman_ogm_packet)
 {
-	if (!(batman_ogm_packet->flags & PRIMARIES_FIRST_HOP))
+	if (!(batman_ogm_packet->flags & BATADV_PRIMARIES_FIRST_HOP))
 		return;
 
 	memcpy(orig_neigh_node->primary_addr, orig_node->orig, ETH_ALEN);
@@ -290,7 +290,7 @@ static int batadv_recv_my_icmp_packet(struct bat_priv *bat_priv,
 	icmp_packet = (struct icmp_packet_rr *)skb->data;
 
 	/* add data to device queue */
-	if (icmp_packet->msg_type != ECHO_REQUEST) {
+	if (icmp_packet->msg_type != BATADV_ECHO_REQUEST) {
 		batadv_socket_receive_packet(icmp_packet, icmp_len);
 		goto out;
 	}
@@ -317,7 +317,7 @@ static int batadv_recv_my_icmp_packet(struct bat_priv *bat_priv,
 
 	memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
 	memcpy(icmp_packet->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
-	icmp_packet->msg_type = ECHO_REPLY;
+	icmp_packet->msg_type = BATADV_ECHO_REPLY;
 	icmp_packet->header.ttl = BATADV_TTL;
 
 	batadv_send_skb_packet(skb, router->if_incoming, router->addr);
@@ -345,7 +345,7 @@ static int batadv_recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 	icmp_packet = (struct icmp_packet *)skb->data;
 
 	/* send TTL exceeded if packet is an echo request (traceroute) */
-	if (icmp_packet->msg_type != ECHO_REQUEST) {
+	if (icmp_packet->msg_type != BATADV_ECHO_REQUEST) {
 		pr_debug("Warning - can't forward icmp packet from %pM to %pM: ttl exceeded\n",
 			 icmp_packet->orig, icmp_packet->dst);
 		goto out;
@@ -372,7 +372,7 @@ static int batadv_recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 
 	memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
 	memcpy(icmp_packet->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
-	icmp_packet->msg_type = TTL_EXCEEDED;
+	icmp_packet->msg_type = BATADV_TTL_EXCEEDED;
 	icmp_packet->header.ttl = BATADV_TTL;
 
 	batadv_send_skb_packet(skb, router->if_incoming, router->addr);
@@ -606,14 +606,18 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 	tt_query = (struct tt_query_packet *)skb->data;
 
 	switch (tt_query->flags & BATADV_TT_QUERY_TYPE_MASK) {
-	case TT_REQUEST:
+	case BATADV_TT_REQUEST:
 		batadv_inc_counter(bat_priv, BATADV_CNT_TT_REQUEST_RX);
 
 		/* If we cannot provide an answer the tt_request is
 		 * forwarded
 		 */
 		if (!batadv_send_tt_response(bat_priv, tt_query)) {
-			tt_flag = tt_query->flags & TT_FULL_TABLE ? 'F' : '.';
+			if (tt_query->flags & BATADV_TT_FULL_TABLE)
+				tt_flag = 'F';
+			else
+				tt_flag = '.';
+
 			batadv_dbg(DBG_TT, bat_priv,
 				   "Routing TT_REQUEST to %pM [%c]\n",
 				   tt_query->dst,
@@ -621,7 +625,7 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 			return batadv_route_unicast_packet(skb, recv_if);
 		}
 		break;
-	case TT_RESPONSE:
+	case BATADV_TT_RESPONSE:
 		batadv_inc_counter(bat_priv, BATADV_CNT_TT_RESPONSE_RX);
 
 		if (batadv_is_my_mac(tt_query->dst)) {
@@ -642,7 +646,10 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 
 			batadv_handle_tt_response(bat_priv, tt_query);
 		} else {
-			tt_flag = tt_query->flags & TT_FULL_TABLE ? 'F' : '.';
+			if (tt_query->flags & BATADV_TT_FULL_TABLE)
+				tt_flag =  'F';
+			else
+				tt_flag = '.';
 			batadv_dbg(DBG_TT, bat_priv,
 				   "Routing TT_RESPONSE to %pM [%c]\n",
 				   tt_query->dst,
@@ -701,7 +708,7 @@ int batadv_recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 		   roam_adv_packet->src, roam_adv_packet->client);
 
 	batadv_tt_global_add(bat_priv, orig_node, roam_adv_packet->client,
-			     TT_CLIENT_ROAM,
+			     BATADV_TT_CLIENT_ROAM,
 			     atomic_read(&orig_node->last_ttvn) + 1);
 
 	/* Roaming phase starts: I have new information but the ttvn has not
@@ -868,7 +875,7 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 
 	unicast_packet = (struct unicast_packet *)skb->data;
 
-	if (unicast_packet->header.packet_type == BAT_UNICAST &&
+	if (unicast_packet->header.packet_type == BATADV_UNICAST &&
 	    atomic_read(&bat_priv->fragmentation) &&
 	    skb->len > neigh_node->if_incoming->net_dev->mtu) {
 		ret = batadv_frag_send_skb(skb, bat_priv,
@@ -877,7 +884,7 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 		goto out;
 	}
 
-	if (unicast_packet->header.packet_type == BAT_UNICAST_FRAG &&
+	if (unicast_packet->header.packet_type == BATADV_UNICAST_FRAG &&
 	    batadv_frag_can_reassemble(skb,
 				       neigh_node->if_incoming->net_dev->mtu)) {
 
@@ -1176,12 +1183,12 @@ int batadv_recv_vis_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 		return NET_RX_DROP;
 
 	switch (vis_packet->vis_type) {
-	case VIS_TYPE_SERVER_SYNC:
+	case BATADV_VIS_TYPE_SERVER_SYNC:
 		batadv_receive_server_sync_packet(bat_priv, vis_packet,
 						  skb_headlen(skb));
 		break;
 
-	case VIS_TYPE_CLIENT_UPDATE:
+	case BATADV_VIS_TYPE_CLIENT_UPDATE:
 		batadv_receive_client_update_packet(bat_priv, vis_packet,
 						    skb_headlen(skb));
 		break;

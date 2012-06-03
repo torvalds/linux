@@ -41,8 +41,8 @@ static inline int batadv_frag_can_reassemble(const struct sk_buff *skb, int mtu)
 
 	unicast_packet = (struct unicast_frag_packet *)skb->data;
 
-	if (unicast_packet->flags & UNI_FRAG_LARGETAIL) {
-		if (unicast_packet->flags & UNI_FRAG_HEAD)
+	if (unicast_packet->flags & BATADV_UNI_FRAG_LARGETAIL) {
+		if (unicast_packet->flags & BATADV_UNI_FRAG_HEAD)
 			uneven_correction = 1;
 		else
 			uneven_correction = -1;

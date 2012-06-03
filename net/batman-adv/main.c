@@ -275,19 +275,19 @@ static void batadv_recv_handler_init(void)
 		batadv_rx_handler[i] = batadv_recv_unhandled_packet;
 
 	/* batman icmp packet */
-	batadv_rx_handler[BAT_ICMP] = batadv_recv_icmp_packet;
+	batadv_rx_handler[BATADV_ICMP] = batadv_recv_icmp_packet;
 	/* unicast packet */
-	batadv_rx_handler[BAT_UNICAST] = batadv_recv_unicast_packet;
+	batadv_rx_handler[BATADV_UNICAST] = batadv_recv_unicast_packet;
 	/* fragmented unicast packet */
-	batadv_rx_handler[BAT_UNICAST_FRAG] = batadv_recv_ucast_frag_packet;
+	batadv_rx_handler[BATADV_UNICAST_FRAG] = batadv_recv_ucast_frag_packet;
 	/* broadcast packet */
-	batadv_rx_handler[BAT_BCAST] = batadv_recv_bcast_packet;
+	batadv_rx_handler[BATADV_BCAST] = batadv_recv_bcast_packet;
 	/* vis packet */
-	batadv_rx_handler[BAT_VIS] = batadv_recv_vis_packet;
+	batadv_rx_handler[BATADV_VIS] = batadv_recv_vis_packet;
 	/* Translation table query (request or response) */
-	batadv_rx_handler[BAT_TT_QUERY] = batadv_recv_tt_query;
+	batadv_rx_handler[BATADV_TT_QUERY] = batadv_recv_tt_query;
 	/* Roaming advertisement */
-	batadv_rx_handler[BAT_ROAM_ADV] = batadv_recv_roam_adv;
+	batadv_rx_handler[BATADV_ROAM_ADV] = batadv_recv_roam_adv;
 }
 
 int batadv_recv_handler_register(uint8_t packet_type,

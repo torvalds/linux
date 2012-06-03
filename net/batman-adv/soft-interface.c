@@ -213,7 +213,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 		bcast_packet->header.ttl = BATADV_TTL;
 
 		/* batman packet type: broadcast */
-		bcast_packet->header.packet_type = BAT_BCAST;
+		bcast_packet->header.packet_type = BATADV_BCAST;
 
 		/* hw address of first interface is the orig mac because only
 		 * this mac is known throughout the mesh
@@ -387,7 +387,7 @@ struct net_device *batadv_softif_create(const char *name)
 	atomic_set(&bat_priv->bonding, 0);
 	atomic_set(&bat_priv->bridge_loop_avoidance, 0);
 	atomic_set(&bat_priv->ap_isolation, 0);
-	atomic_set(&bat_priv->vis_mode, VIS_TYPE_CLIENT_UPDATE);
+	atomic_set(&bat_priv->vis_mode, BATADV_VIS_TYPE_CLIENT_UPDATE);
 	atomic_set(&bat_priv->gw_mode, BATADV_GW_MODE_OFF);
 	atomic_set(&bat_priv->gw_sel_class, 20);
 	atomic_set(&bat_priv->gw_bandwidth, 41);

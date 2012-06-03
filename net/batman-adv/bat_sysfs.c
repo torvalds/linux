@@ -283,10 +283,14 @@ static ssize_t batadv_show_vis_mode(struct kobject *kobj,
 {
 	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	int vis_mode = atomic_read(&bat_priv->vis_mode);
+	const char *mode;
 
-	return sprintf(buff, "%s\n",
-		       vis_mode == VIS_TYPE_CLIENT_UPDATE ?
-							"client" : "server");
+	if (vis_mode == BATADV_VIS_TYPE_CLIENT_UPDATE)
+		mode = "client";
+	else
+		mode = "server";
+
+	return sprintf(buff, "%s\n", mode);
 }
 
 static ssize_t batadv_store_vis_mode(struct kobject *kobj,
@@ -301,14 +305,16 @@ static ssize_t batadv_store_vis_mode(struct kobject *kobj,
 
 	ret = kstrtoul(buff, 10, &val);
 
-	if (((count == 2) && (!ret) && (val == VIS_TYPE_CLIENT_UPDATE)) ||
+	if (((count == 2) && (!ret) &&
+	     (val == BATADV_VIS_TYPE_CLIENT_UPDATE)) ||
 	    (strncmp(buff, "client", 6) == 0) ||
 	    (strncmp(buff, "off", 3) == 0))
-		vis_mode_tmp = VIS_TYPE_CLIENT_UPDATE;
+		vis_mode_tmp = BATADV_VIS_TYPE_CLIENT_UPDATE;
 
-	if (((count == 2) && (!ret) && (val == VIS_TYPE_SERVER_SYNC)) ||
+	if (((count == 2) && (!ret) &&
+	     (val == BATADV_VIS_TYPE_SERVER_SYNC)) ||
 	    (strncmp(buff, "server", 6) == 0))
-		vis_mode_tmp = VIS_TYPE_SERVER_SYNC;
+		vis_mode_tmp = BATADV_VIS_TYPE_SERVER_SYNC;
 
 	if (vis_mode_tmp < 0) {
 		if (buff[count - 1] == '\n')
@@ -323,12 +329,12 @@ static ssize_t batadv_store_vis_mode(struct kobject *kobj,
 	if (atomic_read(&bat_priv->vis_mode) == vis_mode_tmp)
 		return count;
 
-	if (atomic_read(&bat_priv->vis_mode) == VIS_TYPE_CLIENT_UPDATE)
+	if (atomic_read(&bat_priv->vis_mode) == BATADV_VIS_TYPE_CLIENT_UPDATE)
 		old_mode =  "client";
 	else
 		old_mode = "server";
 
-	if (vis_mode_tmp == VIS_TYPE_CLIENT_UPDATE)
+	if (vis_mode_tmp == BATADV_VIS_TYPE_CLIENT_UPDATE)
 		new_mode =  "client";
 	else
 		new_mode = "server";

@@ -256,7 +256,7 @@ int batadv_vis_seq_print_text(struct seq_file *seq, void *offset)
 	if (!primary_if)
 		goto out;
 
-	if (vis_server == VIS_TYPE_CLIENT_UPDATE)
+	if (vis_server == BATADV_VIS_TYPE_CLIENT_UPDATE)
 		goto out;
 
 	spin_lock_bh(&bat_priv->vis_hash_lock);
@@ -437,7 +437,7 @@ void batadv_receive_server_sync_packet(struct bat_priv *bat_priv,
 	int is_new, make_broadcast;
 	int vis_server = atomic_read(&bat_priv->vis_mode);
 
-	make_broadcast = (vis_server == VIS_TYPE_SERVER_SYNC);
+	make_broadcast = (vis_server == BATADV_VIS_TYPE_SERVER_SYNC);
 
 	spin_lock_bh(&bat_priv->vis_hash_lock);
 	info = batadv_add_packet(bat_priv, vis_packet, vis_info_len,
@@ -448,7 +448,7 @@ void batadv_receive_server_sync_packet(struct bat_priv *bat_priv,
 	/* only if we are server ourselves and packet is newer than the one in
 	 * hash.
 	 */
-	if (vis_server == VIS_TYPE_SERVER_SYNC && is_new)
+	if (vis_server == BATADV_VIS_TYPE_SERVER_SYNC && is_new)
 		batadv_send_list_add(bat_priv, info);
 end:
 	spin_unlock_bh(&bat_priv->vis_hash_lock);
@@ -470,7 +470,7 @@ void batadv_receive_client_update_packet(struct bat_priv *bat_priv,
 		return;
 
 	/* Are we the target for this VIS packet? */
-	if (vis_server == VIS_TYPE_SERVER_SYNC	&&
+	if (vis_server == BATADV_VIS_TYPE_SERVER_SYNC	&&
 	    batadv_is_my_mac(vis_packet->target_orig))
 		are_target = 1;
 
@@ -486,7 +486,7 @@ void batadv_receive_client_update_packet(struct bat_priv *bat_priv,
 
 	/* send only if we're the target server or ... */
 	if (are_target && is_new) {
-		packet->vis_type = VIS_TYPE_SERVER_SYNC;	/* upgrade! */
+		packet->vis_type = BATADV_VIS_TYPE_SERVER_SYNC;	/* upgrade! */
 		batadv_send_list_add(bat_priv, info);
 
 		/* ... we're not the recipient (and thus need to forward). */
@@ -526,7 +526,7 @@ static int batadv_find_best_vis_server(struct bat_priv *bat_priv,
 			if (!router)
 				continue;
 
-			if ((orig_node->flags & VIS_SERVER) &&
+			if ((orig_node->flags & BATADV_VIS_SERVER) &&
 			    (router->tq_avg > best_tq)) {
 				best_tq = router->tq_avg;
 				memcpy(packet->target_orig, orig_node->orig,
@@ -580,7 +580,7 @@ static int batadv_generate_vis_packet(struct bat_priv *bat_priv)
 	packet->entries = 0;
 	skb_trim(info->skb_packet, sizeof(*packet));
 
-	if (packet->vis_type == VIS_TYPE_CLIENT_UPDATE) {
+	if (packet->vis_type == BATADV_VIS_TYPE_CLIENT_UPDATE) {
 		best_tq = batadv_find_best_vis_server(bat_priv, info);
 
 		if (best_tq < 0)
@@ -707,7 +707,7 @@ static void batadv_broadcast_vis_packet(struct bat_priv *bat_priv,
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
 			/* if it's a vis server and reachable, send it. */
-			if (!(orig_node->flags & VIS_SERVER))
+			if (!(orig_node->flags & BATADV_VIS_SERVER))
 				continue;
 
 			router = batadv_orig_node_get_router(orig_node);
@@ -875,7 +875,7 @@ int batadv_vis_init(struct bat_priv *bat_priv)
 	kref_init(&bat_priv->my_vis_info->refcount);
 	bat_priv->my_vis_info->bat_priv = bat_priv;
 	packet->header.version = BATADV_COMPAT_VERSION;
-	packet->header.packet_type = BAT_VIS;
+	packet->header.packet_type = BATADV_VIS;
 	packet->header.ttl = BATADV_TTL;
 	packet->seqno = 0;
 	packet->entries = 0;
