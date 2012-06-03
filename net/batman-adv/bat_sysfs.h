@@ -20,8 +20,8 @@
 #ifndef _NET_BATMAN_ADV_SYSFS_H_
 #define _NET_BATMAN_ADV_SYSFS_H_
 
-#define SYSFS_IF_MESH_SUBDIR "mesh"
-#define SYSFS_IF_BAT_SUBDIR "batman_adv"
+#define BATADV_SYSFS_IF_MESH_SUBDIR "mesh"
+#define BATADV_SYSFS_IF_BAT_SUBDIR "batman_adv"
 
 struct bat_attribute {
 	struct attribute attr;
