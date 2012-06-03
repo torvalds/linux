@@ -848,7 +848,6 @@ static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 		err = net_xmit_eval(err);
 	}
 
-	dst_release(dst);
 	return err;
 }
 
