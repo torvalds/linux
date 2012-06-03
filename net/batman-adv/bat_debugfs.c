@@ -311,7 +311,7 @@ void batadv_debugfs_init(void)
 	struct bat_debuginfo *bat_debug;
 	struct dentry *file;
 
-	batadv_debugfs = debugfs_create_dir(DEBUGFS_BAT_SUBDIR, NULL);
+	batadv_debugfs = debugfs_create_dir(BATADV_DEBUGFS_SUBDIR, NULL);
 	if (batadv_debugfs == ERR_PTR(-ENODEV))
 		batadv_debugfs = NULL;
 

@@ -20,7 +20,7 @@
 #ifndef _NET_BATMAN_ADV_DEBUGFS_H_
 #define _NET_BATMAN_ADV_DEBUGFS_H_
 
-#define DEBUGFS_BAT_SUBDIR "batman_adv"
+#define BATADV_DEBUGFS_SUBDIR "batman_adv"
 
 void batadv_debugfs_init(void);
 void batadv_debugfs_destroy(void);
