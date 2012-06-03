@@ -1238,7 +1238,7 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			 unsigned long data)
 {
 	u64 *sptep;
-	struct rmap_iterator iter;
+	struct rmap_iterator uninitialized_var(iter);
 	int young = 0;
 
 	/*
