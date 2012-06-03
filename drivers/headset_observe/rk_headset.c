@@ -453,42 +453,7 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 	setup_timer(&headset->headset_timer, headset_timer_callback, (unsigned long)headset);
 //	headset->headset_timer.expires = jiffies + 1000;
 //	add_timer(&headset->headset_timer);	
-//------------------------------------------------------------------
-	if (pdata->Headset_gpio) {
-		ret = gpio_request(pdata->Headset_gpio, NULL);
-		if (ret) 
-			goto failed_free;
-		gpio_pull_updown(pdata->Headset_gpio, PullDisable);
-		gpio_direction_input(pdata->Headset_gpio);
-		headset->irq[HEADSET] = gpio_to_irq(pdata->Headset_gpio);
-
-		if(pdata->headset_in_type == HEADSET_IN_HIGH)
-			headset->irq_type[HEADSET] = IRQF_TRIGGER_RISING;
-		else
-			headset->irq_type[HEADSET] = IRQF_TRIGGER_FALLING;
-		ret = request_irq(headset->irq[HEADSET], headset_interrupt, headset->irq_type[HEADSET], "headset_input", NULL);
-		if (ret) 
-			goto failed_free;
-		enable_irq_wake(headset->irq[HEADSET]);
-	}
-	else
-		goto failed_free;
-//------------------------------------------------------------------
-	if (pdata->Hook_gpio) {
-		ret = gpio_request(pdata->Hook_gpio , NULL);
-		if (ret) 
-			goto failed_free;
-		gpio_pull_updown(pdata->Hook_gpio, PullDisable);
-		gpio_direction_input(pdata->Hook_gpio);
-		headset->irq[HOOK] = gpio_to_irq(pdata->Hook_gpio);
-		headset->irq_type[HOOK] = IRQF_TRIGGER_FALLING;
 	
-		ret = request_irq(headset->irq[HOOK], Hook_interrupt, headset->irq_type[HOOK] , "headset_hook", NULL);
-		if (ret) 
-			goto failed_free;
-		disable_irq(headset->irq[HOOK]);
-	}
-//------------------------------------------------------------------		
 	// Create and register the input driver. 
 	headset->input_dev = input_allocate_device();
 	if (!headset->input_dev) {
@@ -533,6 +498,43 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 	hs_early_suspend.level = ~0x0;
 	register_early_suspend(&hs_early_suspend);
 #endif
+
+	//------------------------------------------------------------------
+	if (pdata->Headset_gpio) {
+		ret = gpio_request(pdata->Headset_gpio, NULL);
+		if (ret) 
+			goto failed_free_dev;
+		gpio_pull_updown(pdata->Headset_gpio, PullDisable);
+		gpio_direction_input(pdata->Headset_gpio);
+		headset->irq[HEADSET] = gpio_to_irq(pdata->Headset_gpio);
+
+		if(pdata->headset_in_type == HEADSET_IN_HIGH)
+			headset->irq_type[HEADSET] = IRQF_TRIGGER_RISING;
+		else
+			headset->irq_type[HEADSET] = IRQF_TRIGGER_FALLING;
+		ret = request_irq(headset->irq[HEADSET], headset_interrupt, headset->irq_type[HEADSET], "headset_input", NULL);
+		if (ret) 
+			goto failed_free_dev;
+		enable_irq_wake(headset->irq[HEADSET]);
+	}
+	else
+		goto failed_free_dev;
+//------------------------------------------------------------------
+	if (pdata->Hook_gpio) {
+		ret = gpio_request(pdata->Hook_gpio , NULL);
+		if (ret) 
+			goto failed_free_dev;
+		gpio_pull_updown(pdata->Hook_gpio, PullDisable);
+		gpio_direction_input(pdata->Hook_gpio);
+		headset->irq[HOOK] = gpio_to_irq(pdata->Hook_gpio);
+		headset->irq_type[HOOK] = IRQF_TRIGGER_FALLING;
+	
+		ret = request_irq(headset->irq[HOOK], Hook_interrupt, headset->irq_type[HOOK] , "headset_hook", NULL);
+		if (ret) 
+			goto failed_free_dev;
+		disable_irq(headset->irq[HOOK]);
+	}
+//------------------------------------------------------------------	
 
 	return 0;	
 	

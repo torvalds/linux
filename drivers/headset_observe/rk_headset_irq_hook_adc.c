@@ -437,42 +437,7 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 	headset->isMic = 0;
 	setup_timer(&headset->headset_timer, headset_timer_callback, (unsigned long)headset);
 
-//------------------------------------------------------------------
-	if (pdata->Headset_gpio) {
-
-		ret = pdata->headset_io_init(pdata->Headset_gpio, pdata->headset_gpio_info.iomux_name, pdata->headset_gpio_info.iomux_mode);
-		if (ret) 
-			goto failed_free;
-
-		headset->irq[HEADSET] = gpio_to_irq(pdata->Headset_gpio);
-
-		if(pdata->headset_in_type == HEADSET_IN_HIGH)
-			headset->irq_type[HEADSET] = IRQF_TRIGGER_RISING;
-		else
-			headset->irq_type[HEADSET] = IRQF_TRIGGER_FALLING;
-		ret = request_irq(headset->irq[HEADSET], headset_interrupt, headset->irq_type[HEADSET], "headset_input", NULL);
-		if (ret) 
-			goto failed_free;
-		enable_irq_wake(headset->irq[HEADSET]);
-	}
-	else
-		goto failed_free;
-//------------------------------------------------------------------
-	
-	if(pdata->Hook_adc_chn>=0 && 2>=pdata->Hook_adc_chn)
-	{
-		printk("hook adc register\n");
-		headset->client = adc_register(pdata->Hook_adc_chn, hook_adc_callback, (void *)headset);
-		if(!headset->client) {
-			printk("hook adc register error\n");
-			ret = -EINVAL;
-			goto failed_free;
-		}
-		setup_timer(&headset->hook_timer,
-			    	hook_timer_callback, (unsigned long)headset);		
-	}
-	
-//------------------------------------------------------------------		
+		
 	// Create and register the input driver. 
 	headset->input_dev = input_allocate_device();
 	if (!headset->input_dev) {
@@ -518,6 +483,42 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 	register_early_suspend(&hs_early_suspend);
 #endif
 
+	//------------------------------------------------------------------
+	if (pdata->Headset_gpio) {
+
+		ret = pdata->headset_io_init(pdata->Headset_gpio, pdata->headset_gpio_info.iomux_name, pdata->headset_gpio_info.iomux_mode);
+		if (ret) 
+			goto failed_free_dev;
+
+		headset->irq[HEADSET] = gpio_to_irq(pdata->Headset_gpio);
+
+		if(pdata->headset_in_type == HEADSET_IN_HIGH)
+			headset->irq_type[HEADSET] = IRQF_TRIGGER_RISING;
+		else
+			headset->irq_type[HEADSET] = IRQF_TRIGGER_FALLING;
+		ret = request_irq(headset->irq[HEADSET], headset_interrupt, headset->irq_type[HEADSET], "headset_input", NULL);
+		if (ret) 
+			goto failed_free_dev;
+		enable_irq_wake(headset->irq[HEADSET]);
+	}
+	else
+		goto failed_free_dev;
+//------------------------------------------------------------------
+	
+	if(pdata->Hook_adc_chn>=0 && 2>=pdata->Hook_adc_chn)
+	{
+		printk("hook adc register\n");
+		headset->client = adc_register(pdata->Hook_adc_chn, hook_adc_callback, (void *)headset);
+		if(!headset->client) {
+			printk("hook adc register error\n");
+			ret = -EINVAL;
+			goto failed_free_dev;
+		}
+		setup_timer(&headset->hook_timer,
+			    	hook_timer_callback, (unsigned long)headset);		
+	}
+	
+//------------------------------------------------------------------
 	return 0;	
 	
 failed_free_dev:
