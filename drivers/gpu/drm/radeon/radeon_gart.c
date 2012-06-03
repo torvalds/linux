@@ -478,12 +478,18 @@ int radeon_vm_bo_add(struct radeon_device *rdev,
 
 	mutex_lock(&vm->mutex);
 	if (last_pfn > vm->last_pfn) {
-		/* grow va space 32M by 32M */
-		unsigned align = ((32 << 20) >> 12) - 1;
+		/* release mutex and lock in right order */
+		mutex_unlock(&vm->mutex);
 		radeon_mutex_lock(&rdev->cs_mutex);
-		radeon_vm_unbind_locked(rdev, vm);
+		mutex_lock(&vm->mutex);
+		/* and check again */
+		if (last_pfn > vm->last_pfn) {
+			/* grow va space 32M by 32M */
+			unsigned align = ((32 << 20) >> 12) - 1;
+			radeon_vm_unbind_locked(rdev, vm);
+			vm->last_pfn = (last_pfn + align) & ~align;
+		}
 		radeon_mutex_unlock(&rdev->cs_mutex);
-		vm->last_pfn = (last_pfn + align) & ~align;
 	}
 	head = &vm->va;
 	last_offset = 0;
@@ -597,8 +603,8 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 	if (bo_va == NULL)
 		return 0;
 
-	mutex_lock(&vm->mutex);
 	radeon_mutex_lock(&rdev->cs_mutex);
+	mutex_lock(&vm->mutex);
 	radeon_vm_bo_update_pte(rdev, vm, bo, NULL);
 	radeon_mutex_unlock(&rdev->cs_mutex);
 	list_del(&bo_va->vm_list);
@@ -643,9 +649,8 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 	struct radeon_bo_va *bo_va, *tmp;
 	int r;
 
-	mutex_lock(&vm->mutex);
-
 	radeon_mutex_lock(&rdev->cs_mutex);
+	mutex_lock(&vm->mutex);
 	radeon_vm_unbind_locked(rdev, vm);
 	radeon_mutex_unlock(&rdev->cs_mutex);
 
