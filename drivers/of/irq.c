@@ -255,7 +255,7 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 
 	skiplevel:
 		/* Iterate again with new parent */
-		pr_debug(" -> new parent: %s\n", newpar ? newpar->full_name : "<>");
+		pr_debug(" -> new parent: %s\n", of_node_full_name(newpar));
 		of_node_put(ipar);
 		ipar = newpar;
 		newpar = NULL;

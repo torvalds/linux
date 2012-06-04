@@ -1173,7 +1173,7 @@ static void of_alias_add(struct alias_prop *ap, struct device_node *np,
 	ap->stem[stem_len] = 0;
 	list_add_tail(&ap->link, &aliases_lookup);
 	pr_debug("adding DT alias:%s: stem=%s id=%i node=%s\n",
-		 ap->alias, ap->stem, ap->id, np ? np->full_name : NULL);
+		 ap->alias, ap->stem, ap->id, of_node_full_name(np));
 }
 
 /**

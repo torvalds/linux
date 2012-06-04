@@ -163,6 +163,11 @@ static inline int of_node_to_nid(struct device_node *np) { return -1; }
 #define of_node_to_nid of_node_to_nid
 #endif
 
+static inline const char* of_node_full_name(struct device_node *np)
+{
+	return np ? np->full_name : "<no-node>";
+}
+
 extern struct device_node *of_find_node_by_name(struct device_node *from,
 	const char *name);
 #define for_each_node_by_name(dn, name) \
@@ -302,6 +307,11 @@ const char *of_prop_next_string(struct property *prop, const char *cur);
 		s = of_prop_next_string(prop, s))
 
 #else /* CONFIG_OF */
+
+static inline const char* of_node_full_name(struct device_node *np)
+{
+	return "<no-node>";
+}
 
 static inline bool of_have_populated_dt(void)
 {
