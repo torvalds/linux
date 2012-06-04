@@ -226,6 +226,7 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 	 * impact.
 	 */
 	flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
+	flags |= PIPE_CONTROL_TLB_INVALIDATE;
 	flags |= PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE;
 	flags |= PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE;
 	flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
