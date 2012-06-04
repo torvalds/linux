@@ -324,6 +324,17 @@ mi_set_context(struct intel_ring_buffer *ring,
 {
 	int ret;
 
+	/* w/a: If Flush TLB Invalidation Mode is enabled, driver must do a TLB
+	 * invalidation prior to MI_SET_CONTEXT. On GEN6 we don't set the value
+	 * explicitly, so we rely on the value at ring init, stored in
+	 * itlb_before_ctx_switch.
+	 */
+	if (IS_GEN6(ring->dev) && ring->itlb_before_ctx_switch) {
+		ret = ring->flush(ring, 0, 0);
+		if (ret)
+			return ret;
+	}
+
 	ret = intel_ring_begin(ring, 6);
 	if (ret)
 		return ret;
