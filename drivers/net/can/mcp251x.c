@@ -1020,8 +1020,7 @@ static int __devinit mcp251x_can_probe(struct spi_device *spi)
 						      GFP_DMA);
 
 		if (priv->spi_tx_buf) {
-			priv->spi_rx_buf = (u8 *)(priv->spi_tx_buf +
-						  (PAGE_SIZE / 2));
+			priv->spi_rx_buf = (priv->spi_tx_buf + (PAGE_SIZE / 2));
 			priv->spi_rx_dma = (dma_addr_t)(priv->spi_tx_dma +
 							(PAGE_SIZE / 2));
 		} else {
