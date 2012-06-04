@@ -125,7 +125,7 @@ struct iio_channel *iio_st_channel_get(const char *name,
 		     strcmp(channel_name, c_i->map->consumer_channel) != 0))
 			continue;
 		c = c_i;
-		get_device(&c->indio_dev->dev);
+		iio_device_get(c->indio_dev);
 		break;
 	}
 	mutex_unlock(&iio_map_list_lock);
@@ -149,7 +149,7 @@ EXPORT_SYMBOL_GPL(iio_st_channel_get);
 
 void iio_st_channel_release(struct iio_channel *channel)
 {
-	put_device(&channel->indio_dev->dev);
+	iio_device_put(channel->indio_dev);
 	kfree(channel);
 }
 EXPORT_SYMBOL_GPL(iio_st_channel_release);
@@ -195,10 +195,10 @@ struct iio_channel *iio_st_channel_get_all(const char *name)
 						c->map->adc_channel_label);
 		if (chans[mapind].channel == NULL) {
 			ret = -EINVAL;
-			put_device(&chans[mapind].indio_dev->dev);
+			iio_device_put(chans[mapind].indio_dev);
 			goto error_free_chans;
 		}
-		get_device(&chans[mapind].indio_dev->dev);
+		iio_device_get(chans[mapind].indio_dev);
 		mapind++;
 	}
 	mutex_unlock(&iio_map_list_lock);
@@ -210,8 +210,7 @@ struct iio_channel *iio_st_channel_get_all(const char *name)
 
 error_free_chans:
 	for (i = 0; i < nummaps; i++)
-		if (chans[i].indio_dev)
-			put_device(&chans[i].indio_dev->dev);
+		iio_device_put(chans[i].indio_dev);
 	kfree(chans);
 error_ret:
 	mutex_unlock(&iio_map_list_lock);
@@ -225,7 +224,7 @@ void iio_st_channel_release_all(struct iio_channel *channels)
 	struct iio_channel *chan = &channels[0];
 
 	while (chan->indio_dev) {
-		put_device(&chan->indio_dev->dev);
+		iio_device_put(chan->indio_dev);
 		chan++;
 	}
 	kfree(channels);
