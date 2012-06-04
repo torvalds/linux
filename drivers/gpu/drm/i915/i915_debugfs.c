@@ -713,6 +713,7 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	seq_printf(m, "EIR: 0x%08x\n", error->eir);
 	seq_printf(m, "IER: 0x%08x\n", error->ier);
 	seq_printf(m, "PGTBL_ER: 0x%08x\n", error->pgtbl_er);
+	seq_printf(m, "CCID: 0x%08x\n", error->ccid);
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++)
 		seq_printf(m, "  fence[%d] = %08llx\n", i, error->fence[i]);
