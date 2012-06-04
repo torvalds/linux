@@ -273,10 +273,6 @@ void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 
-static inline bool ar9003_mci_is_ready(struct ath_hw *ah)
-{
-	return ah->btcoex_hw.mci.ready;
-}
 void ar9003_mci_stop_bt(struct ath_hw *ah, bool save_fullsleep);
 void ar9003_mci_init_cal_req(struct ath_hw *ah, bool *is_reusable);
 void ar9003_mci_init_cal_done(struct ath_hw *ah);
@@ -292,10 +288,6 @@ void ar9003_mci_get_isr(struct ath_hw *ah, enum ath9k_int *masked);
 
 #else
 
-static inline bool ar9003_mci_is_ready(struct ath_hw *ah)
-{
-	return false;
-}
 static inline void ar9003_mci_stop_bt(struct ath_hw *ah, bool save_fullsleep)
 {
 }

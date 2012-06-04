@@ -901,7 +901,6 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	bool is_reusable = true, status = true;
 	bool run_rtt_cal = false, run_agc_cal;
 	bool rtt = !!(ah->caps.hw_caps & ATH9K_HW_CAP_RTT);
-	bool mci = !!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI);
 	u32 agc_ctrl = 0, agc_supp_cals = AR_PHY_AGC_CONTROL_OFFSET_CAL |
 					  AR_PHY_AGC_CONTROL_FLTR_CAL   |
 					  AR_PHY_AGC_CONTROL_PKDET_CAL;
@@ -970,7 +969,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	} else if (caldata && !caldata->done_txiqcal_once)
 		run_agc_cal = true;
 
-	if (mci && IS_CHAN_2GHZ(chan) && run_agc_cal)
+	if (ath9k_hw_mci_is_enabled(ah) && IS_CHAN_2GHZ(chan) && run_agc_cal)
 		ar9003_mci_init_cal_req(ah, &is_reusable);
 
 	if (!(IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan))) {
@@ -993,7 +992,7 @@ skip_tx_iqcal:
 				       0, AH_WAIT_TIMEOUT);
 	}
 
-	if (mci && IS_CHAN_2GHZ(chan) && run_agc_cal)
+	if (ath9k_hw_mci_is_enabled(ah) && IS_CHAN_2GHZ(chan) && run_agc_cal)
 		ar9003_mci_init_cal_done(ah);
 
 	if (rtt && !run_rtt_cal) {

@@ -1037,6 +1037,11 @@ static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)
 {
 	return ah->btcoex_hw.enabled;
 }
+static inline bool ath9k_hw_mci_is_enabled(struct ath_hw *ah)
+{
+	return ah->btcoex_hw.enabled && (ah->caps.hw_caps & ATH9K_HW_CAP_MCI);
+
+}
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 static inline enum ath_btcoex_scheme
 ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
@@ -1045,6 +1050,10 @@ ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
 }
 #else
 static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)
+{
+	return false;
+}
+static inline bool ath9k_hw_mci_is_enabled(struct ath_hw *ah)
 {
 	return false;
 }

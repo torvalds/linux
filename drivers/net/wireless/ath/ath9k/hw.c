@@ -1707,7 +1707,7 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 	ath9k_hw_loadnf(ah, ah->curchan);
 	ath9k_hw_start_nfcal(ah, true);
 
-	if ((ah->caps.hw_caps & ATH9K_HW_CAP_MCI) && ar9003_mci_is_ready(ah))
+	if (ath9k_hw_mci_is_enabled(ah))
 		ar9003_mci_2g5g_switch(ah, true);
 
 	if (AR_SREV_9271(ah))
@@ -1728,10 +1728,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	u64 tsf = 0;
 	int i, r;
 	bool start_mci_reset = false;
-	bool mci = !!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI);
 	bool save_fullsleep = ah->chip_fullsleep;
 
-	if (mci) {
+	if (ath9k_hw_mci_is_enabled(ah)) {
 		start_mci_reset = ar9003_mci_start_reset(ah, chan);
 		if (start_mci_reset)
 			return 0;
@@ -1760,7 +1759,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 			return r;
 	}
 
-	if (mci)
+	if (ath9k_hw_mci_is_enabled(ah))
 		ar9003_mci_stop_bt(ah, save_fullsleep);
 
 	saveDefAntenna = REG_READ(ah, AR_DEF_ANTENNA);
@@ -1818,7 +1817,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (r)
 		return r;
 
-	if (mci)
+	if (ath9k_hw_mci_is_enabled(ah))
 		ar9003_mci_reset(ah, false, IS_CHAN_2GHZ(chan), save_fullsleep);
 
 	/*
@@ -1937,7 +1936,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ath9k_hw_loadnf(ah, chan);
 	ath9k_hw_start_nfcal(ah, true);
 
-	if (mci && ar9003_mci_end_reset(ah, chan, caldata))
+	if (ath9k_hw_mci_is_enabled(ah) && ar9003_mci_end_reset(ah, chan, caldata))
 		return -EIO;
 
 	ENABLE_REGWRITE_BUFFER(ah);
@@ -1982,7 +1981,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (ath9k_hw_btcoex_is_enabled(ah))
 		ath9k_hw_btcoex_enable(ah);
 
-	if (mci)
+	if (ath9k_hw_mci_is_enabled(ah))
 		ar9003_mci_check_bt(ah);
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
@@ -2166,7 +2165,7 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 		status = ath9k_hw_set_power_awake(ah, setChip);
 		break;
 	case ATH9K_PM_FULL_SLEEP:
-		if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
+		if (ath9k_hw_mci_is_enabled(ah))
 			ar9003_mci_set_full_sleep(ah);
 
 		ath9k_set_power_sleep(ah, setChip);
