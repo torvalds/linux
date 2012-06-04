@@ -282,39 +282,53 @@ done:
 	return 0;
 }
 
-/* Traditional BSD devices */
-#ifdef CONFIG_LEGACY_PTYS
-
-static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
+static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
+		bool legacy)
 {
 	struct tty_struct *o_tty;
 	int idx = tty->index;
-	int retval;
+	int retval = -ENOMEM;
 
 	o_tty = alloc_tty_struct();
 	if (!o_tty)
-		return -ENOMEM;
+		goto err;
 	if (!try_module_get(driver->other->owner)) {
 		/* This cannot in fact currently happen */
-		retval = -ENOMEM;
 		goto err_free_tty;
 	}
 	initialize_tty_struct(o_tty, driver->other, idx);
 
-	/* We always use new tty termios data so we can do this
-	   the easy way .. */
-	retval = tty_init_termios(tty);
-	if (retval)
-		goto err_deinit_tty;
+	if (legacy) {
+		/* We always use new tty termios data so we can do this
+		   the easy way .. */
+		retval = tty_init_termios(tty);
+		if (retval)
+			goto err_deinit_tty;
 
-	retval = tty_init_termios(o_tty);
-	if (retval)
-		goto err_free_termios;
+		retval = tty_init_termios(o_tty);
+		if (retval)
+			goto err_free_termios;
+
+		driver->other->ttys[idx] = o_tty;
+		driver->ttys[idx] = tty;
+	} else {
+		tty->termios = kzalloc(sizeof(struct ktermios[2]), GFP_KERNEL);
+		if (tty->termios == NULL)
+			goto err_deinit_tty;
+		*tty->termios = driver->init_termios;
+		tty->termios_locked = tty->termios + 1;
+
+		o_tty->termios = kzalloc(sizeof(struct ktermios[2]),
+				GFP_KERNEL);
+		if (o_tty->termios == NULL)
+			goto err_free_termios;
+		*o_tty->termios = driver->other->init_termios;
+		o_tty->termios_locked = o_tty->termios + 1;
+	}
 
 	/*
 	 * Everything allocated ... set up the o_tty structure.
 	 */
-	driver->other->ttys[idx] = o_tty;
 	tty_driver_kref_get(driver->other);
 	if (driver->subtype == PTY_TYPE_MASTER)
 		o_tty->count++;
@@ -324,16 +338,27 @@ static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	tty_driver_kref_get(driver);
 	tty->count++;
-	driver->ttys[idx] = tty;
 	return 0;
 err_free_termios:
-	tty_free_termios(tty);
+	if (legacy)
+		tty_free_termios(tty);
+	else
+		kfree(tty->termios);
 err_deinit_tty:
 	deinitialize_tty_struct(o_tty);
 	module_put(o_tty->driver->owner);
 err_free_tty:
 	free_tty_struct(o_tty);
+err:
 	return retval;
+}
+
+/* Traditional BSD devices */
+#ifdef CONFIG_LEGACY_PTYS
+
+static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	return pty_common_install(driver, tty, true);
 }
 
 static int pty_bsd_ioctl(struct tty_struct *tty,
@@ -509,52 +534,7 @@ static void pty_unix98_shutdown(struct tty_struct *tty)
 
 static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 {
-	struct tty_struct *o_tty;
-	int idx = tty->index;
-
-	o_tty = alloc_tty_struct();
-	if (!o_tty)
-		return -ENOMEM;
-	if (!try_module_get(driver->other->owner)) {
-		/* This cannot in fact currently happen */
-		goto err_free_tty;
-	}
-	initialize_tty_struct(o_tty, driver->other, idx);
-
-	tty->termios = kzalloc(sizeof(struct ktermios[2]), GFP_KERNEL);
-	if (tty->termios == NULL)
-		goto err_free_mem;
-	*tty->termios = driver->init_termios;
-	tty->termios_locked = tty->termios + 1;
-
-	o_tty->termios = kzalloc(sizeof(struct ktermios[2]), GFP_KERNEL);
-	if (o_tty->termios == NULL)
-		goto err_free_mem;
-	*o_tty->termios = driver->other->init_termios;
-	o_tty->termios_locked = o_tty->termios + 1;
-
-	tty_driver_kref_get(driver->other);
-	if (driver->subtype == PTY_TYPE_MASTER)
-		o_tty->count++;
-	/* Establish the links in both directions */
-	tty->link   = o_tty;
-	o_tty->link = tty;
-	/*
-	 * All structures have been allocated, so now we install them.
-	 * Failures after this point use release_tty to clean up, so
-	 * there's no need to null out the local pointers.
-	 */
-	tty_driver_kref_get(driver);
-	tty->count++;
-	return 0;
-err_free_mem:
-	deinitialize_tty_struct(o_tty);
-	kfree(o_tty->termios);
-	kfree(tty->termios);
-	module_put(o_tty->driver->owner);
-err_free_tty:
-	free_tty_struct(o_tty);
-	return -ENOMEM;
+	return pty_common_install(driver, tty, false);
 }
 
 static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
