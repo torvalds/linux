@@ -4202,6 +4202,7 @@ static int __init cfq_init(void)
 	if (ret)
 		return ret;
 
+	ret = -ENOMEM;
 	cfq_pool = KMEM_CACHE(cfq_queue, 0);
 	if (!cfq_pool)
 		goto err_pol_unreg;
