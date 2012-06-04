@@ -2585,7 +2585,7 @@ static void cnic_bnx2x_kwqe_err(struct cnic_dev *dev, struct kwqe *kwqe)
 		return;
 	}
 
-	cqes[0] = (struct kcqe *) &kcqe;
+	cqes[0] = &kcqe;
 	cnic_reply_bnx2x_kcqes(dev, ulp_type, cqes, 1);
 }
 
@@ -4665,9 +4665,9 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 
 	cp->kcq1.sw_prod_idx = 0;
 	cp->kcq1.hw_prod_idx_ptr =
-		(u16 *) &sblk->status_completion_producer_index;
+		&sblk->status_completion_producer_index;
 
-	cp->kcq1.status_idx_ptr = (u16 *) &sblk->status_idx;
+	cp->kcq1.status_idx_ptr = &sblk->status_idx;
 
 	/* Initialize the kernel complete queue context. */
 	val = KRNLQ_TYPE_TYPE_KRNLQ | KRNLQ_SIZE_TYPE_SIZE |
@@ -4693,9 +4693,9 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 		u32 sb = BNX2_L2CTX_L5_STATUSB_NUM(sb_id);
 
 		cp->kcq1.hw_prod_idx_ptr =
-			(u16 *) &msblk->status_completion_producer_index;
-		cp->kcq1.status_idx_ptr = (u16 *) &msblk->status_idx;
-		cp->kwq_con_idx_ptr = (u16 *) &msblk->status_cmd_consumer_index;
+			&msblk->status_completion_producer_index;
+		cp->kcq1.status_idx_ptr = &msblk->status_idx;
+		cp->kwq_con_idx_ptr = &msblk->status_cmd_consumer_index;
 		cp->int_num = sb_id << BNX2_PCICFG_INT_ACK_CMD_INT_NUM_SHIFT;
 		cnic_ctx_wr(dev, kwq_cid_addr, L5_KRNLQ_HOST_QIDX, sb);
 		cnic_ctx_wr(dev, kcq_cid_addr, L5_KRNLQ_HOST_QIDX, sb);

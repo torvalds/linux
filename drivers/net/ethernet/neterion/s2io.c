@@ -6946,9 +6946,9 @@ static  int rxd_owner_bit_reset(struct s2io_nic *sp)
 				if (sp->rxd_mode == RXD_MODE_3B)
 					ba = &ring->ba[j][k];
 				if (set_rxd_buffer_pointer(sp, rxdp, ba, &skb,
-							   (u64 *)&temp0_64,
-							   (u64 *)&temp1_64,
-							   (u64 *)&temp2_64,
+							   &temp0_64,
+							   &temp1_64,
+							   &temp2_64,
 							   size) == -ENOMEM) {
 					return 0;
 				}
@@ -7149,7 +7149,7 @@ static int s2io_card_up(struct s2io_nic *sp)
 	int i, ret = 0;
 	struct config_param *config;
 	struct mac_info *mac_control;
-	struct net_device *dev = (struct net_device *)sp->dev;
+	struct net_device *dev = sp->dev;
 	u16 interruptible;
 
 	/* Initialize the H/W I/O registers */
@@ -7325,7 +7325,7 @@ static void s2io_tx_watchdog(struct net_device *dev)
 static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 {
 	struct s2io_nic *sp = ring_data->nic;
-	struct net_device *dev = (struct net_device *)ring_data->dev;
+	struct net_device *dev = ring_data->dev;
 	struct sk_buff *skb = (struct sk_buff *)
 		((unsigned long)rxdp->Host_Control);
 	int ring_no = ring_data->ring_no;
@@ -7508,7 +7508,7 @@ aggregate:
 
 static void s2io_link(struct s2io_nic *sp, int link)
 {
-	struct net_device *dev = (struct net_device *)sp->dev;
+	struct net_device *dev = sp->dev;
 	struct swStat *swstats = &sp->mac_control.stats_info->sw_stat;
 
 	if (link != sp->last_link_state) {
@@ -8280,7 +8280,7 @@ static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip,
 		return -1;
 	}
 
-	*ip = (struct iphdr *)((u8 *)buffer + ip_off);
+	*ip = (struct iphdr *)(buffer + ip_off);
 	ip_len = (u8)((*ip)->ihl);
 	ip_len <<= 2;
 	*tcp = (struct tcphdr *)((unsigned long)*ip + ip_len);

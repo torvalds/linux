@@ -779,7 +779,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 			r->com.to_state = state;
 			r->com.state = RES_QP_BUSY;
 			if (qp)
-				*qp = (struct res_qp *)r;
+				*qp = r;
 		}
 	}
 
@@ -832,7 +832,7 @@ static int mr_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
 			r->com.to_state = state;
 			r->com.state = RES_MPT_BUSY;
 			if (mpt)
-				*mpt = (struct res_mpt *)r;
+				*mpt = r;
 		}
 	}
 

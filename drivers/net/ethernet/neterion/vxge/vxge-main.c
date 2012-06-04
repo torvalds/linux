@@ -1134,7 +1134,7 @@ static void vxge_set_multicast(struct net_device *dev)
 		"%s:%d", __func__, __LINE__);
 
 	vdev = netdev_priv(dev);
-	hldev = (struct __vxge_hw_device  *)vdev->devh;
+	hldev = vdev->devh;
 
 	if (unlikely(!is_vxge_card_up(vdev)))
 		return;
@@ -3989,16 +3989,16 @@ static void __devinit vxge_print_parm(struct vxgedev *vdev, u64 vpath_mask)
 			continue;
 		vxge_debug_ll_config(VXGE_TRACE,
 			"%s: MTU size - %d", vdev->ndev->name,
-			((struct __vxge_hw_device  *)(vdev->devh))->
+			((vdev->devh))->
 				config.vp_config[i].mtu);
 		vxge_debug_init(VXGE_TRACE,
 			"%s: VLAN tag stripping %s", vdev->ndev->name,
-			((struct __vxge_hw_device  *)(vdev->devh))->
+			((vdev->devh))->
 				config.vp_config[i].rpa_strip_vlan_tag
 			? "Enabled" : "Disabled");
 		vxge_debug_ll_config(VXGE_TRACE,
 			"%s: Max frags : %d", vdev->ndev->name,
-			((struct __vxge_hw_device  *)(vdev->devh))->
+			((vdev->devh))->
 				config.vp_config[i].fifo.max_frags);
 		break;
 	}

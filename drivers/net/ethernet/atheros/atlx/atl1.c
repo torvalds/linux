@@ -1061,7 +1061,7 @@ static s32 atl1_setup_ring_resources(struct atl1_adapter *adapter)
 		goto err_nomem;
 	}
 	rfd_ring->buffer_info =
-		(struct atl1_buffer *)(tpd_ring->buffer_info + tpd_ring->count);
+		(tpd_ring->buffer_info + tpd_ring->count);
 
 	/*
 	 * real ring DMA buffer

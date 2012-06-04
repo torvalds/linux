@@ -575,7 +575,7 @@ static void t3_process_tid_release_list(struct work_struct *work)
 		if (!skb) {
 			spin_lock_bh(&td->tid_release_lock);
 			p->ctx = (void *)td->tid_release_list;
-			td->tid_release_list = (struct t3c_tid_entry *)p;
+			td->tid_release_list = p;
 			break;
 		}
 		mk_tid_release(skb, p - td->tid_maps.tid_tab);

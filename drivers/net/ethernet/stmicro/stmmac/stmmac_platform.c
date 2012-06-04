@@ -190,7 +190,7 @@ static int stmmac_pltfr_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	iounmap((void *)priv->ioaddr);
+	iounmap((void __force __iomem *)priv->ioaddr);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
 

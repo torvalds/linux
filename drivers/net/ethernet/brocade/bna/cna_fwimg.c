@@ -67,10 +67,10 @@ bfa_cb_image_get_chunk(enum bfi_asic_gen asic_gen, u32 off)
 {
 	switch (asic_gen) {
 	case BFI_ASIC_GEN_CT:
-		return (u32 *)(bfi_image_ct_cna + off);
+		return (bfi_image_ct_cna + off);
 		break;
 	case BFI_ASIC_GEN_CT2:
-		return (u32 *)(bfi_image_ct2_cna + off);
+		return (bfi_image_ct2_cna + off);
 		break;
 	default:
 		return NULL;

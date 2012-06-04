@@ -228,7 +228,7 @@ static int __devinit mace_probe(struct platform_device *pdev)
 	 * bits are reversed.
 	 */
 
-	addr = (void *)MACE_PROM;
+	addr = MACE_PROM;
 
 	for (j = 0; j < 6; ++j) {
 		u8 v = bitrev8(addr[j<<4]);

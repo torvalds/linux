@@ -641,8 +641,7 @@ static int __devinit atl1e_sw_init(struct atl1e_adapter *adapter)
  */
 static void atl1e_clean_tx_ring(struct atl1e_adapter *adapter)
 {
-	struct atl1e_tx_ring *tx_ring = (struct atl1e_tx_ring *)
-				&adapter->tx_ring;
+	struct atl1e_tx_ring *tx_ring = &adapter->tx_ring;
 	struct atl1e_tx_buffer *tx_buffer = NULL;
 	struct pci_dev *pdev = adapter->pdev;
 	u16 index, ring_count;
@@ -686,7 +685,7 @@ static void atl1e_clean_tx_ring(struct atl1e_adapter *adapter)
 static void atl1e_clean_rx_ring(struct atl1e_adapter *adapter)
 {
 	struct atl1e_rx_ring *rx_ring =
-		(struct atl1e_rx_ring *)&adapter->rx_ring;
+		&adapter->rx_ring;
 	struct atl1e_rx_page_desc *rx_page_desc = rx_ring->rx_page_desc;
 	u16 i, j;
 
@@ -884,14 +883,12 @@ failed:
 	return err;
 }
 
-static inline void atl1e_configure_des_ring(const struct atl1e_adapter *adapter)
+static inline void atl1e_configure_des_ring(struct atl1e_adapter *adapter)
 {
 
-	struct atl1e_hw *hw = (struct atl1e_hw *)&adapter->hw;
-	struct atl1e_rx_ring *rx_ring =
-			(struct atl1e_rx_ring *)&adapter->rx_ring;
-	struct atl1e_tx_ring *tx_ring =
-			(struct atl1e_tx_ring *)&adapter->tx_ring;
+	struct atl1e_hw *hw = &adapter->hw;
+	struct atl1e_rx_ring *rx_ring = &adapter->rx_ring;
+	struct atl1e_tx_ring *tx_ring = &adapter->tx_ring;
 	struct atl1e_rx_page_desc *rx_page_desc = NULL;
 	int i, j;
 
@@ -932,7 +929,7 @@ static inline void atl1e_configure_des_ring(const struct atl1e_adapter *adapter)
 
 static inline void atl1e_configure_tx(struct atl1e_adapter *adapter)
 {
-	struct atl1e_hw *hw = (struct atl1e_hw *)&adapter->hw;
+	struct atl1e_hw *hw = &adapter->hw;
 	u32 dev_ctrl_data = 0;
 	u32 max_pay_load = 0;
 	u32 jumbo_thresh = 0;
@@ -975,7 +972,7 @@ static inline void atl1e_configure_tx(struct atl1e_adapter *adapter)
 
 static inline void atl1e_configure_rx(struct atl1e_adapter *adapter)
 {
-	struct atl1e_hw *hw = (struct atl1e_hw *)&adapter->hw;
+	struct atl1e_hw *hw = &adapter->hw;
 	u32 rxf_len  = 0;
 	u32 rxf_low  = 0;
 	u32 rxf_high = 0;
@@ -1224,8 +1221,7 @@ static inline void atl1e_clear_phy_int(struct atl1e_adapter *adapter)
 
 static bool atl1e_clean_tx_irq(struct atl1e_adapter *adapter)
 {
-	struct atl1e_tx_ring *tx_ring = (struct atl1e_tx_ring *)
-					&adapter->tx_ring;
+	struct atl1e_tx_ring *tx_ring = &adapter->tx_ring;
 	struct atl1e_tx_buffer *tx_buffer = NULL;
 	u16 hw_next_to_clean = AT_READ_REGW(&adapter->hw, REG_TPD_CONS_IDX);
 	u16 next_to_clean = atomic_read(&tx_ring->next_to_clean);
@@ -1384,15 +1380,14 @@ static struct atl1e_rx_page *atl1e_get_rx_page(struct atl1e_adapter *adapter,
 		(struct atl1e_rx_page_desc *) adapter->rx_ring.rx_page_desc;
 	u8 rx_using = rx_page_desc[que].rx_using;
 
-	return (struct atl1e_rx_page *)&(rx_page_desc[que].rx_page[rx_using]);
+	return &(rx_page_desc[que].rx_page[rx_using]);
 }
 
 static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 		   int *work_done, int work_to_do)
 {
 	struct net_device *netdev  = adapter->netdev;
-	struct atl1e_rx_ring *rx_ring = (struct atl1e_rx_ring *)
-					 &adapter->rx_ring;
+	struct atl1e_rx_ring *rx_ring = &adapter->rx_ring;
 	struct atl1e_rx_page_desc *rx_page_desc =
 		(struct atl1e_rx_page_desc *) rx_ring->rx_page_desc;
 	struct sk_buff *skb = NULL;
@@ -1576,7 +1571,7 @@ static struct atl1e_tpd_desc *atl1e_get_tpd(struct atl1e_adapter *adapter)
 		tx_ring->next_to_use = 0;
 
 	memset(&tx_ring->desc[next_to_use], 0, sizeof(struct atl1e_tpd_desc));
-	return (struct atl1e_tpd_desc *)&tx_ring->desc[next_to_use];
+	return &tx_ring->desc[next_to_use];
 }
 
 static struct atl1e_tx_buffer *
@@ -2061,8 +2056,8 @@ static int atl1e_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	if (wufc) {
 		/* get link status */
-		atl1e_read_phy_reg(hw, MII_BMSR, (u16 *)&mii_bmsr_data);
-		atl1e_read_phy_reg(hw, MII_BMSR, (u16 *)&mii_bmsr_data);
+		atl1e_read_phy_reg(hw, MII_BMSR, &mii_bmsr_data);
+		atl1e_read_phy_reg(hw, MII_BMSR, &mii_bmsr_data);
 
 		mii_advertise_data = ADVERTISE_10HALF;
 
@@ -2086,7 +2081,7 @@ static int atl1e_suspend(struct pci_dev *pdev, pm_message_t state)
 				for (i = 0; i < AT_SUSPEND_LINK_TIMEOUT; i++) {
 					msleep(100);
 					atl1e_read_phy_reg(hw, MII_BMSR,
-							(u16 *)&mii_bmsr_data);
+							&mii_bmsr_data);
 					if (mii_bmsr_data & BMSR_LSTATUS)
 						break;
 				}

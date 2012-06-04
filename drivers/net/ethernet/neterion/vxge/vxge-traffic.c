@@ -533,8 +533,7 @@ __vxge_hw_device_handle_error(struct __vxge_hw_device *hldev, u32 vp_id,
 
 	/* notify driver */
 	if (hldev->uld_callbacks->crit_err)
-		hldev->uld_callbacks->crit_err(
-			(struct __vxge_hw_device *)hldev,
+		hldev->uld_callbacks->crit_err(hldev,
 			type, vp_id);
 out:
 
@@ -1322,7 +1321,7 @@ enum vxge_hw_status vxge_hw_ring_rxd_next_completed(
 	/* check whether it is not the end */
 	if (!own || *t_code == VXGE_HW_RING_T_CODE_FRM_DROP) {
 
-		vxge_assert(((struct vxge_hw_ring_rxd_1 *)rxdp)->host_control !=
+		vxge_assert((rxdp)->host_control !=
 				0);
 
 		++ring->cmpl_cnt;

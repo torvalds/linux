@@ -441,7 +441,7 @@ static void qe_rx(struct sunqe *qep)
 			} else {
 				skb_reserve(skb, 2);
 				skb_put(skb, len);
-				skb_copy_to_linear_data(skb, (unsigned char *) this_qbuf,
+				skb_copy_to_linear_data(skb, this_qbuf,
 						 len);
 				skb->protocol = eth_type_trans(skb, qep->dev);
 				netif_rx(skb);

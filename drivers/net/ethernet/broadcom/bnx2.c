@@ -872,8 +872,7 @@ bnx2_alloc_mem(struct bnx2 *bp)
 
 			bnapi = &bp->bnx2_napi[i];
 
-			sblk = (void *) (status_blk +
-					 BNX2_SBLK_MSIX_ALIGN_SIZE * i);
+			sblk = (status_blk + BNX2_SBLK_MSIX_ALIGN_SIZE * i);
 			bnapi->status_blk.msix = sblk;
 			bnapi->hw_tx_cons_ptr =
 				&sblk->status_tx_quick_consumer_index;
