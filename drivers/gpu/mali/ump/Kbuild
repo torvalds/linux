@@ -8,13 +8,13 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
 
+DRIVER_DIR_UMP=$(srctree)/$(src)
+
 UMP_FILE_PREFIX =
 UDD_FILE_PREFIX = ../mali/
 
-KBUILD_EXTMOD := drivers/gpu/mali/ump
-
-ifneq ($(KBUILD_EXTMOD),)
-include $(KBUILD_EXTMOD)/Makefile.common
+ifneq ($(DRIVER_DIR_UMP),)
+include $(DRIVER_DIR_UMP)/Makefile.common
 else
 include ./Makefile.common
 endif
@@ -34,16 +34,16 @@ endif
 ifneq ($(KERNELRELEASE),)
 # Inside the kernel build system
 
-EXTRA_CFLAGS += -I$(KBUILD_EXTMOD) -I$(KBUILD_EXTMOD)/common -I$(KBUILD_EXTMOD)/linux -I$(KBUILD_EXTMOD)/../mali/common -I$(KBUILD_EXTMOD)/../mali/linux -I$(KBUILD_EXTMOD)/../../ump/include/ump -I$(KBUILD_EXTMOD)/../include/ump
+EXTRA_CFLAGS += -I$(DRIVER_DIR_UMP) -I$(DRIVER_DIR_UMP)/common -I$(DRIVER_DIR_UMP)/linux -I$(DRIVER_DIR_UMP)/../mali/common -I$(DRIVER_DIR_UMP)/../mali/linux -I$(DRIVER_DIR_UMP)/../../ump/include/ump -I$(DRIVER_DIR_UMP)/../include/ump
 
 # For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
 # The ARM proprietary product will only include the license/proprietary directory
 # The GPL product will only include the license/gpl directory
 
-ifeq ($(wildcard $(KBUILD_EXTMOD)/linux/license/gpl/*),)
-EXTRA_CFLAGS += -I$(KBUILD_EXTMOD)/linux/license/proprietary
+ifeq ($(wildcard $(DRIVER_DIR_UMP)/linux/license/gpl/*),)
+EXTRA_CFLAGS += -I$(DRIVER_DIR_UMP)/linux/license/proprietary
 else
-EXTRA_CFLAGS += -I$(KBUILD_EXTMOD)/linux/license/gpl
+EXTRA_CFLAGS += -I$(DRIVER_DIR_UMP)/linux/license/gpl
 endif
 
 SRC +=	$(UMP_FILE_PREFIX)linux/ump_kernel_linux.c \
