@@ -35,7 +35,6 @@
 #include <plat/led.h>
 #include <plat/flash.h>
 #include <plat/mux.h>
-#include <plat/usb.h>
 #include <plat/dma.h>
 #include <plat/tc.h>
 #include <plat/board.h>
@@ -43,6 +42,7 @@
 #include <plat/keypad.h>
 
 #include <mach/hardware.h>
+#include <mach/usb.h>
 
 #include "common.h"
 

@@ -36,9 +36,9 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <plat/usb.h>
 #include <plat/mux.h>
 
+#include <mach/usb.h>
 
 #ifndef	DEBUG
 #undef	VERBOSE
