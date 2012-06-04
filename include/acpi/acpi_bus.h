@@ -440,8 +440,8 @@ static inline int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 
 #else	/* CONFIG_ACPI */
 
-static int register_acpi_bus_type(struct acpi_bus_type *bus) { return 0; }
-static int unregister_acpi_bus_type(struct acpi_bus_type *bus) { return 0; }
+static inline int register_acpi_bus_type(void *bus) { return 0; }
+static inline int unregister_acpi_bus_type(void *bus) { return 0; }
 
 #endif				/* CONFIG_ACPI */
 
