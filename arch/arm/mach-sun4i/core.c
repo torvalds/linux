@@ -62,10 +62,27 @@
  */
 
 #if defined CONFIG_FB || defined CONFIG_FB_MODULE
+	/* The FB block is used by:
+	 *
+	 * - the sun4i framebuffer driver, drivers/video/sun4i/disp.
+	 *
+	 * fb_start, fb_size are used in a vast number of other places but for
+	 * for platform-specific drivers, so we don't have to worry about them.
+	 *
+	 * The block will only be allocated if the disp_init/disp_init_enabled
+	 * script key is set.
+	 */
 	#define USE_FB
 #endif
 
 #if defined CONFIG_SUN4I_G2D || defined CONFIG_SUN4I_G2D_MODULE
+	/* The G2D block is used by:
+	 *
+	 * - the G2D engine, drivers/char/sun4i_g2d
+	 *
+	 * The block will only be allocated if the g2d_para/g2d_used
+	 * script key is set.
+	 */
 	#define USE_G2D
 #endif
 
@@ -176,7 +193,9 @@ EXPORT_SYMBOL(ve_size);
 
 static void __init sw_core_reserve(void)
 {
+#if (defined USE_FB) || (defined USE_G2D) || (defined USE_VE)
     char *script_base = (char *)(PAGE_OFFSET + 0x3000000);
+#endif
 
 	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
 
@@ -184,7 +203,7 @@ static void __init sw_core_reserve(void)
 	if (sw_cfg_get_int(script_base, "disp_init", "disp_init_enable"))
 		memblock_reserve(fb_start, fb_size);
 	else
-		fb_start = fb_size = 0xdeadbaad;
+		fb_start = fb_size = 0;
 #endif
 
 #if defined USE_G2D
@@ -199,11 +218,11 @@ static void __init sw_core_reserve(void)
 		memblock_reserve(g2d_start, g2d_size);
     }
     else
-    	g2d_start = g2d_size = 0xdeadbaad;
+    	g2d_start = g2d_size = 0;
 #endif
 
 #if defined USE_VE
-    /* The users of the VE block aren't enable via script flags, so if their
+    /* The users of the VE block aren't enabled via script flags, so if their
      * driver gets compiled in we have to unconditionally reserve memory for
      * them.
      */
