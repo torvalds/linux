@@ -105,33 +105,16 @@ static int max1586_v3_list(struct regulator_dev *rdev, unsigned selector)
 	return max1586_v3_calc_voltage(max1586, selector);
 }
 
-static int max1586_v6_set(struct regulator_dev *rdev, int min_uV, int max_uV,
-			  unsigned int *selector)
+static int max1586_v6_set_voltage_sel(struct regulator_dev *rdev,
+				      unsigned int selector)
 {
 	struct i2c_client *client = rdev_get_drvdata(rdev);
 	u8 v6_prog;
 
-	if (min_uV < MAX1586_V6_MIN_UV || min_uV > MAX1586_V6_MAX_UV)
-		return -EINVAL;
-	if (max_uV < MAX1586_V6_MIN_UV || max_uV > MAX1586_V6_MAX_UV)
-		return -EINVAL;
-
-	if (min_uV < 1800000)
-		*selector = 0;
-	else if (min_uV < 2500000)
-		*selector = 1;
-	else if (min_uV < 3000000)
-		*selector = 2;
-	else if (min_uV >= 3000000)
-		*selector = 3;
-
-	if (rdev->desc->volt_table[*selector] > max_uV)
-		return -EINVAL;
-
 	dev_dbg(&client->dev, "changing voltage v6 to %dmv\n",
-		rdev->desc->volt_table[*selector] / 1000);
+		rdev->desc->volt_table[selector] / 1000);
 
-	v6_prog = I2C_V6_SELECT | (u8) *selector;
+	v6_prog = I2C_V6_SELECT | (u8) selector;
 	return i2c_smbus_write_byte(client, v6_prog);
 }
 
@@ -145,7 +128,7 @@ static struct regulator_ops max1586_v3_ops = {
 };
 
 static struct regulator_ops max1586_v6_ops = {
-	.set_voltage = max1586_v6_set,
+	.set_voltage_sel = max1586_v6_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_table,
 };
 
