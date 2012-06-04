@@ -1,4 +1,3 @@
-
 OUTPUT_ARCH(arm)
 ENTRY(main)
 
@@ -18,4 +17,3 @@ SECTIONS
 	__bss_end = .;
 	__standby_end = . ;
 }
-

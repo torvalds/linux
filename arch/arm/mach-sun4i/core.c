@@ -1,16 +1,24 @@
 /*
- * arch/arch/mach-sun4i/core.c
- * (C) Copyright 2010-2015
+ * arch/arm/mach-sun4i/core.c
+ *
+ * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Benn Huang <benn@allwinnertech.com>
- *
- * SUN4I machine core implementations
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
  * the License, or (at your option) any later version.
  *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -272,7 +280,7 @@ void __init sw_core_init_irq(void)
 
 
 
-/**
+/*
  * Global vars definitions
  *
  */
@@ -413,20 +421,22 @@ enum sw_ic_ver sw_get_ic_ver(void)
 	return MAGIC_VER_C;
 }
 EXPORT_SYMBOL(sw_get_ic_ver);
-/**
+
+/*
  * Arch Required Implementations
  *
  */
-//void arch_idle(void)
-//{
+#if 0
+void arch_idle(void)
+{
 
-//}
+}
 
-//void arch_reset(char mode, const char *cmd)
-//{
+void arch_reset(char mode, const char *cmd)
+{
 
-
-//}
+}
+#endif
 
 
 MACHINE_START(SUN4I, "sun4i")
@@ -439,4 +449,3 @@ MACHINE_START(SUN4I, "sun4i")
 	.init_machine   = sw_core_init,
 	.reserve        = sw_core_reserve,
 MACHINE_END
-
