@@ -29,12 +29,11 @@
 #define ARMADA_370_XP_INT_SET_MASK_OFFS		(0x48)
 #define ARMADA_370_XP_INT_CLEAR_MASK_OFFS	(0x4C)
 
+#define ARMADA_370_XP_INT_CONTROL		(0x00)
 #define ARMADA_370_XP_INT_SET_ENABLE_OFFS	(0x30)
 #define ARMADA_370_XP_INT_CLEAR_ENABLE_OFFS	(0x34)
 
 #define ARMADA_370_XP_CPU_INTACK_OFFS		(0x44)
-
-#define ARMADA_370_XP_NR_IRQS			(115)
 
 static void __iomem *per_cpu_int_base;
 static void __iomem *main_int_base;
@@ -81,14 +80,18 @@ static struct irq_domain_ops armada_370_xp_mpic_irq_ops = {
 static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 					     struct device_node *parent)
 {
+	u32 control;
+
 	main_int_base = of_iomap(node, 0);
 	per_cpu_int_base = of_iomap(node, 1);
 
 	BUG_ON(!main_int_base);
 	BUG_ON(!per_cpu_int_base);
 
+	control = readl(main_int_base + ARMADA_370_XP_INT_CONTROL);
+
 	armada_370_xp_mpic_domain =
-	    irq_domain_add_linear(node, ARMADA_370_XP_NR_IRQS,
+	    irq_domain_add_linear(node, (control >> 2) & 0x3ff,
 				  &armada_370_xp_mpic_irq_ops, NULL);
 
 	if (!armada_370_xp_mpic_domain)
