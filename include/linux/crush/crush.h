@@ -151,16 +151,6 @@ struct crush_map {
 	struct crush_bucket **buckets;
 	struct crush_rule **rules;
 
-	/*
-	 * Parent pointers to identify the parent bucket a device or
-	 * bucket in the hierarchy.  If an item appears more than
-	 * once, this is the _last_ time it appeared (where buckets
-	 * are processed in bucket id order, from -1 on down to
-	 * -max_buckets.
-	 */
-	__u32 *bucket_parents;
-	__u32 *device_parents;
-
 	__s32 max_buckets;
 	__u32 max_rules;
 	__s32 max_devices;
@@ -168,13 +158,17 @@ struct crush_map {
 
 
 /* crush.c */
-extern int crush_get_bucket_item_weight(struct crush_bucket *b, int pos);
-extern void crush_calc_parents(struct crush_map *map);
+extern int crush_get_bucket_item_weight(const struct crush_bucket *b, int pos);
 extern void crush_destroy_bucket_uniform(struct crush_bucket_uniform *b);
 extern void crush_destroy_bucket_list(struct crush_bucket_list *b);
 extern void crush_destroy_bucket_tree(struct crush_bucket_tree *b);
 extern void crush_destroy_bucket_straw(struct crush_bucket_straw *b);
 extern void crush_destroy_bucket(struct crush_bucket *b);
 extern void crush_destroy(struct crush_map *map);
+
+static inline int crush_calc_tree_node(int i)
+{
+	return ((i+1) << 1)-1;
+}
 
 #endif

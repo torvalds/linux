@@ -65,49 +65,24 @@ extern void fpsave(unsigned long *, unsigned long *, void *, unsigned long *);
 struct task_struct *last_task_used_math = NULL;
 struct thread_info *current_set[NR_CPUS];
 
-#ifndef CONFIG_SMP
-
 /*
  * the idle loop on a Sparc... ;)
  */
 void cpu_idle(void)
 {
+	set_thread_flag(TIF_POLLING_NRFLAG);
+
 	/* endless idle loop with no priority at all */
 	for (;;) {
-		if (pm_idle) {
-			while (!need_resched())
+		while (!need_resched()) {
+			if (pm_idle)
 				(*pm_idle)();
-		} else {
-			while (!need_resched())
+			else
 				cpu_relax();
 		}
 		schedule_preempt_disabled();
 	}
 }
-
-#else
-
-/* This is being executed in task 0 'user space'. */
-void cpu_idle(void)
-{
-        set_thread_flag(TIF_POLLING_NRFLAG);
-	/* endless idle loop with no priority at all */
-	while(1) {
-#ifdef CONFIG_SPARC_LEON
-		if (pm_idle) {
-			while (!need_resched())
-				(*pm_idle)();
-		} else
-#endif
-		{
-			while (!need_resched())
-				cpu_relax();
-		}
-		schedule_preempt_disabled();
-	}
-}
-
-#endif
 
 /* XXX cli/sti -> local_irq_xxx here, check this works once SMP is fixed. */
 void machine_halt(void)

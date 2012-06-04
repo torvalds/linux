@@ -195,11 +195,6 @@ int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
 int btrfs_find_ref_cluster(struct btrfs_trans_handle *trans,
 			   struct list_head *cluster, u64 search_start);
 
-struct seq_list {
-	struct list_head list;
-	u64 seq;
-};
-
 static inline u64 inc_delayed_seq(struct btrfs_delayed_ref_root *delayed_refs)
 {
 	assert_spin_locked(&delayed_refs->lock);
@@ -228,25 +223,6 @@ btrfs_put_delayed_seq(struct btrfs_delayed_ref_root *delayed_refs,
 
 int btrfs_check_delayed_seq(struct btrfs_delayed_ref_root *delayed_refs,
 			    u64 seq);
-
-/*
- * delayed refs with a ref_seq > 0 must be held back during backref walking.
- * this only applies to items in one of the fs-trees. for_cow items never need
- * to be held back, so they won't get a ref_seq number.
- */
-static inline int need_ref_seq(int for_cow, u64 rootid)
-{
-	if (for_cow)
-		return 0;
-
-	if (rootid == BTRFS_FS_TREE_OBJECTID)
-		return 1;
-
-	if ((s64)rootid >= (s64)BTRFS_FIRST_FREE_OBJECTID)
-		return 1;
-
-	return 0;
-}
 
 /*
  * a node might live in a head or a regular ref, this lets you

@@ -40,11 +40,7 @@
 #define ASI_M_UNA01         0x01   /* Same here... */
 #define ASI_M_MXCC          0x02   /* Access to TI VIKING MXCC registers */
 #define ASI_M_FLUSH_PROBE   0x03   /* Reference MMU Flush/Probe; rw, ss */
-#ifndef CONFIG_SPARC_LEON
 #define ASI_M_MMUREGS       0x04   /* MMU Registers; rw, ss */
-#else
-#define ASI_M_MMUREGS       0x19
-#endif /* CONFIG_SPARC_LEON */
 #define ASI_M_TLBDIAG       0x05   /* MMU TLB only Diagnostics */
 #define ASI_M_DIAGS         0x06   /* Reference MMU Diagnostics */
 #define ASI_M_IODIAG        0x07   /* MMU I/O TLB only Diagnostics */

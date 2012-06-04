@@ -2116,7 +2116,7 @@ out:
 	return ret;
 }
 
-static int format_check(struct drm_mode_fb_cmd2 *r)
+static int format_check(const struct drm_mode_fb_cmd2 *r)
 {
 	uint32_t format = r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN;
 
@@ -2185,7 +2185,7 @@ static int format_check(struct drm_mode_fb_cmd2 *r)
 	}
 }
 
-static int framebuffer_check(struct drm_mode_fb_cmd2 *r)
+static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 {
 	int ret, hsub, vsub, num_planes, i;
 
@@ -3126,7 +3126,7 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
 
 static bool drm_property_change_is_valid(struct drm_property *property,
-					 __u64 value)
+					 uint64_t value)
 {
 	if (property->flags & DRM_MODE_PROP_IMMUTABLE)
 		return false;
@@ -3136,7 +3136,7 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 		return true;
 	} else if (property->flags & DRM_MODE_PROP_BITMASK) {
 		int i;
-		__u64 valid_mask = 0;
+		uint64_t valid_mask = 0;
 		for (i = 0; i < property->num_values; i++)
 			valid_mask |= (1ULL << property->values[i]);
 		return !(value & ~valid_mask);

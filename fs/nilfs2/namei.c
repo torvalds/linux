@@ -508,31 +508,29 @@ static struct dentry *nilfs_fh_to_parent(struct super_block *sb, struct fid *fh,
 	return nilfs_get_dentry(sb, fid->cno, fid->parent_ino, fid->parent_gen);
 }
 
-static int nilfs_encode_fh(struct dentry *dentry, __u32 *fh, int *lenp,
-			   int connectable)
+static int nilfs_encode_fh(struct inode *inode, __u32 *fh, int *lenp,
+			   struct inode *parent)
 {
 	struct nilfs_fid *fid = (struct nilfs_fid *)fh;
-	struct inode *inode = dentry->d_inode;
 	struct nilfs_root *root = NILFS_I(inode)->i_root;
 	int type;
 
-	if (*lenp < NILFS_FID_SIZE_NON_CONNECTABLE ||
-	    (connectable && *lenp < NILFS_FID_SIZE_CONNECTABLE))
+	if (parent && *lenp < NILFS_FID_SIZE_CONNECTABLE) {
+		*lenp = NILFS_FID_SIZE_CONNECTABLE;
 		return 255;
+	}
+	if (*lenp < NILFS_FID_SIZE_NON_CONNECTABLE) {
+		*lenp = NILFS_FID_SIZE_NON_CONNECTABLE;
+		return 255;
+	}
 
 	fid->cno = root->cno;
 	fid->ino = inode->i_ino;
 	fid->gen = inode->i_generation;
 
-	if (connectable && !S_ISDIR(inode->i_mode)) {
-		struct inode *parent;
-
-		spin_lock(&dentry->d_lock);
-		parent = dentry->d_parent->d_inode;
+	if (parent) {
 		fid->parent_ino = parent->i_ino;
 		fid->parent_gen = parent->i_generation;
-		spin_unlock(&dentry->d_lock);
-
 		type = FILEID_NILFS_WITH_PARENT;
 		*lenp = NILFS_FID_SIZE_CONNECTABLE;
 	} else {

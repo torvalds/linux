@@ -297,26 +297,27 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
 			  void *data, unsigned long stack)
 {
-	struct _lowcore *lc = pcpu->lowcore;
-	unsigned short this_cpu;
+	struct _lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
+	struct {
+		unsigned long	stack;
+		void		*func;
+		void		*data;
+		unsigned long	source;
+	} restart = { stack, func, data, stap() };
 
 	__load_psw_mask(psw_kernel_bits);
-	this_cpu = stap();
-	if (pcpu->address == this_cpu)
+	if (pcpu->address == restart.source)
 		func(data);	/* should not return */
 	/* Stop target cpu (if func returns this stops the current cpu). */
 	pcpu_sigp_retry(pcpu, sigp_stop, 0);
 	/* Restart func on the target cpu and stop the current cpu. */
-	lc->restart_stack = stack;
-	lc->restart_fn = (unsigned long) func;
-	lc->restart_data = (unsigned long) data;
-	lc->restart_source = (unsigned long) this_cpu;
+	memcpy_absolute(&lc->restart_stack, &restart, sizeof(restart));
 	asm volatile(
 		"0:	sigp	0,%0,6	# sigp restart to target cpu\n"
 		"	brc	2,0b	# busy, try again\n"
 		"1:	sigp	0,%1,5	# sigp stop to current cpu\n"
 		"	brc	2,1b	# busy, try again\n"
-		: : "d" (pcpu->address), "d" (this_cpu) : "0", "1", "cc");
+		: : "d" (pcpu->address), "d" (restart.source) : "0", "1", "cc");
 	for (;;) ;
 }
 
@@ -800,17 +801,6 @@ void __noreturn cpu_die(void)
 
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static void smp_call_os_info_init_fn(void)
-{
-	int (*init_fn)(void);
-	unsigned long size;
-
-	init_fn = os_info_old_entry(OS_INFO_INIT_FN, &size);
-	if (!init_fn)
-		return;
-	init_fn();
-}
-
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	/* request the 0x1201 emergency signal external interrupt */
@@ -819,7 +809,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	/* request the 0x1202 external call external interrupt */
 	if (register_external_interrupt(0x1202, do_ext_call_interrupt) != 0)
 		panic("Couldn't request external interrupt 0x1202");
-	smp_call_os_info_init_fn();
 	smp_detect_cpus();
 }
 
@@ -943,19 +932,6 @@ static struct attribute_group cpu_common_attr_group = {
 	.attrs = cpu_common_attrs,
 };
 
-static ssize_t show_capability(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	unsigned int capability;
-	int rc;
-
-	rc = get_cpu_capability(&capability);
-	if (rc)
-		return rc;
-	return sprintf(buf, "%u\n", capability);
-}
-static DEVICE_ATTR(capability, 0444, show_capability, NULL);
-
 static ssize_t show_idle_count(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -993,7 +969,6 @@ static ssize_t show_idle_time(struct device *dev,
 static DEVICE_ATTR(idle_time_us, 0444, show_idle_time, NULL);
 
 static struct attribute *cpu_online_attrs[] = {
-	&dev_attr_capability.attr,
 	&dev_attr_idle_count.attr,
 	&dev_attr_idle_time_us.attr,
 	NULL,

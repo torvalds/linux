@@ -2063,10 +2063,8 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	if (obj->gtt_space == NULL)
 		return 0;
 
-	if (obj->pin_count != 0) {
-		DRM_ERROR("Attempting to unbind pinned buffer\n");
-		return -EINVAL;
-	}
+	if (obj->pin_count)
+		return -EBUSY;
 
 	ret = i915_gem_object_finish_gpu(obj);
 	if (ret)
@@ -3293,6 +3291,7 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	struct address_space *mapping;
+	u32 mask;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (obj == NULL)
@@ -3303,8 +3302,15 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 		return NULL;
 	}
 
+	mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
+	if (IS_CRESTLINE(dev) || IS_BROADWATER(dev)) {
+		/* 965gm cannot relocate objects above 4GiB. */
+		mask &= ~__GFP_HIGHMEM;
+		mask |= __GFP_DMA32;
+	}
+
 	mapping = obj->base.filp->f_path.dentry->d_inode->i_mapping;
-	mapping_set_gfp_mask(mapping, GFP_HIGHUSER | __GFP_RECLAIMABLE);
+	mapping_set_gfp_mask(mapping, mask);
 
 	i915_gem_info_add_obj(dev_priv, size);
 

@@ -85,6 +85,47 @@ static void radeon_gem_kunmap(struct dma_buf *dma_buf, unsigned long page_num, v
 
 }
 
+static int radeon_gem_prime_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
+{
+	return -EINVAL;
+}
+
+static void *radeon_gem_prime_vmap(struct dma_buf *dma_buf)
+{
+	struct radeon_bo *bo = dma_buf->priv;
+	struct drm_device *dev = bo->rdev->ddev;
+	int ret;
+
+	mutex_lock(&dev->struct_mutex);
+	if (bo->vmapping_count) {
+		bo->vmapping_count++;
+		goto out_unlock;
+	}
+
+	ret = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages,
+			  &bo->dma_buf_vmap);
+	if (ret) {
+		mutex_unlock(&dev->struct_mutex);
+		return ERR_PTR(ret);
+	}
+	bo->vmapping_count = 1;
+out_unlock:
+	mutex_unlock(&dev->struct_mutex);
+	return bo->dma_buf_vmap.virtual;
+}
+
+static void radeon_gem_prime_vunmap(struct dma_buf *dma_buf, void *vaddr)
+{
+	struct radeon_bo *bo = dma_buf->priv;
+	struct drm_device *dev = bo->rdev->ddev;
+
+	mutex_lock(&dev->struct_mutex);
+	bo->vmapping_count--;
+	if (bo->vmapping_count == 0) {
+		ttm_bo_kunmap(&bo->dma_buf_vmap);
+	}
+	mutex_unlock(&dev->struct_mutex);
+}
 const static struct dma_buf_ops radeon_dmabuf_ops =  {
 	.map_dma_buf = radeon_gem_map_dma_buf,
 	.unmap_dma_buf = radeon_gem_unmap_dma_buf,
@@ -93,6 +134,9 @@ const static struct dma_buf_ops radeon_dmabuf_ops =  {
 	.kmap_atomic = radeon_gem_kmap_atomic,
 	.kunmap = radeon_gem_kunmap,
 	.kunmap_atomic = radeon_gem_kunmap_atomic,
+	.mmap = radeon_gem_prime_mmap,
+	.vmap = radeon_gem_prime_vmap,
+	.vunmap = radeon_gem_prime_vunmap,
 };
 
 static int radeon_prime_create(struct drm_device *dev,

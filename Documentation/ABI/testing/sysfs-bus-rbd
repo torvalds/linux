@@ -65,11 +65,11 @@ snap_*
 Entries under /sys/bus/rbd/devices/<dev-id>/snap_<snap-name>
 -------------------------------------------------------------
 
-id
+snap_id
 
 	The rados internal snapshot id assigned for this snapshot
 
-size
+snap_size
 
 	The size of the image when this snapshot was taken.
 

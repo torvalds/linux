@@ -660,11 +660,10 @@ static int ecryptfs_readlink_lower(struct dentry *dentry, char **buf,
 {
 	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	char *lower_buf;
-	size_t lower_bufsiz = PATH_MAX;
 	mm_segment_t old_fs;
 	int rc;
 
-	lower_buf = kmalloc(lower_bufsiz, GFP_KERNEL);
+	lower_buf = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!lower_buf) {
 		rc = -ENOMEM;
 		goto out;
@@ -673,58 +672,29 @@ static int ecryptfs_readlink_lower(struct dentry *dentry, char **buf,
 	set_fs(get_ds());
 	rc = lower_dentry->d_inode->i_op->readlink(lower_dentry,
 						   (char __user *)lower_buf,
-						   lower_bufsiz);
+						   PATH_MAX);
 	set_fs(old_fs);
 	if (rc < 0)
 		goto out;
-	lower_bufsiz = rc;
 	rc = ecryptfs_decode_and_decrypt_filename(buf, bufsiz, dentry,
-						  lower_buf, lower_bufsiz);
+						  lower_buf, rc);
 out:
 	kfree(lower_buf);
-	return rc;
-}
-
-static int
-ecryptfs_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
-{
-	char *kbuf;
-	size_t kbufsiz, copied;
-	int rc;
-
-	rc = ecryptfs_readlink_lower(dentry, &kbuf, &kbufsiz);
-	if (rc)
-		goto out;
-	copied = min_t(size_t, bufsiz, kbufsiz);
-	rc = copy_to_user(buf, kbuf, copied) ? -EFAULT : copied;
-	kfree(kbuf);
-	fsstack_copy_attr_atime(dentry->d_inode,
-				ecryptfs_dentry_to_lower(dentry)->d_inode);
-out:
 	return rc;
 }
 
 static void *ecryptfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	char *buf;
-	int len = PAGE_SIZE, rc;
-	mm_segment_t old_fs;
+	size_t len = PATH_MAX;
+	int rc;
 
-	/* Released in ecryptfs_put_link(); only release here on error */
-	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf) {
-		buf = ERR_PTR(-ENOMEM);
+	rc = ecryptfs_readlink_lower(dentry, &buf, &len);
+	if (rc)
 		goto out;
-	}
-	old_fs = get_fs();
-	set_fs(get_ds());
-	rc = dentry->d_inode->i_op->readlink(dentry, (char __user *)buf, len);
-	set_fs(old_fs);
-	if (rc < 0) {
-		kfree(buf);
-		buf = ERR_PTR(rc);
-	} else
-		buf[rc] = '\0';
+	fsstack_copy_attr_atime(dentry->d_inode,
+				ecryptfs_dentry_to_lower(dentry)->d_inode);
+	buf[len] = '\0';
 out:
 	nd_set_link(nd, buf);
 	return NULL;
@@ -1153,7 +1123,7 @@ out:
 }
 
 const struct inode_operations ecryptfs_symlink_iops = {
-	.readlink = ecryptfs_readlink,
+	.readlink = generic_readlink,
 	.follow_link = ecryptfs_follow_link,
 	.put_link = ecryptfs_put_link,
 	.permission = ecryptfs_permission,

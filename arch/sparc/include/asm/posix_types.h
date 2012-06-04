@@ -9,8 +9,6 @@
 
 #if defined(__sparc__) && defined(__arch64__)
 /* sparc 64 bit */
-typedef unsigned int           __kernel_nlink_t;
-#define __kernel_nlink_t __kernel_nlink_t
 
 typedef unsigned short 	       __kernel_old_uid_t;
 typedef unsigned short         __kernel_old_gid_t;
@@ -37,9 +35,6 @@ typedef unsigned short         __kernel_gid_t;
 
 typedef unsigned short         __kernel_mode_t;
 #define __kernel_mode_t __kernel_mode_t
-
-typedef short                  __kernel_nlink_t;
-#define __kernel_nlink_t __kernel_nlink_t
 
 typedef long                   __kernel_daddr_t;
 #define __kernel_daddr_t __kernel_daddr_t

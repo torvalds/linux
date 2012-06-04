@@ -565,7 +565,7 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 			    goto err_usb;
 	}
 
-	irq = platform_get_irq_byname(pdev, "SYSLO");
+	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "SYSLO"));
 	ret = request_threaded_irq(irq, NULL, wm831x_syslo_irq,
 				   IRQF_TRIGGER_RISING, "System power low",
 				   power);
@@ -575,7 +575,7 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 		goto err_battery;
 	}
 
-	irq = platform_get_irq_byname(pdev, "PWR SRC");
+	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "PWR SRC"));
 	ret = request_threaded_irq(irq, NULL, wm831x_pwr_src_irq,
 				   IRQF_TRIGGER_RISING, "Power source",
 				   power);
@@ -586,7 +586,9 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_bat_irqs); i++) {
-		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);
+		irq = wm831x_irq(wm831x,
+				 platform_get_irq_byname(pdev,
+							 wm831x_bat_irqs[i]));
 		ret = request_threaded_irq(irq, NULL, wm831x_bat_irq,
 					   IRQF_TRIGGER_RISING,
 					   wm831x_bat_irqs[i],
@@ -606,10 +608,10 @@ err_bat_irq:
 		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);
 		free_irq(irq, power);
 	}
-	irq = platform_get_irq_byname(pdev, "PWR SRC");
+	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "PWR SRC"));
 	free_irq(irq, power);
 err_syslo:
-	irq = platform_get_irq_byname(pdev, "SYSLO");
+	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "SYSLO"));
 	free_irq(irq, power);
 err_battery:
 	if (power->have_battery)
@@ -626,17 +628,20 @@ err_kmalloc:
 static __devexit int wm831x_power_remove(struct platform_device *pdev)
 {
 	struct wm831x_power *wm831x_power = platform_get_drvdata(pdev);
+	struct wm831x *wm831x = wm831x_power->wm831x;
 	int irq, i;
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_bat_irqs); i++) {
-		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);
+		irq = wm831x_irq(wm831x, 
+				 platform_get_irq_byname(pdev,
+							 wm831x_bat_irqs[i]));
 		free_irq(irq, wm831x_power);
 	}
 
-	irq = platform_get_irq_byname(pdev, "PWR SRC");
+	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "PWR SRC"));
 	free_irq(irq, wm831x_power);
 
-	irq = platform_get_irq_byname(pdev, "SYSLO");
+	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "SYSLO"));
 	free_irq(irq, wm831x_power);
 
 	if (wm831x_power->have_battery)

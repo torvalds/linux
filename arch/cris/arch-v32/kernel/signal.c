@@ -24,9 +24,6 @@
 
 extern unsigned long cris_signal_return_page;
 
-/* Flag to check if a signal is blockable. */
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /*
  * A syscall in CRIS is really a "break 13" instruction, which is 2
  * bytes. The registers is manipulated so upon return the instruction
@@ -167,7 +164,6 @@ sys_sigreturn(long r10, long r11, long r12, long r13, long mof, long srp,
 						 sizeof(frame->extramask))))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, &frame->sc))
@@ -208,7 +204,6 @@ sys_rt_sigreturn(long r10, long r11, long r12, long r13, long mof, long srp,
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
@@ -434,11 +429,12 @@ give_sigsegv:
 }
 
 /* Invoke a signal handler to, well, handle the signal. */
-static inline int
+static inline void
 handle_signal(int canrestart, unsigned long sig,
 	      siginfo_t *info, struct k_sigaction *ka,
-              sigset_t *oldset, struct pt_regs * regs)
+              struct pt_regs * regs)
 {
+	sigset_t *oldset = sigmask_to_save();
 	int ret;
 
 	/* Check if this got called from a system call. */
@@ -489,9 +485,7 @@ handle_signal(int canrestart, unsigned long sig,
 		ret = setup_frame(sig, ka, oldset, regs);
 
 	if (ret == 0)
-		block_sigmask(ka, sig);
-
-	return ret;
+		signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*
@@ -511,7 +505,6 @@ do_signal(int canrestart, struct pt_regs *regs)
 	int signr;
 	siginfo_t info;
         struct k_sigaction ka;
-	sigset_t *oldset;
 
 	/*
 	 * The common case should go fast, which is why this point is
@@ -521,25 +514,11 @@ do_signal(int canrestart, struct pt_regs *regs)
 	if (!user_mode(regs))
 		return;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		if (handle_signal(canrestart, signr, &info, &ka,
-				oldset, regs)) {
-			/* a signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
-
+		handle_signal(canrestart, signr, &info, &ka, regs);
 		return;
 	}
 
@@ -560,10 +539,7 @@ do_signal(int canrestart, struct pt_regs *regs)
 
 	/* if there's no signal to deliver, we just put the saved sigmask
 	 * back */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	restore_saved_sigmask();
 }
 
 asmlinkage void

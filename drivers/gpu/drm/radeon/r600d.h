@@ -219,6 +219,8 @@
 #define		BACKEND_MAP(x)					((x) << 16)
 
 #define GB_TILING_CONFIG				0x98F0
+#define     PIPE_TILING__SHIFT              1
+#define     PIPE_TILING__MASK               0x0000000e
 
 #define	GC_USER_SHADER_PIPE_CONFIG			0x8954
 #define		INACTIVE_QD_PIPES(x)				((x) << 8)

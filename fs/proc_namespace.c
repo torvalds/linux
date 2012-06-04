@@ -23,12 +23,12 @@ static unsigned mounts_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &p->ns->poll, wait);
 
-	br_read_lock(vfsmount_lock);
+	br_read_lock(&vfsmount_lock);
 	if (p->m.poll_event != ns->event) {
 		p->m.poll_event = ns->event;
 		res |= POLLERR | POLLPRI;
 	}
-	br_read_unlock(vfsmount_lock);
+	br_read_unlock(&vfsmount_lock);
 
 	return res;
 }

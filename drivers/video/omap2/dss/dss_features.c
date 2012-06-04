@@ -52,6 +52,8 @@ struct omap_dss_features {
 	const char * const *clksrc_names;
 	const struct dss_param_range *dss_params;
 
+	const enum omap_dss_rotation_type supported_rotation_types;
+
 	const u32 buffer_size_unit;
 	const u32 burst_size_unit;
 };
@@ -311,6 +313,8 @@ static const struct dss_param_range omap2_dss_param_range[] = {
 	 * scaler cannot scale a image with width more than 768.
 	 */
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 768 },
+	[FEAT_PARAM_MGR_WIDTH]			= { 1, 2048 },
+	[FEAT_PARAM_MGR_HEIGHT]			= { 1, 2048 },
 };
 
 static const struct dss_param_range omap3_dss_param_range[] = {
@@ -324,6 +328,8 @@ static const struct dss_param_range omap3_dss_param_range[] = {
 	[FEAT_PARAM_DSIPLL_LPDIV]		= { 1, (1 << 13) - 1},
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 1024 },
+	[FEAT_PARAM_MGR_WIDTH]			= { 1, 2048 },
+	[FEAT_PARAM_MGR_HEIGHT]			= { 1, 2048 },
 };
 
 static const struct dss_param_range omap4_dss_param_range[] = {
@@ -337,6 +343,8 @@ static const struct dss_param_range omap4_dss_param_range[] = {
 	[FEAT_PARAM_DSIPLL_LPDIV]		= { 0, (1 << 13) - 1 },
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 2048 },
+	[FEAT_PARAM_MGR_WIDTH]			= { 1, 2048 },
+	[FEAT_PARAM_MGR_HEIGHT]			= { 1, 2048 },
 };
 
 static const enum dss_feat_id omap2_dss_feat_list[] = {
@@ -399,6 +407,7 @@ static const enum dss_feat_id omap4430_es1_0_dss_feat_list[] = {
 	FEAT_FIR_COEF_V,
 	FEAT_ALPHA_FREE_ZORDER,
 	FEAT_FIFO_MERGE,
+	FEAT_BURST_2D,
 };
 
 static const enum dss_feat_id omap4430_es2_0_1_2_dss_feat_list[] = {
@@ -416,6 +425,7 @@ static const enum dss_feat_id omap4430_es2_0_1_2_dss_feat_list[] = {
 	FEAT_FIR_COEF_V,
 	FEAT_ALPHA_FREE_ZORDER,
 	FEAT_FIFO_MERGE,
+	FEAT_BURST_2D,
 };
 
 static const enum dss_feat_id omap4_dss_feat_list[] = {
@@ -434,6 +444,7 @@ static const enum dss_feat_id omap4_dss_feat_list[] = {
 	FEAT_FIR_COEF_V,
 	FEAT_ALPHA_FREE_ZORDER,
 	FEAT_FIFO_MERGE,
+	FEAT_BURST_2D,
 };
 
 /* OMAP2 DSS Features */
@@ -451,6 +462,7 @@ static const struct omap_dss_features omap2_dss_features = {
 	.overlay_caps = omap2_dss_overlay_caps,
 	.clksrc_names = omap2_dss_clk_source_names,
 	.dss_params = omap2_dss_param_range,
+	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_VRFB,
 	.buffer_size_unit = 1,
 	.burst_size_unit = 8,
 };
@@ -470,6 +482,7 @@ static const struct omap_dss_features omap3430_dss_features = {
 	.overlay_caps = omap3430_dss_overlay_caps,
 	.clksrc_names = omap3_dss_clk_source_names,
 	.dss_params = omap3_dss_param_range,
+	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_VRFB,
 	.buffer_size_unit = 1,
 	.burst_size_unit = 8,
 };
@@ -488,6 +501,7 @@ static const struct omap_dss_features omap3630_dss_features = {
 	.overlay_caps = omap3630_dss_overlay_caps,
 	.clksrc_names = omap3_dss_clk_source_names,
 	.dss_params = omap3_dss_param_range,
+	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_VRFB,
 	.buffer_size_unit = 1,
 	.burst_size_unit = 8,
 };
@@ -508,6 +522,7 @@ static const struct omap_dss_features omap4430_es1_0_dss_features  = {
 	.overlay_caps = omap4_dss_overlay_caps,
 	.clksrc_names = omap4_dss_clk_source_names,
 	.dss_params = omap4_dss_param_range,
+	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_TILER,
 	.buffer_size_unit = 16,
 	.burst_size_unit = 16,
 };
@@ -527,6 +542,7 @@ static const struct omap_dss_features omap4430_es2_0_1_2_dss_features = {
 	.overlay_caps = omap4_dss_overlay_caps,
 	.clksrc_names = omap4_dss_clk_source_names,
 	.dss_params = omap4_dss_param_range,
+	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_TILER,
 	.buffer_size_unit = 16,
 	.burst_size_unit = 16,
 };
@@ -546,6 +562,7 @@ static const struct omap_dss_features omap4_dss_features = {
 	.overlay_caps = omap4_dss_overlay_caps,
 	.clksrc_names = omap4_dss_clk_source_names,
 	.dss_params = omap4_dss_param_range,
+	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_TILER,
 	.buffer_size_unit = 16,
 	.burst_size_unit = 16,
 };
@@ -562,13 +579,17 @@ static const struct ti_hdmi_ip_ops omap4_hdmi_functions = {
 	.pll_enable		=	ti_hdmi_4xxx_pll_enable,
 	.pll_disable		=	ti_hdmi_4xxx_pll_disable,
 	.video_enable		=	ti_hdmi_4xxx_wp_video_start,
+	.video_disable		=	ti_hdmi_4xxx_wp_video_stop,
 	.dump_wrapper		=	ti_hdmi_4xxx_wp_dump,
 	.dump_core		=	ti_hdmi_4xxx_core_dump,
 	.dump_pll		=	ti_hdmi_4xxx_pll_dump,
 	.dump_phy		=	ti_hdmi_4xxx_phy_dump,
-#if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
-	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)
+#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
 	.audio_enable		=       ti_hdmi_4xxx_wp_audio_enable,
+	.audio_disable		=       ti_hdmi_4xxx_wp_audio_disable,
+	.audio_start		=       ti_hdmi_4xxx_audio_start,
+	.audio_stop		=       ti_hdmi_4xxx_audio_stop,
+	.audio_config		=	ti_hdmi_4xxx_audio_config,
 #endif
 
 };
@@ -660,6 +681,11 @@ void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end)
 
 	*start = omap_current_dss_features->reg_fields[id].start;
 	*end = omap_current_dss_features->reg_fields[id].end;
+}
+
+bool dss_feat_rotation_type_supported(enum omap_dss_rotation_type rot_type)
+{
+	return omap_current_dss_features->supported_rotation_types & rot_type;
 }
 
 void dss_features_init(void)

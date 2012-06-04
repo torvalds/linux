@@ -16,8 +16,6 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 
-extern struct socket *sockfd_lookup(int fd, int *err);	/* @@@ fix this */
-
 /*
  * The ATM queuing discipline provides a framework for invoking classifiers
  * (aka "filters"), which in turn select classes of this queuing discipline.

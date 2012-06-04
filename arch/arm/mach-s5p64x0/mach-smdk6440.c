@@ -103,22 +103,26 @@ static struct s3c2410_uartcfg smdk6440_uartcfgs[] __initdata = {
 
 /* Frame Buffer */
 static struct s3c_fb_pd_win smdk6440_fb_win0 = {
-	.win_mode = {
-		.left_margin	= 8,
-		.right_margin	= 13,
-		.upper_margin	= 7,
-		.lower_margin	= 5,
-		.hsync_len	= 3,
-		.vsync_len	= 1,
-		.xres		= 800,
-		.yres		= 480,
-	},
 	.max_bpp	= 32,
 	.default_bpp	= 24,
+	.xres		= 800,
+	.yres		= 480,
+};
+
+static struct fb_videomode smdk6440_lcd_timing = {
+	.left_margin	= 8,
+	.right_margin	= 13,
+	.upper_margin	= 7,
+	.lower_margin	= 5,
+	.hsync_len	= 3,
+	.vsync_len	= 1,
+	.xres		= 800,
+	.yres		= 480,
 };
 
 static struct s3c_fb_platdata smdk6440_lcd_pdata __initdata = {
 	.win[0]		= &smdk6440_fb_win0,
+	.vtiming	= &smdk6440_lcd_timing,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 	.setup_gpio	= s5p64x0_fb_gpio_setup_24bpp,

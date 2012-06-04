@@ -118,15 +118,6 @@ static size_t ceph_vxattrcb_file_layout(struct ceph_inode_info *ci, char *val,
 		(unsigned long long)ceph_file_layout_su(ci->i_layout),
 		(unsigned long long)ceph_file_layout_stripe_count(ci->i_layout),
 		(unsigned long long)ceph_file_layout_object_size(ci->i_layout));
-
-	if (ceph_file_layout_pg_preferred(ci->i_layout) >= 0) {
-		val += ret;
-		size -= ret;
-		ret += snprintf(val, size, "preferred_osd=%lld\n",
-			    (unsigned long long)ceph_file_layout_pg_preferred(
-				    ci->i_layout));
-	}
-
 	return ret;
 }
 

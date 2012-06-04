@@ -149,8 +149,6 @@ sun4d_cpu_startup:
 
 	b,a	smp_do_cpu_idle
 
-#ifdef CONFIG_SPARC_LEON
-
 	__CPUINIT
 	.align	4
         .global leon_smp_cpu_startup, smp_penguin_ctable
@@ -161,7 +159,7 @@ leon_smp_cpu_startup:
         ld [%g1+4],%g1
         srl %g1,4,%g1
         set 0x00000100,%g5 /* SRMMU_CTXTBL_PTR */
-	sta %g1, [%g5] ASI_M_MMUREGS
+	sta %g1, [%g5] ASI_LEON_MMUREGS
 
 	/* Set up a sane %psr -- PIL<0xf> S<0x1> PS<0x1> CWP<0x0> */
 	set	(PSR_PIL | PSR_S | PSR_PS), %g1
@@ -207,5 +205,3 @@ leon_smp_cpu_startup:
 	 nop
 
 	b,a	smp_do_cpu_idle
-
-#endif

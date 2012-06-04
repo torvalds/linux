@@ -480,6 +480,11 @@ struct reiserfs_sb_info {
 	struct dentry *priv_root;	/* root of /.reiserfs_priv */
 	struct dentry *xattr_root;	/* root of /.reiserfs_priv/xattrs */
 	int j_errno;
+
+	int work_queued;              /* non-zero delayed work is queued */
+	struct delayed_work old_work; /* old transactions flush delayed work */
+	spinlock_t old_work_lock;     /* protects old_work and work_queued */
+
 #ifdef CONFIG_QUOTA
 	char *s_qf_names[MAXQUOTAS];
 	int s_jquota_fmt;
@@ -2452,7 +2457,7 @@ struct reiserfs_transaction_handle *reiserfs_persistent_transaction(struct
 int reiserfs_end_persistent_transaction(struct reiserfs_transaction_handle *);
 int reiserfs_commit_page(struct inode *inode, struct page *page,
 			 unsigned from, unsigned to);
-int reiserfs_flush_old_commits(struct super_block *);
+void reiserfs_flush_old_commits(struct super_block *);
 int reiserfs_commit_for_inode(struct inode *);
 int reiserfs_inode_needs_commit(struct inode *);
 void reiserfs_update_inode_transaction(struct inode *);
@@ -2487,6 +2492,7 @@ void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...);
 int reiserfs_allocate_list_bitmaps(struct super_block *s,
 				   struct reiserfs_list_bitmap *, unsigned int);
 
+void reiserfs_schedule_old_flush(struct super_block *s);
 void add_save_link(struct reiserfs_transaction_handle *th,
 		   struct inode *inode, int truncate);
 int remove_save_link(struct inode *inode, int truncate);
@@ -2611,8 +2617,8 @@ struct dentry *reiserfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 				     int fh_len, int fh_type);
 struct dentry *reiserfs_fh_to_parent(struct super_block *sb, struct fid *fid,
 				     int fh_len, int fh_type);
-int reiserfs_encode_fh(struct dentry *dentry, __u32 * data, int *lenp,
-		       int connectable);
+int reiserfs_encode_fh(struct inode *inode, __u32 * data, int *lenp,
+		       struct inode *parent);
 
 int reiserfs_truncate_file(struct inode *, int update_timestamps);
 void make_cpu_key(struct cpu_key *cpu_key, struct inode *inode, loff_t offset,

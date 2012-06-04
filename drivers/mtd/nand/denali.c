@@ -924,9 +924,10 @@ bool is_erased(uint8_t *buf, int len)
 #define ECC_LAST_ERR(x)		((x) & ERR_CORRECTION_INFO__LAST_ERR_INFO)
 
 static bool handle_ecc(struct denali_nand_info *denali, uint8_t *buf,
-					uint32_t irq_status)
+		       uint32_t irq_status, unsigned int *max_bitflips)
 {
 	bool check_erased_page = false;
+	unsigned int bitflips = 0;
 
 	if (irq_status & INTR_STATUS__ECC_ERR) {
 		/* read the ECC errors. we'll ignore them for now */
@@ -965,6 +966,7 @@ static bool handle_ecc(struct denali_nand_info *denali, uint8_t *buf,
 					/* correct the ECC error */
 					buf[offset] ^= err_correction_value;
 					denali->mtd.ecc_stats.corrected++;
+					bitflips++;
 				}
 			} else {
 				/* if the error is not correctable, need to
@@ -984,6 +986,7 @@ static bool handle_ecc(struct denali_nand_info *denali, uint8_t *buf,
 		clear_interrupts(denali);
 		denali_set_intr_modes(denali, true);
 	}
+	*max_bitflips = bitflips;
 	return check_erased_page;
 }
 
@@ -1084,7 +1087,7 @@ static void write_page(struct mtd_info *mtd, struct nand_chip *chip,
  * by write_page above.
  * */
 static void denali_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-				const uint8_t *buf)
+				const uint8_t *buf, int oob_required)
 {
 	/* for regular page writes, we let HW handle all the ECC
 	 * data written to the device. */
@@ -1096,7 +1099,7 @@ static void denali_write_page(struct mtd_info *mtd, struct nand_chip *chip,
  * write_page() function above.
  */
 static void denali_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-					const uint8_t *buf)
+					const uint8_t *buf, int oob_required)
 {
 	/* for raw page writes, we want to disable ECC and simply write
 	   whatever data is in the buffer. */
@@ -1110,17 +1113,17 @@ static int denali_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 static int denali_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			   int page, int sndcmd)
+			   int page)
 {
 	read_oob_data(mtd, chip->oob_poi, page);
 
-	return 0; /* notify NAND core to send command to
-			   NAND device. */
+	return 0;
 }
 
 static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			    uint8_t *buf, int page)
+			    uint8_t *buf, int oob_required, int page)
 {
+	unsigned int max_bitflips;
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
 
 	dma_addr_t addr = denali->buf.dma_buf;
@@ -1153,7 +1156,7 @@ static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	memcpy(buf, denali->buf.buf, mtd->writesize);
 
-	check_erased_page = handle_ecc(denali, buf, irq_status);
+	check_erased_page = handle_ecc(denali, buf, irq_status, &max_bitflips);
 	denali_enable_dma(denali, false);
 
 	if (check_erased_page) {
@@ -1167,11 +1170,11 @@ static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 				denali->mtd.ecc_stats.failed++;
 		}
 	}
-	return 0;
+	return max_bitflips;
 }
 
 static int denali_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				uint8_t *buf, int page)
+				uint8_t *buf, int oob_required, int page)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
 
@@ -1702,17 +1705,4 @@ static struct pci_driver denali_pci_driver = {
 	.remove = denali_pci_remove,
 };
 
-static int __devinit denali_init(void)
-{
-	printk(KERN_INFO "Spectra MTD driver\n");
-	return pci_register_driver(&denali_pci_driver);
-}
-
-/* Free memory */
-static void __devexit denali_exit(void)
-{
-	pci_unregister_driver(&denali_pci_driver);
-}
-
-module_init(denali_init);
-module_exit(denali_exit);
+module_pci_driver(denali_pci_driver);

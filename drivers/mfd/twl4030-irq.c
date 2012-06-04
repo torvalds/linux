@@ -757,6 +757,7 @@ int twl4030_init_irq(struct device *dev, int irq_num)
 		dev_err(dev, "could not claim irq%d: %d\n", irq_num, status);
 		goto fail_rqirq;
 	}
+	enable_irq_wake(irq_num);
 
 	return irq_base;
 fail_rqirq:

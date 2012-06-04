@@ -55,17 +55,13 @@ const struct sparc32_dma_ops *sparc32_dma_ops;
 /* This function must make sure that caches and memory are coherent after DMA
  * On LEON systems without cache snooping it flushes the entire D-CACHE.
  */
-#ifndef CONFIG_SPARC_LEON
 static inline void dma_make_coherent(unsigned long pa, unsigned long len)
 {
+	if (sparc_cpu_model == sparc_leon) {
+		if (!sparc_leon3_snooping_enabled())
+			leon_flush_dcache_all();
+	}
 }
-#else
-static inline void dma_make_coherent(unsigned long pa, unsigned long len)
-{
-	if (!sparc_leon3_snooping_enabled())
-		leon_flush_dcache_all();
-}
-#endif
 
 static void __iomem *_sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz);
 static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
@@ -427,9 +423,6 @@ arch_initcall(sparc_register_ioport);
 #endif /* CONFIG_SBUS */
 
 
-/* LEON reuses PCI DMA ops */
-#if defined(CONFIG_PCI) || defined(CONFIG_SPARC_LEON)
-
 /* Allocate and map kernel buffer using consistent mode DMA for a device.
  * hwdev should be valid struct pci_dev pointer for PCI devices.
  */
@@ -657,14 +650,11 @@ struct dma_map_ops pci32_dma_ops = {
 };
 EXPORT_SYMBOL(pci32_dma_ops);
 
-#endif /* CONFIG_PCI || CONFIG_SPARC_LEON */
+/* leon re-uses pci32_dma_ops */
+struct dma_map_ops *leon_dma_ops = &pci32_dma_ops;
+EXPORT_SYMBOL(leon_dma_ops);
 
-#ifdef CONFIG_SPARC_LEON
-struct dma_map_ops *dma_ops = &pci32_dma_ops;
-#elif defined(CONFIG_SBUS)
 struct dma_map_ops *dma_ops = &sbus_dma_ops;
-#endif
-
 EXPORT_SYMBOL(dma_ops);
 
 

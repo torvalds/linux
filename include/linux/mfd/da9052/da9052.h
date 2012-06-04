@@ -33,6 +33,18 @@
 
 #include <linux/mfd/da9052/reg.h>
 
+/* Common - HWMON Channel Definations */
+#define DA9052_ADC_VDDOUT	0
+#define DA9052_ADC_ICH		1
+#define DA9052_ADC_TBAT	2
+#define DA9052_ADC_VBAT	3
+#define DA9052_ADC_IN4		4
+#define DA9052_ADC_IN5		5
+#define DA9052_ADC_IN6		6
+#define DA9052_ADC_TSI		7
+#define DA9052_ADC_TJUNC	8
+#define DA9052_ADC_VBBAT	9
+
 #define DA9052_IRQ_DCIN	0
 #define DA9052_IRQ_VBUS	1
 #define DA9052_IRQ_DCINREM	2
@@ -79,12 +91,19 @@ struct da9052 {
 	struct device *dev;
 	struct regmap *regmap;
 
+	struct mutex auxadc_lock;
+	struct completion done;
+
 	int irq_base;
 	struct regmap_irq_chip_data *irq_data;
 	u8 chip_id;
 
 	int chip_irq;
 };
+
+/* ADC API */
+int da9052_adc_manual_read(struct da9052 *da9052, unsigned char channel);
+int da9052_adc_read_temp(struct da9052 *da9052);
 
 /* Device I/O API */
 static inline int da9052_reg_read(struct da9052 *da9052, unsigned char reg)

@@ -123,6 +123,9 @@ struct nouveau_bo {
 
 	struct drm_gem_object *gem;
 	int pin_refcnt;
+
+	struct ttm_bo_kmap_obj dma_buf_vmap;
+	int vmapping_count;
 };
 
 #define nouveau_bo_tile_layout(nvbo)				\

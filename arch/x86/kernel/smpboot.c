@@ -57,7 +57,7 @@
 #include <asm/nmi.h>
 #include <asm/irq.h>
 #include <asm/idle.h>
-#include <asm/trampoline.h>
+#include <asm/realmode.h>
 #include <asm/cpu.h>
 #include <asm/numa.h>
 #include <asm/pgtable.h>
@@ -72,6 +72,8 @@
 
 #include <asm/smpboot_hooks.h>
 #include <asm/i8259.h>
+
+#include <asm/realmode.h>
 
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
@@ -660,8 +662,12 @@ static void __cpuinit announce_cpu(int cpu, int apicid)
  */
 static int __cpuinit do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 {
+	volatile u32 *trampoline_status =
+		(volatile u32 *) __va(real_mode_header->trampoline_status);
+	/* start_ip had better be page-aligned! */
+	unsigned long start_ip = real_mode_header->trampoline_start;
+
 	unsigned long boot_error = 0;
-	unsigned long start_ip;
 	int timeout;
 
 	alternatives_smp_switch(1);
@@ -683,9 +689,6 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
 	stack_start  = idle->thread.sp;
-
-	/* start_ip had better be page-aligned! */
-	start_ip = trampoline_address();
 
 	/* So we see what's up */
 	announce_cpu(cpu, apicid);
@@ -749,8 +752,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 			pr_debug("CPU%d: has booted.\n", cpu);
 		} else {
 			boot_error = 1;
-			if (*(volatile u32 *)TRAMPOLINE_SYM(trampoline_status)
-			    == 0xA5A5A5A5)
+			if (*trampoline_status == 0xA5A5A5A5)
 				/* trampoline started but...? */
 				pr_err("CPU%d: Stuck ??\n", cpu);
 			else
@@ -776,7 +778,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	}
 
 	/* mark "stuck" area as not stuck */
-	*(volatile u32 *)TRAMPOLINE_SYM(trampoline_status) = 0;
+	*trampoline_status = 0;
 
 	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
 		/*
