@@ -441,12 +441,18 @@ void ath_start_ani(struct ath_common *common);
 /* BTCOEX */
 /**********/
 
+enum bt_op_flags {
+	BT_OP_PRIORITY_DETECTED,
+	BT_OP_SCAN,
+};
+
 struct ath_btcoex {
 	bool hw_timer_enabled;
 	spinlock_t btcoex_lock;
 	struct timer_list period_timer; /* Timer for BT period */
 	u32 bt_priority_cnt;
 	unsigned long bt_priority_time;
+	unsigned long op_flags;
 	int bt_stomp_type; /* Types of BT stomping */
 	u32 btcoex_no_stomp; /* in usec */
 	u32 btcoex_period; /* in usec */
@@ -588,10 +594,8 @@ struct ath_ant_comb {
 #define SC_OP_BEACONS                BIT(1)
 #define SC_OP_RXFLUSH                BIT(2)
 #define SC_OP_TSF_RESET              BIT(3)
-#define SC_OP_BT_PRIORITY_DETECTED   BIT(4)
-#define SC_OP_BT_SCAN                BIT(5)
-#define SC_OP_ANI_RUN                BIT(6)
-#define SC_OP_PRIM_STA_VIF           BIT(7)
+#define SC_OP_ANI_RUN                BIT(4)
+#define SC_OP_PRIM_STA_VIF           BIT(5)
 
 /* Powersave flags */
 #define PS_WAIT_FOR_BEACON        BIT(0)
