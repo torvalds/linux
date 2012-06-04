@@ -10,6 +10,7 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/topology.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
@@ -45,7 +46,8 @@ static struct irq_domain *irq_domain_alloc(struct device_node *of_node,
 {
 	struct irq_domain *domain;
 
-	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	domain = kzalloc_node(sizeof(*domain), GFP_KERNEL,
+			      of_node_to_nid(of_node));
 	if (WARN_ON(!domain))
 		return NULL;
 
@@ -229,7 +231,8 @@ struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
 	struct irq_domain *domain;
 	unsigned int *revmap;
 
-	revmap = kzalloc(sizeof(*revmap) * size, GFP_KERNEL);
+	revmap = kzalloc_node(sizeof(*revmap) * size, GFP_KERNEL,
+			      of_node_to_nid(of_node));
 	if (WARN_ON(!revmap))
 		return NULL;
 
@@ -367,7 +370,7 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 	BUG_ON(domain == NULL);
 	WARN_ON(domain->revmap_type != IRQ_DOMAIN_MAP_NOMAP);
 
-	virq = irq_alloc_desc_from(1, 0);
+	virq = irq_alloc_desc_from(1, of_node_to_nid(domain->of_node));
 	if (!virq) {
 		pr_debug("create_direct virq allocation failed\n");
 		return 0;
@@ -433,9 +436,9 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 	hint = hwirq % nr_irqs;
 	if (hint == 0)
 		hint++;
-	virq = irq_alloc_desc_from(hint, 0);
+	virq = irq_alloc_desc_from(hint, of_node_to_nid(domain->of_node));
 	if (virq <= 0)
-		virq = irq_alloc_desc_from(1, 0);
+		virq = irq_alloc_desc_from(1, of_node_to_nid(domain->of_node));
 	if (virq <= 0) {
 		pr_debug("-> virq allocation failed\n");
 		return 0;
