@@ -278,6 +278,8 @@ void i915_gem_context_fini(struct drm_device *dev)
 	i915_gem_object_unpin(dev_priv->ring[RCS].default_context->obj);
 
 	do_destroy(dev_priv->ring[RCS].default_context);
+
+	intel_gpu_reset(dev);
 }
 
 void i915_gem_context_open(struct drm_device *dev, struct drm_file *file)

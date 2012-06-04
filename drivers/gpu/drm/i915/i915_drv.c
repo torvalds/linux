@@ -799,7 +799,7 @@ static int gen6_do_reset(struct drm_device *dev)
 	return ret;
 }
 
-static int intel_gpu_reset(struct drm_device *dev)
+int intel_gpu_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = -ENODEV;
