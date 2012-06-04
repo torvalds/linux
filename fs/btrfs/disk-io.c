@@ -44,6 +44,7 @@
 #include "free-space-cache.h"
 #include "inode-map.h"
 #include "check-integrity.h"
+#include "rcu-string.h"
 
 static struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
@@ -2575,8 +2576,9 @@ static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 		struct btrfs_device *device = (struct btrfs_device *)
 			bh->b_private;
 
-		printk_ratelimited(KERN_WARNING "lost page write due to "
-				   "I/O error on %s\n", device->name);
+		printk_ratelimited_in_rcu(KERN_WARNING "lost page write due to "
+					  "I/O error on %s\n",
+					  rcu_str_deref(device->name));
 		/* note, we dont' set_buffer_write_io_error because we have
 		 * our own ways of dealing with the IO errors
 		 */
@@ -2749,8 +2751,8 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 		wait_for_completion(&device->flush_wait);
 
 		if (bio_flagged(bio, BIO_EOPNOTSUPP)) {
-			printk("btrfs: disabling barriers on dev %s\n",
-			       device->name);
+			printk_in_rcu("btrfs: disabling barriers on dev %s\n",
+				      rcu_str_deref(device->name));
 			device->nobarriers = 1;
 		}
 		if (!bio_flagged(bio, BIO_UPTODATE)) {
