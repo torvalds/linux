@@ -325,4 +325,11 @@ if CRYPTO_DEV_UX500
 	source "drivers/crypto/ux500/Kconfig"
 endif # if CRYPTO_DEV_UX500
 
+config CRYPTO_DEV_BFIN_CRC
+	tristate "Support for Blackfin CRC hardware"
+	depends on BF60x
+	help
+	  Newer Blackfin processors have CRC hardware. Select this if you
+	  want to use the Blackfin CRC module.
+
 endif # CRYPTO_HW
