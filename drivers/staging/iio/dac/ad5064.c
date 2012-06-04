@@ -136,56 +136,41 @@ static int ad5064_sync_powerdown_mode(struct ad5064_state *st,
 	return ret;
 }
 
-static const char ad5064_powerdown_modes[][15] = {
-	[AD5064_LDAC_PWRDN_NONE]	= "",
-	[AD5064_LDAC_PWRDN_1K]		= "1kohm_to_gnd",
-	[AD5064_LDAC_PWRDN_100K]	= "100kohm_to_gnd",
-	[AD5064_LDAC_PWRDN_3STATE]	= "three_state",
+static const char * const ad5064_powerdown_modes[] = {
+	"1kohm_to_gnd",
+	"100kohm_to_gnd",
+	"three_state",
 };
 
-static ssize_t ad5064_read_powerdown_mode_available(struct iio_dev *indio_dev,
-	uintptr_t private, const struct iio_chan_spec *chan, char *buf)
-{
-	return sprintf(buf, "%s %s %s\n", ad5064_powerdown_modes[1],
-		ad5064_powerdown_modes[2], ad5064_powerdown_modes[3]);
-}
-
-static ssize_t ad5064_read_powerdown_mode(struct iio_dev *indio_dev,
-	uintptr_t private, const struct iio_chan_spec *chan, char *buf)
+static int ad5064_get_powerdown_mode(struct iio_dev *indio_dev,
+	const struct iio_chan_spec *chan)
 {
 	struct ad5064_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%s\n",
-		ad5064_powerdown_modes[st->pwr_down_mode[chan->channel]]);
+	return st->pwr_down_mode[chan->channel] - 1;
 }
 
-static ssize_t ad5064_write_powerdown_mode(struct iio_dev *indio_dev,
-	uintptr_t private, const struct iio_chan_spec *chan, const char *buf,
-	size_t len)
+static int ad5064_set_powerdown_mode(struct iio_dev *indio_dev,
+	const struct iio_chan_spec *chan, unsigned int mode)
 {
 	struct ad5064_state *st = iio_priv(indio_dev);
-	unsigned int mode, i;
 	int ret;
 
-	mode = 0;
-
-	for (i = 1; i < ARRAY_SIZE(ad5064_powerdown_modes); ++i) {
-		if (sysfs_streq(buf, ad5064_powerdown_modes[i])) {
-			mode = i;
-			break;
-		}
-	}
-	if (mode == 0)
-		return  -EINVAL;
-
 	mutex_lock(&indio_dev->mlock);
-	st->pwr_down_mode[chan->channel] = mode;
+	st->pwr_down_mode[chan->channel] = mode + 1;
 
 	ret = ad5064_sync_powerdown_mode(st, chan->channel);
 	mutex_unlock(&indio_dev->mlock);
 
-	return ret ? ret : len;
+	return ret;
 }
+
+static const struct iio_enum ad5064_powerdown_mode_enum = {
+	.items = ad5064_powerdown_modes,
+	.num_items = ARRAY_SIZE(ad5064_powerdown_modes),
+	.get = ad5064_get_powerdown_mode,
+	.set = ad5064_set_powerdown_mode,
+};
 
 static ssize_t ad5064_read_dac_powerdown(struct iio_dev *indio_dev,
 	uintptr_t private, const struct iio_chan_spec *chan, char *buf)
@@ -286,22 +271,14 @@ static const struct iio_info ad5064_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static struct iio_chan_spec_ext_info ad5064_ext_info[] = {
+static const struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 	{
 		.name = "powerdown",
 		.read = ad5064_read_dac_powerdown,
 		.write = ad5064_write_dac_powerdown,
 	},
-	{
-		.name = "powerdown_mode",
-		.read = ad5064_read_powerdown_mode,
-		.write = ad5064_write_powerdown_mode,
-	},
-	{
-		.name = "powerdown_mode_available",
-		.shared = true,
-		.read = ad5064_read_powerdown_mode_available,
-	},
+	IIO_ENUM("powerdown_mode", false, &ad5064_powerdown_mode_enum),
+	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5064_powerdown_mode_enum),
 	{ },
 };
 
