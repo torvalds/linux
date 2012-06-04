@@ -876,7 +876,7 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 	struct cifsLockInfo *li, *tmp;
 	struct cifs_tcon *tcon;
 	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
-	unsigned int num, max_num;
+	unsigned int num, max_num, max_buf;
 	LOCKING_ANDX_RANGE *buf, *cur;
 	int types[] = {LOCKING_ANDX_LARGE_FILES,
 		       LOCKING_ANDX_SHARED_LOCK | LOCKING_ANDX_LARGE_FILES};
@@ -892,8 +892,19 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 		return rc;
 	}
 
-	max_num = (tcon->ses->server->maxBuf - sizeof(struct smb_hdr)) /
-		  sizeof(LOCKING_ANDX_RANGE);
+	/*
+	 * Accessing maxBuf is racy with cifs_reconnect - need to store value
+	 * and check it for zero before using.
+	 */
+	max_buf = tcon->ses->server->maxBuf;
+	if (!max_buf) {
+		mutex_unlock(&cinode->lock_mutex);
+		FreeXid(xid);
+		return -EINVAL;
+	}
+
+	max_num = (max_buf - sizeof(struct smb_hdr)) /
+						sizeof(LOCKING_ANDX_RANGE);
 	buf = kzalloc(max_num * sizeof(LOCKING_ANDX_RANGE), GFP_KERNEL);
 	if (!buf) {
 		mutex_unlock(&cinode->lock_mutex);
@@ -1218,7 +1229,7 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock, int xid)
 	int types[] = {LOCKING_ANDX_LARGE_FILES,
 		       LOCKING_ANDX_SHARED_LOCK | LOCKING_ANDX_LARGE_FILES};
 	unsigned int i;
-	unsigned int max_num, num;
+	unsigned int max_num, num, max_buf;
 	LOCKING_ANDX_RANGE *buf, *cur;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
@@ -1228,8 +1239,16 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock, int xid)
 
 	INIT_LIST_HEAD(&tmp_llist);
 
-	max_num = (tcon->ses->server->maxBuf - sizeof(struct smb_hdr)) /
-		  sizeof(LOCKING_ANDX_RANGE);
+	/*
+	 * Accessing maxBuf is racy with cifs_reconnect - need to store value
+	 * and check it for zero before using.
+	 */
+	max_buf = tcon->ses->server->maxBuf;
+	if (!max_buf)
+		return -EINVAL;
+
+	max_num = (max_buf - sizeof(struct smb_hdr)) /
+						sizeof(LOCKING_ANDX_RANGE);
 	buf = kzalloc(max_num * sizeof(LOCKING_ANDX_RANGE), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -1247,46 +1266,7 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock, int xid)
 				continue;
 			if (types[i] != li->type)
 				continue;
-			if (!cinode->can_cache_brlcks) {
-				cur->Pid = cpu_to_le16(li->pid);
-				cur->LengthLow = cpu_to_le32((u32)li->length);
-				cur->LengthHigh =
-					cpu_to_le32((u32)(li->length>>32));
-				cur->OffsetLow = cpu_to_le32((u32)li->offset);
-				cur->OffsetHigh =
-					cpu_to_le32((u32)(li->offset>>32));
-				/*
-				 * We need to save a lock here to let us add
-				 * it again to the file's list if the unlock
-				 * range request fails on the server.
-				 */
-				list_move(&li->llist, &tmp_llist);
-				if (++num == max_num) {
-					stored_rc = cifs_lockv(xid, tcon,
-							       cfile->netfid,
-							       li->type, num,
-							       0, buf);
-					if (stored_rc) {
-						/*
-						 * We failed on the unlock range
-						 * request - add all locks from
-						 * the tmp list to the head of
-						 * the file's list.
-						 */
-						cifs_move_llist(&tmp_llist,
-								&cfile->llist);
-						rc = stored_rc;
-					} else
-						/*
-						 * The unlock range request
-						 * succeed - free the tmp list.
-						 */
-						cifs_free_llist(&tmp_llist);
-					cur = buf;
-					num = 0;
-				} else
-					cur++;
-			} else {
+			if (cinode->can_cache_brlcks) {
 				/*
 				 * We can cache brlock requests - simply remove
 				 * a lock from the file's list.
@@ -1294,7 +1274,41 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock, int xid)
 				list_del(&li->llist);
 				cifs_del_lock_waiters(li);
 				kfree(li);
+				continue;
 			}
+			cur->Pid = cpu_to_le16(li->pid);
+			cur->LengthLow = cpu_to_le32((u32)li->length);
+			cur->LengthHigh = cpu_to_le32((u32)(li->length>>32));
+			cur->OffsetLow = cpu_to_le32((u32)li->offset);
+			cur->OffsetHigh = cpu_to_le32((u32)(li->offset>>32));
+			/*
+			 * We need to save a lock here to let us add it again to
+			 * the file's list if the unlock range request fails on
+			 * the server.
+			 */
+			list_move(&li->llist, &tmp_llist);
+			if (++num == max_num) {
+				stored_rc = cifs_lockv(xid, tcon, cfile->netfid,
+						       li->type, num, 0, buf);
+				if (stored_rc) {
+					/*
+					 * We failed on the unlock range
+					 * request - add all locks from the tmp
+					 * list to the head of the file's list.
+					 */
+					cifs_move_llist(&tmp_llist,
+							&cfile->llist);
+					rc = stored_rc;
+				} else
+					/*
+					 * The unlock range request succeed -
+					 * free the tmp list.
+					 */
+					cifs_free_llist(&tmp_llist);
+				cur = buf;
+				num = 0;
+			} else
+				cur++;
 		}
 		if (num) {
 			stored_rc = cifs_lockv(xid, tcon, cfile->netfid,
