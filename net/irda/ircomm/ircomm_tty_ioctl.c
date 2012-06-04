@@ -272,8 +272,8 @@ static int ircomm_tty_get_serial_info(struct ircomm_tty_cb *self,
 	info.line = self->line;
 	info.flags = self->flags;
 	info.baud_base = self->settings.data_rate;
-	info.close_delay = self->close_delay;
-	info.closing_wait = self->closing_wait;
+	info.close_delay = self->port.close_delay;
+	info.closing_wait = self->port.closing_wait;
 
 	/* For compatibility  */
 	info.type = PORT_16550A;

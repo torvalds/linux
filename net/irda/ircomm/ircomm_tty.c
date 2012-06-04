@@ -389,8 +389,6 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 		INIT_WORK(&self->tqueue, ircomm_tty_do_softint);
 		self->max_header_size = IRCOMM_TTY_HDR_UNINITIALISED;
 		self->max_data_size = IRCOMM_TTY_DATA_UNINITIALISED;
-		self->close_delay = 5*HZ/10;
-		self->closing_wait = 30*HZ;
 
 		/* Init some important stuff */
 		init_timer(&self->watchdog_timer);
@@ -546,8 +544,8 @@ static void ircomm_tty_close(struct tty_struct *tty, struct file *filp)
 	 * the line discipline to only process XON/XOFF characters.
 	 */
 	tty->closing = 1;
-	if (self->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent_from_close(tty, self->closing_wait);
+	if (self->port.closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		tty_wait_until_sent_from_close(tty, self->port.closing_wait);
 
 	ircomm_tty_shutdown(self);
 
@@ -558,8 +556,8 @@ static void ircomm_tty_close(struct tty_struct *tty, struct file *filp)
 	self->tty = NULL;
 
 	if (self->blocked_open) {
-		if (self->close_delay)
-			schedule_timeout_interruptible(self->close_delay);
+		if (self->port.close_delay)
+			schedule_timeout_interruptible(self->port.close_delay);
 		wake_up_interruptible(&self->port.open_wait);
 	}
 
