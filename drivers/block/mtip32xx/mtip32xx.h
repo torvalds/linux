@@ -110,6 +110,8 @@
  #define dbg_printk(format, arg...)
 #endif
 
+#define MTIP_DFS_MAX_BUF_SIZE 1024
+
 #define __force_bit2int (unsigned int __force)
 
 enum {
@@ -446,6 +448,8 @@ struct driver_data {
 	unsigned long dd_flag; /* NOTE: use atomic bit operations on this */
 
 	struct task_struct *mtip_svc_handler; /* task_struct of svc thd */
+
+	struct dentry *dfs_node;
 };
 
 #endif
