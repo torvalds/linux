@@ -129,7 +129,6 @@ static const struct tty_operations ssl_ops = {
 	.flush_buffer 		= line_flush_buffer,
 	.flush_chars 		= line_flush_chars,
 	.set_termios 		= line_set_termios,
-	.ioctl 	 		= line_ioctl,
 	.throttle 		= line_throttle,
 	.unthrottle 		= line_unthrottle,
 #if 0
