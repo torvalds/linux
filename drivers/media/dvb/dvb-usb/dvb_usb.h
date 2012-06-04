@@ -66,6 +66,16 @@ struct dvb_usb_driver_info {
 	const struct dvb_usb_device_properties *props;
 };
 
+#define DVB_USB_DEVICE(vend, prod, props_, name_, rc) \
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE, \
+	.idVendor = (vend), \
+	.idProduct = (prod), \
+	.driver_info = (kernel_ulong_t) &((struct dvb_usb_driver_info) { \
+		.props = (props_), \
+		.name = (name_), \
+		.rc_map = (rc), \
+	})
+
 struct dvb_usb_device;
 struct dvb_usb_adapter;
 struct usb_data_stream;
