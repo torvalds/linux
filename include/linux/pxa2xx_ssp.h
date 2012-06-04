@@ -160,6 +160,7 @@ enum pxa_ssp_type {
 	PXA25x_SSP,  /* pxa 210, 250, 255, 26x */
 	PXA25x_NSSP, /* pxa 255, 26x (including ASSP) */
 	PXA27x_SSP,
+	PXA3xx_SSP,
 	PXA168_SSP,
 	PXA910_SSP,
 	CE4100_SSP,
