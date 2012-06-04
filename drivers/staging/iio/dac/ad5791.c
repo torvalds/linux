@@ -72,71 +72,50 @@ static int ad5791_spi_read(struct spi_device *spi, u8 addr, u32 *val)
 	return ret;
 }
 
-#define AD5791_CHAN(bits, shift) {			\
-	.type = IIO_VOLTAGE,				\
-	.output = 1,					\
-	.indexed = 1,					\
-	.address = AD5791_ADDR_DAC0,			\
-	.channel = 0,					\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
-		IIO_CHAN_INFO_SCALE_SHARED_BIT |	\
-		IIO_CHAN_INFO_OFFSET_SHARED_BIT,	\
-	.scan_type = IIO_ST('u', bits, 24, shift)	\
-}
-
-static const struct iio_chan_spec ad5791_channels[] = {
-	[ID_AD5760] = AD5791_CHAN(16, 4),
-	[ID_AD5780] = AD5791_CHAN(18, 2),
-	[ID_AD5781] = AD5791_CHAN(18, 2),
-	[ID_AD5791] = AD5791_CHAN(20, 0)
+static const char * const ad5791_powerdown_modes[] = {
+	"6kohm_to_gnd",
+	"three_state",
 };
 
-static ssize_t ad5791_read_powerdown_mode(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static int ad5791_get_powerdown_mode(struct iio_dev *indio_dev,
+	const struct iio_chan_spec *chan)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5791_state *st = iio_priv(indio_dev);
 
-	const char mode[][14] = {"6kohm_to_gnd", "three_state"};
-
-	return sprintf(buf, "%s\n", mode[st->pwr_down_mode]);
+	return st->pwr_down_mode;
 }
 
-static ssize_t ad5791_write_powerdown_mode(struct device *dev,
-				       struct device_attribute *attr,
-				       const char *buf, size_t len)
+static int ad5791_set_powerdown_mode(struct iio_dev *indio_dev,
+	const struct iio_chan_spec *chan, unsigned int mode)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5791_state *st = iio_priv(indio_dev);
-	int ret;
 
-	if (sysfs_streq(buf, "6kohm_to_gnd"))
-		st->pwr_down_mode = AD5791_DAC_PWRDN_6K;
-	else if (sysfs_streq(buf, "three_state"))
-		st->pwr_down_mode = AD5791_DAC_PWRDN_3STATE;
-	else
-		ret = -EINVAL;
+	st->pwr_down_mode = mode;
 
-	return ret ? ret : len;
+	return 0;
 }
 
-static ssize_t ad5791_read_dac_powerdown(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
+static const struct iio_enum ad5791_powerdown_mode_enum = {
+	.items = ad5791_powerdown_modes,
+	.num_items = ARRAY_SIZE(ad5791_powerdown_modes),
+	.get = ad5791_get_powerdown_mode,
+	.set = ad5791_set_powerdown_mode,
+};
+
+static ssize_t ad5791_read_dac_powerdown(struct iio_dev *indio_dev,
+	uintptr_t private, const struct iio_chan_spec *chan, char *buf)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5791_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", st->pwr_down);
 }
 
-static ssize_t ad5791_write_dac_powerdown(struct device *dev,
-					    struct device_attribute *attr,
-					    const char *buf, size_t len)
+static ssize_t ad5791_write_dac_powerdown(struct iio_dev *indio_dev,
+	 uintptr_t private, const struct iio_chan_spec *chan, const char *buf,
+	 size_t len)
 {
 	long readin;
 	int ret;
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5791_state *st = iio_priv(indio_dev);
 
 	ret = strict_strtol(buf, 10, &readin);
@@ -159,31 +138,6 @@ static ssize_t ad5791_write_dac_powerdown(struct device *dev,
 
 	return ret ? ret : len;
 }
-
-static IIO_DEVICE_ATTR(out_voltage_powerdown_mode, S_IRUGO |
-			S_IWUSR, ad5791_read_powerdown_mode,
-			ad5791_write_powerdown_mode, 0);
-
-static IIO_CONST_ATTR(out_voltage_powerdown_mode_available,
-			"6kohm_to_gnd three_state");
-
-#define IIO_DEV_ATTR_DAC_POWERDOWN(_num, _show, _store, _addr)		\
-	IIO_DEVICE_ATTR(out_voltage##_num##_powerdown,			\
-			S_IRUGO | S_IWUSR, _show, _store, _addr)
-
-static IIO_DEV_ATTR_DAC_POWERDOWN(0, ad5791_read_dac_powerdown,
-				   ad5791_write_dac_powerdown, 0);
-
-static struct attribute *ad5791_attributes[] = {
-	&iio_dev_attr_out_voltage0_powerdown.dev_attr.attr,
-	&iio_dev_attr_out_voltage_powerdown_mode.dev_attr.attr,
-	&iio_const_attr_out_voltage_powerdown_mode_available.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group ad5791_attribute_group = {
-	.attrs = ad5791_attributes,
-};
 
 static int ad5791_get_lin_comp(unsigned int span)
 {
@@ -254,6 +208,37 @@ static int ad5791_read_raw(struct iio_dev *indio_dev,
 
 };
 
+static const struct iio_chan_spec_ext_info ad5791_ext_info[] = {
+	{
+		.name = "powerdown",
+		.shared = true,
+		.read = ad5791_read_dac_powerdown,
+		.write = ad5791_write_dac_powerdown,
+	},
+	IIO_ENUM("powerdown_mode", true, &ad5791_powerdown_mode_enum),
+	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5791_powerdown_mode_enum),
+	{ },
+};
+
+#define AD5791_CHAN(bits, shift) {			\
+	.type = IIO_VOLTAGE,				\
+	.output = 1,					\
+	.indexed = 1,					\
+	.address = AD5791_ADDR_DAC0,			\
+	.channel = 0,					\
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
+		IIO_CHAN_INFO_SCALE_SHARED_BIT |	\
+		IIO_CHAN_INFO_OFFSET_SHARED_BIT,	\
+	.scan_type = IIO_ST('u', bits, 24, shift),	\
+	.ext_info = ad5791_ext_info,			\
+}
+
+static const struct iio_chan_spec ad5791_channels[] = {
+	[ID_AD5760] = AD5791_CHAN(16, 4),
+	[ID_AD5780] = AD5791_CHAN(18, 2),
+	[ID_AD5781] = AD5791_CHAN(18, 2),
+	[ID_AD5791] = AD5791_CHAN(20, 0)
+};
 
 static int ad5791_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
@@ -278,7 +263,6 @@ static int ad5791_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad5791_info = {
 	.read_raw = &ad5791_read_raw,
 	.write_raw = &ad5791_write_raw,
-	.attrs = &ad5791_attribute_group,
 	.driver_module = THIS_MODULE,
 };
 
