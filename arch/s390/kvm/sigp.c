@@ -15,37 +15,9 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <linux/slab.h>
+#include <asm/sigp.h>
 #include "gaccess.h"
 #include "kvm-s390.h"
-
-/* sigp order codes */
-#define SIGP_SENSE             0x01
-#define SIGP_EXTERNAL_CALL     0x02
-#define SIGP_EMERGENCY         0x03
-#define SIGP_START             0x04
-#define SIGP_STOP              0x05
-#define SIGP_RESTART           0x06
-#define SIGP_STOP_STORE_STATUS 0x09
-#define SIGP_INITIAL_CPU_RESET 0x0b
-#define SIGP_CPU_RESET         0x0c
-#define SIGP_SET_PREFIX        0x0d
-#define SIGP_STORE_STATUS_ADDR 0x0e
-#define SIGP_SET_ARCH          0x12
-#define SIGP_SENSE_RUNNING     0x15
-
-/* cpu status bits */
-#define SIGP_STAT_EQUIPMENT_CHECK   0x80000000UL
-#define SIGP_STAT_NOT_RUNNING	    0x00000400UL
-#define SIGP_STAT_INCORRECT_STATE   0x00000200UL
-#define SIGP_STAT_INVALID_PARAMETER 0x00000100UL
-#define SIGP_STAT_EXT_CALL_PENDING  0x00000080UL
-#define SIGP_STAT_STOPPED           0x00000040UL
-#define SIGP_STAT_OPERATOR_INTERV   0x00000020UL
-#define SIGP_STAT_CHECK_STOP        0x00000010UL
-#define SIGP_STAT_INOPERATIVE       0x00000004UL
-#define SIGP_STAT_INVALID_ORDER     0x00000002UL
-#define SIGP_STAT_RECEIVER_CHECK    0x00000001UL
-
 
 static int __sigp_sense(struct kvm_vcpu *vcpu, u16 cpu_addr,
 			u64 *reg)
@@ -65,7 +37,7 @@ static int __sigp_sense(struct kvm_vcpu *vcpu, u16 cpu_addr,
 		rc = 1; /* status stored */
 	} else {
 		*reg &= 0xffffffff00000000UL;
-		*reg |= SIGP_STAT_STOPPED;
+		*reg |= SIGP_STATUS_STOPPED;
 		rc = 1; /* status stored */
 	}
 	spin_unlock(&fi->lock);
@@ -235,7 +207,7 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 	address = address & 0x7fffe000u;
 	if (copy_from_guest_absolute(vcpu, &tmp, address, 1) ||
 	   copy_from_guest_absolute(vcpu, &tmp, address + PAGE_SIZE, 1)) {
-		*reg |= SIGP_STAT_INVALID_PARAMETER;
+		*reg |= SIGP_STATUS_INVALID_PARAMETER;
 		return 1; /* invalid parameter */
 	}
 
@@ -249,7 +221,7 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 
 	if (li == NULL) {
 		rc = 1; /* incorrect state */
-		*reg &= SIGP_STAT_INCORRECT_STATE;
+		*reg &= SIGP_STATUS_INCORRECT_STATE;
 		kfree(inti);
 		goto out_fi;
 	}
@@ -258,7 +230,7 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 	/* cpu must be in stopped state */
 	if (!(atomic_read(li->cpuflags) & CPUSTAT_STOPPED)) {
 		rc = 1; /* incorrect state */
-		*reg &= SIGP_STAT_INCORRECT_STATE;
+		*reg &= SIGP_STATUS_INCORRECT_STATE;
 		kfree(inti);
 		goto out_li;
 	}
@@ -300,7 +272,7 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu, u16 cpu_addr,
 		} else {
 			/* not running */
 			*reg &= 0xffffffff00000000UL;
-			*reg |= SIGP_STAT_NOT_RUNNING;
+			*reg |= SIGP_STATUS_NOT_RUNNING;
 			rc = 0;
 		}
 	}
@@ -375,7 +347,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		vcpu->stat.instruction_sigp_external_call++;
 		rc = __sigp_external_call(vcpu, cpu_addr);
 		break;
-	case SIGP_EMERGENCY:
+	case SIGP_EMERGENCY_SIGNAL:
 		vcpu->stat.instruction_sigp_emergency++;
 		rc = __sigp_emergency(vcpu, cpu_addr);
 		break;
@@ -383,12 +355,12 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		vcpu->stat.instruction_sigp_stop++;
 		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STOP_ON_STOP);
 		break;
-	case SIGP_STOP_STORE_STATUS:
+	case SIGP_STOP_AND_STORE_STATUS:
 		vcpu->stat.instruction_sigp_stop++;
 		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STORE_ON_STOP |
 						 ACTION_STOP_ON_STOP);
 		break;
-	case SIGP_SET_ARCH:
+	case SIGP_SET_ARCHITECTURE:
 		vcpu->stat.instruction_sigp_arch++;
 		rc = __sigp_set_arch(vcpu, parameter);
 		break;
