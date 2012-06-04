@@ -1841,6 +1841,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		else
 			rs.is_mybeacon = false;
 
+		sc->rx.num_pkts++;
 		ath_debug_stat_rx(sc, &rs);
 
 		/*

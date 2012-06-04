@@ -307,6 +307,7 @@ struct ath_rx {
 	u8 defant;
 	u8 rxotherant;
 	u32 *rxlink;
+	u32 num_pkts;
 	unsigned int rxfilter;
 	spinlock_t rxbuflock;
 	struct list_head rxbuf;
@@ -458,6 +459,7 @@ struct ath_btcoex {
 	u32 btcoex_period; /* in usec */
 	u32 btscan_no_stomp; /* in usec */
 	u32 duty_cycle;
+	u32 bt_wait_time;
 	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
 	struct ath_mci_profile mci;
 };
