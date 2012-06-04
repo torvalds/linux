@@ -193,6 +193,8 @@ extern void rcu_irq_enter(void);
 extern void rcu_irq_exit(void);
 extern void rcu_user_enter(void);
 extern void rcu_user_exit(void);
+extern void rcu_user_enter_after_irq(void);
+extern void rcu_user_exit_after_irq(void);
 extern void exit_rcu(void);
 
 /**
