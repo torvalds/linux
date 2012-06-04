@@ -1357,7 +1357,7 @@ static struct snd_soc_dai_ops lm49453_lineout_dai_ops = {
 };
 
 /* LM49453 dai structure. */
-static const struct snd_soc_dai_driver lm49453_dai[] = {
+static struct snd_soc_dai_driver lm49453_dai[] = {
 	{
 		.name = "LM49453 Headset",
 		.playback = {
