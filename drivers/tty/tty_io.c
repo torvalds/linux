@@ -3144,10 +3144,8 @@ int tty_register_driver(struct tty_driver *driver)
 		dev = MKDEV(driver->major, driver->minor_start);
 		error = register_chrdev_region(dev, driver->num, driver->name);
 	}
-	if (error < 0) {
-		kfree(p);
-		return error;
-	}
+	if (error < 0)
+		goto err_free_p;
 
 	if (p) {
 		driver->ttys = (struct tty_struct **)p;
@@ -3160,13 +3158,8 @@ int tty_register_driver(struct tty_driver *driver)
 	cdev_init(&driver->cdev, &tty_fops);
 	driver->cdev.owner = driver->owner;
 	error = cdev_add(&driver->cdev, dev, driver->num);
-	if (error) {
-		unregister_chrdev_region(dev, driver->num);
-		driver->ttys = NULL;
-		driver->termios = NULL;
-		kfree(p);
-		return error;
-	}
+	if (error)
+		goto err_unreg_char;
 
 	mutex_lock(&tty_mutex);
 	list_add(&driver->tty_drivers, &tty_drivers);
@@ -3193,13 +3186,14 @@ err:
 	list_del(&driver->tty_drivers);
 	mutex_unlock(&tty_mutex);
 
+err_unreg_char:
 	unregister_chrdev_region(dev, driver->num);
 	driver->ttys = NULL;
 	driver->termios = NULL;
+err_free_p:
 	kfree(p);
 	return error;
 }
-
 EXPORT_SYMBOL(tty_register_driver);
 
 /*
