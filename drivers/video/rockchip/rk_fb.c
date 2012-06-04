@@ -265,22 +265,22 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 			}
 			break;
 		case FBIOSET_ENABLE:
-			if (copy_from_user(&enable, argp, 1))
+			if (copy_from_user(&enable, argp, sizeof(enable)))
 				return -EFAULT;
 			dev_drv->open(dev_drv,layer_id,enable);
 			break;
 		case FBIOGET_ENABLE:
 			enable = dev_drv->get_layer_state(dev_drv,layer_id);
-			if(copy_to_user(argp,&enable,1))
+			if(copy_to_user(argp,&enable,sizeof(enable)))
 				return -EFAULT;
 			break;
 		case FBIOSET_OVERLAY_STATE:
-			if (copy_from_user(&ovl, argp, 1))
+			if (copy_from_user(&ovl, argp, sizeof(ovl)))
 				return -EFAULT;
 			dev_drv->ovl_mgr(dev_drv,ovl,1);
 		case FBIOGET_OVERLAY_STATE:
 			ovl = dev_drv->ovl_mgr(dev_drv,0,0);
-			if (copy_to_user(argp, &ovl, 1))
+			if (copy_to_user(argp, &ovl, sizeof(ovl)))
 				return -EFAULT;
 		case FBIOGET_SCREEN_STATE:
 		case FBIOPUT_SET_CURSOR_EN:
