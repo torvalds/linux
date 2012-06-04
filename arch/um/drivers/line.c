@@ -382,8 +382,6 @@ int setup_one_line(struct line *lines, int n, char *init,
 	struct tty_driver *driver = line->driver->driver;
 	int err = -EINVAL;
 
-	mutex_lock(&line->count_lock);
-
 	if (line->port.count) {
 		*error_out = "Device is already open";
 		goto out;
@@ -425,7 +423,6 @@ int setup_one_line(struct line *lines, int n, char *init,
 		}
 	}
 out:
-	mutex_unlock(&line->count_lock);
 	return err;
 }
 
@@ -513,7 +510,6 @@ int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
 
 	line = &lines[dev];
 
-	mutex_lock(&line->count_lock);
 	if (!line->valid)
 		CONFIG_CHUNK(str, size, n, "none", 1);
 	else {
@@ -525,7 +521,6 @@ int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
 			tty_kref_put(tty);
 		}
 	}
-	mutex_unlock(&line->count_lock);
 
 	return n;
 }
@@ -578,7 +573,6 @@ int register_lines(struct line_driver *line_driver,
 		tty_port_init(&lines[i].port);
 		lines[i].port.ops = &line_port_ops;
 		spin_lock_init(&lines[i].lock);
-		mutex_init(&lines[i].count_lock);
 		lines[i].driver = line_driver;
 		INIT_LIST_HEAD(&lines[i].chan_list);
 	}
