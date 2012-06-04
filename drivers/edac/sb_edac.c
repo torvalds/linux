@@ -1432,8 +1432,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	 * to the group of dimm's where the error may be happening.
 	 */
 	snprintf(msg, sizeof(msg),
-		 "count:%d%s%s area:%s err_code:%04x:%04x socket:%d channel_mask:%ld rank:%d",
-		 core_err_cnt,
+		 "%s%s area:%s err_code:%04x:%04x socket:%d channel_mask:%ld rank:%d",
 		 overflow ? " OVERFLOW" : "",
 		 (uncorrected_error && recoverable) ? " recoverable" : "",
 		 area_type,
@@ -1447,13 +1446,13 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	/* FIXME: need support for channel mask */
 
 	/* Call the helper to output message */
-	edac_mc_handle_error(tp_event, mci, 1,
+	edac_mc_handle_error(tp_event, mci, core_err_cnt,
 			     m->addr >> PAGE_SHIFT, m->addr & ~PAGE_MASK, 0,
 			     channel, dimm, -1,
 			     optype, msg);
 	return;
 err_parsing:
-	edac_mc_handle_error(tp_event, mci, 1, 0, 0, 0,
+	edac_mc_handle_error(tp_event, mci, core_err_cnt, 0, 0, 0,
 			     -1, -1, -1,
 			     msg, "");
 
