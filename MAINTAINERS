@@ -2818,6 +2818,12 @@ F:	Documentation/firmware_class/
 F:	drivers/base/firmware*.c
 F:	include/linux/firmware.h
 
+FLOPPY DRIVER
+M:	Jiri Kosina <jkosina@suse.cz>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/floppy.git
+S:	Odd fixes
+F:	drivers/block/floppy.c
+
 FPU EMULATOR
 M:	Bill Metzenthen <billm@melbpc.org.au>
 W:	http://floatingpoint.sourceforge.net/emulator/index.html
@@ -3232,10 +3238,8 @@ F:	include/linux/clockchips.h
 F:	include/linux/hrtimer.h
 
 HIGH-SPEED SCC DRIVER FOR AX.25
-M:	Klaus Kudielka <klaus.kudielka@ieee.org>
 L:	linux-hams@vger.kernel.org
-W:	http://www.nt.tuwien.ac.at/~kkudielk/Linux/
-S:	Maintained
+S:	Orphan
 F:	drivers/net/hamradio/dmascc.c
 F:	drivers/net/hamradio/scc.c
 
@@ -3381,6 +3385,12 @@ M:	Dave Jeffery <ipslinux@adaptec.com>
 W:	http://www.developer.ibm.com/welcome/netfinity/serveraid.html
 S:	Supported
 F:	drivers/scsi/ips.*
+
+ICH LPC AND GPIO DRIVER
+M:	Peter Tyser <ptyser@xes-inc.com>
+S:	Maintained
+F:	drivers/mfd/lpc_ich.c
+F:	drivers/gpio/gpio-ich.c
 
 IDE SUBSYSTEM
 M:	"David S. Miller" <davem@davemloft.net>
@@ -4505,12 +4515,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/mmc/host/imxmmc.*
 
-MOUSE AND MISC DEVICES [GENERAL]
-M:	Alessandro Rubini <rubini@ipvvis.unipv.it>
-S:	Maintained
-F:	drivers/input/mouse/
-F:	include/linux/gpio_mouse.h
-
 MOXA SMARTIO/INDUSTIO/INTELLIO SERIAL CARD
 M:	Jiri Slaby <jirislaby@gmail.com>
 S:	Maintained
@@ -5333,7 +5337,7 @@ M:	David Woodhouse <dwmw2@infradead.org>
 T:	git git://git.infradead.org/battery-2.6.git
 S:	Maintained
 F:	include/linux/power_supply.h
-F:	drivers/power/power_supply*
+F:	drivers/power/
 
 PNP SUPPORT
 M:	Adam Belay <abelay@mit.edu>
@@ -6653,7 +6657,7 @@ F:	include/linux/taskstats*
 F:	kernel/taskstats.c
 
 TC CLASSIFIER
-M:	Jamal Hadi Salim <hadi@cyberus.ca>
+M:	Jamal Hadi Salim <jhs@mojatatu.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	include/linux/pkt_cls.h

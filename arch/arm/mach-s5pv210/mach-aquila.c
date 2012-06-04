@@ -96,38 +96,34 @@ static struct s3c2410_uartcfg aquila_uartcfgs[] __initdata = {
 
 /* Frame Buffer */
 static struct s3c_fb_pd_win aquila_fb_win0 = {
-	.win_mode = {
-		.left_margin = 16,
-		.right_margin = 16,
-		.upper_margin = 3,
-		.lower_margin = 28,
-		.hsync_len = 2,
-		.vsync_len = 2,
-		.xres = 480,
-		.yres = 800,
-	},
 	.max_bpp = 32,
 	.default_bpp = 16,
+	.xres = 480,
+	.yres = 800,
 };
 
 static struct s3c_fb_pd_win aquila_fb_win1 = {
-	.win_mode = {
-		.left_margin = 16,
-		.right_margin = 16,
-		.upper_margin = 3,
-		.lower_margin = 28,
-		.hsync_len = 2,
-		.vsync_len = 2,
-		.xres = 480,
-		.yres = 800,
-	},
 	.max_bpp = 32,
 	.default_bpp = 16,
+	.xres = 480,
+	.yres = 800,
+};
+
+static struct fb_videomode aquila_lcd_timing = {
+	.left_margin = 16,
+	.right_margin = 16,
+	.upper_margin = 3,
+	.lower_margin = 28,
+	.hsync_len = 2,
+	.vsync_len = 2,
+	.xres = 480,
+	.yres = 800,
 };
 
 static struct s3c_fb_platdata aquila_lcd_pdata __initdata = {
 	.win[0]		= &aquila_fb_win0,
 	.win[1]		= &aquila_fb_win1,
+	.vtiming	= &aquila_lcd_timing,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC |
 			  VIDCON1_INV_VCLK | VIDCON1_INV_VDEN,

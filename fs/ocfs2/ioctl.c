@@ -864,7 +864,7 @@ int ocfs2_info_handle(struct inode *inode, struct ocfs2_info *info,
 		if (status)
 			break;
 
-		reqp = (struct ocfs2_info_request *)(unsigned long)req_addr;
+		reqp = (struct ocfs2_info_request __user *)(unsigned long)req_addr;
 		if (!reqp) {
 			status = -EINVAL;
 			goto bail;
@@ -888,9 +888,11 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct ocfs2_space_resv sr;
 	struct ocfs2_new_group_input input;
 	struct reflink_arguments args;
-	const char *old_path, *new_path;
+	const char __user *old_path;
+	const char __user *new_path;
 	bool preserve;
 	struct ocfs2_info info;
+	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
 	case OCFS2_IOC_GETFLAGS:
@@ -937,17 +939,15 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		return ocfs2_group_add(inode, &input);
 	case OCFS2_IOC_REFLINK:
-		if (copy_from_user(&args, (struct reflink_arguments *)arg,
-				   sizeof(args)))
+		if (copy_from_user(&args, argp, sizeof(args)))
 			return -EFAULT;
-		old_path = (const char *)(unsigned long)args.old_path;
-		new_path = (const char *)(unsigned long)args.new_path;
+		old_path = (const char __user *)(unsigned long)args.old_path;
+		new_path = (const char __user *)(unsigned long)args.new_path;
 		preserve = (args.preserve != 0);
 
 		return ocfs2_reflink_ioctl(inode, old_path, new_path, preserve);
 	case OCFS2_IOC_INFO:
-		if (copy_from_user(&info, (struct ocfs2_info __user *)arg,
-				   sizeof(struct ocfs2_info)))
+		if (copy_from_user(&info, argp, sizeof(struct ocfs2_info)))
 			return -EFAULT;
 
 		return ocfs2_info_handle(inode, &info, 0);
@@ -960,22 +960,20 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		if (copy_from_user(&range, (struct fstrim_range *)arg,
-		    sizeof(range)))
+		if (copy_from_user(&range, argp, sizeof(range)))
 			return -EFAULT;
 
 		ret = ocfs2_trim_fs(sb, &range);
 		if (ret < 0)
 			return ret;
 
-		if (copy_to_user((struct fstrim_range *)arg, &range,
-		    sizeof(range)))
+		if (copy_to_user(argp, &range, sizeof(range)))
 			return -EFAULT;
 
 		return 0;
 	}
 	case OCFS2_IOC_MOVE_EXT:
-		return ocfs2_ioctl_move_extents(filp, (void __user *)arg);
+		return ocfs2_ioctl_move_extents(filp, argp);
 	default:
 		return -ENOTTY;
 	}
@@ -988,6 +986,7 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	struct reflink_arguments args;
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct ocfs2_info info;
+	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
 	case OCFS2_IOC32_GETFLAGS:
@@ -1006,16 +1005,14 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case FITRIM:
 		break;
 	case OCFS2_IOC_REFLINK:
-		if (copy_from_user(&args, (struct reflink_arguments *)arg,
-				   sizeof(args)))
+		if (copy_from_user(&args, argp, sizeof(args)))
 			return -EFAULT;
 		preserve = (args.preserve != 0);
 
 		return ocfs2_reflink_ioctl(inode, compat_ptr(args.old_path),
 					   compat_ptr(args.new_path), preserve);
 	case OCFS2_IOC_INFO:
-		if (copy_from_user(&info, (struct ocfs2_info __user *)arg,
-				   sizeof(struct ocfs2_info)))
+		if (copy_from_user(&info, argp, sizeof(struct ocfs2_info)))
 			return -EFAULT;
 
 		return ocfs2_info_handle(inode, &info, 1);

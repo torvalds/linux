@@ -889,6 +889,18 @@ static int __devexit mxsfb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void mxsfb_shutdown(struct platform_device *pdev)
+{
+	struct fb_info *fb_info = platform_get_drvdata(pdev);
+	struct mxsfb_info *host = to_imxfb_host(fb_info);
+
+	/*
+	 * Force stop the LCD controller as keeping it running during reboot
+	 * might interfere with the BootROM's boot mode pads sampling.
+	 */
+	writel(CTRL_RUN, host->base + LCDC_CTRL + REG_CLR);
+}
+
 static struct platform_device_id mxsfb_devtype[] = {
 	{
 		.name = "imx23-fb",
@@ -905,6 +917,7 @@ MODULE_DEVICE_TABLE(platform, mxsfb_devtype);
 static struct platform_driver mxsfb_driver = {
 	.probe = mxsfb_probe,
 	.remove = __devexit_p(mxsfb_remove),
+	.shutdown = mxsfb_shutdown,
 	.id_table = mxsfb_devtype,
 	.driver = {
 		   .name = DRIVER_NAME,

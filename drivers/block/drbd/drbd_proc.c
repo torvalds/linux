@@ -52,7 +52,7 @@ void seq_printf_with_thousands_grouping(struct seq_file *seq, long v)
 	if (unlikely(v >= 1000000)) {
 		/* cool: > GiByte/s */
 		seq_printf(seq, "%ld,", v / 1000000);
-		v /= 1000000;
+		v %= 1000000;
 		seq_printf(seq, "%03ld,%03ld", v/1000, v % 1000);
 	} else if (likely(v >= 1000))
 		seq_printf(seq, "%ld,%03ld", v/1000, v % 1000);

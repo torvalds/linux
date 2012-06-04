@@ -303,8 +303,12 @@ gp_in_kernel:
 dotraplinkage void __kprobes notrace do_int3(struct pt_regs *regs, long error_code)
 {
 #ifdef CONFIG_DYNAMIC_FTRACE
-	/* ftrace must be first, everything else may cause a recursive crash */
-	if (unlikely(modifying_ftrace_code) && ftrace_int3_handler(regs))
+	/*
+	 * ftrace must be first, everything else may cause a recursive crash.
+	 * See note by declaration of modifying_ftrace_code in ftrace.c
+	 */
+	if (unlikely(atomic_read(&modifying_ftrace_code)) &&
+	    ftrace_int3_handler(regs))
 		return;
 #endif
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP

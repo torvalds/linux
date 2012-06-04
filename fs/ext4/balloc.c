@@ -168,12 +168,14 @@ void ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 
 	/* If checksum is bad mark all blocks used to prevent allocation
 	 * essentially implementing a per-group read-only flag. */
-	if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
+	if (!ext4_group_desc_csum_verify(sb, block_group, gdp)) {
 		ext4_error(sb, "Checksum bad for group %u", block_group);
 		ext4_free_group_clusters_set(sb, gdp, 0);
 		ext4_free_inodes_set(sb, gdp, 0);
 		ext4_itable_unused_set(sb, gdp, 0);
 		memset(bh->b_data, 0xff, sb->s_blocksize);
+		ext4_block_bitmap_csum_set(sb, block_group, gdp, bh,
+					   EXT4_BLOCKS_PER_GROUP(sb) / 8);
 		return;
 	}
 	memset(bh->b_data, 0, sb->s_blocksize);
@@ -210,6 +212,9 @@ void ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 	 */
 	ext4_mark_bitmap_end(num_clusters_in_group(sb, block_group),
 			     sb->s_blocksize * 8, bh->b_data);
+	ext4_block_bitmap_csum_set(sb, block_group, gdp, bh,
+				   EXT4_BLOCKS_PER_GROUP(sb) / 8);
+	ext4_group_desc_csum_set(sb, block_group, gdp);
 }
 
 /* Return the number of free blocks in a block group.  It is used when
@@ -276,9 +281,9 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block *sb,
 }
 
 static int ext4_valid_block_bitmap(struct super_block *sb,
-					struct ext4_group_desc *desc,
-					unsigned int block_group,
-					struct buffer_head *bh)
+				   struct ext4_group_desc *desc,
+				   unsigned int block_group,
+				   struct buffer_head *bh)
 {
 	ext4_grpblk_t offset;
 	ext4_grpblk_t next_zero_bit;
@@ -325,6 +330,23 @@ err_out:
 			block_group, bitmap_blk);
 	return 0;
 }
+
+void ext4_validate_block_bitmap(struct super_block *sb,
+			       struct ext4_group_desc *desc,
+			       unsigned int block_group,
+			       struct buffer_head *bh)
+{
+	if (buffer_verified(bh))
+		return;
+
+	ext4_lock_group(sb, block_group);
+	if (ext4_valid_block_bitmap(sb, desc, block_group, bh) &&
+	    ext4_block_bitmap_csum_verify(sb, block_group, desc, bh,
+					  EXT4_BLOCKS_PER_GROUP(sb) / 8))
+		set_buffer_verified(bh);
+	ext4_unlock_group(sb, block_group);
+}
+
 /**
  * ext4_read_block_bitmap()
  * @sb:			super block
@@ -355,12 +377,12 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 	}
 
 	if (bitmap_uptodate(bh))
-		return bh;
+		goto verify;
 
 	lock_buffer(bh);
 	if (bitmap_uptodate(bh)) {
 		unlock_buffer(bh);
-		return bh;
+		goto verify;
 	}
 	ext4_lock_group(sb, block_group);
 	if (desc->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
@@ -379,7 +401,7 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 		 */
 		set_bitmap_uptodate(bh);
 		unlock_buffer(bh);
-		return bh;
+		goto verify;
 	}
 	/*
 	 * submit the buffer_head for reading
@@ -389,6 +411,9 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 	bh->b_end_io = ext4_end_bitmap_read;
 	get_bh(bh);
 	submit_bh(READ, bh);
+	return bh;
+verify:
+	ext4_validate_block_bitmap(sb, desc, block_group, bh);
 	return bh;
 }
 
@@ -412,7 +437,7 @@ int ext4_wait_block_bitmap(struct super_block *sb, ext4_group_t block_group,
 	}
 	clear_buffer_new(bh);
 	/* Panic or remount fs read-only if block bitmap is invalid */
-	ext4_valid_block_bitmap(sb, desc, block_group, bh);
+	ext4_validate_block_bitmap(sb, desc, block_group, bh);
 	return 0;
 }
 

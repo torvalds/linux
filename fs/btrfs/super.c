@@ -188,7 +188,8 @@ void btrfs_printk(struct btrfs_fs_info *fs_info, const char *fmt, ...)
 	va_start(args, fmt);
 
 	if (fmt[0] == '<' && isdigit(fmt[1]) && fmt[2] == '>') {
-		strncpy(lvl, fmt, 3);
+		memcpy(lvl, fmt, 3);
+		lvl[3] = '\0';
 		fmt += 3;
 		type = logtypes[fmt[1] - '0'];
 	} else
@@ -435,11 +436,8 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_thread_pool:
 			intarg = 0;
 			match_int(&args[0], &intarg);
-			if (intarg) {
+			if (intarg)
 				info->thread_pool_size = intarg;
-				printk(KERN_INFO "btrfs: thread pool %d\n",
-				       info->thread_pool_size);
-			}
 			break;
 		case Opt_max_inline:
 			num = match_strdup(&args[0]);
@@ -769,7 +767,7 @@ static int btrfs_fill_super(struct super_block *sb,
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
 	sb->s_flags |= MS_POSIXACL;
 #endif
-
+	sb->s_flags |= MS_I_VERSION;
 	err = open_ctree(sb, fs_devices, (char *)data);
 	if (err) {
 		printk("btrfs: open_ctree failed\n");
@@ -925,63 +923,48 @@ static inline int is_subvolume_inode(struct inode *inode)
  */
 static char *setup_root_args(char *args)
 {
-	unsigned copied = 0;
-	unsigned len = strlen(args) + 2;
-	char *pos;
-	char *ret;
+	unsigned len = strlen(args) + 2 + 1;
+	char *src, *dst, *buf;
 
 	/*
-	 * We need the same args as before, but minus
+	 * We need the same args as before, but with this substitution:
+	 * s!subvol=[^,]+!subvolid=0!
 	 *
-	 * subvol=a
-	 *
-	 * and add
-	 *
-	 * subvolid=0
-	 *
-	 * which is a difference of 2 characters, so we allocate strlen(args) +
-	 * 2 characters.
+	 * Since the replacement string is up to 2 bytes longer than the
+	 * original, allocate strlen(args) + 2 + 1 bytes.
 	 */
-	ret = kzalloc(len * sizeof(char), GFP_NOFS);
-	if (!ret)
-		return NULL;
-	pos = strstr(args, "subvol=");
 
+	src = strstr(args, "subvol=");
 	/* This shouldn't happen, but just in case.. */
-	if (!pos) {
-		kfree(ret);
+	if (!src)
 		return NULL;
-	}
+
+	buf = dst = kmalloc(len, GFP_NOFS);
+	if (!buf)
+		return NULL;
 
 	/*
-	 * The subvol=<> arg is not at the front of the string, copy everybody
-	 * up to that into ret.
+	 * If the subvol= arg is not at the start of the string,
+	 * copy whatever precedes it into buf.
 	 */
-	if (pos != args) {
-		*pos = '\0';
-		strcpy(ret, args);
-		copied += strlen(args);
-		pos++;
+	if (src != args) {
+		*src++ = '\0';
+		strcpy(buf, args);
+		dst += strlen(args);
 	}
 
-	strncpy(ret + copied, "subvolid=0", len - copied);
-
-	/* Length of subvolid=0 */
-	copied += 10;
+	strcpy(dst, "subvolid=0");
+	dst += strlen("subvolid=0");
 
 	/*
-	 * If there is no , after the subvol= option then we know there's no
-	 * other options and we can just return.
+	 * If there is a "," after the original subvol=... string,
+	 * copy that suffix into our buffer.  Otherwise, we're done.
 	 */
-	pos = strchr(pos, ',');
-	if (!pos)
-		return ret;
+	src = strchr(src, ',');
+	if (src)
+		strcpy(dst, src);
 
-	/* Copy the rest of the arguments into our buffer */
-	strncpy(ret + copied, pos, len - copied);
-	copied += strlen(pos);
-
-	return ret;
+	return buf;
 }
 
 static struct dentry *mount_subvol(const char *subvol_name, int flags,
@@ -1118,6 +1101,40 @@ error_fs_info:
 	return ERR_PTR(error);
 }
 
+static void btrfs_set_max_workers(struct btrfs_workers *workers, int new_limit)
+{
+	spin_lock_irq(&workers->lock);
+	workers->max_workers = new_limit;
+	spin_unlock_irq(&workers->lock);
+}
+
+static void btrfs_resize_thread_pool(struct btrfs_fs_info *fs_info,
+				     int new_pool_size, int old_pool_size)
+{
+	if (new_pool_size == old_pool_size)
+		return;
+
+	fs_info->thread_pool_size = new_pool_size;
+
+	printk(KERN_INFO "btrfs: resize thread pool %d -> %d\n",
+	       old_pool_size, new_pool_size);
+
+	btrfs_set_max_workers(&fs_info->generic_worker, new_pool_size);
+	btrfs_set_max_workers(&fs_info->workers, new_pool_size);
+	btrfs_set_max_workers(&fs_info->delalloc_workers, new_pool_size);
+	btrfs_set_max_workers(&fs_info->submit_workers, new_pool_size);
+	btrfs_set_max_workers(&fs_info->caching_workers, new_pool_size);
+	btrfs_set_max_workers(&fs_info->fixup_workers, new_pool_size);
+	btrfs_set_max_workers(&fs_info->endio_workers, new_pool_size);
+	btrfs_set_max_workers(&fs_info->endio_meta_workers, new_pool_size);
+	btrfs_set_max_workers(&fs_info->endio_meta_write_workers, new_pool_size);
+	btrfs_set_max_workers(&fs_info->endio_write_workers, new_pool_size);
+	btrfs_set_max_workers(&fs_info->endio_freespace_worker, new_pool_size);
+	btrfs_set_max_workers(&fs_info->delayed_workers, new_pool_size);
+	btrfs_set_max_workers(&fs_info->readahead_workers, new_pool_size);
+	btrfs_set_max_workers(&fs_info->scrub_workers, new_pool_size);
+}
+
 static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
@@ -1136,6 +1153,9 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		ret = -EINVAL;
 		goto restore;
 	}
+
+	btrfs_resize_thread_pool(fs_info,
+		fs_info->thread_pool_size, old_thread_pool_size);
 
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		return 0;
@@ -1180,7 +1200,8 @@ restore:
 	fs_info->compress_type = old_compress_type;
 	fs_info->max_inline = old_max_inline;
 	fs_info->alloc_start = old_alloc_start;
-	fs_info->thread_pool_size = old_thread_pool_size;
+	btrfs_resize_thread_pool(fs_info,
+		old_thread_pool_size, fs_info->thread_pool_size);
 	fs_info->metadata_ratio = old_metadata_ratio;
 	return ret;
 }

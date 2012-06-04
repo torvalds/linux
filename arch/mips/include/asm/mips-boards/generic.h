@@ -93,8 +93,4 @@ extern void mips_pcibios_init(void);
 #define mips_pcibios_init() do { } while (0)
 #endif
 
-#ifdef CONFIG_KGDB
-extern void kgdb_config(void);
-#endif
-
 #endif  /* __ASM_MIPS_BOARDS_GENERIC_H */

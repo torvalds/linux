@@ -185,6 +185,16 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 		BUG_ON(rc);
 	}
 
+	list_for_each_safe(list, tmp, &tgt->active_tm_queue) {
+		i++;
+		io_req = (struct bnx2fc_cmd *)list;
+		list_del_init(&io_req->link);
+		io_req->on_tmf_queue = 0;
+		BNX2FC_IO_DBG(io_req, "tm_queue cleanup\n");
+		if (io_req->wait_for_comp)
+			complete(&io_req->tm_done);
+	}
+
 	list_for_each_safe(list, tmp, &tgt->els_queue) {
 		i++;
 		io_req = (struct bnx2fc_cmd *)list;
@@ -213,8 +223,17 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 
 		BNX2FC_IO_DBG(io_req, "retire_queue flush\n");
 
-		if (cancel_delayed_work(&io_req->timeout_work))
+		if (cancel_delayed_work(&io_req->timeout_work)) {
+			if (test_and_clear_bit(BNX2FC_FLAG_EH_ABORT,
+						&io_req->req_flags)) {
+				/* Handle eh_abort timeout */
+				BNX2FC_IO_DBG(io_req, "eh_abort for IO "
+					      "in retire_q\n");
+				if (io_req->wait_for_comp)
+					complete(&io_req->tm_done);
+			}
 			kref_put(&io_req->refcount, bnx2fc_cmd_release);
+		}
 
 		clear_bit(BNX2FC_FLAG_ISSUE_RRQ, &io_req->req_flags);
 	}

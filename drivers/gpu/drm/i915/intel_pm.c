@@ -2270,10 +2270,33 @@ void ironlake_disable_drps(struct drm_device *dev)
 void gen6_set_rps(struct drm_device *dev, u8 val)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 swreq;
+	u32 limits;
 
-	swreq = (val & 0x3ff) << 25;
-	I915_WRITE(GEN6_RPNSWREQ, swreq);
+	limits = 0;
+	if (val >= dev_priv->max_delay)
+		val = dev_priv->max_delay;
+	else
+		limits |= dev_priv->max_delay << 24;
+
+	if (val <= dev_priv->min_delay)
+		val = dev_priv->min_delay;
+	else
+		limits |= dev_priv->min_delay << 16;
+
+	if (val == dev_priv->cur_delay)
+		return;
+
+	I915_WRITE(GEN6_RPNSWREQ,
+		   GEN6_FREQUENCY(val) |
+		   GEN6_OFFSET(0) |
+		   GEN6_AGGRESSIVE_TURBO);
+
+	/* Make sure we continue to get interrupts
+	 * until we hit the minimum or maximum frequencies.
+	 */
+	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, limits);
+
+	dev_priv->cur_delay = val;
 }
 
 void gen6_disable_rps(struct drm_device *dev)
@@ -2327,11 +2350,10 @@ int intel_enable_rc6(const struct drm_device *dev)
 void gen6_enable_rps(struct drm_i915_private *dev_priv)
 {
 	struct intel_ring_buffer *ring;
-	u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-	u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
+	u32 rp_state_cap;
+	u32 gt_perf_status;
 	u32 pcu_mbox, rc6_mask = 0;
 	u32 gtfifodbg;
-	int cur_freq, min_freq, max_freq;
 	int rc6_mode;
 	int i;
 
@@ -2351,6 +2373,14 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	}
 
 	gen6_gt_force_wake_get(dev_priv);
+
+	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+	gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
+
+	/* In units of 100MHz */
+	dev_priv->max_delay = rp_state_cap & 0xff;
+	dev_priv->min_delay = (rp_state_cap & 0xff0000) >> 16;
+	dev_priv->cur_delay = 0;
 
 	/* disable the counters and set deterministic thresholds */
 	I915_WRITE(GEN6_RC_CONTROL, 0);
@@ -2399,8 +2429,8 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 1000000);
 	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
-		   18 << 24 |
-		   6 << 16);
+		   dev_priv->max_delay << 24 |
+		   dev_priv->min_delay << 16);
 	I915_WRITE(GEN6_RP_UP_THRESHOLD, 10000);
 	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 1000000);
 	I915_WRITE(GEN6_RP_UP_EI, 100000);
@@ -2408,7 +2438,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
 	I915_WRITE(GEN6_RP_CONTROL,
 		   GEN6_RP_MEDIA_TURBO |
-		   GEN6_RP_MEDIA_HW_MODE |
+		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
 		   GEN6_RP_MEDIA_IS_GFX |
 		   GEN6_RP_ENABLE |
 		   GEN6_RP_UP_BUSY_AVG |
@@ -2426,10 +2456,6 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 		     500))
 		DRM_ERROR("timeout waiting for pcode mailbox to finish\n");
 
-	min_freq = (rp_state_cap & 0xff0000) >> 16;
-	max_freq = rp_state_cap & 0xff;
-	cur_freq = (gt_perf_status & 0xff00) >> 8;
-
 	/* Check for overclock support */
 	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,
 		     500))
@@ -2440,14 +2466,11 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 		     500))
 		DRM_ERROR("timeout waiting for pcode mailbox to finish\n");
 	if (pcu_mbox & (1<<31)) { /* OC supported */
-		max_freq = pcu_mbox & 0xff;
+		dev_priv->max_delay = pcu_mbox & 0xff;
 		DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max to %dMHz\n", pcu_mbox * 50);
 	}
 
-	/* In units of 100MHz */
-	dev_priv->max_delay = max_freq;
-	dev_priv->min_delay = min_freq;
-	dev_priv->cur_delay = cur_freq;
+	gen6_set_rps(dev_priv->dev, (gt_perf_status & 0xff00) >> 8);
 
 	/* requires MSI enabled */
 	I915_WRITE(GEN6_PMIER,
@@ -3580,8 +3603,9 @@ static void gen6_sanitize_pm(struct drm_device *dev)
 		limits |= (dev_priv->min_delay & 0x3f) << 16;
 
 	if (old != limits) {
-		DRM_ERROR("Power management discrepancy: GEN6_RP_INTERRUPT_LIMITS expected %08x, was %08x\n",
-			  limits, old);
+		/* Note that the known failure case is to read back 0. */
+		DRM_DEBUG_DRIVER("Power management discrepancy: GEN6_RP_INTERRUPT_LIMITS "
+				 "expected %08x, was %08x\n", limits, old);
 		I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, limits);
 	}
 

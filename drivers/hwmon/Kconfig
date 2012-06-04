@@ -1036,8 +1036,9 @@ config SENSORS_SCH56XX_COMMON
 
 config SENSORS_SCH5627
 	tristate "SMSC SCH5627"
-	depends on !PPC
+	depends on !PPC && WATCHDOG
 	select SENSORS_SCH56XX_COMMON
+	select WATCHDOG_CORE
 	help
 	  If you say yes here you get support for the hardware monitoring
 	  features of the SMSC SCH5627 Super-I/O chip including support for
@@ -1048,8 +1049,9 @@ config SENSORS_SCH5627
 
 config SENSORS_SCH5636
 	tristate "SMSC SCH5636"
-	depends on !PPC
+	depends on !PPC && WATCHDOG
 	select SENSORS_SCH56XX_COMMON
+	select WATCHDOG_CORE
 	help
 	  SMSC SCH5636 Super I/O chips include an embedded microcontroller for
 	  hardware monitoring solutions, allowing motherboard manufacturers to

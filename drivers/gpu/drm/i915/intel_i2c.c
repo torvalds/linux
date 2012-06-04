@@ -396,11 +396,22 @@ clear_err:
 	 * Wait for bus to IDLE before clearing NAK.
 	 * If we clear the NAK while bus is still active, then it will stay
 	 * active and the next transaction may fail.
+	 *
+	 * If no ACK is received during the address phase of a transaction, the
+	 * adapter must report -ENXIO. It is not clear what to return if no ACK
+	 * is received at other times. But we have to be careful to not return
+	 * spurious -ENXIO because that will prevent i2c and drm edid functions
+	 * from retrying. So return -ENXIO only when gmbus properly quiescents -
+	 * timing out seems to happen when there _is_ a ddc chip present, but
+	 * it's slow responding and only answers on the 2nd retry.
 	 */
+	ret = -ENXIO;
 	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0,
-		     10))
+		     10)) {
 		DRM_DEBUG_KMS("GMBUS [%s] timed out after NAK\n",
 			      adapter->name);
+		ret = -ETIMEDOUT;
+	}
 
 	/* Toggle the Software Clear Interrupt bit. This has the effect
 	 * of resetting the GMBUS controller and so clearing the
@@ -414,14 +425,6 @@ clear_err:
 			 adapter->name, msgs[i].addr,
 			 (msgs[i].flags & I2C_M_RD) ? 'r' : 'w', msgs[i].len);
 
-	/*
-	 * If no ACK is received during the address phase of a transaction,
-	 * the adapter must report -ENXIO.
-	 * It is not clear what to return if no ACK is received at other times.
-	 * So, we always return -ENXIO in all NAK cases, to ensure we send
-	 * it at least during the one case that is specified.
-	 */
-	ret = -ENXIO;
 	goto out;
 
 timeout:

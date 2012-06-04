@@ -156,7 +156,7 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 		t->pixel_clock = pck;
 	}
 
-	dispc_mgr_set_lcd_timings(dssdev->manager->id, t);
+	dss_mgr_set_timings(dssdev->manager, t);
 
 	return 0;
 }
@@ -202,10 +202,6 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 			goto err_reg_enable;
 	}
 
-	r = dss_runtime_get();
-	if (r)
-		goto err_get_dss;
-
 	r = dispc_runtime_get();
 	if (r)
 		goto err_get_dispc;
@@ -244,8 +240,6 @@ err_dsi_pll_init:
 err_get_dsi:
 	dispc_runtime_put();
 err_get_dispc:
-	dss_runtime_put();
-err_get_dss:
 	if (cpu_is_omap34xx())
 		regulator_disable(dpi.vdds_dsi_reg);
 err_reg_enable:
@@ -266,7 +260,6 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 	}
 
 	dispc_runtime_put();
-	dss_runtime_put();
 
 	if (cpu_is_omap34xx())
 		regulator_disable(dpi.vdds_dsi_reg);
@@ -283,21 +276,15 @@ void dpi_set_timings(struct omap_dss_device *dssdev,
 	DSSDBG("dpi_set_timings\n");
 	dssdev->panel.timings = *timings;
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
-		r = dss_runtime_get();
+		r = dispc_runtime_get();
 		if (r)
 			return;
 
-		r = dispc_runtime_get();
-		if (r) {
-			dss_runtime_put();
-			return;
-		}
-
 		dpi_set_mode(dssdev);
-		dispc_mgr_go(dssdev->manager->id);
 
 		dispc_runtime_put();
-		dss_runtime_put();
+	} else {
+		dss_mgr_set_timings(dssdev->manager, timings);
 	}
 }
 EXPORT_SYMBOL(dpi_set_timings);
@@ -312,7 +299,7 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 	unsigned long pck;
 	struct dispc_clock_info dispc_cinfo;
 
-	if (!dispc_lcd_timings_ok(timings))
+	if (dss_mgr_check_timings(dssdev->manager, timings))
 		return -EINVAL;
 
 	if (timings->pixel_clock == 0)
@@ -352,7 +339,7 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(dpi_check_timings);
 
-int dpi_init_display(struct omap_dss_device *dssdev)
+static int __init dpi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
 
@@ -378,12 +365,58 @@ int dpi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-int dpi_init(void)
+static void __init dpi_probe_pdata(struct platform_device *pdev)
 {
+	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
+	int i, r;
+
+	for (i = 0; i < pdata->num_devices; ++i) {
+		struct omap_dss_device *dssdev = pdata->devices[i];
+
+		if (dssdev->type != OMAP_DISPLAY_TYPE_DPI)
+			continue;
+
+		r = dpi_init_display(dssdev);
+		if (r) {
+			DSSERR("device %s init failed: %d\n", dssdev->name, r);
+			continue;
+		}
+
+		r = omap_dss_register_device(dssdev, &pdev->dev, i);
+		if (r)
+			DSSERR("device %s register failed: %d\n",
+					dssdev->name, r);
+	}
+}
+
+static int __init omap_dpi_probe(struct platform_device *pdev)
+{
+	dpi_probe_pdata(pdev);
+
 	return 0;
 }
 
-void dpi_exit(void)
+static int __exit omap_dpi_remove(struct platform_device *pdev)
 {
+	omap_dss_unregister_child_devices(&pdev->dev);
+
+	return 0;
 }
 
+static struct platform_driver omap_dpi_driver = {
+	.remove         = __exit_p(omap_dpi_remove),
+	.driver         = {
+		.name   = "omapdss_dpi",
+		.owner  = THIS_MODULE,
+	},
+};
+
+int __init dpi_init_platform_driver(void)
+{
+	return platform_driver_probe(&omap_dpi_driver, omap_dpi_probe);
+}
+
+void __exit dpi_uninit_platform_driver(void)
+{
+	platform_driver_unregister(&omap_dpi_driver);
+}

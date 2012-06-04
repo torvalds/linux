@@ -41,6 +41,9 @@
 #define CAYMAN_MAX_TCC               16
 #define CAYMAN_MAX_TCC_MASK          0xFF
 
+#define CAYMAN_GB_ADDR_CONFIG_GOLDEN       0x02011003
+#define ARUBA_GB_ADDR_CONFIG_GOLDEN        0x12010001
+
 #define DMIF_ADDR_CONFIG  				0xBD4
 #define	SRBM_GFX_CNTL				        0x0E44
 #define		RINGID(x)					(((x) & 0x3) << 0)
@@ -148,6 +151,8 @@
 #define	CGTS_SYS_TCC_DISABLE				0x3F90
 #define	CGTS_USER_SYS_TCC_DISABLE			0x3F94
 
+#define RLC_GFX_INDEX           			0x3FC4
+
 #define	CONFIG_MEMSIZE					0x5428
 
 #define HDP_MEM_COHERENCY_FLUSH_CNTL			0x5480
@@ -211,6 +216,12 @@
 #define		SOFT_RESET_TA					(1 << 12)
 #define		SOFT_RESET_VGT					(1 << 14)
 #define		SOFT_RESET_IA					(1 << 15)
+
+#define GRBM_GFX_INDEX          			0x802C
+#define		INSTANCE_INDEX(x)			((x) << 0)
+#define		SE_INDEX(x)     			((x) << 16)
+#define		INSTANCE_BROADCAST_WRITES      		(1 << 30)
+#define		SE_BROADCAST_WRITES      		(1 << 31)
 
 #define	SCRATCH_REG0					0x8500
 #define	SCRATCH_REG1					0x8504

@@ -306,8 +306,6 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		const struct cifs_tcon *treeCon, int word_count
 		/* length of fixed section (word count) in two byte units  */)
 {
-	struct list_head *temp_item;
-	struct cifs_ses *ses;
 	char *temp = (char *) buffer;
 
 	memset(temp, 0, 256); /* bigger than MAX_CIFS_HDR_SIZE */
@@ -337,51 +335,6 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 			/* Uid is not converted */
 			buffer->Uid = treeCon->ses->Suid;
 			buffer->Mid = GetNextMid(treeCon->ses->server);
-			if (multiuser_mount != 0) {
-		/* For the multiuser case, there are few obvious technically  */
-		/* possible mechanisms to match the local linux user (uid)    */
-		/* to a valid remote smb user (smb_uid):		      */
-		/* 	1) Query Winbind (or other local pam/nss daemon       */
-		/* 	  for userid/password/logon_domain or credential      */
-		/*      2) Query Winbind for uid to sid to username mapping   */
-		/* 	   and see if we have a matching password for existing*/
-		/*         session for that user perhas getting password by   */
-		/*         adding a new pam_cifs module that stores passwords */
-		/*         so that the cifs vfs can get at that for all logged*/
-		/*	   on users					      */
-		/*	3) (Which is the mechanism we have chosen)	      */
-		/*	   Search through sessions to the same server for a   */
-		/*	   a match on the uid that was passed in on mount     */
-		/*         with the current processes uid (or euid?) and use  */
-		/* 	   that smb uid.   If no existing smb session for     */
-		/* 	   that uid found, use the default smb session ie     */
-		/*         the smb session for the volume mounted which is    */
-		/* 	   the same as would be used if the multiuser mount   */
-		/* 	   flag were disabled.  */
-
-		/*  BB Add support for establishing new tCon and SMB Session  */
-		/*      with userid/password pairs found on the smb session   */
-		/*	for other target tcp/ip addresses 		BB    */
-				if (current_fsuid() != treeCon->ses->linux_uid) {
-					cFYI(1, "Multiuser mode and UID "
-						 "did not match tcon uid");
-					spin_lock(&cifs_tcp_ses_lock);
-					list_for_each(temp_item, &treeCon->ses->server->smb_ses_list) {
-						ses = list_entry(temp_item, struct cifs_ses, smb_ses_list);
-						if (ses->linux_uid == current_fsuid()) {
-							if (ses->server == treeCon->ses->server) {
-								cFYI(1, "found matching uid substitute right smb_uid");
-								buffer->Uid = ses->Suid;
-								break;
-							} else {
-				/* BB eventually call cifs_setup_session here */
-								cFYI(1, "local UID found but no smb sess with this server exists");
-							}
-						}
-					}
-					spin_unlock(&cifs_tcp_ses_lock);
-				}
-			}
 		}
 		if (treeCon->Flags & SMB_SHARE_IS_IN_DFS)
 			buffer->Flags2 |= SMBFLG2_DFS;
@@ -699,23 +652,4 @@ backup_cred(struct cifs_sb_info *cifs_sb)
 	}
 
 	return false;
-}
-
-void
-cifs_add_credits(struct TCP_Server_Info *server, const unsigned int add)
-{
-	spin_lock(&server->req_lock);
-	server->credits += add;
-	server->in_flight--;
-	spin_unlock(&server->req_lock);
-	wake_up(&server->request_q);
-}
-
-void
-cifs_set_credits(struct TCP_Server_Info *server, const int val)
-{
-	spin_lock(&server->req_lock);
-	server->credits = val;
-	server->oplocks = val > 1 ? enable_oplocks : false;
-	spin_unlock(&server->req_lock);
 }

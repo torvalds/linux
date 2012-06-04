@@ -207,13 +207,6 @@ void exit_creds(struct task_struct *tsk)
 	validate_creds(cred);
 	alter_cred_subscribers(cred, -1);
 	put_cred(cred);
-
-	cred = (struct cred *) tsk->replacement_session_keyring;
-	if (cred) {
-		tsk->replacement_session_keyring = NULL;
-		validate_creds(cred);
-		put_cred(cred);
-	}
 }
 
 /**
@@ -395,8 +388,6 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 #endif
 	struct cred *new;
 	int ret;
-
-	p->replacement_session_keyring = NULL;
 
 	if (
 #ifdef CONFIG_KEYS

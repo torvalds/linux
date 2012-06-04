@@ -30,10 +30,6 @@
  * the cpu-type
  */
 	.align 4
-cputyp:
-        .word   1
-
-	.align 4
 	.globl cputypval
 cputypval:
 	.asciz "sun4m"
@@ -46,8 +42,8 @@ cputypvar:
 
 	.align 4
 
-sun4c_notsup:
-	.asciz	"Sparc-Linux sun4/sun4c support does no longer exist.\n\n"
+notsup:
+	.asciz	"Sparc-Linux sun4/sun4c or MMU-less not supported\n\n"
 	.align 4
 
 sun4e_notsup:
@@ -123,7 +119,7 @@ current_pc:
 		tst	%o0
 		be	no_sun4u_here
 		 mov	%g4, %o7		/* Previous %o7. */
-	
+
 		mov	%o0, %l0		! stash away romvec
 		mov	%o0, %g7		! put it here too
 		mov	%o1, %l1		! stash away debug_vec too
@@ -132,7 +128,7 @@ current_pc:
 		set	current_pc, %g5
 		cmp	%g3, %g5
 		be	already_mapped
-		 nop 
+		 nop
 
 		/* %l6 will hold the offset we have to subtract
 		 * from absolute symbols in order to access areas
@@ -192,9 +188,9 @@ copy_prom_done:
 		bne	not_a_sun4
 		 nop
 
-halt_sun4_or_sun4c:
+halt_notsup:
 		ld	[%g7 + 0x68], %o1
-		set	sun4c_notsup, %o0
+		set	notsup, %o0
 		sub	%o0, %l6, %o0
 		call	%o1
 		 nop
@@ -202,18 +198,31 @@ halt_sun4_or_sun4c:
 		 nop
 
 not_a_sun4:
-		lda	[%g0] ASI_M_MMUREGS, %g1
-		andcc	%g1, 1, %g0
-		be	halt_sun4_or_sun4c
+		/* It looks like this is a machine we support.
+		 * Now find out what MMU we are dealing with
+		 * LEON - identified by the psr.impl field
+		 * Viking - identified by the psr.impl field
+		 * In all other cases a sun4m srmmu.
+		 * We check that the MMU is enabled in all cases.
+		 */
+
+		/* Check if this is a LEON CPU */
+		rd	%psr, %g3
+		srl	%g3, PSR_IMPL_SHIFT, %g3
+		and	%g3, PSR_IMPL_SHIFTED_MASK, %g3
+		cmp	%g3, PSR_IMPL_LEON
+		be	leon_remap		/* It is a LEON - jump */
 		 nop
 
-srmmu_remap:
-		/* First, check for a viking (TI) module. */
-		set	0x40000000, %g2
-		rd	%psr, %g3
-		and	%g2, %g3, %g3
-		subcc	%g3, 0x0, %g0
-		bz	srmmu_nviking
+		/* Sanity-check, is MMU enabled */
+		lda	[%g0] ASI_M_MMUREGS, %g1
+		andcc	%g1, 1, %g0
+		be	halt_notsup
+		 nop
+
+		/* Check for a viking (TI) module. */
+		cmp	%g3, PSR_IMPL_TI
+		bne	srmmu_not_viking
 		 nop
 
 		/* Figure out what kind of viking we are on.
@@ -228,14 +237,14 @@ srmmu_remap:
 		lda	[%g0] ASI_M_MMUREGS, %g3	! peek in the control reg
 		and	%g2, %g3, %g3
 		subcc	%g3, 0x0, %g0
-		bnz	srmmu_nviking			! is in mbus mode
+		bnz	srmmu_not_viking			! is in mbus mode
 		 nop
-		
+
 		rd	%psr, %g3			! DO NOT TOUCH %g3
 		andn	%g3, PSR_ET, %g2
 		wr	%g2, 0x0, %psr
 		WRITE_PAUSE
-		
+
 		/* Get context table pointer, then convert to
 		 * a physical address, which is 36 bits.
 		 */
@@ -258,12 +267,12 @@ srmmu_remap:
 		lda	[%g4] ASI_M_BYPASS, %o1		! This is a level 1 ptr
 		srl	%o1, 0x4, %o1			! Clear low 4 bits
 		sll	%o1, 0x8, %o1			! Make physical
-		
+
 		/* Ok, pull in the PTD. */
 		lda	[%o1] ASI_M_BYPASS, %o2		! This is the 0x0 16MB pgd
 
 		/* Calculate to KERNBASE entry. */
-		add	%o1, KERNBASE >> (SRMMU_PGDIR_SHIFT - 2), %o3		
+		add	%o1, KERNBASE >> (SRMMU_PGDIR_SHIFT - 2), %o3
 
 		/* Poke the entry into the calculated address. */
 		sta	%o2, [%o3] ASI_M_BYPASS
@@ -293,12 +302,12 @@ srmmu_remap:
 		b	go_to_highmem
 		 nop
 
+srmmu_not_viking:
 		/* This works on viking's in Mbus mode and all
 		 * other MBUS modules.  It is virtually the same as
 		 * the above madness sans turning traps off and flipping
 		 * the AC bit.
 		 */
-srmmu_nviking:
 		set	AC_M_CTPR, %g1
 		lda	[%g1] ASI_M_MMUREGS, %g1	! get ctx table ptr
 		sll	%g1, 0x4, %g1			! make physical addr
@@ -312,6 +321,29 @@ srmmu_nviking:
 		b	go_to_highmem
 		 nop					! wheee....
 
+
+leon_remap:
+		/* Sanity-check, is MMU enabled */
+		lda	[%g0] ASI_LEON_MMUREGS, %g1
+		andcc	%g1, 1, %g0
+		be	halt_notsup
+		 nop
+
+		/* Same code as in the srmmu_not_viking case,
+		 * with the LEON ASI for mmuregs
+		 */
+		set	AC_M_CTPR, %g1
+		lda	[%g1] ASI_LEON_MMUREGS, %g1	! get ctx table ptr
+		sll	%g1, 0x4, %g1			! make physical addr
+		lda	[%g1] ASI_M_BYPASS, %g1		! ptr to level 1 pg_table
+		srl	%g1, 0x4, %g1
+		sll	%g1, 0x8, %g1			! make phys addr for l1 tbl
+
+		lda	[%g1] ASI_M_BYPASS, %g2		! get level1 entry for 0x0
+		add	%g1, KERNBASE >> (SRMMU_PGDIR_SHIFT - 2), %g3
+		sta	%g2, [%g3] ASI_M_BYPASS		! place at KERNBASE entry
+		b	go_to_highmem
+		 nop					! wheee....
 
 /* Now do a non-relative jump so that PC is in high-memory */
 go_to_highmem:
@@ -336,8 +368,9 @@ execute_in_high_mem:
 		sethi	%hi(linux_dbvec), %g1
 		st	%o1, [%g1 + %lo(linux_dbvec)]
 
-/* Get the machine type via the mysterious romvec node operations. */
-
+		/* Get the machine type via the romvec
+		 * getprops node operation
+		 */
 		add	%g7, 0x1c, %l1
 		ld	[%l1], %l0
 		ld	[%l0], %l0
@@ -356,9 +389,42 @@ execute_in_high_mem:
 						! to a buf where above string
 						! will get stored by the prom.
 
-#ifdef CONFIG_SPARC_LEON
-	        /* no cpu-type check is needed, it is a SPARC-LEON */
 
+		/* Check value of "compatible" property.
+		 * "value" => "model"
+		 * leon => sparc_leon
+		 * sun4m => sun4m
+		 * sun4s => sun4m
+		 * sun4d => sun4d
+		 * sun4e => "no_sun4e_here"
+		 * '*'   => "no_sun4u_here"
+		 * Check single letters only
+		 */
+
+		set	cputypval, %o2
+		/* If cputypval[0] == 'l' (lower case letter L) this is leon */
+		ldub	[%o2], %l1
+		cmp	%l1, 'l'
+		be	leon_init
+		 nop
+
+		/* Check cputypval[4] to find the sun model */
+		ldub	[%o2 + 0x4], %l1
+
+		cmp	%l1, 'm'
+		be	sun4m_init
+		 cmp	%l1, 's'
+		be	sun4m_init
+		 cmp	%l1, 'd'
+		be	sun4d_init
+		 cmp	%l1, 'e'
+		be	no_sun4e_here		! Could be a sun4e.
+		 nop
+		b	no_sun4u_here		! AIEEE, a V9 sun4u... Get our BIG BROTHER kernel :))
+		 nop
+
+leon_init:
+		/* LEON CPU - set boot_cpu_id */
 		sethi	%hi(boot_cpu_id), %g2	! boot-cpu index
 
 #ifdef CONFIG_SMP
@@ -375,26 +441,6 @@ execute_in_high_mem:
 		stub	%g1, [%g2 + %lo(boot_cpu_id)]
 
 		ba continue_boot
-		 nop
-#endif
-
-/* Check to cputype. We may be booted on a sun4u (64 bit box),
- * and sun4d needs special treatment.
- */
-
-		set	cputypval, %o2
-		ldub	[%o2 + 0x4], %l1
-
-		cmp	%l1, 'm'
-		be	sun4m_init
-		 cmp	%l1, 's'
-		be	sun4m_init
-		 cmp	%l1, 'd'
-		be	sun4d_init
-		 cmp	%l1, 'e'
-		be	no_sun4e_here		! Could be a sun4e.
-		 nop
-		b	no_sun4u_here		! AIEEE, a V9 sun4u... Get our BIG BROTHER kernel :))
 		 nop
 
 /* CPUID in bootbus can be found at PA 0xff0140000 */
@@ -431,9 +477,9 @@ sun4m_init:
 /* This sucks, apparently this makes Vikings call prom panic, will fix later */
 2:
 		rd	%psr, %o1
-		srl	%o1, 28, %o1		! Get a type of the CPU
+		srl	%o1, PSR_IMPL_SHIFT, %o1	! Get a type of the CPU
 
-		subcc	%o1, 4, %g0		! TI: Viking or MicroSPARC
+		subcc	%o1, PSR_IMPL_TI, %g0		! TI: Viking or MicroSPARC
 		be	continue_boot
 		 nop
 
@@ -459,10 +505,6 @@ continue_boot:
 /* Aieee, now set PC and nPC, enable traps, give ourselves a stack and it's
  * show-time!
  */
-
-		sethi	%hi(cputyp), %o0
-		st	%g4, [%o0 + %lo(cputyp)]
-
 		/* Turn on Supervisor, EnableFloating, and all the PIL bits.
 		 * Also puts us in register window zero with traps off.
 		 */
@@ -480,7 +522,7 @@ continue_boot:
 		set	__bss_start , %o0	! First address of BSS
 		set	_end , %o1		! Last address of BSS
 		add	%o0, 0x1, %o0
-1:	
+1:
 		stb	%g0, [%o0]
 		subcc	%o0, %o1, %g0
 		bl	1b
@@ -546,7 +588,7 @@ continue_boot:
 		set	dest, %g2; \
 		ld	[%g5], %g4; \
 		st	%g4, [%g2];
-	
+
 		/* Patch for window spills... */
 		PATCH_INSN(spnwin_patch1_7win, spnwin_patch1)
 		PATCH_INSN(spnwin_patch2_7win, spnwin_patch2)
@@ -597,7 +639,7 @@ continue_boot:
 		st	%g4, [%g5 + 0x18]
 		st	%g4, [%g5 + 0x1c]
 
-2:		
+2:
 		sethi	%hi(nwindows), %g4
 		st	%g3, [%g4 + %lo(nwindows)]	! store final value
 		sub	%g3, 0x1, %g3
@@ -617,18 +659,12 @@ continue_boot:
 		wr	%g3, PSR_ET, %psr
 		WRITE_PAUSE
 
-		/* First we call prom_init() to set up PROMLIB, then
-		 * off to start_kernel().
-		 */
-
+		/* Call sparc32_start_kernel(struct linux_romvec *rp) */
 		sethi	%hi(prom_vector_p), %g5
 		ld	[%g5 + %lo(prom_vector_p)], %o0
-		call	prom_init
+		call	sparc32_start_kernel
 		 nop
 
-		call 	start_kernel
-		 nop
-	
 		/* We should not get here. */
 		call	halt_me
 		 nop
@@ -659,7 +695,7 @@ sun4u_5:
 		.asciz "write"
 		.align	4
 sun4u_6:
-        	.asciz  "\n\rOn sun4u you have to use UltraLinux (64bit) kernel\n\rand not a 32bit sun4[cdem] version\n\r\n\r"
+		.asciz  "\n\rOn sun4u you have to use sparc64 kernel\n\rand not a sparc32 version\n\r\n\r"
 sun4u_6e:
 		.align	4
 sun4u_7:

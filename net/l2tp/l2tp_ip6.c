@@ -258,6 +258,10 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	int addr_type;
 	int err;
 
+	if (!sock_flag(sk, SOCK_ZAPPED))
+		return -EINVAL;
+	if (addr->l2tp_family != AF_INET6)
+		return -EINVAL;
 	if (addr_len < sizeof(*addr))
 		return -EINVAL;
 
@@ -331,6 +335,7 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	sk_del_node_init(sk);
 	write_unlock_bh(&l2tp_ip6_lock);
 
+	sock_reset_flag(sk, SOCK_ZAPPED);
 	release_sock(sk);
 	return 0;
 
@@ -353,6 +358,9 @@ static int l2tp_ip6_connect(struct sock *sk, struct sockaddr *uaddr,
 	struct in6_addr	*daddr;
 	int	addr_type;
 	int rc;
+
+	if (sock_flag(sk, SOCK_ZAPPED)) /* Must bind first - autobinding does not work */
+		return -EINVAL;
 
 	if (addr_len < sizeof(*lsa))
 		return -EINVAL;
@@ -381,6 +389,14 @@ static int l2tp_ip6_connect(struct sock *sk, struct sockaddr *uaddr,
 	release_sock(sk);
 
 	return rc;
+}
+
+static int l2tp_ip6_disconnect(struct sock *sk, int flags)
+{
+	if (sock_flag(sk, SOCK_ZAPPED))
+		return 0;
+
+	return udp_disconnect(sk, flags);
 }
 
 static int l2tp_ip6_getname(struct socket *sock, struct sockaddr *uaddr,
@@ -689,7 +705,7 @@ static struct proto l2tp_ip6_prot = {
 	.close		   = l2tp_ip6_close,
 	.bind		   = l2tp_ip6_bind,
 	.connect	   = l2tp_ip6_connect,
-	.disconnect	   = udp_disconnect,
+	.disconnect	   = l2tp_ip6_disconnect,
 	.ioctl		   = udp_ioctl,
 	.destroy	   = l2tp_ip6_destroy_sock,
 	.setsockopt	   = ipv6_setsockopt,

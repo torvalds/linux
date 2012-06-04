@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf.h>
@@ -1688,18 +1689,34 @@ static struct pinctrl_desc nmk_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
+static const struct of_device_id nmk_pinctrl_match[] = {
+	{
+		.compatible = "stericsson,nmk_pinctrl",
+		.data = (void *)PINCTRL_NMK_DB8500,
+	},
+	{},
+};
+
 static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
+	struct device_node *np = pdev->dev.of_node;
 	struct nmk_pinctrl *npct;
+	unsigned int version = 0;
 	int i;
 
 	npct = devm_kzalloc(&pdev->dev, sizeof(*npct), GFP_KERNEL);
 	if (!npct)
 		return -ENOMEM;
 
+	if (platid)
+		version = platid->driver_data;
+	else if (np)
+		version = (unsigned int)
+			of_match_device(nmk_pinctrl_match, &pdev->dev)->data;
+
 	/* Poke in other ASIC variants here */
-	if (platid->driver_data == PINCTRL_NMK_DB8500)
+	if (version == PINCTRL_NMK_DB8500)
 		nmk_pinctrl_db8500_init(&npct->soc);
 
 	/*
@@ -1758,6 +1775,7 @@ static struct platform_driver nmk_pinctrl_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "pinctrl-nomadik",
+		.of_match_table = nmk_pinctrl_match,
 	},
 	.probe = nmk_pinctrl_probe,
 	.id_table = nmk_pinctrl_id,

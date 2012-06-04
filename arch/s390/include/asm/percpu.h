@@ -15,7 +15,7 @@
  * per cpu area, use weak definitions to force the compiler to
  * generate external references.
  */
-#if defined(CONFIG_SMP) && defined(__s390x__) && defined(MODULE)
+#if defined(CONFIG_SMP) && defined(CONFIG_64BIT) && defined(MODULE)
 #define ARCH_NEEDS_WEAK_PER_CPU
 #endif
 
