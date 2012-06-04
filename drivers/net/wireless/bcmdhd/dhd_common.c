@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c 329682 2012-04-26 09:20:38Z $
+ * $Id: dhd_common.c 331276 2012-05-04 08:05:57Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -1763,7 +1763,6 @@ bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf, int *retval)
 	}
 }
 
-
 /* Function to estimate possible DTIM_SKIP value */
 int
 dhd_get_dtim_skip(dhd_pub_t *dhd)
@@ -1885,12 +1884,13 @@ dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 		return ret;
 	}
 
-	if (dhd_check_ap_wfd_mode_set(dhd) == TRUE)
-		return (ret);
 
 	memset(iovbuf, 0, sizeof(iovbuf));
 
 #ifndef WL_SCHED_SCAN
+	if (dhd_check_ap_wfd_mode_set(dhd) == TRUE)
+		return (ret);
+
 	if ((pfn_enabled) && (dhd_is_associated(dhd, NULL, NULL) == TRUE)) {
 		DHD_ERROR(("%s pno is NOT enable : called in assoc mode , ignore\n", __FUNCTION__));
 		return ret;
@@ -1934,9 +1934,10 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr,
 		err = -1;
 		return err;
 	}
-
+#ifndef WL_SCHED_SCAN
 	if (dhd_check_ap_wfd_mode_set(dhd) == TRUE)
 		return (err);
+#endif /* !WL_SCHED_SCAN */
 
 	/* Check for broadcast ssid */
 	for (k = 0; k < nssid; k++) {
@@ -2026,6 +2027,123 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr,
 
 	/* Enable PNO */
 	/* dhd_pno_enable(dhd, 1); */
+	return err;
+}
+
+int
+dhd_pno_set_ex(dhd_pub_t *dhd, wl_pfn_t* ssidnet, int nssid, ushort pno_interval,
+	int pno_repeat, int pno_expo_max, int pno_lost_time)
+{
+	int err = -1;
+	char iovbuf[128];
+	int k, i;
+	wl_pfn_param_t pfn_param;
+	wl_pfn_t	pfn_element;
+	uint len = 0;
+
+	DHD_TRACE(("%s nssid=%d pno_interval=%d\n", __FUNCTION__, nssid, pno_interval));
+
+	if ((!dhd) && (!ssidnet)) {
+		DHD_ERROR(("%s error exit\n", __FUNCTION__));
+		err = -1;
+		return err;
+	}
+
+	if (dhd_check_ap_wfd_mode_set(dhd) == TRUE)
+		return (err);
+
+	/* Check for broadcast ssid */
+	for (k = 0; k < nssid; k++) {
+		if (!ssidnet[k].ssid.SSID_len) {
+			DHD_ERROR(("%d: Broadcast SSID is ilegal for PNO setting\n", k));
+			return err;
+		}
+	}
+/* #define  PNO_DUMP 1 */
+#ifdef PNO_DUMP
+	{
+		int j;
+		for (j = 0; j < nssid; j++) {
+			DHD_ERROR(("%d: scan  for  %s size =%d\n", j,
+				ssidnet[j].ssid.SSID, ssidnet[j].ssid.SSID_len));
+		}
+	}
+#endif /* PNO_DUMP */
+
+	/* clean up everything */
+	if  ((err = dhd_pno_clean(dhd)) < 0) {
+		DHD_ERROR(("%s failed error=%d\n", __FUNCTION__, err));
+		return err;
+	}
+	memset(iovbuf, 0, sizeof(iovbuf));
+	memset(&pfn_param, 0, sizeof(pfn_param));
+	memset(&pfn_element, 0, sizeof(pfn_element));
+
+	/* set pfn parameters */
+	pfn_param.version = htod32(PFN_VERSION);
+	pfn_param.flags = htod16((PFN_LIST_ORDER << SORT_CRITERIA_BIT));
+
+	/* check and set extra pno params */
+	if ((pno_repeat != 0) || (pno_expo_max != 0)) {
+		pfn_param.flags |= htod16(ENABLE << ENABLE_ADAPTSCAN_BIT);
+		pfn_param.repeat = (uchar) (pno_repeat);
+		pfn_param.exp = (uchar) (pno_expo_max);
+	}
+
+	/* set up pno scan fr */
+	if (pno_interval  != 0)
+		pfn_param.scan_freq = htod32(pno_interval);
+
+	if (pfn_param.scan_freq > PNO_SCAN_MAX_FW_SEC) {
+		DHD_ERROR(("%s pno freq above %d sec\n", __FUNCTION__, PNO_SCAN_MAX_FW_SEC));
+		return err;
+	}
+	if (pfn_param.scan_freq < PNO_SCAN_MIN_FW_SEC) {
+		DHD_ERROR(("%s pno freq less %d sec\n", __FUNCTION__, PNO_SCAN_MIN_FW_SEC));
+		return err;
+	}
+
+	/* network lost time */
+	pfn_param.lost_network_timeout = htod32(pno_lost_time);
+
+	len = bcm_mkiovar("pfn_set", (char *)&pfn_param, sizeof(pfn_param), iovbuf, sizeof(iovbuf));
+	if ((err = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, len, TRUE, 0)) < 0) {
+				DHD_ERROR(("%s pfn_set failed for error=%d\n",
+					__FUNCTION__, err));
+				return err;
+	} else {
+		DHD_TRACE(("%s pfn_set OK with PNO time=%d repeat=%d max_adjust=%d\n",
+			__FUNCTION__, pfn_param.scan_freq,
+			pfn_param.repeat, pfn_param.exp));
+	}
+
+	/* set all pfn ssid */
+	for (i = 0; i < nssid; i++) {
+		pfn_element.flags = htod32(ssidnet[i].flags);
+		pfn_element.infra = htod32(ssidnet[i].infra);
+		pfn_element.auth = htod32(ssidnet[i].auth);
+		pfn_element.wpa_auth = htod32(ssidnet[i].wpa_auth);
+		pfn_element.wsec = htod32(ssidnet[i].wsec);
+
+		memcpy((char *)pfn_element.ssid.SSID, ssidnet[i].ssid.SSID, ssidnet[i].ssid.SSID_len);
+		pfn_element.ssid.SSID_len = htod32(ssidnet[i].ssid.SSID_len);
+
+		if ((len =
+			bcm_mkiovar("pfn_add", (char *)&pfn_element,
+			sizeof(pfn_element), iovbuf, sizeof(iovbuf))) > 0) {
+			if ((err =
+				dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, len, TRUE, 0)) < 0) {
+				DHD_ERROR(("%s pfn_add failed with ssidnet[%d] error=%d\n",
+					__FUNCTION__, i, err));
+				return err;
+			} else {
+				DHD_TRACE(("%s pfn_add OK with ssidnet[%d]\n", __FUNCTION__, i));
+			}
+		} else {
+			DHD_ERROR(("%s bcm_mkiovar failed with ssidnet[%d]\n", __FUNCTION__, i));
+		}
+	}
+
 	return err;
 }
 

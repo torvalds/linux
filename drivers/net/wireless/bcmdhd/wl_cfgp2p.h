@@ -42,7 +42,7 @@ typedef enum {
 	P2PAPI_BSSCFG_MAX
 } p2p_bsscfg_type_t;
 
-#define IE_MAX_LEN 300
+#define IE_MAX_LEN 512
 /* Structure to hold all saved P2P and WPS IEs for a BSSCFG */
 struct p2p_saved_ie {
 	u8  p2p_probe_req_ie[IE_MAX_LEN];
@@ -91,7 +91,8 @@ enum wl_cfgp2p_status {
 	WLP2P_STATUS_LISTEN_EXPIRED,
 	WLP2P_STATUS_ACTION_TX_COMPLETED,
 	WLP2P_STATUS_ACTION_TX_NOACK,
-	WLP2P_STATUS_SCANNING
+	WLP2P_STATUS_SCANNING,
+	WLP2P_STATUS_GO_NEG_PHASE
 };
 
 
