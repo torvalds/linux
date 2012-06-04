@@ -1045,8 +1045,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ah->imask |= ATH9K_INT_CST;
 
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
-		ah->imask |= ATH9K_INT_MCI;
+	ath_mci_enable(sc);
 
 	sc->sc_flags &= ~SC_OP_INVALID;
 	sc->sc_ah->is_monitoring = false;

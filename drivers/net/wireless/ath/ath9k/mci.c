@@ -538,3 +538,14 @@ void ath_mci_intr(struct ath_softc *sc)
 		mci_int &= ~(AR_MCI_INTERRUPT_RX_INVALID_HDR |
 			     AR_MCI_INTERRUPT_CONT_INFO_TIMEOUT);
 }
+
+void ath_mci_enable(struct ath_softc *sc)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	if (!common->btcoex_enabled)
+		return;
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
+		sc->sc_ah->imask |= ATH9K_INT_MCI;
+}
