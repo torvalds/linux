@@ -330,7 +330,6 @@ void ar9003_mci_set_full_sleep(struct ath_hw *ah)
 	}
 
 	mci->ready = false;
-	REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
 }
 
 static void ar9003_mci_disable_interrupt(struct ath_hw *ah)
