@@ -32,9 +32,9 @@ struct line_driver {
 };
 
 struct line {
+	struct tty_port port;
 	struct tty_struct *tty;
 	struct mutex count_lock;
-	unsigned long count;
 	int valid;
 
 	char *init_str;
