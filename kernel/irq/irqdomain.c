@@ -424,6 +424,18 @@ static int irq_setup_virq(struct irq_domain *domain, unsigned int virq,
 		return -1;
 	}
 
+	switch (domain->revmap_type) {
+	case IRQ_DOMAIN_MAP_LINEAR:
+		if (hwirq < domain->revmap_data.linear.size)
+			domain->revmap_data.linear.revmap[hwirq] = virq;
+		break;
+	case IRQ_DOMAIN_MAP_TREE:
+		mutex_lock(&revmap_trees_mutex);
+		irq_radix_revmap_insert(domain, virq, hwirq);
+		mutex_unlock(&revmap_trees_mutex);
+		break;
+	}
+
 	irq_clear_status_flags(virq, IRQ_NOREQUEST);
 
 	return 0;
