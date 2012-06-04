@@ -95,6 +95,9 @@ static ssize_t set_fb_state(struct device *dev,struct device_attribute *attr,
 	const char *buf, size_t count)
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_lcdc_device_driver * dev_drv = 
+		(struct rk_lcdc_device_driver * )fbi->par;
+	int layer_id = get_fb_layer_id(&fbi->fix);
 	int state;
 	int ret;
 	ret = kstrtoint(buf, 0, &state);
@@ -102,14 +105,7 @@ static ssize_t set_fb_state(struct device *dev,struct device_attribute *attr,
 	{
 		return ret;
 	}
-	if(state)
-	{
-		fbi->fbops->fb_open(fbi,1);
-	}
-	else
-	{
-		fbi->fbops->fb_release(fbi,1);
-	}
+	dev_drv->open(dev_drv,layer_id,state);
 	return count;
 }
 
