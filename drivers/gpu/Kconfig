@@ -1,0 +1,5 @@
+menu "GPU drivers"
+
+source "drivers/gpu/mali/Kconfig"
+
+endmenu

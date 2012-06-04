@@ -1,0 +1,6 @@
+config GPU_MALI
+	boolean "ARM Mali GPU modules"
+	depends on ARM
+	default n
+	help
+	  This enables the generation of mali.ko and ump.ko.
