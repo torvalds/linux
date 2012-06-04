@@ -34,7 +34,7 @@ KERNEL_RUNTIME_PM_ENABLED ?= 0
 CONFIG ?= pb-virtex5-m200
 
 # Get path to driver source from Linux build system
-DRIVER_DIR=$(src)
+DRIVER_DIR=$(srctree)/$(src)
 
 MALI_RELEASE_NAME=$(shell cat $(DRIVER_DIR)/.version 2> /dev/null)
 include $(DRIVER_DIR)/Makefile.common
@@ -44,10 +44,12 @@ ifneq ($(shell [ -d $(DRIVER_DIR)/arch-$(CONFIG) ] && [ -f $(DRIVER_DIR)/arch-$(
 $(warning Current directory is $(shell pwd))
 $(error No configuration found for config $(CONFIG). Check that arch-$(CONFIG)/config.h exists)
 else
+ifeq ($(KERNELRELEASE),)
 # Link arch to the selected arch-config directory
 $(shell [ -L $(DRIVER_DIR)/arch ] && rm $(DRIVER_DIR)/arch)
-$(shell ln -sf arch-$(CONFIG) $(DRIVER_DIR)/arch)
+$(shell ln -sf $(DRIVER_DIR)/arch-$(CONFIG) $(DRIVER_DIR)/arch)
 $(shell touch $(DRIVER_DIR)/arch/config.h)
+endif
 endif
 
 # Set up our defines, which will be passed to gcc
