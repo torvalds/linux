@@ -364,6 +364,52 @@ void irq_set_default_host(struct irq_domain *domain)
 }
 EXPORT_SYMBOL_GPL(irq_set_default_host);
 
+static void irq_domain_disassociate_many(struct irq_domain *domain,
+					 unsigned int irq_base, int count)
+{
+	/*
+	 * disassociate in reverse order;
+	 * not strictly necessary, but nice for unwinding
+	 */
+	while (count--) {
+		int irq = irq_base + count;
+		struct irq_data *irq_data = irq_get_irq_data(irq);
+		irq_hw_number_t hwirq = irq_data->hwirq;
+
+		if (WARN_ON(!irq_data || irq_data->domain != domain))
+			continue;
+
+		irq_set_status_flags(irq, IRQ_NOREQUEST);
+
+		/* remove chip and handler */
+		irq_set_chip_and_handler(irq, NULL, NULL);
+
+		/* Make sure it's completed */
+		synchronize_irq(irq);
+
+		/* Tell the PIC about it */
+		if (domain->ops->unmap)
+			domain->ops->unmap(domain, irq);
+		smp_mb();
+
+		irq_data->domain = NULL;
+		irq_data->hwirq = 0;
+
+		/* Clear reverse map */
+		switch(domain->revmap_type) {
+		case IRQ_DOMAIN_MAP_LINEAR:
+			if (hwirq < domain->revmap_data.linear.size)
+				domain->revmap_data.linear.revmap[hwirq] = 0;
+			break;
+		case IRQ_DOMAIN_MAP_TREE:
+			mutex_lock(&revmap_trees_mutex);
+			radix_tree_delete(&domain->revmap_data.tree, hwirq);
+			mutex_unlock(&revmap_trees_mutex);
+			break;
+		}
+	}
+}
+
 static int irq_setup_virq(struct irq_domain *domain, unsigned int virq,
 			    irq_hw_number_t hwirq)
 {
@@ -544,7 +590,6 @@ void irq_dispose_mapping(unsigned int virq)
 {
 	struct irq_data *irq_data = irq_get_irq_data(virq);
 	struct irq_domain *domain;
-	irq_hw_number_t hwirq;
 
 	if (!virq || !irq_data)
 		return;
@@ -557,33 +602,7 @@ void irq_dispose_mapping(unsigned int virq)
 	if (domain->revmap_type == IRQ_DOMAIN_MAP_LEGACY)
 		return;
 
-	irq_set_status_flags(virq, IRQ_NOREQUEST);
-
-	/* remove chip and handler */
-	irq_set_chip_and_handler(virq, NULL, NULL);
-
-	/* Make sure it's completed */
-	synchronize_irq(virq);
-
-	/* Tell the PIC about it */
-	if (domain->ops->unmap)
-		domain->ops->unmap(domain, virq);
-	smp_mb();
-
-	/* Clear reverse map */
-	hwirq = irq_data->hwirq;
-	switch(domain->revmap_type) {
-	case IRQ_DOMAIN_MAP_LINEAR:
-		if (hwirq < domain->revmap_data.linear.size)
-			domain->revmap_data.linear.revmap[hwirq] = 0;
-		break;
-	case IRQ_DOMAIN_MAP_TREE:
-		mutex_lock(&revmap_trees_mutex);
-		radix_tree_delete(&domain->revmap_data.tree, hwirq);
-		mutex_unlock(&revmap_trees_mutex);
-		break;
-	}
-
+	irq_domain_disassociate_many(domain, virq, 1);
 	irq_free_desc(virq);
 }
 EXPORT_SYMBOL_GPL(irq_dispose_mapping);
