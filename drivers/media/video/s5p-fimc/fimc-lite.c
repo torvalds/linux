@@ -453,34 +453,42 @@ static int fimc_lite_open(struct file *file)
 	struct fimc_lite *fimc = video_drvdata(file);
 	int ret;
 
+	if (mutex_lock_interruptible(&fimc->lock))
+		return -ERESTARTSYS;
+
 	set_bit(ST_FLITE_IN_USE, &fimc->state);
 	ret = pm_runtime_get_sync(&fimc->pdev->dev);
 	if (ret < 0)
-		return ret;
-
-	if (++fimc->ref_count != 1 || fimc->out_path != FIMC_IO_DMA)
-		return 0;
+		goto done;
 
 	ret = v4l2_fh_open(file);
 	if (ret < 0)
-		return ret;
+		goto done;
 
-	ret = fimc_pipeline_initialize(&fimc->pipeline, &fimc->vfd->entity,
-				       true);
-	if (ret < 0) {
-		pm_runtime_put_sync(&fimc->pdev->dev);
-		fimc->ref_count--;
-		v4l2_fh_release(file);
-		clear_bit(ST_FLITE_IN_USE, &fimc->state);
+	if (++fimc->ref_count == 1 && fimc->out_path == FIMC_IO_DMA) {
+		ret = fimc_pipeline_initialize(&fimc->pipeline,
+					       &fimc->vfd->entity, true);
+		if (ret < 0) {
+			pm_runtime_put_sync(&fimc->pdev->dev);
+			fimc->ref_count--;
+			v4l2_fh_release(file);
+			clear_bit(ST_FLITE_IN_USE, &fimc->state);
+		}
+
+		fimc_lite_clear_event_counters(fimc);
 	}
-
-	fimc_lite_clear_event_counters(fimc);
+done:
+	mutex_unlock(&fimc->lock);
 	return ret;
 }
 
 static int fimc_lite_close(struct file *file)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
+	int ret;
+
+	if (mutex_lock_interruptible(&fimc->lock))
+		return -ERESTARTSYS;
 
 	if (--fimc->ref_count == 0 && fimc->out_path == FIMC_IO_DMA) {
 		clear_bit(ST_FLITE_IN_USE, &fimc->state);
@@ -494,20 +502,39 @@ static int fimc_lite_close(struct file *file)
 	if (fimc->ref_count == 0)
 		vb2_queue_release(&fimc->vb_queue);
 
-	return v4l2_fh_release(file);
+	ret = v4l2_fh_release(file);
+
+	mutex_unlock(&fimc->lock);
+	return ret;
 }
 
 static unsigned int fimc_lite_poll(struct file *file,
 				   struct poll_table_struct *wait)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
-	return vb2_poll(&fimc->vb_queue, file, wait);
+	int ret;
+
+	if (mutex_lock_interruptible(&fimc->lock))
+		return POLL_ERR;
+
+	ret = vb2_poll(&fimc->vb_queue, file, wait);
+	mutex_unlock(&fimc->lock);
+
+	return ret;
 }
 
 static int fimc_lite_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
-	return vb2_mmap(&fimc->vb_queue, vma);
+	int ret;
+
+	if (mutex_lock_interruptible(&fimc->lock))
+		return -ERESTARTSYS;
+
+	ret = vb2_mmap(&fimc->vb_queue, vma);
+	mutex_unlock(&fimc->lock);
+
+	return ret;
 }
 
 static const struct v4l2_file_operations fimc_lite_fops = {
