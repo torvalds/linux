@@ -42,6 +42,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/prefetch.h>
+#include <linux/pci.h>
 #ifdef CONFIG_STMMAC_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -2092,6 +2093,30 @@ int stmmac_restore(struct net_device *ndev)
 	return stmmac_open(ndev);
 }
 #endif /* CONFIG_PM */
+
+static int __init stmmac_init(void)
+{
+	int err = 0;
+
+	err = platform_driver_register(&stmmac_pltfr_driver);
+
+	if (!err) {
+		err = pci_register_driver(&stmmac_pci_driver);
+		if (err)
+			platform_driver_unregister(&stmmac_pltfr_driver);
+	}
+
+	return err;
+}
+
+static void __exit stmmac_exit(void)
+{
+	pci_unregister_driver(&stmmac_pci_driver);
+	platform_driver_unregister(&stmmac_pltfr_driver);
+}
+
+module_init(stmmac_init);
+module_exit(stmmac_exit);
 
 #ifndef MODULE
 static int __init stmmac_cmdline_opt(char *str)
