@@ -493,7 +493,7 @@ static void do_signal(struct pt_regs *regs)
 		if (ret)
 			return;
 
-		signal_delivered(signr, info, ka, regs, 0);
+		signal_delivered(signr, &info, &ka, regs, 0);
 		if (current->ptrace & PT_SINGLESTEP)
 			task_pt_regs(current)->icountlevel = 1;
 
