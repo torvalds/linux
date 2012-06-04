@@ -114,26 +114,29 @@ int32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
     if ((w_ratio >= (2<<16)) && (w_ratio < (4<<16))) {            
         daw = (msg->src.act_w + 1) >> 1;
         if((IS_YUV_420(msg->dst.format)) && (daw & 1)) {
-            msg->src.act_w = (daw - 1) << 1;                                                    
+            daw -= 1;
+            msg->src.act_w = daw << 1;
         }        
     }
     else if ((w_ratio >= (4<<16)) && (w_ratio < (8<<16))) {
         daw = (msg->src.act_w + 3) >> 2;            
         if((IS_YUV_420(msg->dst.format)) && (daw & 1)) {
-            msg->src.act_w = (daw - 1) << 2;                                                    
+            daw -= 1;
+            msg->src.act_w = daw << 2;                                                                
         }
     }
     else if ((w_ratio >= (8<<16)) && (w_ratio < (16<<16))) {
         daw = (msg->src.act_w + 7) >> 3;
         if((IS_YUV_420(msg->dst.format)) && (daw & 1)) {
-            msg->src.act_w = (daw - 1) << 3;                                                    
+            daw -= 1;
+            msg->src.act_w = daw << 3;                                                                
         }
     }
     else
     {
         daw = msg->src.act_w;
     }
-
+    
     pl = (RGA_pixel_width_init(msg->src.format));
     stride = (pl * daw + 3) & (~3);
     msg->dst.act_w = daw;
@@ -141,28 +144,32 @@ int32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
 
     /*pre_scale_h cal*/        
     if ((h_ratio >= (2<<16)) && (h_ratio < (4<<16))) {            
-        dah = (msg->src.act_h + 1) >> 1;            
+        dah = (msg->src.act_h + 1) >> 1;
         if((IS_YUV(msg->dst.format)) && (dah & 1)) {
-            msg->src.act_h = (dah - 1) << 1;                                                    
+            dah -= 1;
+            msg->src.act_h = dah << 1;
         }            
     }
     else if ((h_ratio >= (4<<16)) && (h_ratio < (8<<16))) {
-        dah = (msg->src.act_h + 3) >> 2;            
+        dah = (msg->src.act_h + 3) >> 2;
         if((IS_YUV(msg->dst.format)) && (dah & 1)) {
-            msg->src.act_h = (dah - 1) << 2;                                                    
+            dah -= 1;
+            msg->src.act_h = dah << 2;
+            
         }
     }
     else if ((h_ratio >= (8<<16)) && (h_ratio < (16<<16))) {
         dah = (msg->src.act_h + 7) >> 3;
         if((IS_YUV(msg->dst.format)) && (dah & 1)) {
-            msg->src.act_h = (dah - 1) << 3;                                                    
+            dah -= 1;
+            msg->src.act_h = dah << 3;
         }
     }
     else
     {
         dah = msg->src.act_h;
     }
-    
+        
     msg->dst.act_h = dah;
     msg->dst.vir_h = dah;
 
