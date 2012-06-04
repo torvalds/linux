@@ -1454,6 +1454,27 @@
  */
 #define CCID			0x2180
 #define   CCID_EN		(1<<0)
+#define CXT_SIZE		0x21a0
+#define GEN6_CXT_POWER_SIZE(cxt_reg)	((cxt_reg >> 24) & 0x3f)
+#define GEN6_CXT_RING_SIZE(cxt_reg)	((cxt_reg >> 18) & 0x3f)
+#define GEN6_CXT_RENDER_SIZE(cxt_reg)	((cxt_reg >> 12) & 0x3f)
+#define GEN6_CXT_EXTENDED_SIZE(cxt_reg)	((cxt_reg >> 6) & 0x3f)
+#define GEN6_CXT_PIPELINE_SIZE(cxt_reg)	((cxt_reg >> 0) & 0x3f)
+#define GEN6_CXT_TOTAL_SIZE(cxt_reg)	(GEN6_CXT_POWER_SIZE(cxt_reg) + \
+					GEN6_CXT_RING_SIZE(cxt_reg) + \
+					GEN6_CXT_RENDER_SIZE(cxt_reg) + \
+					GEN6_CXT_EXTENDED_SIZE(cxt_reg) + \
+					GEN6_CXT_PIPELINE_SIZE(cxt_reg))
+#define GEN7_CTX_SIZE		0x21a8
+#define GEN7_CTX_RENDER_SIZE(ctx_reg)	((ctx_reg >> 16) & 0x3f)
+#define GEN7_CTX_EXTENDED_SIZE(ctx_reg)	((ctx_reg >> 9) & 0x7f)
+#define GEN7_CTX_GT1_SIZE(ctx_reg)	((ctx_reg >> 6) & 0x7)
+#define GEN7_CTX_VFSTATE_SIZE(ctx_reg)	((ctx_reg >> 0) & 0x3f)
+#define GEN7_CTX_TOTAL_SIZE(ctx_reg)	(GEN7_CTX_RENDER_SIZE(ctx_reg) + \
+					 GEN7_CTX_EXTENDED_SIZE(ctx_reg) + \
+					 GEN7_CTX_GT1_SIZE(ctx_reg) + \
+					 GEN7_CTX_VFSTATE_SIZE(ctx_reg))
+
 /*
  * Overlay regs
  */
