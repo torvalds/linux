@@ -152,7 +152,7 @@ void ath_start_ani(struct ath_common *common)
 	if (!(sc->sc_flags & SC_OP_ANI_RUN))
 		return;
 
-	if (sc->sc_flags & SC_OP_OFFCHANNEL)
+	if (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		return;
 
 	common->ani.longcal_timer = timestamp;
@@ -282,7 +282,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	ath9k_hw_set_interrupts(ah);
 	ath9k_hw_enable_interrupts(ah);
 
-	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL)) && start) {
+	if (!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL) && start) {
 		if (sc->sc_flags & SC_OP_BEACONS)
 			ath_set_beacon(sc);
 
@@ -328,7 +328,7 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 
 	spin_lock_bh(&sc->sc_pcu_lock);
 
-	if (!(sc->sc_flags & SC_OP_OFFCHANNEL)) {
+	if (!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)) {
 		fastcc = false;
 		caldata = &sc->caldata;
 	}
@@ -1625,11 +1625,6 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 		if (ah->curchan)
 			old_pos = ah->curchan - &ah->channels[0];
-
-		if (hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
-			sc->sc_flags |= SC_OP_OFFCHANNEL;
-		else
-			sc->sc_flags &= ~SC_OP_OFFCHANNEL;
 
 		ath_dbg(common, CONFIG, "Set channel: %d MHz type: %d\n",
 			curchan->center_freq, conf->channel_type);

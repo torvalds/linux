@@ -303,7 +303,7 @@ static void ath_edma_start_recv(struct ath_softc *sc)
 
 	ath_opmode_init(sc);
 
-	ath9k_hw_startpcureceive(sc->sc_ah, (sc->sc_flags & SC_OP_OFFCHANNEL));
+	ath9k_hw_startpcureceive(sc->sc_ah, !!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL));
 
 	spin_unlock_bh(&sc->rx.rxbuflock);
 }
@@ -500,7 +500,7 @@ int ath_startrecv(struct ath_softc *sc)
 
 start_recv:
 	ath_opmode_init(sc);
-	ath9k_hw_startpcureceive(ah, (sc->sc_flags & SC_OP_OFFCHANNEL));
+	ath9k_hw_startpcureceive(ah, !!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL));
 
 	spin_unlock_bh(&sc->rx.rxbuflock);
 
