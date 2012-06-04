@@ -2792,40 +2792,51 @@ static void con_flush_chars(struct tty_struct *tty)
 /*
  * Allocate the console screen memory.
  */
-static int con_open(struct tty_struct *tty, struct file *filp)
+static int con_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	unsigned int currcons = tty->index;
-	int ret = 0;
+	struct vc_data *vc;
+	int ret;
 
 	console_lock();
-	if (tty->driver_data == NULL) {
-		ret = vc_allocate(currcons);
-		if (ret == 0) {
-			struct vc_data *vc = vc_cons[currcons].d;
+	ret = vc_allocate(currcons);
+	if (ret)
+		goto unlock;
 
-			/* Still being freed */
-			if (vc->port.tty) {
-				console_unlock();
-				return -ERESTARTSYS;
-			}
-			tty->driver_data = vc;
-			vc->port.tty = tty;
+	vc = vc_cons[currcons].d;
 
-			if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
-				tty->winsize.ws_row = vc_cons[currcons].d->vc_rows;
-				tty->winsize.ws_col = vc_cons[currcons].d->vc_cols;
-			}
-			if (vc->vc_utf)
-				tty->termios->c_iflag |= IUTF8;
-			else
-				tty->termios->c_iflag &= ~IUTF8;
-			console_unlock();
-			return ret;
-		}
+	/* Still being freed */
+	if (vc->port.tty) {
+		ret = -ERESTARTSYS;
+		goto unlock;
 	}
+
+	ret = tty_port_install(&vc->port, driver, tty);
+	if (ret)
+		goto unlock;
+
+	tty->driver_data = vc;
+	vc->port.tty = tty;
+
+	if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
+		tty->winsize.ws_row = vc_cons[currcons].d->vc_rows;
+		tty->winsize.ws_col = vc_cons[currcons].d->vc_cols;
+	}
+	if (vc->vc_utf)
+		tty->termios->c_iflag |= IUTF8;
+	else
+		tty->termios->c_iflag &= ~IUTF8;
+unlock:
 	console_unlock();
 	return ret;
 }
+
+static int con_open(struct tty_struct *tty, struct file *filp)
+{
+	/* everything done in install */
+	return 0;
+}
+
 
 static void con_close(struct tty_struct *tty, struct file *filp)
 {
@@ -2947,6 +2958,7 @@ static int __init con_init(void)
 console_initcall(con_init);
 
 static const struct tty_operations con_ops = {
+	.install = con_install,
 	.open = con_open,
 	.close = con_close,
 	.write = con_write,
