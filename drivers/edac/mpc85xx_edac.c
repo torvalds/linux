@@ -869,13 +869,13 @@ static void mpc85xx_mc_check(struct mem_ctl_info *mci)
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 				     pfn, err_addr & ~PAGE_MASK, syndrome,
 				     row_index, 0, -1,
-				     mci->ctl_name, "", NULL);
+				     mci->ctl_name, "");
 
 	if (err_detect & DDR_EDE_MBE)
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
 				     pfn, err_addr & ~PAGE_MASK, syndrome,
 				     row_index, 0, -1,
-				     mci->ctl_name, "", NULL);
+				     mci->ctl_name, "");
 
 	out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_DETECT, err_detect);
 }

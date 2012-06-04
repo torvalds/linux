@@ -374,7 +374,7 @@ static void do_process_ce(struct mem_ctl_info *mci, u16 error_one,
 	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 			     page, offset_in_page(sec1_add << 4), sec1_syndrome,
 			     row, channel, -1,
-			     "e752x CE", "", NULL);
+			     "e752x CE", "");
 }
 
 static inline void process_ce(struct mem_ctl_info *mci, u16 error_one,
@@ -412,7 +412,7 @@ static void do_process_ue(struct mem_ctl_info *mci, u16 error_one,
 					block_page,
 					offset_in_page(error_2b << 4), 0,
 					 row, -1, -1,
-					"e752x UE from Read", "", NULL);
+					"e752x UE from Read", "");
 
 	}
 	if (error_one & 0x0404) {
@@ -431,7 +431,7 @@ static void do_process_ue(struct mem_ctl_info *mci, u16 error_one,
 					block_page,
 					offset_in_page(error_2b << 4), 0,
 					row, -1, -1,
-					"e752x UE from Scruber", "", NULL);
+					"e752x UE from Scruber", "");
 	}
 }
 
@@ -456,7 +456,7 @@ static inline void process_ue_no_info_wr(struct mem_ctl_info *mci,
 	edac_dbg(3, "\n");
 	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
 			     -1, -1, -1,
-			     "e752x UE log memory write", "", NULL);
+			     "e752x UE log memory write", "");
 }
 
 static void do_process_ded_retry(struct mem_ctl_info *mci, u16 error,

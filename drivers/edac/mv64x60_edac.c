@@ -615,13 +615,13 @@ static void mv64x60_mc_check(struct mem_ctl_info *mci)
 				     err_addr >> PAGE_SHIFT,
 				     err_addr & PAGE_MASK, syndrome,
 				     0, 0, -1,
-				     mci->ctl_name, "", NULL);
+				     mci->ctl_name, "");
 	else	/* 2 bit error, UE */
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
 				     err_addr >> PAGE_SHIFT,
 				     err_addr & PAGE_MASK, 0,
 				     0, 0, -1,
-				     mci->ctl_name, "", NULL);
+				     mci->ctl_name, "");
 
 	/* clear the error */
 	out_le32(pdata->mc_vbase + MV64X60_SDRAM_ERR_ADDR, 0);

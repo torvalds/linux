@@ -462,8 +462,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			  const int mid_layer,
 			  const int low_layer,
 			  const char *msg,
-			  const char *other_detail,
-			  const void *arch_log);
+			  const char *other_detail);
 
 /*
  * edac_device APIs

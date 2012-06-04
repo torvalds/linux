@@ -827,7 +827,7 @@ static ssize_t edac_fake_inject_write(struct file *file,
 			     mci->fake_inject_layer[0],
 			     mci->fake_inject_layer[1],
 			     mci->fake_inject_layer[2],
-			     "FAKE ERROR", "for EDAC testing only", NULL);
+			     "FAKE ERROR", "for EDAC testing only");
 
 	return count;
 }

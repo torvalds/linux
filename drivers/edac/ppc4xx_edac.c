@@ -730,7 +730,7 @@ ppc4xx_edac_handle_ce(struct mem_ctl_info *mci,
 			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 					     0, 0, 0,
 					     row, 0, -1,
-					     message, "", NULL);
+					     message, "");
 }
 
 /**
@@ -761,7 +761,7 @@ ppc4xx_edac_handle_ue(struct mem_ctl_info *mci,
 			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
 					     page, offset, 0,
 					     row, 0, -1,
-					     message, "", NULL);
+					     message, "");
 }
 
 /**

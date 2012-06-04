@@ -217,7 +217,7 @@ static void x38_process_error_info(struct mem_ctl_info *mci,
 	if ((info->errsts ^ info->errsts2) & X38_ERRSTS_BITS) {
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
 				     -1, -1, -1,
-				     "UE overwrote CE", "", NULL);
+				     "UE overwrote CE", "");
 		info->errsts = info->errsts2;
 	}
 
@@ -228,13 +228,13 @@ static void x38_process_error_info(struct mem_ctl_info *mci,
 					     0, 0, 0,
 					     eccerrlog_row(channel, log),
 					     -1, -1,
-					     "x38 UE", "", NULL);
+					     "x38 UE", "");
 		} else if (log & X38_ECCERRLOG_CE) {
 			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 					     0, 0, eccerrlog_syndrome(log),
 					     eccerrlog_row(channel, log),
 					     -1, -1,
-					     "x38 CE", "", NULL);
+					     "x38 CE", "");
 		}
 	}
 }

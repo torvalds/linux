@@ -74,7 +74,7 @@ static void tile_edac_check(struct mem_ctl_info *mci)
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 				     0, 0, 0,
 				     0, 0, -1,
-				     mci->ctl_name, "", NULL);
+				     mci->ctl_name, "");
 	}
 }
 

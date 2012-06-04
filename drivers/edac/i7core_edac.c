@@ -1545,7 +1545,7 @@ static void i7core_rdimm_update_errcount(struct mem_ctl_info *mci,
 
 	for (i = 0; i < add; i++) {
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 0, 0, 0,
-				     chan, dimm, -1, "error", "", NULL);
+				     chan, dimm, -1, "error", "");
 	}
 }
 
@@ -1801,7 +1801,7 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 				     m->addr & ~PAGE_MASK,
 				     syndrome,
 				     channel, dimm, -1,
-				     err, msg, m);
+				     err, msg);
 }
 
 /*

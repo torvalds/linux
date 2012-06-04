@@ -557,7 +557,7 @@ static void cpc925_mc_check(struct mem_ctl_info *mci)
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 				     pfn, offset, syndrome,
 				     csrow, channel, -1,
-				     mci->ctl_name, "", NULL);
+				     mci->ctl_name, "");
 	}
 
 	if (apiexcp & UECC_EXCP_DETECTED) {
@@ -565,7 +565,7 @@ static void cpc925_mc_check(struct mem_ctl_info *mci)
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 				     pfn, offset, 0,
 				     csrow, -1, -1,
-				     mci->ctl_name, "", NULL);
+				     mci->ctl_name, "");
 	}
 
 	cpc925_mc_printk(mci, KERN_INFO, "Dump registers:\n");

@@ -452,7 +452,7 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 		edac_mc_handle_error(HW_EVENT_ERR_FATAL, mci, 0, 0, 0,
 				     branch, -1, rank,
 				     is_wr ? "Write error" : "Read error",
-				     pvt->tmp_prt_buffer, NULL);
+				     pvt->tmp_prt_buffer);
 
 	}
 
@@ -499,7 +499,7 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 				     syndrome,
 				     branch >> 1, channel % 2, rank,
 				     is_wr ? "Write error" : "Read error",
-				     pvt->tmp_prt_buffer, NULL);
+				     pvt->tmp_prt_buffer);
 	}
 	return;
 }

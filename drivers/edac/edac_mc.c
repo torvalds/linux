@@ -1044,9 +1044,6 @@ static void edac_ue_error(struct mem_ctl_info *mci,
  * @other_detail:	Technical details about the event that
  *			may help hardware manufacturers and
  *			EDAC developers to analyse the event
- * @arch_log:		Architecture-specific struct that can
- *			be used to add extended information to the
- *			tracepoint, like dumping MCE registers.
  */
 void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			  struct mem_ctl_info *mci,
@@ -1057,8 +1054,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			  const int mid_layer,
 			  const int low_layer,
 			  const char *msg,
-			  const char *other_detail,
-			  const void *arch_log)
+			  const char *other_detail)
 {
 	/* FIXME: too much for stack: move it to some pre-alocated area */
 	char detail[80], location[80];

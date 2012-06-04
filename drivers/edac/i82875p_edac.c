@@ -238,7 +238,7 @@ static int i82875p_process_error_info(struct mem_ctl_info *mci,
 	if ((info->errsts ^ info->errsts2) & 0x0081) {
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
 				     -1, -1, -1,
-				     "UE overwrote CE", "", NULL);
+				     "UE overwrote CE", "");
 		info->errsts = info->errsts2;
 	}
 
@@ -249,12 +249,12 @@ static int i82875p_process_error_info(struct mem_ctl_info *mci,
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
 				     info->eap, 0, 0,
 				     row, -1, -1,
-				     "i82875p UE", "", NULL);
+				     "i82875p UE", "");
 	else
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 				     info->eap, 0, info->derrsyn,
 				     row, multi_chan ? (info->des & 0x1) : 0,
-				     -1, "i82875p CE", "", NULL);
+				     -1, "i82875p CE", "");
 
 	return 1;
 }

@@ -1450,12 +1450,12 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	edac_mc_handle_error(tp_event, mci,
 			     m->addr >> PAGE_SHIFT, m->addr & ~PAGE_MASK, 0,
 			     channel, dimm, -1,
-			     optype, msg, m);
+			     optype, msg);
 	return;
 err_parsing:
 	edac_mc_handle_error(tp_event, mci, 0, 0, 0,
 			     -1, -1, -1,
-			     msg, "", m);
+			     msg, "");
 
 }
 

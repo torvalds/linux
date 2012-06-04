@@ -247,7 +247,7 @@ static int i3000_process_error_info(struct mem_ctl_info *mci,
 	if ((info->errsts ^ info->errsts2) & I3000_ERRSTS_BITS) {
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
 				     -1, -1, -1,
-				     "UE overwrote CE", "", NULL);
+				     "UE overwrote CE", "");
 		info->errsts = info->errsts2;
 	}
 
@@ -261,12 +261,12 @@ static int i3000_process_error_info(struct mem_ctl_info *mci,
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
 				     pfn, offset, 0,
 				     row, -1, -1,
-				     "i3000 UE", "", NULL);
+				     "i3000 UE", "");
 	else
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 				     pfn, offset, info->derrsyn,
 				     row, multi_chan ? channel : 0, -1,
-				     "i3000 CE", "", NULL);
+				     "i3000 CE", "");
 
 	return 1;
 }

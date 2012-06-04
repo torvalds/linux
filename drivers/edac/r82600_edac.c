@@ -183,7 +183,7 @@ static int r82600_process_error_info(struct mem_ctl_info *mci,
 					     page, 0, syndrome,
 					     edac_mc_find_csrow_by_page(mci, page),
 					     0, -1,
-					     mci->ctl_name, "", NULL);
+					     mci->ctl_name, "");
 	}
 
 	if (info->eapr & BIT(1)) {	/* UE? */
@@ -195,7 +195,7 @@ static int r82600_process_error_info(struct mem_ctl_info *mci,
 					     page, 0, 0,
 					     edac_mc_find_csrow_by_page(mci, page),
 					     0, -1,
-					     mci->ctl_name, "", NULL);
+					     mci->ctl_name, "");
 	}
 
 	return error_found;

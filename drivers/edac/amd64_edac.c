@@ -1050,8 +1050,7 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 				     page, offset, syndrome,
 				     -1, -1, -1,
 				     "failed to map error addr to a node",
-				     "",
-				     NULL);
+				     "");
 		return;
 	}
 
@@ -1062,8 +1061,7 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 				     page, offset, syndrome,
 				     -1, -1, -1,
 				     "failed to map error addr to a csrow",
-				     "",
-				     NULL);
+				     "");
 		return;
 	}
 
@@ -1083,8 +1081,7 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 					     page, offset, syndrome,
 					     csrow, -1, -1,
 					     "unknown syndrome - possible error reporting race",
-					     "",
-					     NULL);
+					     "");
 			return;
 		}
 	} else {
@@ -1102,7 +1099,7 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, src_mci,
 			     page, offset, syndrome,
 			     csrow, channel, -1,
-			     "", "", NULL);
+			     "", "");
 }
 
 static int ddr2_cs_size(unsigned i, bool dct_width)
@@ -1615,8 +1612,7 @@ static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 				     page, offset, syndrome,
 				     -1, -1, -1,
 				     "failed to map error addr to a csrow",
-				     "",
-				     NULL);
+				     "");
 		return;
 	}
 
@@ -1631,7 +1627,7 @@ static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 			     page, offset, syndrome,
 			     csrow, chan, -1,
-			     "", "", NULL);
+			     "", "");
 }
 
 /*
@@ -1917,8 +1913,7 @@ static void amd64_handle_ce(struct mem_ctl_info *mci, struct mce *m)
 				     0, 0, 0,
 				     -1, -1, -1,
 				     "HW has no ERROR_ADDRESS available",
-				     "",
-				     NULL);
+				     "");
 		return;
 	}
 
@@ -1946,8 +1941,7 @@ static void amd64_handle_ue(struct mem_ctl_info *mci, struct mce *m)
 				     0, 0, 0,
 				     -1, -1, -1,
 				     "HW has no ERROR_ADDRESS available",
-				     "",
-				     NULL);
+				     "");
 		return;
 	}
 
@@ -1966,8 +1960,7 @@ static void amd64_handle_ue(struct mem_ctl_info *mci, struct mce *m)
 				     page, offset, 0,
 				     -1, -1, -1,
 				     "ERROR ADDRESS NOT mapped to a MC",
-				     "",
-				     NULL);
+				     "");
 		return;
 	}
 
@@ -1981,13 +1974,12 @@ static void amd64_handle_ue(struct mem_ctl_info *mci, struct mce *m)
 				     page, offset, 0,
 				     -1, -1, -1,
 				     "ERROR ADDRESS NOT mapped to CS",
-				     "",
-				     NULL);
+				     "");
 	} else {
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
 				     page, offset, 0,
 				     csrow, -1, -1,
-				     "", "", NULL);
+				     "", "");
 	}
 }
 

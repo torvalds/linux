@@ -220,14 +220,14 @@ static void process_ce(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 	/* convert syndrome to channel */
 	channel = e7xxx_find_channel(syndrome);
 	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, page, 0, syndrome,
-			     row, channel, -1, "e7xxx CE", "", NULL);
+			     row, channel, -1, "e7xxx CE", "");
 }
 
 static void process_ce_no_info(struct mem_ctl_info *mci)
 {
 	edac_dbg(3, "\n");
 	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0, -1, -1, -1,
-			     "e7xxx CE log register overflow", "", NULL);
+			     "e7xxx CE log register overflow", "");
 }
 
 static void process_ue(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
@@ -243,7 +243,7 @@ static void process_ue(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 	row = edac_mc_find_csrow_by_page(mci, block_page);
 
 	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, block_page, 0, 0,
-			     row, -1, -1, "e7xxx UE", "", NULL);
+			     row, -1, -1, "e7xxx UE", "");
 }
 
 static void process_ue_no_info(struct mem_ctl_info *mci)
@@ -251,7 +251,7 @@ static void process_ue_no_info(struct mem_ctl_info *mci)
 	edac_dbg(3, "\n");
 
 	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0, -1, -1, -1,
-			     "e7xxx UE log register overflow", "", NULL);
+			     "e7xxx UE log register overflow", "");
 }
 
 static void e7xxx_get_error_info(struct mem_ctl_info *mci,

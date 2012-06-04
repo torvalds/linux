@@ -50,7 +50,7 @@ static void cell_edac_count_ce(struct mem_ctl_info *mci, int chan, u64 ar)
 	/* TODO: Decoding of the error address */
 	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 			     csrow->first_page + pfn, offset, syndrome,
-			     0, chan, -1, "", "", NULL);
+			     0, chan, -1, "", "");
 }
 
 static void cell_edac_count_ue(struct mem_ctl_info *mci, int chan, u64 ar)
@@ -72,7 +72,7 @@ static void cell_edac_count_ue(struct mem_ctl_info *mci, int chan, u64 ar)
 	/* TODO: Decoding of the error address */
 	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
 			     csrow->first_page + pfn, offset, 0,
-			     0, chan, -1, "", "", NULL);
+			     0, chan, -1, "", "");
 }
 
 static void cell_edac_check(struct mem_ctl_info *mci)

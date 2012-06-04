@@ -148,7 +148,7 @@ static int amd76x_process_error_info(struct mem_ctl_info *mci,
 			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
 					     mci->csrows[row]->first_page, 0, 0,
 					     row, 0, -1,
-					     mci->ctl_name, "", NULL);
+					     mci->ctl_name, "");
 		}
 	}
 
@@ -163,7 +163,7 @@ static int amd76x_process_error_info(struct mem_ctl_info *mci,
 			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 					     mci->csrows[row]->first_page, 0, 0,
 					     row, 0, -1,
-					     mci->ctl_name, "", NULL);
+					     mci->ctl_name, "");
 		}
 	}
 

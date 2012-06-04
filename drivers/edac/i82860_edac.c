@@ -110,7 +110,7 @@ static int i82860_process_error_info(struct mem_ctl_info *mci,
 
 	if ((info->errsts ^ info->errsts2) & 0x0003) {
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
-				     -1, -1, -1, "UE overwrote CE", "", NULL);
+				     -1, -1, -1, "UE overwrote CE", "");
 		info->errsts = info->errsts2;
 	}
 
@@ -122,12 +122,12 @@ static int i82860_process_error_info(struct mem_ctl_info *mci,
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
 				     info->eap, 0, 0,
 				     dimm->location[0], dimm->location[1], -1,
-				     "i82860 UE", "", NULL);
+				     "i82860 UE", "");
 	else
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
 				     info->eap, 0, info->derrsyn,
 				     dimm->location[0], dimm->location[1], -1,
-				     "i82860 CE", "", NULL);
+				     "i82860 CE", "");
 
 	return 1;
 }

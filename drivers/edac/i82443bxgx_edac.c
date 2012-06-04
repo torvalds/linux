@@ -159,7 +159,7 @@ static int i82443bxgx_edacmc_process_error_info(struct mem_ctl_info *mci,
 			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 					     page, pageoffset, 0,
 					     edac_mc_find_csrow_by_page(mci, page),
-					     0, -1, mci->ctl_name, "", NULL);
+					     0, -1, mci->ctl_name, "");
 	}
 
 	if (info->eap & I82443BXGX_EAP_OFFSET_MBE) {
@@ -168,7 +168,7 @@ static int i82443bxgx_edacmc_process_error_info(struct mem_ctl_info *mci,
 			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
 					     page, pageoffset, 0,
 					     edac_mc_find_csrow_by_page(mci, page),
-					     0, -1, mci->ctl_name, "", NULL);
+					     0, -1, mci->ctl_name, "");
 	}
 
 	return error_found;
