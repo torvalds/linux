@@ -97,6 +97,8 @@
 
 static struct i915_hw_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
+static int do_switch(struct drm_i915_gem_object *from_obj,
+		     struct i915_hw_context *to, u32 seqno);
 
 static int get_context_size(struct drm_device *dev)
 {
@@ -223,6 +225,14 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 	if (ret) {
 		do_destroy(ctx);
 		return ret;
+	}
+
+	ret = do_switch(NULL, ctx, 0);
+	if (ret) {
+		i915_gem_object_unpin(ctx->obj);
+		do_destroy(ctx);
+	} else {
+		DRM_DEBUG_DRIVER("Default HW context loaded\n");
 	}
 
 	return ret;
