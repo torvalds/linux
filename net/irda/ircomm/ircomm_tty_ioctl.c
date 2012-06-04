@@ -52,17 +52,18 @@
  *    Change speed of the driver. If the remote device is a DCE, then this
  *    should make it change the speed of its serial port
  */
-static void ircomm_tty_change_speed(struct ircomm_tty_cb *self)
+static void ircomm_tty_change_speed(struct ircomm_tty_cb *self,
+		struct tty_struct *tty)
 {
 	unsigned int cflag, cval;
 	int baud;
 
 	IRDA_DEBUG(2, "%s()\n", __func__ );
 
-	if (!self->tty || !self->tty->termios || !self->ircomm)
+	if (!self->ircomm)
 		return;
 
-	cflag = self->tty->termios->c_cflag;
+	cflag = tty->termios->c_cflag;
 
 	/*  byte size and parity */
 	switch (cflag & CSIZE) {
@@ -81,7 +82,7 @@ static void ircomm_tty_change_speed(struct ircomm_tty_cb *self)
 		cval |= IRCOMM_PARITY_EVEN;
 
 	/* Determine divisor based on baud rate */
-	baud = tty_get_baud_rate(self->tty);
+	baud = tty_get_baud_rate(tty);
 	if (!baud)
 		baud = 9600;	/* B0 transition handled in rs_set_termios */
 
@@ -159,7 +160,7 @@ void ircomm_tty_set_termios(struct tty_struct *tty,
 		return;
 	}
 
-	ircomm_tty_change_speed(self);
+	ircomm_tty_change_speed(self, tty);
 
 	/* Handle transition to B0 status */
 	if ((old_termios->c_cflag & CBAUD) &&

@@ -130,6 +130,8 @@ static int (*state[])(struct ircomm_tty_cb *self, IRCOMM_TTY_EVENT event,
  */
 int ircomm_tty_attach_cable(struct ircomm_tty_cb *self)
 {
+	struct tty_struct *tty;
+
 	IRDA_DEBUG(0, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return -1;);
@@ -142,7 +144,11 @@ int ircomm_tty_attach_cable(struct ircomm_tty_cb *self)
 	}
 
 	/* Make sure nobody tries to write before the link is up */
-	self->tty->hw_stopped = 1;
+	tty = tty_port_tty_get(&self->port);
+	if (tty) {
+		tty->hw_stopped = 1;
+		tty_kref_put(tty);
+	}
 
 	ircomm_tty_ias_register(self);
 
@@ -398,23 +404,26 @@ void ircomm_tty_disconnect_indication(void *instance, void *sap,
 				      struct sk_buff *skb)
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) instance;
+	struct tty_struct *tty;
 
 	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
-	if (!self->tty)
+	tty = tty_port_tty_get(&self->port);
+	if (!tty)
 		return;
 
 	/* This will stop control data transfers */
 	self->flow = FLOW_STOP;
 
 	/* Stop data transfers */
-	self->tty->hw_stopped = 1;
+	tty->hw_stopped = 1;
 
 	ircomm_tty_do_event(self, IRCOMM_TTY_DISCONNECT_INDICATION, NULL,
 			    NULL);
+	tty_kref_put(tty);
 }
 
 /*
@@ -550,12 +559,15 @@ void ircomm_tty_connect_indication(void *instance, void *sap,
  */
 void ircomm_tty_link_established(struct ircomm_tty_cb *self)
 {
+	struct tty_struct *tty;
+
 	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
-	if (!self->tty)
+	tty = tty_port_tty_get(&self->port);
+	if (!tty)
 		return;
 
 	del_timer(&self->watchdog_timer);
@@ -569,17 +581,19 @@ void ircomm_tty_link_established(struct ircomm_tty_cb *self)
 	if ((self->port.flags & ASYNC_CTS_FLOW) &&
 			((self->settings.dce & IRCOMM_CTS) == 0)) {
 		IRDA_DEBUG(0, "%s(), waiting for CTS ...\n", __func__ );
-		return;
+		goto put;
 	} else {
 		IRDA_DEBUG(1, "%s(), starting hardware!\n", __func__ );
 
-		self->tty->hw_stopped = 0;
+		tty->hw_stopped = 0;
 
 		/* Wake up processes blocked on open */
 		wake_up_interruptible(&self->port.open_wait);
 	}
 
 	schedule_work(&self->tqueue);
+put:
+	tty_kref_put(tty);
 }
 
 /*
@@ -983,9 +997,12 @@ static int ircomm_tty_state_ready(struct ircomm_tty_cb *self,
 			self->settings.dce = IRCOMM_DELTA_CD;
 			ircomm_tty_check_modem_status(self);
 		} else {
+			struct tty_struct *tty = tty_port_tty_get(&self->port);
 			IRDA_DEBUG(0, "%s(), hanging up!\n", __func__ );
-			if (self->tty)
-				tty_hangup(self->tty);
+			if (tty) {
+				tty_hangup(tty);
+				tty_kref_put(tty);
+			}
 		}
 		break;
 	default:

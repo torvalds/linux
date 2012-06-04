@@ -62,7 +62,6 @@ struct ircomm_tty_cb {
 
 	int state;                /* Connect state */
 
-	struct tty_struct *tty;
 	struct ircomm_cb *ircomm; /* IrCOMM layer instance */
 
 	struct sk_buff *tx_skb;   /* Transmit buffer */
