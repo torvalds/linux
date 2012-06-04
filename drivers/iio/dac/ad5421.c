@@ -19,7 +19,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
-#include "ad5421.h"
+#include <linux/iio/dac/ad5421.h>
 
 
 #define AD5421_REG_DAC_DATA		0x1

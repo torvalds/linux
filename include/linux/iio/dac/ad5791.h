@@ -9,10 +9,6 @@
 #ifndef SPI_AD5791_H_
 #define SPI_AD5791_H_
 
-/*
- * TODO: struct ad5791_platform_data needs to go into include/linux/iio
- */
-
 /**
  * struct ad5791_platform_data - platform specific information
  * @vref_pos_mv:	Vdd Positive Analog Supply Volatge (mV)

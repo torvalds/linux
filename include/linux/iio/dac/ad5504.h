@@ -9,10 +9,6 @@
 #ifndef SPI_AD5504_H_
 #define SPI_AD5504_H_
 
-/*
- * TODO: struct ad5504_platform_data needs to go into include/linux/iio
- */
-
 struct ad5504_platform_data {
 	u16				vref_mv;
 };

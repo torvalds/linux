@@ -1,10 +1,6 @@
 #ifndef __IIO_DAC_AD5421_H__
 #define __IIO_DAC_AD5421_H__
 
-/*
- * TODO: This file needs to go into include/linux/iio
- */
-
 /**
  * enum ad5421_current_range - Current range the AD5421 is configured for.
  * @AD5421_CURRENT_RANGE_4mA_20mA: 4 mA to 20 mA (RANGE1,0 pins = 00)

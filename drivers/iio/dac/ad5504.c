@@ -19,8 +19,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
-
-#include "ad5504.h"
+#include <linux/iio/dac/ad5504.h>
 
 #define AD5505_BITS			12
 #define AD5504_RES_MASK			((1 << (AD5505_BITS)) - 1)

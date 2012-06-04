@@ -27,8 +27,7 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-
-#include "max517.h"
+#include <linux/iio/dac/max517.h>
 
 #define MAX517_DRV_NAME	"max517"
 

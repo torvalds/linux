@@ -19,8 +19,7 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-
-#include "ad5791.h"
+#include <linux/iio/dac/ad5791.h>
 
 #define AD5791_RES_MASK(x)		((1 << (x)) - 1)
 #define AD5791_DAC_MASK			AD5791_RES_MASK(20)
