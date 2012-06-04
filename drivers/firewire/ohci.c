@@ -3545,6 +3545,13 @@ static int __devinit pci_probe(struct pci_dev *dev,
 
 	INIT_WORK(&ohci->bus_reset_work, bus_reset_work);
 
+	if (!(pci_resource_flags(dev, 0) & IORESOURCE_MEM) ||
+	    pci_resource_len(dev, 0) < OHCI1394_REGISTER_SIZE) {
+		dev_err(&dev->dev, "invalid MMIO resource\n");
+		err = -ENXIO;
+		goto fail_disable;
+	}
+
 	err = pci_request_region(dev, 0, ohci_driver_name);
 	if (err) {
 		dev_err(&dev->dev, "MMIO resource unavailable\n");
