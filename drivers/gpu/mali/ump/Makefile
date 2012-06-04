@@ -11,6 +11,8 @@
 UMP_FILE_PREFIX =
 UDD_FILE_PREFIX = ../mali/
 
+KBUILD_EXTMOD := drivers/gpu/mali/ump
+
 ifneq ($(KBUILD_EXTMOD),)
 include $(KBUILD_EXTMOD)/Makefile.common
 else
@@ -32,7 +34,7 @@ endif
 ifneq ($(KERNELRELEASE),)
 # Inside the kernel build system
 
-EXTRA_CFLAGS += -I$(KBUILD_EXTMOD) -I$(KBUILD_EXTMOD)/common -I$(KBUILD_EXTMOD)/linux -I$(KBUILD_EXTMOD)/../mali/common -I$(KBUILD_EXTMOD)/../mali/linux -I$(KBUILD_EXTMOD)/../../ump/include/ump
+EXTRA_CFLAGS += -I$(KBUILD_EXTMOD) -I$(KBUILD_EXTMOD)/common -I$(KBUILD_EXTMOD)/linux -I$(KBUILD_EXTMOD)/../mali/common -I$(KBUILD_EXTMOD)/../mali/linux -I$(KBUILD_EXTMOD)/../../ump/include/ump -I$(KBUILD_EXTMOD)/../include/ump
 
 # For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
 # The ARM proprietary product will only include the license/proprietary directory

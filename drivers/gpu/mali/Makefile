@@ -1,0 +1,10 @@
+# Configuration for A10
+CONFIG:=ca8-virtex820-m400-1
+USING_MMU:=1
+USING_UMP:=1
+USING_PMM:=1
+BUILD:=release
+TARGET_PLATFORM:=mali400-pmu
+export CONFIG USING_MMU USING_UMP USING_PMM BUILD TARGET_PLATFORM
+
+obj-y += ump/ mali/

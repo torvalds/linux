@@ -101,6 +101,7 @@ DEFINES += -DMALI_UKK_HAS_IMPLICIT_MMAP_CLEANUP
 ifeq ($(USING_UMP),1)
 	DEFINES += -DMALI_USE_UNIFIED_MEMORY_PROVIDER=1
 	ccflags-y += -I$(DRIVER_DIR)/../../ump/include/ump
+	ccflags-y += -I$(DRIVER_DIR)/../include/ump -I$(DRIVER_DIR)/../../include/ump
 else
 	DEFINES += -DMALI_USE_UNIFIED_MEMORY_PROVIDER=0
 endif
