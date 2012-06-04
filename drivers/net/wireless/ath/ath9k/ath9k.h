@@ -431,6 +431,7 @@ void ath9k_set_beaconing_status(struct ath_softc *sc, bool status);
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
 #define ATH_PAPRD_TIMEOUT	100 /* msecs */
+#define ATH_PLL_WORK_INTERVAL   100
 
 void ath_tx_complete_poll_work(struct work_struct *work);
 void ath_reset_work(struct work_struct *work);

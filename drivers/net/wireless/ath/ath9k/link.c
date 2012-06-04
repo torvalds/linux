@@ -52,6 +52,7 @@ void ath_tx_complete_poll_work(struct work_struct *work)
 			"tx hung, resetting the chip\n");
 		RESET_STAT_INC(sc, RESET_TYPE_TX_HANG);
 		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+		return;
 	}
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work,
@@ -107,9 +108,9 @@ out:
 }
 
 /*
- * PLL-WAR for AR9485.
+ * PLL-WAR for AR9485/AR9340
  */
-static void ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
+static bool ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
 {
 	static int count;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -117,29 +118,33 @@ static void ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
 	if (pll_sqsum >= 0x40000) {
 		count++;
 		if (count == 3) {
-			/* Rx is hung for more than 500ms. Reset it */
-			ath_dbg(common, RESET, "Possible RX hang, resetting\n");
+			ath_dbg(common, RESET, "PLL WAR, resetting the chip\n");
 			RESET_STAT_INC(sc, RESET_TYPE_PLL_HANG);
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 			count = 0;
+			return true;
 		}
-	} else
+	} else {
 		count = 0;
+	}
+
+	return false;
 }
 
 void ath_hw_pll_work(struct work_struct *work)
 {
+	u32 pll_sqsum;
 	struct ath_softc *sc = container_of(work, struct ath_softc,
 					    hw_pll_work.work);
-	u32 pll_sqsum;
 
-	if (AR_SREV_9485(sc->sc_ah)) {
-		ath9k_ps_wakeup(sc);
-		pll_sqsum = ar9003_get_pll_sqsum_dvc(sc->sc_ah);
-		ath9k_ps_restore(sc);
-		ath_hw_pll_rx_hang_check(sc, pll_sqsum);
-		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/5);
-	}
+	ath9k_ps_wakeup(sc);
+	pll_sqsum = ar9003_get_pll_sqsum_dvc(sc->sc_ah);
+	ath9k_ps_restore(sc);
+	if (ath_hw_pll_rx_hang_check(sc, pll_sqsum))
+		return;
+
+	ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work,
+				     msecs_to_jiffies(ATH_PLL_WORK_INTERVAL));
 }
 
 /*
@@ -293,7 +298,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 		if (ar9003_paprd_create_curve(ah, caldata, chain)) {
 			ath_dbg(common, CALIBRATE,
 				"PAPRD create curve failed on chain %d\n",
-								   chain);
+				chain);
 			break;
 		}
 

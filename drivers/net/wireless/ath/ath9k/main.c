@@ -158,6 +158,22 @@ static void ath_cancel_work(struct ath_softc *sc)
 	cancel_work_sync(&sc->hw_reset_work);
 }
 
+static void ath_restart_work(struct ath_softc *sc)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
+
+	if (AR_SREV_9485(sc->sc_ah) || AR_SREV_9340(sc->sc_ah))
+		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work,
+				     msecs_to_jiffies(ATH_PLL_WORK_INTERVAL));
+
+	ath_start_rx_poll(sc, 3);
+
+	if (!common->disable_ani)
+		ath_start_ani(common);
+}
+
 static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
 {
 	struct ath_hw *ah = sc->sc_ah;
@@ -209,11 +225,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 		if (sc->sc_flags & SC_OP_BEACONS)
 			ath_set_beacon(sc);
 
-		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
-		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/2);
-		ath_start_rx_poll(sc, 3);
-		if (!common->disable_ani)
-			ath_start_ani(common);
+		ath_restart_work(sc);
 	}
 
 	if ((ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) && sc->ant_rx != 3) {
