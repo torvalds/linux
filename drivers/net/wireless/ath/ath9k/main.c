@@ -228,21 +228,8 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 		ath_restart_work(sc);
 	}
 
-	if ((ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) && sc->ant_rx != 3) {
-		struct ath_hw_antcomb_conf div_ant_conf;
-		u8 lna_conf;
-
-		ath9k_hw_antdiv_comb_conf_get(ah, &div_ant_conf);
-
-		if (sc->ant_rx == 1)
-			lna_conf = ATH_ANT_DIV_COMB_LNA1;
-		else
-			lna_conf = ATH_ANT_DIV_COMB_LNA2;
-		div_ant_conf.main_lna_conf = lna_conf;
-		div_ant_conf.alt_lna_conf = lna_conf;
-
-		ath9k_hw_antdiv_comb_conf_set(ah, &div_ant_conf);
-	}
+	if ((ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) && sc->ant_rx != 3)
+		ath_ant_comb_update(sc);
 
 	ieee80211_wake_queues(sc->hw);
 

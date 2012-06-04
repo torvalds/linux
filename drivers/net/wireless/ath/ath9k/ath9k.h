@@ -528,8 +528,10 @@ static inline void ath_deinit_leds(struct ath_softc *sc)
 }
 #endif
 
-
+/*******************************/
 /* Antenna diversity/combining */
+/*******************************/
+
 #define ATH_ANT_RX_CURRENT_SHIFT 4
 #define ATH_ANT_RX_MAIN_SHIFT 2
 #define ATH_ANT_RX_MASK 0x3
@@ -581,6 +583,9 @@ struct ath_ant_comb {
 	bool second_ratio;
 	unsigned long scan_start_time;
 };
+
+void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
+void ath_ant_comb_update(struct ath_softc *sc);
 
 /********************/
 /* Main driver core */
