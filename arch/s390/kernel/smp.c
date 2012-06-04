@@ -158,8 +158,8 @@ static inline int pcpu_running(struct pcpu *pcpu)
 	if (__pcpu_sigp(pcpu->address, sigp_sense_running,
 			0, &pcpu->status) != sigp_status_stored)
 		return 1;
-	/* Check for running status */
-	return !(pcpu->status & 0x400);
+	/* Status stored condition code is equivalent to cpu not running. */
+	return 0;
 }
 
 /*
