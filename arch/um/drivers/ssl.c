@@ -98,27 +98,6 @@ static int ssl_open(struct tty_struct *tty, struct file *filp)
 	return err;
 }
 
-#if 0
-static void ssl_flush_buffer(struct tty_struct *tty)
-{
-	return;
-}
-
-static void ssl_stop(struct tty_struct *tty)
-{
-	printk(KERN_ERR "Someone should implement ssl_stop\n");
-}
-
-static void ssl_start(struct tty_struct *tty)
-{
-	printk(KERN_ERR "Someone should implement ssl_start\n");
-}
-
-void ssl_hangup(struct tty_struct *tty)
-{
-}
-#endif
-
 static const struct tty_operations ssl_ops = {
 	.open 	 		= ssl_open,
 	.close 	 		= line_close,
@@ -131,11 +110,6 @@ static const struct tty_operations ssl_ops = {
 	.set_termios 		= line_set_termios,
 	.throttle 		= line_throttle,
 	.unthrottle 		= line_unthrottle,
-#if 0
-	.stop 	 		= ssl_stop,
-	.start 	 		= ssl_start,
-	.hangup 	 	= ssl_hangup,
-#endif
 };
 
 /* Changed by ssl_init and referenced by ssl_exit, which are both serialized
