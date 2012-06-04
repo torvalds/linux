@@ -653,7 +653,6 @@ static void ar9003_hw_detect_outlier(int *mp_coeff, int nmeasurement,
 }
 
 static void ar9003_hw_tx_iqcal_load_avg_2_passes(struct ath_hw *ah,
-						 u8 num_chains,
 						 struct coeff *coeff,
 						 bool is_reusable)
 {
@@ -677,7 +676,9 @@ static void ar9003_hw_tx_iqcal_load_avg_2_passes(struct ath_hw *ah,
 	}
 
 	/* Load the average of 2 passes */
-	for (i = 0; i < num_chains; i++) {
+	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+		if (!(ah->txchainmask & (1 << i)))
+			continue;
 		nmeasurement = REG_READ_FIELD(ah,
 				AR_PHY_TX_IQCAL_STATUS_B0,
 				AR_PHY_CALIBRATED_GAINS_0);
@@ -767,16 +768,13 @@ static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah, bool is_reusable)
 	};
 	struct coeff coeff;
 	s32 iq_res[6];
-	u8 num_chains = 0;
 	int i, im, j;
 	int nmeasurement;
 
 	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
-		if (ah->txchainmask & (1 << i))
-			num_chains++;
-	}
+		if (!(ah->txchainmask & (1 << i)))
+			continue;
 
-	for (i = 0; i < num_chains; i++) {
 		nmeasurement = REG_READ_FIELD(ah,
 				AR_PHY_TX_IQCAL_STATUS_B0,
 				AR_PHY_CALIBRATED_GAINS_0);
@@ -839,8 +837,7 @@ static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah, bool is_reusable)
 				coeff.phs_coeff[i][im] -= 128;
 		}
 	}
-	ar9003_hw_tx_iqcal_load_avg_2_passes(ah, num_chains,
-					     &coeff, is_reusable);
+	ar9003_hw_tx_iqcal_load_avg_2_passes(ah, &coeff, is_reusable);
 
 	return;
 
