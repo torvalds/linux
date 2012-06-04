@@ -445,8 +445,7 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 	}
 
 	if (irq_setup_virq(domain, virq, hwirq)) {
-		if (domain->revmap_type != IRQ_DOMAIN_MAP_LEGACY)
-			irq_free_desc(virq);
+		irq_free_desc(virq);
 		return 0;
 	}
 
