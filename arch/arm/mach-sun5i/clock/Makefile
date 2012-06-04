@@ -1,3 +1,3 @@
-obj-y += ccmu/ \
-         clock.o \
+obj-y += ccmu/
+obj-y += clock.o \
          aw_clocksrc.o
