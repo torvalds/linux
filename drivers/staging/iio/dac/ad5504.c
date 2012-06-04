@@ -19,7 +19,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
-#include "dac.h"
+
 #include "ad5504.h"
 
 static int ad5504_spi_write(struct spi_device *spi, u8 addr, u16 val)

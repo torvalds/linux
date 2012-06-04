@@ -18,7 +18,7 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include "dac.h"
+
 #include "ad5624r.h"
 
 static int ad5624r_spi_write(struct spi_device *spi,

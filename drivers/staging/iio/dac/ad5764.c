@@ -18,7 +18,6 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include "dac.h"
 
 #define AD5764_REG_SF_NOP			0x0
 #define AD5764_REG_SF_CONFIG			0x1

@@ -18,7 +18,6 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include "dac.h"
 
 #define AD5360_CMD(x)				((x) << 22)
 #define AD5360_ADDR(x)				((x) << 16)

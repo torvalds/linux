@@ -18,7 +18,6 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include "dac.h"
 
 #define AD5686_DAC_CHANNELS			4
 

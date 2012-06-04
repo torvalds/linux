@@ -19,7 +19,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
-#include "dac.h"
 #include "ad5421.h"
 
 

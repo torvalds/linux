@@ -20,8 +20,6 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include "dac.h"
-
 
 #define AD5380_REG_DATA(x)	(((x) << 2) | 3)
 #define AD5380_REG_OFFSET(x)	(((x) << 2) | 2)
