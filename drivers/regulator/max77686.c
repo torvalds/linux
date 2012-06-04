@@ -75,17 +75,18 @@ static int max77686_set_dvs_voltage_time_sel(struct regulator_dev *rdev,
 {
 	struct max77686_data *max77686 = rdev_get_drvdata(rdev);
 	int ramp_rate[] = {13, 27, 55, 100};
-	return (DIV_ROUND_UP(rdev->desc->uV_step
-			* abs(new_selector - old_selector),
-			ramp_rate[max77686->ramp_delay]));
+
+	return DIV_ROUND_UP(rdev->desc->uV_step *
+			    abs(new_selector - old_selector),
+			    ramp_rate[max77686->ramp_delay]);
 }
 
 static int max77686_set_voltage_time_sel(struct regulator_dev *rdev,
 			unsigned int old_selector, unsigned int new_selector)
 {
 	/* Unconditionally 100 mV/us */
-	return (DIV_ROUND_UP(rdev->desc->uV_step
-		 * abs(new_selector - old_selector), 100));
+	return DIV_ROUND_UP(rdev->desc->uV_step *
+			    abs(new_selector - old_selector), 100);
 }
 
 static struct regulator_ops max77686_ops = {
@@ -171,7 +172,7 @@ static struct regulator_ops max77686_buck_dvs_ops = {
 #define regulator_desc_buck_dvs(num)		{			\
 	.name		= "BUCK"#num,					\
 	.id		= MAX77686_BUCK##num,				\
-	.ops		= &max77686_buck_dvs_ops,				\
+	.ops		= &max77686_buck_dvs_ops,			\
 	.type		= REGULATOR_VOLTAGE,				\
 	.owner		= THIS_MODULE,					\
 	.min_uV		= MAX77686_DVS_MINUV,				\
