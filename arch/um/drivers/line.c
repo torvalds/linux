@@ -404,7 +404,7 @@ int line_open(struct line *lines, struct tty_struct *tty)
 		goto out_unlock;
 
 	err = 0;
-	if (line->count++)
+	if (line->port.count++)
 		goto out_unlock;
 
 	BUG_ON(tty->driver_data);
@@ -446,7 +446,7 @@ void line_close(struct tty_struct *tty, struct file * filp)
 	mutex_lock(&line->count_lock);
 	BUG_ON(!line->valid);
 
-	if (--line->count)
+	if (--line->port.count)
 		goto out_unlock;
 
 	line->tty = NULL;
@@ -478,7 +478,7 @@ int setup_one_line(struct line *lines, int n, char *init,
 
 	mutex_lock(&line->count_lock);
 
-	if (line->count) {
+	if (line->port.count) {
 		*error_out = "Device is already open";
 		goto out;
 	}
@@ -663,6 +663,7 @@ int register_lines(struct line_driver *line_driver,
 	driver->init_termios = tty_std_termios;
 	
 	for (i = 0; i < nlines; i++) {
+		tty_port_init(&lines[i].port);
 		spin_lock_init(&lines[i].lock);
 		mutex_init(&lines[i].count_lock);
 		lines[i].driver = line_driver;
