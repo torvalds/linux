@@ -96,7 +96,6 @@ struct ircomm_tty_cb {
 	struct work_struct  tqueue;
 
 	/* Protect concurent access to :
-	 *	o self->open_count
 	 *	o self->ctrl_skb
 	 *	o self->tx_skb
 	 * Maybe other things may gain to be protected as well...
