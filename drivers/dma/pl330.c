@@ -2539,7 +2539,7 @@ static inline void _init_desc(struct dma_pl330_desc *desc)
 }
 
 /* Returns the number of descriptors added to the DMAC pool */
-int add_desc(struct dma_pl330_dmac *pdmac, gfp_t flg, int count)
+static int add_desc(struct dma_pl330_dmac *pdmac, gfp_t flg, int count)
 {
 	struct dma_pl330_desc *desc;
 	unsigned long flags;
