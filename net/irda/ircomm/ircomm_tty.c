@@ -278,7 +278,7 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 	 */
 
 	retval = 0;
-	add_wait_queue(&self->open_wait, &wait);
+	add_wait_queue(&self->port.open_wait, &wait);
 
 	IRDA_DEBUG(2, "%s(%d):block_til_ready before block on %s open_count=%d\n",
 	      __FILE__,__LINE__, tty->driver->name, self->open_count );
@@ -336,7 +336,7 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 	}
 
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&self->open_wait, &wait);
+	remove_wait_queue(&self->port.open_wait, &wait);
 
 	if (extra_count) {
 		/* ++ is not atomic, so this should be protected - Jean II */
@@ -381,6 +381,7 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 			return -ENOMEM;
 		}
 
+		tty_port_init(&self->port);
 		self->magic = IRCOMM_TTY_MAGIC;
 		self->flow = FLOW_STOP;
 
@@ -393,8 +394,6 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 
 		/* Init some important stuff */
 		init_timer(&self->watchdog_timer);
-		init_waitqueue_head(&self->open_wait);
-		init_waitqueue_head(&self->close_wait);
 		spin_lock_init(&self->spinlock);
 
 		/*
@@ -408,6 +407,7 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 		tty->termios->c_oflag = 0;
 
 		/* Insert into hash */
+		/* FIXME there is a window from find to here */
 		hashbin_insert(ircomm_tty, (irda_queue_t *) self, line, NULL);
 	}
 	/* ++ is not atomic, so this should be protected - Jean II */
@@ -438,7 +438,8 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 		 * probably better sleep uninterruptible?
 		 */
 
-		if (wait_event_interruptible(self->close_wait, !test_bit(ASYNC_B_CLOSING, &self->flags))) {
+		if (wait_event_interruptible(self->port.close_wait,
+				!test_bit(ASYNC_B_CLOSING, &self->flags))) {
 			IRDA_WARNING("%s - got signal while blocking on ASYNC_CLOSING!\n",
 				     __func__);
 			return -ERESTARTSYS;
@@ -559,11 +560,11 @@ static void ircomm_tty_close(struct tty_struct *tty, struct file *filp)
 	if (self->blocked_open) {
 		if (self->close_delay)
 			schedule_timeout_interruptible(self->close_delay);
-		wake_up_interruptible(&self->open_wait);
+		wake_up_interruptible(&self->port.open_wait);
 	}
 
 	self->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	wake_up_interruptible(&self->close_wait);
+	wake_up_interruptible(&self->port.close_wait);
 }
 
 /*
@@ -1011,7 +1012,7 @@ static void ircomm_tty_hangup(struct tty_struct *tty)
 	self->open_count = 0;
 	spin_unlock_irqrestore(&self->spinlock, flags);
 
-	wake_up_interruptible(&self->open_wait);
+	wake_up_interruptible(&self->port.open_wait);
 }
 
 /*
@@ -1084,7 +1085,7 @@ void ircomm_tty_check_modem_status(struct ircomm_tty_cb *self)
 			   (status & IRCOMM_CD) ? "on" : "off");
 
 		if (status & IRCOMM_CD) {
-			wake_up_interruptible(&self->open_wait);
+			wake_up_interruptible(&self->port.open_wait);
 		} else {
 			IRDA_DEBUG(2,
 				   "%s(), Doing serial hangup..\n", __func__ );
@@ -1103,7 +1104,7 @@ void ircomm_tty_check_modem_status(struct ircomm_tty_cb *self)
 				tty->hw_stopped = 0;
 
 				/* Wake up processes blocked on open */
-				wake_up_interruptible(&self->open_wait);
+				wake_up_interruptible(&self->port.open_wait);
 
 				schedule_work(&self->tqueue);
 				return;

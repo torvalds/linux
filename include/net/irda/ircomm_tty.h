@@ -62,6 +62,7 @@
  */
 struct ircomm_tty_cb {
 	irda_queue_t queue;            /* Must be first */
+	struct tty_port port;
 	magic_t magic;
 
 	int state;                /* Connect state */
@@ -97,8 +98,6 @@ struct ircomm_tty_cb {
 	void *skey;
 	void *ckey;
 
-	wait_queue_head_t open_wait;
-	wait_queue_head_t close_wait;
 	struct timer_list watchdog_timer;
 	struct work_struct  tqueue;
 

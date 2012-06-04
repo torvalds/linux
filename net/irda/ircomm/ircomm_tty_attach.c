@@ -575,7 +575,7 @@ void ircomm_tty_link_established(struct ircomm_tty_cb *self)
 		self->tty->hw_stopped = 0;
 
 		/* Wake up processes blocked on open */
-		wake_up_interruptible(&self->open_wait);
+		wake_up_interruptible(&self->port.open_wait);
 	}
 
 	schedule_work(&self->tqueue);
