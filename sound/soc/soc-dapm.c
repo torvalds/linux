@@ -2902,7 +2902,7 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 		}
 		break;
 	case snd_soc_dapm_clock_supply:
-		w->clk = clk_get(dapm->dev, w->name);
+		w->clk = devm_clk_get(dapm->dev, w->name);
 		if (IS_ERR(w->clk)) {
 			ret = PTR_ERR(w->clk);
 			dev_err(dapm->dev, "Failed to request %s: %d\n",
