@@ -577,13 +577,6 @@ static struct regulator_ops twl6030coresmps_ops = {
 	.get_voltage	= twl6030coresmps_get_voltage,
 };
 
-static int twl6030ldo_list_voltage(struct regulator_dev *rdev, unsigned index)
-{
-	struct twlreg_info	*info = rdev_get_drvdata(rdev);
-
-	return ((info->min_mV + (index * 100)) * 1000);
-}
-
 static int
 twl6030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 		       unsigned *selector)
@@ -621,7 +614,7 @@ static int twl6030ldo_get_voltage(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops twl6030ldo_ops = {
-	.list_voltage	= twl6030ldo_list_voltage,
+	.list_voltage	= regulator_list_voltage_linear,
 
 	.set_voltage	= twl6030ldo_set_voltage,
 	.get_voltage	= twl6030ldo_get_voltage,
@@ -959,6 +952,8 @@ static struct twlreg_info TWL6030_INFO_##label = { \
 		.ops = &twl6030ldo_ops, \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
+		.min_uV = min_mVolts * 1000, \
+		.uV_step = 100 * 1000, \
 		}, \
 	}
 
@@ -974,6 +969,8 @@ static struct twlreg_info TWL6025_INFO_##label = { \
 		.ops = &twl6030ldo_ops, \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
+		.min_uV = min_mVolts * 1000, \
+		.uV_step = 100 * 1000, \
 		}, \
 	}
 
