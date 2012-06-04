@@ -31,12 +31,12 @@
 
 /* copied from linux/fs/internal.h */
 /* todo: BAD approach!! */
-DECLARE_BRLOCK(vfsmount_lock);
+extern struct lglock vfsmount_lock;
 extern void file_sb_list_del(struct file *f);
 extern spinlock_t inode_sb_list_lock;
 
 /* copied from linux/fs/file_table.c */
-DECLARE_LGLOCK(files_lglock);
+extern struct lglock files_lglock;
 #ifdef CONFIG_SMP
 /*
  * These macros iterate all files on all CPUs for a given superblock.

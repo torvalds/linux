@@ -965,7 +965,7 @@ static unsigned long long au_farray_cb(void *a,
 
 	n = 0;
 	p = a;
-	lg_global_lock(files_lglock);
+	lg_global_lock(&files_lglock);
 	do_file_list_for_each_entry(sb, f) {
 		if (au_fi(f)
 		    && file_count(f)
@@ -976,7 +976,7 @@ static unsigned long long au_farray_cb(void *a,
 			AuDebugOn(n > max);
 		}
 	} while_file_list_for_each_entry;
-	lg_global_unlock(files_lglock);
+	lg_global_unlock(&files_lglock);
 
 	return n;
 }

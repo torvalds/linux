@@ -84,14 +84,14 @@ static void sysrq_sb(struct super_block *sb)
 	}
 #endif
 	printk(KERN_WARNING AUFS_NAME ": files\n");
-	lg_global_lock(files_lglock);
+	lg_global_lock(&files_lglock);
 	do_file_list_for_each_entry(sb, file) {
 		umode_t mode;
 		mode = file->f_dentry->d_inode->i_mode;
 		if (!special_file(mode) || au_special_file(mode))
 			au_dpri_file(file);
 	} while_file_list_for_each_entry;
-	lg_global_unlock(files_lglock);
+	lg_global_unlock(&files_lglock);
 	printk(KERN_WARNING AUFS_NAME ": done\n");
 
 	au_plevel = plevel;

@@ -286,9 +286,9 @@ static struct vfsmount *au_mnt_get(struct super_block *sb)
 	};
 
 	get_fs_root(current->fs, &root);
-	br_read_lock(vfsmount_lock);
+	br_read_lock(&vfsmount_lock);
 	err = iterate_mounts(au_compare_mnt, &args, root.mnt);
-	br_read_unlock(vfsmount_lock);
+	br_read_unlock(&vfsmount_lock);
 	path_put(&root);
 	AuDebugOn(!err);
 	AuDebugOn(!args.mnt);
