@@ -105,19 +105,19 @@ static int ath_max_4ms_framelen[4][32] = {
 /* Aggregation logic */
 /*********************/
 
-static void ath_txq_lock(struct ath_softc *sc, struct ath_txq *txq)
+void ath_txq_lock(struct ath_softc *sc, struct ath_txq *txq)
 	__acquires(&txq->axq_lock)
 {
 	spin_lock_bh(&txq->axq_lock);
 }
 
-static void ath_txq_unlock(struct ath_softc *sc, struct ath_txq *txq)
+void ath_txq_unlock(struct ath_softc *sc, struct ath_txq *txq)
 	__releases(&txq->axq_lock)
 {
 	spin_unlock_bh(&txq->axq_lock);
 }
 
-static void ath_txq_unlock_complete(struct ath_softc *sc, struct ath_txq *txq)
+void ath_txq_unlock_complete(struct ath_softc *sc, struct ath_txq *txq)
 	__releases(&txq->axq_lock)
 {
 	struct sk_buff_head q;
@@ -2230,46 +2230,6 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	}
 	ath_txq_unlock_complete(sc, txq);
 }
-
-static void ath_tx_complete_poll_work(struct work_struct *work)
-{
-	struct ath_softc *sc = container_of(work, struct ath_softc,
-			tx_complete_work.work);
-	struct ath_txq *txq;
-	int i;
-	bool needreset = false;
-#ifdef CONFIG_ATH9K_DEBUGFS
-	sc->tx_complete_poll_work_seen++;
-#endif
-
-	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
-		if (ATH_TXQ_SETUP(sc, i)) {
-			txq = &sc->tx.txq[i];
-			ath_txq_lock(sc, txq);
-			if (txq->axq_depth) {
-				if (txq->axq_tx_inprogress) {
-					needreset = true;
-					ath_txq_unlock(sc, txq);
-					break;
-				} else {
-					txq->axq_tx_inprogress = true;
-				}
-			}
-			ath_txq_unlock_complete(sc, txq);
-		}
-
-	if (needreset) {
-		ath_dbg(ath9k_hw_common(sc->sc_ah), RESET,
-			"tx hung, resetting the chip\n");
-		RESET_STAT_INC(sc, RESET_TYPE_TX_HANG);
-		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
-	}
-
-	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work,
-			msecs_to_jiffies(ATH_TX_COMPLETE_POLL_INT));
-}
-
-
 
 void ath_tx_tasklet(struct ath_softc *sc)
 {
