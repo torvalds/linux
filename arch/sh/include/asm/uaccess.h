@@ -104,6 +104,9 @@ struct __large_struct { unsigned long buf[100]; };
 
 extern long strncpy_from_user(char *dest, const char __user *src, long count);
 
+extern __must_check long strlen_user(const char __user *str);
+extern __must_check long strnlen_user(const char __user *str, long n);
+
 /* Generic arbitrary sized copy.  */
 /* Return the number of bytes NOT copied */
 __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n);
@@ -164,43 +167,6 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 
 	return __copy_size;
 }
-
-/**
- * strnlen_user: - Get the size of a string in user space.
- * @s: The string to measure.
- * @n: The maximum valid length
- *
- * Context: User context only.  This function may sleep.
- *
- * Get the size of a NUL-terminated string in user space.
- *
- * Returns the size of the string INCLUDING the terminating NUL.
- * On exception, returns 0.
- * If the string is too long, returns a value greater than @n.
- */
-static inline long strnlen_user(const char __user *s, long n)
-{
-	if (!__addr_ok(s))
-		return 0;
-	else
-		return __strnlen_user(s, n);
-}
-
-/**
- * strlen_user: - Get the size of a string in user space.
- * @str: The string to measure.
- *
- * Context: User context only.  This function may sleep.
- *
- * Get the size of a NUL-terminated string in user space.
- *
- * Returns the size of the string INCLUDING the terminating NUL.
- * On exception, returns 0.
- *
- * If there is a limit on the length of a valid string, you may wish to
- * consider using strnlen_user() instead.
- */
-#define strlen_user(str)	strnlen_user(str, ~0UL >> 1)
 
 /*
  * The exception table consists of pairs of addresses: the first is the

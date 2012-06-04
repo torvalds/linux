@@ -170,40 +170,4 @@ __asm__ __volatile__( \
 
 extern void __put_user_unknown(void);
 
-/*
- * Return the size of a string (including the ending 0 even when we have
- * exceeded the maximum string length).
- */
-static inline long __strnlen_user(const char __user *__s, long __n)
-{
-	unsigned long res;
-	unsigned long __dummy;
-
-	__asm__ __volatile__(
-		"1:\t"
-		"mov.b	@(%0,%3), %1\n\t"
-		"cmp/eq	%4, %0\n\t"
-		"bt/s	2f\n\t"
-		" add	#1, %0\n\t"
-		"tst	%1, %1\n\t"
-		"bf	1b\n\t"
-		"2:\n"
-		".section .fixup,\"ax\"\n"
-		"3:\n\t"
-		"mov.l	4f, %1\n\t"
-		"jmp	@%1\n\t"
-		" mov	#0, %0\n"
-		".balign 4\n"
-		"4:	.long 2b\n"
-		".previous\n"
-		".section __ex_table,\"a\"\n"
-		"	.balign 4\n"
-		"	.long 1b,3b\n"
-		".previous"
-		: "=z" (res), "=&r" (__dummy)
-		: "0" (0), "r" (__s), "r" (__n)
-		: "t");
-	return res;
-}
-
 #endif /* __ASM_SH_UACCESS_32_H */
