@@ -587,13 +587,13 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb, bool mybeacon)
 
 	/* Process Beacon and CAB receive in PS state */
 	if (((sc->ps_flags & PS_WAIT_FOR_BEACON) || ath9k_check_auto_sleep(sc))
-	    && mybeacon)
+	    && mybeacon) {
 		ath_rx_ps_beacon(sc, skb);
-	else if ((sc->ps_flags & PS_WAIT_FOR_CAB) &&
-		 (ieee80211_is_data(hdr->frame_control) ||
-		  ieee80211_is_action(hdr->frame_control)) &&
-		 is_multicast_ether_addr(hdr->addr1) &&
-		 !ieee80211_has_moredata(hdr->frame_control)) {
+	} else if ((sc->ps_flags & PS_WAIT_FOR_CAB) &&
+		   (ieee80211_is_data(hdr->frame_control) ||
+		    ieee80211_is_action(hdr->frame_control)) &&
+		   is_multicast_ether_addr(hdr->addr1) &&
+		   !ieee80211_has_moredata(hdr->frame_control)) {
 		/*
 		 * No more broadcast/multicast frames to be received at this
 		 * point.
@@ -1229,7 +1229,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			skb_trim(skb, skb->len - 8);
 
 		spin_lock_irqsave(&sc->sc_pm_lock, flags);
-
 		if ((sc->ps_flags & (PS_WAIT_FOR_BEACON |
 				     PS_WAIT_FOR_CAB |
 				     PS_WAIT_FOR_PSPOLL_DATA)) ||
