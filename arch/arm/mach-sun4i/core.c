@@ -57,6 +57,30 @@
 #include <mach/timex.h>
 #include <mach/sys_config.h>
 
+/* Enable or disable various subsystems according to what drivers we're
+ * building with.
+ */
+
+#if defined CONFIG_FB || defined CONFIG_FB_MODULE
+	#define USE_FB
+#endif
+
+#if defined CONFIG_SUN4I_G2D || defined CONFIG_SUN4I_G2D_MODULE
+	#define USE_G2D
+#endif
+
+#if defined CONFIG_VIDEO_DECODER_SUN4I || defined CONFIG_VIDEO_DECODER_SUN4I_MODULE
+	/* The VE block is used by:
+	 *
+	 * - the Cedar video engine, drivers/media/video/sun4i
+	 *
+	 * ve_start, ve_size are also used by the contiguous-DMA module in
+	 * drivers/media/video/videobuf-dma-contig.c, but that's SH-specific
+	 * so we don't have to worry about it here.
+	 */
+	#define USE_VE
+#endif
+
 /**
  * Machine Implementations
  *
@@ -129,54 +153,78 @@ static void __init sw_core_fixup(struct machine_desc *desc,
 	pr_info("Total Detected Memory: %uMB with %d banks\n", size, mi->nr_banks);
 }
 
+#if defined USE_FB
 unsigned long fb_start = (PLAT_PHYS_OFFSET + SZ_512M - SZ_64M - SZ_32M);
 unsigned long fb_size = SZ_32M;
 EXPORT_SYMBOL(fb_start);
 EXPORT_SYMBOL(fb_size);
+#endif
 
+#if defined USE_G2D
 unsigned long g2d_start = (PLAT_PHYS_OFFSET + SZ_512M - SZ_128M);
 unsigned long g2d_size = SZ_1M * 16;
 EXPORT_SYMBOL(g2d_start);
 EXPORT_SYMBOL(g2d_size);
+#endif
 
+#if defined USE_VE
 unsigned long ve_start = (PLAT_PHYS_OFFSET + SZ_64M);
 unsigned long ve_size = (SZ_64M + SZ_16M);
 EXPORT_SYMBOL(ve_start);
 EXPORT_SYMBOL(ve_size);
+#endif
 
 static void __init sw_core_reserve(void)
 {
+    char *script_base = (char *)(PAGE_OFFSET + 0x3000000);
+
 	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
-	memblock_reserve(fb_start, fb_size);
+
+#if defined USE_FB
+	if (sw_cfg_get_int(script_base, "disp_init", "disp_init_enable"))
+		memblock_reserve(fb_start, fb_size);
+	else
+		fb_start = fb_size = 0xdeadbaad;
+#endif
+
+#if defined USE_G2D
+    if (sw_cfg_get_int(script_base, "g2d_para", "g2d_used"))
+    {
+		g2d_size = sw_cfg_get_int(script_base, "g2d_para", "g2d_size");
+		if ((g2d_size < 0) || (g2d_size > SW_G2D_MEM_MAX))
+			g2d_size = SW_G2D_MEM_MAX;
+
+		g2d_start = SW_G2D_MEM_BASE;
+		g2d_size = g2d_size;
+		memblock_reserve(g2d_start, g2d_size);
+    }
+    else
+    	g2d_start = g2d_size = 0xdeadbaad;
+#endif
+
+#if defined USE_VE
+    /* The users of the VE block aren't enable via script flags, so if their
+     * driver gets compiled in we have to unconditionally reserve memory for
+     * them.
+     */
 	memblock_reserve(ve_start, SZ_64M);
 	memblock_reserve(ve_start + SZ_64M, SZ_16M);
-
-#if 0
-        int g2d_used = 0;
-        char *script_base = (char *)(PAGE_OFFSET + 0x3000000);
-
-        g2d_used = sw_cfg_get_int(script_base, "g2d_para", "g2d_used");
-
-	memblock_reserve(fb_start, fb_size);
-	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
-	memblock_reserve(ve_start, ve_start);
-
-        if (g2d_used) {
-                g2d_size = sw_cfg_get_int(script_base, "g2d_para", "g2d_size");
-                if (g2d_size < 0 || g2d_size > SW_G2D_MEM_MAX) {
-                        g2d_size = SW_G2D_MEM_MAX;
-                }
-                g2d_start = SW_G2D_MEM_BASE;
-                g2d_size = g2d_size;
-                memblock_reserve(g2d_start, g2d_size);
-        }
-
 #endif
+
 	pr_info("Memory Reserved(in bytes):\n");
-	pr_info("\tLCD: 0x%08x, 0x%08x\n", (unsigned int)fb_start, (unsigned int)fb_size);
+#if defined USE_FB
+	if (fb_start)
+		pr_info("\tLCD: 0x%08x, 0x%08x\n", (unsigned int)fb_start, (unsigned int)fb_size);
+#endif
 	pr_info("\tSYS: 0x%08x, 0x%08x\n", (unsigned int)SYS_CONFIG_MEMBASE, (unsigned int)SYS_CONFIG_MEMSIZE);
-	pr_info("\tG2D: 0x%08x, 0x%08x\n", (unsigned int)g2d_start, (unsigned int)g2d_size);
-	pr_info("\tVE : 0x%08x, 0x%08x\n", (unsigned int)ve_start, (unsigned int)ve_size);
+#if defined USE_G2D
+	if (g2d_start)
+		pr_info("\tG2D: 0x%08x, 0x%08x\n", (unsigned int)g2d_start, (unsigned int)g2d_size);
+#endif
+#if defined USE_VE
+	if (ve_start)
+		pr_info("\tVE : 0x%08x, 0x%08x\n", (unsigned int)ve_start, (unsigned int)ve_size);
+#endif
 }
 
 void sw_irq_ack(struct irq_data *irqd)
