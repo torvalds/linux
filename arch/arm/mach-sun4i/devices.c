@@ -30,6 +30,7 @@
 #include <mach/hardware.h>
 #include <mach/i2c.h>
 
+#if 0
 /* uart */
 static struct plat_serial8250_port debug_uart_platform_data[] = {
 	{
@@ -52,6 +53,7 @@ static struct platform_device debug_uart = {
 		.platform_data = debug_uart_platform_data,
 	},
 };
+#endif
 
 /* dma */
 static struct platform_device sw_pdev_dmac = {
@@ -165,7 +167,9 @@ struct platform_device sun4i_twi2_device = {
 };
 
 static struct platform_device *sw_pdevs[] __initdata = {
+#if 0
 	&debug_uart,
+#endif
 	&sw_pdev_dmac,
 	&sw_pdev_nand,
 	&sun4i_twi0_device,
