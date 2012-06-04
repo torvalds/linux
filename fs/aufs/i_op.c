@@ -951,13 +951,39 @@ static void aufs_put_link(struct dentry *dentry __maybe_unused,
 
 /* ---------------------------------------------------------------------- */
 
+static int aufs_update_time(struct inode *inode, struct timespec *ts, int flags)
+{
+	int err;
+	struct super_block *sb;
+	struct inode *h_inode;
+
+	sb = inode->i_sb;
+	/* mmap_sem might be acquired already, cf. aufs_mmap() */
+	lockdep_off();
+	si_read_lock(sb, AuLock_FLUSH);
+	ii_write_lock_child(inode);
+	lockdep_on();
+	h_inode = au_h_iptr(inode, au_ibstart(inode));
+	err = vfsub_update_time(h_inode, ts, flags);
+	lockdep_off();
+	ii_write_unlock(inode);
+	si_read_unlock(sb);
+	lockdep_on();
+	return err;
+}
+
+/* ---------------------------------------------------------------------- */
+
 struct inode_operations aufs_symlink_iop = {
 	.permission	= aufs_permission,
 	.setattr	= aufs_setattr,
 	.getattr	= aufs_getattr,
+
 	.readlink	= aufs_readlink,
 	.follow_link	= aufs_follow_link,
-	.put_link	= aufs_put_link
+	.put_link	= aufs_put_link,
+
+	/* .update_time	= aufs_update_time */
 };
 
 struct inode_operations aufs_dir_iop = {
@@ -973,11 +999,15 @@ struct inode_operations aufs_dir_iop = {
 
 	.permission	= aufs_permission,
 	.setattr	= aufs_setattr,
-	.getattr	= aufs_getattr
+	.getattr	= aufs_getattr,
+
+	.update_time	= aufs_update_time
 };
 
 struct inode_operations aufs_iop = {
 	.permission	= aufs_permission,
 	.setattr	= aufs_setattr,
-	.getattr	= aufs_getattr
+	.getattr	= aufs_getattr,
+
+	.update_time	= aufs_update_time
 };

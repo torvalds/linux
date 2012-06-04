@@ -171,6 +171,13 @@ static inline void vfsub_touch_atime(struct vfsmount *h_mnt,
 	vfsub_update_h_iattr(&h_path, /*did*/NULL); /*ignore*/
 }
 
+static inline int vfsub_update_time(struct inode *h_inode, struct timespec *ts,
+				    int flags)
+{
+	return update_time(h_inode, ts, flags);
+	/* no vfsub_update_h_iattr() since we don't have struct path */
+}
+
 long vfsub_splice_to(struct file *in, loff_t *ppos,
 		     struct pipe_inode_info *pipe, size_t len,
 		     unsigned int flags);
