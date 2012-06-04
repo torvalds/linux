@@ -481,8 +481,8 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 	if (domain == NULL)
 		domain = irq_default_domain;
 
-	BUG_ON(domain == NULL);
-	WARN_ON(domain->revmap_type != IRQ_DOMAIN_MAP_NOMAP);
+	if (WARN_ON(!domain || domain->revmap_type != IRQ_DOMAIN_MAP_NOMAP))
+		return 0;
 
 	virq = irq_alloc_desc_from(1, of_node_to_nid(domain->of_node));
 	if (!virq) {
