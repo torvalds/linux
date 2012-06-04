@@ -2332,6 +2332,10 @@ int i915_gpu_idle(struct drm_device *dev)
 		/* Is the device fubar? */
 		if (WARN_ON(!list_empty(&ring->gpu_write_list)))
 			return -EBUSY;
+
+		ret = i915_switch_context(ring, NULL, DEFAULT_CONTEXT_ID);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
