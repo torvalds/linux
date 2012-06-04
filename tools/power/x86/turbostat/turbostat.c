@@ -933,6 +933,8 @@ int is_snb(unsigned int family, unsigned int model)
 	switch (model) {
 	case 0x2A:
 	case 0x2D:
+	case 0x3A:	/* IVB */
+	case 0x3D:	/* IVB Xeon */
 		return 1;
 	}
 	return 0;
