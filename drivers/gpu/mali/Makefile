@@ -7,4 +7,4 @@ BUILD:=release
 TARGET_PLATFORM:=mali400-pmu
 export CONFIG USING_MMU USING_UMP USING_PMM BUILD TARGET_PLATFORM
 
-obj-y += ump/ mali/
+obj-$(CONFIG_GPU_MALI) += ump/ mali/
