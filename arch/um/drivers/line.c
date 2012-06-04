@@ -296,43 +296,14 @@ int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 	return err;
 }
 
-/*
- * Normally, a driver like this can rely mostly on the tty layer
- * locking, particularly when it comes to the driver structure.
- * However, in this case, mconsole requests can come in "from the
- * side", and race with opens and closes.
- *
- * mconsole config requests will want to be sure the device isn't in
- * use, and get_config, open, and close will want a stable
- * configuration.  The checking and modification of the configuration
- * is done under a spinlock.  Checking whether the device is in use is
- * line->tty->count > 1, also under the spinlock.
- *
- * line->count serves to decide whether the device should be enabled or
- * disabled on the host.  If it's equal to 0, then we are doing the
- * first open or last close.  Otherwise, open and close just return.
- */
-
-int line_open(struct line *lines, struct tty_struct *tty)
+static int line_activate(struct tty_port *port, struct tty_struct *tty)
 {
-	struct line *line = &lines[tty->index];
-	int err = -ENODEV;
+	int ret;
+	struct line *line = tty->driver_data;
 
-	mutex_lock(&line->count_lock);
-	if (!line->valid)
-		goto out_unlock;
-
-	err = 0;
-	if (line->port.count++)
-		goto out_unlock;
-
-	BUG_ON(tty->driver_data);
-	tty->driver_data = line;
-	tty_port_tty_set(&line->port, tty);
-
-	err = enable_chan(line);
-	if (err) /* line_close() will be called by our caller */
-		goto out_unlock;
+	ret = enable_chan(line);
+	if (ret)
+		return ret;
 
 	if (!line->sigio) {
 		chan_enable_winch(line->chan_out, tty);
@@ -340,44 +311,60 @@ int line_open(struct line *lines, struct tty_struct *tty)
 	}
 
 	chan_window_size(line, &tty->winsize.ws_row,
-			 &tty->winsize.ws_col);
-out_unlock:
-	mutex_unlock(&line->count_lock);
-	return err;
+		&tty->winsize.ws_col);
+
+	return 0;
+}
+
+static const struct tty_port_operations line_port_ops = {
+	.activate = line_activate,
+};
+
+int line_open(struct tty_struct *tty, struct file *filp)
+{
+	struct line *line = tty->driver_data;
+
+	return tty_port_open(&line->port, tty, filp);
+}
+
+int line_install(struct tty_driver *driver, struct tty_struct *tty,
+		 struct line *line)
+{
+	int ret;
+
+	ret = tty_standard_install(driver, tty);
+	if (ret)
+		return ret;
+
+	tty->driver_data = line;
+
+	return 0;
 }
 
 static void unregister_winch(struct tty_struct *tty);
 
-void line_close(struct tty_struct *tty, struct file * filp)
+void line_cleanup(struct tty_struct *tty)
 {
 	struct line *line = tty->driver_data;
-
-	/*
-	 * If line_open fails (and tty->driver_data is never set),
-	 * tty_open will call line_close.  So just return in this case.
-	 */
-	if (line == NULL)
-		return;
-
-	/* We ignore the error anyway! */
-	flush_buffer(line);
-
-	mutex_lock(&line->count_lock);
-	BUG_ON(!line->valid);
-
-	if (--line->port.count)
-		goto out_unlock;
-
-	tty_port_tty_set(&line->port, NULL);
-	tty->driver_data = NULL;
 
 	if (line->sigio) {
 		unregister_winch(tty);
 		line->sigio = 0;
 	}
+}
 
-out_unlock:
-	mutex_unlock(&line->count_lock);
+void line_close(struct tty_struct *tty, struct file * filp)
+{
+	struct line *line = tty->driver_data;
+
+	tty_port_close(&line->port, tty, filp);
+}
+
+void line_hangup(struct tty_struct *tty)
+{
+	struct line *line = tty->driver_data;
+
+	tty_port_hangup(&line->port);
 }
 
 void close_lines(struct line *lines, int nlines)
@@ -589,6 +576,7 @@ int register_lines(struct line_driver *line_driver,
 	
 	for (i = 0; i < nlines; i++) {
 		tty_port_init(&lines[i].port);
+		lines[i].port.ops = &line_port_ops;
 		spin_lock_init(&lines[i].lock);
 		mutex_init(&lines[i].count_lock);
 		lines[i].driver = line_driver;

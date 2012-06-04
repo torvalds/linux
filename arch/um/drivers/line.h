@@ -58,7 +58,11 @@ struct line {
 };
 
 extern void line_close(struct tty_struct *tty, struct file * filp);
-extern int line_open(struct line *lines, struct tty_struct *tty);
+extern int line_open(struct tty_struct *tty, struct file *filp);
+extern int line_install(struct tty_driver *driver, struct tty_struct *tty,
+	struct line *line);
+extern void line_cleanup(struct tty_struct *tty);
+extern void line_hangup(struct tty_struct *tty);
 extern int line_setup(char **conf, unsigned nlines, char **def,
 		      char *init, char *name);
 extern int line_write(struct tty_struct *tty, const unsigned char *buf,

@@ -87,19 +87,13 @@ static int ssl_remove(int n, char **error_out)
 			   error_out);
 }
 
-static int ssl_open(struct tty_struct *tty, struct file *filp)
+static int ssl_install(struct tty_driver *driver, struct tty_struct *tty)
 {
-	int err = line_open(serial_lines, tty);
-
-	if (err)
-		printk(KERN_ERR "Failed to open serial line %d, err = %d\n",
-		       tty->index, err);
-
-	return err;
+	return line_install(driver, tty, &serial_lines[tty->index]);
 }
 
 static const struct tty_operations ssl_ops = {
-	.open 	 		= ssl_open,
+	.open 	 		= line_open,
 	.close 	 		= line_close,
 	.write 	 		= line_write,
 	.put_char 		= line_put_char,
@@ -110,6 +104,9 @@ static const struct tty_operations ssl_ops = {
 	.set_termios 		= line_set_termios,
 	.throttle 		= line_throttle,
 	.unthrottle 		= line_unthrottle,
+	.install		= ssl_install,
+	.cleanup		= line_cleanup,
+	.hangup			= line_hangup,
 };
 
 /* Changed by ssl_init and referenced by ssl_exit, which are both serialized
