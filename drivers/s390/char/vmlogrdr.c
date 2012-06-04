@@ -668,6 +668,13 @@ static struct attribute *vmlogrdr_attrs[] = {
 	&dev_attr_recording.attr,
 	NULL,
 };
+static struct attribute_group vmlogrdr_attr_group = {
+	.attrs = vmlogrdr_attrs,
+};
+static const struct attribute_group *vmlogrdr_attr_groups[] = {
+	&vmlogrdr_attr_group,
+	NULL,
+};
 
 static int vmlogrdr_pm_prepare(struct device *dev)
 {
@@ -690,10 +697,6 @@ static int vmlogrdr_pm_prepare(struct device *dev)
 
 static const struct dev_pm_ops vmlogrdr_pm_ops = {
 	.prepare = vmlogrdr_pm_prepare,
-};
-
-static struct attribute_group vmlogrdr_attr_group = {
-	.attrs = vmlogrdr_attrs,
 };
 
 static struct class *vmlogrdr_class;
@@ -762,6 +765,7 @@ static int vmlogrdr_register_device(struct vmlogrdr_priv_t *priv)
 		dev->bus = &iucv_bus;
 		dev->parent = iucv_root;
 		dev->driver = &vmlogrdr_driver;
+		dev->groups = vmlogrdr_attr_groups;
 		dev_set_drvdata(dev, priv);
 		/*
 		 * The release function could be called after the
@@ -779,11 +783,6 @@ static int vmlogrdr_register_device(struct vmlogrdr_priv_t *priv)
 		return ret;
 	}
 
-	ret = sysfs_create_group(&dev->kobj, &vmlogrdr_attr_group);
-	if (ret) {
-		device_unregister(dev);
-		return ret;
-	}
 	priv->class_device = device_create(vmlogrdr_class, dev,
 					   MKDEV(vmlogrdr_major,
 						 priv->minor_num),
@@ -791,7 +790,6 @@ static int vmlogrdr_register_device(struct vmlogrdr_priv_t *priv)
 	if (IS_ERR(priv->class_device)) {
 		ret = PTR_ERR(priv->class_device);
 		priv->class_device=NULL;
-		sysfs_remove_group(&dev->kobj, &vmlogrdr_attr_group);
 		device_unregister(dev);
 		return ret;
 	}
@@ -804,7 +802,6 @@ static int vmlogrdr_unregister_device(struct vmlogrdr_priv_t *priv)
 {
 	device_destroy(vmlogrdr_class, MKDEV(vmlogrdr_major, priv->minor_num));
 	if (priv->device != NULL) {
-		sysfs_remove_group(&priv->device->kobj, &vmlogrdr_attr_group);
 		device_unregister(priv->device);
 		priv->device=NULL;
 	}
