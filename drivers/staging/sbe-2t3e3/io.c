@@ -17,7 +17,7 @@
 /* All access to registers done via the 21143 on port 0 must be
  * protected via the card->bootrom_lock. */
 
-/* priviate define to be used here only - must be protected by card->bootrom_lock */
+/* private define to be used here only - must be protected by card->bootrom_lock */
 #define cpld_write_nolock(channel, reg, val)			\
 	bootrom_write((channel), CPLD_MAP_REG(reg, channel), val)
 

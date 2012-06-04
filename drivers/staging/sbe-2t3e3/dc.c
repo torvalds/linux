@@ -81,7 +81,7 @@ void dc_init(struct channel *sc)
 		SBE_2T3E3_21143_VAL_NUMBER_OF_RECEIVE_PACKETS;
 	dc_write(sc->addr, SBE_2T3E3_21143_REG_GENERAL_PURPOSE_TIMER_AND_INTERRUPT_MITIGATION_CONTROL, val);
 
-	/* prepare descriptors and data for receive and transmit procecsses */
+	/* prepare descriptors and data for receive and transmit processes */
 	if (dc_init_descriptor_list(sc) != 0)
 		return;
 
