@@ -703,7 +703,8 @@ static int aufs_setattr(struct dentry *dentry, struct iattr *ia)
 			goto out_unlock;
 	} else if ((ia->ia_valid & (ATTR_UID | ATTR_GID))
 		   && (ia->ia_valid & ATTR_CTIME)) {
-		err = security_path_chown(&a->h_path, ia->ia_uid, ia->ia_gid);
+		err = security_path_chown(&a->h_path, vfsub_ia_uid(ia),
+					  vfsub_ia_gid(ia));
 		if (unlikely(err))
 			goto out_unlock;
 	}
@@ -753,8 +754,8 @@ static void au_refresh_iattr(struct inode *inode, struct kstat *st,
 	unsigned int n;
 
 	inode->i_mode = st->mode;
-	inode->i_uid = st->uid;
-	inode->i_gid = st->gid;
+	i_uid_write(inode, st->uid);
+	i_gid_write(inode, st->gid);
 	inode->i_atime = st->atime;
 	inode->i_mtime = st->mtime;
 	inode->i_ctime = st->ctime;
