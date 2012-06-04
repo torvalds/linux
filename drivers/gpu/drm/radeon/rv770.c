@@ -956,6 +956,12 @@ static int rv770_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = r600_audio_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: audio init failed\n");
+		return r;
+	}
+
 	return 0;
 }
 
@@ -975,12 +981,6 @@ int rv770_resume(struct radeon_device *rdev)
 	if (r) {
 		DRM_ERROR("r600 startup failed on resume\n");
 		rdev->accel_working = false;
-		return r;
-	}
-
-	r = r600_audio_init(rdev);
-	if (r) {
-		dev_err(rdev->dev, "radeon: audio init failed\n");
 		return r;
 	}
 
@@ -1090,12 +1090,6 @@ int rv770_init(struct radeon_device *rdev)
 		radeon_irq_kms_fini(rdev);
 		rv770_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
-	}
-
-	r = r600_audio_init(rdev);
-	if (r) {
-		dev_err(rdev->dev, "radeon: audio init failed\n");
-		return r;
 	}
 
 	return 0;
