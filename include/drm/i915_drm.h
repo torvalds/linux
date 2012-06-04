@@ -663,12 +663,18 @@ struct drm_i915_gem_execbuffer2 {
 #define I915_EXEC_CONSTANTS_ABSOLUTE 	(1<<6)
 #define I915_EXEC_CONSTANTS_REL_SURFACE (2<<6) /* gen4/5 only */
 	__u64 flags;
-	__u64 rsvd1;
+	__u64 rsvd1; /* now used for context info */
 	__u64 rsvd2;
 };
 
 /** Resets the SO write offset registers for transform feedback on gen7. */
 #define I915_EXEC_GEN7_SOL_RESET	(1<<8)
+
+#define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
+#define i915_execbuffer2_set_context_id(eb2, context) \
+	(eb2).rsvd1 = context & I915_EXEC_CONTEXT_ID_MASK
+#define i915_execbuffer2_get_context_id(eb2) \
+	((eb2).rsvd1 & I915_EXEC_CONTEXT_ID_MASK)
 
 struct drm_i915_gem_pin {
 	/** Handle of the buffer to be pinned. */
