@@ -942,6 +942,9 @@ struct drm_i915_gem_object {
 
 	/* prime dma-buf support */
 	struct sg_table *sg_table;
+	void *dma_buf_vmapping;
+	int vmapping_count;
+
 	/**
 	 * Used for performing relocations during execbuffer insertion.
 	 */

@@ -37,6 +37,7 @@ int  bfad_im_scsi_host_alloc(struct bfad_s *bfad,
 		struct bfad_im_port_s *im_port, struct device *dev);
 void bfad_im_scsi_host_free(struct bfad_s *bfad,
 				struct bfad_im_port_s *im_port);
+u32 bfad_im_supported_speeds(struct bfa_s *bfa);
 
 #define MAX_FCP_TARGET 1024
 #define MAX_FCP_LUN 16384

@@ -24,6 +24,20 @@
 #include "ordered-data.h"
 #include "delayed-inode.h"
 
+/*
+ * ordered_data_close is set by truncate when a file that used
+ * to have good data has been truncated to zero.  When it is set
+ * the btrfs file release call will add this inode to the
+ * ordered operations list so that we make sure to flush out any
+ * new data the application may have written before commit.
+ */
+#define BTRFS_INODE_ORDERED_DATA_CLOSE		0
+#define BTRFS_INODE_ORPHAN_META_RESERVED	1
+#define BTRFS_INODE_DUMMY			2
+#define BTRFS_INODE_IN_DEFRAG			3
+#define BTRFS_INODE_DELALLOC_META_RESERVED	4
+#define BTRFS_INODE_HAS_ORPHAN_ITEM		5
+
 /* in memory btrfs inode */
 struct btrfs_inode {
 	/* which subvolume this inode belongs to */
@@ -57,9 +71,6 @@ struct btrfs_inode {
 	/* used to order data wrt metadata */
 	struct btrfs_ordered_inode_tree ordered_tree;
 
-	/* for keeping track of orphaned inodes */
-	struct list_head i_orphan;
-
 	/* list of all the delalloc inodes in the FS.  There are times we need
 	 * to write all the delalloc pages to disk, and this list is used
 	 * to walk them all.
@@ -78,13 +89,12 @@ struct btrfs_inode {
 	/* the space_info for where this inode's data allocations are done */
 	struct btrfs_space_info *space_info;
 
+	unsigned long runtime_flags;
+
 	/* full 64 bit generation number, struct vfs_inode doesn't have a big
 	 * enough field for this.
 	 */
 	u64 generation;
-
-	/* sequence number for NFS changes */
-	u64 sequence;
 
 	/*
 	 * transid of the trans_handle that last modified this inode
@@ -145,22 +155,9 @@ struct btrfs_inode {
 	unsigned reserved_extents;
 
 	/*
-	 * ordered_data_close is set by truncate when a file that used
-	 * to have good data has been truncated to zero.  When it is set
-	 * the btrfs file release call will add this inode to the
-	 * ordered operations list so that we make sure to flush out any
-	 * new data the application may have written before commit.
-	 */
-	unsigned ordered_data_close:1;
-	unsigned orphan_meta_reserved:1;
-	unsigned dummy_inode:1;
-	unsigned in_defrag:1;
-	unsigned delalloc_meta_reserved:1;
-
-	/*
 	 * always compress this one file
 	 */
-	unsigned force_compress:4;
+	unsigned force_compress;
 
 	struct btrfs_delayed_node *delayed_node;
 
@@ -200,6 +197,19 @@ static inline bool btrfs_is_free_space_inode(struct btrfs_root *root,
 	    BTRFS_I(inode)->location.objectid == BTRFS_FREE_INO_OBJECTID)
 		return true;
 	return false;
+}
+
+static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	int ret = 0;
+
+	mutex_lock(&root->log_mutex);
+	if (BTRFS_I(inode)->logged_trans == generation &&
+	    BTRFS_I(inode)->last_sub_trans <= root->last_log_commit)
+		ret = 1;
+	mutex_unlock(&root->log_mutex);
+	return ret;
 }
 
 #endif

@@ -34,7 +34,7 @@
 
 #ifndef __ASSEMBLY__
 extern void mcount(void);
-extern int modifying_ftrace_code;
+extern atomic_t modifying_ftrace_code;
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {

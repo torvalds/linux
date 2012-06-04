@@ -923,5 +923,4 @@ MODULE_AUTHOR("James Chapman <jchapman@katalix.com>");
 MODULE_DESCRIPTION("L2TP netlink");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
-MODULE_ALIAS("net-pf-" __stringify(PF_NETLINK) "-proto-" \
-	     __stringify(NETLINK_GENERIC) "-type-" "l2tp");
+MODULE_ALIAS_GENL_FAMILY("l2tp");

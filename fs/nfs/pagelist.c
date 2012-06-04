@@ -26,6 +26,47 @@
 
 static struct kmem_cache *nfs_page_cachep;
 
+bool nfs_pgarray_set(struct nfs_page_array *p, unsigned int pagecount)
+{
+	p->npages = pagecount;
+	if (pagecount <= ARRAY_SIZE(p->page_array))
+		p->pagevec = p->page_array;
+	else {
+		p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_KERNEL);
+		if (!p->pagevec)
+			p->npages = 0;
+	}
+	return p->pagevec != NULL;
+}
+
+void nfs_pgheader_init(struct nfs_pageio_descriptor *desc,
+		       struct nfs_pgio_header *hdr,
+		       void (*release)(struct nfs_pgio_header *hdr))
+{
+	hdr->req = nfs_list_entry(desc->pg_list.next);
+	hdr->inode = desc->pg_inode;
+	hdr->cred = hdr->req->wb_context->cred;
+	hdr->io_start = req_offset(hdr->req);
+	hdr->good_bytes = desc->pg_count;
+	hdr->dreq = desc->pg_dreq;
+	hdr->release = release;
+	hdr->completion_ops = desc->pg_completion_ops;
+	if (hdr->completion_ops->init_hdr)
+		hdr->completion_ops->init_hdr(hdr);
+}
+
+void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos)
+{
+	spin_lock(&hdr->lock);
+	if (pos < hdr->io_start + hdr->good_bytes) {
+		set_bit(NFS_IOHDR_ERROR, &hdr->flags);
+		clear_bit(NFS_IOHDR_EOF, &hdr->flags);
+		hdr->good_bytes = pos - hdr->io_start;
+		hdr->error = error;
+	}
+	spin_unlock(&hdr->lock);
+}
+
 static inline struct nfs_page *
 nfs_page_alloc(void)
 {
@@ -76,12 +117,8 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 	 * long write-back delay. This will be adjusted in
 	 * update_nfs_request below if the region is not locked. */
 	req->wb_page    = page;
-	atomic_set(&req->wb_complete, 0);
 	req->wb_index	= page->index;
 	page_cache_get(page);
-	BUG_ON(PagePrivate(page));
-	BUG_ON(!PageLocked(page));
-	BUG_ON(page->mapping->host != inode);
 	req->wb_offset  = offset;
 	req->wb_pgbase	= offset;
 	req->wb_bytes   = count;
@@ -104,6 +141,15 @@ void nfs_unlock_request(struct nfs_page *req)
 	clear_bit(PG_BUSY, &req->wb_flags);
 	smp_mb__after_clear_bit();
 	wake_up_bit(&req->wb_flags, PG_BUSY);
+}
+
+/**
+ * nfs_unlock_and_release_request - Unlock request and release the nfs_page
+ * @req:
+ */
+void nfs_unlock_and_release_request(struct nfs_page *req)
+{
+	nfs_unlock_request(req);
 	nfs_release_request(req);
 }
 
@@ -203,6 +249,7 @@ EXPORT_SYMBOL_GPL(nfs_generic_pg_test);
 void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 		     struct inode *inode,
 		     const struct nfs_pageio_ops *pg_ops,
+		     const struct nfs_pgio_completion_ops *compl_ops,
 		     size_t bsize,
 		     int io_flags)
 {
@@ -215,9 +262,11 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_recoalesce = 0;
 	desc->pg_inode = inode;
 	desc->pg_ops = pg_ops;
+	desc->pg_completion_ops = compl_ops;
 	desc->pg_ioflags = io_flags;
 	desc->pg_error = 0;
 	desc->pg_lseg = NULL;
+	desc->pg_dreq = NULL;
 }
 
 /**
@@ -241,11 +290,11 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 		return false;
 	if (req->wb_context->state != prev->wb_context->state)
 		return false;
-	if (req->wb_index != (prev->wb_index + 1))
-		return false;
 	if (req->wb_pgbase != 0)
 		return false;
 	if (prev->wb_pgbase + prev->wb_bytes != PAGE_CACHE_SIZE)
+		return false;
+	if (req_offset(req) != req_offset(prev) + prev->wb_bytes)
 		return false;
 	return pgio->pg_ops->pg_test(pgio, prev, req);
 }

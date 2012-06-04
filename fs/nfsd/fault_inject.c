@@ -58,6 +58,7 @@ static int nfsd_inject_set(void *op_ptr, u64 val)
 
 static int nfsd_inject_get(void *data, u64 *val)
 {
+	*val = 0;
 	return 0;
 }
 

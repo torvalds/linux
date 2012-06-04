@@ -178,22 +178,26 @@ static struct platform_device smdkv210_lcd_lte480wv = {
 };
 
 static struct s3c_fb_pd_win smdkv210_fb_win0 = {
-	.win_mode = {
-		.left_margin	= 13,
-		.right_margin	= 8,
-		.upper_margin	= 7,
-		.lower_margin	= 5,
-		.hsync_len	= 3,
-		.vsync_len	= 1,
-		.xres		= 800,
-		.yres		= 480,
-	},
 	.max_bpp	= 32,
 	.default_bpp	= 24,
+	.xres		= 800,
+	.yres		= 480,
+};
+
+static struct fb_videomode smdkv210_lcd_timing = {
+	.left_margin	= 13,
+	.right_margin	= 8,
+	.upper_margin	= 7,
+	.lower_margin	= 5,
+	.hsync_len	= 3,
+	.vsync_len	= 1,
+	.xres		= 800,
+	.yres		= 480,
 };
 
 static struct s3c_fb_platdata smdkv210_lcd0_pdata __initdata = {
 	.win[0]		= &smdkv210_fb_win0,
+	.vtiming	= &smdkv210_lcd_timing,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 	.setup_gpio	= s5pv210_fb_gpio_setup_24bpp,

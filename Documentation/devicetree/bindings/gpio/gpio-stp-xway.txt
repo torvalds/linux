@@ -1,0 +1,42 @@
+Lantiq SoC Serial To Parallel (STP) GPIO controller
+
+The Serial To Parallel (STP) is found on MIPS based Lantiq socs. It is a
+peripheral controller used to drive external shift register cascades. At most
+3 groups of 8 bits can be driven. The hardware is able to allow the DSL modem
+to drive the 2 LSBs of the cascade automatically.
+
+
+Required properties:
+- compatible : Should be "lantiq,gpio-stp-xway"
+- reg : Address and length of the register set for the device
+- #gpio-cells : Should be two.  The first cell is the pin number and
+  the second cell is used to specify optional parameters (currently
+  unused).
+- gpio-controller : Marks the device node as a gpio controller.
+
+Optional properties:
+- lantiq,shadow : The default value that we shall assume as already set on the
+  shift register cascade.
+- lantiq,groups : Set the 3 bit mask to select which of the 3 groups are enabled
+  in the shift register cascade.
+- lantiq,dsl : The dsl core can control the 2 LSBs of the gpio cascade. This 2 bit
+  property can enable this feature.
+- lantiq,phy1 : The gphy1 core can control 3 bits of the gpio cascade.
+- lantiq,phy2 : The gphy2 core can control 3 bits of the gpio cascade.
+- lantiq,rising : use rising instead of falling edge for the shift register
+
+Example:
+
+gpio1: stp@E100BB0 {
+	compatible = "lantiq,gpio-stp-xway";
+	reg = <0xE100BB0 0x40>;
+	#gpio-cells = <2>;
+	gpio-controller;
+
+	lantiq,shadow = <0xffff>;
+	lantiq,groups = <0x7>;
+	lantiq,dsl = <0x3>;
+	lantiq,phy1 = <0x7>;
+	lantiq,phy2 = <0x7>;
+	/* lantiq,rising; */
+};

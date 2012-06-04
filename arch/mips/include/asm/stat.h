@@ -20,7 +20,7 @@ struct stat {
 	long		st_pad1[3];		/* Reserved for network id */
 	ino_t		st_ino;
 	mode_t		st_mode;
-	nlink_t		st_nlink;
+	__u32		st_nlink;
 	uid_t		st_uid;
 	gid_t		st_gid;
 	unsigned 	st_rdev;
@@ -55,7 +55,7 @@ struct stat64 {
 	unsigned long long	st_ino;
 
 	mode_t		st_mode;
-	nlink_t		st_nlink;
+	__u32		st_nlink;
 
 	uid_t		st_uid;
 	gid_t		st_gid;
@@ -96,7 +96,7 @@ struct stat {
 	unsigned long		st_ino;
 
 	mode_t			st_mode;
-	nlink_t			st_nlink;
+	__u32			st_nlink;
 
 	uid_t			st_uid;
 	gid_t			st_gid;

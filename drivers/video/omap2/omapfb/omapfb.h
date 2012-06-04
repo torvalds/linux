@@ -166,6 +166,7 @@ static inline struct omapfb_display_data *get_display_data(
 
 	/* This should never happen */
 	BUG();
+	return NULL;
 }
 
 static inline void omapfb_lock(struct omapfb2_device *fbdev)

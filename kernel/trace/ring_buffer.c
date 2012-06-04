@@ -1486,6 +1486,11 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size,
 	if (!buffer)
 		return size;
 
+	/* Make sure the requested buffer exists */
+	if (cpu_id != RING_BUFFER_ALL_CPUS &&
+	    !cpumask_test_cpu(cpu_id, buffer->cpumask))
+		return size;
+
 	size = DIV_ROUND_UP(size, BUF_PAGE_SIZE);
 	size *= BUF_PAGE_SIZE;
 

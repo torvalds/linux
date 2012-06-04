@@ -144,25 +144,31 @@ static ssize_t csrow_ce_count_show(struct csrow_info *csrow, char *data,
 static ssize_t csrow_size_show(struct csrow_info *csrow, char *data,
 				int private)
 {
-	return sprintf(data, "%u\n", PAGES_TO_MiB(csrow->nr_pages));
+	int i;
+	u32 nr_pages = 0;
+
+	for (i = 0; i < csrow->nr_channels; i++)
+		nr_pages += csrow->channels[i].dimm->nr_pages;
+
+	return sprintf(data, "%u\n", PAGES_TO_MiB(nr_pages));
 }
 
 static ssize_t csrow_mem_type_show(struct csrow_info *csrow, char *data,
 				int private)
 {
-	return sprintf(data, "%s\n", mem_types[csrow->mtype]);
+	return sprintf(data, "%s\n", mem_types[csrow->channels[0].dimm->mtype]);
 }
 
 static ssize_t csrow_dev_type_show(struct csrow_info *csrow, char *data,
 				int private)
 {
-	return sprintf(data, "%s\n", dev_types[csrow->dtype]);
+	return sprintf(data, "%s\n", dev_types[csrow->channels[0].dimm->dtype]);
 }
 
 static ssize_t csrow_edac_mode_show(struct csrow_info *csrow, char *data,
 				int private)
 {
-	return sprintf(data, "%s\n", edac_caps[csrow->edac_mode]);
+	return sprintf(data, "%s\n", edac_caps[csrow->channels[0].dimm->edac_mode]);
 }
 
 /* show/store functions for DIMM Label attributes */
@@ -170,11 +176,11 @@ static ssize_t channel_dimm_label_show(struct csrow_info *csrow,
 				char *data, int channel)
 {
 	/* if field has not been initialized, there is nothing to send */
-	if (!csrow->channels[channel].label[0])
+	if (!csrow->channels[channel].dimm->label[0])
 		return 0;
 
 	return snprintf(data, EDAC_MC_LABEL_LEN, "%s\n",
-			csrow->channels[channel].label);
+			csrow->channels[channel].dimm->label);
 }
 
 static ssize_t channel_dimm_label_store(struct csrow_info *csrow,
@@ -184,8 +190,8 @@ static ssize_t channel_dimm_label_store(struct csrow_info *csrow,
 	ssize_t max_size = 0;
 
 	max_size = min((ssize_t) count, (ssize_t) EDAC_MC_LABEL_LEN - 1);
-	strncpy(csrow->channels[channel].label, data, max_size);
-	csrow->channels[channel].label[max_size] = '\0';
+	strncpy(csrow->channels[channel].dimm->label, data, max_size);
+	csrow->channels[channel].dimm->label[max_size] = '\0';
 
 	return max_size;
 }
@@ -419,8 +425,8 @@ static ssize_t mci_reset_counters_store(struct mem_ctl_info *mci,
 
 	mci->ue_noinfo_count = 0;
 	mci->ce_noinfo_count = 0;
-	mci->ue_count = 0;
-	mci->ce_count = 0;
+	mci->ue_mc = 0;
+	mci->ce_mc = 0;
 
 	for (row = 0; row < mci->nr_csrows; row++) {
 		struct csrow_info *ri = &mci->csrows[row];
@@ -489,12 +495,12 @@ static ssize_t mci_sdram_scrub_rate_show(struct mem_ctl_info *mci, char *data)
 /* default attribute files for the MCI object */
 static ssize_t mci_ue_count_show(struct mem_ctl_info *mci, char *data)
 {
-	return sprintf(data, "%d\n", mci->ue_count);
+	return sprintf(data, "%d\n", mci->ue_mc);
 }
 
 static ssize_t mci_ce_count_show(struct mem_ctl_info *mci, char *data)
 {
-	return sprintf(data, "%d\n", mci->ce_count);
+	return sprintf(data, "%d\n", mci->ce_mc);
 }
 
 static ssize_t mci_ce_noinfo_show(struct mem_ctl_info *mci, char *data)
@@ -519,16 +525,16 @@ static ssize_t mci_ctl_name_show(struct mem_ctl_info *mci, char *data)
 
 static ssize_t mci_size_mb_show(struct mem_ctl_info *mci, char *data)
 {
-	int total_pages, csrow_idx;
+	int total_pages = 0, csrow_idx, j;
 
-	for (total_pages = csrow_idx = 0; csrow_idx < mci->nr_csrows;
-		csrow_idx++) {
+	for (csrow_idx = 0; csrow_idx < mci->nr_csrows; csrow_idx++) {
 		struct csrow_info *csrow = &mci->csrows[csrow_idx];
 
-		if (!csrow->nr_pages)
-			continue;
+		for (j = 0; j < csrow->nr_channels; j++) {
+			struct dimm_info *dimm = csrow->channels[j].dimm;
 
-		total_pages += csrow->nr_pages;
+			total_pages += dimm->nr_pages;
+		}
 	}
 
 	return sprintf(data, "%u\n", PAGES_TO_MiB(total_pages));
@@ -900,7 +906,7 @@ static void edac_remove_mci_instance_attributes(struct mem_ctl_info *mci,
  */
 int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 {
-	int i;
+	int i, j;
 	int err;
 	struct csrow_info *csrow;
 	struct kobject *kobj_mci = &mci->edac_mci_kobj;
@@ -934,10 +940,13 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	/* Make directories for each CSROW object under the mc<id> kobject
 	 */
 	for (i = 0; i < mci->nr_csrows; i++) {
-		csrow = &mci->csrows[i];
+		int nr_pages = 0;
 
-		/* Only expose populated CSROWs */
-		if (csrow->nr_pages > 0) {
+		csrow = &mci->csrows[i];
+		for (j = 0; j < csrow->nr_channels; j++)
+			nr_pages += csrow->channels[j].dimm->nr_pages;
+
+		if (nr_pages > 0) {
 			err = edac_create_csrow_object(mci, csrow, i);
 			if (err) {
 				debugf1("%s() failure: create csrow %d obj\n",
@@ -949,12 +958,15 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 
 	return 0;
 
-	/* CSROW error: backout what has already been registered,  */
 fail1:
 	for (i--; i >= 0; i--) {
-		if (csrow->nr_pages > 0) {
+		int nr_pages = 0;
+
+		csrow = &mci->csrows[i];
+		for (j = 0; j < csrow->nr_channels; j++)
+			nr_pages += csrow->channels[j].dimm->nr_pages;
+		if (nr_pages > 0)
 			kobject_put(&mci->csrows[i].kobj);
-		}
 	}
 
 	/* remove the mci instance's attributes, if any */
@@ -973,14 +985,20 @@ fail0:
  */
 void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 {
-	int i;
+	struct csrow_info *csrow;
+	int i, j;
 
 	debugf0("%s()\n", __func__);
 
 	/* remove all csrow kobjects */
 	debugf4("%s()  unregister this mci kobj\n", __func__);
 	for (i = 0; i < mci->nr_csrows; i++) {
-		if (mci->csrows[i].nr_pages > 0) {
+		int nr_pages = 0;
+
+		csrow = &mci->csrows[i];
+		for (j = 0; j < csrow->nr_channels; j++)
+			nr_pages += csrow->channels[j].dimm->nr_pages;
+		if (nr_pages > 0) {
 			debugf0("%s()  unreg csrow-%d\n", __func__, i);
 			kobject_put(&mci->csrows[i].kobj);
 		}

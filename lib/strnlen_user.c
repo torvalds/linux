@@ -8,7 +8,7 @@
 #ifdef __LITTLE_ENDIAN
 #  define aligned_byte_mask(n) ((1ul << 8*(n))-1)
 #else
-#  define aligned_byte_mask(n) (~0xfful << 8*(7-(n)))
+#  define aligned_byte_mask(n) (~0xfful << (BITS_PER_LONG - 8 - 8*(n)))
 #endif
 
 /*

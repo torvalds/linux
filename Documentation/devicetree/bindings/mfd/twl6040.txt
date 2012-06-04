@@ -1,0 +1,62 @@
+Texas Instruments TWL6040 family
+
+The TWL6040s are 8-channel high quality low-power audio codecs providing audio
+and vibra functionality on OMAP4+ platforms.
+They are connected ot the host processor via i2c for commands, McPDM for audio
+data and commands.
+
+Required properties:
+- compatible : Must be "ti,twl6040";
+- reg: must be 0x4b for i2c address
+- interrupts: twl6040 has one interrupt line connecteded to the main SoC
+- interrupt-parent: The parent interrupt controller
+- twl6040,audpwron-gpio: Power on GPIO line for the twl6040
+
+- vio-supply: Regulator for the twl6040 VIO supply
+- v2v1-supply: Regulator for the twl6040 V2V1 supply
+
+Optional properties, nodes:
+- enable-active-high: To power on the twl6040 during boot.
+
+Vibra functionality
+Required properties:
+- vddvibl-supply: Regulator for the left vibra motor
+- vddvibr-supply: Regulator for the right vibra motor
+- vibra { }: Configuration section for vibra parameters containing the following
+	     properties:
+- ti,vibldrv-res: Resistance parameter for left driver
+- ti,vibrdrv-res: Resistance parameter for right driver
+- ti,viblmotor-res: Resistance parameter for left motor
+- ti,viblmotor-res: Resistance parameter for right motor
+
+Optional properties within vibra { } section:
+- vddvibl_uV: If the vddvibl default voltage need to be changed
+- vddvibr_uV: If the vddvibr default voltage need to be changed
+
+Example:
+&i2c1 {
+	twl6040: twl@4b {
+		compatible = "ti,twl6040";
+		reg = <0x4b>;
+
+		interrupts = <0 119 4>;
+		interrupt-parent = <&gic>;
+		twl6040,audpwron-gpio = <&gpio4 31 0>;
+
+		vio-supply = <&v1v8>;
+		v2v1-supply = <&v2v1>;
+		enable-active-high;
+
+		/* regulators for vibra motor */
+		vddvibl-supply = <&vbat>;
+		vddvibr-supply = <&vbat>;
+
+		vibra {
+			/* Vibra driver, motor resistance parameters */
+			ti,vibldrv-res = <8>;
+			ti,vibrdrv-res = <3>;
+			ti,viblmotor-res = <10>;
+			ti,vibrmotor-res = <10>;
+		};
+	};
+};

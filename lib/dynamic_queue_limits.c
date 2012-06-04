@@ -10,23 +10,27 @@
 #include <linux/jiffies.h>
 #include <linux/dynamic_queue_limits.h>
 
-#define POSDIFF(A, B) ((A) > (B) ? (A) - (B) : 0)
+#define POSDIFF(A, B) ((int)((A) - (B)) > 0 ? (A) - (B) : 0)
+#define AFTER_EQ(A, B) ((int)((A) - (B)) >= 0)
 
 /* Records completed count and recalculates the queue limit */
 void dql_completed(struct dql *dql, unsigned int count)
 {
 	unsigned int inprogress, prev_inprogress, limit;
-	unsigned int ovlimit, all_prev_completed, completed;
+	unsigned int ovlimit, completed, num_queued;
+	bool all_prev_completed;
+
+	num_queued = ACCESS_ONCE(dql->num_queued);
 
 	/* Can't complete more than what's in queue */
-	BUG_ON(count > dql->num_queued - dql->num_completed);
+	BUG_ON(count > num_queued - dql->num_completed);
 
 	completed = dql->num_completed + count;
 	limit = dql->limit;
-	ovlimit = POSDIFF(dql->num_queued - dql->num_completed, limit);
-	inprogress = dql->num_queued - completed;
+	ovlimit = POSDIFF(num_queued - dql->num_completed, limit);
+	inprogress = num_queued - completed;
 	prev_inprogress = dql->prev_num_queued - dql->num_completed;
-	all_prev_completed = POSDIFF(completed, dql->prev_num_queued);
+	all_prev_completed = AFTER_EQ(completed, dql->prev_num_queued);
 
 	if ((ovlimit && !inprogress) ||
 	    (dql->prev_ovlimit && all_prev_completed)) {
@@ -104,7 +108,7 @@ void dql_completed(struct dql *dql, unsigned int count)
 	dql->prev_ovlimit = ovlimit;
 	dql->prev_last_obj_cnt = dql->last_obj_cnt;
 	dql->num_completed = completed;
-	dql->prev_num_queued = dql->num_queued;
+	dql->prev_num_queued = num_queued;
 }
 EXPORT_SYMBOL(dql_completed);
 

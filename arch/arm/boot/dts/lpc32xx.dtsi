@@ -215,45 +215,8 @@
 			gpio: gpio@40028000 {
 				compatible = "nxp,lpc3220-gpio";
 				reg = <0x40028000 0x1000>;
-				/* create a private address space for enumeration */
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				gpio_p0: gpio-bank@0 {
-					gpio-controller;
-					#gpio-cells = <2>;
-					reg = <0>;
-				};
-
-				gpio_p1: gpio-bank@1 {
-					gpio-controller;
-					#gpio-cells = <2>;
-					reg = <1>;
-				};
-
-				gpio_p2: gpio-bank@2 {
-					gpio-controller;
-					#gpio-cells = <2>;
-					reg = <2>;
-				};
-
-				gpio_p3: gpio-bank@3 {
-					gpio-controller;
-					#gpio-cells = <2>;
-					reg = <3>;
-				};
-
-				gpi_p3: gpio-bank@4 {
-					gpio-controller;
-					#gpio-cells = <2>;
-					reg = <4>;
-				};
-
-				gpo_p3: gpio-bank@5 {
-					gpio-controller;
-					#gpio-cells = <2>;
-					reg = <5>;
-				};
+				gpio-controller;
+				#gpio-cells = <3>; /* bank, pin, flags */
 			};
 
 			watchdog@4003C000 {

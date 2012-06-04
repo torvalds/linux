@@ -362,5 +362,5 @@ Resources
     http://www.almesberger.net/cv/papers/ols2k-9.ps.gz
 [2] newlib package (experimental), with initrd example
     http://sources.redhat.com/newlib/
-[3] Brouwer, Andries; "util-linux: Miscellaneous utilities for Linux"
-    ftp://ftp.win.tue.nl/pub/linux-local/utils/util-linux/
+[3] util-linux: Miscellaneous utilities for Linux
+    http://www.kernel.org/pub/linux/utils/util-linux/

@@ -68,24 +68,6 @@ static gid_t v9fs_get_fsgid_for_create(struct inode *dir_inode)
 	return current_fsgid();
 }
 
-/**
- * v9fs_dentry_from_dir_inode - helper function to get the dentry from
- * dir inode.
- *
- */
-
-static struct dentry *v9fs_dentry_from_dir_inode(struct inode *inode)
-{
-	struct dentry *dentry;
-
-	spin_lock(&inode->i_lock);
-	/* Directory should have only one entry. */
-	BUG_ON(S_ISDIR(inode->i_mode) && !list_is_singular(&inode->i_dentry));
-	dentry = list_entry(inode->i_dentry.next, struct dentry, d_alias);
-	spin_unlock(&inode->i_lock);
-	return dentry;
-}
-
 static int v9fs_test_inode_dotl(struct inode *inode, void *data)
 {
 	struct v9fs_inode *v9inode = V9FS_I(inode);
@@ -415,7 +397,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 	if (dir->i_mode & S_ISGID)
 		omode |= S_ISGID;
 
-	dir_dentry = v9fs_dentry_from_dir_inode(dir);
+	dir_dentry = dentry->d_parent;
 	dfid = v9fs_fid_lookup(dir_dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
@@ -793,7 +775,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 		 dir->i_ino, old_dentry->d_name.name, dentry->d_name.name);
 
 	v9ses = v9fs_inode2v9ses(dir);
-	dir_dentry = v9fs_dentry_from_dir_inode(dir);
+	dir_dentry = dentry->d_parent;
 	dfid = v9fs_fid_lookup(dir_dentry);
 	if (IS_ERR(dfid))
 		return PTR_ERR(dfid);
@@ -858,7 +840,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 		return -EINVAL;
 
 	v9ses = v9fs_inode2v9ses(dir);
-	dir_dentry = v9fs_dentry_from_dir_inode(dir);
+	dir_dentry = dentry->d_parent;
 	dfid = v9fs_fid_lookup(dir_dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);

@@ -192,14 +192,11 @@ static int nand_dev_ready(struct mtd_info *mtd)
 	return gpio_get_value(FSAMPLE_NAND_RB_GPIO_PIN);
 }
 
-static const char *part_probes[] = { "cmdlinepart", NULL };
-
 static struct platform_nand_data nand_data = {
 	.chip	= {
 		.nr_chips		= 1,
 		.chip_offset		= 0,
 		.options		= NAND_SAMSUNG_LP_OPTIONS,
-		.part_probe_types	= part_probes,
 	},
 	.ctrl	= {
 		.cmd_ctrl	= omap1_nand_cmd_ctl,

@@ -28,7 +28,7 @@ struct mod_arch_specific
 	struct mod_arch_syminfo *syminfo;
 };
 
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 #define ElfW(x) Elf64_ ## x
 #define ELFW(x) ELF64_ ## x
 #else

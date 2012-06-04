@@ -66,30 +66,16 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 
 struct sch56xx_watchdog_data {
 	u16 addr;
-	u32 revision;
 	struct mutex *io_lock;
-	struct mutex watchdog_lock;
-	struct list_head list; /* member of the watchdog_data_list */
 	struct kref kref;
-	struct miscdevice watchdog_miscdev;
-	unsigned long watchdog_is_open;
-	char watchdog_name[10]; /* must be unique to avoid sysfs conflict */
-	char watchdog_expect_close;
+	struct watchdog_info wdinfo;
+	struct watchdog_device wddev;
 	u8 watchdog_preset;
 	u8 watchdog_control;
 	u8 watchdog_output_enable;
 };
 
 static struct platform_device *sch56xx_pdev;
-
-/*
- * Somewhat ugly :( global data pointer list with all sch56xx devices, so that
- * we can find our device data as when using misc_register there is no other
- * method to get to ones device data from the open fop.
- */
-static LIST_HEAD(watchdog_data_list);
-/* Note this lock not only protect list access, but also data.kref access */
-static DEFINE_MUTEX(watchdog_data_mutex);
 
 /* Super I/O functions */
 static inline int superio_inb(int base, int reg)
@@ -272,22 +258,22 @@ EXPORT_SYMBOL(sch56xx_read_virtual_reg12);
  * Watchdog routines
  */
 
-/*
- * Release our data struct when the platform device has been released *and*
- * all references to our watchdog device are released.
- */
-static void sch56xx_watchdog_release_resources(struct kref *r)
+/* Release our data struct when we're unregistered *and*
+   all references to our watchdog device are released */
+static void watchdog_release_resources(struct kref *r)
 {
 	struct sch56xx_watchdog_data *data =
 		container_of(r, struct sch56xx_watchdog_data, kref);
 	kfree(data);
 }
 
-static int watchdog_set_timeout(struct sch56xx_watchdog_data *data,
-				int timeout)
+static int watchdog_set_timeout(struct watchdog_device *wddev,
+				unsigned int timeout)
 {
-	int ret, resolution;
+	struct sch56xx_watchdog_data *data = watchdog_get_drvdata(wddev);
+	unsigned int resolution;
 	u8 control;
+	int ret;
 
 	/* 1 second or 60 second resolution? */
 	if (timeout <= 255)
@@ -297,12 +283,6 @@ static int watchdog_set_timeout(struct sch56xx_watchdog_data *data,
 
 	if (timeout < resolution || timeout > (resolution * 255))
 		return -EINVAL;
-
-	mutex_lock(&data->watchdog_lock);
-	if (!data->addr) {
-		ret = -ENODEV;
-		goto leave;
-	}
 
 	if (resolution == 1)
 		control = data->watchdog_control | SCH56XX_WDOG_TIME_BASE_SEC;
@@ -316,7 +296,7 @@ static int watchdog_set_timeout(struct sch56xx_watchdog_data *data,
 						control);
 		mutex_unlock(data->io_lock);
 		if (ret)
-			goto leave;
+			return ret;
 
 		data->watchdog_control = control;
 	}
@@ -326,37 +306,16 @@ static int watchdog_set_timeout(struct sch56xx_watchdog_data *data,
 	 * the watchdog countdown.
 	 */
 	data->watchdog_preset = DIV_ROUND_UP(timeout, resolution);
+	wddev->timeout = data->watchdog_preset * resolution;
 
-	ret = data->watchdog_preset * resolution;
-leave:
-	mutex_unlock(&data->watchdog_lock);
-	return ret;
+	return 0;
 }
 
-static int watchdog_get_timeout(struct sch56xx_watchdog_data *data)
+static int watchdog_start(struct watchdog_device *wddev)
 {
-	int timeout;
-
-	mutex_lock(&data->watchdog_lock);
-	if (data->watchdog_control & SCH56XX_WDOG_TIME_BASE_SEC)
-		timeout = data->watchdog_preset;
-	else
-		timeout = data->watchdog_preset * 60;
-	mutex_unlock(&data->watchdog_lock);
-
-	return timeout;
-}
-
-static int watchdog_start(struct sch56xx_watchdog_data *data)
-{
+	struct sch56xx_watchdog_data *data = watchdog_get_drvdata(wddev);
 	int ret;
 	u8 val;
-
-	mutex_lock(&data->watchdog_lock);
-	if (!data->addr) {
-		ret = -ENODEV;
-		goto leave_unlock_watchdog;
-	}
 
 	/*
 	 * The sch56xx's watchdog cannot really be started / stopped
@@ -385,18 +344,14 @@ static int watchdog_start(struct sch56xx_watchdog_data *data)
 	if (ret)
 		goto leave;
 
-	/* 2. Enable output (if not already enabled) */
-	if (!(data->watchdog_output_enable & SCH56XX_WDOG_OUTPUT_ENABLE)) {
-		val = data->watchdog_output_enable |
-		      SCH56XX_WDOG_OUTPUT_ENABLE;
-		ret = sch56xx_write_virtual_reg(data->addr,
-						SCH56XX_REG_WDOG_OUTPUT_ENABLE,
-						val);
-		if (ret)
-			goto leave;
+	/* 2. Enable output */
+	val = data->watchdog_output_enable | SCH56XX_WDOG_OUTPUT_ENABLE;
+	ret = sch56xx_write_virtual_reg(data->addr,
+					SCH56XX_REG_WDOG_OUTPUT_ENABLE, val);
+	if (ret)
+		goto leave;
 
-		data->watchdog_output_enable = val;
-	}
+	data->watchdog_output_enable = val;
 
 	/* 3. Clear the watchdog event bit if set */
 	val = inb(data->addr + 9);
@@ -405,234 +360,70 @@ static int watchdog_start(struct sch56xx_watchdog_data *data)
 
 leave:
 	mutex_unlock(data->io_lock);
-leave_unlock_watchdog:
-	mutex_unlock(&data->watchdog_lock);
 	return ret;
 }
 
-static int watchdog_trigger(struct sch56xx_watchdog_data *data)
+static int watchdog_trigger(struct watchdog_device *wddev)
 {
+	struct sch56xx_watchdog_data *data = watchdog_get_drvdata(wddev);
 	int ret;
-
-	mutex_lock(&data->watchdog_lock);
-	if (!data->addr) {
-		ret = -ENODEV;
-		goto leave;
-	}
 
 	/* Reset the watchdog countdown counter */
 	mutex_lock(data->io_lock);
 	ret = sch56xx_write_virtual_reg(data->addr, SCH56XX_REG_WDOG_PRESET,
 					data->watchdog_preset);
 	mutex_unlock(data->io_lock);
-leave:
-	mutex_unlock(&data->watchdog_lock);
+
 	return ret;
 }
 
-static int watchdog_stop_unlocked(struct sch56xx_watchdog_data *data)
+static int watchdog_stop(struct watchdog_device *wddev)
 {
+	struct sch56xx_watchdog_data *data = watchdog_get_drvdata(wddev);
 	int ret = 0;
 	u8 val;
 
-	if (!data->addr)
-		return -ENODEV;
+	val = data->watchdog_output_enable & ~SCH56XX_WDOG_OUTPUT_ENABLE;
+	mutex_lock(data->io_lock);
+	ret = sch56xx_write_virtual_reg(data->addr,
+					SCH56XX_REG_WDOG_OUTPUT_ENABLE, val);
+	mutex_unlock(data->io_lock);
+	if (ret)
+		return ret;
 
-	if (data->watchdog_output_enable & SCH56XX_WDOG_OUTPUT_ENABLE) {
-		val = data->watchdog_output_enable &
-		      ~SCH56XX_WDOG_OUTPUT_ENABLE;
-		mutex_lock(data->io_lock);
-		ret = sch56xx_write_virtual_reg(data->addr,
-						SCH56XX_REG_WDOG_OUTPUT_ENABLE,
-						val);
-		mutex_unlock(data->io_lock);
-		if (ret)
-			return ret;
-
-		data->watchdog_output_enable = val;
-	}
-
-	return ret;
-}
-
-static int watchdog_stop(struct sch56xx_watchdog_data *data)
-{
-	int ret;
-
-	mutex_lock(&data->watchdog_lock);
-	ret = watchdog_stop_unlocked(data);
-	mutex_unlock(&data->watchdog_lock);
-
-	return ret;
-}
-
-static int watchdog_release(struct inode *inode, struct file *filp)
-{
-	struct sch56xx_watchdog_data *data = filp->private_data;
-
-	if (data->watchdog_expect_close) {
-		watchdog_stop(data);
-		data->watchdog_expect_close = 0;
-	} else {
-		watchdog_trigger(data);
-		pr_crit("unexpected close, not stopping watchdog!\n");
-	}
-
-	clear_bit(0, &data->watchdog_is_open);
-
-	mutex_lock(&watchdog_data_mutex);
-	kref_put(&data->kref, sch56xx_watchdog_release_resources);
-	mutex_unlock(&watchdog_data_mutex);
-
+	data->watchdog_output_enable = val;
 	return 0;
 }
 
-static int watchdog_open(struct inode *inode, struct file *filp)
+static void watchdog_ref(struct watchdog_device *wddev)
 {
-	struct sch56xx_watchdog_data *pos, *data = NULL;
-	int ret, watchdog_is_open;
+	struct sch56xx_watchdog_data *data = watchdog_get_drvdata(wddev);
 
-	/*
-	 * We get called from drivers/char/misc.c with misc_mtx hold, and we
-	 * call misc_register() from sch56xx_watchdog_probe() with
-	 * watchdog_data_mutex hold, as misc_register() takes the misc_mtx
-	 * lock, this is a possible deadlock, so we use mutex_trylock here.
-	 */
-	if (!mutex_trylock(&watchdog_data_mutex))
-		return -ERESTARTSYS;
-	list_for_each_entry(pos, &watchdog_data_list, list) {
-		if (pos->watchdog_miscdev.minor == iminor(inode)) {
-			data = pos;
-			break;
-		}
-	}
-	/* Note we can never not have found data, so we don't check for this */
-	watchdog_is_open = test_and_set_bit(0, &data->watchdog_is_open);
-	if (!watchdog_is_open)
-		kref_get(&data->kref);
-	mutex_unlock(&watchdog_data_mutex);
-
-	if (watchdog_is_open)
-		return -EBUSY;
-
-	filp->private_data = data;
-
-	/* Start the watchdog */
-	ret = watchdog_start(data);
-	if (ret) {
-		watchdog_release(inode, filp);
-		return ret;
-	}
-
-	return nonseekable_open(inode, filp);
+	kref_get(&data->kref);
 }
 
-static ssize_t watchdog_write(struct file *filp, const char __user *buf,
-	size_t count, loff_t *offset)
+static void watchdog_unref(struct watchdog_device *wddev)
 {
-	int ret;
-	struct sch56xx_watchdog_data *data = filp->private_data;
+	struct sch56xx_watchdog_data *data = watchdog_get_drvdata(wddev);
 
-	if (count) {
-		if (!nowayout) {
-			size_t i;
-
-			/* Clear it in case it was set with a previous write */
-			data->watchdog_expect_close = 0;
-
-			for (i = 0; i != count; i++) {
-				char c;
-				if (get_user(c, buf + i))
-					return -EFAULT;
-				if (c == 'V')
-					data->watchdog_expect_close = 1;
-			}
-		}
-		ret = watchdog_trigger(data);
-		if (ret)
-			return ret;
-	}
-	return count;
+	kref_put(&data->kref, watchdog_release_resources);
 }
 
-static long watchdog_ioctl(struct file *filp, unsigned int cmd,
-			   unsigned long arg)
-{
-	struct watchdog_info ident = {
-		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT,
-		.identity = "sch56xx watchdog"
-	};
-	int i, ret = 0;
-	struct sch56xx_watchdog_data *data = filp->private_data;
-
-	switch (cmd) {
-	case WDIOC_GETSUPPORT:
-		ident.firmware_version = data->revision;
-		if (!nowayout)
-			ident.options |= WDIOF_MAGICCLOSE;
-		if (copy_to_user((void __user *)arg, &ident, sizeof(ident)))
-			ret = -EFAULT;
-		break;
-
-	case WDIOC_GETSTATUS:
-	case WDIOC_GETBOOTSTATUS:
-		ret = put_user(0, (int __user *)arg);
-		break;
-
-	case WDIOC_KEEPALIVE:
-		ret = watchdog_trigger(data);
-		break;
-
-	case WDIOC_GETTIMEOUT:
-		i = watchdog_get_timeout(data);
-		ret = put_user(i, (int __user *)arg);
-		break;
-
-	case WDIOC_SETTIMEOUT:
-		if (get_user(i, (int __user *)arg)) {
-			ret = -EFAULT;
-			break;
-		}
-		ret = watchdog_set_timeout(data, i);
-		if (ret >= 0)
-			ret = put_user(ret, (int __user *)arg);
-		break;
-
-	case WDIOC_SETOPTIONS:
-		if (get_user(i, (int __user *)arg)) {
-			ret = -EFAULT;
-			break;
-		}
-
-		if (i & WDIOS_DISABLECARD)
-			ret = watchdog_stop(data);
-		else if (i & WDIOS_ENABLECARD)
-			ret = watchdog_trigger(data);
-		else
-			ret = -EINVAL;
-		break;
-
-	default:
-		ret = -ENOTTY;
-	}
-	return ret;
-}
-
-static const struct file_operations watchdog_fops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.open = watchdog_open,
-	.release = watchdog_release,
-	.write = watchdog_write,
-	.unlocked_ioctl = watchdog_ioctl,
+static const struct watchdog_ops watchdog_ops = {
+	.owner		= THIS_MODULE,
+	.start		= watchdog_start,
+	.stop		= watchdog_stop,
+	.ping		= watchdog_trigger,
+	.set_timeout	= watchdog_set_timeout,
+	.ref		= watchdog_ref,
+	.unref		= watchdog_unref,
 };
 
-struct sch56xx_watchdog_data *sch56xx_watchdog_register(
+struct sch56xx_watchdog_data *sch56xx_watchdog_register(struct device *parent,
 	u16 addr, u32 revision, struct mutex *io_lock, int check_enabled)
 {
 	struct sch56xx_watchdog_data *data;
-	int i, err, control, output_enable;
-	const int watchdog_minors[] = { WATCHDOG_MINOR, 212, 213, 214, 215 };
+	int err, control, output_enable;
 
 	/* Cache the watchdog registers */
 	mutex_lock(io_lock);
@@ -656,82 +447,55 @@ struct sch56xx_watchdog_data *sch56xx_watchdog_register(
 		return NULL;
 
 	data->addr = addr;
-	data->revision = revision;
 	data->io_lock = io_lock;
-	data->watchdog_control = control;
-	data->watchdog_output_enable = output_enable;
-	mutex_init(&data->watchdog_lock);
-	INIT_LIST_HEAD(&data->list);
 	kref_init(&data->kref);
 
-	err = watchdog_set_timeout(data, 60);
-	if (err < 0)
-		goto error;
+	strlcpy(data->wdinfo.identity, "sch56xx watchdog",
+		sizeof(data->wdinfo.identity));
+	data->wdinfo.firmware_version = revision;
+	data->wdinfo.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT;
+	if (!nowayout)
+		data->wdinfo.options |= WDIOF_MAGICCLOSE;
 
-	/*
-	 * We take the data_mutex lock early so that watchdog_open() cannot
-	 * run when misc_register() has completed, but we've not yet added
-	 * our data to the watchdog_data_list.
-	 */
-	mutex_lock(&watchdog_data_mutex);
-	for (i = 0; i < ARRAY_SIZE(watchdog_minors); i++) {
-		/* Register our watchdog part */
-		snprintf(data->watchdog_name, sizeof(data->watchdog_name),
-			"watchdog%c", (i == 0) ? '\0' : ('0' + i));
-		data->watchdog_miscdev.name = data->watchdog_name;
-		data->watchdog_miscdev.fops = &watchdog_fops;
-		data->watchdog_miscdev.minor = watchdog_minors[i];
-		err = misc_register(&data->watchdog_miscdev);
-		if (err == -EBUSY)
-			continue;
-		if (err)
-			break;
+	data->wddev.info = &data->wdinfo;
+	data->wddev.ops = &watchdog_ops;
+	data->wddev.parent = parent;
+	data->wddev.timeout = 60;
+	data->wddev.min_timeout = 1;
+	data->wddev.max_timeout = 255 * 60;
+	if (nowayout)
+		set_bit(WDOG_NO_WAY_OUT, &data->wddev.status);
+	if (output_enable & SCH56XX_WDOG_OUTPUT_ENABLE)
+		set_bit(WDOG_ACTIVE, &data->wddev.status);
 
-		list_add(&data->list, &watchdog_data_list);
-		pr_info("Registered /dev/%s chardev major 10, minor: %d\n",
-			data->watchdog_name, watchdog_minors[i]);
-		break;
-	}
-	mutex_unlock(&watchdog_data_mutex);
+	/* Since the watchdog uses a downcounter there is no register to read
+	   the BIOS set timeout from (if any was set at all) ->
+	   Choose a preset which will give us a 1 minute timeout */
+	if (control & SCH56XX_WDOG_TIME_BASE_SEC)
+		data->watchdog_preset = 60; /* seconds */
+	else
+		data->watchdog_preset = 1; /* minute */
 
+	data->watchdog_control = control;
+	data->watchdog_output_enable = output_enable;
+
+	watchdog_set_drvdata(&data->wddev, data);
+	err = watchdog_register_device(&data->wddev);
 	if (err) {
 		pr_err("Registering watchdog chardev: %d\n", err);
-		goto error;
-	}
-	if (i == ARRAY_SIZE(watchdog_minors)) {
-		pr_warn("Couldn't register watchdog (no free minor)\n");
-		goto error;
+		kfree(data);
+		return NULL;
 	}
 
 	return data;
-
-error:
-	kfree(data);
-	return NULL;
 }
 EXPORT_SYMBOL(sch56xx_watchdog_register);
 
 void sch56xx_watchdog_unregister(struct sch56xx_watchdog_data *data)
 {
-	mutex_lock(&watchdog_data_mutex);
-	misc_deregister(&data->watchdog_miscdev);
-	list_del(&data->list);
-	mutex_unlock(&watchdog_data_mutex);
-
-	mutex_lock(&data->watchdog_lock);
-	if (data->watchdog_is_open) {
-		pr_warn("platform device unregistered with watchdog "
-			"open! Stopping watchdog.\n");
-		watchdog_stop_unlocked(data);
-	}
-	/* Tell the wdog start/stop/trigger functions our dev is gone */
-	data->addr = 0;
-	data->io_lock = NULL;
-	mutex_unlock(&data->watchdog_lock);
-
-	mutex_lock(&watchdog_data_mutex);
-	kref_put(&data->kref, sch56xx_watchdog_release_resources);
-	mutex_unlock(&watchdog_data_mutex);
+	watchdog_unregister_device(&data->wddev);
+	kref_put(&data->kref, watchdog_release_resources);
+	/* Don't touch data after this it may have been free-ed! */
 }
 EXPORT_SYMBOL(sch56xx_watchdog_unregister);
 

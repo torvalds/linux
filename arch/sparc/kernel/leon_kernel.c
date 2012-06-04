@@ -23,6 +23,7 @@
 #include <asm/smp.h>
 #include <asm/setup.h>
 
+#include "kernel.h"
 #include "prom.h"
 #include "irq.h"
 

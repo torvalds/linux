@@ -10,8 +10,6 @@
 #ifndef DASD_INT_H
 #define DASD_INT_H
 
-#ifdef __KERNEL__
-
 /* we keep old device allocation scheme; IOW, minors are still in 0..255 */
 #define DASD_PER_MAJOR (1U << (MINORBITS - DASD_PARTN_BITS))
 #define DASD_PARTN_MASK ((1 << DASD_PARTN_BITS) - 1)
@@ -790,7 +788,5 @@ static inline int dasd_eer_enabled(struct dasd_device *device)
 #define dasd_eer_snss(d)	do { } while (0)
 #define dasd_eer_enabled(d)	(0)
 #endif	/* CONFIG_DASD_ERR */
-
-#endif				/* __KERNEL__ */
 
 #endif				/* DASD_H */

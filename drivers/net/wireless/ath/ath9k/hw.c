@@ -1468,6 +1468,9 @@ static bool ath9k_hw_chip_reset(struct ath_hw *ah,
 		return false;
 
 	ah->chip_fullsleep = false;
+
+	if (AR_SREV_9330(ah))
+		ar9003_hw_internal_regulator_apply(ah);
 	ath9k_hw_init_pll(ah, chan);
 	ath9k_hw_set_rfmode(ah, chan);
 
