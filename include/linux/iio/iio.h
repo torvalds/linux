@@ -130,6 +130,70 @@ struct iio_chan_spec_ext_info {
 };
 
 /**
+ * struct iio_enum - Enum channel info attribute
+ * items: A array of strings.
+ * num_items: Length of the item array.
+ * set: Set callback function, may be NULL.
+ * get: Get callback function, may be NULL.
+ *
+ * The iio_enum struct can be used to implement enum style channel attributes.
+ * Enum style attributes are those which have a set of strings which map to
+ * unsigned integer values. The IIO enum helper code takes care of mapping
+ * between value and string as well as generating a "_available" file which
+ * contains a list of all available items. The set callback will be called when
+ * the attribute is updated. The last parameter is the index to the newly
+ * activated item. The get callback will be used to query the currently active
+ * item and is supposed to return the index for it.
+ */
+struct iio_enum {
+	const char * const *items;
+	unsigned int num_items;
+	int (*set)(struct iio_dev *, const struct iio_chan_spec *, unsigned int);
+	int (*get)(struct iio_dev *, const struct iio_chan_spec *);
+};
+
+ssize_t iio_enum_available_read(struct iio_dev *indio_dev,
+	uintptr_t priv, const struct iio_chan_spec *chan, char *buf);
+ssize_t iio_enum_read(struct iio_dev *indio_dev,
+	uintptr_t priv, const struct iio_chan_spec *chan, char *buf);
+ssize_t iio_enum_write(struct iio_dev *indio_dev,
+	uintptr_t priv, const struct iio_chan_spec *chan, const char *buf,
+	size_t len);
+
+/**
+ * IIO_ENUM() - Initialize enum extended channel attribute
+ * @_name: Attribute name
+ * @_shared: Whether the attribute is shared between all channels
+ * @_e: Pointer to a iio_enum struct
+ *
+ * This should usually be used together with IIO_ENUM_AVAILABLE()
+ */
+#define IIO_ENUM(_name, _shared, _e) \
+{ \
+	.name = (_name), \
+	.shared = (_shared), \
+	.read = iio_enum_read, \
+	.write = iio_enum_write, \
+	.private = (uintptr_t)(_e), \
+}
+
+/**
+ * IIO_ENUM_AVAILABLE() - Initialize enum available extended channel attribute
+ * @_name: Attribute name ("_available" will be appended to the name)
+ * @_e: Pointer to a iio_enum struct
+ *
+ * Creates a read only attribute which list all the available enum items in a
+ * space separated list. This should usually be used together with IIO_ENUM()
+ */
+#define IIO_ENUM_AVAILABLE(_name, _e) \
+{ \
+	.name = (_name "_available"), \
+	.shared = true, \
+	.read = iio_enum_available_read, \
+	.private = (uintptr_t)(_e), \
+}
+
+/**
  * struct iio_chan_spec - specification of a single channel
  * @type:		What type of measurement is the channel making.
  * @channel:		What number or name do we wish to assign the channel.
