@@ -222,7 +222,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	ath9k_hw_enable_interrupts(ah);
 
 	if (!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL) && start) {
-		if (sc->sc_flags & SC_OP_BEACONS)
+		if (test_bit(SC_OP_BEACONS, &sc->sc_flags))
 			ath_set_beacon(sc);
 
 		ath_restart_work(sc);
@@ -293,7 +293,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 {
 	int r;
 
-	if (sc->sc_flags & SC_OP_INVALID)
+	if (test_bit(SC_OP_INVALID, &sc->sc_flags))
 		return -EIO;
 
 	r = ath_reset_internal(sc, hchan, false);
@@ -435,7 +435,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 	 * touch anything. Note this can happen early
 	 * on if the IRQ is shared.
 	 */
-	if (sc->sc_flags & SC_OP_INVALID)
+	if (test_bit(SC_OP_INVALID, &sc->sc_flags))
 		return IRQ_NONE;
 
 
@@ -635,7 +635,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	ath_mci_enable(sc);
 
-	sc->sc_flags &= ~SC_OP_INVALID;
+	clear_bit(SC_OP_INVALID, &sc->sc_flags);
 	sc->sc_ah->is_monitoring = false;
 
 	if (!ath_complete_reset(sc, false)) {
@@ -754,7 +754,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	ath_cancel_work(sc);
 	del_timer_sync(&sc->rx_poll_timer);
 
-	if (sc->sc_flags & SC_OP_INVALID) {
+	if (test_bit(SC_OP_INVALID, &sc->sc_flags)) {
 		ath_dbg(common, ANY, "Device not present\n");
 		mutex_unlock(&sc->mutex);
 		return;
@@ -811,7 +811,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	ath9k_ps_restore(sc);
 
-	sc->sc_flags |= SC_OP_INVALID;
+	set_bit(SC_OP_INVALID, &sc->sc_flags);
 	sc->ps_idle = prev_idle;
 
 	mutex_unlock(&sc->mutex);
@@ -915,11 +915,11 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	/* Set op-mode & TSF */
 	if (iter_data.naps > 0) {
 		ath9k_hw_set_tsfadjust(ah, 1);
-		sc->sc_flags |= SC_OP_TSF_RESET;
+		set_bit(SC_OP_TSF_RESET, &sc->sc_flags);
 		ah->opmode = NL80211_IFTYPE_AP;
 	} else {
 		ath9k_hw_set_tsfadjust(ah, 0);
-		sc->sc_flags &= ~SC_OP_TSF_RESET;
+		clear_bit(SC_OP_TSF_RESET, &sc->sc_flags);
 
 		if (iter_data.nmeshes)
 			ah->opmode = NL80211_IFTYPE_MESH_POINT;
@@ -950,12 +950,12 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
 		if (!common->disable_ani) {
-			sc->sc_flags |= SC_OP_ANI_RUN;
+			set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
 			ath_start_ani(common);
 		}
 
 	} else {
-		sc->sc_flags &= ~SC_OP_ANI_RUN;
+		clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
 		del_timer_sync(&common->ani.timer);
 	}
 }
@@ -1479,11 +1479,11 @@ static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	 * Skip iteration if primary station vif's bss info
 	 * was not changed
 	 */
-	if (sc->sc_flags & SC_OP_PRIM_STA_VIF)
+	if (test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
 		return;
 
 	if (bss_conf->assoc) {
-		sc->sc_flags |= SC_OP_PRIM_STA_VIF;
+		set_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags);
 		avp->primary_sta_vif = true;
 		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
 		common->curaid = bss_conf->aid;
@@ -1504,7 +1504,7 @@ static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		ath_start_rx_poll(sc, 3);
 
 		if (!common->disable_ani) {
-			sc->sc_flags |= SC_OP_ANI_RUN;
+			set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
 			ath_start_ani(common);
 		}
 
@@ -1524,7 +1524,8 @@ static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
 	if (avp->primary_sta_vif && !bss_conf->assoc) {
 		ath_dbg(common, CONFIG, "Bss Info DISASSOC %d, bssid %pM\n",
 			common->curaid, common->curbssid);
-		sc->sc_flags &= ~(SC_OP_PRIM_STA_VIF | SC_OP_BEACONS);
+		clear_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags);
+		clear_bit(SC_OP_BEACONS, &sc->sc_flags);
 		avp->primary_sta_vif = false;
 		memset(common->curbssid, 0, ETH_ALEN);
 		common->curaid = 0;
@@ -1537,10 +1538,9 @@ static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
 	 * None of station vifs are associated.
 	 * Clear bssid & aid
 	 */
-	if (!(sc->sc_flags & SC_OP_PRIM_STA_VIF)) {
+	if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
 		ath9k_hw_write_associd(sc->sc_ah);
-		/* Stop ANI */
-		sc->sc_flags &= ~SC_OP_ANI_RUN;
+		clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
 		del_timer_sync(&common->ani.timer);
 		del_timer_sync(&sc->rx_poll_timer);
 		memset(&sc->caldata, 0, sizeof(sc->caldata));
@@ -1578,12 +1578,12 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
 			if (!common->disable_ani) {
-				sc->sc_flags |= SC_OP_ANI_RUN;
+				set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
 				ath_start_ani(common);
 			}
 
 		} else {
-			sc->sc_flags &= ~SC_OP_ANI_RUN;
+			clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
 			del_timer_sync(&common->ani.timer);
 			del_timer_sync(&sc->rx_poll_timer);
 		}
@@ -1595,7 +1595,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	 */
 	if ((changed & BSS_CHANGED_BEACON_INT) &&
 	    (vif->type == NL80211_IFTYPE_AP))
-		sc->sc_flags |= SC_OP_TSF_RESET;
+		set_bit(SC_OP_TSF_RESET, &sc->sc_flags);
 
 	/* Configure beaconing (AP, IBSS, MESH) */
 	if (ath9k_uses_beacons(vif->type) &&
@@ -1787,7 +1787,7 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 		return;
 	}
 
-	if (sc->sc_flags & SC_OP_INVALID) {
+	if (test_bit(SC_OP_INVALID, &sc->sc_flags)) {
 		ath_dbg(common, ANY, "Device not present\n");
 		mutex_unlock(&sc->mutex);
 		return;

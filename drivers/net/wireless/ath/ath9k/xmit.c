@@ -1536,7 +1536,7 @@ bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 	int i;
 	u32 npend = 0;
 
-	if (sc->sc_flags & SC_OP_INVALID)
+	if (test_bit(SC_OP_INVALID, &sc->sc_flags))
 		return true;
 
 	ath9k_hw_abort_tx_dma(ah);

@@ -155,7 +155,7 @@ void ath_start_rx_poll(struct ath_softc *sc, u8 nbeacon)
 	if (!AR_SREV_9300(sc->sc_ah))
 		return;
 
-	if (!(sc->sc_flags & SC_OP_PRIM_STA_VIF))
+	if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
 		return;
 
 	mod_timer(&sc->rx_poll_timer, jiffies + msecs_to_jiffies
@@ -430,7 +430,7 @@ void ath_start_ani(struct ath_common *common)
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
-	if (!(sc->sc_flags & SC_OP_ANI_RUN))
+	if (!test_bit(SC_OP_ANI_RUN, &sc->sc_flags))
 		return;
 
 	if (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
