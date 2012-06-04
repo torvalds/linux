@@ -115,6 +115,9 @@ static void ath_pci_aspm_init(struct ath_common *common)
 	int pos;
 	u8 aspm;
 
+	if (!ah->is_pciexpress)
+		return;
+
 	pos = pci_pcie_cap(pdev);
 	if (!pos)
 		return;
@@ -138,6 +141,7 @@ static void ath_pci_aspm_init(struct ath_common *common)
 		aspm &= ~(PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
 		pci_write_config_byte(parent, pos + PCI_EXP_LNKCTL, aspm);
 
+		ath_info(common, "Disabling ASPM since BTCOEX is enabled\n");
 		return;
 	}
 
@@ -147,6 +151,7 @@ static void ath_pci_aspm_init(struct ath_common *common)
 		ah->aspm_enabled = true;
 		/* Initialize PCIe PM and SERDES registers. */
 		ath9k_hw_configpcipowersave(ah, false);
+		ath_info(common, "ASPM enabled: 0x%x\n", aspm);
 	}
 }
 

@@ -390,14 +390,6 @@ static void ath9k_hw_disablepcie(struct ath_hw *ah)
 	REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
 }
 
-static void ath9k_hw_aspm_init(struct ath_hw *ah)
-{
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	if (common->bus_ops->aspm_init)
-		common->bus_ops->aspm_init(common);
-}
-
 /* This should work for all families including legacy */
 static bool ath9k_hw_chip_test(struct ath_hw *ah)
 {
@@ -692,9 +684,6 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	r = ath9k_hw_fill_cap_info(ah);
 	if (r)
 		return r;
-
-	if (ah->is_pciexpress)
-		ath9k_hw_aspm_init(ah);
 
 	r = ath9k_hw_init_macaddr(ah);
 	if (r) {
