@@ -294,7 +294,8 @@ static int __devinit ad5504_probe(struct spi_device *spi)
 	return 0;
 
 error_free_irq:
-	free_irq(spi->irq, indio_dev);
+	if (spi->irq)
+		free_irq(spi->irq, indio_dev);
 error_disable_reg:
 	if (!IS_ERR(reg))
 		regulator_disable(reg);
