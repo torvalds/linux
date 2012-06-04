@@ -16,4 +16,3 @@ config MMC_SUNXI
 config MMC_SUNXI_DBG
 	bool "SUNXI MMC Card Host driver debug control"
 	depends on MMC_SUNXI
-

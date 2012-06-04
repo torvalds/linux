@@ -4,7 +4,6 @@
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Aaron.Maoye <leafy.myeh@allwinnertech.com>
  *
- * description for this code
  * sdxc.c - operation for register level control of mmc controller
  *
  * This program is free software; you can redistribute it and/or
