@@ -114,25 +114,23 @@ static ssize_t ad5791_write_dac_powerdown(struct iio_dev *indio_dev,
 	 uintptr_t private, const struct iio_chan_spec *chan, const char *buf,
 	 size_t len)
 {
-	long readin;
+	bool pwr_down;
 	int ret;
 	struct ad5791_state *st = iio_priv(indio_dev);
 
-	ret = strict_strtol(buf, 10, &readin);
+	ret = strtobool(buf, &pwr_down);
 	if (ret)
 		return ret;
 
-	if (readin == 0) {
-		st->pwr_down = false;
+	if (!pwr_down) {
 		st->ctrl &= ~(AD5791_CTRL_OPGND | AD5791_CTRL_DACTRI);
-	} else if (readin == 1) {
-		st->pwr_down = true;
+	} else {
 		if (st->pwr_down_mode == AD5791_DAC_PWRDN_6K)
 			st->ctrl |= AD5791_CTRL_OPGND;
 		else if (st->pwr_down_mode == AD5791_DAC_PWRDN_3STATE)
 			st->ctrl |= AD5791_CTRL_DACTRI;
-	} else
-		ret = -EINVAL;
+	}
+	st->pwr_down = pwr_down;
 
 	ret = ad5791_spi_write(st->spi, AD5791_ADDR_CTRL, st->ctrl);
 
