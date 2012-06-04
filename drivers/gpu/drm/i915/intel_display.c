@@ -4416,16 +4416,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	/* CPU eDP doesn't require FDI link, so just set DP M/N
 	   according to current link config */
 	if (is_cpu_edp) {
-		target_clock = mode->clock;
 		intel_edp_link_config(edp_encoder, &lane, &link_bw);
 	} else {
-		/* [e]DP over FDI requires target mode clock
-		   instead of link clock */
-		if (is_dp)
-			target_clock = mode->clock;
-		else
-			target_clock = adjusted_mode->clock;
-
 		/* FDI is a binary signal running at ~2.7GHz, encoding
 		 * each output octet as 10 bits. The actual frequency
 		 * is stored as a divider into a 100MHz clock, and the
@@ -4435,6 +4427,14 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		 */
 		link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
 	}
+
+	/* [e]DP over FDI requires target mode clock instead of link clock. */
+	if (edp_encoder)
+		target_clock = intel_edp_target_clock(edp_encoder, mode);
+	else if (is_dp)
+		target_clock = mode->clock;
+	else
+		target_clock = adjusted_mode->clock;
 
 	/* determine panel color depth */
 	temp = I915_READ(PIPECONF(pipe));

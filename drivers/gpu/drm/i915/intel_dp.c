@@ -152,6 +152,18 @@ intel_edp_link_config(struct intel_encoder *intel_encoder,
 		*link_bw = 270000;
 }
 
+int
+intel_edp_target_clock(struct intel_encoder *intel_encoder,
+		       struct drm_display_mode *mode)
+{
+	struct intel_dp *intel_dp = container_of(intel_encoder, struct intel_dp, base);
+
+	if (intel_dp->panel_fixed_mode)
+		return intel_dp->panel_fixed_mode->clock;
+	else
+		return mode->clock;
+}
+
 static int
 intel_dp_max_lane_count(struct intel_dp *intel_dp)
 {
