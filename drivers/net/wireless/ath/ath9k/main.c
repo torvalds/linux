@@ -210,6 +210,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
+	unsigned long flags;
 
 	if (ath_startrecv(sc) != 0) {
 		ath_err(common, "Unable to restart recv logic\n");
@@ -224,9 +225,18 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	ath9k_hw_enable_interrupts(ah);
 
 	if (!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL) && start) {
-		if (test_bit(SC_OP_BEACONS, &sc->sc_flags))
-			ath_set_beacon(sc);
+		if (!test_bit(SC_OP_BEACONS, &sc->sc_flags))
+			goto work;
 
+		ath_set_beacon(sc);
+
+		if (ah->opmode == NL80211_IFTYPE_STATION &&
+		    test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
+			spin_lock_irqsave(&sc->sc_pm_lock, flags);
+			sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
+			spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+		}
+	work:
 		ath_restart_work(sc);
 	}
 
