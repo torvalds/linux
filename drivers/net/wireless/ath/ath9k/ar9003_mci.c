@@ -1381,9 +1381,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 	case MCI_STATE_NEED_FTP_STOMP:
 		value = !(mci->config & ATH_MCI_CONFIG_DISABLE_FTP_STOMP);
 		break;
-	case MCI_STATE_NEED_TUNING:
-		value = !(mci->config & ATH_MCI_CONFIG_DISABLE_TUNING);
-		break;
 	default:
 		break;
 	}
