@@ -234,7 +234,7 @@ intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 static bool
 intel_dp_adjust_dithering(struct intel_dp *intel_dp,
 			  struct drm_display_mode *mode,
-			  struct drm_display_mode *adjusted_mode)
+			  bool adjust_mode)
 {
 	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_dp));
 	int max_lanes = intel_dp_max_lane_count(intel_dp);
@@ -248,8 +248,8 @@ intel_dp_adjust_dithering(struct intel_dp *intel_dp,
 		if (mode_rate > max_rate)
 			return false;
 
-		if (adjusted_mode)
-			adjusted_mode->private_flags
+		if (adjust_mode)
+			mode->private_flags
 				|= INTEL_MODE_DP_FORCE_6BPC;
 
 		return true;
@@ -272,7 +272,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 			return MODE_PANEL;
 	}
 
-	if (!intel_dp_adjust_dithering(intel_dp, mode, NULL))
+	if (!intel_dp_adjust_dithering(intel_dp, mode, false))
 		return MODE_CLOCK_HIGH;
 
 	if (mode->clock < 10000)
@@ -712,14 +712,14 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 					mode, adjusted_mode);
 	}
 
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return false;
 
 	DRM_DEBUG_KMS("DP link computation with max lane count %i "
 		      "max bw %02x pixel clock %iKHz\n",
 		      max_lane_count, bws[max_clock], adjusted_mode->clock);
 
-	if (!intel_dp_adjust_dithering(intel_dp, adjusted_mode, adjusted_mode))
+	if (!intel_dp_adjust_dithering(intel_dp, adjusted_mode, true))
 		return false;
 
 	bpp = adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC ? 18 : 24;
