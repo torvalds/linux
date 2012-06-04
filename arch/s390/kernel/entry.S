@@ -18,6 +18,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 #include <asm/page.h>
+#include <asm/sigp.h>
 
 __PT_R0      =	__PT_GPRS
 __PT_R1      =	__PT_GPRS + 4
@@ -726,12 +727,12 @@ ENTRY(restart_int_handler)
 	lm	%r1,%r3,__LC_RESTART_FN		# load fn, parm & source cpu
 	ltr	%r3,%r3				# test source cpu address
 	jm	1f				# negative -> skip source stop
-0:	sigp	%r4,%r3,1			# sigp sense to source cpu
+0:	sigp	%r4,%r3,SIGP_SENSE		# sigp sense to source cpu
 	brc	10,0b				# wait for status stored
 1:	basr	%r14,%r1			# call function
 	stap	__SF_EMPTY(%r15)		# store cpu address
 	lh	%r3,__SF_EMPTY(%r15)
-2:	sigp	%r4,%r3,5			# sigp stop to current cpu
+2:	sigp	%r4,%r3,SIGP_STOP		# sigp stop to current cpu
 	brc	2,2b
 3:	j	3b
 

@@ -288,11 +288,13 @@ static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
 	/* Restart func on the target cpu and stop the current cpu. */
 	memcpy_absolute(&lc->restart_stack, &restart, sizeof(restart));
 	asm volatile(
-		"0:	sigp	0,%0,6	# sigp restart to target cpu\n"
+		"0:	sigp	0,%0,%2	# sigp restart to target cpu\n"
 		"	brc	2,0b	# busy, try again\n"
-		"1:	sigp	0,%1,5	# sigp stop to current cpu\n"
+		"1:	sigp	0,%1,%3	# sigp stop to current cpu\n"
 		"	brc	2,1b	# busy, try again\n"
-		: : "d" (pcpu->address), "d" (restart.source) : "0", "1", "cc");
+		: : "d" (pcpu->address), "d" (restart.source),
+		    "K" (SIGP_RESTART), "K" (SIGP_STOP)
+		: "0", "1", "cc");
 	for (;;) ;
 }
 

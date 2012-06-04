@@ -9,6 +9,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/sigp.h>
 
 /*
  * moves the new kernel to its destination...
@@ -93,7 +94,7 @@ ENTRY(relocate_kernel)
 	.no_diag308:
 		sr	%r1,%r1		# clear %r1
 		sr	%r2,%r2		# clear %r2
-		sigp	%r1,%r2,0x12	# set cpuid to zero
+		sigp	%r1,%r2,SIGP_SET_ARCHITECTURE # set cpuid to zero
 		lpsw	0		# hopefully start new kernel...
 
 		.align	8
