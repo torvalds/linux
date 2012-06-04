@@ -1,7 +1,8 @@
 /*
- *  arch/arm/mach-versatile/include/mach/memory.h
+ * arch/arm/mach-sun3i/include/mach/memory.h
  *
- *  Copyright (C) 2003 ARM Limited
+ * (C) Copyright 2007-2012
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 
