@@ -101,9 +101,6 @@ struct ircomm_tty_cb {
 	struct timer_list watchdog_timer;
 	struct work_struct  tqueue;
 
-	int  open_count;
-	int  blocked_open;	/* # of blocked opens */
-
 	/* Protect concurent access to :
 	 *	o self->open_count
 	 *	o self->ctrl_skb
