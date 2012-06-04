@@ -1974,7 +1974,6 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	sb->s_op = &udf_sb_ops;
 	sb->s_export_op = &udf_export_ops;
 
-	sb->s_dirt = 0;
 	sb->s_magic = UDF_SUPER_MAGIC;
 	sb->s_time_gran = 1000;
 
@@ -2096,10 +2095,6 @@ void _udf_err(struct super_block *sb, const char *function,
 	struct va_format vaf;
 	va_list args;
 
-	/* mark sb error */
-	if (!(sb->s_flags & MS_RDONLY))
-		sb->s_dirt = 1;
-
 	va_start(args, fmt);
 
 	vaf.fmt = fmt;
@@ -2161,7 +2156,6 @@ static int udf_sync_fs(struct super_block *sb, int wait)
 		 * the buffer for IO
 		 */
 		mark_buffer_dirty(sbi->s_lvid_bh);
-		sb->s_dirt = 0;
 		sbi->s_lvid_dirty = 0;
 	}
 	mutex_unlock(&sbi->s_alloc_mutex);
