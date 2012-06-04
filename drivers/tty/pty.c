@@ -286,12 +286,15 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 		bool legacy)
 {
 	struct tty_struct *o_tty;
+	struct tty_port *ports[2];
 	int idx = tty->index;
 	int retval = -ENOMEM;
 
 	o_tty = alloc_tty_struct();
-	if (!o_tty)
-		goto err;
+	ports[0] = kmalloc(sizeof **ports, GFP_KERNEL);
+	ports[1] = kmalloc(sizeof **ports, GFP_KERNEL);
+	if (!o_tty || !ports[0] || !ports[1])
+		goto err_free_tty;
 	if (!try_module_get(driver->other->owner)) {
 		/* This cannot in fact currently happen */
 		goto err_free_tty;
@@ -335,6 +338,10 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	/* Establish the links in both directions */
 	tty->link   = o_tty;
 	o_tty->link = tty;
+	tty_port_init(ports[0]);
+	tty_port_init(ports[1]);
+	o_tty->port = ports[0];
+	tty->port = ports[1];
 
 	tty_driver_kref_get(driver);
 	tty->count++;
@@ -348,9 +355,15 @@ err_deinit_tty:
 	deinitialize_tty_struct(o_tty);
 	module_put(o_tty->driver->owner);
 err_free_tty:
+	kfree(ports[0]);
+	kfree(ports[1]);
 	free_tty_struct(o_tty);
-err:
 	return retval;
+}
+
+static void pty_cleanup(struct tty_struct *tty)
+{
+	kfree(tty->port);
 }
 
 /* Traditional BSD devices */
@@ -391,6 +404,7 @@ static const struct tty_operations master_pty_ops_bsd = {
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
 	.ioctl = pty_bsd_ioctl,
+	.cleanup = pty_cleanup,
 	.resize = pty_resize
 };
 
@@ -404,6 +418,7 @@ static const struct tty_operations slave_pty_ops_bsd = {
 	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
+	.cleanup = pty_cleanup,
 	.resize = pty_resize
 };
 
@@ -555,6 +570,7 @@ static const struct tty_operations ptm_unix98_ops = {
 	.set_termios = pty_set_termios,
 	.ioctl = pty_unix98_ioctl,
 	.shutdown = pty_unix98_shutdown,
+	.cleanup = pty_cleanup,
 	.resize = pty_resize
 };
 
@@ -570,7 +586,8 @@ static const struct tty_operations pty_unix98_ops = {
 	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
-	.shutdown = pty_unix98_shutdown
+	.shutdown = pty_unix98_shutdown,
+	.cleanup = pty_cleanup,
 };
 
 /**
