@@ -14,7 +14,6 @@
 #ifndef _TPCI200_H_
 #define _TPCI200_H_
 
-#include <linux/version.h>
 #include <linux/limits.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
