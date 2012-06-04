@@ -566,7 +566,8 @@ void ircomm_tty_link_established(struct ircomm_tty_cb *self)
 	 * will have to wait for the peer device (DCE) to raise the CTS
 	 * line.
 	 */
-	if ((self->flags & ASYNC_CTS_FLOW) && ((self->settings.dce & IRCOMM_CTS) == 0)) {
+	if ((self->port.flags & ASYNC_CTS_FLOW) &&
+			((self->settings.dce & IRCOMM_CTS) == 0)) {
 		IRDA_DEBUG(0, "%s(), waiting for CTS ...\n", __func__ );
 		return;
 	} else {
@@ -977,7 +978,7 @@ static int ircomm_tty_state_ready(struct ircomm_tty_cb *self,
 		ircomm_tty_next_state(self, IRCOMM_TTY_SEARCH);
 		ircomm_tty_start_watchdog_timer(self, 3*HZ);
 
-		if (self->flags & ASYNC_CHECK_CD) {
+		if (self->port.flags & ASYNC_CHECK_CD) {
 			/* Drop carrier */
 			self->settings.dce = IRCOMM_DELTA_CD;
 			ircomm_tty_check_modem_status(self);
