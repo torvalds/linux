@@ -415,6 +415,7 @@ static void ceph_msg_remove(struct ceph_msg *msg)
 {
 	list_del_init(&msg->list_head);
 	BUG_ON(msg->con == NULL);
+	ceph_con_put(msg->con);
 	msg->con = NULL;
 
 	ceph_msg_put(msg);
@@ -440,6 +441,7 @@ static void reset_connection(struct ceph_connection *con)
 		con->in_msg->con = NULL;
 		ceph_msg_put(con->in_msg);
 		con->in_msg = NULL;
+		ceph_con_put(con->in_msg->con);
 	}
 
 	con->connect_seq = 0;
@@ -1918,6 +1920,7 @@ static void process_message(struct ceph_connection *con)
 	con->in_msg->con = NULL;
 	msg = con->in_msg;
 	con->in_msg = NULL;
+	ceph_con_put(con);
 
 	/* if first message, set peer_name */
 	if (con->peer_name.type == 0)
@@ -2279,6 +2282,7 @@ static void ceph_fault(struct ceph_connection *con)
 		con->in_msg->con = NULL;
 		ceph_msg_put(con->in_msg);
 		con->in_msg = NULL;
+		ceph_con_put(con);
 	}
 
 	/* Requeue anything that hasn't been acked */
@@ -2395,8 +2399,11 @@ void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 
 	/* queue */
 	mutex_lock(&con->mutex);
+
 	BUG_ON(msg->con != NULL);
-	msg->con = con;
+	msg->con = ceph_con_get(con);
+	BUG_ON(msg->con == NULL);
+
 	BUG_ON(!list_empty(&msg->list_head));
 	list_add_tail(&msg->list_head, &con->out_queue);
 	dout("----- %p to %s%lld %d=%s len %d+%d+%d -----\n", msg,
@@ -2425,10 +2432,11 @@ void ceph_con_revoke(struct ceph_connection *con, struct ceph_msg *msg)
 		dout("%s %p msg %p - was on queue\n", __func__, con, msg);
 		list_del_init(&msg->list_head);
 		BUG_ON(msg->con == NULL);
+		ceph_con_put(msg->con);
 		msg->con = NULL;
+		msg->hdr.seq = 0;
 
 		ceph_msg_put(msg);
-		msg->hdr.seq = 0;
 	}
 	if (con->out_msg == msg) {
 		dout("%s %p msg %p - was sending\n", __func__, con, msg);
@@ -2437,8 +2445,9 @@ void ceph_con_revoke(struct ceph_connection *con, struct ceph_msg *msg)
 			con->out_skip = con->out_kvec_bytes;
 			con->out_kvec_is_msg = false;
 		}
-		ceph_msg_put(msg);
 		msg->hdr.seq = 0;
+
+		ceph_msg_put(msg);
 	}
 	mutex_unlock(&con->mutex);
 }
@@ -2622,8 +2631,10 @@ static bool ceph_con_in_msg_alloc(struct ceph_connection *con,
 		mutex_unlock(&con->mutex);
 		con->in_msg = con->ops->alloc_msg(con, hdr, &skip);
 		mutex_lock(&con->mutex);
-		if (con->in_msg)
-			con->in_msg->con = con;
+		if (con->in_msg) {
+			con->in_msg->con = ceph_con_get(con);
+			BUG_ON(con->in_msg->con == NULL);
+		}
 		if (skip)
 			con->in_msg = NULL;
 
@@ -2637,7 +2648,8 @@ static bool ceph_con_in_msg_alloc(struct ceph_connection *con,
 			       type, front_len);
 			return false;
 		}
-		con->in_msg->con = con;
+		con->in_msg->con = ceph_con_get(con);
+		BUG_ON(con->in_msg->con == NULL);
 		con->in_msg->page_alignment = le16_to_cpu(hdr->data_off);
 	}
 	memcpy(&con->in_msg->hdr, &con->in_hdr, sizeof(con->in_hdr));
