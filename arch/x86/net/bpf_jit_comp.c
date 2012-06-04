@@ -309,6 +309,10 @@ void bpf_jit_compile(struct sk_filter *fp)
 				else
 					EMIT1_off32(0x0d, K);	/* or imm32,%eax */
 				break;
+			case BPF_S_ANC_ALU_XOR_X: /* A ^= X; */
+				seen |= SEEN_XREG;
+				EMIT2(0x31, 0xd8);		/* xor %ebx,%eax */
+				break;
 			case BPF_S_ALU_LSH_X: /* A <<= X; */
 				seen |= SEEN_XREG;
 				EMIT4(0x89, 0xd9, 0xd3, 0xe0);	/* mov %ebx,%ecx; shl %cl,%eax */
