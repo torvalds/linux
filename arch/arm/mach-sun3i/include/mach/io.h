@@ -1,7 +1,8 @@
 /*
- *  arch/arm/mach-versatile/include/mach/io.h
+ * arch/arm/mach-sun3i/include/mach/io.h
  *
- *  Copyright (C) 2003 ARM Limited
+ * (C) Copyright 2007-2012
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
