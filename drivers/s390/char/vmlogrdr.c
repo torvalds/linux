@@ -656,10 +656,19 @@ static ssize_t vmlogrdr_recording_status_show(struct device_driver *driver,
 	len = strlen(buf);
 	return len;
 }
-
-
 static DRIVER_ATTR(recording_status, 0444, vmlogrdr_recording_status_show,
 		   NULL);
+static struct attribute *vmlogrdr_drv_attrs[] = {
+	&driver_attr_recording_status.attr,
+	NULL,
+};
+static struct attribute_group vmlogrdr_drv_attr_group = {
+	.attrs = vmlogrdr_drv_attrs,
+};
+static const struct attribute_group *vmlogrdr_drv_attr_groups[] = {
+	&vmlogrdr_drv_attr_group,
+	NULL,
+};
 
 static struct attribute *vmlogrdr_attrs[] = {
 	&dev_attr_autopurge.attr,
@@ -704,8 +713,8 @@ static struct device_driver vmlogrdr_driver = {
 	.name = "vmlogrdr",
 	.bus  = &iucv_bus,
 	.pm = &vmlogrdr_pm_ops,
+	.groups = vmlogrdr_drv_attr_groups,
 };
-
 
 static int vmlogrdr_register_driver(void)
 {
@@ -720,21 +729,14 @@ static int vmlogrdr_register_driver(void)
 	if (ret)
 		goto out_iucv;
 
-	ret = driver_create_file(&vmlogrdr_driver,
-				 &driver_attr_recording_status);
-	if (ret)
-		goto out_driver;
-
 	vmlogrdr_class = class_create(THIS_MODULE, "vmlogrdr");
 	if (IS_ERR(vmlogrdr_class)) {
 		ret = PTR_ERR(vmlogrdr_class);
 		vmlogrdr_class = NULL;
-		goto out_attr;
+		goto out_driver;
 	}
 	return 0;
 
-out_attr:
-	driver_remove_file(&vmlogrdr_driver, &driver_attr_recording_status);
 out_driver:
 	driver_unregister(&vmlogrdr_driver);
 out_iucv:
@@ -748,7 +750,6 @@ static void vmlogrdr_unregister_driver(void)
 {
 	class_destroy(vmlogrdr_class);
 	vmlogrdr_class = NULL;
-	driver_remove_file(&vmlogrdr_driver, &driver_attr_recording_status);
 	driver_unregister(&vmlogrdr_driver);
 	iucv_unregister(&vmlogrdr_iucv_handler, 1);
 }
