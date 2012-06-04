@@ -125,8 +125,7 @@ static inline int pcpu_stopped(struct pcpu *pcpu)
 	if (__pcpu_sigp(pcpu->address, SIGP_SENSE,
 			0, &pcpu->status) != SIGP_CC_STATUS_STORED)
 		return 0;
-	/* Check for stopped and check stop state */
-	return !!(pcpu->status & 0x50);
+	return !!(pcpu->status & (SIGP_STATUS_CHECK_STOP|SIGP_STATUS_STOPPED));
 }
 
 static inline int pcpu_running(struct pcpu *pcpu)
