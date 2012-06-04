@@ -411,7 +411,7 @@ struct pci_ops bcm63xx_cb_ops = {
  * only one IO window, so it  cannot be shared by PCI and cardbus, use
  * fixup to choose and detect unhandled configuration
  */
-static void bcm63xx_fixup(struct pci_dev *dev)
+static void __devinit bcm63xx_fixup(struct pci_dev *dev)
 {
 	static int io_window = -1;
 	int i, found, new_io_window;
