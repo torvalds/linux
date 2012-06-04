@@ -80,7 +80,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 
 	/* stop feed before setting a new pid if there will be no pid anymore */
 	if (newfeedcount == 0) {
-		deb_ts("stop feeding\n");
+		pr_debug("%s: stop feeding\n", __func__);
 		usb_urb_kill(&adap->stream);
 
 		if (adap->props.streaming_ctrl != NULL) {
@@ -95,10 +95,10 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	adap->feedcount = newfeedcount;
 
 	/* activate the pid on the device specific pid_filter */
-	deb_ts("setting pid (%s): %5d %04x at index %d '%s'\n",
-		adap->pid_filtering ?
-		"yes" : "no", dvbdmxfeed->pid, dvbdmxfeed->pid,
-		dvbdmxfeed->index, onoff ? "on" : "off");
+	pr_debug("%s: setting pid (%s): %5d %04x at index %d '%s'\n", __func__,
+			adap->pid_filtering ? "yes" : "no", dvbdmxfeed->pid,
+			dvbdmxfeed->pid, dvbdmxfeed->index,
+			onoff ? "on" : "off");
 	if (adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER &&
 			adap->pid_filtering &&
 			adap->props.pid_filter != NULL)
@@ -141,23 +141,23 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			stream_props = adap->props.stream;
 		}
 
-		deb_ts("submitting all URBs\n");
+		pr_debug("%s: submitting all URBs\n", __func__);
+
 		usb_urb_submit(&adap->stream, &stream_props);
 
-		deb_ts("controlling pid parser\n");
+		pr_debug("%s: controlling pid parser\n", __func__);
 		if (adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER &&
-			adap->props.caps &
-			DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF &&
-			adap->props.pid_filter_ctrl != NULL) {
-			ret = adap->props.pid_filter_ctrl(
-				adap,
-				adap->pid_filtering);
+				adap->props.caps &
+				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF &&
+				adap->props.pid_filter_ctrl != NULL) {
+			ret = adap->props.pid_filter_ctrl(adap,
+					adap->pid_filtering);
 			if (ret < 0) {
 				err("could not handle pid_parser");
 				return ret;
 			}
 		}
-		deb_ts("start feeding\n");
+		pr_debug("%s: start feeding\n", __func__);
 		if (adap->props.streaming_ctrl != NULL) {
 			ret = adap->props.streaming_ctrl(adap, 1);
 			if (ret < 0) {
@@ -172,15 +172,15 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 
 static int dvb_usb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
-	deb_ts("start pid: 0x%04x, feedtype: %d\n",
-		dvbdmxfeed->pid, dvbdmxfeed->type);
+	pr_debug("%s: start pid %04x feedtype %d", __func__, dvbdmxfeed->pid,
+			dvbdmxfeed->type);
 	return dvb_usb_ctrl_feed(dvbdmxfeed, 1);
 }
 
 static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
-	deb_ts("stop pid: 0x%04x, feedtype: %d\n",
-			dvbdmxfeed->pid, dvbdmxfeed->type);
+	pr_debug("%s: stop pid %04x feedtype %d", __func__, dvbdmxfeed->pid,
+			dvbdmxfeed->type);
 	return dvb_usb_ctrl_feed(dvbdmxfeed, 0);
 }
 
@@ -191,7 +191,7 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
 				       &adap->dev->udev->dev,
 				       adap->dev->props.adapter_nr);
 	if (ret < 0) {
-		deb_info("dvb_register_adapter failed: error %d", ret);
+		pr_debug("%s: dvb_register_adapter failed=%d\n", __func__, ret);
 		goto err;
 	}
 	adap->dvb_adap.priv = adap;
@@ -253,7 +253,7 @@ err:
 int dvb_usb_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 {
 	if (adap->state & DVB_USB_ADAP_STATE_DVB) {
-		deb_info("unregistering DVB part\n");
+		pr_debug("%s: unregistering DVB part\n", __func__);
 		dvb_net_release(&adap->dvb_net);
 		adap->demux.dmx.close(&adap->demux.dmx);
 		dvb_dmxdev_release(&adap->dmxdev);

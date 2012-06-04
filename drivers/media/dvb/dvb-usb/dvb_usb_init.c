@@ -189,11 +189,11 @@ static int dvb_usb_adapter_exit(struct dvb_usb_device *d)
 /* general initialization functions */
 static int dvb_usb_exit(struct dvb_usb_device *d)
 {
-	deb_info("state before exiting everything: %x\n", d->state);
+	pr_debug("%s: state before exiting everything: %x\n", __func__, d->state);
 	dvb_usb_remote_exit(d);
 	dvb_usb_adapter_exit(d);
 	dvb_usb_i2c_exit(d);
-	deb_info("state should be zero now: %x\n", d->state);
+	pr_debug("%s: state should be zero now: %x\n", __func__, d->state);
 	d->state = DVB_USB_STATE_INIT;
 	kfree(d->priv);
 	kfree(d);
@@ -249,7 +249,7 @@ int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
 
 	if (d->powered == 0 || (onoff && d->powered == 1)) {
 		/* when switching from 1 to 0 or from 0 to 1 */
-		deb_info("power control: %d\n", onoff);
+		pr_debug("%s: power control: %d\n", __func__, onoff);
 		if (d->props.power_ctrl)
 			return d->props.power_ctrl(d, onoff);
 	}
