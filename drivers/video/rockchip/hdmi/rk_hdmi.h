@@ -187,7 +187,8 @@ struct hdmi_edid {
 
 extern const struct fb_videomode hdmi_mode[];
 
-#define HDMI_DEBUG
+#define hdmi_err(dev, format, arg...)		\
+	dev_printk(KERN_ERR , dev , format , ## arg)
 
 #ifdef HDMI_DEBUG
 #define hdmi_dbg(dev, format, arg...)		\

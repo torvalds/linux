@@ -121,6 +121,20 @@ enum{
 #define TMDS_CLOCK_MODE_MASK	0x3 << 6
 #define TMDS_CLOCK_MODE(n)		(n) << 6
 
+/* VIDEO_CTRL2 */
+#define VIDEO_SETTING2	0x114
+#define m_UNMUTE					(1 << 7)
+#define m_MUTE						(1 << 6)
+#define m_AUDIO_RESET				(1 << 2)
+#define m_NOT_SEND_AUDIO			(1 << 1)
+#define m_NOT_SEND_VIDEO			(1 << 0)
+#define AV_UNMUTE					(1 << 7)		// Unmute video and audio, send normal video and audio data
+#define AV_MUTE						(1 << 6)		// Mute video and audio, send black video data and silent audio data
+#define AUDIO_CAPTURE_RESET			(1 << 2)		// Reset audio process logic, only available in pwr_e mode.
+#define NOT_SEND_AUDIO				(1 << 1)		// Send silent audio data
+#define NOT_SEND_VIDEO				(1 << 0)		// Send black video data
+
+/* Color Space Convertion Parameter*/
 #define CSC_PARA_C0_H	0x60
 #define CSC_PARA_C0_L	0x64
 #define CSC_PARA_C1_H	0x68
@@ -172,19 +186,6 @@ enum {
 #define v_CSC_VID_SELECT(n)		(n << 1)
 #define v_CSC_BRSWAP_DIABLE(n)	(n)
 
-/* VIDEO_SETTING2 */
-#define VIDEO_SETTING2	0x114
-#define m_UNMUTE					(1 << 7)
-#define m_MUTE						(1 << 6)
-#define m_AUDIO_RESET				(1 << 2)
-#define m_NOT_SEND_AUDIO			(1 << 1)
-#define m_NOT_SEND_VIDEO			(1 << 0)
-#define AV_UNMUTE					(1 << 7)		// Unmute video and audio, send normal video and audio data
-#define AV_MUTE						(1 << 6)		// Mute video and audio, send black video data and silent audio data
-#define AUDIO_CAPTURE_RESET			(1 << 2)		// Reset audio process logic, only available in pwr_e mode.
-#define NOT_SEND_AUDIO				(1 << 1)		// Send silent audio data
-#define NOT_SEND_VIDEO				(1 << 0)		// Send black video data
-
 /* CONTROL_PACKET_BUF_INDEX */
 #define CONTROL_PACKET_BUF_INDEX	0x17c
 enum {
@@ -220,17 +221,7 @@ enum {
 	ACTIVE_ASPECT_RATE_14_9
 };
 
-
-/* HDCP_CTRL */
-#define HDCP_CTRL		0x2bc
-
-enum {
-	OUTPUT_DVI = 0,
-	OUTPUT_HDMI
-};
-#define m_HDMI_DVI		(1 << 1)
-#define v_HDMI_DVI(n)	(n << 1)
-
+/* External Video Parameter Setting*/
 #define EXT_VIDEO_PARA			0xC0
 #define m_VSYNC_OFFSET			(0xF << 4)
 #define m_VSYNC_POLARITY		(1 << 3)
@@ -294,21 +285,27 @@ enum {
 	#define v_PLLB_BIT16(n)			(n << 4)
 	#define v_AML(n)				(n)
 
+/* Interrupt Setting */
 #define INTR_MASK1					0x248
-#define INTR_MASK2					0x24c
-#define INTR_MASK3					0x258
-#define INTR_MASK4					0x25c
 #define INTR_STATUS1				0x250
+	#define m_INT_HOTPLUG				(1 << 7)
+	#define m_INT_MSENS					(1 << 6)
+	#define m_INT_VSYNC					(1 << 5)
+	#define m_INT_AUDIO_FIFO_FULL		(1 << 4)
+	#define m_INT_EDID_READY			(1 << 2)
+	#define m_INT_EDID_ERR				(1 << 1)
+#define INTR_MASK2					0x24c
 #define INTR_STATUS2				0x254
+	#define m_INT_HDCP_ERR				(1 << 7)	// HDCP error detected
+	#define m_INT_BKSV_RPRDY			(1 << 6)	// BKSV list ready from repeater
+	#define m_INT_BKSV_RCRDY			(1 << 5)	// BKSV list ready from receiver
+	#define m_INT_AUTH_DONE				(1 << 4)	// HDCP authentication done
+	#define m_INT_AUTH_READY			(1 << 3)	// HDCP authentication ready
+#define INTR_MASK3					0x258
 #define INTR_STATUS3				0x260
-#define INTR_STATUS4				0x264
 
-#define m_INT_HOTPLUG				(1 << 7)
-#define m_INT_MSENS					(1 << 6)
-#define m_INT_VSYNC					(1 << 5)
-#define m_INT_AUDIO_FIFO_FULL		(1 << 4)
-#define m_INT_EDID_READY			(1 << 2)
-#define m_INT_EDID_ERR				(1 << 1)
+#define INTR_MASK4					0x25c
+#define INTR_STATUS4				0x264
 
 #define DDC_READ_FIFO_ADDR			0x200
 #define DDC_BUS_FREQ_L				0x204
@@ -337,6 +334,78 @@ enum {
 #define m_HOTPLUG_STATUS			(1 << 7)
 #define m_MSEN_STATUS				(1 << 6)
 
+/* HDCP_CTRL */
+#define HDCP_CTRL		0x2bc
+	enum {
+		OUTPUT_DVI = 0,
+		OUTPUT_HDMI
+	};
+	#define m_HDCP_AUTH_START			(1 << 7)	// start hdcp
+	#define m_HDCP_BKSV_PASS			(1 << 6)	// bksv valid
+	#define m_HDCP_BKSV_FAILED			(1 << 5)	// bksv invalid
+	#define m_HDCP_FRAMED_ENCRYPED		(1 << 4)
+	#define m_HDCP_AUTH_STOP			(1 << 3)	// stop hdcp
+	#define m_HDCP_ADV_CIPHER			(1 << 2)	// advanced cipher mode
+	#define m_HDMI_DVI					(1 << 1)
+	#define m_HDCP_RESET				(1 << 0)	// reset hdcp
+	#define v_HDCP_AUTH_START(n)		(n << 7)
+	#define v_HDCP_BKSV_PASS(n)			(n << 6)
+	#define v_HDCP_BKSV_FAILED(n)		(n << 5)
+	#define v_HDCP_FRAMED_ENCRYPED(n)	(n << 4)
+	#define v_HDCP_AUTH_STOP(n)			(n << 3)
+	#define v_HDCP_ADV_CIPHER(n)		(n << 2)
+	#define v_HDMI_DVI(n)				(n << 1)
+	#define v_HDCP_RESET(n)				(n << 0)
+#define HDCP_CTRL2		0x340
+
+/* HDCP Key Memory Access Control */
+#define HDCP_KEY_ACCESS_CTRL1	0x338
+#define HDCP_KEY_ACCESS_CTRL2	0x33c
+	#define m_LOAD_FACSIMILE_HDCP_KEY	(1 << 1)
+	#define m_LOAD_HDCP_KEY				(1 << 0)
+/* HDCP Key Memory Control */
+#define HDCP_KEY_MEM_CTRL	0x348
+	#define m_USE_KEY1		(1 << 6)
+	#define m_USE_KEY2		(1 << 5)
+	#define m_LOAD_AKSV		(1 << 4)
+	#define m_KSV_SELECTED	(1 << 3)
+	#define m_KSV_VALID		(1 << 2)
+	#define m_KEY_VALID		(1 << 1)
+	#define m_KEY_READY		(1 << 0)
+	#define v_USE_KEY1(n)	(n << 6)
+	#define v_USE_KEY2(n)	(n << 5)
+	#define v_LOAD_AKSV(n)	(n << 4)
+
+/* HDCP B device capacity */
+#define HDCP_BCAPS				0x2f8
+	#define m_HDMI_RECEIVED			(1 << 7) //If HDCP receiver support HDMI, this bit must be 1.
+	#define m_REPEATER				(1 << 6)
+	#define m_KSV_FIFO_READY		(1 << 5)
+	#define m_DDC_FAST				(1 << 4)
+	#define m_1_1_FEATURE			(1 << 1)
+	#define m_FAST_REAUTHENTICATION	(1 << 0) //For HDMI, this function is supported whether this bit is enabled or not.
+
+/* HDCP KSV Value */
+#define HDCP_KSV_BYTE0			0x2fc
+#define HDCP_KSV_BYTE1			0x300
+#define HDCP_KSV_BYTE2			0x304
+#define HDCP_KSV_BYTE3			0x308
+#define HDCP_KSV_BYTE4			0x30c
+
+/* HDCP 100 ms timer */
+#define HDCP_TIMER_100MS		0x324
+/* HDCP 5s timer */
+#define HDCP_TIMER_5S			0x328
+
+/* HDCP Key ram address */
+#define HDCP_RAM_KEY_KSV1		0x400
+#define HDCP_RAM_KEY_KSV2		0x407
+#define HDCP_RAM_KEY_PRIVATE	0x40e
+#define HDCP_KEY_LENGTH			0x13C
+
+
+#define HDCP_ENABLE_HW_AUTH		// Enable hardware authentication mode	
+#define HDMI_INTERANL_CLK_DIV	0x19
 
 #define HDMIRdReg(addr)						__raw_readl(hdmi->regbase + addr)
 #define HDMIWrReg(addr, val)        		__raw_writel((val), hdmi->regbase + addr);
@@ -363,10 +432,12 @@ enum {
 	CSC_ITU709_16_235_TO_RGB_0_255		//YCbCr 16-235 input to RGB 0-255 output according BT709
 };
 
+extern int rk30_hdmi_initial(void);
 extern int rk30_hdmi_detect_hotplug(void);
 extern int rk30_hdmi_read_edid(int block, unsigned char *buff);
 extern int rk30_hdmi_removed(void);
 extern int rk30_hdmi_config_video(struct rk30_hdmi_video_para *vpara);
 extern int rk30_hdmi_config_audio(struct hdmi_audio *audio);
 extern void rk30_hdmi_control_output(int enable);
+
 #endif

@@ -27,6 +27,22 @@ extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent);
 extern void hdmi_unregister_display_sysfs(struct hdmi *hdmi);
 
+int rk30_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
+					 void (*hdcp_irq_cb)(int status),
+					 int (*hdcp_power_on_cb)(void),
+					 void (*hdcp_power_off_cb)(void))
+{
+	if(hdmi == NULL)
+		return HDMI_ERROR_FALSE;
+
+	hdmi->hdcp_cb = hdcp_cb;
+	hdmi->hdcp_irq_cb = hdcp_irq_cb;
+	hdmi->hdcp_power_on_cb = hdcp_power_on_cb;
+	hdmi->hdcp_power_off_cb = hdcp_power_off_cb;
+	
+	return HDMI_ERROR_SUCESS;
+}
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void hdmi_early_suspend(struct early_suspend *h)
 {
@@ -55,6 +71,7 @@ static void hdmi_early_resume(struct early_suspend *h)
 	hdmi_dbg(hdmi->dev, "hdmi exit early resume\n");
 	mutex_lock(&hdmi->enable_mutex);
 	hdmi->suspend = 0;
+	rk30_hdmi_initial();
 	if(hdmi->enable) {
 		enable_irq(hdmi->irq);
 	}
@@ -62,10 +79,6 @@ static void hdmi_early_resume(struct early_suspend *h)
 	return;
 }
 #endif
-
-
-
-
 
 static inline void hdmi_io_remap(void)
 {
@@ -79,9 +92,6 @@ static inline void hdmi_io_remap(void)
 	// Select LCDC0 as video source and enabled.
 	value = (HDMI_SOURCE_DEFAULT << 14) | (1 << 30);
 	writel(value, GRF_SOC_CON0 + RK30_GRF_BASE);
-	
-	// internal hclk = hdmi_hclk/20
-	HDMIWrReg(0x800, 19);
 }
 
 static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
@@ -128,7 +138,8 @@ static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err0;
 	}
-	
+	hdmi->regbase_phy = res->start;
+	hdmi->regsize_phy = (res->end - res->start) + 1;
 	mem = request_mem_region(res->start, (res->end - res->start) + 1, pdev->name);
 	if (!mem)
 	{
@@ -145,6 +156,10 @@ static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
 		goto err1;
 	}
 	
+	ret = rk30_hdmi_initial();
+	if(ret != HDMI_ERROR_SUCESS)
+		goto err1;
+		
 	hdmi_io_remap();
 	hdmi_sys_init();
 	
@@ -207,6 +222,11 @@ err0:
 static int __devexit rk30_hdmi_remove(struct platform_device *pdev)
 {
 	if(hdmi) {
+		mutex_lock(&hdmi->enable_mutex);
+		if(!hdmi->suspend && hdmi->enable)
+			disable_irq(hdmi->irq);
+		mutex_unlock(&hdmi->enable_mutex);
+		free_irq(hdmi->irq, NULL);
 		flush_workqueue(hdmi->workqueue);
 		destroy_workqueue(hdmi->workqueue);
 		#ifdef CONFIG_SWITCH
@@ -217,7 +237,7 @@ static int __devexit rk30_hdmi_remove(struct platform_device *pdev)
 		unregister_early_suspend(&hdmi->early_suspend);
 		#endif
 		iounmap((void*)hdmi->regbase);
-	//	release_mem_region(res->start,(res->end - res->start) + 1);
+		release_mem_region(hdmi->regbase_phy, hdmi->regsize_phy);
 		clk_disable(hdmi->hclk);
 		fb_destroy_modelist(&hdmi->edid.modelist);
 		if(hdmi->edid.audio)

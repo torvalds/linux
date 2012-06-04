@@ -14,7 +14,7 @@
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
-
+#include <asm/atomic.h>
 #include<linux/rk_screen.h>
 #include <linux/rk_fb.h>
 #include "rk_hdmi.h"
@@ -45,6 +45,8 @@ struct hdmi {
 	struct clk		*hclk;				//HDMI AHP clk
 	int 			regbase;
 	int				irq;
+	int				regbase_phy;
+	int				regsize_phy;
 	struct rk_lcdc_device_driver *lcdc;
 	
 	#ifdef CONFIG_SWITCH
@@ -78,6 +80,12 @@ struct hdmi {
 	int display;				// HDMI display status
 	int xscale;					// x direction scale value
 	int yscale;					// y directoon scale value
+	
+	// call back for hdcp operatoion
+	void (*hdcp_cb)(void);
+	void (*hdcp_irq_cb)(int);
+	int (*hdcp_power_on_cb)(void);
+	void (*hdcp_power_off_cb)(void);
 };
 
 extern struct hdmi *hdmi;
@@ -93,4 +101,8 @@ extern int hdmi_find_best_mode(struct hdmi* hdmi, int vic);
 extern int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok);
 extern int hdmi_switch_fb(struct hdmi *hdmi, int vic);
 extern void hdmi_sys_remove(void);
+extern int rk30_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
+					 void (*hdcp_irq_cb)(int status),
+					 int  (*hdcp_power_on_cb)(void),
+					 void (*hdcp_power_off_cb)(void));
 #endif /* __RK30_HDMI_H__ */

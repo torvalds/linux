@@ -1,0 +1,14 @@
+config HDCP_RK30
+	bool "RK30 HDCP support"
+        depends on LCDC_RK30 && HDMI_RK30
+        default n
+	help
+	  HDCP Interface. This adds the High Definition Content Protection Interface.
+	  See http://www.digital-cp.com/ for HDCP specification.
+
+config HDCP_RK30_DEBUG
+	bool "RK30 HDCP Debugging"
+        depends on HDCP_RK30
+        default n
+	help
+	  Enableds verbose debugging the the HDCP drivers

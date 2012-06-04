@@ -11,6 +11,18 @@ static inline void delay100us(void)
 	msleep(1);
 }
 
+int rk30_hdmi_initial(void)
+{
+	int rc = HDMI_ERROR_SUCESS;
+	// internal hclk = hdmi_hclk/20
+	HDMIWrReg(0x800, HDMI_INTERANL_CLK_DIV);
+	
+	if(hdmi->hdcp_power_on_cb)
+		rc = hdmi->hdcp_power_on_cb();
+
+	return rc;
+}
+
 static void rk30_hdmi_set_pwr_mode(int mode)
 {
 	if(hdmi->pwr_mode == mode)
@@ -88,6 +100,7 @@ int rk30_hdmi_read_edid(int block, unsigned char *buff)
 		{
 			spin_lock_irqsave(&hdmi->irq_lock, flags);
 			interrupt = edid_result;
+			edid_result = 0;
 			spin_unlock_irqrestore(&hdmi->irq_lock, flags);
 			if(interrupt & (m_INT_EDID_ERR | m_INT_EDID_READY))
 				break;
@@ -111,7 +124,7 @@ int rk30_hdmi_read_edid(int block, unsigned char *buff)
 			break;
 		}		
 		if(interrupt & m_INT_EDID_ERR)
-			hdmi_dbg(hdmi->dev, "[%s] edid read error\n", __FUNCTION__);
+			hdmi_err(hdmi->dev, "[%s] edid read error\n", __FUNCTION__);
 
 	}
 	// Disable edid interrupt
@@ -178,7 +191,7 @@ static void rk30_hdmi_config_phy(unsigned char vic)
 			rk30_hdmi_config_phy_reg(0x178, 0x00);
 			break;
 		default:
-			hdmi_dbg(hdmi->dev, "not support such vic %d\n", vic);
+			hdmi_err(hdmi->dev, "not support such vic %d\n", vic);
 			break;
 	}
 }
@@ -332,13 +345,17 @@ int rk30_hdmi_config_video(struct rk30_hdmi_video_para *vpara)
 	struct fb_videomode *mode;
 	
 	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
-	if(vpara == NULL)
+	if(vpara == NULL) {
+		hdmi_err(hdmi->dev, "[%s] input parameter error\n", __FUNCTION__);
 		return -1;
-	
+	}
 	if(hdmi->pwr_mode == PWR_SAVE_MODE_E)
 		rk30_hdmi_set_pwr_mode(PWR_SAVE_MODE_D);
 	if(hdmi->pwr_mode == PWR_SAVE_MODE_D || hdmi->pwr_mode == PWR_SAVE_MODE_A)
 		rk30_hdmi_set_pwr_mode(PWR_SAVE_MODE_B);
+	
+	if(hdmi->hdcp_power_off_cb)
+		hdmi->hdcp_power_off_cb();
 		
 	// Input video mode is RGB24bit, Data enable signal from external
 	HDMIMskReg(value, AV_CTRL1, m_INPUT_VIDEO_MODE | m_DE_SIGNAL_SELECT, \
@@ -355,7 +372,7 @@ int rk30_hdmi_config_video(struct rk30_hdmi_video_para *vpara)
 	mode = (struct fb_videomode *)hdmi_vic_to_videomode(vpara->vic);
 	if(mode == NULL)
 	{
-		hdmi_dbg(hdmi->dev, "[%s] not found vic %d\n", __FUNCTION__, vpara->vic);
+		hdmi_err(hdmi->dev, "[%s] not found vic %d\n", __FUNCTION__, vpara->vic);
 		return -ENOENT;
 	}
 	value = v_EXT_VIDEO_ENABLE(1) | v_INTERLACE(mode->vmode);
@@ -473,7 +490,7 @@ int rk30_hdmi_config_audio(struct hdmi_audio *audio)
 			N = N_192K;
 			break;
 		default:
-			dev_err(hdmi->dev, "[%s] not support such sample rate %d\n", __FUNCTION__, audio->rate);
+			hdmi_err(hdmi->dev, "[%s] not support such sample rate %d\n", __FUNCTION__, audio->rate);
 			return -ENOENT;
 	}
 	switch(audio->word_length)
@@ -488,7 +505,7 @@ int rk30_hdmi_config_audio(struct hdmi_audio *audio)
 			word_length = 0x0b;
 			break;
 		default:
-			dev_err(hdmi->dev, "[%s] not support such word length %d\n", __FUNCTION__, audio->word_length);
+			hdmi_err(hdmi->dev, "[%s] not support such word length %d\n", __FUNCTION__, audio->word_length);
 			return -ENOENT;
 	}
 	//set_audio_if I2S
@@ -524,10 +541,14 @@ void rk30_hdmi_control_output(int enable)
 		HDMIWrReg(VIDEO_SETTING2, 0x03);
 	}
 	else {
-		//  Switch to power save mode_d
-		rk30_hdmi_set_pwr_mode(PWR_SAVE_MODE_D);
-		//  Switch to power save mode_e
-		rk30_hdmi_set_pwr_mode(PWR_SAVE_MODE_E);
+		if(hdmi->pwr_mode == PWR_SAVE_MODE_B) {
+			//  Switch to power save mode_d
+			rk30_hdmi_set_pwr_mode(PWR_SAVE_MODE_D);
+		}
+		if(hdmi->pwr_mode == PWR_SAVE_MODE_D) {
+			//  Switch to power save mode_e
+			rk30_hdmi_set_pwr_mode(PWR_SAVE_MODE_E);
+		}
 		HDMIWrReg(VIDEO_SETTING2, 0x00);
 		rk30_hdmi_audio_reset();
 	}
@@ -552,8 +573,11 @@ int rk30_hdmi_removed(void)
 		// Disable color space convertion
 		HDMIWrReg(AV_CTRL2, v_CSC_ENABLE(0));
 		HDMIWrReg(CSC_CONFIG1, v_CSC_MODE(CSC_MODE_AUTO) | v_CSC_BRSWAP_DIABLE(1));
+		if(hdmi->hdcp_power_off_cb)
+			hdmi->hdcp_power_off_cb();
 		rk30_hdmi_set_pwr_mode(PWR_SAVE_MODE_A);
-	}	
+	}
+	dev_printk(KERN_INFO , hdmi->dev , "Removed.\n");
 	return HDMI_ERROR_SUCESS;
 }
 
@@ -605,6 +629,8 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 			HDMIWrReg(SYS_CTRL, 0x10);
 			hdmi->pwr_mode = PWR_SAVE_MODE_A;
 		}
+		if(interrupt2 && hdmi->hdcp_irq_cb)
+			hdmi->hdcp_irq_cb(interrupt2);
 	}
 	return IRQ_HANDLED;
 }

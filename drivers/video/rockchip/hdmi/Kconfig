@@ -1,8 +1,15 @@
 config HDMI_RK30
-        bool "rk30 hdmi support"
+        bool "RK30 HDMI support"
         depends on LCDC_RK30
         select FB_MODE_HELPERS
-#        default y
         help
            Support rk30 hdmi if you say y here
-           
+
+config HDMI_RK30_DEBUG
+		bool "RK30 HDMI Debugging"
+        depends on HDMI_RK30 && LCDC_RK30
+        default n
+		help
+		  Enableds verbose debugging the the HDMI drivers
+
+source "drivers/video/rockchip/hdmi/hdcp/Kconfig"
