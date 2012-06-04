@@ -324,9 +324,14 @@ mi_set_context(struct intel_ring_buffer *ring,
 {
 	int ret;
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(ring, 6);
 	if (ret)
 		return ret;
+
+	if (IS_GEN7(ring->dev))
+		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_DISABLE);
+	else
+		intel_ring_emit(ring, MI_NOOP);
 
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_emit(ring, MI_SET_CONTEXT);
@@ -337,6 +342,11 @@ mi_set_context(struct intel_ring_buffer *ring,
 			hw_flags);
 	/* w/a: MI_SET_CONTEXT must always be followed by MI_NOOP */
 	intel_ring_emit(ring, MI_NOOP);
+
+	if (IS_GEN7(ring->dev))
+		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_ENABLE);
+	else
+		intel_ring_emit(ring, MI_NOOP);
 
 	intel_ring_advance(ring);
 
