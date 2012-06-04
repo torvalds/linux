@@ -1,18 +1,26 @@
 /*
- * (C) Copyright 2010-2015
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * arch/arm/mach-sun4i/include/mach/i2c.h
  *
+ * (C) Copyright 2007-2012
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Tom Cubie <tanglaing@allwinnertech.com>
  * Victor Wei <weiziheng@allwinnertech.com>
- *
- * SUN4I two wire interface reg definition
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
  * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
  */
-
 
 #ifndef _SUN4I_I2C_PRIVATE_H_
 #define _SUN4I_I2C_PRIVATE_H_
