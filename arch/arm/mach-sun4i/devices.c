@@ -37,7 +37,7 @@ static struct plat_serial8250_port debug_uart_platform_data[] = {
 		.mapbase	= (resource_size_t)SW_PA_UART0_IO_BASE,
 		.irq		= SW_INT_IRQNO_UART0,
 		.flags		= UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_DWAPB32,
+		.type		= UPIO_MEM32,
 		.regshift	= 2,
 		.uartclk	= 24000000,
 	}, {

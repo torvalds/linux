@@ -7,7 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#define pr_fmt(fmt)	"8250-sunxi: " fmt
+#define pr_fmt(fmt)	"[uart]: " fmt
 
 #include <linux/module.h>
 #include <linux/types.h>
@@ -176,7 +176,7 @@ static int __devinit sw_serial_probe(struct platform_device *dev)
 	sport->port.irq = sport->irq;
 	sport->port.fifosize = 64;
 	sport->port.regshift = 2;
-	sport->port.iotype  = UPIO_DWAPB32;
+	sport->port.iotype  = UPIO_MEM32;
 	sport->port.flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
 	sport->port.uartclk = sport->sclk;
 	sport->port.pm = sw_serial_pm;
