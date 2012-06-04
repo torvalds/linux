@@ -308,6 +308,16 @@ struct i915_hw_ppgtt {
 	dma_addr_t scratch_page_dma_addr;
 };
 
+
+/* This must match up with the value previously used for execbuf2.rsvd1. */
+#define DEFAULT_CONTEXT_ID 0
+struct i915_hw_context {
+	int id;
+	struct drm_i915_file_private *file_priv;
+	struct intel_ring_buffer *ring;
+	struct drm_i915_gem_object *obj;
+};
+
 enum no_fbc_reason {
 	FBC_NO_OUTPUT, /* no outputs enabled to compress */
 	FBC_STOLEN_TOO_SMALL, /* not enough space to hold compressed buffers */
@@ -1032,6 +1042,7 @@ struct drm_i915_file_private {
 		struct spinlock lock;
 		struct list_head request_list;
 	} mm;
+	struct idr context_idr;
 };
 
 #define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)

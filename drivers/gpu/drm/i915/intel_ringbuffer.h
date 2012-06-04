@@ -116,6 +116,8 @@ struct  intel_ring_buffer {
 
 	wait_queue_head_t irq_queue;
 
+	struct i915_hw_context *default_context;
+
 	void *private;
 };
 

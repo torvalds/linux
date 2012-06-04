@@ -89,6 +89,15 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
+/* This is a HW constraint. The value below is the largest known requirement
+ * I've seen in a spec to date, and that was a workaround for a non-shipping
+ * part. It should be safe to decrease this, but it's more future proof as is.
+ */
+#define CONTEXT_ALIGN (64<<10)
+
+static struct i915_hw_context *
+i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
+
 static int get_context_size(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -111,6 +120,76 @@ static int get_context_size(struct drm_device *dev)
 	return ret;
 }
 
+static void do_destroy(struct i915_hw_context *ctx)
+{
+	struct drm_device *dev = ctx->obj->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (ctx->file_priv)
+		idr_remove(&ctx->file_priv->context_idr, ctx->id);
+	else
+		BUG_ON(ctx != dev_priv->ring[RCS].default_context);
+
+	drm_gem_object_unreference(&ctx->obj->base);
+	kfree(ctx);
+}
+
+static int
+create_hw_context(struct drm_device *dev,
+		  struct drm_i915_file_private *file_priv,
+		  struct i915_hw_context **ctx_out)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret, id;
+
+	*ctx_out = kzalloc(sizeof(struct drm_i915_file_private), GFP_KERNEL);
+	if (*ctx_out == NULL)
+		return -ENOMEM;
+
+	(*ctx_out)->obj = i915_gem_alloc_object(dev,
+						dev_priv->hw_context_size);
+	if ((*ctx_out)->obj == NULL) {
+		kfree(*ctx_out);
+		DRM_DEBUG_DRIVER("Context object allocated failed\n");
+		return -ENOMEM;
+	}
+
+	/* The ring associated with the context object is handled by the normal
+	 * object tracking code. We give an initial ring value simple to pass an
+	 * assertion in the context switch code.
+	 */
+	(*ctx_out)->ring = &dev_priv->ring[RCS];
+
+	/* Default context will never have a file_priv */
+	if (file_priv == NULL)
+		return 0;
+
+	(*ctx_out)->file_priv = file_priv;
+
+again:
+	if (idr_pre_get(&file_priv->context_idr, GFP_KERNEL) == 0) {
+		ret = -ENOMEM;
+		DRM_DEBUG_DRIVER("idr allocation failed\n");
+		goto err_out;
+	}
+
+	ret = idr_get_new_above(&file_priv->context_idr, *ctx_out,
+				DEFAULT_CONTEXT_ID + 1, &id);
+	if (ret == 0)
+		(*ctx_out)->id = id;
+
+	if (ret == -EAGAIN)
+		goto again;
+	else if (ret)
+		goto err_out;
+
+	return 0;
+
+err_out:
+	do_destroy(*ctx_out);
+	return ret;
+}
+
 /**
  * The default context needs to exist per ring that uses contexts. It stores the
  * context state of the GPU for applications that don't utilize HW contexts, as
@@ -118,7 +197,30 @@ static int get_context_size(struct drm_device *dev)
  */
 static int create_default_context(struct drm_i915_private *dev_priv)
 {
-	return 0;
+	struct i915_hw_context *ctx;
+	int ret;
+
+	BUG_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+
+	ret = create_hw_context(dev_priv->dev, NULL,
+				&dev_priv->ring[RCS].default_context);
+	if (ret)
+		return ret;
+
+	/* We may need to do things with the shrinker which require us to
+	 * immediately switch back to the default context. This can cause a
+	 * problem as pinning the default context also requires GTT space which
+	 * may not be available. To avoid this we always pin the
+	 * default context.
+	 */
+	ctx = dev_priv->ring[RCS].default_context;
+	ret = i915_gem_object_pin(ctx->obj, CONTEXT_ALIGN, false);
+	if (ret) {
+		do_destroy(ctx);
+		return ret;
+	}
+
+	return ret;
 }
 
 void i915_gem_context_init(struct drm_device *dev)
@@ -130,7 +232,8 @@ void i915_gem_context_init(struct drm_device *dev)
 		return;
 
 	/* If called from reset, or thaw... we've been here already */
-	if (dev_priv->hw_contexts_disabled)
+	if (dev_priv->hw_contexts_disabled ||
+	    dev_priv->ring[RCS].default_context)
 		return;
 
 	ctx_size = get_context_size(dev);
@@ -156,20 +259,55 @@ void i915_gem_context_fini(struct drm_device *dev)
 
 	if (dev_priv->hw_contexts_disabled)
 		return;
+
+	i915_gem_object_unpin(dev_priv->ring[RCS].default_context->obj);
+
+	do_destroy(dev_priv->ring[RCS].default_context);
 }
 
 void i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	if (dev_priv->hw_contexts_disabled)
 		return;
+
+	idr_init(&file_priv->context_idr);
+}
+
+static int context_idr_cleanup(int id, void *p, void *data)
+{
+	struct drm_file *file = (struct drm_file *)data;
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+	struct i915_hw_context *ctx;
+
+	BUG_ON(id == DEFAULT_CONTEXT_ID);
+	ctx = i915_gem_context_get(file_priv, id);
+	if (WARN_ON(ctx == NULL))
+		return -ENXIO;
+
+	do_destroy(ctx);
+
+	return 0;
 }
 
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	if (dev_priv->hw_contexts_disabled)
 		return;
+
+	mutex_lock(&dev->struct_mutex);
+	idr_for_each(&file_priv->context_idr, context_idr_cleanup, file);
+	idr_destroy(&file_priv->context_idr);
+	mutex_unlock(&dev->struct_mutex);
+}
+
+static __used struct i915_hw_context *
+i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id)
+{
+	return (struct i915_hw_context *)idr_find(&file_priv->context_idr, id);
 }
