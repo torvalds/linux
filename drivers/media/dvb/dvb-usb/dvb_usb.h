@@ -204,12 +204,6 @@ struct dvb_usb_device_properties {
 #define DVB_USB_IS_AN_I2C_ADAPTER            0x01
 	int caps;
 
-#define DEVICE_SPECIFIC 0
-#define CYPRESS_AN2135  1
-#define CYPRESS_AN2235  2
-#define CYPRESS_FX2     3
-	int        usb_ctrl;
-
 	int size_of_priv;
 
 	const char *firmware;
@@ -397,18 +391,5 @@ extern void dvb_usbv2_device_exit(struct usb_interface *);
 extern int dvb_usbv2_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16,
 		int);
 extern int dvb_usbv2_generic_write(struct dvb_usb_device *, u8 *, u16);
-
-/* commonly used firmware download types and function */
-struct hexline {
-	u8 len;
-	u32 addr;
-	u8 type;
-	u8 data[255];
-	u8 chk;
-};
-extern int usbv2_cypress_load_firmware(struct usb_device *udev,
-		const struct firmware *fw, int type);
-extern int dvb_usbv2_get_hexline(const struct firmware *fw, struct hexline *hx,
-		int *pos);
 
 #endif

@@ -31,6 +31,48 @@ module_param_named(force_pid_filter_usage, dvb_usb_force_pid_filter_usage,
 MODULE_PARM_DESC(force_pid_filter_usage, "force all dvb-usb-devices to use a" \
 		" PID filter, if any (default: 0).");
 
+int dvb_usb_download_firmware(struct dvb_usb_device *d)
+{
+	int ret;
+	const struct firmware *fw = NULL;
+	const char *name;
+
+	/* resolve firmware name */
+	name = d->props.firmware;
+	if (d->props.get_firmware_name) {
+		ret = d->props.get_firmware_name(d, &name);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (!d->props.download_firmware) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	ret = request_firmware(&fw, name, &d->udev->dev);
+	if (ret < 0) {
+		err("did not find the firmware file. (%s) " \
+			"Please see linux/Documentation/dvb/ for more" \
+			" details on firmware-problems. (%d)", name, ret);
+		goto err;
+	}
+
+	info("downloading firmware from file '%s'", name);
+
+	ret = d->props.download_firmware(d, fw);
+
+	release_firmware(fw);
+
+	if (ret < 0)
+		goto err;
+
+	return 0;
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+	return ret;
+}
+
 static int dvb_usb_adapter_init(struct dvb_usb_device *d)
 {
 	struct dvb_usb_adapter *adap;
