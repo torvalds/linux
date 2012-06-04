@@ -135,7 +135,7 @@ EXPORT_SYMBOL(input_mt_report_finger_count);
  */
 void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count)
 {
-	struct input_mt_slot *oldest = 0;
+	struct input_mt_slot *oldest = NULL;
 	int oldid = dev->trkid;
 	int count = 0;
 	int i;
