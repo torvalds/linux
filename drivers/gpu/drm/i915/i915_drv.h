@@ -1386,6 +1386,10 @@ void i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct intel_ring_buffer *ring,
 			struct drm_file *file, int to_id);
+int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file);
+int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
+				   struct drm_file *file);
 
 /* i915_gem_gtt.c */
 int __must_check i915_gem_init_aliasing_ppgtt(struct drm_device *dev);

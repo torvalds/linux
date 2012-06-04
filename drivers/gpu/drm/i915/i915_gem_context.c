@@ -489,3 +489,58 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 		drm_gem_object_unreference(&from_obj->base);
 	return ret;
 }
+
+int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_context_create *args = data;
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+	struct i915_hw_context *ctx;
+	int ret;
+
+	if (!(dev->driver->driver_features & DRIVER_GEM))
+		return -ENODEV;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ret = create_hw_context(dev, file_priv, &ctx);
+	mutex_unlock(&dev->struct_mutex);
+
+	args->ctx_id = ctx->id;
+	DRM_DEBUG_DRIVER("HW context %d created\n", args->ctx_id);
+
+	return ret;
+}
+
+int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
+				   struct drm_file *file)
+{
+	struct drm_i915_gem_context_destroy *args = data;
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_hw_context *ctx;
+	int ret;
+
+	if (!(dev->driver->driver_features & DRIVER_GEM))
+		return -ENODEV;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ctx = i915_gem_context_get(file_priv, args->ctx_id);
+	if (!ctx) {
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
+	}
+
+	do_destroy(ctx);
+
+	mutex_unlock(&dev->struct_mutex);
+
+	DRM_DEBUG_DRIVER("HW context %d destroyed\n", args->ctx_id);
+	return 0;
+}
